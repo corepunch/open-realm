@@ -4,7 +4,7 @@
 
 struct render_globals tr;
 static viewDef_t drawn;
-static BOOL camera;
+static bool camera;
 static int entities, scenes;
 
 /* Exercise production view ownership while replacing only game/GPU passes. */
@@ -14,12 +14,12 @@ static int entities, scenes;
 
 void R_SetupEnvironmentLighting(void) {}
 void R_ConformGroundSurfaces(viewDef_t *view) { (void)view; }
-void R_SetupViewport(LPCRECT rect) { (void)rect; }
-void R_SetupScissor(LPCRECT rect) { (void)rect; }
+void R_SetupViewport(rect_t const * rect) { (void)rect; }
+void R_SetupScissor(rect_t const * rect) { (void)rect; }
 void R_SetupGL(bool light) { (void)light; }
 void R_RevertSettings(void) {}
 void R_RenderFogOfWar(void) {}
-DWORD R_GetFogOfWarTexture(void) { return 0; }
+uint32_t R_GetFogOfWarTexture(void) { return 0; }
 void R_DrawEntities(void) { drawn = tr.viewDef; entities++; }
 void R_RenderView(void) { drawn = tr.viewDef; scenes++; }
 

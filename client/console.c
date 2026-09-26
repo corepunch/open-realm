@@ -18,16 +18,16 @@ typedef struct  {
 } consoleMessage_t;
 
 static consoleMessage_t messages[MAX_CONSOLE_MESSAGES] = { 0 };
-static DWORD current_message = 0;
+static uint32_t current_message = 0;
 
 static char con_input[CON_INPUT_LEN];
-static DWORD con_cursor;
+static uint32_t con_cursor;
 static char con_history[CON_HISTORY][CON_INPUT_LEN];
-static DWORD con_history_count;
-static DWORD con_history_pos;
+static uint32_t con_history_count;
+static uint32_t con_history_pos;
 static keydest_t con_prev_key_dest = key_game;
 
-static void CON_PrintCvarResult(LPCSTR command);
+static void CON_PrintCvarResult(cstring_t command);
 static void CON_CompleteInput(void);
 
 /* Whole atlas-pixel multiples replace fractional scaling (2x, not 2.25x, at 1080p). */
@@ -39,21 +39,21 @@ static void CON_DrawChar(float x, float y, int c, float scale) {
     re.DrawCharScaled(x, y, c, scale);
 }
 
-static void CON_DrawString(float x, float y, LPCSTR string, float scale) {
+static void CON_DrawString(float x, float y, cstring_t string, float scale) {
     if (!string) {
         return;
     }
-    for (DWORD i = 0; string[i]; i++) {
-        CON_DrawChar(x + i * CON_LINE_HEIGHT * scale, y, (BYTE)string[i], scale);
+    for (uint32_t i = 0; string[i]; i++) {
+        CON_DrawChar(x + i * CON_LINE_HEIGHT * scale, y, (uint8_t)string[i], scale);
     }
 }
 
-static void CON_DrawAltString(float x, float y, LPCSTR string, float scale) {
+static void CON_DrawAltString(float x, float y, cstring_t string, float scale) {
     if (!string) {
         return;
     }
-    for (DWORD i = 0; string[i]; i++) {
-        CON_DrawChar(x + i * CON_LINE_HEIGHT * scale, y, ((BYTE)string[i]) + 128, scale);
+    for (uint32_t i = 0; string[i]; i++) {
+        CON_DrawChar(x + i * CON_LINE_HEIGHT * scale, y, ((uint8_t)string[i]) + 128, scale);
     }
 }
 
@@ -63,7 +63,7 @@ static void CON_ClearInput(void) {
     con_history_pos = con_history_count;
 }
 
-static void CON_AddHistory(LPCSTR text) {
+static void CON_AddHistory(cstring_t text) {
     if (!text || !*text) {
         return;
     }
@@ -75,12 +75,12 @@ static void CON_AddHistory(LPCSTR text) {
     con_history_pos = con_history_count;
 }
 
-static void CON_SetInput(LPCSTR text) {
+static void CON_SetInput(cstring_t text) {
     snprintf(con_input, sizeof(con_input), "%s", text ? text : "");
-    con_cursor = (DWORD)strlen(con_input);
+    con_cursor = (uint32_t)strlen(con_input);
 }
 
-void CON_printf(LPCSTR fmt, ...) {
+void CON_printf(cstring_t fmt, ...) {
     consoleMessage_t *msg = &messages[current_message++ % MAX_CONSOLE_MESSAGES];
     va_list argptr;
 
@@ -95,21 +95,21 @@ static void CON_DrawFull(void) {
     float line_height = CON_LINE_HEIGHT * scale;
     float margin = CON_MARGIN * scale;
     float height = MAX(window.height / 2.0f, 120.0f * scale);
-    DWORD rows = (DWORD)(height / line_height);
-    DWORD max_lines = rows > 4 ? rows - 4 : 1;
-    DWORD count = MIN(current_message, MAX_CONSOLE_MESSAGES);
-    DWORD first;
+    uint32_t rows = (uint32_t)(height / line_height);
+    uint32_t max_lines = rows > 4 ? rows - 4 : 1;
+    uint32_t count = MIN(current_message, MAX_CONSOLE_MESSAGES);
+    uint32_t first;
     float y = margin + line_height;
     char prompt[CON_INPUT_LEN + 8];
 
-    re.DrawFill(&(RECT){ 0, 0, window.width, height }, (COLOR32){ 0, 0, 0, 220 });
-    re.DrawFill(&(RECT){ 0, height - 2.0f * scale, window.width, 2.0f * scale }, (COLOR32){ 180, 160, 80, 220 });
+    re.DrawFill(&(rect_t){ 0, 0, window.width, height }, (COLOR32){ 0, 0, 0, 220 });
+    re.DrawFill(&(rect_t){ 0, height - 2.0f * scale, window.width, 2.0f * scale }, (COLOR32){ 180, 160, 80, 220 });
 
     CON_DrawAltString(margin, margin, "OpenWarcraft3 Console", scale);
 
     first = count > max_lines ? count - max_lines : 0;
-    for (DWORD n = first; n < count; n++) {
-        DWORD i = n % MAX_CONSOLE_MESSAGES;
+    for (uint32_t n = first; n < count; n++) {
+        uint32_t i = n % MAX_CONSOLE_MESSAGES;
 
         if (*messages[i].msg) {
             CON_DrawString(margin, y, messages[i].msg, scale);
@@ -166,7 +166,7 @@ static void CON_Clear_f(void) {
     current_message = 0;
 }
 
-void CON_TextInput(LPCSTR text) {
+void CON_TextInput(cstring_t text) {
     size_t input_len;
     size_t text_len;
 
@@ -190,7 +190,7 @@ void CON_TextInput(LPCSTR text) {
             con_input + con_cursor,
             input_len - con_cursor + 1);
     memcpy(con_input + con_cursor, text, text_len);
-    con_cursor += (DWORD)text_len;
+    con_cursor += (uint32_t)text_len;
 }
 
 static void CON_Submit(void) {
@@ -210,8 +210,8 @@ static void CON_Submit(void) {
 }
 
 static void CON_History(int dir) {
-    DWORD count = MIN(con_history_count, CON_HISTORY);
-    DWORD first = con_history_count - count;
+    uint32_t count = MIN(con_history_count, CON_HISTORY);
+    uint32_t first = con_history_count - count;
 
     if (!count) {
         return;
@@ -232,7 +232,7 @@ static void CON_History(int dir) {
     }
 }
 
-static void CON_FirstToken(LPCSTR text, LPSTR token, size_t token_size, LPCSTR *rest) {
+static void CON_FirstToken(cstring_t text, string_t token, size_t token_size, cstring_t *rest) {
     size_t len = 0;
 
     if (token_size > 0) {
@@ -255,11 +255,11 @@ static void CON_FirstToken(LPCSTR text, LPSTR token, size_t token_size, LPCSTR *
     }
 }
 
-static void CON_PrintCvarResult(LPCSTR command) {
+static void CON_PrintCvarResult(cstring_t command) {
     char token[64];
     char name[64];
-    LPCSTR rest;
-    LPCSTR value;
+    cstring_t rest;
+    cstring_t value;
 
     CON_FirstToken(command, token, sizeof(token), &rest);
     if (!token[0]) {
@@ -285,10 +285,10 @@ static void CON_PrintCvarResult(LPCSTR command) {
 }
 
 typedef struct {
-    LPCSTR partial;
+    cstring_t partial;
 } conCompletePrint_t;
 
-static BOOL CON_CompleteNameMatches(LPCSTR name, LPCSTR partial) {
+static bool CON_CompleteNameMatches(cstring_t name, cstring_t partial) {
     size_t len;
 
     if (!name || !partial) {
@@ -298,7 +298,7 @@ static BOOL CON_CompleteNameMatches(LPCSTR name, LPCSTR partial) {
     return !strncasecmp(name, partial, len);
 }
 
-static void CON_PrintCompleteMatch(LPCSTR name, void *userData) {
+static void CON_PrintCompleteMatch(cstring_t name, void *userData) {
     conCompletePrint_t *print = userData;
 
     if (print && CON_CompleteNameMatches(name, print->partial)) {
@@ -306,7 +306,7 @@ static void CON_PrintCompleteMatch(LPCSTR name, void *userData) {
     }
 }
 
-static void CON_CompleteReplace(DWORD start, DWORD end, LPCSTR text, BOOL add_space) {
+static void CON_CompleteReplace(uint32_t start, uint32_t end, cstring_t text, bool add_space) {
     char completed[CON_INPUT_LEN];
 
     if (!text || !*text || start > end || end > strlen(con_input)) {
@@ -321,21 +321,21 @@ static void CON_CompleteReplace(DWORD start, DWORD end, LPCSTR text, BOOL add_sp
              add_space ? " " : "",
              con_input + end);
     CON_SetInput(completed);
-    con_cursor = start + (DWORD)strlen(text) + (add_space ? 1 : 0);
+    con_cursor = start + (uint32_t)strlen(text) + (add_space ? 1 : 0);
 }
 
 static void CON_CompleteInput(void) {
     char partial[CON_INPUT_LEN];
     char completed[CON_INPUT_LEN];
-    DWORD start = 0;
-    DWORD end = con_cursor;
+    uint32_t start = 0;
+    uint32_t end = con_cursor;
     int matches;
-    BOOL cvar = false;
+    bool cvar = false;
 
     while (con_input[start] && isspace((unsigned char)con_input[start]) && start < end) {
         start++;
     }
-    for (DWORD i = start; i < end; i++) {
+    for (uint32_t i = start; i < end; i++) {
         if (isspace((unsigned char)con_input[i])) {
             return;
         }
@@ -426,7 +426,7 @@ void CON_KeyEvent(int key, bool down) {
             con_cursor = 0;
             break;
         case SDLK_END:
-            con_cursor = (DWORD)strlen(con_input);
+            con_cursor = (uint32_t)strlen(con_input);
             break;
         case SDLK_UP:
             CON_History(-1);

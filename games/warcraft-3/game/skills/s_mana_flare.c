@@ -17,7 +17,7 @@ static heroabilitystatus_t *mana_flare_status(LPEDICT unit) {
 	return NULL;
 }
 
-static BOOL mana_flare_can_splash(LPEDICT flare, LPEDICT primary, LPEDICT target, FLOAT splash_r, BOOL mana_only) {
+static bool mana_flare_can_splash(LPEDICT flare, LPEDICT primary, LPEDICT target, float splash_r, bool mana_only) {
 	if (!target || target == primary || target == flare || !S_SpellIsAliveTarget(target)) return false;
 	if (!S_SpellIsEnemy(flare, target)) return false;
 	if (Vector2_distance(&target->s.origin2, &primary->s.origin2) > splash_r) return false;
@@ -25,11 +25,11 @@ static BOOL mana_flare_can_splash(LPEDICT flare, LPEDICT primary, LPEDICT target
 	return S_SpellAllowsTarget(ID_MANA_FLARE, flare, target);
 }
 
-static int mana_flare_damage(LPEDICT flare, LPEDICT victim, FLOAT cost) {
-	DWORD level = MAX(1u, G_UnitAbilityLevel(flare, ID_MANA_FLARE));
-	BOOL hero = G_UnitIsHero(victim);
-	FLOAT per = S_SpellData(ID_MANA_FLARE, level, hero ? 2 : 1);
-	FLOAT cap = S_SpellData(ID_MANA_FLARE, level, hero ? 4 : 3);
+static int mana_flare_damage(LPEDICT flare, LPEDICT victim, float cost) {
+	uint32_t level = MAX(1u, G_UnitAbilityLevel(flare, ID_MANA_FLARE));
+	bool hero = G_UnitIsHero(victim);
+	float per = S_SpellData(ID_MANA_FLARE, level, hero ? 2 : 1);
+	float cap = S_SpellData(ID_MANA_FLARE, level, hero ? 4 : 3);
 	return (int)MIN(cap, cost * per);
 }
 
@@ -37,9 +37,9 @@ static int mana_flare_damage(LPEDICT flare, LPEDICT victim, FLOAT cost) {
  * Channel: Bmfl on caster, DataE armor, flare enemies that spend mana in Area.
  */
 BZ_ABILITY_PROC(CAbilityManaFlare) {
-	DWORD code = call && call->item && call->item->code ? call->item->code : ID_MANA_FLARE;
-	DWORD level;
-	LPCSTR buff;
+	uint32_t code = call && call->item && call->item->code ? call->item->code : ID_MANA_FLARE;
+	uint32_t level;
+	cstring_t buff;
 	switch (msg) {
 	case A_EXECUTE:
 		level = S_SpellLevel(ent, code);
@@ -68,14 +68,14 @@ BZ_ABILITY_PROC(CAbilityManaFlare) {
 }
 
 /* DataE armor while Bmfl is active; ubertip binds armor to DataE. */
-FLOAT S_ManaFlareArmorBonus(LPCEDICT unit) {
-	DWORD level = G_UnitStatusLevel(unit, ID_BMFL);
+float S_ManaFlareArmorBonus(LPCEDICT unit) {
+	uint32_t level = G_UnitStatusLevel(unit, ID_BMFL);
 	return level ? S_SpellData(ID_MANA_FLARE, level, 5) : 0.0f;
 }
 
 /* After a successful spell_commit: each enemy Amfl in Area may flare the caster. */
-void S_ManaFlareOnCast(LPEDICT caster, DWORD spell_code, DWORD spell_level) {
-	FLOAT cost;
+void S_ManaFlareOnCast(LPEDICT caster, uint32_t spell_code, uint32_t spell_level) {
+	float cost;
 	if (!caster || !spell_code || !S_SpellIsAliveTarget(caster)) return;
 	cost = S_SpellNumber(spell_code, ABILITY_NUMBER_COST, MAX(1u, spell_level));
 	if (cost <= 0.0f) return;
@@ -83,9 +83,9 @@ void S_ManaFlareOnCast(LPEDICT caster, DWORD spell_code, DWORD spell_level) {
 	FILTER_EDICTS(flare, S_SpellIsAliveTarget(flare) && G_UnitStatusLevel(flare, ID_BMFL) &&
 				  S_SpellIsEnemy(flare, caster)) {
 		heroabilitystatus_t *st;
-		DWORD level, now, gate;
-		FLOAT area, splash_r;
-		BOOL mana_only;
+		uint32_t level, now, gate;
+		float area, splash_r;
+		bool mana_only;
 		int damage;
 
 		level = MAX(1u, G_UnitAbilityLevel(flare, ID_MANA_FLARE));
@@ -95,7 +95,7 @@ void S_ManaFlareOnCast(LPEDICT caster, DWORD spell_code, DWORD spell_level) {
 
 		st = mana_flare_status(flare);
 		now = G_Time();
-		gate = (DWORD)(S_SpellNumber(ID_MANA_FLARE, ABILITY_NUMBER_CAST, level) * 1000.0f);
+		gate = (uint32_t)(S_SpellNumber(ID_MANA_FLARE, ABILITY_NUMBER_CAST, level) * 1000.0f);
 		if (st && gate && st->data && now < st->data + gate) continue;
 		if (st) st->data = now;
 

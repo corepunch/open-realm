@@ -7,7 +7,7 @@
 #define BZ_SCH2 MAKEFOURCC('S', 'c', 'h', '2')
 #define BZ_HFOO MAKEFOURCC('h', 'f', 'o', 'o') // unitCode; non-stock fixture corpse UnitID
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -59,10 +59,10 @@ static void exh_done(EXHFIX *fix) {
 	free_slk_rows(fix->rows); free_slk_rows(fix->unit_rows);
 }
 
-static void exh_tick(DWORD ms) { level.time += ms; G_RunEntities(); }
+static void exh_tick(uint32_t ms) { level.time += ms; G_RunEntities(); }
 
-static DWORD exh_corpse_count(LPEDICT wagon) {
-	DWORD n = 0;
+static uint32_t exh_corpse_count(LPEDICT wagon) {
+	uint32_t n = 0;
 	FOR_LOOP(i, wagon->cargo.count) {
 		LPEDICT ent = S_CargoUnitAt(wagon, i);
 		if (ent && ent->class_id == BZ_HFOO && S_CorpseCargoIsStored(ent)) n++;
@@ -310,7 +310,7 @@ TEST(wc3_spell, cannibalize_approach_cancels_when_corpse_disappears) {
 TEST(wc3_spell, unloading_bone_phase_corpse_restarts_bone_decay_time) {
     EXHFIX fix; LPEDICT corpse;
     exh_setup(&fix);
-    game.constants.decayTime = (FLOAT)FRAMETIME / 1000.0f;
+    game.constants.decayTime = (float)FRAMETIME / 1000.0f;
     game.constants.boneDecayTime = 2.75f;
     corpse = alloc_test_unit(BZ_HFOO, fix.wagon->s.origin2.x, fix.wagon->s.origin2.y);
     corpse->s.player = fix.wagon->s.player; corpse->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
@@ -367,8 +367,8 @@ static LPEDICT graveyard_test_thinker(LPEDICT graveyard) {
     return NULL;
 }
 
-static DWORD graveyard_test_corpse_count(LPEDICT graveyard) {
-    DWORD count = 0;
+static uint32_t graveyard_test_corpse_count(LPEDICT graveyard) {
+    uint32_t count = 0;
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == BZ_HFOO && M_IsDead(ent) &&
                   Vector2_distance(&ent->s.origin2, &graveyard->s.origin2) <= 128.0f) count++;
     return count;

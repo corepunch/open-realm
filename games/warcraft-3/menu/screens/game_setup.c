@@ -41,12 +41,12 @@ typedef enum {
 } gameSetupSlotType_t;
 
 typedef struct {
-    BOOL visible;
-    DWORD map_player;
+    bool visible;
+    uint32_t map_player;
     gameSetupSlotType_t type;
     playerRace_t race;
-    DWORD team;
-    DWORD color;
+    uint32_t team;
+    uint32_t color;
     UINAME name;
 } gameSetupSlotConfig_t;
 
@@ -55,11 +55,11 @@ typedef struct {
     PlayerSlot_t slot_template;
     MapInfoPane_t map_info_template;
     MapInfoPane_t map_info_pane;
-    BOOL ready;
+    bool ready;
     PATHSTR map_path;
     UINAME map_name;
     MAPINFO map_info;
-    BOOL have_map_info;
+    bool have_map_info;
     LPFRAMEDEF root;
     LPFRAMEDEF game_name;
     LPFRAMEDEF start_button;
@@ -67,14 +67,14 @@ typedef struct {
     LPFRAMEDEF chat_text;
     LPFRAMEDEF team_container;
     char chat_lines[GAME_SETUP_CHAT_LINES][GAME_SETUP_CHAT_LINE];
-    BOOL chat_line_own[GAME_SETUP_CHAT_LINES];
-    DWORD num_chat_lines;
-    BOOL applying_lobby;
+    bool chat_line_own[GAME_SETUP_CHAT_LINES];
+    uint32_t num_chat_lines;
+    bool applying_lobby;
     gameSetupSlotRow_t slots[MAX_PLAYERS];
     gameSetupSlotConfig_t configs[MAX_PLAYERS];
 } gameSetupState_t;
 
-static LPCSTR const setup_lf[] = {
+static cstring_t const setup_lf[] = {
     "TeamSetupContainer",
     "ChatTextArea",
     "ChatEditBox",
@@ -83,13 +83,13 @@ static LPCSTR const setup_lf[] = {
 
 static gameSetupState_t setup;
 
-static DWORD GameSetup_CountPlayers(LPCMAPINFO info);
+static uint32_t GameSetup_CountPlayers(LPCMAPINFO info);
 static void GameSetup_PublishLobby(void);
-static void GameSetup_AppendText(LPSTR out, size_t out_size, size_t *used, LPCSTR text);
-static BOOL GameSetup_FixedPlayerSettings(void);
+static void GameSetup_AppendText(string_t out, size_t out_size, size_t *used, cstring_t text);
+static bool GameSetup_FixedPlayerSettings(void);
 
-static BOOL GameSetup_LoadScreen(void) {
-    BOOL ok = true;
+static bool GameSetup_LoadScreen(void) {
+    bool ok = true;
 
     ok = GameChatroom_Load(&setup.frames) && ok;
     ok = PlayerSlot_Load(&setup.slot_template) && ok;
@@ -97,20 +97,20 @@ static BOOL GameSetup_LoadScreen(void) {
     return ok;
 }
 
-static void GameSetup_CopyString(LPSTR out, size_t out_size, LPCSTR value) {
+static void GameSetup_CopyString(string_t out, size_t out_size, cstring_t value) {
     if (!out || out_size == 0) {
         return;
     }
     snprintf(out, out_size, "%s", value ? value : "");
 }
 
-static LPCSTR GameSetup_BaseName(LPCSTR path) {
-    LPCSTR base = path;
+static cstring_t GameSetup_BaseName(cstring_t path) {
+    cstring_t base = path;
 
     if (!path) {
         return "";
     }
-    for (LPCSTR p = path; *p; p++) {
+    for (cstring_t p = path; *p; p++) {
         if (*p == '\\' || *p == '/') {
             base = p + 1;
         }
@@ -133,9 +133,9 @@ static LPFRAMEDEF GameSetup_FindPopupTitleText(LPFRAMEDEF popup) {
 static void GameSetup_PositionPopupMenuParts(LPFRAMEDEF popup) {
     LPFRAMEDEF title;
     LPFRAMEDEF arrow;
-    FLOAT const inset = popup ? popup->Popup.ButtonInset : 0.0f;
-    FLOAT arrow_width;
-    FLOAT title_width;
+    float const inset = popup ? popup->Popup.ButtonInset : 0.0f;
+    float arrow_width;
+    float title_width;
 
     if (!popup) {
         return;
@@ -155,7 +155,7 @@ static void GameSetup_PositionPopupMenuParts(LPFRAMEDEF popup) {
     }
 }
 
-static void GameSetup_SetBackdropTexture(LPFRAMEDEF frame, LPCSTR name, BOOL decorate) {
+static void GameSetup_SetBackdropTexture(LPFRAMEDEF frame, cstring_t name, bool decorate) {
     if (!frame) {
         return;
     }
@@ -164,7 +164,7 @@ static void GameSetup_SetBackdropTexture(LPFRAMEDEF frame, LPCSTR name, BOOL dec
     frame->Color = COLOR32_WHITE;
 }
 
-static void GameSetup_SetTextIfPresent(LPFRAMEDEF frame, LPCSTR format, ...) {
+static void GameSetup_SetTextIfPresent(LPFRAMEDEF frame, cstring_t format, ...) {
     va_list argptr;
     char text[1024];
 
@@ -177,8 +177,8 @@ static void GameSetup_SetTextIfPresent(LPFRAMEDEF frame, LPCSTR format, ...) {
     UI_SetText(frame, "%s", text);
 }
 
-static BOOL GameSetup_IsHost(void) {
-    LPCSTR connect = mi.Cvar_String("connect", "");
+static bool GameSetup_IsHost(void) {
+    cstring_t connect = mi.Cvar_String("connect", "");
 
     return !connect || !connect[0];
 }
@@ -197,8 +197,8 @@ static void GameSetup_UpdateStartButton(void) {
 }
 
 static void GameSetup_UpdateSlotControlState(gameSetupSlotRow_t *row) {
-    BOOL const host = GameSetup_IsHost();
-    BOOL const fixed = GameSetup_FixedPlayerSettings();
+    bool const host = GameSetup_IsHost();
+    bool const fixed = GameSetup_FixedPlayerSettings();
 
     if (!row || !row->frames.PlayerSlot) {
         return;
@@ -256,7 +256,7 @@ static LPFRAMEDEF GameSetup_EnsureChatText(void) {
     return setup.chat_text;
 }
 
-void GameSetup_AddChatMessage(LPCSTR text, BOOL own) {
+void GameSetup_AddChatMessage(cstring_t text, bool own) {
     char buffer[GAME_SETUP_CHAT_LINES * GAME_SETUP_CHAT_LINE];
     size_t used = 0;
 
@@ -325,7 +325,7 @@ static void GameSetup_FitSlotRow(PlayerSlot_t *row) {
 }
 
 static void GameSetup_SetupSlotRow(gameSetupSlotRow_t *slot) {
-    DWORD const index = (DWORD)(slot - setup.slots);
+    uint32_t const index = (uint32_t)(slot - setup.slots);
 
     if (!slot || !slot->frames.PlayerSlot) {
         return;
@@ -401,7 +401,7 @@ static void GameSetup_ClearSlots(void) {
     }
 }
 
-static LPCSTR GameSetup_RaceName(playerRace_t race) {
+static cstring_t GameSetup_RaceName(playerRace_t race) {
     switch (race) {
         case kPlayerRaceHuman: return "Human";
         case kPlayerRaceOrc: return "Orc";
@@ -413,7 +413,7 @@ static LPCSTR GameSetup_RaceName(playerRace_t race) {
     }
 }
 
-static LPCSTR GameSetup_SlotTypeName(gameSetupSlotType_t type, LPCSTR human_name) {
+static cstring_t GameSetup_SlotTypeName(gameSetupSlotType_t type, cstring_t human_name) {
     switch (type) {
         case GAME_SETUP_SLOT_HUMAN:
             return human_name && human_name[0] ? human_name : "Player";
@@ -427,7 +427,7 @@ static LPCSTR GameSetup_SlotTypeName(gameSetupSlotType_t type, LPCSTR human_name
     }
 }
 
-static void GameSetup_AppendText(LPSTR out, size_t out_size, size_t *used, LPCSTR text) {
+static void GameSetup_AppendText(string_t out, size_t out_size, size_t *used, cstring_t text) {
     size_t len;
 
     if (!out || !used || !text || *used >= out_size) {
@@ -442,9 +442,9 @@ static void GameSetup_AppendText(LPSTR out, size_t out_size, size_t *used, LPCST
     out[*used] = '\0';
 }
 
-static void GameSetup_AppendQuotedValue(LPSTR out, size_t out_size, size_t *used, LPCSTR value) {
+static void GameSetup_AppendQuotedValue(string_t out, size_t out_size, size_t *used, cstring_t value) {
     GameSetup_AppendText(out, out_size, used, "\"");
-    for (LPCSTR p = value ? value : ""; *p; p++) {
+    for (cstring_t p = value ? value : ""; *p; p++) {
         char ch[2] = { *p, '\0' };
 
         if (*p == '\n' || *p == '\r') {
@@ -459,14 +459,14 @@ static void GameSetup_AppendQuotedValue(LPSTR out, size_t out_size, size_t *used
     GameSetup_AppendText(out, out_size, used, "\"");
 }
 
-static void GameSetup_AppendMapCommand(LPSTR out, size_t out_size, size_t *used, LPCSTR map_path) {
+static void GameSetup_AppendMapCommand(string_t out, size_t out_size, size_t *used, cstring_t map_path) {
     GameSetup_AppendText(out, out_size, used, "map ");
     GameSetup_AppendQuotedValue(out, out_size, used, map_path);
     GameSetup_AppendText(out, out_size, used, "\n");
 }
 
-static DWORD GameSetup_LobbySlotCount(void) {
-    DWORD slot_count = 0;
+static uint32_t GameSetup_LobbySlotCount(void) {
+    uint32_t slot_count = 0;
 
     FOR_LOOP(i, MAX_PLAYERS) {
         if (setup.configs[i].visible) {
@@ -476,8 +476,8 @@ static DWORD GameSetup_LobbySlotCount(void) {
     return slot_count;
 }
 
-static void GameSetup_AppendLobbyConfig(LPSTR command, size_t command_size, size_t *used) {
-    DWORD slot_count = GameSetup_LobbySlotCount();
+static void GameSetup_AppendLobbyConfig(string_t command, size_t command_size, size_t *used) {
+    uint32_t slot_count = GameSetup_LobbySlotCount();
     char text[128];
 
     snprintf(text, sizeof(text), "lobby_config %u %u ",
@@ -489,7 +489,7 @@ static void GameSetup_AppendLobbyConfig(LPSTR command, size_t command_size, size
     GameSetup_AppendText(command, command_size, used, "\n");
 }
 
-static void GameSetup_AppendLobbySlot(LPSTR command, size_t command_size, size_t *used, DWORD slot) {
+static void GameSetup_AppendLobbySlot(string_t command, size_t command_size, size_t *used, uint32_t slot) {
     gameSetupSlotConfig_t const *config;
     char text[256];
 
@@ -512,7 +512,7 @@ static void GameSetup_AppendLobbySlot(LPSTR command, size_t command_size, size_t
     GameSetup_AppendText(command, command_size, used, "\n");
 }
 
-static void GameSetup_PublishSlot(DWORD slot) {
+static void GameSetup_PublishSlot(uint32_t slot) {
     char command[512];
     size_t used = 0;
 
@@ -527,7 +527,7 @@ static void GameSetup_PublishSlot(DWORD slot) {
 static void GameSetup_PublishLobby(void) {
     char command[2048];
     size_t used = 0;
-    DWORD slot_count;
+    uint32_t slot_count;
 
     if (!GameSetup_IsHost() || setup.applying_lobby || !setup.map_path[0]) {
         return;
@@ -545,7 +545,7 @@ static void GameSetup_PublishLobby(void) {
 }
 
 static void GameSetup_SubmitChat(void) {
-    LPCSTR text;
+    cstring_t text;
     char command[512];
     size_t used = 0;
 
@@ -570,7 +570,7 @@ static void GameSetup_SubmitChat(void) {
     UI_ClearEditFocus();
 }
 
-static void GameSetup_ResolveMapString(LPCSTR raw, LPSTR out, DWORD out_size) {
+static void GameSetup_ResolveMapString(cstring_t raw, string_t out, uint32_t out_size) {
     if (!out || out_size == 0) {
         return;
     }
@@ -594,8 +594,8 @@ static void GameSetup_UseResolvedMapTitle(void) {
     }
 }
 
-static void GameSetup_SlotName(LPCMAPPLAYER player, BOOL first_human, LPSTR out, DWORD out_size) {
-    LPCSTR name;
+static void GameSetup_SlotName(LPCMAPPLAYER player, bool first_human, string_t out, uint32_t out_size) {
+    cstring_t name;
 
     if (!player) {
         snprintf(out, out_size, "Open");
@@ -616,7 +616,7 @@ static void GameSetup_SlotName(LPCMAPPLAYER player, BOOL first_human, LPSTR out,
     }
 }
 
-static DWORD GameSetup_ForceForPlayer(LPCMAPINFO info, DWORD player_index) {
+static uint32_t GameSetup_ForceForPlayer(LPCMAPINFO info, uint32_t player_index) {
     if (!info || !info->teams) {
         return player_index;
     }
@@ -629,13 +629,13 @@ static DWORD GameSetup_ForceForPlayer(LPCMAPINFO info, DWORD player_index) {
     return player_index;
 }
 
-static BOOL GameSetup_FixedPlayerSettings(void) {
+static bool GameSetup_FixedPlayerSettings(void) {
     return setup.have_map_info &&
            (setup.map_info.flags & fixed_player_setting_for_custom_forces) != 0;
 }
 
-static DWORD GameSetup_VisibleSlotCount(void) {
-    DWORD count = 0;
+static uint32_t GameSetup_VisibleSlotCount(void) {
+    uint32_t count = 0;
 
     FOR_LOOP(i, MAX_PLAYERS) {
         if (setup.configs[i].visible) {
@@ -645,7 +645,7 @@ static DWORD GameSetup_VisibleSlotCount(void) {
     return count;
 }
 
-static DWORD GameSetup_DefaultTeamForSlot(LPCMAPINFO info, DWORD map_player, DWORD row_index) {
+static uint32_t GameSetup_DefaultTeamForSlot(LPCMAPINFO info, uint32_t map_player, uint32_t row_index) {
     if (setup.have_map_info &&
         (setup.map_info.flags & use_custom_forces) != 0 &&
         (setup.map_info.flags & melee_map) == 0) {
@@ -654,8 +654,8 @@ static DWORD GameSetup_DefaultTeamForSlot(LPCMAPINFO info, DWORD map_player, DWO
     return row_index;
 }
 
-static DWORD GameSetup_SelectableTeamCount(void) {
-    DWORD count = GameSetup_VisibleSlotCount();
+static uint32_t GameSetup_SelectableTeamCount(void) {
+    uint32_t count = GameSetup_VisibleSlotCount();
 
     if (count == 0 && setup.have_map_info) {
         count = GameSetup_CountPlayers(&setup.map_info);
@@ -663,7 +663,7 @@ static DWORD GameSetup_SelectableTeamCount(void) {
     return MAX(1, count);
 }
 
-static void GameSetup_DrawSlotConfig(DWORD row_index) {
+static void GameSetup_DrawSlotConfig(uint32_t row_index) {
     gameSetupSlotRow_t *row;
     gameSetupSlotConfig_t *config;
     char color_path[128];
@@ -704,8 +704,8 @@ static void GameSetup_DrawSlotConfigs(void) {
 }
 
 static void GameSetup_PopulateSlots(void) {
-    DWORD visible = 0;
-    BOOL first_human = true;
+    uint32_t visible = 0;
+    bool first_human = true;
 
     GameSetup_ClearSlots();
     memset(setup.configs, 0, sizeof(setup.configs));
@@ -716,7 +716,7 @@ static void GameSetup_PopulateSlots(void) {
     FOR_LOOP(i, MAX_PLAYERS) {
         mapPlayer_t const *player = &setup.map_info.players[i];
         char name[96];
-        BOOL is_first_human;
+        bool is_first_human;
 
         if (!player->used ||
             player->playerType == kPlayerTypeNone ||
@@ -769,8 +769,8 @@ static void GameSetup_BindMapInfoPane(LPFRAMEDEF container) {
     UI_LayoutMapInfoPane(setup.map_info_pane.MapInfoPane);
 }
 
-static DWORD GameSetup_CountPlayers(LPCMAPINFO info) {
-    DWORD count = 0;
+static uint32_t GameSetup_CountPlayers(LPCMAPINFO info) {
+    uint32_t count = 0;
 
     FOR_LOOP(i, MAX_PLAYERS) {
         if (info && info->players[i].used &&
@@ -784,7 +784,7 @@ static DWORD GameSetup_CountPlayers(LPCMAPINFO info) {
 
 static void GameSetup_UpdateMapInfo(void) {
     char value[512];
-    LPCSTR tileset;
+    cstring_t tileset;
 
     if (!setup.have_map_info) {
         if (setup.map_info_pane.MinimapImage) {
@@ -814,7 +814,7 @@ static void GameSetup_UpdateMapInfo(void) {
                                UI_MapSizeName(setup.map_info.playableArea.width,
                                                     setup.map_info.playableArea.height));
 
-    tileset = UI_MapTilesetName((BYTE)setup.map_info.mainGroundType);
+    tileset = UI_MapTilesetName((uint8_t)setup.map_info.mainGroundType);
     GameSetup_SetTextIfPresent(setup.map_info_pane.MapTilesetValue, "%s", tileset ? tileset : UI_GetString("UNKNOWNMAP_TILESET"));
 
     UI_ResolveMapInfoString(&setup.map_info,
@@ -837,9 +837,9 @@ static void GameSetup_UpdateMapInfo(void) {
 }
 
 static void GameSetup_LoadSelectedMap(void) {
-    LPCSTR selected_path = LAN_SelectedMapPath();
-    LPCSTR selected_name = LAN_SelectedMapName();
-    LPCSTR debug_path = NULL;
+    cstring_t selected_path = LAN_SelectedMapPath();
+    cstring_t selected_name = LAN_SelectedMapName();
+    cstring_t debug_path = NULL;
 
     if (setup.have_map_info) {
         UI_FreeMapInfo(&setup.map_info);
@@ -869,7 +869,7 @@ static void GameSetup_LoadSelectedMap(void) {
     }
 }
 
-void GameSetup_LoadMap(LPCSTR map_path) {
+void GameSetup_LoadMap(cstring_t map_path) {
     if (!map_path || !map_path[0]) {
         return;
     }
@@ -944,7 +944,7 @@ static void GameSetup_Draw(void) {
     UI_DrawFrame(setup.root);
 }
 
-static void GameSetup_KeyEvent(int key, BOOL down) {
+static void GameSetup_KeyEvent(int key, bool down) {
     if (!down) {
         return;
     }
@@ -953,9 +953,9 @@ static void GameSetup_KeyEvent(int key, BOOL down) {
     }
 }
 
-BOOL GameSetup_StartGame(void) {
+bool GameSetup_StartGame(void) {
     char command[8192];
-    DWORD slot_count;
+    uint32_t slot_count;
     size_t used = 0;
 
     if (!GameSetup_IsHost() || !setup.map_path[0]) {
@@ -972,7 +972,7 @@ BOOL GameSetup_StartGame(void) {
     return true;
 }
 
-void GameSetup_SetSlotType(DWORD slot, DWORD value) {
+void GameSetup_SetSlotType(uint32_t slot, uint32_t value) {
     if (!GameSetup_IsHost()) {
         return;
     }
@@ -990,7 +990,7 @@ void GameSetup_SetSlotType(DWORD slot, DWORD value) {
     GameSetup_PublishSlot(slot);
 }
 
-void GameSetup_SetSlotRace(DWORD slot, DWORD value) {
+void GameSetup_SetSlotRace(uint32_t slot, uint32_t value) {
     if (!GameSetup_IsHost()) {
         return;
     }
@@ -1002,8 +1002,8 @@ void GameSetup_SetSlotRace(DWORD slot, DWORD value) {
     GameSetup_PublishSlot(slot);
 }
 
-void GameSetup_CycleSlotTeam(DWORD slot) {
-    DWORD max_teams;
+void GameSetup_CycleSlotTeam(uint32_t slot) {
+    uint32_t max_teams;
 
     if (!GameSetup_IsHost() ||
         slot >= MAX_PLAYERS ||
@@ -1017,7 +1017,7 @@ void GameSetup_CycleSlotTeam(DWORD slot) {
     GameSetup_PublishSlot(slot);
 }
 
-void GameSetup_CycleSlotColor(DWORD slot) {
+void GameSetup_CycleSlotColor(uint32_t slot) {
     if (!GameSetup_IsHost() ||
         slot >= MAX_PLAYERS ||
         !setup.configs[slot].visible ||
@@ -1030,7 +1030,7 @@ void GameSetup_CycleSlotColor(DWORD slot) {
 }
 
 void GameSetup_UpdateLobbySetup(lobbyState_t const *state) {
-    BOOL changed_map;
+    bool changed_map;
 
     if (!state || !state->active || !state->map_path[0]) {
         return;

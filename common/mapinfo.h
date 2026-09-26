@@ -58,24 +58,24 @@ typedef enum {
 } forceFlags_t;
 
 typedef struct mapPlayer_s {
-//    DWORD number;
-    BOOL used;
+//    uint32_t number;
+    bool used;
     playerType_t playerType;
     playerRace_t playerRace;
-    DWORD flags;
-    LPSTR playerName;
+    uint32_t flags;
+    string_t playerName;
     VECTOR2 startingPosition;
-    DWORD allyLowPrioritiesFlags; // (bit "x"=1 -> set for player "x")
-    DWORD allyHighPrioritiesFlags; // (bit "x"=1 -> set for player "x")
-    DWORD enemyLowPrioritiesFlags; // 1.32+
-    DWORD enemyHighPrioritiesFlags; // 1.32+
-    DWORD color; // runtime only; war3map.w3i records are parsed field-by-field above
+    uint32_t allyLowPrioritiesFlags; // (bit "x"=1 -> set for player "x")
+    uint32_t allyHighPrioritiesFlags; // (bit "x"=1 -> set for player "x")
+    uint32_t enemyLowPrioritiesFlags; // 1.32+
+    uint32_t enemyHighPrioritiesFlags; // 1.32+
+    uint32_t color; // runtime only; war3map.w3i records are parsed field-by-field above
 } mapPlayer_t;
 
 typedef struct {
-    DWORD flags;
-    DWORD playerMasks; // (bit "x"=1 -> player "x" is in this team)
-    LPSTR name;
+    uint32_t flags;
+    uint32_t playerMasks; // (bit "x"=1 -> player "x" is in this team)
+    string_t name;
 } mapTeam_t;
 
 typedef enum {
@@ -85,15 +85,15 @@ typedef enum {
 } upgradeAvailability_t;
 
 typedef struct {
-    DWORD playerFlags; // (bit "x"=1 if this change applies for player "x")
-    DWORD upgradeID; // (as in UpgradeData.slk)
-    DWORD levelOfTheUpgrade; // for which the availability is changed (this is actually the level - 1, so 1 => 0)
+    uint32_t playerFlags; // (bit "x"=1 if this change applies for player "x")
+    uint32_t upgradeID; // (as in UpgradeData.slk)
+    uint32_t levelOfTheUpgrade; // for which the availability is changed (this is actually the level - 1, so 1 => 0)
     upgradeAvailability_t availability; // (0 = unavailable, 1 = available, 2 = researched)
 } mapUpgradeAvailability_t;
 
 typedef struct {
-    DWORD playerFlags; // (bit "x"=1 if this change applies for player "x")
-    DWORD techID; // (this can be an item, unit or ability)
+    uint32_t playerFlags; // (bit "x"=1 if this change applies for player "x")
+    uint32_t techID; // (this can be an item, unit or ability)
     // there's no need for an availability value, if a tech-id is in this list, it means that it's not available
 } mapTechAvailability_t;
 
@@ -105,48 +105,48 @@ typedef enum {
 
 typedef struct {
     mapRandomGroupPositionType_t type;
-    DWORD chanceItem; // (percentage)
-    DWORD itemID;
+    uint32_t chanceItem; // (percentage)
+    uint32_t itemID;
 //    for each position are the unit/item id's for this line specified
 //    this can also be random unit/item ids (see bottom of war3mapUnits.doo definition)
 //    a unit/item id of 0x00000000 indicates that no unit/item is created
 } mapRandomGroupPositionItem_t;
 
 typedef struct {
-    DWORD chance;
-    DWORD *itemIDs; // one unit/item id for each position in the owning random table
+    uint32_t chance;
+    uint32_t *itemIDs; // one unit/item id for each position in the owning random table
 } mapRandomUnit_t;
 
 typedef struct {
-    DWORD tableNumber;
-    LPSTR tableName;
-    DWORD num_positions;
+    uint32_t tableNumber;
+    string_t tableName;
+    uint32_t num_positions;
     mapRandomGroupPositionType_t *positionTypes;
-    DWORD num_units;
+    uint32_t num_units;
     mapRandomUnit_t *units;
 } mapRandomUnitTable_t;
 
 typedef struct {
-    DWORD chance;
-    DWORD itemID;
+    uint32_t chance;
+    uint32_t itemID;
 } mapRandomItem_t;
 
 typedef struct {
-    DWORD num_items;
+    uint32_t num_items;
     mapRandomItem_t *items;
 } mapRandomItemSet_t;
 
 typedef struct {
-    DWORD tableNumber;
-    LPSTR tableName;
-    DWORD num_sets;
+    uint32_t tableNumber;
+    string_t tableName;
+    uint32_t num_sets;
     mapRandomItemSet_t *sets;
 } mapRandomItemTable_t;
 
 #define MAX_TRIGSTR_LENGTH 1024
 
 typedef struct trigstr {
-    DWORD id;
+    uint32_t id;
     char text[MAX_TRIGSTR_LENGTH];
     struct trigstr *next;
 } mapTrigStr_t;
@@ -178,79 +178,79 @@ typedef enum {
 
 typedef struct {
     BOX2 bounds;
-    DWORD weatherID;
+    uint32_t weatherID;
 } mapWeatherRegion_t;
 
 typedef struct unitModification_t {
-    DWORD modID;
+    uint32_t modID;
     unitModificationType_t type;
-    DWORD level;       /* w3a/w3q/w3d leveled fields; 0 for w3u */
-    DWORD dataPointer; /* W3A: 1..9 address DataA..DataI; 0 for non-Data fields */
-    HANDLE data;
+    uint32_t level;       /* w3a/w3q/w3d leveled fields; 0 for w3u */
+    uint32_t dataPointer; /* W3A: 1..9 address DataA..DataI; 0 for non-Data fields */
+    handle_t data;
 } unitModification_t;
 
 typedef struct {
-    DWORD originalUnitID; // from "Units\UnitData.slk"
-    DWORD newUnitID;
-    WORD numbeOfModifications;
+    uint32_t originalUnitID; // from "Units\UnitData.slk"
+    uint32_t newUnitID;
+    uint16_t numbeOfModifications;
     unitModification_t *modifications;
 } unitData_t;
 
 struct mapInfo_s {
-    DWORD fileFormat; // file format version = 18
-    DWORD numberOfSaves;
-    DWORD editorVersion;
-    DWORD gameVersionMajor; // format 28+
-    DWORD gameVersionMinor; // format 28+
-    DWORD gameVersionPatch; // format 28+
-    DWORD gameVersionBuild; // format 28+
-    LPSTR mapName;
-    LPSTR mapAuthor;
-    LPSTR mapDescription;
-    LPSTR playersRecommended;
+    uint32_t fileFormat; // file format version = 18
+    uint32_t numberOfSaves;
+    uint32_t editorVersion;
+    uint32_t gameVersionMajor; // format 28+
+    uint32_t gameVersionMinor; // format 28+
+    uint32_t gameVersionPatch; // format 28+
+    uint32_t gameVersionBuild; // format 28+
+    string_t mapName;
+    string_t mapAuthor;
+    string_t mapDescription;
+    string_t playersRecommended;
     mapCameraBounds_t cameraBounds; // as defined in the JASS file
     size2_t playableArea; // width E, height F, *note 1: map width = A + E + B, map height = C + F + D
-    DWORD flags;
+    uint32_t flags;
     char mainGroundType; // Example: 'A'= Ashenvale, 'X' = City Dalaran
-    DWORD campaignBackgroundNumber; // (-1 = none)
-    LPSTR loadingScreenModel; // TFT+
-    LPSTR loadingScreenText;
-    LPSTR loadingScreenTitle;
-    LPSTR loadingScreenSubtitle;
-    DWORD loadingScreenNumber; // (-1 = none)
-    DWORD gameDataSet; // TFT+: mapGameDataSet_t (0 falls back from melee_map flag)
-    LPSTR prologueScreenModel; // TFT+
-    LPSTR prologueScreenText;
-    LPSTR prologueScreenTitle;
-    LPSTR prologueScreenSubtitle;
-    DWORD fogStyle; // TFT+
-    FLOAT fogStartZ; // TFT+
-    FLOAT fogEndZ; // TFT+
-    FLOAT fogDensity; // TFT+
+    uint32_t campaignBackgroundNumber; // (-1 = none)
+    string_t loadingScreenModel; // TFT+
+    string_t loadingScreenText;
+    string_t loadingScreenTitle;
+    string_t loadingScreenSubtitle;
+    uint32_t loadingScreenNumber; // (-1 = none)
+    uint32_t gameDataSet; // TFT+: mapGameDataSet_t (0 falls back from melee_map flag)
+    string_t prologueScreenModel; // TFT+
+    string_t prologueScreenText;
+    string_t prologueScreenTitle;
+    string_t prologueScreenSubtitle;
+    uint32_t fogStyle; // TFT+
+    float fogStartZ; // TFT+
+    float fogEndZ; // TFT+
+    float fogDensity; // TFT+
     COLOR32 fogColor; // TFT+
-    DWORD weatherID; // TFT+
-    LPSTR soundEnvironment; // TFT+
-    BYTE lightEnvironmentTileset; // TFT+
+    uint32_t weatherID; // TFT+
+    string_t soundEnvironment; // TFT+
+    uint8_t lightEnvironmentTileset; // TFT+
     COLOR32 waterColor; // TFT+
-    DWORD scriptType; // format 28+
-    DWORD supportedModes; // format 31+
-    DWORD gameDataVersion; // format 31+
-    DWORD defaultZoomOverride; // format 32+
-    DWORD maximumZoomOverride; // format 32+
-    DWORD minimumZoomOverride; // format 33+
-//    DWORD num_players;
-    DWORD num_teams;
-    DWORD num_upgradeAvailabilities;
-    DWORD num_techAvailabilities;
-    DWORD num_randomUnits;
-    DWORD num_randomItems;
-    DWORD num_originalUnits;
-    DWORD num_userCreatedUnits;
-    DWORD num_originalItems;
-    DWORD num_userCreatedItems;
-    DWORD num_originalAbilities;
-    DWORD num_userCreatedAbilities;
-    DWORD num_weatherRegions;
+    uint32_t scriptType; // format 28+
+    uint32_t supportedModes; // format 31+
+    uint32_t gameDataVersion; // format 31+
+    uint32_t defaultZoomOverride; // format 32+
+    uint32_t maximumZoomOverride; // format 32+
+    uint32_t minimumZoomOverride; // format 33+
+//    uint32_t num_players;
+    uint32_t num_teams;
+    uint32_t num_upgradeAvailabilities;
+    uint32_t num_techAvailabilities;
+    uint32_t num_randomUnits;
+    uint32_t num_randomItems;
+    uint32_t num_originalUnits;
+    uint32_t num_userCreatedUnits;
+    uint32_t num_originalItems;
+    uint32_t num_userCreatedItems;
+    uint32_t num_originalAbilities;
+    uint32_t num_userCreatedAbilities;
+    uint32_t num_weatherRegions;
     mapPlayer_t players[MAX_PLAYERS];
     mapTeam_t *teams;
     mapUpgradeAvailability_t *upgradeAvailabilities;
@@ -267,7 +267,7 @@ struct mapInfo_s {
     unitData_t *originalAbilities; /* war3map.w3a original-table rows */
     unitData_t *userCreatedAbilities;
     mapWeatherRegion_t *weatherRegions;
-    LPSTR mapscript;
+    string_t mapscript;
 };
 
 #endif

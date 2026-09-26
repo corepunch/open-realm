@@ -3,10 +3,10 @@
 #include "../g_local.h"
 #include "../game/skills/s_skills.h"
 
-DWORD S_TestHeroAuraAliasResolves(void);
+uint32_t S_TestHeroAuraAliasResolves(void);
 void S_TestResetHeroAuraAliasResolves(void);
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *slk_text);
@@ -18,7 +18,7 @@ static intptr_t test_ability_message(LPEDICT ent, abilityMsg_t msg, abilityitem_
     return S_AbilityMessage(ent, msg, &call);
 }
 
-static intptr_t test_execute_code(LPEDICT ent, LPCSTR code, spellTarget_t target) {
+static intptr_t test_execute_code(LPEDICT ent, cstring_t code, spellTarget_t target) {
     abilityitem_t item = S_AbilityItem(FS_SLKKey(code));
     return test_ability_message(ent, A_EXECUTE, &item, &target);
 }
@@ -48,7 +48,7 @@ static const char slk_spell_data[] =
 	"C;Y2;X10;K\"55\"\n"
 	"E\n";
 
-static LPEDICT make_hero(DWORD class_id, FLOAT hp, FLOAT mana, FLOAT x, FLOAT y) {
+static LPEDICT make_hero(uint32_t class_id, float hp, float mana, float x, float y) {
 	reset_entities();
 	setup_test_world();
 	LPEDICT ent = alloc_test_unit(class_id, x, y);
@@ -75,7 +75,7 @@ TEST(wc3_spell, shared_handler_uses_each_requested_rawcode) {
         "C;Y3;X4;K\"13\"\nC;Y3;X5;K\"7\"\nC;Y3;X6;K\"600\"\nC;Y3;X7;K\"37\"\n"
         "C;Y4;X1;K\"A002\"\nC;Y4;X2;K\"AHhb\"\nC;Y4;X3;K\"air,ground,friend\"\n"
         "C;Y4;X4;K\"23\"\nC;Y4;X5;K\"11\"\nC;Y4;X6;K\"600\"\nC;Y4;X7;K\"89\"\nE\n";
-    DWORD first = MAKEFOURCC('A','0','0','1'), second = MAKEFOURCC('A','0','0','2');
+    uint32_t first = MAKEFOURCC('A','0','0','1'), second = MAKEFOURCC('A','0','0','2');
     UnitAbilities_t abilities = { .abilList = "A001,A002" };
     slkTestData_t *rows = parse_slk_string(slk), *old;
     LPEDICT caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
@@ -141,13 +141,13 @@ TEST(wc3_spell, custom_spells_keep_identity_in_validation_and_channel_completion
 }
 
 TEST(wc3_spell, registry_keeps_identity_outside_shared_handlers) {
-    LPCSTR const fires[] = { "Afih", "Afin", "Afio", "Afir", "Afiu" };
-    LPCSTR const abstract[] = { "abil", "AAin", "AAbt", "AAsp", "AAsm", "Amor", "ABon", "ATrn" };
+    cstring_t const fires[] = { "Afih", "Afin", "Afio", "Afir", "Afiu" };
+    cstring_t const abstract[] = { "abil", "AAin", "AAbt", "AAsp", "AAsm", "Amor", "ABon", "ATrn" };
     InitAbilities();
     T_EQ(FindAbilityByClassname(STR_CmdTrains)->proc, CAbilityTrain);
     T_EQ(GetAbilityByIndex(GetAbilityIndex(CAbilityTrain))->proc, CAbilityTrain);
     FOR_LOOP(i, sizeof(fires) / sizeof(*fires)) {
-        DWORD code = FS_SLKKey(fires[i]);
+        uint32_t code = FS_SLKKey(fires[i]);
         abilityitem_t item = S_AbilityItem(code);
         T_EQ(item.code, code);
         T_EQ(item.ability->proc, CAbilityOnFireHuman);
@@ -169,9 +169,9 @@ TEST(wc3_spell, registry_keeps_identity_outside_shared_handlers) {
 }
 
 /* Barkskin is a friendly target spell whose modal parent owns autocast selection, not a self-toggle. */
-static void test_barkskin_contract(LPCSTR armor_field) {
+static void test_barkskin_contract(cstring_t armor_field) {
 	char slk[1024];
-	DWORD const barkskin = MAKEFOURCC('A','b','a','r'), buff = MAKEFOURCC('B','b','a','r');
+	uint32_t const barkskin = MAKEFOURCC('A','b','a','r'), buff = MAKEFOURCC('B','b','a','r');
 	UnitAbilities_t abilities = { .abilList = "Abar" };
 	slkTestData_t *rows, *old;
 	LPEDICT caster = make_hero(MAKEFOURCC('e','d','o','c'), 500, 200, 0, 0);
@@ -662,7 +662,7 @@ TEST(wc3_spell, devotion_aura_does_not_affect_static_scenery) {
     T_EQ(S_DevotionAuraBuff(footman), MAKEFOURCC('B','i','m','l'));
     T_EQ(S_DevotionAuraBuff(crate), 0);
     T_EQ(S_DevotionAuraBuff(tree), 0);
-    DWORD footman_overlays = 0, scenery_overlays = 0;
+    uint32_t footman_overlays = 0, scenery_overlays = 0;
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT effect = g_edicts + i;
         if (!effect->inuse || effect->summon_ability != MAKEFOURCC('A','H','a','d')) continue;
@@ -1061,7 +1061,7 @@ TEST(wc3_spell, regeneration_aura_target_art_persists_while_recipient_is_in_rang
 }
 
 TEST(wc3_spell, regeneration_aura_base_codes_are_registered_passives) {
-	static LPCSTR const codes[] = { "Aoar", "Aabr", "Aarm" };
+	static cstring_t const codes[] = { "Aoar", "Aabr", "Aarm" };
 	FOR_LOOP(i, sizeof(codes) / sizeof(codes[0])) {
 		ability_t const *ability = FindAbilityByClassname(codes[i]);
 		T_NOT_NULL(ability);
@@ -1100,12 +1100,12 @@ TEST(wc3_spell, thorns_aura_returns_authored_fraction_for_melee_hits) {
 }
 
 TEST(wc3_spell, requested_thirty_have_concrete_handlers) {
-	static LPCSTR const rawcodes[] = {
+	static cstring_t const rawcodes[] = {
 		"AHab", "AHmt", "ANst", "ANsg", "ANsq", "ANsw", "AOww", "AOcr", "AHbn", "AHfs",
 		"AHdr", "AHpx", "AUcb", "AUim", "AUls", "AUts", "ANba", "ANsi", "AUan", "AUdc",
 		"AUdp", "AUau", "AEev", "AEme", "AUsl", "AUav", "AUin", "AOcl", "AOeq", "AOfs",
 	};
-	static DWORD const passives[] = {
+	static uint32_t const passives[] = {
 		MAKEFOURCC('A','H','a','b'), MAKEFOURCC('A','O','c','r'), MAKEFOURCC('A','U','t','s'),
 		MAKEFOURCC('A','U','a','u'), MAKEFOURCC('A','E','e','v'), MAKEFOURCC('A','U','a','v'),
 	};
@@ -1113,8 +1113,8 @@ TEST(wc3_spell, requested_thirty_have_concrete_handlers) {
 	FOR_LOOP(i, sizeof(rawcodes) / sizeof(rawcodes[0])) {
 		abilityitem_t ability_item = S_AbilityItem(FS_SLKKey(rawcodes[i]));
 		ability_t const *ability = ability_item.ability;
-		DWORD code = MAKEFOURCC(rawcodes[i][0], rawcodes[i][1], rawcodes[i][2], rawcodes[i][3]);
-		BOOL passive = false;
+		uint32_t code = MAKEFOURCC(rawcodes[i][0], rawcodes[i][1], rawcodes[i][2], rawcodes[i][3]);
+		bool passive = false;
 		FOR_LOOP(j, sizeof(passives) / sizeof(passives[0])) passive |= code == passives[j];
 		T_NOT_NULL(ability);
 		if (passive) {
@@ -1129,7 +1129,7 @@ TEST(wc3_spell, requested_thirty_have_concrete_handlers) {
 }
 
 TEST(wc3_spell, campaign_ability_rawcodes_are_registered_explicitly) {
-	static LPCSTR const rawcodes[] = {
+	static cstring_t const rawcodes[] = {
 		"Aamk", "ACtn", "ANav", "ANsh", "AOw2", "ACs7", "ACs8", "ANr2", "Afbb", "Andm",
 		"Asb1", "Asb2", "Asb3", "ANha", "ANen", "ACfu", "ANpa", "Acny", "Ahnl", "Arsq",
 		"Arsg", "Arsp", "ANbr", "ANsb", "ANcf", "Acdh", "Acef", "ANhw", "ANhx", "Arsw",
@@ -1139,7 +1139,7 @@ TEST(wc3_spell, campaign_ability_rawcodes_are_registered_explicitly) {
 	FOR_LOOP(i, sizeof(rawcodes) / sizeof(rawcodes[0])) {
 		abilityitem_t ability_item = S_AbilityItem(FS_SLKKey(rawcodes[i]));
 		ability_t const *ability = ability_item.ability;
-		DWORD code = MAKEFOURCC(rawcodes[i][0], rawcodes[i][1], rawcodes[i][2], rawcodes[i][3]);
+		uint32_t code = MAKEFOURCC(rawcodes[i][0], rawcodes[i][1], rawcodes[i][2], rawcodes[i][3]);
 		T_NOT_NULL(ability);
 		if (!strcmp(rawcodes[i], "ANha")) T_EQ(ability->proc, CAbilityHarvest);
 		else {
@@ -1287,7 +1287,7 @@ TEST(wc3_spell, mirror_image_immediate_order_spawns_summoned_illusion) {
 	slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
 	LPEDICT caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 100, 0, 0);
 	LPEDICT image;
-	DWORD before;
+	uint32_t before;
 
 	caster->heroabilities[0].code = MAKEFOURCC('A','O','m','i');
 	caster->heroabilities[0].level = 1;
@@ -1551,10 +1551,10 @@ TEST(wc3_spell, selected_hero_ability_contracts_are_registered) {
 }
 
 TEST(wc3_spell, human_ability_rawcodes_have_concrete_contracts) {
-	static LPCSTR const spells[] = {
+	static cstring_t const spells[] = {
 		"Amls", "Acmg", "Amdf", "Asps", "Aclf", "Adef", "Afla", "Ainf", "Adis", "Ahea", "Aslo", "Aivs", "Aply", "AHav",
 	};
-	static LPCSTR const passives[] = {
+	static cstring_t const passives[] = {
 		"Afbk", "Aflk", "Afsh", "Aroc", "Asph", "Aphx", "Agyb", "Asth", "Agyv", "Adts",
 	};
 
@@ -1738,11 +1738,11 @@ TEST(wc3_spell, defend_projectile_retargets_to_unit_source_and_cannot_reflect_tw
 		"C;Y2;X1;K\"Adef\"\nC;Y2;X2;K\"Adef\"\nC;Y2;X3;K\"0.5\"\nC;Y2;X4;K\"1\"\n"
 		"C;Y2;X5;K\"0.3\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"100\"\nC;Y2;X9;K\"0\"\nC;Y2;X10;K\"1\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
-	BOOL const old_loaded = game.constants.combatConstantsLoaded, old_deflect = game.constants.defendDeflection;
+	bool const old_loaded = game.constants.combatConstantsLoaded, old_deflect = game.constants.defendDeflection;
 	LPEDICT attacker = make_hero(MAKEFOURCC('h','b','r','e'), 300, 0, 0, 0);
 	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
 	LPEDICT missile = G_Spawn();
-	FLOAT const target_hp = target->health.value, attacker_hp = attacker->health.value;
+	float const target_hp = target->health.value, attacker_hp = attacker->health.value;
 
 	game.constants.combatConstantsLoaded = true; game.constants.defendDeflection = true;
 	attacker->attack1.type = ATK_PIERCE; unit_addstatus(target, "Adef", 1);
@@ -1770,7 +1770,7 @@ TEST(wc3_spell, defend_attack2_projectile_uses_launch_type_after_target_morph) {
 		"C;Y2;X1;K\"Adef\"\nC;Y2;X2;K\"Adef\"\nC;Y2;X3;K\"0.5\"\nC;Y2;X4;K\"1\"\n"
 		"C;Y2;X5;K\"0.3\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"100\"\nC;Y2;X9;K\"0.5\"\nC;Y2;X10;K\"1\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
-	BOOL const old_loaded = game.constants.combatConstantsLoaded, old_deflect = game.constants.defendDeflection;
+	bool const old_loaded = game.constants.combatConstantsLoaded, old_deflect = game.constants.defendDeflection;
 	UnitWeapons_t weapons = { .attacksEnabled = 3 };
 	LPEDICT attacker = make_hero(MAKEFOURCC('h','b','r','e'), 300, 0, 0, 0);
 	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 500, 0);
@@ -1803,11 +1803,11 @@ TEST(wc3_spell, defend_consumes_deflected_building_projectile_without_return_dam
 		"C;Y2;X1;K\"Adef\"\nC;Y2;X2;K\"Adef\"\nC;Y2;X3;K\"0.5\"\nC;Y2;X4;K\"1\"\n"
 		"C;Y2;X5;K\"0.3\"\nC;Y2;X7;K\"1\"\nC;Y2;X8;K\"100\"\nC;Y2;X9;K\"0\"\nC;Y2;X10;K\"1\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
-	BOOL const old_loaded = game.constants.combatConstantsLoaded, old_deflect = game.constants.defendDeflection;
+	bool const old_loaded = game.constants.combatConstantsLoaded, old_deflect = game.constants.defendDeflection;
 	LPEDICT tower = make_hero(MAKEFOURCC('h','t','o','w'), 500, 0, 0, 0);
 	LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
 	LPEDICT missile = G_Spawn();
-	FLOAT const tower_hp = tower->health.value, target_hp = target->health.value;
+	float const tower_hp = tower->health.value, target_hp = target->health.value;
 
 	game.constants.combatConstantsLoaded = true; game.constants.defendDeflection = true;
 	tower->attack1.type = ATK_PIERCE; unit_addstatus(target, "Adef", 1);
@@ -1822,10 +1822,10 @@ TEST(wc3_spell, defend_consumes_deflected_building_projectile_without_return_dam
 }
 
 TEST(wc3_spell, selected_common_ability_contracts_are_registered) {
-	static LPCSTR const passives[] = {
+	static cstring_t const passives[] = {
 		"Abdt", "Arev", "Aawa", "Adet", "AHer", "Aalr", "Afih", "Afin", "Afio", "Afir", "Afiu", "Aloc", "Attu",
 	};
-	static struct { LPCSTR code; abilityProc_t proc; } const commands[] = {
+	static struct { cstring_t code; abilityProc_t proc; } const commands[] = {
 		{ "AEbu", CAbilityBuild }, { "AGbu", CAbilityBuild }, { "AHbu", CAbilityBuild }, { "ANbu", CAbilityBuild },
 		{ "AObu", CAbilityBuild }, { "ARal", CAbilityRally }, { "AUbu", CAbilityBuild }, { "Aatk", CAbilityAttack },
 		{ "Amov", CAbilityMove }, { "Atdp", CAbilityCargoDrop }, { "Atlp", CAbilityCargoLoad },
@@ -1868,7 +1868,7 @@ TEST(wc3_spell, intrinsic_on_fire_level_zero_clears_effect) {
 TEST(wc3_spell, runtime_ability_membership_calls_enable_and_disable) {
 	UnitAbilities_t abilities = { .abilList = "Afir" };
 	edict_t unit = { .inuse = true, .s.effect = 77, .s.effect_flags = EFX_MODEL };
-	DWORD const code = MAKEFOURCC('A', 'f', 'i', 'r');
+	uint32_t const code = MAKEFOURCC('A', 'f', 'i', 'r');
 
 	unit.data.UnitAbilities = &abilities;
 	T_ASSERT(G_ActorRemoveSkill(&unit, code));
@@ -1997,7 +1997,7 @@ TEST(wc3_spell, death_and_decay_uses_percentage_damage_and_enemy_filter) {
 	LPEDICT caster = make_hero(MAKEFOURCC('h','p','e','a'), 250, 100, 0, 0);
 	LPEDICT enemy = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
 	LPEDICT thinker;
-	DWORD thinker_slot = globals.num_edicts;
+	uint32_t thinker_slot = globals.num_edicts;
 	spellTarget_t st = { .type = SPELL_TARGET_POINT, .point = caster->s.origin2 };
 
 	caster->s.player = 0;
@@ -2020,11 +2020,11 @@ TEST(wc3_spell, death_and_decay_uses_percentage_damage_and_enemy_filter) {
 }
 
 TEST(wc3_spell, holy_light_rawcode_lookup_is_nul_safe) {
-	DWORD code = MAKEFOURCC('A','H','h','b');
+	uint32_t code = MAKEFOURCC('A','H','h','b');
 	ability_t const *spell = S_SpellAbilityForCode(code);
 	ability_t const *abil = FindAbilityForCommand(GetClassName(code));
 
-	/* Runtime spell dispatch starts from a DWORD rawcode. This specifically
+	/* Runtime spell dispatch starts from a uint32_t rawcode. This specifically
 	 * guards against treating &code as a C string: that only worked when the
 	 * unrelated byte after the four rawcode bytes happened to be zero. */
     T_NOT_NULL(abil);
@@ -2378,7 +2378,7 @@ TEST(wc3_spell, holy_light_flag_dispatch_validates_and_heals) {
     LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0), clent = &g_edicts[0];
     LPGAMECLIENT client = &game.clients[0];
     char number[16];
-    LPCSTR button[] = { "button", "AHhb" }, select[] = { "select", number };
+    cstring_t button[] = { "button", "AHhb" }, select[] = { "select", number };
 
     old = G_SetSLKRows("AbilityData", rows);
     clent->client = client;
@@ -2425,9 +2425,9 @@ TEST(wc3_spell, holy_light_multiselect_portrait_targets_without_changing_focus) 
     LPEDICT clent = &g_edicts[0];
     LPGAMECLIENT client = &game.clients[0];
     char caster_number[16], target_number[16];
-    LPCSTR button[] = { "button", "AHhb" };
-    LPCSTR focus_caster[] = { "focus", caster_number };
-    LPCSTR focus_target[] = { "focus", target_number };
+    cstring_t button[] = { "button", "AHhb" };
+    cstring_t focus_caster[] = { "focus", caster_number };
+    cstring_t focus_target[] = { "focus", target_number };
 
     old = G_SetSLKRows("AbilityData", rows);
     clent->client = client;
@@ -2492,10 +2492,10 @@ TEST(wc3_spell, unit_target_click_accepts_out_of_range_target_and_casts_after_ap
     LPGAMECLIENT client;
     LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 500, 0);
     LPEDICT thinker;
-    DWORD thinker_slot;
+    uint32_t thinker_slot;
     char target_number[16];
-    LPCSTR button[] = { "button", "AOcl" };
-    LPCSTR select_target[] = { "select", target_number };
+    cstring_t button[] = { "button", "AOcl" };
+    cstring_t select_target[] = { "select", target_number };
 
     /* make_hero resets edicts, so restore the player-slot client for commands. */
     clent->client = client = &game.clients[0];
@@ -2578,7 +2578,7 @@ TEST(wc3_spell, target_order_name_routes_chain_lightning_through_spell_pipeline)
     T_EQ(G_GetIssuedOrderId(caster), 852119);
     T_EQ(level.events.queue[0].type, EVENT_PLAYER_UNIT_SPELL_EFFECT);
     T_EQ(level.events.queue[1].type, EVENT_UNIT_SPELL_EFFECT);
-    T_EQ((DWORD)level.events.queue[0].value, MAKEFOURCC('A','O','c','l'));
+    T_EQ((uint32_t)level.events.queue[0].value, MAKEFOURCC('A','O','c','l'));
     T_ASSERT(level.events.queue[0].source == target);
 
     G_SetSLKRows("AbilityData", old);
@@ -2614,7 +2614,7 @@ TEST(wc3_spell, point_order_name_routes_blink_and_carries_spell_point) {
     T_ASSERT(level.events.queue[0].has_point);
     T_FEQ(level.events.queue[0].point.x, point.x, 0.001f);
     T_FEQ(level.events.queue[0].point.y, point.y, 0.001f);
-    T_EQ((DWORD)level.events.queue[0].value, MAKEFOURCC('A','E','b','l'));
+    T_EQ((uint32_t)level.events.queue[0].value, MAKEFOURCC('A','E','b','l'));
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -2901,12 +2901,12 @@ TEST(wc3_spell, dark_conversion_consumes_target_and_publishes_zombie_summon) {
         "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"1000\"\n"
         "C;Y2;X7;K\"nzom\"\nC;Y2;X8;K\"BNdc\"\n"
         "C;Y2;X9;K\"6\"\nC;Y2;X10;K\"6\"\nE\n";
-    DWORD const ability = MAKEFOURCC('S','N','d','c');
+    uint32_t const ability = MAKEFOURCC('S','N','d','c');
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     LPEDICT caster = make_hero(MAKEFOURCC('U','C','0','2'), 1000, 1000, 0, 0);
     LPEDICT target = alloc_test_unit(MAKEFOURCC('n','v','i','l'), 64, 0);
     LPEDICT summon;
-    DWORD summon_num;
+    uint32_t summon_num;
 
     caster->heroabilities[0] = MAKE(heroability_t, .code = ability, .level = 1);
     caster->s.player = PLAYER_NEUTRAL_PASSIVE;
@@ -3009,7 +3009,7 @@ TEST(wc3_spell, lightning_shield_damages_nearby_units_each_second) {
 	T_ASSERT(nearby->health.value < 1000);    /* took damage */
 	T_FEQ(far_unit->health.value, 1000, 0.001f);  /* too far, untouched */
 	/* Second tick at 2000ms deals another round. */
-	FLOAT hp = nearby->health.value;
+	float hp = nearby->health.value;
 	level.time = 2000; G_RunEntity(thinker);
 	T_ASSERT(nearby->health.value < hp);
 	/* Past expiry the thinker stops and the carrier no longer has the buff (status expired). */
@@ -3368,7 +3368,7 @@ TEST(wc3_spell, raise_dead_unitid_limit_check_retires_oldest_summon) {
     slkTestData_t *rows = parse_slk_string(slk), *old;
     LPEDICT caster = make_hero(MAKEFOURCC('U','D','k','i'), 500, 500, 0, 0);
     LPEDICT oldest = NULL, corpse;
-    DWORD living = 0;
+    uint32_t living = 0;
 
     /* make_hero resets the test world, so install the fixture afterward. */
     old = G_SetSLKRows("AbilityData", rows);
@@ -3376,7 +3376,7 @@ TEST(wc3_spell, raise_dead_unitid_limit_check_retires_oldest_summon) {
     caster->heroabilities[0] = MAKE(heroability_t, .code = FS_SLKKey("Arai"), .level = 1);
     level.time = 10000;
     FOR_LOOP(i, 25) {
-        LPEDICT summon = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 300.0f + (FLOAT)i, 0.0f);
+        LPEDICT summon = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 300.0f + (float)i, 0.0f);
         summon->s.player = 0; summon->svflags |= SVF_MONSTER;
         summon->summon_ability = FS_SLKKey("Arai"); summon->spawn_time = 100 + i;
         if (i == 0) oldest = summon;
@@ -3415,7 +3415,7 @@ TEST(wc3_spell, ancestral_spirit_revives_nearest_owned_nonhero_tauren) {
 	LPEDICT nearest = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 100, 0);
 	LPEDICT next = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 200, 0);
 	LPEDICT distant = alloc_test_unit(MAKEFOURCC('o','t','a','u'), 351, 0);
-	DWORD nearest_spawn = nearest->spawn_time;
+	uint32_t nearest_spawn = nearest->spawn_time;
 
 	old = G_SetSLKRows("AbilityData", rows);
 	caster->data.UnitAbilities = &abilities; caster->s.player = 0;
@@ -3447,7 +3447,7 @@ TEST(wc3_spell, ancestral_spirit_revives_nearest_owned_nonhero_tauren) {
 	S_SpellEndCooldown(caster, MAKEFOURCC('A','a','s','t'));
 	T_ASSERT(S_CastNoTargetSpell(caster, MAKEFOURCC('A','a','s','t'))); T_ASSERT(!M_IsDead(next));
 	S_SpellEndCooldown(caster, MAKEFOURCC('A','a','s','t'));
-	FLOAT mana = caster->mana.value;
+	float mana = caster->mana.value;
 	T_ASSERT(!S_CastNoTargetSpell(caster, MAKEFOURCC('A','a','s','t'))); T_FEQ(caster->mana.value, mana, .001f);
 	level.alliances[0][1] &= ~(1 << ALLIANCE_PASSIVE);
 	T_ASSERT(!S_CastNoTargetSpell(caster, MAKEFOURCC('A','a','s','t'))); T_FEQ(caster->mana.value, mana, .001f);
@@ -3598,7 +3598,7 @@ TEST(wc3_spell, far_sight_reapplies_visibility_until_authored_duration_expires) 
     slkTestData_t *rows = parse_slk_string(slk), *old;
     LPEDICT caster; LPEDICT thinker = NULL;
     VECTOR2 point = { 256.0f, 0.0f };
-    DWORD cell;
+    uint32_t cell;
 
     reset_entities(); setup_test_world(); G_FowInit(); G_FowConnectPlayer(0);
     old = G_SetSLKRows("AbilityData", rows);
@@ -3678,7 +3678,7 @@ TEST(wc3_spell, earthquake_waits_for_effect_delay_slows_ground_and_damages_struc
     T_EQ(G_UnitStatusLevel(ground, MAKEFOURCC('B','O','e','q')), 1);
     T_EQ(G_UnitStatusLevel(air, MAKEFOURCC('B','O','e','q')), 0);
     T_FEQ(S_EarthquakeMoveReduction(ground), 0.75f, 0.001f);
-    T_FEQ(unit_movedistance(ground), 10.0f * 140.0f / (FLOAT)FRAMETIME, 0.001f);
+    T_FEQ(unit_movedistance(ground), 10.0f * 140.0f / (float)FRAMETIME, 0.001f);
 
     S_SpellCancelChannel(caster);
     earthquake_think(thinker);

@@ -36,7 +36,7 @@ void free_slk_rows(slkTestData_t *rows);
 #include "../g_local.h"
 
 /* Helpers defined in t_utils.c */
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 void G_RunEntities(void);
@@ -45,14 +45,14 @@ void G_RunEntities(void);
 #include "../game/skills/s_skills.h"
 
 /* Forward declarations for internal functions not in any public header. */
-BOOL  player_pay(LPPLAYER ps, DWORD project);
+bool  player_pay(LPPLAYER ps, uint32_t project);
 void  T_Damage(LPEDICT target, LPEDICT attacker, int damage);
 int   G_AttackDamage(LPEDICT attacker, LPEDICT target, int base);
 void  attack_melee(LPEDICT self);
 void  attack_melee_cooldown(LPEDICT self);
 void  attack_ranged(LPEDICT self);
 void  attack_ranged_cooldown(LPEDICT self);
-BOOL  attack_menu_selecttarget(LPEDICT ent, LPEDICT target);
+bool  attack_menu_selecttarget(LPEDICT ent, LPEDICT target);
 void  M_MoveFrame(LPEDICT self);
 void  G_RunEntity(LPEDICT ent);
 void  unit_add_build_queue(LPEDICT self, LPEDICT item);
@@ -78,12 +78,12 @@ static void stub_die(LPEDICT self, LPEDICT attacker) {
     _die_last_attacker = attacker;
 }
 
-static int capture_fire_model(LPCSTR model) {
+static int capture_fire_model(cstring_t model) {
     strlcpy(_fire_model, model, sizeof(_fire_model));
     return 77;
 }
 
-static LPEDICT make_combat_unit(DWORD class_id, FLOAT hp, FLOAT x, FLOAT y) {
+static LPEDICT make_combat_unit(uint32_t class_id, float hp, float x, float y) {
     static UnitWeapons_t const test_weapons = { .attacksEnabled = 3 };
     LPEDICT ent       = alloc_test_unit(class_id, x, y);
     ent->health.value     = hp;
@@ -146,14 +146,14 @@ TEST(wc3_combat, flymissile_advances_animation_and_tracks_homing_yaw) {
 
     G_RunEntity(missile);
 
-    T_FEQ(missile->s.angle, (FLOAT)(M_PI / 4.0), 0.001f);
+    T_FEQ(missile->s.angle, (float)(M_PI / 4.0), 0.001f);
     T_ASSERT(missile->s.frame >= stand.interval[0]);
     T_ASSERT(missile->s.frame < stand.interval[1]);
     T_NE(missile->s.frame, 1250);
 }
 
 TEST(wc3_effects, ability_effect_art_selects_requested_entry_and_last_fallback) {
-    DWORD const holy_light = MAKEFOURCC('A','H','h','b');
+    uint32_t const holy_light = MAKEFOURCC('A','H','h','b');
 
     setup_test_world();
     T_STREQ(G_AbilityEffectArt(holy_light, WC3_EFFECT_TARGET, 0),
@@ -230,7 +230,7 @@ TEST(wc3_combat, tdamage_refreshes_owned_hero_shortcut_alert) {
 TEST(wc3_combat, tdamage_updates_building_fire_model_and_slot_mask) {
     LPEDICT building = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1000.0f, 0.0f, 0.0f);
     LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);
-    int (*old_model_index)(LPCSTR) = gi.ModelIndex;
+    int (*old_model_index)(cstring_t) = gi.ModelIndex;
 
     building->s.flags |= EF_BUILDING;
     gi.ModelIndex = capture_fire_model;
@@ -1031,7 +1031,7 @@ TEST(wc3_combat, runentity_ability_index_from_currentmove) {
 
     G_RunEntity(ent);
 
-    DWORD expected = GetAbilityIndex(ent->currentmove->proc);
+    uint32_t expected = GetAbilityIndex(ent->currentmove->proc);
     T_ASSERT(expected != 0);  /* CAbilityMove is not the first entry (CAbilityStop is) */
     T_EQ((int)ent->s.ability, (int)expected);
 }
@@ -1175,7 +1175,7 @@ TEST(wc3_combat, hero_primary_attribute_adds_damage) {
     LPEDICT h     = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->hero.str   = 22;
     G_RecomputeHeroStats(h);
-    FLOAT const dmg0 = h->attack1.damageBase;
+    float const dmg0 = h->attack1.damageBase;
 
     h->hero.str = 30;            /* +8 Strength */
     G_RecomputeHeroStats(h);
@@ -1224,7 +1224,7 @@ TEST(wc3_combat, hero_stats_noop_for_non_hero) {
  * 2.7/1.8/1.5. */
 TEST(wc3_combat, hero_xp_for_level_table) {
     void *old_misc = game.config.misc.source;
-    DWORD xp1, xp2, xp3, xp4, xp10;
+    uint32_t xp1, xp2, xp3, xp4, xp10;
     game.config.misc.source = NULL; /* exercise the documented stock fallback */
 
     xp1 = G_HeroXPForLevel(1);
@@ -1244,7 +1244,7 @@ TEST(wc3_combat, hero_xp_for_level_table) {
 TEST(wc3_combat, hero_xp_for_level_uses_misc_table_and_formula) {
     stbIniCache_t custom = { 0 };
     void *old_misc = game.config.misc.source;
-    DWORD xp2, xp3, xp4, xp5;
+    uint32_t xp2, xp3, xp4, xp5;
 
     T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\HeroXP.txt"));
     game.config.misc.source = custom.source;
@@ -1319,7 +1319,7 @@ TEST(wc3_combat, grant_kill_xp_global_fallback_reaches_out_of_range_hero) {
     LPEDICT killer = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     LPEDICT victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 5000.0f, 0.0f);
     void *old_misc = game.config.misc.source;
-    DWORD awarded;
+    uint32_t awarded;
     killer->s.player = 0; killer->hero.level = 1; killer->hero.xp = 0;
     victim->s.player = 1;
     game.config.misc.source = NULL; /* stock GlobalExperience fallback is enabled */
@@ -1336,7 +1336,7 @@ TEST(wc3_combat, grant_kill_xp_respects_disabled_global_experience) {
     LPEDICT victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 5000.0f, 0.0f);
     stbIniCache_t custom = { 0 };
     void *old_misc = game.config.misc.source;
-    DWORD awarded;
+    uint32_t awarded;
 
     killer->s.player = 0; killer->hero.level = 1; killer->hero.xp = 0;
     victim->s.player = 1;
@@ -1494,10 +1494,10 @@ TEST(wc3_combat, hero_skill_progression_uses_candidate_points_level_and_max_rank
     slkTestData_t *rows = parse_slk_string(slk_hero_skill_progression);
     slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
     LPEDICT h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
-    DWORD const holy = MAKEFOURCC('A','H','h','b');
-    DWORD const shield = MAKEFOURCC('A','H','d','s');
-    DWORD const thunder = MAKEFOURCC('A','H','t','b');
-    DWORD next = 0, required = 0;
+    uint32_t const holy = MAKEFOURCC('A','H','h','b');
+    uint32_t const shield = MAKEFOURCC('A','H','d','s');
+    uint32_t const thunder = MAKEFOURCC('A','H','t','b');
+    uint32_t next = 0, required = 0;
 
     h->data.UnitAbilities = &tree;
     h->hero.level = 1;
@@ -1695,7 +1695,7 @@ TEST(wc3_combat, artillery_minimum_range_makes_mobile_attacker_back_away) {
     reset_entities();
     LPEDICT attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
     LPEDICT target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);
-    FLOAT before, after;
+    float before, after;
 
     attacker->data.UnitWeapons = &weapons;
     attacker->attack1.type = ATK_SIEGE;
@@ -1914,8 +1914,8 @@ TEST(wc3_combat, endurance_aura_uses_map_authored_rank_five) {
         "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"levels\"\n"
         "C;Y2;X1;K\"AOae\"\nC;Y2;X2;K\"AOae\"\nC;Y2;X3;K\"900\"\n"
         "C;Y2;X4;K\"10\"\nC;Y2;X5;K\"20\"\nC;Y2;X6;K\"1\"\nE\n";
-    DWORD id = MAKEFOURCC('A','O','a','e'), levels = 5;
-    FLOAT area = 900.0f, speed = 75.0f;
+    uint32_t id = MAKEFOURCC('A','O','a','e'), levels = 5;
+    float area = 900.0f, speed = 75.0f;
     unitModification_t mods[] = {
         { .modID = MAKEFOURCC('a','l','e','v'), .type = mod_int, .data = &levels },
         { .modID = MAKEFOURCC('a','a','r','e'), .type = mod_real, .level = 5, .data = &area },
@@ -1992,13 +1992,13 @@ TEST(wc3_combat, defend_data_d_reduces_attack_speed_while_active) {
  *   0=none 1=normal 2=pierce 3=siege 4=spells 5=chaos 6=magic 7=hero
  * ========================================================================== */
 
-static LPEDICT make_attacker(DWORD atk_type) {
+static LPEDICT make_attacker(uint32_t atk_type) {
     LPEDICT a = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f, 0.0f);
     a->attack1.type = atk_type;
     return a;
 }
 
-static LPEDICT make_target(DWORD def_type, FLOAT armor) {
+static LPEDICT make_target(uint32_t def_type, float armor) {
     LPEDICT t = make_combat_unit(MAKEFOURCC('h','f','o','o'), 1000.0f, 50.0f, 0.0f);
     t->defense_type = def_type;
     t->armor_value  = armor;
@@ -2060,9 +2060,9 @@ TEST(wc3_combat, attack_damage_divine_uses_wc3_multiplier) {
 
 /* Active Misc/war3mapMisc values override the stock fallback table/coefficient. */
 TEST(wc3_combat, attack_damage_uses_loaded_gameplay_constants) {
-    BOOL const old_loaded = game.constants.combatConstantsLoaded;
-    FLOAT const old_mult = game.constants.damageBonus[ATK_NORMAL][4];
-    FLOAT const old_armor = game.constants.defenseArmor;
+    bool const old_loaded = game.constants.combatConstantsLoaded;
+    float const old_mult = game.constants.damageBonus[ATK_NORMAL][4];
+    float const old_armor = game.constants.defenseArmor;
     LPEDICT a = make_attacker(ATK_NORMAL);
     LPEDICT t = make_target(4 /* normal */, 2.0f);
 
@@ -2148,12 +2148,12 @@ TEST(wc3_combat, get_ability_by_index_out_of_range) {
 
 TEST(wc3_combat, get_ability_index_roundtrip) {
     ability_t const *a   = FindAbilityByClassname(STR_CmdMove);
-    DWORD             idx = FindAbilityIndex(STR_CmdMove);
+    uint32_t             idx = FindAbilityIndex(STR_CmdMove);
     T_ASSERT(GetAbilityByIndex(idx) == a);
 }
 
 TEST(wc3_combat, registered_reference_ability_codes) {
-    static LPCSTR codes[] = {
+    static cstring_t codes[] = {
         "AHhb", "AHwe", "AHbz", "AHtb", "ANfb", "Apxf", "AOsf",
         "Abun", "Astd", "AEim", "Aenc", "Aent", "Aegm", "Aeat",
         "Ambt", "ANch", "AIco", "AHca", "Agld", "Abgm",
@@ -2171,7 +2171,7 @@ TEST(wc3_combat, registered_reference_ability_codes) {
 }
 
 TEST(wc3_combat, registered_first_thirty_todo_ability_codes) {
-    static LPCSTR codes[] = {
+    static cstring_t codes[] = {
         "AHab", "AHmt", "ANst", "ANsg", "ANsq", "ANsw", "AOww", "AOcr", "AHbn", "AHfs",
         "AHdr", "AHpx", "AUcb", "AUim", "AUls", "AUts", "ANba", "ANsi", "AUan", "AUdc",
         "AUdp", "AUau", "AEev", "AEme", "AUsl", "AUav", "AUin", "AOcl", "AOeq", "AOfs"
@@ -2304,7 +2304,7 @@ TEST(wc3_combat, blight_growth_uses_authored_expansion_and_availability) {
         "C;Y2;X5;K73\n"
         "C;Y2;X6;K219\n"
         "E\n";
-    DWORD const code = MAKEFOURCC('A','b','l','1');
+    uint32_t const code = MAKEFOURCC('A','b','l','1');
     VECTOR2 first_ring = { 48.0f, 0.0f }, second_ring = { 176.0f, 0.0f };
     slkTestData_t *rows = parse_slk_string(blight_slk);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
@@ -2351,7 +2351,7 @@ TEST(wc3_combat, blight_growth_reads_roc_data_columns) {
         "C;Y2;X5;K1\n"
         "C;Y2;X6;K73\n"
         "E\n";
-    DWORD const code = MAKEFOURCC('A','b','l','1');
+    uint32_t const code = MAKEFOURCC('A','b','l','1');
     VECTOR2 first_ring = { 48.0f, 0.0f };
     slkTestData_t *rows = parse_slk_string(blight_roc_slk);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
@@ -2384,7 +2384,7 @@ TEST(wc3_combat, blight_regeneration_tracks_world_state_without_movement) {
     G_SetBlightPoint(&point, true);
     G_RunEntity(unit); T_ASSERT(unit->health.value > 50.0f);
     {
-        FLOAT const healed = unit->health.value;
+        float const healed = unit->health.value;
         G_SetBlightPoint(&point, false);
         G_RunEntity(unit); T_FEQ(unit->health.value, healed, 0.001f);
     }
@@ -2393,8 +2393,8 @@ TEST(wc3_combat, blight_regeneration_tracks_world_state_without_movement) {
 TEST(wc3_combat, spell_helpers_read_slk_fields) {
     slkTestData_t *rows = parse_slk_string(slk_ability_helpers);
     slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
-    DWORD thunder = MAKEFOURCC('A', 'H', 't', 'b');
-    DWORD water = MAKEFOURCC('A', 'H', 'w', 'e');
+    uint32_t thunder = MAKEFOURCC('A', 'H', 't', 'b');
+    uint32_t water = MAKEFOURCC('A', 'H', 'w', 'e');
 
     T_FEQ(S_SpellNumber(thunder, ABILITY_NUMBER_COST, 1), 75.0f, 0.01f);
     T_FEQ(S_SpellRange(thunder, 1), 600.0f, 0.01f);
@@ -2414,7 +2414,7 @@ TEST(wc3_combat, spell_helpers_read_slk_fields) {
 TEST(wc3_combat, spell_mana_and_cooldown) {
     slkTestData_t *rows = parse_slk_string(slk_ability_helpers);
     slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
-    DWORD thunder = MAKEFOURCC('A', 'H', 't', 'b');
+    uint32_t thunder = MAKEFOURCC('A', 'H', 't', 'b');
     LPEDICT caster = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     caster->mana.value = 100.0f;
     caster->mana.max_value = 100.0f;
@@ -2446,8 +2446,8 @@ TEST(wc3_combat, spell_mana_and_cooldown) {
 TEST(wc3_combat, spell_cooldowns_do_not_consume_buff_slots_and_share_base_code) {
     slkTestData_t *rows = parse_slk_string(slk_ability_helpers);
     slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
-    DWORD const alias = MAKEFOURCC('A','h','r','p');
-    DWORD const base = MAKEFOURCC('A','r','e','p');
+    uint32_t const alias = MAKEFOURCC('A','h','r','p');
+    uint32_t const base = MAKEFOURCC('A','r','e','p');
     LPEDICT caster = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
 
     level.time = 2000;
@@ -2536,9 +2536,9 @@ TEST(wc3_combat, player_pay_deducts_gold) {
     p->stats[PLAYERSTATE_RESOURCE_GOLD]   = 200;
     p->stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
 
-    DWORD unit = MAKEFOURCC('h','p','e','a');
-    LONG gold = G_UnitBalance(unit)->goldCost;
-    BOOL ok = player_pay(p, unit);
+    uint32_t unit = MAKEFOURCC('h','p','e','a');
+    int32_t gold = G_UnitBalance(unit)->goldCost;
+    bool ok = player_pay(p, unit);
 
     T_ASSERT(ok);
     T_EQ((int)p->stats[PLAYERSTATE_RESOURCE_GOLD], 200 - gold);
@@ -2549,7 +2549,7 @@ TEST(wc3_combat, player_pay_insufficient_gold_fails) {
     p->stats[PLAYERSTATE_RESOURCE_GOLD]   = 50;  /* need 75 */
     p->stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
 
-    BOOL ok = player_pay(p, MAKEFOURCC('h','p','e','a'));
+    bool ok = player_pay(p, MAKEFOURCC('h','p','e','a'));
 
     T_ASSERT(!ok);
     T_EQ((int)p->stats[PLAYERSTATE_RESOURCE_GOLD], 50); /* unchanged */
@@ -2557,13 +2557,13 @@ TEST(wc3_combat, player_pay_insufficient_gold_fails) {
 
 TEST(wc3_combat, player_pay_insufficient_lumber_fails) {
     LPPLAYER p = &game.clients[0].ps;
-    DWORD project = MAKEFOURCC('h','b','a','r');
-    LONG gold = G_UnitBalance(project)->goldCost, lumber = G_UnitBalance(project)->lumberCost;
+    uint32_t project = MAKEFOURCC('h','b','a','r');
+    int32_t gold = G_UnitBalance(project)->goldCost, lumber = G_UnitBalance(project)->lumberCost;
     T_ASSERT(gold > 0 && lumber > 0);
     p->stats[PLAYERSTATE_RESOURCE_GOLD]   = gold;
     p->stats[PLAYERSTATE_RESOURCE_LUMBER] = lumber - 1;
 
-    BOOL ok = player_pay(p, project);
+    bool ok = player_pay(p, project);
 
     T_ASSERT(!ok);
     T_EQ((int)p->stats[PLAYERSTATE_RESOURCE_GOLD], gold);
@@ -2571,7 +2571,7 @@ TEST(wc3_combat, player_pay_insufficient_lumber_fails) {
 }
 
 TEST(wc3_combat, player_pay_null_player_fails) {
-    BOOL ok = player_pay(NULL, MAKEFOURCC('h','p','e','a'));
+    bool ok = player_pay(NULL, MAKEFOURCC('h','p','e','a'));
     T_ASSERT(!ok);
 }
 
@@ -2724,7 +2724,7 @@ TEST(wc3_combat, quest_multiple_items_linked) {
     LPQUESTITEM a = &q->items[q->num_items++]; a->inuse = true;
     LPQUESTITEM b = &q->items[q->num_items++]; b->inuse = true;
     /* Both items must be reachable from the quest's bounded storage. */
-    BOOL found_a = false, found_b = false;
+    bool found_a = false, found_b = false;
     FOR_EACH_QUESTITEM(q, it) {
         if (it == a) found_a = true;
         if (it == b) found_b = true;
@@ -2741,7 +2741,7 @@ TEST(wc3_combat, quest_multiple_quests_in_list) {
     T_NOT_NULL(q1);
     T_NOT_NULL(q2);
     /* Both quests must be reachable from the fixed quest slots. */
-    BOOL found_q1 = false, found_q2 = false;
+    bool found_q1 = false, found_q2 = false;
     FOR_EACH_QUEST(q) {
         if (q == q1) found_q1 = true;
         if (q == q2) found_q2 = true;
@@ -2847,7 +2847,7 @@ TEST(wc3_combat, attack_ground_ensnare_before_order_holds_position) {
 TEST(wc3_combat, attack_ground_ensnare_mid_approach_freezes) {
     LPEDICT unit;
     VECTOR2 point = { 1000, 0 };
-    FLOAT frozen_x, frozen_y;
+    float frozen_x, frozen_y;
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;

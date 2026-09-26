@@ -69,8 +69,8 @@ typedef struct SimpleInfoPanel_s {
     LPFRAMEDEF SimpleHoldDescriptionValue;
 } SimpleInfoPanel_t;
 
-static inline BOOL SimpleInfoPanel_Load(SimpleInfoPanel_t *out) {
-    BOOL ok = true;
+static inline bool SimpleInfoPanel_Load(SimpleInfoPanel_t *out) {
+    bool ok = true;
     LPFRAMEDEF bind_root;
     if (!out) {
         return false;

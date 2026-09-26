@@ -44,8 +44,8 @@ typedef struct EscMenuSaveGamePanel_s {
 } EscMenuSaveGamePanel_t;
 
 
-static inline BOOL EscMenuSaveGamePanel_Bind(EscMenuSaveGamePanel_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool EscMenuSaveGamePanel_Bind(EscMenuSaveGamePanel_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -93,7 +93,7 @@ static inline BOOL EscMenuSaveGamePanel_Bind(EscMenuSaveGamePanel_t *out, LPFRAM
     return ok;
 }
 
-static inline BOOL EscMenuSaveGamePanel_Load(EscMenuSaveGamePanel_t *out) {
+static inline bool EscMenuSaveGamePanel_Load(EscMenuSaveGamePanel_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf") &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuSaveGamePanel.fdf") &&

@@ -5,7 +5,7 @@
 #include "menu_local.h"
 #include "generated/map_info_pane.h"
 
-static void UI_SetSizeIfPresent(LPFRAMEDEF frame, FLOAT width, FLOAT height) {
+static void UI_SetSizeIfPresent(LPFRAMEDEF frame, float width, float height) {
     if (frame) {
         UI_SetSize(frame, width, height);
     }
@@ -15,15 +15,15 @@ static void UI_SetPointIfPresent(LPFRAMEDEF frame,
                                  UIFRAMEPOINT point,
                                  LPCFRAMEDEF relative,
                                  UIFRAMEPOINT relative_point,
-                                 FLOAT x,
-                                 FLOAT y)
+                                 float x,
+                                 float y)
 {
     if (frame && relative) {
         UI_SetPoint(frame, point, relative, relative_point, x, y);
     }
 }
 
-static void UI_SetHiddenIfPresent(LPFRAMEDEF frame, BOOL hidden) {
+static void UI_SetHiddenIfPresent(LPFRAMEDEF frame, bool hidden) {
     if (frame) {
         UI_SetHidden(frame, hidden);
     }
@@ -31,8 +31,8 @@ static void UI_SetHiddenIfPresent(LPFRAMEDEF frame, BOOL hidden) {
 
 void UI_LayoutMapInfoPane(LPFRAMEDEF frame) {
     MapInfoPane_t pane;
-    FLOAT height, row_top, map_top = 0.035f;
-    BOOL compact;
+    float height, row_top, map_top = 0.035f;
+    bool compact;
 
     if (!frame) {
         return;
@@ -55,7 +55,7 @@ void UI_LayoutMapInfoPane(LPFRAMEDEF frame) {
     /* Retail leaves preview placement to the native pane. Fit its authored image/border
      * proportions into the compact preview slot; moving only the rows overlapped the border. */
     if (compact && pane.MinimapImage && pane.MinimapImageBackdrop) {
-        FLOAT scale = MIN(1.0f, (row_top - map_top - 0.002f) / pane.MinimapImageBackdrop->Height);
+        float scale = MIN(1.0f, (row_top - map_top - 0.002f) / pane.MinimapImageBackdrop->Height);
         UI_SetSize(pane.MinimapImage, pane.MinimapImage->Width * scale, pane.MinimapImage->Height * scale);
         UI_SetSize(pane.MinimapImageBackdrop, pane.MinimapImageBackdrop->Width * scale, pane.MinimapImageBackdrop->Height * scale);
         map_top += (pane.MinimapImageBackdrop->Height - pane.MinimapImage->Height) * 0.5f;

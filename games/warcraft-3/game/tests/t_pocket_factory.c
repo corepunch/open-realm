@@ -10,7 +10,7 @@
 #define BZ_HFOO MAKEFOURCC('h', 'f', 'o', 'o') // unitCode; fixture factory UnitID (non-stock)
 #define BZ_OGRU MAKEFOURCC('o', 'g', 'r', 'u') // unitCode; fixture DataB Clockwerk (non-stock)
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -34,7 +34,7 @@ static char const pf_slk[] =
     "C;Y3;X9;K\"25\"\nC;Y3;X10;K\"1\"\nC;Y3;X11;K\"ogru\"\nC;Y3;X12;K\"8\"\n"
     "C;Y3;X13;K\"64\"\nC;Y3;X14;K\"200\"\nC;Y3;X15;K\"hfoo\"\nE\n";
 
-static PFFIX pf_setup(DWORD code) {
+static PFFIX pf_setup(uint32_t code) {
     PFFIX fix;
     reset_entities(); setup_test_world(); level.time = 1000;
     ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
@@ -49,15 +49,15 @@ static PFFIX pf_setup(DWORD code) {
 
 static void pf_done(PFFIX fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
 
-static void pf_tick(DWORD ms) { level.time += ms; G_RunEntities(); }
+static void pf_tick(uint32_t ms) { level.time += ms; G_RunEntities(); }
 
-static LPEDICT pf_find(DWORD code) {
+static LPEDICT pf_find(uint32_t code) {
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == code) return ent;
     return NULL;
 }
 
-static DWORD pf_count(DWORD code) {
-    DWORD n = 0;
+static uint32_t pf_count(uint32_t code) {
+    uint32_t n = 0;
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == code) n++;
     return n;
 }
@@ -138,7 +138,7 @@ TEST(wc3_spell, pocket_factory_ans1_uses_alias_dataa_interval) {
 TEST(wc3_spell, pocket_factory_thinker_alloc_failure_rolls_back_factory) {
     PFFIX fix = pf_setup(BZ_ANSY);
     VECTOR2 point = { 128, 128 };
-    DWORD max_edicts = globals.max_edicts;
+    uint32_t max_edicts = globals.max_edicts;
     globals.max_edicts = globals.num_edicts + 1;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
     globals.max_edicts = max_edicts;

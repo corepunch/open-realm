@@ -1,9 +1,9 @@
 #include "r_mdx.h"
 #include "renderer/r_local.h"
 
-DWORD GetModelKeyFrameSize(MODELKEYTRACKDATATYPE dataType, MODELKEYTRACKTYPE keyTrackType);
+uint32_t GetModelKeyFrameSize(MODELKEYTRACKDATATYPE dataType, MODELKEYTRACKTYPE keyTrackType);
 
-#define LPCSTR const char *
+#define cstring_t const char *
 #define FOR_EACH_LIST(type, property, list) \
 for (type *property = list, *next = list ? (list)->next : NULL; \
 property; \
@@ -80,16 +80,16 @@ enum {
 };
 
 typedef struct {
-    DWORD header;
-    DWORD size;
-    DWORD start;
+    uint32_t header;
+    uint32_t size;
+    uint32_t start;
 } tFileBlock_t;
 
-DWORD R_ModelFindBiggestGroup(mdxGeoset_t const *geoset) {
+uint32_t R_ModelFindBiggestGroup(mdxGeoset_t const *geoset) {
     if (!geoset || !geoset->matrixGroupSizes || geoset->num_matrixGroupSizes <= 0) {
         return 0;
     }
-    DWORD biggest = 0;
+    uint32_t biggest = 0;
     FOR_LOOP(i, geoset->num_matrixGroupSizes) {
         biggest = MAX(geoset->matrixGroupSizes[i], biggest);
     }
@@ -111,12 +111,12 @@ typedef enum {
 typedef blockReadCode_t (*blockReaderFunc_t)(LPSIZEBUF sb, void *model);
 
 typedef struct {
-    LPCSTR block_id;
+    cstring_t block_id;
     blockReaderFunc_t read;
 } blockReader_t;
 
 blockReadCode_t MSG_ReadBlock(LPSIZEBUF buffer, blockReader_t const *readers, void *data) {
-    DWORD blockHeader;
+    uint32_t blockHeader;
     while (MSG_Read(buffer, &blockHeader, 4)) {
         sizeBuf_t block;
         memset(&block, 0, sizeof(sizeBuf_t));
@@ -138,7 +138,7 @@ blockReadCode_t MSG_ReadBlock(LPSIZEBUF buffer, blockReader_t const *readers, vo
     return BLOCKREAD_OK;
 }
 
-int MSG_Read(LPSIZEBUF buffer, void *dest, DWORD bytes) {
+int MSG_Read(LPSIZEBUF buffer, void *dest, uint32_t bytes) {
     if (buffer->readcount + bytes > buffer->cursize)
         return 0;
     memcpy(dest, (char *)buffer->data + buffer->readcount, bytes);
@@ -147,13 +147,13 @@ int MSG_Read(LPSIZEBUF buffer, void *dest, DWORD bytes) {
 }
 
 int MSG_ReadLong(LPSIZEBUF buffer) {
-    DWORD value = 0;
+    uint32_t value = 0;
     MSG_Read(buffer, &value, 4);
     return value;
 }
 
 int MSG_ReadByte(LPSIZEBUF buffer) {
-    DWORD value = 0;
+    uint32_t value = 0;
     MSG_Read(buffer, &value, 1);
     return value;
 }
@@ -181,7 +181,7 @@ void ReadGeosetMatrices(LPSIZEBUF buffer, mdxGeoset_t *geoset) {
 }
 
 void ReadGeoset(LPSIZEBUF buffer, mdxGeoset_t *geoset) {
-    DWORD header;
+    uint32_t header;
     while (MSG_Read(buffer, &header, 4)) {
         switch (header) {
             case ID_VRTX: SFileReadArray2(buffer, geoset, vertices, sizeof(VECTOR3)); break;
@@ -202,10 +202,10 @@ void ReadGeoset(LPSIZEBUF buffer, mdxGeoset_t *geoset) {
 }
 
 void ReadKeyTrack(LPSIZEBUF buffer, MODELKEYTRACKDATATYPE dataType, mdxKeyTrack_t **output) {
-    DWORD keyframeCount = MSG_ReadLong(buffer);
+    uint32_t keyframeCount = MSG_ReadLong(buffer);
     MODELKEYTRACKTYPE keyTrackType = MSG_ReadLong(buffer);
-    DWORD globalSeqId = MSG_ReadLong(buffer);
-    DWORD const dataSize = GetModelKeyFrameSize(dataType, keyTrackType) * keyframeCount;
+    uint32_t globalSeqId = MSG_ReadLong(buffer);
+    uint32_t const dataSize = GetModelKeyFrameSize(dataType, keyTrackType) * keyframeCount;
     *output = ri.MemAlloc(sizeof(mdxKeyTrack_t) + dataSize);
     (*output)->keyframeCount = keyframeCount;
     (*output)->datatype = dataType;
@@ -215,7 +215,7 @@ void ReadKeyTrack(LPSIZEBUF buffer, MODELKEYTRACKDATATYPE dataType, mdxKeyTrack_
 }
 
 void ReadMaterialLayer(LPSIZEBUF buffer, mdxMaterialLayer_t *layer) {
-    DWORD blockHeader;
+    uint32_t blockHeader;
     MSG_Read(buffer, &layer->blendMode, 4);
     MSG_Read(buffer, &layer->flags, 4);
     MSG_Read(buffer, &layer->textureId, 4);
@@ -245,7 +245,7 @@ void ReadMaterialLayers(LPSIZEBUF buffer, mdxMaterial_t *material) {
 }
 
 void ReadMaterial(LPSIZEBUF buffer, mdxMaterial_t *material) {
-    DWORD blockHeader;
+    uint32_t blockHeader;
     material->priority = MSG_ReadLong(buffer);
     material->flags = MSG_ReadLong(buffer);
     while (MSG_Read(buffer, &blockHeader, 4)) {
@@ -262,7 +262,7 @@ void ReadMaterial(LPSIZEBUF buffer, mdxMaterial_t *material) {
 }
 
 void ReadTextureAnim(LPSIZEBUF buffer, mdxTextureAnim_t *textureAnim) {
-    DWORD blockHeader;
+    uint32_t blockHeader;
     while (MSG_Read(buffer, &blockHeader, 4)) {
         switch (blockHeader) {
             case ID_KTAT: ReadKeyTrack(buffer, TDATA_FLOAT3, &textureAnim->translation); break;
@@ -275,15 +275,15 @@ void ReadTextureAnim(LPSIZEBUF buffer, mdxTextureAnim_t *textureAnim) {
     }
 }
 
-void ReadNode(LPSIZEBUF buffer, mdxNode_t *node, DWORD blockSize) {
-    DWORD blockEnd = buffer->readcount + blockSize;
+void ReadNode(LPSIZEBUF buffer, mdxNode_t *node, uint32_t blockSize) {
+    uint32_t blockEnd = buffer->readcount + blockSize;
     MSG_Read(buffer, &node->name, sizeof(mdxObjectName_t));
     node->node_id = MSG_ReadLong(buffer);
     node->parent_id = MSG_ReadLong(buffer);
     node->flags = MSG_ReadLong(buffer);
     
     while (buffer->readcount < blockEnd) {
-        DWORD blockHeader;
+        uint32_t blockHeader;
         MSG_Read(buffer, &blockHeader, 4);
         switch (blockHeader) {
             case ID_KGTR: ReadKeyTrack(buffer, TDATA_FLOAT3, &node->translation); break;
@@ -296,15 +296,15 @@ void ReadNode(LPSIZEBUF buffer, mdxNode_t *node, DWORD blockSize) {
     }
 }
 
-void MSG_ReadOverflow(LPSIZEBUF buffer, void *dest, DWORD bytes) {
+void MSG_ReadOverflow(LPSIZEBUF buffer, void *dest, uint32_t bytes) {
     buffer->cursize += bytes;
     MSG_Read(buffer, dest, bytes);
 }
 
 void ReadBone(LPSIZEBUF buffer, mdxBone_t *bone) {
     ReadNode(buffer, &bone->node, buffer->cursize - buffer->readcount);
-    MSG_ReadOverflow(buffer, &bone->geoset_id, sizeof(DWORD));
-    MSG_ReadOverflow(buffer, &bone->geoset_animation_id, sizeof(DWORD));
+    MSG_ReadOverflow(buffer, &bone->geoset_id, sizeof(uint32_t));
+    MSG_ReadOverflow(buffer, &bone->geoset_animation_id, sizeof(uint32_t));
 }
 
 void ReadHelper(LPSIZEBUF buffer, mdxHelper_t *helper) {
@@ -313,7 +313,7 @@ void ReadHelper(LPSIZEBUF buffer, mdxHelper_t *helper) {
 
 void ReadCollisionShape(LPSIZEBUF buffer, mdxCollisionShape_t *cs) {
     ReadNode(buffer, &cs->node, buffer->cursize - buffer->readcount);
-    MSG_ReadOverflow(buffer, &cs->type, sizeof(DWORD));
+    MSG_ReadOverflow(buffer, &cs->type, sizeof(uint32_t));
     MSG_ReadOverflow(buffer, &cs->vertex[0], sizeof(VECTOR3));
     if (cs->type != SHAPETYPE_SPHERE) {
         MSG_ReadOverflow(buffer, &cs->vertex[1], sizeof(VECTOR3));
@@ -327,7 +327,7 @@ void ReadCollisionShape(LPSIZEBUF buffer, mdxCollisionShape_t *cs) {
 MSG_Read(BUFFER, &VAR, sizeof(VAR));
 
 void ReadParticleEmitter(LPSIZEBUF buffer, mdxParticleEmitter_t *pe) {
-    DWORD emitterSize = MSG_ReadLong(buffer), header;
+    uint32_t emitterSize = MSG_ReadLong(buffer), header;
     ReadNode(buffer, &pe->node, emitterSize - sizeof(emitterSize));
     MSG_READ(buffer, pe->Speed);
     MSG_READ(buffer, pe->Variation);
@@ -384,7 +384,7 @@ void ReadParticleEmitter(LPSIZEBUF buffer, mdxParticleEmitter_t *pe) {
 }
 
 void ReadRibbonEmitter(LPSIZEBUF buffer, mdxRibbonEmitter_t *ribbon) {
-    DWORD emitterSize = MSG_ReadLong(buffer), header;
+    uint32_t emitterSize = MSG_ReadLong(buffer), header;
     ReadNode(buffer, &ribbon->node, emitterSize - sizeof(emitterSize));
     MSG_READ(buffer, ribbon->heightAbove);
     MSG_READ(buffer, ribbon->heightBelow);
@@ -413,7 +413,7 @@ void ReadRibbonEmitter(LPSIZEBUF buffer, mdxRibbonEmitter_t *ribbon) {
 }
 
 void ReadCamera(LPSIZEBUF buffer, mdxCamera_t *camera) {
-    DWORD blockHeader;
+    uint32_t blockHeader;
     MSG_Read(buffer, &camera->name, sizeof(mdxObjectName_t));
     MSG_Read(buffer, &camera->pivot, sizeof(VECTOR3));
     MSG_Read(buffer, &camera->fieldOfView, sizeof(float));
@@ -433,20 +433,20 @@ void ReadCamera(LPSIZEBUF buffer, mdxCamera_t *camera) {
 
 void ReadEvent(LPSIZEBUF buffer, mdxEvent_t *event) {
     ReadNode(buffer, &event->node, buffer->cursize - buffer->readcount);
-    DWORD blockHeader;
+    uint32_t blockHeader;
     MSG_ReadOverflow(buffer, &blockHeader, 4);
     if (blockHeader == ID_KEVT) {
-        MSG_ReadOverflow(buffer, &event->num_keys, sizeof(DWORD));
-        MSG_ReadOverflow(buffer, &event->globalSeqId, sizeof(DWORD));
-        event->keys = ri.MemAlloc(event->num_keys * sizeof(DWORD));
-        MSG_ReadOverflow(buffer, event->keys, event->num_keys * sizeof(DWORD));
+        MSG_ReadOverflow(buffer, &event->num_keys, sizeof(uint32_t));
+        MSG_ReadOverflow(buffer, &event->globalSeqId, sizeof(uint32_t));
+        event->keys = ri.MemAlloc(event->num_keys * sizeof(uint32_t));
+        MSG_ReadOverflow(buffer, event->keys, event->num_keys * sizeof(uint32_t));
     } else {
         PrintTag(blockHeader);
     }
 }
 
 void ReadAttachment(LPSIZEBUF buffer, mdxAttachment_t *attachment) {
-    DWORD attachmentSize = MSG_ReadLong(buffer), header;
+    uint32_t attachmentSize = MSG_ReadLong(buffer), header;
     ReadNode(buffer, &attachment->node, attachmentSize - sizeof(attachmentSize));
     MSG_Read(buffer, attachment->path, MODEL_ATTACHMENT_PATH_LENGTH);
     MSG_ReadLong(buffer);
@@ -464,7 +464,7 @@ void ReadAttachment(LPSIZEBUF buffer, mdxAttachment_t *attachment) {
 }
 
 void ReadLight(LPSIZEBUF buffer, mdxLight_t *light) {
-    DWORD lightSize = MSG_ReadLong(buffer), header;
+    uint32_t lightSize = MSG_ReadLong(buffer), header;
     ReadNode(buffer, &light->node, lightSize - sizeof(lightSize));
     MSG_READ(buffer, light->type);
     MSG_READ(buffer, light->AttenuationStart);
@@ -495,7 +495,7 @@ void ReadLight(LPSIZEBUF buffer, mdxLight_t *light) {
 }
 
 void ReadGeosetAnim(LPSIZEBUF buffer, mdxGeosetAnim_t *geosetAnim) {
-    DWORD blockHeader;
+    uint32_t blockHeader;
     MSG_Read(buffer, geosetAnim, 24);
     while (MSG_Read(buffer, &blockHeader, 4)) {
         switch (blockHeader) {
@@ -508,7 +508,7 @@ void ReadGeosetAnim(LPSIZEBUF buffer, mdxGeosetAnim_t *geosetAnim) {
     };
 }
 
-mdxNode_t *MDLX_GetModelNodeWithObjectID(mdxModel_t *model, DWORD objectID) {
+mdxNode_t *MDLX_GetModelNodeWithObjectID(mdxModel_t *model, uint32_t objectID) {
     if (objectID == -1) {
         return NULL;
     }
@@ -611,9 +611,9 @@ blockReadCode_t MDLX_ReadTEXS(LPSIZEBUF sb, mdxModel_t *model) {
     model->textures = ri.MemAlloc(sizeof(mdxTexture_t) * model->num_textures);
     FOR_LOOP(i, model->num_textures) {
         mdxTexture_t *texture = &model->textures[i];
-        if (!MSG_Read(sb, &texture->replaceableID, sizeof(DWORD)) ||
+        if (!MSG_Read(sb, &texture->replaceableID, sizeof(uint32_t)) ||
             !MSG_Read(sb, texture->path, MDX_TEXTURE_PATH_LENGTH) ||
-            !MSG_Read(sb, &texture->nWrapping, sizeof(DWORD))) {
+            !MSG_Read(sb, &texture->nWrapping, sizeof(uint32_t))) {
             return BLOCKREAD_ERROR;
         }
         texture->path[MDX_TEXTURE_PATH_LENGTH - 1] = '\0';
@@ -697,7 +697,7 @@ static void MDLX_AddNode(mdxModel_t *model, mdxNode_t *node) {
     }
 }
 
-mdxModel_t *R_LoadModelMDLX(void *data, DWORD size) {
+mdxModel_t *R_LoadModelMDLX(void *data, uint32_t size) {
     mdxModel_t *model = ri.MemAlloc(sizeof(mdxModel_t));
     sizeBuf_t buffer = { .data = data, .cursize = size, .readcount = 4 };
     if (MSG_ReadBlock(&buffer, R_MDLX, model) != BLOCKREAD_OK) {
@@ -724,7 +724,7 @@ mdxModel_t *R_LoadModelMDLX(void *data, DWORD size) {
     }
     FOR_EACH_LIST(mdxGeosetAnim_t, geosetAnim, model->geosetAnims) {
         mdxGeoset_t *geoset = model->geosets;
-        for (DWORD geosetID = geosetAnim->geosetId;
+        for (uint32_t geosetID = geosetAnim->geosetId;
              geoset && geosetID > 0;
              geosetID--)
         {

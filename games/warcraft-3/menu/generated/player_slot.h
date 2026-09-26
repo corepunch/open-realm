@@ -24,8 +24,8 @@ typedef struct PlayerSlot_s {
 } PlayerSlot_t;
 
 
-static inline BOOL PlayerSlot_Bind(PlayerSlot_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool PlayerSlot_Bind(PlayerSlot_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -53,7 +53,7 @@ static inline BOOL PlayerSlot_Bind(PlayerSlot_t *out, LPFRAMEDEF bind_root) {
     return ok;
 }
 
-static inline BOOL PlayerSlot_Load(PlayerSlot_t *out) {
+static inline bool PlayerSlot_Load(PlayerSlot_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
            UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") &&

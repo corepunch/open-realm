@@ -9,10 +9,10 @@
 #define BZ_WOW_CVAR_SHOW_TIPS "ui_show_tips"
 
 typedef struct {
-    DWORD message_id;
-    BYTE kind;
-    BYTE flags;
-    DWORD quest_id;
+    uint32_t message_id;
+    uint8_t kind;
+    uint8_t flags;
+    uint32_t quest_id;
     char title[WOW_UI_MESSAGE_TITLE];
     char body[WOW_UI_MESSAGE_BODY];
 } wowUiMessage_t;

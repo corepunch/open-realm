@@ -138,8 +138,8 @@ typedef struct OptionsMenu_s {
     LPFRAMEDEF ConfirmCancelButtonText;
 } OptionsMenu_t;
 
-static inline BOOL OptionsMenu_Load(OptionsMenu_t *out) {
-    BOOL ok = true;
+static inline bool OptionsMenu_Load(OptionsMenu_t *out) {
+    bool ok = true;
     LPFRAMEDEF bind_root;
     if (!out) {
         return false;

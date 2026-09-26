@@ -2,30 +2,30 @@
 #include "test.h"
 #include "../g_local.h"
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
 void unit_die(LPEDICT self, LPEDICT attacker);
 void ai_train_build(LPEDICT ent);
-void unit_build(LPEDICT ent, DWORD class_id);
-BOOL run_test_jass(LPCSTR src);
+void unit_build(LPEDICT ent, uint32_t class_id);
+bool run_test_jass(cstring_t src);
 
-BOOL UI_TestUpkeepBodyHasTierRanges(LPCSTR text);
-void UI_TestFormatUpkeepLegend(LPSTR out, DWORD out_size, LPCSTR info, BOOL use_wood_info);
+bool UI_TestUpkeepBodyHasTierRanges(cstring_t text);
+void UI_TestFormatUpkeepLegend(string_t out, uint32_t out_size, cstring_t info, bool use_wood_info);
 
-static LPCSTR food_limits_off_cvar(LPCSTR name, LPCSTR fallback) {
+static cstring_t food_limits_off_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "wc3_food_limits") ? "0" : fallback;
 }
 
 typedef struct {
     pfWriteType_t types[16];
-    LONG integral[16];
-    FLOAT real[16];
+    int32_t integral[16];
+    float real[16];
     VECTOR3 position;
     char text[32];
-    DWORD count;
-    DWORD font_size;
+    uint32_t count;
+    uint32_t font_size;
     char font_name[MAX_PATHLEN];
-    DWORD multicast_count;
+    uint32_t multicast_count;
     multicast_t multicast_to;
     VECTOR3 multicast_origin;
 } resourceGainCapture_t;
@@ -33,9 +33,9 @@ typedef struct {
 static resourceGainCapture_t resource_gain_capture;
 
 static void resource_gain_test_write(pfWriteType_t type, void const *value) {
-    DWORD const slot = resource_gain_capture.count++;
+    uint32_t const slot = resource_gain_capture.count++;
 
-    DWORD const capacity = sizeof(resource_gain_capture.types) / sizeof(resource_gain_capture.types[0]);
+    uint32_t const capacity = sizeof(resource_gain_capture.types) / sizeof(resource_gain_capture.types[0]);
 
     if (slot < capacity) resource_gain_capture.types[slot] = type;
     if (!value || slot >= capacity) return;
@@ -43,10 +43,10 @@ static void resource_gain_test_write(pfWriteType_t type, void const *value) {
         case PF_BYTE:
         case PF_SHORT:
         case PF_LONG:
-            resource_gain_capture.integral[slot] = *(LONG const *)value;
+            resource_gain_capture.integral[slot] = *(int32_t const *)value;
             break;
         case PF_FLOAT:
-            resource_gain_capture.real[slot] = *(FLOAT const *)value;
+            resource_gain_capture.real[slot] = *(float const *)value;
             break;
         case PF_POSITION:
             resource_gain_capture.position = *(LPCVECTOR3)value;
@@ -59,7 +59,7 @@ static void resource_gain_test_write(pfWriteType_t type, void const *value) {
     }
 }
 
-static int resource_gain_test_font(LPCSTR name, DWORD size) {
+static int resource_gain_test_font(cstring_t name, uint32_t size) {
     strlcpy(resource_gain_capture.font_name, name ? name : "", sizeof(resource_gain_capture.font_name));
     resource_gain_capture.font_size = size;
     return 17;
@@ -159,7 +159,7 @@ TEST(wc3_food, food_limits_cvar_allows_training_over_cap_but_keeps_accounting) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
     UnitBalance_t balance = *unit->data.UnitBalance;
-    LPCSTR (*saved_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    cstring_t (*saved_cvar)(cstring_t, cstring_t) = gi.CvarString;
 
     balance.foodUsed = 3;
     unit->data.UnitBalance = &balance;
@@ -243,7 +243,7 @@ TEST(wc3_food, credited_gold_emits_net_resource_gain_world_text) {
     LPEDICT source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 200.0f);
     void (*saved_write)(pfWriteType_t, void const *) = gi.Write;
     void (*saved_multicast)(LPCVECTOR3, multicast_t) = gi.multicast;
-    int (*saved_font)(LPCSTR, DWORD) = gi.FontIndex;
+    int (*saved_font)(cstring_t, uint32_t) = gi.FontIndex;
 
     memset(&resource_gain_capture, 0, sizeof(resource_gain_capture));
     source->s.origin = MAKE(VECTOR3, 100.0f, 200.0f, 3.0f);
@@ -267,7 +267,7 @@ TEST(wc3_food, credited_gold_emits_net_resource_gain_world_text) {
     T_EQ(resource_gain_capture.types[3], PF_STRING);
     T_STREQ(resource_gain_capture.text, "+7");
     T_EQ(resource_gain_capture.types[4], PF_LONG);
-    T_EQ((DWORD)resource_gain_capture.integral[4], 0xff00dcffu);
+    T_EQ((uint32_t)resource_gain_capture.integral[4], 0xff00dcffu);
     T_EQ(resource_gain_capture.types[5], PF_SHORT);
     T_EQ(resource_gain_capture.integral[5], 17);
     T_EQ(resource_gain_capture.types[6], PF_LONG);

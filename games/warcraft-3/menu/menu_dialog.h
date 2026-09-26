@@ -16,17 +16,17 @@ typedef enum {
 } uiDialogWar3Buttons_t;
 
 typedef struct {
-    LPCSTR modal_name;
-    LPCSTR template_name;
+    cstring_t modal_name;
+    cstring_t template_name;
 } uiDialogWar3Init_t;
 
 typedef struct {
-    LPCSTR message;
+    cstring_t message;
     uiDialogWar3Icon_t icon;
     uiDialogWar3Buttons_t buttons;
-    LPCSTR ok_command;
-    LPCSTR yes_command;
-    LPCSTR no_command;
+    cstring_t ok_command;
+    cstring_t yes_command;
+    cstring_t no_command;
 } uiDialogWar3Config_t;
 
 typedef struct {
@@ -42,15 +42,15 @@ typedef struct {
     LPFRAMEDEF yes_backdrop;
     LPFRAMEDEF yes_button;
     DialogWar3_t frames;
-    FLOAT default_height;
+    float default_height;
 } uiDialogWar3_t;
 
-BOOL UI_DialogWar3Init(uiDialogWar3_t *dialog,
+bool UI_DialogWar3Init(uiDialogWar3_t *dialog,
                        LPFRAMEDEF parent,
                        uiDialogWar3Init_t const *init);
 void UI_DialogWar3Show(uiDialogWar3_t *dialog,
                        uiDialogWar3Config_t const *config);
 void UI_DialogWar3Hide(uiDialogWar3_t *dialog);
-BOOL UI_DialogWar3Visible(uiDialogWar3_t const *dialog);
+bool UI_DialogWar3Visible(uiDialogWar3_t const *dialog);
 
 #endif /* MENU_DIALOG_H */

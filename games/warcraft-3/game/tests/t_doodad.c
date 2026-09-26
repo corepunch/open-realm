@@ -3,12 +3,12 @@
 #include "shared/test.h"
 #include "common/stb_slk.h"
 
-BOOL run_test_jass(LPCSTR src);
+bool run_test_jass(cstring_t src);
 
 static Doodads_t doodad_row = { .id = MAKEFOURCC('L', 'O', 'o', '2') };
 static DestructableData_t not_destructable;
 
-static LPEDICT make_test_doodad(FLOAT x, FLOAT y) {
+static LPEDICT make_test_doodad(float x, float y) {
     LPEDICT ent = G_Spawn();
 
     ent->class_id = doodad_row.id;
@@ -109,7 +109,7 @@ TEST(wc3_doodad, spawn_enters_nonzero_stand_and_script_can_replace_it) {
 
     FOR_LOOP(index, 2) {
         LPEDICT ent = G_Spawn();
-        DWORD first = index ? 61667 : 4167, last = index ? 66667 : 6667;
+        uint32_t first = index ? 61667 : 4167, last = index ? 66667 : 6667;
         ent->class_id = index ? MAKEFOURCC('A','S','x','2') : MAKEFOURCC('A','S','v','0');
         SP_CallSpawn(ent); /* same path as a war3map.doo placement */
         T_ASSERT(G_IsDoodad(ent));

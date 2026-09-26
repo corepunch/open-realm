@@ -13,22 +13,22 @@
  * Tries VFS first, then <script_dir>/<filename>, then <filename> directly.
  * ------------------------------------------------------------------------- */
 static char sc2_gdir[512] = "data/TRaynor01-galaxy";
-static HANDLE (*sc2_orig_readfile)(LPCSTR, DWORD *);
-static HANDLE (*sc2_memalloc)(long);
-static void   (*sc2_memfree)(HANDLE);
+static handle_t (*sc2_orig_readfile)(cstring_t, uint32_t *);
+static handle_t (*sc2_memalloc)(long);
+static void   (*sc2_memfree)(handle_t);
 
-void galaxy_set_script_dir(LPCSTR dir) {
+void galaxy_set_script_dir(cstring_t dir) {
     if (dir) snprintf(sc2_gdir, sizeof(sc2_gdir), "%s", dir);
 }
 
-static HANDLE sc2_galaxy_readfile(LPCSTR filename, DWORD *size) {
+static handle_t sc2_galaxy_readfile(cstring_t filename, uint32_t *size) {
     char path[1024];
     FILE *f;
     long sz;
-    LPSTR buf;
+    string_t buf;
 
     if (sc2_orig_readfile) {
-        HANDLE h = sc2_orig_readfile(filename, size);
+        handle_t h = sc2_orig_readfile(filename, size);
         if (h) return h;
     }
     snprintf(path, sizeof(path), "%s/%s", sc2_gdir, filename);
@@ -39,7 +39,7 @@ static HANDLE sc2_galaxy_readfile(LPCSTR filename, DWORD *size) {
     sz = ftell(f);
     fseek(f, 0, SEEK_SET);
     if (sz < 0) { fclose(f); return NULL; }
-    buf = sc2_memalloc ? (LPSTR)sc2_memalloc((long)sz + 1) : (LPSTR)malloc((size_t)sz + 1);
+    buf = sc2_memalloc ? (string_t)sc2_memalloc((long)sz + 1) : (string_t)malloc((size_t)sz + 1);
     if (!buf) { fclose(f); return NULL; }
     size_t got = fread(buf, 1, (size_t)sz, f);
     fclose(f);
@@ -48,7 +48,7 @@ static HANDLE sc2_galaxy_readfile(LPCSTR filename, DWORD *size) {
         return NULL;
     }
     buf[sz] = '\0';
-    *size = (DWORD)sz;
+    *size = (uint32_t)sz;
     return buf;
 }
 
@@ -58,23 +58,23 @@ static HANDLE sc2_galaxy_readfile(LPCSTR filename, DWORD *size) {
 void (*sc2_galaxy_on_camera)(float target_x, float target_y,
                              float yaw, float pitch,
                              float dist, float fov, float height_offset, float duration);
-void (*sc2_galaxy_on_cinematic)(BOOL enable, float duration);
+void (*sc2_galaxy_on_cinematic)(bool enable, float duration);
 void (*sc2_galaxy_on_fade)(float alpha, float duration);
-LPCSTR (*sc2_galaxy_conversation_field)(LPCSTR key, LPCSTR field);
-float (*sc2_galaxy_sound_length)(LPCSTR sound_id, int asset);
-void (*sc2_galaxy_on_sound)(LPCSTR sound_id, int asset);
-void *(*sc2_galaxy_on_unit_create)(LPCSTR model, int player,
+cstring_t (*sc2_galaxy_conversation_field)(cstring_t key, cstring_t field);
+float (*sc2_galaxy_sound_length)(cstring_t sound_id, int asset);
+void (*sc2_galaxy_on_sound)(cstring_t sound_id, int asset);
+void *(*sc2_galaxy_on_unit_create)(cstring_t model, int player,
                                    float x, float y, float angle);
 
-BOOL (*sc2_galaxy_get_camera_by_id)(DWORD map_id,
+bool (*sc2_galaxy_get_camera_by_id)(uint32_t map_id,
     float *tx, float *ty, float *tz,
     float *pitch, float *yaw, float *dist, float *fov, float *height_offset);
-BOOL (*sc2_galaxy_get_point_by_id)(DWORD map_id, float *x, float *y);
-const char *(*sc2_galaxy_get_unit_model)(LPCSTR unit_type);
+bool (*sc2_galaxy_get_point_by_id)(uint32_t map_id, float *x, float *y);
+const char *(*sc2_galaxy_get_unit_model)(cstring_t unit_type);
 void (*sc2_galaxy_unit_set_position)(void *ent, float x, float y, float facing);
 void (*sc2_galaxy_unit_move)(void *ent, float x, float y);
-BOOL (*sc2_galaxy_unit_is_moving)(void *ent);
-BOOL (*sc2_galaxy_unit_is_alive)(void *ent);
+bool (*sc2_galaxy_unit_is_moving)(void *ent);
+bool (*sc2_galaxy_unit_is_alive)(void *ent);
 int (*sc2_galaxy_unit_owner)(void *ent);
 
 void (*sc2_galaxy_on_actor_create)(unsigned actor_id, const char *model,
@@ -108,7 +108,7 @@ void galaxy_loaded_reset(void);
 
 void galaxy_reset(void) {
     sc2_objectives_reset();
-    for (DWORD i = 0; i < sc2_trig_n; i++) {
+    for (uint32_t i = 0; i < sc2_trig_n; i++) {
         free((void *)sc2_trigs[i].func);  /* free strdup'd names */
         sc2_trigs[i].func = NULL;
     }
@@ -143,7 +143,7 @@ void galaxy_reset(void) {
 
 void galaxy_fire_mapinit(LPJASS j) {
     fprintf(stderr, "galaxy_fire_mapinit: %u triggers registered, firing MapInit\n", sc2_trig_n);
-    for (DWORD i = 0; i < sc2_trig_n; i++) {
+    for (uint32_t i = 0; i < sc2_trig_n; i++) {
         if (sc2_trigs[i].mapinit && sc2_trigs[i].func) {
             fprintf(stderr, "  firing MapInit trigger: %s\n", sc2_trigs[i].func);
             sc2_fire_trigger_func(j, sc2_trigs[i].func, false, true);
@@ -152,10 +152,10 @@ void galaxy_fire_mapinit(LPJASS j) {
     jass_runevents(j);
 }
 
-LPJASS galaxy_open(HANDLE (*readfile)(LPCSTR, DWORD *),
-                   DWORD  (*gettime)(void),
-                   HANDLE (*memalloc)(long),
-                   void   (*memfree)(HANDLE)) {
+LPJASS galaxy_open(handle_t (*readfile)(cstring_t, uint32_t *),
+                   uint32_t  (*gettime)(void),
+                   handle_t (*memalloc)(long),
+                   void   (*memfree)(handle_t)) {
     char path[512];
     sc2_orig_readfile = readfile;
     sc2_memalloc      = memalloc;
@@ -185,7 +185,7 @@ LPJASS galaxy_open(HANDLE (*readfile)(LPCSTR, DWORD *),
 
 void galaxy_close(LPJASS vm) {
     if (vm) {
-        for (DWORD i = 0; i < jass_missingcount(vm); i++)
+        for (uint32_t i = 0; i < jass_missingcount(vm); i++)
             fprintf(stderr, "galaxy: missing function: %s\n", jass_missingname(vm, i));
         jass_close(vm);
     }
@@ -195,8 +195,8 @@ void galaxy_close(LPJASS vm) {
 void galaxy_start(LPJASS vm) {
     /* TODO: InitLibs reaches unimplemented dialog/purchase event producers. Keep this gap explicit until wired. */
     fprintf(stderr, "galaxy_start: warning: InitLibs is not yet supported (library event bindings incomplete)\n");
-    static LPCSTR const entry[] = { "InitGlobals", "InitTriggers" };
-    for (DWORD i = 0; i < sizeof(entry) / sizeof(*entry); i++) {
+    static cstring_t const entry[] = { "InitGlobals", "InitTriggers" };
+    for (uint32_t i = 0; i < sizeof(entry) / sizeof(*entry); i++) {
         fprintf(stderr, "galaxy_start: calling %s\n", entry[i]);
         jass_callbyname(vm, entry[i], false);
         if (jass_rterror_pending(vm)) {

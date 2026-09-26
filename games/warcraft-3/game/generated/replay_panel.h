@@ -27,8 +27,8 @@ typedef struct ReplayPanel_s {
 } ReplayPanel_t;
 
 
-static inline BOOL ReplayPanel_Bind(ReplayPanel_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool ReplayPanel_Bind(ReplayPanel_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -59,7 +59,7 @@ static inline BOOL ReplayPanel_Bind(ReplayPanel_t *out, LPFRAMEDEF bind_root) {
     return ok;
 }
 
-static inline BOOL ReplayPanel_Load(ReplayPanel_t *out) {
+static inline bool ReplayPanel_Load(ReplayPanel_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf") &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\ReplayPanel.fdf") &&

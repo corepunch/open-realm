@@ -16,9 +16,9 @@ menuImport_t mi;
 
 /* Internal state */
 typedef struct {
-    BOOL initialized;
-    BOOL active;
-    DWORD time;
+    bool initialized;
+    bool active;
+    uint32_t time;
     VECTOR2 mouse_fdf;
     uiScreen_t *transition_screen;
     void (*configure)(void);
@@ -27,12 +27,12 @@ typedef struct {
 
 static uiState_t ui_state;
 static uiScreen_t *ui_current_screen = NULL;
-static BOOL ui_menu_commands_registered;
+static bool ui_menu_commands_registered;
 
 static void UI_ClearScreen(void);
 static void M_ShowSinglePlayerSkirmishMenu(void);
 
-typedef struct { LPCSTR name; void (*func)(void); } MENUCOMMAND;
+typedef struct { cstring_t name; void (*func)(void); } MENUCOMMAND;
 
 static void UI_MenuMain_f(void);
 static void UI_MenuGame_f(void);
@@ -119,14 +119,14 @@ static const MENUCOMMAND menu_commands[] = {
  * When one symbolic key is absent, derive it from the resolved sibling path so
  * the active race/custom skin remains authoritative. */
 /* Resolve resources before changing presentation; failure leaves the old screen intact. */
-static BOOL UI_LoadScreen(uiScreen_t *screen) {
+static bool UI_LoadScreen(uiScreen_t *screen) {
     if (!screen || screen == ui_current_screen || screen == ui_state.transition_screen || !screen->load || screen->load()) return true;
     fprintf(stderr, "UI: failed to load screen '%s'\n", screen->name);
     return false;
 }
 
 static void UI_UpdateMenuMusic(uiScreen_t *screen) {
-    LPCSTR key, music;
+    cstring_t key, music;
 
     if (!screen) {
         mi.StopMusic();
@@ -170,7 +170,7 @@ static void UI_FinishActionTransition(void) {
 
 /* Every menu route uses the same handoff, including commands issued at startup.
  * A loaded destination may prepare resources, but cannot replace outgoing content. */
-static BOOL UI_RequestScreen(uiScreen_t *screen, GLUEDEST glue, void (*configure)(void)) {
+static bool UI_RequestScreen(uiScreen_t *screen, GLUEDEST glue, void (*configure)(void)) {
     if (ui_state.transition_action || !UI_LoadScreen(screen)) return false;
     /* Prepare inactive data before returning to lobby/map command callers. Only
      * installation grants draw ownership, so preparation cannot flash controls. */
@@ -218,7 +218,7 @@ void M_ShowLanBrowserMenu(void) {
     UI_RequestScreen(&lanJoinScreen, (GLUEDEST){ .panel = UI_GLUE_BATTLENET_CUSTOM }, LAN_ShowBrowser);
 }
 
-static BOOL UI_RequestGameSetup(void) {
+static bool UI_RequestGameSetup(void) {
     GLUEDEST glue = LAN_IsSinglePlayerCreate() ? (GLUEDEST){ .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 } : gameSetupScreen.glue;
     return UI_RequestScreen(&gameSetupScreen, glue, NULL);
 }
@@ -304,7 +304,7 @@ static void UI_ClearScreen(void) {
 }
 
 /* Refresh frame state flags before dispatch so draw never asks for mouse position. */
-static void UI_UpdateMouseFrameFlags(LPCFRAMEDEF hit, BOOL clear_pressed) {
+static void UI_UpdateMouseFrameFlags(LPCFRAMEDEF hit, bool clear_pressed) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
         LPFRAMEDEF frame = &frames[i];
         if (!frame->inuse) {
@@ -357,7 +357,7 @@ void M_Init(void) {
      * Map launches use the server-authored in-game HUD via svc_layout.  Leave
      * the client-side menu screen idle there so no glue screen covers the game.
      */
-    LPCSTR map = mi.Cvar_String
+    cstring_t map = mi.Cvar_String
         ? mi.Cvar_String("map", "")
         : "";
     if (map && *map) {
@@ -375,30 +375,30 @@ void M_Shutdown(void) {
     memset(&ui_state, 0, sizeof(ui_state));
 }
 
-void M_SetActive(BOOL active) {
+void M_SetActive(bool active) {
     ui_state.active = active;
 }
 
-DWORD M_Time(void) {
+uint32_t M_Time(void) {
     return ui_state.time;
 }
 
-BOOL M_IsTransitioning(void) {
+bool M_IsTransitioning(void) {
     return ui_state.transition_screen || ui_state.transition_action || UI_GlueIsTransitioning();
 }
 
 /* Left subtree declarations split native FDF without changing its layout. All
  * remaining controls belong to the right side, including screen-level dialogs. */
-FLOAT UI_ScreenFrameOffset(LPCFRAMEDEF frame) {
+float UI_ScreenFrameOffset(LPCFRAMEDEF frame) {
     uiScreen_t *screen = UI_GetCurrentScreen();
     if (!screen) return 0;
     for (LPCFRAMEDEF cur = frame; cur; cur = cur->Parent)
-        for (LPCSTR const *name = screen->left; name && *name; name++)
+        for (cstring_t const *name = screen->left; name && *name; name++)
             if (!strcmp(cur->Name, *name)) return UI_GlueSideOffset(UI_GLUE_LEFT);
     return UI_GlueSideOffset(UI_GLUE_RIGHT);
 }
 
-void M_Refresh(DWORD time) {
+void M_Refresh(uint32_t time) {
     if (!ui_state.active) {
         return;
     }
@@ -417,12 +417,12 @@ void M_Refresh(DWORD time) {
 }
 
 /* SDL text events bypass KeyEvent; apply the same ownership/transition gate before editing. */
-void M_TextInput(LPCSTR text) {
+void M_TextInput(cstring_t text) {
     if (!ui_state.active || M_IsTransitioning() || (ui_state.initialized && !UI_GetCurrentScreen())) return;
     UI_EditTextInput(text);
 }
 
-void M_KeyEvent(int key, BOOL down, DWORD time) {
+void M_KeyEvent(int key, bool down, uint32_t time) {
     (void)time;
 
     if (!ui_state.active || M_IsTransitioning()) {
@@ -444,22 +444,22 @@ void M_KeyEvent(int key, BOOL down, DWORD time) {
 static VECTOR2 UI_PixelToFdf(int px, int py) {
     LPRENDERER renderer = mi.GetRenderer();
     size2_t window = renderer && renderer->GetWindowSize ? renderer->GetWindowSize() : MAKE(size2_t, 0, 0);
-    RECT scene = UI_GetSceneRect();
-    FLOAT nx = 0;
-    FLOAT ny = 0;
+    rect_t scene = UI_GetSceneRect();
+    float nx = 0;
+    float ny = 0;
 
     if (window.width > 0 && window.height > 0) {
-        nx = (FLOAT)px / (FLOAT)window.width;
-        ny = (FLOAT)py / (FLOAT)window.height;
+        nx = (float)px / (float)window.width;
+        ny = (float)py / (float)window.height;
     }
     return MAKE(VECTOR2, scene.x + nx * scene.w, scene.y + ny * scene.h);
 }
 
 /* All UI mouse work starts here so draw code only consumes event-updated state. */
-BOOL M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
-    BOOL const down = event == MENU_MOUSE_DOWN;
-    BOOL const up = event == MENU_MOUSE_UP;
-    BOOL const left = param == 1;
+bool M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
+    bool const down = event == MENU_MOUSE_DOWN;
+    bool const up = event == MENU_MOUSE_UP;
+    bool const left = param == 1;
     int const wheel_y = event == MENU_MOUSE_SCROLL ? MENU_MOUSE_PARAM_Y(param) : 0;
     /* In the initialized runtime, a current screen is the ownership token for
      * standalone FDF input. Gameplay clears the screen, but menu_render.c keeps
@@ -483,7 +483,7 @@ BOOL M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
 
     /* Global: editbox clear focus on miss (LEFT_DOWN outside any editbox) */
     if (down && left) {
-        BOOL hit_editbox = hit && (hit->Type == FT_EDITBOX || hit->Type == FT_GLUEEDITBOX ||
+        bool hit_editbox = hit && (hit->Type == FT_EDITBOX || hit->Type == FT_GLUEEDITBOX ||
                                    hit->Type == FT_SLASHCHATBOX);
         if (!hit_editbox) {
             UI_EditboxClearFocusOnMiss();
@@ -520,24 +520,24 @@ BOOL M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
 }
 
 /* Keep click handling deferred until the client executes its command buffer. */
-void UI_QueueCommand(LPCSTR command) {
+void UI_QueueCommand(cstring_t command) {
     mi.Cmd_ExecuteText(command);
     mi.Cmd_ExecuteText("\n");
 }
 
-/* IDs must be complete unsigned DWORD tokens, not negative or overflowing scanf conversions. */
-static BOOL UI_MenuNumber(LPCSTR text, LPDWORD value) {
+/* IDs must be complete unsigned uint32_t tokens, not negative or overflowing scanf conversions. */
+static bool UI_MenuNumber(cstring_t text, uint32_t * value) {
     char *end;
     errno = 0;
     if (*text < '0' || *text > '9') return false;
     unsigned long num = strtoul(text, &end, 10);
     if (errno == ERANGE || num > UINT32_MAX || *end) return false;
-    *value = (DWORD)num;
+    *value = (uint32_t)num;
     return true;
 }
 
 /* Console tokenization owns quoting/whitespace; these callbacks validate only their argument shape. */
-static BOOL UI_MenuNumbers(LPDWORD nums, int count) {
+static bool UI_MenuNumbers(uint32_t * nums, int count) {
     if (mi.Cmd_Argc() == count + 1) {
         int i;
         for (i = 0; i < count && UI_MenuNumber(mi.Cmd_Argv(i + 1), &nums[i]); i++) {}
@@ -547,16 +547,16 @@ static BOOL UI_MenuNumbers(LPDWORD nums, int count) {
     return false;
 }
 
-static void UI_MenuIndex(void (*func)(DWORD)) {
-    DWORD num;
+static void UI_MenuIndex(void (*func)(uint32_t)) {
+    uint32_t num;
     if (UI_MenuNumbers(&num, 1)) func(num);
 }
-static void UI_MenuPair(void (*func)(DWORD, DWORD)) {
-    DWORD nums[2];
+static void UI_MenuPair(void (*func)(uint32_t, uint32_t)) {
+    uint32_t nums[2];
     if (UI_MenuNumbers(nums, 2)) func(nums[0], nums[1]);
 }
 
-static void UI_MenuVideoMode(DWORD value) {
+static void UI_MenuVideoMode(uint32_t value) {
     char command[96];
     if (value == video_mode_count()) mi.Cmd_ExecuteText("seta vid_native 1\nseta vid_fullscreen 1\n");
     else if (value < video_mode_count()) {
@@ -592,9 +592,9 @@ static void UI_MenuSetupMap_f(void) {
 
 /* Chat retains the optional legacy numeric ownership prefix and the complete message. */
 static void UI_MenuSetupChat_f(void) {
-    DWORD own = 0;
+    uint32_t own = 0;
     int first = UI_MenuNumber(mi.Cmd_Argv(1), &own) ? 2 : 1;
-    LPCSTR text = mi.Cmd_ArgsFrom(first);
+    cstring_t text = mi.Cmd_ArgsFrom(first);
     if (*text) GameSetup_AddChatMessage(text, own);
     else fprintf(stderr, "UI: %s expects a chat message\n", mi.Cmd_Argv(0));
 }

@@ -34,7 +34,7 @@ typedef enum {
 
 typedef struct RMODELLIGHT {
     VECTOR3 pos, dir, color, ambient;
-    FLOAT atten_start, intensity, ambient_intensity;
+    float atten_start, intensity, ambient_intensity;
     RMODELLIGHTTYPE type;
 } RMODELLIGHT;
 typedef struct RMODELLIGHT *LPRMODELLIGHT;
@@ -43,7 +43,7 @@ typedef const struct RMODELLIGHT *LPCRMODELLIGHT;
 typedef struct MODELLIGHTING {
     RMODELLIGHT lights[BZ_MODEL_LIGHT_MAX];
     VECTOR3 ambient;
-    DWORD count;
+    uint32_t count;
 } MODELLIGHTING;
 typedef struct MODELLIGHTING *LPMODELLIGHTING;
 typedef const struct MODELLIGHTING *LPCMODELLIGHTING;
@@ -52,8 +52,8 @@ typedef struct MODELGRASS {
     VECTOR2 camera, fade, height;
     VECTOR3 wind;
     VECTOR4 phase;
-    FLOAT time;
-    BOOL enabled;
+    float time;
+    bool enabled;
 } MODELGRASS;
 typedef struct MODELGRASS *LPMODELGRASS;
 typedef const struct MODELGRASS *LPCMODELGRASS;
@@ -63,13 +63,13 @@ static inline void R_PackModelLighting(LPMATRIX4 out, LPCMODELLIGHTING in) {
     FOR_LOOP(i, in->count) {
         LPCRMODELLIGHT light = &in->lights[i];
         out[i] = (MATRIX4){ .v = {
-            light->pos.x, light->pos.y, light->pos.z, (FLOAT)light->type,
+            light->pos.x, light->pos.y, light->pos.z, (float)light->type,
             -light->dir.x, -light->dir.y, -light->dir.z, light->atten_start,
             light->color.x, light->color.y, light->color.z, light->intensity,
             light->ambient.x, light->ambient.y, light->ambient.z, light->ambient_intensity,
         }};
     }
-    FLOAT ambient[3] = { in->ambient.x, in->ambient.y, in->ambient.z };
+    float ambient[3] = { in->ambient.x, in->ambient.y, in->ambient.z };
     FOR_LOOP(i, 3) out[0].v[12 + i] = out[0].v[12 + i] * out[0].v[15] + ambient[i];
     out[0].v[15] = 1.0f;
 }
@@ -89,11 +89,11 @@ static inline ENVIRONLIGHT R_EnvironLightFromModel(LPCRMODELLIGHT in) {
     return (ENVIRONLIGHT){
         .dir = in->dir, .color = in->color, .ambient = in->ambient,
         .intensity = in->intensity, .ambient_intensity = in->ambient_intensity,
-        .type = (DWORD)in->type, .valid = true,
+        .type = (uint32_t)in->type, .valid = true,
     };
 }
 
-static inline BOOL R_LightingFromEnviron(LPCENVIRONLIGHT in, LPMODELLIGHTING out) {
+static inline bool R_LightingFromEnviron(LPCENVIRONLIGHT in, LPMODELLIGHTING out) {
     if (!out) return false;
     *out = (MODELLIGHTING){0};
     if (!in || !in->valid) return false;

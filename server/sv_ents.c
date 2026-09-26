@@ -21,9 +21,9 @@
 
 typedef struct {
     edict_t *edict;
-    FLOAT score;
-    BOOL priority;
-    BOOL near_world;
+    float score;
+    bool priority;
+    bool near_world;
 } visibleEntityCandidate_t;
 
 /* Determine whether a client should receive updates for the given entity.
@@ -49,16 +49,16 @@ static bool SV_CanClientSeeEntity(LPCCLIENT client, LPCEDICT edict) {
 #endif
 }
 
-static FLOAT SV_ClientEntityVisibilityScore(LPCCLIENT client, LPCEDICT edict) {
+static float SV_ClientEntityVisibilityScore(LPCCLIENT client, LPCEDICT edict) {
 #ifdef WOW
     (void)client;
     (void)edict;
     return 0.0f;
 #else
     edict_t *clent = client->edict;
-    FLOAT dx = edict->s.origin.x - clent->client->ps.vieworigin.x;
-    FLOAT dy = edict->s.origin.y - clent->client->ps.vieworigin.y;
-    FLOAT score = dx * dx + dy * dy;
+    float dx = edict->s.origin.x - clent->client->ps.vieworigin.x;
+    float dy = edict->s.origin.y - clent->client->ps.vieworigin.y;
+    float score = dx * dx + dy * dy;
 
     if (edict->s.player == clent->client->ps.number) {
         score -= OWNED_ENTITY_SCORE_BIAS;
@@ -74,7 +74,7 @@ static int SV_CompareCandidateByNumber(const void *a, const void *b) {
 }
 
 /* Candidate heap root is the lowest-priority, farthest retained entity. */
-static BOOL SV_CandidateWorse(visibleEntityCandidate_t const *a, visibleEntityCandidate_t const *b) {
+static bool SV_CandidateWorse(visibleEntityCandidate_t const *a, visibleEntityCandidate_t const *b) {
     if (a->near_world != b->near_world) return !a->near_world;
     if (a->priority != b->priority) return !a->priority;
     return a->score > b->score;
@@ -84,9 +84,9 @@ static BOOL SV_CandidateWorse(visibleEntityCandidate_t const *a, visibleEntityCa
 static void SV_AddVisibleEntityCandidate(visibleEntityCandidate_t *candidates,
                                          int *num_candidates,
                                          edict_t *edict,
-                                         FLOAT score,
-                                         BOOL priority,
-                                         BOOL near_world)
+                                         float score,
+                                         bool priority,
+                                         bool near_world)
 {
     visibleEntityCandidate_t candidate = { edict, score, priority, near_world };
     if (*num_candidates < MAX_PACKET_ENTITIES) {
@@ -147,7 +147,7 @@ void SV_BuildClientFrame(LPCLIENT client) {
     for (int index = first_entity; index < ge->num_edicts; index++) {
         edict_t *edict = EDICT_NUM(index);
 #ifdef WC3_DEBUG_MINING
-        BOOL const mining_entity = edict->s.class_id == MAKEFOURCC('n','g','o','l');
+        bool const mining_entity = edict->s.class_id == MAKEFOURCC('n','g','o','l');
 #endif
         if (!edict->inuse)
             continue;
@@ -190,10 +190,10 @@ void SV_BuildClientFrame(LPCLIENT client) {
                                        edict->s.origin.x, edict->s.origin.y);
 #endif
         {
-            BOOL const priority = ge->IsSnapshotPriorityEntity &&
+            bool const priority = ge->IsSnapshotPriorityEntity &&
                 ge->IsSnapshotPriorityEntity(clent->client->ps.number, edict);
-            BOOL const owned = edict->s.player == clent->client->ps.number;
-            BOOL const near_world = owned || (!priority &&
+            bool const owned = edict->s.player == clent->client->ps.number;
+            bool const near_world = owned || (!priority &&
                 fabs(edict->s.origin.x - clent->client->ps.vieworigin.x) <= SNAPSHOT_NEAR_ENTITY_DISTANCE &&
                 fabs(edict->s.origin.y - clent->client->ps.vieworigin.y) <= SNAPSHOT_NEAR_ENTITY_DISTANCE);
             SV_AddVisibleEntityCandidate(candidates, &num_candidates, edict,
@@ -343,18 +343,18 @@ void SV_WritePlayerstateToClient(LPCCLIENTFRAME from, LPCCLIENTFRAME to, LPSIZEB
  * next call can compute the correct delta. */
 void SV_WriteFrameToClient(LPCLIENT client) {
     LPCLIENTFRAME frame = &client->frames[sv.framenum & UPDATE_MASK];
-    LPCLIENTFRAME oldframe = client->lastframe == (DWORD)-1
+    LPCLIENTFRAME oldframe = client->lastframe == (uint32_t)-1
         ? NULL
         : &client->frames[client->lastframe & UPDATE_MASK];
-    DWORD start_size = client->netchan.message.cursize;
+    uint32_t start_size = client->netchan.message.cursize;
 
     MSG_WriteByte(&client->netchan.message, svc_frame);
     MSG_WriteLong(&client->netchan.message, sv.framenum);
     MSG_WriteLong(&client->netchan.message, sv.time);
     MSG_WriteLong(&client->netchan.message, client->lastframe);
     {
-        BYTE data[MAX_GAME_DATAGRAM_SIZE];
-        DWORD size = ge->WriteClientDatagram(client->edict, data, sizeof(data));
+        uint8_t data[MAX_GAME_DATAGRAM_SIZE];
+        uint32_t size = ge->WriteClientDatagram(client->edict, data, sizeof(data));
         if (size > sizeof(data)) {
             fprintf(stderr, "SV_WriteFrameToClient: game datagram too large (%u)\n", (unsigned)size);
             size = 0;

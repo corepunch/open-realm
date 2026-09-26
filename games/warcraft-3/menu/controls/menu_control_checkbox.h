@@ -1,19 +1,19 @@
 #ifndef UI_CONTROL_CHECKBOX_H
 #define UI_CONTROL_CHECKBOX_H
 
-static BOOL UI_CheckBoxEnabled(LPCFRAMEDEF frame) {
+static bool UI_CheckBoxEnabled(LPCFRAMEDEF frame) {
     return frame && !(frame->ui_flags & UIFLAG_DISABLED);
 }
 
-static BOOL UI_CheckBoxIsPushed(LPCFRAMEDEF frame, LPCRECT rect) {
+static bool UI_CheckBoxIsPushed(LPCFRAMEDEF frame, rect_t const * rect) {
     (void)rect;
     return UI_CheckBoxEnabled(frame) &&
            !UI_PointerBlockedByPopup(frame) &&
            (frame->ui_flags & UIFLAG_PRESSED);
 }
 
-static LPCFRAMEDEF UI_CheckBoxBackdrop(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPCSTR backdrop_name;
+static LPCFRAMEDEF UI_CheckBoxBackdrop(LPCFRAMEDEF frame, rect_t const * rect) {
+    cstring_t backdrop_name;
 
     if (!frame) {
         return NULL;
@@ -29,7 +29,7 @@ static LPCFRAMEDEF UI_CheckBoxBackdrop(LPCFRAMEDEF frame, LPCRECT rect) {
 }
 
 static LPCFRAMEDEF UI_CheckBoxCheckHighlight(LPCFRAMEDEF frame) {
-    LPCSTR highlight_name;
+    cstring_t highlight_name;
 
     if (!frame || !frame->CheckBox.Checked) {
         return NULL;
@@ -41,7 +41,7 @@ static LPCFRAMEDEF UI_CheckBoxCheckHighlight(LPCFRAMEDEF frame) {
 }
 
 static void UI_DrawCheckBoxMouseOverHighlight(LPCFRAMEDEF frame) {
-    LPCRECT rect;
+    rect_t const * rect;
 
     if (!frame || !UI_CheckBoxEnabled(frame) || UI_PointerBlockedByPopup(frame)) {
         return;

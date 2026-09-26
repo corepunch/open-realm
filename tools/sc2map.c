@@ -8,8 +8,8 @@
 
 #define SC2MAP_MAX_ARCHIVES 16
 
-static HANDLE sc2map_archives[SC2MAP_MAX_ARCHIVES];
-static LPCSTR sc2map_data_dir = "";
+static handle_t sc2map_archives[SC2MAP_MAX_ARCHIVES];
+static cstring_t sc2map_data_dir = "";
 
 static void usage(void) {
     fprintf(stderr,
@@ -23,7 +23,7 @@ static void usage(void) {
             "  sc2map games/starcraft-2/tests/resources-src/Maps/Test/Tiny.SC2Map\n");
 }
 
-static HANDLE sc2map_mem_alloc(long size) {
+static handle_t sc2map_mem_alloc(long size) {
     void *mem = calloc(1, (size_t)(size ? size : 1));
 
     if (!mem) {
@@ -33,14 +33,14 @@ static HANDLE sc2map_mem_alloc(long size) {
     return mem;
 }
 
-static void sc2map_mem_free(HANDLE mem) {
+static void sc2map_mem_free(handle_t mem) {
     free(mem);
 }
 
-static HANDLE sc2map_read_disk_file(LPCSTR filename, LPDWORD size) {
+static handle_t sc2map_read_disk_file(cstring_t filename, uint32_t * size) {
     FILE *file;
     long file_size;
-    LPBYTE data;
+    uint8_t * data;
     struct stat st;
 
     if (size) *size = 0;
@@ -62,20 +62,20 @@ static HANDLE sc2map_read_disk_file(LPCSTR filename, LPDWORD size) {
         return NULL;
     }
     fclose(file);
-    if (size) *size = (DWORD)file_size;
+    if (size) *size = (uint32_t)file_size;
     return data;
 }
 
-static HANDLE sc2map_read_archive_file(LPCSTR filename, LPDWORD size) {
+static handle_t sc2map_read_archive_file(cstring_t filename, uint32_t * size) {
     char path[MAX_PATHLEN];
 
     if (size) *size = 0;
     if (!filename || !*filename)
         return NULL;
     FOR_LOOP(i, SC2MAP_MAX_ARCHIVES) {
-        HANDLE file;
-        DWORD file_size;
-        LPBYTE data;
+        handle_t file;
+        uint32_t file_size;
+        uint8_t * data;
 
         if (!sc2map_archives[i])
             continue;
@@ -102,15 +102,15 @@ static HANDLE sc2map_read_archive_file(LPCSTR filename, LPDWORD size) {
     return NULL;
 }
 
-static HANDLE sc2map_read_file(LPCSTR filename, LPDWORD size) {
-    HANDLE data = sc2map_read_archive_file(filename, size);
+static handle_t sc2map_read_file(cstring_t filename, uint32_t * size) {
+    handle_t data = sc2map_read_archive_file(filename, size);
 
     if (data)
         return data;
     return sc2map_read_disk_file(filename, size);
 }
 
-static BOOL sc2map_add_archive(LPCSTR filename) {
+static bool sc2map_add_archive(cstring_t filename) {
     FOR_LOOP(i, SC2MAP_MAX_ARCHIVES) {
         if (sc2map_archives[i])
             continue;
@@ -124,7 +124,7 @@ static BOOL sc2map_add_archive(LPCSTR filename) {
     return false;
 }
 
-static LPCSTR sc2map_cvar_string(LPCSTR name, LPCSTR fallback) {
+static cstring_t sc2map_cvar_string(cstring_t name, cstring_t fallback) {
     if (name && !strcmp(name, "data"))
         return sc2map_data_dir && *sc2map_data_dir ? sc2map_data_dir : fallback;
     return fallback;
@@ -140,7 +140,7 @@ static void sc2map_close_archives(void) {
 }
 
 int main(int argc, char **argv) {
-    LPCSTR map = NULL;
+    cstring_t map = NULL;
 
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-mpq")) {

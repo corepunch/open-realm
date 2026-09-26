@@ -54,7 +54,7 @@
  * Host interface implementation
  * ========================================================================= */
 
-static HANDLE read_file(LPCSTR filename, DWORD *out_size) {
+static handle_t read_file(cstring_t filename, uint32_t *out_size) {
     FILE *f = fopen(filename, "rb");
     if (!f) {
         fprintf(stderr, "jass: cannot open '%s': %s\n", filename, strerror(errno));
@@ -63,18 +63,18 @@ static HANDLE read_file(LPCSTR filename, DWORD *out_size) {
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
     fseek(f, 0, SEEK_SET);
-    LPSTR buf = Tool_MemAlloc(size);
+    string_t buf = Tool_MemAlloc(size);
     if (!buf) {
         fclose(f);
         return NULL;
     }
     fread(buf, 1, size, f);
     fclose(f);
-    *out_size = (DWORD)size;
+    *out_size = (uint32_t)size;
     return buf;
 }
 
-static DWORD get_time_ms(void) {
+static uint32_t get_time_ms(void) {
     /* Standalone tool: time is always 0 (no game loop). */
     return 0;
 }
@@ -103,7 +103,7 @@ static void handle_sigint(int sig) {
     fprintf(stderr, "\n(interrupted)\n");
 }
 
-static int do_file(LPJASS j, LPCSTR filename) {
+static int do_file(LPJASS j, cstring_t filename) {
     if (!jass_dofile(j, filename)) {
         fprintf(stderr, "jass: error loading '%s'\n", filename);
         return 1;
@@ -111,11 +111,11 @@ static int do_file(LPJASS j, LPCSTR filename) {
     return 0;
 }
 
-static int do_string(LPJASS j, LPCSTR src) {
+static int do_string(LPJASS j, cstring_t src) {
     size_t len = strlen(src);
-    LPSTR buf = Tool_MemAlloc((long)len + 1);
+    string_t buf = Tool_MemAlloc((long)len + 1);
     memcpy(buf, src, len + 1);
-    BOOL ok = jass_dobuffer(j, buf);
+    bool ok = jass_dobuffer(j, buf);
     Tool_MemFree(buf);
     if (!ok) {
         fprintf(stderr, "jass: error in -e string\n");
@@ -189,7 +189,7 @@ static int do_repl(LPJASS j) {
  * Argument processing
  * ========================================================================= */
 
-static void print_usage(LPCSTR prog) {
+static void print_usage(cstring_t prog) {
     fprintf(stderr,
         "Usage: %s [options] [script.j]\n"
         "Options:\n"
@@ -221,7 +221,7 @@ int main(int argc, char *argv[]) {
     int interactive = 0;
     int script_done = 0;
     int status = 0;
-    LPCSTR prog = argv[0];
+    cstring_t prog = argv[0];
 
     if (argc == 1 && isatty(fileno(stdin))) {
         interactive = 1;

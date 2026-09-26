@@ -11,7 +11,7 @@
 
 #include "hud_local.h"
 
-static DWORD game_result_last_defer_log[MAX_PLAYERS];
+static uint32_t game_result_last_defer_log[MAX_PLAYERS];
 
 /* The stock GameResult dialog is authored as a standalone DIALOG, while the
  * rest of OpenRealm's in-game menus are sent through the client window path.
@@ -50,8 +50,8 @@ static void GameResultPositionVictoryQuit(void) {
 }
 
 void UI_LoadHudGameResult(void) {
-    BOOL global_strings;
-    BOOL dialog_loaded;
+    bool global_strings;
+    bool dialog_loaded;
 
     if (hud.result.GameResultDialog) return;
     global_strings = UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf");
@@ -64,15 +64,15 @@ void UI_LoadHudGameResult(void) {
         (void *)hud.result.GameResultQuitButton);
 }
 
-static LPCSTR GameResultString(LPCSTR key, LPCSTR fallback) {
-    LPCSTR value = UI_GetString(key);
+static cstring_t GameResultString(cstring_t key, cstring_t fallback) {
+    cstring_t value = UI_GetString(key);
     return value && *value && strcmp(value, key) ? value : fallback;
 }
 
 /* This fallback exposes only result actions the current engine can execute.
  * Full Warcraft result policy belongs to Blizzard.j + ScriptDialog. */
-void UI_ShowGameResult(LPEDICT ent, DWORD result) {
-    BOOL victory, single_player;
+void UI_ShowGameResult(LPEDICT ent, uint32_t result) {
+    bool victory, single_player;
 
     G_GameResultDebug("hud show enter ent=%p number=%ld client=%p result=%u",
         (void *)ent, ent ? (long)ent->s.number : -1L,
@@ -136,8 +136,8 @@ void UI_FlushPendingGameResults(void) {
     FOR_LOOP(i, game.max_clients) {
         LPGAMECLIENT client = game.clients + i;
         LPEDICT ent;
-        DWORD result;
-        DWORD now;
+        uint32_t result;
+        uint32_t now;
 
         if (!client->jass.pending_game_result) {
             if (i < MAX_PLAYERS) game_result_last_defer_log[i] = 0;
@@ -169,7 +169,7 @@ void UI_FlushPendingGameResults(void) {
                 (unsigned)i, (unsigned)client->ps.number);
         }
 
-        result = (DWORD)client->jass.pending_game_result - 1;
+        result = (uint32_t)client->jass.pending_game_result - 1;
         client->jass.pending_game_result = 0;
         client->jass.pending_game_result_event = 0;
         if (i < MAX_PLAYERS) game_result_last_defer_log[i] = 0;

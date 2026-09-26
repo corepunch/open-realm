@@ -7,7 +7,7 @@ LPMAPLAYER g_groundLayers = NULL;
 static cameraHeightMap_t w3_camera_height;
 
 #define WC3_CAMERA_HEIGHT_RADIUS 4 // terrain cells; half-width of the client camera blur footprint
-static FLOAT r_w3_camera_grid_height(LPCVOID data, DWORD x, DWORD y) {
+static float r_w3_camera_grid_height(void const * data, uint32_t x, uint32_t y) {
     return GetWar3MapVertexHeight(GetWar3MapVertex(data, x, y));
 }
 
@@ -56,14 +56,14 @@ void _W3M_ClearMap(void) {
     }
 }
 
-static void R_FileReadShadowMap(HANDLE hMpq, LPWAR3MAP  pWorld) {
-    HANDLE file;
+static void R_FileReadShadowMap(handle_t hMpq, LPWAR3MAP  pWorld) {
+    handle_t file;
     if (!SFileOpenFileEx(hMpq, "war3map.shd", SFILE_OPEN_FROM_MPQ, &file)) {
         return;
     }
     int const w = (pWorld->width - 1) * 4;
     int const h = (pWorld->height - 1) * 4;
-    LPSTR shadows = ri.MemAlloc(w * h);
+    string_t shadows = ri.MemAlloc(w * h);
     if (!SFileReadFile(file, shadows, w * h, NULL, NULL)) {
         ri.MemFree(shadows);
         SFileCloseFile(file);
@@ -72,7 +72,7 @@ static void R_FileReadShadowMap(HANDLE hMpq, LPWAR3MAP  pWorld) {
     LPTEXTURE pShadowmap = R_AllocateTexture(w, h);
     LPCOLOR32 pixels = ri.MemAlloc(w * h * sizeof(struct color32));
     FOR_LOOP(i, w * h) {
-        BYTE shadow = (BYTE)shadows[i];
+        uint8_t shadow = (uint8_t)shadows[i];
         pixels[i].r = 0;
         pixels[i].g = 0;
         pixels[i].b = 0;
@@ -86,7 +86,7 @@ static void R_FileReadShadowMap(HANDLE hMpq, LPWAR3MAP  pWorld) {
     tr.texture[TEX_TERRAIN_SHADOW] = pShadowmap;
 }
 
-static LPMAPSEGMENT R_BuildMapSegment(LPCWAR3MAP map, DWORD sx, DWORD sy) {
+static LPMAPSEGMENT R_BuildMapSegment(LPCWAR3MAP map, uint32_t sx, uint32_t sy) {
     LPMAPSEGMENT mapSegment = ri.MemAlloc(sizeof(MAPSEGMENT));
     LPMAPLAYER mapLayer = R_BuildMapSegmentWater(map, sx, sy);
     ADD_TO_LIST(mapLayer, mapSegment->layers);
@@ -101,7 +101,7 @@ static LPMAPSEGMENT R_BuildMapSegment(LPCWAR3MAP map, DWORD sx, DWORD sy) {
 }
 
 static void R_BuildGroundLayers(LPCWAR3MAP map) {
-    for (DWORD layer = map->num_grounds; layer > 0; layer--) {
+    for (uint32_t layer = map->num_grounds; layer > 0; layer--) {
         LPMAPLAYER mapLayer = R_BuildGroundLayerGlobal(map, layer - 1);
         if (mapLayer) {
             ADD_TO_LIST(mapLayer, g_groundLayers);
@@ -109,7 +109,7 @@ static void R_BuildGroundLayers(LPCWAR3MAP map) {
     }
 }
 
-static VECTOR3 R_GetMapVertexPoint(LPCWAR3MAP map, DWORD x, DWORD y) {
+static VECTOR3 R_GetMapVertexPoint(LPCWAR3MAP map, uint32_t x, uint32_t y) {
     LPCWAR3MAPVERTEX mapVertex = GetWar3MapVertex(map, x, y);
     return (VECTOR3) {
         .x = map->center.x + x * TILE_SIZE,
@@ -125,8 +125,8 @@ static void R_LoadMapSegments(LPCWAR3MAP map) {
             ADD_TO_LIST(segment, g_mapSegments);
             FOR_LOOP(sx, SEGMENT_SIZE+1) {
                 FOR_LOOP(sy, SEGMENT_SIZE+1) {
-                    FLOAT x = fx * SEGMENT_SIZE + sx;
-                    FLOAT y = fy * SEGMENT_SIZE + sy;
+                    float x = fx * SEGMENT_SIZE + sx;
+                    float y = fy * SEGMENT_SIZE + sy;
                     VECTOR3 v = R_GetMapVertexPoint(map, x, y);
                     segment->bbox.min.x = MIN(segment->bbox.min.x, v.x);
                     segment->bbox.min.y = MIN(segment->bbox.min.y, v.y);
@@ -144,8 +144,8 @@ void R_AllocateFogOfWar(LPWAR3MAP map) {
     R_InitFogOfWar((map->width - 1) * 4, (map->height - 1) * 4);
 }
 
-static void R_LoadMapMinimap(HANDLE hMpq, LPCSTR mapFilename) {
-    static LPCSTR const candidates[] = {
+static void R_LoadMapMinimap(handle_t hMpq, cstring_t mapFilename) {
+    static cstring_t const candidates[] = {
         "war3mapMap.blp",
         "war3mapMap.tga",
         NULL,
@@ -154,7 +154,7 @@ static void R_LoadMapMinimap(HANDLE hMpq, LPCSTR mapFilename) {
     SAFE_DELETE(tr.minimap, R_ReleaseTexture);
 
     FOR_LOOP(i, sizeof(candidates) / sizeof(candidates[0])) {
-        HANDLE file;
+        handle_t file;
         PATHSTR path;
 
         if (!candidates[i]) {
@@ -170,11 +170,11 @@ static void R_LoadMapMinimap(HANDLE hMpq, LPCSTR mapFilename) {
     }
 }
 
-static BOOL R_ReadWar3MapVertex(HANDLE file, LPWAR3MAPVERTEX vert) {
-    WORD water_and_edge;
-    BYTE flags;
-    BYTE variation;
-    BYTE cliff_and_layer;
+static bool R_ReadWar3MapVertex(handle_t file, LPWAR3MAPVERTEX vert) {
+    uint16_t water_and_edge;
+    uint8_t flags;
+    uint8_t variation;
+    uint8_t cliff_and_layer;
 
     if (!file || !vert) {
         return false;
@@ -210,9 +210,9 @@ static BOOL R_ReadWar3MapVertex(HANDLE file, LPWAR3MAPVERTEX vert) {
     return true;
 }
 
-LPWAR3MAP FileReadWar3Map(HANDLE archive) {
+LPWAR3MAP FileReadWar3Map(handle_t archive) {
     LPWAR3MAP map = ri.MemAlloc(sizeof(WAR3MAP));
-    HANDLE file;
+    handle_t file;
     SFileOpenFileEx(archive, "war3map.w3e", SFILE_OPEN_FROM_MPQ, &file);
     SFileReadFile(file, &map->header, 4, NULL, NULL);
     SFileReadFile(file, &map->version, 4, NULL, NULL);
@@ -223,7 +223,7 @@ LPWAR3MAP FileReadWar3Map(HANDLE archive) {
     SFileReadFile(file, &map->width, 4, NULL, NULL);
     SFileReadFile(file, &map->height, 4, NULL, NULL);
     SFileReadFile(file, &map->center, 8, NULL, NULL);
-    DWORD const num_vertices = map->width * map->height;
+    uint32_t const num_vertices = map->width * map->height;
     int const vertexblocksize = sizeof(WAR3MAPVERTEX) * num_vertices;
     map->vertices = ri.MemAlloc(vertexblocksize);
     R_AllocateFogOfWar(map);
@@ -257,8 +257,8 @@ LPWAR3MAP FileReadWar3Map(HANDLE archive) {
 }
 
 void _W3M_RegisterMap(char const *mapFilename) {
-    HANDLE hMpq;
-    LPBYTE mapData;
+    handle_t hMpq;
+    uint8_t * mapData;
     int mapSize;
     LPWAR3MAP map;
 
@@ -275,7 +275,7 @@ void _W3M_RegisterMap(char const *mapFilename) {
     }
     
     /* Open the .w3m as a nested MPQ archive to read internal files */
-    if (!SFileOpenArchiveFromMemory(mapData, (DWORD)mapSize, 0, &hMpq)) {
+    if (!SFileOpenArchiveFromMemory(mapData, (uint32_t)mapSize, 0, &hMpq)) {
         ri.FS_FreeFile(mapData);
         ri.error("R_RegisterMap: failed to open map archive %s\n", mapFilename);
         return;
@@ -297,19 +297,19 @@ void _W3M_RegisterMap(char const *mapFilename) {
     R_BuildGroundLayers(map);
 }
 
-FLOAT R_W3CameraHeightAtPoint(FLOAT x, FLOAT y) { return R_SampleCameraHeightMap(&w3_camera_height, x, y); }
+float R_W3CameraHeightAtPoint(float x, float y) { return R_SampleCameraHeightMap(&w3_camera_height, x, y); }
 
 /* Sample the exact world terrain source used to build the client camera height map. */
-FLOAT R_W3TerrainHeightAtPoint(FLOAT x, FLOAT y) {
-    FLOAT gx, gy, tx, ty, h0, h1;
-    DWORD x0, y0, x1, y1;
+float R_W3TerrainHeightAtPoint(float x, float y) {
+    float gx, gy, tx, ty, h0, h1;
+    uint32_t x0, y0, x1, y1;
 
     if (!tr.world || !tr.world->vertices || !tr.world->width || !tr.world->height) return 0.0f;
     gx = (x - tr.world->center.x) / TILE_SIZE;
     gy = (y - tr.world->center.y) / TILE_SIZE;
-    gx = MAX(0.0f, MIN((FLOAT)tr.world->width - 1.0f, gx));
-    gy = MAX(0.0f, MIN((FLOAT)tr.world->height - 1.0f, gy));
-    x0 = (DWORD)floorf(gx); y0 = (DWORD)floorf(gy);
+    gx = MAX(0.0f, MIN((float)tr.world->width - 1.0f, gx));
+    gy = MAX(0.0f, MIN((float)tr.world->height - 1.0f, gy));
+    x0 = (uint32_t)floorf(gx); y0 = (uint32_t)floorf(gy);
     x1 = MIN(tr.world->width - 1, x0 + 1); y1 = MIN(tr.world->height - 1, y0 + 1);
     tx = gx - x0; ty = gy - y0;
     h0 = LerpNumber(GetWar3MapVertexHeight(GetWar3MapVertex(tr.world, x0, y0)),

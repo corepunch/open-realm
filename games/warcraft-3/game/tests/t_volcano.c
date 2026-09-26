@@ -6,14 +6,14 @@
 #define BZ_BSTU MAKEFOURCC('B', 's', 't', 'u') // rawcode; shared stun timed status
 #define BZ_VTST MAKEFOURCC('V', 't', 's', 't') // UnitID; non-stock volcano doodad
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock DataB/C/D/E/F and UnitID so tests cannot pass on hardcoded retail 8/5/2/100/0.5/Volc. */
-static LPCSTR volcano_slk =
+static cstring_t volcano_slk =
     "ID;PWXL;N;EBB;Y2;X17\n"
     "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
     "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
@@ -29,7 +29,7 @@ static LPCSTR volcano_slk =
     "C;Y2;X14;K\"3\"\nC;Y2;X15;K\"40\"\nC;Y2;X16;K\"0.25\"\n"
     "C;Y2;X17;K\"Vtst\"\nE\n";
 
-static LPCSTR volcano_dest_slk =
+static cstring_t volcano_dest_slk =
     "ID;PWXL;N;E\n"
     "C;Y1;X1;K\"ID\"\nC;Y1;X2;K\"file\"\nC;Y1;X3;K\"targType\"\nC;Y1;X4;K\"HP\"\n"
     "C;Y2;X1;K\"Vtst\"\n"
@@ -52,14 +52,14 @@ static LPEDICT volcano_doodad(void) {
     return NULL;
 }
 
-static DWORD volcano_stun_ms(LPCEDICT unit) {
+static uint32_t volcano_stun_ms(LPCEDICT unit) {
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSTU)
             return unit->abilstatus[i].duration_ms;
     return 0;
 }
 
-static LPEDICT volcano_make_destructable(FLOAT life, FLOAT x, FLOAT y, TARGTYPE type) {
+static LPEDICT volcano_make_destructable(float life, float x, float y, TARGTYPE type) {
     LPEDICT ent = G_Spawn();
     ent->class_id = MAKEFOURCC('B', '0', '0', 'X');
     ent->s.class_id = ent->class_id;
@@ -71,7 +71,7 @@ static LPEDICT volcano_make_destructable(FLOAT life, FLOAT x, FLOAT y, TARGTYPE 
     ent->targtype = type;
     ent->health.value = ent->health.max_value = life;
     ent->destructable.initialized = true;
-    ent->destructable.item_table = (DWORD)-1; /* no random loot table */
+    ent->destructable.item_table = (uint32_t)-1; /* no random loot table */
     return ent;
 }
 

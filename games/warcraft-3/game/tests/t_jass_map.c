@@ -26,16 +26,16 @@
 #include "test.h"
 #include "../g_local.h"
 
-BOOL run_test_jass(LPCSTR src);
-BOOL run_test_jass_error(LPCSTR src, LPCSTR expected);
+bool run_test_jass(cstring_t src);
+bool run_test_jass_error(cstring_t src, cstring_t expected);
 void setup_test_world(void);
 
 /* =========================================================================
  * Helper: scan the event queue for a given type.
  * ========================================================================= */
 
-static BOOL event_in_queue(EVENTTYPE type) {
-    for (DWORD i = level.events.read; i < level.events.write; i++)
+static bool event_in_queue(EVENTTYPE type) {
+    for (uint32_t i = level.events.read; i < level.events.write; i++)
         if (level.events.queue[i % MAX_EVENT_QUEUE].type == type) return true;
     return false;
 }
@@ -44,11 +44,11 @@ static char victory_menu_action[32];
 static char victory_menu_arg[256];
 static char cinematic_movie_path[MAX_PATHLEN];
 
-static void capture_cinematic_movie(LPCSTR path) {
+static void capture_cinematic_movie(cstring_t path) {
     strlcpy(cinematic_movie_path, path ? path : "", sizeof(cinematic_movie_path));
 }
 
-static void capture_victory_menu_action(LPCSTR action, LPCSTR arg) {
+static void capture_victory_menu_action(cstring_t action, cstring_t arg) {
     strlcpy(victory_menu_action, action ? action : "", sizeof(victory_menu_action));
     strlcpy(victory_menu_arg, arg ? arg : "", sizeof(victory_menu_arg));
 }
@@ -62,20 +62,20 @@ static void victory_noop_unicast(LPEDICT ent) {
     (void)ent;
 }
 
-static LPCSTR result_cheats_cvar(LPCSTR name, LPCSTR fallback) {
+static cstring_t result_cheats_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "sv_cheats") ? "1" : fallback;
 }
 
 static char cheat_console_text[8192];
-static LONG cheat_console_opcode;
-static DWORD cheat_console_unicasts;
+static int32_t cheat_console_opcode;
+static uint32_t cheat_console_unicasts;
 
 static void cheat_console_capture_write(pfWriteType_t type, void const *value) {
     if (type == PF_BYTE) {
-        cheat_console_opcode = *(LONG const *)value;
+        cheat_console_opcode = *(int32_t const *)value;
     } else if (type == PF_STRING && value) {
         if (cheat_console_text[0]) strlcat(cheat_console_text, "\n", sizeof(cheat_console_text));
-        strlcat(cheat_console_text, (LPCSTR)value, sizeof(cheat_console_text));
+        strlcat(cheat_console_text, (cstring_t)value, sizeof(cheat_console_text));
     }
 }
 
@@ -99,7 +99,7 @@ TEST(wc3_jass_map, parse_segment_quoted_single_value_stops_at_end) {
         .buffer = "\"Learn Holy Light - [Level %d]\"",
         .delimiters = ""
     };
-    LPCSTR value = parse_segment(&parser);
+    cstring_t value = parse_segment(&parser);
 
     T_NOT_NULL(value);
     T_STREQ(value, "Learn Holy Light - [Level %d]");
@@ -112,7 +112,7 @@ TEST(wc3_jass_map, parse_segment_quoted_list_advances_to_next_value) {
         .delimiters = ""
     };
     char first[32];
-    LPCSTR value = parse_segment(&parser);
+    cstring_t value = parse_segment(&parser);
 
     T_NOT_NULL(value);
     strlcpy(first, value, sizeof(first));
@@ -134,7 +134,7 @@ TEST(wc3_jass_map, minified_return_empty_string_tokens) {
         .delimiters = ",;()[]+-/*=<>!"
     };
     char first[16];
-    LPCSTR tok = jlex_parse_token(&parser);
+    cstring_t tok = jlex_parse_token(&parser);
 
     T_STREQ(tok, "return");
     strlcpy(first, tok, sizeof(first));
@@ -151,7 +151,7 @@ TEST(wc3_jass_map, minified_return_nonempty_string_tokens) {
         .delimiters = ",;()[]+-/*=<>!"
     };
     char first[16];
-    LPCSTR tok = jlex_parse_token(&parser);
+    cstring_t tok = jlex_parse_token(&parser);
 
     T_STREQ(tok, "return");
     strlcpy(first, tok, sizeof(first));
@@ -661,7 +661,7 @@ cleanup:
  * building before deferred handles are finally released. */
 TEST(wc3_jass_map, human04_cancel_replaces_townhall_after_difficulty_removal) {
     LPEDICT crypt = NULL, old_town_hall = NULL, replacement = NULL;
-    DWORD const bit = 1u << game.clients[0].ps.number;
+    uint32_t const bit = 1u << game.clients[0].ps.number;
 
     setup_test_world();
     currentplayer = &game.clients[0].ps;
@@ -961,8 +961,8 @@ TEST(wc3_jass_map, quest_multiple_items_independent) {
 }
 
 TEST(wc3_jass_map, quest_complete_cheat_marks_quest_and_objectives) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
-    LPCSTR command[] = { "quest", "complete", "0" };
+    cstring_t (*old_cvar)(cstring_t, cstring_t);
+    cstring_t command[] = { "quest", "complete", "0" };
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -984,8 +984,8 @@ TEST(wc3_jass_map, quest_complete_cheat_marks_quest_and_objectives) {
 }
 
 TEST(wc3_jass_map, quest_complete_all_cheat_marks_every_allocated_quest) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
-    LPCSTR command[] = { "quest", "complete", "all" };
+    cstring_t (*old_cvar)(cstring_t, cstring_t);
+    cstring_t command[] = { "quest", "complete", "all" };
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -1007,10 +1007,10 @@ TEST(wc3_jass_map, quest_complete_all_cheat_marks_every_allocated_quest) {
 }
 
 TEST(wc3_jass_map, cheat_console_feedback_skips_disconnected_client_transport) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    cstring_t (*old_cvar)(cstring_t, cstring_t);
     void (*old_write)(pfWriteType_t, void const *);
     void (*old_unicast)(LPEDICT);
-    LPCSTR command[] = { "quest", "complete", "all" };
+    cstring_t command[] = { "quest", "complete", "all" };
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -1039,9 +1039,9 @@ TEST(wc3_jass_map, cheat_console_feedback_skips_disconnected_client_transport) {
 }
 
 TEST(wc3_jass_map, trigger_fire_cheat_bypasses_disabled_conditions_and_can_supply_selected_context) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    cstring_t (*old_cvar)(cstring_t, cstring_t);
     char index_text[16];
-    LPCSTR command[] = { "trigger", "fire", index_text, "selected" };
+    cstring_t command[] = { "trigger", "fire", index_text, "selected" };
 
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -1082,10 +1082,10 @@ TEST(wc3_jass_map, trigger_fire_cheat_bypasses_disabled_conditions_and_can_suppl
 }
 
 TEST(wc3_jass_map, cinematic_list_rejects_helpers_and_victory_defeat_triggers) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    cstring_t (*old_cvar)(cstring_t, cstring_t);
     void (*old_write)(pfWriteType_t, void const *);
     void (*old_unicast)(LPEDICT);
-    LPCSTR command[] = { "cinematic", "list" };
+    cstring_t command[] = { "cinematic", "list" };
 
     T_ASSERT(run_test_jass(
         "function Intro_Cinematic_Actions takes nothing returns nothing\n"
@@ -1148,10 +1148,10 @@ TEST(wc3_jass_map, cinematic_list_rejects_helpers_and_victory_defeat_triggers) {
 }
 
 TEST(wc3_jass_map, objective_list_finds_real_victory_progression_not_cheat_or_defeat) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    cstring_t (*old_cvar)(cstring_t, cstring_t);
     void (*old_write)(pfWriteType_t, void const *);
     void (*old_unicast)(LPEDICT);
-    LPCSTR command[] = { "objective", "list" };
+    cstring_t command[] = { "objective", "list" };
 
     T_ASSERT(run_test_jass(
         "function Victory_Cheat_Actions takes nothing returns nothing\n"
@@ -1199,9 +1199,9 @@ TEST(wc3_jass_map, objective_list_finds_real_victory_progression_not_cheat_or_de
 }
 
 TEST(wc3_jass_map, objective_complete_executes_completion_trigger) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    cstring_t (*old_cvar)(cstring_t, cstring_t);
     char index_text[16];
-    LPCSTR command[] = { "objective", "complete", index_text };
+    cstring_t command[] = { "objective", "complete", index_text };
 
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -1229,9 +1229,9 @@ TEST(wc3_jass_map, objective_complete_executes_completion_trigger) {
 }
 
 TEST(wc3_jass_map, objc_alias_executes_objective_complete) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    cstring_t (*old_cvar)(cstring_t, cstring_t);
     char index_text[16];
-    LPCSTR command[] = { "objc", index_text };
+    cstring_t command[] = { "objc", index_text };
 
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -1259,9 +1259,9 @@ TEST(wc3_jass_map, objc_alias_executes_objective_complete) {
 }
 
 TEST(wc3_jass_map, cinematic_play_cheat_executes_authored_trigger_actions) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
+    cstring_t (*old_cvar)(cstring_t, cstring_t);
     char index_text[16];
-    LPCSTR command[] = { "cinematic", "play", index_text };
+    cstring_t command[] = { "cinematic", "play", index_text };
 
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -1295,8 +1295,8 @@ TEST(wc3_jass_map, cinematic_play_cheat_executes_authored_trigger_actions) {
 }
 
 TEST(wc3_jass_map, cinematic_stop_cheat_uses_end_cinematic_event_handler) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
-    LPCSTR command[] = { "cinematic", "stop" };
+    cstring_t (*old_cvar)(cstring_t, cstring_t);
+    cstring_t command[] = { "cinematic", "stop" };
 
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -1325,8 +1325,8 @@ TEST(wc3_jass_map, cinematic_stop_cheat_uses_end_cinematic_event_handler) {
 }
 
 TEST(wc3_jass_map, jass_cheat_starts_named_zero_argument_function) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
-    LPCSTR command[] = { "jass", "DebugComplete" };
+    cstring_t (*old_cvar)(cstring_t, cstring_t);
+    cstring_t command[] = { "jass", "DebugComplete" };
 
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -1355,7 +1355,7 @@ TEST(wc3_jass_map, jass_cheat_starts_named_zero_argument_function) {
  * ========================================================================= */
 
 TEST(wc3_jass_map, defeat_publishes_event) {
-    BOOL ok = run_test_jass(
+    bool ok = run_test_jass(
         "function main takes nothing returns nothing\n"
         "  call RemovePlayer(Player(0), PLAYER_GAME_RESULT_DEFEAT)\n"
         "  call BJassAssert(GetPlayerState(Player(0), PLAYER_STATE_GAME_RESULT) == 1, \"defeat result\")\n"
@@ -1368,7 +1368,7 @@ TEST(wc3_jass_map, defeat_publishes_event) {
 }
 
 TEST(wc3_jass_map, victory_publishes_event) {
-    BOOL ok = run_test_jass(
+    bool ok = run_test_jass(
         "function main takes nothing returns nothing\n"
         "  call RemovePlayer(Player(0), PLAYER_GAME_RESULT_VICTORY)\n"
         "  call BJassAssert(GetPlayerState(Player(0), PLAYER_STATE_GAME_RESULT) == 0, \"victory result\")\n"
@@ -1381,8 +1381,8 @@ TEST(wc3_jass_map, victory_publishes_event) {
 }
 
 TEST(wc3_jass_map, win_cheat_uses_remove_player_result_pipeline) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
-    LPCSTR command[] = { "win" };
+    cstring_t (*old_cvar)(cstring_t, cstring_t);
+    cstring_t command[] = { "win" };
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -1402,8 +1402,8 @@ TEST(wc3_jass_map, win_cheat_uses_remove_player_result_pipeline) {
 }
 
 TEST(wc3_jass_map, lose_cheat_uses_remove_player_result_pipeline) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR);
-    LPCSTR command[] = { "lose" };
+    cstring_t (*old_cvar)(cstring_t, cstring_t);
+    cstring_t command[] = { "lose" };
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -1473,10 +1473,10 @@ TEST(wc3_jass_map, paused_victory_drains_result_event_and_releases_fallback) {
 
 
 TEST(wc3_jass_map, victory_continue_runs_blizzard_continuation_while_paused) {
-    void (*old_menu_action)(LPCSTR, LPCSTR) = gi.MenuAction;
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(LPEDICT) = gi.unicast;
-    LPCSTR command[] = { "hidegameresult" };
+    cstring_t command[] = { "hidegameresult" };
 
     T_ASSERT(run_test_jass(
         "function CustomVictoryOkBJ takes nothing returns nothing\n"
@@ -1507,7 +1507,7 @@ TEST(wc3_jass_map, victory_continue_runs_blizzard_continuation_while_paused) {
 }
 
 TEST(wc3_jass_map, force_campaign_select_defers_until_endgame) {
-    void (*old_menu_action)(LPCSTR, LPCSTR) = gi.MenuAction;
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
 
     victory_menu_action[0] = '\0';
     victory_menu_arg[0] = '\0';
@@ -1533,7 +1533,7 @@ TEST(wc3_jass_map, force_campaign_select_defers_until_endgame) {
 }
 
 TEST(wc3_jass_map, endgame_without_campaign_select_returns_to_main_menu) {
-    void (*old_menu_action)(LPCSTR, LPCSTR) = gi.MenuAction;
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
 
     victory_menu_action[0] = '\0';
     victory_menu_arg[0] = '\0';
@@ -1549,9 +1549,9 @@ TEST(wc3_jass_map, endgame_without_campaign_select_returns_to_main_menu) {
 }
 
 TEST(wc3_jass_map, escape_menu_quit_campaign_returns_to_campaign_select) {
-    void (*old_menu_action)(LPCSTR, LPCSTR) = gi.MenuAction;
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
     LPCMAPINFO old_mapinfo = level.mapinfo;
-    LPCSTR command[] = { "menu_quit_game" };
+    cstring_t command[] = { "menu_quit_game" };
     char old_map[MAX_PATHLEN];
 
     strlcpy(old_map, level.map_path, sizeof(old_map));
@@ -1572,9 +1572,9 @@ TEST(wc3_jass_map, escape_menu_quit_campaign_returns_to_campaign_select) {
 }
 
 TEST(wc3_jass_map, escape_menu_quit_frozen_throne_campaign_returns_to_campaign_select) {
-    void (*old_menu_action)(LPCSTR, LPCSTR) = gi.MenuAction;
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
     LPCMAPINFO old_mapinfo = level.mapinfo;
-    LPCSTR command[] = { "menu_quit_game" };
+    cstring_t command[] = { "menu_quit_game" };
     char old_map[MAX_PATHLEN];
 
     strlcpy(old_map, level.map_path, sizeof(old_map));
@@ -1595,9 +1595,9 @@ TEST(wc3_jass_map, escape_menu_quit_frozen_throne_campaign_returns_to_campaign_s
 }
 
 TEST(wc3_jass_map, escape_menu_quit_non_campaign_returns_to_main_menu) {
-    void (*old_menu_action)(LPCSTR, LPCSTR) = gi.MenuAction;
+    void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
     LPCMAPINFO old_mapinfo = level.mapinfo;
-    LPCSTR command[] = { "menu_quit_game" };
+    cstring_t command[] = { "menu_quit_game" };
     char old_map[MAX_PATHLEN];
 
     strlcpy(old_map, level.map_path, sizeof(old_map));
@@ -1618,7 +1618,7 @@ TEST(wc3_jass_map, escape_menu_quit_non_campaign_returns_to_main_menu) {
 }
 
 TEST(wc3_jass_map, play_cinematic_queues_classic_movie_asset_path) {
-    void (*old_queue_movie)(LPCSTR) = gi.QueueMovie;
+    void (*old_queue_movie)(cstring_t) = gi.QueueMovie;
 
     cinematic_movie_path[0] = '\0';
     gi.QueueMovie = capture_cinematic_movie;
@@ -1632,7 +1632,7 @@ TEST(wc3_jass_map, play_cinematic_queues_classic_movie_asset_path) {
 }
 
 TEST(wc3_jass_map, neutral_remove_records_result_without_victory_or_defeat_event) {
-    BOOL ok = run_test_jass(
+    bool ok = run_test_jass(
         "function main takes nothing returns nothing\n"
         "  call RemovePlayer(Player(0), PLAYER_GAME_RESULT_NEUTRAL)\n"
         "  call BJassAssert(GetPlayerState(Player(0), PLAYER_STATE_GAME_RESULT) == 3, \"neutral result\")\n"

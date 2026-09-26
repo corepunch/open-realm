@@ -42,7 +42,7 @@ typedef struct {
  * Forward declarations
  * ---------------------------------------------------------------------- */
 
-static BYTE *load_file(const char *path, size_t *size_out);
+static uint8_t *load_file(const char *path, size_t *size_out);
 
 /* -------------------------------------------------------------------------
  * Dynamic string block
@@ -80,7 +80,7 @@ static uint32_t sb_add(strblock_t *sb, const char *str) {
 
 typedef struct {
     dbc_header_t hdr;
-    BYTE        *records;  /* raw record bytes */
+    uint8_t        *records;  /* raw record bytes */
     strblock_t   strings;
     bool         dirty;
 } dbc_mem_t;
@@ -101,7 +101,7 @@ static void dbc_mem_free(dbc_mem_t *m) {
     memset(m, 0, sizeof(*m));
 }
 
-static BYTE *dbc_mem_row(dbc_mem_t *m, uint32_t row) {
+static uint8_t *dbc_mem_row(dbc_mem_t *m, uint32_t row) {
     if (row >= m->hdr.records) {
         uint32_t new_count = row + 1;
         m->records = realloc(m->records, (size_t)new_count * m->hdr.record_size);
@@ -113,7 +113,7 @@ static BYTE *dbc_mem_row(dbc_mem_t *m, uint32_t row) {
 }
 
 static void dbc_mem_set_u32(dbc_mem_t *m, uint32_t row, uint32_t field, uint32_t value) {
-    BYTE *rec = dbc_mem_row(m, row);
+    uint8_t *rec = dbc_mem_row(m, row);
     memcpy(rec + field * 4, &value, 4);
     m->dirty = true;
 }
@@ -125,7 +125,7 @@ static void dbc_mem_set_str(dbc_mem_t *m, uint32_t row, uint32_t field, const ch
 
 static int dbc_mem_save(dbc_mem_t *m, const char *path) {
     /* Trim record buffer to actual count */
-    BYTE *trimmed = realloc(m->records, (size_t)m->hdr.records * m->hdr.record_size);
+    uint8_t *trimmed = realloc(m->records, (size_t)m->hdr.records * m->hdr.record_size);
     if (trimmed) m->records = trimmed;
     m->hdr.string_size = m->strings.used;
 
@@ -169,9 +169,9 @@ static bool dbc_cache_save(const char *target, dbc_mem_t *m) {
 static bool dbc_cache_load(const char *target, dbc_mem_t *m) {
     const char *path = dbc_cache_path(target);
     size_t sz = 0;
-    BYTE *data = load_file(path, &sz);
+    uint8_t *data = load_file(path, &sz);
     if (!data) return false;
-    if (sz < 20 || *(DWORD const *)data != ID_WDBC) { free(data); return false; }
+    if (sz < 20 || *(uint32_t const *)data != ID_WDBC) { free(data); return false; }
     memcpy(&m->hdr, data, 20);
     size_t body = (size_t)m->hdr.records * m->hdr.record_size;
     if (20 + body + m->hdr.string_size > sz) { free(data); return false; }
@@ -192,18 +192,18 @@ static bool dbc_cache_load(const char *target, dbc_mem_t *m) {
  * Read helpers
  * ---------------------------------------------------------------------- */
 
-static uint32_t dbc_u32(const BYTE *rec, uint32_t field) {
+static uint32_t dbc_u32(const uint8_t *rec, uint32_t field) {
     uint32_t v; memcpy(&v, rec + field * 4, 4); return v;
 }
 
-static const char *dbc_str(const BYTE *sb, uint32_t ssize, uint32_t off) {
+static const char *dbc_str(const uint8_t *sb, uint32_t ssize, uint32_t off) {
     if (off == 0 || off >= ssize) return "";
     return (const char *)sb + off;
 }
 
-static bool dbc_parse(const BYTE *data, size_t data_size,
+static bool dbc_parse(const uint8_t *data, size_t data_size,
                       dbc_header_t *hdr_out,
-                      const BYTE **rb_out, const BYTE **sb_out) {
+                      const uint8_t **rb_out, const uint8_t **sb_out) {
     if (!data || data_size < 20) {
         fprintf(stderr, "DBC too small (%zu bytes)\n", data_size);
         return false;
@@ -230,14 +230,14 @@ static bool dbc_parse(const BYTE *data, size_t data_size,
  * File/MPQ loaders
  * ---------------------------------------------------------------------- */
 
-static BYTE *load_file(const char *path, size_t *size_out) {
+static uint8_t *load_file(const char *path, size_t *size_out) {
     FILE *f = fopen(path, "rb");
     if (!f) { fprintf(stderr, "Cannot open: %s\n", path); return NULL; }
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
     rewind(f);
     if (sz <= 0) { fclose(f); fprintf(stderr, "Empty file: %s\n", path); return NULL; }
-    BYTE *buf = malloc((size_t)sz);
+    uint8_t *buf = malloc((size_t)sz);
     if (!buf) { fclose(f); fprintf(stderr, "Out of memory\n"); return NULL; }
     if ((long)fread(buf, 1, (size_t)sz, f) != sz) {
         fclose(f); free(buf); fprintf(stderr, "Read error: %s\n", path); return NULL;
@@ -247,23 +247,23 @@ static BYTE *load_file(const char *path, size_t *size_out) {
     return buf;
 }
 
-static BYTE *load_mpq(HANDLE archive, const char *arc_path, size_t *size_out) {
+static uint8_t *load_mpq(handle_t archive, const char *arc_path, size_t *size_out) {
     char path[512];
     strncpy(path, arc_path, sizeof(path) - 1);
     path[sizeof(path) - 1] = '\0';
     Tool_NormalizeSlashes(path, '\\');
     Tool_TrimEdgeSlashes(path);
-    HANDLE file;
+    handle_t file;
     if (!SFileOpenFileEx(archive, path, SFILE_OPEN_FROM_MPQ, &file)) {
         fprintf(stderr, "Cannot open in archive: %s\n", path);
         return NULL;
     }
-    DWORD sz = SFileGetFileSize(file, NULL);
-    BYTE *buf = malloc(sz ? sz : 1);
+    uint32_t sz = SFileGetFileSize(file, NULL);
+    uint8_t *buf = malloc(sz ? sz : 1);
     if (!buf) { SFileCloseFile(file); fprintf(stderr, "Out of memory\n"); return NULL; }
-    DWORD total = 0;
+    uint32_t total = 0;
     while (total < sz) {
-        DWORD got = 0;
+        uint32_t got = 0;
         if (!SFileReadFile(file, buf + total, sz - total, &got, NULL) || got == 0) break;
         total += got;
     }
@@ -285,11 +285,11 @@ static int cmd_info(const dbc_header_t *h) {
     return 0;
 }
 
-static int cmd_dump(const dbc_header_t *h, const BYTE *rb, uint32_t max_rows) {
+static int cmd_dump(const dbc_header_t *h, const uint8_t *rb, uint32_t max_rows) {
     uint32_t rows = (max_rows && max_rows < h->records) ? max_rows : h->records;
     uint32_t cols = h->record_size / 4;
     for (uint32_t r = 0; r < rows; r++) {
-        const BYTE *rec = rb + r * h->record_size;
+        const uint8_t *rec = rb + r * h->record_size;
         for (uint32_t c = 0; c < cols; c++) {
             if (c) putchar('\t');
             printf("%u", dbc_u32(rec, c));
@@ -299,7 +299,7 @@ static int cmd_dump(const dbc_header_t *h, const BYTE *rb, uint32_t max_rows) {
     return 0;
 }
 
-static int cmd_get(const dbc_header_t *h, const BYTE *rb, uint32_t row, uint32_t field) {
+static int cmd_get(const dbc_header_t *h, const uint8_t *rb, uint32_t row, uint32_t field) {
     if (row >= h->records) { fprintf(stderr, "Row %u out of range (%u)\n", row, h->records); return 1; }
     uint32_t cols = h->record_size / 4;
     if (field >= cols) { fprintf(stderr, "Field %u out of range (%u)\n", field, cols); return 1; }
@@ -307,7 +307,7 @@ static int cmd_get(const dbc_header_t *h, const BYTE *rb, uint32_t row, uint32_t
     return 0;
 }
 
-static int cmd_str(const dbc_header_t *h, const BYTE *rb, const BYTE *sb,
+static int cmd_str(const dbc_header_t *h, const uint8_t *rb, const uint8_t *sb,
                    uint32_t row, uint32_t field) {
     if (row >= h->records) { fprintf(stderr, "Row %u out of range (%u)\n", row, h->records); return 1; }
     uint32_t cols = h->record_size / 4;
@@ -357,9 +357,9 @@ static int cmd_set(int argc, char **argv) {
     if (!dbc_cache_load(path, &m)) {
         /* Try loading the actual DBC file */
         size_t sz = 0;
-        BYTE *data = load_file(path, &sz);
-        if (data && sz >= 20 && *(DWORD const *)data == ID_WDBC) {
-            dbc_header_t h; const BYTE *rb, *sb;
+        uint8_t *data = load_file(path, &sz);
+        if (data && sz >= 20 && *(uint32_t const *)data == ID_WDBC) {
+            dbc_header_t h; const uint8_t *rb, *sb;
             if (dbc_parse(data, sz, &h, &rb, &sb)) {
                 dbc_mem_init(&m, h.fields, h.record_size);
                 m.hdr.records = h.records;
@@ -400,9 +400,9 @@ static int cmd_setstr(int argc, char **argv) {
     dbc_mem_t m;
     if (!dbc_cache_load(path, &m)) {
         size_t sz = 0;
-        BYTE *data = load_file(path, &sz);
-        if (data && sz >= 20 && *(DWORD const *)data == ID_WDBC) {
-            dbc_header_t h; const BYTE *rb, *sb;
+        uint8_t *data = load_file(path, &sz);
+        if (data && sz >= 20 && *(uint32_t const *)data == ID_WDBC) {
+            dbc_header_t h; const uint8_t *rb, *sb;
             if (dbc_parse(data, sz, &h, &rb, &sb)) {
                 dbc_mem_init(&m, h.fields, h.record_size);
                 m.hdr.records = h.records;
@@ -540,10 +540,10 @@ int main(int argc, char **argv) {
         argbase += 1;
     }
 
-    BYTE  *data = NULL;
+    uint8_t  *data = NULL;
     size_t data_size = 0;
     if (mpq_path) {
-        HANDLE archive;
+        handle_t archive;
         if (!SFileOpenArchive(mpq_path, 0, 0, &archive)) {
             fprintf(stderr, "Cannot open archive: %s\n", mpq_path);
             return 1;
@@ -556,7 +556,7 @@ int main(int argc, char **argv) {
     if (!data) return 1;
 
     dbc_header_t  hdr;
-    const BYTE   *rb, *sb;
+    const uint8_t   *rb, *sb;
     if (!dbc_parse(data, data_size, &hdr, &rb, &sb)) { free(data); return 1; }
 
     int rc = 0;

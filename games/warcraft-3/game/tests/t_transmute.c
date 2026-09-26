@@ -4,7 +4,7 @@
 
 #define BZ_ANTM MAKEFOURCC('A', 'N', 't', 'm') // rawcode; TFT Alchemist Transmute
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -12,7 +12,7 @@ void free_slk_rows(slkTestData_t *rows);
 void unit_die(LPEDICT self, LPEDICT attacker);
 
 /* Non-stock Cost/DataA/DataC so tests cannot pass on retail 150/0.8/5. */
-static LPCSTR transmute_slk =
+static cstring_t transmute_slk =
     "ID;PWXL;N;EBB;Y2;X12\n"
     "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
     "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
@@ -111,7 +111,7 @@ TEST(wc3_spell, transmute_credits_lumber_when_datab_set) {
 /* Rejects ally/dead/hero/over-level without spending mana. */
 TEST(wc3_spell, transmute_rejects_invalid_targets_without_mana_spend) {
     TMFIX fix; tm_setup(&fix);
-    FLOAT mana = fix.caster->mana.value;
+    float mana = fix.caster->mana.value;
 
     T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_ANTM, fix.ally));
     T_FEQ(fix.caster->mana.value, mana, 0.001f);

@@ -29,18 +29,18 @@ typedef enum {
 } fieldtype_t;
 
 typedef struct {
-    LPCSTR name;
-    DWORD ofs;
+    cstring_t name;
+    uint32_t ofs;
     fieldtype_t type;
     size_t size;
-    DWORD array_size;
+    uint32_t array_size;
     uintptr_t flags; /* field flags, or child schema pointer for F_STRUCT */
-    DWORD count_ofs;
+    uint32_t count_ofs;
 } field_t;
 
 typedef struct {
     field_t const *fields;
-    DWORD read_ofs, write_ofs;
+    uint32_t read_ofs, write_ofs;
 } fieldRing_t;
 
 #define F_METADATA(kind, ...) F_METADATA_INNER(kind, __VA_ARGS__)
@@ -64,10 +64,10 @@ typedef struct {
 #define F_METADATA_F_FUNCTION_LIST(...) 0, 0
 #define F_METADATA_F_CFUNCTION(...) 0, 0
 #define F_METADATA_F_MMOVE(...) 0, 0
-#define F(TYPE, x, kind, ...) { #x, FOFS(TYPE, x) - (HANDLE)NULL, kind, sizeof(((struct TYPE *)NULL)->x), F_METADATA(kind, ##__VA_ARGS__), UINT32_MAX }
+#define F(TYPE, x, kind, ...) { #x, FOFS(TYPE, x) - (handle_t)NULL, kind, sizeof(((struct TYPE *)NULL)->x), F_METADATA(kind, ##__VA_ARGS__), UINT32_MAX }
 #define TF(TYPE, x, kind, ...) { #x, offsetof(TYPE, x), kind, sizeof(((TYPE *)NULL)->x), F_METADATA(kind, ##__VA_ARGS__), UINT32_MAX }
-#define FC(TYPE, x, kind, count, schema, count_field) { #x, FOFS(TYPE, x) - (HANDLE)NULL, kind, sizeof(((struct TYPE *)NULL)->x), count, (uintptr_t)(schema), FOFS(TYPE, count_field) - (HANDLE)NULL }
-#define FR(TYPE, x, count, ring) { #x, FOFS(TYPE, x) - (HANDLE)NULL, F_STRUCT_RING, sizeof(((struct TYPE *)NULL)->x), count, (uintptr_t)(ring), UINT32_MAX }
+#define FC(TYPE, x, kind, count, schema, count_field) { #x, FOFS(TYPE, x) - (handle_t)NULL, kind, sizeof(((struct TYPE *)NULL)->x), count, (uintptr_t)(schema), FOFS(TYPE, count_field) - (handle_t)NULL }
+#define FR(TYPE, x, count, ring) { #x, FOFS(TYPE, x) - (handle_t)NULL, F_STRUCT_RING, sizeof(((struct TYPE *)NULL)->x), count, (uintptr_t)(ring), UINT32_MAX }
 #define TFC(TYPE, x, kind, count, count_field) { #x, offsetof(TYPE, x), kind, sizeof(((TYPE *)NULL)->x), count, 0, offsetof(TYPE, count_field) }
 
 enum {
@@ -75,10 +75,10 @@ enum {
     FIELD_RUNTIME = 1 << 0,
 };
 
-static DWORD const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
-static DWORD const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
+static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
+static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
 /* The fixed edict layout is validated by SAVEHEADER.edict_size. */
-static DWORD const save_version = 46;
+static uint32_t const save_version = 46;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -91,7 +91,7 @@ _Static_assert(sizeof(umove_t *) == 8, "F_MMOVE packs a relocation offset and a 
 _Static_assert(sizeof(void (*)(LPEDICT)) == 8, "F_CFUNCTION packs a roster index and a name hash into the pointer field");
 
 typedef struct {
-    LPCSTR name;
+    cstring_t name;
     void *func;
 } saveCFunction_t;
 
@@ -155,12 +155,12 @@ static int SaveCFunctionIndex(void *func) {
 }
 
 typedef struct {
-    DWORD magic, version, edict_size, num_edicts, max_clients;
-    DWORD script_identity, quests, groups, triggers, timers, events;
+    uint32_t magic, version, edict_size, num_edicts, max_clients;
+    uint32_t script_identity, quests, groups, triggers, timers, events;
     PATHSTR map_path;
 } SAVEHEADER;
 
-typedef struct { DWORD checksum, commit; } SAVEFOOTER;
+typedef struct { uint32_t checksum, commit; } SAVEFOOTER;
 
 typedef enum {
     JASS_HANDLE_ENTITY,
@@ -182,7 +182,7 @@ typedef enum {
     JASS_HANDLE_REGION,
 } jassHandleDomain_t;
 
-static struct { LPCSTR type; jassHandleDomain_t domain; } const jass_handle_domains[] = {
+static struct { cstring_t type; jassHandleDomain_t domain; } const jass_handle_domains[] = {
     { "unit", JASS_HANDLE_ENTITY },
     { "widget", JASS_HANDLE_ENTITY },
     { "destructable", JASS_HANDLE_ENTITY },
@@ -433,8 +433,8 @@ static field_t const quest_fields[] = {
 
 static fieldRing_t const game_event_ring = {
     save_game_event_fields,
-    FOFS(level_locals, events.read) - (HANDLE)NULL,
-    FOFS(level_locals, events.write) - (HANDLE)NULL
+    FOFS(level_locals, events.read) - (handle_t)NULL,
+    FOFS(level_locals, events.write) - (handle_t)NULL
 };
 
 static field_t const level_fields[] = {
@@ -794,43 +794,43 @@ static field_t const client_fields[] = {
     { NULL, 0, 0, 0, 0, 0 }
 };
 
-static void ClearRuntimeFields(void *object, field_t const *fields, DWORD flags) {
+static void ClearRuntimeFields(void *object, field_t const *fields, uint32_t flags) {
     for (field_t const *field = fields; field->name; field++) {
-        DWORD count = field->array_size ? field->array_size : 1;
+        uint32_t count = field->array_size ? field->array_size : 1;
         size_t size = field->array_size ? field->size / field->array_size : field->size;
         switch (field->type) {
         case F_STRUCT:
-            FOR_LOOP(i, count) ClearRuntimeFields((BYTE *)object + field->ofs + i * size, (field_t const *)field->flags, flags);
+            FOR_LOOP(i, count) ClearRuntimeFields((uint8_t *)object + field->ofs + i * size, (field_t const *)field->flags, flags);
             break;
         case F_IGNORE:
-            if (field->flags == flags) memset((BYTE *)object + field->ofs, 0, field->size);
+            if (field->flags == flags) memset((uint8_t *)object + field->ofs, 0, field->size);
             break;
         default: break;
         }
     }
 }
 
-static BOOL SaveBytes(FILE *f, LPCVOID data, size_t size) { return fwrite(data, 1, size, f) == size; }
-static BOOL LoadBytes(FILE *f, void *data, size_t size) { return fread(data, 1, size, f) == size; }
-static BOOL WriteJassBytes(void *context, void *data, DWORD size) { return SaveBytes(context, data, size); }
-static BOOL ReadJassBytes(void *context, void *data, DWORD size) { return LoadBytes(context, data, size); }
-static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base);
-static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base);
-static BOOL WriteString(FILE *f, LPCSTR text);
-static BOOL ReadString(FILE *f, LPSTR *text);
-static DWORD ActiveEventCount(void);
+static bool SaveBytes(FILE *f, void const * data, size_t size) { return fwrite(data, 1, size, f) == size; }
+static bool LoadBytes(FILE *f, void *data, size_t size) { return fread(data, 1, size, f) == size; }
+static bool WriteJassBytes(void *context, void *data, uint32_t size) { return SaveBytes(context, data, size); }
+static bool ReadJassBytes(void *context, void *data, uint32_t size) { return LoadBytes(context, data, size); }
+static bool WriteMappedFields(FILE *f, field_t const *fields, uint8_t *base);
+static bool ReadMappedFields(FILE *f, field_t const *fields, uint8_t *base);
+static bool WriteString(FILE *f, cstring_t text);
+static bool ReadString(FILE *f, string_t *text);
+static uint32_t ActiveEventCount(void);
 
-static DWORD SaveHash(DWORD hash, LPCVOID data, size_t size) {
-    BYTE const *bytes = data;
+static uint32_t SaveHash(uint32_t hash, void const * data, size_t size) {
+    uint8_t const *bytes = data;
     while (size--) hash = (hash ^ *bytes++) * 16777619u;
     return hash;
 }
 
 /* A committed checksum rejects truncation and corruption before ReadGame mutates live state. */
-static BOOL WriteFooter(FILE *f) {
-    BYTE bytes[4096];
+static bool WriteFooter(FILE *f) {
+    uint8_t bytes[4096];
     long payload;
-    DWORD checksum = 2166136261u;
+    uint32_t checksum = 2166136261u;
     SAVEFOOTER footer;
     if (fflush(f) || (payload = ftell(f)) < 0 || fseek(f, 0, SEEK_SET)) return false;
     while (payload > 0) {
@@ -842,10 +842,10 @@ static BOOL WriteFooter(FILE *f) {
     return fseek(f, 0, SEEK_END) == 0 && SaveBytes(f, &footer, sizeof(footer));
 }
 
-static BOOL ReadFooter(FILE *f) {
-    BYTE bytes[4096];
+static bool ReadFooter(FILE *f) {
+    uint8_t bytes[4096];
     long payload;
-    DWORD checksum = 2166136261u;
+    uint32_t checksum = 2166136261u;
     SAVEFOOTER footer;
     if (fseek(f, 0, SEEK_END) || (payload = ftell(f)) < (long)sizeof(footer)) return false;
     payload -= sizeof(footer);
@@ -860,10 +860,10 @@ static BOOL ReadFooter(FILE *f) {
 }
 
 /* Save files carry the canonical map path so the server can rebuild the map before restoring state. */
-BOOL G_GetSaveMap(LPCSTR filename, LPSTR map, DWORD map_size) {
+bool G_GetSaveMap(cstring_t filename, string_t map, uint32_t map_size) {
     FILE *f = fopen(filename, "rb");
     SAVEHEADER header;
-    DWORD magic, version;
+    uint32_t magic, version;
     if (!f || !map || !map_size) { if (f) fclose(f); return false; }
     if (!ReadFooter(f) || !LoadBytes(f, &magic, sizeof(magic)) || !LoadBytes(f, &version, sizeof(version)) ||
         magic != save_magic || version != save_version || fseek(f, 0, SEEK_SET) || !LoadBytes(f, &header, sizeof(header)) ||
@@ -883,7 +883,7 @@ void G_ClearSaveRegistries(void) {
     }
 }
 
-static BOOL RestoreRegistrySlots(DWORD groups, DWORD timers, DWORD triggers, DWORD events) {
+static bool RestoreRegistrySlots(uint32_t groups, uint32_t timers, uint32_t triggers, uint32_t events) {
     if (groups < level.num_groups || timers < level.num_timers || triggers < level.num_triggers ||
         groups > MAX_SAVE_GROUP_HANDLES || timers > MAX_TIMERS ||
         triggers > MAX_TRIGGERS || events > MAX_EVENTS)
@@ -897,14 +897,14 @@ static BOOL RestoreRegistrySlots(DWORD groups, DWORD timers, DWORD triggers, DWO
 }
 
 /* VM state follows native domains so load-side handle relocation sees restored objects. */
-static BOOL WriteJass(FILE *f) {
-    BOOL present = level.vm != NULL;
+static bool WriteJass(FILE *f) {
+    uint8_t present = level.vm != NULL;
     JASSSNAPSHOT snapshot = { f, WriteJassBytes };
     return SaveBytes(f, &present, sizeof(present)) && (!present || jass_writesnapshot(level.vm, &snapshot));
 }
 
-static BOOL ReadJass(FILE *f) {
-    BOOL present;
+static bool ReadJass(FILE *f) {
+    uint8_t present;
     JASSSNAPSHOT snapshot = { f, ReadJassBytes };
     if (!LoadBytes(f, &present, sizeof(present)) || present > 1 || present != (level.vm != NULL)) {
         fprintf(stderr, "WC3 LoadGame: JASS VM lifecycle does not match save\n");
@@ -913,64 +913,64 @@ static BOOL ReadJass(FILE *f) {
     return !present || jass_readsnapshot(level.vm, &snapshot);
 }
 
-static DWORD ActiveQuestCount(void) {
-    DWORD count = 0;
+static uint32_t ActiveQuestCount(void) {
+    uint32_t count = 0;
     FOR_EACH_QUEST(quest) count++;
     return count;
 }
 
-static DWORD ActiveEventCount(void) {
-    DWORD count = 0;
+static uint32_t ActiveEventCount(void) {
+    uint32_t count = 0;
     FOR_EACH_EVENT(event) count++;
     return count;
 }
 
-static BOOL EventId(LPEVENT value, DWORD *id) {
+static bool EventId(LPEVENT value, uint32_t *id) {
     if (!value) { *id = UINT32_MAX; return true; }
     if (value >= level.events.handlers && value < level.events.handlers + MAX_EVENTS) {
-        *id = (DWORD)(value - level.events.handlers); return value->inuse;
+        *id = (uint32_t)(value - level.events.handlers); return value->inuse;
     }
     return false;
 }
 
-static LPEVENT EventById(DWORD id) {
+static LPEVENT EventById(uint32_t id) {
     return id < MAX_EVENTS && level.events.handlers[id].inuse ? &level.events.handlers[id] : NULL;
 }
 
-static BOOL TriggerIndex(LPTRIGGER value, DWORD *id) {
+static bool TriggerIndex(LPTRIGGER value, uint32_t *id) {
     if (!value) { *id = UINT32_MAX; return true; }
     if (value < level.triggers || value >= level.triggers + level.num_triggers) return false;
-    *id = (DWORD)(value - level.triggers); return true;
+    *id = (uint32_t)(value - level.triggers); return true;
 }
 
-static BOOL TimerIndex(LPGTIMER value, DWORD *id) {
+static bool TimerIndex(LPGTIMER value, uint32_t *id) {
     if (!value) { *id = UINT32_MAX; return true; }
     if (value < level.timers || value >= level.timers + level.num_timers) return false;
-    *id = (DWORD)(value - level.timers); return true;
+    *id = (uint32_t)(value - level.timers); return true;
 }
 
-static DWORD TriggerCodeCount(TRIGGERACTION const *list) {
-    DWORD n = 0;
+static uint32_t TriggerCodeCount(TRIGGERACTION const *list) {
+    uint32_t n = 0;
     for (; list; list = list->next) n++;
     return n;
 }
 
-static BOOL WriteTriggerCodeList(FILE *f, TRIGGERACTION const *list) {
-    DWORD n = TriggerCodeCount(list);
+static bool WriteTriggerCodeList(FILE *f, TRIGGERACTION const *list) {
+    uint32_t n = TriggerCodeCount(list);
     if (!SaveBytes(f, &n, sizeof(n))) return false;
     for (; list; list = list->next) if (!WriteString(f, jass_functionname(list->func))) return false;
     return true;
 }
 
-static BOOL ReadTriggerCodeList(FILE *f, TRIGGERACTION **list) {
-    DWORD n;
+static bool ReadTriggerCodeList(FILE *f, TRIGGERACTION **list) {
+    uint32_t n;
     TRIGGERACTION **tail;
     if (!LoadBytes(f, &n, sizeof(n))) return false;
     DELETE_LIST(TRIGGERACTION, *list, gi.MemFree);
     *list = NULL;
     tail = list;
     FOR_LOOP(i, n) {
-        LPSTR name = NULL;
+        string_t name = NULL;
         TRIGGERACTION *item = gi.MemAlloc(sizeof(*item));
         if (!item || !ReadString(f, &name)) { free(name); if (item) gi.MemFree(item); return false; }
         item->func = name ? jass_functionbyname(level.vm, name) : NULL;
@@ -982,15 +982,15 @@ static BOOL ReadTriggerCodeList(FILE *f, TRIGGERACTION **list) {
     return true;
 }
 
-static BOOL JassHandleDomain(LPCSTR type, jassHandleDomain_t *domain) {
+static bool JassHandleDomain(cstring_t type, jassHandleDomain_t *domain) {
     FOR_LOOP(i, sizeof(jass_handle_domains) / sizeof(*jass_handle_domains)) {
         if (!strcmp(type, jass_handle_domains[i].type)) { *domain = jass_handle_domains[i].domain; return true; }
     }
     return false;
 }
 
-static HANDLE JassListHandle(jassHandleDomain_t domain, DWORD id) {
-    DWORD index = 0;
+static handle_t JassListHandle(jassHandleDomain_t domain, uint32_t id) {
+    uint32_t index = 0;
     if (domain == JASS_HANDLE_QUEST) {
         if (id < MAX_QUESTS && level.quests[id].inuse) return &level.quests[id];
     } else if (domain == JASS_HANDLE_QUESTITEM) {
@@ -1020,9 +1020,9 @@ static HANDLE JassListHandle(jassHandleDomain_t domain, DWORD id) {
 }
 
 /* Native pointers cross the save boundary only through stable domain-specific indexes. */
-BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
+bool G_SaveJassHandle(cstring_t type, handle_t value, uint32_t *id) {
     jassHandleDomain_t domain;
-    DWORD index = 0;
+    uint32_t index = 0;
     if (!JassHandleDomain(type, &domain) || !value) return false;
     if (domain == JASS_HANDLE_ENTITY) {
         LPEDICT ent = value;
@@ -1036,7 +1036,7 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
             fprintf(stderr, "WC3 SaveGame: %s handle %p is unused edict %ld\n", type, value, (long)(ent - g_edicts));
             return false;
         }
-        *id = (DWORD)(ent - g_edicts); return true;
+        *id = (uint32_t)(ent - g_edicts); return true;
     }
     if (domain == JASS_HANDLE_PLAYER) {
         FOR_LOOP(i, game.max_clients) if (value == &game.clients[i].ps) { *id = i; return true; }
@@ -1053,7 +1053,7 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         LPTIMERDIALOG dialog = value;
         if (dialog < level.timer_dialogs || dialog >= level.timer_dialogs + MAX_TIMERDIALOGS || !dialog->inuse)
             return false;
-        *id = (DWORD)(dialog - level.timer_dialogs);
+        *id = (uint32_t)(dialog - level.timer_dialogs);
         return true;
     }
     if (domain == JASS_HANDLE_LEADERBOARD) {
@@ -1062,7 +1062,7 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         size_t span = sizeof(level.leaderboards);
         if (!board || ptr < base || ptr >= base + span ||
             (ptr - base) % sizeof(*board) != 0 || !board->inuse) return false;
-        *id = (DWORD)((ptr - base) / sizeof(*board));
+        *id = (uint32_t)((ptr - base) / sizeof(*board));
         return true;
     }
     if (domain == JASS_HANDLE_MULTIBOARD) {
@@ -1071,7 +1071,7 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         size_t span = sizeof(level.multiboards);
         if (!board || ptr < base || ptr >= base + span ||
             (ptr - base) % sizeof(*board) != 0 || !board->inuse) return false;
-        *id = (DWORD)((ptr - base) / sizeof(*board));
+        *id = (uint32_t)((ptr - base) / sizeof(*board));
         return true;
     }
     if (domain == JASS_HANDLE_MULTIBOARDITEM) {
@@ -1080,7 +1080,7 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         size_t span = sizeof(level.multiboard_items);
         if (!item || ptr < base || ptr >= base + span ||
             (ptr - base) % sizeof(*item) != 0 || !item->inuse) return false;
-        *id = (DWORD)((ptr - base) / sizeof(*item));
+        *id = (uint32_t)((ptr - base) / sizeof(*item));
         return true;
     }
     if (domain == JASS_HANDLE_TEXTTAG) {
@@ -1089,7 +1089,7 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         size_t span = sizeof(level.texttags);
         if (!tag || ptr < base || ptr >= base + span ||
             (ptr - base) % sizeof(*tag) != 0 || !tag->inuse) return false;
-        *id = (DWORD)((ptr - base) / sizeof(*tag));
+        *id = (uint32_t)((ptr - base) / sizeof(*tag));
         return true;
     }
     if (domain == JASS_HANDLE_HASHTABLE) {
@@ -1100,7 +1100,7 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         LPGWEATHER effect = value;
         if (effect < level.weather_effects || effect >= level.weather_effects + MAX_WEATHER_EFFECTS || !effect->inuse)
             return false;
-        *id = (DWORD)(effect - level.weather_effects);
+        *id = (uint32_t)(effect - level.weather_effects);
         return true;
     }
     if (domain == JASS_HANDLE_LIGHTNING) {
@@ -1108,18 +1108,18 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
         uintptr_t pointer = (uintptr_t)effect, base = (uintptr_t)level.lightning_effects;
         if (!effect || pointer < base || pointer >= base + sizeof(level.lightning_effects) ||
             (pointer - base) % sizeof(*effect) || !effect->inuse) return false;
-        *id = (DWORD)((pointer - base) / sizeof(*effect));
+        *id = (uint32_t)((pointer - base) / sizeof(*effect));
         return true;
     }
     if (domain == JASS_HANDLE_REGION) {
         LPREGION region = G_RegionFromHandle(value);
         if (!region) return false;
-        *id = (DWORD)(region - level.regions);
+        *id = (uint32_t)(region - level.regions);
         return true;
     }
     if (domain == JASS_HANDLE_QUEST) {
         if ((LPQUEST)value >= level.quests && (LPQUEST)value < level.quests + MAX_QUESTS && ((LPQUEST)value)->inuse) {
-            *id = (DWORD)((LPQUEST)value - level.quests); return true;
+            *id = (uint32_t)((LPQUEST)value - level.quests); return true;
         }
         return false;
     }
@@ -1135,11 +1135,11 @@ BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id) {
     return TriggerIndex(value, id);
 }
 
-HANDLE G_LoadJassHandle(LPCSTR type, DWORD id) {
+handle_t G_LoadJassHandle(cstring_t type, uint32_t id) {
     jassHandleDomain_t domain;
     if (!JassHandleDomain(type, &domain)) return NULL;
     if (domain == JASS_HANDLE_ENTITY) return id < globals.num_edicts && g_edicts[id].inuse ? g_edicts + id : NULL;
-    if (domain == JASS_HANDLE_PLAYER) return id < (DWORD)game.max_clients ? &game.clients[id].ps : NULL;
+    if (domain == JASS_HANDLE_PLAYER) return id < (uint32_t)game.max_clients ? &game.clients[id].ps : NULL;
     if (domain == JASS_HANDLE_GROUP) {
         ggroup_t *group = G_JassGroupByIndex(id);
         return group && group->inuse ? group : NULL;
@@ -1168,18 +1168,18 @@ HANDLE G_LoadJassHandle(LPCSTR type, DWORD id) {
     return JassListHandle(domain, id);
 }
 
-static BOOL WriteString(FILE *f, LPCSTR text) {
+static bool WriteString(FILE *f, cstring_t text) {
     size_t size = text ? strlen(text) + 1 : 0;
-    DWORD len;
+    uint32_t len;
 
     if (size > MAX_SAVE_STRING) return false;
-    len = (DWORD)size;
+    len = (uint32_t)size;
     return SaveBytes(f, &len, sizeof(len)) && (!len || SaveBytes(f, text, len));
 }
 
-static BOOL ReadString(FILE *f, LPSTR *text) {
-    DWORD len;
-    LPSTR value = NULL;
+static bool ReadString(FILE *f, string_t *text) {
+    uint32_t len;
+    string_t value = NULL;
 
     if (!LoadBytes(f, &len, sizeof(len)) || len > MAX_SAVE_STRING) return false;
     if (len) {
@@ -1190,8 +1190,8 @@ static BOOL ReadString(FILE *f, LPSTR *text) {
     return true;
 }
 
-static BOOL WriteField1(field_t const *field, BYTE *base) {
-    DWORD count = field->count_ofs != UINT32_MAX ? *(DWORD *)(base + field->count_ofs) :
+static bool WriteField1(field_t const *field, uint8_t *base) {
+    uint32_t count = field->count_ofs != UINT32_MAX ? *(uint32_t *)(base + field->count_ofs) :
         field->array_size ? field->array_size : 1;
     size_t size = field->array_size ? field->size / field->array_size : field->size;
     int index;
@@ -1225,8 +1225,8 @@ static BOOL WriteField1(field_t const *field, BYTE *base) {
             umove_t const *move = *(umove_t *const *)p;
             memset(p, 0, size);
             if (!move) break;
-            *(int *)p = (int)((BYTE const *)move - (BYTE const *)&umove_reloc);
-            *(DWORD *)((BYTE *)p + 4) = SaveHash(0, move->animation, strlen(move->animation) + 1);
+            *(int *)p = (int)((uint8_t const *)move - (uint8_t const *)&umove_reloc);
+            *(uint32_t *)((uint8_t *)p + 4) = SaveHash(0, move->animation, strlen(move->animation) + 1);
             break;
         }
         case F_CFUNCTION: {
@@ -1240,7 +1240,7 @@ static BOOL WriteField1(field_t const *field, BYTE *base) {
                 return false;
             }
             *(int *)p = index;
-            *(DWORD *)((BYTE *)p + 4) = SaveHash(0, save_cfunctions[index - 1].name, strlen(save_cfunctions[index - 1].name) + 1);
+            *(uint32_t *)((uint8_t *)p + 4) = SaveHash(0, save_cfunctions[index - 1].name, strlen(save_cfunctions[index - 1].name) + 1);
             break;
         }
         default: break;
@@ -1250,8 +1250,8 @@ static BOOL WriteField1(field_t const *field, BYTE *base) {
 }
 
 /* Restore entity and client pointers after the raw edict block is read. */
-static BOOL ReadField(field_t const *field, BYTE *base) {
-    DWORD count = field->count_ofs != UINT32_MAX ? *(DWORD *)(base + field->count_ofs) :
+static bool ReadField(field_t const *field, uint8_t *base) {
+    uint32_t count = field->count_ofs != UINT32_MAX ? *(uint32_t *)(base + field->count_ofs) :
         field->array_size ? field->array_size : 1;
     size_t size = field->array_size ? field->size / field->array_size : field->size;
 
@@ -1278,8 +1278,8 @@ static BOOL ReadField(field_t const *field, BYTE *base) {
             *(LPEDICT *)p = index < 0 ? NULL : g_edicts + index;
             break;
         case F_MMOVE: {
-            DWORD hash = *(DWORD *)((BYTE *)p + 4);
-            umove_t *move = (umove_t *)((BYTE *)&umove_reloc + index);
+            uint32_t hash = *(uint32_t *)((uint8_t *)p + 4);
+            umove_t *move = (umove_t *)((uint8_t *)&umove_reloc + index);
             if (!index && !hash) { *(umove_t **)p = NULL; break; }
             /* Reject a save written by a different build before dereferencing the move. */
             if (index < -UMOVE_RELOC_RANGE || index > UMOVE_RELOC_RANGE || (uintptr_t)move % _Alignof(umove_t) ||
@@ -1292,7 +1292,7 @@ static BOOL ReadField(field_t const *field, BYTE *base) {
             break;
         }
         case F_CFUNCTION: {
-            DWORD hash = *(DWORD *)((BYTE *)p + 4);
+            uint32_t hash = *(uint32_t *)((uint8_t *)p + 4);
             int nfunctions = (int)(sizeof(save_cfunctions) / sizeof(save_cfunctions[0]));
             if (!index && !hash) { *(void **)p = NULL; break; }
             if (index < 1 || index > nfunctions ||
@@ -1311,7 +1311,7 @@ static BOOL ReadField(field_t const *field, BYTE *base) {
 }
 
 /* Convert one schema pointer to its stable save-domain index without mutating the live object. */
-static BOOL WriteMappedIndex(field_t const *field, void *ptr, int *index) {
+static bool WriteMappedIndex(field_t const *field, void *ptr, int *index) {
     switch (field->type) {
     case F_EDICT:
     case F_ITEM: {
@@ -1322,17 +1322,17 @@ static BOOL WriteMappedIndex(field_t const *field, void *ptr, int *index) {
         *index = value ? (int)(value - g_edicts) : -1; return true;
     }
     case F_TRIGGER: {
-        DWORD id;
+        uint32_t id;
         if (!TriggerIndex(*(LPTRIGGER *)ptr, &id)) return false;
         *index = id == UINT32_MAX ? -1 : (int)id; return true;
     }
     case F_TIMER: {
-        DWORD id;
+        uint32_t id;
         if (!TimerIndex(*(LPGTIMER *)ptr, &id)) return false;
         *index = id == UINT32_MAX ? -1 : (int)id; return true;
     }
     case F_EVENT: {
-        DWORD id;
+        uint32_t id;
         if (!EventId(*(LPEVENT *)ptr, &id)) return false;
         *index = id == UINT32_MAX ? -1 : (int)id; return true;
     }
@@ -1341,7 +1341,7 @@ static BOOL WriteMappedIndex(field_t const *field, void *ptr, int *index) {
 }
 
 /* Resolve one schema index directly into the pointer domain declared by its field type. */
-static BOOL ReadMappedIndex(field_t const *field, void *ptr, int index) {
+static bool ReadMappedIndex(field_t const *field, void *ptr, int index) {
     if (index < -1) return false;
     switch (field->type) {
     case F_EDICT:
@@ -1357,7 +1357,7 @@ static BOOL ReadMappedIndex(field_t const *field, void *ptr, int index) {
     case F_EVENT: {
         LPEVENT event;
         if (index < 0) { *(LPEVENT *)ptr = NULL; return true; }
-        event = EventById((DWORD)index);
+        event = EventById((uint32_t)index);
         if (!event) return false;
         *(LPEVENT *)ptr = event; return true;
     }
@@ -1366,9 +1366,9 @@ static BOOL ReadMappedIndex(field_t const *field, void *ptr, int index) {
 }
 
 /* Serialize mapped records, converting pointer-domain fields to stable indexes from their field types. */
-static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
+static bool WriteMappedFields(FILE *f, field_t const *fields, uint8_t *base) {
     for (; fields->name; fields++) {
-        DWORD count = fields->count_ofs != UINT32_MAX ? *(DWORD *)(base + fields->count_ofs) :
+        uint32_t count = fields->count_ofs != UINT32_MAX ? *(uint32_t *)(base + fields->count_ofs) :
             fields->array_size ? fields->array_size : 1;
         size_t size = fields->array_size ? fields->size / fields->array_size : fields->size;
         if (fields->count_ofs != UINT32_MAX && count > fields->array_size) return false;
@@ -1377,7 +1377,7 @@ static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
         case F_REGION_REGISTRY: {
             REGION const *regions = (REGION const *)(base + fields->ofs);
             FOR_LOOP(i, count) if (!WriteMappedFields(f, (field_t const *)fields->flags,
-                (BYTE *)(regions + i))) return false;
+                (uint8_t *)(regions + i))) return false;
             break;
         }
         case F_STRUCT:
@@ -1385,7 +1385,7 @@ static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
             break;
         case F_STRUCT_RING: {
             fieldRing_t const *ring = (fieldRing_t const *)fields->flags;
-            DWORD read = *(DWORD *)(base + ring->read_ofs), write = *(DWORD *)(base + ring->write_ofs);
+            uint32_t read = *(uint32_t *)(base + ring->read_ofs), write = *(uint32_t *)(base + ring->write_ofs);
             count = write - read;
             if (count > fields->array_size || !SaveBytes(f, &count, sizeof(count))) return false;
             FOR_LOOP(i, count) if (!WriteMappedFields(f, ring->fields,
@@ -1400,7 +1400,7 @@ static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
             break;
         case F_REGION: {
             LPREGION region = *(LPREGION *)(base + fields->ofs);
-            DWORD id = UINT32_MAX;
+            uint32_t id = UINT32_MAX;
             if (region && !G_SaveJassHandle("region", region, &id)) {
                 fprintf(stderr, "WC3 SaveGame: cannot resolve region field %s\n", fields->name); return false;
             }
@@ -1409,7 +1409,7 @@ static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
         }
         case F_LSTRING:
         case F_GSTRING:
-            if (!WriteString(f, *(LPCSTR *)(base + fields->ofs))) return false;
+            if (!WriteString(f, *(cstring_t *)(base + fields->ofs))) return false;
             break;
         case F_EDICT:
         case F_ITEM:
@@ -1433,13 +1433,13 @@ static BOOL WriteMappedFields(FILE *f, field_t const *fields, BYTE *base) {
 }
 
 /* Restore mapped records, resolving pointer-domain fields from stable indexes declared by their field types. */
-static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
+static bool ReadMappedFields(FILE *f, field_t const *fields, uint8_t *base) {
     for (; fields->name; fields++) {
-        DWORD count = fields->array_size ? fields->array_size : 1;
+        uint32_t count = fields->array_size ? fields->array_size : 1;
         size_t size = fields->array_size ? fields->size / fields->array_size : fields->size;
         if (fields->count_ofs != UINT32_MAX) {
             if (!LoadBytes(f, &count, sizeof(count)) || count > fields->array_size) return false;
-            *(DWORD *)(base + fields->count_ofs) = count;
+            *(uint32_t *)(base + fields->count_ofs) = count;
         }
         switch (fields->type) {
         case F_REGION_REGISTRY: {
@@ -1447,7 +1447,7 @@ static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
             field_t const *schema = (field_t const *)fields->flags;
             memset(regions, 0, fields->size);
             FOR_LOOP(i, count) {
-                if (!ReadMappedFields(f, schema, (BYTE *)(regions + i)) || regions[i].num_rects > MAX_REGION_SIZE ||
+                if (!ReadMappedFields(f, schema, (uint8_t *)(regions + i)) || regions[i].num_rects > MAX_REGION_SIZE ||
                     regions[i].generation > REGION_HANDLE_GENERATION_MAX || regions[i].inuse > 1 || regions[i].exhausted > 1)
                     return false;
             }
@@ -1459,7 +1459,7 @@ static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
         case F_STRUCT_RING: {
             fieldRing_t const *ring = (fieldRing_t const *)fields->flags;
             if (!LoadBytes(f, &count, sizeof(count)) || count > fields->array_size) return false;
-            *(DWORD *)(base + ring->read_ofs) = 0; *(DWORD *)(base + ring->write_ofs) = count;
+            *(uint32_t *)(base + ring->read_ofs) = 0; *(uint32_t *)(base + ring->write_ofs) = count;
             FOR_LOOP(i, count) if (!ReadMappedFields(f, ring->fields, base + fields->ofs + i * size)) return false;
             break;
         }
@@ -1467,7 +1467,7 @@ static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
             if (!ReadTriggerCodeList(f, (TRIGGERACTION **)(base + fields->ofs))) return false;
             break;
         case F_FUNCTION: {
-            LPSTR name = NULL;
+            string_t name = NULL;
             if (!ReadString(f, &name)) return false;
             *(LPCJASSFUNC *)(base + fields->ofs) = name ? jass_functionbyname(level.vm, name) : NULL;
             if (name && !*(LPCJASSFUNC *)(base + fields->ofs)) { free(name); return false; }
@@ -1475,7 +1475,7 @@ static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
             break;
         }
         case F_REGION: {
-            DWORD id;
+            uint32_t id;
             if (!LoadBytes(f, &id, sizeof(id))) return false;
             *(LPREGION *)(base + fields->ofs) = id == UINT32_MAX ? NULL : G_LoadJassHandle("region", id);
             if (id != UINT32_MAX && !*(LPREGION *)(base + fields->ofs)) return false;
@@ -1483,7 +1483,7 @@ static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
         }
         case F_LSTRING:
         case F_GSTRING:
-            if (!ReadString(f, (LPSTR *)(base + fields->ofs))) return false;
+            if (!ReadString(f, (string_t *)(base + fields->ofs))) return false;
             break;
         case F_EDICT:
         case F_ITEM:
@@ -1506,10 +1506,10 @@ static BOOL ReadMappedFields(FILE *f, field_t const *fields, BYTE *base) {
     return true;
 }
 
-static BOOL WriteGroups(FILE *f) {
+static bool WriteGroups(FILE *f) {
     FOR_LOOP(i, level.num_groups) {
         ggroup_t *group = G_JassGroupByIndex(i);
-        if (!group || !WriteMappedFields(f, group_fields, (BYTE *)group)) {
+        if (!group || !WriteMappedFields(f, group_fields, (uint8_t *)group)) {
             fprintf(stderr, "WC3 SaveGame: failed at group %u\n", (unsigned)i);
             return false;
         }
@@ -1517,12 +1517,12 @@ static BOOL WriteGroups(FILE *f) {
     return true;
 }
 
-static BOOL ReadGroups(FILE *f, DWORD count) {
+static bool ReadGroups(FILE *f, uint32_t count) {
     if (!G_EnsureJassGroupSlots(count)) return false;
     level.first_free_group = count;
     FOR_LOOP(i, count) {
         ggroup_t *group = G_JassGroupByIndex(i);
-        if (!group || !ReadMappedFields(f, group_fields, (BYTE *)group)) {
+        if (!group || !ReadMappedFields(f, group_fields, (uint8_t *)group)) {
             fprintf(stderr, "WC3 LoadGame: failed at group %u\n", (unsigned)i);
             return false;
         }
@@ -1536,7 +1536,7 @@ static BOOL ReadGroups(FILE *f, DWORD count) {
 }
 
 /* Nested HT_HANDLE types without a host domain (location/lightning/...) restore as null. */
-static void hashtable_log_unsupported_type(LPCSTR type) {
+static void hashtable_log_unsupported_type(cstring_t type) {
     static char last[MAX_HASHTABLE_TYPE];
     if (!type) type = "";
     if (!strcmp(last, type)) return;
@@ -1544,8 +1544,8 @@ static void hashtable_log_unsupported_type(LPCSTR type) {
     fprintf(stderr, "WC3 LoadGame: hashtable nested handle type '%s' has no host domain; restoring null\n", type);
 }
 
-static BOOL WriteHashtableEntry(FILE *f, hashtableEntry_t const *e) {
-    DWORD type = (DWORD)e->type;
+static bool WriteHashtableEntry(FILE *f, hashtableEntry_t const *e) {
+    uint32_t type = (uint32_t)e->type;
     int handle_id = -1;
     if (!SaveBytes(f, &e->parent, sizeof(e->parent)) || !SaveBytes(f, &e->child, sizeof(e->child)) ||
         !SaveBytes(f, &type, sizeof(type))) return false;
@@ -1557,7 +1557,7 @@ static BOOL WriteHashtableEntry(FILE *f, hashtableEntry_t const *e) {
     case HT_HANDLE:
         if (!SaveBytes(f, e->handle_type, sizeof(e->handle_type))) return false;
         if (e->value.handle && e->handle_type[0]) {
-            DWORD id = 0;
+            uint32_t id = 0;
             if (G_SaveJassHandle(e->handle_type, e->value.handle, &id)) handle_id = (int)id;
             /* Stale or unsupported nested handles become null; keep the type string. */
         }
@@ -1568,8 +1568,8 @@ static BOOL WriteHashtableEntry(FILE *f, hashtableEntry_t const *e) {
     }
 }
 
-static BOOL ReadHashtableEntry(FILE *f, hashtableEntry_t *e) {
-    DWORD type = 0;
+static bool ReadHashtableEntry(FILE *f, hashtableEntry_t *e) {
+    uint32_t type = 0;
     int handle_id = -1;
     memset(e, 0, sizeof(*e));
     if (!LoadBytes(f, &e->parent, sizeof(e->parent)) || !LoadBytes(f, &e->child, sizeof(e->child)) ||
@@ -1591,7 +1591,7 @@ static BOOL ReadHashtableEntry(FILE *f, hashtableEntry_t *e) {
             e->value.handle = NULL;
             return true;
         }
-        e->value.handle = G_LoadJassHandle(e->handle_type, (DWORD)handle_id);
+        e->value.handle = G_LoadJassHandle(e->handle_type, (uint32_t)handle_id);
         return true;
     }
     default:
@@ -1600,10 +1600,10 @@ static BOOL ReadHashtableEntry(FILE *f, hashtableEntry_t *e) {
     }
 }
 
-static BOOL WriteHashtables(FILE *f) {
+static bool WriteHashtables(FILE *f) {
     FOR_LOOP(i, MAX_HASHTABLES) {
         LPHASHTABLE table = &level.hashtables[i];
-        DWORD count;
+        uint32_t count;
         if (!table->inuse) continue;
         count = table->num_entries;
         if (count > MAX_HASHTABLE_ENTRIES) {
@@ -1622,10 +1622,10 @@ static BOOL WriteHashtables(FILE *f) {
     return true;
 }
 
-static BOOL ReadHashtables(FILE *f) {
+static bool ReadHashtables(FILE *f) {
     FOR_LOOP(i, MAX_HASHTABLES) {
         LPHASHTABLE table = &level.hashtables[i];
-        DWORD count = 0;
+        uint32_t count = 0;
         if (table->entries) { gi.MemFree(table->entries); table->entries = NULL; }
         table->num_entries = table->capacity = 0;
         if (!table->inuse) continue;
@@ -1645,17 +1645,17 @@ static BOOL ReadHashtables(FILE *f) {
     return true;
 }
 
-static BOOL WriteEdict(FILE *f, LPCEDICT ent) {
+static bool WriteEdict(FILE *f, LPCEDICT ent) {
     edict_t temp = *ent;
     field_t const *field;
 
     ClearRuntimeFields(&temp, edict_fields, FIELD_RUNTIME);
     for (field = edict_fields; field->name; field++)
-        if (!WriteField1(field, (BYTE *)&temp)) return false;
+        if (!WriteField1(field, (uint8_t *)&temp)) return false;
     return SaveBytes(f, &temp, sizeof(temp));
 }
 
-static BOOL WriteClient(FILE *f, LPCGAMECLIENT client) {
+static bool WriteClient(FILE *f, LPCGAMECLIENT client) {
     GAMECLIENT temp = *client;
     int target = client->camera.target_controller ? (int)(client->camera.target_controller - g_edicts) : -1;
 
@@ -1665,7 +1665,7 @@ static BOOL WriteClient(FILE *f, LPCGAMECLIENT client) {
     return SaveBytes(f, &temp, sizeof(temp)) && SaveBytes(f, &target, sizeof(target));
 }
 
-static BOOL ReadClient(FILE *f, LPGAMECLIENT client, int *target) {
+static bool ReadClient(FILE *f, LPGAMECLIENT client, int *target) {
     if (!LoadBytes(f, client, sizeof(*client)) || !LoadBytes(f, target, sizeof(*target))) return false;
     if (*target < -1 || *target >= (int)globals.max_edicts) return false;
     client->ps.name = client->jass.name;
@@ -1682,10 +1682,10 @@ static BOOL ReadClient(FILE *f, LPGAMECLIENT client, int *target) {
     return true;
 }
 
-static BOOL WriteBlight(FILE *f) {
-    DWORD const size = G_GetBlightStateSize();
-    LPBYTE data = NULL;
-    BOOL ok;
+static bool WriteBlight(FILE *f) {
+    uint32_t const size = G_GetBlightStateSize();
+    uint8_t * data = NULL;
+    bool ok;
 
     if (!SaveBytes(f, &size, sizeof(size))) return false;
     if (!size) return true;
@@ -1696,10 +1696,10 @@ static BOOL WriteBlight(FILE *f) {
     return ok;
 }
 
-static BOOL ReadBlight(FILE *f) {
-    DWORD size, expected;
-    LPBYTE data = NULL;
-    BOOL ok;
+static bool ReadBlight(FILE *f) {
+    uint32_t size, expected;
+    uint8_t * data = NULL;
+    bool ok;
 
     if (!LoadBytes(f, &size, sizeof(size))) return false;
     expected = G_GetBlightStateSize();
@@ -1712,12 +1712,12 @@ static BOOL ReadBlight(FILE *f) {
     return ok;
 }
 
-static BOOL ReadEdict(FILE *f, LPEDICT ent) {
+static bool ReadEdict(FILE *f, LPEDICT ent) {
     field_t const *field;
 
     if (!LoadBytes(f, ent, sizeof(*ent))) return false;
     for (field = edict_fields; field->name; field++)
-        if (!ReadField(field, (BYTE *)ent)) return false;
+        if (!ReadField(field, (uint8_t *)ent)) return false;
     /* Table rows are process-owned; C callbacks already came back through F_CFUNCTION. */
     if (ent->class_id) {
         G_BindEntityData(ent);
@@ -1729,7 +1729,7 @@ static BOOL ReadEdict(FILE *f, LPEDICT ent) {
     return true;
 }
 
-BOOL WriteGame(LPCSTR filename) {
+bool WriteGame(cstring_t filename) {
     FILE *f = fopen(filename, "w+b");
     SAVEHEADER header = {
         .magic = save_magic, .version = save_version, .edict_size = sizeof(edict_t), .num_edicts = globals.num_edicts,
@@ -1744,10 +1744,10 @@ BOOL WriteGame(LPCSTR filename) {
                 (unsigned)level.num_groups, (unsigned)MAX_SAVE_GROUP_HANDLES);
         return false;
     }
-    BOOL ok = false;
+    bool ok = false;
     if (!f) { fprintf(stderr, "WC3 SaveGame: cannot open %s\n", filename); return false; }
     if (!SaveBytes(f, &header, sizeof(header))) { fprintf(stderr, "WC3 SaveGame: failed at header\n"); goto done; }
-    if (!WriteMappedFields(f, level_fields, (BYTE *)&level)) {
+    if (!WriteMappedFields(f, level_fields, (uint8_t *)&level)) {
         fprintf(stderr, "WC3 SaveGame: failed at level fields\n"); goto done;
     }
     if (!WriteBlight(f)) { fprintf(stderr, "WC3 SaveGame: failed at blight state\n"); goto done; }
@@ -1756,7 +1756,7 @@ BOOL WriteGame(LPCSTR filename) {
         if (!WriteClient(f, game.clients + i)) { fprintf(stderr, "WC3 SaveGame: failed at client %d\n", i); goto done; }
     }
     FOR_LOOP(i, globals.num_edicts) {
-        BOOL used = g_edicts[i].inuse;
+        bool used = g_edicts[i].inuse;
         if (!SaveBytes(f, &used, sizeof(used))) { fprintf(stderr, "WC3 SaveGame: failed at edict %d inuse\n", i); goto done; }
         if (used && !SaveBytes(f, &i, sizeof(i))) { fprintf(stderr, "WC3 SaveGame: failed at edict %d index\n", i); goto done; }
         if (used && !WriteEdict(f, g_edicts + i)) {
@@ -1776,11 +1776,11 @@ done:
     return ok;
 }
 
-BOOL ReadGame(LPCSTR filename) {
+bool ReadGame(cstring_t filename) {
     FILE *f = fopen(filename, "rb");
     SAVEHEADER header = { 0 };
-    BOOL current_nonregion_event_slots[MAX_EVENTS] = { 0 };
-    DWORD index;
+    bool current_nonregion_event_slots[MAX_EVENTS] = { 0 };
+    uint32_t index;
     int targets[MAX_CLIENTS];
 
     if (!f) { fprintf(stderr, "WC3 LoadGame: cannot open %s\n", filename); return false; }
@@ -1793,8 +1793,8 @@ BOOL ReadGame(LPCSTR filename) {
         fprintf(stderr, "WC3 LoadGame: invalid header\n"); fclose(f); return false;
     }
     {
-        DWORD script = level.vm ? jass_programidentity(level.vm) : 0;
-        LPCSTR field = NULL;
+        uint32_t script = level.vm ? jass_programidentity(level.vm) : 0;
+        cstring_t field = NULL;
         if (header.magic != save_magic) field = "magic";
         else if (header.edict_size != sizeof(edict_t)) field = "edict_size";
         else if (header.num_edicts > globals.max_edicts) field = "num_edicts";
@@ -1823,7 +1823,7 @@ BOOL ReadGame(LPCSTR filename) {
         current_nonregion_event_slots[i] = event->inuse &&
             event->type != EVENT_GAME_ENTER_REGION && event->type != EVENT_GAME_LEAVE_REGION;
     }
-    if (!ReadMappedFields(f, level_fields, (BYTE *)&level)) {
+    if (!ReadMappedFields(f, level_fields, (uint8_t *)&level)) {
         fprintf(stderr, "WC3 LoadGame: failed at level state\n"); fclose(f); return false;
     }
     FOR_LOOP(i, MAX_EVENTS) if (current_nonregion_event_slots[i] && !level.events.handlers[i].inuse) {
@@ -1862,7 +1862,7 @@ BOOL ReadGame(LPCSTR filename) {
     memset(g_edicts, 0, sizeof(edict_t) * globals.max_edicts);
     globals.num_edicts = header.num_edicts;
     FOR_LOOP(i, header.num_edicts) {
-        BOOL used;
+        bool used;
         if (!LoadBytes(f, &used, sizeof(used))) {
             fprintf(stderr, "WC3 LoadGame: failed at edict %d inuse\n", i); fclose(f); return false;
         }
@@ -1900,7 +1900,7 @@ BOOL ReadGame(LPCSTR filename) {
     FOR_LOOP(i, game.max_clients) if (game.clients[i].connected) G_MusicSyncClient(game.clients + i);
     /* svc_layout layers are client presentation state and are not serialized.
      * Force the restored timer-dialog model to republish on the next frame. */
-    FOR_LOOP(i, MIN((DWORD)game.max_clients, (DWORD)MAX_CLIENTS)) {
+    FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS)) {
         level.timer_dialog_dirty_clients |= 1u << i;
         level.timer_dialog_last_index[i] = -1;
         level.timer_dialog_last_seconds[i] = -1;
@@ -1912,8 +1912,8 @@ BOOL ReadGame(LPCSTR filename) {
 }
 
 #ifdef BZ_TESTS
-static BOOL write_save_fixture_header(LPCSTR source_path, LPCSTR output_path, DWORD version, DWORD edict_size) {
-    BYTE buffer[4096];
+static bool write_save_fixture_header(cstring_t source_path, cstring_t output_path, uint32_t version, uint32_t edict_size) {
+    uint8_t buffer[4096];
     SAVEHEADER header;
     long payload;
     FILE *source = fopen(source_path, "rb"), *output = NULL;
@@ -1940,8 +1940,8 @@ fail:
 }
 
 TEST(wc3_save, rejects_pre_region_handle_generation_save_versions) {
-    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-pre-region-handle-generation.bin";
-    LPCSTR old_paths[] = {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-pre-region-handle-generation.bin";
+    cstring_t old_paths[] = {
         "/tmp/openwarcraft3-wc3-save-version-39.bin",
         "/tmp/openwarcraft3-wc3-save-version-40.bin",
         "/tmp/openwarcraft3-wc3-save-version-41.bin",
@@ -1950,7 +1950,7 @@ TEST(wc3_save, rejects_pre_region_handle_generation_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-44.bin",
         "/tmp/openwarcraft3-wc3-save-version-45.bin",
     };
-    DWORD const old_versions[] = { 39, 40, 41, 42, 43, 44, 45 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45 };
 
     reset_entities();
     setup_test_world();
@@ -1965,8 +1965,8 @@ TEST(wc3_save, rejects_pre_region_handle_generation_save_versions) {
 }
 
 TEST(wc3_save, rejects_pre_waygate_edict_layout) {
-    LPCSTR filename = "/tmp/openwarcraft3-wc3-save-waygate-current.bin";
-    LPCSTR old_path = "/tmp/openwarcraft3-wc3-save-old-edict-size.bin";
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-waygate-current.bin";
+    cstring_t old_path = "/tmp/openwarcraft3-wc3-save-old-edict-size.bin";
 
     reset_entities();
     setup_test_world();

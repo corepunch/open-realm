@@ -4,7 +4,7 @@
 
 #define BZ_AUCO MAKEFOURCC('A', 'u', 'c', 'o') // rawcode; Unstable Concoction
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);

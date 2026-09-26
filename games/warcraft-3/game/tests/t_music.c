@@ -8,7 +8,7 @@ TEST(wc3_music, set_map_defers_replacement_until_current_map_track_finishes) {
     LPGAMECLIENT client = &game.clients[0];
     LPPLAYER previous = currentplayer;
     wc3MusicState_t saved = client->music;
-    DWORD old_session, new_session;
+    uint32_t old_session, new_session;
 
     currentplayer = &client->ps;
     memset(&client->music, 0, sizeof(client->music));
@@ -63,7 +63,7 @@ TEST(wc3_music, selected_random_initial_track_becomes_sequential_current_state) 
     LPGAMECLIENT client = &game.clients[0];
     LPPLAYER previous = currentplayer;
     wc3MusicState_t saved = client->music;
-    DWORD session_id;
+    uint32_t session_id;
 
     currentplayer = &client->ps;
     memset(&client->music, 0, sizeof(client->music));
@@ -86,7 +86,7 @@ TEST(wc3_music, explicit_music_completion_returns_to_map_session) {
     LPGAMECLIENT client = &game.clients[0];
     LPPLAYER previous = currentplayer;
     wc3MusicState_t saved = client->music;
-    DWORD map_session, explicit_session;
+    uint32_t map_session, explicit_session;
 
     currentplayer = &client->ps;
     memset(&client->music, 0, sizeof(client->music));
@@ -110,7 +110,7 @@ TEST(wc3_music, thematic_music_restores_explicit_session_and_snapshot_position) 
     LPGAMECLIENT client = &game.clients[0];
     LPPLAYER previous = currentplayer;
     wc3MusicState_t saved = client->music;
-    DWORD explicit_session, thematic_session;
+    uint32_t explicit_session, thematic_session;
 
     currentplayer = &client->ps;
     memset(&client->music, 0, sizeof(client->music));
@@ -144,7 +144,7 @@ TEST(wc3_music, map_change_during_theme_preserves_interrupted_map_session) {
     LPGAMECLIENT client = &game.clients[0];
     LPPLAYER previous = currentplayer;
     wc3MusicState_t saved = client->music;
-    DWORD old_map_session, new_map_session;
+    uint32_t old_map_session, new_map_session;
 
     currentplayer = &client->ps;
     memset(&client->music, 0, sizeof(client->music));
@@ -169,7 +169,7 @@ TEST(wc3_music, session_ids_reject_stale_client_completion) {
     LPGAMECLIENT client = &game.clients[0];
     LPPLAYER previous = currentplayer;
     wc3MusicState_t saved = client->music;
-    DWORD old_session, new_session;
+    uint32_t old_session, new_session;
 
     currentplayer = &client->ps;
     memset(&client->music, 0, sizeof(client->music));
@@ -192,11 +192,11 @@ TEST(wc3_music, session_ids_reject_stale_client_completion) {
 }
 
 TEST(wc3_music, map_skin_overrides_stock_music_skin_fields) {
-    HANDLE archive = NULL;
-    DWORD size = 0;
-    HANDLE bytes;
+    handle_t archive = NULL;
+    uint32_t size = 0;
+    handle_t bytes;
     GAMECLIENT client = { .ps.race = kPlayerRaceHuman };
-    LPCSTR expected_versioned;
+    cstring_t expected_versioned;
 
     bytes = gi.ReadFile("Maps\\MapOverlay.w3x", &size);
     T_NOT_NULL(bytes);
@@ -216,7 +216,7 @@ TEST(wc3_music, map_skin_overrides_stock_music_skin_fields) {
     gi.MemFree(bytes);
 }
 TEST(wc3_music, sound_file_duration_reads_wav_metadata_without_decoder) {
-    BYTE wav[144] = { 0 };
+    uint8_t wav[144] = { 0 };
 
     memcpy(wav, "RIFF", 4);
     wav[4] = 136;
@@ -235,7 +235,7 @@ TEST(wc3_music, sound_file_duration_reads_wav_metadata_without_decoder) {
 }
 
 TEST(wc3_music, sound_file_duration_scans_variable_rate_mp3_frames) {
-    BYTE mp3[625] = { 0 };
+    uint8_t mp3[625] = { 0 };
 
     /* MPEG-1 Layer III, 128 kbps, 44.1 kHz: 417-byte frame, 1152 samples. */
     mp3[0] = 0xff; mp3[1] = 0xfb; mp3[2] = 0x90; mp3[3] = 0x00;
@@ -246,8 +246,8 @@ TEST(wc3_music, sound_file_duration_scans_variable_rate_mp3_frames) {
 }
 
 TEST(wc3_music, sound_file_duration_rejects_truncated_or_unknown_data) {
-    BYTE truncated_wav[12] = { 0 };
-    BYTE unknown[8] = { 0xde, 0xad, 0xbe, 0xef };
+    uint8_t truncated_wav[12] = { 0 };
+    uint8_t unknown[8] = { 0xde, 0xad, 0xbe, 0xef };
 
     memcpy(truncated_wav, "RIFFWAVE", 8);
     T_EQ(G_AudioDurationFromMemory("truncated.wav", truncated_wav, sizeof(truncated_wav)), 0);
@@ -255,8 +255,8 @@ TEST(wc3_music, sound_file_duration_rejects_truncated_or_unknown_data) {
 }
 
 TEST(wc3_music, sound_file_duration_reads_ogg_vorbis_granule) {
-    BYTE ogg[58] = { 0 };
-    BYTE *packet = ogg + 28;
+    uint8_t ogg[58] = { 0 };
+    uint8_t *packet = ogg + 28;
 
     memcpy(ogg, "OggS", 4);
     ogg[6] = 0x44; ogg[7] = 0xac; /* granule = 44100 samples */
@@ -270,7 +270,7 @@ TEST(wc3_music, sound_file_duration_reads_ogg_vorbis_granule) {
 }
 
 TEST(wc3_music, sound_file_duration_reads_flac_streaminfo) {
-    BYTE flac[42] = { 0 };
+    uint8_t flac[42] = { 0 };
 
     memcpy(flac, "fLaC", 4);
     flac[4] = 0x80; /* final STREAMINFO block */

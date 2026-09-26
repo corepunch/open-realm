@@ -15,31 +15,31 @@
 } while (0)
 
 static jmp_buf exception_env;
-static BOOL c_operators;
+static bool c_operators;
 typedef LPTOKEN (*LPGRAMMARFUNC)(LPPARSER);
 
 typedef struct {
-    LPCSTR name;
+    cstring_t name;
     LPGRAMMARFUNC func;
 } parseClass_t;
 
 extern parseClass_t function_keywords[];
 
-BOOL is_integer(LPCSTR tok);
-BOOL is_float(LPCSTR tok);
-BOOL is_identifier(LPCSTR str);
-BOOL is_string(LPCSTR tok);
-BOOL is_fourcc(LPCSTR tok);
+bool is_integer(cstring_t tok);
+bool is_float(cstring_t tok);
+bool is_identifier(cstring_t str);
+bool is_string(cstring_t tok);
+bool is_fourcc(cstring_t tok);
 
-static BOOL token_in(LPCSTR tok, LPCSTR const *grammar, DWORD count) {
+static bool token_in(cstring_t tok, cstring_t const *grammar, uint32_t count) {
     FOR_LOOP(i, count)
         if (!strcmp(tok, grammar[i])) return true;
     return false;
 }
 
-static DWORD parser_line(LPPARSER p) {
-    DWORD line = 1;
-    for (LPCSTR cur = p->start; cur && cur < p->buffer; cur++) {
+static uint32_t parser_line(LPPARSER p) {
+    uint32_t line = 1;
+    for (cstring_t cur = p->start; cur && cur < p->buffer; cur++) {
         if (*cur == '\n' || *cur == '\r') {
             if (*cur == '\r' && cur[1] == '\n') cur++;
             line++;
@@ -48,34 +48,34 @@ static DWORD parser_line(LPPARSER p) {
     return line;
 }
 
-BOOL is_multiplicative_operator(LPCSTR str) {
-    static LPCSTR const grammar[] = { "*", "/" };
+bool is_multiplicative_operator(cstring_t str) {
+    static cstring_t const grammar[] = { "*", "/" };
     return token_in(str, grammar, sizeof(grammar) / sizeof(*grammar));
 }
 
-BOOL is_additive_operator(LPPARSER p, LPCSTR str) {
-    static LPCSTR const grammar[] = { "+", "-" };
-    static LPCSTR const c_grammar[] = { "<<", ">>" };
+bool is_additive_operator(LPPARSER p, cstring_t str) {
+    static cstring_t const grammar[] = { "+", "-" };
+    static cstring_t const c_grammar[] = { "<<", ">>" };
     (void)p;
         return token_in(str, grammar, sizeof(grammar) / sizeof(*grammar)) ||
             (c_operators && token_in(str, c_grammar, sizeof(c_grammar) / sizeof(*c_grammar)));
 }
 
-BOOL is_compare_operator(LPCSTR str) {
-    static LPCSTR const grammar[] = { ">", "<", "==", "!=", ">=", "<=" };
+bool is_compare_operator(cstring_t str) {
+    static cstring_t const grammar[] = { ">", "<", "==", "!=", ">=", "<=" };
     return token_in(str, grammar, sizeof(grammar) / sizeof(*grammar));
 }
 
-BOOL is_logic_operator(LPPARSER p, LPCSTR str) {
-    static LPCSTR const grammar[] = { "and", "or" };
-    static LPCSTR const c_grammar[] = { "&&", "||", "|", "&", "^" };
+bool is_logic_operator(LPPARSER p, cstring_t str) {
+    static cstring_t const grammar[] = { "and", "or" };
+    static cstring_t const c_grammar[] = { "&&", "||", "|", "&", "^" };
     (void)p;
         return token_in(str, grammar, sizeof(grammar) / sizeof(*grammar)) ||
             (c_operators && token_in(str, c_grammar, sizeof(c_grammar) / sizeof(*c_grammar)));
 }
 
-LPCSTR jass_getoperator(LPCSTR str) {
-    static struct { LPCSTR token, name; } const grammar[] = {
+cstring_t jass_getoperator(cstring_t str) {
+    static struct { cstring_t token, name; } const grammar[] = {
         { "+", "__add" }, { "-", "__sub" }, { "*", "__mul" }, { "/", "__div" },
         { "!=", "__ne" }, { "==", "__eq" }, { ">=", "__ge" }, { "<=", "__le" },
         { ">", "__gt" }, { "<", "__lt" }, { "and", "__and" }, { "or", "__or" },
@@ -90,7 +90,7 @@ LPCSTR jass_getoperator(LPCSTR str) {
 void parser_throw(void) {
 }
 
-LPSTR read_identifier(LPPARSER p) {
+string_t read_identifier(LPPARSER p) {
     if (is_identifier(peek_token(p))) {
         return strdup(parse_token(p));
     } else {
@@ -107,7 +107,7 @@ static LPGRAMMARFUNC eat_keyword(LPPARSER p, parseClass_t *keywords) {
     return NULL;
 }
 
-static BOOL parse_body(LPPARSER p, LPTOKEN function) {
+static bool parse_body(LPPARSER p, LPTOKEN function) {
     LPTOKEN token = NULL;
     LPGRAMMARFUNC func = eat_keyword(p, function_keywords);
     if (func && (token = func(p))) {
@@ -206,7 +206,7 @@ PARSER(keyword_constant) {
     PARSER_THROW("expected native or function after constant");
 }
 
-static void jass_remove_quotes(LPSTR str, char quote) {
+static void jass_remove_quotes(string_t str, char quote) {
     size_t len = strlen(str);
     if (len >= 2 && str[0] == quote && str[len - 1] == quote) {
         memmove(str, str + 1, len - 2);
@@ -223,7 +223,7 @@ LPTOKEN alloc_ident_token(LPPARSER p, TOKENTYPE tt) {
 LPTOKEN parse_operator_token(LPPARSER p) {
     UINAME op = { 0 };
     strlcpy(op, parse_token(p), sizeof(op));
-    LPCSTR operatorid = jass_getoperator(op);
+    cstring_t operatorid = jass_getoperator(op);
     LPTOKEN t = alloc_token(TT_CALL);
     t->primary = strdup(operatorid);
     return t;
@@ -245,7 +245,7 @@ static void parse_array_indices(LPPARSER p, LPTOKEN token) {
 }
 
 PARSER(read_single_identifier) {
-    LPCSTR tok = peek_token(p);
+    cstring_t tok = peek_token(p);
     LPTOKEN left = NULL;
     if (eat_token(p, "function")) {
         left = alloc_ident_token(p, TT_IDENTIFIER);
@@ -530,12 +530,12 @@ LPTOKEN JASS_ParseTokens(LPPARSER p) {
  * them identically to JASS's unbounded `type array var`.
  * ========================================================================= */
 
-static const struct { LPCSTR name, value; } galaxy_types[] = {
+static const struct { cstring_t name, value; } galaxy_types[] = {
     { "int", "integer" }, { "bool", "boolean" }, { "fixed", "real" }, { "text", "string" }, { NULL }
 };
 
-static LPCSTR galaxy_normalize_type(LPCSTR name) {
-    for (DWORD i = 0; galaxy_types[i].name; i++)
+static cstring_t galaxy_normalize_type(cstring_t name) {
+    for (uint32_t i = 0; galaxy_types[i].name; i++)
         if (!strcmp(name, galaxy_types[i].name)) return galaxy_types[i].value;
     return name;
 }
@@ -549,13 +549,13 @@ static void galaxy_eat_array_dims(LPPARSER p) {
 
 /* Two-token lookahead: returns true when the next tokens look like
  * "type [N]* varname" rather than "ident (" or "ident =". */
-static BOOL galaxy_looks_like_decl(LPPARSER p) {
+static bool galaxy_looks_like_decl(LPPARSER p) {
     PARSER saved = *p;
     if (!is_identifier(peek_token(p))) { return false; }
     parse_token(p);          /* consume type name */
     galaxy_eat_array_dims(p);/* skip [N]+ brackets */
-    LPCSTR second = peek_token(p);
-    BOOL result = is_identifier(second);
+    cstring_t second = peek_token(p);
+    bool result = is_identifier(second);
     *p = saved;
     return result;
 }
@@ -596,7 +596,7 @@ PARSER(galaxy_statement_return) {
 }
 
 /* Forward decl — galaxy_statement_if calls galaxy_parse_body_stmt. */
-static BOOL galaxy_parse_body_stmt(LPPARSER p, LPTOKEN function);
+static bool galaxy_parse_body_stmt(LPPARSER p, LPTOKEN function);
 
 PARSER(galaxy_statement_if) {
     LPTOKEN token = alloc_token(TT_IF);
@@ -691,7 +691,7 @@ PARSER(galaxy_parse_local) {
 static LPTOKEN galaxy_parse_expression_stmt(LPPARSER p) {
     /* strdup immediately: parse_token returns a pointer to a static buffer that
      * subsequent eat_token / parse_token calls will overwrite. */
-    LPSTR name = strdup(parse_token(p));
+    string_t name = strdup(parse_token(p));
 
     /* Preserve every array index before the assignment operator. */
     TOKEN indices = { 0 };
@@ -724,7 +724,7 @@ static LPTOKEN galaxy_parse_expression_stmt(LPPARSER p) {
 }
 
 /* Dispatch one statement inside a function body. */
-static BOOL galaxy_parse_body_stmt(LPPARSER p, LPTOKEN function) {
+static bool galaxy_parse_body_stmt(LPPARSER p, LPTOKEN function) {
     static parseClass_t statements[] = {
         { "if", galaxy_statement_if }, { "while", galaxy_statement_while }, { "return", galaxy_statement_return },
         { "break", galaxy_statement_break }, { "continue", galaxy_statement_continue }, { NULL }
@@ -747,7 +747,7 @@ static BOOL galaxy_parse_body_stmt(LPPARSER p, LPTOKEN function) {
 /* Skip all tokens up to and including the matching closing brace. */
 static void galaxy_skip_function_body(LPPARSER p) {
     int depth = 1;
-    LPCSTR tok;
+    cstring_t tok;
     while (depth > 0 && *(tok = peek_token(p))) {
         parse_token(p);
         if (!strcmp(tok, "{")) depth++;
@@ -825,7 +825,7 @@ static LPTOKEN galaxy_parse_global_or_func(LPPARSER p) {
     parse_token(p);              /* consume return/type name */
     galaxy_eat_array_dims(p);   /* skip [N]+ brackets */
     parse_token(p);              /* consume function/variable name */
-    BOOL is_func = eat_token(p, "(");
+    bool is_func = eat_token(p, "(");
     *p = saved;
     return is_func ? galaxy_keyword_function(p) : galaxy_parse_global(p);
 }
@@ -836,7 +836,7 @@ LPTOKEN GALAXY_ParseTokens(LPPARSER p) {
     if (setjmp(exception_env) == 0) {
         while (*peek_token(p)) {
             LPTOKEN token = NULL;
-            LPCSTR  tok   = peek_token(p);
+            cstring_t  tok   = peek_token(p);
             if (!strcmp(tok, "native")) {
                 parse_token(p);
                 token = galaxy_parse_native(p);

@@ -4,11 +4,11 @@
 #include "shared.h"
 
 void SV_Init(void);
-void SV_Frame(DWORD msec);
+void SV_Frame(uint32_t msec);
 void SV_InitGameProgs(void);
-void SV_Map(LPCSTR mapFilename);
-BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size);
-BOOL SV_IsActive(void);
-void SV_SetPaused(BOOL paused);
+void SV_Map(cstring_t mapFilename);
+bool SV_GetSaveMap(cstring_t name, string_t map, uint32_t map_size);
+bool SV_IsActive(void);
+void SV_SetPaused(bool paused);
 
 #endif

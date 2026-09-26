@@ -7,7 +7,7 @@ enum {
     KEY_OUTTAN,
 };
 
-DWORD GetModelKeyTrackDataTypeSize(MODELKEYTRACKDATATYPE dataType) {
+uint32_t GetModelKeyTrackDataTypeSize(MODELKEYTRACKDATATYPE dataType) {
     switch (dataType) {
         case TDATA_INT1: return 4;
         case TDATA_FLOAT1: return 4;
@@ -17,7 +17,7 @@ DWORD GetModelKeyTrackDataTypeSize(MODELKEYTRACKDATATYPE dataType) {
     }
 }
 
-DWORD GetModelKeyTrackTypeSize(MODELKEYTRACKTYPE keyTrackType) {
+uint32_t GetModelKeyTrackTypeSize(MODELKEYTRACKTYPE keyTrackType) {
     switch (keyTrackType) {
         case TRACK_NO_INTERP: return 1;
         case TRACK_LINEAR: return 1;
@@ -27,7 +27,7 @@ DWORD GetModelKeyTrackTypeSize(MODELKEYTRACKTYPE keyTrackType) {
     }
 }
 
-DWORD GetModelKeyFrameSize(MODELKEYTRACKDATATYPE dataType, MODELKEYTRACKTYPE keyTrackType) {
+uint32_t GetModelKeyFrameSize(MODELKEYTRACKDATATYPE dataType, MODELKEYTRACKTYPE keyTrackType) {
     return 4 + GetModelKeyTrackDataTypeSize(dataType) * GetModelKeyTrackTypeSize(keyTrackType);
 }
 
@@ -117,7 +117,7 @@ R_EvalKeyframeValue(void const *left,
                     float t,
                     MODELKEYTRACKDATATYPE datatype,
                     MODELKEYTRACKTYPE linetype,
-                    HANDLE out)
+                    handle_t out)
 {
     switch (datatype) {
         case TDATA_INT1: *((int *)out) = interpInt(left, right, t, linetype); return;
@@ -131,8 +131,8 @@ void
 R_GetKeyframeValue(mdxKeyFrame_t const *left,
                    mdxKeyFrame_t const *right,
                    mdxKeyTrack_t const *keytrack,
-                   DWORD time,
-                   HANDLE out)
+                   uint32_t time,
+                   handle_t out)
 {
     if (right->time == left->time) {
         memcpy(out, left->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));

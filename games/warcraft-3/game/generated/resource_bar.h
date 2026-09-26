@@ -13,8 +13,8 @@ typedef struct ResourceBar_s {
 } ResourceBar_t;
 
 
-static inline BOOL ResourceBar_Bind(ResourceBar_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool ResourceBar_Bind(ResourceBar_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -31,7 +31,7 @@ static inline BOOL ResourceBar_Bind(ResourceBar_t *out, LPFRAMEDEF bind_root) {
     return ok;
 }
 
-static inline BOOL ResourceBar_Load(ResourceBar_t *out) {
+static inline bool ResourceBar_Load(ResourceBar_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\ResourceBar.fdf") &&
            ResourceBar_Bind(out, UI_FindFrame("ResourceBarFrame"));

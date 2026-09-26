@@ -19,39 +19,39 @@
 #define HUD_FONT_SIZE 10
 #define WOW_BUTTON_TEXT_COLOR MAKE(COLOR32, 255, 209, 0, 255) // RGBA; GameFontNormal 1.0/0.82/0; quest buttons
 
-static DWORD ui_next_frame_number;
-static BYTE ui_window_text[MAX_MSGLEN];
-static DWORD ui_window_text_size;
-static BOOL ui_window_writing;
+static uint32_t ui_next_frame_number;
+static uint8_t ui_window_text[MAX_MSGLEN];
+static uint32_t ui_window_text_size;
+static bool ui_window_writing;
 
 /* svc_layout wire contract: every message carries exactly ONE layer —
- * `svc_layout` byte, layer byte, frames, terminator (LONG 0 + SHORT 0).  The
+ * `svc_layout` byte, layer byte, frames, terminator (int32_t 0 + int16_t 0).  The
  * client's CL_ParseLayout stops at the terminator and the outer parser reads the
  * next byte as a *message id*, so a frame written outside a layer (before
  * UI_WriteStart or after UI_WriteEnd) is silently discarded.  Track the open
  * layer and refuse to serialize a frame outside one instead of dropping it. */
-static BYTE ui_layout_layer = 0xFF; /* 0xFF = no layer open */
+static uint8_t ui_layout_layer = 0xFF; /* 0xFF = no layer open */
 
 /* Open a layout layer: emit the svc_layout + layer header and reset frame numbers. */
-static void UI_WriteStart(DWORD layer) {
-    ui_layout_layer = (BYTE)layer;
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){layer});
+static void UI_WriteStart(uint32_t layer) {
+    ui_layout_layer = (uint8_t)layer;
+    gi.Write(PF_BYTE, &(int32_t){svc_layout});
+    gi.Write(PF_BYTE, &(int32_t){layer});
     ui_next_frame_number = 1;
 }
 
 /* Close the current layer with its terminator; nothing may be written until the next UI_WriteStart. */
 static void UI_WriteEnd(void) {
-    gi.Write(PF_LONG, &(LONG){0});   /* bits=0 */
-    gi.Write(PF_SHORT, &(LONG){0});  /* number=0 — MSG_ReadEntityBits consumes LONG+SHORT */
+    gi.Write(PF_LONG, &(int32_t){0});   /* bits=0 */
+    gi.Write(PF_SHORT, &(int32_t){0});  /* number=0 — MSG_ReadEntityBits consumes int32_t+int16_t */
     ui_layout_layer = 0xFF;
 }
 
 /* Add one server-authored window string to the retained packet arena. */
-static DWORD UI_WindowTextOffset(LPCSTR text) {
-    DWORD size, offset;
+static uint32_t UI_WindowTextOffset(cstring_t text) {
+    uint32_t size, offset;
     if (!text || !*text) return 0;
-    size = (DWORD)strlen(text) + 1;
+    size = (uint32_t)strlen(text) + 1;
     if (size > sizeof(ui_window_text) - ui_window_text_size) {
         fprintf(stderr, "WoW UI: tutorial window text arena overflow\n");
         return 0;
@@ -66,7 +66,7 @@ static DWORD UI_WindowTextOffset(LPCSTR text) {
 static void UI_WriteWindowStart(uiWindowDef_t const *def) {
     ui_window_writing = true;
     ui_window_text[0] = '\0'; ui_window_text_size = 1;
-    gi.Write(PF_BYTE, &(LONG){svc_window}); gi.Write(PF_BYTE, &(LONG){UI_WINDOW_OPEN});
+    gi.Write(PF_BYTE, &(int32_t){svc_window}); gi.Write(PF_BYTE, &(int32_t){UI_WINDOW_OPEN});
     gi.Write(PF_LONG, &def->id); gi.Write(PF_LONG, &def->class_id); gi.Write(PF_LONG, &def->flags);
     ui_next_frame_number = 1;
 }
@@ -75,27 +75,27 @@ static void UI_WriteWindowStart(uiWindowDef_t const *def) {
 static void UI_WriteWindowEnd(LPEDICT ent) {
     pfWriteData_t text = { .data = ui_window_text, .size = ui_window_text_size };
     ui_window_writing = false;
-    gi.Write(PF_LONG, &(LONG){0}); gi.Write(PF_SHORT, &(LONG){0});
+    gi.Write(PF_LONG, &(int32_t){0}); gi.Write(PF_SHORT, &(int32_t){0});
     gi.Write(PF_LONG, &ui_window_text_size); gi.Write(PF_DATA, &text); gi.unicast(ent);
 }
 
-static void UI_WriteImage(LPCSTR path, FLOAT x, FLOAT y, FLOAT w, FLOAT h, COLOR32 color);
+static void UI_WriteImage(cstring_t path, float x, float y, float w, float h, COLOR32 color);
 
-static void UI_SetFramePoint(uiFramePoint_t *point, uiFramePointPos_t target, DWORD relative, FLOAT offset, BOOL y_axis) {
+static void UI_SetFramePoint(uiFramePoint_t *point, uiFramePointPos_t target, uint32_t relative, float offset, bool y_axis) {
     point->used = 1;
     point->targetPos = target;
-    point->relativeTo = (BYTE)relative;
-    point->offset = (SHORT)((y_axis ? -offset : offset) * UI_FRAMEPOINT_SCALE);
+    point->relativeTo = (uint8_t)relative;
+    point->offset = (int16_t)((y_axis ? -offset : offset) * UI_FRAMEPOINT_SCALE);
 }
 
-static void UI_SetFrameRect(LPUIFRAME frame, FLOAT x, FLOAT y, FLOAT w, FLOAT h) {
+static void UI_SetFrameRect(LPUIFRAME frame, float x, float y, float w, float h) {
     UI_SetFramePoint(&frame->points.x[FPP_MIN], FPP_MIN, 0, x, false);
     UI_SetFramePoint(&frame->points.y[FPP_MIN], FPP_MIN, 0, y, true);
     frame->size.width = w;
     frame->size.height = h;
 }
 
-static void UI_WriteProxyFrame(LPUIFRAME frame, HANDLE data, DWORD data_size) {
+static void UI_WriteProxyFrame(LPUIFRAME frame, handle_t data, uint32_t data_size) {
     if (ui_layout_layer == 0xFF) {
         fprintf(stderr, "WoW UI: FT_%d frame written outside a svc_layout layer (missing UI_WriteStart); skipped\n",
                 (int)frame->flags.type);
@@ -112,14 +112,14 @@ static void UI_WriteProxyFrame(LPUIFRAME frame, HANDLE data, DWORD data_size) {
     frame->buffer.data = data;
     frame->buffer.size = data_size;
     if (ui_window_writing) {
-        frame->text = (LPCSTR)(uintptr_t)UI_WindowTextOffset(frame->text);
-        frame->tooltip = (LPCSTR)(uintptr_t)UI_WindowTextOffset(frame->tooltip);
-        frame->onclick = (LPCSTR)(uintptr_t)UI_WindowTextOffset(frame->onclick);
+        frame->text = (cstring_t)(uintptr_t)UI_WindowTextOffset(frame->text);
+        frame->tooltip = (cstring_t)(uintptr_t)UI_WindowTextOffset(frame->tooltip);
+        frame->onclick = (cstring_t)(uintptr_t)UI_WindowTextOffset(frame->onclick);
     }
     gi.Write(ui_window_writing ? PF_UIWINDOWFRAME : PF_UIFRAME, frame);
 }
 
-static void UI_WriteTextFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, COLOR32 color, uiFontJustificationH_t align) {
+static void UI_WriteTextFrame(float x, float y, float w, float h, cstring_t text, COLOR32 color, uiFontJustificationH_t align) {
     uiFrame_t frame;
     uiLabel_t label;
 
@@ -163,7 +163,7 @@ void UI_WriteWowHover(LPEDICT ent) {
     gi.unicast(ent);
 }
 
-static void UI_WriteTextArea(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, COLOR32 color) {
+static void UI_WriteTextArea(float x, float y, float w, float h, cstring_t text, COLOR32 color) {
     uiFrame_t frame;
     uiTextArea_t area;
 
@@ -179,8 +179,8 @@ static void UI_WriteTextArea(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, CO
 }
 
 /* UIPanelScrollFrameTemplate is one slider frame with fixed arrow and thumb textures. */
-static void UI_WriteQuestScrollBar(FLOAT x, FLOAT y) {
-    LPCSTR paths[] = {
+static void UI_WriteQuestScrollBar(float x, float y) {
+    cstring_t paths[] = {
         "Interface\\Buttons\\UI-ScrollBar-ScrollDownButton-Up.blp",
         "Interface\\Buttons\\UI-ScrollBar-ScrollUpButton-Up.blp",
         "Interface\\Buttons\\UI-ScrollBar-Knob.blp",
@@ -192,13 +192,13 @@ static void UI_WriteQuestScrollBar(FLOAT x, FLOAT y) {
     FOR_LOOP(i, sizeof(paths) / sizeof(paths[0])) {
         scroll.image[i] = gi.ImageIndex(paths[i]);
     }
-    scroll.texcoord[0] = scroll.texcoord[2] = (BYTE)(0.25f * 0xff);
-    scroll.texcoord[1] = scroll.texcoord[3] = (BYTE)(0.75f * 0xff);
+    scroll.texcoord[0] = scroll.texcoord[2] = (uint8_t)(0.25f * 0xff);
+    scroll.texcoord[1] = scroll.texcoord[3] = (uint8_t)(0.75f * 0xff);
     UI_SetFrameRect(&frame, x + PW(329), y + PH(81), PW(16), PH(334));
     UI_WriteProxyFrame(&frame, &scroll, sizeof(scroll));
 }
 
-static void UI_WriteClickRegion(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR command) {
+static void UI_WriteClickRegion(float x, float y, float w, float h, cstring_t command) {
     uiFrame_t frame;
     uiLabel_t label;
 
@@ -212,8 +212,8 @@ static void UI_WriteClickRegion(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR comma
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
-static void UI_WriteSimpleButton(FLOAT x, FLOAT y, FLOAT w, FLOAT h,
-                                 LPCSTR text, LPCSTR command) {
+static void UI_WriteSimpleButton(float x, float y, float w, float h,
+                                 cstring_t text, cstring_t command) {
     uiFrame_t frame;
     uiSimpleButton_t button;
     RESOURCE texture = gi.ImageIndex("Interface\\Buttons\\UI-Panel-Button-Up.blp");
@@ -227,8 +227,8 @@ static void UI_WriteSimpleButton(FLOAT x, FLOAT y, FLOAT w, FLOAT h,
     button.normal.texture = texture;
     button.normal.font = font;
     /* UIPanelButtonTemplate crops the atlas; full UVs made its opaque art occupy only part of the frame. */
-    button.normal.texcoord[1] = (BYTE)(0.625f * 0xff);
-    button.normal.texcoord[3] = (BYTE)(0.6875f * 0xff);
+    button.normal.texcoord[1] = (uint8_t)(0.625f * 0xff);
+    button.normal.texcoord[3] = (uint8_t)(0.6875f * 0xff);
     button.normal.fontcolor = WOW_BUTTON_TEXT_COLOR;
     button.pushed = button.normal;
     button.disabled = button.normal;
@@ -238,7 +238,7 @@ static void UI_WriteSimpleButton(FLOAT x, FLOAT y, FLOAT w, FLOAT h,
 }
 
 /* QuestFrame.xml uses a distinct 18px Morpheus title inside the parchment. */
-static void UI_WriteQuestTitle(FLOAT x, FLOAT y, LPCSTR text) {
+static void UI_WriteQuestTitle(float x, float y, cstring_t text) {
     uiFrame_t frame = {0};
     uiLabel_t label = {0};
 
@@ -253,7 +253,7 @@ static void UI_WriteQuestTitle(FLOAT x, FLOAT y, LPCSTR text) {
 }
 
 /* QuestNpcNameFrame centers the giver name in the metal title bar. */
-static void UI_WriteQuestNpcName(FLOAT x, FLOAT y, LPCSTR text) {
+static void UI_WriteQuestNpcName(float x, float y, cstring_t text) {
     uiFrame_t frame = {0};
     uiLabel_t label = {0};
 
@@ -269,7 +269,7 @@ static void UI_WriteQuestNpcName(FLOAT x, FLOAT y, LPCSTR text) {
 }
 
 /* The quest giver's model occupies the 60px portrait aperture in QuestFrame.xml. */
-static void UI_WriteQuestPortrait(FLOAT x, FLOAT y, RESOURCE model) {
+static void UI_WriteQuestPortrait(float x, float y, RESOURCE model) {
     uiFrame_t frame = {0};
     if (!model) return;
     frame.flags.type = FT_PORTRAIT;
@@ -278,22 +278,22 @@ static void UI_WriteQuestPortrait(FLOAT x, FLOAT y, RESOURCE model) {
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
-typedef struct { LPEDICT ent; LPCSTR src; LPSTR dst; size_t size; } wowQuestText_t;
+typedef struct { LPEDICT ent; cstring_t src; string_t dst; size_t size; } wowQuestText_t;
 
 /* Expand the player tokens retained from authoritative quest_template text. */
 static void UI_FormatQuestText(wowQuestText_t const *fmt) {
     char race[64], sex[64];
-    LPCSTR name = fmt->ent->client->ps.name && *fmt->ent->client->ps.name ? fmt->ent->client->ps.name : "adventurer";
-    LPCSTR cls = Wow_ClassName(Wow_GetPlayerClass());
+    cstring_t name = fmt->ent->client->ps.name && *fmt->ent->client->ps.name ? fmt->ent->client->ps.name : "adventurer";
+    cstring_t cls = Wow_ClassName(Wow_GetPlayerClass());
     Wow_GetPlayerRaceSex(race, sizeof(race), sex, sizeof(sex));
-    struct { char key; LPCSTR value; } repl[] = {
+    struct { char key; cstring_t value; } repl[] = {
         { 'N', name }, { 'n', name }, { 'C', cls }, { 'c', cls },
         { 'R', race }, { 'r', race },
     };
     size_t out = 0;
 
-    for (LPCSTR src = fmt->src ? fmt->src : ""; *src && out + 1 < fmt->size; src++) {
-        LPCSTR value = NULL;
+    for (cstring_t src = fmt->src ? fmt->src : ""; *src && out + 1 < fmt->size; src++) {
+        cstring_t value = NULL;
         if (*src == '$' && src[1]) FOR_LOOP(i, sizeof(repl) / sizeof(repl[0]))
             if (repl[i].key == src[1]) { value = repl[i].value; break; }
         if (!value) { fmt->dst[out++] = *src; continue; }
@@ -305,7 +305,7 @@ static void UI_FormatQuestText(wowQuestText_t const *fmt) {
 }
 
 /* Resolve the queststarter relation back to the creature-template name. */
-static LPCSTR UI_QuestGiverName(DWORD quest_id) {
+static cstring_t UI_QuestGiverName(uint32_t quest_id) {
     FOR_LOOP(i, Wow_QuestGiverCount()) {
         LPCWOWQUESTGIVER data = Wow_QuestGiver(i);
         LPCWOWCREATURE creature;
@@ -330,15 +330,15 @@ static void UI_WriteQuestDialog(LPEDICT ent) {
     if (wc->quest_open) {
         LPCWOWQUESTDETAIL detail = Wow_QuestDetail(wc->quest_id);
         svQuestEntry_t *state = SV_QuestFind(wc->quest_log, wc->quest_count, wc->quest_id);
-        DWORD slot = state ? (DWORD)(state - wc->quest_log) : 0;
-        LPEDICT selected = wc->selected_entity && wc->selected_entity < (DWORD)globals.num_edicts
+        uint32_t slot = state ? (uint32_t)(state - wc->quest_log) : 0;
+        LPEDICT selected = wc->selected_entity && wc->selected_entity < (uint32_t)globals.num_edicts
             ? &wow_edicts[wc->selected_entity] : NULL;
         wowEntityLocal_t *giver = selected ? Wow_EntityLocal(selected) : NULL;
-        LPCSTR giver_name = NULL;
+        cstring_t giver_name = NULL;
         char command[64], desc[2048], obj[1024], text[3072];
-        FLOAT x = PX(0), y = PY(104);
-        BOOL is_complete = state && state->status == SV_QUEST_COMPLETE;
-        BOOL is_accepted = state && state->status == SV_QUEST_ACTIVE;
+        float x = PX(0), y = PY(104);
+        bool is_complete = state && state->status == SV_QUEST_COMPLETE;
+        bool is_accepted = state && state->status == SV_QUEST_ACTIVE;
 
         UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-TopLeft.blp", x, y, PW(256), PH(256), COLOR32_WHITE);
         UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-TopRight.blp", x + PW(256), y, PW(128), PH(256), COLOR32_WHITE);
@@ -363,7 +363,7 @@ static void UI_WriteQuestDialog(LPEDICT ent) {
                 if (is_accepted && detail->kill_objective_count) {
                     off += snprintf(text + off, sizeof(text) - off, "\n\nProgress:");
                     FOR_LOOP(j, detail->kill_objective_count) {
-                        LPCSTR name = Wow_CachedCreatureName(detail->kill_objectives[j].display_id);
+                        cstring_t name = Wow_CachedCreatureName(detail->kill_objectives[j].display_id);
                         off += snprintf(text + off, sizeof(text) - off, "\n  %s: %u/%u", name ? name : "Creature", (unsigned)(state ? wc->kill_progress[slot][j] : 0), (unsigned)detail->kill_objectives[j].required_count);
                     }
                 }
@@ -383,9 +383,9 @@ static void UI_WriteQuestDialog(LPEDICT ent) {
         }
         UI_WriteSimpleButton(x + PW(267), y + PH(418), PW(78), PH(22), "Decline", "quest_close");
     } else if (wc->questlog_open) {
-        FLOAT x = PX(24), y = PY(68);
-        FLOAT line_y = y + PH(48);
-        DWORD line_count = 0;
+        float x = PX(24), y = PY(68);
+        float line_y = y + PH(48);
+        uint32_t line_count = 0;
         char buf[128], cmd[64];
 
         UI_WriteImage("Interface\\QuestFrame\\UI-QuestGreeting-TopLeft.blp", x, y, PW(256), PH(128), COLOR32_WHITE);
@@ -400,7 +400,7 @@ static void UI_WriteQuestDialog(LPEDICT ent) {
         } else FOR_LOOP(i, wc->quest_count) {
             svQuestEntry_t *qs = &wc->quest_log[i];
             LPCWOWQUESTDETAIL detail = Wow_QuestDetail(qs->quest_id);
-            LPCSTR status = qs->status == SV_QUEST_COMPLETE ? " (Complete)" : "";
+            cstring_t status = qs->status == SV_QUEST_COMPLETE ? " (Complete)" : "";
 
             snprintf(buf, sizeof(buf), "%s%s", detail ? detail->title : "Unknown Quest", status);
             snprintf(cmd, sizeof(cmd), "quest %u", (unsigned)qs->quest_id);
@@ -419,8 +419,8 @@ static void UI_WriteQuestLog(LPEDICT ent) {
 }
 
 /* Write an FT_TEXTURE frame with float-precision UV (supports l>r or t>b for flips). */
-static void UI_WriteImageUV(LPCSTR path, FLOAT x, FLOAT y, FLOAT w, FLOAT h,
-                            FLOAT l, FLOAT r, FLOAT t, FLOAT b, COLOR32 color) {
+static void UI_WriteImageUV(cstring_t path, float x, float y, float w, float h,
+                            float l, float r, float t, float b, COLOR32 color) {
     uiFrame_t frame;
     uiTextureUV_t uv;
 
@@ -436,7 +436,7 @@ static void UI_WriteImageUV(LPCSTR path, FLOAT x, FLOAT y, FLOAT w, FLOAT h,
     UI_WriteProxyFrame(&frame, &uv, sizeof(uv));
 }
 
-static void UI_WriteImage(LPCSTR path, FLOAT x, FLOAT y, FLOAT w, FLOAT h, COLOR32 color) {
+static void UI_WriteImage(cstring_t path, float x, float y, float w, float h, COLOR32 color) {
     UI_WriteImageUV(path, x, y, w, h, 0.0f, 1.0f, 0.0f, 1.0f, color);
 }
 
@@ -445,7 +445,7 @@ void UI_WriteWowMessageQueue(LPEDICT ent) {
     wowClient_t *wc = ent ? (wowClient_t *)ent->client : NULL;
     uiMessageQueue_t queue = {0};
     char command[64];
-    DWORD unread = 0;
+    uint32_t unread = 0;
 
     if (!wc) return;
     UI_WriteStart(LAYER_MESSAGE);
@@ -485,7 +485,7 @@ void UI_WriteWowMessageQueue(LPEDICT ent) {
 }
 
 /* Solid-color quad via a null texture slot */
-static void UI_WriteColorRect(FLOAT x, FLOAT y, FLOAT w, FLOAT h, COLOR32 color) {
+static void UI_WriteColorRect(float x, float y, float w, float h, COLOR32 color) {
     uiFrame_t frame;
 
     memset(&frame, 0, sizeof(frame));
@@ -521,10 +521,10 @@ void UI_WriteLoadingLayout(LPEDICT ent) {
 }
 
 /* Solid health/mana bar drawn as two color rects (dark background + colored fill) */
-static void UI_WriteColorBar(FLOAT x, FLOAT y, FLOAT w, FLOAT h,
-                             FLOAT value, FLOAT maxvalue,
+static void UI_WriteColorBar(float x, float y, float w, float h,
+                             float value, float maxvalue,
                              COLOR32 fill_color) {
-    FLOAT p = maxvalue > 0.0f ? value / maxvalue : 0.0f;
+    float p = maxvalue > 0.0f ? value / maxvalue : 0.0f;
     if (p < 0.0f) p = 0.0f;
     if (p > 1.0f) p = 1.0f;
     UI_WriteColorRect(x, y, w, h, MAKE(COLOR32, 12, 10, 8, 220));
@@ -550,10 +550,10 @@ static void UI_WriteMinimapFrames(void) {
 
 /* Main action bar: four 256×53 strips + two end-caps from UI-MainMenuBar-Dwarf.blp */
 static void UI_WriteActionBar(void) {
-    static LPCSTR const bar = "Interface\\MainMenuBar\\UI-MainMenuBar-Dwarf.blp";
-    static LPCSTR const cap = "Interface\\MainMenuBar\\UI-MainMenuBar-EndCap-Dwarf.blp";
+    static cstring_t const bar = "Interface\\MainMenuBar\\UI-MainMenuBar-Dwarf.blp";
+    static cstring_t const cap = "Interface\\MainMenuBar\\UI-MainMenuBar-EndCap-Dwarf.blp";
     /* Each strip covers a different vertical slice of the texture (v slices at 53/256 intervals) */
-    static FLOAT const strips[4][4] = {
+    static float const strips[4][4] = {
         /* {l, r, t, b}, screen x starts at 0 */
         { 0.0f, 1.0f, 0.79296875f, 1.0f },
         { 0.0f, 1.0f, 0.54296875f, 0.75f },
@@ -562,7 +562,7 @@ static void UI_WriteActionBar(void) {
     };
 
     FOR_LOOP(i, 4)
-        UI_WriteImageUV(bar, PX((FLOAT)(i * 256)), PY(715), PW(256), PH(53), strips[i][0], strips[i][1], strips[i][2], strips[i][3], COLOR32_WHITE);
+        UI_WriteImageUV(bar, PX((float)(i * 256)), PY(715), PW(256), PH(53), strips[i][0], strips[i][1], strips[i][2], strips[i][3], COLOR32_WHITE);
 
     /* Left end-cap (normal orientation) */
     UI_WriteImage(cap, PX(-96), PY(640), PW(128), PH(128), COLOR32_WHITE);
@@ -571,7 +571,7 @@ static void UI_WriteActionBar(void) {
 }
 
 /* Action button slot at grid position i (0..11 = left row, 12..15 = right empty slots) */
-static void UI_WriteActionButtonSlot(FLOAT x, FLOAT y, DWORD image_index, DWORD count) {
+static void UI_WriteActionButtonSlot(float x, float y, uint32_t image_index, uint32_t count) {
     char count_buf[16];
 
     /* Slot frame */
@@ -600,8 +600,8 @@ static void UI_WriteActionButtonSlot(FLOAT x, FLOAT y, DWORD image_index, DWORD 
 static void UI_WriteTargetingFrame(LPEDICT ent) {
     LPPLAYER ps = &ent->client->ps;
     char name_buf[64], level_buf[32], health_buf[32], power_buf[32];
-    FLOAT health = ps->stats[WOW_STAT_HEALTH_MAX] ? (FLOAT)ps->stats[WOW_STAT_HEALTH] / ps->stats[WOW_STAT_HEALTH_MAX] : 0;
-    FLOAT power = ps->stats[WOW_STAT_POWER_MAX] ? (FLOAT)ps->stats[WOW_STAT_POWER] / ps->stats[WOW_STAT_POWER_MAX] : 0;
+    float health = ps->stats[WOW_STAT_HEALTH_MAX] ? (float)ps->stats[WOW_STAT_HEALTH] / ps->stats[WOW_STAT_HEALTH_MAX] : 0;
+    float power = ps->stats[WOW_STAT_POWER_MAX] ? (float)ps->stats[WOW_STAT_POWER] / ps->stats[WOW_STAT_POWER_MAX] : 0;
 
     /* PlayerFrameTexture inherits the unmodified vertex color from PlayerFrame.xml. */
     UI_WriteImageUV("Interface\\TargetingFrame\\UI-TargetingFrame.blp", PX(-19), PY(4), PW(232), PH(100),
@@ -655,8 +655,8 @@ static void UI_WriteTargetingFrame(LPEDICT ent) {
 static void UI_WriteLootWindow(LPEDICT ent) {
     wowClient_t *wc = (wowClient_t *)ent->client;
     char buf[96];
-    DWORD visible = 0;
-    FLOAT x, y, h;
+    uint32_t visible = 0;
+    float x, y, h;
 
     if (!wc->loot_target) return;
 
@@ -668,7 +668,7 @@ static void UI_WriteLootWindow(LPEDICT ent) {
     }
 
     x = PX(300.0f); y = PY(160.0f);
-    h = PH(52.0f + (FLOAT)visible * 36.0f);
+    h = PH(52.0f + (float)visible * 36.0f);
 
     /* Dark parchment background + gold border */
     UI_WriteColorRect(x, y, PW(380.0f), h, MAKE(COLOR32, 20, 16, 10, 230));
@@ -686,14 +686,14 @@ static void UI_WriteLootWindow(LPEDICT ent) {
     UI_WriteSimpleButton(x + PW(320), y + PH(3), PW(56), PH(18), "Close", "loot_close");
 
     /* Item rows */
-    DWORD row = 0;
+    uint32_t row = 0;
     FOR_LOOP(i, WOW_MAX_LOOT_ITEMS) {
-        FLOAT row_y;
-        DWORD icon_img;
+        float row_y;
+        uint32_t icon_img;
         char cmd[32];
 
         if (!wc->loot_snap[i].icon[0]) continue;
-        row_y = y + PH(26.0f + (FLOAT)row * 36.0f);
+        row_y = y + PH(26.0f + (float)row * 36.0f);
 
         /* Slot background */
         UI_WriteColorRect(x + PW(8), row_y, PW(362.0f), PH(32.0f), MAKE(COLOR32, 35, 28, 16, 200));
@@ -730,7 +730,7 @@ static void UI_WriteLootWindow(LPEDICT ent) {
  * -------------------------------------------------------------------------*/
 static void UI_WriteBackpackWindow(LPEDICT ent) {
     wowClient_t *wc = (wowClient_t *)ent->client;
-    FLOAT x, y, w, h;
+    float x, y, w, h;
 
     if (!wc->backpack_open) return;
 
@@ -752,9 +752,9 @@ static void UI_WriteBackpackWindow(LPEDICT ent) {
 
     /* 4×4 grid of item slots */
     FOR_LOOP(i, WOW_UI_INVENTORY_SLOTS) {
-        FLOAT sx = x + PW(8.0f + (FLOAT)(i % 4) * 44.0f);
-        FLOAT sy = y + PH(26.0f + (FLOAT)(i / 4) * 44.0f);
-        DWORD img = wc->inventory[i].icon[0] ? gi.ImageIndex(wc->inventory[i].icon) : 0;
+        float sx = x + PW(8.0f + (float)(i % 4) * 44.0f);
+        float sy = y + PH(26.0f + (float)(i / 4) * 44.0f);
+        uint32_t img = wc->inventory[i].icon[0] ? gi.ImageIndex(wc->inventory[i].icon) : 0;
         UI_WriteActionButtonSlot(sx, sy, img, wc->inventory[i].count);
     }
 }
@@ -813,14 +813,14 @@ void UI_WriteWowHud(LPEDICT ent) {
 
     /* 12 action buttons, left row */
     FOR_LOOP(i, 12) {
-        DWORD img = wc->actions[i].icon[0] ? gi.ImageIndex(wc->actions[i].icon) : 0;
-        UI_WriteActionButtonSlot(PX(8.0f + (FLOAT)i * 42.0f), PY(728), img, wc->actions[i].count);
+        uint32_t img = wc->actions[i].icon[0] ? gi.ImageIndex(wc->actions[i].icon) : 0;
+        UI_WriteActionButtonSlot(PX(8.0f + (float)i * 42.0f), PY(728), img, wc->actions[i].count);
     }
 
     /* First 6 inventory slots shown in the quick-access bar; all 16 visible in backpack window. */
     FOR_LOOP(i, 6) {
-        DWORD img = wc->inventory[i].icon[0] ? gi.ImageIndex(wc->inventory[i].icon) : 0;
-        UI_WriteActionButtonSlot(PX(939.0f - (FLOAT)i * 42.0f), PY(728), img, wc->inventory[i].count);
+        uint32_t img = wc->inventory[i].icon[0] ? gi.ImageIndex(wc->inventory[i].icon) : 0;
+        UI_WriteActionButtonSlot(PX(939.0f - (float)i * 42.0f), PY(728), img, wc->inventory[i].count);
     }
 
     /* Backpack button — image + click region to toggle the backpack window */
@@ -842,16 +842,16 @@ void UI_WriteWowHud(LPEDICT ent) {
 
     /* Cast bar — centered above action bar, shown during spell casts */
     {
-        USHORT progress = ps->stats[WOW_STAT_CAST_PROGRESS];
-        USHORT max_val = ps->stats[WOW_STAT_CAST_MAX];
+        uint16_t progress = ps->stats[WOW_STAT_CAST_PROGRESS];
+        uint16_t max_val = ps->stats[WOW_STAT_CAST_MAX];
         if (max_val > 0) {
             char text[64];
-            snprintf(text, sizeof(text), "%.1f s", (FLOAT)progress / 1000.0f);
+            snprintf(text, sizeof(text), "%.1f s", (float)progress / 1000.0f);
             /* Background */
             UI_WriteColorRect(PX(262), PY(690), PW(500), PH(28), MAKE(COLOR32, 0, 0, 0, 192));
             /* Fill bar: width * (1 - progress/max) since progress counts down */
             {
-                FLOAT ratio = (FLOAT)(max_val - progress) / (FLOAT)max_val;
+                float ratio = (float)(max_val - progress) / (float)max_val;
                 UI_WriteColorBar(PX(263), PY(691), PW(498), PH(26), ratio, 1.0f, MAKE(COLOR32, 255, 200, 50, 255));
             }
             /* Border */

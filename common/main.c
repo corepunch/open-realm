@@ -67,7 +67,7 @@
 
 extern LPTEXTURE Texture;
 
-static void Com_LimitFrameRate(Uint64 frame_start, Uint64 frequency, BOOL dedicated) {
+static void Com_LimitFrameRate(Uint64 frame_start, Uint64 frequency, bool dedicated) {
     int maxfps;
     Uint64 target_ticks;
 
@@ -100,7 +100,7 @@ static void Com_LimitFrameRate(Uint64 frame_start, Uint64 frequency, BOOL dedica
 }
 
 #ifdef _WIN32
-static BOOL Sys_FileExists(LPCSTR filename) {
+static bool Sys_FileExists(cstring_t filename) {
     FILE *file = fopen(filename, "rb");
 
     if (!file) {
@@ -110,7 +110,7 @@ static BOOL Sys_FileExists(LPCSTR filename) {
     return true;
 }
 
-static BOOL Sys_IsWarcraftDataDirectory(LPCSTR dirname) {
+static bool Sys_IsWarcraftDataDirectory(cstring_t dirname) {
     PATHSTR archive;
 
     if (!dirname || !*dirname) {
@@ -120,8 +120,8 @@ static BOOL Sys_IsWarcraftDataDirectory(LPCSTR dirname) {
     return Sys_FileExists(archive);
 }
 
-static BOOL Sys_TryWarcraftDataDirectory(LPCSTR dirname,
-                                         LPSTR result,
+static bool Sys_TryWarcraftDataDirectory(cstring_t dirname,
+                                         string_t result,
                                          size_t result_size) {
     if (!Sys_IsWarcraftDataDirectory(dirname)) {
         return false;
@@ -130,22 +130,22 @@ static BOOL Sys_TryWarcraftDataDirectory(LPCSTR dirname,
     return true;
 }
 
-static BOOL Sys_DiscoverWarcraftDataDirectory(LPSTR result, size_t result_size) {
-    static LPCSTR relative_candidates[] = {
+static bool Sys_DiscoverWarcraftDataDirectory(string_t result, size_t result_size) {
+    static cstring_t relative_candidates[] = {
         ".",
         "data",
         "Warcraft III",
         NULL
     };
-    static LPCSTR drive_candidates[] = {
+    static cstring_t drive_candidates[] = {
         "%c:/Warcraft III",
         "%c:/Games/Warcraft III",
         "%c:/Program Files/Warcraft III",
         "%c:/Program Files (x86)/Warcraft III",
         NULL
     };
-    LPCSTR environment_path = getenv("WARCRAFT_III_PATH");
-    LPSTR executable_path = SDL_GetBasePath();
+    cstring_t environment_path = getenv("WARCRAFT_III_PATH");
+    string_t executable_path = SDL_GetBasePath();
     unsigned long drives = _getdrives();
     PATHSTR candidate;
 
@@ -165,7 +165,7 @@ static BOOL Sys_DiscoverWarcraftDataDirectory(LPSTR result, size_t result_size) 
         }
         SDL_free(executable_path);
     }
-    for (LPCSTR *path = relative_candidates; *path; path++) {
+    for (cstring_t *path = relative_candidates; *path; path++) {
         if (Sys_TryWarcraftDataDirectory(*path, result, result_size)) {
             return true;
         }
@@ -174,7 +174,7 @@ static BOOL Sys_DiscoverWarcraftDataDirectory(LPSTR result, size_t result_size) 
         if (!(drives & (1UL << drive))) {
             continue;
         }
-        for (LPCSTR *format = drive_candidates; *format; format++) {
+        for (cstring_t *format = drive_candidates; *format; format++) {
             snprintf(candidate, sizeof(candidate), *format, 'A' + drive);
             if (Sys_TryWarcraftDataDirectory(candidate, result, result_size)) {
                 return true;
@@ -184,7 +184,7 @@ static BOOL Sys_DiscoverWarcraftDataDirectory(LPSTR result, size_t result_size) 
     return false;
 }
 
-static void Sys_ShowStartupError(LPCSTR message) {
+static void Sys_ShowStartupError(cstring_t message) {
     SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
                              "OpenWarcraft3 could not start",
                              message,
@@ -197,7 +197,7 @@ static void Sys_ShowStartupError(LPCSTR message) {
  * flat portable (share/ beside the exe), the FHS build tree (share/ beside
  * bin/), and the in-tree CWD fallback. */
 static void Sys_ResolveShareDirectory(void) {
-    LPSTR base = SDL_GetBasePath();
+    string_t base = SDL_GetBasePath();
 
     if (base) {
         PATHSTR share;
@@ -216,17 +216,17 @@ static void Sys_ResolveHomeDirectory(void) {
     PATHSTR dir;
 
 #ifdef _WIN32
-    LPCSTR home = getenv("APPDATA");
+    cstring_t home = getenv("APPDATA");
     if (!home || !*home) {
         return;
     }
     snprintf(dir, sizeof(dir), "%s/%s", home, BZ_GAME);
 #else
-    LPCSTR data_home = getenv("XDG_DATA_HOME");
+    cstring_t data_home = getenv("XDG_DATA_HOME");
     if (data_home && data_home[0] == '/') {
         snprintf(dir, sizeof(dir), "%s/%s", data_home, BZ_GAME);
     } else {
-        LPCSTR home = getenv("HOME");
+        cstring_t home = getenv("HOME");
         if (!home || !*home) return;
         snprintf(dir, sizeof(dir), "%s/.local/share/%s", home, BZ_GAME);
     }
@@ -254,7 +254,7 @@ void Sys_Quit(void) {
 
 /* Read a line from stdin for dedicated server console input.
  * Returns NULL if no input is available (non-blocking check). */
-static LPSTR Sys_ConsoleInput(void) {
+static string_t Sys_ConsoleInput(void) {
     static char line[256];
     static char *pos = line;
     int ch;
@@ -295,8 +295,8 @@ static LPSTR Sys_ConsoleInput(void) {
     }
 }
 
-int main(int argc, LPSTR argv[]) {
-    BOOL data = 0;
+int main(int argc, string_t argv[]) {
+    bool data = 0;
 #ifdef _WIN32
     PATHSTR discovered_data_dir = { 0 };
 #endif
@@ -312,9 +312,9 @@ int main(int argc, LPSTR argv[]) {
 
     Sys_ResolveShareDirectory();
     Sys_ResolveHomeDirectory();
-    Com_Init(argc, (LPCSTR *)argv);
+    Com_Init(argc, (cstring_t *)argv);
 
-    LPCSTR data_dir = Cvar_String("data", "");
+    cstring_t data_dir = Cvar_String("data", "");
 #ifdef _WIN32
     if ((!data_dir || !*data_dir) &&
         Sys_DiscoverWarcraftDataDirectory(discovered_data_dir,
@@ -343,7 +343,7 @@ int main(int argc, LPSTR argv[]) {
         data = 1;
     }
 
-    LPCSTR extra_data_dir = Cvar_String("extra_data", "");
+    cstring_t extra_data_dir = Cvar_String("extra_data", "");
     if (extra_data_dir && *extra_data_dir) {
         FS_AddDataDirectory(extra_data_dir);
     }
@@ -363,8 +363,8 @@ int main(int argc, LPSTR argv[]) {
 
     PATHSTR resolved_map;
     PATHSTR load_map;
-    LPCSTR map = Cvar_String("map", "");
-    LPCSTR connect_addr = Cvar_String("connect", "");
+    cstring_t map = Cvar_String("map", "");
+    cstring_t connect_addr = Cvar_String("connect", "");
     bool has_map = map && *map;
     bool has_connect_addr = connect_addr && *connect_addr;
     bool menu_mode = !has_map && !has_connect_addr;
@@ -471,13 +471,13 @@ int main(int argc, LPSTR argv[]) {
 
     fprintf(stderr, "OpenWarcraft3 initialized.\n\n");
 
-    DWORD startTime = SDL_GetTicks();
-    DWORD frameCount = 0;
+    uint32_t startTime = SDL_GetTicks();
+    uint32_t frameCount = 0;
     Uint64 performanceFrequency = SDL_GetPerformanceFrequency();
     while (true) {
         Uint64 frameStart = SDL_GetPerformanceCounter();
-        DWORD currentTime = SDL_GetTicks();
-        DWORD msec = currentTime - startTime;
+        uint32_t currentTime = SDL_GetTicks();
+        uint32_t msec = currentTime - startTime;
         if (SV_IsActive()) {
             SV_Frame(Cvar_Integer("com_fast_forward", 0) ? FRAMETIME : msec);
         }
@@ -485,7 +485,7 @@ int main(int argc, LPSTR argv[]) {
             CL_Frame(msec);
         } else {
             /* Dedicated server: read console commands from stdin. */
-            LPSTR cmd = Sys_ConsoleInput();
+            string_t cmd = Sys_ConsoleInput();
             if (cmd && *cmd) {
                 Cbuf_AddText(cmd);
                 Cbuf_AddText("\n");
@@ -495,7 +495,7 @@ int main(int argc, LPSTR argv[]) {
         startTime = currentTime;
         frameCount++;
         if (Cvar_Integer("com_frame_limit", 0) > 0 &&
-            frameCount >= (DWORD)Cvar_Integer("com_frame_limit", 0)) {
+            frameCount >= (uint32_t)Cvar_Integer("com_frame_limit", 0)) {
             Com_Quit();
         }
         Com_LimitFrameRate(frameStart, performanceFrequency, dedicated);

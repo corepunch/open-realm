@@ -39,48 +39,48 @@ typedef enum {
 
 typedef struct {
     char paths[CL_MUSIC_MAX_TRACKS][MAX_PATHLEN];
-    DWORD count;
-    BOOL random; /* randomizes only the initial track; progression is sequential */
-    DWORD index;
-    DWORD played_mask; /* explicit one-pass playlists; max 32 tracks */
+    uint32_t count;
+    bool random; /* randomizes only the initial track; progression is sequential */
+    uint32_t index;
+    uint32_t played_mask; /* explicit one-pass playlists; max 32 tracks */
 } clMusicPlaylist_t;
 
 typedef struct {
     char playlist[CL_MUSIC_PLAYLIST_MAX];
-    BOOL random;
-    LONG index;
-    DWORD session_id;
+    bool random;
+    int32_t index;
+    uint32_t session_id;
 } clMapMusic_t;
 
 typedef struct {
     clMusicPlaylist_t playlist;
     clMusicSource_t source;
-    LONG position_ms;
-    DWORD session_id;
-    BOOL paused;
-    BOOL valid;
+    int32_t position_ms;
+    uint32_t session_id;
+    bool paused;
+    bool valid;
 } clMusicRestore_t;
 
 typedef struct {
     clMapMusic_t map;
     clMusicPlaylist_t current;
     clMusicRestore_t thematic_restore;
-    BOOL map_pending;
+    bool map_pending;
     clMusicSource_t source;
-    DWORD current_session_id;
-    LONG position_base_ms;
-    LONG music_volume;
-    LONG thematic_volume;
-    BOOL paused;
-    BOOL suspended;
-    BOOL decoder_active;
-    DWORD fade_start_ticks;
-    DWORD fade_clock_ticks;
-    DWORD fade_duration_ms;
-    FLOAT fade_start_factor;
+    uint32_t current_session_id;
+    int32_t position_base_ms;
+    int32_t music_volume;
+    int32_t thematic_volume;
+    bool paused;
+    bool suspended;
+    bool decoder_active;
+    uint32_t fade_start_ticks;
+    uint32_t fade_clock_ticks;
+    uint32_t fade_duration_ms;
+    float fade_start_factor;
     clMusicFade_t fade;
 #ifdef BZ_FFMPEG
-    BOOL extracted;
+    bool extracted;
     PATHSTR source_path;
     PATHSTR disk_path;
     AVFormatContext *format;
@@ -89,45 +89,45 @@ typedef struct {
     AVFrame *frame;
     SwrContext *swr;
     int audio_stream;
-    BOOL demux_eof;
-    BOOL decoder_flushed;
-    BOOL decoder_eof;
-    BYTE *audio_buffer;
+    bool demux_eof;
+    bool decoder_flushed;
+    bool decoder_eof;
+    uint8_t *audio_buffer;
     unsigned int audio_buffer_size;
 #endif
 } clMusicState_t;
 
 static clMusicState_t cl_music;
-static void CL_MusicSendFinished(DWORD session_id);
-static void CL_MusicSendSelected(DWORD session_id, DWORD index, LONG position_ms);
-static void CL_MusicSendThematicSnapshot(DWORD thematic_session_id);
+static void CL_MusicSendFinished(uint32_t session_id);
+static void CL_MusicSendSelected(uint32_t session_id, uint32_t index, int32_t position_ms);
+static void CL_MusicSendThematicSnapshot(uint32_t thematic_session_id);
 
-static BOOL CL_MusicUserEnabled(void) {
+static bool CL_MusicUserEnabled(void) {
     return Cvar_Integer("s_music", 1) != 0;
 }
 
-static FLOAT CL_MusicUserVolume(void) {
+static float CL_MusicUserVolume(void) {
     return MAX(0.0f, MIN(Cvar_Value("s_musicvolume", 1.0f), 1.0f));
 }
 
-static BOOL CL_MusicShouldPause(void) {
+static bool CL_MusicShouldPause(void) {
     return cl_music.paused || cl_music.suspended || !CL_MusicUserEnabled();
 }
 
-static FLOAT CL_MusicTargetVolume(void) {
-    LONG volume = cl_music.source == CL_MUSIC_SOURCE_THEMATIC
+static float CL_MusicTargetVolume(void) {
+    int32_t volume = cl_music.source == CL_MUSIC_SOURCE_THEMATIC
         ? cl_music.thematic_volume
         : cl_music.music_volume;
-    return ((FLOAT)MAX(0, MIN(volume, 127)) / 127.0f) * CL_MusicUserVolume();
+    return ((float)MAX(0, MIN(volume, 127)) / 127.0f) * CL_MusicUserVolume();
 }
 
-static FLOAT CL_MusicFadeFactor(void) {
-    DWORD elapsed;
-    FLOAT fraction;
+static float CL_MusicFadeFactor(void) {
+    uint32_t elapsed;
+    float fraction;
 
     if (cl_music.fade == CL_MUSIC_FADE_NONE || !cl_music.fade_duration_ms) return 1.0f;
     elapsed = SDL_GetTicks() - cl_music.fade_start_ticks;
-    fraction = MIN(1.0f, (FLOAT)elapsed / (FLOAT)cl_music.fade_duration_ms);
+    fraction = MIN(1.0f, (float)elapsed / (float)cl_music.fade_duration_ms);
     if (cl_music.fade == CL_MUSIC_FADE_OUT)
         return MAX(0.0f, cl_music.fade_start_factor * (1.0f - fraction));
     return fraction;
@@ -135,7 +135,7 @@ static FLOAT CL_MusicFadeFactor(void) {
 
 /* Keep wall-clock fade time from advancing while movie suspension or the user music toggle pauses the stream. */
 static void CL_MusicFreezeFade(void) {
-    DWORD now = SDL_GetTicks();
+    uint32_t now = SDL_GetTicks();
 
     if (cl_music.fade != CL_MUSIC_FADE_NONE)
         cl_music.fade_start_ticks += now - cl_music.fade_clock_ticks;
@@ -143,8 +143,8 @@ static void CL_MusicFreezeFade(void) {
 }
 
 static void CL_MusicApplyVolume(void) {
-    FLOAT volume = CL_MusicTargetVolume() * CL_MusicFadeFactor();
-    BOOL finish_stop = false;
+    float volume = CL_MusicTargetVolume() * CL_MusicFadeFactor();
+    bool finish_stop = false;
 
     if (cl_music.fade != CL_MUSIC_FADE_NONE && cl_music.fade_duration_ms &&
         SDL_GetTicks() - cl_music.fade_start_ticks >= cl_music.fade_duration_ms) {
@@ -161,15 +161,15 @@ static void CL_MusicApplyVolume(void) {
     }
 }
 
-static LONG CL_MusicCurrentPositionMS(void) {
+static int32_t CL_MusicCurrentPositionMS(void) {
     uint64_t millis = (uint64_t)MAX(0, cl_music.position_base_ms);
 
     millis += S_StreamPlayedFrames(S_STREAM_MUSIC) * 1000u / 44100u;
-    return (LONG)(millis > 0x7fffffffu ? 0x7fffffffu : millis);
+    return (int32_t)(millis > 0x7fffffffu ? 0x7fffffffu : millis);
 }
 
-static void CL_MusicTrimPath(LPCSTR start, size_t length, LPSTR out, size_t out_size) {
-    LPCSTR end = start + length;
+static void CL_MusicTrimPath(cstring_t start, size_t length, string_t out, size_t out_size) {
+    cstring_t end = start + length;
 
     while (start < end && (*start == ' ' || *start == '\t' || *start == '\r' || *start == '\n')) start++;
     while (end > start && (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '\r' || end[-1] == '\n')) end--;
@@ -177,8 +177,8 @@ static void CL_MusicTrimPath(LPCSTR start, size_t length, LPSTR out, size_t out_
     snprintf(out, out_size, "%.*s", (int)MIN((size_t)(end - start), out_size - 1), start);
 }
 
-static DWORD CL_MusicParsePlaylist(LPCSTR value, clMusicPlaylist_t *playlist) {
-    LPCSTR cursor;
+static uint32_t CL_MusicParsePlaylist(cstring_t value, clMusicPlaylist_t *playlist) {
+    cstring_t cursor;
 
     if (!playlist) return 0;
     memset(playlist, 0, sizeof(*playlist));
@@ -186,9 +186,9 @@ static DWORD CL_MusicParsePlaylist(LPCSTR value, clMusicPlaylist_t *playlist) {
 
     cursor = value;
     while (*cursor && playlist->count < CL_MUSIC_MAX_TRACKS) {
-        LPCSTR semi = strchr(cursor, ';');
-        LPCSTR comma = strchr(cursor, ',');
-        LPCSTR separator = NULL;
+        cstring_t semi = strchr(cursor, ';');
+        cstring_t comma = strchr(cursor, ',');
+        cstring_t separator = NULL;
         size_t length;
 
         if (semi && comma) separator = semi < comma ? semi : comma;
@@ -224,7 +224,7 @@ static void CL_MusicCloseDecoder(void) {
     cl_music.decoder_active = false;
 }
 
-static BOOL CL_MusicResolveDiskPath(LPCSTR path) {
+static bool CL_MusicResolveDiskPath(cstring_t path) {
     if (FS_ResolveLoosePath(path, cl_music.disk_path, sizeof(cl_music.disk_path))) return true;
 
     FS_UserPath("openrealm-music.tmp", cl_music.disk_path, sizeof(cl_music.disk_path));
@@ -237,7 +237,7 @@ static BOOL CL_MusicResolveDiskPath(LPCSTR path) {
     return true;
 }
 
-static BOOL CL_MusicOpenCodec(void) {
+static bool CL_MusicOpenCodec(void) {
     AVStream *stream;
     AVCodec const *decoder;
     AVCodecContext *codec;
@@ -257,7 +257,7 @@ static BOOL CL_MusicOpenCodec(void) {
     return true;
 }
 
-static BOOL CL_MusicEnsureConversion(AVFrame const *frame) {
+static bool CL_MusicEnsureConversion(AVFrame const *frame) {
     AVChannelLayout output_layout = AV_CHANNEL_LAYOUT_STEREO;
     int result;
 
@@ -279,11 +279,11 @@ static BOOL CL_MusicEnsureConversion(AVFrame const *frame) {
     return true;
 }
 
-static BOOL CL_MusicQueueFrame(AVFrame const *frame) {
+static bool CL_MusicQueueFrame(AVFrame const *frame) {
     int output_frames;
     int required_bytes;
     int converted;
-    BYTE *out;
+    uint8_t *out;
 
     if (!CL_MusicEnsureConversion(frame)) return false;
     output_frames = (int)av_rescale_rnd(swr_get_delay(cl_music.swr, frame->sample_rate) + frame->nb_samples,
@@ -299,10 +299,10 @@ static BOOL CL_MusicQueueFrame(AVFrame const *frame) {
                             (uint8_t const **)frame->extended_data,
                             frame->nb_samples);
     if (converted < 0) return false;
-    return S_StreamSamples(S_STREAM_MUSIC, (SHORT const *)cl_music.audio_buffer, (DWORD)converted) == (DWORD)converted;
+    return S_StreamSamples(S_STREAM_MUSIC, (int16_t const *)cl_music.audio_buffer, (uint32_t)converted) == (uint32_t)converted;
 }
 
-static BOOL CL_MusicDrainDecoder(void) {
+static bool CL_MusicDrainDecoder(void) {
     while (S_StreamBufferedFrames(S_STREAM_MUSIC) < CL_MUSIC_AUDIO_TARGET_FRAMES) {
         int result = avcodec_receive_frame(cl_music.codec, cl_music.frame);
         if (result == AVERROR(EAGAIN)) return true;
@@ -317,7 +317,7 @@ static BOOL CL_MusicDrainDecoder(void) {
     return true;
 }
 
-static BOOL CL_MusicPumpDecoder(void) {
+static bool CL_MusicPumpDecoder(void) {
     int guard = 0;
 
     if (!cl_music.decoder_active || cl_music.paused || cl_music.suspended) return true;
@@ -350,7 +350,7 @@ static BOOL CL_MusicPumpDecoder(void) {
     return CL_MusicDrainDecoder();
 }
 
-static BOOL CL_MusicSeekDecoder(LONG millisecs) {
+static bool CL_MusicSeekDecoder(int32_t millisecs) {
     AVStream *stream;
     int64_t target;
 
@@ -373,7 +373,7 @@ static BOOL CL_MusicSeekDecoder(LONG millisecs) {
     return true;
 }
 
-static BOOL CL_MusicOpenTrack(LPCSTR path, LONG start_ms) {
+static bool CL_MusicOpenTrack(cstring_t path, int32_t start_ms) {
     if (!path || !*path) return false;
     CL_MusicCloseDecoder();
     snprintf(cl_music.source_path, sizeof(cl_music.source_path), "%s", path);
@@ -409,24 +409,24 @@ static void CL_MusicCloseDecoder(void) {
     S_StreamStop(S_STREAM_MUSIC);
     cl_music.decoder_active = false;
 }
-static BOOL CL_MusicSeekDecoder(LONG millisecs) { (void)millisecs; return false; }
-static BOOL CL_MusicOpenTrack(LPCSTR path, LONG start_ms) { (void)path; (void)start_ms; return false; }
-static BOOL CL_MusicPumpDecoder(void) { return true; }
+static bool CL_MusicSeekDecoder(int32_t millisecs) { (void)millisecs; return false; }
+static bool CL_MusicOpenTrack(cstring_t path, int32_t start_ms) { (void)path; (void)start_ms; return false; }
+static bool CL_MusicPumpDecoder(void) { return true; }
 #endif
 
-static DWORD CL_MusicInitialIndex(clMusicPlaylist_t const *playlist) {
+static uint32_t CL_MusicInitialIndex(clMusicPlaylist_t const *playlist) {
     if (!playlist || !playlist->count) return 0;
-    if (playlist->random) return (DWORD)(rand() % playlist->count);
+    if (playlist->random) return (uint32_t)(rand() % playlist->count);
     return playlist->index < playlist->count ? playlist->index : 0;
 }
 
-static BOOL CL_MusicStartAvailableTrack(DWORD preferred, LONG start_ms, BOOL skip_played, BOOL notify_selected) {
-    DWORD count = cl_music.current.count;
+static bool CL_MusicStartAvailableTrack(uint32_t preferred, int32_t start_ms, bool skip_played, bool notify_selected) {
+    uint32_t count = cl_music.current.count;
 
     if (!count) return false;
-    for (DWORD attempt = 0; attempt < count; attempt++) {
-        DWORD index = (preferred + attempt) % count;
-        DWORD bit = 1u << index;
+    for (uint32_t attempt = 0; attempt < count; attempt++) {
+        uint32_t index = (preferred + attempt) % count;
+        uint32_t bit = 1u << index;
 
         if (skip_played && (cl_music.current.played_mask & bit)) continue;
         if (CL_MusicOpenTrack(cl_music.current.paths[index], attempt == 0 ? start_ms : 0)) {
@@ -441,10 +441,10 @@ static BOOL CL_MusicStartAvailableTrack(DWORD preferred, LONG start_ms, BOOL ski
     return false;
 }
 
-static BOOL CL_MusicStartPlaylist(LPCSTR value, BOOL random, LONG index, clMusicSource_t source,
-                                  LONG start_ms, LONG fade_ms, DWORD played_mask,
-                                  DWORD session_id, BOOL notify_selected) {
-    DWORD initial;
+static bool CL_MusicStartPlaylist(cstring_t value, bool random, int32_t index, clMusicSource_t source,
+                                  int32_t start_ms, int32_t fade_ms, uint32_t played_mask,
+                                  uint32_t session_id, bool notify_selected) {
+    uint32_t initial;
 
     CL_MusicCloseDecoder();
     cl_music.source = source;
@@ -453,11 +453,11 @@ static BOOL CL_MusicStartPlaylist(LPCSTR value, BOOL random, LONG index, clMusic
     cl_music.fade = fade_ms > 0 ? CL_MUSIC_FADE_IN : CL_MUSIC_FADE_NONE;
     cl_music.fade_start_ticks = SDL_GetTicks();
     cl_music.fade_clock_ticks = cl_music.fade_start_ticks;
-    cl_music.fade_duration_ms = (DWORD)MAX(0, fade_ms);
+    cl_music.fade_duration_ms = (uint32_t)MAX(0, fade_ms);
     cl_music.fade_start_factor = 1.0f;
     if (!CL_MusicParsePlaylist(value, &cl_music.current)) return false;
     cl_music.current.random = random;
-    cl_music.current.index = index >= 0 ? (DWORD)index : 0;
+    cl_music.current.index = index >= 0 ? (uint32_t)index : 0;
     cl_music.current.played_mask = played_mask;
     initial = CL_MusicInitialIndex(&cl_music.current);
     return CL_MusicStartAvailableTrack(initial, MAX(0, start_ms), false, notify_selected);
@@ -482,10 +482,10 @@ static void CL_MusicNotifyCurrentSelected(void) {
     CL_MusicSendSelected(cl_music.current_session_id, cl_music.current.index, CL_MusicCurrentPositionMS());
 }
 
-static void CL_MusicFinishThematic(BOOL notify_server) {
+static void CL_MusicFinishThematic(bool notify_server) {
     clMusicRestore_t restore;
-    DWORD const finished_session_id = cl_music.current_session_id;
-    BOOL restored = false;
+    uint32_t const finished_session_id = cl_music.current_session_id;
+    bool restored = false;
 
     if (cl_music.source != CL_MUSIC_SOURCE_THEMATIC) return;
     restore = cl_music.thematic_restore;
@@ -526,8 +526,8 @@ static void CL_MusicFinishThematic(BOOL notify_server) {
 }
 
 static void CL_MusicFinishExplicit(void) {
-    DWORD const finished_session_id = cl_music.current_session_id;
-    BOOL started = false;
+    uint32_t const finished_session_id = cl_music.current_session_id;
+    bool started = false;
 
     if (cl_music.source != CL_MUSIC_SOURCE_EXPLICIT) return;
     cl_music.map_pending = false;
@@ -547,7 +547,7 @@ static void CL_MusicFinishExplicit(void) {
 }
 
 static void CL_MusicAdvancePlaylist(void) {
-    DWORD preferred;
+    uint32_t preferred;
 
     if (cl_music.source == CL_MUSIC_SOURCE_THEMATIC) {
         /* Warcraft thematic music is one-shot: natural EOF restores the
@@ -556,8 +556,8 @@ static void CL_MusicAdvancePlaylist(void) {
         return;
     }
     if (cl_music.source == CL_MUSIC_SOURCE_MAP && cl_music.map_pending) {
-        DWORD const finished_session_id = cl_music.current_session_id;
-        BOOL started = false;
+        uint32_t const finished_session_id = cl_music.current_session_id;
+        bool started = false;
 
         cl_music.map_pending = false;
         if (cl_music.map.playlist[0]) {
@@ -586,13 +586,13 @@ static void CL_MusicAdvancePlaylist(void) {
     CL_MusicStartAvailableTrack(preferred, 0, false, true);
 }
 
-static void CL_MusicSendFinished(DWORD session_id) {
+static void CL_MusicSendFinished(uint32_t session_id) {
     if (cls.state <= ca_connected || !session_id) return;
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     SZ_Printf(&cls.netchan.message, "music_finished %u", (unsigned)session_id);
 }
 
-static void CL_MusicSendSelected(DWORD session_id, DWORD index, LONG position_ms) {
+static void CL_MusicSendSelected(uint32_t session_id, uint32_t index, int32_t position_ms) {
     if (cls.state <= ca_connected || !session_id) return;
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     SZ_Printf(&cls.netchan.message, "music_selected %u %u %ld %u",
@@ -600,7 +600,7 @@ static void CL_MusicSendSelected(DWORD session_id, DWORD index, LONG position_ms
               (unsigned)cl_music.current.played_mask);
 }
 
-static void CL_MusicSendThematicSnapshot(DWORD thematic_session_id) {
+static void CL_MusicSendThematicSnapshot(uint32_t thematic_session_id) {
     clMusicRestore_t const *restore = &cl_music.thematic_restore;
 
     if (cls.state <= ca_connected || !thematic_session_id || !restore->valid || !restore->session_id) return;
@@ -623,8 +623,8 @@ void CL_MusicInit(void) {
 }
 
 void CL_MusicReset(void) {
-    LONG music_volume = cl_music.music_volume;
-    LONG thematic_volume = cl_music.thematic_volume;
+    int32_t music_volume = cl_music.music_volume;
+    int32_t thematic_volume = cl_music.thematic_volume;
     CL_MusicCloseDecoder();
     memset(&cl_music, 0, sizeof(cl_music));
     cl_music.music_volume = music_volume;
@@ -639,13 +639,13 @@ void CL_MusicShutdown(void) {
     memset(&cl_music, 0, sizeof(cl_music));
 }
 
-void CL_MusicPlayMenu(LPCSTR playlist) {
+void CL_MusicPlayMenu(cstring_t playlist) {
     clMusicPlaylist_t parsed;
 
     if (!playlist || !*playlist) { CL_MusicStopMenu(); return; }
     if (cl_music.source == CL_MUSIC_SOURCE_MENU &&
         CL_MusicParsePlaylist(playlist, &parsed) && parsed.count == cl_music.current.count) {
-        BOOL same = true;
+        bool same = true;
         FOR_LOOP(i, parsed.count)
             if (strcmp(parsed.paths[i], cl_music.current.paths[i])) { same = false; break; }
         if (same) return;
@@ -666,8 +666,8 @@ void CL_MusicStopMenu(void) {
     cl_music.fade_duration_ms = 0;
 }
 
-void CL_MusicSetMap(LPCSTR playlist, BOOL random, LONG index, DWORD session_id) {
-    DWORD previous_session_id = cl_music.map.session_id;
+void CL_MusicSetMap(cstring_t playlist, bool random, int32_t index, uint32_t session_id) {
+    uint32_t previous_session_id = cl_music.map.session_id;
 
     if (!playlist) playlist = "";
     index = MAX(0, index);
@@ -677,7 +677,7 @@ void CL_MusicSetMap(LPCSTR playlist, BOOL random, LONG index, DWORD session_id) 
     cl_music.map.session_id = session_id;
 
     if (cl_music.source == CL_MUSIC_SOURCE_NONE || cl_music.source == CL_MUSIC_SOURCE_MENU) {
-        BOOL replacing_silent = cl_music.source == CL_MUSIC_SOURCE_NONE &&
+        bool replacing_silent = cl_music.source == CL_MUSIC_SOURCE_NONE &&
                                 previous_session_id && previous_session_id != session_id;
 
         cl_music.map_pending = false;
@@ -707,8 +707,8 @@ void CL_MusicSetMap(LPCSTR playlist, BOOL random, LONG index, DWORD session_id) 
 }
 
 void CL_MusicClearMap(void) {
-    BOOL had_map = cl_music.map.playlist[0] != '\0';
-    DWORD previous_session_id = cl_music.map.session_id;
+    bool had_map = cl_music.map.playlist[0] != '\0';
+    uint32_t previous_session_id = cl_music.map.session_id;
 
     memset(&cl_music.map, 0, sizeof(cl_music.map));
     if (had_map && cl_music.source == CL_MUSIC_SOURCE_NONE && previous_session_id) {
@@ -725,8 +725,8 @@ void CL_MusicClearMap(void) {
     }
 }
 
-void CL_MusicPlay(LPCSTR playlist, BOOL random, LONG index, LONG start_ms, LONG fade_ms,
-                  DWORD played_mask, DWORD session_id) {
+void CL_MusicPlay(cstring_t playlist, bool random, int32_t index, int32_t start_ms, int32_t fade_ms,
+                  uint32_t played_mask, uint32_t session_id) {
     memset(&cl_music.thematic_restore, 0, sizeof(cl_music.thematic_restore));
     cl_music.map_pending = false;
     if (!CL_MusicStartPlaylist(playlist, random, index, CL_MUSIC_SOURCE_EXPLICIT,
@@ -734,8 +734,8 @@ void CL_MusicPlay(LPCSTR playlist, BOOL random, LONG index, LONG start_ms, LONG 
         CL_MusicFinishExplicit();
 }
 
-void CL_MusicStop(BOOL fade_out) {
-    FLOAT start_factor;
+void CL_MusicStop(bool fade_out) {
+    float start_factor;
 
     if (cl_music.source == CL_MUSIC_SOURCE_NONE) return;
     if (fade_out && cl_music.fade == CL_MUSIC_FADE_OUT) return;
@@ -767,8 +767,8 @@ void CL_MusicResume(void) {
     S_StreamSetPaused(S_STREAM_MUSIC, CL_MusicShouldPause());
 }
 
-void CL_MusicPlayThematic(LPCSTR playlist, LONG index, LONG start_ms, DWORD session_id) {
-    BOOL started;
+void CL_MusicPlayThematic(cstring_t playlist, int32_t index, int32_t start_ms, uint32_t session_id) {
+    bool started;
 
     if (cl_music.source != CL_MUSIC_SOURCE_THEMATIC) CL_MusicRememberThematicRestore();
     started = CL_MusicStartPlaylist(playlist, false, index, CL_MUSIC_SOURCE_THEMATIC,
@@ -781,22 +781,22 @@ void CL_MusicEndThematic(void) {
     CL_MusicFinishThematic(false);
 }
 
-void CL_MusicSetVolume(LONG volume) {
+void CL_MusicSetVolume(int32_t volume) {
     cl_music.music_volume = MAX(0, MIN(volume, 127));
     if (cl_music.source != CL_MUSIC_SOURCE_THEMATIC) CL_MusicApplyVolume();
 }
 
-void CL_MusicSetThematicVolume(LONG volume) {
+void CL_MusicSetThematicVolume(int32_t volume) {
     cl_music.thematic_volume = MAX(0, MIN(volume, 127));
     if (cl_music.source == CL_MUSIC_SOURCE_THEMATIC) CL_MusicApplyVolume();
 }
 
-void CL_MusicSetPosition(LONG millisecs) {
+void CL_MusicSetPosition(int32_t millisecs) {
     if (cl_music.source == CL_MUSIC_SOURCE_NONE) return;
     CL_MusicSeekDecoder(MAX(0, millisecs));
 }
 
-void CL_MusicSetThematicPosition(LONG millisecs) {
+void CL_MusicSetThematicPosition(int32_t millisecs) {
     if (cl_music.source != CL_MUSIC_SOURCE_THEMATIC) return;
     CL_MusicSeekDecoder(MAX(0, millisecs));
 }
@@ -816,7 +816,7 @@ void CL_MusicResumeFromSuspend(void) {
 }
 
 void CL_MusicUpdate(void) {
-    BOOL paused;
+    bool paused;
 
     if (cl_music.source == CL_MUSIC_SOURCE_NONE) return;
     paused = CL_MusicShouldPause();

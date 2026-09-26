@@ -89,11 +89,11 @@ static const char *blp2_encoding_name(unsigned int encoding) {
     }
 }
 
-static int cmd_imginfo(HANDLE archive, const char *file_path) {
-    HANDLE file;
+static int cmd_imginfo(handle_t archive, const char *file_path) {
+    handle_t file;
     unsigned char header[512];
-    DWORD read_bytes = 0;
-    DWORD file_size = 0;
+    uint32_t read_bytes = 0;
+    uint32_t file_size = 0;
 
     if (!SFileOpenFileEx(archive, file_path, SFILE_OPEN_FROM_MPQ, &file)) {
         fprintf(stderr, "Cannot open MPQ file: %s\n", file_path);
@@ -287,10 +287,10 @@ static int entry_cmp(const void *a, const void *b) {
 #endif
 }
 
-static int cmd_cat(HANDLE archive, const char *file_path) {
-    HANDLE file;
+static int cmd_cat(handle_t archive, const char *file_path) {
+    handle_t file;
     unsigned char buf[64 * 1024];
-    DWORD read_bytes = 0;
+    uint32_t read_bytes = 0;
 
     if (!SFileOpenFileEx(archive, file_path, SFILE_OPEN_FROM_MPQ, &file)) {
         fprintf(stderr, "Cannot open MPQ file: %s\n", file_path);
@@ -310,9 +310,9 @@ static int cmd_cat(HANDLE archive, const char *file_path) {
     return 0;
 }
 
-static int cmd_info(HANDLE archive, const char *file_path) {
+static int cmd_info(handle_t archive, const char *file_path) {
     SFILE_FIND_DATA fd;
-    HANDLE hfind;
+    handle_t hfind;
 
     hfind = SFileFindFirstFile(archive, file_path, &fd, NULL);
     if (!hfind) {
@@ -354,9 +354,9 @@ static bool is_binary_ext(const char *filename) {
     return false;
 }
 
-static int cmd_grep(HANDLE archive, const char *pattern, const char *path_prefix) {
+static int cmd_grep(handle_t archive, const char *pattern, const char *path_prefix) {
     SFILE_FIND_DATA fd;
-    HANDLE hfind;
+    handle_t hfind;
     char prefix[512] = {0};
     size_t prefix_len = 0;
     int matches = 0;
@@ -376,8 +376,8 @@ static int cmd_grep(HANDLE archive, const char *pattern, const char *path_prefix
 
     do {
         const char *full = fd.cFileName;
-        HANDLE file;
-        DWORD file_size, read_bytes;
+        handle_t file;
+        uint32_t file_size, read_bytes;
         char *buf;
 
         if (prefix_len && !starts_with_ci(full, prefix))
@@ -430,9 +430,9 @@ static int cmd_grep(HANDLE archive, const char *pattern, const char *path_prefix
     return matches > 0 ? 0 : 1;
 }
 
-static int cmd_ls(HANDLE archive, const char *path) {
+static int cmd_ls(handle_t archive, const char *path) {
     SFILE_FIND_DATA fd;
-    HANDLE hfind;
+    handle_t hfind;
     char prefix[512];
     size_t prefix_len;
     entry_list_t out = { 0 };
@@ -502,8 +502,8 @@ static int cmd_ls(HANDLE archive, const char *path) {
 
 static int cmd_create(const char *mpq_path, const char *arg)
 {
-    HANDLE archive;
-    DWORD max_files = 16;
+    handle_t archive;
+    uint32_t max_files = 16;
 
     if (arg && *arg) {
         char *end = NULL;
@@ -512,7 +512,7 @@ static int cmd_create(const char *mpq_path, const char *arg)
             fprintf(stderr, "Invalid max-files value: %s\n", arg);
             return 1;
         }
-        max_files = (DWORD)parsed;
+        max_files = (uint32_t)parsed;
     }
 
     if (!SFileCreateArchive(mpq_path, 0, max_files, &archive)) {
@@ -528,7 +528,7 @@ static int cmd_create(const char *mpq_path, const char *arg)
 
 static int cmd_pack(const char *mpq_path, int pair_count, char **pairs)
 {
-    HANDLE archive;
+    handle_t archive;
     int i;
 
     if (pair_count <= 0 || (pair_count % 2) != 0) {
@@ -536,7 +536,7 @@ static int cmd_pack(const char *mpq_path, int pair_count, char **pairs)
         return 1;
     }
 
-    if (!SFileCreateArchive(mpq_path, 0, (DWORD)(pair_count / 2 + 1), &archive)) {
+    if (!SFileCreateArchive(mpq_path, 0, (uint32_t)(pair_count / 2 + 1), &archive)) {
         fprintf(stderr, "Cannot create archive: %s\n", mpq_path);
         return 1;
     }
@@ -565,7 +565,7 @@ static int cmd_pack(const char *mpq_path, int pair_count, char **pairs)
 typedef struct {
     char container[256];
     char path[512];
-    HANDLE archive;
+    handle_t archive;
     unsigned int files;
 } wow_target_t;
 
@@ -678,27 +678,27 @@ static int ensure_parent_dir(const char *path)
     return mkpath(tmp);
 }
 
-static bool read_archive_file(HANDLE archive, const char *path, BYTE **out_data, DWORD *out_size)
+static bool read_archive_file(handle_t archive, const char *path, uint8_t **out_data, uint32_t *out_size)
 {
-    HANDLE file;
-    DWORD size;
-    DWORD total = 0;
-    BYTE *data;
+    handle_t file;
+    uint32_t size;
+    uint32_t total = 0;
+    uint8_t *data;
 
     if (!SFileOpenFileEx(archive, path, SFILE_OPEN_FROM_MPQ, &file)) {
         return false;
     }
 
     size = SFileGetFileSize(file, NULL);
-    data = (BYTE *)malloc(size ? size : 1);
+    data = (uint8_t *)malloc(size ? size : 1);
     if (!data) {
         SFileCloseFile(file);
         return false;
     }
 
     while (total < size) {
-        DWORD read_bytes = 0;
-        DWORD chunk = size - total;
+        uint32_t read_bytes = 0;
+        uint32_t chunk = size - total;
         if (!SFileReadFile(file, data + total, chunk, &read_bytes, NULL) || read_bytes == 0) {
             free(data);
             SFileCloseFile(file);
@@ -790,9 +790,9 @@ static int close_wow_targets(wow_target_t *targets, size_t count)
 
 static int cmd_wow_install(const char *out_dir, const char **disc_paths, bool strip_data_prefix)
 {
-    HANDLE discs[4] = { 0 };
-    BYTE *manifest = NULL;
-    DWORD manifest_size = 0;
+    handle_t discs[4] = { 0 };
+    uint8_t *manifest = NULL;
+    uint32_t manifest_size = 0;
     wow_target_t targets[32];
     size_t target_count = 0;
     char current_container[256] = "";
@@ -820,7 +820,7 @@ static int cmd_wow_install(const char *out_dir, const char **disc_paths, bool st
     }
 
     {
-        BYTE *resized = (BYTE *)realloc(manifest, (size_t)manifest_size + 1);
+        uint8_t *resized = (uint8_t *)realloc(manifest, (size_t)manifest_size + 1);
         if (!resized) {
             fprintf(stderr, "Out of memory\n");
             goto done;
@@ -879,8 +879,8 @@ static int cmd_wow_install(const char *out_dir, const char **disc_paths, bool st
         if (strstr(line, "<repack") && xml_attr(line, "from", value, sizeof(value))) {
             char source_path[1024];
             char dest_path[512];
-            BYTE *data = NULL;
-            DWORD size = 0;
+            uint8_t *data = NULL;
+            uint32_t size = 0;
             wow_target_t *target;
 
             archive_path_join(source_path, sizeof(source_path), current_base, value);
@@ -933,11 +933,11 @@ done:
 
 #define DATA_MAX_ARCHIVES 64
 
-static HANDLE data_archives[DATA_MAX_ARCHIVES];
+static handle_t data_archives[DATA_MAX_ARCHIVES];
 static char   data_archive_paths[DATA_MAX_ARCHIVES][512];
 static int    data_archive_count;
 
-static void data_collect_archive(LPCSTR path, void *ud) {
+static void data_collect_archive(cstring_t path, void *ud) {
     (void)ud;
     if (data_archive_count >= DATA_MAX_ARCHIVES) return;
     strncpy(data_archive_paths[data_archive_count], path,
@@ -975,10 +975,10 @@ static void data_close_archives(void) {
 }
 
 /* grep one archive, tagging each match with the archive path. */
-static int grep_one_archive(HANDLE archive, const char *archive_label,
+static int grep_one_archive(handle_t archive, const char *archive_label,
                              const char *pattern, const char *path_prefix) {
     SFILE_FIND_DATA fd;
-    HANDLE hfind;
+    handle_t hfind;
     char prefix[512] = {0};
     size_t prefix_len = 0;
     int matches = 0;
@@ -995,8 +995,8 @@ static int grep_one_archive(HANDLE archive, const char *archive_label,
 
     do {
         const char *full = fd.cFileName;
-        HANDLE file;
-        DWORD file_size, read_bytes;
+        handle_t file;
+        uint32_t file_size, read_bytes;
         char *buf;
 
         if (prefix_len && !starts_with_ci(full, prefix)) continue;
@@ -1069,13 +1069,13 @@ static int cmd_cat_data(const char *file_path) {
     /* Read from every archive that has this file (lowest priority first). */
     int found = 0;
     for (int i = 0; i < data_archive_count; i++) {
-        HANDLE file;
+        handle_t file;
         if (!data_archives[i]) continue;
         if (!SFileOpenFileEx(data_archives[i], path, SFILE_OPEN_FROM_MPQ, &file)) continue;
-        DWORD sz = SFileGetFileSize(file, NULL);
+        uint32_t sz = SFileGetFileSize(file, NULL);
         char *buf = malloc(sz + 1);
         if (!buf) { SFileCloseFile(file); continue; }
-        DWORD rb = 0;
+        uint32_t rb = 0;
         SFileReadFile(file, buf, sz, &rb, NULL);
         SFileCloseFile(file);
         buf[rb] = '\0';
@@ -1098,7 +1098,7 @@ int main(int argc, char **argv) {
     const char *arg = NULL;
     char **extra = NULL;
     int extra_count = 0;
-    HANDLE archive;
+    handle_t archive;
     int rc;
 
     if (argc >= 7 && strcmp(argv[1], "wow-install") == 0) {

@@ -3,9 +3,9 @@
 /* Hippogryph couple: Acoa/Acoh merge two living same-owner units into UnitID;
  * Adec splits the rider into DataA+DataB. Not Defend, not cargo, not Raven Form. */
 
-static BOOL couple_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool couple_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
 	LPEDICT target = st.entity;
-	DWORD level, partner, rider;
+	uint32_t level, partner, rider;
 
 	if (!caster || !spell || !target || target == caster) return false;
 	if (!S_SpellIsAliveTarget(target) || !S_SpellIsFriend(caster, target)) return false;
@@ -19,7 +19,7 @@ static BOOL couple_validate(LPEDICT caster, spellTarget_t st, abilityitem_t cons
 /* Spawn the authored rider first, then remove both inputs (Warsmash CoupleInstant). */
 static void couple_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
 	LPEDICT target = st.entity, rider;
-	DWORD level, result;
+	uint32_t level, result;
 	VECTOR2 origin;
 
 	if (!caster || !spell || !target || !couple_validate(caster, st, spell)) return;
@@ -29,7 +29,7 @@ static void couple_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const
 	rider = SP_SpawnAtLocationNoBirth(result, caster->s.player, &origin);
 	if (!rider) {
 		fprintf(stderr, "WC3_COUPLE: failed to spawn rider %.4s from %.4s\n",
-		        (LPCSTR)&result, (LPCSTR)&spell->code);
+		        (cstring_t)&result, (cstring_t)&spell->code);
 		return;
 	}
 	rider->s.angle = caster->s.angle;
@@ -39,8 +39,8 @@ static void couple_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const
 	G_FreeEdict(caster);
 }
 
-static BOOL decouple_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-	DWORD level, a, b;
+static bool decouple_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+	uint32_t level, a, b;
 
 	(void)st;
 	if (!caster || !spell || !S_SpellIsAliveTarget(caster)) return false;
@@ -50,13 +50,13 @@ static BOOL decouple_validate(LPEDICT caster, spellTarget_t st, abilityitem_t co
 	return a && b;
 }
 
-static LPEDICT decouple_spawn(LPEDICT rider, DWORD unit_id) {
+static LPEDICT decouple_spawn(LPEDICT rider, uint32_t unit_id) {
 	LPEDICT ent;
 
 	if (!rider || !unit_id) return NULL;
 	ent = SP_SpawnAtLocationNoBirth(unit_id, rider->s.player, &rider->s.origin2);
 	if (!ent) {
-		fprintf(stderr, "WC3_COUPLE: failed to spawn companion %.4s on dismount\n", (LPCSTR)&unit_id);
+		fprintf(stderr, "WC3_COUPLE: failed to spawn companion %.4s on dismount\n", (cstring_t)&unit_id);
 		return NULL;
 	}
 	ent->s.angle = rider->s.angle;
@@ -66,7 +66,7 @@ static LPEDICT decouple_spawn(LPEDICT rider, DWORD unit_id) {
 }
 
 static void decouple_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-	DWORD level, a, b;
+	uint32_t level, a, b;
 	LPEDICT first, second;
 
 	(void)st;

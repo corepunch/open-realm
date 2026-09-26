@@ -7,7 +7,7 @@
 #include <limits.h>
 #include <stdint.h>
 
-static BOOL s_mp3_reserve(sfxcache_t **cache, size_t *capacity, int needed) {
+static bool s_mp3_reserve(sfxcache_t **cache, size_t *capacity, int needed) {
     size_t next = *capacity ? *capacity : 4096;
     sfxcache_t *grown;
 
@@ -15,15 +15,15 @@ static BOOL s_mp3_reserve(sfxcache_t **cache, size_t *capacity, int needed) {
         if (next > (size_t)INT_MAX / 2) { next = (size_t)needed; break; }
         next *= 2;
     }
-    if (next > (SIZE_MAX - sizeof(**cache)) / sizeof(short) + 1) return FALSE;
+    if (next > (SIZE_MAX - sizeof(**cache)) / sizeof(short) + 1) return false;
     grown = realloc(*cache, sizeof(**cache) + (next - 1) * sizeof(short));
-    if (!grown) return FALSE;
+    if (!grown) return false;
     *cache = grown;
     *capacity = next;
-    return TRUE;
+    return true;
 }
 
-sfxcache_t *s_mp3_decode(BYTE const *data, DWORD size) {
+sfxcache_t *s_mp3_decode(uint8_t const *data, uint32_t size) {
     mp3dec_t decoder;
     mp3dec_frame_info_t info;
     mp3d_sample_t frame[MINIMP3_MAX_SAMPLES_PER_FRAME];

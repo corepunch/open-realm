@@ -8,22 +8,22 @@
 mouseEvent_t mouse;
 static keyCode_t mouse_button_keys[8];
 static struct {
-    BOOL active;
+    bool active;
     VECTOR3 anchor;
 } camera_drag;
 
-static BOOL smart_click_active;
+static bool smart_click_active;
 #define BZ_SELECT_DOUBLE_CLICK_MS 500 // milliseconds; shared opt-in same-entity double-click window
-static BOOL cam_west, cam_east, cam_north, cam_south;
+static bool cam_west, cam_east, cam_north, cam_south;
 
 static void CL_ScrollFrame(void);
-static BOOL CL_MouseOverGameplayUIAt(int x, int y);
+static bool CL_MouseOverGameplayUIAt(int x, int y);
 
 static struct {
-    DWORD buttons, sent, last_ms;
-    BOOL select, look, focus;
+    uint32_t buttons, sent, last_ms;
+    bool select, look, focus;
     VECTOR2 down, travel;
-    DWORD last_select_entity, last_select_ms;
+    uint32_t last_select_entity, last_select_ms;
     SDL_Cursor *arrow, *cross, *hand;
 } input = { .focus = true };
 
@@ -34,7 +34,7 @@ static void CL_SendInput(LPCINPUTCMD cmd) {
 }
 
 /* Keep immediate orbit feedback separate from the authoritative delta-compressed player state. */
-static void CL_SendView(VECTOR3 angles, FLOAT dist) {
+static void CL_SendView(VECTOR3 angles, float dist) {
     cl.camera_prediction.view = true;
     cl.camera_prediction.angles = angles;
     cl.camera_prediction.distance = dist;
@@ -49,8 +49,8 @@ static void CL_SendView(VECTOR3 angles, FLOAT dist) {
 /* Relative travel distinguishes a context click from a drag even while SDL locks the pointer. */
 static void CL_LookMotion(SDL_MouseMotionEvent const *motion) {
     if (!input.look || !CL_GameplayInputReady()) return;
-    FLOAT speed = Cvar_Value("cl_mouse_speed", 0.18f);
-    FLOAT lo = Cvar_Value("cl_camera_min_pitch", -85), hi = Cvar_Value("cl_camera_max_pitch", 85);
+    float speed = Cvar_Value("cl_mouse_speed", 0.18f);
+    float lo = Cvar_Value("cl_camera_min_pitch", -85), hi = Cvar_Value("cl_camera_max_pitch", 85);
     VECTOR3 angles = cl.viewDef.camerastate[0].viewangles;
     input.travel.x += motion->xrel; input.travel.y += motion->yrel;
     angles.x = remainderf(angles.x, 360.0f);
@@ -69,14 +69,14 @@ static void CL_UpdateCursor(void) {
         if (!input.arrow || !input.cross || !input.hand)
             Com_Error(ERR_FATAL, "Input cursor creation failed: %s", SDL_GetError());
     }
-    BOOL hostile = false;
+    bool hostile = false;
     FOR_LOOP(i, cl.viewDef.num_entities)
         if (cl.viewDef.entities[i].number == cl.hover_entity) hostile = cl.viewDef.entities[i].flags & RF_HOSTILE;
     SDL_SetCursor(!cl.hover_entity ? input.arrow : hostile ? input.cross : input.hand);
 }
 
-static BOOL CL_ClickTravel(VECTOR2 delta) {
-    FLOAT limit = Cvar_Value("cl_click_threshold", 10);
+static bool CL_ClickTravel(VECTOR2 delta) {
+    float limit = Cvar_Value("cl_click_threshold", 10);
     return delta.x * delta.x + delta.y * delta.y <= limit * limit;
 }
 
@@ -88,12 +88,12 @@ static void IN_LookDown(void) {
 
 /* Config can attach a game command to a look-button click without coupling the camera to that game. */
 static void IN_LookUp(void) {
-    BOOL click = input.look && CL_ClickTravel(input.travel);
+    bool click = input.look && CL_ClickTravel(input.travel);
     input.look = false;
     SDL_SetRelativeMouseMode(SDL_FALSE);
-    LPCSTR cmd = Cvar_String("cl_look_command", "");
+    cstring_t cmd = Cvar_String("cl_look_command", "");
     if (!click || !*cmd || !CL_GameplayInputReady() || CL_MouseOverGameplayUI()) return;
-    DWORD entnum;
+    uint32_t entnum;
     if (!re.TraceEntity(&cl.viewDef, mouse.origin.x, mouse.origin.y, &entnum)) {
         if (!cl.selection.num_selected) return;
         entnum = cl.selection.entity_nums[0];
@@ -109,11 +109,11 @@ static void IN_AttackDown(void) {
 }
 
 static void IN_AttackUp(void) {
-    BOOL held = input.select;
+    bool held = input.select;
     input.select = false;
     if (!held || !CL_GameplayInputReady() || CL_MouseOverGameplayUI()) return;
     VECTOR2 delta = {mouse.origin.x - input.down.x, mouse.origin.y - input.down.y};
-    DWORD entnum;
+    uint32_t entnum;
     if (!CL_ClickTravel(delta) || !re.TraceEntity(&cl.viewDef, mouse.origin.x, mouse.origin.y, &entnum)) return;
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     SZ_Printf(&cls.netchan.message, "attack %u", entnum);
@@ -145,26 +145,26 @@ void CL_ResetInput(void) {
 
 /* All controls run together. Bindings and individual options determine which controls are active. */
 static void CL_InputFrame(void) {
-    DWORD now = SDL_GetTicks(), msec = input.last_ms ? MIN(now - input.last_ms, BZ_INPUT_MAX_MSEC) : 0;
+    uint32_t now = SDL_GetTicks(), msec = input.last_ms ? MIN(now - input.last_ms, BZ_INPUT_MAX_MSEC) : 0;
     input.last_ms = now;
     if (!CL_GameplayInputReady()) { CL_ResetInput(); return; }
-    DWORD bits = input.buttons;
+    uint32_t bits = input.buttons;
     if (Cvar_Integer("cl_move_mouse", 0) && input.select && input.look) bits |= BZ_MOVE_FORWARD;
     if (bits || input.sent) CL_SendInput(&(INPUTCMD){ .action = BZ_INPUT_MOVE, .move = { bits, msec } });
     input.sent = bits;
     CL_ScrollFrame();
 }
 
-static BOOL CL_OrderQueueModifierDown(void) {
+static bool CL_OrderQueueModifierDown(void) {
     return (SDL_GetModState() & (KMOD_LSHIFT | KMOD_RSHIFT)) != 0;
 }
 
-static BOOL CL_IsShiftKey(int sym) {
+static bool CL_IsShiftKey(int sym) {
     return sym == SDLK_LSHIFT || sym == SDLK_RSHIFT;
 }
 
 static void CL_SendOrderQueueRelease(void) {
-    LPCSTR command = CL_GameOrderQueueReleaseCommand();
+    cstring_t command = CL_GameOrderQueueReleaseCommand();
     if (cls.state != ca_active || !command) return;
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     SZ_Printf(&cls.netchan.message, "%s", command);
@@ -181,7 +181,7 @@ static void CL_SendOrderQueueReleaseOnShiftUp(int sym, SDL_Keymod mods) {
     CL_SendOrderQueueRelease();
 }
 
-static BOOL CL_TracePan(float x, float y, LPVECTOR3 point) {
+static bool CL_TracePan(float x, float y, LPVECTOR3 point) {
     return Cvar_Integer("cl_camera_pan_plane", 0)
         ? re.TraceCameraPlane(&cl.viewDef, x, y, point) : re.TraceLocation(&cl.viewDef, x, y, point);
 }
@@ -221,9 +221,9 @@ static void CL_EndPan(void) {
 }
 
 static void CL_SendSmartCommand(float x, float y) {
-    DWORD entnum;
+    uint32_t entnum;
     VECTOR3 point;
-    BOOL have_point = false;
+    bool have_point = false;
 
     if (!CL_GameplayInputReady()) {
         return;
@@ -330,7 +330,7 @@ static void CL_RegisterCameraControls(void) {
     Cvar_Get("cl_camera_pan_plane", "0", 0);
 }
 
-static BOOL CL_CanHoverHealthEntity(DWORD entnum) {
+static bool CL_CanHoverHealthEntity(uint32_t entnum) {
     if (!entnum || entnum >= MAX_CLIENT_ENTITIES) {
         return false;
     }
@@ -338,8 +338,8 @@ static BOOL CL_CanHoverHealthEntity(DWORD entnum) {
 }
 
 static void CL_UpdateHover(float x, float y) {
-    DWORD entnum = 0;
-    BOOL trace_hit = false;
+    uint32_t entnum = 0;
+    bool trace_hit = false;
 
     if (!CL_GameplayInputReady()) {
         cl.hover_entity = 0;
@@ -376,8 +376,8 @@ static void CL_MouseMotion(SDL_MouseMotionEvent const *motion) {
 
 /* Arrow and edge input follow the orbit yaw, so scrolling stays screen-relative after rotation. */
 static void CL_ScrollFrame(void) {
-    static DWORD last_ms = 0;
-    DWORD now = SDL_GetTicks();
+    static uint32_t last_ms = 0;
+    uint32_t now = SDL_GetTicks();
     float dt = (last_ms && now > last_ms) ? (now - last_ms) / 1000.0f : 0.0f;
     last_ms = now;
     if (dt > 0.1f) dt = 0.1f; /* clamp after a stall */
@@ -442,15 +442,15 @@ static keyCode_t CL_SDLKeyToKeyCode(int sym) {
     return (keyCode_t)sym;
 }
 
-static void CL_InputKeyEvent(keyCode_t key, DWORD mods, BOOL down, DWORD time) {
+static void CL_InputKeyEvent(keyCode_t key, uint32_t mods, bool down, uint32_t time) {
     Key_Event(key, mods, down, time);
     /* SDL may deliver a short press's down and up events in one poll pass;
      * execute each edge before the next event can cancel held camera state. */
     Cbuf_Execute();
 }
 
-static DWORD CL_BindMods(SDL_Keymod m) {
-    DWORD mods = 0;
+static uint32_t CL_BindMods(SDL_Keymod m) {
+    uint32_t mods = 0;
     if (m & KMOD_CTRL) mods |= KEY_MOD_CTRL;
     if (m & KMOD_ALT) mods |= KEY_MOD_ALT;
     if (m & KMOD_SHIFT) mods |= KEY_MOD_SHIFT;
@@ -460,7 +460,7 @@ static DWORD CL_BindMods(SDL_Keymod m) {
 /* SDL owns the authoritative window/display transition state.  Notify the
  * renderer only on events that can change the OpenGL drawable so it can
  * resync physical viewport/scissor dimensions without per-frame polling. */
-static BOOL CL_WindowEvent(SDL_WindowEvent const *event) {
+static bool CL_WindowEvent(SDL_WindowEvent const *event) {
     if (event->event == SDL_WINDOWEVENT_CLOSE) {
         Com_Quit();
         return true;
@@ -502,15 +502,15 @@ static keyCode_t CL_MouseButtonKey(SDL_MouseButtonEvent const *button) {
     }
 }
 
-BOOL CL_MouseOverGameplayUI(void) {
+bool CL_MouseOverGameplayUI(void) {
     return CL_MouseOverGameplayUIAt((int)mouse.origin.x, (int)mouse.origin.y);
 }
 
-static BOOL CL_MouseOverGameplayUIAt(int x, int y) {
+static bool CL_MouseOverGameplayUIAt(int x, int y) {
     return SCR_LayoutHitTest(x, y) || CL_WindowMouseOver(x, y);
 }
 
-BOOL CL_GameplayInputReady(void) {
+bool CL_GameplayInputReady(void) {
     if (!input.focus || cls.key_dest != key_game || cls.state != ca_active ||
         cl.playerstate.client_ui_state != CLIENT_UI_GAME) {
         return false;
@@ -523,8 +523,8 @@ void CL_Input(void) {
     SDL_Event event;
     /* Hover is presentation-only; ray-pick the last eligible motion after draining SDL input. */
     SDL_MouseMotionEvent hover_motion = { 0 };
-    BOOL hover_update_pending = false;
-    BOOL movie_input = CL_MovieActive();
+    bool hover_update_pending = false;
+    bool movie_input = CL_MovieActive();
 
     mouse.event = UI_EVENT_NONE;
     mouse.wheel = 0;
@@ -704,7 +704,7 @@ void CL_Input(void) {
     CL_InputFrame();
 }
 
-static void CL_SetSDLTextInput(BOOL enabled) {
+static void CL_SetSDLTextInput(bool enabled) {
     /* Avoid restarting an active SDL text session on every player snapshot.
      * Apart from needless churn, repeatedly toggling this can disrupt IME
      * composition on platforms that use it. */
@@ -715,7 +715,7 @@ static void CL_SetSDLTextInput(BOOL enabled) {
     }
 }
 
-void CL_SetTransientTextInput(BOOL enabled) {
+void CL_SetTransientTextInput(bool enabled) {
     if (cls.key_dest != key_game) return;
     CL_SetSDLTextInput(enabled);
 }
@@ -746,16 +746,16 @@ static void CL_ResetSelectClickChain(void) {
     input.last_select_ms = 0;
 }
 
-static void CL_SendSameTypeSelection(DWORD anchor) {
-    static DWORD visible[MAX_CLIENT_ENTITIES];
+static void CL_SendSameTypeSelection(uint32_t anchor) {
+    static uint32_t visible[MAX_CLIENT_ENTITIES];
     size2_t const window = re.GetWindowSize();
-    RECT const viewport = {
+    rect_t const viewport = {
         .x = cl.viewDef.viewport.x * window.width,
         .y = (1.0f - (cl.viewDef.viewport.y + cl.viewDef.viewport.h)) * window.height,
         .w = cl.viewDef.viewport.w * window.width,
         .h = cl.viewDef.viewport.h * window.height,
     };
-    DWORD const visible_count = re.EntitiesInRect(&cl.viewDef, &viewport, MAX_CLIENT_ENTITIES, visible);
+    uint32_t const visible_count = re.EntitiesInRect(&cl.viewDef, &viewport, MAX_CLIENT_ENTITIES, visible);
     char command[1024];
 
     if (!CL_GameBuildSameTypeSelection(&(gameSameTypeSelection_t){
@@ -802,7 +802,7 @@ void IN_SelectDown(void) {
 }
 
 void IN_SelectUp(void) {
-    BOOL held = input.select;
+    bool held = input.select;
     input.select = false;
     /* Release the shared drag before either selection path can return. */
     CL_EndMinimapDrag();
@@ -810,8 +810,8 @@ void IN_SelectUp(void) {
         if (!held || !CL_GameplayInputReady() || CL_MouseOverGameplayUI()) return;
         VECTOR2 delta = { mouse.origin.x - input.down.x, mouse.origin.y - input.down.y };
         if (!CL_ClickTravel(delta) || (input.look && !CL_ClickTravel(input.travel))) return;
-        DWORD entnum = 0;
-        BOOL hit = re.TraceEntity(&cl.viewDef, mouse.origin.x, mouse.origin.y, &entnum);
+        uint32_t entnum = 0;
+        bool hit = re.TraceEntity(&cl.viewDef, mouse.origin.x, mouse.origin.y, &entnum);
         CL_ApplySelection(&entnum, hit ? 1 : 0);
         return;
     }
@@ -821,20 +821,20 @@ void IN_SelectUp(void) {
     }
     if (!cl.selection.in_progress)
         return;
-    RECT const r = cl.selection.rect;
+    rect_t const r = cl.selection.rect;
     cl.selection.in_progress = false;
-    DWORD entnum;
+    uint32_t entnum;
     VECTOR3 point;
     if (fabs(r.w)+fabs(r.h) < 10) {
         SDL_Keymod const mods = SDL_GetModState();
-        BOOL const queue = (mods & (KMOD_LSHIFT | KMOD_RSHIFT)) != 0;
+        bool const queue = (mods & (KMOD_LSHIFT | KMOD_RSHIFT)) != 0;
         if (re.TraceEntity(&cl.viewDef, r.x, r.y, &entnum)) {
-            BOOL const same_type_enabled = Cvar_Integer("cl_same_type_select", 0) != 0;
-            BOOL const ctrl_same_type = same_type_enabled && !queue &&
+            bool const same_type_enabled = Cvar_Integer("cl_same_type_select", 0) != 0;
+            bool const ctrl_same_type = same_type_enabled && !queue &&
                 (mods & (KMOD_LCTRL | KMOD_RCTRL));
-            BOOL const double_click_same_type = same_type_enabled && !queue &&
+            bool const double_click_same_type = same_type_enabled && !queue &&
                 input.last_select_entity == entnum &&
-                (DWORD)(cl.time - input.last_select_ms) < BZ_SELECT_DOUBLE_CLICK_MS;
+                (uint32_t)(cl.time - input.last_select_ms) < BZ_SELECT_DOUBLE_CLICK_MS;
 
             if (ctrl_same_type || double_click_same_type) {
                 CL_SendSameTypeSelection(entnum);
@@ -864,8 +864,8 @@ void IN_SelectUp(void) {
         }
     } else {
         CL_ResetSelectClickChain();
-        DWORD selected[MAX_SELECTED_ENTITIES] = { 0 };
-        DWORD num = re.EntitiesInRect(&cl.viewDef, &cl.selection.rect, CL_SelectionLimit(), selected);
+        uint32_t selected[MAX_SELECTED_ENTITIES] = { 0 };
+        uint32_t num = re.EntitiesInRect(&cl.viewDef, &cl.selection.rect, CL_SelectionLimit(), selected);
         if (num == 0)
             return;
         if (num > CL_SelectionLimit()) {
@@ -874,20 +874,20 @@ void IN_SelectUp(void) {
         /* Shift+drag adds to the existing selection (deduped) instead of
          * replacing it, matching WC3. */
         if (SDL_GetModState() & (KMOD_LSHIFT | KMOD_RSHIFT)) {
-            DWORD merged[MAX_SELECTED_ENTITIES];
-            DWORD mn = 0;
+            uint32_t merged[MAX_SELECTED_ENTITIES];
+            uint32_t mn = 0;
             FOR_LOOP(i, cl.selection.num_selected) {
                 if (mn < CL_SelectionLimit())
                     merged[mn++] = cl.selection.entity_nums[i];
             }
             FOR_LOOP(i, num) {
-                BOOL dup = false;
+                bool dup = false;
                 FOR_LOOP(j, mn) if (merged[j] == selected[i]) { dup = true; break; }
                 if (!dup && mn < CL_SelectionLimit())
                     merged[mn++] = selected[i];
             }
             num = mn;
-            memcpy(selected, merged, sizeof(DWORD) * mn);
+            memcpy(selected, merged, sizeof(uint32_t) * mn);
         }
         CL_ApplySelection(selected, num);
     }
@@ -896,11 +896,11 @@ void IN_SelectUp(void) {
 /* `zoom <delta>` — bound to MWHEELUP/MWHEELDOWN. Negative delta zooms out.
  * Clamps with camera_min_distance / camera_max_distance when max > min. */
 static void CL_Zoom_f(void) {
-    FLOAT steps = Cmd_Argc() > 1 ? (FLOAT)atof(Cmd_Argv(1)) : 1.0f;
-    FLOAT speed = Cvar_Value("zoom_speed", 1.0f);
-    FLOAT min_dist = Cvar_Value("camera_min_distance", 0.0f);
-    FLOAT max_dist = Cvar_Value("camera_max_distance", 0.0f);
-    FLOAT dist = cl.viewDef.camerastate[0].distance - steps * speed;
+    float steps = Cmd_Argc() > 1 ? (float)atof(Cmd_Argv(1)) : 1.0f;
+    float speed = Cvar_Value("zoom_speed", 1.0f);
+    float min_dist = Cvar_Value("camera_min_distance", 0.0f);
+    float max_dist = Cvar_Value("camera_max_distance", 0.0f);
+    float dist = cl.viewDef.camerastate[0].distance - steps * speed;
     if (!CL_GameplayInputReady() || CL_MouseOverGameplayUI()) return;
 
     if (max_dist > min_dist)
@@ -909,7 +909,7 @@ static void CL_Zoom_f(void) {
 }
 
 void CL_ForwardToServer_f(void) {
-    extern LPCSTR current_command;
+    extern cstring_t current_command;
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     SZ_Printf(&cls.netchan.message, "%s", current_command+4);
 }
@@ -944,7 +944,7 @@ void CL_InitInput(void) {
     Cvar_Get("cl_camera_max_pitch", "85", 0);
     Cvar_Get("cl_click_threshold", "10", 0);
     /* Old configs store pitch as wrapped negative degrees; convert the interval once at startup. */
-    FLOAT lo = Cvar_Value("cl_camera_min_pitch", -85), hi = Cvar_Value("cl_camera_max_pitch", 85);
+    float lo = Cvar_Value("cl_camera_min_pitch", -85), hi = Cvar_Value("cl_camera_max_pitch", 85);
     if (lo > 180 || hi > 180) {
         if (lo > 180) lo = 360 - lo;
         if (hi > 180) hi = 360 - hi;
@@ -957,7 +957,7 @@ void CL_InitInput(void) {
 #ifdef BZ_TESTS
 #include "shared/test.h"
 void CL_ParseLayout(LPSIZEBUF msg);
-static DWORD pan_terrain, pan_plane;
+static uint32_t pan_terrain, pan_plane;
 static bool CL_TestTerrain(viewDef_t const *view, float x, float y, LPVECTOR3 point) {
     (void)view; (void)x; (void)y;
     pan_terrain++; *point = (VECTOR3){ 1, 2, 3 }; return true;
@@ -966,10 +966,10 @@ static bool CL_TestPlane(viewDef_t const *view, float x, float y, LPVECTOR3 poin
     (void)view; (void)x; (void)y;
     pan_plane++; *point = (VECTOR3){ 4, 5, 6 }; return true;
 }
-static bool CL_TestSmartEntity(viewDef_t const *view, float x, float y, LPDWORD number) {
+static bool CL_TestSmartEntity(viewDef_t const *view, float x, float y, uint32_t * number) {
     (void)view; (void)x; (void)y; *number = 42; return true;
 }
-static bool CL_TestSelectEntity(viewDef_t const *view, float x, float y, LPDWORD number) {
+static bool CL_TestSelectEntity(viewDef_t const *view, float x, float y, uint32_t * number) {
     (void)view; (void)x; (void)y; *number = 7; return true;
 }
 static bool CL_TestSmartLocation(viewDef_t const *view, float x, float y, LPVECTOR3 point) {
@@ -981,19 +981,19 @@ static bool CL_TestNoLocation(viewDef_t const *view, float x, float y, LPVECTOR3
 static bool CL_TestMinimap(float x, float y, LPVECTOR2 point) {
     (void)y; *point = (VECTOR2){ 300, 400 }; return x >= 0 && x <= 100 && y >= 0 && y <= 100;
 }
-static RECT same_type_rect;
-static DWORD CL_TestEntitiesInRect(viewDef_t const *view, LPCRECT rect, DWORD max, LPDWORD array) {
+static rect_t same_type_rect;
+static uint32_t CL_TestEntitiesInRect(viewDef_t const *view, rect_t const * rect, uint32_t max, uint32_t * array) {
     (void)view;
     same_type_rect = *rect;
     T_ASSERT(max >= 3);
     array[0] = 7; array[1] = 8; array[2] = 9;
     return 3;
 }
-static BOOL CL_TestCameraUsesTerrainHeight(void) { return false; }
+static bool CL_TestCameraUsesTerrainHeight(void) { return false; }
 static size2_t CL_TestWindowSize(void) { return (size2_t){ 1024, 768 }; }
 
 static int smart_trace_order;
-static bool CL_TestSmartEntityOrder(viewDef_t const *view, float x, float y, LPDWORD number) {
+static bool CL_TestSmartEntityOrder(viewDef_t const *view, float x, float y, uint32_t * number) {
     (void)view; (void)x; (void)y; smart_trace_order = 1; *number = 42; return true;
 }
 static bool CL_TestSmartLocationOrder(viewDef_t const *view, float x, float y, LPVECTOR3 point) {
@@ -1003,14 +1003,14 @@ static bool CL_TestSmartLocationOrder(viewDef_t const *view, float x, float y, L
 /* Exercise the wire command without letting transient input state leak into later suites. */
 
 TEST(client_input, same_type_selection_click_paths_use_visible_matching_candidates) {
-    BYTE data[256];
+    uint8_t data[256];
     __typeof__(input) old_input = input;
     __typeof__(cl.selection) old_sel = cl.selection;
     sizeBuf_t old_msg = cls.netchan.message;
     refExport_t saved = re;
     viewDef_t old_view = cl.viewDef;
-    DWORD old_time = cl.time;
-    DWORD old_class[3] = { cl.ents[7].current.class_id, cl.ents[8].current.class_id,
+    uint32_t old_time = cl.time;
+    uint32_t old_class[3] = { cl.ents[7].current.class_id, cl.ents[8].current.class_id,
                            cl.ents[9].current.class_id };
     int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
     int old_limit = Cvar_Integer("cl_selection_limit", 64);
@@ -1023,7 +1023,7 @@ TEST(client_input, same_type_selection_click_paths_use_visible_matching_candidat
     cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
     input = (__typeof__(input)){ .focus = true };
     Cvar_Set("cl_selection_limit", "64"); Cvar_Set("cl_same_type_select", "1");
-    cl.viewDef.viewport = (RECT){ .x = 0.1f, .y = 0.2f, .w = 0.5f, .h = 0.6f };
+    cl.viewDef.viewport = (rect_t){ .x = 0.1f, .y = 0.2f, .w = 0.5f, .h = 0.6f };
     cl.ents[7].current.class_id = 0x11111111u;
     cl.ents[8].current.class_id = 0x11111111u;
     cl.ents[9].current.class_id = 0x22222222u;
@@ -1031,14 +1031,14 @@ TEST(client_input, same_type_selection_click_paths_use_visible_matching_candidat
     /* First ordinary click establishes the double-click anchor. */
     SDL_SetModState(KMOD_NONE); cl.time = 1000;
     input.select = true; cl.selection.in_progress = true;
-    cl.selection.rect = (RECT){ .x = 200, .y = 200, .w = 0, .h = 0 };
+    cl.selection.rect = (rect_t){ .x = 200, .y = 200, .w = 0, .h = 0 };
     SZ_Init(&cls.netchan.message, data, sizeof(data)); IN_SelectUp();
     T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
     MSG_ReadString(&cls.netchan.message, command); T_STREQ(command, "select 7");
 
     /* A second click inside the 500 ms window expands to same-type units. */
     cl.time = 1200; input.select = true; cl.selection.in_progress = true;
-    cl.selection.rect = (RECT){ .x = 200, .y = 200, .w = 0, .h = 0 };
+    cl.selection.rect = (rect_t){ .x = 200, .y = 200, .w = 0, .h = 0 };
     SZ_Init(&cls.netchan.message, data, sizeof(data)); IN_SelectUp();
     T_FEQ(same_type_rect.x, 102.4f, 0.01f); T_FEQ(same_type_rect.y, 153.6f, 0.01f);
     T_FEQ(same_type_rect.w, 512.0f, 0.01f); T_FEQ(same_type_rect.h, 460.8f, 0.01f);
@@ -1048,7 +1048,7 @@ TEST(client_input, same_type_selection_click_paths_use_visible_matching_candidat
     /* Ctrl+click takes the same path without needing a previous click. */
     CL_ResetSelectClickChain(); SDL_SetModState(KMOD_LCTRL); cl.time = 2000;
     input.select = true; cl.selection.in_progress = true;
-    cl.selection.rect = (RECT){ .x = 200, .y = 200, .w = 0, .h = 0 };
+    cl.selection.rect = (rect_t){ .x = 200, .y = 200, .w = 0, .h = 0 };
     SZ_Init(&cls.netchan.message, data, sizeof(data)); IN_SelectUp();
     T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
     MSG_ReadString(&cls.netchan.message, command); T_STREQ(command, "select 7 sametype 8");
@@ -1058,7 +1058,7 @@ TEST(client_input, same_type_selection_click_paths_use_visible_matching_candidat
      * same-type Shift semantics in the shared client. */
     CL_ResetSelectClickChain(); SDL_SetModState(KMOD_LCTRL | KMOD_LSHIFT); cl.time = 2200;
     input.select = true; cl.selection.in_progress = true;
-    cl.selection.rect = (RECT){ .x = 200, .y = 200, .w = 0, .h = 0 };
+    cl.selection.rect = (rect_t){ .x = 200, .y = 200, .w = 0, .h = 0 };
     SZ_Init(&cls.netchan.message, data, sizeof(data)); IN_SelectUp();
     T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
     MSG_ReadString(&cls.netchan.message, command); T_STREQ(command, "select 7 queue");
@@ -1073,12 +1073,12 @@ TEST(client_input, same_type_selection_click_paths_use_visible_matching_candidat
 }
 
 TEST(client_input, final_shift_release_notifies_game_order_queue) {
-    BYTE data[128];
+    uint8_t data[128];
     sizeBuf_t old_msg = cls.netchan.message;
     int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
-    BOOL old_focus = input.focus;
+    bool old_focus = input.focus;
     SDL_Keymod old_mod = SDL_GetModState();
-    LPCSTR release_command = CL_GameOrderQueueReleaseCommand();
+    cstring_t release_command = CL_GameOrderQueueReleaseCommand();
     char command[64];
 
     cls.state = ca_active;
@@ -1114,7 +1114,7 @@ TEST(client_input, final_shift_release_notifies_game_order_queue) {
 }
 
 static void CL_TestOrderQueueReleaseMessage(void) {
-    LPCSTR command = CL_GameOrderQueueReleaseCommand();
+    cstring_t command = CL_GameOrderQueueReleaseCommand();
     char text[64];
     if (!command) { T_EQ(cls.netchan.message.cursize, 0); return; }
     T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
@@ -1123,7 +1123,7 @@ static void CL_TestOrderQueueReleaseMessage(void) {
 }
 
 TEST(client_input, shift_release_reaches_game_when_console_owns_keyup) {
-    BYTE data[128];
+    uint8_t data[128];
     struct client_state *old_cl = MemAlloc(sizeof(cl));
     struct client_static old_cls = cls;
     __typeof__(input) old_input = input;
@@ -1145,7 +1145,7 @@ TEST(client_input, shift_release_reaches_game_when_console_owns_keyup) {
 }
 
 TEST(client_input, focus_loss_releases_game_order_queue) {
-    BYTE data[128];
+    uint8_t data[128];
     struct client_state *old_cl = MemAlloc(sizeof(cl));
     struct client_static old_cls = cls;
     __typeof__(input) old_input = input;
@@ -1168,12 +1168,12 @@ TEST(client_input, focus_loss_releases_game_order_queue) {
 }
 
 TEST(client_input, smart_entity_click_preserves_ground_point) {
-    BYTE data[256];
+    uint8_t data[256];
     __typeof__(cl.selection) old_sel = cl.selection;
     sizeBuf_t old_msg = cls.netchan.message;
     refExport_t saved = re;
     int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
-    BOOL old_focus = input.focus;
+    bool old_focus = input.focus;
     SDL_Keymod old_mod = SDL_GetModState();
     char command[128];
 
@@ -1202,11 +1202,11 @@ TEST(client_input, smart_entity_click_preserves_ground_point) {
 }
 
 TEST(client_input, smart_entity_trace_precedes_ground_trace) {
-    BYTE data[256];
+    uint8_t data[256];
     refExport_t saved = re;
     sizeBuf_t old_msg = cls.netchan.message;
     int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
-    BOOL old_focus = input.focus;
+    bool old_focus = input.focus;
 
     re.TraceEntity = CL_TestSmartEntityOrder; re.TraceLocation = CL_TestSmartLocationOrder;
     re.GetWindowSize = CL_TestWindowSize;
@@ -1220,7 +1220,7 @@ TEST(client_input, smart_entity_trace_precedes_ground_trace) {
 }
 
 /* A remote client owns its collision world; input tests cannot borrow a previous game-module fixture. */
-static void CL_TestWorldBounds(BOOL set) {
+static void CL_TestWorldBounds(bool set) {
 #ifdef BZ_CLIENT_WORLD
     extern void CM_SetupTestWorldBounds(LPCBOX2 bounds);
     BOX2 bounds = { .min = { 0, 0 }, .max = { 1024, 768 } };
@@ -1231,14 +1231,14 @@ static void CL_TestWorldBounds(BOOL set) {
 }
 
 TEST(client_input, quick_arrow_press_is_sampled_before_release) {
-    BYTE data[256];
+    uint8_t data[256];
     struct client_state old_cl = cl;
     struct client_static old_cls = cls;
     refExport_t saved = re;
     __typeof__(input) old_input = input;
     int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
-    FLOAT old_speed = Cvar_Value("cl_camera_scroll_speed", 0);
-    BOOL add_down = !Cmd_Exists("+camwest"), add_up = !Cmd_Exists("-camwest");
+    float old_speed = Cvar_Value("cl_camera_scroll_speed", 0);
+    bool add_down = !Cmd_Exists("+camwest"), add_up = !Cmd_Exists("-camwest");
     UINAME old_bind;
 
     CL_TestWorldBounds(true);
@@ -1270,7 +1270,7 @@ TEST(client_input, quick_arrow_press_is_sampled_before_release) {
 /* Minimap focus is shared input: selection capacity cannot change its packet or drag lifecycle. */
 TEST(client_input, minimap_focus_and_release_are_selection_independent) {
     CL_TestWorldBounds(true);
-    BYTE data[256];
+    uint8_t data[256];
     __typeof__(cl.selection) old_sel = cl.selection;
     __typeof__(cl.camera_prediction) old_pred = cl.camera_prediction;
     __typeof__(input) old_input = input;
@@ -1327,9 +1327,9 @@ TEST(client_input, minimap_focus_and_release_are_selection_independent) {
     CL_TestWorldBounds(false);
 }
 
-static DWORD hover_trace_calls;
+static uint32_t hover_trace_calls;
 static VECTOR2 hover_trace_point;
-static bool CL_TestHoverEntity(viewDef_t const *view, float x, float y, LPDWORD number) {
+static bool CL_TestHoverEntity(viewDef_t const *view, float x, float y, uint32_t * number) {
     (void)view; hover_trace_calls++; hover_trace_point = (VECTOR2){ x, y }; *number = 7; return true;
 }
 
@@ -1339,8 +1339,8 @@ TEST(client_input, hover_trace_coalesces_mouse_motion_in_input_pump) {
     refExport_t saved = re;
     __typeof__(input) old_input = input;
     mouseEvent_t old_mouse = mouse;
-    FLOAT old_hover_only = Cvar_Value("cl_hover_health_only", 1);
-    FLOAT old_context_cursor = Cvar_Value("cl_context_cursor", 0);
+    float old_hover_only = Cvar_Value("cl_hover_health_only", 1);
+    float old_context_cursor = Cvar_Value("cl_context_cursor", 0);
     SDL_Event events[] = {
         { .motion = { .type = SDL_MOUSEMOTION, .x = 101, .y = 202 } },
         { .motion = { .type = SDL_MOUSEMOTION, .x = 303, .y = 404 } },
@@ -1365,12 +1365,12 @@ TEST(client_input, hover_trace_coalesces_mouse_motion_in_input_pump) {
 }
 
 /* Keep the SDL queue, key binding, layout hit test and command buffer in the regression path. */
-static DWORD test_menu_mouse, test_menu_text, test_menu_keys;
-static BOOL CL_TestMenuMouse(menuMouseEvent_t event, int x, int y, int32_t param) {
+static uint32_t test_menu_mouse, test_menu_text, test_menu_keys;
+static bool CL_TestMenuMouse(menuMouseEvent_t event, int x, int y, int32_t param) {
     (void)event; (void)x; (void)y; (void)param; test_menu_mouse++; return false;
 }
-static void CL_TestMenuText(LPCSTR text) { (void)text; test_menu_text++; }
-static void CL_TestMenuKey(int key, BOOL down, DWORD time) { (void)key; (void)down; (void)time; test_menu_keys++; }
+static void CL_TestMenuText(cstring_t text) { (void)text; test_menu_text++; }
+static void CL_TestMenuKey(int key, bool down, uint32_t time) { (void)key; (void)down; (void)time; test_menu_keys++; }
 TEST(client_input, menu_sdl_input_is_exclusive_with_world_presentation) {
     struct client_state *old = MemAlloc(sizeof(cl));
     struct client_static old_cls = cls;
@@ -1421,13 +1421,13 @@ TEST(client_input, minimap_sdl_click_drag_release_over_hud) {
     mouseEvent_t old_mouse = mouse;
     SDL_Keymod old_mod = SDL_GetModState();
     UINAME binding;
-    BYTE data[512], packet[512];
+    uint8_t data[512], packet[512];
     sizeBuf_t msg;
     UIFRAME empty = { 0 }, frame = { .number = 1, .flags.type = FT_TEXTURE,
         .size = { UI_BASE_WIDTH, UI_BASE_HEIGHT }, .tooltip = "Minimap" };
     SDL_Event event = { .button = { .type = SDL_MOUSEBUTTONDOWN, .button = SDL_BUTTON_LEFT, .x = 10, .y = 20 } };
-    FLOAT old_edge = Cvar_Value("cl_camera_edge_scroll", 0), old_cursor = Cvar_Value("cl_context_cursor", 0);
-    BOOL add_down = !Cmd_Exists("+select"), add_up = !Cmd_Exists("-select");
+    float old_edge = Cvar_Value("cl_camera_edge_scroll", 0), old_cursor = Cvar_Value("cl_context_cursor", 0);
+    bool add_down = !Cmd_Exists("+select"), add_up = !Cmd_Exists("-select");
     INPUTCMD cmd = { 0 };
 
     memcpy(old_cl, &cl, sizeof(cl));
@@ -1499,7 +1499,7 @@ TEST(client_input, minimap_sdl_click_drag_release_over_hud) {
 
 TEST(client_input, pan_uses_configured_surface) {
     refExport_t saved = re;
-    FLOAT old = Cvar_Value("cl_camera_pan_plane", 0);
+    float old = Cvar_Value("cl_camera_pan_plane", 0);
     VECTOR3 point;
     re.TraceLocation = CL_TestTerrain;
     re.TraceCameraPlane = CL_TestPlane;
@@ -1518,7 +1518,7 @@ TEST(client_input, pan_uses_configured_surface) {
 #ifdef BZ_TESTS
 /* Losing gameplay ownership sends a release once and terminates every held control. */
 TEST(client_input, modal_releases_movement_and_drags) {
-    BYTE data[64];
+    uint8_t data[64];
     sizeBuf_t old_msg = cls.netchan.message;
     int old_state = cls.state, old_dest = cls.key_dest;
     INPUTCMD cmd;
@@ -1533,7 +1533,7 @@ TEST(client_input, modal_releases_movement_and_drags) {
     T_EQ(cmd.action, BZ_INPUT_MOVE); T_EQ(cmd.move.buttons, 0);
     T_ASSERT(!input.look && !input.select && !camera_drag.active && !smart_click_active && !cam_west);
     T_ASSERT(!cl.selection.in_progress);
-    DWORD size = cls.netchan.message.cursize;
+    uint32_t size = cls.netchan.message.cursize;
     CL_InputFrame(); T_EQ(cls.netchan.message.cursize, size);
     cls.netchan.message = old_msg; cls.state = old_state; cls.key_dest = old_dest;
 }

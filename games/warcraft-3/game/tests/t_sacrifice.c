@@ -6,11 +6,11 @@
 #define ID_ALAM MAKEFOURCC('A','l','a','m')
 #define ID_SHADE MAKEFOURCC('u','s','h','d')
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 void G_RunEntity(LPEDICT);
-void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells);
+void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void CM_SetupTestWorldBounds(LPCBOX2 bounds);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
@@ -42,7 +42,7 @@ typedef struct {
 
 static void sac_setup(SACFIX *fix) {
     enum { CELLS = 64, FOOT_W = 16, FOOT_H = 16 };
-    BYTE pathmap[CELLS * CELLS] = {0};
+    uint8_t pathmap[CELLS * CELLS] = {0};
     size_t const pathtex_size = sizeof(pathTex_t) + FOOT_W * FOOT_H * sizeof(COLOR32);
     reset_entities(); setup_test_world(); level.time = 1000;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
@@ -223,12 +223,12 @@ TEST(wc3_spell, sacrifice_worker_ownership_change_cancels_queue) {
 TEST(wc3_spell, sacrifice_reused_slot_not_consumed) {
     SACFIX fix;
     LPEDICT result, occupant;
-    DWORD slot;
+    uint32_t slot;
     sac_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.acolyte));
     result = fix.pit->build;
     T_NOT_NULL(result);
-    slot = (DWORD)(fix.acolyte - g_edicts);
+    slot = (uint32_t)(fix.acolyte - g_edicts);
     G_FreeEdict(fix.acolyte);
     occupant = alloc_test_unit(MAKEFOURCC('u','g','h','o'), 64, 0);
     occupant->s.player = 0;
@@ -277,7 +277,7 @@ TEST(wc3_spell, sacrifice_blocked_placement_preserves_worker) {
 /* Save/load resumes the queued sacrifice: worker linkage survives and the
  * scheduler still completes after load. */
 TEST(wc3_save, sacrifice_queue_round_trips_then_completes) {
-    LPCSTR filename = "/tmp/openwarcraft3-sacrifice-queue.bin";
+    cstring_t filename = "/tmp/openwarcraft3-sacrifice-queue.bin";
     SACFIX fix;
     LPEDICT result;
     UnitBalance_t result_balance;
@@ -309,7 +309,7 @@ TEST(wc3_save, sacrifice_queue_round_trips_then_completes) {
 
 /* Save/load preserves cancellation: the restored worker is released. */
 TEST(wc3_save, sacrifice_queue_round_trips_then_cancels) {
-    LPCSTR filename = "/tmp/openwarcraft3-sacrifice-cancel.bin";
+    cstring_t filename = "/tmp/openwarcraft3-sacrifice-cancel.bin";
     SACFIX fix;
     LPEDICT result;
     sac_setup(&fix);

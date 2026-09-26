@@ -21,17 +21,17 @@ static PATHSTR last_load_name;
 static PATHSTR last_load_map;
 static PATHSTR last_connect_host;
 static char last_forwarded[1024];
-static DWORD forwarded_count;
+static uint32_t forwarded_count;
 static bool command_tests_initialized;
 static bool late_command_called;
 static bool save_map_readable;
 static bool load_game_ok;
 static unsigned short last_connect_port;
 
-extern BOOL cl_screenshot_pending;
-extern DWORD cl_screenshot_delay;
+extern bool cl_screenshot_pending;
+extern uint32_t cl_screenshot_delay;
 void CL_Screenshot_f(void);
-BOOL CL_ScreenshotReady(void);
+bool CL_ScreenshotReady(void);
 
 void Key_Init(void) {
 }
@@ -40,7 +40,7 @@ void Key_WriteBindings(FILE *file) {
     (void)file;
 }
 
-void Cmd_ForwardToServer(LPCSTR text) {
+void Cmd_ForwardToServer(cstring_t text) {
     forwarded_count++;
     snprintf(last_forwarded, sizeof(last_forwarded), "%s", text ? text : "");
 }
@@ -48,30 +48,30 @@ void Cmd_ForwardToServer(LPCSTR text) {
 void CL_SetGameplayBindings(void) {
 }
 
-void CL_Connect(LPCSTR host, unsigned short port) {
+void CL_Connect(cstring_t host, unsigned short port) {
     snprintf(last_connect_host, sizeof(last_connect_host), "%s", host ? host : "");
     last_connect_port = port;
 }
 
-void CL_BeginLoadingMap(LPCSTR mapName) {
+void CL_BeginLoadingMap(cstring_t mapName) {
     snprintf(last_loading_map, sizeof(last_loading_map), "%s", mapName ? mapName : "");
 }
 
 void CL_Shutdown(void) {
 }
 
-void SV_Map(LPCSTR pFilename) {
+void SV_Map(cstring_t pFilename) {
     snprintf(last_sv_map, sizeof(last_sv_map), "%s", pFilename ? pFilename : "");
 }
 
-BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size) {
+bool SV_GetSaveMap(cstring_t name, string_t map, uint32_t map_size) {
     (void)name;
     if (!save_map_readable) return false;
     strlcpy(map, "Maps\\Campaign\\Human02.w3m", map_size);
     return true;
 }
 
-BOOL SV_LoadGame(LPCSTR name, LPCSTR map) {
+bool SV_LoadGame(cstring_t name, cstring_t map) {
     snprintf(last_load_name, sizeof(last_load_name), "%s", name ? name : "");
     snprintf(last_load_map, sizeof(last_load_map), "%s", map ? map : "");
     return load_game_ok;
@@ -83,7 +83,7 @@ void SV_Shutdown(void) {
 void Sys_Quit(void) {
 }
 
-void PF_Sleep(DWORD msec) {
+void PF_Sleep(uint32_t msec) {
     (void)msec;
 }
 
@@ -108,7 +108,7 @@ static void setup_command_tests(void) {
         return;
     }
 
-    LPCSTR argv[] = { "test_commands", "-config", "" };
+    cstring_t argv[] = { "test_commands", "-config", "" };
 
     Com_Init(3, argv);
     T_ASSERT(FS_AddArchive("build/tests/tests.mpq") != NULL);
@@ -190,7 +190,7 @@ TEST(commands, save_list_returns_newest_sav_basenames_first) {
     PATHSTR older, newer, ignored;
     char list[256] = { 0 };
     FILE *file;
-    LPCSTR second;
+    cstring_t second;
 #ifdef _WIN32
     struct _utimbuf times;
 #else
@@ -268,8 +268,8 @@ TEST(commands, config_loader_reports_missing_files) {
 }
 
 TEST(commands, share_authored_ui_assets_are_readable) {
-    DWORD size = 0;
-    HANDLE data;
+    uint32_t size = 0;
+    handle_t data;
 
     setup_command_tests();
     data = FS_ReadFile("UI\\FrameDef\\OpenWarcraft3\\CampaignList.fdf", &size);
@@ -304,7 +304,7 @@ TEST(commands, cursor_defaults_to_native_sdl) {
 }
 
 TEST(commands, cursor_allows_game_authored_override) {
-    LPCSTR argv[] = { "test_commands", "+r_cursor", "1" };
+    cstring_t argv[] = { "test_commands", "+r_cursor", "1" };
 
     setup_command_tests();
     COM_InitArgv(3, argv);
@@ -313,7 +313,7 @@ TEST(commands, cursor_allows_game_authored_override) {
 }
 
 TEST(commands, data_command_line_sets_data_cvar) {
-    LPCSTR argv[] = { "test_commands", "-data", "tests/data dir" };
+    cstring_t argv[] = { "test_commands", "-data", "tests/data dir" };
 
     setup_command_tests();
     Cvar_ApplyCommandLine(3, argv);
@@ -322,7 +322,7 @@ TEST(commands, data_command_line_sets_data_cvar) {
 }
 
 TEST(commands, tft_command_line_exposes_expansion_archives) {
-    LPCSTR argv[] = { "test_commands", "-tft" };
+    cstring_t argv[] = { "test_commands", "-tft" };
 
     setup_command_tests();
     Cvar_Set("fs_expansion", "0");
@@ -332,7 +332,7 @@ TEST(commands, tft_command_line_exposes_expansion_archives) {
 }
 
 TEST(commands, roc_command_line_hides_expansion_archives) {
-    LPCSTR argv[] = { "test_commands", "-roc" };
+    cstring_t argv[] = { "test_commands", "-roc" };
 
     setup_command_tests();
     Cvar_Set("fs_expansion", "1");
@@ -342,7 +342,7 @@ TEST(commands, roc_command_line_hides_expansion_archives) {
 }
 
 TEST(commands, plus_tft_compatibility_flag_selects_expansion_early) {
-    LPCSTR argv[] = { "test_commands", "+tft" };
+    cstring_t argv[] = { "test_commands", "+tft" };
 
     setup_command_tests();
     reset_map_handoff();
@@ -359,7 +359,7 @@ TEST(commands, plus_tft_compatibility_flag_selects_expansion_early) {
 }
 
 TEST(commands, plus_roc_compatibility_flag_selects_base_game_early) {
-    LPCSTR argv[] = { "test_commands", "+roc" };
+    cstring_t argv[] = { "test_commands", "+roc" };
 
     setup_command_tests();
     reset_map_handoff();
@@ -397,7 +397,7 @@ TEST(commands, roc_uses_base_ai_scripts_without_dropping_localized_data) {
 }
 
 TEST(commands, dash_cvars_are_not_command_line_cvars) {
-    LPCSTR argv[] = { "test_commands", "-scr_showfps=0" };
+    cstring_t argv[] = { "test_commands", "-scr_showfps=0" };
 
     setup_command_tests();
     Cvar_Set("scr_showfps", "1");
@@ -407,8 +407,8 @@ TEST(commands, dash_cvars_are_not_command_line_cvars) {
 }
 
 TEST(commands, display_modes_require_explicit_flag) {
-    LPCSTR args[] = { "test_commands", "-vid_modes" };
-    LPCSTR other[] = { "test_commands", "-vid_modes_extra" };
+    cstring_t args[] = { "test_commands", "-vid_modes" };
+    cstring_t other[] = { "test_commands", "-vid_modes_extra" };
 
     setup_command_tests();
     T_STREQ(Cvar_String("vid_modes", NULL), "0");
@@ -420,8 +420,8 @@ TEST(commands, display_modes_require_explicit_flag) {
 }
 
 TEST(commands, fast_forward_requires_explicit_flag) {
-    LPCSTR args[] = { "test_commands", "-com_fast_forward" };
-    LPCSTR other[] = { "test_commands", "-com_fast_forward_extra" };
+    cstring_t args[] = { "test_commands", "-com_fast_forward" };
+    cstring_t other[] = { "test_commands", "-com_fast_forward_extra" };
 
     setup_command_tests();
     T_STREQ(Cvar_String("com_fast_forward", NULL), "0");
@@ -433,7 +433,7 @@ TEST(commands, fast_forward_requires_explicit_flag) {
 }
 
 TEST(commands, plus_cvars_apply_immediately) {
-    LPCSTR argv[] = { "test_commands", "+game_port", "28010", "+scr_showfps", "0" };
+    cstring_t argv[] = { "test_commands", "+game_port", "28010", "+scr_showfps", "0" };
 
     setup_command_tests();
     Cvar_Set("game_port", PORT_SERVER_STRING);
@@ -453,7 +453,7 @@ TEST(commands, obsolete_r_module_is_ignored) {
 }
 
 TEST(commands, plus_map_is_early_launch_selector) {
-    LPCSTR argv[] = { "test_commands", "+map", "Human02" };
+    cstring_t argv[] = { "test_commands", "+map", "Human02" };
 
     setup_command_tests();
     Cvar_Set("map", "");
@@ -469,7 +469,7 @@ TEST(commands, plus_map_is_early_launch_selector) {
 }
 
 TEST(commands, remaining_plus_commands_run_late) {
-    LPCSTR argv[] = { "test_commands", "+test_late_command" };
+    cstring_t argv[] = { "test_commands", "+test_late_command" };
 
     setup_command_tests();
     if (!Cmd_Exists("test_late_command")) {
@@ -497,7 +497,7 @@ TEST(commands, screenshot_optional_delay_counts_rendered_frames) {
 }
 
 typedef struct {
-    DWORD count;
+    uint32_t count;
     bool human02;
     bool orc01;
     bool twin_w3m;
@@ -505,7 +505,7 @@ typedef struct {
     bool overlay;
 } mapListState_t;
 
-static void count_fixture_map(LPCSTR path, void *userData) {
+static void count_fixture_map(cstring_t path, void *userData) {
     mapListState_t *state = userData;
 
     state->count++;
@@ -611,18 +611,18 @@ TEST(commands, load_command_stops_when_save_map_is_unreadable) {
     T_STREQ(last_connect_host, "");
 }
 TEST(video_modes, invalid_index_uses_safe_default) {
-    T_EQ(video_mode_get(-1)->width, (DWORD)640); T_EQ(video_mode_get(99)->height, (DWORD)480);
-    T_EQ(video_mode_get(2)->width, (DWORD)1024); T_EQ(video_mode_get(2)->height, (DWORD)768);
+    T_EQ(video_mode_get(-1)->width, (uint32_t)640); T_EQ(video_mode_get(99)->height, (uint32_t)480);
+    T_EQ(video_mode_get(2)->width, (uint32_t)1024); T_EQ(video_mode_get(2)->height, (uint32_t)768);
 }
 
 TEST(video_modes, steam_deck_mode_is_appended_without_renumbering_existing_modes) {
-    DWORD steam_deck_mode = video_mode_count() - 1;
+    uint32_t steam_deck_mode = video_mode_count() - 1;
 
-    T_EQ(video_mode_count(), (DWORD)14);
-    T_EQ(video_mode_get(5)->width, (DWORD)1280);
-    T_EQ(video_mode_get(5)->height, (DWORD)960);
-    T_EQ(video_mode_get((int)steam_deck_mode)->width, (DWORD)1280);
-    T_EQ(video_mode_get((int)steam_deck_mode)->height, (DWORD)800);
+    T_EQ(video_mode_count(), (uint32_t)14);
+    T_EQ(video_mode_get(5)->width, (uint32_t)1280);
+    T_EQ(video_mode_get(5)->height, (uint32_t)960);
+    T_EQ(video_mode_get((int)steam_deck_mode)->width, (uint32_t)1280);
+    T_EQ(video_mode_get((int)steam_deck_mode)->height, (uint32_t)800);
 }
 
 TEST(video_modes, wc3_defaults_to_native_fullscreen_with_vid_mode_fallback) {
@@ -640,7 +640,7 @@ TEST(video_modes, wc3_defaults_to_native_fullscreen_with_vid_mode_fallback) {
 }
 
 TEST(video_modes, wow_defaults_allow_explicit_override) {
-    LPCSTR args[] = { "test_commands", "+set", "vid_mode", "0" };
+    cstring_t args[] = { "test_commands", "+set", "vid_mode", "0" };
 
     setup_command_tests();
     Cvar_Set("vid_mode", "0");

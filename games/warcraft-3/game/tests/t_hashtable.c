@@ -6,7 +6,7 @@
 #include "../g_local.h"
 #include "jass/jass.h"
 
-BOOL run_test_jass(LPCSTR src);
+bool run_test_jass(cstring_t src);
 
 TEST(wc3_api, hashtable_scalar_round_trip_and_missing_keys) {
     T_ASSERT(run_test_jass(
@@ -137,7 +137,7 @@ TEST(wc3_api, hashtable_player_location_and_gethandleid_stable) {
 
 /* Live hashtable globals must round-trip scalars and nested host handles through WriteGame/ReadGame. */
 TEST(wc3_api, hashtable_save_load_scalars_and_unit) {
-    LPCSTR path = "/tmp/openwarcraft3-wc3-hashtable-save-test.bin";
+    cstring_t path = "/tmp/openwarcraft3-wc3-hashtable-save-test.bin";
     remove(path);
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -164,7 +164,7 @@ TEST(wc3_api, hashtable_save_load_scalars_and_unit) {
 }
 
 TEST(wc3_api, hashtable_save_load_nested_host_handles) {
-    LPCSTR path = "/tmp/openwarcraft3-wc3-hashtable-nested-save-test.bin";
+    cstring_t path = "/tmp/openwarcraft3-wc3-hashtable-nested-save-test.bin";
     remove(path);
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -213,7 +213,7 @@ TEST(wc3_api, hashtable_save_load_nested_host_handles) {
 /* SV_Map runs main() then ReadGame. Script-created units are unused on the
  * baseline until edict records land; nested handles must wait for that restore. */
 TEST(wc3_api, hashtable_save_load_unit_survives_cleared_edicts) {
-    LPCSTR path = "/tmp/openwarcraft3-wc3-hashtable-cleared-edict-save-test.bin";
+    cstring_t path = "/tmp/openwarcraft3-wc3-hashtable-cleared-edict-save-test.bin";
     remove(path);
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -237,7 +237,7 @@ TEST(wc3_api, hashtable_save_load_unit_survives_cleared_edicts) {
 }
 
 TEST(wc3_api, hashtable_save_load_stale_unit_becomes_null) {
-    LPCSTR path = "/tmp/openwarcraft3-wc3-hashtable-stale-unit-save-test.bin";
+    cstring_t path = "/tmp/openwarcraft3-wc3-hashtable-stale-unit-save-test.bin";
     remove(path);
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -262,7 +262,7 @@ TEST(wc3_api, hashtable_save_load_stale_unit_becomes_null) {
 }
 
 TEST(wc3_api, hashtable_save_load_gethandleid_stable_slot) {
-    LPCSTR path = "/tmp/openwarcraft3-wc3-hashtable-handleid-save-test.bin";
+    cstring_t path = "/tmp/openwarcraft3-wc3-hashtable-handleid-save-test.bin";
     remove(path);
     T_ASSERT(run_test_jass(
         "globals\n"

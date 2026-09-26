@@ -1,7 +1,7 @@
 /* galaxy_cinematic.h — cinematic natives */
-static DWORD sc2_CinematicMode(LPJASS j) {
-    BOOL  enable = jass_checkboolean(j, 2);
-    FLOAT dur    = jass_checknumber(j, 3);
+static uint32_t sc2_CinematicMode(LPJASS j) {
+    bool  enable = jass_checkboolean(j, 2);
+    float dur    = jass_checknumber(j, 3);
 #ifdef SC2_DEBUG_CUTSCENE
     fprintf(stderr, "CinematicMode: enable=%d dur=%.1f\n", enable, dur);
 #endif
@@ -9,9 +9,9 @@ static DWORD sc2_CinematicMode(LPJASS j) {
     return jass_pushnull(j);
 }
 
-static DWORD sc2_CinematicFade(LPJASS j) {
-    BOOL  fadein = jass_checkboolean(j, 1);
-    FLOAT dur    = jass_checknumber(j, 2);
+static uint32_t sc2_CinematicFade(LPJASS j) {
+    bool  fadein = jass_checkboolean(j, 1);
+    float dur    = jass_checknumber(j, 2);
 #ifdef SC2_DEBUG_CUTSCENE
     fprintf(stderr, "CinematicFade: fadein=%d dur=%.1f\n", fadein, dur);
 #endif
@@ -19,6 +19,6 @@ static DWORD sc2_CinematicFade(LPJASS j) {
     return jass_pushnull(j);
 }
 
-static DWORD sc2_CinematicOverlay(LPJASS j)  { (void)j; return jass_pushnull(j); }
-static DWORD sc2_CinematicDataRun(LPJASS j)  { (void)j; return jass_pushnull(j); }
-static DWORD sc2_CinematicDataStop(LPJASS j) { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_CinematicOverlay(LPJASS j)  { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_CinematicDataRun(LPJASS j)  { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_CinematicDataStop(LPJASS j) { (void)j; return jass_pushnull(j); }

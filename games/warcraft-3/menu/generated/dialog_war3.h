@@ -21,8 +21,8 @@ typedef struct DialogWar3_s {
 } DialogWar3_t;
 
 
-static inline BOOL DialogWar3_Bind(DialogWar3_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool DialogWar3_Bind(DialogWar3_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -47,7 +47,7 @@ static inline BOOL DialogWar3_Bind(DialogWar3_t *out, LPFRAMEDEF bind_root) {
     return ok;
 }
 
-static inline BOOL DialogWar3_Load(DialogWar3_t *out) {
+static inline bool DialogWar3_Load(DialogWar3_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
            UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") &&

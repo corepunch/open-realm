@@ -2,10 +2,10 @@
 #include <string.h>
 
 int R_TrailAdvance(trail_t *trail, VECTOR3 above, VECTOR3 below, COLOR32 color,
-                   float lifespan, float rate, float gravity, DWORD now_ms, DWORD delta_ms)
+                   float lifespan, float rate, float gravity, uint32_t now_ms, uint32_t delta_ms)
 {
     int write, alive, e;
-    DWORD gap;
+    uint32_t gap;
     float dt;
 
     if (!trail) return 0;
@@ -56,12 +56,12 @@ static void R_TrailQuad(trailVert_t *out, VECTOR3 a, VECTOR3 b, VECTOR3 c, VECTO
     out[4] = (trailVert_t){ c, uv_c, cb }; out[5] = (trailVert_t){ d, uv_d, cb };
 }
 
-DWORD R_TrailStripVerts(trail_t const *trail, float lifespan, DWORD columns, DWORD rows, DWORD slot,
-                        trailVert_t *out, DWORD max)
+uint32_t R_TrailStripVerts(trail_t const *trail, float lifespan, uint32_t columns, uint32_t rows, uint32_t slot,
+                        trailVert_t *out, uint32_t max)
 {
     int alive, i, write;
     float cols, rows_f, cell_u, cell_v;
-    DWORD used = 0;
+    uint32_t used = 0;
 
     if (!trail || !out || trail->count < 2 || lifespan <= 0.0f) return 0;
     alive = trail->count;

@@ -1,19 +1,19 @@
 #include "g_sc2_local.h"
 
 /* SC2 edicts have no dynamic walkable surfaces; the shared router must not inspect WC3-only fields. */
-static BOOL entity_is_live_walkable_surface(edict_t const *ent) { (void)ent; return false; }
-static BYTE entity_dynamic_pathing_flags(edict_t const *ent) { (void)ent; return CM_PATHING_UNWALKABLE; }
-static BOOL entity_is_pathing_ignored(edict_t const *ent) { (void)ent; return false; }
+static bool entity_is_live_walkable_surface(edict_t const *ent) { (void)ent; return false; }
+static uint8_t entity_dynamic_pathing_flags(edict_t const *ent) { (void)ent; return CM_PATHING_UNWALKABLE; }
+static bool entity_is_pathing_ignored(edict_t const *ent) { (void)ent; return false; }
 /* SC2 has no bridges; identity transform. */
 static void entity_pathtex_transform(pathTexTransformParams_t const *params, pathTexTransform_t *transform) {
     if (params && params->pathtex && transform) *transform = MAKE(pathTexTransform_t,
         .width = params->pathtex->width, .height = params->pathtex->height, .turn = 0);
 }
 
-static inline HANDLE G_WorldReadFile(LPCSTR filename, LPDWORD size) { return gi.ReadFile(filename, size); }
-static inline HANDLE G_WorldMemAlloc(long size) { return gi.MemAlloc(size); }
-static inline void G_WorldMemFree(HANDLE mem) { gi.MemFree(mem); }
-static inline BOMStatus G_WorldTextRemoveBom(LPSTR buffer) {
+static inline handle_t G_WorldReadFile(cstring_t filename, uint32_t * size) { return gi.ReadFile(filename, size); }
+static inline handle_t G_WorldMemAlloc(long size) { return gi.MemAlloc(size); }
+static inline void G_WorldMemFree(handle_t mem) { gi.MemFree(mem); }
+static inline BOMStatus G_WorldTextRemoveBom(string_t buffer) {
 	size_t len;
 	if (!buffer) return INVALID_BOM;
 	len = strlen(buffer);

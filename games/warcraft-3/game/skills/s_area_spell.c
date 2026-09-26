@@ -4,26 +4,26 @@
 #define BLIZZARD_LEVEL_MASK   0x7fffffffu
 #define BLIZZARD_SHARD_DELAY_MS 800u
 
-static DWORD blizzard_level(LPCEDICT ent) {
-    DWORD const level = ent ? ent->variation & BLIZZARD_LEVEL_MASK : 0;
+static uint32_t blizzard_level(LPCEDICT ent) {
+    uint32_t const level = ent ? ent->variation & BLIZZARD_LEVEL_MASK : 0;
     return level ? level : 1;
 }
 
 typedef struct {
     LPEDICT caster;
     VECTOR2 direction;
-    FLOAT length, width;
+    float length, width;
 } shockwaveContext_t;
 
 /* Deal ent->damage to every enemy within ent->collision of ent.  maxtotal > 0
  * caps the combined damage of this burst (WC3 "Max Damage" / "Maximum Damage per
  * Wave"): when damage*targets would exceed it, the per-target damage is scaled
  * down so the total lands on the cap. */
-static void area_spell_damage(LPEDICT ent, FLOAT maxtotal) {
+static void area_spell_damage(LPEDICT ent, float maxtotal) {
     LPEDICT caster = ent->owner;
-    FLOAT radius = ent->collision;
-    FLOAT damage = (FLOAT)ent->damage;
-    DWORD ntargets = 0;
+    float radius = ent->collision;
+    float damage = (float)ent->damage;
+    uint32_t ntargets = 0;
 
 #define AREA_HITS(t) ((t)->inuse && (t) != caster && S_SpellIsAliveTarget(t) && \
                       S_SpellIsEnemy(caster, t) &&                              \
@@ -33,17 +33,17 @@ static void area_spell_damage(LPEDICT ent, FLOAT maxtotal) {
         FILTER_EDICTS(target, AREA_HITS(target)) {
             ntargets++;
         }
-        if (ntargets > 0 && damage * (FLOAT)ntargets > maxtotal) {
-            damage = MAX(1.0f, maxtotal / (FLOAT)ntargets);
+        if (ntargets > 0 && damage * (float)ntargets > maxtotal) {
+            damage = MAX(1.0f, maxtotal / (float)ntargets);
         }
     }
     FILTER_EDICTS(target, AREA_HITS(target)) {
-        S_SpellDamage(target, caster, (DWORD)damage);
+        S_SpellDamage(target, caster, (uint32_t)damage);
     }
 #undef AREA_HITS
 }
 
-static BOOL blizzard_hits(LPEDICT ent, LPEDICT target) {
+static bool blizzard_hits(LPEDICT ent, LPEDICT target) {
     LPEDICT caster = ent->owner;
     return target->inuse && target != caster && S_SpellIsAliveTarget(target) &&
            S_SpellAllowsTarget(ent->class_id, caster, target) &&
@@ -55,34 +55,34 @@ static BOOL blizzard_hits(LPEDICT ent, LPEDICT target) {
  * spells because the building multiplier is specific to Blizzard's fields. */
 static void blizzard_wave_damage(LPEDICT ent) {
     LPEDICT caster = ent->owner;
-    DWORD level = blizzard_level(ent), ntargets = 0;
-    FLOAT damage = (FLOAT)ent->damage;
-    FLOAT maxtotal = ent->velocity;
-    FLOAT building_scale = S_SpellData(ent->class_id, level, 4);
+    uint32_t level = blizzard_level(ent), ntargets = 0;
+    float damage = (float)ent->damage;
+    float maxtotal = ent->velocity;
+    float building_scale = S_SpellData(ent->class_id, level, 4);
 
     FILTER_EDICTS(target, blizzard_hits(ent, target)) ntargets++;
-    if (maxtotal > 0.0f && ntargets && damage * (FLOAT)ntargets > maxtotal)
-        damage = MAX(1.0f, maxtotal / (FLOAT)ntargets);
+    if (maxtotal > 0.0f && ntargets && damage * (float)ntargets > maxtotal)
+        damage = MAX(1.0f, maxtotal / (float)ntargets);
 
     FILTER_EDICTS(target, blizzard_hits(ent, target)) {
-        FLOAT amount = damage;
+        float amount = damage;
         if (target->targtype == TARG_STRUCTURE || G_UnitIsBuilding(target->class_id))
             amount *= building_scale;
-        if (amount > 0.0f) S_SpellDamage(target, caster, (DWORD)amount);
+        if (amount > 0.0f) S_SpellDamage(target, caster, (uint32_t)amount);
     }
 }
 
 /* Shard art is presentation only.  Use the authored DataC count and the
  * server RNG so visual placement cannot change which units receive damage. */
 static void blizzard_spawn_shards(LPEDICT ent) {
-    DWORD level = blizzard_level(ent);
-    DWORD shards = (DWORD)MAX(0.0f, S_SpellData(ent->class_id, level, 3));
-    LPCSTR effect_id = G_AbilityLevel(ent->class_id, level)->efctID;
-    DWORD effect_code = effect_id && strlen(effect_id) >= 4 ? FS_SLKKey(effect_id) : ent->class_id;
+    uint32_t level = blizzard_level(ent);
+    uint32_t shards = (uint32_t)MAX(0.0f, S_SpellData(ent->class_id, level, 3));
+    cstring_t effect_id = G_AbilityLevel(ent->class_id, level)->efctID;
+    uint32_t effect_code = effect_id && strlen(effect_id) >= 4 ? FS_SLKKey(effect_id) : ent->class_id;
 
     FOR_LOOP(i, shards) {
-        FLOAT angle = ((FLOAT)rand() / (FLOAT)RAND_MAX) * 2.0f * (FLOAT)M_PI;
-        FLOAT distance = ((FLOAT)rand() / (FLOAT)RAND_MAX) * ent->collision;
+        float angle = ((float)rand() / (float)RAND_MAX) * 2.0f * (float)M_PI;
+        float distance = ((float)rand() / (float)RAND_MAX) * ent->collision;
         VECTOR2 point = ent->s.origin2;
         point.x += cosf(angle) * distance;
         point.y += sinf(angle) * distance;
@@ -96,7 +96,7 @@ static void blizzard_spawn_shards(LPEDICT ent) {
 }
 
 void blizzard_think(LPEDICT ent) {
-    DWORD now = G_Time();
+    uint32_t now = G_Time();
 
     if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
     if (ent->freetime && now < ent->freetime)
@@ -121,12 +121,12 @@ void blizzard_think(LPEDICT ent) {
         S_SpellEndChannel(ent);
         return;
     }
-    ent->freetime = now + (DWORD)MAX(FRAMETIME, ent->wait * 1000.0f);
+    ent->freetime = now + (uint32_t)MAX(FRAMETIME, ent->wait * 1000.0f);
 }
 
-static BOOL shockwave_hits(LPEDICT target, shockwaveContext_t const *ctx) {
+static bool shockwave_hits(LPEDICT target, shockwaveContext_t const *ctx) {
     VECTOR2 offset;
-    FLOAT along, across;
+    float along, across;
 
     if (!target->inuse || target == ctx->caster || !S_SpellIsAliveTarget(target) ||
         !S_SpellIsEnemy(ctx->caster, target)) return false;
@@ -137,7 +137,7 @@ static BOOL shockwave_hits(LPEDICT target, shockwaveContext_t const *ctx) {
 }
 
 void rain_of_fire_think(LPEDICT ent) {
-    DWORD now = G_Time();
+    uint32_t now = G_Time();
 
     if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
     if (ent->freetime && now < ent->freetime) return;
@@ -146,14 +146,14 @@ void rain_of_fire_think(LPEDICT ent) {
         S_SpellEndChannel(ent);
         return;
     }
-    ent->freetime = now + (DWORD)(MAX(0.1f, ent->velocity) * 1000.0f);
+    ent->freetime = now + (uint32_t)(MAX(0.1f, ent->velocity) * 1000.0f);
 }
 
 /* Starfall: self-centered periodic area damage.  AbilityData stores the
  * authored damage in DataA, wave interval in DataB, area in Area, and the
  * channel lifetime in Dur. */
 void starfall_think(LPEDICT ent) {
-    DWORD now = G_Time();
+    uint32_t now = G_Time();
 
     if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
     if (ent->freetime && now < ent->freetime)
@@ -163,7 +163,7 @@ void starfall_think(LPEDICT ent) {
         S_SpellEndChannel(ent);
         return;
     }
-    ent->freetime = now + (DWORD)MAX(1.0f, ent->velocity * 1000.0f);
+    ent->freetime = now + (uint32_t)MAX(1.0f, ent->velocity * 1000.0f);
 }
 
 /* Name=Blizzard
@@ -173,10 +173,10 @@ void starfall_think(LPEDICT ent) {
  * pipeline to lock the caster via channel_code/cast_origin; spell_run_frame()
  * enforces movement-cancel.  The thinker entity runs the per-wave damage. */
 BZ_SIMPLE_SPELL_PROC(AbilityBlizzard) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    DWORD waves = (DWORD)S_SpellData(spell->code, level, 1);
-    DWORD damage = (DWORD)S_SpellData(spell->code, level, 2);
-    FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    uint32_t waves = (uint32_t)S_SpellData(spell->code, level, 1);
+    uint32_t damage = (uint32_t)S_SpellData(spell->code, level, 2);
+    float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     LPEDICT thinker;
 
     thinker = S_SpellChannelThinker(caster, spell->code);
@@ -193,7 +193,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityBlizzard) {
     /* Cast is Blizzard's authored delay before the first shard wave.  A zero
      * delay still begins the shard phase immediately, but damage never lands
      * until the fixed shard-to-impact delay has elapsed. */
-    thinker->freetime = G_Time() + (DWORD)MAX(0.0f, thinker->wait * 1000.0f);
+    thinker->freetime = G_Time() + (uint32_t)MAX(0.0f, thinker->wait * 1000.0f);
     blizzard_think(thinker);
 }
 
@@ -202,14 +202,14 @@ BZ_SIMPLE_SPELL_PROC(AbilityBlizzard) {
  */
 /* Carrion Swarm: instant point-target AoE blast. */
 BZ_SIMPLE_SPELL_PROC(AbilityCarrionSwarm) {
-    DWORD level = S_SpellLevel(caster, spell->code);
+    uint32_t level = S_SpellLevel(caster, spell->code);
     LPEDICT blast;
 
     blast = G_Spawn();
     blast->owner = caster;
     blast->s.origin2 = st.point;
     blast->collision = MAX(96.0f, S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level));
-    blast->damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
+    blast->damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
     area_spell_damage(blast, S_SpellData(spell->code, level, 2)); /* DataB = Max Damage */
     G_FreeEdict(blast);
 }
@@ -220,12 +220,12 @@ BZ_SIMPLE_SPELL_PROC(AbilityCarrionSwarm) {
 /* Shockwave uses the authored damage, cap, travel distance, and corridor width
  * rather than treating the line spell as a circular point-target burst. */
 BZ_SIMPLE_SPELL_PROC(AbilityShockwave) {
-    DWORD level = S_SpellLevel(caster, spell->code), ntargets = 0;
+    uint32_t level = S_SpellLevel(caster, spell->code), ntargets = 0;
     shockwaveContext_t ctx = { .caster = caster };
     VECTOR2 offset = Vector2_sub(&st.point, &caster->s.origin2);
-    FLOAT distance = Vector2_distance(&caster->s.origin2, &st.point);
-    FLOAT damage = MAX(1.0f, S_SpellData(spell->code, level, 1));
-    FLOAT maxtotal = S_SpellData(spell->code, level, 2);
+    float distance = Vector2_distance(&caster->s.origin2, &st.point);
+    float damage = MAX(1.0f, S_SpellData(spell->code, level, 1));
+    float maxtotal = S_SpellData(spell->code, level, 2);
 
     if (distance <= 0.0f) return;
     ctx.direction = Vector2_scale(&offset, 1.0f / distance);
@@ -233,22 +233,22 @@ BZ_SIMPLE_SPELL_PROC(AbilityShockwave) {
     ctx.width = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FILTER_EDICTS(target, shockwave_hits(target, &ctx)) ntargets++;
     if (maxtotal > 0.0f && ntargets && damage * ntargets > maxtotal)
-        damage = MAX(1.0f, maxtotal / (FLOAT)ntargets);
-    FILTER_EDICTS(target, shockwave_hits(target, &ctx)) S_SpellDamage(target, caster, (DWORD)damage);
+        damage = MAX(1.0f, maxtotal / (float)ntargets);
+    FILTER_EDICTS(target, shockwave_hits(target, &ctx)) S_SpellDamage(target, caster, (uint32_t)damage);
 }
 
 /* Name=Rain of Fire
  * Ubertip="Calls down waves of fire that damage enemy units in a target area."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityRainOfFire) {
-    DWORD level = S_SpellLevel(caster, spell->code);
+    uint32_t level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->s.origin2 = st.point;
     thinker->s.origin.x = st.point.x;
     thinker->s.origin.y = st.point.y;
     thinker->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    thinker->damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 2));
-    thinker->resources = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
+    thinker->damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 2));
+    thinker->resources = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
     thinker->velocity = MAX(0.1f, S_SpellDuration(spell->code, level, false));
     thinker->think = rain_of_fire_think;
     rain_of_fire_think(thinker);
@@ -257,7 +257,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityRainOfFire) {
 /* Death and Decay deals the authored percentage of each enemy's maximum life
  * on every pulse; unlike Rain of Fire, DataA is not a fixed damage amount. */
 void death_and_decay_think(LPEDICT ent) {
-    DWORD now = G_Time();
+    uint32_t now = G_Time();
     LPEDICT caster = ent->owner;
 
     if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
@@ -265,20 +265,20 @@ void death_and_decay_think(LPEDICT ent) {
     FILTER_EDICTS(target, target->inuse && S_SpellIsAliveTarget(target) &&
                   S_SpellIsEnemy(caster, target) &&
                   Vector2_distance(&target->s.origin2, &ent->s.origin2) <= ent->collision) {
-        S_SpellDamage(target, caster, (DWORD)MAX(1.0f, target->health.max_value * ent->wait));
+        S_SpellDamage(target, caster, (uint32_t)MAX(1.0f, target->health.max_value * ent->wait));
     }
     if (ent->spawn_time && now >= ent->spawn_time) {
         S_SpellEndChannel(ent);
         return;
     }
-    ent->freetime = now + (DWORD)(MAX(0.1f, ent->velocity) * 1000.0f);
+    ent->freetime = now + (uint32_t)(MAX(0.1f, ent->velocity) * 1000.0f);
 }
 
 /* Name=Death and Decay
  * Ubertip="Damages enemy units in a target area over time."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityDeathAndDecay) {
-    DWORD level = S_SpellLevel(caster, spell->code);
+    uint32_t level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->s.origin2 = st.point;
     thinker->s.origin.x = st.point.x;
@@ -286,17 +286,17 @@ BZ_SIMPLE_SPELL_PROC(AbilityDeathAndDecay) {
     thinker->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     thinker->wait = S_SpellData(spell->code, level, 1);
     thinker->velocity = MAX(0.1f, S_SpellData(spell->code, level, 2));
-    thinker->spawn_time = G_Time() + (DWORD)(MAX(0.1f, S_SpellDuration(spell->code, level, true)) * 1000.0f);
+    thinker->spawn_time = G_Time() + (uint32_t)(MAX(0.1f, S_SpellDuration(spell->code, level, true)) * 1000.0f);
     thinker->think = death_and_decay_think;
     death_and_decay_think(thinker);
 }
 
 static void area_damage_status_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    FLOAT duration = S_SpellDuration(spell->code, level, false);
-    DWORD damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
-    LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    float radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    float duration = S_SpellDuration(spell->code, level, false);
+    uint32_t damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
+    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
 
     FILTER_EDICTS(target, target->inuse && target != caster && S_SpellIsAliveTarget(target) &&
                   S_SpellIsEnemy(caster, target) &&
@@ -314,13 +314,13 @@ BZ_SIMPLE_SPELL_PROC(AbilityThunderClap) { area_damage_status_execute(caster, st
  * Ubertip="Blasts nearby enemy units with frost, damaging and slowing them."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityFrostNova) {
-    DWORD rank = S_SpellLevel(caster, spell->code);
-    FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, rank);
-    LPCSTR buff = G_AbilityLevel(spell->code, rank)->buffID;
+    uint32_t rank = S_SpellLevel(caster, spell->code);
+    float radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, rank);
+    cstring_t buff = G_AbilityLevel(spell->code, rank)->buffID;
     VECTOR2 center = st.entity->s.origin2;
     FILTER_EDICTS(target, S_SpellIsEnemy(caster, target) && S_SpellAllowsTarget(spell->code, caster, target) &&
                   Vector2_distance(&target->s.origin2, &center) <= radius) {
-        FLOAT damage = S_SpellData(spell->code, rank, 1);
+        float damage = S_SpellData(spell->code, rank, 1);
         if (target == st.entity) damage += S_SpellData(spell->code, rank, 2);
         if (S_SpellDamage(target, caster, (int)damage) && !M_IsDead(target) && buff && strlen(buff) >= 4)
             unit_addtimedstatus(target, buff, rank, S_SpellDuration(spell->code, rank, G_UnitIsHero(target)));
@@ -328,7 +328,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityFrostNova) {
 }
 
 void tranquility_think(LPEDICT ent) {
-    DWORD now = G_Time();
+    uint32_t now = G_Time();
     LPEDICT caster = ent->owner;
 
     if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
@@ -341,22 +341,22 @@ void tranquility_think(LPEDICT ent) {
         S_SpellEndChannel(ent);
         return;
     }
-    ent->freetime = now + (DWORD)(MAX(0.1f, ent->velocity) * 1000.0f);
+    ent->freetime = now + (uint32_t)(MAX(0.1f, ent->velocity) * 1000.0f);
 }
 
 /* Name=Tranquility
  * Ubertip="Heals nearby friendly units over time."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityTranquility) {
-    DWORD level = S_SpellLevel(caster, spell->code);
+    uint32_t level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->s.origin2 = caster->s.origin2;
     thinker->s.origin.x = caster->s.origin.x;
     thinker->s.origin.y = caster->s.origin.y;
     thinker->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    thinker->damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
+    thinker->damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
     thinker->velocity = MAX(0.1f, S_SpellData(spell->code, level, 2));
-    thinker->spawn_time = G_Time() + (DWORD)(MAX(0.1f, S_SpellDuration(spell->code, level, true)) * 1000.0f);
+    thinker->spawn_time = G_Time() + (uint32_t)(MAX(0.1f, S_SpellDuration(spell->code, level, true)) * 1000.0f);
     thinker->think = tranquility_think;
     tranquility_think(thinker);
 }
@@ -365,15 +365,15 @@ BZ_SIMPLE_SPELL_PROC(AbilityTranquility) {
  * Ubertip="Calls down falling stars that damage nearby enemy units over time."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityStarfall) {
-    DWORD level = S_SpellLevel(caster, spell->code);
+    uint32_t level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->s.origin2 = caster->s.origin2;
     thinker->s.origin.x = caster->s.origin.x;
     thinker->s.origin.y = caster->s.origin.y;
     thinker->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    thinker->damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
+    thinker->damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
     thinker->velocity = MAX(1.0f, S_SpellData(spell->code, level, 2));
-    thinker->spawn_time = G_Time() + (DWORD)(MAX(1.0f, S_SpellDuration(spell->code, level, true)) * 1000.0f);
+    thinker->spawn_time = G_Time() + (uint32_t)(MAX(1.0f, S_SpellDuration(spell->code, level, true)) * 1000.0f);
     thinker->think = starfall_think;
     starfall_think(thinker);
 }

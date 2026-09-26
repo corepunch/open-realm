@@ -4,17 +4,17 @@
 #include <stdio.h>
 
 /* Generated 0.5-s stereo sine fixture; no retail audio is used. */
-static DWORD sound_test_reads, sound_test_ticks;
+static uint32_t sound_test_reads, sound_test_ticks;
 Uint32 SDL_GetTicks(void) { return sound_test_ticks; }
 
-HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size) {
+handle_t FS_ReadFile(cstring_t filename, uint32_t * size) {
     FILE *file;
     long length;
-    BYTE *data;
+    uint8_t *data;
 
     sound_test_reads++;
     if (!strcmp(filename, "stereo.wav")) {
-        static BYTE const wav[] = {
+        static uint8_t const wav[] = {
             'R','I','F','F',40,0,0,0,'W','A','V','E',
             'f','m','t',' ',16,0,0,0,1,0,2,0,0x44,0xac,0,0,0x10,0xb1,2,0,2,0,8,0,
             'd','a','t','a',4,0,0,0,255,128,0,128
@@ -26,7 +26,7 @@ HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size) {
         return data;
     }
     if (!strcmp(filename, "broken.mp3")) {
-        static BYTE const invalid[] = { 'n', 'o', 't', ' ', 'm', 'p', '3' };
+        static uint8_t const invalid[] = { 'n', 'o', 't', ' ', 'm', 'p', '3' };
         data = malloc(sizeof(invalid));
         if (!data) return NULL;
         memcpy(data, invalid, sizeof(invalid));
@@ -46,7 +46,7 @@ HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size) {
         return NULL;
     }
     fclose(file);
-    *size = (DWORD)length;
+    *size = (uint32_t)length;
     return data;
 }
 
@@ -57,12 +57,12 @@ static void sound_test_reset(void) {
     for (int i = 0; i < s.num_sfx; i++) free(s.known_sfx[i].cache);
     memset(&s, 0, sizeof(s));
     sound_test_reads = 0;
-    s.initialized = TRUE;
+    s.initialized = true;
 }
 
 TEST(sound, mp3_dialogue_loads_into_mono_cache) {
     sfxcache_t *cache;
-    BOOL has_signal = FALSE;
+    bool has_signal = false;
 
     sound_test_reset();
     S_RegisterSound("dialogue.mp3");
@@ -74,7 +74,7 @@ TEST(sound, mp3_dialogue_loads_into_mono_cache) {
     T_ASSERT(cache->length > 16000);
     T_EQ(cache->loopstart, -1);
     for (int i = 0; i < cache->length; i++)
-        if (cache->data[i]) { has_signal = TRUE; break; }
+        if (cache->data[i]) { has_signal = true; break; }
     T_ASSERT(has_signal);
     free(cache);
     s.known_sfx[0].cache = NULL;
@@ -110,10 +110,10 @@ TEST(sound, stereo_wav_downmixes_to_mono_cache) {
 TEST(sound, important_sound_displaces_combat_when_channels_full) {
     sound_test_reset();
     for (int i = 0; i < S_MAX_CHANNELS; i++)
-        S_PlaySoundPacket("dialogue.mp3", NULL, FALSE, 0, 0.2f, 1, 0);
-    S_PlaySoundPacket("dialogue.mp3", NULL, FALSE, CHAN_PRIORITY(1000), 0.8f, 1, 0);
+        S_PlaySoundPacket("dialogue.mp3", NULL, false, 0, 0.2f, 1, 0);
+    S_PlaySoundPacket("dialogue.mp3", NULL, false, CHAN_PRIORITY(1000), 0.8f, 1, 0);
     T_FEQ(s.channels[0].master_vol, 0.8f, 0.001f);
-    S_PlaySoundPacket("dialogue.mp3", NULL, FALSE, 0, 0.1f, 1, 0);
+    S_PlaySoundPacket("dialogue.mp3", NULL, false, 0, 0.1f, 1, 0);
     T_FEQ(s.channels[0].master_vol, 0.8f, 0.001f);
     sound_test_reset();
 }
@@ -121,23 +121,23 @@ TEST(sound, important_sound_displaces_combat_when_channels_full) {
 TEST(sound, equal_priority_finishes_and_free_channels_win_before_eviction) {
     sound_test_reset();
     for (int i = 0; i < S_MAX_CHANNELS; i++)
-        S_PlaySoundPacket("dialogue.mp3", NULL, FALSE, CHAN_PRIORITY(731), 0.3f, 1, 0);
-    S_PlaySoundPacket("dialogue.mp3", NULL, FALSE, CHAN_PRIORITY(731), 0.9f, 1, 0);
+        S_PlaySoundPacket("dialogue.mp3", NULL, false, CHAN_PRIORITY(731), 0.3f, 1, 0);
+    S_PlaySoundPacket("dialogue.mp3", NULL, false, CHAN_PRIORITY(731), 0.9f, 1, 0);
     for (int i = 0; i < S_MAX_CHANNELS; i++) T_FEQ(s.channels[i].master_vol, 0.3f, 0.001f);
-    s.channels[3].active = FALSE;
-    S_PlaySoundPacket("dialogue.mp3", NULL, FALSE, CHAN_PRIORITY(900), 0.9f, 1, 0);
+    s.channels[3].active = false;
+    S_PlaySoundPacket("dialogue.mp3", NULL, false, CHAN_PRIORITY(900), 0.9f, 1, 0);
     T_FEQ(s.channels[0].master_vol, 0.3f, 0.001f);
     T_FEQ(s.channels[3].master_vol, 0.9f, 0.001f);
     s.channels[5].priority = 5;
-    s.channels[5].looping = TRUE;
-    S_PlaySoundPacket("dialogue.mp3", NULL, FALSE, CHAN_PRIORITY(6), 0.6f, 1, 0);
+    s.channels[5].looping = true;
+    S_PlaySoundPacket("dialogue.mp3", NULL, false, CHAN_PRIORITY(6), 0.6f, 1, 0);
     T_FEQ(s.channels[5].master_vol, 0.6f, 0.001f);
     T_ASSERT(!s.channels[5].looping);
     sound_test_reset();
 }
 
-static BOOL play_policy(soundPolicy_t policy, FLOAT volume) {
-    return S_PlaySoundPolicy("dialogue.mp3", NULL, FALSE, 0, volume, 1, 0, &policy);
+static bool play_policy(soundPolicy_t policy, float volume) {
+    return S_PlaySoundPolicy("dialogue.mp3", NULL, false, 0, volume, 1, 0, &policy);
 }
 
 TEST(sound, authored_channel_allows_three_units_and_rejects_fourth_equal_voice) {
@@ -179,7 +179,7 @@ TEST(sound, duplicate_file_preemption_is_strict_and_user_preemption_is_unconditi
 TEST(sound, response_cooldown_starts_at_actual_completion_and_preemption) {
     soundPolicy_t p = { .priority = 1000, .user = 4, .group = 1, .max_channel = 3, .max_total = 24,
         .max_duplicates = 4, .cooldown_ms = 250, .flags = SOUND_NO_DUPLICATE_USERS };
-    SHORT out[4];
+    int16_t out[4];
     sound_test_reset();
     sound_test_ticks = 1000;
     T_ASSERT(play_policy(p, .2f));
@@ -200,7 +200,7 @@ TEST(sound, global_limit_requires_flags_and_accepts_equal_priority) {
     sound_test_reset();
     for (int i = 0; i < 24; i++) {
         char path[32]; snprintf(path, sizeof(path), "voice%d.mp3", i);
-        T_ASSERT(S_PlaySoundPolicy(path, NULL, FALSE, 0, .2f, 1, 0, &p));
+        T_ASSERT(S_PlaySoundPolicy(path, NULL, false, 0, .2f, 1, 0, &p));
     }
     p.priority = 2000; T_ASSERT(!play_policy(p, .8f));
     p.priority = 999; p.flags = SOUND_LIST_PREEMPT; T_ASSERT(!play_policy(p, .8f));
@@ -225,7 +225,7 @@ TEST(sound, filename_cap_is_separate_from_channel_cap) {
 TEST(sound, cooldown_wraps_and_map_stop_clears_identity) {
     soundPolicy_t p = { .priority = 1000, .user = 4, .group = 1, .max_channel = 3, .max_total = 24,
         .max_duplicates = 4, .cooldown_ms = 250, .flags = SOUND_NO_DUPLICATE_USERS };
-    SHORT out[4];
+    int16_t out[4];
     sound_test_reset();
     sound_test_ticks = 0xffffff80u;
     T_ASSERT(play_policy(p, .2f));
@@ -268,7 +268,7 @@ TEST(sound, ignored_user_is_neither_duplicate_nor_user_preemption_victim) {
 TEST(sound, final_sample_releases_channel_without_an_extra_device_callback) {
     soundPolicy_t p = { .priority = 1000, .user = 4, .group = 1, .max_channel = 1, .max_total = 24,
         .max_duplicates = 4, .cooldown_ms = 250, .flags = SOUND_NO_DUPLICATE_USERS };
-    SHORT out[4];
+    int16_t out[4];
     sound_test_reset(); sound_test_ticks = 1000;
     T_ASSERT(play_policy(p, .2f));
     s.channels[0].pos = s.channels[0].sc->length - 2;
@@ -279,7 +279,7 @@ TEST(sound, final_sample_releases_channel_without_an_extra_device_callback) {
     sound_test_reset();
 }
 
-static void sound_expect_event(DWORD request, DWORD kind) {
+static void sound_expect_event(uint32_t request, uint32_t kind) {
     soundEvent_t event;
     T_ASSERT(S_PollSoundEvent(&event));
     T_EQ(event.request, request); T_EQ(event.event, kind); T_EQ(event.user, 4);
@@ -288,9 +288,9 @@ static void sound_expect_event(DWORD request, DWORD kind) {
 TEST(sound, feedback_follows_admission_delay_rejection_and_preemption) {
     soundPolicy_t p = { .priority = 1000, .user = 4, .request = 1, .group = 1, .max_channel = 3,
         .max_total = 24, .max_duplicates = 4, .flags = SOUND_NO_DUPLICATE_USERS };
-    SHORT out[882]; soundEvent_t event;
+    int16_t out[882]; soundEvent_t event;
     sound_test_reset();
-    T_ASSERT(S_PlaySoundPolicy("dialogue.mp3", NULL, FALSE, 0, 1, 0, .01f, &p));
+    T_ASSERT(S_PlaySoundPolicy("dialogue.mp3", NULL, false, 0, 1, 0, .01f, &p));
     sound_expect_event(1, SOUND_ACCEPTED);
     T_ASSERT(!S_PollSoundEvent(&event));
     S_TestMix(out, 441); /* delay only: no sample and no portrait start */
@@ -312,11 +312,11 @@ TEST(sound, feedback_rejects_missing_audio_and_survives_backpressure_and_stop) {
         .max_duplicates = 4, .flags = SOUND_NO_DUPLICATE_USERS };
     soundEvent_t event;
     sound_test_reset();
-    T_ASSERT(!S_PlaySoundPolicy("missing.wav", NULL, FALSE, 0, 1, 0, 0, &p));
+    T_ASSERT(!S_PlaySoundPolicy("missing.wav", NULL, false, 0, 1, 0, 0, &p));
     sound_expect_event(1, SOUND_REJECTED);
-    p.request = 2; s.initialized = FALSE;
+    p.request = 2; s.initialized = false;
     T_ASSERT(!play_policy(p, 1)); sound_expect_event(2, SOUND_REJECTED);
-    s.initialized = TRUE; p.request = 3; T_ASSERT(play_policy(p, 1));
+    s.initialized = true; p.request = 3; T_ASSERT(play_policy(p, 1));
     for (int i = 4; i < 304; i++) { p.request = i; T_ASSERT(!play_policy(p, 1)); }
     S_StopAllSounds();
     sound_expect_event(3, SOUND_ACCEPTED);

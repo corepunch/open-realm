@@ -29,9 +29,9 @@
 
 typedef struct {
     char *text;       /* game-owned buffer pointer (may be NULL) */
-    DWORD size;       /* allocated size of buffer in bytes */
-    DWORD max_chars;  /* max characters (0 = no limit beyond buffer) */
-    DWORD cursor;     /* current cursor position (bytes into text) */
+    uint32_t size;       /* allocated size of buffer in bytes */
+    uint32_t max_chars;  /* max characters (0 = no limit beyond buffer) */
+    uint32_t cursor;     /* current cursor position (bytes into text) */
 } menuTextInput_t;
 
 /* ---- Key event result ---- */
@@ -47,11 +47,11 @@ enum {
 /* ---- Editing primitives ---- */
 
 /* Insert text at cursor position. Returns true if text was modified. */
-static inline BOOL M_TextInput_Insert(menuTextInput_t *ti, LPCSTR text) {
+static inline bool M_TextInput_Insert(menuTextInput_t *ti, cstring_t text) {
     char buf[512];
-    LPCSTR old;
+    cstring_t old;
     size_t old_len, add_len, cursor;
-    DWORD max;
+    uint32_t max;
 
     if (!ti || !ti->text || !text || !*text)
         return false;
@@ -74,12 +74,12 @@ static inline BOOL M_TextInput_Insert(menuTextInput_t *ti, LPCSTR text) {
     memcpy(buf + cursor, text, add_len);
     memcpy(buf + cursor + add_len, old + cursor, old_len - cursor + 1);
     memcpy(ti->text, buf, old_len + add_len + 1);
-    ti->cursor = (DWORD)(cursor + add_len);
+    ti->cursor = (uint32_t)(cursor + add_len);
     return true;
 }
 
 /* Backspace: remove character before cursor. Returns true if modified. */
-static BOOL M_TextInput_Backspace(menuTextInput_t *ti) {
+static bool M_TextInput_Backspace(menuTextInput_t *ti) {
     char *t;
     size_t len, cursor;
 
@@ -91,12 +91,12 @@ static BOOL M_TextInput_Backspace(menuTextInput_t *ti) {
     if (cursor == 0)
         return false;
     memmove(t + cursor - 1, t + cursor, len - cursor + 1);
-    ti->cursor = (DWORD)(cursor - 1);
+    ti->cursor = (uint32_t)(cursor - 1);
     return true;
 }
 
 /* Delete: remove character at cursor. Returns true if modified. */
-static BOOL M_TextInput_Delete(menuTextInput_t *ti) {
+static bool M_TextInput_Delete(menuTextInput_t *ti) {
     char *t;
     size_t len, cursor;
 
@@ -119,14 +119,14 @@ static void M_TextInput_MoveCursor(menuTextInput_t *ti, int dir) {
         case -1: if (ti->cursor > 0) ti->cursor--; break;
         case  1: { size_t len = strlen(ti->text); if (ti->cursor < len) ti->cursor++; break; }
         case  0: ti->cursor = 0; break;
-        case  2: ti->cursor = (DWORD)strlen(ti->text); break;
+        case  2: ti->cursor = (uint32_t)strlen(ti->text); break;
     }
 }
 
 /* Filter text input: copy only printable characters (>= 0x20) to out.
  * Returns number of bytes written (not counting NUL). */
-static inline DWORD M_TextInput_Filter(LPCSTR in, LPSTR out, DWORD out_size) {
-    DWORD n = 0;
+static inline uint32_t M_TextInput_Filter(cstring_t in, string_t out, uint32_t out_size) {
+    uint32_t n = 0;
 
     if (!in || !out || out_size == 0)
         return 0;
@@ -180,19 +180,19 @@ static inline int M_TextInput_Key(menuTextInput_t *ti, int key) {
 
 static inline void M_DrawTextInputCursor(LPRENDERER renderer,
                                    LPCDRAWTEXT style,
-                                   LPCSTR text,
-                                   DWORD cursor,
+                                   cstring_t text,
+                                   uint32_t cursor,
                                    COLOR32 color) {
     char prefix[1024];
     drawText_t measure, draw;
     VECTOR2 prefix_size;
-    RECT cursor_rect;
-    DWORD len;
+    rect_t cursor_rect;
+    uint32_t len;
 
     if (!renderer || !renderer->DrawText || !renderer->GetTextSize || !style || !style->font)
         return;
     text = text ? text : "";
-    len = (DWORD)strlen(text);
+    len = (uint32_t)strlen(text);
     cursor = MIN(cursor, len);
     if (cursor >= sizeof(prefix)) cursor = sizeof(prefix) - 1;
     snprintf(prefix, sizeof(prefix), "%.*s", (int)cursor, text);

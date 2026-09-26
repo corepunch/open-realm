@@ -4,7 +4,7 @@
 #include <direct.h>
 #endif
 
-void Sys_MkDir(LPCSTR directory){
+void Sys_MkDir(cstring_t directory){
 #ifdef _WIN32
     _mkdir(directory);
 #else

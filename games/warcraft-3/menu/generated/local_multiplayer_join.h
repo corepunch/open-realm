@@ -36,8 +36,8 @@ typedef struct LocalMultiplayerJoin_s {
 } LocalMultiplayerJoin_t;
 
 
-static inline BOOL LocalMultiplayerJoin_Bind(LocalMultiplayerJoin_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool LocalMultiplayerJoin_Bind(LocalMultiplayerJoin_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -77,7 +77,7 @@ static inline BOOL LocalMultiplayerJoin_Bind(LocalMultiplayerJoin_t *out, LPFRAM
     return ok;
 }
 
-static inline BOOL LocalMultiplayerJoin_Load(LocalMultiplayerJoin_t *out) {
+static inline bool LocalMultiplayerJoin_Load(LocalMultiplayerJoin_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\Glue\\LocalMultiplayerJoin.fdf") &&
            LocalMultiplayerJoin_Bind(out, UI_FindFrame("LocalMultiplayerJoin"));

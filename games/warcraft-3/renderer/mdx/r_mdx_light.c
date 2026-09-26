@@ -1,11 +1,11 @@
 #include "r_mdx.h"
 #include "renderer/r_local.h"
 
-BOOL MDLX_EvaluateLight(mdxModel_t const *model,
+bool MDLX_EvaluateLight(mdxModel_t const *model,
                         mdxLight_t const *light,
                         LPCMATRIX4 modelMatrix,
-                        DWORD frame,
-                        BOOL useVisibility,
+                        uint32_t frame,
+                        bool useVisibility,
                         LPRMODELLIGHT output)
 {
     float visibility = 1.0f;
@@ -37,7 +37,7 @@ BOOL MDLX_EvaluateLight(mdxModel_t const *model,
     if (light->keytracks.AttenuationStart)
         MDLX_GetModelKeytrackValue(model, light->keytracks.AttenuationStart, frame, &astart);
 
-    if (light->node.node_id < (DWORD)model->num_pivots)
+    if (light->node.node_id < (uint32_t)model->num_pivots)
         pivot = model->pivots[light->node.node_id];
     localPos = pivot;
     localDirTarget = (VECTOR3){ pivot.x, pivot.y, pivot.z - 1.0f };
@@ -71,11 +71,11 @@ BOOL MDLX_EvaluateLight(mdxModel_t const *model,
  * game-time ratio. Warsmash consumes the first light from each DNC instance
  * directly; its DNC world-light manager does not filter that light through the
  * normal scene-light visibility list. */
-BOOL MDLX_SampleFirstLight(LPCMODEL model, FLOAT ratio, LPRMODELLIGHT output) {
+bool MDLX_SampleFirstLight(LPCMODEL model, float ratio, LPRMODELLIGHT output) {
     mdxModel_t const *mdx;
     mdxSequence_t const *seq;
     MATRIX4 identity;
-    DWORD length, offset, frame;
+    uint32_t length, offset, frame;
 
     if (!model || model->modeltype != ID_MDLX || !model->mdx || !output)
         return false;
@@ -88,7 +88,7 @@ BOOL MDLX_SampleFirstLight(LPCMODEL model, FLOAT ratio, LPRMODELLIGHT output) {
     seq = &mdx->sequences[0];
     length = seq->interval[1] - seq->interval[0];
     if (length == 0) length = 1;
-    offset = (DWORD)floorf(ratio * (FLOAT)length);
+    offset = (uint32_t)floorf(ratio * (float)length);
     if (offset >= length) offset = length - 1;
     frame = seq->interval[0] + offset;
 
@@ -98,12 +98,12 @@ BOOL MDLX_SampleFirstLight(LPCMODEL model, FLOAT ratio, LPRMODELLIGHT output) {
     {
         typedef struct {
             LPCMODEL model;
-            DWORD frame;
-            DWORD viewTime;
+            uint32_t frame;
+            uint32_t viewTime;
             RMODELLIGHT light;
         } DNC_SAMPLE_CACHE;
         static DNC_SAMPLE_CACHE cache[2];
-        static DWORD nextCache;
+        static uint32_t nextCache;
 
         FOR_LOOP(i, 2) {
             if (cache[i].model == model && cache[i].frame == frame &&

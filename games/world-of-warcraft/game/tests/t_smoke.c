@@ -30,27 +30,27 @@ TEST(wow_smoke, clamp) {
 TEST(wow_smoke, default_camera_authors_lens) {
     gameCamera_t cam;
     T_ASSERT(CL_GameDefaultCamera(&cam));
-    T_EQ((DWORD)cam.fov, (DWORD)WOW_CAMERA_FOV);
+    T_EQ((uint32_t)cam.fov, (uint32_t)WOW_CAMERA_FOV);
     T_FEQ(cam.znear, WOW_WORLD_NEAR_CLIP, 0.001f);
     T_FEQ(cam.zfar, WOW_WORLD_FAR_CLIP, 0.001f);
 }
 
 TEST(wow_smoke, byte_pathing_flags_are_explicitly_unsupported) {
     VECTOR2 point = { 0.0f, 0.0f };
-    BYTE flags = 0xff;
+    uint8_t flags = 0xff;
 
     T_ASSERT(!CM_GetPathingFlagsAt(&point, &flags));
     T_EQ(flags, 0);
 }
 
 TEST(wow_smoke, read32_little_endian) {
-    BYTE bytes[4] = { 0x78, 0x56, 0x34, 0x12 };
+    uint8_t bytes[4] = { 0x78, 0x56, 0x34, 0x12 };
     T_EQ(Stb_DbcRead32(bytes), 0x12345678u);
 }
 
 TEST(wow_smoke, read_float_roundtrip) {
-    FLOAT expected = 1.5f;
-    BYTE bytes[4];
+    float expected = 1.5f;
+    uint8_t bytes[4];
     memcpy(bytes, &expected, sizeof(bytes));
     T_FEQ(Stb_DbcReadFloat(bytes), expected, 0.0f);
 }
@@ -58,7 +58,7 @@ TEST(wow_smoke, read_float_roundtrip) {
 TEST(wow_smoke, wmo_floor_ray) {
     VECTOR3 start = { 0.25f, 0.25f, 2.0f }, end = { 0.25f, 0.25f, -2.0f };
     VECTOR3 a = { 0.0f, 0.0f, 0.0f }, b = { 1.0f, 0.0f, 0.0f }, c = { 0.0f, 1.0f, 0.0f };
-    FLOAT fraction = -1.0f;
+    float fraction = -1.0f;
     T_ASSERT(CM_WowRayTriangle(&start, &end, &a, &b, &c, &fraction));
     T_FEQ(fraction, 0.5f, 0.0001f);
     start.x = end.x = 2.0f;
@@ -67,7 +67,7 @@ TEST(wow_smoke, wmo_floor_ray) {
 
 TEST(wow_smoke, wmo_bsp_traversal) {
     VECTOR3 start = { 0.75f, 0.10f, 2.0f }, end = { 0.75f, 0.10f, -2.0f };
-    FLOAT fraction;
+    float fraction;
     T_ASSERT(CM_WowTestBspRay(&start, &end, &fraction));
     T_FEQ(fraction, 0.5f, 0.0001f);
     start.x = end.x = 0.25f;

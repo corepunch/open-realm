@@ -1,31 +1,31 @@
 #include "g_local.h"
 
-static LONG multiboard_index(LPCMULTIBOARD board) {
+static int32_t multiboard_index(LPCMULTIBOARD board) {
     uintptr_t ptr = (uintptr_t)board, base = (uintptr_t)level.multiboards;
     size_t span = sizeof(level.multiboards);
     if (!board || ptr < base || ptr >= base + span ||
         (ptr - base) % sizeof(*board) != 0 || !board->inuse) return -1;
-    return (LONG)((ptr - base) / sizeof(*board));
+    return (int32_t)((ptr - base) / sizeof(*board));
 }
 
-static LONG texttag_index(LPCTEXTTAG tag) {
+static int32_t texttag_index(LPCTEXTTAG tag) {
     uintptr_t ptr = (uintptr_t)tag, base = (uintptr_t)level.texttags;
     size_t span = sizeof(level.texttags);
     if (!tag || ptr < base || ptr >= base + span ||
         (ptr - base) % sizeof(*tag) != 0 || !tag->inuse) return -1;
-    return (LONG)((ptr - base) / sizeof(*tag));
+    return (int32_t)((ptr - base) / sizeof(*tag));
 }
 
 /* Dirty/visibility bits address client slots, while JASS players use WC3 numbers. */
-static DWORD multiboard_client_mask(DWORD player) {
-    FOR_LOOP(i, MIN((DWORD)game.max_clients, (DWORD)MAX_CLIENTS))
+static uint32_t multiboard_client_mask(uint32_t player) {
+    FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS))
         if (game.clients[i].ps.number == player) return 1u << i;
     return 0;
 }
 
-static DWORD multiboard_all_client_mask(void) {
-    DWORD count = MIN((DWORD)game.max_clients, (DWORD)MAX_CLIENTS);
-    return count ? (DWORD)((1ull << count) - 1ull) : 0;
+static uint32_t multiboard_all_client_mask(void) {
+    uint32_t count = MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS);
+    return count ? (uint32_t)((1ull << count) - 1ull) : 0;
 }
 
 static void multiboard_init_cell(struct gmultiboardcell_s *cell) {
@@ -33,8 +33,8 @@ static void multiboard_init_cell(struct gmultiboardcell_s *cell) {
     cell->show_value = cell->show_icon = true;
 }
 
-static void multiboard_grow_cells(LPMULTIBOARD board, DWORD old_rows, DWORD old_cols) {
-    DWORD row, col;
+static void multiboard_grow_cells(LPMULTIBOARD board, uint32_t old_rows, uint32_t old_cols) {
+    uint32_t row, col;
     if (!board) return;
     for (row = 0; row < board->rows; row++)
         for (col = 0; col < board->cols; col++)
@@ -53,7 +53,7 @@ LPMULTIBOARD G_AllocMultiboard(void) {
 }
 
 void G_FreeMultiboard(LPMULTIBOARD board) {
-    LONG index = multiboard_index(board);
+    int32_t index = multiboard_index(board);
     if (index < 0) return;
     FOR_LOOP(i, MAX_MULTIBOARD_ITEMS) {
         LPMULTIBOARDITEM item = &level.multiboard_items[i];
@@ -62,32 +62,32 @@ void G_FreeMultiboard(LPMULTIBOARD board) {
     memset(board, 0, sizeof(*board));
 }
 
-void G_SetMultiboardDisplayed(LPMULTIBOARD board, LPPLAYER player, BOOL displayed) {
-    DWORD mask;
+void G_SetMultiboardDisplayed(LPMULTIBOARD board, LPPLAYER player, bool displayed) {
+    uint32_t mask;
     if (multiboard_index(board) < 0) return;
     mask = player ? multiboard_client_mask(PLAYER_NUM(player)) : multiboard_all_client_mask();
     if (displayed) board->displayed_clients |= mask; else board->displayed_clients &= ~mask;
     level.multiboard_dirty_clients |= mask;
 }
 
-BOOL G_IsMultiboardDisplayed(LPCMULTIBOARD board, LPCPLAYER player) {
-    DWORD mask;
+bool G_IsMultiboardDisplayed(LPCMULTIBOARD board, LPCPLAYER player) {
+    uint32_t mask;
     if (!board || !board->inuse) return false;
     if (player) return board->displayed_clients & multiboard_client_mask(PLAYER_NUM(player));
     mask = multiboard_all_client_mask();
     return mask && (board->displayed_clients & mask) == mask;
 }
 
-void G_SetMultiboardMinimized(LPMULTIBOARD board, LPPLAYER player, BOOL minimized) {
-    DWORD mask;
+void G_SetMultiboardMinimized(LPMULTIBOARD board, LPPLAYER player, bool minimized) {
+    uint32_t mask;
     if (multiboard_index(board) < 0) return;
     mask = player ? multiboard_client_mask(PLAYER_NUM(player)) : multiboard_all_client_mask();
     if (minimized) board->minimized_clients |= mask; else board->minimized_clients &= ~mask;
     level.multiboard_dirty_clients |= mask;
 }
 
-BOOL G_IsMultiboardMinimized(LPCMULTIBOARD board, LPCPLAYER player) {
-    DWORD mask;
+bool G_IsMultiboardMinimized(LPCMULTIBOARD board, LPCPLAYER player) {
+    uint32_t mask;
     if (!board || !board->inuse) return false;
     if (player) return board->minimized_clients & multiboard_client_mask(PLAYER_NUM(player));
     mask = multiboard_all_client_mask();
@@ -99,38 +99,38 @@ void G_MarkMultiboardDirty(LPCMULTIBOARD board) {
     level.multiboard_dirty_clients |= board->displayed_clients ? board->displayed_clients : multiboard_all_client_mask();
 }
 
-void G_MultiboardSetRowCount(LPMULTIBOARD board, LONG count) {
-    DWORD old_rows, old_cols;
+void G_MultiboardSetRowCount(LPMULTIBOARD board, int32_t count) {
+    uint32_t old_rows, old_cols;
     if (multiboard_index(board) < 0) return;
     if (count < 0) count = 0;
-    if ((DWORD)count > MAX_MULTIBOARD_ROWS) count = MAX_MULTIBOARD_ROWS;
+    if ((uint32_t)count > MAX_MULTIBOARD_ROWS) count = MAX_MULTIBOARD_ROWS;
     old_rows = board->rows;
     old_cols = board->cols;
-    board->rows = (DWORD)count;
+    board->rows = (uint32_t)count;
     multiboard_grow_cells(board, old_rows, old_cols);
     G_MarkMultiboardDirty(board);
 }
 
-void G_MultiboardSetColumnCount(LPMULTIBOARD board, LONG count) {
-    DWORD old_rows, old_cols;
+void G_MultiboardSetColumnCount(LPMULTIBOARD board, int32_t count) {
+    uint32_t old_rows, old_cols;
     if (multiboard_index(board) < 0) return;
     if (count < 0) count = 0;
-    if ((DWORD)count > MAX_MULTIBOARD_COLS) count = MAX_MULTIBOARD_COLS;
+    if ((uint32_t)count > MAX_MULTIBOARD_COLS) count = MAX_MULTIBOARD_COLS;
     old_rows = board->rows;
     old_cols = board->cols;
-    board->cols = (DWORD)count;
+    board->cols = (uint32_t)count;
     multiboard_grow_cells(board, old_rows, old_cols);
     G_MarkMultiboardDirty(board);
 }
 
-struct gmultiboardcell_s *G_MultiboardCell(LPMULTIBOARD board, LONG row, LONG col) {
+struct gmultiboardcell_s *G_MultiboardCell(LPMULTIBOARD board, int32_t row, int32_t col) {
     if (multiboard_index(board) < 0 || row < 0 || col < 0) return NULL;
-    if ((DWORD)row >= board->rows || (DWORD)col >= board->cols) return NULL;
-    return &board->cells[(DWORD)row * MAX_MULTIBOARD_COLS + (DWORD)col];
+    if ((uint32_t)row >= board->rows || (uint32_t)col >= board->cols) return NULL;
+    return &board->cells[(uint32_t)row * MAX_MULTIBOARD_COLS + (uint32_t)col];
 }
 
-LPMULTIBOARDITEM G_MultiboardGetItem(LPMULTIBOARD board, LONG row, LONG col) {
-    LONG board_id = multiboard_index(board);
+LPMULTIBOARDITEM G_MultiboardGetItem(LPMULTIBOARD board, int32_t row, int32_t col) {
+    int32_t board_id = multiboard_index(board);
     if (board_id < 0 || !G_MultiboardCell(board, row, col)) return NULL;
     FOR_LOOP(i, MAX_MULTIBOARD_ITEMS) if (!level.multiboard_items[i].inuse) {
         LPMULTIBOARDITEM item = &level.multiboard_items[i];
@@ -178,15 +178,15 @@ void G_FreeTextTag(LPTEXTTAG tag) {
     memset(tag, 0, sizeof(*tag));
 }
 
-void G_SetTextTagVisible(LPTEXTTAG tag, LPPLAYER player, BOOL visible) {
-    DWORD mask;
+void G_SetTextTagVisible(LPTEXTTAG tag, LPPLAYER player, bool visible) {
+    uint32_t mask;
     if (texttag_index(tag) < 0) return;
     mask = player ? multiboard_client_mask(PLAYER_NUM(player)) : multiboard_all_client_mask();
     if (visible) tag->visible_clients |= mask; else tag->visible_clients &= ~mask;
 }
 
-BOOL G_IsTextTagVisible(LPCTEXTTAG tag, LPCPLAYER player) {
-    DWORD mask;
+bool G_IsTextTagVisible(LPCTEXTTAG tag, LPCPLAYER player) {
+    uint32_t mask;
     if (!tag || !tag->inuse) return false;
     if (player) return tag->visible_clients & multiboard_client_mask(PLAYER_NUM(player));
     mask = multiboard_all_client_mask();

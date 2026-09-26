@@ -15,42 +15,42 @@
 
 void test_client_stubs_init(void);
 void test_client_stubs_clear_cvars(void);
-void test_client_stubs_set_cvar(LPCSTR name, LPCSTR value);
+void test_client_stubs_set_cvar(cstring_t name, cstring_t value);
 void test_client_stubs_set_world_bounds(BOX2 bounds);
 struct game_import gi;
-static DWORD map_defer_count;
-static DWORD cm_loading_frame_calls;
-static BOOL cm_loading;
+static uint32_t map_defer_count;
+static uint32_t cm_loading_frame_calls;
+static bool cm_loading;
 void Cbuf_CopyToDefer(void) { T_EQ(sv.state, ss_game); map_defer_count++; }
 
 /* External symbols referenced by sv_init.c but unused in these tests. */
 void SV_InitGameProgs(void) {}
 void CL_LoadingFrame(void) { if (cm_loading) cm_loading_frame_calls++; }
 void SV_ClearWorld(void) {}
-bool CM_LoadMap(LPCSTR mapFilename, cmLoadYield_t yield) {
+bool CM_LoadMap(cstring_t mapFilename, cmLoadYield_t yield) {
     (void)mapFilename;
     cm_loading = true; yield(); cm_loading = false;
     return true;
 }
-DWORD CM_GetMapChecksum(void) { return 0x1234; }
+uint32_t CM_GetMapChecksum(void) { return 0x1234; }
 LPDOODAD CM_GetDoodads(void) { return NULL; }
 static LPMAPINFO test_mapinfo;
 LPCMAPINFO CM_GetMapInfo(void) { return test_mapinfo; }
-FLOAT CM_GetHeightAtPoint(FLOAT x, FLOAT y) { (void)x; (void)y; return 0.0f; }
-VECTOR2 CM_GetNormalizedMapPosition(FLOAT x, FLOAT y) { return (VECTOR2){ x, y }; }
-VECTOR2 CM_GetDenormalizedMapPosition(FLOAT x, FLOAT y) { return (VECTOR2){ x, y }; }
+float CM_GetHeightAtPoint(float x, float y) { (void)x; (void)y; return 0.0f; }
+VECTOR2 CM_GetNormalizedMapPosition(float x, float y) { return (VECTOR2){ x, y }; }
+VECTOR2 CM_GetDenormalizedMapPosition(float x, float y) { return (VECTOR2){ x, y }; }
 /* CM_GetWorldBounds lives in test_client_stubs.c so net and server tests share one map box. */
-HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData) {
+handle_t FS_FindFirstFile(cstring_t mask, SFILE_FIND_DATA *findData) {
     (void)mask;
     (void)findData;
     return NULL;
 }
-BOOL FS_FindNextFile(HANDLE find, SFILE_FIND_DATA *findData) {
+bool FS_FindNextFile(handle_t find, SFILE_FIND_DATA *findData) {
     (void)find;
     (void)findData;
     return false;
 }
-BOOL FS_FindClose(HANDLE find) {
+bool FS_FindClose(handle_t find) {
     (void)find;
     return true;
 }
@@ -58,38 +58,38 @@ BOOL FS_FindClose(HANDLE find) {
 static void test_run_frame(void) {
 }
 
-static LPCSTR test_theme_value(LPCSTR filename) {
+static cstring_t test_theme_value(cstring_t filename) {
     return filename;
 }
 
-static HANDLE test_mem_alloc(long size) {
+static handle_t test_mem_alloc(long size) {
     return MemAlloc(size);
 }
 
-static void test_mem_free(HANDLE mem) {
+static void test_mem_free(handle_t mem) {
     MemFree(mem);
 }
 
-static int test_model_index(LPCSTR name) {
+static int test_model_index(cstring_t name) {
     (void)name;
     return 0;
 }
 
-static void test_customize_entity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
+static void test_customize_entity(uint32_t player, LPCEDICT ent, LPENTITYSTATE state) {
     (void)player; (void)ent; (void)state;
 }
 
-static BOOL test_snapshot_priority_entity(DWORD player, LPCEDICT ent) {
+static bool test_snapshot_priority_entity(uint32_t player, LPCEDICT ent) {
     (void)player;
     return ent && ent->s.class_id == MAKEFOURCC('m', 'm', 'c', 't');
 }
 
-static int test_image_index(LPCSTR name) {
+static int test_image_index(cstring_t name) {
     (void)name;
     return 0;
 }
 
-static int test_font_index(LPCSTR name, DWORD fontSize) {
+static int test_font_index(cstring_t name, uint32_t fontSize) {
     (void)name;
     (void)fontSize;
     return 0;
@@ -126,8 +126,8 @@ void SV_HandleUnitUIRequest(LPCLIENT client, LPSIZEBUF msg) { (void)client; (voi
 
 static struct game_export test_ge;
 static edict_t test_edicts[MAX_CLIENT_ENTITIES];
-static DWORD test_game_shutdowns;
-static DWORD test_camera_calls;
+static uint32_t test_game_shutdowns;
+static uint32_t test_camera_calls;
 static LPEDICT test_camera_ent;
 static VECTOR2 test_camera_pos;
 
@@ -137,7 +137,7 @@ static void test_set_camera(LPEDICT ent, LPCINPUTCMD cmd) {
 
 static void test_spawn_entities(void);
 
-static bool test_prepare_map(LPCSTR filename) {
+static bool test_prepare_map(cstring_t filename) {
     (void)filename;
     SV_ModelIndex("Loading.mdx");
     SV_ImageIndex("Loading.blp");
@@ -148,7 +148,7 @@ static bool test_prepare_map(LPCSTR filename) {
     return true;
 }
 
-static bool test_load_map(LPCSTR mapFilename) {
+static bool test_load_map(cstring_t mapFilename) {
     T_ASSERT(sv.loading.cursize);
     SV_ModelIndex("World.mdx");
     if (!CM_LoadMap(mapFilename, CL_LoadingFrame)) {
@@ -167,11 +167,11 @@ static void test_game_shutdown(void) {
     test_game_shutdowns++;
 }
 
-static DWORD test_write_client_datagram(LPEDICT ent, LPBYTE data, DWORD size) {
+static uint32_t test_write_client_datagram(LPEDICT ent, uint8_t * data, uint32_t size) {
     (void)ent;
-    if (size < sizeof(USHORT)) return 0;
-    memset(data, 0, sizeof(USHORT));
-    return sizeof(USHORT);
+    if (size < sizeof(uint16_t)) return 0;
+    memset(data, 0, sizeof(uint16_t));
+    return sizeof(uint16_t);
 }
 
 static void reset_server_state(int max_players) {
@@ -238,7 +238,7 @@ TEST(server_net, entity_recipient_falls_back_to_world_entity_owner) {
 /* Campaign player identity is assigned by the game, independently of lobby slots. */
 TEST(server_net, unit_ack_uses_game_player_identity_after_campaign_begin) {
     GAMECLIENT players[2] = { { .ps.number = 1 }, { .ps.number = 0 } };
-    BYTE data[32];
+    uint8_t data[32];
     sizeBuf_t msg = { .data = data, .maxsize = sizeof(data) };
     netadr_t from;
 
@@ -271,7 +271,7 @@ TEST(server_net, unit_ack_uses_game_player_identity_after_campaign_begin) {
     T_EQ(MSG_ReadByte(&msg), SND_ATTENUATION | SND_PRIORITY);
     T_EQ(MSG_ReadShort(&msg), 118);
     T_EQ(MSG_ReadByte(&msg), 0);
-    T_EQ((USHORT)MSG_ReadShort(&msg), 1731);
+    T_EQ((uint16_t)MSG_ReadShort(&msg), 1731);
     T_EQ(msg.readcount, msg.cursize);
     soundPolicy_t policy = { .priority = 0xf1234567u, .user = 511, .request = 0xfedc1234u, .flags = SOUND_NO_DUPLICATE_USERS | SOUND_CHANNEL_PREEMPT,
         .cooldown_ms = 250, .group = 15, .max_channel = 2, .max_total = 24, .max_duplicates = 4 };
@@ -282,11 +282,11 @@ TEST(server_net, unit_ack_uses_game_player_identity_after_campaign_begin) {
     T_EQ(MSG_ReadByte(&msg), SND_ATTENUATION | SND_POLICY);
     T_EQ(MSG_ReadShort(&msg), 118);
     T_EQ(MSG_ReadByte(&msg), 0);
-    T_EQ((DWORD)MSG_ReadLong(&msg), policy.priority);
-    T_EQ((DWORD)MSG_ReadLong(&msg), policy.user);
-    T_EQ((DWORD)MSG_ReadLong(&msg), policy.request);
-    T_EQ((USHORT)MSG_ReadShort(&msg), policy.flags);
-    T_EQ((USHORT)MSG_ReadShort(&msg), 250);
+    T_EQ((uint32_t)MSG_ReadLong(&msg), policy.priority);
+    T_EQ((uint32_t)MSG_ReadLong(&msg), policy.user);
+    T_EQ((uint32_t)MSG_ReadLong(&msg), policy.request);
+    T_EQ((uint16_t)MSG_ReadShort(&msg), policy.flags);
+    T_EQ((uint16_t)MSG_ReadShort(&msg), 250);
     T_EQ(MSG_ReadByte(&msg), 15);
     T_EQ(MSG_ReadByte(&msg), 2);
     T_EQ(MSG_ReadByte(&msg), 24);
@@ -300,7 +300,7 @@ TEST(server_net, unit_ack_uses_game_player_identity_after_campaign_begin) {
 
 TEST(server_net, edict_recipient_rejects_unowned_edict) {
     LPCLIENT client;
-    BYTE data[16];
+    uint8_t data[16];
     sizeBuf_t msg = { .data = data, .maxsize = sizeof(data) };
     netadr_t from;
 
@@ -323,7 +323,7 @@ TEST(server_net, edict_recipient_rejects_unowned_edict) {
 }
 
 TEST(server_net, edict_recipient_unicast_delivers_to_exact_client_edict) {
-    BYTE data[16];
+    uint8_t data[16];
     sizeBuf_t msg = { .data = data, .maxsize = sizeof(data) };
     netadr_t from;
     LPCLIENT target, other;
@@ -353,7 +353,7 @@ TEST(server_net, edict_recipient_unicast_delivers_to_exact_client_edict) {
 }
 
 TEST(server_net, camera_packet_waits_for_spawned_client_edict) {
-    BYTE data[16];
+    uint8_t data[16];
     sizeBuf_t msg = { data, sizeof(data), 0, 0 };
     LPCLIENT client;
 
@@ -373,7 +373,7 @@ TEST(server_net, camera_packet_waits_for_spawned_client_edict) {
 }
 
 TEST(server_net, typed_input_rejects_truncation_and_waits_for_spawn) {
-    BYTE data[32];
+    uint8_t data[32];
     sizeBuf_t msg;
     INPUTCMD cmd = { .action = BZ_INPUT_FOCUS, .focus = {12, -34} };
     reset_server_state(1);
@@ -407,7 +407,7 @@ static int open_client_socket(void) {
     return s;
 }
 
-static BOOL bind_server_socket(unsigned short port) {
+static bool bind_server_socket(unsigned short port) {
     char text[16];
 
     snprintf(text, sizeof(text), "%u", (unsigned)port);
@@ -423,8 +423,8 @@ static void send_connect_oob(int sock, unsigned short server_port) {
         OOB_HEADER_SIZE = 4,
         CONNECT_TEXT_SIZE = sizeof("connect " BZ_XSTR(BZ_PROTOCOL_VERSION)) - 1
     };
-    BYTE datagram[MAX_CONNECT_DATAGRAM_SIZE];
-    DWORD msg_len = OOB_HEADER_SIZE + CONNECT_TEXT_SIZE;
+    uint8_t datagram[MAX_CONNECT_DATAGRAM_SIZE];
+    uint32_t msg_len = OOB_HEADER_SIZE + CONNECT_TEXT_SIZE;
     int oob_marker = -1;
     memcpy(datagram, &oob_marker, sizeof(oob_marker));
     memcpy(datagram + 4, "connect " BZ_XSTR(BZ_PROTOCOL_VERSION), CONNECT_TEXT_SIZE);
@@ -444,8 +444,8 @@ static void send_info_oob(int sock, unsigned short server_port) {
         OOB_HEADER_SIZE = 4,
         INFO_TEXT_SIZE = 4
     };
-    BYTE datagram[MAX_INFO_DATAGRAM_SIZE];
-    DWORD msg_len = OOB_HEADER_SIZE + INFO_TEXT_SIZE;
+    uint8_t datagram[MAX_INFO_DATAGRAM_SIZE];
+    uint32_t msg_len = OOB_HEADER_SIZE + INFO_TEXT_SIZE;
     int oob_marker = -1;
     memcpy(datagram, &oob_marker, sizeof(oob_marker));
     memcpy(datagram + 4, "info", 4);
@@ -459,12 +459,12 @@ static void send_info_oob(int sock, unsigned short server_port) {
     (void)sendto(sock, datagram, msg_len, 0, (struct sockaddr *)&to, sizeof(to));
 }
 
-static BOOL recv_client_connect_oob(int sock) {
+static bool recv_client_connect_oob(int sock) {
     enum {
         MAX_RECV_RETRIES = 40,
         RECV_POLL_DELAY_US = 5000
     };
-    BYTE datagram[128];
+    uint8_t datagram[128];
     struct sockaddr_in from;
     socklen_t fromlen = sizeof(from);
     int flags = fcntl(sock, F_GETFL, 0);
@@ -473,7 +473,7 @@ static BOOL recv_client_connect_oob(int sock) {
     FOR_LOOP(i, MAX_RECV_RETRIES) {
         int r = recvfrom(sock, datagram, sizeof(datagram), 0, (struct sockaddr *)&from, &fromlen);
         if (r > 0) {
-            LPCSTR reply = "client_connect " BZ_XSTR(BZ_PROTOCOL_VERSION);
+            cstring_t reply = "client_connect " BZ_XSTR(BZ_PROTOCOL_VERSION);
             if (r >= 4 + strlen(reply) && memcmp(datagram + 4, reply, strlen(reply)) == 0)
                 return true;
             return false;
@@ -490,13 +490,13 @@ static void pump_server_connects(void) {
         RECV_POLL_DELAY_US = 5000,
         MIN_CONNECT_MSG_SIZE = 11
     };
-    BYTE msg_buf[MAX_MSGLEN];
+    uint8_t msg_buf[MAX_MSGLEN];
     sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
     netadr_t from;
-    DWORD empty_polls = 0;
+    uint32_t empty_polls = 0;
     int r;
 
-    for (DWORD packets = 0; packets < MAX_PACKETS_PER_PUMP && empty_polls < MAX_EMPTY_POLLS;) {
+    for (uint32_t packets = 0; packets < MAX_PACKETS_PER_PUMP && empty_polls < MAX_EMPTY_POLLS;) {
         r = NET_GetPacket(NS_SERVER, &from, &msg);
         if (!r) {
             empty_polls++;
@@ -520,13 +520,13 @@ static void pump_server_connectionless(void) {
         MAX_EMPTY_POLLS = 40,
         RECV_POLL_DELAY_US = 5000,
     };
-    BYTE msg_buf[MAX_MSGLEN];
+    uint8_t msg_buf[MAX_MSGLEN];
     sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
     netadr_t from;
-    DWORD empty_polls = 0;
+    uint32_t empty_polls = 0;
     int r;
 
-    for (DWORD packets = 0; packets < MAX_PACKETS_PER_PUMP && empty_polls < MAX_EMPTY_POLLS;) {
+    for (uint32_t packets = 0; packets < MAX_PACKETS_PER_PUMP && empty_polls < MAX_EMPTY_POLLS;) {
         r = NET_GetPacket(NS_SERVER, &from, &msg);
         if (!r) {
             empty_polls++;
@@ -539,12 +539,12 @@ static void pump_server_connectionless(void) {
     }
 }
 
-static BOOL recv_info_oob(int sock, LPSTR out, DWORD out_size) {
+static bool recv_info_oob(int sock, string_t out, uint32_t out_size) {
     enum {
         MAX_RECV_RETRIES = 40,
         RECV_POLL_DELAY_US = 5000
     };
-    BYTE datagram[512];
+    uint8_t datagram[512];
     struct sockaddr_in from;
     socklen_t fromlen = sizeof(from);
     int flags = fcntl(sock, F_GETFL, 0);
@@ -556,7 +556,7 @@ static BOOL recv_info_oob(int sock, LPSTR out, DWORD out_size) {
     FOR_LOOP(i, MAX_RECV_RETRIES) {
         int r = recvfrom(sock, datagram, sizeof(datagram), 0, (struct sockaddr *)&from, &fromlen);
         if (r > 4) {
-            DWORD len = MIN((DWORD)(r - 4), out_size ? out_size - 1 : 0);
+            uint32_t len = MIN((uint32_t)(r - 4), out_size ? out_size - 1 : 0);
             if (out && out_size > 0) {
                 memcpy(out, datagram + 4, len);
                 out[len] = '\0';
@@ -569,7 +569,7 @@ static BOOL recv_info_oob(int sock, LPSTR out, DWORD out_size) {
 }
 
 static void drain_client_packets(void) {
-    BYTE msg_buf[MAX_MSGLEN];
+    uint8_t msg_buf[MAX_MSGLEN];
     sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
     netadr_t from;
 
@@ -578,7 +578,7 @@ static void drain_client_packets(void) {
 }
 
 TEST(server_net, runtime_configstring_change_marks_value_for_reliable_resync) {
-    DWORD const index = CS_GENERAL + 7;
+    uint32_t const index = CS_GENERAL + 7;
 
     reset_server_state(1);
     sv.syncstrings[index] = true;
@@ -618,7 +618,7 @@ TEST(server_net, image_registry_exceeds_legacy_255_slot_limit) {
 }
 
 TEST(server_net, pending_image_configstring_precedes_dependent_payload) {
-    BYTE copy[MAX_MSGLEN];
+    uint8_t copy[MAX_MSGLEN];
     char name[MAX_PATHLEN];
     sizeBuf_t msg;
     LPCLIENT client;
@@ -649,12 +649,12 @@ TEST(server_net, pending_image_configstring_precedes_dependent_payload) {
 }
 
 TEST(server_net, pending_configstrings_flush_before_message_limit) {
-    BYTE packet[MAX_MSGLEN];
+    uint8_t packet[MAX_MSGLEN];
     char value[32];
     sizeBuf_t msg = { .data = packet, .maxsize = sizeof(packet) };
     netadr_t from;
     LPCLIENT client;
-    DWORD index;
+    uint32_t index;
     int count = 0;
 
     reset_server_state(1);
@@ -709,11 +709,11 @@ TEST(server_net, udp_multi_client_connects_register_distinct_slots) {
 
 TEST(server_net, connectionless_connect_requires_matching_protocol) {
     netadr_t loopback = { .type = NA_LOOPBACK };
-    LPCSTR requests[] = { "connect\n\\name\\Old", "connect 8\n\\name\\Old",
+    cstring_t requests[] = { "connect\n\\name\\Old", "connect 8\n\\name\\Old",
         "connect " BZ_XSTR(BZ_PROTOCOL_VERSION) "\n\\name\\Player" };
     NET_Init(); reset_server_state(4);
     FOR_LOOP(i, 3) {
-        BYTE bytes[128]; sizeBuf_t msg = { .data = bytes, .maxsize = sizeof(bytes) };
+        uint8_t bytes[128]; sizeBuf_t msg = { .data = bytes, .maxsize = sizeof(bytes) };
         MSG_WriteLong(&msg, -1); MSG_WriteString(&msg, requests[i]);
         SV_ConnectionlessPacket(&loopback, &msg);
         T_EQ(svs.num_clients, i == 2 ? 1 : 0);
@@ -876,14 +876,14 @@ TEST(server_net, local_map_uses_loopback_without_udp) {
 }
 
 TEST(server_net, duplicate_loopback_connect_replies_without_allocating_client) {
-    BYTE data[MAX_MSGLEN];
+    uint8_t data[MAX_MSGLEN];
     sizeBuf_t msg = { data, sizeof(data), 0, 0 };
     netadr_t loopback = { .type = NA_LOOPBACK }, from;
 
     NET_Shutdown(); reset_server_state(1); SV_ClientConnect(); drain_client_packets();
     SV_DirectConnect(&loopback, "\\name\\Player");
     T_EQ(svs.num_clients, 1); T_ASSERT(NET_GetPacket(NS_CLIENT, &from, &msg));
-    LPCSTR reply = "client_connect " BZ_XSTR(BZ_PROTOCOL_VERSION);
+    cstring_t reply = "client_connect " BZ_XSTR(BZ_PROTOCOL_VERSION);
     T_EQ(*(int *)msg.data, -1); T_EQ(msg.cursize, 4 + strlen(reply));
     T_ASSERT(!memcmp(msg.data + 4, reply, strlen(reply)));
     SV_Shutdown(); NET_Shutdown();
@@ -894,8 +894,8 @@ TEST(server_net, server_snapshot_ring_scales_to_client_capacity) {
 
     SV_InitGame();
     /* History is required; the old test omitted it before the per-frame packet budget was reduced. */
-    T_EQ(svs.num_client_entities, (DWORD)(test_ge.max_clients * MAX_PACKET_ENTITIES * UPDATE_BACKUP));
-    T_ASSERT(svs.num_client_entities < (DWORD)(UPDATE_BACKUP * test_ge.max_clients * MAX_GAME_ENTITIES));
+    T_EQ(svs.num_client_entities, (uint32_t)(test_ge.max_clients * MAX_PACKET_ENTITIES * UPDATE_BACKUP));
+    T_ASSERT(svs.num_client_entities < (uint32_t)(UPDATE_BACKUP * test_ge.max_clients * MAX_GAME_ENTITIES));
     T_ASSERT(svs.client_entities != NULL);
 }
 
@@ -914,7 +914,7 @@ TEST(server_net, snapshot_overflow_keeps_nearest_entities_in_wire_order) {
         test_edicts[i].inuse = true;
         test_edicts[i].s.number = i; test_edicts[i].s.model = 1;
         test_edicts[i].s.player = 1;
-        test_edicts[i].s.origin.x = (FLOAT)(test_ge.num_edicts - i);
+        test_edicts[i].s.origin.x = (float)(test_ge.num_edicts - i);
     }
 
     SV_BuildClientFrame(client);
@@ -929,8 +929,8 @@ TEST(server_net, snapshot_overflow_retains_game_prioritized_minimap_contact) {
     static struct client_s game_client;
     LPCLIENT client;
     LPCLIENTFRAME frame;
-    DWORD contact_number = MAX_PACKET_ENTITIES + 1;
-    BOOL contact_retained = false;
+    uint32_t contact_number = MAX_PACKET_ENTITIES + 1;
+    bool contact_retained = false;
 
     reset_server_state(1);
     SV_InitGame();
@@ -1113,7 +1113,7 @@ TEST(server_net, lobby_rejects_remote_when_slots_full) {
 }
 
 TEST(server_net, lobby_setup_message_round_trips_slot_table) {
-    BYTE msg_buf[MAX_MSGLEN];
+    uint8_t msg_buf[MAX_MSGLEN];
     sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
     LPCLIENT cl;
     char text[128];
@@ -1181,7 +1181,7 @@ TEST(server_net, lobby_setup_message_round_trips_slot_table) {
 }
 
 TEST(server_net, multicast_syncs_updates_to_all_connected_clients) {
-    BYTE payload[] = { 0x11, 0x22, 0x33, 0x44 };
+    uint8_t payload[] = { 0x11, 0x22, 0x33, 0x44 };
     VECTOR3 origin = { 0, 0, 0 };
     reset_server_state(4);
     SZ_Init(&sv.multicast, sv.multicast_buf, sizeof(sv.multicast_buf));
@@ -1202,7 +1202,7 @@ TEST(server_net, multicast_syncs_updates_to_all_connected_clients) {
 }
 
 TEST(server_net, lobby_chat_broadcasts_to_connected_clients) {
-    BYTE msg_buf[MAX_MSGLEN];
+    uint8_t msg_buf[MAX_MSGLEN];
     sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
     netadr_t from;
     char text[512];
@@ -1234,13 +1234,13 @@ TEST(server_net, lobby_chat_broadcasts_to_connected_clients) {
 /* Early and late clients receive the same loading resources, before any world-only configstrings. */
 TEST(server_net, loading_batch_precedes_world_and_retains_resource_indices) {
     MAPINFO info = { 0 };
-    BOOL model = false, image = false, font = false;
-    BYTE buf[MAX_MSGLEN], packed[4096] = { 0 }, layout[256];
+    bool model = false, image = false, font = false;
+    uint8_t buf[MAX_MSGLEN], packed[4096] = { 0 }, layout[256];
     sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
     netadr_t from;
     NET_Shutdown(); reset_server_state(1); test_mapinfo = &info;
-    DWORD before = map_defer_count;
-    DWORD loading_before = cm_loading_frame_calls;
+    uint32_t before = map_defer_count;
+    uint32_t loading_before = cm_loading_frame_calls;
     SV_Map("Test.w3m");
     T_EQ(map_defer_count, before + 1);
     T_EQ(cm_loading_frame_calls, loading_before + 1);
@@ -1248,7 +1248,7 @@ TEST(server_net, loading_batch_precedes_world_and_retains_resource_indices) {
     /* A connection after world loading must still receive only the original loading dependencies. */
     SV_SendLoadingScreen(&svs.clients[0]);
     T_ASSERT(NET_GetPacket(NS_CLIENT, &from, &msg));
-    DWORD bytes = 0;
+    uint32_t bytes = 0;
     while (msg.readcount < msg.cursize) {
         int op = MSG_ReadByte(&msg);
         if (op == svc_loading_screen) {
@@ -1261,7 +1261,7 @@ TEST(server_net, loading_batch_precedes_world_and_retains_resource_indices) {
         } else {
             T_EQ(op, svc_configstring);
             int index = MSG_ReadShort(&msg);
-            LPCSTR name = MSG_ReadString2(&msg);
+            cstring_t name = MSG_ReadString2(&msg);
             T_EQ(bytes, 0);
             if (index == CS_MODELS + 1) { T_STREQ(name, "Loading.mdx"); model = true; }
             if (index == CS_IMAGES + 1) { T_STREQ(name, "Loading.blp"); image = true; }
@@ -1282,7 +1282,7 @@ TEST(server_net, loading_batch_precedes_world_and_retains_resource_indices) {
 TEST(server_net, dedicated_map_does_not_defer_operator_commands_for_a_local_client) {
     MAPINFO info = { 0 };
     NET_Shutdown(); reset_server_state(1); test_mapinfo = &info;
-    DWORD before = map_defer_count;
+    uint32_t before = map_defer_count;
     test_client_stubs_set_cvar("dedicated", "1");
     SV_Map("Test.w3m");
     T_EQ(map_defer_count, before);
@@ -1292,9 +1292,9 @@ TEST(server_net, dedicated_map_does_not_defer_operator_commands_for_a_local_clie
 
 /* Chunk framing preserves binary bytes while respecting the real UDP signon budget. */
 TEST(server_net, loading_screen_chunks_fit_udp) {
-    BYTE buf[MAX_MSGLEN], data[4096];
+    uint8_t buf[MAX_MSGLEN], data[4096];
     sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
-    DWORD bytes = 0, chunks = 0;
+    uint32_t bytes = 0, chunks = 0;
     NET_Shutdown(); reset_server_state(1);
     T_ASSERT(bind_server_socket(PORT_SERVER + 22));
     int sock = open_client_socket();
@@ -1304,7 +1304,7 @@ TEST(server_net, loading_screen_chunks_fit_udp) {
     send_connect_oob(sock, PORT_SERVER + 22); pump_server_connects();
     T_ASSERT(recv_client_connect_oob(sock));
     fcntl(sock, F_SETFL, fcntl(sock, F_GETFL, 0) & ~O_NONBLOCK);
-    FOR_LOOP(i, sizeof(data)) data[i] = (BYTE)i;
+    FOR_LOOP(i, sizeof(data)) data[i] = (uint8_t)i;
     SZ_Init(&sv.loading, MemAlloc(sizeof(data)), sizeof(data));
     MSG_Write(&sv.loading, data, sizeof(data));
     SV_SendLoadingScreen(&svs.clients[0]);
@@ -1323,7 +1323,7 @@ TEST(server_net, loading_screen_chunks_fit_udp) {
             T_EQ(op, svc_loading_screen);
             T_EQ(MSG_ReadLong(&msg), sizeof(data));
             T_EQ(MSG_ReadLong(&msg), bytes);
-            DWORD len = MSG_ReadLong(&msg);
+            uint32_t len = MSG_ReadLong(&msg);
             T_ASSERT(len && len <= sizeof(data) - bytes && len <= msg.cursize - msg.readcount);
             T_EQ(memcmp(msg.data + msg.readcount, data + bytes, len), 0);
             msg.readcount += len; bytes += len; chunks++;
@@ -1336,15 +1336,15 @@ TEST(server_net, loading_screen_chunks_fit_udp) {
 
 /* Even the maximum compressed stream must leave room for framing below the loopback reader's limit. */
 TEST(server_net, loading_screen_maximum_stream_splits_loopback) {
-    BYTE buf[MAX_MSGLEN];
+    uint8_t buf[MAX_MSGLEN];
     sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
     netadr_t from;
-    DWORD bytes = 0, chunks = 0;
+    uint32_t bytes = 0, chunks = 0;
     NET_Shutdown(); reset_server_state(1);
     SV_ClientConnect(); drain_client_packets();
     SZ_Init(&sv.loading, MemAlloc(MAX_MSGLEN), MAX_MSGLEN);
     sv.loading.cursize = MAX_MSGLEN;
-    FOR_LOOP(i, MAX_MSGLEN) sv.loading.data[i] = (BYTE)i;
+    FOR_LOOP(i, MAX_MSGLEN) sv.loading.data[i] = (uint8_t)i;
     SV_SendLoadingScreen(&svs.clients[0]);
     while (NET_GetPacket(NS_CLIENT, &from, &msg)) {
         T_ASSERT(msg.cursize < MAX_MSGLEN);
@@ -1356,7 +1356,7 @@ TEST(server_net, loading_screen_maximum_stream_splits_loopback) {
             }
             T_EQ(op, svc_loading_screen);
             T_EQ(MSG_ReadLong(&msg), MAX_MSGLEN); T_EQ(MSG_ReadLong(&msg), bytes);
-            DWORD len = MSG_ReadLong(&msg);
+            uint32_t len = MSG_ReadLong(&msg);
             T_ASSERT(len && len <= MAX_MSGLEN - bytes && len <= msg.cursize - msg.readcount);
             T_EQ(memcmp(msg.data + msg.readcount, sv.loading.data + bytes, len), 0);
             msg.readcount += len; bytes += len; chunks++;
@@ -1369,9 +1369,9 @@ TEST(server_net, loading_screen_maximum_stream_splits_loopback) {
 
 /* Layouts larger than the old slot budget retain every authored text byte and animation directive. */
 TEST(server_net, loading_screen_preserves_full_text_and_geometry) {
-    BYTE raw[MAX_MSGLEN];
+    uint8_t raw[MAX_MSGLEN];
     char text[4096];
-    DWORD seed = 1;
+    uint32_t seed = 1;
     UIFRAME empty = { .tex.coord = { 0, 255, 0, 255 } };
     UIFRAME frame = { .number = 1, .flags.type = FT_STRING, .size = { .width = 321, .height = 123 }, .tex.coord = { 0, 255, 0, 255 } };
     reset_server_state(1);
@@ -1392,7 +1392,7 @@ TEST(server_net, loading_screen_preserves_full_text_and_geometry) {
     T_EQ(uncompress(raw, &size, sv.loading.data, sv.loading.cursize), Z_OK);
     sizeBuf_t msg = { .data = raw, .cursize = size, .maxsize = sizeof(raw) };
     T_EQ(MSG_ReadByte(&msg), LAYER_LOADING);
-    DWORD bits, number = MSG_ReadEntityBits(&msg, &bits);
+    uint32_t bits, number = MSG_ReadEntityBits(&msg, &bits);
     frame = empty;
     MSG_ReadDeltaUIFrame(&msg, &frame, number, bits);
     T_EQ(frame.tex.coord[1], 255); T_EQ(frame.tex.coord[3], 255);
@@ -1407,7 +1407,7 @@ TEST(server_net, loading_screen_preserves_full_text_and_geometry) {
 
 /* An idle lobby must keep both loopback and UDP peers alive without advancing simulation or rebuilding UI. */
 TEST(server_net, idle_lobby_sends_keepalives_without_simulating) {
-    BYTE buf[MAX_MSGLEN];
+    uint8_t buf[MAX_MSGLEN];
     sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
     netadr_t from;
     NET_Shutdown(); reset_server_state(2);
@@ -1442,10 +1442,10 @@ TEST(server_net, loading_configstrings_do_not_queue_duplicate_live_updates) {
 
 /* Exercise the real command dispatcher over UDP with enough startup data to exceed the old datagram limit. */
 TEST(server_net, udp_signon_pages_preserve_complete_configstrings_and_baselines) {
-    BYTE buf[MAX_MSGLEN];
+    uint8_t buf[MAX_MSGLEN];
     sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
     char next[64] = "configstrings";
-    DWORD strings = 0, bases = 0, pages = 0;
+    uint32_t strings = 0, bases = 0, pages = 0;
     NET_Shutdown(); reset_server_state(2);
     T_ASSERT(bind_server_socket(PORT_SERVER + 21));
     int sock = open_client_socket();
@@ -1477,7 +1477,7 @@ TEST(server_net, udp_signon_pages_preserve_complete_configstrings_and_baselines)
                 T_EQ(index, CS_MODELS + ++strings);
                 T_STREQ(MSG_ReadString2(&msg), sv.configstrings[index]);
             } else if (op == svc_spawnbaseline) {
-                DWORD bits;
+                uint32_t bits;
                 entityState_t ent = { 0 };
                 int num = MSG_ReadEntityBits(&msg, &bits);
                 MSG_ReadDeltaEntity(&msg, &ent, num, bits);
@@ -1517,7 +1517,7 @@ TEST(server_net, review_snapshot_keeps_nearby_world_entity_among_distant_contact
     test_edicts[1].s.class_id = 0;
     test_edicts[1].s.origin.x = 0.0f;
     SV_BuildClientFrame(client);
-    BOOL found = false;
+    bool found = false;
     FOR_LOOP(i, frame->num_entities)
         if (svs.client_entities[frame->first_entity + i].number == 1) found = true;
     T_ASSERT(found);

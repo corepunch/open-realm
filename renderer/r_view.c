@@ -21,7 +21,7 @@ void R_RenderFrame(viewDef_t const *viewDef) {
     R_ConformGroundSurfaces(&tr.viewDef);
 
     if (!tr.viewDef.scissor.w && !tr.viewDef.scissor.h) {
-        tr.viewDef.scissor = (RECT){0, 0, 1, 1};
+        tr.viewDef.scissor = (rect_t){0, 0, 1, 1};
     }
 
     if ((tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) && tr.viewDef.num_entities > 0) {

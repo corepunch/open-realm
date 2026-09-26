@@ -18,15 +18,15 @@
  * OpenRealm's top-left proxy-frame coordinates instead of positioning the
  * slots in world-screen space above the status panel. */
 static int timed_status_debug_level(void) {
-    LPCSTR value;
+    cstring_t value;
 
     value = gi.CvarString("wc3_timed_status_debug", "0");
     return value ? atoi(value) : 0;
 }
 
-static void timed_status_debug_dump(LPEDICT ent, LPGAMECLIENT viewer, LPCSTR stage) {
+static void timed_status_debug_dump(LPEDICT ent, LPGAMECLIENT viewer, cstring_t stage) {
     int const debug = timed_status_debug_level();
-    DWORD const now = G_Time();
+    uint32_t const now = G_Time();
     char unit_code[5] = { 0 };
 
     if (debug < 1 || !ent) return;
@@ -39,11 +39,11 @@ static void timed_status_debug_dump(LPEDICT ent, LPGAMECLIENT viewer, LPCSTR sta
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t const *status = ent->abilstatus + i;
         char code[5] = { 0 };
-        LONG remaining;
+        int32_t remaining;
 
         if (!status->level) continue;
         memcpy(code, &status->code, 4);
-        remaining = status->timestamp > now ? (LONG)(status->timestamp - now) : 0;
+        remaining = status->timestamp > now ? (int32_t)(status->timestamp - now) : 0;
         fprintf(stderr,
                 "WC3_TIMED_STATUS server status slot=%u code=%s level=%u timestamp=%u duration_ms=%u remaining_ms=%ld eligible=%u fraction=%.4f\n",
                 (unsigned)i, code, (unsigned)status->level,
@@ -53,8 +53,8 @@ static void timed_status_debug_dump(LPEDICT ent, LPGAMECLIENT viewer, LPCSTR sta
     }
 }
 
-static BOOL InfoPanelStringsResolved(void) {
-    static LPCSTR const required[] = {
+static bool InfoPanelStringsResolved(void) {
+    static cstring_t const required[] = {
         "COLON_DAMAGE",
         "COLON_ARMOR",
         "COLON_FOOD",
@@ -67,13 +67,13 @@ static BOOL InfoPanelStringsResolved(void) {
     };
 
     FOR_LOOP(i, sizeof(required) / sizeof(required[0])) {
-        LPCSTR const value = UI_GetString(required[i]);
+        cstring_t const value = UI_GetString(required[i]);
         if (!value || !strcmp(value, required[i])) return false;
     }
     return true;
 }
 
-static void InitStatusWrapper(LPFRAMEDEF frame, FLOAT x, FLOAT y, FLOAT width, FLOAT height) {
+static void InitStatusWrapper(LPFRAMEDEF frame, float x, float y, float width, float height) {
     UI_InitFrame(frame, FT_SIMPLEFRAME);
     UI_SetSize(frame, width, height);
     UI_SetPoint(frame, FRAMEPOINT_TOPLEFT, hud.simple.SimpleInfoPanelUnitDetail,
@@ -81,8 +81,8 @@ static void InitStatusWrapper(LPFRAMEDEF frame, FLOAT x, FLOAT y, FLOAT width, F
 }
 
 void UI_LoadHudInfoPanel(void) {
-    BOOL global_strings_loaded;
-    BOOL infopanel_strings_loaded;
+    bool global_strings_loaded;
+    bool infopanel_strings_loaded;
 
     if (hud.bottom.Type) return;
 
@@ -207,8 +207,8 @@ static void HideLegacyUnitStats(void) {
 }
 
 static void FormatAttackDamageValue(char *buffer, size_t buffer_size,
-                                    LONG min_damage, LONG max_damage, FLOAT temporary_bonus) {
-    LONG const bonus = (LONG)temporary_bonus;
+                                    int32_t min_damage, int32_t max_damage, float temporary_bonus) {
+    int32_t const bonus = (int32_t)temporary_bonus;
     if (bonus > 0) {
         snprintf(buffer, buffer_size, "%ld - %ld |cff00ff00+%ld|r",
                  (long)min_damage, (long)max_damage, (long)bonus);
@@ -221,9 +221,9 @@ static void FormatAttackDamageValue(char *buffer, size_t buffer_size,
 }
 
 static void WriteLegacyUnitStats(LPEDICT ent, UnitWeapons_t const *weapons,
-                                 BOOL has_attack2, LONG min_damage, LONG max_damage,
-                                 LONG min_damage2, LONG max_damage2, BOOL is_hero,
-                                 DWORD level) {
+                                 bool has_attack2, int32_t min_damage, int32_t max_damage,
+                                 int32_t min_damage2, int32_t max_damage2, bool is_hero,
+                                 uint32_t level) {
     char buffer[128];
 
     UI_SetText(hud.unit.AttackLabel1, "Damage:");
@@ -252,8 +252,8 @@ static void WriteLegacyUnitStats(LPEDICT ent, UnitWeapons_t const *weapons,
     UI_SetHidden(hud.unit.RangeValue2, !has_attack2);
 
     if (is_hero) {
-        LPCSTR const prim = ent->data.UnitBalance->primaryAttribute;
-        struct { LPCSTR code; DWORD val; } attrs[3] = {
+        cstring_t const prim = ent->data.UnitBalance->primaryAttribute;
+        struct { cstring_t code; uint32_t val; } attrs[3] = {
             { "STR", ent->hero.str }, { "AGI", ent->hero.agi }, { "INT", ent->hero.intel },
         };
         LPFRAMEDEF icon_values[3] = {
@@ -261,13 +261,13 @@ static void WriteLegacyUnitStats(LPEDICT ent, UnitWeapons_t const *weapons,
         };
 
         FOR_LOOP(a, 3) {
-            BOOL const isprim = prim && !strcmp(prim, attrs[a].code);
+            bool const isprim = prim && !strcmp(prim, attrs[a].code);
             UI_SetText(icon_values[a], "%lu", (unsigned long)attrs[a].val);
             icon_values[a]->Font.Color = isprim ? MAKE(COLOR32, 120, 230, 120, 255) : COLOR32_WHITE;
         }
 
-        DWORD const need = G_HeroXPForLevel(level + 1);
-        DWORD const have = G_HeroXPForLevel(level);
+        uint32_t const need = G_HeroXPForLevel(level + 1);
+        uint32_t const have = G_HeroXPForLevel(level);
         if (need > have) {
             snprintf(buffer, sizeof(buffer), "XP: %lu / %lu",
                      (unsigned long)(ent->hero.xp - (ent->hero.xp < have ? ent->hero.xp : have)),
@@ -278,9 +278,9 @@ static void WriteLegacyUnitStats(LPEDICT ent, UnitWeapons_t const *weapons,
     }
 }
 
-static BOOL InfoPanelTextureExists(LPCSTR path) {
-    DWORD size = 0;
-    HANDLE data;
+static bool InfoPanelTextureExists(cstring_t path) {
+    uint32_t size = 0;
+    handle_t data;
 
     if (!path || !*path) return false;
     path = UI_ResolveTextureAlias(path);
@@ -290,15 +290,15 @@ static BOOL InfoPanelTextureExists(LPCSTR path) {
     return true;
 }
 
-static int InfoPanelIconTypeIndex(LPCSTR prefix, LPCSTR type, LPCSTR *normalized) {
-    static LPCSTR const damage_types[] = {
+static int InfoPanelIconTypeIndex(cstring_t prefix, cstring_t type, cstring_t *normalized) {
+    static cstring_t const damage_types[] = {
         "Unknown", "Normal", "Pierce", "Siege", "Spells", "Chaos", "Magic", "Hero",
     };
-    static LPCSTR const armor_types[] = {
+    static cstring_t const armor_types[] = {
         "Small", "Medium", "Large", "Fort", "Normal", "Hero", "Divine", "None",
     };
-    LPCSTR const *types;
-    LPCSTR fallback;
+    cstring_t const *types;
+    cstring_t fallback;
 
     if (!strcasecmp(prefix, "Armor")) {
         types = armor_types;
@@ -321,9 +321,9 @@ static int InfoPanelIconTypeIndex(LPCSTR prefix, LPCSTR type, LPCSTR *normalized
     return 0;
 }
 
-static LPCSTR InfoPanelThemeIcon(LPCSTR prefix, LPCSTR type, BOOL has_upgrade) {
+static cstring_t InfoPanelThemeIcon(cstring_t prefix, cstring_t type, bool has_upgrade) {
     char key[96];
-    LPCSTR texture;
+    cstring_t texture;
 
     UI_InfoPanelIconSkinKey(prefix, type, has_upgrade, key, sizeof(key));
     texture = Theme_String(key, NULL);
@@ -337,9 +337,9 @@ static LPCSTR InfoPanelThemeIcon(LPCSTR prefix, LPCSTR type, BOOL has_upgrade) {
     return texture;
 }
 
-static LPCSTR ResolveTypedInfoPanelIcon(LPCSTR prefix, LPCSTR type, BOOL has_upgrade) {
-    LPCSTR normalized;
-    LPCSTR texture, fallback;
+static cstring_t ResolveTypedInfoPanelIcon(cstring_t prefix, cstring_t type, bool has_upgrade) {
+    cstring_t normalized;
+    cstring_t texture, fallback;
     int const family = !strcasecmp(prefix, "Armor") ? 1 : 0;
     int const type_index = InfoPanelIconTypeIndex(prefix, type, &normalized);
     int const upgrade_index = has_upgrade ? 1 : 0;
@@ -377,13 +377,13 @@ static LPCSTR ResolveTypedInfoPanelIcon(LPCSTR prefix, LPCSTR type, BOOL has_upg
 
 #ifdef BZ_TESTS
 void UI_TestResetInfoPanelIconCache(void) { memset(hud.icon_cache, 0, sizeof(hud.icon_cache)); }
-LPCSTR UI_TestResolveTypedInfoPanelIcon(LPCSTR prefix, LPCSTR type, BOOL has_upgrade) {
+cstring_t UI_TestResolveTypedInfoPanelIcon(cstring_t prefix, cstring_t type, bool has_upgrade) {
     return ResolveTypedInfoPanelIcon(prefix, type, has_upgrade);
 }
 #endif
 
-static void SetTypedInfoPanelIcon(LPFRAMEDEF frame, LPCSTR prefix, LPCSTR type, BOOL has_upgrade) {
-    LPCSTR texture;
+static void SetTypedInfoPanelIcon(LPFRAMEDEF frame, cstring_t prefix, cstring_t type, bool has_upgrade) {
+    cstring_t texture;
 
     if (!frame || !prefix) return;
     texture = ResolveTypedInfoPanelIcon(prefix, type, has_upgrade);
@@ -396,9 +396,9 @@ static void SetTypedInfoPanelIcon(LPFRAMEDEF frame, LPCSTR prefix, LPCSTR type, 
     UI_SetTexture(frame, texture, false);
 }
 
-static void SetHeroPrimaryAttributeIcon(LPCSTR primary) {
-    LPCSTR key = "InfoPanelIconHeroIconSTR";
-    LPCSTR texture;
+static void SetHeroPrimaryAttributeIcon(cstring_t primary) {
+    cstring_t key = "InfoPanelIconHeroIconSTR";
+    cstring_t texture;
 
     if (!hud.simple.InfoPanelIconHeroIcon) return;
     if (primary && !strcmp(primary, "AGI")) key = "InfoPanelIconHeroIconAGI";
@@ -424,9 +424,9 @@ static void RefreshSimpleInfoPanelStrings(void) {
     UI_SetText(&hud.buff_label, "%s", UI_GetString("COLON_STATUS"));
 }
 
-static DWORD RawcodeFromListToken(LPCSTR text) {
+static uint32_t RawcodeFromListToken(cstring_t text) {
     char rawcode[5] = { 0 };
-    DWORD length = 0;
+    uint32_t length = 0;
 
     if (!text) return 0;
     while (*text && (isspace((unsigned char)*text) || *text == ',' || *text == ';')) text++;
@@ -438,23 +438,23 @@ static DWORD RawcodeFromListToken(LPCSTR text) {
     return length == 4 ? FS_SLKKey(rawcode) : 0;
 }
 
-static DWORD UnitWeaponUpgrade(LPEDICT ent) {
-    static LPCSTR const classes[] = { "melee", "ranged", "artillery" };
+static uint32_t UnitWeaponUpgrade(LPEDICT ent) {
+    static cstring_t const classes[] = { "melee", "ranged", "artillery" };
 
     if (!ent || !ent->data.UnitBalance) return 0;
     FOR_LOOP(i, sizeof(classes) / sizeof(classes[0])) {
-        DWORD const upgrade = G_GetUnitUpgradeForClass(ent, classes[i]);
+        uint32_t const upgrade = G_GetUnitUpgradeForClass(ent, classes[i]);
         if (upgrade) return upgrade;
     }
     return 0;
 }
 
-static DWORD UnitArmorUpgrade(LPEDICT ent) {
+static uint32_t UnitArmorUpgrade(LPEDICT ent) {
     if (!ent || !ent->data.UnitBalance) return 0;
     return G_GetUnitUpgradeForClass(ent, "armor");
 }
 
-static void SetUpgradeLevel(LPFRAMEDEF frame, DWORD upgrade, LPEDICT ent) {
+static void SetUpgradeLevel(LPFRAMEDEF frame, uint32_t upgrade, LPEDICT ent) {
     LPGAMECLIENT owner;
 
     if (!frame) return;
@@ -467,11 +467,11 @@ static void SetUpgradeLevel(LPFRAMEDEF frame, DWORD upgrade, LPEDICT ent) {
     UI_SetText(frame, "%ld", (long)G_GetPlayerTechResearchedLevel(owner, upgrade));
 }
 
-static DWORD StatusBuffCode(heroabilitystatus_t const *status) {
+static uint32_t StatusBuffCode(heroabilitystatus_t const *status) {
     AbilityData_t const *ability;
     abilityLevel_t const *row;
-    DWORD level;
-    DWORD buff;
+    uint32_t level;
+    uint32_t buff;
 
     if (!status || !status->level) return 0;
     if ((status->code & 0xff) == 'B') return status->code;
@@ -489,10 +489,10 @@ static DWORD StatusBuffCode(heroabilitystatus_t const *status) {
     return buff;
 }
 
-static LPCSTR StatusBuffField(DWORD code, LPCSTR field) {
+static cstring_t StatusBuffField(uint32_t code, cstring_t field) {
     char name[5] = { 0 };
     AbilityBuffData_t const *buff;
-    LPCSTR value;
+    cstring_t value;
 
     memcpy(name, &code, 4);
     value = FindConfigValue(name, field);
@@ -506,9 +506,9 @@ static LPCSTR StatusBuffField(DWORD code, LPCSTR field) {
     return NULL;
 }
 
-static LPCSTR TimedStatusLabel(heroabilitystatus_t const *status) {
-    DWORD buff_code;
-    LPCSTR tip;
+static cstring_t TimedStatusLabel(heroabilitystatus_t const *status) {
+    uint32_t buff_code;
+    cstring_t tip;
 
     if (!status || !unit_statusshowstimedbar(status->code)) return NULL;
     buff_code = StatusBuffCode(status);
@@ -518,8 +518,8 @@ static LPCSTR TimedStatusLabel(heroabilitystatus_t const *status) {
     return UI_GetString(tip);
 }
 
-static LPCSTR StatusBuffArt(DWORD code) {
-    LPCSTR art;
+static cstring_t StatusBuffArt(uint32_t code) {
+    cstring_t art;
 
     /* Warsmash routes timed-life-bar buffs through SimpleProgressIndicator
      * instead of the ordinary status icon strip. Cooldowns are stored
@@ -530,11 +530,11 @@ static LPCSTR StatusBuffArt(DWORD code) {
     return art;
 }
 
-static void WriteVirtualBuffStatusFrame(DWORD buff_code, DWORD shown[MAX_UNIT_STATUSES], DWORD *slot) {
-    BOOL duplicate = false;
-    LPCSTR art;
-    LPCSTR tip;
-    LPCSTR ubertip;
+static void WriteVirtualBuffStatusFrame(uint32_t buff_code, uint32_t shown[MAX_UNIT_STATUSES], uint32_t *slot) {
+    bool duplicate = false;
+    cstring_t art;
+    cstring_t tip;
+    cstring_t ubertip;
     LPFRAMEDEF icon;
 
     if (!buff_code || !slot || *slot >= MAX_UNIT_STATUSES) return;
@@ -554,8 +554,8 @@ static void WriteVirtualBuffStatusFrame(DWORD buff_code, DWORD shown[MAX_UNIT_ST
 }
 
 static void WriteBuffStatusFrames(LPEDICT ent) {
-    DWORD slot = 0;
-    DWORD shown[MAX_UNIT_STATUSES] = { 0 };
+    uint32_t slot = 0;
+    uint32_t shown[MAX_UNIT_STATUSES] = { 0 };
 
     if (!ent || !hud.simple.SimpleInfoPanelUnitDetail) return;
     UI_SetText(&hud.buff_label, "%s", UI_GetString("COLON_STATUS"));
@@ -563,18 +563,18 @@ static void WriteBuffStatusFrames(LPEDICT ent) {
 
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t const *status = ent->abilstatus + i;
-        LPCSTR art;
-        LPCSTR tip;
-        LPCSTR ubertip;
+        cstring_t art;
+        cstring_t tip;
+        cstring_t ubertip;
         LPFRAMEDEF icon;
-        DWORD const buff_code = StatusBuffCode(status);
+        uint32_t const buff_code = StatusBuffCode(status);
 
         if (!status->level || slot >= MAX_UNIT_STATUSES || !buff_code) continue;
         /* Auras may be represented by both their ability rawcode (AHad) and
          * their buff rawcode (BHad) in abilstatus[].  Resolve first, then emit
          * each visible buff once. */
         {
-            BOOL duplicate = false;
+            bool duplicate = false;
             FOR_LOOP(j, slot) {
                 if (shown[j] == buff_code) {
                     duplicate = true;
@@ -613,13 +613,13 @@ static void WriteBuffStatusFrames(LPEDICT ent) {
 }
 
 static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weapons,
-                                          BOOL has_attack1, BOOL has_attack2,
-                                          LONG min_damage, LONG max_damage,
-                                          LONG min_damage2, LONG max_damage2,
-                                          BOOL is_hero) {
+                                          bool has_attack1, bool has_attack2,
+                                          int32_t min_damage, int32_t max_damage,
+                                          int32_t min_damage2, int32_t max_damage2,
+                                          bool is_hero) {
     char value[64];
-    DWORD const weapon_upgrade = UnitWeaponUpgrade(ent);
-    DWORD const armor_upgrade = UnitArmorUpgrade(ent);
+    uint32_t const weapon_upgrade = UnitWeaponUpgrade(ent);
+    uint32_t const armor_upgrade = UnitArmorUpgrade(ent);
 
     if (!hud.simple.SimpleInfoPanelUnitDetail) return;
     RefreshSimpleInfoPanelStrings();
@@ -660,7 +660,7 @@ static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weap
     UI_WriteFrameWithChildren(hud.simple.SimpleInfoPanelIconArmor, &hud.armor);
 
     if (ent->resources > 0) {
-        LPCSTR const gold_art = "InfoPanelIconGold";
+        cstring_t const gold_art = "InfoPanelIconGold";
         if (!gold_art || !*gold_art) {
             fprintf(stderr, "WriteSelectedUnitStatusFrames: missing war3skins InfoPanelIconGold\n");
         } else {
@@ -672,7 +672,7 @@ static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weap
         UI_WriteFrame(&hud.gold);
         UI_WriteFrameWithChildren(hud.simple.SimpleInfoPanelIconGold, &hud.gold);
     } else if (ent->data.UnitBalance->foodMade > 0) {
-        LPCSTR const food_art = "InfoPanelIconFood";
+        cstring_t const food_art = "InfoPanelIconFood";
         if (!food_art || !*food_art) {
             fprintf(stderr, "WriteSelectedUnitStatusFrames: missing war3skins InfoPanelIconFood\n");
         } else {
@@ -697,10 +697,10 @@ static void WriteSelectedUnitStatusFrames(LPEDICT ent, UnitWeapons_t const *weap
     WriteBuffStatusFrames(ent);
 }
 
-static FLOAT HeroLevelProgress(LPEDICT ent) {
-    DWORD level;
-    DWORD have;
-    DWORD need;
+static float HeroLevelProgress(LPEDICT ent) {
+    uint32_t level;
+    uint32_t have;
+    uint32_t need;
 
     if (!ent) return 0.0f;
     level = MAX(1u, ent->hero.level);
@@ -708,17 +708,17 @@ static FLOAT HeroLevelProgress(LPEDICT ent) {
     need = G_HeroXPForLevel(level + 1);
     if (need <= have) return 1.0f;
     if (ent->hero.xp <= have) return 0.0f;
-    return MIN(1.0f, (FLOAT)(ent->hero.xp - have) / (FLOAT)(need - have));
+    return MIN(1.0f, (float)(ent->hero.xp - have) / (float)(need - have));
 }
 
-static void WriteSimpleUnitHeader(LPEDICT ent, LPCSTR display_name, BOOL is_hero, LPGAMECLIENT viewer) {
+static void WriteSimpleUnitHeader(LPEDICT ent, cstring_t display_name, bool is_hero, LPGAMECLIENT viewer) {
     char class_text[128];
     LPFRAMEDEF unit_action_label;
     heroabilitystatus_t const *timed_status = NULL;
-    LPCSTR timed_label = NULL;
-    LPCSTR unit_name;
-    LPCSTR class_format;
-    BOOL old_hero_hidden;
+    cstring_t timed_label = NULL;
+    cstring_t unit_name;
+    cstring_t class_format;
+    bool old_hero_hidden;
 
     if (!hud.simple.SimpleInfoPanelUnitDetail) return;
     /* SimpleInfoPanel.fdf supplies a building-action placeholder on this
@@ -803,8 +803,8 @@ static void WriteSimpleUnitHeader(LPEDICT ent, LPCSTR display_name, BOOL is_hero
     }
 }
 
-DWORD UI_WriteBuildingQueueShell(LPEDICT ent, LPCSTR action_key, BOOL show_queue_slots) {
-    LPCSTR name;
+uint32_t UI_WriteBuildingQueueShell(LPEDICT ent, cstring_t action_key, bool show_queue_slots) {
+    cstring_t name;
 
     if (!ent) return 0;
     if (!hud.simple.SimpleInfoPanelUnitDetail) return 0;
@@ -825,19 +825,19 @@ DWORD UI_WriteBuildingQueueShell(LPEDICT ent, LPCSTR action_key, BOOL show_queue
 void UI_WriteSingleInfo(LPEDICT ent, LPGAMECLIENT viewer) {
     UnitBalance_t const *balance = ent->data.UnitBalance;
     UnitWeapons_t const *weapons = ent->data.UnitWeapons;
-    LPCSTR name = G_LevelString(G_UnitProfile(ent->class_id)->properNames);
-    LPCSTR unit_name = G_UnitName(ent->class_id);
-    BOOL const is_hero = balance->strength > 0 || balance->agility > 0 || balance->intelligence > 0;
-    DWORD level = is_hero && ent->hero.level > 0 ? ent->hero.level
+    cstring_t name = G_LevelString(G_UnitProfile(ent->class_id)->properNames);
+    cstring_t unit_name = G_UnitName(ent->class_id);
+    bool const is_hero = balance->strength > 0 || balance->agility > 0 || balance->intelligence > 0;
+    uint32_t level = is_hero && ent->hero.level > 0 ? ent->hero.level
                                                  : MAX(1, balance->level);
-    LONG dice = ent->attack1.numberOfDice;
-    BOOL has_attack1 = dice > 0;
-    LONG min_damage = has_attack1 ? MAX(0, (LONG)(ent->attack1.damageBase + dice)) : 0;
-    LONG max_damage = has_attack1 ? MAX(0, (LONG)(ent->attack1.damageBase + dice * ent->attack1.sidesPerDie)) : 0;
-    LONG dice2 = ent->attack2.numberOfDice;
-    BOOL has_attack2 = UI_HasSecondAttack(weapons) && dice2 > 0;
-    LONG min_damage2 = has_attack2 ? MAX(0, (LONG)(ent->attack2.damageBase + dice2)) : 0;
-    LONG max_damage2 = has_attack2 ? MAX(0, (LONG)(ent->attack2.damageBase + dice2 * ent->attack2.sidesPerDie)) : 0;
+    int32_t dice = ent->attack1.numberOfDice;
+    bool has_attack1 = dice > 0;
+    int32_t min_damage = has_attack1 ? MAX(0, (int32_t)(ent->attack1.damageBase + dice)) : 0;
+    int32_t max_damage = has_attack1 ? MAX(0, (int32_t)(ent->attack1.damageBase + dice * ent->attack1.sidesPerDie)) : 0;
+    int32_t dice2 = ent->attack2.numberOfDice;
+    bool has_attack2 = UI_HasSecondAttack(weapons) && dice2 > 0;
+    int32_t min_damage2 = has_attack2 ? MAX(0, (int32_t)(ent->attack2.damageBase + dice2)) : 0;
+    int32_t max_damage2 = has_attack2 ? MAX(0, (int32_t)(ent->attack2.damageBase + dice2 * ent->attack2.sidesPerDie)) : 0;
 
     if (!name || !*name) name = unit_name;
 
@@ -855,9 +855,9 @@ void UI_WriteSingleInfo(LPEDICT ent, LPGAMECLIENT viewer) {
          * stock FDF has no slot frame definitions, so these native proxy
          * frames use inline authored values as permitted for native controls. */
         if (ent->cargo.count > 0 && S_CargoCapacity(ent) > 0) {
-            DWORD const capacity = S_CargoCapacity(ent);
-            LPCSTR const slot_art = Theme_String("CargoBackdrop", NULL);
-            DWORD slot_image;
+            uint32_t const capacity = S_CargoCapacity(ent);
+            cstring_t const slot_art = Theme_String("CargoBackdrop", NULL);
+            uint32_t slot_image;
 
             if (!slot_art || !*slot_art) {
                 fprintf(stderr, "UI_WC3: missing CargoBackdrop texture for cargo panel\n");
@@ -870,7 +870,7 @@ void UI_WriteSingleInfo(LPEDICT ent, LPGAMECLIENT viewer) {
             }
 
             FOR_LOOP(i, capacity) {
-                FLOAT const x = 0.310f + (FLOAT)i * (0.02671875f * 1.20f);
+                float const x = 0.310f + (float)i * (0.02671875f * 1.20f);
                 LPEDICT occupant = S_CargoUnitAt(ent, i);
                 uiFrame_t backdrop = { .flags = { .type = FT_TEXTURE }, .tex = { .index = slot_image },
                                        .color = COLOR32_WHITE };
@@ -880,8 +880,8 @@ void UI_WriteSingleInfo(LPEDICT ent, LPGAMECLIENT viewer) {
                 if (occupant) {
                     uiFrame_t frame;
                     char command[64];
-                    LPCSTR art = FindConfigValue(GetClassName(occupant->class_id), STR_ART);
-                    LPCSTR tip = G_UnitName(occupant->class_id);
+                    cstring_t art = FindConfigValue(GetClassName(occupant->class_id), STR_ART);
+                    cstring_t tip = G_UnitName(occupant->class_id);
 
                     if (!art || !*art) {
                         fprintf(stderr, "UI_WC3: missing cargo art for unit %s\n", GetClassName(occupant->class_id));
@@ -930,13 +930,13 @@ void UI_WriteSingleInfo(LPEDICT ent, LPGAMECLIENT viewer) {
                                   is_hero);
 }
 
-void UI_WriteMultiselect(LPEDICT *ents, DWORD count, LPGAMECLIENT viewer) {
+void UI_WriteMultiselect(LPEDICT *ents, uint32_t count, LPGAMECLIENT viewer) {
     LPEDICT focused = viewer ? G_GetMainSelectedUnit(viewer) : NULL;
-    LPCSTR highlight = Theme_String("SelectedSubgroupHighlight", NULL);
+    cstring_t highlight = Theme_String("SelectedSubgroupHighlight", NULL);
 
     if (count > 12) count = 12;
-    DWORD size = sizeof(uiMultiselect_t) + sizeof(uiMultiselectItem_t) * count;
-    LPBYTE buffer = gi.MemAlloc(size);
+    uint32_t size = sizeof(uiMultiselect_t) + sizeof(uiMultiselectItem_t) * count;
+    uint8_t * buffer = gi.MemAlloc(size);
     uiMultiselect_t *multi = (uiMultiselect_t *)buffer;
     uiFrame_t frame;
 
@@ -964,7 +964,7 @@ void UI_WriteMultiselect(LPEDICT *ents, DWORD count, LPGAMECLIENT viewer) {
     gi.MemFree(buffer);
 }
 
-static BOOL UI_UsesBuildingQueuePanel(LPGAMECLIENT viewer, LPEDICT unit) {
+static bool UI_UsesBuildingQueuePanel(LPGAMECLIENT viewer, LPEDICT unit) {
     if (!viewer || !unit || !unit->data.UnitBalance || !unit->data.UnitBalance->isBuilding)
         return false;
     if (!G_UnitCanControl(viewer, unit))
@@ -973,31 +973,31 @@ static BOOL UI_UsesBuildingQueuePanel(LPGAMECLIENT viewer, LPEDICT unit) {
 }
 
 #ifdef BZ_TESTS
-BOOL UI_TestUsesBuildingQueuePanel(LPGAMECLIENT viewer, LPEDICT unit) {
+bool UI_TestUsesBuildingQueuePanel(LPGAMECLIENT viewer, LPEDICT unit) {
     return UI_UsesBuildingQueuePanel(viewer, unit);
 }
 #endif
 
-void UI_SeedInfoPanelCache(LPEDICT ent, LPEDICT *selected, DWORD count) {
+void UI_SeedInfoPanelCache(LPEDICT ent, LPEDICT *selected, uint32_t count) {
     if (!ent->client) return;
     if (count == 1 && !UI_UsesBuildingQueuePanel(ent->client, selected[0])) {
         ent->client->infopanel.entity = selected[0]->s.number;
-        ent->client->infopanel.hp = (LONG)(selected[0]->health.value + 0.5f);
-        ent->client->infopanel.mana = (LONG)(selected[0]->mana.value + 0.5f);
-        ent->client->infopanel.xp = (LONG)selected[0]->hero.xp;
+        ent->client->infopanel.hp = (int32_t)(selected[0]->health.value + 0.5f);
+        ent->client->infopanel.mana = (int32_t)(selected[0]->mana.value + 0.5f);
+        ent->client->infopanel.xp = (int32_t)selected[0]->hero.xp;
     } else {
         ent->client->infopanel.entity = 0;
         /* HP/mana no longer drive the live portrait bars. Reuse hp as the
          * non-single selection-count cache so async removals (death/fog/hide)
          * can invalidate a still-multiselect info panel without changing the
          * serialized GAMECLIENT layout. -1 distinguishes the build queue. */
-        ent->client->infopanel.hp = count == 1 ? -1 : (LONG)count;
+        ent->client->infopanel.hp = count == 1 ? -1 : (int32_t)count;
         ent->client->infopanel.mana = 0;
         ent->client->infopanel.xp = 0;
     }
 }
 
-void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count) {
+void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, uint32_t count) {
     UI_WriteStart(LAYER_INFOPANEL);
     if (count == 1) {
         if (UI_UsesBuildingQueuePanel(ent->client, selected[0])) {
@@ -1017,7 +1017,7 @@ void UI_SendInfoPanel(LPEDICT ent, LPEDICT *selected, DWORD count) {
     UI_SeedInfoPanelCache(ent, selected, count);
 }
 
-static DWORD SelectedUnits(LPGAMECLIENT client, LPEDICT *out, DWORD max_out) {
+static uint32_t SelectedUnits(LPGAMECLIENT client, LPEDICT *out, uint32_t max_out) {
     return G_GetOrderedSelectedUnits(client, out, max_out);
 }
 
@@ -1025,7 +1025,7 @@ void Get_Commands_f(LPEDICT ent) {
     LPEDICT selected = ent && ent->client ? G_GetMainSelectedUnit(ent->client) : NULL;
     LPGAMECLIENT previous_ui_client;
     gameCommandButton_t buttons[12];
-    BYTE count;
+    uint8_t count;
 
     if (!ent || !ent->client) return;
     G_UpdateRallyIndicator(ent->client);
@@ -1079,21 +1079,21 @@ static void WritePortraitFrame(LPEDICT ent) {
 }
 
 static COLOR32 PortraitHealthColor(LPEDICT ent) {
-    FLOAT ratio;
-    FLOAT red;
-    FLOAT green;
+    float ratio;
+    float red;
+    float green;
 
     if (!ent || ent->health.max_value <= 0.0f) return MAKE(COLOR32, 255, 0, 0, 255);
     ratio = MAX(0.0f, MIN(1.0f, ent->health.value / ent->health.max_value));
     red = MIN(1.0f, 2.0f - ratio * 2.0f);
     green = MIN(1.0f, ratio * 2.0f);
     return MAKE(COLOR32,
-                (BYTE)(red * 255.0f + 0.5f),
-                (BYTE)(green * 255.0f + 0.5f),
+                (uint8_t)(red * 255.0f + 0.5f),
+                (uint8_t)(green * 255.0f + 0.5f),
                 0, 255);
 }
 
-static void WritePortraitText(LPCSTR text, COLOR32 color, FLOAT bottom, DWORD stat) {
+static void WritePortraitText(cstring_t text, COLOR32 color, float bottom, uint32_t stat) {
     uiFrame_t frame;
     uiLabel_t label;
 
@@ -1119,16 +1119,16 @@ static void WritePortraitText(LPCSTR text, COLOR32 color, FLOAT bottom, DWORD st
 static void WritePortraitStats(LPEDICT ent) {
     char health[32];
     char mana[32];
-    LONG hp;
-    LONG max_hp;
-    LONG mp;
-    LONG max_mp;
+    int32_t hp;
+    int32_t max_hp;
+    int32_t mp;
+    int32_t max_mp;
 
     if (!ent) return;
-    hp = (LONG)MAX(0.0f, ent->health.value);
-    max_hp = (LONG)MAX(0.0f, ent->health.max_value);
-    mp = (LONG)MAX(0.0f, ent->mana.value);
-    max_mp = (LONG)MAX(0.0f, ent->mana.max_value);
+    hp = (int32_t)MAX(0.0f, ent->health.value);
+    max_hp = (int32_t)MAX(0.0f, ent->health.max_value);
+    mp = (int32_t)MAX(0.0f, ent->mana.value);
+    max_mp = (int32_t)MAX(0.0f, ent->mana.max_value);
 
     snprintf(health, sizeof(health), "%ld / %ld", (long)hp, (long)max_hp);
     if (max_mp > 0)
@@ -1149,7 +1149,7 @@ static void WritePortraitStats(LPEDICT ent) {
 void UI_WriteSelectedPortraitLayer(LPEDICT ent) {
     LPEDICT selected[MAX_SELECTED_ENTITIES];
     LPEDICT focused;
-    DWORD count;
+    uint32_t count;
 
     if (!ent || !ent->client) return;
     count = SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
@@ -1164,7 +1164,7 @@ void UI_WriteSelectedPortraitLayer(LPEDICT ent) {
     UI_WriteEnd(ent);
 }
 
-static void WriteInventoryCharge(FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWORD charges) {
+static void WriteInventoryCharge(float x, float y, float w, float h, uint32_t charges) {
     uiFrame_t frame;
     uiLabel_t label;
     char text[16];
@@ -1183,7 +1183,7 @@ static void WriteInventoryCharge(FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWORD charg
  * the native frame directly and send its symbolic war3skins key to the client. */
 static void WriteInventoryCover(LPEDICT player) {
     static FRAMEDEF frame;
-    LPCSTR art = "ConsoleInventoryCoverTexture";
+    cstring_t art = "ConsoleInventoryCoverTexture";
 
     if (!art || !*art) {
         fprintf(stderr, "WriteInventoryCover: missing ConsoleInventoryCoverTexture for player skin\n");
@@ -1200,9 +1200,9 @@ static void WriteInventoryCover(LPEDICT player) {
     UI_WriteFrame(&frame);
 }
 
-static void WriteInventoryNoCapacitySlot(BYTE slot, LPCSTR art) {
-    FLOAT bx = UI_BASE_WIDTH * 0.5f + 0.1315f + (FLOAT)(slot % 2) * 0.0394f;
-    FLOAT by = UI_BASE_HEIGHT - 0.0971f + (FLOAT)(slot / 2) * 0.0384f;
+static void WriteInventoryNoCapacitySlot(uint8_t slot, cstring_t art) {
+    float bx = UI_BASE_WIDTH * 0.5f + 0.1315f + (float)(slot % 2) * 0.0394f;
+    float by = UI_BASE_HEIGHT - 0.0971f + (float)(slot / 2) * 0.0384f;
     UI_WriteTextureFrame(bx - 0.0165f, by - 0.0165f, 0.033f, 0.033f, art);
 }
 
@@ -1222,24 +1222,24 @@ static void WriteInventoryTitle(void) {
 
 static void WriteInventory(LPEDICT player, LPEDICT ent) {
     gameInventoryItem_t items[MAX_INVENTORY];
-    DWORD capacity = G_InventoryCapacity(ent);
-    BYTE count;
+    uint32_t capacity = G_InventoryCapacity(ent);
+    uint8_t count;
 
     if (!capacity) { WriteInventoryCover(player); return; }
     WriteInventoryTitle();
     if (capacity < MAX_INVENTORY) {
-        LPCSTR art = "ConsoleInventoryNoCapacity";
+        cstring_t art = "ConsoleInventoryNoCapacity";
         if (!art || !*art) {
             fprintf(stderr, "WriteInventory: missing ConsoleInventoryNoCapacity for player skin\n");
             return;
         }
-        for (DWORD slot = capacity; slot < MAX_INVENTORY; slot++) WriteInventoryNoCapacitySlot((BYTE)slot, art);
+        for (uint32_t slot = capacity; slot < MAX_INVENTORY; slot++) WriteInventoryNoCapacitySlot((uint8_t)slot, art);
     }
 
     count = G_GetInventory(ent, items, MAX_INVENTORY);
     FOR_LOOP(i, count) {
-        FLOAT bx = UI_BASE_WIDTH * 0.5f + 0.1315f + (FLOAT)(items[i].slot % 2) * 0.0394f;
-        FLOAT by = UI_BASE_HEIGHT - 0.0971f + (FLOAT)(items[i].slot / 2) * 0.0384f;
+        float bx = UI_BASE_WIDTH * 0.5f + 0.1315f + (float)(items[i].slot % 2) * 0.0394f;
+        float by = UI_BASE_HEIGHT - 0.0971f + (float)(items[i].slot / 2) * 0.0384f;
         uiFrame_t frame;
         char onclick[128];
         char onrightclick[128];
@@ -1264,7 +1264,7 @@ static void WriteInventory(LPEDICT player, LPEDICT ent) {
     if (count) UI_WriteTooltipFrame();
 }
 
-static void UI_SendInventoryLayer(LPEDICT ent, LPEDICT *selected, DWORD count) {
+static void UI_SendInventoryLayer(LPEDICT ent, LPEDICT *selected, uint32_t count) {
     LPEDICT focused = count > 0 && ent && ent->client ? G_GetMainSelectedUnit(ent->client) : NULL;
 
     (void)selected;
@@ -1281,7 +1281,7 @@ static void UI_SendInventoryLayer(LPEDICT ent, LPEDICT *selected, DWORD count) {
 
 void G_RefreshInventoryLayer(LPEDICT ent) {
     LPEDICT selected[MAX_SELECTED_ENTITIES];
-    DWORD count;
+    uint32_t count;
 
     if (!ent || !ent->client) return;
     count = SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
@@ -1290,7 +1290,7 @@ void G_RefreshInventoryLayer(LPEDICT ent) {
 
 void Get_Portrait_f(LPEDICT ent) {
     LPEDICT selected[MAX_SELECTED_ENTITIES];
-    DWORD count;
+    uint32_t count;
 
     if (!ent || !ent->client) return;
     count = SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
@@ -1332,31 +1332,31 @@ void G_InvalidateUnitPortrait(LPEDICT unit) {
     }
 }
 
-static USHORT SelectedPortraitStat(FLOAT value) {
-    LONG whole = (LONG)MAX(0.0f, value); /* Warsmash FastNumberFormat truncates */
-    return (USHORT)MIN(whole, USHRT_MAX);
+static uint16_t SelectedPortraitStat(float value) {
+    int32_t whole = (int32_t)MAX(0.0f, value); /* Warsmash FastNumberFormat truncates */
+    return (uint16_t)MIN(whole, USHRT_MAX);
 }
 
-static USHORT SelectedTimedStatusStat(LPGAMECLIENT client, LPEDICT selected) {
+static uint16_t SelectedTimedStatusStat(LPGAMECLIENT client, LPEDICT selected) {
     heroabilitystatus_t const *status;
-    FLOAT fraction;
+    float fraction;
 
     if (!client || !selected || selected->s.player != client->ps.number) return 0;
     status = unit_findtimedbarstatus(selected);
     if (!status) return 0;
     fraction = unit_statusremainingfraction(status);
-    return (USHORT)MIN((DWORD)(fraction * (FLOAT)USHRT_MAX + 0.5f), (DWORD)USHRT_MAX);
+    return (uint16_t)MIN((uint32_t)(fraction * (float)USHRT_MAX + 0.5f), (uint32_t)USHRT_MAX);
 }
 
 #ifdef BZ_TESTS
-USHORT UI_TestSelectedTimedStatusStat(LPGAMECLIENT client, LPEDICT selected) {
+uint16_t UI_TestSelectedTimedStatusStat(LPGAMECLIENT client, LPEDICT selected) {
     return SelectedTimedStatusStat(client, selected);
 }
 #endif
 
 static void UpdateSelectedLiveStats(LPGAMECLIENT client, LPEDICT selected) {
-    USHORT old_timed;
-    USHORT new_timed;
+    uint16_t old_timed;
+    uint16_t new_timed;
     int debug;
 
     if (!client) return;
@@ -1382,14 +1382,14 @@ static void UpdateSelectedLiveStats(LPGAMECLIENT client, LPEDICT selected) {
     new_timed = SelectedTimedStatusStat(client, selected);
     client->ps.stats[UI_PLAYERSTAT_SELECTION_TIMED_STATUS] = new_timed;
     if (debug >= 2 && old_timed != new_timed) {
-        DWORD const old_bucket = ((DWORD)old_timed * 10u) / USHRT_MAX;
-        DWORD const new_bucket = ((DWORD)new_timed * 10u) / USHRT_MAX;
+        uint32_t const old_bucket = ((uint32_t)old_timed * 10u) / USHRT_MAX;
+        uint32_t const new_bucket = ((uint32_t)new_timed * 10u) / USHRT_MAX;
         if (debug >= 3 || old_timed == 0 || new_timed == 0 || old_bucket != new_bucket) {
             fprintf(stderr,
                     "WC3_TIMED_STATUS server publish player=%u unit=%u old=%u new=%u fraction=%.4f\n",
                     (unsigned)client->ps.number, (unsigned)selected->s.number,
                     (unsigned)old_timed, (unsigned)new_timed,
-                    new_timed / (FLOAT)USHRT_MAX);
+                    new_timed / (float)USHRT_MAX);
         }
     }
 }
@@ -1400,15 +1400,15 @@ static void UpdateSelectedLiveStats(LPGAMECLIENT client, LPEDICT selected) {
  * only when its static presentation (selection, timer eligibility/label, XP) changes. */
 void G_RefreshInfoPanel(LPEDICT ent) {
     LPEDICT selected[MAX_SELECTED_ENTITIES];
-    DWORD count;
-    BOOL queue_panel;
+    uint32_t count;
+    bool queue_panel;
 
     if (!ent || !ent->client) return;
     count = SelectedUnits(ent->client, selected, MAX_SELECTED_ENTITIES);
     UpdateSelectedLiveStats(ent->client, count ? G_GetMainSelectedUnit(ent->client) : NULL);
     if (count != 1) {
         if (ent->client->infopanel.entity == 0 &&
-            ent->client->infopanel.hp == (LONG)count) {
+            ent->client->infopanel.hp == (int32_t)count) {
             return;
         }
         UI_SendInfoPanel(ent, selected, count);
@@ -1433,7 +1433,7 @@ void G_RefreshInfoPanel(LPEDICT ent) {
     /* HP/mana/timed-status progress are live player-state bindings, so changing
      * their values must not force LAYER_INFOPANEL/FDF reserialization every frame. */
     if (selected[0]->s.number == ent->client->infopanel.entity &&
-        (LONG)selected[0]->hero.xp == ent->client->infopanel.xp) {
+        (int32_t)selected[0]->hero.xp == ent->client->infopanel.xp) {
         return;
     }
     UI_SendInfoPanel(ent, selected, count);
@@ -1456,16 +1456,16 @@ void G_UpdateClientInfoPanels(void) {
 /* Re-send LAYER_CONSOLE only when resource display/tooltip state changed. */
 void G_RefreshResourceBar(LPEDICT ent) {
     LPPLAYER ps;
-    LONG gold, lumber, food_u, food_c, gold_rate, lumber_rate;
+    int32_t gold, lumber, food_u, food_c, gold_rate, lumber_rate;
 
     if (!ent || !ent->client) return;
     ps          = &ent->client->ps;
-    gold        = (LONG)ps->stats[PLAYERSTATE_RESOURCE_GOLD];
-    lumber      = (LONG)ps->stats[PLAYERSTATE_RESOURCE_LUMBER];
-    food_u      = (LONG)ps->stats[PLAYERSTATE_RESOURCE_FOOD_USED];
+    gold        = (int32_t)ps->stats[PLAYERSTATE_RESOURCE_GOLD];
+    lumber      = (int32_t)ps->stats[PLAYERSTATE_RESOURCE_LUMBER];
+    food_u      = (int32_t)ps->stats[PLAYERSTATE_RESOURCE_FOOD_USED];
     food_c      = G_GetEffectiveFoodCap(ent->client);
-    gold_rate   = (LONG)ps->stats[PLAYERSTATE_GOLD_UPKEEP_RATE];
-    lumber_rate = (LONG)ps->stats[PLAYERSTATE_LUMBER_UPKEEP_RATE];
+    gold_rate   = (int32_t)ps->stats[PLAYERSTATE_GOLD_UPKEEP_RATE];
+    lumber_rate = (int32_t)ps->stats[PLAYERSTATE_LUMBER_UPKEEP_RATE];
 
     if (ent->client->quest_until <= level.time) ent->client->quest_until = 0;
     if (ent->client->quest_until == ent->client->resourcebar.quest_until &&

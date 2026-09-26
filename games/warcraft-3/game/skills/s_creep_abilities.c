@@ -14,7 +14,7 @@
 #define ID_ORB_ANNIHILATION MAKEFOURCC('A','N','a','k')
 
 
-static BOOL unit_has_proc_ability(LPCEDICT ent, abilityProc_t proc) {
+static bool unit_has_proc_ability(LPCEDICT ent, abilityProc_t proc) {
     char name[5] = {0};
     if (!ent) return false;
     if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
@@ -26,7 +26,7 @@ static BOOL unit_has_proc_ability(LPCEDICT ent, abilityProc_t proc) {
         }
     }
     FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
-        DWORD alias = ent->abilities.added[i];
+        uint32_t alias = ent->abilities.added[i];
         abilityitem_t item;
         if (!alias) continue;
         memcpy(name, &alias, 4); item = S_AbilityItem(alias);
@@ -42,7 +42,7 @@ static BOOL unit_has_proc_ability(LPCEDICT ent, abilityProc_t proc) {
 }
 
 void S_CreepAttackOnHit(LPEDICT attacker, LPEDICT target) {
-    DWORD level, code;
+    uint32_t level, code;
     if (!attacker || !target || !S_SpellIsEnemy(attacker, target) || M_IsDead(target)) return;
     code = G_UnitAbilityLevel(attacker, ID_MIND_ROT) ? ID_MIND_ROT : 0;
     if (code) {
@@ -61,19 +61,19 @@ void S_CreepAttackOnHit(LPEDICT attacker, LPEDICT target) {
     }
 }
 
-FLOAT S_CreepAttackSpeedReduction(LPCEDICT unit) {
-    DWORD level = unit ? G_UnitStatusLevel(unit, BUFF_LIQUID_FIRE) : 0;
+float S_CreepAttackSpeedReduction(LPCEDICT unit) {
+    uint32_t level = unit ? G_UnitStatusLevel(unit, BUFF_LIQUID_FIRE) : 0;
     return level ? S_SpellData(ID_LIQUID_FIRE, level, 3) : 0.0f;
 }
 
-static void death_damage_aoe(LPEDICT ent, DWORD code) {
-    DWORD level = MAX(1u, G_UnitAbilityLevel(ent, code));
-    FLOAT full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
-    FLOAT part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
+static void death_damage_aoe(LPEDICT ent, uint32_t code) {
+    uint32_t level = MAX(1u, G_UnitAbilityLevel(ent, code));
+    float full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
+    float part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
     VECTOR2 origin = ent->s.origin2;
     if (part_r < full_r) part_r = full_r;
     FILTER_EDICTS(target, target != ent && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(ent, target)) {
-        FLOAT dist = Vector2_distance(&target->s.origin2, &origin);
+        float dist = Vector2_distance(&target->s.origin2, &origin);
         if (dist <= part_r) T_Damage(target, ent, (int)(dist <= full_r ? full_d : part_d));
     }
 }
@@ -123,10 +123,10 @@ BZ_ABILITY_PROC(CAbilityDrunkenBrawler) { return CAbilityPassive(ent, msg, call)
 BZ_ABILITY_PROC(CAbilitySellItem) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilitySellUnit) { return CAbilityPassive(ent, msg, call); }
 
-BOOL S_UnitIsResistant(LPCEDICT unit) { return G_UnitIsHero(unit) || unit_has_proc_ability(unit, CAbilityResistantSkin); }
+bool S_UnitIsResistant(LPCEDICT unit) { return G_UnitIsHero(unit) || unit_has_proc_ability(unit, CAbilityResistantSkin); }
 
 int S_OrbAnnihilationDamage(LPEDICT attacker, int damage) {
-    DWORD level = attacker ? G_UnitAbilityLevel(attacker, ID_ORB_ANNIHILATION) : 0;
+    uint32_t level = attacker ? G_UnitAbilityLevel(attacker, ID_ORB_ANNIHILATION) : 0;
     return level ? damage + (int)S_SpellData(ID_ORB_ANNIHILATION, level, 1) : damage;
 }
 BZ_ABILITY_PROC(CAbilitySlowAura) { return CAbilityPassive(ent, msg, call); }
@@ -134,27 +134,27 @@ BZ_ABILITY_PROC(CAbilityCommandAura) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityWarDrums) { return CAbilityPassive(ent, msg, call); }
 
 int S_FeedbackDamage(LPEDICT attacker, LPEDICT target, int damage) {
-    static DWORD const codes[] = { ID_FEEDBACK, ID_FEEDBACK_TOWER };
-    DWORD code = 0, level, slot;
+    static uint32_t const codes[] = { ID_FEEDBACK, ID_FEEDBACK_TOWER };
+    uint32_t code = 0, level, slot;
     size_t i;
     if (!attacker || !target) return damage;
     for (i = 0; i < sizeof(codes) / sizeof(*codes); i++)
         if ((level = G_UnitAbilityLevel(attacker, codes[i]))) { code = codes[i]; break; }
     if (!code || target->mana.value <= 0.0f) return damage;
     slot = G_UnitIsHero(target) ? 3 : 1;
-    { FLOAT drained = MIN(target->mana.value, S_SpellData(code, level, slot));
+    { float drained = MIN(target->mana.value, S_SpellData(code, level, slot));
       target->mana.value -= drained;
       return damage + (int)(drained * S_SpellData(code, level, slot + 1));
     }
 }
 
 int S_HardenedSkinDamage(LPEDICT target, int damage) {
-    static DWORD const codes[] = { ID_HARDENED_SKIN, ID_HARDENED_SKIN_NAGA };
-    DWORD code = 0, level;
+    static uint32_t const codes[] = { ID_HARDENED_SKIN, ID_HARDENED_SKIN_NAGA };
+    uint32_t code = 0, level;
     size_t i;
     if (!target || damage <= 0) return damage;
     for (i = 0; i < sizeof(codes) / sizeof(*codes); i++)
         if ((level = G_UnitAbilityLevel(target, codes[i]))) { code = codes[i]; break; }
-    if (!code || (FLOAT)(rand() % 100) >= S_SpellData(code, level, 1)) return damage;
+    if (!code || (float)(rand() % 100) >= S_SpellData(code, level, 1)) return damage;
     return MAX((int)S_SpellData(code, level, 2), damage - (int)S_SpellData(code, level, 3));
 }

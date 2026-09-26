@@ -1,8 +1,8 @@
 #include "s_skills.h"
 
 /* Self Destruct blast is physical: armor applies, spell immunity does not block it. */
-static BOOL self_destruct_allows(DWORD code, LPEDICT caster, LPEDICT target) {
-	LPCSTR targets;
+static bool self_destruct_allows(uint32_t code, LPEDICT caster, LPEDICT target) {
+	cstring_t targets;
 	if (!caster || !S_SpellIsAliveTarget(target) || target == caster || S_UnitIsCycloned(target))
 		return false;
 	targets = G_AbilityLevel(code, 1)->targs;
@@ -18,16 +18,16 @@ static BOOL self_destruct_allows(DWORD code, LPEDICT caster, LPEDICT target) {
 	return !strstr(targets, "friend") && !strstr(targets, "enemy") && !strstr(targets, "neutral");
 }
 
-static void self_destruct_explode(LPEDICT ent, DWORD code) {
-	DWORD level = MAX(1u, G_UnitAbilityLevel(ent, code));
-	FLOAT full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
-	FLOAT part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
-	FLOAT build = S_SpellData(code, level, 5);
+static void self_destruct_explode(LPEDICT ent, uint32_t code) {
+	uint32_t level = MAX(1u, G_UnitAbilityLevel(ent, code));
+	float full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
+	float part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
+	float build = S_SpellData(code, level, 5);
 	VECTOR2 origin = ent->s.origin2;
 	if (full_d <= 0.0f && part_d <= 0.0f) return;
 	if (part_r < full_r) part_r = full_r;
 	FILTER_EDICTS(target, self_destruct_allows(code, ent, target)) {
-		FLOAT dist = Vector2_distance(&target->s.origin2, &origin), damage;
+		float dist = Vector2_distance(&target->s.origin2, &origin), damage;
 		if (dist > part_r) continue;
 		damage = dist <= full_r ? full_d : part_d;
 		if (damage <= 0.0f) continue;
@@ -37,10 +37,10 @@ static void self_destruct_explode(LPEDICT ent, DWORD code) {
 }
 
 /* Guards A_DEATH while intentional cast kills the caster (DataF aliases would double-blast). */
-static BOOL kaboom_cast;
+static bool kaboom_cast;
 
 /* Intentional Kaboom always blasts, then kills the caster; DataF does not gate this path. */
-static void self_destruct_kaboom(LPEDICT ent, DWORD code) {
+static void self_destruct_kaboom(LPEDICT ent, uint32_t code) {
 	if (!ent || !code || M_IsDead(ent)) return;
 	self_destruct_explode(ent, code);
 	kaboom_cast = true;
@@ -51,9 +51,9 @@ static void self_destruct_kaboom(LPEDICT ent, DWORD code) {
 }
 
 /* Autocast: detonate in place when a valid target is already inside DataA. */
-static BOOL self_destruct_autocast_acquire(LPEDICT caster, DWORD code) {
-	DWORD level = MAX(1u, G_UnitAbilityLevel(caster, code));
-	FLOAT full_r = S_SpellData(code, level, 1);
+static bool self_destruct_autocast_acquire(LPEDICT caster, uint32_t code) {
+	uint32_t level = MAX(1u, G_UnitAbilityLevel(caster, code));
+	float full_r = S_SpellData(code, level, 1);
 	VECTOR2 point;
 	if (full_r <= 0.0f) full_r = 100.0f;
 	FILTER_EDICTS(target, self_destruct_allows(code, caster, target)) {
@@ -64,13 +64,13 @@ static BOOL self_destruct_autocast_acquire(LPEDICT caster, DWORD code) {
 	return false;
 }
 
-static BOOL death_seen(DWORD *seen, DWORD *n, DWORD code) {
+static bool death_seen(uint32_t *seen, uint32_t *n, uint32_t code) {
 	FOR_LOOP(i, *n) if (seen[i] == code) return true;
 	if (*n < 32) seen[(*n)++] = code;
 	return false;
 }
 
-static void death_ability_one(LPEDICT ent, DWORD code, DWORD *seen, DWORD *n) {
+static void death_ability_one(LPEDICT ent, uint32_t code, uint32_t *seen, uint32_t *n) {
 	abilityitem_t item;
 	abilityCall_t call;
 	char name[5] = {0};
@@ -86,11 +86,11 @@ static void death_ability_one(LPEDICT ent, DWORD code, DWORD *seen, DWORD *n) {
 
 /* Walk the dying unit's concrete abilities; do not use the global innate list. */
 void S_UnitDeathAbilities(LPEDICT ent) {
-	DWORD seen[32], n = 0;
+	uint32_t seen[32], n = 0;
 	if (!ent) return;
 	if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
 		PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
-			DWORD code = 0;
+			uint32_t code = 0;
 			if (strlen(token) != 4) continue;
 			memcpy(&code, token, sizeof(code));
 			death_ability_one(ent, code, seen, &n);
@@ -108,8 +108,8 @@ void S_UnitDeathAbilities(LPEDICT ent) {
  * DataF explodes-on-death. Point-target click always blasts; death path needs DataF.
  */
 BZ_ABILITY_PROC(CAbilitySelfDestruct) {
-	DWORD code = call && call->item ? call->item->code : 0;
-	DWORD level;
+	uint32_t code = call && call->item ? call->item->code : 0;
+	uint32_t level;
 	switch (msg) {
 	case A_VALIDATE:
 		return call && call->target && call->target->type == SPELL_TARGET_POINT;

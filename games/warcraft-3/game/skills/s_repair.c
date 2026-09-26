@@ -10,14 +10,14 @@ static umove_t repair_generic_move_walk;
 static umove_t repair_generic_move_work;
 static umove_t repair_legacy_move_work;
 
-static BOOL repair_autocast_is_on(LPEDICT ent);
+static bool repair_autocast_is_on(LPEDICT ent);
 
-static void repair_code_string(DWORD code, char out[5]) {
+static void repair_code_string(uint32_t code, char out[5]) {
     memcpy(out, &code, 4);
     out[4] = '\0';
 }
 
-static abilityProc_t repair_handler(DWORD code) {
+static abilityProc_t repair_handler(uint32_t code) {
     char rawcode[5];
     ability_t const *ability;
     if (!code) return NULL;
@@ -26,9 +26,9 @@ static abilityProc_t repair_handler(DWORD code) {
     return ability ? ability->proc : NULL;
 }
 
-static DWORD repair_find_code(LPEDICT ent, abilityProc_t wanted, DWORD preferred) {
-    DWORD fallback = 0;
-    LPCSTR abilities;
+static uint32_t repair_find_code(LPEDICT ent, abilityProc_t wanted, uint32_t preferred) {
+    uint32_t fallback = 0;
+    cstring_t abilities;
 
     if (!ent || !ent->data.UnitAbilities) return 0;
     abilities = ent->data.UnitAbilities->abilList;
@@ -37,7 +37,7 @@ static DWORD repair_find_code(LPEDICT ent, abilityProc_t wanted, DWORD preferred
     PARSE_LIST(abilities, ability_name, parse_segment) {
         ability_t const *ability = FindAbilityForCommand(ability_name);
         abilityProc_t handler = ability ? ability->proc : NULL;
-        DWORD code;
+        uint32_t code;
         if (handler != CAbilityRepair && handler != CAbilityRepairGeneric) continue;
         if (wanted && handler != wanted) continue;
         code = FS_SLKKey(ability_name);
@@ -51,7 +51,7 @@ static AbilityData_t const *repair_data(LPEDICT ent) {
     return ent && ent->buildwork.ability ? G_AbilityData(ent->buildwork.ability) : NULL;
 }
 
-static BOOL repair_list_has_token(LPCSTR list, LPCSTR full, LPCSTR short_name) {
+static bool repair_list_has_token(cstring_t list, cstring_t full, cstring_t short_name) {
     if (!list || !*list || !full || !*full) return false;
     PARSE_LIST(list, item, parse_segment) {
         if (!strcasecmp(item, full) || (short_name && !strcasecmp(item, short_name))) return true;
@@ -59,8 +59,8 @@ static BOOL repair_list_has_token(LPCSTR list, LPCSTR full, LPCSTR short_name) {
     return false;
 }
 
-static BOOL repair_target_has_classification(LPCEDICT target, LPCSTR wanted) {
-    LPCSTR classifications;
+static bool repair_target_has_classification(LPCEDICT target, cstring_t wanted) {
+    cstring_t classifications;
 
     if (!target || !wanted || !*wanted) return false;
     classifications = target->data.UnitBalance ? target->data.UnitBalance->type : NULL;
@@ -70,9 +70,9 @@ static BOOL repair_target_has_classification(LPCEDICT target, LPCSTR wanted) {
     return repair_list_has_token(classifications, wanted, NULL);
 }
 
-static BOOL repair_target_category_allowed(LPCEDICT target, AbilityData_t const *data) {
-    LPCSTR targets;
-    BOOL building;
+static bool repair_target_category_allowed(LPCEDICT target, AbilityData_t const *data) {
+    cstring_t targets;
+    bool building;
 
     if (!target) return false;
     building = G_UnitIsBuilding(target->class_id);
@@ -115,8 +115,8 @@ static BOOL repair_target_category_allowed(LPCEDICT target, AbilityData_t const 
     return true;
 }
 
-static BOOL repair_target_relation_allowed(LPEDICT ent, LPEDICT target, AbilityData_t const *data) {
-    LPCSTR targets;
+static bool repair_target_relation_allowed(LPEDICT ent, LPEDICT target, AbilityData_t const *data) {
+    cstring_t targets;
 
     if (!ent || !target) return false;
     if (target->s.player == ent->s.player) return true;
@@ -132,12 +132,12 @@ static BOOL repair_target_relation_allowed(LPEDICT ent, LPEDICT target, AbilityD
     return false;
 }
 
-static BOOL repair_target_is_float(LPCEDICT target) {
-    LPCSTR movetp = target && target->data.UnitData ? target->data.UnitData->moveTypeName : NULL;
+static bool repair_target_is_float(LPCEDICT target) {
+    cstring_t movetp = target && target->data.UnitData ? target->data.UnitData->moveTypeName : NULL;
     return movetp && !strcasecmp(movetp, "float");
 }
 
-static BOOL repair_primary_active(LPEDICT building) {
+static bool repair_primary_active(LPEDICT building) {
     LPEDICT worker;
     if (!building) return false;
     worker = building->construction.primary_builder;
@@ -192,9 +192,9 @@ void S_CancelRepair(LPEDICT ent) {
 }
 
 /* Finish Repair consistently: completed Town Halls return their workers to gold mining. */
-static void repair_stop_reason(LPEDICT ent, LPCSTR reason) {
+static void repair_stop_reason(LPEDICT ent, cstring_t reason) {
     LPEDICT building = ent ? ent->build : NULL;
-    BOOL resume_harvest = building && ent && building->s.player == ent->s.player &&
+    bool resume_harvest = building && ent && building->s.player == ent->s.player &&
                           building->class_id == MAKEFOURCC('h','t','o','w') && reason &&
                           (!strcmp(reason, "construction_complete") || !strcmp(reason, "repair_complete") ||
                            (!strcmp(reason, "work_target_invalid") && !building->construction.active &&
@@ -217,7 +217,7 @@ static void repair_stop_reason(LPEDICT ent, LPCSTR reason) {
     fprintf(stderr, "WC3_BUILD repair-stop worker=%ld reason=%s building=%ld id=%.4s active=%d hp=%.1f/%.1f primary=%d move=%s goal=%ld\n",
             ent && g_edicts ? (long)(ent - g_edicts) : -1L, reason ? reason : "unknown",
             building && g_edicts ? (long)(building - g_edicts) : -1L,
-            building ? (LPCSTR)&building->class_id : "----",
+            building ? (cstring_t)&building->class_id : "----",
             building ? (int)building->construction.active : 0,
             building ? building->health.value : 0.0f, building ? building->health.max_value : 0.0f,
             ent && ent->buildwork.primary ? 1 : 0,
@@ -236,32 +236,32 @@ static void repair_stop_reason(LPEDICT ent, LPCSTR reason) {
     if (ent && ent->stand) ent->stand(ent);
 }
 
-static FLOAT repair_time(UnitBalance_t const *balance) {
+static float repair_time(UnitBalance_t const *balance) {
     if (!balance) return 0.0f;
-    if (balance->reptm > 0) return (FLOAT)balance->reptm;
+    if (balance->reptm > 0) return (float)balance->reptm;
     /* TODO: Current ROC/test rows can omit reptm. Preserve the old build-time
      * duration for those rows until the normalized unit-data import always
      * exposes the authoritative repair-time field. */
-    return (FLOAT)balance->buildTime;
+    return (float)balance->buildTime;
 }
 
-static BOOL repair_charge(LPEDICT ent, FLOAT gold_rate, FLOAT lumber_rate) {
+static bool repair_charge(LPEDICT ent, float gold_rate, float lumber_rate) {
     LPGAMECLIENT client;
-    FLOAT seconds;
-    LONG gold_due, lumber_due;
+    float seconds;
+    int32_t gold_due, lumber_due;
 
     if (!ent) return false;
     client = G_GetPlayerClientByNumber(ent->s.player);
     if (!client) return false;
 
-    seconds = (FLOAT)FRAMETIME / 1000.0f;
+    seconds = (float)FRAMETIME / 1000.0f;
     ent->buildwork.gold_accum += MAX(0.0f, gold_rate) * seconds;
     ent->buildwork.lumber_accum += MAX(0.0f, lumber_rate) * seconds;
-    gold_due = (LONG)floorf(ent->buildwork.gold_accum);
-    lumber_due = (LONG)floorf(ent->buildwork.lumber_accum);
+    gold_due = (int32_t)floorf(ent->buildwork.gold_accum);
+    lumber_due = (int32_t)floorf(ent->buildwork.lumber_accum);
 
-    if (gold_due > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] ||
-        lumber_due > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) {
+    if (gold_due > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] ||
+        lumber_due > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) {
         return false;
     }
     if (gold_due > 0) {
@@ -278,23 +278,23 @@ static BOOL repair_charge(LPEDICT ent, FLOAT gold_rate, FLOAT lumber_rate) {
     return true;
 }
 
-static BOOL repair_charge_power_cost(LPEDICT ent, LPEDICT building, AbilityData_t const *data) {
+static bool repair_charge_power_cost(LPEDICT ent, LPEDICT building, AbilityData_t const *data) {
     UnitBalance_t const *balance;
-    FLOAT build_time;
-    FLOAT cost_ratio;
+    float build_time;
+    float cost_ratio;
 
     if (!ent || !building || ent->buildwork.primary || G_BuildAllEnabled()) return true;
     balance = building->data.UnitBalance;
-    build_time = balance ? (FLOAT)balance->buildTime : 0.0f;
+    build_time = balance ? (float)balance->buildTime : 0.0f;
     cost_ratio = data ? data->level[0].data[2].number : 0.0f;
     if (build_time <= 0.0f || cost_ratio <= 0.0f) return true;
 
     return repair_charge(ent,
-        ((FLOAT)balance->goldRep / build_time) * cost_ratio,
-        ((FLOAT)balance->lumberRep / build_time) * cost_ratio);
+        ((float)balance->goldRep / build_time) * cost_ratio,
+        ((float)balance->lumberRep / build_time) * cost_ratio);
 }
 
-static BOOL repair_target_valid(LPEDICT ent, LPEDICT target, DWORD code, BOOL primary) {
+static bool repair_target_valid(LPEDICT ent, LPEDICT target, uint32_t code, bool primary) {
     abilityProc_t handler = repair_handler(code);
     AbilityData_t const *data = G_AbilityData(code);
 
@@ -321,12 +321,12 @@ static BOOL repair_target_valid(LPEDICT ent, LPEDICT target, DWORD code, BOOL pr
     return target->health.value < target->health.max_value;
 }
 
-static FLOAT repair_range(LPEDICT ent, LPCEDICT target) {
+static float repair_range(LPEDICT ent, LPCEDICT target) {
     AbilityData_t const *data = repair_data(ent);
-    FLOAT range = data ? MAX(0.0f, data->level[0].range) : 0.0f;
+    float range = data ? MAX(0.0f, data->level[0].range) : 0.0f;
 
     /* Repair DataE is the naval range bonus. Warsmash applies it only to unit
-     * targets whose authored movement type is FLOAT. */
+     * targets whose authored movement type is float. */
     if (data && repair_target_is_float(target)) {
         range += MAX(0.0f, data->level[0].data[4].number);
     }
@@ -337,9 +337,9 @@ static FLOAT repair_range(LPEDICT ent, LPCEDICT target) {
  * next movement step here: doing so makes walk hand off early, then the work
  * state immediately fail the same range check before applying repair/build
  * progress, producing a walk/work oscillation with zero HP/progress change. */
-static BOOL repair_in_range(LPEDICT ent, LPEDICT target) {
-    FLOAT footprint;
-    FLOAT range;
+static bool repair_in_range(LPEDICT ent, LPEDICT target) {
+    float footprint;
+    float range;
 
     if (!ent || !target) return false;
     range = repair_range(ent, target);
@@ -364,11 +364,11 @@ static void repair_set_work(LPEDICT ent) {
         unit_setmove(ent, &repair_move_work);
 }
 
-static BOOL repair_prepare_approach(LPEDICT ent) {
+static bool repair_prepare_approach(LPEDICT ent) {
     LPEDICT building = ent ? ent->build : NULL;
     VECTOR2 approach;
-    FLOAT interaction_range;
-    BOOL found;
+    float interaction_range;
+    bool found;
 
     if (!ent || !building) return false;
     interaction_range = ent->collision + repair_range(ent, building);
@@ -401,7 +401,7 @@ static BOOL repair_prepare_approach(LPEDICT ent) {
     return false;
 }
 
-static BOOL repair_set_walk(LPEDICT ent) {
+static bool repair_set_walk(LPEDICT ent) {
     if (!repair_prepare_approach(ent)) {
         repair_stop_reason(ent, "no_approach");
         return false;
@@ -415,7 +415,7 @@ static BOOL repair_set_walk(LPEDICT ent) {
 
 static void ai_repair_walk(LPEDICT ent) {
     LPEDICT building = ent ? ent->build : NULL;
-    FLOAT distance, step;
+    float distance, step;
 
     if (!building || !repair_target_valid(ent, building, ent->buildwork.ability,
                                            ent->buildwork.primary)) {
@@ -467,10 +467,10 @@ static void ai_repair(LPEDICT ent) {
     unit_changeangle(ent);
 
     if (building->construction.active) {
-        FLOAT ratio;
-        FLOAT duration;
-        FLOAT hp_gain;
-        FLOAT start_hp;
+        float ratio;
+        float duration;
+        float hp_gain;
+        float start_hp;
 
         if (!building->construction.paused || !data) {
             repair_stop_reason(ent, "construction_not_paused_or_no_data");
@@ -494,11 +494,11 @@ static void ai_repair(LPEDICT ent) {
             return;
         }
 
-        duration = MAX(1.0f, (FLOAT)building->data.UnitBalance->buildTime * 1000.0f);
-        building->construction.progress += (FLOAT)FRAMETIME * ratio;
+        duration = MAX(1.0f, (float)building->data.UnitBalance->buildTime * 1000.0f);
+        building->construction.progress += (float)FRAMETIME * ratio;
         G_UpdateConstructionAnimation(building);
         start_hp = MAX(1.0f, hp->max_value * 0.10f);
-        hp_gain = (hp->max_value - start_hp) * ((FLOAT)FRAMETIME * ratio / duration);
+        hp_gain = (hp->max_value - start_hp) * ((float)FRAMETIME * ratio / duration);
         G_AddHealth(building, hp_gain);
         if (building->construction.progress >= duration) {
             G_CompleteConstruction(building);
@@ -509,11 +509,11 @@ static void ai_repair(LPEDICT ent) {
 
     if (data) {
         UnitBalance_t const *balance = building->data.UnitBalance;
-        FLOAT seconds = (FLOAT)FRAMETIME / 1000.0f;
-        FLOAT duration = repair_time(balance);
-        FLOAT cost_ratio = data->level[0].data[0].number;
-        FLOAT time_ratio = data->level[0].data[1].number;
-        FLOAT hp_rate;
+        float seconds = (float)FRAMETIME / 1000.0f;
+        float duration = repair_time(balance);
+        float cost_ratio = data->level[0].data[0].number;
+        float time_ratio = data->level[0].data[1].number;
+        float hp_rate;
 
         if (duration <= 0.0f || time_ratio <= 0.0f) {
             repair_stop_reason(ent, "invalid_repair_rates");
@@ -521,8 +521,8 @@ static void ai_repair(LPEDICT ent) {
         }
         hp_rate = (hp->max_value / duration) * time_ratio;
         if (!repair_charge(ent,
-                ((FLOAT)balance->goldRep / duration) * cost_ratio * time_ratio,
-                ((FLOAT)balance->lumberRep / duration) * cost_ratio * time_ratio)) {
+                ((float)balance->goldRep / duration) * cost_ratio * time_ratio,
+                ((float)balance->lumberRep / duration) * cost_ratio * time_ratio)) {
             repair_stop_reason(ent, "repair_unaffordable");
             return;
         }
@@ -548,15 +548,15 @@ static void ai_repair_legacy(LPEDICT ent) {
     if (G_PlayerInstantBuild(building->s.player))
         G_SetHealth(building, hp->max_value);
     else
-        G_AddHealth(building, hp->max_value * (FLOAT)FRAMETIME /
-                    ((FLOAT)building->data.UnitBalance->buildTime * 1000.0f));
+        G_AddHealth(building, hp->max_value * (float)FRAMETIME /
+                    ((float)building->data.UnitBalance->buildTime * 1000.0f));
     if (hp->value >= hp->max_value) {
         G_SetHealth(building, hp->max_value);
         if (WC3_TUTORIAL_DEBUG_ENABLED()) {
             fprintf(stderr,
                     "WC3_QUEST_BUILD legacy-complete worker=%ld id=%.4s building=%ld id=%.4s health=%.1f/%.1f worker_build=%ld building_build=%ld\n",
-                    (long)(ent - globals.edicts), (LPCSTR)&ent->class_id,
-                    (long)(building - globals.edicts), (LPCSTR)&building->class_id,
+                    (long)(ent - globals.edicts), (cstring_t)&ent->class_id,
+                    (long)(building - globals.edicts), (cstring_t)&building->class_id,
                     hp->value, hp->max_value,
                     ent->build ? (long)(ent->build - globals.edicts) : -1L,
                     building->build ? (long)(building->build - globals.edicts) : -1L);
@@ -570,8 +570,8 @@ static void ai_repair_legacy(LPEDICT ent) {
         if (WC3_TUTORIAL_DEBUG_ENABLED()) {
             fprintf(stderr,
                     "WC3_QUEST_BUILD legacy-release worker=%ld id=%.4s building=%ld id=%.4s worker_build=%ld goal=%ld building_build=%ld\n",
-                    (long)(ent - globals.edicts), (LPCSTR)&ent->class_id,
-                    (long)(building - globals.edicts), (LPCSTR)&building->class_id,
+                    (long)(ent - globals.edicts), (cstring_t)&ent->class_id,
+                    (long)(building - globals.edicts), (cstring_t)&building->class_id,
                     ent->build ? (long)(ent->build - globals.edicts) : -1L,
                     ent->goalentity ? (long)(ent->goalentity - globals.edicts) : -1L,
                     building->build ? (long)(building->build - globals.edicts) : -1L);
@@ -585,14 +585,14 @@ static umove_t repair_generic_move_walk = { "walk", ai_repair_walk, NULL, CAbili
 static umove_t repair_generic_move_work = { "stand work", ai_repair, NULL, CAbilityRepairGeneric };
 static umove_t repair_legacy_move_work = { "stand work", ai_repair_legacy, NULL, CAbilityRepair };
 
-static BOOL repair_begin(LPEDICT ent, LPEDICT building, DWORD code, BOOL primary) {
+static bool repair_begin(LPEDICT ent, LPEDICT building, uint32_t code, bool primary) {
     VECTOR2 origin;
-    FLOAT angle;
+    float angle;
 
     if (!ent || !building || !code || !repair_target_valid(ent, building, code, primary)) return false;
 #ifdef WC3_DEBUG_BUILD
     fprintf(stderr, "WC3_BUILD repair-begin worker=%ld building=%ld id=%.4s primary=%d origin=(%.1f,%.1f)\n",
-            (long)(ent - g_edicts), (long)(building - g_edicts), (LPCSTR)&building->class_id, primary,
+            (long)(ent - g_edicts), (long)(building - g_edicts), (cstring_t)&building->class_id, primary,
             ent->s.origin2.x, ent->s.origin2.y);
 #endif
     S_CancelRepair(ent);
@@ -601,8 +601,8 @@ static BOOL repair_begin(LPEDICT ent, LPEDICT building, DWORD code, BOOL primary
     if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_BUILD legacy-link worker=%ld id=%.4s building=%ld id=%.4s health=%.1f/%.1f\n",
-                (long)(ent - globals.edicts), (LPCSTR)&ent->class_id,
-                (long)(building - globals.edicts), (LPCSTR)&building->class_id,
+                (long)(ent - globals.edicts), (cstring_t)&ent->class_id,
+                (long)(building - globals.edicts), (cstring_t)&building->class_id,
                 building->health.value, building->health.max_value);
     }
     ent->buildwork.primary = primary;
@@ -645,7 +645,7 @@ static BOOL repair_begin(LPEDICT ent, LPEDICT building, DWORD code, BOOL primary
 }
 
 void repair_build_primary(LPEDICT ent, LPEDICT building) {
-    DWORD code = repair_find_code(ent, CAbilityRepair, 0);
+    uint32_t code = repair_find_code(ent, CAbilityRepair, 0);
     if (!code || !repair_begin(ent, building, code, true)) {
         if (building && building->construction.primary_builder == ent)
             building->construction.primary_builder = NULL;
@@ -654,7 +654,7 @@ void repair_build_primary(LPEDICT ent, LPEDICT building) {
 
 void repair_build_legacy(LPEDICT ent, LPEDICT building) {
     VECTOR2 origin;
-    FLOAT angle;
+    float angle;
 
     if (!ent || !building) return;
     if (!SP_FindUnitExitPosition(building, ent, &origin, &angle)) {
@@ -673,14 +673,14 @@ void repair_build_legacy(LPEDICT ent, LPEDICT building) {
     unit_setmove(ent, &repair_legacy_move_work);
 }
 
-BOOL G_UnitHasHumanRepair(LPEDICT ent) {
+bool G_UnitHasHumanRepair(LPEDICT ent) {
     return repair_find_code(ent, CAbilityRepair, 0) != 0;
 }
 
-BOOL S_OrderRepair(LPEDICT ent, LPEDICT target, DWORD preferred) {
+bool S_OrderRepair(LPEDICT ent, LPEDICT target, uint32_t preferred) {
     abilityProc_t wanted = NULL;
-    DWORD code;
-    BOOL primary = false;
+    uint32_t code;
+    bool primary = false;
 
     if (!ent || !target) return false;
     if (preferred) {
@@ -706,26 +706,26 @@ BOOL S_OrderRepair(LPEDICT ent, LPEDICT target, DWORD preferred) {
     return repair_begin(ent, target, code, primary);
 }
 
-BOOL S_RepairSmart(LPEDICT ent, LPEDICT target) {
+bool S_RepairSmart(LPEDICT ent, LPEDICT target) {
     return S_OrderRepair(ent, target, 0);
 }
 
 #define REPAIR_AUTOCAST_MAX_TARGETS 256 // entities; bounded candidates considered by one Auto Repair acquisition scan
 
-static BOOL repair_autocast_is_on(LPEDICT ent) {
+static bool repair_autocast_is_on(LPEDICT ent) {
     return ent && (ent->aiflags & AI_AUTOCAST_REPAIR) != 0;
 }
 
-static void repair_autocast_set(LPEDICT ent, BOOL enabled) {
+static void repair_autocast_set(LPEDICT ent, bool enabled) {
     if (!ent) return;
     if (enabled) ent->aiflags |= AI_AUTOCAST_REPAIR;
     else ent->aiflags &= ~AI_AUTOCAST_REPAIR;
 }
 
-static LPCSTR repair_autocast_reject_reason(LPEDICT ent, LPEDICT target, DWORD code) {
+static cstring_t repair_autocast_reject_reason(LPEDICT ent, LPEDICT target, uint32_t code) {
     abilityProc_t handler;
     AbilityData_t const *data;
-    BOOL primary = false;
+    bool primary = false;
 
     if (!ent) return "no_worker";
     if (!target) return "no_target";
@@ -753,8 +753,8 @@ static LPCSTR repair_autocast_reject_reason(LPEDICT ent, LPEDICT target, DWORD c
  * sizes, not just center-to-center distance. This matters most for large
  * buildings: a Peasant can be visibly close to the footprint while the
  * building center lies beyond uacq. */
-static FLOAT repair_autocast_distance(LPCEDICT ent, LPCEDICT target) {
-    FLOAT distance;
+static float repair_autocast_distance(LPCEDICT ent, LPCEDICT target) {
+    float distance;
 
     if (!ent || !target) return FLT_MAX;
     distance = Vector2_distance(&target->s.origin2, &ent->s.origin2) -
@@ -762,7 +762,7 @@ static FLOAT repair_autocast_distance(LPCEDICT ent, LPCEDICT target) {
     return MAX(0.0f, distance);
 }
 
-BOOL S_SetRepairAutocast(LPEDICT ent, BOOL enabled) {
+bool S_SetRepairAutocast(LPEDICT ent, bool enabled) {
     if (!ent) return false;
     return G_SetUnitAutocast(ent, repair_find_code(ent, NULL, 0), enabled);
 }
@@ -770,14 +770,14 @@ BOOL S_SetRepairAutocast(LPEDICT ent, BOOL enabled) {
 /* Repair uses Warsmash's NEARESTVALID autocast policy: acquisition range only
  * bounds candidate discovery. Once chosen, the ordinary Repair order owns
  * pathing into Repair range and all subsequent validation/cost behavior. */
-static BOOL repair_autocast_acquire(LPEDICT ent) {
+static bool repair_autocast_acquire(LPEDICT ent) {
     LPEDICT candidates[REPAIR_AUTOCAST_MAX_TARGETS];
     LPEDICT best = NULL;
-    FLOAT radius;
-    FLOAT best_distance;
-    DWORD code;
+    float radius;
+    float best_distance;
+    uint32_t code;
     BOX2 area;
-    DWORD count;
+    uint32_t count;
 
     if (!ent) return false;
     if (M_IsDead(ent) || S_GoldMineWorkerIsInside(ent)) {
@@ -828,8 +828,8 @@ static BOOL repair_autocast_acquire(LPEDICT ent) {
 #endif
     FOR_LOOP(i, count) {
         LPEDICT target = candidates[i];
-        LPCSTR reject;
-        FLOAT distance;
+        cstring_t reject;
+        float distance;
 
         reject = repair_autocast_reject_reason(ent, target, code);
         if (reject) {
@@ -839,7 +839,7 @@ static BOOL repair_autocast_acquire(LPEDICT ent) {
                         "WC3_AUTOREPAIR candidate worker=%ld target=%ld class=%.4s owner=%u hp=%.1f/%.1f reject=%s\n",
                         g_edicts ? (long)(ent - g_edicts) : -1L,
                         g_edicts ? (long)(target - g_edicts) : -1L,
-                        (LPCSTR)&target->class_id, target->s.player,
+                        (cstring_t)&target->class_id, target->s.player,
                         target->health.value, target->health.max_value, reject);
             }
 #endif
@@ -852,7 +852,7 @@ static BOOL repair_autocast_acquire(LPEDICT ent) {
                     "WC3_AUTOREPAIR candidate worker=%ld target=%ld class=%.4s hp=%.1f/%.1f distance=%.1f valid=1\n",
                     g_edicts ? (long)(ent - g_edicts) : -1L,
                     g_edicts ? (long)(target - g_edicts) : -1L,
-                    (LPCSTR)&target->class_id,
+                    (cstring_t)&target->class_id,
                     target->health.value, target->health.max_value, distance);
         }
 #endif
@@ -876,7 +876,7 @@ static BOOL repair_autocast_acquire(LPEDICT ent) {
                 "WC3_AUTOREPAIR choose worker=%ld target=%ld class=%.4s distance=%.1f hp=%.1f/%.1f\n",
                 g_edicts ? (long)(ent - g_edicts) : -1L,
                 g_edicts ? (long)(best - g_edicts) : -1L,
-                (LPCSTR)&best->class_id, best_distance,
+                (cstring_t)&best->class_id, best_distance,
                 best->health.value, best->health.max_value);
     }
 #endif
@@ -893,10 +893,10 @@ static BOOL repair_autocast_acquire(LPEDICT ent) {
     return true;
 }
 
-static BOOL repair_selecttarget(LPEDICT clent, LPEDICT target) {
-    DWORD code;
+static bool repair_selecttarget(LPEDICT clent, LPEDICT target) {
+    uint32_t code;
     abilityProc_t handler;
-    BOOL issued = false;
+    bool issued = false;
 
     if (!clent || !clent->client || !target) return false;
     code = clent->client->menu.ability_code;

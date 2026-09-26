@@ -18,7 +18,7 @@
 
 /* Build sc2BaseFrame_t → uiFrame_t and queue via gi.Write(PF_UIFRAME).
  * Returns false if frame is NULL or the uiFrame_t buffer overflows. */
-BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out);
+bool SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out);
 
 /* Write one frame (calls SC2_HUD_BuildFrameForWrite + gi.Write). */
 void SC2_HUD_WriteFrame(LPCSC2BASEFRAME frame);
@@ -26,22 +26,22 @@ void SC2_HUD_WriteFrame(LPCSC2BASEFRAME frame);
 /* Write the parent chain of 'frame' up to the root, root first, skipping
  * already-assigned frames.  Ensures all ancestor wire numbers exist before
  * children reference them. */
-void SC2_HUD_WriteAncestors(LPCSC2BASEFRAME frames, DWORD count,
+void SC2_HUD_WriteAncestors(LPCSC2BASEFRAME frames, uint32_t count,
                              LPCSC2BASEFRAME frame);
 
 /* Write frame tree rooted at 'frame' recursively (depth-first, skip hidden). */
-void SC2_HUD_WriteFrameWithChildren(LPCSC2BASEFRAME frames, DWORD count,
+void SC2_HUD_WriteFrameWithChildren(LPCSC2BASEFRAME frames, uint32_t count,
                                     LPCSC2BASEFRAME frame);
 
 /* Open a layout layer message (svc_layout + layer byte). */
-void SC2_HUD_WriteStart(DWORD layer);
+void SC2_HUD_WriteStart(uint32_t layer);
 
 /* Close the message and unicast to ent. */
 void SC2_HUD_WriteEnd(LPEDICT ent);
 
 /* Write a complete layout layer: start → tree → end. */
-void SC2_HUD_WriteLayout(LPEDICT ent, LPCSC2BASEFRAME frames, DWORD count,
-                         LPCSC2BASEFRAME root, DWORD layer);
+void SC2_HUD_WriteLayout(LPEDICT ent, LPCSC2BASEFRAME frames, uint32_t count,
+                         LPCSC2BASEFRAME root, uint32_t layer);
 
 /* Wire gi file I/O into the layout parser — call once from SC2_Init. */
 void SC2_HUD_InitLayoutHost(void);
@@ -51,12 +51,12 @@ void SC2_HUD_InitLayoutHost(void);
  * loading failed.  All panel modules must call this instead of invoking
  * SC2_LayoutBuildGameUI() directly — there is one shared sc2_layout
  * global, so each independent call would wipe the previous load. */
-sc2BaseFrame_t *SC2_HUD_EnsureLayout(DWORD *count);
+sc2BaseFrame_t *SC2_HUD_EnsureLayout(uint32_t *count);
 
 /* Per-frame HUD writers called from G_RunFrame */
 void SC2_HUD_WriteResourcePanel(LPEDICT ent);
 void SC2_HUD_WriteConsolePanel(LPEDICT ent);
-void SC2_HUD_PrepareCommandPanel(sc2BaseFrame_t *frames, DWORD count, sc2BaseFrame_t *root);
+void SC2_HUD_PrepareCommandPanel(sc2BaseFrame_t *frames, uint32_t count, sc2BaseFrame_t *root);
 
 /* Set the model index used by FT_PORTRAIT frames on the next console write.
  * Call before SC2_HUD_WriteConsolePanel when a unit is selected. */

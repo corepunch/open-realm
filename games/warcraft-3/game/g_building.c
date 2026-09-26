@@ -13,7 +13,7 @@
  * snapshots. It has no collision and never bakes static pathing. Its footprint
  * still displaces friendly mobile units at placement time; the real structure
  * repeats that displacement when construction starts. */
-LPEDICT G_CreateBuildPreview(LPEDICT builder, DWORD building_id, LPCVECTOR2 location) {
+LPEDICT G_CreateBuildPreview(LPEDICT builder, uint32_t building_id, LPCVECTOR2 location) {
     LPEDICT preview;
     LPCANIMATION stand;
 
@@ -52,12 +52,12 @@ LPEDICT G_CreateBuildPreview(LPEDICT builder, DWORD building_id, LPCVECTOR2 loca
     if (!G_DisplaceBuildOccupants(builder, preview)) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD preview-displace-incomplete worker=%ld preview=%ld id=%.4s\n",
-                (long)(builder - g_edicts), (long)(preview - g_edicts), (LPCSTR)&building_id);
+                (long)(builder - g_edicts), (long)(preview - g_edicts), (cstring_t)&building_id);
 #endif
     }
 #ifdef WC3_DEBUG_BUILD
     fprintf(stderr, "WC3_BUILD preview-create worker=%ld preview=%ld id=%.4s point=(%.1f,%.1f)\n",
-            (long)(builder - g_edicts), (long)(preview - g_edicts), (LPCSTR)&building_id,
+            (long)(builder - g_edicts), (long)(preview - g_edicts), (cstring_t)&building_id,
             location->x, location->y);
 #endif
     return preview;
@@ -69,7 +69,7 @@ void G_ClearBuildPreview(LPEDICT builder) {
     if (!builder || !(preview = builder->build_preview)) return;
 #ifdef WC3_DEBUG_BUILD
     fprintf(stderr, "WC3_BUILD preview-clear worker=%ld preview=%ld id=%.4s\n",
-            (long)(builder - g_edicts), (long)(preview - g_edicts), (LPCSTR)&preview->class_id);
+            (long)(builder - g_edicts), (long)(preview - g_edicts), (cstring_t)&preview->class_id);
 #endif
     builder->build_preview = NULL;
     G_FreeEdict(preview);
@@ -85,14 +85,14 @@ void G_ClearBuildPreview(LPEDICT builder) {
 #define ID_UPGRADE_EFFECT_SPELL_LEVEL   MAKEFOURCC('r', 'l', 'e', 'v')
 #define ID_UPGRADE_EFFECT_MANA_REGEN    MAKEFOURCC('r', 'm', 'n', 'r') // fourcc; mana-regeneration upgrade effect
 
-static BYTE G_PlacementFlags(LPCSTR list) {
-    BYTE flags = 0;
-    LPCSTR p = list;
+static uint8_t G_PlacementFlags(cstring_t list) {
+    uint8_t flags = 0;
+    cstring_t p = list;
 
     if (!list) return 0;
     while (*p) {
         char token[64];
-        DWORD n = 0;
+        uint32_t n = 0;
 
         while (*p == ',' || *p == ' ' || *p == '\t') p++;
         while (*p && *p != ',' && n + 1 < sizeof(token)) {
@@ -119,20 +119,20 @@ static BYTE G_PlacementFlags(LPCSTR list) {
     return flags;
 }
 
-static DWORD G_CsvToken(LPCSTR list, DWORD index, LPSTR out, DWORD out_size) {
-    DWORD current = 0;
-    LPCSTR p = list;
+static uint32_t G_CsvToken(cstring_t list, uint32_t index, string_t out, uint32_t out_size) {
+    uint32_t current = 0;
+    cstring_t p = list;
 
     if (!out || !out_size) return 0;
     out[0] = '\0';
     if (!list) return 0;
     while (*p) {
-        LPCSTR start;
-        DWORD len;
+        cstring_t start;
+        uint32_t len;
         while (*p == ',' || *p == ' ' || *p == '\t') p++;
         start = p;
         while (*p && *p != ',') p++;
-        len = (DWORD)(p - start);
+        len = (uint32_t)(p - start);
         while (len && (start[len - 1] == ' ' || start[len - 1] == '\t')) len--;
         if (current++ == index) {
             len = MIN(len, out_size - 1);
@@ -145,17 +145,17 @@ static DWORD G_CsvToken(LPCSTR list, DWORD index, LPSTR out, DWORD out_size) {
     return 0;
 }
 
-BOOL G_BuildAllEnabled(void) {
+bool G_BuildAllEnabled(void) {
     return atoi(gi.CvarString("wc3_build_all", "0")) != 0;
 }
 
-static LONG G_FindTechSlot(LPGAMECLIENT client, DWORD techid, BOOL create) {
-    LONG free_slot = -1;
+static int32_t G_FindTechSlot(LPGAMECLIENT client, uint32_t techid, bool create) {
+    int32_t free_slot = -1;
 
     if (!client || !techid) return -1;
     FOR_LOOP(i, MAX_PLAYER_TECH_STATE) {
-        if (client->tech[i].id == techid) return (LONG)i;
-        if (!client->tech[i].id && free_slot < 0) free_slot = (LONG)i;
+        if (client->tech[i].id == techid) return (int32_t)i;
+        if (!client->tech[i].id && free_slot < 0) free_slot = (int32_t)i;
     }
     if (!create) return -1;
     if (free_slot < 0) {
@@ -168,26 +168,26 @@ static LONG G_FindTechSlot(LPGAMECLIENT client, DWORD techid, BOOL create) {
     return free_slot;
 }
 
-static BOOL G_UnitUsesUpgrade(LPCEDICT unit, DWORD upgrade_id) {
+static bool G_UnitUsesUpgrade(LPCEDICT unit, uint32_t upgrade_id) {
     char token[64];
-    LPCSTR upgrades;
+    cstring_t upgrades;
 
     if (!unit || !unit->data.UnitBalance || !upgrade_id) return false;
     upgrades = unit->data.UnitBalance->upgrades;
-    for (DWORD i = 0; G_CsvToken(upgrades, i, token, sizeof(token)); i++) {
+    for (uint32_t i = 0; G_CsvToken(upgrades, i, token, sizeof(token)); i++) {
         if (strlen(token) == 4 && !memcmp(token, &upgrade_id, 4)) return true;
     }
     return false;
 }
 
-DWORD G_GetUnitUpgradeForClass(LPCEDICT unit, LPCSTR wanted_class) {
+uint32_t G_GetUnitUpgradeForClass(LPCEDICT unit, cstring_t wanted_class) {
     char token[64];
-    LPCSTR upgrades;
+    cstring_t upgrades;
 
     if (!unit || !unit->data.UnitBalance || !wanted_class || !*wanted_class) return 0;
     upgrades = unit->data.UnitBalance->upgrades;
-    for (DWORD i = 0; G_CsvToken(upgrades, i, token, sizeof(token)); i++) {
-        DWORD upgrade_id;
+    for (uint32_t i = 0; G_CsvToken(upgrades, i, token, sizeof(token)); i++) {
+        uint32_t upgrade_id;
         UpgradeData_t const *upgrade;
 
         if (strlen(token) != 4) continue;
@@ -201,12 +201,12 @@ DWORD G_GetUnitUpgradeForClass(LPCEDICT unit, LPCSTR wanted_class) {
     return 0;
 }
 
-static FLOAT G_UpgradeEffectValue(UpgradeData_t const *upgrade, DWORD effect, LONG level_value) {
+static float G_UpgradeEffectValue(UpgradeData_t const *upgrade, uint32_t effect, int32_t level_value) {
     if (!upgrade || effect >= 4 || level_value <= 0) return 0.0f;
-    return upgrade->effectBase[effect] + upgrade->effectMod[effect] * (FLOAT)(level_value - 1);
+    return upgrade->effectBase[effect] + upgrade->effectMod[effect] * (float)(level_value - 1);
 }
 
-static BOOL G_UpgradeHasNoEffect(UpgradeData_t const *upgrade) {
+static bool G_UpgradeHasNoEffect(UpgradeData_t const *upgrade) {
     if (!upgrade) return true;
     FOR_LOOP(i, 4) {
         if (upgrade->effect[i] && upgrade->effect[i] != MAKEFOURCC('_', 0, 0, 0) &&
@@ -215,8 +215,8 @@ static BOOL G_UpgradeHasNoEffect(UpgradeData_t const *upgrade) {
     return true;
 }
 
-static BOOL G_ResearchCommentsMatch(LPCSTR ability_comments, LPCSTR upgrade_comments) {
-    LPCSTR ability_word, upgrade_word;
+static bool G_ResearchCommentsMatch(cstring_t ability_comments, cstring_t upgrade_comments) {
+    cstring_t ability_word, upgrade_word;
 
     if (!ability_comments || !*ability_comments || !upgrade_comments || !*upgrade_comments) return false;
     for (ability_word = ability_comments; *ability_word;) {
@@ -240,7 +240,7 @@ static BOOL G_ResearchCommentsMatch(LPCSTR ability_comments, LPCSTR upgrade_comm
     return false;
 }
 
-static BOOL G_UpgradeResearchesAbility(UpgradeData_t const *upgrade, DWORD ability_id) {
+static bool G_UpgradeResearchesAbility(UpgradeData_t const *upgrade, uint32_t ability_id) {
     AbilityData_t const *ability = G_AbilityData(ability_id);
 
     return upgrade && ability && ability->id == ability_id && ability->checkDep &&
@@ -248,16 +248,16 @@ static BOOL G_UpgradeResearchesAbility(UpgradeData_t const *upgrade, DWORD abili
            G_ResearchCommentsMatch(ability->comments, upgrade->comments);
 }
 
-FLOAT G_UnitUpgradeEffectBonus(LPCEDICT unit, DWORD effect) {
+float G_UnitUpgradeEffectBonus(LPCEDICT unit, uint32_t effect) {
     LPGAMECLIENT owner;
     char token[64];
-    FLOAT bonus = 0.0f;
+    float bonus = 0.0f;
 
     if (!unit || !unit->data.UnitBalance || !effect || !(owner = G_GetPlayerClientByNumber(unit->s.player))) return 0.0f;
-    for (DWORD u = 0; G_CsvToken(unit->data.UnitBalance->upgrades, u, token, sizeof(token)); u++) {
-        DWORD upgrade_id;
+    for (uint32_t u = 0; G_CsvToken(unit->data.UnitBalance->upgrades, u, token, sizeof(token)); u++) {
+        uint32_t upgrade_id;
         UpgradeData_t const *upgrade;
-        LONG level;
+        int32_t level;
         if (strlen(token) != 4) continue;
         memcpy(&upgrade_id, token, sizeof(upgrade_id)); upgrade = G_UpgradeData(upgrade_id);
         level = G_GetPlayerTechResearchedLevel(owner, upgrade_id);
@@ -274,19 +274,19 @@ FLOAT G_UnitUpgradeEffectBonus(LPCEDICT unit, DWORD effect) {
  * checkDep flag and the authored ability/upgrade comments because those rows
  * have no effect/code pair.  Keep both paths data-driven so custom
  * units/upgrades inherit the same command-card and execution gate. */
-BOOL G_UnitAbilityResearchAvailable(LPCEDICT unit, DWORD ability_id) {
+bool G_UnitAbilityResearchAvailable(LPCEDICT unit, uint32_t ability_id) {
     LPGAMECLIENT owner;
-    LPCSTR upgrades;
+    cstring_t upgrades;
     char token[64];
-    BOOL gated = false;
+    bool gated = false;
 
     if (!unit || !ability_id || !unit->data.UnitBalance) return true;
     upgrades = unit->data.UnitBalance->upgrades;
     if (!upgrades || !*upgrades) return true;
     owner = G_GetPlayerClientByNumber(unit->s.player);
 
-    for (DWORD u = 0; G_CsvToken(upgrades, u, token, sizeof(token)); u++) {
-        DWORD upgrade_id;
+    for (uint32_t u = 0; G_CsvToken(upgrades, u, token, sizeof(token)); u++) {
+        uint32_t upgrade_id;
         UpgradeData_t const *upgrade;
 
         if (strlen(token) != 4) continue;
@@ -311,38 +311,38 @@ BOOL G_UnitAbilityResearchAvailable(LPCEDICT unit, DWORD ability_id) {
 }
 
 static void G_ApplyUpgradeLevelDelta(LPEDICT unit, UpgradeData_t const *upgrade,
-                                     LONG old_level, LONG new_level) {
-    BOOL changed = false;
+                                     int32_t old_level, int32_t new_level) {
+    bool changed = false;
 
     if (!unit || !upgrade || old_level == new_level || !G_UnitUsesUpgrade(unit, upgrade->id)) return;
 
     FOR_LOOP(i, 4) {
-        DWORD const effect = upgrade->effect[i];
+        uint32_t const effect = upgrade->effect[i];
         if (!effect) continue;
         if (effect == ID_UPGRADE_EFFECT_ATTACK_DAMAGE) {
-            LONG const old_value = (LONG)G_UpgradeEffectValue(upgrade, i, old_level);
-            LONG const new_value = (LONG)G_UpgradeEffectValue(upgrade, i, new_level);
-            LONG const delta = new_value - old_value;
+            int32_t const old_value = (int32_t)G_UpgradeEffectValue(upgrade, i, old_level);
+            int32_t const new_value = (int32_t)G_UpgradeEffectValue(upgrade, i, new_level);
+            int32_t const delta = new_value - old_value;
 
             if (delta && (unit->attack1.numberOfDice || unit->attack2.numberOfDice)) {
-                G_ApplyPermanentAttackDamageBonus(unit, (FLOAT)delta);
+                G_ApplyPermanentAttackDamageBonus(unit, (float)delta);
                 changed = true;
             }
         } else if (effect == ID_UPGRADE_EFFECT_ATTACK_DICE) {
-            LONG const old_value = (LONG)G_UpgradeEffectValue(upgrade, i, old_level);
-            LONG const new_value = (LONG)G_UpgradeEffectValue(upgrade, i, new_level);
-            LONG const delta = new_value - old_value;
+            int32_t const old_value = (int32_t)G_UpgradeEffectValue(upgrade, i, old_level);
+            int32_t const new_value = (int32_t)G_UpgradeEffectValue(upgrade, i, new_level);
+            int32_t const delta = new_value - old_value;
 
             if (delta && unit->attack1.numberOfDice) {
-                unit->attack1.numberOfDice = MAX(0, (LONG)unit->attack1.numberOfDice + delta);
+                unit->attack1.numberOfDice = MAX(0, (int32_t)unit->attack1.numberOfDice + delta);
                 changed = true;
             }
             if (delta && unit->attack2.numberOfDice) {
-                unit->attack2.numberOfDice = MAX(0, (LONG)unit->attack2.numberOfDice + delta);
+                unit->attack2.numberOfDice = MAX(0, (int32_t)unit->attack2.numberOfDice + delta);
                 changed = true;
             }
         } else if (effect == ID_UPGRADE_EFFECT_ATTACK_RANGE) {
-            FLOAT const delta = G_UpgradeEffectValue(upgrade, i, new_level) -
+            float const delta = G_UpgradeEffectValue(upgrade, i, new_level) -
                                 G_UpgradeEffectValue(upgrade, i, old_level);
             if (delta != 0.0f && unit->attack1.numberOfDice) {
                 unit->attack1.range = MAX(0.0f, unit->attack1.range + delta);
@@ -353,20 +353,20 @@ static void G_ApplyUpgradeLevelDelta(LPEDICT unit, UpgradeData_t const *upgrade,
                 changed = true;
             }
         } else if (effect == ID_UPGRADE_EFFECT_ARMOR) {
-            FLOAT const delta = unit->data.UnitBalance->armorPerUpgrade * (FLOAT)(new_level - old_level);
+            float const delta = unit->data.UnitBalance->armorPerUpgrade * (float)(new_level - old_level);
             if (delta != 0.0f) {
                 G_ApplyPermanentArmorBonus(unit, delta);
                 changed = true;
             }
         } else if (effect == ID_UPGRADE_EFFECT_HIT_POINTS) {
-            FLOAT const delta = G_UpgradeEffectValue(upgrade, i, new_level) -
+            float const delta = G_UpgradeEffectValue(upgrade, i, new_level) -
                                 G_UpgradeEffectValue(upgrade, i, old_level);
             if (delta != 0.0f) {
                 G_ApplyPermanentMaxHealthBonus(unit, delta);
                 changed = true;
             }
         } else if (effect == ID_UPGRADE_EFFECT_SPELL_LEVEL) {
-            DWORD const ability_id = upgrade->effectCode[i];
+            uint32_t const ability_id = upgrade->effectCode[i];
             /* Warsmash's rlev contract sets the affected ability to
              * researched-level + 1; removing the tech returns it to level 1.
              * The base/mod numeric columns are not part of this effect. */
@@ -375,7 +375,7 @@ static void G_ApplyUpgradeLevelDelta(LPEDICT unit, UpgradeData_t const *upgrade,
                 changed = true;
             }
         } else if (effect == ID_UPGRADE_EFFECT_MAX_MANA) {
-            FLOAT const delta = G_UpgradeEffectValue(upgrade, i, new_level) -
+            float const delta = G_UpgradeEffectValue(upgrade, i, new_level) -
                                 G_UpgradeEffectValue(upgrade, i, old_level);
             if (delta != 0.0f) {
                 if (G_UnitIsHero(unit)) G_RecomputeHeroStats(unit);
@@ -394,10 +394,10 @@ static void G_ApplyUpgradeLevelDelta(LPEDICT unit, UpgradeData_t const *upgrade,
     if (changed) G_InvalidateUnitInfoPanel(unit);
 }
 
-static void G_ApplyTechLevelToOwnedUnits(LPGAMECLIENT client, DWORD techid,
-                                         LONG old_level, LONG new_level) {
+static void G_ApplyTechLevelToOwnedUnits(LPGAMECLIENT client, uint32_t techid,
+                                         int32_t old_level, int32_t new_level) {
     UpgradeData_t const *upgrade;
-    DWORD player;
+    uint32_t player;
 
     if (!client || !techid || old_level == new_level) return;
     upgrade = G_UpgradeData(techid);
@@ -411,16 +411,16 @@ static void G_ApplyTechLevelToOwnedUnits(LPGAMECLIENT client, DWORD techid,
 void G_ApplyPlayerUpgradesToUnit(LPEDICT unit) {
     LPGAMECLIENT client;
     char token[64];
-    LPCSTR upgrades;
+    cstring_t upgrades;
 
     if (!unit || !unit->data.UnitBalance) return;
     client = G_GetPlayerClientByNumber(unit->s.player);
     if (!client || client->ps.number != unit->s.player) return;
     upgrades = unit->data.UnitBalance->upgrades;
-    for (DWORD i = 0; G_CsvToken(upgrades, i, token, sizeof(token)); i++) {
-        DWORD upgrade_id;
+    for (uint32_t i = 0; G_CsvToken(upgrades, i, token, sizeof(token)); i++) {
+        uint32_t upgrade_id;
         UpgradeData_t const *upgrade;
-        LONG level_value;
+        int32_t level_value;
 
         if (strlen(token) != 4) continue;
         memcpy(&upgrade_id, token, sizeof(upgrade_id));
@@ -432,8 +432,8 @@ void G_ApplyPlayerUpgradesToUnit(LPEDICT unit) {
     }
 }
 
-void G_SetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid, LONG maximum) {
-    LONG slot;
+void G_SetPlayerTechMaxAllowed(LPGAMECLIENT client, uint32_t techid, int32_t maximum) {
+    int32_t slot;
     /* The default (-1/unlimited) needs no entry; allocating one per default
      * write exhausts the table before genuine restrictions (NightElfX02 uses
      * 137 distinct techs) can fit. */
@@ -444,15 +444,15 @@ void G_SetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid, LONG maximum) 
     G_InvalidateCommands(client);
 }
 
-LONG G_GetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid) {
-    LONG slot = G_FindTechSlot(client, techid, false);
+int32_t G_GetPlayerTechMaxAllowed(LPGAMECLIENT client, uint32_t techid) {
+    int32_t slot = G_FindTechSlot(client, techid, false);
     return slot < 0 ? -1 : client->tech[slot].max_allowed;
 }
 
-void G_SetPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG level_value) {
-    LONG slot;
-    LONG old_level;
-    LONG new_level;
+void G_SetPlayerTechResearched(LPGAMECLIENT client, uint32_t techid, int32_t level_value) {
+    int32_t slot;
+    int32_t old_level;
+    int32_t new_level;
 
     /* Researched 0 is the default; do not burn a slot recording it. */
     if (MAX(0, level_value) == 0 && G_FindTechSlot(client, techid, false) < 0) return;
@@ -465,10 +465,10 @@ void G_SetPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG level_val
     G_InvalidateCommands(client);
 }
 
-void G_AddPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG levels) {
-    LONG slot;
-    LONG old_level;
-    LONG new_level;
+void G_AddPlayerTechResearched(LPGAMECLIENT client, uint32_t techid, int32_t levels) {
+    int32_t slot;
+    int32_t old_level;
+    int32_t new_level;
 
     if (!levels) return;
     slot = G_FindTechSlot(client, techid, false);
@@ -492,20 +492,20 @@ void G_AddPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG levels) {
     G_InvalidateCommands(client);
 }
 
-LONG G_GetPlayerTechResearchedLevel(LPGAMECLIENT client, DWORD techid) {
-    LONG slot = G_FindTechSlot(client, techid, false);
+int32_t G_GetPlayerTechResearchedLevel(LPGAMECLIENT client, uint32_t techid) {
+    int32_t slot = G_FindTechSlot(client, techid, false);
     return slot < 0 ? 0 : MAX(0, client->tech[slot].researched);
 }
 
-LONG G_GetPlayerTechInProgress(LPGAMECLIENT client, DWORD techid) {
-    LONG slot = G_FindTechSlot(client, techid, false);
+int32_t G_GetPlayerTechInProgress(LPGAMECLIENT client, uint32_t techid) {
+    int32_t slot = G_FindTechSlot(client, techid, false);
     return slot < 0 ? 0 : MAX(0, client->tech[slot].in_progress);
 }
 
-void G_AddPlayerTechInProgress(LPGAMECLIENT client, DWORD techid, LONG levels) {
-    LONG slot = G_FindTechSlot(client, techid, false);
-    LONG in_progress = slot < 0 ? 0 : MAX(0, client->tech[slot].in_progress);
-    LONG new_level = MAX(0, in_progress + levels);
+void G_AddPlayerTechInProgress(LPGAMECLIENT client, uint32_t techid, int32_t levels) {
+    int32_t slot = G_FindTechSlot(client, techid, false);
+    int32_t in_progress = slot < 0 ? 0 : MAX(0, client->tech[slot].in_progress);
+    int32_t new_level = MAX(0, in_progress + levels);
     if (new_level == 0) {
         /* Returning to the default of 0; clear the existing slot without allocating. */
         if (slot >= 0) { client->tech[slot].in_progress = 0; G_InvalidateCommands(client); }
@@ -517,27 +517,27 @@ void G_AddPlayerTechInProgress(LPGAMECLIENT client, DWORD techid, LONG levels) {
     G_InvalidateCommands(client);
 }
 
-LONG G_UpgradeGoldCost(DWORD upgrade_id, LONG level_value) {
+int32_t G_UpgradeGoldCost(uint32_t upgrade_id, int32_t level_value) {
     UpgradeData_t const *upgrade = G_UpgradeData(upgrade_id);
     if (!upgrade || upgrade->id != upgrade_id || level_value <= 0) return 0;
     return MAX(0, upgrade->goldBase + upgrade->goldMod * (level_value - 1));
 }
 
-LONG G_UpgradeLumberCost(DWORD upgrade_id, LONG level_value) {
+int32_t G_UpgradeLumberCost(uint32_t upgrade_id, int32_t level_value) {
     UpgradeData_t const *upgrade = G_UpgradeData(upgrade_id);
     if (!upgrade || upgrade->id != upgrade_id || level_value <= 0) return 0;
     return MAX(0, upgrade->lumberBase + upgrade->lumberMod * (level_value - 1));
 }
 
-FLOAT G_UpgradeResearchTime(DWORD upgrade_id, LONG level_value) {
+float G_UpgradeResearchTime(uint32_t upgrade_id, int32_t level_value) {
     UpgradeData_t const *upgrade = G_UpgradeData(upgrade_id);
     if (!upgrade || upgrade->id != upgrade_id || level_value <= 0) return 0.0f;
-    return (FLOAT)MAX(0, upgrade->timeBase + upgrade->timeMod * (level_value - 1));
+    return (float)MAX(0, upgrade->timeBase + upgrade->timeMod * (level_value - 1));
 }
 
-LONG G_GetPlayerTechCountValue(LPGAMECLIENT client, DWORD techid) {
-    LONG count = G_GetPlayerTechResearchedLevel(client, techid);
-    DWORD player;
+int32_t G_GetPlayerTechCountValue(LPGAMECLIENT client, uint32_t techid) {
+    int32_t count = G_GetPlayerTechResearchedLevel(client, techid);
+    uint32_t player;
 
     if (!client || !techid) return 0;
     player = client->ps.number;
@@ -550,51 +550,51 @@ LONG G_GetPlayerTechCountValue(LPGAMECLIENT client, DWORD techid) {
     return count;
 }
 
-static BOOL G_ProducerContains(LPCSTR list, DWORD type_id) {
+static bool G_ProducerContains(cstring_t list, uint32_t type_id) {
     char token[64];
 
     if (!list || !type_id) return false;
-    for (DWORD i = 0; G_CsvToken(list, i, token, sizeof(token)); i++) {
+    for (uint32_t i = 0; G_CsvToken(list, i, token, sizeof(token)); i++) {
         if (strlen(token) == 4 && !memcmp(token, &type_id, 4)) return true;
     }
     return false;
 }
 
-BOOL G_WorkerCanBuild(LPEDICT worker, DWORD building_id) {
+bool G_WorkerCanBuild(LPEDICT worker, uint32_t building_id) {
     return worker && worker->data.UnitProfile &&
         G_ProducerContains(worker->data.UnitProfile->builds, building_id);
 }
 
-BOOL G_ProducerCanTrain(LPEDICT producer, DWORD unit_id) {
+bool G_ProducerCanTrain(LPEDICT producer, uint32_t unit_id) {
     return producer && producer->data.UnitProfile &&
         G_ProducerContains(producer->data.UnitProfile->trains, unit_id);
 }
 
-BOOL G_ProducerCanResearch(LPEDICT producer, DWORD upgrade_id) {
+bool G_ProducerCanResearch(LPEDICT producer, uint32_t upgrade_id) {
     return producer && producer->data.UnitProfile &&
         G_ProducerContains(producer->data.UnitProfile->researches, upgrade_id);
 }
 
-BOOL G_ProducerCanUpgrade(LPEDICT producer, DWORD unit_id) {
+bool G_ProducerCanUpgrade(LPEDICT producer, uint32_t unit_id) {
     return producer && producer->data.UnitProfile &&
         G_UnitIsBuilding(producer->class_id) && G_UnitIsBuilding(unit_id) &&
         G_ProducerContains(producer->data.UnitProfile->upgrade, unit_id);
 }
 
-BOOL G_BuildingUpgradeActive(LPCEDICT building) {
+bool G_BuildingUpgradeActive(LPCEDICT building) {
     return building && building->inuse && !building->training &&
         building->research.upgrade != 0 &&
         G_UnitIsBuilding(building->class_id) &&
         G_UnitIsBuilding(building->research.upgrade);
 }
 
-BOOL G_BuildingIsUnsummoning(LPCEDICT building) {
+bool G_BuildingIsUnsummoning(LPCEDICT building) {
     return building && building->inuse &&
         G_UnitStatusLevel(building, MAKEFOURCC('B', 'u', 'n', 's')) != 0;
 }
 
-static BOOL G_RelativeBuildingUpgradeCosts(void) {
-    LPCSTR value = Stb_IniCacheFind(&game.config.misc, "Misc", "RelativeUpgradeCost");
+static bool G_RelativeBuildingUpgradeCosts(void) {
+    cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", "RelativeUpgradeCost");
     /* Warsmash treats zero as the relative-cost mode. Missing Misc data follows
      * the same default so stock total unit costs do not get charged twice. */
     return !value || !*value || atoi(value) == 0;
@@ -603,9 +603,9 @@ static BOOL G_RelativeBuildingUpgradeCosts(void) {
 void G_GetBuildingUpgradeCosts(buildingUpgradeCostParams_t const *params) {
     UnitBalance_t const *from = params && params->building ? params->building->data.UnitBalance : NULL;
     UnitBalance_t const *to = params ? G_UnitBalance(params->unit_id) : NULL;
-    LONG relative_gold = to ? MAX(0, to->goldCost) : 0;
-    LONG relative_lumber = to ? MAX(0, to->lumberCost) : 0;
-    LONG food_delta = to ? MAX(0, to->foodUsed) : 0;
+    int32_t relative_gold = to ? MAX(0, to->goldCost) : 0;
+    int32_t relative_lumber = to ? MAX(0, to->lumberCost) : 0;
+    int32_t food_delta = to ? MAX(0, to->foodUsed) : 0;
 
     if (from) {
         if (G_RelativeBuildingUpgradeCosts()) {
@@ -619,9 +619,9 @@ void G_GetBuildingUpgradeCosts(buildingUpgradeCostParams_t const *params) {
     if (params && params->food) *params->food = MAX(0, food_delta);
 }
 
-static LONG G_RequirementAmount(LPCSTR amounts, DWORD index) {
+static int32_t G_RequirementAmount(cstring_t amounts, uint32_t index) {
     char amount[32];
-    LONG value = 1;
+    int32_t value = 1;
 
     if (!amounts || !G_CsvToken(amounts, index, amount, sizeof(amount))) return 1;
     if (sscanf(amount, "%d", &value) != 1) {
@@ -634,8 +634,8 @@ static LONG G_RequirementAmount(LPCSTR amounts, DWORD index) {
 
 /* Count the owner's completed real heroes for tiered WC3 requirements. Dead
  * heroes still occupy a hero tier; queued training entities and illusions do not. */
-static DWORD G_PlayerHeroCount(LPGAMECLIENT client) {
-    DWORD count = 0;
+static uint32_t G_PlayerHeroCount(LPGAMECLIENT client) {
+    uint32_t count = 0;
 
     if (!client) return 0;
     FILTER_EDICTS(ent, ent->inuse && ent->data.UnitBalance && ent->s.player == client->ps.number &&
@@ -643,28 +643,28 @@ static DWORD G_PlayerHeroCount(LPGAMECLIENT client) {
     return count;
 }
 
-static BOOL G_UnitTypeIsHero(DWORD type_id) {
+static bool G_UnitTypeIsHero(uint32_t type_id) {
     UnitBalance_t const *balance = G_UnitBalance(type_id);
     return balance && (balance->strength > 0 || balance->agility > 0 || balance->intelligence > 0);
 }
 
-static BOOL G_UnitTypeSatisfiesRequirement_r(DWORD type_id, DWORD requirement_id,
-                                               DWORD *visited, DWORD visited_count) {
+static bool G_UnitTypeSatisfiesRequirement_r(uint32_t type_id, uint32_t requirement_id,
+                                               uint32_t *visited, uint32_t visited_count) {
     UnitProfile_t const *profile;
     char token[64];
 
     if (!type_id || !requirement_id) return false;
     if (type_id == requirement_id) return true;
     if (visited_count >= 32) return false;
-    for (DWORD i = 0; i < visited_count; i++) {
+    for (uint32_t i = 0; i < visited_count; i++) {
         if (visited[i] == requirement_id) return false;
     }
     visited[visited_count++] = requirement_id;
 
     profile = G_UnitProfile(requirement_id);
     if (!profile || !profile->upgrade || !*profile->upgrade) return false;
-    for (DWORD i = 0; G_CsvToken(profile->upgrade, i, token, sizeof(token)); i++) {
-        DWORD upgrade_id;
+    for (uint32_t i = 0; G_CsvToken(profile->upgrade, i, token, sizeof(token)); i++) {
+        uint32_t upgrade_id;
 
         if (strlen(token) != 4) continue;
         memcpy(&upgrade_id, token, sizeof(upgrade_id));
@@ -678,14 +678,14 @@ static BOOL G_UnitTypeSatisfiesRequirement_r(DWORD type_id, DWORD requirement_id
  * a Town Hall requirement, and a Castle satisfies both Keep and Town Hall.
  * Follow UnitProfile.Upgrade (uupt) transitively rather than teaching each
  * production command about race-specific town-hall tiers. */
-static BOOL G_UnitTypeSatisfiesRequirement(DWORD type_id, DWORD requirement_id) {
-    DWORD visited[32];
+static bool G_UnitTypeSatisfiesRequirement(uint32_t type_id, uint32_t requirement_id) {
+    uint32_t visited[32];
     return G_UnitTypeSatisfiesRequirement_r(type_id, requirement_id, visited, 0);
 }
 
-static LONG G_PlayerRequirementCount(LPGAMECLIENT client, DWORD techid) {
-    LONG count = G_GetPlayerTechResearchedLevel(client, techid);
-    DWORD player;
+static int32_t G_PlayerRequirementCount(LPGAMECLIENT client, uint32_t techid) {
+    int32_t count = G_GetPlayerTechResearchedLevel(client, techid);
+    uint32_t player;
 
     if (!client || !techid) return 0;
     player = client->ps.number;
@@ -697,11 +697,11 @@ static LONG G_PlayerRequirementCount(LPGAMECLIENT client, DWORD techid) {
     return count;
 }
 
-static LPCSTR G_UpgradeLevelField(DWORD upgrade_id, LPCSTR base, LONG level_value) {
+static cstring_t G_UpgradeLevelField(uint32_t upgrade_id, cstring_t base, int32_t level_value) {
     static char fields[4][32];
-    static DWORD cursor;
-    LPSTR field = fields[cursor++ & 3];
-    LONG suffix = MAX(0, level_value - 1);
+    static uint32_t cursor;
+    string_t field = fields[cursor++ & 3];
+    int32_t suffix = MAX(0, level_value - 1);
 
     if (!upgrade_id || !base || !*base || level_value <= 0) return NULL;
     if (suffix == 0) snprintf(field, sizeof(fields[0]), "%s", base);
@@ -709,21 +709,21 @@ static LPCSTR G_UpgradeLevelField(DWORD upgrade_id, LPCSTR base, LONG level_valu
     return FindConfigValue(GetClassName(upgrade_id), field);
 }
 
-static LONG G_UpgradeRequirementAmount(DWORD upgrade_id, LONG level_value, DWORD index) {
-    LPCSTR amounts = G_UpgradeLevelField(upgrade_id, "Requiresamount", level_value);
+static int32_t G_UpgradeRequirementAmount(uint32_t upgrade_id, int32_t level_value, uint32_t index) {
+    cstring_t amounts = G_UpgradeLevelField(upgrade_id, "Requiresamount", level_value);
     return G_RequirementAmount(amounts, index);
 }
 
-static BOOL G_UpgradeRequirementsSatisfied(LPGAMECLIENT client, DWORD upgrade_id, LONG level_value,
-                                           LPSTR reason, DWORD reason_size) {
-    LPCSTR requirements = G_UpgradeLevelField(upgrade_id, "Requires", level_value);
+static bool G_UpgradeRequirementsSatisfied(LPGAMECLIENT client, uint32_t upgrade_id, int32_t level_value,
+                                           string_t reason, uint32_t reason_size) {
+    cstring_t requirements = G_UpgradeLevelField(upgrade_id, "Requires", level_value);
     char requirement[64];
 
     if (!requirements || !*requirements || !strcmp(requirements, "_")) return true;
-    for (DWORD i = 0; G_CsvToken(requirements, i, requirement, sizeof(requirement)); i++) {
-        DWORD rawcode;
-        LONG required;
-        LPCSTR name;
+    for (uint32_t i = 0; G_CsvToken(requirements, i, requirement, sizeof(requirement)); i++) {
+        uint32_t rawcode;
+        int32_t required;
+        cstring_t name;
 
         if (strlen(requirement) != 4) continue;
         memcpy(&rawcode, requirement, sizeof(rawcode));
@@ -746,13 +746,13 @@ static BOOL G_UpgradeRequirementsSatisfied(LPGAMECLIENT client, DWORD upgrade_id
     return true;
 }
 
-static BOOL G_RequirementsListSatisfied(LPGAMECLIENT client, DWORD type_id, LPCSTR requirements,
-                                        LPCSTR amounts, LPSTR reason, DWORD reason_size) {
+static bool G_RequirementsListSatisfied(LPGAMECLIENT client, uint32_t type_id, cstring_t requirements,
+                                        cstring_t amounts, string_t reason, uint32_t reason_size) {
     char requirement[64];
 
-    for (DWORD i = 0; G_CsvToken(requirements, i, requirement, sizeof(requirement)); i++) {
-        DWORD rawcode;
-        LONG required;
+    for (uint32_t i = 0; G_CsvToken(requirements, i, requirement, sizeof(requirement)); i++) {
+        uint32_t rawcode;
+        int32_t required;
         if (strlen(requirement) != 4) {
             fprintf(stderr, "G_RequirementsSatisfied: unsupported requirement token '%s' for 0x%08x\n",
                     requirement, (unsigned)type_id);
@@ -762,7 +762,7 @@ static BOOL G_RequirementsListSatisfied(LPGAMECLIENT client, DWORD type_id, LPCS
         required = G_RequirementAmount(amounts, i);
         if (G_PlayerRequirementCount(client, rawcode) < required) {
             if (reason && reason_size) {
-                LPCSTR name = G_LevelString(G_UnitProfile(rawcode)->name);
+                cstring_t name = G_LevelString(G_UnitProfile(rawcode)->name);
                 if (required > 1) {
                     snprintf(reason, reason_size, "Requires %s x%d",
                              name && *name ? name : requirement, required);
@@ -778,16 +778,16 @@ static BOOL G_RequirementsListSatisfied(LPGAMECLIENT client, DWORD type_id, LPCS
     return true;
 }
 
-static BOOL G_RequirementsSatisfied(LPGAMECLIENT client, DWORD type_id, LPSTR reason, DWORD reason_size) {
+static bool G_RequirementsSatisfied(LPGAMECLIENT client, uint32_t type_id, string_t reason, uint32_t reason_size) {
     UnitProfile_t const *profile = G_UnitProfile(type_id);
-    DWORD hero_count, tier_count, tier;
+    uint32_t hero_count, tier_count, tier;
 
     if (!G_RequirementsListSatisfied(client, type_id, profile->requires, profile->requiresAmount,
                                      reason, reason_size)) return false;
     if (!G_UnitTypeIsHero(type_id) || !profile->requiresCount) return true;
     hero_count = G_PlayerHeroCount(client);
     tier_count = MIN(sizeof(profile->requiresLevel) / sizeof(profile->requiresLevel[0]),
-                     (DWORD)MAX(0, atoi(profile->requiresCount)));
+                     (uint32_t)MAX(0, atoi(profile->requiresCount)));
     if (!hero_count || hero_count > tier_count) return true;
     tier = hero_count;
     if (!profile->requiresLevel[tier - 1] || !*profile->requiresLevel[tier - 1]) return true;
@@ -795,15 +795,15 @@ static BOOL G_RequirementsSatisfied(LPGAMECLIENT client, DWORD type_id, LPSTR re
                                        reason, reason_size);
 }
 
-static BOOL G_ProductionResourcesAvailable(LPGAMECLIENT client, DWORD type_id, LPSTR reason, DWORD reason_size) {
+static bool G_ProductionResourcesAvailable(LPGAMECLIENT client, uint32_t type_id, string_t reason, uint32_t reason_size) {
     UnitBalance_t const *b = G_UnitBalance(type_id);
 
     if (!client) return false;
-    if (b->goldCost > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]) {
+    if (b->goldCost > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]) {
         if (reason && reason_size) snprintf(reason, reason_size, "Not enough gold");
         return false;
     }
-    if (b->lumberCost > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) {
+    if (b->lumberCost > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) {
         if (reason && reason_size) snprintf(reason, reason_size, "Not enough lumber");
         return false;
     }
@@ -814,9 +814,9 @@ static BOOL G_ProductionResourcesAvailable(LPGAMECLIENT client, DWORD type_id, L
     return true;
 }
 
-buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, DWORD building_id,
-                                           LPSTR reason, DWORD reason_size) {
-    LONG maximum;
+buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, uint32_t building_id,
+                                           string_t reason, uint32_t reason_size) {
+    int32_t maximum;
 
     if (reason && reason_size) reason[0] = '\0';
     if (!client || !G_WorkerCanBuild(worker, building_id)) return BUILD_COMMAND_ABSENT;
@@ -836,9 +836,9 @@ buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, 
     return BUILD_COMMAND_AVAILABLE;
 }
 
-buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD unit_id,
-                                           LPSTR reason, DWORD reason_size) {
-    LONG maximum;
+buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer, uint32_t unit_id,
+                                           string_t reason, uint32_t reason_size) {
+    int32_t maximum;
 
     if (reason && reason_size) reason[0] = '\0';
     if (!client || !G_ProducerCanTrain(producer, unit_id)) return BUILD_COMMAND_ABSENT;
@@ -858,13 +858,13 @@ buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer
     return BUILD_COMMAND_AVAILABLE;
 }
 
-buildCommandState_t G_GetResearchCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD upgrade_id,
-                                              LONG *next_level, LPSTR reason, DWORD reason_size) {
+buildCommandState_t G_GetResearchCommandState(LPGAMECLIENT client, LPEDICT producer, uint32_t upgrade_id,
+                                              int32_t *next_level, string_t reason, uint32_t reason_size) {
     UpgradeData_t const *upgrade;
-    LONG current;
-    LONG maximum;
-    LONG player_max;
-    LONG level_value;
+    int32_t current;
+    int32_t maximum;
+    int32_t player_max;
+    int32_t level_value;
 
     if (reason && reason_size) reason[0] = '\0';
     if (next_level) *next_level = 0;
@@ -887,11 +887,11 @@ buildCommandState_t G_GetResearchCommandState(LPGAMECLIENT client, LPEDICT produ
         !G_UpgradeRequirementsSatisfied(client, upgrade_id, level_value, reason, reason_size)) {
         return BUILD_COMMAND_DISABLED;
     }
-    if (G_UpgradeGoldCost(upgrade_id, level_value) > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]) {
+    if (G_UpgradeGoldCost(upgrade_id, level_value) > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]) {
         if (reason && reason_size) snprintf(reason, reason_size, "Not enough gold");
         return BUILD_COMMAND_UNAFFORDABLE;
     }
-    if (G_UpgradeLumberCost(upgrade_id, level_value) > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) {
+    if (G_UpgradeLumberCost(upgrade_id, level_value) > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) {
         if (reason && reason_size) snprintf(reason, reason_size, "Not enough lumber");
         return BUILD_COMMAND_UNAFFORDABLE;
     }
@@ -899,14 +899,14 @@ buildCommandState_t G_GetResearchCommandState(LPGAMECLIENT client, LPEDICT produ
 }
 
 buildCommandState_t G_GetBuildingUpgradeCommandState(buildingUpgradeCommandParams_t const *params) {
-    LONG maximum;
-    LONG gold, lumber, food;
+    int32_t maximum;
+    int32_t gold, lumber, food;
     UnitBalance_t const *target;
     LPGAMECLIENT client = params ? params->client : NULL;
     LPEDICT producer = params ? params->producer : NULL;
-    DWORD unit_id = params ? params->unit_id : 0;
-    LPSTR reason = params ? params->reason : NULL;
-    DWORD reason_size = params ? params->reason_size : 0;
+    uint32_t unit_id = params ? params->unit_id : 0;
+    string_t reason = params ? params->reason : NULL;
+    uint32_t reason_size = params ? params->reason_size : 0;
 
     if (reason && reason_size) reason[0] = '\0';
     if (!client || !G_ProducerCanUpgrade(producer, unit_id)) return BUILD_COMMAND_ABSENT;
@@ -931,11 +931,11 @@ buildCommandState_t G_GetBuildingUpgradeCommandState(buildingUpgradeCommandParam
 
     G_GetBuildingUpgradeCosts(&(buildingUpgradeCostParams_t){
         .building = producer, .unit_id = unit_id, .gold = &gold, .lumber = &lumber, .food = &food });
-    if (gold > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]) {
+    if (gold > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]) {
         if (reason && reason_size) snprintf(reason, reason_size, "Not enough gold");
         return BUILD_COMMAND_UNAFFORDABLE;
     }
-    if (lumber > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) {
+    if (lumber > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) {
         if (reason && reason_size) snprintf(reason, reason_size, "Not enough lumber");
         return BUILD_COMMAND_UNAFFORDABLE;
     }
@@ -946,7 +946,7 @@ buildCommandState_t G_GetBuildingUpgradeCommandState(buildingUpgradeCommandParam
     return BUILD_COMMAND_AVAILABLE;
 }
 
-BOOL G_ChargeBuilding(LPGAMECLIENT client, DWORD building_id) {
+bool G_ChargeBuilding(LPGAMECLIENT client, uint32_t building_id) {
     UnitBalance_t const *b;
 
     if (!client) return false;
@@ -958,7 +958,7 @@ BOOL G_ChargeBuilding(LPGAMECLIENT client, DWORD building_id) {
     return true;
 }
 
-void G_RefundBuilding(LPGAMECLIENT client, DWORD building_id) {
+void G_RefundBuilding(LPGAMECLIENT client, uint32_t building_id) {
     UnitBalance_t const *b;
     if (!client || G_BuildAllEnabled()) return;
     b = G_UnitBalance(building_id);
@@ -983,8 +983,8 @@ static void G_RefreshBuildingUpgradeUI(LPEDICT building) {
 
 void G_UpdateBuildingUpgradeAnimation(LPEDICT building) {
     LPCANIMATION anim;
-    FLOAT fraction;
-    DWORD first, last, span, frame;
+    float fraction;
+    uint32_t first, last, span, frame;
 
     if (!G_BuildingUpgradeActive(building) || building->research.duration <= 0.0f) return;
     anim = building->animation;
@@ -996,17 +996,17 @@ void G_UpdateBuildingUpgradeAnimation(LPEDICT building) {
     first = anim->interval[0];
     last = anim->interval[1];
     span = last - first;
-    frame = first + (DWORD)((FLOAT)span * fraction);
+    frame = first + (uint32_t)((float)span * fraction);
     if (frame >= last) frame = last - 1;
     building->s.frame = frame;
 }
 
-BOOL G_StartBuildingUpgrade(LPEDICT building, DWORD unit_id) {
+bool G_StartBuildingUpgrade(LPEDICT building, uint32_t unit_id) {
     LPGAMECLIENT client;
     LPEDICT clent;
     buildCommandState_t state;
     UnitBalance_t const *target;
-    LONG gold, lumber, food;
+    int32_t gold, lumber, food;
     char reason[128];
 
     if (!building || !unit_id) return false;
@@ -1035,7 +1035,7 @@ BOOL G_StartBuildingUpgrade(LPEDICT building, DWORD unit_id) {
     building->research.upgrade = unit_id;
     building->research.gold = gold;
     building->research.lumber = lumber;
-    building->research.duration = (FLOAT)MAX(0, target->buildTime);
+    building->research.duration = (float)MAX(0, target->buildTime);
     building->research.progress = 0.0f;
     G_SetUnitFoodUsed(building, MAX(0, target->foodUsed));
     G_AddPlayerTechInProgress(client, unit_id, 1);
@@ -1047,21 +1047,21 @@ BOOL G_StartBuildingUpgrade(LPEDICT building, DWORD unit_id) {
     return true;
 }
 
-void G_StopBuildingUpgrade(LPEDICT building, BOOL refund) {
+void G_StopBuildingUpgrade(LPEDICT building, bool refund) {
     LPGAMECLIENT client;
-    DWORD unit_id;
+    uint32_t unit_id;
 
     if (!G_BuildingUpgradeActive(building)) return;
     unit_id = building->research.upgrade;
     client = G_GetPlayerClientByNumber(building->s.player);
     if (client && client->ps.number == building->s.player) {
         if (refund) {
-            LONG gold = (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] +
+            int32_t gold = (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] +
                         MAX(0, building->research.gold);
-            LONG lumber = (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] +
+            int32_t lumber = (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] +
                           MAX(0, building->research.lumber);
-            client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (USHORT)MIN(gold, USHRT_MAX);
-            client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (USHORT)MIN(lumber, USHRT_MAX);
+            client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (uint16_t)MIN(gold, USHRT_MAX);
+            client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (uint16_t)MIN(lumber, USHRT_MAX);
         }
         G_AddPlayerTechInProgress(client, unit_id, -1);
     }
@@ -1074,7 +1074,7 @@ void G_StopBuildingUpgrade(LPEDICT building, BOOL refund) {
     G_RefreshBuildingUpgradeUI(building);
 }
 
-BOOL G_CancelBuildingUpgrade(LPEDICT building) {
+bool G_CancelBuildingUpgrade(LPEDICT building) {
     if (!G_BuildingUpgradeActive(building)) return false;
     G_PublishEvent(building, EVENT_PLAYER_UNIT_UPGRADE_CANCEL);
     G_PublishEvent(building, EVENT_UNIT_UPGRADE_CANCEL);
@@ -1082,10 +1082,10 @@ BOOL G_CancelBuildingUpgrade(LPEDICT building) {
     return true;
 }
 
-static BOOL G_CompleteBuildingUpgrade(LPEDICT building) {
+static bool G_CompleteBuildingUpgrade(LPEDICT building) {
     LPGAMECLIENT client;
-    DWORD unit_id;
-    LONG charged_gold, charged_lumber;
+    uint32_t unit_id;
+    int32_t charged_gold, charged_lumber;
 
     if (!G_BuildingUpgradeActive(building)) return false;
     unit_id = building->research.upgrade;
@@ -1104,10 +1104,10 @@ static BOOL G_CompleteBuildingUpgrade(LPEDICT building) {
         /* Command acceptance validates the target, so this is defensive. Do
          * not strand resources/food if map data becomes invalid mid-upgrade. */
         if (client && client->ps.number == building->s.player) {
-            LONG gold = (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] + charged_gold;
-            LONG lumber = (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] + charged_lumber;
-            client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (USHORT)MIN(gold, USHRT_MAX);
-            client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (USHORT)MIN(lumber, USHRT_MAX);
+            int32_t gold = (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] + charged_gold;
+            int32_t lumber = (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] + charged_lumber;
+            client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (uint16_t)MIN(gold, USHRT_MAX);
+            client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (uint16_t)MIN(lumber, USHRT_MAX);
         }
         G_SetUnitFoodUsed(building, building->data.UnitBalance ? MAX(0, building->data.UnitBalance->foodUsed) : 0);
         if (building->stand) building->stand(building);
@@ -1134,17 +1134,17 @@ void G_RunBuildingUpgradeFrame(LPEDICT building) {
         G_CompleteBuildingUpgrade(building);
         return;
     }
-    building->research.progress += (FLOAT)FRAMETIME / 1000.0f;
+    building->research.progress += (float)FRAMETIME / 1000.0f;
     G_UpdateBuildingUpgradeAnimation(building);
     if (building->research.progress >= building->research.duration)
         G_CompleteBuildingUpgrade(building);
 }
 
-void G_GetBuildPlacementPathingFlags(DWORD building_id, LPBYTE prevented, LPBYTE required) {
+void G_GetBuildPlacementPathingFlags(uint32_t building_id, uint8_t * prevented, uint8_t * required) {
     UnitBalance_t const *balance = G_UnitBalance(building_id);
     UnitUI_t const *ui = G_UnitUI(building_id);
-    LPCSTR prevent = balance->preventPlace ? balance->preventPlace : ui->preventPlace;
-    LPCSTR require = balance->requirePlace ? balance->requirePlace : ui->requirePlace;
+    cstring_t prevent = balance->preventPlace ? balance->preventPlace : ui->preventPlace;
+    cstring_t require = balance->requirePlace ? balance->requirePlace : ui->requirePlace;
 
     if (prevented) {
         *prevented = WC3_PATH_UNBUILDABLE | WC3_PATH_UNWALKABLE | G_PlacementFlags(prevent);
@@ -1154,7 +1154,7 @@ void G_GetBuildPlacementPathingFlags(DWORD building_id, LPBYTE prevented, LPBYTE
     }
 }
 
-void G_SnapBuildingPoint(DWORD building_id, LPVECTOR2 point) {
+void G_SnapBuildingPoint(uint32_t building_id, LPVECTOR2 point) {
     pathTex_t *pathtex;
     UnitData_t const *data;
 
@@ -1173,12 +1173,12 @@ void G_SnapBuildingPoint(DWORD building_id, LPVECTOR2 point) {
     gi.MemFree(pathtex);
 }
 
-static BOOL G_PathCellUsed(pathTex_t const *pathtex, DWORD x, DWORD y) {
+static bool G_PathCellUsed(pathTex_t const *pathtex, uint32_t x, uint32_t y) {
     if (!pathtex) return true;
     return pathtex->map[x + y * pathtex->width].b != 0;
 }
 
-BOOL G_FindBuildOnTarget(DWORD building_id, LPCVECTOR2 point, LPEDICT *out) {
+bool G_FindBuildOnTarget(uint32_t building_id, LPCVECTOR2 point, LPEDICT *out) {
     UnitData_t const *data = G_UnitData(building_id);
     if (out) *out = NULL;
     if (!data->isBuildOn) return true;
@@ -1190,7 +1190,7 @@ BOOL G_FindBuildOnTarget(DWORD building_id, LPCVECTOR2 point, LPEDICT *out) {
             if (out) *out = ent;
 #ifdef WC3_DEBUG_MINING
             fprintf(stderr, "WC3_MINING build-target building=%.4s parent=%ld id=%.4s parent=(%.1f,%.1f) point=(%.1f,%.1f)\n",
-                    (LPCSTR)&building_id, (long)(ent - globals.edicts), (LPCSTR)&ent->class_id,
+                    (cstring_t)&building_id, (long)(ent - globals.edicts), (cstring_t)&ent->class_id,
                     ent->s.origin2.x, ent->s.origin2.y, point->x, point->y);
 #endif
             return true;
@@ -1198,19 +1198,19 @@ BOOL G_FindBuildOnTarget(DWORD building_id, LPCVECTOR2 point, LPEDICT *out) {
     }
 #ifdef WC3_DEBUG_MINING
     fprintf(stderr, "WC3_MINING build-target-missing building=%.4s point=(%.1f,%.1f)\n",
-            (LPCSTR)&building_id, point ? point->x : 0.0f, point ? point->y : 0.0f);
+            (cstring_t)&building_id, point ? point->x : 0.0f, point ? point->y : 0.0f);
 #endif
     return false;
 }
 
-static BOOL G_BuildUnitCanDisplace(LPEDICT builder, LPEDICT ent) {
+static bool G_BuildUnitCanDisplace(LPEDICT builder, LPEDICT ent) {
     return builder && ent && ent->s.player == builder->s.player && !G_UnitIsBuilding(ent->class_id) &&
            ent->movetype != MOVETYPE_NONE && ent->collision > 0.0f;
 }
 
-static BOOL G_LiveUnitBlocksBuild(LPEDICT builder, LPEDICT build_on, LPCBOX2 footprint) {
+static bool G_LiveUnitBlocksBuild(LPEDICT builder, LPEDICT build_on, LPCBOX2 footprint) {
     FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) && !(ent->svflags & SVF_DEADMONSTER)) {
-        FLOAT x, y;
+        float x, y;
         /* Friendly mobile units can be displaced when construction starts; everything else is a hard blocker. */
         if (ent == builder || ent == build_on || ent->collision <= 0.0f) continue;
         x = MAX(footprint->min.x, MIN(footprint->max.x, ent->s.origin2.x));
@@ -1221,7 +1221,7 @@ static BOOL G_LiveUnitBlocksBuild(LPEDICT builder, LPEDICT build_on, LPCBOX2 foo
     return false;
 }
 
-static BOOL G_BuildTooCloseToGoldMine(DWORD building_id, LPCVECTOR2 point) {
+static bool G_BuildTooCloseToGoldMine(uint32_t building_id, LPCVECTOR2 point) {
     if (!point || !S_UnitTypeReturnsGold(building_id)) return false;
 
     FILTER_EDICTS(mine, mine->inuse && !M_IsDead(mine) && S_GoldMineIsMine(mine)) {
@@ -1232,10 +1232,10 @@ static BOOL G_BuildTooCloseToGoldMine(DWORD building_id, LPCVECTOR2 point) {
 }
 
 /* Move friendly mobile units clear of a newly baked footprint while retaining their active orders. */
-BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building) {
+bool G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building) {
     LPEDICT *units;
     VECTOR2 *positions;
-    DWORD count = 0;
+    uint32_t count = 0;
 
     if (!builder || !building || !globals.num_edicts) return false;
     units = gi.MemAlloc(sizeof(*units) * globals.num_edicts);
@@ -1252,14 +1252,14 @@ BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building) {
                       ent->collision + WC3_BUILD_DISPLACE_MARGIN_CELLS * CM_PathCellWorldSize()) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD displace-candidate builder=%ld building=%ld id=%.4s unit=%ld unitid=%.4s origin=(%.1f,%.1f) move=%s project=%.4s build=%ld goal=%ld\n",
-                (long)(builder - g_edicts), (long)(building - g_edicts), (LPCSTR)&building->class_id,
-                (long)(ent - g_edicts), (LPCSTR)&ent->class_id, ent->s.origin2.x, ent->s.origin2.y,
+                (long)(builder - g_edicts), (long)(building - g_edicts), (cstring_t)&building->class_id,
+                (long)(ent - g_edicts), (cstring_t)&ent->class_id, ent->s.origin2.x, ent->s.origin2.y,
                 ent->currentmove && ent->currentmove->animation ? ent->currentmove->animation : "<none>",
-                ent->build_project ? (LPCSTR)&ent->build_project : "----",
+                ent->build_project ? (cstring_t)&ent->build_project : "----",
                 ent->build ? (long)(ent->build - g_edicts) : -1L,
                 ent->goalentity ? (long)(ent->goalentity - g_edicts) : -1L);
 #endif
-        FLOAT angle;
+        float angle;
         if (!SP_FindUnitExitPosition(building, ent, &positions[count], &angle)) {
 #ifdef WC3_DEBUG_BUILD
             fprintf(stderr, "WC3_BUILD displace-failed builder=%ld building=%ld unit=%ld reason=no-exit\n",
@@ -1283,7 +1283,7 @@ BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building) {
                 (long)(building - g_edicts), (long)(units[i] - g_edicts),
                 units[i]->s.origin2.x, units[i]->s.origin2.y, positions[i].x, positions[i].y,
                 units[i]->currentmove && units[i]->currentmove->animation ? units[i]->currentmove->animation : "<none>",
-                units[i]->build_project ? (LPCSTR)&units[i]->build_project : "----",
+                units[i]->build_project ? (cstring_t)&units[i]->build_project : "----",
                 units[i]->goalentity ? (long)(units[i]->goalentity - g_edicts) : -1L);
 #endif
         move_start_displacement(units[i], &positions[i]);
@@ -1292,21 +1292,21 @@ BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building) {
     return true;
 }
 
-buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_id, LPCVECTOR2 requested,
+buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, uint32_t building_id, LPCVECTOR2 requested,
                                                 LPVECTOR2 snapped) {
     UnitData_t const *data = G_UnitData(building_id);
-    BYTE prevented = 0;
-    BYTE required = 0;
+    uint8_t prevented = 0;
+    uint8_t required = 0;
     pathTex_t *pathtex = NULL;
     LPEDICT build_on = NULL;
-    DWORD width = 1, height = 1;
+    uint32_t width = 1, height = 1;
     BOX2 footprint;
     VECTOR2 point;
 
     if (!requested || !G_UnitIsBuilding(building_id)) {
 #ifdef WC3_DEBUG_MINING
         fprintf(stderr, "WC3_MINING placement result=%d reason=invalid-building building=%.4s\n",
-                PLACE_INVALID_BUILDING, (LPCSTR)&building_id);
+                PLACE_INVALID_BUILDING, (cstring_t)&building_id);
 #endif
         return PLACE_INVALID_BUILDING;
     }
@@ -1317,7 +1317,7 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_
     if (!G_FindBuildOnTarget(building_id, &point, &build_on)) {
 #ifdef WC3_DEBUG_MINING
         fprintf(stderr, "WC3_MINING placement result=%d reason=parent-missing building=%.4s requested=(%.1f,%.1f) snapped=(%.1f,%.1f)\n",
-                PLACE_REQUIRED_PARENT_MISSING, (LPCSTR)&building_id, requested->x, requested->y, point.x, point.y);
+                PLACE_REQUIRED_PARENT_MISSING, (cstring_t)&building_id, requested->x, requested->y, point.x, point.y);
 #endif
         return PLACE_REQUIRED_PARENT_MISSING;
     }
@@ -1330,7 +1330,7 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_
     if (data->pathingTexture && strlen(data->pathingTexture) > 1 && !pathtex) {
  #ifdef WC3_DEBUG_MINING
         fprintf(stderr, "WC3_MINING placement result=%d reason=pathing-texture building=%.4s point=(%.1f,%.1f)\n",
-                PLACE_INVALID_BUILDING, (LPCSTR)&building_id, point.x, point.y);
+                PLACE_INVALID_BUILDING, (cstring_t)&building_id, point.x, point.y);
  #endif
         return PLACE_INVALID_BUILDING;
     }
@@ -1347,15 +1347,15 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_
         FOR_LOOP(x, width) {
             FOR_LOOP(y, height) {
                 VECTOR2 sample;
-                BYTE flags;
+                uint8_t flags;
                 if (pathtex && !G_PathCellUsed(pathtex, x, y)) continue;
-                sample.x = point.x + ((FLOAT)x + 0.5f - (FLOAT)width * 0.5f) * WC3_BUILD_CELL_SIZE;
-                sample.y = point.y + ((FLOAT)y + 0.5f - (FLOAT)height * 0.5f) * WC3_BUILD_CELL_SIZE;
+                sample.x = point.x + ((float)x + 0.5f - (float)width * 0.5f) * WC3_BUILD_CELL_SIZE;
+                sample.y = point.y + ((float)y + 0.5f - (float)height * 0.5f) * WC3_BUILD_CELL_SIZE;
                 if (!CM_GetPathingFlagsAt(&sample, &flags)) {
                     if (pathtex) gi.MemFree(pathtex);
  #ifdef WC3_DEBUG_MINING
                     fprintf(stderr, "WC3_MINING placement result=%d reason=out-of-bounds building=%.4s sample=(%.1f,%.1f)\n",
-                            PLACE_OUT_OF_BOUNDS, (LPCSTR)&building_id, sample.x, sample.y);
+                            PLACE_OUT_OF_BOUNDS, (cstring_t)&building_id, sample.x, sample.y);
  #endif
                     return PLACE_OUT_OF_BOUNDS;
                 }
@@ -1365,7 +1365,7 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_
                     if (pathtex) gi.MemFree(pathtex);
  #ifdef WC3_DEBUG_MINING
                     fprintf(stderr, "WC3_MINING placement result=%d reason=terrain-blocked building=%.4s sample=(%.1f,%.1f) flags=0x%x prevented=0x%x\n",
-                            PLACE_TERRAIN_BLOCKED, (LPCSTR)&building_id, sample.x, sample.y, flags, prevented);
+                            PLACE_TERRAIN_BLOCKED, (cstring_t)&building_id, sample.x, sample.y, flags, prevented);
  #endif
                     return PLACE_TERRAIN_BLOCKED;
                 }
@@ -1377,7 +1377,7 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_
                     if (pathtex) gi.MemFree(pathtex);
  #ifdef WC3_DEBUG_MINING
                     fprintf(stderr, "WC3_MINING placement result=%d reason=required-pathing building=%.4s sample=(%.1f,%.1f) flags=0x%x required=0x%x\n",
-                            result, (LPCSTR)&building_id, sample.x, sample.y, flags, required);
+                            result, (cstring_t)&building_id, sample.x, sample.y, flags, required);
  #endif
                     return result;
                 }
@@ -1388,22 +1388,22 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_
     if (G_LiveUnitBlocksBuild(builder, build_on, &footprint)) {
 #ifdef WC3_DEBUG_MINING
         fprintf(stderr, "WC3_MINING placement result=%d reason=unit-blocked building=%.4s point=(%.1f,%.1f) parent=%ld\n",
-                PLACE_UNIT_BLOCKED, (LPCSTR)&building_id, point.x, point.y,
+                PLACE_UNIT_BLOCKED, (cstring_t)&building_id, point.x, point.y,
                 build_on ? (long)(build_on - globals.edicts) : -1L);
 #endif
         return PLACE_UNIT_BLOCKED;
     }
 #ifdef WC3_DEBUG_MINING
     fprintf(stderr, "WC3_MINING placement result=%d reason=ok building=%.4s point=(%.1f,%.1f) parent=%ld\n",
-            PLACE_OK, (LPCSTR)&building_id, point.x, point.y,
+            PLACE_OK, (cstring_t)&building_id, point.x, point.y,
             build_on ? (long)(build_on - globals.edicts) : -1L);
 #endif
     return PLACE_OK;
 }
 
-FLOAT G_BuildApproachDistance(DWORD building_id) {
+float G_BuildApproachDistance(uint32_t building_id) {
     pathTex_t *pathtex = M_LoadPathTex(G_UnitData(building_id)->pathingTexture);
-    FLOAT result;
+    float result;
     if (!pathtex) return MAX(WC3_BUILD_CELL_SIZE, G_UnitCollision(building_id));
     result = MAX(pathtex->width, pathtex->height) * WC3_BUILD_CELL_SIZE * 0.5f;
     gi.MemFree(pathtex);
@@ -1412,8 +1412,8 @@ FLOAT G_BuildApproachDistance(DWORD building_id) {
 
 void G_UpdateConstructionAnimation(LPEDICT building) {
     LPCANIMATION anim;
-    FLOAT duration, fraction;
-    DWORD first, last, span, frame;
+    float duration, fraction;
+    uint32_t first, last, span, frame;
 
     if (!building || !building->construction.active || !building->data.UnitBalance) return;
     if (building->data.UnitBalance->buildTime <= 0) return;
@@ -1427,18 +1427,18 @@ void G_UpdateConstructionAnimation(LPEDICT building) {
     if (!anim || anim->interval[1] <= anim->interval[0]) return;
     building->animation = anim;
 
-    duration = (FLOAT)building->data.UnitBalance->buildTime * 1000.0f;
+    duration = (float)building->data.UnitBalance->buildTime * 1000.0f;
     fraction = MAX(0.0f, MIN(1.0f, building->construction.progress / duration));
     first = anim->interval[0];
     last = anim->interval[1];
     span = last - first;
-    frame = first + (DWORD)((FLOAT)span * fraction);
+    frame = first + (uint32_t)((float)span * fraction);
     if (frame >= last) frame = last - 1;
     building->s.frame = frame;
 }
 
-static BOOL G_ConstructionHasClassification(LPCEDICT unit, LPCSTR wanted) {
-    LPCSTR list;
+static bool G_ConstructionHasClassification(LPCEDICT unit, cstring_t wanted) {
+    cstring_t list;
     UnitBalance_t const *balance;
     UnitData_t const *data;
 
@@ -1455,7 +1455,7 @@ static BOOL G_ConstructionHasClassification(LPCEDICT unit, LPCSTR wanted) {
     return false;
 }
 
-static BOOL G_StartConstruction(LPEDICT building, constructionType_t type, BOOL paused) {
+static bool G_StartConstruction(LPEDICT building, constructionType_t type, bool paused) {
     edictStat_s *hp;
 
     if (!building || !G_UnitIsBuilding(building->class_id)) return false;
@@ -1490,7 +1490,7 @@ static BOOL G_StartConstruction(LPEDICT building, constructionType_t type, BOOL 
     return true;
 }
 
-static void G_AssignConstructionWorker(LPEDICT building, LPEDICT worker, BOOL inside) {
+static void G_AssignConstructionWorker(LPEDICT building, LPEDICT worker, bool inside) {
     if (!building || !worker) return;
     building->construction.worker = worker;
     building->construction.worker_spawn_time = worker->spawn_time;
@@ -1508,26 +1508,26 @@ static void G_AssignConstructionWorker(LPEDICT building, LPEDICT worker, BOOL in
     G_InvalidateUnitShortcutsForUnit(worker);
 }
 
-BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building) {
+bool G_StartHumanConstruction(LPEDICT builder, LPEDICT building) {
     if (!builder || !G_StartConstruction(building, CONSTRUCTION_HUMAN, true)) return false;
     building->construction.primary_builder = builder;
     return true;
 }
 
-BOOL G_StartOrcConstruction(LPEDICT builder, LPEDICT building) {
+bool G_StartOrcConstruction(LPEDICT builder, LPEDICT building) {
     if (!builder || !G_StartConstruction(building, CONSTRUCTION_ORC, false)) return false;
     G_AssignConstructionWorker(building, builder, true);
     return true;
 }
 
-BOOL G_StartUndeadConstruction(LPEDICT builder, LPEDICT building) {
+bool G_StartUndeadConstruction(LPEDICT builder, LPEDICT building) {
     if (!builder || !G_StartConstruction(building, CONSTRUCTION_UNDEAD, false)) return false;
     G_AssignConstructionWorker(building, builder, false);
     building->construction.worker_release_time = G_Time() + WC3_UNDEAD_BUILD_WORK_MS;
     return true;
 }
 
-BOOL G_StartNightElfConstruction(LPEDICT builder, LPEDICT building) {
+bool G_StartNightElfConstruction(LPEDICT builder, LPEDICT building) {
     if (!builder || !G_StartConstruction(building, CONSTRUCTION_NIGHTELF, false)) return false;
     G_AssignConstructionWorker(building, builder, true);
     if (G_ConstructionHasClassification(building, "ancient")) {
@@ -1541,7 +1541,7 @@ BOOL G_StartNightElfConstruction(LPEDICT builder, LPEDICT building) {
 
 /* Entangle Gold Mine creates a Night Elf building without consuming/owning a
  * Wisp. It still uses the same authoritative autonomous construction clock. */
-BOOL G_StartNightElfOverlayConstruction(LPEDICT building) {
+bool G_StartNightElfOverlayConstruction(LPEDICT building) {
     return G_StartConstruction(building, CONSTRUCTION_NIGHTELF, false);
 }
 
@@ -1559,9 +1559,9 @@ static LPEDICT G_ConstructionWorker(LPEDICT building) {
     return worker;
 }
 
-static void G_ReleaseConstructionWorker(LPEDICT building, BOOL completed) {
+static void G_ReleaseConstructionWorker(LPEDICT building, bool completed) {
     LPEDICT worker;
-    BOOL consumes, inside;
+    bool consumes, inside;
 
     if (!building) return;
     worker = G_ConstructionWorker(building);
@@ -1589,7 +1589,7 @@ static void G_ReleaseConstructionWorker(LPEDICT building, BOOL completed) {
 
     if (inside) {
         VECTOR2 origin;
-        FLOAT angle;
+        float angle;
         if (SP_FindUnitExitPosition(building, worker, &origin, &angle)) {
             worker->s.origin2 = origin;
             worker->s.angle = angle - M_PI;
@@ -1602,13 +1602,13 @@ static void G_ReleaseConstructionWorker(LPEDICT building, BOOL completed) {
 }
 
 void G_RunConstructionFrame(LPEDICT building) {
-    FLOAT duration, hp_gain;
+    float duration, hp_gain;
     edictStat_s *hp;
 
     if (!building || !building->construction.active || building->paused ||
         !building->data.UnitBalance) return;
 
-    duration = MAX(1.0f, (FLOAT)building->data.UnitBalance->buildTime * 1000.0f);
+    duration = MAX(1.0f, (float)building->data.UnitBalance->buildTime * 1000.0f);
     hp = &building->health;
     /* Check the cheat before the Human paused-strategy gate: construction
      * state, not a worker behavior, owns instant completion. */
@@ -1631,9 +1631,9 @@ void G_RunConstructionFrame(LPEDICT building) {
         G_ReleaseConstructionWorker(building, false);
     }
 
-    building->construction.progress += (FLOAT)FRAMETIME;
+    building->construction.progress += (float)FRAMETIME;
     hp_gain = (hp->max_value - MAX(1.0f, hp->max_value * WC3_BUILD_START_LIFE)) *
-              ((FLOAT)FRAMETIME / duration);
+              ((float)FRAMETIME / duration);
     hp->value = MIN(hp->max_value, hp->value + MAX(0.0f, hp_gain));
     G_UpdateConstructionAnimation(building);
     if (building->construction.progress >= duration) G_CompleteConstruction(building);
@@ -1646,7 +1646,7 @@ void G_StopConstruction(LPEDICT building) {
     if (!building || !building->construction.active) return;
 #ifdef WC3_DEBUG_BUILD
     fprintf(stderr, "WC3_BUILD construction-stop building=%ld id=%.4s type=%d health=%.1f/%.1f progress=%.1f primary=%ld build=%ld\n",
-            (long)(building - g_edicts), (LPCSTR)&building->class_id, building->construction.type,
+            (long)(building - g_edicts), (cstring_t)&building->class_id, building->construction.type,
             building->health.value, building->health.max_value, building->construction.progress,
             building->construction.primary_builder ? (long)(building->construction.primary_builder - g_edicts) : -1L,
             building->build ? (long)(building->build - g_edicts) : -1L);
@@ -1684,7 +1684,7 @@ void G_StopConstruction(LPEDICT building) {
     building->aiflags &= ~AI_HOLD_FRAME;
 }
 
-static LONG G_ConstructionCancelRefund(LONG paid) {
+static int32_t G_ConstructionCancelRefund(int32_t paid) {
     if (paid <= 0) return 0;
     return (paid * WC3_BUILD_CANCEL_REFUND_PERCENT) / 100;
 }
@@ -1692,9 +1692,9 @@ static LONG G_ConstructionCancelRefund(LONG paid) {
 /* A player cancellation is distinct from destruction: publish the Warcraft
  * construct-cancel events and refund only the recorded base construction
  * payment, then use ordinary unit death for selection/food/death semantics. */
-BOOL G_CancelStructureConstruction(LPEDICT building) {
+bool G_CancelStructureConstruction(LPEDICT building) {
     LPGAMECLIENT payer;
-    LONG gold, lumber;
+    int32_t gold, lumber;
 
     if (!building || !building->inuse || !building->construction.active ||
         (building->svflags & SVF_DEADMONSTER) || !G_UnitIsBuilding(building->class_id)) {
@@ -1702,7 +1702,7 @@ BOOL G_CancelStructureConstruction(LPEDICT building) {
     }
 #ifdef WC3_DEBUG_BUILD
     fprintf(stderr, "WC3_BUILD construction-cancel building=%ld id=%.4s health=%.1f/%.1f progress=%.1f payer=%d\n",
-            (long)(building - g_edicts), (LPCSTR)&building->class_id, building->health.value,
+            (long)(building - g_edicts), (cstring_t)&building->class_id, building->health.value,
             building->health.max_value, building->construction.progress, building->construction.payer);
 #endif
 
@@ -1728,7 +1728,7 @@ BOOL G_CancelStructureConstruction(LPEDICT building) {
 
 void G_CompleteConstruction(LPEDICT building) {
     LPGAMECLIENT client;
-    BOOL legacy;
+    bool legacy;
 
     if (!building) return;
     /* Human construction has explicit construction state.  The still-legacy
@@ -1740,7 +1740,7 @@ void G_CompleteConstruction(LPEDICT building) {
     if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_BUILD complete-enter building=%ld id=%.4s player=%u legacy=%d active=%d primary_builder=%ld build_link=%ld health=%.1f/%.1f\n",
-                (long)(building - globals.edicts), (LPCSTR)&building->class_id,
+                (long)(building - globals.edicts), (cstring_t)&building->class_id,
                 (unsigned)building->s.player, legacy, (int)building->construction.active,
                 building->construction.primary_builder
                     ? (long)(building->construction.primary_builder - globals.edicts) : -1L,
@@ -1778,7 +1778,7 @@ void G_CompleteConstruction(LPEDICT building) {
 	if (building->stand) building->stand(building);
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI construction complete building=%ld id=%.4s player=%u\n",
-        (long)(building - g_edicts), (LPCSTR)&building->class_id, building->s.player);
+        (long)(building - g_edicts), (cstring_t)&building->class_id, building->s.player);
 #endif
     G_SetUnitFoodMade(building, building->data.UnitBalance->foodMade);
     G_QueueOwnerUISound(building, "JobDoneSound");
@@ -1788,7 +1788,7 @@ void G_CompleteConstruction(LPEDICT building) {
     if (WC3_TUTORIAL_DEBUG_ENABLED()) {
         fprintf(stderr,
                 "WC3_QUEST_BUILD complete-publish building=%ld id=%.4s player=%u event=%u build_link=%ld food_made=%d\n",
-                (long)(building - globals.edicts), (LPCSTR)&building->class_id,
+                (long)(building - globals.edicts), (cstring_t)&building->class_id,
                 (unsigned)building->s.player, (unsigned)EVENT_PLAYER_UNIT_CONSTRUCT_FINISH,
                 building->build ? (long)(building->build - globals.edicts) : -1L,
                 building->food.made);

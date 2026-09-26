@@ -10,7 +10,7 @@
 #define BZ_DUR 0.5f // fixture Dur; landing interval seconds (not stock 1.0)
 #define BZ_COUNT 3 // fixture DataB; landings (not stock 2)
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -38,7 +38,7 @@ static char const roc_slk[] =
 
 typedef struct { slkTestData_t *rows, *old; LPEDICT caster; VECTOR2 point; } ROCFIX;
 
-static ROCFIX roc_setup(DWORD code) {
+static ROCFIX roc_setup(uint32_t code) {
     ROCFIX fix;
     reset_entities(); setup_test_world(); level.time = 1000;
     ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
@@ -59,8 +59,8 @@ static LPEDICT roc_thinker(LPEDICT caster) {
     return NULL;
 }
 
-static DWORD roc_summons(LPEDICT caster, VECTOR2 point, FLOAT area) {
-    DWORD count = 0;
+static uint32_t roc_summons(LPEDICT caster, VECTOR2 point, float area) {
+    uint32_t count = 0;
     FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->class_id == BZ_HFOO) {
         T_ASSERT(Vector2_distance(&ent->s.origin2, &point) <= area + 0.5f);
         T_EQ(ent->s.player, caster->s.player);
@@ -90,12 +90,12 @@ TEST(wc3_spell, rain_of_chaos_schedules_authored_landings) {
     T_EQ(roc_summons(fix.caster, fix.point, BZ_AREA), 1);
     T_NOT_NULL(roc_thinker(fix.caster));
 
-    level.time += (DWORD)(BZ_DUR * 1000.0f) - 1; G_RunEntities();
+    level.time += (uint32_t)(BZ_DUR * 1000.0f) - 1; G_RunEntities();
     T_EQ(roc_summons(fix.caster, fix.point, BZ_AREA), 1);
     level.time += 1; G_RunEntities();
     T_EQ(roc_summons(fix.caster, fix.point, BZ_AREA), 2);
 
-    level.time += (DWORD)(BZ_DUR * 1000.0f); G_RunEntities();
+    level.time += (uint32_t)(BZ_DUR * 1000.0f); G_RunEntities();
     T_EQ(roc_summons(fix.caster, fix.point, BZ_AREA), BZ_COUNT);
     T_NULL(roc_thinker(fix.caster));
     roc_done(fix);
@@ -108,9 +108,9 @@ TEST(wc3_spell, rain_of_chaos_continues_after_caster_moves) {
     T_EQ(roc_summons(fix.caster, fix.point, BZ_AREA), 1);
     fix.caster->s.origin2.x += 400; fix.caster->s.origin.x += 400;
     T_EQ(fix.caster->channel.code, 0);
-    level.time += (DWORD)(BZ_DUR * 1000.0f); G_RunEntities();
+    level.time += (uint32_t)(BZ_DUR * 1000.0f); G_RunEntities();
     T_EQ(roc_summons(fix.caster, fix.point, BZ_AREA), 2);
-    level.time += (DWORD)(BZ_DUR * 1000.0f); G_RunEntities();
+    level.time += (uint32_t)(BZ_DUR * 1000.0f); G_RunEntities();
     T_EQ(roc_summons(fix.caster, fix.point, BZ_AREA), BZ_COUNT);
     T_NULL(roc_thinker(fix.caster));
     roc_done(fix);

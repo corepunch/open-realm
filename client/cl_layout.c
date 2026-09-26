@@ -6,37 +6,37 @@
 #define PLAYERSTATE_RESOURCE_FOOD_USED 5
 
 static UIFRAME frames[MAX_LAYOUT_OBJECTS];
-static DWORD num_frames = 0;
-static DWORD layout_runtime_layer = MAX_LAYOUT_LAYERS;
+static uint32_t num_frames = 0;
+static uint32_t layout_runtime_layer = MAX_LAYOUT_LAYERS;
 
 struct {
-    RECT rect;
+    rect_t rect;
     bool calculated;
 } runtimes[MAX_LAYOUT_OBJECTS];
 
 /* Server-authored layers anchor to the canvas HUD root: the whole scene under stretch/expand policies, the
  * centered authored 4:3 area under UI_CANVAS_EXPAND_CENTER.  World-hover replaces this root with a projected
  * point and UIFLAG_EXTEND_WIDESCREEN_X frames reach the full scene regardless of the root. */
-RECT SCR_LayoutSceneRect(void) { return CL_Canvas()->root; }
+rect_t SCR_LayoutSceneRect(void) { return CL_Canvas()->root; }
 
-VECTOR2 get_x(LPCRECT rect) {
+VECTOR2 get_x(rect_t const * rect) {
     return (VECTOR2) { rect->x, rect->x + rect->w };
 }
 
-VECTOR2 get_y(LPCRECT rect) {
+VECTOR2 get_y(rect_t const * rect) {
     return (VECTOR2) { rect->y, rect->y + rect->h };
 }
 
-VECTOR2 SCR_GetAxisBounds(LPCRECT rect, bool is_x_axis) {
+VECTOR2 SCR_GetAxisBounds(rect_t const * rect, bool is_x_axis) {
     return is_x_axis ? get_x(rect) : get_y(rect);
 }
 
-FLOAT SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis) {
-    SHORT offset = is_x_axis ? p->offset : -p->offset;
+float SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis) {
+    int16_t offset = is_x_axis ? p->offset : -p->offset;
     return offset / UI_FRAMEPOINT_SCALE;
 }
 
-LPCRECT SCR_LayoutRectByNumber(LPCUIFRAME context, DWORD number) {
+rect_t const * SCR_LayoutRectByNumber(LPCUIFRAME context, uint32_t number) {
     if (number == UI_PARENT) {
         return SCR_LayoutRect(frames+context->parent);
     } else {
@@ -44,13 +44,13 @@ LPCRECT SCR_LayoutRectByNumber(LPCUIFRAME context, DWORD number) {
     }
 }
 
-FLOAT SCR_GetAnchor(LPCUIFRAME f,
+float SCR_GetAnchor(LPCUIFRAME f,
                     uiFramePoint_t const *p,
-                    VECTOR2 (*get)(LPCRECT))
+                    VECTOR2 (*get)(rect_t const *))
 {
     bool const is_x_axis = (get == get_x);
     VECTOR2 b = SCR_GetAxisBounds(SCR_LayoutRectByNumber(f, p->relativeTo), is_x_axis);
-    FLOAT offset = SCR_NormalizeAnchorOffset(p, is_x_axis);
+    float offset = SCR_NormalizeAnchorOffset(p, is_x_axis);
     if (p->targetPos == FPP_MID) {
         return (b.x + b.y) / 2 + offset;
     } else if (p->targetPos == FPP_MAX) {
@@ -62,14 +62,14 @@ FLOAT SCR_GetAnchor(LPCUIFRAME f,
 
 VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
                               uiFramePoints_t const points,
-                              FLOAT width,
+                              float width,
                               bool is_x_axis,
                               bool assigned_size)
 {
     uiFramePoint_t const *pmin = points + FPP_MIN;
     uiFramePoint_t const *pmid = points + FPP_MID;
     uiFramePoint_t const *pmax = points + FPP_MAX;
-    VECTOR2 (*get)(LPCRECT) = is_x_axis ? get_x : get_y;
+    VECTOR2 (*get)(rect_t const *) = is_x_axis ? get_x : get_y;
 
     /* Warcraft preserves an authored Width/Height when both opposing anchors
      * exist.  Horizontal layout is left/min anchored; vertical layout is
@@ -94,8 +94,8 @@ VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
             width,
         };
     } else if (pmin->used && pmax->used) {
-        FLOAT anchor_min = SCR_GetAnchor(frame, pmin, get);
-        FLOAT anchor_max = SCR_GetAnchor(frame, pmax, get);
+        float anchor_min = SCR_GetAnchor(frame, pmin, get);
+        float anchor_max = SCR_GetAnchor(frame, pmax, get);
         return (VECTOR2) {
             anchor_min,
             anchor_max - anchor_min,
@@ -115,14 +115,14 @@ VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
 
 VECTOR2 get_position(LPCUIFRAME frame,
                      uiFramePoints_t const p,
-                     FLOAT width,
-                     VECTOR2 (*get)(LPCRECT),
+                     float width,
+                     VECTOR2 (*get)(rect_t const *),
                      bool assigned_size)
 {
     return SCR_SolveAxisPosition(frame, p, width, get == get_x, assigned_size);
 }
 
-static VECTOR2 SCR_MeasureSizeToContent(LPCUIFRAME f, FLOAT avl) {
+static VECTOR2 SCR_MeasureSizeToContent(LPCUIFRAME f, float avl) {
     uiNameTag_t const *t = f->buffer.data;
     drawText_t d = SCR_GetDrawText(f, avl, SCR_GetStringValue(f), &t->text);
     VECTOR2 s = re.GetTextSize(&d);
@@ -139,11 +139,11 @@ LPCENTITYSTATE SCR_LayoutContextEntity(void) {
     return ent;
 }
 
-BOOL SCR_LayoutEntityContextActive(void) {
+bool SCR_LayoutEntityContextActive(void) {
     return layout_runtime_layer == LAYER_WORLD_HOVER;
 }
 
-BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value) {
+bool SCR_LayoutContextValue(uint32_t stat, float * value) {
     LPCENTITYSTATE ent;
 
     if (!value) return false;
@@ -152,7 +152,7 @@ BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value) {
         return true;
     }
     if (stat == UI_STAT_SELECTION_TIMED_STATUS) {
-        *value = cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_TIMED_STATUS] / (FLOAT)USHRT_MAX;
+        *value = cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_TIMED_STATUS] / (float)USHRT_MAX;
         return true;
     }
 
@@ -177,9 +177,9 @@ BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value) {
 /* Context-bound presentation occupies no layout space when that capability is absent.
  * Keep zero mana visible when the mana capability exists, and keep segmented cargo
  * visible for an empty holder as long as its authored capacity is nonzero. */
-BOOL SCR_LayoutContextFrameVisible(LPCUIFRAME frame) {
+bool SCR_LayoutContextFrameVisible(LPCUIFRAME frame) {
     LPCENTITYSTATE ent;
-    FLOAT value;
+    float value;
 
     if (!frame) return false;
     if (!SCR_LayoutEntityContextActive()) return true;
@@ -197,9 +197,9 @@ BOOL SCR_LayoutContextFrameVisible(LPCUIFRAME frame) {
     return ent && frame->stat < ENT_STAT_COUNT && EntityCargoCapacity(ent->stats[frame->stat]) > 0;
 }
 
-LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
+cstring_t SCR_GetStringValue(LPCUIFRAME frame) {
     static char text[1024] = { 0 };
-    LPCSTR edit_text = CL_WindowEditTextValue(frame ? frame->number : 0);
+    cstring_t edit_text = CL_WindowEditTextValue(frame ? frame->number : 0);
 
     if (edit_text) return edit_text;
     if (frame->stat == UI_STAT_SELECTION_HEALTH_TEXT) {
@@ -208,7 +208,7 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
                  (unsigned)cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_MAX_HEALTH]);
         return text;
     } else if (frame->stat == UI_STAT_SELECTION_MANA_TEXT) {
-        DWORD max_mana = cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_MAX_MANA];
+        uint32_t max_mana = cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_MAX_MANA];
         if (max_mana) {
             snprintf(text, sizeof(text), "%u / %u",
                      (unsigned)cl.playerstate.stats[UI_PLAYERSTAT_SELECTION_MANA],
@@ -219,8 +219,8 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
         return text;
     } else if (SCR_LayoutEntityContextActive() && frame->stat == UI_STAT_CONTEXT_NAME) {
         LPCENTITYSTATE ent = SCR_LayoutContextEntity();
-        LPCSTR name;
-        DWORD ni, cs_index;
+        cstring_t name;
+        uint32_t ni, cs_index;
 
         if (!ent || !ent->name) { text[0] = '\0'; return text; }
         ni = ent->name - 1;
@@ -242,9 +242,9 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
             memset(text, 0, sizeof(text));
         }
     } else if (frame->stat == PLAYERSTATE_RESOURCE_FOOD_USED) {
-        DWORD food_used = cl.playerstate.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
-        DWORD food_made = cl.playerstate.stats[PLAYERSTATE_RESOURCE_FOOD_CAP];
-        DWORD food_ceiling = cl.playerstate.stats[PLAYERSTATE_FOOD_CAP_CEILING];
+        uint32_t food_used = cl.playerstate.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
+        uint32_t food_made = cl.playerstate.stats[PLAYERSTATE_RESOURCE_FOOD_CAP];
+        uint32_t food_ceiling = cl.playerstate.stats[PLAYERSTATE_FOOD_CAP_CEILING];
         if (food_ceiling) food_made = MIN(food_made, food_ceiling);
         if (food_made) snprintf(text, sizeof(text), "%d/%d", food_used, food_made);
         else snprintf(text, sizeof(text), "%d", food_used);
@@ -259,31 +259,31 @@ LPCSTR SCR_GetStringValue(LPCUIFRAME frame) {
     return text;
 }
 
-static LPCSTR SCR_GetTimeOfDayValue(LPCUIFRAME frame) {
+static cstring_t SCR_GetTimeOfDayValue(LPCUIFRAME frame) {
     static char text[16];
-    DWORD day_minutes, total_minutes;
+    uint32_t day_minutes, total_minutes;
     uint64_t scaled;
-    FLOAT day_hours;
+    float day_hours;
 
     if (!frame || frame->stat != UI_PLAYERSTAT_ENV_PHASE) return "";
     day_hours = frame->value > 0.0f ? frame->value : 24.0f;
-    day_minutes = (DWORD)(day_hours * 60.0f + 0.5f);
+    day_minutes = (uint32_t)(day_hours * 60.0f + 0.5f);
     if (!day_minutes) day_minutes = 24u * 60u;
 
-    /* The server replicates normalized day phase in a USHORT. Reconstruct the
+    /* The server replicates normalized day phase in a uint16_t. Reconstruct the
      * displayed game clock from that same phase; frame.value carries DayHours
      * so non-default gameplay constants stay coherent without layout resends. */
     scaled = (uint64_t)cl.playerstate.stats[UI_PLAYERSTAT_ENV_PHASE] * day_minutes;
-    total_minutes = (DWORD)((scaled + UINT16_MAX / 2u) / UINT16_MAX);
+    total_minutes = (uint32_t)((scaled + UINT16_MAX / 2u) / UINT16_MAX);
     total_minutes %= day_minutes;
     snprintf(text, sizeof(text), "%02u:%02u",
              (unsigned)(total_minutes / 60u), (unsigned)(total_minutes % 60u));
     return text;
 }
 
-LPCSTR SCR_GetTooltipText(LPCUIFRAME frame) {
+cstring_t SCR_GetTooltipText(LPCUIFRAME frame) {
     static char text[2048];
-    LPCSTR src, token, value, suffix;
+    cstring_t src, token, value, suffix;
     size_t prefix;
 
     if (!frame || !frame->tooltip) return NULL;
@@ -306,8 +306,8 @@ LPCSTR SCR_GetTooltipText(LPCUIFRAME frame) {
 }
 
 drawText_t SCR_GetDrawText(LPCUIFRAME frame,
-                      FLOAT avl_width,
-                      LPCSTR text,
+                      float avl_width,
+                      cstring_t text,
                       uiLabel_t const *label)
 {
     LPCFONT font = cl.fonts[label->font];
@@ -340,7 +340,7 @@ drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                 .textWidth = avl_width);
 }
 
-LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
+rect_t const * SCR_LayoutRect(LPCUIFRAME frame) {
     bool const assigned_width = frame->size.width > 0;
     bool const assigned_height = frame->size.height > 0;
     if (runtimes[frame->number].calculated) {
@@ -353,11 +353,11 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
             get_position(frame, frame->points.x, 0.0f, get_x, assigned_width),
             get_position(frame, frame->points.y, 0.0f, get_y, assigned_height),
         };
-        runtimes[frame->number].rect = MAKE(RECT, rect[0].x, rect[1].x, 0.0f, 0.0f);
+        runtimes[frame->number].rect = MAKE(rect_t, rect[0].x, rect[1].x, 0.0f, 0.0f);
         return &runtimes[frame->number].rect;
     }
     VECTOR2 elemsize = {0};
-    FLOAT avl_space = runtimes[0].rect.w;
+    float avl_space = runtimes[0].rect.w;
     drawText_t drawtext = {0};
     switch (frame->flags.type) {
         case FT_FRAME:
@@ -377,7 +377,7 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
             if (frame->size.width == 0 && frame->textLength > 0) {
                 drawText_t space = SCR_GetDrawText(frame, avl_space, " ", label);
                 VECTOR2 const space_size = re.GetTextSize(&space);
-                elemsize.x = (FLOAT)frame->textLength * space_size.x;
+                elemsize.x = (float)frame->textLength * space_size.x;
             }
             break;
         }
@@ -397,12 +397,12 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
             /* NormalImage/HoverImage semantics: when the frame has no explicit
                size AND no anchors on either axis, it fills the parent rect
                completely (SC2 button image fill-parent behaviour). */
-            BOOL has_x_anchor = frame->points.x[FPP_MIN].used || frame->points.x[FPP_MID].used || frame->points.x[FPP_MAX].used;
-            BOOL has_y_anchor = frame->points.y[FPP_MIN].used || frame->points.y[FPP_MID].used || frame->points.y[FPP_MAX].used;
-            BOOL no_explicit_size = frame->size.width == 0 && frame->size.height == 0;
+            bool has_x_anchor = frame->points.x[FPP_MIN].used || frame->points.x[FPP_MID].used || frame->points.x[FPP_MAX].used;
+            bool has_y_anchor = frame->points.y[FPP_MIN].used || frame->points.y[FPP_MID].used || frame->points.y[FPP_MAX].used;
+            bool no_explicit_size = frame->size.width == 0 && frame->size.height == 0;
             if (no_explicit_size && !has_x_anchor && !has_y_anchor) {
                 /* Fill parent: copy parent rect directly. */
-                LPCRECT pr = SCR_LayoutRect(frames + frame->parent);
+                rect_t const * pr = SCR_LayoutRect(frames + frame->parent);
                 runtimes[frame->number].rect = *pr;
                 return &runtimes[frame->number].rect;
             }
@@ -410,7 +410,7 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
                 elemsize.x = frame->size.width;
                 elemsize.y = frame->size.height;
             } else {
-                LPCRECT pr = SCR_LayoutRect(frames + frame->parent);
+                rect_t const * pr = SCR_LayoutRect(frames + frame->parent);
                 elemsize.x = pr->w;
                 elemsize.y = pr->h;
             }
@@ -430,7 +430,7 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
         get_position(frame, frame->points.x, frame->size.width, get_x, assigned_width),
         get_position(frame, frame->points.y, frame->size.height, get_y, assigned_height),
     };
-    runtimes[frame->number].rect = (RECT) {
+    runtimes[frame->number].rect = (rect_t) {
         .x = rect[0].x,
         .y = rect[1].x,
         .w = rect[0].y,
@@ -447,17 +447,17 @@ LPCRECT SCR_LayoutRect(LPCUIFRAME frame) {
  * implicit top (which we treat as 0).  Follows pmin_y anchor chains, resolving
  * FPP_MAX target to (ref_y + ref_h).  Used only by SCR_InferContainerHeights
  * before runtimes[] are populated — never reads runtimes[]. */
-static FLOAT scr_frame_abs_y(DWORD idx) {
+static float scr_frame_abs_y(uint32_t idx) {
     if (idx == 0 || idx >= num_frames) return 0;
     LPCUIFRAME f = &frames[idx];
     uiFramePoint_t const *pmin_y = &f->points.y[FPP_MIN];
     if (!pmin_y->used) return 0;
-    DWORD rel = pmin_y->relativeTo;
-    FLOAT parent_y = (rel == UI_PARENT) ? scr_frame_abs_y(f->parent) :
+    uint32_t rel = pmin_y->relativeTo;
+    float parent_y = (rel == UI_PARENT) ? scr_frame_abs_y(f->parent) :
                      (rel < num_frames) ? scr_frame_abs_y(rel) : 0;
-    FLOAT off = -((FLOAT)pmin_y->offset / UI_FRAMEPOINT_SCALE);
+    float off = -((float)pmin_y->offset / UI_FRAMEPOINT_SCALE);
     if (pmin_y->targetPos == FPP_MAX) {
-        FLOAT parent_h = (rel == UI_PARENT) ? frames[f->parent].size.height :
+        float parent_h = (rel == UI_PARENT) ? frames[f->parent].size.height :
                          (rel < num_frames) ? frames[rel].size.height : 0;
         return parent_y + parent_h + off;
     }
@@ -468,7 +468,7 @@ static FLOAT scr_frame_abs_y(DWORD idx) {
  * no explicit Height.  After wire parsing, for any FT_FRAME with size.height==0
  * and only pmax_y set, infer height from the max y-extent of all descendants. */
 static void SCR_InferContainerHeights(void) {
-    for (DWORD p = num_frames; p-- > 1; ) {
+    for (uint32_t p = num_frames; p-- > 1; ) {
         LPCUIFRAME f = &frames[p];
         if (f->size.height > 0) continue;
         if (f->flags.type != FT_FRAME) continue;
@@ -476,18 +476,18 @@ static void SCR_InferContainerHeights(void) {
         if (!f->points.y[FPP_MAX].used) continue;
 
         /* Container top = 0 in relative coords (pmax-only frame has no pmin). */
-        FLOAT container_y = scr_frame_abs_y(p);
+        float container_y = scr_frame_abs_y(p);
 
         /* Scan ALL descendants for max y-extent relative to this container. */
-        FLOAT max_extent = 0;
-        for (DWORD c = 1; c < num_frames; c++) {
+        float max_extent = 0;
+        for (uint32_t c = 1; c < num_frames; c++) {
             if (frames[c].size.height == 0) continue;
             /* Walk parent chain to see if this frame is a descendant of p. */
-            DWORD anc = c;
+            uint32_t anc = c;
             while (anc > 0 && anc < num_frames && anc != p) anc = frames[anc].parent;
             if (anc != p) continue;
-            FLOAT abs_y = scr_frame_abs_y(c);
-            FLOAT extent = (abs_y - container_y) + frames[c].size.height;
+            float abs_y = scr_frame_abs_y(c);
+            float extent = (abs_y - container_y) + frames[c].size.height;
             if (extent > max_extent) max_extent = extent;
         }
         if (max_extent > 0)
@@ -495,16 +495,16 @@ static void SCR_InferContainerHeights(void) {
     }
 }
 
-LPCUIFRAME SCR_ClearLayer(HANDLE data, DWORD layer) {
-    DWORD layout_size = 0;
-    LPBYTE layout_data = (LPBYTE)data;
+LPCUIFRAME SCR_ClearLayer(handle_t data, uint32_t layer) {
+    uint32_t layout_size = 0;
+    uint8_t * layout_data = (uint8_t *)data;
 
     layout_runtime_layer = layer < MAX_LAYOUT_LAYERS ? layer : MAX_LAYOUT_LAYERS;
 
     memset(runtimes, 0, sizeof(runtimes));
     memset(frames, 0, sizeof(frames));
     num_frames = 0;
-    RECT scene = SCR_LayoutSceneRect();
+    rect_t scene = SCR_LayoutSceneRect();
     frames[0].size.width = scene.w;
     frames[0].size.height = scene.h;
     frames[0].flags.type = FT_SCREEN;
@@ -523,11 +523,11 @@ LPCUIFRAME SCR_ClearLayer(HANDLE data, DWORD layer) {
         .readcount = 0,
     };
     while (true) {
-        DWORD bits = 0;
-        if (msg.readcount + sizeof(DWORD) + sizeof(WORD) > msg.cursize) {
+        uint32_t bits = 0;
+        if (msg.readcount + sizeof(uint32_t) + sizeof(uint16_t) > msg.cursize) {
             break;
         }
-        DWORD nument = MSG_ReadEntityBits(&msg, &bits);
+        uint32_t nument = MSG_ReadEntityBits(&msg, &bits);
         if (nument == 0 && bits == 0)
             break;
         if (nument >= MAX_LAYOUT_OBJECTS) {
@@ -537,11 +537,11 @@ LPCUIFRAME SCR_ClearLayer(HANDLE data, DWORD layer) {
         ent->tex.coord[1] = 0xff;
         ent->tex.coord[3] = 0xff;
         MSG_ReadDeltaUIFrame(&msg, ent, nument, bits);
-        if (msg.readcount + sizeof(BYTE) > msg.cursize) {
+        if (msg.readcount + sizeof(uint8_t) > msg.cursize) {
             break;
         }
         /* Buffer length is an unsigned wire byte; values 128..255 must not sign-extend. */
-        ent->buffer.size = (BYTE)MSG_ReadByte(&msg);
+        ent->buffer.size = (uint8_t)MSG_ReadByte(&msg);
         if (msg.readcount + ent->buffer.size > msg.cursize) {
             break;
         }
@@ -553,48 +553,48 @@ LPCUIFRAME SCR_ClearLayer(HANDLE data, DWORD layer) {
     return frames;
 }
 
-LPCUIFRAME SCR_Clear(HANDLE data) {
+LPCUIFRAME SCR_Clear(handle_t data) {
     return SCR_ClearLayer(data, MAX_LAYOUT_LAYERS);
 }
 
-/* Window packets keep frame text in one trailing arena and encode frame string fields as DWORD offsets. */
-LPCUIFRAME SCR_ClearWindow(HANDLE data) {
-    DWORD layout_size = 0, text_size, frame_end;
-    LPBYTE layout_data = data;
+/* Window packets keep frame text in one trailing arena and encode frame string fields as uint32_t offsets. */
+LPCUIFRAME SCR_ClearWindow(handle_t data) {
+    uint32_t layout_size = 0, text_size, frame_end;
+    uint8_t * layout_data = data;
     sizeBuf_t msg, scan;
-    LPCSTR text;
+    cstring_t text;
 
     SCR_Clear(NULL);
     if (!layout_data) return frames;
     memcpy(&layout_size, layout_data, sizeof(layout_size));
     msg = MAKE(sizeBuf_t, .data = layout_data + sizeof(layout_size), .cursize = layout_size);
     scan = msg;
-    while (scan.readcount + sizeof(DWORD) + sizeof(WORD) <= scan.cursize) {
+    while (scan.readcount + sizeof(uint32_t) + sizeof(uint16_t) <= scan.cursize) {
         UIFRAME ent = { 0 };
-        DWORD bits, number = MSG_ReadEntityBits(&scan, &bits);
+        uint32_t bits, number = MSG_ReadEntityBits(&scan, &bits);
         if (!number && !bits) break;
         if (!MSG_ReadDeltaUIWindowFrame(&scan, &ent, number, bits) || scan.readcount >= scan.cursize) return frames;
-        DWORD payload = (BYTE)MSG_ReadByte(&scan);
+        uint32_t payload = (uint8_t)MSG_ReadByte(&scan);
         if (payload > scan.cursize - scan.readcount) return frames;
         scan.readcount += payload;
     }
     frame_end = scan.readcount;
-    if (scan.readcount + sizeof(DWORD) > scan.cursize) return frames;
+    if (scan.readcount + sizeof(uint32_t) > scan.cursize) return frames;
     text_size = MSG_ReadLong(&scan);
     if (text_size > scan.cursize - scan.readcount) return frames;
-    text = (LPCSTR)(scan.data + scan.readcount);
+    text = (cstring_t)(scan.data + scan.readcount);
     msg.cursize = frame_end;
-    while (msg.readcount + sizeof(DWORD) + sizeof(WORD) <= msg.cursize) {
-        DWORD bits, number = MSG_ReadEntityBits(&msg, &bits);
+    while (msg.readcount + sizeof(uint32_t) + sizeof(uint16_t) <= msg.cursize) {
+        uint32_t bits, number = MSG_ReadEntityBits(&msg, &bits);
         if (!number && !bits) break;
         if (number >= MAX_LAYOUT_OBJECTS) return frames;
         LPUIFRAME ent = &frames[number];
         ent->tex.coord[1] = ent->tex.coord[3] = 0xff;
         if (!MSG_ReadDeltaUIWindowFrame(&msg, ent, number, bits) || msg.readcount >= msg.cursize) return frames;
-        ent->text = ent->text ? text + (DWORD)(uintptr_t)ent->text : NULL;
-        ent->tooltip = ent->tooltip ? text + (DWORD)(uintptr_t)ent->tooltip : NULL;
-        ent->onclick = ent->onclick ? text + (DWORD)(uintptr_t)ent->onclick : NULL;
-        ent->buffer.size = (BYTE)MSG_ReadByte(&msg);
+        ent->text = ent->text ? text + (uint32_t)(uintptr_t)ent->text : NULL;
+        ent->tooltip = ent->tooltip ? text + (uint32_t)(uintptr_t)ent->tooltip : NULL;
+        ent->onclick = ent->onclick ? text + (uint32_t)(uintptr_t)ent->onclick : NULL;
+        ent->buffer.size = (uint8_t)MSG_ReadByte(&msg);
         if (ent->buffer.size > msg.cursize - msg.readcount) return frames;
         ent->buffer.data = msg.data + msg.readcount;
         msg.readcount += ent->buffer.size;
@@ -604,18 +604,18 @@ LPCUIFRAME SCR_ClearWindow(HANDLE data) {
     return frames;
 }
 
-void SCR_SetLayoutRoot(LPCRECT root) {
+void SCR_SetLayoutRoot(rect_t const * root) {
     if (!root) return;
     frames[0].size.width = root->w; frames[0].size.height = root->h;
     runtimes[0].rect = *root; runtimes[0].calculated = true;
 }
 
 
-DWORD SCR_NumFrames(void) {
+uint32_t SCR_NumFrames(void) {
     return num_frames;
 }
 
-LPUIFRAME SCR_Frame(DWORD number) {
+LPUIFRAME SCR_Frame(uint32_t number) {
     if (number >= MAX_LAYOUT_OBJECTS) {
         return NULL;
     }

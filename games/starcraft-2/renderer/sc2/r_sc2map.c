@@ -49,17 +49,17 @@ do { \
 } while (0)
 
 /* SC2 terrain uses its own vertex shader for blend UVs. */
-extern m3SequenceTimeline_t const *M3_FindAnimationAtTime(m3Model_t const *model, DWORD time, DWORD *localtime);
+extern m3SequenceTimeline_t const *M3_FindAnimationAtTime(m3Model_t const *model, uint32_t time, uint32_t *localtime);
 extern VECTOR3 M3_GetVector3AnimValue(m3Model_t const *model,
                                       m3SequenceTimeline_t const *timeline,
                                       m3Vector3AnimRef_t const *animref,
-                                      DWORD time);
+                                      uint32_t time);
 extern VECTOR4 M3_GetVector4AnimValue(m3Model_t const *model,
                                       m3SequenceTimeline_t const *timeline,
                                       m3Vector4AnimRef_t const *animref,
-                                      DWORD time);
+                                      uint32_t time);
 extern void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMATRIX4 transform);
-extern void M3_RenderBuffer(renderEntity_t const *entity, m3Model_t const *model, LPCBUFFER buffer, DWORD vertices, DWORD indices);
+extern void M3_RenderBuffer(renderEntity_t const *entity, m3Model_t const *model, LPCBUFFER buffer, uint32_t vertices, uint32_t indices);
 
 #include "r_sc2_road_draw.h"
 
@@ -67,17 +67,17 @@ static LPMAPSEGMENT sc2_terrain_segment;
 static LPMAPLAYER sc2_hard_tile_layers;
 static LPCMODEL sc2_hard_tile_model;
 static renderEntity_t sc2_hard_tile_entity;
-static BOOL sc2_terrain_shader_loaded;
-static BOOL sc2_cliff_shader_loaded;
+static bool sc2_terrain_shader_loaded;
+static bool sc2_cliff_shader_loaded;
 static LPTEXTURE sc2_terrain_textures[SC2_TERRAIN_BLEND_LAYERS];
 static LPTEXTURE sc2_terrain_masks[SC2_TERRAIN_BLEND_GROUPS];
-static DWORD sc2_num_terrain_layers;
+static uint32_t sc2_num_terrain_layers;
 static cameraHeightMap_t sc2_camera_height;
 /* Shared normal grid: (MAP_W+1)*(MAP_H+1) normals derived from the heightmap.
    Both ground vertices and cliff boundary vertices index into this so seams never appear. */
 static VECTOR3 *sc2_terrain_normals;
 
-static FLOAT r_sc2_camera_grid_height(LPCVOID data, DWORD x, DWORD y) {
+static float r_sc2_camera_grid_height(void const * data, uint32_t x, uint32_t y) {
     return sc2_map_height_at_grid(data, x, y);
 }
 
@@ -88,10 +88,10 @@ typedef struct sc2CliffModel_s {
 } sc2CliffModel_t;
 
 typedef struct rSc2CliffPlacement_s {
-    FLOAT base_z;
-    FLOAT model_z_offset;
-    FLOAT z_scale;
-    DWORD join_edges;
+    float base_z;
+    float model_z_offset;
+    float z_scale;
+    uint32_t join_edges;
     SC2RAMP const *ramp;
 } rSc2CliffPlacement_t;
 
@@ -114,7 +114,7 @@ typedef enum {
 static sc2CliffModel_t *sc2_cliff_models;
 
 static void r_sc2_release_cliff_models(void);
-static sc2CliffCell_t const *r_sc2_find_cliff_cell(sc2Map_t const *map, DWORD index);
+static sc2CliffCell_t const *r_sc2_find_cliff_cell(sc2Map_t const *map, uint32_t index);
 
 typedef struct SC2TERRAINSTATE {
     MATRIX4 viewProjection;
@@ -338,28 +338,28 @@ static void r_sc2_init_terrain_shader(void) {
     r_sc2_init_cliff_shader();
 }
 
-static HANDLE r_sc2_read_file(LPCSTR filename, LPDWORD size) {
+static handle_t r_sc2_read_file(cstring_t filename, uint32_t * size) {
     void *buffer = NULL;
     int result = ri.FS_ReadFile(filename, &buffer);
     if (result < 0) {
         if (size) *size = 0;
         return NULL;
     }
-    if (size) *size = (DWORD)result;
+    if (size) *size = (uint32_t)result;
     return buffer;
 }
 
-static void r_sc2_free_file(HANDLE file) {
+static void r_sc2_free_file(handle_t file) {
     ri.FS_FreeFile(file);
 }
 
 static void r_sc2_push_vertex_normal(VERTEX *v,
-                                     FLOAT x,
-                                     FLOAT y,
-                                     FLOAT z,
-                                     FLOAT u,
-                                     FLOAT t,
-                                     BYTE alpha,
+                                     float x,
+                                     float y,
+                                     float z,
+                                     float u,
+                                     float t,
+                                     uint8_t alpha,
                                      VECTOR3 normal) {
     v->position = (VECTOR3){ x, y, z };
     v->texcoord = (VECTOR2){ u, t };
@@ -367,8 +367,8 @@ static void r_sc2_push_vertex_normal(VERTEX *v,
     v->color = (COLOR32){ 255, 255, 255, alpha };
 }
 
-static USHORT r_sc2_cliff_level_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
-    USHORT value;
+static uint16_t r_sc2_cliff_level_at_grid(sc2Map_t const *map, uint32_t x, uint32_t y) {
+    uint16_t value;
 
     if (!map->t3SyncCliffLevel || !map->t3SyncCliffLevel->width || !map->t3SyncCliffLevel->height) {
         return 0;
@@ -379,20 +379,20 @@ static USHORT r_sc2_cliff_level_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
     return value >= SC2_CLIFF_LEVEL_PACKED_MIN ? value >> SC2_CLIFF_LEVEL_SHIFT : value;
 }
 
-static BOOL r_sc2_cliff_block_is_flat(sc2Map_t const *map, DWORD x, DWORD y) {
-    USHORT level[4];
+static bool r_sc2_cliff_block_is_flat(sc2Map_t const *map, uint32_t x, uint32_t y) {
+    uint16_t level[4];
 
     SC2_CLIFF_BLOCK_LEVELS(level, map, x, y);
     return level[1] == level[0] && level[2] == level[0] && level[3] == level[0];
 }
 
-static DWORD r_sc2_cliff_index_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
-    DWORD cliff_width = SC2_CLIFF_WIDTH(map);
+static uint32_t r_sc2_cliff_index_at_grid(sc2Map_t const *map, uint32_t x, uint32_t y) {
+    uint32_t cliff_width = SC2_CLIFF_WIDTH(map);
 
     return (x / SC2_CLIFF_BLOCK_SPAN) + (y / SC2_CLIFF_BLOCK_SPAN) * cliff_width;
 }
 
-static BOOL r_sc2_cliff_block_is_ramp(sc2Map_t const *map, DWORD x, DWORD y) {
+static bool r_sc2_cliff_block_is_ramp(sc2Map_t const *map, uint32_t x, uint32_t y) {
     sc2CliffCell_t const *cell;
 
     if (!map)
@@ -401,9 +401,9 @@ static BOOL r_sc2_cliff_block_is_ramp(sc2Map_t const *map, DWORD x, DWORD y) {
     return cell && (cell->flags & SC2_CLIFF_CELL_RAMP);
 }
 
-static BOOL r_sc2_skip_ground_cell(sc2Map_t const *map, DWORD x, DWORD y) {
-    DWORD block_x = SC2_CLIFF_BLOCK_ORIGIN(x);
-    DWORD block_y = SC2_CLIFF_BLOCK_ORIGIN(y);
+static bool r_sc2_skip_ground_cell(sc2Map_t const *map, uint32_t x, uint32_t y) {
+    uint32_t block_x = SC2_CLIFF_BLOCK_ORIGIN(x);
+    uint32_t block_y = SC2_CLIFF_BLOCK_ORIGIN(y);
 
     if (r_sc2_cliff_block_is_ramp(map, block_x, block_y))
         return r_sc2_ramp_covers_ground(map, (VECTOR2){x+0.5f,y+0.5f});
@@ -413,10 +413,10 @@ static BOOL r_sc2_skip_ground_cell(sc2Map_t const *map, DWORD x, DWORD y) {
 #ifdef BZ_SC2_FIX_FLAT_TERRAIN_TIER_MISMATCH
 /* HACK: fixes flat SC2 ground tiles whose shared HMAP vertex carries lower cliff-side
    height/extra data while the drawn flat tile and adjacent cliff edge are one tier higher. */
-static BOOL r_sc2_ground_cell_tier(sc2Map_t const *map, DWORD x, DWORD y, USHORT *tier) {
-    DWORD block_x;
-    DWORD block_y;
-    USHORT level[4];
+static bool r_sc2_ground_cell_tier(sc2Map_t const *map, uint32_t x, uint32_t y, uint16_t *tier) {
+    uint32_t block_x;
+    uint32_t block_y;
+    uint16_t level[4];
 
     if (!map || x >= SC2_MAP_WIDTH(map) || y >= SC2_MAP_HEIGHT(map))
         return false;
@@ -430,15 +430,15 @@ static BOOL r_sc2_ground_cell_tier(sc2Map_t const *map, DWORD x, DWORD y, USHORT
     return true;
 }
 
-static BOOL r_sc2_ground_cell_base_height(sc2Map_t const *map, DWORD tile_x, DWORD tile_y, USHORT tier, USHORT *height) {
-    DWORD const vx[4] = { tile_x, tile_x + 1, tile_x + 1, tile_x };
-    DWORD const vy[4] = { tile_y, tile_y, tile_y + 1, tile_y + 1 };
-    DWORD sum = 0;
-    DWORD count = 0;
+static bool r_sc2_ground_cell_base_height(sc2Map_t const *map, uint32_t tile_x, uint32_t tile_y, uint16_t tier, uint16_t *height) {
+    uint32_t const vx[4] = { tile_x, tile_x + 1, tile_x + 1, tile_x };
+    uint32_t const vy[4] = { tile_y, tile_y, tile_y + 1, tile_y + 1 };
+    uint32_t sum = 0;
+    uint32_t count = 0;
 
     FOR_LOOP(i, 4) {
-        DWORD x = MIN(map->t3HeightMap->width - 1, vx[i]);
-        DWORD y = MIN(map->t3HeightMap->height - 1, vy[i]);
+        uint32_t x = MIN(map->t3HeightMap->width - 1, vx[i]);
+        uint32_t y = MIN(map->t3HeightMap->height - 1, vy[i]);
         sc2MapHeightSample_t const *sample = &map->t3HeightMap->data[x + y * map->t3HeightMap->width];
 
         if (sample->extra != tier)
@@ -448,16 +448,16 @@ static BOOL r_sc2_ground_cell_base_height(sc2Map_t const *map, DWORD tile_x, DWO
     }
     if (!count)
         return false;
-    *height = (USHORT)(sum / count);
+    *height = (uint16_t)(sum / count);
     return true;
 }
 
-static FLOAT r_sc2_ground_height_at_grid(sc2Map_t const *map, DWORD grid_x, DWORD grid_y) {
+static float r_sc2_ground_height_at_grid(sc2Map_t const *map, uint32_t grid_x, uint32_t grid_y) {
     int tile_x[4] = { (int)grid_x - 1, (int)grid_x,     (int)grid_x - 1, (int)grid_x };
     int tile_y[4] = { (int)grid_y - 1, (int)grid_y - 1, (int)grid_y,     (int)grid_y };
     sc2MapHeightSample_t const *sample;
-    DWORD base_sum = 0;
-    DWORD base_count = 0;
+    uint32_t base_sum = 0;
+    uint32_t base_count = 0;
 
     if (!map || !map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height)
         return 0.0f;
@@ -465,48 +465,48 @@ static FLOAT r_sc2_ground_height_at_grid(sc2Map_t const *map, DWORD grid_x, DWOR
     grid_y = MIN(map->t3HeightMap->height - 1, grid_y);
     sample = &map->t3HeightMap->data[grid_x + grid_y * map->t3HeightMap->width];
     FOR_LOOP(i, 4) {
-        USHORT tier;
-        USHORT height;
+        uint16_t tier;
+        uint16_t height;
 
         if (tile_x[i] < 0 || tile_y[i] < 0)
             continue;
-        if (!r_sc2_ground_cell_tier(map, (DWORD)tile_x[i], (DWORD)tile_y[i], &tier))
+        if (!r_sc2_ground_cell_tier(map, (uint32_t)tile_x[i], (uint32_t)tile_y[i], &tier))
             continue;
         if (sample->extra == tier)
             return sc2_map_height_at_grid(map, grid_x, grid_y);
-        if (!r_sc2_ground_cell_base_height(map, (DWORD)tile_x[i], (DWORD)tile_y[i], tier, &height))
+        if (!r_sc2_ground_cell_base_height(map, (uint32_t)tile_x[i], (uint32_t)tile_y[i], tier, &height))
             continue;
         base_sum += height;
         base_count++;
     }
     if (!base_count)
         return sc2_map_height_at_grid(map, grid_x, grid_y);
-    return ((FLOAT)(base_sum / base_count) + (FLOAT)sample->adjustment) *
+    return ((float)(base_sum / base_count) + (float)sample->adjustment) *
            sc2_map_height_scale(map) - sc2_map_height_offset(map);
 }
 #else
-static FLOAT r_sc2_ground_height_at_grid(sc2Map_t const *map, DWORD grid_x, DWORD grid_y) {
+static float r_sc2_ground_height_at_grid(sc2Map_t const *map, uint32_t grid_x, uint32_t grid_y) {
     return sc2_map_height_at_grid(map, grid_x, grid_y);
 }
 #endif
 
-static FLOAT r_sc2_normal_height(LPCVOID data, DWORD x, DWORD y) {
+static float r_sc2_normal_height(void const * data, uint32_t x, uint32_t y) {
     return r_sc2_ground_height_at_grid(data, x, y);
 }
 
-static FLOAT r_sc2_ground_height_at_point(sc2Map_t const *map, FLOAT x, FLOAT y) {
+static float r_sc2_ground_height_at_point(sc2Map_t const *map, float x, float y) {
     sc2MapHeightPoint_t p;
 
     if (!sc2_map_height_point(map, x, y, &p))
         return 0.0f;
-    FLOAT height[] = { r_sc2_ground_height_at_grid(map, p.x0, p.y0), r_sc2_ground_height_at_grid(map, p.x1, p.y0),
+    float height[] = { r_sc2_ground_height_at_grid(map, p.x0, p.y0), r_sc2_ground_height_at_grid(map, p.x1, p.y0),
         r_sc2_ground_height_at_grid(map, p.x0, p.y1), r_sc2_ground_height_at_grid(map, p.x1, p.y1) };
     return r_sc2_ground_triangle_height(height, (VECTOR2){p.tx, p.ty});
 }
 
 /* Only cliff sides bordering emitted ground have a seam that must share the height-grid edge. */
-static DWORD r_sc2_cliff_join_edges(sc2Map_t const *map, DWORD x, DWORD y) {
-    DWORD edges = 0;
+static uint32_t r_sc2_cliff_join_edges(sc2Map_t const *map, uint32_t x, uint32_t y) {
+    uint32_t edges = 0;
 
     FOR_LOOP(i, SC2_CLIFF_BLOCK_SPAN) {
         if (x && !r_sc2_skip_ground_cell(map, x - 1, y + i)) edges |= SC2_CLIFF_JOIN_LEFT;
@@ -519,7 +519,7 @@ static DWORD r_sc2_cliff_join_edges(sc2Map_t const *map, DWORD x, DWORD y) {
     return edges;
 }
 
-static BOOL r_sc2_cliff_vertex_joins_ground(LPCVECTOR3 pos, DWORD edges) {
+static bool r_sc2_cliff_vertex_joins_ground(LPCVECTOR3 pos, uint32_t edges) {
     return ((edges & SC2_CLIFF_JOIN_LEFT) && fabsf(pos->x + 1.0f) < SC2_EPSILON) ||
            ((edges & SC2_CLIFF_JOIN_RIGHT) && fabsf(pos->x - 1.0f) < SC2_EPSILON) ||
            ((edges & SC2_CLIFF_JOIN_BOTTOM) && fabsf(pos->y + 1.0f) < SC2_EPSILON) ||
@@ -527,10 +527,10 @@ static BOOL r_sc2_cliff_vertex_joins_ground(LPCVECTOR3 pos, DWORD edges) {
 }
 
 static void r_sc2_build_terrain_normal_grid(sc2Map_t const *map) {
-    DWORD w = SC2_MAP_WIDTH(map);
-    DWORD h = SC2_MAP_HEIGHT(map);
+    uint32_t w = SC2_MAP_WIDTH(map);
+    uint32_t h = SC2_MAP_HEIGHT(map);
     TERRAINNORMALS grid = { map, r_sc2_normal_height, w + 1, h + 1, map->cell_size };
-    DWORD n = (w + 1) * (h + 1);
+    uint32_t n = (w + 1) * (h + 1);
 
     ri.MemFree(sc2_terrain_normals);
     sc2_terrain_normals = ri.MemAlloc(n * sizeof(*sc2_terrain_normals));
@@ -538,14 +538,14 @@ static void r_sc2_build_terrain_normal_grid(sc2Map_t const *map) {
         sc2_terrain_normals[i] = R_TerrainGridNormal(&grid, i % (w + 1), i / (w + 1));
 }
 
-static VECTOR3 r_sc2_terrain_normal_at_world(sc2Map_t const *map, FLOAT wx, FLOAT wy) {
+static VECTOR3 r_sc2_terrain_normal_at_world(sc2Map_t const *map, float wx, float wy) {
     BOX2 bounds = SC2_MapBounds();
-    DWORD w = SC2_MAP_WIDTH(map);
-    DWORD h = SC2_MAP_HEIGHT(map);
-    FLOAT gx = (wx - bounds.min.x) / map->cell_size;
-    FLOAT gy = (wy - bounds.min.y) / map->cell_size;
+    uint32_t w = SC2_MAP_WIDTH(map);
+    uint32_t h = SC2_MAP_HEIGHT(map);
+    float gx = (wx - bounds.min.x) / map->cell_size;
+    float gy = (wy - bounds.min.y) / map->cell_size;
     int x0 = (int)floorf(gx), y0 = (int)floorf(gy);
-    FLOAT tx = gx - (FLOAT)x0, ty = gy - (FLOAT)y0;
+    float tx = gx - (float)x0, ty = gy - (float)y0;
     int x1, y1;
     VECTOR3 n00, n10, n01, n11, n0, n1, result;
 
@@ -567,9 +567,9 @@ static VECTOR3 r_sc2_terrain_normal_at_world(sc2Map_t const *map, FLOAT wx, FLOA
 
 static void r_sc2_build_ground_vertex_normals(sc2Map_t const *map,
                                               VERTEX *vertices,
-                                              DWORD w,
-                                              DWORD h) {
-    DWORD num_vertices = (w + 1) * (h + 1);
+                                              uint32_t w,
+                                              uint32_t h) {
+    uint32_t num_vertices = (w + 1) * (h + 1);
 
     if (sc2_terrain_normals) {
         FOR_LOOP(i, num_vertices)
@@ -615,11 +615,11 @@ static void r_sc2_release_terrain(void) {
 }
 
 /* Count or emit the same ground-triangle intersections, including cliff/ramp omissions. */
-static DWORD r_sc2_project_road(sc2Map_t const *map, LPCSC2ROADTRI tri, LPVERTEX out) {
+static uint32_t r_sc2_project_road(sc2Map_t const *map, LPCSC2ROADTRI tri, LPVERTEX out) {
     LPCVERTEX road = tri->verts;
     BOX2 bounds = SC2_MapBounds();
     VECTOR2 lo = {road[0].position.x, road[0].position.y}, hi = lo;
-    DWORD total = 0;
+    uint32_t total = 0;
     FOR_LOOP(i, 3) {
         lo.x = MIN(lo.x, road[i].position.x); lo.y = MIN(lo.y, road[i].position.y);
         hi.x = MAX(hi.x, road[i].position.x); hi.y = MAX(hi.y, road[i].position.y);
@@ -633,7 +633,7 @@ static DWORD r_sc2_project_road(sc2Map_t const *map, LPCSC2ROADTRI tri, LPVERTEX
             VERTEX corners[4] = {0};
             if (r_sc2_skip_ground_cell(map, x, y)) continue;
             FOR_LOOP(i, 4) {
-                DWORD gx = x + (i == 1 || i == 2), gy = y + (i >= 2);
+                uint32_t gx = x + (i == 1 || i == 2), gy = y + (i >= 2);
                 corners[i].position = (VECTOR3){bounds.min.x+gx*map->cell_size, bounds.min.y+gy*map->cell_size, r_sc2_ground_height_at_grid(map, gx, gy)};
                 corners[i].normal = sc2_terrain_normals[gx + gy*(SC2_MAP_WIDTH(map)+1)];
             }
@@ -645,12 +645,12 @@ static DWORD r_sc2_project_road(sc2Map_t const *map, LPCSC2ROADTRI tri, LPVERTEX
     }
     /* A cliff cell has real M3 top geometry instead of grid triangles, including bridge approaches. */
     for (rSc2CliffBakeBatch_t const *batch = sc2_road_cliffs; batch; batch = batch->next) {
-        for (DWORD i = 0; i < batch->list.num_vertices; i += 3) {
+        for (uint32_t i = 0; i < batch->list.num_vertices; i += 3) {
             LPCVERTEX cliff = batch->list.vertices+i;
-            FLOAT minx = MIN(cliff[0].position.x, MIN(cliff[1].position.x, cliff[2].position.x));
-            FLOAT maxx = MAX(cliff[0].position.x, MAX(cliff[1].position.x, cliff[2].position.x));
-            FLOAT miny = MIN(cliff[0].position.y, MIN(cliff[1].position.y, cliff[2].position.y));
-            FLOAT maxy = MAX(cliff[0].position.y, MAX(cliff[1].position.y, cliff[2].position.y));
+            float minx = MIN(cliff[0].position.x, MIN(cliff[1].position.x, cliff[2].position.x));
+            float maxx = MAX(cliff[0].position.x, MAX(cliff[1].position.x, cliff[2].position.x));
+            float miny = MIN(cliff[0].position.y, MIN(cliff[1].position.y, cliff[2].position.y));
+            float maxy = MAX(cliff[0].position.y, MAX(cliff[1].position.y, cliff[2].position.y));
             if (minx >= hi.x || maxx <= lo.x || miny >= hi.y || maxy <= lo.y) continue;
             total += r_sc2_clip_road_cliff(tri, cliff, out ? out+total : NULL);
         }
@@ -659,16 +659,16 @@ static DWORD r_sc2_project_road(sc2Map_t const *map, LPCSC2ROADTRI tri, LPVERTEX
 }
 
 /* Bake exact-size draped geometry; split M3 buffers before their 16-bit indices overflow. */
-static void r_sc2_bake_roads(sc2Map_t const *map, LPCSC2ROADTRI roads, DWORD count) {
-    DWORD total = 0, used = 0;
+static void r_sc2_bake_roads(sc2Map_t const *map, LPCSC2ROADTRI roads, uint32_t count) {
+    uint32_t total = 0, used = 0;
     FOR_LOOP(i, count) total += r_sc2_project_road(map, roads+i, NULL);
     if (!total) return;
     VERTEX *baked = ri.MemAlloc(total * sizeof(*baked));
     if (!baked) { fprintf(stderr, "SC2 road build: allocation failed for %u vertices\n", total); return; }
     FOR_LOOP(i, count) used += r_sc2_project_road(map, roads+i, baked+used);
-    for (DWORD first = 0; first < total;) {
-        DWORD n = MIN(total-first, 65535u); /* Complete triangles, addressable by M3's USHORT indices. */
-        USHORT *faces = ri.MemAlloc(n * sizeof(*faces));
+    for (uint32_t first = 0; first < total;) {
+        uint32_t n = MIN(total-first, 65535u); /* Complete triangles, addressable by M3's uint16_t indices. */
+        uint16_t *faces = ri.MemAlloc(n * sizeof(*faces));
         LPMAPLAYER layer = ri.MemAlloc(sizeof(*layer));
         if (!faces || !layer) {
             fprintf(stderr, "SC2 road build: buffer allocation failed for %u vertices\n", n);
@@ -691,16 +691,16 @@ static void r_sc2_bake_roads(sc2Map_t const *map, LPCSC2ROADTRI roads, DWORD cou
 
 /* Build the original Bezier ribbon as projection triangles; terrain owns the final surface Z. */
 static void r_sc2_build_hard_tiles(sc2Map_t const *map) {
-    DWORD count = 0;
-    FLOAT distance = 0;
-    BOOL chain = false;
+    uint32_t count = 0;
+    float distance = 0;
+    bool chain = false;
     VERTEX prev[2] = {0};
 
     if (!map || IS_ARRAY_EMPTY(map->hard_tiles)) return;
     SC2ROADTRI *roads = ri.MemAlloc(ARRAY_COUNT(map->hard_tiles)*SC2_HARD_TILE_CURVE_STEPS*2*sizeof(*roads));
     if (!roads) { fprintf(stderr, "SC2 road build: ribbon allocation failed\n"); return; }
     FOR_EACH_ARRAY(sc2MapHardTile_t, tile, map->hard_tiles) {
-        DWORD index = tile-map->hard_tiles;
+        uint32_t index = tile-map->hard_tiles;
         sc2MapHardTile_t const *next = tile+1;
         if (!tile->model[0]) {
             fprintf(stderr, "SC2 road build[%u]: CTile='%s' has no resolved model\n", index, tile->tile);
@@ -715,27 +715,27 @@ static void r_sc2_build_hard_tiles(sc2Map_t const *map) {
             chain = false; continue;
         }
         if (!chain) distance = 0;
-        for (DWORD step = chain ? 1 : 0; step <= SC2_HARD_TILE_CURVE_STEPS; step++) {
-            FLOAT t = step/(FLOAT)SC2_HARD_TILE_CURVE_STEPS;
+        for (uint32_t step = chain ? 1 : 0; step <= SC2_HARD_TILE_CURVE_STEPS; step++) {
+            float t = step/(float)SC2_HARD_TILE_CURVE_STEPS;
             VECTOR3 point = r_sc2_hard_tile_curve_point(tile, next, t);
             VECTOR3 tangent = r_sc2_hard_tile_curve_tangent(tile, next, t);
             VECTOR3 normal = Vector3_lerp(&tile->normal, &next->normal, t), side;
-            FLOAT width = LerpNumber(tile->scale.x, next->scale.x, t);
+            float width = LerpNumber(tile->scale.x, next->scale.x, t);
             VERTEX cur[2] = {0};
             if (step) {
-                VECTOR3 p = r_sc2_hard_tile_curve_point(tile, next, (step-1)/(FLOAT)SC2_HARD_TILE_CURVE_STEPS);
+                VECTOR3 p = r_sc2_hard_tile_curve_point(tile, next, (step-1)/(float)SC2_HARD_TILE_CURVE_STEPS);
                 distance += Vector3_distance(&point, &p)/MAX(width*2*SC2_HARD_TILE_BODY_ASPECT, SC2_EPSILON);
             }
             Vector3_normalize(&normal); side = Vector3_cross(&tangent, &normal); Vector3_normalize(&side);
             FOR_LOOP(edge, 2) {
-                FLOAT sign = edge ? 1 : -1;
+                float sign = edge ? 1 : -1;
                 cur[edge].position = Vector3_add(&point, &(VECTOR3){side.x*width*sign, side.y*width*sign, side.z*width*sign});
                 cur[edge].normal = normal;
                 cur[edge].texcoord = (VECTOR2){distance, SC2_HARD_TILE_BODY_V + (edge ? .5f : 0)};
                 cur[edge].color = COLOR32_WHITE; cur[edge].boneWeight[0] = 255;
             }
             if (step) {
-                FLOAT depth = MAX(tile->scale.y, next->scale.y);
+                float depth = MAX(tile->scale.y, next->scale.y);
                 roads[count++] = (SC2ROADTRI){ {prev[0], cur[0], prev[1]}, depth };
                 roads[count++] = (SC2ROADTRI){ {prev[1], cur[0], cur[1]}, depth };
             }
@@ -769,12 +769,12 @@ static void r_sc2_add_layer(LPMAPLAYER *list, LPMAPLAYER layer) {
     *tail = layer;
 }
 
-static BYTE r_sc2_texture_mask_nibble(BYTE byte, DWORD pixel) {
+static uint8_t r_sc2_texture_mask_nibble(uint8_t byte, uint32_t pixel) {
     return pixel & 1 ? byte & 0x0F : byte >> 4;
 }
 
-static DWORD r_sc2_texture_mask_layer_stride(sc2Map_t const *map) {
-    DWORD w, h, blocks_x, blocks_y, packed_layer_size, block_layer_size;
+static uint32_t r_sc2_texture_mask_layer_stride(sc2Map_t const *map) {
+    uint32_t w, h, blocks_x, blocks_y, packed_layer_size, block_layer_size;
 
     if (!map || !map->t3TextureMasks)
         return 0;
@@ -790,22 +790,22 @@ static DWORD r_sc2_texture_mask_layer_stride(sc2Map_t const *map) {
     return packed_layer_size;
 }
 
-static DWORD r_sc2_texture_mask_layers(sc2Map_t const *map) {
-    DWORD stride = r_sc2_texture_mask_layer_stride(map);
+static uint32_t r_sc2_texture_mask_layers(sc2Map_t const *map) {
+    uint32_t stride = r_sc2_texture_mask_layer_stride(map);
 
     if (!map || !map->t3TextureMasks || !stride || map->t3TextureMasksSize < sizeof(*map->t3TextureMasks))
         return 0;
     return (map->t3TextureMasksSize - sizeof(*map->t3TextureMasks)) / stride;
 }
 
-static void r_sc2_decode_texture_mask_block(LPBYTE out, LPBYTE src, DWORD width, DWORD height, DWORD blocks_x, DWORD block) {
-    DWORD bx = block % blocks_x;
-    DWORD by = block / blocks_x;
+static void r_sc2_decode_texture_mask_block(uint8_t * out, uint8_t * src, uint32_t width, uint32_t height, uint32_t blocks_x, uint32_t block) {
+    uint32_t bx = block % blocks_x;
+    uint32_t by = block / blocks_x;
 
     FOR_LOOP(y, 64) {
         FOR_LOOP(x, 64) {
-            DWORD px = bx * 64 + x;
-            DWORD py = by * 64 + y;
+            uint32_t px = bx * 64 + x;
+            uint32_t py = by * 64 + y;
             if (px >= width || py >= height)
                 continue;
             out[px + py * width] = r_sc2_texture_mask_nibble(src[y * 32 + x / 2], x);
@@ -813,9 +813,9 @@ static void r_sc2_decode_texture_mask_block(LPBYTE out, LPBYTE src, DWORD width,
     }
 }
 
-static void r_sc2_decode_texture_mask_layer(sc2Map_t const *map, DWORD layer, LPBYTE values) {
-    DWORD w, h, stride, block_stride, blocks_x, blocks_y;
-    LPBYTE src;
+static void r_sc2_decode_texture_mask_layer(sc2Map_t const *map, uint32_t layer, uint8_t * values) {
+    uint32_t w, h, stride, block_stride, blocks_x, blocks_y;
+    uint8_t * src;
 
     if (!map->t3TextureMasks || !map->t3TextureMasks->width || !map->t3TextureMasks->height || layer >= r_sc2_texture_mask_layers(map))
         return;
@@ -837,10 +837,10 @@ static void r_sc2_decode_texture_mask_layer(sc2Map_t const *map, DWORD layer, LP
     }
 }
 
-static LPTEXTURE r_sc2_build_mask_texture(sc2Map_t const *map, DWORD group) {
-    DWORD w = 1;
-    DWORD h = 1;
-    BYTE *values;
+static LPTEXTURE r_sc2_build_mask_texture(sc2Map_t const *map, uint32_t group) {
+    uint32_t w = 1;
+    uint32_t h = 1;
+    uint8_t *values;
     COLOR32 *pixels;
     LPTEXTURE texture;
 
@@ -857,10 +857,10 @@ static LPTEXTURE r_sc2_build_mask_texture(sc2Map_t const *map, DWORD group) {
         }
     }
     FOR_LOOP(i, w * h) {
-        DWORD total = 0;
-        BYTE mask[SC2_TERRAIN_BLEND_LAYERS];
+        uint32_t total = 0;
+        uint8_t mask[SC2_TERRAIN_BLEND_LAYERS];
         FOR_LOOP(layer, SC2_TERRAIN_BLEND_LAYERS) {
-            mask[layer] = (BYTE)(values[layer * w * h + i] * 17);
+            mask[layer] = (uint8_t)(values[layer * w * h + i] * 17);
             if (layer < sc2_num_terrain_layers) {
                 total += mask[layer];
             }
@@ -872,10 +872,10 @@ static LPTEXTURE r_sc2_build_mask_texture(sc2Map_t const *map, DWORD group) {
         }
         /* Layer weights are RGBA on every backend, just like the common texture upload contract. */
         pixels[i] = (COLOR32){
-                               (BYTE)((mask[group * SC2_TERRAIN_PASS_LAYERS + 0] * 255u + total / 2) / total),
-                               (BYTE)((mask[group * SC2_TERRAIN_PASS_LAYERS + 1] * 255u + total / 2) / total),
-                               (BYTE)((mask[group * SC2_TERRAIN_PASS_LAYERS + 2] * 255u + total / 2) / total),
-                               (BYTE)((mask[group * SC2_TERRAIN_PASS_LAYERS + 3] * 255u + total / 2) / total)};
+                               (uint8_t)((mask[group * SC2_TERRAIN_PASS_LAYERS + 0] * 255u + total / 2) / total),
+                               (uint8_t)((mask[group * SC2_TERRAIN_PASS_LAYERS + 1] * 255u + total / 2) / total),
+                               (uint8_t)((mask[group * SC2_TERRAIN_PASS_LAYERS + 2] * 255u + total / 2) / total),
+                               (uint8_t)((mask[group * SC2_TERRAIN_PASS_LAYERS + 3] * 255u + total / 2) / total)};
     }
     texture = R_AllocateTexture(w, h);
     R_LoadTextureMipLevel(texture, &(TEXMIP){ pixels, w, h, 0, PIXEL_RGBA });
@@ -900,10 +900,10 @@ static void r_sc2_load_terrain_textures(sc2Map_t const *map) {
 
 static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
     BOX2 bounds;
-    DWORD w, h, num_vertices, num_indices;
+    uint32_t w, h, num_vertices, num_indices;
     VERTEX *vertices;
-    DWORD *indices;
-    DWORD *out;
+    uint32_t *indices;
+    uint32_t *out;
     LPMAPLAYER map_layer;
 
     if (!map || !SC2_MAP_WIDTH(map) || !SC2_MAP_HEIGHT(map))
@@ -917,12 +917,12 @@ static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
     indices = ri.MemAlloc(num_indices * sizeof(*indices));
     bounds = SC2_MapBounds();
 
-    for (DWORD y = 0; y <= h; y++) {
-        for (DWORD x = 0; x <= w; x++) {
-            FLOAT px = bounds.min.x + x * map->cell_size;
-            FLOAT py = bounds.min.y + y * map->cell_size;
-            FLOAT u = px / SC2_TERRAIN_UV_SCALE;
-            FLOAT v = py / SC2_TERRAIN_UV_SCALE;
+    for (uint32_t y = 0; y <= h; y++) {
+        for (uint32_t x = 0; x <= w; x++) {
+            float px = bounds.min.x + x * map->cell_size;
+            float py = bounds.min.y + y * map->cell_size;
+            float u = px / SC2_TERRAIN_UV_SCALE;
+            float v = py / SC2_TERRAIN_UV_SCALE;
             /* SC2 lighting needs mesh normals rebuilt after tier height correction. */
 //            r_sc2_push_vertex(&vertices[x + y * (w + 1)], px, py, r_sc2_ground_height_at_grid(map, x, y), u, v, 255);
             r_sc2_push_vertex_normal(&vertices[x + y * (w + 1)],
@@ -940,10 +940,10 @@ static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
     out = indices;
     FOR_LOOP(y, h) {
         FOR_LOOP(x, w) {
-            DWORD i00 = x + y * (w + 1);
-            DWORD i10 = i00 + 1;
-            DWORD i01 = i00 + w + 1;
-            DWORD i11 = i01 + 1;
+            uint32_t i00 = x + y * (w + 1);
+            uint32_t i10 = i00 + 1;
+            uint32_t i01 = i00 + w + 1;
+            uint32_t i11 = i01 + 1;
 
             if (r_sc2_skip_ground_cell(map, x, y)) {
                 continue;
@@ -956,15 +956,15 @@ static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
     map_layer = ri.MemAlloc(sizeof(*map_layer));
     memset(map_layer, 0, sizeof(*map_layer));
     map_layer->type = MAPLAYERTYPE_GROUND;
-    map_layer->buffer = R_MakeIndexedVertexArrayObject(vertices, num_vertices, indices, (DWORD)(out - indices));
+    map_layer->buffer = R_MakeIndexedVertexArrayObject(vertices, num_vertices, indices, (uint32_t)(out - indices));
     map_layer->num_vertices = num_vertices;
-    map_layer->num_indices = (DWORD)(out - indices);
+    map_layer->num_indices = (uint32_t)(out - indices);
     ri.MemFree(vertices);
     ri.MemFree(indices);
     return map_layer;
 }
 
-static BOOL r_sc2_file_exists(LPCSTR path) {
+static bool r_sc2_file_exists(cstring_t path) {
     void *buffer = NULL;
     int size;
 
@@ -975,7 +975,7 @@ static BOOL r_sc2_file_exists(LPCSTR path) {
     return true;
 }
 
-static LPCMODEL r_sc2_load_cliff_model(LPCSTR path) {
+static LPCMODEL r_sc2_load_cliff_model(cstring_t path) {
     sc2CliffModel_t *cliff;
 
     for (cliff = sc2_cliff_models; cliff; cliff = cliff->next) {
@@ -990,7 +990,7 @@ static LPCMODEL r_sc2_load_cliff_model(LPCSTR path) {
     return cliff->model;
 }
 
-static BOOL r_sc2_cliff_model_path(LPSTR path, size_t size, LPCSTR mesh, char const config[5], DWORD variant) {
+static bool r_sc2_cliff_model_path(string_t path, size_t size, cstring_t mesh, char const config[5], uint32_t variant) {
     snprintf(path, size, "Assets\\Cliffs\\%s\\%s_%s_%02u.m3", mesh, mesh, config, variant & SC2_CLIFF_VARIANT_MASK);
     if (r_sc2_file_exists(path))
         return true;
@@ -1000,16 +1000,16 @@ static BOOL r_sc2_cliff_model_path(LPSTR path, size_t size, LPCSTR mesh, char co
     return false;
 }
 
-static BOOL r_sc2_cliff_config(sc2Map_t const *map,
-                               DWORD x,
-                               DWORD y,
+static bool r_sc2_cliff_config(sc2Map_t const *map,
+                               uint32_t x,
+                               uint32_t y,
                                char config[5],
-                               USHORT *baselevel,
-                               USHORT *toplevel,
+                               uint16_t *baselevel,
+                               uint16_t *toplevel,
                                int *rotation) {
-    USHORT level[4];
-    USHORT base;
-    USHORT top;
+    uint16_t level[4];
+    uint16_t base;
+    uint16_t top;
     char raw[5];
     int best;
 
@@ -1059,15 +1059,15 @@ static VECTOR3 r_sc2_rotate_cliff_vec(VECTOR3 pos, int rotation) {
 
 static VECTOR3 r_sc2_m3_raw_normal(m3Vertex_t const *vertex) {
     VECTOR3 normal = {
-        (FLOAT)vertex->normal[0] * SC2_M3_NORMAL_SCALE - 1.0f,
-        (FLOAT)vertex->normal[1] * SC2_M3_NORMAL_SCALE - 1.0f,
-        (FLOAT)vertex->normal[2] * SC2_M3_NORMAL_SCALE - 1.0f,
+        (float)vertex->normal[0] * SC2_M3_NORMAL_SCALE - 1.0f,
+        (float)vertex->normal[1] * SC2_M3_NORMAL_SCALE - 1.0f,
+        (float)vertex->normal[2] * SC2_M3_NORMAL_SCALE - 1.0f,
     };
     Vector3_normalize(&normal);
     return normal;
 }
 
-static VECTOR3 r_sc2_matrix_transform(LPCMATRIX4 matrix, LPCVECTOR3 v, FLOAT w) {
+static VECTOR3 r_sc2_matrix_transform(LPCMATRIX4 matrix, LPCVECTOR3 v, float w) {
     return (VECTOR3){
         matrix->v[0] * v->x + matrix->v[4] * v->y + matrix->v[8]  * v->z + matrix->v[12] * w,
         matrix->v[1] * v->x + matrix->v[5] * v->y + matrix->v[9]  * v->z + matrix->v[13] * w,
@@ -1093,7 +1093,7 @@ static void r_sc2_m3_build_cliff_bones(m3Model_t const *m3, MATRIX4 bones[SC2_M3
     MATRIX4 tmp[SC2_M3_MAX_BONES];
     MATRIX4 identity;
     m3SequenceTimeline_t const *timeline;
-    DWORD localtime = 0;
+    uint32_t localtime = 0;
 
     Matrix4_identity(&identity);
     FOR_LOOP(i, SC2_M3_MAX_BONES) {
@@ -1108,7 +1108,7 @@ static void r_sc2_m3_build_cliff_bones(m3Model_t const *m3, MATRIX4 bones[SC2_M3
         VECTOR3 position = M3_GetVector3AnimValue(m3, timeline, &bone->position, localtime);
         VECTOR4 rotation = M3_GetVector4AnimValue(m3, timeline, &bone->rotation, localtime);
         VECTOR3 scale = M3_GetVector3AnimValue(m3, timeline, &bone->scale, localtime);
-        LPCMATRIX4 parent = bone->parent >= 0 && bone->parent < (SHORT)m3->bonesNum ? &tmp[bone->parent] : &identity;
+        LPCMATRIX4 parent = bone->parent >= 0 && bone->parent < (int16_t)m3->bonesNum ? &tmp[bone->parent] : &identity;
 
         r_sc2_m3_make_bone_matrix(&position, &rotation, &scale, parent, &tmp[i]);
     }
@@ -1124,13 +1124,13 @@ static void r_sc2_m3_build_cliff_bones(m3Model_t const *m3, MATRIX4 bones[SC2_M3
 static VECTOR3 r_sc2_m3_skin_vertex(m3Vertex_t const *vertex,
                                     m3Region_t const *region,
                                     MATRIX4 const bones[SC2_M3_MAX_BONES],
-                                    FLOAT w) {
+                                    float w) {
     VECTOR3 out = { 0 };
     VECTOR3 raw = w == 0.0f ? r_sc2_m3_raw_normal(vertex) : vertex->pos;
 
     FOR_LOOP(i, 4) {
-        DWORD bone = region->firstBoneLookupIndex + vertex->boneIndex[i];
-        FLOAT weight = (FLOAT)vertex->boneWeight[i] / 255.0f;
+        uint32_t bone = region->firstBoneLookupIndex + vertex->boneIndex[i];
+        float weight = (float)vertex->boneWeight[i] / 255.0f;
         VECTOR3 part;
 
         if (bone >= SC2_M3_MAX_BONES || weight <= 0.0f)
@@ -1143,10 +1143,10 @@ static VECTOR3 r_sc2_m3_skin_vertex(m3Vertex_t const *vertex,
     return out;
 }
 
-static BOOL r_sc2_cliff_model_bounds(LPCMODEL model, LPBOX3 bounds) {
+static bool r_sc2_cliff_model_bounds(LPCMODEL model, LPBOX3 bounds) {
     m3Model_t const *m3;
     MATRIX4 bones[SC2_M3_MAX_BONES];
-    BOOL have_vertex = false;
+    bool have_vertex = false;
 
     if (!model || model->modeltype != ID_43DM || !model->m3 || !model->m3->verticesNum)
         return false;
@@ -1156,9 +1156,9 @@ static BOOL r_sc2_cliff_model_bounds(LPCMODEL model, LPBOX3 bounds) {
         m3Divisions_t const *div = &m3->divisions[div_i];
         FOR_LOOP(region_i, div->regionsNum) {
             m3Region_t const *region = &div->regions[region_i];
-            for (DWORD index_i = 0; index_i + 2 < region->triangleIndicesCount; index_i += 3) {
-                DWORD fi[3], vi[3];
-                BOOL valid = true;
+            for (uint32_t index_i = 0; index_i + 2 < region->triangleIndicesCount; index_i += 3) {
+                uint32_t fi[3], vi[3];
+                bool valid = true;
                 FOR_LOOP(k, 3) {
                     fi[k] = region->firstTriangleIndex + index_i + k;
                     if (fi[k] >= div->facesNum) { valid = false; break; }
@@ -1191,7 +1191,7 @@ static BOOL r_sc2_cliff_model_bounds(LPCMODEL model, LPBOX3 bounds) {
 static VECTOR2 r_sc2_cliff_vertex_xy(sc2Map_t const *map,
                                      LPCVECTOR2 offset,
                                      LPCVECTOR3 rotated) {
-    FLOAT scale = SC2_CLIFF_BLOCK_SPAN * map->cell_size / SC2_CLIFF_MODEL_FOOTPRINT;
+    float scale = SC2_CLIFF_BLOCK_SPAN * map->cell_size / SC2_CLIFF_MODEL_FOOTPRINT;
 
     return (VECTOR2){
         offset->x + rotated->x * scale,
@@ -1208,9 +1208,9 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
                                     rSc2CliffPlacement_t const *placement,
                                     LPCVECTOR2 offset,
                                     int rotation) {
-    for (DWORD index_i = 0; index_i + 2 < region->triangleIndicesCount; index_i += 3) {
-        DWORD fi[3], vi[3];
-        BOOL valid = true;
+    for (uint32_t index_i = 0; index_i + 2 < region->triangleIndicesCount; index_i += 3) {
+        uint32_t fi[3], vi[3];
+        bool valid = true;
 
         FOR_LOOP(k, 3) {
             fi[k] = region->firstTriangleIndex + index_i + k;
@@ -1242,18 +1242,18 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
             };
             /* The M3 silhouette is decorative; vertices at an emitted ground edge must use that exact surface height. */
             {
-                BOOL at_ground_edge = r_sc2_cliff_vertex_joins_ground(&rotated, placement->join_edges) &&
+                bool at_ground_edge = r_sc2_cliff_vertex_joins_ground(&rotated, placement->join_edges) &&
                     fabsf(position.z - r_sc2_ground_height_at_point(map, xy.x, xy.y)) < map->cell_size;
                 if (placement->ramp) {
                     VECTOR2 grid;
                     /* Authored boxes and SC2 world XY share the map's height-grid origin. */
                     BOX2 world = SC2_MapBounds();
                     grid = (VECTOR2){ (xy.x-world.min.x)/map->cell_size, (xy.y-world.min.y)/map->cell_size };
-                    BOOL border = false;
+                    bool border = false;
                     int ix = (int)floorf(grid.x), iy = (int)floorf(grid.y);
                     for (int y = iy-1; y <= iy; y++) for (int x = ix-1; x <= ix; x++) {
                         if (x < 0 || y < 0 || x >= SC2_MAP_WIDTH(map) || y >= SC2_MAP_HEIGHT(map)) continue;
-                        FLOAT u = grid.x-x, v = grid.y-y;
+                        float u = grid.x-x, v = grid.y-y;
                         if (u < -SC2_EPSILON || u > 1+SC2_EPSILON || v < -SC2_EPSILON || v > 1+SC2_EPSILON) continue;
                         if (!r_sc2_skip_ground_cell(map, x, y) &&
                             (fabsf(u) < SC2_EPSILON || fabsf(u-1) < SC2_EPSILON || fabsf(v) < SC2_EPSILON || fabsf(v-1) < SC2_EPSILON)) border = true;
@@ -1285,10 +1285,10 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
 static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
                                    sc2Map_t const *map,
                                    LPCMODEL model,
-                                   DWORD grid_x,
-                                   DWORD grid_y,
+                                   uint32_t grid_x,
+                                   uint32_t grid_y,
                                    int rotation,
-                                   USHORT baselevel) {
+                                   uint16_t baselevel) {
     BOX2 map_bounds = SC2_MapBounds();
     BOX3 bounds;
     rSc2CliffPlacement_t placement = {0};
@@ -1310,26 +1310,26 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
         map_bounds.min.y + SC2_CLIFF_BLOCK_CENTER(grid_y) * map->cell_size,
     };
     {
-        FLOAT scale = sc2_map_height_scale(map);
-        FLOAT offset_z = sc2_map_height_offset(map);
-        DWORD corner_x[4] = { grid_x, grid_x + SC2_CLIFF_BLOCK_SPAN, grid_x + SC2_CLIFF_BLOCK_SPAN, grid_x };
-        DWORD corner_y[4] = { grid_y, grid_y, grid_y + SC2_CLIFF_BLOCK_SPAN, grid_y + SC2_CLIFF_BLOCK_SPAN };
-        USHORT level[4];
-        FLOAT base_z = 0.0f;
-        DWORD num_base = 0;
+        float scale = sc2_map_height_scale(map);
+        float offset_z = sc2_map_height_offset(map);
+        uint32_t corner_x[4] = { grid_x, grid_x + SC2_CLIFF_BLOCK_SPAN, grid_x + SC2_CLIFF_BLOCK_SPAN, grid_x };
+        uint32_t corner_y[4] = { grid_y, grid_y, grid_y + SC2_CLIFF_BLOCK_SPAN, grid_y + SC2_CLIFF_BLOCK_SPAN };
+        uint16_t level[4];
+        float base_z = 0.0f;
+        uint32_t num_base = 0;
 
         SC2_CLIFF_BLOCK_LEVELS(level, map, grid_x, grid_y);
         FOR_LOOP(i, 4) {
-            DWORD x = MIN(map->t3HeightMap->width - 1, corner_x[i]);
-            DWORD y = MIN(map->t3HeightMap->height - 1, corner_y[i]);
+            uint32_t x = MIN(map->t3HeightMap->width - 1, corner_x[i]);
+            uint32_t y = MIN(map->t3HeightMap->height - 1, corner_y[i]);
             sc2MapHeightSample_t const *sample = &map->t3HeightMap->data[x + y * map->t3HeightMap->width];
 
             if (level[i] != baselevel)
                 continue;
-            base_z += (FLOAT)sample->height * scale - offset_z;
+            base_z += (float)sample->height * scale - offset_z;
             num_base++;
         }
-        placement.base_z = num_base ? base_z / (FLOAT)num_base : -bounds.min.z;
+        placement.base_z = num_base ? base_z / (float)num_base : -bounds.min.z;
         placement.model_z_offset = -bounds.min.z;
         placement.z_scale = 1.0f;
         placement.join_edges = r_sc2_cliff_join_edges(map, grid_x, grid_y);
@@ -1374,7 +1374,7 @@ static rSc2CliffBakeBatch_t *r_sc2_cliff_bake_batch(rSc2CliffBakeBatch_t **batch
     return batch;
 }
 
-static sc2CliffCell_t const *r_sc2_find_cliff_cell(sc2Map_t const *map, DWORD index) {
+static sc2CliffCell_t const *r_sc2_find_cliff_cell(sc2Map_t const *map, uint32_t index) {
     FOR_LOOP(i, map->t3Terrain.num_cliff_cells) {
         if (map->t3Terrain.cliff_cells[i].index == index)
             return &map->t3Terrain.cliff_cells[i];
@@ -1382,7 +1382,7 @@ static sc2CliffCell_t const *r_sc2_find_cliff_cell(sc2Map_t const *map, DWORD in
     return NULL;
 }
 
-static BOOL r_sc2_cliff_corner_touches_neighbor(DWORD corner, int dx, int dy) {
+static bool r_sc2_cliff_corner_touches_neighbor(uint32_t corner, int dx, int dy) {
     switch (corner) {
         case 0: return dx <= 0 && dy <= 0;
         case 1: return dx >= 0 && dy <= 0;
@@ -1392,7 +1392,7 @@ static BOOL r_sc2_cliff_corner_touches_neighbor(DWORD corner, int dx, int dy) {
     }
 }
 
-static int r_sc2_cliff_neighbor_score(USHORT level[4], USHORT top, int dx, int dy) {
+static int r_sc2_cliff_neighbor_score(uint16_t level[4], uint16_t top, int dx, int dy) {
     int score = 0;
 
     FOR_LOOP(i, 4) {
@@ -1406,17 +1406,17 @@ static int r_sc2_cliff_neighbor_score(USHORT level[4], USHORT top, int dx, int d
     return score;
 }
 
-static sc2CliffCell_t r_sc2_cliff_cell_for_index(sc2Map_t const *map, DWORD index, DWORD cliff_width) {
+static sc2CliffCell_t r_sc2_cliff_cell_for_index(sc2Map_t const *map, uint32_t index, uint32_t cliff_width) {
     sc2CliffCell_t cell = { .index = index };
     sc2CliffCell_t const *xml_cell = r_sc2_find_cliff_cell(map, index);
-    DWORD cliff_height = MAX(1, (SC2_MAP_HEIGHT(map) + 1) / 2);
-    DWORD cx = index % cliff_width;
-    DWORD cy = index / cliff_width;
-    DWORD grid_x = cx * SC2_CLIFF_BLOCK_SPAN;
-    DWORD grid_y = cy * SC2_CLIFF_BLOCK_SPAN;
-    USHORT level[4];
-    USHORT base;
-    USHORT top;
+    uint32_t cliff_height = MAX(1, (SC2_MAP_HEIGHT(map) + 1) / 2);
+    uint32_t cx = index % cliff_width;
+    uint32_t cy = index / cliff_width;
+    uint32_t grid_x = cx * SC2_CLIFF_BLOCK_SPAN;
+    uint32_t grid_y = cy * SC2_CLIFF_BLOCK_SPAN;
+    uint16_t level[4];
+    uint16_t base;
+    uint16_t top;
     int best_score = 0;
 
     if (xml_cell)
@@ -1433,7 +1433,7 @@ static sc2CliffCell_t r_sc2_cliff_cell_for_index(sc2Map_t const *map, DWORD inde
             if (!dx && !dy)
                 continue;
             if (nx >= 0 && ny >= 0 && nx < (int)cliff_width && ny < (int)cliff_height) {
-                xml_cell = r_sc2_find_cliff_cell(map, (DWORD)nx + (DWORD)ny * cliff_width);
+                xml_cell = r_sc2_find_cliff_cell(map, (uint32_t)nx + (uint32_t)ny * cliff_width);
                 if (xml_cell) {
                     score = top > base ? r_sc2_cliff_neighbor_score(level, top, dx, dy) : 1;
                     if (score > best_score) {
@@ -1458,9 +1458,9 @@ static void r_sc2_build_ramp_cliffs(sc2Map_t const *map, rSc2CliffBakeBatch_t **
             fprintf(stderr, "SC2 ramp: unresolved cliff set %u or missing level grid\n", ramp->cid); continue;
         }
         SC2RAMPPIECE piece = r_sc2_ramp_piece(map, ramp, edge);
-        LPCSTR mesh = map->t3Terrain.cliff_sets[ramp->cid].mesh;
+        cstring_t mesh = map->t3Terrain.cliff_sets[ramp->cid].mesh;
         PATHSTR path;
-        BOOL found = false;
+        bool found = false;
         FOR_LOOP(turn, 4) {
             char config[5] = {0};
             FOR_LOOP(i, 4) config[i] = piece.config[(turn+i)&3];
@@ -1479,13 +1479,13 @@ static void r_sc2_build_ramp_cliffs(sc2Map_t const *map, rSc2CliffBakeBatch_t **
             .ramp = ramp };
         VECTOR2 corners[] = { piece.bounds.min, {piece.bounds.max.x, piece.bounds.min.y},
             piece.bounds.max, {piece.bounds.min.x, piece.bounds.max.y} };
-        DWORD count = 0;
+        uint32_t count = 0;
         FOR_LOOP(i, 4) {
-            DWORD raw = r_sc2_ramp_sample(map, corners[i]);
+            uint32_t raw = r_sc2_ramp_sample(map, corners[i]);
             /* Fractional CLIF samples lie inside the ramp, not on its low tier plane. */
             if (r_sc2_ramp_level(map, corners[i]) != piece.level || (raw >= 64 && (raw & 63))) continue;
-            DWORD x = MIN(map->t3HeightMap->width-1, MAX(0, (int)lroundf(corners[i].x)));
-            DWORD y = MIN(map->t3HeightMap->height-1, MAX(0, (int)lroundf(corners[i].y)));
+            uint32_t x = MIN(map->t3HeightMap->width-1, MAX(0, (int)lroundf(corners[i].x)));
+            uint32_t y = MIN(map->t3HeightMap->height-1, MAX(0, (int)lroundf(corners[i].y)));
             /* The HMAP base is the tier plane; adjustment is applied per vertex in the common baker. */
             place.base_z += map->t3HeightMap->data[x+y*map->t3HeightMap->width].height * sc2_map_height_scale(map) - sc2_map_height_offset(map);
             count++;
@@ -1508,8 +1508,8 @@ static void r_sc2_build_ramp_cliffs(sc2Map_t const *map, rSc2CliffBakeBatch_t **
 static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
     rSc2CliffBakeBatch_t *batches = NULL, *batch;
     LPMAPLAYER layers = NULL;
-    DWORD cliff_width;
-    DWORD cliff_height;
+    uint32_t cliff_width;
+    uint32_t cliff_height;
 
     if (!map || !map->t3Terrain.num_cliff_sets || !map->t3SyncCliffLevel)
         return NULL;
@@ -1517,14 +1517,14 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
     cliff_height = MAX(1, (SC2_MAP_HEIGHT(map) + 1) / 2);
     FOR_LOOP(cy, cliff_height) {
         FOR_LOOP(cx, cliff_width) {
-            DWORD index = cx + cy * cliff_width;
+            uint32_t index = cx + cy * cliff_width;
             sc2CliffCell_t cell = r_sc2_cliff_cell_for_index(map, index, cliff_width);
             sc2CliffSet_t const *set;
             char config[5];
             PATHSTR path;
-            DWORD grid_x = cx * SC2_CLIFF_BLOCK_SPAN;
-            DWORD grid_y = cy * SC2_CLIFF_BLOCK_SPAN;
-            USHORT baselevel;
+            uint32_t grid_x = cx * SC2_CLIFF_BLOCK_SPAN;
+            uint32_t grid_y = cy * SC2_CLIFF_BLOCK_SPAN;
+            uint16_t baselevel;
             int rotation;
             LPCMODEL model;
 
@@ -1566,14 +1566,14 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
 
 static void r_sc2_build_terrain(sc2Map_t const *map) {
     BOX2 bounds;
-    FLOAT max_z = 1.0f;
-    DWORD radius;
+    float max_z = 1.0f;
+    uint32_t radius;
 
     r_sc2_release_terrain();
     if (!map || !SC2_MAP_WIDTH(map) || !SC2_MAP_HEIGHT(map))
         return;
     /* Four sparse taps repeated cliff edges in the camera surface; average every cell in the footprint. */
-    radius = (DWORD)ceilf(SC2_BROAD_HEIGHT_RADIUS / map->cell_size);
+    radius = (uint32_t)ceilf(SC2_BROAD_HEIGHT_RADIUS / map->cell_size);
     R_BuildCameraHeightMap(&(cameraHeightBuild_t){ .map = &sc2_camera_height, .data = map,
         .width = map->t3HeightMap ? map->t3HeightMap->width : 0,
         .height_count = map->t3HeightMap ? map->t3HeightMap->height : 0,
@@ -1609,7 +1609,7 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
 }
 
 
-static LPTEXTURE r_sc2_terrain_layer_texture(DWORD index) {
+static LPTEXTURE r_sc2_terrain_layer_texture(uint32_t index) {
     if (index < sc2_num_terrain_layers && sc2_terrain_textures[index])
         return sc2_terrain_textures[index];
     return sc2_terrain_textures[0];
@@ -1619,7 +1619,7 @@ static void r_sc2_set_fog_state(LPVECTOR4 u_color, LPVECTOR4 u_params) {
     sc2Map_t const *map = SC2_MapCurrent();
     sc2MapTerrain_t const *terrain = map ? &map->t3Terrain : NULL;
     COLOR32 color = terrain ? terrain->fog_color : COLOR32_BLACK;
-    FLOAT enabled = terrain && terrain->fog_enabled && terrain->fog_density > 0.0f ? 1.0f : 0.0f;
+    float enabled = terrain && terrain->fog_enabled && terrain->fog_density > 0.0f ? 1.0f : 0.0f;
 
     *u_color = (VECTOR4){ color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f };
     *u_params = (VECTOR4){ terrain ? terrain->fog_start_height : 0.0f, terrain ? terrain->fog_density : 0.0f, terrain ? terrain->fog_falloff : 0.0f, enabled };
@@ -1634,10 +1634,10 @@ static void r_sc2_set_light_state(LPVECTOR3 ambient_out, LPVECTOR3 dirs, LPVECTO
     /* Adding Fill/Back as unshadowed suns lit faces opposite the visible key shadow. */
     FOR_LOOP(i, SC2_DIFFUSE_LIGHTS) {
         sc2DirectionalLight_t const *light = lighting && lighting->enabled ? &lighting->directional[i] : NULL;
-        FLOAT enabled = light && light->enabled ? 1.0f : 0.0f;
+        float enabled = light && light->enabled ? 1.0f : 0.0f;
         VECTOR3 direction = enabled ? (VECTOR3){ -light->direction.x, -light->direction.y, -light->direction.z } : (VECTOR3){ 0.0f, 0.0f, 1.0f };
         VECTOR3 color = enabled ? light->color : (VECTOR3){ 0.0f, 0.0f, 0.0f };
-        FLOAT multiplier = enabled ? light->color_multiplier : 0.0f;
+        float multiplier = enabled ? light->color_multiplier : 0.0f;
 
         dirs[i] = (VECTOR3){ direction.x, direction.y, direction.z };
         colors[i] = (VECTOR3){ color.x * multiplier, color.y * multiplier, color.z * multiplier };
@@ -1657,7 +1657,7 @@ static void r_sc2_begin_terrain_shader(MATRIX4 const *model_matrix) {
     R_Call(glBindTexture, GL_TEXTURE_2D, tr.render_phase == RENDER_PHASE_LIGHTS ? tr.texture[TEX_WHITE]->texid : tr.rt[RT_DEPTHMAP]->texture);
 }
 
-static void r_sc2_begin_terrain_pass(DWORD group) {
+static void r_sc2_begin_terrain_pass(uint32_t group) {
     FOR_LOOP(i, SC2_TERRAIN_PASS_LAYERS) {
         R_BindTexture(r_sc2_terrain_layer_texture(group * SC2_TERRAIN_PASS_LAYERS + i), i);
     }
@@ -1674,15 +1674,15 @@ static void r_sc2_begin_terrain_pass(DWORD group) {
 
 static void r_sc2_set_terrain_uv(void) {
     BOX2 bounds = SC2_MapBounds();
-    FLOAT map_w = bounds.max.x - bounds.min.x;
-    FLOAT map_h = bounds.max.y - bounds.min.y;
+    float map_w = bounds.max.x - bounds.min.x;
+    float map_h = bounds.max.y - bounds.min.y;
 
     sc2_terrain_shader.state.worldUVScale = (VECTOR2){ map_w / SC2_TERRAIN_UV_SCALE, map_h / SC2_TERRAIN_UV_SCALE };
     sc2_terrain_shader.state.worldUVOffset = (VECTOR2){ bounds.min.x / SC2_TERRAIN_UV_SCALE, bounds.min.y / SC2_TERRAIN_UV_SCALE };
 }
 
 static void r_sc2_draw_terrain_indexed(LPCMAPLAYER layer) {
-    DWORD groups = tr.render_phase == RENDER_PHASE_LIGHTS ? 1 : SC2_TERRAIN_BLEND_GROUPS;
+    uint32_t groups = tr.render_phase == RENDER_PHASE_LIGHTS ? 1 : SC2_TERRAIN_BLEND_GROUPS;
 
     r_sc2_set_terrain_uv();
     FOR_LOOP(group, groups) {
@@ -1695,7 +1695,7 @@ static void r_sc2_draw_terrain_indexed(LPCMAPLAYER layer) {
 }
 
 static void r_sc2_draw_terrain_vertices(LPCMAPLAYER layer) {
-    DWORD groups = tr.render_phase == RENDER_PHASE_LIGHTS ? 1 : SC2_TERRAIN_BLEND_GROUPS;
+    uint32_t groups = tr.render_phase == RENDER_PHASE_LIGHTS ? 1 : SC2_TERRAIN_BLEND_GROUPS;
 
     r_sc2_set_terrain_uv();
     FOR_LOOP(group, groups) {
@@ -1725,8 +1725,8 @@ static void r_sc2_draw_ground_layer(LPCMAPSEGMENT segment) {
     r_sc2_draw_terrain_indexed(layer);
 }
 
-static void r_sc2_load_minimap(LPCSTR mapFileName) {
-    static LPCSTR const candidates[] = { "Minimap.tga", "Minimap.dds", NULL };
+static void r_sc2_load_minimap(cstring_t mapFileName) {
+    static cstring_t const candidates[] = { "Minimap.tga", "Minimap.dds", NULL };
     PATHSTR path;
     SAFE_DELETE(tr.minimap, R_ReleaseTexture);
     for (int i = 0; candidates[i]; i++) {
@@ -1744,7 +1744,7 @@ void R_SC2ShutdownShaders(void) {
     sc2_terrain_shader_loaded = sc2_cliff_shader_loaded = false;
 }
 
-void R_SC2RegisterMap(LPCSTR mapFileName) {
+void R_SC2RegisterMap(cstring_t mapFileName) {
     SC2_MapSetHost(&(sc2MapHost_t){
         .read_file = r_sc2_read_file,
         .free_file = r_sc2_free_file,
@@ -1829,18 +1829,18 @@ void R_SC2DrawWorld(void) {
     r_sc2_draw_road_layers(sc2_hard_tile_layers, &sc2_hard_tile_entity);
 }
 
-static BOOL r_sc2_clip_trace_to_bounds(LPCLINE3 line, LPCBOX2 bounds, LPFLOAT t0, LPFLOAT t1) {
-    FLOAT const bounds_min[2] = { bounds->min.x, bounds->min.y };
-    FLOAT const bounds_max[2] = { bounds->max.x, bounds->max.y };
-    FLOAT const start[2] = { line->a.x, line->a.y };
-    FLOAT const finish[2] = { line->b.x, line->b.y };
+static bool r_sc2_clip_trace_to_bounds(LPCLINE3 line, LPCBOX2 bounds, float * t0, float * t1) {
+    float const bounds_min[2] = { bounds->min.x, bounds->min.y };
+    float const bounds_max[2] = { bounds->max.x, bounds->max.y };
+    float const start[2] = { line->a.x, line->a.y };
+    float const finish[2] = { line->b.x, line->b.y };
 
     *t0 = 0.0f;
     *t1 = 1.0f;
     FOR_LOOP(axis, 2) {
-        FLOAT const dir = finish[axis] - start[axis];
-        FLOAT near_t;
-        FLOAT far_t;
+        float const dir = finish[axis] - start[axis];
+        float near_t;
+        float far_t;
 
         if (fabsf(dir) < SC2_TRACE_EPSILON) {
             if (start[axis] < bounds_min[axis] || start[axis] > bounds_max[axis])
@@ -1851,7 +1851,7 @@ static BOOL r_sc2_clip_trace_to_bounds(LPCLINE3 line, LPCBOX2 bounds, LPFLOAT t0
         near_t = (bounds_min[axis] - start[axis]) / dir;
         far_t = (bounds_max[axis] - start[axis]) / dir;
         if (near_t > far_t) {
-            FLOAT const swap = near_t;
+            float const swap = near_t;
             near_t = far_t;
             far_t = swap;
         }
@@ -1863,12 +1863,12 @@ static BOOL r_sc2_clip_trace_to_bounds(LPCLINE3 line, LPCBOX2 bounds, LPFLOAT t0
     return true;
 }
 
-static BOOL r_sc2_trace_heightmap_tile(sc2Map_t const *map, DWORD x, DWORD y, LPCLINE3 line, LPVECTOR3 output) {
+static bool r_sc2_trace_heightmap_tile(sc2Map_t const *map, uint32_t x, uint32_t y, LPCLINE3 line, LPVECTOR3 output) {
     BOX2 bounds = SC2_MapBounds();
-    FLOAT x0 = bounds.min.x + x * map->cell_size;
-    FLOAT y0 = bounds.min.y + y * map->cell_size;
-    FLOAT x1 = x0 + map->cell_size;
-    FLOAT y1 = y0 + map->cell_size;
+    float x0 = bounds.min.x + x * map->cell_size;
+    float y0 = bounds.min.y + y * map->cell_size;
+    float x1 = x0 + map->cell_size;
+    float y1 = y0 + map->cell_size;
     TRIANGLE3 const tri1 = {
         { x0, y0, r_sc2_ground_height_at_grid(map, x, y) },
         { x1, y0, r_sc2_ground_height_at_grid(map, x + 1, y) },
@@ -1885,16 +1885,16 @@ static BOOL r_sc2_trace_heightmap_tile(sc2Map_t const *map, DWORD x, DWORD y, LP
     return Line3_intersect_triangle(line, &tri2, output);
 }
 
-bool R_SC2TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 output) {
+bool R_SC2TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 output) {
     sc2Map_t const *map = SC2_MapCurrent();
     BOX2 bounds;
     LINE3 line;
-    FLOAT t0, t1;
-    FLOAT dir_x, dir_y;
+    float t0, t1;
+    float dir_x, dir_y;
     int tile_x, tile_y;
     int step_x, step_y;
-    FLOAT t_max_x, t_max_y;
-    FLOAT t_delta_x, t_delta_y;
+    float t_max_x, t_max_y;
+    float t_delta_x, t_delta_y;
 
     if (!viewdef || !output || !map || !SC2_MAP_WIDTH(map) || !SC2_MAP_HEIGHT(map))
         return false;
@@ -1931,7 +1931,7 @@ bool R_SC2TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 ou
     }
 
     while (tile_x >= 0 && tile_y >= 0 && tile_x < (int)SC2_MAP_WIDTH(map) && tile_y < (int)SC2_MAP_HEIGHT(map)) {
-        if (r_sc2_trace_heightmap_tile(map, (DWORD)tile_x, (DWORD)tile_y, &line, output))
+        if (r_sc2_trace_heightmap_tile(map, (uint32_t)tile_x, (uint32_t)tile_y, &line, output))
             return true;
         if (t_max_x < t_max_y) {
             if (t_max_x > t1)
@@ -1948,11 +1948,11 @@ bool R_SC2TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 ou
     return false;
 }
 
-FLOAT R_SC2GetHeightAtPoint(FLOAT x, FLOAT y) {
+float R_SC2GetHeightAtPoint(float x, float y) {
     return sc2_map_height_at_point(SC2_MapCurrent(), x, y);
 }
 
-FLOAT R_SC2GetCameraHeightAtPoint(FLOAT x, FLOAT y) { return R_SampleCameraHeightMap(&sc2_camera_height, x, y); }
+float R_SC2GetCameraHeightAtPoint(float x, float y) { return R_SampleCameraHeightMap(&sc2_camera_height, x, y); }
 
 VECTOR2 R_SC2WorldSize(void) {
     sc2Map_t const *map = SC2_MapCurrent();

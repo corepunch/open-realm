@@ -9,7 +9,7 @@
 #define BZ_MIN 3 // fixture DataB; min count (not stock L1 3 alone — paired with max)
 #define BZ_MAX 3 // fixture DataC; max==min so count is deterministic (not stock 5)
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -51,8 +51,8 @@ static LPEDICT dp_thinker(LPEDICT caster) {
     return NULL;
 }
 
-static DWORD dp_troops(LPEDICT caster) {
-    DWORD count = 0;
+static uint32_t dp_troops(LPEDICT caster) {
+    uint32_t count = 0;
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == BZ_HFOO && ent->s.player == caster->s.player) {
         T_ASSERT(!S_UnitHasStatus(ent, BZ_BTLF));
         T_NULL(ent->owner);
@@ -72,8 +72,8 @@ TEST(wc3_spell, dark_portal_procedure_and_flags) {
 TEST(wc3_spell, dark_portal_reads_authored_data) {
     DPFIX fix = dp_setup();
     T_EQ(S_SpellDataId(BZ_ANDP, 1, 1), BZ_HFOO);
-    T_FEQ(S_SpellData(BZ_ANDP, 1, 2), (FLOAT)BZ_MIN, 0.01f);
-    T_FEQ(S_SpellData(BZ_ANDP, 1, 3), (FLOAT)BZ_MAX, 0.01f);
+    T_FEQ(S_SpellData(BZ_ANDP, 1, 2), (float)BZ_MIN, 0.01f);
+    T_FEQ(S_SpellData(BZ_ANDP, 1, 3), (float)BZ_MAX, 0.01f);
     T_FEQ(S_SpellDuration(BZ_ANDP, 1, false), BZ_DUR, 0.01f);
     dp_done(fix);
 }
@@ -86,12 +86,12 @@ TEST(wc3_spell, dark_portal_schedules_authored_exits) {
     T_EQ(dp_troops(fix.caster), 1);
     T_NOT_NULL(dp_thinker(fix.caster));
 
-    level.time += (DWORD)(BZ_DUR * 1000.0f) - 1; G_RunEntities();
+    level.time += (uint32_t)(BZ_DUR * 1000.0f) - 1; G_RunEntities();
     T_EQ(dp_troops(fix.caster), 1);
     level.time += 1; G_RunEntities();
     T_EQ(dp_troops(fix.caster), 2);
 
-    level.time += (DWORD)(BZ_DUR * 1000.0f); G_RunEntities();
+    level.time += (uint32_t)(BZ_DUR * 1000.0f); G_RunEntities();
     T_EQ(dp_troops(fix.caster), BZ_MAX);
     T_NULL(dp_thinker(fix.caster));
     dp_done(fix);
@@ -104,9 +104,9 @@ TEST(wc3_spell, dark_portal_continues_after_caster_moves) {
     T_EQ(dp_troops(fix.caster), 1);
     fix.caster->s.origin2.x += 400; fix.caster->s.origin.x += 400;
     T_EQ(fix.caster->channel.code, 0);
-    level.time += (DWORD)(BZ_DUR * 1000.0f); G_RunEntities();
+    level.time += (uint32_t)(BZ_DUR * 1000.0f); G_RunEntities();
     T_EQ(dp_troops(fix.caster), 2);
-    level.time += (DWORD)(BZ_DUR * 1000.0f); G_RunEntities();
+    level.time += (uint32_t)(BZ_DUR * 1000.0f); G_RunEntities();
     T_EQ(dp_troops(fix.caster), BZ_MAX);
     T_NULL(dp_thinker(fix.caster));
     dp_done(fix);

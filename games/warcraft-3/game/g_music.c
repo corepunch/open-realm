@@ -3,7 +3,7 @@
 
 extern LPPLAYER currentplayer;
 
-static DWORD G_MusicNextSession(LPGAMECLIENT client) {
+static uint32_t G_MusicNextSession(LPGAMECLIENT client) {
     wc3MusicState_t *state;
 
     if (!client) return 0;
@@ -17,8 +17,8 @@ static wc3MusicRestore_t *G_MusicRestore(LPGAMECLIENT client) {
     return client ? &client->music.thematic_restore : NULL;
 }
 
-static void G_MusicTrimToken(LPCSTR start, size_t length, LPSTR out, size_t out_size) {
-    LPCSTR end = start + length;
+static void G_MusicTrimToken(cstring_t start, size_t length, string_t out, size_t out_size) {
+    cstring_t end = start + length;
 
     if (!out || !out_size) return;
     while (start < end && (*start == ' ' || *start == '\t' || *start == '\r' || *start == '\n')) start++;
@@ -26,7 +26,7 @@ static void G_MusicTrimToken(LPCSTR start, size_t length, LPSTR out, size_t out_
     snprintf(out, out_size, "%.*s", (int)MIN((size_t)(end - start), out_size - 1), start);
 }
 
-static void G_MusicAppend(LPSTR out, size_t out_size, LPCSTR value) {
+static void G_MusicAppend(string_t out, size_t out_size, cstring_t value) {
     size_t used;
 
     if (!out || !out_size || !value || !*value) return;
@@ -41,9 +41,9 @@ static void G_MusicAppend(LPSTR out, size_t out_size, LPCSTR value) {
 /* Resolve the skin alias for this recipient, then expand Music.SLK aliases.
  * Music.SLK FileNames may itself contain comma-separated tracks; the client
  * deliberately owns the final playlist split and playback order. */
-static void G_MusicResolvePlaylist(LPGAMECLIENT client, LPCSTR music_name, LPSTR out, size_t out_size) {
-    LPCSTR resolved;
-    LPCSTR cursor;
+static void G_MusicResolvePlaylist(LPGAMECLIENT client, cstring_t music_name, string_t out, size_t out_size) {
+    cstring_t resolved;
+    cstring_t cursor;
 
     if (!out || !out_size) return;
     out[0] = '\0';
@@ -52,7 +52,7 @@ static void G_MusicResolvePlaylist(LPGAMECLIENT client, LPCSTR music_name, LPSTR
     resolved = Theme_PlayerString(client, music_name, music_name);
     cursor = resolved ? resolved : music_name;
     while (*cursor) {
-        LPCSTR separator = strchr(cursor, ';');
+        cstring_t separator = strchr(cursor, ';');
         size_t length = separator ? (size_t)(separator - cursor) : strlen(cursor);
         char token[MAX_PATHLEN];
         MusicData_t const *row;
@@ -72,9 +72,9 @@ static LPEDICT G_MusicRecipientEntity(LPGAMECLIENT client) {
     return G_GetPlayerEntityByNumber(client->ps.number);
 }
 
-static void G_MusicWriteNamed(LPGAMECLIENT client, musicCommand_t command, LPCSTR music_name,
-                              BOOL random, LONG index, LONG start_ms, LONG fade_ms,
-                              DWORD played_mask, DWORD session_id) {
+static void G_MusicWriteNamed(LPGAMECLIENT client, musicCommand_t command, cstring_t music_name,
+                              bool random, int32_t index, int32_t start_ms, int32_t fade_ms,
+                              uint32_t played_mask, uint32_t session_id) {
     LPEDICT recipient;
     char playlist[WC3_MUSIC_NAME_MAX];
 
@@ -85,13 +85,13 @@ static void G_MusicWriteNamed(LPGAMECLIENT client, musicCommand_t command, LPCST
     G_MusicResolvePlaylist(client, music_name, playlist, sizeof(playlist));
     if (!playlist[0]) return;
 
-    gi.Write(PF_BYTE, &(LONG){ svc_music });
-    gi.Write(PF_BYTE, &(LONG){ command });
+    gi.Write(PF_BYTE, &(int32_t){ svc_music });
+    gi.Write(PF_BYTE, &(int32_t){ command });
     if (command == MUSIC_CMD_SET_MAP) {
-        gi.Write(PF_BYTE, &(LONG){ random ? 1 : 0 });
+        gi.Write(PF_BYTE, &(int32_t){ random ? 1 : 0 });
         gi.Write(PF_LONG, &index);
     } else if (command == MUSIC_CMD_PLAY) {
-        gi.Write(PF_BYTE, &(LONG){ random ? 1 : 0 });
+        gi.Write(PF_BYTE, &(int32_t){ random ? 1 : 0 });
         gi.Write(PF_LONG, &index);
         gi.Write(PF_LONG, &start_ms);
         gi.Write(PF_LONG, &fade_ms);
@@ -105,7 +105,7 @@ static void G_MusicWriteNamed(LPGAMECLIENT client, musicCommand_t command, LPCST
     gi.unicast(recipient);
 }
 
-static void G_MusicWriteSimple(LPGAMECLIENT client, musicCommand_t command, LONG value) {
+static void G_MusicWriteSimple(LPGAMECLIENT client, musicCommand_t command, int32_t value) {
     LPEDICT recipient;
 
     switch (command) {
@@ -124,11 +124,11 @@ static void G_MusicWriteSimple(LPGAMECLIENT client, musicCommand_t command, LONG
 
     recipient = G_MusicRecipientEntity(client);
     if (!recipient) return;
-    gi.Write(PF_BYTE, &(LONG){ svc_music });
-    gi.Write(PF_BYTE, &(LONG){ command });
+    gi.Write(PF_BYTE, &(int32_t){ svc_music });
+    gi.Write(PF_BYTE, &(int32_t){ command });
     switch (command) {
         case MUSIC_CMD_STOP:
-            gi.Write(PF_BYTE, &(LONG){ value ? 1 : 0 });
+            gi.Write(PF_BYTE, &(int32_t){ value ? 1 : 0 });
             break;
         case MUSIC_CMD_SET_VOLUME:
         case MUSIC_CMD_SET_POSITION:
@@ -142,9 +142,9 @@ static void G_MusicWriteSimple(LPGAMECLIENT client, musicCommand_t command, LONG
     gi.unicast(recipient);
 }
 
-static void G_MusicSetCurrent(LPGAMECLIENT client, wc3MusicSource_t source, LPCSTR music_name,
-                              BOOL random, LONG index, LONG position_ms, LONG fade_ms,
-                              DWORD played_mask, DWORD session_id) {
+static void G_MusicSetCurrent(LPGAMECLIENT client, wc3MusicSource_t source, cstring_t music_name,
+                              bool random, int32_t index, int32_t position_ms, int32_t fade_ms,
+                              uint32_t played_mask, uint32_t session_id) {
     wc3MusicState_t *state = &client->music;
 
     strlcpy(state->current_name, music_name ? music_name : "", sizeof(state->current_name));
@@ -183,7 +183,7 @@ static void G_MusicRememberThematicPrevious(LPGAMECLIENT client) {
     restore->valid = true;
 }
 
-static BOOL G_MusicRestoreThematicPrevious(LPGAMECLIENT client) {
+static bool G_MusicRestoreThematicPrevious(LPGAMECLIENT client) {
     wc3MusicState_t *state = client ? &client->music : NULL;
     wc3MusicRestore_t *restore = G_MusicRestore(client);
     if (!restore || !state || !restore->valid || !restore->name[0]) return false;
@@ -200,16 +200,16 @@ static BOOL G_MusicRestoreThematicPrevious(LPGAMECLIENT client) {
     return true;
 }
 
-static BOOL G_MusicMapMatchesCurrent(wc3MusicState_t const *state) {
+static bool G_MusicMapMatchesCurrent(wc3MusicState_t const *state) {
     return state && state->current_source == WC3_MUSIC_SOURCE_MAP && state->current_session_id &&
         state->current_session_id == state->map_session_id;
 }
 
-BOOL G_MusicAcceptFinished(LPGAMECLIENT client, DWORD session_id) {
+bool G_MusicAcceptFinished(LPGAMECLIENT client, uint32_t session_id) {
     return client && session_id && session_id == client->music.current_session_id;
 }
 
-void G_MusicTrackSelected(LPGAMECLIENT client, DWORD session_id, LONG index, LONG position_ms, DWORD played_mask) {
+void G_MusicTrackSelected(LPGAMECLIENT client, uint32_t session_id, int32_t index, int32_t position_ms, uint32_t played_mask) {
     wc3MusicState_t *state;
 
     if (!client || !session_id) return;
@@ -221,8 +221,8 @@ void G_MusicTrackSelected(LPGAMECLIENT client, DWORD session_id, LONG index, LON
     state->current_played_mask = played_mask;
 }
 
-void G_MusicThematicSnapshot(LPGAMECLIENT client, DWORD thematic_session_id, DWORD restore_session_id,
-                             LONG index, LONG position_ms, DWORD played_mask) {
+void G_MusicThematicSnapshot(LPGAMECLIENT client, uint32_t thematic_session_id, uint32_t restore_session_id,
+                             int32_t index, int32_t position_ms, uint32_t played_mask) {
     wc3MusicState_t *state;
     wc3MusicRestore_t *restore;
 
@@ -349,15 +349,15 @@ void G_MusicSyncClient(LPGAMECLIENT client) {
 }
 
 typedef struct {
-    LPCSTR name;
-    BOOL random;
-    LONG index;
+    cstring_t name;
+    bool random;
+    int32_t index;
 } musicSetMapContext_t;
 
 static void G_MusicSetMapClient(LPGAMECLIENT client, void *context) {
     musicSetMapContext_t const *ctx = context;
     wc3MusicState_t *state = &client->music;
-    BOOL changed = strcmp(state->map_name, ctx->name ? ctx->name : "") ||
+    bool changed = strcmp(state->map_name, ctx->name ? ctx->name : "") ||
         state->map_random != ctx->random || state->map_index != MAX(0, ctx->index);
 
     strlcpy(state->map_name, ctx->name ? ctx->name : "", sizeof(state->map_name));
@@ -376,7 +376,7 @@ static void G_MusicSetMapClient(LPGAMECLIENT client, void *context) {
                       state->map_random, state->map_index, 0, 0, 0, state->map_session_id);
 }
 
-void G_MusicSetMap(LPCSTR music_name, BOOL random, LONG index) {
+void G_MusicSetMap(cstring_t music_name, bool random, int32_t index) {
     musicSetMapContext_t context = { music_name, random, index };
     G_MusicForRecipients(G_MusicSetMapClient, &context);
 }
@@ -395,14 +395,14 @@ void G_MusicClearMap(void) {
 }
 
 typedef struct {
-    LPCSTR name;
-    LONG start_ms;
-    LONG fade_ms;
+    cstring_t name;
+    int32_t start_ms;
+    int32_t fade_ms;
 } musicPlayContext_t;
 
 static void G_MusicPlayClient(LPGAMECLIENT client, void *context) {
     musicPlayContext_t const *ctx = context;
-    DWORD session_id = G_MusicNextSession(client);
+    uint32_t session_id = G_MusicNextSession(client);
 
     G_MusicClearThematicPrevious(client);
     G_MusicSetCurrent(client, WC3_MUSIC_SOURCE_EXPLICIT, ctx->name, true, 0,
@@ -411,18 +411,18 @@ static void G_MusicPlayClient(LPGAMECLIENT client, void *context) {
                       ctx->start_ms, ctx->fade_ms, 0, session_id);
 }
 
-void G_MusicPlay(LPCSTR music_name, LONG start_ms, LONG fade_ms) {
+void G_MusicPlay(cstring_t music_name, int32_t start_ms, int32_t fade_ms) {
     musicPlayContext_t context = { music_name, MAX(0, start_ms), MAX(0, fade_ms) };
     G_MusicForRecipients(G_MusicPlayClient, &context);
 }
 
 static void G_MusicStopClient(LPGAMECLIENT client, void *context) {
-    BOOL fade_out = *(BOOL *)context;
+    bool fade_out = *(bool *)context;
     if (client->music.current_source != WC3_MUSIC_SOURCE_NONE) client->music.paused = true;
     G_MusicWriteSimple(client, MUSIC_CMD_STOP, fade_out);
 }
 
-void G_MusicStop(BOOL fade_out) {
+void G_MusicStop(bool fade_out) {
     G_MusicForRecipients(G_MusicStopClient, &fade_out);
 }
 
@@ -438,7 +438,7 @@ void G_MusicResume(void) {
 
 static void G_MusicPlayThematicClient(LPGAMECLIENT client, void *context) {
     musicPlayContext_t const *ctx = context;
-    DWORD session_id;
+    uint32_t session_id;
 
     if (client->music.current_source != WC3_MUSIC_SOURCE_THEMATIC)
         G_MusicRememberThematicPrevious(client);
@@ -449,7 +449,7 @@ static void G_MusicPlayThematicClient(LPGAMECLIENT client, void *context) {
                       ctx->start_ms, 0, 0, session_id);
 }
 
-void G_MusicPlayThematic(LPCSTR music_name, LONG start_ms) {
+void G_MusicPlayThematic(cstring_t music_name, int32_t start_ms) {
     musicPlayContext_t context = { music_name, MAX(0, start_ms), 0 };
     G_MusicForRecipients(G_MusicPlayThematicClient, &context);
 }
@@ -509,50 +509,50 @@ void G_MusicEndThematic(void) {
     G_MusicForRecipients(G_MusicEndThematicClient, NULL);
 }
 
-typedef struct { LONG value; } musicValueContext_t;
+typedef struct { int32_t value; } musicValueContext_t;
 
 static void G_MusicSetVolumeClient(LPGAMECLIENT client, void *context) {
-    LONG value = ((musicValueContext_t *)context)->value;
+    int32_t value = ((musicValueContext_t *)context)->value;
     client->music.volume = value;
     G_MusicWriteSimple(client, MUSIC_CMD_SET_VOLUME, value);
 }
 
-void G_MusicSetVolume(LONG volume) {
+void G_MusicSetVolume(int32_t volume) {
     musicValueContext_t context = { MAX(0, MIN(volume, 127)) };
     G_MusicForRecipients(G_MusicSetVolumeClient, &context);
 }
 
 static void G_MusicSetPositionClient(LPGAMECLIENT client, void *context) {
-    LONG value = ((musicValueContext_t *)context)->value;
+    int32_t value = ((musicValueContext_t *)context)->value;
     if (client->music.current_source != WC3_MUSIC_SOURCE_NONE)
         client->music.current_position_ms = value;
     G_MusicWriteSimple(client, MUSIC_CMD_SET_POSITION, value);
 }
 
-void G_MusicSetPosition(LONG millisecs) {
+void G_MusicSetPosition(int32_t millisecs) {
     musicValueContext_t context = { MAX(0, millisecs) };
     G_MusicForRecipients(G_MusicSetPositionClient, &context);
 }
 
 static void G_MusicSetThematicVolumeClient(LPGAMECLIENT client, void *context) {
-    LONG value = ((musicValueContext_t *)context)->value;
+    int32_t value = ((musicValueContext_t *)context)->value;
     client->music.thematic_volume = value;
     G_MusicWriteSimple(client, MUSIC_CMD_SET_THEMATIC_VOLUME, value);
 }
 
-void G_MusicSetThematicVolume(LONG volume) {
+void G_MusicSetThematicVolume(int32_t volume) {
     musicValueContext_t context = { MAX(0, MIN(volume, 127)) };
     G_MusicForRecipients(G_MusicSetThematicVolumeClient, &context);
 }
 
 static void G_MusicSetThematicPositionClient(LPGAMECLIENT client, void *context) {
-    LONG value = ((musicValueContext_t *)context)->value;
+    int32_t value = ((musicValueContext_t *)context)->value;
     if (client->music.current_source == WC3_MUSIC_SOURCE_THEMATIC)
         client->music.current_position_ms = value;
     G_MusicWriteSimple(client, MUSIC_CMD_SET_THEMATIC_POSITION, value);
 }
 
-void G_MusicSetThematicPosition(LONG millisecs) {
+void G_MusicSetThematicPosition(int32_t millisecs) {
     musicValueContext_t context = { MAX(0, millisecs) };
     G_MusicForRecipients(G_MusicSetThematicPositionClient, &context);
 }

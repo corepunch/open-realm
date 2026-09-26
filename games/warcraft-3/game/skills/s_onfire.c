@@ -3,14 +3,14 @@
 #include "../g_local.h"
 
 typedef struct {
-    LPCSTR dir[2];    /* 0 = small-building directory, 1 = large-building directory. */
-    LPCSTR prefix[2]; /* 0 = small-building prefix, 1 = large-building prefix. */
+    cstring_t dir[2];    /* 0 = small-building directory, 1 = large-building directory. */
+    cstring_t prefix[2]; /* 0 = small-building prefix, 1 = large-building prefix. */
 } onFireNames_t;
 
 typedef struct {
-    BYTE size;
-    BYTE variant;
-    USHORT slots;
+    uint8_t size;
+    uint8_t variant;
+    uint16_t slots;
 } onFireStage_t;
 
 static onFireNames_t const onfire_standard = {
@@ -31,8 +31,8 @@ static onFireStage_t const onfire_stage[] = {
     { 1, 1, EFX_SLOT_FIRST | EFX_SLOT_SECOND | EFX_SLOT_THIRD | EFX_SLOT_FOURTH | EFX_SLOT_FIFTH },
 };
 
-static DWORD onfire_race(LPCSTR name) {
-    static struct { LPCSTR name; DWORD race; } const races[] = {
+static uint32_t onfire_race(cstring_t name) {
+    static struct { cstring_t name; uint32_t race; } const races[] = {
         { STR_HUMAN, kPlayerRaceHuman }, { STR_ORC, kPlayerRaceOrc },
         { STR_UNDEAD, kPlayerRaceUndead }, { STR_NIGHTELF, kPlayerRaceNightElf },
     };
@@ -43,13 +43,13 @@ static DWORD onfire_race(LPCSTR name) {
 }
 
 /* Select the only authored race-specific families; Human, Orc, and unknown data use standard assets. */
-static onFireNames_t const *onfire_family(DWORD race) {
+static onFireNames_t const *onfire_family(uint32_t race) {
     if (race == kPlayerRaceUndead || race == kPlayerRaceNightElf) return onfire_names + race;
     return &onfire_standard;
 }
 
-static DWORD onfire_level(LPCEDICT ent) {
-    BYTE health;
+static uint32_t onfire_level(LPCEDICT ent) {
+    uint8_t health;
 
     if (!ent->inuse || !(ent->s.flags & EF_BUILDING) || ent->health.value <= 0.0f ||
         !ent->health.max_value || ent->construction.active) return 0;
@@ -66,12 +66,12 @@ static void onfire_disabled(LPEDICT ent) {
 }
 
 /* Apply one of four fire levels: off, small, medium, or severe. */
-static void onfire_level_changed(LPEDICT ent, DWORD level) {
+static void onfire_level_changed(LPEDICT ent, uint32_t level) {
     UnitData_t const *data;
     onFireNames_t const *names;
     onFireStage_t const *stage;
     PATHSTR path;
-    DWORD race;
+    uint32_t race;
 
     if (!level) {
         onfire_disabled(ent);

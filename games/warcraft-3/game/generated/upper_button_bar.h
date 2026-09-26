@@ -13,8 +13,8 @@ typedef struct UpperButtonBar_s {
 } UpperButtonBar_t;
 
 
-static inline BOOL UpperButtonBar_Bind(UpperButtonBar_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool UpperButtonBar_Bind(UpperButtonBar_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -31,7 +31,7 @@ static inline BOOL UpperButtonBar_Bind(UpperButtonBar_t *out, LPFRAMEDEF bind_ro
     return ok;
 }
 
-static inline BOOL UpperButtonBar_Load(UpperButtonBar_t *out) {
+static inline bool UpperButtonBar_Load(UpperButtonBar_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\UpperButtonBar.fdf") &&
            UpperButtonBar_Bind(out, UI_FindFrame("UpperButtonBarFrame"));

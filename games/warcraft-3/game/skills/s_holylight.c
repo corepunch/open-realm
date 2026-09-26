@@ -19,7 +19,7 @@ BZ_ABILITY_PROC(CAbilityHolyBolt) {
         if (!st || target == ent) return false;
         if (!S_SpellIsAliveTarget(target)) return false;
         if (S_SpellIsEnemy(ent, target)) {
-            LPCSTR race = target->data.UnitData->race;
+            cstring_t race = target->data.UnitData->race;
             return race && !strcmp(race, STR_UNDEAD);
         }
         return S_SpellIsFriend(ent, target) && target->health.value < target->health.max_value;
@@ -28,8 +28,8 @@ BZ_ABILITY_PROC(CAbilityHolyBolt) {
         abilityitem_t const *spell = call ? call->item : NULL;
         spellTarget_t const *st = call ? call->target : NULL;
         LPEDICT target = st ? st->entity : NULL;
-        DWORD level;
-        FLOAT amount;
+        uint32_t level;
+        float amount;
 
         if (!spell || !st) return false;
         level = S_SpellLevel(ent, spell->code);

@@ -1,7 +1,7 @@
 #include "server.h"
 #include <stdlib.h>
 
-static BOOL SV_LobbyEnsureTeams(LPMAPINFO info, DWORD num_teams) {
+static bool SV_LobbyEnsureTeams(LPMAPINFO info, uint32_t num_teams) {
     mapTeam_t *teams;
 
     if (!info) {
@@ -27,7 +27,7 @@ static BOOL SV_LobbyEnsureTeams(LPMAPINFO info, DWORD num_teams) {
     return true;
 }
 
-static void SV_LobbyClearPlayerTeams(LPMAPINFO info, DWORD player) {
+static void SV_LobbyClearPlayerTeams(LPMAPINFO info, uint32_t player) {
     if (!info || !info->teams || player >= MAX_PLAYERS) {
         return;
     }
@@ -36,7 +36,7 @@ static void SV_LobbyClearPlayerTeams(LPMAPINFO info, DWORD player) {
     }
 }
 
-static void SV_LobbyMovePlayerToTeam(LPMAPINFO info, DWORD player, DWORD team) {
+static void SV_LobbyMovePlayerToTeam(LPMAPINFO info, uint32_t player, uint32_t team) {
     if (!info || player >= MAX_PLAYERS || team >= MAX_PLAYERS) {
         return;
     }
@@ -47,7 +47,7 @@ static void SV_LobbyMovePlayerToTeam(LPMAPINFO info, DWORD player, DWORD team) {
     info->teams[team].playerMasks |= 1u << player;
 }
 
-static DWORD SV_LobbyMapPlayerTeam(LPCMAPINFO info, DWORD player) {
+static uint32_t SV_LobbyMapPlayerTeam(LPCMAPINFO info, uint32_t player) {
     if (!info || !info->teams || player >= MAX_PLAYERS) {
         return player;
     }
@@ -59,13 +59,13 @@ static DWORD SV_LobbyMapPlayerTeam(LPCMAPINFO info, DWORD player) {
     return player;
 }
 
-static LPCSTR SV_LobbyBaseName(LPCSTR path) {
-    LPCSTR base = path;
+static cstring_t SV_LobbyBaseName(cstring_t path) {
+    cstring_t base = path;
 
     if (!path) {
         return "";
     }
-    for (LPCSTR p = path; *p; p++) {
+    for (cstring_t p = path; *p; p++) {
         if (*p == '\\' || *p == '/') {
             base = p + 1;
         }
@@ -73,8 +73,8 @@ static LPCSTR SV_LobbyBaseName(LPCSTR path) {
     return base;
 }
 
-static void SV_LobbySanitizeText(LPCSTR in, LPSTR out, DWORD out_size) {
-    DWORD write = 0;
+static void SV_LobbySanitizeText(cstring_t in, string_t out, uint32_t out_size) {
+    uint32_t write = 0;
 
     if (!out || out_size == 0) {
         return;
@@ -97,8 +97,8 @@ static void SV_LobbySanitizeText(LPCSTR in, LPSTR out, DWORD out_size) {
     out[write] = '\0';
 }
 
-static LPCSTR SV_UserinfoValue(LPCSTR userinfo, LPCSTR key, LPSTR out, DWORD out_size) {
-    DWORD key_len;
+static cstring_t SV_UserinfoValue(cstring_t userinfo, cstring_t key, string_t out, uint32_t out_size) {
+    uint32_t key_len;
 
     if (!out || out_size == 0) {
         return "";
@@ -107,11 +107,11 @@ static LPCSTR SV_UserinfoValue(LPCSTR userinfo, LPCSTR key, LPSTR out, DWORD out
     if (!userinfo || !key || !key[0]) {
         return out;
     }
-    key_len = (DWORD)strlen(key);
-    for (LPCSTR p = userinfo; *p;) {
-        LPCSTR k;
-        LPCSTR v;
-        DWORD len = 0;
+    key_len = (uint32_t)strlen(key);
+    for (cstring_t p = userinfo; *p;) {
+        cstring_t k;
+        cstring_t v;
+        uint32_t len = 0;
 
         if (*p == '\\') {
             p++;
@@ -120,7 +120,7 @@ static LPCSTR SV_UserinfoValue(LPCSTR userinfo, LPCSTR key, LPSTR out, DWORD out
         while (*p && *p != '\\') {
             p++;
         }
-        if ((DWORD)(p - k) != key_len || strncmp(k, key, key_len)) {
+        if ((uint32_t)(p - k) != key_len || strncmp(k, key, key_len)) {
             if (*p == '\\') {
                 p++;
             }
@@ -156,7 +156,7 @@ static playerType_t SV_LobbySlotPlayerType(lobbySlot_t const *slot) {
     return kPlayerTypeNone;
 }
 
-static LPCSTR SV_LobbySlotTypeName(lobbySlotType_t type) {
+static cstring_t SV_LobbySlotTypeName(lobbySlotType_t type) {
     switch (type) {
         case LOBBY_SLOT_OPEN: return "open";
         case LOBBY_SLOT_HUMAN: return "human";
@@ -166,7 +166,7 @@ static LPCSTR SV_LobbySlotTypeName(lobbySlotType_t type) {
     return "unknown";
 }
 
-static LPCSTR SV_PlayerTypeName(playerType_t type) {
+static cstring_t SV_PlayerTypeName(playerType_t type) {
     switch (type) {
         case kPlayerTypeNone: return "none";
         case kPlayerTypeHuman: return "human";
@@ -177,8 +177,8 @@ static LPCSTR SV_PlayerTypeName(playerType_t type) {
     return "unknown";
 }
 
-static void SV_LobbySendChat(LPCLIENT client, DWORD clientnum, DWORD sender_client, LPCSTR text) {
-    BYTE payload_buf[MAX_MSGLEN];
+static void SV_LobbySendChat(LPCLIENT client, uint32_t clientnum, uint32_t sender_client, cstring_t text) {
+    uint8_t payload_buf[MAX_MSGLEN];
     sizeBuf_t payload;
 
     if (!client || !text || !text[0]) {
@@ -194,7 +194,7 @@ static void SV_LobbySendChat(LPCLIENT client, DWORD clientnum, DWORD sender_clie
     Netchan_Transmit(NS_SERVER, &client->netchan);
 }
 
-static void SV_LobbyClearClientAssignment(DWORD clientnum) {
+static void SV_LobbyClearClientAssignment(uint32_t clientnum) {
     LPCLIENT cl;
 
     if (clientnum >= svs.num_clients) {
@@ -205,7 +205,7 @@ static void SV_LobbyClearClientAssignment(DWORD clientnum) {
     cl->playernum = MAX_PLAYERS;
 }
 
-static BOOL SV_LobbyAssignClientToSlot(DWORD clientnum, DWORD slotnum) {
+static bool SV_LobbyAssignClientToSlot(uint32_t clientnum, uint32_t slotnum) {
     LPCLIENT cl;
     lobbySlot_t *slot;
 
@@ -226,7 +226,7 @@ static BOOL SV_LobbyAssignClientToSlot(DWORD clientnum, DWORD slotnum) {
     return true;
 }
 
-static BOOL SV_LobbyClientAssigned(DWORD clientnum) {
+static bool SV_LobbyClientAssigned(uint32_t clientnum) {
     FOR_LOOP(i, svs.lobby.slot_count) {
         lobbySlot_t const *slot = &svs.lobby.slots[i];
 
@@ -237,7 +237,7 @@ static BOOL SV_LobbyClientAssigned(DWORD clientnum) {
     return false;
 }
 
-void SV_LobbyClientInit(LPCLIENT cl, LPCSTR userinfo) {
+void SV_LobbyClientInit(LPCLIENT cl, cstring_t userinfo) {
     char raw_name[sizeof(cl->name)];
 
     if (!cl) {
@@ -256,17 +256,17 @@ void SV_LobbyClientInit(LPCLIENT cl, LPCSTR userinfo) {
     }
 }
 
-void SV_LobbyInit(LPCSTR mapFilename) {
+void SV_LobbyInit(cstring_t mapFilename) {
     memset(&svs.lobby, 0, sizeof(svs.lobby));
     svs.lobby.active = true;
     snprintf(svs.lobby.map_path, sizeof(svs.lobby.map_path), "%s", mapFilename ? mapFilename : "");
     snprintf(svs.lobby.map_name, sizeof(svs.lobby.map_name), "%s", SV_LobbyBaseName(mapFilename));
-    svs.lobby.game_speed = (DWORD)Cvar_Integer("sv_game_speed", 2);
+    svs.lobby.game_speed = (uint32_t)Cvar_Integer("sv_game_speed", 2);
     svs.lobby.local_slot = MAX_PLAYERS;
 }
 
-BOOL SV_LobbyAssignClient(DWORD clientnum, BOOL host) {
-    DWORD fallback = MAX_PLAYERS;
+bool SV_LobbyAssignClient(uint32_t clientnum, bool host) {
+    uint32_t fallback = MAX_PLAYERS;
 
     if (!svs.lobby.active || clientnum >= svs.num_clients) {
         return true;
@@ -294,9 +294,9 @@ BOOL SV_LobbyAssignClient(DWORD clientnum, BOOL host) {
 }
 
 void SV_LobbyWriteSetup(LPCLIENT cl) {
-    BYTE payload_buf[MAX_MSGLEN];
+    uint8_t payload_buf[MAX_MSGLEN];
     sizeBuf_t payload;
-    DWORD local_slot = cl ? cl->lobby_slot : MAX_PLAYERS;
+    uint32_t local_slot = cl ? cl->lobby_slot : MAX_PLAYERS;
 
     if (!cl) {
         return;
@@ -339,7 +339,7 @@ void SV_LobbyBroadcastSetup(void) {
     }
 }
 
-void SV_LobbySetConfig(DWORD speed, DWORD slots, LPCSTR map_name) {
+void SV_LobbySetConfig(uint32_t speed, uint32_t slots, cstring_t map_name) {
     if (!svs.lobby.active) {
         return;
     }
@@ -354,7 +354,7 @@ void SV_LobbySetConfig(DWORD speed, DWORD slots, LPCSTR map_name) {
     svs.lobby.revision++;
 }
 
-void SV_LobbySetSlot(DWORD slotnum, lobbySlot_t const *config) {
+void SV_LobbySetSlot(uint32_t slotnum, lobbySlot_t const *config) {
     lobbySlot_t old;
     lobbySlot_t *slot;
 
@@ -477,7 +477,7 @@ void SV_ApplyLobbySettings(LPMAPINFO info) {
     }
 }
 
-void SV_LobbyBroadcastChatFrom(DWORD sender_client, LPCSTR sender, LPCSTR text) {
+void SV_LobbyBroadcastChatFrom(uint32_t sender_client, cstring_t sender, cstring_t text) {
     char clean_sender[64];
     char clean_text[256];
     char line[384];
@@ -496,7 +496,7 @@ void SV_LobbyBroadcastChatFrom(DWORD sender_client, LPCSTR sender, LPCSTR text) 
     }
 }
 
-void SV_LobbyBroadcastChat(LPCSTR sender, LPCSTR text) {
+void SV_LobbyBroadcastChat(cstring_t sender, cstring_t text) {
     SV_LobbyBroadcastChatFrom(MAX_CLIENTS, sender, text);
 }
 
@@ -506,35 +506,35 @@ static void SV_LobbySay_f(void) {
 }
 
 static void SV_LobbyConfig_f(void) {
-    DWORD speed;
-    DWORD slots;
+    uint32_t speed;
+    uint32_t slots;
 
     if (Cmd_Argc() < 4) {
         fprintf(stderr, "usage: lobby_config <speed> <slots> <map_name>\n");
         return;
     }
-    speed = (DWORD)atoi(Cmd_Argv(1));
-    slots = (DWORD)atoi(Cmd_Argv(2));
+    speed = (uint32_t)atoi(Cmd_Argv(1));
+    slots = (uint32_t)atoi(Cmd_Argv(2));
     SV_LobbySetConfig(speed, slots, Cmd_ArgsFrom(3));
     SV_LobbyBroadcastSetup();
 }
 
 static void SV_LobbySlot_f(void) {
     lobbySlot_t slot;
-    DWORD slotnum;
+    uint32_t slotnum;
 
     if (Cmd_Argc() < 9) {
         fprintf(stderr, "usage: lobby_slot <slot> <visible> <map_player> <type> <race> <team> <color> <name>\n");
         return;
     }
     memset(&slot, 0, sizeof(slot));
-    slotnum = (DWORD)atoi(Cmd_Argv(1));
+    slotnum = (uint32_t)atoi(Cmd_Argv(1));
     slot.visible = atoi(Cmd_Argv(2)) != 0;
-    slot.map_player = (DWORD)atoi(Cmd_Argv(3));
+    slot.map_player = (uint32_t)atoi(Cmd_Argv(3));
     slot.type = (lobbySlotType_t)atoi(Cmd_Argv(4));
     slot.race = (playerRace_t)atoi(Cmd_Argv(5));
-    slot.team = (DWORD)atoi(Cmd_Argv(6));
-    slot.color = (DWORD)atoi(Cmd_Argv(7));
+    slot.team = (uint32_t)atoi(Cmd_Argv(6));
+    slot.color = (uint32_t)atoi(Cmd_Argv(7));
     slot.client = MAX_CLIENTS;
     SV_LobbySanitizeText(Cmd_ArgsFrom(8), slot.name, sizeof(slot.name));
     SV_LobbySetSlot(slotnum, &slot);

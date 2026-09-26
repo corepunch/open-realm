@@ -569,9 +569,9 @@ static uint8_t *read_local_file(char const *path, size_t *out_size) {
     return data;
 }
 
-static uint8_t *read_mpq_file(HANDLE const *archives, size_t archive_count, char const *path, size_t *out_size) {
-    HANDLE file = Tool_OpenFile(archives, archive_count, path);
-    DWORD size;
+static uint8_t *read_mpq_file(handle_t const *archives, size_t archive_count, char const *path, size_t *out_size) {
+    handle_t file = Tool_OpenFile(archives, archive_count, path);
+    uint32_t size;
     uint8_t *data;
 
     if (!file) {
@@ -591,7 +591,7 @@ static uint8_t *read_mpq_file(HANDLE const *archives, size_t archive_count, char
     return data;
 }
 
-static bool convert_one(HANDLE const *archives,
+static bool convert_one(handle_t const *archives,
                         size_t archive_count,
                         char const *path,
                         char const *outdir,
@@ -627,7 +627,7 @@ static bool convert_one(HANDLE const *archives,
 }
 
 int main(int argc, char **argv) {
-    HANDLE archives[64] = { 0 };
+    handle_t archives[64] = { 0 };
     size_t archive_count = sizeof(archives) / sizeof(*archives);
     char const *outdir = NULL;
     int scale = 1;

@@ -22,8 +22,8 @@ typedef struct LoadingScreen_s {
 } LoadingScreen_t;
 
 
-static inline BOOL LoadingScreen_Bind(LoadingScreen_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool LoadingScreen_Bind(LoadingScreen_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -49,7 +49,7 @@ static inline BOOL LoadingScreen_Bind(LoadingScreen_t *out, LPFRAMEDEF bind_root
     return ok;
 }
 
-static inline BOOL LoadingScreen_Load(LoadingScreen_t *out) {
+static inline bool LoadingScreen_Load(LoadingScreen_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
            UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") &&

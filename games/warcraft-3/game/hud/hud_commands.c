@@ -8,8 +8,8 @@
 
 #include "hud_local.h"
 
-DWORD UI_ClassIdFromCode(LPCSTR code) {
-    DWORD class_id = 0;
+uint32_t UI_ClassIdFromCode(cstring_t code) {
+    uint32_t class_id = 0;
 
     if (IS_FOURCC(code)) {
         memcpy(&class_id, code, sizeof(class_id));
@@ -17,43 +17,43 @@ DWORD UI_ClassIdFromCode(LPCSTR code) {
     return class_id;
 }
 
-static void UI_FormatTooltipLevel(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, LONG level,
-                                   LPCEDICT producer, BOOL building_upgrade, LPSTR out, DWORD out_size) {
-    DWORD class_id = UI_ClassIdFromCode(code);
+static void UI_FormatTooltipLevel(cstring_t code, cstring_t tip, cstring_t ubertip, float manacost, int32_t level,
+                                   LPCEDICT producer, bool building_upgrade, string_t out, uint32_t out_size) {
+    uint32_t class_id = UI_ClassIdFromCode(code);
     UnitBalance_t const *balance = class_id ? G_UnitBalance(class_id) : NULL;
     ItemData_t const *item = class_id ? G_ItemData(class_id) : NULL;
     UpgradeData_t const *upgrade = class_id ? G_UpgradeData(class_id) : NULL;
-    DWORD gold_cost = balance ? (DWORD)MAX(0, balance->goldCost) : 0;
-    DWORD lumber_cost = balance ? (DWORD)MAX(0, balance->lumberCost) : 0;
-    DWORD food_cost = balance ? (DWORD)MAX(0, balance->foodUsed) : 0;
+    uint32_t gold_cost = balance ? (uint32_t)MAX(0, balance->goldCost) : 0;
+    uint32_t lumber_cost = balance ? (uint32_t)MAX(0, balance->lumberCost) : 0;
+    uint32_t food_cost = balance ? (uint32_t)MAX(0, balance->foodUsed) : 0;
 
     /* Item command buttons use ItemData.slk costs rather than UnitBalance.
      * This is primarily consumed by neutral shops but also keeps generic item
      * command presentation data-driven for custom maps. */
     if (item && item->id == class_id) {
-        gold_cost = (DWORD)MAX(0, item->goldcost);
-        lumber_cost = (DWORD)MAX(0, item->lumbercost);
+        gold_cost = (uint32_t)MAX(0, item->goldcost);
+        lumber_cost = (uint32_t)MAX(0, item->lumbercost);
         food_cost = 0;
     }
 
     if (building_upgrade && producer && class_id) {
-        LONG gold = 0, lumber = 0, food = 0;
+        int32_t gold = 0, lumber = 0, food = 0;
         G_GetBuildingUpgradeCosts(&(buildingUpgradeCostParams_t){
             .building = producer, .unit_id = class_id, .gold = &gold, .lumber = &lumber, .food = &food });
-        gold_cost = (DWORD)MAX(0, gold);
-        lumber_cost = (DWORD)MAX(0, lumber);
-        food_cost = (DWORD)MAX(0, food);
+        gold_cost = (uint32_t)MAX(0, gold);
+        lumber_cost = (uint32_t)MAX(0, lumber);
+        food_cost = (uint32_t)MAX(0, food);
     } else if (upgrade && upgrade->id == class_id && ui_current_client) {
-        LONG const level_value = level > 0 ? level : G_GetPlayerTechResearchedLevel(ui_current_client, class_id) + 1;
-        gold_cost = (DWORD)G_UpgradeGoldCost(class_id, level_value);
-        lumber_cost = (DWORD)G_UpgradeLumberCost(class_id, level_value);
+        int32_t const level_value = level > 0 ? level : G_GetPlayerTechResearchedLevel(ui_current_client, class_id) + 1;
+        gold_cost = (uint32_t)G_UpgradeGoldCost(class_id, level_value);
+        lumber_cost = (uint32_t)G_UpgradeLumberCost(class_id, level_value);
         food_cost = 0;
     }
-    DWORD mana_cost = (DWORD)(manacost + 0.5f);
-    DWORD gold_icon = 0;
-    DWORD lumber_icon = 0;
-    DWORD mana_icon = 0;
-    DWORD supply_icon = 0;
+    uint32_t mana_cost = (uint32_t)(manacost + 0.5f);
+    uint32_t gold_icon = 0;
+    uint32_t lumber_icon = 0;
+    uint32_t mana_icon = 0;
+    uint32_t supply_icon = 0;
 
     if (!out || out_size == 0) {
         return;
@@ -88,18 +88,18 @@ static void UI_FormatTooltipLevel(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT
     }
 }
 
-void UI_FormatTooltip(LPCSTR code, LPCSTR tip, LPCSTR ubertip, FLOAT manacost, LPSTR out, DWORD out_size) {
+void UI_FormatTooltip(cstring_t code, cstring_t tip, cstring_t ubertip, float manacost, string_t out, uint32_t out_size) {
     UI_FormatTooltipLevel(code, tip, ubertip, manacost, 0, NULL, false, out, out_size);
 }
 
-static void UI_FormatCommandTooltip(gameCommandButton_t const *button, LPSTR out, DWORD out_size) {
+static void UI_FormatCommandTooltip(gameCommandButton_t const *button, string_t out, uint32_t out_size) {
     LPEDICT producer = ui_current_client ? G_GetMainSelectedUnit(ui_current_client) : NULL;
     UI_FormatTooltipLevel(button->command, button->tooltip, button->ubertip, button->manacost,
-                          button->research ? (LONG)button->level : 0, producer,
+                          button->research ? (int32_t)button->level : 0, producer,
                           button->building_upgrade != 0, out, out_size);
 }
 
-static void UI_WriteCommandButtonNumber(FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWORD number) {
+static void UI_WriteCommandButtonNumber(float x, float y, float w, float h, uint32_t number) {
     uiFrame_t frame;
     uiLabel_t label;
     char text[16];
@@ -121,8 +121,8 @@ static void UI_WriteCommandButtonNumber(FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWOR
 }
 
 /* Autocast sparkle has no FDF frame; anchor the authored model to the command button. */
-static void UI_WriteAutocastIndicator(gameCommandButton_t const *button, DWORD parent) {
-    LPCSTR model;
+static void UI_WriteAutocastIndicator(gameCommandButton_t const *button, uint32_t parent) {
+    cstring_t model;
     uiFrame_t frame = { .flags.type = FT_SPRITE, .color = COLOR32_WHITE, .text = "Stand" };
     if (!button->alternate_active || !parent) return;
     model = Theme_PlayerString(ui_current_client, "CommandButtonAutocast", NULL);
@@ -142,8 +142,8 @@ static void UI_WriteAutocastIndicator(gameCommandButton_t const *button, DWORD p
 }
 
 /* Disabled icons use the skin's authored DIS artwork, not a tint of the enabled icon. */
-static DWORD UI_CommandButtonImage(gameCommandButton_t const *button) {
-    LPCSTR prefix, base;
+static uint32_t UI_CommandButtonImage(gameCommandButton_t const *button) {
+    cstring_t prefix, base;
     PATHSTR path;
 
     if (!button->disabled) return gi.ImageIndex(button->art);
@@ -169,8 +169,8 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     if (!button) {
         return;
     }
-    FLOAT const x = 0.6175f + (FLOAT)button->x * 0.0434f;
-    FLOAT const y = 0.4660f + (FLOAT)button->y * 0.0440f;
+    float const x = 0.6175f + (float)button->x * 0.0434f;
+    float const y = 0.4660f + (float)button->y * 0.0440f;
     memset(&frame, 0, sizeof(frame));
     memset(&state, 0, sizeof(state));
     frame.flags.type = FT_COMMANDBUTTON;
@@ -181,7 +181,7 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     state.radialStartTime = button->cooldown_start_time;
     state.radialEndTime = button->cooldown_end_time;
     if (state.radialEndTime != state.radialStartTime) frame.flagsvalue |= UIFLAG_RADIAL_SHADE;
-    frame.hotkey = button->disabled ? 0 : (BYTE)button->hotkey;
+    frame.hotkey = button->disabled ? 0 : (uint8_t)button->hotkey;
     if (button->alternate_active) frame.flagsvalue |= UIFLAG_ALTERNATE_ACTIVE;
     UI_FormatCommandTooltip(button, tooltip, sizeof(tooltip));
     frame.tooltip = tooltip;
@@ -196,7 +196,7 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
     UI_WriteCommandButtonNumber(x, y, 0.039f, 0.039f, button->number);
 }
 
-void UI_WriteCommandButton(LPCSTR code, BOOL research, DWORD level) {
+void UI_WriteCommandButton(cstring_t code, bool research, uint32_t level) {
     gameCommandButton_t buttons[1];
     LPEDICT ent = G_GetMainSelectedUnit(ui_current_client);
 
@@ -212,26 +212,26 @@ void UI_WriteCommandButton(LPCSTR code, BOOL research, DWORD level) {
 
 void UI_WriteBuildQueue(LPEDICT ent) {
     gameQueueItem_t queue[MAX_BUILD_QUEUE];
-    BYTE count = G_GetBuildQueue(ent, queue, MAX_BUILD_QUEUE);
-    DWORD size;
-    DWORD buildtimer_number;
-    LPBYTE buffer;
+    uint8_t count = G_GetBuildQueue(ent, queue, MAX_BUILD_QUEUE);
+    uint32_t size;
+    uint32_t buildtimer_number;
+    uint8_t * buffer;
     uiBuildQueue_t *buildqueue;
     uiFrame_t firstitem;
     uiFrame_t buildtimer;
     uiFrame_t list;
-    BOOL const constructing = ent && ent->currentmove && ent->currentmove->think == ai_birth;
-    BOOL const upgrading = G_BuildingUpgradeActive(ent);
-    BOOL const unsummoning = G_BuildingIsUnsummoning(ent);
-    BOOL const hide_queue_slots = constructing || upgrading;
-    BYTE const visible_count = hide_queue_slots ? 1 : count;
-    FLOAT const active_x = 0.320546875f;
-    FLOAT const active_y = 0.526875000f;
-    FLOAT const active_size = 0.026718750f;
-    FLOAT const waiting_x = 0.319140625f;
-    FLOAT const waiting_y = 0.562734375f;
-    FLOAT const waiting_size = 0.020390625f;
-    FLOAT const waiting_step = 0.028125000f;
+    bool const constructing = ent && ent->currentmove && ent->currentmove->think == ai_birth;
+    bool const upgrading = G_BuildingUpgradeActive(ent);
+    bool const unsummoning = G_BuildingIsUnsummoning(ent);
+    bool const hide_queue_slots = constructing || upgrading;
+    uint8_t const visible_count = hide_queue_slots ? 1 : count;
+    float const active_x = 0.320546875f;
+    float const active_y = 0.526875000f;
+    float const active_size = 0.026718750f;
+    float const waiting_x = 0.319140625f;
+    float const waiting_y = 0.562734375f;
+    float const waiting_size = 0.020390625f;
+    float const waiting_step = 0.028125000f;
 
     if (!count) return;
 
@@ -269,12 +269,12 @@ void UI_WriteBuildQueue(LPEDICT ent) {
     buffer = gi.MemAlloc(size);
     memset(buffer, 0, size);
     buildqueue = (uiBuildQueue_t *)buffer;
-    buildqueue->firstitem = (USHORT)firstitem.number;
-    buildqueue->buildtimer = (USHORT)buildtimer_number;
+    buildqueue->firstitem = (uint16_t)firstitem.number;
+    buildqueue->buildtimer = (uint16_t)buildtimer_number;
     buildqueue->itemoffset = waiting_step;
     buildqueue->numitems = visible_count;
     FOR_LOOP(i, visible_count) {
-        buildqueue->items[i].image = (USHORT)gi.ImageIndex(queue[i].art);
+        buildqueue->items[i].image = (uint16_t)gi.ImageIndex(queue[i].art);
         buildqueue->items[i].starttime = queue[i].starttime;
         buildqueue->items[i].endtime = queue[i].endtime;
     }
@@ -290,11 +290,11 @@ void UI_WriteBuildQueue(LPEDICT ent) {
      * drawing.  Slot 0 is the larger active item beside the progress bar; the
      * remaining slots are the smaller row along the panel bottom. */
     if (!unsummoning && (constructing || upgrading || (ent->build && ent->build->training))) {
-        DWORD const cancel_count = (constructing || upgrading) ? 1 : count;
+        uint32_t const cancel_count = (constructing || upgrading) ? 1 : count;
         FOR_LOOP(i, cancel_count) {
             uiFrame_t cancel;
             char onclick[64];
-            FLOAT x, y, w, h;
+            float x, y, w, h;
 
             memset(&cancel, 0, sizeof(cancel));
             cancel.flags.type = FT_SIMPLEFRAME;
@@ -306,7 +306,7 @@ void UI_WriteBuildQueue(LPEDICT ent) {
             if (i == 0) {
                 x = active_x; y = active_y; w = active_size; h = active_size;
             } else {
-                x = waiting_x + (FLOAT)(i - 1) * waiting_step;
+                x = waiting_x + (float)(i - 1) * waiting_step;
                 y = waiting_y; w = waiting_size; h = waiting_size;
             }
             UI_SetFrameRect(&cancel, x, y, w, h);
@@ -315,11 +315,11 @@ void UI_WriteBuildQueue(LPEDICT ent) {
     }
 }
 
-void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level) {
+void UI_AddCommandButtonExtended(cstring_t code, bool research, uint32_t level) {
     UI_WriteCommandButton(code, research, level);
 }
 
-void UI_AddCommandButton(LPCSTR code) {
+void UI_AddCommandButton(cstring_t code) {
     UI_AddCommandButtonExtended(code, false, 0);
 }
 

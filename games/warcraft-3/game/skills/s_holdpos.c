@@ -14,7 +14,7 @@ static void ai_holdpos_stand(LPEDICT self) {
 umove_t holdpos_move_stand = { "stand", ai_holdpos_stand, unit_stand };
 umove_t holdpos_move_stand_ready = { "stand ready", ai_holdpos_stand, unit_stand };
 
-BOOL S_HoldPosition(LPEDICT unit) {
+bool S_HoldPosition(LPEDICT unit) {
     if (!unit || M_IsDead(unit) || S_GoldMineWorkerIsInside(unit))
         return false;
     G_ClearUnitOrderQueue(unit);

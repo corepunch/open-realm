@@ -7,21 +7,21 @@
 static rCliffBakeList_t cliff_bake;
 typedef struct CLIFFLAYER {
     LPMAPLAYER layer;
-    DWORD first;
+    uint32_t first;
     struct CLIFFLAYER *next;
 } CLIFFLAYER;
 static CLIFFLAYER *cliff_layers;
 
-VECTOR3 R_GetVertexNormal(LPCWAR3MAP map, DWORD x, DWORD y);
+VECTOR3 R_GetVertexNormal(LPCWAR3MAP map, uint32_t x, uint32_t y);
 
 typedef struct {
-    DWORD cliff;
-    LPCSTR texDir;
-    LPCSTR texFile;
-    DWORD groundTile;
-    DWORD upperTile;
-    LPCSTR rampModelDir;
-    LPCSTR cliffModelDir;
+    uint32_t cliff;
+    cstring_t texDir;
+    cstring_t texFile;
+    uint32_t groundTile;
+    uint32_t upperTile;
+    cstring_t rampModelDir;
+    cstring_t cliffModelDir;
 } cliffData_t;
 
 struct tCliff {
@@ -33,7 +33,7 @@ struct tCliff {
 static struct tCliff *g_cliffs = NULL;
 
 struct tCliffTexture {
-    DWORD cliffid;
+    uint32_t cliffid;
     char tileset;
     LPCTEXTURE texture;
     struct tCliffTexture *next;
@@ -58,7 +58,7 @@ void R_ResetCliffCache(void) {
 // HELPERS
 
 static int TileBaseLevel(LPCWAR3MAPVERTEX tile) {
-    DWORD minLevel = tile->level;
+    uint32_t minLevel = tile->level;
     FOR_LOOP(tileIndex, 4) {
         minLevel = MIN(minLevel, tile[tileIndex].level);
     }
@@ -112,7 +112,7 @@ static float GetAccurateWaterLevelAtPoint(float sx, float sy) {
 
 static LPCMODEL R_LoadCliffModel(cliffData_t const *data, char const *ccfg, bool ramp) {
     PATHSTR zBuffer;
-    LPCSTR dir = ramp ? data->rampModelDir : data->cliffModelDir;
+    cstring_t dir = ramp ? data->rampModelDir : data->cliffModelDir;
     snprintf(zBuffer, sizeof(zBuffer), "Doodads\\Terrain\\%s\\%s%s0.mdx", dir, dir, ccfg);
     /* Configuration letters alone alias different terrain families (Cliffs vs CityCliffs). */
     for (struct tCliff *it = g_cliffs; it; it = it->next) {
@@ -129,7 +129,7 @@ static LPCMODEL R_LoadCliffModel(cliffData_t const *data, char const *ccfg, bool
     return cliff->model;
 }
 
-static LPCTEXTURE R_LoadCliffTexture(DWORD cliffID, char tileset, cliffData_t const *data) {
+static LPCTEXTURE R_LoadCliffTexture(uint32_t cliffID, char tileset, cliffData_t const *data) {
     PATHSTR buffer = { 0 };
 
     for (struct tCliffTexture *it = g_cliff_textures; it; it = it->next) {
@@ -157,19 +157,19 @@ static LPCTEXTURE R_LoadCliffTexture(DWORD cliffID, char tileset, cliffData_t co
 }
 
 /* Like SC2, only snap mesh edges that border emitted terrain, leaving stacked/internal faces intact. */
-static BOOL R_CliffGroundJoin(LPCWAR3MAP map, LPVECTOR3 pos) {
-    FLOAT gx = (pos->x - map->center.x) / TILE_SIZE, gy = (pos->y - map->center.y) / TILE_SIZE;
+static bool R_CliffGroundJoin(LPCWAR3MAP map, LPVECTOR3 pos) {
+    float gx = (pos->x - map->center.x) / TILE_SIZE, gy = (pos->y - map->center.y) / TILE_SIZE;
     int ix = (int)floorf(gx), iy = (int)floorf(gy);
     for (int y = iy - 1; y <= iy; y++) for (int x = ix - 1; x <= ix; x++) {
         if (x < 0 || y < 0 || x + 1 >= map->width || y + 1 >= map->height) continue;
-        FLOAT u = gx - x, v = gy - y;
+        float u = gx - x, v = gy - y;
         if (u < -0.0001f || u > 1.0001f || v < -0.0001f || v > 1.0001f) continue;
         if (fabsf(u) > 0.0001f && fabsf(u-1) > 0.0001f && fabsf(v) > 0.0001f && fabsf(v-1) > 0.0001f) continue;
         WAR3MAPVERTEX tile[4]; GetTileVertices(x, y, map, tile);
         if (!R_TileHasGround(tile)) continue;
-        FLOAT low = LerpNumber(R_GetVertexPosition(map, x, y, true).z, R_GetVertexPosition(map, x+1, y, true).z, u);
-        FLOAT high = LerpNumber(R_GetVertexPosition(map, x, y+1, true).z, R_GetVertexPosition(map, x+1, y+1, true).z, u);
-        FLOAT z = LerpNumber(low, high, v);
+        float low = LerpNumber(R_GetVertexPosition(map, x, y, true).z, R_GetVertexPosition(map, x+1, y, true).z, u);
+        float high = LerpNumber(R_GetVertexPosition(map, x, y+1, true).z, R_GetVertexPosition(map, x+1, y+1, true).z, u);
+        float z = LerpNumber(low, high, v);
         if (fabsf(pos->z - z) >= TILE_SIZE * 0.5f) continue;
         pos->z = z;
         return true;
@@ -177,7 +177,7 @@ static BOOL R_CliffGroundJoin(LPCWAR3MAP map, LPVECTOR3 pos) {
     return false;
 }
 
-static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *data) {
+static void R_MakeCliff(LPCWAR3MAP map, uint32_t x, uint32_t y, cliffData_t const *data) {
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, map, tile);
 
@@ -203,12 +203,12 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
     
     LPCMODEL pModel = R_LoadCliffModel(data, cliffcfg, is_ramp);
     if (!pModel || pModel->modeltype != ID_MDLX || !pModel->mdx || !pModel->mdx->geosets) {
-        fprintf(stderr, "Model %.4s not found\n", (LPCSTR)&cliffcfg);
+        fprintf(stderr, "Model %.4s not found\n", (cstring_t)&cliffcfg);
         return;
     }
     mdxGeoset_t *pGeoset = pModel->mdx->geosets;
     if (!pGeoset->triangles || !pGeoset->vertices || !pGeoset->normals || !pGeoset->texcoord) {
-        fprintf(stderr, "Model %.4s has incomplete cliff geometry\n", (LPCSTR)&cliffcfg);
+        fprintf(stderr, "Model %.4s has incomplete cliff geometry\n", (cstring_t)&cliffcfg);
         return;
     }
     
@@ -219,7 +219,7 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
         offset = Vector2_add(&offset, &shift);
     }
 
-    DWORD const ground_key = data->groundTile ? data->groundTile : data->upperTile;
+    uint32_t const ground_key = data->groundTile ? data->groundTile : data->upperTile;
     if (ground_key) {
         VECTOR3 span = Vector3_sub(&pModel->mdx->bounds.box.max, &pModel->mdx->bounds.box.min);
         int sx = offset.x / TILE_SIZE, sy = offset.y / TILE_SIZE;
@@ -251,15 +251,15 @@ static void R_MakeCliff(LPCWAR3MAP map, DWORD x, DWORD y, cliffData_t const *dat
         v->position.x = map->center.x + fx;
         v->position.y = map->center.y + fy;
         v->position.z = fz;
-        BOOL join = R_CliffGroundJoin(map, &v->position);
+        bool join = R_CliffGroundJoin(map, &v->position);
         v->texcoord = pGeoset->texcoord[i];
         v->normal = join && fn.z > 0 ? an : Vector3_mad(&(VECTOR3){fn.x,fn.y,0}, fn.z, &an);
         Vector3_normalize(&v->normal);
     }
 }
 
-LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cliff) {
-    DWORD cliffID = map->cliffs[cliff];
+LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, uint32_t sx, uint32_t sy, uint32_t cliff) {
+    uint32_t cliffID = map->cliffs[cliff];
     if (cliffID == NO_CLIFF) {
         return NULL;
     }
@@ -276,9 +276,9 @@ LPMAPLAYER R_BuildMapSegmentCliffs(LPCWAR3MAP map, DWORD sx, DWORD sy, DWORD cli
         .cliffModelDir = row->cliffModelDir,
     };
     mapLayer->type = MAPLAYERTYPE_CLIFF;
-    DWORD first = cliff_bake.num_vertices;
-    for (DWORD x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++) {
-        for (DWORD y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++) {
+    uint32_t first = cliff_bake.num_vertices;
+    for (uint32_t x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++) {
+        for (uint32_t y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++) {
             R_MakeCliff(map, x, y, &data);
         }
     }

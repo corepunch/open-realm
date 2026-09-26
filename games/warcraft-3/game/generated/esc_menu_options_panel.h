@@ -115,8 +115,8 @@ typedef struct EscMenuOptionsPanel_s {
 } EscMenuOptionsPanel_t;
 
 
-static inline BOOL EscMenuOptionsPanel_Bind(EscMenuOptionsPanel_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool EscMenuOptionsPanel_Bind(EscMenuOptionsPanel_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -235,7 +235,7 @@ static inline BOOL EscMenuOptionsPanel_Bind(EscMenuOptionsPanel_t *out, LPFRAMED
     return ok;
 }
 
-static inline BOOL EscMenuOptionsPanel_Load(EscMenuOptionsPanel_t *out) {
+static inline bool EscMenuOptionsPanel_Load(EscMenuOptionsPanel_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf") &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuOptionsPanel.fdf") &&

@@ -1,8 +1,8 @@
 #include "s_skills.h"
 
-LPCSTR const stone_form_orders[] = { "stoneform", "unstoneform", NULL };
+cstring_t const stone_form_orders[] = { "stoneform", "unstoneform", NULL };
 
-static BOOL stone_form_types(DWORD code, DWORD *base, DWORD *stone) {
+static bool stone_form_types(uint32_t code, uint32_t *base, uint32_t *stone) {
     AbilityData_t const *ability = G_AbilityData(code);
     if (!ability || !ability->id || !ability->level[0].data[0].id || !ability->level[0].unitID) return false;
     *base = ability->level[0].data[0].id;
@@ -10,8 +10,8 @@ static BOOL stone_form_types(DWORD code, DWORD *base, DWORD *stone) {
     return true;
 }
 
-static BOOL stone_form_order(LPEDICT unit, LPCSTR order, DWORD code) {
-    DWORD base, stone, target;
+static bool stone_form_order(LPEDICT unit, cstring_t order, uint32_t code) {
+    uint32_t base, stone, target;
     if (!unit || !order || !stone_form_types(code, &base, &stone)) return false;
     if (!strcmp(order, "unstoneform")) {
         if (unit->class_id != stone) return false;
@@ -28,20 +28,20 @@ static BOOL stone_form_order(LPEDICT unit, LPCSTR order, DWORD code) {
     return true;
 }
 
-static BOOL stone_form_can_transform(LPCEDICT unit, DWORD code) {
-    DWORD base, stone;
+static bool stone_form_can_transform(LPCEDICT unit, uint32_t code) {
+    uint32_t base, stone;
     return unit && stone_form_types(code, &base, &stone) &&
            (unit->class_id == base || unit->class_id == stone);
 }
 
-static BOOL stone_form_execute(LPEDICT unit, DWORD code) {
-    DWORD base, stone;
+static bool stone_form_execute(LPEDICT unit, uint32_t code) {
+    uint32_t base, stone;
     if (!unit || !stone_form_types(code, &base, &stone)) return false;
     return stone_form_order(unit, unit->class_id == base ? "stoneform" : "unstoneform", code);
 }
 
 BZ_ABILITY_PROC(CAbilityStoneForm) {
-    DWORD code = call && call->item ? call->item->code : 0;
+    uint32_t code = call && call->item ? call->item->code : 0;
     switch (msg) {
     case A_ORDER:
         /* Immediate orders use shared cast validation, preserving ownership and cooldown checks. */

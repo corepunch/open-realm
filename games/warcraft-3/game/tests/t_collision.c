@@ -26,7 +26,7 @@
 #include "../g_local.h"
 
 /* Helpers defined in t_utils.c */
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 
@@ -41,7 +41,7 @@ void setup_test_world(void);
  * testing.  Setting s.model to a non-zero value is required so that
  * IS_HOLLOW() evaluates to false.
  */
-static LPEDICT make_collision_unit(FLOAT x, FLOAT y, FLOAT radius) {
+static LPEDICT make_collision_unit(float x, float y, float radius) {
     LPEDICT ent   = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
     ent->movetype  = MOVETYPE_STEP;
     ent->collision = radius;
@@ -53,18 +53,18 @@ static LPEDICT make_collision_unit(FLOAT x, FLOAT y, FLOAT radius) {
 }
 
 /* Distance between two 2-D origins. */
-static FLOAT dist2(LPCVECTOR2 a, LPCVECTOR2 b) {
-    FLOAT dx = a->x - b->x;
-    FLOAT dy = a->y - b->y;
+static float dist2(LPCVECTOR2 a, LPCVECTOR2 b) {
+    float dx = a->x - b->x;
+    float dy = a->y - b->y;
     return sqrtf(dx*dx + dy*dy);
 }
 
 /* Distance from point p to segment [a,b] — mirrors the swept test in skills/s_move.c so a
  * test can assert a unit's per-tick path never crossed a blocker. */
-static FLOAT seg_dist(LPCVECTOR2 a, LPCVECTOR2 b, LPCVECTOR2 p) {
-    FLOAT abx = b->x - a->x, aby = b->y - a->y;
-    FLOAT ab2 = abx*abx + aby*aby;
-    FLOAT t = ab2 > 0.0001f ? ((p->x - a->x)*abx + (p->y - a->y)*aby) / ab2 : 0.0f;
+static float seg_dist(LPCVECTOR2 a, LPCVECTOR2 b, LPCVECTOR2 p) {
+    float abx = b->x - a->x, aby = b->y - a->y;
+    float ab2 = abx*abx + aby*aby;
+    float t = ab2 > 0.0001f ? ((p->x - a->x)*abx + (p->y - a->y)*aby) / ab2 : 0.0f;
     if (t < 0.0f) t = 0.0f; else if (t > 1.0f) t = 1.0f;
     VECTOR2 c = { a->x + t*abx, a->y + t*aby };
     return dist2(&c, p);
@@ -100,14 +100,14 @@ TEST(wc3_collision, push_entity_negative_distance_moves_back) {
 /* Step a unit's move-order think loop for up to `frames`, stopping early once
  * it leaves the walk state.  Tracks the closest it ever came to `other` so a
  * test can assert the mover never penetrated another unit's collision circle. */
-static FLOAT run_move_tracking_min_dist(LPEDICT mover, LPEDICT other, int frames) {
-    FLOAT min_dist = other ? dist2(&mover->s.origin2, &other->s.origin2) : 0.0f;
+static float run_move_tracking_min_dist(LPEDICT mover, LPEDICT other, int frames) {
+    float min_dist = other ? dist2(&mover->s.origin2, &other->s.origin2) : 0.0f;
     for (int i = 0; i < frames; i++) {
         if (!mover->currentmove || strcmp(mover->currentmove->animation, "walk") != 0)
             break;
         mover->currentmove->think(mover);
         if (other) {
-            FLOAT d = dist2(&mover->s.origin2, &other->s.origin2);
+            float d = dist2(&mover->s.origin2, &other->s.origin2);
             if (d < min_dist) min_dist = d;
         }
     }
@@ -134,7 +134,7 @@ TEST(wc3_collision, idle_unit_is_immovable_obstacle) {
     VECTOR2 dest = {50.0f, 0.0f};
 
     unit_issueorder(mover, "move", &dest);
-    FLOAT min_dist = run_move_tracking_min_dist(mover, blocker, 40);
+    float min_dist = run_move_tracking_min_dist(mover, blocker, 40);
 
     /* Blocker was never pushed. */
     T_FEQ(blocker->s.origin2.x, b0.x, 0.001f);
@@ -153,7 +153,7 @@ TEST(wc3_collision, mover_slides_around_idle_unit) {
     VECTOR2 dest = {120.0f, 0.0f};
 
     unit_issueorder(mover, "move", &dest);
-    BOOL went_lateral = false;
+    bool went_lateral = false;
     for (int i = 0; i < 80; i++) {
         if (!mover->currentmove || strcmp(mover->currentmove->animation, "walk") != 0)
             break;
@@ -174,7 +174,7 @@ TEST(wc3_collision, overlapped_units_separate_on_move) {
     reset_collision_world();
     LPEDICT a = make_collision_unit(0.0f,  0.0f, 16.0f);
     LPEDICT b = make_collision_unit(10.0f, 0.0f, 16.0f);  /* overlaps a (dist 10 < 32) */
-    FLOAT d0 = dist2(&a->s.origin2, &b->s.origin2);
+    float d0 = dist2(&a->s.origin2, &b->s.origin2);
     VECTOR2 dest = {-100.0f, 0.0f};
 
     unit_issueorder(a, "move", &dest);
@@ -223,7 +223,7 @@ TEST(wc3_collision, mover_passes_through_dead_unit) {
  * return the mover's peak lateral deviation.  Mover speed is fixed across calls
  * so only the give-way ring count (faster holds line vs slower swings wide)
  * changes the result. */
-static FLOAT peak_lateral_against_blocker(FLOAT mover_speed, FLOAT blocker_speed) {
+static float peak_lateral_against_blocker(float mover_speed, float blocker_speed) {
     reset_collision_world();
     LPEDICT mover   = make_collision_unit( 0.0f, 0.0f, 16.0f);
     LPEDICT blocker = make_collision_unit(45.0f, 0.0f, 16.0f);
@@ -232,11 +232,11 @@ static FLOAT peak_lateral_against_blocker(FLOAT mover_speed, FLOAT blocker_speed
     VECTOR2 dest = {300.0f, 0.0f};
     unit_issueorder(blocker, "move", &dest);   /* blocker is in the walking state */
     unit_issueorder(mover, "move", &dest);     /* (only the mover is stepped)     */
-    FLOAT peak = 0.0f;
+    float peak = 0.0f;
     for (int i = 0; i < 10; i++) {
         if (!mover->currentmove || strcmp(mover->currentmove->animation, "walk") != 0) break;
         mover->currentmove->think(mover);
-        FLOAT const lat = fabsf(mover->s.origin2.y);
+        float const lat = fabsf(mover->s.origin2.y);
         if (lat > peak) peak = lat;
     }
     return peak;
@@ -246,8 +246,8 @@ static FLOAT peak_lateral_against_blocker(FLOAT mover_speed, FLOAT blocker_speed
  * A faster mover holds its line (narrow slide) against a slower mover; a slower
  * mover swings wide to get around a faster one. */
 TEST(wc3_collision, faster_unit_holds_line_slower_yields) {
-    FLOAT lateral_when_faster = peak_lateral_against_blocker(200.0f, 100.0f);
-    FLOAT lateral_when_slower = peak_lateral_against_blocker(200.0f, 300.0f);
+    float lateral_when_faster = peak_lateral_against_blocker(200.0f, 100.0f);
+    float lateral_when_slower = peak_lateral_against_blocker(200.0f, 300.0f);
     T_ASSERT(lateral_when_faster < lateral_when_slower);
 }
 
@@ -308,7 +308,7 @@ TEST(wc3_collision, fast_unit_cannot_jump_through) {
     LPEDICT blocker = make_collision_unit(40.0f, 0.0f, 16.0f);
     LPEDICT mover   = make_collision_unit( 0.0f, 0.0f, 16.0f);
     mover->unitinfo.MoveSpeed = 1000.0f;  /* ~100 units/tick, well over a unit width */
-    FLOAT const rr = mover->collision + blocker->collision;
+    float const rr = mover->collision + blocker->collision;
     VECTOR2 dest = {200.0f, 0.0f};
     unit_issueorder(mover, "move", &dest);
 
@@ -336,15 +336,15 @@ TEST(wc3_collision, fast_unit_cannot_jump_through) {
  */
 #pragma pack(push, 1)
 typedef struct {
-    BYTE  id_length, colormap_type, image_type;
-    WORD  colormap_index, colormap_length;
-    BYTE  colormap_size;
-    WORD  x_origin, y_origin, width, height;
-    BYTE  pixel_size, attributes;
+    uint8_t  id_length, colormap_type, image_type;
+    uint16_t  colormap_index, colormap_length;
+    uint8_t  colormap_size;
+    uint16_t  x_origin, y_origin, width, height;
+    uint8_t  pixel_size, attributes;
 } test_tga_hdr_t;   /* mirrors tgaHeader_t from g_pathing.c */
 #pragma pack(pop)
 
-static size_t make_tga_grayscale_1x1(BYTE buf[static 32], BYTE gray) {
+static size_t make_tga_grayscale_1x1(uint8_t buf[static 32], uint8_t gray) {
     test_tga_hdr_t hdr = {0};
     hdr.image_type  = 3;
     hdr.width       = 1;
@@ -355,7 +355,7 @@ static size_t make_tga_grayscale_1x1(BYTE buf[static 32], BYTE gray) {
     return sizeof(hdr) + 1;
 }
 
-static size_t make_tga_rgb_2x2(BYTE buf[static 64]) {
+static size_t make_tga_rgb_2x2(uint8_t buf[static 64]) {
     test_tga_hdr_t hdr = {0};
     hdr.image_type  = 2;
     hdr.width       = 2;
@@ -363,7 +363,7 @@ static size_t make_tga_rgb_2x2(BYTE buf[static 64]) {
     hdr.pixel_size  = 24;
     memcpy(buf, &hdr, sizeof(hdr));
     /* 4 pixels × 3 bytes: blue, green, red (BGR in TGA). */
-    BYTE *px = buf + sizeof(hdr);
+    uint8_t *px = buf + sizeof(hdr);
     /* pixel (0,0): R=0xFF G=0x00 B=0x00 → stored BGR */
     *px++ = 0x00; *px++ = 0x00; *px++ = 0xFF;
     /* pixel (1,0): G=0xFF */
@@ -375,14 +375,14 @@ static size_t make_tga_rgb_2x2(BYTE buf[static 64]) {
     return sizeof(hdr) + 4 * 3;
 }
 
-static size_t make_tga_bgra_1x1(BYTE buf[static 64], BYTE b, BYTE g, BYTE r, BYTE a) {
+static size_t make_tga_bgra_1x1(uint8_t buf[static 64], uint8_t b, uint8_t g, uint8_t r, uint8_t a) {
     test_tga_hdr_t hdr = {0};
     hdr.image_type  = 2;
     hdr.width       = 1;
     hdr.height      = 1;
     hdr.pixel_size  = 32;
     memcpy(buf, &hdr, sizeof(hdr));
-    BYTE *px = buf + sizeof(hdr);
+    uint8_t *px = buf + sizeof(hdr);
     px[0] = b;
     px[1] = g;
     px[2] = r;
@@ -390,7 +390,7 @@ static size_t make_tga_bgra_1x1(BYTE buf[static 64], BYTE b, BYTE g, BYTE r, BYT
     return sizeof(hdr) + 4;
 }
 
-static size_t make_tga_grayscale_1x1_with_id(BYTE buf[static 64], BYTE gray, BYTE id_len) {
+static size_t make_tga_grayscale_1x1_with_id(uint8_t buf[static 64], uint8_t gray, uint8_t id_len) {
     test_tga_hdr_t hdr = {0};
     hdr.id_length   = id_len;
     hdr.image_type  = 3;
@@ -404,7 +404,7 @@ static size_t make_tga_grayscale_1x1_with_id(BYTE buf[static 64], BYTE gray, BYT
 }
 
 TEST(wc3_collision, load_tga_grayscale_1x1_dimensions) {
-    BYTE buf[64];
+    uint8_t buf[64];
     size_t sz = make_tga_grayscale_1x1(buf, 0xAB);
     pathTex_t *tex = LoadTGA(buf, sz);
     T_NOT_NULL(tex);
@@ -414,7 +414,7 @@ TEST(wc3_collision, load_tga_grayscale_1x1_dimensions) {
 }
 
 TEST(wc3_collision, load_tga_grayscale_pixel_value) {
-    BYTE buf[64];
+    uint8_t buf[64];
     size_t sz = make_tga_grayscale_1x1(buf, 0xAB);
     pathTex_t *tex = LoadTGA(buf, sz);
     T_NOT_NULL(tex);
@@ -427,7 +427,7 @@ TEST(wc3_collision, load_tga_grayscale_pixel_value) {
 }
 
 TEST(wc3_collision, load_tga_rgb_2x2_dimensions) {
-    BYTE buf[128];
+    uint8_t buf[128];
     size_t sz = make_tga_rgb_2x2(buf);
     pathTex_t *tex = LoadTGA(buf, sz);
     T_NOT_NULL(tex);
@@ -437,7 +437,7 @@ TEST(wc3_collision, load_tga_rgb_2x2_dimensions) {
 }
 
 TEST(wc3_collision, load_tga_rgba_channel_order) {
-    BYTE buf[64];
+    uint8_t buf[64];
     size_t sz = make_tga_bgra_1x1(buf, 0x00, 0x00, 0xFF, 0x7A);
     pathTex_t *tex = LoadTGA(buf, sz);
     T_NOT_NULL(tex);
@@ -450,7 +450,7 @@ TEST(wc3_collision, load_tga_rgba_channel_order) {
 }
 
 TEST(wc3_collision, load_tga_grayscale_with_id_field_skips_id_bytes) {
-    BYTE buf[64];
+    uint8_t buf[64];
     size_t sz = make_tga_grayscale_1x1_with_id(buf, 0x7C, 3);
     pathTex_t *tex = LoadTGA(buf, sz);
     T_NOT_NULL(tex);
@@ -461,7 +461,7 @@ TEST(wc3_collision, load_tga_grayscale_with_id_field_skips_id_bytes) {
 }
 
 TEST(wc3_collision, load_tga_colormap_not_supported_returns_null) {
-    BYTE buf[64] = {0};
+    uint8_t buf[64] = {0};
     test_tga_hdr_t *hdr = (test_tga_hdr_t *)buf;
     hdr->image_type    = 2;
     hdr->colormap_type = 1; /* colormapped images are unsupported by LoadTGA */
@@ -473,7 +473,7 @@ TEST(wc3_collision, load_tga_colormap_not_supported_returns_null) {
 }
 
 TEST(wc3_collision, load_tga_unsupported_type_returns_null) {
-    BYTE buf[64] = {0};
+    uint8_t buf[64] = {0};
     test_tga_hdr_t *hdr = (test_tga_hdr_t *)buf;
     hdr->image_type = 10; /* RLE-compressed — not supported */
     hdr->width      = 1;
@@ -484,7 +484,7 @@ TEST(wc3_collision, load_tga_unsupported_type_returns_null) {
 }
 
 TEST(wc3_collision, load_tga_rejects_truncated_header_and_pixels) {
-    BYTE buf[64];
+    uint8_t buf[64];
     size_t sz = make_tga_bgra_1x1(buf, 0x00, 0x00, 0xFF, 0xFF);
 
     T_NULL(LoadTGA(NULL, 0));

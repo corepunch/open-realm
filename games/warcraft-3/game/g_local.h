@@ -52,9 +52,9 @@ typedef enum {
 
 typedef struct {
     LPCMAPINFO info;
-    DWORD version;
-    LPSTR out;
-    DWORD size;
+    uint32_t version;
+    string_t out;
+    uint32_t size;
 } wc3MapGameDataPrefixParams_t;
 
 #define ITEM_DROP_RANGE 150.0f   /* world units; point-drop reach before the carrier must move */
@@ -90,8 +90,8 @@ if (NAME) { \
     UI_SetCurrentClient((ent)->client); \
     UI_WriteStart(layer); \
     BuildUI((ent)->client, ##__VA_ARGS__); \
-    gi.Write(PF_LONG, &(LONG){0}); \
-    gi.Write(PF_SHORT, &(LONG){0}); \
+    gi.Write(PF_LONG, &(int32_t){0}); \
+    gi.Write(PF_SHORT, &(int32_t){0}); \
     gi.unicast(ent); \
     UI_SetCurrentClient(NULL); \
 } while (0)
@@ -129,16 +129,16 @@ typedef enum {
 
 typedef struct {
     LPCEDICT building;
-    DWORD unit_id;
-    LONG *gold, *lumber, *food;
+    uint32_t unit_id;
+    int32_t *gold, *lumber, *food;
 } buildingUpgradeCostParams_t;
 
 typedef struct {
     LPGAMECLIENT client;
     LPEDICT producer;
-    DWORD unit_id;
-    LPSTR reason;
-    DWORD reason_size;
+    uint32_t unit_id;
+    string_t reason;
+    uint32_t reason_size;
 } buildingUpgradeCommandParams_t;
 
 typedef enum {
@@ -162,22 +162,22 @@ typedef enum {
 } constructionType_t;
 
 typedef struct {
-    DWORD id;
-    LONG researched;
-    LONG in_progress;
-    LONG max_allowed; /* -1 = unlimited/default */
+    uint32_t id;
+    int32_t researched;
+    int32_t in_progress;
+    int32_t max_allowed; /* -1 = unlimited/default */
 } playerTechState_t;
 
 typedef struct {
-    BOOL (*on_entity_selected)(LPEDICT, LPEDICT);
-    BOOL (*on_location_selected)(LPEDICT, LPCVECTOR2);
-    void (*cmdbutton)(LPEDICT, DWORD);
+    bool (*on_entity_selected)(LPEDICT, LPEDICT);
+    bool (*on_location_selected)(LPEDICT, LPCVECTOR2);
+    void (*cmdbutton)(LPEDICT, uint32_t);
     void (*refresh)(LPEDICT);
-    DWORD ability_code;
-    BOOL supports_order_queue; /* active target mode accepts Shift chaining */
-    BOOL order_queued;         /* transient modifier for the current target callback */
-    BOOL order_queue_chained;  /* successful Shift target keeps this mode armed until Shift release */
-    BOOL ability_off;          /* command-card separate-off variant selected for this dispatch */
+    uint32_t ability_code;
+    bool supports_order_queue; /* active target mode accepts Shift chaining */
+    bool order_queued;         /* transient modifier for the current target callback */
+    bool order_queue_chained;  /* successful Shift target keeps this mode armed until Shift release */
+    bool ability_off;          /* command-card separate-off variant selected for this dispatch */
     LPEDICT dragged_item;      /* transient inventory item carried by the cursor for a drop order */
 } menu_t;
 typedef menu_t clientMenu_s;
@@ -450,10 +450,10 @@ typedef enum {
 
 struct gregion_s {
     BOX2 rects[MAX_REGION_SIZE];
-    DWORD num_rects;
-    BOOL inuse;
-    DWORD generation;
-    BOOL exhausted;
+    uint32_t num_rects;
+    uint8_t inuse;
+    uint32_t generation;
+    uint8_t exhausted;
 };
 
 typedef enum {
@@ -469,14 +469,14 @@ typedef enum {
 } ensnareHeightState_t;
 
 struct gcamerasetup_s {
-    FLOAT target_distance;
-    FLOAT far_z;
-    FLOAT near_z;
-//    FLOAT angle_of_attack;
-    FLOAT fov;      /* vertical field of view in degrees */
-//    FLOAT roll;
-//    FLOAT rotations;
-    FLOAT z_offset;
+    float target_distance;
+    float far_z;
+    float near_z;
+//    float angle_of_attack;
+    float fov;      /* vertical field of view in degrees */
+//    float roll;
+//    float rotations;
+    float z_offset;
     VECTOR3 viewangles;
     VECTOR2 position;
 };
@@ -495,126 +495,126 @@ typedef enum {
 typedef struct {
     char name[WC3_MUSIC_NAME_MAX];
     wc3MusicSource_t source;
-    BOOL random;
-    LONG index;
-    LONG position_ms;
-    LONG fade_ms;
-    DWORD played_mask;
-    BOOL paused;
-    DWORD session_id;
-    BOOL valid;
+    bool random;
+    int32_t index;
+    int32_t position_ms;
+    int32_t fade_ms;
+    uint32_t played_mask;
+    bool paused;
+    uint32_t session_id;
+    bool valid;
 } wc3MusicRestore_t;
 
 typedef struct {
     char map_name[WC3_MUSIC_NAME_MAX];
-    BOOL map_random;
-    LONG map_index;
-    DWORD map_session_id;
+    bool map_random;
+    int32_t map_index;
+    uint32_t map_session_id;
 
     char current_name[WC3_MUSIC_NAME_MAX];
     wc3MusicSource_t current_source;
-    BOOL current_random;
-    LONG current_index;
-    LONG current_position_ms;
-    LONG current_fade_ms;
-    DWORD current_played_mask;
-    BOOL paused;
-    DWORD current_session_id;
-    DWORD session_serial;
+    bool current_random;
+    int32_t current_index;
+    int32_t current_position_ms;
+    int32_t current_fade_ms;
+    uint32_t current_played_mask;
+    bool paused;
+    uint32_t current_session_id;
+    uint32_t session_serial;
 
     wc3MusicRestore_t thematic_restore;
 
-    LONG volume;
-    LONG thematic_volume;
+    int32_t volume;
+    int32_t thematic_volume;
 } wc3MusicState_t;
 
 struct client_s {
     PLAYER ps;
-    BOOL connected; /* ClientBegin completed for this reserved player edict. */
-    BOOL commands_dirty; /* authoritative command availability changed; rebuild after simulation */
-    BOOL selection_dirty; /* JASS selection changed; synchronize once after simulation */
-    BOOL presentation_dirty; /* dialogue/interface/selected-portrait state changed; flush svc_layout after simulation */
+    bool connected; /* ClientBegin completed for this reserved player edict. */
+    bool commands_dirty; /* authoritative command availability changed; rebuild after simulation */
+    bool selection_dirty; /* JASS selection changed; synchronize once after simulation */
+    bool presentation_dirty; /* dialogue/interface/selected-portrait state changed; flush svc_layout after simulation */
     struct {
-        DWORD race_pref, controller;
-        BYTE tax[MAX_PLAYERS][PLAYERSTATE_LUMBER_GATHERED + 1];
-        FLOAT handicap, handicap_xp;
-        BOOL race_selectable, on_score_screen;
-        BOOL removed;
-        BYTE pending_game_result; /* 0 = none, PLAYER_GAME_RESULT_* + 1 while fallback UI is deferred */
-        DWORD pending_game_result_event; /* level.events.read must reach this write ordinal before fallback UI */
+        uint32_t race_pref, controller;
+        uint8_t tax[MAX_PLAYERS][PLAYERSTATE_LUMBER_GATHERED + 1];
+        float handicap, handicap_xp;
+        bool race_selectable, on_score_screen;
+        bool removed;
+        uint8_t pending_game_result; /* 0 = none, PLAYER_GAME_RESULT_* + 1 while fallback UI is deferred */
+        uint32_t pending_game_result_event; /* level.events.read must reach this write ordinal before fallback UI */
         char name[MAX_PATHLEN];
-        DWORD disabled_abilities[64]; /* SetPlayerAbilityAvailable(false) rawcodes */
-        DWORD disabled_ability_count;
+        uint32_t disabled_abilities[64]; /* SetPlayerAbilityAvailable(false) rawcodes */
+        uint32_t disabled_ability_count;
     } jass;
     playerTechState_t tech[MAX_PLAYER_TECH_STATE];
     char playerTextStorage[PLAYERTEXT_COUNT][PLAYER_TEXT_BACKUP][512];
-    DWORD playerTextCursor[PLAYERTEXT_COUNT];
+    uint32_t playerTextCursor[PLAYERTEXT_COUNT];
     LPCMAPPLAYER mapplayer;
-    DWORD ping;
-    BOOL no_control, no_ui;
+    uint32_t ping;
+    bool no_control, no_ui;
     /* Presentation class the client's window settled on (ui_canvas command); gates widescreen console
      * chrome. Runtime state: the client reports it again before begin. */
     UICANVASCLASS canvas;
-    BOOL cheat_instant_build; /* developer cheat: owner construction/training/research completes on next work tick */
-    BOOL cheat_instant_kill; /* developer cheat: owner damage lethally hits units/buildings/destructables */
-    DWORD modal_flags;
-    BOOL quest_dialog_open;
-    DWORD quest_until; /* FlashQuestDialogButton deadline in simulation milliseconds. */
+    bool cheat_instant_build; /* developer cheat: owner construction/training/research completes on next work tick */
+    bool cheat_instant_kill; /* developer cheat: owner damage lethally hits units/buildings/destructables */
+    uint32_t modal_flags;
+    bool quest_dialog_open;
+    uint32_t quest_until; /* FlashQuestDialogButton deadline in simulation milliseconds. */
     menu_t menu;
     struct clientCamera_s {
         CAMERASETUP state;
         CAMERASETUP old_state;
-        FLOAT target_height;
-        DWORD start_time;
-        DWORD end_time;
+        float target_height;
+        uint32_t start_time;
+        uint32_t end_time;
         VECTOR2 quick_position; /* SetCameraQuickPosition spacebar target; does not move the camera */
-        BOOL quick_position_set;
+        bool quick_position_set;
         LPEDICT target_controller;
         VECTOR2 target_offset;
-        BOOL target_inherit_orientation;
+        bool target_inherit_orientation;
     } camera;
     /* Info-panel cache. For single units entity/xp track static presentation;
      * HP/mana are retained for save-layout compatibility because live portrait
      * values now use player-state bindings. With entity==0, hp caches the
      * non-single selection count (-1 denotes the building queue panel). */
     struct {
-        DWORD entity;
-        LONG hp;
-        LONG mana;
-        LONG xp;     /* hero experience, so the XP/attribute display updates live */
+        uint32_t entity;
+        int32_t hp;
+        int32_t mana;
+        int32_t xp;     /* hero experience, so the XP/attribute display updates live */
     } infopanel;
     /* Last resource values reflected in the resource bar, so the server only
      * re-sends LAYER_CONSOLE when a displayed value or tooltip income rate changes. */
     struct {
-        LONG gold;
-        LONG lumber;
-        LONG food_used;
-        LONG food_cap;
-        LONG gold_rate;
-        LONG lumber_rate;
-        DWORD quest_until;
+        int32_t gold;
+        int32_t lumber;
+        int32_t food_used;
+        int32_t food_cap;
+        int32_t gold_rate;
+        int32_t lumber_rate;
+        uint32_t quest_until;
         UICANVASCLASS canvas; /* class the console chrome was last authored for */
     } resourcebar;
     /* Persistent Hero/idle-worker HUD is rebuilt only after gameplay marks it
      * dirty. last_idle_worker is the cycling cursor, not a per-frame cache. */
     struct {
-        BOOL dirty;
-        DWORD last_idle_worker;
+        bool dirty;
+        uint32_t last_idle_worker;
     } shortcuts;
     LPEDICT rally_indicator;
     struct {
         VECTOR2 position;
-        DWORD end_time;        /* game time (ms), 0 = inactive */
+        uint32_t end_time;        /* game time (ms), 0 = inactive */
         char text[1024];
     } message;
     struct {
         char entries[WC3_MESSAGE_LOG_MAX_ENTRIES][WC3_MESSAGE_LOG_ENTRY_SIZE];
-        DWORD first;
-        DWORD count;
+        uint32_t first;
+        uint32_t count;
     } message_log;
     wc3MusicState_t music; /* client-local Warcraft music semantics; synced on ClientBegin */
-    DWORD cinematic_end_time;       /* game time (ms) when current SetCinematicScene expires, 0 = none */
-    DWORD cinematic_voice_end_time; /* game time (ms) when Portrait Talk becomes Portrait, 0 = not talking */
+    uint32_t cinematic_end_time;       /* game time (ms) when current SetCinematicScene expires, 0 = none */
+    uint32_t cinematic_voice_end_time; /* game time (ms) when Portrait Talk becomes Portrait, 0 = not talking */
 };
 
 /* Player-issued WC3 Shift orders are simulation state, separate from the
@@ -637,17 +637,17 @@ typedef struct {
     /* Entity-target orders identify their gameplay target here. Queued Build
      * orders instead identify their owner-only Construction Site Indicator so
      * queue teardown can remove presentation without storing process pointers. */
-    DWORD target_number;
-    DWORD target_spawn_time;
-    DWORD issuer_player;
-    DWORD order_id; /* rawcode payload for delayed orders such as construction */
-    FLOAT group_speed;
+    uint32_t target_number;
+    uint32_t target_spawn_time;
+    uint32_t issuer_player;
+    uint32_t order_id; /* rawcode payload for delayed orders such as construction */
+    float group_speed;
 } unitOrder_t;
 
 typedef struct {
     unitOrder_t entries[MAX_UNIT_ORDER_QUEUE];
-    DWORD head;
-    DWORD count;
+    uint32_t head;
+    uint32_t count;
 } unitOrderQueue_t;
 
 /* Independent policies consumed by ability command and cast dispatch. */
@@ -706,7 +706,7 @@ typedef struct heroabilitystatus_s heroabilitystatus_t;
 
 /* A resolved use of a shared procedure. Rawcode belongs to the authored ability, not its behavior. */
 typedef struct {
-    DWORD code;
+    uint32_t code;
     ability_t const *ability;
 } abilityitem_t;
 
@@ -760,81 +760,81 @@ struct ability_call_s {
         spellTarget_t const *target;
         LPEDICT client;
         LPEDICT projectile;
-        LPCSTR order;
-        struct { LPEDICT issuer; LPCSTR order; } target_order; /* A_TARGET_ORDER */
-        LPCSTR classname;
-        DWORD level;
-        BOOL enabled;
+        cstring_t order;
+        struct { LPEDICT issuer; cstring_t order; } target_order; /* A_TARGET_ORDER */
+        cstring_t classname;
+        uint32_t level;
+        bool enabled;
         struct { LPEDICT producer; LPEDICT item; } queue; /* A_QUEUE_*: owning producer and queued item. */
         unitOrder_t const *queued_order; /* A_QUEUE_ORDER_*: entry being started or discarded from the player FIFO. */
-        struct { heroabilitystatus_t *slot; DWORD ability; } status; /* A_STATUS_*: status slot (valid during REMOVE) and origin ability rawcode. */
+        struct { heroabilitystatus_t *slot; uint32_t ability; } status; /* A_STATUS_*: status slot (valid during REMOVE) and origin ability rawcode. */
     };
 };
 
 struct ability_s {
-    LPCSTR classname;
+    cstring_t classname;
     abilityProc_t proc;
-    DWORD flags;
+    uint32_t flags;
     spellTargetType_t target_type;
-    LPCSTR const *orders;
+    cstring_t const *orders;
 };
 
 typedef struct {
-    LPCSTR animation;
+    cstring_t animation;
     void (*think)(LPEDICT);
     void (*endfunc)(LPEDICT);
     abilityProc_t proc;
     /* Optional authoritative duration for presentation-only moves such as
      * Warcraft corpse decay. M_MoveFrame maps the selected model sequence
      * across this duration instead of assuming one model frame per ms tick. */
-    FLOAT (*animation_duration)(LPCEDICT);
+    float (*animation_duration)(LPCEDICT);
 } umove_t;
 
 typedef struct {
     attackType_t type;
     weaponType_t weapon;
     VECTOR3 origin;
-    DWORD damageBase;
-    DWORD numberOfDice;
-    DWORD sidesPerDie;
+    uint32_t damageBase;
+    uint32_t numberOfDice;
+    uint32_t sidesPerDie;
     /* Warsmash keeps permanent range changes separate from temporary green/red
      * attack bonuses. damageBase includes permanentDamageBonus; rolls add
      * temporaryDamageBonus after the dice. */
-    FLOAT permanentDamageBonus;
-    FLOAT temporaryDamageBonus;
-    FLOAT damagePoint;
-    FLOAT cooldown;
-    FLOAT range;
-    DWORD targetsAllowed; /* WC3 targetflag bitmask (ua1g/ua2g) */
+    float permanentDamageBonus;
+    float temporaryDamageBonus;
+    float damagePoint;
+    float cooldown;
+    float range;
+    uint32_t targetsAllowed; /* WC3 targetflag bitmask (ua1g/ua2g) */
     /* Splash (area-of-effect) attack: full/medium/small radii and the damage
      * factors applied in the medium and small rings. */
-    FLOAT areaFull;
-    FLOAT areaMedium;
-    FLOAT areaSmall;
-    FLOAT factorMedium;
-    FLOAT factorSmall;
-    DWORD maxTargets;   /* bounce: max chained targets (utc1) */
-    FLOAT damageLoss;   /* bounce: fractional damage lost per bounce (udl1) */
+    float areaFull;
+    float areaMedium;
+    float areaSmall;
+    float factorMedium;
+    float factorSmall;
+    uint32_t maxTargets;   /* bounce: max chained targets (utc1) */
+    float damageLoss;   /* bounce: fractional damage lost per bounce (udl1) */
     struct {
-        DWORD model;
-        FLOAT arc;
-        FLOAT speed;
+        uint32_t model;
+        float arc;
+        float speed;
     } projectile;
 } unitAttack_t;
 
 typedef struct {
-    FLOAT value;
-    FLOAT max_value;
+    float value;
+    float max_value;
 } EDICTSTAT;
 typedef EDICTSTAT edictStat_s;
 
 typedef struct edictAbilities_s {
-    DWORD added[MAX_ABILITIES];
-    DWORD added_count;
-    DWORD removed[MAX_ABILITIES];
-    DWORD removed_count;
-    DWORD permanent[MAX_ABILITIES];
-    DWORD permanent_count;
+    uint32_t added[MAX_ABILITIES];
+    uint32_t added_count;
+    uint32_t removed[MAX_ABILITIES];
+    uint32_t removed_count;
+    uint32_t permanent[MAX_ABILITIES];
+    uint32_t permanent_count;
 } edictAbilities_s;
 
 typedef struct {
@@ -849,14 +849,14 @@ typedef struct {
 typedef struct gameevent_s {
     EVENTTYPE type;
     LPEDICT edict;
-    DWORD edict_spawn_time;
-    BOOL edict_spawn_tracked;
+    uint32_t edict_spawn_time;
+    bool edict_spawn_tracked;
     LPEDICT source;
-    DWORD source_spawn_time;
-    BOOL source_spawn_tracked;
-    LONG value; /* scalar JASS callback payload (for example spell/research rawcode) */
+    uint32_t source_spawn_time;
+    bool source_spawn_tracked;
+    int32_t value; /* scalar JASS callback payload (for example spell/research rawcode) */
     VECTOR2 point;
-    BOOL has_point;
+    bool has_point;
     LPEVENT responseTo;
 } GAMEEVENT;
 
@@ -864,7 +864,7 @@ typedef struct {
     LPEDICT edict;
     EVENTTYPE type;
     LPEDICT source;
-    LONG value;
+    int32_t value;
     LPCVECTOR2 point;
 } gameEventPointParams_t;
 
@@ -885,8 +885,8 @@ typedef enum {
 
 typedef struct {
     GAMEMSGTYPE type;
-    DWORD actor;
-    DWORD target;
+    uint32_t actor;
+    uint32_t target;
 } GAMEMSG;
 typedef GAMEMSG const *LPCGAMEMSG;
 typedef void (*gameMsgFn)(LPCGAMEMSG, void *);
@@ -901,7 +901,7 @@ typedef struct {
 } GAMEMESSAGES;
 
 typedef struct {
-    DWORD class_id;
+    uint32_t class_id;
     VECTOR2 origin;
 } gitem_t;
 
@@ -940,17 +940,17 @@ typedef struct {
 #endif
 
 typedef struct {
-    DWORD handle_id; // runtime ordinal in level.groups; rebuilt from slot position on load
-    BOOL inuse;
+    uint32_t handle_id; // runtime ordinal in level.groups; rebuilt from slot position on load
+    bool inuse;
     LPEDICT units[MAX_GROUP_SIZE];
-    DWORD num_units;
+    uint32_t num_units;
 } ggroup_t;
 
 typedef struct {
-    BOOL inuse;
-    BOOL enabled;
-    DWORD handle_id;
-    DWORD effect_id;
+    bool inuse;
+    bool enabled;
+    uint32_t handle_id;
+    uint32_t effect_id;
     BOX2 bounds;
 } gweather_t;
 
@@ -958,30 +958,30 @@ typedef gweather_t *LPGWEATHER;
 typedef gweather_t const *LPCGWEATHER;
 
 typedef struct GLIGHTNING {
-    BOOL inuse;
+    bool inuse;
     LIGHTNINGEFFECT state;
     LPEDICT source_entity;
-    DWORD source_spawn_time;
+    uint32_t source_spawn_time;
     LPEDICT target_entity;
-    DWORD target_spawn_time;
-    FLOAT script_color[4];
+    uint32_t target_spawn_time;
+    float script_color[4];
 } GLIGHTNING;
 typedef GLIGHTNING *LPGLIGHTNING;
 typedef GLIGHTNING const *LPCGLIGHTNING;
 
 typedef struct LIGHTNINGADDPARAMS {
-    DWORD effect_id;
+    uint32_t effect_id;
     LPCVECTOR3 source, target;
     COLOR32 color;
-    DWORD duration_ms;
+    uint32_t duration_ms;
 } LIGHTNINGADDPARAMS;
 typedef LIGHTNINGADDPARAMS *LPLIGHTNINGADDPARAMS;
 typedef LIGHTNINGADDPARAMS const *LPCLIGHTNINGADDPARAMS;
 
 typedef struct ABILITYLIGHTNINGPARAMS {
-    DWORD ability_id, index;
+    uint32_t ability_id, index;
     LPCEDICT source, target;
-    DWORD duration_ms;
+    uint32_t duration_ms;
 } ABILITYLIGHTNINGPARAMS;
 typedef ABILITYLIGHTNINGPARAMS *LPABILITYLIGHTNINGPARAMS;
 typedef ABILITYLIGHTNINGPARAMS const *LPCABILITYLIGHTNINGPARAMS;
@@ -999,23 +999,23 @@ typedef struct gtriggercondition_s {
 struct gtrigger_s {
     TRIGGERACTION *actions;
     TRIGGERCONDITION *conditions;
-    BOOL disabled;
+    bool disabled;
 };
 
 struct gtimer_s {
     struct jass_function const *handler;
-    DWORD duration, remaining;
-    DWORD generation;
-    BOOL periodic, paused, running;
+    uint32_t duration, remaining;
+    uint32_t generation;
+    bool periodic, paused, running;
 };
 
 struct gtimerdialog_s {
     LPGTIMER timer;
-    BOOL inuse;
-    BOOL title_set;
-    BOOL title_color_set;
-    BOOL time_color_set;
-    DWORD visible_clients;
+    bool inuse;
+    bool title_set;
+    bool title_color_set;
+    bool time_color_set;
+    uint32_t visible_clients;
     COLOR32 title_color;
     COLOR32 time_color;
     char title[MAX_TRIGSTR_LENGTH];
@@ -1023,21 +1023,21 @@ struct gtimerdialog_s {
 
 struct gleaderboarditem_s {
     char label[MAX_TRIGSTR_LENGTH];
-    LONG value;
-    LONG player; /* player number, -1 = no player */
-    BOOL show_label, show_value, show_icon;
-    BOOL label_color_set, value_color_set;
+    int32_t value;
+    int32_t player; /* player number, -1 = no player */
+    bool show_label, show_value, show_icon;
+    bool label_color_set, value_color_set;
     COLOR32 label_color, value_color;
 };
 
 struct gleaderboard_s {
-    BOOL inuse;
-    DWORD displayed_clients;
-    BOOL show_label, show_names, show_values, show_icons;
-    BOOL label_color_set, value_color_set;
+    bool inuse;
+    uint32_t displayed_clients;
+    bool show_label, show_names, show_values, show_icons;
+    bool label_color_set, value_color_set;
     COLOR32 label_color, value_color;
-    LONG size_by_item_count;
-    DWORD item_count;
+    int32_t size_by_item_count;
+    uint32_t item_count;
     char label[MAX_TRIGSTR_LENGTH];
     struct gleaderboarditem_s items[MAX_LEADERBOARD_ITEMS];
 };
@@ -1045,37 +1045,37 @@ struct gleaderboard_s {
 struct gmultiboardcell_s {
     char value[MAX_MULTIBOARD_VALUE];
     char icon[MAX_PATHLEN];
-    FLOAT width;
-    BOOL show_value, show_icon;
-    BOOL value_color_set;
+    float width;
+    bool show_value, show_icon;
+    bool value_color_set;
     COLOR32 value_color;
 };
 
 struct gmultiboard_s {
-    BOOL inuse;
-    DWORD displayed_clients;
-    DWORD minimized_clients;
-    DWORD rows, cols;
+    bool inuse;
+    uint32_t displayed_clients;
+    uint32_t minimized_clients;
+    uint32_t rows, cols;
     char title[MAX_TRIGSTR_LENGTH];
     struct gmultiboardcell_s cells[MAX_MULTIBOARD_CELLS];
 };
 
 /* Refcounted view into one multiboard cell; ReleaseItem frees the view, not the cell. */
 struct gmultiboarditem_s {
-    BOOL inuse;
-    DWORD refs;
-    LONG board; /* registry index; -1 when the board was destroyed */
-    LONG row, col;
+    bool inuse;
+    uint32_t refs;
+    int32_t board; /* registry index; -1 when the board was destroyed */
+    int32_t row, col;
 };
 
 struct gtexttag_s {
-    BOOL inuse;
-    DWORD visible_clients;
-    BOOL permanent;
-    FLOAT height, height_offset;
-    FLOAT x, y;
-    FLOAT xvel, yvel;
-    FLOAT age, lifespan, fadepoint;
+    bool inuse;
+    uint32_t visible_clients;
+    bool permanent;
+    float height, height_offset;
+    float x, y;
+    float xvel, yvel;
+    float age, lifespan, fadepoint;
     COLOR32 color;
     LPEDICT unit; /* SetTextTagPosUnit anchor; NULL when unset */
     char text[MAX_MULTIBOARD_VALUE];
@@ -1090,51 +1090,51 @@ typedef enum {
 } hashtableSlotType_t;
 
 typedef struct {
-    LONG parent, child;
+    int32_t parent, child;
     hashtableSlotType_t type;
     char handle_type[MAX_HASHTABLE_TYPE]; /* HT_HANDLE only; SaveUnitHandle vs SaveItemHandle */
     union {
-        LONG integer;
-        FLOAT real;
-        BOOL boolean;
-        HANDLE handle;
+        int32_t integer;
+        float real;
+        bool boolean;
+        handle_t handle;
         char string[MAX_GAMECACHE_STRING];
     } value;
 } hashtableEntry_t;
 
 struct ghashtable_s {
-    BOOL inuse;
-    DWORD num_entries, capacity; /* capacity is runtime only; entries pointer is not in the level schema */
+    bool inuse;
+    uint32_t num_entries, capacity; /* capacity is runtime only; entries pointer is not in the level schema */
     hashtableEntry_t *entries;
 };
 
 struct gquestitem_s {
-    LPSTR description;
-    BOOL completed;
-    BOOL inuse;
+    string_t description;
+    bool completed;
+    bool inuse;
 };
 
 struct gquest_s {
-    LPSTR title;
-    LPSTR description;
-    LPSTR iconPath;
+    string_t title;
+    string_t description;
+    string_t iconPath;
     QUESTITEM items[MAX_QUESTITEMS];
-    DWORD num_items;
-    BOOL discovered;
-    BOOL required;
-    BOOL completed;
-    BOOL failed;
-    BOOL enabled;
-    BOOL inuse;
+    uint32_t num_items;
+    bool discovered;
+    bool required;
+    bool completed;
+    bool failed;
+    bool enabled;
+    bool inuse;
 };
 
 /* Quest rows are present in the journal only while both server visibility gates are enabled. */
-static inline BOOL QuestIsVisible(LPCQUEST quest) { return quest && quest->enabled && quest->discovered; }
+static inline bool QuestIsVisible(LPCQUEST quest) { return quest && quest->enabled && quest->discovered; }
 
 typedef struct {
-    struct { FLOAT day, night; } sight_radius;
-    FLOAT acquisition_range;
-    DWORD flags;
+    struct { float day, night; } sight_radius;
+    float acquisition_range;
+    uint32_t flags;
 } unitbalance_t;
 
 #define UNIT_BALANCE_BUILDING 0x1 // bit; immutable building classification; used by hot AI/FOW paths
@@ -1145,8 +1145,8 @@ typedef struct {
 #define WC3_ORDER_ID_POLYMORPH 852074 // order ID; Warcraft Polymorph command; used by order dispatch
 
 typedef struct {
-    DWORD code;
-    DWORD level;
+    uint32_t code;
+    uint32_t level;
 } heroability_t;
 
 typedef enum {
@@ -1158,8 +1158,8 @@ typedef enum {
 } gameCacheValueType_t;
 
 typedef struct {
-    DWORD item_id;
-    DWORD charges;
+    uint32_t item_id;
+    uint32_t charges;
 } gameCacheItem_t;
 
 #define WC3_UNIT_COLOR_OVERRIDE_FLAG 0x80000000u // bit; distinguishes explicit PLAYER_COLOR_RED from the zero/default owner-color state
@@ -1167,12 +1167,12 @@ typedef struct {
 #define WC3_PLAYER_COLOR_LIGHT_GRAY 8 // playercolor index; canonical Neutral Passive presentation color
 
 typedef struct {
-    DWORD class_id;
+    uint32_t class_id;
     doodadHero_t hero;
     heroability_t abilities[MAX_HERO_ABILITIES];
     EDICTSTAT health;
     EDICTSTAT mana;
-    DWORD unit_color;
+    uint32_t unit_color;
     gameCacheItem_t inventory[MAX_INVENTORY];
 } gameCacheUnit_t;
 
@@ -1181,9 +1181,9 @@ typedef struct {
     UINAME key;
     gameCacheValueType_t type;
     union {
-        LONG integer;
-        FLOAT real;
-        BOOL boolean;
+        int32_t integer;
+        float real;
+        bool boolean;
         char string[MAX_GAMECACHE_STRING];
         gameCacheUnit_t unit;
     } value;
@@ -1191,8 +1191,8 @@ typedef struct {
 
 typedef struct {
     PATHSTR campaign;
-    DWORD num_entries;
-    BOOL dirty;
+    uint32_t num_entries;
+    bool dirty;
     gameCacheEntry_t entries[MAX_GAMECACHE_ENTRIES];
 } gameCache_t;
 
@@ -1205,41 +1205,41 @@ typedef enum {
 } heroSkillState_t;
 
 typedef struct heroabilitystatus_s {
-    DWORD code;
-    DWORD level;
-    DWORD timestamp;
-    DWORD duration_ms; /* milliseconds; original timed-status duration, 0 for persistent state */
-    DWORD data; /* applying ability rawcode for lifecycle dispatch; legacy Anti-Magic Shell absorption payload */
+    uint32_t code;
+    uint32_t level;
+    uint32_t timestamp;
+    uint32_t duration_ms; /* milliseconds; original timed-status duration, 0 for persistent state */
+    uint32_t data; /* applying ability rawcode for lifecycle dispatch; legacy Anti-Magic Shell absorption payload */
     LPEDICT source; /* applying entity; F_EDICT fixup, checked against source_spawn_time before use */
-    DWORD source_spawn_time, rank, next_tick; /* source incarnation, applying ability rank, next pulse in milliseconds */
+    uint32_t source_spawn_time, rank, next_tick; /* source incarnation, applying ability rank, next pulse in milliseconds */
 } heroabilitystatus_t;
 
 typedef struct {
-    DWORD code;       /* normalized AbilityData.code rawcode; zero means unused slot */
-    DWORD start_time; /* authoritative game time in milliseconds */
-    DWORD end_time;   /* authoritative game time in milliseconds */
+    uint32_t code;       /* normalized AbilityData.code rawcode; zero means unused slot */
+    uint32_t start_time; /* authoritative game time in milliseconds */
+    uint32_t end_time;   /* authoritative game time in milliseconds */
 } abilityCooldown_t;
 
 typedef struct {
-    DWORD start_time;
-    DWORD end_time;
+    uint32_t start_time;
+    uint32_t end_time;
 } abilityCooldownWindow_t;
 
 typedef struct edictShopStockItem_s {
-    DWORD id;
-    LONG current;
-    LONG maximum;
-    DWORD delay_start;
-    DWORD delay_end;
+    uint32_t id;
+    int32_t current;
+    int32_t maximum;
+    uint32_t delay_start;
+    uint32_t delay_end;
 } edictShopStockItem_t;
 
 typedef struct edictStock_s {
-    DWORD item_slots, unit_slots;
-    BOOL items_initialized;
-    DWORD item_count;
+    uint32_t item_slots, unit_slots;
+    bool items_initialized;
+    uint32_t item_count;
     edictShopStockItem_t items[MAX_SHOP_STOCK];
-    BOOL units_initialized;
-    DWORD unit_count;
+    bool units_initialized;
+    uint32_t unit_count;
     edictShopStockItem_t units[MAX_SHOP_STOCK];
 } edictStock_t;
 
@@ -1247,7 +1247,7 @@ typedef struct {
     LPGAMECLIENT client;
     LPEDICT shop;
     gameCommandButton_t *buttons;
-    BYTE max_buttons;
+    uint8_t max_buttons;
 } shopItemButtonsParams_t;
 
 typedef struct {
@@ -1267,295 +1267,295 @@ typedef enum {
 } moveFallbackState_t;
 
 typedef struct edictArtillery_s {
-    DWORD attack_type, area_targets, targets_allowed;
-    FLOAT area_full, area_medium, area_small, factor_medium, factor_small;
+    uint32_t attack_type, area_targets, targets_allowed;
+    float area_full, area_medium, area_small, factor_medium, factor_small;
 } edictArtillery_t;
 
 struct edict_s {
     entityState_t s;
     LPGAMECLIENT client;
     pathTex_t *pathtex;
-    FLOAT collision;
+    float collision;
     BOX2 bounds;
-    DWORD svflags;
-    DWORD selected;
-    DWORD areanum;
+    uint32_t svflags;
+    uint32_t selected;
+    uint32_t areanum;
     LINK area;
-    BOOL inuse;
+    bool inuse;
     BOX2 areabounds;
 
     // keep above in sync with server.h
-    DWORD class_id;
-    DWORD variation;
-    DWORD build_project;
+    uint32_t class_id;
+    uint32_t variation;
+    uint32_t build_project;
     LPEDICT build_preview; /* translucent Construction Site Indicator for an accepted build order */
-    BOOL rally_indicator;
+    bool rally_indicator;
     struct edictConstruction_s {
-        BOOL active;
-        BOOL paused;
+        bool active;
+        bool paused;
         constructionType_t type;
         LPEDICT primary_builder; /* Human Repair owner; only meaningful for Human construction */
         LPEDICT worker;          /* Orc/Night Elf internal worker; Undead summoner while casting */
-        DWORD worker_spawn_time; /* validates worker pointer across remove/reuse */
-        BOOL worker_inside;
-        BOOL consumes_worker;
-        BOOL restore_invulnerable;
-        BOOL restore_paused;
-        BOOL restore_hidden;
-        DWORD worker_release_time; /* Undead summon animation release time; 0 for other strategies */
-        FLOAT progress;
-        BOOL paid;
-        DWORD payer;
-        LONG gold, lumber;
+        uint32_t worker_spawn_time; /* validates worker pointer across remove/reuse */
+        bool worker_inside;
+        bool consumes_worker;
+        bool restore_invulnerable;
+        bool restore_paused;
+        bool restore_hidden;
+        uint32_t worker_release_time; /* Undead summon animation release time; 0 for other strategies */
+        float progress;
+        bool paid;
+        uint32_t payer;
+        int32_t gold, lumber;
     } construction;
-    BOOL training; /* spawned in a production queue but not yet completed */
-    BOOL training_food_wait_notified; /* one-shot Nofood feedback for the active queue head */
+    bool training; /* spawned in a production queue but not yet completed */
+    bool training_food_wait_notified; /* one-shot Nofood feedback for the active queue head */
     struct {
-        DWORD upgrade;     /* research rawcode on queue edicts; target unit type on in-place upgrades */
-        LONG level;        /* 1-based level being researched */
-        LONG gold, lumber; /* exact charged cost, retained for cancellation */
-        FLOAT duration;    /* seconds */
-        FLOAT progress;    /* seconds elapsed for the active queue head */
+        uint32_t upgrade;     /* research rawcode on queue edicts; target unit type on in-place upgrades */
+        int32_t level;        /* 1-based level being researched */
+        int32_t gold, lumber; /* exact charged cost, retained for cancellation */
+        float duration;    /* seconds */
+        float progress;    /* seconds elapsed for the active queue head */
     } research;
     struct edictRally_s {
         rallyTargetType_t type;
         VECTOR2 point;
         LPEDICT entity;
-        DWORD entity_spawn_time;
+        uint32_t entity_spawn_time;
     } rally;
     struct {
-        LONG used; /* food currently accounted to s.player; queue-head reservations live here */
-        LONG made; /* food capacity currently accounted to s.player */
+        int32_t used; /* food currently accounted to s.player; queue-head reservations live here */
+        int32_t made; /* food capacity currently accounted to s.player */
     } food;
     struct {
-        DWORD ability;
-        BOOL primary;
-        FLOAT gold_accum;
-        FLOAT lumber_accum;
+        uint32_t ability;
+        bool primary;
+        float gold_accum;
+        float lumber_accum;
     } buildwork;
     /* Hero revival state lives on the persistent Hero edict. While reviving,
      * queue_next links the Hero into a producer's ordinary production chain
      * without borrowing hero->build, which may have independent gameplay use. */
     struct edictRevival_s {
-        BOOL awaiting;
-        BOOL reviving;
+        bool awaiting;
+        bool reviving;
         LPEDICT producer;
         LPEDICT queue_next;
-        DWORD player;
-        LONG gold, lumber;
-        FLOAT progress;
+        uint32_t player;
+        int32_t gold, lumber;
+        float progress;
     } revival;
     /* A sacrifice queue item is the hidden result unit.  Keep the consumed
      * worker relationship on that item so cancellation/save-load do not need
      * Sacrificial-Pit-specific state in generic unit AI. */
     struct edictSacrifice_s {
-        BOOL active;
+        bool active;
         LPEDICT worker;
-        DWORD worker_spawn_time;
-        BOOL restore_paused;
-        BOOL restore_hidden;
+        uint32_t worker_spawn_time;
+        bool restore_paused;
+        bool restore_hidden;
     } sacrifice;
     struct edictUnsummon_s {
         LPEDICT target;
-        DWORD target_spawn_time;
-        DWORD ability, level;
-        BOOL approaching, starting;
-        FLOAT removed_health;
-        LONG gold_paid, lumber_paid;
+        uint32_t target_spawn_time;
+        uint32_t ability, level;
+        bool approaching, starting;
+        float removed_health;
+        int32_t gold_paid, lumber_paid;
     } unsummon;
-    DWORD spawn_time;
-    DWORD summon_ability; /* ability rawcode that created this summoned unit; 0 for ordinary units */
-    DWORD permanent_invisibility_reveal_until; /* Apiv: visible until this server-time deadline after spawn/attack/cast */
-    DWORD harvested_lumber;
-    DWORD harvested_gold;
+    uint32_t spawn_time;
+    uint32_t summon_ability; /* ability rawcode that created this summoned unit; 0 for ordinary units */
+    uint32_t permanent_invisibility_reveal_until; /* Apiv: visible until this server-time deadline after spawn/attack/cast */
+    uint32_t harvested_lumber;
+    uint32_t harvested_gold;
     struct edictMilitia_s {
-        DWORD ability;          /* Amil alias that supplied Data A/B and duration */
-        DWORD normal_type;      /* Data A: worker form retained across the timed morph */
-        DWORD militia_type;     /* Data B: alternate combat form */
+        uint32_t ability;          /* Amil alias that supplied Data A/B and duration */
+        uint32_t normal_type;      /* Data A: worker form retained across the timed morph */
+        uint32_t militia_type;     /* Data B: alternate combat form */
         LPEDICT partner;        /* Hall being approached for militia/militiaoff */
-        DWORD partner_spawn_time;
-        BYTE previous_resource; /* returnResource_t remembered for explicit Back to Work */
-        BOOL active;            /* unit has completed the Peasant -> Militia morph */
-        BOOL returning;         /* current pairing order is militiaoff */
+        uint32_t partner_spawn_time;
+        uint8_t previous_resource; /* returnResource_t remembered for explicit Back to Work */
+        bool active;            /* unit has completed the Peasant -> Militia morph */
+        bool returning;         /* current pairing order is militiaoff */
     } militia;
     struct edictPolymorph_s {
-        DWORD ability;          /* Aply-derived ability that owns the active morph */
-        DWORD buff;             /* configured timed buff; stock Sorceress uses Bply */
-        DWORD form_type;        /* first authored Ply2/Ply3/Ply4/Ply5 unit rawcode */
-        DWORD original_model;   /* presentation state restored when the buff ends */
-        FLOAT original_scale;
-        FLOAT original_move_speed;
-        BOOL active;
+        uint32_t ability;          /* Aply-derived ability that owns the active morph */
+        uint32_t buff;             /* configured timed buff; stock Sorceress uses Bply */
+        uint32_t form_type;        /* first authored Ply2/Ply3/Ply4/Ply5 unit rawcode */
+        uint32_t original_model;   /* presentation state restored when the buff ends */
+        float original_scale;
+        float original_move_speed;
+        bool active;
     } polymorph;
     struct edictRaven_s {
-        FLOAT fly_height; /* authored Raven Form height applied after the forward morph clip */
-        FLOAT rise_start;
-        FLOAT rise_duration;
+        float fly_height; /* authored Raven Form height applied after the forward morph clip */
+        float rise_start;
+        float rise_duration;
         ravenRiseState_t rise_state;
     } raven;
     struct edictBlightGrowth_s {
-        DWORD ability;      /* concrete Abli-derived alias owning this state */
-        FLOAT radius;       /* current expanded radius */
-        DWORD next_update;  /* next authored expansion deadline */
+        uint32_t ability;      /* concrete Abli-derived alias owning this state */
+        float radius;       /* current expanded radius */
+        uint32_t next_update;  /* next authored expansion deadline */
     } blight_growth;
     struct edictEnsnare_s {
-        FLOAT adjust; /* DataA Air Unit Lower Duration (seconds); 0 snaps */
-        FLOAT height; /* DataB land start, or authored moveHeight while rising */
-        DWORD start;  /* G_Time() when current land/rise phase began */
+        float adjust; /* DataA Air Unit Lower Duration (seconds); 0 snaps */
+        float height; /* DataB land start, or authored moveHeight while rising */
+        uint32_t start;  /* G_Time() when current land/rise phase began */
         ensnareHeightState_t phase;
     } ensnare;
-    DWORD heatmap2;
+    uint32_t heatmap2;
     VECTOR2 heatmap2_origin;  /* target position when heatmap2 was last built */
-    DWORD heatmap2_time;      /* level.time when heatmap2 was last built */
-    FLOAT heatmap2_radius;    /* mover collision radius used for heatmap2 */
-    DWORD peonsinside;
-    DWORD aiflags;
-    DWORD damage;
-    DWORD projectile_attack_type; /* basic missile attack type captured at launch */
+    uint32_t heatmap2_time;      /* level.time when heatmap2 was last built */
+    float heatmap2_radius;    /* mover collision radius used for heatmap2 */
+    uint32_t peonsinside;
+    uint32_t aiflags;
+    uint32_t damage;
+    uint32_t projectile_attack_type; /* basic missile attack type captured at launch */
     /* Impact behavior captured by fixed-point artillery shots. */
     edictArtillery_t artillery;
-    DWORD resources;
-    DWORD freetime;
+    uint32_t resources;
+    uint32_t freetime;
     struct edictGoldMine_s {
         LPEDICT mine;
-        DWORD mine_spawn_time;
-        BOOL restore_invulnerable;
+        uint32_t mine_spawn_time;
+        bool restore_invulnerable;
     } goldmine;
     /* Racial mine overlays keep the original Agld unit as the sole finite
      * gold reservoir. Haunted/Entangled mines own presentation/income only. */
     struct edictMineOverlay_s {
         LPEDICT parent;
-        DWORD parent_spawn_time;
-        DWORD income_time;
-        DWORD active_interval_index;
+        uint32_t parent_spawn_time;
+        uint32_t income_time;
+        uint32_t active_interval_index;
     } mineoverlay;
     /* Acolyte harvesting is a visible fixed-slot relationship rather than the
      * conventional hidden-inside/carry/return Gold Mine state above. */
     struct edictAcolyteMine_s {
         LPEDICT mine;
-        DWORD mine_spawn_time;
-        LONG slot;
+        uint32_t mine_spawn_time;
+        int32_t slot;
     } acolyte_mine;
     LPEDICT inventory[MAX_INVENTORY];
     struct edictItem_s {
         LPEDICT carrier;
-        LONG inventory_slot;
-        BOOL in_world;
-        DWORD charges;
-        DWORD drop_id;        /* SetItemDropID unit rawcode metadata */
-        LONG user_data;       /* SetItemUserData script scratch */
-        BOOL pawnable_set;    /* SetItemPawnable overrode ItemData.pawnable */
-        BOOL pawnable;        /* effective pawnable when pawnable_set */
+        int32_t inventory_slot;
+        bool in_world;
+        uint32_t charges;
+        uint32_t drop_id;        /* SetItemDropID unit rawcode metadata */
+        int32_t user_data;       /* SetItemUserData script scratch */
+        bool pawnable_set;    /* SetItemPawnable overrode ItemData.pawnable */
+        bool pawnable;        /* effective pawnable when pawnable_set */
     } item;
     struct edictDestructable_s {
-        BOOL initialized;
+        bool initialized;
 
         /* Set only for destructables originating from war3map.doo. */
-        BOOL map_placed;
+        bool map_placed;
 
         /*
          * During generated map initialization, CreateDestructable() binds named
          * gg_dest_* handles back to these already-created map instances.
          * One preplaced instance may be claimed only once.
          */
-        BOOL script_bound;
+        bool script_bound;
 
-        BOOL dead;
-        BOOL blighted; /* one-way destructable presentation state */
-        BOOL pathing_active;
-        BOOL placement_solid;
-        BOOL loot_processed;
+        bool dead;
+        bool blighted; /* one-way destructable presentation state */
+        bool pathing_active;
+        bool placement_solid;
+        bool loot_processed;
 
-        DWORD editor_id;
-        DWORD item_table;
+        uint32_t editor_id;
+        uint32_t item_table;
 
         pathTex_t *alive_pathtex;
         pathTex_t *death_pathtex;
-        FLOAT alive_collision;
+        float alive_collision;
 
         ARRAY(droppableItemSet_t const, drop_sets);
     } destructable;
     struct edictCargo_s {
         LPEDICT units[MAX_CARGO];
-        DWORD count;
+        uint32_t count;
     } cargo;
     LPEDICT ground_next;
     edictStock_t stock;
-    FLOAT velocity;
+    float velocity;
     doodadHero_t hero;
-    DWORD hero_shortcut_alert_until; /* transient server clock deadline for the owning player's Hero-button damage pulse */
+    uint32_t hero_shortcut_alert_until; /* transient server clock deadline for the owning player's Hero-button damage pulse */
     heroability_t heroabilities[MAX_HERO_ABILITIES];
     heroabilitystatus_t abilstatus[MAX_UNIT_STATUSES];
     abilityCooldown_t abilitycooldowns[MAX_UNIT_COOLDOWNS];
     edictAbilities_s abilities;
-    DWORD autocast_code; /* one selected autocast ability; zero means disabled */
+    uint32_t autocast_code; /* one selected autocast ability; zero means disabled */
     struct edictAvatar_s {
-        DWORD level;
-        FLOAT armor, health;
-        LONG damage;
+        uint32_t level;
+        float armor, health;
+        int32_t damage;
     } avatar;
-    BOOL invulnerable;  // unit cannot take damage when true
-    BOOL paused;        // unit AI and movement suspended when true
-    BOOL stunned;       // unit AI and movement suspended by timed status
-    BOOL no_pathing;    // pathfinding disabled when true
-    BOOL timed_life_paused; /* UnitPauseTimedLife: freeze BTLF expiry while set */
-    DWORD script_unit_types; /* UnitAddType/UnitRemoveType bitmask; bit N = UNIT_TYPE N */
+    bool invulnerable;  // unit cannot take damage when true
+    bool paused;        // unit AI and movement suspended when true
+    bool stunned;       // unit AI and movement suspended by timed status
+    bool no_pathing;    // pathfinding disabled when true
+    bool timed_life_paused; /* UnitPauseTimedLife: freeze BTLF expiry while set */
+    uint32_t script_unit_types; /* UnitAddType/UnitRemoveType bitmask; bit N = UNIT_TYPE N */
     struct edictSleep_s {
-        BOOL can_sleep; /* mutable natural/night sleep eligibility; seeded from UnitData.canSleep */
-        BOOL sleeping;  /* natural creep sleep only; intentionally excludes spell-induced BUsL */
+        bool can_sleep; /* mutable natural/night sleep eligibility; seeded from UnitData.canSleep */
+        bool sleeping;  /* natural creep sleep only; intentionally excludes spell-induced BUsL */
     } sleep;
     struct edictChannel_s {
-        DWORD code;     // ability code being channeled (0 = none)
-        DWORD serial;   // cast identity; old thinkers cannot continue or cancel a replacement cast
-        DWORD owner_spawn_time; // thinker copy of caster identity; rejects reused owner slots
-        DWORD target_spawn_time; // thinker copy of target identity; rejects reused target slots
+        uint32_t code;     // ability code being channeled (0 = none)
+        uint32_t serial;   // cast identity; old thinkers cannot continue or cancel a replacement cast
+        uint32_t owner_spawn_time; // thinker copy of caster identity; rejects reused owner slots
+        uint32_t target_spawn_time; // thinker copy of target identity; rejects reused target slots
         VECTOR2 origin; // position when channel started (movement cancels channel)
     } channel;
-    DWORD unit_color;   // WC3_UNIT_COLOR_OVERRIDE_FLAG | playercolor; zero uses owner color
-    LONG user_data;     /* SetUnitUserData script scratch; no gameplay consumer reads it yet */
-    BOOL uses_alt_icon; /* UnitSetUsesAltIcon presentation flag; no minimap consumer reads it yet */
+    uint32_t unit_color;   // WC3_UNIT_COLOR_OVERRIDE_FLAG | playercolor; zero uses owner color
+    int32_t user_data;     /* SetUnitUserData script scratch; no gameplay consumer reads it yet */
+    bool uses_alt_icon; /* UnitSetUsesAltIcon presentation flag; no minimap consumer reads it yet */
     VECTOR2 old_origin;
     unitOrderQueue_t order_queue;
     struct edictWaygate_s {
         VECTOR2 destination;
-        BOOL destination_set;
-        BOOL active;
+        bool destination_set;
+        bool active;
     } waygate;
     struct edictMovement_s {
         VECTOR2 last_origin;
-        FLOAT last_distance;
-        DWORD blocked_frames;
-        DWORD flow_generation; /* active static-route field selected this tick */
-        BOOL flow_goal_reached; /* mover occupies the route's adjusted goal cell */
-        BOOL flow_unreachable;  /* field exists but current cell has no route */
-        BOOL flow_direct;       /* static path from mover to requested goal is clear */
-        BOOL displacement_active; /* temporary construction exit is being walked */
+        float last_distance;
+        uint32_t blocked_frames;
+        uint32_t flow_generation; /* active static-route field selected this tick */
+        bool flow_goal_reached; /* mover occupies the route's adjusted goal cell */
+        bool flow_unreachable;  /* field exists but current cell has no route */
+        bool flow_direct;       /* static path from mover to requested goal is clear */
+        bool displacement_active; /* temporary construction exit is being walked */
         VECTOR2 displacement_target;
         VECTOR2 flow_fallback_target; /* last unreachable fallback request */
         VECTOR2 flow_fallback_approach; /* temporary reachable waypoint; target remains authoritative */
-        FLOAT flow_fallback_radius;
-        DWORD flow_fallback_time;
-        DWORD waygate_target_spawn_time; /* guards the target edict while explicitly approaching a Way Gate */
+        float flow_fallback_radius;
+        uint32_t flow_fallback_time;
+        uint32_t waygate_target_spawn_time; /* guards the target edict while explicitly approaching a Way Gate */
         LPEDICT waygate_target; /* authoritative gate target owned by CAbilityWarp */
         LPEDICT waygate_goal; /* CAbilityWarp-owned approach waypoint/entity */
         LPEDICT flow_fallback_goal;
         moveFallbackState_t flow_fallback_state;
         ROUTEPATH path; /* persistent WC3 accelerator state shared with other server games */
-        FLOAT group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
-        FLOAT heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
+        float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
+        float heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
         VECTOR2 worker_avoid_origin; /* start of the active resource-worker avoidance corridor */
-        FLOAT worker_avoid_heading;  /* direct corridor heading captured when local blocking begins */
-        DWORD worker_avoid_blocked_frames; /* consecutive blocked decisions before queue escape */
-        BOOL worker_avoid_active;    /* resource-worker corridor is constraining lateral sidesteps */
+        float worker_avoid_heading;  /* direct corridor heading captured when local blocking begins */
+        uint32_t worker_avoid_blocked_frames; /* consecutive blocked decisions before queue escape */
+        bool worker_avoid_active;    /* resource-worker corridor is constraining lateral sidesteps */
         LPEDICT attackmove_waypoint;  // resume attack-move after a combat detour
         LPEDICT patrol_a, patrol_b, patrol_target;
         LPEDICT follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
-        BOOL holding_position;
+        bool holding_position;
     } movement;
     EDICTSTAT health;
     EDICTSTAT mana;
     MOVETYPE movetype;
-    BOOL projectile_reflected; /* basic attack missile has already been returned by Defend */
+    bool projectile_reflected; /* basic attack missile has already been returned by Defend */
     TARGTYPE targtype;
     LPEDICT goalentity;
     LPEDICT item_drop; /* inventory item owned by an active point-drop behavior */
@@ -1564,8 +1564,8 @@ struct edict_s {
     LPEDICT owner;
     LPEDICT build;
     LPCANIMATION animation;
-    FLOAT animation_speed; /* JASS SetUnitTimeScale multiplier for the simulation animation clock */
-    BOOL animation_override; /* JASS presentation animation may advance while gameplay is paused */
+    float animation_speed; /* JASS SetUnitTimeScale multiplier for the simulation animation clock */
+    bool animation_override; /* JASS presentation animation may advance while gameplay is paused */
     /* Warcraft Required Animation Names (UnitProfile.animProps/uani) plus
      * AddUnitAnimationProperties mutations. The request is retained separately
      * so a property change can reselect the same logical animation family. */
@@ -1573,34 +1573,34 @@ struct edict_s {
     char animation_props[WC3_ANIMATION_PROPERTIES_SIZE];
     unitbalance_t runtime;
     COLOR32 vertex_color;
-    BOOL vertex_color_set;
-    BOOL vertex_color_override_set;
+    bool vertex_color_set;
+    bool vertex_color_override_set;
     umove_t *currentmove;
     unitRace_t race;
-    FLOAT wait;
+    float wait;
     UNITINFO unitinfo;
     unitAttack_t attack1;
     unitAttack_t attack2;
-    DWORD defense_type;   /* WC3 defType index: small/medium/large/fort/normal/hero/divine/none */
-    FLOAT armor_value;    /* computed armor ('realdef', incl. hero AGI/modifiers) */
-    FLOAT permanent_armor_bonus; /* research/permanent modifiers preserved across hero recompute */
-    FLOAT temporary_armor_bonus; /* item/temporary modifiers preserved across hero recompute */
-    FLOAT permanent_health_bonus; /* research/permanent maximum-health modifiers preserved across hero recompute */
-    FLOAT temporary_health_bonus; /* temporary maximum-health modifiers restored on expiration */
-    FLOAT temporary_mana_bonus; /* item/temporary maximum-mana modifiers preserved across hero recompute */
-    FLOAT mana_regen_bonus; /* research/permanent mana regeneration modifiers */
+    uint32_t defense_type;   /* WC3 defType index: small/medium/large/fort/normal/hero/divine/none */
+    float armor_value;    /* computed armor ('realdef', incl. hero AGI/modifiers) */
+    float permanent_armor_bonus; /* research/permanent modifiers preserved across hero recompute */
+    float temporary_armor_bonus; /* item/temporary modifiers preserved across hero recompute */
+    float permanent_health_bonus; /* research/permanent maximum-health modifiers preserved across hero recompute */
+    float temporary_health_bonus; /* temporary maximum-health modifiers restored on expiration */
+    float temporary_mana_bonus; /* item/temporary maximum-mana modifiers preserved across hero recompute */
+    float mana_regen_bonus; /* research/permanent mana regeneration modifiers */
     struct {
-        USHORT select[MAX_UNIT_SELECT_SOUNDS];
-        BYTE num_select;
-        USHORT yes[MAX_UNIT_SELECT_SOUNDS];   /* order confirmation ("Yes" sounds) */
-        BYTE num_yes;
-        USHORT ready[MAX_UNIT_SELECT_SOUNDS]; /* training completion ("Ready" sounds) */
-        BYTE num_ready;
-        USHORT chop[3]; BYTE num_chop;        /* weapon-vs-wood impact variants */
+        uint16_t select[MAX_UNIT_SELECT_SOUNDS];
+        uint8_t num_select;
+        uint16_t yes[MAX_UNIT_SELECT_SOUNDS];   /* order confirmation ("Yes" sounds) */
+        uint8_t num_yes;
+        uint16_t ready[MAX_UNIT_SELECT_SOUNDS]; /* training completion ("Ready" sounds) */
+        uint8_t num_ready;
+        uint16_t chop[3]; uint8_t num_chop;        /* weapon-vs-wood impact variants */
         int pending;
         int owner_pending;                  /* owner-only one-shot queued for next snapshot */
         int world_pending;                  /* unfiltered world one-shot queued for next snapshot */
-        BYTE world_pending_event;
+        uint8_t world_pending_event;
         int attack, death;
     } sound;
 
@@ -1651,8 +1651,8 @@ typedef struct clientCamera_s clientCamera_s;
 #define MAX_UPKEEP_TIERS 10
 
 struct game_locals {
-    DWORD max_clients;
-    DWORD num_abilities;
+    uint32_t max_clients;
+    uint32_t num_abilities;
     LPGAMECLIENT clients;
     struct {
         stbIniCache_t theme;
@@ -1663,78 +1663,78 @@ struct game_locals {
      * Melee_V0/V1 sheet-data overlay for the active map. */
     char data_prefix[32];
     struct {
-        FLOAT attackHalfAngle;
-        FLOAT maxCollisionRadius;
-        FLOAT decayTime;
-        FLOAT boneDecayTime;
-        FLOAT dissipateTime;
-        FLOAT structureDecayTime;
-        FLOAT bulletDeathTime;
-        FLOAT closeEnoughRange;
-        FLOAT dawnTimeGameHours;
-        FLOAT duskTimeGameHours;
-        FLOAT gameDayHours;
-        FLOAT gameDayLength;
-        FLOAT buildingAngle;
-        FLOAT rootAngle;
+        float attackHalfAngle;
+        float maxCollisionRadius;
+        float decayTime;
+        float boneDecayTime;
+        float dissipateTime;
+        float structureDecayTime;
+        float bulletDeathTime;
+        float closeEnoughRange;
+        float dawnTimeGameHours;
+        float duskTimeGameHours;
+        float gameDayHours;
+        float gameDayLength;
+        float buildingAngle;
+        float rootAngle;
         /* Unit-target Move/Smart follows use WC3 Misc distances, not attack
          * acquisition range. war3mapMisc.txt may override either value. */
-        FLOAT followRange;
-        FLOAT structureFollowRange;
+        float followRange;
+        float structureFollowRange;
         /* Combat constants are sourced from Units\MiscGame.txt (and
          * war3mapMisc.txt overrides) rather than baked into attack code. */
-        FLOAT defenseArmor;
-        FLOAT strAttackBonus;
-        FLOAT agiDefenseBonus;
-        FLOAT agiAttackSpeedBonus;
-        FLOAT damageBonus[8][8];
-        BOOL defendDeflection; /* Misc.DefendDeflection: permits Defend/Elune projectile returns */
-        BOOL combatConstantsLoaded;
-        LONG foodCeiling;
-        DWORD upkeepUsageCount;
-        DWORD upkeepGoldTaxCount;
-        DWORD upkeepLumberTaxCount;
-        FLOAT upkeepUsage[MAX_UPKEEP_TIERS];
-        FLOAT upkeepGoldTax[MAX_UPKEEP_TIERS];
-        FLOAT upkeepLumberTax[MAX_UPKEEP_TIERS];
+        float defenseArmor;
+        float strAttackBonus;
+        float agiDefenseBonus;
+        float agiAttackSpeedBonus;
+        float damageBonus[8][8];
+        bool defendDeflection; /* Misc.DefendDeflection: permits Defend/Elune projectile returns */
+        bool combatConstantsLoaded;
+        int32_t foodCeiling;
+        uint32_t upkeepUsageCount;
+        uint32_t upkeepGoldTaxCount;
+        uint32_t upkeepLumberTaxCount;
+        float upkeepUsage[MAX_UPKEEP_TIERS];
+        float upkeepGoldTax[MAX_UPKEEP_TIERS];
+        float upkeepLumberTax[MAX_UPKEEP_TIERS];
     } constants;
 };
 
 struct gevent_s {
     LPEDICT subject;
-    DWORD subject_spawn_time;
-    BOOL subject_spawn_tracked;
+    uint32_t subject_spawn_time;
+    bool subject_spawn_tracked;
     EVENTTYPE type;
     LPTRIGGER trigger;
     LPGTIMER timer;
     struct jass_function const *filter;
-    HANDLE region;
-    FLOAT range;
-    DWORD state;
-    DWORD limitop;
-    FLOAT limitval;
-    LPCSTR variable;
-    BOOL inuse;
-    DWORD handle_generation;
-    BOOL generation_exhausted;
+    handle_t region;
+    float range;
+    uint32_t state;
+    uint32_t limitop;
+    float limitval;
+    cstring_t variable;
+    bool inuse;
+    uint32_t handle_generation;
+    uint8_t generation_exhausted;
 };
 
 typedef struct {
-    DWORD texture;
+    uint32_t texture;
     BLEND_MODE blendmode;
     TEXMAP_FLAGS texmapflags;
     struct {
         BOX2 uv;
         COLOR32 color;
-        DWORD time;
+        uint32_t time;
     } start, end;
-    BOOL displayed;
+    bool displayed;
 } CINEFILTER;
 
 typedef struct {
     EVENT handlers[MAX_EVENTS];
     GAMEEVENT queue[MAX_EVENT_QUEUE];
-    DWORD write, read;
+    uint32_t write, read;
 } LEVELEVENTS;
 enum {
     WC3_FOG_STATE_MASKED = 1,  /* JASS FOG_OF_WAR_MASKED: unexplored */
@@ -1742,33 +1742,33 @@ enum {
     WC3_FOG_STATE_VISIBLE = 4, /* JASS FOG_OF_WAR_VISIBLE: explored with current sight */
 };
 typedef struct {
-    DWORD player;
-    DWORD state;
-    BOOL shared;
+    uint32_t player;
+    uint32_t state;
+    bool shared;
 } FOGWRITE;
 typedef FOGWRITE *LPFOGWRITE;
 typedef FOGWRITE const *LPCFOGWRITE;
 typedef struct {
-    BYTE *visible;
-    BYTE *explored;
-    BYTE *visible_rows;
-    BYTE *dirty_visible_rows;
-    BYTE *dirty_explored_rows;
+    uint8_t *visible;
+    uint8_t *explored;
+    uint8_t *visible_rows;
+    uint8_t *dirty_visible_rows;
+    uint8_t *dirty_explored_rows;
 #ifdef WC3_FOW_PACKED_MASK
-    WORD *packed_visible;
-    WORD *packed_explored;
-    DWORD packed_stride;
+    uint16_t *packed_visible;
+    uint16_t *packed_explored;
+    uint32_t packed_stride;
 #endif
-    BOOL client_connected;
+    bool client_connected;
 } fowPlayerGrid_t;
 
 typedef struct {
-    DWORD width;
-    DWORD height;
+    uint32_t width;
+    uint32_t height;
     BOX2 bounds;
-    BYTE *blocked;
-    DWORD num_blocked;
-    ARRAY(DWORD, rim_cells);
+    uint8_t *blocked;
+    uint32_t num_blocked;
+    ARRAY(uint32_t, rim_cells);
     fowPlayerGrid_t players[MAX_PLAYERS];
 } fowGrid_t;
 
@@ -1776,23 +1776,23 @@ typedef struct {
 #define BLIGHT_SWEEP_BYTES 512 // bytes; caps one sweep band payload; used by background resync
 
 typedef struct {
-    DWORD width, height;
+    uint32_t width, height;
     BOX2 bounds;
-    BYTE *cells; /* mutable current Blight, one byte per 32-unit pathing cell */
-    DWORD *dirty_rows; /* one client bit per row; changed rows are sent once per client */
-    DWORD sweep_row[MAX_PLAYERS]; /* per-client background resync cursor; next row to sweep */
+    uint8_t *cells; /* mutable current Blight, one byte per 32-unit pathing cell */
+    uint32_t *dirty_rows; /* one client bit per row; changed rows are sent once per client */
+    uint32_t sweep_row[MAX_PLAYERS]; /* per-client background resync cursor; next row to sweep */
 } blightGrid_t;
 
 /* A fog modifier continuously applies one of the three JASS fog states while started. */
 typedef struct fogmodifier_s {
-    DWORD player;
-    DWORD state;             /* WC3_FOG_STATE_* */
-    BOOL is_rect;
+    uint32_t player;
+    uint32_t state;             /* WC3_FOG_STATE_* */
+    bool is_rect;
     BOX2 rect;               /* used when is_rect */
     VECTOR2 center;          /* used when !is_rect */
-    FLOAT radius;            /* used when !is_rect */
-    BOOL use_shared_vision;
-    BOOL started;
+    float radius;            /* used when !is_rect */
+    bool use_shared_vision;
+    bool started;
 } FOGMODIFIER, *LPFOGMODIFIER;
 typedef FOGMODIFIER const *LPCFOGMODIFIER;
 
@@ -1818,16 +1818,16 @@ typedef enum {
 typedef struct {
     ARRAY(LPEDICT, units);
     VECTOR2 home, goal;
-    DWORD desired;
+    uint32_t desired;
     botCaptainState_t state;
 } botCaptain_t;
 
 typedef struct {
-    LONG command, data;
+    int32_t command, data;
 } botCommand_t;
 
 typedef struct {
-    DWORD class_id;
+    uint32_t class_id;
     VECTOR2 origin;
     LPEDICT unit;
 } botGuardPost_t;
@@ -1857,30 +1857,30 @@ typedef struct {
     struct jass_function const *hero_levels;
     botCaptain_t captains[BOT_CAPTAIN_COUNT];
     VECTOR2 stage; /* SetStagePoint staging area; assault fallback when no enemy target is visible */
-    BOOL stage_valid;
+    bool stage_valid;
     ARRAY(botCommand_t, commands);
     ARRAY(LPEDICT, harvesters);
     ARRAY(botGuardPost_t, guards);
     botMode_t mode, pending_mode;
-    DWORD flags;
-    LONG replacement_count;
-    BOOL paused, stop_requested, restart_requested;
+    uint32_t flags;
+    int32_t replacement_count;
+    bool paused, stop_requested, restart_requested;
     char script[MAX_PATHLEN], pending_script[MAX_PATHLEN];
 } bot_t;
 
 typedef struct {
-    LONG hour;
-    LONG minute;
-    LONG ticks_remaining;
-    BOOL active;
-    BOOL initialized;
+    int32_t hour;
+    int32_t minute;
+    int32_t ticks_remaining;
+    bool active;
+    bool initialized;
 } FALSE_TIMEOFDAY;
 
 typedef struct {
-    FLOAT elapsed;
-    FLOAT pending;
-    BOOL pending_valid;
-    BOOL suspended;
+    float elapsed;
+    float pending;
+    bool pending_valid;
+    bool suspended;
     FALSE_TIMEOFDAY false_time;
 } TIMEOFDAY;
 
@@ -1892,113 +1892,113 @@ typedef enum {
 } wc3EnvironmentFogStyle_t;
 
 typedef struct {
-    LONG style;
-    FLOAT start;
-    FLOAT end;
-    FLOAT density;
+    int32_t style;
+    float start;
+    float end;
+    float density;
     VECTOR3 color;
 } wc3EnvironmentFogState_t;
 
 typedef struct {
     wc3EnvironmentFogState_t active;
     wc3EnvironmentFogState_t defaults;
-    BOOL defaults_valid;
+    bool defaults_valid;
 } wc3EnvironmentFog_t;
 
 typedef struct {
-    LONG style;
-    FLOAT start, end, density;
+    int32_t style;
+    float start, end, density;
     VECTOR3 color;
 } wc3EnvironmentFogParams_t;
 
 struct level_locals {
     LPJASS vm;
     ggroup_t **groups;
-    DWORD num_groups;
-    DWORD group_capacity;
-    DWORD first_free_group;
+    uint32_t num_groups;
+    uint32_t group_capacity;
+    uint32_t first_free_group;
     TRIGGER triggers[MAX_TRIGGERS];
-    DWORD num_triggers;
+    uint32_t num_triggers;
     GTIMER timers[MAX_TIMERS];
-    DWORD num_timers;
+    uint32_t num_timers;
     TIMERDIALOG timer_dialogs[MAX_TIMERDIALOGS];
     LEADERBOARD leaderboards[MAX_LEADERBOARDS];
-    LONG player_leaderboards[MAX_PLAYERS]; /* registry index, -1 = none */
-    DWORD leaderboard_dirty_clients;
+    int32_t player_leaderboards[MAX_PLAYERS]; /* registry index, -1 = none */
+    uint32_t leaderboard_dirty_clients;
     MULTIBOARD multiboards[MAX_MULTIBOARDS];
     MULTIBOARDITEM multiboard_items[MAX_MULTIBOARD_ITEMS];
     TEXTTAG texttags[MAX_TEXTTAGS];
     HASHTABLE hashtables[MAX_HASHTABLES];
     REGION regions[MAX_REGIONS];
-    DWORD num_regions;
+    uint32_t num_regions;
     /* Multiboard HUD presentation is deferred; dirty bits reserved for a later svc/layout path. */
-    DWORD multiboard_dirty_clients;
-    DWORD timer_dialog_dirty_clients; /* transient: clients whose timer layer must be resent */
-    LONG timer_dialog_last_index[MAX_CLIENTS]; /* transient player-number cache */
-    LONG timer_dialog_last_seconds[MAX_CLIENTS]; /* transient formatted-value cache */
+    uint32_t multiboard_dirty_clients;
+    uint32_t timer_dialog_dirty_clients; /* transient: clients whose timer layer must be resent */
+    int32_t timer_dialog_last_index[MAX_CLIENTS]; /* transient player-number cache */
+    int32_t timer_dialog_last_seconds[MAX_CLIENTS]; /* transient formatted-value cache */
     gweather_t weather_effects[MAX_WEATHER_EFFECTS];
-    DWORD next_weather_id;
+    uint32_t next_weather_id;
     GLIGHTNING lightning_effects[MAX_LIGHTNING_EFFECTS];
-    DWORD next_lightning_id;
+    uint32_t next_lightning_id;
     bot_t bots[MAX_PLAYERS];
     LPCMAPINFO mapinfo;
     PATHSTR map_path;
     struct {
         char name[MAX_PATHLEN], description[MAX_TRIGSTR_LENGTH];
-        DWORD teams, players, game_types, game_type, map_flags;
-        DWORD placement, speed, difficulty, default_difficulty, resource_density, creature_density;
-        DWORD forced_start_locations;
+        uint32_t teams, players, game_types, game_type, map_flags;
+        uint32_t placement, speed, difficulty, default_difficulty, resource_density, creature_density;
+        uint32_t forced_start_locations;
         struct {
-            DWORD count;
-            struct { LONG location; DWORD priority; } slots[MAX_START_PRIO];
+            uint32_t count;
+            struct { int32_t location; uint32_t priority; } slots[MAX_START_PRIO];
         } start_prio[MAX_PLAYERS];
     } setup;
     LEVELEVENTS events;
     GAMEMESSAGES messages;
     LPEDICT ground_surfaces;
     struct {
-        DWORD item_slots, unit_slots;
+        uint32_t item_slots, unit_slots;
     } stock;
     struct {
-        DWORD base, cursor, count;
+        uint32_t base, cursor, count;
     } waypoints;
     QUEST quests[MAX_QUESTS];
-    USHORT alliances[MAX_PLAYERS][MAX_PLAYERS];
+    uint16_t alliances[MAX_PLAYERS][MAX_PLAYERS];
     fowGrid_t fow;
     blightGrid_t blight;
     CINEFILTER cinefilter;
-    DWORD framenum;
-    DWORD time;
-    BOOL script_paused;
-    BOOL quest_paused;
-    BOOL modal_paused;
+    uint32_t framenum;
+    uint32_t time;
+    bool script_paused;
+    bool quest_paused;
+    bool modal_paused;
     TIMEOFDAY timeofday;
     wc3EnvironmentFog_t environment_fog;
     BOX2 camera_bounds; /* map-global camera target rectangle; W3I default, SetCameraBounds may replace it */
-    BOOL started;
-    BOOL scriptsConfigured;
-    BOOL scriptsStarted;
-    BOOL cinematic_debug_result_window; /* per-map debug latch for result-window tracing */
-    BOOL campaign_select_on_end; /* ForceCampaignSelectScreen defers campaign selection until EndGame */
+    bool started;
+    bool scriptsConfigured;
+    bool scriptsStarted;
+    bool cinematic_debug_result_window; /* per-map debug latch for result-window tracing */
+    bool campaign_select_on_end; /* ForceCampaignSelectScreen defers campaign selection until EndGame */
 };
 
 #define FOR_EACH_EVENT(property) \
-for (DWORD event_index = 0; event_index < MAX_EVENTS; ++event_index) \
+for (uint32_t event_index = 0; event_index < MAX_EVENTS; ++event_index) \
     for (LPEVENT property = &level.events.handlers[event_index]; property; property = NULL) \
         if (property->inuse)
 
 #define FOR_EACH_QUEST(property) \
-for (DWORD quest_index = 0; quest_index < MAX_QUESTS; ++quest_index) \
+for (uint32_t quest_index = 0; quest_index < MAX_QUESTS; ++quest_index) \
     for (LPQUEST property = &level.quests[quest_index]; property; property = NULL) \
         if (property->inuse)
 
 #define FOR_EACH_QUESTITEM(quest, property) \
-for (DWORD questitem_index = 0; questitem_index < MAX_QUESTITEMS; ++questitem_index) \
+for (uint32_t questitem_index = 0; questitem_index < MAX_QUESTITEMS; ++questitem_index) \
     for (__typeof__((quest)->items[0]) *property = &(quest)->items[questitem_index]; property; property = NULL) \
         if (property->inuse)
 
 typedef struct {
-    LPCSTR id;
+    cstring_t id;
     size_t row_offset;
     size_t field_offset;
     bzFieldType_t type;
@@ -2006,291 +2006,291 @@ typedef struct {
 
 #define UITRIGGER_T_DEFINED
 typedef struct {
-    LPCSTR name;
+    cstring_t name;
     void (*callback)(LPEDICT, LPCFRAMEDEF);
 } uiTrigger_t;
 
 // g_main.c
-LPPLAYER G_GetPlayerByNumber(DWORD);
+LPPLAYER G_GetPlayerByNumber(uint32_t);
 void G_InitJassHost(void);
-LPEDICT G_GetPlayerEntityByNumber(DWORD);
-LPGAMECLIENT G_GetPlayerClientByNumber(DWORD);
-void G_SetClientConnected(LPEDICT player, BOOL connected);
+LPEDICT G_GetPlayerEntityByNumber(uint32_t);
+LPGAMECLIENT G_GetPlayerClientByNumber(uint32_t);
+void G_SetClientConnected(LPEDICT player, bool connected);
 void G_ResetStartingResourceCheat(void);
 void G_DisableStartingResourceCheatForLoadedGame(void);
 void G_ApplyStartingResourceCheat(void);
-BOOL G_PlayerInstantBuild(DWORD player);
-BOOL G_PlayerInstantKill(DWORD player);
-BOOL G_RemovePlayerWithResult(DWORD player_num, DWORD game_result);
-BOOL G_GameResultDebugEnabled(void);
-void G_GameResultDebug(LPCSTR format, ...);
-BOOL G_IsSinglePlayer(void);
-void G_RequestEndGame(BOOL do_score_screen);
+bool G_PlayerInstantBuild(uint32_t player);
+bool G_PlayerInstantKill(uint32_t player);
+bool G_RemovePlayerWithResult(uint32_t player_num, uint32_t game_result);
+bool G_GameResultDebugEnabled(void);
+void G_GameResultDebug(cstring_t format, ...);
+bool G_IsSinglePlayer(void);
+void G_RequestEndGame(bool do_score_screen);
 void G_RequestQuitGame(void);
-void G_RequestChangeLevel(LPCSTR map, BOOL do_score_screen);
-void G_RequestRestartGame(BOOL do_score_screen);
+void G_RequestChangeLevel(cstring_t map, bool do_score_screen);
+void G_RequestRestartGame(bool do_score_screen);
 void G_RequestLoadGameMenu(void);
-void G_RequestLoadGameNamed(LPCSTR name);
+void G_RequestLoadGameNamed(cstring_t name);
 void G_RequestCampaignSelect(void);
 void G_CampaignProgressResetRuntime(void);
-BOOL G_CampaignProgressSetTutorialCleared(BOOL cleared);
-BOOL G_CampaignProgressSetCampaignAvailable(LONG campaign, BOOL available);
-BOOL G_CampaignProgressSetMissionAvailable(LONG campaign, LONG mission, BOOL available);
-void G_SetScriptPaused(BOOL paused);
-void G_SetClientModal(LPEDICT player, DWORD modal, BOOL open);
-void G_SetQuestDialogOpen(LPEDICT player, BOOL open);
-TARGTYPE G_GetTargetType(LPCSTR);
-DWORD G_TargetFlagForType(TARGTYPE);
-LPCSTR G_LevelString(LPCSTR);
-LPCSTR G_MapString(LPCMAPINFO info, LPCSTR name);
-LPCSTR G_UnitName(DWORD);
-FLOAT G_Cinefade(void);
-BOOL G_SkipCutscene(void);
+bool G_CampaignProgressSetTutorialCleared(bool cleared);
+bool G_CampaignProgressSetCampaignAvailable(int32_t campaign, bool available);
+bool G_CampaignProgressSetMissionAvailable(int32_t campaign, int32_t mission, bool available);
+void G_SetScriptPaused(bool paused);
+void G_SetClientModal(LPEDICT player, uint32_t modal, bool open);
+void G_SetQuestDialogOpen(LPEDICT player, bool open);
+TARGTYPE G_GetTargetType(cstring_t);
+uint32_t G_TargetFlagForType(TARGTYPE);
+cstring_t G_LevelString(cstring_t);
+cstring_t G_MapString(LPCMAPINFO info, cstring_t name);
+cstring_t G_UnitName(uint32_t);
+float G_Cinefade(void);
+bool G_SkipCutscene(void);
 VECTOR2 G_ClampCameraPosition(LPGAMECLIENT client, LPCVECTOR2 position);
-VECTOR3 G_MakeServerOrigin(FLOAT x, FLOAT y, FLOAT z_offset);
-void G_SetCameraBounds(FLOAT const bounds[8]);
-void G_ClearCameraTarget(LPGAMECLIENT client, LPCSTR func);
-void G_SetPlayerText(LPGAMECLIENT, PLAYERTEXT, LPCSTR);
-void G_SetAllStockSlots(BOOL, LONG);
-void G_SetStockSlots(LPEDICT, BOOL, LONG);
+VECTOR3 G_MakeServerOrigin(float x, float y, float z_offset);
+void G_SetCameraBounds(float const bounds[8]);
+void G_ClearCameraTarget(LPGAMECLIENT client, cstring_t func);
+void G_SetPlayerText(LPGAMECLIENT, PLAYERTEXT, cstring_t);
+void G_SetAllStockSlots(bool, int32_t);
+void G_SetStockSlots(LPEDICT, bool, int32_t);
 void G_InitStockSlots(LPEDICT);
-BOOL G_AddItemStock(LPEDICT, DWORD, LONG, LONG);
-void G_RemoveItemStock(LPEDICT, DWORD);
-void G_AddItemStockAll(DWORD, LONG, LONG);
-void G_RemoveItemStockAll(DWORD);
-BOOL G_AddUnitStock(LPEDICT, DWORD, LONG, LONG);
-void G_RemoveUnitStock(LPEDICT, DWORD);
-void G_AddUnitStockAll(DWORD, LONG, LONG);
-void G_RemoveUnitStockAll(DWORD);
+bool G_AddItemStock(LPEDICT, uint32_t, int32_t, int32_t);
+void G_RemoveItemStock(LPEDICT, uint32_t);
+void G_AddItemStockAll(uint32_t, int32_t, int32_t);
+void G_RemoveItemStockAll(uint32_t);
+bool G_AddUnitStock(LPEDICT, uint32_t, int32_t, int32_t);
+void G_RemoveUnitStock(LPEDICT, uint32_t);
+void G_AddUnitStockAll(uint32_t, int32_t, int32_t);
+void G_RemoveUnitStockAll(uint32_t);
 GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
-static inline BOOL G_IsDeathEvent(EVENTTYPE type) { return type == EVENT_UNIT_DEATH || type == EVENT_PLAYER_UNIT_DEATH; }
-BOOL G_HasPendingDeathEvent(LPCEDICT);
+static inline bool G_IsDeathEvent(EVENTTYPE type) { return type == EVENT_UNIT_DEATH || type == EVENT_PLAYER_UNIT_DEATH; }
+bool G_HasPendingDeathEvent(LPCEDICT);
 void G_PublishEventResponse(LPEDICT, EVENTTYPE, LPEVENT);
 GAMEEVENT *G_PublishEventWithSource(LPEDICT, EVENTTYPE, LPEDICT);
-GAMEEVENT *G_PublishEventWithValue(LPEDICT, EVENTTYPE, LPEDICT, LONG);
+GAMEEVENT *G_PublishEventWithValue(LPEDICT, EVENTTYPE, LPEDICT, int32_t);
 GAMEEVENT *G_PublishEventWithPoint(gameEventPointParams_t const *params);
 void G_PublishSummonEvents(LPEDICT summoner, LPEDICT summoned);
-void G_PublishChangeOwnerEvents(LPEDICT unit, DWORD old_player);
-BOOL G_SubscribeMessage(gameMsgFn, void *);
+void G_PublishChangeOwnerEvents(LPEDICT unit, uint32_t old_player);
+bool G_SubscribeMessage(gameMsgFn, void *);
 void G_UnsubscribeMessage(gameMsgFn, void *);
 void G_PublishMessage(LPEDICT, GAMEMSGTYPE, LPEDICT);
 
 // g_bot.c
-BOOL G_BotStart(LPPLAYER, LPCSTR, botMode_t);
-void G_BotStop(DWORD);
-void G_BotRequestStop(DWORD);
+bool G_BotStart(LPPLAYER, cstring_t, botMode_t);
+void G_BotStop(uint32_t);
+void G_BotRequestStop(uint32_t);
 void G_BotShutdown(void);
-void G_BotPause(DWORD, BOOL);
+void G_BotPause(uint32_t, bool);
 void G_BotRunFrame(void);
-BOOL G_BotUnitAlive(LPEDICT);
-LPEDICT G_BotTown(LPPLAYER, LONG);
-LPEDICT G_BotTownMine(LPPLAYER, LONG);
-LONG G_BotTownWithMine(LPPLAYER);
-DWORD G_BotMinesOwned(LPPLAYER);
-DWORD G_BotGoldOwned(LPPLAYER);
-BOOL G_BotProduce(LPPLAYER, LONG, DWORD, LONG);
+bool G_BotUnitAlive(LPEDICT);
+LPEDICT G_BotTown(LPPLAYER, int32_t);
+LPEDICT G_BotTownMine(LPPLAYER, int32_t);
+int32_t G_BotTownWithMine(LPPLAYER);
+uint32_t G_BotMinesOwned(LPPLAYER);
+uint32_t G_BotGoldOwned(LPPLAYER);
+bool G_BotProduce(LPPLAYER, int32_t, uint32_t, int32_t);
 void G_BotStopGathering(LPPLAYER);
 void G_BotClearHarvest(LPPLAYER);
-void G_BotHarvest(LPPLAYER, LONG, LONG, BOOL);
+void G_BotHarvest(LPPLAYER, int32_t, int32_t, bool);
 void G_BotCreateCaptains(LPPLAYER);
 void G_BotInitAssault(LPPLAYER);
-DWORD G_BotIgnoredUnits(LPPLAYER, DWORD);
-BOOL G_BotCaptainInCombat(LPPLAYER, BOOL);
-BOOL G_BotAddAssault(LPPLAYER, LONG, DWORD);
-DWORD G_BotCaptainGroupSize(LPPLAYER);
-BOOL G_BotCaptainIsFull(LPPLAYER);
-LONG G_BotCaptainReadiness(LPPLAYER, BOOL);
-BOOL G_BotAddDefenders(LPPLAYER, LONG, DWORD);
-void G_BotAddGuardPost(LPPLAYER, DWORD, FLOAT, FLOAT);
+uint32_t G_BotIgnoredUnits(LPPLAYER, uint32_t);
+bool G_BotCaptainInCombat(LPPLAYER, bool);
+bool G_BotAddAssault(LPPLAYER, int32_t, uint32_t);
+uint32_t G_BotCaptainGroupSize(LPPLAYER);
+bool G_BotCaptainIsFull(LPPLAYER);
+int32_t G_BotCaptainReadiness(LPPLAYER, bool);
+bool G_BotAddDefenders(LPPLAYER, int32_t, uint32_t);
+void G_BotAddGuardPost(LPPLAYER, uint32_t, float, float);
 void G_BotFillGuardPosts(LPPLAYER);
 void G_BotReturnGuardPosts(LPPLAYER);
-BOOL G_BotPushCommand(LPPLAYER, LONG, LONG);
-DWORD G_BotCommandsWaiting(LPPLAYER);
-LONG G_BotLastCommand(LPPLAYER);
-LONG G_BotLastData(LPPLAYER);
+bool G_BotPushCommand(LPPLAYER, int32_t, int32_t);
+uint32_t G_BotCommandsWaiting(LPPLAYER);
+int32_t G_BotLastCommand(LPPLAYER);
+int32_t G_BotLastData(LPPLAYER);
 void G_BotPopCommand(LPPLAYER);
-void G_BotSetCaptainHome(LPPLAYER, LONG, FLOAT, FLOAT);
-void G_BotSetStagePoint(LPPLAYER, FLOAT, FLOAT);
-BOOL G_BotSuicideUnits(LPPLAYER, LONG, DWORD, LONG);
-BOOL G_BotSuicidePlayer(LPPLAYER, DWORD, BOOL);
-BOOL G_BotMergeUnits(LPPLAYER, LONG, DWORD, DWORD, DWORD);
+void G_BotSetCaptainHome(LPPLAYER, int32_t, float, float);
+void G_BotSetStagePoint(LPPLAYER, float, float);
+bool G_BotSuicideUnits(LPPLAYER, int32_t, uint32_t, int32_t);
+bool G_BotSuicidePlayer(LPPLAYER, uint32_t, bool);
+bool G_BotMergeUnits(LPPLAYER, int32_t, uint32_t, uint32_t, uint32_t);
 
 // g_blight.c
 void G_BlightInit(void);
 void G_BlightShutdown(void);
-BOOL G_IsPointBlighted(LPCVECTOR2 point);
-void G_SetBlightPoint(LPCVECTOR2 point, BOOL add);
-void G_SetBlightRadius(LPCVECTOR2 point, FLOAT radius, BOOL add);
-void G_SetBlightRect(LPCBOX2 rect, BOOL add);
+bool G_IsPointBlighted(LPCVECTOR2 point);
+void G_SetBlightPoint(LPCVECTOR2 point, bool add);
+void G_SetBlightRadius(LPCVECTOR2 point, float radius, bool add);
+void G_SetBlightRect(LPCBOX2 rect, bool add);
 void G_BlightInitializeDestructable(LPEDICT ent);
 void G_BlightUpdateDestructables(LPCBOX2 region);
 void G_BlightMarkDestructable(LPEDICT ent);
-DWORD G_GetBlightStateSize(void);
-BOOL G_GetBlightState(LPBYTE out, DWORD size);
-BOOL G_SetBlightState(BYTE const *data, DWORD size);
+uint32_t G_GetBlightStateSize(void);
+bool G_GetBlightState(uint8_t * out, uint32_t size);
+bool G_SetBlightState(uint8_t const *data, uint32_t size);
 
 // g_fow.c
 void G_FowInit(void);
 void G_FowShutdown(void);
-void G_FowConnectPlayer(DWORD player);
+void G_FowConnectPlayer(uint32_t player);
 void G_FowUpdate(void);
 void G_FowMarkBlockersDirty(void);
 void G_FowSendDeltas(void);
 void G_FowSendFull(LPEDICT ent);
-BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent);
-BOOL G_FowPlayerCanHoverEntity(DWORD player, LPCEDICT ent);
-BOOL G_FowPlayersShareVision(DWORD viewer, DWORD owner);
-BOOL S_UnitIsDetectedByPlayer(LPCEDICT unit, DWORD player);
-BOOL S_UnitIsInvisibleToPlayer(LPCEDICT unit, DWORD player);
-BOOL S_UnitUsesInvisibilityRenderFlag(LPCEDICT unit);
-BOOL S_PermanentInvisibilityActive(LPCEDICT unit);
+bool G_FowPlayerCanSeeEntity(uint32_t player, LPCEDICT ent);
+bool G_FowPlayerCanHoverEntity(uint32_t player, LPCEDICT ent);
+bool G_FowPlayersShareVision(uint32_t viewer, uint32_t owner);
+bool S_UnitIsDetectedByPlayer(LPCEDICT unit, uint32_t player);
+bool S_UnitIsInvisibleToPlayer(LPCEDICT unit, uint32_t player);
+bool S_UnitUsesInvisibilityRenderFlag(LPCEDICT unit);
+bool S_PermanentInvisibilityActive(LPCEDICT unit);
 void S_PermanentInvisibilityInitialize(LPEDICT unit);
 void S_PermanentInvisibilityReveal(LPEDICT unit);
 void G_FowSetStateRect(LPCFOGWRITE fog, LPCBOX2 box);
-void G_FowSetStateRadius(LPCFOGWRITE fog, LPCVECTOR2 center, FLOAT radius);
+void G_FowSetStateRadius(LPCFOGWRITE fog, LPCVECTOR2 center, float radius);
 void G_FogModifierStart(LPFOGMODIFIER mod);
 void G_FogModifierStop(LPFOGMODIFIER mod);
-DWORD G_FowWorldToCellX(FLOAT x);
-DWORD G_FowWorldToCellY(FLOAT y);
-FLOAT G_GetTimeOfDay(void);
-void G_SetTimeOfDay(FLOAT value);
-void G_SuspendTimeOfDay(BOOL suspended);
-void G_SetFalseTimeOfDay(LONG hour, LONG minute, FLOAT duration);
-BOOL G_IsFalseTimeOfDay(void);
+uint32_t G_FowWorldToCellX(float x);
+uint32_t G_FowWorldToCellY(float y);
+float G_GetTimeOfDay(void);
+void G_SetTimeOfDay(float value);
+void G_SuspendTimeOfDay(bool suspended);
+void G_SetFalseTimeOfDay(int32_t hour, int32_t minute, float duration);
+bool G_IsFalseTimeOfDay(void);
 void G_UpdateTimeOfDay(void);
-BOOL G_IsNight(void);
+bool G_IsNight(void);
 #ifdef WC3_DEBUG_CAMERA_TRACE
-void G_CameraTraceSnapshotForClient(LPGAMECLIENT, LPCSTR);
-void G_CameraTraceSnapshot(LPCSTR);
+void G_CameraTraceSnapshotForClient(LPGAMECLIENT, cstring_t);
+void G_CameraTraceSnapshot(cstring_t);
 #endif
 
 // g_environment_fog.c
-BOOL G_EnvironmentFogDefault(wc3EnvironmentFogState_t *fog); /* exposed: tests parse singleton DefaultZFog under both editions */
+bool G_EnvironmentFogDefault(wc3EnvironmentFogState_t *fog); /* exposed: tests parse singleton DefaultZFog under both editions */
 void G_EnvironmentFogInitMap(void);
 void G_EnvironmentFogSet(wc3EnvironmentFogParams_t const *params);
 void G_EnvironmentFogReset(void);
 void G_EnvironmentFogPublish(void);
 
 // skills/s_creep_sleep.c — JASS natural-sleep interface
-BOOL G_UnitCanSleep(LPCEDICT);
-BOOL G_UnitIsSleeping(LPCEDICT);
-void G_UnitSetCanSleep(LPEDICT, BOOL);
+bool G_UnitCanSleep(LPCEDICT);
+bool G_UnitIsSleeping(LPCEDICT);
+void G_UnitSetCanSleep(LPEDICT, bool);
 void G_UnitWakeUp(LPEDICT);
 
 // g_spawn.c
-BOOL WriteGame(LPCSTR filename);
-BOOL ReadGame(LPCSTR filename);
+bool WriteGame(cstring_t filename);
+bool ReadGame(cstring_t filename);
 LPEDICT G_Spawn(void);
 void SP_CallSpawn(LPEDICT);
 void G_BindEntityData(LPEDICT);
 void G_BindEntityRuntime(LPEDICT);
 void G_SpawnEntities(void);
 #ifdef BZ_TESTS
-BOOL G_TestMapObjectCreatedByMapScript(DWORD id);
+bool G_TestMapObjectCreatedByMapScript(uint32_t id);
 #endif
-BOOL SP_FindEmptySpaceAround(LPEDICT, DWORD, LPVECTOR2, FLOAT *);
-BOOL G_FindUnitUnstuckPosition(LPEDICT unit, LPCVECTOR2 requested, LPVECTOR2 out);
-BOOL SP_FindUnitExitPosition(LPEDICT producer, LPEDICT unit, LPVECTOR2 out, FLOAT *angle);
-LPEDICT SP_SpawnAtLocation(DWORD, DWORD, LPCVECTOR2);
-LPEDICT SP_SpawnAtLocationNoBirth(DWORD, DWORD, LPCVECTOR2);
-LPEDICT G_CreateBuildPreview(LPEDICT builder, DWORD building_id, LPCVECTOR2 location);
+bool SP_FindEmptySpaceAround(LPEDICT, uint32_t, LPVECTOR2, float *);
+bool G_FindUnitUnstuckPosition(LPEDICT unit, LPCVECTOR2 requested, LPVECTOR2 out);
+bool SP_FindUnitExitPosition(LPEDICT producer, LPEDICT unit, LPVECTOR2 out, float *angle);
+LPEDICT SP_SpawnAtLocation(uint32_t, uint32_t, LPCVECTOR2);
+LPEDICT SP_SpawnAtLocationNoBirth(uint32_t, uint32_t, LPCVECTOR2);
+LPEDICT G_CreateBuildPreview(LPEDICT builder, uint32_t building_id, LPCVECTOR2 location);
 void G_ClearBuildPreview(LPEDICT builder);
-LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation);
-LPEDICT G_CreateDeadDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation);
-BOOL G_IsDestructable(LPCEDICT ent);
+LPEDICT G_CreateDestructable(uint32_t class_id, float x, float y, float z, float facing, float scale, uint32_t variation);
+LPEDICT G_CreateDeadDestructable(uint32_t class_id, float x, float y, float z, float facing, float scale, uint32_t variation);
+bool G_IsDestructable(LPCEDICT ent);
 void SP_monster_tree(LPEDICT);
 void tree_stand(LPEDICT);
 void tree_birth(LPEDICT);
 void tree_pain(LPEDICT);
 
 // g_save.c
-BOOL WriteGame(LPCSTR filename);
-BOOL ReadGame(LPCSTR filename);
-BOOL G_SaveJassHandle(LPCSTR type, HANDLE value, DWORD *id);
-HANDLE G_LoadJassHandle(LPCSTR type, DWORD id);
+bool WriteGame(cstring_t filename);
+bool ReadGame(cstring_t filename);
+bool G_SaveJassHandle(cstring_t type, handle_t value, uint32_t *id);
+handle_t G_LoadJassHandle(cstring_t type, uint32_t id);
 ggroup_t *G_AllocJassGroup(void);
-BOOL G_EnsureJassGroupSlots(DWORD count);
-BOOL G_JassGroupValid(ggroup_t const *group);
-BOOL G_JassGroupIndex(ggroup_t const *group, DWORD *index);
-ggroup_t *G_JassGroupByIndex(DWORD index);
-BOOL G_QuestValid(QUEST const *quest);
-BOOL G_QuestItemValid(QUESTITEM const *item);
+bool G_EnsureJassGroupSlots(uint32_t count);
+bool G_JassGroupValid(ggroup_t const *group);
+bool G_JassGroupIndex(ggroup_t const *group, uint32_t *index);
+ggroup_t *G_JassGroupByIndex(uint32_t index);
+bool G_QuestValid(QUEST const *quest);
+bool G_QuestItemValid(QUESTITEM const *item);
 void G_FreeJassGroup(ggroup_t *group);
 void G_ClearJassGroupRegistry(void);
 void G_ClearRegionRegistry(void);
-LPREGION G_RegionFromHandle(HANDLE);
-HANDLE G_RegionHandle(DWORD);
-BOOL G_RegionHandleParts(HANDLE, DWORD *, DWORD *);
-LPEVENT G_EventFromHandle(HANDLE);
-HANDLE G_EventHandle(LPEVENT);
-BOOL G_EventHandleParts(HANDLE, DWORD *, DWORD *);
-BOOL G_JassGroupDebugEnabled(void);
+LPREGION G_RegionFromHandle(handle_t);
+handle_t G_RegionHandle(uint32_t);
+bool G_RegionHandleParts(handle_t, uint32_t *, uint32_t *);
+LPEVENT G_EventFromHandle(handle_t);
+handle_t G_EventHandle(LPEVENT);
+bool G_EventHandleParts(handle_t, uint32_t *, uint32_t *);
+bool G_JassGroupDebugEnabled(void);
 void G_ResetJassGroupDebug(void);
-void G_SetJassGroupDebugCreator(ggroup_t *group, LPCSTR creator);
-void G_SetJassGroupDebugContext(ggroup_t *group, LPCSTR creator, LPCSTR chain, LONG trigger_ordinal);
-LPCSTR G_GetJassGroupDebugCreator(ggroup_t const *group);
-LPCSTR G_GetJassGroupDebugChain(ggroup_t const *group);
-LONG G_GetJassGroupDebugTrigger(ggroup_t const *group);
-void G_DumpJassGroupDebug(LPCSTR failing_creator, LPCSTR failing_chain, LONG failing_trigger);
-LPGWEATHER G_WeatherAdd(LPCBOX2 bounds, DWORD effect_id, BOOL enabled);
-void G_WeatherEnable(LPGWEATHER effect, BOOL enabled);
+void G_SetJassGroupDebugCreator(ggroup_t *group, cstring_t creator);
+void G_SetJassGroupDebugContext(ggroup_t *group, cstring_t creator, cstring_t chain, int32_t trigger_ordinal);
+cstring_t G_GetJassGroupDebugCreator(ggroup_t const *group);
+cstring_t G_GetJassGroupDebugChain(ggroup_t const *group);
+int32_t G_GetJassGroupDebugTrigger(ggroup_t const *group);
+void G_DumpJassGroupDebug(cstring_t failing_creator, cstring_t failing_chain, int32_t failing_trigger);
+LPGWEATHER G_WeatherAdd(LPCBOX2 bounds, uint32_t effect_id, bool enabled);
+void G_WeatherEnable(LPGWEATHER effect, bool enabled);
 void G_WeatherRemove(LPGWEATHER effect);
 void G_WeatherInitMap(void);
-DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size);
+uint32_t G_WriteClientDatagram(LPEDICT ent, uint8_t * data, uint32_t size);
 void G_BlightMarkClientFull(LPEDICT ent);
-BOOL G_BlightDatagramPending(LPEDICT ent);
-DWORD G_BlightWriteDatagram(LPEDICT ent, LPBYTE data, DWORD size);
+bool G_BlightDatagramPending(LPEDICT ent);
+uint32_t G_BlightWriteDatagram(LPEDICT ent, uint8_t * data, uint32_t size);
 LPTRIGGER G_AllocJassTrigger(void);
 LPGTIMER G_AllocJassTimer(void);
 LPTIMERDIALOG G_AllocTimerDialog(LPGTIMER timer);
 void G_FreeTimerDialog(LPTIMERDIALOG dialog);
-void G_SetTimerDialogVisible(LPTIMERDIALOG dialog, LPPLAYER player, BOOL visible);
-BOOL G_IsTimerDialogVisible(LPCTIMERDIALOG dialog, LPCPLAYER player);
+void G_SetTimerDialogVisible(LPTIMERDIALOG dialog, LPPLAYER player, bool visible);
+bool G_IsTimerDialogVisible(LPCTIMERDIALOG dialog, LPCPLAYER player);
 void G_MarkTimerDialogDirty(LPCTIMERDIALOG dialog);
 void G_UpdateTimerDialogs(void);
-void G_FormatTimerDialogValue(LPCGTIMER timer, LPSTR out, size_t out_size);
+void G_FormatTimerDialogValue(LPCGTIMER timer, string_t out, size_t out_size);
 LPLEADERBOARD G_AllocLeaderboard(void);
 void G_FreeLeaderboard(LPLEADERBOARD board);
 void G_MarkLeaderboardDirty(LPCLEADERBOARD board);
-void G_SetLeaderboardDisplayed(LPLEADERBOARD board, LPPLAYER player, BOOL displayed);
-BOOL G_IsLeaderboardDisplayed(LPCLEADERBOARD board, LPCPLAYER player);
+void G_SetLeaderboardDisplayed(LPLEADERBOARD board, LPPLAYER player, bool displayed);
+bool G_IsLeaderboardDisplayed(LPCLEADERBOARD board, LPCPLAYER player);
 void G_UpdateLeaderboards(void);
-LPLEADERBOARD G_PlayerLeaderboard(DWORD player);
-void G_SetPlayerLeaderboard(DWORD player, LPLEADERBOARD board);
+LPLEADERBOARD G_PlayerLeaderboard(uint32_t player);
+void G_SetPlayerLeaderboard(uint32_t player, LPLEADERBOARD board);
 LPMULTIBOARD G_AllocMultiboard(void);
 void G_FreeMultiboard(LPMULTIBOARD board);
-void G_SetMultiboardDisplayed(LPMULTIBOARD board, LPPLAYER player, BOOL displayed);
-BOOL G_IsMultiboardDisplayed(LPCMULTIBOARD board, LPCPLAYER player);
-void G_SetMultiboardMinimized(LPMULTIBOARD board, LPPLAYER player, BOOL minimized);
-BOOL G_IsMultiboardMinimized(LPCMULTIBOARD board, LPCPLAYER player);
+void G_SetMultiboardDisplayed(LPMULTIBOARD board, LPPLAYER player, bool displayed);
+bool G_IsMultiboardDisplayed(LPCMULTIBOARD board, LPCPLAYER player);
+void G_SetMultiboardMinimized(LPMULTIBOARD board, LPPLAYER player, bool minimized);
+bool G_IsMultiboardMinimized(LPCMULTIBOARD board, LPCPLAYER player);
 void G_MarkMultiboardDirty(LPCMULTIBOARD board);
-void G_MultiboardSetRowCount(LPMULTIBOARD board, LONG count);
-void G_MultiboardSetColumnCount(LPMULTIBOARD board, LONG count);
-struct gmultiboardcell_s *G_MultiboardCell(LPMULTIBOARD board, LONG row, LONG col);
-LPMULTIBOARDITEM G_MultiboardGetItem(LPMULTIBOARD board, LONG row, LONG col);
+void G_MultiboardSetRowCount(LPMULTIBOARD board, int32_t count);
+void G_MultiboardSetColumnCount(LPMULTIBOARD board, int32_t count);
+struct gmultiboardcell_s *G_MultiboardCell(LPMULTIBOARD board, int32_t row, int32_t col);
+LPMULTIBOARDITEM G_MultiboardGetItem(LPMULTIBOARD board, int32_t row, int32_t col);
 void G_MultiboardReleaseItem(LPMULTIBOARDITEM item);
 LPMULTIBOARD G_MultiboardItemBoard(LPCMULTIBOARDITEM item);
 LPTEXTTAG G_AllocTextTag(void);
 void G_FreeTextTag(LPTEXTTAG tag);
-void G_SetTextTagVisible(LPTEXTTAG tag, LPPLAYER player, BOOL visible);
-BOOL G_IsTextTagVisible(LPCTEXTTAG tag, LPCPLAYER player);
+void G_SetTextTagVisible(LPTEXTTAG tag, LPPLAYER player, bool visible);
+bool G_IsTextTagVisible(LPCTEXTTAG tag, LPCPLAYER player);
 LPHASHTABLE G_AllocHashtable(void);
 void G_FreeHashtable(LPHASHTABLE table);
 void G_ClearHashtableRegistry(void);
-BOOL G_HashtableIndex(LPCHASHTABLE table, DWORD *index);
-BOOL G_HashtableReserve(LPHASHTABLE table, DWORD need);
+bool G_HashtableIndex(LPCHASHTABLE table, uint32_t *index);
+bool G_HashtableReserve(LPHASHTABLE table, uint32_t need);
 void G_ClearSaveRegistries(void);
-BOOL G_GetSaveMap(LPCSTR filename, LPSTR map, DWORD map_size);
+bool G_GetSaveMap(cstring_t filename, string_t map, uint32_t map_size);
 void G_HeroSaveLoadAuditFrame(void);
-void G_FormatHeroSaveSnap(LPCEDICT hero, LPSTR out, DWORD out_size);
+void G_FormatHeroSaveSnap(LPCEDICT hero, string_t out, uint32_t out_size);
 void G_RunTimers(void);
 void G_StartProjectilePresentation(LPEDICT ent);
-void G_TimerStart(LPGTIMER timer, DWORD timeout, BOOL periodic, struct jass_function const *handler);
+void G_TimerStart(LPGTIMER timer, uint32_t timeout, bool periodic, struct jass_function const *handler);
 void G_TimerPause(LPGTIMER timer);
 void G_TimerResume(LPGTIMER timer);
 void G_TimerDestroy(LPGTIMER timer);
-BOOL G_TimerCoroutineValid(HANDLE timer, DWORD generation);
-DWORD G_TimerRemaining(LPCGTIMER timer);
+bool G_TimerCoroutineValid(handle_t timer, uint32_t generation);
+uint32_t G_TimerRemaining(LPCGTIMER timer);
 
 LPEDICT Waypoint_add(LPCVECTOR2);
 void G_InitWaypoints(void);
@@ -2302,18 +2302,18 @@ void monster_start(LPEDICT);
 void monster_think(LPEDICT);
 
 // g_model.c
-void         G_NormalizeModelFilename(LPCSTR authored, LPSTR out, size_t out_size);
-int          G_RegisterModel(LPCSTR filename);
-LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname);
-LPCANIMATION G_SelectAnimationForProperties(LPCANIMATION animations, DWORD count, LPCSTR animname, LPCSTR properties);
-LPCANIMATION G_SelectAnimationVariantForProperties(LPCANIMATION animations, DWORD count, LPCSTR animname, LPCSTR properties, BOOL randomize);
-LPCANIMATION G_GetAnimationForProperties(DWORD modelindex, LPCSTR animname, LPCSTR properties);
-LPCANIMATION G_GetAnimationVariant(DWORD modelindex, LPCSTR animname, BOOL randomize);
-BOOL         G_AnimationHasPrimary(LPCANIMATION animation, LPCSTR primary);
-LPCANIMATION G_GetUnitAnimation(LPEDICT unit, LPCSTR animname);
-void         G_SetUnitAnimation(LPEDICT unit, LPCSTR animname);
+void         G_NormalizeModelFilename(cstring_t authored, string_t out, size_t out_size);
+int          G_RegisterModel(cstring_t filename);
+LPCANIMATION G_GetAnimation(uint32_t modelindex, cstring_t animname);
+LPCANIMATION G_SelectAnimationForProperties(LPCANIMATION animations, uint32_t count, cstring_t animname, cstring_t properties);
+LPCANIMATION G_SelectAnimationVariantForProperties(LPCANIMATION animations, uint32_t count, cstring_t animname, cstring_t properties, bool randomize);
+LPCANIMATION G_GetAnimationForProperties(uint32_t modelindex, cstring_t animname, cstring_t properties);
+LPCANIMATION G_GetAnimationVariant(uint32_t modelindex, cstring_t animname, bool randomize);
+bool         G_AnimationHasPrimary(LPCANIMATION animation, cstring_t primary);
+LPCANIMATION G_GetUnitAnimation(LPEDICT unit, cstring_t animname);
+void         G_SetUnitAnimation(LPEDICT unit, cstring_t animname);
 void         G_ResetUnitAnimationProperties(LPEDICT unit);
-void         G_AddUnitAnimationProperties(LPEDICT unit, LPCSTR properties, BOOL add);
+void         G_AddUnitAnimationProperties(LPEDICT unit, cstring_t properties, bool add);
 void         G_FreeModels(void);
 
 // g_ai.c
@@ -2325,10 +2325,10 @@ void unit_runwait(LPEDICT, void (*callback)(LPEDICT ));
 void unit_stand(LPEDICT);
 void unit_entercombat(LPEDICT, LPEDICT);
 void unit_leavecombat(LPEDICT);
-BOOL unit_affectingcombat(LPEDICT);
+bool unit_affectingcombat(LPEDICT);
 void unit_updatestatuses(LPEDICT);
 void unit_expirestatus(LPEDICT, heroabilitystatus_t *);
-heroabilitystatus_t *unit_findstatus(LPEDICT, DWORD);
+heroabilitystatus_t *unit_findstatus(LPEDICT, uint32_t);
 void unit_statusdeath(LPEDICT);
 void incinerate_explode_think(LPEDICT);
 void monsoon_think(LPEDICT);
@@ -2337,242 +2337,242 @@ void unit_refreshstatusflags(LPEDICT);
 // skills/s_move.c — locomotion shared by Move, Follow, Attack, Build and Harvest
 void unit_moveindirection(LPEDICT);
 void unit_moveindirection_ignore_units(LPEDICT);
-BOOL unit_snap_to_point_ignore_units(LPEDICT, LPCVECTOR2);
+bool unit_snap_to_point_ignore_units(LPEDICT, LPCVECTOR2);
 void unit_changeangle(LPEDICT);
 void unit_changeangle_worker(LPEDICT);
 void unit_changeangle_interaction_ignore_units(LPEDICT);
-BOOL unit_changeangle_towards_point_ignore_units(LPEDICT, LPCVECTOR2);
+bool unit_changeangle_towards_point_ignore_units(LPEDICT, LPCVECTOR2);
 void unit_changeangle_towards_point(LPEDICT, LPCVECTOR2);
 void unit_changeangle_towards_point_worker(LPEDICT, LPCVECTOR2);
-void unit_changeangle_for_radius(LPEDICT, FLOAT);
-void unit_changeangle_for_radius_worker(LPEDICT, FLOAT);
-BOOL M_MoveIsValid(LPEDICT self, LPCVECTOR2 pos);
-BOOL M_CheckAttack(LPEDICT);
-BOOL unit_is_walking(LPCEDICT);
-void unit_setanimation(LPEDICT, LPCSTR);
+void unit_changeangle_for_radius(LPEDICT, float);
+void unit_changeangle_for_radius_worker(LPEDICT, float);
+bool M_MoveIsValid(LPEDICT self, LPCVECTOR2 pos);
+bool M_CheckAttack(LPEDICT);
+bool unit_is_walking(LPCEDICT);
+void unit_setanimation(LPEDICT, cstring_t);
 void unit_setmove(LPEDICT, umove_t *);
 void M_MoveFrame(LPEDICT);
-FLOAT M_DistanceToGoal(LPEDICT);
-FLOAT unit_movedistance(LPEDICT);
-DWORD M_RefreshHeatmap(LPEDICT, FLOAT);
-DWORD M_RefreshHeatmapForMover(LPCEDICT, LPEDICT, FLOAT);
-BYTE M_UnitStaticPathingFlags(LPCEDICT);
-BOOL M_IsDead(LPCEDICT);
+float M_DistanceToGoal(LPEDICT);
+float unit_movedistance(LPEDICT);
+uint32_t M_RefreshHeatmap(LPEDICT, float);
+uint32_t M_RefreshHeatmapForMover(LPCEDICT, LPEDICT, float);
+uint8_t M_UnitStaticPathingFlags(LPCEDICT);
+bool M_IsDead(LPCEDICT);
 void SP_SpawnUnit(LPEDICT);
-DWORD unit_spawn_aiflags(DWORD);
-BOOL SP_TrainUnit(LPEDICT, DWORD);
-BOOL player_pay(LPPLAYER, DWORD);
+uint32_t unit_spawn_aiflags(uint32_t);
+bool SP_TrainUnit(LPEDICT, uint32_t);
+bool player_pay(LPPLAYER, uint32_t);
 
 // g_food.c
-BOOL G_FoodLimitsEnabled(void);
-LONG G_GetEffectiveFoodCap(LPGAMECLIENT client);
-DWORD G_GetPlayerUpkeepTier(LPGAMECLIENT client);
-LONG G_GetUpkeepGoldRateForTier(DWORD tier);
-LONG G_GetUpkeepLumberRateForTier(DWORD tier);
-BOOL G_PlayerHasFoodFor(LPGAMECLIENT client, LONG food_cost);
-BOOL G_ReserveTrainingFood(LPEDICT unit);
-void G_SetUnitFoodUsed(LPEDICT unit, LONG amount);
-void G_SetUnitFoodMade(LPEDICT unit, LONG amount);
+bool G_FoodLimitsEnabled(void);
+int32_t G_GetEffectiveFoodCap(LPGAMECLIENT client);
+uint32_t G_GetPlayerUpkeepTier(LPGAMECLIENT client);
+int32_t G_GetUpkeepGoldRateForTier(uint32_t tier);
+int32_t G_GetUpkeepLumberRateForTier(uint32_t tier);
+bool G_PlayerHasFoodFor(LPGAMECLIENT client, int32_t food_cost);
+bool G_ReserveTrainingFood(LPEDICT unit);
+void G_SetUnitFoodUsed(LPEDICT unit, int32_t amount);
+void G_SetUnitFoodMade(LPEDICT unit, int32_t amount);
 void G_ActivateUnitFood(LPEDICT unit);
 void G_ClearUnitFood(LPEDICT unit);
 void G_ClearTrainingQueueFood(LPEDICT producer);
-BOOL G_CancelTrainingQueueItem(LPEDICT producer, DWORD index, BOOL refund);
-void G_CancelTrainingQueue(LPEDICT producer, BOOL refund);
-BOOL G_QueueSacrifice(LPEDICT producer, LPEDICT worker, DWORD result_id);
-void G_SetUnitPlayer(LPEDICT unit, DWORD player);
-DWORD G_GetUnitTeamColor(LPCEDICT unit);
-void G_SetEntityTeamColor(LPENTITYSTATE state, DWORD color);
-void G_SetUnitTeamColor(LPEDICT unit, DWORD color);
+bool G_CancelTrainingQueueItem(LPEDICT producer, uint32_t index, bool refund);
+void G_CancelTrainingQueue(LPEDICT producer, bool refund);
+bool G_QueueSacrifice(LPEDICT producer, LPEDICT worker, uint32_t result_id);
+void G_SetUnitPlayer(LPEDICT unit, uint32_t player);
+uint32_t G_GetUnitTeamColor(LPCEDICT unit);
+void G_SetEntityTeamColor(LPENTITYSTATE state, uint32_t color);
+void G_SetUnitTeamColor(LPEDICT unit, uint32_t color);
 void G_InheritUnitTeamColor(LPEDICT entity, LPCEDICT source);
 void G_InitializeUnitTeamColor(LPEDICT unit);
 void G_InitializeUnitVertexColor(LPEDICT unit);
 void G_ApplyMapUnitTeamColor(LPEDICT unit, LPCDOODAD placement);
-void G_ChangePlayerTeamColor(LPPLAYER player, DWORD previous_color, DWORD new_color);
-BOOL G_GetUnitColorOverride(LPCEDICT unit, LPDWORD color);
-void G_SetUnitColorOverride(LPEDICT unit, DWORD color);
+void G_ChangePlayerTeamColor(LPPLAYER player, uint32_t previous_color, uint32_t new_color);
+bool G_GetUnitColorOverride(LPCEDICT unit, uint32_t * color);
+void G_SetUnitColorOverride(LPEDICT unit, uint32_t color);
 void G_ClearUnitColorOverride(LPEDICT unit);
 void G_RecomputePlayerUpkeep(LPGAMECLIENT client);
-LONG G_ApplyResourceIncome(LPPLAYER player, DWORD resource_state, LONG gross_amount);
-LONG G_CreditResourceIncome(LPPLAYER player, LPEDICT source, DWORD resource_state, LONG gross_amount);
-BOOL G_UnitCanReviveHeroes(LPCEDICT altar);
-BOOL G_HeroCanBeRevivedAt(LPCEDICT altar, LPCEDICT hero);
+int32_t G_ApplyResourceIncome(LPPLAYER player, uint32_t resource_state, int32_t gross_amount);
+int32_t G_CreditResourceIncome(LPPLAYER player, LPEDICT source, uint32_t resource_state, int32_t gross_amount);
+bool G_UnitCanReviveHeroes(LPCEDICT altar);
+bool G_HeroCanBeRevivedAt(LPCEDICT altar, LPCEDICT hero);
 
 // skills/s_rally.c
-BOOL G_UnitHasRally(LPCEDICT producer);
+bool G_UnitHasRally(LPCEDICT producer);
 void G_ResetRallyTarget(LPEDICT producer);
-BOOL G_SetRallyPoint(LPEDICT producer, LPCVECTOR2 point);
-BOOL G_SetRallyEntity(LPEDICT producer, LPEDICT target);
+bool G_SetRallyPoint(LPEDICT producer, LPCVECTOR2 point);
+bool G_SetRallyEntity(LPEDICT producer, LPEDICT target);
 rallyTargetType_t G_ResolveRallyTarget(LPEDICT producer, LPVECTOR2 point, LPEDICT *target);
-BOOL G_ApplyRallyOrder(LPEDICT producer, LPEDICT produced);
+bool G_ApplyRallyOrder(LPEDICT producer, LPEDICT produced);
 void G_InvalidateRallyTarget(LPEDICT target);
 void G_UpdateRallyIndicator(LPGAMECLIENT client);
 
-DWORD G_HeroReviveGoldCost(LPCEDICT hero);
-DWORD G_HeroReviveLumberCost(LPCEDICT hero);
-FLOAT G_HeroReviveTime(LPCEDICT hero);
-BOOL G_QueueHeroRevive(LPEDICT altar, LPEDICT hero);
-BOOL G_CancelHeroRevive(LPEDICT altar, LPEDICT hero);
+uint32_t G_HeroReviveGoldCost(LPCEDICT hero);
+uint32_t G_HeroReviveLumberCost(LPCEDICT hero);
+float G_HeroReviveTime(LPCEDICT hero);
+bool G_QueueHeroRevive(LPEDICT altar, LPEDICT hero);
+bool G_CancelHeroRevive(LPEDICT altar, LPEDICT hero);
 void G_CancelHeroRevives(LPEDICT altar);
-BYTE compress_stat(EDICTSTAT const *);
-DWORD G_LoadShadowTexture(LPCSTR, BOOL);
+uint8_t compress_stat(EDICTSTAT const *);
+uint32_t G_LoadShadowTexture(cstring_t, bool);
 
 // g_pathing.c
-pathTex_t *LoadTGA(BYTE const*, size_t);
-pathTex_t *M_LoadPathTex(LPCSTR filename);
+pathTex_t *LoadTGA(uint8_t const*, size_t);
+pathTex_t *M_LoadPathTex(cstring_t filename);
 
 // g_move.c
-BOOL SV_CloseEnough(LPEDICT, LPCEDICT, FLOAT);
+bool SV_CloseEnough(LPEDICT, LPCEDICT, float);
 
 // g_phys.c
 void G_RunEntity(LPEDICT);
-void G_SetHealth(LPEDICT, FLOAT);
-void G_AddHealth(LPEDICT, FLOAT);
-void G_ApplyPermanentMaxHealthBonus(LPEDICT, FLOAT);
-void G_ApplyTemporaryMaxHealthBonus(LPEDICT, FLOAT);
-void G_ApplyTemporaryMaxManaBonus(LPEDICT, FLOAT);
-void G_ApplyPermanentArmorBonus(LPEDICT, FLOAT);
-void G_ApplyTemporaryArmorBonus(LPEDICT, FLOAT);
-void G_ApplyPermanentAttackDamageBonus(LPEDICT, FLOAT);
-void G_ApplyTemporaryAttackDamageBonus(LPEDICT, FLOAT);
-void S_EnableAbility(LPEDICT, DWORD);
-void S_DisableAbility(LPEDICT, DWORD);
+void G_SetHealth(LPEDICT, float);
+void G_AddHealth(LPEDICT, float);
+void G_ApplyPermanentMaxHealthBonus(LPEDICT, float);
+void G_ApplyTemporaryMaxHealthBonus(LPEDICT, float);
+void G_ApplyTemporaryMaxManaBonus(LPEDICT, float);
+void G_ApplyPermanentArmorBonus(LPEDICT, float);
+void G_ApplyTemporaryArmorBonus(LPEDICT, float);
+void G_ApplyPermanentAttackDamageBonus(LPEDICT, float);
+void G_ApplyTemporaryAttackDamageBonus(LPEDICT, float);
+void S_EnableAbility(LPEDICT, uint32_t);
+void S_DisableAbility(LPEDICT, uint32_t);
 void S_RefreshAbilityLevel(LPEDICT, ability_t const *);
-BOOL S_UnitPolymorphed(LPCEDICT unit);
+bool S_UnitPolymorphed(LPCEDICT unit);
 BZ_ABILITY_PROC(CAbilityOnFireHuman);
 void G_ApplyUnitAbilityTraits(LPEDICT);
 void G_SolveCollisions(void);
-BOOL M_CheckCollision(LPCVECTOR2, FLOAT);
-void G_PushEntity(LPEDICT ent, FLOAT distance, LPCVECTOR2 direction);
-void G_PushEntity3(LPEDICT ent, FLOAT distance, LPCVECTOR3 direction);
-BOOL G_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBOX2 bounds,
-                                                      FLOAT radius, BYTE blocked_flags, LPVECTOR2 out);
+bool M_CheckCollision(LPCVECTOR2, float);
+void G_PushEntity(LPEDICT ent, float distance, LPCVECTOR2 direction);
+void G_PushEntity3(LPEDICT ent, float distance, LPCVECTOR3 direction);
+bool G_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBOX2 bounds,
+                                                      float radius, uint8_t blocked_flags, LPVECTOR2 out);
 
 // g_abilities.c
 void S_RunAbilityUpdates(LPEDICT);
-BOOL S_UnitAbilityEvent(LPEDICT, abilityMsg_t);
-BOOL S_UnitAbilityOrderAccepted(LPEDICT, LPCSTR);
-BOOL S_UnitQueuedOrderEvent(LPEDICT, unitOrder_t const *, abilityMsg_t);
-BOOL S_UnitTargetAbilityOrder(LPEDICT, LPEDICT, LPCSTR);
-BOOL S_UnitProjectileHit(LPEDICT);
-ability_t const *FindAbilityByOrder(LPCSTR);
-ability_t const *FindAbilityByClassname(LPCSTR);
-ability_t const *FindAbilityForCommand(LPCSTR);
-abilityitem_t S_AbilityItem(DWORD code);
-BOOL S_AbilityHasCommand(ability_t const *ability);
+bool S_UnitAbilityEvent(LPEDICT, abilityMsg_t);
+bool S_UnitAbilityOrderAccepted(LPEDICT, cstring_t);
+bool S_UnitQueuedOrderEvent(LPEDICT, unitOrder_t const *, abilityMsg_t);
+bool S_UnitTargetAbilityOrder(LPEDICT, LPEDICT, cstring_t);
+bool S_UnitProjectileHit(LPEDICT);
+ability_t const *FindAbilityByOrder(cstring_t);
+ability_t const *FindAbilityByClassname(cstring_t);
+ability_t const *FindAbilityForCommand(cstring_t);
+abilityitem_t S_AbilityItem(uint32_t code);
+bool S_AbilityHasCommand(ability_t const *ability);
 void S_AbilityCommand(LPEDICT clent, ability_t const *ability);
-ability_t const *GetAbilityByIndex(DWORD);
-DWORD FindAbilityIndex(LPCSTR);
+ability_t const *GetAbilityByIndex(uint32_t);
+uint32_t FindAbilityIndex(cstring_t);
 void InitAbilities(void);
 #ifdef WC3_DEBUG_AUTOCAST
 int G_AutocastDebugLevel(void);
 #endif
-BOOL G_UnitAutocastIsOn(LPEDICT ent, DWORD code);
-BOOL G_SetUnitAutocast(LPEDICT ent, DWORD code, BOOL enabled);
-BOOL G_TryUnitAutocast(LPEDICT ent);
+bool G_UnitAutocastIsOn(LPEDICT ent, uint32_t code);
+bool G_SetUnitAutocast(LPEDICT ent, uint32_t code, bool enabled);
+bool G_TryUnitAutocast(LPEDICT ent);
 
 // g_metadata.c
-LPCSTR FindConfigValue(LPCSTR, LPCSTR);
-LPCSTR GetClassName(DWORD);
+cstring_t FindConfigValue(cstring_t, cstring_t);
+cstring_t GetClassName(uint32_t);
 
 // g_effects.c
-LPCSTR G_AbilityEffectArt(DWORD ability_id, wc3EffectType_t type, DWORD index);
-LPEDICT G_SpawnModelEffect(LPCSTR model, LPCVECTOR2 point, LPEDICT target, LPCSTR attach_point, BOOL temporary);
-LPEDICT G_SpawnAbilityEffectAtPoint(DWORD ability_id, wc3EffectType_t type, DWORD index, LPCVECTOR2 point, BOOL temporary);
-LPEDICT G_SpawnAbilityEffectTarget(DWORD ability_id, wc3EffectType_t type, DWORD index, LPEDICT target, LPCSTR attach_point, BOOL temporary);
+cstring_t G_AbilityEffectArt(uint32_t ability_id, wc3EffectType_t type, uint32_t index);
+LPEDICT G_SpawnModelEffect(cstring_t model, LPCVECTOR2 point, LPEDICT target, cstring_t attach_point, bool temporary);
+LPEDICT G_SpawnAbilityEffectAtPoint(uint32_t ability_id, wc3EffectType_t type, uint32_t index, LPCVECTOR2 point, bool temporary);
+LPEDICT G_SpawnAbilityEffectTarget(uint32_t ability_id, wc3EffectType_t type, uint32_t index, LPEDICT target, cstring_t attach_point, bool temporary);
 void G_DestroyEffect(LPEDICT effect);
-DWORD G_AbilityLightningId(DWORD ability_id, DWORD index);
+uint32_t G_AbilityLightningId(uint32_t ability_id, uint32_t index);
 LPGLIGHTNING G_LightningAdd(LPCLIGHTNINGADDPARAMS params);
-BOOL G_LightningValid(LPCGLIGHTNING effect);
+bool G_LightningValid(LPCGLIGHTNING effect);
 void G_LightningAttach(LPGLIGHTNING effect, LPCEDICT source, LPCEDICT target);
 void G_LightningUpdateAttached(LPGLIGHTNING effect);
 void G_LightningMove(LPGLIGHTNING effect, LPCVECTOR3 source, LPCVECTOR3 target);
 void G_LightningColor(LPGLIGHTNING effect, COLOR32 color);
-void G_LightningScriptColor(LPGLIGHTNING effect, COLOR32 color, LPCFLOAT precise);
+void G_LightningScriptColor(LPGLIGHTNING effect, COLOR32 color, float const * precise);
 void G_LightningRemove(LPGLIGHTNING effect);
 LPGLIGHTNING G_SpawnAbilityLightning(LPCABILITYLIGHTNINGPARAMS params);
-LPEDICT G_SpawnOwnedAbilityEffectAtPoint(LPEDICT owner, DWORD ability_id, wc3EffectType_t type, DWORD index, LPCVECTOR2 point);
+LPEDICT G_SpawnOwnedAbilityEffectAtPoint(LPEDICT owner, uint32_t ability_id, wc3EffectType_t type, uint32_t index, LPCVECTOR2 point);
 void G_DestroyOwnedEffects(LPEDICT owner);
 void G_EffectThink(LPEDICT);
 void G_EffectValidateTarget(LPEDICT);
 
 // hud/hud_resource_text.c
-void G_ResourceGainEvent(LPEDICT source, DWORD resource_state, LONG amount);
+void G_ResourceGainEvent(LPEDICT source, uint32_t resource_state, int32_t amount);
 
 // hud/hud_unit.c
-BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons);
-BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, gameCommandButton_t *button);
-BOOL G_BuildAllEnabled(void);
-BOOL G_WorkerCanBuild(LPEDICT worker, DWORD building_id);
-BOOL G_ProducerCanTrain(LPEDICT producer, DWORD unit_id);
-BOOL G_ProducerCanResearch(LPEDICT producer, DWORD upgrade_id);
-BOOL G_ProducerCanUpgrade(LPEDICT producer, DWORD unit_id);
-BOOL G_BuildingUpgradeActive(LPCEDICT building);
-BOOL G_BuildingIsUnsummoning(LPCEDICT building);
+uint8_t G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, uint8_t max_buttons);
+bool G_BuildCommandButton(LPEDICT ent, cstring_t code, bool research, uint32_t level, gameCommandButton_t *button);
+bool G_BuildAllEnabled(void);
+bool G_WorkerCanBuild(LPEDICT worker, uint32_t building_id);
+bool G_ProducerCanTrain(LPEDICT producer, uint32_t unit_id);
+bool G_ProducerCanResearch(LPEDICT producer, uint32_t upgrade_id);
+bool G_ProducerCanUpgrade(LPEDICT producer, uint32_t unit_id);
+bool G_BuildingUpgradeActive(LPCEDICT building);
+bool G_BuildingIsUnsummoning(LPCEDICT building);
 void G_GetBuildingUpgradeCosts(buildingUpgradeCostParams_t const *params);
-buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, DWORD building_id, LPSTR reason, DWORD reason_size);
-buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD unit_id, LPSTR reason, DWORD reason_size);
-buildCommandState_t G_GetResearchCommandState(LPGAMECLIENT client, LPEDICT producer, DWORD upgrade_id, LONG *next_level, LPSTR reason, DWORD reason_size);
+buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, uint32_t building_id, string_t reason, uint32_t reason_size);
+buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer, uint32_t unit_id, string_t reason, uint32_t reason_size);
+buildCommandState_t G_GetResearchCommandState(LPGAMECLIENT client, LPEDICT producer, uint32_t upgrade_id, int32_t *next_level, string_t reason, uint32_t reason_size);
 buildCommandState_t G_GetBuildingUpgradeCommandState(buildingUpgradeCommandParams_t const *params);
-LONG G_UpgradeGoldCost(DWORD upgrade_id, LONG level_value);
-LONG G_UpgradeLumberCost(DWORD upgrade_id, LONG level_value);
-FLOAT G_UpgradeResearchTime(DWORD upgrade_id, LONG level_value);
-BOOL G_QueueResearch(LPEDICT producer, DWORD upgrade_id);
-BOOL G_StartBuildingUpgrade(LPEDICT building, DWORD unit_id);
-BOOL G_CancelBuildingUpgrade(LPEDICT building);
-void G_StopBuildingUpgrade(LPEDICT building, BOOL refund);
+int32_t G_UpgradeGoldCost(uint32_t upgrade_id, int32_t level_value);
+int32_t G_UpgradeLumberCost(uint32_t upgrade_id, int32_t level_value);
+float G_UpgradeResearchTime(uint32_t upgrade_id, int32_t level_value);
+bool G_QueueResearch(LPEDICT producer, uint32_t upgrade_id);
+bool G_StartBuildingUpgrade(LPEDICT building, uint32_t unit_id);
+bool G_CancelBuildingUpgrade(LPEDICT building);
+void G_StopBuildingUpgrade(LPEDICT building, bool refund);
 void G_RunBuildingUpgradeFrame(LPEDICT building);
 void G_UpdateBuildingUpgradeAnimation(LPEDICT building);
 void G_ApplyPlayerUpgradesToUnit(LPEDICT unit);
-BOOL G_UnitAbilityResearchAvailable(LPCEDICT unit, DWORD ability_id);
-DWORD G_GetUnitUpgradeForClass(LPCEDICT unit, LPCSTR wanted_class);
-BOOL G_ChargeBuilding(LPGAMECLIENT client, DWORD building_id);
-void G_RefundBuilding(LPGAMECLIENT client, DWORD building_id);
-void G_SnapBuildingPoint(DWORD building_id, LPVECTOR2 point);
-void G_GetBuildPlacementPathingFlags(DWORD building_id, LPBYTE prevented, LPBYTE required);
-buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, DWORD building_id, LPCVECTOR2 requested, LPVECTOR2 snapped);
-BOOL G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building);
-BOOL G_ExecuteBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location);
-BOOL G_IssueBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location);
-BOOL G_IssueUnitBuildOrder(LPEDICT builder, DWORD building_id, LPCVECTOR2 location, BOOL queue, DWORD issuer_player);
-BOOL G_FindBuildOnTarget(DWORD building_id, LPCVECTOR2 point, LPEDICT *out);
-FLOAT G_BuildApproachDistance(DWORD building_id);
-BOOL G_StartHumanConstruction(LPEDICT builder, LPEDICT building);
-BOOL G_StartOrcConstruction(LPEDICT builder, LPEDICT building);
-BOOL G_StartUndeadConstruction(LPEDICT builder, LPEDICT building);
-BOOL G_StartNightElfConstruction(LPEDICT builder, LPEDICT building);
-BOOL G_StartNightElfOverlayConstruction(LPEDICT building);
+bool G_UnitAbilityResearchAvailable(LPCEDICT unit, uint32_t ability_id);
+uint32_t G_GetUnitUpgradeForClass(LPCEDICT unit, cstring_t wanted_class);
+bool G_ChargeBuilding(LPGAMECLIENT client, uint32_t building_id);
+void G_RefundBuilding(LPGAMECLIENT client, uint32_t building_id);
+void G_SnapBuildingPoint(uint32_t building_id, LPVECTOR2 point);
+void G_GetBuildPlacementPathingFlags(uint32_t building_id, uint8_t * prevented, uint8_t * required);
+buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, uint32_t building_id, LPCVECTOR2 requested, LPVECTOR2 snapped);
+bool G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building);
+bool G_ExecuteBuildOrder(LPEDICT builder, uint32_t building_id, LPCVECTOR2 location);
+bool G_IssueBuildOrder(LPEDICT builder, uint32_t building_id, LPCVECTOR2 location);
+bool G_IssueUnitBuildOrder(LPEDICT builder, uint32_t building_id, LPCVECTOR2 location, bool queue, uint32_t issuer_player);
+bool G_FindBuildOnTarget(uint32_t building_id, LPCVECTOR2 point, LPEDICT *out);
+float G_BuildApproachDistance(uint32_t building_id);
+bool G_StartHumanConstruction(LPEDICT builder, LPEDICT building);
+bool G_StartOrcConstruction(LPEDICT builder, LPEDICT building);
+bool G_StartUndeadConstruction(LPEDICT builder, LPEDICT building);
+bool G_StartNightElfConstruction(LPEDICT builder, LPEDICT building);
+bool G_StartNightElfOverlayConstruction(LPEDICT building);
 void G_RunConstructionFrame(LPEDICT building);
 void G_UpdateConstructionAnimation(LPEDICT building);
 void G_StopConstruction(LPEDICT building);
-BOOL G_CancelStructureConstruction(LPEDICT building);
+bool G_CancelStructureConstruction(LPEDICT building);
 void G_CompleteConstruction(LPEDICT building);
-BOOL G_UnitHasHumanRepair(LPEDICT ent);
-BOOL S_OrderRepair(LPEDICT ent, LPEDICT target, DWORD preferred);
-BOOL S_SetRepairAutocast(LPEDICT ent, BOOL enabled);
-BOOL S_RepairSmart(LPEDICT ent, LPEDICT target);
+bool G_UnitHasHumanRepair(LPEDICT ent);
+bool S_OrderRepair(LPEDICT ent, LPEDICT target, uint32_t preferred);
+bool S_SetRepairAutocast(LPEDICT ent, bool enabled);
+bool S_RepairSmart(LPEDICT ent, LPEDICT target);
 void S_CancelRepair(LPEDICT ent);
-void G_SetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid, LONG maximum);
-LONG G_GetPlayerTechMaxAllowed(LPGAMECLIENT client, DWORD techid);
-void G_SetPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG level_value);
-void G_AddPlayerTechResearched(LPGAMECLIENT client, DWORD techid, LONG levels);
-LONG G_GetPlayerTechResearchedLevel(LPGAMECLIENT client, DWORD techid);
-FLOAT G_UnitUpgradeEffectBonus(LPCEDICT unit, DWORD effect);
+void G_SetPlayerTechMaxAllowed(LPGAMECLIENT client, uint32_t techid, int32_t maximum);
+int32_t G_GetPlayerTechMaxAllowed(LPGAMECLIENT client, uint32_t techid);
+void G_SetPlayerTechResearched(LPGAMECLIENT client, uint32_t techid, int32_t level_value);
+void G_AddPlayerTechResearched(LPGAMECLIENT client, uint32_t techid, int32_t levels);
+int32_t G_GetPlayerTechResearchedLevel(LPGAMECLIENT client, uint32_t techid);
+float G_UnitUpgradeEffectBonus(LPCEDICT unit, uint32_t effect);
 #define ID_UPGRADE_EFFECT_MAX_MANA MAKEFOURCC('r', 'm', 'n', 'x')
-LONG G_GetPlayerTechInProgress(LPGAMECLIENT client, DWORD techid);
-void G_AddPlayerTechInProgress(LPGAMECLIENT client, DWORD techid, LONG levels);
-LONG G_GetPlayerTechCountValue(LPGAMECLIENT client, DWORD techid);
+int32_t G_GetPlayerTechInProgress(LPGAMECLIENT client, uint32_t techid);
+void G_AddPlayerTechInProgress(LPGAMECLIENT client, uint32_t techid, int32_t levels);
+int32_t G_GetPlayerTechCountValue(LPGAMECLIENT client, uint32_t techid);
 void G_InvalidateCommands(LPGAMECLIENT client);
-BOOL G_BuildInventoryItem(LPEDICT ent, LPEDICT item, BYTE slot, gameInventoryItem_t *out);
-BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items);
-BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue);
+bool G_BuildInventoryItem(LPEDICT ent, LPEDICT item, uint8_t slot, gameInventoryItem_t *out);
+uint8_t G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, uint8_t max_items);
+uint8_t G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, uint8_t max_queue);
 
 // g_ai.c
 LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT);
 void Get_Commands_f(LPEDICT);
 void CMD_CancelCommand(LPEDICT ent);
-BOOL G_ClearBuildPlacementMode(LPEDICT clent);
-BOOL G_CancelBuildPlacement(LPEDICT clent);
-BOOL build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location);
+bool G_ClearBuildPlacementMode(LPEDICT clent);
+bool G_CancelBuildPlacement(LPEDICT clent);
+bool build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location);
 void Get_Portrait_f(LPEDICT);
 void G_RefreshInventoryLayer(LPEDICT);
 void G_InvalidateUnitInfoPanel(LPEDICT);
@@ -2584,51 +2584,51 @@ void G_RefreshResourceBar(LPEDICT);
 void G_AccumulatePlayerFood(LPGAMECLIENT client);
 void G_InitClientUIState(LPGAMECLIENT client);
 void G_UpdateClientResourceBars(void);
-BOOL G_UnitIsIdleWorker(LPCEDICT ent);
-BOOL G_UnitShowsIdleWorkerShortcut(LPGAMECLIENT client, LPCEDICT ent);
-BOOL G_UnitShowsHeroShortcut(LPGAMECLIENT client, LPCEDICT ent);
-LPEDICT G_GetNextIdleWorker(LPGAMECLIENT client, DWORD after);
+bool G_UnitIsIdleWorker(LPCEDICT ent);
+bool G_UnitShowsIdleWorkerShortcut(LPGAMECLIENT client, LPCEDICT ent);
+bool G_UnitShowsHeroShortcut(LPGAMECLIENT client, LPCEDICT ent);
+LPEDICT G_GetNextIdleWorker(LPGAMECLIENT client, uint32_t after);
 void G_InvalidateUnitShortcuts(LPGAMECLIENT client);
 void G_InvalidateAllUnitShortcuts(void);
 void G_InvalidateUnitShortcutsForUnit(LPEDICT ent);
 void G_AlertHeroShortcutDamage(LPEDICT ent);
-void G_ActivateHeroButton(LPEDICT clent, DWORD number);
-void G_ActivateHeroKey(LPEDICT clent, DWORD slot);
-void G_ActivateIdleWorkerShortcut(LPEDICT clent, DWORD hinted_number);
+void G_ActivateHeroButton(LPEDICT clent, uint32_t number);
+void G_ActivateHeroKey(LPEDICT clent, uint32_t slot);
+void G_ActivateIdleWorkerShortcut(LPEDICT clent, uint32_t hinted_number);
 void G_UpdateClientUnitShortcuts(void);
 void UI_WriteUnitShortcutLayer(LPEDICT ent);
 void UI_AddCancelButton(LPEDICT);
 void UI_WriteCommandButtonFrame(gameCommandButton_t const *button);
-void UI_AddCommandButton(LPCSTR);
-void UI_AddCommandButtonExtended(LPCSTR code, BOOL research, DWORD level);
+void UI_AddCommandButton(cstring_t);
+void UI_AddCommandButtonExtended(cstring_t code, bool research, uint32_t level);
 void UI_WriteTooltipFrame(void);
 void UI_SetCurrentClient(LPGAMECLIENT client);
-void UI_ShowInterface(LPEDICT, BOOL, FLOAT);
-void UI_ShowText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
-void UI_ShowTransientText(LPEDICT, LPCVECTOR2, LPCSTR, FLOAT);
+void UI_ShowInterface(LPEDICT, bool, float);
+void UI_ShowText(LPEDICT, LPCVECTOR2, cstring_t, float);
+void UI_ShowTransientText(LPEDICT, LPCVECTOR2, cstring_t, float);
 void UI_RecordTransmissionMessage(LPEDICT);
 void UI_ClearTextMessages(LPEDICT);
 void UI_InvalidateDialoguePresentation(LPEDICT);
 void UI_WriteDialoguePresentation(LPEDICT);
-LPCSTR GetBuildCommand(unitRace_t);
-void UI_RenderRoute(LPEDICT, LPCSTR);
+cstring_t GetBuildCommand(unitRace_t);
+void UI_RenderRoute(LPEDICT, cstring_t);
 void UI_ShowMainMenu(LPEDICT);
 void UI_ShowGameMenuEndGame(LPEDICT);
 void UI_ShowGameMenuConfirmExit(LPEDICT);
 void UI_ShowGameMenuSave(LPEDICT);
 void UI_ShowGameMenuLoad(LPEDICT);
-void UI_ShowRealmSelect(LPEDICT, BOOL);
+void UI_ShowRealmSelect(LPEDICT, bool);
 void UI_ShowSinglePlayerMenu(LPEDICT);
 void UI_ShowMultiplayerMenu(LPEDICT);
 void UI_ShowMultiplayerCreateMenu(LPEDICT);
-void UI_ShowMultiplayerGameSetupMenu(LPEDICT, DWORD);
+void UI_ShowMultiplayerGameSetupMenu(LPEDICT, uint32_t);
 void UI_ShowGameInterface(LPEDICT);
 void UI_WriteHoverLayout(LPEDICT);
 void UI_WriteCinematicLayer(LPEDICT);
-void UI_ShowMapSelectMenu(LPEDICT, LPCSTR);
+void UI_ShowMapSelectMenu(LPEDICT, cstring_t);
 void UI_ShowMultiplayerCreateMapInfo(LPEDICT);
 void UI_ClearCreateGameSlots(void);
-void UI_AddCreateGameSlot(DWORD, LPCSTR, LPCSTR, LPCSTR, DWORD);
+void UI_AddCreateGameSlot(uint32_t, cstring_t, cstring_t, cstring_t, uint32_t);
 
 // p_fdf.c
 void UI_PrintClasses(void);
@@ -2641,109 +2641,109 @@ void UI_WriteTimerDialogs(LPEDICT ent);
 void UI_LoadHudLeaderboards(void);
 void UI_WriteLeaderboard(LPEDICT ent);
 void UI_WriteLoadingLayout(LPEDICT ent, LPCMAPINFO info);
-void UI_ParseFDF(LPCSTR);
-void UI_ParseFDF_Buffer(LPCSTR, LPSTR);
+void UI_ParseFDF(cstring_t);
+void UI_ParseFDF_Buffer(cstring_t, string_t);
 void UI_SetAllPoints(LPFRAMEDEF);
 void UI_SetParent(LPFRAMEDEF, LPCFRAMEDEF);
-void UI_SetText(LPFRAMEDEF, LPCSTR, ...);
-void UI_SetOnClick(LPFRAMEDEF, LPCSTR, ...);
-void UI_SetTextPointer(LPFRAMEDEF, LPCSTR);
-void UI_SetSize(LPFRAMEDEF, FLOAT, FLOAT);
-void UI_SetTexture(LPFRAMEDEF, LPCSTR, BOOL);
-void UI_SetTexture2(LPFRAMEDEF, LPCSTR, BOOL);
+void UI_SetText(LPFRAMEDEF, cstring_t, ...);
+void UI_SetOnClick(LPFRAMEDEF, cstring_t, ...);
+void UI_SetTextPointer(LPFRAMEDEF, cstring_t);
+void UI_SetSize(LPFRAMEDEF, float, float);
+void UI_SetTexture(LPFRAMEDEF, cstring_t, bool);
+void UI_SetTexture2(LPFRAMEDEF, cstring_t, bool);
 #ifdef BZ_TESTS
 void UI_TestResetInfoPanelIconCache(void);
-LPCSTR UI_TestResolveTypedInfoPanelIcon(LPCSTR prefix, LPCSTR type, BOOL has_upgrade);
-USHORT UI_TestSelectedTimedStatusStat(LPGAMECLIENT client, LPEDICT selected);
+cstring_t UI_TestResolveTypedInfoPanelIcon(cstring_t prefix, cstring_t type, bool has_upgrade);
+uint16_t UI_TestSelectedTimedStatusStat(LPGAMECLIENT client, LPEDICT selected);
 #endif
-void UI_WriteLayout(LPEDICT, LPCFRAMEDEF, DWORD);
-void UI_WriteStart(DWORD);
-void UI_ClearLayer(LPEDICT, DWORD);
-void UI_ShowGameResult(LPEDICT, DWORD);
+void UI_WriteLayout(LPEDICT, LPCFRAMEDEF, uint32_t);
+void UI_WriteStart(uint32_t);
+void UI_ClearLayer(LPEDICT, uint32_t);
+void UI_ShowGameResult(LPEDICT, uint32_t);
 void UI_FlushPendingGameResults(void);
 void UI_HideGameResult(LPEDICT);
 void UI_ShowQuests(LPEDICT);
 void UI_HideQuests(LPEDICT);
 void UI_ShowAllies(LPEDICT);
-void UI_AlliesToggle(LPEDICT, DWORD, PLAYERALLIANCE);
+void UI_AlliesToggle(LPEDICT, uint32_t, PLAYERALLIANCE);
 void UI_AlliesToggleVictory(LPEDICT);
 void UI_AlliesAccept(LPEDICT);
 void UI_AlliesCancel(LPEDICT);
 void UI_ShowLog(LPEDICT);
-void UI_WriteWithTriggers(LPEDICT, LPCFRAMEDEF, DWORD, uiTrigger_t const *);
-void UI_SetPoint(LPFRAMEDEF, UIFRAMEPOINT, LPCFRAMEDEF, UIFRAMEPOINT, FLOAT, FLOAT);
+void UI_WriteWithTriggers(LPEDICT, LPCFRAMEDEF, uint32_t, uiTrigger_t const *);
+void UI_SetPoint(LPFRAMEDEF, UIFRAMEPOINT, LPCFRAMEDEF, UIFRAMEPOINT, float, float);
 void UI_InitFrame(LPFRAMEDEF, FRAMETYPE);
-void UI_SetHidden(LPFRAMEDEF, BOOL);
-void UI_InheritFrom(LPFRAMEDEF, LPCSTR);
-DWORD UI_FindFrameNumber(LPCSTR);
-DWORD UI_LoadTexture(LPCSTR, BOOL);
-LPCSTR UI_GetString(LPCSTR);
+void UI_SetHidden(LPFRAMEDEF, bool);
+void UI_InheritFrom(LPFRAMEDEF, cstring_t);
+uint32_t UI_FindFrameNumber(cstring_t);
+uint32_t UI_LoadTexture(cstring_t, bool);
+cstring_t UI_GetString(cstring_t);
 LPFRAMEDEF UI_Spawn(FRAMETYPE, LPFRAMEDEF);
-LPFRAMEDEF UI_FindFrame(LPCSTR);
-LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF, LPCSTR);
-LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF, LPCSTR);
+LPFRAMEDEF UI_FindFrame(cstring_t);
+LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF, cstring_t);
+LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF, cstring_t);
 LPFRAMEDEF UI_FindChildFrameType(LPFRAMEDEF, FRAMETYPE);
 
-LPCSTR Theme_String(LPCSTR, LPCSTR);
-LPCSTR Theme_PlayerString(LPGAMECLIENT, LPCSTR, LPCSTR);
-FLOAT Theme_Float(LPCSTR, LPCSTR);
+cstring_t Theme_String(cstring_t, cstring_t);
+cstring_t Theme_PlayerString(LPGAMECLIENT, cstring_t, cstring_t);
+float Theme_Float(cstring_t, cstring_t);
 
 // ui_write.c
 void UI_WriteFrame(LPCFRAMEDEF);
-void UI_WriteFrameValue(LPCFRAMEDEF, FLOAT);
-DWORD UI_GetWrittenFrameNumber(LPCFRAMEDEF);
+void UI_WriteFrameValue(LPCFRAMEDEF, float);
+uint32_t UI_GetWrittenFrameNumber(LPCFRAMEDEF);
 void UI_WriteFrameWithChildren(LPCFRAMEDEF, LPCFRAMEDEF);
 void UI_WriteFrameWithChildrenWithTriggers(LPEDICT, LPCFRAMEDEF, LPCFRAMEDEF, uiTrigger_t const *);
-BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
+bool UI_BuildFrameForWrite(LPCFRAMEDEF frame,
                            LPUIFRAME out,
-                           LPBYTE typedata,
-                           DWORD typedata_max,
-                           LPSTR textbuf,
-                           DWORD textbuf_max);
+                           uint8_t * typedata,
+                           uint32_t typedata_max,
+                           string_t textbuf,
+                           uint32_t textbuf_max);
 
 // g_metadata.c
-LPCSTR UnitMetaString(LPEDICT, DWORD);
-LONG UnitMetaInteger(LPEDICT, DWORD);
-BOOL UnitMetaBoolean(LPEDICT, DWORD);
-FLOAT UnitMetaReal(LPEDICT, DWORD);
+cstring_t UnitMetaString(LPEDICT, uint32_t);
+int32_t UnitMetaInteger(LPEDICT, uint32_t);
+bool UnitMetaBoolean(LPEDICT, uint32_t);
+float UnitMetaReal(LPEDICT, uint32_t);
 
 void InitUnitData(void);
 void ShutdownUnitData(void);
 void G_SetMapUnitOverrides(LPCMAPINFO);
 void G_SetMapAbilityOverrides(LPCMAPINFO);
-BOOL G_IsReignOfChaosMap(LPCMAPINFO);
-DWORD G_MapGameDataSet(LPCMAPINFO);
+bool G_IsReignOfChaosMap(LPCMAPINFO);
+uint32_t G_MapGameDataSet(LPCMAPINFO);
 void G_MapGameDataPrefix(wc3MapGameDataPrefixParams_t const *params);
 #ifdef BZ_TESTS
-typedef struct { LPCSTR text; void *rows; DWORD count; } slkTestData_t;
-BOOL G_SLKStoreOptional(LPCSTR);
-slkTestData_t *G_SetSLKRows(LPCSTR, slkTestData_t *);
+typedef struct { cstring_t text; void *rows; uint32_t count; } slkTestData_t;
+bool G_SLKStoreOptional(cstring_t);
+slkTestData_t *G_SetSLKRows(cstring_t, slkTestData_t *);
 slkTestData_t *G_SetProfileRows(slkTestData_t *);
 #endif
-void G_RegisterSelectSounds(LPEDICT, LPCSTR);
+void G_RegisterSelectSounds(LPEDICT, cstring_t);
 void G_RegisterGlobalSounds(void);  /* register world sounds (tree fall, etc.) at map init */
 void G_ResetSoundPresentationState(void);
 soundPolicy_t const *G_SoundIndexPolicy(int index);
-void G_PlaySound(LPCVECTOR3 origin, LPEDICT ent, int channel, int index, FLOAT volume, FLOAT attenuation, FLOAT timeofs);
-FLOAT G_SoundIndexVolume(int);
-DWORD G_SoundIndexDuration(int);
-int G_UISoundIndex(LPCSTR);
-void G_PlayUISoundForPlayer(LPEDICT, LPCSTR);
-int G_AbilityEffectSoundIndex(DWORD ability_id, BOOL looped);
-void G_PlayAbilityEffectSound(DWORD ability_id, LPCVECTOR2 point);
-DWORD G_UnitAckSoundVariantCount(LPCSTR label, LPCSTR suffix);
-int G_UnitAckSoundVariantIndex(LPCSTR label, LPCSTR suffix, DWORD variant);
-DWORD G_UnitCombatSoundVariantCount(LPCSTR key);
-int G_UnitCombatSoundVariantIndex(LPCSTR key, DWORD variant);
-BOOL G_SoundLabelDescriptor(LPCSTR alias, LPSTR path, size_t path_size, int *sound_index, FLOAT *volume);
+void G_PlaySound(LPCVECTOR3 origin, LPEDICT ent, int channel, int index, float volume, float attenuation, float timeofs);
+float G_SoundIndexVolume(int);
+uint32_t G_SoundIndexDuration(int);
+int G_UISoundIndex(cstring_t);
+void G_PlayUISoundForPlayer(LPEDICT, cstring_t);
+int G_AbilityEffectSoundIndex(uint32_t ability_id, bool looped);
+void G_PlayAbilityEffectSound(uint32_t ability_id, LPCVECTOR2 point);
+uint32_t G_UnitAckSoundVariantCount(cstring_t label, cstring_t suffix);
+int G_UnitAckSoundVariantIndex(cstring_t label, cstring_t suffix, uint32_t variant);
+uint32_t G_UnitCombatSoundVariantCount(cstring_t key);
+int G_UnitCombatSoundVariantIndex(cstring_t key, uint32_t variant);
+bool G_SoundLabelDescriptor(cstring_t alias, string_t path, size_t path_size, int *sound_index, float *volume);
 void G_PlayCombatImpactSound(LPEDICT attacker, LPEDICT target);
-void G_SetConstructionLoopSound(LPEDICT building, BOOL active);
+void G_SetConstructionLoopSound(LPEDICT building, bool active);
 
 typedef struct {
-    FLOAT volume;
+    float volume;
     VECTOR3 origin;
     LPEDICT emitter;
-    BOOL positioned;
+    bool positioned;
 } jassSoundPlayback_t;
 
 
@@ -2751,204 +2751,204 @@ typedef struct {
  * skin/Music.SLK data per recipient and emits reliable svc_music commands. */
 void G_MusicResetState(void);
 void G_MusicSyncClient(LPGAMECLIENT client);
-void G_MusicSetMap(LPCSTR music_name, BOOL random, LONG index);
+void G_MusicSetMap(cstring_t music_name, bool random, int32_t index);
 void G_MusicClearMap(void);
-void G_MusicPlay(LPCSTR music_name, LONG start_ms, LONG fade_ms);
-void G_MusicStop(BOOL fade_out);
+void G_MusicPlay(cstring_t music_name, int32_t start_ms, int32_t fade_ms);
+void G_MusicStop(bool fade_out);
 void G_MusicResume(void);
-void G_MusicPlayThematic(LPCSTR music_name, LONG start_ms);
-BOOL G_MusicAcceptFinished(LPGAMECLIENT client, DWORD session_id);
-void G_MusicTrackSelected(LPGAMECLIENT client, DWORD session_id, LONG index, LONG position_ms, DWORD played_mask);
-void G_MusicThematicSnapshot(LPGAMECLIENT client, DWORD thematic_session_id, DWORD restore_session_id,
-                             LONG index, LONG position_ms, DWORD played_mask);
+void G_MusicPlayThematic(cstring_t music_name, int32_t start_ms);
+bool G_MusicAcceptFinished(LPGAMECLIENT client, uint32_t session_id);
+void G_MusicTrackSelected(LPGAMECLIENT client, uint32_t session_id, int32_t index, int32_t position_ms, uint32_t played_mask);
+void G_MusicThematicSnapshot(LPGAMECLIENT client, uint32_t thematic_session_id, uint32_t restore_session_id,
+                             int32_t index, int32_t position_ms, uint32_t played_mask);
 void G_MusicMapTransitionFinished(LPGAMECLIENT client);
 void G_MusicExplicitFinished(LPGAMECLIENT client);
 void G_MusicThematicFinished(LPGAMECLIENT client);
 void G_MusicEndThematic(void);
-void G_MusicSetVolume(LONG volume);
-void G_MusicSetPosition(LONG millisecs);
-void G_MusicSetThematicVolume(LONG volume);
-void G_MusicSetThematicPosition(LONG millisecs);
-LONG G_AudioDurationFromMemory(LPCSTR filename, BYTE const *data, DWORD size);
-LONG G_SoundFileDuration(LPCSTR filename);
-void G_JassSoundRuntimeInit(HANDLE sound);
-void G_JassSoundSetVolume(HANDLE sound, FLOAT volume);
-void G_JassSoundSetPosition(HANDLE sound, LPCVECTOR3 position);
-void G_JassSoundAttach(HANDLE sound, LPEDICT unit);
-void G_JassSoundPlayback(HANDLE sound, jassSoundPlayback_t *playback);
-void G_SendPointConfirmation(LPEDICT, LPCVECTOR2, BOOL attack);
+void G_MusicSetVolume(int32_t volume);
+void G_MusicSetPosition(int32_t millisecs);
+void G_MusicSetThematicVolume(int32_t volume);
+void G_MusicSetThematicPosition(int32_t millisecs);
+int32_t G_AudioDurationFromMemory(cstring_t filename, uint8_t const *data, uint32_t size);
+int32_t G_SoundFileDuration(cstring_t filename);
+void G_JassSoundRuntimeInit(handle_t sound);
+void G_JassSoundSetVolume(handle_t sound, float volume);
+void G_JassSoundSetPosition(handle_t sound, LPCVECTOR3 position);
+void G_JassSoundAttach(handle_t sound, LPEDICT unit);
+void G_JassSoundPlayback(handle_t sound, jassSoundPlayback_t *playback);
+void G_SendPointConfirmation(LPEDICT, LPCVECTOR2, bool attack);
 void G_QueueReadySound(LPEDICT);
-void G_QueueOwnerSoundAlias(LPEDICT, LPCSTR);
-void G_QueueOwnerUISound(LPEDICT, LPCSTR);
-void G_SendMinimapPing(LPGAMECLIENT, LPCVECTOR2, FLOAT, COLOR32, DWORD);
+void G_QueueOwnerSoundAlias(LPEDICT, cstring_t);
+void G_QueueOwnerUISound(LPEDICT, cstring_t);
+void G_SendMinimapPing(LPGAMECLIENT, LPCVECTOR2, float, COLOR32, uint32_t);
 void G_SendOwnerMinimapAlert(LPEDICT);
-COLOR32 G_SmartTargetIndicatorColor(DWORD, LPCEDICT);
+COLOR32 G_SmartTargetIndicatorColor(uint32_t, LPCEDICT);
 void G_SendWidgetIndicator(LPEDICT, COLOR32, LPPLAYER);
-void G_ShowCommandErrorKey(LPEDICT, LPCSTR, LPCSTR);
-void G_ShowCommandErrorText(LPEDICT, LPCSTR);
+void G_ShowCommandErrorKey(LPEDICT, cstring_t, cstring_t);
+void G_ShowCommandErrorText(LPEDICT, cstring_t);
 extern int g_treeFallSounds[3];     /* Sound\Destructibles\TreeFall{1,2,3}.wav configstring indices */
-extern BYTE g_numTreeFallSounds;
+extern uint8_t g_numTreeFallSounds;
 
 // g_command.c
-LONG G_CompareSelectionOrder(LPCEDICT, LPCEDICT);
-DWORD G_GetOrderedSelectedUnits(LPGAMECLIENT, LPEDICT *, DWORD);
+int32_t G_CompareSelectionOrder(LPCEDICT, LPCEDICT);
+uint32_t G_GetOrderedSelectedUnits(LPGAMECLIENT, LPEDICT *, uint32_t);
 void G_SelectEntity(LPGAMECLIENT, LPEDICT);
 void G_DeselectEntity(LPGAMECLIENT, LPEDICT);
-BOOL G_IsEntitySelected(LPGAMECLIENT, LPEDICT);
-BOOL G_FocusSelectedUnit(LPGAMECLIENT, LPEDICT);
-BOOL G_CycleSelectionSubgroup(LPGAMECLIENT);
+bool G_IsEntitySelected(LPGAMECLIENT, LPEDICT);
+bool G_FocusSelectedUnit(LPGAMECLIENT, LPEDICT);
+bool G_CycleSelectionSubgroup(LPGAMECLIENT);
 void G_ResetSelectionFocus(LPGAMECLIENT);
-BOOL G_UnitCanBeSelected(LPGAMECLIENT, LPCEDICT);
-BOOL G_UnitCanControl(LPGAMECLIENT, LPCEDICT);
-selectionRelation_t G_SelectionRelation(DWORD viewer, LPCEDICT ent);
+bool G_UnitCanBeSelected(LPGAMECLIENT, LPCEDICT);
+bool G_UnitCanControl(LPGAMECLIENT, LPCEDICT);
+selectionRelation_t G_SelectionRelation(uint32_t viewer, LPCEDICT ent);
 LPEDICT G_GetMainControllableUnit(LPGAMECLIENT);
 void G_UpdateClientSelections(void);
 void G_SyncClientSelection(LPGAMECLIENT);
 void G_ResetSelectionSoundState(void);
 void G_ClearUnitResponses(LPCEDICT);
-DWORD G_UnitResponseRequest(LPCEDICT, int);
-void G_AcceptSoundVariant(int, DWORD);
-BOOL G_SoundVariantIsLast(int, DWORD);
-BOOL G_QueueUnitResponseSound(LPEDICT, int);
-BOOL G_UnitResponseTalking(LPCEDICT);
+uint32_t G_UnitResponseRequest(LPCEDICT, int);
+void G_AcceptSoundVariant(int, uint32_t);
+bool G_SoundVariantIsLast(int, uint32_t);
+bool G_QueueUnitResponseSound(LPEDICT, int);
+bool G_UnitResponseTalking(LPCEDICT);
 void G_UpdateUnitResponsePresentation(void);
-void G_QueueSelectionSound(LPEDICT, BOOL);
+void G_QueueSelectionSound(LPEDICT, bool);
 void G_QueueAttackOrderSound(LPEDICT);
-void G_ClientCommand(LPEDICT, DWORD, LPCSTR[]);
-BOOL G_CheatsEnabled(void);
+void G_ClientCommand(LPEDICT, uint32_t, cstring_t[]);
+bool G_CheatsEnabled(void);
 void G_ClientSetCameraPosition(LPEDICT, LPCVECTOR2);
 
 //  s_skills.c
-FLOAT AB_Data(LPCSTR, DWORD, DWORD);
-DWORD GetAbilityIndex(abilityProc_t);
+float AB_Data(cstring_t, uint32_t, uint32_t);
+uint32_t GetAbilityIndex(abilityProc_t);
 void G_ResetHeroPassiveCaches(void);
 
 // g_combat.c
 int G_AttackDamage(LPEDICT, LPEDICT, int);
-int G_AttackDamageWithType(LPEDICT, LPEDICT, int, DWORD);
+int G_AttackDamageWithType(LPEDICT, LPEDICT, int, uint32_t);
 void T_Damage(LPEDICT, LPEDICT, int);
 
 // g_utils.c
 void G_FreeEdict(LPEDICT);
 void G_DeferFreeEdict(LPEDICT);
-BOOL G_IsDeferredFree(LPCEDICT);
+bool G_IsDeferredFree(LPCEDICT);
 void G_RunDeferredFrees(void);
 void G_ResetDeferredFrees(void);
 LPEVENT G_MakeEvent(EVENTTYPE);
 void G_SetEventSubject(LPEVENT, LPEDICT);
 void G_SetPlayerEventSubject(LPEVENT, LPEDICT);
-BOOL G_EventSubjectIsCurrent(LPEVENT);
+bool G_EventSubjectIsCurrent(LPEVENT);
 void G_UnitPositionChanged(LPEDICT, LPCVECTOR2);
-void G_JassVariableChanged(LPCSTR, FLOAT, FLOAT);
-BOOL G_LimitMatches(DWORD, FLOAT, FLOAT);
+void G_JassVariableChanged(cstring_t, float, float);
+bool G_LimitMatches(uint32_t, float, float);
 LPQUEST G_MakeQuest(void);
-BOOL G_RegionContains(LPCREGION, LPCVECTOR2);
+bool G_RegionContains(LPCREGION, LPCVECTOR2);
 void G_RemoveQuest(LPQUEST);
 void G_InitPlayerAlliances(LPCMAPINFO);
-void G_SetPlayerAlliance(LPCPLAYER, LPCPLAYER, PLAYERALLIANCE, BOOL);
-BOOL G_GetPlayerAlliance(LPCPLAYER, LPCPLAYER, PLAYERALLIANCE);
-BOOL G_PlayerTreatsPlayerAsAlly(DWORD, DWORD);
+void G_SetPlayerAlliance(LPCPLAYER, LPCPLAYER, PLAYERALLIANCE, bool);
+bool G_GetPlayerAlliance(LPCPLAYER, LPCPLAYER, PLAYERALLIANCE);
+bool G_PlayerTreatsPlayerAsAlly(uint32_t, uint32_t);
 
 // m_unit.c
-BOOL unit_issueorder(LPEDICT, LPCSTR, LPCVECTOR2);
-BOOL unit_issueimmediateorder(LPEDICT, LPCSTR);
-BOOL unit_issuetargetorder(LPEDICT, LPCSTR, LPEDICT);
-BOOL G_TransformUnitType(LPEDICT, DWORD);
-BOOL G_IssueUnitPointOrder(LPEDICT, LPCSTR, LPCVECTOR2, BOOL, DWORD, FLOAT);
-BOOL G_IssueUnitTargetOrder(LPEDICT, LPCSTR, LPEDICT, BOOL, DWORD);
-BOOL G_QueueUnitOrder(LPEDICT, LPCSTR, unitOrderTargetType_t, LPCVECTOR2, LPEDICT, DWORD, FLOAT, DWORD);
-BOOL G_UnitHasActiveOrder(LPCEDICT);
-void G_PublishIssuedPointOrder(LPEDICT, DWORD, LPCVECTOR2, DWORD, LPCSTR);
-void G_PublishIssuedImmediateOrder(LPEDICT, DWORD, DWORD, LPCSTR);
-DWORD G_GetIssuedOrderId(LPCEDICT);
-BOOL G_GetIssuedOrderPoint(LPCEDICT, LPVECTOR2);
-DWORD G_OrderId(LPCSTR);
-LPCSTR G_OrderId2String(DWORD);
-BOOL G_UnitStartNextQueuedOrder(LPEDICT);
+bool unit_issueorder(LPEDICT, cstring_t, LPCVECTOR2);
+bool unit_issueimmediateorder(LPEDICT, cstring_t);
+bool unit_issuetargetorder(LPEDICT, cstring_t, LPEDICT);
+bool G_TransformUnitType(LPEDICT, uint32_t);
+bool G_IssueUnitPointOrder(LPEDICT, cstring_t, LPCVECTOR2, bool, uint32_t, float);
+bool G_IssueUnitTargetOrder(LPEDICT, cstring_t, LPEDICT, bool, uint32_t);
+bool G_QueueUnitOrder(LPEDICT, cstring_t, unitOrderTargetType_t, LPCVECTOR2, LPEDICT, uint32_t, float, uint32_t);
+bool G_UnitHasActiveOrder(LPCEDICT);
+void G_PublishIssuedPointOrder(LPEDICT, uint32_t, LPCVECTOR2, uint32_t, cstring_t);
+void G_PublishIssuedImmediateOrder(LPEDICT, uint32_t, uint32_t, cstring_t);
+uint32_t G_GetIssuedOrderId(LPCEDICT);
+bool G_GetIssuedOrderPoint(LPCEDICT, LPVECTOR2);
+uint32_t G_OrderId(cstring_t);
+cstring_t G_OrderId2String(uint32_t);
+bool G_UnitStartNextQueuedOrder(LPEDICT);
 void G_ClearUnitOrderQueue(LPEDICT);
-DWORD G_UnitQueuedOrderCount(LPCEDICT);
+uint32_t G_UnitQueuedOrderCount(LPCEDICT);
 void unit_birth(LPEDICT);
 void unit_die(LPEDICT, LPEDICT);
 void unit_begin_decay(LPEDICT);
 void G_RestartCorpseBoneDecayAfterCargo(LPEDICT);
-LPEDICT unit_create(DWORD, DWORD, LPCVECTOR2, FLOAT);
-LPEDICT unit_createorfind(DWORD, DWORD, LPCVECTOR2, FLOAT);
-BOOL unit_additemtoslot(LPEDICT, LPEDICT, DWORD);
-BOOL unit_additem(LPEDICT, LPEDICT);
-void unit_addstatus(LPEDICT, LPCSTR, DWORD);
-void unit_addtimedstatus(LPEDICT, LPCSTR, DWORD, FLOAT);
-DWORD G_UnitStatusLevel(LPCEDICT, DWORD);
-BOOL unit_statusshowstimedbar(DWORD);
-FLOAT unit_statusremainingfraction(heroabilitystatus_t const *);
+LPEDICT unit_create(uint32_t, uint32_t, LPCVECTOR2, float);
+LPEDICT unit_createorfind(uint32_t, uint32_t, LPCVECTOR2, float);
+bool unit_additemtoslot(LPEDICT, LPEDICT, uint32_t);
+bool unit_additem(LPEDICT, LPEDICT);
+void unit_addstatus(LPEDICT, cstring_t, uint32_t);
+void unit_addtimedstatus(LPEDICT, cstring_t, uint32_t, float);
+uint32_t G_UnitStatusLevel(LPCEDICT, uint32_t);
+bool unit_statusshowstimedbar(uint32_t);
+float unit_statusremainingfraction(heroabilitystatus_t const *);
 heroabilitystatus_t const *unit_findtimedbarstatus(LPCEDICT);
-void unit_learnability(LPEDICT, DWORD);
-DWORD G_UnitAbilityLevel(LPCEDICT ent, DWORD abilcode);
-DWORD G_UnitSetAbilityLevel(LPEDICT ent, DWORD abilcode, LONG level);
-void G_SetPlayerAbilityAvailable(LPGAMECLIENT client, DWORD abilid, BOOL avail);
-BOOL G_IsPlayerAbilityAvailable(LPCGAMECLIENT client, DWORD abilid);
-LPCSTR G_ObjectName(DWORD objectId);
+void unit_learnability(LPEDICT, uint32_t);
+uint32_t G_UnitAbilityLevel(LPCEDICT ent, uint32_t abilcode);
+uint32_t G_UnitSetAbilityLevel(LPEDICT ent, uint32_t abilcode, int32_t level);
+void G_SetPlayerAbilityAvailable(LPGAMECLIENT client, uint32_t abilid, bool avail);
+bool G_IsPlayerAbilityAvailable(LPCGAMECLIENT client, uint32_t abilid);
+cstring_t G_ObjectName(uint32_t objectId);
 extern LPEDICT eventsolditem;
 extern LPEDICT eventsoldunit;
-BOOL G_HeroHasCandidateSkill(LPCEDICT ent, DWORD abilcode);
+bool G_HeroHasCandidateSkill(LPCEDICT ent, uint32_t abilcode);
 void G_HeroInitializeProgression(LPEDICT ent);
-DWORD G_HeroSkillRequiredLevel(LPEDICT ent, DWORD abilcode);
-heroSkillState_t G_HeroSkillState(LPEDICT ent, DWORD abilcode, DWORD *next_level, DWORD *required_level);
-BOOL G_HeroLearnSkill(LPEDICT ent, DWORD abilcode);
-BOOL G_HeroModifySkillPoints(LPEDICT ent, LONG delta);
+uint32_t G_HeroSkillRequiredLevel(LPEDICT ent, uint32_t abilcode);
+heroSkillState_t G_HeroSkillState(LPEDICT ent, uint32_t abilcode, uint32_t *next_level, uint32_t *required_level);
+bool G_HeroLearnSkill(LPEDICT ent, uint32_t abilcode);
+bool G_HeroModifySkillPoints(LPEDICT ent, int32_t delta);
 
-void G_GameCacheInit(gameCache_t *cache, LPCSTR campaign);
-BOOL G_GameCacheSave(gameCache_t *cache);
+void G_GameCacheInit(gameCache_t *cache, cstring_t campaign);
+bool G_GameCacheSave(gameCache_t *cache);
 void G_GameCacheFlush(gameCache_t *cache);
-void G_GameCacheFlushMission(gameCache_t *cache, LPCSTR mission);
-void G_GameCacheFlushEntry(gameCache_t *cache, LPCSTR mission, LPCSTR key, gameCacheValueType_t type);
-BOOL G_GameCacheStoreInteger(gameCache_t *cache, LPCSTR mission, LPCSTR key, LONG value);
-BOOL G_GameCacheStoreReal(gameCache_t *cache, LPCSTR mission, LPCSTR key, FLOAT value);
-BOOL G_GameCacheStoreBoolean(gameCache_t *cache, LPCSTR mission, LPCSTR key, BOOL value);
-BOOL G_GameCacheStoreString(gameCache_t *cache, LPCSTR mission, LPCSTR key, LPCSTR value);
-BOOL G_GameCacheStoreUnit(gameCache_t *cache, LPCSTR mission, LPCSTR key, LPCEDICT unit);
-BOOL G_GameCacheHave(gameCache_t const *cache, LPCSTR mission, LPCSTR key, gameCacheValueType_t type);
-LONG G_GameCacheGetInteger(gameCache_t const *cache, LPCSTR mission, LPCSTR key);
-FLOAT G_GameCacheGetReal(gameCache_t const *cache, LPCSTR mission, LPCSTR key);
-BOOL G_GameCacheGetBoolean(gameCache_t const *cache, LPCSTR mission, LPCSTR key);
-LPCSTR G_GameCacheGetString(gameCache_t const *cache, LPCSTR mission, LPCSTR key);
-LPEDICT G_GameCacheRestoreUnit(gameCache_t const *cache, LPCSTR mission, LPCSTR key,
-                              DWORD player, LPCVECTOR2 location, FLOAT facing);
+void G_GameCacheFlushMission(gameCache_t *cache, cstring_t mission);
+void G_GameCacheFlushEntry(gameCache_t *cache, cstring_t mission, cstring_t key, gameCacheValueType_t type);
+bool G_GameCacheStoreInteger(gameCache_t *cache, cstring_t mission, cstring_t key, int32_t value);
+bool G_GameCacheStoreReal(gameCache_t *cache, cstring_t mission, cstring_t key, float value);
+bool G_GameCacheStoreBoolean(gameCache_t *cache, cstring_t mission, cstring_t key, bool value);
+bool G_GameCacheStoreString(gameCache_t *cache, cstring_t mission, cstring_t key, cstring_t value);
+bool G_GameCacheStoreUnit(gameCache_t *cache, cstring_t mission, cstring_t key, LPCEDICT unit);
+bool G_GameCacheHave(gameCache_t const *cache, cstring_t mission, cstring_t key, gameCacheValueType_t type);
+int32_t G_GameCacheGetInteger(gameCache_t const *cache, cstring_t mission, cstring_t key);
+float G_GameCacheGetReal(gameCache_t const *cache, cstring_t mission, cstring_t key);
+bool G_GameCacheGetBoolean(gameCache_t const *cache, cstring_t mission, cstring_t key);
+cstring_t G_GameCacheGetString(gameCache_t const *cache, cstring_t mission, cstring_t key);
+LPEDICT G_GameCacheRestoreUnit(gameCache_t const *cache, cstring_t mission, cstring_t key,
+                              uint32_t player, LPCVECTOR2 location, float facing);
 
 void G_RecomputeHeroStats(LPEDICT);
-DWORD G_MaxHeroLevel(void);
-DWORD G_HeroXPForLevel(DWORD level);
-DWORD G_HeroLevelForXP(DWORD xp);
-void G_HeroApplyLevel(LPEDICT, DWORD level);
-void G_HeroSetXP(LPEDICT, DWORD xp);
+uint32_t G_MaxHeroLevel(void);
+uint32_t G_HeroXPForLevel(uint32_t level);
+uint32_t G_HeroLevelForXP(uint32_t xp);
+void G_HeroApplyLevel(LPEDICT, uint32_t level);
+void G_HeroSetXP(LPEDICT, uint32_t xp);
 void G_GrantKillXP(LPEDICT victim, LPEDICT killer);
-void G_ReviveHero(LPEDICT, FLOAT x, FLOAT y);
-BOOL G_UnitIsRaisableCorpse(LPCEDICT);
-BOOL G_UnitIsRaisableStoredCorpse(LPCEDICT);
-void G_ReviveCorpse(LPEDICT, FLOAT life_fraction);
-BOOL G_UnitIsHero(LPCEDICT ent);
-FLOAT G_UnitArmorValue(LPCEDICT ent);
-BOOL S_SpellCooldownReady(LPEDICT caster, DWORD code);
-FLOAT S_SpellCooldownRemaining(LPEDICT caster, DWORD code);
-FLOAT S_SpellCooldownLength(LPEDICT caster, DWORD code);
-BOOL S_SpellCooldownWindow(LPEDICT caster, DWORD code, abilityCooldownWindow_t *window);
-FLOAT S_SpellCooldownFraction(LPEDICT caster, DWORD code, DWORD level);
-void S_SpellStartCooldownDuration(LPEDICT caster, DWORD code, FLOAT seconds);
-void S_SpellStartCooldown(LPEDICT caster, DWORD code, DWORD level);
-void S_SpellEndCooldown(LPEDICT caster, DWORD code);
+void G_ReviveHero(LPEDICT, float x, float y);
+bool G_UnitIsRaisableCorpse(LPCEDICT);
+bool G_UnitIsRaisableStoredCorpse(LPCEDICT);
+void G_ReviveCorpse(LPEDICT, float life_fraction);
+bool G_UnitIsHero(LPCEDICT ent);
+float G_UnitArmorValue(LPCEDICT ent);
+bool S_SpellCooldownReady(LPEDICT caster, uint32_t code);
+float S_SpellCooldownRemaining(LPEDICT caster, uint32_t code);
+float S_SpellCooldownLength(LPEDICT caster, uint32_t code);
+bool S_SpellCooldownWindow(LPEDICT caster, uint32_t code, abilityCooldownWindow_t *window);
+float S_SpellCooldownFraction(LPEDICT caster, uint32_t code, uint32_t level);
+void S_SpellStartCooldownDuration(LPEDICT caster, uint32_t code, float seconds);
+void S_SpellStartCooldown(LPEDICT caster, uint32_t code, uint32_t level);
+void S_SpellEndCooldown(LPEDICT caster, uint32_t code);
 void S_SpellResetCooldowns(LPEDICT caster);
-LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level);
+cstring_t S_SpellString(uint32_t code, cstring_t field, uint32_t level);
 
 void order_attack(LPEDICT, LPEDICT);
-BOOL S_OrderAttack(LPEDICT self, LPEDICT target);
-BOOL S_AttackCanTarget(LPCEDICT attacker, LPCEDICT target);
-BOOL S_UnitAttackSlotEnabled(LPCEDICT attacker, DWORD slot);
-BOOL S_AttackCanAutoAcquire(LPCEDICT attacker, LPCEDICT target);
+bool S_OrderAttack(LPEDICT self, LPEDICT target);
+bool S_AttackCanTarget(LPCEDICT attacker, LPCEDICT target);
+bool S_UnitAttackSlotEnabled(LPCEDICT attacker, uint32_t slot);
+bool S_AttackCanAutoAcquire(LPCEDICT attacker, LPCEDICT target);
 void order_move(LPEDICT, LPEDICT);
-BOOL move_is_active_order_walk(LPCEDICT);
+bool move_is_active_order_walk(LPCEDICT);
 void move_start_displacement(LPEDICT, LPCVECTOR2);
 void move_cancel_displacement(LPEDICT);
-BOOL move_displacement_active(LPCEDICT);
-BOOL move_displacement_reached(LPEDICT);
+bool move_displacement_active(LPCEDICT);
+bool move_displacement_reached(LPEDICT);
 void order_stop(LPEDICT);
 void order_attackmove(LPEDICT, LPEDICT);
 void order_patrol(LPEDICT, LPEDICT);
@@ -2958,67 +2958,67 @@ void order_follow_resume(LPEDICT);
 extern umove_t holdpos_move_stand;
 extern umove_t holdpos_move_stand_ready;
 void unit_stand(LPEDICT);
-BOOL G_ActorHasSkill(LPCEDICT, LPCSTR);
-BOOL G_ActorAddSkill(LPEDICT, DWORD);
-BOOL G_ActorRemoveSkill(LPEDICT, DWORD);
-BOOL G_ActorSetSkillPermanent(LPEDICT, DWORD, BOOL);
-BOOL G_ActorSkillPermanent(LPEDICT, DWORD);
+bool G_ActorHasSkill(LPCEDICT, cstring_t);
+bool G_ActorAddSkill(LPEDICT, uint32_t);
+bool G_ActorRemoveSkill(LPEDICT, uint32_t);
+bool G_ActorSetSkillPermanent(LPEDICT, uint32_t, bool);
+bool G_ActorSkillPermanent(LPEDICT, uint32_t);
 void G_FreeActorSkills(LPEDICT);
-BOOL S_GoldMineIsMine(LPCEDICT);
-BOOL S_GoldMineIsOverlay(LPCEDICT);
-BOOL S_UnitTypeIsGoldMine(DWORD);
-BOOL S_UnitTypeReturnsGold(DWORD);
-DWORD S_GoldMineMaximumGold(LPCEDICT);
-FLOAT S_GoldMineMiningDuration(LPCEDICT);
-DWORD S_GoldMineCapacity(LPCEDICT);
-BOOL S_GoldMineCanHarvest(LPCEDICT);
-BOOL S_GoldMineWorkerIsInside(LPCEDICT);
-BOOL S_MilitiaTargetOrder(LPEDICT, LPCSTR, LPEDICT);
+bool S_GoldMineIsMine(LPCEDICT);
+bool S_GoldMineIsOverlay(LPCEDICT);
+bool S_UnitTypeIsGoldMine(uint32_t);
+bool S_UnitTypeReturnsGold(uint32_t);
+uint32_t S_GoldMineMaximumGold(LPCEDICT);
+float S_GoldMineMiningDuration(LPCEDICT);
+uint32_t S_GoldMineCapacity(LPCEDICT);
+bool S_GoldMineCanHarvest(LPCEDICT);
+bool S_GoldMineWorkerIsInside(LPCEDICT);
+bool S_MilitiaTargetOrder(LPEDICT, cstring_t, LPEDICT);
 void S_CancelMilitiaPairing(LPEDICT);
 void S_MilitiaExpire(LPEDICT);
-BOOL S_StatusIsEnsnare(DWORD);
+bool S_StatusIsEnsnare(uint32_t);
 void S_GoldMineInitUnit(LPEDICT);
 void S_GoldMineReleaseWorker(LPEDICT);
-BOOL S_MineOverlayBind(LPEDICT, LPEDICT);
+bool S_MineOverlayBind(LPEDICT, LPEDICT);
 void S_MineOverlayBindPreplaced(void);
 void S_MineOverlayRelease(LPEDICT);
-LPEDICT S_CreateBlightedGoldmine(DWORD, LPCVECTOR2, FLOAT);
-void S_GoldMineSetResourceAmount(LPEDICT, DWORD);
-BOOL S_AcolyteHarvestOrder(LPEDICT, LPEDICT);
+LPEDICT S_CreateBlightedGoldmine(uint32_t, LPCVECTOR2, float);
+void S_GoldMineSetResourceAmount(LPEDICT, uint32_t);
+bool S_AcolyteHarvestOrder(LPEDICT, LPEDICT);
 void S_AcolyteHarvestRelease(LPEDICT);
-BOOL S_AcolyteHarvestIsActive(LPCEDICT);
+bool S_AcolyteHarvestIsActive(LPCEDICT);
 void S_EntangledMineTick(LPEDICT);
-BOOL S_HarvestCanLumber(LPCEDICT);
-BOOL S_HarvestCanGold(LPCEDICT);
+bool S_HarvestCanLumber(LPCEDICT);
+bool S_HarvestCanGold(LPCEDICT);
 void harvest_start(LPEDICT, LPEDICT);
 void harvest_gold_start(LPEDICT, LPEDICT);
-BOOL harvest_gold_order(LPEDICT, LPEDICT);
-BOOL harvest_auto_start_gold(LPEDICT);
-BOOL harvest_auto_start_lumber(LPEDICT);
-BOOL harvest_lumber_return_to(LPEDICT, LPEDICT);
-BOOL harvest_gold_return_to(LPEDICT, LPEDICT);
+bool harvest_gold_order(LPEDICT, LPEDICT);
+bool harvest_auto_start_gold(LPEDICT);
+bool harvest_auto_start_lumber(LPEDICT);
+bool harvest_lumber_return_to(LPEDICT, LPEDICT);
+bool harvest_gold_return_to(LPEDICT, LPEDICT);
 void cargo_drop_all(LPEDICT);
 void S_CargoInitUnit(LPEDICT);
-BOOL S_CargoTryLoad(LPEDICT, LPEDICT);
-BOOL S_CorpseCargoTryLoad(LPEDICT, LPEDICT);
-BOOL S_CargoOrderBoard(LPEDICT, LPEDICT);
-BOOL S_CargoAttacksEnabled(LPCEDICT);
+bool S_CargoTryLoad(LPEDICT, LPEDICT);
+bool S_CorpseCargoTryLoad(LPEDICT, LPEDICT);
+bool S_CargoOrderBoard(LPEDICT, LPEDICT);
+bool S_CargoAttacksEnabled(LPCEDICT);
 LPEDICT S_CargoTransportForUnit(LPCEDICT);
 void S_CargoReleaseUnit(LPEDICT);
-BOOL S_CargoIsBurrow(LPEDICT);
-BOOL S_CargoIsCorpseHolder(LPEDICT);
-BOOL S_CorpseCargoIsStored(LPCEDICT);
-BOOL S_CorpseCargoPosition(LPCEDICT, LPVECTOR2);
-DWORD S_CargoCapacity(LPEDICT);
-LPEDICT S_CargoUnitAt(LPCEDICT, DWORD);
-BOOL S_CargoUnloadAt(LPEDICT, DWORD);
-BOOL S_CargoBeginUnloadAll(LPEDICT);
+bool S_CargoIsBurrow(LPEDICT);
+bool S_CargoIsCorpseHolder(LPEDICT);
+bool S_CorpseCargoIsStored(LPCEDICT);
+bool S_CorpseCargoPosition(LPCEDICT, LPVECTOR2);
+uint32_t S_CargoCapacity(LPEDICT);
+LPEDICT S_CargoUnitAt(LPCEDICT, uint32_t);
+bool S_CargoUnloadAt(LPEDICT, uint32_t);
+bool S_CargoBeginUnloadAll(LPEDICT);
 void S_CargoStandDown(LPEDICT);
-BOOL S_WaygateIsGate(LPCEDICT);
-BOOL S_WaygateIsActive(LPCEDICT);
-BOOL S_WaygateGetDestination(LPCEDICT, LPVECTOR2);
+bool S_WaygateIsGate(LPCEDICT);
+bool S_WaygateIsActive(LPCEDICT);
+bool S_WaygateGetDestination(LPCEDICT, LPVECTOR2);
 void S_WaygateSetDestination(LPEDICT, LPCVECTOR2);
-void S_WaygateSetActive(LPEDICT, BOOL);
+void S_WaygateSetActive(LPEDICT, bool);
 void blight_mine_think(LPEDICT);
 void blizzard_think(LPEDICT);
 void flame_strike_tick(LPEDICT);
@@ -3048,26 +3048,26 @@ void healing_spray_think(LPEDICT);
 void cannibalize_think(LPEDICT);
 void possession_two_think(LPEDICT);
 void lsh_think(LPEDICT);
-BOOL move_selectlocation(LPEDICT, LPCVECTOR2);
-BOOL move_should_arrive(LPEDICT, FLOAT);
-BOOL move_is_blocked(LPEDICT, FLOAT, FLOAT);
-BOOL move_is_settled_near_goal(LPEDICT, FLOAT, FLOAT);
-BOOL move_is_terminal_hold(LPCEDICT);
+bool move_selectlocation(LPEDICT, LPCVECTOR2);
+bool move_should_arrive(LPEDICT, float);
+bool move_is_blocked(LPEDICT, float, float);
+bool move_is_settled_near_goal(LPEDICT, float, float);
+bool move_is_terminal_hold(LPCEDICT);
 void move_reset_progress(LPEDICT);
-LPEDICT G_FindNearestEnemy(LPEDICT, FLOAT);
-FLOAT G_AcquisitionRange(LPCEDICT);
-FLOAT G_FollowStopRange(LPCEDICT follower, LPCEDICT target);
-BOOL G_ShouldAcquireThisFrame(LPCEDICT);
+LPEDICT G_FindNearestEnemy(LPEDICT, float);
+float G_AcquisitionRange(LPCEDICT);
+float G_FollowStopRange(LPCEDICT follower, LPCEDICT target);
+bool G_ShouldAcquireThisFrame(LPCEDICT);
 
 // p_jass.c
 LPJASS jass_newstate(void);
 void jass_close(LPJASS);
-BOOL jass_dofile(LPJASS, LPCSTR);
-BOOL jass_dofilenative(LPJASS, LPCSTR);
-void jass_callbyname(LPJASS, LPCSTR, BOOL);
-LPCSTR jass_functionname(struct jass_function const *);
+bool jass_dofile(LPJASS, cstring_t);
+bool jass_dofilenative(LPJASS, cstring_t);
+void jass_callbyname(LPJASS, cstring_t, bool);
+cstring_t jass_functionname(struct jass_function const *);
 void jass_executetrigger(LPJASS, LPTRIGGER, LPEDICT);
-BOOL jass_dobuffer(LPJASS, LPSTR);
+bool jass_dobuffer(LPJASS, string_t);
 void jass_runevents(LPJASS);
 
 // g_events.c
@@ -3077,87 +3077,87 @@ void G_DrainPausedResultEvents(void);
 
 // g_items.c
 void SP_SpawnItem(LPEDICT);
-BOOL G_IsItem(LPCEDICT item);
-DWORD G_InventoryCapacity(LPCEDICT unit);
-BOOL G_InventoryCanUseItems(LPCEDICT unit);
-BOOL G_InventoryCanGetItems(LPCEDICT unit);
-BOOL G_InventoryCanDropItems(LPCEDICT unit);
+bool G_IsItem(LPCEDICT item);
+uint32_t G_InventoryCapacity(LPCEDICT unit);
+bool G_InventoryCanUseItems(LPCEDICT unit);
+bool G_InventoryCanGetItems(LPCEDICT unit);
+bool G_InventoryCanDropItems(LPCEDICT unit);
 void G_DropInventoryOnDeath(LPEDICT unit);
-BOOL G_UnitHasInventory(LPEDICT unit);
-DWORD G_ItemCharges(LPCEDICT item);
-void G_SetItemCharges(LPEDICT item, DWORD charges);
+bool G_UnitHasInventory(LPEDICT unit);
+uint32_t G_ItemCharges(LPCEDICT item);
+void G_SetItemCharges(LPEDICT item, uint32_t charges);
 void G_ConsumeItemCharge(LPEDICT item);
-LPCSTR G_ItemAbilityList(LPCEDICT item);
-LONG G_FindFreeInventorySlot(LPCEDICT unit);
-BOOL G_CanPickupItem(LPEDICT unit, LPEDICT item);
-BOOL G_AddItemToSlot(LPEDICT unit, LPEDICT item, DWORD slot);
-BOOL G_AddItemToSlotInternal(LPEDICT unit, LPEDICT item, DWORD slot, BOOL publish_event);
-BOOL G_PickupItem(LPEDICT unit, LPEDICT item);
-BOOL G_OrderPickupItem(LPEDICT unit, LPEDICT item);
-BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position);
-BOOL G_DropItem(LPEDICT unit, DWORD slot);
-BOOL G_OrderDropItemAt(LPEDICT unit, LPEDICT item, LPCVECTOR2 position);
+cstring_t G_ItemAbilityList(LPCEDICT item);
+int32_t G_FindFreeInventorySlot(LPCEDICT unit);
+bool G_CanPickupItem(LPEDICT unit, LPEDICT item);
+bool G_AddItemToSlot(LPEDICT unit, LPEDICT item, uint32_t slot);
+bool G_AddItemToSlotInternal(LPEDICT unit, LPEDICT item, uint32_t slot, bool publish_event);
+bool G_PickupItem(LPEDICT unit, LPEDICT item);
+bool G_OrderPickupItem(LPEDICT unit, LPEDICT item);
+bool G_DropItemAt(LPEDICT unit, uint32_t slot, LPCVECTOR2 position);
+bool G_DropItem(LPEDICT unit, uint32_t slot);
+bool G_OrderDropItemAt(LPEDICT unit, LPEDICT item, LPCVECTOR2 position);
 void G_RemoveItem(LPEDICT item);
-void G_UseItem(LPEDICT unit, DWORD slot);
-DWORD G_ItemTypeFromClass(LPCSTR cls);
+void G_UseItem(LPEDICT unit, uint32_t slot);
+uint32_t G_ItemTypeFromClass(cstring_t cls);
 
 // g_stock.c / neutral shops
-BOOL G_IsItemShop(LPCEDICT shop);
-BOOL G_IsUnitShop(LPCEDICT shop);
-BOOL G_CanUseItemShop(LPGAMECLIENT client, LPCEDICT shop);
-BOOL G_CanUseUnitShop(LPGAMECLIENT client, LPCEDICT shop);
-FLOAT G_ShopActivationRadius(LPCEDICT shop);
+bool G_IsItemShop(LPCEDICT shop);
+bool G_IsUnitShop(LPCEDICT shop);
+bool G_CanUseItemShop(LPGAMECLIENT client, LPCEDICT shop);
+bool G_CanUseUnitShop(LPGAMECLIENT client, LPCEDICT shop);
+float G_ShopActivationRadius(LPCEDICT shop);
 LPEDICT G_FindShopPatron(LPGAMECLIENT client, LPEDICT shop);
 LPEDICT G_FindUnitShopPatron(LPGAMECLIENT client, LPEDICT shop);
-BYTE G_GetShopItemButtons(shopItemButtonsParams_t *params);
-BYTE G_GetShopUnitButtons(shopItemButtonsParams_t *params);
-BYTE G_GetShopButtons(shopItemButtonsParams_t *params);
-BOOL G_ShopSellsItem(LPEDICT shop, DWORD item_id);
-BOOL G_ShopSellsUnit(LPEDICT shop, DWORD unit_id);
-BOOL G_ShopPurchaseItem(LPEDICT clent, LPEDICT shop, DWORD item_id);
-BOOL G_ShopPurchaseUnit(LPEDICT clent, LPEDICT shop, DWORD unit_id);
-BOOL G_ShopPawnItem(shopPawnItemParams_t *params);
+uint8_t G_GetShopItemButtons(shopItemButtonsParams_t *params);
+uint8_t G_GetShopUnitButtons(shopItemButtonsParams_t *params);
+uint8_t G_GetShopButtons(shopItemButtonsParams_t *params);
+bool G_ShopSellsItem(LPEDICT shop, uint32_t item_id);
+bool G_ShopSellsUnit(LPEDICT shop, uint32_t unit_id);
+bool G_ShopPurchaseItem(LPEDICT clent, LPEDICT shop, uint32_t item_id);
+bool G_ShopPurchaseUnit(LPEDICT clent, LPEDICT shop, uint32_t unit_id);
+bool G_ShopPawnItem(shopPawnItemParams_t *params);
 
 // g_destructable.c
-void G_SetDestructableScriptBinding(BOOL enabled);
+void G_SetDestructableScriptBinding(bool enabled);
 void G_ActivateScriptedDestructable(LPEDICT ent,
-                                    FLOAT x,
-                                    FLOAT y,
-                                    FLOAT z,
-                                    FLOAT facing,
-                                    FLOAT scale,
-                                    DWORD variation);
-BOOL G_IsDestructable(LPCEDICT ent);
-BOOL G_DestructableIsAttackable(LPCEDICT ent);
-BOOL G_DestructableIsWalkable(LPCEDICT ent);
-BOOL G_DestructableCanBeAttackedBy(LPCEDICT attacker, LPCEDICT target);
-BOOL G_DestructableAcceptsSmartAttack(LPCEDICT attacker, LPCEDICT target);
+                                    float x,
+                                    float y,
+                                    float z,
+                                    float facing,
+                                    float scale,
+                                    uint32_t variation);
+bool G_IsDestructable(LPCEDICT ent);
+bool G_DestructableIsAttackable(LPCEDICT ent);
+bool G_DestructableIsWalkable(LPCEDICT ent);
+bool G_DestructableCanBeAttackedBy(LPCEDICT attacker, LPCEDICT target);
+bool G_DestructableAcceptsSmartAttack(LPCEDICT attacker, LPCEDICT target);
 void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement);
-BOOL G_DestructableApplyDamage(LPEDICT ent, LPEDICT attacker, FLOAT damage);
-BOOL G_KillDestructable(LPEDICT ent, LPEDICT killer);
-BOOL G_SetDestructableDeadState(LPEDICT ent, BOOL process_death);
-BOOL G_RemoveDestructable(LPEDICT ent);
-BOOL G_SetDestructableLife(LPEDICT ent, FLOAT life);
-BOOL G_RestoreDestructable(LPEDICT ent, FLOAT life, BOOL birth);
-DWORD G_SelectDropItem(droppableItem_t const *entries, DWORD count, DWORD roll);
-DWORD G_SelectRandomTableItem(mapRandomItem_t const *entries, DWORD count, DWORD roll);
-mapRandomItemTable_t const *G_FindRandomItemTable(DWORD table_number);
+bool G_DestructableApplyDamage(LPEDICT ent, LPEDICT attacker, float damage);
+bool G_KillDestructable(LPEDICT ent, LPEDICT killer);
+bool G_SetDestructableDeadState(LPEDICT ent, bool process_death);
+bool G_RemoveDestructable(LPEDICT ent);
+bool G_SetDestructableLife(LPEDICT ent, float life);
+bool G_RestoreDestructable(LPEDICT ent, float life, bool birth);
+uint32_t G_SelectDropItem(droppableItem_t const *entries, uint32_t count, uint32_t roll);
+uint32_t G_SelectRandomTableItem(mapRandomItem_t const *entries, uint32_t count, uint32_t roll);
+mapRandomItemTable_t const *G_FindRandomItemTable(uint32_t table_number);
 void G_SpawnDestructableLoot(LPEDICT ent);
 void G_DestructableStartDeathAnimation(LPEDICT ent);
-void G_DestructableStartAliveAnimation(LPEDICT ent, BOOL birth);
+void G_DestructableStartAliveAnimation(LPEDICT ent, bool birth);
 
-BOOL G_IsDoodad(LPCEDICT ent);
+bool G_IsDoodad(LPCEDICT ent);
 void G_DoodadAnimationEnd(LPEDICT ent);
-BOOL G_DoodadSetAnimation(LPEDICT ent, LPCSTR anim_name, BOOL random_animation);
+bool G_DoodadSetAnimation(LPEDICT ent, cstring_t anim_name, bool random_animation);
 typedef struct {
-    FLOAT x, y, radius;
-    DWORD doodad_id;
-    BOOL nearest_only, random_animation;
-    LPCSTR anim_name;
+    float x, y, radius;
+    uint32_t doodad_id;
+    bool nearest_only, random_animation;
+    cstring_t anim_name;
 } doodadAnimationRadiusParams_t;
-DWORD G_SetDoodadAnimationRadius(doodadAnimationRadiusParams_t const *params);
-DWORD G_SetDoodadAnimationRect(LPCBOX2 rect, DWORD doodad_id,
-                               LPCSTR anim_name, BOOL random_animation);
+uint32_t G_SetDoodadAnimationRadius(doodadAnimationRadiusParams_t const *params);
+uint32_t G_SetDoodadAnimationRect(LPCBOX2 rect, uint32_t doodad_id,
+                               cstring_t anim_name, bool random_animation);
 void tree_die(LPEDICT ent, LPEDICT attacker);
 
 // ui_init
@@ -3172,7 +3172,7 @@ extern struct edict_s *g_edicts;
 
 /* Simulation clock reader. Spell-rank parameters named `level` shadow the global in
  * several skill functions, so clock reads go through this instead of `level.time`. */
-static inline DWORD G_Time(void) { return level.time; }
+static inline uint32_t G_Time(void) { return level.time; }
 
 extern unitMeta_t const UnitsMetaData[];
 

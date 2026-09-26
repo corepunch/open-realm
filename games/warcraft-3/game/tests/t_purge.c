@@ -8,7 +8,7 @@
 #define BZ_BPRG MAKEFOURCC('B', 'p', 'r', 'g') // rawcode; Purge slow/pause buff
 #define BZ_AUAN MAKEFOURCC('A', 'U', 'a', 'n') // rawcode; Animate Dead
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 void unit_stand(LPEDICT self);
@@ -39,7 +39,7 @@ typedef struct {
 	LPEDICT caster, enemy;
 } PURGEFIX;
 
-static PURGEFIX purge_setup(LPCSTR slk, DWORD code) {
+static PURGEFIX purge_setup(cstring_t slk, uint32_t code) {
 	PURGEFIX fix;
 	reset_entities(); setup_test_world(); level.time = 1000;
 	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
@@ -213,7 +213,7 @@ TEST(wc3_spell, purge_gradual_recovery_weakens_after_pause) {
 		"C;Y2;X10;K\"0.4\"\nC;Y2;X11;K\"180\"\nC;Y2;X12;K\"2\"\n"
 		"C;Y2;X13;K\"1\"\nC;Y2;X14;K\"0\"\nE\n";
 	PURGEFIX fix = purge_setup(slk, BZ_APG2);
-	FLOAT early, late;
+	float early, late;
 
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APG2, fix.enemy));
 	T_ASSERT(S_PurgeIsImmobilized(fix.enemy));

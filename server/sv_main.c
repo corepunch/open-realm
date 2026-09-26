@@ -18,12 +18,12 @@ struct server_static svs;
 
 #define BZ_KEEPALIVE_MSEC 1000 // milliseconds; Quake 2's interval; keeps clients alive while waiting to spawn
 
-BOOL SV_IsActive(void) {
+bool SV_IsActive(void) {
     return svs.initialized && (sv.state == ss_lobby || sv.state == ss_game);
 }
 
 /* Store one server-owned configstring and force reliable client resynchronization. */
-void SV_SetConfigString(DWORD index, LPCSTR value, DWORD len) {
+void SV_SetConfigString(uint32_t index, cstring_t value, uint32_t len) {
     if (index >= MAX_CONFIGSTRINGS) {
         fprintf(stderr, "configstring: bad index %u\n", index);
         return;
@@ -32,7 +32,7 @@ void SV_SetConfigString(DWORD index, LPCSTR value, DWORD len) {
         value = "";
         len = 1;
     }
-    DWORD max = sizeof(sv.configstrings[index]) - 1;
+    uint32_t max = sizeof(sv.configstrings[index]) - 1;
     if (len > max) len = max;
     memset(sv.configstrings[index], 0, sizeof(sv.configstrings[index]));
     memcpy(sv.configstrings[index], value, len);
@@ -41,14 +41,14 @@ void SV_SetConfigString(DWORD index, LPCSTR value, DWORD len) {
 }
 
 /* Batch bounds must account for fixed binary slots as well as theme-decorated strings. */
-DWORD SV_ConfigStringWireSize(DWORD index) {
+uint32_t SV_ConfigStringWireSize(uint32_t index) {
     if (index == CS_STATUSBAR) {
         return 1 + 2 + sizeof(*sv.configstrings);
     }
-    return 1 + 2 + (DWORD)strlen(ge->GetThemeValue(sv.configstrings[index])) + 1;
+    return 1 + 2 + (uint32_t)strlen(ge->GetThemeValue(sv.configstrings[index])) + 1;
 }
 
-static void SV_AppendConfigString(LPSIZEBUF msg, DWORD i) {
+static void SV_AppendConfigString(LPSIZEBUF msg, uint32_t i) {
     MSG_WriteByte(msg, svc_configstring);
     MSG_WriteShort(msg, i);
     if (i == CS_STATUSBAR) {
@@ -58,9 +58,9 @@ static void SV_AppendConfigString(LPSIZEBUF msg, DWORD i) {
     }
 }
 
-static BOOL SV_QueueConfigString(LPCLIENT client, DWORD i) {
-    DWORD size = SV_ConfigStringWireSize(i);
-    DWORD limit = SV_SignonLimit(&client->netchan);
+static bool SV_QueueConfigString(LPCLIENT client, uint32_t i) {
+    uint32_t size = SV_ConfigStringWireSize(i);
+    uint32_t limit = SV_SignonLimit(&client->netchan);
 
     if (size + 32 > limit) {
         fprintf(stderr, "SV_QueueConfigString: configstring %u exceeds message limit\n", (unsigned)i);
@@ -72,7 +72,7 @@ static BOOL SV_QueueConfigString(LPCLIENT client, DWORD i) {
     return true;
 }
 
-void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
+void SV_WriteConfigString(LPSIZEBUF msg, uint32_t i) {
     SV_AppendConfigString(msg, i);
     sv.syncstrings[i] = true;
 }
@@ -81,9 +81,9 @@ void SV_WriteConfigString(LPSIZEBUF msg, DWORD i) {
  * syncstrings[] is global because the same update is appended to every current
  * client; clients that connect later receive the complete signon table. */
 void SV_QueuePendingConfigStrings(void) {
-    for (DWORD i = 0; sv.state == ss_game && i < MAX_CONFIGSTRINGS; i++) {
+    for (uint32_t i = 0; sv.state == ss_game && i < MAX_CONFIGSTRINGS; i++) {
         if (!*sv.configstrings[i] || sv.syncstrings[i]) continue;
-        BOOL queued = true;
+        bool queued = true;
         FOR_LOOP(client_index, svs.num_clients) {
             LPCLIENT client = &svs.clients[client_index];
             if (client->state == cs_free || client->state == cs_zombie) continue;
@@ -134,7 +134,7 @@ static void SV_ProcessPacket(netadr_t *from, LPSIZEBUF net_message, int r) {
 
 /* Read and dispatch all pending client messages from the network buffers. */
 static void SV_ReadPackets(void) {
-    static BYTE net_message_buffer[MAX_MSGLEN];
+    static uint8_t net_message_buffer[MAX_MSGLEN];
     static sizeBuf_t net_message = {
         .data = net_message_buffer,
         .maxsize = MAX_MSGLEN,
@@ -157,7 +157,7 @@ static void SV_ReadPackets(void) {
     }
 }
 
-static int SV_FindIndex(LPCSTR name, int start, int max, bool create) {
+static int SV_FindIndex(cstring_t name, int start, int max, bool create) {
     if (!name || !name[0])
         return 0;
     int i;
@@ -174,18 +174,18 @@ static int SV_FindIndex(LPCSTR name, int start, int max, bool create) {
                 name);
         return 0;
     }
-    SV_SetConfigString(start + i, name, (DWORD)(strlen(name) + 1));
+    SV_SetConfigString(start + i, name, (uint32_t)(strlen(name) + 1));
     return i;
 }
 
-int SV_ModelIndex(LPCSTR name) {
+int SV_ModelIndex(cstring_t name) {
 //    if (!strcmp(name, "units\\human\\Peasant\\Peasant.mdx")) {
 //        name = "Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3";
 //    }
     PATHSTR model_filename = { 0 };
-    LPCSTR base;
-    LPCSTR slash;
-    LPSTR ext;
+    cstring_t base;
+    cstring_t slash;
+    string_t ext;
 
     strlcpy(model_filename, name, sizeof(model_filename));
     base = model_filename;
@@ -197,7 +197,7 @@ int SV_ModelIndex(LPCSTR name) {
     if (slash) {
         base = slash + 1;
     }
-    ext = strrchr((LPSTR)base, '.');
+    ext = strrchr((string_t)base, '.');
     if (!ext) {
         size_t len = strlen(model_filename);
         if (len + 5 <= sizeof(model_filename)) {
@@ -210,7 +210,7 @@ int SV_ModelIndex(LPCSTR name) {
     return modelindex;
 }
 
-int SV_SoundIndexAlias(LPCSTR name, LPCSTR alias) {
+int SV_SoundIndexAlias(cstring_t name, cstring_t alias) {
     if (!name || !*name) return 0;
     if (!alias) alias = "";
     if (strlen(alias) >= sizeof(sv.sound_aliases[0])) {
@@ -229,13 +229,13 @@ int SV_SoundIndexAlias(LPCSTR name, LPCSTR alias) {
     return i;
 }
 
-int SV_SoundIndex(LPCSTR name) { return SV_SoundIndexAlias(name, NULL); }
+int SV_SoundIndex(cstring_t name) { return SV_SoundIndexAlias(name, NULL); }
 
-int SV_ImageIndex(LPCSTR name) {
+int SV_ImageIndex(cstring_t name) {
     return SV_FindIndex(name, CS_IMAGES, MAX_IMAGES, true);
 }
 
-int SV_FontIndex(LPCSTR name, DWORD fontSize) {
+int SV_FontIndex(cstring_t name, uint32_t fontSize) {
     PATHSTR fontspec;
     snprintf(fontspec, sizeof(fontspec), "%s,%d", name, fontSize);
     return SV_FindIndex(fontspec, CS_FONTS, MAX_FONTSTYLES, true);
@@ -252,7 +252,7 @@ void SV_RunGameFrame(void) {
 /* Pause is a scheduler property, not a stopped server. Client commands must
  * still be readable so a modal can close/unpause, and spawned clients still
  * need traffic so their normal connection timeout does not fire. */
-void SV_SetPaused(BOOL paused) {
+void SV_SetPaused(bool paused) {
     paused = !!paused;
     Cvar_Set("paused", paused ? "1" : "0");
     if (sv.paused == paused) {
@@ -272,7 +272,7 @@ void SV_SetPaused(BOOL paused) {
 /* Main server tick called from the platform event loop with the elapsed
  * milliseconds since the last call.  Network input remains live while the
  * authoritative simulation is paused. */
-void SV_Frame(DWORD msec) {
+void SV_Frame(uint32_t msec) {
     svs.realtime += msec;
     SV_ReadPackets();
 

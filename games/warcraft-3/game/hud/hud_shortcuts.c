@@ -9,9 +9,9 @@
 #define IDLE_WORKER_Y         0.4145f
 #define IDLE_WORKER_SIZE      0.0340f
 
-static DWORD UI_WriteShortcutRoot(void) {
+static uint32_t UI_WriteShortcutRoot(void) {
     uiFrame_t frame;
-    DWORD number = ui_next_frame_number;
+    uint32_t number = ui_next_frame_number;
 
     memset(&frame, 0, sizeof(frame));
     frame.flags.type = FT_SIMPLEFRAME;
@@ -21,15 +21,15 @@ static DWORD UI_WriteShortcutRoot(void) {
     return number;
 }
 
-static void UI_SetShortcutRect(LPUIFRAME frame, DWORD parent,
-                               FLOAT x, FLOAT y, FLOAT w, FLOAT h) {
+static void UI_SetShortcutRect(LPUIFRAME frame, uint32_t parent,
+                               float x, float y, float w, float h) {
     frame->parent = parent;
     UI_SetFrameRect(frame, x, y, w, h);
     frame->points.x[FPP_MIN].relativeTo = UI_PARENT;
     frame->points.y[FPP_MIN].relativeTo = UI_PARENT;
 }
 
-static void UI_WriteShortcutNumber(DWORD parent, FLOAT x, FLOAT y, FLOAT w, FLOAT h, DWORD number) {
+static void UI_WriteShortcutNumber(uint32_t parent, float x, float y, float w, float h, uint32_t number) {
     uiFrame_t frame;
     uiLabel_t label;
     char text[16];
@@ -48,10 +48,10 @@ static void UI_WriteShortcutNumber(DWORD parent, FLOAT x, FLOAT y, FLOAT w, FLOA
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
-static void UI_WriteUnitShortcutButton(DWORD parent, FLOAT x, FLOAT y, FLOAT size, LPCEDICT unit,
-                                       LPCSTR command, LPCSTR tooltip, BOOL damage_alert) {
+static void UI_WriteUnitShortcutButton(uint32_t parent, float x, float y, float size, LPCEDICT unit,
+                                       cstring_t command, cstring_t tooltip, bool damage_alert) {
     uiFrame_t frame;
-    LPCSTR art;
+    cstring_t art;
 
     if (!unit || !unit->data.UnitProfile || !(art = unit->data.UnitProfile->art) || !*art) return;
     memset(&frame, 0, sizeof(frame));
@@ -62,7 +62,7 @@ static void UI_WriteUnitShortcutButton(DWORD parent, FLOAT x, FLOAT y, FLOAT siz
     frame.tooltip = tooltip;
     if (damage_alert && unit->hero_shortcut_alert_until > G_Time()) {
         frame.flagsvalue |= UIFLAG_ALERT_RED_PULSE;
-        frame.value = (FLOAT)unit->hero_shortcut_alert_until;
+        frame.value = (float)unit->hero_shortcut_alert_until;
     }
     UI_SetShortcutRect(&frame, parent, x, y, size, size);
     UI_WriteProxyFrame(&frame, NULL, 0);
@@ -73,9 +73,9 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
     LPEDICT next_idle = NULL;
     LPEDICT wrap_idle = NULL;
     LPEDICT *heroes;
-    DWORD hero_count = 0;
-    DWORD idle_count = 0;
-    DWORD shortcut_root;
+    uint32_t hero_count = 0;
+    uint32_t idle_count = 0;
+    uint32_t shortcut_root;
     char command[64];
     char tooltip[128];
 
@@ -94,7 +94,7 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
         LPEDICT unit = &globals.edicts[i];
 
         if (G_UnitShowsHeroShortcut(client, unit)) {
-            DWORD insert = hero_count++;
+            uint32_t insert = hero_count++;
 
             heroes[insert] = unit;
             while (insert > 0 && G_CompareSelectionOrder(heroes[insert], heroes[insert - 1]) < 0) {
@@ -114,8 +114,8 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
 
     FOR_LOOP(hero_slot, hero_count) {
         LPEDICT unit = heroes[hero_slot];
-        DWORD number = (DWORD)(unit - globals.edicts);
-        LPCSTR name = unit->data.UnitProfile && unit->data.UnitProfile->name
+        uint32_t number = (uint32_t)(unit - globals.edicts);
+        cstring_t name = unit->data.UnitProfile && unit->data.UnitProfile->name
             ? G_LevelString(unit->data.UnitProfile->name) : "Hero";
 
         snprintf(command, sizeof(command), "herobutton %u", (unsigned)number);
@@ -130,7 +130,7 @@ void UI_WriteUnitShortcutLayer(LPEDICT clent) {
 
     if (!next_idle) next_idle = wrap_idle;
     if (idle_count && next_idle) {
-        DWORD number = (DWORD)(next_idle - globals.edicts);
+        uint32_t number = (uint32_t)(next_idle - globals.edicts);
         snprintf(command, sizeof(command), "idleworker %u", (unsigned)number);
         UI_WriteUnitShortcutButton(shortcut_root, IDLE_WORKER_X, IDLE_WORKER_Y, IDLE_WORKER_SIZE,
                                    next_idle, command, "Select Idle Worker", false);

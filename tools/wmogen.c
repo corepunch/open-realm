@@ -94,17 +94,17 @@ static void write_mver(wbuf_t *p) { wb_u32(p, 17); }
 
 /* MOHD chunk payload (52 bytes minimum for our parser).
    Layout from PLAN §1.1:
-     +0x00 DWORD nTextures
-     +0x04 DWORD nGroups
-     +0x08 DWORD nPortals
-     +0x0C DWORD nLights
-     +0x10 DWORD nDoodadNames
-     +0x14 DWORD nDoodadDefs
-     +0x18 DWORD nDoodadSets
+     +0x00 uint32_t nTextures
+     +0x04 uint32_t nGroups
+     +0x08 uint32_t nPortals
+     +0x0C uint32_t nLights
+     +0x10 uint32_t nDoodadNames
+     +0x14 uint32_t nDoodadDefs
+     +0x18 uint32_t nDoodadSets
      +0x1C COLOR32 ambColor  (BGRA in file: byte[0x1C]=B, [0x1D]=G, [0x1E]=R, [0x1F]=A)
-     +0x20 DWORD wmoID
+     +0x20 uint32_t wmoID
      ...
-     +0x30 WORD flags
+     +0x30 uint16_t flags
      total we need at least 0x32 = 50 bytes
 */
 static void write_mohd(wbuf_t *p,
@@ -128,9 +128,9 @@ static void write_mohd(wbuf_t *p,
     /* +0x24 to +0x2F: bounding box (3+3 floats) */
     wb_f32(p, -10.0f); wb_f32(p, -10.0f); wb_f32(p, -10.0f);
     wb_f32(p,  10.0f); wb_f32(p,  10.0f); wb_f32(p,  10.0f);
-    /* +0x30: flags (WORD) */
+    /* +0x30: flags (uint16_t) */
     wb_u16(p, flags);
-    wb_zero(p, 2);          /* pad to DWORD boundary */
+    wb_zero(p, 2);          /* pad to uint32_t boundary */
 }
 
 /* MOTX chunk payload: single null byte (empty texture block) */
@@ -239,8 +239,8 @@ static void write_modd(wbuf_t *p, uint32_t const offsets[MAX_DOODADS]) {
 
 /* MOGP fixed header (0x44 = 68 bytes) for the group file.
    Our parser reads:
-     +0x08 DWORD mogpFlags  (bit 0x2000 = indoor)
-     +0x30 WORD  transBatchCount
+     +0x08 uint32_t mogpFlags  (bit 0x2000 = indoor)
+     +0x30 uint16_t  transBatchCount
 */
 static void write_mogp_fixed_header(wbuf_t *p, uint32_t mogp_flags,
                                      uint16_t portal_start, uint16_t portal_count,
@@ -304,7 +304,7 @@ static void write_motv(wbuf_t *p) {
 
 /* MOBA: one batch covering all 6 indices from vertices 0-3.
    SMOBatch layout (16 bytes in classic):
-     SHORT box_min[3], box_max[3], first_index, num_indices, first_vertex,
+     int16_t box_min[3], box_max[3], first_index, num_indices, first_vertex,
      last_vertex, flags, material_id */
 static void write_moba(wbuf_t *p, uint16_t trans_batch_count, uint16_t material_id) {
     int n_batches = trans_batch_count + 1; /* trans_batch_count batch-A + 1 batch-B/C */
@@ -315,7 +315,7 @@ static void write_moba(wbuf_t *p, uint16_t trans_batch_count, uint16_t material_
         /* box_max[3] */
         int16_t pos1 = 1;
         wb_write(p, &pos1, 2); wb_write(p, &pos1, 2); wb_write(p, &pos1, 2);
-        wb_u32(p, 0);               /* first_index (DWORD in classic) */
+        wb_u32(p, 0);               /* first_index (uint32_t in classic) */
         wb_u16(p, 6);               /* num_indices */
         wb_u16(p, 0);               /* first_vertex */
         wb_u16(p, 3);               /* last_vertex */

@@ -3,16 +3,16 @@
 #include "games/warcraft-3/common/weather.h"
 
 typedef struct {
-    DWORD id;
-    LPCSTR dir;
-    LPCSTR file;
-    FLOAT avg_seg_len;
-    FLOAT width;
-    DWORD r, g, b, a;
-    FLOAT noise_scale;
-    FLOAT texcoord_scale;
-    FLOAT duration;
-    DWORD version;
+    uint32_t id;
+    cstring_t dir;
+    cstring_t file;
+    float avg_seg_len;
+    float width;
+    uint32_t r, g, b, a;
+    float noise_scale;
+    float texcoord_scale;
+    float duration;
+    uint32_t version;
     LPCTEXTURE texture;
 } W3LIGHTNINGART;
 typedef W3LIGHTNINGART *LPW3LIGHTNINGART;
@@ -36,17 +36,17 @@ static slkField_t const lightning_schema[] = {
 };
 
 static W3LIGHTNINGART *lightning_rows;
-static DWORD lightning_count;
+static uint32_t lightning_count;
 static slkIndex_t lightning_index;
 static struct {
-    ARRAY(DWORD, ids);
-    DWORD capacity;
+    ARRAY(uint32_t, ids);
+    uint32_t capacity;
 } lightning_missing;
 
 /* Remember every unresolved row for the current map so alternating effects do not warn per draw. */
-static BOOL R_LightningMissing(DWORD id) {
-    DWORD *ids;
-    DWORD capacity;
+static bool R_LightningMissing(uint32_t id) {
+    uint32_t *ids;
+    uint32_t capacity;
 
     FOR_LOOP(i, ARRAY_COUNT(lightning_missing.ids))
         if (lightning_missing.ids[i] == id) return true;
@@ -76,9 +76,9 @@ static void R_LightningClearMissing(void) {
 }
 
 /* Resolve a map-scoped LightningData table before falling back to the base archive. */
-static DWORD R_LightningLoadSlk(LPCSTR filename, void **dest) {
+static uint32_t R_LightningLoadSlk(cstring_t filename, void **dest) {
     PATHSTR scoped;
-    DWORD count = 0;
+    uint32_t count = 0;
     if (R_MapAssetCandidate(filename, scoped, sizeof(scoped)))
         count = ri.LoadSlk(scoped, lightning_schema, dest, sizeof(W3LIGHTNINGART));
     if (!count) count = ri.LoadSlk(filename, lightning_schema, dest, sizeof(W3LIGHTNINGART));
@@ -131,32 +131,32 @@ void R_LightningRegisterMap(void) {
 }
 
 /* Apply the authored channel multiplier without overflowing the byte product. */
-static BYTE R_LightningMulByte(DWORD authored, BYTE tint) {
-    DWORD value = MIN(authored, 255u) * (DWORD)tint;
-    return (BYTE)((value + 127u) / 255u);
+static uint8_t R_LightningMulByte(uint32_t authored, uint8_t tint) {
+    uint32_t value = MIN(authored, 255u) * (uint32_t)tint;
+    return (uint8_t)((value + 127u) / 255u);
 }
 
 #define WC3_LIGHTNING_MAX_SEGMENTS 64 // points; bounds procedural crackle work for one lightning bolt
 
 /* Produce a deterministic integer hash for stable crackle phase selection. */
-static DWORD R_LightningHash(DWORD value) {
+static uint32_t R_LightningHash(uint32_t value) {
     value ^= value >> 16; value *= 0x7feb352d; value ^= value >> 15;
     value *= 0x846ca68b; return value ^ (value >> 16);
 }
 
 /* Convert a hash to a symmetric unit interval for lateral and longitudinal offsets. */
-static FLOAT R_LightningHashSigned(DWORD seed) {
-    DWORD hash = R_LightningHash(seed);
-    return ((FLOAT)(hash & 0x00ffffffu) / 8388607.5f) - 1.0f;
+static float R_LightningHashSigned(uint32_t seed) {
+    uint32_t hash = R_LightningHash(seed);
+    return ((float)(hash & 0x00ffffffu) / 8388607.5f) - 1.0f;
 }
 
 /* Build the camera-independent polyline that the shared ribbon renderer expands. */
-static DWORD R_LightningBuildPoints(W3LIGHTNINGART const *art,
+static uint32_t R_LightningBuildPoints(W3LIGHTNINGART const *art,
                                     LPCLIGHTNINGEFFECT state,
-                                    VECTOR3 *points, DWORD point_capacity) {
+                                    VECTOR3 *points, uint32_t point_capacity) {
     VECTOR3 delta, direction, reference, side;
-    FLOAT distance, average, noise_ratio, lateral_scale;
-    DWORD segments, crackle_frame;
+    float distance, average, noise_ratio, lateral_scale;
+    uint32_t segments, crackle_frame;
 
     if (!art || !state || !points || point_capacity < 2) return 0;
     delta = Vector3_sub(&state->target, &state->source);
@@ -166,7 +166,7 @@ static DWORD R_LightningBuildPoints(W3LIGHTNINGART const *art,
     reference = fabsf(direction.z) < 0.9f ? (VECTOR3){0, 0, 1} : (VECTOR3){0, 1, 0};
     side = Vector3_cross(&direction, &reference); Vector3_normalize(&side);
     average = art->avg_seg_len > 0.0f ? art->avg_seg_len : distance;
-    segments = (DWORD)ceilf(distance / average);
+    segments = (uint32_t)ceilf(distance / average);
     segments = MAX(1u, MIN(segments, MIN(point_capacity - 1, WC3_LIGHTNING_MAX_SEGMENTS)));
     /* Stock Chain Lightning uses NoiseScale 0.05. Keep that authored value as
      * the baseline and scale custom LightningData rows proportionally. */
@@ -176,14 +176,14 @@ static DWORD R_LightningBuildPoints(W3LIGHTNINGART const *art,
      * discrete shapes instead of continuously waving like a rope. */
     crackle_frame = tr.viewDef.time / 55u;
     FOR_LOOP(i, segments + 1) {
-        FLOAT fraction = (FLOAT)i / (FLOAT)segments;
+        float fraction = (float)i / (float)segments;
         points[i] = Vector3_lerp(&state->source, &state->target, fraction);
         if (i && i < segments && lateral_scale > 0.0f) {
-            DWORD seed = state->handle ^ state->effect_id ^ (i * 0x9e3779b9u) ^
+            uint32_t seed = state->handle ^ state->effect_id ^ (i * 0x9e3779b9u) ^
                 (crackle_frame * 0x85ebca6bu);
-            FLOAT edge = sinf(3.14159265359f * fraction);
-            FLOAT lateral = R_LightningHashSigned(seed) * lateral_scale * edge;
-            FLOAT longitudinal = R_LightningHashSigned(seed ^ 0x68bc21ebu) * average * 0.12f;
+            float edge = sinf(3.14159265359f * fraction);
+            float lateral = R_LightningHashSigned(seed) * lateral_scale * edge;
+            float longitudinal = R_LightningHashSigned(seed ^ 0x68bc21ebu) * average * 0.12f;
             points[i] = Vector3_mad(&points[i], lateral, &side);
             points[i] = Vector3_mad(&points[i], longitudinal, &direction);
         }
@@ -192,19 +192,19 @@ static DWORD R_LightningBuildPoints(W3LIGHTNINGART const *art,
 }
 
 /* Fade finite bolts while leaving persistent JASS lightning fully opaque. */
-static FLOAT R_LightningOpacity(W3LIGHTNINGART const *art,
+static float R_LightningOpacity(W3LIGHTNINGART const *art,
                                 LPCLIGHTNINGEFFECT state) {
-    DWORD lifetime, authored;
-    FLOAT elapsed, duration, fade_start;
+    uint32_t lifetime, authored;
+    float elapsed, duration, fade_start;
 
     if (!state->end_time) return 1.0f; /* JASS AddLightning handles live until DestroyLightning. */
     if (tr.viewDef.time >= state->end_time) return 0.0f;
     lifetime = state->end_time - state->start_time;
-    authored = art->duration > 0.0f ? (DWORD)(art->duration * 1000.0f) : 0;
+    authored = art->duration > 0.0f ? (uint32_t)(art->duration * 1000.0f) : 0;
     if (authored && authored < lifetime) lifetime = authored;
     elapsed = tr.viewDef.time >= state->start_time ?
-        (FLOAT)(tr.viewDef.time - state->start_time) / 1000.0f : 0.0f;
-    duration = (FLOAT)lifetime / 1000.0f;
+        (float)(tr.viewDef.time - state->start_time) / 1000.0f : 0.0f;
+    duration = (float)lifetime / 1000.0f;
     if (duration <= 0.0f || elapsed >= duration) return 0.0f;
     fade_start = duration * 0.72f;
     return elapsed <= fade_start ? 1.0f : 1.0f - (elapsed - fade_start) / (duration - fade_start);
@@ -218,8 +218,8 @@ void R_LightningDraw(void) {
         VECTOR3 points[WC3_LIGHTNING_MAX_SEGMENTS + 1];
         COLOR32 color;
         LPCTEXTURE texture;
-        FLOAT opacity, average, texture_scale, elapsed;
-        DWORD point_count;
+        float opacity, average, texture_scale, elapsed;
+        uint32_t point_count;
         if (!art) {
             if (!R_LightningMissing(state->effect_id))
                 fprintf(stderr, "WC3 Lightning: no LightningData row for %08x\n", (unsigned)state->effect_id);
@@ -236,13 +236,13 @@ void R_LightningDraw(void) {
             R_LightningMulByte(art->r, state->color.r),
             R_LightningMulByte(art->g, state->color.g),
             R_LightningMulByte(art->b, state->color.b),
-            (BYTE)(R_LightningMulByte(art->a, state->color.a) * opacity));
+            (uint8_t)(R_LightningMulByte(art->a, state->color.a) * opacity));
         point_count = R_LightningBuildPoints(art, state, points, sizeof(points) / sizeof(points[0]));
         if (point_count < 2) continue;
         average = art->avg_seg_len > 0.0f ? art->avg_seg_len : 1.0f;
         texture_scale = art->texcoord_scale > 0.0f ? art->texcoord_scale / average : 0.0f;
         elapsed = state->start_time && tr.viewDef.time >= state->start_time ?
-            (FLOAT)(tr.viewDef.time - state->start_time) / 1000.0f : 0.0f;
+            (float)(tr.viewDef.time - state->start_time) / 1000.0f : 0.0f;
         R_DrawRibbon(&(ribbonDraw_t){
             .texture = texture,
             .points = points,

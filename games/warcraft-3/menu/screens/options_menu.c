@@ -28,11 +28,11 @@ typedef enum {
 } optionsPanel_t;
 
 typedef struct {
-    LPCSTR text;
-    LONG value;
+    cstring_t text;
+    int32_t value;
 } optionsMenuItem_t;
 
-static LPCSTR const opts_lft[] = {
+static cstring_t const opts_lft[] = {
     "GameplayPanel",
     "VideoPanel",
     "SoundPanel",
@@ -41,21 +41,21 @@ static LPCSTR const opts_lft[] = {
 
 static OptionsMenu_t options_menu;
 static optionsPanel_t current_panel = OPTIONS_PANEL_GAMEPLAY;
-static BOOL music_controls_initialized;
-static BOOL music_enabled_value;
+static bool music_controls_initialized;
+static bool music_enabled_value;
 static int music_volume_percent;
 
-static BOOL OptionsMenu_LoadScreen(void) {
+static bool OptionsMenu_LoadScreen(void) {
     return OptionsMenu_Load(&options_menu);
 }
 
-static void OptionsMenu_SetHidden(LPFRAMEDEF frame, BOOL hidden) {
+static void OptionsMenu_SetHidden(LPFRAMEDEF frame, bool hidden) {
     if (frame) {
         UI_SetHidden(frame, hidden);
     }
 }
 
-static LPFRAMEDEF OptionsMenu_EnsureEditText(LPFRAMEDEF edit, LPCSTR name) {
+static LPFRAMEDEF OptionsMenu_EnsureEditText(LPFRAMEDEF edit, cstring_t name) {
     LPFRAMEDEF text;
     LPCFRAMEDEF template;
 
@@ -87,12 +87,12 @@ static LPFRAMEDEF OptionsMenu_EnsureEditText(LPFRAMEDEF edit, LPCSTR name) {
     return text;
 }
 
-static LPCSTR OptionsMenu_EditText(LPFRAMEDEF edit) {
+static cstring_t OptionsMenu_EditText(LPFRAMEDEF edit) {
     LPFRAMEDEF text = edit ? UI_FindChildFrame(edit, edit->Edit.TextFrame) : NULL;
     return text && text->Text ? text->Text : "";
 }
 
-static void OptionsMenu_SetEditText(LPFRAMEDEF edit, LPCSTR text) {
+static void OptionsMenu_SetEditText(LPFRAMEDEF edit, cstring_t text) {
     LPFRAMEDEF text_frame = OptionsMenu_EnsureEditText(edit, "GamePortEditBoxText");
 
     if (text_frame) {
@@ -115,7 +115,7 @@ static LPFRAMEDEF OptionsMenu_PopupTitleText(LPFRAMEDEF popup) {
     return text ? text : title;
 }
 
-static void OptionsMenu_SetPopupTitle(LPFRAMEDEF popup, LPCSTR text) {
+static void OptionsMenu_SetPopupTitle(LPFRAMEDEF popup, cstring_t text) {
     LPFRAMEDEF title = OptionsMenu_PopupTitleText(popup);
 
     if (title) {
@@ -126,8 +126,8 @@ static void OptionsMenu_SetPopupTitle(LPFRAMEDEF popup, LPCSTR text) {
 static void OptionsMenu_SetPopupItems(LPFRAMEDEF popup,
                                       LPFRAMEDEF menu,
                                       optionsMenuItem_t const *items,
-                                      DWORD count,
-                                      DWORD selected) {
+                                      uint32_t count,
+                                      uint32_t selected) {
     if (!menu || !items || !count) {
         return;
     }
@@ -142,32 +142,32 @@ static void OptionsMenu_SetPopupItems(LPFRAMEDEF popup,
     OptionsMenu_SetPopupTitle(popup, UI_GetString(items[selected].text));
 }
 
-static int OptionsMenu_CvarInteger(LPCSTR name, int fallback) {
-    LPCSTR value = mi.Cvar_String(name, NULL);
+static int OptionsMenu_CvarInteger(cstring_t name, int fallback) {
+    cstring_t value = mi.Cvar_String(name, NULL);
 
     return value && *value ? atoi(value) : fallback;
 }
 
-static FLOAT OptionsMenu_CvarFloat(LPCSTR name, FLOAT fallback) {
-    LPCSTR value = mi.Cvar_String(name, NULL);
+static float OptionsMenu_CvarFloat(cstring_t name, float fallback) {
+    cstring_t value = mi.Cvar_String(name, NULL);
 
-    return value && *value ? (FLOAT)atof(value) : fallback;
+    return value && *value ? (float)atof(value) : fallback;
 }
 
-static void OptionsMenu_SetCheckBox(LPFRAMEDEF frame, BOOL checked) {
+static void OptionsMenu_SetCheckBox(LPFRAMEDEF frame, bool checked) {
     if (!frame) return;
     frame->CheckBox.Checked = checked;
     if (checked) frame->ui_flags |= UIFLAG_CHECKED;
     else frame->ui_flags &= ~UIFLAG_CHECKED;
 }
 
-static BOOL OptionsMenu_CheckBoxValue(LPCFRAMEDEF frame, BOOL fallback) {
+static bool OptionsMenu_CheckBoxValue(LPCFRAMEDEF frame, bool fallback) {
     if (!frame) return fallback;
     return (frame->ui_flags & UIFLAG_CHECKED) != 0;
 }
 
 static int OptionsMenu_MusicSliderPercent(void) {
-    FLOAT min_value, max_value, value;
+    float min_value, max_value, value;
 
     if (!options_menu.MusicVolumeSlider) return music_volume_percent;
     min_value = options_menu.MusicVolumeSlider->Slider.MinValue;
@@ -179,13 +179,13 @@ static int OptionsMenu_MusicSliderPercent(void) {
 }
 
 static void OptionsMenu_InitMusicControls(void) {
-    FLOAT slider_value = 100.0f;
+    float slider_value = 100.0f;
 
     music_enabled_value = OptionsMenu_CvarInteger("s_music", 1) != 0;
     if (options_menu.MusicVolumeSlider &&
         options_menu.MusicVolumeSlider->Slider.MaxValue > options_menu.MusicVolumeSlider->Slider.MinValue) {
-        FLOAT min_value = options_menu.MusicVolumeSlider->Slider.MinValue;
-        FLOAT max_value = options_menu.MusicVolumeSlider->Slider.MaxValue;
+        float min_value = options_menu.MusicVolumeSlider->Slider.MinValue;
+        float max_value = options_menu.MusicVolumeSlider->Slider.MaxValue;
         slider_value = min_value + OptionsMenu_CvarFloat("s_musicvolume", 1.0f) * (max_value - min_value);
         music_volume_percent = MAX(0, MIN(100, (int)floorf(
             (slider_value - min_value) * 100.0f / (max_value - min_value) + 0.5f)));
@@ -197,7 +197,7 @@ static void OptionsMenu_InitMusicControls(void) {
 }
 
 static void OptionsMenu_RefreshMusicControls(void) {
-    BOOL enabled;
+    bool enabled;
     int percent;
     char value[32];
 
@@ -215,23 +215,23 @@ static void OptionsMenu_RefreshMusicControls(void) {
     }
 }
 
-static DWORD OptionsMenu_CvarSelection(LPCSTR name, DWORD fallback, DWORD count) {
+static uint32_t OptionsMenu_CvarSelection(cstring_t name, uint32_t fallback, uint32_t count) {
     int value = OptionsMenu_CvarInteger(name, (int)fallback);
 
     if (value < 0 || value >= (int)count) {
         return fallback < count ? fallback : 0;
     }
-    return (DWORD)value;
+    return (uint32_t)value;
 }
 
-static void OptionsMenu_SetPopupCvar(LPFRAMEDEF menu, LPCSTR name) {
+static void OptionsMenu_SetPopupCvar(LPFRAMEDEF menu, cstring_t name) {
     if (menu) {
         UI_SetOnClick(menu, "seta %s %%u", name);
     }
 }
 
 static void OptionsMenu_InitGamePortEditBox(void) {
-    LPCSTR port = mi.Cvar_String("game_port", "");
+    cstring_t port = mi.Cvar_String("game_port", "");
 
     if (options_menu.GamePortEditBox) {
         options_menu.GamePortEditBox->Edit.MaxChars = 5;
@@ -240,7 +240,7 @@ static void OptionsMenu_InitGamePortEditBox(void) {
 }
 
 static void OptionsMenu_ApplyGamePort(void) {
-    LPCSTR text = OptionsMenu_EditText(options_menu.GamePortEditBox);
+    cstring_t text = OptionsMenu_EditText(options_menu.GamePortEditBox);
     int port = text && *text ? atoi(text) : 0;
     char command[64];
 
@@ -264,7 +264,7 @@ static void OptionsMenu_InitVideoMenus(void) {
         { "OFF", 0 },
         { "ON", 1 },
     };
-    DWORD selected;
+    uint32_t selected;
     char current_resolution[32];
 
     if (options_menu.ResolutionPopupMenuMenu) {
@@ -277,11 +277,11 @@ static void OptionsMenu_InitVideoMenus(void) {
                      "%ux%u",
                      (unsigned)video_modes[i].width,
                      (unsigned)video_modes[i].height);
-            UI_MenuAddItem(options_menu.ResolutionPopupMenuMenu, text, (LONG)i);
+            UI_MenuAddItem(options_menu.ResolutionPopupMenuMenu, text, (int32_t)i);
         }
         /* Keep fixed-mode rows aligned with their persisted vid_mode indices.
          * Native is appended so adding it does not renumber existing configs. */
-        UI_MenuAddItem(options_menu.ResolutionPopupMenuMenu, "Native", (LONG)video_mode_count());
+        UI_MenuAddItem(options_menu.ResolutionPopupMenuMenu, "Native", (int32_t)video_mode_count());
         selected = OptionsMenu_CvarSelection("vid_mode", BZ_VIDEO_MODE_DEFAULT, video_mode_count());
         if (OptionsMenu_CvarInteger("vid_native", 0)) {
             snprintf(current_resolution, sizeof(current_resolution), "Native");
@@ -429,7 +429,7 @@ static void OptionsMenu_Draw(void) {
     }
 }
 
-static void OptionsMenu_KeyEvent(int key, BOOL down) {
+static void OptionsMenu_KeyEvent(int key, bool down) {
     if (!down) {
         return;
     }

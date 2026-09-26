@@ -5,10 +5,10 @@
 #include "../skills/s_skills.h"
 #include "shared/test.h"
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
-BOOL run_test_jass(LPCSTR src);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+bool run_test_jass(cstring_t src);
 void reset_entities(void);
-void setup_test_pathmap(DWORD width, DWORD height, BYTE const *cells);
+void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void setup_test_world(void);
 
 static UnitAbilities_t const bot_harvester_abilities = { .abilList = "Ahar" };
@@ -18,7 +18,7 @@ static UnitAbilities_t const bot_hall_abilities = { .abilList = "Argl" };
 static UnitAbilities_t const bot_mine_abilities = { .abilList = "Agld" };
 
 TEST(wc3_bot, display_text_formats_only_authoritative_integer_templates) {
-    LONG values[] = {12, -3, 7};
+    int32_t values[] = {12, -3, 7};
     char text[64], small[8];
 
     BotDisplayFormat(text, sizeof(text), "values %d %d %d %% %x\\n", values, sizeof(values) / sizeof(*values));
@@ -29,7 +29,7 @@ TEST(wc3_bot, display_text_formats_only_authoritative_integer_templates) {
     T_STREQ(small, "1234567");
 }
 
-static LPEDICT make_bot_harvest_unit(DWORD class_id, FLOAT x, FLOAT y, DWORD player, UnitAbilities_t const *abilities) {
+static LPEDICT make_bot_harvest_unit(uint32_t class_id, float x, float y, uint32_t player, UnitAbilities_t const *abilities) {
     LPEDICT unit = alloc_test_unit(class_id, x, y);
     unit->s.player = player; unit->data.UnitAbilities = abilities;
     unit->health.value = unit->health.max_value = 1000; unit->stand = unit_stand;
@@ -174,7 +174,7 @@ TEST(wc3_bot, produce_queues_trainable_units_and_rejects_unknown_types) {
 }
 
 TEST(wc3_bot, build_site_requires_direct_static_route) {
-    BYTE cells[100] = {0};
+    uint8_t cells[100] = {0};
     edict_t worker = { .collision = 0.0f, .s.origin2 = { 1.0f, 5.0f } };
     VECTOR2 same_side = { 4.0f, 5.0f }, across_wall = { 8.0f, 5.0f };
     FOR_LOOP(y, 10) cells[5 + y * 10] = 2;
@@ -200,7 +200,7 @@ TEST(wc3_bot, unit_alive_rejects_null_dead_and_removed_handles) {
 
 TEST(wc3_bot, campaign_settings_persist_for_authoritative_consumers) {
     bot_t *ai;
-    DWORD enabled = BOT_TARGET_HEROES | BOT_HEROES_FLEE | BOT_IGNORE_INJURED |
+    uint32_t enabled = BOT_TARGET_HEROES | BOT_HEROES_FLEE | BOT_IGNORE_INJURED |
         BOT_UNITS_FLEE | BOT_SLOW_CHOPPING | BOT_SMART_ARTILLERY | BOT_NEW_HEROES |
         BOT_DEFEND_PLAYER;
 
@@ -225,7 +225,7 @@ TEST(wc3_bot, campaign_settings_persist_for_authoritative_consumers) {
 
 TEST(wc3_bot, melee_settings_cover_inverse_flags_and_clamp_replacements) {
     bot_t *ai;
-    DWORD enabled = BOT_PEONS_REPAIR | BOT_WATCH_MEGA | BOT_HEROES_TAKE_ITEM |
+    uint32_t enabled = BOT_PEONS_REPAIR | BOT_WATCH_MEGA | BOT_HEROES_TAKE_ITEM |
         BOT_GROUPS_FLEE | BOT_CAPTAIN_CHANGES | BOT_GROUP_TIMED_LIFE |
         BOT_RANDOM_PATHS | BOT_HEROES_BUY_ITEMS;
 
@@ -432,7 +432,7 @@ TEST(wc3_bot, captain_in_combat_selects_roster_and_clears_stale_targets) {
 
 TEST(wc3_bot, add_defenders_fills_idempotently_from_completed_owned_units) {
     bot_t *bot = level.bots + 2;
-    DWORD type = MAKEFOURCC('h','f','o','o');
+    uint32_t type = MAKEFOURCC('h','f','o','o');
     LPEDICT first = alloc_test_unit(type, 0, 0), second = alloc_test_unit(type, 32, 0);
     LPEDICT training = alloc_test_unit(type, 64, 0), other = alloc_test_unit(type, 96, 0);
     first->s.player = second->s.player = training->s.player = 2; other->s.player = 1;
@@ -452,7 +452,7 @@ TEST(wc3_bot, add_defenders_fills_idempotently_from_completed_owned_units) {
 
 TEST(wc3_bot, assault_init_resets_attack_only_and_fill_tracks_desired_roster) {
     bot_t *bot = level.bots + 2;
-    DWORD type = MAKEFOURCC('h','f','o','o');
+    uint32_t type = MAKEFOURCC('h','f','o','o');
     LPEDICT first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
     LPEDICT second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
     LPEDICT building = make_bot_harvest_unit(type, 64, 0, 2, NULL);
@@ -477,7 +477,7 @@ TEST(wc3_bot, assault_init_resets_attack_only_and_fill_tracks_desired_roster) {
 TEST(wc3_bot, suicide_player_launches_full_and_timeout_partial_assaults_at_target_player) {
     bot_t *bot = level.bots + 2;
     LPMAPINFO mapinfo = (LPMAPINFO)level.mapinfo;
-    DWORD type = MAKEFOURCC('h','f','o','o');
+    uint32_t type = MAKEFOURCC('h','f','o','o');
     LPEDICT first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
     LPEDICT second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
     LPEDICT enemy = make_bot_harvest_unit(type, 256, 128, 1, NULL);
@@ -531,7 +531,7 @@ TEST(wc3_bot, suicide_player_native_runs_in_player_bound_ai_vm) {
 
 TEST(wc3_bot, captain_size_empty_and_full_count_only_live_assault_members) {
     bot_t *bot = level.bots + 2;
-    DWORD type = MAKEFOURCC('h','f','o','o');
+    uint32_t type = MAKEFOURCC('h','f','o','o');
     LPEDICT first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
     LPEDICT second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
 
@@ -594,7 +594,7 @@ TEST(wc3_bot, captain_readiness_treats_empty_and_zero_mana_categories_as_full) {
 
 TEST(wc3_bot, guard_posts_fill_typed_units_without_stealing_captain_members) {
     bot_t *bot = level.bots + 2;
-    DWORD type = MAKEFOURCC('h','f','o','o');
+    uint32_t type = MAKEFOURCC('h','f','o','o');
     LPEDICT captain = alloc_test_unit(type, 0, 0), first = alloc_test_unit(type, 32, 0);
     LPEDICT second = alloc_test_unit(type, 64, 0), other = alloc_test_unit(type, 96, 0);
     captain->s.player = first->s.player = second->s.player = 2; other->s.player = 1;
@@ -614,7 +614,7 @@ TEST(wc3_bot, guard_posts_fill_typed_units_without_stealing_captain_members) {
 
 TEST(wc3_bot, guard_posts_replace_dead_members_and_leave_missing_types_empty) {
     bot_t *bot = level.bots + 2;
-    DWORD type = MAKEFOURCC('h','f','o','o');
+    uint32_t type = MAKEFOURCC('h','f','o','o');
     LPEDICT dead = alloc_test_unit(type, 0, 0), replacement = alloc_test_unit(type, 32, 0);
     dead->s.player = replacement->s.player = 2; dead->health.value = replacement->health.value = 100;
     G_BotAddGuardPost(&game.clients[2].ps, type, 100, 200);
@@ -628,7 +628,7 @@ TEST(wc3_bot, guard_posts_replace_dead_members_and_leave_missing_types_empty) {
 
 TEST(wc3_bot, return_guard_posts_moves_idle_units_but_preserves_combat) {
     bot_t *bot = level.bots + 2;
-    DWORD type = MAKEFOURCC('h','f','o','o');
+    uint32_t type = MAKEFOURCC('h','f','o','o');
     LPEDICT idle = alloc_test_unit(type, 0, 0), fighting = alloc_test_unit(type, 0, 32);
     LPEDICT enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
     idle->s.player = fighting->s.player = 2; enemy->s.player = 1;

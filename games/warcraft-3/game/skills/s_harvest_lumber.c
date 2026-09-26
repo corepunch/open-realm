@@ -1,35 +1,35 @@
 #include "s_skills.h"
 
-FLOAT HARVEST_LUMBER_CAPACITY;
-FLOAT HARVEST_GOLD_CAPACITY;
-FLOAT HARVEST_TREE_DAMAGE;
-FLOAT HARVEST_RANGE;
-FLOAT HARVEST_COOLDOWN;
-FLOAT HARVEST_SEARCH_RANGE;
+float HARVEST_LUMBER_CAPACITY;
+float HARVEST_GOLD_CAPACITY;
+float HARVEST_TREE_DAMAGE;
+float HARVEST_RANGE;
+float HARVEST_COOLDOWN;
+float HARVEST_SEARCH_RANGE;
 
 typedef struct harvestLumberTuning_s {
-    FLOAT tree_damage;
-    FLOAT lumber_capacity;
-    FLOAT range;
-    FLOAT cooldown;
-    FLOAT search_range;
+    float tree_damage;
+    float lumber_capacity;
+    float range;
+    float cooldown;
+    float search_range;
 } harvestLumberTuning_t;
 
 /* Resolve the worker's authored harvest alias, including runtime-added aliases. */
-static DWORD harvest_actor_ability_alias(LPCEDICT ent, DWORD base_code) {
+static uint32_t harvest_actor_ability_alias(LPCEDICT ent, uint32_t base_code) {
     char alias_name[5] = {0};
 
     if (!ent) return 0;
     if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
         PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
-            DWORD alias = 0;
+            uint32_t alias = 0;
             if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
             memcpy(&alias, token, 4);
             if (alias == base_code || G_AbilityCode(alias) == base_code) return alias;
         }
     }
     FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
-        DWORD const alias = ent->abilities.added[i];
+        uint32_t const alias = ent->abilities.added[i];
         if (!alias) continue;
         memcpy(alias_name, &alias, 4);
         alias_name[4] = '\0';
@@ -40,14 +40,14 @@ static DWORD harvest_actor_ability_alias(LPCEDICT ent, DWORD base_code) {
 }
 
 /* Prefer the lumber-only ability and otherwise use the shared Harvest ability. */
-static DWORD harvest_lumber_alias(LPCEDICT ent) {
-    DWORD alias = harvest_actor_ability_alias(ent, MAKEFOURCC('A','h','r','l'));
+static uint32_t harvest_lumber_alias(LPCEDICT ent) {
+    uint32_t alias = harvest_actor_ability_alias(ent, MAKEFOURCC('A','h','r','l'));
     return alias ? alias : harvest_actor_ability_alias(ent, MAKEFOURCC('A','h','a','r'));
 }
 
 /* Confirm that the worker has authoritative lumber-harvest data with capacity. */
-BOOL S_HarvestCanLumber(LPCEDICT ent) {
-    DWORD const alias = harvest_lumber_alias(ent);
+bool S_HarvestCanLumber(LPCEDICT ent) {
+    uint32_t const alias = harvest_lumber_alias(ent);
     AbilityData_t const *data;
 
     if (!alias) return false;
@@ -59,8 +59,8 @@ BOOL S_HarvestCanLumber(LPCEDICT ent) {
 }
 
 /* Confirm that the worker has authoritative gold-harvest data with capacity. */
-BOOL S_HarvestCanGold(LPCEDICT ent) {
-    DWORD const alias = harvest_actor_ability_alias(ent, MAKEFOURCC('A','h','a','r'));
+bool S_HarvestCanGold(LPCEDICT ent) {
+    uint32_t const alias = harvest_actor_ability_alias(ent, MAKEFOURCC('A','h','a','r'));
     AbilityData_t const *data;
 
     if (!alias) return false;
@@ -80,9 +80,9 @@ static harvestLumberTuning_t harvest_lumber_tuning(LPCEDICT ent) {
         .cooldown = HARVEST_COOLDOWN,
         .search_range = HARVEST_SEARCH_RANGE,
     };
-    DWORD const alias = harvest_lumber_alias(ent);
+    uint32_t const alias = harvest_lumber_alias(ent);
     AbilityData_t const *data;
-    DWORD base;
+    uint32_t base;
 
     if (!alias || !(data = G_AbilityData(alias)) || data->id != alias) return tuning;
     base = G_AbilityCode(alias);
@@ -106,7 +106,7 @@ void harvest_start(LPEDICT self, LPEDICT target);
 void harvest_gold_start(LPEDICT self, LPEDICT target);
 
 static int harvest_path_debug_level(void) {
-    LPCSTR value;
+    cstring_t value;
     value = gi.CvarString("wc3_harvest_path_debug", "0");
     return value ? atoi(value) : 0;
 }
@@ -117,14 +117,14 @@ static int harvest_path_debug_level(void) {
     } \
 } while (0)
 
-static DWORD return_resources_mask(LPCSTR ability) {
-    static struct { LPCSTR name; DWORD mask; } const artn_aliases[] = {
+static uint32_t return_resources_mask(cstring_t ability) {
+    static struct { cstring_t name; uint32_t mask; } const artn_aliases[] = {
         { "Argd", RETURN_RESOURCE_GOLD },
         { "Arlm", RETURN_RESOURCE_LUMBER },
         { "Argl", RETURN_RESOURCE_GOLD | RETURN_RESOURCE_LUMBER },
     };
     AbilityData_t const *data;
-    DWORD mask = 0;
+    uint32_t mask = 0;
     int i;
 
     /* Stock aliases map directly without a full AbilityData table. */
@@ -144,7 +144,7 @@ static DWORD return_resources_mask(LPCSTR ability) {
     return mask;
 }
 
-BOOL S_UnitTypeReturnsGold(DWORD unit_id) {
+bool S_UnitTypeReturnsGold(uint32_t unit_id) {
     UnitAbilities_t const *abilities = G_UnitAbil(unit_id);
 
     if (!abilities || !abilities->abilList) return false;
@@ -155,8 +155,8 @@ BOOL S_UnitTypeReturnsGold(DWORD unit_id) {
     return false;
 }
 
-BOOL S_CanReturnResourceAt(LPEDICT unit, LPEDICT building, returnResource_t resource) {
-    LPCSTR abilities;
+bool S_CanReturnResourceAt(LPEDICT unit, LPEDICT building, returnResource_t resource) {
+    cstring_t abilities;
 
     /* Unit data exposes Return Resources before construction completes, but
      * Warcraft keeps that capability unavailable until the structure is finished. */
@@ -173,9 +173,9 @@ BOOL S_CanReturnResourceAt(LPEDICT unit, LPEDICT building, returnResource_t reso
     return false;
 }
 
-void S_SetCarriedResource(LPEDICT unit, returnResource_t resource, DWORD amount) {
-    BOOL const was_carrying = unit && (unit->harvested_gold > 0 || unit->harvested_lumber > 0);
-    BOOL is_carrying;
+void S_SetCarriedResource(LPEDICT unit, returnResource_t resource, uint32_t amount) {
+    bool const was_carrying = unit && (unit->harvested_gold > 0 || unit->harvested_lumber > 0);
+    bool is_carrying;
 
     if (!unit)
         return;
@@ -210,12 +210,12 @@ void S_SetCarriedResource(LPEDICT unit, returnResource_t resource, DWORD amount)
 
 LPEDICT S_FindNearestResourceDropoff(LPEDICT unit, returnResource_t resource) {
     LPEDICT best = NULL;
-    FLOAT best_dist = 0;
+    float best_dist = 0;
 
     /* TODO: use pathfinding distance; geometric distance misjudges across impassable terrain */
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT building = &globals.edicts[i];
-        FLOAT dist;
+        float dist;
         if (!S_CanReturnResourceAt(unit, building, resource))
             continue;
         dist = Vector2_distance(&unit->s.origin2, &building->s.origin2);
@@ -228,7 +228,7 @@ LPEDICT S_FindNearestResourceDropoff(LPEDICT unit, returnResource_t resource) {
 }
 
 static LPEDICT find_another_tree_near(LPCEDICT worker, LPCVECTOR2 origin) {
-    FLOAT min_dist = harvest_lumber_tuning(worker).search_range;
+    float min_dist = harvest_lumber_tuning(worker).search_range;
     LPEDICT other = NULL;
 
     if (!origin)
@@ -236,7 +236,7 @@ static LPEDICT find_another_tree_near(LPCEDICT worker, LPCVECTOR2 origin) {
 
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT tree = globals.edicts + i;
-        FLOAT dist;
+        float dist;
 
         if (tree->targtype != TARG_TREE || M_IsDead(tree))
             continue;
@@ -259,14 +259,14 @@ static LPEDICT find_another_tree(LPEDICT ent) {
  * dispatch does not need to know what counts as a live resource. */
 static LPEDICT harvest_find_nearest_resource(LPEDICT worker, returnResource_t resource) {
     LPEDICT best = NULL;
-    FLOAT best_dist = 0.0f;
+    float best_dist = 0.0f;
 
     if (!worker)
         return NULL;
 
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT target = globals.edicts + i;
-        FLOAT dist;
+        float dist;
 
         if (resource == RETURN_RESOURCE_GOLD) {
             if (!S_GoldMineCanHarvest(target))
@@ -291,9 +291,9 @@ static LPEDICT harvest_find_nearest_resource(LPEDICT worker, returnResource_t re
  * the drop-off centre.  Restrict the search to the innermost collision-safe
  * pathing-cell ring so the closest candidate is the nearest edge of the Town
  * Hall/Lumber Mill from the worker's current side. */
-static BOOL harvest_find_nearest_dropoff_approach(LPEDICT ent, LPEDICT dropoff,
+static bool harvest_find_nearest_dropoff_approach(LPEDICT ent, LPEDICT dropoff,
                                                    LPVECTOR2 out) {
-    FLOAT const route_band = ent ?
+    float const route_band = ent ?
         ent->collision + CM_PathCellWorldSize() * 1.41421356237f : 0.0f;
 
     if (!ent || !dropoff || !dropoff->pathtex || !out)
@@ -309,10 +309,10 @@ static BOOL harvest_find_nearest_dropoff_approach(LPEDICT ent, LPEDICT dropoff,
  * route to a legal approach point that is itself within HARVEST_RANGE.  This
  * avoids full flow-field builds for every candidate while still rejecting the
  * buried interior trees that caused the original orbit. */
-static BOOL tree_has_reachable_harvest_approach(LPEDICT ent, LPEDICT tree) {
+static bool tree_has_reachable_harvest_approach(LPEDICT ent, LPEDICT tree) {
     VECTOR2 approach;
-    FLOAT const distance = Vector2_distance(&ent->s.origin2, &tree->s.origin2);
-    FLOAT const range = harvest_lumber_tuning(ent).range;
+    float const distance = Vector2_distance(&ent->s.origin2, &tree->s.origin2);
+    float const range = harvest_lumber_tuning(ent).range;
 
     if (distance <= range)
         return true;
@@ -321,13 +321,13 @@ static BOOL tree_has_reachable_harvest_approach(LPEDICT ent, LPEDICT tree) {
 }
 
 static LPEDICT find_reachable_replacement_tree(LPEDICT ent, LPEDICT exclude) {
-    FLOAT min_dist = harvest_lumber_tuning(ent).search_range;
+    float min_dist = harvest_lumber_tuning(ent).search_range;
     LPEDICT other = NULL;
 
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT tree = globals.edicts + i;
-        FLOAT dist;
-        BOOL reachable;
+        float dist;
+        bool reachable;
 
         if (tree == exclude || tree->targtype != TARG_TREE || M_IsDead(tree))
             continue;
@@ -347,7 +347,7 @@ static LPEDICT find_reachable_replacement_tree(LPEDICT ent, LPEDICT exclude) {
     return other;
 }
 
-static void harvest_route_failed(LPEDICT ent, LPCSTR reason) {
+static void harvest_route_failed(LPEDICT ent, cstring_t reason) {
     LPEDICT failed = ent->goalentity;
     LPEDICT other = find_reachable_replacement_tree(ent, failed);
 
@@ -376,24 +376,24 @@ static void look_for_another_tree(LPEDICT ent) {
     }
 }
 
-static LONG skill_index(DWORD const *skills, DWORD count, DWORD code) {
+static int32_t skill_index(uint32_t const *skills, uint32_t count, uint32_t code) {
     FOR_LOOP(i, count) if (skills[i] == code) return i;
     return -1;
 }
 
-static BOOL skill_add(DWORD *skills, DWORD *count, DWORD code) {
+static bool skill_add(uint32_t *skills, uint32_t *count, uint32_t code) {
     if (*count >= MAX_ABILITIES) {
         fprintf(stderr, "WC3: unit ability list full while adding %08x\n", code); return false;
     }
     skills[(*count)++] = code; return true;
 }
 
-static void skill_remove(DWORD *skills, DWORD *count, DWORD index) {
+static void skill_remove(uint32_t *skills, uint32_t *count, uint32_t index) {
     memmove(skills + index, skills + index + 1, (--*count - index) * sizeof(*skills));
 }
 
-static BOOL actor_has_skill(LPCEDICT ent, DWORD code) {
-    LPCSTR abilities;
+static bool actor_has_skill(LPCEDICT ent, uint32_t code) {
+    cstring_t abilities;
     if (!ent || !code) return false;
     if (skill_index(ent->abilities.removed, ARRAY_COUNT(ent->abilities.removed), code) >= 0) return false;
     if (skill_index(ent->abilities.added, ARRAY_COUNT(ent->abilities.added), code) >= 0) return true;
@@ -401,7 +401,7 @@ static BOOL actor_has_skill(LPCEDICT ent, DWORD code) {
     abilities = ent->data.UnitAbilities->abilList;
     if (abilities) {
         PARSE_LIST(abilities, abil, parse_segment) {
-            DWORD static_code = 0;
+            uint32_t static_code = 0;
             if (strlen(abil) == 4) memcpy(&static_code, abil, sizeof(static_code));
             if (static_code == code) return true;
         }
@@ -409,14 +409,14 @@ static BOOL actor_has_skill(LPCEDICT ent, DWORD code) {
     return false;
 }
 
-BOOL G_ActorHasSkill(LPCEDICT ent, LPCSTR id) {
-    DWORD code = 0;
+bool G_ActorHasSkill(LPCEDICT ent, cstring_t id) {
+    uint32_t code = 0;
     if (!id || strlen(id) != 4) return false;
     memcpy(&code, id, sizeof(code));
     return actor_has_skill(ent, code);
 }
 
-static BOOL harvest_auto_start(LPEDICT self, returnResource_t resource) {
+static bool harvest_auto_start(LPEDICT self, returnResource_t resource) {
     LPEDICT target;
 
     /* These are worker-internal immediate orders, not substitutes for giving
@@ -439,16 +439,16 @@ static BOOL harvest_auto_start(LPEDICT self, returnResource_t resource) {
     return false;
 }
 
-BOOL harvest_auto_start_gold(LPEDICT self) {
+bool harvest_auto_start_gold(LPEDICT self) {
     return harvest_auto_start(self, RETURN_RESOURCE_GOLD);
 }
 
-BOOL harvest_auto_start_lumber(LPEDICT self) {
+bool harvest_auto_start_lumber(LPEDICT self) {
     return harvest_auto_start(self, RETURN_RESOURCE_LUMBER);
 }
 
-BOOL G_ActorAddSkill(LPEDICT ent, DWORD code) {
-    LONG index;
+bool G_ActorAddSkill(LPEDICT ent, uint32_t code) {
+    int32_t index;
     if (!ent || !code || actor_has_skill(ent, code)) return false;
     index = skill_index(ent->abilities.removed, ARRAY_COUNT(ent->abilities.removed), code);
     if (index >= 0) skill_remove(ent->abilities.removed, &ARRAY_COUNT(ent->abilities.removed), index);
@@ -462,8 +462,8 @@ BOOL G_ActorAddSkill(LPEDICT ent, DWORD code) {
     return true;
 }
 
-BOOL G_ActorRemoveSkill(LPEDICT ent, DWORD code) {
-    LONG index;
+bool G_ActorRemoveSkill(LPEDICT ent, uint32_t code) {
+    int32_t index;
     if (!ent || !code || !actor_has_skill(ent, code)) return false;
     index = skill_index(ent->abilities.added, ARRAY_COUNT(ent->abilities.added), code);
     if (index < 0 && ARRAY_COUNT(ent->abilities.removed) >= MAX_ABILITIES) return false;
@@ -479,8 +479,8 @@ BOOL G_ActorRemoveSkill(LPEDICT ent, DWORD code) {
     return true;
 }
 
-BOOL G_ActorSetSkillPermanent(LPEDICT ent, DWORD code, BOOL permanent) {
-    LONG index;
+bool G_ActorSetSkillPermanent(LPEDICT ent, uint32_t code, bool permanent) {
+    int32_t index;
     if (!actor_has_skill(ent, code)) return false;
     index = skill_index(ent->abilities.permanent, ARRAY_COUNT(ent->abilities.permanent), code);
     if (permanent && index < 0 && !skill_add(ent->abilities.permanent, &ARRAY_COUNT(ent->abilities.permanent), code)) return false;
@@ -488,7 +488,7 @@ BOOL G_ActorSetSkillPermanent(LPEDICT ent, DWORD code, BOOL permanent) {
     return true;
 }
 
-BOOL G_ActorSkillPermanent(LPEDICT ent, DWORD code) {
+bool G_ActorSkillPermanent(LPEDICT ent, uint32_t code) {
     return ent && skill_index(ent->abilities.permanent, ARRAY_COUNT(ent->abilities.permanent), code) >= 0;
 }
 
@@ -497,8 +497,8 @@ void G_FreeActorSkills(LPEDICT ent) {
 }
 
 static void ai_walktree(LPEDICT ent) {
-    FLOAT const distance = M_DistanceToGoal(ent);
-    FLOAT const range = harvest_lumber_tuning(ent).range;
+    float const distance = M_DistanceToGoal(ent);
+    float const range = harvest_lumber_tuning(ent).range;
 
     if (!ent->goalentity || M_IsDead(ent->goalentity)) {
         HARVEST_PATH_LOG(1, "invalid worker=%d target=%d reason=dead_or_missing\n",
@@ -539,7 +539,7 @@ static void harvest_finish_lumber_deposit(LPEDICT ent) {
     player = G_GetPlayerByNumber(ent->s.player);
     if (player) {
         G_CreditResourceIncome(player, ent, PLAYERSTATE_RESOURCE_LUMBER,
-                               (LONG)ent->harvested_lumber);
+                               (int32_t)ent->harvested_lumber);
     }
     S_SetCarriedResource(ent, RETURN_RESOURCE_LUMBER, 0);
 
@@ -572,14 +572,14 @@ static void ai_harvest_walkback(LPEDICT ent) {
         move_reset_progress(ent);
     }
 
-    FLOAT const dist = M_DistanceToGoal(ent);
-    FLOAT const contact = ent->collision + ent->goalentity->collision;
-    FLOAT const step = unit_movedistance(ent);
-    FLOAT const footprint_dist = CM_DistanceToPathingFootprint(
+    float const dist = M_DistanceToGoal(ent);
+    float const contact = ent->collision + ent->goalentity->collision;
+    float const step = unit_movedistance(ent);
+    float const footprint_dist = CM_DistanceToPathingFootprint(
         ent->goalentity, &ent->s.origin2);
-    BOOL const footprint_deposit = footprint_dist < FLT_MAX &&
+    bool const footprint_deposit = footprint_dist < FLT_MAX &&
                                    footprint_dist <= ent->collision + step;
-    BOOL const circle_deposit = dist <= contact + step;
+    bool const circle_deposit = dist <= contact + step;
 
     /* Match gold return: authored building pathing is the authoritative
      * physical boundary when it exists.  A Lumber Mill/Town Hall can block the
@@ -614,20 +614,20 @@ static void ai_harvest_walkback(LPEDICT ent) {
 static void ai_chop(LPEDICT ent) {
     LPEDICT tree = ent->secondarygoal;
     harvestLumberTuning_t const tuning = harvest_lumber_tuning(ent);
-    BOOL const valid_hit = tree && G_IsDestructable(tree) && !M_IsDead(tree) &&
+    bool const valid_hit = tree && G_IsDestructable(tree) && !M_IsDead(tree) &&
                            !tree->invulnerable && tuning.tree_damage > 0.0f;
-    BOOL felled = false;
+    bool felled = false;
 
     G_PublishMessage(ent, GAME_MSG_HARVEST_CHOP, tree);
     if (valid_hit) {
         if (ent->data.UnitData && WC3_RaceFromString(ent->data.UnitData->race) == RACE_UNDEAD)
             G_BlightMarkDestructable(tree);
-        FLOAT const carried = MIN((FLOAT)ent->harvested_lumber + tuning.tree_damage,
+        float const carried = MIN((float)ent->harvested_lumber + tuning.tree_damage,
                                   tuning.lumber_capacity);
 
         felled = G_DestructableApplyDamage(tree, ent, tuning.tree_damage);
         if (carried > ent->harvested_lumber)
-            S_SetCarriedResource(ent, RETURN_RESOURCE_LUMBER, (DWORD)carried);
+            S_SetCarriedResource(ent, RETURN_RESOURCE_LUMBER, (uint32_t)carried);
     }
     /* Tree-fall supersedes chop: play one-shot world sound for all clients. */
     if (felled && g_numTreeFallSounds) {
@@ -674,7 +674,7 @@ void harvest_swing(LPEDICT ent) {
     ent->wait = ent->data.UnitWeapons->attack1.damagePoint;
 }
 
-BOOL harvest_lumber_return_to(LPEDICT ent, LPEDICT dropoff) {
+bool harvest_lumber_return_to(LPEDICT ent, LPEDICT dropoff) {
     if (!ent || !dropoff || !ent->harvested_lumber ||
         !S_CanReturnResourceAt(ent, dropoff, RETURN_RESOURCE_LUMBER)) {
         return false;
@@ -716,8 +716,8 @@ void harvest_start(LPEDICT self, LPEDICT target) {
 }
 
 /* ---- Wisp harvest: walk to tree, gather lumber, wisp dies ---------------- */
-static FLOAT wisp_lumber_per_interval;
-static DWORD wisp_interval_count;
+static float wisp_lumber_per_interval;
+static uint32_t wisp_interval_count;
 
 static void ai_wisp_mine(LPEDICT ent) {
     unit_runwait(ent, NULL);
@@ -725,7 +725,7 @@ static void ai_wisp_mine(LPEDICT ent) {
     LPPLAYER player = G_GetPlayerByNumber(ent->s.player);
     if (player) {
         G_CreditResourceIncome(player, ent, PLAYERSTATE_RESOURCE_LUMBER,
-                               (LONG)wisp_lumber_per_interval);
+                               (int32_t)wisp_lumber_per_interval);
     }
     G_SetHealth(ent, 0);
     if (ent->die) {
@@ -752,7 +752,7 @@ void wisp_harvest_start(LPEDICT self, LPEDICT target) {
     unit_setmove(self, &wisp_harvest_walk);
 }
 
-static BOOL wisp_harvest_selecttarget(LPEDICT clent, LPEDICT target) {
+static bool wisp_harvest_selecttarget(LPEDICT clent, LPEDICT target) {
     if (!target || target->targtype != TARG_TREE || M_IsDead(target)) {
         return false;
     }
@@ -772,7 +772,7 @@ BZ_ABILITY_PROC(CAbilityWispHarvest) {
     case A_INIT:
         if (!call || !call->classname) return false;
         wisp_lumber_per_interval = G_AbilityDataName(call->classname)->level[0].data[0].number;
-        wisp_interval_count = (DWORD)G_AbilityDataName(call->classname)->level[0].data[1].number;
+        wisp_interval_count = (uint32_t)G_AbilityDataName(call->classname)->level[0].data[1].number;
         return true;
     case A_COMMAND: wisp_harvest_command(call && call->client ? call->client : ent); return true;
     default: return false;
@@ -780,8 +780,8 @@ BZ_ABILITY_PROC(CAbilityWispHarvest) {
 }
 
 /* ---- Acolyte harvest: target blighted gold mine ------------------------- */
-static BOOL acolyte_harvest_selecttarget(LPEDICT clent, LPEDICT target) {
-    BOOL issued = false;
+static bool acolyte_harvest_selecttarget(LPEDICT clent, LPEDICT target) {
+    bool issued = false;
 
     if (!clent || !clent->client) return false;
     if (!target || !G_ActorHasSkill(target, "Abgm")) {
@@ -818,9 +818,9 @@ BZ_COMMAND_PROC(AbilityReturn) {
 }
 
 /* ---- Harvest menu dispatch (extended for wisp/acolyte) ------------------ */
-BOOL harvest_menu_selecttarget(LPEDICT clent, LPEDICT target) {
+bool harvest_menu_selecttarget(LPEDICT clent, LPEDICT target) {
     if (target && G_ActorHasSkill(target, "Abgm")) {
-        BOOL has_acolyte = false;
+        bool has_acolyte = false;
         if (target->s.player != clent->client->ps.number) {
             G_ShowCommandErrorKey(clent, "Nototherplayersmine",
                                   "Unable to use a mine controlled by another player.");
@@ -845,7 +845,7 @@ BOOL harvest_menu_selecttarget(LPEDICT clent, LPEDICT target) {
     return true;
 }
 
-static BOOL harvest_is_toggle_on(LPEDICT ent) {
+static bool harvest_is_toggle_on(LPEDICT ent) {
     return ent && (ent->harvested_lumber > 0 || ent->harvested_gold > 0);
 }
 
@@ -865,8 +865,8 @@ void harvest_command(LPEDICT ent) {
 }
 
 /* Issue a lumber target to the selected workers while preserving ability ownership. */
-static BOOL harvest_lumber_selecttarget(LPEDICT clent, LPEDICT target) {
-    BOOL issued = false;
+static bool harvest_lumber_selecttarget(LPEDICT clent, LPEDICT target) {
+    bool issued = false;
 
     if (!clent || !clent->client || !target || target->targtype != TARG_TREE || M_IsDead(target))
         return false;

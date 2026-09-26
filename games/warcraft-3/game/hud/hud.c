@@ -30,7 +30,7 @@ void UI_ResetFrameWriteList(void) {
     frameptr = framesWritten;
 }
 
-static BOOL AddFrame(LPCFRAMEDEF frame) {
+static bool AddFrame(LPCFRAMEDEF frame) {
     if (frameptr - framesWritten < MAX_FRAMES_WRITE) {
         *(frameptr++) = frame;
         return true;
@@ -38,16 +38,16 @@ static BOOL AddFrame(LPCFRAMEDEF frame) {
     return false;
 }
 
-static DWORD FindFrameNumber(LPCFRAMEDEF frame, DWORD def) {
+static uint32_t FindFrameNumber(LPCFRAMEDEF frame, uint32_t def) {
     for (LPCFRAMEDEF *it = framesWritten; it < frameptr; it++) {
         if (*it == frame) {
-            def = (DWORD)(it - framesWritten) + 1;
+            def = (uint32_t)(it - framesWritten) + 1;
         }
     }
     return def;
 }
 
-DWORD UI_FindFrameNumber(LPCSTR name) {
+uint32_t UI_FindFrameNumber(cstring_t name) {
     LPFRAMEDEF frame = UI_FindFrame(name);
     return frame ? FindFrameNumber(frame, 0) : 0;
 }
@@ -64,10 +64,10 @@ static void UI_CopyFrameBase(LPUIFRAME dest, LPCFRAMEDEF src) {
         dest->points.x[i].targetPos = src->Points.x[i].targetPos;
         dest->points.x[i].used = src->Points.x[i].used;
         dest->points.x[i].relativeTo = FindFrameNumber(src->Points.x[i].relativeTo, UI_PARENT);
-        dest->points.x[i].offset = (SHORT)(src->Points.x[i].offset * UI_FRAMEPOINT_SCALE);
+        dest->points.x[i].offset = (int16_t)(src->Points.x[i].offset * UI_FRAMEPOINT_SCALE);
     }
     static char tooltip[1024];
-    LPCSTR tooltip_text = NULL;
+    cstring_t tooltip_text = NULL;
     tooltip[0] = '\0';
     if (src->Tip && src->Ubertip) {
         snprintf(tooltip, sizeof(tooltip), "%s\n%s", src->Tip, src->Ubertip);
@@ -135,14 +135,14 @@ static uiLabel_t MakeLabel(LPCFRAMEDEF frame) {
     );
 }
 
-static LPCFRAMEDEF UI_ButtonPart(LPCFRAMEDEF frame, LPCSTR name) {
+static LPCFRAMEDEF UI_ButtonPart(LPCFRAMEDEF frame, cstring_t name) {
     if (!frame || !name || !*name) return NULL;
     return UI_FindFrameNear(frame, name);
 }
 
 typedef struct {
-    LPCSTR background;
-    LPCSTR edge;
+    cstring_t background;
+    cstring_t edge;
 } uiControlSkin_t;
 
 /* Blizzard's EscMenu templates clone these child names into every stock
@@ -151,7 +151,7 @@ typedef struct {
  * the original skin key is no longer recoverable from the image configstring.
  * The child role itself is stable, however. Resolve the stock role through
  * war3skins for the concrete local player instead of trusting the cached art. */
-static BOOL UI_ControlBackdropSkin(LPCSTR name, uiControlSkin_t *skin) {
+static bool UI_ControlBackdropSkin(cstring_t name, uiControlSkin_t *skin) {
     if (!name || !skin) return false;
     *skin = (uiControlSkin_t){ 0 };
 
@@ -183,7 +183,7 @@ static BOOL UI_ControlBackdropSkin(LPCSTR name, uiControlSkin_t *skin) {
     return true;
 }
 
-static LPCSTR UI_ControlHighlightSkin(LPCSTR name) {
+static cstring_t UI_ControlHighlightSkin(cstring_t name) {
     if (!name) return NULL;
     if (!strcmp(name, "ButtonMouseOverHighlightTemplate") ||
         !strcmp(name, "EscMenuButtonMouseOverHighlightTemplate")) {
@@ -198,16 +198,16 @@ static LPCSTR UI_ControlHighlightSkin(LPCSTR name) {
     return NULL;
 }
 
-static DWORD UI_ControlThemeImage(LPCSTR key) {
+static uint32_t UI_ControlThemeImage(cstring_t key) {
     if (!key || !*key) return 0;
     return gi.ImageIndex(UI_ThemeImagePath(key));
 }
 
-static uiBackdrop_t MakeButtonBackdrop(LPCFRAMEDEF frame, LPCSTR name) {
+static uiBackdrop_t MakeButtonBackdrop(LPCFRAMEDEF frame, cstring_t name) {
     LPCFRAMEDEF part = UI_ButtonPart(frame, name);
     uiBackdrop_t result = { 0 };
     uiControlSkin_t skin;
-    DWORD themed;
+    uint32_t themed;
 
     if (!part) return result;
     if (part->Type == FT_BACKDROP) result = MakeBackdrop(part);
@@ -223,11 +223,11 @@ static uiBackdrop_t MakeButtonBackdrop(LPCFRAMEDEF frame, LPCSTR name) {
     return result;
 }
 
-static uiHighlight_t MakeButtonHighlight(LPCFRAMEDEF frame, LPCSTR name) {
+static uiHighlight_t MakeButtonHighlight(LPCFRAMEDEF frame, cstring_t name) {
     LPCFRAMEDEF part = UI_ButtonPart(frame, name);
     uiHighlight_t result = { 0 };
-    LPCSTR skin_key;
-    DWORD themed;
+    cstring_t skin_key;
+    uint32_t themed;
 
     if (!part) return result;
     if (part->Type == FT_HIGHLIGHT) {
@@ -251,16 +251,16 @@ static uiHighlight_t MakeButtonHighlight(LPCFRAMEDEF frame, LPCSTR name) {
     return result;
 }
 
-static LPCSTR UI_ButtonStateName(LPCSTR preferred, LPCSTR fallback) {
+static cstring_t UI_ButtonStateName(cstring_t preferred, cstring_t fallback) {
     return preferred && *preferred ? preferred : fallback;
 }
 
 static uiGlueTextButton_t MakeGlueTextButton(LPCFRAMEDEF frame) {
-    LPCSTR normal = UI_ButtonStateName(frame->Control.Backdrop.Normal, frame->Button.NormalTexture);
-    LPCSTR pushed = UI_ButtonStateName(frame->Control.Backdrop.Pushed, frame->Button.PushedTexture);
-    LPCSTR disabled = UI_ButtonStateName(frame->Control.Backdrop.Disabled, frame->Button.DisabledTexture);
-    LPCSTR disabled_pushed = UI_ButtonStateName(frame->Control.Backdrop.DisabledPushed, disabled);
-    LPCSTR highlight = UI_ButtonStateName(frame->Control.Backdrop.MouseOver, frame->Button.UseHighlight);
+    cstring_t normal = UI_ButtonStateName(frame->Control.Backdrop.Normal, frame->Button.NormalTexture);
+    cstring_t pushed = UI_ButtonStateName(frame->Control.Backdrop.Pushed, frame->Button.PushedTexture);
+    cstring_t disabled = UI_ButtonStateName(frame->Control.Backdrop.Disabled, frame->Button.DisabledTexture);
+    cstring_t disabled_pushed = UI_ButtonStateName(frame->Control.Backdrop.DisabledPushed, disabled);
+    cstring_t highlight = UI_ButtonStateName(frame->Control.Backdrop.MouseOver, frame->Button.UseHighlight);
     uiGlueTextButton_t result = {
         .normal = MakeButtonBackdrop(frame, normal),
         .pushed = MakeButtonBackdrop(frame, UI_ButtonStateName(pushed, normal)),
@@ -278,10 +278,10 @@ static uiGlueTextButton_t MakeGlueTextButton(LPCFRAMEDEF frame) {
 }
 
 static uiCheckBox_t MakeCheckBox(LPCFRAMEDEF frame) {
-    LPCSTR normal = UI_ButtonStateName(frame->Control.Backdrop.Normal, frame->Button.NormalTexture);
-    LPCSTR pushed = UI_ButtonStateName(frame->Control.Backdrop.Pushed, frame->Button.PushedTexture);
-    LPCSTR disabled = UI_ButtonStateName(frame->Control.Backdrop.Disabled, frame->Button.DisabledTexture);
-    LPCSTR disabled_pushed = UI_ButtonStateName(frame->Control.Backdrop.DisabledPushed, disabled);
+    cstring_t normal = UI_ButtonStateName(frame->Control.Backdrop.Normal, frame->Button.NormalTexture);
+    cstring_t pushed = UI_ButtonStateName(frame->Control.Backdrop.Pushed, frame->Button.PushedTexture);
+    cstring_t disabled = UI_ButtonStateName(frame->Control.Backdrop.Disabled, frame->Button.DisabledTexture);
+    cstring_t disabled_pushed = UI_ButtonStateName(frame->Control.Backdrop.DisabledPushed, disabled);
     uiCheckBox_t result = {
         .normal = MakeButtonBackdrop(frame, normal),
         .pushed = MakeButtonBackdrop(frame, UI_ButtonStateName(pushed, normal)),
@@ -304,15 +304,15 @@ static uiCheckBox_t MakeCheckBox(LPCFRAMEDEF frame) {
 /* Server-authored Warcraft FDF scrollbars keep their increment/decrement/thumb
  * buttons as child frames.  Those children are control art, not standalone
  * layout objects, so serialize the complete legacy scrollbar payload here. */
-static uiBackdrop_t MakeScrollBarImage(DWORD image) {
+static uiBackdrop_t MakeScrollBarImage(uint32_t image) {
     return MAKE(uiBackdrop_t,
         .Background = image,
         .BlendAll = true,
     );
 }
 
-static DWORD UI_ScrollBarThemeImage(LPCSTR key, LPCSTR fallback) {
-    DWORD image = UI_ControlThemeImage(key);
+static uint32_t UI_ScrollBarThemeImage(cstring_t key, cstring_t fallback) {
+    uint32_t image = UI_ControlThemeImage(key);
     if (!image && fallback && *fallback)
         image = gi.ImageIndex(UI_ResolveTextureAlias(fallback));
     return image;
@@ -320,15 +320,15 @@ static DWORD UI_ScrollBarThemeImage(LPCSTR key, LPCSTR fallback) {
 
 static uiScrollBar_t MakeScrollBar(LPCFRAMEDEF frame) {
     uiScrollBar_t result = { 0 };
-    DWORD track = UI_ScrollBarThemeImage(
+    uint32_t track = UI_ScrollBarThemeImage(
         "EscMenuSliderBackground", "UI\\Widgets\\EscMenu\\Human\\slider-background.blp");
-    DWORD border = UI_ScrollBarThemeImage(
+    uint32_t border = UI_ScrollBarThemeImage(
         "EscMenuSliderBorder", "UI\\Widgets\\EscMenu\\Human\\slider-border.blp");
-    DWORD thumb = UI_ScrollBarThemeImage(
+    uint32_t thumb = UI_ScrollBarThemeImage(
         "EscMenuSliderThumbButton", "UI\\Widgets\\EscMenu\\Human\\slider-knob.blp");
-    DWORD up = gi.ImageIndex(UI_ResolveTextureAlias(
+    uint32_t up = gi.ImageIndex(UI_ResolveTextureAlias(
         "UI\\Widgets\\Glues\\GlueScreen-Scrollbar-UpArrow.blp"));
-    DWORD down = gi.ImageIndex(UI_ResolveTextureAlias(
+    uint32_t down = gi.ImageIndex(UI_ResolveTextureAlias(
         "UI\\Widgets\\Glues\\GlueScreen-Scrollbar-DownArrow.blp"));
 
     if (!frame) return result;
@@ -351,7 +351,7 @@ static uiScrollBar_t MakeScrollBar(LPCFRAMEDEF frame) {
 
 static void UI_PrepareScrollBar(LPCFRAMEDEF owner) {
     LPFRAMEDEF scrollbar = NULL;
-    FLOAT inset;
+    float inset;
 
     if (!owner) return;
     if (owner->Type == FT_TEXTAREA) {
@@ -388,7 +388,7 @@ static void UI_PrepareScrollBar(LPCFRAMEDEF owner) {
 }
 
 static uiSimpleButtonState_t MakeSimpleButtonState(LPCFRAMEDEF frame,
-                                                    LPCSTR texture_name,
+                                                    cstring_t texture_name,
                                                     BUTTONTEXT const *button_text,
                                                     COLOR32 fallback_color)
 {
@@ -438,19 +438,19 @@ static uiSimpleButton_t MakeSimpleButton(LPCFRAMEDEF frame) {
     return result;
 }
 
-static BOOL UI_IsSingleLineText(LPCSTR text) {
+static bool UI_IsSingleLineText(cstring_t text) {
     if (!text) return true;
     return strchr(text, '\n') == NULL && strchr(text, '\r') == NULL;
 }
 
-BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
+bool UI_BuildFrameForWrite(LPCFRAMEDEF frame,
                                   LPUIFRAME out,
-                                  LPBYTE typedata,
-                                  DWORD typedata_max,
-                                  LPSTR textbuf,
-                                  DWORD textbuf_max)
+                                  uint8_t * typedata,
+                                  uint32_t typedata_max,
+                                  string_t textbuf,
+                                  uint32_t textbuf_max)
 {
-    struct { LPBYTE data; DWORD maxsize; DWORD cursize; BOOL overflowed; } buf = {
+    struct { uint8_t * data; uint32_t maxsize; uint32_t cursize; bool overflowed; } buf = {
         .data = typedata, .maxsize = typedata_max,
     };
 
@@ -509,13 +509,13 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
                 out->size.height = frame->Font.Size;
             }
             if (!out->points.x[FPP_MIN].used && !out->points.x[FPP_MID].used && !out->points.x[FPP_MAX].used) {
-                DWORD anchor = frame->Font.Justification.Horizontal ^ 1;
+                uint32_t anchor = frame->Font.Justification.Horizontal ^ 1;
                 out->points.x[anchor].targetPos = anchor;
                 out->points.x[anchor].relativeTo = UI_PARENT;
                 out->points.x[anchor].used = 1;
             }
             if (!out->points.y[FPP_MIN].used && !out->points.y[FPP_MID].used && !out->points.y[FPP_MAX].used) {
-                DWORD anchor = frame->Font.Justification.Vertical ^ 1;
+                uint32_t anchor = frame->Font.Justification.Vertical ^ 1;
                 out->points.y[anchor].targetPos = anchor;
                 out->points.y[anchor].relativeTo = UI_PARENT;
                 out->points.y[anchor].used = 1;
@@ -542,7 +542,7 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
             LPCFRAMEDEF text_frame = frame->Edit.TextFrame[0]
                 ? UI_FindFrameNear(frame, frame->Edit.TextFrame)
                 : NULL;
-            LPCSTR save_debug = gi.CvarString("wc3_save_menu_debug", "0");
+            cstring_t save_debug = gi.CvarString("wc3_save_menu_debug", "0");
             if (save_debug && atoi(save_debug) >= 2 &&
                 !strcmp(frame->Name, "SaveGameFileEditBox")) {
                 fprintf(stderr,
@@ -596,7 +596,7 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
         }
         case FT_SCROLLBAR: {
             uiScrollBar_t data = MakeScrollBar(frame);
-            FLOAT range = frame->Slider.MaxValue - frame->Slider.MinValue;
+            float range = frame->Slider.MaxValue - frame->Slider.MinValue;
             out->value = range > 0.0f
                 ? (frame->Slider.InitialValue - frame->Slider.MinValue) / range
                 : 0.0f;
@@ -609,7 +609,7 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
         }
         case FT_SIMPLEBUTTON: {
             uiSimpleButton_t data = MakeSimpleButton(frame);
-            LPCSTR text_key = frame->OnClick[0] || !frame->Button.DisabledText.text[0]
+            cstring_t text_key = frame->OnClick[0] || !frame->Button.DisabledText.text[0]
                 ? frame->Button.NormalText.text
                 : frame->Button.DisabledText.text;
             if ((!out->text || !*out->text) && text_key && *text_key)
@@ -645,7 +645,7 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
             break;
         }
         case FT_BUILDQUEUE: {
-            DWORD size = sizeof(uiBuildQueue_t) + sizeof(uiBuildQueueItem_t) * frame->BuildQueue.NumQueue;
+            uint32_t size = sizeof(uiBuildQueue_t) + sizeof(uiBuildQueueItem_t) * frame->BuildQueue.NumQueue;
             uiBuildQueue_t *data = (uiBuildQueue_t *)(buf.data + buf.cursize);
             if (buf.cursize + size > buf.maxsize) { buf.overflowed = true; break; }
             data->firstitem = 0;
@@ -657,7 +657,7 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
             break;
         }
         case FT_MULTISELECT: {
-            DWORD size = sizeof(uiMultiselect_t) + sizeof(uiMultiselectItem_t) * frame->Multiselect.NumItems;
+            uint32_t size = sizeof(uiMultiselect_t) + sizeof(uiMultiselectItem_t) * frame->Multiselect.NumItems;
             uiMultiselect_t *data = (uiMultiselect_t *)(buf.data + buf.cursize);
             if (buf.cursize + size > buf.maxsize) { buf.overflowed = true; break; }
             data->hp_bar = frame->Multiselect.HpBar;
@@ -694,10 +694,10 @@ BOOL UI_BuildFrameForWrite(LPCFRAMEDEF frame,
 
 _Static_assert(sizeof(uiNameTag_t) <= UINT8_MAX, "uiNameTag_t exceeds the one-byte layout payload size");
 
-static void UI_WriteBuiltFrame(LPCFRAMEDEF frame, FLOAT value, BOOL override_value, uiSizeToTextParams_t const *fit) {
+static void UI_WriteBuiltFrame(LPCFRAMEDEF frame, float value, bool override_value, uiSizeToTextParams_t const *fit) {
     UINAME textbuf;
     uiFrame_t tmp;
-    BYTE typedata[256] = { 0 };
+    uint8_t typedata[256] = { 0 };
     uiNameTag_t sized;
 
     if (!UI_BuildFrameForWrite(frame, &tmp, typedata, sizeof(typedata), textbuf, sizeof(textbuf))) {
@@ -724,9 +724,9 @@ static void UI_WriteBuiltFrame(LPCFRAMEDEF frame, FLOAT value, BOOL override_val
         tmp.buffer.size = sizeof(sized);
     }
     if (ui_window_writing) {
-        tmp.text = (LPCSTR)(uintptr_t)UI_WindowTextOffset(tmp.text);
-        tmp.tooltip = (LPCSTR)(uintptr_t)UI_WindowTextOffset(tmp.tooltip);
-        tmp.onclick = (LPCSTR)(uintptr_t)UI_WindowTextOffset(tmp.onclick);
+        tmp.text = (cstring_t)(uintptr_t)UI_WindowTextOffset(tmp.text);
+        tmp.tooltip = (cstring_t)(uintptr_t)UI_WindowTextOffset(tmp.tooltip);
+        tmp.onclick = (cstring_t)(uintptr_t)UI_WindowTextOffset(tmp.onclick);
     }
     /* FDF frames and proxy frames share one wire namespace; previously the first proxy overwrote frame 1. */
     ui_next_frame_number = UI_NextProxyFrameNumber(ui_next_frame_number, tmp.number);
@@ -738,11 +738,11 @@ void UI_WriteFrame(LPCFRAMEDEF frame) {
     UI_WriteBuiltFrame(frame, 0.0f, false, NULL);
 }
 
-void UI_WriteFrameValue(LPCFRAMEDEF frame, FLOAT value) {
+void UI_WriteFrameValue(LPCFRAMEDEF frame, float value) {
     UI_WriteBuiltFrame(frame, MAX(0.0f, MIN(value, 1.0f)), true, NULL);
 }
 
-DWORD UI_GetWrittenFrameNumber(LPCFRAMEDEF frame) {
+uint32_t UI_GetWrittenFrameNumber(LPCFRAMEDEF frame) {
     return FindFrameNumber(frame, 0);
 }
 
@@ -796,7 +796,7 @@ void UI_WriteFrameWithChildrenWithTriggers(LPEDICT ent, LPCFRAMEDEF frame, LPCFR
     }
 }
 
-void UI_WriteLayout(LPEDICT ent, LPCFRAMEDEF root, DWORD layer) {
+void UI_WriteLayout(LPEDICT ent, LPCFRAMEDEF root, uint32_t layer) {
     UI_WriteStart(layer);
     UI_WriteFrameWithChildren(root, NULL);
     UI_WriteEnd(ent);
@@ -808,7 +808,7 @@ void UI_WriteWindow(LPEDICT ent, LPCFRAMEDEF root, uiWindowDef_t const *def) {
     UI_WriteWindowEnd(ent);
 }
 
-void UI_WriteWithTriggers(LPEDICT ent, LPCFRAMEDEF root, DWORD layer, uiTrigger_t const *triggers) {
+void UI_WriteWithTriggers(LPEDICT ent, LPCFRAMEDEF root, uint32_t layer, uiTrigger_t const *triggers) {
     UI_WriteStart(layer);
     UI_WriteFrameWithChildrenWithTriggers(ent, root, NULL, triggers);
     UI_WriteEnd(ent);
@@ -817,7 +817,7 @@ void UI_WriteWithTriggers(LPEDICT ent, LPCFRAMEDEF root, DWORD layer, uiTrigger_
 /* Stubbed UI framework functions */
 void UI_Init(void) {}
 void UI_ClearCreateGameSlots(void) {}
-void UI_AddCreateGameSlot(DWORD slot, LPCSTR name, LPCSTR race, LPCSTR color, DWORD team) {
+void UI_AddCreateGameSlot(uint32_t slot, cstring_t name, cstring_t race, cstring_t color, uint32_t team) {
     (void)slot; (void)name; (void)race; (void)color; (void)team;
 }
 
@@ -846,20 +846,20 @@ void UI_LoadHud(void) {
 }
 
 /* FDF host services — game module implementations using gi */
-BZ_HOST_HIDDEN HANDLE UI_FdfAlloc(long size) { return gi.MemAlloc(size); }
-BZ_HOST_HIDDEN void UI_FdfFree(HANDLE ptr) { gi.MemFree(ptr); }
-BZ_HOST_HIDDEN int UI_FdfReadFile(LPCSTR name, HANDLE *out) {
-    DWORD size = 0;
+BZ_HOST_HIDDEN handle_t UI_FdfAlloc(long size) { return gi.MemAlloc(size); }
+BZ_HOST_HIDDEN void UI_FdfFree(handle_t ptr) { gi.MemFree(ptr); }
+BZ_HOST_HIDDEN int UI_FdfReadFile(cstring_t name, handle_t *out) {
+    uint32_t size = 0;
     *out = gi.ReadFile(name, &size);
     return *out ? (int)size : -1;
 }
-BZ_HOST_HIDDEN void UI_FdfFreeFile(HANDLE buf) { gi.MemFree(buf); }
+BZ_HOST_HIDDEN void UI_FdfFreeFile(handle_t buf) { gi.MemFree(buf); }
 
 /* Game module doesn't handle UI events or themes — stub these */
 BZ_HOST_HIDDEN void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) { (void)frame; }
 BZ_HOST_HIDDEN void UI_ClearTheme(void) {}
 
 /* Game module doesn't load 3D models for UI — stub */
-BZ_HOST_HIDDEN DWORD UI_LoadModel(LPCSTR file, BOOL decorate) {
+BZ_HOST_HIDDEN uint32_t UI_LoadModel(cstring_t file, bool decorate) {
     return file && *file ? gi.ModelIndex(decorate ? Theme_PlayerString(NULL, file, file) : file) : 0;
 }

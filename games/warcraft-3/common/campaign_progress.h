@@ -14,38 +14,38 @@ typedef enum {
 } wc3CampaignEdition_t;
 
 typedef struct {
-    DWORD edition;
-    DWORD campaign;
-    DWORD mission;
+    uint32_t edition;
+    uint32_t campaign;
+    uint32_t mission;
 } wc3CampaignProgressKey_t;
 
 typedef struct {
-    BYTE tutorial_known[WC3_CAMPAIGN_PROGRESS_EDITIONS];
-    BYTE tutorial_cleared[WC3_CAMPAIGN_PROGRESS_EDITIONS];
-    BYTE campaign_known[WC3_CAMPAIGN_PROGRESS_EDITIONS][WC3_CAMPAIGN_PROGRESS_CAMPAIGNS];
-    BYTE campaign_available[WC3_CAMPAIGN_PROGRESS_EDITIONS][WC3_CAMPAIGN_PROGRESS_CAMPAIGNS];
-    BYTE mission_known[WC3_CAMPAIGN_PROGRESS_EDITIONS][WC3_CAMPAIGN_PROGRESS_CAMPAIGNS]
+    uint8_t tutorial_known[WC3_CAMPAIGN_PROGRESS_EDITIONS];
+    uint8_t tutorial_cleared[WC3_CAMPAIGN_PROGRESS_EDITIONS];
+    uint8_t campaign_known[WC3_CAMPAIGN_PROGRESS_EDITIONS][WC3_CAMPAIGN_PROGRESS_CAMPAIGNS];
+    uint8_t campaign_available[WC3_CAMPAIGN_PROGRESS_EDITIONS][WC3_CAMPAIGN_PROGRESS_CAMPAIGNS];
+    uint8_t mission_known[WC3_CAMPAIGN_PROGRESS_EDITIONS][WC3_CAMPAIGN_PROGRESS_CAMPAIGNS]
                       [WC3_CAMPAIGN_PROGRESS_MISSIONS];
-    BYTE mission_available[WC3_CAMPAIGN_PROGRESS_EDITIONS][WC3_CAMPAIGN_PROGRESS_CAMPAIGNS]
+    uint8_t mission_available[WC3_CAMPAIGN_PROGRESS_EDITIONS][WC3_CAMPAIGN_PROGRESS_CAMPAIGNS]
                           [WC3_CAMPAIGN_PROGRESS_MISSIONS];
 } wc3CampaignProgress_t;
 
 void wc3_campaign_progress_init(wc3CampaignProgress_t *progress);
-BOOL wc3_campaign_progress_load(LPCSTR path, wc3CampaignProgress_t *progress);
-BOOL wc3_campaign_progress_save(LPCSTR path, wc3CampaignProgress_t const *progress);
-BOOL wc3_campaign_progress_set_tutorial(wc3CampaignProgress_t *progress, DWORD edition, BOOL cleared);
-BOOL wc3_campaign_progress_set_campaign(wc3CampaignProgress_t *progress,
-                                        wc3CampaignProgressKey_t key, BOOL available);
-BOOL wc3_campaign_progress_set_mission(wc3CampaignProgress_t *progress,
-                                       wc3CampaignProgressKey_t key, BOOL available);
-BOOL wc3_campaign_progress_has_campaign(wc3CampaignProgress_t const *progress,
+bool wc3_campaign_progress_load(cstring_t path, wc3CampaignProgress_t *progress);
+bool wc3_campaign_progress_save(cstring_t path, wc3CampaignProgress_t const *progress);
+bool wc3_campaign_progress_set_tutorial(wc3CampaignProgress_t *progress, uint32_t edition, bool cleared);
+bool wc3_campaign_progress_set_campaign(wc3CampaignProgress_t *progress,
+                                        wc3CampaignProgressKey_t key, bool available);
+bool wc3_campaign_progress_set_mission(wc3CampaignProgress_t *progress,
+                                       wc3CampaignProgressKey_t key, bool available);
+bool wc3_campaign_progress_has_campaign(wc3CampaignProgress_t const *progress,
                                         wc3CampaignProgressKey_t key);
-BOOL wc3_campaign_progress_campaign_available(wc3CampaignProgress_t const *progress,
+bool wc3_campaign_progress_campaign_available(wc3CampaignProgress_t const *progress,
                                               wc3CampaignProgressKey_t key);
-BOOL wc3_campaign_progress_has_mission(wc3CampaignProgress_t const *progress,
+bool wc3_campaign_progress_has_mission(wc3CampaignProgress_t const *progress,
                                        wc3CampaignProgressKey_t key);
-BOOL wc3_campaign_progress_mission_available(wc3CampaignProgress_t const *progress,
+bool wc3_campaign_progress_mission_available(wc3CampaignProgress_t const *progress,
                                              wc3CampaignProgressKey_t key);
-LONG wc3_campaign_progress_campaign_index(DWORD edition, LPCSTR key);
+int32_t wc3_campaign_progress_campaign_index(uint32_t edition, cstring_t key);
 
 #endif

@@ -24,7 +24,7 @@
  * Lua argument helpers
  * ---------------------------------------------------------------------- */
 
-static BYTE UIWow_LuaColorByte(lua_State *L, int index, BYTE fallback) {
+static uint8_t UIWow_LuaColorByte(lua_State *L, int index, uint8_t fallback) {
     lua_Number value;
 
     if (!lua_isnumber(L, index)) {
@@ -39,15 +39,15 @@ static BYTE UIWow_LuaColorByte(lua_State *L, int index, BYTE fallback) {
     } else if (value > 255.0) {
         value = 255.0;
     }
-    return (BYTE)(value + 0.5);
+    return (uint8_t)(value + 0.5);
 }
 
 static COLOR32 UIWow_LuaColor(lua_State *L, int first, COLOR32 fallback) {
     return MAKE(COLOR32, UIWow_LuaColorByte(L, first,     fallback.r), UIWow_LuaColorByte(L, first + 1, fallback.g), UIWow_LuaColorByte(L, first + 2, fallback.b), UIWow_LuaColorByte(L, first + 3, fallback.a));
 }
 
-static RECT UIWow_LuaRect(lua_State *L, int first) {
-    return MAKE(RECT, (FLOAT)luaL_checknumber(L, first), (FLOAT)luaL_checknumber(L, first + 1), (FLOAT)luaL_checknumber(L, first + 2), (FLOAT)luaL_checknumber(L, first + 3));
+static rect_t UIWow_LuaRect(lua_State *L, int first) {
+    return MAKE(rect_t, (float)luaL_checknumber(L, first), (float)luaL_checknumber(L, first + 1), (float)luaL_checknumber(L, first + 2), (float)luaL_checknumber(L, first + 3));
 }
 
 /* -------------------------------------------------------------------------
@@ -55,9 +55,9 @@ static RECT UIWow_LuaRect(lua_State *L, int first) {
  * ---------------------------------------------------------------------- */
 
 static int UIWow_LuaDrawImage(lua_State *L) {
-    LPCSTR name = luaL_checkstring(L, 1);
-    RECT screen = UIWow_LuaRect(L, 2);
-    RECT uv = MAKE(RECT, 0, 0, 1, 1);
+    cstring_t name = luaL_checkstring(L, 1);
+    rect_t screen = UIWow_LuaRect(L, 2);
+    rect_t uv = MAKE(rect_t, 0, 0, 1, 1);
     COLOR32 color = UIWow_LuaColor(L, 6, COLOR32_WHITE);
     LPTEXTURE texture = UIWow_LoadTexture(name);
 
@@ -69,13 +69,13 @@ static int UIWow_LuaDrawImage(lua_State *L) {
 }
 
 static int UIWow_LuaDrawImageUV(lua_State *L) {
-    LPCSTR name = luaL_checkstring(L, 1);
-    RECT screen = UIWow_LuaRect(L, 2);
-    FLOAT left   = (FLOAT)luaL_checknumber(L, 6);
-    FLOAT right  = (FLOAT)luaL_checknumber(L, 7);
-    FLOAT top    = (FLOAT)luaL_checknumber(L, 8);
-    FLOAT bottom = (FLOAT)luaL_checknumber(L, 9);
-    RECT uv = MAKE(RECT, left, top, right - left, bottom - top);
+    cstring_t name = luaL_checkstring(L, 1);
+    rect_t screen = UIWow_LuaRect(L, 2);
+    float left   = (float)luaL_checknumber(L, 6);
+    float right  = (float)luaL_checknumber(L, 7);
+    float top    = (float)luaL_checknumber(L, 8);
+    float bottom = (float)luaL_checknumber(L, 9);
+    rect_t uv = MAKE(rect_t, left, top, right - left, bottom - top);
     COLOR32 color = UIWow_LuaColor(L, 10, COLOR32_WHITE);
     LPTEXTURE texture = UIWow_LoadTexture(name);
 
@@ -87,7 +87,7 @@ static int UIWow_LuaDrawImageUV(lua_State *L) {
 }
 
 static int UIWow_LuaDrawColor(lua_State *L) {
-    RECT screen = UIWow_LuaRect(L, 1);
+    rect_t screen = UIWow_LuaRect(L, 1);
     COLOR32 color = UIWow_LuaColor(L, 5, COLOR32_WHITE);
 
     UIWow_EnsureRenderer();
@@ -108,11 +108,11 @@ static int UIWow_LuaDrawColor(lua_State *L) {
  * quadrants and edges along the four sides, matching the WoW atlas format.
  * Either path may be nil/"" to skip that layer. */
 static int UIWow_LuaDrawBackdrop(lua_State *L) {
-    LPCSTR bg_path     = luaL_optstring(L, 1, "");
-    LPCSTR border_path = luaL_optstring(L, 2, "");
-    RECT sc            = UIWow_LuaRect(L, 3);
-    FLOAT e            = (FLOAT)luaL_optnumber(L, 7, 0.0);
-    RECT fuv           = MAKE(RECT, 0, 0, 1, 1);
+    cstring_t bg_path     = luaL_optstring(L, 1, "");
+    cstring_t border_path = luaL_optstring(L, 2, "");
+    rect_t sc            = UIWow_LuaRect(L, 3);
+    float e            = (float)luaL_optnumber(L, 7, 0.0);
+    rect_t fuv           = MAKE(rect_t, 0, 0, 1, 1);
 
     UIWow_EnsureRenderer();
     if (!wow_ui.renderer) {
@@ -123,7 +123,7 @@ static int UIWow_LuaDrawBackdrop(lua_State *L) {
     if (bg_path && *bg_path) {
         LPTEXTURE bg = UIWow_LoadTexture(bg_path);
         if (bg) {
-            RECT inner = MAKE(RECT, sc.x + e, sc.y + e, sc.w - e * 2.0f, sc.h - e * 2.0f);
+            rect_t inner = MAKE(rect_t, sc.x + e, sc.y + e, sc.w - e * 2.0f, sc.h - e * 2.0f);
             wow_ui.renderer->DrawImage(bg, &inner, &fuv, COLOR32_WHITE);
         }
     }
@@ -135,31 +135,31 @@ static int UIWow_LuaDrawBackdrop(lua_State *L) {
     if (border_path && *border_path && e > 0.0f) {
         LPTEXTURE border = UIWow_LoadTexture(border_path);
         if (border) {
-            FLOAT r = sc.x + sc.w; /* right edge */
-            FLOAT b = sc.y + sc.h; /* bottom edge */
+            float r = sc.x + sc.w; /* right edge */
+            float b = sc.y + sc.h; /* bottom edge */
             /* UVs: WoW border textures place TL corner in top-left quadrant,
              * TR in top-right, BL in bottom-left, BR in bottom-right.
              * Each quadrant = 0.5 × 0.5 of the texture. */
-            RECT uv_tl = MAKE(RECT, 0.0f, 0.0f, 0.5f, 0.5f);
-            RECT uv_tr = MAKE(RECT, 0.5f, 0.0f, 0.5f, 0.5f);
-            RECT uv_bl = MAKE(RECT, 0.0f, 0.5f, 0.5f, 0.5f);
-            RECT uv_br = MAKE(RECT, 0.5f, 0.5f, 0.5f, 0.5f);
+            rect_t uv_tl = MAKE(rect_t, 0.0f, 0.0f, 0.5f, 0.5f);
+            rect_t uv_tr = MAKE(rect_t, 0.5f, 0.0f, 0.5f, 0.5f);
+            rect_t uv_bl = MAKE(rect_t, 0.0f, 0.5f, 0.5f, 0.5f);
+            rect_t uv_br = MAKE(rect_t, 0.5f, 0.5f, 0.5f, 0.5f);
             /* corners */
-            RECT tl = MAKE(RECT, sc.x,     sc.y,     e, e);
-            RECT tr = MAKE(RECT, r - e,    sc.y,     e, e);
-            RECT bl = MAKE(RECT, sc.x,     b - e,    e, e);
-            RECT br = MAKE(RECT, r - e,    b - e,    e, e);
+            rect_t tl = MAKE(rect_t, sc.x,     sc.y,     e, e);
+            rect_t tr = MAKE(rect_t, r - e,    sc.y,     e, e);
+            rect_t bl = MAKE(rect_t, sc.x,     b - e,    e, e);
+            rect_t br = MAKE(rect_t, r - e,    b - e,    e, e);
             /* edges */
-            RECT top_e = MAKE(RECT, sc.x + e, sc.y,   sc.w - e*2, e);
-            RECT bot_e = MAKE(RECT, sc.x + e, b - e,  sc.w - e*2, e);
-            RECT lft_e = MAKE(RECT, sc.x,     sc.y+e, e, sc.h - e*2);
-            RECT rgt_e = MAKE(RECT, r - e,    sc.y+e, e, sc.h - e*2);
+            rect_t top_e = MAKE(rect_t, sc.x + e, sc.y,   sc.w - e*2, e);
+            rect_t bot_e = MAKE(rect_t, sc.x + e, b - e,  sc.w - e*2, e);
+            rect_t lft_e = MAKE(rect_t, sc.x,     sc.y+e, e, sc.h - e*2);
+            rect_t rgt_e = MAKE(rect_t, r - e,    sc.y+e, e, sc.h - e*2);
             /* top/bottom edges use top strip UV (y=0..0.5, full x) */
-            RECT uv_top = MAKE(RECT, 0.0f, 0.0f, 1.0f, 0.5f);
-            RECT uv_bot = MAKE(RECT, 0.0f, 0.5f, 1.0f, 0.5f);
+            rect_t uv_top = MAKE(rect_t, 0.0f, 0.0f, 1.0f, 0.5f);
+            rect_t uv_bot = MAKE(rect_t, 0.0f, 0.5f, 1.0f, 0.5f);
             /* left/right edges use left strip UV (x=0..0.5, full y) */
-            RECT uv_lft = MAKE(RECT, 0.0f, 0.0f, 0.5f, 1.0f);
-            RECT uv_rgt = MAKE(RECT, 0.5f, 0.0f, 0.5f, 1.0f);
+            rect_t uv_lft = MAKE(rect_t, 0.0f, 0.0f, 0.5f, 1.0f);
+            rect_t uv_rgt = MAKE(rect_t, 0.5f, 0.0f, 0.5f, 1.0f);
 
             wow_ui.renderer->DrawImage(border, &tl,    &uv_tl,  COLOR32_WHITE);
             wow_ui.renderer->DrawImage(border, &tr,    &uv_tr,  COLOR32_WHITE);
@@ -177,11 +177,11 @@ static int UIWow_LuaDrawBackdrop(lua_State *L) {
 
 
 static int UIWow_LuaDrawText(lua_State *L) {
-    LPCSTR text = luaL_checkstring(L, 1);
-    RECT screen = UIWow_LuaRect(L, 2);
-    DWORD size = (DWORD)luaL_optinteger(L, 6, 14);
+    cstring_t text = luaL_checkstring(L, 1);
+    rect_t screen = UIWow_LuaRect(L, 2);
+    uint32_t size = (uint32_t)luaL_optinteger(L, 6, 14);
     COLOR32 color = UIWow_LuaColor(L, 7, COLOR32_WHITE);
-    LPCSTR align = luaL_optstring(L, 11, "left");
+    cstring_t align = luaL_optstring(L, 11, "left");
     LPCFONT font = UIWow_LoadFont(size);
     uiFontJustificationH_t halign = FONT_JUSTIFYLEFT;
 
@@ -207,7 +207,7 @@ static int UIWow_LuaTime(lua_State *L) {
 }
 
 static int UIWow_LuaCommand(lua_State *L) {
-    LPCSTR text = luaL_checkstring(L, 1);
+    cstring_t text = luaL_checkstring(L, 1);
 
     if (mi.ServerCommand && text && *text) {
         mi.ServerCommand(text);
@@ -217,7 +217,7 @@ static int UIWow_LuaCommand(lua_State *L) {
 
 /* draw_loading_background() — draws the current map background texture fullscreen */
 static int UIWow_LuaDrawLoadingBackground(lua_State *L) {
-    RECT full = MAKE(RECT, 0, 0, 1, 1);
+    rect_t full = MAKE(rect_t, 0, 0, 1, 1);
 
     (void)L;
     UIWow_EnsureRenderer();
@@ -229,9 +229,9 @@ static int UIWow_LuaDrawLoadingBackground(lua_State *L) {
 
 /* draw_image_additive(path, x, y, w, h) — draw texture with additive blending (e.g. glow) */
 static int UIWow_LuaDrawImageAdditive(lua_State *L) {
-    LPCSTR name = luaL_checkstring(L, 1);
-    RECT screen = UIWow_LuaRect(L, 2);
-    RECT uv = MAKE(RECT, 0, 0, 1, 1);
+    cstring_t name = luaL_checkstring(L, 1);
+    rect_t screen = UIWow_LuaRect(L, 2);
+    rect_t uv = MAKE(rect_t, 0, 0, 1, 1);
     COLOR32 color = UIWow_LuaColor(L, 6, COLOR32_WHITE);
     LPTEXTURE texture = UIWow_LoadTexture(name);
 
@@ -248,7 +248,7 @@ static int UIWow_LuaGetLoadingProgress(lua_State *L) {
 }
 
 static int UIWow_LuaGetLoadingTitle(lua_State *L) {
-    LPCSTR info = mi.GetConfigString(WOW_CS_MAPINFO);
+    cstring_t info = mi.GetConfigString(WOW_CS_MAPINFO);
     lua_pushstring(L, Wow_InfoValueForKey(info, "title", ""));
     return 1;
 }
@@ -258,11 +258,11 @@ static int UIWow_LuaGetLoadingStatus(lua_State *L) {
     return 1;
 }
 
-static void Wow_ResolveMapPath(LPCSTR name, LPSTR out, DWORD out_size) {
+static void Wow_ResolveMapPath(cstring_t name, string_t out, uint32_t out_size) {
     if (!name || !*name) {
         snprintf(out, out_size, "World/Maps/Azeroth/Azeroth.wdt");
     } else {
-        LPCSTR dot = strrchr(name, '.');
+        cstring_t dot = strrchr(name, '.');
         if (dot && !strcasecmp(dot, ".wdt"))
             snprintf(out, out_size, "%s", name);
         else
@@ -271,7 +271,7 @@ static void Wow_ResolveMapPath(LPCSTR name, LPSTR out, DWORD out_size) {
 }
 
 static int UIWow_LuaLoadMap(lua_State *L) {
-    LPCSTR map_name = luaL_optstring(L, 1, "Azeroth");
+    cstring_t map_name = luaL_optstring(L, 1, "Azeroth");
     PATHSTR resolved;
     char cmd[512];
 
@@ -303,7 +303,7 @@ static int UIWow_LuaNoop(lua_State *L) { (void)L; return 0; }
 
 static int UIWow_LuaPlaySound(lua_State *L) {
     if (lua_isnumber(L, 1) && mi.PlaySound) {
-        mi.PlaySound((DWORD)lua_tointeger(L, 1));
+        mi.PlaySound((uint32_t)lua_tointeger(L, 1));
     } else if (lua_isstring(L, 1) && mi.PlaySoundByName) {
         mi.PlaySoundByName(lua_tostring(L, 1));
     }
@@ -356,7 +356,7 @@ static int UIWow_LuaGetBuildInfo(lua_State *L) {
 }
 
 static int UIWow_LuaSetCharSelectModelFrame(lua_State *L) {
-    LPCSTR name = luaL_checkstring(L, 1);
+    cstring_t name = luaL_checkstring(L, 1);
     int idx = UIWow_XmlFindByNamePub(name);
     if (idx >= 0) {
         wow_ui.model_frame_idx = idx;
@@ -366,7 +366,7 @@ static int UIWow_LuaSetCharSelectModelFrame(lua_State *L) {
 }
 
 static int UIWow_LuaSetCharSelectBackground(lua_State *L) {
-    LPCSTR model_path = luaL_checkstring(L, 1);
+    cstring_t model_path = luaL_checkstring(L, 1);
     int idx = wow_ui.model_frame_idx;
     if (idx >= 0) {
         UIWow_XmlSetFrameModel(idx, model_path);
@@ -389,7 +389,7 @@ static int UIWow_LuaEnterWorld(lua_State *L) {
 }
 
 static int UIWow_LuaSetCharCustomizeFrame(lua_State *L) {
-    LPCSTR name = luaL_checkstring(L, 1);
+    cstring_t name = luaL_checkstring(L, 1);
     int idx = UIWow_XmlFindByNamePub(name);
     if (idx >= 0) {
         wow_ui.model_frame_idx = idx;
@@ -399,7 +399,7 @@ static int UIWow_LuaSetCharCustomizeFrame(lua_State *L) {
 }
 
 static int UIWow_LuaSetCharCustomizeBackground(lua_State *L) {
-    LPCSTR model_path = luaL_checkstring(L, 1);
+    cstring_t model_path = luaL_checkstring(L, 1);
     int idx = wow_ui.model_frame_idx;
     if (idx >= 0) {
         UIWow_XmlSetFrameModel(idx, model_path);
@@ -524,9 +524,9 @@ static luaL_Reg const wow_global_funcs[] = {
 };
 
 typedef struct {
-    LPCSTR table;
-    LPCSTR field;
-    LPCSTR global;
+    cstring_t table;
+    cstring_t field;
+    cstring_t global;
 } uiWowLuaAlias_t;
 
 static uiWowLuaAlias_t const wow_lua_aliases[] = {
@@ -545,7 +545,7 @@ static uiWowLuaAlias_t const wow_lua_aliases[] = {
     { NULL, NULL, NULL },
 };
 
-static void UIWow_SetGlobalFunc(lua_State *L, LPCSTR name, lua_CFunction func) {
+static void UIWow_SetGlobalFunc(lua_State *L, cstring_t name, lua_CFunction func) {
     lua_pushcfunction(L, func);
     lua_setglobal(L, name);
 }
@@ -572,13 +572,13 @@ static void UIWow_RegisterGlobalAliases(lua_State *L) {
  * ---------------------------------------------------------------------- */
 
 static int UIWow_LuaTraceback(lua_State *L) {
-    LPCSTR message = lua_tostring(L, 1);
+    cstring_t message = lua_tostring(L, 1);
 
     luaL_traceback(L, L, message ? message : "Lua error", 1);
     return 1;
 }
 
-BOOL UIWow_LuaPCall(int nargs) {
+bool UIWow_LuaPCall(int nargs) {
     int traceback = lua_gettop(wow_ui.lua) - nargs;
     int status;
 
@@ -587,7 +587,7 @@ BOOL UIWow_LuaPCall(int nargs) {
     status = lua_pcall(wow_ui.lua, nargs, 0, traceback);
     lua_remove(wow_ui.lua, traceback);
     if (status != LUA_OK) {
-        LPCSTR msg = lua_tostring(wow_ui.lua, -1);
+        cstring_t msg = lua_tostring(wow_ui.lua, -1);
         UIWow_Printf("UIWow Lua: %s\n", msg);
         fprintf(stderr, "UIWow Lua: %s\n", msg ? msg : "(null)");
         lua_pop(wow_ui.lua, 1);
@@ -596,7 +596,7 @@ BOOL UIWow_LuaPCall(int nargs) {
     return true;
 }
 
-static BOOL UIWow_RunLuaBuffer(LPCSTR name, LPCSTR script, size_t len) {
+static bool UIWow_RunLuaBuffer(cstring_t name, cstring_t script, size_t len) {
     if (!wow_ui.lua || !script || len == 0) {
         return false;
     }
@@ -608,20 +608,20 @@ static BOOL UIWow_RunLuaBuffer(LPCSTR name, LPCSTR script, size_t len) {
     return UIWow_LuaPCall(0);
 }
 
-static char *UIWow_LuaCompatBuffer(LPCSTR script, size_t len) {
-    static LPCSTR needles[] = {
+static char *UIWow_LuaCompatBuffer(cstring_t script, size_t len) {
+    static cstring_t needles[] = {
         " in GlueScreenInfo do",
         " in FRAMES_TO_BACKDROP_COLOR do",
         NULL
     };
-    static LPCSTR replacements[] = {
+    static cstring_t replacements[] = {
         " in pairs(GlueScreenInfo) do",
         " in pairs(FRAMES_TO_BACKDROP_COLOR) do",
         NULL
     };
-    size_t extra = 0; char *out, *dst; LPCSTR src = script;
+    size_t extra = 0; char *out, *dst; cstring_t src = script;
     FOR_LOOP(i, sizeof(needles) / sizeof(needles[0])) {
-        LPCSTR p = script;
+        cstring_t p = script;
         if (!needles[i]) break;
         while ((p = strstr(p, needles[i])) != NULL) {
             extra += strlen(replacements[i]) - strlen(needles[i]);
@@ -633,7 +633,7 @@ static char *UIWow_LuaCompatBuffer(LPCSTR script, size_t len) {
     if (!out) return NULL;
     dst = out;
     while (*src) {
-        BOOL replaced = false;
+        bool replaced = false;
         FOR_LOOP(i, sizeof(needles) / sizeof(needles[0])) {
             if (!needles[i]) break;
             if (!strncmp(src, needles[i], strlen(needles[i]))) {
@@ -648,12 +648,12 @@ static char *UIWow_LuaCompatBuffer(LPCSTR script, size_t len) {
     return out;
 }
 
-static char *UIWow_LuaCompatVarargs(LPCSTR script, size_t len) {
-    static LPCSTR insert = "    local arg = { ... }; arg.n = select('#', ...)\n";
-    size_t extra = 0; char *out, *dst; LPCSTR src = script;
+static char *UIWow_LuaCompatVarargs(cstring_t script, size_t len) {
+    static cstring_t insert = "    local arg = { ... }; arg.n = select('#', ...)\n";
+    size_t extra = 0; char *out, *dst; cstring_t src = script;
 
     while (*src) {
-        LPCSTR line = src, end = src;
+        cstring_t line = src, end = src;
         while (*end && *end != '\n' && *end != '\r') end++;
         if (!strncmp(line, "function ", 9) && memmem(line, (size_t)(end - line), "(...)", 5) && extra < SIZE_MAX - strlen(insert))
             extra += strlen(insert);
@@ -665,7 +665,7 @@ static char *UIWow_LuaCompatVarargs(LPCSTR script, size_t len) {
     if (!out) return NULL;
     src = script; dst = out;
     while (*src) {
-        LPCSTR line = src, end = src;
+        cstring_t line = src, end = src;
         while (*end && *end != '\n' && *end != '\r') end++;
         memcpy(dst, line, (size_t)(end - line));
         dst += end - line;
@@ -681,14 +681,14 @@ static char *UIWow_LuaCompatVarargs(LPCSTR script, size_t len) {
     return out;
 }
 
-BOOL UIWow_RunLuaString(LPCSTR name, LPCSTR script) {
+bool UIWow_RunLuaString(cstring_t name, cstring_t script) {
     if (!script) {
         return false;
     }
     return UIWow_RunLuaBuffer(name, script, strlen(script));
 }
 
-BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing) {
+bool UIWow_LoadLuaFile(cstring_t path, bool noisy_missing) {
     void *buf = NULL;
     char *compat, *compat_varargs, *script;
     int size;
@@ -715,7 +715,7 @@ BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing) {
     return true;
 }
 
-static BOOL UIWow_HasArchiveFile(LPCSTR path) {
+static bool UIWow_HasArchiveFile(cstring_t path) {
     void *buf = NULL;
     int size;
 
@@ -740,9 +740,9 @@ static void UIWow_LoadLegacyMenuLua(void) {
     UIWow_LoadLuaFile("Interface\\FrameXML\\CharacterCreateScreen.lua", false);
 }
 
-static LPCSTR const WOW_GLUE_XML_TOC = "Interface\\GlueXML\\GlueXML.toc";
+static cstring_t const WOW_GLUE_XML_TOC = "Interface\\GlueXML\\GlueXML.toc";
 
-static BOOL UIWow_LoadGlueFrameXml(void) {
+static bool UIWow_LoadGlueFrameXml(void) {
     if (!UIWow_LoadLuaFile("Interface\\GlueXML\\GlueStrings.lua", false)) {
         UIWow_Printf("UIWow: missing Glue prerequisite 'Interface\\GlueXML\\GlueStrings.lua'\n");
     }
@@ -752,7 +752,7 @@ static BOOL UIWow_LoadGlueFrameXml(void) {
     return UIWow_XMLLoadGlueFromToc(WOW_GLUE_XML_TOC);
 }
 
-static void UIWow_OpenLuaLib(lua_State *L, LPCSTR name, lua_CFunction openf) {
+static void UIWow_OpenLuaLib(lua_State *L, cstring_t name, lua_CFunction openf) {
     luaL_requiref(L, name, openf, 1);
     lua_pop(L, 1);
 }
@@ -825,7 +825,7 @@ void UIWow_CallLuaDraw(void) {
     UIWow_LuaPCall(0);
 }
 
-void UIWow_CallLuaUpdate(DWORD msec) {
+void UIWow_CallLuaUpdate(uint32_t msec) {
     if (!wow_ui.lua) {
         if (!wow_ui.lua) {
             UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE, "UIWow: Lua state is not initialized; update callback skipped\n");

@@ -4,9 +4,9 @@
 #include "../hud/hud_local.h"
 
 typedef struct {
-    DWORD sprites, bar, back, texts, sent, bytes, previews, names, rows;
+    uint32_t sprites, bar, back, texts, sent, bytes, previews, names, rows;
     UIFRAME preview;
-    LONG opcode, layer;
+    int32_t opcode, layer;
     UIFRAME progress;
     char anim[32];
 } LOADCAP;
@@ -15,8 +15,8 @@ static LOADCAP loadcap;
 /* Capture what a connecting client receives, rather than inspecting manually constructed frames. */
 static void loading_write(pfWriteType_t type, void const *data) {
     if (type == PF_BYTE) {
-        if (!loadcap.bytes++) loadcap.opcode = *(LONG const *)data;
-        else loadcap.layer = *(LONG const *)data;
+        if (!loadcap.bytes++) loadcap.opcode = *(int32_t const *)data;
+        else loadcap.layer = *(int32_t const *)data;
     }
     if (type != PF_UIFRAME) return;
     LPCUIFRAME frame = data;
@@ -45,11 +45,11 @@ static void loading_unicast(LPEDICT ent) { (void)ent; loadcap.sent++; }
 
 /* tests.mpq carries the native FDF plus ROC/TFT WorldEditData rows and decorated skin keys. */
 TEST(wc3_loading, initial_layout_resolves_campaign_custom_and_melee_art) {
-    static const struct { DWORD row; LPSTR custom; LPCSTR model, anim; } cases[] = {
+    static const struct { uint32_t row; string_t custom; cstring_t model, anim; } cases[] = {
         { 0, NULL, "UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronBackground.mdx", "#!0" },
         { 1, NULL, "UI\\Glues\\Loading\\Backgrounds\\Campaigns\\LordaeronExpansionBackground.mdx", "#!6" },
         { 1, "war3mapImported\\LoadingScreen.mdx", "war3mapImported\\LoadingScreen.mdx", "#!0" },
-        { (DWORD)-1, NULL, "UI\\Glues\\Loading\\Multiplayer\\Load-Multiplayer-Random.mdx", "#!0" },
+        { (uint32_t)-1, NULL, "UI\\Glues\\Loading\\Multiplayer\\Load-Multiplayer-Random.mdx", "#!0" },
     };
     __typeof__(gi.Write) old_write = gi.Write;
     __typeof__(gi.unicast) old_send = gi.unicast;
@@ -85,7 +85,7 @@ TEST(wc3_loading, initial_layout_resolves_campaign_custom_and_melee_art) {
         T_STREQ(gi.GetConfigstring(CS_MODELS + loadcap.bar), "UI\\Glues\\Loading\\LoadBar\\LoadBar.mdx");
         T_STREQ(loadcap.anim, cases[i].anim);
         T_FEQ(loadcap.progress.size.width, 0, 0.00001f); T_FEQ(loadcap.progress.size.height, 0, 0.00001f);
-        T_EQ(loadcap.progress.points.y[FPP_MAX].offset, (SHORT)(0.0025f * UI_FRAMEPOINT_SCALE));
+        T_EQ(loadcap.progress.points.y[FPP_MAX].offset, (int16_t)(0.0025f * UI_FRAMEPOINT_SCALE));
     }
     info.flags |= hide_minimap_in_preview_screens;
     memset(&loadcap, 0, sizeof(loadcap));

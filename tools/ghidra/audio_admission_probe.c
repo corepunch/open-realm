@@ -9,7 +9,7 @@ int main(void) {
         for (unsigned i = 0; i < n; i++) {
             unsigned f, pr, fl, us, gr, tick, serial;
             if (scanf("%u %u %u %u %u %u %u", &f, &pr, &fl, &us, &gr, &tick, &serial) != 7) return 2;
-            s.channels[i].active = TRUE; s.channels[i].sc = &cache[f];
+            s.channels[i].active = true; s.channels[i].sc = &cache[f];
             s.channels[i].priority = pr; s.channels[i].serial = serial; s.channels[i].started = tick;
             s.channels[i].policy = (soundPolicy_t){.priority=pr,.flags=fl,.user=us,.group=gr,.max_total=24};
         }

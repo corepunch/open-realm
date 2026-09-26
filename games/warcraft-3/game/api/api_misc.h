@@ -2,54 +2,54 @@
 
 extern LPPLAYER currentplayer;
 
-static BOOL TutorialTextDebugEnabledMisc(void) {
+static bool TutorialTextDebugEnabledMisc(void) {
     return WC3_TUTORIAL_DEBUG_ENABLED();
 }
 
-static void TutorialTextDebugContextMisc(LPJASS j, LONG *trigger_ordinal, LPCSTR *caller) {
+static void TutorialTextDebugContextMisc(LPJASS j, int32_t *trigger_ordinal, cstring_t *caller) {
     LPCJASSCONTEXT context = jass_getcontext(j);
     if (trigger_ordinal)
-        *trigger_ordinal = context && context->trigger ? (LONG)(context->trigger - level.triggers) : -1L;
+        *trigger_ordinal = context && context->trigger ? (int32_t)(context->trigger - level.triggers) : -1L;
     if (caller)
         *caller = context && context->func ? jass_functionname(context->func) : NULL;
 }
 
-DWORD class_id(LPCSTR str) { return *(DWORD *)str; }
+uint32_t class_id(cstring_t str) { return *(uint32_t *)str; }
 
-/* Converted enums are owned JASS handles; enum equality compares their DWORD payload. */
-static DWORD JassPushEnumHandle(LPJASS j, LPCSTR type, LONG value) {
-    LPDWORD handle = jass_newhandle(j, sizeof(*handle), type);
-    *handle = (DWORD)value;
+/* Converted enums are owned JASS handles; enum equality compares their uint32_t payload. */
+static uint32_t JassPushEnumHandle(LPJASS j, cstring_t type, int32_t value) {
+    uint32_t * handle = jass_newhandle(j, sizeof(*handle), type);
+    *handle = (uint32_t)value;
     return 1;
 }
 
-static DWORD JassPushRaceHandle(LPJASS j, LONG value) {
+static uint32_t JassPushRaceHandle(LPJASS j, int32_t value) {
     return JassPushEnumHandle(j, "race", value);
 }
 
-static DWORD JassPushPlayerSlotStateHandle(LPJASS j, LONG value) {
+static uint32_t JassPushPlayerSlotStateHandle(LPJASS j, int32_t value) {
     return JassPushEnumHandle(j, "playerslotstate", value);
 }
 
 #define CONVERT_FUNC(NAME, TYPE) \
-static DWORD JassPush##NAME##Handle(LPJASS j, LONG value) { return JassPushEnumHandle(j, #TYPE, value); } \
-DWORD Convert##NAME(LPJASS j) { \
+static uint32_t JassPush##NAME##Handle(LPJASS j, int32_t value) { return JassPushEnumHandle(j, #TYPE, value); } \
+uint32_t Convert##NAME(LPJASS j) { \
     return JassPush##NAME##Handle(j, jass_checkinteger(j, 1)); \
 }
 
 #define MATH_FUNC(NAME, FUNC, INPUT, OUTPUT) \
-DWORD NAME(LPJASS j) { \
+uint32_t NAME(LPJASS j) { \
     return jass_push##OUTPUT(j, FUNC(jass_check##INPUT(j, 1))); \
 }
 
 #define MATH_FUNC2(NAME, FUNC, OUTPUT) \
-DWORD NAME(LPJASS j) { \
-    FLOAT arg1 = jass_checknumber(j, 1); \
-    FLOAT arg2 = jass_checknumber(j, 2); \
+uint32_t NAME(LPJASS j) { \
+    float arg1 = jass_checknumber(j, 1); \
+    float arg2 = jass_checknumber(j, 2); \
     return jass_push##OUTPUT(j, FUNC(arg1, arg2)); \
 }
 
-DWORD ConvertRace(LPJASS j) {
+uint32_t ConvertRace(LPJASS j) {
     return JassPushRaceHandle(j, jass_checkinteger(j, 1));
 }
 CONVERT_FUNC(AllianceType, alliancetype);
@@ -78,7 +78,7 @@ CONVERT_FUNC(MapSetting, mapsetting);
 CONVERT_FUNC(MapDensity, mapdensity);
 CONVERT_FUNC(MapControl, mapcontrol);
 CONVERT_FUNC(PlayerColor, playercolor);
-DWORD ConvertPlayerSlotState(LPJASS j) {
+uint32_t ConvertPlayerSlotState(LPJASS j) {
     return JassPushPlayerSlotStateHandle(j, jass_checkinteger(j, 1));
 }
 CONVERT_FUNC(VolumeGroup, volumegroup);
@@ -98,15 +98,15 @@ MATH_FUNC(Asin, asin, number, number);
 MATH_FUNC(Acos, acos, number, number);
 MATH_FUNC(Atan, atan, number, number);
 MATH_FUNC(SquareRoot, sqrt, number, number);
-MATH_FUNC(I2R, (FLOAT), integer, number);
-MATH_FUNC(R2I, (LONG), number, integer);
+MATH_FUNC(I2R, (float), integer, number);
+MATH_FUNC(R2I, (int32_t), number, integer);
 MATH_FUNC2(Pow, pow, number);
 MATH_FUNC2(Atan2, atan2, number);
-DWORD OrderId(LPJASS j) {
-    return jass_pushinteger(j, (LONG)G_OrderId(jass_checkstring(j, 1)));
+uint32_t OrderId(LPJASS j) {
+    return jass_pushinteger(j, (int32_t)G_OrderId(jass_checkstring(j, 1)));
 }
-DWORD OrderId2String(LPJASS j) {
-    return jass_pushstring(j, G_OrderId2String((DWORD)jass_checkinteger(j, 1)));
+uint32_t OrderId2String(LPJASS j) {
+    return jass_pushstring(j, G_OrderId2String((uint32_t)jass_checkinteger(j, 1)));
 }
 MATH_FUNC(UnitId, class_id, string, integer);
 MATH_FUNC(AbilityId, class_id, string, integer);
@@ -115,22 +115,22 @@ MATH_FUNC(AbilityId2String, GetClassName, integer, string);
 MATH_FUNC(S2I, atoi, string, integer);
 MATH_FUNC(S2R, atoi, string, number);
 
-DWORD I2S(LPJASS j) {
-    LONG i = jass_checkinteger(j, 1);
+uint32_t I2S(LPJASS j) {
+    int32_t i = jass_checkinteger(j, 1);
     char buffer[64] = { 0 };
     snprintf(buffer, sizeof(buffer), "%d", i);
     return jass_pushstring(j, buffer);
 }
-DWORD R2S(LPJASS j) {
-    FLOAT r = jass_checknumber(j, 1);
+uint32_t R2S(LPJASS j) {
+    float r = jass_checknumber(j, 1);
     char buffer[64] = { 0 };
     snprintf(buffer, sizeof(buffer), "%f", r);
     return jass_pushstring(j, buffer);
 }
-DWORD R2SW(LPJASS j) {
-    FLOAT r = jass_checknumber(j, 1);
-    LONG width = jass_checkinteger(j, 2);
-    LONG precision = jass_checkinteger(j, 3);
+uint32_t R2SW(LPJASS j) {
+    float r = jass_checknumber(j, 1);
+    int32_t width = jass_checkinteger(j, 2);
+    int32_t precision = jass_checkinteger(j, 3);
     /* Clamp to safe values so the formatted float fits in the 64-byte buffer.
      * A floating-point number needs at most ~25 chars; add width up to 32
      * and precision up to 16 for a safe upper bound well within 64 bytes. */
@@ -140,62 +140,62 @@ DWORD R2SW(LPJASS j) {
     snprintf(buffer, sizeof(buffer), "%*.*f", (int)width, (int)precision, (double)r);
     return jass_pushstring(j, buffer);
 }
-DWORD SubString(LPJASS j) {
-    LPCSTR source = jass_checkstring(j, 1);
-    LONG start = jass_checkinteger(j, 2);
-    LONG end = jass_checkinteger(j, 3);
+uint32_t SubString(LPJASS j) {
+    cstring_t source = jass_checkstring(j, 1);
+    int32_t start = jass_checkinteger(j, 2);
+    int32_t end = jass_checkinteger(j, 3);
     if (!source) return jass_pushstring(j, "");
-    LONG len = (LONG)strlen(source);
+    int32_t len = (int32_t)strlen(source);
     if (start < 0) start = 0;
     if (end > len) end = len;
     if (start >= end) return jass_pushstring(j, "");
-    LONG n = end - start;
+    int32_t n = end - start;
     char *buf = gi.MemAlloc(n + 1);
     memcpy(buf, source + start, (size_t)n);
     buf[n] = '\0';
-    DWORD result = jass_pushstring(j, buf);
+    uint32_t result = jass_pushstring(j, buf);
     gi.MemFree(buf);
     return result;
 }
-DWORD GetLocalizedString(LPJASS j) {
-    LPCSTR source = jass_checkstring(j, 1);
+uint32_t GetLocalizedString(LPJASS j) {
+    cstring_t source = jass_checkstring(j, 1);
     return jass_pushstring(j, source ? source : "");
 }
-DWORD GetLocalizedHotkey(LPJASS j) {
-    //LPCSTR source = jass_checkstring(j, 1);
+uint32_t GetLocalizedHotkey(LPJASS j) {
+    //cstring_t source = jass_checkstring(j, 1);
     return jass_pushinteger(j, 0);
 }
 /* Map-configuration natives run from config() before main(). They must mutate a
  * per-level setup snapshot initialized from war3map.w3i; level.mapinfo is
  * authoritative input and must not remain the writable runtime store. */
-DWORD SetMapName(LPJASS j) {
+uint32_t SetMapName(LPJASS j) {
     strlcpy(level.setup.name, jass_checkstring(j, 1), sizeof(level.setup.name));
     return 0;
 }
-DWORD SetMapDescription(LPJASS j) {
+uint32_t SetMapDescription(LPJASS j) {
     strlcpy(level.setup.description, jass_checkstring(j, 1), sizeof(level.setup.description));
     return 0;
 }
-DWORD SetTeams(LPJASS j) {
+uint32_t SetTeams(LPJASS j) {
     level.setup.teams = MIN(MAX(0, jass_checkinteger(j, 1)), MAX_PLAYERS);
     return 0;
 }
-DWORD SetPlayers(LPJASS j) {
+uint32_t SetPlayers(LPJASS j) {
     level.setup.players = MIN(MAX(0, jass_checkinteger(j, 1)), MAX_PLAYERS);
     return 0;
 }
-DWORD DefineStartLocation(LPJASS j) {
-    LONG whichStartLoc = jass_checkinteger(j, 1);
-    FLOAT x = jass_checknumber(j, 2);
-    FLOAT y = jass_checknumber(j, 3);
+uint32_t DefineStartLocation(LPJASS j) {
+    int32_t whichStartLoc = jass_checkinteger(j, 1);
+    float x = jass_checknumber(j, 2);
+    float y = jass_checknumber(j, 3);
 
     if (level.mapinfo && whichStartLoc >= 0 && whichStartLoc < MAX_PLAYERS) {
         ((LPMAPINFO)level.mapinfo)->players[whichStartLoc].startingPosition = (VECTOR2){ x, y };
     }
     return 0;
 }
-DWORD DefineStartLocationLoc(LPJASS j) {
-    LONG whichStartLoc = jass_checkinteger(j, 1);
+uint32_t DefineStartLocationLoc(LPJASS j) {
+    int32_t whichStartLoc = jass_checkinteger(j, 1);
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 2, "location");
 
     if (level.mapinfo && whichLocation &&
@@ -204,121 +204,121 @@ DWORD DefineStartLocationLoc(LPJASS j) {
     }
     return 0;
 }
-DWORD SetStartLocPrioCount(LPJASS j) {
-    LONG loc = jass_checkinteger(j, 1), count = jass_checkinteger(j, 2);
+uint32_t SetStartLocPrioCount(LPJASS j) {
+    int32_t loc = jass_checkinteger(j, 1), count = jass_checkinteger(j, 2);
     if (loc >= 0 && loc < MAX_PLAYERS) level.setup.start_prio[loc].count = MIN(MAX(0, count), MAX_START_PRIO);
     return 0;
 }
-DWORD SetStartLocPrio(LPJASS j) {
-    LONG loc = jass_checkinteger(j, 1), slot = jass_checkinteger(j, 2), other = jass_checkinteger(j, 3);
-    LPDWORD priority = jass_checkhandle(j, 4, "startlocprio");
-    if (loc >= 0 && loc < MAX_PLAYERS && slot >= 0 && slot < (LONG)level.setup.start_prio[loc].count && priority)
+uint32_t SetStartLocPrio(LPJASS j) {
+    int32_t loc = jass_checkinteger(j, 1), slot = jass_checkinteger(j, 2), other = jass_checkinteger(j, 3);
+    uint32_t * priority = jass_checkhandle(j, 4, "startlocprio");
+    if (loc >= 0 && loc < MAX_PLAYERS && slot >= 0 && slot < (int32_t)level.setup.start_prio[loc].count && priority)
         level.setup.start_prio[loc].slots[slot] = (typeof(*level.setup.start_prio[loc].slots)){ other, *priority };
     return 0;
 }
-DWORD GetStartLocPrioSlot(LPJASS j) {
-    LONG loc = jass_checkinteger(j, 1), slot = jass_checkinteger(j, 2);
-    LONG value = loc >= 0 && loc < MAX_PLAYERS && slot >= 0 && slot < (LONG)level.setup.start_prio[loc].count ?
+uint32_t GetStartLocPrioSlot(LPJASS j) {
+    int32_t loc = jass_checkinteger(j, 1), slot = jass_checkinteger(j, 2);
+    int32_t value = loc >= 0 && loc < MAX_PLAYERS && slot >= 0 && slot < (int32_t)level.setup.start_prio[loc].count ?
         level.setup.start_prio[loc].slots[slot].location : 0;
     return jass_pushinteger(j, value);
 }
-DWORD GetStartLocPrio(LPJASS j) {
-    LONG loc = jass_checkinteger(j, 1), slot = jass_checkinteger(j, 2);
-    LONG value = loc >= 0 && loc < MAX_PLAYERS && slot >= 0 && slot < (LONG)level.setup.start_prio[loc].count ?
+uint32_t GetStartLocPrio(LPJASS j) {
+    int32_t loc = jass_checkinteger(j, 1), slot = jass_checkinteger(j, 2);
+    int32_t value = loc >= 0 && loc < MAX_PLAYERS && slot >= 0 && slot < (int32_t)level.setup.start_prio[loc].count ?
         level.setup.start_prio[loc].slots[slot].priority : 0;
     return JassPushStartLocPrioHandle(j, value);
 }
-DWORD SetGameTypeSupported(LPJASS j) {
-    LPDWORD type = jass_checkhandle(j, 1, "gametype");
-    BOOL value = jass_checkboolean(j, 2);
+uint32_t SetGameTypeSupported(LPJASS j) {
+    uint32_t * type = jass_checkhandle(j, 1, "gametype");
+    bool value = jass_checkboolean(j, 2);
     if (type) {
         SET_FLAG(level.setup.game_types, *type, value);
     }
     return 0;
 }
-DWORD SetMapFlag(LPJASS j) {
-    LPDWORD flag = jass_checkhandle(j, 1, "mapflag");
-    BOOL value = jass_checkboolean(j, 2);
+uint32_t SetMapFlag(LPJASS j) {
+    uint32_t * flag = jass_checkhandle(j, 1, "mapflag");
+    bool value = jass_checkboolean(j, 2);
     if (flag) {
         SET_FLAG(level.setup.map_flags, *flag, value);
     }
     return 0;
 }
-DWORD SetGamePlacement(LPJASS j) {
-    LPDWORD value = jass_checkhandle(j, 1, "placement");
+uint32_t SetGamePlacement(LPJASS j) {
+    uint32_t * value = jass_checkhandle(j, 1, "placement");
     if (value) level.setup.placement = *value;
     return 0;
 }
-DWORD SetGameSpeed(LPJASS j) {
-    LPDWORD value = jass_checkhandle(j, 1, "gamespeed");
+uint32_t SetGameSpeed(LPJASS j) {
+    uint32_t * value = jass_checkhandle(j, 1, "gamespeed");
     if (value) level.setup.speed = *value;
     return 0;
 }
-DWORD SetGameDifficulty(LPJASS j) {
-    LPDWORD value = jass_checkhandle(j, 1, "gamedifficulty");
+uint32_t SetGameDifficulty(LPJASS j) {
+    uint32_t * value = jass_checkhandle(j, 1, "gamedifficulty");
     if (value) level.setup.difficulty = *value;
     return 0;
 }
-DWORD SetResourceDensity(LPJASS j) {
-    LPDWORD value = jass_checkhandle(j, 1, "mapdensity");
+uint32_t SetResourceDensity(LPJASS j) {
+    uint32_t * value = jass_checkhandle(j, 1, "mapdensity");
     if (value) level.setup.resource_density = *value;
     return 0;
 }
-DWORD SetCreatureDensity(LPJASS j) {
-    LPDWORD value = jass_checkhandle(j, 1, "mapdensity");
+uint32_t SetCreatureDensity(LPJASS j) {
+    uint32_t * value = jass_checkhandle(j, 1, "mapdensity");
     if (value) level.setup.creature_density = *value;
     return 0;
 }
-DWORD GetTeams(LPJASS j) {
+uint32_t GetTeams(LPJASS j) {
     return jass_pushinteger(j, level.setup.teams);
 }
-DWORD GetPlayers(LPJASS j) {
+uint32_t GetPlayers(LPJASS j) {
     return jass_pushinteger(j, level.setup.players);
 }
-DWORD IsGameTypeSupported(LPJASS j) {
-    LPDWORD type = jass_checkhandle(j, 1, "gametype");
+uint32_t IsGameTypeSupported(LPJASS j) {
+    uint32_t * type = jass_checkhandle(j, 1, "gametype");
     return jass_pushboolean(j, type && (level.setup.game_types & *type));
 }
-DWORD GetGameTypeSelected(LPJASS j) {
+uint32_t GetGameTypeSelected(LPJASS j) {
     return JassPushGameTypeHandle(j, level.setup.game_type);
 }
-DWORD IsMapFlagSet(LPJASS j) {
-    LPDWORD flag = jass_checkhandle(j, 1, "mapflag");
+uint32_t IsMapFlagSet(LPJASS j) {
+    uint32_t * flag = jass_checkhandle(j, 1, "mapflag");
     return jass_pushboolean(j, flag && (level.setup.map_flags & *flag));
 }
-DWORD GetGamePlacement(LPJASS j) {
+uint32_t GetGamePlacement(LPJASS j) {
     return JassPushPlacementHandle(j, level.setup.placement);
 }
-DWORD GetGameSpeed(LPJASS j) {
+uint32_t GetGameSpeed(LPJASS j) {
     return JassPushGameSpeedHandle(j, level.setup.speed);
 }
-DWORD GetGameDifficulty(LPJASS j) {
+uint32_t GetGameDifficulty(LPJASS j) {
     return JassPushGameDifficultyHandle(j, level.setup.difficulty);
 }
-DWORD GetResourceDensity(LPJASS j) {
+uint32_t GetResourceDensity(LPJASS j) {
     return JassPushMapDensityHandle(j, level.setup.resource_density);
 }
-DWORD GetCreatureDensity(LPJASS j) {
+uint32_t GetCreatureDensity(LPJASS j) {
     return JassPushMapDensityHandle(j, level.setup.creature_density);
 }
-DWORD GetStartLocationX(LPJASS j) {
-    LONG whichStartLocation = jass_checkinteger(j, 1);
+uint32_t GetStartLocationX(LPJASS j) {
+    int32_t whichStartLocation = jass_checkinteger(j, 1);
 
     if (!level.mapinfo || whichStartLocation < 0 || whichStartLocation >= MAX_PLAYERS) {
         return jass_pushnumber(j, 0);
     }
     return jass_pushnumber(j, level.mapinfo->players[whichStartLocation].startingPosition.x);
 }
-DWORD GetStartLocationY(LPJASS j) {
-    LONG whichStartLocation = jass_checkinteger(j, 1);
+uint32_t GetStartLocationY(LPJASS j) {
+    int32_t whichStartLocation = jass_checkinteger(j, 1);
 
     if (!level.mapinfo || whichStartLocation < 0 || whichStartLocation >= MAX_PLAYERS) {
         return jass_pushnumber(j, 0);
     }
     return jass_pushnumber(j, level.mapinfo->players[whichStartLocation].startingPosition.y);
 }
-DWORD GetStartLocationLoc(LPJASS j) {
-    LONG whichStartLocation = jass_checkinteger(j, 1);
+uint32_t GetStartLocationLoc(LPJASS j) {
+    int32_t whichStartLocation = jass_checkinteger(j, 1);
     API_ALLOC(VECTOR2, location);
 
     if (level.mapinfo && whichStartLocation >= 0 && whichStartLocation < MAX_PLAYERS) {
@@ -327,87 +327,87 @@ DWORD GetStartLocationLoc(LPJASS j) {
     return 1;
 }
 
-DWORD CreateTimer(LPJASS j) {
+uint32_t CreateTimer(LPJASS j) {
     LPGTIMER timer = G_AllocJassTimer();
     if (!timer) { jass_rterror(j, "CreateTimer: timer registry is full"); return 0; }
     return jass_pushlighthandle(j, timer, "timer");
 }
-DWORD DestroyTimer(LPJASS j) {
+uint32_t DestroyTimer(LPJASS j) {
     LPGTIMER whichTimer = jass_checkhandle(j, 1, "timer");
     G_TimerDestroy(whichTimer);
     return 0;
 }
-DWORD TimerStart(LPJASS j) {
+uint32_t TimerStart(LPJASS j) {
     LPGTIMER whichTimer = jass_checkhandle(j, 1, "timer");
-    FLOAT timeout = jass_checknumber(j, 2);
-    BOOL periodic = jass_checkboolean(j, 3);
+    float timeout = jass_checknumber(j, 2);
+    bool periodic = jass_checkboolean(j, 3);
     /* Warcraft accepts null to start/reset a timer without an expiration callback. */
     LPCJASSFUNC handlerFunc = jass_toboolean(j, 4) ? jass_checkcode(j, 4) : NULL;
-    if (whichTimer) G_TimerStart(whichTimer, (DWORD)(MAX(0.0f, timeout) * 1000.0f), periodic, handlerFunc);
+    if (whichTimer) G_TimerStart(whichTimer, (uint32_t)(MAX(0.0f, timeout) * 1000.0f), periodic, handlerFunc);
     return 0;
 }
-DWORD TimerGetElapsed(LPJASS j) {
+uint32_t TimerGetElapsed(LPJASS j) {
     LPGTIMER whichTimer = jass_checkhandle(j, 1, "timer");
     return jass_pushnumber(j, whichTimer ? (whichTimer->duration - G_TimerRemaining(whichTimer)) / 1000.0f : 0.0f);
 }
-DWORD TimerGetRemaining(LPJASS j) {
+uint32_t TimerGetRemaining(LPJASS j) {
     LPGTIMER whichTimer = jass_checkhandle(j, 1, "timer");
     return jass_pushnumber(j, G_TimerRemaining(whichTimer) / 1000.0f);
 }
-DWORD TimerGetTimeout(LPJASS j) {
+uint32_t TimerGetTimeout(LPJASS j) {
     LPGTIMER whichTimer = jass_checkhandle(j, 1, "timer");
     return jass_pushnumber(j, whichTimer ? whichTimer->duration / 1000.0f : 0.0f);
 }
-DWORD PauseTimer(LPJASS j) {
+uint32_t PauseTimer(LPJASS j) {
     G_TimerPause(jass_checkhandle(j, 1, "timer")); return 0;
 }
-DWORD ResumeTimer(LPJASS j) {
+uint32_t ResumeTimer(LPJASS j) {
     G_TimerResume(jass_checkhandle(j, 1, "timer")); return 0;
 }
-DWORD GetExpiredTimer(LPJASS j) {
+uint32_t GetExpiredTimer(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->timer, "timer");
 }
-DWORD CreateForce(LPJASS j) {
-    API_ALLOC(DWORD, force);
+uint32_t CreateForce(LPJASS j) {
+    API_ALLOC(uint32_t, force);
     (void)force;
     return 1;
 }
-DWORD ForceAddPlayer(LPJASS j) {
-    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+uint32_t ForceAddPlayer(LPJASS j) {
+    uint32_t * whichForce = jass_checkhandle(j, 1, "force");
     LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     if (whichForce && whichPlayer) *whichForce |= 1 << PLAYER_NUM(whichPlayer);
     return 0;
 }
-DWORD ForceRemovePlayer(LPJASS j) {
-    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+uint32_t ForceRemovePlayer(LPJASS j) {
+    uint32_t * whichForce = jass_checkhandle(j, 1, "force");
     LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     if (whichForce && whichPlayer) *whichForce &= ~(1 << PLAYER_NUM(whichPlayer));
     return 0;
 }
-DWORD ForceClear(LPJASS j) {
-    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+uint32_t ForceClear(LPJASS j) {
+    uint32_t * whichForce = jass_checkhandle(j, 1, "force");
     if (whichForce) *whichForce = 0;
     return 0;
 }
-DWORD DestroyForce(LPJASS j) {
-    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+uint32_t DestroyForce(LPJASS j) {
+    uint32_t * whichForce = jass_checkhandle(j, 1, "force");
     if (whichForce) *whichForce = 0;
     return 0;
 }
 /* Force filters bind each candidate as GetFilterPlayer(); limits count accepted
  * players, matching group enumeration rather than limiting candidates tested. */
-DWORD ForceEnumPlayers(LPJASS j) {
-    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+uint32_t ForceEnumPlayers(LPJASS j) {
+    uint32_t * whichForce = jass_checkhandle(j, 1, "force");
     LPCJASSFUNC filter = jass_checkhandle(j, 2, "boolexpr");
     if (!whichForce) return 0;
     FOR_LOOP(i, game.max_clients)
         if (jass_evaluateplayerexpr(j, filter, &game.clients[i].ps)) *whichForce |= 1 << game.clients[i].ps.number;
     return 0;
 }
-DWORD ForceEnumPlayersCounted(LPJASS j) {
-    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+uint32_t ForceEnumPlayersCounted(LPJASS j) {
+    uint32_t * whichForce = jass_checkhandle(j, 1, "force");
     LPCJASSFUNC filter = jass_checkhandle(j, 2, "boolexpr");
-    LONG countLimit = jass_checkinteger(j, 3);
+    int32_t countLimit = jass_checkinteger(j, 3);
     if (!whichForce || countLimit <= 0) return 0;
     FOR_LOOP(i, game.max_clients) {
         LPPLAYER player = &game.clients[i].ps;
@@ -416,8 +416,8 @@ DWORD ForceEnumPlayersCounted(LPJASS j) {
     }
     return 0;
 }
-DWORD ForceEnumAllies(LPJASS j) {
-    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+uint32_t ForceEnumAllies(LPJASS j) {
+    uint32_t * whichForce = jass_checkhandle(j, 1, "force");
     LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     LPCJASSFUNC filter = jass_checkhandle(j, 3, "boolexpr");
     if (!whichForce || !whichPlayer) return 0;
@@ -428,8 +428,8 @@ DWORD ForceEnumAllies(LPJASS j) {
     }
     return 0;
 }
-DWORD ForceEnumEnemies(LPJASS j) {
-    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+uint32_t ForceEnumEnemies(LPJASS j) {
+    uint32_t * whichForce = jass_checkhandle(j, 1, "force");
     LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     LPCJASSFUNC filter = jass_checkhandle(j, 3, "boolexpr");
     if (!whichForce || !whichPlayer) return 0;
@@ -440,9 +440,9 @@ DWORD ForceEnumEnemies(LPJASS j) {
     }
     return 0;
 }
-DWORD ForForce(LPJASS j) {
+uint32_t ForForce(LPJASS j) {
     extern LPPLAYER currentenumplayer;
-    LPDWORD whichForce = jass_checkhandle(j, 1, "force");
+    uint32_t * whichForce = jass_checkhandle(j, 1, "force");
     LPCJASSFUNC callback = jass_checkcode(j, 2);
     LPPLAYER previous = currentenumplayer;
 
@@ -463,323 +463,323 @@ DWORD ForForce(LPJASS j) {
     currentenumplayer = previous;
     return 0;
 }
-DWORD IsUnitInRegion(LPJASS j) {
+uint32_t IsUnitInRegion(LPJASS j) {
     LPCREGION whichRegion = G_RegionFromHandle(jass_checkhandle(j, 1, "region"));
     LPCEDICT whichUnit = jass_checkhandle(j, 2, "unit");
     return jass_pushboolean(j, whichRegion && whichUnit && G_RegionContains(whichRegion, &whichUnit->s.origin2));
 }
-DWORD IsPointInRegion(LPJASS j) {
+uint32_t IsPointInRegion(LPJASS j) {
     LPCREGION whichRegion = G_RegionFromHandle(jass_checkhandle(j, 1, "region"));
     VECTOR2 point = { jass_checknumber(j, 2), jass_checknumber(j, 3) };
     return jass_pushboolean(j, whichRegion && G_RegionContains(whichRegion, &point));
 }
-DWORD IsLocationInRegion(LPJASS j) {
+uint32_t IsLocationInRegion(LPJASS j) {
     LPCREGION whichRegion = G_RegionFromHandle(jass_checkhandle(j, 1, "region"));
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 2, "location");
     return jass_pushboolean(j, whichRegion && whichLocation && G_RegionContains(whichRegion, whichLocation));
 }
 /* Return the loaded terrain bounds so Blizzard.j's GetEntireMapRect can enumerate every map unit. */
-DWORD GetWorldBounds(LPJASS j) {
+uint32_t GetWorldBounds(LPJASS j) {
     API_ALLOC(BOX2, rect);
     *rect = CM_GetWorldBounds();
     return 1;
 }
-DWORD GetFilterUnit(LPJASS j) {
+uint32_t GetFilterUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetEnumUnit(LPJASS j) {
+uint32_t GetEnumUnit(LPJASS j) {
     extern LPEDICT currentunit;
     return jass_pushlighthandle(j, currentunit, "unit");
 }
-DWORD GetFilterDestructable(LPJASS j) {
+uint32_t GetFilterDestructable(LPJASS j) {
     return jass_pushnullhandle(j, "destructable");
 }
-DWORD GetEnumDestructable(LPJASS j) {
+uint32_t GetEnumDestructable(LPJASS j) {
     extern LPEDICT currentdestructable;
     return jass_pushlighthandle(j, currentdestructable, "destructable");
 }
-DWORD GetFilterPlayer(LPJASS j) {
+uint32_t GetFilterPlayer(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->playerState, "player");
 }
-DWORD GetEnumPlayer(LPJASS j) {
+uint32_t GetEnumPlayer(LPJASS j) {
     extern LPPLAYER currentenumplayer;
     return jass_pushlighthandle(j, currentenumplayer, "player");
 }
-DWORD ExecuteFunc(LPJASS j) {
-    LPCSTR funcName = jass_checkstring(j, 1);
+uint32_t ExecuteFunc(LPJASS j) {
+    cstring_t funcName = jass_checkstring(j, 1);
     (void)jass_startcoroutinebyname(j, funcName);
     return 0;
 }
-DWORD newthread(LPJASS j) {
+uint32_t newthread(LPJASS j) {
     LPCJASSFUNC func = jass_checkcode(j, 1);
     JASSCONTEXT context = *jass_getcontext(j);
     context.func = func;
     jass_startcoroutine(j, &context);
     return 0;
 }
-DWORD And(LPJASS j) {
-    //HANDLE operandA = jass_checkhandle(j, 1, "boolexpr");
-    //HANDLE operandB = jass_checkhandle(j, 2, "boolexpr");
+uint32_t And(LPJASS j) {
+    //handle_t operandA = jass_checkhandle(j, 1, "boolexpr");
+    //handle_t operandB = jass_checkhandle(j, 2, "boolexpr");
     return jass_pushnullhandle(j, "boolexpr");
 }
-DWORD Or(LPJASS j) {
-    //HANDLE operandA = jass_checkhandle(j, 1, "boolexpr");
-    //HANDLE operandB = jass_checkhandle(j, 2, "boolexpr");
+uint32_t Or(LPJASS j) {
+    //handle_t operandA = jass_checkhandle(j, 1, "boolexpr");
+    //handle_t operandB = jass_checkhandle(j, 2, "boolexpr");
     return jass_pushnullhandle(j, "boolexpr");
 }
-DWORD Not(LPJASS j) {
-    //HANDLE operand = jass_checkhandle(j, 1, "boolexpr");
+uint32_t Not(LPJASS j) {
+    //handle_t operand = jass_checkhandle(j, 1, "boolexpr");
     return jass_pushnullhandle(j, "boolexpr");
 }
-DWORD Condition(LPJASS j) {
+uint32_t Condition(LPJASS j) {
     LPCJASSFUNC func = jass_checkcode(j, 1);
-    return jass_pushlighthandle(j, (HANDLE)func, "conditionfunc");
+    return jass_pushlighthandle(j, (handle_t)func, "conditionfunc");
 }
-DWORD DestroyCondition(LPJASS j) {
-    //HANDLE c = jass_checkhandle(j, 1, "conditionfunc");
+uint32_t DestroyCondition(LPJASS j) {
+    //handle_t c = jass_checkhandle(j, 1, "conditionfunc");
     return 0;
 }
-DWORD Filter(LPJASS j) {
+uint32_t Filter(LPJASS j) {
     /* Like Condition(): wrap the code as a boolexpr handle so enumeration
      * natives (GroupEnumUnitsInRect, ForceEnum*, etc.) can evaluate it per
      * candidate via jass_evaluateboolexpr.  Was a stub returning null, which
      * made every Filter()-based enum match everything (e.g. GetUnitsInRectOf-
      * Player returned all players' units, polluting victory/kill-count groups). */
     LPCJASSFUNC func = jass_checkcode(j, 1);
-    return jass_pushlighthandle(j, (HANDLE)func, "filterfunc");
+    return jass_pushlighthandle(j, (handle_t)func, "filterfunc");
 }
-DWORD DestroyFilter(LPJASS j) {
-    //HANDLE f = jass_checkhandle(j, 1, "filterfunc");
+uint32_t DestroyFilter(LPJASS j) {
+    //handle_t f = jass_checkhandle(j, 1, "filterfunc");
     return 0;
 }
-DWORD DestroyBoolExpr(LPJASS j) {
-    //HANDLE e = jass_checkhandle(j, 1, "boolexpr");
+uint32_t DestroyBoolExpr(LPJASS j) {
+    //handle_t e = jass_checkhandle(j, 1, "boolexpr");
     return 0;
 }
-DWORD GetEventGameState(LPJASS j) {
+uint32_t GetEventGameState(LPJASS j) {
     return jass_pushnullhandle(j, "gamestate");
 }
-DWORD GetWinningPlayer(LPJASS j) {
+uint32_t GetWinningPlayer(LPJASS j) {
     return jass_pushnullhandle(j, "player");
 }
-DWORD GetEnteringUnit(LPJASS j) {
+uint32_t GetEnteringUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetLeavingUnit(LPJASS j) {
+uint32_t GetLeavingUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetTriggeringTrackable(LPJASS j) {
+uint32_t GetTriggeringTrackable(LPJASS j) {
     return jass_pushnullhandle(j, "trackable");
 }
-DWORD GetClickedButton(LPJASS j) {
+uint32_t GetClickedButton(LPJASS j) {
     return jass_pushnullhandle(j, "button");
 }
-DWORD GetClickedDialog(LPJASS j) {
+uint32_t GetClickedDialog(LPJASS j) {
     return jass_pushnullhandle(j, "dialog");
 }
-DWORD GetLevelingUnit(LPJASS j) {
+uint32_t GetLevelingUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetLearningUnit(LPJASS j) {
+uint32_t GetLearningUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetLearnedSkill(LPJASS j) {
+uint32_t GetLearnedSkill(LPJASS j) {
     return jass_pushinteger(j, 0);
 }
-DWORD GetLearnedSkillLevel(LPJASS j) {
+uint32_t GetLearnedSkillLevel(LPJASS j) {
     return jass_pushinteger(j, 0);
 }
-DWORD GetRevivableUnit(LPJASS j) {
+uint32_t GetRevivableUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetRevivingUnit(LPJASS j) {
+uint32_t GetRevivingUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetAttacker(LPJASS j) {
+uint32_t GetAttacker(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetRescuer(LPJASS j) {
+uint32_t GetRescuer(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetDyingUnit(LPJASS j) {
+uint32_t GetDyingUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetKillingUnit(LPJASS j) {
+uint32_t GetKillingUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->source, "unit");
 }
-DWORD GetDecayingUnit(LPJASS j) {
+uint32_t GetDecayingUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetConstructingStructure(LPJASS j) {
+uint32_t GetConstructingStructure(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetCancelledStructure(LPJASS j) {
+uint32_t GetCancelledStructure(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetConstructedStructure(LPJASS j) {
+uint32_t GetConstructedStructure(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetResearchingUnit(LPJASS j) {
+uint32_t GetResearchingUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetResearched(LPJASS j) {
+uint32_t GetResearched(LPJASS j) {
     return jass_pushinteger(j, jass_getcontext(j)->eventValue);
 }
-DWORD GetTrainedUnitType(LPJASS j) {
+uint32_t GetTrainedUnitType(LPJASS j) {
     LPCJASSCONTEXT context = jass_getcontext(j);
     LPEDICT trained = context->source ? context->source : context->unit;
-    return jass_pushinteger(j, trained ? (LONG)trained->class_id : 0);
+    return jass_pushinteger(j, trained ? (int32_t)trained->class_id : 0);
 }
-DWORD GetTrainedUnit(LPJASS j) {
+uint32_t GetTrainedUnit(LPJASS j) {
     LPCJASSCONTEXT context = jass_getcontext(j);
     LPEDICT trained = context->source ? context->source : context->unit;
     return jass_pushlighthandle(j, trained, "unit");
 }
-DWORD GetDetectedUnit(LPJASS j) {
+uint32_t GetDetectedUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetSummoningUnit(LPJASS j) {
+uint32_t GetSummoningUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetSummonedUnit(LPJASS j) {
+uint32_t GetSummonedUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->source, "unit");
 }
-DWORD GetTransportUnit(LPJASS j) {
+uint32_t GetTransportUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetLoadedUnit(LPJASS j) {
+uint32_t GetLoadedUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
 /* GetChangingUnit/GetChangingUnitPrevOwner read ownership-change event context.
  * eventValue carries prev_owner+1; zero means no change context. */
-DWORD GetChangingUnit(LPJASS j) {
+uint32_t GetChangingUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetChangingUnitPrevOwner(LPJASS j) {
-    LONG val = jass_getcontext(j)->eventValue;
-    LPPLAYER player = val > 0 ? G_GetPlayerByNumber((DWORD)(val - 1)) : NULL;
+uint32_t GetChangingUnitPrevOwner(LPJASS j) {
+    int32_t val = jass_getcontext(j)->eventValue;
+    LPPLAYER player = val > 0 ? G_GetPlayerByNumber((uint32_t)(val - 1)) : NULL;
     return jass_pushlighthandle(j, player, "player");
 }
-DWORD GetManipulatingUnit(LPJASS j) {
+uint32_t GetManipulatingUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetOrderedUnit(LPJASS j) {
+uint32_t GetOrderedUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetIssuedOrderId(LPJASS j) {
+uint32_t GetIssuedOrderId(LPJASS j) {
     return jass_pushinteger(j, G_GetIssuedOrderId(jass_getcontext(j)->unit));
 }
-DWORD GetOrderPointX(LPJASS j) {
+uint32_t GetOrderPointX(LPJASS j) {
     VECTOR2 point = { 0.0f, 0.0f };
     G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
     return jass_pushnumber(j, point.x);
 }
-DWORD GetOrderPointY(LPJASS j) {
+uint32_t GetOrderPointY(LPJASS j) {
     VECTOR2 point = { 0.0f, 0.0f };
     G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
     return jass_pushnumber(j, point.y);
 }
-DWORD GetOrderPointLoc(LPJASS j) {
+uint32_t GetOrderPointLoc(LPJASS j) {
     VECTOR2 point = { 0.0f, 0.0f };
     API_ALLOC(VECTOR2, location);
     G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
     *location = point;
     return 1;
 }
-DWORD GetOrderTarget(LPJASS j) {
+uint32_t GetOrderTarget(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->source, "widget");
 }
-DWORD GetOrderTargetDestructable(LPJASS j) {
+uint32_t GetOrderTargetDestructable(LPJASS j) {
     LPEDICT target = jass_getcontext(j)->source;
     return target && G_IsDestructable(target) ?
         jass_pushlighthandle(j, target, "destructable") : jass_pushnullhandle(j, "destructable");
 }
-DWORD GetOrderTargetUnit(LPJASS j) {
+uint32_t GetOrderTargetUnit(LPJASS j) {
     LPEDICT target = jass_getcontext(j)->source;
     return target && (target->svflags & SVF_MONSTER) ?
         jass_pushlighthandle(j, target, "unit") : jass_pushnullhandle(j, "unit");
 }
 
-DWORD GetSpellAbilityUnit(LPJASS j) {
+uint32_t GetSpellAbilityUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetSpellAbilityId(LPJASS j) {
+uint32_t GetSpellAbilityId(LPJASS j) {
     return jass_pushinteger(j, jass_getcontext(j)->eventValue);
 }
-DWORD GetSpellTargetUnit(LPJASS j) {
+uint32_t GetSpellTargetUnit(LPJASS j) {
     LPEDICT target = jass_getcontext(j)->source;
     return target && (target->svflags & SVF_MONSTER) ?
         jass_pushlighthandle(j, target, "unit") : jass_pushnullhandle(j, "unit");
 }
-DWORD GetSpellTargetDestructable(LPJASS j) {
+uint32_t GetSpellTargetDestructable(LPJASS j) {
     LPEDICT target = jass_getcontext(j)->source;
     return target && G_IsDestructable(target) ?
         jass_pushlighthandle(j, target, "destructable") : jass_pushnullhandle(j, "destructable");
 }
-DWORD GetSpellTargetItem(LPJASS j) {
+uint32_t GetSpellTargetItem(LPJASS j) {
     LPEDICT target = jass_getcontext(j)->source;
     return target && G_IsItem(target) ?
         jass_pushlighthandle(j, target, "item") : jass_pushnullhandle(j, "item");
 }
-DWORD GetSpellTargetX(LPJASS j) {
+uint32_t GetSpellTargetX(LPJASS j) {
     JASSCONTEXT const *ctx = jass_getcontext(j);
     return jass_pushnumber(j, ctx->hasPoint ? ctx->point.x : 0.0f);
 }
-DWORD GetSpellTargetY(LPJASS j) {
+uint32_t GetSpellTargetY(LPJASS j) {
     JASSCONTEXT const *ctx = jass_getcontext(j);
     return jass_pushnumber(j, ctx->hasPoint ? ctx->point.y : 0.0f);
 }
-DWORD GetSpellTargetLoc(LPJASS j) {
+uint32_t GetSpellTargetLoc(LPJASS j) {
     JASSCONTEXT const *ctx = jass_getcontext(j);
     API_ALLOC(VECTOR2, location);
     *location = ctx->hasPoint ? ctx->point : (VECTOR2){ 0.0f, 0.0f };
     return 1;
 }
-DWORD GetEventPlayerState(LPJASS j) {
+uint32_t GetEventPlayerState(LPJASS j) {
     return jass_pushnullhandle(j, "playerstate");
 }
-DWORD GetEventPlayerChatString(LPJASS j) {
+uint32_t GetEventPlayerChatString(LPJASS j) {
     return jass_pushstring(j, 0);
 }
-DWORD GetEventPlayerChatStringMatched(LPJASS j) {
+uint32_t GetEventPlayerChatStringMatched(LPJASS j) {
     return jass_pushstring(j, 0);
 }
-DWORD GetEventUnitState(LPJASS j) {
+uint32_t GetEventUnitState(LPJASS j) {
     return jass_pushnullhandle(j, "unitstate");
 }
-DWORD GetEventDamage(LPJASS j) {
-    return jass_pushnumber(j, (FLOAT)jass_getcontext(j)->eventValue);
+uint32_t GetEventDamage(LPJASS j) {
+    return jass_pushnumber(j, (float)jass_getcontext(j)->eventValue);
 }
-DWORD GetEventDamageSource(LPJASS j) {
+uint32_t GetEventDamageSource(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->source, "unit");
 }
-DWORD GetObjectName(LPJASS j) {
-    LONG objectId = jass_checkinteger(j, 1);
-    return jass_pushstring(j, G_ObjectName((DWORD)objectId));
+uint32_t GetObjectName(LPJASS j) {
+    int32_t objectId = jass_checkinteger(j, 1);
+    return jass_pushstring(j, G_ObjectName((uint32_t)objectId));
 }
-DWORD GetSellingUnit(LPJASS j) {
+uint32_t GetSellingUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetBuyingUnit(LPJASS j) {
+uint32_t GetBuyingUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->source, "unit");
 }
-DWORD GetSoldUnit(LPJASS j) {
+uint32_t GetSoldUnit(LPJASS j) {
     return jass_pushlighthandle(j, eventsoldunit, "unit");
 }
-DWORD GetSoldItem(LPJASS j) {
+uint32_t GetSoldItem(LPJASS j) {
     return jass_pushlighthandle(j, eventsolditem, "item");
 }
-DWORD StringLength(LPJASS j) {
-    LPCSTR s = jass_checkstring(j, 1);
-    return jass_pushinteger(j, s ? (LONG)strlen(s) : 0);
+uint32_t StringLength(LPJASS j) {
+    cstring_t s = jass_checkstring(j, 1);
+    return jass_pushinteger(j, s ? (int32_t)strlen(s) : 0);
 }
-DWORD StringCase(LPJASS j) {
-    LPCSTR source = jass_checkstring(j, 1);
-    BOOL upper = jass_checkboolean(j, 2);
+uint32_t StringCase(LPJASS j) {
+    cstring_t source = jass_checkstring(j, 1);
+    bool upper = jass_checkboolean(j, 2);
     char buf[1024];
-    DWORD i, n;
+    uint32_t i, n;
     if (!source) return jass_pushstring(j, "");
-    n = (DWORD)strlen(source);
+    n = (uint32_t)strlen(source);
     if (n >= sizeof(buf)) n = sizeof(buf) - 1;
     for (i = 0; i < n; i++) {
         unsigned char c = (unsigned char)source[i];
@@ -788,67 +788,67 @@ DWORD StringCase(LPJASS j) {
     buf[n] = '\0';
     return jass_pushstring(j, buf);
 }
-DWORD GetEventDetectingPlayer(LPJASS j) {
+uint32_t GetEventDetectingPlayer(LPJASS j) {
     return jass_pushnullhandle(j, "player");
 }
-DWORD GetEventTargetUnit(LPJASS j) {
+uint32_t GetEventTargetUnit(LPJASS j) {
     return jass_pushlighthandle(j, jass_getcontext(j)->unit, "unit");
 }
-DWORD GetWidgetLife(LPJASS j) {
+uint32_t GetWidgetLife(LPJASS j) {
     LPEDICT whichWidget = jass_checkhandle(j, 1, "widget");
     return jass_pushnumber(j, whichWidget ? whichWidget->health.value : 0);
 }
-DWORD SetWidgetLife(LPJASS j) {
+uint32_t SetWidgetLife(LPJASS j) {
     LPEDICT whichWidget = jass_checkhandle(j, 1, "widget");
-    FLOAT newLife = jass_checknumber(j, 2);
+    float newLife = jass_checknumber(j, 2);
     if (whichWidget) {
-        BOOL const was_dead = M_IsDead(whichWidget);
+        bool const was_dead = M_IsDead(whichWidget);
         G_SetHealth(whichWidget, newLife);
         if ((whichWidget->s.flags & EF_FOW_BLOCKER) && was_dead != M_IsDead(whichWidget)) G_FowMarkBlockersDirty();
     }
     return 0;
 }
-DWORD GetWidgetX(LPJASS j) {
+uint32_t GetWidgetX(LPJASS j) {
     LPEDICT whichWidget = jass_checkhandle(j, 1, "widget");
     return jass_pushnumber(j, whichWidget ? whichWidget->s.origin.x : 0);
 }
-DWORD GetWidgetY(LPJASS j) {
+uint32_t GetWidgetY(LPJASS j) {
     LPEDICT whichWidget = jass_checkhandle(j, 1, "widget");
     return jass_pushnumber(j, whichWidget ? whichWidget->s.origin.y : 0);
 }
-DWORD GetFoodMade(LPJASS j) {
-    LONG unitId = jass_checkinteger(j, 1);
-    UnitBalance_t const *balance = G_UnitBalance((DWORD)unitId);
+uint32_t GetFoodMade(LPJASS j) {
+    int32_t unitId = jass_checkinteger(j, 1);
+    UnitBalance_t const *balance = G_UnitBalance((uint32_t)unitId);
     return jass_pushinteger(j, balance ? balance->foodMade : 0);
 }
-DWORD GetFoodUsed(LPJASS j) {
-    LONG unitId = jass_checkinteger(j, 1);
-    UnitBalance_t const *balance = G_UnitBalance((DWORD)unitId);
+uint32_t GetFoodUsed(LPJASS j) {
+    int32_t unitId = jass_checkinteger(j, 1);
+    UnitBalance_t const *balance = G_UnitBalance((uint32_t)unitId);
     return jass_pushinteger(j, balance ? balance->foodUsed : 0);
 }
 
-DWORD EndGame(LPJASS j) {
-    BOOL doScoreScreen = jass_checkboolean(j, 1);
+uint32_t EndGame(LPJASS j) {
+    bool doScoreScreen = jass_checkboolean(j, 1);
     G_RequestEndGame(doScoreScreen);
     return 0;
 }
-DWORD ChangeLevel(LPJASS j) {
-    LPCSTR newLevel = jass_checkstring(j, 1);
-    BOOL doScoreScreen = jass_checkboolean(j, 2);
+uint32_t ChangeLevel(LPJASS j) {
+    cstring_t newLevel = jass_checkstring(j, 1);
+    bool doScoreScreen = jass_checkboolean(j, 2);
     G_RequestChangeLevel(newLevel, doScoreScreen);
     return 0;
 }
-DWORD RestartGame(LPJASS j) {
-    BOOL doScoreScreen = jass_checkboolean(j, 1);
+uint32_t RestartGame(LPJASS j) {
+    bool doScoreScreen = jass_checkboolean(j, 1);
     G_RequestRestartGame(doScoreScreen);
     return 0;
 }
-DWORD ReloadGame(LPJASS j) {
+uint32_t ReloadGame(LPJASS j) {
     return 0;
 }
-DWORD DoNotSaveReplay(LPJASS j) { /* TODO: replay recording not yet implemented */ return 0; }
-DWORD SaveGame(LPJASS j) {
-    LPCSTR name = jass_checkstring(j, 1);
+uint32_t DoNotSaveReplay(LPJASS j) { /* TODO: replay recording not yet implemented */ return 0; }
+uint32_t SaveGame(LPJASS j) {
+    cstring_t name = jass_checkstring(j, 1);
     PATHSTR path;
 
     if (!name || !*name || strchr(name, '/') || strchr(name, '\\') || !gi.SavePath) {
@@ -859,8 +859,8 @@ DWORD SaveGame(LPJASS j) {
     if (!WriteGame(path)) fprintf(stderr, "WC3 SaveGame: could not write %s\n", path);
     return 0;
 }
-DWORD LoadGame(LPJASS j) {
-    LPCSTR name = jass_checkstring(j, 1);
+uint32_t LoadGame(LPJASS j) {
+    cstring_t name = jass_checkstring(j, 1);
     PATHSTR path;
 
     if (!name || !*name || strchr(name, '/') || strchr(name, '\\') || !gi.SavePath) {
@@ -871,13 +871,13 @@ DWORD LoadGame(LPJASS j) {
     if (!ReadGame(path)) fprintf(stderr, "WC3 LoadGame: could not read %s\n", path);
     return 0;
 }
-DWORD SetCampaignMenuRace(LPJASS j) {
-    //HANDLE r = jass_checkhandle(j, 1, "race");
+uint32_t SetCampaignMenuRace(LPJASS j) {
+    //handle_t r = jass_checkhandle(j, 1, "race");
     return 0;
 }
-static BOOL creep_camp_filter_state = true;
+static bool creep_camp_filter_state = true;
 
-static void set_minimap_ally_color_state(USHORT value) {
+static void set_minimap_ally_color_state(uint16_t value) {
     if (currentplayer) {
         currentplayer->stats[WC3_PLAYERSTAT_MINIMAP_ALLY_COLOR] = value;
         return;
@@ -886,435 +886,435 @@ static void set_minimap_ally_color_state(USHORT value) {
         game.clients[i].ps.stats[WC3_PLAYERSTAT_MINIMAP_ALLY_COLOR] = value;
 }
 
-DWORD GetAllyColorFilterState(LPJASS j) {
-    LONG const state = currentplayer ? currentplayer->stats[WC3_PLAYERSTAT_MINIMAP_ALLY_COLOR]
+uint32_t GetAllyColorFilterState(LPJASS j) {
+    int32_t const state = currentplayer ? currentplayer->stats[WC3_PLAYERSTAT_MINIMAP_ALLY_COLOR]
                                      : game.max_clients ? game.clients[0].ps.stats[WC3_PLAYERSTAT_MINIMAP_ALLY_COLOR]
                                                         : WC3_MINIMAP_ALLY_COLOR_PLAYERS;
     return jass_pushinteger(j, state);
 }
-DWORD SetAllyColorFilterState(LPJASS j) {
-    LONG state = jass_checkinteger(j, 1);
+uint32_t SetAllyColorFilterState(LPJASS j) {
+    int32_t state = jass_checkinteger(j, 1);
     state = MAX(WC3_MINIMAP_ALLY_COLOR_PLAYERS, MIN(state, WC3_MINIMAP_ALLY_COLOR_WORLD));
-    set_minimap_ally_color_state((USHORT)state);
+    set_minimap_ally_color_state((uint16_t)state);
     return 0;
 }
-DWORD GetCreepCampFilterState(LPJASS j) { (void)j; return jass_pushboolean(j, creep_camp_filter_state); }
-DWORD SetCreepCampFilterState(LPJASS j) { creep_camp_filter_state = jass_checkboolean(j, 1); return 0; }
-DWORD EnableMinimapFilterButtons(LPJASS j) { (void)jass_checkboolean(j, 1); (void)jass_checkboolean(j, 2); return 0; }
-DWORD EnableDragSelect(LPJASS j) { (void)jass_checkboolean(j, 1); (void)jass_checkboolean(j, 2); return 0; }
-DWORD EnablePreSelect(LPJASS j) { (void)jass_checkboolean(j, 1); (void)jass_checkboolean(j, 2); return 0; }
-DWORD EnableSelect(LPJASS j) { (void)jass_checkboolean(j, 1); (void)jass_checkboolean(j, 2); return 0; }
-DWORD SetReservedLocalHeroButtons(LPJASS j) { (void)jass_checkinteger(j, 1); return 0; }
-DWORD CopySaveGame(LPJASS j) {
+uint32_t GetCreepCampFilterState(LPJASS j) { (void)j; return jass_pushboolean(j, creep_camp_filter_state); }
+uint32_t SetCreepCampFilterState(LPJASS j) { creep_camp_filter_state = jass_checkboolean(j, 1); return 0; }
+uint32_t EnableMinimapFilterButtons(LPJASS j) { (void)jass_checkboolean(j, 1); (void)jass_checkboolean(j, 2); return 0; }
+uint32_t EnableDragSelect(LPJASS j) { (void)jass_checkboolean(j, 1); (void)jass_checkboolean(j, 2); return 0; }
+uint32_t EnablePreSelect(LPJASS j) { (void)jass_checkboolean(j, 1); (void)jass_checkboolean(j, 2); return 0; }
+uint32_t EnableSelect(LPJASS j) { (void)jass_checkboolean(j, 1); (void)jass_checkboolean(j, 2); return 0; }
+uint32_t SetReservedLocalHeroButtons(LPJASS j) { (void)jass_checkinteger(j, 1); return 0; }
+uint32_t CopySaveGame(LPJASS j) {
     (void)jass_checkstring(j, 1);
     (void)jass_checkstring(j, 2);
     return jass_pushboolean(j, false); /* PMV Lua bridge; no save-file copy */
 }
-DWORD GetTerrainType(LPJASS j) { (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); return jass_pushinteger(j, 0); }
-DWORD GetTerrainVariance(LPJASS j) { (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); return jass_pushinteger(j, 0); }
-DWORD IsPointBlighted(LPJASS j) {
+uint32_t GetTerrainType(LPJASS j) { (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); return jass_pushinteger(j, 0); }
+uint32_t GetTerrainVariance(LPJASS j) { (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); return jass_pushinteger(j, 0); }
+uint32_t IsPointBlighted(LPJASS j) {
     VECTOR2 point = { jass_checknumber(j, 1), jass_checknumber(j, 2) };
     return jass_pushboolean(j, G_IsPointBlighted(&point));
 }
-DWORD IsTerrainPathable(LPJASS j) {
+uint32_t IsTerrainPathable(LPJASS j) {
     (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); (void)jass_checkhandle(j, 3, "pathingtype");
     return jass_pushboolean(j, true);
 }
-DWORD SetTerrainPathable(LPJASS j) {
+uint32_t SetTerrainPathable(LPJASS j) {
     (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); (void)jass_checkhandle(j, 3, "pathingtype");
     (void)jass_checkboolean(j, 4);
     return 0;
 }
-DWORD TerrainDeformRipple(LPJASS j) {
+uint32_t TerrainDeformRipple(LPJASS j) {
     (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); (void)jass_checknumber(j, 3); (void)jass_checknumber(j, 4);
     (void)jass_checkinteger(j, 5); (void)jass_checkinteger(j, 6);
     (void)jass_checknumber(j, 7); (void)jass_checknumber(j, 8); (void)jass_checknumber(j, 9);
     (void)jass_checkboolean(j, 10);
     return jass_pushnullhandle(j, "terraindeformation");
 }
-DWORD SetCampaignMenuRaceEx(LPJASS j) {
-    //LONG campaignIndex = jass_checkinteger(j, 1); /* TODO: wire to campaign UI */
+uint32_t SetCampaignMenuRaceEx(LPJASS j) {
+    //int32_t campaignIndex = jass_checkinteger(j, 1); /* TODO: wire to campaign UI */
     return 0;
 }
-DWORD ForceCampaignSelectScreen(LPJASS j) {
+uint32_t ForceCampaignSelectScreen(LPJASS j) {
     G_RequestCampaignSelect();
     return 0;
 }
-DWORD SyncSelections(LPJASS j) {
+uint32_t SyncSelections(LPJASS j) {
     return 0;
 }
-DWORD SetFloatGameState(LPJASS j) {
-    LPDWORD whichFloatGameState = jass_checkhandle(j, 1, "fgamestate");
-    FLOAT value = jass_checknumber(j, 2);
+uint32_t SetFloatGameState(LPJASS j) {
+    uint32_t * whichFloatGameState = jass_checkhandle(j, 1, "fgamestate");
+    float value = jass_checknumber(j, 2);
     if (whichFloatGameState && *whichFloatGameState == WC3_GAME_STATE_TIME_OF_DAY)
         G_SetTimeOfDay(value);
     return 0;
 }
-DWORD GetFloatGameState(LPJASS j) {
-    LPDWORD whichFloatGameState = jass_checkhandle(j, 1, "fgamestate");
+uint32_t GetFloatGameState(LPJASS j) {
+    uint32_t * whichFloatGameState = jass_checkhandle(j, 1, "fgamestate");
     if (whichFloatGameState && *whichFloatGameState == WC3_GAME_STATE_TIME_OF_DAY)
         return jass_pushnumber(j, G_GetTimeOfDay());
     return jass_pushnumber(j, 0);
 }
-DWORD SetIntegerGameState(LPJASS j) {
-    //HANDLE whichIntegerGameState = jass_checkhandle(j, 1, "igamestate");
-    //LONG value = jass_checkinteger(j, 2);
+uint32_t SetIntegerGameState(LPJASS j) {
+    //handle_t whichIntegerGameState = jass_checkhandle(j, 1, "igamestate");
+    //int32_t value = jass_checkinteger(j, 2);
     return 0;
 }
-DWORD GetIntegerGameState(LPJASS j) {
-    //HANDLE whichIntegerGameState = jass_checkhandle(j, 1, "igamestate");
+uint32_t GetIntegerGameState(LPJASS j) {
+    //handle_t whichIntegerGameState = jass_checkhandle(j, 1, "igamestate");
     return jass_pushinteger(j, 0);
 }
-DWORD SetTutorialCleared(LPJASS j) {
-    BOOL cleared = jass_checkboolean(j, 1);
+uint32_t SetTutorialCleared(LPJASS j) {
+    bool cleared = jass_checkboolean(j, 1);
     G_CampaignProgressSetTutorialCleared(cleared);
     return 0;
 }
-DWORD SetMissionAvailable(LPJASS j) {
-    LONG campaignNumber = jass_checkinteger(j, 1);
-    LONG missionNumber = jass_checkinteger(j, 2);
-    BOOL available = jass_checkboolean(j, 3);
+uint32_t SetMissionAvailable(LPJASS j) {
+    int32_t campaignNumber = jass_checkinteger(j, 1);
+    int32_t missionNumber = jass_checkinteger(j, 2);
+    bool available = jass_checkboolean(j, 3);
     G_CampaignProgressSetMissionAvailable(campaignNumber, missionNumber, available);
     return 0;
 }
-DWORD SetCampaignAvailable(LPJASS j) {
-    LONG campaignNumber = jass_checkinteger(j, 1);
-    BOOL available = jass_checkboolean(j, 2);
+uint32_t SetCampaignAvailable(LPJASS j) {
+    int32_t campaignNumber = jass_checkinteger(j, 1);
+    bool available = jass_checkboolean(j, 2);
     G_CampaignProgressSetCampaignAvailable(campaignNumber, available);
     return 0;
 }
-DWORD SetOpCinematicAvailable(LPJASS j) {
-    //LONG campaignNumber = jass_checkinteger(j, 1);
-    //BOOL available = jass_checkboolean(j, 2);
+uint32_t SetOpCinematicAvailable(LPJASS j) {
+    //int32_t campaignNumber = jass_checkinteger(j, 1);
+    //bool available = jass_checkboolean(j, 2);
     return 0;
 }
-DWORD SetEdCinematicAvailable(LPJASS j) {
-    //LONG campaignNumber = jass_checkinteger(j, 1);
-    //BOOL available = jass_checkboolean(j, 2);
+uint32_t SetEdCinematicAvailable(LPJASS j) {
+    //int32_t campaignNumber = jass_checkinteger(j, 1);
+    //bool available = jass_checkboolean(j, 2);
     return 0;
 }
-DWORD GetDefaultDifficulty(LPJASS j) {
+uint32_t GetDefaultDifficulty(LPJASS j) {
     return JassPushGameDifficultyHandle(j, level.setup.default_difficulty);
 }
-DWORD SetDefaultDifficulty(LPJASS j) {
-    DWORD *difficulty = jass_checkhandle(j, 1, "gamedifficulty");
+uint32_t SetDefaultDifficulty(LPJASS j) {
+    uint32_t *difficulty = jass_checkhandle(j, 1, "gamedifficulty");
     if (difficulty) level.setup.default_difficulty = MIN(*difficulty, 3);
     return 0;
 }
-DWORD DialogCreate(LPJASS j) {
+uint32_t DialogCreate(LPJASS j) {
     return jass_pushnullhandle(j, "dialog");
 }
-DWORD DialogDestroy(LPJASS j) {
-    //HANDLE whichDialog = jass_checkhandle(j, 1, "dialog");
+uint32_t DialogDestroy(LPJASS j) {
+    //handle_t whichDialog = jass_checkhandle(j, 1, "dialog");
     return 0;
 }
-DWORD DialogSetAsync(LPJASS j) {
-    //HANDLE whichDialog = jass_checkhandle(j, 1, "dialog");
+uint32_t DialogSetAsync(LPJASS j) {
+    //handle_t whichDialog = jass_checkhandle(j, 1, "dialog");
     return 0;
 }
-DWORD DialogClear(LPJASS j) {
-    //HANDLE whichDialog = jass_checkhandle(j, 1, "dialog");
+uint32_t DialogClear(LPJASS j) {
+    //handle_t whichDialog = jass_checkhandle(j, 1, "dialog");
     return 0;
 }
-DWORD DialogSetMessage(LPJASS j) {
-    //HANDLE whichDialog = jass_checkhandle(j, 1, "dialog");
-    //LPCSTR messageText = jass_checkstring(j, 2);
+uint32_t DialogSetMessage(LPJASS j) {
+    //handle_t whichDialog = jass_checkhandle(j, 1, "dialog");
+    //cstring_t messageText = jass_checkstring(j, 2);
     return 0;
 }
-DWORD DialogAddButton(LPJASS j) {
-    //HANDLE whichDialog = jass_checkhandle(j, 1, "dialog");
-    //LPCSTR buttonText = jass_checkstring(j, 2);
-    //LONG hotkey = jass_checkinteger(j, 3);
+uint32_t DialogAddButton(LPJASS j) {
+    //handle_t whichDialog = jass_checkhandle(j, 1, "dialog");
+    //cstring_t buttonText = jass_checkstring(j, 2);
+    //int32_t hotkey = jass_checkinteger(j, 3);
     return jass_pushnullhandle(j, "button");
 }
-DWORD DialogDisplay(LPJASS j) {
+uint32_t DialogDisplay(LPJASS j) {
     //LPPLAYER whichPlayer = jass_checkhandle(j, 1, "player");
-    //HANDLE whichDialog = jass_checkhandle(j, 2, "dialog");
-    //BOOL flag = jass_checkboolean(j, 3);
+    //handle_t whichDialog = jass_checkhandle(j, 2, "dialog");
+    //bool flag = jass_checkboolean(j, 3);
     return 0;
 }
-DWORD InitGameCache(LPJASS j) {
+uint32_t InitGameCache(LPJASS j) {
     API_ALLOC(ggamecache_t, gamecache);
     G_GameCacheInit(gamecache, jass_checkstring(j, 1));
     return 1;
 }
-DWORD SaveGameCache(LPJASS j) {
+uint32_t SaveGameCache(LPJASS j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
     return jass_pushboolean(j, G_GameCacheSave(cache));
 }
-DWORD StoreInteger(LPJASS j) {
+uint32_t StoreInteger(LPJASS j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
     G_GameCacheStoreInteger(cache, jass_checkstring(j, 2), jass_checkstring(j, 3), jass_checkinteger(j, 4));
     return 0;
 }
-DWORD StoreReal(LPJASS j) {
+uint32_t StoreReal(LPJASS j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
     G_GameCacheStoreReal(cache, jass_checkstring(j, 2), jass_checkstring(j, 3), jass_checknumber(j, 4));
     return 0;
 }
-DWORD StoreBoolean(LPJASS j) {
+uint32_t StoreBoolean(LPJASS j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
     G_GameCacheStoreBoolean(cache, jass_checkstring(j, 2), jass_checkstring(j, 3), jass_checkboolean(j, 4));
     return 0;
 }
-DWORD StoreUnit(LPJASS j) {
+uint32_t StoreUnit(LPJASS j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
     LPEDICT unit = jass_checkhandle(j, 4, "unit");
     return jass_pushboolean(j, G_GameCacheStoreUnit(cache, jass_checkstring(j, 2), jass_checkstring(j, 3), unit));
 }
-DWORD StoreString(LPJASS j) {
+uint32_t StoreString(LPJASS j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
     return jass_pushboolean(j, G_GameCacheStoreString(cache, jass_checkstring(j, 2), jass_checkstring(j, 3), jass_checkstring(j, 4)));
 }
-DWORD SyncStoredInteger(LPJASS j) {
+uint32_t SyncStoredInteger(LPJASS j) {
     (void)jass_checkhandle(j, 1, "gamecache");
     (void)jass_checkstring(j, 2);
     (void)jass_checkstring(j, 3);
     return 0;
 }
-DWORD SyncStoredReal(LPJASS j) {
+uint32_t SyncStoredReal(LPJASS j) {
     (void)jass_checkhandle(j, 1, "gamecache");
     (void)jass_checkstring(j, 2);
     (void)jass_checkstring(j, 3);
     return 0;
 }
-DWORD SyncStoredBoolean(LPJASS j) {
+uint32_t SyncStoredBoolean(LPJASS j) {
     (void)jass_checkhandle(j, 1, "gamecache");
     (void)jass_checkstring(j, 2);
     (void)jass_checkstring(j, 3);
     return 0;
 }
-DWORD SyncStoredUnit(LPJASS j) {
+uint32_t SyncStoredUnit(LPJASS j) {
     (void)jass_checkhandle(j, 1, "gamecache");
     (void)jass_checkstring(j, 2);
     (void)jass_checkstring(j, 3);
     return 0;
 }
-DWORD SyncStoredString(LPJASS j) {
+uint32_t SyncStoredString(LPJASS j) {
     (void)jass_checkhandle(j, 1, "gamecache");
     (void)jass_checkstring(j, 2);
     (void)jass_checkstring(j, 3);
     return 0;
 }
-DWORD HaveStoredInteger(LPJASS j) {
+uint32_t HaveStoredInteger(LPJASS j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
     return jass_pushboolean(j, G_GameCacheHave(cache, jass_checkstring(j, 2), jass_checkstring(j, 3), GAMECACHE_INTEGER));
 }
-DWORD HaveStoredReal(LPJASS j) {
+uint32_t HaveStoredReal(LPJASS j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
     return jass_pushboolean(j, G_GameCacheHave(cache, jass_checkstring(j, 2), jass_checkstring(j, 3), GAMECACHE_REAL));
 }
-DWORD HaveStoredBoolean(LPJASS j) {
+uint32_t HaveStoredBoolean(LPJASS j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
     return jass_pushboolean(j, G_GameCacheHave(cache, jass_checkstring(j, 2), jass_checkstring(j, 3), GAMECACHE_BOOLEAN));
 }
-DWORD HaveStoredUnit(LPJASS j) {
+uint32_t HaveStoredUnit(LPJASS j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
     return jass_pushboolean(j, G_GameCacheHave(cache, jass_checkstring(j, 2), jass_checkstring(j, 3), GAMECACHE_UNIT));
 }
-DWORD HaveStoredString(LPJASS j) {
+uint32_t HaveStoredString(LPJASS j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
     return jass_pushboolean(j, G_GameCacheHave(cache, jass_checkstring(j, 2), jass_checkstring(j, 3), GAMECACHE_STRING));
 }
-DWORD FlushGameCache(LPJASS j) {
+uint32_t FlushGameCache(LPJASS j) {
     G_GameCacheFlush(jass_checkhandle(j, 1, "gamecache"));
     return 0;
 }
-DWORD FlushStoredMission(LPJASS j) {
+uint32_t FlushStoredMission(LPJASS j) {
     G_GameCacheFlushMission(jass_checkhandle(j, 1, "gamecache"), jass_checkstring(j, 2));
     return 0;
 }
-DWORD FlushStoredInteger(LPJASS j) {
+uint32_t FlushStoredInteger(LPJASS j) {
     G_GameCacheFlushEntry(jass_checkhandle(j, 1, "gamecache"), jass_checkstring(j, 2), jass_checkstring(j, 3), GAMECACHE_INTEGER);
     return 0;
 }
-DWORD FlushStoredReal(LPJASS j) {
+uint32_t FlushStoredReal(LPJASS j) {
     G_GameCacheFlushEntry(jass_checkhandle(j, 1, "gamecache"), jass_checkstring(j, 2), jass_checkstring(j, 3), GAMECACHE_REAL);
     return 0;
 }
-DWORD FlushStoredBoolean(LPJASS j) {
+uint32_t FlushStoredBoolean(LPJASS j) {
     G_GameCacheFlushEntry(jass_checkhandle(j, 1, "gamecache"), jass_checkstring(j, 2), jass_checkstring(j, 3), GAMECACHE_BOOLEAN);
     return 0;
 }
-DWORD FlushStoredUnit(LPJASS j) {
+uint32_t FlushStoredUnit(LPJASS j) {
     G_GameCacheFlushEntry(jass_checkhandle(j, 1, "gamecache"), jass_checkstring(j, 2), jass_checkstring(j, 3), GAMECACHE_UNIT);
     return 0;
 }
-DWORD FlushStoredString(LPJASS j) {
+uint32_t FlushStoredString(LPJASS j) {
     G_GameCacheFlushEntry(jass_checkhandle(j, 1, "gamecache"), jass_checkstring(j, 2), jass_checkstring(j, 3), GAMECACHE_STRING);
     return 0;
 }
-DWORD GetStoredInteger(LPJASS j) {
+uint32_t GetStoredInteger(LPJASS j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
     return jass_pushinteger(j, G_GameCacheGetInteger(cache, jass_checkstring(j, 2), jass_checkstring(j, 3)));
 }
-DWORD GetStoredReal(LPJASS j) {
+uint32_t GetStoredReal(LPJASS j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
     return jass_pushnumber(j, G_GameCacheGetReal(cache, jass_checkstring(j, 2), jass_checkstring(j, 3)));
 }
-DWORD GetStoredBoolean(LPJASS j) {
+uint32_t GetStoredBoolean(LPJASS j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
     return jass_pushboolean(j, G_GameCacheGetBoolean(cache, jass_checkstring(j, 2), jass_checkstring(j, 3)));
 }
-DWORD GetStoredString(LPJASS j) {
+uint32_t GetStoredString(LPJASS j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
     return jass_pushstring(j, G_GameCacheGetString(cache, jass_checkstring(j, 2), jass_checkstring(j, 3)));
 }
-DWORD RestoreUnit(LPJASS j) {
+uint32_t RestoreUnit(LPJASS j) {
     ggamecache_t *cache = jass_checkhandle(j, 1, "gamecache");
-    LPCSTR mission = jass_checkstring(j, 2);
-    LPCSTR key = jass_checkstring(j, 3);
+    cstring_t mission = jass_checkstring(j, 2);
+    cstring_t key = jass_checkstring(j, 3);
     LPPLAYER player = jass_checkhandle(j, 4, "player");
     VECTOR2 location = { jass_checknumber(j, 5), jass_checknumber(j, 6) };
-    FLOAT facing = jass_checknumber(j, 7);
+    float facing = jass_checknumber(j, 7);
     LPEDICT unit;
 
     if (!cache || !player) return jass_pushnullhandle(j, "unit");
     unit = G_GameCacheRestoreUnit(cache, mission, key, PLAYER_NUM(player), &location, facing);
     return unit ? jass_pushlighthandle(j, unit, "unit") : jass_pushnullhandle(j, "unit");
 }
-DWORD GetRandomInt(LPJASS j) {
-    LONG lowBound = jass_checkinteger(j, 1);
-    LONG highBound = jass_checkinteger(j, 2);
+uint32_t GetRandomInt(LPJASS j) {
+    int32_t lowBound = jass_checkinteger(j, 1);
+    int32_t highBound = jass_checkinteger(j, 2);
     if (lowBound >= highBound) return jass_pushinteger(j, lowBound);
     return jass_pushinteger(j, lowBound + rand() % (highBound - lowBound + 1));
 }
-DWORD GetRandomReal(LPJASS j) {
-    FLOAT lowBound = jass_checknumber(j, 1);
-    FLOAT highBound = jass_checknumber(j, 2);
+uint32_t GetRandomReal(LPJASS j) {
+    float lowBound = jass_checknumber(j, 1);
+    float highBound = jass_checknumber(j, 2);
     if (lowBound >= highBound) return jass_pushnumber(j, lowBound);
-    FLOAT t = (FLOAT)rand() / (FLOAT)RAND_MAX;
+    float t = (float)rand() / (float)RAND_MAX;
     return jass_pushnumber(j, lowBound + t * (highBound - lowBound));
 }
-DWORD CreateUnitPool(LPJASS j) {
+uint32_t CreateUnitPool(LPJASS j) {
     return jass_pushnullhandle(j, "unitpool");
 }
-DWORD DestroyUnitPool(LPJASS j) {
-    //HANDLE whichPool = jass_checkhandle(j, 1, "unitpool");
+uint32_t DestroyUnitPool(LPJASS j) {
+    //handle_t whichPool = jass_checkhandle(j, 1, "unitpool");
     return 0;
 }
-DWORD UnitPoolAddUnitType(LPJASS j) {
-    //HANDLE whichPool = jass_checkhandle(j, 1, "unitpool");
-    //LONG unitId = jass_checkinteger(j, 2);
-    //FLOAT weight = jass_checknumber(j, 3);
+uint32_t UnitPoolAddUnitType(LPJASS j) {
+    //handle_t whichPool = jass_checkhandle(j, 1, "unitpool");
+    //int32_t unitId = jass_checkinteger(j, 2);
+    //float weight = jass_checknumber(j, 3);
     return 0;
 }
-DWORD UnitPoolRemoveUnitType(LPJASS j) {
-    //HANDLE whichPool = jass_checkhandle(j, 1, "unitpool");
-    //LONG unitId = jass_checkinteger(j, 2);
+uint32_t UnitPoolRemoveUnitType(LPJASS j) {
+    //handle_t whichPool = jass_checkhandle(j, 1, "unitpool");
+    //int32_t unitId = jass_checkinteger(j, 2);
     return 0;
 }
-DWORD PlaceRandomUnit(LPJASS j) {
-    //HANDLE whichPool = jass_checkhandle(j, 1, "unitpool");
+uint32_t PlaceRandomUnit(LPJASS j) {
+    //handle_t whichPool = jass_checkhandle(j, 1, "unitpool");
     //LPMAPPLAYER forWhichPlayer = jass_checkhandle(j, 2, "player");
-    //FLOAT x = jass_checknumber(j, 3);
-    //FLOAT y = jass_checknumber(j, 4);
-    //FLOAT facing = jass_checknumber(j, 5);
+    //float x = jass_checknumber(j, 3);
+    //float y = jass_checknumber(j, 4);
+    //float facing = jass_checknumber(j, 5);
     return jass_pushnullhandle(j, "unit");
 }
-DWORD CreateItemPool(LPJASS j) {
+uint32_t CreateItemPool(LPJASS j) {
     return jass_pushnullhandle(j, "itempool");
 }
-DWORD DestroyItemPool(LPJASS j) {
-    //HANDLE whichItemPool = jass_checkhandle(j, 1, "itempool");
+uint32_t DestroyItemPool(LPJASS j) {
+    //handle_t whichItemPool = jass_checkhandle(j, 1, "itempool");
     return 0;
 }
-DWORD ItemPoolAddItemType(LPJASS j) {
-    //HANDLE whichItemPool = jass_checkhandle(j, 1, "itempool");
-    //LONG itemId = jass_checkinteger(j, 2);
-    //FLOAT weight = jass_checknumber(j, 3);
+uint32_t ItemPoolAddItemType(LPJASS j) {
+    //handle_t whichItemPool = jass_checkhandle(j, 1, "itempool");
+    //int32_t itemId = jass_checkinteger(j, 2);
+    //float weight = jass_checknumber(j, 3);
     return 0;
 }
-DWORD ItemPoolRemoveItemType(LPJASS j) {
-    //HANDLE whichItemPool = jass_checkhandle(j, 1, "itempool");
-    //LONG itemId = jass_checkinteger(j, 2);
+uint32_t ItemPoolRemoveItemType(LPJASS j) {
+    //handle_t whichItemPool = jass_checkhandle(j, 1, "itempool");
+    //int32_t itemId = jass_checkinteger(j, 2);
     return 0;
 }
-DWORD PlaceRandomItem(LPJASS j) {
-    //HANDLE whichItemPool = jass_checkhandle(j, 1, "itempool");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
+uint32_t PlaceRandomItem(LPJASS j) {
+    //handle_t whichItemPool = jass_checkhandle(j, 1, "itempool");
+    //float x = jass_checknumber(j, 2);
+    //float y = jass_checknumber(j, 3);
     return jass_pushnullhandle(j, "item");
 }
-DWORD ChooseRandomCreep(LPJASS j) {
-    //LONG level = jass_checkinteger(j, 1);
+uint32_t ChooseRandomCreep(LPJASS j) {
+    //int32_t level = jass_checkinteger(j, 1);
     return jass_pushinteger(j, 0);
 }
-DWORD ChooseRandomNPBuilding(LPJASS j) {
+uint32_t ChooseRandomNPBuilding(LPJASS j) {
     return jass_pushinteger(j, 0);
 }
 
-DWORD SetAllItemTypeSlots(LPJASS j) {
+uint32_t SetAllItemTypeSlots(LPJASS j) {
     G_SetAllStockSlots(true, jass_checkinteger(j, 1));
     return 0;
 }
 
-DWORD SetAllUnitTypeSlots(LPJASS j) {
+uint32_t SetAllUnitTypeSlots(LPJASS j) {
     G_SetAllStockSlots(false, jass_checkinteger(j, 1));
     return 0;
 }
 
-DWORD SetItemTypeSlots(LPJASS j) {
+uint32_t SetItemTypeSlots(LPJASS j) {
     G_SetStockSlots(jass_checkhandle(j, 1, "unit"), true, jass_checkinteger(j, 2));
     return 0;
 }
 
-DWORD SetUnitTypeSlots(LPJASS j) {
+uint32_t SetUnitTypeSlots(LPJASS j) {
     G_SetStockSlots(jass_checkhandle(j, 1, "unit"), false, jass_checkinteger(j, 2));
     return 0;
 }
 
-DWORD AddItemToStock(LPJASS j) {
-    G_AddItemStock(jass_checkhandle(j, 1, "unit"), (DWORD)jass_checkinteger(j, 2),
+uint32_t AddItemToStock(LPJASS j) {
+    G_AddItemStock(jass_checkhandle(j, 1, "unit"), (uint32_t)jass_checkinteger(j, 2),
                    jass_checkinteger(j, 3), jass_checkinteger(j, 4));
     return 0;
 }
 
-DWORD AddItemToAllStock(LPJASS j) {
-    G_AddItemStockAll((DWORD)jass_checkinteger(j, 1), jass_checkinteger(j, 2), jass_checkinteger(j, 3));
+uint32_t AddItemToAllStock(LPJASS j) {
+    G_AddItemStockAll((uint32_t)jass_checkinteger(j, 1), jass_checkinteger(j, 2), jass_checkinteger(j, 3));
     return 0;
 }
 
-DWORD RemoveItemFromStock(LPJASS j) {
-    G_RemoveItemStock(jass_checkhandle(j, 1, "unit"), (DWORD)jass_checkinteger(j, 2));
+uint32_t RemoveItemFromStock(LPJASS j) {
+    G_RemoveItemStock(jass_checkhandle(j, 1, "unit"), (uint32_t)jass_checkinteger(j, 2));
     return 0;
 }
 
-DWORD RemoveItemFromAllStock(LPJASS j) {
-    G_RemoveItemStockAll((DWORD)jass_checkinteger(j, 1));
+uint32_t RemoveItemFromAllStock(LPJASS j) {
+    G_RemoveItemStockAll((uint32_t)jass_checkinteger(j, 1));
     return 0;
 }
 
-DWORD AddUnitToStock(LPJASS j) {
-    G_AddUnitStock(jass_checkhandle(j, 1, "unit"), (DWORD)jass_checkinteger(j, 2),
+uint32_t AddUnitToStock(LPJASS j) {
+    G_AddUnitStock(jass_checkhandle(j, 1, "unit"), (uint32_t)jass_checkinteger(j, 2),
                    jass_checkinteger(j, 3), jass_checkinteger(j, 4));
     return 0;
 }
 
-DWORD AddUnitToAllStock(LPJASS j) {
-    G_AddUnitStockAll((DWORD)jass_checkinteger(j, 1), jass_checkinteger(j, 2), jass_checkinteger(j, 3));
+uint32_t AddUnitToAllStock(LPJASS j) {
+    G_AddUnitStockAll((uint32_t)jass_checkinteger(j, 1), jass_checkinteger(j, 2), jass_checkinteger(j, 3));
     return 0;
 }
 
-DWORD RemoveUnitFromStock(LPJASS j) {
-    G_RemoveUnitStock(jass_checkhandle(j, 1, "unit"), (DWORD)jass_checkinteger(j, 2));
+uint32_t RemoveUnitFromStock(LPJASS j) {
+    G_RemoveUnitStock(jass_checkhandle(j, 1, "unit"), (uint32_t)jass_checkinteger(j, 2));
     return 0;
 }
 
-DWORD RemoveUnitFromAllStock(LPJASS j) {
-    G_RemoveUnitStockAll((DWORD)jass_checkinteger(j, 1));
+uint32_t RemoveUnitFromAllStock(LPJASS j) {
+    G_RemoveUnitStockAll((uint32_t)jass_checkinteger(j, 1));
     return 0;
 }
 
-static BOOL JassRandomItemEligible(ItemData_t const *row, LONG level, DWORD type) {
+static bool JassRandomItemEligible(ItemData_t const *row, int32_t level, uint32_t type) {
     if (!row->pickRandom || row->level != level) return false;
     return type == 8 || G_ItemTypeFromClass(row->itemClass) == type;
 }
 
-static DWORD JassChooseRandomItem(LONG requested_level, DWORD requested_type) {
-    DWORD item_count, count = 0;
+static uint32_t JassChooseRandomItem(int32_t requested_level, uint32_t requested_type) {
+    uint32_t item_count, count = 0;
     ItemData_t const *items = G_ItemDataRows(&item_count);
-    DWORD selected_index;
+    uint32_t selected_index;
 
     if (!items) {
         fprintf(stderr, "JassChooseRandomItem: Units\\ItemData.slk is not loaded\n");
@@ -1330,7 +1330,7 @@ static DWORD JassChooseRandomItem(LONG requested_level, DWORD requested_type) {
 
     if (!count) return 0;
 
-    selected_index = (DWORD)(rand() % count);
+    selected_index = (uint32_t)(rand() % count);
 
     /*
      * Second pass returns the selected candidate.
@@ -1345,75 +1345,75 @@ static DWORD JassChooseRandomItem(LONG requested_level, DWORD requested_type) {
     return 0;
 }
 
-DWORD ChooseRandomItem(LPJASS j) {
-    LONG level = jass_checkinteger(j, 1);
-    DWORD item_id = JassChooseRandomItem(level, 8);
+uint32_t ChooseRandomItem(LPJASS j) {
+    int32_t level = jass_checkinteger(j, 1);
+    uint32_t item_id = JassChooseRandomItem(level, 8);
 
-    return jass_pushinteger(j, (LONG)item_id);
+    return jass_pushinteger(j, (int32_t)item_id);
 }
 
-DWORD ChooseRandomItemEx(LPJASS j) {
-    DWORD *whichType = jass_checkhandle(j, 1, "itemtype");
-    LONG level = jass_checkinteger(j, 2);
-    DWORD type = whichType ? *whichType : 8;
-    DWORD item_id = JassChooseRandomItem(level, type);
+uint32_t ChooseRandomItemEx(LPJASS j) {
+    uint32_t *whichType = jass_checkhandle(j, 1, "itemtype");
+    int32_t level = jass_checkinteger(j, 2);
+    uint32_t type = whichType ? *whichType : 8;
+    uint32_t item_id = JassChooseRandomItem(level, type);
 
-    return jass_pushinteger(j, (LONG)item_id);
+    return jass_pushinteger(j, (int32_t)item_id);
 }
 
-DWORD SetRandomSeed(LPJASS j) {
-    LONG seed = jass_checkinteger(j, 1);
+uint32_t SetRandomSeed(LPJASS j) {
+    int32_t seed = jass_checkinteger(j, 1);
     srand((unsigned int)seed);
     return 0;
 }
-DWORD SetTerrainFog(LPJASS j) {
-    //FLOAT a = jass_checknumber(j, 1);
-    //FLOAT b = jass_checknumber(j, 2);
-    //FLOAT c = jass_checknumber(j, 3);
-    //FLOAT d = jass_checknumber(j, 4);
-    //FLOAT e = jass_checknumber(j, 5);
+uint32_t SetTerrainFog(LPJASS j) {
+    //float a = jass_checknumber(j, 1);
+    //float b = jass_checknumber(j, 2);
+    //float c = jass_checknumber(j, 3);
+    //float d = jass_checknumber(j, 4);
+    //float e = jass_checknumber(j, 5);
     return 0;
 }
-DWORD ResetTerrainFog(LPJASS j) {
+uint32_t ResetTerrainFog(LPJASS j) {
     G_EnvironmentFogReset();
     return 0;
 }
-DWORD SetUnitFog(LPJASS j) {
-    //FLOAT a = jass_checknumber(j, 1);
-    //FLOAT b = jass_checknumber(j, 2);
-    //FLOAT c = jass_checknumber(j, 3);
-    //FLOAT d = jass_checknumber(j, 4);
-    //FLOAT e = jass_checknumber(j, 5);
+uint32_t SetUnitFog(LPJASS j) {
+    //float a = jass_checknumber(j, 1);
+    //float b = jass_checknumber(j, 2);
+    //float c = jass_checknumber(j, 3);
+    //float d = jass_checknumber(j, 4);
+    //float e = jass_checknumber(j, 5);
     return 0;
 }
-DWORD SetTerrainFogEx(LPJASS j) {
-    LONG style = jass_checkinteger(j, 1);
-    FLOAT zstart = jass_checknumber(j, 2);
-    FLOAT zend = jass_checknumber(j, 3);
-    FLOAT density = jass_checknumber(j, 4);
-    FLOAT red = jass_checknumber(j, 5);
-    FLOAT green = jass_checknumber(j, 6);
-    FLOAT blue = jass_checknumber(j, 7);
+uint32_t SetTerrainFogEx(LPJASS j) {
+    int32_t style = jass_checkinteger(j, 1);
+    float zstart = jass_checknumber(j, 2);
+    float zend = jass_checknumber(j, 3);
+    float density = jass_checknumber(j, 4);
+    float red = jass_checknumber(j, 5);
+    float green = jass_checknumber(j, 6);
+    float blue = jass_checknumber(j, 7);
 
     G_EnvironmentFogSet(&(wc3EnvironmentFogParams_t){
         .style = style, .start = zstart, .end = zend, .density = density,
         .color = { red, green, blue } });
     return 0;
 }
-DWORD SetWaterBaseColor(LPJASS j) {
-    //LONG red = jass_checkinteger(j, 1);
-    //LONG green = jass_checkinteger(j, 2);
-    //LONG blue = jass_checkinteger(j, 3);
-    //LONG alpha = jass_checkinteger(j, 4);
+uint32_t SetWaterBaseColor(LPJASS j) {
+    //int32_t red = jass_checkinteger(j, 1);
+    //int32_t green = jass_checkinteger(j, 2);
+    //int32_t blue = jass_checkinteger(j, 3);
+    //int32_t alpha = jass_checkinteger(j, 4);
     return 0;
 }
-DWORD SetWaterDeforms(LPJASS j) {
-    //BOOL val = jass_checkboolean(j, 1);
+uint32_t SetWaterDeforms(LPJASS j) {
+    //bool val = jass_checkboolean(j, 1);
     return 0;
 }
-DWORD SetDayNightModels(LPJASS j) {
-    LPCSTR terrainDNCFile = jass_checkstring(j, 1);
-    LPCSTR unitDNCFile = jass_checkstring(j, 2);
+uint32_t SetDayNightModels(LPJASS j) {
+    cstring_t terrainDNCFile = jass_checkstring(j, 1);
+    cstring_t unitDNCFile = jass_checkstring(j, 2);
     int terrain_model = 0, unit_model = 0;
     char value[16];
 
@@ -1433,24 +1433,24 @@ DWORD SetDayNightModels(LPJASS j) {
     }
     return 0;
 }
-DWORD SetSkyModel(LPJASS j) {
-    LPCSTR skyModelFile = jass_checkstring(j, 1);
+uint32_t SetSkyModel(LPJASS j) {
+    cstring_t skyModelFile = jass_checkstring(j, 1);
     int sky_model = skyModelFile && *skyModelFile ? gi.ModelIndex(skyModelFile) : 0;
     char value[16];
     snprintf(value, sizeof(value), "%d", sky_model);
     gi.configstring(CS_SKY, value);
     return 0;
 }
-DWORD EnableUserControl(LPJASS j) {
-    BOOL b = jass_checkboolean(j, 1);
+uint32_t EnableUserControl(LPJASS j) {
+    bool b = jass_checkboolean(j, 1);
     /* Fast-forwarding must preserve the script's input lock; early edge scrolling overwrote its final camera snap. */
     if (currentplayer) {
         PLAYER_CLIENT(currentplayer)->no_control = !b;
     }
     return 0;
 }
-DWORD EnableUserUI(LPJASS j) {
-    BOOL enabled = jass_checkboolean(j, 1);
+uint32_t EnableUserUI(LPJASS j) {
+    bool enabled = jass_checkboolean(j, 1);
     /* Warcraft keeps this separate from EnableUserControl: it suppresses UI
      * affordances such as hover/tooltips, but does not make world selection or
      * gameplay orders inert.  Keep the state for the client presentation path;
@@ -1458,57 +1458,57 @@ DWORD EnableUserUI(LPJASS j) {
     if (currentplayer) PLAYER_CLIENT(currentplayer)->no_ui = !enabled;
     return 0;
 }
-DWORD SuspendTimeOfDay(LPJASS j) {
+uint32_t SuspendTimeOfDay(LPJASS j) {
     G_SuspendTimeOfDay(jass_checkboolean(j, 1));
     return 0;
 }
-DWORD SetFalseTimeOfDay(LPJASS j) {
-    LONG hour = jass_checkinteger(j, 1);
-    LONG minute = jass_checkinteger(j, 2);
-    FLOAT duration = jass_checknumber(j, 3);
+uint32_t SetFalseTimeOfDay(LPJASS j) {
+    int32_t hour = jass_checkinteger(j, 1);
+    int32_t minute = jass_checkinteger(j, 2);
+    float duration = jass_checknumber(j, 3);
     G_SetFalseTimeOfDay(hour, minute, duration);
     return 0;
 }
-DWORD SetTimeOfDayScale(LPJASS j) {
-    //FLOAT r = jass_checknumber(j, 1);
+uint32_t SetTimeOfDayScale(LPJASS j) {
+    //float r = jass_checknumber(j, 1);
     return 0;
 }
-DWORD GetTimeOfDayScale(LPJASS j) {
+uint32_t GetTimeOfDayScale(LPJASS j) {
     return jass_pushnumber(j, 0);
 }
-DWORD ShowInterface(LPJASS j) {
-    BOOL flag = jass_checkboolean(j, 1);
-    FLOAT fadeDuration = jass_checknumber(j, 2);
+uint32_t ShowInterface(LPJASS j) {
+    bool flag = jass_checkboolean(j, 1);
+    float fadeDuration = jass_checknumber(j, 2);
     LPPLAYER player = currentplayer;
     /* Fast-forwarding compresses time, but the script still owns the cinematic-to-game UI transition. */
     if (player)
         UI_ShowInterface(PLAYER_ENT(player), flag, fadeDuration);
     return 0;
 }
-DWORD PauseGame(LPJASS j) {
-    BOOL flag = jass_checkboolean(j, 1);
+uint32_t PauseGame(LPJASS j) {
+    bool flag = jass_checkboolean(j, 1);
     G_SetScriptPaused(flag);
     return 0;
 }
-DWORD AddIndicator(LPJASS j) {
+uint32_t AddIndicator(LPJASS j) {
     LPEDICT whichWidget = jass_checkhandle(j, 1, "widget");
-    LONG red = jass_checkinteger(j, 2);
-    LONG green = jass_checkinteger(j, 3);
-    LONG blue = jass_checkinteger(j, 4);
-    LONG alpha = jass_checkinteger(j, 5);
+    int32_t red = jass_checkinteger(j, 2);
+    int32_t green = jass_checkinteger(j, 3);
+    int32_t blue = jass_checkinteger(j, 4);
+    int32_t alpha = jass_checkinteger(j, 5);
     COLOR32 color = MAKE(COLOR32,
-        (BYTE)MAX(0, MIN(255, red)),
-        (BYTE)MAX(0, MIN(255, green)),
-        (BYTE)MAX(0, MIN(255, blue)),
-        (BYTE)MAX(0, MIN(255, alpha)));
+        (uint8_t)MAX(0, MIN(255, red)),
+        (uint8_t)MAX(0, MIN(255, green)),
+        (uint8_t)MAX(0, MIN(255, blue)),
+        (uint8_t)MAX(0, MIN(255, alpha)));
 
     G_SendWidgetIndicator(whichWidget, color, currentplayer);
     return 0;
 }
-DWORD PingMinimap(LPJASS j) {
-    FLOAT x = jass_checknumber(j, 1);
-    FLOAT y = jass_checknumber(j, 2);
-    FLOAT duration = jass_checknumber(j, 3);
+uint32_t PingMinimap(LPJASS j) {
+    float x = jass_checknumber(j, 1);
+    float y = jass_checknumber(j, 2);
+    float duration = jass_checknumber(j, 3);
     VECTOR2 position = { x, y };
 
     if (duration <= 0.0f) return 0;
@@ -1520,19 +1520,19 @@ DWORD PingMinimap(LPJASS j) {
     }
     return 0;
 }
-DWORD PingMinimapEx(LPJASS j) {
-    FLOAT x = jass_checknumber(j, 1);
-    FLOAT y = jass_checknumber(j, 2);
-    FLOAT duration = jass_checknumber(j, 3);
-    LONG red = jass_checkinteger(j, 4);
-    LONG green = jass_checkinteger(j, 5);
-    LONG blue = jass_checkinteger(j, 6);
-    BOOL extraEffects = jass_checkboolean(j, 7);
+uint32_t PingMinimapEx(LPJASS j) {
+    float x = jass_checknumber(j, 1);
+    float y = jass_checknumber(j, 2);
+    float duration = jass_checknumber(j, 3);
+    int32_t red = jass_checkinteger(j, 4);
+    int32_t green = jass_checkinteger(j, 5);
+    int32_t blue = jass_checkinteger(j, 6);
+    bool extraEffects = jass_checkboolean(j, 7);
     VECTOR2 position = { x, y };
     COLOR32 color = MAKE(COLOR32,
-        (BYTE)MAX(0, MIN(255, red)),
-        (BYTE)MAX(0, MIN(255, green)),
-        (BYTE)MAX(0, MIN(255, blue)), 255);
+        (uint8_t)MAX(0, MIN(255, red)),
+        (uint8_t)MAX(0, MIN(255, green)),
+        (uint8_t)MAX(0, MIN(255, blue)), 255);
 
     if (duration <= 0.0f) return 0;
     if (currentplayer) {
@@ -1545,28 +1545,28 @@ DWORD PingMinimapEx(LPJASS j) {
     }
     return 0;
 }
-DWORD SetAltMinimapIcon(LPJASS j) {
-    //LPCSTR iconPath = jass_checkstring(j, 1); /* TODO: minimap icon override not yet implemented */
+uint32_t SetAltMinimapIcon(LPJASS j) {
+    //cstring_t iconPath = jass_checkstring(j, 1); /* TODO: minimap icon override not yet implemented */
     return 0;
 }
-DWORD EnableOcclusion(LPJASS j) {
-    //BOOL flag = jass_checkboolean(j, 1);
+uint32_t EnableOcclusion(LPJASS j) {
+    //bool flag = jass_checkboolean(j, 1);
     return 0;
 }
-DWORD SetIntroShotText(LPJASS j) {
-    //LPCSTR introText = jass_checkstring(j, 1);
+uint32_t SetIntroShotText(LPJASS j) {
+    //cstring_t introText = jass_checkstring(j, 1);
     return 0;
 }
-DWORD SetIntroShotModel(LPJASS j) {
-    //LPCSTR introModelPath = jass_checkstring(j, 1);
+uint32_t SetIntroShotModel(LPJASS j) {
+    //cstring_t introModelPath = jass_checkstring(j, 1);
     return 0;
 }
-DWORD EnableWorldFogBoundary(LPJASS j) {
-    //BOOL b = jass_checkboolean(j, 1);
+uint32_t EnableWorldFogBoundary(LPJASS j) {
+    //bool b = jass_checkboolean(j, 1);
     return 0;
 }
-DWORD PlayCinematic(LPJASS j) {
-    LPCSTR movieName = jass_checkstring(j, 1);
+uint32_t PlayCinematic(LPJASS j) {
+    cstring_t movieName = jass_checkstring(j, 1);
     PATHSTR path;
 
     if (!movieName || !*movieName) return 0;
@@ -1578,25 +1578,25 @@ DWORD PlayCinematic(LPJASS j) {
     gi.QueueMovie(path);
     return 0;
 }
-DWORD ForceUIKey(LPJASS j) {
-    //LPCSTR key = jass_checkstring(j, 1);
+uint32_t ForceUIKey(LPJASS j) {
+    //cstring_t key = jass_checkstring(j, 1);
     return 0;
 }
-DWORD ForceUICancel(LPJASS j) {
+uint32_t ForceUICancel(LPJASS j) {
     return 0;
 }
-DWORD DisplayLoadDialog(LPJASS j) {
+uint32_t DisplayLoadDialog(LPJASS j) {
     G_RequestLoadGameMenu();
     return 0;
 }
-DWORD CreateTrackable(LPJASS j) {
-    //LPCSTR trackableModelPath = jass_checkstring(j, 1);
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    //FLOAT facing = jass_checknumber(j, 4);
+uint32_t CreateTrackable(LPJASS j) {
+    //cstring_t trackableModelPath = jass_checkstring(j, 1);
+    //float x = jass_checknumber(j, 2);
+    //float y = jass_checknumber(j, 3);
+    //float facing = jass_checknumber(j, 4);
     return jass_pushnullhandle(j, "trackable");
 }
-DWORD CreateTimerDialog(LPJASS j) {
+uint32_t CreateTimerDialog(LPJASS j) {
     LPGTIMER timer = jass_checkhandle(j, 1, "timer");
     LPTIMERDIALOG dialog = G_AllocTimerDialog(timer);
     if (!dialog) {
@@ -1605,89 +1605,89 @@ DWORD CreateTimerDialog(LPJASS j) {
     }
     return jass_pushlighthandle(j, dialog, "timerdialog");
 }
-DWORD DestroyTimerDialog(LPJASS j) {
+uint32_t DestroyTimerDialog(LPJASS j) {
     G_FreeTimerDialog(jass_checkhandle(j, 1, "timerdialog"));
     return 0;
 }
-DWORD TimerDialogSetTitle(LPJASS j) {
+uint32_t TimerDialogSetTitle(LPJASS j) {
     LPTIMERDIALOG dialog = jass_checkhandle(j, 1, "timerdialog");
-    LPCSTR title = jass_checkstring(j, 2);
+    cstring_t title = jass_checkstring(j, 2);
     if (!dialog || !dialog->inuse) return 0;
     strlcpy(dialog->title, G_LevelString(title ? title : ""), sizeof(dialog->title));
     dialog->title_set = true;
     G_MarkTimerDialogDirty(dialog);
     return 0;
 }
-DWORD TimerDialogSetTitleColor(LPJASS j) {
+uint32_t TimerDialogSetTitleColor(LPJASS j) {
     LPTIMERDIALOG dialog = jass_checkhandle(j, 1, "timerdialog");
-    LONG red = jass_checkinteger(j, 2);
-    LONG green = jass_checkinteger(j, 3);
-    LONG blue = jass_checkinteger(j, 4);
-    LONG alpha = jass_checkinteger(j, 5);
+    int32_t red = jass_checkinteger(j, 2);
+    int32_t green = jass_checkinteger(j, 3);
+    int32_t blue = jass_checkinteger(j, 4);
+    int32_t alpha = jass_checkinteger(j, 5);
     if (!dialog || !dialog->inuse) return 0;
     dialog->title_color = MAKE(COLOR32,
-        (BYTE)MAX(0, MIN(255, red)), (BYTE)MAX(0, MIN(255, green)),
-        (BYTE)MAX(0, MIN(255, blue)), (BYTE)MAX(0, MIN(255, alpha)));
+        (uint8_t)MAX(0, MIN(255, red)), (uint8_t)MAX(0, MIN(255, green)),
+        (uint8_t)MAX(0, MIN(255, blue)), (uint8_t)MAX(0, MIN(255, alpha)));
     dialog->title_color_set = true;
     G_MarkTimerDialogDirty(dialog);
     return 0;
 }
-DWORD TimerDialogSetTimeColor(LPJASS j) {
+uint32_t TimerDialogSetTimeColor(LPJASS j) {
     LPTIMERDIALOG dialog = jass_checkhandle(j, 1, "timerdialog");
-    LONG red = jass_checkinteger(j, 2);
-    LONG green = jass_checkinteger(j, 3);
-    LONG blue = jass_checkinteger(j, 4);
-    LONG alpha = jass_checkinteger(j, 5);
+    int32_t red = jass_checkinteger(j, 2);
+    int32_t green = jass_checkinteger(j, 3);
+    int32_t blue = jass_checkinteger(j, 4);
+    int32_t alpha = jass_checkinteger(j, 5);
     if (!dialog || !dialog->inuse) return 0;
     dialog->time_color = MAKE(COLOR32,
-        (BYTE)MAX(0, MIN(255, red)), (BYTE)MAX(0, MIN(255, green)),
-        (BYTE)MAX(0, MIN(255, blue)), (BYTE)MAX(0, MIN(255, alpha)));
+        (uint8_t)MAX(0, MIN(255, red)), (uint8_t)MAX(0, MIN(255, green)),
+        (uint8_t)MAX(0, MIN(255, blue)), (uint8_t)MAX(0, MIN(255, alpha)));
     dialog->time_color_set = true;
     G_MarkTimerDialogDirty(dialog);
     return 0;
 }
-DWORD TimerDialogSetSpeed(LPJASS j) {
+uint32_t TimerDialogSetSpeed(LPJASS j) {
     /* Deliberately left unsupported until retail display-rate semantics are
      * pinned down.  Do not alter the authoritative gameplay timer here. */
     (void)jass_checkhandle(j, 1, "timerdialog");
     (void)jass_checknumber(j, 2);
     return 0;
 }
-DWORD TimerDialogDisplay(LPJASS j) {
+uint32_t TimerDialogDisplay(LPJASS j) {
     LPTIMERDIALOG dialog = jass_checkhandle(j, 1, "timerdialog");
-    BOOL display = jass_checkboolean(j, 2);
+    bool display = jass_checkboolean(j, 2);
     G_SetTimerDialogVisible(dialog, currentplayer, display);
     return 0;
 }
-DWORD IsTimerDialogDisplayed(LPJASS j) {
+uint32_t IsTimerDialogDisplayed(LPJASS j) {
     LPTIMERDIALOG dialog = jass_checkhandle(j, 1, "timerdialog");
     return jass_pushboolean(j, G_IsTimerDialogVisible(dialog, currentplayer));
 }
-DWORD SetCinematicScene(LPJASS j) {
-    LONG portraitUnitId = jass_checkinteger(j, 1);
-    DWORD *color = jass_checkhandle(j, 2, "playercolor");
-    LPCSTR speakerTitle = jass_checkstring(j, 3);
-    LPCSTR text = jass_checkstring(j, 4);
-    FLOAT sceneDuration = jass_checknumber(j, 5);
-    FLOAT voiceoverDuration = jass_checknumber(j, 6);
+uint32_t SetCinematicScene(LPJASS j) {
+    int32_t portraitUnitId = jass_checkinteger(j, 1);
+    uint32_t *color = jass_checkhandle(j, 2, "playercolor");
+    cstring_t speakerTitle = jass_checkstring(j, 3);
+    cstring_t text = jass_checkstring(j, 4);
+    float sceneDuration = jass_checknumber(j, 5);
+    float voiceoverDuration = jass_checknumber(j, 6);
     if (TutorialTextDebugEnabledMisc()) {
-        LONG trigger_ordinal;
-        LPCSTR caller;
-        LPCSTR resolved_speaker = G_LevelString(speakerTitle);
-        LPCSTR resolved_text = G_LevelString(text);
+        int32_t trigger_ordinal;
+        cstring_t caller;
+        cstring_t resolved_speaker = G_LevelString(speakerTitle);
+        cstring_t resolved_text = G_LevelString(text);
         TutorialTextDebugContextMisc(j, &trigger_ordinal, &caller);
         fprintf(stderr,
                 "WC3_TUTORIAL_TEXT native=SetCinematicScene trigger=%ld caller=\"%s\" player=%d portrait=%.4s scene=%.3f voice=%.3f speaker_raw=\"%s\" speaker=\"%s\" text_raw=\"%s\" text=\"%s\"\n",
                 (long)trigger_ordinal, caller ? caller : "(native/root)",
                 currentplayer ? (int)PLAYER_NUM(currentplayer) : -1,
-                portraitUnitId ? (LPCSTR)&portraitUnitId : "----", sceneDuration, voiceoverDuration,
+                portraitUnitId ? (cstring_t)&portraitUnitId : "----", sceneDuration, voiceoverDuration,
                 speakerTitle ? speakerTitle : "", resolved_speaker ? resolved_speaker : "",
                 text ? text : "", resolved_text ? resolved_text : "");
     }
     if (G_SkipCutscene()) return 0;
     if (currentplayer) {
         LPGAMECLIENT gc = PLAYER_CLIENT(currentplayer);
-        DWORD now = G_Time();
+        uint32_t now = G_Time();
         G_SetPlayerText(gc, PLAYERTEXT_SPEAKER, G_LevelString(speakerTitle));
         G_SetPlayerText(gc, PLAYERTEXT_DIALOGUE, G_LevelString(text));
         /* Only gameplay transmissions are tutorial prompts; cutscene dialogue
@@ -1701,7 +1701,7 @@ DWORD SetCinematicScene(LPJASS j) {
         currentplayer->stats[UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR] =
             color && *color < MAX_PLAYERS ? *color : 0;
         if (portraitUnitId) {
-            LPCSTR model = G_UnitUI((DWORD)portraitUnitId)->modelFile;
+            cstring_t model = G_UnitUI((uint32_t)portraitUnitId)->modelFile;
             if (model && *model) {
                 PATHSTR mf;
                 G_NormalizeModelFilename(model, mf, sizeof(mf));
@@ -1709,17 +1709,17 @@ DWORD SetCinematicScene(LPJASS j) {
             }
         }
         if (gc) {
-            gc->cinematic_end_time = sceneDuration > 0 ? now + (DWORD)(sceneDuration * 1000.0f) : 0;
-            gc->cinematic_voice_end_time = voiceoverDuration > 0 ? now + (DWORD)(voiceoverDuration * 1000.0f) : 0;
+            gc->cinematic_end_time = sceneDuration > 0 ? now + (uint32_t)(sceneDuration * 1000.0f) : 0;
+            gc->cinematic_voice_end_time = voiceoverDuration > 0 ? now + (uint32_t)(voiceoverDuration * 1000.0f) : 0;
         }
         UI_InvalidateDialoguePresentation(PLAYER_ENT(currentplayer));
     }
     return 0;
 }
-DWORD EndCinematicScene(LPJASS j) {
+uint32_t EndCinematicScene(LPJASS j) {
     if (TutorialTextDebugEnabledMisc()) {
-        LONG trigger_ordinal;
-        LPCSTR caller;
+        int32_t trigger_ordinal;
+        cstring_t caller;
         TutorialTextDebugContextMisc(j, &trigger_ordinal, &caller);
         fprintf(stderr,
                 "WC3_TUTORIAL_TEXT native=EndCinematicScene trigger=%ld caller=\"%s\" player=%d\n",
@@ -1740,72 +1740,72 @@ DWORD EndCinematicScene(LPJASS j) {
     }
     return 0;
 }
-DWORD ForceCinematicSubtitles(LPJASS j) {
+uint32_t ForceCinematicSubtitles(LPJASS j) {
     /* Current Warsmash always renders transmission subtitles even when this
      * override is false. Consume the native so campaign scripts remain valid
      * without pretending OpenRealm has a separate subtitle preference yet. */
     (void)jass_checkboolean(j, 1);
     return 0;
 }
-DWORD NewSoundEnvironment(LPJASS j) {
-    //LPCSTR environmentName = jass_checkstring(j, 1);
+uint32_t NewSoundEnvironment(LPJASS j) {
+    //cstring_t environmentName = jass_checkstring(j, 1);
     return 0;
 }
-DWORD SetDoodadAnimation(LPJASS j) {
-    FLOAT x = jass_checknumber(j, 1);
-    FLOAT y = jass_checknumber(j, 2);
-    FLOAT radius = jass_checknumber(j, 3);
-    LONG doodadID = jass_checkinteger(j, 4);
-    BOOL nearestOnly = jass_checkboolean(j, 5);
-    LPCSTR animName = jass_checkstring(j, 6);
-    BOOL animRandom = jass_checkboolean(j, 7);
+uint32_t SetDoodadAnimation(LPJASS j) {
+    float x = jass_checknumber(j, 1);
+    float y = jass_checknumber(j, 2);
+    float radius = jass_checknumber(j, 3);
+    int32_t doodadID = jass_checkinteger(j, 4);
+    bool nearestOnly = jass_checkboolean(j, 5);
+    cstring_t animName = jass_checkstring(j, 6);
+    bool animRandom = jass_checkboolean(j, 7);
     doodadAnimationRadiusParams_t const params = {
-        .x = x, .y = y, .radius = radius, .doodad_id = (DWORD)doodadID,
+        .x = x, .y = y, .radius = radius, .doodad_id = (uint32_t)doodadID,
         .nearest_only = nearestOnly, .anim_name = animName, .random_animation = animRandom
     };
 
     G_SetDoodadAnimationRadius(&params);
     return 0;
 }
-DWORD SetDoodadAnimationRect(LPJASS j) {
+uint32_t SetDoodadAnimationRect(LPJASS j) {
     LPCBOX2 r = jass_checkhandle(j, 1, "rect");
-    LONG doodadID = jass_checkinteger(j, 2);
-    LPCSTR animName = jass_checkstring(j, 3);
-    BOOL animRandom = jass_checkboolean(j, 4);
+    int32_t doodadID = jass_checkinteger(j, 2);
+    cstring_t animName = jass_checkstring(j, 3);
+    bool animRandom = jass_checkboolean(j, 4);
 
-    G_SetDoodadAnimationRect(r, (DWORD)doodadID, animName, animRandom);
+    G_SetDoodadAnimationRect(r, (uint32_t)doodadID, animName, animRandom);
     return 0;
 }
-DWORD Cheat(LPJASS j) {
-    //LPCSTR cheatStr = jass_checkstring(j, 1);
+uint32_t Cheat(LPJASS j) {
+    //cstring_t cheatStr = jass_checkstring(j, 1);
     return 0;
 }
-DWORD IsNoVictoryCheat(LPJASS j) {
+uint32_t IsNoVictoryCheat(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
-DWORD IsNoDefeatCheat(LPJASS j) {
+uint32_t IsNoDefeatCheat(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
-DWORD Preload(LPJASS j) {
-    //LPCSTR filename = jass_checkstring(j, 1);
+uint32_t Preload(LPJASS j) {
+    //cstring_t filename = jass_checkstring(j, 1);
     return 0;
 }
-DWORD PreloadEnd(LPJASS j) {
-    //FLOAT timeout = jass_checknumber(j, 1);
+uint32_t PreloadEnd(LPJASS j) {
+    //float timeout = jass_checknumber(j, 1);
     return 0;
 }
-DWORD PreloadGenClear(LPJASS j) {
+uint32_t PreloadGenClear(LPJASS j) {
     return 0;
 }
-DWORD PreloadGenStart(LPJASS j) {
+uint32_t PreloadGenStart(LPJASS j) {
     return 0;
 }
-DWORD PreloadGenEnd(LPJASS j) {
-    //LPCSTR filename = jass_checkstring(j, 1);
+uint32_t PreloadGenEnd(LPJASS j) {
+    //cstring_t filename = jass_checkstring(j, 1);
     return 0;
 }
-DWORD Preloader(LPJASS j) {
-    //LPCSTR filename = jass_checkstring(j, 1);
+uint32_t Preloader(LPJASS j) {
+    //cstring_t filename = jass_checkstring(j, 1);
     return 0;
 }
 
@@ -1813,71 +1813,71 @@ DWORD Preloader(LPJASS j) {
 // 1.29 additions
 // **************
 
-DWORD GetPlayerNeutralPassive(LPJASS j) {
+uint32_t GetPlayerNeutralPassive(LPJASS j) {
     return jass_pushinteger(j, PLAYER_NEUTRAL_PASSIVE);
 }
-DWORD GetPlayerNeutralAggressive(LPJASS j) {
+uint32_t GetPlayerNeutralAggressive(LPJASS j) {
     return jass_pushinteger(j, PLAYER_NEUTRAL_AGGRESSIVE);
 }
-DWORD GetBJMaxPlayers(LPJASS j) {
+uint32_t GetBJMaxPlayers(LPJASS j) {
     return jass_pushinteger(j, game.max_clients);
 }
-DWORD GetBJPlayerNeutralVictim(LPJASS j) {
+uint32_t GetBJPlayerNeutralVictim(LPJASS j) {
     return jass_pushinteger(j, PLAYER_NEUTRAL_VICTIM);
 }
-DWORD GetBJPlayerNeutralExtra(LPJASS j) {
+uint32_t GetBJPlayerNeutralExtra(LPJASS j) {
     return jass_pushinteger(j, PLAYER_NEUTRAL_EXTRA);
 }
-DWORD GetBJMaxPlayerSlots(LPJASS j) {
+uint32_t GetBJMaxPlayerSlots(LPJASS j) {
     return jass_pushinteger(j, 12);
 }
-DWORD ConvertVersion(LPJASS j) {
-    API_ALLOC(DWORD, version);
+uint32_t ConvertVersion(LPJASS j) {
+    API_ALLOC(uint32_t, version);
     *version = jass_checkinteger(j, 1);
     return 1;
 }
-DWORD ConvertItemType(LPJASS j) {
-    API_ALLOC(DWORD, itemtype);
+uint32_t ConvertItemType(LPJASS j) {
+    API_ALLOC(uint32_t, itemtype);
     *itemtype = jass_checkinteger(j, 1);
     return 1;
 }
-DWORD ConvertAttackType(LPJASS j) {
-    API_ALLOC(DWORD, attacktype);
+uint32_t ConvertAttackType(LPJASS j) {
+    API_ALLOC(uint32_t, attacktype);
     *attacktype = jass_checkinteger(j, 1);
     return 1;
 }
-DWORD ConvertDamageType(LPJASS j) {
-    API_ALLOC(DWORD, damagetype);
+uint32_t ConvertDamageType(LPJASS j) {
+    API_ALLOC(uint32_t, damagetype);
     *damagetype = jass_checkinteger(j, 1);
     return 1;
 }
-DWORD ConvertWeaponType(LPJASS j) {
-    API_ALLOC(DWORD, weapontype);
+uint32_t ConvertWeaponType(LPJASS j) {
+    API_ALLOC(uint32_t, weapontype);
     *weapontype = jass_checkinteger(j, 1);
     return 1;
 }
-DWORD ConvertSoundType(LPJASS j) {
-    API_ALLOC(DWORD, soundtype);
+uint32_t ConvertSoundType(LPJASS j) {
+    API_ALLOC(uint32_t, soundtype);
     *soundtype = jass_checkinteger(j, 1);
     return 1;
 }
-DWORD ConvertPathingType(LPJASS j) {
-    API_ALLOC(DWORD, pathingtype);
+uint32_t ConvertPathingType(LPJASS j) {
+    API_ALLOC(uint32_t, pathingtype);
     *pathingtype = jass_checkinteger(j, 1);
     return 1;
 }
-DWORD ConvertMouseButtonType(LPJASS j) {
-    API_ALLOC(DWORD, mousebuttontype);
+uint32_t ConvertMouseButtonType(LPJASS j) {
+    API_ALLOC(uint32_t, mousebuttontype);
     *mousebuttontype = jass_checkinteger(j, 1);
     return 1;
 }
-DWORD ConvertAIDifficulty(LPJASS j) {
-    API_ALLOC(DWORD, aidifficulty);
+uint32_t ConvertAIDifficulty(LPJASS j) {
+    API_ALLOC(uint32_t, aidifficulty);
     *aidifficulty = jass_checkinteger(j, 1);
     return 1;
 }
-DWORD ConvertPlayerScore(LPJASS j) {
-    API_ALLOC(DWORD, playerscore);
+uint32_t ConvertPlayerScore(LPJASS j) {
+    API_ALLOC(uint32_t, playerscore);
     *playerscore = jass_checkinteger(j, 1);
     return 1;
 }
@@ -1886,27 +1886,27 @@ DWORD ConvertPlayerScore(LPJASS j) {
  * lightning through one endpoint/data-row path. */
 typedef struct {
     VECTOR3 pos, size, origin;
-    FLOAT color[4];
-    BOOL shown, render, render_always;
+    float color[4];
+    bool shown, render, render_always;
     char file[128];
 } jassImage_t;
 typedef struct {
     VECTOR2 pos;
-    FLOAT color[4];
-    BOOL shown, render, render_always, finished;
+    float color[4];
+    bool shown, render, render_always, finished;
     char name[64];
 } jassUbersplat_t;
 
-static DWORD JassLightningCode(LPCSTR code) {
+static uint32_t JassLightningCode(cstring_t code) {
     return code && strlen(code) >= 4 ? MAKEFOURCC(code[0], code[1], code[2], code[3]) : 0;
 }
 
-static BYTE JassLightningByte(FLOAT value) {
+static uint8_t JassLightningByte(float value) {
     value = value < 0.0f ? 0.0f : value > 1.0f ? 1.0f : value;
-    return (BYTE)(value * 255.0f + 0.5f);
+    return (uint8_t)(value * 255.0f + 0.5f);
 }
 
-static DWORD JassLightningCreate(LPJASS j, LPCSTR code, BOOL check_visibility,
+static uint32_t JassLightningCreate(LPJASS j, cstring_t code, bool check_visibility,
                                   LPCVECTOR3 source, LPCVECTOR3 target) {
     LPGLIGHTNING bolt;
     (void)check_visibility; /* Visibility filtering is a client fog concern, not a global registry property. */
@@ -1917,23 +1917,23 @@ static DWORD JassLightningCreate(LPJASS j, LPCSTR code, BOOL check_visibility,
     return bolt ? jass_pushlighthandle(j, bolt, "lightning") : jass_pushnullhandle(j, "lightning");
 }
 
-DWORD AddLightningEx(LPJASS j) {
+uint32_t AddLightningEx(LPJASS j) {
     VECTOR3 source = MAKE(VECTOR3, jass_checknumber(j, 3), jass_checknumber(j, 4), jass_checknumber(j, 5));
     VECTOR3 target = MAKE(VECTOR3, jass_checknumber(j, 6), jass_checknumber(j, 7), jass_checknumber(j, 8));
     return JassLightningCreate(j, jass_checkstring(j, 1), jass_checkboolean(j, 2), &source, &target);
 }
-DWORD AddLightning(LPJASS j) {
+uint32_t AddLightning(LPJASS j) {
     VECTOR3 source = MAKE(VECTOR3, jass_checknumber(j, 3), jass_checknumber(j, 4), 0);
     VECTOR3 target = MAKE(VECTOR3, jass_checknumber(j, 5), jass_checknumber(j, 6), 0);
     return JassLightningCreate(j, jass_checkstring(j, 1), jass_checkboolean(j, 2), &source, &target);
 }
-DWORD DestroyLightning(LPJASS j) {
+uint32_t DestroyLightning(LPJASS j) {
     LPGLIGHTNING bolt = jass_checkhandle(j, 1, "lightning");
-    BOOL valid = G_LightningValid(bolt);
+    bool valid = G_LightningValid(bolt);
     if (valid) G_LightningRemove(bolt);
     return jass_pushboolean(j, valid);
 }
-DWORD MoveLightningEx(LPJASS j) {
+uint32_t MoveLightningEx(LPJASS j) {
     LPGLIGHTNING bolt = jass_checkhandle(j, 1, "lightning");
     VECTOR3 source, target;
     (void)jass_checkboolean(j, 2);
@@ -1943,7 +1943,7 @@ DWORD MoveLightningEx(LPJASS j) {
     G_LightningMove(bolt, &source, &target);
     return jass_pushboolean(j, 1);
 }
-DWORD MoveLightning(LPJASS j) {
+uint32_t MoveLightning(LPJASS j) {
     LPGLIGHTNING bolt = jass_checkhandle(j, 1, "lightning");
     VECTOR3 source, target;
     (void)jass_checkboolean(j, 2);
@@ -1954,9 +1954,9 @@ DWORD MoveLightning(LPJASS j) {
     G_LightningMove(bolt, &source, &target);
     return jass_pushboolean(j, 1);
 }
-DWORD SetLightningColor(LPJASS j) {
+uint32_t SetLightningColor(LPJASS j) {
     LPGLIGHTNING bolt = jass_checkhandle(j, 1, "lightning");
-    FLOAT precise[4] = { jass_checknumber(j, 2), jass_checknumber(j, 3),
+    float precise[4] = { jass_checknumber(j, 2), jass_checknumber(j, 3),
         jass_checknumber(j, 4), jass_checknumber(j, 5) };
     COLOR32 color = MAKE(COLOR32, JassLightningByte(precise[0]), JassLightningByte(precise[1]),
         JassLightningByte(precise[2]), JassLightningByte(precise[3]));
@@ -1965,17 +1965,17 @@ DWORD SetLightningColor(LPJASS j) {
     return jass_pushboolean(j, 1);
 }
 /* Read the precise script colour while invalid handles retain JASS's zero result. */
-static DWORD JassGetLightningColor(LPJASS j, DWORD channel) {
+static uint32_t JassGetLightningColor(LPJASS j, uint32_t channel) {
     LPGLIGHTNING bolt = jass_checkhandle(j, 1, "lightning");
     return jass_pushnumber(j, G_LightningValid(bolt) ? bolt->script_color[channel] : 0);
 }
-DWORD GetLightningColorR(LPJASS j) { return JassGetLightningColor(j, 0); }
-DWORD GetLightningColorG(LPJASS j) { return JassGetLightningColor(j, 1); }
-DWORD GetLightningColorB(LPJASS j) { return JassGetLightningColor(j, 2); }
-DWORD GetLightningColorA(LPJASS j) { return JassGetLightningColor(j, 3); }
+uint32_t GetLightningColorR(LPJASS j) { return JassGetLightningColor(j, 0); }
+uint32_t GetLightningColorG(LPJASS j) { return JassGetLightningColor(j, 1); }
+uint32_t GetLightningColorB(LPJASS j) { return JassGetLightningColor(j, 2); }
+uint32_t GetLightningColorA(LPJASS j) { return JassGetLightningColor(j, 3); }
 
-DWORD CreateImage(LPJASS j) {
-    LPCSTR file = jass_checkstring(j, 1);
+uint32_t CreateImage(LPJASS j) {
+    cstring_t file = jass_checkstring(j, 1);
     jassImage_t *img = jass_newhandle(j, sizeof(*img), "image");
     if (!img) return jass_pushnullhandle(j, "image");
     memset(img, 0, sizeof(*img));
@@ -1988,14 +1988,14 @@ DWORD CreateImage(LPJASS j) {
     if (file) strlcpy(img->file, file, sizeof(img->file));
     return 1;
 }
-DWORD DestroyImage(LPJASS j) { jassImage_t *img = jass_checkhandle(j, 1, "image"); if (img) img->shown = false; return 0; }
-DWORD ShowImage(LPJASS j) { jassImage_t *img = jass_checkhandle(j, 1, "image"); if (img) img->shown = jass_checkboolean(j, 2); return 0; }
-DWORD SetImagePosition(LPJASS j) {
+uint32_t DestroyImage(LPJASS j) { jassImage_t *img = jass_checkhandle(j, 1, "image"); if (img) img->shown = false; return 0; }
+uint32_t ShowImage(LPJASS j) { jassImage_t *img = jass_checkhandle(j, 1, "image"); if (img) img->shown = jass_checkboolean(j, 2); return 0; }
+uint32_t SetImagePosition(LPJASS j) {
     jassImage_t *img = jass_checkhandle(j, 1, "image");
     if (img) img->pos = MAKE(VECTOR3, jass_checknumber(j, 2), jass_checknumber(j, 3), jass_checknumber(j, 4));
     return 0;
 }
-DWORD SetImageColor(LPJASS j) {
+uint32_t SetImageColor(LPJASS j) {
     jassImage_t *img = jass_checkhandle(j, 1, "image");
     if (img) {
         img->color[0] = jass_checkinteger(j, 2) / 255.0f; img->color[1] = jass_checkinteger(j, 3) / 255.0f;
@@ -2003,15 +2003,15 @@ DWORD SetImageColor(LPJASS j) {
     }
     return 0;
 }
-DWORD SetImageRender(LPJASS j) { jassImage_t *img = jass_checkhandle(j, 1, "image"); if (img) img->render = jass_checkboolean(j, 2); return 0; }
-DWORD SetImageRenderAlways(LPJASS j) { jassImage_t *img = jass_checkhandle(j, 1, "image"); if (img) img->render_always = jass_checkboolean(j, 2); return 0; }
-DWORD SetImageConstantHeight(LPJASS j) { (void)j; return 0; }
-DWORD SetImageAboveWater(LPJASS j) { (void)j; return 0; }
-DWORD SetImageType(LPJASS j) { (void)j; return 0; }
+uint32_t SetImageRender(LPJASS j) { jassImage_t *img = jass_checkhandle(j, 1, "image"); if (img) img->render = jass_checkboolean(j, 2); return 0; }
+uint32_t SetImageRenderAlways(LPJASS j) { jassImage_t *img = jass_checkhandle(j, 1, "image"); if (img) img->render_always = jass_checkboolean(j, 2); return 0; }
+uint32_t SetImageConstantHeight(LPJASS j) { (void)j; return 0; }
+uint32_t SetImageAboveWater(LPJASS j) { (void)j; return 0; }
+uint32_t SetImageType(LPJASS j) { (void)j; return 0; }
 
-DWORD CreateUbersplat(LPJASS j) {
+uint32_t CreateUbersplat(LPJASS j) {
     jassUbersplat_t *u = jass_newhandle(j, sizeof(*u), "ubersplat");
-    LPCSTR name = jass_checkstring(j, 3);
+    cstring_t name = jass_checkstring(j, 3);
     if (!u) return jass_pushnullhandle(j, "ubersplat");
     memset(u, 0, sizeof(*u));
     u->pos = MAKE(VECTOR2, jass_checknumber(j, 1), jass_checknumber(j, 2));
@@ -2022,24 +2022,24 @@ DWORD CreateUbersplat(LPJASS j) {
     if (name) strlcpy(u->name, name, sizeof(u->name));
     return 1;
 }
-DWORD DestroyUbersplat(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->shown = false; return 0; }
-DWORD ResetUbersplat(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->finished = false; return 0; }
-DWORD FinishUbersplat(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->finished = true; return 0; }
-DWORD ShowUbersplat(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->shown = jass_checkboolean(j, 2); return 0; }
-DWORD SetUbersplatRender(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->render = jass_checkboolean(j, 2); return 0; }
-DWORD SetUbersplatRenderAlways(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->render_always = jass_checkboolean(j, 2); return 0; }
+uint32_t DestroyUbersplat(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->shown = false; return 0; }
+uint32_t ResetUbersplat(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->finished = false; return 0; }
+uint32_t FinishUbersplat(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->finished = true; return 0; }
+uint32_t ShowUbersplat(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->shown = jass_checkboolean(j, 2); return 0; }
+uint32_t SetUbersplatRender(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->render = jass_checkboolean(j, 2); return 0; }
+uint32_t SetUbersplatRenderAlways(LPJASS j) { jassUbersplat_t *u = jass_checkhandle(j, 1, "ubersplat"); if (u) u->render_always = jass_checkboolean(j, 2); return 0; }
 
-DWORD VersionGet(LPJASS j) {
-    API_ALLOC(DWORD, version);
+uint32_t VersionGet(LPJASS j) {
+    API_ALLOC(uint32_t, version);
     *version = 0;
     return 1;
 }
 /* Version enums are typed handles from ConvertVersion, not integer arguments. */
-DWORD VersionCompatible(LPJASS j) {
-    LPDWORD version = jass_checkhandle(j, 1, "version");
+uint32_t VersionCompatible(LPJASS j) {
+    uint32_t * version = jass_checkhandle(j, 1, "version");
     return jass_pushboolean(j, version && *version == 0);
 }
-DWORD VersionSupported(LPJASS j) {
-    LPDWORD version = jass_checkhandle(j, 1, "version");
+uint32_t VersionSupported(LPJASS j) {
+    uint32_t * version = jass_checkhandle(j, 1, "version");
     return jass_pushboolean(j, version && *version == 0);
 }

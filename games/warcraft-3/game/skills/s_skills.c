@@ -2,16 +2,16 @@
 
 #ifdef WC3_DEBUG_AUTOCAST
 int G_AutocastDebugLevel(void) {
-    LPCSTR value;
+    cstring_t value;
 
     value = gi.CvarString("wc3_autocast_debug", "0");
     return value ? atoi(value) : 0;
 }
 #endif
 
-LPCSTR const raven_orders[] = { "ravenform", "unravenform", NULL };
-static LPCSTR const mana_shield_orders[] = { "manashieldon", "manashieldoff", NULL };
-static LPCSTR const build_orders[] = { "build", NULL };
+cstring_t const raven_orders[] = { "ravenform", "unravenform", NULL };
+static cstring_t const mana_shield_orders[] = { "manashieldon", "manashieldoff", NULL };
+static cstring_t const build_orders[] = { "build", NULL };
 
 static ability_t abilitylist[] = {
     { STR_CmdStop, CAbilityStop, AB_COMMAND },  // Stop — engine command
@@ -719,33 +719,33 @@ static ability_t abilitylist[] = {
 
 /* Build a compact unique procedure list once, rather than scan the whole registry per unit tick. */
 static abilityProc_t ability_updates[sizeof(abilitylist) / sizeof(abilitylist[0])];
-static DWORD num_updates;
+static uint32_t num_updates;
 static abilityitem_t innate_items[sizeof(abilitylist) / sizeof(abilitylist[0])];
-static DWORD num_innate;
+static uint32_t num_innate;
 static abilityProc_t ability_index_procs[sizeof(abilitylist) / sizeof(abilitylist[0])];
-static DWORD ability_index_values[sizeof(abilitylist) / sizeof(abilitylist[0])];
-static DWORD num_ability_index_procs;
+static uint32_t ability_index_values[sizeof(abilitylist) / sizeof(abilitylist[0])];
+static uint32_t num_ability_index_procs;
 
 /* ROC/TFT physical data columns are normalized by the AbilityData DDX schema. */
-FLOAT AB_Data(LPCSTR classname, DWORD level, DWORD index) {
+float AB_Data(cstring_t classname, uint32_t level, uint32_t index) {
     abilityLevel_t const *row = G_AbilityLevel(FS_SLKKey(classname), level);
     index = MAX(1, MIN(index, 9));
     return row->data[index - 1].number;
 }
 
-DWORD AB_DataId(LPCSTR classname, DWORD level, DWORD index) {
+uint32_t AB_DataId(cstring_t classname, uint32_t level, uint32_t index) {
     abilityLevel_t const *row = G_AbilityLevel(FS_SLKKey(classname), level);
     index = MAX(1, MIN(index, 9));
     return row->data[index - 1].id;
 }
 
 /* Order names belong to their ability, including orders for preplaced alternate forms. */
-ability_t const *FindAbilityByOrder(LPCSTR order) {
+ability_t const *FindAbilityByOrder(cstring_t order) {
     if (!order) return NULL;
     FOR_LOOP(i, game.num_abilities) {
         ability_t const *ability = abilitylist + i;
         if (!ability->orders || !ability->proc) continue;
-        for (LPCSTR const *name = ability->orders; *name; name++)
+        for (cstring_t const *name = ability->orders; *name; name++)
             if (!strcmp(*name, order)) return ability;
     }
     return NULL;
@@ -760,8 +760,8 @@ void S_RunAbilityUpdates(LPEDICT ent) {
 
 /* Unit-data abilities exist independently of command-card slots. Notifications visit every owner;
  * idle and acquisition queries stop when an owner consumes the decision. */
-BOOL S_UnitAbilityEvent(LPEDICT ent, abilityMsg_t msg) {
-    BOOL handled = false;
+bool S_UnitAbilityEvent(LPEDICT ent, abilityMsg_t msg) {
+    bool handled = false;
     if (msg == A_MOVE_LEAVE && ent && ent->channel.code) {
         abilityitem_t item = S_AbilityItem(ent->channel.code);
         abilityCall_t call = MAKE(abilityCall_t, .item = &item);
@@ -778,8 +778,8 @@ BOOL S_UnitAbilityEvent(LPEDICT ent, abilityMsg_t msg) {
 /* Accepted instant/spell orders can leave the current movement object untouched.
  * Give innate behavior owners one generic post-accept hook so they can retire
  * their own state without putting ability names in m_unit.c. */
-BOOL S_UnitAbilityOrderAccepted(LPEDICT ent, LPCSTR order) {
-    BOOL handled = false;
+bool S_UnitAbilityOrderAccepted(LPEDICT ent, cstring_t order) {
+    bool handled = false;
     if (!ent || !order) return false;
     FOR_LOOP(i, num_innate) {
         abilityCall_t call = MAKE(abilityCall_t, .item = innate_items + i, .order = order);
@@ -790,7 +790,7 @@ BOOL S_UnitAbilityOrderAccepted(LPEDICT ent, LPCSTR order) {
 
 /* Queued work is returned to the procedure that owns its order. The stored
  * order_id remains the concrete rawcode payload for that ability. */
-BOOL S_UnitQueuedOrderEvent(LPEDICT ent, unitOrder_t const *queued, abilityMsg_t msg) {
+bool S_UnitQueuedOrderEvent(LPEDICT ent, unitOrder_t const *queued, abilityMsg_t msg) {
     ability_t const *ability;
     abilityitem_t item;
     abilityCall_t call;
@@ -803,8 +803,8 @@ BOOL S_UnitQueuedOrderEvent(LPEDICT ent, unitOrder_t const *queued, abilityMsg_t
     return S_AbilityMessage(ent, msg, &call) != 0;
 }
 
-static BOOL unit_target_ability_try(LPEDICT target, LPEDICT issuer, LPCSTR order, DWORD code,
-                                    DWORD *seen, DWORD *seen_count, DWORD seen_capacity) {
+static bool unit_target_ability_try(LPEDICT target, LPEDICT issuer, cstring_t order, uint32_t code,
+                                    uint32_t *seen, uint32_t *seen_count, uint32_t seen_capacity) {
     abilityitem_t item;
     abilityCall_t call;
     if (!target || !issuer || !order || !code || !seen || !seen_count) return false;
@@ -819,17 +819,17 @@ static BOOL unit_target_ability_try(LPEDICT target, LPEDICT issuer, LPCSTR order
 
 /* Generic target-owned interaction dispatch. The target's concrete authored
  * rawcode is retained so derived AbilityData aliases can consume their own data. */
-BOOL S_UnitTargetAbilityOrder(LPEDICT target, LPEDICT issuer, LPCSTR order) {
-    DWORD seen[MAX_ABILITIES * 2 + MAX_HERO_ABILITIES] = {0};
-    DWORD seen_count = 0;
-    DWORD const seen_capacity = sizeof(seen) / sizeof(*seen);
+bool S_UnitTargetAbilityOrder(LPEDICT target, LPEDICT issuer, cstring_t order) {
+    uint32_t seen[MAX_ABILITIES * 2 + MAX_HERO_ABILITIES] = {0};
+    uint32_t seen_count = 0;
+    uint32_t const seen_capacity = sizeof(seen) / sizeof(*seen);
     char const *abilities;
 
     if (!target || !target->inuse || !issuer || !order) return false;
     abilities = target->data.UnitAbilities ? target->data.UnitAbilities->abilList : NULL;
     if (abilities) {
         PARSE_LIST(abilities, token, parse_segment) {
-            DWORD code = 0;
+            uint32_t code = 0;
             if (strlen(token) != 4) continue;
             memcpy(&code, token, 4);
             if (unit_target_ability_try(target, issuer, order, code, seen, &seen_count, seen_capacity))
@@ -837,12 +837,12 @@ BOOL S_UnitTargetAbilityOrder(LPEDICT target, LPEDICT issuer, LPCSTR order) {
         }
     }
     FOR_LOOP(i, ARRAY_COUNT(target->abilities.added)) {
-        DWORD const code = target->abilities.added[i];
+        uint32_t const code = target->abilities.added[i];
         if (unit_target_ability_try(target, issuer, order, code, seen, &seen_count, seen_capacity))
             return true;
     }
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
-        DWORD const code = target->heroabilities[i].level ? target->heroabilities[i].code : 0;
+        uint32_t const code = target->heroabilities[i].level ? target->heroabilities[i].code : 0;
         if (unit_target_ability_try(target, issuer, order, code, seen, &seen_count, seen_capacity))
             return true;
     }
@@ -850,14 +850,14 @@ BOOL S_UnitTargetAbilityOrder(LPEDICT target, LPEDICT issuer, LPCSTR order) {
 }
 
 /* Dispatch projectile impact to the target's authored abilities before damage is applied. */
-BOOL S_UnitProjectileHit(LPEDICT projectile) {
+bool S_UnitProjectileHit(LPEDICT projectile) {
     LPEDICT target = projectile ? projectile->goalentity : NULL;
     if (!target || !target->inuse) return false;
     FOR_LOOP(i, game.num_abilities) {
         ability_t const *ability = abilitylist + i;
         abilityitem_t item;
         abilityCall_t call;
-        DWORD code;
+        uint32_t code;
         if (!ability->classname || strlen(ability->classname) != 4) continue;
         code = FS_SLKKey(ability->classname);
         if (!G_UnitAbilityLevel(target, code)) continue;
@@ -868,7 +868,7 @@ BOOL S_UnitProjectileHit(LPEDICT projectile) {
     return false;
 }
 
-ability_t const *FindAbilityByClassname(LPCSTR classname) {
+ability_t const *FindAbilityByClassname(cstring_t classname) {
     FOR_LOOP(i, game.num_abilities) {
         if (!abilitylist[i].classname)
             continue;
@@ -883,7 +883,7 @@ ability_t const *FindAbilityByClassname(LPCSTR classname) {
  * four-character rawcodes whose AbilityData alias may point at a base handler.
  * Only rawcodes belong in the SLK resolver: passing CmdBuild through FS_SLKKey
  * truncates it to CmdB and loses the registered build command. */
-ability_t const *FindAbilityForCommand(LPCSTR classname) {
+ability_t const *FindAbilityForCommand(cstring_t classname) {
     if (!classname || !*classname) {
         return NULL;
     }
@@ -894,7 +894,7 @@ ability_t const *FindAbilityForCommand(LPCSTR classname) {
 }
 
 /* Keep the requested rawcode even when AbilityData resolves its code to a shared implementation. */
-abilityitem_t S_AbilityItem(DWORD code) {
+abilityitem_t S_AbilityItem(uint32_t code) {
     return MAKE(abilityitem_t, .code = code, .ability = code ? FindAbilityForCommand(GetClassName(code)) : NULL);
 }
 
@@ -904,13 +904,13 @@ BZ_ABILITY_PROC(S_AbilityMessage) {
     return ability && ability->proc ? ability->proc(ent, msg, call) : false;
 }
 
-void S_EnableAbility(LPEDICT ent, DWORD code) {
+void S_EnableAbility(LPEDICT ent, uint32_t code) {
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     if (item.ability) S_AbilityMessage(ent, A_ENABLE, &call);
 }
 
-void S_DisableAbility(LPEDICT ent, DWORD code) {
+void S_DisableAbility(LPEDICT ent, uint32_t code) {
     if (ent && ent->autocast_code == code) G_SetUnitAutocast(ent, code, false);
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
@@ -922,12 +922,12 @@ void S_RefreshAbilityLevel(LPEDICT ent, ability_t const *ability) {
     abilityCall_t query = MAKE(abilityCall_t, .item = &item);
     abilityCall_t changed;
     if (!ability || !ability->proc) return;
-    changed = MAKE(abilityCall_t, .item = &item, .level = (DWORD)S_AbilityMessage(ent, A_LEVEL, &query));
+    changed = MAKE(abilityCall_t, .item = &item, .level = (uint32_t)S_AbilityMessage(ent, A_LEVEL, &query));
     S_AbilityMessage(ent, A_LEVEL_CHANGED, &changed);
 }
 
 /* The selected rawcode is shared state; each procedure owns its autocast policy and side effects. */
-BOOL G_UnitAutocastIsOn(LPEDICT ent, DWORD code) {
+bool G_UnitAutocastIsOn(LPEDICT ent, uint32_t code) {
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     return ent && code && ent->autocast_code == code && item.ability && (item.ability->flags & AB_AUTOCAST) &&
@@ -935,7 +935,7 @@ BOOL G_UnitAutocastIsOn(LPEDICT ent, DWORD code) {
 }
 
 /* Keeping the alias through the UI and scheduler preserves authored cost, range and effect data. */
-BOOL G_SetUnitAutocast(LPEDICT ent, DWORD code, BOOL enabled) {
+bool G_SetUnitAutocast(LPEDICT ent, uint32_t code, bool enabled) {
     abilityitem_t item = S_AbilityItem(code), old;
     abilityCall_t call = MAKE(abilityCall_t, .item = &item, .enabled = enabled);
     if (!ent || !item.ability || !(item.ability->flags & AB_AUTOCAST) ||
@@ -943,7 +943,7 @@ BOOL G_SetUnitAutocast(LPEDICT ent, DWORD code, BOOL enabled) {
     old = S_AbilityItem(ent->autocast_code);
     if (!enabled && old.code != code) return true;
     abilityCall_t prev = MAKE(abilityCall_t, .item = &old, .enabled = false);
-    BOOL switched = enabled && old.code && old.code != code;
+    bool switched = enabled && old.code && old.code != code;
     /* Distinct procedures may share policy state (the two Repair families). Retire it before enabling the next. */
     if (switched) S_AbilityMessage(ent, A_AUTOCAST_SET, &prev);
     if (!S_AbilityMessage(ent, A_AUTOCAST_SET, &call)) {
@@ -962,14 +962,14 @@ BOOL G_SetUnitAutocast(LPEDICT ent, DWORD code, BOOL enabled) {
 }
 
 /* Dispatch the selected alias directly, including runtime-added abilities absent from UnitAbilities. */
-BOOL G_TryUnitAutocast(LPEDICT ent) {
+bool G_TryUnitAutocast(LPEDICT ent) {
     if (!ent || !(ent->aiflags & AI_AUTOCAST_ACTIVE)) return false;
     abilityitem_t item = S_AbilityItem(ent->autocast_code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     return G_UnitAutocastIsOn(ent, item.code) && S_AbilityMessage(ent, A_AUTOCAST_ACQUIRE, &call);
 }
 
-DWORD FindAbilityIndex(LPCSTR classname) {
+uint32_t FindAbilityIndex(cstring_t classname) {
     FOR_LOOP(i, game.num_abilities) {
         if (!abilitylist[i].classname)
             continue;
@@ -980,7 +980,7 @@ DWORD FindAbilityIndex(LPCSTR classname) {
 }
 
 /* Shared casts and bespoke commands expose the same capability to HUD and item callers. */
-BOOL S_AbilityHasCommand(ability_t const *ability) {
+bool S_AbilityHasCommand(ability_t const *ability) {
     return ability && ability->proc && (ability->flags & (AB_SPELL | AB_COMMAND));
 }
 
@@ -1003,7 +1003,7 @@ void InitAbilities(void) {
     num_ability_index_procs = 0;
     FOR_LOOP(i, game.num_abilities) {
         ability_t *entry = &abilitylist[i];
-        DWORD n;
+        uint32_t n;
         abilityitem_t item = MAKE(abilityitem_t, .code = strlen(entry->classname) == 4 ? FS_SLKKey(entry->classname) : 0,
                                   .ability = entry);
         abilityCall_t call = MAKE(abilityCall_t, .item = &item, .classname = entry->classname);
@@ -1022,13 +1022,13 @@ void InitAbilities(void) {
     }
 }
 
-ability_t const *GetAbilityByIndex(DWORD index) {
+ability_t const *GetAbilityByIndex(uint32_t index) {
     if (index >= game.num_abilities)
         return NULL;
     return abilitylist + index;
 }
 
-DWORD GetAbilityIndex(abilityProc_t proc) {
+uint32_t GetAbilityIndex(abilityProc_t proc) {
     if (!proc) return 255;
     FOR_LOOP(i, num_ability_index_procs)
         if (ability_index_procs[i] == proc) return ability_index_values[i];

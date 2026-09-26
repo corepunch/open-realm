@@ -11,10 +11,10 @@
 
 #define BZ_GLUE_MAX_TABS 3 // tabs; largest authored group is custom-game browser/create/options.
 
-typedef struct { LPCSTR stand, enter, leave; } GLUETAB;
+typedef struct { cstring_t stand, enter, leave; } GLUETAB;
 typedef GLUETAB *LPGLUETAB;
 typedef const GLUETAB *LPCGLUETAB;
-typedef struct { LPCSTR name; GLUETAB tabs[BZ_GLUE_MAX_TABS]; } GLUEPANEL;
+typedef struct { cstring_t name; GLUETAB tabs[BZ_GLUE_MAX_TABS]; } GLUEPANEL;
 typedef GLUEPANEL *LPGLUEPANEL;
 typedef const GLUEPANEL *LPCGLUEPANEL;
 
@@ -26,14 +26,14 @@ typedef enum {
 
 typedef struct {
     GLUEDEST current, target;
-    DWORD start;
+    uint32_t start;
     uiGluePanelPhase_t phase;
 } GLUELAYER;
 typedef GLUELAYER *LPGLUELAYER;
 typedef const GLUELAYER *LPCGLUELAYER;
 
 typedef struct {
-    BOOL loaded;
+    bool loaded;
     LPCMODEL background, top_left_panel, top_right_panel;
     GLUELAYER layers[UI_GLUE_SIDE_COUNT];
     uiGluePanelChanged_f exited, changed;
@@ -74,14 +74,14 @@ static LPCGLUEMOTION const motion[UI_GLUE_PANEL_COUNT][UI_GLUE_SIDE_COUNT][BZ_GL
     [UI_GLUE_BATTLENET_CUSTOM] = {{&motion_lan, &motion_create, &motion_lan}, {&motion_lannav}},
 };
 
-static LPCSTR const phases[] = { "Stand", "Death", "Birth" };
-static DWORD const durations[] = { 0, UI_GLUE_DEATH_TIME, UI_GLUE_BIRTH_TIME };
+static cstring_t const phases[] = { "Stand", "Death", "Birth" };
+static uint32_t const durations[] = { 0, UI_GLUE_DEATH_TIME, UI_GLUE_BIRTH_TIME };
 static void UI_GlueReleaseModel(LPCMODEL model) {
     mi.GetRenderer()->ReleaseModel((LPMODEL)model);
 }
 
-static LPCSTR UI_GlueBackgroundPath(void) {
-    LPCSTR model = Theme_String("GlueSpriteLayerBackground", "Default");
+static cstring_t UI_GlueBackgroundPath(void) {
+    cstring_t model = Theme_String("GlueSpriteLayerBackground", "Default");
 
     if (!model || !*model || !strcmp(model, "GlueSpriteLayerBackground")) {
         model = Theme_String("MainMenu", "Default");
@@ -92,33 +92,33 @@ static LPCSTR UI_GlueBackgroundPath(void) {
     return model;
 }
 
-static LPCSTR UI_GlueTopLeftPanelPath(void) {
+static cstring_t UI_GlueTopLeftPanelPath(void) {
     return Theme_String("GlueSpriteLayerTopLeft", "UI\\Glues\\SpriteLayers\\TopLeftPanel.mdx");
 }
 
-static LPCSTR UI_GlueTopRightPanelPath(void) {
+static cstring_t UI_GlueTopRightPanelPath(void) {
     return Theme_String("GlueSpriteLayerTopRight", "UI\\Glues\\SpriteLayers\\TopRightPanel.mdx");
 }
 
 /* The stock sprite layers are an authored 4:3 pair: the left layer stays at the scene origin and the right
  * layer follows whatever extra width the engine canvas resolved (zero under the classic stretched policy). */
-static FLOAT UI_GlueRightPanelOffset(LPRENDERER renderer) {
+static float UI_GlueRightPanelOffset(LPRENDERER renderer) {
     return renderer->GetUISceneRect().w - UI_BASE_WIDTH;
 }
 
 /* Both clocks use the renderer's normalized sequence-time contract. */
-static void UI_GlueProgress(LPSTR anim, DWORD start, DWORD duration) {
+static void UI_GlueProgress(string_t anim, uint32_t start, uint32_t duration) {
     size_t len = strlen(anim);
-    snprintf(anim + len, UI_GLUE_ANIM_NAME - len, "@%.4f", (FLOAT)MIN(M_Time() - start, duration) / duration);
+    snprintf(anim + len, UI_GLUE_ANIM_NAME - len, "@%.4f", (float)MIN(M_Time() - start, duration) / duration);
 }
 
 /* A non-default left panel must enter/leave its authored pose. Options Birth
  * animates only the base layout; using it before Stand Alternate caused a snap. */
-static LPCSTR UI_GlueLayerAnimation(LPCGLUELAYER layer, LPSTR anim) {
+static cstring_t UI_GlueLayerAnimation(LPCGLUELAYER layer, string_t anim) {
     LPCGLUEPANEL panel = &glue_panels[layer->current.panel];
     if (layer->current.tab) {
         LPCGLUETAB tab = &panel->tabs[layer->current.tab];
-        LPCSTR names[] = { tab->stand, tab->leave, tab->enter };
+        cstring_t names[] = { tab->stand, tab->leave, tab->enter };
         snprintf(anim, UI_GLUE_ANIM_NAME, "%s", names[layer->phase]);
     } else snprintf(anim, UI_GLUE_ANIM_NAME, "%s %s", panel->name, phases[layer->phase]);
     if (layer->phase != UI_GLUE_PANEL_IDLE)
@@ -156,7 +156,7 @@ void UI_ReleaseGlueSceneModels(void) {
 }
 
 /* Cache one load attempt per scene lifetime, but identify every missing sprite layer. */
-static LPCMODEL UI_GlueLoadModel(LPCSTR path) {
+static LPCMODEL UI_GlueLoadModel(cstring_t path) {
     LPCMODEL model = mi.GetRenderer()->LoadModel(path);
     if (!model) fprintf(stderr, "UI: failed to load glue model '%s'\n", path);
     return model;
@@ -171,27 +171,27 @@ void UI_PreloadGlueSceneModels(void) {
 }
 
 /* Page identity makes two content tabs sharing one MDX pose transition too. */
-static BOOL UI_GlueSameDest(GLUEDEST a, GLUEDEST b) {
+static bool UI_GlueSameDest(GLUEDEST a, GLUEDEST b) {
     return a.panel == b.panel && a.tab == b.tab && a.page == b.page;
 }
 
-BOOL UI_GlueSideReady(uiGlueSide_t side) {
+bool UI_GlueSideReady(uiGlueSide_t side) {
     LPCGLUELAYER layer = &scene.layers[side];
     return layer->phase == UI_GLUE_PANEL_IDLE && UI_GlueSameDest(layer->current, layer->target);
 }
 
 /* Sample the same phase clock as the MDX; retain overshoot and the native exit curve. */
-FLOAT UI_GlueSideOffset(uiGlueSide_t side) {
+float UI_GlueSideOffset(uiGlueSide_t side) {
     LPCGLUELAYER layer = &scene.layers[side];
     if (layer->phase == UI_GLUE_PANEL_IDLE || !layer->current.panel) return 0;
     LPCGLUEMOTION track = motion[layer->current.panel][side][layer->current.tab];
-    FLOAT pos = (BZ_GLUE_SAMPLES - 1) * (FLOAT)MIN(M_Time() - layer->start, durations[layer->phase]) / durations[layer->phase];
+    float pos = (BZ_GLUE_SAMPLES - 1) * (float)MIN(M_Time() - layer->start, durations[layer->phase]) / durations[layer->phase];
     int idx = MIN((int)pos, BZ_GLUE_SAMPLES - 2);
-    FLOAT const *curve = layer->phase == UI_GLUE_PANEL_ENTER ? track->enter : track->leave;
+    float const *curve = layer->phase == UI_GLUE_PANEL_ENTER ? track->enter : track->leave;
     return curve[idx] + (curve[idx + 1] - curve[idx]) * (pos - idx);
 }
 
-BOOL UI_GlueIsTransitioning(void) {
+bool UI_GlueIsTransitioning(void) {
     return !UI_GlueSideReady(UI_GLUE_LEFT) || !UI_GlueSideReady(UI_GLUE_RIGHT);
 }
 
@@ -222,7 +222,7 @@ static void UI_GlueAdvanceLayer(LPGLUELAYER layer) {
 /* Clear callback ownership before dispatch: screen installation may queue work.
  * Both sides must reach the destination before any of its controls are installed. */
 static void UI_GlueAdvanceTransition(void) {
-    BOOL arrived = true;
+    bool arrived = true;
     FOR_LOOP(i, UI_GLUE_SIDE_COUNT) {
         LPGLUELAYER layer = &scene.layers[i];
         if (!UI_GlueSideReady(i)) UI_GlueAdvanceLayer(layer);
@@ -249,7 +249,7 @@ void UI_GotoGluePanel(GLUEDEST dest, uiGluePanelChanged_f exited, uiGluePanelCha
         return;
     }
     if (dest.panel) UI_PreloadGlueSceneModels();
-    BOOL startup = dest.panel && scene.layers[UI_GLUE_RIGHT].phase == UI_GLUE_PANEL_ENTER &&
+    bool startup = dest.panel && scene.layers[UI_GLUE_RIGHT].phase == UI_GLUE_PANEL_ENTER &&
         dest.panel != scene.layers[UI_GLUE_RIGHT].current.panel;
     scene.exited = exited;
     scene.changed = changed;
@@ -270,7 +270,7 @@ void UI_CloseGluePanel(uiGluePanelChanged_f changed) { UI_GotoGluePanel((GLUEDES
 
 void UI_DrawGlueScene(void) {
     LPRENDERER renderer = mi.GetRenderer();
-    FLOAT right_offset;
+    float right_offset;
     char left_anim[UI_GLUE_ANIM_NAME];
     char right_anim[UI_GLUE_ANIM_NAME];
 

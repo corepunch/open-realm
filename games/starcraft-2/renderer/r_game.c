@@ -14,17 +14,17 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
 
 typedef struct {
     LPMODEL model;
-    DWORD count;
+    uint32_t count;
     char paths[256][512];
 } model_texture_cache_t;
 
 typedef struct {
     LPCVECTOR2 mins, maxs;
-    FLOAT z;
+    float z;
     LPCTEXTURE texture;
     splat_shader_t *shader;
     COLOR32 color;
-    BOOL terrain;
+    bool terrain;
 } SC2SPLAT;
 typedef SC2SPLAT *LPSC2SPLAT;
 typedef SC2SPLAT const *LPCSC2SPLAT;
@@ -102,7 +102,7 @@ void R_EvalKeyframeValue(void const *left,
                          float t,
                          MODELKEYTRACKDATATYPE datatype,
                          MODELKEYTRACKTYPE linetype,
-                         HANDLE out)
+                         handle_t out)
 {
     switch (datatype) {
         case TDATA_INT1: *((int *)out) = R_M3InterpInt(left, right, t, linetype); return;
@@ -115,13 +115,13 @@ void R_EvalKeyframeValue(void const *left,
 /* Ground rings sample the terrain; explicit plane splats retain their caller-owned elevation. */
 static void R_SC2DrawSplat(LPCSC2SPLAT draw) {
     LPCVECTOR2 mins = draw->mins, maxs = draw->maxs;
-    FLOAT z = draw->z;
+    float z = draw->z;
     LPCTEXTURE texture = draw->texture;
     splat_shader_t *shader = draw->shader;
     COLOR32 color = draw->color;
     MATRIX4 model_matrix;
-    FLOAT const width = maxs->x - mins->x;
-    FLOAT const height = maxs->y - mins->y;
+    float const width = maxs->x - mins->x;
+    float const height = maxs->y - mins->y;
     if (!texture || width <= 0 || height <= 0) {
         return;
     }
@@ -155,7 +155,7 @@ static void R_SC2DrawSplat(LPCSC2SPLAT draw) {
     R_Call(glDepthMask, GL_TRUE);
 }
 
-void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, FLOAT z, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color) {
+void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, float z, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color) {
     R_SC2DrawSplat(&(SC2SPLAT){ .mins = mins, .maxs = maxs, .z = z, .texture = texture, .shader = shader, .color = color });
 }
 
@@ -170,7 +170,7 @@ void R_RenderRectSplat(LPCVECTOR2 mins,
 }
 
 void R_RenderSplat(LPCVECTOR2 position,
-                   FLOAT radius,
+                   float radius,
                    LPCTEXTURE texture,
                    splat_shader_t *shader,
                    COLOR32 color)
@@ -227,14 +227,14 @@ void R_SetupTextureMatrix(void) {
     }
 }
 
-void R_DrawMinimap(LPCRECT screen, LPCSTR map) {
+void R_DrawMinimap(rect_t const * screen, cstring_t map) {
     if (map) { fprintf(stderr, "R_DrawMinimap: static preview unsupported for %s\n", map); return; }
     LPCTEXTURE tex = tr.minimap ? tr.minimap : tr.texture[TEX_WHITE];
-    R_DrawImage(tex, screen, &MAKE(RECT, 0, 0, 1, 1), COLOR32_WHITE);
+    R_DrawImage(tex, screen, &MAKE(rect_t, 0, 0, 1, 1), COLOR32_WHITE);
 }
 
 
-void R_RegisterMap(LPCSTR mapFileName) {
+void R_RegisterMap(cstring_t mapFileName) {
     R_SC2RegisterMap(mapFileName);
 }
 
@@ -274,18 +274,18 @@ bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point
     return R_SC2TraceLocation(viewdef, x, y, point);
 }
 
-FLOAT R_GetHeightAtPoint(FLOAT x, FLOAT y) {
+float R_GetHeightAtPoint(float x, float y) {
     return R_SC2GetHeightAtPoint(x, y);
 }
 
-FLOAT R_GetCameraHeightAtPoint(FLOAT x, FLOAT y) { return R_SC2GetCameraHeightAtPoint(x, y); }
-BOOL R_CameraUsesTerrainHeight(void) { return true; }
+float R_GetCameraHeightAtPoint(float x, float y) { return R_SC2GetCameraHeightAtPoint(x, y); }
+bool R_CameraUsesTerrainHeight(void) { return true; }
 
 VECTOR2 R_WorldSize(void) {
     return R_SC2WorldSize();
 }
 
-LPMODEL R_LoadModel(LPCSTR modelFilename) {
+LPMODEL R_LoadModel(cstring_t modelFilename) {
     void *buffer = NULL;
     int fileSize = ri.FS_ReadFile(modelFilename, &buffer);
     LPMODEL model = NULL;
@@ -293,12 +293,12 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
     if (fileSize < 0 || !buffer) {
         return NULL;
     }
-    if (*(DWORD *)buffer == ID_43DM) {
+    if (*(uint32_t *)buffer == ID_43DM) {
         model = ri.MemAlloc(sizeof(model_t));
         model->m3 = R_LoadModelM3(buffer, fileSize);
         model->modeltype = ID_43DM;
     } else {
-        fprintf(stderr, "Unknown model format %.4s in file %s\n", (LPSTR)buffer, modelFilename);
+        fprintf(stderr, "Unknown model format %.4s in file %s\n", (string_t)buffer, modelFilename);
     }
     ri.FS_FreeFile(buffer);
     return model;
@@ -321,7 +321,7 @@ void R_RenderModel(renderEntity_t const *entity) {
 }
 
 /* Pick in model space so authored M3 bounds follow the rendered rotation and scale. */
-bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance) {
+bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, float * distance) {
     MATRIX4 matrix, inverse;
     VECTOR3 hit;
     BOX3 box;
@@ -353,22 +353,22 @@ bool R_RenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
     return false;
 }
 
-FLOAT R_SelectionRadius(renderEntity_t const *entity) {
+float R_SelectionRadius(renderEntity_t const *entity) {
     return entity->radius;
 }
 
-FLOAT R_EntityHeight(renderEntity_t const *entity) { return entity ? entity->radius * 2.0f : 0.0f; }
-BOOL R_EntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
+float R_EntityHeight(renderEntity_t const *entity) { return entity ? entity->radius * 2.0f : 0.0f; }
+bool R_EntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
     if (!entity || !out) return false;
     *out = entity->origin; out->z += R_EntityHeight(entity);
     return true;
 }
-BOOL R_EntityAttachmentPosition(renderEntity_t const *entity, LPCSTR prefix, LPVECTOR3 out) {
+bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, LPVECTOR3 out) {
     (void)entity; (void)prefix; (void)out;
     return false;
 }
 
-static void R_M3TextureCacheAdd(LPCSTR path) {
+static void R_M3TextureCacheAdd(cstring_t path) {
     if (!path || !*path || model_texture_cache.count >= 256) {
         return;
     }
@@ -475,10 +475,10 @@ bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t
 }
 
 /* Retained SC2 UI models use a stable final pose from the requested sequence. */
-bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+bool R_SetEntityAnimFrame(LPCMODEL model, cstring_t anim, renderEntity_t *entity) {
     if (!model || model->modeltype != ID_43DM || !model->m3 || !entity) return false;
     m3Model_t const *m3 = model->m3;
-    DWORD time = 0;
+    uint32_t time = 0;
     M3_FOR_EACH(Sequence, seq, m3->sequences) {
         if (seq->name && anim && !strcasecmp(seq->name, anim)) {
             /* End minus one remains inside this sequence in M3_FindAnimationAtTime. */

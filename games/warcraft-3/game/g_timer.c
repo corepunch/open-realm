@@ -1,27 +1,27 @@
 #include "g_local.h"
 #include "jass/jass.h"
 
-static DWORD TimerDialogPlayerMask(void) {
-    DWORD mask = 0;
-    FOR_LOOP(i, MIN((DWORD)game.max_clients, (DWORD)MAX_CLIENTS)) {
-        DWORD number = game.clients[i].ps.number;
+static uint32_t TimerDialogPlayerMask(void) {
+    uint32_t mask = 0;
+    FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS)) {
+        uint32_t number = game.clients[i].ps.number;
         if (number < MAX_CLIENTS) mask |= 1u << number;
     }
     return mask;
 }
 
-static DWORD TimerDialogDisplaySeconds(LPCGTIMER timer) {
-    DWORD millis = G_TimerRemaining(timer);
+static uint32_t TimerDialogDisplaySeconds(LPCGTIMER timer) {
+    uint32_t millis = G_TimerRemaining(timer);
     return millis / 1000u + (millis % 1000u != 0);
 }
 
-static LPTIMERDIALOG VisibleTimerDialogForPlayer(DWORD player_num, LONG *index) {
+static LPTIMERDIALOG VisibleTimerDialogForPlayer(uint32_t player_num, int32_t *index) {
     if (index) *index = -1;
     if (player_num >= MAX_CLIENTS) return NULL;
     FOR_LOOP(i, MAX_TIMERDIALOGS) {
         LPTIMERDIALOG dialog = &level.timer_dialogs[i];
         if (!dialog->inuse || !(dialog->visible_clients & (1u << player_num))) continue;
-        if (index) *index = (LONG)i;
+        if (index) *index = (int32_t)i;
         return dialog;
     }
     return NULL;
@@ -48,18 +48,18 @@ LPTIMERDIALOG G_AllocTimerDialog(LPGTIMER timer) {
 }
 
 void G_FreeTimerDialog(LPTIMERDIALOG dialog) {
-    DWORD dirty;
+    uint32_t dirty;
     if (!dialog || !dialog->inuse) return;
     dirty = dialog->visible_clients;
     memset(dialog, 0, sizeof(*dialog));
     level.timer_dialog_dirty_clients |= dirty;
 }
 
-void G_SetTimerDialogVisible(LPTIMERDIALOG dialog, LPPLAYER player, BOOL visible) {
-    DWORD mask, old_mask;
+void G_SetTimerDialogVisible(LPTIMERDIALOG dialog, LPPLAYER player, bool visible) {
+    uint32_t mask, old_mask;
     if (!dialog || !dialog->inuse) return;
     if (player) {
-        DWORD number = PLAYER_NUM(player);
+        uint32_t number = PLAYER_NUM(player);
         if (number >= MAX_CLIENTS) return;
         mask = 1u << number;
     } else {
@@ -75,11 +75,11 @@ void G_SetTimerDialogVisible(LPTIMERDIALOG dialog, LPPLAYER player, BOOL visible
                         (unsigned)G_TimerRemaining(dialog->timer));
 }
 
-BOOL G_IsTimerDialogVisible(LPCTIMERDIALOG dialog, LPCPLAYER player) {
-    DWORD mask;
+bool G_IsTimerDialogVisible(LPCTIMERDIALOG dialog, LPCPLAYER player) {
+    uint32_t mask;
     if (!dialog || !dialog->inuse) return false;
     if (player) {
-        DWORD number = PLAYER_NUM(player);
+        uint32_t number = PLAYER_NUM(player);
         return number < MAX_CLIENTS && (dialog->visible_clients & (1u << number));
     }
     mask = TimerDialogPlayerMask();
@@ -90,16 +90,16 @@ void G_MarkTimerDialogDirty(LPCTIMERDIALOG dialog) {
     if (dialog && dialog->inuse) level.timer_dialog_dirty_clients |= dialog->visible_clients;
 }
 
-void G_FormatTimerDialogValue(LPCGTIMER timer, LPSTR out, size_t out_size) {
-    DWORD seconds = TimerDialogDisplaySeconds(timer);
-    DWORD minutes = seconds / 60u;
+void G_FormatTimerDialogValue(LPCGTIMER timer, string_t out, size_t out_size) {
+    uint32_t seconds = TimerDialogDisplaySeconds(timer);
+    uint32_t minutes = seconds / 60u;
     if (!out || !out_size) return;
     snprintf(out, out_size, "%02u:%02u", (unsigned)minutes, (unsigned)(seconds % 60u));
 }
 
-DWORD G_TimerRemaining(LPCGTIMER timer) { return timer ? timer->remaining : 0; }
+uint32_t G_TimerRemaining(LPCGTIMER timer) { return timer ? timer->remaining : 0; }
 
-void G_TimerStart(LPGTIMER timer, DWORD timeout, BOOL periodic, LPCJASSFUNC handler) {
+void G_TimerStart(LPGTIMER timer, uint32_t timeout, bool periodic, LPCJASSFUNC handler) {
     if (!timer) return;
     timer->generation++;
     timer->handler = handler; timer->duration = timeout; timer->remaining = timeout;
@@ -128,7 +128,7 @@ void G_TimerDestroy(LPGTIMER timer) {
     timer->paused = true;
 }
 
-BOOL G_TimerCoroutineValid(HANDLE handle, DWORD generation) {
+bool G_TimerCoroutineValid(handle_t handle, uint32_t generation) {
     LPCGTIMER timer = handle;
     /* A one-shot timer is marked not-running when it expires, but its handler
      * still must run. Periodic timers remain running until explicitly paused. */
@@ -137,19 +137,19 @@ BOOL G_TimerCoroutineValid(HANDLE handle, DWORD generation) {
 }
 
 void G_UpdateTimerDialogs(void) {
-    FOR_LOOP(i, MIN((DWORD)game.max_clients, (DWORD)MAX_CLIENTS)) {
+    FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS)) {
         LPGAMECLIENT client = &game.clients[i];
-        DWORD player_num = client->ps.number;
+        uint32_t player_num = client->ps.number;
         LPEDICT ent;
         LPTIMERDIALOG dialog;
-        LONG dialog_index;
-        LONG seconds = -1;
-        BOOL dirty;
+        int32_t dialog_index;
+        int32_t seconds = -1;
+        bool dirty;
 
         if (!client->connected || player_num >= MAX_CLIENTS) continue;
         dialog = VisibleTimerDialogForPlayer(player_num, &dialog_index);
         if (dialog && dialog->timer)
-            seconds = (LONG)TimerDialogDisplaySeconds(dialog->timer);
+            seconds = (int32_t)TimerDialogDisplaySeconds(dialog->timer);
         dirty = (level.timer_dialog_dirty_clients & (1u << player_num)) != 0;
         if (!dirty && level.timer_dialog_last_index[player_num] == dialog_index &&
             level.timer_dialog_last_seconds[player_num] == seconds) continue;

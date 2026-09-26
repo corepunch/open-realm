@@ -4,14 +4,14 @@
 
 #define BZ_ANHS MAKEFOURCC('A', 'N', 'h', 's') // rawcode; TFT Alchemist Healing Spray
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock DataA/B/D/F so tests cannot pass on retail 40/1/280/3. */
-static LPCSTR healing_spray_slk =
+static cstring_t healing_spray_slk =
     "ID;PWXL;N;EBB;Y2;X16\n"
     "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
     "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"

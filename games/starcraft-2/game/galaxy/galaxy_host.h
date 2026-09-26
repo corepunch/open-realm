@@ -5,14 +5,14 @@
 
 /* galaxy_set_script_dir — override the default "data/TRaynor01-galaxy" base
  * path used when resolving Galaxy include directives and script file paths. */
-void galaxy_set_script_dir(LPCSTR dir);
+void galaxy_set_script_dir(cstring_t dir);
 
 /* galaxy_open — set up JASSHOST, load MapScript (includes TriggerLibs via its
  * own include directives), return VM.  Returns NULL on load failure. */
-LPJASS galaxy_open(HANDLE (*readfile)(LPCSTR, DWORD *),
-                   DWORD  (*gettime)(void),
-                   HANDLE (*memalloc)(long),
-                   void   (*memfree)(HANDLE));
+LPJASS galaxy_open(handle_t (*readfile)(cstring_t, uint32_t *),
+                   uint32_t  (*gettime)(void),
+                   handle_t (*memalloc)(long),
+                   void   (*memfree)(handle_t));
 
 /* galaxy_start — initialize map globals, then register map triggers. Library initialization remains diagnosed. */
 void galaxy_start(LPJASS vm);
@@ -44,38 +44,38 @@ extern void (*sc2_galaxy_on_camera)(float target_x, float target_y,
                                     float duration);
 
 /* CinematicMode — toggle letterbox bars on/off. */
-extern void (*sc2_galaxy_on_cinematic)(BOOL enable, float duration);
+extern void (*sc2_galaxy_on_cinematic)(bool enable, float duration);
 
 /* CinematicFade — set screen fade alpha (0=clear, 1=black). */
 extern void (*sc2_galaxy_on_fade)(float alpha, float duration);
 
 /* Sound catalog lookup: returns the selected asset duration in seconds. */
-extern LPCSTR (*sc2_galaxy_conversation_field)(LPCSTR key, LPCSTR field);
-extern float (*sc2_galaxy_sound_length)(LPCSTR sound_id, int asset);
-extern void (*sc2_galaxy_on_sound)(LPCSTR sound_id, int asset);
+extern cstring_t (*sc2_galaxy_conversation_field)(cstring_t key, cstring_t field);
+extern float (*sc2_galaxy_sound_length)(cstring_t sound_id, int asset);
+extern void (*sc2_galaxy_on_sound)(cstring_t sound_id, int asset);
 
 /* UnitCreate returns LPEDICT cast to void*, or NULL. Host headings are radians; native APIs decode degrees. */
-extern void *(*sc2_galaxy_on_unit_create)(LPCSTR unit_type, int player,
+extern void *(*sc2_galaxy_on_unit_create)(cstring_t unit_type, int player,
                                           float x, float y, float angle);
 
 /* Map data lookups — filled from sc2_map objects by g_sc2.c */
 
 /* Camera lookup: fills target, orientation, optics; returns false if not found */
-extern BOOL (*sc2_galaxy_get_camera_by_id)(DWORD map_id,
+extern bool (*sc2_galaxy_get_camera_by_id)(uint32_t map_id,
     float *target_x, float *target_y, float *target_z,
     float *pitch, float *yaw, float *distance, float *fov, float *height_offset);
 
 /* Point lookup: fills x, y from a POINT-type map object; returns false if not found */
-extern BOOL (*sc2_galaxy_get_point_by_id)(DWORD map_id, float *x, float *y);
+extern bool (*sc2_galaxy_get_point_by_id)(uint32_t map_id, float *x, float *y);
 
 /* Unit model: resolves unit type name to M3 model path; returns "" if unknown */
-extern const char *(*sc2_galaxy_get_unit_model)(LPCSTR unit_type);
+extern const char *(*sc2_galaxy_get_unit_model)(cstring_t unit_type);
 
 /* Entity operations via unit handle pointer */
 extern void (*sc2_galaxy_unit_set_position)(void *ent, float x, float y, float facing);
 extern void (*sc2_galaxy_unit_move)(void *ent, float x, float y);
-extern BOOL (*sc2_galaxy_unit_is_moving)(void *ent);
-extern BOOL (*sc2_galaxy_unit_is_alive)(void *ent);
+extern bool (*sc2_galaxy_unit_is_moving)(void *ent);
+extern bool (*sc2_galaxy_unit_is_alive)(void *ent);
 extern int (*sc2_galaxy_unit_owner)(void *ent);
 
 /* Actor lifecycle — called when Galaxy scripts create, message, or destroy actors.
@@ -87,6 +87,6 @@ extern void (*sc2_galaxy_on_actor_destroy)(unsigned actor_id);
 
 /* Debug-only state inspection for bounded cinematic traces. */
 extern void *sc2_gunits[];
-extern DWORD sc2_gunit_n;
+extern uint32_t sc2_gunit_n;
 
 #endif

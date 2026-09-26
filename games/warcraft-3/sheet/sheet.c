@@ -10,19 +10,19 @@
 #define MAX_SHEET_COLUMNS 256
 
 typedef struct SheetCell {
-    LPSTR text;
-    USHORT column;
-    USHORT row;
+    string_t text;
+    uint16_t column;
+    uint16_t row;
     LPSHEET next;
 } sheetCell_t;
 
 typedef struct sheet_field_s {
-    LPCSTR name, value;
+    cstring_t name, value;
     struct sheet_field_s *next;
 } sheetField_t;
 
 typedef struct sheet_row_s {
-    LPCSTR name;
+    cstring_t name;
     sheetField_t *fields;
     struct sheet_row_s *next;
 } sheetRow_t;
@@ -39,7 +39,7 @@ static sheetCell_t cells[1024 * 1024] = { 0 };
 static sheetRow_t rows[1024 * 1024] = { 0 };
 static sheetField_t fields[1024 * 1024] = { 0 };
 static char text_buffer[8 * 1024 * 1024] = { 0 };
-static LPSTR current_text = text_buffer;
+static string_t current_text = text_buffer;
 static LPSHEET current_cell = cells;
 static LPSHEET previous_cell = cells;
 static sheetRow_t *current_row = rows;
@@ -64,9 +64,9 @@ static sheetTable_t *FS_MakeTable(sheetRow_t *rows, sheetRow_t *tail)
  * For K fields, strips surrounding quotes and decodes "" → literal ".
  * Advances *p past the field and any trailing semicolon.
  * Returns false when no field remains. */
-static bool ScanSLKField(LPCSTR *p, LPCSTR end, char *out, size_t cap) {
+static bool ScanSLKField(cstring_t *p, cstring_t end, char *out, size_t cap) {
     char *dst = out, *dst_end = out + cap - 1;
-    LPCSTR s = *p;
+    cstring_t s = *p;
     bool is_k;
 
     if (s >= end || !*s || *s == '\r' || *s == '\n') return false;
@@ -95,7 +95,7 @@ static bool ScanSLKField(LPCSTR *p, LPCSTR end, char *out, size_t cap) {
 
 //int text_size = 0;
 
-static void FS_FillSheetCell(DWORD x, DWORD y, LPCSTR text) {
+static void FS_FillSheetCell(uint32_t x, uint32_t y, cstring_t text) {
     size_t len, remaining;
 
     if (!text) return;
@@ -109,8 +109,8 @@ static void FS_FillSheetCell(DWORD x, DWORD y, LPCSTR text) {
         fprintf(stderr, "SLK: text arena exhausted at row=%u col=%u\n", y, x);
         return;
     }
-    current_cell->column = (USHORT)x;
-    current_cell->row = (USHORT)y;
+    current_cell->column = (uint16_t)x;
+    current_cell->row = (uint16_t)y;
     current_cell->next = current_cell + 1;
     current_cell->text = current_text;
     memcpy(current_text, text, len);
@@ -121,11 +121,11 @@ static void FS_FillSheetCell(DWORD x, DWORD y, LPCSTR text) {
 }
 
 static sheetTable_t *FS_MakeRowsFromSheet(LPSHEET sheet) {
-    LPCSTR columns[256] = { 0 };
+    cstring_t columns[256] = { 0 };
     sheetRow_t *start = NULL;
     sheetRow_t *last_row = NULL;
     sheetRow_t **rows_by_number = NULL;
-    DWORD num_rows = 0;
+    uint32_t num_rows = 0;
 
     FOR_EACH_LIST(SHEET, cell, sheet) {
         if (cell->row == 1) {
@@ -191,18 +191,18 @@ static sheetTable_t *FS_MakeRowsFromSheet(LPSHEET sheet) {
     return FS_MakeTable(start, last_row);
 }
 
-static sheetTable_t *FS_ParseSLK_Buffer(LPCSTR buffer)
+static sheetTable_t *FS_ParseSLK_Buffer(cstring_t buffer)
 {
     LPSHEET start = current_cell;
-    DWORD X = 1, Y = 1;
+    uint32_t X = 1, Y = 1;
     char field[MAX_SHEET_LINE];
 
     if (!buffer) return NULL;
 
     while (*buffer) {
-        LPCSTR line_start = buffer, line_end;
+        cstring_t line_start = buffer, line_end;
         char rectype;
-        LPCSTR p;
+        cstring_t p;
 
         while (*buffer && *buffer != '\n' && *buffer != '\r') buffer++;
         line_end = buffer;
@@ -218,8 +218,8 @@ static sheetTable_t *FS_ParseSLK_Buffer(LPCSTR buffer)
 
         while (ScanSLKField(&p, line_end, field, sizeof(field))) {
             switch (field[0]) {
-            case 'X': X = (DWORD)atoi(field + 1); break;
-            case 'Y': Y = (DWORD)atoi(field + 1); break;
+            case 'X': X = (uint32_t)atoi(field + 1); break;
+            case 'Y': Y = (uint32_t)atoi(field + 1); break;
             case 'K':
                 if (rectype == 'C' && X >= 1 && Y >= 1)
                     FS_FillSheetCell(X, Y, field + 1);
@@ -236,8 +236,8 @@ static sheetTable_t *FS_ParseSLK_Buffer(LPCSTR buffer)
 }
 
 
-static sheetTable_t *FS_ParseSLK(LPCSTR fileName) {
-    LPSTR buffer = FS_ReadFileIntoString(fileName);
+static sheetTable_t *FS_ParseSLK(cstring_t fileName) {
+    string_t buffer = FS_ReadFileIntoString(fileName);
     sheetTable_t *sheet;
     if (!buffer) return NULL;
     sheet = FS_ParseSLK_Buffer(buffer);
@@ -245,7 +245,7 @@ static sheetTable_t *FS_ParseSLK(LPCSTR fileName) {
     return sheet;
 }
 
-static LPCSTR FS_FindSheetCell(sheetTable_t const *sheet, LPCSTR row, LPCSTR column) {
+static cstring_t FS_FindSheetCell(sheetTable_t const *sheet, cstring_t row, cstring_t column) {
     for (; sheet; sheet = sheet->next) {
         FOR_EACH_LIST(sheetRow_t const, srow, sheet->rows) {
             if (strcmp(srow->name, row))
@@ -260,14 +260,14 @@ static LPCSTR FS_FindSheetCell(sheetTable_t const *sheet, LPCSTR row, LPCSTR col
     return NULL;
 }
 
-static sheetTable_t *FS_ParseINI_Buffer(LPCSTR buffer) {
+static sheetTable_t *FS_ParseINI_Buffer(cstring_t buffer) {
     size_t size, lines = 1, row_capacity = 0, row_count = 0, field_count = 0;
     size_t text_capacity, text_overhead, allocation_size;
     sheetTable_t *table;
     sheetRow_t *rows, *section = NULL, *last_row = NULL;
     sheetField_t *fields;
     char *text;
-    LPCSTR p, end;
+    cstring_t p, end;
 
     if (!buffer) return NULL;
     size = strlen(buffer);
@@ -303,7 +303,7 @@ static sheetTable_t *FS_ParseINI_Buffer(LPCSTR buffer) {
         if (p[0] == '/' && p + 1 < end && p[1] == '/') {
             while (p < end && *p != '\n' && *p != '\r') p++;
         } else if (*p == '[') {
-            LPCSTR name_start, name_end;
+            cstring_t name_start, name_end;
             p++; name_start = p;
             while (p < end && *p != ']' && *p != '\n' && *p != '\r') p++;
             name_end = p;
@@ -316,12 +316,12 @@ static sheetTable_t *FS_ParseINI_Buffer(LPCSTR buffer) {
             text[name_end - name_start] = '\0'; text += (name_end - name_start) + 1;
             if (p < end && *p == ']') p++;
         } else {
-            LPCSTR line_start = p, line_end, eq;
+            cstring_t line_start = p, line_end, eq;
             while (p < end && *p != '\n' && *p != '\r') p++;
             line_end = p;
             eq = memchr(line_start, '=', (size_t)(line_end - line_start));
             if (eq && section) {
-                LPCSTR key_end = eq, value_start = eq + 1;
+                cstring_t key_end = eq, value_start = eq + 1;
                 sheetField_t *field = &fields[field_count++];
                 while (key_end > line_start && key_end[-1] == ' ') key_end--;
                 while (value_start < line_end && *value_start == ' ') value_start++;
@@ -341,8 +341,8 @@ static sheetTable_t *FS_ParseINI_Buffer(LPCSTR buffer) {
     return row_count ? table : (free(table), NULL);
 }
 
-static sheetTable_t *FS_ParseINI(LPCSTR fileName) {
-    LPSTR buffer = FS_ReadFileIntoString(fileName);
+static sheetTable_t *FS_ParseINI(cstring_t fileName) {
+    string_t buffer = FS_ReadFileIntoString(fileName);
     sheetTable_t *config;
     if (!buffer) return NULL;
     config = FS_ParseINI_Buffer(buffer);
@@ -364,39 +364,39 @@ static void FS_AppendSheetTable(sheetTable_t **head, sheetTable_t **tail, sheetT
         *tail = (*tail)->next;
 }
 
-static void SheetSetTypedField(BYTE *dst, bzFieldType_t type, LPCSTR value, LPCSTR field_name)
+static void SheetSetTypedField(uint8_t *dst, bzFieldType_t type, cstring_t value, cstring_t field_name)
 {
     switch (type) {
-    case BZ_FIELD_U32: *(DWORD *)dst = value ? (DWORD)atoi(value) : 0; break;
-    case BZ_FIELD_FLOAT: *(FLOAT *)dst = value ? (FLOAT)atof(value) : 0.f; break;
-    case BZ_FIELD_BOOL: *(BOOL *)dst = value && (atoi(value) != 0 || !strcasecmp(value, "TRUE")); break;
+    case BZ_FIELD_U32: *(uint32_t *)dst = value ? (uint32_t)atoi(value) : 0; break;
+    case BZ_FIELD_FLOAT: *(float *)dst = value ? (float)atof(value) : 0.f; break;
+    case BZ_FIELD_BOOL: *(bool *)dst = value && (atoi(value) != 0 || !strcasecmp(value, "true")); break;
     case BZ_FIELD_CSTR: {
         size_t len = value ? strlen(value) : 0;
-        LPSTR str = (LPSTR)malloc(len + 1);
+        string_t str = (string_t)malloc(len + 1);
         if (!str) { fprintf(stderr, "SLK: out of memory copying field '%s'\n", field_name ? field_name : ""); break; }
         memcpy(str, value ? value : "", len + 1);
         free(*(void **)dst);
-        *(LPSTR *)dst = str;
+        *(string_t *)dst = str;
         break;
     }
     case BZ_FIELD_FOURCC: {
-        DWORD key = 0;
+        uint32_t key = 0;
         if (value) {
             size_t n = strlen(value);
             memcpy(&key, value, n < 4 ? n : 4);
         }
-        *(DWORD *)dst = key;
+        *(uint32_t *)dst = key;
         break;
     }
     default: break;
     }
 }
 
-static void *FS_LoadSheetTyped(sheetTable_t const *sheet, slkField_t const *schema, size_t row_size, DWORD *count_out)
+static void *FS_LoadSheetTyped(sheetTable_t const *sheet, slkField_t const *schema, size_t row_size, uint32_t *count_out)
 {
-    DWORD capacity = 0, out_count = 0;
-    LPCSTR *seen_names;
-    BYTE *rows_out;
+    uint32_t capacity = 0, out_count = 0;
+    cstring_t *seen_names;
+    uint8_t *rows_out;
 
     if (count_out)
         *count_out = 0;
@@ -408,8 +408,8 @@ static void *FS_LoadSheetTyped(sheetTable_t const *sheet, slkField_t const *sche
     if (!capacity)
         return NULL;
 
-    seen_names = (LPCSTR *)calloc(capacity, sizeof(*seen_names));
-    rows_out = (BYTE *)calloc(capacity, row_size);
+    seen_names = (cstring_t *)calloc(capacity, sizeof(*seen_names));
+    rows_out = (uint8_t *)calloc(capacity, row_size);
     if (!seen_names || !rows_out) {
         fprintf(stderr, "SLK: out of memory allocating %u decoded rows\n", capacity);
         free(seen_names);
@@ -419,7 +419,7 @@ static void *FS_LoadSheetTyped(sheetTable_t const *sheet, slkField_t const *sche
 
     for (sheetTable_t const *table = sheet; table; table = table->next) {
         FOR_EACH_LIST(sheetRow_t const, row, table->rows) {
-            BYTE *dst;
+            uint8_t *dst;
             bool seen = false;
 
             if (!row->name || !row->name[0])
@@ -437,8 +437,8 @@ static void *FS_LoadSheetTyped(sheetTable_t const *sheet, slkField_t const *sche
             dst = rows_out + out_count * row_size;
 
             for (slkField_t const *field = schema; field->column; field++) {
-                LPCSTR value;
-                BYTE *field_dst = dst + field->offset;
+                cstring_t value;
+                uint8_t *field_dst = dst + field->offset;
 
                 if (!field->column[0]) {
                     SheetSetTypedField(field_dst, field->type, row->name, field->column);
@@ -472,7 +472,7 @@ static void *FS_LoadSheetTyped(sheetTable_t const *sheet, slkField_t const *sche
     LPSHEET     _saved_prev  = previous_cell; \
     sheetRow_t *_saved_row   = current_row;   \
     sheetField_t *_saved_fld = current_field; \
-    LPSTR       _saved_text  = current_text
+    string_t       _saved_text  = current_text
 
 #define SHEET_POOL_RESTORE() \
     current_cell  = _saved_cell;  \
@@ -481,9 +481,9 @@ static void *FS_LoadSheetTyped(sheetTable_t const *sheet, slkField_t const *sche
     current_field = _saved_fld;   \
     current_text  = _saved_text
 
-DWORD Stb_SlkLoad(LPCSTR filename, slkField_t const *schema, void **dest, DWORD row_stride) {
+uint32_t Stb_SlkLoad(cstring_t filename, slkField_t const *schema, void **dest, uint32_t row_stride) {
     SHEET_POOL_SAVE();
-    DWORD count = 0;
+    uint32_t count = 0;
     sheetTable_t *sheet = FS_ParseSLK(filename);
     if (sheet && dest && schema && row_stride)
         *dest = FS_LoadSheetTyped(sheet, schema, row_stride, &count);
@@ -491,9 +491,9 @@ DWORD Stb_SlkLoad(LPCSTR filename, slkField_t const *schema, void **dest, DWORD 
     return count;
 }
 
-DWORD Stb_SlkLoadBuffer(LPCSTR buffer, slkField_t const *schema, void **dest, DWORD row_stride) {
+uint32_t Stb_SlkLoadBuffer(cstring_t buffer, slkField_t const *schema, void **dest, uint32_t row_stride) {
     SHEET_POOL_SAVE();
-    DWORD count = 0;
+    uint32_t count = 0;
     sheetTable_t *sheet = FS_ParseSLK_Buffer(buffer);
     if (sheet && dest && schema && row_stride)
         *dest = FS_LoadSheetTyped(sheet, schema, row_stride, &count);
@@ -501,21 +501,21 @@ DWORD Stb_SlkLoadBuffer(LPCSTR buffer, slkField_t const *schema, void **dest, DW
     return count;
 }
 
-BOOL Stb_IniCacheLoad(stbIniCache_t *cache, LPCSTR filename) {
+bool Stb_IniCacheLoad(stbIniCache_t *cache, cstring_t filename) {
     if (!cache || !filename) return false;
     Stb_IniCacheFree(cache);
     cache->source = FS_ParseINI(filename);
     return cache->source != NULL;
 }
 
-BOOL Stb_IniCacheLoadBuffer(stbIniCache_t *cache, LPCSTR buffer) {
+bool Stb_IniCacheLoadBuffer(stbIniCache_t *cache, cstring_t buffer) {
     if (!cache || !buffer) return false;
     Stb_IniCacheFree(cache);
     cache->source = FS_ParseINI_Buffer(buffer);
     return cache->source != NULL;
 }
 
-BOOL Stb_IniCacheLoadFiles(stbIniCache_t *cache, LPCSTR const *filenames) {
+bool Stb_IniCacheLoadFiles(stbIniCache_t *cache, cstring_t const *filenames) {
     sheetTable_t *head = NULL, *tail = NULL;
     if (!cache || !filenames) return false;
     Stb_IniCacheFree(cache);
@@ -524,14 +524,14 @@ BOOL Stb_IniCacheLoadFiles(stbIniCache_t *cache, LPCSTR const *filenames) {
     return head != NULL;
 }
 
-DWORD Stb_IniDecode(stbIniCache_t const *ini, slkField_t const *schema, void **dest, DWORD row_stride) {
-    DWORD count = 0;
+uint32_t Stb_IniDecode(stbIniCache_t const *ini, slkField_t const *schema, void **dest, uint32_t row_stride) {
+    uint32_t count = 0;
     if (!ini || !ini->source || !dest || !schema || !row_stride) return 0;
     *dest = FS_LoadSheetTyped(ini->source, schema, row_stride, &count);
     return count;
 }
 
-LPCSTR Stb_IniCacheFind(stbIniCache_t const *cache, LPCSTR section, LPCSTR key) {
+cstring_t Stb_IniCacheFind(stbIniCache_t const *cache, cstring_t section, cstring_t key) {
     return cache ? FS_FindSheetCell(cache->source, section, key) : NULL;
 }
 

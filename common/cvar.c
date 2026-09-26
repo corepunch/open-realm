@@ -13,7 +13,7 @@ extern void Key_WriteBindings(FILE *file);
 
 typedef struct cvaralias_s {
     struct cvaralias_s *next;
-    LPSTR name;
+    string_t name;
     cvar_t *target;
 } CVARALIAS;
 typedef CVARALIAS *LPCVARALIAS;
@@ -21,9 +21,9 @@ typedef CVARALIAS const *LPCCVARALIAS;
 
 static cvar_t *cvar_vars;
 static LPCVARALIAS aliases;
-static BOOL aliases_open;
+static bool aliases_open;
 
-static BOOL Cvar_NameMatches(LPCSTR name, LPCSTR partial) {
+static bool Cvar_NameMatches(cstring_t name, cstring_t partial) {
     size_t len;
 
     if (!name || !partial) {
@@ -33,8 +33,8 @@ static BOOL Cvar_NameMatches(LPCSTR name, LPCSTR partial) {
     return !strncasecmp(name, partial, len);
 }
 
-static void Cvar_CommonPrefix(LPSTR out, DWORD out_size, LPCSTR name) {
-    DWORD i;
+static void Cvar_CommonPrefix(string_t out, uint32_t out_size, cstring_t name) {
+    uint32_t i;
 
     if (!out || out_size == 0 || !name) {
         return;
@@ -51,9 +51,9 @@ static void Cvar_CommonPrefix(LPSTR out, DWORD out_size, LPCSTR name) {
     out[i] = '\0';
 }
 
-static LPSTR Cvar_CopyString(LPCSTR in) {
+static string_t Cvar_CopyString(cstring_t in) {
     size_t len = in ? strlen(in) : 0;
-    LPSTR out = MemAlloc((long)len + 1);
+    string_t out = MemAlloc((long)len + 1);
 
     if (len) {
         memcpy(out, in, len);
@@ -61,11 +61,11 @@ static LPSTR Cvar_CopyString(LPCSTR in) {
     return out;
 }
 
-static bool Cvar_NameIsValid(LPCSTR name) {
+static bool Cvar_NameIsValid(cstring_t name) {
     if (!name || !*name) {
         return false;
     }
-    for (LPCSTR p = name; *p; p++) {
+    for (cstring_t p = name; *p; p++) {
         if (isspace((unsigned char)*p) || *p == '"' || *p == ';') {
             return false;
         }
@@ -81,7 +81,7 @@ static void Cvar_UpdateValue(cvar_t *var) {
     var->integer = (int)var->value;
 }
 
-static cvar_t *Cvar_FindVar(LPCSTR name) {
+static cvar_t *Cvar_FindVar(cstring_t name) {
     if (!name) {
         return NULL;
     }
@@ -96,11 +96,11 @@ static cvar_t *Cvar_FindVar(LPCSTR name) {
 }
 
 /* Removed cvars from old configs must not be recreated by seta. */
-static bool Cvar_IsObsolete(LPCSTR name) {
+static bool Cvar_IsObsolete(cstring_t name) {
     return name && !strcmp(name, "r_module");
 }
 
-cvar_t *Cvar_Get(LPCSTR name, LPCSTR value, DWORD flags) {
+cvar_t *Cvar_Get(cstring_t name, cstring_t value, uint32_t flags) {
     cvar_t *var;
 
     if (Cvar_IsObsolete(name))
@@ -124,7 +124,7 @@ cvar_t *Cvar_Get(LPCSTR name, LPCSTR value, DWORD flags) {
     return var;
 }
 
-cvar_t *Cvar_Set(LPCSTR name, LPCSTR value) {
+cvar_t *Cvar_Set(cstring_t name, cstring_t value) {
     cvar_t *var = Cvar_Get(name, value ? value : "", 0);
 
     if (!var) {
@@ -141,37 +141,37 @@ cvar_t *Cvar_Set(LPCSTR name, LPCSTR value) {
     return var;
 }
 
-cvar_t *Cvar_SetValue(LPCSTR name, FLOAT value) {
+cvar_t *Cvar_SetValue(cstring_t name, float value) {
     char text[64];
 
     snprintf(text, sizeof(text), "%g", value);
     return Cvar_Set(name, text);
 }
 
-LPCSTR Cvar_String(LPCSTR name, LPCSTR fallback) {
+cstring_t Cvar_String(cstring_t name, cstring_t fallback) {
     cvar_t *var = Cvar_FindVar(name);
 
     return var ? var->string : fallback;
 }
 
-int Cvar_Integer(LPCSTR name, int fallback) {
+int Cvar_Integer(cstring_t name, int fallback) {
     cvar_t *var = Cvar_FindVar(name);
 
     return var ? var->integer : fallback;
 }
 
-FLOAT Cvar_Value(LPCSTR name, FLOAT fallback) {
+float Cvar_Value(cstring_t name, float fallback) {
     cvar_t *var = Cvar_FindVar(name);
 
     return var ? var->value : fallback;
 }
 
-void Cvar_Describe(LPCSTR name, LPCSTR description) {
+void Cvar_Describe(cstring_t name, cstring_t description) {
     cvar_t *var = Cvar_FindVar(name);
     if (var) var->description = description;
 }
 
-cvar_t *Cvar_GetD(LPCSTR name, LPCSTR value, DWORD flags, LPCSTR description) {
+cvar_t *Cvar_GetD(cstring_t name, cstring_t value, uint32_t flags, cstring_t description) {
     cvar_t *var = Cvar_Get(name, value, flags);
     if (var) var->description = description;
     return var;
@@ -186,7 +186,7 @@ void Cvar_ForEachVariable(cmdListFunc_t func, void *userData) {
     }
 }
 
-int Cvar_CompleteVariable(LPCSTR partial, LPSTR out, DWORD out_size, bool print) {
+int Cvar_CompleteVariable(cstring_t partial, string_t out, uint32_t out_size, bool print) {
     int matches = 0;
     char common[CVAR_COMPLETE_CHARS];
 
@@ -216,7 +216,7 @@ int Cvar_CompleteVariable(LPCSTR partial, LPSTR out, DWORD out_size, bool print)
 
 static void Cvar_Set_f(void) {
     int argc = Cmd_Argc();
-    LPCSTR name = Cmd_Argv(1);
+    cstring_t name = Cmd_Argv(1);
 
     if (argc < 2) {
         fprintf(stderr, "usage: set <name> <value>\n");
@@ -237,7 +237,7 @@ static void Cvar_Set_f(void) {
 static void Cvar_SetA_f(void) {
     cvar_t *var;
     int argc = Cmd_Argc();
-    LPCSTR name = Cmd_Argv(1);
+    cstring_t name = Cmd_Argv(1);
 
     if (argc < 3) {
         Cvar_Set_f();
@@ -250,7 +250,7 @@ static void Cvar_SetA_f(void) {
 }
 
 static void Cvar_List_f(void) {
-    DWORD count = 0;
+    uint32_t count = 0;
 
     FOR_EACH_LIST(cvar_t, var, cvar_vars) {
         if (var->description)
@@ -283,10 +283,10 @@ bool Cvar_Command(void) {
     return true;
 }
 
-static LPSTR Cvar_ReadLocalConfig(LPCSTR filename) {
+static string_t Cvar_ReadLocalConfig(cstring_t filename) {
     FILE *file;
     long fileSize;
-    LPSTR buffer;
+    string_t buffer;
 
     file = fopen(filename, "rb");
     if (!file) {
@@ -312,8 +312,8 @@ static LPSTR Cvar_ReadLocalConfig(LPCSTR filename) {
     return buffer;
 }
 
-bool Cvar_LoadConfig(LPCSTR filename) {
-    LPSTR text;
+bool Cvar_LoadConfig(cstring_t filename) {
+    string_t text;
 
     if (!filename || !*filename) {
         return false;
@@ -332,8 +332,8 @@ bool Cvar_LoadConfig(LPCSTR filename) {
     return true;
 }
 
-static void Cvar_WriteEscaped(FILE *file, LPCSTR text) {
-    for (LPCSTR p = text ? text : ""; *p; p++) {
+static void Cvar_WriteEscaped(FILE *file, cstring_t text) {
+    for (cstring_t p = text ? text : ""; *p; p++) {
         if (*p == '"') {
             fputc('\\', file);
         }
@@ -341,13 +341,13 @@ static void Cvar_WriteEscaped(FILE *file, LPCSTR text) {
     }
 }
 
-static bool Cvar_IsSessionOnly(LPCSTR name) {
+static bool Cvar_IsSessionOnly(cstring_t name) {
     return name && (!strcmp(name, "map") || !strcmp(name, "connect"));
 }
 
-void Cvar_WriteConfig(LPCSTR filename) {
+void Cvar_WriteConfig(cstring_t filename) {
     FILE *file;
-    DWORD count = 0;
+    uint32_t count = 0;
 
     if (!filename || !*filename) {
         filename = Cvar_String("config", "");
@@ -386,8 +386,8 @@ static void Cvar_Exec_f(void) {
     Cvar_LoadConfig(Cmd_Argv(1));
 }
 
-static bool Cvar_ApplyDashArg(int argc, LPCSTR *argv, int *index, LPCSTR name) {
-    LPCSTR arg = argv[*index];
+static bool Cvar_ApplyDashArg(int argc, cstring_t *argv, int *index, cstring_t name) {
+    cstring_t arg = argv[*index];
     size_t len = strlen(name);
 
     if (arg[0] != '-' || strncmp(arg + 1, name, len)) {
@@ -400,7 +400,7 @@ static bool Cvar_ApplyDashArg(int argc, LPCSTR *argv, int *index, LPCSTR name) {
     return false;
 }
 
-bool Cvar_ApplyBooleanCommandLineFlag(LPCSTR name) {
+bool Cvar_ApplyBooleanCommandLineFlag(cstring_t name) {
     if (!name || !*name) {
         return false;
     }
@@ -423,9 +423,9 @@ bool Cvar_ApplyBooleanCommandLineFlag(LPCSTR name) {
     return false;
 }
 
-void Cvar_ApplyConfigCommandLine(int argc, LPCSTR *argv) {
+void Cvar_ApplyConfigCommandLine(int argc, cstring_t *argv) {
     for (int i = 1; i < argc; i++) {
-        LPCSTR arg = argv[i];
+        cstring_t arg = argv[i];
 
         if (!arg || !*arg) {
             continue;
@@ -436,9 +436,9 @@ void Cvar_ApplyConfigCommandLine(int argc, LPCSTR *argv) {
     }
 }
 
-void Cvar_ApplyCommandLine(int argc, LPCSTR *argv) {
+void Cvar_ApplyCommandLine(int argc, cstring_t *argv) {
     for (int i = 1; i < argc; i++) {
-        LPCSTR arg = argv[i];
+        cstring_t arg = argv[i];
 
         if (!arg || !*arg) {
             continue;
@@ -457,7 +457,7 @@ void Cvar_ApplyCommandLine(int argc, LPCSTR *argv) {
 
 /* Config-owned compatibility names share one cvar, including flags and archived output. */
 static void Cvar_Alias_f(void) {
-    LPCSTR name = Cmd_Argv(1), dest = Cmd_Argv(2);
+    cstring_t name = Cmd_Argv(1), dest = Cmd_Argv(2);
     cvar_t *target, *old;
     if (Cmd_Argc() != 3 || !Cvar_NameIsValid(name) || !Cvar_NameIsValid(dest) || !strcmp(name, dest)) {
         fprintf(stderr, "usage: cvar_alias <old-name> <canonical-name>\n");

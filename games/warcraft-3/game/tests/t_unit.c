@@ -11,7 +11,7 @@
 #include "../game/skills/s_skills.h"
 
 /* Helpers defined in t_utils.c */
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 
@@ -23,30 +23,30 @@ void unit_begin_decay(LPEDICT self);
 void unit_decay_think(LPEDICT self);
 void unit_entercombat(LPEDICT self, LPEDICT target);
 void unit_leavecombat(LPEDICT self);
-BOOL unit_affectingcombat(LPEDICT self);
-BOOL unit_issuetargetorder(LPEDICT self, LPCSTR order, LPEDICT target);
-BOOL unit_issueorder(LPEDICT self, LPCSTR order, LPCVECTOR2 point);
-BOOL unit_issueimmediateorder(LPEDICT self, LPCSTR order);
-BOOL unit_additem(LPEDICT edict, LPEDICT item);
-BOOL unit_additemtoslot(LPEDICT edict, LPEDICT item, DWORD slot);
-slkTestData_t *parse_slk_string(LPCSTR slk_text);
+bool unit_affectingcombat(LPEDICT self);
+bool unit_issuetargetorder(LPEDICT self, cstring_t order, LPEDICT target);
+bool unit_issueorder(LPEDICT self, cstring_t order, LPCVECTOR2 point);
+bool unit_issueimmediateorder(LPEDICT self, cstring_t order);
+bool unit_additem(LPEDICT edict, LPEDICT item);
+bool unit_additemtoslot(LPEDICT edict, LPEDICT item, uint32_t slot);
+slkTestData_t *parse_slk_string(cstring_t slk_text);
 void free_slk_rows(slkTestData_t *rows);
 
-static int selection_sound_index_77(LPCSTR path) {
+static int selection_sound_index_77(cstring_t path) {
     (void)path;
     return 77;
 }
-static int selection_sound_index_77_alias(LPCSTR path, LPCSTR alias) { (void)alias; return selection_sound_index_77(path); }
+static int selection_sound_index_77_alias(cstring_t path, cstring_t alias) { (void)alias; return selection_sound_index_77(path); }
 
 
 static char death_sound_path[256];
-static LPCSTR death_sound_existing = "Units\\Human\\Test\\TestDeath1.wav";
-static HANDLE death_sound_probe(LPCSTR path, LPDWORD size) {
+static cstring_t death_sound_existing = "Units\\Human\\Test\\TestDeath1.wav";
+static handle_t death_sound_probe(cstring_t path, uint32_t * size) {
     if (strcmp(path, death_sound_existing)) return NULL;
     *size = 1;
     return malloc(1);
 }
-static int death_sound_index(LPCSTR path) {
+static int death_sound_index(cstring_t path) {
     strlcpy(death_sound_path, path, sizeof(death_sound_path));
     return 77;
 }
@@ -88,13 +88,13 @@ TEST(wc3_unit, death_sound_uses_existing_unnumbered_asset) {
 static int order_sound_calls, order_sound_index;
 static void order_sound_write(pfWriteType_t type, void const *value) { (void)type; (void)value; }
 static void order_sound_unicast(LPEDICT ent) { (void)ent; }
-static void order_sound_capture(LPEDICT ent, int channel, int index, FLOAT volume, FLOAT attenuation, FLOAT offset) {
+static void order_sound_capture(LPEDICT ent, int channel, int index, float volume, float attenuation, float offset) {
     (void)ent; (void)channel; (void)volume; (void)attenuation; (void)offset;
     order_sound_calls++; order_sound_index = index;
 }
 
 static void order_sound_policy_capture(LPCVECTOR3 origin, LPEDICT ent, int channel, int index,
-                                       FLOAT volume, FLOAT attenuation, FLOAT offset, soundPolicy_t const *policy) {
+                                       float volume, float attenuation, float offset, soundPolicy_t const *policy) {
     T_ASSERT(policy && policy->request);
     T_EQ(policy->request, G_UnitResponseRequest(ent, index));
     order_sound_capture(ent, channel, index, volume, attenuation, offset);
@@ -103,7 +103,7 @@ static void order_sound_policy_capture(LPCVECTOR3 origin, LPEDICT ent, int chann
 /* A right-click must survive command dispatch and the next entity update. */
 TEST(wc3_unit, smart_move_emits_selected_unit_response) {
     struct game_import old = gi;
-    LPCSTR command[] = { "smartpoint", "256", "256" };
+    cstring_t command[] = { "smartpoint", "256", "256" };
     setup_test_world();
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 64);
     LPEDICT clent = &g_edicts[0];
@@ -132,7 +132,7 @@ static void reset_test_entities(void) {
 }
 
 /* Create a minimal unit edict with lifecycle callbacks wired up. */
-static LPEDICT make_unit(FLOAT x, FLOAT y) {
+static LPEDICT make_unit(float x, float y) {
     static UnitWeapons_t const test_weapons = { .attacksEnabled = 3 };
     LPEDICT ent = G_Spawn();
     ent->class_id       = MAKEFOURCC('h','p','e','a');
@@ -158,14 +158,14 @@ static LPEDICT make_unit(FLOAT x, FLOAT y) {
     return ent;
 }
 
-static LPEDICT make_inventory_unit(FLOAT x, FLOAT y) {
+static LPEDICT make_inventory_unit(float x, float y) {
     LPEDICT ent = make_unit(x, y);
     ent->class_id = MAKEFOURCC('H','p','a','l');
     G_BindEntityData(ent);
     return ent;
 }
 
-static LPEDICT make_world_item(DWORD class_id) {
+static LPEDICT make_world_item(uint32_t class_id) {
     LPEDICT item = G_Spawn();
     item->class_id = class_id;
     G_BindEntityData(item);
@@ -176,7 +176,7 @@ static LPEDICT make_world_item(DWORD class_id) {
     return item;
 }
 
-static LPEDICT unit_make_harvest_tree(FLOAT x, FLOAT y) {
+static LPEDICT unit_make_harvest_tree(float x, float y) {
     LPEDICT tree = G_Spawn();
     tree->s.origin2 = (VECTOR2){x, y};
     tree->s.origin.x = x;
@@ -186,7 +186,7 @@ static LPEDICT unit_make_harvest_tree(FLOAT x, FLOAT y) {
     return tree;
 }
 
-static LPEDICT unit_make_harvest_goldmine(FLOAT x, FLOAT y) {
+static LPEDICT unit_make_harvest_goldmine(float x, float y) {
     static UnitAbilities_t const abilities = { .abilList = "Agld" };
     LPEDICT mine = G_Spawn();
     mine->s.origin2 = (VECTOR2){x, y};
@@ -227,7 +227,7 @@ TEST(wc3_unit, locust_ability_applies_untargetable_collisionless_traits) {
 }
 
 TEST(wc3_unit, selection_sound_registration_caches_all_responses) {
-    static LPCSTR const slk =
+    static cstring_t const slk =
         "ID;PWXL;N;E\n"
         "B;X6;Y2;D0\n"
         "C;Y1;X1;K\"SoundLabel\"\n"
@@ -264,7 +264,7 @@ TEST(wc3_unit, selection_sound_registration_caches_all_responses) {
 }
 
 TEST(wc3_unit, shared_sound_file_keeps_label_policy_and_volume_independent) {
-    LPCSTR slk = "ID;PWXL;N;E\nB;X6;Y3;D0\n"
+    cstring_t slk = "ID;PWXL;N;E\nB;X6;Y3;D0\n"
         "C;Y1;X1;K\"SoundLabel\"\nC;X2;K\"FileNames\"\nC;X3;K\"Channel\"\n"
         "C;X4;K\"Priority\"\nC;X5;K\"Volume\"\nC;X6;K\"Flags\"\n"
         "C;Y2;X1;K\"AliasWhat\"\nC;X2;K\"shared.wav\"\nC;X3;K1\nC;X4;K1731\nC;X5;K127\nC;X6;K\"NODUPEUSERNAMES\"\n"
@@ -310,10 +310,10 @@ TEST(wc3_unit, response_preserves_full_sound_configstring_index) {
     T_EQ(ent->sound.pending, 731);
 }
 
-void test_sound_event(LPEDICT ent, DWORD request, DWORD event);
+void test_sound_event(LPEDICT ent, uint32_t request, uint32_t event);
 
 static void response_test_finish(LPEDICT ent) {
-    DWORD request = G_UnitResponseRequest(ent, ent->sound.pending);
+    uint32_t request = G_UnitResponseRequest(ent, ent->sound.pending);
     ent->sound.pending = 0;
     test_sound_event(ent, request, SOUND_ACCEPTED);
     test_sound_event(ent, request, SOUND_ACCEPTED); /* duplicate cannot advance twice */
@@ -325,14 +325,14 @@ TEST(wc3_unit, response_feedback_owns_portrait_lifetime_and_rejection) {
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     G_ResetSelectionSoundState();
     T_ASSERT(G_QueueUnitResponseSound(ent, 11));
-    DWORD first = G_UnitResponseRequest(ent, 11);
+    uint32_t first = G_UnitResponseRequest(ent, 11);
     ent->sound.pending = 0; /* packet sent */
     T_ASSERT(!G_UnitResponseTalking(ent));
     T_ASSERT(!G_QueueUnitResponseSound(ent, 12)); /* only one unanswered request */
     test_sound_event(ent, first, SOUND_REJECTED);
     T_ASSERT(!G_UnitResponseTalking(ent));
     T_ASSERT(G_QueueUnitResponseSound(ent, 12));
-    DWORD second = G_UnitResponseRequest(ent, 12);
+    uint32_t second = G_UnitResponseRequest(ent, 12);
     T_NE(first, second);
     test_sound_event(ent, second, SOUND_STARTED); /* cannot start before admission */
     T_ASSERT(!G_UnitResponseTalking(ent));
@@ -354,10 +354,10 @@ TEST(wc3_unit, response_feedback_rejects_foreign_clients_resets_and_reused_units
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     G_ResetSelectionSoundState();
     T_ASSERT(G_QueueUnitResponseSound(ent, 11));
-    DWORD request = G_UnitResponseRequest(ent, 11);
+    uint32_t request = G_UnitResponseRequest(ent, 11);
     char user[16], token[16];
     snprintf(user, sizeof(user), "%u", ent->s.number); snprintf(token, sizeof(token), "%u", request);
-    LPCSTR accepted[] = {"sound_event", user, token, "1"}, started[] = {"sound_event", user, token, "2"};
+    cstring_t accepted[] = {"sound_event", user, token, "1"}, started[] = {"sound_event", user, token, "2"};
     g_edicts[0].client = game.clients; game.clients[0].connected = true; game.clients[0].ps.number = 1;
     G_ClientCommand(g_edicts, 4, accepted); G_ClientCommand(g_edicts, 4, started);
     T_ASSERT(!G_UnitResponseTalking(ent));
@@ -376,14 +376,14 @@ TEST(wc3_unit, response_feedback_rejects_foreign_clients_resets_and_reused_units
 TEST(wc3_unit, overlapping_response_feedback_keeps_portrait_until_last_voice_ends) {
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     G_ResetSelectionSoundState();
-    T_ASSERT(G_QueueUnitResponseSound(ent, 11)); DWORD a = G_UnitResponseRequest(ent, 11);
+    T_ASSERT(G_QueueUnitResponseSound(ent, 11)); uint32_t a = G_UnitResponseRequest(ent, 11);
     ent->sound.pending = 0;
     test_sound_event(ent, a, SOUND_ACCEPTED); test_sound_event(ent, a, SOUND_STARTED);
-    T_ASSERT(G_QueueUnitResponseSound(ent, 12)); DWORD b = G_UnitResponseRequest(ent, 12);
+    T_ASSERT(G_QueueUnitResponseSound(ent, 12)); uint32_t b = G_UnitResponseRequest(ent, 12);
     test_sound_event(ent, b, SOUND_ACCEPTED); test_sound_event(ent, b, SOUND_STARTED);
     test_sound_event(ent, a, SOUND_ENDED); T_ASSERT(G_UnitResponseTalking(ent));
     test_sound_event(ent, b, SOUND_ENDED); T_ASSERT(!G_UnitResponseTalking(ent));
-    T_ASSERT(G_QueueUnitResponseSound(ent, 13)); DWORD c = G_UnitResponseRequest(ent, 13);
+    T_ASSERT(G_QueueUnitResponseSound(ent, 13)); uint32_t c = G_UnitResponseRequest(ent, 13);
     game.clients[0].connected = false;
     G_UpdateUnitResponsePresentation();
     test_sound_event(ent, c, SOUND_ACCEPTED); test_sound_event(ent, c, SOUND_STARTED);
@@ -395,7 +395,7 @@ TEST(wc3_unit, unused_client_slot_cannot_retire_another_clients_playback) {
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     G_ResetSelectionSoundState();
     T_ASSERT(G_QueueUnitResponseSound(ent, 11));
-    DWORD request = G_UnitResponseRequest(ent, 11);
+    uint32_t request = G_UnitResponseRequest(ent, 11);
     test_sound_event(ent, request, SOUND_ACCEPTED); test_sound_event(ent, request, SOUND_STARTED);
     GAMECLIENT unused = {0}; /* unused slots can still carry zero-initialized player zero */
     G_UpdateUnitResponsePresentation();
@@ -408,7 +408,7 @@ TEST(wc3_unit, selection_reset_ignores_late_response_admission) {
     ent->sound.select[0] = 731; ent->sound.num_select = 1;
     G_ResetSelectionSoundState();
     G_QueueSelectionSound(ent, true); T_EQ(ent->sound.pending, 731);
-    DWORD request = G_UnitResponseRequest(ent, 731);
+    uint32_t request = G_UnitResponseRequest(ent, 731);
     G_QueueSelectionSound(ent, true); /* same unit reselected before old admission */
     test_sound_event(ent, request, SOUND_ACCEPTED);
     T_EQ(selection_sound_state[0].selected_sound_count, 0);
@@ -421,14 +421,14 @@ TEST(wc3_unit, selection_reset_ignores_late_response_admission) {
 }
 
 TEST(wc3_unit, response_variant_commits_on_acceptance_and_rejection_preserves_previous) {
-    LPCSTR text = "ID;PWXL;N;E\nB;X2;Y2;D0\nC;Y1;X1;K\"SoundLabel\"\nC;X2;K\"FileNames\"\n"
+    cstring_t text = "ID;PWXL;N;E\nB;X2;Y2;D0\nC;Y1;X1;K\"SoundLabel\"\nC;X2;K\"FileNames\"\n"
         "C;Y2;X1;K\"ProbeWhat\"\nC;X2;K\"one.wav,two.wav\"\nE\n";
     slkTestData_t *rows = parse_slk_string(text), *old = G_SetSLKRows("UnitAckSounds", rows);
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     G_ResetSelectionSoundState();
     int a = G_UnitAckSoundVariantIndex("Probe", "What", 0), b = G_UnitAckSoundVariantIndex("Probe", "What", 1);
     T_ASSERT(G_QueueUnitResponseSound(ent, a));
-    DWORD request = G_UnitResponseRequest(ent, a);
+    uint32_t request = G_UnitResponseRequest(ent, a);
     T_ASSERT(!G_SoundVariantIsLast(a, 0));
     test_sound_event(ent, request, SOUND_ACCEPTED);
     T_ASSERT(G_SoundVariantIsLast(a, 0)); T_ASSERT(!G_SoundVariantIsLast(a, 1));
@@ -444,7 +444,7 @@ TEST(wc3_unit, response_variant_commits_on_acceptance_and_rejection_preserves_pr
 }
 
 TEST(wc3_unit, repeated_selection_walks_pissed_responses_after_three_what_lines) {
-    static LPCSTR const slk =
+    static cstring_t const slk =
         "ID;PWXL;N;E\n"
         "B;X3;Y2;D0\n"
         "C;Y1;X1;K\"SoundLabel\"\n"
@@ -458,7 +458,7 @@ TEST(wc3_unit, repeated_selection_walks_pissed_responses_after_three_what_lines)
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     slkTestData_t *sounds = parse_slk_string(slk);
     slkTestData_t *old = G_SetSLKRows("UnitAckSounds", sounds);
-    int (*old_sound_index)(LPCSTR) = gi.SoundIndex;
+    int (*old_sound_index)(cstring_t) = gi.SoundIndex;
     __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
 
     ent->data.UnitUI = &ui;
@@ -469,7 +469,7 @@ TEST(wc3_unit, repeated_selection_walks_pissed_responses_after_three_what_lines)
 
     G_QueueSelectionSound(ent, true); T_EQ(ent->sound.pending, 11);
     /* Rejected responses leave the three-What threshold untouched. */
-    DWORD rejected = G_UnitResponseRequest(ent, 11);
+    uint32_t rejected = G_UnitResponseRequest(ent, 11);
     ent->sound.pending = 0; test_sound_event(ent, rejected, SOUND_REJECTED);
     FOR_LOOP(i, 3) {
         G_QueueSelectionSound(ent, false); T_EQ(ent->sound.pending, 11);
@@ -485,7 +485,7 @@ TEST(wc3_unit, repeated_selection_walks_pissed_responses_after_three_what_lines)
 }
 
 TEST(wc3_unit, attack_order_uses_yesattack_instead_of_weapon_swing_slot) {
-    static LPCSTR const slk =
+    static cstring_t const slk =
         "ID;PWXL;N;E\n"
         "B;X3;Y2;D0\n"
         "C;Y1;X1;K\"SoundLabel\"\n"
@@ -499,7 +499,7 @@ TEST(wc3_unit, attack_order_uses_yesattack_instead_of_weapon_swing_slot) {
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     slkTestData_t *sounds = parse_slk_string(slk);
     slkTestData_t *old = G_SetSLKRows("UnitAckSounds", sounds);
-    int (*old_sound_index)(LPCSTR) = gi.SoundIndex;
+    int (*old_sound_index)(cstring_t) = gi.SoundIndex;
     __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
 
     ent->data.UnitUI = &ui;
@@ -896,8 +896,8 @@ TEST(wc3_unit, target_move_on_unit_starts_persistent_follow) {
 }
 
 TEST(wc3_unit, follow_stop_range_uses_misc_data_not_acquisition_range) {
-    FLOAT const old_follow = game.constants.followRange;
-    FLOAT const old_structure = game.constants.structureFollowRange;
+    float const old_follow = game.constants.followRange;
+    float const old_structure = game.constants.structureFollowRange;
     LPEDICT follower;
     LPEDICT target;
 
@@ -927,7 +927,7 @@ TEST(wc3_unit, follow_stop_range_uses_misc_data_not_acquisition_range) {
 
 TEST(wc3_unit, smart_follow_building_stops_at_pathing_footprint_range) {
     enum { W = 8, H = 8 };
-    FLOAT const old_structure = game.constants.structureFollowRange;
+    float const old_structure = game.constants.structureFollowRange;
     size_t const pathtex_size = sizeof(pathTex_t) + W * H * sizeof(COLOR32);
     pathTex_t *pathtex;
     LPEDICT follower;
@@ -1006,7 +1006,7 @@ TEST(wc3_unit, neutral_creep_natural_sleep_tracks_night_and_wakes_at_dawn) {
     reset_test_entities();
     setup_test_world();
     LPEDICT creep = make_unit(0, 0);
-    USHORT *no_creep_sleep = &game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP];
+    uint16_t *no_creep_sleep = &game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP];
     UnitData_t data = *creep->data.UnitData;
     UnitBalance_t balance = *creep->data.UnitBalance;
     UnitUI_t ui = *creep->data.UnitUI;
@@ -1049,7 +1049,7 @@ TEST(wc3_unit, no_creep_sleep_player_state_blocks_new_natural_sleep) {
     reset_test_entities();
     setup_test_world();
     LPEDICT creep = make_unit(0, 0);
-    USHORT *no_creep_sleep = &game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP];
+    uint16_t *no_creep_sleep = &game.clients[PLAYER_NEUTRAL_AGGRESSIVE].ps.stats[WC3_PLAYERSTATE_NO_CREEP_SLEEP];
 
     creep->svflags |= SVF_MONSTER;
     creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
@@ -1175,7 +1175,7 @@ TEST(wc3_unit, die_publishes_death_event) {
     memset(level.events.handlers, 0, sizeof(level.events.handlers));
 
     unit_die(ent, NULL);
-    BOOL found = false;
+    bool found = false;
     for (int i = 0; i < MAX_EVENT_QUEUE; i++) {
         if (level.events.queue[i].type == EVENT_UNIT_DEATH) {
             found = true;
@@ -1197,7 +1197,7 @@ TEST(wc3_unit, hero_dissipation_marks_same_hero_revivable_and_hidden) {
     unit_begin_decay(hero);
     /* Drive exactly one elapsed simulation step without depending on the
      * archive's configured DissipateTime in this unit test. */
-    hero->wait = (FLOAT)FRAMETIME / 1000.0f;
+    hero->wait = (float)FRAMETIME / 1000.0f;
     unit_decay_think(hero);
 
     T_ASSERT(hero->inuse);
@@ -1252,8 +1252,8 @@ TEST(wc3_unit, removing_producer_cancels_mixed_revival_and_training_queue) {
     LPEDICT altar = make_unit(0, 0);
     LPEDICT hero = make_inventory_unit(0, 0);
     LPEDICT trainee = make_unit(0, 0);
-    LONG gold = MAX(0, trainee->data.UnitBalance->goldCost);
-    LONG lumber = MAX(0, trainee->data.UnitBalance->lumberCost);
+    int32_t gold = MAX(0, trainee->data.UnitBalance->goldCost);
+    int32_t lumber = MAX(0, trainee->data.UnitBalance->lumberCost);
 
     altar->s.player = hero->s.player = trainee->s.player = client->ps.number;
     altar->data.UnitProfile = &revive_profile;
@@ -1360,7 +1360,7 @@ TEST(wc3_unit, issueorder_move_creates_waypoint) {
     reset_test_entities();
     LPEDICT ent = make_unit(0, 0);
     VECTOR2 dest = {100.0f, 0.0f};
-    BOOL result = unit_issueorder(ent, "move", &dest);
+    bool result = unit_issueorder(ent, "move", &dest);
     T_ASSERT(result);
     T_NOT_NULL(ent->goalentity);
 }
@@ -1508,7 +1508,7 @@ TEST(wc3_unit, issueorder_unknown_returns_false) {
     reset_test_entities();
     LPEDICT ent = make_unit(0, 0);
     VECTOR2 dest = {100.0f, 0.0f};
-    BOOL result = unit_issueorder(ent, "patrol", &dest);
+    bool result = unit_issueorder(ent, "patrol", &dest);
     T_ASSERT(!result);
 }
 
@@ -1529,7 +1529,7 @@ TEST(wc3_unit, issueimmediateorder_stop) {
     unit_issueorder(ent, "move", &dest);
     T_STREQ(ent->currentmove->animation, "walk");
 
-    BOOL result = unit_issueimmediateorder(ent, "stop");
+    bool result = unit_issueimmediateorder(ent, "stop");
     T_ASSERT(result);
     T_STREQ(ent->currentmove->animation, "stand");
 }
@@ -1548,7 +1548,7 @@ TEST(wc3_unit, issueimmediateorder_holdposition_uses_hold_state) {
 static void install_raven_form_test_data(slkTestData_t **ability_rows, slkTestData_t **old_ability,
                                          slkTestData_t **ui_rows, slkTestData_t **old_ui,
                                          slkTestData_t **profile_rows, slkTestData_t **old_profile) {
-    static LPCSTR const ability_slk =
+    static cstring_t const ability_slk =
         "ID;PWXL;N;EBB;Y4;X4\n"
         "C;Y1;X1;K\"alias\"\n"
         "C;Y1;X2;K\"code\"\n"
@@ -1567,7 +1567,7 @@ static void install_raven_form_test_data(slkTestData_t **ability_rows, slkTestDa
         "C;Y4;X3;K\"hpea\"\n"
         "C;Y4;X4;K\"hfoo\"\n"
         "E\n";
-    static LPCSTR const ui_slk =
+    static cstring_t const ui_slk =
         "ID;PWXL;N;EBB;Y3;X7\n"
         "C;Y1;X1;K\"unitUIID\"\n"
         "C;Y1;X2;K\"file\"\n"
@@ -1588,7 +1588,7 @@ static void install_raven_form_test_data(slkTestData_t **ability_rows, slkTestDa
         "C;Y3;X3;K1\n"
         "C;Y3;X4;K1\n"
         "E\n";
-    static LPCSTR const profile_slk =
+    static cstring_t const profile_slk =
         "ID;PWXL;N;EBB;Y3;X2\n"
         "C;Y1;X1;K\"unitID\"\n"
         "C;Y1;X2;K\"animProps\"\n"
@@ -1878,7 +1878,7 @@ TEST(wc3_unit, issueimmediateorder_autoharvest_requires_resource_target) {
 TEST(wc3_unit, issueimmediateorder_unknown_returns_false) {
     reset_test_entities();
     LPEDICT ent = make_unit(0, 0);
-    BOOL result = unit_issueimmediateorder(ent, "patrol");
+    bool result = unit_issueimmediateorder(ent, "patrol");
     T_ASSERT(!result);
 }
 
@@ -1898,7 +1898,7 @@ TEST(wc3_unit, additemtoslot_fills_empty_slot) {
     reset_test_entities();
     LPEDICT ent  = make_inventory_unit(0, 0);
     LPEDICT item = make_world_item(MAKEFOURCC('r','a','t','f'));
-    BOOL ok = unit_additemtoslot(ent, item, 0);
+    bool ok = unit_additemtoslot(ent, item, 0);
     T_ASSERT(ok);
     T_ASSERT(ent->inventory[0] == item);
 }
@@ -1909,7 +1909,7 @@ TEST(wc3_unit, additemtoslot_rejects_occupied_slot) {
     LPEDICT item1 = make_world_item(MAKEFOURCC('r','a','t','f'));
     LPEDICT item2 = make_world_item(MAKEFOURCC('r','a','t','f'));
     unit_additemtoslot(ent, item1, 0);
-    BOOL ok = unit_additemtoslot(ent, item2, 0);
+    bool ok = unit_additemtoslot(ent, item2, 0);
     T_ASSERT(!ok);
 }
 
@@ -1919,7 +1919,7 @@ TEST(wc3_unit, additem_fills_first_free_slot) {
     LPEDICT item1 = make_world_item(MAKEFOURCC('r','a','t','f'));
     LPEDICT item2 = make_world_item(MAKEFOURCC('r','d','e','2'));
     unit_additemtoslot(ent, item1, 0);
-    BOOL ok = unit_additem(ent, item2);
+    bool ok = unit_additem(ent, item2);
     T_ASSERT(ok);
     T_ASSERT(ent->inventory[1] == item2);
 }
@@ -1932,7 +1932,7 @@ TEST(wc3_unit, additem_fails_when_inventory_full) {
         unit_additemtoslot(ent, item, i);
     }
     LPEDICT extra = make_world_item(MAKEFOURCC('r','d','e','2'));
-    BOOL ok = unit_additem(ent, extra);
+    bool ok = unit_additem(ent, extra);
     T_ASSERT(!ok);
 }
 

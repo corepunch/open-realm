@@ -7,17 +7,17 @@
 typedef struct {
     PATHSTR name;
     LPMODEL model;
-    DWORD references;
-    DWORD registration_sequence;
+    uint32_t references;
+    uint32_t registration_sequence;
 } KNOWNMODEL;
 
 static KNOWNMODEL mod_known[MAX_MOD_KNOWN];
-static DWORD mod_registration_sequence = 1;
+static uint32_t mod_registration_sequence = 1;
 static PATHSTR r_map_asset_scope;
 
 /* A game renderer may install an archive/directory scope for map-local assets.
  * Shared model/texture caches use the resolved scoped path as their identity. */
-BOOL R_MapAssetCandidate(LPCSTR asset, LPSTR candidate, DWORD candidate_size) {
+bool R_MapAssetCandidate(cstring_t asset, string_t candidate, uint32_t candidate_size) {
     size_t scope_len;
     int written;
 
@@ -27,16 +27,16 @@ BOOL R_MapAssetCandidate(LPCSTR asset, LPSTR candidate, DWORD candidate_size) {
         (asset[scope_len] == '\\' || asset[scope_len] == '/')) return false;
     if (asset[0] == '/' || asset[0] == '\\' || (asset[0] && asset[1] == ':')) return false;
     written = snprintf(candidate, candidate_size, "%s\\%s", r_map_asset_scope, asset);
-    return written > 0 && (DWORD)written < candidate_size;
+    return written > 0 && (uint32_t)written < candidate_size;
 }
 
-void R_SetMapAssetScope(LPCSTR scope) {
+void R_SetMapAssetScope(cstring_t scope) {
     r_map_asset_scope[0] = '\0';
     if (scope && *scope) snprintf(r_map_asset_scope, sizeof(r_map_asset_scope), "%s", scope);
 }
 
 /* Missing files remain valid cached handles, matching Quake II registration semantics. */
-static LPMODEL R_LoadEmptyModel(LPCSTR modelFilename, LPCSTR reason) {
+static LPMODEL R_LoadEmptyModel(cstring_t modelFilename, cstring_t reason) {
     LPMODEL model;
     fprintf(stderr, "R_LoadModel: %s: %s, using empty model\n", reason, modelFilename);
     model = ri.MemAlloc(sizeof(*model));
@@ -44,7 +44,7 @@ static LPMODEL R_LoadEmptyModel(LPCSTR modelFilename, LPCSTR reason) {
     return model;
 }
 
-static LPMODEL R_LoadRegisteredModelPath(LPCSTR modelFilename, BOOL cache_missing) {
+static LPMODEL R_LoadRegisteredModelPath(cstring_t modelFilename, bool cache_missing) {
     KNOWNMODEL *entry = NULL;
     LPMODEL model;
 
@@ -71,7 +71,7 @@ static LPMODEL R_LoadRegisteredModelPath(LPCSTR modelFilename, BOOL cache_missin
 }
 
 /* Quake II keeps one renderer model entry per resolved filename and marks it during registration. */
-LPMODEL R_LoadRegisteredModel(LPCSTR modelFilename) {
+LPMODEL R_LoadRegisteredModel(cstring_t modelFilename) {
     PATHSTR scoped;
     LPMODEL model;
 
@@ -95,7 +95,7 @@ void R_ReleaseRegisteredModel(LPMODEL model) {
 }
 
 /* End-of-registration cleanup mirrors Mod_FreeUnused: only unreferenced, unmarked models leave residency. */
-static void R_FreeUnusedModels(BOOL shutdown) {
+static void R_FreeUnusedModels(bool shutdown) {
     FOR_LOOP(i, MAX_MOD_KNOWN) {
         KNOWNMODEL *entry = &mod_known[i];
         if (!entry->model || (!shutdown && (entry->references ||
@@ -105,7 +105,7 @@ static void R_FreeUnusedModels(BOOL shutdown) {
     }
 }
 
-void R_RegisterMapAssets(LPCSTR mapFileName) {
+void R_RegisterMapAssets(cstring_t mapFileName) {
     if (!mapFileName || !*mapFileName) R_SetMapAssetScope(NULL);
     mod_registration_sequence++;
     if (!mod_registration_sequence) mod_registration_sequence = 1;

@@ -4,14 +4,14 @@
 #include <ctype.h>
 #include <SDL2/SDL.h>
 
-BOOL scr_initialized;
+bool scr_initialized;
 
 #define SCR_FPS_HEIGHT 8
 #define SCR_FPS_BOTTOM_MARGIN 4
 #define SCR_ALERT_PULSE_HALF_MS 250 // milliseconds; triangle-wave half period for transient command-button alert tint
 #define SCR_ALERT_PULSE_MIN_GB 80 // color channel value; preserves portrait detail at the red peak of a transient alert
 
-FLOAT SCR_UICanvasWidth(void) { return CL_Canvas()->scene.w; }
+float SCR_UICanvasWidth(void) { return CL_Canvas()->scene.w; }
 
 /*
  * SDL mouse positions are window pixels, while UI/layout coordinates use the
@@ -22,28 +22,28 @@ FLOAT SCR_UICanvasWidth(void) { return CL_Canvas()->scene.w; }
  */
 VECTOR2 SCR_ScreenToUI(int x, int y) {
     LPCUICANVAS canvas = CL_Canvas();
-    FLOAT nx = 0.0f, ny = 0.0f;
+    float nx = 0.0f, ny = 0.0f;
 
     if (canvas->window.width > 0 && canvas->window.height > 0) {
-        nx = (FLOAT)x / (FLOAT)canvas->window.width;
-        ny = (FLOAT)y / (FLOAT)canvas->window.height;
+        nx = (float)x / (float)canvas->window.width;
+        ny = (float)y / (float)canvas->window.height;
     }
 
     return MAKE(VECTOR2, nx * canvas->scene.w, ny * canvas->scene.h);
 }
 
-static void SCR_DrawString(int x, int y, LPCSTR string) {
+static void SCR_DrawString(int x, int y, cstring_t string) {
     if (string) re.DrawString(x, y, string);
 }
 
-static void SCR_DrawFPS(DWORD msec) {
-    static DWORD elapsed = 0;
-    static DWORD frames_drawn = 0;
-    static DWORD fps = 0;
+static void SCR_DrawFPS(uint32_t msec) {
+    static uint32_t elapsed = 0;
+    static uint32_t frames_drawn = 0;
+    static uint32_t fps = 0;
     char text[64];
     size2_t window = re.GetWindowSize();
-    DWORD inset = SCR_FPS_HEIGHT + SCR_FPS_BOTTOM_MARGIN;
-    DWORD y = window.height > inset ? window.height - inset : 0;
+    uint32_t inset = SCR_FPS_HEIGHT + SCR_FPS_BOTTOM_MARGIN;
+    uint32_t y = window.height > inset ? window.height - inset : 0;
 
     elapsed += msec;
     frames_drawn++;
@@ -67,7 +67,7 @@ static void SCR_DrawFPS(DWORD msec) {
  * Preserve the SDL cursor selected by the input module while the game renderer
  * temporarily replaces it with authored cursor content.
  */
-static void SCR_UpdateSystemCursor(BOOL game_cursor_active) {
+static void SCR_UpdateSystemCursor(bool game_cursor_active) {
     static int previous_visibility = -2;
 
     if (game_cursor_active) {
@@ -86,7 +86,7 @@ static void SCR_UpdateSystemCursor(BOOL game_cursor_active) {
 }
 
 static COLOR32 SCR_CursorTint(void) {
-    DWORD const entnum = cl.hover_entity;
+    uint32_t const entnum = cl.hover_entity;
 
     if (entnum && entnum < MAX_CLIENT_ENTITIES) {
         LPCENTITYSTATE state = &cl.ents[entnum].current;
@@ -104,7 +104,7 @@ static COLOR32 SCR_CursorTint(void) {
 
 static void SCR_DrawCursor(void) {
     int const x = (int)mouse.origin.x, y = (int)mouse.origin.y;
-    BOOL drawn = false;
+    bool drawn = false;
 
     /* Loading plaques are non-interactive. Hide both the authored cursor and
      * the native SDL cursor until normal menu/game presentation resumes. */
@@ -136,7 +136,7 @@ void SCR_EndLoadingPlaque(void) {
     cls.disable_screen = 0;
 }
 
-void SCR_DrawScreenField(DWORD msec) {
+void SCR_DrawScreenField(uint32_t msec) {
     re.BeginFrame();
     if (CL_MovieActive()) {
         SCR_UpdateSystemCursor(true);
@@ -190,9 +190,9 @@ void SCR_UpdateLoadingPlaque(void) {
     SCR_DrawScreenField(0);
 }
 
-void SCR_UpdateScreen(DWORD msec) {
+void SCR_UpdateScreen(uint32_t msec) {
     static int recursive;
-    static DWORD no_refresh_elapsed, no_refresh_frames;
+    static uint32_t no_refresh_elapsed, no_refresh_frames;
 
     if (!scr_initialized) {
         return;
@@ -237,26 +237,26 @@ void SCR_UpdateScreen(DWORD msec) {
 
 #define MAX_LISTBOX_TEXT 2048
 
-static LPCSTR active_tooltip = NULL;
-static HANDLE layout_layers[MAX_LAYOUT_LAYERS];
+static cstring_t active_tooltip = NULL;
+static handle_t layout_layers[MAX_LAYOUT_LAYERS];
 static LPTEXTURE layout_dynamic_pics[MAX_DYNAMIC_IMAGES];
 static char layout_dynamic_pic_names[MAX_DYNAMIC_IMAGES][512];
-static DWORD layout_dynamic_pic_cursor;
-static BOOL layout_left_down;
+static uint32_t layout_dynamic_pic_cursor;
+static bool layout_left_down;
 static char layout_held_command[CMDARG_LEN * 2];
-static DWORD layout_hovered_number;
-static DWORD layout_hovered_layer;
-static DWORD layout_current_layer;
-static HANDLE layout_hovered;
-static HANDLE layout_current;
-static BOOL layout_current_window;
+static uint32_t layout_hovered_number;
+static uint32_t layout_hovered_layer;
+static uint32_t layout_current_layer;
+static handle_t layout_hovered;
+static handle_t layout_current;
+static bool layout_current_window;
 
 /* Project a world point through the active camera into the virtual UI canvas.
  * The world scissor is authoritative: callers should not turn an off-screen
  * world event into a HUD notification pinned to the nearest edge. */
-BOOL SCR_ProjectWorldPoint(LPCVECTOR3 point, LPVECTOR2 screen) {
-    FLOAT const *m;
-    FLOAT cx, cy, cw, vx, vy;
+bool SCR_ProjectWorldPoint(LPCVECTOR3 point, LPVECTOR2 screen) {
+    float const *m;
+    float cx, cy, cw, vx, vy;
 
     if (!point || !screen) return false;
     m = cl.viewDef.viewProjectionMatrix.v;
@@ -273,7 +273,7 @@ BOOL SCR_ProjectWorldPoint(LPCVECTOR3 point, LPVECTOR2 screen) {
 }
 
 /* Entity-context layouts use a server-authored tree rooted at the client-projected model top. */
-BOOL SCR_LayoutWorldHoverRoot(LPRECT root) {
+bool SCR_LayoutWorldHoverRoot(rect_t * root) {
     LPCENTITYSTATE ent = SCR_LayoutContextEntity();
     VECTOR3 top;
     VECTOR2 screen;
@@ -283,24 +283,24 @@ BOOL SCR_LayoutWorldHoverRoot(LPRECT root) {
         if (cl.viewDef.entities[i].number != cl.hover_entity) continue;
         if (!re.GetEntityOverheadPosition(&cl.viewDef.entities[i], &top)) return false;
         if (!SCR_ProjectWorldPoint(&top, &screen)) return false;
-        *root = MAKE(RECT, screen.x, screen.y, 0, 0);
+        *root = MAKE(rect_t, screen.x, screen.y, 0, 0);
         return true;
     }
     return false;
 }
 
-static RECT get_uvrect(uint8_t const *tc) {
-    return (RECT){ tc[0], tc[2], tc[1]-tc[0], tc[3]-tc[2] };
+static rect_t get_uvrect(uint8_t const *tc) {
+    return (rect_t){ tc[0], tc[2], tc[1]-tc[0], tc[3]-tc[2] };
 }
 
 static LPCTEXTURE SCR_LayoutPic(RESOURCE image) {
     return image && image < MAX_IMAGES ? cl.pics[image] : NULL;
 }
 
-static LPCTEXTURE SCR_LayoutGetDynamicTexture(LPCSTR resource) {
+static LPCTEXTURE SCR_LayoutGetDynamicTexture(cstring_t resource) {
     if (!resource || !*resource || !strcmp(resource, " ")) return NULL;
 
-    DWORD slot = MAX_DYNAMIC_IMAGES;
+    uint32_t slot = MAX_DYNAMIC_IMAGES;
     FOR_LOOP(i, MAX_DYNAMIC_IMAGES) {
         if (layout_dynamic_pics[i] && !strcmp(layout_dynamic_pic_names[i], resource))
             return layout_dynamic_pics[i];
@@ -318,9 +318,9 @@ static LPCTEXTURE SCR_LayoutGetDynamicTexture(LPCSTR resource) {
     return layout_dynamic_pics[slot];
 }
 
-static RECT scale_rect(LPCRECT r, FLOAT f) {
-    FLOAT dx = r->w * (1-f), dy = r->h * (1-f);
-    return (RECT){ r->x + dx/2, r->y + dy/2, r->w - dx, r->h - dy };
+static rect_t scale_rect(rect_t const * r, float f) {
+    float dx = r->w * (1-f), dy = r->h * (1-f);
+    return (rect_t){ r->x + dx/2, r->y + dy/2, r->w - dx, r->h - dy };
 }
 
 static LPCENTITYSTATE SCR_LayoutSelectedEntity(void) {
@@ -331,11 +331,11 @@ static LPCENTITYSTATE SCR_LayoutSelectedEntity(void) {
     return NULL;
 }
 
-void SCR_LayoutDrawSegmentedStatusbar(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_LayoutDrawSegmentedStatusbar(LPCUIFRAME frame, rect_t const * screen) {
     LPCENTITYSTATE ent;
-    DWORD count, capacity;
-    FLOAT gap, width;
-    RECT const uv = { 0, 0, 1, 1 };
+    uint32_t count, capacity;
+    float gap, width;
+    rect_t const uv = { 0, 0, 1, 1 };
 
     if (!frame || !screen || !SCR_LayoutEntityContextActive()) return;
     ent = SCR_LayoutContextEntity();
@@ -349,24 +349,24 @@ void SCR_LayoutDrawSegmentedStatusbar(LPCUIFRAME frame, LPCRECT screen) {
      * secondary art for empty slots. Capacity owns the slot geometry even when
      * the current count is zero. */
     gap = MAX(0.0f, frame->value);
-    width = (screen->w - gap * (FLOAT)(capacity - 1)) / (FLOAT)capacity;
+    width = (screen->w - gap * (float)(capacity - 1)) / (float)capacity;
     if (width <= 0.0f) return;
 
     FOR_LOOP(i, capacity) {
-        BOOL const occupied = i < count;
+        bool const occupied = i < count;
         RESOURCE const image = occupied ? frame->tex.index : frame->tex.index2;
-        RECT segment = *screen;
+        rect_t segment = *screen;
         if (!image) continue;
-        segment.x += (FLOAT)i * (width + gap);
+        segment.x += (float)i * (width + gap);
         segment.w = width;
         re.DrawImage(cl.pics[image], &segment, &uv, occupied ? frame->color : COLOR32_WHITE);
     }
 }
 
-void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
-    RECT const uv = { 0, 0, 255, 255 };
-    RECT screen2 = *screen, uv2 = uv;
-    FLOAT value = frame->value;
+void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, rect_t const * screen) {
+    rect_t const uv = { 0, 0, 255, 255 };
+    rect_t screen2 = *screen, uv2 = uv;
+    float value = frame->value;
     SCR_LayoutContextValue(frame->stat, &value);
     if (frame->stat == UI_STAT_SELECTION_TIMED_STATUS && Cvar_Integer("ui_layout_debug", 0) >= 3) {
         static int last_bucket = -1;
@@ -383,18 +383,18 @@ void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, LPCRECT screen) {
     }
     screen2.w *= value;
     uv2.w    *= value;
-    RECT const suv2 = Rect_div(&uv2, 0xff);
+    rect_t const suv2 = Rect_div(&uv2, 0xff);
     re.DrawImage(cl.pics[frame->tex.index], &screen2, &suv2, frame->color);
     if (frame->tex.index2 > 0) {
-        RECT const suv = Rect_div(&uv, 0xff);
+        rect_t const suv = Rect_div(&uv, 0xff);
         re.DrawImage(cl.pics[frame->tex.index2], screen, &suv, COLOR32_WHITE);
     }
 }
 
-void SCR_LayoutDrawTexture(LPCUIFRAME frame, LPCRECT screen) {
-    FLOAT value = 0;
-    BOOL const has = SCR_LayoutContextValue(frame->stat, &value);
-    BOOL const ctx = SCR_LayoutEntityContextActive() &&
+void SCR_LayoutDrawTexture(LPCUIFRAME frame, rect_t const * screen) {
+    float value = 0;
+    bool const has = SCR_LayoutContextValue(frame->stat, &value);
+    bool const ctx = SCR_LayoutEntityContextActive() &&
                      (frame->stat == UI_STAT_CONTEXT_HEALTH || frame->stat == UI_STAT_CONTEXT_MANA);
     /* Mana hides by flag so an empty pool still draws the bar; health still
      * drops at value 0 because that snapshot means the unit is dead. */
@@ -402,7 +402,7 @@ void SCR_LayoutDrawTexture(LPCUIFRAME frame, LPCRECT screen) {
     if (!frame->tex.index) return;  /* unresolved texture — skip to avoid drawing cl.pics[0] */
     LPCTEXTURE tex = cl.pics[frame->tex.index];
     if (frame->stat >= MAX_STATS && frame->stat - MAX_STATS < PLAYERTEXT_COUNT) {
-        LPCSTR resource = cl.playerstate.texts[frame->stat - MAX_STATS];
+        cstring_t resource = cl.playerstate.texts[frame->stat - MAX_STATS];
         LPCTEXTURE dyn = SCR_LayoutGetDynamicTexture(resource);
         if (dyn) tex = dyn;
     }
@@ -414,38 +414,38 @@ void SCR_LayoutDrawTexture(LPCUIFRAME frame, LPCRECT screen) {
                              .shader = SHADER_UI,
                              .alphamode = uv->alphamode,
                              .screen = *screen,
-                             .uv = MAKE(RECT, uv->l, uv->t, uv->r - uv->l, uv->b - uv->t),
+                             .uv = MAKE(rect_t, uv->l, uv->t, uv->r - uv->l, uv->b - uv->t),
                              .color = color));
     } else {
-        RECT const uv = get_uvrect(frame->tex.coord);
-        RECT const suv = Rect_div(&uv, 0xff);
+        rect_t const uv = get_uvrect(frame->tex.coord);
+        rect_t const suv = Rect_div(&uv, 0xff);
         re.DrawImage(tex, screen, &suv, frame->color);
     }
 }
 
-static void SCR_LayoutDrawHighlightData(uiHighlight_t const *h, LPCRECT screen) {
+static void SCR_LayoutDrawHighlightData(uiHighlight_t const *h, rect_t const * screen) {
     LPCTEXTURE texture;
     if (!h || !screen || !(texture = SCR_LayoutPic(h->alphaFile))) return;
     re.DrawImageEx(&MAKE(drawImage_t,
         .texture   = texture,
         .alphamode = h->alphaMode,
         .screen    = *screen,
-        .uv        = MAKE(RECT,0,0,1,1),
+        .uv        = MAKE(rect_t,0,0,1,1),
         .color     = COLOR32_WHITE,
         .shader    = SHADER_UI));
 }
 
-void SCR_LayoutDrawHighlight(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_LayoutDrawHighlight(LPCUIFRAME frame, rect_t const * screen) {
     SCR_LayoutDrawHighlightData(frame->buffer.data, screen);
 }
 
-static BOOL SCR_LayoutFrameIsHovered(LPCUIFRAME frame);
+static bool SCR_LayoutFrameIsHovered(LPCUIFRAME frame);
 
-void SCR_LayoutSimpleButton(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_LayoutSimpleButton(LPCUIFRAME frame, rect_t const * screen) {
     uiSimpleButton_t const *b = frame->buffer.data;
-    BOOL const enabled = SCR_LayoutFrameHasClickCommand(frame);
-    BOOL const hovered = SCR_LayoutFrameIsHovered(frame);
-    BOOL const pushed = enabled && hovered && layout_left_down;
+    bool const enabled = SCR_LayoutFrameHasClickCommand(frame);
+    bool const hovered = SCR_LayoutFrameIsHovered(frame);
+    bool const pushed = enabled && hovered && layout_left_down;
     uiSimpleButtonState_t const *state = !enabled ? &b->disabled : pushed ? &b->pushed : &b->normal;
     LPCTEXTURE texture = SCR_LayoutPic(state->texture);
     if (!texture) {
@@ -453,8 +453,8 @@ void SCR_LayoutSimpleButton(LPCUIFRAME frame, LPCRECT screen) {
         texture = SCR_LayoutPic(state->texture);
     }
     if (texture) {
-        RECT const uv = get_uvrect((BYTE *)&state->texcoord);
-        RECT const suv = Rect_div(&uv, 0xff);
+        rect_t const uv = get_uvrect((uint8_t *)&state->texcoord);
+        rect_t const suv = Rect_div(&uv, 0xff);
         re.DrawImage(texture, screen, &suv, COLOR32_WHITE);
     }
     re.DrawText(&MAKE(drawText_t,
@@ -465,7 +465,7 @@ void SCR_LayoutSimpleButton(LPCUIFRAME frame, LPCRECT screen) {
         .textWidth = screen->w));
 }
 
-void SCR_LayoutDrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bd) {
+void SCR_LayoutDrawBackdrop2(LPCUIFRAME frame, rect_t const * screen, uiBackdrop_t const *bd) {
     LPCTEXTURE background, edge;
     if (!bd || !screen || screen->w <= 0 || screen->h <= 0) return;
     background = SCR_LayoutPic(bd->Background);
@@ -487,22 +487,22 @@ void SCR_LayoutDrawBackdrop2(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t cons
                | (bd->Mirrored       ? DRAW_MIRRORED : 0)));
 }
 
-void SCR_LayoutDrawBackdrop(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_LayoutDrawBackdrop(LPCUIFRAME frame, rect_t const * screen) {
     SCR_LayoutDrawBackdrop2(frame, screen, frame->buffer.data);
 }
 
-static BOOL SCR_LayoutBackdropHasArt(uiBackdrop_t const *bd) {
+static bool SCR_LayoutBackdropHasArt(uiBackdrop_t const *bd) {
     return bd && (bd->Background || bd->EdgeFile);
 }
 
-static void SCR_LayoutDrawBackdropPart(LPCUIFRAME frame, LPCRECT screen, uiBackdrop_t const *bd) {
+static void SCR_LayoutDrawBackdropPart(LPCUIFRAME frame, rect_t const * screen, uiBackdrop_t const *bd) {
     if (SCR_LayoutBackdropHasArt(bd) && screen->w > 0 && screen->h > 0)
         SCR_LayoutDrawBackdrop2(frame, screen, bd);
 }
 
 /* WoW sliders use compact cropped textures; retain backdrop drawing for legacy FDF scrollbars. */
-static BOOL SCR_LayoutDrawScrollImage(RESOURCE texture, BYTE const *texcoord, LPCRECT screen) {
-    RECT uv, suv;
+static bool SCR_LayoutDrawScrollImage(RESOURCE texture, uint8_t const *texcoord, rect_t const * screen) {
+    rect_t uv, suv;
     LPCTEXTURE image = SCR_LayoutPic(texture);
     if (!image) return false;
     uv = get_uvrect(texcoord); suv = Rect_div(&uv, 0xff);
@@ -521,24 +521,24 @@ static LPCUIFRAME SCR_LayoutTextAreaScrollBar(LPCUIFRAME frame) {
     return NULL;
 }
 
-static RECT SCR_LayoutTextAreaView(LPCUIFRAME frame, LPCRECT screen) {
+static rect_t SCR_LayoutTextAreaView(LPCUIFRAME frame, rect_t const * screen) {
     uiTextArea_t const *ta = frame && frame->buffer.data ? frame->buffer.data : NULL;
-    FLOAT inset = ta ? ta->inset : 0.0f;
-    RECT view = { screen->x + inset, screen->y + inset,
+    float inset = ta ? ta->inset : 0.0f;
+    rect_t view = { screen->x + inset, screen->y + inset,
                   MAX(0.0f, screen->w - inset * 2), MAX(0.0f, screen->h - inset * 2) };
     LPCUIFRAME scrollbar = SCR_LayoutTextAreaScrollBar(frame);
     if (scrollbar) {
-        FLOAT sw = SCR_LayoutRect(scrollbar)->w;
+        float sw = SCR_LayoutRect(scrollbar)->w;
         if (sw > 0.0f && sw < view.w) view.w = MAX(0.0f, view.w - sw);
     }
     return view;
 }
 
-FLOAT SCR_LayoutTextAreaMaxScroll(LPCUIFRAME frame) {
+float SCR_LayoutTextAreaMaxScroll(LPCUIFRAME frame) {
     uiTextArea_t const *ta;
-    RECT view;
+    rect_t view;
     drawText_t measure;
-    LPCSTR value;
+    cstring_t value;
 
     if (!frame || frame->flags.type != FT_TEXTAREA || !frame->buffer.data || !re.GetTextSize)
         return 0.0f;
@@ -552,9 +552,9 @@ FLOAT SCR_LayoutTextAreaMaxScroll(LPCUIFRAME frame) {
     return MAX(0.0f, re.GetTextSize(&measure).y - view.h);
 }
 
-static int SCR_LayoutListBoxVisibleRows(LPCUIFRAME frame, LPCRECT view) {
+static int SCR_LayoutListBoxVisibleRows(LPCUIFRAME frame, rect_t const * view) {
     uiListBox_t const *lb;
-    FLOAT item_height;
+    float item_height;
 
     if (!frame || !view || frame->flags.type != FT_LISTBOX || !frame->buffer.data ||
         frame->buffer.size < sizeof(uiListBox_t) || view->h <= 0.0f) return 0;
@@ -565,7 +565,7 @@ static int SCR_LayoutListBoxVisibleRows(LPCUIFRAME frame, LPCRECT view) {
 
 static int SCR_LayoutListBoxMaxScroll(LPCUIFRAME frame) {
     uiListBox_t const *lb;
-    RECT view;
+    rect_t view;
     int count = 0, visible;
 
     if (!frame || frame->flags.type != FT_LISTBOX || !frame->buffer.data ||
@@ -574,13 +574,13 @@ static int SCR_LayoutListBoxMaxScroll(LPCUIFRAME frame) {
     view = Rect_inset(SCR_LayoutRect(frame), lb->border);
     if (frame->text && *frame->text) {
         count = 1;
-        for (LPCSTR p = frame->text; *p; p++) if (*p == '\n') count++;
+        for (cstring_t p = frame->text; *p; p++) if (*p == '\n') count++;
     }
     visible = SCR_LayoutListBoxVisibleRows(frame, &view);
     return MAX(count - visible, 0);
 }
 
-void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, rect_t const * screen) {
     uiScrollBarImage_t const *art = frame->buffer.size == sizeof(*art) ? frame->buffer.data : NULL;
     uiScrollBar_t const *sb = !art && frame->buffer.size >= sizeof(*sb) ? frame->buffer.data : NULL;
     LPCUIFRAME parent = frame->parent < SCR_NumFrames() ? SCR_Frame(frame->parent) : NULL;
@@ -597,10 +597,10 @@ void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     if (sb) SCR_LayoutDrawBackdropPart(frame, screen, &sb->background);
 
     /* Equal authored pixel dimensions need a taller Y span in WoW's normalized square UI scene. */
-    FLOAT bh = MIN(screen->w * UI_PIXEL_ASPECT, screen->h * 0.5f);
-    RECT inc   = MAKE(RECT, screen->x, screen->y + screen->h - bh, screen->w, bh);
-    RECT dec   = MAKE(RECT, screen->x, screen->y, screen->w, bh);
-    RECT track = MAKE(RECT, screen->x, dec.y + dec.h, screen->w, inc.y - (dec.y + dec.h));
+    float bh = MIN(screen->w * UI_PIXEL_ASPECT, screen->h * 0.5f);
+    rect_t inc   = MAKE(rect_t, screen->x, screen->y + screen->h - bh, screen->w, bh);
+    rect_t dec   = MAKE(rect_t, screen->x, screen->y, screen->w, bh);
+    rect_t track = MAKE(rect_t, screen->x, dec.y + dec.h, screen->w, inc.y - (dec.y + dec.h));
     if (art) {
         SCR_LayoutDrawScrollImage(art->image[0], art->texcoord, &inc);
         SCR_LayoutDrawScrollImage(art->image[1], art->texcoord, &dec);
@@ -611,12 +611,12 @@ void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     if (track.h <= 0) return;
 
 #ifdef UI_STRETCHED_SCROLLBAR_THUMB
-    FLOAT th = MIN(MAX(bh, track.h * 0.25f), track.h);
+    float th = MIN(MAX(bh, track.h * 0.25f), track.h);
 #else
-    FLOAT th = MIN(art ? bh : MIN(bh, 0.010f), track.h);
+    float th = MIN(art ? bh : MIN(bh, 0.010f), track.h);
 #endif
-    FLOAT tw = art ? screen->w : MIN(screen->w, 0.010f);
-    RECT thumb = {
+    float tw = art ? screen->w : MIN(screen->w, 0.010f);
+    rect_t thumb = {
         screen->x + (screen->w - tw) * 0.5f,
         /* Slider value zero is the top of a top-origin UI; the old formula inverted it. */
         track.y + (track.h - th) * MIN(MAX(frame->value, 0.0f), 1.0f),
@@ -626,14 +626,14 @@ void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, LPCRECT screen) {
     else SCR_LayoutDrawBackdropPart(frame, &thumb, &sb->thumbButton);
 }
 
-BOOL SCR_LayoutFrameHasClickCommand(LPCUIFRAME frame) {
+bool SCR_LayoutFrameHasClickCommand(LPCUIFRAME frame) {
     return frame && frame->onclick && *frame->onclick;
 }
-static BOOL SCR_LayoutGlueTextButtonIsPushed(LPCUIFRAME frame) {
+static bool SCR_LayoutGlueTextButtonIsPushed(LPCUIFRAME frame) {
     /* The left button is global, but the pushed state belongs only to the hovered layout frame. */
     return layout_left_down && SCR_LayoutFrameHasClickCommand(frame) && SCR_LayoutFrameIsHovered(frame);
 }
-static BOOL SCR_LayoutFrameIsHovered(LPCUIFRAME frame) {
+static bool SCR_LayoutFrameIsHovered(LPCUIFRAME frame) {
     if (!frame || frame->number != layout_hovered_number) return false;
     /* Transient windows identify the hovered layout by handle. Persistent HUD
      * layers identify it by layer number; layout_current is also used while
@@ -644,23 +644,23 @@ static BOOL SCR_LayoutFrameIsHovered(LPCUIFRAME frame) {
     return !layout_current_window && layout_current_layer == layout_hovered_layer;
 }
 
-static void SCR_LayoutFormatOnClickCommand(LPCSTR src, LPSTR dst, DWORD dsz) {
+static void SCR_LayoutFormatOnClickCommand(cstring_t src, string_t dst, uint32_t dsz) {
     if (!dst || dsz == 0) return;
     dst[0] = '\0';
     if (!src) return;
 
-    DWORD out = 0;
-    for (DWORD i = 0; src[i] && out + 1 < dsz; i++) {
+    uint32_t out = 0;
+    for (uint32_t i = 0; src[i] && out + 1 < dsz; i++) {
         if (src[i] == '{') {
-            char name[80]; DWORD nlen = 0;
-            DWORD j = i + 1;
+            char name[80]; uint32_t nlen = 0;
+            uint32_t j = i + 1;
             while (src[j] && src[j] != '}' && nlen + 1 < sizeof(name))
                 name[nlen++] = src[j++];
             if (src[j] == '}') {
                 char val[16];
                 name[nlen] = '\0';
                 snprintf(val, sizeof(val), "%d", 0);
-                for (DWORD k = 0; val[k] && out + 1 < dsz; k++)
+                for (uint32_t k = 0; val[k] && out + 1 < dsz; k++)
                     dst[out++] = val[k];
                 i = j;
                 continue;
@@ -679,27 +679,27 @@ void SCR_LayoutSendFrameCommand(LPCUIFRAME frame) {
     SZ_Printf(&cls.netchan.message, "%s", command);
 }
 
-void SCR_LayoutSetPointer(HANDLE layout, DWORD number, BOOL down) {
+void SCR_LayoutSetPointer(handle_t layout, uint32_t number, bool down) {
     layout_hovered = layout;
     layout_hovered_number = number;
     layout_left_down = down;
 }
 
-void SCR_WindowPrepare(HANDLE layout, LPCRECT root) {
+void SCR_WindowPrepare(handle_t layout, rect_t const * root) {
     layout_current_window = true;
     layout_current = layout;
     SCR_ClearWindow(layout);
     if (root) SCR_SetLayoutRoot(root);
 }
 
-BOOL SCR_WindowLayoutIsCurrent(HANDLE layout) {
+bool SCR_WindowLayoutIsCurrent(handle_t layout) {
     return layout && layout_current_window && layout_current == layout;
 }
 
-static void SCR_LayoutCheckBox(LPCUIFRAME frame, LPCRECT screen) {
+static void SCR_LayoutCheckBox(LPCUIFRAME frame, rect_t const * screen) {
     uiCheckBox_t const *cb = frame->buffer.data;
-    BOOL const enabled = SCR_LayoutFrameHasClickCommand(frame);
-    BOOL const pushed = enabled && SCR_LayoutFrameIsHovered(frame) && layout_left_down;
+    bool const enabled = SCR_LayoutFrameHasClickCommand(frame);
+    bool const pushed = enabled && SCR_LayoutFrameIsHovered(frame) && layout_left_down;
     uiBackdrop_t const *bd = enabled
         ? (pushed ? &cb->pushed : &cb->normal)
         : (pushed ? &cb->disabledPushed : &cb->disabled);
@@ -711,10 +711,10 @@ static void SCR_LayoutCheckBox(LPCUIFRAME frame, LPCRECT screen) {
         SCR_LayoutDrawHighlightData(&cb->mouseOver, screen);
 }
 
-void SCR_LayoutGlueTextButton(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_LayoutGlueTextButton(LPCUIFRAME frame, rect_t const * screen) {
     uiGlueTextButton_t const *gb = frame->buffer.data;
-    BOOL const enabled = SCR_LayoutFrameHasClickCommand(frame);
-    BOOL const pushed  = SCR_LayoutGlueTextButtonIsPushed(frame);
+    bool const enabled = SCR_LayoutFrameHasClickCommand(frame);
+    bool const pushed  = SCR_LayoutGlueTextButtonIsPushed(frame);
     uiBackdrop_t const *bd = enabled
         ? (pushed ? &gb->pushed : &gb->normal)
         : (pushed ? &gb->disabledPushed : &gb->disabled);
@@ -727,10 +727,10 @@ static void SCR_LayoutDrawGlueTextButtonHighlight(LPCUIFRAME frame) {
         SCR_LayoutDrawHighlightData(&gb->highlight, SCR_LayoutRect(frame));
 }
 
-BOOL SCR_LayoutScrollTextAreaAt(HANDLE layout, LPCVECTOR2 point, int wheel_y) {
+bool SCR_LayoutScrollTextAreaAt(handle_t layout, LPCVECTOR2 point, int wheel_y) {
     (void)layout;
     if (!point || !wheel_y) return false;
-    for (DWORD i = SCR_NumFrames(); i > 0; i--) {
+    for (uint32_t i = SCR_NumFrames(); i > 0; i--) {
         LPUIFRAME frame = SCR_Frame(i - 1);
         if (!frame || frame->flags.type != FT_TEXTAREA ||
             !Rect_contains(SCR_LayoutRect(frame), point)) continue;
@@ -741,19 +741,19 @@ BOOL SCR_LayoutScrollTextAreaAt(HANDLE layout, LPCVECTOR2 point, int wheel_y) {
     return false;
 }
 
-void SCR_LayoutDrawBuildQueue(LPCUIFRAME frame, LPCRECT scrn) {
-    RECT screen = *scrn;
-    RECT const uv = { 0, 0, 1, 1 };
+void SCR_LayoutDrawBuildQueue(LPCUIFRAME frame, rect_t const * scrn) {
+    rect_t screen = *scrn;
+    rect_t const uv = { 0, 0, 1, 1 };
     uiBuildQueue_t const *queue = frame->buffer.data;
-    BOOL const food_blocked = queue->numitems && queue->items[0].starttime == 0 && queue->items[0].endtime == 0;
-    DWORD active = food_blocked ? 0 : queue->numitems;
+    bool const food_blocked = queue->numitems && queue->items[0].starttime == 0 && queue->items[0].endtime == 0;
+    uint32_t active = food_blocked ? 0 : queue->numitems;
 
     if (!food_blocked) {
         FOR_LOOP(i, queue->numitems) {
             if (cl.time < queue->items[i].endtime) { active = i; break; }
         }
     }
-    for (DWORD i = active + 1; i < queue->numitems; i++) {
+    for (uint32_t i = active + 1; i < queue->numitems; i++) {
         if (food_blocked || cl.time < queue->items[i].endtime) {
             re.DrawImage(cl.pics[queue->items[i].image], &screen, &uv, frame->color);
             screen.x += queue->itemoffset;
@@ -761,9 +761,9 @@ void SCR_LayoutDrawBuildQueue(LPCUIFRAME frame, LPCRECT scrn) {
     }
 }
 
-static void SCR_LayoutDrawMessageQueue(LPCUIFRAME frame, LPCRECT screen) {
+static void SCR_LayoutDrawMessageQueue(LPCUIFRAME frame, rect_t const * screen) {
     uiMessageQueue_t const *message = frame->buffer.data;
-    RECT uv = MAKE(RECT, 0, 0, 0.53125f, 0.6875f);
+    rect_t uv = MAKE(rect_t, 0, 0, 0.53125f, 0.6875f);
     if (!message || frame->buffer.size < sizeof(*message)) {
         fprintf(stderr, "SCR_LayoutDrawMessageQueue: invalid payload size %u\n", (unsigned)frame->buffer.size);
         return;
@@ -773,8 +773,8 @@ static void SCR_LayoutDrawMessageQueue(LPCUIFRAME frame, LPCRECT screen) {
         if (icon) re.DrawImage(icon, screen, &uv, COLOR32_WHITE);
     }
     if (message->flags & UI_MESSAGE_OPEN) {
-        RECT title = MAKE(RECT, screen->x + 0.04f, screen->y + 0.02f, screen->w - 0.08f, 0.04f);
-        RECT body = MAKE(RECT, screen->x + 0.06f, screen->y + 0.07f, screen->w - 0.12f, screen->h - 0.09f);
+        rect_t title = MAKE(rect_t, screen->x + 0.04f, screen->y + 0.02f, screen->w - 0.08f, 0.04f);
+        rect_t body = MAKE(rect_t, screen->x + 0.06f, screen->y + 0.07f, screen->w - 0.12f, screen->h - 0.09f);
         re.DrawFill(screen, MAKE(COLOR32, 10, 8, 5, 245));
         re.DrawText(&MAKE(drawText_t, .font = cl.fonts[message->title_font], .text = frame->text,
                           .rect = title, .color = MAKE(COLOR32, 255, 215, 120, 255),
@@ -786,7 +786,7 @@ static void SCR_LayoutDrawMessageQueue(LPCUIFRAME frame, LPCRECT screen) {
     }
 }
 
-void SCR_LayoutUpdateBuildQueue(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_LayoutUpdateBuildQueue(LPCUIFRAME frame, rect_t const * screen) {
     uiBuildQueue_t const *queue = frame->buffer.data;
     LPUIFRAME buildtimer = SCR_Frame(queue->buildtimer);
     LPUIFRAME firstitem  = SCR_Frame(queue->firstitem);
@@ -799,9 +799,9 @@ void SCR_LayoutUpdateBuildQueue(LPCUIFRAME frame, LPCRECT screen) {
     FOR_LOOP(i, queue->numitems) {
         uiBuildQueueItem_t const *item = &queue->items[i];
         if (cl.time < item->endtime) {
-            FLOAT dur  = item->endtime - item->starttime;
-            FLOAT elap = cl.time > item->starttime ? (FLOAT)(cl.time - item->starttime) : 0;
-            FLOAT prog = MAX(0, MIN(dur > 0 ? elap / dur : 1, 1));
+            float dur  = item->endtime - item->starttime;
+            float elap = cl.time > item->starttime ? (float)(cl.time - item->starttime) : 0;
+            float prog = MAX(0, MIN(dur > 0 ? elap / dur : 1, 1));
             if (buildtimer) buildtimer->value  = prog;
             if (firstitem)  firstitem->tex.index = item->image;
             break;
@@ -813,9 +813,9 @@ void SCR_LayoutUpdateBuildQueue(LPCUIFRAME frame, LPCRECT screen) {
 #define HP_BAR_HEIGHT_RATIO  0.175f
 #define HP_BAR_SPACING_RATIO 0.02f
 
-static DWORD SCR_LayoutMultiselectEntityAt(LPCUIFRAME frame, LPCVECTOR2 point) {
+static uint32_t SCR_LayoutMultiselectEntityAt(LPCUIFRAME frame, LPCVECTOR2 point) {
     uiMultiselect_t const *ms;
-    DWORD count;
+    uint32_t count;
 
     if (!frame || frame->flags.type != FT_MULTISELECT || !point ||
         !frame->buffer.data || frame->buffer.size < sizeof(uiMultiselect_t)) {
@@ -824,11 +824,11 @@ static DWORD SCR_LayoutMultiselectEntityAt(LPCUIFRAME frame, LPCVECTOR2 point) {
     ms = frame->buffer.data;
     if (!ms->numcolumns) return 0;
     count = (frame->buffer.size - sizeof(uiMultiselect_t)) / sizeof(uiMultiselectItem_t);
-    count = MIN((DWORD)ms->numitems, count);
+    count = MIN((uint32_t)ms->numitems, count);
     FOR_LOOP(i, count) {
-        RECT cell = *SCR_LayoutRect(frame);
-        DWORD column = i % ms->numcolumns;
-        DWORD row = i / ms->numcolumns;
+        rect_t cell = *SCR_LayoutRect(frame);
+        uint32_t column = i % ms->numcolumns;
+        uint32_t row = i / ms->numcolumns;
 
         cell.x += ms->offset.x * column;
         cell.y += ms->offset.y * row;
@@ -837,15 +837,15 @@ static DWORD SCR_LayoutMultiselectEntityAt(LPCUIFRAME frame, LPCVECTOR2 point) {
     return 0;
 }
 
-void SCR_LayoutDrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
-    RECT screen = *scrn;
+void SCR_LayoutDrawMultiSelect(LPCUIFRAME frame, rect_t const * scrn) {
+    rect_t screen = *scrn;
     uiMultiselect_t const *ms = frame->buffer.data;
-    DWORD column = 0;
+    uint32_t column = 0;
     FOR_LOOP(i, ms->numitems) {
-        RECT uv = { 0, 0, 1, 1 };
+        rect_t uv = { 0, 0, 1, 1 };
         uiMultiselectItem_t const *item = &ms->items[i];
         if ((item->flags & UI_MULTISELECT_ITEM_FOCUSED) && ms->focus_highlight) {
-            RECT highlight = {
+            rect_t highlight = {
                 screen.x - screen.w * 0.185f,
                 screen.y - screen.h * 0.10f,
                 screen.w * 1.37f,
@@ -857,9 +857,9 @@ void SCR_LayoutDrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
         re.DrawImage(cl.pics[item->image], &screen, &uv, frame->color);
         LPCENTITYSTATE ent = &cl.ents[item->entity].current;
         if (ent) {
-            FLOAT hp   = BYTE2FLOAT(ent->stats[ENT_HEALTH]);
-            FLOAT mana = BYTE2FLOAT(ent->stats[ENT_MANA]);
-            RECT rect  = { screen.x, screen.y + screen.h * (1 + HP_BAR_SPACING_RATIO),
+            float hp   = BYTE2FLOAT(ent->stats[ENT_HEALTH]);
+            float mana = BYTE2FLOAT(ent->stats[ENT_MANA]);
+            rect_t rect  = { screen.x, screen.y + screen.h * (1 + HP_BAR_SPACING_RATIO),
                            screen.w * hp, screen.h * HP_BAR_HEIGHT_RATIO };
             uv.w = hp;
             re.DrawImage(cl.pics[ms->hp_bar],   &rect, &uv, MAKE(COLOR32,0,255,0,255));
@@ -877,9 +877,9 @@ void SCR_LayoutDrawMultiSelect(LPCUIFRAME frame, LPCRECT scrn) {
     }
 }
 
-void SCR_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
-    FLOAT const canvas_w = SCR_UICanvasWidth();
-    RECT const viewport = {
+void SCR_LayoutDrawPortrait(LPCUIFRAME frame, rect_t const * screen) {
+    float const canvas_w = SCR_UICanvasWidth();
+    rect_t const viewport = {
         screen->x / canvas_w,
         (UI_BASE_HEIGHT - screen->y - screen->h) / UI_BASE_HEIGHT,
         screen->w / canvas_w,
@@ -891,7 +891,7 @@ void SCR_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
 
     if (!draw) return;
 
-    LPCSTR anim = (frame->text && *frame->text) ? frame->text : "Portrait";
+    cstring_t anim = (frame->text && *frame->text) ? frame->text : "Portrait";
 
     renderEntity_t entity = {0};
     entity.model = draw; entity.scale = 1.0f;
@@ -907,7 +907,7 @@ void SCR_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
     vd.entities     = &entity;
     if (frame->buffer.size == sizeof(UIMODEL)) {
         size2_t size = re.GetWindowSize();
-        FLOAT aspect = viewport.w * size.width / (viewport.h * size.height);
+        float aspect = viewport.w * size.width / (viewport.h * size.height);
         /* The layout camera replaces the old radius guess and Stand-name mode switch. */
         M_ModelMatrix(frame->buffer.data, aspect, &vd.viewProjectionMatrix);
         Matrix4_identity(&vd.textureMatrix);
@@ -918,31 +918,31 @@ void SCR_LayoutDrawPortrait(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 /* Loading bars are the one client-owned layout value; their art remains server-authored. */
-void SCR_LayoutDrawLoadingBar(LPCUIFRAME frame, LPCRECT screen) {
-    RECT fill = *screen, uv = { 0, 0, 255, 255 };
+void SCR_LayoutDrawLoadingBar(LPCUIFRAME frame, rect_t const * screen) {
+    rect_t fill = *screen, uv = { 0, 0, 255, 255 };
     fill.w *= cl.loading_progress;
     uv.w *= cl.loading_progress;
-    RECT suv = Rect_div(&uv, 0xff);
+    rect_t suv = Rect_div(&uv, 0xff);
     /* This frame declares an image. Model and image indices are independent namespaces. */
     re.DrawImage(SCR_LayoutPic(frame->tex.index), &fill, &suv, frame->color);
 }
 
-void SCR_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_LayoutDrawSprite(LPCUIFRAME frame, rect_t const * screen) {
     LPCMODEL model = cl.models[frame->tex.index];
-    LPCSTR anim = (frame->text && *frame->text) ? frame->text : "Stand";
+    cstring_t anim = (frame->text && *frame->text) ? frame->text : "Stand";
     char sequence_anim[96];
     char phased_anim[96];
-    FLOAT phase = 0.0f;
+    float phase = 0.0f;
 
     /* Some server-authored sprites need one replicated stat for their
      * normalized animation phase and another for the authored sequence.  The
      * latter is opt-in because frame.value has unrelated meanings for other
      * frame types.  Only explicit #N selectors are rewritten. */
     if ((frame->flagsvalue & UIFLAG_SPRITE_STAT_SEQUENCE) &&
-        frame->value > 0.0f && frame->value < (FLOAT)MAX_STATS && anim[0] == '#')
+        frame->value > 0.0f && frame->value < (float)MAX_STATS && anim[0] == '#')
     {
-        DWORD const sequence_stat = (DWORD)frame->value;
-        LPCSTR marker = strchr(anim, '@');
+        uint32_t const sequence_stat = (uint32_t)frame->value;
+        cstring_t marker = strchr(anim, '@');
         if (marker) {
             snprintf(sequence_anim, sizeof(sequence_anim), "#%u%s",
                      (unsigned)cl.playerstate.stats[sequence_stat], marker);
@@ -956,10 +956,10 @@ void SCR_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen) {
     /* Sprite phase uses either a normalized snapshot stat or a generic local binding.
      * Loading sprites previously lost their geometry when converted into portrait bars. */
     if (SCR_LayoutContextValue(frame->stat, &phase) || (frame->stat > 0 && frame->stat < MAX_STATS)) {
-        LPCSTR marker = strchr(anim, '@');
+        cstring_t marker = strchr(anim, '@');
         size_t base_len = marker ? (size_t)(marker - anim) : strlen(anim);
         if (frame->stat > 0 && frame->stat < MAX_STATS)
-            phase = (FLOAT)cl.playerstate.stats[frame->stat] / (FLOAT)UINT16_MAX;
+            phase = (float)cl.playerstate.stats[frame->stat] / (float)UINT16_MAX;
 
         if (base_len > sizeof(phased_anim) - 16) base_len = sizeof(phased_anim) - 16;
         snprintf(phased_anim, sizeof(phased_anim), "%.*s@%.6f", (int)base_len, anim, phase);
@@ -971,37 +971,37 @@ void SCR_LayoutDrawSprite(LPCUIFRAME frame, LPCRECT screen) {
 /* Resolve the generic transient command-button alert tint from an absolute client/server clock deadline. */
 static COLOR32 SCR_CommandButtonColor(LPCUIFRAME frame) {
     COLOR32 color = COLOR32_WHITE;
-    DWORD deadline;
-    FLOAT phase, pulse;
+    uint32_t deadline;
+    float phase, pulse;
 
     if (!frame || !(frame->flagsvalue & UIFLAG_ALERT_RED_PULSE) || frame->value <= 0.0f) return color;
-    deadline = (DWORD)frame->value;
-    if ((LONG)(cl.time - deadline) >= 0) return color;
+    deadline = (uint32_t)frame->value;
+    if ((int32_t)(cl.time - deadline) >= 0) return color;
 
-    phase = (FLOAT)(cl.time % (SCR_ALERT_PULSE_HALF_MS * 2)) / (FLOAT)SCR_ALERT_PULSE_HALF_MS;
+    phase = (float)(cl.time % (SCR_ALERT_PULSE_HALF_MS * 2)) / (float)SCR_ALERT_PULSE_HALF_MS;
     pulse = 1.0f - fabsf(phase - 1.0f);
-    color.g = color.b = (BYTE)(255.0f - pulse * (255.0f - SCR_ALERT_PULSE_MIN_GB));
+    color.g = color.b = (uint8_t)(255.0f - pulse * (255.0f - SCR_ALERT_PULSE_MIN_GB));
     return color;
 }
 
-static FLOAT SCR_CommandButtonRadialShade(LPCUIFRAME frame) {
+static float SCR_CommandButtonRadialShade(LPCUIFRAME frame) {
     uiCommandButton_t const *state;
-    DWORD duration;
+    uint32_t duration;
 
     if (!frame || !(frame->flagsvalue & UIFLAG_RADIAL_SHADE) ||
         frame->buffer.size != sizeof(uiCommandButton_t) || !frame->buffer.data) return 0.0f;
     state = frame->buffer.data;
-    duration = (DWORD)(state->radialEndTime - state->radialStartTime);
-    if (!duration || (LONG)(cl.time - state->radialEndTime) >= 0) return 0.0f;
-    if ((LONG)(cl.time - state->radialStartTime) <= 0) return 1.0f;
-    return MIN(1.0f, (FLOAT)(DWORD)(state->radialEndTime - cl.time) / (FLOAT)duration);
+    duration = (uint32_t)(state->radialEndTime - state->radialStartTime);
+    if (!duration || (int32_t)(cl.time - state->radialEndTime) >= 0) return 0.0f;
+    if ((int32_t)(cl.time - state->radialStartTime) <= 0) return 1.0f;
+    return MIN(1.0f, (float)(uint32_t)(state->radialEndTime - cl.time) / (float)duration);
 }
 
-void SCR_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_LayoutDrawCommandButton(LPCUIFRAME frame, rect_t const * screen) {
     LPCENTITYSTATE sel = SCR_LayoutSelectedEntity();
-    RECT const uv = get_uvrect(frame->tex.coord);
-    RECT const suv = Rect_div(&uv, 0xff);
-    RECT scrn = scale_rect(screen, SCR_LayoutFrameIsHovered(frame) && layout_left_down ? 0.875f : 0.925f);
+    rect_t const uv = get_uvrect(frame->tex.coord);
+    rect_t const suv = Rect_div(&uv, 0xff);
+    rect_t scrn = scale_rect(screen, SCR_LayoutFrameIsHovered(frame) && layout_left_down ? 0.875f : 0.925f);
     re.DrawImageEx(&MAKE(drawImage_t,
         .texture     = cl.pics[frame->tex.index],
         .screen      = scrn,
@@ -1014,14 +1014,14 @@ void SCR_LayoutDrawCommandButton(LPCUIFRAME frame, LPCRECT screen) {
         .uRadialShade = SCR_CommandButtonRadialShade(frame)));
 }
 
-void layout_text(LPCUIFRAME frame, LPCRECT screen, LPCSTR text) {
+void layout_text(LPCUIFRAME frame, rect_t const * screen, cstring_t text) {
     drawText_t dt = SCR_GetDrawText(frame, screen->w, text, frame->buffer.data);
     dt.rect   = *screen;
     dt.flags |= DRAW_WORD_WRAP;
     re.DrawText(&dt);
 }
 
-static void SCR_LayoutApplyPushedTextOffset(LPCUIFRAME frame, LPRECT screen) {
+static void SCR_LayoutApplyPushedTextOffset(LPCUIFRAME frame, rect_t * screen) {
     if (frame->parent >= SCR_NumFrames()) return;
     LPCUIFRAME parent = SCR_Frame(frame->parent);
     if (!parent) return;
@@ -1032,10 +1032,10 @@ static void SCR_LayoutApplyPushedTextOffset(LPCUIFRAME frame, LPRECT screen) {
     screen->y -= b->pushedTextOffset.y;
 }
 
-void SCR_LayoutDrawString(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_LayoutDrawString(LPCUIFRAME frame, rect_t const * screen) {
     uiLabel_t const *label = frame->buffer.data;
-    LPCSTR value = SCR_GetStringValue(frame);
-    DWORD cursor = 0;
+    cstring_t value = SCR_GetStringValue(frame);
+    uint32_t cursor = 0;
 
     /* Transient edit boxes draw their live value from the parent control.
      * Keeping the child STRING/TEXT only as the authored geometry carrier
@@ -1048,7 +1048,7 @@ void SCR_LayoutDrawString(LPCUIFRAME frame, LPCRECT screen) {
             return;
     }
     /* Label offsets use the same fixed-point wire representation as anchors. */
-    RECT scr = { screen->x + label->offsetx / UI_FRAMEPOINT_SCALE,
+    rect_t scr = { screen->x + label->offsetx / UI_FRAMEPOINT_SCALE,
                  screen->y + label->offsety / UI_FRAMEPOINT_SCALE, screen->w, screen->h };
     SCR_LayoutApplyPushedTextOffset(frame, &scr);
     layout_text(frame, &scr, value);
@@ -1060,30 +1060,30 @@ void SCR_LayoutDrawString(LPCUIFRAME frame, LPCRECT screen) {
 }
 
 /* Draw a nameplate whose backdrop and text share the measured content rect. */
-void SCR_LayoutDrawNameTag(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_LayoutDrawNameTag(LPCUIFRAME frame, rect_t const * screen) {
     uiNameTag_t const *tag = frame->buffer.data;
-    RECT text = { screen->x + tag->padding_x, screen->y + tag->padding_y,
+    rect_t text = { screen->x + tag->padding_x, screen->y + tag->padding_y,
                   screen->w - tag->padding_x * 2, screen->h - tag->padding_y * 2 };
     drawText_t dt = SCR_GetDrawText(frame, text.w, SCR_GetStringValue(frame), &tag->text);
     SCR_LayoutDrawBackdrop2(frame, screen, &tag->background);
     dt.rect = text; dt.flags |= DRAW_WORD_WRAP; re.DrawText(&dt);
 }
 
-void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_LayoutDrawTextArea(LPCUIFRAME frame, rect_t const * screen) {
     uiTextArea_t const *ta = frame->buffer.data;
-    LPCSTR value = SCR_GetStringValue(frame);
-    RECT view = SCR_LayoutTextAreaView(frame, screen);
+    cstring_t value = SCR_GetStringValue(frame);
+    rect_t view = SCR_LayoutTextAreaView(frame, screen);
     drawText_t dt = SCR_GetDrawText(frame, view.w, value ? value : "", &(uiLabel_t){
         .font = ta->font, .textalignx = FONT_JUSTIFYLEFT, .textaligny = FONT_JUSTIFYTOP });
-    FLOAT full_height = view.h;
-    FLOAT max_scroll = 0.0f;
+    float full_height = view.h;
+    float max_scroll = 0.0f;
 
     dt.flags |= DRAW_WORD_WRAP;
     if (re.GetTextSize && view.w > 0.0f && view.h > 0.0f) {
         full_height = MAX(view.h, re.GetTextSize(&dt).y);
         max_scroll = MAX(0.0f, full_height - view.h);
     }
-    dt.rect = MAKE(RECT, view.x,
+    dt.rect = MAKE(rect_t, view.x,
                    view.y - max_scroll * MIN(MAX(frame->value, 0.0f), 1.0f),
                    view.w, full_height);
     dt.flags |= DRAW_CLIP;
@@ -1091,14 +1091,14 @@ void SCR_LayoutDrawTextArea(LPCUIFRAME frame, LPCRECT screen) {
     re.DrawText(&dt);
 }
 
-void SCR_LayoutDrawEditBox(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_LayoutDrawEditBox(LPCUIFRAME frame, rect_t const * screen) {
     uiEditBox_t const *edit = frame->buffer.data;
     LPCUIFRAME text_frame = NULL;
-    LPCSTR value = NULL;
-    DWORD cursor = 0;
+    cstring_t value = NULL;
+    uint32_t cursor = 0;
     uiLabel_t label = { 0 };
     drawText_t dt;
-    RECT text_rect;
+    rect_t text_rect;
 
     if (!edit || frame->buffer.size < sizeof(*edit)) return;
     SCR_LayoutDrawBackdrop2(frame, screen, &edit->background);
@@ -1127,9 +1127,9 @@ void SCR_LayoutDrawEditBox(LPCUIFRAME frame, LPCRECT screen) {
      * parent control's inner rectangle horizontally so rendered text, cursor,
      * and clipping match the complete edit-box background.  Preserve the
      * authored child Y/height for vertical placement. */
-    RECT inner = Rect_inset(screen, MAX(edit->borderSize, 0.0f));
-    RECT authored = *SCR_LayoutRect(text_frame);
-    text_rect = MAKE(RECT,
+    rect_t inner = Rect_inset(screen, MAX(edit->borderSize, 0.0f));
+    rect_t authored = *SCR_LayoutRect(text_frame);
+    text_rect = MAKE(rect_t,
         .x = inner.x,
         .y = authored.y,
         .w = inner.w,
@@ -1159,12 +1159,12 @@ void SCR_LayoutDrawEditBox(LPCUIFRAME frame, LPCRECT screen) {
         M_DrawTextInputCursor(&re, &dt, value, cursor, COLOR32_WHITE);
 }
 
-void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
+void SCR_LayoutDrawListBox(LPCUIFRAME frame, rect_t const * screen) {
     uiListBox_t const *lb = frame->buffer.data;
-    RECT list_rect = Rect_inset(screen, lb->border);
-    FLOAT item_height = lb->itemHeight > 0 ? lb->itemHeight : 0.018f;
-    SHORT selectedIndex = lb->selectedIndex;
-    DWORD scrollOffset = 0;
+    rect_t list_rect = Rect_inset(screen, lb->border);
+    float item_height = lb->itemHeight > 0 ? lb->itemHeight : 0.018f;
+    int16_t selectedIndex = lb->selectedIndex;
+    uint32_t scrollOffset = 0;
     char items[MAX_LISTBOX_TEXT];
 
     SCR_LayoutDrawBackdrop2(frame, screen, &lb->background);
@@ -1177,14 +1177,14 @@ void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
         }
     }
     if (scrollbar) {
-        FLOAT sw = MAX(SCR_LayoutRect(scrollbar)->w, 0.0f);
+        float sw = MAX(SCR_LayoutRect(scrollbar)->w, 0.0f);
         if (sw > 0 && sw < list_rect.w) list_rect.w -= sw;
     }
-    DWORD maxScroll = (DWORD)SCR_LayoutListBoxMaxScroll(frame);
+    uint32_t maxScroll = (uint32_t)SCR_LayoutListBoxMaxScroll(frame);
     scrollOffset = maxScroll
-        ? (DWORD)lroundf(MIN(MAX(frame->value, 0.0f), 1.0f) * maxScroll)
+        ? (uint32_t)lroundf(MIN(MAX(frame->value, 0.0f), 1.0f) * maxScroll)
         : 0;
-    if (scrollbar) ((LPUIFRAME)scrollbar)->value = maxScroll ? scrollOffset / (FLOAT)maxScroll : 0.0f;
+    if (scrollbar) ((LPUIFRAME)scrollbar)->value = maxScroll ? scrollOffset / (float)maxScroll : 0.0f;
     if (!frame->text || !*frame->text) return;
 
     snprintf(items, sizeof(items), "%s", frame->text);
@@ -1196,20 +1196,20 @@ void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
     /* Warsmash creates floor(viewHeight / itemHeight) row frames.  Keep the
      * renderer on the same whole-row count used by scrolling and hit-testing;
      * drawing a partial extra row makes the visual list disagree with both. */
-    DWORD const visible_rows = (DWORD)SCR_LayoutListBoxVisibleRows(frame, &list_rect);
-    DWORD drawn_rows = 0;
-    FLOAT item_y = list_rect.y;
+    uint32_t const visible_rows = (uint32_t)SCR_LayoutListBoxVisibleRows(frame, &list_rect);
+    uint32_t drawn_rows = 0;
+    float item_y = list_rect.y;
     while (line && drawn_rows < visible_rows) {
         char *hidden = strchr(line, '\t');
         if (hidden) *hidden = '\0';
-        RECT row = { list_rect.x, item_y, list_rect.w, item_height };
+        rect_t row = { list_rect.x, item_y, list_rect.w, item_height };
         if (index == selectedIndex) {
-            RECT selection = row;
+            rect_t selection = row;
             selection.x += 0.0025f;
             selection.y += 0.0020f;
             selection.w = MAX(0.0f, selection.w - 0.0050f);
             selection.h = MAX(0.0f, selection.h - 0.0040f);
-            re.DrawImage(cl.pics[0], &selection, &MAKE(RECT,0,0,1,1),
+            re.DrawImage(cl.pics[0], &selection, &MAKE(rect_t,0,0,1,1),
                          MAKE(COLOR32,32,64,180,128));
         }
         re.DrawText(&MAKE(drawText_t,
@@ -1234,7 +1234,7 @@ void SCR_LayoutDrawListBox(LPCUIFRAME frame, LPCRECT screen) {
     }
 }
 
-void SCR_LayoutDrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
+void SCR_LayoutDrawTooltip(LPCUIFRAME frame, rect_t const * scrn) {
     if (!active_tooltip) return;
     /* Several HUD layers may carry the shared tooltip presentation frame.
      * Draw it only in the layer/window that owns the hovered source frame so a
@@ -1245,15 +1245,15 @@ void SCR_LayoutDrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
         return;
     }
     uiTooltip_t const *tt = frame->buffer.data;
-    FLOAT const PAD = 0.005f;
-    RECT screen = *scrn;
+    float const PAD = 0.005f;
+    rect_t screen = *scrn;
     drawText_t dt = SCR_GetDrawText(frame, screen.w - PAD*2, active_tooltip, &tt->text);
     dt.flags |= DRAW_WORD_WRAP;
     VECTOR2 tsz = re.GetTextSize(&dt);
     tsz.y    += PAD * 2;
     screen.y += screen.h - tsz.y;
     screen.h  = tsz.y;
-    RECT text  = Rect_inset(&screen, PAD);
+    rect_t text  = Rect_inset(&screen, PAD);
     SCR_LayoutDrawBackdrop(frame, &screen);
     dt = SCR_GetDrawText(frame, text.w, active_tooltip, &tt->text);
     dt.rect   = text;
@@ -1261,7 +1261,7 @@ void SCR_LayoutDrawTooltip(LPCUIFRAME frame, LPCRECT scrn) {
     re.DrawText(&dt);
 }
 
-typedef struct { FRAMETYPE type; void (*func)(LPCUIFRAME, LPCRECT); } drawer_t;
+typedef struct { FRAMETYPE type; void (*func)(LPCUIFRAME, rect_t const *); } drawer_t;
 
 static drawer_t updaters[] = {
     { FT_BUILDQUEUE, SCR_LayoutUpdateBuildQueue },
@@ -1305,7 +1305,7 @@ static drawer_t drawers[] = {
 };
 
 void SCR_LayoutDrawFrame(LPCUIFRAME frame) {
-    RECT const *screen = SCR_LayoutRect(frame);
+    rect_t const *screen = SCR_LayoutRect(frame);
     /* Model sprites and dynamic drawers legitimately have no authored size.
      * Only absent context bindings suppress drawing, just as they collapse layout. */
     if (!SCR_LayoutContextFrameVisible(frame)) return;
@@ -1318,7 +1318,7 @@ void SCR_LayoutDrawFrame(LPCUIFRAME frame) {
 }
 
 void SCR_LayoutUpdateFrame(LPCUIFRAME frame) {
-    RECT const *screen = SCR_LayoutRect(frame);
+    rect_t const *screen = SCR_LayoutRect(frame);
 
     /* Tooltip ownership is a generic frame contract, not a command-button
      * behavior. Resource-bar labels/icons and other passive HUD frames may
@@ -1334,18 +1334,18 @@ void SCR_LayoutUpdateFrame(LPCUIFRAME frame) {
     }
 }
 
-static void SCR_LayoutRunFrames(HANDLE layout, void (*fn)(LPCUIFRAME)) {
+static void SCR_LayoutRunFrames(handle_t layout, void (*fn)(LPCUIFRAME)) {
     FOR_LOOP(i, SCR_NumFrames()) {
         LPCUIFRAME frame = SCR_Frame(i);
         if (frame) fn(frame);
     }
 }
 
-void SCR_LayoutUpdateTooltip(HANDLE layout) {
+void SCR_LayoutUpdateTooltip(handle_t layout) {
     SCR_LayoutRunFrames(layout, SCR_LayoutUpdateFrame);
 }
 
-void SCR_LayoutDrawOverlay(HANDLE layout) {
+void SCR_LayoutDrawOverlay(handle_t layout) {
     layout_current = layout;
     FOR_LOOP(i, SCR_NumFrames()) {
         LPCUIFRAME f = SCR_Frame(i);
@@ -1371,18 +1371,18 @@ void SCR_DrawLayout(void) {
 
     if (cl.playerstate.cinefade > 0) {
         COLOR32 color = COLOR32_BLACK;
-        RECT const screen = MAKE(RECT, 0, 0, SCR_UICanvasWidth(), UI_BASE_HEIGHT);
+        rect_t const screen = MAKE(rect_t, 0, 0, SCR_UICanvasWidth(), UI_BASE_HEIGHT);
         color.a = 255 * cl.playerstate.cinefade;
-        re.DrawImage(cl.pics[0], &screen, &MAKE(RECT,0,0,1,1), color);
+        re.DrawImage(cl.pics[0], &screen, &MAKE(rect_t,0,0,1,1), color);
     }
 
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
-        DWORD flags = cl.playerstate.uiflags;
+        uint32_t flags = cl.playerstate.uiflags;
         if (layer == LAYER_LOADING) continue;
         if ((1 << layer) & flags) continue;
-        HANDLE layout = layout_layers[layer];
+        handle_t layout = layout_layers[layer];
         if (layout) {
-            RECT root;
+            rect_t root;
             layout_current_window = false;
             layout_current_layer = layer;
             SCR_ClearLayer(layout, layer);
@@ -1401,8 +1401,8 @@ void SCR_DrawLayout(void) {
 
 /* The initial layout is a loading-only packet, not a gameplay HUD layer. */
 void SCR_DrawLoadingLayout(void) {
-    HANDLE layout = layout_layers[LAYER_LOADING];
-    RECT root;
+    handle_t layout = layout_layers[LAYER_LOADING];
+    rect_t root;
 
     if (!layout) return;
     layout_current_window = false;
@@ -1413,11 +1413,11 @@ void SCR_DrawLoadingLayout(void) {
     SCR_LayoutDrawOverlay(layout);
 }
 
-void SCR_SetLayoutLayer(DWORD layer, HANDLE data) {
+void SCR_SetLayoutLayer(uint32_t layer, handle_t data) {
     if (layer < MAX_LAYOUT_LAYERS) layout_layers[layer] = data;
 }
 
-void SCR_ClearLayoutLayer(DWORD layer) {
+void SCR_ClearLayoutLayer(uint32_t layer) {
     if (layer < MAX_LAYOUT_LAYERS) layout_layers[layer] = NULL;
 }
 
@@ -1429,7 +1429,7 @@ void SCR_ClearLayoutResources(void) {
     layout_dynamic_pic_cursor = 0;
 }
 
-static BOOL SCR_LayoutLayerVisible(DWORD layer) { return layer < MAX_LAYOUT_LAYERS && layout_layers[layer] && !((1u << layer) & cl.playerstate.uiflags); }
+static bool SCR_LayoutLayerVisible(uint32_t layer) { return layer < MAX_LAYOUT_LAYERS && layout_layers[layer] && !((1u << layer) & cl.playerstate.uiflags); }
 
 /* Result screens outrank Quest when malformed/server-overlapping modal layers coexist. */
 static int SCR_LayoutModalLayer(void) {
@@ -1438,9 +1438,9 @@ static int SCR_LayoutModalLayer(void) {
     return -1;
 }
 
-BOOL SCR_LayoutModalActive(void) { return SCR_LayoutModalLayer() >= 0; }
+bool SCR_LayoutModalActive(void) { return SCR_LayoutModalLayer() >= 0; }
 
-BOOL SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
+bool SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 const point = SCR_ScreenToUI(x, y);
     LPCUIFRAME hovered_frame = NULL;
     int const modal_layer = SCR_LayoutModalLayer();
@@ -1449,14 +1449,14 @@ BOOL SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     layout_hovered = NULL;
     layout_hovered_number = 0;
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
-        HANDLE layout = layout_layers[layer];
+        handle_t layout = layout_layers[layer];
         if (modal_layer >= 0 && (int)layer != modal_layer) continue;
-        DWORD flags = cl.playerstate.uiflags;
+        uint32_t flags = cl.playerstate.uiflags;
         if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
         SCR_Clear(layout);
-        for (DWORD i = SCR_NumFrames(); i > 0; i--) {
+        for (uint32_t i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
-            BOOL hit;
+            bool hit;
 
             if (!frame) continue;
             if (frame->flags.type == FT_MULTISELECT)
@@ -1520,17 +1520,17 @@ BOOL SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     }
 
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
-        HANDLE layout = layout_layers[layer];
-        DWORD flags = cl.playerstate.uiflags;
+        handle_t layout = layout_layers[layer];
+        uint32_t flags = cl.playerstate.uiflags;
         if (modal_layer >= 0 && (int)layer != modal_layer) continue;
         if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
         SCR_Clear(layout);
-        for (DWORD i = SCR_NumFrames(); i > 0; i--) {
+        for (uint32_t i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
 
             if (!frame) continue;
             if (frame->flags.type == FT_MULTISELECT) {
-                DWORD entity = SCR_LayoutMultiselectEntityAt(frame, &point);
+                uint32_t entity = SCR_LayoutMultiselectEntityAt(frame, &point);
                 if (entity) {
                     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
                     SZ_Printf(&cls.netchan.message, "focus %u", (unsigned)entity);
@@ -1552,20 +1552,20 @@ BOOL SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
 }
 
 /* Dispatch a command-button hotkey the same way a mouse click on that */
-BOOL SCR_LayoutKeyEvent(int key) {
+bool SCR_LayoutKeyEvent(int key) {
     int const upper = toupper(key);
     int const modal_layer = SCR_LayoutModalLayer();
 
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
-        HANDLE layout = layout_layers[layer];
+        handle_t layout = layout_layers[layer];
         if (modal_layer >= 0 && (int)layer != modal_layer) continue;
-        DWORD flags = cl.playerstate.uiflags;
+        uint32_t flags = cl.playerstate.uiflags;
         if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
         SCR_Clear(layout);
-        for (DWORD i = SCR_NumFrames(); i > 0; i--) {
+        for (uint32_t i = SCR_NumFrames(); i > 0; i--) {
             LPCUIFRAME frame = SCR_Frame(i - 1);
             if (!frame || !SCR_LayoutFrameHasClickCommand(frame)) continue;
-            BOOL const is_cancel = key == K_ESCAPE && !strcmp(frame->onclick, "button CmdCancel");
+            bool const is_cancel = key == K_ESCAPE && !strcmp(frame->onclick, "button CmdCancel");
             if (is_cancel || (frame->hotkey && toupper(frame->hotkey) == upper)) {
                 char command[CMDARG_LEN * 2];
                 SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
@@ -1578,7 +1578,7 @@ BOOL SCR_LayoutKeyEvent(int key) {
     return false;
 }
 
-static BOOL SCR_LayoutSelectionBlockerType(FRAMETYPE type) {
+static bool SCR_LayoutSelectionBlockerType(FRAMETYPE type) {
     switch (type) {
         case FT_TEXTURE:
         case FT_BACKDROP:
@@ -1605,7 +1605,7 @@ static BOOL SCR_LayoutSelectionBlockerType(FRAMETYPE type) {
     }
 }
 
-static BOOL SCR_RangesOverlap(FLOAT a0, FLOAT a1, FLOAT b0, FLOAT b1) {
+static bool SCR_RangesOverlap(float a0, float a1, float b0, float b1) {
     return MAX(a0, b0) < MIN(a1, b1);
 }
 
@@ -1616,10 +1616,10 @@ static BOOL SCR_RangesOverlap(FLOAT a0, FLOAT a1, FLOAT b0, FLOAT b1) {
  * and selection hit-testing out of authored HUD regions instead of relying on
  * transparent console art to hide the line.  Full-screen world games have a
  * scissor bottom at UI_BASE_HEIGHT, making this a no-op. */
-void SCR_LayoutClampSelectionRect(LPRECT rect) {
+void SCR_LayoutClampSelectionRect(rect_t * rect) {
     VECTOR2 start, finish, clamped;
-    FLOAT world_bottom;
-    FLOAT xmin, xmax;
+    float world_bottom;
+    float xmin, xmax;
     size2_t window;
 
     if (!rect) {
@@ -1640,14 +1640,14 @@ void SCR_LayoutClampSelectionRect(LPRECT rect) {
     /* Clamp vertical travel first.  Only frames that extend into the bottom
      * console count; upper resource/command strips are not part of this mask. */
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
-        HANDLE layout = layout_layers[layer];
-        DWORD flags = cl.playerstate.uiflags;
+        handle_t layout = layout_layers[layer];
+        uint32_t flags = cl.playerstate.uiflags;
         if (!layout || layer == LAYER_WORLD_HOVER || ((1 << layer) & flags)) continue;
         SCR_Clear(layout);
         FOR_LOOP(i, SCR_NumFrames()) {
             LPCUIFRAME frame = SCR_Frame(i);
-            LPCRECT r;
-            FLOAT bottom;
+            rect_t const * r;
+            float bottom;
             if (!frame || !SCR_LayoutSelectionBlockerType(frame->flags.type)) continue;
             r = SCR_LayoutRect(frame);
             if (!r || r->w <= 0.0f || r->h <= 0.0f) continue;
@@ -1666,12 +1666,12 @@ void SCR_LayoutClampSelectionRect(LPRECT rect) {
     rect->h = (clamped.y / UI_BASE_HEIGHT) * window.height - rect->y;
 }
 
-BOOL SCR_LayoutHitTest(int x, int y) {
+bool SCR_LayoutHitTest(int x, int y) {
     VECTOR2 const point = SCR_ScreenToUI(x, y);
     if (SCR_LayoutModalActive()) return true;
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
-        HANDLE layout = layout_layers[layer];
-        DWORD flags = cl.playerstate.uiflags;
+        handle_t layout = layout_layers[layer];
+        uint32_t flags = cl.playerstate.uiflags;
         if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
         SCR_Clear(layout);
         FOR_LOOP(i, SCR_NumFrames()) {

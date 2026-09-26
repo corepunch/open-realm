@@ -1,6 +1,6 @@
 #include "r_war3map.h"
 
-LPCWAR3MAPVERTEX GetWar3MapVertex(LPCWAR3MAP war3Map, DWORD x, DWORD y) {
+LPCWAR3MAPVERTEX GetWar3MapVertex(LPCWAR3MAP war3Map, uint32_t x, uint32_t y) {
     x = MIN(x, war3Map->width - 1);
     y = MIN(y, war3Map->height - 1);
     int const index = x + y * war3Map->width;
@@ -39,7 +39,7 @@ struct color32 MakeColor(float r, float g, float b, float a) {
     };
 }
 
-void SetTileUV(LPCWAR3MAPVERTEX mv, DWORD tile, LPVERTEX vertices, LPCTEXTURE texture) {
+void SetTileUV(LPCWAR3MAPVERTEX mv, uint32_t tile, LPVERTEX vertices, LPCTEXTURE texture) {
     float u = 1.f/(texture->width / 64);
     float v = 1.f/(texture->height / 64);
     float ux = 0.0f;
@@ -74,7 +74,7 @@ void SetTileUV(LPCWAR3MAPVERTEX mv, DWORD tile, LPVERTEX vertices, LPCTEXTURE te
     }
 }
 
-DWORD GetTile(LPCWAR3MAPVERTEX mv, DWORD ground) {
+uint32_t GetTile(LPCWAR3MAPVERTEX mv, uint32_t ground) {
     if (ground == 0)
         return 15;
     return
@@ -92,18 +92,18 @@ float GetWar3MapVertexWaterLevel(LPCWAR3MAPVERTEX vert) {
     return DECODE_HEIGHT(vert->waterlevel) - WATER_HEIGHT_COR;
 }
 
-void GetTileVertices(DWORD x, DWORD y, LPCWAR3MAP war3Map, LPWAR3MAPVERTEX vertices) {
+void GetTileVertices(uint32_t x, uint32_t y, LPCWAR3MAP war3Map, LPWAR3MAPVERTEX vertices) {
     vertices[0] = *GetWar3MapVertex(war3Map, x+1, y+1);
     vertices[1] = *GetWar3MapVertex(war3Map, x, y+1);
     vertices[2] = *GetWar3MapVertex(war3Map, x+1, y);
     vertices[3] = *GetWar3MapVertex(war3Map, x, y);
 }
 
-DWORD GetTileRamps(LPCWAR3MAPVERTEX vertices) {
+uint32_t GetTileRamps(LPCWAR3MAPVERTEX vertices) {
     return vertices[0].ramp + vertices[1].ramp + vertices[2].ramp + vertices[3].ramp;
 }
 
-DWORD IsTileCliff(LPCWAR3MAPVERTEX vertices) {
+uint32_t IsTileCliff(LPCWAR3MAPVERTEX vertices) {
     int bIsCliff = 0;
     FOR_LOOP(index, 4) {
         bIsCliff |= vertices[index].level != vertices[0].level;
@@ -111,7 +111,7 @@ DWORD IsTileCliff(LPCWAR3MAPVERTEX vertices) {
     return bIsCliff;
 }
 
-DWORD IsTileWater(LPCWAR3MAPVERTEX vertices) {
+uint32_t IsTileWater(LPCWAR3MAPVERTEX vertices) {
     int bIsWater = 0;
     FOR_LOOP(index, 4) {
         bIsWater |= vertices[index].water;

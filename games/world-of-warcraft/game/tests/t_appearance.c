@@ -3,7 +3,7 @@
 #include "common/shared.h"
 
 TEST(wow_appearance, pack_unpack_boundaries) {
-    DWORD packed = Wow_PackAppearance(31, 14, 29, 14, 31, 11, 27);
+    uint32_t packed = Wow_PackAppearance(31, 14, 29, 14, 31, 11, 27);
     wowAppearance_t out = Wow_UnpackAppearance(packed);
     T_EQ(out.skinColorID, 31);
     T_EQ(out.faceID, 14);
@@ -15,7 +15,7 @@ TEST(wow_appearance, pack_unpack_boundaries) {
 }
 
 TEST(wow_appearance, pack_masks_inputs) {
-    DWORD packed = Wow_PackAppearance(0xff, 0xfe, 0xfd, 0xfc, 0xfb, 0xfa, 0xf9);
+    uint32_t packed = Wow_PackAppearance(0xff, 0xfe, 0xfd, 0xfc, 0xfb, 0xfa, 0xf9);
     wowAppearance_t out = Wow_UnpackAppearance(packed);
     T_EQ(out.skinColorID, 0x1f);
     T_EQ(out.faceID, 0x0e);
@@ -27,7 +27,7 @@ TEST(wow_appearance, pack_masks_inputs) {
 }
 
 TEST(wow_appearance, facial_feature_fifth_bit_preserves_classic_values) {
-    DWORD legacy = 7 | (6u << 5) | (5u << 10) | (4u << 15) | (13u << 19) | (1u << 23) | (2u << 27);
+    uint32_t legacy = 7 | (6u << 5) | (5u << 10) | (4u << 15) | (13u << 19) | (1u << 23) | (2u << 27);
     wowAppearance_t out;
 
     T_EQ(Wow_PackAppearance(7, 6, 5, 4, 13, 1, 2), legacy);
@@ -36,7 +36,7 @@ TEST(wow_appearance, facial_feature_fifth_bit_preserves_classic_values) {
 }
 
 TEST(wow_appearance, equipment_pack_unpack) {
-    DWORD packed = Wow_PackEquipment(1, 2, 127, 255);
+    uint32_t packed = Wow_PackEquipment(1, 2, 127, 255);
     wowEquipment_t out = Wow_UnpackEquipment(packed);
     T_EQ(out.upperBodyItem, 1);
     T_EQ(out.lowerBodyItem, 2);

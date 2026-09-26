@@ -44,16 +44,16 @@ enum {
 /* Text drawing parameters */
 typedef struct drawText_s {
     LPCFONT font;
-    LPCSTR text;
-    RECT rect;
+    cstring_t text;
+    rect_t rect;
     COLOR32 color;
-    FLOAT textWidth;
-    FLOAT lineHeight;
-    BYTE flags;
+    float textWidth;
+    float lineHeight;
+    uint8_t flags;
     uiFontJustificationH_t halign;
     uiFontJustificationV_t valign;
     LPCTEXTURE *icons;
-    RECT clip;
+    rect_t clip;
 } drawText_t;
 
 /* Image drawing parameters */
@@ -61,23 +61,23 @@ typedef struct drawImage_s {
     LPCTEXTURE texture;
     SHADERTYPE shader;
     BLEND_MODE alphamode;
-    RECT screen;
-    RECT uv;
+    rect_t screen;
+    rect_t uv;
     COLOR32 color;
-    FLOAT angle;
-    FLOAT uActiveGlow;
-    FLOAT uRadialShade; /* generic clockwise remaining-fraction shade, 0 disables it */
-    BYTE flags;
-    RECT clip;
+    float angle;
+    float uActiveGlow;
+    float uRadialShade; /* generic clockwise remaining-fraction shade, 0 disables it */
+    uint8_t flags;
+    rect_t clip;
 } drawImage_t;
 
 /* Backdrop drawing parameters (9-slice border + tiled background) */
 typedef struct drawBackdrop_s {
-    RECT screen;
+    rect_t screen;
     struct { LPCTEXTURE texture; COLOR32 color; } bg, edge;
-    struct { SHORT flags; FLOAT size; } corner;
-    struct { FLOAT right, top, bottom, left; } insets;
-    BYTE flags;
+    struct { int16_t flags; float size; } corner;
+    struct { float right, top, bottom, left; } insets;
+    uint8_t flags;
 } drawBackdrop_t;
 
 /* Standard pointer typedefs */
@@ -87,29 +87,29 @@ typedef drawBackdrop_t const *LPCDRAWBACKDROP;
 
 /* Decoded full-screen cinematic frame. The renderer owns the persistent upload texture. */
 typedef struct drawCinematicFrame_s {
-    DWORD width;
-    DWORD height;
+    uint32_t width;
+    uint32_t height;
     void const *pixels;
-    RECT screen;
+    rect_t screen;
 } drawCinematicFrame_t;
 typedef drawCinematicFrame_t const *LPCDRAWCINEMATICFRAME;
 #include "common/stb_slk.h"
 
 typedef struct {
     // Quake 3-style file API: renderer is archive-agnostic
-    int (*FS_ReadFile)(LPCSTR name, void **buf);  // Returns file size, allocates buf
+    int (*FS_ReadFile)(cstring_t name, void **buf);  // Returns file size, allocates buf
     void (*FS_FreeFile)(void *buf);
     // mmap-backed read for loose files; free with FS_MunmapFile (falls back to heap for MPQ/Windows)
-    void *(*FS_MmapFile)(LPCSTR name, DWORD *out_size);
+    void *(*FS_MmapFile)(cstring_t name, uint32_t *out_size);
     void (*FS_MunmapFile)(void *ptr);
-    bool (*FileExtract)(LPCSTR toExtract, LPCSTR extracted);
+    bool (*FileExtract)(cstring_t toExtract, cstring_t extracted);
     
-    HANDLE (*MemAlloc)(long size);
-    void (*MemFree)(HANDLE);
-    DWORD (*LoadSlk)(LPCSTR filename, slkField_t const *schema, void **dest, DWORD row_stride);
-    LPCSTR (*CvarString)(LPCSTR name, LPCSTR fallback);
-    void (*PlaySoundAt)(LPCSTR path, LPCVECTOR3 origin, FLOAT volume);
-    void (*error)(LPCSTR fmt, ...);
+    handle_t (*MemAlloc)(long size);
+    void (*MemFree)(handle_t);
+    uint32_t (*LoadSlk)(cstring_t filename, slkField_t const *schema, void **dest, uint32_t row_stride);
+    cstring_t (*CvarString)(cstring_t name, cstring_t fallback);
+    void (*PlaySoundAt)(cstring_t path, LPCVECTOR3 origin, float volume);
+    void (*error)(cstring_t fmt, ...);
 } refImport_t;
 
 typedef struct {
@@ -133,22 +133,22 @@ typedef struct {
     struct { LPCMODEL model; orientation_t angles; } attachment; /* local pose after the parent socket */
     LPCTEXTURE skin;
     LPCTEXTURE splat;
-    LPCSTR name;                      /* server-authored world label (NULL = none) */
-    DWORD number;
-    DWORD owner;                     /* authoritative entity owner/player slot when the game assigns one */
-    DWORD team;
+    cstring_t name;                      /* server-authored world label (NULL = none) */
+    uint32_t number;
+    uint32_t owner;                     /* authoritative entity owner/player slot when the game assigns one */
+    uint32_t team;
 #ifdef WOW
-    DWORD display_id;
-    DWORD appearance;
-    DWORD equipment;
+    uint32_t display_id;
+    uint32_t appearance;
+    uint32_t equipment;
     LPCMODEL overhead_model;
     VECTOR3 rotation;   /* Authored placement Euler degrees; game adapter decodes to yaw/pitch/roll. */
 #endif
-    DWORD frame;
-    DWORD oldframe;
-    DWORD flags;
-    BYTE health;        /* compressed 0..255 snapshot health ratio */
-    USHORT effect_flags;
+    uint32_t frame;
+    uint32_t oldframe;
+    uint32_t flags;
+    uint8_t health;        /* compressed 0..255 snapshot health ratio */
+    uint16_t effect_flags;
     LPCMODEL effect_model;
     float angle;        /* Canonical actor heading in radians, independent of height anchoring. */
     float scale;
@@ -157,10 +157,10 @@ typedef struct {
     float ground_offset; /* current altitude above an authored ground/support surface */
 #ifndef USE_SHADOWMAPS
     LPCTEXTURE shadow;
-    RECT shadow_rect;
+    rect_t shadow_rect;
 #endif
     COLOR32 tint;  /* optional per-instance model RGBA */
-    BOOL tint_valid; /* distinguishes explicit alpha 0 from an unset tint */
+    bool tint_valid; /* distinguishes explicit alpha 0 from an unset tint */
     COLOR32 indicator; /* optional transient entity ground-ring RGBA; alpha 0 = none */
 } renderEntity_t;
 
@@ -183,20 +183,20 @@ typedef struct {
 typedef struct {
     viewCamera_t camerastate[2];
     VECTOR3 target; /* Rendered camera focus shared by projection, drag-panning, and shadows. */
-    RECT viewport;
-    RECT scissor;
-    DWORD time;
-    DWORD deltaTime;
+    rect_t viewport;
+    rect_t scissor;
+    uint32_t time;
+    uint32_t deltaTime;
     float lerpfrac;
-    DWORD num_entities;
+    uint32_t num_entities;
     renderEntity_t *entities;
-    DWORD num_decals;
+    uint32_t num_decals;
     renderDecal_t *decals;
-    DWORD num_splat_rects;
+    uint32_t num_splat_rects;
     renderSplatRect_t *splat_rects;
-    DWORD num_weather_effects;
+    uint32_t num_weather_effects;
     wc3WeatherEffect_t const *weather_effects;
-    DWORD num_lightning_effects;
+    uint32_t num_lightning_effects;
     LPCLIGHTNINGEFFECT lightning_effects;
     MATRIX4 viewProjectionMatrix;
     MATRIX4 lightMatrix;
@@ -204,58 +204,58 @@ typedef struct {
     LPCMODEL terrainLightModel; /* optional sampling source; game renderer evaluates into terrainLight */
     LPCMODEL entityLightModel;  /* optional sampling source; game renderer evaluates into entityLight */
     LPCMODEL skyModel;          /* optional camera-relative unlit world model */
-    FLOAT environmentPhase;     /* normalized 0..1 clock used to sample environment light models */
+    float environmentPhase;     /* normalized 0..1 clock used to sample environment light models */
     ENVIRONLIGHT terrainLight;  /* evaluated world/terrain light; valid=0 keeps the renderer fallback */
     ENVIRONLIGHT entityLight;   /* evaluated entity light; valid=0 reuses terrainLight or the fallback */
-    DWORD player;
-    USHORT game_variant;      /* opaque game-owned local presentation variant */
-    DWORD rdflags;
-    DWORD hover_entity;     /* entity under mouse cursor (0 = none) */
-    DWORD fow_width, fow_height, fow_generation;
-    BYTE const *fow_data;
+    uint32_t player;
+    uint16_t game_variant;      /* opaque game-owned local presentation variant */
+    uint32_t rdflags;
+    uint32_t hover_entity;     /* entity under mouse cursor (0 = none) */
+    uint32_t fow_width, fow_height, fow_generation;
+    uint8_t const *fow_data;
     terrainMask_t terrain_mask;
     FRUSTUM3 frustum;
     /* Generic linear scene-distance fog. Game renderers decide which world
      * surfaces consume it; producers that carry richer style/density state
      * reduce that state to this start/end/color contract until the renderer
      * exposes additional equations. */
-    BOOL fogEnable;
+    bool fogEnable;
     float fogStart;
     float fogEnd;
     VECTOR3 fogColor;
 } viewDef_t;
 
 struct modelInfo_s {
-    DWORD textureCount;
-    LPCSTR texturePaths[MODELINFO_MAX_TEXTURES];
-    RECT textureUVRect;
-    BOOL hasTextureUVRect;
+    uint32_t textureCount;
+    cstring_t texturePaths[MODELINFO_MAX_TEXTURES];
+    rect_t textureUVRect;
+    bool hasTextureUVRect;
 };
 
 typedef struct {
     LPCMODEL model;
-    LPCSTR anim;
-    FLOAT x, y;
+    cstring_t anim;
+    float x, y;
     void const *id, *scope; /* Stable UI owner and layout identities; separate instances sharing one model. */
 } drawSprite_t;
 
 typedef struct {
-    void (*Init)(DWORD width, DWORD height);
+    void (*Init)(uint32_t width, uint32_t height);
     void (*Shutdown)(void);
-    void (*RegisterMap)(LPCSTR mapFileName);
-    void (*SetAssetScope)(LPCSTR scope);
+    void (*RegisterMap)(cstring_t mapFileName);
+    void (*SetAssetScope)(cstring_t scope);
     void (*RenderFrame)(viewDef_t const *viewdef);
-    LPTEXTURE (*LoadTexture)(LPCSTR fileName);
+    LPTEXTURE (*LoadTexture)(cstring_t fileName);
     /* NULL releases the renderer-owned cinematic texture. */
     void (*DrawCinematicFrame)(LPCDRAWCINEMATICFRAME frame);
-    LPMODEL (*LoadModel)(LPCSTR filename);
-    LPFONT (*LoadFont)(LPCSTR filename, DWORD size);
+    LPMODEL (*LoadModel)(cstring_t filename);
+    LPFONT (*LoadFont)(cstring_t filename, uint32_t size);
     size2_t (*GetWindowSize)(void);
-    RECT (*GetUISceneRect)(void);
+    rect_t (*GetUISceneRect)(void);
     /* The client canvas owns the scene (docs/architecture/ui-canvas.md); the renderer only projects it. */
-    void (*SetUIScene)(LPCRECT scene);
-    DWORD (*GetDrawCalls)(void);
-    void (*SetWindowSize)(DWORD width, DWORD height);
+    void (*SetUIScene)(rect_t const * scene);
+    uint32_t (*GetDrawCalls)(void);
+    void (*SetWindowSize)(uint32_t width, uint32_t height);
     void (*WindowChanged)(void);
     size2_t (*GetTextureSize)(LPCTEXTURE texture);
     void (*ReleaseTexture)(LPTEXTURE texture);
@@ -264,35 +264,35 @@ typedef struct {
     void (*EndFrame)(void);
     void (*Screenshot)(void);
     void (*DrawChar)(int x, int y, int c);
-    void (*DrawString)(int x, int y, LPCSTR text);
+    void (*DrawString)(int x, int y, cstring_t text);
     void (*DrawCharScaled)(float x, float y, int c, float scale);
-    void (*DrawFill)(LPCRECT rect, COLOR32 color);
-    void (*DrawSelectionRect)(LPCRECT rect, COLOR32 color);
+    void (*DrawFill)(rect_t const * rect, COLOR32 color);
+    void (*DrawSelectionRect)(rect_t const * rect, COLOR32 color);
     void (*DrawPic)(LPCTEXTURE texture, float x, float y);
-    void (*DrawImage)(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color);
+    void (*DrawImage)(LPCTEXTURE texture, rect_t const * screen, rect_t const * uv, COLOR32 color);
     void (*DrawImageEx)(LPCDRAWIMAGE drawImage);
     void (*DrawBackdrop)(LPCDRAWBACKDROP drawBackdrop);
-    void (*DrawMinimap)(LPCRECT screen, LPCSTR map);
-    void (*DrawLoadingIndicator)(LPCRECT rect, DWORD time, COLOR32 color);
+    void (*DrawMinimap)(rect_t const * screen, cstring_t map);
+    void (*DrawLoadingIndicator)(rect_t const * rect, uint32_t time, COLOR32 color);
     void (*DrawSprite)(drawSprite_t const *sprite);
     bool (*DrawCursor)(float x, float y, COLOR32 tint);
-    bool (*SetEntityAnimFrame)(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
+    bool (*SetEntityAnimFrame)(LPCMODEL model, cstring_t anim, renderEntity_t *entity);
     void (*DrawText)(LPCDRAWTEXT drawText);
     VECTOR2 (*GetTextSize)(LPCDRAWTEXT drawText);
     bool (*GetModelInfo)(LPMODEL model, LPMODELINFO info);
     bool (*GetEntityOverheadPosition)(renderEntity_t const *entity, LPVECTOR3 out);
-    bool (*GetEntityAttachmentPosition)(renderEntity_t const *entity, LPCSTR prefix, LPVECTOR3 out);
+    bool (*GetEntityAttachmentPosition)(renderEntity_t const *entity, cstring_t prefix, LPVECTOR3 out);
 
     void (*DrawBoundingBox)(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix, COLOR32 color);
-    FLOAT (*GetHeightAtPoint)(float x, float y);
-    FLOAT (*GetCameraHeightAtPoint)(float x, float y);
-    BOOL (*CameraUsesTerrainHeight)(void);
-    bool (*TraceEntity)(viewDef_t const *viewdef, float x, float y, LPDWORD number);
+    float (*GetHeightAtPoint)(float x, float y);
+    float (*GetCameraHeightAtPoint)(float x, float y);
+    bool (*CameraUsesTerrainHeight)(void);
+    bool (*TraceEntity)(viewDef_t const *viewdef, float x, float y, uint32_t * number);
     bool (*TraceLocation)(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);
     bool (*TraceCameraPlane)(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);
     bool (*TraceMinimap)(float x, float y, LPVECTOR2 outWorld);
     bool (*WorldToMinimap)(LPCVECTOR2 world, LPVECTOR2 outScreen);
-    DWORD (*EntitiesInRect)(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWORD array);
+    uint32_t (*EntitiesInRect)(viewDef_t const *viewdef, rect_t const * rect, uint32_t max, uint32_t * array);
 
 } refExport_t;
 

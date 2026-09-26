@@ -26,7 +26,27 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "net_platform.h"
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+typedef SOCKET net_socket_t;
+typedef int net_socklen_t;
+#define NET_INVALID_SOCKET INVALID_SOCKET
+#undef DrawText
+#undef PlaySound
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+typedef int net_socket_t;
+typedef socklen_t net_socklen_t;
+#define NET_INVALID_SOCKET (-1)
+#define SOCKET_ERROR (-1)
+#endif
 #include "common.h"
 
 #define BZ_LOOPBACK_LIMIT (8 * 1024 * 1024) // bytes per direction; preserves the existing maximum queued burst
@@ -37,8 +57,8 @@
  * -------------------------------------------------------------------------*/
 
 struct loopback {
-    ARRAY(BYTE, data);
-    DWORD read, write;
+    ARRAY(uint8_t, data);
+    uint32_t read, write;
 };
 
 // bufs[NS_CLIENT] holds client→server packets; bufs[NS_SERVER] holds
@@ -48,20 +68,20 @@ static struct loopback loopbufs[2];
 
 static void NET_SendLoopPacket(NETSOURCE netsrc, int length, const void *data) {
     struct loopback *buf = &loopbufs[netsrc];
-    if (length <= 0 || length > BZ_LOOPBACK_LIMIT - (int)sizeof(DWORD)) {
+    if (length <= 0 || length > BZ_LOOPBACK_LIMIT - (int)sizeof(uint32_t)) {
         fprintf(stderr, "NET_SendLoopPacket: bad packet length %d\n", length);
         return;
     }
-    DWORD packet_size = length + sizeof(DWORD), used = buf->write - buf->read;
+    uint32_t packet_size = length + sizeof(uint32_t), used = buf->write - buf->read;
     if (used + packet_size > BZ_LOOPBACK_LIMIT) {
         fprintf(stderr, "NET_SendLoopPacket: loopback overflow, dropping queued packets\n");
         buf->read = buf->write;
         used = 0;
     }
     if (used + packet_size > ARRAY_COUNT(buf->data)) {
-        DWORD cap = MAX(BZ_LOOPBACK_MIN, ARRAY_COUNT(buf->data));
+        uint32_t cap = MAX(BZ_LOOPBACK_MIN, ARRAY_COUNT(buf->data));
         while (cap < used + packet_size) cap *= 2;
-        BYTE *data = malloc(cap);
+        uint8_t *data = malloc(cap);
         if (!data) {
             fprintf(stderr, "NET_SendLoopPacket: could not grow queue to %u bytes\n", cap);
             return;
@@ -71,7 +91,7 @@ static void NET_SendLoopPacket(NETSOURCE netsrc, int length, const void *data) {
         free(buf->data); buf->data = data; ARRAY_COUNT(buf->data) = cap;
         buf->read = 0; buf->write = used;
     }
-    DWORD len = (DWORD)length;
+    uint32_t len = (uint32_t)length;
     FOR_LOOP(i, 4) {
         buf->data[(buf->write++) % ARRAY_COUNT(buf->data)] = ((char *)&len)[i];
     }
@@ -85,7 +105,7 @@ int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
     if (buf->read == buf->write)
         return 0;
 
-    DWORD size = 0;
+    uint32_t size = 0;
     FOR_LOOP(i, 4) {
         ((char *)&size)[i] = buf->data[(buf->read++) % ARRAY_COUNT(buf->data)];
     }
@@ -108,7 +128,7 @@ int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
 static net_socket_t udp_sockets[2] = { NET_INVALID_SOCKET, NET_INVALID_SOCKET };
 
 #ifdef _WIN32
-static BOOL winsock_initialized;
+static bool winsock_initialized;
 #endif
 
 static int NET_SocketError(void) {
@@ -119,7 +139,7 @@ static int NET_SocketError(void) {
 #endif
 }
 
-static BOOL NET_ErrorWouldBlock(int error) {
+static bool NET_ErrorWouldBlock(int error) {
 #ifdef _WIN32
     return error == WSAEWOULDBLOCK;
 #else
@@ -135,7 +155,7 @@ static void NET_CloseSocket(net_socket_t socket_handle) {
 #endif
 }
 
-static LPCSTR NET_SourceName(NETSOURCE netsrc) {
+static cstring_t NET_SourceName(NETSOURCE netsrc) {
     return netsrc == NS_CLIENT ? "client" : "server";
 }
 
@@ -266,7 +286,7 @@ static int NET_GetUDPPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
         return 0;
     }
 
-    msg->cursize = (DWORD)bytes;
+    msg->cursize = (uint32_t)bytes;
     msg->readcount = 0;
 
     memset(from, 0, sizeof(*from));
@@ -301,7 +321,7 @@ void NET_Init(void) {
     net_clear_loopback();
 }
 
-void NET_Config(BOOL multiplayer) {
+void NET_Config(bool multiplayer) {
     if (!multiplayer) {
         FOR_LOOP(i, 2) {
             NET_ConfigSource((NETSOURCE)i, false);
@@ -312,7 +332,7 @@ void NET_Config(BOOL multiplayer) {
     NET_ConfigSource(NS_CLIENT, true);
 }
 
-void NET_ConfigSource(NETSOURCE netsrc, BOOL open) {
+void NET_ConfigSource(NETSOURCE netsrc, bool open) {
     if (netsrc > NS_SERVER) {
         return;
     }
@@ -327,7 +347,7 @@ void NET_ConfigSource(NETSOURCE netsrc, BOOL open) {
     NET_OpenIP(netsrc);
 }
 
-BOOL NET_IsConfigured(NETSOURCE netsrc) {
+bool NET_IsConfigured(NETSOURCE netsrc) {
     return netsrc <= NS_SERVER && udp_sockets[netsrc] != NET_INVALID_SOCKET;
 }
 
@@ -342,7 +362,7 @@ void NET_Shutdown(void) {
 #endif
 }
 
-bool NET_StringToAdr(LPCSTR s, unsigned short default_port, netadr_t *adr) {
+bool NET_StringToAdr(cstring_t s, unsigned short default_port, netadr_t *adr) {
     char host[256];
     unsigned short port = default_port;
 
@@ -376,9 +396,9 @@ bool NET_StringToAdr(LPCSTR s, unsigned short default_port, netadr_t *adr) {
     return true;
 }
 
-LPCSTR NET_AdrToString(const netadr_t *adr) {
+cstring_t NET_AdrToString(const netadr_t *adr) {
     static char buffers[4][64];
-    static DWORD index;
+    static uint32_t index;
     char host[INET_ADDRSTRLEN] = "0.0.0.0";
     char *out = buffers[index++ & 3];
 
@@ -428,7 +448,7 @@ void Netchan_Transmit(NETSOURCE netsrc, struct netchan *netchan) {
     netchan->message.cursize = 0;
 }
 
-void SZ_Init(LPSIZEBUF buf, BYTE *data, DWORD length) {
+void SZ_Init(LPSIZEBUF buf, uint8_t *data, uint32_t length) {
     memset(buf, 0, sizeof(*buf));
     buf->data = data;
     buf->maxsize = length;
@@ -439,7 +459,7 @@ void SZ_Clear(LPSIZEBUF buf) {
     buf->overflowed = false;
 }
 
-HANDLE SZ_GetSpace(LPSIZEBUF buf, DWORD length) {
+handle_t SZ_GetSpace(LPSIZEBUF buf, uint32_t length) {
     if (buf->cursize + length > buf->maxsize) {
 //        if (length > buf->maxsize)
 //            Com_Error (ERR_FATAL, "SZ_GetSpace: %i is > full buffer size", length);
@@ -452,17 +472,17 @@ HANDLE SZ_GetSpace(LPSIZEBUF buf, DWORD length) {
         SZ_Clear(buf);
         buf->overflowed = true;
     }
-    HANDLE data = buf->data + buf->cursize;
+    handle_t data = buf->data + buf->cursize;
     buf->cursize += length;
     return data;
 }
 
-void SZ_Write(LPSIZEBUF buf, void const *data, DWORD length) {
+void SZ_Write(LPSIZEBUF buf, void const *data, uint32_t length) {
     memcpy(SZ_GetSpace(buf, length), data, length);
 }
 
-void Netchan_OutOfBand(NETSOURCE netsrc, netadr_t adr, DWORD length, BYTE *data) {
-    BYTE send_buf[MAX_MSGLEN];
+void Netchan_OutOfBand(NETSOURCE netsrc, netadr_t adr, uint32_t length, uint8_t *data) {
+    uint8_t send_buf[MAX_MSGLEN];
     sizeBuf_t send;
 
     SZ_Init(&send, send_buf, sizeof(send_buf));
@@ -472,12 +492,12 @@ void Netchan_OutOfBand(NETSOURCE netsrc, netadr_t adr, DWORD length, BYTE *data)
     NET_SendPacket(netsrc, (int)send.cursize, send.data, adr);
 }
 
-void Netchan_OutOfBandPrint(NETSOURCE netsrc, netadr_t adr, LPCSTR format, ...) {
+void Netchan_OutOfBandPrint(NETSOURCE netsrc, netadr_t adr, cstring_t format, ...) {
     va_list argptr;
     static char string[MAX_MSGLEN - 4];
     va_start(argptr, format);
     vsnprintf(string, sizeof(string), format, argptr);
     va_end(argptr);
     string[sizeof(string) - 1] = '\0';
-    Netchan_OutOfBand(netsrc, adr, (DWORD)strlen(string), (BYTE *)string);
+    Netchan_OutOfBand(netsrc, adr, (uint32_t)strlen(string), (uint8_t *)string);
 }

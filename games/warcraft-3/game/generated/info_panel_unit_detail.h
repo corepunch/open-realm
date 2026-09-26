@@ -34,8 +34,8 @@ typedef struct InfoPanelUnitDetail_s {
 } InfoPanelUnitDetail_t;
 
 
-static inline BOOL InfoPanelUnitDetail_Bind(InfoPanelUnitDetail_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool InfoPanelUnitDetail_Bind(InfoPanelUnitDetail_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -73,7 +73,7 @@ static inline BOOL InfoPanelUnitDetail_Bind(InfoPanelUnitDetail_t *out, LPFRAMED
     return ok;
 }
 
-static inline BOOL InfoPanelUnitDetail_Load(InfoPanelUnitDetail_t *out) {
+static inline bool InfoPanelUnitDetail_Load(InfoPanelUnitDetail_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\InfoPanelTemplates.fdf") &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\InfoPanelUnitDetail.fdf") &&

@@ -30,26 +30,26 @@ typedef struct {
 static resourceTooltipText_t resource_tooltips[4];
 static char time_of_day_tooltip[TIME_OF_DAY_TOOLTIP_SIZE];
 
-static LPCSTR UI_OptionalGlobalString(LPCSTR key) {
-    LPCSTR value;
+static cstring_t UI_OptionalGlobalString(cstring_t key) {
+    cstring_t value;
 
     if (!key || !*key) return NULL;
     value = UI_GetString(key);
     return value && strcmp(value, key) ? value : NULL;
 }
 
-static LPCSTR UI_GlobalStringOrFallback(LPCSTR key, LPCSTR fallback) {
-    LPCSTR value = UI_OptionalGlobalString(key);
+static cstring_t UI_GlobalStringOrFallback(cstring_t key, cstring_t fallback) {
+    cstring_t value = UI_OptionalGlobalString(key);
     return value ? value : fallback;
 }
 
 static void UI_FormatTimeOfDayTooltip(void) {
-    LPCSTR tip = UI_GlobalStringOrFallback(
+    cstring_t tip = UI_GlobalStringOrFallback(
         "TIME_OF_DAY_TOOLTIP", "Time of Day ( |Cfffed312%s|R )");
-    LPCSTR ubertip = UI_GlobalStringOrFallback(
+    cstring_t ubertip = UI_GlobalStringOrFallback(
         "TIME_OF_DAY_UBERTIP",
         "This is the current time of day.|N |NThe time of day can affect visibility of units and the use of some abilities.");
-    LPCSTR value = strstr(tip, "%s");
+    cstring_t value = strstr(tip, "%s");
 
     /* Retail's GlobalStrings.fdf owns both the wording and the yellow time
      * color. Keep that markup intact, but substitute a client-side token so a
@@ -64,34 +64,34 @@ static void UI_FormatTimeOfDayTooltip(void) {
     }
 }
 
-static void UI_AppendTooltipText(LPSTR out, DWORD out_size, LPCSTR text) {
-    DWORD used;
+static void UI_AppendTooltipText(string_t out, uint32_t out_size, cstring_t text) {
+    uint32_t used;
 
     if (!out || !out_size || !text || !*text) return;
-    used = (DWORD)strlen(out);
+    used = (uint32_t)strlen(out);
     if (used >= out_size - 1) return;
     snprintf(out + used, out_size - used, "%s", text);
 }
 
-static LPCSTR UI_UpkeepLabel(DWORD tier) {
+static cstring_t UI_UpkeepLabel(uint32_t tier) {
     if (tier > 1) return UI_GlobalStringOrFallback("UPKEEP_HIGH", "High Upkeep");
     if (tier == 1) return UI_GlobalStringOrFallback("UPKEEP_LOW", "Low Upkeep");
     return UI_GlobalStringOrFallback("UPKEEP_NONE", "No Upkeep");
 }
 
-static BOOL UI_HasLumberUpkeepTax(void) {
+static bool UI_HasLumberUpkeepTax(void) {
     FOR_LOOP(i, game.constants.upkeepLumberTaxCount) {
         if (game.constants.upkeepLumberTax[i] > 0.0001f) return true;
     }
     return false;
 }
 
-static BOOL UI_UpkeepBodyHasTierRanges(LPCSTR text) {
-    DWORD ranges = 0;
+static bool UI_UpkeepBodyHasTierRanges(cstring_t text) {
+    uint32_t ranges = 0;
 
     if (!text) return false;
-    for (LPCSTR p = text; *p; p++) {
-        LPCSTR q;
+    for (cstring_t p = text; *p; p++) {
+        cstring_t q;
         if (!isdigit((unsigned char)*p)) continue;
         q = p;
         while (isdigit((unsigned char)*q)) q++;
@@ -103,9 +103,9 @@ static BOOL UI_UpkeepBodyHasTierRanges(LPCSTR text) {
     return ranges >= 2;
 }
 
-static void UI_FormatUpkeepLegend(LPSTR out, DWORD out_size,
-                                  LPCSTR info, BOOL use_wood_info) {
-    DWORD tier_count;
+static void UI_FormatUpkeepLegend(string_t out, uint32_t out_size,
+                                  cstring_t info, bool use_wood_info) {
+    uint32_t tier_count;
 
     if (!out || !out_size || !info || !*info) return;
     /* Thresholds delimit tiers; the final tier lies above the final threshold.
@@ -114,17 +114,17 @@ static void UI_FormatUpkeepLegend(LPSTR out, DWORD out_size,
     tier_count = MIN(game.constants.upkeepUsageCount + 1, MAX_UPKEEP_TIERS + 1);
 
     FOR_LOOP(tier, tier_count) {
-        LONG lower = 0;
-        LONG upper;
-        LONG gold_rate = G_GetUpkeepGoldRateForTier(tier);
-        LONG lumber_rate = G_GetUpkeepLumberRateForTier(tier);
-        LPCSTR label = UI_UpkeepLabel(tier);
+        int32_t lower = 0;
+        int32_t upper;
+        int32_t gold_rate = G_GetUpkeepGoldRateForTier(tier);
+        int32_t lumber_rate = G_GetUpkeepLumberRateForTier(tier);
+        cstring_t label = UI_UpkeepLabel(tier);
         char line[512];
 
         if (tier > 0 && tier - 1 < game.constants.upkeepUsageCount)
-            lower = (LONG)game.constants.upkeepUsage[tier - 1] + 1;
+            lower = (int32_t)game.constants.upkeepUsage[tier - 1] + 1;
         if (tier < game.constants.upkeepUsageCount) {
-            upper = (LONG)game.constants.upkeepUsage[tier];
+            upper = (int32_t)game.constants.upkeepUsage[tier];
         } else if (game.constants.foodCeiling > 0) {
             upper = game.constants.foodCeiling;
         } else {
@@ -154,11 +154,11 @@ static void UI_FormatUpkeepLegend(LPSTR out, DWORD out_size,
     }
 }
 
-static void UI_FormatUpkeepUbertip(LPSTR out, DWORD out_size) {
-    LPCSTR base = UI_OptionalGlobalString("RESOURCE_UBERTIP_UPKEEP");
-    LPCSTR info = NULL;
-    BOOL wood_tax = UI_HasLumberUpkeepTax();
-    BOOL use_wood_info = false;
+static void UI_FormatUpkeepUbertip(string_t out, uint32_t out_size) {
+    cstring_t base = UI_OptionalGlobalString("RESOURCE_UBERTIP_UPKEEP");
+    cstring_t info = NULL;
+    bool wood_tax = UI_HasLumberUpkeepTax();
+    bool use_wood_info = false;
 
     if (!out || !out_size) return;
     out[0] = '\0';
@@ -188,21 +188,21 @@ static void UI_FormatUpkeepUbertip(LPSTR out, DWORD out_size) {
 }
 
 #ifdef BZ_TESTS
-BOOL UI_TestUpkeepBodyHasTierRanges(LPCSTR text) {
+bool UI_TestUpkeepBodyHasTierRanges(cstring_t text) {
     return UI_UpkeepBodyHasTierRanges(text);
 }
 
-void UI_TestFormatUpkeepLegend(LPSTR out, DWORD out_size, LPCSTR info, BOOL use_wood_info) {
+void UI_TestFormatUpkeepLegend(string_t out, uint32_t out_size, cstring_t info, bool use_wood_info) {
     if (out && out_size) out[0] = '\0';
     UI_FormatUpkeepLegend(out, out_size, info, use_wood_info);
 }
 #endif
 
 static void UI_SetResourceTooltip(LPFRAMEDEF frame, resourceTooltipText_t *storage,
-                                  LPCSTR label_key, LPCSTR label_fallback,
-                                  LPCSTR ubertip_key) {
-    LPCSTR label;
-    LPCSTR body;
+                                  cstring_t label_key, cstring_t label_fallback,
+                                  cstring_t ubertip_key) {
+    cstring_t label;
+    cstring_t body;
 
     if (!frame || !storage) return;
     label = UI_GlobalStringOrFallback(label_key, label_fallback);
@@ -217,10 +217,10 @@ static void UI_SetResourceTooltip(LPFRAMEDEF frame, resourceTooltipText_t *stora
 }
 
 static void UI_SetUpkeepTooltip(LPFRAMEDEF frame, resourceTooltipText_t *storage,
-                                DWORD tier, LONG gold_rate) {
-    LPCSTR upkeep_label;
-    LPCSTR upkeep_prefix;
-    LPCSTR income_prefix;
+                                uint32_t tier, int32_t gold_rate) {
+    cstring_t upkeep_label;
+    cstring_t upkeep_prefix;
+    cstring_t income_prefix;
 
     if (!frame || !storage) return;
     upkeep_label = UI_UpkeepLabel(tier);
@@ -291,8 +291,8 @@ void UI_LoadHudConsole(void) {
 static void UI_WriteTimeOfDayIndicator(LPGAMECLIENT client) {
     uiFrame_t frame;
     uiFrame_t listener;
-    LPCSTR model;
-    DWORD parent;
+    cstring_t model;
+    uint32_t parent;
 
     if (!client || !gi.ModelIndex) return;
     model = Theme_PlayerString(client, "TimeOfDayIndicator", NULL);
@@ -305,7 +305,7 @@ static void UI_WriteTimeOfDayIndicator(LPGAMECLIENT client) {
     frame.tex.index = gi.ModelIndex(model);
     frame.stat = UI_PLAYERSTAT_ENV_PHASE;
     frame.flagsvalue |= UIFLAG_SPRITE_STAT_SEQUENCE;
-    frame.value = (FLOAT)UI_PLAYERSTAT_ENV_VARIANT;
+    frame.value = (float)UI_PLAYERSTAT_ENV_VARIANT;
     frame.text = "#0";
     if (!frame.tex.index) return;
 
@@ -336,8 +336,8 @@ static void UI_WriteTimeOfDayIndicator(LPGAMECLIENT client) {
 
 /* Native attention art has no FDF frame; anchor its authored model to the real button. */
 static void UI_WriteQuestIndicator(LPGAMECLIENT client) {
-    DWORD parent = UI_GetWrittenFrameNumber(hud.upper.UpperButtonBarQuestsButton);
-    LPCSTR model;
+    uint32_t parent = UI_GetWrittenFrameNumber(hud.upper.UpperButtonBarQuestsButton);
+    cstring_t model;
     uiFrame_t frame = { .flags.type = FT_SPRITE, .color = COLOR32_WHITE, .text = "Stand" };
     if (!client || client->quest_until <= level.time || !parent) return;
     model = Theme_PlayerString(client, "QuestChangedParticles", NULL);
@@ -367,11 +367,11 @@ void UI_WriteMinimapFrame(void) {
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
-void UI_WriteConsoleBackdrop(LPGAMECLIENT client, LONG food_used, LONG food_cap) {
-    DWORD upkeep_tier;
-    LPCSTR upkeep_text;
+void UI_WriteConsoleBackdrop(LPGAMECLIENT client, int32_t food_used, int32_t food_cap) {
+    uint32_t upkeep_tier;
+    cstring_t upkeep_text;
     COLOR32 upkeep_color;
-    LONG gold_rate;
+    int32_t gold_rate;
 
     /* Keep symbolic DecorateFileNames keys in the payload; the local WC3 UI
      * resolves them for the recipient's race when the image configstring loads. */
@@ -391,7 +391,7 @@ void UI_WriteConsoleBackdrop(LPGAMECLIENT client, LONG food_used, LONG food_cap)
         FOR_LOOP(i, 4) UI_SetOnClick(buttons[i], "%s", hud.upper_cmds[i]);
     }
 
-    gold_rate = (LONG)client->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE];
+    gold_rate = (int32_t)client->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE];
 
     upkeep_tier = G_GetPlayerUpkeepTier(client);
     upkeep_text = UI_UpkeepLabel(upkeep_tier);

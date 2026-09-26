@@ -3,14 +3,14 @@
 
 static VECTOR2 R_PointToViewSpace(viewDef_t const *viewdef, float x, float y) {
     size2_t window = R_GetWindowSize();
-    RECT viewport = viewdef ? viewdef->viewport : (RECT){ 0, 0, 1, 1 };
-    FLOAT left;
-    FLOAT top;
-    FLOAT width;
-    FLOAT height;
+    rect_t viewport = viewdef ? viewdef->viewport : (rect_t){ 0, 0, 1, 1 };
+    float left;
+    float top;
+    float width;
+    float height;
 
     if (viewport.w <= 0.0f || viewport.h <= 0.0f) {
-        viewport = (RECT){ 0, 0, 1, 1 };
+        viewport = (rect_t){ 0, 0, 1, 1 };
     }
     left = viewport.x * window.width;
     top = (1.0f - (viewport.y + viewport.h)) * window.height;
@@ -45,17 +45,17 @@ bool R_TraceCameraPlane(viewDef_t const *viewdef, float x, float y, LPVECTOR3 po
     return Line3_intersect_plane3(&line, &plane, point);
 }
 
-bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number) {
+bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, uint32_t * number) {
     if (!viewdef || !number) {
         return false;
     }
     LINE3 const line = R_LineForScreenPoint(viewdef, x, y);
-    FLOAT best = FLT_MAX;
-    DWORD best_number = 0;
+    float best = FLT_MAX;
+    uint32_t best_number = 0;
 
     FOR_LOOP(i, viewdef->num_entities) {
         renderEntity_t *ent = &viewdef->entities[i];
-        FLOAT distance;
+        float distance;
 
         if (!ent->number || !ent->model || (ent->flags & (RF_HIDDEN | RF_NOT_SELECTABLE))) {
             continue;
@@ -72,20 +72,20 @@ bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, LPDWORD number) {
     return false;
 }
 
-DWORD R_EntitiesInRect(viewDef_t const *viewdef, LPCRECT rect, DWORD max, LPDWORD array) {
+uint32_t R_EntitiesInRect(viewDef_t const *viewdef, rect_t const * rect, uint32_t max, uint32_t * array) {
     if (!viewdef || !rect || !array || max == 0) {
         return 0;
     }
     tr.viewDef = *viewdef;
     VECTOR2 const a = R_PointToViewSpace(viewdef, rect->x, rect->y);
     VECTOR2 const b = R_PointToViewSpace(viewdef, rect->x+rect->w, rect->y+rect->h);
-    RECT const screen = {
+    rect_t const screen = {
         .x = MIN(a.x, b.x),
         .y = MIN(a.y, b.y),
         .w = MAX(a.x, b.x) - MIN(a.x, b.x),
         .h = MAX(a.y, b.y) - MIN(a.y, b.y),
     };
-    DWORD count = 0;
+    uint32_t count = 0;
     FOR_LOOP(i, viewdef->num_entities) {
         renderEntity_t const *ent = &viewdef->entities[i];
         if (!ent->number || !ent->model || (ent->flags & (RF_HIDDEN | RF_NOT_SELECTABLE))) {

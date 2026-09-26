@@ -3,8 +3,8 @@
 
 #define MAX_SEGMENT_SIZE 16384  /* Galaxy scripts contain long string literals */
 
-BOOL eat_token(LPPARSER p, LPCSTR value) {
-    LPCSTR tok = peek_token(p);
+bool eat_token(LPPARSER p, cstring_t value) {
+    cstring_t tok = peek_token(p);
     if (!strcmp(tok, value)) {
         parse_token(p);
         return true;
@@ -13,12 +13,12 @@ BOOL eat_token(LPPARSER p, LPCSTR value) {
     }
 }
 
-LPCSTR parse_token(LPPARSER p) {
+cstring_t parse_token(LPPARSER p) {
     static char word[MAX_SEGMENT_SIZE];
     while (isspace(*p->buffer)) ++p->buffer;
     if (*p->buffer == '\"' || *p->buffer == '\'') {
         char quote = *p->buffer;
-        LPCSTR closingQuote = strchr(p->buffer + 1, quote);
+        cstring_t closingQuote = strchr(p->buffer + 1, quote);
         size_t stringLength;
         if (!closingQuote) {
             strlcpy(word, p->buffer, MAX_SEGMENT_SIZE);
@@ -81,26 +81,26 @@ LPCSTR parse_token(LPPARSER p) {
     }
 }
 
-LPCSTR jlex_parse_token(LPPARSER p) { return parse_token(p); }
+cstring_t jlex_parse_token(LPPARSER p) { return parse_token(p); }
 
-LPCSTR peek_token(LPPARSER p) {
+cstring_t peek_token(LPPARSER p) {
     PARSER tmp = *p;
-    LPCSTR token = parse_token(p);
+    cstring_t token = parse_token(p);
     *p = tmp;
     return token;
 }
 
-LPCSTR parse_segment(LPPARSER p) {
+cstring_t parse_segment(LPPARSER p) {
     static char segment[MAX_SEGMENT_SIZE];
     memset(segment, 0, MAX_SEGMENT_SIZE);
     if (*p->buffer == '\0')
         return NULL;
     while (isspace(*p->buffer))
         ++p->buffer;
-    LPCSTR start = p->buffer;
+    cstring_t start = p->buffer;
     if (*p->buffer == '"') {
-        LPCSTR closingQuote;
-        LPCSTR comma;
+        cstring_t closingQuote;
+        cstring_t comma;
         size_t seglen;
 
         ++start;
@@ -140,16 +140,16 @@ LPCSTR parse_segment(LPPARSER p) {
     return segment;
 }
 
-LPCSTR parse_segment2(LPPARSER p) {
+cstring_t parse_segment2(LPPARSER p) {
     static char segment[MAX_SEGMENT_SIZE];
     memset(segment, 0, MAX_SEGMENT_SIZE);
     if (*p->buffer == '\0')
         return NULL;
     while (isspace(*p->buffer))
         ++p->buffer;
-    DWORD num_quotes = 0;
-    LPSTR out = segment;
-    LPSTR const out_end = segment + MAX_SEGMENT_SIZE - 1;
+    uint32_t num_quotes = 0;
+    string_t out = segment;
+    string_t const out_end = segment + MAX_SEGMENT_SIZE - 1;
     for (; *p->buffer; ++p->buffer) {
         if (*p->buffer == ',' && (num_quotes & 1) == 0) {
             ++p->buffer;
@@ -171,10 +171,10 @@ void parser_error(LPPARSER parser) {
     parser->error = true;
 }
 
-void *find_in_array(void const *array, long sizeofelem, LPCSTR name) {
-    LPSTR str = (LPSTR)array;
-    while (*(LPCSTR *)str) {
-        LPCSTR value = *(LPCSTR *)str;
+void *find_in_array(void const *array, long sizeofelem, cstring_t name) {
+    string_t str = (string_t)array;
+    while (*(cstring_t *)str) {
+        cstring_t value = *(cstring_t *)str;
         if (!strcmp(value, name)) {
             return str;
         }

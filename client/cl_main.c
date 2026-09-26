@@ -16,7 +16,6 @@
 #include "tr_public.h"
 #include "ui_layout.h"
 #include "sound/s_local.h"
-#include "common/net_platform.h"
 #include "common/server_api.h"
 #ifdef BZ_TESTS
 #include "shared/test.h"
@@ -31,13 +30,13 @@ struct client_state cl;
 #define CL_TIMEOUT_MSEC 10000
 #define CL_LOADING_PUMP_MSEC 16 // milliseconds; one 60 Hz platform pump; bounds checkpoint overhead during loading
 
-typedef struct { LPCSTR name; xcommand_t call; } clMenuCommand_t;
+typedef struct { cstring_t name; xcommand_t call; } clMenuCommand_t;
 static clMenuCommand_t cl_menu_commands[128];
 typedef enum { CL_MENU_UNLOADED, CL_MENU_READY, CL_MENU_SUSPENDED } clMenuLife_t;
 static clMenuLife_t cl_menu_life;
 
-static DWORD cl_last_packet_time = 0;
-static DWORD cl_realtime = 0;
+static uint32_t cl_last_packet_time = 0;
+static uint32_t cl_realtime = 0;
 
 typedef enum {
     CL_MENU_ACTION_NONE,
@@ -56,7 +55,7 @@ static clPendingMenuAction_t cl_pending_menu_action;
 static clPendingMenuAction_t cl_movie_deferred_action;
 static PATHSTR cl_pending_movie;
 
-void Cmd_ForwardToServer(LPCSTR text) {
+void Cmd_ForwardToServer(cstring_t text) {
     if (cls.state <= ca_connected || *text == '-' || *text == '+') {
         fprintf(stderr, "Unknown command \"%s\"\n", text);
         CON_printf("Unknown command \"%s\"", text);
@@ -66,11 +65,11 @@ void Cmd_ForwardToServer(LPCSTR text) {
     SZ_Printf(&cls.netchan.message, "%s", text);
 }
 
-LPCSTR CL_GetConfigString(DWORD index) {
+cstring_t CL_GetConfigString(uint32_t index) {
     return cl.configstrings[index];
 }
 
-void CL_ClientCommand(LPCSTR cmd) {
+void CL_ClientCommand(cstring_t cmd) {
     memset(cls.netchan.message.data, 0, cls.netchan.message.maxsize);
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     SZ_Printf(&cls.netchan.message, "%s", cmd);
@@ -122,11 +121,11 @@ void CL_ClearState(void) {
 }
 
 /* Forward declarations for UI callbacks */
-static void CL_UIServerCommand(LPCSTR text);
+static void CL_UIServerCommand(cstring_t text);
 static void CL_LANRefreshServers(void);
-static DWORD CL_LANNumServers(void);
-static BOOL CL_LANServer(DWORD index, menuLanGame_t *out);
-static void CL_LANConnectServer(DWORD index);
+static uint32_t CL_LANNumServers(void);
+static bool CL_LANServer(uint32_t index, menuLanGame_t *out);
+static void CL_LANConnectServer(uint32_t index);
 static LPRENDERER CL_UIGetRenderer(void);
 
 static void CL_SuspendMenu(void) {
@@ -154,7 +153,7 @@ static void CL_RunMenuCommand(void) {
     }
 }
 
-static void CL_AddMenuCommand(LPCSTR name, xcommand_t call) {
+static void CL_AddMenuCommand(cstring_t name, xcommand_t call) {
     FOR_LOOP(i, sizeof(cl_menu_commands) / sizeof(cl_menu_commands[0])) {
         clMenuCommand_t *cmd = &cl_menu_commands[i];
         if (cmd->name && strcmp(cmd->name, name)) continue;
@@ -165,7 +164,7 @@ static void CL_AddMenuCommand(LPCSTR name, xcommand_t call) {
     Com_Error(ERR_FATAL, "Too many main-menu commands");
 }
 
-static void CL_MenuCommand(LPCSTR command) {
+static void CL_MenuCommand(cstring_t command) {
     if (!command || !*command) {
         return;
     }
@@ -173,7 +172,7 @@ static void CL_MenuCommand(LPCSTR command) {
     Cbuf_AddText("\n");
 }
 
-static void CL_DisconnectInternal(LPCSTR reason, BOOL notify, BOOL queue_menu) {
+static void CL_DisconnectInternal(cstring_t reason, bool notify, bool queue_menu) {
     Cbuf_ClearDefer();
     if (cls.state == ca_disconnected) {
         return;
@@ -205,14 +204,14 @@ static void CL_DisconnectInternal(LPCSTR reason, BOOL notify, BOOL queue_menu) {
     }
 }
 
-void CL_Disconnect(LPCSTR reason, BOOL notify) {
+void CL_Disconnect(cstring_t reason, bool notify) {
     CL_DisconnectInternal(reason, notify, true);
 }
 
 /* UI library FS_ReadFile wrapper — tries engine filesystem first,
  * then falls back to a raw CWD fopen so share/ files written by
  * CL_UI_WriteFile (which writes relative to CWD) are readable. */
-static int CL_UI_ReadFile(LPCSTR fileName, void **buf) {
+static int CL_UI_ReadFile(cstring_t fileName, void **buf) {
     int size = FS_ReadFileQ3(fileName, buf);
     if (size > 0 || !buf) return size;
     FILE *f = fopen(fileName, "rb");
@@ -230,7 +229,7 @@ static int CL_UI_ReadFile(LPCSTR fileName, void **buf) {
 }
 
 /* Write a local file by path (relative to CWD, same as share/ configs). */
-static void CL_UI_WriteFile(LPCSTR path, const void *data, int size) {
+static void CL_UI_WriteFile(cstring_t path, const void *data, int size) {
     FILE *f;
     if (!path || !data || size <= 0) return;
     f = fopen(path, "wb");
@@ -239,8 +238,8 @@ static void CL_UI_WriteFile(LPCSTR path, const void *data, int size) {
     fclose(f);
 }
 
-static BOOL CL_UI_HasExtension(LPCSTR name, LPCSTR extension) {
-    LPCSTR dot;
+static bool CL_UI_HasExtension(cstring_t name, cstring_t extension) {
+    cstring_t dot;
 
     if (!extension || !*extension) {
         return true;
@@ -250,10 +249,10 @@ static BOOL CL_UI_HasExtension(LPCSTR name, LPCSTR extension) {
 }
 
 static int CL_UI_CompareFileNames(const void *a, const void *b) {
-    return strcasecmp((LPCSTR)a, (LPCSTR)b);
+    return strcasecmp((cstring_t)a, (cstring_t)b);
 }
 
-static BOOL CL_UI_ListHasFile(PATHSTR *files, int count, LPCSTR name) {
+static bool CL_UI_ListHasFile(PATHSTR *files, int count, cstring_t name) {
     for (int i = 0; i < count; i++) {
         if (!strcasecmp(files[i], name)) {
             return true;
@@ -263,14 +262,14 @@ static BOOL CL_UI_ListHasFile(PATHSTR *files, int count, LPCSTR name) {
 }
 
 typedef struct {
-    LPCSTR extension;
+    cstring_t extension;
     char *listbuf;
     int bufsize;
     int used;
     int count;
 } clUiFileList_t;
 
-static void CL_UI_AddMapFile(LPCSTR path, void *userData) {
+static void CL_UI_AddMapFile(cstring_t path, void *userData) {
     clUiFileList_t *list = userData;
     int len;
 
@@ -285,12 +284,12 @@ static void CL_UI_AddMapFile(LPCSTR path, void *userData) {
     list->count++;
 }
 
-static int CL_UI_GetFileList(LPCSTR path, LPCSTR extension, char *listbuf, int bufsize) {
+static int CL_UI_GetFileList(cstring_t path, cstring_t extension, char *listbuf, int bufsize) {
     enum { MAX_UI_FILELIST = 1024 };
     PATHSTR files[MAX_UI_FILELIST];
     char mask[MAX_PATHLEN * 2];
     SFILE_FIND_DATA find;
-    HANDLE handle;
+    handle_t handle;
     int count = 0;
     int used = 0;
 
@@ -344,7 +343,7 @@ static int CL_UI_GetFileList(LPCSTR path, LPCSTR extension, char *listbuf, int b
     return count;
 }
 
-static void CL_UIServerCommand(LPCSTR text) {
+static void CL_UIServerCommand(cstring_t text) {
     if (!text || !*text || *text == '-' || *text == '+') {
         return;
     }
@@ -360,13 +359,13 @@ static LPRENDERER CL_UIGetRenderer(void) {
 #define CL_MAX_LAN_SERVERS 64
 
 static menuLanGame_t cl_lan_servers[CL_MAX_LAN_SERVERS];
-static DWORD cl_num_lan_servers;
+static uint32_t cl_num_lan_servers;
 
-static void CL_InfoValue(LPCSTR info, LPCSTR key, LPSTR out, DWORD out_size) {
+static void CL_InfoValue(cstring_t info, cstring_t key, string_t out, uint32_t out_size) {
     char needle[64];
-    LPCSTR cursor;
-    LPCSTR value;
-    LPCSTR end;
+    cstring_t cursor;
+    cstring_t value;
+    cstring_t end;
     size_t len;
 
     if (!out || out_size == 0) {
@@ -395,7 +394,7 @@ static void CL_InfoValue(LPCSTR info, LPCSTR key, LPSTR out, DWORD out_size) {
 static void CL_LANRefreshServers(void) {
     netadr_t adr;
     unsigned short port = (unsigned short)Cvar_Integer("game_port", PORT_SERVER);
-    BOOL const open_client_socket = !NET_IsConfigured(NS_CLIENT);
+    bool const open_client_socket = !NET_IsConfigured(NS_CLIENT);
 
     memset(cl_lan_servers, 0, sizeof(cl_lan_servers));
     cl_num_lan_servers = 0;
@@ -414,11 +413,11 @@ static void CL_LANRefreshServers(void) {
     Netchan_OutOfBandPrint(NS_CLIENT, adr, "info");
 }
 
-static DWORD CL_LANNumServers(void) {
+static uint32_t CL_LANNumServers(void) {
     return cl_num_lan_servers;
 }
 
-static BOOL CL_LANServer(DWORD index, menuLanGame_t *out) {
+static bool CL_LANServer(uint32_t index, menuLanGame_t *out) {
     if (!out || index >= cl_num_lan_servers) {
         return false;
     }
@@ -426,7 +425,7 @@ static BOOL CL_LANServer(DWORD index, menuLanGame_t *out) {
     return true;
 }
 
-static void CL_LANConnectServer(DWORD index) {
+static void CL_LANConnectServer(uint32_t index) {
     menuLanGame_t *game;
     unsigned short port = (unsigned short)Cvar_Integer("game_port", PORT_SERVER);
 
@@ -438,10 +437,10 @@ static void CL_LANConnectServer(DWORD index) {
     CL_Connect(game->address, port);
 }
 
-static void CL_AddLANServer(const netadr_t *from, LPCSTR info) {
+static void CL_AddLANServer(const netadr_t *from, cstring_t info) {
     menuLanGame_t *game;
     char value[128];
-    LPCSTR address;
+    cstring_t address;
 
     if (!from || !info) {
         return;
@@ -465,23 +464,23 @@ update:
     CL_InfoValue(info, "hostname", game->hostname, sizeof(game->hostname));
     CL_InfoValue(info, "mapname", game->mapname, sizeof(game->mapname));
     CL_InfoValue(info, "players", value, sizeof(value));
-    game->players = (DWORD)atoi(value);
+    game->players = (uint32_t)atoi(value);
     CL_InfoValue(info, "maxplayers", value, sizeof(value));
-    game->maxPlayers = (DWORD)atoi(value);
+    game->maxPlayers = (uint32_t)atoi(value);
     CL_InfoValue(info, "speed", value, sizeof(value));
-    game->speed = (DWORD)atoi(value);
+    game->speed = (uint32_t)atoi(value);
     CL_InfoValue(info, "slots", value, sizeof(value));
-    game->slots = (DWORD)atoi(value);
+    game->slots = (uint32_t)atoi(value);
     if (!game->hostname[0]) {
         snprintf(game->hostname, sizeof(game->hostname), "%s", "OpenWarcraft3");
     }
 }
 
-static void CL_UICvarSet(LPCSTR name, LPCSTR value) {
+static void CL_UICvarSet(cstring_t name, cstring_t value) {
     Cvar_Set(name, value);
 }
 
-void CL_SetLoadingProgress(FLOAT progress) {
+void CL_SetLoadingProgress(float progress) {
     if (progress < 0.0f) progress = 0.0f;
     if (progress > 1.0f) progress = 1.0f;
     if (progress <= cl.loading_progress) return;
@@ -489,7 +488,7 @@ void CL_SetLoadingProgress(FLOAT progress) {
     SCR_UpdateLoadingPlaque();
 }
 
-void CL_BeginLoadingMap(LPCSTR mapName) {
+void CL_BeginLoadingMap(cstring_t mapName) {
     /* Release glue-owned caches before the renderer registers a different world. */
     CL_SuspendMenu();
     /* Per-map input conveniences must never retain entity numbers into the
@@ -512,9 +511,9 @@ void CL_BeginLoadingMap(LPCSTR mapName) {
     cl.num_active = 0;
 }
 
-int CL_ModelIndex(LPCSTR modelName) {
+int CL_ModelIndex(cstring_t modelName) {
     /* Find or register model */
-    for (DWORD i = 1; i < MAX_MODELS; i++) {
+    for (uint32_t i = 1; i < MAX_MODELS; i++) {
         if (cl.models[i] == NULL) {
             cl.models[i] = re.LoadModel(modelName);
             return (int)i;
@@ -527,9 +526,9 @@ int CL_ModelIndex(LPCSTR modelName) {
     return 0;
 }
 
-int CL_ImageIndex(LPCSTR imageName) {
+int CL_ImageIndex(cstring_t imageName) {
     /* Find or register image */
-    for (DWORD i = 1; i < MAX_IMAGES; i++) {
+    for (uint32_t i = 1; i < MAX_IMAGES; i++) {
         if (cl.pics[i] == NULL) {
             cl.pics[i] = re.LoadTexture(imageName);
             return (int)i;
@@ -542,13 +541,13 @@ int CL_ImageIndex(LPCSTR imageName) {
     return 0;
 }
 
-int CL_FontIndex(LPCSTR fontName, DWORD fontSize) {
+int CL_FontIndex(cstring_t fontName, uint32_t fontSize) {
     /* Create font spec string */
     char fontspec[256];
     snprintf(fontspec, sizeof(fontspec), "%s,%u", fontName, fontSize);
     
     /* Find or register font */
-    for (DWORD i = 1; i < MAX_FONTSTYLES; i++) {
+    for (uint32_t i = 1; i < MAX_FONTSTYLES; i++) {
         if (cl.fonts[i] == NULL) {
             cl.fonts[i] = re.LoadFont(fontName, fontSize);
             return (int)i;
@@ -561,7 +560,7 @@ int CL_FontIndex(LPCSTR fontName, DWORD fontSize) {
     return 0;
 }
 
-void CL_UIMenuCommand(LPCSTR command) {
+void CL_UIMenuCommand(cstring_t command) {
     CON_printf("CL_UIMenuCommand: %s\\n", command);
     CL_MenuCommand(command);
 }
@@ -578,11 +577,11 @@ static void CL_VideoApply_f(void) {
     CL_CanvasWindowChanged();
 }
 
-static LPCSTR CL_RebuildMenuTarget(LPCSTR target) {
+static cstring_t CL_RebuildMenuTarget(cstring_t target) {
     return target && *target ? target : "menu_main";
 }
 
-static void CL_RebuildMenu(LPCSTR target) {
+static void CL_RebuildMenu(cstring_t target) {
     Cvar_Set("map", "");
     CL_SuspendMenu();
     re.RegisterMap(NULL);
@@ -613,7 +612,7 @@ static void CL_Quit_f(void) {
  * their simulation/JASS call stack may still be active.  Never tear down or
  * replace the current world inline from that callback.  Copy the request and
  * execute it from the following client frame, after SV_Frame has returned. */
-void MenuAction(LPCSTR action, LPCSTR arg) {
+void MenuAction(cstring_t action, cstring_t arg) {
     clPendingMenuAction_t pending = { 0 };
 
     if (!action || !*action) return;
@@ -641,7 +640,7 @@ void MenuAction(LPCSTR action, LPCSTR arg) {
     cl_pending_menu_action = pending;
 }
 
-void CL_QueueMovie(LPCSTR path) {
+void CL_QueueMovie(cstring_t path) {
     if (!path || !*path) return;
     if (cl_pending_movie[0]) {
         fprintf(stderr, "CL_QueueMovie: replacing pending movie %s with %s\n", cl_pending_movie, path);
@@ -717,8 +716,8 @@ execute:
 
 #ifdef BZ_TESTS
 TEST(client_loading, progress_is_clamped_and_monotonic) {
-    FLOAT saved = cl.loading_progress;
-    DWORD saved_disable_screen = cls.disable_screen;
+    float saved = cl.loading_progress;
+    uint32_t saved_disable_screen = cls.disable_screen;
 
     cls.disable_screen = 0;
     cl.loading_progress = 0.0f;
@@ -733,11 +732,11 @@ TEST(client_loading, progress_is_clamped_and_monotonic) {
     cls.disable_screen = saved_disable_screen;
 }
 
-static DWORD cl_test_menu_calls;
+static uint32_t cl_test_menu_calls;
 static void CL_TestMenuCommand(void) { cl_test_menu_calls++; }
 TEST(client_session, menu_commands_cannot_enter_loading_or_active_world) {
     connstate_t state = cls.state;
-    DWORD ui = cl.playerstate.client_ui_state;
+    uint32_t ui = cl.playerstate.client_ui_state;
     CL_AddMenuCommand("test_menu_boundary", CL_TestMenuCommand); cl_test_menu_calls = 0;
     cls.state = ca_active; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
     Cmd_ExecuteString("test_menu_boundary"); T_EQ(cl_test_menu_calls, 0);
@@ -791,10 +790,10 @@ TEST(client_session, menu_action_menu_is_deferred_until_client_frame) {
     memset(&cl_pending_menu_action, 0, sizeof(cl_pending_menu_action));
 }
 
-static DWORD cl_test_menu_shutdown_count;
-static DWORD cl_test_menu_init_count;
-static DWORD cl_test_register_map_count;
-static BOOL cl_test_register_map_was_null;
+static uint32_t cl_test_menu_shutdown_count;
+static uint32_t cl_test_menu_init_count;
+static uint32_t cl_test_register_map_count;
+static bool cl_test_register_map_was_null;
 
 static void CL_TestMenuShutdown(void) {
     cl_test_menu_shutdown_count++;
@@ -804,13 +803,13 @@ static void CL_TestMenuInit(void) {
     cl_test_menu_init_count++;
 }
 
-static void CL_TestRegisterMap(LPCSTR map) {
+static void CL_TestRegisterMap(cstring_t map) {
     cl_test_register_map_count++;
     cl_test_register_map_was_null = map == NULL;
 }
 
 /* Dedicated test runs have no renderer; the menu rebuild re-resolves the canvas, which pushes its scene. */
-static void CL_TestSetUIScene(LPCRECT scene) { (void)scene; }
+static void CL_TestSetUIScene(rect_t const * scene) { (void)scene; }
 
 TEST(client_session, menu_resources_suspend_once_and_resume_once) {
     clMenuLife_t old_life = cl_menu_life;
@@ -848,8 +847,8 @@ TEST(client_session, menu_rebuild_clears_world_scope_before_returning_to_menu) {
     cl_menu_life = CL_MENU_READY;
     void (*old_shutdown)(void) = menu.Shutdown;
     void (*old_init)(void) = menu.Init;
-    void (*old_register_map)(LPCSTR) = re.RegisterMap;
-    void (*old_set_scene)(LPCRECT) = re.SetUIScene;
+    void (*old_register_map)(cstring_t) = re.RegisterMap;
+    void (*old_set_scene)(rect_t const *) = re.SetUIScene;
 
     cl_test_menu_shutdown_count = 0;
     cl_test_menu_init_count = 0;
@@ -879,7 +878,7 @@ TEST(client_session, menu_rebuild_clears_world_scope_before_returning_to_menu) {
 #endif
 
 
-static void CL_RendererPlaySoundAt(LPCSTR path, LPCVECTOR3 origin, FLOAT volume) {
+static void CL_RendererPlaySoundAt(cstring_t path, LPCVECTOR3 origin, float volume) {
     if (!origin) return;
     S_PlaySoundPacket(path, origin, true, CHAN_AUTO, volume, 1.0f, 0.0f);
 }
@@ -972,7 +971,7 @@ void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
     char payload[1024] = { 0 };
     char command[256] = { 0 };
     char *info;
-    DWORD length;
+    uint32_t length;
     int protocol = 0;
 
     if (msg->cursize <= 4) {
@@ -1013,15 +1012,15 @@ void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
 TEST(client_session, connection_reply_requires_matching_protocol) {
     struct client_state *old_cl = MemAlloc(sizeof(cl));
     struct client_static old_cls = cls;
-    void (*old_register_map)(LPCSTR) = re.RegisterMap;
+    void (*old_register_map)(cstring_t) = re.RegisterMap;
     netadr_t loopback = { .type = NA_LOOPBACK };
-    LPCSTR replies[] = { "client_connect", "client_connect 8",
+    cstring_t replies[] = { "client_connect", "client_connect 8",
         "client_connect " BZ_XSTR(BZ_PROTOCOL_VERSION) };
     memcpy(old_cl, &cl, sizeof(cl)); memset(&cl, 0, sizeof(cl));
     re.RegisterMap = CL_TestRegisterMap;
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, MAX_MSGLEN);
     FOR_LOOP(i, 3) {
-        BYTE bytes[128]; sizeBuf_t msg = { .data = bytes, .maxsize = sizeof(bytes) };
+        uint8_t bytes[128]; sizeBuf_t msg = { .data = bytes, .maxsize = sizeof(bytes) };
         cls.state = ca_connecting; SZ_Clear(&cls.netchan.message);
         MSG_WriteLong(&msg, -1); MSG_WriteString(&msg, replies[i]);
         CL_ConnectionlessPacket(&loopback, &msg);
@@ -1055,7 +1054,7 @@ static void CL_ReadPacketMessage(const netadr_t *from, LPSIZEBUF msg, int length
 /* Read all available server packets from the network buffer and dispatch each
  * message type to the appropriate CL_Parse* handler in cl_parse.c. */
 void CL_ReadPackets(void) {
-    static BYTE net_message_buffer[MAX_MSGLEN];
+    static uint8_t net_message_buffer[MAX_MSGLEN];
     static sizeBuf_t net_message = {
         .data = net_message_buffer,
         .maxsize = MAX_MSGLEN,
@@ -1077,8 +1076,8 @@ void CL_ReadPackets(void) {
  * window events, but never commands or game frames.  SDL_PumpEvents services
  * the platform window manager without consuming queued gameplay input. */
 void CL_LoadingFrame(void) {
-    static DWORD last_pump;
-    DWORD now;
+    static uint32_t last_pump;
+    uint32_t now;
 
     if (!scr_initialized || Cvar_Integer("dedicated", 0)) return;
     now = SDL_GetTicks();
@@ -1109,8 +1108,8 @@ static void CL_CheckTimeout(void) {
 /* Set up the netchan to point at a remote server and send an initial
  * connection request.  The server will respond with an out-of-band
  * "client_connect" packet which triggers CL_ConnectionlessPacket(). */
-static void CL_SanitizeUserinfoValue(LPCSTR in, LPSTR out, DWORD out_size) {
-    DWORD write = 0;
+static void CL_SanitizeUserinfoValue(cstring_t in, string_t out, uint32_t out_size) {
+    uint32_t write = 0;
 
     if (!out || out_size == 0) {
         return;
@@ -1133,7 +1132,7 @@ static void CL_SanitizeUserinfoValue(LPCSTR in, LPSTR out, DWORD out_size) {
     out[write] = '\0';
 }
 
-void CL_Connect(LPCSTR host, unsigned short port) {
+void CL_Connect(cstring_t host, unsigned short port) {
     netadr_t adr;
     UINAME name;
 
@@ -1203,7 +1202,7 @@ static void CL_SendSoundEvents(void) {
     }
 }
 
-void CL_Frame(DWORD msec) {
+void CL_Frame(uint32_t msec) {
     cl_realtime += msec;
     cl.time += msec;
 
@@ -1230,7 +1229,7 @@ TEST(client_sound, playback_receipts_are_reliable_ordered_and_wait_for_buffer_sp
     sState_t *saved = malloc(sizeof(s));
     sizeBuf_t old_message = cls.netchan.message;
     int old_state = cls.state;
-    BYTE bytes[256]; SHORT out[2];
+    uint8_t bytes[256]; int16_t out[2];
     sfxcache_t sample = { .length = 1, .loopstart = -1, .data = {1000} };
     soundPolicy_t policy = { .user = 24, .request = 731, .max_channel = 3, .max_total = 24, .max_duplicates = 4 };
     T_NOT_NULL(saved); if (!saved) return;

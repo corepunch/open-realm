@@ -14,15 +14,15 @@
 
 #include <string.h>
 
-static DWORD cheat_packets;
-static LONG cheat_opcode;
-static BOOL cheat_writing;
+static uint32_t cheat_packets;
+static int32_t cheat_opcode;
+static bool cheat_writing;
 static LPEDICT cheat_recipient;
 static char cheat_text[1024];
-static LPCSTR cheat_cvar(LPCSTR name, LPCSTR fallback) { return !strcmp(name, "sv_cheats") ? "1" : fallback; }
+static cstring_t cheat_cvar(cstring_t name, cstring_t fallback) { return !strcmp(name, "sv_cheats") ? "1" : fallback; }
 static void cheat_write(pfWriteType_t type, void const *data) {
-    if (!cheat_writing && type == PF_BYTE) { cheat_opcode = *(LONG const *)data; cheat_writing = true; }
-    if (cheat_opcode == svc_console_print && type == PF_STRING) snprintf(cheat_text, sizeof(cheat_text), "%s", (LPCSTR)data);
+    if (!cheat_writing && type == PF_BYTE) { cheat_opcode = *(int32_t const *)data; cheat_writing = true; }
+    if (cheat_opcode == svc_console_print && type == PF_STRING) snprintf(cheat_text, sizeof(cheat_text), "%s", (cstring_t)data);
 }
 static void cheat_unicast(LPEDICT ent) {
     if (cheat_opcode == svc_console_print) { cheat_packets++; cheat_recipient = ent; }
@@ -74,7 +74,7 @@ static void combat_prepare(LPEDICT *attacker_out, LPEDICT *target_out) {
 TEST(wow_combat, cheat_feedback_reaches_issuing_client) {
     struct game_import saved = gi;
     LPEDICT player, target;
-    LPCSTR god[] = { "god" }, give[] = { "give", "health", "25" };
+    cstring_t god[] = { "god" }, give[] = { "give", "health", "25" };
     combat_prepare(&player, &target);
     player->client = &wow_clients[0].client;
     gi.CvarString = cheat_cvar;
@@ -103,7 +103,7 @@ TEST(wow_combat, cheat_feedback_reaches_issuing_client) {
 TEST(wow_combat, attack_applies_damage_at_damage_point) {
     LPEDICT attacker, target;
     wowEntityLocal_t *al, *tl;
-    DWORD hp;
+    uint32_t hp;
 
     combat_prepare(&attacker, &target);
     al = Wow_EntityLocal(attacker);
@@ -182,7 +182,7 @@ TEST(wow_combat, dead_entity_ignores_pain_and_attack) {
 TEST(wow_combat, death_holds_terminal_frame) {
     LPEDICT attacker, target;
     wowEntityLocal_t *tl;
-    DWORD terminal;
+    uint32_t terminal;
     int num_edicts;
 
     combat_prepare(&attacker, &target);

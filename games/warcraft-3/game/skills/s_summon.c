@@ -3,15 +3,15 @@
 #define ID_TIMED_LIFE "BTLF"
 #define ID_STUN_BUFF "Bstu"
 
-static LPEDICT summon_unit(LPEDICT caster, DWORD unit_id, DWORD index, DWORD count, FLOAT duration) {
+static LPEDICT summon_unit(LPEDICT caster, uint32_t unit_id, uint32_t index, uint32_t count, float duration) {
     VECTOR2 loc;
-    FLOAT angle;
+    float angle;
     LPEDICT summon;
 
     if (!caster || !unit_id)
         return NULL;
 
-    angle = count > 0 ? (2.0f * (FLOAT)M_PI * (FLOAT)index) / (FLOAT)count : 0.0f;
+    angle = count > 0 ? (2.0f * (float)M_PI * (float)index) / (float)count : 0.0f;
     loc = caster->s.origin2;
     loc.x += cosf(angle) * MAX(64.0f, caster->collision + 32.0f);
     loc.y += sinf(angle) * MAX(64.0f, caster->collision + 32.0f);
@@ -30,12 +30,12 @@ static LPEDICT summon_unit(LPEDICT caster, DWORD unit_id, DWORD index, DWORD cou
     return summon;
 }
 
-void S_SummonUnits(LPEDICT caster, DWORD unit_id, DWORD count, FLOAT duration) {
+void S_SummonUnits(LPEDICT caster, uint32_t unit_id, uint32_t count, float duration) {
     if (!count) count = 1;
     FOR_LOOP(i, count) (void)summon_unit(caster, unit_id, i, count, duration);
 }
 
-LPEDICT S_SummonAt(LPEDICT caster, DWORD unit_id, LPCVECTOR2 loc, FLOAT duration) {
+LPEDICT S_SummonAt(LPEDICT caster, uint32_t unit_id, LPCVECTOR2 loc, float duration) {
     LPEDICT summon;
     if (!caster || !unit_id || !loc) return NULL;
     summon = SP_SpawnAtLocation(unit_id, caster->s.player, loc);
@@ -51,13 +51,13 @@ LPEDICT S_SummonAt(LPEDICT caster, DWORD unit_id, LPCVECTOR2 loc, FLOAT duration
  * results of the cast.  Keep the eviction primitive generic: callers supply
  * the Object Editor limit-check type and the retail cap, while summoned-unit
  * identity comes from the shared summon_ability marker. */
-DWORD S_EnforceSummonedUnitTypeLimit(LPEDICT caster, DWORD unit_id, DWORD max_count) {
-    DWORD removed = 0;
+uint32_t S_EnforceSummonedUnitTypeLimit(LPEDICT caster, uint32_t unit_id, uint32_t max_count) {
+    uint32_t removed = 0;
 
     if (!caster || !unit_id || !max_count) return 0;
     for (;;) {
         LPEDICT oldest = NULL;
-        DWORD count = 0;
+        uint32_t count = 0;
 
         FILTER_EDICTS(unit, unit->inuse && !M_IsDead(unit) && unit->s.player == caster->s.player &&
                       unit->class_id == unit_id && unit->summon_ability) {
@@ -75,7 +75,7 @@ DWORD S_EnforceSummonedUnitTypeLimit(LPEDICT caster, DWORD unit_id, DWORD max_co
 }
 
 /* Inferno blast hits living ground/structure enemies; air is out of authored targs. */
-static BOOL inferno_hits(LPEDICT caster, LPEDICT target, FLOAT radius, LPCVECTOR2 origin) {
+static bool inferno_hits(LPEDICT caster, LPEDICT target, float radius, LPCVECTOR2 origin) {
     if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(caster, target)) return false;
     if (Vector2_distance(&target->s.origin2, origin) > radius) return false;
     if (target->targtype == TARG_AIR) return false;
@@ -84,11 +84,11 @@ static BOOL inferno_hits(LPEDICT caster, LPEDICT target, FLOAT radius, LPCVECTOR
 }
 
 /* DataA damage + Bstu Dur/HeroDur, then UnitID with DataB timed life. */
-static void inferno_impact(LPEDICT caster, DWORD code, DWORD level, LPCVECTOR2 point) {
-    FLOAT area = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
+static void inferno_impact(LPEDICT caster, uint32_t code, uint32_t level, LPCVECTOR2 point) {
+    float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
     int damage = (int)S_SpellData(code, level, 1);
-    FLOAT life = S_SpellData(code, level, 2);
-    DWORD unit_id = S_SpellUnitId(code, level);
+    float life = S_SpellData(code, level, 2);
+    uint32_t unit_id = S_SpellUnitId(code, level);
 
     FILTER_EDICTS(target, inferno_hits(caster, target, area, point)) {
         S_SpellDamage(target, caster, damage);
@@ -96,31 +96,31 @@ static void inferno_impact(LPEDICT caster, DWORD code, DWORD level, LPCVECTOR2 p
             unit_addtimedstatus(target, ID_STUN_BUFF, 1, S_SpellDuration(code, level, S_UnitIsResistant(target)));
     }
     if (!unit_id) {
-        fprintf(stderr, "WC3 Inferno: missing UnitID for %.4s\n", (LPCSTR)&code);
+        fprintf(stderr, "WC3 Inferno: missing UnitID for %.4s\n", (cstring_t)&code);
         return;
     }
     S_SummonAt(caster, unit_id, point, life);
 }
 
 void inferno_think(LPEDICT ent) {
-    DWORD now = G_Time();
+    uint32_t now = G_Time();
     if (ent->freetime && now < ent->freetime) return;
     if (!ent->owner || !ent->owner->inuse) { G_FreeEdict(ent); return; }
-    inferno_impact(ent->owner, ent->class_id, (DWORD)ent->wait, &ent->s.origin2);
+    inferno_impact(ent->owner, ent->class_id, (uint32_t)ent->wait, &ent->s.origin2);
     G_FreeEdict(ent);
 }
 
 /* DataC<=0 impacts immediately; otherwise a thinker owns the meteor delay. */
-void S_InfernoLand(LPEDICT caster, DWORD code, DWORD level, LPCVECTOR2 point) {
-    FLOAT delay;
+void S_InfernoLand(LPEDICT caster, uint32_t code, uint32_t level, LPCVECTOR2 point) {
+    float delay;
     LPEDICT thinker;
     if (!caster || !point) return;
     delay = S_SpellData(code, level, 3);
     if (delay <= 0.0f) { inferno_impact(caster, code, level, point); return; }
     thinker = G_Spawn();
-    thinker->owner = caster; thinker->class_id = code; thinker->wait = (FLOAT)level;
+    thinker->owner = caster; thinker->class_id = code; thinker->wait = (float)level;
     thinker->s.origin2 = *point; thinker->s.origin.x = point->x; thinker->s.origin.y = point->y;
-    thinker->freetime = G_Time() + (DWORD)(delay * 1000.0f);
+    thinker->freetime = G_Time() + (uint32_t)(delay * 1000.0f);
     thinker->think = inferno_think;
 }
 
@@ -133,42 +133,42 @@ BZ_SIMPLE_SPELL_PROC(AbilityInferno) {
 
 /* Rain of Chaos resolves each landing through the Inferno ability linked by DataA. */
 void rain_of_chaos_think(LPEDICT ent) {
-    DWORD now = G_Time(), level = (DWORD)ent->wait, inferno = ent->damage, code = ent->class_id;
-    FLOAT angle, radius;
+    uint32_t now = G_Time(), level = (uint32_t)ent->wait, inferno = ent->damage, code = ent->class_id;
+    float angle, radius;
     VECTOR2 loc = ent->s.origin2;
     if (!ent->owner || !ent->owner->inuse || !ent->resources) { G_FreeEdict(ent); return; }
     if (ent->freetime && now < ent->freetime) return;
-    angle = ((FLOAT)rand() / (FLOAT)RAND_MAX) * 2.0f * (FLOAT)M_PI;
-    radius = sqrtf((FLOAT)rand() / (FLOAT)RAND_MAX) * ent->collision;
+    angle = ((float)rand() / (float)RAND_MAX) * 2.0f * (float)M_PI;
+    radius = sqrtf((float)rand() / (float)RAND_MAX) * ent->collision;
     loc.x += cosf(angle) * radius; loc.y += sinf(angle) * radius;
     S_InfernoLand(ent->owner, inferno, level, &loc);
     if (!--ent->resources) { G_FreeEdict(ent); return; }
     /* Zero Dur cannot schedule the next landing; stop rather than spin every frame. */
     if (ent->velocity <= 0.0f) {
-        fprintf(stderr, "WC3 Rain of Chaos: landing interval became zero for %.4s\n", (LPCSTR)&code);
+        fprintf(stderr, "WC3 Rain of Chaos: landing interval became zero for %.4s\n", (cstring_t)&code);
         G_FreeEdict(ent); return;
     }
-    ent->freetime = now + (DWORD)(ent->velocity * 1000.0f);
+    ent->freetime = now + (uint32_t)(ent->velocity * 1000.0f);
 }
 
 /* Unlike Rain of Fire, Rain of Chaos is not channeled: its effect owns the remaining landings after cast. */
 BZ_SIMPLE_SPELL_PROC(AbilityRainOfChaos) {
-    DWORD level = S_SpellLevel(caster, spell->code);
+    uint32_t level = S_SpellLevel(caster, spell->code);
     LPEDICT thinker = G_Spawn();
     thinker->owner = caster; thinker->class_id = spell->code; thinker->s.origin2 = st.point;
     thinker->collision = MAX(0.0f, S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level));
     thinker->damage = S_SpellDataId(spell->code, level, 1);
-    thinker->resources = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 2));
+    thinker->resources = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 2));
     thinker->velocity = MAX(0.0f, S_SpellDuration(spell->code, level, false));
-    thinker->wait = (FLOAT)level; thinker->think = rain_of_chaos_think;
+    thinker->wait = (float)level; thinker->think = rain_of_chaos_think;
     rain_of_chaos_think(thinker);
 }
 
 static void summon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    DWORD unit_id = S_SpellUnitId(spell->code, level);
-    DWORD count = (DWORD)S_SpellData(spell->code, level, 1);
-    FLOAT duration = S_SpellDuration(spell->code, level, false);
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    uint32_t unit_id = S_SpellUnitId(spell->code, level);
+    uint32_t count = (uint32_t)S_SpellData(spell->code, level, 1);
+    float duration = S_SpellDuration(spell->code, level, false);
 
     if (!caster || !unit_id || !count) return;
     FOR_LOOP(i, count) {
@@ -183,19 +183,19 @@ static void summon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const
  * Ubertip="Summons a Water Elemental to fight for the caster."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityWaterElemental) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    DWORD unit_id = S_SpellUnitId(spell->code, level);
-    DWORD count = (DWORD)S_SpellData(spell->code, level, 1);
-    FLOAT duration = S_SpellDuration(spell->code, level, false);
-    FLOAT distance = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    uint32_t unit_id = S_SpellUnitId(spell->code, level);
+    uint32_t count = (uint32_t)S_SpellData(spell->code, level, 1);
+    float duration = S_SpellDuration(spell->code, level, false);
+    float distance = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
     VECTOR2 loc = caster->s.origin2;
 
     if (!caster || !unit_id || !count) return;
     loc.x += cosf(caster->s.angle) * distance;
     loc.y += sinf(caster->s.angle) * distance;
     FOR_LOOP(i, count) {
-        FLOAT const angle = caster->s.angle + 2.0f * (FLOAT)M_PI * (FLOAT)i / (FLOAT)count;
+        float const angle = caster->s.angle + 2.0f * (float)M_PI * (float)i / (float)count;
         VECTOR2 spawn = { loc.x + cosf(angle) * MAX(32.0f, caster->collision),
                           loc.y + sinf(angle) * MAX(32.0f, caster->collision) };
         LPEDICT summon = S_SummonAt(caster, unit_id, &spawn, duration);
@@ -225,14 +225,14 @@ BZ_SIMPLE_SPELL_PROC(AbilityWaterElemental) {
  */
 /* Replace only the caster's prior Feral Spirit summons before spawning the new cast. */
 BZ_SIMPLE_SPELL_PROC(AbilitySpiritWolf) {
-    DWORD level, unit_id, count;
-    FLOAT duration, distance;
+    uint32_t level, unit_id, count;
+    float duration, distance;
     VECTOR2 loc;
 
     if (!caster) return;
     level = S_SpellLevel(caster, spell->code);
     unit_id = S_SpellUnitId(spell->code, level);
-    count = (DWORD)S_SpellData(spell->code, level, 2);
+    count = (uint32_t)S_SpellData(spell->code, level, 2);
     duration = S_SpellDuration(spell->code, level, false);
     distance = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     if (!unit_id || !count) return;

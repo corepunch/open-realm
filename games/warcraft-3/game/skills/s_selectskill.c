@@ -1,8 +1,8 @@
 #include "s_skills.h"
 
-static void selectskill_menu_selected(LPEDICT clent, DWORD classname) {
+static void selectskill_menu_selected(LPEDICT clent, uint32_t classname) {
     LPEDICT ent = G_GetMainSelectedUnit(clent->client);
-    DWORD abilcode = classname;
+    uint32_t abilcode = classname;
 
     G_HeroLearnSkill(ent, abilcode);
     Get_Commands_f(clent);
@@ -10,7 +10,7 @@ static void selectskill_menu_selected(LPEDICT clent, DWORD classname) {
 
 void ui_selectskill(LPGAMECLIENT client) {
     LPEDICT ent = G_GetMainSelectedUnit(client);
-    LPCSTR abils;
+    cstring_t abils;
 
     if (!ent || !G_UnitIsHero(ent) || !ent->data.UnitAbilities) {
         return;
@@ -20,9 +20,9 @@ void ui_selectskill(LPGAMECLIENT client) {
         return;
     }
     PARSE_LIST(abils, abil, parse_segment) {
-        DWORD abilcode = 0;
-        DWORD next_level = 0;
-        DWORD required_level = 0;
+        uint32_t abilcode = 0;
+        uint32_t next_level = 0;
+        uint32_t required_level = 0;
         heroSkillState_t state;
         gameCommandButton_t button;
 

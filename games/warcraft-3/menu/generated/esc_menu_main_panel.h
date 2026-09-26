@@ -63,8 +63,8 @@ typedef struct EscMenuMainPanel_s {
 } EscMenuMainPanel_t;
 
 
-static inline BOOL EscMenuMainPanel_Bind(EscMenuMainPanel_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool EscMenuMainPanel_Bind(EscMenuMainPanel_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -131,7 +131,7 @@ static inline BOOL EscMenuMainPanel_Bind(EscMenuMainPanel_t *out, LPFRAMEDEF bin
     return ok;
 }
 
-static inline BOOL EscMenuMainPanel_Load(EscMenuMainPanel_t *out) {
+static inline bool EscMenuMainPanel_Load(EscMenuMainPanel_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf") &&

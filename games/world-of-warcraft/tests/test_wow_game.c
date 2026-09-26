@@ -21,60 +21,60 @@ typedef struct {
 
 static testModel_t test_models[32];
 static testModel_t test_images[32];
-static DWORD test_num_models;
-static DWORD test_num_images;
-static DWORD test_clear_world_calls;
-static DWORD test_apply_lobby_calls;
-static BYTE test_multicast_buf[MAX_MSGLEN];
-static BYTE test_last_unicast_buf[MAX_MSGLEN];
-static DWORD test_multicast_size;
-static DWORD test_last_unicast_size;
-static DWORD test_unicast_calls;
-static DWORD test_welcome_window_flags;
-static BYTE test_window_write_stage;
-static BOOL test_welcome_window_seen;
-static BYTE test_selection_buf[6];
-static DWORD test_selection_size;
+static uint32_t test_num_models;
+static uint32_t test_num_images;
+static uint32_t test_clear_world_calls;
+static uint32_t test_apply_lobby_calls;
+static uint8_t test_multicast_buf[MAX_MSGLEN];
+static uint8_t test_last_unicast_buf[MAX_MSGLEN];
+static uint32_t test_multicast_size;
+static uint32_t test_last_unicast_size;
+static uint32_t test_unicast_calls;
+static uint32_t test_welcome_window_flags;
+static uint8_t test_window_write_stage;
+static bool test_welcome_window_seen;
+static uint8_t test_selection_buf[6];
+static uint32_t test_selection_size;
 static char test_last_error[512];
 static char test_playerinfo[MAX_PATHLEN];
 
 typedef struct {
-    BYTE layer;
+    uint8_t layer;
     FRAMETYPE type;
-    DWORD stat;
+    uint32_t stat;
     char text[512];
     char onclick[128];
-    DWORD image_index;
-    FLOAT x, y, w, h;
+    uint32_t image_index;
+    float x, y, w, h;
     COLOR32 color;
     RESOURCE font;
-    BYTE uv[4];
+    uint8_t uv[4];
     COLOR32 fontcolor;
     RESOURCE scroll_image[3];
-    BYTE scroll_uv[4];
-    DWORD payload_size;
-    DWORD message_id;
-    BYTE message_flags;
+    uint8_t scroll_uv[4];
+    uint32_t payload_size;
+    uint32_t message_id;
+    uint8_t message_flags;
 } testUiFrame_t;
 
 static testUiFrame_t test_ui_frames[256];
-static DWORD test_ui_frame_count;
-static BOOL test_expect_layout_layer;
-static BYTE test_layout_layer;
-static BOOL test_layout_seen[MAX_LAYOUT_LAYERS];
+static uint32_t test_ui_frame_count;
+static bool test_expect_layout_layer;
+static uint8_t test_layout_layer;
+static bool test_layout_seen[MAX_LAYOUT_LAYERS];
 
 /* ---- configstring stubs (game_import.configstring / GetConfigstring) ---- */
 #define TEST_CONFIGSTRINGS MAX_CONFIGSTRINGS
 static char test_configstrings[TEST_CONFIGSTRINGS][512];
 
-static void test_configstring(DWORD index, LPCSTR string) {
+static void test_configstring(uint32_t index, cstring_t string) {
     if (index < TEST_CONFIGSTRINGS) {
         strncpy(test_configstrings[index], string ? string : "", sizeof(test_configstrings[index]) - 1);
         test_configstrings[index][sizeof(test_configstrings[index]) - 1] = '\0';
     }
 }
 
-static LPCSTR test_get_configstring(DWORD index) {
+static cstring_t test_get_configstring(uint32_t index) {
     if (index < TEST_CONFIGSTRINGS) {
         return test_configstrings[index];
     }
@@ -82,7 +82,7 @@ static LPCSTR test_get_configstring(DWORD index) {
 }
 
 /* ---- cvar stub ---- */
-static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
+static cstring_t test_cvar_string(cstring_t name, cstring_t fallback) {
 	if (!strcmp(name, WOW_CVAR_PLAYERINFO) && test_playerinfo[0])
 		return test_playerinfo;
 	return fallback ? fallback : "";
@@ -101,31 +101,31 @@ static animation_t test_animations[] = {
     { .name = "Death",        .interval = { 0, 1200 } },
 };
 
-static void put32(LPBYTE out, DWORD value) {
-    out[0] = (BYTE)(value & 0xff);
-    out[1] = (BYTE)((value >> 8) & 0xff);
-    out[2] = (BYTE)((value >> 16) & 0xff);
-    out[3] = (BYTE)((value >> 24) & 0xff);
+static void put32(uint8_t * out, uint32_t value) {
+    out[0] = (uint8_t)(value & 0xff);
+    out[1] = (uint8_t)((value >> 8) & 0xff);
+    out[2] = (uint8_t)((value >> 16) & 0xff);
+    out[3] = (uint8_t)((value >> 24) & 0xff);
 }
 
-static void putfloat(LPBYTE out, FLOAT value) {
+static void putfloat(uint8_t * out, float value) {
     memcpy(out, &value, sizeof(value));
 }
 
-static void putfield(LPBYTE record, DWORD field, DWORD value) {
-    put32(record + field * sizeof(DWORD), value);
+static void putfield(uint8_t * record, uint32_t field, uint32_t value) {
+    put32(record + field * sizeof(uint32_t), value);
 }
 
-static void putfield_float(LPBYTE record, DWORD field, FLOAT value) {
-    putfloat(record + field * sizeof(DWORD), value);
+static void putfield_float(uint8_t * record, uint32_t field, float value) {
+    putfloat(record + field * sizeof(uint32_t), value);
 }
 
-static HANDLE alloc_dbc(DWORD records, DWORD fields, DWORD string_size, LPDWORD size_out) {
-    DWORD record_size = fields * sizeof(DWORD);
-    DWORD size = 20 + records * record_size + string_size;
-    LPBYTE data = calloc(1, size);
+static handle_t alloc_dbc(uint32_t records, uint32_t fields, uint32_t string_size, uint32_t * size_out) {
+    uint32_t record_size = fields * sizeof(uint32_t);
+    uint32_t size = 20 + records * record_size + string_size;
+    uint8_t * data = calloc(1, size);
 
-    *(DWORD *)data = ID_WDBC;
+    *(uint32_t *)data = ID_WDBC;
     put32(data + 4, records);
     put32(data + 8, fields);
     put32(data + 12, record_size);
@@ -134,23 +134,23 @@ static HANDLE alloc_dbc(DWORD records, DWORD fields, DWORD string_size, LPDWORD 
     return data;
 }
 
-static DWORD add_string(LPBYTE strings, DWORD *cursor, LPCSTR value) {
-    DWORD offset = *cursor;
-    DWORD len = (DWORD)strlen(value) + 1;
+static uint32_t add_string(uint8_t * strings, uint32_t *cursor, cstring_t value) {
+    uint32_t offset = *cursor;
+    uint32_t len = (uint32_t)strlen(value) + 1;
 
     memcpy(strings + offset, value, len);
     *cursor += len;
     return offset;
 }
 
-static HANDLE make_map_dbc(LPDWORD size_out) {
-    DWORD size;
-    LPBYTE data = alloc_dbc(1, 5, 64, &size);
-    LPBYTE record = data + 20;
-    LPBYTE strings = record + 5 * sizeof(DWORD);
-    DWORD cursor = 1;
-    DWORD map_name = add_string(strings, &cursor, "Azeroth");
-    DWORD title = add_string(strings, &cursor, "Elwynn Test");
+static handle_t make_map_dbc(uint32_t * size_out) {
+    uint32_t size;
+    uint8_t * data = alloc_dbc(1, 5, 64, &size);
+    uint8_t * record = data + 20;
+    uint8_t * strings = record + 5 * sizeof(uint32_t);
+    uint32_t cursor = 1;
+    uint32_t map_name = add_string(strings, &cursor, "Azeroth");
+    uint32_t title = add_string(strings, &cursor, "Elwynn Test");
 
     putfield(record, 0, 1);
     putfield(record, 1, map_name);
@@ -160,13 +160,13 @@ static HANDLE make_map_dbc(LPDWORD size_out) {
     return data;
 }
 
-static HANDLE make_loading_screens_dbc(LPDWORD size_out) {
-    DWORD size;
-    LPBYTE data = alloc_dbc(1, 3, 96, &size);
-    LPBYTE record = data + 20;
-    LPBYTE strings = record + 3 * sizeof(DWORD);
-    DWORD cursor = 1;
-    DWORD texture = add_string(strings, &cursor, "Interface\\Glues\\LoadingScreens\\LoadScreenTest.blp");
+static handle_t make_loading_screens_dbc(uint32_t * size_out) {
+    uint32_t size;
+    uint8_t * data = alloc_dbc(1, 3, 96, &size);
+    uint8_t * record = data + 20;
+    uint8_t * strings = record + 3 * sizeof(uint32_t);
+    uint32_t cursor = 1;
+    uint32_t texture = add_string(strings, &cursor, "Interface\\Glues\\LoadingScreens\\LoadScreenTest.blp");
 
     putfield(record, 0, 42);
     putfield(record, 2, texture);
@@ -174,26 +174,26 @@ static HANDLE make_loading_screens_dbc(LPDWORD size_out) {
     return data;
 }
 
-static HANDLE make_world_safe_locs_dbc(LPDWORD size_out) {
+static handle_t make_world_safe_locs_dbc(uint32_t * size_out) {
     static struct {
-        DWORD id;
-        LPCSTR name;
-        FLOAT x, y, z;
+        uint32_t id;
+        cstring_t name;
+        float x, y, z;
     } const safe_locs[] = {
         { 100, "Northshire", 123.25f, -456.5f, 78.0f },
         { 101, "Deathknell, Tirisfal", 1880.7385f, 1624.7355f, 94.4343f },
         { 102, "Coldridge Valley", -6240.32f, 331.033f, 382.758f },
         { 103, "Valley of Trials", -600.0f, -4200.0f, 38.0f },
     };
-    DWORD size;
-    LPBYTE data = alloc_dbc(sizeof(safe_locs) / sizeof(safe_locs[0]), 6, 128, &size);
-    LPBYTE records = data + 20;
-    LPBYTE strings = records + sizeof(safe_locs) / sizeof(safe_locs[0]) * 6 * sizeof(DWORD);
-    DWORD cursor = 1;
+    uint32_t size;
+    uint8_t * data = alloc_dbc(sizeof(safe_locs) / sizeof(safe_locs[0]), 6, 128, &size);
+    uint8_t * records = data + 20;
+    uint8_t * strings = records + sizeof(safe_locs) / sizeof(safe_locs[0]) * 6 * sizeof(uint32_t);
+    uint32_t cursor = 1;
 
     FOR_LOOP(i, sizeof(safe_locs) / sizeof(safe_locs[0])) {
-        LPBYTE record = records + i * 6 * sizeof(DWORD);
-        DWORD safe_name = add_string(strings, &cursor, safe_locs[i].name);
+        uint8_t * record = records + i * 6 * sizeof(uint32_t);
+        uint32_t safe_name = add_string(strings, &cursor, safe_locs[i].name);
 
         putfield(record, 0, safe_locs[i].id);
         putfield(record, 1, 1);
@@ -206,14 +206,14 @@ static HANDLE make_world_safe_locs_dbc(LPDWORD size_out) {
     return data;
 }
 
-static HANDLE make_creature_display_info_dbc(LPDWORD size_out) {
-    DWORD displays[] = { 161, 193, 163, 188, 2072 }; /* 2072 = Deputy Willem (quest giver) */
-    DWORD size;
-    LPBYTE data = alloc_dbc(5, 5, 1, &size);
-    LPBYTE records = data + 20;
+static handle_t make_creature_display_info_dbc(uint32_t * size_out) {
+    uint32_t displays[] = { 161, 193, 163, 188, 2072 }; /* 2072 = Deputy Willem (quest giver) */
+    uint32_t size;
+    uint8_t * data = alloc_dbc(5, 5, 1, &size);
+    uint8_t * records = data + 20;
 
     FOR_LOOP(i, 5) {
-        LPBYTE record = records + i * 5 * sizeof(DWORD);
+        uint8_t * record = records + i * 5 * sizeof(uint32_t);
 
         putfield(record, 0, displays[i]);
         putfield(record, 1, 700 + i);
@@ -223,17 +223,17 @@ static HANDLE make_creature_display_info_dbc(LPDWORD size_out) {
     return data;
 }
 
-static HANDLE make_creature_model_data_dbc(LPDWORD size_out) {
-    DWORD size;
-    LPBYTE data = alloc_dbc(5, 15, 160, &size);
-    LPBYTE records = data + 20;
-    LPBYTE strings = records + 5 * 15 * sizeof(DWORD);
-    DWORD cursor = 1;
+static handle_t make_creature_model_data_dbc(uint32_t * size_out) {
+    uint32_t size;
+    uint8_t * data = alloc_dbc(5, 15, 160, &size);
+    uint8_t * records = data + 20;
+    uint8_t * strings = records + 5 * 15 * sizeof(uint32_t);
+    uint32_t cursor = 1;
 
     FOR_LOOP(i, 5) {
-        LPBYTE record = records + i * 15 * sizeof(DWORD);
+        uint8_t * record = records + i * 15 * sizeof(uint32_t);
         char model_name[64];
-        DWORD model_offset;
+        uint32_t model_offset;
 
         snprintf(model_name, sizeof(model_name), "Creature\\Test\\Creature%u.m2", (unsigned)i);
         model_offset = add_string(strings, &cursor, model_name);
@@ -246,7 +246,7 @@ static HANDLE make_creature_model_data_dbc(LPDWORD size_out) {
     return data;
 }
 
-static BOOL path_eq(LPCSTR a, LPCSTR b) {
+static bool path_eq(cstring_t a, cstring_t b) {
     while (*a && *b) {
         char ca = *a == '/' ? '\\' : *a;
         char cb = *b == '/' ? '\\' : *b;
@@ -260,7 +260,7 @@ static BOOL path_eq(LPCSTR a, LPCSTR b) {
     return *a == '\0' && *b == '\0';
 }
 
-static HANDLE test_read_file(LPCSTR filename, LPDWORD size) {
+static handle_t test_read_file(cstring_t filename, uint32_t * size) {
     if (path_eq(filename, "DBFilesClient\\Map.dbc")) {
         return make_map_dbc(size);
     }
@@ -282,15 +282,15 @@ static HANDLE test_read_file(LPCSTR filename, LPDWORD size) {
     return NULL;
 }
 
-static HANDLE test_mem_alloc(long size) {
+static handle_t test_mem_alloc(long size) {
     return calloc(1, (size_t)size);
 }
 
-static void test_mem_free(HANDLE mem) {
+static void test_mem_free(handle_t mem) {
     free(mem);
 }
 
-static int test_model_index(LPCSTR model_name) {
+static int test_model_index(cstring_t model_name) {
     FOR_LOOP(i, test_num_models) {
         if (!strcasecmp(test_models[i].name, model_name)) {
             return test_models[i].index;
@@ -303,7 +303,7 @@ static int test_model_index(LPCSTR model_name) {
     return (int)test_num_models;
 }
 
-static int test_image_index(LPCSTR image_name) {
+static int test_image_index(cstring_t image_name) {
     FOR_LOOP(i, test_num_images) {
         if (!strcasecmp(test_images[i].name, image_name)) {
             return test_images[i].index;
@@ -316,7 +316,7 @@ static int test_image_index(LPCSTR image_name) {
     return (int)test_num_images;
 }
 
-static int test_font_index(LPCSTR font_name, DWORD font_size) {
+static int test_font_index(cstring_t font_name, uint32_t font_size) {
     (void)font_name;
     return (int)font_size;
 }
@@ -331,7 +331,7 @@ static void test_apply_lobby_settings(LPMAPINFO info) {
     T_NOT_NULL(info);
 }
 
-static void test_error(LPCSTR fmt, ...) {
+static void test_error(cstring_t fmt, ...) {
     va_list args;
 
     va_start(args, fmt);
@@ -339,7 +339,7 @@ static void test_error(LPCSTR fmt, ...) {
     va_end(args);
 }
 
-static void test_write_data(void const *data, DWORD size) {
+static void test_write_data(void const *data, uint32_t size) {
     if (!data || test_multicast_size + size > sizeof(test_multicast_buf)) {
         return;
     }
@@ -348,13 +348,13 @@ static void test_write_data(void const *data, DWORD size) {
 }
 
 static void test_write(pfWriteType_t type, void const *value) {
-    BYTE b;
-    SHORT s;
-    LPCSTR text;
+    uint8_t b;
+    int16_t s;
+    cstring_t text;
 
     switch (type) {
         case PF_BYTE:
-            b = (BYTE)*(LONG const *)value;
+            b = (uint8_t)*(int32_t const *)value;
             if (test_window_write_stage == 1) test_window_write_stage = 2;
             else if (test_window_write_stage) test_window_write_stage = 0;
             if (!test_window_write_stage && b == svc_window) test_window_write_stage = 1;
@@ -367,22 +367,22 @@ static void test_write(pfWriteType_t type, void const *value) {
             test_write_data(&b, sizeof(b));
             break;
         case PF_SHORT:
-            s = (SHORT)*(LONG const *)value;
+            s = (int16_t)*(int32_t const *)value;
             test_write_data(&s, sizeof(s));
             break;
         case PF_LONG:
             if (test_window_write_stage == 2) test_window_write_stage = 3;
             else if (test_window_write_stage == 3) test_window_write_stage = 4;
             else if (test_window_write_stage == 4) {
-                test_welcome_window_flags = *(DWORD const *)value;
+                test_welcome_window_flags = *(uint32_t const *)value;
                 test_welcome_window_seen = true;
                 test_window_write_stage = 0;
             } else if (test_window_write_stage) test_window_write_stage = 0;
-            test_write_data(value, sizeof(LONG));
+            test_write_data(value, sizeof(int32_t));
             break;
         case PF_STRING:
-            text = value ? (LPCSTR)value : "";
-            test_write_data(text, (DWORD)strlen(text) + 1);
+            text = value ? (cstring_t)value : "";
+            test_write_data(text, (uint32_t)strlen(text) + 1);
             break;
         case PF_UIFRAME: {
             LPCUIFRAME frame = (LPCUIFRAME)value;
@@ -466,7 +466,7 @@ static struct game_import test_import(void) {
 }
 
 static LPEDICT first_creature(void) {
-    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+    for (uint32_t i = MAX_CLIENTS; i < (uint32_t)globals.num_edicts; i++) {
         if (wow_edicts[i].inuse && Wow_EntityLocal(&wow_edicts[i])->think == Wow_RunCreatureFrame) {
             return &wow_edicts[i];
         }
@@ -474,11 +474,11 @@ static LPEDICT first_creature(void) {
     return NULL;
 }
 
-int G_RegisterModel(LPCSTR filename) {
+int G_RegisterModel(cstring_t filename) {
     return gi.ModelIndex(filename);
 }
 
-LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname) {
+LPCANIMATION G_GetAnimation(uint32_t modelindex, cstring_t animname) {
     (void)modelindex;
     FOR_LOOP(i, sizeof(test_animations) / sizeof(test_animations[0])) {
         if (!strcasecmp(test_animations[i].name, animname)) {
@@ -491,13 +491,13 @@ LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname) {
 void G_FreeModels(void) {
 }
 
-FLOAT G_GetAttachmentZ(DWORD modelindex, int aid) {
+float G_GetAttachmentZ(uint32_t modelindex, int aid) {
     (void)modelindex;
     (void)aid;
     return 0.0f;
 }
 
-void PF_TextRemoveComments(LPSTR buffer) {
+void PF_TextRemoveComments(string_t buffer) {
     (void)buffer;
 }
 
@@ -527,9 +527,9 @@ static void reset_test_state(void) {
 }
 
 static void assert_player_ui_payload(void) {
-    BOOL action = false, inventory = false;
-    DWORD attack = test_image_index("Interface\\Icons\\Ability_Warrior_Cleave.blp");
-    DWORD bag = test_image_index("Interface\\Icons\\INV_Misc_Bag_08.blp");
+    bool action = false, inventory = false;
+    uint32_t attack = test_image_index("Interface\\Icons\\Ability_Warrior_Cleave.blp");
+    uint32_t bag = test_image_index("Interface\\Icons\\INV_Misc_Bag_08.blp");
     T_EQ(test_last_unicast_size, 0); /* No obsolete svc_unit_ui emission. */
     T_ASSERT(test_layout_seen[LAYER_CONSOLE]);
     FOR_LOOP(i, test_ui_frame_count) {
@@ -562,7 +562,7 @@ static void assert_player_spawned(LPEDICT player) {
 
 TEST(wow_game, starter_weapon_damage_comes_from_serverdata) {
     LPCWOWWEAPON weapon = Wow_WeaponByEntry(WOW_START_WEAPON_ENTRY);
-    DWORD damage;
+    uint32_t damage;
 
     T_NOT_NULL(weapon);
     T_STREQ(weapon->name, "Worn Axe");
@@ -594,8 +594,8 @@ TEST(wow_game, quest_serverdata_contains_givers_and_objective_locations) {
 TEST(wow_game, quest_giver_group_index_returns_only_one_physical_npc_rows) {
     VECTOR2 deputy = { -8947.64f, -132.319f };
     VECTOR2 missing = { 1.0f, 2.0f };
-    DWORD group = Wow_QuestGiverGroup(6, &deputy);
-    DWORD expected[] = { 6, 18, 783, 3903, 5261 };
+    uint32_t group = Wow_QuestGiverGroup(6, &deputy);
+    uint32_t expected[] = { 6, 18, 783, 3903, 5261 };
 
     T_ASSERT(group != WOW_QUEST_GIVER_GROUP_NONE);
     T_EQ((int)Wow_QuestGiverGroupCount(group), 5);
@@ -628,7 +628,7 @@ TEST(wow_game, creature_serverdata_preserves_templates_and_all_models) {
 TEST(wow_game, quest_givers_receive_creature_frame_for_idle_animation) {
     struct game_export *game = init_game();
     VECTOR2 origin = { -8947.64f, -132.319f }; /* Deputy Willem (entry 823, display 2072) */
-    BOOL found = false;
+    bool found = false;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame(); /* reset spawn budget */
@@ -659,7 +659,7 @@ TEST(wow_game, quest_marker_transitions_on_acceptance) {
     VECTOR2 origin = { -8947.64f, -132.319f };
     LPEDICT giver = NULL;
     entityState_t state;
-    DWORD avail_model;
+    uint32_t avail_model;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
@@ -669,7 +669,7 @@ TEST(wow_game, quest_marker_transitions_on_acceptance) {
     }
     T_NOT_NULL(giver);
     if (giver) {
-        avail_model = (DWORD)test_model_index("Interface\\Buttons\\TalkToMe.m2");
+        avail_model = (uint32_t)test_model_index("Interface\\Buttons\\TalkToMe.m2");
         /* Before acceptance: the authoritative yellow "!" M2, EF_HAS_QUEST cleared for this client. */
         state = giver->s;
         game->CustomizeEntity(0, giver, &state);
@@ -684,7 +684,7 @@ TEST(wow_game, quest_marker_transitions_on_acceptance) {
         T_EQ((int)state.name, (int)giver->s.name);
         wow_clients[0].selected_entity = 0;
         /* After acceptance: grey "?" flag, no tint. */
-        game->ClientCommand(&wow_edicts[0], 2, (LPCSTR[]){ "quest_accept", "783" });
+        game->ClientCommand(&wow_edicts[0], 2, (cstring_t[]){ "quest_accept", "783" });
         state = giver->s;
         game->CustomizeEntity(0, giver, &state);
         T_ASSERT(state.flags & EF_HAS_QUEST);
@@ -729,7 +729,7 @@ TEST(wow_game, customize_entity_clears_dead_creature_hover_vitals) {
 TEST(wow_game, client_begin_sends_server_authored_hover_context) {
     struct game_export *game = init_game();
     LPEDICT player = &wow_edicts[0];
-    BOOL name = false, health = false, mana = false;
+    bool name = false, health = false, mana = false;
 
     game->ClientBegin(player);
     T_ASSERT(test_layout_seen[LAYER_WORLD_HOVER]);
@@ -744,7 +744,7 @@ TEST(wow_game, client_begin_sends_server_authored_hover_context) {
     if (game->Shutdown) game->Shutdown();
 }
 
-static LPCSTR test_image_name(DWORD index) {
+static cstring_t test_image_name(uint32_t index) {
     return index >= 1 && index <= test_num_images ? test_images[index - 1].name : NULL;
 }
 
@@ -753,9 +753,9 @@ static LPCSTR test_image_name(DWORD index) {
 TEST(wow_game, deputy_willem_opens_classic_first_human_quest_frame) {
     struct game_export *game = init_game();
     LPEDICT player, deputy = NULL;
-    DWORD deputy_count = 0;
-    BOOL found_npc = false, found_title = false, found_body = false;
-    BOOL found_portrait = false, found_close = false, found_decline = false, found_scroll = false;
+    uint32_t deputy_count = 0;
+    bool found_npc = false, found_title = false, found_body = false;
+    bool found_portrait = false, found_close = false, found_decline = false, found_scroll = false;
     char entnum[16];
 
     snprintf(test_playerinfo, sizeof(test_playerinfo), "\\race\\Human\\sex\\Male\\class\\%u\\appearance\\0", (unsigned)WOW_CLASS_PALADIN);
@@ -775,11 +775,11 @@ TEST(wow_game, deputy_willem_opens_classic_first_human_quest_frame) {
 
     test_ui_frame_count = 0;
     snprintf(entnum, sizeof(entnum), "%u", (unsigned)deputy->s.number);
-    game->ClientCommand(player, 2, (LPCSTR[]){ "interact", entnum });
+    game->ClientCommand(player, 2, (cstring_t[]){ "interact", entnum });
     T_EQ((int)((wowClient_t *)player->client)->quest_id, 783);
     FOR_LOOP(i, test_ui_frame_count) {
         testUiFrame_t const *frame = &test_ui_frames[i];
-        LPCSTR image;
+        cstring_t image;
         if (frame->layer != LAYER_QUESTDIALOG) continue;
         if (!strcmp(frame->text, "Deputy Willem")) {
             found_npc = true;
@@ -833,11 +833,11 @@ TEST(wow_game, deputy_willem_opens_classic_first_human_quest_frame) {
 TEST(wow_game, quest_hud_is_server_authored_on_quest_layer) {
     struct game_export *game = init_game();
     LPEDICT player;
-    LPCSTR open_command[] = { "quest", "7" };
-    LPCSTR close_command[] = { "quest_close" };
-    BOOL found_quest_button = false;
-    BOOL found_quest_title = false;
-    BOOL found_accept = false;
+    cstring_t open_command[] = { "quest", "7" };
+    cstring_t close_command[] = { "quest_close" };
+    bool found_quest_button = false;
+    bool found_quest_title = false;
+    bool found_accept = false;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -872,15 +872,15 @@ TEST(wow_game, quest_hud_is_server_authored_on_quest_layer) {
 TEST(wow_game, hud_draws_race_portrait_on_console_layer) {
     struct game_export *game = init_game();
     LPEDICT player;
-    BOOL found_portrait = false, found_minimap = false, found_level = false;
-    DWORD status_bars = 0;
+    bool found_portrait = false, found_minimap = false, found_level = false;
+    uint32_t status_bars = 0;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
     game->ClientBegin(player);
     FOR_LOOP(i, test_ui_frame_count) {
         testUiFrame_t const *frame = &test_ui_frames[i];
-        LPCSTR name;
+        cstring_t name;
         if (frame->layer != LAYER_CONSOLE) continue;
         if (frame->type == FT_STRING && !strcmp(frame->text, "Lvl 1")) found_level = true;
         if (frame->type == FT_MINIMAP) {
@@ -923,7 +923,7 @@ TEST(wow_game, quest_detail_has_full_text_and_rewards) {
 TEST(wow_game, quest_accept_adds_to_quest_log) {
     struct game_export *game = init_game();
     LPEDICT player;
-    LPCSTR accept_command[] = { "quest_accept", "788" };
+    cstring_t accept_command[] = { "quest_accept", "788" };
     wowClient_t *wc;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
@@ -941,8 +941,8 @@ TEST(wow_game, quest_accept_adds_to_quest_log) {
 TEST(wow_game, quest_prerequisite_blocks_accept) {
     struct game_export *game = init_game();
     LPEDICT player;
-    LPCSTR accept13[] = { "quest_accept", "13" };
-    LPCSTR accept12[] = { "quest_accept", "12" };
+    cstring_t accept13[] = { "quest_accept", "13" };
+    cstring_t accept12[] = { "quest_accept", "12" };
     wowClient_t *wc;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
@@ -959,7 +959,7 @@ TEST(wow_game, quest_prerequisite_blocks_accept) {
 
     game->ClientCommand(player, 2, accept13);
     T_EQ((int)wc->quest_count, 1);
-    game->ClientCommand(player, 2, (LPCSTR[]){ "quest_complete", "12" });
+    game->ClientCommand(player, 2, (cstring_t[]){ "quest_complete", "12" });
     game->ClientCommand(player, 2, accept13);
     T_EQ((int)wc->quest_count, 2);
     T_EQ((int)wc->quest_log[1].quest_id, 13);
@@ -968,8 +968,8 @@ TEST(wow_game, quest_prerequisite_blocks_accept) {
 TEST(wow_game, quest_complete_delivers_rewards) {
     struct game_export *game = init_game();
     LPEDICT player;
-    LPCSTR accept_command[] = { "quest_accept", "788" };
-    LPCSTR complete_command[] = { "quest_complete", "788" };
+    cstring_t accept_command[] = { "quest_accept", "788" };
+    cstring_t complete_command[] = { "quest_complete", "788" };
     LPPLAYER ps;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
@@ -991,9 +991,9 @@ TEST(wow_game, quest_complete_delivers_rewards) {
 TEST(wow_game, quest_completion_delivers_server_message_queue) {
     struct game_export *game = init_game();
     LPEDICT player;
-    LPCSTR accept_command[] = { "quest_accept", "788" };
-    LPCSTR complete_command[] = { "quest_complete", "788" };
-    BOOL found = false;
+    cstring_t accept_command[] = { "quest_accept", "788" };
+    cstring_t complete_command[] = { "quest_complete", "788" };
+    bool found = false;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -1016,10 +1016,10 @@ TEST(wow_game, quest_completion_delivers_server_message_queue) {
 TEST(wow_game, message_open_and_close_are_server_owned) {
     struct game_export *game = init_game();
     LPEDICT player;
-    LPCSTR accept_command[] = { "quest_accept", "788" };
-    LPCSTR complete_command[] = { "quest_complete", "788" };
-    LPCSTR open_command[] = { "message_open", "788" };
-    LPCSTR close_command[] = { "message_close" };
+    cstring_t accept_command[] = { "quest_accept", "788" };
+    cstring_t complete_command[] = { "quest_complete", "788" };
+    cstring_t open_command[] = { "message_open", "788" };
+    cstring_t close_command[] = { "message_close" };
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -1036,10 +1036,10 @@ TEST(wow_game, message_open_and_close_are_server_owned) {
 TEST(wow_game, quest_turn_in_flow_accept_complete_reward) {
     struct game_export *game = init_game();
     LPEDICT player;
-    LPCSTR accept788[] = { "quest_accept", "788" };
-    LPCSTR open788[] = { "quest", "788" };
+    cstring_t accept788[] = { "quest_accept", "788" };
+    cstring_t open788[] = { "quest", "788" };
     LPPLAYER ps;
-    BOOL found_complete = false;
+    bool found_complete = false;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -1059,7 +1059,7 @@ TEST(wow_game, quest_turn_in_flow_accept_complete_reward) {
 
     test_ui_frame_count = 0;
     memset(test_layout_seen, 0, sizeof(test_layout_seen));
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_complete", "788"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_complete", "788"});
     T_EQ((int)ps->stats[WOW_STAT_XP], 1020);
     T_EQ((int)ps->stats[WOW_STAT_COPPER], 0);
 }
@@ -1067,9 +1067,9 @@ TEST(wow_game, quest_turn_in_flow_accept_complete_reward) {
 TEST(wow_game, quest_log_shows_active_and_complete_quests) {
     struct game_export *game = init_game();
     LPEDICT player;
-    LPCSTR accept788[] = { "quest_accept", "788" };
-    LPCSTR questlog_cmd[] = { "questlog" };
-    BOOL found_header = false, found_title = false;
+    cstring_t accept788[] = { "quest_accept", "788" };
+    cstring_t questlog_cmd[] = { "questlog" };
+    bool found_header = false, found_title = false;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -1091,7 +1091,7 @@ TEST(wow_game, quest_log_shows_active_and_complete_quests) {
 
     test_ui_frame_count = 0;
     memset(test_layout_seen, 0, sizeof(test_layout_seen));
-    game->ClientCommand(player, 1, (LPCSTR[]){"quest_close"});
+    game->ClientCommand(player, 1, (cstring_t[]){"quest_close"});
     T_ASSERT(test_layout_seen[LAYER_QUESTDIALOG]);
     FOR_LOOP(i, test_ui_frame_count)
         T_ASSERT(test_ui_frames[i].layer != LAYER_QUESTDIALOG);
@@ -1100,7 +1100,7 @@ TEST(wow_game, quest_log_shows_active_and_complete_quests) {
 TEST(wow_game, quest_kill_progress_increments_and_auto_completes) {
     struct game_export *game = init_game();
     LPEDICT player;
-    LPCSTR accept788[] = { "quest_accept", "788" };
+    cstring_t accept788[] = { "quest_accept", "788" };
     wowClient_t *wc;
     svQuestEntry_t *state;
 
@@ -1137,8 +1137,8 @@ TEST(wow_game, quest_kill_credit_only_on_accepted_quest) {
     Wow_QuestAwardKillCredit(player, 503);
     T_EQ((int)wc->quest_count, 0);
 
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_complete", "788"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "788"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_complete", "788"});
     T_EQ((int)wc->kill_progress[0][0], 0);
     Wow_QuestAwardKillCredit(player, 503);
     T_EQ((int)wc->kill_progress[0][0], 0);
@@ -1147,7 +1147,7 @@ TEST(wow_game, quest_kill_credit_only_on_accepted_quest) {
 TEST(wow_game, quest_kill_credit_wrong_creature_no_progress) {
     struct game_export *game = init_game();
     LPEDICT player;
-    LPCSTR accept788[] = { "quest_accept", "788" };
+    cstring_t accept788[] = { "quest_accept", "788" };
     wowClient_t *wc;
     svQuestEntry_t *state;
 
@@ -1223,9 +1223,9 @@ TEST(wow_game, wow_load_map_initializes_player_state) {
     T_ASSERT(test_unicast_calls > 0);
     assert_player_ui_payload();
     {
-        LPCSTR info = test_get_configstring(WOW_CS_MAPINFO);
-        LPCSTR title = Wow_InfoValueForKey(info, "title", "");
-        LPCSTR preview = Wow_InfoValueForKey(info, "preview", "");
+        cstring_t info = test_get_configstring(WOW_CS_MAPINFO);
+        cstring_t title = Wow_InfoValueForKey(info, "title", "");
+        cstring_t preview = Wow_InfoValueForKey(info, "preview", "");
         T_STREQ(title, "Elwynn Test");
         T_STREQ(preview, "Interface/Glues/LoadingScreens/LoadScreenTest.blp");
     }
@@ -1262,7 +1262,7 @@ TEST(wow_game, wow_load_map_spawns_and_runs_creature_state) {
     wowEntityLocal_t *player_local;
     VECTOR2 before;
     char target_num[16];
-    LPCSTR attack_argv[] = { "attack", target_num };
+    cstring_t attack_argv[] = { "attack", target_num };
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -1315,7 +1315,7 @@ TEST(wow_game, selecting_target_does_not_start_combat_or_chase) {
     wowEntityLocal_t *local;
     VECTOR2 before;
     char target_num[16];
-    LPCSTR select_argv[] = { "select", target_num };
+    cstring_t select_argv[] = { "select", target_num };
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -1342,7 +1342,7 @@ TEST(wow_game, wow_fireball_cast_interrupts_melee_and_launches) {
     struct game_export *game = init_game();
     LPEDICT player, creature, projectile = NULL;
     wowEntityLocal_t *local;
-    LPCSTR action_argv[] = { "wow_action", "4" };
+    cstring_t action_argv[] = { "wow_action", "4" };
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -1369,7 +1369,7 @@ TEST(wow_game, wow_fireball_cast_interrupts_melee_and_launches) {
     T_ASSERT(local->cast_release_time > 0);
     T_NULL(local->enemy); /* Fireball is a one-shot ranged cast, not a melee engage. */
     T_STREQ(local->animation->name, "SpellCastDirected");
-    FOR_LOOP(i, (DWORD)globals.num_edicts) {
+    FOR_LOOP(i, (uint32_t)globals.num_edicts) {
         if (wow_edicts[i].inuse && Wow_EntityLocal(&wow_edicts[i])->think == Wow_RunProjectile) {
             projectile = &wow_edicts[i];
             break;
@@ -1385,9 +1385,9 @@ TEST(wow_game, wow_fireball_movement_cancels) {
     struct game_export *game = init_game();
     LPEDICT player, creature;
     wowEntityLocal_t *local;
-    LPCSTR action_argv[] = { "wow_action", "4" };
-    LPCSTR move_argv[] = { "move", "1", "0", "328", "8.5" };
-    LPCSTR stop_argv[] = { "move", "0", "0", "328", "8.5" };
+    cstring_t action_argv[] = { "wow_action", "4" };
+    cstring_t move_argv[] = { "move", "1", "0", "328", "8.5" };
+    cstring_t stop_argv[] = { "move", "0", "0", "328", "8.5" };
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -1409,7 +1409,7 @@ TEST(wow_game, wow_fireball_movement_cancels) {
     T_EQ((int)local->cast_spell, (int)SPELL_NONE);
     T_EQ((int)local->mana, 100);
     T_EQ((int)player->client->ps.stats[WOW_STAT_CAST_MAX], 0);
-    FOR_LOOP(i, (DWORD)globals.num_edicts) {
+    FOR_LOOP(i, (uint32_t)globals.num_edicts) {
         T_ASSERT(!wow_edicts[i].inuse || Wow_EntityLocal(&wow_edicts[i])->think != Wow_RunProjectile);
     }
     if (game->Shutdown) game->Shutdown();
@@ -1420,7 +1420,7 @@ TEST(wow_game, quest_log_full_rejects_new_quests) {
     struct game_export *game = init_game();
     LPEDICT player;
     wowClient_t *wc;
-    DWORD available_quests[] = { 1, 8, 16, 47, 60, 62, 73, 83, 85, 106, 108, 117, 137, 176, 179, 182, 183 };
+    uint32_t available_quests[] = { 1, 8, 16, 47, 60, 62, 73, 83, 85, 106, 108, 117, 137, 176, 179, 182, 183 };
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -1429,7 +1429,7 @@ TEST(wow_game, quest_log_full_rejects_new_quests) {
 
     FOR_LOOP(i, SV_MAX_QUEST_LOG) {
         char id_buf[16];
-        LPCSTR accept_args[2];
+        cstring_t accept_args[2];
         snprintf(id_buf, sizeof(id_buf), "%u", (unsigned)available_quests[i]);
         accept_args[0] = "quest_accept";
         accept_args[1] = id_buf;
@@ -1438,7 +1438,7 @@ TEST(wow_game, quest_log_full_rejects_new_quests) {
     T_EQ((int)wc->quest_count, SV_MAX_QUEST_LOG);
 
     /* Next accept should fail */
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "184"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "184"});
     T_EQ((int)wc->quest_count, SV_MAX_QUEST_LOG);
     if (game->Shutdown) game->Shutdown();
 }
@@ -1454,9 +1454,9 @@ TEST(wow_game, quest_accept_same_quest_twice_is_idempotent) {
     game->ClientBegin(player);
     wc = (wowClient_t *)player->client;
 
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "788"});
     T_EQ((int)wc->quest_count, 1);
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "788"});
     T_EQ((int)wc->quest_count, 1);
     if (game->Shutdown) game->Shutdown();
 }
@@ -1473,7 +1473,7 @@ TEST(wow_game, quest_kill_credit_does_not_overflow) {
     game->ClientBegin(player);
     wc = (wowClient_t *)player->client;
 
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "788"});
     state = SV_QuestFind(wc->quest_log, wc->quest_count, 788);
     T_NOT_NULL(state);
 
@@ -1495,9 +1495,9 @@ TEST(wow_game, quest_accept_invalid_id_no_crash) {
     game->ClientBegin(player);
     wc = (wowClient_t *)player->client;
 
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "99999"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "99999"});
     T_EQ((int)wc->quest_count, 0);
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "0"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "0"});
     T_EQ((int)wc->quest_count, 0);
     if (game->Shutdown) game->Shutdown();
 }
@@ -1515,7 +1515,7 @@ TEST(wow_game, quest_complete_without_accept_no_reward) {
     ps->stats[WOW_STAT_XP] = 0;
     ps->stats[WOW_STAT_COPPER] = 0;
 
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_complete", "788"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_complete", "788"});
     T_EQ((int)ps->stats[WOW_STAT_XP], 0);
     T_EQ((int)ps->stats[WOW_STAT_COPPER], 0);
     if (game->Shutdown) game->Shutdown();
@@ -1526,7 +1526,7 @@ TEST(wow_game, quest_log_toggle_open_close) {
     struct game_export *game = init_game();
     LPEDICT player;
     wowClient_t *wc;
-    BOOL found_header;
+    bool found_header;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -1534,11 +1534,11 @@ TEST(wow_game, quest_log_toggle_open_close) {
     wc = (wowClient_t *)player->client;
     T_EQ((int)wc->questlog_open, 0);
 
-    game->ClientCommand(player, 1, (LPCSTR[]){"questlog"});
+    game->ClientCommand(player, 1, (cstring_t[]){"questlog"});
     T_EQ((int)wc->questlog_open, 1);
 
     test_ui_frame_count = 0;
-    game->ClientCommand(player, 1, (LPCSTR[]){"questlog"});
+    game->ClientCommand(player, 1, (cstring_t[]){"questlog"});
     T_EQ((int)wc->questlog_open, 0);
     /* After closing, no quest log frames are emitted on LAYER_QUESTDIALOG */
     found_header = false;
@@ -1555,16 +1555,16 @@ TEST(wow_game, quest_log_toggle_open_close) {
 TEST(wow_game, quest_dialog_shows_complete_button_only_when_done) {
     struct game_export *game = init_game();
     LPEDICT player;
-    BOOL found_complete;
+    bool found_complete;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
     game->ClientBegin(player);
 
     /* Accept quest, then open dialog — should NOT show "Complete Quest" */
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "788"});
     test_ui_frame_count = 0;
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest", "788"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest", "788"});
     found_complete = false;
     FOR_LOOP(i, test_ui_frame_count) {
         if (test_ui_frames[i].layer == LAYER_QUESTDIALOG &&
@@ -1576,7 +1576,7 @@ TEST(wow_game, quest_dialog_shows_complete_button_only_when_done) {
     /* Complete kill objectives, reopen dialog — should show "Complete Quest" */
     FOR_LOOP(i, 8) Wow_QuestAwardKillCredit(player, 503);
     test_ui_frame_count = 0;
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest", "788"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest", "788"});
     found_complete = false;
     FOR_LOOP(i, test_ui_frame_count) {
         if (test_ui_frames[i].layer == LAYER_QUESTDIALOG &&
@@ -1594,7 +1594,7 @@ TEST(wow_game, quest_open_via_selected_npc_entity) {
     wowClient_t *wc;
     wowEntityLocal_t *npc_local;
     LPEDICT npc;
-    BOOL found_title = false;
+    bool found_title = false;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
@@ -1610,7 +1610,7 @@ TEST(wow_game, quest_open_via_selected_npc_entity) {
     /* Select the NPC and issue bare "quest" command (no ID argument) */
     ((wowClient_t *)player->client)->selected_entity = npc->s.number;
     test_ui_frame_count = 0;
-    game->ClientCommand(player, 1, (LPCSTR[]){"quest"});
+    game->ClientCommand(player, 1, (cstring_t[]){"quest"});
     T_ASSERT(wc->quest_open);
     T_EQ((int)wc->quest_id, 33);
 
@@ -1631,8 +1631,8 @@ TEST(wow_game, quest_open_via_interact_command) {
     wowClient_t *wc;
     wowEntityLocal_t *npc_local;
     LPEDICT npc;
-    BOOL found_title = false;
-    BOOL found_accept = false;
+    bool found_title = false;
+    bool found_accept = false;
     char cmd_arg[16];
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
@@ -1648,7 +1648,7 @@ TEST(wow_game, quest_open_via_interact_command) {
     test_ui_frame_count = 0;
     memset(test_layout_seen, 0, sizeof(test_layout_seen));
     snprintf(cmd_arg, sizeof(cmd_arg), "%u", (unsigned)npc->s.number);
-    game->ClientCommand(player, 2, (LPCSTR[]){"interact", cmd_arg});
+    game->ClientCommand(player, 2, (cstring_t[]){"interact", cmd_arg});
 
     T_ASSERT(wc->quest_open);
     T_EQ((int)wc->quest_id, 33);
@@ -1681,19 +1681,19 @@ TEST(wow_game, quest_chain_sequential_unlock) {
     ps->stats[WOW_STAT_COPPER] = 0;
 
     /* Quest 14 requires 13, which requires 12 */
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "14"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "14"});
     T_EQ((int)wc->quest_count, 0);
 
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "12"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "12"});
     T_EQ((int)wc->quest_count, 1);
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_complete", "12"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_complete", "12"});
     T_ASSERT(ps->stats[WOW_STAT_XP] > 0);
 
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "13"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "13"});
     T_EQ((int)wc->quest_count, 2);
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_complete", "13"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_complete", "13"});
 
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "14"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "14"});
     T_EQ((int)wc->quest_count, 3);
     T_EQ((int)wc->quest_log[2].quest_id, 14);
     T_EQ((int)wc->quest_log[2].status, SV_QUEST_ACTIVE);
@@ -1713,7 +1713,7 @@ TEST(wow_game, quest_kill_credit_from_combat_death) {
     wc = (wowClient_t *)player->client;
 
     /* Accept quest 788 which needs display_id 503 kills */
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "788"});
     state = SV_QuestFind(wc->quest_log, wc->quest_count, 788);
     T_NOT_NULL(state);
     T_EQ((int)wc->kill_progress[0][0], 0);
@@ -1737,13 +1737,13 @@ TEST(wow_game, quest_complete_already_rewarded_no_double_reward) {
     ps->stats[WOW_STAT_XP] = 0;
     ps->stats[WOW_STAT_COPPER] = 0;
 
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_complete", "788"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "788"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_complete", "788"});
     T_EQ((int)ps->stats[WOW_STAT_XP], 1020);
     T_EQ((int)ps->stats[WOW_STAT_COPPER], 0);
 
     /* Try completing again — should not award double rewards */
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_complete", "788"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_complete", "788"});
     T_EQ((int)ps->stats[WOW_STAT_XP], 1020);
     T_EQ((int)ps->stats[WOW_STAT_COPPER], 0);
     if (game->Shutdown) game->Shutdown();
@@ -1753,17 +1753,17 @@ TEST(wow_game, quest_complete_already_rewarded_no_double_reward) {
 TEST(wow_game, quest_dialog_shows_kill_progress_text) {
     struct game_export *game = init_game();
     LPEDICT player;
-    BOOL found_progress = false;
+    bool found_progress = false;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     player = &wow_edicts[0];
     game->ClientBegin(player);
 
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest_accept", "788"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest_accept", "788"});
     FOR_LOOP(i, 5) Wow_QuestAwardKillCredit(player, 503);
 
     test_ui_frame_count = 0;
-    game->ClientCommand(player, 2, (LPCSTR[]){"quest", "788"});
+    game->ClientCommand(player, 2, (cstring_t[]){"quest", "788"});
 
     /* Find a text area frame that contains "5/8" progress indicator */
     FOR_LOOP(i, test_ui_frame_count) {
@@ -1782,10 +1782,10 @@ TEST(wow_game, wow_directional_movement_animations) {
     LPEDICT player = &wow_edicts[0];
     wowEntityLocal_t *local = Wow_EntityLocal(player);
     LPCANIMATION back_animation;
-    LPCSTR left[] = { "move", "4", "0", "328", "8.5" };
-    LPCSTR right[] = { "move", "8", "0", "328", "8.5" };
-    LPCSTR back[] = { "move", "2", "0", "328", "8.5" };
-    FLOAT facing;
+    cstring_t left[] = { "move", "4", "0", "328", "8.5" };
+    cstring_t right[] = { "move", "8", "0", "328", "8.5" };
+    cstring_t back[] = { "move", "2", "0", "328", "8.5" };
+    float facing;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     back_animation = G_GetAnimation(player->s.model, "WalkBackwards");
@@ -1793,11 +1793,11 @@ TEST(wow_game, wow_directional_movement_animations) {
     game->ClientCommand(player, 5, left);
     game->RunFrame();
     T_STREQ(local->animation->name, "Run");
-    T_FEQ(player->s.angle, (FLOAT)(M_PI / 2.0), 0.001f);
+    T_FEQ(player->s.angle, (float)(M_PI / 2.0), 0.001f);
     game->ClientCommand(player, 5, right);
     game->RunFrame();
     T_STREQ(local->animation->name, "Run");
-    T_FEQ(player->s.angle, (FLOAT)(-M_PI / 2.0), 0.001f);
+    T_FEQ(player->s.angle, (float)(-M_PI / 2.0), 0.001f);
     game->ClientCommand(player, 5, back);
     game->RunFrame();
     T_STREQ(local->animation->name, back_animation ? "WalkBackwards" : "Run");
@@ -1883,7 +1883,7 @@ TEST(wow_game, loot_command_auto_takes_copper) {
     creature->s.origin2 = player->s.origin2;
 
     player_local->copper = 100;
-    game->ClientCommand(player, 1, (LPCSTR[]){"loot"});
+    game->ClientCommand(player, 1, (cstring_t[]){"loot"});
 
     T_EQ((int)player_local->copper, 130);      /* copper auto-looted on open */
     T_EQ((int)creature_local->loot_copper, 0); /* drained from corpse */
@@ -1897,7 +1897,7 @@ TEST(wow_game, loot_take_moves_item_to_inventory) {
     LPEDICT player = &wow_edicts[0], creature;
     wowClient_t *wc;
     wowEntityLocal_t *creature_local;
-    DWORD inv_slot;
+    uint32_t inv_slot;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->ClientBegin(player);
@@ -1919,7 +1919,7 @@ TEST(wow_game, loot_take_moves_item_to_inventory) {
     creature_local->loot_items[0].count = 1;
     creature->s.origin2 = player->s.origin2;
 
-    game->ClientCommand(player, 1, (LPCSTR[]){"loot"});
+    game->ClientCommand(player, 1, (cstring_t[]){"loot"});
     T_STREQ(wc->loot_snap[0].name, "Stringy Wolf Meat");
 
     /* Record first empty inventory slot before take. */
@@ -1928,7 +1928,7 @@ TEST(wow_game, loot_take_moves_item_to_inventory) {
         if (!wc->inventory[i].icon[0]) { inv_slot = i; break; }
     T_ASSERT(inv_slot < WOW_UI_INVENTORY_SLOTS);
 
-    game->ClientCommand(player, 2, (LPCSTR[]){"loot_take", "0"});
+    game->ClientCommand(player, 2, (cstring_t[]){"loot_take", "0"});
     T_STREQ(wc->inventory[inv_slot].name, "Stringy Wolf Meat");
     T_EQ((int)wc->loot_snap[0].icon[0], 0); /* snapshot slot cleared */
     T_EQ((int)wc->loot_target, 0);           /* auto-closed: last item taken */
@@ -1954,10 +1954,10 @@ TEST(wow_game, loot_close_clears_window) {
     creature_local->loot_copper = 10;
     creature->s.origin2 = player->s.origin2;
 
-    game->ClientCommand(player, 1, (LPCSTR[]){"loot"});
+    game->ClientCommand(player, 1, (cstring_t[]){"loot"});
     T_ASSERT(wc->loot_target != 0);
 
-    game->ClientCommand(player, 1, (LPCSTR[]){"loot_close"});
+    game->ClientCommand(player, 1, (cstring_t[]){"loot_close"});
     T_EQ((int)wc->loot_target, 0);
     if (game->Shutdown) game->Shutdown();
 }
@@ -1977,9 +1977,9 @@ TEST(wow_game, backpack_toggles_open_closed) {
     wc = (wowClient_t *)player->client;
 
     T_EQ((int)wc->backpack_open, 0);
-    game->ClientCommand(player, 1, (LPCSTR[]){"backpack"});
+    game->ClientCommand(player, 1, (cstring_t[]){"backpack"});
     T_EQ((int)wc->backpack_open, 1);
-    game->ClientCommand(player, 1, (LPCSTR[]){"backpack"});
+    game->ClientCommand(player, 1, (cstring_t[]){"backpack"});
     T_EQ((int)wc->backpack_open, 0);
     if (game->Shutdown) game->Shutdown();
 }
@@ -1988,14 +1988,14 @@ TEST(wow_game, backpack_toggles_open_closed) {
 TEST(wow_game, backpack_window_emits_on_console_layer) {
     struct game_export *game = init_game();
     LPEDICT player = &wow_edicts[0];
-    BOOL found_title = false, found_close = false;
+    bool found_title = false, found_close = false;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->ClientBegin(player);
 
     test_ui_frame_count = 0;
     memset(test_layout_seen, 0, sizeof(test_layout_seen));
-    game->ClientCommand(player, 1, (LPCSTR[]){"backpack"});
+    game->ClientCommand(player, 1, (cstring_t[]){"backpack"});
     FOR_LOOP(i, test_ui_frame_count) {
         testUiFrame_t const *frame = &test_ui_frames[i];
         if (frame->layer != LAYER_CONSOLE) continue;
@@ -2075,16 +2075,16 @@ TEST(wow_game, gcd_blocks_second_instant_cast) {
     local->health = 50;
 
     /* Slot 3 = Healing Touch (instant, range=0, self). */
-    game->ClientCommand(player, 2, (LPCSTR[]){ "wow_action", "3" });
+    game->ClientCommand(player, 2, (cstring_t[]){ "wow_action", "3" });
     T_EQ((int)local->gcd_time, 1500);
     T_EQ((int)local->mana, 92);    /* 100 - WOW_HEALING_TOUCH_MANA_COST (8) */
     T_EQ((int)local->health, 52);
 
     local->health = 50;
-    DWORD mana_snapshot = local->mana;
+    uint32_t mana_snapshot = local->mana;
 
     /* Immediate second cast blocked by GCD. */
-    game->ClientCommand(player, 2, (LPCSTR[]){ "wow_action", "3" });
+    game->ClientCommand(player, 2, (cstring_t[]){ "wow_action", "3" });
     T_EQ((int)local->mana, (int)mana_snapshot);
     T_EQ((int)local->health, 50);
 
@@ -2094,7 +2094,7 @@ TEST(wow_game, gcd_blocks_second_instant_cast) {
 
     /* Third cast succeeds once GCD expires. */
     local->health = 50;
-    game->ClientCommand(player, 2, (LPCSTR[]){ "wow_action", "3" });
+    game->ClientCommand(player, 2, (cstring_t[]){ "wow_action", "3" });
     T_EQ((int)local->health, 52);
 
     if (game->Shutdown) game->Shutdown();
@@ -2117,7 +2117,7 @@ TEST(wow_game, cast_progress_stat_shows_countdown) {
     local = Wow_EntityLocal(player);
 
     /* Slot 4 = Fireball (1500ms cast). */
-    game->ClientCommand(player, 2, (LPCSTR[]){ "wow_action", "4" });
+    game->ClientCommand(player, 2, (cstring_t[]){ "wow_action", "4" });
     T_ASSERT(local->cast_spell != SPELL_NONE);
     T_EQ((int)local->cast_duration, 1500);
     T_EQ((int)local->cast_remaining, 1500);
@@ -2175,8 +2175,8 @@ TEST(wow_game, creature_death_transitions_to_corpse_frame) {
 TEST(wow_game, target_selection_reconciles_client_groups) {
     struct game_export *game = init_game();
     char number[16];
-    DWORD selected;
-    LPCSTR args[] = { "select", number };
+    uint32_t selected;
+    cstring_t args[] = { "select", number };
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     LPEDICT target = first_creature();
     snprintf(number, sizeof(number), "%u", target->s.number);
@@ -2196,7 +2196,7 @@ TEST(wow_game, controller_orbits_authoritative_actor_focus) {
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     LPEDICT player = &wow_edicts[0];
     game->ClientBegin(player);
-    FLOAT ground = player->s.origin.z;
+    float ground = player->s.origin.z;
     player->s.origin.z = 42;
     game->ClientInput(player, &(INPUTCMD){ .action = BZ_INPUT_VIEW, .view = {{-72, 0, 0}, 8} });
     T_FEQ(player->client->ps.vieworigin.z, 42 + WOW_CAMERA_EYE_HEIGHT, 0.001f);

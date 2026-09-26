@@ -10,20 +10,20 @@
 #include <setjmp.h>
 
 static cparticle_t emitted[16];
-static DWORD emit_count;
+static uint32_t emit_count;
 cparticle_t *R_SpawnParticle(void) {
     T_ASSERT(emit_count < 16);
     emitted[emit_count] = (cparticle_t){ .size_value_scale = 1, .size_time_scale = 1 };
     return &emitted[emit_count++];
 }
-LPCTEXTURE MDLX_GetTexture(mdxModel_t const *model, DWORD team, DWORD tex, DWORD repl, LPCTEXTURE over) {
+LPCTEXTURE MDLX_GetTexture(mdxModel_t const *model, uint32_t team, uint32_t tex, uint32_t repl, LPCTEXTURE over) {
     (void)model; (void)team; (void)tex; (void)repl; (void)over; return NULL;
 }
 void MDLX_ReleaseSprites(mdxModel_t *model) { (void)model; }
 
 static char shader_src[16384];
-static RECT backdrop_uv;
-static BOOL backdrop_repeat;
+static rect_t backdrop_uv;
+static bool backdrop_repeat;
 static size2_t backdrop_size = {256, 64};
 
 /* Capture the real shader source submission without requiring a window in the unit suite. */
@@ -42,8 +42,8 @@ static struct {
     GLenum fail;
     GLint logsize;
     int creates, links, uses, logs, deleted, uploads, exitcode;
-    BOOL noalloc;
-    HANDLE memory;
+    bool noalloc;
+    handle_t memory;
 } shader_test;
 static jmp_buf shader_exit;
 static GLuint BZ_TestCreateShader(GLenum type) { shader_test.creates++; return type; }
@@ -140,26 +140,26 @@ static _Noreturn void BZ_TestShaderExit(int code) { shader_test.exitcode = code;
 
 refImport_t ri;
 struct render_globals tr;
-static DWORD load_count, release_count, register_count;
-static BOOL fail_load, fail_scoped_load, touch_during_registration;
+static uint32_t load_count, release_count, register_count;
+static bool fail_load, fail_scoped_load, touch_during_registration;
 static PATHSTR last_model_load;
-static DWORD spawn_count;
+static uint32_t spawn_count;
 static LPTEXTURE texture_load_result;
 static PATHSTR last_texture_load;
 static GLenum upload_format, upload_internal;
 static COLOR32 upload_pixel;
-static DWORD upload_count;
-static LPCVOID upload_data;
-static LPCSTR test_version = "3.1", test_extension = "";
-static DWORD alloc_count, free_count, ext_count;
-static BOOL cache_minimap_textures;
-static BOOL minimap_test_saw_streamed_override;
-static DWORD next_minimap_texture_id;
-static HANDLE minimap_test_base_archive, minimap_test_map_archive;
-static BYTE *minimap_test_map_data;
-static BOOL minimap_test_read_map_skin;
-static int test_minimap_fs_read(LPCSTR path, void **buffer);
-void R_TestProductionRegisterMap(LPCSTR mapFileName);
+static uint32_t upload_count;
+static void const * upload_data;
+static cstring_t test_version = "3.1", test_extension = "";
+static uint32_t alloc_count, free_count, ext_count;
+static bool cache_minimap_textures;
+static bool minimap_test_saw_streamed_override;
+static uint32_t next_minimap_texture_id;
+static handle_t minimap_test_base_archive, minimap_test_map_archive;
+static uint8_t *minimap_test_map_data;
+static bool minimap_test_read_map_skin;
+static int test_minimap_fs_read(cstring_t path, void **buffer);
+void R_TestProductionRegisterMap(cstring_t mapFileName);
 
 static GLubyte const *test_glstring(GLenum name) { (void)name; return (GLubyte const *)test_version; }
 static SDL_bool test_hasext(char const *name) { ext_count++; return !strcmp(name, test_extension) ? SDL_TRUE : SDL_FALSE; }
@@ -174,7 +174,7 @@ static void test_teximage(GLenum target, GLint level, GLint internal, GLsizei w,
 static void test_gentex(GLsizei n, GLuint *ids) { while (n--) *ids++ = 99; }
 static void test_bindtex(GLenum target, GLuint id) { (void)target; (void)id; }
 static void test_texparam(GLenum target, GLenum name, GLint value) { (void)target; (void)name; (void)value; }
-static DWORD texture_delete_count;
+static uint32_t texture_delete_count;
 static void test_deletetex(GLsizei n, const GLuint *ids) { (void)ids; texture_delete_count += n; }
 #undef glTexImage2D
 #undef glGenTextures
@@ -195,8 +195,8 @@ static void test_deletetex(GLsizei n, const GLuint *ids) { (void)ids; texture_de
 #include "renderer/r_pcx.c"
 #include "renderer/r_dds.c"
 
-static struct { DWORD calls, first, count, instances, stats_count, stats_instances; } draw_test;
-void R_StatsDraw(GLenum mode, DWORD count, DWORD instances) {
+static struct { uint32_t calls, first, count, instances, stats_count, stats_instances; } draw_test;
+void R_StatsDraw(GLenum mode, uint32_t count, uint32_t instances) {
     (void)mode; draw_test.stats_count = count; draw_test.stats_instances = instances;
 }
 static void test_genva(GLsizei n, GLuint *ids) { while (n--) *ids++ = 7; }
@@ -231,17 +231,17 @@ static void test_drawarrays_inst(GLenum mode, GLint first, GLsizei count, GLsize
 #undef glDrawArrays
 #undef glDrawArraysInstanced
 
-static HANDLE test_alloc(long size) { alloc_count++; return calloc(1, (size_t)size); }
-static void test_free(HANDLE memory) { free_count++; free(memory); }
-static void test_error(LPCSTR format, ...) { (void)format; T_ASSERT(false); }
-static void test_spawn(void *context) { (*(DWORD *)context)++; }
+static handle_t test_alloc(long size) { alloc_count++; return calloc(1, (size_t)size); }
+static void test_free(handle_t memory) { free_count++; free(memory); }
+static void test_error(cstring_t format, ...) { (void)format; T_ASSERT(false); }
+static void test_spawn(void *context) { (*(uint32_t *)context)++; }
 
-LPTEXTURE R_LoadTexture(LPCSTR filename) {
+LPTEXTURE R_LoadTexture(cstring_t filename) {
     snprintf(last_texture_load, sizeof(last_texture_load), "%s", filename);
     if (cache_minimap_textures) {
         PATHSTR resolved;
         void *file = NULL;
-        LPCSTR path = filename;
+        cstring_t path = filename;
         if (strstr(filename, "minimap_hero.blp")) minimap_test_saw_streamed_override = r_load_streamed;
         if (R_MapAssetCandidate(filename, resolved, sizeof(resolved)) && test_minimap_fs_read(resolved, &file) >= 0) {
             free(file); file = NULL; path = resolved;
@@ -260,7 +260,7 @@ LPTEXTURE R_LoadTexture(LPCSTR filename) {
 }
 
 static mdxModel_t *cliff_model;
-LPMODEL R_LoadModel(LPCSTR filename) {
+LPMODEL R_LoadModel(cstring_t filename) {
     load_count++;
     snprintf(last_model_load, sizeof(last_model_load), "%s", filename ? filename : "");
     if (fail_load || (fail_scoped_load && strstr(last_model_load, ".w3m\\"))) return NULL;
@@ -271,25 +271,25 @@ LPMODEL R_LoadModel(LPCSTR filename) {
 
 void R_ReleaseModel(LPMODEL model) { release_count++; test_free(model); }
 
-static BOOL test_mpq_read(HANDLE archive, LPCSTR path, void **buffer, DWORD *size_out) {
-    HANDLE file = NULL;
-    DWORD size, read = 0;
+static bool test_mpq_read(handle_t archive, cstring_t path, void **buffer, uint32_t *size_out) {
+    handle_t file = NULL;
+    uint32_t size, read = 0;
     if (!archive || !SFileOpenFileEx(archive, path, 0, &file)) return false;
     size = SFileGetFileSize(file, NULL);
     *buffer = malloc((size_t)size + 1);
     if (!*buffer || !SFileReadFile(file, *buffer, size, &read, NULL) || read != size) {
         free(*buffer); *buffer = NULL; SFileCloseFile(file); return false;
     }
-    ((BYTE *)*buffer)[size] = 0;
+    ((uint8_t *)*buffer)[size] = 0;
     if (size_out) *size_out = size;
     SFileCloseFile(file);
     return true;
 }
 
-static int test_minimap_fs_read(LPCSTR path, void **buffer) {
-    LPCSTR file_path = path;
-    HANDLE archive = minimap_test_base_archive;
-    DWORD size = 0;
+static int test_minimap_fs_read(cstring_t path, void **buffer) {
+    cstring_t file_path = path;
+    handle_t archive = minimap_test_base_archive;
+    uint32_t size = 0;
     *buffer = NULL;
     if (!strncasecmp(path, "Maps\\MapOverlay.w3x\\", 20)) {
         file_path = path + 20;
@@ -303,9 +303,9 @@ static int test_minimap_fs_read(LPCSTR path, void **buffer) {
 static void test_minimap_fs_free(void *buffer) { free(buffer); }
 void R_WeatherRegisterMap(void) {}
 void R_LightningRegisterMap(void) {}
-void _W3M_RegisterMap(LPCSTR map) { (void)map; }
+void _W3M_RegisterMap(cstring_t map) { (void)map; }
 
-void R_RegisterMap(LPCSTR map) {
+void R_RegisterMap(cstring_t map) {
     if (map && (strstr(map, ".w3m") || strstr(map, ".w3x"))) R_SetMapAssetScope(map);
     else R_SetMapAssetScope(NULL);
     register_count++;
@@ -327,14 +327,14 @@ static LPTEXTURE reset_texture_registry(void) {
     return test_alloc(sizeof(TEXTURE));
 }
 
-static rImageCacheEntry_t *test_texture_entry(LPCSTR name) {
+static rImageCacheEntry_t *test_texture_entry(cstring_t name) {
     for (rImageCacheEntry_t *entry = r_image_cache; entry; entry = entry->next)
         if (!strcasecmp(entry->name, name)) return entry;
     return NULL;
 }
 
 TEST(renderer_model, mdx_keytrack_binary_lookup_preserves_sequence_semantics) {
-    BYTE storage[sizeof(mdxKeyTrack_t) + 5 * (sizeof(int) + sizeof(float))] = { 0 };
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 5 * (sizeof(int) + sizeof(float))] = { 0 };
     mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
     int times[] = { 50, 150, 200, 300, 400 };
     float values[] = { 0.5f, 1.5f, 2.0f, 3.0f, 4.0f };
@@ -343,9 +343,9 @@ TEST(renderer_model, mdx_keytrack_binary_lookup_preserves_sequence_semantics) {
     float value = 0;
 
     track->keyframeCount = 5; track->datatype = TDATA_FLOAT1;
-    track->linetype = TRACK_LINEAR; track->globalSeqId = (DWORD)-1;
+    track->linetype = TRACK_LINEAR; track->globalSeqId = (uint32_t)-1;
     FOR_LOOP(i, 5) {
-        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((BYTE *)track->values + i * (sizeof(int) + sizeof(float)));
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)track->values + i * (sizeof(int) + sizeof(float)));
         key->time = times[i]; memcpy(key->data, &values[i], sizeof(values[i]));
     }
     MDLX_GetModelKeytrackValue(&model, track, 100, &value); T_FEQ(value, 1.5f, 0.001f);
@@ -354,16 +354,16 @@ TEST(renderer_model, mdx_keytrack_binary_lookup_preserves_sequence_semantics) {
 }
 
 TEST(renderer_model, mdx_keytrack_lookup_uses_hermite_stride) {
-    BYTE storage[sizeof(mdxKeyTrack_t) + 3 * (sizeof(int) + 3 * sizeof(float))] = { 0 };
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 3 * (sizeof(int) + 3 * sizeof(float))] = { 0 };
     mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
     mdxSequence_t seq = { .interval = { 100, 350 } };
     mdxModel_t model = { .sequences = &seq, .num_sequences = 1 };
     float value = 0;
 
     track->keyframeCount = 3; track->datatype = TDATA_FLOAT1;
-    track->linetype = TRACK_HERMITE; track->globalSeqId = (DWORD)-1;
+    track->linetype = TRACK_HERMITE; track->globalSeqId = (uint32_t)-1;
     FOR_LOOP(i, 3) {
-        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((BYTE *)track->values + i * 16);
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)track->values + i * 16);
         float authored = (float)(i + 1);
         key->time = 100 + i * 100;
         memcpy(key->data, &authored, sizeof(authored));
@@ -374,7 +374,7 @@ TEST(renderer_model, mdx_keytrack_lookup_uses_hermite_stride) {
 }
 
 TEST(renderer_model, mdx_global_sequence_uses_first_key_when_duration_precedes_it) {
-    BYTE storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(QUATERNION)] = { 0 };
+    uint8_t storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(QUATERNION)] = { 0 };
     mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
     mdxGlobalSequence_t global = { .value = 0 };
     mdxModel_t model = { .globalSequences = &global, .num_globalSequences = 1 };
@@ -398,7 +398,7 @@ TEST(renderer_model, mdx_global_sequence_uses_first_key_when_duration_precedes_i
 }
 
 TEST(renderer_model, mdx_sequence_zero_clock_wraps_with_render_time) {
-    DWORD old_time = tr.viewDef.time;
+    uint32_t old_time = tr.viewDef.time;
     mdxSequence_t seq = { .interval = { 100, 1100 } };
     mdxModel_t mdx = { .sequences = &seq, .num_sequences = 1 };
 
@@ -413,7 +413,7 @@ TEST(renderer_model, mdx_sequence_zero_clock_wraps_with_render_time) {
 }
 
 TEST(renderer_model, dnc_first_light_follows_sequence_zero_phase) {
-    BYTE storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(float))] = { 0 };
+    uint8_t storage[sizeof(mdxKeyTrack_t) + 2 * (sizeof(int) + sizeof(float))] = { 0 };
     mdxKeyTrack_t *intensity = (mdxKeyTrack_t *)storage;
     float values[] = { 0.2f, 0.8f };
     mdxSequence_t seq = { .interval = { 0, 1000 } };
@@ -431,9 +431,9 @@ TEST(renderer_model, dnc_first_light_follows_sequence_zero_phase) {
     intensity->keyframeCount = 2;
     intensity->datatype = TDATA_FLOAT1;
     intensity->linetype = TRACK_LINEAR;
-    intensity->globalSeqId = (DWORD)-1;
+    intensity->globalSeqId = (uint32_t)-1;
     FOR_LOOP(i, 2) {
-        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((BYTE *)intensity->values +
+        mdxKeyFrame_t *key = (mdxKeyFrame_t *)((uint8_t *)intensity->values +
                                                i * (sizeof(int) + sizeof(float)));
         key->time = i ? 1000 : 0;
         memcpy(key->data, &values[i], sizeof(values[i]));
@@ -461,7 +461,7 @@ TEST(renderer_model, geoset_animation_static_colors_convert_bgr_to_rgb) {
 }
 
 TEST(renderer_model, animated_mdx_color_tracks_convert_bgr_to_rgb) {
-    BYTE storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(VECTOR3)] = { 0 };
+    uint8_t storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(VECTOR3)] = { 0 };
     mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
     mdxKeyFrame_t *key = (mdxKeyFrame_t *)track->values;
     VECTOR3 authored_bgr = { 0.85f, 0.40f, 0.10f };
@@ -472,7 +472,7 @@ TEST(renderer_model, animated_mdx_color_tracks_convert_bgr_to_rgb) {
     track->keyframeCount = 1;
     track->datatype = TDATA_FLOAT3;
     track->linetype = TRACK_NO_INTERP;
-    track->globalSeqId = (DWORD)-1;
+    track->globalSeqId = (uint32_t)-1;
     key->time = 0;
     memcpy(key->data, &authored_bgr, sizeof(authored_bgr));
 
@@ -483,8 +483,8 @@ TEST(renderer_model, animated_mdx_color_tracks_convert_bgr_to_rgb) {
 }
 
 TEST(renderer_model, animated_mdx_light_colors_follow_warsmash_rgb_order) {
-    BYTE color_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(VECTOR3)] = { 0 };
-    BYTE ambient_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(VECTOR3)] = { 0 };
+    uint8_t color_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(VECTOR3)] = { 0 };
+    uint8_t ambient_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(VECTOR3)] = { 0 };
     mdxKeyTrack_t *color_track = (mdxKeyTrack_t *)color_storage;
     mdxKeyTrack_t *ambient_track = (mdxKeyTrack_t *)ambient_storage;
     mdxKeyFrame_t *color_key = (mdxKeyFrame_t *)color_track->values;
@@ -505,7 +505,7 @@ TEST(renderer_model, animated_mdx_light_colors_follow_warsmash_rgb_order) {
     color_track->keyframeCount = ambient_track->keyframeCount = 1;
     color_track->datatype = ambient_track->datatype = TDATA_FLOAT3;
     color_track->linetype = ambient_track->linetype = TRACK_LINEAR;
-    color_track->globalSeqId = ambient_track->globalSeqId = (DWORD)-1;
+    color_track->globalSeqId = ambient_track->globalSeqId = (uint32_t)-1;
     color_key->time = ambient_key->time = 0;
     memcpy(color_key->data, &authored_bgr, sizeof(authored_bgr));
     memcpy(ambient_key->data, &authored_bgr, sizeof(authored_bgr));
@@ -549,7 +549,7 @@ TEST(renderer_model, mdx_ribbon_trail_emits_connected_edges_and_expires) {
     VECTOR3 above = { 0, 10, 0 }, below = { 0, -10, 0 };
     COLOR32 white = { 255, 255, 255, 180 };
     trailVert_t verts[32];
-    DWORD nverts;
+    uint32_t nverts;
 
     T_EQ(R_TrailAdvance(&trail, above, below, white, 0.5f, 10.0f, 0.0f, 100, 100), 1);
     above.x = 5; below.x = 5;
@@ -567,7 +567,7 @@ TEST(renderer_model, mdx_ribbon_trail_emits_connected_edges_and_expires) {
 TEST(renderer_model, mdx_ribbon_strip_u_survives_adding_an_edge) {
     trail_t trail = { .head = 2, .count = 2 };
     trailVert_t before[12], after[18];
-    DWORD nbefore, nafter;
+    uint32_t nbefore, nafter;
     COLOR32 white = { 255, 255, 255, 255 };
 
     trail.edges[0] = (trailEdge_t){ .above = { 0, 10, 0 }, .below = { 0, -10, 0 }, .color = white, .age = 0.2f };
@@ -637,7 +637,7 @@ TEST(renderer_model, mdx_ribbon_edge_colors_stay_historic) {
 }
 
 TEST(renderer_model, mdx_ribbon_visibility_defaults_outside_death_keys) {
-    BYTE vis_store[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(float)] = { 0 };
+    uint8_t vis_store[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(float)] = { 0 };
     mdxKeyTrack_t *vis = (mdxKeyTrack_t *)vis_store;
     mdxKeyFrame_t *key = (mdxKeyFrame_t *)vis->values;
     mdxSequence_t seqs[2] = { { .interval = { 0, 1000 } }, { .interval = { 2000, 3000 } } };
@@ -649,15 +649,15 @@ TEST(renderer_model, mdx_ribbon_visibility_defaults_outside_death_keys) {
     renderEntity_t entity = { .number = 7, .frame = 0 };
     MATRIX4 matrix;
     VERTEX verts[64];
-    DWORD nverts;
+    uint32_t nverts;
     float visibility = 1.0f;
     viewDef_t saved = tr.viewDef;
 
     vis->keyframeCount = 1; vis->datatype = TDATA_FLOAT1;
-    vis->linetype = TRACK_NO_INTERP; vis->globalSeqId = (DWORD)-1;
+    vis->linetype = TRACK_NO_INTERP; vis->globalSeqId = (uint32_t)-1;
     key->time = 0; *(float *)key->data = 0.0f;
     ribbon.keytracks.Visibility = vis;
-    ribbon.node.node_id = 0; ribbon.node.parent_id = (DWORD)-1;
+    ribbon.node.node_id = 0; ribbon.node.parent_id = (uint32_t)-1;
     model.nodes[0] = &ribbon.node; model.node_list[0] = &ribbon.node; model.num_nodes = 1;
     Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
     ri.MemAlloc = test_alloc; ri.MemFree = test_free;
@@ -722,7 +722,7 @@ TEST(renderer_model, mdx_ribbon_entity_reuse_after_gap_drops_old_edges) {
     renderEntity_t entity = { .number = 11, .frame = 0 };
     MATRIX4 matrix;
     VERTEX verts[64];
-    DWORD nverts;
+    uint32_t nverts;
     viewDef_t saved = tr.viewDef;
 
     ribbon.node.node_id = 0;
@@ -762,13 +762,13 @@ TEST(renderer_model, mdx_detached_ribbon_waits_one_frame_then_fades_out) {
     tr.viewDef = (viewDef_t){ .time = 1000, .deltaTime = 100 };
     MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
     MDLX_TickDetachedRibbons(); /* the owner drew in this frame: no orphan yet */
-    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)0);
+    T_EQ(MDLX_DetachedRibbonCount(), (uint32_t)0);
     tr.viewDef.time = 1100;
     MDLX_TickDetachedRibbons();
-    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)1);
+    T_EQ(MDLX_DetachedRibbonCount(), (uint32_t)1);
     tr.viewDef.time = 1600;
     MDLX_TickDetachedRibbons();
-    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)0);
+    T_EQ(MDLX_DetachedRibbonCount(), (uint32_t)0);
     MDLX_ForgetRibbonModel(&model);
     if (model.ribbon_states) { test_free(model.ribbon_states->trails); test_free(model.ribbon_states); model.ribbon_states = NULL; }
     tr.viewDef = saved;
@@ -788,9 +788,9 @@ TEST(renderer_model, mdx_detached_ribbon_reattach_cancels_orphan) {
     tr.viewDef = (viewDef_t){ .time = 2000, .deltaTime = 100 };
     MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
     tr.viewDef.time = 2100; MDLX_TickDetachedRibbons();
-    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)1);
+    T_EQ(MDLX_DetachedRibbonCount(), (uint32_t)1);
     tr.viewDef.time = 2200; MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
-    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)0);
+    T_EQ(MDLX_DetachedRibbonCount(), (uint32_t)0);
     MDLX_ForgetRibbonModel(&model);
     if (model.ribbon_states) { test_free(model.ribbon_states->trails); test_free(model.ribbon_states); model.ribbon_states = NULL; }
     tr.viewDef = saved;
@@ -810,10 +810,10 @@ TEST(renderer_model, mdx_detached_ribbon_reuse_drops_old_owner_state) {
     tr.viewDef = (viewDef_t){ .time = 3000, .deltaTime = 100 };
     MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
     tr.viewDef.time = 3100; MDLX_TickDetachedRibbons();
-    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)1);
+    T_EQ(MDLX_DetachedRibbonCount(), (uint32_t)1);
     tr.viewDef.time = 4000; Matrix4_translate(&matrix, &(VECTOR3){10000, 0, 0});
     MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
-    T_EQ(MDLX_DetachedRibbonCount(), (DWORD)0);
+    T_EQ(MDLX_DetachedRibbonCount(), (uint32_t)0);
     T_ASSERT(model.ribbon_states->trails[0].count >= 1);
     FOR_LOOP(i, model.ribbon_states->trails[0].count) {
         int edge = (model.ribbon_states->trails[0].head - model.ribbon_states->trails[0].count + i + TRAIL_MAX_EDGES) % TRAIL_MAX_EDGES;
@@ -824,23 +824,23 @@ TEST(renderer_model, mdx_detached_ribbon_reuse_drops_old_owner_state) {
     tr.viewDef = saved;
 }
 
-static void mdx_put_u32(BYTE **p, DWORD v) { memcpy(*p, &v, 4); *p += 4; }
-static void mdx_put_f32(BYTE **p, float v) { memcpy(*p, &v, 4); *p += 4; }
-static void mdx_put_fourcc(BYTE **p, LPCSTR tag) { memcpy(*p, tag, 4); *p += 4; }
+static void mdx_put_u32(uint8_t **p, uint32_t v) { memcpy(*p, &v, 4); *p += 4; }
+static void mdx_put_f32(uint8_t **p, float v) { memcpy(*p, &v, 4); *p += 4; }
+static void mdx_put_fourcc(uint8_t **p, cstring_t tag) { memcpy(*p, tag, 4); *p += 4; }
 
 TEST(renderer_model, mdx_ribb_loader_reads_emitter_tracks_and_nodes) {
-    BYTE blob[1024] = { 0 };
-    BYTE *p = blob;
+    uint8_t blob[1024] = { 0 };
+    uint8_t *p = blob;
     mdxModel_t *model;
     mdxRibbonEmitter_t *ribbon;
-    DWORD node_inc = 96, static_bytes = 52, krvs_bytes = 24, emitter_inc;
+    uint32_t node_inc = 96, static_bytes = 52, krvs_bytes = 24, emitter_inc;
 
     emitter_inc = 4 + node_inc + static_bytes + krvs_bytes;
     mdx_put_fourcc(&p, "MDLX");
     mdx_put_fourcc(&p, "VERS"); mdx_put_u32(&p, 4); mdx_put_u32(&p, 800);
     mdx_put_fourcc(&p, "SEQS"); mdx_put_u32(&p, 132);
     memset(p, 0, 132); memcpy(p, "Stand", 5);
-    ((DWORD *)(p + 80))[0] = 2000; ((DWORD *)(p + 80))[1] = 3000;
+    ((uint32_t *)(p + 80))[0] = 2000; ((uint32_t *)(p + 80))[1] = 3000;
     p += 132;
     mdx_put_fourcc(&p, "PIVT"); mdx_put_u32(&p, 12);
     mdx_put_f32(&p, 1.0f); mdx_put_f32(&p, 2.0f); mdx_put_f32(&p, 3.0f);
@@ -858,7 +858,7 @@ TEST(renderer_model, mdx_ribb_loader_reads_emitter_tracks_and_nodes) {
     mdx_put_u32(&p, 0); mdx_put_f32(&p, 0.0f);
 
     ri.MemAlloc = test_alloc; ri.MemFree = test_free; ri.error = test_error;
-    model = R_LoadModelMDLX(blob, (DWORD)(p - blob));
+    model = R_LoadModelMDLX(blob, (uint32_t)(p - blob));
     T_NOT_NULL(model);
     ribbon = model->ribbons;
     T_NOT_NULL(ribbon);
@@ -881,7 +881,7 @@ TEST(renderer_model, mdx_sound_event_keys_follow_sequence_and_global_sequence_ti
     mdxGlobalSequence_t global = { .value = 1000 };
     mdxModel_t model = { .sequences = sequences, .num_sequences = 2,
                          .globalSequences = &global, .num_globalSequences = 1 };
-    mdxEvent_t event = { .globalSeqId = (DWORD)-1 };
+    mdxEvent_t event = { .globalSeqId = (uint32_t)-1 };
 
     T_ASSERT(MDLX_EventKeyCrossed(&model, &event, 150, 120, 160, 0, 0));
     T_ASSERT(!MDLX_EventKeyCrossed(&model, &event, 150, 160, 180, 0, 0));
@@ -910,12 +910,12 @@ TEST(renderer_model, mdx_attachment_positions_follow_authored_pivot_and_model_tr
     VECTOR3 pivots[] = { { 4.0f, 5.0f, 6.0f }, { 1.0f, 2.0f, 3.0f } };
     mdxModel_t model = { .attachments = &sprite, .pivots = pivots, .num_pivots = 2 };
     MATRIX4 transform;
-    DWORD count;
+    uint32_t count;
 
     snprintf(sprite.node.name, sizeof(sprite.node.name), "Sprite First Ref");
-    sprite.node.node_id = 0; sprite.node.parent_id = (DWORD)-1; sprite.next = &other;
+    sprite.node.node_id = 0; sprite.node.parent_id = (uint32_t)-1; sprite.next = &other;
     snprintf(other.node.name, sizeof(other.node.name), "Origin Ref");
-    other.node.node_id = 1; other.node.parent_id = (DWORD)-1;
+    other.node.node_id = 1; other.node.parent_id = (uint32_t)-1;
     model.nodes[0] = &sprite.node; model.nodes[1] = &other.node;
     model.node_list[0] = &sprite.node; model.node_list[1] = &other.node;
     model.num_nodes = 2;
@@ -942,7 +942,7 @@ TEST(renderer_model, mdx_geometry_packs_two_geosets_into_model_ranges) {
         .num_vertices=1,.num_normals=1,.num_texcoord=1,.num_triangles=1};
     mdxGeoset_t first = {.vertices=pos,.normals=normals,.texcoord=uv,.triangles=first_idx,
         .num_vertices=2,.num_normals=2,.num_texcoord=2,.num_triangles=3,.next=&second};
-    mdxModel_t model = {.geosets=&first}; VERTEX vertices[3]; USHORT indices[4];
+    mdxModel_t model = {.geosets=&first}; VERTEX vertices[3]; uint16_t indices[4];
     ri.MemAlloc = test_alloc; ri.MemFree = test_free;
     MDX_PackModelGeometry(&model, vertices, indices);
     T_FEQ(vertices[2].position.x, 7, 0.001f);
@@ -1046,7 +1046,7 @@ TEST(renderer_texture, resident_registry_keeps_entries_beyond_configstring_limit
 TEST(renderer_texture, wc3_map_registration_reclaims_skin_override_and_keeps_stock) {
     static TEXTURE placeholder = { .texid = 1 };
     rImageCacheEntry_t *entry;
-    DWORD map_size = 0;
+    uint32_t map_size = 0;
     void *map_data = NULL;
 
     R_ShutdownTextureCache(); reset_registry();
@@ -1171,9 +1171,9 @@ TEST(renderer_instances, upload_size_uses_wide_arithmetic) {
 }
 
 TEST(renderer_instances, dynamic_capacity_reuses_and_grows_power_of_two) {
-    T_EQ(R_InstanceBufferCapacity(0, 1), (DWORD)16);
-    T_EQ(R_InstanceBufferCapacity(16, 16), (DWORD)16);
-    T_EQ(R_InstanceBufferCapacity(16, 17), (DWORD)32);
+    T_EQ(R_InstanceBufferCapacity(0, 1), (uint32_t)16);
+    T_EQ(R_InstanceBufferCapacity(16, 16), (uint32_t)16);
+    T_EQ(R_InstanceBufferCapacity(16, 17), (uint32_t)32);
 }
 
 TEST(renderer_shader, environ_light_converts_to_model_lighting) {
@@ -1215,7 +1215,7 @@ TEST(renderer_shader, lighting_state_packs_all_sources) {
     MODELLIGHTING state = { .count = 3 };
     FOR_LOOP(i, state.count) {
         state.lights[i].type = R_MODEL_LIGHT_DIRECT;
-        state.lights[i].color.x = (FLOAT)i + 1.0f;
+        state.lights[i].color.x = (float)i + 1.0f;
         state.lights[i].intensity = 1.0f;
     }
     R_PackModelLighting(packed, &state);
@@ -1229,7 +1229,7 @@ TEST(renderer_shader, grass_state_uses_one_matrix) {
         .phase = { 9, 10, 11, 12 }, .height = { 13, 14 }, .enabled = true,
     };
     R_PackModelGrass(&packed, &grass);
-    FOR_LOOP(i, 14) T_EQ(packed.v[i], (FLOAT)i + 1.0f);
+    FOR_LOOP(i, 14) T_EQ(packed.v[i], (float)i + 1.0f);
     T_EQ(packed.v[14], 1.0f); T_EQ(packed.v[15], 0.0f);
     grass.enabled = false; R_PackModelGrass(&packed, &grass); T_EQ(packed.v[14], 0.0f); T_EQ(packed.v[15], 0.0f);
 }
@@ -1263,7 +1263,7 @@ TEST(renderer_shader, normal_model_defines_do_not_inherit_instancing) {
 TEST(renderer_shader, fog_raycast_uses_float_literals_for_glsl120) {
     FILE *file = fopen("renderer/r_fogofwar.c", "rb");
     char line[256];
-    BOOL up = false, z = false, invalid = false;
+    bool up = false, z = false, invalid = false;
 
     T_NOT_NULL(file);
     while (file && fgets(line, sizeof(line), file)) {
@@ -1279,7 +1279,7 @@ TEST(renderer_shader, fog_raycast_uses_float_literals_for_glsl120) {
 TEST(renderer_shader, world_particles_support_pre2_modulate_filter_modes) {
     FILE *file = fopen("renderer/r_particles.c", "rb");
     char line[256];
-    BOOL modulate = false, modulate2x = false, alpha_key_state = false;
+    bool modulate = false, modulate2x = false, alpha_key_state = false;
 
     T_NOT_NULL(file);
     while (file && fgets(line, sizeof(line), file)) {
@@ -1295,7 +1295,7 @@ TEST(renderer_shader, world_particles_support_pre2_modulate_filter_modes) {
 TEST(renderer_shader, world_particles_sample_fog_of_war) {
     FILE *file = fopen("renderer/r_particles.c", "rb");
     char line[256];
-    BOOL matrix = false, sampler = false, coord = false, shade = false, define = false;
+    bool matrix = false, sampler = false, coord = false, shade = false, define = false;
 
     T_NOT_NULL(file);
     while (file && fgets(line, sizeof(line), file)) {
@@ -1309,7 +1309,7 @@ TEST(renderer_shader, world_particles_sample_fog_of_war) {
     T_ASSERT(matrix); T_ASSERT(sampler); T_ASSERT(coord); T_ASSERT(shade); T_ASSERT(define);
 }
 
-static HANDLE shader_alloc(long size) { return shader_test.memory = test_alloc(size); }
+static handle_t shader_alloc(long size) { return shader_test.memory = test_alloc(size); }
 
 /* Each case starts with empty caches and independent driver counters. */
 static void reset_shader(void) {
@@ -1408,11 +1408,11 @@ TEST(renderer_shader, failures_remain_fatal_without_a_driver_log_buffer) {
 }
 
 TEST(renderer_texture, red_blue_swap_preserves_other_channels) {
-    BYTE rgba[] = { 1, 2, 3, 4, 5, 6, 7, 8 }, rgb[] = { 9, 10, 11 };
+    uint8_t rgba[] = { 1, 2, 3, 4, 5, 6, 7, 8 }, rgb[] = { 9, 10, 11 };
     R_SwapRedBlue(rgba, 2, 4); R_SwapRedBlue(rgb, 1, 3);
-    T_EQ(rgba[0], (BYTE)3); T_EQ(rgba[1], (BYTE)2); T_EQ(rgba[2], (BYTE)1); T_EQ(rgba[3], (BYTE)4);
-    T_EQ(rgba[4], (BYTE)7); T_EQ(rgba[7], (BYTE)8);
-    T_EQ(rgb[0], (BYTE)11); T_EQ(rgb[1], (BYTE)10); T_EQ(rgb[2], (BYTE)9);
+    T_EQ(rgba[0], (uint8_t)3); T_EQ(rgba[1], (uint8_t)2); T_EQ(rgba[2], (uint8_t)1); T_EQ(rgba[3], (uint8_t)4);
+    T_EQ(rgba[4], (uint8_t)7); T_EQ(rgba[7], (uint8_t)8);
+    T_EQ(rgb[0], (uint8_t)11); T_EQ(rgb[1], (uint8_t)10); T_EQ(rgb[2], (uint8_t)9);
 }
 
 TEST(renderer_texture, rgba_upload_preserves_red_blue_and_alpha) {
@@ -1427,7 +1427,7 @@ TEST(renderer_texture, rgba_upload_preserves_red_blue_and_alpha) {
 
 /* Emulate the advertised API, not the host OS; check byte order, ownership and the EXT/APPLE format pairs. */
 TEST(renderer_texture, source_format_and_context_select_upload_without_redundant_copies) {
-    static const struct { LPCSTR version, extension; GLenum internal; } cases[] = {
+    static const struct { cstring_t version, extension; GLenum internal; } cases[] = {
         { "3.1", "", GL_RGBA },
         { "OpenGL ES 3.0", "GL_EXT_texture_format_BGRA8888", BZ_GL_BGRA },
         { "OpenGL ES 3.0", "GL_APPLE_texture_format_BGRA8888", GL_RGBA },
@@ -1439,11 +1439,11 @@ TEST(renderer_texture, source_format_and_context_select_upload_without_redundant
         test_version = cases[i].version; test_extension = cases[i].extension;
         R_InitTextureFormats();
         T_EQ(r_bgra_internal, cases[i].internal);
-        DWORD queries = ext_count;
+        uint32_t queries = ext_count;
         FOR_LOOP(src, 2) {
             COLOR32 pixel = src == PIXEL_BGRA ? (COLOR32){9, 37, 241, 123} : (COLOR32){241, 37, 9, 123};
             COLOR32 saved = pixel;
-            BOOL convert = src == PIXEL_BGRA && !cases[i].internal;
+            bool convert = src == PIXEL_BGRA && !cases[i].internal;
             alloc_count = free_count = 0;
             R_LoadTextureMipLevel(&tex, &(TEXMIP){ &pixel, 1, 1, 1, src });
             T_EQ(upload_format, src == PIXEL_BGRA && !convert ? BZ_GL_BGRA : GL_RGBA);
@@ -1463,7 +1463,7 @@ TEST(renderer_texture, source_format_and_context_select_upload_without_redundant
 }
 
 TEST(renderer_texture, blp1_palette_upload_is_rgba) {
-    struct { struct tBLP1Header hdr; COLOR32 pal[256]; BYTE index; } file = {0};
+    struct { struct tBLP1Header hdr; COLOR32 pal[256]; uint8_t index; } file = {0};
     ri.MemAlloc = test_alloc; ri.MemFree = test_free;
     r_bgra_internal = 0;
     file.hdr.magic = ID_BLP1; file.hdr.type = 1; file.hdr.width = file.hdr.height = 1;
@@ -1475,13 +1475,13 @@ TEST(renderer_texture, blp1_palette_upload_is_rgba) {
 }
 
 TEST(renderer_texture, blp2_raw_palette_and_dxt_upload_are_rgba) {
-    struct { struct tBLP2Header hdr; BYTE data[16]; } file = {0};
+    struct { struct tBLP2Header hdr; uint8_t data[16]; } file = {0};
     ri.MemAlloc = test_alloc; ri.MemFree = test_free;
     r_bgra_internal = 0;
     file.hdr.magic = ID_BLP2; file.hdr.type = 1; file.hdr.width = file.hdr.height = 1;
     file.hdr.offsets[0] = offsetof(__typeof__(file), data); file.hdr.lengths[0] = 4;
     file.hdr.encoding = 3; file.hdr.alphaDepth = 8;
-    memcpy(file.data, (BYTE[]){9, 37, 241, 123}, 4);
+    memcpy(file.data, (uint8_t[]){9, 37, 241, 123}, 4);
     test_free(R_LoadTextureBLP2(&file, sizeof(file)));
     T_EQ(upload_format, GL_RGBA);
     T_EQ(upload_pixel.r, 241); T_EQ(upload_pixel.b, 9); T_EQ(upload_pixel.a, 123);
@@ -1490,13 +1490,13 @@ TEST(renderer_texture, blp2_raw_palette_and_dxt_upload_are_rgba) {
     test_free(R_LoadTextureBLP2(&file, sizeof(file)));
     T_EQ(upload_pixel.r, 241); T_EQ(upload_pixel.b, 9); T_EQ(upload_pixel.a, 255);
     file.hdr.encoding = 2; file.hdr.width = file.hdr.height = 4; file.hdr.lengths[0] = 8;
-    memcpy(file.data, (BYTE[]){0, 248, 31, 0, 0, 0, 0, 0}, 8);
+    memcpy(file.data, (uint8_t[]){0, 248, 31, 0, 0, 0, 0, 0}, 8);
     test_free(R_LoadTextureBLP2(&file, sizeof(file)));
     T_EQ(upload_pixel.r, 255); T_EQ(upload_pixel.g, 0); T_EQ(upload_pixel.b, 0); T_EQ(upload_pixel.a, 255);
 }
 
 TEST(renderer_texture, pcx_palette_upload_is_rgba) {
-    BYTE file[128 + 1 + 769] = {0};
+    uint8_t file[128 + 1 + 769] = {0};
     ri.MemAlloc = test_alloc; ri.MemFree = test_free;
     file[0] = 10; file[2] = 1; file[3] = 8; file[65] = 1; file[66] = 1;
     file[129] = 12; file[130] = 241; file[131] = 37; file[132] = 9;
@@ -1507,7 +1507,7 @@ TEST(renderer_texture, pcx_palette_upload_is_rgba) {
 
 TEST(renderer_texture, dds_channel_masks_use_the_common_upload_capabilities) {
     /* DDS header: 124 bytes after magic, 32-bit RGB+alpha, one 1x1 mip. */
-    DWORD file[33] = { [0] = MAKEFOURCC('D','D','S',' '), [1] = 124, [3] = 1, [4] = 1, [7] = 1,
+    uint32_t file[33] = { [0] = MAKEFOURCC('D','D','S',' '), [1] = 124, [3] = 1, [4] = 1, [7] = 1,
         [19] = 32, [20] = 0x41, [22] = 32, [24] = 0xff00, [26] = 0xff000000 };
     ri.MemAlloc = test_alloc; ri.MemFree = test_free;
     FOR_LOOP(bgra, 2) {
@@ -1531,16 +1531,16 @@ TEST(renderer_stats, triangles_include_instanced_amplification) {
 }
 
 /* File lookup probes the exact reference first and only substitutes the supported BLP representation. */
-static LPCSTR texture_file;
-static DWORD texture_reads;
-static int test_texture_read(LPCSTR name, void **buffer) {
+static cstring_t texture_file;
+static uint32_t texture_reads;
+static int test_texture_read(cstring_t name, void **buffer) {
     texture_reads++;
     *buffer = !strcmp(name, texture_file) ? (void *)&texture_reads : NULL;
     return *buffer ? sizeof(texture_reads) : -1;
 }
 
 TEST(renderer_texture, authored_extensions_resolve_without_losing_real_files) {
-    static const struct { LPCSTR name, file; DWORD reads; BOOL found; } cases[] = {
+    static const struct { cstring_t name, file; uint32_t reads; bool found; } cases[] = {
         { "White_mask.tga", "White_mask.blp", 2, true },
         { "Cliff0.TGA", "Cliff0.blp", 2, true },
         { "Cliff0.tga", "Cliff0.tga", 1, true },
@@ -1552,7 +1552,7 @@ TEST(renderer_texture, authored_extensions_resolve_without_losing_real_files) {
         { "Missing.pcx", "", 1, false },
         { "Missing", "", 2, false },
     };
-    int (*read_file)(LPCSTR, void **) = ri.FS_ReadFile;
+    int (*read_file)(cstring_t, void **) = ri.FS_ReadFile;
     ri.FS_ReadFile = test_texture_read;
     FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
         PATHSTR path; void *buffer = NULL;
@@ -1566,7 +1566,7 @@ TEST(renderer_texture, authored_extensions_resolve_without_losing_real_files) {
 }
 
 TEST(renderer_terrain, cliff_ramps_require_adjacent_corners_one_level_apart) {
-    static const BYTE edge[][2] = { {0,1}, {1,3}, {3,2}, {2,0} };
+    static const uint8_t edge[][2] = { {0,1}, {1,3}, {3,2}, {2,0} };
     WAR3MAPVERTEX tile[4] = {0};
     T_ASSERT(!R_IsCliffRamp(tile));
     FOR_LOOP(i, 4) {
@@ -1595,7 +1595,7 @@ TEST(renderer_terrain, cliff_ramps_require_adjacent_corners_one_level_apart) {
 }
 
 TEST(renderer_terrain, cliff_texture_skips_non_cliff_corners) {
-    static const struct { BYTE cliff[4]; DWORD want; } cases[] = {
+    static const struct { uint8_t cliff[4]; uint32_t want; } cases[] = {
         { .cliff = {1,15,15,15}, .want = 1 }, /* Human02Interlude (10,29), AACA. */
         { .cliff = {1,1,1,15}, .want = 1 }, /* Human02Interlude (65,35), ABBA. */
         { .cliff = {0,1,0,1}, .want = 1 }, /* SW wins over other authored indices. */
@@ -1633,7 +1633,7 @@ TEST(renderer_terrain, cliff_texture_searches_retail_neighbourhood) {
 
 TEST(renderer_terrain, undead04_waygate_cliff_type_from_native_corners) {
     /* W3E byte 6 at x=91..95, y=52..56. Cell (93,54) has four 15s, but (92,56) names CLgr. */
-    static const BYTE packed[25] = {
+    static const uint8_t packed[25] = {
         0xf6, 0xf6, 0xf6, 0xf6, 0xf6,
         0xf6, 0xf6, 0x06, 0xf6, 0x06,
         0xf4, 0xf6, 0xf6, 0xf6, 0xf6,
@@ -1650,11 +1650,11 @@ TEST(renderer_terrain, undead04_waygate_cliff_type_from_native_corners) {
 }
 
 /* Exercise the terrain/cliff bakers with real height normals, mocking asset lookup and draw submission. */
-void R_DrawBuffer(LPCBUFFER buffer, DWORD count) {}
-LINE3 R_LineForScreenPoint(viewDef_t const *view, FLOAT x, FLOAT y) { return (LINE3){0}; }
+void R_DrawBuffer(LPCBUFFER buffer, uint32_t count) {}
+LINE3 R_LineForScreenPoint(viewDef_t const *view, float x, float y) { return (LINE3){0}; }
 LPCTEXTURE R_BlightTexture(void) { return texture_load_result; }
-w3TerrainArt_t const *R_TerrainArt(DWORD id) { T_ASSERT(false); return NULL; }
-static struct { DWORD enables, disables, offsets; FLOAT factor, units; } splat_bias;
+w3TerrainArt_t const *R_TerrainArt(uint32_t id) { T_ASSERT(false); return NULL; }
+static struct { uint32_t enables, disables, offsets; float factor, units; } splat_bias;
 static void test_splat_enable(GLenum cap) { if (cap == GL_POLYGON_OFFSET_FILL) splat_bias.enables++; }
 static void test_splat_disable(GLenum cap) { if (cap == GL_POLYGON_OFFSET_FILL) splat_bias.disables++; }
 static void test_splat_polygon_offset(GLfloat factor, GLfloat units) {
@@ -1718,15 +1718,15 @@ TEST(renderer_terrain, clipped_splat_follows_both_terrain_triangles) {
     T_ASSERT(ground_current_vertex > ground_vertex_buffer);
     T_ASSERT(ground_current_vertex - ground_vertex_buffer <= SPLAT_TILE_MAX_VERTICES);
     for (LPVERTEX v = ground_vertex_buffer; v < ground_current_vertex; v++) {
-        FLOAT u = v->position.x / TILE_SIZE, t = v->position.y / TILE_SIZE;
-        FLOAT z = u >= t ? p0.z + (u-t)*(p1.z-p0.z) + t*(p2.z-p0.z)
+        float u = v->position.x / TILE_SIZE, t = v->position.y / TILE_SIZE;
+        float z = u >= t ? p0.z + (u-t)*(p1.z-p0.z) + t*(p2.z-p0.z)
                          : p0.z + u*(p2.z-p0.z) + (t-u)*(p3.z-p0.z);
         T_FEQ(v->position.z, z, 0.001f);
     }
     ground_current_vertex = NULL;
 }
 
-w3CliffType_t const *R_CliffType(DWORD id) {
+w3CliffType_t const *R_CliffType(uint32_t id) {
     /* Undead04's authored order is shared by the ROC and TFT CliffTypes.slk rows. */
     static w3CliffType_t const rows[] = {
         { .id = MAKEFOURCC('C','L','g','r'), .groundTile = MAKEFOURCC('L','g','r','s'),
@@ -1740,7 +1740,7 @@ w3CliffType_t const *R_CliffType(DWORD id) {
 }
 #include "games/warcraft-3/renderer/w3m/r_war3map_utils.c"
 /* The cliff material test needs the real bake/finalize lifecycle, but no OpenGL context. */
-static LPBUFFER test_cliff_buffer(LPCVERTEX vertices, DWORD count) { return test_alloc(sizeof(BUFFER)); }
+static LPBUFFER test_cliff_buffer(LPCVERTEX vertices, uint32_t count) { return test_alloc(sizeof(BUFFER)); }
 #define R_MakeVertexArrayObject test_cliff_buffer
 #include "games/warcraft-3/renderer/w3m/r_war3map_cliffs.c"
 #undef R_MakeVertexArrayObject
@@ -1765,7 +1765,7 @@ TEST(renderer_terrain, cliff_cache_distinguishes_model_directories) {
 TEST(renderer_terrain, cliff_baker_preserves_native_axes_uvs_and_ground_coverage) {
     /* Human02Interlude (36,36), translated to (1,1) in a small synthetic grid; no retail files required. */
     WAR3MAPVERTEX verts[25] = {0};
-    DWORD grounds[5] = {0};
+    uint32_t grounds[5] = {0};
     WAR3MAP map = { .width = 5, .height = 5, .vertices = verts, .grounds = grounds, .num_grounds = 5 };
     VECTOR3 pos[] = {{-128,0,128}, {-128,256,0}, {0,256,0}}, norm[] = {{1,0,0}, {1,0,0}, {1,0,0}};
     VECTOR2 uv[] = {{0.1f,0.2f}, {0.3f,0.4f}, {0.5f,0.6f}};
@@ -1809,7 +1809,7 @@ TEST(renderer_terrain, cliff_welding_ignores_triangle_multiplicity_and_stacked_f
         { .position = {128,256,384}, .normal = {-1,0,0} },
         { .position = {128,256,384} },
     };
-    DWORD groups[] = { 1,1,2,3,4,5 };
+    uint32_t groups[] = { 1,1,2,3,4,5 };
     rCliffBakeList_t list = { .vertices = vertices, .groups = groups, .num_vertices = 6 };
     reset_registry(); R_CliffWeldNormals(&list, 0.01f);
     T_FEQ(vertices[0].normal.x, vertices[2].normal.x, 0.0001f);
@@ -1820,7 +1820,7 @@ TEST(renderer_terrain, cliff_welding_ignores_triangle_multiplicity_and_stacked_f
 
 TEST(renderer_terrain, undead04_implicit_cliff_and_ground_join) {
     WAR3MAPVERTEX verts[25];
-    DWORD grounds[] = { MAKEFOURCC('V','d','r','t') };
+    uint32_t grounds[] = { MAKEFOURCC('V','d','r','t') };
     WAR3MAP map = { .width = 5, .height = 5, .vertices = verts, .grounds = grounds, .num_grounds = 1 };
     /* AABB native mesh: north edge is high; exterior lip is slightly below the terrain. */
     VECTOR3 pos[] = {{-128,0,120}, {-128,64,120}, {-128,128,120}};
@@ -1846,9 +1846,9 @@ TEST(renderer_terrain, undead04_implicit_cliff_and_ground_join) {
 TEST(renderer_terrain, undead04_cliff_material_inherits_nearby_authored_slot) {
     enum { span = SEGMENT_SIZE + 1 };
     WAR3MAPVERTEX verts[span * span];
-    DWORD grounds[] = { MAKEFOURCC('V','d','r','t'), MAKEFOURCC('V','d','r','r'), MAKEFOURCC('V','c','b','p'),
+    uint32_t grounds[] = { MAKEFOURCC('V','d','r','t'), MAKEFOURCC('V','d','r','r'), MAKEFOURCC('V','c','b','p'),
         MAKEFOURCC('L','g','r','s'), MAKEFOURCC('L','g','r','d'), MAKEFOURCC('Y','b','t','l'), MAKEFOURCC('Y','r','t','l') };
-    DWORD cliffs[] = { MAKEFOURCC('C','L','g','r'), MAKEFOURCC('C','V','d','i') };
+    uint32_t cliffs[] = { MAKEFOURCC('C','L','g','r'), MAKEFOURCC('C','V','d','i') };
     WAR3MAP map = { .tileset = 'L', .custom = 1, .width = span, .height = span, .vertices = verts,
         .grounds = grounds, .num_grounds = 7, .cliffs = cliffs, .num_cliffs = 2 };
     VECTOR3 pos[] = {{-128,0,120}, {-128,64,120}, {-128,128,120}}, norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
@@ -1856,7 +1856,7 @@ TEST(renderer_terrain, undead04_cliff_material_inherits_nearby_authored_slot) {
     mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3, .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
     mdxModel_t mdx = { .geosets = &geo, .bounds.box = { .min = {-128,0,0}, .max = {0,128,128} } };
     TEXTURE texture = {0}; LPTEXTURE saved = texture_load_result;
-    int (*read_file)(LPCSTR, void **) = ri.FS_ReadFile;
+    int (*read_file)(cstring_t, void **) = ri.FS_ReadFile;
     reset_registry(); R_SetMapAssetScope(NULL); tr.world = &map; cliff_model = &mdx;
     ri.FS_ReadFile = test_texture_read; texture_file = ""; texture_load_result = &texture;
     FOR_LOOP(slot, 2) {
@@ -1878,7 +1878,7 @@ TEST(renderer_terrain, undead04_cliff_material_inherits_nearby_authored_slot) {
 }
 
 TEST(renderer_terrain, blight_preserves_cliff_corners) {
-    WAR3MAPVERTEX verts[25]; BYTE cells[256];
+    WAR3MAPVERTEX verts[25]; uint8_t cells[256];
     WAR3MAP map = { .width = 5, .height = 5, .vertices = verts };
     reset_registry(); tr.world = &map; memset(cells, 1, sizeof(cells));
     FOR_LOOP(y, 5) FOR_LOOP(x, 5)
@@ -1897,7 +1897,7 @@ TEST(renderer_terrain, blight_preserves_cliff_corners) {
 
 TEST(renderer_terrain, ramp_footprints_cover_the_low_neighbour) {
     /* Levels use GetTileVertices' NE,NW,SE,SW order. Bounds are native MDX tile-space bounds. */
-    static const struct { BYTE level[4]; BOOL eastwest; VECTOR2 low; } cases[] = {
+    static const struct { uint8_t level[4]; bool eastwest; VECTOR2 low; } cases[] = {
         { .level = {5,5,5,6}, .eastwest = true, .low = {1,0} }, /* (36,33) AALH -> (37,33). */
         { .level = {5,6,5,5}, .eastwest = true, .low = {1,0} }, /* (36,34) HLAA -> (37,34). */
         { .level = {5,6,5,6}, .eastwest = true, .low = {1,0} }, /* BALH/HLAB: rows 36,37,41,42. */
@@ -1992,7 +1992,7 @@ static const shader_desc_t sd_test = {
 };
 #undef SHADER_TYPE
 
-typedef struct { MATRIX4 fixed[2], counted[3]; DWORD count; } SDARRAYTESTSTATE;
+typedef struct { MATRIX4 fixed[2], counted[3]; uint32_t count; } SDARRAYTESTSTATE;
 #define SHADER_TYPE SDARRAYTESTSTATE
 static const shader_desc_t sd_array_test = { .Uniforms = {
     UNIFORM(fixed,   UT_FLOAT_MAT4, PRECISION_HIGH, 2),
@@ -2142,7 +2142,7 @@ TEST(renderer_shader_desc, apply_uploads_only_changed_uniforms) {
 
 /* Fixed-capacity GLSL arrays upload only the active CPU prefix named by their count field. */
 TEST(renderer_shader_desc, counted_array_uses_runtime_upload_count) {
-    typedef struct { MATRIX4 values[4]; DWORD count; } TESTCOUNTSTATE;
+    typedef struct { MATRIX4 values[4]; uint32_t count; } TESTCOUNTSTATE;
     TESTCOUNTSTATE state = { .count = 2 };
     shader_desc_t desc = { .Name = "counted", .Uniforms = {{
         .name = "values", .type = UT_FLOAT_MAT4, .count = 4, .count_offset = offsetof(TESTCOUNTSTATE, count), .counted = true,
@@ -2220,10 +2220,10 @@ TEST(renderer_buffer, instanced_array_range_uses_first_count_and_instances) {
 
 /* Capture backdrop UV generation before GPU submission, including mirrored repeat. */
 static size2_t test_backdrop_size(LPCTEXTURE tex) { (void)tex; return backdrop_size; }
-static VERTEX *test_backdrop_quad(VERTEX *buf, LPCRECT rect, LPCRECT uv, COLOR32 color, float z) {
+static VERTEX *test_backdrop_quad(VERTEX *buf, rect_t const * rect, rect_t const * uv, COLOR32 color, float z) {
     (void)rect; (void)color; (void)z; backdrop_uv = *uv; return buf + 6;
 }
-static void test_backdrop_batch(LPCTEXTURE tex, SHADERTYPE shader, BLEND_MODE blend, FLOAT glow, FLOAT radialShade, BOOL hasclip, LPCRECT clip, LPCVERTEX verts, DWORD count, BOOL repeat) {
+static void test_backdrop_batch(LPCTEXTURE tex, SHADERTYPE shader, BLEND_MODE blend, float glow, float radialShade, bool hasclip, rect_t const * clip, LPCVERTEX verts, uint32_t count, bool repeat) {
     (void)tex; (void)shader; (void)blend; (void)glow; (void)radialShade; (void)hasclip; (void)clip; (void)verts;
     T_EQ(count, 6); backdrop_repeat = repeat;
 }
@@ -2237,7 +2237,7 @@ static void test_backdrop_batch(LPCTEXTURE tex, SHADERTYPE shader, BLEND_MODE bl
 
 TEST(renderer_backdrop, mirrored_background_is_independent_of_tiling) {
     drawBackdrop_t draw = { .screen = {0, 0, .512f, .032f}, .bg.texture = (LPCTEXTURE)1 };
-    const struct { DWORD flags; FLOAT x, w; BOOL repeat; } cases[] = {
+    const struct { uint32_t flags; float x, w; bool repeat; } cases[] = {
         {0, 0, 1, false},
         {DRAW_MIRRORED, 1, -1, false},
         {DRAW_TILE, 0, 2, true},

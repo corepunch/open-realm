@@ -7,9 +7,9 @@ enum {
     ID_SEQS = MAKEFOURCC('S','E','Q','S'),
 };
 
-static DWORD fnv1a32(LPCSTR str) {
-    DWORD prime = 16777619;
-    DWORD hash  = 2166136261;
+static uint32_t fnv1a32(cstring_t str) {
+    uint32_t prime = 16777619;
+    uint32_t hash  = 2166136261;
     while (*str) {
         hash = (hash ^ *str++) * prime;
     }
@@ -33,7 +33,7 @@ static void ConvertMDLXAnimationName(LPANIMATION seq) {
             last_char = ch;
         }
     }
-    for (DWORD i = (DWORD)strlen(buffer) - 1; i > 0 && isspace(buffer[i]); i--) {
+    for (uint32_t i = (uint32_t)strlen(buffer) - 1; i > 0 && isspace(buffer[i]); i--) {
         buffer[i] = '\0';
     }
     seq->syncpoint = fnv1a32(buffer);
@@ -41,20 +41,20 @@ static void ConvertMDLXAnimationName(LPANIMATION seq) {
 
 /* ---- MDLX (Warcraft III) ---- */
 
-static animation_t *LoadModelMDLX(BYTE const *data, DWORD data_size, DWORD *out_count) {
-    DWORD payloadSize = data_size > 4 ? data_size - 4 : 0;
+static animation_t *LoadModelMDLX(uint8_t const *data, uint32_t data_size, uint32_t *out_count) {
+    uint32_t payloadSize = data_size > 4 ? data_size - 4 : 0;
     animation_t *animations = NULL;
-    DWORD num = 0;
-    BYTE const *ptr = data + 4;
-    BYTE const *end = ptr + payloadSize;
+    uint32_t num = 0;
+    uint8_t const *ptr = data + 4;
+    uint8_t const *end = ptr + payloadSize;
 
     while (ptr && ptr + 8 <= end) {
-        DWORD header, size;
-        memcpy(&header, ptr, sizeof(DWORD));
-        memcpy(&size,   ptr + 4, sizeof(DWORD));
+        uint32_t header, size;
+        memcpy(&header, ptr, sizeof(uint32_t));
+        memcpy(&size,   ptr + 4, sizeof(uint32_t));
         ptr += 8;
         if (ptr + size > end) {
-            size = (DWORD)(end - ptr);
+            size = (uint32_t)(end - ptr);
         }
         if (header == ID_SEQS) {
             enum { SEQ_RECORD_SIZE = 132 }; /* on-disk mdxSequence_t, may differ from animation_t */
@@ -75,44 +75,44 @@ static animation_t *LoadModelMDLX(BYTE const *data, DWORD data_size, DWORD *out_
 /* ---- MD34 (StarCraft II / SC2 M3) ---- */
 
 typedef struct {
-    DWORD nEntries;
-    DWORD offset;
-    DWORD flags;
+    uint32_t nEntries;
+    uint32_t offset;
+    uint32_t flags;
 } md34Reference_t;
 
 struct md33Header {
-    DWORD ofsRefs;
-    DWORD nRefs;
+    uint32_t ofsRefs;
+    uint32_t nRefs;
     md34Reference_t MODL;
 };
 
 struct md34ReferenceEntry {
-    DWORD id;
-    DWORD offset;
-    DWORD nEntries;
-    DWORD version;
+    uint32_t id;
+    uint32_t offset;
+    uint32_t nEntries;
+    uint32_t version;
 };
 
 struct md34NameRef {
-    DWORD nEntries;
-    DWORD ref;
-    DWORD flags;
+    uint32_t nEntries;
+    uint32_t ref;
+    uint32_t flags;
 };
 
 struct md34Sequence {
-    DWORD unknown[2];
+    uint32_t unknown[2];
     struct md34NameRef name;
-    DWORD interval[2];
+    uint32_t interval[2];
     float movementSpeed;
-    DWORD flags;
-    DWORD frequency;
-    LONG unk[3];
-    LONG unk2;
+    uint32_t flags;
+    uint32_t frequency;
+    int32_t unk[3];
+    int32_t unk2;
     struct { VECTOR3 min; VECTOR3 max; float radius; } boundingSphere;
-    LONG d5[3];
+    int32_t d5[3];
 };
 
-static BYTE const *ModelDataAt(BYTE const *data, DWORD data_size, DWORD offset, DWORD size) {
+static uint8_t const *ModelDataAt(uint8_t const *data, uint32_t data_size, uint32_t offset, uint32_t size) {
     if (!data || offset > data_size || size > data_size - offset)
         return NULL;
     return data + offset;
@@ -122,12 +122,12 @@ static int compare_animation_name(const void *a, const void *b) {
     return strcmp(((LPCANIMATION)a)->name, ((LPCANIMATION)b)->name);
 }
 
-static animation_t *LoadModelMD34(BYTE const *data, DWORD data_size, DWORD *out_count) {
+static animation_t *LoadModelMD34(uint8_t const *data, uint32_t data_size, uint32_t *out_count) {
     struct md33Header const *hdr = (struct md33Header const *)ModelDataAt(data, data_size, 4, sizeof(*hdr));
     struct md34ReferenceEntry const *ent;
 
     animation_t *animations = NULL;
-    DWORD num = 0;
+    uint32_t num = 0;
 
     if (!hdr) {
         *out_count = 0;
@@ -149,7 +149,7 @@ static animation_t *LoadModelMD34(BYTE const *data, DWORD data_size, DWORD *out_
         animations = gi.MemAlloc(sizeof(animation_t) * re->nEntries);
         memset(animations, 0, sizeof(animation_t) * re->nEntries);
         num = re->nEntries;
-        DWORD startanim = 0;
+        uint32_t startanim = 0;
         FOR_LOOP(j, re->nEntries) {
             struct md34Sequence const *src = seq + j;
             char const *name = src->name.ref < hdr->nRefs
@@ -157,7 +157,7 @@ static animation_t *LoadModelMD34(BYTE const *data, DWORD data_size, DWORD *out_
                 : NULL;
             LPANIMATION dest = animations + j;
             if (name) {
-                DWORD name_len = MIN(src->name.nEntries, sizeof(dest->name) - 1);
+                uint32_t name_len = MIN(src->name.nEntries, sizeof(dest->name) - 1);
                 memcpy(dest->name, name, name_len);
             }
             dest->interval[0] = startanim + src->interval[0];
@@ -182,53 +182,53 @@ typedef struct {
 } svM2Array_t;
 
 typedef struct {
-    DWORD magic;
-    DWORD version;
+    uint32_t magic;
+    uint32_t version;
     svM2Array_t name;
-    DWORD flags;
+    uint32_t flags;
     svM2Array_t global_loops;
     svM2Array_t sequences;
 } svM2Header_t;
 
 typedef struct {
-    WORD  animation_id;
-    WORD  sub_animation_id;
-    DWORD start_timestamp;
-    DWORD end_timestamp;
-    FLOAT movement_speed;
-    DWORD flags;
-    SHORT probability;
-    WORD  padding;
-    DWORD minimum_repetitions;
-    DWORD maximum_repetitions;
-    DWORD blend_time;
+    uint16_t  animation_id;
+    uint16_t  sub_animation_id;
+    uint32_t start_timestamp;
+    uint32_t end_timestamp;
+    float movement_speed;
+    uint32_t flags;
+    int16_t probability;
+    uint16_t  padding;
+    uint32_t minimum_repetitions;
+    uint32_t maximum_repetitions;
+    uint32_t blend_time;
     VECTOR3 min;
     VECTOR3 max;
-    FLOAT radius;
-    SHORT next_animation;
-    WORD  alias_next;
+    float radius;
+    int16_t next_animation;
+    uint16_t  alias_next;
 } svM2SequenceClassic_t;
 
 typedef struct {
-    WORD  animation_id;
-    WORD  sub_animation_id;
-    DWORD length;
-    FLOAT movement_speed;
-    DWORD flags;
-    DWORD frequency;
-    DWORD minimum_repetitions;
-    DWORD maximum_repetitions;
-    DWORD blend_time;
+    uint16_t  animation_id;
+    uint16_t  sub_animation_id;
+    uint32_t length;
+    float movement_speed;
+    uint32_t flags;
+    uint32_t frequency;
+    uint32_t minimum_repetitions;
+    uint32_t maximum_repetitions;
+    uint32_t blend_time;
     VECTOR3 min;
     VECTOR3 max;
-    FLOAT radius;
-    SHORT next_animation;
-    WORD  alias_next;
+    float radius;
+    int16_t next_animation;
+    uint16_t  alias_next;
 } svM2SequenceModern_t;
 
 /* M2 event FourCC identifiers for weapon hits (little-endian packed uint32) */
-#define M2_EVENT_SWH  (*(DWORD const *)"$SWH")   /* swing weapon hit (melee right) */
-#define M2_EVENT_SHD  (*(DWORD const *)"$SHD")   /* shield / off-hand hit */
+#define M2_EVENT_SWH  (*(uint32_t const *)"$SWH")   /* swing weapon hit (melee right) */
+#define M2_EVENT_SHD  (*(uint32_t const *)"$SHD")   /* shield / off-hand hit */
 
 /* M2TrackBase layout matches all track types (bone, event, etc.) — same struct in file.
  * Event tracks have the keys/values M2Arrays present but always zero-size.
@@ -253,41 +253,41 @@ typedef struct {
 } svM2SequenceTimes_t;
 
 typedef struct {
-    DWORD start;
-    DWORD end;
+    uint32_t start;
+    uint32_t end;
 } svM2Range_t;
 
 typedef struct {
-    DWORD event_id;
-    DWORD data;
-    WORD bone_index;
-    WORD padding;
+    uint32_t event_id;
+    uint32_t data;
+    uint16_t bone_index;
+    uint16_t padding;
     VECTOR3 position;
     svM2EventTrack_t track;
 } svM2EventModern_t;
 
 typedef struct {
-    DWORD event_id;
-    DWORD data;
-    WORD bone_index;
-    WORD padding;
+    uint32_t event_id;
+    uint32_t data;
+    uint16_t bone_index;
+    uint16_t padding;
     VECTOR3 position;
     svM2EventTrackClassic_t track;
 } svM2EventClassic_t;
 
-static BOOL M2ArrayRange(svM2Array_t array, DWORD elem_size, DWORD file_size,
-                         DWORD *offset, DWORD *bytes) {
+static bool M2ArrayRange(svM2Array_t array, uint32_t elem_size, uint32_t file_size,
+                         uint32_t *offset, uint32_t *bytes) {
     if (array.size <= 0 || array.offset < 0 || elem_size == 0)
         return false;
-    if ((DWORD)array.size > ((DWORD)~0u) / elem_size)
+    if ((uint32_t)array.size > ((uint32_t)~0u) / elem_size)
         return false;
-    *offset = (DWORD)array.offset;
-    *bytes  = (DWORD)array.size * elem_size;
+    *offset = (uint32_t)array.offset;
+    *bytes  = (uint32_t)array.size * elem_size;
     return *offset <= file_size && *bytes <= file_size - *offset;
 }
 
-static void const *M2ArrayAt(BYTE const *data, DWORD file_size, svM2Array_t array, DWORD elem_size) {
-    DWORD offset, bytes;
+static void const *M2ArrayAt(uint8_t const *data, uint32_t file_size, svM2Array_t array, uint32_t elem_size) {
+    uint32_t offset, bytes;
     if (!M2ArrayRange(array, elem_size, file_size, &offset, &bytes))
         return NULL;
     return data + offset;
@@ -295,25 +295,25 @@ static void const *M2ArrayAt(BYTE const *data, DWORD file_size, svM2Array_t arra
 
 /* Read the first timestamp for a given sequence from an event track.
  * Returns 0 if no timestamp is found. */
-static DWORD M2EventTrackTime(BYTE const *data, DWORD file_size,
-                               BYTE const *track_ptr, BOOL classic,
-                               DWORD sequence_index) {
+static uint32_t M2EventTrackTime(uint8_t const *data, uint32_t file_size,
+                               uint8_t const *track_ptr, bool classic,
+                               uint32_t sequence_index) {
     if (classic) {
         svM2EventTrackClassic_t const *track = (svM2EventTrackClassic_t const *)track_ptr;
         svM2Range_t const *ranges = (svM2Range_t const *)M2ArrayAt(data, file_size, track->ranges, sizeof(svM2Range_t));
-        DWORD const *times = (DWORD const *)M2ArrayAt(data, file_size, track->times, sizeof(DWORD));
-        if (!ranges || !times || sequence_index >= (DWORD)track->ranges.size)
+        uint32_t const *times = (uint32_t const *)M2ArrayAt(data, file_size, track->times, sizeof(uint32_t));
+        if (!ranges || !times || sequence_index >= (uint32_t)track->ranges.size)
             return 0;
         svM2Range_t range = ranges[sequence_index];
-        if (range.start >= (DWORD)track->times.size)
+        if (range.start >= (uint32_t)track->times.size)
             return 0;
         return times[range.start];
     } else {
         svM2EventTrack_t const *track = (svM2EventTrack_t const *)track_ptr;
         svM2SequenceTimes_t const *seq_times = (svM2SequenceTimes_t const *)M2ArrayAt(data, file_size, track->sequence_times, sizeof(svM2SequenceTimes_t));
-        if (!seq_times || sequence_index >= (DWORD)track->sequence_times.size)
+        if (!seq_times || sequence_index >= (uint32_t)track->sequence_times.size)
             return 0;
-        DWORD const *times = (DWORD const *)M2ArrayAt(data, file_size, seq_times[sequence_index].times, sizeof(DWORD));
+        uint32_t const *times = (uint32_t const *)M2ArrayAt(data, file_size, seq_times[sequence_index].times, sizeof(uint32_t));
         if (!times || seq_times[sequence_index].times.size == 0)
             return 0;
         return times[0];
@@ -323,43 +323,43 @@ static DWORD M2EventTrackTime(BYTE const *data, DWORD file_size,
 /* Read the events m2Array_t from the correct header offset.
  * Classic M2 (version <= 263) has playable_animation_lookup between
  * sequence_lookups and bones, shifting events to a later offset. */
-static svM2Array_t M2ReadEventsArray(BYTE const *payload, DWORD payload_size) {
+static svM2Array_t M2ReadEventsArray(uint8_t const *payload, uint32_t payload_size) {
     svM2Array_t empty = { 0, 0 };
     svM2Header_t const *hdr = (svM2Header_t const *)payload;
-    BOOL classic = hdr->version <= 263;
+    bool classic = hdr->version <= 263;
     /* events offset from start of M2 header:
      *   modern: 264 bytes (no playable_animation_lookup, no texture_flipbooks, views is uint32)
      *   classic: 284 bytes (has playable_animation_lookup + texture_flipbooks, views is m2Array) */
-    DWORD events_offset = classic ? 284 : 264;
+    uint32_t events_offset = classic ? 284 : 264;
     if (events_offset + sizeof(svM2Array_t) > payload_size)
         return empty;
     return *(svM2Array_t const *)(payload + events_offset);
 }
 
-static BOOL M2FindPayload(BYTE const *data, DWORD size,
-                          BYTE const **payload, DWORD *payload_size) {
-    if (!data || size < sizeof(DWORD))
+static bool M2FindPayload(uint8_t const *data, uint32_t size,
+                          uint8_t const **payload, uint32_t *payload_size) {
+    if (!data || size < sizeof(uint32_t))
         return false;
-    if (*(DWORD const *)data == ID_MD20) {
+    if (*(uint32_t const *)data == ID_MD20) {
         *payload      = data;
         *payload_size = size;
         return true;
     }
-    if (*(DWORD const *)data != ID_MD21 && *(DWORD const *)data != ID_12DM)
+    if (*(uint32_t const *)data != ID_MD21 && *(uint32_t const *)data != ID_12DM)
         return false;
 
-    BYTE const *ptr = data;
-    BYTE const *end = data + size;
+    uint8_t const *ptr = data;
+    uint8_t const *end = data + size;
     while (ptr + 8 <= end) {
-        DWORD tag, chunk_size;
+        uint32_t tag, chunk_size;
         memcpy(&tag,        ptr,     sizeof(tag));
         memcpy(&chunk_size, ptr + 4, sizeof(chunk_size));
         ptr += 8;
-        if (chunk_size > (DWORD)(end - ptr))
+        if (chunk_size > (uint32_t)(end - ptr))
             return false;
         if (tag == ID_MD20 ||
             ((tag == ID_MD21 || tag == ID_12DM) &&
-             chunk_size >= sizeof(DWORD) && *(DWORD const *)ptr == ID_MD20)) {
+             chunk_size >= sizeof(uint32_t) && *(uint32_t const *)ptr == ID_MD20)) {
             *payload      = ptr;
             *payload_size = chunk_size;
             return true;
@@ -369,8 +369,8 @@ static BOOL M2FindPayload(BYTE const *data, DWORD size,
     return false;
 }
 
-static void M2AnimationName(WORD id, LPSTR out, DWORD out_size) {
-    LPCSTR name = NULL;
+static void M2AnimationName(uint16_t id, string_t out, uint32_t out_size) {
+    cstring_t name = NULL;
     switch (id) {
         case  0: name = "Stand";          break;
         case  1: name = "Death";          break;
@@ -421,11 +421,11 @@ static void M2AnimationName(WORD id, LPSTR out, DWORD out_size) {
         snprintf(out, out_size, "Animation%u", (unsigned)id);
 }
 
-static WORD M2SequenceAnimId(BYTE const *seq, BOOL classic) {
+static uint16_t M2SequenceAnimId(uint8_t const *seq, bool classic) {
     return classic ? ((svM2SequenceClassic_t const *)seq)->animation_id
                    : ((svM2SequenceModern_t  const *)seq)->animation_id;
 }
-static DWORD M2SequenceLength(BYTE const *seq, BOOL classic) {
+static uint32_t M2SequenceLength(uint8_t const *seq, bool classic) {
     if (classic) {
         svM2SequenceClassic_t const *s = (svM2SequenceClassic_t const *)seq;
         return s->end_timestamp > s->start_timestamp
@@ -433,32 +433,32 @@ static DWORD M2SequenceLength(BYTE const *seq, BOOL classic) {
     }
     return ((svM2SequenceModern_t const *)seq)->length;
 }
-static FLOAT M2SequenceMoveSpeed(BYTE const *seq, BOOL classic) {
+static float M2SequenceMoveSpeed(uint8_t const *seq, bool classic) {
     return classic ? ((svM2SequenceClassic_t const *)seq)->movement_speed
                    : ((svM2SequenceModern_t  const *)seq)->movement_speed;
 }
-static DWORD M2SequenceFlags(BYTE const *seq, BOOL classic) {
+static uint32_t M2SequenceFlags(uint8_t const *seq, bool classic) {
     return classic ? ((svM2SequenceClassic_t const *)seq)->flags
                    : ((svM2SequenceModern_t  const *)seq)->flags;
 }
-static SHORT M2SequenceRarity(BYTE const *seq, BOOL classic) {
+static int16_t M2SequenceRarity(uint8_t const *seq, bool classic) {
     return classic ? ((svM2SequenceClassic_t const *)seq)->probability
-                   : (SHORT)((svM2SequenceModern_t const *)seq)->frequency;
+                   : (int16_t)((svM2SequenceModern_t const *)seq)->frequency;
 }
-static VECTOR3 M2SequenceMin(BYTE const *seq, BOOL classic) {
+static VECTOR3 M2SequenceMin(uint8_t const *seq, bool classic) {
     return classic ? ((svM2SequenceClassic_t const *)seq)->min
                    : ((svM2SequenceModern_t  const *)seq)->min;
 }
-static VECTOR3 M2SequenceMax(BYTE const *seq, BOOL classic) {
+static VECTOR3 M2SequenceMax(uint8_t const *seq, bool classic) {
     return classic ? ((svM2SequenceClassic_t const *)seq)->max
                    : ((svM2SequenceModern_t  const *)seq)->max;
 }
-static FLOAT M2SequenceRadius(BYTE const *seq, BOOL classic) {
+static float M2SequenceRadius(uint8_t const *seq, bool classic) {
     return classic ? ((svM2SequenceClassic_t const *)seq)->radius
                    : ((svM2SequenceModern_t  const *)seq)->radius;
 }
 
-static BOOL M2AnimationNameExists(animation_t const *anims, DWORD count, LPCSTR name) {
+static bool M2AnimationNameExists(animation_t const *anims, uint32_t count, cstring_t name) {
     FOR_LOOP(i, count) {
         if (!strcasecmp(anims[i].name, name))
             return true;
@@ -466,22 +466,22 @@ static BOOL M2AnimationNameExists(animation_t const *anims, DWORD count, LPCSTR 
     return false;
 }
 
-static DWORD M2AnimationSyncPoint(LPCSTR name) {
+static uint32_t M2AnimationSyncPoint(cstring_t name) {
     char buffer[80];
     memset(buffer, 0, sizeof(buffer));
     strncpy(buffer, name, sizeof(buffer) - 1);
-    for (DWORD i = 0; buffer[i]; i++)
+    for (uint32_t i = 0; buffer[i]; i++)
         buffer[i] = (char)tolower(buffer[i]);
     return fnv1a32(buffer);
 }
 
-static animation_t *LoadModelM2(BYTE const *data, DWORD read_size, DWORD *out_count) {
-    BYTE const *payload      = NULL;
-    DWORD payload_size = 0;
+static animation_t *LoadModelM2(uint8_t const *data, uint32_t read_size, uint32_t *out_count) {
+    uint8_t const *payload      = NULL;
+    uint32_t payload_size = 0;
     animation_t *animations  = NULL;
-    DWORD num = 0;
+    uint32_t num = 0;
 
-    if (read_size < sizeof(DWORD)) {
+    if (read_size < sizeof(uint32_t)) {
         *out_count = 0;
         return NULL;
     }
@@ -494,41 +494,41 @@ static animation_t *LoadModelM2(BYTE const *data, DWORD read_size, DWORD *out_co
     }
 
     svM2Header_t const *header = (svM2Header_t const *)payload;
-    BOOL classic = header->version <= 263;
-    DWORD stride = classic ? sizeof(svM2SequenceClassic_t) : sizeof(svM2SequenceModern_t);
-    DWORD sequences_offset, sequences_bytes;
+    bool classic = header->version <= 263;
+    uint32_t stride = classic ? sizeof(svM2SequenceClassic_t) : sizeof(svM2SequenceModern_t);
+    uint32_t sequences_offset, sequences_bytes;
     if (!M2ArrayRange(header->sequences, stride, payload_size, &sequences_offset, &sequences_bytes)) {
         *out_count = 0;
         return NULL;
     }
 
-    BYTE const *sequences   = payload + sequences_offset;
-    DWORD sequence_count    = sequences_bytes / stride;
+    uint8_t const *sequences   = payload + sequences_offset;
+    uint32_t sequence_count    = sequences_bytes / stride;
 
     /* Parse M2 events to extract weapon-hit timestamps per sequence.
      * Events reference sequences by raw index; we store the damage_point
      * for each sequence, then apply it when building the animation array. */
-    DWORD *seq_damage_points = NULL;
+    uint32_t *seq_damage_points = NULL;
     svM2Array_t events_array = M2ReadEventsArray(payload, payload_size);
     if (sequence_count > 0) {
-        seq_damage_points = gi.MemAlloc(sizeof(DWORD) * sequence_count);
-        memset(seq_damage_points, 0, sizeof(DWORD) * sequence_count);
+        seq_damage_points = gi.MemAlloc(sizeof(uint32_t) * sequence_count);
+        memset(seq_damage_points, 0, sizeof(uint32_t) * sequence_count);
 
-        DWORD event_stride = classic ? sizeof(svM2EventClassic_t) : sizeof(svM2EventModern_t);
-        DWORD event_offset, event_bytes;
+        uint32_t event_stride = classic ? sizeof(svM2EventClassic_t) : sizeof(svM2EventModern_t);
+        uint32_t event_offset, event_bytes;
         if (M2ArrayRange(events_array, event_stride, payload_size, &event_offset, &event_bytes)) {
-            BYTE const *events = payload + event_offset;
-            DWORD event_count = event_bytes / event_stride;
+            uint8_t const *events = payload + event_offset;
+            uint32_t event_count = event_bytes / event_stride;
             FOR_LOOP(e, event_count) {
-                BYTE const *ev = events + e * event_stride;
-                DWORD event_id = *(DWORD const *)ev;
+                uint8_t const *ev = events + e * event_stride;
+                uint32_t event_id = *(uint32_t const *)ev;
                 if (event_id != M2_EVENT_SWH && event_id != M2_EVENT_SHD)
                     continue;
                 /* event track starts after: event_id(4) + data(4) + bone(2) + padding(2) + position(12) = 24 */
-                BYTE const *track_ptr = ev + 24;
+                uint8_t const *track_ptr = ev + 24;
                 /* Try all sequences — weapon-hit events typically fire in attack animations */
                 FOR_LOOP(s, sequence_count) {
-                    DWORD ts = M2EventTrackTime(payload, payload_size, track_ptr, classic, s);
+                    uint32_t ts = M2EventTrackTime(payload, payload_size, track_ptr, classic, s);
                     if (ts > 0 && seq_damage_points[s] == 0)
                         seq_damage_points[s] = ts;
                 }
@@ -539,11 +539,11 @@ static animation_t *LoadModelM2(BYTE const *data, DWORD read_size, DWORD *out_co
     animations = gi.MemAlloc(sizeof(animation_t) * sequence_count);
     memset(animations, 0, sizeof(animation_t) * sequence_count);
 
-    DWORD frame_base = 0;
+    uint32_t frame_base = 0;
     FOR_LOOP(i, sequence_count) {
-        BYTE const *src   = sequences + i * stride;
+        uint8_t const *src   = sequences + i * stride;
         char name[80];
-        DWORD length = M2SequenceLength(src, classic);
+        uint32_t length = M2SequenceLength(src, classic);
         if (length == 0) length = 1;
 
         M2AnimationName(M2SequenceAnimId(src, classic), name, sizeof(name));
@@ -554,7 +554,7 @@ static animation_t *LoadModelM2(BYTE const *data, DWORD read_size, DWORD *out_co
             dest->interval[1] = frame_base + length;
             dest->movespeed   = M2SequenceMoveSpeed(src, classic);
             dest->flags       = M2SequenceFlags(src, classic);
-            dest->rarity      = (FLOAT)M2SequenceRarity(src, classic);
+            dest->rarity      = (float)M2SequenceRarity(src, classic);
             dest->syncpoint   = M2AnimationSyncPoint(dest->name);
             dest->radius      = M2SequenceRadius(src, classic);
             dest->min         = M2SequenceMin(src, classic);
@@ -582,23 +582,23 @@ static animation_t *LoadModelM2(BYTE const *data, DWORD read_size, DWORD *out_co
 
 typedef struct {
     animation_t *animations;
-    DWORD        num_animations;
-    FLOAT        attach_hand_z;   /* attachment id=1 (right hand) local Z, 0 if missing */
-    FLOAT        attach_chest_z;  /* attachment id=20 (chest) local Z, 0 if missing */
+    uint32_t        num_animations;
+    float        attach_hand_z;   /* attachment id=1 (right hand) local Z, 0 if missing */
+    float        attach_chest_z;  /* attachment id=20 (chest) local Z, 0 if missing */
     char         filename[MAX_PATHLEN];
 } g_cmodel_t;
 
 static g_cmodel_t g_models[G_MAX_MODELS];
 
-int G_RegisterModel(LPCSTR filename) {
+int G_RegisterModel(cstring_t filename) {
     int index = gi.ModelIndex(filename);
     if (index > 0 && index < G_MAX_MODELS && !g_models[index].filename[0])
         strncpy(g_models[index].filename, filename, MAX_PATHLEN - 1);
     return index;
 }
 
-static BYTE *ReadModelFile(LPCSTR filename, DWORD *out_size) {
-    BYTE *data;
+static uint8_t *ReadModelFile(cstring_t filename, uint32_t *out_size) {
+    uint8_t *data;
 
     if (!filename || !*filename)
         return NULL;
@@ -612,7 +612,7 @@ static BYTE *ReadModelFile(LPCSTR filename, DWORD *out_size) {
         path[len - 1] = 'x';
         data = gi.ReadFile(path, out_size);
         if (!data && strstr(filename, ".mdx")) {
-            LPSTR ext;
+            string_t ext;
             memcpy(path, filename, len + 1);
             ext = strstr(path, ".mdx");
             memcpy(ext, ".m2", 4);
@@ -622,10 +622,10 @@ static BYTE *ReadModelFile(LPCSTR filename, DWORD *out_size) {
     return data;
 }
 
-static g_cmodel_t *LoadModel(LPCSTR filename) {
-    DWORD fileheader;
-    DWORD data_size = 0;
-    BYTE *data = ReadModelFile(filename, &data_size);
+static g_cmodel_t *LoadModel(cstring_t filename) {
+    uint32_t fileheader;
+    uint32_t data_size = 0;
+    uint8_t *data = ReadModelFile(filename, &data_size);
     if (!data || data_size < sizeof(fileheader)) {
         if (data)
             gi.MemFree(data);
@@ -649,35 +649,35 @@ static g_cmodel_t *LoadModel(LPCSTR filename) {
             model->animations = LoadModelM2(data, data_size, &model->num_animations);
             /* Parse the M2 right-hand attachment for the server's launch-height approximation. */
             {
-                BYTE const *payload = NULL;
-                DWORD payload_size = 0;
+                uint8_t const *payload = NULL;
+                uint32_t payload_size = 0;
                 if (M2FindPayload(data, data_size, &payload, &payload_size)
                     && payload_size >= sizeof(svM2Header_t)) {
                     svM2Header_t const *hdr = (svM2Header_t const *)payload;
-                    BOOL classic = hdr->version <= 263;
+                    bool classic = hdr->version <= 263;
                     /* Empirically verified: classic attachments at 0x104, modern at 0xF0 */
-                    DWORD attach_offset = classic ? 0x104 : 0x0F0;
-                    DWORD lookup_offset = classic ? 0x10C : 0x0F8;
+                    uint32_t attach_offset = classic ? 0x104 : 0x0F0;
+                    uint32_t lookup_offset = classic ? 0x10C : 0x0F8;
                     svM2Array_t attach_arr, lookup_arr;
                     if (attach_offset + sizeof(svM2Array_t) <= payload_size
                         && lookup_offset + sizeof(svM2Array_t) <= payload_size) {
                         memcpy(&attach_arr, payload + attach_offset, sizeof(svM2Array_t));
                         memcpy(&lookup_arr, payload + lookup_offset, sizeof(svM2Array_t));
                         /* Each attachment entry: id(4) + bone(2) + unk(2) + pos(12) + track(28) = 48 */
-                        static const DWORD ATTACH_STRIDE = 48;
-                        DWORD off, bytes;
+                        static const uint32_t ATTACH_STRIDE = 48;
+                        uint32_t off, bytes;
                         if (M2ArrayRange(attach_arr, ATTACH_STRIDE, payload_size, &off, &bytes)) {
-                            BYTE const *attach_base = payload + off;
-                            DWORD attach_count = bytes / ATTACH_STRIDE;
-                            WORD const *lookup = (WORD const *)M2ArrayAt((BYTE *)payload, payload_size, lookup_arr, sizeof(WORD));
+                            uint8_t const *attach_base = payload + off;
+                            uint32_t attach_count = bytes / ATTACH_STRIDE;
+                            uint16_t const *lookup = (uint16_t const *)M2ArrayAt((uint8_t *)payload, payload_size, lookup_arr, sizeof(uint16_t));
                             FOR_LOOP(aid, 2) {
-                                DWORD attachment_id = aid ? 20 : 1;
-                                WORD idx = (lookup && attachment_id < (DWORD)lookup_arr.size)
+                                uint32_t attachment_id = aid ? 20 : 1;
+                                uint16_t idx = (lookup && attachment_id < (uint32_t)lookup_arr.size)
                                     ? lookup[attachment_id] : 0xFFFF;
-                                if (idx != 0xFFFF && (DWORD)idx < attach_count) {
-                                    BYTE const *entry = attach_base + idx * ATTACH_STRIDE;
-                                    if (*(DWORD const *)entry == attachment_id) {
-                                        FLOAT z; memcpy(&z, entry + 16, sizeof(FLOAT));
+                                if (idx != 0xFFFF && (uint32_t)idx < attach_count) {
+                                    uint8_t const *entry = attach_base + idx * ATTACH_STRIDE;
+                                    if (*(uint32_t const *)entry == attachment_id) {
+                                        float z; memcpy(&z, entry + 16, sizeof(float));
                                         if (attachment_id == 1) model->attach_hand_z = z;
                                         else model->attach_chest_z = z;
                                     }
@@ -695,7 +695,7 @@ static g_cmodel_t *LoadModel(LPCSTR filename) {
     return model;
 }
 
-static g_cmodel_t *GetModel(DWORD modelindex) {
+static g_cmodel_t *GetModel(uint32_t modelindex) {
     if (modelindex == 0 || modelindex >= G_MAX_MODELS)
         return NULL;
     g_cmodel_t *entry = &g_models[modelindex];
@@ -712,11 +712,11 @@ static g_cmodel_t *GetModel(DWORD modelindex) {
     return entry->animations ? entry : NULL;
 }
 
-LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname) {
+LPCANIMATION G_GetAnimation(uint32_t modelindex, cstring_t animname) {
     g_cmodel_t *model = GetModel(modelindex);
     if (!model)
         return NULL;
-    DWORD hash = fnv1a32(animname);
+    uint32_t hash = fnv1a32(animname);
     FOR_LOOP(i, model->num_animations) {
         if (model->animations[i].syncpoint == hash)
             return &model->animations[i];
@@ -739,7 +739,7 @@ void G_FreeModels(void) {
 /* Return the model-local Z of attachment `aid` for the given model.
  * Returns 0 if the model or attachment is not found.
  * Attachments 1/20 are the right hand/chest; the animated world transform remains renderer-owned. */
-FLOAT G_GetAttachmentZ(DWORD modelindex, int aid) {
+float G_GetAttachmentZ(uint32_t modelindex, int aid) {
     g_cmodel_t *model = GetModel(modelindex);
     if (!model) return 0;
     switch (aid) {

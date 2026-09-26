@@ -43,8 +43,8 @@ typedef struct MainMenu_s {
 } MainMenu_t;
 
 
-static inline BOOL MainMenu_Bind(MainMenu_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool MainMenu_Bind(MainMenu_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -91,7 +91,7 @@ static inline BOOL MainMenu_Bind(MainMenu_t *out, LPFRAMEDEF bind_root) {
     return ok;
 }
 
-static inline BOOL MainMenu_Load(MainMenu_t *out) {
+static inline bool MainMenu_Load(MainMenu_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf") &&

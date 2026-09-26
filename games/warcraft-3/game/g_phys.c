@@ -27,13 +27,13 @@
 #define IS_MOVING(ent) (ent->currentmove && ent->currentmove->proc == CAbilityMove)
 extern void spell_run_frame(LPEDICT ent);
 
-void G_PushEntity(LPEDICT ent, FLOAT distance, LPCVECTOR2 direction) {
+void G_PushEntity(LPEDICT ent, float distance, LPCVECTOR2 direction) {
     ent->s.origin2 = Vector2_mad(&ent->s.origin2, distance, direction);
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     gi.LinkEntity(ent);
 }
 
-void G_PushEntity3(LPEDICT ent, FLOAT distance, LPCVECTOR3 direction) {
+void G_PushEntity3(LPEDICT ent, float distance, LPCVECTOR3 direction) {
     ent->s.origin = Vector3_mad(&ent->s.origin, distance, direction);
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     gi.LinkEntity(ent);
@@ -68,8 +68,8 @@ void G_StartProjectilePresentation(LPEDICT ent) {
 
 static void G_AdvanceProjectilePresentation(LPEDICT ent) {
     LPCANIMATION anim = ent->animation;
-    DWORD step;
-    DWORD next;
+    uint32_t step;
+    uint32_t next;
 
     /* Save/load does not need a new pointer contract: reacquire the sequence
      * from the already-networked model when a live missile has no cached
@@ -80,7 +80,7 @@ static void G_AdvanceProjectilePresentation(LPEDICT ent) {
     }
     if (!anim || anim->interval[1] <= anim->interval[0]) return;
 
-    step = (DWORD)MAX(1.0f, FRAMETIME);
+    step = (uint32_t)MAX(1.0f, FRAMETIME);
     next = ent->s.frame + step;
     if (next >= anim->interval[1]) {
         if (anim->flags & 1)
@@ -96,9 +96,9 @@ static void G_AdvanceProjectilePresentation(LPEDICT ent) {
  * If the distance remaining is less than the per-frame travel distance the
  * projectile hits, deals damage via T_Damage(), and is freed. */
 void SV_Physics_Toss(LPEDICT ent) {
-    FLOAT distance;
+    float distance;
     VECTOR3 target, dir;
-    BOOL const fixed_target = (ent->aiflags & AI_PROJECTILE_FIXED_TARGET) != 0;
+    bool const fixed_target = (ent->aiflags & AI_PROJECTILE_FIXED_TARGET) != 0;
 
     if (!fixed_target && (!ent->goalentity || !ent->goalentity->inuse)) { G_FreeEdict(ent); return; }
     distance = ent->velocity * FRAMETIME;
@@ -155,8 +155,8 @@ void SV_Physics_Link(LPEDICT ent) {
 /* Whether a unit's hit points regenerate right now, per its WC3 regenType
  * ("uhrt": always / night / blight / none).  Unknown/missing defaults to
  * always, which is the most common case. */
-static BOOL G_UnitRegeneratesHP(LPCEDICT ent) {
-    LPCSTR const type = ent->data.UnitBalance->healthRegenType;
+static bool G_UnitRegeneratesHP(LPCEDICT ent) {
+    cstring_t const type = ent->data.UnitBalance->healthRegenType;
     if (!type || !*type) {
         return true;
     }
@@ -201,8 +201,8 @@ void G_RunEntity(LPEDICT ent) {
      * regen bonus (MiscGame IntRegenBonus = 0.05 mana/sec per Intelligence;
      * hero.intel is 0 for non-heroes). */
     if (ent->mana.max_value > 0 && ent->mana.value < ent->mana.max_value) {
-        FLOAT const rate = ent->data.UnitBalance->manaRegen + ent->mana_regen_bonus
-                 + (FLOAT)ent->hero.intel * INT_REGEN_BONUS + S_BrillianceManaRegen(ent)
+        float const rate = ent->data.UnitBalance->manaRegen + ent->mana_regen_bonus
+                 + (float)ent->hero.intel * INT_REGEN_BONUS + S_BrillianceManaRegen(ent)
                  + S_RegenerationManaAura(ent);
         ent->mana.value = MIN(ent->mana.max_value, ent->mana.value + rate * (FRAMETIME / 1000.0f));
     }
@@ -212,19 +212,19 @@ void G_RunEntity(LPEDICT ent) {
      * (night elves), "blight" only on the authoritative Blight pathing field,
      * "none" never.  Living, wounded units only. */
     if (ent->health.max_value > 0 && ent->health.value > 0 && ent->health.value < ent->health.max_value) {
-        FLOAT const aura = S_RegenerationHealthAura(ent);
-        FLOAT const rejuv = S_RejuvHealRate(ent);
-        FLOAT rate = aura + rejuv;
-        BOOL const natural = G_UnitRegeneratesHP(ent);
+        float const aura = S_RegenerationHealthAura(ent);
+        float const rejuv = S_RejuvHealRate(ent);
+        float rate = aura + rejuv;
+        bool const natural = G_UnitRegeneratesHP(ent);
         if (natural)
             rate += ent->data.UnitBalance->healthRegen +
-                    (FLOAT)ent->hero.str * STR_REGEN_BONUS + S_UnholyHealthRegen(ent);
+                    (float)ent->hero.str * STR_REGEN_BONUS + S_UnholyHealthRegen(ent);
         if (rate != 0.0f) G_AddHealth(ent, rate * (FRAMETIME / 1000.0f));
     }
     /* Unholy Frenzy drains HP at DataB HP/sec regardless of current health. */
-    { FLOAT const drain = S_UnholyFrenzyLifeDrain(ent); if (drain > 0.0f && ent->health.value > 0) G_AddHealth(ent, -drain * (FRAMETIME / 1000.0f)); }
+    { float const drain = S_UnholyFrenzyLifeDrain(ent); if (drain > 0.0f && ent->health.value > 0) G_AddHealth(ent, -drain * (FRAMETIME / 1000.0f)); }
     /* Soul Burn deals DataA damage per second to the afflicted unit. */
-    { FLOAT const rate = S_SoulBurnDamageRate(ent); if (rate > 0.0f && ent->health.value > 0) G_AddHealth(ent, -rate * (FRAMETIME / 1000.0f)); }
+    { float const rate = S_SoulBurnDamageRate(ent); if (rate > 0.0f && ent->health.value > 0) G_AddHealth(ent, -rate * (FRAMETIME / 1000.0f)); }
     ent->s.stats[ENT_HEALTH] = compress_stat(&ent->health);
     ent->s.stats[ENT_MANA] = compress_stat(&ent->mana);
     if (ent->currentmove) {
@@ -235,7 +235,7 @@ void G_RunEntity(LPEDICT ent) {
     ent->s.class_id = ent->class_id;
 }
 
-inline BOOL M_CheckCollision(LPCVECTOR2 origin, FLOAT radius) {
+inline bool M_CheckCollision(LPCVECTOR2 origin, float radius) {
     for (LPEDICT a = globals.edicts; a - globals.edicts < globals.num_edicts; a++) {
         VECTOR2 d = Vector2_sub(&a->s.origin2, origin);
         if (IS_HOLLOW(a))
@@ -262,7 +262,7 @@ inline BOOL M_CheckCollision(LPCVECTOR2 origin, FLOAT radius) {
  * future global de-overlap pass is ever needed.  (Linux -Wall would warn that
  * these are unused.) */
 // static LPCEDICT phys_current_entity = NULL;
-// static BOOL FilterColliders(LPCEDICT ent) {
+// static bool FilterColliders(LPCEDICT ent) {
 //     return ent != phys_current_entity && !IS_HOLLOW(ent);
 // }
 // #define MAX_COLLIDERS 256

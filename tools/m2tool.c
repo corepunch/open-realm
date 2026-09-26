@@ -16,10 +16,10 @@ typedef struct {
 } m2Array_t;
 
 typedef struct {
-    DWORD magic;
-    DWORD version;
+    uint32_t magic;
+    uint32_t version;
     m2Array_t name;
-    DWORD flags;
+    uint32_t flags;
     m2Array_t global_sequences;
     m2Array_t animations;
     m2Array_t animation_lookup;
@@ -60,40 +60,40 @@ typedef struct {
 } m2HeaderInfo_t;
 
 typedef struct {
-    WORD animation_id;
-    WORD sub_animation_id;
-    DWORD start_timestamp;
-    DWORD end_timestamp;
-    FLOAT movement_speed;
-    DWORD flags;
-    SHORT probability;
-    WORD padding;
-    DWORD minimum_repetitions;
-    DWORD maximum_repetitions;
-    DWORD blend_time;
+    uint16_t animation_id;
+    uint16_t sub_animation_id;
+    uint32_t start_timestamp;
+    uint32_t end_timestamp;
+    float movement_speed;
+    uint32_t flags;
+    int16_t probability;
+    uint16_t padding;
+    uint32_t minimum_repetitions;
+    uint32_t maximum_repetitions;
+    uint32_t blend_time;
     VECTOR3 min;
     VECTOR3 max;
-    FLOAT radius;
-    SHORT next_animation;
-    WORD alias_next;
+    float radius;
+    int16_t next_animation;
+    uint16_t alias_next;
 } m2SequenceClassic_t;
 
 typedef struct {
-    WORD animation_id;
-    WORD sub_animation_id;
-    DWORD length;
-    FLOAT movement_speed;
-    DWORD flags;
-    SHORT probability;
-    WORD padding;
-    DWORD minimum_repetitions;
-    DWORD maximum_repetitions;
-    DWORD blend_time;
+    uint16_t animation_id;
+    uint16_t sub_animation_id;
+    uint32_t length;
+    float movement_speed;
+    uint32_t flags;
+    int16_t probability;
+    uint16_t padding;
+    uint32_t minimum_repetitions;
+    uint32_t maximum_repetitions;
+    uint32_t blend_time;
     VECTOR3 min;
     VECTOR3 max;
-    FLOAT radius;
-    SHORT next_animation;
-    WORD alias_next;
+    float radius;
+    int16_t next_animation;
+    uint16_t alias_next;
 } m2SequenceModern_t;
 
 typedef struct {
@@ -120,36 +120,36 @@ typedef struct {
 } m2TrackClassic_t;
 
 typedef struct {
-    DWORD start;
-    DWORD end;
+    uint32_t start;
+    uint32_t end;
 } m2Range_t;
 
 typedef struct {
-    DWORD auCompQ[2];
+    uint32_t auCompQ[2];
 } m2CompQuat_t;
 
 typedef struct {
-    DWORD attachment_id;
-    WORD bone_index;
-    WORD padding;
+    uint32_t attachment_id;
+    uint16_t bone_index;
+    uint16_t padding;
     VECTOR3 position;
     m2Track_t visibility_track;
 } m2AttachmentModern_t;
 
 typedef struct {
-    DWORD attachment_id;
-    WORD bone_index;
-    WORD padding;
+    uint32_t attachment_id;
+    uint16_t bone_index;
+    uint16_t padding;
     VECTOR3 position;
     m2TrackClassic_t visibility_track;
 } m2AttachmentClassic_t;
 
 typedef struct {
-    DWORD bone_id;
-    DWORD flags;
-    WORD parent_index;
-    WORD dist_to_parent;
-    DWORD union_data;
+    uint32_t bone_id;
+    uint32_t flags;
+    uint16_t parent_index;
+    uint16_t dist_to_parent;
+    uint32_t union_data;
     m2Track_t translation_track;
     m2Track_t rotation_track;
     m2Track_t scale_track;
@@ -157,10 +157,10 @@ typedef struct {
 } m2CompBoneModern_t;
 
 typedef struct {
-    DWORD bone_id;
-    DWORD flags;
-    WORD parent_index;
-    WORD submesh_id;
+    uint32_t bone_id;
+    uint32_t flags;
+    uint16_t parent_index;
+    uint16_t submesh_id;
     m2TrackClassic_t translation_track;
     m2TrackClassic_t rotation_track;
     m2TrackClassic_t scale_track;
@@ -169,26 +169,26 @@ typedef struct {
 
 typedef struct {
     VECTOR3 pos;
-    BYTE bone_weights[4];
-    BYTE bone_indices[4];
+    uint8_t bone_weights[4];
+    uint8_t bone_indices[4];
     VECTOR3 normal;
     VECTOR2 tex_coords[2];
 } m2Vertex_t;
 
 typedef struct {
-    DWORD type;
-    DWORD flags;
+    uint32_t type;
+    uint32_t flags;
     m2Array_t filename;
 } m2Texture_t;
 
 typedef struct {
-    DWORD magic;
+    uint32_t magic;
     m2Array_t vertices;
     m2Array_t indices;
     m2Array_t bones;
     m2Array_t sections;
     m2Array_t batches;
-    DWORD bone_count_max;
+    uint32_t bone_count_max;
 } m2SkinHeader_t;
 
 typedef struct {
@@ -197,53 +197,53 @@ typedef struct {
     m2Array_t bones;
     m2Array_t sections;
     m2Array_t batches;
-    DWORD bone_count_max;
+    uint32_t bone_count_max;
 } m2EmbeddedView_t;
 
 typedef struct {
-    WORD skin_section_id;
-    WORD level;
-    WORD vertex_start;
-    WORD vertex_count;
-    WORD index_start;
-    WORD index_count;
-    WORD bone_count;
-    WORD bone_combo_index;
-    WORD bone_influences;
-    WORD center_bone_index;
+    uint16_t skin_section_id;
+    uint16_t level;
+    uint16_t vertex_start;
+    uint16_t vertex_count;
+    uint16_t index_start;
+    uint16_t index_count;
+    uint16_t bone_count;
+    uint16_t bone_combo_index;
+    uint16_t bone_influences;
+    uint16_t center_bone_index;
     VECTOR3 center_position;
     VECTOR3 sort_center_position;
     float sort_radius;
 } m2SkinSection_t;
 
 typedef struct {
-    WORD skin_section_id;
-    WORD level;
-    WORD vertex_start;
-    WORD vertex_count;
-    WORD index_start;
-    WORD index_count;
-    WORD bone_count;
-    WORD bone_combo_index;
-    WORD bone_influences;
-    WORD center_bone_index;
+    uint16_t skin_section_id;
+    uint16_t level;
+    uint16_t vertex_start;
+    uint16_t vertex_count;
+    uint16_t index_start;
+    uint16_t index_count;
+    uint16_t bone_count;
+    uint16_t bone_combo_index;
+    uint16_t bone_influences;
+    uint16_t center_bone_index;
     VECTOR3 center_position;
 } m2SkinSectionLegacy_t;
 
 typedef struct {
-    BYTE flags;
+    uint8_t flags;
     signed char priority_plane;
-    WORD shader_id;
-    WORD skin_section_index;
-    WORD geoset_index;
-    SHORT color_index;
-    WORD material_index;
-    WORD material_layer;
-    WORD texture_count;
-    WORD texture_combo_index;
-    WORD texture_coord_combo_index;
-    WORD texture_weight_combo_index;
-    WORD texture_transform_combo_index;
+    uint16_t shader_id;
+    uint16_t skin_section_index;
+    uint16_t geoset_index;
+    int16_t color_index;
+    uint16_t material_index;
+    uint16_t material_layer;
+    uint16_t texture_count;
+    uint16_t texture_combo_index;
+    uint16_t texture_coord_combo_index;
+    uint16_t texture_weight_combo_index;
+    uint16_t texture_transform_combo_index;
 } m2Batch_t;
 
 typedef struct {
@@ -253,74 +253,74 @@ typedef struct {
 
 /* Modern (WotLK+) particle emitter binary layout — m2Track_t (20 bytes each). */
 typedef struct {
-    DWORD particle_id, flags; VECTOR3 position; WORD bone_index, texture_index;
+    uint32_t particle_id, flags; VECTOR3 position; uint16_t bone_index, texture_index;
     m2Array_t geometry_mdl, recursion_mdl;
-    BYTE blend_mode, emitter_type; WORD color_index, pad; SHORT priority_plane; WORD rows, cols;
+    uint8_t blend_mode, emitter_type; uint16_t color_index, pad; int16_t priority_plane; uint16_t rows, cols;
     m2Track_t speed_track, variation_track, latitude_track, longitude_track, gravity_track, life_track;
-    FLOAT life_variation;
+    float life_variation;
     m2Track_t emission_rate_track;
-    FLOAT emission_rate_variation;
+    float emission_rate_variation;
     m2Track_t width_track, length_track, zsource_track;
     m2PartTrack_t color_track, alpha_track, scale_track;
     VECTOR2 scale_variation;
     m2PartTrack_t head_cell_track, tail_cell_track;
-    FLOAT tail_length, twinkle_fps, twinkle_onoff, twinkle_scale[2];
-    FLOAT ivel_scale, drag, initial_spin, initial_spin_variation, spin, spin_variation;
+    float tail_length, twinkle_fps, twinkle_onoff, twinkle_scale[2];
+    float ivel_scale, drag, initial_spin, initial_spin_variation, spin, spin_variation;
     VECTOR3 tumble_min, tumble_max;
-    VECTOR3 wind_vector; FLOAT wind_time;
-    FLOAT follow_speed1, follow_scale1, follow_speed2, follow_scale2;
+    VECTOR3 wind_vector; float wind_time;
+    float follow_speed1, follow_scale1, follow_speed2, follow_scale2;
     m2Array_t spline;
     m2Track_t visibility_track;
 } m2ParticleModern_t;
 
 /* Classic/TBC stores ten contiguous 28-byte tracks followed by static lifecycle values. */
 typedef struct {
-    DWORD particle_id, flags; VECTOR3 position; WORD bone_index, texture_index;
+    uint32_t particle_id, flags; VECTOR3 position; uint16_t bone_index, texture_index;
     m2Array_t geometry_mdl, recursion_mdl;
-    BYTE blend_mode, emitter_type; WORD color_index, pad; SHORT priority_plane; WORD rows, cols;
+    uint8_t blend_mode, emitter_type; uint16_t color_index, pad; int16_t priority_plane; uint16_t rows, cols;
     m2TrackClassic_t speed_track, variation_track, latitude_track, longitude_track, gravity_track, life_track;
     m2TrackClassic_t emission_rate_track, width_track, length_track, visibility_track;
-    FLOAT midpoint;
-    DWORD colors[3];
-    FLOAT scales[3];
-    BYTE tail[0x1f8 - 0x168];
+    float midpoint;
+    uint32_t colors[3];
+    float scales[3];
+    uint8_t tail[0x1f8 - 0x168];
 } m2ParticleClassic_t;
 
 _Static_assert(sizeof(m2ParticleClassic_t) == 0x1f8, "classic M2 particles are 0x1f8 bytes");
 
 /* Modern ribbon emitter — m2Track_t (20 bytes each). */
 typedef struct {
-    DWORD ribbon_id; WORD bone_index, pad0; VECTOR3 position;
+    uint32_t ribbon_id; uint16_t bone_index, pad0; VECTOR3 position;
     m2Array_t texture_indices, material_indices;
     m2Track_t color_track, alpha_track, height_above_track, height_below_track;
-    FLOAT edges_per_second, edge_lifetime, gravity;
-    WORD texture_rows, texture_cols;
+    float edges_per_second, edge_lifetime, gravity;
+    uint16_t texture_rows, texture_cols;
     m2Track_t texture_slot_track, visibility_track;
-    SHORT priority_plane; WORD pad1;
+    int16_t priority_plane; uint16_t pad1;
 } m2RibbonModern_t;
 
 /* Classic ribbon emitter — m2TrackClassic_t (24 bytes each). */
 typedef struct {
-    DWORD ribbon_id; WORD bone_index, pad0; VECTOR3 position;
+    uint32_t ribbon_id; uint16_t bone_index, pad0; VECTOR3 position;
     m2Array_t texture_indices, material_indices;
     m2TrackClassic_t color_track, alpha_track, height_above_track, height_below_track;
-    FLOAT edges_per_second, edge_lifetime, gravity;
-    WORD texture_rows, texture_cols;
+    float edges_per_second, edge_lifetime, gravity;
+    uint16_t texture_rows, texture_cols;
     m2TrackClassic_t texture_slot_track, visibility_track;
-    SHORT priority_plane; WORD pad1;
+    int16_t priority_plane; uint16_t pad1;
 } m2RibbonClassic_t;
 
-static HANDLE archives[64] = { 0 };
-static LPCSTR g_model_path = NULL;
-static LPCSTR g_skin_path = NULL;
-static LPCSTR g_anim_check = NULL;
+static handle_t archives[64] = { 0 };
+static cstring_t g_model_path = NULL;
+static cstring_t g_skin_path = NULL;
+static cstring_t g_anim_check = NULL;
 static bool g_info_only = false;
 static bool g_dump_all = false;
 static bool g_wow_player_config = false;
 static bool g_wow_player_config_only = false;
 static bool g_run_once = false;
-static DWORD g_wow_appearance = (1u << 23); /* Wow_PackAppearance(..., WOW_CLASS_WARRIOR, ...) */
-static DWORD g_wow_equipment = 0;
+static uint32_t g_wow_appearance = (1u << 23); /* Wow_PackAppearance(..., WOW_CLASS_WARRIOR, ...) */
+static uint32_t g_wow_equipment = 0;
 static viewer_orbit_t g_orbit;
 static float g_preview_scale = 1.0f;
 
@@ -342,7 +342,7 @@ static void usage(void) {
             "  --wow-player-config-only prints only the in-game WoW character outfit/geoset configuration.\n");
 }
 
-static void errorf(LPCSTR fmt, ...) {
+static void errorf(cstring_t fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
@@ -351,16 +351,16 @@ static void errorf(LPCSTR fmt, ...) {
     exit(1);
 }
 
-static void Tool_DrawString(refExport_t const *re, LPCSTR string, int x, int y) {
+static void Tool_DrawString(refExport_t const *re, cstring_t string, int x, int y) {
     if (!re || !string) {
         return;
     }
-    for (DWORD i = 0; string[i]; i++) {
-        re->DrawChar(x + (int)i * 8, y, (BYTE)string[i]);
+    for (uint32_t i = 0; string[i]; i++) {
+        re->DrawChar(x + (int)i * 8, y, (uint8_t)string[i]);
     }
 }
 
-static BOOL PathHasExtension(LPCSTR path, LPCSTR extension) {
+static bool PathHasExtension(cstring_t path, cstring_t extension) {
     size_t path_len;
     size_t ext_len;
 
@@ -372,8 +372,8 @@ static BOOL PathHasExtension(LPCSTR path, LPCSTR extension) {
     return path_len >= ext_len && strcasecmp(path + path_len - ext_len, extension) == 0;
 }
 
-static BOOL CopyWithExtension(LPCSTR path, LPCSTR extension, LPSTR out, DWORD out_size) {
-    LPCSTR dot;
+static bool CopyWithExtension(cstring_t path, cstring_t extension, string_t out, uint32_t out_size) {
+    cstring_t dot;
     size_t stem_len;
 
     if (!path || !extension || !out || out_size == 0) {
@@ -389,8 +389,8 @@ static BOOL CopyWithExtension(LPCSTR path, LPCSTR extension, LPSTR out, DWORD ou
     return true;
 }
 
-static HANDLE OpenFileFallback(LPCSTR path, LPSTR resolved, DWORD resolved_size) {
-    HANDLE file;
+static handle_t OpenFileFallback(cstring_t path, string_t resolved, uint32_t resolved_size) {
+    handle_t file;
     PATHSTR fallback;
 
     if (!path || !*path) {
@@ -418,11 +418,11 @@ static HANDLE OpenFileFallback(LPCSTR path, LPSTR resolved, DWORD resolved_size)
     return NULL;
 }
 
-static LPBYTE ReadWholeFile(LPCSTR path, LPDWORD out_size, LPSTR resolved, DWORD resolved_size) {
-    HANDLE file = OpenFileFallback(path, resolved, resolved_size);
-    DWORD size;
-    DWORD read_size = 0;
-    LPBYTE data;
+static uint8_t * ReadWholeFile(cstring_t path, uint32_t * out_size, string_t resolved, uint32_t resolved_size) {
+    handle_t file = OpenFileFallback(path, resolved, resolved_size);
+    uint32_t size;
+    uint32_t read_size = 0;
+    uint8_t * data;
 
     if (!file) {
         return NULL;
@@ -470,38 +470,38 @@ enum {
 #define M2TOOL_NUM_GEOSET_GROUPS 16
 
 typedef struct {
-    LPBYTE data;
-    DWORD size;
-    DWORD records;
-    DWORD fields;
-    DWORD record_size;
-    DWORD string_size;
-    BYTE const *records_base;
-    BYTE const *strings_base;
+    uint8_t * data;
+    uint32_t size;
+    uint32_t records;
+    uint32_t fields;
+    uint32_t record_size;
+    uint32_t string_size;
+    uint8_t const *records_base;
+    uint8_t const *strings_base;
 } m2ToolDbc_t;
 
 typedef struct {
-    LPCSTR texture[M2TOOL_CHAR_TEX_COUNT][7];
-    DWORD geoset[M2TOOL_NUM_GEOSET_GROUPS];
-    DWORD flags;
-    DWORD display_ids[16];
-    DWORD display_count;
+    cstring_t texture[M2TOOL_CHAR_TEX_COUNT][7];
+    uint32_t geoset[M2TOOL_NUM_GEOSET_GROUPS];
+    uint32_t flags;
+    uint32_t display_ids[16];
+    uint32_t display_count;
 } m2ToolWowOutfit_t;
 
-static DWORD Read32LE(BYTE const *p) {
-    return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
+static uint32_t Read32LE(uint8_t const *p) {
+    return ((uint32_t)p[0]) | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
 
-static BOOL LoadDbc(LPCSTR filename, m2ToolDbc_t *dbc) {
+static bool LoadDbc(cstring_t filename, m2ToolDbc_t *dbc) {
     PATHSTR resolved = { 0 };
-    DWORD size = 0;
+    uint32_t size = 0;
 
     if (!filename || !dbc) {
         return false;
     }
     memset(dbc, 0, sizeof(*dbc));
     dbc->data = ReadWholeFile(filename, &size, resolved, sizeof(resolved));
-    if (!dbc->data || size <= 20 || *(DWORD const *)dbc->data != ID_WDBC) {
+    if (!dbc->data || size <= 20 || *(uint32_t const *)dbc->data != ID_WDBC) {
         SAFE_DELETE(dbc->data, Tool_MemFree);
         return false;
     }
@@ -510,7 +510,7 @@ static BOOL LoadDbc(LPCSTR filename, m2ToolDbc_t *dbc) {
     dbc->fields = Read32LE(dbc->data + 8);
     dbc->record_size = Read32LE(dbc->data + 12);
     dbc->string_size = Read32LE(dbc->data + 16);
-    if (!dbc->fields || dbc->record_size < sizeof(DWORD) ||
+    if (!dbc->fields || dbc->record_size < sizeof(uint32_t) ||
         20 + dbc->records * dbc->record_size + dbc->string_size > dbc->size) {
         SAFE_DELETE(dbc->data, Tool_MemFree);
         return false;
@@ -528,26 +528,26 @@ static void FreeDbc(m2ToolDbc_t *dbc) {
     memset(dbc, 0, sizeof(*dbc));
 }
 
-static DWORD DbcField(m2ToolDbc_t const *dbc, BYTE const *record, DWORD field) {
-    if (!dbc || !record || field >= dbc->fields || field * sizeof(DWORD) + sizeof(DWORD) > dbc->record_size) {
+static uint32_t DbcField(m2ToolDbc_t const *dbc, uint8_t const *record, uint32_t field) {
+    if (!dbc || !record || field >= dbc->fields || field * sizeof(uint32_t) + sizeof(uint32_t) > dbc->record_size) {
         return 0;
     }
-    return Read32LE(record + field * sizeof(DWORD));
+    return Read32LE(record + field * sizeof(uint32_t));
 }
 
-static LPCSTR DbcString(m2ToolDbc_t const *dbc, DWORD offset) {
+static cstring_t DbcString(m2ToolDbc_t const *dbc, uint32_t offset) {
     if (!dbc || !dbc->data || offset == 0 || offset >= dbc->string_size) {
         return NULL;
     }
-    return (LPCSTR)(dbc->strings_base + offset);
+    return (cstring_t)(dbc->strings_base + offset);
 }
 
-static BYTE const *DbcFindID(m2ToolDbc_t const *dbc, DWORD wanted_id) {
+static uint8_t const *DbcFindID(m2ToolDbc_t const *dbc, uint32_t wanted_id) {
     if (!dbc || !dbc->data) {
         return NULL;
     }
     FOR_LOOP(i, dbc->records) {
-        BYTE const *record = dbc->records_base + i * dbc->record_size;
+        uint8_t const *record = dbc->records_base + i * dbc->record_size;
         if (DbcField(dbc, record, 0) == wanted_id) {
             return record;
         }
@@ -555,10 +555,10 @@ static BYTE const *DbcFindID(m2ToolDbc_t const *dbc, DWORD wanted_id) {
     return NULL;
 }
 
-static BOOL CharacterRaceGender(LPCSTR model_path, DWORD *race_id, DWORD *gender_id) {
-    LPCSTR character;
-    LPCSTR race;
-    LPCSTR gender;
+static bool CharacterRaceGender(cstring_t model_path, uint32_t *race_id, uint32_t *gender_id) {
+    cstring_t character;
+    cstring_t race;
+    cstring_t gender;
     char race_buf[64];
     char gender_buf[64];
     size_t len;
@@ -611,12 +611,12 @@ static BOOL CharacterRaceGender(LPCSTR model_path, DWORD *race_id, DWORD *gender
     return true;
 }
 
-static BYTE WowClassFromAppearance(DWORD appearance) {
-    BYTE class_id = (BYTE)((appearance >> 23) & 0x0f);
+static uint8_t WowClassFromAppearance(uint32_t appearance) {
+    uint8_t class_id = (uint8_t)((appearance >> 23) & 0x0f);
     return class_id ? class_id : 1;
 }
 
-static DWORD ItemDisplayInfoTextureBase(m2ToolDbc_t const *dbc) {
+static uint32_t ItemDisplayInfoTextureBase(m2ToolDbc_t const *dbc) {
     if (!dbc) {
         return 0;
     }
@@ -626,19 +626,19 @@ static DWORD ItemDisplayInfoTextureBase(m2ToolDbc_t const *dbc) {
     return dbc->fields >= 22 ? 14 : 0;
 }
 
-static DWORD ItemDisplayInfoGeosetBase(m2ToolDbc_t const *dbc) {
+static uint32_t ItemDisplayInfoGeosetBase(m2ToolDbc_t const *dbc) {
     return dbc && dbc->fields >= 22 ? 7 : 0;
 }
 
-static DWORD ItemDisplayInfoFlagsField(m2ToolDbc_t const *dbc) {
+static uint32_t ItemDisplayInfoFlagsField(m2ToolDbc_t const *dbc) {
     return dbc && dbc->fields >= 22 ? 10 : 0;
 }
 
 static void AddDisplayInfoToOutfit(m2ToolWowOutfit_t *outfit,
                                    m2ToolDbc_t const *item_display_info,
-                                   DWORD display_id,
-                                   DWORD slot) {
-    static DWORD const slot_geoset_group_map[M2TOOL_SLOT_COUNT][3] = {
+                                   uint32_t display_id,
+                                   uint32_t slot) {
+    static uint32_t const slot_geoset_group_map[M2TOOL_SLOT_COUNT][3] = {
         /* NONE */      { 0, 0, 0 },
         /* HEAD */      { 0, 0, 0 },
         /* SHOULDERS */ { 0, 0, 0 },
@@ -651,10 +651,10 @@ static void AddDisplayInfoToOutfit(m2ToolWowOutfit_t *outfit,
         /* TABARD */    { 0, 0, 0 },
         /* CAPE */      { 15, 0, 0 },
     };
-    BYTE const *record;
-    DWORD texture_base;
-    DWORD geoset_base;
-    DWORD flags_field;
+    uint8_t const *record;
+    uint32_t texture_base;
+    uint32_t geoset_base;
+    uint32_t flags_field;
 
     if (!outfit || !item_display_info || display_id == 0 || display_id == 0xffffffffu) {
         return;
@@ -672,9 +672,9 @@ static void AddDisplayInfoToOutfit(m2ToolWowOutfit_t *outfit,
     geoset_base = ItemDisplayInfoGeosetBase(item_display_info);
     flags_field = ItemDisplayInfoFlagsField(item_display_info);
     FOR_LOOP(i, 3) {
-        DWORD geoset_group = DbcField(item_display_info, record, geoset_base + i);
+        uint32_t geoset_group = DbcField(item_display_info, record, geoset_base + i);
         if (geoset_group && slot < M2TOOL_SLOT_COUNT) {
-            DWORD group = slot_geoset_group_map[slot][i];
+            uint32_t group = slot_geoset_group_map[slot][i];
             if (group && group < M2TOOL_NUM_GEOSET_GROUPS) {
                 outfit->geoset[group] = geoset_group;
             }
@@ -684,7 +684,7 @@ static void AddDisplayInfoToOutfit(m2ToolWowOutfit_t *outfit,
     /* A worn tabard activates the hanging tabard mesh (geoset group 12). */
     if (slot == M2TOOL_SLOT_TABARD) outfit->geoset[12] = 2;
     FOR_LOOP(i, M2TOOL_CHAR_TEX_COUNT) {
-        LPCSTR texture = DbcString(item_display_info, DbcField(item_display_info, record, texture_base + i));
+        cstring_t texture = DbcString(item_display_info, DbcField(item_display_info, record, texture_base + i));
         signed char priority = Wow_CharacterTexturePriority(slot, i);
         if (texture && *texture && priority >= 0) outfit->texture[i][priority] = texture;
     }
@@ -692,29 +692,29 @@ static void AddDisplayInfoToOutfit(m2ToolWowOutfit_t *outfit,
 
 static void AddDisplayInfoListToOutfit(m2ToolWowOutfit_t *outfit,
                                        m2ToolDbc_t const *item_display_info,
-                                       DWORD const *display_ids,
-                                       DWORD display_count,
-                                       DWORD slot) {
+                                       uint32_t const *display_ids,
+                                       uint32_t display_count,
+                                       uint32_t slot) {
     FOR_LOOP(i, display_count) {
         AddDisplayInfoToOutfit(outfit, item_display_info, display_ids[i], slot);
     }
 }
 
 typedef struct {
-    DWORD display_ids[4];
+    uint32_t display_ids[4];
 } m2ToolEquipmentItem_t;
 
 typedef struct {
-    DWORD race_id;
-    DWORD gender_id;
+    uint32_t race_id;
+    uint32_t gender_id;
     m2ToolEquipmentItem_t items[256];
 } m2ToolEquipmentSlotItems_t;
 
 static m2ToolEquipmentItem_t const *EquipmentSlotItem(m2ToolEquipmentSlotItems_t const *lists,
-                                                      DWORD list_count,
-                                                      DWORD race_id,
-                                                      DWORD gender_id,
-                                                      BYTE item_index) {
+                                                      uint32_t list_count,
+                                                      uint32_t race_id,
+                                                      uint32_t gender_id,
+                                                      uint8_t item_index) {
     FOR_LOOP(i, list_count) {
         if (lists[i].race_id == race_id && lists[i].gender_id == gender_id) {
             return &lists[i].items[item_index];
@@ -726,11 +726,11 @@ static m2ToolEquipmentItem_t const *EquipmentSlotItem(m2ToolEquipmentSlotItems_t
 static void AddEquipmentItemToOutfit(m2ToolWowOutfit_t *outfit,
                                      m2ToolDbc_t const *item_display_info,
                                      m2ToolEquipmentSlotItems_t const *lists,
-                                     DWORD list_count,
-                                     DWORD race_id,
-                                     DWORD gender_id,
-                                     BYTE item_index,
-                                     DWORD slot) {
+                                     uint32_t list_count,
+                                     uint32_t race_id,
+                                     uint32_t gender_id,
+                                     uint8_t item_index,
+                                     uint32_t slot) {
     m2ToolEquipmentItem_t const *item = EquipmentSlotItem(lists, list_count, race_id, gender_id, item_index);
 
     if (!outfit || !item_display_info || !item) {
@@ -745,9 +745,9 @@ static void AddEquipmentItemToOutfit(m2ToolWowOutfit_t *outfit,
 
 static void ApplyEquipmentItems(m2ToolWowOutfit_t *outfit,
                                 m2ToolDbc_t const *item_display_info,
-                                DWORD race_id,
-                                DWORD gender_id,
-                                DWORD equipment) {
+                                uint32_t race_id,
+                                uint32_t gender_id,
+                                uint32_t equipment) {
     static m2ToolEquipmentSlotItems_t const upper_body_items[] = {
         { 2, 0, { [1] = { { 27274, 0, 0, 0 } } } }
     };
@@ -776,16 +776,16 @@ static void ApplyEquipmentItems(m2ToolWowOutfit_t *outfit,
                              race_id, gender_id, items.footItem, M2TOOL_SLOT_BOOTS);
 }
 
-static BOOL LoadWowStartOutfit(LPCSTR model_path,
-                               DWORD appearance,
-                               DWORD equipment,
+static bool LoadWowStartOutfit(cstring_t model_path,
+                               uint32_t appearance,
+                               uint32_t equipment,
                                m2ToolWowOutfit_t *outfit) {
     m2ToolDbc_t start = { 0 };
     m2ToolDbc_t item = { 0 };
-    DWORD race_id;
-    DWORD gender_id;
-    DWORD class_id;
-    BOOL found = false;
+    uint32_t race_id;
+    uint32_t gender_id;
+    uint32_t class_id;
+    bool found = false;
 
     if (!model_path || !outfit || !CharacterRaceGender(model_path, &race_id, &gender_id)) {
         return false;
@@ -800,11 +800,11 @@ static BOOL LoadWowStartOutfit(LPCSTR model_path,
     }
 
     FOR_LOOP(i, start.records) {
-        BYTE const *record = start.records_base + i * start.record_size;
-        DWORD race_class_gender = DbcField(&start, record, 1);
-        DWORD record_race = race_class_gender & 0xff;
-        DWORD record_class = (race_class_gender >> 8) & 0xff;
-        DWORD record_gender = (race_class_gender >> 16) & 0xff;
+        uint8_t const *record = start.records_base + i * start.record_size;
+        uint32_t race_class_gender = DbcField(&start, record, 1);
+        uint32_t record_race = race_class_gender & 0xff;
+        uint32_t record_class = (race_class_gender >> 8) & 0xff;
+        uint32_t record_gender = (race_class_gender >> 16) & 0xff;
 
         if (record_race != race_id || record_class != class_id || record_gender != gender_id) {
             continue;
@@ -823,8 +823,8 @@ static BOOL LoadWowStartOutfit(LPCSTR model_path,
     return found;
 }
 
-static BOOL ComponentTexturePath(LPCSTR stem, BYTE slot, LPCSTR model_path, LPSTR out, DWORD out_size) {
-    static LPCSTR const folders[M2TOOL_CHAR_TEX_COUNT] = {
+static bool ComponentTexturePath(cstring_t stem, uint8_t slot, cstring_t model_path, string_t out, uint32_t out_size) {
+    static cstring_t const folders[M2TOOL_CHAR_TEX_COUNT] = {
         "ArmUpperTexture",
         "ArmLowerTexture",
         "HandTexture",
@@ -834,9 +834,9 @@ static BOOL ComponentTexturePath(LPCSTR stem, BYTE slot, LPCSTR model_path, LPST
         "LegLowerTexture",
         "FootTexture"
     };
-    DWORD race_id;
-    DWORD gender_id;
-    LPCSTR gender_suffix;
+    uint32_t race_id;
+    uint32_t gender_id;
+    cstring_t gender_suffix;
     PATHSTR candidate;
 
     if (!stem || !*stem || slot >= M2TOOL_CHAR_TEX_COUNT || !out || out_size == 0) {
@@ -860,9 +860,9 @@ static BOOL ComponentTexturePath(LPCSTR stem, BYTE slot, LPCSTR model_path, LPST
     return true;
 }
 
-static BOOL WowVisibleSection(WORD section_id, m2ToolWowOutfit_t const *outfit,
-                              WORD const *available, DWORD available_count) {
-    DWORD group, geoset, expected;
+static bool WowVisibleSection(uint16_t section_id, m2ToolWowOutfit_t const *outfit,
+                              uint16_t const *available, uint32_t available_count) {
+    uint32_t group, geoset, expected;
 
     if (section_id < 400) {
         return true;
@@ -895,17 +895,17 @@ static BOOL WowVisibleSection(WORD section_id, m2ToolWowOutfit_t const *outfit,
     return section_id == expected;
 }
 
-static BOOL TagEquals(BYTE const *tag, DWORD fourcc) {
-    DWORD value;
+static bool TagEquals(uint8_t const *tag, uint32_t fourcc) {
+    uint32_t value;
     memcpy(&value, tag, sizeof(value));
     return value == fourcc;
 }
 
-static BOOL FindM2Payload(BYTE const *data, DWORD size, BYTE const **payload, DWORD *payload_size) {
-    DWORD magic;
-    DWORD offset;
+static bool FindM2Payload(uint8_t const *data, uint32_t size, uint8_t const **payload, uint32_t *payload_size) {
+    uint32_t magic;
+    uint32_t offset;
 
-    if (!data || size < sizeof(DWORD) || !payload || !payload_size) {
+    if (!data || size < sizeof(uint32_t) || !payload || !payload_size) {
         return false;
     }
     memcpy(&magic, data, sizeof(magic));
@@ -919,8 +919,8 @@ static BOOL FindM2Payload(BYTE const *data, DWORD size, BYTE const **payload, DW
     }
     offset = 0;
     while (offset + 8 <= size) {
-        BYTE const *tag = data + offset;
-        DWORD chunk_size;
+        uint8_t const *tag = data + offset;
+        uint32_t chunk_size;
         memcpy(&chunk_size, data + offset + 4, sizeof(chunk_size));
         offset += 8;
         if (chunk_size > size - offset) {
@@ -929,8 +929,8 @@ static BOOL FindM2Payload(BYTE const *data, DWORD size, BYTE const **payload, DW
         if (TagEquals(tag, ID_MD20) ||
             TagEquals(tag, ID_MD21) ||
             TagEquals(tag, ID_12DM)) {
-            if (chunk_size >= sizeof(DWORD)) {
-                DWORD inner_magic;
+            if (chunk_size >= sizeof(uint32_t)) {
+                uint32_t inner_magic;
                 memcpy(&inner_magic, data + offset, sizeof(inner_magic));
                 if (inner_magic == ID_MD20) {
                     *payload = data + offset;
@@ -944,41 +944,41 @@ static BOOL FindM2Payload(BYTE const *data, DWORD size, BYTE const **payload, DW
     return false;
 }
 
-static DWORD ReadU32(BYTE const *p) {
-    DWORD value;
+static uint32_t ReadU32(uint8_t const *p) {
+    uint32_t value;
     memcpy(&value, p, sizeof(value));
     return value;
 }
 
-static float ReadFloat(BYTE const *p) {
+static float ReadFloat(uint8_t const *p) {
     float value;
     memcpy(&value, p, sizeof(value));
     return value;
 }
 
-static m2Array_t ReadArray(BYTE const *p) {
+static m2Array_t ReadArray(uint8_t const *p) {
     m2Array_t array;
     memcpy(&array, p, sizeof(array));
     return array;
 }
 
-static VECTOR3 ReadVec3(BYTE const *p) {
+static VECTOR3 ReadVec3(uint8_t const *p) {
     return (VECTOR3){ ReadFloat(p), ReadFloat(p + 4), ReadFloat(p + 8) };
 }
 
-static void SkipArray(DWORD *offset) {
+static void SkipArray(uint32_t *offset) {
     *offset += sizeof(m2Array_t);
 }
 
-static m2Array_t NextArray(BYTE const *data, DWORD *offset) {
+static m2Array_t NextArray(uint8_t const *data, uint32_t *offset) {
     m2Array_t value = ReadArray(data + *offset);
     *offset += sizeof(m2Array_t);
     return value;
 }
 
-static BOOL ParseHeader(BYTE const *data, DWORD size, m2HeaderInfo_t *out) {
-    DWORD offset;
-    BOOL legacy;
+static bool ParseHeader(uint8_t const *data, uint32_t size, m2HeaderInfo_t *out) {
+    uint32_t offset;
+    bool legacy;
 
     if (!data || size < 180 || !out || ReadU32(data) != ID_MD20) {
         return false;
@@ -991,7 +991,7 @@ static BOOL ParseHeader(BYTE const *data, DWORD size, m2HeaderInfo_t *out) {
     offset = 8;
     out->name = NextArray(data, &offset);
     out->flags = ReadU32(data + offset);
-    offset += sizeof(DWORD);
+    offset += sizeof(uint32_t);
     out->global_sequences = NextArray(data, &offset);
     out->animations = NextArray(data, &offset);
     out->animation_lookup = NextArray(data, &offset);
@@ -1005,7 +1005,7 @@ static BOOL ParseHeader(BYTE const *data, DWORD size, m2HeaderInfo_t *out) {
         out->views = NextArray(data, &offset);
     } else {
         out->views = (m2Array_t){ (int32_t)ReadU32(data + offset), 0 };
-        offset += sizeof(DWORD);
+        offset += sizeof(uint32_t);
     }
     out->colors = NextArray(data, &offset);
     out->textures = NextArray(data, &offset);
@@ -1057,44 +1057,44 @@ static BOOL ParseHeader(BYTE const *data, DWORD size, m2HeaderInfo_t *out) {
     return true;
 }
 
-static BOOL ArrayRange(m2Array_t array, DWORD elem_size, DWORD file_size, DWORD *offset, DWORD *bytes) {
+static bool ArrayRange(m2Array_t array, uint32_t elem_size, uint32_t file_size, uint32_t *offset, uint32_t *bytes) {
     if (array.count <= 0 || array.offset < 0 || elem_size == 0) {
         return false;
     }
-    if ((DWORD)array.count > (((DWORD)~0u) / elem_size)) {
+    if ((uint32_t)array.count > (((uint32_t)~0u) / elem_size)) {
         return false;
     }
-    *offset = (DWORD)array.offset;
-    *bytes = (DWORD)array.count * elem_size;
+    *offset = (uint32_t)array.offset;
+    *bytes = (uint32_t)array.count * elem_size;
     return *offset <= file_size && *bytes <= file_size - *offset;
 }
 
-static void const *ArrayPtr(BYTE const *base, DWORD file_size, m2Array_t array, DWORD elem_size) {
-    DWORD offset;
-    DWORD bytes;
+static void const *ArrayPtr(uint8_t const *base, uint32_t file_size, m2Array_t array, uint32_t elem_size) {
+    uint32_t offset;
+    uint32_t bytes;
     if (!ArrayRange(array, elem_size, file_size, &offset, &bytes)) {
         return NULL;
     }
     return base + offset;
 }
 
-static LPCSTR StringPtr(BYTE const *base, DWORD file_size, m2Array_t array) {
-    DWORD offset;
-    DWORD bytes;
+static cstring_t StringPtr(uint8_t const *base, uint32_t file_size, m2Array_t array) {
+    uint32_t offset;
+    uint32_t bytes;
     if (!ArrayRange(array, 1, file_size, &offset, &bytes) || bytes == 0) {
         return NULL;
     }
     if (!memchr(base + offset, '\0', bytes)) {
         return NULL;
     }
-    return (LPCSTR)(base + offset);
+    return (cstring_t)(base + offset);
 }
 
-static void PrintVec3(LPCSTR label, VECTOR3 v) {
+static void PrintVec3(cstring_t label, VECTOR3 v) {
     printf("  %-22s %.6f %.6f %.6f\n", label, v.x, v.y, v.z);
 }
 
-static void PrintBoundsMetrics(LPCSTR label, VECTOR3 min, VECTOR3 max) {
+static void PrintBoundsMetrics(cstring_t label, VECTOR3 min, VECTOR3 max) {
     VECTOR3 extent = { max.x - min.x, max.y - min.y, max.z - min.z };
     VECTOR3 center = {
         (min.x + max.x) * 0.5f,
@@ -1110,7 +1110,7 @@ static void PrintBoundsMetrics(LPCSTR label, VECTOR3 min, VECTOR3 max) {
     printf("  %-22s %.6f %.6f %.6f\n", center_label, center.x, center.y, center.z);
 }
 
-static void PrintArray(LPCSTR label, m2Array_t array, BOOL count_only) {
+static void PrintArray(cstring_t label, m2Array_t array, bool count_only) {
     if (count_only) {
         printf("  %-28s count=%d\n", label, array.count);
     } else {
@@ -1118,11 +1118,11 @@ static void PrintArray(LPCSTR label, m2Array_t array, BOOL count_only) {
     }
 }
 
-static void PrintAttachments(BYTE const *data, DWORD size, m2HeaderInfo_t const *header) {
-    BYTE const *attachments;
-    WORD const *lookup;
-    BOOL legacy = header->version <= 263;
-    DWORD stride = legacy ? sizeof(m2AttachmentClassic_t) : sizeof(m2AttachmentModern_t);
+static void PrintAttachments(uint8_t const *data, uint32_t size, m2HeaderInfo_t const *header) {
+    uint8_t const *attachments;
+    uint16_t const *lookup;
+    bool legacy = header->version <= 263;
+    uint32_t stride = legacy ? sizeof(m2AttachmentClassic_t) : sizeof(m2AttachmentModern_t);
 
     attachments = ArrayPtr(data, size, header->attachments, stride);
     if (!attachments || header->attachments.count <= 0) {
@@ -1130,9 +1130,9 @@ static void PrintAttachments(BYTE const *data, DWORD size, m2HeaderInfo_t const 
     }
 
     printf("attachments:\n");
-    FOR_LOOP(i, (DWORD)header->attachments.count) {
-        DWORD attachment_id;
-        WORD bone_index;
+    FOR_LOOP(i, (uint32_t)header->attachments.count) {
+        uint32_t attachment_id;
+        uint16_t bone_index;
         VECTOR3 position;
 
         if (legacy) {
@@ -1162,16 +1162,16 @@ static void PrintAttachments(BYTE const *data, DWORD size, m2HeaderInfo_t const 
     }
 
     printf("attachment_lookup:\n");
-    FOR_LOOP(i, (DWORD)header->attachment_lookup.count) {
+    FOR_LOOP(i, (uint32_t)header->attachment_lookup.count) {
         printf("  [%03u] -> %u\n", (unsigned)i, (unsigned)lookup[i]);
     }
 }
 
-static void PrintEvents(BYTE const *data, DWORD size, m2HeaderInfo_t const *header) {
+static void PrintEvents(uint8_t const *data, uint32_t size, m2HeaderInfo_t const *header) {
     /* Both modern and legacy event structs are 44 bytes:
      *   4(id) + 4(data) + 2(bone) + 2(pad) + 12(pos) + 20(track) = 44
      * Track is M2TrackBase: 2+2 header + two M2Arrays (16 bytes). */
-    BYTE const *events;
+    uint8_t const *events;
 
     if (header->events.count <= 0) {
         return;
@@ -1182,22 +1182,22 @@ static void PrintEvents(BYTE const *data, DWORD size, m2HeaderInfo_t const *head
     }
 
     printf("events:\n");
-    FOR_LOOP(i, (DWORD)header->events.count) {
-        BYTE const *ev = events + i * 44;
+    FOR_LOOP(i, (uint32_t)header->events.count) {
+        uint8_t const *ev = events + i * 44;
         char id_str[5];
-        DWORD event_data;
-        WORD bone;
+        uint32_t event_data;
+        uint16_t bone;
         memcpy(id_str, ev + 0, 4);
         id_str[4] = '\0';
-        memcpy(&event_data, ev + 4, sizeof(DWORD));
-        memcpy(&bone, ev + 8, sizeof(WORD));
+        memcpy(&event_data, ev + 4, sizeof(uint32_t));
+        memcpy(&bone, ev + 8, sizeof(uint16_t));
         printf("  [%03u] id=%.4s data=%u bone=%u\n",
                (unsigned)i, id_str,
                (unsigned)event_data, (unsigned)bone);
     }
 }
 
-static void UpdateBounds(BOX3 *bounds, VECTOR3 p, BOOL *has_bounds) {
+static void UpdateBounds(BOX3 *bounds, VECTOR3 p, bool *has_bounds) {
     if (!*has_bounds) {
         bounds->min = p;
         bounds->max = p;
@@ -1212,20 +1212,20 @@ static void UpdateBounds(BOX3 *bounds, VECTOR3 p, BOOL *has_bounds) {
     bounds->max.z = MAX(bounds->max.z, p.z);
 }
 
-static BOOL CalculateVertexBounds(BYTE const *data, DWORD size, m2Array_t vertices, BOX3 *bounds) {
+static bool CalculateVertexBounds(uint8_t const *data, uint32_t size, m2Array_t vertices, BOX3 *bounds) {
     m2Vertex_t const *items = ArrayPtr(data, size, vertices, sizeof(*items));
-    BOOL has_bounds = false;
+    bool has_bounds = false;
 
     if (!items || !bounds) {
         return false;
     }
-    FOR_LOOP(i, (DWORD)vertices.count) {
+    FOR_LOOP(i, (uint32_t)vertices.count) {
         UpdateBounds(bounds, items[i].pos, &has_bounds);
     }
     return has_bounds;
 }
 
-static LPCSTR AnimationName(WORD id) {
+static cstring_t AnimationName(uint16_t id) {
     switch (id) {
         case 0: return "Stand";
         case 1: return "Death";
@@ -1268,9 +1268,9 @@ static LPCSTR AnimationName(WORD id) {
     }
 }
 
-static void PrintAnimations(BYTE const *data, DWORD size, m2HeaderInfo_t const *header) {
-    DWORD offset;
-    DWORD bytes;
+static void PrintAnimations(uint8_t const *data, uint32_t size, m2HeaderInfo_t const *header) {
+    uint32_t offset;
+    uint32_t bytes;
 
     if (!ArrayRange(header->animations,
                     header->version <= 263 ? sizeof(m2SequenceClassic_t) : sizeof(m2SequenceModern_t),
@@ -1281,10 +1281,10 @@ static void PrintAnimations(BYTE const *data, DWORD size, m2HeaderInfo_t const *
         return;
     }
     printf("animations:\n");
-    FOR_LOOP(i, (DWORD)header->animations.count) {
+    FOR_LOOP(i, (uint32_t)header->animations.count) {
         if (header->version <= 263) {
             m2SequenceClassic_t const *seq = (m2SequenceClassic_t const *)(data + offset + i * sizeof(*seq));
-            LPCSTR name = AnimationName(seq->animation_id);
+            cstring_t name = AnimationName(seq->animation_id);
             printf("  [%03u] id=%u%s%s sub=%u start=%u end=%u speed=%.3f flags=0x%08x blend=%u radius=%.3f next=%d alias=%u bounds=(%.3f %.3f %.3f)..(%.3f %.3f %.3f)\n",
                    (unsigned)i,
                    (unsigned)seq->animation_id,
@@ -1303,7 +1303,7 @@ static void PrintAnimations(BYTE const *data, DWORD size, m2HeaderInfo_t const *
                    seq->max.x, seq->max.y, seq->max.z);
         } else {
             m2SequenceModern_t const *seq = (m2SequenceModern_t const *)(data + offset + i * sizeof(*seq));
-            LPCSTR name = AnimationName(seq->animation_id);
+            cstring_t name = AnimationName(seq->animation_id);
             printf("  [%03u] id=%u%s%s sub=%u length=%u speed=%.3f flags=0x%08x blend=%u radius=%.3f next=%d alias=%u bounds=(%.3f %.3f %.3f)..(%.3f %.3f %.3f)\n",
                    (unsigned)i,
                    (unsigned)seq->animation_id,
@@ -1323,11 +1323,11 @@ static void PrintAnimations(BYTE const *data, DWORD size, m2HeaderInfo_t const *
     }
 }
 
-static DWORD SequenceStart(BYTE const *sequence, BOOL classic) {
+static uint32_t SequenceStart(uint8_t const *sequence, bool classic) {
     return classic ? ((m2SequenceClassic_t const *)sequence)->start_timestamp : 0;
 }
 
-static DWORD SequenceDuration(BYTE const *sequence, BOOL classic) {
+static uint32_t SequenceDuration(uint8_t const *sequence, bool classic) {
     if (classic) {
         m2SequenceClassic_t const *seq = (m2SequenceClassic_t const *)sequence;
         return seq->end_timestamp > seq->start_timestamp ? seq->end_timestamp - seq->start_timestamp : 0;
@@ -1335,13 +1335,13 @@ static DWORD SequenceDuration(BYTE const *sequence, BOOL classic) {
     return ((m2SequenceModern_t const *)sequence)->length;
 }
 
-static WORD SequenceAnimationId(BYTE const *sequence, BOOL classic) {
+static uint16_t SequenceAnimationId(uint8_t const *sequence, bool classic) {
     return classic
         ? ((m2SequenceClassic_t const *)sequence)->animation_id
         : ((m2SequenceModern_t const *)sequence)->animation_id;
 }
 
-static BOOL ParseSequenceSelector(LPCSTR selector, DWORD max_count, DWORD *out_index) {
+static bool ParseSequenceSelector(cstring_t selector, uint32_t max_count, uint32_t *out_index) {
     char *end = NULL;
     unsigned long value;
 
@@ -1350,24 +1350,24 @@ static BOOL ParseSequenceSelector(LPCSTR selector, DWORD max_count, DWORD *out_i
     }
     value = strtoul(selector, &end, 10);
     if (end && *end == '\0' && value < max_count) {
-        *out_index = (DWORD)value;
+        *out_index = (uint32_t)value;
         return true;
     }
     return false;
 }
 
-static BOOL FindSequenceByName(BYTE const *sequences,
-                               DWORD sequence_count,
-                               DWORD sequence_stride,
-                               BOOL classic,
-                               LPCSTR selector,
-                               DWORD *out_index) {
+static bool FindSequenceByName(uint8_t const *sequences,
+                               uint32_t sequence_count,
+                               uint32_t sequence_stride,
+                               bool classic,
+                               cstring_t selector,
+                               uint32_t *out_index) {
     if (ParseSequenceSelector(selector, sequence_count, out_index)) {
         return true;
     }
     FOR_LOOP(i, sequence_count) {
-        BYTE const *sequence = sequences + i * sequence_stride;
-        LPCSTR name = AnimationName(SequenceAnimationId(sequence, classic));
+        uint8_t const *sequence = sequences + i * sequence_stride;
+        cstring_t name = AnimationName(SequenceAnimationId(sequence, classic));
         if (name && !strcasecmp(name, selector)) {
             *out_index = i;
             return true;
@@ -1376,19 +1376,19 @@ static BOOL FindSequenceByName(BYTE const *sequences,
     return false;
 }
 
-static DWORD ClassicTrackKeyRange(BYTE const *data,
-                                  DWORD size,
+static uint32_t ClassicTrackKeyRange(uint8_t const *data,
+                                  uint32_t size,
                                   m2TrackClassic_t const *track,
-                                  DWORD sequence_index,
-                                  DWORD elem_size,
+                                  uint32_t sequence_index,
+                                  uint32_t elem_size,
                                   m2Range_t *out_range,
-                                  DWORD const **out_times,
-                                  BYTE const **out_keys) {
+                                  uint32_t const **out_times,
+                                  uint8_t const **out_keys) {
     m2Range_t const *ranges;
     m2Range_t range;
-    DWORD const *times;
-    BYTE const *keys;
-    DWORD count;
+    uint32_t const *times;
+    uint8_t const *keys;
+    uint32_t count;
 
     if (!track || !out_range || !out_times || !out_keys) {
         return 0;
@@ -1397,7 +1397,7 @@ static DWORD ClassicTrackKeyRange(BYTE const *data,
     if (!ranges || track->ranges.count <= 0) {
         return 0;
     }
-    if (sequence_index >= (DWORD)track->ranges.count) {
+    if (sequence_index >= (uint32_t)track->ranges.count) {
         sequence_index = 0;
     }
     range = ranges[sequence_index];
@@ -1407,13 +1407,13 @@ static DWORD ClassicTrackKeyRange(BYTE const *data,
     times = ArrayPtr(data, size, track->times, sizeof(*times));
     keys = ArrayPtr(data, size, track->keys, elem_size);
     if (!times || !keys ||
-        range.start >= (DWORD)track->times.count ||
-        range.start >= (DWORD)track->keys.count) {
+        range.start >= (uint32_t)track->times.count ||
+        range.start >= (uint32_t)track->keys.count) {
         return 0;
     }
     count = range.end - range.start + 1;
-    count = MIN(count, (DWORD)track->times.count - range.start);
-    count = MIN(count, (DWORD)track->keys.count - range.start);
+    count = MIN(count, (uint32_t)track->times.count - range.start);
+    count = MIN(count, (uint32_t)track->keys.count - range.start);
     if (count == 0) {
         return 0;
     }
@@ -1423,17 +1423,17 @@ static DWORD ClassicTrackKeyRange(BYTE const *data,
     return count;
 }
 
-static DWORD ModernTrackKeyRange(BYTE const *data,
-                                 DWORD size,
+static uint32_t ModernTrackKeyRange(uint8_t const *data,
+                                 uint32_t size,
                                  m2Track_t const *track,
-                                 DWORD sequence_index,
-                                 DWORD elem_size,
-                                 DWORD const **out_times,
-                                 BYTE const **out_keys) {
+                                 uint32_t sequence_index,
+                                 uint32_t elem_size,
+                                 uint32_t const **out_times,
+                                 uint8_t const **out_keys) {
     m2SequenceTimes_t const *sequence_times;
     m2SequenceKeys_t const *sequence_keys;
-    DWORD const *times;
-    BYTE const *keys;
+    uint32_t const *times;
+    uint8_t const *keys;
 
     if (!track || !out_times || !out_keys) {
         return 0;
@@ -1445,8 +1445,8 @@ static DWORD ModernTrackKeyRange(BYTE const *data,
         track->sequence_keys.count <= 0) {
         return 0;
     }
-    if (sequence_index >= (DWORD)track->sequence_times.count ||
-        sequence_index >= (DWORD)track->sequence_keys.count) {
+    if (sequence_index >= (uint32_t)track->sequence_times.count ||
+        sequence_index >= (uint32_t)track->sequence_keys.count) {
         sequence_index = 0;
     }
     times = ArrayPtr(data, size, sequence_times[sequence_index].times, sizeof(*times));
@@ -1456,26 +1456,26 @@ static DWORD ModernTrackKeyRange(BYTE const *data,
     }
     *out_times = times;
     *out_keys = keys;
-    return MIN((DWORD)sequence_times[sequence_index].times.count,
-               (DWORD)sequence_keys[sequence_index].keys.count);
+    return MIN((uint32_t)sequence_times[sequence_index].times.count,
+               (uint32_t)sequence_keys[sequence_index].keys.count);
 }
 
-static VECTOR3 KeyVec3(BYTE const *keys, DWORD index) {
+static VECTOR3 KeyVec3(uint8_t const *keys, uint32_t index) {
     return *(VECTOR3 const *)(keys + index * sizeof(VECTOR3));
 }
 
-static void PrintTrackLine(LPCSTR label,
-                           DWORD bone_index,
-                           DWORD flags,
-                           WORD parent_index,
+static void PrintTrackLine(cstring_t label,
+                           uint32_t bone_index,
+                           uint32_t flags,
+                           uint16_t parent_index,
                            VECTOR3 pivot,
-                           DWORD count,
+                           uint32_t count,
                            m2Range_t range,
-                           DWORD const *times,
-                           BYTE const *keys,
-                           DWORD elem_size,
-                           BOOL classic,
-                           BOOL vector_keys) {
+                           uint32_t const *times,
+                           uint8_t const *keys,
+                           uint32_t elem_size,
+                           bool classic,
+                           bool vector_keys) {
     printf("  bone[%03u] %-5s flags=0x%08x parent=%u pivot=(%.3f %.3f %.3f) keys=%u",
            (unsigned)bone_index,
            label,
@@ -1519,23 +1519,23 @@ static void PrintTrackLine(LPCSTR label,
     printf("\n");
 }
 
-static void PrintAnimationDiagnostics(BYTE const *data, DWORD size, m2HeaderInfo_t const *header, LPCSTR selector) {
-    DWORD sequence_offset;
-    DWORD sequence_bytes;
-    BYTE const *sequences;
-    BYTE const *sequence;
-    DWORD sequence_stride;
-    DWORD sequence_index;
-    BOOL classic = header->version <= 263;
-    DWORD bone_stride = classic ? sizeof(m2CompBoneClassic_t) : sizeof(m2CompBoneModern_t);
-    BYTE const *bones;
-    DWORD bones_offset;
-    DWORD bones_bytes;
-    DWORD sequence_count;
-    DWORD trans_bones = 0;
-    DWORD rot_bones = 0;
-    DWORD scale_bones = 0;
-    DWORD printed = 0;
+static void PrintAnimationDiagnostics(uint8_t const *data, uint32_t size, m2HeaderInfo_t const *header, cstring_t selector) {
+    uint32_t sequence_offset;
+    uint32_t sequence_bytes;
+    uint8_t const *sequences;
+    uint8_t const *sequence;
+    uint32_t sequence_stride;
+    uint32_t sequence_index;
+    bool classic = header->version <= 263;
+    uint32_t bone_stride = classic ? sizeof(m2CompBoneClassic_t) : sizeof(m2CompBoneModern_t);
+    uint8_t const *bones;
+    uint32_t bones_offset;
+    uint32_t bones_bytes;
+    uint32_t sequence_count;
+    uint32_t trans_bones = 0;
+    uint32_t rot_bones = 0;
+    uint32_t scale_bones = 0;
+    uint32_t printed = 0;
 
     sequence_stride = classic ? sizeof(m2SequenceClassic_t) : sizeof(m2SequenceModern_t);
     if (!ArrayRange(header->animations, sequence_stride, size, &sequence_offset, &sequence_bytes)) {
@@ -1566,17 +1566,17 @@ static void PrintAnimationDiagnostics(BYTE const *data, DWORD size, m2HeaderInfo
            header->bones.count,
            (unsigned)bone_stride);
 
-    FOR_LOOP(i, (DWORD)header->bones.count) {
-        DWORD const *times = NULL;
-        BYTE const *keys = NULL;
-        DWORD trans_count = 0;
-        DWORD rot_count = 0;
-        DWORD scale_count = 0;
+    FOR_LOOP(i, (uint32_t)header->bones.count) {
+        uint32_t const *times = NULL;
+        uint8_t const *keys = NULL;
+        uint32_t trans_count = 0;
+        uint32_t rot_count = 0;
+        uint32_t scale_count = 0;
         m2Range_t trans_range = { 0, 0 };
         m2Range_t rot_range = { 0, 0 };
         m2Range_t scale_range = { 0, 0 };
-        DWORD flags;
-        WORD parent_index;
+        uint32_t flags;
+        uint16_t parent_index;
         VECTOR3 pivot;
 
         if (classic) {
@@ -1669,7 +1669,7 @@ static void PrintAnimationDiagnostics(BYTE const *data, DWORD size, m2HeaderInfo
            (unsigned)scale_bones);
 }
 
-static LPCSTR TextureTypeName(DWORD type) {
+static cstring_t TextureTypeName(uint32_t type) {
     switch (type) {
         case 0: return "hardcoded";
         case 1: return "body/skin";
@@ -1681,18 +1681,18 @@ static LPCSTR TextureTypeName(DWORD type) {
     }
 }
 
-static void PrintTrackInfo(LPCSTR label, BOOL classic, WORD type, DWORD keys_off, DWORD keys_n) {
-    static LPCSTR const track_names[] = { "none", "linear", "hermite", "bezier" };
-    LPCSTR tname = type < 4 ? track_names[type] : "?";
+static void PrintTrackInfo(cstring_t label, bool classic, uint16_t type, uint32_t keys_off, uint32_t keys_n) {
+    static cstring_t const track_names[] = { "none", "linear", "hermite", "bezier" };
+    cstring_t tname = type < 4 ? track_names[type] : "?";
     printf("    %-22s type=%s(%u) keys_off=%u keys_n=%u\n", label, tname, (unsigned)type,
            (unsigned)keys_off, (unsigned)keys_n);
 }
 
-static void PrintParticleEmitters(BYTE const *data, DWORD size, m2HeaderInfo_t const *header) {
-    BOOL classic = header->version <= 263;
-    DWORD stride = classic ? sizeof(m2ParticleClassic_t) : sizeof(m2ParticleModern_t);
-    DWORD count = (DWORD)header->particle_emitters.count;
-    DWORD off = (DWORD)header->particle_emitters.offset;
+static void PrintParticleEmitters(uint8_t const *data, uint32_t size, m2HeaderInfo_t const *header) {
+    bool classic = header->version <= 263;
+    uint32_t stride = classic ? sizeof(m2ParticleClassic_t) : sizeof(m2ParticleModern_t);
+    uint32_t count = (uint32_t)header->particle_emitters.count;
+    uint32_t off = (uint32_t)header->particle_emitters.offset;
     if (!count) return;
     if (off + count * stride > size) {
         printf("particle_emitters: %u entries but data out of bounds (off=%u stride=%u size=%u)\n",
@@ -1701,7 +1701,7 @@ static void PrintParticleEmitters(BYTE const *data, DWORD size, m2HeaderInfo_t c
     }
     printf("particle_emitters: %u (%s)\n", (unsigned)count, classic ? "classic/tbc" : "modern");
     FOR_LOOP(i, count) {
-        BYTE const *raw = data + off + i * stride;
+        uint8_t const *raw = data + off + i * stride;
         if (classic) {
             m2ParticleClassic_t const *p = (m2ParticleClassic_t const *)raw;
             printf("  [%u] id=0x%x flags=0x%x bone=%u tex=%u blend=%u etype=%u rows=%u cols=%u\n",
@@ -1744,11 +1744,11 @@ static void PrintParticleEmitters(BYTE const *data, DWORD size, m2HeaderInfo_t c
     }
 }
 
-static void PrintRibbonEmitters(BYTE const *data, DWORD size, m2HeaderInfo_t const *header) {
-    BOOL classic = header->version <= 263;
-    DWORD stride = classic ? sizeof(m2RibbonClassic_t) : sizeof(m2RibbonModern_t);
-    DWORD count = (DWORD)header->ribbon_emitters.count;
-    DWORD off = (DWORD)header->ribbon_emitters.offset;
+static void PrintRibbonEmitters(uint8_t const *data, uint32_t size, m2HeaderInfo_t const *header) {
+    bool classic = header->version <= 263;
+    uint32_t stride = classic ? sizeof(m2RibbonClassic_t) : sizeof(m2RibbonModern_t);
+    uint32_t count = (uint32_t)header->ribbon_emitters.count;
+    uint32_t off = (uint32_t)header->ribbon_emitters.offset;
     if (!count) return;
     if (off + count * stride > size) {
         printf("ribbon_emitters: %u entries but data out of bounds (off=%u stride=%u size=%u)\n",
@@ -1757,7 +1757,7 @@ static void PrintRibbonEmitters(BYTE const *data, DWORD size, m2HeaderInfo_t con
     }
     printf("ribbon_emitters: %u (%s)\n", (unsigned)count, classic ? "classic/tbc" : "modern");
     FOR_LOOP(i, count) {
-        BYTE const *raw = data + off + i * stride;
+        uint8_t const *raw = data + off + i * stride;
         if (classic) {
             m2RibbonClassic_t const *r = (m2RibbonClassic_t const *)raw;
             printf("  [%u] id=0x%x bone=%u tex_n=%u mat_n=%u edges_per_sec=%.2f life=%.2f grav=%.2f rows=%u cols=%u\n",
@@ -1788,7 +1788,7 @@ static void PrintRibbonEmitters(BYTE const *data, DWORD size, m2HeaderInfo_t con
     }
 }
 
-static void PrintTextures(BYTE const *data, DWORD size, m2HeaderInfo_t const *header) {
+static void PrintTextures(uint8_t const *data, uint32_t size, m2HeaderInfo_t const *header) {
     m2Texture_t const *textures = ArrayPtr(data, size, header->textures, sizeof(*textures));
 
     if (!textures) {
@@ -1796,9 +1796,9 @@ static void PrintTextures(BYTE const *data, DWORD size, m2HeaderInfo_t const *he
         return;
     }
     printf("textures:\n");
-    FOR_LOOP(i, (DWORD)header->textures.count) {
+    FOR_LOOP(i, (uint32_t)header->textures.count) {
         m2Texture_t const *texture = textures + i;
-        LPCSTR path = StringPtr(data, size, texture->filename);
+        cstring_t path = StringPtr(data, size, texture->filename);
         printf("  [%03u] type=%u (%s) flags=0x%08x path=%s\n",
                (unsigned)i,
                (unsigned)texture->type,
@@ -1808,8 +1808,8 @@ static void PrintTextures(BYTE const *data, DWORD size, m2HeaderInfo_t const *he
     }
 }
 
-static void PrintTextureLookup(BYTE const *data, DWORD size, m2HeaderInfo_t const *header) {
-    SHORT const *texture_lookup;
+static void PrintTextureLookup(uint8_t const *data, uint32_t size, m2HeaderInfo_t const *header) {
+    int16_t const *texture_lookup;
 
     if (!header || !g_dump_all || header->texture_lookup_table.count <= 0) {
         return;
@@ -1822,27 +1822,27 @@ static void PrintTextureLookup(BYTE const *data, DWORD size, m2HeaderInfo_t cons
     }
 
     printf("texture_lookup_table values:");
-    FOR_LOOP(i, (DWORD)header->texture_lookup_table.count) {
+    FOR_LOOP(i, (uint32_t)header->texture_lookup_table.count) {
         printf(" %d", (int)texture_lookup[i]);
     }
     printf("\n");
 }
 
-static void PrintBatches(BYTE const *m2_data,
-                         DWORD m2_size,
+static void PrintBatches(uint8_t const *m2_data,
+                         uint32_t m2_size,
                          m2HeaderInfo_t const *header,
-                         BYTE const *skin_data,
-                         DWORD skin_size,
+                         uint8_t const *skin_data,
+                         uint32_t skin_size,
                          m2Array_t vertex_lookup_array,
                          m2Array_t indices_array,
                          m2Array_t sections_array,
                          m2Array_t batches_array,
-                         BOOL legacy_sections,
-                         LPCSTR label) {
+                         bool legacy_sections,
+                         cstring_t label) {
     m2Batch_t const *batches;
     m2Vertex_t const *vertices;
-    WORD const *vertex_lookup, *indices;
-    SHORT const *texture_lookup;
+    uint16_t const *vertex_lookup, *indices;
+    int16_t const *texture_lookup;
 
     if (!g_dump_all || !header || batches_array.count <= 0) {
         return;
@@ -1859,17 +1859,17 @@ static void PrintBatches(BYTE const *m2_data,
     vertex_lookup = ArrayPtr(skin_data, skin_size, vertex_lookup_array, sizeof(*vertex_lookup));
     indices = ArrayPtr(skin_data, skin_size, indices_array, sizeof(*indices));
     printf("%s.batches detail:\n", label);
-    FOR_LOOP(i, (DWORD)batches_array.count) {
+    FOR_LOOP(i, (uint32_t)batches_array.count) {
         m2Batch_t const *batch = batches + i;
-        SHORT texture_index = -1;
-        WORD skin_section_id = 0xffff;
-        DWORD index_start = 0, index_count = 0;
+        int16_t texture_index = -1;
+        uint16_t skin_section_id = 0xffff;
+        uint32_t index_start = 0, index_count = 0;
         BOX3 bounds = { 0 };
-        BOOL has_bounds = false;
-        if (texture_lookup && batch->texture_combo_index < (WORD)header->texture_lookup_table.count) {
+        bool has_bounds = false;
+        if (texture_lookup && batch->texture_combo_index < (uint16_t)header->texture_lookup_table.count) {
             texture_index = texture_lookup[batch->texture_combo_index];
         }
-        if (batch->skin_section_index < (WORD)sections_array.count) {
+        if (batch->skin_section_index < (uint16_t)sections_array.count) {
             if (legacy_sections) {
                 m2SkinSectionLegacy_t const *sections = ArrayPtr(skin_data,
                                                                  skin_size,
@@ -1894,10 +1894,10 @@ static void PrintBatches(BYTE const *m2_data,
         }
         if (vertices && vertex_lookup && indices)
             FOR_LOOP(j, index_count) {
-                DWORD skin_index = index_start + j;
-                if (skin_index >= (DWORD)indices_array.count || indices[skin_index] >= (WORD)vertex_lookup_array.count)
+                uint32_t skin_index = index_start + j;
+                if (skin_index >= (uint32_t)indices_array.count || indices[skin_index] >= (uint16_t)vertex_lookup_array.count)
                     continue;
-                if (vertex_lookup[indices[skin_index]] >= (WORD)header->vertices.count) continue;
+                if (vertex_lookup[indices[skin_index]] >= (uint16_t)header->vertices.count) continue;
                 UpdateBounds(&bounds, vertices[vertex_lookup[indices[skin_index]]].pos, &has_bounds);
             }
         printf("  [%03u] section=%u section_id=%u geoset=%u material=%u layer=%u tex_count=%u tex_combo=%u tex_index=%d coord=%u weight=%u transform=%u flags=0x%02x shader=0x%04x\n",
@@ -1921,11 +1921,11 @@ static void PrintBatches(BYTE const *m2_data,
     }
 }
 
-static BOOL DefaultSkinPath(LPCSTR model_path, LPSTR out, DWORD out_size) {
+static bool DefaultSkinPath(cstring_t model_path, string_t out, uint32_t out_size) {
     return CopyWithExtension(model_path, "00.skin", out, out_size);
 }
 
-static void PrintEmbeddedSkinInfo(BYTE const *data, DWORD size, m2HeaderInfo_t const *header) {
+static void PrintEmbeddedSkinInfo(uint8_t const *data, uint32_t size, m2HeaderInfo_t const *header) {
     m2EmbeddedView_t const *views;
 
     if (!header || header->version > 263) {
@@ -1937,7 +1937,7 @@ static void PrintEmbeddedSkinInfo(BYTE const *data, DWORD size, m2HeaderInfo_t c
         return;
     }
     printf("embedded_skins: count=%d\n", header->views.count);
-    FOR_LOOP(i, (DWORD)header->views.count) {
+    FOR_LOOP(i, (uint32_t)header->views.count) {
         m2EmbeddedView_t const *view = views + i;
         printf("  view[%u]\n", (unsigned)i);
         PrintArray("view.vertices", view->vertices, false);
@@ -1951,11 +1951,11 @@ static void PrintEmbeddedSkinInfo(BYTE const *data, DWORD size, m2HeaderInfo_t c
     }
 }
 
-static void PrintSkinInfo(LPCSTR model_path, BYTE const *m2_data, DWORD m2_size, m2HeaderInfo_t const *header) {
+static void PrintSkinInfo(cstring_t model_path, uint8_t const *m2_data, uint32_t m2_size, m2HeaderInfo_t const *header) {
     PATHSTR requested;
     PATHSTR resolved = { 0 };
-    DWORD size = 0;
-    LPBYTE data;
+    uint32_t size = 0;
+    uint8_t * data;
     m2SkinHeader_t const *skin;
 
     if (g_skin_path) {
@@ -1993,7 +1993,7 @@ static void PrintSkinInfo(LPCSTR model_path, BYTE const *m2_data, DWORD m2_size,
     Tool_MemFree(data);
 }
 
-static void AddSectionId(WORD *sections, DWORD *count, DWORD max_count, WORD section_id) {
+static void AddSectionId(uint16_t *sections, uint32_t *count, uint32_t max_count, uint16_t section_id) {
     if (!sections || !count) {
         return;
     }
@@ -2007,18 +2007,18 @@ static void AddSectionId(WORD *sections, DWORD *count, DWORD max_count, WORD sec
     }
 }
 
-static DWORD CollectSkinSections(LPCSTR model_path,
-                                 BYTE const *m2_data,
-                                 DWORD m2_size,
+static uint32_t CollectSkinSections(cstring_t model_path,
+                                 uint8_t const *m2_data,
+                                 uint32_t m2_size,
                                  m2HeaderInfo_t const *header,
-                                 WORD *sections,
-                                 DWORD max_sections) {
+                                 uint16_t *sections,
+                                 uint32_t max_sections) {
     PATHSTR requested;
     PATHSTR resolved = { 0 };
-    DWORD size = 0;
-    LPBYTE data;
+    uint32_t size = 0;
+    uint8_t * data;
     m2SkinHeader_t const *skin;
-    DWORD count = 0;
+    uint32_t count = 0;
 
     if (!header || !sections || max_sections == 0) {
         return 0;
@@ -2034,7 +2034,7 @@ static DWORD CollectSkinSections(LPCSTR model_path,
         if (skin->magic == MAKEFOURCC('S', 'K', 'I', 'N')) {
             m2SkinSection_t const *skin_sections = ArrayPtr(data, size, skin->sections, sizeof(*skin_sections));
             if (skin_sections) {
-                FOR_LOOP(i, (DWORD)skin->sections.count) {
+                FOR_LOOP(i, (uint32_t)skin->sections.count) {
                     AddSectionId(sections, &count, max_sections, skin_sections[i].skin_section_id);
                 }
             }
@@ -2050,7 +2050,7 @@ static DWORD CollectSkinSections(LPCSTR model_path,
             m2EmbeddedView_t const *view = views;
             m2SkinSectionLegacy_t const *skin_sections = ArrayPtr(m2_data, m2_size, view->sections, sizeof(*skin_sections));
             if (skin_sections) {
-                FOR_LOOP(i, (DWORD)view->sections.count) {
+                FOR_LOOP(i, (uint32_t)view->sections.count) {
                     AddSectionId(sections, &count, max_sections, skin_sections[i].skin_section_id);
                 }
             }
@@ -2059,10 +2059,10 @@ static DWORD CollectSkinSections(LPCSTR model_path,
     return count;
 }
 
-static void SortSections(WORD *sections, DWORD count) {
-    for (DWORD i = 1; i < count; i++) {
-        WORD value = sections[i];
-        DWORD j = i;
+static void SortSections(uint16_t *sections, uint32_t count) {
+    for (uint32_t i = 1; i < count; i++) {
+        uint16_t value = sections[i];
+        uint32_t j = i;
         while (j > 0 && sections[j - 1] > value) {
             sections[j] = sections[j - 1];
             j--;
@@ -2071,8 +2071,8 @@ static void SortSections(WORD *sections, DWORD count) {
     }
 }
 
-static void PrintWowPlayerConfig(BYTE const *m2_data, DWORD m2_size, m2HeaderInfo_t const *header) {
-    static LPCSTR const slot_names[M2TOOL_CHAR_TEX_COUNT] = {
+static void PrintWowPlayerConfig(uint8_t const *m2_data, uint32_t m2_size, m2HeaderInfo_t const *header) {
+    static cstring_t const slot_names[M2TOOL_CHAR_TEX_COUNT] = {
         "ArmUpper",
         "ArmLower",
         "Hand",
@@ -2083,8 +2083,8 @@ static void PrintWowPlayerConfig(BYTE const *m2_data, DWORD m2_size, m2HeaderInf
         "Foot"
     };
     m2ToolWowOutfit_t outfit;
-    WORD sections[256];
-    DWORD section_count;
+    uint16_t sections[256];
+    uint32_t section_count;
 
     if (!g_wow_player_config) {
         return;
@@ -2115,8 +2115,8 @@ static void PrintWowPlayerConfig(BYTE const *m2_data, DWORD m2_size, m2HeaderInf
     FOR_LOOP(i, M2TOOL_CHAR_TEX_COUNT) {
         FOR_LOOP(priority, 7) {
             PATHSTR path;
-            LPCSTR stem = outfit.texture[i][priority];
-            if (!ComponentTexturePath(stem, (BYTE)i, g_model_path, path, sizeof(path))) continue;
+            cstring_t stem = outfit.texture[i][priority];
+            if (!ComponentTexturePath(stem, (uint8_t)i, g_model_path, path, sizeof(path))) continue;
             printf("    %-11s priority=%u stem=%s path=%s %s\n", slot_names[i], (unsigned)priority, stem, path,
                    Tool_FileExists(archives, sizeof(archives) / sizeof(archives[0]), path) ? "exists" : "missing");
         }
@@ -2142,7 +2142,7 @@ static void PrintWowPlayerConfig(BYTE const *m2_data, DWORD m2_size, m2HeaderInf
 }
 
 static void PrintHeaderArrays(m2HeaderInfo_t const *h) {
-    BOOL legacy = h->version <= 263;
+    bool legacy = h->version <= 263;
 
     printf("arrays:\n");
     PrintArray("name", h->name, false);
@@ -2185,16 +2185,16 @@ static void PrintHeaderArrays(m2HeaderInfo_t const *h) {
 
 static void InspectModel(void) {
     PATHSTR resolved = { 0 };
-    DWORD file_size = 0;
-    LPBYTE file_data;
-    BYTE const *payload;
-    DWORD payload_size;
+    uint32_t file_size = 0;
+    uint8_t * file_data;
+    uint8_t const *payload;
+    uint32_t payload_size;
     m2HeaderInfo_t header;
-    LPCSTR name;
+    cstring_t name;
     BOX3 vertex_bounds;
-    BOOL has_vertex_bounds;
-    FLOAT header_ground_offset;
-    FLOAT vertex_ground_offset = 0.0f;
+    bool has_vertex_bounds;
+    float header_ground_offset;
+    float vertex_ground_offset = 0.0f;
 
     file_data = ReadWholeFile(g_model_path, &file_size, resolved, sizeof(resolved));
     if (!file_data) {
@@ -2282,16 +2282,16 @@ static void InspectModel(void) {
     Tool_MemFree(file_data);
 }
 
-static BOOL LoadPreviewBounds(BOX3 *bounds, FLOAT *extent_out) {
+static bool LoadPreviewBounds(BOX3 *bounds, float *extent_out) {
     PATHSTR resolved = { 0 };
-    DWORD file_size = 0;
-    LPBYTE file_data;
-    BYTE const *payload;
-    DWORD payload_size;
+    uint32_t file_size = 0;
+    uint8_t * file_data;
+    uint8_t const *payload;
+    uint32_t payload_size;
     m2HeaderInfo_t header;
-    FLOAT width;
-    FLOAT depth;
-    FLOAT height;
+    float width;
+    float depth;
+    float height;
 
     if (!bounds || !extent_out) {
         return false;
@@ -2315,15 +2315,15 @@ static BOOL LoadPreviewBounds(BOX3 *bounds, FLOAT *extent_out) {
     return true;
 }
 
-static void RenderViewerFrame(refExport_t const *re, LPMODEL model, DWORD now, LPCBOX3 bounds) {
+static void RenderViewerFrame(refExport_t const *re, LPMODEL model, uint32_t now, LPCBOX3 bounds) {
     viewDef_t viewdef = { 0 };
     renderEntity_t entity = { 0 };
     size2_t window = re->GetWindowSize();
-    FLOAT aspect = window.height ? (FLOAT)window.width / (FLOAT)window.height : 1.0f;
-    FLOAT height = bounds ? fabsf(bounds->max.z - bounds->min.z) : 2.5f;
-    FLOAT radius = MAX(1.0f, height * g_preview_scale * 0.6f);
-    FLOAT near_clip = MAX(0.01f, g_orbit.distance * 0.01f);
-    FLOAT far_clip = MAX(100.0f, g_orbit.distance + radius * 8.0f);
+    float aspect = window.height ? (float)window.width / (float)window.height : 1.0f;
+    float height = bounds ? fabsf(bounds->max.z - bounds->min.z) : 2.5f;
+    float radius = MAX(1.0f, height * g_preview_scale * 0.6f);
+    float near_clip = MAX(0.01f, g_orbit.distance * 0.01f);
+    float far_clip = MAX(100.0f, g_orbit.distance + radius * 8.0f);
     char line[512];
 
     entity.model = model;
@@ -2340,8 +2340,8 @@ static void RenderViewerFrame(refExport_t const *re, LPMODEL model, DWORD now, L
     Matrix4_identity(&viewdef.textureMatrix);
     Viewer_OrbitBuildCamera(&g_orbit, aspect, 35.0f, near_clip, far_clip, &viewdef.viewProjectionMatrix);
     Viewer_OrbitBuildLight(&g_orbit, &(VECTOR3){ 0.0f, 0.0f, 0.0f }, MAX(32.0f, radius * 2.0f), &viewdef.lightMatrix);
-    viewdef.viewport = (RECT){ 0, 0, 1, 1 };
-    viewdef.scissor = (RECT){ 0, 0, 1, 1 };
+    viewdef.viewport = (rect_t){ 0, 0, 1, 1 };
+    viewdef.scissor = (rect_t){ 0, 0, 1, 1 };
     viewdef.time = now;
     viewdef.deltaTime = 16;
     viewdef.lerpfrac = 0.0f;
@@ -2367,11 +2367,11 @@ static int RunViewer(void) {
     refExport_t re;
     LPMODEL model;
     BOX3 bounds = { 0 };
-    BOOL has_bounds;
-    FLOAT extent = 2.5f;
-    FLOAT height;
-    FLOAT orbit_distance;
-    BOOL running = true;
+    bool has_bounds;
+    float extent = 2.5f;
+    float height;
+    float orbit_distance;
+    bool running = true;
 
     re = R_GetAPI((refImport_t){
         .FS_ReadFile = Tool_FS_ReadFile,
@@ -2472,10 +2472,10 @@ int main(int argc, char **argv) {
             g_info_only = true;
         } else if (!strcmp(argv[i], "--appearance") && i + 1 < argc) {
             g_wow_player_config = true;
-            g_wow_appearance = (DWORD)strtoul(argv[++i], NULL, 0);
+            g_wow_appearance = (uint32_t)strtoul(argv[++i], NULL, 0);
         } else if (!strcmp(argv[i], "--equipment") && i + 1 < argc) {
             g_wow_player_config = true;
-            g_wow_equipment = (DWORD)strtoul(argv[++i], NULL, 0);
+            g_wow_equipment = (uint32_t)strtoul(argv[++i], NULL, 0);
         } else {
             usage();
             errorf("m2tool: unknown or incomplete argument: %s", argv[i]);

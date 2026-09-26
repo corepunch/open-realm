@@ -14,7 +14,7 @@
 #define BZ_HERO 1.5f // fixture HeroDur; hero stun seconds (not stock 2)
 #define BZ_AREA 200.0f // fixture Area; blast radius (not stock 250)
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -47,7 +47,7 @@ typedef struct {
     VECTOR2 point;
 } INFIX;
 
-static DWORD stun_ms(LPCEDICT unit) {
+static uint32_t stun_ms(LPCEDICT unit) {
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSTU)
             return unit->abilstatus[i].duration_ms;
@@ -68,7 +68,7 @@ static LPEDICT inferno_summon(LPEDICT caster) {
 
 /* Fill the caller's INFIX. Returning a copy would dangle UnitBalance pointers
  * (&local.unit_bal) after return; Linux then misreads G_UnitIsHero (HeroDur vs Dur). */
-static void inferno_setup(INFIX *fix, DWORD code) {
+static void inferno_setup(INFIX *fix, uint32_t code) {
     reset_entities(); setup_test_world(); level.time = 1000;
     ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
@@ -117,14 +117,14 @@ TEST(wc3_spell, inferno_impact_after_authored_delay) {
     T_NULL(inferno_summon(fix.caster));
     T_NOT_NULL(inferno_thinker(fix.caster));
 
-    level.time += (DWORD)(BZ_DELAY * 1000.0f) - 1; G_RunEntities();
+    level.time += (uint32_t)(BZ_DELAY * 1000.0f) - 1; G_RunEntities();
     T_FEQ(fix.enemy->health.value, 500, 0.001f);
     T_NULL(inferno_summon(fix.caster));
 
     level.time += 1; G_RunEntities();
     T_FEQ(fix.enemy->health.value, 500.0f - BZ_DMG, 0.001f);
     T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BSTU), 1);
-    T_EQ(stun_ms(fix.enemy), (DWORD)(BZ_STUN * 1000.0f));
+    T_EQ(stun_ms(fix.enemy), (uint32_t)(BZ_STUN * 1000.0f));
     T_NOT_NULL(inferno_summon(fix.caster));
     T_ASSERT(S_UnitHasStatus(inferno_summon(fix.caster), BZ_BTLF));
     T_EQ(stun_ms(inferno_summon(fix.caster)), 0);
@@ -135,7 +135,7 @@ TEST(wc3_spell, inferno_impact_after_authored_delay) {
 TEST(wc3_spell, inferno_out_of_area_untouched) {
     INFIX fix; inferno_setup(&fix, BZ_ANIN);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANIN, &fix.point));
-    level.time += (DWORD)(BZ_DELAY * 1000.0f); G_RunEntities();
+    level.time += (uint32_t)(BZ_DELAY * 1000.0f); G_RunEntities();
     T_FEQ(fix.far->health.value, 500, 0.001f);
     T_EQ(G_UnitStatusLevel(fix.far, BZ_BSTU), 0);
     inferno_done(fix);
@@ -145,7 +145,7 @@ TEST(wc3_spell, inferno_summon_uses_datab_life) {
     INFIX fix; inferno_setup(&fix, BZ_ANIN);
     LPEDICT summon;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANIN, &fix.point));
-    level.time += (DWORD)(BZ_DELAY * 1000.0f); G_RunEntities();
+    level.time += (uint32_t)(BZ_DELAY * 1000.0f); G_RunEntities();
     summon = inferno_summon(fix.caster);
     T_NOT_NULL(summon);
     T_EQ(summon->class_id, BZ_HFOO);
@@ -153,7 +153,7 @@ TEST(wc3_spell, inferno_summon_uses_datab_life) {
     T_ASSERT(S_UnitHasStatus(summon, BZ_BTLF));
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (summon->abilstatus[i].level && summon->abilstatus[i].code == BZ_BTLF)
-            T_EQ(summon->abilstatus[i].duration_ms, (DWORD)(BZ_LIFE * 1000.0f));
+            T_EQ(summon->abilstatus[i].duration_ms, (uint32_t)(BZ_LIFE * 1000.0f));
     inferno_done(fix);
 }
 
@@ -162,9 +162,9 @@ TEST(wc3_spell, inferno_stun_uses_herodur_for_heroes) {
     VECTOR2 point = fix.hero->s.origin2;
     T_ASSERT(G_UnitIsHero(fix.hero));
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANIN, &point));
-    level.time += (DWORD)(BZ_DELAY * 1000.0f); G_RunEntities();
+    level.time += (uint32_t)(BZ_DELAY * 1000.0f); G_RunEntities();
     T_EQ(G_UnitStatusLevel(fix.hero, BZ_BSTU), 1);
-    T_EQ(stun_ms(fix.hero), (DWORD)(BZ_HERO * 1000.0f));
+    T_EQ(stun_ms(fix.hero), (uint32_t)(BZ_HERO * 1000.0f));
     T_FEQ(fix.hero->health.value, 500.0f - BZ_DMG, 0.001f);
     inferno_done(fix);
 }
@@ -176,7 +176,7 @@ TEST(wc3_spell, inferno_rain_of_chaos_lands_via_inferno_row) {
     T_EQ(fix.caster->channel.code, 0);
     /* Fixture DataC=0.5 so the RoC landing schedules Inferno delay before summon. */
     T_NULL(inferno_summon(fix.caster));
-    level.time += (DWORD)(BZ_DELAY * 1000.0f); G_RunEntities();
+    level.time += (uint32_t)(BZ_DELAY * 1000.0f); G_RunEntities();
     T_NOT_NULL(inferno_summon(fix.caster));
     T_ASSERT(S_UnitHasStatus(inferno_summon(fix.caster), BZ_BTLF));
     inferno_done(fix);

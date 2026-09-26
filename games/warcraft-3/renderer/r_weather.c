@@ -8,50 +8,50 @@
 #define WEATHER_DEG2RAD 0.01745329251994329577f
 
 typedef struct {
-    DWORD id;
-    LPCSTR name;
-    LPCSTR texDir;
-    LPCSTR texFile;
-    DWORD alphaMode;
-    BOOL useFog;
-    FLOAT height;
-    FLOAT angleX;
-    FLOAT angleY;
-    FLOAT emissionRate;
-    FLOAT lifespan;
-    DWORD particles;
-    FLOAT velocity;
-    FLOAT acceleration;
-    FLOAT variation;
-    DWORD rows;
-    DWORD columns;
-    BOOL head;
-    BOOL tail;
-    FLOAT tailLength;
-    FLOAT latitude;
-    FLOAT longitude;
-    FLOAT midTime;
-    DWORD redStart, greenStart, blueStart;
-    DWORD redMid, greenMid, blueMid;
-    DWORD redEnd, greenEnd, blueEnd;
-    DWORD alphaStart, alphaMid, alphaEnd;
-    FLOAT scaleStart, scaleMid, scaleEnd;
-    DWORD headUVStart, headUVMid, headUVEnd;
-    DWORD tailUVStart, tailUVMid, tailUVEnd;
-    LPCSTR ambientSound;
-    DWORD version;
+    uint32_t id;
+    cstring_t name;
+    cstring_t texDir;
+    cstring_t texFile;
+    uint32_t alphaMode;
+    bool useFog;
+    float height;
+    float angleX;
+    float angleY;
+    float emissionRate;
+    float lifespan;
+    uint32_t particles;
+    float velocity;
+    float acceleration;
+    float variation;
+    uint32_t rows;
+    uint32_t columns;
+    bool head;
+    bool tail;
+    float tailLength;
+    float latitude;
+    float longitude;
+    float midTime;
+    uint32_t redStart, greenStart, blueStart;
+    uint32_t redMid, greenMid, blueMid;
+    uint32_t redEnd, greenEnd, blueEnd;
+    uint32_t alphaStart, alphaMid, alphaEnd;
+    float scaleStart, scaleMid, scaleEnd;
+    uint32_t headUVStart, headUVMid, headUVEnd;
+    uint32_t tailUVStart, tailUVMid, tailUVEnd;
+    cstring_t ambientSound;
+    uint32_t version;
 } w3WeatherArt_t;
 
 typedef struct {
-    BOOL inuse;
-    BOOL enabled;
-    DWORD handle;
-    DWORD effect_id;
+    bool inuse;
+    bool enabled;
+    uint32_t handle;
+    uint32_t effect_id;
     BOX2 bounds;
     w3WeatherArt_t const *art;
     LPCTEXTURE texture;
-    FLOAT emission_accum;
-    DWORD seen;
+    float emission_accum;
+    uint32_t seen;
 } renderWeatherEffect_t;
 
 static slkField_t const weather_schema[] = {
@@ -105,20 +105,20 @@ static slkField_t const weather_schema[] = {
 };
 
 static w3WeatherArt_t *weather_rows;
-static DWORD weather_count;
+static uint32_t weather_count;
 static slkIndex_t weather_index;
 static renderWeatherEffect_t weather_effects[MAX_RENDER_WEATHER_EFFECTS];
 static uint32_t weather_rng = 0x7f4a7c15u;
-static DWORD weather_sync;
+static uint32_t weather_sync;
 
-static FLOAT R_WeatherRandom01(void) {
+static float R_WeatherRandom01(void) {
     weather_rng ^= weather_rng << 13;
     weather_rng ^= weather_rng >> 17;
     weather_rng ^= weather_rng << 5;
-    return (FLOAT)(weather_rng & 0x00ffffffu) / 16777216.0f;
+    return (float)(weather_rng & 0x00ffffffu) / 16777216.0f;
 }
 
-static renderWeatherEffect_t *R_WeatherFind(DWORD handle) {
+static renderWeatherEffect_t *R_WeatherFind(uint32_t handle) {
     FOR_LOOP(i, MAX_RENDER_WEATHER_EFFECTS)
         if (weather_effects[i].inuse && weather_effects[i].handle == handle) return weather_effects + i;
     return NULL;
@@ -145,9 +145,9 @@ static void R_WeatherResolve(renderWeatherEffect_t *effect) {
     effect->texture = R_WeatherTexture(effect->art);
 }
 
-static DWORD R_WeatherLoadSlk(LPCSTR filename, void **dest) {
+static uint32_t R_WeatherLoadSlk(cstring_t filename, void **dest) {
     PATHSTR scoped;
-    DWORD count = 0;
+    uint32_t count = 0;
 
     if (R_MapAssetCandidate(filename, scoped, sizeof(scoped)))
         count = ri.LoadSlk(scoped, weather_schema, dest, sizeof(w3WeatherArt_t));
@@ -182,7 +182,7 @@ void R_WeatherRegisterMap(void) {
 
 /* Reconcile renderer-owned particle accumulators with the latest client view. */
 static void R_WeatherSync(void) {
-    DWORD sync = ++weather_sync;
+    uint32_t sync = ++weather_sync;
 
     FOR_LOOP(i, tr.viewDef.num_weather_effects) {
         wc3WeatherEffect_t const *state = tr.viewDef.weather_effects + i;
@@ -208,7 +208,7 @@ static void R_WeatherSync(void) {
 }
 
 static BOX2 R_WeatherEmissionBounds(void) {
-    FLOAT radius = MAX(WEATHER_MIN_EMIT_RADIUS, tr.viewDef.camerastate[0].distance * 1.25f);
+    float radius = MAX(WEATHER_MIN_EMIT_RADIUS, tr.viewDef.camerastate[0].distance * 1.25f);
     VECTOR3 center = tr.viewDef.camerastate[0].origin;
     return (BOX2){
         .min = { center.x - radius, center.y - radius },
@@ -216,7 +216,7 @@ static BOX2 R_WeatherEmissionBounds(void) {
     };
 }
 
-static BOOL R_WeatherIntersect(LPCBOX2 a, LPCBOX2 b, LPBOX2 out) {
+static bool R_WeatherIntersect(LPCBOX2 a, LPCBOX2 b, LPBOX2 out) {
     if (!a || !b || !out) return false;
     out->min.x = MAX(a->min.x, b->min.x);
     out->min.y = MAX(a->min.y, b->min.y);
@@ -225,19 +225,19 @@ static BOOL R_WeatherIntersect(LPCBOX2 a, LPCBOX2 b, LPBOX2 out) {
     return out->min.x < out->max.x && out->min.y < out->max.y;
 }
 
-static BYTE R_WeatherByte(DWORD value) {
-    return (BYTE)MIN(value, 255u);
+static uint8_t R_WeatherByte(uint32_t value) {
+    return (uint8_t)MIN(value, 255u);
 }
 
-static BYTE R_WeatherScale(FLOAT value) {
-    LONG encoded = (LONG)lroundf(MAX(value, 0.0f) * WEATHER_SCALE_QUANT);
-    return (BYTE)MIN(MAX(encoded, 0), 255);
+static uint8_t R_WeatherScale(float value) {
+    int32_t encoded = (int32_t)lroundf(MAX(value, 0.0f) * WEATHER_SCALE_QUANT);
+    return (uint8_t)MIN(MAX(encoded, 0), 255);
 }
 
 static void R_WeatherSpawn(renderWeatherEffect_t *effect, LPCBOX2 area) {
     w3WeatherArt_t const *art = effect->art;
     cparticle_t *p;
-    FLOAT ax, ay, speed;
+    float ax, ay, speed;
     VECTOR3 direction;
 
     if (!art || !area || art->lifespan <= 0.0f) return;
@@ -265,9 +265,9 @@ static void R_WeatherSpawn(renderWeatherEffect_t *effect, LPCBOX2 area) {
     p->size[2] = R_WeatherScale(art->scaleEnd);
     p->size_value_scale = 1.0f / WEATHER_SCALE_QUANT;
     p->size_time_scale = 1.0f / art->lifespan;
-    p->midtime = (BYTE)MIN(MAX((LONG)lroundf(art->midTime * 255.0f), 1), 254);
-    p->rows = (BYTE)MIN(MAX(art->rows, 1u), 255u);
-    p->columns = (BYTE)MIN(MAX(art->columns, 1u), 255u);
+    p->midtime = (uint8_t)MIN(MAX((int32_t)lroundf(art->midTime * 255.0f), 1), 254);
+    p->rows = (uint8_t)MIN(MAX(art->rows, 1u), 255u);
+    p->columns = (uint8_t)MIN(MAX(art->columns, 1u), 255u);
     /* Weather alphaMode is not the shared particle enum; until every legacy
      * numeric mode is verified, regular alpha blending is the safe baseline. */
     p->blend_mode = BLEND_MODE_BLEND;
@@ -277,7 +277,7 @@ static void R_WeatherSpawn(renderWeatherEffect_t *effect, LPCBOX2 area) {
 
 void R_WeatherEmit(void) {
     BOX2 visible;
-    DWORD delta_ms;
+    uint32_t delta_ms;
 
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL) return;
     R_WeatherSync();
@@ -289,14 +289,14 @@ void R_WeatherEmit(void) {
         renderWeatherEffect_t *effect = weather_effects + i;
         w3WeatherArt_t const *art = effect->art;
         BOX2 area;
-        DWORD emit_count;
+        uint32_t emit_count;
 
         if (!effect->inuse || !effect->enabled || !art || !effect->texture ||
             art->emissionRate <= 0.0f || art->lifespan <= 0.0f ||
             !R_WeatherIntersect(&visible, &effect->bounds, &area)) continue;
-        effect->emission_accum += art->emissionRate * (FLOAT)delta_ms / 1000.0f;
-        emit_count = (DWORD)effect->emission_accum;
-        effect->emission_accum -= (FLOAT)emit_count;
+        effect->emission_accum += art->emissionRate * (float)delta_ms / 1000.0f;
+        emit_count = (uint32_t)effect->emission_accum;
+        effect->emission_accum -= (float)emit_count;
         while (emit_count--) R_WeatherSpawn(effect, &area);
     }
 }

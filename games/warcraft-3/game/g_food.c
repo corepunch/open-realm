@@ -1,66 +1,66 @@
 #include "g_local.h"
 
-static LPGAMECLIENT G_FoodClient(DWORD player) {
+static LPGAMECLIENT G_FoodClient(uint32_t player) {
     LPGAMECLIENT client = G_GetPlayerClientByNumber(player);
     return client && client->ps.number == player ? client : NULL;
 }
 
-BOOL G_FoodLimitsEnabled(void) {
-    LPCSTR value;
+bool G_FoodLimitsEnabled(void) {
+    cstring_t value;
 
     value = gi.CvarString("wc3_food_limits", "1");
     return !value || atoi(value) != 0;
 }
 
-LONG G_GetEffectiveFoodCap(LPGAMECLIENT client) {
-    LONG cap, ceiling;
+int32_t G_GetEffectiveFoodCap(LPGAMECLIENT client) {
+    int32_t cap, ceiling;
 
     if (!client) return 0;
-    cap = (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP];
-    ceiling = (LONG)client->ps.stats[PLAYERSTATE_FOOD_CAP_CEILING];
+    cap = (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP];
+    ceiling = (int32_t)client->ps.stats[PLAYERSTATE_FOOD_CAP_CEILING];
     if (ceiling > 0) cap = MIN(cap, ceiling);
     return MAX(0, cap);
 }
 
-DWORD G_GetPlayerUpkeepTier(LPGAMECLIENT client) {
-    LONG food;
-    DWORD count;
+uint32_t G_GetPlayerUpkeepTier(LPGAMECLIENT client) {
+    int32_t food;
+    uint32_t count;
 
     if (!client) return 0;
     count = game.constants.upkeepUsageCount;
     if (!count) return 0;
-    food = (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
+    food = (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
     FOR_LOOP(i, count) {
-        if ((FLOAT)food <= game.constants.upkeepUsage[i]) return i;
+        if ((float)food <= game.constants.upkeepUsage[i]) return i;
     }
     /* Thresholds delimit tiers; food above the final threshold enters the
      * following tier instead of remaining at the last bounded tier. */
     return count;
 }
 
-static LONG G_UpkeepRate(LPCFLOAT taxes, DWORD count, DWORD tier) {
-    FLOAT tax;
+static int32_t G_UpkeepRate(float const * taxes, uint32_t count, uint32_t tier) {
+    float tax;
 
     if (!taxes || !count) return 100;
     tier = MIN(tier, count - 1);
     tax = MAX(0.0f, MIN(taxes[tier], 1.0f));
-    return MAX(0, MIN(100, (LONG)(100.0f - tax * 100.0f + 0.5f)));
+    return MAX(0, MIN(100, (int32_t)(100.0f - tax * 100.0f + 0.5f)));
 }
 
-LONG G_GetUpkeepGoldRateForTier(DWORD tier) {
+int32_t G_GetUpkeepGoldRateForTier(uint32_t tier) {
     return G_UpkeepRate(game.constants.upkeepGoldTax, game.constants.upkeepGoldTaxCount, tier);
 }
 
-LONG G_GetUpkeepLumberRateForTier(DWORD tier) {
+int32_t G_GetUpkeepLumberRateForTier(uint32_t tier) {
     return G_UpkeepRate(game.constants.upkeepLumberTax, game.constants.upkeepLumberTaxCount, tier);
 }
 
-static void G_AdjustFoodStat(LPGAMECLIENT client, DWORD state, LONG delta) {
-    LONG value;
+static void G_AdjustFoodStat(LPGAMECLIENT client, uint32_t state, int32_t delta) {
+    int32_t value;
 
     if (!client || !delta) return;
-    value = (LONG)client->ps.stats[state] + delta;
-    client->ps.stats[state] = (USHORT)MAX(0, MIN(value, USHRT_MAX));
+    value = (int32_t)client->ps.stats[state] + delta;
+    client->ps.stats[state] = (uint16_t)MAX(0, MIN(value, USHRT_MAX));
     if (state == PLAYERSTATE_RESOURCE_FOOD_USED) {
         G_RecomputePlayerUpkeep(client);
     }
@@ -68,27 +68,27 @@ static void G_AdjustFoodStat(LPGAMECLIENT client, DWORD state, LONG delta) {
 }
 
 void G_RecomputePlayerUpkeep(LPGAMECLIENT client) {
-    DWORD tier;
+    uint32_t tier;
 
     if (!client) return;
     tier = G_GetPlayerUpkeepTier(client);
-    client->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = (USHORT)G_GetUpkeepGoldRateForTier(tier);
-    client->ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = (USHORT)G_GetUpkeepLumberRateForTier(tier);
+    client->ps.stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = (uint16_t)G_GetUpkeepGoldRateForTier(tier);
+    client->ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = (uint16_t)G_GetUpkeepLumberRateForTier(tier);
 }
 
-BOOL G_PlayerHasFoodFor(LPGAMECLIENT client, LONG food_cost) {
-    LONG used, cap;
+bool G_PlayerHasFoodFor(LPGAMECLIENT client, int32_t food_cost) {
+    int32_t used, cap;
 
     if (!client) return false;
     if (food_cost <= 0 || !G_FoodLimitsEnabled()) return true;
-    used = (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
+    used = (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
     cap = G_GetEffectiveFoodCap(client);
     return used + food_cost <= cap;
 }
 
-void G_SetUnitFoodUsed(LPEDICT unit, LONG amount) {
+void G_SetUnitFoodUsed(LPEDICT unit, int32_t amount) {
     LPGAMECLIENT client;
-    LONG value, delta;
+    int32_t value, delta;
 
     if (!unit) return;
     value = MAX(0, amount);
@@ -98,9 +98,9 @@ void G_SetUnitFoodUsed(LPEDICT unit, LONG amount) {
     G_AdjustFoodStat(client, PLAYERSTATE_RESOURCE_FOOD_USED, delta);
 }
 
-void G_SetUnitFoodMade(LPEDICT unit, LONG amount) {
+void G_SetUnitFoodMade(LPEDICT unit, int32_t amount) {
     LPGAMECLIENT client;
-    LONG value, delta;
+    int32_t value, delta;
 
     if (!unit) return;
     value = MAX(0, amount);
@@ -133,9 +133,9 @@ void G_ClearTrainingQueueFood(LPEDICT producer) {
     }
 }
 
-void G_SetUnitPlayer(LPEDICT unit, DWORD player) {
+void G_SetUnitPlayer(LPEDICT unit, uint32_t player) {
     LPGAMECLIENT old_client, new_client;
-    DWORD old_player;
+    uint32_t old_player;
 
     if (!unit || unit->s.player == player) return;
     G_InvalidateUnitShortcutsForUnit(unit);
@@ -165,9 +165,9 @@ void G_SetUnitPlayer(LPEDICT unit, DWORD player) {
     G_InvalidateUnitShortcutsForUnit(unit);
 }
 
-BOOL G_ReserveTrainingFood(LPEDICT unit) {
+bool G_ReserveTrainingFood(LPEDICT unit) {
     LPGAMECLIENT client;
-    LONG cost;
+    int32_t cost;
 
     if (!unit || !unit->data.UnitBalance) return false;
     cost = MAX(0, unit->data.UnitBalance->foodUsed);
@@ -180,8 +180,8 @@ BOOL G_ReserveTrainingFood(LPEDICT unit) {
     return true;
 }
 
-LONG G_ApplyResourceIncome(LPPLAYER player, DWORD resource_state, LONG gross_amount) {
-    LONG rate = 100;
+int32_t G_ApplyResourceIncome(LPPLAYER player, uint32_t resource_state, int32_t gross_amount) {
+    int32_t rate = 100;
 
     if (!player || gross_amount <= 0) return 0;
     if (resource_state == PLAYERSTATE_RESOURCE_GOLD) {
@@ -196,8 +196,8 @@ LONG G_ApplyResourceIncome(LPPLAYER player, DWORD resource_state, LONG gross_amo
 /* Commit an income transaction before publishing its presentation event.
  * Callers use the returned net amount when they need the credited value; the
  * existing G_ApplyResourceIncome helper remains pure for previews/tests. */
-LONG G_CreditResourceIncome(LPPLAYER player, LPEDICT source, DWORD resource_state, LONG gross_amount) {
-    LONG const credited = G_ApplyResourceIncome(player, resource_state, gross_amount);
+int32_t G_CreditResourceIncome(LPPLAYER player, LPEDICT source, uint32_t resource_state, int32_t gross_amount) {
+    int32_t const credited = G_ApplyResourceIncome(player, resource_state, gross_amount);
 
     if (!player || resource_state >= MAX_STATS || credited <= 0) return 0;
     player->stats[resource_state] += credited;

@@ -12,7 +12,7 @@
 
 typedef struct  {
     VECTOR3 origin;
-    DWORD timespamp;
+    uint32_t timespamp;
     COLOR32 tint;
 } moveConfirmation_t;
 
@@ -26,37 +26,37 @@ typedef struct {
     VECTOR3 origin;
     float angle;
     float speed;
-    DWORD model;
-    DWORD starttime;
-    DWORD killtime;
+    uint32_t model;
+    uint32_t starttime;
+    uint32_t killtime;
 } missile_t;
 
 typedef struct {
-    BOOL active;
+    bool active;
     VECTOR3 origin;
-    DWORD model;       /* configstring model index */
-    DWORD starttime;
-    DWORD lifetime;    /* ms */
+    uint32_t model;       /* configstring model index */
+    uint32_t starttime;
+    uint32_t lifetime;    /* ms */
 } spellImpact_t;
 
 typedef struct {
-    BOOL active;
-    DWORD entity;
+    bool active;
+    uint32_t entity;
     COLOR32 color;
-    DWORD starttime;
+    uint32_t starttime;
 } entityIndicator_t;
 
 typedef struct {
-    BOOL active;
+    bool active;
     VECTOR3 origin;
     char text[FLOATING_TEXT_CAPACITY];
     COLOR32 color;
-    DWORD font;        /* configstring font index */
-    DWORD starttime;
-    DWORD lifetime;    /* ms */
-    DWORD fade_start;  /* ms from spawn */
-    FLOAT velocity_x;  /* screen pixels per second */
-    FLOAT velocity_y;  /* screen pixels per second; positive rises */
+    uint32_t font;        /* configstring font index */
+    uint32_t starttime;
+    uint32_t lifetime;    /* ms */
+    uint32_t fade_start;  /* ms from spawn */
+    float velocity_x;  /* screen pixels per second */
+    float velocity_y;  /* screen pixels per second; positive rises */
 } floatingText_t;
 
 struct {
@@ -67,7 +67,7 @@ struct {
 } tents = { 0 };
 
 moveConfirmation_t cl_confs[MAX_CONFIRMATION_OBJECTS] = { 0 };
-DWORD cl_confcounter = 0;
+uint32_t cl_confcounter = 0;
 
 /* Keep impact bursts bounded; overwrite the oldest only when every slot is active. */
 static spellImpact_t *CL_AllocSpellImpact(void) {
@@ -90,7 +90,7 @@ static floatingText_t *CL_AllocFloatingText(void) {
     return oldest;
 }
 
-static entityIndicator_t *CL_AllocIndicator(DWORD entity) {
+static entityIndicator_t *CL_AllocIndicator(uint32_t entity) {
     entityIndicator_t *oldest = &tents.indicators[0];
 
     FOR_LOOP(i, MAX_ENTITY_INDICATORS) {
@@ -112,7 +112,7 @@ missile_t *CL_AllocMissile(void) {
 }
 
 void CL_AllocateConfirmationObject(LPCVECTOR3 origin, COLOR32 tint) {
-    DWORD i = cl_confcounter++;
+    uint32_t i = cl_confcounter++;
     cl_confs[i % MAX_CONFIRMATION_OBJECTS].origin = *origin;
     cl_confs[i % MAX_CONFIRMATION_OBJECTS].timespamp = cl.time;
     cl_confs[i % MAX_CONFIRMATION_OBJECTS].tint = tint;
@@ -155,12 +155,12 @@ void CL_ParseTEnt(LPSIZEBUF msg) {
         case TE_ENTITY_INDICATOR:
             {
                 entityIndicator_t *indicator;
-                LONG number = MSG_ReadLong(msg);
-                DWORD packed = (DWORD)MSG_ReadLong(msg);
+                int32_t number = MSG_ReadLong(msg);
+                uint32_t packed = (uint32_t)MSG_ReadLong(msg);
 
                 if (number <= 0 || number >= MAX_CLIENT_ENTITIES) break;
-                indicator = CL_AllocIndicator((DWORD)number);
-                indicator->entity = (DWORD)number;
+                indicator = CL_AllocIndicator((uint32_t)number);
+                indicator->entity = (uint32_t)number;
                 indicator->color = MAKE(COLOR32,
                     packed & 0xffu, (packed >> 8) & 0xffu,
                     (packed >> 16) & 0xffu, (packed >> 24) & 0xffu);
@@ -171,22 +171,22 @@ void CL_ParseTEnt(LPSIZEBUF msg) {
         case TE_FLOATING_TEXT:
             {
                 floatingText_t *text = CL_AllocFloatingText();
-                DWORD packed;
-                LONG font, lifetime, fade_start;
+                uint32_t packed;
+                int32_t font, lifetime, fade_start;
 
                 memset(text, 0, sizeof(*text));
                 MSG_ReadPos(msg, &text->origin);
                 MSG_ReadStringN(msg, text->text, sizeof(text->text));
-                packed = (DWORD)MSG_ReadLong(msg);
+                packed = (uint32_t)MSG_ReadLong(msg);
                 text->color = MAKE(COLOR32,
                     packed & 0xffu, (packed >> 8) & 0xffu,
                     (packed >> 16) & 0xffu, (packed >> 24) & 0xffu);
                 font = MSG_ReadShort(msg);
-                text->font = font > 0 && font < MAX_FONTSTYLES ? (DWORD)font : 0;
+                text->font = font > 0 && font < MAX_FONTSTYLES ? (uint32_t)font : 0;
                 lifetime = MSG_ReadLong(msg);
                 fade_start = MSG_ReadLong(msg);
-                text->lifetime = lifetime > 0 ? (DWORD)lifetime : 0;
-                text->fade_start = fade_start > 0 ? (DWORD)fade_start : 0;
+                text->lifetime = lifetime > 0 ? (uint32_t)lifetime : 0;
+                text->fade_start = fade_start > 0 ? (uint32_t)fade_start : 0;
                 text->fade_start = MIN(text->fade_start, text->lifetime);
                 text->velocity_x = MSG_ReadFloat(msg);
                 text->velocity_y = MSG_ReadFloat(msg);
@@ -268,7 +268,7 @@ static void CL_AddSpellImpacts(void) {
     FOR_LOOP(i, MAX_SPELL_IMPACTS) {
         spellImpact_t *imp = &tents.impacts[i];
         if (!imp->active) continue;
-        DWORD age = cl.time - imp->starttime;
+        uint32_t age = cl.time - imp->starttime;
         if (age >= imp->lifetime) { imp->active = false; continue; }
         renderEntity_t ent;
         memset(&ent, 0, sizeof(ent));
@@ -286,16 +286,16 @@ static void CL_AddSpellImpacts(void) {
  * overlays while still projecting from a stable world-space spawn point. */
 void CL_DrawTEnts(void) {
     size2_t const window = re.GetWindowSize();
-    FLOAT const pixel_x = window.width ? SCR_UICanvasWidth() / (FLOAT)window.width : 0.0f;
-    FLOAT const pixel_y = window.height ? UI_BASE_HEIGHT / (FLOAT)window.height : 0.0f;
+    float const pixel_x = window.width ? SCR_UICanvasWidth() / (float)window.width : 0.0f;
+    float const pixel_y = window.height ? UI_BASE_HEIGHT / (float)window.height : 0.0f;
 
     FOR_LOOP(i, MAX_FLOATING_TEXTS) {
         floatingText_t *text = &tents.texts[i];
         VECTOR2 screen;
-        DWORD age;
-        FLOAT seconds, alpha = 1.0f;
+        uint32_t age;
+        float seconds, alpha = 1.0f;
         COLOR32 color, shadow;
-        RECT rect;
+        rect_t rect;
 
         if (!text->active) continue;
         age = cl.time - text->starttime;
@@ -307,20 +307,20 @@ void CL_DrawTEnts(void) {
             continue;
 
         if (age >= text->fade_start && text->lifetime > text->fade_start) {
-            alpha = (FLOAT)(text->lifetime - age) /
-                    (FLOAT)(text->lifetime - text->fade_start);
+            alpha = (float)(text->lifetime - age) /
+                    (float)(text->lifetime - text->fade_start);
         }
-        seconds = (FLOAT)age / 1000.0f;
+        seconds = (float)age / 1000.0f;
         screen.x += text->velocity_x * seconds * pixel_x;
         screen.y -= text->velocity_y * seconds * pixel_y;
         color = text->color;
-        color.a = (BYTE)(color.a * MAX(0.0f, MIN(1.0f, alpha)));
+        color.a = (uint8_t)(color.a * MAX(0.0f, MIN(1.0f, alpha)));
         shadow = MAKE(COLOR32, 0, 0, 0, color.a);
 
         /* Warsmash's built-in gain labels are left-origin text with a small
          * dark drop shadow; the game, not this generic client path, supplies
          * resource-specific colour/font/timing. */
-        rect = MAKE(RECT, screen.x + 3.0f * pixel_x, screen.y + 1.0f * pixel_y,
+        rect = MAKE(rect_t, screen.x + 3.0f * pixel_x, screen.y + 1.0f * pixel_y,
                     SCR_UICanvasWidth(), UI_BASE_HEIGHT);
         re.DrawText(&MAKE(drawText_t,
             .font = cl.fonts[text->font], .text = text->text, .rect = rect,
@@ -345,7 +345,7 @@ TEST(client_tent, confirmation_carries_walkable_ground_conform_contract) {
         .timespamp = 100,
         .tint = { 0, 255, 0, 255 },
     };
-    DWORD const old_time = cl.time;
+    uint32_t const old_time = cl.time;
     renderEntity_t ent;
 
     cl.time = 250;
@@ -368,7 +368,7 @@ void CL_ApplyIndicator(renderEntity_t *ent) {
 
     FOR_LOOP(i, MAX_ENTITY_INDICATORS) {
         entityIndicator_t *indicator = &tents.indicators[i];
-        DWORD age;
+        uint32_t age;
 
         if (!indicator->active) continue;
         age = cl.time - indicator->starttime;

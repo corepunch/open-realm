@@ -10,20 +10,20 @@
  * ========================================================================= */
 
 typedef struct {
-    DWORD display_id;
+    uint32_t display_id;
     char  name[128];
-    DWORD type;     /* CreatureType: 1=beast, 2=dragonkin, 3=demon, etc. */
-    DWORD family;
-    DWORD rank;
+    uint32_t type;     /* CreatureType: 1=beast, 2=dragonkin, 3=demon, etc. */
+    uint32_t family;
+    uint32_t rank;
 } wowCreatureInfoCache_t;
 
 static wowCreatureInfoCache_t wow_creature_info_cache[256];
-static DWORD wow_creature_info_cache_count = 0;
-static BOOL wow_creature_info_cache_loaded = false;
+static uint32_t wow_creature_info_cache_count = 0;
+static bool wow_creature_info_cache_loaded = false;
 
 /* Spawn a dynamic object entity for spell impact visuals.
  * Replaces the temp_entity pattern for fireball/frostbolt impacts. */
-LPEDICT Wow_SpawnDynamicObject(DWORD spell_id, LPCVECTOR2 origin, DWORD duration) {
+LPEDICT Wow_SpawnDynamicObject(uint32_t spell_id, LPCVECTOR2 origin, uint32_t duration) {
     LPEDICT ent = Wow_Spawn();
     if (!ent) return NULL;
 
@@ -36,7 +36,7 @@ LPEDICT Wow_SpawnDynamicObject(DWORD spell_id, LPCVECTOR2 origin, DWORD duration
     ent->s.origin = (VECTOR3){ origin->x, origin->y, Wow_TerrainHeight(origin->x, origin->y) };
     ent->s.origin2 = *origin;
     ent->s.model = 0; /* no model — visual-only placeholder */
-    ent->s.radius = (FLOAT)local->dyn_radius;
+    ent->s.radius = (float)local->dyn_radius;
     ent->s.flags = EF_GROUND_ANCHOR;
     return ent;
 }
@@ -51,11 +51,11 @@ static void Wow_LoadCreatureInfoCache(void) {
     /* Cache population happens lazily on first lookup — the table is small
      * enough.  We pre-populate known ambient types. */
     static struct {
-        DWORD display_id;
-        LPCSTR name;
-        DWORD type;
-        DWORD family;
-        DWORD rank;
+        uint32_t display_id;
+        cstring_t name;
+        uint32_t type;
+        uint32_t family;
+        uint32_t rank;
     } const known[] = {
         { 161, "Wolf",    1, 1, 0 },  /* beast, wolf family */
         { 193, "Boar",    1, 5, 0 },  /* beast, boar family */
@@ -75,7 +75,7 @@ static void Wow_LoadCreatureInfoCache(void) {
     }
 }
 
-LPCSTR Wow_CachedCreatureName(DWORD display_id) {
+cstring_t Wow_CachedCreatureName(uint32_t display_id) {
     if (!wow_creature_info_cache_loaded)
         Wow_LoadCreatureInfoCache();
 
@@ -85,7 +85,7 @@ LPCSTR Wow_CachedCreatureName(DWORD display_id) {
     return "Unknown";
 }
 
-DWORD Wow_CachedCreatureType(DWORD display_id) {
+uint32_t Wow_CachedCreatureType(uint32_t display_id) {
     if (!wow_creature_info_cache_loaded)
         Wow_LoadCreatureInfoCache();
 
@@ -95,7 +95,7 @@ DWORD Wow_CachedCreatureType(DWORD display_id) {
     return 0;
 }
 
-DWORD Wow_CachedCreatureFamily(DWORD display_id) {
+uint32_t Wow_CachedCreatureFamily(uint32_t display_id) {
     if (!wow_creature_info_cache_loaded)
         Wow_LoadCreatureInfoCache();
 
@@ -105,7 +105,7 @@ DWORD Wow_CachedCreatureFamily(DWORD display_id) {
     return 0;
 }
 
-DWORD Wow_CachedCreatureRank(DWORD display_id) {
+uint32_t Wow_CachedCreatureRank(uint32_t display_id) {
     if (!wow_creature_info_cache_loaded)
         Wow_LoadCreatureInfoCache();
 
@@ -120,29 +120,29 @@ DWORD Wow_CachedCreatureRank(DWORD display_id) {
  * ========================================================================= */
 typedef struct {
     PATHSTR model_path;
-    DWORD   display_id;
+    uint32_t   display_id;
 } wowGoModelMap_t;
 
 #define WOW_MAX_GO_MODEL_MAP 1024
 static wowGoModelMap_t wow_go_model_map[WOW_MAX_GO_MODEL_MAP];
-static DWORD wow_go_model_map_count = 0;
-static BOOL wow_go_model_map_loaded = false;
+static uint32_t wow_go_model_map_count = 0;
+static bool wow_go_model_map_loaded = false;
 
 #pragma pack(push, 1)
 typedef struct {
-    FLOAT position[3];
-    FLOAT rotation[3];
-    FLOAT extents[6];
-    WORD  flags;
-    WORD  doodad_set;
-    WORD  name_set;
-    WORD  unk;
+    float position[3];
+    float rotation[3];
+    float extents[6];
+    uint16_t  flags;
+    uint16_t  doodad_set;
+    uint16_t  name_set;
+    uint16_t  unk;
 } wowMapObjDef_t;
 #pragma pack(pop)
 
 /* GameObjectDisplayInfo decode via the shared schema (common/stb_dbc.h); consumers
  * read named fields, not raw column offsets. */
-typedef struct { DWORD id; LPCSTR model_name; } gGameObjectDisplayInfoRec_t;
+typedef struct { uint32_t id; cstring_t model_name; } gGameObjectDisplayInfoRec_t;
 static stbDbcField_t const game_object_display_info_schema[] = {
     { 0, offsetof(gGameObjectDisplayInfoRec_t, id),         STB_DBC_U32 },
     { 1, offsetof(gGameObjectDisplayInfoRec_t, model_name), STB_DBC_STR },
@@ -165,16 +165,16 @@ static void WowGo_LoadModelMap(void) {
     FOR_LOOP(r, game_object_display_info_dbc.records) {
         if (wow_go_model_map_count >= WOW_MAX_GO_MODEL_MAP) break;
         gGameObjectDisplayInfoRec_t const *di = STB_DBC_ROW(game_object_display_info_dbc, gGameObjectDisplayInfoRec_t, r);
-        LPCSTR model_name = di->model_name;
+        cstring_t model_name = di->model_name;
         if (!model_name || !*model_name) continue;
 
         /* Extract filename stem: strip path, strip extension */
-        LPCSTR stem = strrchr(model_name, '\\');
+        cstring_t stem = strrchr(model_name, '\\');
         if (!stem) stem = strrchr(model_name, '/');
         stem = stem ? stem + 1 : model_name;
         PATHSTR stem_buf;
         snprintf(stem_buf, sizeof(stem_buf), "%s", stem);
-        LPSTR dot = strrchr(stem_buf, '.');
+        string_t dot = strrchr(stem_buf, '.');
         if (dot) *dot = '\0';
 
         wowGoModelMap_t *entry = &wow_go_model_map[wow_go_model_map_count++];
@@ -186,13 +186,13 @@ static void WowGo_LoadModelMap(void) {
 
 /* Cross-reference a doodad M2 path against our model map.  Returns the
  * display_id if found, 0 otherwise.  Matches on filename stem. */
-static DWORD WowGo_LookupDisplayId(LPCSTR mdx_path) {
-    LPCSTR stem = strrchr(mdx_path, '\\');
+static uint32_t WowGo_LookupDisplayId(cstring_t mdx_path) {
+    cstring_t stem = strrchr(mdx_path, '\\');
     if (!stem) stem = strrchr(mdx_path, '/');
     stem = stem ? stem + 1 : mdx_path;
     PATHSTR stem_buf;
     snprintf(stem_buf, sizeof(stem_buf), "%s", stem);
-    LPSTR dot = strrchr(stem_buf, '.');
+    string_t dot = strrchr(stem_buf, '.');
     if (dot) *dot = '\0';
 
     if (!wow_go_model_map_loaded)
@@ -209,7 +209,7 @@ static DWORD WowGo_LookupDisplayId(LPCSTR mdx_path) {
  * (door, chest, chair, etc.).  Reads from GameObjectDisplayInfo.dbc
  * but the type field is in gameobject_template which isn't in DBC.
  * For now: all matched display_ids are considered interactive. */
-static BOOL WowGo_IsInteractive(DWORD display_id) {
+static bool WowGo_IsInteractive(uint32_t display_id) {
     (void)display_id;
     return true; /* placeholder: all DBC-matched doodads are interactive */
 }
@@ -224,8 +224,8 @@ void WowGo_SetDoodadTransform(LPCWOWDOODADDEF def, LPENTITYSTATE state) {
 }
 
 /* Spawn a game object with the exact authored MDDF transform. */
-static void WowGo_SpawnDoodad(LPCWOWDOODADDEF def, LPCSTR model_path) {
-    DWORD display_id = WowGo_LookupDisplayId(model_path);
+static void WowGo_SpawnDoodad(LPCWOWDOODADDEF def, cstring_t model_path) {
+    uint32_t display_id = WowGo_LookupDisplayId(model_path);
     if (!display_id || !WowGo_IsInteractive(display_id))
         return;
 
@@ -248,46 +248,46 @@ static void WowGo_SpawnDoodad(LPCWOWDOODADDEF def, LPCSTR model_path) {
 /* Spawn game objects from a single ADT tile's MDDF/MODF chunks. */
 static void WowGo_SpawnFromTile(int tile_x, int tile_y) {
     PATHSTR path;
-    LPBYTE data;
-    DWORD size = 0, offset = 0;
-    LPBYTE mdnm_data = NULL;
-    DWORD mdnm_size = 0;
+    uint8_t * data;
+    uint32_t size = 0, offset = 0;
+    uint8_t * mdnm_data = NULL;
+    uint32_t mdnm_size = 0;
 
     if (!CM_WowAdtPath(tile_x, tile_y, path, sizeof(path))) {
         fprintf(stderr, "WoW: current map has no ADT path for game-object tile %d,%d\n", tile_x, tile_y);
         return;
     }
-    data = (LPBYTE)gi.ReadFile(path, &size);
+    data = (uint8_t *)gi.ReadFile(path, &size);
     if (!data || !size)
         return;
 
     while (offset + 8 <= size) {
-        BYTE const *tag = data + offset;
-        DWORD chunk_size = Stb_DbcRead32(data + offset + 4);
-        BYTE const *chunk = data + offset + 8;
+        uint8_t const *tag = data + offset;
+        uint32_t chunk_size = Stb_DbcRead32(data + offset + 4);
+        uint8_t const *chunk = data + offset + 8;
 
         offset += 8;
         if (offset + chunk_size > size)
             break;
 
-        if (*(DWORD const *)tag == ID_XDMM) {
+        if (*(uint32_t const *)tag == ID_XDMM) {
             /* MMDX: M2 model filenames list (null-terminated blob) */
-            mdnm_data = (LPBYTE)chunk;
+            mdnm_data = (uint8_t *)chunk;
             mdnm_size = chunk_size;
-        } else if (*(DWORD const *)tag == ID_FDDM && mdnm_data && mdnm_size) {
+        } else if (*(uint32_t const *)tag == ID_FDDM && mdnm_data && mdnm_size) {
             /* MDDF: M2 doodad placements */
-            DWORD count = chunk_size / sizeof(WOWDOODADDEF);
-            for (DWORD i = 0; i < count; i++) {
+            uint32_t count = chunk_size / sizeof(WOWDOODADDEF);
+            for (uint32_t i = 0; i < count; i++) {
                 LPCWOWDOODADDEF def = (LPCWOWDOODADDEF)(chunk + i * sizeof(*def));
                 if (def->name_id >= mdnm_size)
                     continue;
-                LPCSTR model_path = (LPCSTR)(mdnm_data + def->name_id);
+                cstring_t model_path = (cstring_t)(mdnm_data + def->name_id);
                 if (!model_path || !*model_path)
                     continue;
 
                 WowGo_SpawnDoodad(def, model_path);
             }
-        } else if (*(DWORD const *)tag == ID_FDOM) {
+        } else if (*(uint32_t const *)tag == ID_FDOM) {
             /* MODF: WMO placements — skip for now */
         }
 
@@ -297,7 +297,7 @@ static void WowGo_SpawnFromTile(int tile_x, int tile_y) {
 }
 
 void Wow_SpawnGameObjects(LPCVECTOR2 origin) {
-    DWORD spawned_before = (DWORD)globals.num_edicts;
+    uint32_t spawned_before = (uint32_t)globals.num_edicts;
 
     /* Spawn from tiles near the player's spawn origin.
      * A typical view range covers ~4×4 tiles. */

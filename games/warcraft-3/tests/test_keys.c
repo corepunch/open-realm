@@ -3,7 +3,7 @@
 
 TEST(keys, parse_plain_and_named_keys) {
     keyCode_t key;
-    DWORD mods;
+    uint32_t mods;
 
     T_ASSERT(Key_ParseName("1", &key, &mods));
     T_EQ(key, (keyCode_t)'1');
@@ -48,7 +48,7 @@ TEST(keys, parse_plain_and_named_keys) {
 
 TEST(keys, parse_modifier_combos) {
     keyCode_t key;
-    DWORD mods;
+    uint32_t mods;
 
     T_ASSERT(Key_ParseName("SHIFT+1", &key, &mods));
     T_EQ(key, (keyCode_t)'1');
@@ -81,7 +81,7 @@ TEST(keys, parse_modifier_combos) {
 
 TEST(keys, parse_rejects_unknown_names) {
     keyCode_t key = 0;
-    DWORD mods = 0;
+    uint32_t mods = 0;
 
     T_ASSERT(!Key_ParseName("", &key, &mods));
     T_ASSERT(!Key_ParseName("SHIFT+", &key, &mods));

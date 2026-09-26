@@ -21,27 +21,27 @@ typedef enum {
 } hsaPhase_t;
 
 typedef struct {
-    DWORD number, class_id, added_count;
+    uint32_t number, class_id, added_count;
     VECTOR3 origin;
-    DWORD abilities[MAX_HERO_ABILITIES], levels[MAX_HERO_ABILITIES];
-    DWORD added[MAX_ABILITIES];
-    DWORD inventory[MAX_INVENTORY], charges[MAX_INVENTORY];
+    uint32_t abilities[MAX_HERO_ABILITIES], levels[MAX_HERO_ABILITIES];
+    uint32_t added[MAX_ABILITIES];
+    uint32_t inventory[MAX_INVENTORY], charges[MAX_INVENTORY];
     char move[32];
 } hsaSnap_t;
 
 static hsaPhase_t hsa_phase;
 static PATHSTR hsa_map;
-static DWORD hsa_wait, hsa_walk, hsa_index;
+static uint32_t hsa_wait, hsa_walk, hsa_index;
 static hsaSnap_t hsa_before;
 
-static void hsa_fourcc(DWORD code, char out[5]) {
+static void hsa_fourcc(uint32_t code, char out[5]) {
     memcpy(out, &code, 4);
     out[4] = '\0';
 }
 
-static void hsa_append(LPSTR out, DWORD size, LPCSTR fmt, ...) {
+static void hsa_append(string_t out, uint32_t size, cstring_t fmt, ...) {
     va_list args;
-    DWORD used = (DWORD)strlen(out);
+    uint32_t used = (uint32_t)strlen(out);
     if (used >= size) return;
     va_start(args, fmt);
     vsnprintf(out + used, size - used, fmt, args);
@@ -70,10 +70,10 @@ static void hsa_capture(LPCEDICT hero, hsaSnap_t *snap) {
         strlcpy(snap->move, hero->currentmove->animation, sizeof(snap->move));
 }
 
-void G_FormatHeroSaveSnap(LPCEDICT hero, LPSTR out, DWORD out_size) {
+void G_FormatHeroSaveSnap(LPCEDICT hero, string_t out, uint32_t out_size) {
     hsaSnap_t snap;
     char code[5];
-    BOOL any;
+    bool any;
 
     if (!out || !out_size) return;
     out[0] = '\0';
@@ -114,7 +114,7 @@ void G_FormatHeroSaveSnap(LPCEDICT hero, LPSTR out, DWORD out_size) {
     hsa_append(out, out_size, " move=%s", snap.move[0] ? snap.move : "none");
 }
 
-static BOOL hsa_hero_ok(LPCEDICT ent) {
+static bool hsa_hero_ok(LPCEDICT ent) {
     return ent && ent->inuse && (ent->svflags & SVF_MONSTER) && !M_IsDead(ent) &&
         G_UnitIsHero(ent) && !(ent->s.renderfx & RF_HIDDEN);
 }
@@ -139,8 +139,8 @@ static LPEDICT hsa_find_hero(void) {
     return NULL;
 }
 
-static BOOL hsa_in_cinematic(LPCEDICT hero) {
-    if (hero && hero->s.player < (DWORD)game.max_clients)
+static bool hsa_in_cinematic(LPCEDICT hero) {
+    if (hero && hero->s.player < (uint32_t)game.max_clients)
         return game.clients[hero->s.player].ps.client_ui_state == CLIENT_UI_CINEMATIC;
     FOR_LOOP(i, game.max_clients)
         if (game.clients[i].connected &&
@@ -149,13 +149,13 @@ static BOOL hsa_in_cinematic(LPCEDICT hero) {
     return false;
 }
 
-static BOOL hsa_ready_to_walk(LPCEDICT hero, BOOL timed_out) {
+static bool hsa_ready_to_walk(LPCEDICT hero, bool timed_out) {
     if (!hsa_hero_ok(hero) || hero->paused) return false;
     return timed_out || !hsa_in_cinematic(hero);
 }
 
-static BOOL hsa_issue_walk(LPEDICT hero) {
-    static FLOAT const dist[] = { HSA_WALK_DIST, 160.0f, 256.0f, 512.0f };
+static bool hsa_issue_walk(LPEDICT hero) {
+    static float const dist[] = { HSA_WALK_DIST, 160.0f, 256.0f, 512.0f };
     static VECTOR2 const dirs[] = {
         { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 },
         { 0.7f, 0.7f }, { -0.7f, 0.7f }, { 0.7f, -0.7f }, { -0.7f, -0.7f }
@@ -178,7 +178,7 @@ static BOOL hsa_issue_walk(LPEDICT hero) {
     return false;
 }
 
-static LPCSTR hsa_compare(LPCEDICT hero, hsaSnap_t const *want) {
+static cstring_t hsa_compare(LPCEDICT hero, hsaSnap_t const *want) {
     hsaSnap_t got;
     if (!hero) return "fail_missing";
     hsa_capture(hero, &got);
@@ -199,7 +199,7 @@ static LPCSTR hsa_compare(LPCEDICT hero, hsaSnap_t const *want) {
     return "pass";
 }
 
-static void hsa_finish(LPCSTR status, LPCEDICT hero) {
+static void hsa_finish(cstring_t status, LPCEDICT hero) {
     char snap[512];
     G_FormatHeroSaveSnap(hero, snap, sizeof(snap));
     fprintf(stderr, "HERO_SAVELOAD status=%s %s\n", status, snap);
@@ -209,7 +209,7 @@ static void hsa_finish(LPCSTR status, LPCEDICT hero) {
 static void hsa_saveload(LPEDICT hero) {
     PATHSTR path;
     char snap[512];
-    LPCSTR status;
+    cstring_t status;
 
     hsa_capture(hero, &hsa_before);
     G_FormatHeroSaveSnap(hero, snap, sizeof(snap));
@@ -234,7 +234,7 @@ static void hsa_saveload(LPEDICT hero) {
     hsa_finish(status, hero);
 }
 
-static BOOL hsa_start_walk(LPEDICT hero) {
+static bool hsa_start_walk(LPEDICT hero) {
     hsa_index = hero->s.number;
     hsa_before.origin = hero->s.origin;
     if (!hsa_issue_walk(hero)) {
@@ -247,10 +247,10 @@ static BOOL hsa_start_walk(LPEDICT hero) {
 }
 
 void G_HeroSaveLoadAuditFrame(void) {
-    LPCSTR armed = gi.CvarString ? gi.CvarString("wc3_hero_saveload_audit", "0") : "0";
+    cstring_t armed = gi.CvarString ? gi.CvarString("wc3_hero_saveload_audit", "0") : "0";
     LPEDICT hero;
-    BOOL timed_out, walking;
-    FLOAT dx, dy;
+    bool timed_out, walking;
+    float dx, dy;
 
     if (!armed || atoi(armed) == 0) return;
     if (!level.started || !level.map_path[0]) return;

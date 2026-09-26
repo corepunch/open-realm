@@ -2,10 +2,10 @@
 #include <ctype.h>
 #include <stdlib.h>
 
-static inline HANDLE G_WorldReadFile(LPCSTR filename, LPDWORD size) { return gi.ReadFile(filename, size); }
-static inline HANDLE G_WorldMemAlloc(long size) { return gi.MemAlloc(size); }
-static inline void G_WorldMemFree(HANDLE mem) { gi.MemFree(mem); }
-static inline BOMStatus G_WorldTextRemoveBom(LPSTR buffer) {
+static inline handle_t G_WorldReadFile(cstring_t filename, uint32_t * size) { return gi.ReadFile(filename, size); }
+static inline handle_t G_WorldMemAlloc(long size) { return gi.MemAlloc(size); }
+static inline void G_WorldMemFree(handle_t mem) { gi.MemFree(mem); }
+static inline BOMStatus G_WorldTextRemoveBom(string_t buffer) {
 	size_t len;
 	if (!buffer) return INVALID_BOM;
 	len = strlen(buffer);

@@ -11,7 +11,7 @@
  */
 #include "g_local.h"
 
-LPCSTR attack_type[] = {
+cstring_t attack_type[] = {
     "none",
     "normal",
     "pierce",
@@ -24,7 +24,7 @@ LPCSTR attack_type[] = {
 };
 
 /* WC3 defType enum order (matches the damage-table columns). */
-LPCSTR defense_type[] = {
+cstring_t defense_type[] = {
     "small",
     "medium",
     "large",
@@ -36,7 +36,7 @@ LPCSTR defense_type[] = {
     NULL
 };
 
-LPCSTR weapon_type[] = {
+cstring_t weapon_type[] = {
     "none",
     "normal",
     "instant",
@@ -49,18 +49,18 @@ LPCSTR weapon_type[] = {
     NULL
 };
 
-DWORD FindEnumValue(LPCSTR value, LPCSTR values[]) {
+uint32_t FindEnumValue(cstring_t value, cstring_t values[]) {
     if (!value)
         return 0;
-    for (LPCSTR *s = values; *s; s++) {
+    for (cstring_t *s = values; *s; s++) {
         if (!strcmp(*s, value)) {
-            return (DWORD)(s - values);
+            return (uint32_t)(s - values);
         }
     }
     return 0;
 }
 
-static FLOAT get_unit_collision(pathTex_t const *pathtex) {
+static float get_unit_collision(pathTex_t const *pathtex) {
     int size = 0;
     for (int x = 0; x < pathtex->width; x++) {
         if (pathtex->map[(pathtex->width + 1) * x].b)
@@ -72,7 +72,7 @@ static FLOAT get_unit_collision(pathTex_t const *pathtex) {
     return size * 16;
 }
 
-BOOL player_pay(LPPLAYER ps, DWORD project) {
+bool player_pay(LPPLAYER ps, uint32_t project) {
     UnitBalance_t const *b;
     if (!ps) return false;
     b = G_UnitBalance(project);
@@ -83,7 +83,7 @@ BOOL player_pay(LPPLAYER ps, DWORD project) {
     return true;
 }
 
-BOOL M_IsDead(LPCEDICT ent) {
+bool M_IsDead(LPCEDICT ent) {
     return ent->health.value <= 0;
 }
 
@@ -103,7 +103,7 @@ void M_MoveFrame(LPEDICT self) {
         return;
     umove_t const *move = self->currentmove;
     LPCANIMATION anim = self->animation;
-    FLOAT frame_step = MAX(0.0f, FRAMETIME * self->animation_speed);
+    float frame_step = MAX(0.0f, FRAMETIME * self->animation_speed);
     if (!anim) {
         unit_setmove(self, self->currentmove);
         anim = self->animation;
@@ -112,24 +112,24 @@ void M_MoveFrame(LPEDICT self) {
         }
     }
     if (move->animation_duration) {
-        FLOAT const duration = move->animation_duration(self);
-        DWORD const frames = anim->interval[1] > anim->interval[0]
+        float const duration = move->animation_duration(self);
+        uint32_t const frames = anim->interval[1] > anim->interval[0]
                            ? anim->interval[1] - anim->interval[0] : 0;
         if (duration > 0.0f && frames > 0) {
-            FLOAT const elapsed = MAX(0.0f, MIN(duration, duration - self->wait));
-            FLOAT const progress = MIN(1.0f, elapsed / duration);
-            DWORD const offset = frames > 1
-                               ? (DWORD)floorf(progress * (FLOAT)(frames - 1)) : 0;
+            float const elapsed = MAX(0.0f, MIN(duration, duration - self->wait));
+            float const progress = MIN(1.0f, elapsed / duration);
+            uint32_t const offset = frames > 1
+                               ? (uint32_t)floorf(progress * (float)(frames - 1)) : 0;
             self->s.frame = anim->interval[0] + MIN(offset, frames - 1);
             return;
         }
     }
-    DWORD next_frame = self->s.frame + (DWORD)frame_step;
+    uint32_t next_frame = self->s.frame + (uint32_t)frame_step;
     if (G_AnimationHasPrimary(anim, "birth")) {
-        DWORD anim_len = anim->interval[1] - anim->interval[0];
-        DWORD build_time = G_UnitBalance(self->class_id)->buildTime * 1000;
+        uint32_t anim_len = anim->interval[1] - anim->interval[0];
+        uint32_t build_time = G_UnitBalance(self->class_id)->buildTime * 1000;
         if (build_time > 0) {
-            next_frame = self->s.frame + (DWORD)(frame_step * anim_len / build_time);
+            next_frame = self->s.frame + (uint32_t)(frame_step * anim_len / build_time);
         }
     }
     if (self->s.frame < anim->interval[0] ||
@@ -174,12 +174,12 @@ void monster_think(LPEDICT self) {
 void monster_start(LPEDICT self) {
     LPCANIMATION anim = self->animation;
     if (anim) {
-        DWORD len = MAX(1, anim->interval[1] - anim->interval[0] - 1);
+        uint32_t len = MAX(1, anim->interval[1] - anim->interval[0] - 1);
         self->s.frame = (anim->interval[0] + (rand() % len));
     }
 }
 
-//unitRace_t M_GetRace(LPCSTR string) {
+//unitRace_t M_GetRace(cstring_t string) {
 //    if (!strcmp(string, STR_HUMAN)) return RACE_HUMAN;
 //    if (!strcmp(string, STR_ORC)) return RACE_ORC;
 //    if (!strcmp(string, STR_UNDEAD)) return RACE_UNDEAD;
@@ -197,16 +197,16 @@ struct jpeg_imageinfo {
     int width;
     int height;
     int channels;
-    DWORD size;
+    uint32_t size;
     int num_components;
-    BYTE *data;
+    uint8_t *data;
 };
 
-pathTex_t *M_LoadPathTex(LPCSTR filename) {
+pathTex_t *M_LoadPathTex(cstring_t filename) {
     pathTex_t *pathTex = NULL;
     if (filename && strlen(filename) > 1) {
-        DWORD filesize;
-        HANDLE buffer = gi.ReadFile(filename, &filesize);
+        uint32_t filesize;
+        handle_t buffer = gi.ReadFile(filename, &filesize);
         if (buffer) {
             pathTex = LoadTGA(buffer, filesize);
             if (!pathTex) fprintf(stderr, "M_LoadPathTex: invalid TGA: %s\n", filename);
@@ -219,21 +219,21 @@ pathTex_t *M_LoadPathTex(LPCSTR filename) {
     return NULL;
 }
 
-DWORD M_LoadUberSplat(LPCSTR uber_splat) {
+uint32_t M_LoadUberSplat(cstring_t uber_splat) {
     if (IS_FOURCC(uber_splat)) {
-        UberSplatData_t const *row = G_UberSplat(*(DWORD const *)uber_splat);
+        UberSplatData_t const *row = G_UberSplat(*(uint32_t const *)uber_splat);
         PATHSTR filename;
         if (!row->id) return 0;
         snprintf(filename, sizeof(PATHSTR), "%s\\%s.blp", row->Dir, row->file);
-        return gi.ImageIndex(filename) | ((DWORD)row->Scale << 16);
+        return gi.ImageIndex(filename) | ((uint32_t)row->Scale << 16);
     } else {
         return 0;
     }
 }
 
-static BOOL G_FileExists(LPCSTR filename) {
-    DWORD filesize = 0;
-    HANDLE buffer = gi.ReadFile(filename, &filesize);
+static bool G_FileExists(cstring_t filename) {
+    uint32_t filesize = 0;
+    handle_t buffer = gi.ReadFile(filename, &filesize);
     if (buffer) {
         gi.MemFree(buffer);
         return true;
@@ -241,11 +241,11 @@ static BOOL G_FileExists(LPCSTR filename) {
     return false;
 }
 
-static BOOL G_HasShadowName(LPCSTR shadow) {
+static bool G_HasShadowName(cstring_t shadow) {
     return shadow && shadow[0] && strcmp(shadow, "_");
 }
 
-DWORD G_LoadShadowTexture(LPCSTR shadow, BOOL allowDDSFallback) {
+uint32_t G_LoadShadowTexture(cstring_t shadow, bool allowDDSFallback) {
     PATHSTR filename;
 
     if (!G_HasShadowName(shadow)) {
@@ -269,8 +269,8 @@ DWORD G_LoadShadowTexture(LPCSTR shadow, BOOL allowDDSFallback) {
 
 static void M_SetUnitShadow(LPEDICT self) {
     UnitUI_t const *ui = self->data.UnitUI;
-    LPCSTR unit_shadow = ui->unitShadowTexture;
-    DWORD shadow = G_LoadShadowTexture(unit_shadow, true);
+    cstring_t unit_shadow = ui->unitShadowTexture;
+    uint32_t shadow = G_LoadShadowTexture(unit_shadow, true);
     if (!shadow) {
         shadow = G_LoadShadowTexture("Shadow", true);
     }
@@ -280,12 +280,12 @@ static void M_SetUnitShadow(LPEDICT self) {
 
 #ifndef USE_SHADOWMAPS
     self->s.shadow = shadow;
-    FLOAT shadow_x = ui->shadowCenterX;
-    FLOAT shadow_y = ui->shadowCenterY;
-    FLOAT shadow_w = ui->shadowWidth;
-    FLOAT shadow_h = ui->shadowHeight;
+    float shadow_x = ui->shadowCenterX;
+    float shadow_y = ui->shadowCenterY;
+    float shadow_w = ui->shadowWidth;
+    float shadow_h = ui->shadowHeight;
     if (shadow_w <= 0 || shadow_h <= 0) {
-        FLOAT size = MAX(72, ui->selectionScale * SEL_SCALE);
+        float size = MAX(72, ui->selectionScale * SEL_SCALE);
         shadow_x = size * 0.5f;
         shadow_y = size * 0.5f;
         shadow_w = size;
@@ -297,8 +297,8 @@ static void M_SetUnitShadow(LPEDICT self) {
 
 static void M_SetBuildingShadow(LPEDICT self) {
     UnitUI_t const *ui = self->data.UnitUI;
-    LPCSTR building_shadow = ui->buildingShadowTexture;
-    DWORD shadow = G_LoadShadowTexture(building_shadow, false);
+    cstring_t building_shadow = ui->buildingShadowTexture;
+    uint32_t shadow = G_LoadShadowTexture(building_shadow, false);
     if (!shadow) {
         if (G_HasShadowName(ui->unitShadowTexture)) {
             M_SetUnitShadow(self);
@@ -312,29 +312,29 @@ static void M_SetBuildingShadow(LPEDICT self) {
 #endif
 }
 
-int g_treeFallSounds[3]; BYTE g_numTreeFallSounds;
+int g_treeFallSounds[3]; uint8_t g_numTreeFallSounds;
 
 /* Cache authored UnitAck/UnitCombat variants through the shared sound-row
  * resolver so volume metadata follows the resulting configstring index. */
-static void G_RegisterCombatVariants(USHORT out[], BYTE *count, BYTE max, LPCSTR key) {
-    DWORD variants = G_UnitCombatSoundVariantCount(key);
-    for (DWORD i = 0; i < variants && *count < max; i++) {
+static void G_RegisterCombatVariants(uint16_t out[], uint8_t *count, uint8_t max, cstring_t key) {
+    uint32_t variants = G_UnitCombatSoundVariantCount(key);
+    for (uint32_t i = 0; i < variants && *count < max; i++) {
         int sound = G_UnitCombatSoundVariantIndex(key, i);
-        if (sound) out[(*count)++] = (USHORT)sound;
+        if (sound) out[(*count)++] = (uint16_t)sound;
     }
 }
 
-static void G_RegisterSoundVariants(USHORT out[], BYTE *count, LPCSTR label, LPCSTR suffix) {
-    DWORD variants = G_UnitAckSoundVariantCount(label, suffix);
-    for (DWORD i = 0; i < variants && *count < MAX_UNIT_SELECT_SOUNDS; i++) {
+static void G_RegisterSoundVariants(uint16_t out[], uint8_t *count, cstring_t label, cstring_t suffix) {
+    uint32_t variants = G_UnitAckSoundVariantCount(label, suffix);
+    for (uint32_t i = 0; i < variants && *count < MAX_UNIT_SELECT_SOUNDS; i++) {
         int sound = G_UnitAckSoundVariantIndex(label, suffix, i);
-        if (sound) out[(*count)++] = (USHORT)sound;
+        if (sound) out[(*count)++] = (uint16_t)sound;
     }
 }
 
 /* Cache every native selection response so repeated clicks can choose among
  * the authored UnitAckSounds variants instead of repeating the first file. */
-void G_RegisterSelectSounds(LPEDICT self, LPCSTR label) {
+void G_RegisterSelectSounds(LPEDICT self, cstring_t label) {
     G_RegisterSoundVariants(self->sound.select, &self->sound.num_select, label, "What");
 }
 
@@ -342,7 +342,7 @@ void G_RegisterSelectSounds(LPEDICT self, LPCSTR label) {
  * "unitSound" label (e.g. "Footman").  Falls back gracefully if entries are
  * missing — sounds simply won't fire for that unit. */
 static void G_RegisterUnitSounds(LPEDICT self) {
-    LPCSTR label = self->data.UnitUI->soundLabel;
+    cstring_t label = self->data.UnitUI->soundLabel;
     if (!label || !label[0]) return;
     G_RegisterSelectSounds(self, label);
     /* Ordinary order and ready variants are cached per unit. YesAttack and
@@ -353,10 +353,10 @@ static void G_RegisterUnitSounds(LPEDICT self) {
     /* Death sounds may be catalogued or shipped beside the unit model. */
     self->sound.death = G_UnitAckSoundVariantIndex(label, "Death", 0);
     if (!self->sound.death) {
-        LPCSTR model = self->data.UnitUI->modelFile;
+        cstring_t model = self->data.UnitUI->modelFile;
         if (model && model[0]) {
             char path[512];
-            LPCSTR slash = strrchr(model, '\\');
+            cstring_t slash = strrchr(model, '\\');
             for (int numbered = 1; numbered >= 0; numbered--) {
                 snprintf(path, sizeof(path), "%.*s%sDeath%s.wav",
                          slash ? (int)(slash - model + 1) : 0, model,
@@ -366,7 +366,7 @@ static void G_RegisterUnitSounds(LPEDICT self) {
         }
     }
     /* Chop-wood impact sound from UnitCombatSounds: {weapType1}Wood (e.g. MetalLightChopWood). */
-    LPCSTR ws = self->data.UnitWeapons->attack1.weaponSound;
+    cstring_t ws = self->data.UnitWeapons->attack1.weaponSound;
     if (ws && ws[0] && ws[0] != '_') {
         char key[128];
         snprintf(key, sizeof(key), "%sWood", ws);
@@ -377,7 +377,7 @@ static void G_RegisterUnitSounds(LPEDICT self) {
 /* Register world-level sounds that are not per-unit: tree felling, etc.
  * Called once from G_InitGame after the archive is mounted. */
 void G_RegisterGlobalSounds(void) {
-    static LPCSTR falls[] = {
+    static cstring_t falls[] = {
         "Sound\\Destructibles\\TreeFall1.wav",
         "Sound\\Destructibles\\TreeFall2.wav",
         "Sound\\Destructibles\\TreeFall3.wav",
@@ -390,7 +390,7 @@ void G_RegisterGlobalSounds(void) {
 }
 
 /* Unit data decides the persistent AI capabilities assigned at spawn. */
-DWORD unit_spawn_aiflags(DWORD class_id) { return G_UnitIsBuilding(class_id) ? AI_IMMOBILE : 0; }
+uint32_t unit_spawn_aiflags(uint32_t class_id) { return G_UnitIsBuilding(class_id) ? AI_IMMOBILE : 0; }
 
 /* Apply static ability traits after ordinary collision and vulnerability state. */
 void G_ApplyUnitAbilityTraits(LPEDICT ent) {
@@ -411,8 +411,8 @@ void SP_SpawnUnit(LPEDICT self) {
     UnitData_t const *d = self->data.UnitData;
     UnitUI_t const *ui = self->data.UnitUI;
     UnitWeapons_t const *w = self->data.UnitWeapons;
-    LPCSTR uber_splat = ui->groundTexture;
-    LPCSTR path_tex = d->pathingTexture;
+    cstring_t uber_splat = ui->groundTexture;
+    cstring_t path_tex = d->pathingTexture;
     G_InitStockSlots(self);
     self->runtime.flags = (unit_spawn_aiflags(self->class_id) & AI_IMMOBILE) ? UNIT_BALANCE_BUILDING : 0;
     if (G_UnitIsBuilding(self->class_id)) self->s.flags |= EF_BUILDING;
@@ -434,7 +434,7 @@ void SP_SpawnUnit(LPEDICT self) {
      * the unit data, matching WC3. Buildings have no meaningful collisionSize
      * and instead block via their pathing footprint (set from pathtex below). */
     {
-        FLOAT const ucol = G_UnitCollision(self->class_id);
+        float const ucol = G_UnitCollision(self->class_id);
         /* Real WC3 units always have ucol>0; if missing, fall back to 0 (block
          * via footprint, set below for buildings) — NOT s.radius, which is a
          * selection-circle scale, not a world-unit collision radius. */
@@ -481,7 +481,7 @@ void SP_SpawnUnit(LPEDICT self) {
     /* Cache the air/ground collision layer once. Flyers ('movetp' == "fly")
      * never collide with ground units and vice-versa. */
     {
-        LPCSTR const movetp = d->moveTypeName;
+        cstring_t const movetp = d->moveTypeName;
         if (movetp && !strcmp(movetp, "fly"))
             self->aiflags |= AI_FLYING;
     }
@@ -499,13 +499,13 @@ void SP_SpawnUnit(LPEDICT self) {
      * G_RecomputeHeroStats applies the per-point deltas (+25 HP / +15 mana /
      * +0.3 armor).  Non-heroes have no attributes (all zero) and are skipped. */
     {
-        LONG const baseStr = b->strength;
-        LONG const baseAgi = b->agility;
-        LONG const baseInt = b->intelligence;
+        int32_t const baseStr = b->strength;
+        int32_t const baseAgi = b->agility;
+        int32_t const baseInt = b->intelligence;
         if (baseStr > 0 || baseAgi > 0 || baseInt > 0) {
-            self->hero.str   = (DWORD)baseStr;
-            self->hero.agi   = (DWORD)baseAgi;
-            self->hero.intel = (DWORD)baseInt;
+            self->hero.str   = (uint32_t)baseStr;
+            self->hero.agi   = (uint32_t)baseAgi;
+            self->hero.intel = (uint32_t)baseInt;
             /* war3mapUnits.doo stores Hero level but not unspent skill
              * points. Seed the level-derived point budget before the map
              * script applies its authored SelectHeroSkill calls. */
@@ -520,7 +520,7 @@ void SP_SpawnUnit(LPEDICT self) {
     self->attack1.cooldown = w->attack1.cooldown;
     self->attack1.damagePoint = w->attack1.damagePoint;
     self->attack1.range = w->attack1.range;
-    self->attack1.targetsAllowed = (DWORD)w->attack1.targetsAllowed;
+    self->attack1.targetsAllowed = (uint32_t)w->attack1.targetsAllowed;
     self->attack1.areaFull = w->attack1.areaFull;
     self->attack1.areaMedium = w->attack1.areaMedium;
     self->attack1.areaSmall = w->attack1.areaSmall;
@@ -539,7 +539,7 @@ void SP_SpawnUnit(LPEDICT self) {
     self->attack2.cooldown = w->attack2.cooldown;
     self->attack2.damagePoint = w->attack2.damagePoint;
     self->attack2.range = w->attack2.range;
-    self->attack2.targetsAllowed = (DWORD)w->attack2.targetsAllowed;
+    self->attack2.targetsAllowed = (uint32_t)w->attack2.targetsAllowed;
     self->attack2.areaFull = w->attack2.areaFull;
     self->attack2.areaMedium = w->attack2.areaMedium;
     self->attack2.areaSmall = w->attack2.areaSmall;
@@ -613,11 +613,11 @@ void G_UnregisterGroundSurface(LPEDICT ent) {
 
 void G_ClearGroundSurfaces(void) { level.ground_surfaces = NULL; }
 
-BOOL M_CheckAttack(LPEDICT self) {
+bool M_CheckAttack(LPEDICT self) {
     return false;
 }
 
-BYTE compress_stat(edictStat_s const *stat) {
+uint8_t compress_stat(edictStat_s const *stat) {
     if (stat->max_value <= 0) {
         return 0;
     } else {

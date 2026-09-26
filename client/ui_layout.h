@@ -14,30 +14,30 @@
 #include "client/model_matrix.h"
 
 /* Layout frame draw function pointer */
-typedef void (*layoutDrawFunc_t)(LPCUIFRAME frame, LPCRECT screen);
+typedef void (*layoutDrawFunc_t)(LPCUIFRAME frame, rect_t const * screen);
 
 /* Layout system functions (implemented in cl_unit_layout.c) */
-void SCR_SetLayoutLayer(DWORD layer, HANDLE data);
-void SCR_ClearLayoutLayer(DWORD layer);
-void SCR_SetLayoutRoot(LPCRECT root);
-RECT SCR_LayoutSceneRect(void);
-FLOAT SCR_UICanvasWidth(void);
+void SCR_SetLayoutLayer(uint32_t layer, handle_t data);
+void SCR_ClearLayoutLayer(uint32_t layer);
+void SCR_SetLayoutRoot(rect_t const * root);
+rect_t SCR_LayoutSceneRect(void);
+float SCR_UICanvasWidth(void);
 VECTOR2 SCR_ScreenToUI(int x, int y);
-BOOL SCR_LayoutFrameHasClickCommand(LPCUIFRAME frame);
+bool SCR_LayoutFrameHasClickCommand(LPCUIFRAME frame);
 void SCR_LayoutSendFrameCommand(LPCUIFRAME frame);
-void SCR_LayoutSetPointer(HANDLE layout, DWORD number, BOOL down);
-void SCR_LayoutPrepare(HANDLE layout, LPCRECT root);
-void SCR_WindowPrepare(HANDLE layout, LPCRECT root);
-BOOL SCR_WindowLayoutIsCurrent(HANDLE layout);
-void SCR_LayoutDrawOverlay(HANDLE layout);
-BOOL SCR_LayoutHitTest(int x, int y);
-BOOL SCR_LayoutModalActive(void);
-void SCR_LayoutClampSelectionRect(LPRECT rect);
+void SCR_LayoutSetPointer(handle_t layout, uint32_t number, bool down);
+void SCR_LayoutPrepare(handle_t layout, rect_t const * root);
+void SCR_WindowPrepare(handle_t layout, rect_t const * root);
+bool SCR_WindowLayoutIsCurrent(handle_t layout);
+void SCR_LayoutDrawOverlay(handle_t layout);
+bool SCR_LayoutHitTest(int x, int y);
+bool SCR_LayoutModalActive(void);
+void SCR_LayoutClampSelectionRect(rect_t * rect);
 void SCR_DrawLayout(void);
 void SCR_DrawLoadingLayout(void);
-BOOL SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param);
-BOOL SCR_LayoutScrollTextAreaAt(HANDLE layout, LPCVECTOR2 point, int wheel_y);
-FLOAT SCR_LayoutTextAreaMaxScroll(LPCUIFRAME frame);
-BOOL SCR_LayoutKeyEvent(int key);
+bool SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param);
+bool SCR_LayoutScrollTextAreaAt(handle_t layout, LPCVECTOR2 point, int wheel_y);
+float SCR_LayoutTextAreaMaxScroll(LPCUIFRAME frame);
+bool SCR_LayoutKeyEvent(int key);
 
 #endif /* ui_layout_h */

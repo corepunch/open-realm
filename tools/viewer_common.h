@@ -17,15 +17,15 @@ typedef struct viewer_orbit_s {
     bool reverse_drag;
 } viewer_orbit_t;
 
-static inline HANDLE Viewer_AddArchive(HANDLE *archives, size_t count, LPCSTR filename);
-static inline HANDLE Viewer_OpenFile(HANDLE const *archives, size_t count, LPCSTR fileName);
-static inline void Viewer_CloseFile(HANDLE file);
-static inline bool Viewer_ExtractFile(HANDLE const *archives, size_t count, LPCSTR toExtract, LPCSTR extracted);
-static inline bool Viewer_FileExists(HANDLE const *archives, size_t count, LPCSTR fileName);
-static inline void Viewer_CloseArchives(HANDLE *archives, size_t count);
+static inline handle_t Viewer_AddArchive(handle_t *archives, size_t count, cstring_t filename);
+static inline handle_t Viewer_OpenFile(handle_t const *archives, size_t count, cstring_t fileName);
+static inline void Viewer_CloseFile(handle_t file);
+static inline bool Viewer_ExtractFile(handle_t const *archives, size_t count, cstring_t toExtract, cstring_t extracted);
+static inline bool Viewer_FileExists(handle_t const *archives, size_t count, cstring_t fileName);
+static inline void Viewer_CloseArchives(handle_t *archives, size_t count);
 
-static inline HANDLE Viewer_MemAlloc(long size);
-static inline void Viewer_MemFree(HANDLE mem);
+static inline handle_t Viewer_MemAlloc(long size);
+static inline void Viewer_MemFree(handle_t mem);
 
 static inline bool Viewer_OrbitHandleEvent(viewer_orbit_t *orbit, SDL_Event const *event);
 static inline void Viewer_OrbitInit(viewer_orbit_t *orbit, VECTOR3 target, float distance, float yaw_deg, float pitch_deg);
@@ -117,35 +117,35 @@ static inline void Viewer_OrbitBuildLight(viewer_orbit_t const *orbit, LPCVECTOR
     (void)sunangles;
 }
 
-static inline HANDLE Viewer_AddArchive(HANDLE *archives, size_t count, LPCSTR filename) {
+static inline handle_t Viewer_AddArchive(handle_t *archives, size_t count, cstring_t filename) {
     return Tool_AddArchive(archives, count, filename);
 }
 
-static inline HANDLE Viewer_OpenFile(HANDLE const *archives, size_t count, LPCSTR fileName) {
+static inline handle_t Viewer_OpenFile(handle_t const *archives, size_t count, cstring_t fileName) {
     return Tool_OpenFile(archives, count, fileName);
 }
 
-static inline void Viewer_CloseFile(HANDLE file) {
+static inline void Viewer_CloseFile(handle_t file) {
     Tool_CloseFile(file);
 }
 
-static inline bool Viewer_ExtractFile(HANDLE const *archives, size_t count, LPCSTR toExtract, LPCSTR extracted) {
+static inline bool Viewer_ExtractFile(handle_t const *archives, size_t count, cstring_t toExtract, cstring_t extracted) {
     return Tool_ExtractFile(archives, count, toExtract, extracted);
 }
 
-static inline bool Viewer_FileExists(HANDLE const *archives, size_t count, LPCSTR fileName) {
+static inline bool Viewer_FileExists(handle_t const *archives, size_t count, cstring_t fileName) {
     return Tool_FileExists(archives, count, fileName);
 }
 
-static inline void Viewer_CloseArchives(HANDLE *archives, size_t count) {
+static inline void Viewer_CloseArchives(handle_t *archives, size_t count) {
     Tool_CloseArchives(archives, count);
 }
 
-static inline HANDLE Viewer_MemAlloc(long size) {
+static inline handle_t Viewer_MemAlloc(long size) {
     return Tool_MemAlloc(size);
 }
 
-static inline void Viewer_MemFree(HANDLE mem) {
+static inline void Viewer_MemFree(handle_t mem) {
     Tool_MemFree(mem);
 }
 

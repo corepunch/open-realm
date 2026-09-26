@@ -75,7 +75,7 @@ typedef struct {
     const char     *name;      /* GLSL name, e.g. "u_mvp" */
     uniformType_t   type;
     precisionType_t precision;
-    DWORD           count;     /* array size; 0 = scalar */
+    uint32_t           count;     /* array size; 0 = scalar */
     size_t          count_offset; /* runtime upload count for a fixed-capacity GLSL array */
     bool            counted;
 } shaderUniform_t;
@@ -122,7 +122,7 @@ typedef const struct SHADERPROG *LPCSHADERPROG;
 
 typedef struct SHADERLOAD {
     LPCSHADERDESC desc;
-    LPCSTR defines;
+    cstring_t defines;
     LPSHADERPROG prog;
     void *state;
 } SHADERLOAD;
@@ -130,7 +130,7 @@ typedef struct SHADERLOAD *LPSHADERLOAD;
 typedef const struct SHADERLOAD *LPCSHADERLOAD;
 void R_LoadShaderState(LPCSHADERLOAD load);
 void R_DeleteShader(LPSHADERPROG prog);
-void R_UploadShader(LPSHADERPROG prog, LPCVOID state);
+void R_UploadShader(LPSHADERPROG prog, void const * state);
 #define R_LoadShader(D, F, P) R_LoadShaderState(&(SHADERLOAD){ D, F, &(P)->prog, &(P)->state })
 #define R_ApplyShader(P) R_UploadShader(&(P)->prog, &(P)->state)
 

@@ -21,13 +21,13 @@ sc2LayoutImport_t sc2_layout_import;
 #define TEST_SC2_MPQ "build/tests/test-sc2.SC2Maps"
 #endif
 
-static BOOL sc2_layout_tests_initialized;
-static int test_image_index(LPCSTR name) { return name && *name ? 17 : 0; }
+static bool sc2_layout_tests_initialized;
+static int test_image_index(cstring_t name) { return name && *name ? 17 : 0; }
 
 static void setup_sc2_layout_tests(void) {
     if (sc2_layout_tests_initialized) return;
 
-    LPCSTR argv[] = { "test_sc2_layout", "-config", "" };
+    cstring_t argv[] = { "test_sc2_layout", "-config", "" };
     Com_Init(3, argv);
     T_ASSERT(FS_AddArchive(TEST_SC2_MPQ) != NULL);
 
@@ -46,15 +46,15 @@ TEST(sc2_layout, layout_constants_parsed) {
     SC2_LayoutInit();
     T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestConstants.SC2Layout"));
 
-    LPCSTR red = SC2_LayoutResolveConstant("##TestColorRed");
+    cstring_t red = SC2_LayoutResolveConstant("##TestColorRed");
     T_NOT_NULL(red);
     T_STREQ(red, "255,0,0");
 
-    LPCSTR green = SC2_LayoutResolveConstant("##TestColorGreen");
+    cstring_t green = SC2_LayoutResolveConstant("##TestColorGreen");
     T_NOT_NULL(green);
     T_STREQ(green, "0,255,0");
 
-    LPCSTR gap = SC2_LayoutResolveConstant("##TestGap");
+    cstring_t gap = SC2_LayoutResolveConstant("##TestGap");
     T_NOT_NULL(gap);
     T_STREQ(gap, "4");
 
@@ -304,7 +304,7 @@ TEST(sc2_layout, layout_flatten_to_frames) {
     T_ASSERT(SC2_LayoutFlatten("TestGameUI"));
 
     /* Build the frame array from the TestGameUI root */
-    DWORD count = 0;
+    uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
 
     /* Should have at least the GameUI frame and its direct children */
@@ -313,7 +313,7 @@ TEST(sc2_layout, layout_flatten_to_frames) {
     /* First frame should be the root TestGameUI */
     T_EQ(frames[0].type, FT_FRAME);
     T_ASSERT(frames[0].size.width > 0 || frames[0].size.height > 0 ||
-           frames[0].parent_index == (DWORD)-1);
+           frames[0].parent_index == (uint32_t)-1);
     sc2BaseFrame_t *background = SC2_LayoutFindFrameByName("CommandBackground");
     sc2BaseFrame_t *label = SC2_LayoutFindFrameByName("UnitName");
     T_NOT_NULL(background);
@@ -335,7 +335,7 @@ TEST(sc2_layout, layout_multiple_parses) {
 
     /* Both should be findable */
     T_NOT_NULL(SC2_LayoutFindTemplate("IncludedFrame"));
-    LPCSTR red = SC2_LayoutResolveConstant("##TestColorRed");
+    cstring_t red = SC2_LayoutResolveConstant("##TestColorRed");
     T_NOT_NULL(red);
 
     SC2_LayoutShutdown();
@@ -404,15 +404,15 @@ TEST(sc2_layout, layout_flattened_frames_hierarchy) {
     T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestGameUI.SC2Layout"));
     T_ASSERT(SC2_LayoutFlatten("TestGameUI"));
 
-    DWORD count = 0;
+    uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
     T_ASSERT(count >= 5);
 
     /* Root: parent_index == -1 */
-    T_EQ(frames[0].parent_index, (DWORD)-1);
+    T_EQ(frames[0].parent_index, (uint32_t)-1);
 
     /* All non-root frames must have a valid parent_index */
-    for (DWORD i = 1; i < count; i++)
+    for (uint32_t i = 1; i < count; i++)
         T_ASSERT(frames[i].parent_index < count);
 
     SC2_LayoutShutdown();
@@ -428,7 +428,7 @@ TEST(sc2_layout, layout_find_by_type) {
     /* GameUI root should be findable */
     sc2BaseFrame_t *gameui = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_GAME_UI);
     T_NOT_NULL(gameui);
-    T_EQ(gameui->parent_index, (DWORD)-1);
+    T_EQ(gameui->parent_index, (uint32_t)-1);
 
     /* TestGameUI fixture has a GameUI type root; child panels may not exist
      * since TestGameUI.SC2Layout doesn't define ConsolePanel/ResourcePanel. */
@@ -436,8 +436,8 @@ TEST(sc2_layout, layout_find_by_type) {
     sc2BaseFrame_t *resource = SC2_LayoutFindFrameByType(SC2_FRAMETYPE_RESOURCE_PANEL);
     /* These are allowed to be NULL since the test fixture doesn't define them.
      * The important thing is they don't crash and return the expected type when present. */
-    if (console) T_ASSERT(console->parent_index != (DWORD)-1);
-    if (resource) T_ASSERT(resource->parent_index != (DWORD)-1);
+    if (console) T_ASSERT(console->parent_index != (uint32_t)-1);
+    if (resource) T_ASSERT(resource->parent_index != (uint32_t)-1);
 
     SC2_LayoutShutdown();
 }

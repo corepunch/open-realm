@@ -7,33 +7,33 @@
 typedef struct {
     LPCMODEL model;
     MATRIX4 *matrices;  /* slice of wow_grass_scratch, not owned */
-    DWORD count;
+    uint32_t count;
     INSTANCEBUFFER instances;
 } wowGrassGroup_t;
 
 static MATRIX4 *wow_grass_scratch;
-static DWORD wow_grass_scratch_cap;
+static uint32_t wow_grass_scratch_cap;
 static wowGrassGroup_t wow_grass_groups[WOW_GRASS_MAX_MODELS];
-static DWORD wow_grass_group_count, wow_grass_draw_count;
-static BOOL wow_grass_cache_failed;
+static uint32_t wow_grass_group_count, wow_grass_draw_count;
+static bool wow_grass_cache_failed;
 
 // GroundEffectTexture.dbc cache: maps effect_id to doodad information
 static wowGroundEffectTexture_t *wow_ground_effect_textures = NULL;
-static DWORD wow_ground_effect_texture_count = 0;
-static BOOL wow_ground_effect_textures_loaded = false;
-static BOOL wow_ground_effect_textures_attempted = false;
+static uint32_t wow_ground_effect_texture_count = 0;
+static bool wow_ground_effect_textures_loaded = false;
+static bool wow_ground_effect_textures_attempted = false;
 
 // GroundEffectDoodad.dbc cache: maps doodad_id to model path info
 #define WOW_MAX_GROUND_EFFECT_DOODADS 512
 static wowGroundEffectDoodad_t wow_ground_effect_doodads[WOW_MAX_GROUND_EFFECT_DOODADS];
-static DWORD wow_ground_effect_doodad_count = 0;
-static BOOL wow_ground_effect_doodads_loaded = false;
+static uint32_t wow_ground_effect_doodad_count = 0;
+static bool wow_ground_effect_doodads_loaded = false;
 
 static float Wow_GrassClamp(float value, float min_value, float max_value) {
     return MAX(min_value, MIN(value, max_value));
 }
 
-static DWORD Wow_GrassHash(DWORD value) {
+static uint32_t Wow_GrassHash(uint32_t value) {
     value ^= value >> 16;
     value *= 0x7feb352dU;
     value ^= value >> 15;
@@ -42,17 +42,17 @@ static DWORD Wow_GrassHash(DWORD value) {
     return value;
 }
 
-static BOOL Wow_GrassRoadTexture(LPCSTR path) {
+static bool Wow_GrassRoadTexture(cstring_t path) {
     return path && (strcasestr(path, "road") || strcasestr(path, "cobble") || strcasestr(path, "path") ||
                     strcasestr(path, "street") || strcasestr(path, "pavement") || strcasestr(path, "brick"));
 }
 
-static float Wow_GrassRandom(LPDWORD seed) {
+static float Wow_GrassRandom(uint32_t * seed) {
     *seed = Wow_GrassHash(*seed + 0x9e3779b9U);
     return (float)(*seed & 0xffff) / 65535.0f;
 }
 
-static wowGroundEffectDoodad_t *Wow_GetGroundEffectDoodad(DWORD doodad_id) {
+static wowGroundEffectDoodad_t *Wow_GetGroundEffectDoodad(uint32_t doodad_id) {
     FOR_LOOP(i, wow_ground_effect_doodad_count) {
         if (wow_ground_effect_doodads[i].id == doodad_id) {
             return &wow_ground_effect_doodads[i];
@@ -61,15 +61,15 @@ static wowGroundEffectDoodad_t *Wow_GetGroundEffectDoodad(DWORD doodad_id) {
     return NULL;
 }
 
-static void Wow_GroundEffectWeights(wowGroundEffectTexture_t const *effect, DWORD weights[WOW_GRASS_DOODAD_SLOTS]) {
+static void Wow_GroundEffectWeights(wowGroundEffectTexture_t const *effect, uint32_t weights[WOW_GRASS_DOODAD_SLOTS]) {
     memcpy(weights, effect->weight, sizeof(effect->weight));
 }
 
-static BOOL Wow_GroundEffectModelPath(DWORD const *record, BYTE const *strings, DWORD string_size, LPSTR out, DWORD out_size) {
-    DWORD fields[2] = { WOW_GRASS_DOODAD_MODEL_FIELD, 1 };
+static bool Wow_GroundEffectModelPath(uint32_t const *record, uint8_t const *strings, uint32_t string_size, string_t out, uint32_t out_size) {
+    uint32_t fields[2] = { WOW_GRASS_DOODAD_MODEL_FIELD, 1 };
     FOR_LOOP(i, 2) {
-        LPCSTR name = Wow_StringAt((LPCSTR)strings, string_size, record[fields[i]]);
-        LPBYTE data = NULL;
+        cstring_t name = Wow_StringAt((cstring_t)strings, string_size, record[fields[i]]);
+        uint8_t * data = NULL;
         int size;
         if (!name || !*name) continue;
         snprintf(out, out_size, "World\\NoDXT\\Detail\\%s", name);
@@ -89,14 +89,14 @@ static BOOL Wow_GroundEffectModelPath(DWORD const *record, BYTE const *strings, 
 
 static void Wow_LoadGroundEffectDoodads(void) {
     stbDbc_t h;
-    LPBYTE data = NULL;
+    uint8_t * data = NULL;
     int size = ri.FS_ReadFile("DBFilesClient\\GroundEffectDoodad.dbc", (void **)&data);
-    if (Stb_DbcValid(data, (DWORD)size, &h) && h.record_size >= WOW_GRASS_DOODAD_FIELD_COUNT * sizeof(DWORD)) {
-        BYTE const *records = Stb_DbcRecords(data);
-        BYTE const *strings = Stb_DbcStrings(data, &h);
-        DWORD count = MIN(h.records, WOW_MAX_GROUND_EFFECT_DOODADS);
+    if (Stb_DbcValid(data, (uint32_t)size, &h) && h.record_size >= WOW_GRASS_DOODAD_FIELD_COUNT * sizeof(uint32_t)) {
+        uint8_t const *records = Stb_DbcRecords(data);
+        uint8_t const *strings = Stb_DbcStrings(data, &h);
+        uint32_t count = MIN(h.records, WOW_MAX_GROUND_EFFECT_DOODADS);
         FOR_LOOP(i, count) {
-            DWORD const *record = (DWORD const *)(records + i * h.record_size);
+            uint32_t const *record = (uint32_t const *)(records + i * h.record_size);
             wowGroundEffectDoodad_t *doodad = &wow_ground_effect_doodads[wow_ground_effect_doodad_count];
             if (!Wow_GroundEffectModelPath(record, strings, h.string_size, doodad->model_path, sizeof(doodad->model_path))) continue;
             doodad->id = record[0];
@@ -108,11 +108,11 @@ static void Wow_LoadGroundEffectDoodads(void) {
     SAFE_DELETE(data, ri.FS_FreeFile);
 }
 
-static DWORD Wow_GroundEffectLayout(BYTE const *records, DWORD count, DWORD record_size) {
-    DWORD score[2] = { 0, 0 }, rows[2] = { 0, 0 };
+static uint32_t Wow_GroundEffectLayout(uint8_t const *records, uint32_t count, uint32_t record_size) {
+    uint32_t score[2] = { 0, 0 }, rows[2] = { 0, 0 };
     FOR_LOOP(i, count) {
-        DWORD const *record = (DWORD const *)(records + i * record_size);
-        DWORD valid[2] = { 0, 0 };
+        uint32_t const *record = (uint32_t const *)(records + i * record_size);
+        uint32_t valid[2] = { 0, 0 };
         FOR_LOOP(slot, WOW_GRASS_DOODAD_SLOTS) {
             if (Wow_GetGroundEffectDoodad(record[WOW_GRASS_TEXTURE_LEGACY_DOODAD_FIELD + slot])) valid[0]++;
             if (Wow_GetGroundEffectDoodad(record[WOW_GRASS_TEXTURE_MODERN_DOODAD_FIELD + slot])) valid[1]++;
@@ -137,10 +137,10 @@ void Wow_FreeGrassScratch(void) {
 
 void Wow_LoadGroundEffectDBCs(void) {
     stbDbc_t h = { 0 };
-    LPBYTE data;
-    DWORD size = 0, records, record_size;
-    DWORD records_to_copy = 0;
-    BYTE const *records_base;
+    uint8_t * data;
+    uint32_t size = 0, records, record_size;
+    uint32_t records_to_copy = 0;
+    uint8_t const *records_base;
 
     if (wow_ground_effect_textures_attempted) {
         return;
@@ -159,7 +159,7 @@ void Wow_LoadGroundEffectDBCs(void) {
     fprintf(stderr, "[GRASS] FS_ReadFile returned size=%u\n", (unsigned)size);
     fflush(stderr);
 
-    if (Stb_DbcValid(data, size, &h) && h.records > 0 && h.record_size == WOW_GRASS_DBC_FIELD_COUNT * sizeof(DWORD)) {
+    if (Stb_DbcValid(data, size, &h) && h.records > 0 && h.record_size == WOW_GRASS_DBC_FIELD_COUNT * sizeof(uint32_t)) {
         records = h.records;
         record_size = h.record_size;
         records_base = Stb_DbcRecords(data);
@@ -172,9 +172,9 @@ void Wow_LoadGroundEffectDBCs(void) {
         }
 
         fprintf(stderr, "[GRASS] Copying %u records...\n", (unsigned)records_to_copy);
-        DWORD doodad_field = Wow_GroundEffectLayout(records_base, records_to_copy, record_size);
+        uint32_t doodad_field = Wow_GroundEffectLayout(records_base, records_to_copy, record_size);
         FOR_LOOP(i, records_to_copy) {
-            DWORD const *record = (DWORD const *)(records_base + i * record_size);
+            uint32_t const *record = (uint32_t const *)(records_base + i * record_size);
             wowGroundEffectTexture_t *effect = &wow_ground_effect_textures[i];
             memset(effect, 0, sizeof(*effect));
             effect->id = record[0];
@@ -200,7 +200,7 @@ void Wow_LoadGroundEffectDBCs(void) {
     fflush(stderr);
 }
 
-static wowGroundEffectTexture_t *Wow_GetGroundEffectTexture(DWORD effect_id) {
+static wowGroundEffectTexture_t *Wow_GetGroundEffectTexture(uint32_t effect_id) {
     if (!wow_ground_effect_textures_attempted) {
         Wow_LoadGroundEffectDBCs();
     }
@@ -218,14 +218,14 @@ static wowGroundEffectTexture_t *Wow_GetGroundEffectTexture(DWORD effect_id) {
     return NULL;
 }
 
-static DWORD Wow_SelectDoodadFromWeights(DWORD const weights[WOW_GRASS_DOODAD_SLOTS], LPDWORD seed) {
-    DWORD total_weight = 0;
-    DWORD roll;
+static uint32_t Wow_SelectDoodadFromWeights(uint32_t const weights[WOW_GRASS_DOODAD_SLOTS], uint32_t * seed) {
+    uint32_t total_weight = 0;
+    uint32_t roll;
     FOR_LOOP(i, WOW_GRASS_DOODAD_SLOTS) total_weight += weights[i];
     if (total_weight == 0) {
         return 0; // No valid doodads
     }
-    roll = (DWORD)(Wow_GrassRandom(seed) * total_weight);
+    roll = (uint32_t)(Wow_GrassRandom(seed) * total_weight);
     FOR_LOOP(i, WOW_GRASS_DOODAD_SLOTS) {
         if (roll < weights[i]) return i;
         roll -= weights[i];
@@ -233,12 +233,12 @@ static DWORD Wow_SelectDoodadFromWeights(DWORD const weights[WOW_GRASS_DOODAD_SL
     return WOW_GRASS_DOODAD_SLOTS - 1;
 }
 
-static DWORD Wow_GrassLayerSlot(wowLayer_t const *layers, DWORD layer_count, DWORD wanted_layer) {
-    DWORD unique_texture_ids[4] = { 0, 0, 0, 0 };
-    DWORD unique_count = 0;
+static uint32_t Wow_GrassLayerSlot(wowLayer_t const *layers, uint32_t layer_count, uint32_t wanted_layer) {
+    uint32_t unique_texture_ids[4] = { 0, 0, 0, 0 };
+    uint32_t unique_count = 0;
 
     FOR_LOOP(layer_index, MIN(layer_count, 4)) {
-        DWORD slot = Wow_AlphaSlotForTexture(unique_texture_ids, &unique_count, layers[layer_index].texture_id);
+        uint32_t slot = Wow_AlphaSlotForTexture(unique_texture_ids, &unique_count, layers[layer_index].texture_id);
         if (layer_index == wanted_layer) {
             return slot;
         }
@@ -246,12 +246,12 @@ static DWORD Wow_GrassLayerSlot(wowLayer_t const *layers, DWORD layer_count, DWO
     return 0;
 }
 
-static BYTE Wow_GrassLayerCoverage(BYTE const alpha[4][WOW_ALPHA_TEXELS],
+static uint8_t Wow_GrassLayerCoverage(uint8_t const alpha[4][WOW_ALPHA_TEXELS],
                                    wowLayer_t const *layers,
-                                   DWORD layer_count,
-                                   DWORD layer_index,
-                                   DWORD alpha_index) {
-    DWORD slot;
+                                   uint32_t layer_count,
+                                   uint32_t layer_index,
+                                   uint32_t alpha_index) {
+    uint32_t slot;
 
     if (!layers || layer_index >= layer_count || alpha_index >= WOW_ALPHA_TEXELS) {
         return 0;
@@ -263,23 +263,23 @@ static BYTE Wow_GrassLayerCoverage(BYTE const alpha[4][WOW_ALPHA_TEXELS],
         FOR_LOOP(i, 3) {
             coverage -= alpha[i + 1][alpha_index];
         }
-        return (BYTE)MAX(0, MIN(coverage, 255));
+        return (uint8_t)MAX(0, MIN(coverage, 255));
     }
     return alpha[slot][alpha_index];
 }
 
-static BYTE Wow_GrassEffectCoverage(BYTE const alpha[4][WOW_ALPHA_TEXELS],
+static uint8_t Wow_GrassEffectCoverage(uint8_t const alpha[4][WOW_ALPHA_TEXELS],
                                     wowLayer_t const *layers,
-                                    DWORD layer_count,
-                                    DWORD alpha_index) {
-    BYTE best = 0;
+                                    uint32_t layer_count,
+                                    uint32_t alpha_index) {
+    uint8_t best = 0;
 
     if (!layers) {
         return 0;
     }
 
     FOR_LOOP(layer_index, MIN(layer_count, 4)) {
-        BYTE coverage;
+        uint8_t coverage;
         if (!layers[layer_index].effect_id || layers[layer_index].effect_id == WOW_GRASS_INVALID_DOODAD) {
             continue;
         }
@@ -292,19 +292,19 @@ static BYTE Wow_GrassEffectCoverage(BYTE const alpha[4][WOW_ALPHA_TEXELS],
 }
 
 // Get the effect_id of the layer with the highest coverage
-static DWORD Wow_GrassEffectIdForCoverage(BYTE const alpha[4][WOW_ALPHA_TEXELS],
+static uint32_t Wow_GrassEffectIdForCoverage(uint8_t const alpha[4][WOW_ALPHA_TEXELS],
                                          wowLayer_t const *layers,
-                                         DWORD layer_count,
-                                         DWORD alpha_index) {
-    BYTE best = 0;
-    DWORD best_effect_id = 0;
+                                         uint32_t layer_count,
+                                         uint32_t alpha_index) {
+    uint8_t best = 0;
+    uint32_t best_effect_id = 0;
 
     if (!layers) {
         return 0;
     }
 
     FOR_LOOP(layer_index, MIN(layer_count, 4)) {
-        BYTE coverage;
+        uint8_t coverage;
         if (!layers[layer_index].effect_id || layers[layer_index].effect_id == WOW_GRASS_INVALID_DOODAD) {
             continue;
         }
@@ -317,8 +317,8 @@ static DWORD Wow_GrassEffectIdForCoverage(BYTE const alpha[4][WOW_ALPHA_TEXELS],
     return best_effect_id;
 }
 
-static BOOL Wow_GrassRoadAt(BYTE const alpha[4][WOW_ALPHA_TEXELS], wowLayer_t const *layers, DWORD layer_count,
-                            char **textures, DWORD num_textures, DWORD alpha_index) {
+static bool Wow_GrassRoadAt(uint8_t const alpha[4][WOW_ALPHA_TEXELS], wowLayer_t const *layers, uint32_t layer_count,
+                            char **textures, uint32_t num_textures, uint32_t alpha_index) {
     FOR_LOOP(layer_index, MIN(layer_count, 4)) {
         if (layers[layer_index].texture_id < num_textures && Wow_GrassRoadTexture(textures[layers[layer_index].texture_id]) &&
             Wow_GrassLayerCoverage(alpha, layers, layer_count, layer_index, alpha_index) >= WOW_GRASS_ROAD_COVERAGE_MIN)
@@ -328,11 +328,11 @@ static BOOL Wow_GrassRoadAt(BYTE const alpha[4][WOW_ALPHA_TEXELS], wowLayer_t co
 }
 
 void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
-                            BYTE const alpha[4][WOW_ALPHA_TEXELS],
+                            uint8_t const alpha[4][WOW_ALPHA_TEXELS],
                             wowLayer_t const *layers,
-                            DWORD layer_count,
+                            uint32_t layer_count,
                             char **textures,
-                            DWORD num_textures,
+                            uint32_t num_textures,
                             uint64_t no_effect_mask) {
     if (!chunk || !alpha || !layers || layer_count == 0) return;
 
@@ -340,24 +340,24 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
     /* Camera-following mesh path: encode per-cell suppression/density into
        the GPU grass-control texture (R=suppressed, G=density 0..255). */
     {
-        BYTE pixels[WOW_GRASS_CTRL_CELLS * WOW_GRASS_CTRL_CELLS * 4];
+        uint8_t pixels[WOW_GRASS_CTRL_CELLS * WOW_GRASS_CTRL_CELLS * 4];
         int cell = 0;
         for (int row = 0; row < WOW_GRASS_CTRL_CELLS; row++) {
             for (int col = 0; col < WOW_GRASS_CTRL_CELLS; col++, cell++) {
-                BOOL suppressed = (no_effect_mask >> (row * 8 + col)) & 1U;
+                bool suppressed = (no_effect_mask >> (row * 8 + col)) & 1U;
                 int ax = MIN(col * 8, 63), ay = MIN(row * 8, 63);
-                DWORD aidx = (DWORD)(ay * 64 + ax);
-                BOOL is_road = (!suppressed) &&
+                uint32_t aidx = (uint32_t)(ay * 64 + ax);
+                bool is_road = (!suppressed) &&
                     Wow_GrassRoadAt(alpha, layers, layer_count, textures, num_textures, aidx);
-                BYTE density = 0;
+                uint8_t density = 0;
                 if (!suppressed && !is_road) {
                     FOR_LOOP(li, MIN(layer_count, 4)) {
-                        DWORD eid = layers[li].effect_id;
+                        uint32_t eid = layers[li].effect_id;
                         if (!eid || eid == WOW_GRASS_INVALID_DOODAD) continue;
-                        BYTE cov = Wow_GrassLayerCoverage(alpha, layers, layer_count, li, aidx);
+                        uint8_t cov = Wow_GrassLayerCoverage(alpha, layers, layer_count, li, aidx);
                         wowGroundEffectTexture_t *fx = Wow_GetGroundEffectTexture(eid);
                         if (fx && cov >= WOW_GRASS_COVERAGE_MIN) {
-                            BYTE d = (BYTE)((float)cov / 255.0f *
+                            uint8_t d = (uint8_t)((float)cov / 255.0f *
                                 (float)MIN(fx->density, WOW_GRASS_DBC_DENSITY_MAX) /
                                 (float)WOW_GRASS_DBC_DENSITY_MAX * 255.0f);
                             if (d > density) density = d;
@@ -382,8 +382,8 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
     /* Old instanced-draw path: spawn one renderEntity per clump. */
     for (int row = 0; row < WOW_GRASS_CELLS_PER_AXIS; row += WOW_GRASS_CELL_STEP) {
         for (int col = 0; col < WOW_GRASS_CELLS_PER_AXIS; col += WOW_GRASS_CELL_STEP) {
-            DWORD seed = (chunk->alpha_index_x * 73856093U) ^ (chunk->alpha_index_y * 19349663U) ^
-                         ((DWORD)row * 83492791U) ^ ((DWORD)col * 2654435761U);
+            uint32_t seed = (chunk->alpha_index_x * 73856093U) ^ (chunk->alpha_index_y * 19349663U) ^
+                         ((uint32_t)row * 83492791U) ^ ((uint32_t)col * 2654435761U);
             /* suppress via no_effect_mask first */
             if ((no_effect_mask >> (row * 8 + col)) & 1U) continue;
 
@@ -393,8 +393,8 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
             int cell_col = (int)floorf(MIN(local_col, WOW_GRASS_CELLS_PER_AXIS - WOW_GRASS_COORD_EPSILON));
             int alpha_x = MAX(0, MIN((int)(local_col * WOW_GRASS_ALPHA_AXIS), WOW_GRASS_ALPHA_MAX));
             int alpha_y = MAX(0, MIN((int)(local_row * WOW_GRASS_ALPHA_AXIS), WOW_GRASS_ALPHA_MAX));
-            DWORD effect_id = Wow_GrassEffectIdForCoverage(alpha, layers, layer_count, alpha_y * 64 + alpha_x);
-            BYTE coverage = Wow_GrassEffectCoverage(alpha, layers, layer_count, alpha_y * 64 + alpha_x);
+            uint32_t effect_id = Wow_GrassEffectIdForCoverage(alpha, layers, layer_count, alpha_y * 64 + alpha_x);
+            uint8_t coverage = Wow_GrassEffectCoverage(alpha, layers, layer_count, alpha_y * 64 + alpha_x);
             wowGroundEffectTexture_t *ground_effect;
             int clumps;
 
@@ -413,15 +413,15 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
                 cell_col = (int)floorf(col_j);
                 if (!Wow_HeightInCell(chunk->heights, cell_row, cell_col, row_j - cell_row, col_j - cell_col, &height)) continue;
                 {
-                    DWORD weights[WOW_GRASS_DOODAD_SLOTS];
-                    static BYTE missing_logged[WOW_GRASS_DOODAD_LOGGED_IDS];
+                    uint32_t weights[WOW_GRASS_DOODAD_SLOTS];
+                    static uint8_t missing_logged[WOW_GRASS_DOODAD_LOGGED_IDS];
                     VECTOR3 origin = { chunk->position.x - row_j * WOW_ADT_UNIT_SIZE,
                                        chunk->position.y - col_j * WOW_ADT_UNIT_SIZE,
                                        chunk->position.z + height + WOW_GRASS_Z_BIAS };
                     Wow_GroundEffectWeights(ground_effect, weights);
                     if (!weights[0] && !weights[1] && !weights[2] && !weights[3]) continue;
-                    DWORD di = Wow_SelectDoodadFromWeights(weights, &seed);
-                    DWORD did = ground_effect->doodad_id[di];
+                    uint32_t di = Wow_SelectDoodadFromWeights(weights, &seed);
+                    uint32_t did = ground_effect->doodad_id[di];
                     if (!did) continue; /* id=0 means empty slot in GroundEffectTexture; not an error */
                     wowGroundEffectDoodad_t *doodad = Wow_GetGroundEffectDoodad(did);
                     if (!doodad) {
@@ -443,7 +443,7 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
 void Wow_EnsureCameraGrassMesh(void) {
     float H, HW;
     VERTEX *verts;
-    DWORD total;
+    uint32_t total;
 
     if (wow_world.grass_tile_vbo) return;
 
@@ -577,7 +577,7 @@ void Wow_DrawGrass(void) {
         float cam_x = tr.viewDef.camerastate[0].origin.x;
         float cam_y = tr.viewDef.camerastate[0].origin.y;
         float cull_sq = WOW_GRASS_CULL_RADIUS * WOW_GRASS_CULL_RADIUS;
-        DWORD culled = 0;
+        uint32_t culled = 0;
         memset(wow_grass_groups, 0, sizeof(wow_grass_groups));
         for (inst = wow_world.ground_effects; inst; inst = inst->next) {
             float dx = inst->entity.origin.x - cam_x;
@@ -604,7 +604,7 @@ void Wow_DrawGrass(void) {
             return;
         }
         if (wow_grass_scratch) {
-            DWORD offset = 0;
+            uint32_t offset = 0;
             FOR_LOOP(i, wow_grass_group_count) {
                 wow_grass_groups[i].matrices = wow_grass_scratch + offset;
                 offset += wow_grass_groups[i].count; wow_grass_groups[i].count = 0;

@@ -17,7 +17,7 @@
 #define BZ_STA_HERO 1.5f // fixture HeroDur; not stock 2.5
 #define BZ_SIGHT 350.0f // fixture Adt1 Rng; not stock 1100
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -94,20 +94,20 @@ static void ward_done(WARDFIX *fix) {
 	G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows);
 }
 
-static void ward_tick(DWORD ms) { level.time += ms; G_RunEntities(); }
+static void ward_tick(uint32_t ms) { level.time += ms; G_RunEntities(); }
 
-static LPEDICT ward_find(DWORD class_id) {
+static LPEDICT ward_find(uint32_t class_id) {
 	FILTER_EDICTS(ent, ent->inuse && ent->class_id == class_id && ent->owner) return ent;
 	return NULL;
 }
 
-static DWORD ward_count(DWORD class_id) {
-	DWORD n = 0;
+static uint32_t ward_count(uint32_t class_id) {
+	uint32_t n = 0;
 	FILTER_EDICTS(ent, ent->inuse && ent->class_id == class_id && ent->summon_ability) n++;
 	return n;
 }
 
-static DWORD stasis_stun_ms(LPCEDICT unit) {
+static uint32_t stasis_stun_ms(LPCEDICT unit) {
 	FOR_LOOP(i, MAX_UNIT_STATUSES)
 		if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSTA)
 			return unit->abilstatus[i].duration_ms;
@@ -146,11 +146,11 @@ TEST(wc3_spell, stasis_trap_arms_then_stuns_land_enemies_in_datac) {
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &point));
 	ward = ward_find(BZ_HFOO); T_NOT_NULL(ward);
 	ward->health.value = ward->health.max_value = 100;
-	ward_tick((DWORD)(BZ_ARM * 1000.0f) - 1);
+	ward_tick((uint32_t)(BZ_ARM * 1000.0f) - 1);
 	T_EQ(stasis_stun_ms(fix.enemy), 0); T_ASSERT(ward->inuse);
 	ward_tick(1);
-	T_EQ(stasis_stun_ms(fix.enemy), (DWORD)(BZ_STA_STUN * 1000.0f));
-	T_EQ(stasis_stun_ms(fix.hero), (DWORD)(BZ_STA_HERO * 1000.0f));
+	T_EQ(stasis_stun_ms(fix.enemy), (uint32_t)(BZ_STA_STUN * 1000.0f));
+	T_EQ(stasis_stun_ms(fix.hero), (uint32_t)(BZ_STA_HERO * 1000.0f));
 	T_EQ(stasis_stun_ms(fix.far), 0);
 	T_ASSERT(fix.enemy->stunned);
 	T_ASSERT(!ward->inuse);
@@ -165,7 +165,7 @@ TEST(wc3_spell, stasis_trap_ignores_air_units) {
 	fix.enemy->s.origin2 = fix.hero->s.origin2 = fix.far->s.origin2 = (VECTOR2){ 500, 0 };
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &point));
 	ward = ward_find(BZ_HFOO); T_NOT_NULL(ward);
-	ward_tick((DWORD)(BZ_ARM * 1000.0f));
+	ward_tick((uint32_t)(BZ_ARM * 1000.0f));
 	T_ASSERT(ward->inuse);
 	T_EQ(stasis_stun_ms(fix.air), 0);
 	ward_done(&fix);
@@ -179,9 +179,9 @@ TEST(wc3_spell, stasis_trap_destroys_peer_wards_in_detonation_radius) {
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &a));
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &b));
 	T_EQ(ward_count(BZ_HFOO), 2);
-	ward_tick((DWORD)(BZ_ARM * 1000.0f));
+	ward_tick((uint32_t)(BZ_ARM * 1000.0f));
 	T_EQ(ward_count(BZ_HFOO), 0);
-	T_EQ(stasis_stun_ms(fix.enemy), (DWORD)(BZ_STA_STUN * 1000.0f));
+	T_EQ(stasis_stun_ms(fix.enemy), (uint32_t)(BZ_STA_STUN * 1000.0f));
 	ward_done(&fix);
 }
 

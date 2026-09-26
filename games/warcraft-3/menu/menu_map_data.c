@@ -11,11 +11,11 @@
 #include <strings.h>
 #endif
 
-static DWORD UI_SFileReadStringLength(HANDLE file) {
-    DWORD filePosition = SFileSetFilePointer(file, 0, 0, FILE_CURRENT);
-    DWORD stringLength = 1;
+static uint32_t UI_SFileReadStringLength(handle_t file) {
+    uint32_t filePosition = SFileSetFilePointer(file, 0, 0, FILE_CURRENT);
+    uint32_t stringLength = 1;
     while (true) {
-        BYTE ch = 0;
+        uint8_t ch = 0;
         SFileReadFile(file, &ch, 1, NULL, NULL);
         if (ch == 0)
             break;
@@ -25,27 +25,27 @@ static DWORD UI_SFileReadStringLength(HANDLE file) {
     return stringLength;
 }
 
-static void UI_SFileReadString(HANDLE file, LPSTR *lppString) {
-    DWORD stringLength = UI_SFileReadStringLength(file);
+static void UI_SFileReadString(handle_t file, string_t *lppString) {
+    uint32_t stringLength = UI_SFileReadStringLength(file);
     *lppString = mi.MemAlloc(stringLength);
     SFileReadFile(file, *lppString, stringLength, NULL, NULL);
 }
 
-static BOOL UI_ReadInfoInto(HANDLE archive, LPMAPINFO info) {
-    HANDLE file;
+static bool UI_ReadInfoInto(handle_t archive, LPMAPINFO info) {
+    handle_t file;
 
     if (!archive || !info)
         return false;
     if (!SFileOpenFileEx(archive, "war3map.w3i", SFILE_OPEN_FROM_MPQ, &file))
         return false;
     SFileReadFile(file, &info->fileFormat, 4, NULL, NULL);
-    SFileReadFile(file, &info->numberOfSaves, sizeof(DWORD), NULL, NULL);
-    SFileReadFile(file, &info->editorVersion, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(file, &info->numberOfSaves, sizeof(uint32_t), NULL, NULL);
+    SFileReadFile(file, &info->editorVersion, sizeof(uint32_t), NULL, NULL);
     if (info->fileFormat >= 28) {
-        SFileReadFile(file, &info->gameVersionMajor, sizeof(DWORD), NULL, NULL);
-        SFileReadFile(file, &info->gameVersionMinor, sizeof(DWORD), NULL, NULL);
-        SFileReadFile(file, &info->gameVersionPatch, sizeof(DWORD), NULL, NULL);
-        SFileReadFile(file, &info->gameVersionBuild, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &info->gameVersionMajor, sizeof(uint32_t), NULL, NULL);
+        SFileReadFile(file, &info->gameVersionMinor, sizeof(uint32_t), NULL, NULL);
+        SFileReadFile(file, &info->gameVersionPatch, sizeof(uint32_t), NULL, NULL);
+        SFileReadFile(file, &info->gameVersionBuild, sizeof(uint32_t), NULL, NULL);
     }
     UI_SFileReadString(file, &info->mapName);
     UI_SFileReadString(file, &info->mapAuthor);
@@ -53,78 +53,78 @@ static BOOL UI_ReadInfoInto(HANDLE archive, LPMAPINFO info) {
     UI_SFileReadString(file, &info->playersRecommended);
     SFileReadFile(file, &info->cameraBounds, sizeof(mapCameraBounds_t), NULL, NULL);
     SFileReadFile(file, &info->playableArea, sizeof(size2_t), NULL, NULL);
-    SFileReadFile(file, &info->flags, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(file, &info->flags, sizeof(uint32_t), NULL, NULL);
     SFileReadFile(file, &info->mainGroundType, sizeof(char), NULL, NULL);
-    SFileReadFile(file, &info->campaignBackgroundNumber, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(file, &info->campaignBackgroundNumber, sizeof(uint32_t), NULL, NULL);
     if (info->fileFormat >= 25)
         UI_SFileReadString(file, &info->loadingScreenModel);
     UI_SFileReadString(file, &info->loadingScreenText);
     UI_SFileReadString(file, &info->loadingScreenTitle);
     UI_SFileReadString(file, &info->loadingScreenSubtitle);
     if (info->fileFormat >= 25)
-        SFileReadFile(file, &info->gameDataSet, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &info->gameDataSet, sizeof(uint32_t), NULL, NULL);
     else
-        SFileReadFile(file, &info->loadingScreenNumber, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &info->loadingScreenNumber, sizeof(uint32_t), NULL, NULL);
     if (info->fileFormat >= 25)
         UI_SFileReadString(file, &info->prologueScreenModel);
     UI_SFileReadString(file, &info->prologueScreenText);
     UI_SFileReadString(file, &info->prologueScreenTitle);
     UI_SFileReadString(file, &info->prologueScreenSubtitle);
     if (info->fileFormat >= 25) {
-        SFileReadFile(file, &info->fogStyle, sizeof(DWORD), NULL, NULL);
-        SFileReadFile(file, &info->fogStartZ, sizeof(FLOAT), NULL, NULL);
-        SFileReadFile(file, &info->fogEndZ, sizeof(FLOAT), NULL, NULL);
-        SFileReadFile(file, &info->fogDensity, sizeof(FLOAT), NULL, NULL);
+        SFileReadFile(file, &info->fogStyle, sizeof(uint32_t), NULL, NULL);
+        SFileReadFile(file, &info->fogStartZ, sizeof(float), NULL, NULL);
+        SFileReadFile(file, &info->fogEndZ, sizeof(float), NULL, NULL);
+        SFileReadFile(file, &info->fogDensity, sizeof(float), NULL, NULL);
         SFileReadFile(file, &info->fogColor, sizeof(COLOR32), NULL, NULL);
-        SFileReadFile(file, &info->weatherID, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &info->weatherID, sizeof(uint32_t), NULL, NULL);
         UI_SFileReadString(file, &info->soundEnvironment);
-        SFileReadFile(file, &info->lightEnvironmentTileset, sizeof(BYTE), NULL, NULL);
+        SFileReadFile(file, &info->lightEnvironmentTileset, sizeof(uint8_t), NULL, NULL);
         SFileReadFile(file, &info->waterColor, sizeof(COLOR32), NULL, NULL);
     }
     if (info->fileFormat >= 28)
-        SFileReadFile(file, &info->scriptType, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &info->scriptType, sizeof(uint32_t), NULL, NULL);
     if (info->fileFormat >= 31) {
-        SFileReadFile(file, &info->supportedModes, sizeof(DWORD), NULL, NULL);
-        SFileReadFile(file, &info->gameDataVersion, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &info->supportedModes, sizeof(uint32_t), NULL, NULL);
+        SFileReadFile(file, &info->gameDataVersion, sizeof(uint32_t), NULL, NULL);
     }
     if (info->fileFormat >= 32) {
-        SFileReadFile(file, &info->defaultZoomOverride, sizeof(DWORD), NULL, NULL);
-        SFileReadFile(file, &info->maximumZoomOverride, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &info->defaultZoomOverride, sizeof(uint32_t), NULL, NULL);
+        SFileReadFile(file, &info->maximumZoomOverride, sizeof(uint32_t), NULL, NULL);
     }
     if (info->fileFormat >= 33)
-        SFileReadFile(file, &info->minimumZoomOverride, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &info->minimumZoomOverride, sizeof(uint32_t), NULL, NULL);
 
-    DWORD num_players = 0;
-    SFileReadFile(file, &num_players, sizeof(DWORD), NULL, NULL);
+    uint32_t num_players = 0;
+    SFileReadFile(file, &num_players, sizeof(uint32_t), NULL, NULL);
     FOR_LOOP(i, num_players) {
-        DWORD playerNumber = 0;
+        uint32_t playerNumber = 0;
         mapPlayer_t scratch = { 0 };
         mapPlayer_t *player;
 
-        SFileReadFile(file, &playerNumber, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &playerNumber, sizeof(uint32_t), NULL, NULL);
         player = playerNumber < MAX_PLAYERS ? info->players + playerNumber : &scratch;
         player->used = true;
         SFileReadFile(file, &player->playerType, sizeof(playerType_t), NULL, NULL);
         SFileReadFile(file, &player->playerRace, sizeof(playerRace_t), NULL, NULL);
-        SFileReadFile(file, &player->flags, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &player->flags, sizeof(uint32_t), NULL, NULL);
         UI_SFileReadString(file, &player->playerName);
         SFileReadFile(file, &player->startingPosition, sizeof(VECTOR2), NULL, NULL);
-        SFileReadFile(file, &player->allyLowPrioritiesFlags, sizeof(DWORD), NULL, NULL);
-        SFileReadFile(file, &player->allyHighPrioritiesFlags, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &player->allyLowPrioritiesFlags, sizeof(uint32_t), NULL, NULL);
+        SFileReadFile(file, &player->allyHighPrioritiesFlags, sizeof(uint32_t), NULL, NULL);
         if (info->fileFormat >= 31) {
-            SFileReadFile(file, &player->enemyLowPrioritiesFlags, sizeof(DWORD), NULL, NULL);
-            SFileReadFile(file, &player->enemyHighPrioritiesFlags, sizeof(DWORD), NULL, NULL);
+            SFileReadFile(file, &player->enemyLowPrioritiesFlags, sizeof(uint32_t), NULL, NULL);
+            SFileReadFile(file, &player->enemyHighPrioritiesFlags, sizeof(uint32_t), NULL, NULL);
         }
         if (scratch.playerName)
             mi.MemFree(scratch.playerName);
     }
 
-    SFileReadFile(file, &info->num_teams, sizeof(DWORD), NULL, NULL);
+    SFileReadFile(file, &info->num_teams, sizeof(uint32_t), NULL, NULL);
     info->teams = mi.MemAlloc(sizeof(mapTeam_t) * info->num_teams);
     FOR_LOOP(i, info->num_teams) {
         mapTeam_t *force = &info->teams[i];
-        SFileReadFile(file, &force->flags, sizeof(DWORD), NULL, NULL);
-        SFileReadFile(file, &force->playerMasks, sizeof(DWORD), NULL, NULL);
+        SFileReadFile(file, &force->flags, sizeof(uint32_t), NULL, NULL);
+        SFileReadFile(file, &force->playerMasks, sizeof(uint32_t), NULL, NULL);
         UI_SFileReadString(file, &force->name);
     }
 
@@ -132,13 +132,13 @@ static BOOL UI_ReadInfoInto(HANDLE archive, LPMAPINFO info) {
     return true;
 }
 
-static void UI_AppendTrigStringText(mapTrigStr_t *entry, LPCSTR text) {
-    DWORD len, add;
+static void UI_AppendTrigStringText(mapTrigStr_t *entry, cstring_t text) {
+    uint32_t len, add;
 
     if (!entry || !text)
         return;
-    len = (DWORD)strlen(entry->text);
-    add = (DWORD)strlen(text);
+    len = (uint32_t)strlen(entry->text);
+    add = (uint32_t)strlen(text);
     if (len + add >= sizeof(entry->text))
         add = sizeof(entry->text) - len - 1;
     if (add) {
@@ -147,7 +147,7 @@ static void UI_AppendTrigStringText(mapTrigStr_t *entry, LPCSTR text) {
     }
 }
 
-static void UI_RemoveTrailingWhitespace(LPSTR text) {
+static void UI_RemoveTrailingWhitespace(string_t text) {
     size_t len = text ? strlen(text) : 0;
 
     while (len > 0 && (text[len - 1] == '\r' || text[len - 1] == '\n' || text[len - 1] == '\t' ||
@@ -156,15 +156,15 @@ static void UI_RemoveTrailingWhitespace(LPSTR text) {
     }
 }
 
-static LPCSTR UI_SkipSpace(LPCSTR text) {
+static cstring_t UI_SkipSpace(cstring_t text) {
     while (text && (*text == ' ' || *text == '\t' || *text == '\r'))
         text++;
     return text;
 }
 
-static void UI_ReadLine(LPCSTR *cursor, LPSTR out, DWORD out_size) {
-    DWORD len = 0;
-    LPCSTR p;
+static void UI_ReadLine(cstring_t *cursor, string_t out, uint32_t out_size) {
+    uint32_t len = 0;
+    cstring_t p;
 
     if (!cursor || !*cursor || !out || out_size == 0)
         return;
@@ -180,20 +180,20 @@ static void UI_ReadLine(LPCSTR *cursor, LPSTR out, DWORD out_size) {
     *cursor = p;
 }
 
-static void UI_MapRemoveBom(LPSTR buffer) {
+static void UI_MapRemoveBom(string_t buffer) {
     unsigned char *bytes = (unsigned char *)buffer;
 
     if (bytes && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
         memmove(buffer, buffer + 3, strlen(buffer + 3) + 1);
 }
 
-static void UI_ReadStringsInto(HANDLE archive, LPMAPINFO info) {
-    HANDLE file;
-    DWORD size;
-    LPSTR buffer;
-    LPCSTR cursor;
+static void UI_ReadStringsInto(handle_t archive, LPMAPINFO info) {
+    handle_t file;
+    uint32_t size;
+    string_t buffer;
+    cstring_t cursor;
     mapTrigStr_t *entry = NULL;
-    BOOL reading_data = false;
+    bool reading_data = false;
     char line[MAX_TRIGSTR_LENGTH];
 
     if (!archive || !info || !SFileOpenFileEx(archive, "war3map.wts", SFILE_OPEN_FROM_MPQ, &file))
@@ -211,7 +211,7 @@ static void UI_ReadStringsInto(HANDLE archive, LPMAPINFO info) {
     UI_MapRemoveBom(buffer);
     cursor = buffer;
     while (*cursor) {
-        LPCSTR trimmed;
+        cstring_t trimmed;
 
         UI_ReadLine(&cursor, line, sizeof(line));
         trimmed = UI_SkipSpace(line);
@@ -222,7 +222,7 @@ static void UI_ReadStringsInto(HANDLE archive, LPMAPINFO info) {
                     mi.MemFree(entry);
                 entry = mi.MemAlloc(sizeof(*entry));
                 memset(entry, 0, sizeof(*entry));
-                entry->id = (DWORD)strtoul(trimmed + 7, NULL, 10);
+                entry->id = (uint32_t)strtoul(trimmed + 7, NULL, 10);
             } else if (entry && *trimmed == '{') {
                 reading_data = true;
             }
@@ -246,7 +246,7 @@ static void UI_ReadStringsInto(HANDLE archive, LPMAPINFO info) {
     mi.MemFree(buffer);
 }
 
-static BOOL UI_OpenMapArchive(LPCSTR mapFilename, HANDLE *mapArchive, void **mapData) {
+static bool UI_OpenMapArchive(cstring_t mapFilename, handle_t *mapArchive, void **mapData) {
     int mapSize;
 
     if (!mapFilename || !mapArchive || !mapData || !mi.FS_ReadFile || !mi.FS_FreeFile)
@@ -256,7 +256,7 @@ static BOOL UI_OpenMapArchive(LPCSTR mapFilename, HANDLE *mapArchive, void **map
     mapSize = mi.FS_ReadFile(mapFilename, mapData);
     if (!*mapData || mapSize <= 0)
         return false;
-    if (!SFileOpenArchiveFromMemory(*mapData, (DWORD)mapSize, 0, mapArchive)) {
+    if (!SFileOpenArchiveFromMemory(*mapData, (uint32_t)mapSize, 0, mapArchive)) {
         mi.FS_FreeFile(*mapData);
         *mapData = NULL;
         return false;
@@ -264,8 +264,8 @@ static BOOL UI_OpenMapArchive(LPCSTR mapFilename, HANDLE *mapArchive, void **map
     return true;
 }
 
-BOOL UI_ReadMapInfo(LPCSTR mapFilename, LPMAPINFO info) {
-    HANDLE mapArchive;
+bool UI_ReadMapInfo(cstring_t mapFilename, LPMAPINFO info) {
+    handle_t mapArchive;
     void *mapData;
 
     if (!info)
@@ -284,19 +284,19 @@ BOOL UI_ReadMapInfo(LPCSTR mapFilename, LPMAPINFO info) {
     return true;
 }
 
-BOOL UI_FindMapPreviewTexture(LPCSTR mapFilename, LPSTR out, DWORD out_size) {
-    static LPCSTR candidates[] = { "war3mapPreview.tga", "war3mapMap.blp", "war3mapMap.tga", NULL };
-    HANDLE mapArchive;
+bool UI_FindMapPreviewTexture(cstring_t mapFilename, string_t out, uint32_t out_size) {
+    static cstring_t candidates[] = { "war3mapPreview.tga", "war3mapMap.blp", "war3mapMap.tga", NULL };
+    handle_t mapArchive;
     void *mapData;
-    BOOL found = false;
+    bool found = false;
 
     if (!out || out_size == 0)
         return false;
     out[0] = '\0';
     if (!UI_OpenMapArchive(mapFilename, &mapArchive, &mapData))
         return false;
-    for (DWORD i = 0; candidates[i]; i++) {
-        HANDLE file;
+    for (uint32_t i = 0; candidates[i]; i++) {
+        handle_t file;
 
         if (!SFileOpenFileEx(mapArchive, candidates[i], SFILE_OPEN_FROM_MPQ, &file))
             continue;
@@ -339,29 +339,29 @@ void UI_FreeMapInfo(LPMAPINFO mapInfo) {
     memset(mapInfo, 0, sizeof(*mapInfo));
 }
 
-static LPCSTR UI_PathBaseFileName(LPCSTR path) {
-    LPCSTR base = path ? path : "";
+static cstring_t UI_PathBaseFileName(cstring_t path) {
+    cstring_t base = path ? path : "";
 
-    for (LPCSTR p = base; *p; p++) {
+    for (cstring_t p = base; *p; p++) {
         if (*p == '\\' || *p == '/')
             base = p + 1;
     }
     return base;
 }
 
-void UI_DefaultMapName(LPCSTR path, LPSTR out, DWORD out_size) {
-    DWORD len;
+void UI_DefaultMapName(cstring_t path, string_t out, uint32_t out_size) {
+    uint32_t len;
 
     if (!out || out_size == 0)
         return;
     snprintf(out, out_size, "%s", UI_PathBaseFileName(path));
-    len = (DWORD)strlen(out);
+    len = (uint32_t)strlen(out);
     if (len > 4 && out[len - 4] == '.')
         out[len - 4] = '\0';
 }
 
-void UI_ResolveMapInfoString(LPCMAPINFO info, LPCSTR text, LPSTR out, DWORD out_size) {
-    DWORD id;
+void UI_ResolveMapInfoString(LPCMAPINFO info, cstring_t text, string_t out, uint32_t out_size) {
+    uint32_t id;
 
     if (!out || out_size == 0)
         return;
@@ -373,7 +373,7 @@ void UI_ResolveMapInfoString(LPCMAPINFO info, LPCSTR text, LPSTR out, DWORD out_
         snprintf(out, out_size, "%s", text);
         return;
     }
-    id = (DWORD)strtoul(text + 8, NULL, 10);
+    id = (uint32_t)strtoul(text + 8, NULL, 10);
     for (mapTrigStr_t const *string = info ? info->strings : NULL; string; string = string->next) {
         if (string->id == id) {
             snprintf(out, out_size, "%s", string->text);
@@ -383,7 +383,7 @@ void UI_ResolveMapInfoString(LPCMAPINFO info, LPCSTR text, LPSTR out, DWORD out_
     snprintf(out, out_size, "%s", text);
 }
 
-BOOL UI_MapNameMatchesFile(LPCSTR name, LPCSTR path) {
+bool UI_MapNameMatchesFile(cstring_t name, cstring_t path) {
     PATHSTR base;
     size_t len;
 
@@ -396,7 +396,7 @@ BOOL UI_MapNameMatchesFile(LPCSTR name, LPCSTR path) {
     return !strcasecmp(name, base);
 }
 
-LPCSTR UI_MapTilesetName(BYTE tileset) {
+cstring_t UI_MapTilesetName(uint8_t tileset) {
     switch (tileset) {
         case 'A': return "Ashenvale";
         case 'B': return "Barrens";
@@ -420,8 +420,8 @@ LPCSTR UI_MapTilesetName(BYTE tileset) {
     }
 }
 
-LPCSTR UI_MapSizeName(DWORD width, DWORD height) {
-    DWORD largest = MAX(width, height);
+cstring_t UI_MapSizeName(uint32_t width, uint32_t height) {
+    uint32_t largest = MAX(width, height);
 
     if (largest <= 96)
         return "Small";
@@ -432,19 +432,19 @@ LPCSTR UI_MapSizeName(DWORD width, DWORD height) {
     return "Huge";
 }
 
-void UI_SanitizeMapListField(LPSTR text) {
+void UI_SanitizeMapListField(string_t text) {
     if (!text)
         return;
-    for (LPSTR p = text; *p; p++) {
+    for (string_t p = text; *p; p++) {
         if (*p == '\n' || *p == '\r' || *p == '\t')
             *p = ' ';
     }
 }
 
-void UI_SanitizeMapInfoText(LPSTR text) {
+void UI_SanitizeMapInfoText(string_t text) {
     if (!text)
         return;
-    for (LPSTR p = text; *p; p++) {
+    for (string_t p = text; *p; p++) {
         if (*p == '\t')
             *p = ' ';
     }

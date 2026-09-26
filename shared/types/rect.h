@@ -7,14 +7,10 @@ typedef struct rect {
     float x, y, w, h;
 } rect_t;
 
-typedef struct rect RECT;
-typedef struct rect *LPRECT;
-typedef struct rect const *LPCRECT;
-
-int Rect_contains(LPCRECT rect, LPCVECTOR2 point);
-RECT Rect_scale(LPCRECT rect, float scale);
-RECT Rect_div(LPCRECT rect, int res);
-RECT Rect_inset(LPCRECT rect, float inset);
-VECTOR2 Rect_center(LPCRECT rect);
+int Rect_contains(rect_t const *rect, LPCVECTOR2 point);
+rect_t Rect_scale(rect_t const *rect, float scale);
+rect_t Rect_div(rect_t const *rect, int res);
+rect_t Rect_inset(rect_t const *rect, float inset);
+VECTOR2 Rect_center(rect_t const * rect);
 
 #endif /* rect_h */

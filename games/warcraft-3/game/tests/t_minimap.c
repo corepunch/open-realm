@@ -3,15 +3,15 @@
 #include "../g_local.h"
 #include "games/warcraft-3/common/minimap_render.h"
 
-typedef struct { DWORD pinned, streamed; char path[256]; int pinned_token, streamed_token; } minimapLoadCapture_t;
+typedef struct { uint32_t pinned, streamed; char path[256]; int pinned_token, streamed_token; } minimapLoadCapture_t;
 
-static void *test_minimap_load_pinned(void *context, LPCSTR path) {
+static void *test_minimap_load_pinned(void *context, cstring_t path) {
     minimapLoadCapture_t *capture = context;
     capture->pinned++; strlcpy(capture->path, path, sizeof(capture->path));
     return &capture->pinned_token;
 }
 
-static void *test_minimap_load_streamed(void *context, LPCSTR path) {
+static void *test_minimap_load_streamed(void *context, cstring_t path) {
     minimapLoadCapture_t *capture = context;
     capture->streamed++; strlcpy(capture->path, path, sizeof(capture->path));
     return &capture->streamed_token;
@@ -32,7 +32,7 @@ TEST(wc3_minimap, marker_sizes_match_retail_capture_calibration) {
     T_FEQ(hero.x, 0.014f, 0.000001f);
     T_FEQ(hero.y, 0.014f, 0.000001f);
 
-    RECT const marker = wc3_minimap_marker_rect(&(VECTOR2){ 0.5f, 0.25f }, WC3_MINIMAP_CONTACT_HERO);
+    rect_t const marker = wc3_minimap_marker_rect(&(VECTOR2){ 0.5f, 0.25f }, WC3_MINIMAP_CONTACT_HERO);
     T_FEQ(marker.x, 0.493f, 0.000001f);
     T_FEQ(marker.y, 0.243f, 0.000001f);
     T_FEQ(marker.w, 0.014f, 0.000001f);
@@ -139,13 +139,13 @@ TEST(wc3_minimap, special_skin_lookup_honors_map_override_then_default) {
 }
 
 TEST(wc3_minimap, fixture_mpq_skin_override_wins_over_stock_default) {
-    HANDLE archive = NULL, bytes = NULL, texture_bytes = NULL;
-    DWORD size = 0, texture_size = 0;
+    handle_t archive = NULL, bytes = NULL, texture_bytes = NULL;
+    uint32_t size = 0, texture_size = 0;
     char saved_prefix[sizeof(game.data_prefix)];
     stbIniCache_t theme = { 0 }, map_skin = { 0 };
     wc3MinimapSpecialAsset_t assets[5];
     minimapLoadCapture_t capture = { 0 };
-    DWORD count;
+    uint32_t count;
 
     strlcpy(saved_prefix, game.data_prefix, sizeof(saved_prefix));
     game.data_prefix[0] = '\0';
@@ -198,7 +198,7 @@ TEST(wc3_minimap, invalid_optional_skin_leaves_stock_default_available) {
     stbIniCache_t theme = { 0 }, invalid_map_skin = { 0 };
     wc3MinimapSpecialAsset_t assets[5];
     minimapLoadCapture_t capture = { 0 };
-    DWORD count;
+    uint32_t count;
 
     T_ASSERT(Stb_IniCacheLoad(&theme, "UI\\war3skins.txt"));
     T_ASSERT(!Stb_IniCacheLoadBuffer(&invalid_map_skin, "invalid text without a section\n"));

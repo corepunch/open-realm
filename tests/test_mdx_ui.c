@@ -6,7 +6,7 @@ struct render_globals tr;
 refImport_t ri;
 MATRIX4 node_matrices[MDX_MAX_NODES];
 static viewDef_t drawn;
-static HANDLE calloc_test(long size) { return calloc(1, size); }
+static handle_t calloc_test(long size) { return calloc(1, size); }
 
 /* Retain simulation and sprite view setup; replace only GPU/world submission. */
 #undef R_Call
@@ -17,20 +17,20 @@ static HANDLE calloc_test(long size) { return calloc(1, size); }
 void R_RenderView(void) { drawn = tr.viewDef; R_UpdateParticles(); }
 
 mdlx_state_t mdlx;
-RECT R_UISceneRect(void) { return (RECT){0, 0, 0.8f, 0.6f}; }
-LPTEXTURE R_AllocateTexture(DWORD w, DWORD h) { (void)w; (void)h; return NULL; }
+rect_t R_UISceneRect(void) { return (rect_t){0, 0, 0.8f, 0.6f}; }
+LPTEXTURE R_AllocateTexture(uint32_t w, uint32_t h) { (void)w; (void)h; return NULL; }
 void R_LoadTextureMipLevel(LPCTEXTURE tex, LPCTEXMIP mip) { (void)tex; (void)mip; }
 void R_LoadShaderState(LPCSHADERLOAD load) { (void)load; }
 void R_DeleteShader(LPSHADERPROG prog) { (void)prog; }
-void R_UploadShader(LPSHADERPROG prog, LPCVOID state) { (void)prog; (void)state; }
+void R_UploadShader(LPSHADERPROG prog, void const * state) { (void)prog; (void)state; }
 MODELPROG *R_ModelShader(void) { return NULL; }
 void R_ReleaseVertexArrayObject(LPBUFFER buffer) { (void)buffer; }
-void R_SetAlphaKeyState(BOOL enabled) { (void)enabled; }
-void R_StatsDraw(GLenum mode, DWORD count, DWORD instances) { (void)mode; (void)count; (void)instances; }
-mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, LPCSTR name) {
+void R_SetAlphaKeyState(bool enabled) { (void)enabled; }
+void R_StatsDraw(GLenum mode, uint32_t count, uint32_t instances) { (void)mode; (void)count; (void)instances; }
+mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, cstring_t name) {
     (void)model; (void)name; T_ASSERT(false); return NULL;
 }
-void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *track, DWORD time, HANDLE out) {
+void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *track, uint32_t time, handle_t out) {
     (void)model; (void)track; (void)time; (void)out; T_ASSERT(false);
 }
 

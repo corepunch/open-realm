@@ -11,8 +11,8 @@
 
 /* SC2 command buttons need runtime icon assignment; template defaults only
  * define the button shell/background and leave the command art blank. */
-void SC2_HUD_PrepareCommandPanel(sc2BaseFrame_t *frames, DWORD count, sc2BaseFrame_t *root) {
-    static LPCSTR icon_paths[] = {
+void SC2_HUD_PrepareCommandPanel(sc2BaseFrame_t *frames, uint32_t count, sc2BaseFrame_t *root) {
+    static cstring_t icon_paths[] = {
         "Assets/Textures/icon-mineral.dds",
         "Assets/Textures/icon-gas.dds",
         "Assets/Textures/icon-supply.dds",
@@ -23,21 +23,21 @@ void SC2_HUD_PrepareCommandPanel(sc2BaseFrame_t *frames, DWORD count, sc2BaseFra
         "Assets/Textures/ui_controlgroup_normalpressed_terran.dds",
     };
     if (!frames || !root) return;
-    static BOOL logged_once;
+    static bool logged_once;
     int stamped = 0;
 
-    for (DWORD i = 0; i < count; i++) {
+    for (uint32_t i = 0; i < count; i++) {
         sc2BaseFrame_t *btn = &frames[i];
         int slot = 0;
         if (btn->sc2_type != SC2_FRAMETYPE_COMMAND_BUTTON) continue;
-        if (btn->parent_index == (DWORD)-1 || btn->parent_index != root->number) continue;
+        if (btn->parent_index == (uint32_t)-1 || btn->parent_index != root->number) continue;
         if (btn->name && strlen(btn->name) >= 2 &&
             isdigit((unsigned char)btn->name[strlen(btn->name) - 2]) &&
             isdigit((unsigned char)btn->name[strlen(btn->name) - 1]))
             slot = (btn->name[strlen(btn->name) - 2] - '0') * 10 + (btn->name[strlen(btn->name) - 1] - '0');
 
         RESOURCE icon = gi.ImageIndex(icon_paths[slot % (sizeof(icon_paths) / sizeof(*icon_paths))]);
-        for (DWORD j = 0; j < count; j++) {
+        for (uint32_t j = 0; j < count; j++) {
             sc2BaseFrame_t *child = &frames[j];
             if (child->parent_index != btn->number || child->sc2_type != SC2_FRAMETYPE_IMAGE) continue;
             if (!child->name) continue;

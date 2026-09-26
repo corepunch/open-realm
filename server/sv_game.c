@@ -6,24 +6,24 @@
 #include "server.h"
 
 /* UI layout byte tracking (legacy - now handled client-side) */
-DWORD layoutBytesWritten = 0;
+uint32_t layoutBytesWritten = 0;
 
 void PF_Write(pfWriteType_t type, void const *value) {
     switch (type) {
         case PF_BYTE:
-            MSG_WriteByte(&sv.multicast, (int)*(LONG const *)value);
+            MSG_WriteByte(&sv.multicast, (int)*(int32_t const *)value);
             break;
         case PF_SHORT:
-            MSG_WriteShort(&sv.multicast, (int)*(LONG const *)value);
+            MSG_WriteShort(&sv.multicast, (int)*(int32_t const *)value);
             break;
         case PF_LONG:
-            MSG_WriteLong(&sv.multicast, (int)*(LONG const *)value);
+            MSG_WriteLong(&sv.multicast, (int)*(int32_t const *)value);
             break;
         case PF_FLOAT:
-            MSG_WriteFloat(&sv.multicast, *(FLOAT const *)value);
+            MSG_WriteFloat(&sv.multicast, *(float const *)value);
             break;
         case PF_STRING:
-            MSG_WriteString(&sv.multicast, value ? (LPCSTR)value : "");
+            MSG_WriteString(&sv.multicast, value ? (cstring_t)value : "");
             break;
         case PF_POSITION:
             MSG_WritePos(&sv.multicast, (LPCVECTOR3)value);
@@ -32,7 +32,7 @@ void PF_Write(pfWriteType_t type, void const *value) {
             MSG_WriteDir(&sv.multicast, (LPCVECTOR3)value);
             break;
         case PF_ANGLE:
-            MSG_WriteAngle(&sv.multicast, *(FLOAT const *)value);
+            MSG_WriteAngle(&sv.multicast, *(float const *)value);
             break;
         case PF_ENTITY: {
             entityState_t empty;
@@ -42,7 +42,7 @@ void PF_Write(pfWriteType_t type, void const *value) {
         }
         case PF_UIFRAME: {
             LPCUIFRAME frame = (LPCUIFRAME)value;
-            DWORD before = sv.multicast.cursize;
+            uint32_t before = sv.multicast.cursize;
             uiFrame_t empty;
             memset(&empty, 0, sizeof(uiFrame_t));
             empty.tex.coord[1] = 0xff;
@@ -51,7 +51,7 @@ void PF_Write(pfWriteType_t type, void const *value) {
             MSG_WriteByte(&sv.multicast, frame->buffer.size);
             MSG_Write(&sv.multicast, frame->buffer.data, frame->buffer.size);
             if (sv.multicast.cursize >= before) {
-                extern DWORD layoutBytesWritten;
+                extern uint32_t layoutBytesWritten;
                 layoutBytesWritten += sv.multicast.cursize - before;
             }
             break;
@@ -75,29 +75,29 @@ void PF_Write(pfWriteType_t type, void const *value) {
     }
 }
 
-void PF_Confignstring(DWORD index, LPCSTR value, DWORD len) {
+void PF_Confignstring(uint32_t index, cstring_t value, uint32_t len) {
     SV_SetConfigString(index, value, len);
 }
 
-void PF_Configstring(DWORD index, LPCSTR value) {
+void PF_Configstring(uint32_t index, cstring_t value) {
     if (!value) {
         value = "";
     }
 
-    PF_Confignstring(index, value, (DWORD)(strlen(value) + 1));
+    PF_Confignstring(index, value, (uint32_t)(strlen(value) + 1));
 }
 
-LPCSTR PF_GetConfigstring(DWORD index) {
+cstring_t PF_GetConfigstring(uint32_t index) {
     if (index >= MAX_CONFIGSTRINGS)
         return "";
     return sv.configstrings[index];
 }
 
-DWORD SV_GetTime(void) {
+uint32_t SV_GetTime(void) {
     return sv.time;
 }
 
-void SV_SetGameTime(DWORD time) {
+void SV_SetGameTime(uint32_t time) {
     sv.time = time;
 }
 
@@ -105,16 +105,16 @@ void PF_Multicast(LPCVECTOR3 origin, multicast_t to) {
     SV_Multicast(origin, to);
 }
 
-static void PF_StartSound(LPEDICT ent, int channel, int sound_index, FLOAT volume, FLOAT attenuation, FLOAT timeofs) {
+static void PF_StartSound(LPEDICT ent, int channel, int sound_index, float volume, float attenuation, float timeofs) {
     SV_StartSound(NULL, ent, channel, sound_index, volume, attenuation, timeofs);
 }
 
-static void PF_PositionedSound(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, FLOAT volume,
-                               FLOAT attenuation, FLOAT timeofs) {
+static void PF_PositionedSound(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, float volume,
+                               float attenuation, float timeofs) {
     SV_StartSound(origin, ent, channel, sound_index, volume, attenuation, timeofs);
 }
 
-void PF_error(LPCSTR fmt, ...) {
+void PF_error(cstring_t fmt, ...) {
     char msg[1024];
     va_list argptr;
     va_start(argptr,fmt);
@@ -126,7 +126,7 @@ void PF_error(LPCSTR fmt, ...) {
 
 
 
-void PF_Sleep(DWORD msec) {
+void PF_Sleep(uint32_t msec) {
     usleep(msec * 1000);
 }
 
@@ -178,7 +178,7 @@ void SV_InitGameProgs(void) {
 
 #ifdef WOW
 /* Character creation data is server-owned; initialize the game module before asking it for the selected spawn map. */
-DWORD SV_PlayerCreateMap(void) {
+uint32_t SV_PlayerCreateMap(void) {
     if (!ge)
         SV_InitGameProgs();
     return ge && ge->PlayerCreateMap ? ge->PlayerCreateMap() : ~0u;

@@ -42,8 +42,8 @@
 #define WOW_NAME_FADE_DISTANCE 5.0f // world units; WoWee fades nameplates over the final portion of each cull range
 
 /* WoWee uses the same final-five-unit fade for its NPC, player, and target distance tiers. */
-static FLOAT Wow_WorldLabelAlpha(FLOAT distance, BOOL selected, BOOL player) {
-    FLOAT limit = selected ? WOW_NAME_TARGET_DISTANCE : player ? WOW_NAME_PLAYER_DISTANCE : WOW_NAME_NPC_DISTANCE;
+static float Wow_WorldLabelAlpha(float distance, bool selected, bool player) {
+    float limit = selected ? WOW_NAME_TARGET_DISTANCE : player ? WOW_NAME_PLAYER_DISTANCE : WOW_NAME_NPC_DISTANCE;
     if (distance >= limit) return 0.0f;
     if (distance <= limit - WOW_NAME_FADE_DISTANCE) return 1.0f;
     return (limit - distance) / WOW_NAME_FADE_DISTANCE;

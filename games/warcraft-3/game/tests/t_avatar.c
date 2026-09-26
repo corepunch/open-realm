@@ -5,7 +5,7 @@
 #define BZ_AVATAR MAKEFOURCC('A', 'H', 'a', 'v')
 #define BZ_AVATAR_BUFF MAKEFOURCC('B', 'H', 'a', 'v')
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -47,7 +47,7 @@ static const char avatar_slk[] =
     "E\n";
 
 /* Synthetic level-two data distinguishes row lookup from hardcoded retail constants. */
-static AVFIX avatar_setup(DWORD rank) {
+static AVFIX avatar_setup(uint32_t rank) {
     reset_entities(); setup_test_world(); level.time = 1000;
     AVFIX fix = { .rows = parse_slk_string(avatar_slk), .unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0) };
     fix.old = G_SetSLKRows("AbilityData", fix.rows);
@@ -102,7 +102,7 @@ TEST(wc3_avatar, runtime_health_bonus_publishes_life_limit_events) {
     LPEDICT unit = fix.unit;
     LPEVENT gained = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
     LPEVENT lost = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
-    BOOL saw_gain = false, saw_loss = false;
+    bool saw_gain = false, saw_loss = false;
 
     G_SetEventSubject(gained, unit); G_SetEventSubject(lost, unit);
     gained->state = lost->state = UNIT_STATE_LIFE;
@@ -204,8 +204,8 @@ TEST(wc3_avatar, jass_added_ability_casts_by_order_and_publishes_spell_effect) {
     T_EQ(level.events.queue[2].type, EVENT_PLAYER_UNIT_ISSUED_ORDER);
     T_EQ(level.events.queue[3].type, EVENT_UNIT_ISSUED_ORDER);
     T_ASSERT(level.events.queue[0].edict == unit && level.events.queue[1].edict == unit);
-    T_EQ((DWORD)level.events.queue[0].value, BZ_AVATAR);
-    T_EQ((DWORD)level.events.queue[1].value, BZ_AVATAR);
+    T_EQ((uint32_t)level.events.queue[0].value, BZ_AVATAR);
+    T_EQ((uint32_t)level.events.queue[1].value, BZ_AVATAR);
     T_ASSERT(level.events.queue[2].edict == unit && level.events.queue[3].edict == unit);
     T_EQ(G_GetIssuedOrderId(unit), G_OrderId("avatar"));
 

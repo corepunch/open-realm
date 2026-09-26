@@ -10,17 +10,17 @@
 #include "game/g_wow_local.h"
 
 
-static DWORD test_clear_world_calls;
-static DWORD test_apply_lobby_calls;
+static uint32_t test_clear_world_calls;
+static uint32_t test_apply_lobby_calls;
 
 /* Stub: G_RegisterModel returns model index = index+1 (non-zero = found). */
-int G_RegisterModel(LPCSTR filename) {
+int G_RegisterModel(cstring_t filename) {
     (void)filename;
-    static DWORD model_counter = 1000;
+    static uint32_t model_counter = 1000;
     return (int)(model_counter++);
 }
 
-LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname) {
+LPCANIMATION G_GetAnimation(uint32_t modelindex, cstring_t animname) {
     (void)modelindex;
     (void)animname;
     return NULL;
@@ -29,13 +29,13 @@ LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname) {
 void G_FreeModels(void) {
 }
 
-FLOAT G_GetAttachmentZ(DWORD modelindex, int aid) {
+float G_GetAttachmentZ(uint32_t modelindex, int aid) {
     (void)modelindex;
     (void)aid;
     return 0.0f;
 }
 
-void PF_TextRemoveComments(LPSTR buffer) {
+void PF_TextRemoveComments(string_t buffer) {
     (void)buffer;
 }
 
@@ -45,9 +45,9 @@ typedef struct {
 } testModel_t;
 
 static testModel_t test_models[32];
-static DWORD test_num_models;
+static uint32_t test_num_models;
 
-static int test_model_index(LPCSTR model_name) {
+static int test_model_index(cstring_t model_name) {
     FOR_LOOP(i, test_num_models) {
         if (!strcasecmp(test_models[i].name, model_name)) {
             return test_models[i].index;
@@ -60,10 +60,10 @@ static int test_model_index(LPCSTR model_name) {
     return (int)test_num_models;
 }
 
-static BYTE test_multicast_buf[MAX_MSGLEN];
-static DWORD test_multicast_size;
+static uint8_t test_multicast_buf[MAX_MSGLEN];
+static uint32_t test_multicast_size;
 
-static void test_write_data(void const *data, DWORD size) {
+static void test_write_data(void const *data, uint32_t size) {
     if (!data || test_multicast_size + size > sizeof(test_multicast_buf)) {
         return;
     }
@@ -72,29 +72,29 @@ static void test_write_data(void const *data, DWORD size) {
 }
 
 static void test_write(pfWriteType_t type, void const *value) {
-    BYTE b;
-    SHORT s;
-    LPCSTR text;
+    uint8_t b;
+    int16_t s;
+    cstring_t text;
 
     switch (type) {
         case PF_BYTE:
-            b = (BYTE)*(LONG const *)value;
+            b = (uint8_t)*(int32_t const *)value;
             test_write_data(&b, sizeof(b));
             break;
         case PF_SHORT:
-            s = (SHORT)*(LONG const *)value;
+            s = (int16_t)*(int32_t const *)value;
             test_write_data(&s, sizeof(s));
             break;
         case PF_STRING:
-            text = value ? (LPCSTR)value : "";
-            test_write_data(text, (DWORD)strlen(text) + 1);
+            text = value ? (cstring_t)value : "";
+            test_write_data(text, (uint32_t)strlen(text) + 1);
             break;
         default:
             break;
     }
 }
 
-static DWORD test_unicast_calls;
+static uint32_t test_unicast_calls;
 
 static void test_unicast(LPEDICT ent) {
     (void)ent;
@@ -103,7 +103,7 @@ static void test_unicast(LPEDICT ent) {
 
 static char test_last_error[512];
 
-static void test_error(LPCSTR fmt, ...) {
+static void test_error(cstring_t fmt, ...) {
     va_list args;
     va_start(args, fmt);
     vsnprintf(test_last_error, sizeof(test_last_error), fmt, args);
@@ -120,31 +120,31 @@ static void test_apply_lobby_settings(LPMAPINFO info) {
     T_NOT_NULL(info);
 }
 
-static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
+static cstring_t test_cvar_string(cstring_t name, cstring_t fallback) {
     (void)name;
     return fallback ? fallback : "";
 }
 
 /* Stub for engine callbacks: configstring, readfile. */
-static void test_configstring(DWORD index, LPCSTR string) {
+static void test_configstring(uint32_t index, cstring_t string) {
     (void)index;
     (void)string;
 }
 
-static LPCSTR test_get_configstring(DWORD index) {
+static cstring_t test_get_configstring(uint32_t index) {
     (void)index;
     return "";
 }
 
-static HANDLE test_mem_alloc(long size) {
+static handle_t test_mem_alloc(long size) {
     return calloc(1, (size_t)size);
 }
 
-static void test_mem_free(HANDLE mem) {
+static void test_mem_free(handle_t mem) {
     free(mem);
 }
 
-static HANDLE test_read_file(LPCSTR filename, LPDWORD size) {
+static handle_t test_read_file(cstring_t filename, uint32_t * size) {
     if (size) *size = 1;
     return strstr(filename, "Missile") ? calloc(1, 1) : NULL;
 }
@@ -228,7 +228,7 @@ static LPEDICT make_player(void) {
     return ent;
 }
 
-static LPEDICT make_creature(FLOAT x, FLOAT y) {
+static LPEDICT make_creature(float x, float y) {
     LPEDICT ent = Wow_Spawn();
 
     if (!ent) return NULL;
@@ -252,7 +252,7 @@ static LPEDICT make_creature(FLOAT x, FLOAT y) {
 }
 
 static LPEDICT find_projectile(void) {
-    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+    for (uint32_t i = MAX_CLIENTS; i < (uint32_t)globals.num_edicts; i++) {
         LPEDICT ent = &wow_edicts[i];
         wowEntityLocal_t *local;
 
@@ -313,7 +313,7 @@ TEST(wow_abilities, firebolt_homing_moves_toward_target) {
     Wow_RunProjectile(proj);
     T_ASSERT(proj->inuse);
     T_ASSERT(proj->s.origin.x > 0.0f);
-    FLOAT first_x = proj->s.origin.x;
+    float first_x = proj->s.origin.x;
 
     Wow_RunProjectile(proj);
     T_ASSERT(proj->inuse);
@@ -415,7 +415,7 @@ TEST(wow_abilities, firebolt_at_dead_caster_does_nothing) {
 
     Wow_FireFirebolt(caster, target);
     /* No projectile should be spawned */
-    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+    for (uint32_t i = MAX_CLIENTS; i < (uint32_t)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
         if (e->inuse && Wow_EntityLocal(e)->think == Wow_RunProjectile) {
             T_ASSERT(!"projectile was spawned despite dead caster");
@@ -435,7 +435,7 @@ TEST(wow_abilities, firebolt_at_dead_target_does_nothing) {
 
     Wow_FireFirebolt(caster, target);
     /* No projectile should be spawned */
-    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+    for (uint32_t i = MAX_CLIENTS; i < (uint32_t)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
         if (e->inuse && Wow_EntityLocal(e)->think == Wow_RunProjectile) {
             T_ASSERT(!"projectile was spawned despite dead target");
@@ -448,7 +448,7 @@ TEST(wow_abilities, firebolt_self_cast_does_nothing) {
 
     T_NOT_NULL(caster);
     Wow_FireFirebolt(caster, caster);
-    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+    for (uint32_t i = MAX_CLIENTS; i < (uint32_t)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
         if (e->inuse && Wow_EntityLocal(e)->think == Wow_RunProjectile) {
             T_ASSERT(!"projectile was spawned for self-cast");
@@ -657,7 +657,7 @@ TEST(wow_abilities, frostbolt_at_dead_caster_does_nothing) {
     T_NOT_NULL(target);
     Wow_EntityLocal(caster)->dead = true;
     Wow_FireFrostbolt(caster, target);
-    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+    for (uint32_t i = MAX_CLIENTS; i < (uint32_t)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
         if (e->inuse && Wow_EntityLocal(e)->think == Wow_RunProjectile)
             T_ASSERT(!"frostbolt spawned despite dead caster");
@@ -672,7 +672,7 @@ TEST(wow_abilities, frostbolt_at_dead_target_does_nothing) {
     T_NOT_NULL(target);
     Wow_EntityLocal(target)->dead = true;
     Wow_FireFrostbolt(caster, target);
-    for (DWORD i = MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+    for (uint32_t i = MAX_CLIENTS; i < (uint32_t)globals.num_edicts; i++) {
         LPEDICT e = &wow_edicts[i];
         if (e->inuse && Wow_EntityLocal(e)->think == Wow_RunProjectile)
             T_ASSERT(!"frostbolt spawned despite dead target");

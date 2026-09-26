@@ -14,24 +14,24 @@
 #include <unistd.h>
 
 extern JASSMODULE jass_funcs[];
-void CM_ReadMapScript(HANDLE archive);
+void CM_ReadMapScript(handle_t archive);
 
-static LPCSTR const kMinimalMapScript =
+static cstring_t const kMinimalMapScript =
     "function config takes nothing returns nothing\n"
     "endfunction\n"
     "function main takes nothing returns nothing\n"
     "endfunction\n";
 
-static void mapscript_ignore_error(LPCSTR message) { (void)message; }
+static void mapscript_ignore_error(cstring_t message) { (void)message; }
 
-static BOOL mapscript_pack_mpq(LPCSTR path, LPCSTR member, LPCSTR text) {
-    HANDLE archive;
+static bool mapscript_pack_mpq(cstring_t path, cstring_t member, cstring_t text) {
+    handle_t archive;
 
     unlink(path);
     if (!SFileCreateArchive(path, 0, 16, &archive))
         return false;
     if (member && text) {
-        if (!SFileAddFileFromBuffer(archive, member, text, (DWORD)strlen(text))) {
+        if (!SFileAddFileFromBuffer(archive, member, text, (uint32_t)strlen(text))) {
             SFileCloseArchive(archive);
             unlink(path);
             return false;
@@ -81,8 +81,8 @@ TEST(wc3_mapscript, jass_dobuffer_null_returns_false) {
 }
 
 TEST(wc3_mapscript, read_scripts_war3map_j_when_root_absent) {
-    LPCSTR path = "/tmp/openwarcraft3-mapscript-scripts.mpq";
-    HANDLE archive;
+    cstring_t path = "/tmp/openwarcraft3-mapscript-scripts.mpq";
+    handle_t archive;
 
     T_ASSERT(mapscript_pack_mpq(path, "scripts\\war3map.j", kMinimalMapScript));
     T_ASSERT(SFileOpenArchive(path, 0, 0, &archive));
@@ -97,19 +97,19 @@ TEST(wc3_mapscript, read_scripts_war3map_j_when_root_absent) {
 }
 
 TEST(wc3_mapscript, root_war3map_j_preferred_over_scripts) {
-    LPCSTR path = "/tmp/openwarcraft3-mapscript-both.mpq";
-    HANDLE archive;
-    LPCSTR root = "function config takes nothing returns nothing\nendfunction\n"
+    cstring_t path = "/tmp/openwarcraft3-mapscript-both.mpq";
+    handle_t archive;
+    cstring_t root = "function config takes nothing returns nothing\nendfunction\n"
                   "function main takes nothing returns nothing\nendfunction\n"
                   "// root\n";
-    LPCSTR nested = "function config takes nothing returns nothing\nendfunction\n"
+    cstring_t nested = "function config takes nothing returns nothing\nendfunction\n"
                     "function main takes nothing returns nothing\nendfunction\n"
                     "// scripts\n";
 
     unlink(path);
     T_ASSERT(SFileCreateArchive(path, 0, 16, &archive));
-    T_ASSERT(SFileAddFileFromBuffer(archive, "war3map.j", root, (DWORD)strlen(root)));
-    T_ASSERT(SFileAddFileFromBuffer(archive, "scripts\\war3map.j", nested, (DWORD)strlen(nested)));
+    T_ASSERT(SFileAddFileFromBuffer(archive, "war3map.j", root, (uint32_t)strlen(root)));
+    T_ASSERT(SFileAddFileFromBuffer(archive, "scripts\\war3map.j", nested, (uint32_t)strlen(nested)));
     T_ASSERT(SFileCloseArchive(archive));
     T_ASSERT(SFileOpenArchive(path, 0, 0, &archive));
     mapscript_clear_loaded();
@@ -123,8 +123,8 @@ TEST(wc3_mapscript, root_war3map_j_preferred_over_scripts) {
 }
 
 TEST(wc3_mapscript, missing_script_leaves_null_without_crash) {
-    LPCSTR path = "/tmp/openwarcraft3-mapscript-missing.mpq";
-    HANDLE archive;
+    cstring_t path = "/tmp/openwarcraft3-mapscript-missing.mpq";
+    handle_t archive;
 
     T_ASSERT(mapscript_pack_mpq(path, NULL, NULL));
     T_ASSERT(SFileOpenArchive(path, 0, 0, &archive));

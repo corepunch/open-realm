@@ -11,7 +11,7 @@
 #endif
 #ifdef __APPLE__
 /* Forward-declare the Objective-C runtime calls we need without pulling in
- * <objc/objc.h>, which redefines BOOL and conflicts with our project typedef. */
+ * <objc/objc.h>, which redefines bool and conflicts with our project typedef. */
 typedef void *MacId;
 typedef void *MacSel;
 extern MacId  objc_getClass(const char *name);
@@ -29,19 +29,19 @@ SDL_Window *window;
 SDL_GLContext context;
 
 static bool renderer_shutdown = false;
-static BOOL drawable_dirty;
+static bool drawable_dirty;
 
 /* Capture the physical GL drawable; SDL window dimensions are logical points on Retina. */
 static void R_Screenshot(void) {
     GLint viewport[4];
-    DWORD width, height;
+    uint32_t width, height;
     int slot;
     char path[512];
-    BYTE *pixels;
+    uint8_t *pixels;
 
     R_Call(glGetIntegerv, GL_VIEWPORT, viewport);
-    width = viewport[2] > 0 ? (DWORD)viewport[2] : 0;
-    height = viewport[3] > 0 ? (DWORD)viewport[3] : 0;
+    width = viewport[2] > 0 ? (uint32_t)viewport[2] : 0;
+    height = viewport[3] > 0 ? (uint32_t)viewport[3] : 0;
     if (!width || !height) return;
 #ifndef _WIN32
     mkdir("screenshots", 0777);
@@ -58,11 +58,11 @@ static void R_Screenshot(void) {
     pixels = ri.MemAlloc((long)((size_t)width * height * 3));
     if (!pixels) { fprintf(stderr, "Screenshot: alloc failed\n"); return; }
     {
-        BYTE *rgba = ri.MemAlloc((long)((size_t)width * height * 4));
+        uint8_t *rgba = ri.MemAlloc((long)((size_t)width * height * 4));
         if (!rgba) { ri.MemFree(pixels); return; }
         R_Call(glReadPixels, 0, 0, (GLsizei)width, (GLsizei)height, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
         /* Strip alpha: RGBA → RGB */
-        for (DWORD i = 0; i < width * height; i++) {
+        for (uint32_t i = 0; i < width * height; i++) {
             pixels[i*3+0] = rgba[i*4+0];
             pixels[i*3+1] = rgba[i*4+1];
             pixels[i*3+2] = rgba[i*4+2];
@@ -77,14 +77,14 @@ static void R_Screenshot(void) {
     ri.MemFree(pixels);
 }
 
-LPTEXTURE R_LoadTextureBLP1(HANDLE data, DWORD filesize);
-LPTEXTURE R_LoadTextureBLP2(HANDLE data, DWORD filesize);
-LPTEXTURE R_LoadTextureDDS(HANDLE data, DWORD filesize);
+LPTEXTURE R_LoadTextureBLP1(handle_t data, uint32_t filesize);
+LPTEXTURE R_LoadTextureBLP2(handle_t data, uint32_t filesize);
+LPTEXTURE R_LoadTextureDDS(handle_t data, uint32_t filesize);
 
-BOOL R_IsTexturePCX(HANDLE data, DWORD filesize);
-LPTEXTURE R_LoadTexturePCX(HANDLE data, DWORD filesize);
+bool R_IsTexturePCX(handle_t data, uint32_t filesize);
+LPTEXTURE R_LoadTexturePCX(handle_t data, uint32_t filesize);
 
-static BOOL R_PathHasExtension(LPCSTR path, LPCSTR extension) {
+static bool R_PathHasExtension(cstring_t path, cstring_t extension) {
     size_t pathLen;
     size_t extLen;
 
@@ -113,10 +113,10 @@ static BOOL R_PathHasExtension(LPCSTR path, LPCSTR extension) {
     return true;
 }
 
-static LPTEXTURE R_LoadTextureSTB(HANDLE data, DWORD filesize) {
+static LPTEXTURE R_LoadTextureSTB(handle_t data, uint32_t filesize) {
     int width;
     int height;
-    BYTE *image;
+    uint8_t *image;
     LPTEXTURE texture;
 
     if (!data || filesize > INT32_MAX) {
@@ -128,13 +128,13 @@ static LPTEXTURE R_LoadTextureSTB(HANDLE data, DWORD filesize) {
     }
 
     /* STB already returns RGBA; the old BGRA copy made colors depend on the uploader's OS branch. */
-    texture = R_AllocateTexture((DWORD)width, (DWORD)height);
-    R_LoadTextureMipLevel(texture, &(TEXMIP){ image, (DWORD)width, (DWORD)height, 0, PIXEL_RGBA });
+    texture = R_AllocateTexture((uint32_t)width, (uint32_t)height);
+    R_LoadTextureMipLevel(texture, &(TEXMIP){ image, (uint32_t)width, (uint32_t)height, 0, PIXEL_RGBA });
     stbi_image_free(image);
     return texture;
 }
 
-void R_Viewport(LPCRECT viewport) {
+void R_Viewport(rect_t const * viewport) {
     glViewport(viewport->x * tr.drawableSize.width / 800,
                viewport->y * tr.drawableSize.height / 600,
                viewport->w * tr.drawableSize.width / 800,
@@ -147,7 +147,7 @@ static LPTEXTURE R_MakePlaceholderTexture(void) {
     LPTEXTURE texture = R_AllocateTexture(SIZE, SIZE);
 
     FOR_LOOP(y, SIZE) FOR_LOOP(x, SIZE) {
-        BOOL const checker = ((x ^ y) & 1) != 0;
+        bool const checker = ((x ^ y) & 1) != 0;
         pixels[y * SIZE + x] = checker ? MAKE(COLOR32, 255, 0, 255, 255)
                                         : MAKE(COLOR32, 0, 0, 0, 255);
     }
@@ -161,8 +161,8 @@ LPTEXTURE R_AllocateSinglePixelTexture(int color) {
     return texture;
 }
 
-static FLOAT R_SmoothStep(FLOAT edge0, FLOAT edge1, FLOAT x) {
-    FLOAT t = (x - edge0) / (edge1 - edge0);
+static float R_SmoothStep(float edge0, float edge1, float x) {
+    float t = (x - edge0) / (edge1 - edge0);
     t = MAX(0.0f, MIN(1.0f, t));
     return t * t * (3.0f - 2.0f * t);
 }
@@ -174,21 +174,21 @@ LPTEXTURE R_MakeLoadingIndicatorTexture(void) {
 
     FOR_LOOP(y, TEXTURE_SIZE) {
         FOR_LOOP(x, TEXTURE_SIZE) {
-            FLOAT const fx = 1.0f - ((FLOAT)x + 0.5f) / (FLOAT)TEXTURE_SIZE * 2.0f;
-            FLOAT const fy = ((FLOAT)y + 0.5f) / (FLOAT)TEXTURE_SIZE * 2.0f - 1.0f;
-            FLOAT const distance = sqrtf(fx * fx + fy * fy);
-            FLOAT angle = atan2f(fy, fx) / (FLOAT)(M_PI * 2.0);
-            FLOAT const outer = 0.92f;
-            FLOAT const inner = outer * 0.68f;
-            FLOAT const edge = 0.035f;
-            FLOAT const ring = R_SmoothStep(inner - edge, inner, distance) *
+            float const fx = 1.0f - ((float)x + 0.5f) / (float)TEXTURE_SIZE * 2.0f;
+            float const fy = ((float)y + 0.5f) / (float)TEXTURE_SIZE * 2.0f - 1.0f;
+            float const distance = sqrtf(fx * fx + fy * fy);
+            float angle = atan2f(fy, fx) / (float)(M_PI * 2.0);
+            float const outer = 0.92f;
+            float const inner = outer * 0.68f;
+            float const edge = 0.035f;
+            float const ring = R_SmoothStep(inner - edge, inner, distance) *
                                (1.0f - R_SmoothStep(outer, outer + edge, distance));
-            BYTE alpha;
+            uint8_t alpha;
 
             if (angle < 0.0f) {
                 angle += 1.0f;
             }
-            alpha = (BYTE)(255.0f * ring * angle);
+            alpha = (uint8_t)(255.0f * ring * angle);
             pixels[y * TEXTURE_SIZE + x] = MAKE(COLOR32, 255, 255, 255, alpha);
         }
     }
@@ -203,13 +203,13 @@ LPTEXTURE R_MakeSelectionCircleTexture(void) {
     LPTEXTURE texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
 
     FOR_LOOP(y, TEXTURE_SIZE) FOR_LOOP(x, TEXTURE_SIZE) {
-        FLOAT fx = ((FLOAT)x + 0.5f) / TEXTURE_SIZE * 2.0f - 1.0f;
-        FLOAT fy = ((FLOAT)y + 0.5f) / TEXTURE_SIZE * 2.0f - 1.0f;
-        FLOAT distance = sqrtf(fx * fx + fy * fy);
-        FLOAT outer = 0.92f, inner = 0.78f, edge = 0.035f;
-        FLOAT ring = R_SmoothStep(inner - edge, inner, distance) *
+        float fx = ((float)x + 0.5f) / TEXTURE_SIZE * 2.0f - 1.0f;
+        float fy = ((float)y + 0.5f) / TEXTURE_SIZE * 2.0f - 1.0f;
+        float distance = sqrtf(fx * fx + fy * fy);
+        float outer = 0.92f, inner = 0.78f, edge = 0.035f;
+        float ring = R_SmoothStep(inner - edge, inner, distance) *
                      (1.0f - R_SmoothStep(outer, outer + edge, distance));
-        pixels[y * TEXTURE_SIZE + x] = MAKE(COLOR32, 255, 255, 255, (BYTE)(ring * 255.0f));
+        pixels[y * TEXTURE_SIZE + x] = MAKE(COLOR32, 255, 255, 255, (uint8_t)(ring * 255.0f));
     }
     R_LoadTextureMipLevel(texture, &(TEXMIP){ pixels, TEXTURE_SIZE, TEXTURE_SIZE, 0, PIXEL_RGBA });
     return texture;
@@ -222,12 +222,12 @@ static LPTEXTURE R_MakeBlobShadowTexture(void) {
 
     FOR_LOOP(y, TEXTURE_SIZE) {
         FOR_LOOP(x, TEXTURE_SIZE) {
-            FLOAT const fx = ((FLOAT)x + 0.5f) / (FLOAT)TEXTURE_SIZE * 2.0f - 1.0f;
-            FLOAT const fy = ((FLOAT)y + 0.5f) / (FLOAT)TEXTURE_SIZE * 2.0f - 1.0f;
-            FLOAT const distance = sqrtf(fx * fx + fy * fy);
-            FLOAT const alpha = 1.0f - R_SmoothStep(0.25f, 1.0f, distance);
+            float const fx = ((float)x + 0.5f) / (float)TEXTURE_SIZE * 2.0f - 1.0f;
+            float const fy = ((float)y + 0.5f) / (float)TEXTURE_SIZE * 2.0f - 1.0f;
+            float const distance = sqrtf(fx * fx + fy * fy);
+            float const alpha = 1.0f - R_SmoothStep(0.25f, 1.0f, distance);
 
-            pixels[y * TEXTURE_SIZE + x] = MAKE(COLOR32, 255, 255, 255, (BYTE)(alpha * 255.0f));
+            pixels[y * TEXTURE_SIZE + x] = MAKE(COLOR32, 255, 255, 255, (uint8_t)(alpha * 255.0f));
         }
     }
 
@@ -235,7 +235,7 @@ static LPTEXTURE R_MakeBlobShadowTexture(void) {
     return texture;
 }
 
-static LPTEXTURE R_LoadTexturePath(LPCSTR textureFilename, BOOL *found) {
+static LPTEXTURE R_LoadTexturePath(cstring_t textureFilename, bool *found) {
     LPTEXTURE texture = R_FindLoadedTexture(textureFilename);
     void *buffer = NULL;
     PATHSTR load_path;
@@ -251,7 +251,7 @@ static LPTEXTURE R_LoadTexturePath(LPCSTR textureFilename, BOOL *found) {
         return NULL;
     }
     if (found) *found = true;
-    switch (*(DWORD *)buffer) {
+    switch (*(uint32_t *)buffer) {
         case ID_BLP1:
             texture = R_LoadTextureBLP1(buffer, fileSize);
             break;
@@ -268,7 +268,7 @@ static LPTEXTURE R_LoadTexturePath(LPCSTR textureFilename, BOOL *found) {
                 texture = R_LoadTextureSTB(buffer, fileSize);
             }
             if (!texture) {
-                fprintf(stderr, "Unknown texture format %.4s in file %s\n", (LPSTR)buffer, load_path);
+                fprintf(stderr, "Unknown texture format %.4s in file %s\n", (string_t)buffer, load_path);
             }
             break;
     }
@@ -278,11 +278,11 @@ static LPTEXTURE R_LoadTexturePath(LPCSTR textureFilename, BOOL *found) {
     return texture;
 }
 
-LPTEXTURE R_LoadTexture(LPCSTR textureFilename) {
+LPTEXTURE R_LoadTexture(cstring_t textureFilename) {
     PATHSTR scoped;
     LPTEXTURE texture;
-    BOOL found = false;
-    BOOL has_scope;
+    bool found = false;
+    bool has_scope;
 
     if (!textureFilename || !*textureFilename) return tr.texture[TEX_PLACEHOLDER];
     has_scope = R_MapAssetCandidate(textureFilename, scoped, sizeof(scoped));
@@ -393,9 +393,9 @@ void R_SetupGL(bool drawLight) {
 #endif
 }
 
-static LPCSTR R_GLString(GLenum name) {
+static cstring_t R_GLString(GLenum name) {
     GLubyte const *value = glGetString(name);
-    return value ? (LPCSTR)value : "unknown";
+    return value ? (cstring_t)value : "unknown";
 }
 
 static void R_PrintGLExtensions(void) {
@@ -437,19 +437,19 @@ static void R_PrintDisplayModes(void) {
 
 static int r_swapinterval = -999;
 
-static BOOL R_VideoHidden(void) {
+static bool R_VideoHidden(void) {
     return R_CvarEnabled("vid_hidden", "0");
 }
 
-static BOOL R_VideoNative(void) {
+static bool R_VideoNative(void) {
     return R_CvarEnabled("vid_native", "0") && !R_VideoHidden();
 }
 
-static BOOL R_VideoFullscreen(void) {
+static bool R_VideoFullscreen(void) {
     return R_CvarEnabled("vid_fullscreen", "0") && !R_VideoHidden();
 }
 
-static BOOL R_GetDesktopMode(SDL_DisplayMode *mode) {
+static bool R_GetDesktopMode(SDL_DisplayMode *mode) {
     if (!mode) {
         return false;
     }
@@ -461,7 +461,7 @@ static BOOL R_GetDesktopMode(SDL_DisplayMode *mode) {
     return true;
 }
 
-static void R_ResolveInitialWindowSize(DWORD *width, DWORD *height) {
+static void R_ResolveInitialWindowSize(uint32_t *width, uint32_t *height) {
     SDL_DisplayMode desktop;
 
     if (!width || !height || !R_VideoNative()) {
@@ -474,8 +474,8 @@ static void R_ResolveInitialWindowSize(DWORD *width, DWORD *height) {
                 (unsigned)*height);
         return;
     }
-    *width = (DWORD)desktop.w;
-    *height = (DWORD)desktop.h;
+    *width = (uint32_t)desktop.w;
+    *height = (uint32_t)desktop.h;
     fprintf(stderr,
             "Video: native desktop mode %ux%u@%d\n",
             (unsigned)*width,
@@ -483,7 +483,7 @@ static void R_ResolveInitialWindowSize(DWORD *width, DWORD *height) {
             desktop.refresh_rate);
 }
 
-static BOOL R_SetExclusiveDisplayMode(DWORD width, DWORD height) {
+static bool R_SetExclusiveDisplayMode(uint32_t width, uint32_t height) {
     SDL_DisplayMode target = { 0 };
     SDL_DisplayMode closest;
     int display_index;
@@ -525,23 +525,23 @@ static BOOL R_SetExclusiveDisplayMode(DWORD width, DWORD height) {
  * renderer draw/scissor math uses this cached drawable size, so tolerate any
  * later SDL drawable correction when the client receives a relevant SDL
  * window/display event. */
-static BOOL R_RefreshDrawableSize(LPCSTR reason) {
+static bool R_RefreshDrawableSize(cstring_t reason) {
     int drawable_width = 0, drawable_height = 0;
     int window_width = 0, window_height = 0;
-    DWORD old_width, old_height;
+    uint32_t old_width, old_height;
 
     if (!window) return false;
     SDL_GL_GetDrawableSize(window, &drawable_width, &drawable_height);
     if (drawable_width <= 0 || drawable_height <= 0) return false;
-    if (tr.drawableSize.width == (DWORD)drawable_width &&
-        tr.drawableSize.height == (DWORD)drawable_height) {
+    if (tr.drawableSize.width == (uint32_t)drawable_width &&
+        tr.drawableSize.height == (uint32_t)drawable_height) {
         return false;
     }
 
     old_width = tr.drawableSize.width;
     old_height = tr.drawableSize.height;
-    tr.drawableSize.width = (DWORD)drawable_width;
-    tr.drawableSize.height = (DWORD)drawable_height;
+    tr.drawableSize.width = (uint32_t)drawable_width;
+    tr.drawableSize.height = (uint32_t)drawable_height;
 
     /* The GL context is current whenever this is called after initialization.
      * Reset the full viewport immediately; later world/UI passes may narrow it
@@ -566,9 +566,9 @@ static BOOL R_RefreshDrawableSize(LPCSTR reason) {
     return true;
 }
 
-static void R_ApplyVideoMode(DWORD width, DWORD height) {
-    BOOL native = R_VideoNative();
-    BOOL fullscreen = R_VideoFullscreen();
+static void R_ApplyVideoMode(uint32_t width, uint32_t height) {
+    bool native = R_VideoNative();
+    bool fullscreen = R_VideoFullscreen();
     Uint32 fullscreen_flag = 0;
     int actual_width = 0;
     int actual_height = 0;
@@ -587,8 +587,8 @@ static void R_ApplyVideoMode(DWORD width, DWORD height) {
     if (native) {
         SDL_DisplayMode desktop;
         if (R_GetDesktopMode(&desktop)) {
-            width = (DWORD)desktop.w;
-            height = (DWORD)desktop.h;
+            width = (uint32_t)desktop.w;
+            height = (uint32_t)desktop.h;
         }
     }
 
@@ -633,10 +633,10 @@ static void R_UpdateSwapInterval(void) {
         fprintf(stderr, "OpenGL: vsync=%d\n", SDL_GL_GetSwapInterval());
 }
 
-void R_InitRenderer(DWORD width, DWORD height) {
+void R_InitRenderer(uint32_t width, uint32_t height) {
     renderer_shutdown = false;
     r_swapinterval = -999;
-    BOOL gl_current = false;
+    bool gl_current = false;
     int requested_msaa = BZ_MSAA_SAMPLES;
     SDL_version sdl_version;
 
@@ -767,7 +767,7 @@ void R_InitRenderer(DWORD width, DWORD height) {
 }
 
 /* Alpha-key shader variants discard without MSAA and convert alpha to sample coverage with it. */
-void R_SetAlphaKeyState(BOOL enabled) {
+void R_SetAlphaKeyState(bool enabled) {
     if (!enabled) {
         R_Call(glDisable, GL_SAMPLE_ALPHA_TO_COVERAGE);
         return;
@@ -825,7 +825,7 @@ void R_ShutdownRenderer(void) {
     SDL_Quit();
 }
 
-void R_SetupViewport(LPCRECT r) {
+void R_SetupViewport(rect_t const * r) {
     R_Call(glViewport,
            r->x * tr.drawableSize.width,
            r->y * tr.drawableSize.height,
@@ -833,7 +833,7 @@ void R_SetupViewport(LPCRECT r) {
            r->h * tr.drawableSize.height);
 }
 
-void R_SetupScissor(LPCRECT r) {
+void R_SetupScissor(rect_t const * r) {
     R_Call(glEnable, GL_SCISSOR_TEST);
     R_Call(glScissor,
            r->x * tr.drawableSize.width,
@@ -843,13 +843,13 @@ void R_SetupScissor(LPCRECT r) {
 }
 
 void R_RevertSettings(void) {
-    R_SetupViewport(&(RECT){0,0,1,1});
-    R_SetupScissor(&(RECT){0,0,1,1});
+    R_SetupViewport(&(rect_t){0,0,1,1});
+    R_SetupScissor(&(rect_t){0,0,1,1});
 }
 
 void R_DrawSky(void) {
     renderEntity_t sky;
-    DWORD rdflags;
+    uint32_t rdflags;
 
     if (!tr.viewDef.skyModel || (tr.viewDef.rdflags & RDF_NOWORLDMODEL)) return;
     sky = (renderEntity_t){
@@ -907,13 +907,13 @@ void R_RenderView(void) {
     }
     tr.render_phase = RENDER_PHASE_SOLID;
     R_RevertSettings();
-    R_SetupScissor(&(RECT){0, 0, 1, 1});
+    R_SetupScissor(&(rect_t){0, 0, 1, 1});
 
 //    extern LPCTEXTURE dds;
 //    R_DrawPic(dds, 0, 0);
 }
 
-void R_DrawBuffer(LPCBUFFER buffer, DWORD num_vertices) {
+void R_DrawBuffer(LPCBUFFER buffer, uint32_t num_vertices) {
     R_Call(glBindVertexArray, buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_StatsDraw(GL_TRIANGLES, num_vertices, 1);
@@ -934,14 +934,14 @@ void R_DrawIndexedBuffer32(LPCBUFFER buffer, LPCDRAWELEMENTS draw) {
 }
 
 /* Static procedural batches need only gl_InstanceID; their shared VAO has no per-instance stream. */
-void R_DrawBufferCopies(LPCBUFFER buffer, DWORD num_vertices, DWORD num_instances) {
+void R_DrawBufferCopies(LPCBUFFER buffer, uint32_t num_vertices, uint32_t num_instances) {
     R_Call(glBindVertexArray, buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_StatsDraw(GL_TRIANGLES, num_vertices, num_instances);
     R_Call(glDrawArraysInstanced, GL_TRIANGLES, 0, num_vertices, num_instances);
 }
 
-void R_DrawIndexedBuffer(LPCBUFFER buffer, DWORD num_indices) {
+void R_DrawIndexedBuffer(LPCBUFFER buffer, uint32_t num_indices) {
     R_Call(glBindVertexArray, buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, buffer->ibo);
@@ -954,12 +954,12 @@ typedef struct {
 } RENDERSTATS;
 
 static RENDERSTATS r_frame_stats, r_stats_accum;
-static DWORD r_stats_frames, r_stats_start;
+static uint32_t r_stats_frames, r_stats_start;
 
-DWORD R_GetFrameDrawCalls(void) { return (DWORD)r_frame_stats.draws; }
+uint32_t R_GetFrameDrawCalls(void) { return (uint32_t)r_frame_stats.draws; }
 
 /* Count submitted work at the renderer boundary, including instanced amplification. */
-void R_StatsDraw(GLenum mode, DWORD count, DWORD instances) {
+void R_StatsDraw(GLenum mode, uint32_t count, uint32_t instances) {
     r_frame_stats.draws++;
     r_frame_stats.vertices += (uint64_t)count * instances;
     r_frame_stats.triangles += R_PrimitiveTriangles(mode, count, instances);
@@ -968,7 +968,7 @@ void R_StatsDraw(GLenum mode, DWORD count, DWORD instances) {
 
 /* Emit one averaged line per second so profiling logs remain readable. */
 static void R_FinishFrameStats(void) {
-    DWORD now = SDL_GetTicks(), elapsed;
+    uint32_t now = SDL_GetTicks(), elapsed;
 
     r_stats_accum.draws += r_frame_stats.draws; r_stats_accum.vertices += r_frame_stats.vertices;
     r_stats_accum.triangles += r_frame_stats.triangles; r_stats_accum.instances += r_frame_stats.instances;
@@ -1027,7 +1027,7 @@ size2_t R_GetWindowSize(void) {
  * the next frame boundary, after the client has finished pumping events. */
 static void R_WindowChanged(void) { drawable_dirty = true; }
 
-void R_SetWindowSize(DWORD width, DWORD height) {
+void R_SetWindowSize(uint32_t width, uint32_t height) {
     if (!window || width == 0 || height == 0) {
         return;
     }
@@ -1061,7 +1061,7 @@ bool R_GetEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
 
 /* Keep attachment-name/model-format knowledge in the selected game renderer.
  * Shared client presentation can request an authored attachment by prefix. */
-bool R_GetEntityAttachmentPosition(renderEntity_t const *entity, LPCSTR prefix, LPVECTOR3 out) {
+bool R_GetEntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, LPVECTOR3 out) {
     return R_EntityAttachmentPosition(entity, prefix, out);
 }
 

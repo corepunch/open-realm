@@ -11,7 +11,7 @@
 
 static EscMenuMainPanel_t quit_confirm;
 
-static BOOL QuitConfirm_LoadScreen(void) {
+static bool QuitConfirm_LoadScreen(void) {
     return EscMenuMainPanel_Load(&quit_confirm);
 }
 
@@ -77,7 +77,7 @@ static void QuitConfirm_Draw(void) {
     }
 }
 
-static void QuitConfirm_KeyEvent(int key, BOOL down) {
+static void QuitConfirm_KeyEvent(int key, bool down) {
     if (down && key == 27) {
         M_ShowMainMenu();
     }

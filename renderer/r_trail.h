@@ -23,7 +23,7 @@ typedef struct {
     trailEdge_t edges[TRAIL_MAX_EDGES];
     int head, count;
     float acc;   /* edge emission accumulator (rate * dt), clamped before emitting */
-    DWORD stamp; /* last now_ms this trail advanced; guards same-frame redraws, detects owner reuse */
+    uint32_t stamp; /* last now_ms this trail advanced; guards same-frame redraws, detects owner reuse */
 } trail_t;
 
 /* Strip vertex in engine space; games add their own normal/skinning/material fields. */
@@ -39,12 +39,12 @@ typedef struct {
    gap past TRAIL_STALE_MS clears the trail (owner id reused). A respawn inside
    the same tick still slips past the gap check. Returns live edge count. */
 int R_TrailAdvance(trail_t *trail, VECTOR3 above, VECTOR3 below, COLOR32 color,
-                   float lifespan, float rate, float gravity, DWORD now_ms, DWORD delta_ms);
+                   float lifespan, float rate, float gravity, uint32_t now_ms, uint32_t delta_ms);
 
 /* One quad (6 verts) per consecutive edge pair. U is age-based (oldest edges
    flow toward the end of the unwrap) so adding or expiring an edge never
    rescales the rest. Returns vertices written. */
-DWORD R_TrailStripVerts(trail_t const *trail, float lifespan, DWORD columns, DWORD rows, DWORD slot,
-                        trailVert_t *out, DWORD max);
+uint32_t R_TrailStripVerts(trail_t const *trail, float lifespan, uint32_t columns, uint32_t rows, uint32_t slot,
+                        trailVert_t *out, uint32_t max);
 
 #endif

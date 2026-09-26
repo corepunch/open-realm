@@ -6,43 +6,43 @@
 #include "../g_local.h"
 #include "../hud/hud_local.h"
 
-BOOL run_test_jass(LPCSTR src);
+bool run_test_jass(cstring_t src);
 
 typedef struct {
     PATHSTR images[MAX_IMAGES];
-    DWORD tiles, wide_tiles, console_layouts, unicasts;
-    LONG layer;
-    BOOL layer_pending, in_console;
+    uint32_t tiles, wide_tiles, console_layouts, unicasts;
+    int32_t layer;
+    bool layer_pending, in_console;
     stbIniCache_t saved_theme;
     __typeof__(gi.Write) write;
     __typeof__(gi.unicast) unicast;
-    int (*image)(LPCSTR);
-    LPCSTR (*configstring)(DWORD);
+    int (*image)(cstring_t);
+    cstring_t (*configstring)(uint32_t);
 } CANVASCAP;
 static CANVASCAP cap;
 
-static int canvas_image_index(LPCSTR name) {
+static int canvas_image_index(cstring_t name) {
     if (!name || !*name) return 0;
-    for (DWORD i = 1; i < MAX_IMAGES; i++) if (cap.images[i][0] && !strcmp(cap.images[i], name)) return (int)i;
-    for (DWORD i = 1; i < MAX_IMAGES; i++) {
+    for (uint32_t i = 1; i < MAX_IMAGES; i++) if (cap.images[i][0] && !strcmp(cap.images[i], name)) return (int)i;
+    for (uint32_t i = 1; i < MAX_IMAGES; i++) {
         if (cap.images[i][0]) continue;
         snprintf(cap.images[i], sizeof(cap.images[i]), "%s", name);
         return (int)i;
     }
     return 0;
 }
-static LPCSTR canvas_configstring(DWORD index) {
+static cstring_t canvas_configstring(uint32_t index) {
     return index > CS_IMAGES && index < CS_IMAGES + MAX_IMAGES ? cap.images[index - CS_IMAGES] : "";
 }
-static BOOL canvas_registered(LPCSTR needle) {
-    for (DWORD i = 1; i < MAX_IMAGES; i++) if (cap.images[i][0] && strstr(cap.images[i], needle)) return true;
+static bool canvas_registered(cstring_t needle) {
+    for (uint32_t i = 1; i < MAX_IMAGES; i++) if (cap.images[i][0] && strstr(cap.images[i], needle)) return true;
     return false;
 }
 /* Count console tiles by the skin path they resolved to, so the recipient's race is part of the evidence. */
 static void canvas_write(pfWriteType_t type, void const *value) {
     if (!value) return;
     if (type == PF_BYTE) {
-        LONG byte = *(LONG const *)value;
+        int32_t byte = *(int32_t const *)value;
         if (cap.layer_pending) {
             cap.layer = byte; cap.layer_pending = false; cap.in_console = byte == LAYER_CONSOLE;
             if (cap.in_console) cap.console_layouts++;
@@ -52,7 +52,7 @@ static void canvas_write(pfWriteType_t type, void const *value) {
     if (type != PF_UIFRAME || !cap.in_console) return;
     LPCUIFRAME frame = value;
     if (frame->flags.type != FT_TEXTURE || !frame->tex.index || frame->tex.index >= MAX_IMAGES) return;
-    LPCSTR name = cap.images[frame->tex.index];
+    cstring_t name = cap.images[frame->tex.index];
     if (!strstr(name, "-tile0")) return;
     cap.tiles++;
     if (strstr(name, "tile05") || strstr(name, "tile06")) cap.wide_tiles++;
@@ -146,20 +146,20 @@ TEST(wc3_canvas, console_write_authors_extension_tiles_for_wide_clients_only) {
 TEST(wc3_canvas, ui_canvas_command_validates_class_and_resends_console_through_run_frame) {
     LPEDICT ent = &g_edicts[0];
     LPGAMECLIENT client = ent->client;
-    LPCSTR rejected[] = { "2", "-1", "x", "1x", "" };
+    cstring_t rejected[] = { "2", "-1", "x", "1x", "" };
     canvas_setup();
     client->connected = true;
 
-    G_ClientCommand(ent, 2, (LPCSTR[]){ "ui_canvas", "1" });
+    G_ClientCommand(ent, 2, (cstring_t[]){ "ui_canvas", "1" });
     T_EQ(client->canvas, UI_CANVAS_WIDE);
-    G_ClientCommand(ent, 2, (LPCSTR[]){ "ui_canvas", "0" });
+    G_ClientCommand(ent, 2, (cstring_t[]){ "ui_canvas", "0" });
     T_EQ(client->canvas, UI_CANVAS_STANDARD);
     FOR_LOOP(i, sizeof(rejected) / sizeof(rejected[0])) {
         client->canvas = UI_CANVAS_WIDE;
-        G_ClientCommand(ent, 2, (LPCSTR[]){ "ui_canvas", rejected[i] });
+        G_ClientCommand(ent, 2, (cstring_t[]){ "ui_canvas", rejected[i] });
         T_EQ(client->canvas, UI_CANVAS_WIDE);
     }
-    G_ClientCommand(ent, 1, (LPCSTR[]){ "ui_canvas" });
+    G_ClientCommand(ent, 1, (cstring_t[]){ "ui_canvas" });
     T_EQ(client->canvas, UI_CANVAS_WIDE);
     client->canvas = UI_CANVAS_STANDARD;
 
@@ -173,7 +173,7 @@ TEST(wc3_canvas, ui_canvas_command_validates_class_and_resends_console_through_r
     canvas_reset_counts();
     globals.RunFrame();
     T_EQ(cap.console_layouts, 0);
-    G_ClientCommand(ent, 2, (LPCSTR[]){ "ui_canvas", "1" });
+    G_ClientCommand(ent, 2, (cstring_t[]){ "ui_canvas", "1" });
     canvas_reset_counts();
     globals.RunFrame();
     T_EQ(cap.console_layouts, 1); T_EQ(cap.wide_tiles, 4);

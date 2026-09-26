@@ -11,8 +11,8 @@ typedef struct MapListBox_s {
 } MapListBox_t;
 
 
-static inline BOOL MapListBox_Bind(MapListBox_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool MapListBox_Bind(MapListBox_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -27,7 +27,7 @@ static inline BOOL MapListBox_Bind(MapListBox_t *out, LPFRAMEDEF bind_root) {
     return ok;
 }
 
-static inline BOOL MapListBox_Load(MapListBox_t *out) {
+static inline bool MapListBox_Load(MapListBox_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
            UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") &&

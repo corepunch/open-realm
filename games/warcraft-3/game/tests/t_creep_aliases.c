@@ -60,7 +60,7 @@
 #define BZ_AWAR MAKEFOURCC('A', 'w', 'a', 'r')
 #define BZ_ACPV MAKEFOURCC('A', 'C', 'p', 'v')
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -103,7 +103,7 @@ TEST(wc3_spell, creep_aliases_share_parent_procedures) {
  * them discoverable through the normal registry while their individual
  * combat/property consumers remain separate work. */
 TEST(wc3_spell, neutral_creep_property_rows_are_registered) {
-    DWORD passive[] = { BZ_ANEG, BZ_ANDE, BZ_ANFY, BZ_ANMR, BZ_AOAC,
+    uint32_t passive[] = { BZ_ANEG, BZ_ANDE, BZ_ANFY, BZ_ANMR, BZ_AOAC,
         BZ_ADDA, BZ_AGHO, BZ_AETH, BZ_AETL, BZ_AGRA, BZ_ASSK, BZ_ARSK,
         BZ_AMIM, BZ_AULT, BZ_ACOR, BZ_AEST, BZ_ASPI, BZ_ASAL, BZ_AABS };
     size_t i;

@@ -1,54 +1,54 @@
-DWORD CreateDestructable(LPJASS j) {
-    LONG objectid = jass_checkinteger(j, 1);
-    FLOAT x = jass_checknumber(j, 2);
-    FLOAT y = jass_checknumber(j, 3);
-    FLOAT face = jass_checknumber(j, 4);
-    FLOAT scale = jass_checknumber(j, 5);
-    LONG variation = jass_checkinteger(j, 6);
+uint32_t CreateDestructable(LPJASS j) {
+    int32_t objectid = jass_checkinteger(j, 1);
+    float x = jass_checknumber(j, 2);
+    float y = jass_checknumber(j, 3);
+    float face = jass_checknumber(j, 4);
+    float scale = jass_checknumber(j, 5);
+    int32_t variation = jass_checkinteger(j, 6);
     LPEDICT d = G_CreateDestructable(objectid, x, y, CM_GetHeightAtPoint(x, y),
                                      DEG2RAD(face), scale, variation);
     return jass_pushlighthandle(j, d, "destructable");
 }
-DWORD CreateDestructableZ(LPJASS j) {
-    LONG objectid = jass_checkinteger(j, 1);
-    FLOAT x = jass_checknumber(j, 2);
-    FLOAT y = jass_checknumber(j, 3);
-    FLOAT z = jass_checknumber(j, 4);
-    FLOAT face = jass_checknumber(j, 5);
-    FLOAT scale = jass_checknumber(j, 6);
-    LONG variation = jass_checkinteger(j, 7);
+uint32_t CreateDestructableZ(LPJASS j) {
+    int32_t objectid = jass_checkinteger(j, 1);
+    float x = jass_checknumber(j, 2);
+    float y = jass_checknumber(j, 3);
+    float z = jass_checknumber(j, 4);
+    float face = jass_checknumber(j, 5);
+    float scale = jass_checknumber(j, 6);
+    int32_t variation = jass_checkinteger(j, 7);
     LPEDICT d = G_CreateDestructable(objectid, x, y, z, DEG2RAD(face), scale, variation);
     return jass_pushlighthandle(j, d, "destructable");
 }
-DWORD CreateDeadDestructable(LPJASS j) {
-    LONG objectid = jass_checkinteger(j, 1);
-    FLOAT x = jass_checknumber(j, 2);
-    FLOAT y = jass_checknumber(j, 3);
-    FLOAT face = jass_checknumber(j, 4);
-    FLOAT scale = jass_checknumber(j, 5);
-    LONG variation = jass_checkinteger(j, 6);
+uint32_t CreateDeadDestructable(LPJASS j) {
+    int32_t objectid = jass_checkinteger(j, 1);
+    float x = jass_checknumber(j, 2);
+    float y = jass_checknumber(j, 3);
+    float face = jass_checknumber(j, 4);
+    float scale = jass_checknumber(j, 5);
+    int32_t variation = jass_checkinteger(j, 6);
     LPEDICT d = G_CreateDeadDestructable(objectid, x, y, CM_GetHeightAtPoint(x, y),
                                          DEG2RAD(face), scale, variation);
     return jass_pushlighthandle(j, d, "destructable");
 }
-DWORD CreateDeadDestructableZ(LPJASS j) {
-    LONG objectid = jass_checkinteger(j, 1);
-    FLOAT x = jass_checknumber(j, 2);
-    FLOAT y = jass_checknumber(j, 3);
-    FLOAT z = jass_checknumber(j, 4);
-    FLOAT face = jass_checknumber(j, 5);
-    FLOAT scale = jass_checknumber(j, 6);
-    LONG variation = jass_checkinteger(j, 7);
+uint32_t CreateDeadDestructableZ(LPJASS j) {
+    int32_t objectid = jass_checkinteger(j, 1);
+    float x = jass_checknumber(j, 2);
+    float y = jass_checknumber(j, 3);
+    float z = jass_checknumber(j, 4);
+    float face = jass_checknumber(j, 5);
+    float scale = jass_checknumber(j, 6);
+    int32_t variation = jass_checkinteger(j, 7);
     LPEDICT d = G_CreateDeadDestructable(objectid, x, y, z,
                                          DEG2RAD(face), scale, variation);
     return jass_pushlighthandle(j, d, "destructable");
 }
-DWORD RemoveDestructable(LPJASS j) {
+uint32_t RemoveDestructable(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
     G_RemoveDestructable(d);
     return 0;
 }
-DWORD KillDestructable(LPJASS j) {
+uint32_t KillDestructable(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
     G_KillDestructable(d, NULL);
     return 0;
@@ -57,19 +57,19 @@ DWORD KillDestructable(LPJASS j) {
  * the destructable (vtable+0xac); IsDestructableInvulnerable=FUN_003f83d0 reads
  * it (bit 3 of flags @+0x20).  Our edict already carries `invulnerable`, honored
  * by the damage path, so reuse it. */
-DWORD SetDestructableInvulnerable(LPJASS j) {
+uint32_t SetDestructableInvulnerable(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
-    BOOL flag = jass_checkboolean(j, 2);
+    bool flag = jass_checkboolean(j, 2);
     if (d) {
         d->invulnerable = flag;
     }
     return 0;
 }
-DWORD IsDestructableInvulnerable(LPJASS j) {
+uint32_t IsDestructableInvulnerable(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
     return jass_pushboolean(j, d && d->invulnerable);
 }
-DWORD EnumDestructablesInRect(LPJASS j) {
+uint32_t EnumDestructablesInRect(LPJASS j) {
     /* Visit every destructable inside the rect, exposing each as the enum
      * destructable (GetEnumDestructable) while the action runs.  Mirrors
      * GroupEnumUnitsInRect + ForGroup; like GroupEnumUnitsInRect we ignore the
@@ -93,31 +93,31 @@ DWORD EnumDestructablesInRect(LPJASS j) {
     currentdestructable = NULL;
     return 0;
 }
-DWORD GetDestructableTypeId(LPJASS j) {
+uint32_t GetDestructableTypeId(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
-    return jass_pushinteger(j, d ? (LONG)d->class_id : 0);
+    return jass_pushinteger(j, d ? (int32_t)d->class_id : 0);
 }
-DWORD GetDestructableX(LPJASS j) {
+uint32_t GetDestructableX(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
     return jass_pushnumber(j, d ? d->s.origin.x : 0);
 }
-DWORD GetDestructableY(LPJASS j) {
+uint32_t GetDestructableY(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
     return jass_pushnumber(j, d ? d->s.origin.y : 0);
 }
-DWORD SetDestructableLife(LPJASS j) {
+uint32_t SetDestructableLife(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
-    FLOAT life = jass_checknumber(j, 2);
+    float life = jass_checknumber(j, 2);
     G_SetDestructableLife(d, life);
     return 0;
 }
-DWORD GetDestructableLife(LPJASS j) {
+uint32_t GetDestructableLife(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
-    return jass_pushnumber(j, d ? (FLOAT)d->health.value : 0);
+    return jass_pushnumber(j, d ? (float)d->health.value : 0);
 }
-DWORD SetDestructableMaxLife(LPJASS j) {
+uint32_t SetDestructableMaxLife(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
-    FLOAT max = jass_checknumber(j, 2);
+    float max = jass_checknumber(j, 2);
     if (d) {
         d->health.max_value = MAX(0.0f, max);
         if (d->health.value > d->health.max_value || d->health.max_value <= 0.0f) {
@@ -126,47 +126,47 @@ DWORD SetDestructableMaxLife(LPJASS j) {
     }
     return 0;
 }
-DWORD GetDestructableMaxLife(LPJASS j) {
+uint32_t GetDestructableMaxLife(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
-    return jass_pushnumber(j, d ? (FLOAT)d->health.max_value : 0);
+    return jass_pushnumber(j, d ? (float)d->health.max_value : 0);
 }
-DWORD SetDestructableOccluderHeight(LPJASS j) {
-    //HANDLE d = jass_checkhandle(j, 1, "destructable");
+uint32_t SetDestructableOccluderHeight(LPJASS j) {
+    //handle_t d = jass_checkhandle(j, 1, "destructable");
     //(void)jass_checknumber(j, 2);
     return 0;
 }
-DWORD GetDestructableOccluderHeight(LPJASS j) {
-    //HANDLE d = jass_checkhandle(j, 1, "destructable");
+uint32_t GetDestructableOccluderHeight(LPJASS j) {
+    //handle_t d = jass_checkhandle(j, 1, "destructable");
     return jass_pushnumber(j, 0);
 }
-DWORD DestructableRestoreLife(LPJASS j) {
+uint32_t DestructableRestoreLife(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
-    FLOAT life = jass_checknumber(j, 2);
-    BOOL birth = jass_checkboolean(j, 3);
+    float life = jass_checknumber(j, 2);
+    bool birth = jass_checkboolean(j, 3);
     G_RestoreDestructable(d, life, birth);
     return 0;
 }
-DWORD QueueDestructableAnimation(LPJASS j) {
-    //HANDLE d = jass_checkhandle(j, 1, "destructable");
-    //LPCSTR whichAnimation = jass_checkstring(j, 2);
+uint32_t QueueDestructableAnimation(LPJASS j) {
+    //handle_t d = jass_checkhandle(j, 1, "destructable");
+    //cstring_t whichAnimation = jass_checkstring(j, 2);
     return 0;
 }
-DWORD SetDestructableAnimation(LPJASS j) {
+uint32_t SetDestructableAnimation(LPJASS j) {
     /* Ghidra: the original SetDestructableAnimation (FUN_003f8740) ignores its
      * args and calls FUN_00418990(0) — effectively a no-op at this layer, so
      * the empty body is already parity. */
-    //HANDLE d = jass_checkhandle(j, 1, "destructable");
-    //LPCSTR whichAnimation = jass_checkstring(j, 2);
+    //handle_t d = jass_checkhandle(j, 1, "destructable");
+    //cstring_t whichAnimation = jass_checkstring(j, 2);
     return 0;
 }
 /* Ghidra: ShowDestructable=FUN_003f8790 — show (flag!=0) calls the entity's
  * show method (vtable+0x84), hide calls hide (vtable+0x88).  Our equivalent of
  * that visibility toggle is the RF_HIDDEN renderfx bit, exactly as ShowUnit. */
-DWORD ShowDestructable(LPJASS j) {
+uint32_t ShowDestructable(LPJASS j) {
     LPEDICT d = jass_checkhandle(j, 1, "destructable");
-    BOOL show = jass_checkboolean(j, 2);
+    bool show = jass_checkboolean(j, 2);
     if (d) {
-        BOOL const was_hidden = !!(d->s.renderfx & RF_HIDDEN);
+        bool const was_hidden = !!(d->s.renderfx & RF_HIDDEN);
         if (show) {
             d->s.renderfx &= ~RF_HIDDEN;
         } else {

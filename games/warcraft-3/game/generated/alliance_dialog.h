@@ -24,8 +24,8 @@ typedef struct AllianceDialog_s {
 } AllianceDialog_t;
 
 
-static inline BOOL AllianceDialog_Bind(AllianceDialog_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool AllianceDialog_Bind(AllianceDialog_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -53,7 +53,7 @@ static inline BOOL AllianceDialog_Bind(AllianceDialog_t *out, LPFRAMEDEF bind_ro
     return ok;
 }
 
-static inline BOOL AllianceDialog_Load(AllianceDialog_t *out) {
+static inline bool AllianceDialog_Load(AllianceDialog_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\AllianceDialog.fdf") &&
            AllianceDialog_Bind(out, UI_FindFrame("AllianceDialog"));

@@ -12,7 +12,7 @@
 
 typedef struct m2KnownTexture_s {
     PATHSTR path;
-    BOOL exists;
+    bool exists;
     struct m2KnownTexture_s *next;
 } m2KnownTexture_t;
 
@@ -21,31 +21,31 @@ static m2KnownTexture_t *m2_known_textures;
 typedef struct m2ModelBatch_s {
 	LPTEXTURE texture;
 	DRAWRANGE draw;
-	DWORD texture_type;
-	WORD bone_count;
-	WORD bone_combo_index;
-	WORD section_id;
-	WORD geoset_index;
-	BYTE alphamode;
-	BYTE character_texture_slot;
+	uint32_t texture_type;
+	uint16_t bone_count;
+	uint16_t bone_combo_index;
+	uint16_t section_id;
+	uint16_t geoset_index;
+	uint8_t alphamode;
+	uint8_t character_texture_slot;
 	struct m2ModelBatch_s *next;
 } m2ModelBatch_t;
 
 struct m2Model_s {
     m2File_t *file;
-    BYTE *file_image;
-    DWORD file_image_size;
-    DWORD base_offset;
-    DWORD file_size;
+    uint8_t *file_image;
+    uint32_t file_image_size;
+    uint32_t base_offset;
+    uint32_t file_size;
     m2FormatDef_t const *format;
     PATHSTR filename;
     BOX3 bounds;
     BOX3 geometry_bounds;
-    DWORD flags;
+    uint32_t flags;
     /* Renderer-owned state that has no representation in the M2 file. */
     LPBUFFER buffer;
     m2ModelBatch_t *batches;
-    DWORD num_batches;
+    uint32_t num_batches;
 };
 
 #define M2_MODEL_CHARACTER 0x00000001u
@@ -67,8 +67,8 @@ static MODELPROG * M2_Shader(void) {
     return m2_shader;
 }
 
-static void M2_LogFallback(LPCSTR modelFilename, LPCSTR reason) {
-    static DWORD fallback_count;
+static void M2_LogFallback(cstring_t modelFilename, cstring_t reason) {
+    static uint32_t fallback_count;
 
     fallback_count++;
     if (fallback_count <= 64 || (fallback_count % 100) == 0) {
@@ -76,9 +76,9 @@ static void M2_LogFallback(LPCSTR modelFilename, LPCSTR reason) {
     }
 }
 
-static m2Model_t *M2_CreateFallbackModel(LPCSTR modelFilename, LPCSTR reason) {
+static m2Model_t *M2_CreateFallbackModel(cstring_t modelFilename, cstring_t reason) {
     static VERTEX vertices[12];
-    static BOOL initialized;
+    static bool initialized;
     m2Model_t *model;
     m2ModelBatch_t *batch;
     COLOR32 color = { 90, 230, 130, 255 };
@@ -135,8 +135,8 @@ typedef struct {
 } M2CHARCOMPOSITECACHE;
 static M2CHARCOMPOSITECACHE m2_character_composite_cache[M2_CHARACTER_COMPOSITE_CACHE_SIZE];
 static m2CompositeCacheKey_t m2_character_composite_keys[M2_CHARACTER_COMPOSITE_CACHE_SIZE];
-static DWORD m2_character_composite_clock;
-static BYTE M2_CharacterTextureSlotForSection(WORD section_id) {
+static uint32_t m2_character_composite_clock;
+static uint8_t M2_CharacterTextureSlotForSection(uint16_t section_id) {
     switch (section_id) {
         case 401:
         case 402:
@@ -166,9 +166,9 @@ static BYTE M2_CharacterTextureSlotForSection(WORD section_id) {
     }
 }
 
-static BOOL M2_TextureExists(LPCSTR path) {
+static bool M2_TextureExists(cstring_t path) {
     m2KnownTexture_t *known;
-    LPBYTE data = NULL;
+    uint8_t * data = NULL;
     int size;
 
     if (!path || !*path) {
@@ -187,12 +187,12 @@ static BOOL M2_TextureExists(LPCSTR path) {
     return known->exists;
 }
 
-static BOOL M2_CharacterComponentTexturePath(LPCSTR stem,
-                                             BYTE slot,
-                                             LPCSTR model_path,
-                                             LPSTR out,
-                                             DWORD out_size) {
-    static LPCSTR const folders[M2_CHAR_TEX_COMPONENT_COUNT] = {
+static bool M2_CharacterComponentTexturePath(cstring_t stem,
+                                             uint8_t slot,
+                                             cstring_t model_path,
+                                             string_t out,
+                                             uint32_t out_size) {
+    static cstring_t const folders[M2_CHAR_TEX_COMPONENT_COUNT] = {
         "ArmUpperTexture",
         "ArmLowerTexture",
         "HandTexture",
@@ -202,9 +202,9 @@ static BOOL M2_CharacterComponentTexturePath(LPCSTR stem,
         "LegLowerTexture",
         "FootTexture"
     };
-    DWORD race_id;
-    DWORD gender_id;
-    LPCSTR gender_suffix;
+    uint32_t race_id;
+    uint32_t gender_id;
+    cstring_t gender_suffix;
     PATHSTR candidate;
 
     if (!stem || !*stem || slot >= M2_CHAR_TEX_COMPONENT_COUNT || !out || out_size == 0) {
@@ -230,11 +230,11 @@ static BOOL M2_CharacterComponentTexturePath(LPCSTR stem,
     return false;
 }
 
-static BOOL M2_DefaultObjectComponentTexturePath(LPCSTR model_path,
-                                                 DWORD texture_type,
-                                                 LPSTR out,
-                                                 DWORD out_size) {
-    LPCSTR filename;
+static bool M2_DefaultObjectComponentTexturePath(cstring_t model_path,
+                                                 uint32_t texture_type,
+                                                 string_t out,
+                                                 uint32_t out_size) {
+    cstring_t filename;
     size_t stem_len;
 
     if (!model_path || !out || out_size == 0 || texture_type != 2) {
@@ -265,14 +265,14 @@ static BOOL M2_DefaultObjectComponentTexturePath(LPCSTR model_path,
     return true;
 }
 
-static BOOL M2_DefaultCreatureTexturePath(LPCSTR model_path,
-                                          DWORD texture_type,
-                                          LPSTR out,
-                                          DWORD out_size) {
+static bool M2_DefaultCreatureTexturePath(cstring_t model_path,
+                                          uint32_t texture_type,
+                                          string_t out,
+                                          uint32_t out_size) {
     typedef struct {
-        LPCSTR model;
-        DWORD texture_type;
-        LPCSTR texture;
+        cstring_t model;
+        uint32_t texture_type;
+        cstring_t texture;
     } defaultCreatureTexture_t;
     static defaultCreatureTexture_t const defaults[] = {
         { "Creature\\Wolf\\Wolf.mdx",     11, "Creature\\Wolf\\WolfSkinCoyote.blp" },
@@ -301,11 +301,11 @@ static BOOL M2_DefaultCreatureTexturePath(LPCSTR model_path,
     return false;
 }
 
-static void *M2_ModelArrayPtr(m2Model_t const *model, m2Array_t array, DWORD elem_size) {
+static void *M2_ModelArrayPtr(m2Model_t const *model, m2Array_t array, uint32_t elem_size) {
     if (!model || !model->file) {
         return NULL;
     }
-    return m2_array_ptr((BYTE const *)model->file, model->file_size, array, elem_size);
+    return m2_array_ptr((uint8_t const *)model->file, model->file_size, array, elem_size);
 }
 
 /* Classic and modern headers are both file images; access their arrays without copying schema into runtime state. */
@@ -328,27 +328,27 @@ BZ_M2_ARRAY_ACCESSOR(M2_RibbonsArray, ribbons)
 BZ_M2_ARRAY_ACCESSOR(M2_ParticlesArray, particles)
 #undef BZ_M2_ARRAY_ACCESSOR
 
-static BYTE const *M2_Sequences(m2Model_t const *model) {
+static uint8_t const *M2_Sequences(m2Model_t const *model) {
     return M2_ModelArrayPtr(model, M2_SequencesArray(model), model->format->sequence_stride);
 }
 
-static DWORD M2_SequenceCount(m2Model_t const *model) { return model ? (DWORD)M2_SequencesArray(model).size : 0; }
+static uint32_t M2_SequenceCount(m2Model_t const *model) { return model ? (uint32_t)M2_SequencesArray(model).size : 0; }
 
-static BYTE const *M2_Sequence(m2Model_t const *model, DWORD index) {
-    BYTE const *sequences = model ? M2_Sequences(model) : NULL;
+static uint8_t const *M2_Sequence(m2Model_t const *model, uint32_t index) {
+    uint8_t const *sequences = model ? M2_Sequences(model) : NULL;
     return sequences && index < M2_SequenceCount(model) ? sequences + index * model->format->sequence_stride : NULL;
 }
 
-static BYTE const *M2_Bones(m2Model_t const *model) {
+static uint8_t const *M2_Bones(m2Model_t const *model) {
     return M2_ModelArrayPtr(model, M2_BonesArray(model), model->format->bone_stride);
 }
 
-static WORD const *M2_BoneLookup(m2Model_t const *model) {
-    return M2_ModelArrayPtr(model, M2_BoneLookupArray(model), sizeof(WORD));
+static uint16_t const *M2_BoneLookup(m2Model_t const *model) {
+    return M2_ModelArrayPtr(model, M2_BoneLookupArray(model), sizeof(uint16_t));
 }
 
-static DWORD M2_SequenceStart(m2Model_t const *model, DWORD seq) {
-    BYTE const *sequence = M2_Sequence(model, seq);
+static uint32_t M2_SequenceStart(m2Model_t const *model, uint32_t seq) {
+    uint8_t const *sequence = M2_Sequence(model, seq);
     if (!sequence) return 0;
     if (model->format->format == M2_FORMAT_CLASSIC) {
         return ((m2SequenceClassic_t const *)sequence)->start_timestamp;
@@ -356,8 +356,8 @@ static DWORD M2_SequenceStart(m2Model_t const *model, DWORD seq) {
     return 0;
 }
 
-static DWORD M2_SequenceDuration(m2Model_t const *model, DWORD seq) {
-    BYTE const *sequence = M2_Sequence(model, seq);
+static uint32_t M2_SequenceDuration(m2Model_t const *model, uint32_t seq) {
+    uint8_t const *sequence = M2_Sequence(model, seq);
     if (!sequence) return 0;
     if (model->format->format == M2_FORMAT_CLASSIC) {
         m2SequenceClassic_t const *classic = (m2SequenceClassic_t const *)sequence;
@@ -369,15 +369,15 @@ static DWORD M2_SequenceDuration(m2Model_t const *model, DWORD seq) {
     }
 }
 
-static DWORD M2_SequenceFlags(m2Model_t const *model, DWORD seq) {
-    BYTE const *sequence = M2_Sequence(model, seq);
+static uint32_t M2_SequenceFlags(m2Model_t const *model, uint32_t seq) {
+    uint8_t const *sequence = M2_Sequence(model, seq);
     if (!sequence) return 0;
     return model->format->format == M2_FORMAT_CLASSIC ? ((m2SequenceClassic_t const *)sequence)->flags
                                                        : ((m2SequenceModern_t const *)sequence)->flags;
 }
 
-static WORD M2_SequenceAnimId(m2Model_t const *model, DWORD seq) {
-    BYTE const *sequence;
+static uint16_t M2_SequenceAnimId(m2Model_t const *model, uint32_t seq) {
+    uint8_t const *sequence;
 
     sequence = M2_Sequence(model, seq);
     if (!sequence) return 0;
@@ -387,7 +387,7 @@ static WORD M2_SequenceAnimId(m2Model_t const *model, DWORD seq) {
 }
 
 /* Lua SetSequence passes Blizzard animation IDs, not raw M2 sequence row indices. */
-static BOOL M2_FindSequenceByAnimId(m2Model_t const *model, DWORD anim_id, LPDWORD seq) {
+static bool M2_FindSequenceByAnimId(m2Model_t const *model, uint32_t anim_id, uint32_t * seq) {
     if (!model || !seq)
         return false;
     FOR_LOOP(i, M2_SequenceCount(model)) {
@@ -404,14 +404,14 @@ static BOOL M2_FindSequenceByAnimId(m2Model_t const *model, DWORD anim_id, LPDWO
 #define M2_FRAME_SEQUENCE_MASK  0x3ffu
 #define M2_FRAME_TIME_MASK      0x1fffffu
 
-BOOL M2_SetEntitySequenceFrame(m2Model_t const *model, LPCSTR anim, renderEntity_t *entity) {
+bool M2_SetEntitySequenceFrame(m2Model_t const *model, cstring_t anim, renderEntity_t *entity) {
     char *end = NULL;
-    DWORD anim_id;
-    DWORD seq;
+    uint32_t anim_id;
+    uint32_t seq;
 
     if (!model || !entity)
         return false;
-    anim_id = anim && *anim ? (DWORD)strtoul(anim, &end, 10) : 0;
+    anim_id = anim && *anim ? (uint32_t)strtoul(anim, &end, 10) : 0;
     if (anim && *anim && (!end || *end))
         return false;
     if (!M2_FindSequenceByAnimId(model, anim_id, &seq))
@@ -428,12 +428,12 @@ BOOL M2_SetEntitySequenceFrame(m2Model_t const *model, LPCSTR anim, renderEntity
 }
 
 typedef struct {
-    DWORD seq;
-    DWORD tim;
+    uint32_t seq;
+    uint32_t tim;
 } m2PoseTime_t;
 
-static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t *pose) {
-    DWORD range_start = 0;
+static bool M2_FrameToPoseTime(m2Model_t const *model, uint32_t frame, m2PoseTime_t *pose) {
+    uint32_t range_start = 0;
 
     if (pose) {
         pose->seq = 0;
@@ -444,10 +444,10 @@ static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t
     }
 
     if (frame & M2_FRAME_SEQUENCE_FLAG) {
-        DWORD anim_id = (frame >> M2_FRAME_SEQUENCE_SHIFT) & M2_FRAME_SEQUENCE_MASK;
-        DWORD sequence;
-        DWORD local_time = frame & M2_FRAME_TIME_MASK;
-        DWORD duration;
+        uint32_t anim_id = (frame >> M2_FRAME_SEQUENCE_SHIFT) & M2_FRAME_SEQUENCE_MASK;
+        uint32_t sequence;
+        uint32_t local_time = frame & M2_FRAME_TIME_MASK;
+        uint32_t duration;
 
         if (!M2_FindSequenceByAnimId(model, anim_id, &sequence))
             sequence = anim_id;
@@ -462,11 +462,11 @@ static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t
     }
 
     FOR_LOOP(i, M2_SequenceCount(model)) {
-        DWORD duration = M2_SequenceDuration(model, i);
-        DWORD range_length = MAX(duration, 1);
+        uint32_t duration = M2_SequenceDuration(model, i);
+        uint32_t range_length = MAX(duration, 1);
 
         if (frame >= range_start && frame < range_start + range_length) {
-            DWORD local_time = frame - range_start;
+            uint32_t local_time = frame - range_start;
 
             pose->seq = i;
             pose->tim = duration
@@ -478,7 +478,7 @@ static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t
     }
 
     if (M2_SequenceCount(model)) {
-        DWORD duration = M2_SequenceDuration(model, 0);
+        uint32_t duration = M2_SequenceDuration(model, 0);
 
         pose->seq = 0;
         pose->tim = duration
@@ -489,8 +489,8 @@ static BOOL M2_FrameToPoseTime(m2Model_t const *model, DWORD frame, m2PoseTime_t
     return false;
 }
 
-static DWORD M2_AnimationTime(m2Model_t const *model, renderEntity_t const *entity, DWORD *seq) {
-    DWORD frame = entity ? entity->frame : tr.viewDef.time;
+static uint32_t M2_AnimationTime(m2Model_t const *model, renderEntity_t const *entity, uint32_t *seq) {
+    uint32_t frame = entity ? entity->frame : tr.viewDef.time;
     m2PoseTime_t pose, old_pose;
 
     if (seq) {
@@ -503,21 +503,21 @@ static DWORD M2_AnimationTime(m2Model_t const *model, renderEntity_t const *enti
     if (entity &&
         M2_FrameToPoseTime(model, entity->oldframe, &old_pose) &&
         old_pose.seq == pose.seq) {
-        DWORD duration = M2_SequenceDuration(model, pose.seq);
-        DWORD start_time = M2_SequenceStart(model, pose.seq);
-        DWORD old_time = old_pose.tim - start_time;
-        DWORD local_time = pose.tim - start_time;
-        FLOAT end_time = (FLOAT)local_time;
-        FLOAT lerped;
+        uint32_t duration = M2_SequenceDuration(model, pose.seq);
+        uint32_t start_time = M2_SequenceStart(model, pose.seq);
+        uint32_t old_time = old_pose.tim - start_time;
+        uint32_t local_time = pose.tim - start_time;
+        float end_time = (float)local_time;
+        float lerped;
 
         if (duration > 0 && old_time > local_time && !(M2_SequenceFlags(model, pose.seq) & 0x1)) {
-            end_time += (FLOAT)duration;
+            end_time += (float)duration;
         }
-        lerped = LerpNumber((FLOAT)old_time, end_time, tr.viewDef.lerpfrac);
-        if (duration > 0 && lerped >= (FLOAT)duration) {
-            lerped -= (FLOAT)duration * floorf(lerped / (FLOAT)duration);
+        lerped = LerpNumber((float)old_time, end_time, tr.viewDef.lerpfrac);
+        if (duration > 0 && lerped >= (float)duration) {
+            lerped -= (float)duration * floorf(lerped / (float)duration);
         }
-        pose.tim = start_time + (DWORD)MAX(0.0f, lerped);
+        pose.tim = start_time + (uint32_t)MAX(0.0f, lerped);
     }
 
     if (seq) {
@@ -526,11 +526,11 @@ static DWORD M2_AnimationTime(m2Model_t const *model, renderEntity_t const *enti
     return pose.tim;
 }
 
-static DWORD M2_TrackTime(m2Model_t const *model,
+static uint32_t M2_TrackTime(m2Model_t const *model,
                           m2TrackView_t const *track,
-                          DWORD seq,
-                          DWORD tim) {
-    DWORD const *loops;
+                          uint32_t seq,
+                          uint32_t tim) {
+    uint32_t const *loops;
     m2Array_t global_loops;
 
     if (!model || !track || !model->file || track->loop_index == 0xFFFF) {
@@ -538,8 +538,8 @@ static DWORD M2_TrackTime(m2Model_t const *model,
     }
 
     global_loops = M2_GlobalLoopsArray(model);
-    loops = M2_ModelArrayPtr(model, global_loops, sizeof(DWORD));
-    if (!loops || track->loop_index >= (WORD)global_loops.size || loops[track->loop_index] == 0) {
+    loops = M2_ModelArrayPtr(model, global_loops, sizeof(uint32_t));
+    if (!loops || track->loop_index >= (uint16_t)global_loops.size || loops[track->loop_index] == 0) {
         return tim;
     }
 
@@ -547,17 +547,17 @@ static DWORD M2_TrackTime(m2Model_t const *model,
     return tr.viewDef.time % loops[track->loop_index];
 }
 
-static BOOL M2_FindTrackKeys(m2Model_t const *model,
+static bool M2_FindTrackKeys(m2Model_t const *model,
                              m2TrackView_t const *track,
-                             DWORD seq,
-                             DWORD tim,
-                             DWORD elem_size,
+                             uint32_t seq,
+                             uint32_t tim,
+                             uint32_t elem_size,
                              void const **left,
                              void const **right,
                              float *ratio) {
-    DWORD const *times;
-    BYTE const *keys;
-    DWORD count;
+    uint32_t const *times;
+    uint8_t const *keys;
+    uint32_t count;
 
     if (!model || !track || !left || !right || !ratio) {
         return false;
@@ -570,13 +570,13 @@ static BOOL M2_FindTrackKeys(m2Model_t const *model,
         /* TBC-era classic particles store tracks without per-animation ranges (ranges.size==0).
            Fall back to reading times and keys as flat global arrays in that case. */
         if (!ranges || track->ranges.size == 0) {
-            times = M2_ModelArrayPtr(model, track->sequence_times, sizeof(DWORD));
+            times = M2_ModelArrayPtr(model, track->sequence_times, sizeof(uint32_t));
             keys = M2_ModelArrayPtr(model, track->sequence_keys, elem_size);
             if (!times || !keys) return false;
-            count = MIN((DWORD)track->sequence_times.size, (DWORD)track->sequence_keys.size);
+            count = MIN((uint32_t)track->sequence_times.size, (uint32_t)track->sequence_keys.size);
             if (count == 0) return false;
         } else {
-        if (seq >= (DWORD)track->ranges.size) {
+        if (seq >= (uint32_t)track->ranges.size) {
             seq = 0;
         }
 
@@ -585,17 +585,17 @@ static BOOL M2_FindTrackKeys(m2Model_t const *model,
             return false;
         }
 
-        times = M2_ModelArrayPtr(model, track->sequence_times, sizeof(DWORD));
+        times = M2_ModelArrayPtr(model, track->sequence_times, sizeof(uint32_t));
         keys = M2_ModelArrayPtr(model, track->sequence_keys, elem_size);
         if (!times || !keys ||
-            range.start >= (DWORD)track->sequence_times.size ||
-            range.start >= (DWORD)track->sequence_keys.size) {
+            range.start >= (uint32_t)track->sequence_times.size ||
+            range.start >= (uint32_t)track->sequence_keys.size) {
             return false;
         }
 
         count = range.end - range.start + 1;
-        count = MIN(count, (DWORD)track->sequence_times.size - range.start);
-        count = MIN(count, (DWORD)track->sequence_keys.size - range.start);
+        count = MIN(count, (uint32_t)track->sequence_times.size - range.start);
+        count = MIN(count, (uint32_t)track->sequence_keys.size - range.start);
         times += range.start;
         keys += range.start * elem_size;
         if (count == 0) {
@@ -609,13 +609,13 @@ static BOOL M2_FindTrackKeys(m2Model_t const *model,
             return false;
         }
 
-        if (seq >= (DWORD)track->sequence_times.size || seq >= (DWORD)track->sequence_keys.size) {
+        if (seq >= (uint32_t)track->sequence_times.size || seq >= (uint32_t)track->sequence_keys.size) {
             seq = 0;
         }
 
-        times = M2_ModelArrayPtr(model, stms[seq].times, sizeof(DWORD));
+        times = M2_ModelArrayPtr(model, stms[seq].times, sizeof(uint32_t));
         keys = M2_ModelArrayPtr(model, skeys[seq].keys, elem_size);
-        count = MIN((DWORD)stms[seq].times.size, (DWORD)skeys[seq].keys.size);
+        count = MIN((uint32_t)stms[seq].times.size, (uint32_t)skeys[seq].keys.size);
         if (!times || !keys || count == 0) {
             return false;
         }
@@ -628,10 +628,10 @@ static BOOL M2_FindTrackKeys(m2Model_t const *model,
         return true;
     }
 
-    for (DWORD i = 1; i < count; i++) {
+    for (uint32_t i = 1; i < count; i++) {
         if (tim <= times[i]) {
-            DWORD left_time = times[i - 1];
-            DWORD right_time = times[i];
+            uint32_t left_time = times[i - 1];
+            uint32_t right_time = times[i];
             *left = keys + ((i - 1) * elem_size);
             *right = keys + (i * elem_size);
             *ratio = right_time > left_time
@@ -649,13 +649,13 @@ static BOOL M2_FindTrackKeys(m2Model_t const *model,
 
 static VECTOR3 M2_EvaluateVectorTrack(m2Model_t const *model,
                                       m2TrackView_t const *track,
-                                      DWORD seq,
-                                      DWORD tim,
+                                      uint32_t seq,
+                                      uint32_t tim,
                                       VECTOR3 default_value) {
     void const *left;
     void const *right;
     float ratio;
-    DWORD track_time = M2_TrackTime(model, track, seq, tim);
+    uint32_t track_time = M2_TrackTime(model, track, seq, tim);
 
     if (!M2_FindTrackKeys(model, track, seq, track_time, sizeof(VECTOR3), &left, &right, &ratio)) {
         return default_value;
@@ -666,32 +666,32 @@ static VECTOR3 M2_EvaluateVectorTrack(m2Model_t const *model,
     return Vector3_lerp((LPCVECTOR3)left, (LPCVECTOR3)right, ratio);
 }
 
-static FLOAT M2_EvaluateFloatTrack(m2Model_t const *model,
+static float M2_EvaluateFloatTrack(m2Model_t const *model,
                                    m2TrackView_t const *track,
-                                   DWORD seq,
-                                   DWORD tim,
-                                   FLOAT default_value) {
+                                   uint32_t seq,
+                                   uint32_t tim,
+                                   float default_value) {
     void const *left;
     void const *right;
     float ratio;
-    DWORD track_time = M2_TrackTime(model, track, seq, tim);
+    uint32_t track_time = M2_TrackTime(model, track, seq, tim);
 
-    if (!M2_FindTrackKeys(model, track, seq, track_time, sizeof(FLOAT), &left, &right, &ratio)) {
+    if (!M2_FindTrackKeys(model, track, seq, track_time, sizeof(float), &left, &right, &ratio)) {
         return default_value;
     }
     if (left == right) {
-        return *(FLOAT const *)left;
+        return *(float const *)left;
     }
-    return LerpNumber(*(FLOAT const *)left, *(FLOAT const *)right, ratio);
+    return LerpNumber(*(float const *)left, *(float const *)right, ratio);
 }
 
-BOOL M2_CameraView(m2Model_t const *model,
-                   DWORD camera_index,
+bool M2_CameraView(m2Model_t const *model,
+                   uint32_t camera_index,
                    LPVECTOR3 eye,
                    LPVECTOR3 target,
-                   LPFLOAT fov_degrees,
-                   LPFLOAT znear,
-                   LPFLOAT zfar) {
+                   float * fov_degrees,
+                   float * znear,
+                   float * zfar) {
     m2PoseTime_t pose;
     m2TrackView_t position_track;
     m2TrackView_t target_track;
@@ -699,19 +699,19 @@ BOOL M2_CameraView(m2Model_t const *model,
     VECTOR3 target_value;
     VECTOR3 position_pivot;
     VECTOR3 target_pivot;
-    FLOAT fov;
-    FLOAT far_clip;
-    FLOAT near_clip;
+    float fov;
+    float far_clip;
+    float near_clip;
     m2Array_t cameras;
-    BYTE const *camera_data;
+    uint8_t const *camera_data;
 
     if (!model || !eye || !target) return false;
     cameras = M2_CamerasArray(model);
     camera_data = M2_ModelArrayPtr(model, cameras, model->format->camera_stride);
-    if (!camera_data || camera_index >= (DWORD)cameras.size) return false;
+    if (!camera_data || camera_index >= (uint32_t)cameras.size) return false;
 
     if (model->format->format == M2_FORMAT_CLASSIC) {
-        BYTE const *record = camera_data + camera_index * model->format->camera_stride;
+        uint8_t const *record = camera_data + camera_index * model->format->camera_stride;
         m2CameraClassic_t const *camera = (m2CameraClassic_t const *)record;
 
         position_track = m2_classic_track(&camera->position_track);
@@ -720,7 +720,7 @@ BOOL M2_CameraView(m2Model_t const *model,
         target_pivot = camera->target_pivot;
         fov = camera->fov; near_clip = camera->near_clip; far_clip = camera->far_clip;
     } else {
-        BYTE const *record = camera_data + camera_index * model->format->camera_stride;
+        uint8_t const *record = camera_data + camera_index * model->format->camera_stride;
         m2CameraModern_t const *camera = (m2CameraModern_t const *)record;
 
         position_track = m2_modern_track(&camera->position_track);
@@ -735,7 +735,7 @@ BOOL M2_CameraView(m2Model_t const *model,
     *eye = Vector3_add(&position_pivot, &position_value);
     *target = Vector3_add(&target_pivot, &target_value);
     if (fov_degrees)
-        *fov_degrees = fov > 0.0f ? fov * 0.6f * 180.0f / (FLOAT)M_PI : 35.0f;
+        *fov_degrees = fov > 0.0f ? fov * 0.6f * 180.0f / (float)M_PI : 35.0f;
     if (znear)
         *znear = near_clip > 0.0f ? near_clip : 1.0f;
     if (zfar)
@@ -778,14 +778,14 @@ static QUATERNION M2_QuaternionNlerp(LPCQUATERNION q1, LPCQUATERNION q2, float r
 
 static QUATERNION M2_EvaluateRotationTrack(m2Model_t const *model,
                                            m2TrackView_t const *track,
-                                           DWORD seq,
-                                           DWORD tim,
+                                           uint32_t seq,
+                                           uint32_t tim,
                                            QUATERNION default_value) {
     void const *left;
     void const *right;
     float ratio;
-    DWORD track_time = M2_TrackTime(model, track, seq, tim);
-    DWORD elem_size = track && track->classic ? sizeof(QUATERNION) : sizeof(m2CompQuat_t);
+    uint32_t track_time = M2_TrackTime(model, track, seq, tim);
+    uint32_t elem_size = track && track->classic ? sizeof(QUATERNION) : sizeof(m2CompQuat_t);
 
     if (!M2_FindTrackKeys(model, track, seq, track_time, elem_size, &left, &right, &ratio)) {
         return default_value;
@@ -808,7 +808,7 @@ static QUATERNION M2_EvaluateRotationTrack(m2Model_t const *model,
     return M2_QuaternionNlerp(&q1, &q2, ratio);
 }
 
-static BOOL M2_TrackHasKeys(m2TrackView_t const *track) {
+static bool M2_TrackHasKeys(m2TrackView_t const *track) {
     if (!track) {
         return false;
     }
@@ -818,13 +818,13 @@ static BOOL M2_TrackHasKeys(m2TrackView_t const *track) {
     return track->sequence_times.size > 0 && track->sequence_keys.size > 0;
 }
 
-static void const *M2_BonePtr(m2Model_t const *model, DWORD bone_index) {
-    BYTE const *bones = model ? M2_Bones(model) : NULL;
-    if (!bones || bone_index >= (DWORD)M2_BonesArray(model).size || !model->format->bone_stride) return NULL;
+static void const *M2_BonePtr(m2Model_t const *model, uint32_t bone_index) {
+    uint8_t const *bones = model ? M2_Bones(model) : NULL;
+    if (!bones || bone_index >= (uint32_t)M2_BonesArray(model).size || !model->format->bone_stride) return NULL;
     return bones + bone_index * model->format->bone_stride;
 }
 
-static DWORD M2_BoneFlags(m2Model_t const *model, DWORD bone_index) {
+static uint32_t M2_BoneFlags(m2Model_t const *model, uint32_t bone_index) {
     void const *bone = M2_BonePtr(model, bone_index);
 
     if (!bone) {
@@ -836,7 +836,7 @@ static DWORD M2_BoneFlags(m2Model_t const *model, DWORD bone_index) {
     return ((m2CompBoneModern_t const *)bone)->flags;
 }
 
-static WORD M2_BoneParentIndex(m2Model_t const *model, DWORD bone_index) {
+static uint16_t M2_BoneParentIndex(m2Model_t const *model, uint32_t bone_index) {
     void const *bone = M2_BonePtr(model, bone_index);
 
     if (!bone) {
@@ -848,7 +848,7 @@ static WORD M2_BoneParentIndex(m2Model_t const *model, DWORD bone_index) {
     return ((m2CompBoneModern_t const *)bone)->parent_index;
 }
 
-static VECTOR3 M2_BonePivot(m2Model_t const *model, DWORD bone_index) {
+static VECTOR3 M2_BonePivot(m2Model_t const *model, uint32_t bone_index) {
     void const *bone = M2_BonePtr(model, bone_index);
 
     if (!bone) {
@@ -860,7 +860,7 @@ static VECTOR3 M2_BonePivot(m2Model_t const *model, DWORD bone_index) {
     return ((m2CompBoneModern_t const *)bone)->pivot;
 }
 
-static m2TrackView_t M2_BoneTranslationTrack(m2Model_t const *model, DWORD bone_index) {
+static m2TrackView_t M2_BoneTranslationTrack(m2Model_t const *model, uint32_t bone_index) {
     void const *bone = M2_BonePtr(model, bone_index);
 
     if (!bone) {
@@ -872,7 +872,7 @@ static m2TrackView_t M2_BoneTranslationTrack(m2Model_t const *model, DWORD bone_
     return m2_modern_track(&((m2CompBoneModern_t const *)bone)->translation_track);
 }
 
-static m2TrackView_t M2_BoneRotationTrack(m2Model_t const *model, DWORD bone_index) {
+static m2TrackView_t M2_BoneRotationTrack(m2Model_t const *model, uint32_t bone_index) {
     void const *bone = M2_BonePtr(model, bone_index);
 
     if (!bone) {
@@ -884,7 +884,7 @@ static m2TrackView_t M2_BoneRotationTrack(m2Model_t const *model, DWORD bone_ind
     return m2_modern_track(&((m2CompBoneModern_t const *)bone)->rotation_track);
 }
 
-static m2TrackView_t M2_BoneScaleTrack(m2Model_t const *model, DWORD bone_index) {
+static m2TrackView_t M2_BoneScaleTrack(m2Model_t const *model, uint32_t bone_index) {
     void const *bone = M2_BonePtr(model, bone_index);
 
     if (!bone) {
@@ -897,10 +897,10 @@ static m2TrackView_t M2_BoneScaleTrack(m2Model_t const *model, DWORD bone_index)
 }
 
 /* Identity-palette instancing is exact only for static M2s without emitter side effects. */
-BOOL M2_CanStaticInstance(m2Model_t const *model) {
+bool M2_CanStaticInstance(m2Model_t const *model) {
     if (!model || !model->file || model->flags & M2_MODEL_CHARACTER || M2_ParticlesArray(model).size || M2_RibbonsArray(model).size)
         return false;
-    FOR_LOOP(i, (DWORD)M2_BonesArray(model).size) {
+    FOR_LOOP(i, (uint32_t)M2_BonesArray(model).size) {
         m2TrackView_t pos = M2_BoneTranslationTrack(model, i);
         m2TrackView_t rot = M2_BoneRotationTrack(model, i);
         m2TrackView_t scl = M2_BoneScaleTrack(model, i);
@@ -909,26 +909,26 @@ BOOL M2_CanStaticInstance(m2Model_t const *model) {
     return true;
 }
 
-static float m2_fixed16_to_float(SHORT v) { return (float)v / 32767.0f; }
+static float m2_fixed16_to_float(int16_t v) { return (float)v / 32767.0f; }
 
-static BOOL m2_is_visible(m2Model_t const *model, m2TrackView_t *track,
-                          DWORD seq_idx, DWORD seq_time) {
+static bool m2_is_visible(m2Model_t const *model, m2TrackView_t *track,
+                          uint32_t seq_idx, uint32_t seq_time) {
 	if (!M2_TrackHasKeys(track)) return true;
 	void const *left, *right; float ratio;
-	DWORD t = M2_TrackTime(model, track, seq_idx, seq_time);
-	if (!M2_FindTrackKeys(model, track, seq_idx, t, sizeof(BYTE), &left, &right, &ratio))
+	uint32_t t = M2_TrackTime(model, track, seq_idx, seq_time);
+	if (!M2_FindTrackKeys(model, track, seq_idx, t, sizeof(uint8_t), &left, &right, &ratio))
 		return true;
-	BYTE b = *(BYTE const *)left;
-	if (left != right) b = (BYTE)LerpNumber((FLOAT)*(BYTE const *)left, (FLOAT)*(BYTE const *)right, ratio);
+	uint8_t b = *(uint8_t const *)left;
+	if (left != right) b = (uint8_t)LerpNumber((float)*(uint8_t const *)left, (float)*(uint8_t const *)right, ratio);
 	return b != 0;
 }
 
 static void m2_sample_part_track(m2Model_t const *model, m2PartTrack_t const *track,
-                                 float progress, DWORD elem_size, void *out) {
-	SHORT const *times = M2_ModelArrayPtr(model, track->times, sizeof(SHORT));
-	BYTE const *vals = M2_ModelArrayPtr(model, track->values, elem_size);
-	DWORD count = (DWORD)track->times.size;
-	if (!times || !vals || count == 0 || count != (DWORD)track->values.size) {
+                                 float progress, uint32_t elem_size, void *out) {
+	int16_t const *times = M2_ModelArrayPtr(model, track->times, sizeof(int16_t));
+	uint8_t const *vals = M2_ModelArrayPtr(model, track->values, elem_size);
+	uint32_t count = (uint32_t)track->times.size;
+	if (!times || !vals || count == 0 || count != (uint32_t)track->values.size) {
 		memset(out, 0, elem_size); return;
 	}
 	progress = MAX(0.0f, MIN(1.0f, progress));
@@ -940,9 +940,9 @@ static void m2_sample_part_track(m2Model_t const *model, m2PartTrack_t const *tr
 		float fi = m2_fixed16_to_float(times[i]), fi1 = m2_fixed16_to_float(times[i - 1]);
 		if (progress <= fi || i == count - 1) {
 			float ratio = fi > fi1 ? (progress - fi1) / (fi - fi1) : 0.0f;
-			BYTE const *a = vals + (i - 1) * elem_size, *b = vals + i * elem_size;
-			if (elem_size == sizeof(SHORT))
-				*(SHORT *)out = (SHORT)LerpNumber((FLOAT)*(SHORT *)a, (FLOAT)*(SHORT *)b, ratio);
+			uint8_t const *a = vals + (i - 1) * elem_size, *b = vals + i * elem_size;
+			if (elem_size == sizeof(int16_t))
+				*(int16_t *)out = (int16_t)LerpNumber((float)*(int16_t *)a, (float)*(int16_t *)b, ratio);
 			else if (elem_size == sizeof(VECTOR2))
 				*(VECTOR2 *)out = Vector2_lerp((LPCVECTOR2)a, (LPCVECTOR2)b, ratio);
 			else if (elem_size == sizeof(VECTOR3))
@@ -955,46 +955,46 @@ static void m2_sample_part_track(m2Model_t const *model, m2PartTrack_t const *tr
 }
 
 static LPTEXTURE m2_particle_texture(m2Model_t const *model, m2Particle_t const *p) {
-	m2TextureDisk_t const *tex; LPCSTR path; m2Array_t textures;
+	m2TextureDisk_t const *tex; cstring_t path; m2Array_t textures;
 	if (!model || !p) return tr.texture[TEX_WHITE];
 	textures = M2_TexturesArray(model);
-	if (!textures.size || p->texture_index >= (WORD)textures.size)
+	if (!textures.size || p->texture_index >= (uint16_t)textures.size)
 		return tr.texture[TEX_WHITE];
 	tex = M2_ModelArrayPtr(model, textures, sizeof(*tex));
-	if (!tex || p->texture_index >= (DWORD)textures.size) return tr.texture[TEX_WHITE];
-	path = m2_string_ptr((BYTE const *)model->file, model->file_size, tex[p->texture_index].filename);
+	if (!tex || p->texture_index >= (uint32_t)textures.size) return tr.texture[TEX_WHITE];
+	path = m2_string_ptr((uint8_t const *)model->file, model->file_size, tex[p->texture_index].filename);
 	return path && *path ? R_LoadTexture(path) : tr.texture[TEX_WHITE];
 }
 
-static LPTEXTURE m2_ribbon_texture(m2Model_t const *model, m2Ribbon_t const *r, DWORD slot) {
-	WORD const *indices; m2TextureDisk_t const *tex; DWORD idx; LPCSTR path; m2Array_t textures;
+static LPTEXTURE m2_ribbon_texture(m2Model_t const *model, m2Ribbon_t const *r, uint32_t slot) {
+	uint16_t const *indices; m2TextureDisk_t const *tex; uint32_t idx; cstring_t path; m2Array_t textures;
 	if (!model || !r) return tr.texture[TEX_WHITE];
 	textures = M2_TexturesArray(model);
 	if (!textures.size) return tr.texture[TEX_WHITE];
-	indices = M2_ModelArrayPtr(model, r->texture_indices, sizeof(WORD));
+	indices = M2_ModelArrayPtr(model, r->texture_indices, sizeof(uint16_t));
 	tex = M2_ModelArrayPtr(model, textures, sizeof(*tex));
-	if (!indices || !tex || slot >= (DWORD)r->texture_indices.size) return tr.texture[TEX_WHITE];
+	if (!indices || !tex || slot >= (uint32_t)r->texture_indices.size) return tr.texture[TEX_WHITE];
 	idx = indices[slot];
-	if (idx >= (DWORD)textures.size) return tr.texture[TEX_WHITE];
-	path = m2_string_ptr((BYTE const *)model->file, model->file_size, tex[idx].filename);
+	if (idx >= (uint32_t)textures.size) return tr.texture[TEX_WHITE];
+	path = m2_string_ptr((uint8_t const *)model->file, model->file_size, tex[idx].filename);
 	return path && *path ? R_LoadTexture(path) : tr.texture[TEX_WHITE];
 }
 
-#define M2_C32(v,a) (COLOR32){ (BYTE)((v).x < 0 ? 0 : (v).x > 1 ? 255 : (BYTE)((v).x*255+.5f)), \
-                               (BYTE)((v).y < 0 ? 0 : (v).y > 1 ? 255 : (BYTE)((v).y*255+.5f)), \
-                               (BYTE)((v).z < 0 ? 0 : (v).z > 1 ? 255 : (BYTE)((v).z*255+.5f)), \
-                               (BYTE)((a) < 0 ? 0 : (a) > 1 ? 255 : (BYTE)((a)*255+.5f)) }
+#define M2_C32(v,a) (COLOR32){ (uint8_t)((v).x < 0 ? 0 : (v).x > 1 ? 255 : (uint8_t)((v).x*255+.5f)), \
+                               (uint8_t)((v).y < 0 ? 0 : (v).y > 1 ? 255 : (uint8_t)((v).y*255+.5f)), \
+                               (uint8_t)((v).z < 0 ? 0 : (v).z > 1 ? 255 : (uint8_t)((v).z*255+.5f)), \
+                               (uint8_t)((a) < 0 ? 0 : (a) > 1 ? 255 : (uint8_t)((a)*255+.5f)) }
 
 typedef struct {
-	FLOAT speed, varia, lat, lon, grav, life, life_var, zsource, midpoint;
-	FLOAT alpha[3]; VECTOR2 scale[3]; VECTOR3 color[3];
-	LPTEXTURE texture; WORD bone_index;
+	float speed, varia, lat, lon, grav, life, life_var, zsource, midpoint;
+	float alpha[3]; VECTOR2 scale[3]; VECTOR3 color[3];
+	LPTEXTURE texture; uint16_t bone_index;
 	m2Model_t const *model; m2Particle_t const *p; LPCMATRIX4 model_matrix;
 } m2_pctx_t;
 
 /* M2 emitter positions are local to their bone, not the model origin. */
 static void M2_EmitterMatrix(m2_pctx_t const *ctx, LPMATRIX4 out) {
-    if (ctx->model && ctx->bone_index < (DWORD)M2_BonesArray(ctx->model).size) {
+    if (ctx->model && ctx->bone_index < (uint32_t)M2_BonesArray(ctx->model).size) {
         Matrix4_multiply(ctx->model_matrix, &m2_bone_matrices[ctx->bone_index], out);
         return;
     }
@@ -1004,13 +1004,13 @@ static void M2_EmitterMatrix(m2_pctx_t const *ctx, LPMATRIX4 out) {
 static void m2_spawn_particle(void *raw) {
 	m2_pctx_t *ctx = (m2_pctx_t *)raw;
 	cparticle_t *fx = R_SpawnParticle(); if (!fx) return;
-	FLOAT r = (FLOAT)rand() / (FLOAT)RAND_MAX;
+	float r = (float)rand() / (float)RAND_MAX;
 	MATRIX4 emitter_matrix;
 	M2_EmitterMatrix(ctx, &emitter_matrix);
 	VECTOR3 local_origin = ctx->p->position;
 	local_origin.z += ctx->zsource;
 	VECTOR3 org = Matrix4_multiply_vector3(&emitter_matrix, &local_origin);
-	VECTOR3 dir = m2_particle_direction(ctx->lat, ctx->lon, (VECTOR2){ 2.0f * (FLOAT)rand() / (FLOAT)RAND_MAX - 1.0f, 2.0f * (FLOAT)rand() / (FLOAT)RAND_MAX - 1.0f });
+	VECTOR3 dir = m2_particle_direction(ctx->lat, ctx->lon, (VECTOR2){ 2.0f * (float)rand() / (float)RAND_MAX - 1.0f, 2.0f * (float)rand() / (float)RAND_MAX - 1.0f });
 	VECTOR3 w_dir = Matrix4_multiply_vector3(&emitter_matrix, &dir);
 	VECTOR3 w_zero = Matrix4_multiply_vector3(&emitter_matrix, &(VECTOR3){ 0, 0, 0 });
 	dir = Vector3_sub(&w_dir, &w_zero);
@@ -1023,20 +1023,20 @@ static void m2_spawn_particle(void *raw) {
 	fx->color[0] = M2_C32(ctx->color[0], ctx->alpha[0]);
 	fx->color[1] = M2_C32(ctx->color[1], ctx->alpha[1]);
 	fx->color[2] = M2_C32(ctx->color[2], ctx->alpha[2]);
-	FLOAT s[3] = { MAX(ctx->scale[0].x, ctx->scale[0].y), MAX(ctx->scale[1].x, ctx->scale[1].y), MAX(ctx->scale[2].x, ctx->scale[2].y) };
+	float s[3] = { MAX(ctx->scale[0].x, ctx->scale[0].y), MAX(ctx->scale[1].x, ctx->scale[1].y), MAX(ctx->scale[2].x, ctx->scale[2].y) };
 	fx->time = 0.0f; fx->lifespan = MAX(0.05f, ctx->life + (r - 0.5f) * ctx->life_var);
 	m2_particle_encode_curve(&(M2PARTICLECURVE){ { s[0], s[1], s[2] }, ctx->midpoint, fx->lifespan }, fx);
 	fx->columns = MAX(1, ctx->p->cols); fx->rows = MAX(1, ctx->p->rows);
 }
 
 /* Vanilla/TBC stores three static BGRA lifecycle colors and three scalar scales. */
-static void m2p_sample_classic_data(BYTE const *raw, m2_pctx_t *ctx) {
+static void m2p_sample_classic_data(uint8_t const *raw, m2_pctx_t *ctx) {
     m2ParticleClassic_t const *p = (m2ParticleClassic_t const *)raw;
-    FLOAT midpoint = p->midpoint;
-    BOOL all_alpha_zero = true;
+    float midpoint = p->midpoint;
+    bool all_alpha_zero = true;
     if (midpoint < 0.0f || midpoint > 1.0f) midpoint = 0.5f;
     FOR_LOOP(i, 3) {
-        DWORD bgra = p->colors[i];
+        uint32_t bgra = p->colors[i];
         ctx->color[i] = (VECTOR3){ ((bgra >> 16) & 0xff) / 255.0f, ((bgra >> 8) & 0xff) / 255.0f,
                                    (bgra & 0xff) / 255.0f };
         ctx->alpha[i] = ((bgra >> 24) & 0xff) / 255.0f;
@@ -1052,19 +1052,19 @@ static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entit
 	if (!model || !entity) return;
 	particles = M2_ParticlesArray(model);
 	if (!particles.size) return;
-	BYTE const *base = M2_ModelArrayPtr(model, particles, model->format->particle_stride);
+	uint8_t const *base = M2_ModelArrayPtr(model, particles, model->format->particle_stride);
 	if (!base) return;
-	DWORD seq_idx, seq_time = M2_AnimationTime(model, entity, &seq_idx);
-	FOR_LOOP(i, (DWORD)particles.size) {
-		BYTE const *raw = base + i * model->format->particle_stride;
+	uint32_t seq_idx, seq_time = M2_AnimationTime(model, entity, &seq_idx);
+	FOR_LOOP(i, (uint32_t)particles.size) {
+		uint8_t const *raw = base + i * model->format->particle_stride;
 		m2Particle_t const *p = (m2Particle_t const *)raw;
 		m2TrackView_t vis = m2_particle_track(model->format, raw, M2_PARTICLE_VISIBILITY);
 		if (!m2_is_visible(model, &vis, seq_idx, seq_time)) continue;
 		m2TrackView_t rate_t = m2_particle_track(model->format, raw, M2_PARTICLE_EMISSION_RATE);
-		FLOAT rate = M2_EvaluateFloatTrack(model, &rate_t, seq_idx, seq_time, 0.0f);
+		float rate = M2_EvaluateFloatTrack(model, &rate_t, seq_idx, seq_time, 0.0f);
 		if (rate <= 0.0f) continue;
 		m2TrackView_t life_t = m2_particle_track(model->format, raw, M2_PARTICLE_LIFE);
-		FLOAT life = MAX(0.05f, M2_EvaluateFloatTrack(model, &life_t, seq_idx, seq_time, 0.5f));
+		float life = MAX(0.05f, M2_EvaluateFloatTrack(model, &life_t, seq_idx, seq_time, 0.5f));
 		m2_pctx_t ctx = { .midpoint = 0.5f, .model = model, .p = p, .model_matrix = model_matrix };
 		{ m2TrackView_t t = m2_particle_track(model->format, raw, M2_PARTICLE_SPEED);
 		  ctx.speed = M2_EvaluateFloatTrack(model, &t, seq_idx, seq_time, 0.0f); }
@@ -1085,7 +1085,7 @@ static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entit
 			m2PartTrack_t const *alpha_pt = m2_particle_part_track(model->format, raw, 1);
 			m2PartTrack_t const *scale_pt = m2_particle_part_track(model->format, raw, 2);
 			m2PartTrack_t const *color_pt = m2_particle_part_track(model->format, raw, 0);
-			{ SHORT raw2;
+			{ int16_t raw2;
 			  m2_sample_part_track(model, alpha_pt, 0.0f, sizeof(raw2), &raw2);
 			  ctx.alpha[0] = m2_fixed16_to_float(raw2);
 			  m2_sample_part_track(model, alpha_pt, 0.5f, sizeof(raw2), &raw2);
@@ -1110,54 +1110,54 @@ static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity,
 	if (!model || !entity) return;
 	ribbons = M2_RibbonsArray(model);
 	if (!ribbons.size) return;
-	BYTE const *base = M2_ModelArrayPtr(model, ribbons, model->format->ribbon_stride);
+	uint8_t const *base = M2_ModelArrayPtr(model, ribbons, model->format->ribbon_stride);
 	if (!base) return;
-	DWORD seq_idx, seq_time = M2_AnimationTime(model, entity, &seq_idx);
-	FOR_LOOP(i, (DWORD)ribbons.size) {
-		BYTE const *raw = base + i * model->format->ribbon_stride;
+	uint32_t seq_idx, seq_time = M2_AnimationTime(model, entity, &seq_idx);
+	FOR_LOOP(i, (uint32_t)ribbons.size) {
+		uint8_t const *raw = base + i * model->format->ribbon_stride;
 		m2Ribbon_t const *r = (m2Ribbon_t const *)raw;
 		m2TrackView_t vis = m2_ribbon_track(model->format, raw, M2_RIBBON_VISIBILITY);
 		if (!m2_is_visible(model, &vis, seq_idx, seq_time)) continue;
-		FLOAT eps = MAX(0.0f, m2_ribbon_edges_per_second(model->format, raw));
+		float eps = MAX(0.0f, m2_ribbon_edges_per_second(model->format, raw));
 		if (eps <= 0.0f) continue;
-		FLOAT edge_life = m2_ribbon_edge_lifetime(model->format, raw);
+		float edge_life = m2_ribbon_edge_lifetime(model->format, raw);
 		m2TrackView_t color_t = m2_ribbon_track(model->format, raw, M2_RIBBON_COLOR);
 		VECTOR3 col = M2_EvaluateVectorTrack(model, &color_t, seq_idx, seq_time, (VECTOR3){ 1, 1, 1 });
 		m2TrackView_t alpha_t = m2_ribbon_track(model->format, raw, M2_RIBBON_ALPHA);
 		void const *la, *ra; float rta;
-		DWORD tt = M2_TrackTime(model, &alpha_t, seq_idx, seq_time);
-		FLOAT a = 1.0f;
-		if (M2_FindTrackKeys(model, &alpha_t, seq_idx, tt, sizeof(SHORT), &la, &ra, &rta)) {
-			FLOAT al = m2_fixed16_to_float(*(SHORT const *)la);
-			FLOAT ar = la == ra ? al : m2_fixed16_to_float(*(SHORT const *)ra);
+		uint32_t tt = M2_TrackTime(model, &alpha_t, seq_idx, seq_time);
+		float a = 1.0f;
+		if (M2_FindTrackKeys(model, &alpha_t, seq_idx, tt, sizeof(int16_t), &la, &ra, &rta)) {
+			float al = m2_fixed16_to_float(*(int16_t const *)la);
+			float ar = la == ra ? al : m2_fixed16_to_float(*(int16_t const *)ra);
 			a = LerpNumber(al, ar, rta);
 		}
 		m2TrackView_t above_t = m2_ribbon_track(model->format, raw, M2_RIBBON_HEIGHT_ABOVE);
 		m2TrackView_t below_t = m2_ribbon_track(model->format, raw, M2_RIBBON_HEIGHT_BELOW);
-		FLOAT h_above = MAX(0.0f, M2_EvaluateFloatTrack(model, &above_t, seq_idx, seq_time, 0.0f));
-		FLOAT h_below = MAX(0.0f, M2_EvaluateFloatTrack(model, &below_t, seq_idx, seq_time, 0.0f));
-		FLOAT w = MAX(1.0f, h_above + h_below) / 2.0f; /* half-width for billboard scale */
+		float h_above = MAX(0.0f, M2_EvaluateFloatTrack(model, &above_t, seq_idx, seq_time, 0.0f));
+		float h_below = MAX(0.0f, M2_EvaluateFloatTrack(model, &below_t, seq_idx, seq_time, 0.0f));
+		float w = MAX(1.0f, h_above + h_below) / 2.0f; /* half-width for billboard scale */
 		m2TrackView_t slot_t = m2_ribbon_track(model->format, raw, M2_RIBBON_TEXTURE_SLOT);
-		WORD slot = 0;
+		uint16_t slot = 0;
 		void const *ls, *rs_; float rts;
-		DWORD tts = M2_TrackTime(model, &slot_t, seq_idx, seq_time);
-		if (M2_FindTrackKeys(model, &slot_t, seq_idx, tts, sizeof(WORD), &ls, &rs_, &rts))
-			slot = (WORD)LerpNumber((FLOAT)*(WORD const *)ls, (FLOAT)*(WORD const *)rs_, rts);
+		uint32_t tts = M2_TrackTime(model, &slot_t, seq_idx, seq_time);
+		if (M2_FindTrackKeys(model, &slot_t, seq_idx, tts, sizeof(uint16_t), &ls, &rs_, &rts))
+			slot = (uint16_t)LerpNumber((float)*(uint16_t const *)ls, (float)*(uint16_t const *)rs_, rts);
 		COLOR32 rgba = M2_C32(col, a);
-		BYTE size_b = (BYTE)MIN(255, (int)(w + 0.5f));
-		DWORD cols = MAX(1, m2_ribbon_cols(model->format, raw));
-		DWORD rows = MAX(1, m2_ribbon_rows(model->format, raw));
+		uint8_t size_b = (uint8_t)MIN(255, (int)(w + 0.5f));
+		uint32_t cols = MAX(1, m2_ribbon_cols(model->format, raw));
+		uint32_t rows = MAX(1, m2_ribbon_rows(model->format, raw));
 		LPTEXTURE tex = m2_ribbon_texture(model, r, slot);
-		FLOAT grav = m2_ribbon_gravity(model->format, raw);
+		float grav = m2_ribbon_gravity(model->format, raw);
 		MATRIX4 emitter_matrix = *model_matrix;
-		if (r->bone_index < (DWORD)M2_BonesArray(model).size)
+		if (r->bone_index < (uint32_t)M2_BonesArray(model).size)
 			Matrix4_multiply(model_matrix, &m2_bone_matrices[r->bone_index], &emitter_matrix);
 		VECTOR3 spine = Matrix4_multiply_vector3(&emitter_matrix, &r->position);
-		DWORD last_ms = tr.viewDef.time - tr.viewDef.deltaTime;
-		DWORD start_ms = last_ms - last_ms % 1000;
-		for (FLOAT t = (FLOAT)start_ms; t < (FLOAT)tr.viewDef.time; t += 1000.0f / eps) {
+		uint32_t last_ms = tr.viewDef.time - tr.viewDef.deltaTime;
+		uint32_t start_ms = last_ms - last_ms % 1000;
+		for (float t = (float)start_ms; t < (float)tr.viewDef.time; t += 1000.0f / eps) {
 			cparticle_t *fx;
-			if (t < (FLOAT)last_ms) continue;
+			if (t < (float)last_ms) continue;
 			fx = R_SpawnParticle();
 			if (!fx) break;
 			fx->texture = tex; fx->org = spine;
@@ -1174,11 +1174,11 @@ static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity,
 static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t const *entity) {
     MATRIX4 identity;
     m2PoseTime_t cur, old;
-    FLOAT pose_lerp = 1.0f;
-    DWORD bone_count;
+    float pose_lerp = 1.0f;
+    uint32_t bone_count;
 
     if (!model || !M2_Bones(model)) return;
-    bone_count = (DWORD)M2_BonesArray(model).size;
+    bone_count = (uint32_t)M2_BonesArray(model).size;
 
     Matrix4_identity(&identity);
     M2_FrameToPoseTime(model, entity ? entity->frame : tr.viewDef.time, &cur);
@@ -1194,13 +1194,13 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
     }
 
     FOR_LOOP(i, bone_count) {
-        WORD parent_index = M2_BoneParentIndex(model, i);
-        DWORD flags = M2_BoneFlags(model, i);
+        uint16_t parent_index = M2_BoneParentIndex(model, i);
+        uint32_t flags = M2_BoneFlags(model, i);
         VECTOR3 pivot = M2_BonePivot(model, i);
         m2TrackView_t ttrk = M2_BoneTranslationTrack(model, i);
         m2TrackView_t rtrk = M2_BoneRotationTrack(model, i);
         m2TrackView_t strk = M2_BoneScaleTrack(model, i);
-        BOOL has_keys = M2_TrackHasKeys(&ttrk) || M2_TrackHasKeys(&rtrk) || M2_TrackHasKeys(&strk);
+        bool has_keys = M2_TrackHasKeys(&ttrk) || M2_TrackHasKeys(&rtrk) || M2_TrackHasKeys(&strk);
         LPCMATRIX4 parent = &identity;
 
         if (parent_index != 0xFFFF && parent_index < i) {
@@ -1233,10 +1233,10 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
 
 static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *batch, MODELPROG * shader) {
     MATRIX4 palette[BZ_BONE_PALETTE_MAX];
-    WORD const *bone_lookup = model ? M2_BoneLookup(model) : NULL;
-    DWORD nlook = model ? (DWORD)M2_BoneLookupArray(model).size : 0;
-    DWORD nbone = model ? (DWORD)M2_BonesArray(model).size : 0;
-    DWORD count = batch ? MAX(1, MIN((DWORD)batch->bone_count, BZ_BONE_PALETTE_MAX)) : 1;
+    uint16_t const *bone_lookup = model ? M2_BoneLookup(model) : NULL;
+    uint32_t nlook = model ? (uint32_t)M2_BoneLookupArray(model).size : 0;
+    uint32_t nbone = model ? (uint32_t)M2_BonesArray(model).size : 0;
+    uint32_t count = batch ? MAX(1, MIN((uint32_t)batch->bone_count, BZ_BONE_PALETTE_MAX)) : 1;
 
     FOR_LOOP(i, count) {
         Matrix4_identity(&palette[i]);
@@ -1244,9 +1244,9 @@ static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *ba
 
     if (model && batch && bone_lookup) {
         FOR_LOOP(i, count) {
-            DWORD lookup = (DWORD)batch->bone_combo_index + i;
+            uint32_t lookup = (uint32_t)batch->bone_combo_index + i;
             if (lookup < nlook) {
-                WORD bidx = bone_lookup[lookup];
+                uint16_t bidx = bone_lookup[lookup];
                 if (bidx < nbone) {
                     palette[i] = m2_bone_matrices[bidx];
                 }
@@ -1258,17 +1258,17 @@ static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *ba
     shader->state.boneCount = count;
 }
 
-static LPTEXTURE M2_TextureForBatch(BYTE const *m2_data,
-                                    DWORD m2_size,
+static LPTEXTURE M2_TextureForBatch(uint8_t const *m2_data,
+                                    uint32_t m2_size,
                                     m2GeometryInfo_t const *geom,
                                     m2Batch_t const *batch,
-                                    LPCSTR modelFilename,
-                                    BOOL use_texture_lookup,
-                                    DWORD *texture_type_out) {
-    SHORT const *lookup;
+                                    cstring_t modelFilename,
+                                    bool use_texture_lookup,
+                                    uint32_t *texture_type_out) {
+    int16_t const *lookup;
     m2TextureDisk_t const *tex;
-    SHORT idx;
-    LPCSTR path;
+    int16_t idx;
+    cstring_t path;
     PATHSTR repl;
 
     if (!geom || !batch || batch->texture_count == 0) {
@@ -1279,13 +1279,13 @@ static LPTEXTURE M2_TextureForBatch(BYTE const *m2_data,
     }
 
     if (use_texture_lookup) {
-        lookup = m2_array_ptr(m2_data, m2_size, geom->texture_lookup_table, sizeof(SHORT));
-        if (!lookup || batch->texture_combo_index >= (WORD)geom->texture_lookup_table.size) {
+        lookup = m2_array_ptr(m2_data, m2_size, geom->texture_lookup_table, sizeof(int16_t));
+        if (!lookup || batch->texture_combo_index >= (uint16_t)geom->texture_lookup_table.size) {
             return tr.texture[TEX_WHITE];
         }
         idx = lookup[batch->texture_combo_index];
     } else {
-        idx = (SHORT)batch->texture_combo_index;
+        idx = (int16_t)batch->texture_combo_index;
     }
     if (idx < 0 || idx >= geom->textures.size) {
         if (texture_type_out) {
@@ -1321,7 +1321,7 @@ static LPTEXTURE M2_TextureForBatch(BYTE const *m2_data,
     return R_LoadTexture(path);
 }
 
-static BOOL M2_SkinPath(LPCSTR model_path, LPSTR out, DWORD out_size) {
+static bool M2_SkinPath(cstring_t model_path, string_t out, uint32_t out_size) {
     if (!m2_copy_with_extension(model_path, "00.skin", out, out_size)) {
         return false;
     }
@@ -1337,14 +1337,14 @@ static VERTEX M2_MakeVertex(m2VertexDisk_t const *src) {
     return out;
 }
 
-static BOOL M2_CalculateGeometryBounds(m2VertexDisk_t const *verts, DWORD nverts, BOX3 *bounds) {
+static bool M2_CalculateGeometryBounds(m2VertexDisk_t const *verts, uint32_t nverts, BOX3 *bounds) {
     if (!verts || !nverts || !bounds) {
         return false;
     }
 
     bounds->min = verts[0].pos;
     bounds->max = verts[0].pos;
-    for (DWORD i = 1; i < nverts; i++) {
+    for (uint32_t i = 1; i < nverts; i++) {
         VECTOR3 p = verts[i].pos;
         bounds->min.x = MIN(bounds->min.x, p.x);
         bounds->min.y = MIN(bounds->min.y, p.y);
@@ -1356,9 +1356,9 @@ static BOOL M2_CalculateGeometryBounds(m2VertexDisk_t const *verts, DWORD nverts
     return true;
 }
 
-static BOOL M2_LoadSkinData(LPCSTR modelFilename,
-                            LPBYTE *skin_data,
-                            DWORD *skin_size,
+static bool M2_LoadSkinData(cstring_t modelFilename,
+                            uint8_t * *skin_data,
+                            uint32_t *skin_size,
                             PATHSTR skin_path) {
     int nread;
 
@@ -1378,12 +1378,12 @@ static BOOL M2_LoadSkinData(LPCSTR modelFilename,
         *skin_size = 0;
         return false;
     }
-    *skin_size = (DWORD)nread;
+    *skin_size = (uint32_t)nread;
     return true;
 }
 
-static BOOL M2_InitLegacyGeometry(BYTE const *m2_base,
-                                  DWORD m2_size,
+static bool M2_InitLegacyGeometry(uint8_t const *m2_base,
+                                  uint32_t m2_size,
                                   m2GeometryInfo_t *geom,
                                   m2LegacyView_t const **view) {
     m2HeaderLegacy_t const *legacy;
@@ -1403,8 +1403,8 @@ static BOOL M2_InitLegacyGeometry(BYTE const *m2_base,
     return *view != NULL;
 }
 
-static BOOL M2_InitModernGeometry(BYTE const *m2_base,
-                                  DWORD m2_size,
+static bool M2_InitModernGeometry(uint8_t const *m2_base,
+                                  uint32_t m2_size,
                                   m2GeometryInfo_t *geom,
                                   m2Header_t const **header) {
     m2Header_t const *modern;
@@ -1424,10 +1424,10 @@ static BOOL M2_InitModernGeometry(BYTE const *m2_base,
     return true;
 }
 
-static BOOL M2_IsCharacterModelPath(LPCSTR model_path) {
-    LPCSTR character;
-    LPCSTR race_end;
-    LPCSTR gender;
+static bool M2_IsCharacterModelPath(cstring_t model_path) {
+    cstring_t character;
+    cstring_t race_end;
+    cstring_t gender;
     size_t gender_len;
 
     if (!model_path) {
@@ -1458,11 +1458,11 @@ static BOOL M2_IsCharacterModelPath(LPCSTR model_path) {
  *   Groups 5 and 13 need a fallback scan because some items request a
  *   variant absent from certain race/gender models (retail fallback behavior).
  *   All other groups are pure GROUP*100+variant arithmetic. */
-static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
+static bool M2_CharacterGeosetVisible(m2Model_t const *model,
                                        LPCM2CHARACTEROUTFIT outfit,
-                                       WORD section_id) {
-    DWORD group, geoset, n;
-    WORD available[64];
+                                       uint16_t section_id) {
+    uint32_t group, geoset, n;
+    uint16_t available[64];
     m2ModelBatch_t const *b;
     if (!model || !(model->flags & M2_MODEL_CHARACTER)) return true;
     if (section_id < 400) {
@@ -1482,8 +1482,8 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
         if (group == 13 && (outfit->flags & M2_CHAR_FLAG_KNEELENGTH)) return false;
         for (b = model->batches, n = 0; b && n < 64; b = b->next) available[n++] = b->section_id;
         if (group == 13)
-            return section_id == Wow_CharacterGeosetPick(available, n, 13, (WORD)(1301 + geoset), 1301);
-        return section_id == Wow_CharacterGeosetPick(available, n, 5, (WORD)(501 + geoset), 501);
+            return section_id == Wow_CharacterGeosetPick(available, n, 13, (uint16_t)(1301 + geoset), 1301);
+        return section_id == Wow_CharacterGeosetPick(available, n, 5, (uint16_t)(501 + geoset), 501);
     }
     switch (group) {
         /* Groups 4/7/8/10/11/12/15 use base+1 offset: geoset=0 selects the bare/default
@@ -1491,18 +1491,18 @@ static BOOL M2_CharacterGeosetVisible(m2Model_t const *model,
          * every shipped model. Group 7 keeps its bare-ears ternary until M2_DbcStartOutfit
          * seeds geoset[7]=2 explicitly — TODO.
          * geoset[9] is driven by geosetGroup[1] of the equipped pants item. */
-        case 4:  return section_id == (WORD)(401 + geoset);
-        case 7:  return outfit->helm_hide & M2_HELM_HIDE_EARS ? false : section_id == (geoset ? (WORD)(700 + geoset) : 702);
-        case 8:  return section_id == (WORD)(801 + geoset);
+        case 4:  return section_id == (uint16_t)(401 + geoset);
+        case 7:  return outfit->helm_hide & M2_HELM_HIDE_EARS ? false : section_id == (geoset ? (uint16_t)(700 + geoset) : 702);
+        case 8:  return section_id == (uint16_t)(801 + geoset);
         /* Group 9 (legs/kneepads): 901 is DNE (bare), 902 long, 903 short
          * (wowdev "09**: Legs {1: none, 2: long, 3: short}"; the decompiled
          * GeosRenderPrep uses 901 + geosetGroup[1]). */
-        case 9:  return section_id == (WORD)(901 + geoset);
-        case 10: return section_id == (WORD)(1001 + geoset);
-        case 11: return section_id == (WORD)(1101 + geoset);
+        case 9:  return section_id == (uint16_t)(901 + geoset);
+        case 10: return section_id == (uint16_t)(1001 + geoset);
+        case 11: return section_id == (uint16_t)(1101 + geoset);
         /* Tabard mesh: 1201 is DNE ("no tabard"); 1202 is the worn tabard flap. */
-        case 12: return section_id == (WORD)(1200 + geoset);
-        case 15: return section_id == (WORD)(1501 + geoset);
+        case 12: return section_id == (uint16_t)(1200 + geoset);
+        case 15: return section_id == (uint16_t)(1501 + geoset);
         default: return false;
     }
 }
@@ -1515,19 +1515,19 @@ static void M2_FreeModelData(m2Model_t *model) {
 }
 
 /* Keep the validated M2 as a typed view into the owned source image. */
-static BOOL M2_LoadFileImage(m2Model_t *model, BYTE *file_image, DWORD file_image_size,
-                             DWORD base_offset, DWORD m2_size) {
+static bool M2_LoadFileImage(m2Model_t *model, uint8_t *file_image, uint32_t file_image_size,
+                             uint32_t base_offset, uint32_t m2_size) {
     m2Array_t bones, particles, ribbons;
-    DWORD version;
+    uint32_t version;
 
-    BYTE const *m2_base;
-    if (!model || !file_image || base_offset > file_image_size || m2_size < sizeof(DWORD) * 2 ||
+    uint8_t const *m2_base;
+    if (!model || !file_image || base_offset > file_image_size || m2_size < sizeof(uint32_t) * 2 ||
         m2_size > file_image_size - base_offset) {
         SAFE_DELETE(file_image, ri.FS_FreeFile);
         return false;
     }
     m2_base = file_image + base_offset;
-    version = m2_read32(m2_base + sizeof(DWORD));
+    version = m2_read32(m2_base + sizeof(uint32_t));
     model->format = m2_format_def(version);
     if ((model->format->format == M2_FORMAT_CLASSIC && m2_size < sizeof(m2HeaderLegacy_t)) ||
         (model->format->format == M2_FORMAT_MODERN && m2_size < sizeof(m2Header_t))) {
@@ -1549,7 +1549,7 @@ static BOOL M2_LoadFileImage(m2Model_t *model, BYTE *file_image, DWORD file_imag
         M2_FreeModelData(model);
         return false;
     }
-    if ((DWORD)bones.size > M2_MAX_BONES) {
+    if ((uint32_t)bones.size > M2_MAX_BONES) {
         fprintf(stderr, "M2: %s has %d bones; renderer limit is %u\n", model->filename, bones.size, M2_MAX_BONES);
         M2_FreeModelData(model);
         return false;
@@ -1557,60 +1557,60 @@ static BOOL M2_LoadFileImage(m2Model_t *model, BYTE *file_image, DWORD file_imag
     return true;
 }
 
-m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *buffer_owned) {
+m2Model_t *R_LoadModelM2(cstring_t modelFilename, void *buffer, uint32_t size, bool *buffer_owned) {
     m2GeometryInfo_t geom;
-    BYTE const *m2_base = buffer;
-    DWORD m2_size = size;
+    uint8_t const *m2_base = buffer;
+    uint32_t m2_size = size;
     m2VertexDisk_t const *m2_vertices;
-    LPBYTE skin_data = NULL;
-    DWORD skin_size = 0;
+    uint8_t * skin_data = NULL;
+    uint32_t skin_size = 0;
     PATHSTR skin_path;
     m2SkinHeader_t const *skin;
     m2LegacyView_t const *legacy_view = NULL;
-    WORD const *skin_vertices;
-    WORD const *skin_indices;
+    uint16_t const *skin_vertices;
+    uint16_t const *skin_indices;
     void const *sections;
     m2Batch_t const *batches;
     m2Ubyte4_t const *skin_bones;
     m2Model_t *model;
     VERTEX *verts;
-    DWORD batch_count;
-    DWORD section_count;
-    DWORD skin_vertex_count;
-    DWORD skin_index_count;
-    BOOL using_legacy_view = false;
-    WORD const *materials = NULL;
-    DWORD material_count = 0;
-    DWORD version;
+    uint32_t batch_count;
+    uint32_t section_count;
+    uint32_t skin_vertex_count;
+    uint32_t skin_index_count;
+    bool using_legacy_view = false;
+    uint16_t const *materials = NULL;
+    uint32_t material_count = 0;
+    uint32_t version;
     m2FormatDef_t const *format;
-    DWORD base_offset = 0;
-    DWORD total_vertices = 0, vertex_offset = 0;
+    uint32_t base_offset = 0;
+    uint32_t total_vertices = 0, vertex_offset = 0;
 
     if (buffer_owned) *buffer_owned = false;
 
-    if (!buffer || size < sizeof(DWORD)) {
+    if (!buffer || size < sizeof(uint32_t)) {
         return M2_CreateFallbackModel(modelFilename, "missing model data");
     }
 
-    if (*(DWORD *)buffer == ID_MD21) {
+    if (*(uint32_t *)buffer == ID_MD21) {
         m2_base = m2_find_chunk(buffer, size, ID_MD21, &m2_size);
         if (!m2_base) {
             m2_base = buffer;
             m2_size = size;
         }
-    } else if (*(DWORD *)buffer == ID_12DM) {
+    } else if (*(uint32_t *)buffer == ID_12DM) {
         m2_base = m2_find_chunk(buffer, size, ID_12DM, &m2_size);
     }
-    if (m2_base) base_offset = (DWORD)(m2_base - (BYTE *)buffer);
-    if (!m2_base || m2_size < sizeof(DWORD) * 2) {
+    if (m2_base) base_offset = (uint32_t)(m2_base - (uint8_t *)buffer);
+    if (!m2_base || m2_size < sizeof(uint32_t) * 2) {
         return M2_CreateFallbackModel(modelFilename, "truncated header");
     }
 
-    if (*(DWORD *)m2_base != ID_MD20) {
+    if (*(uint32_t *)m2_base != ID_MD20) {
         return M2_CreateFallbackModel(modelFilename, "bad MD20 header");
     }
 
-    version = m2_read32(m2_base + sizeof(DWORD));
+    version = m2_read32(m2_base + sizeof(uint32_t));
     format = m2_format_def(version);
     skin_vertices = NULL; skin_indices = NULL; skin_bones = NULL;
     sections = NULL; batches = NULL;
@@ -1623,8 +1623,8 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
         skin_bones = m2_array_ptr(m2_base, m2_size, legacy_view->bones, sizeof(*skin_bones));
         sections = m2_array_ptr(m2_base, m2_size, legacy_view->sections, sizeof(m2SkinSectionLegacy_t));
         batches = m2_array_ptr(m2_base, m2_size, legacy_view->batches, sizeof(*batches));
-        batch_count = (DWORD)legacy_view->batches.size; section_count = (DWORD)legacy_view->sections.size;
-        skin_vertex_count = (DWORD)legacy_view->vertices.size; skin_index_count = (DWORD)legacy_view->indices.size;
+        batch_count = (uint32_t)legacy_view->batches.size; section_count = (uint32_t)legacy_view->sections.size;
+        skin_vertex_count = (uint32_t)legacy_view->vertices.size; skin_index_count = (uint32_t)legacy_view->indices.size;
         using_legacy_view = true;
     } else {
         m2Header_t const *modern_header;
@@ -1638,8 +1638,8 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
                 skin_bones = m2_array_ptr(skin_data, skin_size, skin->bones, sizeof(*skin_bones));
                 sections = m2_array_ptr(skin_data, skin_size, skin->sections, sizeof(m2SkinSection_t));
                 batches = m2_array_ptr(skin_data, skin_size, skin->batches, sizeof(*batches));
-                batch_count = (DWORD)skin->batches.size; section_count = (DWORD)skin->sections.size;
-                skin_vertex_count = (DWORD)skin->vertices.size; skin_index_count = (DWORD)skin->indices.size;
+                batch_count = (uint32_t)skin->batches.size; section_count = (uint32_t)skin->sections.size;
+                skin_vertex_count = (uint32_t)skin->vertices.size; skin_index_count = (uint32_t)skin->indices.size;
             } else {
                 M2_LogFallback(modelFilename, "bad skin magic");
                 ri.FS_FreeFile(skin_data); skin_data = NULL;
@@ -1655,7 +1655,7 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
         return M2_CreateFallbackModel(modelFilename, using_legacy_view ? "invalid legacy embedded view" : "missing skin profile");
     }
     FOR_LOOP(i, skin_vertex_count) {
-        if (skin_vertices[i] >= (DWORD)geom.vertices.size) {
+        if (skin_vertices[i] >= (uint32_t)geom.vertices.size) {
             SAFE_DELETE(skin_data, ri.FS_FreeFile);
             return M2_CreateFallbackModel(modelFilename, "skin vertex lookup exceeds model vertices");
         }
@@ -1665,11 +1665,11 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
     memset(model, 0, sizeof(*model));
     snprintf(model->filename, sizeof(model->filename), "%s", modelFilename ? modelFilename : "");
     model->bounds = (BOX3){ geom.bounding_box.min, geom.bounding_box.max };
-    if (!M2_CalculateGeometryBounds(m2_vertices, (DWORD)geom.vertices.size, &model->geometry_bounds))
+    if (!M2_CalculateGeometryBounds(m2_vertices, (uint32_t)geom.vertices.size, &model->geometry_bounds))
         model->geometry_bounds = model->bounds;
     if (M2_IsCharacterModelPath(modelFilename)) model->flags |= M2_MODEL_CHARACTER;
     if (buffer_owned) *buffer_owned = true;
-    if (!M2_LoadFileImage(model, (BYTE *)buffer, size, base_offset, m2_size)) {
+    if (!M2_LoadFileImage(model, (uint8_t *)buffer, size, base_offset, m2_size)) {
         SAFE_DELETE(skin_data, ri.FS_FreeFile);
         M2_FreeModelData(model);
         ri.MemFree(model);
@@ -1681,16 +1681,16 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
         m2Array_t material_array = m2_material_array(model->file->modern.materials, model->file->classic.render_flags, model->format->format == M2_FORMAT_CLASSIC);
 
 		if (material_array.size > 0) {
-			BYTE const *materials_data = M2_ModelArrayPtr(model, material_array, 4);
-			materials = (WORD const *)materials_data;
-			material_count = materials_data ? (DWORD)material_array.size : 0;
+			uint8_t const *materials_data = M2_ModelArrayPtr(model, material_array, 4);
+			materials = (uint16_t const *)materials_data;
+			material_count = materials_data ? (uint32_t)material_array.size : 0;
 		}
 	}
 
     /* Preserve the old batch-expanded vertex interpretation while sharing the two GL buffers. */
     FOR_LOOP(i, batch_count) {
         m2Batch_t const *batch = &batches[i];
-        DWORD start, count;
+        uint32_t start, count;
         if (batch->skin_section_index >= section_count) continue;
         if (using_legacy_view) {
             m2SkinSectionLegacy_t const *section = &((m2SkinSectionLegacy_t const *)sections)[batch->skin_section_index];
@@ -1700,7 +1700,7 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
             start = section->index_start; count = section->index_count;
         }
         if (count && m2_validate_skin_vertex_range(skin_vertices, skin_vertex_count, skin_indices,
-            skin_index_count, (DWORD)geom.vertices.size, start, count)) total_vertices += count;
+            skin_index_count, (uint32_t)geom.vertices.size, start, count)) total_vertices += count;
     }
     verts = total_vertices ? ri.MemAlloc(sizeof(*verts) * total_vertices) : NULL;
     if (total_vertices && !verts) {
@@ -1711,13 +1711,13 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
 
 	FOR_LOOP(i, batch_count) {
 		m2Batch_t const *batch = &batches[i];
-        DWORD index_start;
-        DWORD index_count;
-        WORD bone_count;
-        WORD bone_combo_index;
-        WORD section_id = 0;
+        uint32_t index_start;
+        uint32_t index_count;
+        uint16_t bone_count;
+        uint16_t bone_combo_index;
+        uint16_t section_id = 0;
         m2ModelBatch_t *out;
-        BYTE alphamode;
+        uint8_t alphamode;
         if (batch->skin_section_index >= section_count) {
             continue;
         }
@@ -1739,12 +1739,12 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
         if (index_count == 0) {
             continue;
         }
-        if (!m2_validate_skin_vertex_range(skin_vertices, skin_vertex_count, skin_indices, skin_index_count, (DWORD)geom.vertices.size, index_start, index_count)) {
+        if (!m2_validate_skin_vertex_range(skin_vertices, skin_vertex_count, skin_indices, skin_index_count, (uint32_t)geom.vertices.size, index_start, index_count)) {
             fprintf(stderr, "M2: section %u has an invalid skin index/vertex range\n", section_id);
             continue;
         }
         FOR_LOOP(j, index_count) {
-            DWORD sidx = skin_indices[index_start + j], vidx = skin_vertices[sidx];
+            uint32_t sidx = skin_indices[index_start + j], vidx = skin_vertices[sidx];
             verts[vertex_offset + j] = M2_MakeVertex(&m2_vertices[vidx]);
             if (skin_bones) memcpy(verts[vertex_offset + j].skin, skin_bones[sidx].v, sizeof(skin_bones[sidx].v));
         }
@@ -1777,7 +1777,7 @@ m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *b
     return model;
 }
 
-static BOOL M2_CharacterTextureModified(LPCM2CHARACTEROUTFIT outfit, DWORD appearance) {
+static bool M2_CharacterTextureModified(LPCM2CHARACTEROUTFIT outfit, uint32_t appearance) {
     wowAppearance_t unpacked = Wow_UnpackAppearance(appearance);
 
     if (unpacked.faceID || unpacked.facialHairStyleID) return true;
@@ -1788,11 +1788,11 @@ static BOOL M2_CharacterTextureModified(LPCM2CHARACTEROUTFIT outfit, DWORD appea
     return false;
 }
 
-static void M2_DrawCompositeQuad(LPTEXTURE texture, LPCRECT screen, BOOL blend) {
+static void M2_DrawCompositeQuad(LPTEXTURE texture, rect_t const * screen, bool blend) {
     VERTEX vertices[6];
     MATRIX4 projection;
     MATRIX4 identity;
-    RECT uv = { 0, 0, 1, 1 };
+    rect_t uv = { 0, 0, 1, 1 };
 
     R_AddQuad(vertices, screen, &uv, COLOR32_WHITE, 0);
     Matrix4_identity(&identity);
@@ -1815,22 +1815,22 @@ static void M2_DrawCompositeQuad(LPTEXTURE texture, LPCRECT screen, BOOL blend) 
     R_Call(glDrawArrays, GL_TRIANGLES, 0, 6);
 }
 
-static void M2_DrawCompositeComponent(LPCSTR stem, BYTE slot, LPCSTR model_path,
-                                      DWORD x, DWORD y, DWORD w, DWORD h) {
+static void M2_DrawCompositeComponent(cstring_t stem, uint8_t slot, cstring_t model_path,
+                                      uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
     if (stem && *stem) {
         PATHSTR resolved;
         LPTEXTURE texture;
 
         if (!M2_CharacterComponentTexturePath(stem, slot, model_path, resolved, sizeof(resolved))) return;
         texture = R_LoadTexture(resolved);
-        if (texture != tr.texture[TEX_PLACEHOLDER]) M2_DrawCompositeQuad(texture, &(RECT){ x, y, w, h }, true);
+        if (texture != tr.texture[TEX_PLACEHOLDER]) M2_DrawCompositeQuad(texture, &(rect_t){ x, y, w, h }, true);
     }
 }
 
-static void M2_DrawCompositeHeadVariation(LPCSTR model_path, DWORD section_id,
-                                          DWORD variation_index, DWORD color_index) {
-    static DWORD const rects[2][4] = { { 0, 160, 128, 32 }, { 0, 192, 128, 64 } };
-    static DWORD const texture_indices[2] = { 1, 0 };
+static void M2_DrawCompositeHeadVariation(cstring_t model_path, uint32_t section_id,
+                                          uint32_t variation_index, uint32_t color_index) {
+    static uint32_t const rects[2][4] = { { 0, 160, 128, 32 }, { 0, 192, 128, 64 } };
+    static uint32_t const texture_indices[2] = { 1, 0 };
 
     FOR_LOOP(i, 2) {
         PATHSTR path;
@@ -1840,14 +1840,14 @@ static void M2_DrawCompositeHeadVariation(LPCSTR model_path, DWORD section_id,
         texture = R_LoadTexture(path);
         /* Some Classic CharSections rows reference absent optional overlays (notably female tauren facial hair). */
         if (texture != tr.texture[TEX_PLACEHOLDER])
-            M2_DrawCompositeQuad(texture, &(RECT){ rects[i][0], rects[i][1], rects[i][2], rects[i][3] }, true);
+            M2_DrawCompositeQuad(texture, &(rect_t){ rects[i][0], rects[i][1], rects[i][2], rects[i][3] }, true);
     }
 }
 
 static LPTEXTURE M2_PrepareCharacterTexture(m2Model_t const *model,
                                             renderEntity_t const *entity,
                                             LPCM2CHARACTEROUTFIT outfit) {
-    static DWORD const rects[M2_CHAR_TEX_COMPONENT_COUNT][4] = {
+    static uint32_t const rects[M2_CHAR_TEX_COMPONENT_COUNT][4] = {
         { 0, 0, 128, 64 }, { 0, 64, 128, 64 }, { 0, 128, 128, 32 },
         { 128, 0, 128, 64 }, { 128, 64, 128, 32 }, { 128, 96, 128, 64 },
         { 128, 160, 128, 64 }, { 128, 224, 128, 32 }
@@ -1856,7 +1856,7 @@ static LPTEXTURE M2_PrepareCharacterTexture(m2Model_t const *model,
     LPTEXTURE base;
     M2CHARCOMPOSITECACHE *cached;
     m2CompositeCacheParams_t cache;
-    DWORD cache_slot;
+    uint32_t cache_slot;
     GLint old_framebuffer;
     GLint old_viewport[4];
     GLboolean old_depth, old_cull, old_blend;
@@ -1892,11 +1892,11 @@ static LPTEXTURE M2_PrepareCharacterTexture(m2Model_t const *model,
     R_Call(glDisable, GL_CULL_FACE);
     R_Call(glClearColor, 0, 0, 0, 0);
     R_Call(glClear, GL_COLOR_BUFFER_BIT);
-    M2_DrawCompositeQuad(base, &(RECT){ 0, 0, M2_CHARACTER_COMPOSITE_RESOLUTION, M2_CHARACTER_COMPOSITE_RESOLUTION }, false);
+    M2_DrawCompositeQuad(base, &(rect_t){ 0, 0, M2_CHARACTER_COMPOSITE_RESOLUTION, M2_CHARACTER_COMPOSITE_RESOLUTION }, false);
     FOR_LOOP(priority, M2_CHAR_TEX_PRIORITIES)
         FOR_LOOP(slot, M2_CHAR_TEX_COMPONENT_COUNT)
             if (outfit && outfit->texture[slot][priority]) {
-                M2_DrawCompositeComponent(outfit->texture[slot][priority], (BYTE)slot, model->filename, rects[slot][0], rects[slot][1], rects[slot][2], rects[slot][3]);
+                M2_DrawCompositeComponent(outfit->texture[slot][priority], (uint8_t)slot, model->filename, rects[slot][0], rects[slot][1], rects[slot][2], rects[slot][3]);
             }
     {
         wowAppearance_t unpacked = Wow_UnpackAppearance(entity->appearance);
@@ -1928,11 +1928,11 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
     return batch->texture;
 }
 
-BOOL M2_AttachmentMatrix(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
+bool M2_AttachmentMatrix(m2Model_t const *model, uint32_t attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform);
 
 /* Race abbreviation used by Item\ObjectComponents\Head\<name>_<race><gender>.m2. */
-static LPCSTR M2_RaceCode(DWORD race_id) {
+static cstring_t M2_RaceCode(uint32_t race_id) {
     switch (race_id) {
         case 1: return "Hu"; case 2: return "Or"; case 3: return "Dw"; case 4: return "Ni";
         case 5: return "Sc"; case 6: return "Ta"; case 7: return "Gn"; case 8: return "Tr";
@@ -1942,9 +1942,9 @@ static LPCSTR M2_RaceCode(DWORD race_id) {
 
 /* Resolve an ItemDisplayInfo model-name stem to its archive path. Helmets are
  * per-race/gender; shoulders are shared across races. */
-static BOOL M2_ItemAttachmentPath(LPCSTR character_path, LPCSTR model_name, BOOL helm, LPSTR out, DWORD out_size) {
-    DWORD race_id, gender_id;
-    LPCSTR code;
+static bool M2_ItemAttachmentPath(cstring_t character_path, cstring_t model_name, bool helm, string_t out, uint32_t out_size) {
+    uint32_t race_id, gender_id;
+    cstring_t code;
     size_t stem;
     if (!out || !out_size || !model_name || !*model_name) return false;
     stem = strlen(model_name);
@@ -1960,10 +1960,10 @@ static BOOL M2_ItemAttachmentPath(LPCSTR character_path, LPCSTR model_name, BOOL
 
 /* Item attachment models are loaded once per path and kept resident by their
  * single R_LoadModel reference; the per-frame path would otherwise leak refs. */
-static LPCMODEL M2_ItemModel(LPCSTR path) {
+static LPCMODEL M2_ItemModel(cstring_t path) {
     static PATHSTR cached_path[64];
     static LPCMODEL cached_model[64];
-    DWORD free_slot = 64;
+    uint32_t free_slot = 64;
     if (!path || !*path) return NULL;
     FOR_LOOP(i, 64) {
         if (cached_model[i] && !strcasecmp(cached_path[i], path)) return cached_model[i];
@@ -1978,7 +1978,7 @@ static LPCMODEL M2_ItemModel(LPCSTR path) {
 /* Resolve an ItemDisplayInfo model-texture stem (field 3/4) to its archive path.
  * Item models use a replaceable object-skin texture (M2 texture type 2) that the
  * client fills in from this stem: Item\ObjectComponents\{Head,Shoulder}\<stem>.blp. */
-static BOOL M2_ItemTexturePath(LPCSTR texture_name, BOOL helm, LPSTR out, DWORD out_size) {
+static bool M2_ItemTexturePath(cstring_t texture_name, bool helm, string_t out, uint32_t out_size) {
     size_t stem;
     if (!out || !out_size || !texture_name || !*texture_name) return false;
     stem = strlen(texture_name);
@@ -1993,16 +1993,16 @@ static BOOL M2_ItemTexturePath(LPCSTR texture_name, BOOL helm, LPSTR out, DWORD 
  * field 3/4) overrides the attachment's replaceable object skin. */
 static void M2_RenderItemAttachments(renderEntity_t const *entity, m2Model_t const *model,
                                      LPCMATRIX4 transform, LPCM2CHARACTEROUTFIT outfit) {
-    static DWORD const ids[3] = { 11, 6, 5 }; /* helm, shoulder-left, shoulder-right */
+    static uint32_t const ids[3] = { 11, 6, 5 }; /* helm, shoulder-left, shoulder-right */
     LPCMODEL models[3] = { NULL, NULL, NULL };
     LPTEXTURE textures[3] = { NULL, NULL, NULL };
     MATRIX4 matrices[3];
-    BOOL valid[3] = { false, false, false };
+    bool valid[3] = { false, false, false };
     PATHSTR path;
     if (!entity || !model || !transform || !outfit) return;
     FOR_LOOP(i, 3) {
-        LPCSTR name = i == 0 ? outfit->helm_model : outfit->shoulder_model[i - 1];
-        LPCSTR texname = i == 0 ? outfit->helm_texture : outfit->shoulder_texture[i - 1];
+        cstring_t name = i == 0 ? outfit->helm_model : outfit->shoulder_model[i - 1];
+        cstring_t texname = i == 0 ? outfit->helm_texture : outfit->shoulder_texture[i - 1];
         if (!name || !*name) continue;
         if (!M2_ItemAttachmentPath(model->filename, name, i == 0, path, sizeof(path))) continue;
         models[i] = M2_ItemModel(path);
@@ -2024,7 +2024,7 @@ static void M2_RenderItemAttachments(renderEntity_t const *entity, m2Model_t con
 }
 
 /* Keep ordinary and instanced M2 batches on the same material-state contract. */
-static void M2_SetBlendMode(MODELPROG * shader, DWORD mode) {
+static void M2_SetBlendMode(MODELPROG * shader, uint32_t mode) {
     shader->state.alphaKey = mode == BLEND_MODE_ALPHAKEY;
     R_SetAlphaKeyState(mode == BLEND_MODE_ALPHAKEY);
     if (mode == BLEND_MODE_NONE) {
@@ -2068,8 +2068,8 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     LPTEXTURE character_texture = NULL;
     m2ModelBatch_t *batch;
     MODELPROG * shader;
-    BOOL ground_effect;
-    FLOAT ground_alpha = 1.0f;
+    bool ground_effect;
+    float ground_alpha = 1.0f;
 
     if (!entity || !model || !transform) {
         return;
@@ -2079,8 +2079,8 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     ground_effect = entity->flags & RF_GROUND_EFFECT;
     if (ground_effect) {
         VECTOR3 delta = Vector3_sub(&entity->origin, &tr.viewDef.camerastate[0].origin);
-        FLOAT distance = Vector3_len(&delta);
-        FLOAT fade_range = WOW_GRASS_DRAW_DISTANCE - WOW_GRASS_FADE_START_DISTANCE;
+        float distance = Vector3_len(&delta);
+        float fade_range = WOW_GRASS_DRAW_DISTANCE - WOW_GRASS_FADE_START_DISTANCE;
         ground_alpha = 1.0f - MAX(0.0f, MIN(1.0f, (distance - WOW_GRASS_FADE_START_DISTANCE) / fade_range));
     }
 
@@ -2149,7 +2149,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 /* Static-mesh instanced path for ground-effect clutter. Renders `count` copies
    of the model in one draw call per batch. Classic detail M2s have no keyed bone
    tracks, so this path adds root-anchored wind in the vertex shader. */
-void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWORD flags) {
+void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, uint32_t flags) {
     m2ModelBatch_t *batch;
     MODELPROG * shader;
 
@@ -2157,7 +2157,7 @@ void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWO
 
     shader = R_ModelShaderInstanced();
     if (!shader) {
-        static BOOL logged;
+        static bool logged;
         if (!logged) {
             logged = true;
             fprintf(stderr, "M2_RenderInstanced: instanced shader failed to compile\n");
@@ -2208,14 +2208,14 @@ void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWO
 	R_SetAlphaKeyState(false);
 }
 
-BOOL M2_AttachmentMatrix(m2Model_t const *model,
-                         DWORD attachment_id,
+bool M2_AttachmentMatrix(m2Model_t const *model,
+                         uint32_t attachment_id,
                          LPCMATRIX4 model_matrix,
                          LPMATRIX4 out) {
-    BYTE const *attachments;
-    WORD const *lookup;
-    DWORD attachment_index = 0xFFFFu;
-    WORD bone_index;
+    uint8_t const *attachments;
+    uint16_t const *lookup;
+    uint32_t attachment_index = 0xFFFFu;
+    uint16_t bone_index;
     VECTOR3 position;
     MATRIX4 local;
     m2Array_t attachment_array;
@@ -2229,12 +2229,12 @@ BOOL M2_AttachmentMatrix(m2Model_t const *model,
     if (!attachments || attachment_array.size <= 0) return false;
 
     lookup = M2_ModelArrayPtr(model, lookup_array, sizeof(*lookup));
-    if (lookup && attachment_id < (DWORD)lookup_array.size) {
+    if (lookup && attachment_id < (uint32_t)lookup_array.size) {
         attachment_index = lookup[attachment_id];
     }
-    if (attachment_index >= (DWORD)attachment_array.size) {
-        FOR_LOOP(i, (DWORD)attachment_array.size) {
-            DWORD id = model->format->format == M2_FORMAT_CLASSIC
+    if (attachment_index >= (uint32_t)attachment_array.size) {
+        FOR_LOOP(i, (uint32_t)attachment_array.size) {
+            uint32_t id = model->format->format == M2_FORMAT_CLASSIC
                 ? ((m2AttachmentClassic_t const *)(attachments + i * model->format->attachment_stride))->attachment_id
                 : ((m2AttachmentModern_t const *)(attachments + i * model->format->attachment_stride))->attachment_id;
             if (id == attachment_id) {
@@ -2243,7 +2243,7 @@ BOOL M2_AttachmentMatrix(m2Model_t const *model,
             }
         }
     }
-    if (attachment_index >= (DWORD)attachment_array.size) {
+    if (attachment_index >= (uint32_t)attachment_array.size) {
         return false;
     }
 
@@ -2257,7 +2257,7 @@ BOOL M2_AttachmentMatrix(m2Model_t const *model,
         position = attachment->position;
     }
 
-    if (bone_index >= (DWORD)M2_BonesArray(model).size) {
+    if (bone_index >= (uint32_t)M2_BonesArray(model).size) {
         return false;
     }
 
@@ -2268,7 +2268,7 @@ BOOL M2_AttachmentMatrix(m2Model_t const *model,
 }
 
 /* Rebuild the requested entity pose before resolving an attachment outside the M2 draw pass. */
-BOOL M2_EntityAttachmentPosition(m2Model_t const *model, renderEntity_t const *entity, DWORD attachment_id,
+bool M2_EntityAttachmentPosition(m2Model_t const *model, renderEntity_t const *entity, uint32_t attachment_id,
                                  LPCMATRIX4 model_matrix, LPVECTOR3 out) {
     MATRIX4 matrix;
     if (!model || !entity || !model_matrix || !out) return false;
@@ -2279,14 +2279,14 @@ BOOL M2_EntityAttachmentPosition(m2Model_t const *model, renderEntity_t const *e
 }
 
 /* Resolve an attachment while this model's just-calculated pose still owns the shared bone palette. */
-BOOL M2_PosedAttachmentPosition(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPVECTOR3 out) {
+bool M2_PosedAttachmentPosition(m2Model_t const *model, uint32_t attachment_id, LPCMATRIX4 model_matrix, LPVECTOR3 out) {
     MATRIX4 matrix;
     if (!model || !model_matrix || !out || !M2_AttachmentMatrix(model, attachment_id, model_matrix, &matrix)) return false;
     *out = MAKE(VECTOR3, matrix.v[12], matrix.v[13], matrix.v[14]);
     return true;
 }
 
-FLOAT M2_GroundOffset(m2Model_t const *model) {
+float M2_GroundOffset(m2Model_t const *model) {
     if (!model || model->geometry_bounds.min.z >= 0.0f) {
         return 0.0f;
     }
@@ -2294,14 +2294,14 @@ FLOAT M2_GroundOffset(m2Model_t const *model) {
 }
 
 /* Top of the model's animation-inclusive bounding box; anchors overhead sprites above the head. */
-FLOAT M2_HeadHeight(m2Model_t const *model) {
+float M2_HeadHeight(m2Model_t const *model) {
     return model ? model->bounds.max.z : 0.0f;
 }
 
 /* Positive geometry minima are model-authored clearance below the first visible vertex. */
-FLOAT M2_VisibleBottom(m2Model_t const *model) { return model ? model->geometry_bounds.min.z : 0.0f; }
+float M2_VisibleBottom(m2Model_t const *model) { return model ? model->geometry_bounds.min.z : 0.0f; }
 
-BOOL M2_IsCharacterModel(m2Model_t const *model) { return model && (model->flags & M2_MODEL_CHARACTER); }
+bool M2_IsCharacterModel(m2Model_t const *model) { return model && (model->flags & M2_MODEL_CHARACTER); }
 
 void M2_Release(m2Model_t *model) {
     m2ModelBatch_t *batch;

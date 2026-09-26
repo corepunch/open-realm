@@ -3,8 +3,8 @@
 /* Day-cycle fraction [0,1) from the engine frame clock. Classic has no
    Light*.dbc / .lit, so there is no authored game-time source; the cycle is
    synthesized over WOW_DAY_LENGTH_MS of engine time. */
-FLOAT Wow_DayFraction(void) {
-    return fmodf((FLOAT)tr.viewDef.time / WOW_DAY_LENGTH_MS, 1.0f);
+float Wow_DayFraction(void) {
+    return fmodf((float)tr.viewDef.time / WOW_DAY_LENGTH_MS, 1.0f);
 }
 
 /* Synthesized sun direction, pointing from the surface toward the sun (the
@@ -12,15 +12,15 @@ FLOAT Wow_DayFraction(void) {
    Light*.dbc, so the authored sun path is unavailable; this is WoWee's
    time-of-day directionalDir negated and Y-up→Z-up swapped to engine axes.
    day_frac 0=midnight, 0.25=dawn(sun in -X), 0.5=noon(overhead), 0.75=dusk. */
-void Wow_SunDirection(FLOAT day_frac, LPVECTOR3 out) {
-    FLOAT a = day_frac * 6.283185307f; /* 2π over the day cycle */
+void Wow_SunDirection(float day_frac, LPVECTOR3 out) {
+    float a = day_frac * 6.283185307f; /* 2π over the day cycle */
     out->x = -0.6f * sinf(a);
     out->y = -0.6f * cosf(a);
     out->z = 0.6f - 0.4f * cosf(a);
     Vector3_normalize(out);
 }
 
-BOOL Wow_EntityInView(renderEntity_t const *entity) {
+bool Wow_EntityInView(renderEntity_t const *entity) {
     VECTOR3 camera_origin;
     VECTOR3 delta;
     float radius;
@@ -39,7 +39,7 @@ BOOL Wow_EntityInView(renderEntity_t const *entity) {
     return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){ .center = entity->origin, .radius = radius, });
 }
 
-BOOL Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk) {
+bool Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk) {
     VECTOR3 camera_origin;
     VECTOR3 center;
     VECTOR3 extents;
@@ -83,7 +83,7 @@ BOOL Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk) {
     return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){ .center = center, .radius = radius, });
 }
 
-BOOL Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix) {
+bool Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix) {
     VECTOR3 center;
     VECTOR3 extents;
     VECTOR3 world_center;
@@ -117,7 +117,7 @@ BOOL Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix) {
 /* Returns true if the world-space point lies within any interior group's AABB (in world space).
    Each group's local AABB is conservatively transformed to world space by expanding over all 8
    corners; this is correct for axis-aligned groups and conservative for rotated ones. */
-BOOL Wow_WmoContainsPoint(wowWmoModel_t const *model, LPCMATRIX4 matrix, VECTOR3 point) {
+bool Wow_WmoContainsPoint(wowWmoModel_t const *model, LPCMATRIX4 matrix, VECTOR3 point) {
     if (!model || !matrix || !model->portals) return false;
     FOR_LOOP(i, model->num_groups) {
         wowWmoGroup_t const *group = &model->groups[i];
@@ -144,7 +144,7 @@ BOOL Wow_WmoContainsPoint(wowWmoModel_t const *model, LPCMATRIX4 matrix, VECTOR3
     return false;
 }
 
-void Wow_BindWorldTexture(LPCTEXTURE texture, DWORD unit, LPCTEXTURE bound[5], LPDWORD binds) {
+void Wow_BindWorldTexture(LPCTEXTURE texture, uint32_t unit, LPCTEXTURE bound[5], uint32_t * binds) {
     texture = texture ? texture : tr.texture[TEX_WHITE];
     if (unit >= 5 || bound[unit] == texture) {
         return;

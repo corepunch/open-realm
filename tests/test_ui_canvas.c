@@ -4,7 +4,7 @@
 
 /* The resolver is the single canvas contract; pin every policy at the aspects that matter. */
 TEST(ui_canvas, resolver_matrix_covers_stretch_expand_and_centered_policies) {
-    struct { size2_t window; UICANVASPOLICY policy; FLOAT width, root_x, root_w; UICANVASCLASS chrome; } cases[] = {
+    struct { size2_t window; UICANVASPOLICY policy; float width, root_x, root_w; UICANVASCLASS chrome; } cases[] = {
         { {1024,768}, UI_CANVAS_STRETCH, 0.8f, 0, 0.8f, UI_CANVAS_STANDARD },
         { {1920,1080}, UI_CANVAS_STRETCH, 0.8f, 0, 0.8f, UI_CANVAS_STANDARD },
         { {720,1280}, UI_CANVAS_STRETCH, 0.8f, 0, 0.8f, UI_CANVAS_STANDARD },
@@ -34,17 +34,17 @@ TEST(ui_canvas, resolver_matrix_covers_stretch_expand_and_centered_policies) {
 /* The renderer projects whatever the client pushed; before any push, and for empty rects, the authored scene
  * applies. */
 TEST(ui_canvas, renderer_projects_the_pushed_scene_and_rejects_empty_ones) {
-    RECT saved = tr.uiScene;
-    tr.uiScene = (RECT){ 0 };
-    RECT scene = R_UISceneRect();
+    rect_t saved = tr.uiScene;
+    tr.uiScene = (rect_t){ 0 };
+    rect_t scene = R_UISceneRect();
     T_FEQ(scene.w, 0.8f, 0.0001f); T_FEQ(scene.h, 0.6f, 0.0001f);
-    R_SetUIScene(&MAKE(RECT, 0, 0, 1.0666667f, 0.6f));
+    R_SetUIScene(&MAKE(rect_t, 0, 0, 1.0666667f, 0.6f));
     scene = R_UISceneRect();
     T_FEQ(scene.x, 0, 0.0001f); T_FEQ(scene.w, 1.0666667f, 0.0001f); T_FEQ(scene.h, 0.6f, 0.0001f);
-    R_SetUIScene(&MAKE(RECT, 0, 0, 0, 0.6f));
+    R_SetUIScene(&MAKE(rect_t, 0, 0, 0, 0.6f));
     R_SetUIScene(NULL);
     T_FEQ(R_UISceneRect().w, 1.0666667f, 0.0001f);
-    R_SetUIScene(&MAKE(RECT, 0, 0, 0.8f, 0.6f));
+    R_SetUIScene(&MAKE(rect_t, 0, 0, 0.8f, 0.6f));
     T_FEQ(R_UISceneRect().w, 0.8f, 0.0001f);
     tr.uiScene = saved;
 }

@@ -17,8 +17,8 @@ typedef struct GameResultDialog_s {
 } GameResultDialog_t;
 
 
-static inline BOOL GameResultDialog_Bind(GameResultDialog_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool GameResultDialog_Bind(GameResultDialog_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -39,7 +39,7 @@ static inline BOOL GameResultDialog_Bind(GameResultDialog_t *out, LPFRAMEDEF bin
     return ok;
 }
 
-static inline BOOL GameResultDialog_Load(GameResultDialog_t *out) {
+static inline bool GameResultDialog_Load(GameResultDialog_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\GameResultDialog.fdf") &&
            GameResultDialog_Bind(out, UI_FindFrame("GameResultDialog"));

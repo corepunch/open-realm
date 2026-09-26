@@ -17,8 +17,8 @@ typedef struct CinematicPanel_s {
 } CinematicPanel_t;
 
 
-static inline BOOL CinematicPanel_Bind(CinematicPanel_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool CinematicPanel_Bind(CinematicPanel_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -39,7 +39,7 @@ static inline BOOL CinematicPanel_Bind(CinematicPanel_t *out, LPFRAMEDEF bind_ro
     return ok;
 }
 
-static inline BOOL CinematicPanel_Load(CinematicPanel_t *out) {
+static inline bool CinematicPanel_Load(CinematicPanel_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf") &&

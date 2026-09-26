@@ -19,7 +19,7 @@ static void MapSelect_Refresh(int msec) {
 static void MapSelect_Draw(void) {
 }
 
-static void MapSelect_KeyEvent(int key, BOOL down) {
+static void MapSelect_KeyEvent(int key, bool down) {
     (void)key;
     (void)down;
 }

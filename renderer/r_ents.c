@@ -29,7 +29,7 @@ static int R_DebugEntities(void) {
     return atoi(ri.CvarString ? ri.CvarString("r_debug_entities", "0") : "0");
 }
 
-static FLOAT R_EntityRingZ(renderEntity_t const *entity) {
+static float R_EntityRingZ(renderEntity_t const *entity) {
     BOX3 bounds;
 
     if (R_GetEntityBounds(entity, &bounds))
@@ -37,7 +37,7 @@ static FLOAT R_EntityRingZ(renderEntity_t const *entity) {
     return entity->origin.z - 1.0f;
 }
 
-static BOOL R_EntityInView(renderEntity_t const *entity) {
+static bool R_EntityInView(renderEntity_t const *entity) {
     BOX3 bounds;
     MATRIX4 matrix;
     float radius;
@@ -63,15 +63,15 @@ static BOOL R_EntityInView(renderEntity_t const *entity) {
     });
 }
 
-static void R_DrawEntityShadows(BOOL shad);
+static void R_DrawEntityShadows(bool shad);
 
 void R_DrawEntities(void) {
-    static BYTE prev_state[MAX_GAME_ENTITIES];
-    static BOOL initialized = false;
-    BYTE state[MAX_GAME_ENTITIES];
+    static uint8_t prev_state[MAX_GAME_ENTITIES];
+    static bool initialized = false;
+    uint8_t state[MAX_GAME_ENTITIES];
     int debug_entities = R_DebugEntities();
-    DWORD drawn = 0;
-    DWORD culled = 0;
+    uint32_t drawn = 0;
+    uint32_t culled = 0;
 
     if (!R_CvarEnabled("r_entities", "1")) return;
     if (debug_entities) {
@@ -80,14 +80,14 @@ void R_DrawEntities(void) {
         initialized = false;
     }
 
-    BOOL shad = R_CvarEnabled("r_unit_shadows", "1");
+    bool shad = R_CvarEnabled("r_unit_shadows", "1");
 
     R_DrawEntityShadows(shad);
 
     FOR_LOOP(i, tr.viewDef.num_entities) {
         renderEntity_t const *ent = tr.viewDef.entities+i;
         R_UpdateEntityPresentation(ent);
-        BOOL in_view = R_EntityInView(ent);
+        bool in_view = R_EntityInView(ent);
 
         if (debug_entities && ent->number < MAX_GAME_ENTITIES) {
             state[ent->number] = in_view ? 2 : 1;
@@ -189,7 +189,7 @@ void R_DrawDecals(void) {
     }
 }
 
-DWORD selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };
+uint32_t selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };
 
 static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
     if (entity->splat && !(entity->flags & RF_NO_UBERSPLAT)) {
@@ -197,7 +197,7 @@ static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
     }
 }
 
-static void R_DrawEntityShadow(const renderEntity_t *entity, LPCVECTOR2 origin, BOOL shad) {
+static void R_DrawEntityShadow(const renderEntity_t *entity, LPCVECTOR2 origin, bool shad) {
 #ifndef USE_SHADOWMAPS
     LPCTEXTURE shadow = entity->shadow;
     BOX3 bounds;
@@ -246,7 +246,7 @@ static void R_DrawEntityShadow(const renderEntity_t *entity, LPCVECTOR2 origin, 
  * and re-issued all splat GL state per unit; batching them across the scene
  * collapses runs of same-texture shadows into one upload + draw (flushing on
  * texture change or buffer capacity), instead of one per unit. */
-static void R_DrawEntityShadows(BOOL shad) {
+static void R_DrawEntityShadows(bool shad) {
 #ifndef USE_SHADOWMAPS
     if (!shad) return;
     R_BeginSplatBatch(R_SPLAT_SHADER(&tr.shader_shadowSplat));
@@ -341,7 +341,7 @@ static void R_RenderHoverHighlight(renderEntity_t const *entity) {
     }
 }
 
-void R_DrawEntity(renderEntity_t const *entity, BOOL shad) {
+void R_DrawEntity(renderEntity_t const *entity, bool shad) {
     if ((entity->flags & RF_HIDDEN) || !entity->model)
         return;
 

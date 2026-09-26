@@ -7,11 +7,11 @@ bool ParserDone(parser_t *p) {
     return !*p->str || p->error;
 }
 
-bool ParserSingleLineComment(parser_t *p, LPCSTR str) {
+bool ParserSingleLineComment(parser_t *p, cstring_t str) {
     return str[0] == '/' && str[1] == '/';
 }
 
-bool ParserSpace(parser_t *p, LPCSTR str) {
+bool ParserSpace(parser_t *p, cstring_t str) {
     if (!p->reading_string) {
         if (isspace(*str)) return true;
         if (p->comma_space && *str == ',') return true;
@@ -32,10 +32,10 @@ void FS_SetSheetHost(SHEETHOST const *host) {
     }
 }
 
-LPSTR FS_ReadFileIntoString(LPCSTR fileName) {
-    HANDLE raw = NULL;
-    DWORD fileSize = 0;
-    LPSTR buffer;
+string_t FS_ReadFileIntoString(cstring_t fileName) {
+    handle_t raw = NULL;
+    uint32_t fileSize = 0;
+    string_t buffer;
 
     if (!sheet_host.ReadFile || !sheet_host.FreeFile || !sheet_host.MemAlloc || !sheet_host.MemFree) {
         return NULL;
@@ -57,13 +57,13 @@ LPSTR FS_ReadFileIntoString(LPCSTR fileName) {
     return buffer;
 }
 
-void FS_FreeFileString(LPSTR buffer) {
+void FS_FreeFileString(string_t buffer) {
     if (buffer && sheet_host.MemFree) {
         sheet_host.MemFree(buffer);
     }
 }
 
-LPSTR ParserGetToken(parser_t *p) {
+string_t ParserGetToken(parser_t *p) {
     for (; !ParserDone(p); p->str++) {
         if (ParserSingleLineComment(p, p->str)) {
             *p->tok = '\0';

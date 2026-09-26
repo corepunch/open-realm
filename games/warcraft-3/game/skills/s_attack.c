@@ -28,15 +28,15 @@ typedef struct {
     LPCVECTOR2 fixed_target;
     VECTOR3 start;
     VECTOR3 dir;
-    DWORD speed;
-    DWORD model;
-    DWORD damage;
-    DWORD attack_type;
+    uint32_t speed;
+    uint32_t model;
+    uint32_t damage;
+    uint32_t attack_type;
     unitAttack_t const *attack;
-    DWORD area_targets;
+    uint32_t area_targets;
 }  rocketDesc_t;
 
-BOOL S_UnitAttackSlotEnabled(LPCEDICT attacker, DWORD slot) {
+bool S_UnitAttackSlotEnabled(LPCEDICT attacker, uint32_t slot) {
     return attacker && slot < 2 && attacker->data.UnitWeapons &&
         (attacker->data.UnitWeapons->attacksEnabled & (1 << slot)) != 0;
 }
@@ -44,7 +44,7 @@ BOOL S_UnitAttackSlotEnabled(LPCEDICT attacker, DWORD slot) {
 /* Attack 1/2 remain the authored runtime copies. Select the compatible slot
  * from the target whenever attack behavior reads a profile. */
 static unitAttack_t const *attack_profile(LPCEDICT attacker, LPCEDICT target) {
-    DWORD flag = target ? G_TargetFlagForType(target->targtype) : 0;
+    uint32_t flag = target ? G_TargetFlagForType(target->targtype) : 0;
     if (attacker && target && target->destructable.initialized && target->targtype == TARG_TREE) {
         if (attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) return &attacker->attack1;
         if (attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1)) return &attacker->attack2;
@@ -122,15 +122,15 @@ void fire_rocket(LPEDICT ent, rocketDesc_t const *desc) {
 //    gi.linkentity (rocket);
 }
 
-static FLOAT ai_rolldamage1(LPEDICT self, int weapon) {
+static float ai_rolldamage1(LPEDICT self, int weapon) {
     unitAttack_t const *atk = ACTIVE_ATTACK(self);
-    FLOAT damageBase = atk->damageBase;
+    float damageBase = atk->damageBase;
     (void)weapon;
     FOR_LOOP(i, atk->numberOfDice) {
         /* Warsmash treats a malformed zero-sided die as contributing +1
          * instead of taking modulo zero. Normal Warcraft data has S > 0. */
         damageBase += atk->sidesPerDie
-                    ? (FLOAT)(rand() % atk->sidesPerDie + 1)
+                    ? (float)(rand() % atk->sidesPerDie + 1)
                     : 1.0f;
     }
     return damageBase + atk->temporaryDamageBonus;
@@ -143,7 +143,7 @@ void M_GetEntityMatrix(LPCENTITYSTATE entity, LPMATRIX4 matrix) {
     Matrix4_scale(matrix, &(VECTOR3){entity->scale, entity->scale, entity->scale});
 }
 
-static BOOL can_attack(LPCEDICT ent) {
+static bool can_attack(LPCEDICT ent) {
     if (S_UnitIsCycloned(ent) || G_BuildingIsUnsummoning(ent)) return false;
     if (!S_HumanCanAttack(ent)) return false;
     if (!S_CargoAttacksEnabled(ent)) return false;
@@ -158,8 +158,8 @@ static BOOL can_attack(LPCEDICT ent) {
 /* Weapon target masks are authoritative for ordinary unit targets as well as
  * destructables.  UnitData.targetType supplies the target category while
  * UnitWeapons.targs1/ua1g supplies the attacker's allowed categories. */
-BOOL S_AttackCanTarget(LPCEDICT attacker, LPCEDICT target) {
-    DWORD flag;
+bool S_AttackCanTarget(LPCEDICT attacker, LPCEDICT target) {
+    uint32_t flag;
 
     if (!attacker || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
         ((!S_UnitAttackSlotEnabled(attacker, 0) || attacker->attack1.type == ATK_NONE) &&
@@ -200,7 +200,7 @@ static void attack_finish_after_combat(LPEDICT attacker, LPCEDICT target) {
     }
 }
 
-static BOOL attack_stop_if_target_invalid(LPEDICT attacker) {
+static bool attack_stop_if_target_invalid(LPEDICT attacker) {
     if (S_AttackCanTarget(attacker, attacker ? attacker->goalentity : NULL)) {
         return false;
     }
@@ -211,7 +211,7 @@ static BOOL attack_stop_if_target_invalid(LPEDICT attacker) {
 /* Stock fallback for attack-type × defense-type values. Production games load
  * the active table from MiscGame/war3mapMisc into game.constants; these values
  * keep unit-level tests and early bootstrap callers deterministic. */
-static FLOAT const g_default_damage_table[8][8] = {
+static float const g_default_damage_table[8][8] = {
     /* BZ_HARDCODED_DATA_FALLBACK: WC3 1.29 / Warsmash defaults. */
     /* small  medium large  fort   normal hero   divine none  */
     { 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f, 1.00f }, /* none   */
@@ -228,30 +228,30 @@ static FLOAT const g_default_damage_table[8][8] = {
  * then numeric armor. Positive armor is 1/(1+K*A); negative armor uses the
  * Warcraft exponential curve 2-(1-K)^(-A). Result remains minimum 1 for the
  * existing OpenRealm physical-attack contract. */
-static int attack_damage_type(LPEDICT attacker, LPEDICT target, int base, DWORD atk);
+static int attack_damage_type(LPEDICT attacker, LPEDICT target, int base, uint32_t atk);
 int G_AttackDamage(LPEDICT attacker, LPEDICT target, int base) {
     return attack_damage_type(attacker, target, base,
                               attacker && target ? attack_profile(attacker, target)->type : 0);
 }
 
-int G_AttackDamageWithType(LPEDICT attacker, LPEDICT target, int base, DWORD type) {
+int G_AttackDamageWithType(LPEDICT attacker, LPEDICT target, int base, uint32_t type) {
     return attack_damage_type(attacker, target, base, type);
 }
 
-static int attack_damage_type(LPEDICT attacker, LPEDICT target, int base, DWORD atk) {
+static int attack_damage_type(LPEDICT attacker, LPEDICT target, int base, uint32_t atk) {
     if (!attacker || !target || base <= 0) return base;
-    DWORD def = target->defense_type;
+    uint32_t def = target->defense_type;
     if (atk >= 8) atk = 0;
     if (def >= 8) def = 7;
 
-    FLOAT const mult = game.constants.combatConstantsLoaded
+    float const mult = game.constants.combatConstantsLoaded
                      ? game.constants.damageBonus[atk][def]
                      : g_default_damage_table[atk][def];
-    FLOAT const armor_coefficient = game.constants.combatConstantsLoaded
+    float const armor_coefficient = game.constants.combatConstantsLoaded
                                   ? game.constants.defenseArmor
                                   : 0.06f;
-    FLOAT dmg = (FLOAT)base * mult;
-    FLOAT armor = G_UnitArmorValue(target);
+    float dmg = (float)base * mult;
+    float armor = G_UnitArmorValue(target);
     if (armor >= 0.0f)
         dmg = dmg / (1.0f + armor * armor_coefficient);
     else
@@ -265,7 +265,7 @@ static int attack_damage_type(LPEDICT attacker, LPEDICT target, int base, DWORD 
  * attacker returns to its stand (idle) state.  Otherwise, if the target is
  * able to attack back it issues an automatic counter-attack order. */
 void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
-    BOOL instant_kill;
+    bool instant_kill;
 
     if (!target || target->invulnerable || S_UnitIsCycloned(target) || M_IsDead(target)) {
         return;
@@ -280,7 +280,7 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
     if (instant_kill) damage = MAX(damage, (int)ceilf(target->health.value));
     if (damage <= 0) return;
     if (G_IsDestructable(target)) {
-        if (G_DestructableApplyDamage(target, attacker, (FLOAT)damage)) {
+        if (G_DestructableApplyDamage(target, attacker, (float)damage)) {
             attack_finish_after_combat(attacker, target);
         }
         return;
@@ -319,22 +319,22 @@ void T_Damage(LPEDICT target, LPEDICT attacker, int damage) {
 
 void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
     if (S_EvasionRoll(target)) return;
-    { FLOAT const miss = S_CurseMissChance(attacker); if (miss > 0.0f && (FLOAT)(rand() % 100) < miss * 100.0f) return; }
+    { float const miss = S_CurseMissChance(attacker); if (miss > 0.0f && (float)(rand() % 100) < miss * 100.0f) return; }
     S_HumanBreakInvisibility(attacker);
     S_PermanentInvisibilityReveal(attacker);
     damage = S_OrbAnnihilationDamage(attacker,
         S_SearingArrowDamage(attacker, S_BlackArrowDamage(attacker, S_CriticalStrikeDamage(attacker, damage))));
-    damage = (int)((FLOAT)damage * (1.0f + S_TrueshotAttackBonus(attacker) + S_CommandAuraAttackBonus(attacker) +
+    damage = (int)((float)damage * (1.0f + S_TrueshotAttackBonus(attacker) + S_CommandAuraAttackBonus(attacker) +
                                          S_WarDrumsAttackBonus(attacker) + S_RoarDamageBonus(attacker)
                                          - S_CrippleDamageReduction(attacker) - S_SoulBurnDamageReduction(attacker)));
     damage = S_HumanAttackDamage(attacker, target, damage);
     if (damage <= 0) return;
     { abilityAliasRef_t bash = S_ResolveAbilityAlias(attacker, MAKEFOURCC('A', 'H', 'b', 'h'));
-    if (bash.alias && bash.level && (FLOAT)(rand() % 100) < S_SpellData(bash.alias, bash.level, 1)) {
+    if (bash.alias && bash.level && (float)(rand() % 100) < S_SpellData(bash.alias, bash.level, 1)) {
         damage += (int)S_SpellData(bash.alias, bash.level, 3);
         unit_addtimedstatus(target, "Bstu", 1, S_SpellDuration(bash.alias, bash.level, false));
     } }
-    DWORD wind_level = G_UnitStatusLevel(attacker, MAKEFOURCC('B', 'O', 'w', 'k'));
+    uint32_t wind_level = G_UnitStatusLevel(attacker, MAKEFOURCC('B', 'O', 'w', 'k'));
     if (wind_level) {
         damage += (int)S_SpellData(MAKEFOURCC('A', 'O', 'w', 'k'), wind_level, 3);
         attacker->s.renderfx &= ~RF_HIDDEN;
@@ -350,12 +350,12 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
     S_CreepAttackOnHit(attacker, target);
     S_PulverizeAttack(attacker, target);
     S_HumanAttackSplash(attacker, target, damage);
-    { DWORD cleave_code = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','N','c','a')) ?
+    { uint32_t cleave_code = G_UnitAbilityLevel(attacker, MAKEFOURCC('A','N','c','a')) ?
             MAKEFOURCC('A','N','c','a') : MAKEFOURCC('A','C','c','e');
-    DWORD cleave_level = G_UnitAbilityLevel(attacker, cleave_code);
+    uint32_t cleave_level = G_UnitAbilityLevel(attacker, cleave_code);
     if (cleave_level) {
-        FLOAT radius = S_SpellNumber(cleave_code, ABILITY_NUMBER_AREA, cleave_level);
-        FLOAT fraction = S_SpellData(cleave_code, cleave_level, 1);
+        float radius = S_SpellNumber(cleave_code, ABILITY_NUMBER_AREA, cleave_level);
+        float fraction = S_SpellData(cleave_code, cleave_level, 1);
         FILTER_EDICTS(other, other != target && S_SpellIsAliveTarget(other) &&
                       S_SpellIsEnemy(attacker, other) &&
                       Vector2_distance(&other->s.origin2, &target->s.origin2) <= radius)
@@ -368,15 +368,15 @@ void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage) {
     S_PoisonOnHit(attacker, target);
     G_AddHealth(attacker, damage * S_VampiricLifeSteal(attacker));
     if (target->inuse) {
-        FLOAT thorns = S_ThornsDamageReturn(target, attacker, damage);
-        FLOAT spiked = S_SpikedDamageReturn(target, damage);
+        float thorns = S_ThornsDamageReturn(target, attacker, damage);
+        float spiked = S_SpikedDamageReturn(target, damage);
         if (thorns + spiked > 0.0f) T_Damage(attacker, target, (int)(thorns + spiked));
     }
 }
 
 
-static BOOL artillery_splash_target_allowed(LPEDICT attacker, LPEDICT target, DWORD mask, DWORD targets_allowed) {
-    DWORD flag;
+static bool artillery_splash_target_allowed(LPEDICT attacker, LPEDICT target, uint32_t mask, uint32_t targets_allowed) {
+    uint32_t flag;
 
     if (!attacker || !target || !target->inuse || target == attacker || M_IsDead(target)) return false;
     if (!mask) mask = targets_allowed;
@@ -393,7 +393,7 @@ static BOOL artillery_splash_target_allowed(LPEDICT attacker, LPEDICT target, DW
  * receive physical splash damage without multiplying orb/lifesteal/cleave. */
 void S_ResolveArtilleryPointHit(LPEDICT attacker, LPEDICT primary, LPCVECTOR2 impact, int raw_damage,
                                 struct edictArtillery_s const *profile) {
-    FLOAT max_radius;
+    float max_radius;
 
     if (!attacker || !impact || raw_damage <= 0) return;
     if (!profile) return;
@@ -401,8 +401,8 @@ void S_ResolveArtilleryPointHit(LPEDICT attacker, LPEDICT primary, LPCVECTOR2 im
     if (max_radius < 0.0f) return;
 
     FILTER_EDICTS(other, artillery_splash_target_allowed(attacker, other, profile->area_targets, profile->targets_allowed)) {
-        FLOAT const distance = MAX(0.0f, Vector2_distance(&other->s.origin2, impact) - MAX(0.0f, other->collision));
-        FLOAT factor;
+        float const distance = MAX(0.0f, Vector2_distance(&other->s.origin2, impact) - MAX(0.0f, other->collision));
+        float factor;
         int damage;
 
         if (distance <= profile->area_full) factor = 1.0f;
@@ -410,7 +410,7 @@ void S_ResolveArtilleryPointHit(LPEDICT attacker, LPEDICT primary, LPCVECTOR2 im
         else if (distance <= profile->area_small) factor = profile->factor_small;
         else continue;
         if (factor <= 0.0f) continue;
-        damage = attack_damage_type(attacker, other, (int)MAX(1.0f, (FLOAT)raw_damage * factor), profile->attack_type);
+        damage = attack_damage_type(attacker, other, (int)MAX(1.0f, (float)raw_damage * factor), profile->attack_type);
         if (other == primary) S_ResolveAttackHit(attacker, other, damage);
         else T_Damage(other, attacker, damage);
     }
@@ -434,7 +434,7 @@ void S_ResolveArtilleryHit(LPEDICT attacker, LPEDICT target, int raw_damage) {
     S_ResolveArtilleryPointHit(attacker, target, &impact, raw_damage, &profile);
 }
 
-static BOOL attack_animation_can_finish(LPCEDICT ent) {
+static bool attack_animation_can_finish(LPCEDICT ent) {
     return ent && ent->animation && ent->animation->interval[1] > ent->animation->interval[0];
 }
 
@@ -511,28 +511,28 @@ static void ai_ranged(LPEDICT ent) {
     unit_runwait(ent, throw_missile);
 }
 
-static FLOAT attack_minimum_range(LPCEDICT ent) {
+static float attack_minimum_range(LPCEDICT ent) {
     return ent && ent->data.UnitWeapons ? MAX(0.0f, ent->data.UnitWeapons->minimumAttackRange) : 0.0f;
 }
 
-static BOOL attack_target_too_close_for(LPCEDICT ent, LPCEDICT target) {
-    FLOAT const minimum = attack_minimum_range(ent);
+static bool attack_target_too_close_for(LPCEDICT ent, LPCEDICT target) {
+    float const minimum = attack_minimum_range(ent);
     if (!ent || !target || minimum <= 0.0f) return false;
     return Vector2_distance(&target->s.origin2, &ent->s.origin2) < minimum;
 }
 
-static BOOL attack_target_too_close(LPEDICT ent) {
+static bool attack_target_too_close(LPEDICT ent) {
     return ent && attack_target_too_close_for(ent, ent->goalentity);
 }
 
 static void attack_retreat_from_target(LPEDICT ent) {
     VECTOR2 dir;
-    FLOAT len;
+    float len;
 
     if (!ent || !ent->goalentity) return;
     dir = Vector2_sub(&ent->s.origin2, &ent->goalentity->s.origin2);
     len = Vector2_len(&dir);
-    if (len <= 0.001f) dir = MAKE(VECTOR2, cosf(ent->s.angle + (FLOAT)M_PI), sinf(ent->s.angle + (FLOAT)M_PI));
+    if (len <= 0.001f) dir = MAKE(VECTOR2, cosf(ent->s.angle + (float)M_PI), sinf(ent->s.angle + (float)M_PI));
     else { dir.x /= len; dir.y /= len; }
     ent->s.angle = atan2f(dir.y, dir.x);
     ent->movement.heading = ent->s.angle;
@@ -541,8 +541,8 @@ static void attack_retreat_from_target(LPEDICT ent) {
     unit_moveindirection(ent);
 }
 
-static BOOL attack_target_out_of_range_for(LPCEDICT ent, LPCEDICT target) {
-    FLOAT footprint, range, ensnare_range;
+static bool attack_target_out_of_range_for(LPCEDICT ent, LPCEDICT target) {
+    float footprint, range, ensnare_range;
 
     if (!ent || !target) return true;
 
@@ -558,7 +558,7 @@ static BOOL attack_target_out_of_range_for(LPCEDICT ent, LPCEDICT target) {
     return Vector2_distance(&target->s.origin2, &ent->s.origin2) > range;
 }
 
-static BOOL attack_target_out_of_range(LPEDICT ent) {
+static bool attack_target_out_of_range(LPEDICT ent) {
     return !ent || attack_target_out_of_range_for(ent, ent->goalentity);
 }
 
@@ -566,7 +566,7 @@ static BOOL attack_target_out_of_range(LPEDICT ent) {
  * something they can see but can never approach.  Mobile units still acquire
  * throughout uacq and chase normally; Hold Position keeps its separate
  * disable-chase lifecycle. */
-BOOL S_AttackCanAutoAcquire(LPCEDICT attacker, LPCEDICT target) {
+bool S_AttackCanAutoAcquire(LPCEDICT attacker, LPCEDICT target) {
     if (!S_AttackCanTarget(attacker, target)) return false;
     if ((attacker->aiflags & AI_IMMOBILE) &&
         (attack_target_out_of_range_for(attacker, target) || attack_target_too_close_for(attacker, target)))
@@ -649,7 +649,7 @@ void order_attack(LPEDICT self, LPEDICT target) {
 }
 
 /* Player orders replace retained movement; automatic acquisition keeps it so combat can resume Follow/Patrol. */
-BOOL S_OrderAttack(LPEDICT self, LPEDICT target) {
+bool S_OrderAttack(LPEDICT self, LPEDICT target) {
     if (!self || M_IsDead(self) || S_UnitIsCycloned(self) || S_GoldMineWorkerIsInside(self) ||
         !S_AttackCanTarget(self, target))
         return false;
@@ -661,18 +661,18 @@ BOOL S_OrderAttack(LPEDICT self, LPEDICT target) {
     return true;
 }
 
-static FLOAT attack_speed_divisor(LPEDICT self) {
-    FLOAT const agi_bonus = game.constants.combatConstantsLoaded
+static float attack_speed_divisor(LPEDICT self) {
+    float const agi_bonus = game.constants.combatConstantsLoaded
                           ? game.constants.agiAttackSpeedBonus
                           : 0.02f;
-    FLOAT total_bonus = (FLOAT)self->hero.agi * agi_bonus + S_BloodlustAttackBonus(self)
+    float total_bonus = (float)self->hero.agi * agi_bonus + S_BloodlustAttackBonus(self)
                       + S_FrenzyAttackBonus(self) + S_UnholyFrenzyAttackBonus(self)
                       - S_CrippleAttackReduction(self) - S_SlowPoisonAttackReduction(self)
                       - S_DefendAttackReduction(self) - S_CreepAttackSpeedReduction(self) - S_SlowAuraAttackReduction(self);
     if (S_AuraUnitActive(self)) {
         FOR_LOOP(i, globals.num_edicts) {
             LPEDICT aura = g_edicts + i;
-            DWORD level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
+            uint32_t level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
             abilityLevel_t const *ability_level;
             if (!S_AuraUnitActive(aura) || !level || !S_SpellIsFriend(aura, self)) continue;
             ability_level = G_AbilityLevel(MAKEFOURCC('A', 'O', 'a', 'e'), level);
@@ -688,7 +688,7 @@ static FLOAT attack_speed_divisor(LPEDICT self) {
 }
 
 void attack_melee_cooldown(LPEDICT self) {
-    FLOAT divisor = attack_speed_divisor(self);
+    float divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_melee_cooldown);
     self->wait = MAX(0.0f, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
     /* Burrow cargo can reduce the authored cooldown below damagePoint.  A zero
@@ -699,21 +699,21 @@ void attack_melee_cooldown(LPEDICT self) {
 }
 
 void attack_melee(LPEDICT self) {
-    FLOAT divisor = attack_speed_divisor(self);
+    float divisor = attack_speed_divisor(self);
     S_PermanentInvisibilityReveal(self);
     unit_setmove(self, &attack_move_melee);
     self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
 }
 
 void attack_ranged_cooldown(LPEDICT self) {
-    FLOAT divisor = attack_speed_divisor(self);
+    float divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_ranged_cooldown);
     self->wait = MAX(0.0f, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
     if (self->wait <= 0.0f) attack_ranged(self);
 }
 
 void attack_ranged(LPEDICT self) {
-    FLOAT divisor = attack_speed_divisor(self);
+    float divisor = attack_speed_divisor(self);
     S_PermanentInvisibilityReveal(self);
     unit_setmove(self, &attack_move_ranged);
     self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
@@ -724,22 +724,22 @@ void attack_ranged(LPEDICT self) {
  * clicked point authoritative, walks a mobile siege unit into its normal
  * min/max range band, and snapshots that same point into each projectile at
  * the damage point. */
-static BOOL attack_ground_valid(LPCEDICT ent) {
+static bool attack_ground_valid(LPCEDICT ent) {
     return ent && ent->inuse && !M_IsDead((LPEDICT)ent) && S_UnitAttackSlotEnabled(ent, 0) && ent->attack1.type != ATK_NONE &&
            ent->attack1.weapon == WPN_ARTILLERY && !S_UnitIsCycloned(ent) &&
            S_HumanCanAttack(ent) && S_CargoAttacksEnabled(ent);
 }
 
-static FLOAT attack_ground_distance(LPCEDICT ent) {
+static float attack_ground_distance(LPCEDICT ent) {
     return ent ? Vector2_distance(&ent->s.origin2, &ent->channel.origin) : FLT_MAX;
 }
 
-static BOOL attack_ground_out_of_range(LPCEDICT ent) {
+static bool attack_ground_out_of_range(LPCEDICT ent) {
     return !ent || attack_ground_distance(ent) > ent->attack1.range;
 }
 
-static BOOL attack_ground_too_close(LPCEDICT ent) {
-    FLOAT const minimum = attack_minimum_range(ent);
+static bool attack_ground_too_close(LPCEDICT ent) {
+    float const minimum = attack_minimum_range(ent);
     return ent && minimum > 0.0f && attack_ground_distance(ent) < minimum;
 }
 
@@ -816,21 +816,21 @@ static void attack_ground_walk(LPEDICT ent) {
 }
 
 static void attack_ground_cooldown(LPEDICT ent) {
-    FLOAT divisor = attack_speed_divisor(ent);
+    float divisor = attack_speed_divisor(ent);
     unit_setmove(ent, &attack_ground_move_cooldown);
     ent->wait = MAX(0.0f, (ent->attack1.cooldown - ent->attack1.damagePoint) / divisor);
     if (ent->wait <= 0.0f) attack_ground_ranged(ent);
 }
 
 static void attack_ground_ranged(LPEDICT ent) {
-    FLOAT divisor = attack_speed_divisor(ent);
+    float divisor = attack_speed_divisor(ent);
     S_PermanentInvisibilityReveal(ent);
     unit_setmove(ent, &attack_ground_move_ranged);
     ent->wait = ent->attack1.damagePoint / divisor;
     if (ent->sound.attack) G_PlaySound(NULL, ent, CHAN_WEAPON, ent->sound.attack, 1.0f, 1.0f, 0.0f);
 }
 
-BOOL S_OrderAttackGround(LPEDICT unit, LPCVECTOR2 point) {
+bool S_OrderAttackGround(LPEDICT unit, LPCVECTOR2 point) {
     LPEDICT waypoint;
 
     if (!unit || !point || !attack_ground_valid(unit) || S_GoldMineWorkerIsInside(unit) ||
@@ -849,9 +849,9 @@ BOOL S_OrderAttackGround(LPEDICT unit, LPCVECTOR2 point) {
     return true;
 }
 
-BOOL attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
-    BOOL destructable = G_DestructableIsAttackable(target);
-    BOOL issued = false;
+bool attack_menu_selecttarget(LPEDICT ent, LPEDICT target) {
+    bool destructable = G_DestructableIsAttackable(target);
+    bool issued = false;
 
     /* Explicit Attack may force-fire on friendly units and buildings.  Smart
      * right-click attack selection remains enemy-only. */
@@ -882,8 +882,8 @@ static void ai_attackmove_walk(LPEDICT ent) {
         }
     }
 
-    FLOAT distance = M_DistanceToGoal(ent);
-    FLOAT move_distance = unit_movedistance(ent);
+    float distance = M_DistanceToGoal(ent);
+    float move_distance = unit_movedistance(ent);
 
     if (!S_UnitCanTranslate(ent)) return;
     if (move_should_arrive(ent, move_distance)) {
@@ -919,8 +919,8 @@ void order_attackmove(LPEDICT self, LPEDICT waypoint) {
     unit_setmove(self, &attackmove_move_walk);
 }
 
-static BOOL attackmove_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
-    BOOL any = false;
+static bool attackmove_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
+    bool any = false;
 
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
         VECTOR2 target = *location;
@@ -948,8 +948,8 @@ BZ_COMMAND_PROC(AbilityAttack) {
     clent->client->menu.supports_order_queue = true;
 }
 
-static BOOL attack_ground_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
-    BOOL any = false;
+static bool attack_ground_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
+    bool any = false;
 
     if (!clent || !clent->client || !location) return false;
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {

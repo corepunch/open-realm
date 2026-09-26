@@ -8,20 +8,20 @@
 /* These values are only fallbacks when the active Warcraft data omits the
  * corresponding Misc fields. Stock data remains authoritative when present. */
 typedef struct {
-    LPCSTR name;
+    cstring_t name;
     COLOR32 fallback_color;
-    FLOAT fallback_lifetime;   /* seconds */
-    FLOAT fallback_fade_start; /* seconds */
-    FLOAT fallback_height;     /* WC3 UI units */
+    float fallback_lifetime;   /* seconds */
+    float fallback_fade_start; /* seconds */
+    float fallback_height;     /* WC3 UI units */
 } resourceTextStyle_t;
 
-static BYTE resource_text_byte(int value) {
-    return (BYTE)MAX(0, MIN(255, value));
+static uint8_t resource_text_byte(int value) {
+    return (uint8_t)MAX(0, MIN(255, value));
 }
 
 /* Warcraft Misc *TextColor fields are authored as alpha, red, green, blue. */
-static COLOR32 resource_text_color(LPCSTR field, COLOR32 fallback) {
-    LPCSTR value = Stb_IniCacheFind(&game.config.misc, "Misc", field);
+static COLOR32 resource_text_color(cstring_t field, COLOR32 fallback) {
+    cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", field);
     int a, r, g, b;
 
     if (!value || sscanf(value, "%d,%d,%d,%d", &a, &r, &g, &b) != 4)
@@ -31,17 +31,17 @@ static COLOR32 resource_text_color(LPCSTR field, COLOR32 fallback) {
         resource_text_byte(b), resource_text_byte(a));
 }
 
-static FLOAT resource_text_float(LPCSTR field, FLOAT fallback) {
-    LPCSTR value = Stb_IniCacheFind(&game.config.misc, "Misc", field);
-    return value && *value ? (FLOAT)atof(value) : fallback;
+static float resource_text_float(cstring_t field, float fallback) {
+    cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", field);
+    return value && *value ? (float)atof(value) : fallback;
 }
 
-static DWORD resource_text_color_bits(COLOR32 color) {
-    return (DWORD)color.r | ((DWORD)color.g << 8) |
-           ((DWORD)color.b << 16) | ((DWORD)color.a << 24);
+static uint32_t resource_text_color_bits(COLOR32 color) {
+    return (uint32_t)color.r | ((uint32_t)color.g << 8) |
+           ((uint32_t)color.b << 16) | ((uint32_t)color.a << 24);
 }
 
-static BOOL resource_text_style(DWORD resource_state, resourceTextStyle_t *style) {
+static bool resource_text_style(uint32_t resource_state, resourceTextStyle_t *style) {
     if (!style) return false;
     switch (resource_state) {
         case PLAYERSTATE_RESOURCE_GOLD:
@@ -65,14 +65,14 @@ static BOOL resource_text_style(DWORD resource_state, resourceTextStyle_t *style
     }
 }
 
-void G_ResourceGainEvent(LPEDICT source, DWORD resource_state, LONG amount) {
+void G_ResourceGainEvent(LPEDICT source, uint32_t resource_state, int32_t amount) {
     resourceTextStyle_t style;
     char field[64], text[32];
     VECTOR3 origin;
     COLOR32 color;
-    FLOAT lifetime, fade_start, height;
-    DWORD color_bits, lifetime_ms, fade_start_ms, font_size;
-    LONG font;
+    float lifetime, fade_start, height;
+    uint32_t color_bits, lifetime_ms, fade_start_ms, font_size;
+    int32_t font;
 
     if (!source || amount <= 0 || !resource_text_style(resource_state, &style)) return;
     if (!gi.Write || !gi.multicast || !gi.FontIndex) return;
@@ -88,9 +88,9 @@ void G_ResourceGainEvent(LPEDICT source, DWORD resource_state, LONG amount) {
 
     if (lifetime <= 0.0f || height <= 0.0f) return;
     fade_start = MAX(0.0f, MIN(fade_start, lifetime));
-    lifetime_ms = (DWORD)(lifetime * 1000.0f + 0.5f);
-    fade_start_ms = (DWORD)(fade_start * 1000.0f + 0.5f);
-    font_size = (DWORD)MAX(1.0f, height * RESOURCE_TEXT_FONT_SCALE + 0.5f);
+    lifetime_ms = (uint32_t)(lifetime * 1000.0f + 0.5f);
+    fade_start_ms = (uint32_t)(fade_start * 1000.0f + 0.5f);
+    font_size = (uint32_t)MAX(1.0f, height * RESOURCE_TEXT_FONT_SCALE + 0.5f);
     font = gi.FontIndex(Theme_String("MasterFont", "Fonts\\FRIZQT__.TTF"), font_size);
     if (font <= 0 || font >= MAX_FONTSTYLES) return;
 
@@ -99,16 +99,16 @@ void G_ResourceGainEvent(LPEDICT source, DWORD resource_state, LONG amount) {
     origin.z += RESOURCE_TEXT_WORLD_Z_OFFSET;
     color_bits = resource_text_color_bits(color);
 
-    gi.Write(PF_BYTE, &(LONG){ svc_temp_entity });
-    gi.Write(PF_BYTE, &(LONG){ TE_FLOATING_TEXT });
+    gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });
+    gi.Write(PF_BYTE, &(int32_t){ TE_FLOATING_TEXT });
     gi.Write(PF_POSITION, &origin);
     gi.Write(PF_STRING, text);
-    gi.Write(PF_LONG, &(LONG){ (LONG)color_bits });
+    gi.Write(PF_LONG, &(int32_t){ (int32_t)color_bits });
     gi.Write(PF_SHORT, &font);
-    gi.Write(PF_LONG, &(LONG){ (LONG)lifetime_ms });
-    gi.Write(PF_LONG, &(LONG){ (LONG)fade_start_ms });
-    gi.Write(PF_FLOAT, &(FLOAT){ RESOURCE_TEXT_VELOCITY_X });
-    gi.Write(PF_FLOAT, &(FLOAT){ RESOURCE_TEXT_VELOCITY_Y });
+    gi.Write(PF_LONG, &(int32_t){ (int32_t)lifetime_ms });
+    gi.Write(PF_LONG, &(int32_t){ (int32_t)fade_start_ms });
+    gi.Write(PF_FLOAT, &(float){ RESOURCE_TEXT_VELOCITY_X });
+    gi.Write(PF_FLOAT, &(float){ RESOURCE_TEXT_VELOCITY_Y });
 
     /* Current Warsmash accepts a player index for resource tags but drops it
      * before rendering, so this parity path intentionally has no owner filter. */

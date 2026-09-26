@@ -36,8 +36,8 @@ typedef struct LocalMultiplayerCreate_s {
 } LocalMultiplayerCreate_t;
 
 
-static inline BOOL LocalMultiplayerCreate_Bind(LocalMultiplayerCreate_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool LocalMultiplayerCreate_Bind(LocalMultiplayerCreate_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -77,7 +77,7 @@ static inline BOOL LocalMultiplayerCreate_Bind(LocalMultiplayerCreate_t *out, LP
     return ok;
 }
 
-static inline BOOL LocalMultiplayerCreate_Load(LocalMultiplayerCreate_t *out) {
+static inline bool LocalMultiplayerCreate_Load(LocalMultiplayerCreate_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
            UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") &&

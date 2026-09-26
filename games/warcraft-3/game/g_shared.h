@@ -90,9 +90,9 @@ typedef enum {
 } unitRace_t;
 
 typedef struct {
-    LPCSTR name;
+    cstring_t name;
     unitRace_t race;
-    LONG jass_value;
+    int32_t jass_value;
 } wc3RaceName_t;
 
 static wc3RaceName_t const wc3_race_names[] = {
@@ -104,7 +104,7 @@ static wc3RaceName_t const wc3_race_names[] = {
 };
 
 /* Resolve authored WC3 race names through one shared table used by game/UI code. */
-static inline unitRace_t WC3_RaceFromString(LPCSTR name) {
+static inline unitRace_t WC3_RaceFromString(cstring_t name) {
     if (!name) return RACE_UNKNOWN;
     FOR_LOOP(i, sizeof(wc3_race_names) / sizeof(*wc3_race_names))
         if (!strcasecmp(name, wc3_race_names[i].name)) return wc3_race_names[i].race;
@@ -112,7 +112,7 @@ static inline unitRace_t WC3_RaceFromString(LPCSTR name) {
 }
 
 /* UnitData race names and the JASS race enum use related but distinct values. */
-static inline LONG WC3_JassRaceFromString(LPCSTR name) {
+static inline int32_t WC3_JassRaceFromString(cstring_t name) {
     if (!name) return 0;
     FOR_LOOP(i, sizeof(wc3_race_names) / sizeof(*wc3_race_names))
         if (!strcasecmp(name, wc3_race_names[i].name)) return wc3_race_names[i].jass_value;

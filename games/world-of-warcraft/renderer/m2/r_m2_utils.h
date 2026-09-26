@@ -10,7 +10,7 @@
 
 typedef struct {
     uint16_t track_type, loop_index;
-    BOOL classic;
+    bool classic;
     m2Array_t ranges, sequence_times, sequence_keys;
 } m2TrackView_t;
 
@@ -33,33 +33,33 @@ typedef enum {
 
 typedef struct {
     m2Format_t format;
-    DWORD sequence_stride, bone_stride, attachment_stride, camera_stride, particle_stride, ribbon_stride;
+    uint32_t sequence_stride, bone_stride, attachment_stride, camera_stride, particle_stride, ribbon_stride;
 } m2FormatDef_t;
 
 
 typedef struct {
-    FLOAT value[3], midpoint, lifespan;
+    float value[3], midpoint, lifespan;
 } M2PARTICLECURVE;
 typedef M2PARTICLECURVE *LPM2PARTICLECURVE;
 typedef M2PARTICLECURVE const *LPCM2PARTICLECURVE;
 
 typedef struct {
     void const *owner;
-    DWORD appearance, equipment, display_id, used;
-    BOOL occupied;
+    uint32_t appearance, equipment, display_id, used;
+    bool occupied;
 } m2CompositeCacheKey_t;
 
 typedef struct {
     m2CompositeCacheKey_t *keys;
-    DWORD count;
+    uint32_t count;
     m2CompositeCacheKey_t wanted;
-    LPDWORD clock;
-    BOOL hit;
+    uint32_t * clock;
+    bool hit;
 } m2CompositeCacheParams_t;
 
 /* Character atlas cache hits refresh recency; misses consume an empty slot before evicting the oldest entry. */
-static DWORD m2_composite_cache_slot(m2CompositeCacheParams_t *params) {
-    DWORD victim = 0, oldest = 0xffffffffu, stamp = ++*params->clock;
+static uint32_t m2_composite_cache_slot(m2CompositeCacheParams_t *params) {
+    uint32_t victim = 0, oldest = 0xffffffffu, stamp = ++*params->clock;
     if (!stamp) stamp = ++*params->clock;
     params->hit = false;
     FOR_LOOP(i, params->count) {
@@ -79,11 +79,11 @@ static DWORD m2_composite_cache_slot(m2CompositeCacheParams_t *params) {
 static void m2_particle_encode_curve(LPCM2PARTICLECURVE curve, cparticle_t *particle) {
     particle->lifespan = curve->lifespan;
     R_EncodeParticleSize(particle, curve->value);
-    particle->midtime = (BYTE)MIN(254, MAX(1, (int)(curve->midpoint * 255.0f + 0.5f)));
+    particle->midtime = (uint8_t)MIN(254, MAX(1, (int)(curve->midpoint * 255.0f + 0.5f)));
 }
 
 /* One version convention controls every versioned record family. */
-static m2FormatDef_t const *m2_format_def(DWORD version) {
+static m2FormatDef_t const *m2_format_def(uint32_t version) {
     static m2FormatDef_t const formats[] = {
         { M2_FORMAT_CLASSIC, sizeof(m2SequenceClassic_t), sizeof(m2CompBoneClassic_t),
           sizeof(m2AttachmentClassic_t), sizeof(m2CameraClassic_t), sizeof(m2ParticleClassic_t),
@@ -94,7 +94,7 @@ static m2FormatDef_t const *m2_format_def(DWORD version) {
     return &formats[version <= 263 ? M2_FORMAT_CLASSIC : M2_FORMAT_MODERN];
 }
 
-static BOOL m2_path_has_extension(LPCSTR path, LPCSTR extension) {
+static bool m2_path_has_extension(cstring_t path, cstring_t extension) {
     size_t path_len, ext_len;
     if (!path || !extension) return false;
     path_len = strlen(path); ext_len = strlen(extension);
@@ -102,8 +102,8 @@ static BOOL m2_path_has_extension(LPCSTR path, LPCSTR extension) {
 }
 
 /* Classic male CharSections hair rows omit strings; their archive contract derives the color texture from the race directory. */
-static BOOL m2_classic_hair_texture_path(LPCSTR model_path, DWORD color, PATHSTR out) {
-    LPCSTR character, race, end;
+static bool m2_classic_hair_texture_path(cstring_t model_path, uint32_t color, PATHSTR out) {
+    cstring_t character, race, end;
     if (!model_path || !out) return false;
     character = strcasestr(model_path, "Character\\");
     if (!character) character = strcasestr(model_path, "Character/");
@@ -115,33 +115,33 @@ static BOOL m2_classic_hair_texture_path(LPCSTR model_path, DWORD color, PATHSTR
 }
 
 /* Validate the complete indirect skin range before the renderer's vertex copy loop starts. */
-static BOOL m2_validate_skin_vertex_range(WORD const *skin_vertices, DWORD skin_vertex_count,
-                                          WORD const *skin_indices, DWORD skin_index_count,
-                                          DWORD vertex_count, DWORD index_start, DWORD index_count) {
+static bool m2_validate_skin_vertex_range(uint16_t const *skin_vertices, uint32_t skin_vertex_count,
+                                          uint16_t const *skin_indices, uint32_t skin_index_count,
+                                          uint32_t vertex_count, uint32_t index_start, uint32_t index_count) {
     if (!skin_vertices || !skin_indices || index_start > skin_index_count ||
         index_count > skin_index_count - index_start) return false;
     FOR_LOOP(i, index_count) {
-        DWORD vertex_lookup = skin_indices[index_start + i];
+        uint32_t vertex_lookup = skin_indices[index_start + i];
         if (vertex_lookup >= skin_vertex_count || skin_vertices[vertex_lookup] >= vertex_count) return false;
     }
     return true;
 }
 
 
-static BYTE const *m2_find_chunk(BYTE const *data, DWORD size, DWORD fourcc, LPDWORD chunk_size) {
-    DWORD offset = 0;
+static uint8_t const *m2_find_chunk(uint8_t const *data, uint32_t size, uint32_t fourcc, uint32_t * chunk_size) {
+    uint32_t offset = 0;
     while (offset + 8 <= size) {
-        DWORD current_size;
+        uint32_t current_size;
         memcpy(&current_size, data + offset + 4, sizeof(current_size));
         if ((offset += 8) + current_size > size) break;
-        if (*(DWORD const *)(data + offset - 8) == fourcc) { *chunk_size = current_size; return data + offset; }
+        if (*(uint32_t const *)(data + offset - 8) == fourcc) { *chunk_size = current_size; return data + offset; }
         offset += current_size;
     }
     return NULL;
 }
 
-static BOOL m2_copy_with_extension(LPCSTR path, LPCSTR extension, LPSTR out, DWORD out_size) {
-    LPCSTR dot;
+static bool m2_copy_with_extension(cstring_t path, cstring_t extension, string_t out, uint32_t out_size) {
+    cstring_t dot;
     size_t stem_len;
     if (!path || !extension || !out || !out_size) return false;
     dot = strrchr(path, '.'); stem_len = dot ? (size_t)(dot - path) : strlen(path);
@@ -151,21 +151,21 @@ static BOOL m2_copy_with_extension(LPCSTR path, LPCSTR extension, LPSTR out, DWO
 }
 
 /* All file arrays remain offsets until a bounded consumer requests a pointer. */
-static BOOL m2_array_range(m2Array_t array, DWORD elem_size, DWORD file_size, LPDWORD offset, LPDWORD bytes) {
-    if (array.size <= 0 || array.offset < 0 || !elem_size || (DWORD)array.size > ~(DWORD)0 / elem_size) return false;
-    *offset = (DWORD)array.offset; *bytes = (DWORD)array.size * elem_size;
+static bool m2_array_range(m2Array_t array, uint32_t elem_size, uint32_t file_size, uint32_t * offset, uint32_t * bytes) {
+    if (array.size <= 0 || array.offset < 0 || !elem_size || (uint32_t)array.size > ~(uint32_t)0 / elem_size) return false;
+    *offset = (uint32_t)array.offset; *bytes = (uint32_t)array.size * elem_size;
     return *offset <= file_size && *bytes <= file_size - *offset;
 }
 
-static void *m2_array_ptr(BYTE const *base, DWORD file_size, m2Array_t array, DWORD elem_size) {
-    DWORD offset, bytes;
+static void *m2_array_ptr(uint8_t const *base, uint32_t file_size, m2Array_t array, uint32_t elem_size) {
+    uint32_t offset, bytes;
     return m2_array_range(array, elem_size, file_size, &offset, &bytes) ? (void *)(base + offset) : NULL;
 }
 
-static LPCSTR m2_string_ptr(BYTE const *base, DWORD file_size, m2Array_t array) {
-    DWORD offset, bytes;
+static cstring_t m2_string_ptr(uint8_t const *base, uint32_t file_size, m2Array_t array) {
+    uint32_t offset, bytes;
     if (!m2_array_range(array, 1, file_size, &offset, &bytes) || !memchr(base + offset, 0, bytes)) return NULL;
-    return (LPCSTR)(base + offset);
+    return (cstring_t)(base + offset);
 }
 
 static m2TrackView_t m2_modern_track(m2Track_t const *track) {
@@ -196,7 +196,7 @@ static m2TrackView_t m2_particle_track(m2FormatDef_t const *format, void const *
     return m2_modern_track(tracks[type]);
 }
 
-static m2PartTrack_t const *m2_particle_part_track(m2FormatDef_t const *format, void const *raw, DWORD index) {
+static m2PartTrack_t const *m2_particle_part_track(m2FormatDef_t const *format, void const *raw, uint32_t index) {
     m2Particle_t const *p = raw;
     if (format->format == M2_FORMAT_CLASSIC || index > 2) return NULL;
     return index == 0 ? &p->color_track : index == 1 ? &p->alpha_track : &p->scale_track;
@@ -215,38 +215,38 @@ static m2TrackView_t m2_ribbon_track(m2FormatDef_t const *format, void const *ra
     return m2_modern_track(tracks[type]);
 }
 
-static FLOAT m2_ribbon_edges_per_second(m2FormatDef_t const *format, void const *raw) {
+static float m2_ribbon_edges_per_second(m2FormatDef_t const *format, void const *raw) {
     return format->format == M2_FORMAT_CLASSIC ? ((m2RibbonClassic_t const *)raw)->edges_per_second
                                                : ((m2Ribbon_t const *)raw)->edges_per_second;
 }
 
-static FLOAT m2_ribbon_edge_lifetime(m2FormatDef_t const *format, void const *raw) {
+static float m2_ribbon_edge_lifetime(m2FormatDef_t const *format, void const *raw) {
     return format->format == M2_FORMAT_CLASSIC ? ((m2RibbonClassic_t const *)raw)->edge_lifetime
                                                : ((m2Ribbon_t const *)raw)->edge_lifetime;
 }
 
-static FLOAT m2_ribbon_gravity(m2FormatDef_t const *format, void const *raw) {
+static float m2_ribbon_gravity(m2FormatDef_t const *format, void const *raw) {
     return format->format == M2_FORMAT_CLASSIC ? ((m2RibbonClassic_t const *)raw)->gravity
                                                : ((m2Ribbon_t const *)raw)->gravity;
 }
 
-static WORD m2_ribbon_rows(m2FormatDef_t const *format, void const *raw) {
+static uint16_t m2_ribbon_rows(m2FormatDef_t const *format, void const *raw) {
     return format->format == M2_FORMAT_CLASSIC ? ((m2RibbonClassic_t const *)raw)->texture_rows
                                                : ((m2Ribbon_t const *)raw)->texture_rows;
 }
 
-static WORD m2_ribbon_cols(m2FormatDef_t const *format, void const *raw) {
+static uint16_t m2_ribbon_cols(m2FormatDef_t const *format, void const *raw) {
     return format->format == M2_FORMAT_CLASSIC ? ((m2RibbonClassic_t const *)raw)->texture_cols
                                                : ((m2Ribbon_t const *)raw)->texture_cols;
 }
 
 /* Vanilla inserts extra header fields, so its render flags do not occupy the modern materials slot. */
-static m2Array_t m2_material_array(m2Array_t modern, m2Array_t legacy, BOOL legacy_header) {
+static m2Array_t m2_material_array(m2Array_t modern, m2Array_t legacy, bool legacy_header) {
     return legacy_header ? legacy : modern;
 }
 
 /* WoW M2 blend IDs are ordered differently from the shared engine enum. */
-static BLEND_MODE m2_blend_mode(WORD wow_blend) {
+static BLEND_MODE m2_blend_mode(uint16_t wow_blend) {
     static BLEND_MODE const modes[] = {
         BLEND_MODE_NONE, BLEND_MODE_ALPHAKEY, BLEND_MODE_BLEND, BLEND_MODE_ADD,
         BLEND_MODE_ADDALPHA, BLEND_MODE_MODULATE, BLEND_MODE_MODULATE_2X
@@ -255,58 +255,58 @@ static BLEND_MODE m2_blend_mode(WORD wow_blend) {
 }
 
 /* The shared particle renderer's legacy ADD names are opposite WoW's modes 3/4; adapt M2 without changing MDX. */
-static BLEND_MODE m2_particle_blend_mode(WORD wow_blend) {
+static BLEND_MODE m2_particle_blend_mode(uint16_t wow_blend) {
     BLEND_MODE mode = m2_blend_mode(wow_blend);
     return mode == BLEND_MODE_ADD ? BLEND_MODE_ADDALPHA :
            mode == BLEND_MODE_ADDALPHA ? BLEND_MODE_ADD : mode;
 }
 
 /* M2 stores cone inclination and azimuth ranges in radians around the authored +Z launch axis. */
-static VECTOR3 m2_particle_direction(FLOAT vertical_range, FLOAT horizontal_range, VECTOR2 random) {
-    FLOAT phi = (random.x + 1.0f) * 0.5f * MAX(0.0f, vertical_range);
-    FLOAT theta = random.y * 0.5f * horizontal_range;
+static VECTOR3 m2_particle_direction(float vertical_range, float horizontal_range, VECTOR2 random) {
+    float phi = (random.x + 1.0f) * 0.5f * MAX(0.0f, vertical_range);
+    float theta = random.y * 0.5f * horizontal_range;
     return (VECTOR3){ sinf(phi) * cosf(theta), sinf(phi) * sinf(theta), cosf(phi) };
 }
 
-static DWORD m2_read32(BYTE const *p) {
-    return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
+static uint32_t m2_read32(uint8_t const *p) {
+    return ((uint32_t)p[0]) | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
 
 /* CharSections keeps ten columns in both layouts, so field-4 values identify which schema the mounted DBC uses. */
-static m2CharSectionsLayout_t m2_char_sections_layout(BYTE const *records, DWORD count, DWORD stride) {
-    DWORD large = 0, small = 0;
-    if (!records || !count || stride < 10 * sizeof(DWORD)) return M2_CHAR_SECTIONS_INVALID;
+static m2CharSectionsLayout_t m2_char_sections_layout(uint8_t const *records, uint32_t count, uint32_t stride) {
+    uint32_t large = 0, small = 0;
+    if (!records || !count || stride < 10 * sizeof(uint32_t)) return M2_CHAR_SECTIONS_INVALID;
     FOR_LOOP(i, MIN(count, 20u))
-        if (m2_read32(records + i * stride + 4 * sizeof(DWORD)) > 50) large++;
+        if (m2_read32(records + i * stride + 4 * sizeof(uint32_t)) > 50) large++;
         else small++;
     return large > small ? M2_CHAR_SECTIONS_TEXTURE_FIRST : M2_CHAR_SECTIONS_VARIATION_FIRST;
 }
 
 /* Classic and later ItemDisplayInfo schemas place component textures one field apart. */
-static DWORD m2_item_display_texture_base(DWORD fields) { return fields >= 25 ? 15 : fields >= 22 ? 14 : 0; }
+static uint32_t m2_item_display_texture_base(uint32_t fields) { return fields >= 25 ? 15 : fields >= 22 ? 14 : 0; }
 
 static void m2_blend_pixel(LPCOLOR32 dst, COLOR32 src) {
-    DWORD inv;
+    uint32_t inv;
     if (src.a == 0) return;
     if (src.a >= 250) { *dst = src; return; }
     inv = 255 - src.a;
-    dst->b = (BYTE)((src.b * src.a + dst->b * inv) / 255);
-    dst->g = (BYTE)((src.g * src.a + dst->g * inv) / 255);
-    dst->r = (BYTE)((src.r * src.a + dst->r * inv) / 255);
-    dst->a = (BYTE)MIN(255, src.a + (dst->a * inv) / 255);
+    dst->b = (uint8_t)((src.b * src.a + dst->b * inv) / 255);
+    dst->g = (uint8_t)((src.g * src.a + dst->g * inv) / 255);
+    dst->r = (uint8_t)((src.r * src.a + dst->r * inv) / 255);
+    dst->a = (uint8_t)MIN(255, src.a + (dst->a * inv) / 255);
 }
 
-static void m2_paste_component(LPCOLOR32 dst, DWORD dst_width, DWORD dst_height,
-                               LPCOLOR32 src, DWORD src_width, DWORD src_height,
-                               DWORD x, DWORD y, DWORD w, DWORD h) {
+static void m2_paste_component(LPCOLOR32 dst, uint32_t dst_width, uint32_t dst_height,
+                               LPCOLOR32 src, uint32_t src_width, uint32_t src_height,
+                               uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
     if (!dst || !src || !dst_width || !dst_height || !src_width || !src_height ||
         x >= dst_width || y >= dst_height) return;
     w = MIN(w, dst_width - x);
     h = MIN(h, dst_height - y);
     FOR_LOOP(row, h) {
-        DWORD src_y = row * src_height / h;
+        uint32_t src_y = row * src_height / h;
         FOR_LOOP(col, w) {
-            DWORD src_x = col * src_width / w;
+            uint32_t src_x = col * src_width / w;
             m2_blend_pixel(&dst[(y + row) * dst_width + x + col], src[src_y * src_width + src_x]);
         }
     }

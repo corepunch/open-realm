@@ -5,7 +5,7 @@
 #define BZ_ASPL MAKEFOURCC('A', 's', 'p', 'l') // rawcode; Spirit Link
 #define BZ_BSPL MAKEFOURCC('B', 's', 'p', 'l') // rawcode; Spirit Link buff
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -173,7 +173,7 @@ TEST(wc3_spell, spirit_link_clicked_target_linked_in_crowd) {
 TEST(wc3_spell, spirit_link_prefers_closer_late_allies) {
     SPLFIX fix;
     LPEDICT click, near1, near2;
-    DWORD linked = 0;
+    uint32_t linked = 0;
     spl_setup(&fix);
     click = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 200, 0);
     click->s.player = 0; click->svflags |= SVF_MONSTER; click->targtype = TARG_GROUND;
@@ -221,7 +221,7 @@ TEST(wc3_spell, spirit_link_order_independent_nearest) {
 TEST(wc3_spell, spirit_link_exact_count_excludes_dead_and_far) {
     SPLFIX fix;
     LPEDICT dead;
-    DWORD linked = 0;
+    uint32_t linked = 0;
     spl_setup(&fix);
     dead = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 20, 0);
     dead->s.player = 0; dead->svflags |= SVF_MONSTER; dead->targtype = TARG_GROUND;
@@ -262,7 +262,7 @@ TEST(wc3_spell, spirit_link_zero_and_single_target_counts) {
         "C;Y2;X8;K\"20\"\nC;Y2;X9;K\"20\"\nC;Y2;X10;K\"300\"\n"
         "C;Y2;X11;K\"0.25\"\nC;Y2;X12;K\"1\"\nC;Y2;X13;K\"Bspl\"\nC;Y2;X14;K\"0\"\nE\n";
     SPLFIX fix;
-    DWORD linked;
+    uint32_t linked;
     spl_setup(&fix);
     G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows);
     fix.rows = parse_slk_string(slk_zero); fix.old = G_SetSLKRows("AbilityData", fix.rows);

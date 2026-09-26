@@ -2,19 +2,19 @@
 
 /* Retail Smart-click acknowledgement uses the same selection-circle palette
  * as unit relationship presentation. UI\MiscData.txt stores these as A,R,G,B. */
-COLOR32 G_SmartTargetIndicatorColor(DWORD viewer, LPCEDICT unit) {
-    static LPCSTR const keys[] = { "ColorFriend", "ColorNeutral", "ColorEnemy" };
+COLOR32 G_SmartTargetIndicatorColor(uint32_t viewer, LPCEDICT unit) {
+    static cstring_t const keys[] = { "ColorFriend", "ColorNeutral", "ColorEnemy" };
     static COLOR32 const stock[] = {
         MAKE(COLOR32, .r = 0, .g = 255, .b = 0, .a = 255),
         MAKE(COLOR32, .r = 255, .g = 255, .b = 0, .a = 255),
         MAKE(COLOR32, .r = 255, .g = 0, .b = 0, .a = 255),
     };
     selectionRelation_t relation;
-    LPCSTR value;
+    cstring_t value;
     unsigned a, r, g, b;
 
     relation = G_SelectionRelation(viewer, unit);
-    if ((DWORD)relation >= sizeof(keys) / sizeof(keys[0])) relation = SELECT_RELATION_ENEMY;
+    if ((uint32_t)relation >= sizeof(keys) / sizeof(keys[0])) relation = SELECT_RELATION_ENEMY;
     value = Stb_IniCacheFind(&game.config.misc, "SelectionCircle", keys[relation]);
     if (value && sscanf(value, "%u,%u,%u,%u", &a, &r, &g, &b) == 4 &&
         a <= 255 && r <= 255 && g <= 255 && b <= 255)
@@ -29,18 +29,18 @@ COLOR32 G_SmartTargetIndicatorColor(DWORD viewer, LPCEDICT unit) {
 /* Serialize one indicator to a target client's temporary-entity stream. */
 static void G_SendWidgetIndicatorClient(LPGAMECLIENT client, LPCEDICT widget, COLOR32 color) {
     LPEDICT clent;
-    DWORD packed;
+    uint32_t packed;
 
     if (!client || !widget || !color.a || !client->connected || !gi.Write || !gi.unicast) return;
     clent = G_GetPlayerEntityByNumber(client->ps.number);
     if (!clent || !clent->client) return;
 
-    packed = (DWORD)color.r | ((DWORD)color.g << 8) |
-             ((DWORD)color.b << 16) | ((DWORD)color.a << 24);
-    gi.Write(PF_BYTE, &(LONG){ svc_temp_entity });
-    gi.Write(PF_BYTE, &(LONG){ TE_ENTITY_INDICATOR });
-    gi.Write(PF_LONG, &(LONG){ (LONG)widget->s.number });
-    gi.Write(PF_LONG, &(LONG){ (LONG)packed });
+    packed = (uint32_t)color.r | ((uint32_t)color.g << 8) |
+             ((uint32_t)color.b << 16) | ((uint32_t)color.a << 24);
+    gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });
+    gi.Write(PF_BYTE, &(int32_t){ TE_ENTITY_INDICATOR });
+    gi.Write(PF_LONG, &(int32_t){ (int32_t)widget->s.number });
+    gi.Write(PF_LONG, &(int32_t){ (int32_t)packed });
     gi.unicast(clent);
 }
 

@@ -5,13 +5,13 @@
 #define BZ_MDX_DETACHED_RIBBONS 32 // entity-less fading trails; each drains within one lifespan
 
 static mdxModel_t *ribbon_models[BZ_MDX_RIBBON_MODELS];
-static DWORD ribbon_model_count;
+static uint32_t ribbon_model_count;
 static mdxDetachedRibbon_t *detached_ribbons;
-static DWORD detached_count, detached_tick;
-static BOOL detached_tick_valid;
+static uint32_t detached_count, detached_tick;
+static bool detached_tick_valid;
 
-static DWORD MDLX_CountRibbons(mdxModel_t const *model) {
-    DWORD n = 0;
+static uint32_t MDLX_CountRibbons(mdxModel_t const *model) {
+    uint32_t n = 0;
     FOR_EACH_LIST(mdxRibbonEmitter_t, ribbon, model->ribbons) n++;
     return n;
 }
@@ -20,9 +20,9 @@ static DWORD MDLX_CountRibbons(mdxModel_t const *model) {
  * needs an identity bone bind (skin 0, weight 255) plus a face normal. */
 static trailVert_t strip_buf[TRAIL_MAX_EDGES * 6];
 
-static DWORD MDLX_RibbonConvertStrip(trailVert_t const *strip, DWORD nverts, VERTEX *out, DWORD max)
+static uint32_t MDLX_RibbonConvertStrip(trailVert_t const *strip, uint32_t nverts, VERTEX *out, uint32_t max)
 {
-    DWORD n;
+    uint32_t n;
 
     if (!strip || !out) return 0;
     n = MIN(nverts, max);
@@ -37,9 +37,9 @@ static DWORD MDLX_RibbonConvertStrip(trailVert_t const *strip, DWORD nverts, VER
     return n;
 }
 
-static mdxRibbonInstance_t *MDLX_RibbonInstance(mdxModel_t *model, DWORD number) {
+static mdxRibbonInstance_t *MDLX_RibbonInstance(mdxModel_t *model, uint32_t number) {
     mdxRibbonInstance_t *state, *oldest = NULL, **link = &model->ribbon_states;
-    DWORD ntrails = MDLX_CountRibbons(model), n = 0;
+    uint32_t ntrails = MDLX_CountRibbons(model), n = 0;
 
     if (!ntrails) return NULL;
     for (; *link; link = &(*link)->next, n++) {
@@ -65,11 +65,11 @@ static mdxRibbonInstance_t *MDLX_RibbonInstance(mdxModel_t *model, DWORD number)
 }
 
 /* The entity draws again (or the model unloads): its detached copy must not double-draw. */
-static void MDLX_DropDetachedRibbons(mdxModel_t *model, DWORD number) {
+static void MDLX_DropDetachedRibbons(mdxModel_t *model, uint32_t number) {
     mdxDetachedRibbon_t **link = &detached_ribbons;
     while (*link) {
         mdxDetachedRibbon_t *dead = *link;
-        if (dead->model == model && (number == (DWORD)-1 || dead->number == number)) {
+        if (dead->model == model && (number == (uint32_t)-1 || dead->number == number)) {
             *link = dead->next; ri.MemFree(dead); detached_count--;
         } else link = &dead->next;
     }
@@ -81,7 +81,7 @@ void MDLX_ForgetRibbonModel(mdxModel_t *model) {
             ribbon_models[i] = ribbon_models[--ribbon_model_count];
             break;
         }
-    MDLX_DropDetachedRibbons(model, (DWORD)-1);
+    MDLX_DropDetachedRibbons(model, (uint32_t)-1);
 }
 
 #ifndef BZ_MDX_RIBBON_HEADLESS
@@ -89,7 +89,7 @@ static VERTEX orphan_verts[TRAIL_MAX_EDGES * 6];
 static trailVert_t orphan_strip[TRAIL_MAX_EDGES * 6];
 #endif
 
-static mdxRibbonEmitter_t *MDLX_RibbonAt(mdxModel_t const *model, DWORD idx) {
+static mdxRibbonEmitter_t *MDLX_RibbonAt(mdxModel_t const *model, uint32_t idx) {
     FOR_EACH_LIST(mdxRibbonEmitter_t, ribbon, model->ribbons)
         if (!idx--) return ribbon;
     return NULL;
@@ -98,7 +98,7 @@ static mdxRibbonEmitter_t *MDLX_RibbonAt(mdxModel_t const *model, DWORD idx) {
 /* Copy live trails the entity left behind into fading orphans. Runs on the
  * previous completed frame (stamp < model tick) so entities drawn later in the
  * current frame are never mistaken for gone. */
-static void MDLX_DetachStaleInstances(mdxModel_t *model, DWORD now) {
+static void MDLX_DetachStaleInstances(mdxModel_t *model, uint32_t now) {
     FOR_EACH_LIST(mdxRibbonInstance_t, state, model->ribbon_states) {
         if (state->stamp == now) continue;
         FOR_LOOP(e, state->ntrails) {
@@ -126,7 +126,7 @@ static void MDLX_DetachStaleInstances(mdxModel_t *model, DWORD now) {
     model->ribbon_tick = now;
 }
 
-static void MDLX_FadeRibbonVertices(VERTEX *verts, DWORD nverts, trail_t const *trail,
+static void MDLX_FadeRibbonVertices(VERTEX *verts, uint32_t nverts, trail_t const *trail,
                                     float lifespan)
 {
     int alive, i, write;
@@ -134,11 +134,11 @@ static void MDLX_FadeRibbonVertices(VERTEX *verts, DWORD nverts, trail_t const *
     if (!verts || !trail || lifespan <= 0.0f) return;
     alive = trail->count;
     write = trail->head;
-    for (i = 0; i < alive - 1 && (DWORD)(i * 6 + 5) < nverts; i++) {
+    for (i = 0; i < alive - 1 && (uint32_t)(i * 6 + 5) < nverts; i++) {
         int a = (write - alive + i + TRAIL_MAX_EDGES) % TRAIL_MAX_EDGES;
         int b = (write - alive + i + 1 + TRAIL_MAX_EDGES) % TRAIL_MAX_EDGES;
-        BYTE aa = (BYTE)(trail->edges[a].color.a * MAX(0.0f, 1.0f - trail->edges[a].age / lifespan));
-        BYTE ab = (BYTE)(trail->edges[b].color.a * MAX(0.0f, 1.0f - trail->edges[b].age / lifespan));
+        uint8_t aa = (uint8_t)(trail->edges[a].color.a * MAX(0.0f, 1.0f - trail->edges[a].age / lifespan));
+        uint8_t ab = (uint8_t)(trail->edges[b].color.a * MAX(0.0f, 1.0f - trail->edges[b].age / lifespan));
         verts[i * 6 + 0].color.a = aa; verts[i * 6 + 1].color.a = aa;
         verts[i * 6 + 2].color.a = ab; verts[i * 6 + 3].color.a = aa;
         verts[i * 6 + 4].color.a = ab; verts[i * 6 + 5].color.a = ab;
@@ -150,7 +150,7 @@ static void MDLX_DrawDetachedRibbon(mdxDetachedRibbon_t *orphan) {
     (void)orphan;
 #else
     mdxMaterial_t *material;
-    DWORD nverts;
+    uint32_t nverts;
 
     if (!orphan || !orphan->model) return;
     nverts = R_TrailStripVerts(&orphan->trail, orphan->lifespan, orphan->columns,
@@ -167,7 +167,7 @@ static void MDLX_DrawDetachedRibbon(mdxDetachedRibbon_t *orphan) {
 
 void MDLX_TickDetachedRibbons(void) {
     mdxDetachedRibbon_t **link;
-    DWORD now = tr.viewDef.time;
+    uint32_t now = tr.viewDef.time;
 
     if (detached_tick_valid && detached_tick == now) return;
     detached_tick = now; detached_tick_valid = true;
@@ -186,7 +186,7 @@ void MDLX_TickDetachedRibbons(void) {
     }
 }
 
-DWORD MDLX_DetachedRibbonCount(void) {
+uint32_t MDLX_DetachedRibbonCount(void) {
     return detached_count;
 }
 
@@ -197,9 +197,9 @@ static void MDLX_RibbonWorldEdge(mdxModel_t const *model, mdxRibbonEmitter_t con
     MATRIX4 world;
     VECTOR3 local_above = { 0, heightAbove, 0 };
     VECTOR3 local_below = { 0, -heightBelow, 0 };
-    DWORD id = ribbon->node.node_id;
+    uint32_t id = ribbon->node.node_id;
 
-    if (id < (DWORD)model->num_pivots) {
+    if (id < (uint32_t)model->num_pivots) {
         local_above = Vector3_add(&local_above, &model->pivots[id]);
         local_below = Vector3_add(&local_below, &model->pivots[id]);
     }
@@ -211,22 +211,22 @@ static void MDLX_RibbonWorldEdge(mdxModel_t const *model, mdxRibbonEmitter_t con
     *below = Matrix4_multiply_vector3(&world, &local_below);
 }
 
-static DWORD MDLX_RibbonIndex(mdxModel_t const *model, mdxRibbonEmitter_t const *ribbon) {
-    DWORD idx = 0;
+static uint32_t MDLX_RibbonIndex(mdxModel_t const *model, mdxRibbonEmitter_t const *ribbon) {
+    uint32_t idx = 0;
     FOR_EACH_LIST(mdxRibbonEmitter_t, it, model->ribbons) {
         if (it == ribbon) return idx;
         idx++;
     }
-    return (DWORD)-1;
+    return (uint32_t)-1;
 }
 
 /* Advance one emitter's per-instance trail and write its current triangle strip. */
-DWORD MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix,
-                              mdxRibbonEmitter_t *ribbon, VERTEX *out, DWORD max)
+uint32_t MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix,
+                              mdxRibbonEmitter_t *ribbon, VERTEX *out, uint32_t max)
 {
     mdxRibbonInstance_t *state;
     trail_t *trail;
-    DWORD idx, slot, frame, nverts;
+    uint32_t idx, slot, frame, nverts;
     float visibility = 1.0f, heightAbove, heightBelow, alpha, rate;
     VECTOR3 color, above, below;
     COLOR32 rgba;
@@ -260,10 +260,10 @@ DWORD MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, L
     MDLX_RibbonWorldEdge(model, ribbon, model_matrix, heightAbove, heightBelow, &above, &below);
     if (visibility < EPSILON) rate = 0.0f;
     rgba = (COLOR32){
-        (BYTE)MIN(255, MAX(0, color.x * 255.0f + 0.5f)),
-        (BYTE)MIN(255, MAX(0, color.y * 255.0f + 0.5f)),
-        (BYTE)MIN(255, MAX(0, color.z * 255.0f + 0.5f)),
-        (BYTE)MIN(255, MAX(0, alpha * 255.0f + 0.5f)),
+        (uint8_t)MIN(255, MAX(0, color.x * 255.0f + 0.5f)),
+        (uint8_t)MIN(255, MAX(0, color.y * 255.0f + 0.5f)),
+        (uint8_t)MIN(255, MAX(0, color.z * 255.0f + 0.5f)),
+        (uint8_t)MIN(255, MAX(0, alpha * 255.0f + 0.5f)),
     };
     /* Engine trail owns stamp/stale/clamp/U; per-edge color keeps animated tracks historic. */
     R_TrailAdvance(trail, above, below, rgba, ribbon->lifespan, rate, ribbon->gravity,

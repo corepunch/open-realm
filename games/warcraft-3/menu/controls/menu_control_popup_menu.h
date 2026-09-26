@@ -5,9 +5,9 @@
 #define UI_POPUP_BOTTOM_PADDING_PIXELS 4.0f
 
 static LPCFRAMEDEF active_popup_scroll_menu = NULL;
-static DWORD active_popup_scroll = 0;
+static uint32_t active_popup_scroll = 0;
 
-static BOOL UI_IsPopupFrameType(FRAMETYPE type) {
+static bool UI_IsPopupFrameType(FRAMETYPE type) {
     return type == FT_POPUPMENU || type == FT_GLUEPOPUPMENU;
 }
 
@@ -18,7 +18,7 @@ static void UI_ResetPopupScroll(void) {
 }
 
 static COLOR32 UI_PopupHoverBackgroundColor(COLOR32 color) {
-    color.a = (BYTE)((DWORD)color.a / 10u);
+    color.a = (uint8_t)((uint32_t)color.a / 10u);
     return color;
 }
 
@@ -35,11 +35,11 @@ static LPFRAMEDEF UI_PopupMenuFrame(LPCFRAMEDEF popup) {
     return menu;
 }
 
-static BOOL UI_IsActivePopupMenu(LPCFRAMEDEF frame) {
+static bool UI_IsActivePopupMenu(LPCFRAMEDEF frame) {
     return frame && active_popup && frame == UI_PopupMenuFrame(active_popup);
 }
 
-static BOOL UI_PointerBlockedByPopup(LPCFRAMEDEF frame) {
+static bool UI_PointerBlockedByPopup(LPCFRAMEDEF frame) {
     LPFRAMEDEF menu;
 
     if (UI_PointerBlockedByModal(frame)) {
@@ -76,9 +76,9 @@ static LPFRAMEDEF UI_PopupTitleTextFrame(LPCFRAMEDEF popup) {
     return text ? text : title;
 }
 
-static FLOAT UI_PopupBottomPadding(void) {
+static float UI_PopupBottomPadding(void) {
     LPRENDERER renderer = mi.GetRenderer();
-    RECT scene = UI_GetSceneRect();
+    rect_t scene = UI_GetSceneRect();
     size2_t window;
 
     if (!renderer || !renderer->GetWindowSize) {
@@ -88,23 +88,23 @@ static FLOAT UI_PopupBottomPadding(void) {
     if (window.height <= 0) {
         return 0.003f;
     }
-    return scene.h * UI_POPUP_BOTTOM_PADDING_PIXELS / (FLOAT)window.height;
+    return scene.h * UI_POPUP_BOTTOM_PADDING_PIXELS / (float)window.height;
 }
 
-static FLOAT UI_PopupMenuMaxHeight(LPCFRAMEDEF popup, LPCFRAMEDEF menu, FLOAT row_height, FLOAT border) {
-    LPCRECT popup_rect;
-    RECT scene;
-    FLOAT menu_top;
-    FLOAT screen_bottom;
-    FLOAT full_height;
-    FLOAT max_height;
-    FLOAT available_height;
+static float UI_PopupMenuMaxHeight(LPCFRAMEDEF popup, LPCFRAMEDEF menu, float row_height, float border) {
+    rect_t const * popup_rect;
+    rect_t scene;
+    float menu_top;
+    float screen_bottom;
+    float full_height;
+    float max_height;
+    float available_height;
 
     if (!popup || !menu) {
         return 0.0f;
     }
-    full_height = border * 2.0f + row_height * (FLOAT)menu->Menu.ItemCount;
-    max_height = border * 2.0f + row_height * (FLOAT)MIN(menu->Menu.ItemCount, UI_POPUP_MAX_VISIBLE_ROWS);
+    full_height = border * 2.0f + row_height * (float)menu->Menu.ItemCount;
+    max_height = border * 2.0f + row_height * (float)MIN(menu->Menu.ItemCount, UI_POPUP_MAX_VISIBLE_ROWS);
     popup_rect = UI_LayoutRect(popup);
     scene = UI_GetSceneRect();
     menu_top = popup_rect ? popup_rect->y + popup_rect->h : scene.y;
@@ -120,9 +120,9 @@ static void UI_PositionPopupParts(LPFRAMEDEF popup) {
     LPFRAMEDEF title;
     LPFRAMEDEF arrow;
     LPFRAMEDEF menu;
-    FLOAT inset;
-    FLOAT arrow_width;
-    FLOAT title_width;
+    float inset;
+    float arrow_width;
+    float title_width;
 
     if (!popup) {
         return;
@@ -150,8 +150,8 @@ static void UI_PositionPopupParts(LPFRAMEDEF popup) {
         UI_SetPoint(arrow, FRAMEPOINT_RIGHT, popup, FRAMEPOINT_RIGHT, -inset, 0.0f);
     }
     if (menu) {
-        FLOAT row_height = menu->Menu.Item.Height > 0.0f ? menu->Menu.Item.Height : 0.014f;
-        FLOAT border = menu->Menu.Border > 0.0f ? menu->Menu.Border : 0.006f;
+        float row_height = menu->Menu.Item.Height > 0.0f ? menu->Menu.Item.Height : 0.014f;
+        float border = menu->Menu.Border > 0.0f ? menu->Menu.Border : 0.006f;
         if (menu->Menu.ItemCount > 0) {
             UI_SetSize(menu, popup->Width, UI_PopupMenuMaxHeight(popup, menu, row_height, border));
         }
@@ -162,7 +162,7 @@ static void UI_PositionPopupParts(LPFRAMEDEF popup) {
     }
 }
 
-static void UI_UpdatePopupVisibility(LPCFRAMEDEF const *draw_order, DWORD count) {
+static void UI_UpdatePopupVisibility(LPCFRAMEDEF const *draw_order, uint32_t count) {
     FOR_LOOP(i, count) {
         LPFRAMEDEF frame = (LPFRAMEDEF)draw_order[i];
 
@@ -178,20 +178,20 @@ static void UI_UpdatePopupVisibility(LPCFRAMEDEF const *draw_order, DWORD count)
     }
 }
 
-static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
+static void UI_DrawMenu(LPCFRAMEDEF frame, rect_t const * rect) {
     LPRENDERER renderer = mi.GetRenderer();
     LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
     LPCFONT font;
-    FLOAT const border = frame->Menu.Border > 0.0f ? frame->Menu.Border : 0.006f;
-    FLOAT const row_height = frame->Menu.Item.Height > 0.0f ? frame->Menu.Item.Height : 0.014f;
-    FLOAT const content_height = MAX(0.0f, rect->h - border * 2.0f);
+    float const border = frame->Menu.Border > 0.0f ? frame->Menu.Border : 0.006f;
+    float const row_height = frame->Menu.Item.Height > 0.0f ? frame->Menu.Item.Height : 0.014f;
+    float const content_height = MAX(0.0f, rect->h - border * 2.0f);
     COLOR32 const highlight_color = frame->Menu.TextHighlightColor.a
         ? frame->Menu.TextHighlightColor
         : Theme_ListBoxSelectedTextColor();
     COLOR32 const text_color = frame->Font.Color.a ? frame->Font.Color : COLOR32_WHITE;
-    DWORD visible_rows;
-    DWORD max_scroll;
-    RECT clip;
+    uint32_t visible_rows;
+    uint32_t max_scroll;
+    rect_t clip;
 
     UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
     if (!renderer || !renderer->LoadFont || !renderer->DrawText) {
@@ -201,8 +201,8 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
     if (!font) {
         return;
     }
-    visible_rows = content_height > 0.0f ? (DWORD)floorf(content_height / row_height) : 0;
-    if (content_height > (FLOAT)visible_rows * row_height + 0.0001f) {
+    visible_rows = content_height > 0.0f ? (uint32_t)floorf(content_height / row_height) : 0;
+    if (content_height > (float)visible_rows * row_height + 0.0001f) {
         visible_rows++;
     }
     if (visible_rows > frame->Menu.ItemCount) {
@@ -216,21 +216,21 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
     if (active_popup_scroll > max_scroll) {
         active_popup_scroll = max_scroll;
     }
-    clip = MAKE(RECT,
+    clip = MAKE(rect_t,
                 rect->x + border,
                 rect->y + border,
                 MAX(0.0f, rect->w - border * 2.0f),
                 content_height);
 
     FOR_LOOP(row_index, visible_rows) {
-        DWORD const i = active_popup_scroll + row_index;
-        RECT row = MAKE(RECT,
+        uint32_t const i = active_popup_scroll + row_index;
+        rect_t row = MAKE(rect_t,
                         rect->x + border,
-                        rect->y + border + row_height * (FLOAT)row_index,
+                        rect->y + border + row_height * (float)row_index,
                         MAX(0.0f, rect->w - border * 2.0f),
                         row_height);
-        RECT hover_rect = row;
-        BOOL const hover = (int)i == active_popup_hover_item;
+        rect_t hover_rect = row;
+        bool const hover = (int)i == active_popup_hover_item;
 
         if (i >= frame->Menu.ItemCount || row.y >= clip.y + clip.h) {
             break;
@@ -244,7 +244,7 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
                                         .shader = SHADER_UI,
                                         .alphamode = BLEND_MODE_BLEND,
                                         .screen = hover_rect,
-                                        .uv = MAKE(RECT, 0, 0, 1, 1),
+                                        .uv = MAKE(rect_t, 0, 0, 1, 1),
                                          .color = UI_PopupHoverBackgroundColor(text_color),
                                          .flags = DRAW_CLIP,
                                         .clip = clip));
@@ -263,17 +263,17 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
                                   .clip = clip));
     }
     if (max_scroll > 0 && renderer->DrawImageEx) {
-        FLOAT const scroll_w = MIN(0.004f, MAX(0.0f, clip.w * 0.2f));
-        RECT track = MAKE(RECT,
+        float const scroll_w = MIN(0.004f, MAX(0.0f, clip.w * 0.2f));
+        rect_t track = MAKE(rect_t,
                           clip.x + clip.w - scroll_w,
                           clip.y,
                           scroll_w,
                           clip.h);
-        FLOAT thumb_h = MIN(track.h, MAX(row_height, track.h * (FLOAT)visible_rows / (FLOAT)frame->Menu.ItemCount));
-        FLOAT travel = MAX(0.0f, track.h - thumb_h);
-        RECT thumb = MAKE(RECT,
+        float thumb_h = MIN(track.h, MAX(row_height, track.h * (float)visible_rows / (float)frame->Menu.ItemCount));
+        float travel = MAX(0.0f, track.h - thumb_h);
+        rect_t thumb = MAKE(rect_t,
                           track.x,
-                          track.y + (max_scroll ? travel * (FLOAT)active_popup_scroll / (FLOAT)max_scroll : 0.0f),
+                          track.y + (max_scroll ? travel * (float)active_popup_scroll / (float)max_scroll : 0.0f),
                           track.w,
                           thumb_h);
 
@@ -282,7 +282,7 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
                                     .shader = SHADER_UI,
                                     .alphamode = BLEND_MODE_BLEND,
                                     .screen = track,
-                                    .uv = MAKE(RECT, 0, 0, 1, 1),
+                                    .uv = MAKE(rect_t, 0, 0, 1, 1),
                                      .color = MAKE(COLOR32, 0, 0, 0, 96),
                                      .flags = DRAW_CLIP,
                                     .clip = clip));
@@ -291,7 +291,7 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, LPCRECT rect) {
                                     .shader = SHADER_UI,
                                     .alphamode = BLEND_MODE_BLEND,
                                     .screen = thumb,
-                                    .uv = MAKE(RECT, 0, 0, 1, 1),
+                                    .uv = MAKE(rect_t, 0, 0, 1, 1),
                                      .color = Theme_ListBoxSelectionColor(),
                                      .flags = DRAW_CLIP,
                                     .clip = clip));

@@ -8,14 +8,14 @@
 #include "shared/test.h"
 #include "../g_local.h"
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
 void reset_entities(void);
-void setup_test_pathmap(DWORD width, DWORD height, BYTE const *cells);
+void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void CM_SetupTestWorldBounds(LPCBOX2 bounds);
-void CM_ProcessPathJobs(DWORD work_budget);
+void CM_ProcessPathJobs(uint32_t work_budget);
 
-static LPEDICT make_walk_hero(FLOAT x, FLOAT y) {
+static LPEDICT make_walk_hero(float x, float y) {
     LPEDICT hero = alloc_test_unit(MAKEFOURCC('H', 'p', 'a', 'l'), x, y);
     hero->s.player = 0;
     hero->svflags |= SVF_MONSTER;
@@ -31,7 +31,7 @@ static LPEDICT make_walk_hero(FLOAT x, FLOAT y) {
     return hero;
 }
 
-static LPEDICT give_item(LPEDICT hero, DWORD class_id, DWORD slot, DWORD charges) {
+static LPEDICT give_item(LPEDICT hero, uint32_t class_id, uint32_t slot, uint32_t charges) {
     LPEDICT item = alloc_test_unit(class_id, hero->s.origin2.x + 32.0f, hero->s.origin2.y);
     item->targtype = TARG_ITEM;
     item->item.in_world = true;
@@ -41,8 +41,8 @@ static LPEDICT give_item(LPEDICT hero, DWORD class_id, DWORD slot, DWORD charges
     return item;
 }
 
-static void step_walk(LPEDICT hero, DWORD frames) {
-    DWORD i;
+static void step_walk(LPEDICT hero, uint32_t frames) {
+    uint32_t i;
     for (i = 0; i < frames; i++) {
         if (!hero->currentmove || !hero->currentmove->think) break;
         hero->currentmove->think(hero);
@@ -50,12 +50,12 @@ static void step_walk(LPEDICT hero, DWORD frames) {
     }
 }
 
-static LPCSTR hero_audit_cvar(LPCSTR name, LPCSTR fallback) {
+static cstring_t hero_audit_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "wc3_hero_saveload_audit") ? "1" : fallback;
 }
 
-static void step_hero_audit(DWORD frames) {
-    DWORD i;
+static void step_hero_audit(uint32_t frames) {
+    uint32_t i;
     for (i = 0; i < frames; i++) {
         G_RunEntities();
         CM_ProcessPathJobs(65536);
@@ -64,7 +64,7 @@ static void step_hero_audit(DWORD frames) {
     }
 }
 
-static void arm_hero_audit(LPCSTR map) {
+static void arm_hero_audit(cstring_t map) {
     strlcpy(level.map_path, map, sizeof(level.map_path));
     level.started = true;
     ((LPMAPINFO)level.mapinfo)->fileFormat = 24;
@@ -73,10 +73,10 @@ static void arm_hero_audit(LPCSTR map) {
 }
 
 TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
-    LPCSTR path = "/tmp/openwarcraft3-wc3-hero-saveload.bin";
+    cstring_t path = "/tmp/openwarcraft3-wc3-hero-saveload.bin";
     LPEDICT hero, item0, item1;
     VECTOR3 saved_origin;
-    DWORD saved_holy, saved_shield, saved_added, saved_item0, saved_item1, saved_charges0, saved_charges1, saved_drop_id, index;
+    uint32_t saved_holy, saved_shield, saved_added, saved_item0, saved_item1, saved_charges0, saved_charges1, saved_drop_id, index;
     char saved_move[32], snap[512];
     VECTOR2 dest = { 80.0f, 0.0f };
 
@@ -140,7 +140,7 @@ TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
     T_STREQ(hero->currentmove->animation, saved_move);
     T_EQ(hero->think, monster_think);
     {
-        FLOAT x = hero->s.origin.x;
+        float x = hero->s.origin.x;
         step_walk(hero, 1);
         T_ASSERT(hero->s.origin.x > x);
     }
@@ -155,9 +155,9 @@ TEST(wc3_save, hero_dump_formats_empty_hero) {
 
 /* Hidden cinematic stand-ins (HumanX06Finale N000) must not lock the walker. */
 TEST(wc3_save, hero_audit_skips_hidden_first_hero) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     LPEDICT hidden, visible;
-    FLOAT hidden_x, visible_x;
+    float hidden_x, visible_x;
 
     reset_entities();
     setup_test_world();
@@ -176,9 +176,9 @@ TEST(wc3_save, hero_audit_skips_hidden_first_hero) {
 
 /* PauseAllUnitsBJ during intro; walk only after cleanup unpauses. */
 TEST(wc3_save, hero_audit_waits_while_paused_then_walks) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     LPEDICT hero;
-    FLOAT start_x;
+    float start_x;
 
     reset_entities();
     setup_test_world();
@@ -197,9 +197,9 @@ TEST(wc3_save, hero_audit_waits_while_paused_then_walks) {
 
 /* CinematicModeBJ(true) holds the walker until gameplay UI returns. */
 TEST(wc3_save, hero_audit_waits_while_cinematic_then_walks) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     LPEDICT hero;
-    FLOAT start_x;
+    float start_x;
 
     reset_entities();
     setup_test_world();
@@ -218,9 +218,9 @@ TEST(wc3_save, hero_audit_waits_while_cinematic_then_walks) {
 
 /* HumanX06Finale stays cinematic; after the wait budget the visible Hero still walks. */
 TEST(wc3_save, hero_audit_walks_after_wait_timeout_while_cinematic) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     LPEDICT hero;
-    FLOAT start_x;
+    float start_x;
 
     reset_entities();
     setup_test_world();
@@ -238,10 +238,10 @@ TEST(wc3_save, hero_audit_walks_after_wait_timeout_while_cinematic) {
 
 /* +80 X snaps home on a blocked cell; the walker must retry another open axis. */
 TEST(wc3_save, hero_audit_retries_when_80_unit_dest_snaps_home) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
-    BYTE cells[64 * 64];
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
+    uint8_t cells[64 * 64];
     LPEDICT hero;
-    FLOAT start_x, start_y;
+    float start_x, start_y;
 
     reset_entities();
     setup_test_world();

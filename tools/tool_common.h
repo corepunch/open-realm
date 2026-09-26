@@ -7,16 +7,16 @@
 #include <string.h>
 
 #ifndef TOOL_COMMON_NO_MPQ
-static inline HANDLE Tool_AddArchive(HANDLE *archives, size_t count, LPCSTR filename);
-static inline HANDLE Tool_OpenFile(HANDLE const *archives, size_t count, LPCSTR fileName);
-static inline void Tool_CloseFile(HANDLE file);
-static inline bool Tool_ExtractFile(HANDLE const *archives, size_t count, LPCSTR toExtract, LPCSTR extracted);
-static inline bool Tool_FileExists(HANDLE const *archives, size_t count, LPCSTR fileName);
-static inline void Tool_CloseArchives(HANDLE *archives, size_t count);
+static inline handle_t Tool_AddArchive(handle_t *archives, size_t count, cstring_t filename);
+static inline handle_t Tool_OpenFile(handle_t const *archives, size_t count, cstring_t fileName);
+static inline void Tool_CloseFile(handle_t file);
+static inline bool Tool_ExtractFile(handle_t const *archives, size_t count, cstring_t toExtract, cstring_t extracted);
+static inline bool Tool_FileExists(handle_t const *archives, size_t count, cstring_t fileName);
+static inline void Tool_CloseArchives(handle_t *archives, size_t count);
 #endif
 
-static inline HANDLE Tool_MemAlloc(long size);
-static inline void Tool_MemFree(HANDLE mem);
+static inline handle_t Tool_MemAlloc(long size);
+static inline void Tool_MemFree(handle_t mem);
 void *Tool_XMalloc(size_t size);
 void *Tool_XRealloc(void *ptr, size_t size);
 static inline char *Tool_XStrdup(const char *s);
@@ -64,7 +64,7 @@ static inline void Tool_ForEachArchive(const char *dir,
     closedir(d);
 }
 
-static inline HANDLE Tool_AddArchive(HANDLE *archives, size_t count, LPCSTR filename) {
+static inline handle_t Tool_AddArchive(handle_t *archives, size_t count, cstring_t filename) {
     for (size_t i = 0; i < count; i++) {
         if (archives[i]) {
             continue;
@@ -79,12 +79,12 @@ static inline HANDLE Tool_AddArchive(HANDLE *archives, size_t count, LPCSTR file
     return NULL;
 }
 
-static inline HANDLE Tool_OpenFile(HANDLE const *archives, size_t count, LPCSTR fileName) {
+static inline handle_t Tool_OpenFile(handle_t const *archives, size_t count, cstring_t fileName) {
     if (!fileName || !*fileName) {
         return NULL;
     }
     for (size_t i = 0; i < count; i++) {
-        HANDLE file = NULL;
+        handle_t file = NULL;
         if (archives[i] && SFileOpenFileEx(archives[i], fileName, SFILE_OPEN_FROM_MPQ, &file)) {
             return file;
         }
@@ -92,13 +92,13 @@ static inline HANDLE Tool_OpenFile(HANDLE const *archives, size_t count, LPCSTR 
     return NULL;
 }
 
-static inline void Tool_CloseFile(HANDLE file) {
+static inline void Tool_CloseFile(handle_t file) {
     if (file) {
         SFileCloseFile(file);
     }
 }
 
-static inline bool Tool_ExtractFile(HANDLE const *archives, size_t count, LPCSTR toExtract, LPCSTR extracted) {
+static inline bool Tool_ExtractFile(handle_t const *archives, size_t count, cstring_t toExtract, cstring_t extracted) {
     for (size_t i = 0; i < count; i++) {
         if (archives[i] && SFileExtractFile(archives[i], toExtract, extracted, 0)) {
             return true;
@@ -107,8 +107,8 @@ static inline bool Tool_ExtractFile(HANDLE const *archives, size_t count, LPCSTR
     return false;
 }
 
-static inline bool Tool_FileExists(HANDLE const *archives, size_t count, LPCSTR fileName) {
-    HANDLE file = Tool_OpenFile(archives, count, fileName);
+static inline bool Tool_FileExists(handle_t const *archives, size_t count, cstring_t fileName) {
+    handle_t file = Tool_OpenFile(archives, count, fileName);
     if (!file) {
         return false;
     }
@@ -116,7 +116,7 @@ static inline bool Tool_FileExists(HANDLE const *archives, size_t count, LPCSTR 
     return true;
 }
 
-static inline void Tool_CloseArchives(HANDLE *archives, size_t count) {
+static inline void Tool_CloseArchives(handle_t *archives, size_t count) {
     for (size_t i = 0; i < count; i++) {
         if (archives[i]) {
             SFileCloseArchive(archives[i]);
@@ -126,7 +126,7 @@ static inline void Tool_CloseArchives(HANDLE *archives, size_t count) {
 }
 #endif
 
-static inline HANDLE Tool_MemAlloc(long size) {
+static inline handle_t Tool_MemAlloc(long size) {
     void *mem = calloc(1, (size_t)size);
     if (!mem) {
         fprintf(stderr, "Out of memory allocating %ld bytes\n", size);
@@ -135,7 +135,7 @@ static inline HANDLE Tool_MemAlloc(long size) {
     return mem;
 }
 
-static inline void Tool_MemFree(HANDLE mem) {
+static inline void Tool_MemFree(handle_t mem) {
     free(mem);
 }
 
@@ -249,13 +249,13 @@ static inline const char *Tool_PathExt(const char *path) {
 }
 
 #ifndef TOOL_COMMON_NO_MPQ
-static inline HANDLE Tool_ReadFileRaw(LPCSTR filename, LPDWORD size);
+static inline handle_t Tool_ReadFileRaw(cstring_t filename, uint32_t * size);
 
 /* Tool-specific FS_ReadFile wrapper for Quake 3 pattern */
-static inline int Tool_FS_ReadFile(LPCSTR filename, void **buf) {
+static inline int Tool_FS_ReadFile(cstring_t filename, void **buf) {
     if (!buf) return -1;
-    DWORD size = 0;
-    HANDLE raw = Tool_ReadFileRaw(filename, &size);
+    uint32_t size = 0;
+    handle_t raw = Tool_ReadFileRaw(filename, &size);
     if (!raw) {
         return -1;
     }
@@ -264,7 +264,7 @@ static inline int Tool_FS_ReadFile(LPCSTR filename, void **buf) {
 }
 
 typedef struct {
-    HANDLE *archives;
+    handle_t *archives;
     size_t count;
 } ToolSheetHostState;
 
@@ -273,11 +273,11 @@ static inline ToolSheetHostState *Tool_SheetHostState(void) {
     return &state;
 }
 
-static inline HANDLE Tool_ReadFileRaw(LPCSTR filename, LPDWORD size) {
+static inline handle_t Tool_ReadFileRaw(cstring_t filename, uint32_t * size) {
     ToolSheetHostState *state = Tool_SheetHostState();
-    HANDLE file;
-    HANDLE buffer;
-    DWORD fileSize;
+    handle_t file;
+    handle_t buffer;
+    uint32_t fileSize;
 
     if (!state->archives || state->count == 0) {
         return NULL;
@@ -307,7 +307,7 @@ static inline void Tool_FS_FreeFile(void *buf) {
     MemFree(buf);
 }
 
-static inline void Tool_SetSheetHost(HANDLE *archives, size_t count) {
+static inline void Tool_SetSheetHost(handle_t *archives, size_t count) {
     ToolSheetHostState *state = Tool_SheetHostState();
     state->archives = archives;
     state->count = count;

@@ -7,13 +7,13 @@
 #include <string.h>
 #include <strings.h>
 
-static BOOL sc2_streqi(LPCSTR a, LPCSTR b) {
+static bool sc2_streqi(cstring_t a, cstring_t b) {
     return a && b && !strcasecmp(a, b);
 }
 
-static BOOL sc2_contains_i(LPCSTR text, LPCSTR needle) {
+static bool sc2_contains_i(cstring_t text, cstring_t needle) {
     char a[128], b[64];
-    DWORD i;
+    uint32_t i;
     if (!text || !needle) return false;
     snprintf(a, sizeof(a), "%s", text);
     snprintf(b, sizeof(b), "%s", needle);
@@ -22,38 +22,38 @@ static BOOL sc2_contains_i(LPCSTR text, LPCSTR needle) {
     return strstr(a, b) != NULL;
 }
 
-static BOOL sc2_has_extension_i(LPCSTR path, LPCSTR ext) {
-    DWORD path_len;
-    DWORD ext_len;
+static bool sc2_has_extension_i(cstring_t path, cstring_t ext) {
+    uint32_t path_len;
+    uint32_t ext_len;
 
     if (!path || !ext) return false;
-    path_len = (DWORD)strlen(path);
-    ext_len = (DWORD)strlen(ext);
+    path_len = (uint32_t)strlen(path);
+    ext_len = (uint32_t)strlen(ext);
     return path_len >= ext_len && !strcasecmp(path + path_len - ext_len, ext);
 }
 
-static BOOL sc2_path_has_dir(LPCSTR path) {
+static bool sc2_path_has_dir(cstring_t path) {
     return path && (strchr(path, '\\') || strchr(path, '/'));
 }
 
-static void sc2_normalize_slashes(LPSTR path) {
+static void sc2_normalize_slashes(string_t path) {
     if (!path) return;
     for (char *p = path; *p; p++) if (*p == '/') *p = '\\';
 }
 
-static void sc2_append_extension(LPSTR path, DWORD size, LPCSTR ext) {
+static void sc2_append_extension(string_t path, uint32_t size, cstring_t ext) {
     if (!path || !ext || !*path || strchr(strrchr(path, '\\') ? strrchr(path, '\\') : path, '.')) return;
     strncat(path, ext, size - strlen(path) - 1);
 }
 
-static void sc2_camel_to_underscore(LPCSTR in, LPSTR out, DWORD out_size) {
-    DWORD w = 0;
+static void sc2_camel_to_underscore(cstring_t in, string_t out, uint32_t out_size) {
+    uint32_t w = 0;
 
     if (!out || out_size == 0) return;
     out[0] = '\0';
     if (!in) return;
-    for (DWORD i = 0; in[i] && w + 1 < out_size; i++) {
-        BOOL split = i > 0 && isupper((unsigned char)in[i]) &&
+    for (uint32_t i = 0; in[i] && w + 1 < out_size; i++) {
+        bool split = i > 0 && isupper((unsigned char)in[i]) &&
                      (islower((unsigned char)in[i - 1]) ||
                       (in[i + 1] && islower((unsigned char)in[i + 1])));
         if (split && w + 1 < out_size) out[w++] = '_';
@@ -62,13 +62,13 @@ static void sc2_camel_to_underscore(LPCSTR in, LPSTR out, DWORD out_size) {
     out[w] = '\0';
 }
 
-static DWORD sc2_hash32(LPCSTR str) {
-    DWORD hash = 2166136261u;
-    while (str && *str) hash = (hash ^ (BYTE)*str++) * 16777619u;
+static uint32_t sc2_hash32(cstring_t str) {
+    uint32_t hash = 2166136261u;
+    while (str && *str) hash = (hash ^ (uint8_t)*str++) * 16777619u;
     return hash;
 }
 
-static BOOL sc2_parse_vec3(LPCSTR text, LPVECTOR3 out) {
+static bool sc2_parse_vec3(cstring_t text, LPVECTOR3 out) {
     int count;
 
     if (!text || !out) return false;
@@ -78,7 +78,7 @@ static BOOL sc2_parse_vec3(LPCSTR text, LPVECTOR3 out) {
     return true;
 }
 
-static BOOL sc2_has_nonspace(LPCSTR text) {
+static bool sc2_has_nonspace(cstring_t text) {
     if (!text) return false;
     while (*text) {
         if (!isspace((unsigned char)*text)) return true;

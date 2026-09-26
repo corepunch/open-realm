@@ -7,6 +7,9 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stdint.h>
+#ifndef __cplusplus
+#include <stdbool.h>
+#endif
 
 #include "../shared/shared.h"
 
@@ -60,7 +63,7 @@ static inline size_t bz_strlcat(char *destination, const char *source, size_t si
 #define MAX_LIST_FETCH_ROWS 32
 #define MIN(x, y) (((x)<(y))?(x):(y))
 #define MAX(x, y) (((x)>(y))?(x):(y))
-#define BZ_CLAMP_U8(x) ((BYTE)MIN(255, MAX(0, (int)(x)))) // clamp a numeric expression to a 0..255 byte
+#define BZ_CLAMP_U8(x) ((uint8_t)MIN(255, MAX(0, (int)(x)))) // clamp a numeric expression to a 0..255 byte
 
 #define BYTE2FLOAT(x) ((x)/255.f)
 
@@ -70,10 +73,6 @@ static inline size_t bz_strlcat(char *destination, const char *source, size_t si
 
 #define COLOR32_WHITE MAKE(COLOR32,255,255,255,255)
 #define COLOR32_BLACK MAKE(COLOR32,0,0,0,255)
-
-#ifndef __cplusplus
-  #include <stdbool.h>
-#endif
 
 /* Descriptor grammars share conversion contracts; source readers still own byte/text decoding. */
 typedef enum {
@@ -85,7 +84,7 @@ typedef enum {
         BZ_FIELD_VEC3,
         BZ_FIELD_COLOR32_ARGB,
         BZ_FIELD_COLOR32_RGBA,
-        BZ_FIELD_FOURCC,  /* 4-char text → DWORD via memcpy (same as MAKEFOURCC on LE) */
+        BZ_FIELD_FOURCC,  /* 4-char text → uint32_t via memcpy (same as MAKEFOURCC on LE) */
 } bzFieldType_t;
 
 #define KNOWN_AS(STRUCT, TYPE) \
@@ -94,7 +93,7 @@ typedef struct STRUCT *LP##TYPE; \
 typedef struct STRUCT const *LPC##TYPE;
 
 #define FOR_LOOP(property, max) \
-for (DWORD property = 0, end = max; property < end; ++property)
+for (uint32_t property = 0, end = max; property < end; ++property)
 
 #define PrintTag(tag) do { (void)(tag); } while(false)
 
@@ -112,7 +111,7 @@ for (type *property = array; property - array < num; property++)
    Read the count with ARRAY_COUNT(name), iterate with FOR_EACH_ARRAY
    (or FOR_LOOP(i, ARRAY_COUNT(name)) when the index is needed), and test for
    emptiness with IS_ARRAY_EMPTY(name) — never touch name##_count directly. */
-#define ARRAY(type, name) type *name; DWORD name##_count
+#define ARRAY(type, name) type *name; uint32_t name##_count
 #define ARRAY_COUNT(name) (name##_count)
 #define IS_ARRAY_EMPTY(name) (!(name) || !ARRAY_COUNT(name))
 #define FOR_EACH_ARRAY(type, property, name) \
@@ -122,7 +121,7 @@ for (type *property = name; property - name < ARRAY_COUNT(name); property++)
 #define MAKEFOURCC(ch0, ch1, ch2, ch3) ((int)(char)(ch0) | ((int)(char)(ch1) << 8) | ((int)(char)(ch2) << 16) | ((int)(char)(ch3) << 24))
 #endif
 
-#define FOFS(type, x) (HANDLE)&(((struct type *)NULL)->x)
+#define FOFS(type, x) (handle_t)&(((struct type *)NULL)->x)
 
 #define SAFE_DELETE(x, func) if (x) { func(x); (x) = NULL; }
 
@@ -160,7 +159,7 @@ for (TYPE *it = LIST; it;) { \
 
 #define PARSE_LIST(LIST, ITEM, PARSEFUNC) \
 PARSER parser = { .buffer = LIST, .delimiters = "" }; \
-for (LPCSTR ITEM = PARSEFUNC(&parser); ITEM; ITEM = PARSEFUNC(&parser))
+for (cstring_t ITEM = PARSEFUNC(&parser); ITEM; ITEM = PARSEFUNC(&parser))
 
 #define TRACE_CALL(FUNC, ...) FUNC(__VA_ARGS__)
 #define TRACE(FUNC, ...) \
@@ -250,7 +249,7 @@ enum {
 #define EFX_GAME_VARIANT_SHIFT 13
 #define EFX_GAME_VARIANT_GET(flags) (((flags) & EFX_GAME_VARIANT_MASK) >> EFX_GAME_VARIANT_SHIFT)
 #define EFX_GAME_VARIANT_SET(flags, variant) \
-    (((flags) & ~EFX_GAME_VARIANT_MASK) | ((((USHORT)(variant)) << EFX_GAME_VARIANT_SHIFT) & EFX_GAME_VARIANT_MASK))
+    (((flags) & ~EFX_GAME_VARIANT_MASK) | ((((uint16_t)(variant)) << EFX_GAME_VARIANT_SHIFT) & EFX_GAME_VARIANT_MASK))
 
 enum {
     FLAG(RDF_NOFOG, 0),
@@ -315,40 +314,15 @@ typedef struct m3Model_s m3Model_t;
 typedef struct mdxModel_s mdxModel_t;
 typedef struct m2Model_s m2Model_t;
 
-// Typedefs for ANSI C
-typedef unsigned char  BYTE;
-typedef unsigned char  BOOL;
-typedef unsigned short USHORT;
-typedef int            LONG;
-typedef short          SHORT;
-typedef unsigned int   DWORD;
-typedef unsigned short WORD;
-typedef unsigned long  DWORD_PTR;
-typedef long           LONG_PTR;
-typedef long           INT_PTR;
-typedef long long      LONGLONG;
-typedef unsigned long long ULONGLONG;
-typedef float          FLOAT;
-typedef void         * HANDLE;
-typedef void         * LPOVERLAPPED; // Unsupported on Linux and Mac
-typedef char           TCHAR;
-typedef unsigned int   LCID;
-typedef LONG         * PLONG;
-typedef DWORD        * LPDWORD;
-typedef BYTE         * LPBYTE;
-typedef FLOAT        * LPFLOAT;
-typedef const char   * LPCTSTR;
-typedef const char   * LPCSTR;
-typedef char         * LPTSTR;
-typedef char         * LPSTR;
-typedef FLOAT const  * LPCFLOAT;
+typedef char *string_t;
+typedef char const *cstring_t;
+typedef void *handle_t;
 typedef char           PATHSTR[MAX_PATHLEN];
-typedef void const   * LPCVOID;
-typedef struct color { FLOAT r, g, b, a; } color_t;
-typedef struct color32 { BYTE r, g, b, a; } color32_t;
-typedef struct bounds { FLOAT min, max; } bounds_t;
-typedef struct edges { FLOAT left, top, right, bottom; } edges_t;
-typedef struct transform2 { VECTOR2 translation, scale; FLOAT rotation; } transform2_t;
+typedef struct color { float r, g, b, a; } color_t;
+typedef struct color32 { uint8_t r, g, b, a; } color32_t;
+typedef struct bounds { float min, max; } bounds_t;
+typedef struct edges { float left, top, right, bottom; } edges_t;
+typedef struct transform2 { VECTOR2 translation, scale; float rotation; } transform2_t;
 typedef struct transform3 { VECTOR3 translation, rotation, scale; } transform3_t;
 typedef char UINAME[80];
 
@@ -410,7 +384,7 @@ typedef enum {
 /* Transient minimap attention-marker flags. */
 #define MINIMAP_PING_REMEMBER      0x01 // bit; add position to recent-alert history; used by svc_minimap_ping
 #define MINIMAP_PING_EXTRA_EFFECTS 0x02 // bit; draw an additional pulse; used by PingMinimapEx
-#define MINIMAP_PING_DURATION_MAX 4294967.0f // seconds; DWORD millisecond clock ceiling; bounds packet lifetime
+#define MINIMAP_PING_DURATION_MAX 4294967.0f // seconds; uint32_t millisecond clock ceiling; bounds packet lifetime
 
 /* Sound channels follow Quake 2; high bits select server delivery policy. */
 #define CHAN_AUTO       0x00 // units; automatic channel selection; used for generic sounds
@@ -431,13 +405,13 @@ enum {
     SOUND_IGNORE_USER = 32768
 };
 typedef struct {
-    DWORD priority, user, request;
-    USHORT flags, cooldown_ms;
-    BYTE group, max_channel, max_total, max_duplicates;
+    uint32_t priority, user, request;
+    uint16_t flags, cooldown_ms;
+    uint8_t group, max_channel, max_total, max_duplicates;
 } soundPolicy_t;
 /* Request zero opts out. Events travel back over the reliable client command stream. */
 enum { SOUND_ACCEPTED = 1, SOUND_STARTED, SOUND_ENDED, SOUND_REJECTED };
-typedef struct { DWORD user, request, event; } soundEvent_t;
+typedef struct { uint32_t user, request, event; } soundEvent_t;
 
 /* Upper channel bits carry optional generic importance to the sound packet. */
 #define CHAN_PRIORITY(value) ((int)((unsigned)(value) << 8))
@@ -474,17 +448,17 @@ enum {
 #define ENT_CARGO_NIBBLE_MASK 0x0fu
 #define ENT_CARGO_CAPACITY_SHIFT 4u
 
-static inline BYTE EntityCargoPack(DWORD count, DWORD capacity) {
+static inline uint8_t EntityCargoPack(uint32_t count, uint32_t capacity) {
     count = MIN(count, ENT_CARGO_NIBBLE_MASK);
     capacity = MIN(capacity, ENT_CARGO_NIBBLE_MASK);
-    return (BYTE)(count | (capacity << ENT_CARGO_CAPACITY_SHIFT));
+    return (uint8_t)(count | (capacity << ENT_CARGO_CAPACITY_SHIFT));
 }
 
-static inline DWORD EntityCargoCount(BYTE packed) {
+static inline uint32_t EntityCargoCount(uint8_t packed) {
     return packed & ENT_CARGO_NIBBLE_MASK;
 }
 
-static inline DWORD EntityCargoCapacity(BYTE packed) {
+static inline uint32_t EntityCargoCapacity(uint8_t packed) {
     return (packed >> ENT_CARGO_CAPACITY_SHIFT) & ENT_CARGO_NIBBLE_MASK;
 }
 
@@ -549,7 +523,7 @@ typedef enum {
 #define UI_WINDOW_QUIT_ACTION "quit_application" // client action; exits the application after an explicit local click
 
 typedef struct {
-    DWORD id, class_id, flags;
+    uint32_t id, class_id, flags;
 } uiWindowDef_t;
 
 typedef enum {
@@ -596,16 +570,16 @@ typedef enum {
 } svQuestStatus_t;
 
 typedef struct {
-    DWORD quest_id;
+    uint32_t quest_id;
     svQuestStatus_t status;
 } svQuestEntry_t;
 
 /* Evaluated scene light. type matches RMODELLIGHTTYPE; 0 is omni, so presence is `valid`. */
 typedef struct ENVIRONLIGHT {
     VECTOR3 dir, color, ambient;
-    FLOAT intensity, ambient_intensity;
-    DWORD type;
-    BOOL valid;
+    float intensity, ambient_intensity;
+    uint32_t type;
+    bool valid;
 } ENVIRONLIGHT;
 typedef struct ENVIRONLIGHT *LPENVIRONLIGHT;
 typedef const struct ENVIRONLIGHT *LPCENVIRONLIGHT;
@@ -631,40 +605,40 @@ typedef struct INPUTCMD {
     INPUTACTION action;
     union {
         VECTOR2 focus;
-        struct { VECTOR3 angles; FLOAT distance; } view;
-        struct { DWORD buttons, msec; } move;
+        struct { VECTOR3 angles; float distance; } view;
+        struct { uint32_t buttons, msec; } move;
     };
 } INPUTCMD;
 typedef INPUTCMD *LPINPUTCMD;
 typedef INPUTCMD const *LPCINPUTCMD;
 
 struct playerState_s {
-    DWORD number;                   // client slot index
+    uint32_t number;                   // client slot index
     VECTOR3 viewangles;             // Euler degrees, ROTATE_ZYX {pitch, roll, yaw}; client converts to quat and slerps
     VECTOR3 vieworigin;             // server-authored camera look-at in world space (XY focus + composed Z)
-    FLOAT distance;                 // camera distance from vieworigin for orbit/isometric view
-    FLOAT znear;                    // near clip; required camera sample, copied like fov
-    FLOAT zfar;                     // far clip; required camera sample, copied like fov
-    FLOAT fov;                      // vertical FOV in degrees; transmitted as NFT_FLOAT for cinematic interpolation
-    DWORD rdflags;                  // refdef flags (underwater tint, etc.)
-    DWORD uiflags;                  // per-widget HUD visibility bits, set server-side via FDF/svc_layout pipeline
-    DWORD client_ui_state;          // coarse UI mode: CLIENT_UI_LOADING/GAME/CINEMATIC; state machine, not a bitfield like uiflags
-    BYTE cinematic_portrait;        // model index, 0 = none; packed with team/color/race as one NFT_LONG
-    BYTE team;                      // alliance group (1-based, 0 = none); not the same as color
-    BYTE color;                     // cosmetic color slot (0 = red, 1 = blue, …)
-    BYTE race;                      // playerRace_t
-    LPSTR name;                     // player display name from mapplayer or JASS script; NOTE: LPSTR but no caller mutates through this — LPCSTR would be correct
-    LONG  start_location;           // start location index for JASS GetStartLocationX/Y (-1 = none)
-    FLOAT cinefade;                 // full-screen fade alpha [0,1]; collapsed from Q2's blend[4] since no game here uses tinted overlays
-    USHORT stats[MAX_STATS];        // fast-update integer stats; USHORT (vs Q3's int) to halve wire size
-    LPCSTR texts[PLAYERTEXT_COUNT]; // named player text channels used by server-authored UI
+    float distance;                 // camera distance from vieworigin for orbit/isometric view
+    float znear;                    // near clip; required camera sample, copied like fov
+    float zfar;                     // far clip; required camera sample, copied like fov
+    float fov;                      // vertical FOV in degrees; transmitted as NFT_FLOAT for cinematic interpolation
+    uint32_t rdflags;                  // refdef flags (underwater tint, etc.)
+    uint32_t uiflags;                  // per-widget HUD visibility bits, set server-side via FDF/svc_layout pipeline
+    uint32_t client_ui_state;          // coarse UI mode: CLIENT_UI_LOADING/GAME/CINEMATIC; state machine, not a bitfield like uiflags
+    uint8_t cinematic_portrait;        // model index, 0 = none; packed with team/color/race as one NFT_LONG
+    uint8_t team;                      // alliance group (1-based, 0 = none); not the same as color
+    uint8_t color;                     // cosmetic color slot (0 = red, 1 = blue, …)
+    uint8_t race;                      // playerRace_t
+    string_t name;                     // player display name from mapplayer or JASS script; NOTE: string_t but no caller mutates through this — cstring_t would be correct
+    int32_t  start_location;           // start location index for JASS GetStartLocationX/Y (-1 = none)
+    float cinefade;                 // full-screen fade alpha [0,1]; collapsed from Q2's blend[4] since no game here uses tinted overlays
+    uint16_t stats[MAX_STATS];        // fast-update integer stats; uint16_t (vs Q3's int) to halve wire size
+    cstring_t texts[PLAYERTEXT_COUNT]; // named player text channels used by server-authored UI
 };
 
 _Static_assert(offsetof(PLAYER, cinematic_portrait) % 4 == 0, "NFT_LONG identity pack requires 4-byte alignment");
 _Static_assert(offsetof(PLAYER, team) == offsetof(PLAYER, cinematic_portrait) + 1, "team must follow cinematic_portrait");
 _Static_assert(offsetof(PLAYER, color) == offsetof(PLAYER, cinematic_portrait) + 2, "color must follow team");
 _Static_assert(offsetof(PLAYER, race) == offsetof(PLAYER, cinematic_portrait) + 3, "race must follow color");
-_Static_assert(MAX_PLAYERS <= 256, "playerState_t.team is BYTE");
+_Static_assert(MAX_PLAYERS <= 256, "playerState_t.team is uint8_t");
 
 /* One-shot events embedded in entityState_t.event.
  * The server sets event once; the client fires the sound and resets it.
@@ -685,168 +659,168 @@ typedef enum {
 #define ENT_NAME_SLOT_SIZE  16  /* bytes per name; ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS == MAX_PATHLEN */
 #define ENT_NAME_SEPARATOR  0x1f // ASCII byte; keeps fixed-width name records transmissible through C-string configstrings
 
-static inline BOOL entity_name_slot_empty(LPCSTR slot) { return !*slot || (BYTE)*slot == ENT_NAME_SEPARATOR; }
+static inline bool entity_name_slot_empty(cstring_t slot) { return !*slot || (uint8_t)*slot == ENT_NAME_SEPARATOR; }
 
-static inline BOOL entity_name_slot_equals(LPCSTR slot, LPCSTR name) {
+static inline bool entity_name_slot_equals(cstring_t slot, cstring_t name) {
     size_t slot_len = 0, name_len = MIN(strlen(name), ENT_NAME_SLOT_SIZE - 1);
-    while (slot_len < ENT_NAME_SLOT_SIZE - 1 && slot[slot_len] && (BYTE)slot[slot_len] != ENT_NAME_SEPARATOR) slot_len++;
+    while (slot_len < ENT_NAME_SLOT_SIZE - 1 && slot[slot_len] && (uint8_t)slot[slot_len] != ENT_NAME_SEPARATOR) slot_len++;
     return slot_len == name_len && !memcmp(slot, name, name_len);
 }
 
-static inline void entity_name_pool_prepare(LPSTR pool, LPCSTR current) {
+static inline void entity_name_pool_prepare(string_t pool, cstring_t current) {
     memset(pool, ENT_NAME_SEPARATOR, ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS);
     pool[ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS - 1] = '\0';
     if (current && *current)
         memcpy(pool, current, strnlen(current, ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS - 1));
 }
 
-static inline void entity_name_slot_store(LPSTR pool, DWORD sub, LPCSTR name) {
-    LPSTR slot = pool + sub * ENT_NAME_SLOT_SIZE;
+static inline void entity_name_slot_store(string_t pool, uint32_t sub, cstring_t name) {
+    string_t slot = pool + sub * ENT_NAME_SLOT_SIZE;
     size_t len = MIN(strlen(name), ENT_NAME_SLOT_SIZE - 1);
     memset(slot, ENT_NAME_SEPARATOR, ENT_NAME_SLOT_SIZE);
     memcpy(slot, name, len);
     pool[ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS - 1] = '\0';
 }
 
-static inline void entity_name_pool_decode(LPSTR pool) {
+static inline void entity_name_pool_decode(string_t pool) {
     FOR_LOOP(i, ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS - 1)
-        if ((BYTE)pool[i] == ENT_NAME_SEPARATOR) pool[i] = '\0';
+        if ((uint8_t)pool[i] == ENT_NAME_SEPARATOR) pool[i] = '\0';
 }
 
 typedef struct entityState_s {
-    DWORD number; // edict index
-    DWORD class_id;
+    uint32_t number; // edict index
+    uint32_t class_id;
     union {
         VECTOR3 origin;
-        struct { VECTOR2 origin2; FLOAT z; };
+        struct { VECTOR2 origin2; float z; };
     };
-    FLOAT angle; /* Canonical actor heading, radians. */
+    float angle; /* Canonical actor heading, radians. */
 #ifdef WOW
     VECTOR3 rotation; /* Raw placement Euler degrees; preserve the wire layout and decode in the game pose hook. */
 #endif
-    FLOAT scale;
-    FLOAT radius;
-    FLOAT collision;    /* gameplay collision radius when a client preview must mirror occupancy */
-    FLOAT ground_offset; /* presentation: current altitude above the authoritative support surface (WC3 FlyHeight) */
-    BYTE stats[ENT_STAT_COUNT];
-    BYTE player;
-    USHORT model;
-    USHORT model2;
-    BYTE effect;
-    USHORT effect_flags; /* EFX_* presentation contract for effect/splat effects */
-    USHORT image;
-    USHORT name;        /* packed name: 0=none; see ENT_NAME_SLOT_SIZE/ENT_NAMES_PER_CS */
-    DWORD hover_value;   /* recipient-filtered hover detail; 0 = absent, present values are wire_value - 1 */
-    USHORT sound;
-    DWORD frame;
-    BYTE event;
-    USHORT flags;
-    BYTE renderfx;
-    BYTE ability;
-    USHORT pathing_width;   /* authored cursor/building pathing texture width in 32-unit cells */
-    USHORT pathing_height;  /* authored cursor/building pathing texture height in 32-unit cells */
-    DWORD pathing_preview;  /* low16 ignore entity, bits16..23 prevented, bits24..31 required */
-    DWORD splat;
+    float scale;
+    float radius;
+    float collision;    /* gameplay collision radius when a client preview must mirror occupancy */
+    float ground_offset; /* presentation: current altitude above the authoritative support surface (WC3 FlyHeight) */
+    uint8_t stats[ENT_STAT_COUNT];
+    uint8_t player;
+    uint16_t model;
+    uint16_t model2;
+    uint8_t effect;
+    uint16_t effect_flags; /* EFX_* presentation contract for effect/splat effects */
+    uint16_t image;
+    uint16_t name;        /* packed name: 0=none; see ENT_NAME_SLOT_SIZE/ENT_NAMES_PER_CS */
+    uint32_t hover_value;   /* recipient-filtered hover detail; 0 = absent, present values are wire_value - 1 */
+    uint16_t sound;
+    uint32_t frame;
+    uint8_t event;
+    uint16_t flags;
+    uint8_t renderfx;
+    uint8_t ability;
+    uint16_t pathing_width;   /* authored cursor/building pathing texture width in 32-unit cells */
+    uint16_t pathing_height;  /* authored cursor/building pathing texture height in 32-unit cells */
+    uint32_t pathing_preview;  /* low16 ignore entity, bits16..23 prevented, bits24..31 required */
+    uint32_t splat;
 #ifdef WOW
-    DWORD appearance;
-    DWORD equipment;
+    uint32_t appearance;
+    uint32_t equipment;
 #endif
 #ifndef USE_SHADOWMAPS
-    DWORD shadow;
-    DWORD shadow_rect;
+    uint32_t shadow;
+    uint32_t shadow_rect;
 #endif
 } entityState_t;
 
-_Static_assert(MAX_CLIENTS     <= 256,  "entityState_t.player is BYTE — bump to USHORT if MAX_CLIENTS exceeds 255");
+_Static_assert(MAX_CLIENTS     <= 256,  "entityState_t.player is uint8_t — bump to uint16_t if MAX_CLIENTS exceeds 255");
 _Static_assert(MAX_GAME_ENTITIES <= 65535, "entityState_t.pathing_preview reserves 16 bits for the ignored entity number");
-_Static_assert(MAX_MODELS      <= 65535, "entityState_t.model/model2 are USHORT — bump to DWORD if MAX_MODELS exceeds 65534");
-_Static_assert(MAX_SOUNDS      <= 65535, "entityState_t.sound is USHORT — bump to DWORD if MAX_SOUNDS exceeds 65534");
-_Static_assert(MAX_CONFIGSTRINGS <= 65536, "entityState_t.image is USHORT — bump to DWORD if MAX_CONFIGSTRINGS exceeds 65535");
+_Static_assert(MAX_MODELS      <= 65535, "entityState_t.model/model2 are uint16_t — bump to uint32_t if MAX_MODELS exceeds 65534");
+_Static_assert(MAX_SOUNDS      <= 65535, "entityState_t.sound is uint16_t — bump to uint32_t if MAX_SOUNDS exceeds 65534");
+_Static_assert(MAX_CONFIGSTRINGS <= 65536, "entityState_t.image is uint16_t — bump to uint32_t if MAX_CONFIGSTRINGS exceeds 65535");
 _Static_assert(ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS == MAX_PATHLEN, "packed name configstring must exactly fill one PATHSTR");
 _Static_assert(CS_MAX_NAMES / ENT_NAMES_PER_CS <= MAX_GENERAL,       "name pool requires more CS_GENERAL slots than MAX_GENERAL provides");
-_Static_assert(CS_MAX_NAMES <= 65535,                                 "entityState_t.name is USHORT; packed index is 1-based so max is 65535");
+_Static_assert(CS_MAX_NAMES <= 65535,                                 "entityState_t.name is uint16_t; packed index is 1-based so max is 65535");
 
-static inline DWORD EntityPathingPreviewPack(DWORD ignore_entity, BYTE prevented, BYTE required) {
-    return (ignore_entity & 0xffffu) | ((DWORD)prevented << 16) | ((DWORD)required << 24);
+static inline uint32_t EntityPathingPreviewPack(uint32_t ignore_entity, uint8_t prevented, uint8_t required) {
+    return (ignore_entity & 0xffffu) | ((uint32_t)prevented << 16) | ((uint32_t)required << 24);
 }
 
-static inline USHORT EntityPathingPreviewIgnore(DWORD preview) {
-    return (USHORT)(preview & 0xffffu);
+static inline uint16_t EntityPathingPreviewIgnore(uint32_t preview) {
+    return (uint16_t)(preview & 0xffffu);
 }
 
-static inline BYTE EntityPathingPreviewPrevented(DWORD preview) {
-    return (BYTE)((preview >> 16) & 0xffu);
+static inline uint8_t EntityPathingPreviewPrevented(uint32_t preview) {
+    return (uint8_t)((preview >> 16) & 0xffu);
 }
 
-static inline BYTE EntityPathingPreviewRequired(DWORD preview) {
-    return (BYTE)((preview >> 24) & 0xffu);
+static inline uint8_t EntityPathingPreviewRequired(uint32_t preview) {
+    return (uint8_t)((preview >> 24) & 0xffu);
 }
 
 #ifdef WOW
 typedef struct wowAppearance_s {
-    BYTE skinColorID;
-    BYTE faceID;
-    BYTE hairStyleID;
-    BYTE hairColorID;
-    BYTE facialHairStyleID;
-    BYTE classID;
-    BYTE flags;
+    uint8_t skinColorID;
+    uint8_t faceID;
+    uint8_t hairStyleID;
+    uint8_t hairColorID;
+    uint8_t facialHairStyleID;
+    uint8_t classID;
+    uint8_t flags;
 } wowAppearance_t;
 
 typedef struct wowEquipment_s {
-    BYTE upperBodyItem;
-    BYTE lowerBodyItem;
-    BYTE handItem;
-    BYTE footItem;
+    uint8_t upperBodyItem;
+    uint8_t lowerBodyItem;
+    uint8_t handItem;
+    uint8_t footItem;
 } wowEquipment_t;
 
-static inline DWORD Wow_PackAppearance(BYTE skinColorID,
-                                       BYTE faceID,
-                                       BYTE hairStyleID,
-                                       BYTE hairColorID,
-                                       BYTE facialHairStyleID,
-                                       BYTE classID,
-                                       BYTE flags) {
-    return ((DWORD)(skinColorID & 0x1f)) |
-           ((DWORD)(faceID & 0x0f) << 5) |
-           ((DWORD)(hairStyleID & 0x1f) << 10) |
-           ((DWORD)(hairColorID & 0x0f) << 15) |
-           ((DWORD)(facialHairStyleID & 0x0f) << 19) |
-           ((DWORD)(facialHairStyleID & 0x10) << 5) |
-           ((DWORD)(classID & 0x0f) << 23) |
-           ((DWORD)(flags & 0x1f) << 27);
+static inline uint32_t Wow_PackAppearance(uint8_t skinColorID,
+                                       uint8_t faceID,
+                                       uint8_t hairStyleID,
+                                       uint8_t hairColorID,
+                                       uint8_t facialHairStyleID,
+                                       uint8_t classID,
+                                       uint8_t flags) {
+    return ((uint32_t)(skinColorID & 0x1f)) |
+           ((uint32_t)(faceID & 0x0f) << 5) |
+           ((uint32_t)(hairStyleID & 0x1f) << 10) |
+           ((uint32_t)(hairColorID & 0x0f) << 15) |
+           ((uint32_t)(facialHairStyleID & 0x0f) << 19) |
+           ((uint32_t)(facialHairStyleID & 0x10) << 5) |
+           ((uint32_t)(classID & 0x0f) << 23) |
+           ((uint32_t)(flags & 0x1f) << 27);
 }
 
-static inline wowAppearance_t Wow_UnpackAppearance(DWORD appearance) {
+static inline wowAppearance_t Wow_UnpackAppearance(uint32_t appearance) {
     wowAppearance_t unpacked = {
-        .skinColorID = (BYTE)(appearance & 0x1f),
-        .faceID = (BYTE)((appearance >> 5) & 0x0f),
-        .hairStyleID = (BYTE)((appearance >> 10) & 0x1f),
-        .hairColorID = (BYTE)((appearance >> 15) & 0x0f),
+        .skinColorID = (uint8_t)(appearance & 0x1f),
+        .faceID = (uint8_t)((appearance >> 5) & 0x0f),
+        .hairStyleID = (uint8_t)((appearance >> 10) & 0x1f),
+        .hairColorID = (uint8_t)((appearance >> 15) & 0x0f),
         /* Classic face IDs stop at 14, so its spare fifth bit carries facial-feature ID bit 4. */
-        .facialHairStyleID = (BYTE)(((appearance >> 19) & 0x0f) | ((appearance >> 5) & 0x10)),
-        .classID = (BYTE)((appearance >> 23) & 0x0f),
-        .flags = (BYTE)((appearance >> 27) & 0x1f),
+        .facialHairStyleID = (uint8_t)(((appearance >> 19) & 0x0f) | ((appearance >> 5) & 0x10)),
+        .classID = (uint8_t)((appearance >> 23) & 0x0f),
+        .flags = (uint8_t)((appearance >> 27) & 0x1f),
     };
     return unpacked;
 }
 
-static inline DWORD Wow_PackEquipment(BYTE upperBodyItem,
-                                      BYTE lowerBodyItem,
-                                      BYTE handItem,
-                                      BYTE footItem) {
-    return ((DWORD)upperBodyItem) |
-           ((DWORD)lowerBodyItem << 8) |
-           ((DWORD)handItem << 16) |
-           ((DWORD)footItem << 24);
+static inline uint32_t Wow_PackEquipment(uint8_t upperBodyItem,
+                                      uint8_t lowerBodyItem,
+                                      uint8_t handItem,
+                                      uint8_t footItem) {
+    return ((uint32_t)upperBodyItem) |
+           ((uint32_t)lowerBodyItem << 8) |
+           ((uint32_t)handItem << 16) |
+           ((uint32_t)footItem << 24);
 }
 
-static inline wowEquipment_t Wow_UnpackEquipment(DWORD equipment) {
+static inline wowEquipment_t Wow_UnpackEquipment(uint32_t equipment) {
     wowEquipment_t unpacked = {
-        .upperBodyItem = (BYTE)(equipment & 0xff),
-        .lowerBodyItem = (BYTE)((equipment >> 8) & 0xff),
-        .handItem = (BYTE)((equipment >> 16) & 0xff),
-        .footItem = (BYTE)((equipment >> 24) & 0xff),
+        .upperBodyItem = (uint8_t)(equipment & 0xff),
+        .lowerBodyItem = (uint8_t)((equipment >> 8) & 0xff),
+        .handItem = (uint8_t)((equipment >> 16) & 0xff),
+        .footItem = (uint8_t)((equipment >> 24) & 0xff),
     };
     return unpacked;
 }
@@ -854,51 +828,51 @@ static inline wowEquipment_t Wow_UnpackEquipment(DWORD equipment) {
 
 #define SHADOW_RECT_STEP 4.0f
 
-static inline BYTE ShadowPackRectComponent(FLOAT value) {
+static inline uint8_t ShadowPackRectComponent(float value) {
     if (value <= 0) {
         return 0;
     }
-    DWORD packed = (DWORD)((value + SHADOW_RECT_STEP * 0.5f) / SHADOW_RECT_STEP);
+    uint32_t packed = (uint32_t)((value + SHADOW_RECT_STEP * 0.5f) / SHADOW_RECT_STEP);
     if (packed > 0xff) {
         packed = 0xff;
     }
-    return (BYTE)packed;
+    return (uint8_t)packed;
 }
 
-static inline FLOAT ShadowUnpackRectComponent(BYTE packed) {
-    return (FLOAT)packed * SHADOW_RECT_STEP;
+static inline float ShadowUnpackRectComponent(uint8_t packed) {
+    return (float)packed * SHADOW_RECT_STEP;
 }
 
-static inline DWORD ShadowPackRect(FLOAT x, FLOAT y, FLOAT w, FLOAT h) {
-    return (DWORD)ShadowPackRectComponent(x) |
-           ((DWORD)ShadowPackRectComponent(y) << 8) |
-           ((DWORD)ShadowPackRectComponent(w) << 16) |
-           ((DWORD)ShadowPackRectComponent(h) << 24);
+static inline uint32_t ShadowPackRect(float x, float y, float w, float h) {
+    return (uint32_t)ShadowPackRectComponent(x) |
+           ((uint32_t)ShadowPackRectComponent(y) << 8) |
+           ((uint32_t)ShadowPackRectComponent(w) << 16) |
+           ((uint32_t)ShadowPackRectComponent(h) << 24);
 }
 
-static inline void ShadowUnpackRect(DWORD packed, LPFLOAT x, LPFLOAT y, LPFLOAT w, LPFLOAT h) {
-    if (x) *x = ShadowUnpackRectComponent((BYTE)(packed & 0xff));
-    if (y) *y = ShadowUnpackRectComponent((BYTE)((packed >> 8) & 0xff));
-    if (w) *w = ShadowUnpackRectComponent((BYTE)((packed >> 16) & 0xff));
-    if (h) *h = ShadowUnpackRectComponent((BYTE)((packed >> 24) & 0xff));
+static inline void ShadowUnpackRect(uint32_t packed, float * x, float * y, float * w, float * h) {
+    if (x) *x = ShadowUnpackRectComponent((uint8_t)(packed & 0xff));
+    if (y) *y = ShadowUnpackRectComponent((uint8_t)((packed >> 8) & 0xff));
+    if (w) *w = ShadowUnpackRectComponent((uint8_t)((packed >> 16) & 0xff));
+    if (h) *h = ShadowUnpackRectComponent((uint8_t)((packed >> 24) & 0xff));
 }
 
 typedef struct animation_s {
     char name[80];
-    DWORD interval[2];
-    FLOAT movespeed;     // movement speed of the entity while playing this animation
-    DWORD flags;      // &1: non looping
-    FLOAT rarity;
-    DWORD syncpoint;
-    FLOAT radius;
+    uint32_t interval[2];
+    float movespeed;     // movement speed of the entity while playing this animation
+    uint32_t flags;      // &1: non looping
+    float rarity;
+    uint32_t syncpoint;
+    float radius;
     VECTOR3 min;
     VECTOR3 max;
-    DWORD damage_point;
+    uint32_t damage_point;
 } animation_t;
 
 typedef struct {
-    DWORD width;
-    DWORD height;
+    uint32_t width;
+    uint32_t height;
 } size2_t;
 
 /* UI canvas contract: how the authored UI scene maps onto the window (docs/architecture/ui-canvas.md).
@@ -916,8 +890,8 @@ typedef enum {
 } UICANVASCLASS;
 
 typedef struct {
-    RECT scene;            // full UI scene in authored units; the renderer maps it onto the whole drawable
-    RECT root;             // server-authored HUD root inside the scene; centered under UI_CANVAS_EXPAND_CENTER
+    rect_t scene;            // full UI scene in authored units; the renderer maps it onto the whole drawable
+    rect_t root;             // server-authored HUD root inside the scene; centered under UI_CANVAS_EXPAND_CENTER
     size2_t window;        // logical window size the canvas was resolved from
     UICANVASPOLICY policy; // resolved once per mounted data by the game's client hook
     UICANVASCLASS chrome;  // presentation class reported to the game through the ui_canvas client command
@@ -930,13 +904,13 @@ typedef enum {
     TE_BLOOD,
     TE_MOVE_CONFIRMATION,
     TE_MISSILE,
-    TE_FIREBOLT_IMPACT,    /* WoW: fire explosion — payload: POSITION, model SHORT */
-    TE_FROSTBOLT_IMPACT,   /* WoW: frost burst — payload: POSITION, model SHORT */
+    TE_FIREBOLT_IMPACT,    /* WoW: fire explosion — payload: POSITION, model int16_t */
+    TE_FROSTBOLT_IMPACT,   /* WoW: frost burst — payload: POSITION, model int16_t */
     TE_ATTACK_CONFIRMATION,
-    /* Generic server-selected world text. Payload: POSITION, STRING, RGBA LONG,
-     * font SHORT, lifetime LONG ms, fade-start LONG ms, velocity FLOAT/FLOAT px/s. */
+    /* Generic server-selected world text. Payload: POSITION, STRING, RGBA int32_t,
+     * font int16_t, lifetime int32_t ms, fade-start int32_t ms, velocity float/float px/s. */
     TE_FLOATING_TEXT,
-    /* Generic transient entity highlight. Payload: entity LONG, RGBA LONG.
+    /* Generic transient entity highlight. Payload: entity int32_t, RGBA int32_t.
      * The client owns the fixed two-flash lifetime and follows the entity while visible. */
     TE_ENTITY_INDICATOR,
 } tempEvent_t;
@@ -1047,78 +1021,78 @@ typedef uiFramePoint_t uiFramePoints_t[FPP_COUNT];
 typedef enum { UI_MODEL_PERSPECTIVE, UI_MODEL_ORTHOGRAPHIC } UIMODELPROJECTION;
 typedef struct UIMODEL {
     VECTOR3 eye, target, pos, scale;
-    FLOAT fov, znear, zfar, aspect;
+    float fov, znear, zfar, aspect;
     UIMODELPROJECTION projection;
 } UIMODEL;
 typedef struct UIMODEL *LPUIMODEL;
 typedef const struct UIMODEL *LPCUIMODEL;
 
 typedef struct {
-    DWORD radialStartTime; /* absolute server/client clock milliseconds */
-    DWORD radialEndTime;   /* <= start means no radial progress overlay */
+    uint32_t radialStartTime; /* absolute server/client clock milliseconds */
+    uint32_t radialEndTime;   /* <= start means no radial progress overlay */
 } uiCommandButton_t;
 
 typedef struct uiFrame_s {
-    DWORD number;
-    DWORD parent;
+    uint32_t number;
+    uint32_t parent;
     COLOR32 color;
     struct { uiFramePoints_t x, y; } points;
-    struct { FLOAT width, height; } size;
+    struct { float width, height; } size;
     struct {
-        USHORT index;
-        USHORT index2;
-        BYTE coord[4];  // also used as animation start timestamp
+        uint16_t index;
+        uint16_t index2;
+        uint8_t coord[4];  // also used as animation start timestamp
     } tex;
     union {
         struct {
             FRAMETYPE type: 8;
-            BYTE alphaMode: 2;
+            uint8_t alphaMode: 2;
         } flags;
-        DWORD flagsvalue;
+        uint32_t flagsvalue;
     };
     struct {
-        HANDLE data;
-        DWORD size;
+        handle_t data;
+        uint32_t size;
     } buffer;
-    DWORD textLength;
-    DWORD stat;
-    LPCSTR text; /* type-specific text; FT_COMMANDBUTTON uses this for its optional secondary click command */
-    LPCSTR tooltip;
-    LPCSTR onclick;
-    FLOAT value;
-    BYTE hotkey;
+    uint32_t textLength;
+    uint32_t stat;
+    cstring_t text; /* type-specific text; FT_COMMANDBUTTON uses this for its optional secondary click command */
+    cstring_t tooltip;
+    cstring_t onclick;
+    float value;
+    uint8_t hotkey;
 } uiFrame_t;
 
-typedef USHORT RESOURCE;
+typedef uint16_t RESOURCE;
 
 typedef struct {
-    USHORT image;
-    DWORD starttime;
-    DWORD endtime;
+    uint16_t image;
+    uint32_t starttime;
+    uint32_t endtime;
 } uiBuildQueueItem_t;
 
 #define UI_MULTISELECT_ITEM_FOCUSED (1u << 0)
 
 typedef struct {
-    USHORT image;
-    USHORT entity;
-    USHORT flags;
+    uint16_t image;
+    uint16_t entity;
+    uint16_t flags;
 } uiMultiselectItem_t;
 
 typedef struct {
-    USHORT firstitem;
-    USHORT buildtimer;
-    FLOAT itemoffset;
-    USHORT numitems;
+    uint16_t firstitem;
+    uint16_t buildtimer;
+    float itemoffset;
+    uint16_t numitems;
     uiBuildQueueItem_t items[];
 } uiBuildQueue_t;
 
 typedef struct {
-    DWORD message_id;
+    uint32_t message_id;
     RESOURCE image;
     RESOURCE title_font;
     RESOURCE body_font;
-    BYTE flags;
+    uint8_t flags;
 } uiMessageQueue_t;
 
 #define UI_MESSAGE_UNREAD (1u << 0) // flag bit; server marks an unread message; used by FT_MESSAGE_QUEUE
@@ -1129,22 +1103,22 @@ typedef struct {
     RESOURCE mana_bar;
     RESOURCE focus_highlight;
     VECTOR2 offset;
-    USHORT numcolumns;
-    USHORT numitems;
+    uint16_t numcolumns;
+    uint16_t numitems;
     uiMultiselectItem_t items[];
 } uiMultiselect_t;
 
 typedef struct {
     uiFontJustificationH_t textalignx: 4;
     uiFontJustificationV_t textaligny: 4;
-    SHORT offsetx;
-    SHORT offsety;
+    int16_t offsetx;
+    int16_t offsety;
     RESOURCE font;
 } uiLabel_t;
 
 typedef struct {
     RESOURCE font;
-    FLOAT inset;
+    float inset;
 } uiTextArea_t;
 
 typedef struct {
@@ -1155,7 +1129,7 @@ typedef struct {
 typedef struct {
     RESOURCE texture;
     RESOURCE font;
-    BYTE texcoord[4];
+    uint8_t texcoord[4];
     COLOR32 fontcolor;
 } uiSimpleButtonState_t;
 
@@ -1167,21 +1141,21 @@ typedef struct {
 } uiSimpleButton_t;
 
 typedef struct {
-    SHORT CornerFlags;
-    FLOAT CornerSize;
-    FLOAT BackgroundSize;
-    FLOAT BackgroundInsets[4];// 0.01 0.01 0.01 0.01,
+    int16_t CornerFlags;
+    float CornerSize;
+    float BackgroundSize;
+    float BackgroundInsets[4];// 0.01 0.01 0.01 0.01,
     RESOURCE EdgeFile;//  "EscMenuBorder",
     RESOURCE Background;
-    BOOL TileBackground:1;
-    BOOL BlendAll:1;
-    BOOL Mirrored:1;
+    bool TileBackground:1;
+    bool BlendAll:1;
+    bool Mirrored:1;
 } uiBackdrop_t;
 
 /* Optional buffer for FT_TEXTURE frames that need float-precision UV or flip.
  * When present, SCR_LayoutDrawTexture uses these values instead of tex.coord. */
 typedef struct {
-    FLOAT l, r, t, b;   /* UV as float [0,1]; l>r or t>b = flipped axis */
+    float l, r, t, b;   /* UV as float [0,1]; l>r or t>b = flipped axis */
     COLOR32 color;
     BLEND_MODE alphamode;
 } uiTextureUV_t;
@@ -1189,22 +1163,22 @@ typedef struct {
 typedef struct {
     uiBackdrop_t background;
     RESOURCE font;
-    FLOAT borderSize;
+    float borderSize;
     COLOR32 textColor;
     COLOR32 cursorColor;
-    DWORD maxChars;
+    uint32_t maxChars;
     UINAME id;
 } uiEditBox_t;
 
 typedef struct {
     uiBackdrop_t background;
     uiLabel_t text;
-    FLOAT border;
-    FLOAT itemHeight;
-    SHORT selectedIndex;
+    float border;
+    float itemHeight;
+    int16_t selectedIndex;
     UINAME id;
     UINAME fetchCommand;
-    DWORD editTarget;
+    uint32_t editTarget;
 } uiListBox_t;
 
 typedef struct {
@@ -1217,7 +1191,7 @@ typedef struct {
 /* Compact scrollbar art: one normal state, shared UV crop, and square parts. */
 typedef struct {
     RESOURCE image[3];
-    BYTE texcoord[4];
+    uint8_t texcoord[4];
 } uiScrollBarImage_t;
 
 typedef struct {
@@ -1228,9 +1202,9 @@ typedef struct {
 typedef struct {
     uiBackdrop_t background;
     uiLabel_t text;
-    FLOAT padding_x;
-    FLOAT padding_y;
-    FLOAT min_width;
+    float padding_x;
+    float padding_y;
+    float min_width;
 } uiNameTag_t;
 
 typedef struct {
@@ -1255,8 +1229,8 @@ typedef struct {
 _Static_assert(sizeof(uiCheckBox_t) <= 255, "uiCheckBox_t must fit the one-byte UI typed payload");
 
 typedef struct {
-    LPSTR tok;
-    LPCSTR str;
+    string_t tok;
+    cstring_t str;
     bool reading_string;
     bool error;
     bool comma_space;
@@ -1265,7 +1239,7 @@ typedef struct {
 } parser_t;
 
 typedef struct {
-    DWORD itemID;
+    uint32_t itemID;
     int chanceToDrop;
 } droppableItem_t;
 
@@ -1279,65 +1253,65 @@ typedef struct {
 } point2_t;
 
 typedef struct {
-    DWORD level;        // (set to 1 for non hero units and items)
-    DWORD str;          // strength attribute
-    DWORD agi;          // agility attribute
-    DWORD intel;        // intelligence attribute
-    DWORD xp;           // accumulated experience points
-    BOOL  suspend_xp;   // when true, XP gains are suspended
-    DWORD skillpoints;  // available skill points for hero ability learning
+    uint32_t level;        // (set to 1 for non hero units and items)
+    uint32_t str;          // strength attribute
+    uint32_t agi;          // agility attribute
+    uint32_t intel;        // intelligence attribute
+    uint32_t xp;           // accumulated experience points
+    bool  suspend_xp;   // when true, XP gains are suspended
+    uint32_t skillpoints;  // available skill points for hero ability learning
 } doodadHero_t;
 
 typedef struct {
-    DWORD slot;
-    DWORD itemID;
+    uint32_t slot;
+    uint32_t itemID;
 } inventoryItem_t;
 
 typedef struct {
-    DWORD abilityID;
-    DWORD active;
-    DWORD level;
+    uint32_t abilityID;
+    uint32_t active;
+    uint32_t level;
 } modifiedAbility_t;
 
 typedef struct {
-    WORD width;
-    WORD height;
+    uint16_t width;
+    uint16_t height;
     COLOR32 map[];
 } pathTex_t;
 
 struct Doodad {
-    DWORD doodID;
-    DWORD variation;
+    uint32_t doodID;
+    uint32_t variation;
     VECTOR3 position;
-    FLOAT angle;
+    float angle;
     VECTOR3 scale;
-    BYTE flags;
-    DWORD player;
-    BYTE treeLife; // integer stored in %, 100% is 0x64, 170% is 0xAA for example
-    BYTE unknown1;
-    BYTE unknown2;
-    DWORD hitPoints; // (-1 = use default)
-    DWORD manaPoints; // (-1 = use default, 0 = unit doesn't have mana)
-    DWORD droppedItemSetPtr;
-    DWORD num_droppedItemSets;
-    DWORD goldAmount; // (default = 12500)
-    FLOAT targetAcquisition; // (-1 = normal, -2 = camp)
+    uint8_t flags;
+    uint32_t player;
+    uint8_t treeLife; // integer stored in %, 100% is 0x64, 170% is 0xAA for example
+    uint8_t unknown1;
+    uint8_t unknown2;
+    uint32_t hitPoints; // (-1 = use default)
+    uint32_t manaPoints; // (-1 = use default, 0 = unit doesn't have mana)
+    uint32_t droppedItemSetPtr;
+    uint32_t num_droppedItemSets;
+    uint32_t goldAmount; // (default = 12500)
+    float targetAcquisition; // (-1 = normal, -2 = camp)
     doodadHero_t hero;
-    DWORD num_inventoryItems;
-    DWORD num_modifiedAbilities;
+    uint32_t num_inventoryItems;
+    uint32_t num_modifiedAbilities;
     droppableItemSet_t *droppableItemSets;
     inventoryItem_t *inventoryItems;
     modifiedAbility_t *modifiedAbilities;
-    DWORD randomUnitFlag; // "r" (for uDNR units and iDNR items)
-    DWORD levelOfRandomItem; //    byte[3]: level of the random unit/item,-1 = any (this is actually interpreted as a 24-bit number)
+    uint32_t randomUnitFlag; // "r" (for uDNR units and iDNR items)
+    uint32_t levelOfRandomItem; //    byte[3]: level of the random unit/item,-1 = any (this is actually interpreted as a 24-bit number)
     //    byte: item class of the random item, 0 = any, 1 = permanent ... (this is 0 for units)
-    DWORD randomUnitGroupNumber; //    DWORD: unit group number (which group from the global table)
-    DWORD randomUnitPositionNumber; //    DWORD: position number (which column of this group)
-    DWORD num_diffAvailUnits;
+    uint32_t randomUnitGroupNumber; //    uint32_t: unit group number (which group from the global table)
+    uint32_t randomUnitPositionNumber; //    uint32_t: position number (which column of this group)
+    uint32_t num_diffAvailUnits;
     droppableItem_t *diffAvailUnits;
-    DWORD color; // map placement color index; -1 uses the unit type/owner color
-    DWORD waygate;
-    DWORD unitID;
+    uint32_t color; // map placement color index; -1 uses the unit type/owner color
+    uint32_t waygate;
+    uint32_t unitID;
     struct Doodad *next;
 };
 
@@ -1349,15 +1323,15 @@ typedef struct particle_s {
     VECTOR3 accel;
     VECTOR3 tail;       /* optional world-space trail vector; zero keeps billboard behavior */
     COLOR32 color[3];
-    BYTE size[3];
-    BYTE midtime;
-    BYTE columns;
-    BYTE rows;
-    BYTE blend_mode;
-    FLOAT size_value_scale;
-    FLOAT size_time_scale;
-    FLOAT time;
-    FLOAT lifespan;
+    uint8_t size[3];
+    uint8_t midtime;
+    uint8_t columns;
+    uint8_t rows;
+    uint8_t blend_mode;
+    float size_value_scale;
+    float size_time_scale;
+    float time;
+    float lifespan;
 } cparticle_t;
 
 typedef enum {
@@ -1376,25 +1350,25 @@ typedef enum {
 } lobbySlotType_t;
 
 typedef struct lobbySlot_s {
-    BOOL visible;
-    BOOL occupied;
-    DWORD client;
-    DWORD map_player;
+    bool visible;
+    bool occupied;
+    uint32_t client;
+    uint32_t map_player;
     lobbySlotType_t type;
     playerRace_t race;
-    DWORD team;
-    DWORD color;
+    uint32_t team;
+    uint32_t color;
     UINAME name;
 } lobbySlot_t;
 
 typedef struct lobbyState_s {
-    BOOL active;
+    bool active;
     PATHSTR map_path;
     UINAME map_name;
-    DWORD game_speed;
-    DWORD slot_count;
-    DWORD revision;
-    DWORD local_slot;
+    uint32_t game_speed;
+    uint32_t slot_count;
+    uint32_t revision;
+    uint32_t local_slot;
     lobbySlot_t slots[MAX_PLAYERS];
 } lobbyState_t;
 

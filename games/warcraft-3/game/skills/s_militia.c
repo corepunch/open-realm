@@ -2,20 +2,20 @@
 
 #define MILITIA_BUFF "Bmil"
 
-static DWORD militia_actor_ability_alias(LPEDICT ent, DWORD base_code) {
+static uint32_t militia_actor_ability_alias(LPEDICT ent, uint32_t base_code) {
     char alias[5] = {0};
 
     if (!ent) return 0;
     if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
         PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
-            DWORD code = 0;
+            uint32_t code = 0;
             if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
             memcpy(&code, token, 4);
             if (G_AbilityCode(code) == base_code) return code;
         }
     }
     FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
-        DWORD const code = ent->abilities.added[i];
+        uint32_t const code = ent->abilities.added[i];
         if (!code) continue;
         memcpy(alias, &code, 4);
         if (G_ActorHasSkill(ent, alias) && G_AbilityCode(code) == base_code) return code;
@@ -23,21 +23,21 @@ static DWORD militia_actor_ability_alias(LPEDICT ent, DWORD base_code) {
     return 0;
 }
 
-static BOOL militia_actor_ability_removed(LPEDICT ent, DWORD base_code) {
+static bool militia_actor_ability_removed(LPEDICT ent, uint32_t base_code) {
     if (!ent) return false;
     FOR_LOOP(i, ARRAY_COUNT(ent->abilities.removed)) {
-        DWORD const code = ent->abilities.removed[i];
+        uint32_t const code = ent->abilities.removed[i];
         if (code && G_AbilityCode(code) == base_code) return true;
     }
     return false;
 }
 
-static DWORD militia_hall_base_type(LPEDICT hall) {
+static uint32_t militia_hall_base_type(LPEDICT hall) {
     return hall && hall->data.UnitAbilities && hall->data.UnitAbilities->id
         ? hall->data.UnitAbilities->id : (hall ? hall->class_id : 0);
 }
 
-static BOOL militia_is_first_tier_one_hall(LPEDICT hall) {
+static bool militia_is_first_tier_one_hall(LPEDICT hall) {
     LPEDICT first = NULL;
 
     if (!hall || militia_hall_base_type(hall) != MAKEFOURCC('h','t','o','w')) return false;
@@ -52,16 +52,16 @@ static BOOL militia_is_first_tier_one_hall(LPEDICT hall) {
     return first == hall;
 }
 
-static BOOL militia_can_recover_hall_ability(LPEDICT hall) {
-    DWORD const type = militia_hall_base_type(hall);
+static bool militia_can_recover_hall_ability(LPEDICT hall) {
+    uint32_t const type = militia_hall_base_type(hall);
 
     if (!hall || militia_actor_ability_removed(hall, MAKEFOURCC('A','m','i','c'))) return false;
     if (type == MAKEFOURCC('h','k','e','e') || type == MAKEFOURCC('h','c','a','s')) return true;
     return type == MAKEFOURCC('h','t','o','w') && militia_is_first_tier_one_hall(hall);
 }
 
-static DWORD militia_hall_ability_alias(LPEDICT hall, BOOL recover) {
-    DWORD ability = militia_actor_ability_alias(hall, MAKEFOURCC('A','m','i','c'));
+static uint32_t militia_hall_ability_alias(LPEDICT hall, bool recover) {
+    uint32_t ability = militia_actor_ability_alias(hall, MAKEFOURCC('A','m','i','c'));
 
     if (ability || !recover || !militia_can_recover_hall_ability(hall)) return ability;
 
@@ -75,12 +75,12 @@ static DWORD militia_hall_ability_alias(LPEDICT hall, BOOL recover) {
     return ability;
 }
 
-BOOL S_MilitiaEnsureHallAbility(LPEDICT hall) {
+bool S_MilitiaEnsureHallAbility(LPEDICT hall) {
     return militia_hall_ability_alias(hall, true) != 0;
 }
 
-static void militia_sync_form(LPEDICT unit, DWORD ability) {
-    DWORD normal_type, militia_type;
+static void militia_sync_form(LPEDICT unit, uint32_t ability) {
+    uint32_t normal_type, militia_type;
 
     if (!unit || !ability || unit->militia.ability) return;
     normal_type = S_SpellDataId(ability, 1, 1);
@@ -92,7 +92,7 @@ static void militia_sync_form(LPEDICT unit, DWORD ability) {
     unit->militia.active = true;
 }
 
-static BOOL militia_partner_valid(LPEDICT worker, LPEDICT hall) {
+static bool militia_partner_valid(LPEDICT worker, LPEDICT hall) {
     if (!worker || !hall || !hall->inuse || M_IsDead(worker) || M_IsDead(hall)) return false;
     if (worker->s.player != hall->s.player || worker->paused || hall->paused) return false;
     if (hall != worker->militia.partner || hall->spawn_time != worker->militia.partner_spawn_time) return false;
@@ -100,20 +100,20 @@ static BOOL militia_partner_valid(LPEDICT worker, LPEDICT hall) {
     return militia_hall_ability_alias(hall, false) != 0;
 }
 
-static BOOL militia_in_range(LPEDICT worker, LPEDICT hall) {
-    DWORD const hall_ability = militia_hall_ability_alias(hall, false);
-    FLOAT const range = hall_ability ? MAX(0.0f, S_SpellRange(hall_ability, 1)) : 0.0f;
-    FLOAT const footprint = CM_DistanceToPathingFootprint(hall, &worker->s.origin2);
+static bool militia_in_range(LPEDICT worker, LPEDICT hall) {
+    uint32_t const hall_ability = militia_hall_ability_alias(hall, false);
+    float const range = hall_ability ? MAX(0.0f, S_SpellRange(hall_ability, 1)) : 0.0f;
+    float const footprint = CM_DistanceToPathingFootprint(hall, &worker->s.origin2);
 
     if (footprint < FLT_MAX) return footprint <= worker->collision + range;
     return Vector2_distance(&worker->s.origin2, &hall->s.origin2) <=
         worker->collision + hall->collision + range;
 }
 
-static BOOL militia_prepare_approach(LPEDICT worker, LPEDICT hall) {
-    DWORD const hall_ability = militia_hall_ability_alias(hall, false);
+static bool militia_prepare_approach(LPEDICT worker, LPEDICT hall) {
+    uint32_t const hall_ability = militia_hall_ability_alias(hall, false);
     VECTOR2 approach;
-    FLOAT range;
+    float range;
 
     if (!worker || !hall || !hall_ability) return false;
     range = worker->collision + MAX(0.0f, S_SpellRange(hall_ability, 1));
@@ -146,25 +146,25 @@ static void militia_return_carried_resources(LPEDICT worker) {
     if (!worker || !(player = G_GetPlayerByNumber(worker->s.player))) return;
     if (worker->harvested_gold) {
         G_CreditResourceIncome(player, worker, PLAYERSTATE_RESOURCE_GOLD,
-                               (LONG)worker->harvested_gold);
+                               (int32_t)worker->harvested_gold);
         S_SetCarriedResource(worker, RETURN_RESOURCE_GOLD, 0);
     }
     if (worker->harvested_lumber) {
         G_CreditResourceIncome(player, worker, PLAYERSTATE_RESOURCE_LUMBER,
-                               (LONG)worker->harvested_lumber);
+                               (int32_t)worker->harvested_lumber);
         S_SetCarriedResource(worker, RETURN_RESOURCE_LUMBER, 0);
     }
 }
 
 static void militia_remove_buff(LPEDICT unit) {
-    DWORD const code = MAKEFOURCC('B','m','i','l');
+    uint32_t const code = MAKEFOURCC('B','m','i','l');
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == code)
             memset(unit->abilstatus + i, 0, sizeof(unit->abilstatus[i]));
     }
 }
 
-static BOOL militia_transform_type(LPEDICT unit, DWORD type) {
+static bool militia_transform_type(LPEDICT unit, uint32_t type) {
     return G_TransformUnitType(unit, type);
 }
 
@@ -180,11 +180,11 @@ static void militia_back_to_work(LPEDICT unit, returnResource_t resource) {
     unit_stand(unit);
 }
 
-static BOOL militia_transform_forward(LPEDICT worker) {
-    DWORD const ability = worker->militia.ability;
-    DWORD const normal_type = S_SpellDataId(ability, 1, 1);
-    DWORD const militia_type = S_SpellDataId(ability, 1, 2);
-    FLOAT const duration = S_SpellDuration(ability, 1, false);
+static bool militia_transform_forward(LPEDICT worker) {
+    uint32_t const ability = worker->militia.ability;
+    uint32_t const normal_type = S_SpellDataId(ability, 1, 1);
+    uint32_t const militia_type = S_SpellDataId(ability, 1, 2);
+    float const duration = S_SpellDuration(ability, 1, false);
 
     if (!normal_type || !militia_type || worker->class_id != normal_type ||
         !G_UnitUI(militia_type)->modelFile) return false;
@@ -201,9 +201,9 @@ static BOOL militia_transform_forward(LPEDICT worker) {
     return true;
 }
 
-static BOOL militia_transform_back(LPEDICT militia, BOOL resume_work) {
+static bool militia_transform_back(LPEDICT militia, bool resume_work) {
     returnResource_t const resource = (returnResource_t)militia->militia.previous_resource;
-    DWORD const normal_type = militia->militia.normal_type;
+    uint32_t const normal_type = militia->militia.normal_type;
 
     if (!normal_type || militia->class_id != militia->militia.militia_type) return false;
     militia_remove_buff(militia);
@@ -224,7 +224,7 @@ static BOOL militia_transform_back(LPEDICT militia, BOOL resume_work) {
 
 static void ai_militia_pair_walk(LPEDICT worker) {
     LPEDICT hall = worker ? worker->militia.partner : NULL;
-    FLOAT distance, step;
+    float distance, step;
 
     if (!militia_partner_valid(worker, hall)) {
         militia_clear_pairing(worker);
@@ -234,7 +234,7 @@ static void ai_militia_pair_walk(LPEDICT worker) {
         return;
     }
     if (militia_in_range(worker, hall)) {
-        BOOL const transformed = worker->militia.returning
+        bool const transformed = worker->militia.returning
             ? militia_transform_back(worker, true)
             : militia_transform_forward(worker);
         if (!transformed) {
@@ -267,9 +267,9 @@ static void ai_militia_pair_walk(LPEDICT worker) {
 
 static umove_t militia_move_walk = { "walk", ai_militia_pair_walk, NULL, CAbilityMilitia };
 
-BOOL S_MilitiaTargetOrder(LPEDICT worker, LPCSTR order, LPEDICT hall) {
-    DWORD worker_ability;
-    BOOL returning;
+bool S_MilitiaTargetOrder(LPEDICT worker, cstring_t order, LPEDICT hall) {
+    uint32_t worker_ability;
+    bool returning;
 
     if (!worker || !order || !hall) {
         return false;
@@ -307,7 +307,7 @@ BOOL S_MilitiaTargetOrder(LPEDICT worker, LPCSTR order, LPEDICT hall) {
     worker->militia.returning = returning;
     worker->movement.holding_position = false;
     if (militia_in_range(worker, hall)) {
-        BOOL const transformed = returning ? militia_transform_back(worker, true) : militia_transform_forward(worker);
+        bool const transformed = returning ? militia_transform_back(worker, true) : militia_transform_forward(worker);
         if (!transformed) S_CancelMilitiaPairing(worker);
         return transformed;
     }
@@ -322,8 +322,8 @@ BOOL S_MilitiaTargetOrder(LPEDICT worker, LPCSTR order, LPEDICT hall) {
     return true;
 }
 
-FLOAT S_MilitiaPairSearchRadius(DWORD ability) {
-    FLOAT const radius = MAX(0.0f, S_SpellNumber(ability, ABILITY_NUMBER_AREA, 1));
+float S_MilitiaPairSearchRadius(uint32_t ability) {
+    float const radius = MAX(0.0f, S_SpellNumber(ability, ABILITY_NUMBER_AREA, 1));
 
     /* Warsmash's generic pairing ability treats an authored zero search
      * radius as unbounded. Amil uses that sentinel, so interpreting zero as
@@ -331,14 +331,14 @@ FLOAT S_MilitiaPairSearchRadius(DWORD ability) {
     return radius == 0.0f ? FLT_MAX : radius;
 }
 
-static LPEDICT militia_find_partner(LPEDICT worker, DWORD worker_ability) {
+static LPEDICT militia_find_partner(LPEDICT worker, uint32_t worker_ability) {
     LPEDICT best = NULL;
-    FLOAT best_distance = FLT_MAX;
-    FLOAT const radius = S_MilitiaPairSearchRadius(worker_ability);
+    float best_distance = FLT_MAX;
+    float const radius = S_MilitiaPairSearchRadius(worker_ability);
 
     FILTER_EDICTS(hall, hall->inuse && (hall->svflags & SVF_MONSTER)) {
-        DWORD hall_ability;
-        FLOAT distance;
+        uint32_t hall_ability;
+        float distance;
 
         if (hall->s.player != worker->s.player) continue;
         if (!G_UnitIsBuilding(hall->class_id)) continue;
@@ -355,8 +355,8 @@ static LPEDICT militia_find_partner(LPEDICT worker, DWORD worker_ability) {
     return best;
 }
 
-static BOOL militia_toggle_on(LPEDICT unit) {
-    DWORD ability, militia_type;
+static bool militia_toggle_on(LPEDICT unit) {
+    uint32_t ability, militia_type;
 
     if (!unit) return false;
     if (unit->militia.active) return true;
@@ -366,13 +366,13 @@ static BOOL militia_toggle_on(LPEDICT unit) {
 }
 
 static void militia_cmd(LPEDICT clent) {
-    BOOL issued = false;
+    bool issued = false;
 
     if (!clent || !clent->client) return;
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, worker) {
-        DWORD const ability = militia_actor_ability_alias(worker, MAKEFOURCC('A','m','i','l'));
+        uint32_t const ability = militia_actor_ability_alias(worker, MAKEFOURCC('A','m','i','l'));
         LPEDICT hall;
-        LPCSTR order;
+        cstring_t order;
         if (!ability || worker->paused || worker->militia.partner || S_GoldMineWorkerIsInside(worker)) {
             continue;
         }
@@ -410,20 +410,20 @@ void S_MilitiaExpire(LPEDICT unit) {
 
 BZ_COMMAND_PROC(AbilityMilitiaConvert) {
     LPGAMECLIENT client;
-    BOOL off;
-    BOOL issued = false;
+    bool off;
+    bool issued = false;
 
     if (!clent || !(client = clent->client)) return;
     off = client->menu.ability_off;
     FOR_CONTROLLABLE_SELECTED_UNITS(client, hall) {
-        DWORD const hall_ability = militia_hall_ability_alias(hall, true);
-        FLOAT radius;
+        uint32_t const hall_ability = militia_hall_ability_alias(hall, true);
+        float radius;
         if (!hall_ability || hall->paused) continue;
         radius = S_MilitiaPairSearchRadius(hall_ability);
         FILTER_EDICTS(worker, worker->inuse && (worker->svflags & SVF_MONSTER) && !M_IsDead(worker) &&
                       !worker->paused && worker->s.player == hall->s.player) {
-            DWORD const worker_ability = militia_actor_ability_alias(worker, MAKEFOURCC('A','m','i','l'));
-            FLOAT const distance = Vector2_distance(&worker->s.origin2, &hall->s.origin2);
+            uint32_t const worker_ability = militia_actor_ability_alias(worker, MAKEFOURCC('A','m','i','l'));
+            float const distance = Vector2_distance(&worker->s.origin2, &hall->s.origin2);
             if (!worker_ability || worker->militia.partner || S_GoldMineWorkerIsInside(worker)) continue;
             militia_sync_form(worker, worker_ability);
             if (off != worker->militia.active) continue;

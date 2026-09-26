@@ -11,11 +11,11 @@ if (EMITTER->keytracks.NAME) { \
    and emitter metadata needed to fill a cparticle_t on each spawn. */
 typedef struct {
     mdxModel_t const *model; mdxParticleEmitter_t const *emitter;
-    LPCMATRIX4 matrix; DWORD team_id;
+    LPCMATRIX4 matrix; uint32_t team_id;
     float speed, varia, lat, grav, life, length, width;
 } mdx_pctx_t;
 
-static COLOR32 MDLX_GetEmitterColor(mdxParticleEmitter_t const *emitter, DWORD seg) {
+static COLOR32 MDLX_GetEmitterColor(mdxParticleEmitter_t const *emitter, uint32_t seg) {
     return (COLOR32) {
         emitter->SegmentColor[seg*3+0] * 0xff,
         emitter->SegmentColor[seg*3+1] * 0xff,
@@ -34,7 +34,7 @@ static void mdx_spawn_particle(void *raw) {
         0.0f,
     };
     VECTOR3 pivot = { 0, 0, 0 };
-    if (ctx->emitter->node.node_id < (DWORD)ctx->model->num_pivots)
+    if (ctx->emitter->node.node_id < (uint32_t)ctx->model->num_pivots)
         pivot = ctx->model->pivots[ctx->emitter->node.node_id];
     VECTOR3 pivoted = Vector3_add(&origin, &pivot);
     VECTOR3 dir = FX_GenerateRandomDirection(ctx->lat * (float)M_PI / 180.0f);
@@ -66,7 +66,7 @@ static void MDLX_RenderHeadEmitter(mdxModel_t const *model,
                                    mdxParticleEmitter_t *emitter,
                                    LPCMATRIX4 modelMatrix,
                                    float frame,
-                                   DWORD teamID)
+                                   uint32_t teamID)
 {
     GET_PARTICLE_ANIM_PARAM(model, emitter, EmissionRate);
     GET_PARTICLE_ANIM_PARAM(model, emitter, Speed);

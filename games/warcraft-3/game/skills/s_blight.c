@@ -3,13 +3,13 @@
 /* Resolve the concrete authored ability alias whose AbilityData behavior is Abli.
  * This keeps custom object-data derivatives data-driven instead of hard-coding
  * the stock rawcode. */
-static DWORD blight_growth_ability(LPEDICT ent) {
+static uint32_t blight_growth_ability(LPEDICT ent) {
     char alias_name[5] = { 0 };
 
     if (!ent) return 0;
     if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
         PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
-            DWORD alias = 0;
+            uint32_t alias = 0;
             abilityitem_t item;
             if (strlen(token) != 4 || !G_ActorHasSkill(ent, token)) continue;
             memcpy(&alias, token, sizeof(alias));
@@ -18,7 +18,7 @@ static DWORD blight_growth_ability(LPEDICT ent) {
         }
     }
     FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
-        DWORD const alias = ent->abilities.added[i];
+        uint32_t const alias = ent->abilities.added[i];
         abilityitem_t item;
         if (!alias) continue;
         memcpy(alias_name, &alias, 4);
@@ -36,13 +36,13 @@ static DWORD blight_growth_ability(LPEDICT ent) {
     return 0;
 }
 
-static void blight_growth_reset(LPEDICT ent, DWORD code, DWORD now) {
-    DWORD const level = code ? MAX(1u, G_UnitAbilityLevel(ent, code)) : 0;
-    FLOAT const interval = level ? S_SpellDuration(code, level, false) : 0.0f;
+static void blight_growth_reset(LPEDICT ent, uint32_t code, uint32_t now) {
+    uint32_t const level = code ? MAX(1u, G_UnitAbilityLevel(ent, code)) : 0;
+    float const interval = level ? S_SpellDuration(code, level, false) : 0.0f;
 
     ent->blight_growth.ability = code;
     ent->blight_growth.radius = 0.0f;
-    ent->blight_growth.next_update = code ? now + (DWORD)(MAX(0.0f, interval) * 1000.0f) : 0;
+    ent->blight_growth.next_update = code ? now + (uint32_t)(MAX(0.0f, interval) * 1000.0f) : 0;
 }
 
 /* Warsmash CAbilityBlight semantics: DataA selects create/remove, DataB is the
@@ -51,8 +51,8 @@ static void blight_growth_reset(LPEDICT ent, DWORD code, DWORD now) {
  * A_UNIT_INIT/A_ENABLE cache the concrete alias so units without Blight Growth
  * do not parse their ability lists every simulation frame. */
 BZ_ABILITY_PROC(CAbilityBlightGrowth) {
-    DWORD code, level, now;
-    FLOAT interval, expansion, max_radius;
+    uint32_t code, level, now;
+    float interval, expansion, max_radius;
     LPGAMECLIENT owner;
 
     if (!ent) return false;
@@ -101,11 +101,11 @@ BZ_ABILITY_PROC(CAbilityBlightGrowth) {
     if (now < ent->blight_growth.next_update) return false;
 
     if (ent->blight_growth.radius < max_radius) {
-        BOOL const creates = S_SpellData(code, level, 1) != 0.0f;
+        bool const creates = S_SpellData(code, level, 1) != 0.0f;
         ent->blight_growth.radius = MIN(max_radius, ent->blight_growth.radius + expansion);
         G_SetBlightRadius(&ent->s.origin2, ent->blight_growth.radius, creates);
         BLIGHT_LOG("growth tick radius=%.3f max=%.3f\n", ent->blight_growth.radius, max_radius);
     }
-    ent->blight_growth.next_update = now + (DWORD)(interval * 1000.0f);
+    ent->blight_growth.next_update = now + (uint32_t)(interval * 1000.0f);
     return true;
 }

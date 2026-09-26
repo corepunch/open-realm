@@ -29,12 +29,12 @@ enum {
 };
 
 void Key_Init(void);
-void Key_SetBinding(keyCode_t key, DWORD mods, LPCSTR binding);
-LPCSTR Key_GetBinding(keyCode_t key, DWORD mods);
-void Key_Event(keyCode_t key, DWORD mods, bool down, DWORD time);
+void Key_SetBinding(keyCode_t key, uint32_t mods, cstring_t binding);
+cstring_t Key_GetBinding(keyCode_t key, uint32_t mods);
+void Key_Event(keyCode_t key, uint32_t mods, bool down, uint32_t time);
 void Key_WriteBindings(FILE *file);
 #ifdef BZ_TESTS
-LPCSTR Key_FindBindingForTest(keyCode_t key, DWORD mods);
+cstring_t Key_FindBindingForTest(keyCode_t key, uint32_t mods);
 #endif
 
 #endif

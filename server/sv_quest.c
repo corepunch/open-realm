@@ -1,14 +1,14 @@
 #include "server.h"
 #include "sv_quest.h"
 
-svQuestEntry_t *SV_QuestFind(svQuestEntry_t *log, DWORD count, DWORD quest_id) {
-    DWORD i;
+svQuestEntry_t *SV_QuestFind(svQuestEntry_t *log, uint32_t count, uint32_t quest_id) {
+    uint32_t i;
     for (i = 0; i < count; i++)
         if (log[i].quest_id == quest_id) return &log[i];
     return NULL;
 }
 
-BOOL SV_QuestAdd(svQuestEntry_t *log, DWORD *count, DWORD max_log, DWORD quest_id) {
+bool SV_QuestAdd(svQuestEntry_t *log, uint32_t *count, uint32_t max_log, uint32_t quest_id) {
     if (*count >= max_log) return false;
     if (SV_QuestFind(log, *count, quest_id)) return false;
     log[*count].quest_id = quest_id;

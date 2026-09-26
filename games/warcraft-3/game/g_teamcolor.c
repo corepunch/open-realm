@@ -1,28 +1,28 @@
 #include "g_local.h"
 
 /* Clamp a Warcraft playercolor to the payload width reserved by entityState_t. */
-static DWORD G_ClampTeamColor(DWORD color) {
-    DWORD const max_color = (EFX_TEAM_COLOR_MASK >> EFX_TEAM_COLOR_SHIFT) - 1u;
+static uint32_t G_ClampTeamColor(uint32_t color) {
+    uint32_t const max_color = (EFX_TEAM_COLOR_MASK >> EFX_TEAM_COLOR_SHIFT) - 1u;
     return MIN(color, max_color);
 }
 
 /* Resolve a player's configured color while retaining the slot default for unconfigured players. */
-static DWORD G_PlayerTeamColor(DWORD player) {
+static uint32_t G_PlayerTeamColor(uint32_t player) {
     LPGAMECLIENT client = G_GetPlayerClientByNumber(player);
     if (client && client->ps.number == player) return G_ClampTeamColor(client->ps.color);
     return G_ClampTeamColor(player);
 }
 
 /* Return whether authored unit data owns the resolved color instead of the player slot. */
-static BOOL G_UnitTeamColorIsAuthored(LPCEDICT unit) {
+static bool G_UnitTeamColorIsAuthored(LPCEDICT unit) {
     return unit && unit->data.UnitUI &&
         (unit->data.UnitUI->teamColor > 0 ||
          (unit->data.UnitUI->teamColor == 0 && unit->data.UnitUI->customTeamColor));
 }
 
 /* Resolve the presentation color from an entity payload, authored data, or its owner. */
-DWORD G_GetUnitTeamColor(LPCEDICT unit) {
-    DWORD encoded;
+uint32_t G_GetUnitTeamColor(LPCEDICT unit) {
+    uint32_t encoded;
 
     if (!unit) return 0;
     encoded = (unit->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT;
@@ -31,21 +31,21 @@ DWORD G_GetUnitTeamColor(LPCEDICT unit) {
      * that missing integer as zero, which is also PLAYER_COLOR_RED.  Only
      * customTeamColor makes zero an authored unit-type color here. */
     if (G_UnitTeamColorIsAuthored(unit))
-        return G_ClampTeamColor((DWORD)unit->data.UnitUI->teamColor);
+        return G_ClampTeamColor((uint32_t)unit->data.UnitUI->teamColor);
     return G_PlayerTeamColor(unit->s.player);
 }
 
 /* Publish a resolved playercolor without disturbing unrelated entity effect bits. */
-void G_SetEntityTeamColor(LPENTITYSTATE state, DWORD color) {
-    DWORD const encoded = G_ClampTeamColor(color) + 1u;
+void G_SetEntityTeamColor(LPENTITYSTATE state, uint32_t color) {
+    uint32_t const encoded = G_ClampTeamColor(color) + 1u;
 
     if (!state) return;
     state->effect_flags = (state->effect_flags & ~EFX_TEAM_COLOR_MASK) |
-        (USHORT)(encoded << EFX_TEAM_COLOR_SHIFT);
+        (uint16_t)(encoded << EFX_TEAM_COLOR_SHIFT);
 }
 
 /* Publish a resolved playercolor on a unit entity. */
-void G_SetUnitTeamColor(LPEDICT unit, DWORD color) {
+void G_SetUnitTeamColor(LPEDICT unit, uint32_t color) {
     if (unit) G_SetEntityTeamColor(&unit->s, color);
 }
 
@@ -56,11 +56,11 @@ void G_InheritUnitTeamColor(LPEDICT entity, LPCEDICT source) {
 
 /* Initialize a spawned unit's presentation color from authored data or its owner. */
 void G_InitializeUnitTeamColor(LPEDICT unit) {
-    DWORD color;
+    uint32_t color;
 
     if (!unit) return;
     color = G_UnitTeamColorIsAuthored(unit)
-        ? (DWORD)unit->data.UnitUI->teamColor : G_PlayerTeamColor(unit->s.player);
+        ? (uint32_t)unit->data.UnitUI->teamColor : G_PlayerTeamColor(unit->s.player);
     G_SetUnitTeamColor(unit, color);
 }
 
@@ -85,19 +85,19 @@ void G_InitializeUnitVertexColor(LPEDICT unit) {
 
 /* Apply the map placement custom color when the unit type permits authored colors. */
 void G_ApplyMapUnitTeamColor(LPEDICT unit, LPCDOODAD placement) {
-    LONG custom_color;
+    int32_t custom_color;
 
     if (!unit || !placement) return;
-    custom_color = (LONG)placement->color;
+    custom_color = (int32_t)placement->color;
     if (unit->data.UnitUI && unit->data.UnitUI->customTeamColor && custom_color >= 0)
-        G_SetUnitTeamColor(unit, (DWORD)custom_color);
+        G_SetUnitTeamColor(unit, (uint32_t)custom_color);
     else
         G_InitializeUnitTeamColor(unit);
 }
 
 /* Recolor only units whose presentation still belongs to the changing player. */
-void G_ChangePlayerTeamColor(LPPLAYER player, DWORD previous_color, DWORD new_color) {
-    DWORD const player_num = player ? PLAYER_NUM(player) : MAX_PLAYERS;
+void G_ChangePlayerTeamColor(LPPLAYER player, uint32_t previous_color, uint32_t new_color) {
+    uint32_t const player_num = player ? PLAYER_NUM(player) : MAX_PLAYERS;
 
     if (!player || previous_color == new_color) return;
     FILTER_EDICTS(unit, (unit->svflags & SVF_MONSTER) && unit->s.player == player_num) {
@@ -108,8 +108,8 @@ void G_ChangePlayerTeamColor(LPPLAYER player, DWORD previous_color, DWORD new_co
 }
 
 /* Read an explicit JASS/game-cache unit color, including legacy unflagged values. */
-BOOL G_GetUnitColorOverride(LPCEDICT unit, LPDWORD color) {
-    DWORD stored;
+bool G_GetUnitColorOverride(LPCEDICT unit, uint32_t * color) {
+    uint32_t stored;
 
     if (!unit || !(stored = unit->unit_color)) return false;
     if (stored & WC3_UNIT_COLOR_OVERRIDE_FLAG)
@@ -121,8 +121,8 @@ BOOL G_GetUnitColorOverride(LPCEDICT unit, LPDWORD color) {
 }
 
 /* Store an explicit JASS unit color and publish it immediately. */
-void G_SetUnitColorOverride(LPEDICT unit, DWORD color) {
-    DWORD const clamped = G_ClampTeamColor(color);
+void G_SetUnitColorOverride(LPEDICT unit, uint32_t color) {
+    uint32_t const clamped = G_ClampTeamColor(color);
 
     if (!unit) return;
     unit->unit_color = WC3_UNIT_COLOR_OVERRIDE_FLAG | clamped;

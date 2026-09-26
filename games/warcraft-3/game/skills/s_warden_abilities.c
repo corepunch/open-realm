@@ -6,11 +6,11 @@
 
 /* ---- Blink (AEbl): instant teleport to a target point within range -------- */
 
-static BOOL blink_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT maxrange = S_SpellData(spell->code, level, 1);
-    FLOAT minrange = S_SpellData(spell->code, level, 2);
-    FLOAT dist = Vector2_distance(&caster->s.origin2, &st.point);
+static bool blink_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    float maxrange = S_SpellData(spell->code, level, 1);
+    float minrange = S_SpellData(spell->code, level, 2);
+    float dist = Vector2_distance(&caster->s.origin2, &st.point);
 
     if (maxrange > 0 && dist > maxrange) return false;
     if (minrange > 0 && dist < minrange) return false;
@@ -35,11 +35,11 @@ BZ_VALIDATED_SPELL_PROC(AbilityBlink, blink_validate, blink_execute)
 /* ---- Fan of Knives (AEfk): instant area damage centred on the caster ------ */
 
 BZ_SIMPLE_SPELL_PROC(AbilityFanOfKnives) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    FLOAT damage = MAX(1.0f, S_SpellData(spell->code, level, 1));
-    FLOAT maxtotal = S_SpellData(spell->code, level, 2);
-    DWORD ntargets = 0;
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    float radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    float damage = MAX(1.0f, S_SpellData(spell->code, level, 1));
+    float maxtotal = S_SpellData(spell->code, level, 2);
+    uint32_t ntargets = 0;
 
     if (!caster) return;
     if (radius <= 0.0f) radius = 400.0f;
@@ -50,10 +50,10 @@ BZ_SIMPLE_SPELL_PROC(AbilityFanOfKnives) {
 
     FILTER_EDICTS(target, FOK_HITS(target))
         ntargets++;
-    if (maxtotal > 0.0f && ntargets > 0 && damage * (FLOAT)ntargets > maxtotal)
-        damage = MAX(1.0f, maxtotal / (FLOAT)ntargets);
+    if (maxtotal > 0.0f && ntargets > 0 && damage * (float)ntargets > maxtotal)
+        damage = MAX(1.0f, maxtotal / (float)ntargets);
     FILTER_EDICTS(target, FOK_HITS(target))
-        S_SpellDamage(target, caster, (DWORD)damage);
+        S_SpellDamage(target, caster, (uint32_t)damage);
 #undef FOK_HITS
 }
 
@@ -61,8 +61,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityFanOfKnives) {
 
 BZ_SIMPLE_SPELL_PROC(AbilityShadowStrike) {
     LPEDICT target = st.entity;
-    DWORD level = S_SpellLevel(caster, spell->code);
-    DWORD damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 5)); /* DataE = Initial Damage */
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    uint32_t damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 5)); /* DataE = Initial Damage */
 
     S_SpellDamage(target, caster, damage);
     /* TODO(1:1): Shadow Strike also applies a movement slow and a decaying

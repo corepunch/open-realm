@@ -6,7 +6,7 @@
 #define BZ_BMFL MAKEFOURCC('B', 'm', 'f', 'l') // rawcode; Mana Flare caster buff
 #define BZ_AHTB MAKEFOURCC('A', 'H', 't', 'b') // rawcode; Storm Bolt probe for enemy casts
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -41,7 +41,7 @@ typedef struct {
 } MFLFIX;
 
 /* Fill FIX in place so UnitBalance pointers stay live (Linux CI HeroDur). */
-static void mfl_setup(MFLFIX *fix, LPCSTR slk) {
+static void mfl_setup(MFLFIX *fix, cstring_t slk) {
 	memset(fix, 0, sizeof(*fix));
 	reset_entities(); setup_test_world(); level.time = 1000;
 	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;

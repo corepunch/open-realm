@@ -1,13 +1,13 @@
 extern LPPLAYER currentplayer;
 
-DWORD CreateSound(LPJASS j) {
-    LPCSTR fileName = jass_checkstring(j, 1);
-    BOOL looping = jass_checkboolean(j, 2);
-    BOOL is3D = jass_checkboolean(j, 3);
-    BOOL stopwhenoutofrange = jass_checkboolean(j, 4);
-    LONG fadeInRate = jass_checkinteger(j, 5);
-    LONG fadeOutRate = jass_checkinteger(j, 6);
-    LPCSTR eaxSetting = jass_checkstring(j, 7);
+uint32_t CreateSound(LPJASS j) {
+    cstring_t fileName = jass_checkstring(j, 1);
+    bool looping = jass_checkboolean(j, 2);
+    bool is3D = jass_checkboolean(j, 3);
+    bool stopwhenoutofrange = jass_checkboolean(j, 4);
+    int32_t fadeInRate = jass_checkinteger(j, 5);
+    int32_t fadeOutRate = jass_checkinteger(j, 6);
+    cstring_t eaxSetting = jass_checkstring(j, 7);
     (void)eaxSetting;
     API_ALLOC(gsound_t, sound);
     strlcpy(sound->fileName, fileName, sizeof(sound->fileName));
@@ -23,15 +23,15 @@ DWORD CreateSound(LPJASS j) {
 /* Label constructors resolve WC3 sound-data rows into the same game-owned sound
  * descriptor as CreateSound. Playback is sent through the entity/server sound
  * path; JASS never owns or calls the client mixer directly. */
-DWORD CreateSoundFilenameWithLabel(LPJASS j) {
-    LPCSTR fileName = jass_checkstring(j, 1);
-    BOOL looping = jass_checkboolean(j, 2);
-    BOOL is3D = jass_checkboolean(j, 3);
-    BOOL stopwhenoutofrange = jass_checkboolean(j, 4);
-    LONG fadeInRate = jass_checkinteger(j, 5);
-    LONG fadeOutRate = jass_checkinteger(j, 6);
-    LPCSTR SLKEntryName = jass_checkstring(j, 7);
-    FLOAT volume = 1.0f;
+uint32_t CreateSoundFilenameWithLabel(LPJASS j) {
+    cstring_t fileName = jass_checkstring(j, 1);
+    bool looping = jass_checkboolean(j, 2);
+    bool is3D = jass_checkboolean(j, 3);
+    bool stopwhenoutofrange = jass_checkboolean(j, 4);
+    int32_t fadeInRate = jass_checkinteger(j, 5);
+    int32_t fadeOutRate = jass_checkinteger(j, 6);
+    cstring_t SLKEntryName = jass_checkstring(j, 7);
+    float volume = 1.0f;
 
     API_ALLOC(gsound_t, sound);
     strlcpy(sound->fileName, fileName, sizeof(sound->fileName));
@@ -46,15 +46,15 @@ DWORD CreateSoundFilenameWithLabel(LPJASS j) {
         G_JassSoundSetVolume(sound, volume);
     return 1;
 }
-DWORD CreateSoundFromLabel(LPJASS j) {
-    LPCSTR soundLabel = jass_checkstring(j, 1);
-    BOOL looping = jass_checkboolean(j, 2);
-    BOOL is3D = jass_checkboolean(j, 3);
-    BOOL stopwhenoutofrange = jass_checkboolean(j, 4);
-    LONG fadeInRate = jass_checkinteger(j, 5);
-    LONG fadeOutRate = jass_checkinteger(j, 6);
+uint32_t CreateSoundFromLabel(LPJASS j) {
+    cstring_t soundLabel = jass_checkstring(j, 1);
+    bool looping = jass_checkboolean(j, 2);
+    bool is3D = jass_checkboolean(j, 3);
+    bool stopwhenoutofrange = jass_checkboolean(j, 4);
+    int32_t fadeInRate = jass_checkinteger(j, 5);
+    int32_t fadeOutRate = jass_checkinteger(j, 6);
     char path[sizeof(((gsound_t *)0)->fileName)] = { 0 };
-    FLOAT volume = 1.0f;
+    float volume = 1.0f;
     int sound_index = 0;
 
     API_ALLOC(gsound_t, sound);
@@ -70,16 +70,16 @@ DWORD CreateSoundFromLabel(LPJASS j) {
     G_JassSoundSetVolume(sound, volume);
     return 1;
 }
-DWORD CreateMIDISound(LPJASS j) {
-    //LPCSTR soundLabel = jass_checkstring(j, 1);
-    //LONG fadeInRate = jass_checkinteger(j, 2);
-    //LONG fadeOutRate = jass_checkinteger(j, 3);
+uint32_t CreateMIDISound(LPJASS j) {
+    //cstring_t soundLabel = jass_checkstring(j, 1);
+    //int32_t fadeInRate = jass_checkinteger(j, 2);
+    //int32_t fadeOutRate = jass_checkinteger(j, 3);
     return jass_pushnullhandle(j, "sound");
 }
-DWORD SetSoundParamsFromLabel(LPJASS j) {
+uint32_t SetSoundParamsFromLabel(LPJASS j) {
     gsound_t *sound = jass_checkhandle(j, 1, "sound");
-    LPCSTR soundLabel = jass_checkstring(j, 2);
-    FLOAT volume = 1.0f;
+    cstring_t soundLabel = jass_checkstring(j, 2);
+    float volume = 1.0f;
 
     /* This native changes the label-authored playback parameters, not the
      * filename chosen when the handle was created. OpenRealm currently
@@ -88,63 +88,63 @@ DWORD SetSoundParamsFromLabel(LPJASS j) {
         G_JassSoundSetVolume(sound, volume);
     return 0;
 }
-DWORD SetSoundDistanceCutoff(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
-    //FLOAT cutoff = jass_checknumber(j, 2);
+uint32_t SetSoundDistanceCutoff(LPJASS j) {
+    //handle_t soundHandle = jass_checkhandle(j, 1, "sound");
+    //float cutoff = jass_checknumber(j, 2);
     return 0;
 }
-DWORD SetSoundChannel(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
-    //LONG channel = jass_checkinteger(j, 2);
+uint32_t SetSoundChannel(LPJASS j) {
+    //handle_t soundHandle = jass_checkhandle(j, 1, "sound");
+    //int32_t channel = jass_checkinteger(j, 2);
     return 0;
 }
-DWORD SetSoundVolume(LPJASS j) {
+uint32_t SetSoundVolume(LPJASS j) {
     gsound_t *sound = jass_checkhandle(j, 1, "sound");
-    LONG volume = jass_checkinteger(j, 2);
-    if (sound) G_JassSoundSetVolume(sound, (FLOAT)MAX(0, MIN(volume, 127)) / 127.0f);
+    int32_t volume = jass_checkinteger(j, 2);
+    if (sound) G_JassSoundSetVolume(sound, (float)MAX(0, MIN(volume, 127)) / 127.0f);
     return 0;
 }
-DWORD SetSoundPitch(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
-    //FLOAT pitch = jass_checknumber(j, 2);
+uint32_t SetSoundPitch(LPJASS j) {
+    //handle_t soundHandle = jass_checkhandle(j, 1, "sound");
+    //float pitch = jass_checknumber(j, 2);
     return 0;
 }
-DWORD SetSoundDistances(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
-    //FLOAT minDist = jass_checknumber(j, 2);
-    //FLOAT maxDist = jass_checknumber(j, 3);
+uint32_t SetSoundDistances(LPJASS j) {
+    //handle_t soundHandle = jass_checkhandle(j, 1, "sound");
+    //float minDist = jass_checknumber(j, 2);
+    //float maxDist = jass_checknumber(j, 3);
     return 0;
 }
-DWORD SetSoundConeAngles(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
-    //FLOAT inside = jass_checknumber(j, 2);
-    //FLOAT outside = jass_checknumber(j, 3);
-    //LONG outsideVolume = jass_checkinteger(j, 4);
+uint32_t SetSoundConeAngles(LPJASS j) {
+    //handle_t soundHandle = jass_checkhandle(j, 1, "sound");
+    //float inside = jass_checknumber(j, 2);
+    //float outside = jass_checknumber(j, 3);
+    //int32_t outsideVolume = jass_checkinteger(j, 4);
     return 0;
 }
-DWORD SetSoundConeOrientation(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    //FLOAT z = jass_checknumber(j, 4);
+uint32_t SetSoundConeOrientation(LPJASS j) {
+    //handle_t soundHandle = jass_checkhandle(j, 1, "sound");
+    //float x = jass_checknumber(j, 2);
+    //float y = jass_checknumber(j, 3);
+    //float z = jass_checknumber(j, 4);
     return 0;
 }
-DWORD SetSoundPosition(LPJASS j) {
+uint32_t SetSoundPosition(LPJASS j) {
     gsound_t *sound = jass_checkhandle(j, 1, "sound");
-    FLOAT x = jass_checknumber(j, 2);
-    FLOAT y = jass_checknumber(j, 3);
-    FLOAT z = jass_checknumber(j, 4);
+    float x = jass_checknumber(j, 2);
+    float y = jass_checknumber(j, 3);
+    float z = jass_checknumber(j, 4);
     if (sound) G_JassSoundSetPosition(sound, &MAKE(VECTOR3, x, y, z));
     return 0;
 }
-DWORD SetSoundVelocity(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
-    //FLOAT z = jass_checknumber(j, 4);
+uint32_t SetSoundVelocity(LPJASS j) {
+    //handle_t soundHandle = jass_checkhandle(j, 1, "sound");
+    //float x = jass_checknumber(j, 2);
+    //float y = jass_checknumber(j, 3);
+    //float z = jass_checknumber(j, 4);
     return 0;
 }
-DWORD AttachSoundToUnit(LPJASS j) {
+uint32_t AttachSoundToUnit(LPJASS j) {
     gsound_t *sound = jass_checkhandle(j, 1, "sound");
     LPEDICT whichUnit = jass_checkhandle(j, 2, "unit");
     if (sound) G_JassSoundAttach(sound, whichUnit);
@@ -153,10 +153,10 @@ DWORD AttachSoundToUnit(LPJASS j) {
 /* StartSound snapshots the current transient sound-handle presentation state
  * into one generic sound packet. Continuous attachment tracking and stop/fade
  * playback lifetime remain separate mixer work. */
-DWORD StartSound(LPJASS j) {
+uint32_t StartSound(LPJASS j) {
     gsound_t *sound = jass_checkhandle(j, 1, "sound");
     jassSoundPlayback_t playback;
-    FLOAT attenuation;
+    float attenuation;
 
     if (!sound || !sound->soundIndex) return 0;
     G_JassSoundPlayback(sound, &playback);
@@ -181,115 +181,115 @@ DWORD StartSound(LPJASS j) {
         G_PlaySound(NULL, NULL, CHAN_RELIABLE, sound->soundIndex, playback.volume, attenuation, 0.0f);
     return 0;
 }
-DWORD StopSound(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
-    //BOOL killWhenDone = jass_checkboolean(j, 2);
-    //BOOL fadeOut = jass_checkboolean(j, 3);
+uint32_t StopSound(LPJASS j) {
+    //handle_t soundHandle = jass_checkhandle(j, 1, "sound");
+    //bool killWhenDone = jass_checkboolean(j, 2);
+    //bool fadeOut = jass_checkboolean(j, 3);
     return 0;
 }
-DWORD KillSoundWhenDone(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
+uint32_t KillSoundWhenDone(LPJASS j) {
+    //handle_t soundHandle = jass_checkhandle(j, 1, "sound");
     return 0;
 }
-DWORD SetMusicVolume(LPJASS j) {
+uint32_t SetMusicVolume(LPJASS j) {
     G_MusicSetVolume(jass_checkinteger(j, 1));
     return 0;
 }
-DWORD SetMusicPlayPosition(LPJASS j) {
+uint32_t SetMusicPlayPosition(LPJASS j) {
     G_MusicSetPosition(jass_checkinteger(j, 1));
     return 0;
 }
-DWORD SetThematicMusicVolume(LPJASS j) {
+uint32_t SetThematicMusicVolume(LPJASS j) {
     G_MusicSetThematicVolume(jass_checkinteger(j, 1));
     return 0;
 }
-DWORD SetThematicMusicPlayPosition(LPJASS j) {
+uint32_t SetThematicMusicPlayPosition(LPJASS j) {
     G_MusicSetThematicPosition(jass_checkinteger(j, 1));
     return 0;
 }
-DWORD PlayMusic(LPJASS j) {
+uint32_t PlayMusic(LPJASS j) {
     G_MusicPlay(jass_checkstring(j, 1), 0, 0);
     return 0;
 }
-DWORD PlayMusicEx(LPJASS j) {
-    LPCSTR musicName = jass_checkstring(j, 1);
-    LONG frommsecs = jass_checkinteger(j, 2);
-    LONG fadeinmsecs = jass_checkinteger(j, 3);
+uint32_t PlayMusicEx(LPJASS j) {
+    cstring_t musicName = jass_checkstring(j, 1);
+    int32_t frommsecs = jass_checkinteger(j, 2);
+    int32_t fadeinmsecs = jass_checkinteger(j, 3);
     G_MusicPlay(musicName, MAX(0, frommsecs), MAX(0, fadeinmsecs));
     return 0;
 }
-DWORD SetMapMusic(LPJASS j) {
-    LPCSTR musicName = jass_checkstring(j, 1);
-    BOOL random = jass_checkboolean(j, 2);
-    LONG index = jass_checkinteger(j, 3);
+uint32_t SetMapMusic(LPJASS j) {
+    cstring_t musicName = jass_checkstring(j, 1);
+    bool random = jass_checkboolean(j, 2);
+    int32_t index = jass_checkinteger(j, 3);
     G_MusicSetMap(musicName, random, index);
     return 0;
 }
-DWORD ClearMapMusic(LPJASS j) {
+uint32_t ClearMapMusic(LPJASS j) {
     G_MusicClearMap();
     return 0;
 }
-DWORD PlayThematicMusic(LPJASS j) {
+uint32_t PlayThematicMusic(LPJASS j) {
     G_MusicPlayThematic(jass_checkstring(j, 1), 0);
     return 0;
 }
-DWORD PlayThematicMusicEx(LPJASS j) {
-    LPCSTR musicFileName = jass_checkstring(j, 1);
-    LONG frommsecs = jass_checkinteger(j, 2);
+uint32_t PlayThematicMusicEx(LPJASS j) {
+    cstring_t musicFileName = jass_checkstring(j, 1);
+    int32_t frommsecs = jass_checkinteger(j, 2);
     G_MusicPlayThematic(musicFileName, MAX(0, frommsecs));
     return 0;
 }
-DWORD EndThematicMusic(LPJASS j) {
+uint32_t EndThematicMusic(LPJASS j) {
     G_MusicEndThematic();
     return 0;
 }
-DWORD StopMusic(LPJASS j) {
+uint32_t StopMusic(LPJASS j) {
     G_MusicStop(jass_checkboolean(j, 1));
     return 0;
 }
-DWORD ResumeMusic(LPJASS j) {
+uint32_t ResumeMusic(LPJASS j) {
     G_MusicResume();
     return 0;
 }
-DWORD SetSoundDuration(LPJASS j) {
+uint32_t SetSoundDuration(LPJASS j) {
     gsound_t *soundHandle = jass_checkhandle(j, 1, "sound");
     soundHandle->duration = jass_checkinteger(j, 2);
     return 0;
 }
-DWORD GetSoundDuration(LPJASS j) {
+uint32_t GetSoundDuration(LPJASS j) {
     gsound_t *soundHandle = jass_checkhandle(j, 1, "sound");
     return jass_pushinteger(j, soundHandle->duration);
 }
-DWORD GetSoundFileDuration(LPJASS j) {
+uint32_t GetSoundFileDuration(LPJASS j) {
     return jass_pushinteger(j, G_SoundFileDuration(jass_checkstring(j, 1)));
 }
-DWORD VolumeGroupSetVolume(LPJASS j) {
-    //HANDLE vgroup = jass_checkhandle(j, 1, "volumegroup");
-    //FLOAT scale = jass_checknumber(j, 2);
+uint32_t VolumeGroupSetVolume(LPJASS j) {
+    //handle_t vgroup = jass_checkhandle(j, 1, "volumegroup");
+    //float scale = jass_checknumber(j, 2);
     return 0;
 }
-DWORD VolumeGroupReset(LPJASS j) {
+uint32_t VolumeGroupReset(LPJASS j) {
     return 0;
 }
-DWORD GetSoundIsPlaying(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
+uint32_t GetSoundIsPlaying(LPJASS j) {
+    //handle_t soundHandle = jass_checkhandle(j, 1, "sound");
     return jass_pushboolean(j, 0);
 }
-DWORD GetSoundIsLoading(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
+uint32_t GetSoundIsLoading(LPJASS j) {
+    //handle_t soundHandle = jass_checkhandle(j, 1, "sound");
     return jass_pushboolean(j, 0);
 }
-DWORD RegisterStackedSound(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
-    //BOOL byPosition = jass_checkboolean(j, 2);
-    //FLOAT rectwidth = jass_checknumber(j, 3);
-    //FLOAT rectheight = jass_checknumber(j, 4);
+uint32_t RegisterStackedSound(LPJASS j) {
+    //handle_t soundHandle = jass_checkhandle(j, 1, "sound");
+    //bool byPosition = jass_checkboolean(j, 2);
+    //float rectwidth = jass_checknumber(j, 3);
+    //float rectheight = jass_checknumber(j, 4);
     return 0;
 }
-DWORD UnregisterStackedSound(LPJASS j) {
-    //HANDLE soundHandle = jass_checkhandle(j, 1, "sound");
-    //BOOL byPosition = jass_checkboolean(j, 2);
-    //FLOAT rectwidth = jass_checknumber(j, 3);
-    //FLOAT rectheight = jass_checknumber(j, 4);
+uint32_t UnregisterStackedSound(LPJASS j) {
+    //handle_t soundHandle = jass_checkhandle(j, 1, "sound");
+    //bool byPosition = jass_checkboolean(j, 2);
+    //float rectwidth = jass_checknumber(j, 3);
+    //float rectheight = jass_checknumber(j, 4);
     return 0;
 }

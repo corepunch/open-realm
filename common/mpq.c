@@ -19,11 +19,11 @@
 #include <zlib.h>
 #include "vendor/blast/blast.h"
 
-#ifndef TRUE
-#define TRUE 1
+#ifndef true
+#define true 1
 #endif
-#ifndef FALSE
-#define FALSE 0
+#ifndef false
+#define false 0
 #endif
 
 #define MPQ_HASH_NAME_A 1
@@ -53,31 +53,31 @@
 
 typedef struct mpqHuffNode_s {
     struct mpqHuffNode_s *next, *prev, *parent, *low;
-    DWORD value, weight;
+    uint32_t value, weight;
 } mpqHuffNode_t;
 
 typedef struct {
     mpqHuffNode_t head, nodes[MPQ_HUFF_NODES];
     mpqHuffNode_t *symbols[MPQ_HUFF_SYMBOLS];
-    DWORD used;
+    uint32_t used;
 } mpqHuffTree_t;
 
 typedef struct {
-    BYTE const *cur, *end;
-    DWORD bits, count;
+    uint8_t const *cur, *end;
+    uint32_t bits, count;
 } mpqBitReader_t;
 
 typedef struct {
-    BYTE const *src;
-    DWORD src_size;
-    BYTE *dst;
-    DWORD dst_size;
-    DWORD out_size;
+    uint8_t const *src;
+    uint32_t src_size;
+    uint8_t *dst;
+    uint32_t dst_size;
+    uint32_t out_size;
 } mpqDecompress_t;
 
 /* WC3 voice sectors use profile 7: a stereo-oriented distribution also used
  * for Blizzard's ordinary 5-bit ADPCM stream before channel reconstruction. */
-static BYTE const mpq_huff_profile7[256] = {
+static uint8_t const mpq_huff_profile7[256] = {
     0xc3,0xd9,0xef,0x3d,0xf9,0x7c,0xe9,0x1e,0xfd,0xab,0xf1,0x2c,0xfc,0x5b,0xfe,0x17,
     [64]=0xbd,0xd9,0xec,0x3d,0xf5,0x7d,0xe8,0x1d,0xfb,0xae,0xf0,0x2c,0xfb,0x5c,0xff,0x18,
     [128]=0x70,0x6c
@@ -105,19 +105,19 @@ static void Mpq_HuffRemove(mpqHuffNode_t *node) {
     node->prev->next = node->next; node->next->prev = node->prev; node->next = node->prev = NULL;
 }
 
-static mpqHuffNode_t *Mpq_HuffNew(mpqHuffTree_t *tree, DWORD value, DWORD weight, mpqHuffNode_t *at) {
+static mpqHuffNode_t *Mpq_HuffNew(mpqHuffTree_t *tree, uint32_t value, uint32_t weight, mpqHuffNode_t *at) {
     if (tree->used >= MPQ_HUFF_NODES) return NULL;
     mpqHuffNode_t *node = &tree->nodes[tree->used++];
     memset(node, 0, sizeof(*node)); node->value = value; node->weight = weight; Mpq_HuffLink(at, node);
     return node;
 }
 
-static mpqHuffNode_t *Mpq_HuffHigher(mpqHuffTree_t *tree, mpqHuffNode_t *node, DWORD weight) {
+static mpqHuffNode_t *Mpq_HuffHigher(mpqHuffTree_t *tree, mpqHuffNode_t *node, uint32_t weight) {
     for (; node != &tree->head; node = node->prev) if (node->weight >= weight) return node;
     return &tree->head;
 }
 
-static DWORD Mpq_HuffFix(mpqHuffTree_t *tree, mpqHuffNode_t *node, DWORD max_weight) {
+static uint32_t Mpq_HuffFix(mpqHuffTree_t *tree, mpqHuffNode_t *node, uint32_t max_weight) {
     if (node->weight >= max_weight) return node->weight;
     mpqHuffNode_t *higher = Mpq_HuffHigher(tree, tree->head.prev, node->weight);
     Mpq_HuffRemove(node); Mpq_HuffLink(higher, node);
@@ -125,14 +125,14 @@ static DWORD Mpq_HuffFix(mpqHuffTree_t *tree, mpqHuffNode_t *node, DWORD max_wei
 }
 
 /* Build the exact initial FGK tree selected by the stream's profile byte. */
-static BOOL Mpq_HuffBuild(mpqHuffTree_t *tree, DWORD profile) {
-    if (profile != 7) return FALSE;
+static bool Mpq_HuffBuild(mpqHuffTree_t *tree, uint32_t profile) {
+    if (profile != 7) return false;
     memset(tree, 0, sizeof(*tree)); tree->head.next = tree->head.prev = &tree->head;
-    DWORD max_weight = 0;
+    uint32_t max_weight = 0;
     FOR_LOOP(i, 256) {
         if (!mpq_huff_profile7[i]) continue;
         mpqHuffNode_t *node = Mpq_HuffNew(tree, i, mpq_huff_profile7[i], &tree->head);
-        if (!node) return FALSE;
+        if (!node) return false;
         tree->symbols[i] = node; max_weight = Mpq_HuffFix(tree, node, max_weight);
     }
     tree->symbols[256] = Mpq_HuffNew(tree, 256, 1, tree->head.prev);
@@ -141,11 +141,11 @@ static BOOL Mpq_HuffBuild(mpqHuffTree_t *tree, DWORD profile) {
         mpqHuffNode_t *high = low->prev;
         if (high == &tree->head) break;
         mpqHuffNode_t *parent = Mpq_HuffNew(tree, 0, high->weight + low->weight, &tree->head);
-        if (!parent) return FALSE;
+        if (!parent) return false;
         low->parent = high->parent = parent; parent->low = low;
         max_weight = Mpq_HuffFix(tree, parent, max_weight); low = high->prev;
     }
-    return TRUE;
+    return true;
 }
 
 static void Mpq_HuffRebalance(mpqHuffTree_t *tree, mpqHuffNode_t *node) {
@@ -163,58 +163,58 @@ static void Mpq_HuffRebalance(mpqHuffTree_t *tree, mpqHuffNode_t *node) {
     }
 }
 
-static BOOL Mpq_HuffInsert(mpqHuffTree_t *tree, DWORD value) {
+static bool Mpq_HuffInsert(mpqHuffTree_t *tree, uint32_t value) {
     mpqHuffNode_t *escape = tree->head.prev;
     mpqHuffNode_t *high = Mpq_HuffNew(tree, escape->value, escape->weight, tree->head.prev);
     mpqHuffNode_t *low = Mpq_HuffNew(tree, value, 0, tree->head.prev);
-    if (!high || !low) return FALSE;
+    if (!high || !low) return false;
     high->parent = low->parent = escape; escape->low = low;
     tree->symbols[value] = low; Mpq_HuffRebalance(tree, low);
-    return TRUE;
+    return true;
 }
 
-static BOOL Mpq_ReadBits(mpqBitReader_t *r, DWORD count, DWORD *value) {
+static bool Mpq_ReadBits(mpqBitReader_t *r, uint32_t count, uint32_t *value) {
     while (r->count < count) {
-        if (r->cur >= r->end) return FALSE;
-        r->bits |= (DWORD)*r->cur++ << r->count; r->count += 8;
+        if (r->cur >= r->end) return false;
+        r->bits |= (uint32_t)*r->cur++ << r->count; r->count += 8;
     }
     *value = r->bits & ((1u << count) - 1); r->bits >>= count; r->count -= count;
-    return TRUE;
+    return true;
 }
 
-static BOOL Mpq_HuffDecode(BYTE const *src, DWORD src_size, BYTE *dst, DWORD cap, DWORD *out_size) {
+static bool Mpq_HuffDecode(uint8_t const *src, uint32_t src_size, uint8_t *dst, uint32_t cap, uint32_t *out_size) {
     mpqBitReader_t bits = { src, src + src_size, 0, 0 };
     mpqHuffTree_t tree;
-    DWORD profile, used = 0;
-    if (!Mpq_ReadBits(&bits, 8, &profile) || !Mpq_HuffBuild(&tree, profile)) return FALSE;
+    uint32_t profile, used = 0;
+    if (!Mpq_ReadBits(&bits, 8, &profile) || !Mpq_HuffBuild(&tree, profile)) return false;
     while (used < cap) {
         mpqHuffNode_t *node = tree.head.next;
         while (node->low) {
-            DWORD bit;
-            if (!Mpq_ReadBits(&bits, 1, &bit)) return FALSE;
+            uint32_t bit;
+            if (!Mpq_ReadBits(&bits, 1, &bit)) return false;
             node = bit ? node->low->prev : node->low;
         }
-        DWORD value = node->value;
-        if (value == 256) { *out_size = used; return TRUE; }
+        uint32_t value = node->value;
+        if (value == 256) { *out_size = used; return true; }
         if (value == 257) {
-            if (!Mpq_ReadBits(&bits, 8, &value) || !Mpq_HuffInsert(&tree, value)) return FALSE;
+            if (!Mpq_ReadBits(&bits, 8, &value) || !Mpq_HuffInsert(&tree, value)) return false;
             node = tree.symbols[value]; Mpq_HuffRebalance(&tree, node);
         }
-        dst[used++] = (BYTE)value;
+        dst[used++] = (uint8_t)value;
     }
     *out_size = used;
-    return TRUE;
+    return true;
 }
 
-static void Mpq_WriteShort(BYTE **dst, int value) {
-    (*dst)[0] = (BYTE)value; (*dst)[1] = (BYTE)(value >> 8); *dst += 2;
+static void Mpq_WriteShort(uint8_t **dst, int value) {
+    (*dst)[0] = (uint8_t)value; (*dst)[1] = (uint8_t)(value >> 8); *dst += 2;
 }
 
 /* Expand Blizzard's byte-coded differential samples into interleaved PCM16. */
-static BOOL Mpq_AdpcmDecode(BYTE const *src, DWORD src_size, BYTE *dst, DWORD cap, DWORD channels, DWORD *out_size) {
-    if (channels < 1 || channels > 2 || src_size < 2 + channels * 2 || cap < channels * 2) return FALSE;
-    BYTE const *cur = src + 2, *end = src + src_size;
-    BYTE *out = dst, *out_end = dst + cap;
+static bool Mpq_AdpcmDecode(uint8_t const *src, uint32_t src_size, uint8_t *dst, uint32_t cap, uint32_t channels, uint32_t *out_size) {
+    if (channels < 1 || channels > 2 || src_size < 2 + channels * 2 || cap < channels * 2) return false;
+    uint8_t const *cur = src + 2, *end = src + src_size;
+    uint8_t *out = dst, *out_end = dst + cap;
     int shift = src[1], channel = (int)channels - 1;
     int predicted[2] = {0}, step_index[2] = { MPQ_ADPCM_INIT_STEP, MPQ_ADPCM_INIT_STEP };
     FOR_LOOP(i, channels) {
@@ -243,7 +243,7 @@ static BOOL Mpq_AdpcmDecode(BYTE const *src, DWORD src_size, BYTE *dst, DWORD ca
         if (out_end - out < 2) break;
         Mpq_WriteShort(&out, predicted[channel]);
     }
-    *out_size = (DWORD)(out - dst);
+    *out_size = (uint32_t)(out - dst);
     return *out_size != 0;
 }
 
@@ -257,10 +257,10 @@ static int Mpq_BlastOutput(void *how, unsigned char *buf, unsigned len) {
 }
 
 /* Decode the MPQ method byte in Blizzard's prescribed method order. */
-static BOOL Mpq_DecompressSector(mpqDecompress_t *p) {
-    if (!p || !p->src || !p->dst || !p->src_size || !p->dst_size) return FALSE;
-    if (p->src_size == p->dst_size) { memcpy(p->dst, p->src, p->src_size); p->out_size = p->src_size; return TRUE; }
-    BYTE mask = p->src[0];
+static bool Mpq_DecompressSector(mpqDecompress_t *p) {
+    if (!p || !p->src || !p->dst || !p->src_size || !p->dst_size) return false;
+    if (p->src_size == p->dst_size) { memcpy(p->dst, p->src, p->src_size); p->out_size = p->src_size; return true; }
+    uint8_t mask = p->src[0];
     if (mask == MPQ_COMP_PKWARE) {
         unsigned left = p->src_size - 1;
         unsigned char *in = (unsigned char *)p->src + 1;
@@ -269,123 +269,123 @@ static BOOL Mpq_DecompressSector(mpqDecompress_t *p) {
     }
     if (mask == MPQ_COMPRESSION_ZLIB) {
         uLongf size = p->dst_size;
-        if (uncompress(p->dst, &size, p->src + 1, p->src_size - 1) != Z_OK) return FALSE;
-        p->out_size = (DWORD)size; return TRUE;
+        if (uncompress(p->dst, &size, p->src + 1, p->src_size - 1) != Z_OK) return false;
+        p->out_size = (uint32_t)size; return true;
     }
     if (mask == MPQ_COMP_ADPCM_MONO || mask == MPQ_COMP_ADPCM_STEREO)
         return Mpq_AdpcmDecode(p->src + 1, p->src_size - 1, p->dst, p->dst_size, mask == MPQ_COMP_ADPCM_STEREO ? 2 : 1, &p->out_size);
     if (mask == (MPQ_COMP_HUFF | MPQ_COMP_ADPCM_MONO) || mask == (MPQ_COMP_HUFF | MPQ_COMP_ADPCM_STEREO)) {
-        BYTE *tmp = malloc(p->dst_size);
-        DWORD tmp_size = 0, channels = mask & MPQ_COMP_ADPCM_STEREO ? 2 : 1;
-        if (!tmp) return FALSE;
-        BOOL huff_ok = Mpq_HuffDecode(p->src + 1, p->src_size - 1, tmp, p->dst_size, &tmp_size);
-        BOOL ok = huff_ok && Mpq_AdpcmDecode(tmp, tmp_size, p->dst, p->dst_size, channels, &p->out_size);
+        uint8_t *tmp = malloc(p->dst_size);
+        uint32_t tmp_size = 0, channels = mask & MPQ_COMP_ADPCM_STEREO ? 2 : 1;
+        if (!tmp) return false;
+        bool huff_ok = Mpq_HuffDecode(p->src + 1, p->src_size - 1, tmp, p->dst_size, &tmp_size);
+        bool ok = huff_ok && Mpq_AdpcmDecode(tmp, tmp_size, p->dst, p->dst_size, channels, &p->out_size);
         free(tmp); return ok;
     }
     fprintf(stderr, "MPQ: unsupported sector compression mask 0x%02x\n", mask);
-    return FALSE;
+    return false;
 }
 
 #ifdef MPQ_TEST_API
-BOOL Mpq_TestDecompressSector(BYTE const *src, DWORD src_size, BYTE *dst, DWORD dst_size, DWORD *out_size) {
+bool Mpq_TestDecompressSector(uint8_t const *src, uint32_t src_size, uint8_t *dst, uint32_t dst_size, uint32_t *out_size) {
     mpqDecompress_t p = { src, src_size, dst, dst_size, 0 };
-    BOOL ok = Mpq_DecompressSector(&p);
+    bool ok = Mpq_DecompressSector(&p);
     if (out_size) *out_size = p.out_size;
     return ok;
 }
 #endif
 
 typedef struct {
-    DWORD dwID;                 // "MPQ\x1a"
-    DWORD dwHeaderSize;         // Size of MPQ header
-    DWORD dwArchiveSize;        // Size of entire archive
-    USHORT wFormatVersion;      // 0 for v1, 1 for v2, etc.
-    USHORT wSectorSizeShift;    // Power of 2 for sector size (usually 12 = 4096)
-    DWORD dwHashTablePos;       // Offset to hash table from archive start
-    DWORD dwBlockTablePos;      // Offset to block table from archive start
-    DWORD dwHashTableSize;      // Number of hash table entries
-    DWORD dwBlockTableSize;     // Number of block table entries
+    uint32_t dwID;                 // "MPQ\x1a"
+    uint32_t dwHeaderSize;         // Size of MPQ header
+    uint32_t dwArchiveSize;        // Size of entire archive
+    uint16_t wFormatVersion;      // 0 for v1, 1 for v2, etc.
+    uint16_t wSectorSizeShift;    // Power of 2 for sector size (usually 12 = 4096)
+    uint32_t dwHashTablePos;       // Offset to hash table from archive start
+    uint32_t dwBlockTablePos;      // Offset to block table from archive start
+    uint32_t dwHashTableSize;      // Number of hash table entries
+    uint32_t dwBlockTableSize;     // Number of block table entries
 } MPQ_HEADER_V1;
 
 typedef struct {
-    DWORD dwNameHash1;          // First name hash
-    DWORD dwNameHash2;          // Second name hash
-    USHORT wLocale;             // Locale
-    BYTE bPlatform;             // Platform
-    BYTE bFlags;                // Flags
-    DWORD dwBlockIndex;         // Block table index (or 0xFFFFFFFF for free/deleted)
+    uint32_t dwNameHash1;          // First name hash
+    uint32_t dwNameHash2;          // Second name hash
+    uint16_t wLocale;             // Locale
+    uint8_t bPlatform;             // Platform
+    uint8_t bFlags;                // Flags
+    uint32_t dwBlockIndex;         // Block table index (or 0xFFFFFFFF for free/deleted)
 } MPQ_HASH_ENTRY;
 
 typedef struct {
-    DWORD dwBlockOffset;        // Offset from MPQ header
-    DWORD dwBlockSize;          // Compressed size
-    DWORD dwFileSize;           // Uncompressed size
-    DWORD dwFlags;              // File flags
+    uint32_t dwBlockOffset;        // Offset from MPQ header
+    uint32_t dwBlockSize;          // Compressed size
+    uint32_t dwFileSize;           // Uncompressed size
+    uint32_t dwFlags;              // File flags
 } MPQ_BLOCK_ENTRY;
 
 struct mpq_cache_entry;
 
 typedef struct {
     FILE *fp;
-    const BYTE *memory;
-    DWORD memory_size;
-    DWORD memory_pos;
+    const uint8_t *memory;
+    uint32_t memory_size;
+    uint32_t memory_pos;
     char filename[256];
-    DWORD base_offset;
+    uint32_t base_offset;
     struct mpq_cache_entry **lookup_cache;
-    DWORD lookup_cache_size;
+    uint32_t lookup_cache_size;
     MPQ_HEADER_V1 header;
     MPQ_HASH_ENTRY *hashtable;
     MPQ_BLOCK_ENTRY *blocktable;
-    DWORD sector_size;
-    BYTE *sector_buffer;
-    BOOL write_mode;
-    DWORD write_hash_table_size;
+    uint32_t sector_size;
+    uint8_t *sector_buffer;
+    bool write_mode;
+    uint32_t write_hash_table_size;
     struct mpq_write_entry *write_entries;
-    DWORD write_count;
-    DWORD write_capacity;
+    uint32_t write_count;
+    uint32_t write_capacity;
 } MPQ_ARCHIVE;
 
 typedef struct {
     MPQ_ARCHIVE *archive;
-    HANDLE owner_archive;
-    BYTE *owner_memory;
-    DWORD block_index;
-    DWORD file_size;
-    DWORD current_pos;
-    DWORD compressed_size;
-    DWORD flags;
-    DWORD file_key;
-    DWORD sector_count;
-    DWORD *sector_offsets;
+    handle_t owner_archive;
+    uint8_t *owner_memory;
+    uint32_t block_index;
+    uint32_t file_size;
+    uint32_t current_pos;
+    uint32_t compressed_size;
+    uint32_t flags;
+    uint32_t file_key;
+    uint32_t sector_count;
+    uint32_t *sector_offsets;
 } MPQ_FILE;
 
 typedef struct {
     MPQ_ARCHIVE *archive;
-    DWORD current_index;
-    DWORD file_count;
+    uint32_t current_index;
+    uint32_t file_count;
     char **files;
     char mask[MAX_PATH];
 } MPQ_FIND;
 
 typedef struct mpq_cache_entry {
     char *name;
-    DWORD block_index;
+    uint32_t block_index;
     struct mpq_cache_entry *next;
 } MPQ_CACHE_ENTRY;
 
 typedef struct mpq_write_entry {
     char *name;
-    DWORD offset;
-    DWORD block_size;
-    DWORD file_size;
-    DWORD flags;
+    uint32_t offset;
+    uint32_t block_size;
+    uint32_t file_size;
+    uint32_t flags;
 } MPQ_WRITE_ENTRY;
 
 typedef struct {
     char *name;
-    DWORD hash1;
-    DWORD hash2;
+    uint32_t hash1;
+    uint32_t hash2;
 } MPQ_LISTFILE_ENTRY;
 
 typedef struct mpq_listfile_bucket_entry {
@@ -395,13 +395,13 @@ typedef struct mpq_listfile_bucket_entry {
 
 #define STORM_BUFFER_SIZE 0x500
 
-static DWORD storm_buffer[STORM_BUFFER_SIZE];
-static BOOL storm_buffer_ready = FALSE;
+static uint32_t storm_buffer[STORM_BUFFER_SIZE];
+static bool storm_buffer_ready = false;
 
 static void InitStormBuffer(void)
 {
-    DWORD seed = 0x00100001;
-    DWORD index1, index2, i;
+    uint32_t seed = 0x00100001;
+    uint32_t index1, index2, i;
 
     if (storm_buffer_ready) {
         return;
@@ -409,7 +409,7 @@ static void InitStormBuffer(void)
 
     for (index1 = 0; index1 < 0x100; index1++) {
         for (index2 = index1, i = 0; i < 5; i++, index2 += 0x100) {
-            DWORD temp1, temp2;
+            uint32_t temp1, temp2;
 
             seed = (seed * 125 + 3) % 0x2AAAAB;
             temp1 = (seed & 0xFFFF) << 0x10;
@@ -421,10 +421,10 @@ static void InitStormBuffer(void)
         }
     }
 
-    storm_buffer_ready = TRUE;
+    storm_buffer_ready = true;
 }
 
-static BYTE AsciiToUpper(BYTE ch)
+static uint8_t AsciiToUpper(uint8_t ch)
 {
     if (ch >= 'a' && ch <= 'z') {
         return ch - 0x20;
@@ -435,18 +435,18 @@ static BYTE AsciiToUpper(BYTE ch)
     return ch;
 }
 
-static DWORD HashString(const char *str, DWORD hash_type)
+static uint32_t HashString(const char *str, uint32_t hash_type)
 {
-    DWORD seed1 = 0x7FED7FED;
-    DWORD seed2 = 0xEEEEEEEE;
-    BYTE ch;
+    uint32_t seed1 = 0x7FED7FED;
+    uint32_t seed2 = 0xEEEEEEEE;
+    uint8_t ch;
 
     if (!storm_buffer_ready) {
         InitStormBuffer();
     }
 
     while (*str) {
-        ch = AsciiToUpper((BYTE)*str++);
+        ch = AsciiToUpper((uint8_t)*str++);
         seed1 = storm_buffer[(hash_type * 0x100) + ch] ^ (seed1 + seed2);
         seed2 = ch + seed1 + seed2 + (seed2 << 5) + 3;
     }
@@ -478,16 +478,16 @@ static void TrimEdgeSlashes(char *s)
     }
 }
 
-static DWORD CacheKeyHash(const char *str)
+static uint32_t CacheKeyHash(const char *str)
 {
-    DWORD hash = 2166136261u;
+    uint32_t hash = 2166136261u;
 
     while (*str) {
-        BYTE ch = (BYTE)*str++;
+        uint8_t ch = (uint8_t)*str++;
         if (ch == '/') {
             ch = '\\';
         } else if (ch >= 'A' && ch <= 'Z') {
-            ch = (BYTE)(ch + 0x20);
+            ch = (uint8_t)(ch + 0x20);
         }
         hash ^= ch;
         hash *= 16777619u;
@@ -517,14 +517,14 @@ static void CanonicalizeMpqKey(const char *src, char *dst, size_t dst_size)
     TrimEdgeSlashes(dst);
 }
 
-static BOOL LookupCachedBlock(MPQ_ARCHIVE *mpq, const char *fileName, DWORD *block_index)
+static bool LookupCachedBlock(MPQ_ARCHIVE *mpq, const char *fileName, uint32_t *block_index)
 {
     char key[1024];
-    DWORD hash;
+    uint32_t hash;
     MPQ_CACHE_ENTRY *entry;
 
     if (!mpq->lookup_cache || mpq->lookup_cache_size == 0) {
-        return FALSE;
+        return false;
     }
 
     CanonicalizeMpqKey(fileName, key, sizeof(key));
@@ -533,18 +533,18 @@ static BOOL LookupCachedBlock(MPQ_ARCHIVE *mpq, const char *fileName, DWORD *blo
     while (entry) {
         if (!strcmp(entry->name, key)) {
             *block_index = entry->block_index;
-            return TRUE;
+            return true;
         }
         entry = entry->next;
     }
 
-    return FALSE;
+    return false;
 }
 
-static void CacheBlockLookup(MPQ_ARCHIVE *mpq, const char *fileName, DWORD block_index)
+static void CacheBlockLookup(MPQ_ARCHIVE *mpq, const char *fileName, uint32_t block_index)
 {
     char key[1024];
-    DWORD hash;
+    uint32_t hash;
     MPQ_CACHE_ENTRY *entry;
 
     if (!mpq->lookup_cache || mpq->lookup_cache_size == 0) {
@@ -568,7 +568,7 @@ static void CacheBlockLookup(MPQ_ARCHIVE *mpq, const char *fileName, DWORD block
     mpq->lookup_cache[hash & (mpq->lookup_cache_size - 1)] = entry;
 }
 
-static BOOL PathCharEquals(char a, char b)
+static bool PathCharEquals(char a, char b)
 {
     if (a >= 'A' && a <= 'Z') {
         a = (char)(a + 0x20);
@@ -579,15 +579,15 @@ static BOOL PathCharEquals(char a, char b)
     return a == b;
 }
 
-static BOOL HasArchiveExtensionAt(LPCSTR path, size_t dot)
+static bool HasArchiveExtensionAt(cstring_t path, size_t dot)
 {
-    static LPCSTR const exts[] = { ".mpq", ".w3m", ".w3x", NULL };
+    static cstring_t const exts[] = { ".mpq", ".w3m", ".w3x", NULL };
 
-    for (DWORD i = 0; exts[i]; i++) {
-        BOOL match = TRUE;
-        for (DWORD j = 0; exts[i][j]; j++) {
+    for (uint32_t i = 0; exts[i]; i++) {
+        bool match = true;
+        for (uint32_t j = 0; exts[i][j]; j++) {
             if (!path[dot + j] || !PathCharEquals(path[dot + j], exts[i][j])) {
-                match = FALSE;
+                match = false;
                 break;
             }
         }
@@ -596,14 +596,14 @@ static BOOL HasArchiveExtensionAt(LPCSTR path, size_t dot)
             return next == '/' || next == '\\';
         }
     }
-    return FALSE;
+    return false;
 }
 
-static BOOL FindBlockIndex(MPQ_ARCHIVE *mpq, const char *fileName, DWORD hash1, DWORD hash2, DWORD *block_index)
+static bool FindBlockIndex(MPQ_ARCHIVE *mpq, const char *fileName, uint32_t hash1, uint32_t hash2, uint32_t *block_index)
 {
-    DWORD hash_pos;
-    DWORD index;
-    BOOL trace = getenv("BZ_MPQ_TRACE") != NULL;
+    uint32_t hash_pos;
+    uint32_t index;
+    bool trace = getenv("BZ_MPQ_TRACE") != NULL;
 
     hash_pos = (hash1 & (mpq->header.dwHashTableSize - 1));
     if (trace) {
@@ -634,7 +634,7 @@ static BOOL FindBlockIndex(MPQ_ARCHIVE *mpq, const char *fileName, DWORD hash1, 
                 fprintf(stderr, "MPQ lookup: found via probe at block_index=%u\n", *block_index);
             }
             CacheBlockLookup(mpq, fileName, *block_index);
-            return TRUE;
+            return true;
         }
     }
 
@@ -655,7 +655,7 @@ static BOOL FindBlockIndex(MPQ_ARCHIVE *mpq, const char *fileName, DWORD hash1, 
                 fprintf(stderr, "MPQ lookup: found via full scan at slot=%u block_index=%u\n", index, *block_index);
             }
             CacheBlockLookup(mpq, fileName, *block_index);
-            return TRUE;
+            return true;
         }
     }
 
@@ -663,7 +663,7 @@ static BOOL FindBlockIndex(MPQ_ARCHIVE *mpq, const char *fileName, DWORD hash1, 
         fprintf(stderr, "MPQ lookup: not found after full scan\n");
     }
 
-    return FALSE;
+    return false;
 }
 
 static const char *BaseNamePtr(const char *path)
@@ -686,20 +686,20 @@ static const char *BaseNamePtr(const char *path)
     return path;
 }
 
-static BOOL DecryptBlock(LPBYTE data, DWORD size, DWORD seed1)
+static bool DecryptBlock(uint8_t * data, uint32_t size, uint32_t seed1)
 {
-    LPDWORD pdw = (LPDWORD)data;
-    DWORD nblocks = size >> 2; // DWORD-aligned only; leftover 1-3 bytes stay ciphertext/plaintext as stored
-    DWORD seed2 = 0xEEEEEEEE;
-    DWORD index;
+    uint32_t * pdw = (uint32_t *)data;
+    uint32_t nblocks = size >> 2; // uint32_t-aligned only; leftover 1-3 bytes stay ciphertext/plaintext as stored
+    uint32_t seed2 = 0xEEEEEEEE;
+    uint32_t index;
 
     if (!storm_buffer_ready) {
         InitStormBuffer();
     }
 
     for (index = 0; index < nblocks; index++) {
-        DWORD value;
-        DWORD seed2_base;
+        uint32_t value;
+        uint32_t seed2_base;
 
         seed2_base = seed2 + storm_buffer[MPQ_HASH_KEY2_MIX + (seed1 & 0xFF)];
         value = pdw[index] ^ (seed1 + seed2_base);
@@ -708,40 +708,40 @@ static BOOL DecryptBlock(LPBYTE data, DWORD size, DWORD seed1)
         seed2 = value + seed2_base + (seed2_base << 5) + 3;
     }
 
-    return TRUE;
+    return true;
 }
 
-static BOOL EncryptBlock(LPBYTE data, DWORD size, DWORD seed1)
+static bool EncryptBlock(uint8_t * data, uint32_t size, uint32_t seed1)
 {
-    LPDWORD pdw = (LPDWORD)data;
-    DWORD nblocks = size >> 2; // DWORD-aligned only; leftover 1-3 bytes stay plaintext
-    DWORD seed2 = 0xEEEEEEEE;
-    DWORD index;
+    uint32_t * pdw = (uint32_t *)data;
+    uint32_t nblocks = size >> 2; // uint32_t-aligned only; leftover 1-3 bytes stay plaintext
+    uint32_t seed2 = 0xEEEEEEEE;
+    uint32_t index;
 
     if (!storm_buffer_ready) {
         InitStormBuffer();
     }
 
     for (index = 0; index < nblocks; index++) {
-        DWORD value = pdw[index];
-        DWORD seed2_base = seed2 + storm_buffer[MPQ_HASH_KEY2_MIX + (seed1 & 0xFF)];
+        uint32_t value = pdw[index];
+        uint32_t seed2_base = seed2 + storm_buffer[MPQ_HASH_KEY2_MIX + (seed1 & 0xFF)];
 
         pdw[index] = value ^ (seed1 + seed2_base);
         seed1 = ((~seed1 << 0x15) + 0x11111111) | (seed1 >> 0x0B);
         seed2 = value + seed2_base + (seed2_base << 5) + 3;
     }
 
-    return TRUE;
+    return true;
 }
 
 #ifdef MPQ_TEST_API
-DWORD Mpq_TestHashString(const char *str, DWORD hash_type) { return HashString(str, hash_type); }
-BOOL Mpq_TestEncryptBlock(BYTE *data, DWORD size, DWORD seed) { return EncryptBlock(data, size, seed); }
+uint32_t Mpq_TestHashString(const char *str, uint32_t hash_type) { return HashString(str, hash_type); }
+bool Mpq_TestEncryptBlock(uint8_t *data, uint32_t size, uint32_t seed) { return EncryptBlock(data, size, seed); }
 #endif
 
-static DWORD NextPowerOfTwo(DWORD value)
+static uint32_t NextPowerOfTwo(uint32_t value)
 {
-    DWORD result = 1;
+    uint32_t result = 1;
 
     while (result < value) {
         result <<= 1;
@@ -752,7 +752,7 @@ static DWORD NextPowerOfTwo(DWORD value)
 
 static void FreeWriterEntries(MPQ_ARCHIVE *mpq)
 {
-    DWORD i;
+    uint32_t i;
 
     if (!mpq || !mpq->write_entries) {
         return;
@@ -768,13 +768,13 @@ static void FreeWriterEntries(MPQ_ARCHIVE *mpq)
     mpq->write_capacity = 0;
 }
 
-static BOOL WriterHasEntry(MPQ_ARCHIVE *mpq, const char *fileName)
+static bool WriterHasEntry(MPQ_ARCHIVE *mpq, const char *fileName)
 {
-    DWORD i;
+    uint32_t i;
     char key[1024];
 
     if (!mpq || !fileName) {
-        return FALSE;
+        return false;
     }
 
     CanonicalizeMpqKey(fileName, key, sizeof(key));
@@ -782,20 +782,20 @@ static BOOL WriterHasEntry(MPQ_ARCHIVE *mpq, const char *fileName)
         char existing[1024];
         CanonicalizeMpqKey(mpq->write_entries[i].name, existing, sizeof(existing));
         if (!strcmp(existing, key)) {
-            return TRUE;
+            return true;
         }
     }
 
-    return FALSE;
+    return false;
 }
 
-static BOOL WriterCompressData(const BYTE *data, DWORD size, BYTE **out_data, DWORD *out_size, DWORD *out_flags)
+static bool WriterCompressData(const uint8_t *data, uint32_t size, uint8_t **out_data, uint32_t *out_size, uint32_t *out_flags)
 {
-    BYTE *compressed;
+    uint8_t *compressed;
     uLongf compressed_bound;
 
     if (!out_data || !out_size || !out_flags) {
-        return FALSE;
+        return false;
     }
 
     *out_data = NULL;
@@ -803,44 +803,44 @@ static BOOL WriterCompressData(const BYTE *data, DWORD size, BYTE **out_data, DW
     *out_flags = MPQ_FILE_EXISTS;
 
     if (!data || size == 0) {
-        return TRUE;
+        return true;
     }
 
     compressed_bound = compressBound(size);
     if (compressed_bound + 1 > 0xFFFFFFFFu) {
-        return TRUE;
+        return true;
     }
 
-    compressed = (BYTE *)malloc((size_t)compressed_bound + 1);
+    compressed = (uint8_t *)malloc((size_t)compressed_bound + 1);
     if (!compressed) {
-        return FALSE;
+        return false;
     }
     compressed[0] = MPQ_COMPRESSION_ZLIB;
 
     if (compress2(compressed + 1, &compressed_bound, data, size, Z_DEFAULT_COMPRESSION) != Z_OK ||
         compressed_bound + 1 >= size) {
         free(compressed);
-        return TRUE;
+        return true;
     }
 
     *out_data = compressed;
-    *out_size = (DWORD)(compressed_bound + 1);
+    *out_size = (uint32_t)(compressed_bound + 1);
     *out_flags = MPQ_FILE_EXISTS | MPQ_FILE_COMPRESS | MPQ_FILE_SINGLE_UNIT;
-    return TRUE;
+    return true;
 }
 
-static BOOL WriterAddData(MPQ_ARCHIVE *mpq, const char *archivedName, const BYTE *data, DWORD size)
+static bool WriterAddData(MPQ_ARCHIVE *mpq, const char *archivedName, const uint8_t *data, uint32_t size)
 {
     MPQ_WRITE_ENTRY *entry;
-    BYTE *compressed = NULL;
-    const BYTE *to_write = data;
-    DWORD write_size = size;
-    DWORD flags = MPQ_FILE_EXISTS;
+    uint8_t *compressed = NULL;
+    const uint8_t *to_write = data;
+    uint32_t write_size = size;
+    uint32_t flags = MPQ_FILE_EXISTS;
     long pos;
     char path[1024];
 
     if (!mpq || !mpq->write_mode || !archivedName || !*archivedName) {
-        return FALSE;
+        return false;
     }
 
     strncpy(path, archivedName, sizeof(path) - 1);
@@ -848,11 +848,11 @@ static BOOL WriterAddData(MPQ_ARCHIVE *mpq, const char *archivedName, const BYTE
     NormalizeMpqPath(path);
     TrimEdgeSlashes(path);
     if (*path == '\0' || WriterHasEntry(mpq, path)) {
-        return FALSE;
+        return false;
     }
 
     if (!WriterCompressData(data, size, &compressed, &write_size, &flags)) {
-        return FALSE;
+        return false;
     }
     if (compressed) {
         to_write = compressed;
@@ -860,24 +860,24 @@ static BOOL WriterAddData(MPQ_ARCHIVE *mpq, const char *archivedName, const BYTE
 
     if (fseek(mpq->fp, 0, SEEK_END) != 0) {
         free(compressed);
-        return FALSE;
+        return false;
     }
     pos = ftell(mpq->fp);
     if (pos < 0 || (unsigned long)pos > 0xFFFFFFFFu) {
         free(compressed);
-        return FALSE;
+        return false;
     }
     if (write_size > 0 && (!to_write || fwrite(to_write, 1, write_size, mpq->fp) != write_size)) {
         free(compressed);
-        return FALSE;
+        return false;
     }
     free(compressed);
 
     if (mpq->write_count == mpq->write_capacity) {
-        DWORD next = mpq->write_capacity ? mpq->write_capacity * 2 : 16;
+        uint32_t next = mpq->write_capacity ? mpq->write_capacity * 2 : 16;
         MPQ_WRITE_ENTRY *tmp = (MPQ_WRITE_ENTRY *)realloc(mpq->write_entries, next * sizeof(*tmp));
         if (!tmp) {
-            return FALSE;
+            return false;
         }
         mpq->write_entries = tmp;
         mpq->write_capacity = next;
@@ -888,40 +888,40 @@ static BOOL WriterAddData(MPQ_ARCHIVE *mpq, const char *archivedName, const BYTE
     entry->name = (char *)malloc(strlen(path) + 1);
     if (!entry->name) {
         mpq->write_count--;
-        return FALSE;
+        return false;
     }
     memcpy(entry->name, path, strlen(path) + 1);
-    entry->offset = (DWORD)pos;
+    entry->offset = (uint32_t)pos;
     entry->block_size = write_size;
     entry->file_size = size;
     entry->flags = flags;
-    return TRUE;
+    return true;
 }
 
-static BOOL FinalizeCreatedArchive(MPQ_ARCHIVE *mpq)
+static bool FinalizeCreatedArchive(MPQ_ARCHIVE *mpq)
 {
     MPQ_HEADER_V1 header;
     MPQ_HASH_ENTRY *hash_table = NULL;
     MPQ_BLOCK_ENTRY *block_table = NULL;
-    DWORD total_entries;
-    DWORD hash_size;
-    DWORD block_size = 0;
-    DWORD offset;
+    uint32_t total_entries;
+    uint32_t hash_size;
+    uint32_t block_size = 0;
+    uint32_t offset;
     long table_pos;
-    DWORD i;
-    BOOL ok = FALSE;
+    uint32_t i;
+    bool ok = false;
 
     if (!mpq || !mpq->write_mode || !mpq->fp) {
-        return FALSE;
+        return false;
     }
 
     for (i = 0; i < mpq->write_count; i++) {
-        block_size += (DWORD)strlen(mpq->write_entries[i].name) + 1;
+        block_size += (uint32_t)strlen(mpq->write_entries[i].name) + 1;
     }
-    block_size += (DWORD)strlen("(listfile)") + 1;
+    block_size += (uint32_t)strlen("(listfile)") + 1;
 
     {
-        BYTE *listfile_data = (BYTE *)malloc(block_size ? block_size : 1);
+        uint8_t *listfile_data = (uint8_t *)malloc(block_size ? block_size : 1);
         if (!listfile_data) {
             goto done;
         }
@@ -930,11 +930,11 @@ static BOOL FinalizeCreatedArchive(MPQ_ARCHIVE *mpq)
         for (i = 0; i < mpq->write_count; i++) {
             size_t len = strlen(mpq->write_entries[i].name);
             memcpy(listfile_data + offset, mpq->write_entries[i].name, len);
-            offset += (DWORD)len;
+            offset += (uint32_t)len;
             listfile_data[offset++] = '\n';
         }
         memcpy(listfile_data + offset, "(listfile)", strlen("(listfile)"));
-        offset += (DWORD)strlen("(listfile)");
+        offset += (uint32_t)strlen("(listfile)");
         listfile_data[offset++] = '\n';
 
         if (!WriterAddData(mpq, "(listfile)", listfile_data, offset)) {
@@ -983,10 +983,10 @@ static BOOL FinalizeCreatedArchive(MPQ_ARCHIVE *mpq)
     header.dwHashTableSize = hash_size;
     header.dwBlockTableSize = total_entries;
 
-    offset = (DWORD)table_pos;
+    offset = (uint32_t)table_pos;
     for (i = 0; i < total_entries; i++) {
         MPQ_WRITE_ENTRY *entry = &mpq->write_entries[i];
-        DWORD slot = HashString(entry->name, MPQ_HASH_NAME_A) & (hash_size - 1);
+        uint32_t slot = HashString(entry->name, MPQ_HASH_NAME_A) & (hash_size - 1);
 
         block_table[i].dwBlockOffset = entry->offset;
         block_table[i].dwBlockSize = entry->block_size;
@@ -1011,8 +1011,8 @@ static BOOL FinalizeCreatedArchive(MPQ_ARCHIVE *mpq)
     offset += total_entries * sizeof(*block_table);
     header.dwArchiveSize = offset;
 
-    EncryptBlock((LPBYTE)hash_table, hash_size * sizeof(*hash_table), MPQ_KEY_HASH_TABLE);
-    EncryptBlock((LPBYTE)block_table, total_entries * sizeof(*block_table), MPQ_KEY_BLOCK_TABLE);
+    EncryptBlock((uint8_t *)hash_table, hash_size * sizeof(*hash_table), MPQ_KEY_HASH_TABLE);
+    EncryptBlock((uint8_t *)block_table, total_entries * sizeof(*block_table), MPQ_KEY_BLOCK_TABLE);
 
     if (fwrite(hash_table, sizeof(*hash_table), hash_size, mpq->fp) != hash_size) {
         goto done;
@@ -1030,7 +1030,7 @@ static BOOL FinalizeCreatedArchive(MPQ_ARCHIVE *mpq)
         goto done;
     }
 
-    ok = TRUE;
+    ok = true;
 
 done:
     free(hash_table);
@@ -1038,41 +1038,41 @@ done:
     return ok;
 }
 
-static BOOL SectorTableLooksValid(const DWORD *offsets, DWORD sector_count, DWORD compressed_size)
+static bool SectorTableLooksValid(const uint32_t *offsets, uint32_t sector_count, uint32_t compressed_size)
 {
-    DWORD i;
+    uint32_t i;
 
     if (!offsets || sector_count == 0) {
-        return FALSE;
+        return false;
     }
 
     if (offsets[0] == 0 || offsets[0] > compressed_size) {
-        return FALSE;
+        return false;
     }
 
     for (i = 0; i < sector_count; i++) {
         if (offsets[i] > offsets[i + 1]) {
-            return FALSE;
+            return false;
         }
         if (offsets[i + 1] > compressed_size) {
-            return FALSE;
+            return false;
         }
     }
 
-    return TRUE;
+    return true;
 }
 
 static void PreloadListfileCache(MPQ_ARCHIVE *mpq);
 
-static BOOL TryInflateSector(const BYTE *compressed, DWORD compressed_size, DWORD uncompressed_size, BYTE *out, DWORD *out_size)
+static bool TryInflateSector(const uint8_t *compressed, uint32_t compressed_size, uint32_t uncompressed_size, uint8_t *out, uint32_t *out_size)
 {
     z_stream zs;
     int zlib_ret;
-    const BYTE *payload = compressed;
-    DWORD payload_size = compressed_size;
+    const uint8_t *payload = compressed;
+    uint32_t payload_size = compressed_size;
 
     if (!compressed || !out || !out_size || compressed_size == 0) {
-        return FALSE;
+        return false;
     }
 
     if (compressed_size > 1 && compressed[0] == MPQ_COMPRESSION_ZLIB) {
@@ -1095,34 +1095,34 @@ static BOOL TryInflateSector(const BYTE *compressed, DWORD compressed_size, DWOR
         zs.next_out = out;
         zlib_ret = inflateInit2(&zs, -MAX_WBITS);
         if (zlib_ret != Z_OK) {
-            return FALSE;
+            return false;
         }
     }
 
     zlib_ret = inflate(&zs, Z_FINISH);
     inflateEnd(&zs);
     if (zlib_ret != Z_STREAM_END) {
-        return FALSE;
+        return false;
     }
 
     *out_size = zs.total_out;
-    return TRUE;
+    return true;
 }
 
-static BOOL MpqSeek(MPQ_ARCHIVE *mpq, DWORD offset)
+static bool MpqSeek(MPQ_ARCHIVE *mpq, uint32_t offset)
 {
-    DWORD pos;
+    uint32_t pos;
 
     if (!mpq) {
-        return FALSE;
+        return false;
     }
     pos = mpq->base_offset + offset;
     if (mpq->memory) {
         if (pos > mpq->memory_size) {
-            return FALSE;
+            return false;
         }
         mpq->memory_pos = pos;
-        return TRUE;
+        return true;
     }
     return mpq->fp && fseek(mpq->fp, pos, SEEK_SET) == 0;
 }
@@ -1143,7 +1143,7 @@ static size_t MpqRead(MPQ_ARCHIVE *mpq, void *buffer, size_t size)
             size = available;
         }
         memcpy(buffer, mpq->memory + mpq->memory_pos, size);
-        mpq->memory_pos += (DWORD)size;
+        mpq->memory_pos += (uint32_t)size;
         return size;
     }
     return mpq->fp ? fread(buffer, 1, size, mpq->fp) : 0;
@@ -1155,7 +1155,7 @@ static void MpqFreeReadArchive(MPQ_ARCHIVE *mpq)
         return;
     }
     if (mpq->lookup_cache) {
-        DWORD i;
+        uint32_t i;
         for (i = 0; i < mpq->lookup_cache_size; i++) {
             MPQ_CACHE_ENTRY *entry = mpq->lookup_cache[i];
             while (entry) {
@@ -1174,7 +1174,7 @@ static void MpqFreeReadArchive(MPQ_ARCHIVE *mpq)
     free(mpq);
 }
 
-static BOOL SFileOpenArchiveSource(MPQ_ARCHIVE *mpq, HANDLE *archive)
+static bool SFileOpenArchiveSource(MPQ_ARCHIVE *mpq, handle_t *archive)
 {
     unsigned char probe[1024];
     size_t read;
@@ -1182,7 +1182,7 @@ static BOOL SFileOpenArchiveSource(MPQ_ARCHIVE *mpq, HANDLE *archive)
     size_t i;
 
     if (!mpq || !archive) {
-        return FALSE;
+        return false;
     }
 
     mpq->lookup_cache_size = 4096;
@@ -1201,7 +1201,7 @@ static BOOL SFileOpenArchiveSource(MPQ_ARCHIVE *mpq, HANDLE *archive)
     if (archive_offset < 0) {
         goto fail;
     }
-    mpq->base_offset = (DWORD)archive_offset;
+    mpq->base_offset = (uint32_t)archive_offset;
 
     if (!MpqSeek(mpq, 0)) {
         goto fail;
@@ -1227,7 +1227,7 @@ static BOOL SFileOpenArchiveSource(MPQ_ARCHIVE *mpq, HANDLE *archive)
     mpq->sector_size = 1u << (mpq->header.wSectorSizeShift + 9);
 
     // Allocate sector buffer (one scratch sector; 16 MiB once at open is acceptable)
-    mpq->sector_buffer = (BYTE *)malloc(mpq->sector_size);
+    mpq->sector_buffer = (uint8_t *)malloc(mpq->sector_size);
     if (!mpq->sector_buffer) {
         fprintf(stderr, "MPQ: failed to allocate %u-byte sector buffer\n", mpq->sector_size);
         goto fail;
@@ -1248,7 +1248,7 @@ static BOOL SFileOpenArchiveSource(MPQ_ARCHIVE *mpq, HANDLE *archive)
     }
 
     // Decrypt hash table
-    DecryptBlock((LPBYTE)mpq->hashtable, mpq->header.dwHashTableSize * sizeof(MPQ_HASH_ENTRY),
+    DecryptBlock((uint8_t *)mpq->hashtable, mpq->header.dwHashTableSize * sizeof(MPQ_HASH_ENTRY),
                  MPQ_KEY_HASH_TABLE);
 
     // Read block table
@@ -1266,20 +1266,20 @@ static BOOL SFileOpenArchiveSource(MPQ_ARCHIVE *mpq, HANDLE *archive)
     }
 
     // Decrypt block table
-    DecryptBlock((LPBYTE)mpq->blocktable, mpq->header.dwBlockTableSize * sizeof(MPQ_BLOCK_ENTRY),
+    DecryptBlock((uint8_t *)mpq->blocktable, mpq->header.dwBlockTableSize * sizeof(MPQ_BLOCK_ENTRY),
                  MPQ_KEY_BLOCK_TABLE);
 
     PreloadListfileCache(mpq);
 
-    *archive = (HANDLE)mpq;
-    return TRUE;
+    *archive = (handle_t)mpq;
+    return true;
 
 fail:
     MpqFreeReadArchive(mpq);
-    return FALSE;
+    return false;
 }
 
-BOOL SFileOpenArchive(LPCSTR filename, DWORD priority, DWORD flags, HANDLE *archive)
+bool SFileOpenArchive(cstring_t filename, uint32_t priority, uint32_t flags, handle_t *archive)
 {
     MPQ_ARCHIVE *mpq;
     FILE *fp;
@@ -1288,18 +1288,18 @@ BOOL SFileOpenArchive(LPCSTR filename, DWORD priority, DWORD flags, HANDLE *arch
     (void)flags;
 
     if (!filename || !archive) {
-        return FALSE;
+        return false;
     }
 
     fp = fopen(filename, "rb");
     if (!fp) {
-        return FALSE;
+        return false;
     }
 
     mpq = (MPQ_ARCHIVE *)calloc(1, sizeof(MPQ_ARCHIVE));
     if (!mpq) {
         fclose(fp);
-        return FALSE;
+        return false;
     }
 
     mpq->fp = fp;
@@ -1307,28 +1307,28 @@ BOOL SFileOpenArchive(LPCSTR filename, DWORD priority, DWORD flags, HANDLE *arch
     return SFileOpenArchiveSource(mpq, archive);
 }
 
-BOOL SFileOpenArchiveFromMemory(const void *data, DWORD size, DWORD flags, HANDLE *archive)
+bool SFileOpenArchiveFromMemory(const void *data, uint32_t size, uint32_t flags, handle_t *archive)
 {
     MPQ_ARCHIVE *mpq;
 
     (void)flags;
 
     if (!data || size == 0 || !archive) {
-        return FALSE;
+        return false;
     }
 
     mpq = (MPQ_ARCHIVE *)calloc(1, sizeof(MPQ_ARCHIVE));
     if (!mpq) {
-        return FALSE;
+        return false;
     }
 
-    mpq->memory = (const BYTE *)data;
+    mpq->memory = (const uint8_t *)data;
     mpq->memory_size = size;
     strncpy(mpq->filename, "<memory>", sizeof(mpq->filename) - 1);
     return SFileOpenArchiveSource(mpq, archive);
 }
 
-BOOL SFileCreateArchive(LPCSTR filename, DWORD flags, DWORD maxFiles, HANDLE *archive)
+bool SFileCreateArchive(cstring_t filename, uint32_t flags, uint32_t maxFiles, handle_t *archive)
 {
     MPQ_ARCHIVE *mpq;
     MPQ_HEADER_V1 header;
@@ -1337,103 +1337,103 @@ BOOL SFileCreateArchive(LPCSTR filename, DWORD flags, DWORD maxFiles, HANDLE *ar
     (void)flags;
 
     if (!filename || !archive) {
-        return FALSE;
+        return false;
     }
 
     fp = fopen(filename, "wb+");
     if (!fp) {
-        return FALSE;
+        return false;
     }
 
     mpq = (MPQ_ARCHIVE *)calloc(1, sizeof(*mpq));
     if (!mpq) {
         fclose(fp);
-        return FALSE;
+        return false;
     }
 
     memset(&header, 0, sizeof(header));
     if (fwrite(&header, sizeof(header), 1, fp) != 1) {
         free(mpq);
         fclose(fp);
-        return FALSE;
+        return false;
     }
 
     mpq->fp = fp;
-    mpq->write_mode = TRUE;
+    mpq->write_mode = true;
     mpq->write_hash_table_size = NextPowerOfTwo(MAX(maxFiles * 2, 16));
     strncpy(mpq->filename, filename, sizeof(mpq->filename) - 1);
-    *archive = (HANDLE)mpq;
-    return TRUE;
+    *archive = (handle_t)mpq;
+    return true;
 }
 
-BOOL SFileAddFile(HANDLE archive, LPCSTR sourceFile, LPCSTR archivedName)
+bool SFileAddFile(handle_t archive, cstring_t sourceFile, cstring_t archivedName)
 {
     MPQ_ARCHIVE *mpq = (MPQ_ARCHIVE *)archive;
     FILE *fp;
-    BYTE *buffer;
+    uint8_t *buffer;
     long size_long;
     size_t size;
     const char *name = archivedName ? archivedName : BaseNamePtr(sourceFile);
-    BOOL ok;
+    bool ok;
 
     if (!mpq || !mpq->write_mode || !sourceFile || !name) {
-        return FALSE;
+        return false;
     }
 
     fp = fopen(sourceFile, "rb");
     if (!fp) {
-        return FALSE;
+        return false;
     }
 
     if (fseek(fp, 0, SEEK_END) != 0) {
         fclose(fp);
-        return FALSE;
+        return false;
     }
     size_long = ftell(fp);
     if (size_long < 0 || fseek(fp, 0, SEEK_SET) != 0) {
         fclose(fp);
-        return FALSE;
+        return false;
     }
 
     size = (size_t)size_long;
-    buffer = size ? (BYTE *)malloc(size) : NULL;
+    buffer = size ? (uint8_t *)malloc(size) : NULL;
     if (size > 0 && !buffer) {
         fclose(fp);
-        return FALSE;
+        return false;
     }
     if (size > 0 && fread(buffer, 1, size, fp) != size) {
         free(buffer);
         fclose(fp);
-        return FALSE;
+        return false;
     }
     fclose(fp);
 
-    ok = WriterAddData(mpq, name, buffer, (DWORD)size);
+    ok = WriterAddData(mpq, name, buffer, (uint32_t)size);
     free(buffer);
     return ok;
 }
 
-BOOL SFileAddFileFromBuffer(HANDLE archive, LPCSTR archivedName, const void *data, DWORD size)
+bool SFileAddFileFromBuffer(handle_t archive, cstring_t archivedName, const void *data, uint32_t size)
 {
     MPQ_ARCHIVE *mpq = (MPQ_ARCHIVE *)archive;
 
     if (!mpq || !mpq->write_mode || !archivedName || (size > 0 && !data)) {
-        return FALSE;
+        return false;
     }
 
-    return WriterAddData(mpq, archivedName, (const BYTE *)data, size);
+    return WriterAddData(mpq, archivedName, (const uint8_t *)data, size);
 }
 
-BOOL SFileCloseArchive(HANDLE archive)
+bool SFileCloseArchive(handle_t archive)
 {
     MPQ_ARCHIVE *mpq = (MPQ_ARCHIVE *)archive;
 
     if (!mpq) {
-        return FALSE;
+        return false;
     }
 
     if (mpq->write_mode) {
-        BOOL ok = FinalizeCreatedArchive(mpq);
+        bool ok = FinalizeCreatedArchive(mpq);
         FreeWriterEntries(mpq);
         SAFE_DELETE(mpq->fp, fclose);
         free(mpq);
@@ -1442,25 +1442,25 @@ BOOL SFileCloseArchive(HANDLE archive)
 
     MpqFreeReadArchive(mpq);
 
-    return TRUE;
+    return true;
 }
 
-static BOOL SFileOpenFileDirect(HANDLE archive, LPCSTR fileName, DWORD searchScope, HANDLE *file)
+static bool SFileOpenFileDirect(handle_t archive, cstring_t fileName, uint32_t searchScope, handle_t *file)
 {
     MPQ_ARCHIVE *mpq = (MPQ_ARCHIVE *)archive;
     MPQ_FILE *mpqfile;
     char canonical_name[1024];
-    DWORD hash1, hash2;
-    DWORD block_index;
+    uint32_t hash1, hash2;
+    uint32_t block_index;
 
     if (!mpq || !fileName || !file || searchScope != SFILE_OPEN_FROM_MPQ) {
-        return FALSE;
+        return false;
     }
 
     /* MPQ names are case-insensitive and use backslashes; normalize every lookup before hashing. */
     CanonicalizeMpqKey(fileName, canonical_name, sizeof(canonical_name));
     if (!canonical_name[0]) {
-        return FALSE;
+        return false;
     }
 
     // Calculate file name hashes
@@ -1469,17 +1469,17 @@ static BOOL SFileOpenFileDirect(HANDLE archive, LPCSTR fileName, DWORD searchSco
 
     if (!LookupCachedBlock(mpq, canonical_name, &block_index)) {
         if (!FindBlockIndex(mpq, canonical_name, hash1, hash2, &block_index)) {
-            return FALSE;
+            return false;
         }
     }
 
     if (block_index >= mpq->header.dwBlockTableSize) {
-        return FALSE;
+        return false;
     }
 
     mpqfile = (MPQ_FILE *)malloc(sizeof(MPQ_FILE));
     if (!mpqfile) {
-        return FALSE;
+        return false;
     }
 
     memset(mpqfile, 0, sizeof(MPQ_FILE));
@@ -1501,60 +1501,60 @@ static BOOL SFileOpenFileDirect(HANDLE archive, LPCSTR fileName, DWORD searchSco
     }
 
     if ((mpqfile->flags & MPQ_FILE_COMPRESS) && !(mpqfile->flags & MPQ_FILE_SINGLE_UNIT)) {
-        DWORD sector_count;
-        DWORD offset_count;
+        uint32_t sector_count;
+        uint32_t offset_count;
         MPQ_BLOCK_ENTRY *block;
-        BOOL offsets_valid = FALSE;
+        bool offsets_valid = false;
 
         block = &mpq->blocktable[block_index];
         sector_count = (mpqfile->file_size + mpq->sector_size - 1) / mpq->sector_size;
         offset_count = sector_count + 1;
-        mpqfile->sector_offsets = (DWORD *)malloc(offset_count * sizeof(DWORD));
+        mpqfile->sector_offsets = (uint32_t *)malloc(offset_count * sizeof(uint32_t));
         if (!mpqfile->sector_offsets) {
             free(mpqfile);
-            return FALSE;
+            return false;
         }
 
         MpqSeek(mpq, block->dwBlockOffset);
-        if (MpqRead(mpq, mpqfile->sector_offsets, offset_count * sizeof(DWORD)) != offset_count * sizeof(DWORD)) {
+        if (MpqRead(mpq, mpqfile->sector_offsets, offset_count * sizeof(uint32_t)) != offset_count * sizeof(uint32_t)) {
             free(mpqfile->sector_offsets);
             free(mpqfile);
-            return FALSE;
+            return false;
         }
 
         offsets_valid = SectorTableLooksValid(mpqfile->sector_offsets, sector_count, mpqfile->compressed_size);
         if (!offsets_valid && (mpqfile->flags & MPQ_FILE_ENCRYPTED)) {
-            DecryptBlock((LPBYTE)mpqfile->sector_offsets, offset_count * sizeof(DWORD), mpqfile->file_key - 1);
+            DecryptBlock((uint8_t *)mpqfile->sector_offsets, offset_count * sizeof(uint32_t), mpqfile->file_key - 1);
             offsets_valid = SectorTableLooksValid(mpqfile->sector_offsets, sector_count, mpqfile->compressed_size);
         }
         if (!offsets_valid) {
             free(mpqfile->sector_offsets);
             free(mpqfile);
-            return FALSE;
+            return false;
         }
 
         mpqfile->sector_count = sector_count;
     }
 
-    *file = (HANDLE)mpqfile;
-    return TRUE;
+    *file = (handle_t)mpqfile;
+    return true;
 }
 
-static BOOL SFileOpenNestedFile(HANDLE archive, LPCSTR fileName, DWORD searchScope, HANDLE *file)
+static bool SFileOpenNestedFile(handle_t archive, cstring_t fileName, uint32_t searchScope, handle_t *file)
 {
     char outerName[1024];
-    LPCSTR innerName;
+    cstring_t innerName;
 
     if (!fileName) {
-        return FALSE;
+        return false;
     }
 
     for (size_t i = 0; fileName[i]; i++) {
-        HANDLE outerFile;
-        DWORD outerSize;
-        DWORD bytesRead = 0;
-        BYTE *outerData;
-        HANDLE nestedArchive;
+        handle_t outerFile;
+        uint32_t outerSize;
+        uint32_t bytesRead = 0;
+        uint8_t *outerData;
+        handle_t nestedArchive;
 
         if (fileName[i] != '.' || !HasArchiveExtensionAt(fileName, i)) {
             continue;
@@ -1578,10 +1578,10 @@ static BOOL SFileOpenNestedFile(HANDLE archive, LPCSTR fileName, DWORD searchSco
         }
 
         outerSize = SFileGetFileSize(outerFile, NULL);
-        outerData = (BYTE *)malloc(outerSize);
+        outerData = (uint8_t *)malloc(outerSize);
         if (!outerData) {
             SFileCloseFile(outerFile);
-            return FALSE;
+            return false;
         }
         if (!SFileReadFile(outerFile, outerData, outerSize, &bytesRead, NULL) || bytesRead != outerSize) {
             free(outerData);
@@ -1598,52 +1598,52 @@ static BOOL SFileOpenNestedFile(HANDLE archive, LPCSTR fileName, DWORD searchSco
             MPQ_FILE *mpqfile = (MPQ_FILE *)*file;
             mpqfile->owner_archive = nestedArchive;
             mpqfile->owner_memory = outerData;
-            return TRUE;
+            return true;
         }
 
         SFileCloseArchive(nestedArchive);
         free(outerData);
     }
 
-    return FALSE;
+    return false;
 }
 
-BOOL SFileOpenFileEx(HANDLE archive, LPCSTR fileName, DWORD searchScope, HANDLE *file)
+bool SFileOpenFileEx(handle_t archive, cstring_t fileName, uint32_t searchScope, handle_t *file)
 {
     if (SFileOpenFileDirect(archive, fileName, searchScope, file)) {
-        return TRUE;
+        return true;
     }
     return SFileOpenNestedFile(archive, fileName, searchScope, file);
 }
 
-BOOL SFileOpenFileFromArchiveMemory(BYTE *data, DWORD size, LPCSTR fileName, DWORD searchScope, HANDLE *file)
+bool SFileOpenFileFromArchiveMemory(uint8_t *data, uint32_t size, cstring_t fileName, uint32_t searchScope, handle_t *file)
 {
-    HANDLE nestedArchive;
+    handle_t nestedArchive;
 
     if (!data || size == 0 || !fileName || !*fileName || !file ||
         searchScope != SFILE_OPEN_FROM_MPQ) {
-        return FALSE;
+        return false;
     }
     if (!SFileOpenArchiveFromMemory(data, size, 0, &nestedArchive)) {
-        return FALSE;
+        return false;
     }
     if (SFileOpenFileDirect(nestedArchive, fileName, searchScope, file)) {
         MPQ_FILE *mpqfile = (MPQ_FILE *)*file;
 
         mpqfile->owner_archive = nestedArchive;
         mpqfile->owner_memory = data;
-        return TRUE;
+        return true;
     }
     SFileCloseArchive(nestedArchive);
-    return FALSE;
+    return false;
 }
 
-BOOL SFileCloseFile(HANDLE file)
+bool SFileCloseFile(handle_t file)
 {
     if (file) {
         MPQ_FILE *mpqfile = (MPQ_FILE *)file;
-        HANDLE owner_archive = mpqfile->owner_archive;
-        BYTE *owner_memory = mpqfile->owner_memory;
+        handle_t owner_archive = mpqfile->owner_archive;
+        uint8_t *owner_memory = mpqfile->owner_memory;
 
         if (mpqfile->sector_offsets) {
             free(mpqfile->sector_offsets);
@@ -1656,27 +1656,27 @@ BOOL SFileCloseFile(HANDLE file)
             free(owner_memory);
         }
     }
-    return TRUE;
+    return true;
 }
 
-BOOL SFileReadFile(HANDLE file, void *buffer, DWORD toRead, LPDWORD bytesRead, LPOVERLAPPED overlapped)
+bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t * bytesRead, void * overlapped)
 {
     MPQ_FILE *mpqfile = (MPQ_FILE *)file;
     MPQ_ARCHIVE *mpq;
     MPQ_BLOCK_ENTRY *block;
-    BYTE *dest = (BYTE *)buffer;
-    DWORD read_so_far = 0;
-    DWORD to_read_in_block;
-    DWORD sector_start;
-    DWORD sector_offset;
-    DWORD bytes_in_sector;
-    DWORD file_offset;
+    uint8_t *dest = (uint8_t *)buffer;
+    uint32_t read_so_far = 0;
+    uint32_t to_read_in_block;
+    uint32_t sector_start;
+    uint32_t sector_offset;
+    uint32_t bytes_in_sector;
+    uint32_t file_offset;
 
     (void)overlapped;
 
     if (!mpqfile || !buffer || toRead == 0) {
         if (bytesRead) *bytesRead = 0;
-        return FALSE;
+        return false;
     }
 
     mpq = mpqfile->archive;
@@ -1684,7 +1684,7 @@ BOOL SFileReadFile(HANDLE file, void *buffer, DWORD toRead, LPDWORD bytesRead, L
 
     if (mpqfile->current_pos >= mpqfile->file_size) {
         if (bytesRead) *bytesRead = 0;
-        return TRUE;
+        return true;
     }
 
     // Limit read to file size
@@ -1698,7 +1698,7 @@ BOOL SFileReadFile(HANDLE file, void *buffer, DWORD toRead, LPDWORD bytesRead, L
     if (!(block->dwFlags & MPQ_FILE_COMPRESS)) {
         // Uncompressed file
         MpqSeek(mpq, block->dwBlockOffset + file_offset);
-        DWORD actually_read = (DWORD)MpqRead(mpq, dest, toRead);
+        uint32_t actually_read = (uint32_t)MpqRead(mpq, dest, toRead);
         if (actually_read > 0 && (mpqfile->flags & MPQ_FILE_ENCRYPTED)) {
             DecryptBlock(dest, actually_read, mpqfile->file_key);
         }
@@ -1708,18 +1708,18 @@ BOOL SFileReadFile(HANDLE file, void *buffer, DWORD toRead, LPDWORD bytesRead, L
     }
 
     if (block->dwFlags & MPQ_FILE_SINGLE_UNIT) {
-        BYTE *compressed;
-        BYTE *whole_file;
-        DWORD bytes_in_file = 0;
-        BOOL ok;
+        uint8_t *compressed;
+        uint8_t *whole_file;
+        uint32_t bytes_in_file = 0;
+        bool ok;
 
-        compressed = (BYTE *)malloc(block->dwBlockSize ? block->dwBlockSize : 1);
-        whole_file = (BYTE *)malloc(mpqfile->file_size ? mpqfile->file_size : 1);
+        compressed = (uint8_t *)malloc(block->dwBlockSize ? block->dwBlockSize : 1);
+        whole_file = (uint8_t *)malloc(mpqfile->file_size ? mpqfile->file_size : 1);
         if (!compressed || !whole_file) {
             free(compressed);
             free(whole_file);
             if (bytesRead) *bytesRead = 0;
-            return FALSE;
+            return false;
         }
 
         MpqSeek(mpq, block->dwBlockOffset);
@@ -1727,7 +1727,7 @@ BOOL SFileReadFile(HANDLE file, void *buffer, DWORD toRead, LPDWORD bytesRead, L
             free(compressed);
             free(whole_file);
             if (bytesRead) *bytesRead = 0;
-            return FALSE;
+            return false;
         }
 
         ok = TryInflateSector(compressed, block->dwBlockSize, mpqfile->file_size, whole_file, &bytes_in_file);
@@ -1738,14 +1738,14 @@ BOOL SFileReadFile(HANDLE file, void *buffer, DWORD toRead, LPDWORD bytesRead, L
         if (!ok && block->dwBlockSize >= mpqfile->file_size) {
             memcpy(whole_file, compressed, mpqfile->file_size);
             bytes_in_file = mpqfile->file_size;
-            ok = TRUE;
+            ok = true;
         }
 
         if (!ok || file_offset >= bytes_in_file) {
             free(compressed);
             free(whole_file);
             if (bytesRead) *bytesRead = 0;
-            return FALSE;
+            return false;
         }
 
         if (toRead > bytes_in_file - file_offset) {
@@ -1757,24 +1757,24 @@ BOOL SFileReadFile(HANDLE file, void *buffer, DWORD toRead, LPDWORD bytesRead, L
 
         free(compressed);
         free(whole_file);
-        return TRUE;
+        return true;
     }
 
     // File is compressed - read through the sector offset table.
     if (!mpqfile->sector_offsets || mpqfile->sector_count == 0) {
         if (bytesRead) *bytesRead = 0;
-        return FALSE;
+        return false;
     }
 
     sector_start = (file_offset / mpq->sector_size);
     sector_offset = (file_offset % mpq->sector_size);
 
     while (read_so_far < toRead && sector_start < mpqfile->sector_count) {
-        DWORD sector_start_offset;
-        DWORD sector_end_offset;
-        DWORD sector_compressed_size;
-        DWORD sector_uncompressed_size;
-        BYTE *compressed;
+        uint32_t sector_start_offset;
+        uint32_t sector_end_offset;
+        uint32_t sector_compressed_size;
+        uint32_t sector_uncompressed_size;
+        uint8_t *compressed;
 
         sector_start_offset = mpqfile->sector_offsets[sector_start];
         sector_end_offset = mpqfile->sector_offsets[sector_start + 1];
@@ -1786,13 +1786,13 @@ BOOL SFileReadFile(HANDLE file, void *buffer, DWORD toRead, LPDWORD bytesRead, L
         sector_compressed_size = sector_end_offset - sector_start_offset;
         sector_uncompressed_size = mpq->sector_size;
         if (sector_start == mpqfile->sector_count - 1) {
-            DWORD tail = mpqfile->file_size % mpq->sector_size;
+            uint32_t tail = mpqfile->file_size % mpq->sector_size;
             if (tail != 0) {
                 sector_uncompressed_size = tail;
             }
         }
 
-        compressed = (BYTE *)malloc(sector_compressed_size);
+        compressed = (uint8_t *)malloc(sector_compressed_size);
         if (!compressed) {
             break;
         }
@@ -1842,7 +1842,7 @@ BOOL SFileReadFile(HANDLE file, void *buffer, DWORD toRead, LPDWORD bytesRead, L
     return read_so_far > 0 || toRead == 0;
 }
 
-DWORD SFileGetFileSize(HANDLE file, LPDWORD highSize)
+uint32_t SFileGetFileSize(handle_t file, uint32_t * highSize)
 {
     MPQ_FILE *mpqfile = (MPQ_FILE *)file;
 
@@ -1857,10 +1857,10 @@ DWORD SFileGetFileSize(HANDLE file, LPDWORD highSize)
     return mpqfile->file_size;
 }
 
-DWORD SFileSetFilePointer(HANDLE file, LONG distance, PLONG distanceHigh, DWORD moveMethod)
+uint32_t SFileSetFilePointer(handle_t file, int32_t distance, int32_t * distanceHigh, uint32_t moveMethod)
 {
     MPQ_FILE *mpqfile = (MPQ_FILE *)file;
-    DWORD new_pos;
+    uint32_t new_pos;
 
     if (!mpqfile) {
         return SFILE_INVALID_POS;
@@ -1890,30 +1890,30 @@ DWORD SFileSetFilePointer(HANDLE file, LONG distance, PLONG distanceHigh, DWORD 
     return new_pos;
 }
 
-BOOL SFileExtractFile(HANDLE archive, LPCSTR toExtract, LPCSTR extracted, DWORD flags)
+bool SFileExtractFile(handle_t archive, cstring_t toExtract, cstring_t extracted, uint32_t flags)
 {
-    HANDLE file;
+    handle_t file;
     FILE *out;
-    DWORD file_size;
-    DWORD bytes_read;
-    BYTE buffer[65536];
-    BOOL success = FALSE;
+    uint32_t file_size;
+    uint32_t bytes_read;
+    uint8_t buffer[65536];
+    bool success = false;
 
     (void)flags;
 
     if (!SFileOpenFileEx(archive, toExtract, SFILE_OPEN_FROM_MPQ, &file)) {
-        return FALSE;
+        return false;
     }
 
     file_size = SFileGetFileSize(file, NULL);
     out = fopen(extracted, "wb");
     if (!out) {
         SFileCloseFile(file);
-        return FALSE;
+        return false;
     }
 
     while (file_size > 0) {
-        DWORD to_read = (file_size > sizeof(buffer)) ? sizeof(buffer) : file_size;
+        uint32_t to_read = (file_size > sizeof(buffer)) ? sizeof(buffer) : file_size;
         if (!SFileReadFile(file, buffer, to_read, &bytes_read, NULL) || bytes_read == 0) {
             break;
         }
@@ -1924,7 +1924,7 @@ BOOL SFileExtractFile(HANDLE archive, LPCSTR toExtract, LPCSTR extracted, DWORD 
     }
 
     if (file_size == 0) {
-        success = TRUE;
+        success = true;
     }
 
     fclose(out);
@@ -1932,17 +1932,17 @@ BOOL SFileExtractFile(HANDLE archive, LPCSTR toExtract, LPCSTR extracted, DWORD 
     return success;
 }
 
-static DWORD PreloadBucketHash(DWORD hash1, DWORD hash2)
+static uint32_t PreloadBucketHash(uint32_t hash1, uint32_t hash2)
 {
     return hash1 ^ (hash2 * 16777619u);
 }
 
 static void PreloadListfileCache(MPQ_ARCHIVE *mpq)
 {
-    HANDLE list_file;
-    DWORD list_size;
-    BYTE *buffer = NULL;
-    DWORD bytes_read = 0;
+    handle_t list_file;
+    uint32_t list_size;
+    uint8_t *buffer = NULL;
+    uint32_t bytes_read = 0;
     char *cursor;
     char *line;
     size_t entry_count = 0;
@@ -1950,13 +1950,13 @@ static void PreloadListfileCache(MPQ_ARCHIVE *mpq)
     MPQ_LISTFILE_ENTRY *entries = NULL;
     MPQ_LISTFILE_BUCKET_ENTRY **buckets = NULL;
     size_t i;
-    BOOL trace = getenv("BZ_MPQ_TRACE") != NULL;
+    bool trace = getenv("BZ_MPQ_TRACE") != NULL;
 
     if (!mpq || !mpq->hashtable || !mpq->blocktable) {
         return;
     }
 
-    if (!SFileOpenFileEx((HANDLE)mpq, "(listfile)", SFILE_OPEN_FROM_MPQ, &list_file)) {
+    if (!SFileOpenFileEx((handle_t)mpq, "(listfile)", SFILE_OPEN_FROM_MPQ, &list_file)) {
         return;
     }
 
@@ -1966,7 +1966,7 @@ static void PreloadListfileCache(MPQ_ARCHIVE *mpq)
         return;
     }
 
-    buffer = (BYTE *)malloc(list_size + 1);
+    buffer = (uint8_t *)malloc(list_size + 1);
     if (!buffer) {
         SFileCloseFile(list_file);
         return;
@@ -2061,7 +2061,7 @@ static void PreloadListfileCache(MPQ_ARCHIVE *mpq)
 
     for (i = 0; i < entry_count; i++) {
         MPQ_LISTFILE_BUCKET_ENTRY *node = (MPQ_LISTFILE_BUCKET_ENTRY *)malloc(sizeof(MPQ_LISTFILE_BUCKET_ENTRY));
-        DWORD slot;
+        uint32_t slot;
 
         if (!node) {
             continue;
@@ -2074,7 +2074,7 @@ static void PreloadListfileCache(MPQ_ARCHIVE *mpq)
 
     for (i = 0; i < mpq->header.dwHashTableSize; i++) {
         MPQ_HASH_ENTRY *hash_entry = &mpq->hashtable[i];
-        DWORD slot;
+        uint32_t slot;
         MPQ_LISTFILE_BUCKET_ENTRY *node;
 
         if (hash_entry->dwBlockIndex == MPQ_HASH_ENTRY_FREE ||
@@ -2114,18 +2114,18 @@ static void PreloadListfileCache(MPQ_ARCHIVE *mpq)
     free(buffer);
 }
 
-static BOOL FilenameMatches(const char *filename, const char *mask);
+static bool FilenameMatches(const char *filename, const char *mask);
 static void FreeFindList(MPQ_FIND *find);
-static BOOL AppendFindListEntry(MPQ_FIND *find, const char *name);
+static bool AppendFindListEntry(MPQ_FIND *find, const char *name);
 
-HANDLE SFileFindFirstFile(HANDLE archive, LPCSTR mask, SFILE_FIND_DATA *findData, LPCSTR listFile)
+handle_t SFileFindFirstFile(handle_t archive, cstring_t mask, SFILE_FIND_DATA *findData, cstring_t listFile)
 {
     MPQ_ARCHIVE *mpq = (MPQ_ARCHIVE *)archive;
     MPQ_FIND *find;
-    HANDLE list_file;
-    DWORD list_size;
-    BYTE *list_buffer;
-    DWORD bytes_read;
+    handle_t list_file;
+    uint32_t list_size;
+    uint8_t *list_buffer;
+    uint32_t bytes_read;
     char *cursor;
 
     (void)listFile;
@@ -2152,7 +2152,7 @@ HANDLE SFileFindFirstFile(HANDLE archive, LPCSTR mask, SFILE_FIND_DATA *findData
     }
 
     list_size = SFileGetFileSize(list_file, NULL);
-    list_buffer = (BYTE *)malloc(list_size + 1);
+    list_buffer = (uint8_t *)malloc(list_size + 1);
     if (!list_buffer) {
         SFileCloseFile(list_file);
         free(find);
@@ -2202,20 +2202,20 @@ HANDLE SFileFindFirstFile(HANDLE archive, LPCSTR mask, SFILE_FIND_DATA *findData
 
     free(list_buffer);
 
-    if (!SFileFindNextFile((HANDLE)find, findData)) {
+    if (!SFileFindNextFile((handle_t)find, findData)) {
         FreeFindList(find);
         free(find);
         return NULL;
     }
 
-    return (HANDLE)find;
+    return (handle_t)find;
 }
 
-static BOOL FilenameMatches(const char *filename, const char *mask)
+static bool FilenameMatches(const char *filename, const char *mask)
 {
     // Simple wildcard matching - "*" matches everything
     if (!mask || !mask[0] || strcmp(mask, "*") == 0) {
-        return TRUE;
+        return true;
     }
 
     // For now, simple prefix matching
@@ -2229,7 +2229,7 @@ static BOOL FilenameMatches(const char *filename, const char *mask)
 
 static void FreeFindList(MPQ_FIND *find)
 {
-    DWORD i;
+    uint32_t i;
 
     if (!find) {
         return;
@@ -2243,39 +2243,39 @@ static void FreeFindList(MPQ_FIND *find)
     find->file_count = 0;
 }
 
-static BOOL AppendFindListEntry(MPQ_FIND *find, const char *name)
+static bool AppendFindListEntry(MPQ_FIND *find, const char *name)
 {
     char **next;
     char *copy;
 
     next = (char **)realloc(find->files, (find->file_count + 1) * sizeof(*next));
     if (!next) {
-        return FALSE;
+        return false;
     }
 
     copy = (char *)malloc(strlen(name) + 1);
     if (!copy) {
-        return FALSE;
+        return false;
     }
 
     memcpy(copy, name, strlen(name) + 1);
     find->files = next;
     find->files[find->file_count++] = copy;
-    return TRUE;
+    return true;
 }
 
-BOOL SFileFindNextFile(HANDLE find, SFILE_FIND_DATA *findData)
+bool SFileFindNextFile(handle_t find, SFILE_FIND_DATA *findData)
 {
     MPQ_FIND *mpqfind = (MPQ_FIND *)find;
     const char *name;
-    DWORD block_index;
+    uint32_t block_index;
 
     if (!mpqfind || !findData) {
-        return FALSE;
+        return false;
     }
 
     if (mpqfind->current_index >= mpqfind->file_count) {
-        return FALSE;
+        return false;
     }
 
     name = mpqfind->files[mpqfind->current_index++];
@@ -2296,14 +2296,14 @@ BOOL SFileFindNextFile(HANDLE find, SFILE_FIND_DATA *findData)
         findData->dwCompSize = block->dwBlockSize;
         findData->dwFileFlags = block->dwFlags;
     }
-    return TRUE;
+    return true;
 }
 
-BOOL SFileFindClose(HANDLE find)
+bool SFileFindClose(handle_t find)
 {
     if (find) {
         FreeFindList((MPQ_FIND *)find);
         free(find);
     }
-    return TRUE;
+    return true;
 }

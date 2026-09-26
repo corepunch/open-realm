@@ -6,10 +6,10 @@
 #include <stdlib.h>
 
 /* Preserve sub-unit authored sizes in the shared compact particle curve. */
-static inline void R_EncodeParticleSize(cparticle_t *particle, FLOAT const values[3]) {
-    FLOAT peak = MAX(values[0], MAX(values[1], values[2]));
+static inline void R_EncodeParticleSize(cparticle_t *particle, float const values[3]) {
+    float peak = MAX(values[0], MAX(values[1], values[2]));
     particle->size_value_scale = peak > 0 ? peak / 255.0f : 1.0f;
-    FOR_LOOP(i, 3) particle->size[i] = peak > 0 ? (BYTE)MIN(255, MAX(0, values[i] / peak * 255.0f + 0.5f)) : 0;
+    FOR_LOOP(i, 3) particle->size[i] = peak > 0 ? (uint8_t)MIN(255, MAX(0, values[i] / peak * 255.0f + 0.5f)) : 0;
     particle->size_time_scale = 1.0f / MAX(particle->lifespan, 0.001f);
 }
 
@@ -33,7 +33,7 @@ static VECTOR3 FX_GenerateRandomOrigin(float length, float width) {
    accumulator crosses 1.0.  Caps at 2.0 to suppress bursts after lag spikes.
    Pattern derived from WoWee's M2Renderer::emitParticles. */
 __attribute__((unused))
-static void R_EmitParticles(float rate, float *accum, DWORD delta_ms,
+static void R_EmitParticles(float rate, float *accum, uint32_t delta_ms,
                             void (*spawn)(void *), void *ctx) {
 	if (rate <= 0.0f || delta_ms == 0 || !accum) return;
 	*accum = MIN(*accum + rate * (float)delta_ms / 1000.0f, 2.0f);
@@ -45,9 +45,9 @@ static void R_EmitParticles(float rate, float *accum, DWORD delta_ms,
 
 /* File-mapped effects have no runtime accumulator; derive emissions from the shared render clock. */
 __attribute__((unused))
-static void R_EmitParticlesAtTime(float rate, DWORD now_ms, DWORD delta_ms,
+static void R_EmitParticlesAtTime(float rate, uint32_t now_ms, uint32_t delta_ms,
                                   void (*spawn)(void *), void *ctx) {
-	DWORD last_ms, start_ms;
+	uint32_t last_ms, start_ms;
 	float interval_ms;
 	if (rate <= 0.0f || delta_ms == 0) return;
 	interval_ms = 1000.0f / rate;

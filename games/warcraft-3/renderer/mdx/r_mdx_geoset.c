@@ -8,9 +8,9 @@
 
 #define MDLX_STACK_DRAW_ORDER 64
 LPCTEXTURE MDLX_GetTexture(mdxModel_t const *model,
-                                 DWORD teamID,
-                                 DWORD textureID,
-                                 DWORD replaceableID,
+                                 uint32_t teamID,
+                                 uint32_t textureID,
+                                 uint32_t replaceableID,
                                  LPCTEXTURE overrideTexture) {
     mdxTexture_t const *modeltex = &model->textures[textureID];
     switch (replaceableID) {
@@ -24,7 +24,7 @@ LPCTEXTURE MDLX_GetTexture(mdxModel_t const *model,
     }
 }
 
-BOOL MDLX_SetLayerBlend(mdxMaterialLayer_t const *layer, DWORD layerID) {
+bool MDLX_SetLayerBlend(mdxMaterialLayer_t const *layer, uint32_t layerID) {
     R_SetAlphaKeyState(false);
 #ifdef USE_SHADOWMAPS
     switch (tr.render_phase == RENDER_PHASE_LIGHTS ? (int)layer->blendMode : -1) {
@@ -114,18 +114,18 @@ static bool MDLX_MaterialHasPass(mdxMaterial_t const *material, bool blendedPass
 
 static VECTOR4 MDLX_EvaluateGeosetColor(mdxModel_t const *model,
                                         mdxGeoset_t const *geoset,
-                                        DWORD frame);
+                                        uint32_t frame);
 
 typedef struct mdxGeosetDrawOrder_s {
     mdxGeoset_t const *geoset;
     mdxMaterial_t const *material;
     int priority;
-    DWORD order;
+    uint32_t order;
 } mdxGeosetDrawOrder_t;
 
 static mdxMaterial_t *MDLX_GetMaterialAtIndex(mdxGeoset_t const *geoset, mdxModel_t const *model) {
     mdxMaterial_t *material = model->materials;
-    for (DWORD materialID = geoset->materialID; materialID > 0; materialID--) {
+    for (uint32_t materialID = geoset->materialID; materialID > 0; materialID--) {
         material = material->next;
     }
     return material;
@@ -146,7 +146,7 @@ static int MDLX_CompareGeosetDrawOrder(const void *a, const void *b) {
 
 static bool MDLX_IsGeosetVisible(mdxModel_t const *model,
                                  mdxGeoset_t const *geoset,
-                                 DWORD frame)
+                                 uint32_t frame)
 {
     if (geoset->geosetAnim) {
         VECTOR4 geosetColor = MDLX_EvaluateGeosetColor(model, geoset, frame);
@@ -157,12 +157,12 @@ static bool MDLX_IsGeosetVisible(mdxModel_t const *model,
     return true;
 }
 
-static mdxTextureAnim_t *MDLX_GetTextureAnimAtIndex(mdxModel_t const *model, DWORD textureAnimId) {
+static mdxTextureAnim_t *MDLX_GetTextureAnimAtIndex(mdxModel_t const *model, uint32_t textureAnimId) {
     mdxTextureAnim_t *textureAnim = model->textureAnims;
     if (textureAnimId == 0xFFFFFFFF) {
         return NULL;
     }
-    for (DWORD id = textureAnimId; textureAnim && id > 0; id--) {
+    for (uint32_t id = textureAnimId; textureAnim && id > 0; id--) {
         textureAnim = textureAnim->next;
     }
     return textureAnim;
@@ -172,15 +172,15 @@ static mdxTextureAnim_t *MDLX_GetTextureAnimAtIndex(mdxModel_t const *model, DWO
  * a flipbook (KMTF) track animate their TEXS index over time (e.g. the menu
  * ocean cycling ocean_h.01..30); without evaluating it the layer is stuck on
  * its static base texture and renders wrong (white). */
-static DWORD MDLX_EvaluateLayerTextureId(mdxModel_t const *model,
+static uint32_t MDLX_EvaluateLayerTextureId(mdxModel_t const *model,
                                          mdxMaterialLayer_t const *layer,
-                                         DWORD frame) {
-    DWORD textureId = layer->textureId;
+                                         uint32_t frame) {
+    uint32_t textureId = layer->textureId;
     if (layer->flipbook) {
         int value = (int)textureId;
         MDLX_GetModelKeytrackValue(model, layer->flipbook, frame, &value);
         if (value >= 0 && value < model->num_textures) {
-            textureId = (DWORD)value;
+            textureId = (uint32_t)value;
         }
     }
     return textureId;
@@ -188,7 +188,7 @@ static DWORD MDLX_EvaluateLayerTextureId(mdxModel_t const *model,
 
 static void MDLX_BindLayerTextureAnimation(mdxModel_t const *model,
                                            mdxMaterialLayer_t const *layer,
-                                           DWORD frame)
+                                           uint32_t frame)
 {
     VECTOR3 translation = { 0, 0, 0 };
     QUATERNION rotation = { 0, 0, 0, 1 };
@@ -239,7 +239,7 @@ static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t co
      * palette entries the geoset actually references need to reach the shader.
      * Uploading the full BZ_BONE_PALETTE_MAX per geoset was wasted uniform
      * traffic for every draw. */
-    DWORD const count = MIN((DWORD)geoset->num_matrixPalette, BZ_BONE_PALETTE_MAX);
+    uint32_t const count = MIN((uint32_t)geoset->num_matrixPalette, BZ_BONE_PALETTE_MAX);
 
     FOR_LOOP(i, count) {
         int node_id = geoset->matrixPalette[i];
@@ -256,7 +256,7 @@ static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t co
 
 static VECTOR4 MDLX_EvaluateGeosetColor(mdxModel_t const *model,
                                         mdxGeoset_t const *geoset,
-                                        DWORD frame)
+                                        uint32_t frame)
 {
     VECTOR4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
 
@@ -293,7 +293,7 @@ static VECTOR4 MDLX_EvaluateGeosetColor(mdxModel_t const *model,
 static float MDLX_EvaluateLayerAlpha(mdxModel_t const *model,
                                      mdxMaterial_t const *material,
                                      mdxMaterialLayer_t const *layer,
-                                     DWORD frame)
+                                     uint32_t frame)
 {
     float alpha = layer->staticAlpha;
 
@@ -322,14 +322,14 @@ static float MDLX_EvaluateLayerAlpha(mdxModel_t const *model,
 static void MDLX_RenderGeoset(mdxModel_t const *model,
                              mdxGeoset_t const *geoset,
                              mdxMaterial_t const *material,
-                             DWORD team,
+                             uint32_t team,
                              LPCTEXTURE overrideTexture,
-                             BOOL forceUnshaded,
-                             DWORD frame,
+                             bool forceUnshaded,
+                             uint32_t frame,
                              LPCVECTOR4 tint,
                              bool blendedPass)
 {
-    BOOL force_two_sided = model && !model->cameras;
+    bool force_two_sided = model && !model->cameras;
     MODELPROG * shader = mdlx.shader;
     VECTOR4 geosetColor;
 
@@ -339,8 +339,8 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
 
     geosetColor = MDLX_EvaluateGeosetColor(model, geoset, frame);
     {
-        FLOAT *component = &geosetColor.x;
-        FLOAT const *factor = &tint->x;
+        float *component = &geosetColor.x;
+        float const *factor = &tint->x;
         FOR_LOOP(i, 4) component[i] *= factor[i];
     }
     MDLX_BindGeosetMatrixPalette(model, geoset);
@@ -379,13 +379,13 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
             R_Call(glDepthMask, GL_FALSE);
         }
         MDLX_ApplyLayerFlags(layer);
-        BOOL unshaded = forceUnshaded || (layer->flags & MODEL_GEO_UNSHADED);
+        bool unshaded = forceUnshaded || (layer->flags & MODEL_GEO_UNSHADED);
         shader->state.unshaded = unshaded;
         /* Fog only affects opaque/alpha-blended geometry.  Additive and
          * modulate layers (glows, the blue spire flare) must NOT mix toward
          * the fog colour or they turn into solid fog-coloured quads. */
         {
-            BOOL layerFog = tr.viewDef.fogEnable &&
+            bool layerFog = tr.viewDef.fogEnable &&
                 !(layer->flags & MODEL_GEO_UNFOGGED) &&
                 (layer->blendMode == BLEND_MODE_NONE ||
                  layer->blendMode == BLEND_MODE_ALPHAKEY ||
@@ -397,7 +397,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
             continue;
         shader->state.layerAlpha = alpha;
         MDLX_BindLayerTextureAnimation(model, layer, frame);
-        DWORD textureId = MDLX_EvaluateLayerTextureId(model, layer, frame);
+        uint32_t textureId = MDLX_EvaluateLayerTextureId(model, layer, frame);
         mdxTexture_t const *modeltex = &model->textures[textureId];
         LPCTEXTURE texture = MDLX_GetTexture(model, team, textureId, modeltex->replaceableID, overrideTexture);
         R_BindTexture(texture, 0);
@@ -418,7 +418,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
     shader->state.geosetColor = (VECTOR4){ 1.0f, 1.0f, 1.0f, 1.0f };
 }
 
-mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, LPCSTR name) {
+mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, cstring_t name) {
     FOR_LOOP(i, model->num_sequences) {
         if (!strcmp(model->sequences[i].name, name)) {
             return &model->sequences[i];
@@ -427,7 +427,7 @@ mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, LPCSTR nam
     return NULL;
 }
 
-DWORD MDLX_RemapAnimation(mdxModel_t const *model, DWORD frame, LPCSTR str) {
+uint32_t MDLX_RemapAnimation(mdxModel_t const *model, uint32_t frame, cstring_t str) {
     mdxSequence_t const *seq = R_FindSequenceAtTime(model, frame);
     size_t seq_name_len;
 
@@ -447,8 +447,8 @@ DWORD MDLX_RemapAnimation(mdxModel_t const *model, DWORD frame, LPCSTR str) {
 static bool MDLX_TraceModelMesh(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 intersection) {
     MATRIX4 invmodel, matmodel;
     VECTOR3 best_point = { 0 };
-    FLOAT best_distance = FLT_MAX;
-    BOOL hit = false;
+    float best_distance = FLT_MAX;
+    bool hit = false;
     mdxModel_t const *model;
 
     if (!ent || !line || !ent->model)
@@ -493,7 +493,7 @@ static bool MDLX_TraceModelMesh(renderEntity_t const *ent, LPCLINE3 line, LPVECT
             };
             if (Line3_intersect_triangle(&linelocal, &tri, &local_point)) {
                 VECTOR3 const point = Matrix4_multiply_vector3(&matmodel, &local_point);
-                FLOAT const distance = Vector3_distance(&line->a, &point);
+                float const distance = Vector3_distance(&line->a, &point);
                 if (distance < best_distance) {
                     best_distance = distance;
                     best_point = point;
@@ -515,8 +515,8 @@ bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, LPCLINE3 line, LPVECTO
 bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 intersection) {
     MATRIX4 invmodel, matmodel;
     VECTOR3 best_point = { 0 };
-    FLOAT best_distance = FLT_MAX;
-    BOOL hit = false;
+    float best_distance = FLT_MAX;
+    bool hit = false;
     mdxModel_t const *model;
 
     if (!ent || !line || !ent->model)
@@ -535,7 +535,7 @@ bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 interse
     if (model->collisionShapes) {
         FOR_EACH_LIST(mdxCollisionShape_t, collisionShape, model->collisionShapes) {
             VECTOR3 point;
-            BOOL shape_hit = false;
+            bool shape_hit = false;
 
             if (collisionShape->type == SHAPETYPE_BOX) {
                 BOX3 box = {
@@ -558,7 +558,7 @@ bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 interse
             }
 
             if (shape_hit) {
-                FLOAT const distance = Vector3_distance(&line->a, &point);
+                float const distance = Vector3_distance(&line->a, &point);
                 if (distance < best_distance) {
                     best_distance = distance;
                     best_point = point;
@@ -578,14 +578,14 @@ bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 interse
 static void MDLX_RenderGeosets(const renderEntity_t *entity,
                                const mdxModel_t *model)
 {
-    BOOL forceUnshaded = (entity->flags & RF_NO_LIGHTING) != 0;
+    bool forceUnshaded = (entity->flags & RF_NO_LIGHTING) != 0;
     COLOR32 const color = (entity->tint_valid || entity->tint.a) ? entity->tint : COLOR32_WHITE;
     VECTOR4 const tint = {
         BYTE2FLOAT(color.r), BYTE2FLOAT(color.g),
         BYTE2FLOAT(color.b), BYTE2FLOAT(color.a)
     };
-    DWORD geosetCount = 0;
-    DWORD drawCount = 0;
+    uint32_t geosetCount = 0;
+    uint32_t drawCount = 0;
     mdxGeosetDrawOrder_t stackDrawOrder[MDLX_STACK_DRAW_ORDER];
     mdxGeosetDrawOrder_t *drawOrder;
 
@@ -653,7 +653,7 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity,
 
 static int MDLX_CollectModelLights(mdxModel_t const *model,
                                    LPCMATRIX4 modelMatrix,
-                                   DWORD frame,
+                                   uint32_t frame,
                                    RMODELLIGHT *lights,
                                    int maxLights)
 {
@@ -672,10 +672,10 @@ static int MDLX_CollectModelLights(mdxModel_t const *model,
 }
 
 static BUFFER ribbon_buf;
-static BOOL ribbon_buf_ready;
+static bool ribbon_buf_ready;
 static VERTEX ribbon_verts[TRAIL_MAX_EDGES * 6];
 
-mdxMaterial_t *MDLX_MaterialAt(mdxModel_t const *model, DWORD id) {
+mdxMaterial_t *MDLX_MaterialAt(mdxModel_t const *model, uint32_t id) {
     mdxMaterial_t *material = model->materials;
     for (; material && id > 0; id--)
         material = material->next;
@@ -706,8 +706,8 @@ static void MDLX_EnsureRibbonBuffer(void) {
 
 /* Upload one strip and run it through the material's layer stack. Shared by live
  * trails and detached (entity-less) orphans so both execute identical GL. */
-void MDLX_DrawRibbonVerts(mdxModel_t const *model, VERTEX *verts, DWORD nverts,
-                          mdxMaterial_t const *material, DWORD team)
+void MDLX_DrawRibbonVerts(mdxModel_t const *model, VERTEX *verts, uint32_t nverts,
+                          mdxMaterial_t const *material, uint32_t team)
 {
     MODELPROG *shader = mdlx.shader;
     MATRIX4 identity;
@@ -725,12 +725,12 @@ void MDLX_DrawRibbonVerts(mdxModel_t const *model, VERTEX *verts, DWORD nverts,
     R_Call(glBufferData, GL_ARRAY_BUFFER, nverts * sizeof(VERTEX), verts, GL_STREAM_DRAW);
     FOR_LOOP(layerID, material->num_layers) {
         mdxMaterialLayer_t const *layer = &material->layers[layerID];
-        DWORD textureId = layer->textureId;
+        uint32_t textureId = layer->textureId;
         mdxTexture_t const *modeltex;
         LPCTEXTURE texture;
-        BOOL layerFog;
+        bool layerFog;
 
-        if (textureId >= (DWORD)model->num_textures) continue;
+        if (textureId >= (uint32_t)model->num_textures) continue;
         R_Call(glEnable, GL_DEPTH_TEST);
         R_Call(glDisable, GL_CULL_FACE);
         shader->state.alphaKey = 0;
@@ -765,7 +765,7 @@ void MDLX_RenderRibbonEmitters(renderEntity_t const *entity, mdxModel_t const *m
     saved_unshaded = shader->state.unshaded;
     saved_fog = shader->state.fogEnable;
     FOR_EACH_LIST(mdxRibbonEmitter_t, ribbon, model->ribbons) {
-        DWORD nverts = MDLX_EmitRibbonVertices((mdxModel_t *)model, entity, model_matrix, ribbon,
+        uint32_t nverts = MDLX_EmitRibbonVertices((mdxModel_t *)model, entity, model_matrix, ribbon,
                                                ribbon_verts, TRAIL_MAX_EDGES * 6);
         MDLX_DrawRibbonVerts(model, ribbon_verts, nverts,
                              MDLX_MaterialAt(model, ribbon->materialId), entity->team);
@@ -828,12 +828,12 @@ void MDX_RenderModel(renderEntity_t const *entity,
     static struct {
         GLfloat vp[16];
         MATRIX4 tex, light;
-        BOOL fogEnable;
+        bool fogEnable;
         VECTOR3 fogColor;
-        FLOAT fogStart, fogEnd;
+        float fogStart, fogEnd;
     } last;
-    static BOOL last_valid = false;
-    BOOL const view_changed = !last_valid
+    static bool last_valid = false;
+    bool const view_changed = !last_valid
         || memcmp(last.vp, viewProjectionMatrix, sizeof(last.vp)) != 0
         || memcmp(&last.tex, &tr.viewDef.textureMatrix, sizeof(last.tex)) != 0
         || memcmp(&last.light, &tr.viewDef.lightMatrix, sizeof(last.light)) != 0
@@ -862,7 +862,7 @@ void MDX_RenderModel(renderEntity_t const *entity,
         last_valid = true;
     }
     MODELLIGHTING lighting = { 0 };
-    BOOL const portraitLighting = (entity->flags & RF_PORTRAIT_LIGHTING) != 0;
+    bool const portraitLighting = (entity->flags & RF_PORTRAIT_LIGHTING) != 0;
     LPCENVIRONLIGHT environment = !portraitLighting && tr.viewDef.entityLight.valid
         ? &tr.viewDef.entityLight
         : (!portraitLighting && tr.viewDef.terrainLight.valid ? &tr.viewDef.terrainLight : NULL);
@@ -877,9 +877,9 @@ void MDX_RenderModel(renderEntity_t const *entity,
     numLights += MDLX_CollectModelLights(model, transform, entity->frame,
                                         &lighting.lights[numLights],
                                         BZ_MODEL_LIGHT_MAX - numLights);
-    FLOAT ambient = numLights ? (portraitLighting ? 0.22f : 0.0f)
+    float ambient = numLights ? (portraitLighting ? 0.22f : 0.0f)
                               : (portraitLighting ? 0.58f : 0.35f);
-    FLOAT directional = (entity->flags & RF_PORTRAIT_LIGHTING) ? 0.62f : 0.75f;
+    float directional = (entity->flags & RF_PORTRAIT_LIGHTING) ? 0.62f : 0.75f;
     VECTOR3 lightDir = {
         -tr.viewDef.lightMatrix.v[2],
         -tr.viewDef.lightMatrix.v[6],

@@ -9,8 +9,8 @@ typedef struct particle_vertex {
     COLOR32 color;
     float size;
     VECTOR3 tail;
-    FLOAT uv[2];
-    BYTE axis[2];
+    float uv[2];
+    uint8_t axis[2];
 } particleVertex_t;
 
 typedef enum {
@@ -20,9 +20,9 @@ typedef enum {
 
 typedef struct PARTICLEQUAD {
     LPCVECTOR3 point, tail;
-    FLOAT u0, v0, u1, v1;
+    float u0, v0, u1, v1;
     COLOR32 color;
-    FLOAT size;
+    float size;
 } PARTICLEQUAD;
 typedef PARTICLEQUAD *LPPARTICLEQUAD;
 typedef PARTICLEQUAD const *LPCPARTICLEQUAD;
@@ -35,7 +35,7 @@ typedef struct PARTICLESTATE {
     int texture;
     int fogOfWar;
     bool alphaKey;
-    FLOAT alphaCutoff;
+    float alphaCutoff;
 } PARTICLESTATE;
 typedef struct PARTICLESTATE *LPPARTICLESTATE;
 typedef const struct PARTICLESTATE *LPCPARTICLESTATE;
@@ -57,7 +57,7 @@ static struct {
 cparticle_t *active_particles, *free_particles;
 cparticle_t particles[MAX_PARTICLES];
 int cl_numparticles = MAX_PARTICLES;
-static DWORD particle_generation;
+static uint32_t particle_generation;
 
 void R_ClearParticles(void) {
     particle_generation++;
@@ -178,12 +178,12 @@ static const shader_desc_t sd_particle = {
 /* Emit one billboard or ribbon quad from a shared vertex-order table. */
 static particleVertex_t *R_AddParticleQuad(particleVertex_t *buffer,
                                            LPCPARTICLEQUAD quad, PARTICLEUVORDER order) {
-    static BYTE const axis[NUM_PARTICLE_VERTICES][2] = {{0,0}, {255,0}, {255,255}, {255,255}, {0,255}, {0,0}};
-    static BYTE const uv_index[2][NUM_PARTICLE_VERTICES][2] = {
+    static uint8_t const axis[NUM_PARTICLE_VERTICES][2] = {{0,0}, {255,0}, {255,255}, {255,255}, {0,255}, {0,0}};
+    static uint8_t const uv_index[2][NUM_PARTICLE_VERTICES][2] = {
         {{0,1}, {2,1}, {2,3}, {2,3}, {0,3}, {0,1}},
         {{0,3}, {0,1}, {2,1}, {2,1}, {2,3}, {0,3}},
     };
-    FLOAT const uv[4] = {quad->u0, quad->v0, quad->u1, quad->v1};
+    float const uv[4] = {quad->u0, quad->v0, quad->u1, quad->v1};
     VECTOR3 const tail = quad->tail ? *quad->tail : (VECTOR3){0};
 
     FOR_LOOP(i, NUM_PARTICLE_VERTICES) {
@@ -208,7 +208,7 @@ R_AddParticle(particleVertex_t *buffer,
               COLOR32 color,
               float size)
 {
-    LPBYTE uv = (LPBYTE)&uvr;
+    uint8_t * uv = (uint8_t *)&uvr;
     PARTICLEQUAD const quad = {
         .point = point, .tail = tail,
         .u0 = BYTE2FLOAT(uv[0]), .v0 = BYTE2FLOAT(uv[1]),
@@ -252,7 +252,7 @@ COLOR32 FX_LerpColor(COLOR32 a, COLOR32 b, float t) {
     };
 }
 
-float FX_BlendFloat(BYTE const *values, float k, float midtime) {
+float FX_BlendFloat(uint8_t const *values, float k, float midtime) {
     if (k > midtime) {
         return LerpNumber(values[1], values[2], (k - midtime) / (1 - midtime));
     } else {
@@ -320,25 +320,25 @@ static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVert
             break;
         }
     }
-    R_StatsDraw(GL_TRIANGLES, (DWORD)(pv - particles_resources.vertices), 1);
+    R_StatsDraw(GL_TRIANGLES, (uint32_t)(pv - particles_resources.vertices), 1);
     R_ApplyShader(&particles_resources.shader);
     R_Call(glDrawArrays, GL_TRIANGLES, 0, (GLsizei)(pv - particles_resources.vertices));
 }
 
 static COLOR32 FX_GetFrame(const cparticle_t *p) {
-    DWORD columns = p->columns ? p->columns : 1;
-    DWORD rows = p->rows ? p->rows : 1;
-    DWORD total = columns * rows;
+    uint32_t columns = p->columns ? p->columns : 1;
+    uint32_t rows = p->rows ? p->rows : 1;
+    uint32_t total = columns * rows;
     /* The sprite-sheet frame advances over the particle's own lifetime, not a
      * global clock — otherwise every particle flips frames in unison, which
      * reads as a crude strobing "old game" effect. */
     float k = (p->lifespan > 0.0f) ? (p->time / p->lifespan) : 0.0f;
-    DWORD frame = (DWORD)(k * (float)total);
+    uint32_t frame = (uint32_t)(k * (float)total);
     if (frame >= total) frame = total - 1;
-    DWORD u = frame % columns;
-    DWORD v = frame / columns;
-    DWORD usize = 256 / columns;
-    DWORD vsize = 256 / rows;
+    uint32_t u = frame % columns;
+    uint32_t v = frame / columns;
+    uint32_t usize = 256 / columns;
+    uint32_t vsize = 256 / rows;
     return (COLOR32) {
         usize * u,
         vsize * v,
@@ -405,7 +405,7 @@ void R_DrawRibbon(ribbonDraw_t const *draw) {
     MATRIX4 matrix;
     particleVertex_t *pv = particles_resources.vertices;
     GLboolean depth_enabled;
-    FLOAT distance = 0.0f;
+    float distance = 0.0f;
     ribbonDraw_t actual;
 
     if (!draw || !draw->points || draw->point_count < 2 || draw->width <= 0.0f) return;
@@ -415,7 +415,7 @@ void R_DrawRibbon(ribbonDraw_t const *draw) {
     if (!draw->depth_test && depth_enabled) R_Call(glDisable, GL_DEPTH_TEST);
     FOR_LOOP(i, draw->point_count - 1) {
         VECTOR3 tail = Vector3_sub(draw->points + i + 1, draw->points + i);
-        FLOAT length = Vector3_len(&tail);
+        float length = Vector3_len(&tail);
         if (length <= 0.001f) continue;
         if (pv + NUM_PARTICLE_VERTICES > particles_resources.vertices + MAX_PARTICLES * NUM_PARTICLE_VERTICES) break;
         PARTICLEQUAD const quad = {

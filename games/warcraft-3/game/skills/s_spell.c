@@ -7,16 +7,16 @@
 
 typedef struct {
     LPEDICT caster;
-    DWORD code, level;
+    uint32_t code, level;
     ability_t const *spell;
     LPEDICT target;
 } spellUnitTargetParams_t;
 
 typedef struct {
     LPEDICT clent, caster;
-    DWORD code, level;
+    uint32_t code, level;
     LPCVECTOR2 point;
-    FLOAT range;
+    float range;
 } spellPointValidateParams_t;
 
 /* ---- Unified Spell Pipeline ----
@@ -32,8 +32,8 @@ typedef struct {
  *   - WoW: data-driven spell table + cast state machine (Wow_RunSpellCast)
  *   - Quake2: flat flags and callbacks around a shared processor */
 
-static LPCSTR S_SpellThemeString(LPCSTR key, LPCSTR def) {
-    LPCSTR value = NULL;
+static cstring_t S_SpellThemeString(cstring_t key, cstring_t def) {
+    cstring_t value = NULL;
 
     if (key && !strstr(key, "\\") && game.config.theme.source) {
         value = Stb_IniCacheFind(&game.config.theme, "Default", key);
@@ -77,7 +77,7 @@ BZ_ABILITY_PROC(CAbilitySimpleSpell) {
 
 /* Modal spells share autocast selection while concrete children own acquisition and effects. */
 BZ_ABILITY_PROC(CAbilityModalSpell) {
-    DWORD code = call && call->item ? call->item->code : 0;
+    uint32_t code = call && call->item ? call->item->code : 0;
     switch (msg) {
     case A_AUTOCAST_ON: return ent && ent->autocast_code == code;
     case A_AUTOCAST_SET: return true;
@@ -85,24 +85,24 @@ BZ_ABILITY_PROC(CAbilityModalSpell) {
     }
 }
 
-void S_SpellCodeString(DWORD code, LPSTR out) {
+void S_SpellCodeString(uint32_t code, string_t out) {
     memcpy(out, &code, 4);
     out[4] = '\0';
 }
 
-DWORD S_SpellCurrentCode(LPEDICT clent, DWORD fallback) {
-    DWORD code = clent && clent->client ? clent->client->menu.ability_code : 0;
+uint32_t S_SpellCurrentCode(LPEDICT clent, uint32_t fallback) {
+    uint32_t code = clent && clent->client ? clent->client->menu.ability_code : 0;
     return code ? code : fallback;
 }
 
-ability_t const *S_SpellAbilityForCode(DWORD code) {
+ability_t const *S_SpellAbilityForCode(uint32_t code) {
     ability_t const *ability;
 
     if (!code) return NULL;
 
-    /* A rawcode stored in a DWORD is four bytes, not a C string. The old
-     * spell path cast &code to LPCSTR and handed it to strcmp(), so lookup
-     * depended on the unrelated byte immediately after the DWORD being zero.
+    /* A rawcode stored in a uint32_t is four bytes, not a C string. The old
+     * spell path cast &code to cstring_t and handed it to strcmp(), so lookup
+     * depended on the unrelated byte immediately after the uint32_t being zero.
      * Convert through GetClassName(), which supplies the required terminator,
      * and use the normal alias-aware command resolver so custom abilities
      * inherit their registered base handler as well. */
@@ -110,7 +110,7 @@ ability_t const *S_SpellAbilityForCode(DWORD code) {
     return ability && (ability->flags & AB_SPELL) && ability->proc ? ability : NULL;
 }
 
-DWORD S_SpellLevel(LPEDICT caster, DWORD code) {
+uint32_t S_SpellLevel(LPEDICT caster, uint32_t code) {
     if (!caster) {
         return 1;
     }
@@ -123,7 +123,7 @@ DWORD S_SpellLevel(LPEDICT caster, DWORD code) {
     return 1;
 }
 
-FLOAT S_SpellNumber(DWORD code, abilityNumber_t field, DWORD level) {
+float S_SpellNumber(uint32_t code, abilityNumber_t field, uint32_t level) {
     abilityLevel_t const *row = G_AbilityLevel(code, level);
     switch (field) {
     case ABILITY_NUMBER_CAST: return row->cast;
@@ -137,9 +137,9 @@ FLOAT S_SpellNumber(DWORD code, abilityNumber_t field, DWORD level) {
     return 0.0f;
 }
 
-LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level) {
+cstring_t S_SpellString(uint32_t code, cstring_t field, uint32_t level) {
     char code_string[5];
-    LPCSTR value;
+    cstring_t value;
 
     if (!field || !*field) {
         return NULL;
@@ -158,27 +158,27 @@ LPCSTR S_SpellString(DWORD code, LPCSTR field, DWORD level) {
 }
 
 /* Data slots use the shared ROC/TFT schema resolver; index is 1-based. */
-FLOAT S_SpellData(DWORD code, DWORD level, DWORD index) {
+float S_SpellData(uint32_t code, uint32_t level, uint32_t index) {
     char classname[5] = {0};
     memcpy(classname, &code, 4);
     return AB_Data(classname, level, index);
 }
 
-DWORD S_SpellDataId(DWORD code, DWORD level, DWORD index) {
+uint32_t S_SpellDataId(uint32_t code, uint32_t level, uint32_t index) {
     char classname[5] = {0};
     memcpy(classname, &code, 4);
     return AB_DataId(classname, level, index);
 }
 
-DWORD S_SpellUnitId(DWORD code, DWORD level) {
+uint32_t S_SpellUnitId(uint32_t code, uint32_t level) {
     return G_AbilityLevel(code, level)->unitID;
 }
 
-FLOAT S_SpellRange(DWORD code, DWORD level) {
+float S_SpellRange(uint32_t code, uint32_t level) {
     return S_SpellNumber(code, ABILITY_NUMBER_RANGE, level);
 }
 
-FLOAT S_SpellDuration(DWORD code, DWORD level, BOOL hero) {
+float S_SpellDuration(uint32_t code, uint32_t level, bool hero) {
     return S_SpellNumber(code, hero ? ABILITY_NUMBER_HERO_DURATION : ABILITY_NUMBER_DURATION, level);
 }
 
@@ -189,12 +189,12 @@ static void S_SpellInvalidateCooldownUI(LPEDICT caster) {
     if (client && client->ps.number == caster->s.player) G_InvalidateCommands(client);
 }
 
-static DWORD S_SpellCooldownCode(DWORD code) {
+static uint32_t S_SpellCooldownCode(uint32_t code) {
     return code ? G_AbilityCode(code) : 0;
 }
 
-static abilityCooldown_t *S_SpellFindCooldown(LPEDICT caster, DWORD code) {
-    DWORD const cooldown_code = S_SpellCooldownCode(code);
+static abilityCooldown_t *S_SpellFindCooldown(LPEDICT caster, uint32_t code) {
+    uint32_t const cooldown_code = S_SpellCooldownCode(code);
 
     if (!caster || !cooldown_code) return NULL;
     FOR_LOOP(i, MAX_UNIT_COOLDOWNS) {
@@ -204,16 +204,16 @@ static abilityCooldown_t *S_SpellFindCooldown(LPEDICT caster, DWORD code) {
     return NULL;
 }
 
-static abilityCooldown_t *S_SpellAllocCooldown(LPEDICT caster, DWORD code) {
-    DWORD const cooldown_code = S_SpellCooldownCode(code);
-    DWORD const now = G_Time();
+static abilityCooldown_t *S_SpellAllocCooldown(LPEDICT caster, uint32_t code) {
+    uint32_t const cooldown_code = S_SpellCooldownCode(code);
+    uint32_t const now = G_Time();
     abilityCooldown_t *available = NULL;
 
     if (!caster || !cooldown_code) return NULL;
     FOR_LOOP(i, MAX_UNIT_COOLDOWNS) {
         abilityCooldown_t *cooldown = caster->abilitycooldowns + i;
         if (cooldown->code == cooldown_code) return cooldown;
-        if (!available && (!cooldown->code || (LONG)(cooldown->end_time - now) <= 0)) available = cooldown;
+        if (!available && (!cooldown->code || (int32_t)(cooldown->end_time - now) <= 0)) available = cooldown;
     }
     if (available) {
         memset(available, 0, sizeof(*available));
@@ -222,27 +222,27 @@ static abilityCooldown_t *S_SpellAllocCooldown(LPEDICT caster, DWORD code) {
     return available;
 }
 
-BOOL S_SpellCooldownReady(LPEDICT caster, DWORD code) {
+bool S_SpellCooldownReady(LPEDICT caster, uint32_t code) {
     abilityCooldown_t const *cooldown = S_SpellFindCooldown(caster, code);
-    return !cooldown || (LONG)(cooldown->end_time - G_Time()) <= 0;
+    return !cooldown || (int32_t)(cooldown->end_time - G_Time()) <= 0;
 }
 
-FLOAT S_SpellCooldownRemaining(LPEDICT caster, DWORD code) {
+float S_SpellCooldownRemaining(LPEDICT caster, uint32_t code) {
     abilityCooldown_t const *cooldown = S_SpellFindCooldown(caster, code);
-    DWORD const now = G_Time();
-    if (!cooldown || (LONG)(cooldown->end_time - now) <= 0) return 0.0f;
-    return (FLOAT)(DWORD)(cooldown->end_time - now) / 1000.0f;
+    uint32_t const now = G_Time();
+    if (!cooldown || (int32_t)(cooldown->end_time - now) <= 0) return 0.0f;
+    return (float)(uint32_t)(cooldown->end_time - now) / 1000.0f;
 }
 
-FLOAT S_SpellCooldownLength(LPEDICT caster, DWORD code) {
+float S_SpellCooldownLength(LPEDICT caster, uint32_t code) {
     abilityCooldown_t const *cooldown = S_SpellFindCooldown(caster, code);
     if (!cooldown || cooldown->end_time == cooldown->start_time) return 0.0f;
-    return (FLOAT)(DWORD)(cooldown->end_time - cooldown->start_time) / 1000.0f;
+    return (float)(uint32_t)(cooldown->end_time - cooldown->start_time) / 1000.0f;
 }
 
-BOOL S_SpellCooldownWindow(LPEDICT caster, DWORD code, abilityCooldownWindow_t *window) {
+bool S_SpellCooldownWindow(LPEDICT caster, uint32_t code, abilityCooldownWindow_t *window) {
     abilityCooldown_t const *cooldown = S_SpellFindCooldown(caster, code);
-    if (!cooldown || !window || (LONG)(cooldown->end_time - G_Time()) <= 0) return false;
+    if (!cooldown || !window || (int32_t)(cooldown->end_time - G_Time()) <= 0) return false;
     window->start_time = cooldown->start_time;
     window->end_time = cooldown->end_time;
     return true;
@@ -251,17 +251,17 @@ BOOL S_SpellCooldownWindow(LPEDICT caster, DWORD code, abilityCooldownWindow_t *
 /* Fraction of an ability's authored cooldown still remaining. The total comes
  * from the cooldown record captured at cast time, so learning another level
  * while a cooldown is active cannot make the command-card sweep jump. */
-FLOAT S_SpellCooldownFraction(LPEDICT caster, DWORD code, DWORD level) {
-    FLOAT const remaining = S_SpellCooldownRemaining(caster, code);
-    FLOAT const total = S_SpellCooldownLength(caster, code);
+float S_SpellCooldownFraction(LPEDICT caster, uint32_t code, uint32_t level) {
+    float const remaining = S_SpellCooldownRemaining(caster, code);
+    float const total = S_SpellCooldownLength(caster, code);
     (void)level;
     if (remaining <= 0.0f || total <= 0.0f) return 0.0f;
     return MIN(1.0f, remaining / total);
 }
 
-void S_SpellStartCooldownDuration(LPEDICT caster, DWORD code, FLOAT duration) {
+void S_SpellStartCooldownDuration(LPEDICT caster, uint32_t code, float duration) {
     abilityCooldown_t *cooldown;
-    DWORD duration_ms;
+    uint32_t duration_ms;
 
     if (!caster || !code) return;
     if (duration <= 0.0f) {
@@ -270,19 +270,19 @@ void S_SpellStartCooldownDuration(LPEDICT caster, DWORD code, FLOAT duration) {
     }
     cooldown = S_SpellAllocCooldown(caster, code);
     if (!cooldown) return;
-    duration_ms = (DWORD)ceilf(duration * 1000.0f);
+    duration_ms = (uint32_t)ceilf(duration * 1000.0f);
     cooldown->code = S_SpellCooldownCode(code);
     cooldown->start_time = G_Time();
     cooldown->end_time = cooldown->start_time + MAX(duration_ms, 1u);
     S_SpellInvalidateCooldownUI(caster);
 }
 
-void S_SpellStartCooldown(LPEDICT caster, DWORD code, DWORD level) {
+void S_SpellStartCooldown(LPEDICT caster, uint32_t code, uint32_t level) {
     S_SpellStartCooldownDuration(caster, code,
         S_SpellNumber(code, ABILITY_NUMBER_COOLDOWN, level));
 }
 
-void S_SpellEndCooldown(LPEDICT caster, DWORD code) {
+void S_SpellEndCooldown(LPEDICT caster, uint32_t code) {
     abilityCooldown_t *cooldown = S_SpellFindCooldown(caster, code);
     if (cooldown) {
         memset(cooldown, 0, sizeof(*cooldown));
@@ -296,8 +296,8 @@ void S_SpellResetCooldowns(LPEDICT caster) {
     S_SpellInvalidateCooldownUI(caster);
 }
 
-BOOL S_SpellSpendMana(LPEDICT caster, DWORD code, DWORD level) {
-    FLOAT cost;
+bool S_SpellSpendMana(LPEDICT caster, uint32_t code, uint32_t level) {
+    float cost;
 
     if (!caster) {
         return false;
@@ -313,8 +313,8 @@ BOOL S_SpellSpendMana(LPEDICT caster, DWORD code, DWORD level) {
     return true;
 }
 
-BOOL S_SpellCanPay(LPEDICT caster, DWORD code, DWORD level) {
-    FLOAT cost;
+bool S_SpellCanPay(LPEDICT caster, uint32_t code, uint32_t level) {
+    float cost;
 
     if (!caster) {
         return false;
@@ -323,19 +323,19 @@ BOOL S_SpellCanPay(LPEDICT caster, DWORD code, DWORD level) {
     return cost <= 0 || caster->mana.value >= cost;
 }
 
-BOOL S_SpellTargetInRange(LPEDICT caster, LPEDICT target, FLOAT range) {
+bool S_SpellTargetInRange(LPEDICT caster, LPEDICT target, float range) {
     if (!caster || !target) {
         return false;
     }
     return range <= 0 || Vector2_distance(&caster->s.origin2, &target->s.origin2) <= range;
 }
 
-BOOL S_SpellIsAliveTarget(LPEDICT target) {
+bool S_SpellIsAliveTarget(LPEDICT target) {
     return target && target->inuse && (target->svflags & SVF_MONSTER) && !M_IsDead(target);
 }
 
-BOOL S_SpellIsEnemy(LPEDICT caster, LPEDICT target) {
-    DWORD owner;
+bool S_SpellIsEnemy(LPEDICT caster, LPEDICT target) {
+    uint32_t owner;
 
     if (!caster || !target || caster->s.player >= MAX_PLAYERS || target->s.player >= MAX_PLAYERS) {
         return false;
@@ -351,8 +351,8 @@ BOOL S_SpellIsEnemy(LPEDICT caster, LPEDICT target) {
     return !G_PlayerTreatsPlayerAsAlly(caster->s.player, owner);
 }
 
-BOOL S_SpellIsFriend(LPEDICT caster, LPEDICT target) {
-    DWORD owner;
+bool S_SpellIsFriend(LPEDICT caster, LPEDICT target) {
+    uint32_t owner;
 
     if (!caster || !target || caster->s.player >= MAX_PLAYERS || target->s.player >= MAX_PLAYERS) {
         return false;
@@ -368,10 +368,10 @@ BOOL S_SpellIsFriend(LPEDICT caster, LPEDICT target) {
     return G_PlayerTreatsPlayerAsAlly(caster->s.player, owner);
 }
 
-BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target) {
-    LPCSTR targets;
-    DWORD ability_level;
-    BOOL structure;
+bool S_SpellAllowsTarget(uint32_t code, LPEDICT caster, LPEDICT target) {
+    cstring_t targets;
+    uint32_t ability_level;
+    bool structure;
 
     if (!target || !target->inuse || M_IsDead(target) || S_UnitIsCycloned(target)) {
         return false;
@@ -408,10 +408,10 @@ BOOL S_SpellAllowsTarget(DWORD code, LPEDICT caster, LPEDICT target) {
     return !strstr(targets, "friend") && !strstr(targets, "enemy") && !strstr(targets, "neutral");
 }
 
-static BOOL spell_allows_corpse_target(DWORD code, LPEDICT caster, LPEDICT target, BOOL stored) {
-    LPCSTR targets;
-    DWORD ability_level;
-    BOOL structure;
+static bool spell_allows_corpse_target(uint32_t code, LPEDICT caster, LPEDICT target, bool stored) {
+    cstring_t targets;
+    uint32_t ability_level;
+    bool structure;
 
     if (!caster || (stored ? !G_UnitIsRaisableStoredCorpse(target) :
                     !G_UnitIsRaisableCorpse(target))) return false;
@@ -436,23 +436,23 @@ static BOOL spell_allows_corpse_target(DWORD code, LPEDICT caster, LPEDICT targe
         !strstr(targets, "enemy") && !strstr(targets, "neutral");
 }
 
-BOOL S_SpellAllowsCorpseTarget(DWORD code, LPEDICT caster, LPEDICT target) {
+bool S_SpellAllowsCorpseTarget(uint32_t code, LPEDICT caster, LPEDICT target) {
     return spell_allows_corpse_target(code, caster, target, false);
 }
 
-BOOL S_SpellAllowsStoredCorpseTarget(DWORD code, LPEDICT caster, LPEDICT target) {
+bool S_SpellAllowsStoredCorpseTarget(uint32_t code, LPEDICT caster, LPEDICT target) {
     return spell_allows_corpse_target(code, caster, target, true);
 }
 
-void S_SpellHeal(LPEDICT target, FLOAT amount) {
+void S_SpellHeal(LPEDICT target, float amount) {
     if (!target || amount <= 0) {
         return;
     }
     G_AddHealth(target, amount);
 }
 
-void S_SpellCursorSplat(LPEDICT clent, FLOAT radius) {
-    LONG image = 0;
+void S_SpellCursorSplat(LPEDICT clent, float radius) {
+    int32_t image = 0;
 
     if (!clent || !clent->client) {
         return;
@@ -462,20 +462,20 @@ void S_SpellCursorSplat(LPEDICT clent, FLOAT radius) {
     } else {
         radius = 0.0f;
     }
-    gi.Write(PF_BYTE, &(LONG){ svc_cursor_splat });
+    gi.Write(PF_BYTE, &(int32_t){ svc_cursor_splat });
     gi.Write(PF_SHORT, &image);
     gi.Write(PF_FLOAT, &radius);
     gi.unicast(clent);
 }
 
-BOOL S_SpellIsChanneling(LPEDICT caster) {
+bool S_SpellIsChanneling(LPEDICT caster) {
     return caster && caster->channel.code != 0;
 }
 
 /* Some temporary summons own a timed lifecycle but are not destroyable by
  * dispel-style summoned-unit damage. Resolve this by the concrete ability
  * procedure so AbilityData aliases inherit the same Animate Dead behavior. */
-BOOL S_SummonIsDispelImmune(LPCEDICT unit) {
+bool S_SummonIsDispelImmune(LPCEDICT unit) {
     abilityitem_t item;
     if (!unit || !unit->summon_ability) return false;
     item = S_AbilityItem(unit->summon_ability);
@@ -483,7 +483,7 @@ BOOL S_SummonIsDispelImmune(LPCEDICT unit) {
 }
 
 void S_SpellCancelChannel(LPEDICT caster) {
-    DWORD code;
+    uint32_t code;
     if (!caster || !caster->channel.code) return;
     code = caster->channel.code;
     caster->channel.code = 0;
@@ -496,7 +496,7 @@ void S_SpellCancelChannel(LPEDICT caster) {
 }
 
 /* A cast serial and owner incarnation prevent a retired thinker from following a recast or reused edict. */
-LPEDICT S_SpellChannelThinker(LPEDICT caster, DWORD code) {
+LPEDICT S_SpellChannelThinker(LPEDICT caster, uint32_t code) {
     LPEDICT ent = G_Spawn();
     ent->owner = caster; ent->class_id = code;
     ent->channel.serial = caster->channel.serial;
@@ -505,7 +505,7 @@ LPEDICT S_SpellChannelThinker(LPEDICT caster, DWORD code) {
 }
 
 /* Each effect rechecks the caster before ticking, independently of edict iteration order. */
-BOOL S_SpellChannelActive(LPEDICT ent) {
+bool S_SpellChannelActive(LPEDICT ent) {
     LPEDICT caster = ent ? ent->owner : NULL;
     if (!caster || !caster->inuse || caster->spawn_time != ent->channel.owner_spawn_time) return false;
     spell_run_frame(caster);
@@ -546,7 +546,7 @@ void spell_run_frame(LPEDICT ent) {
 }
 
 /* Shared validation for spell spells: mana, cooldown, and optional range check. */
-static BOOL spell_validate(LPEDICT clent, LPEDICT caster, DWORD code, DWORD level, LPEDICT target, FLOAT range) {
+static bool spell_validate(LPEDICT clent, LPEDICT caster, uint32_t code, uint32_t level, LPEDICT target, float range) {
     if (!S_SpellIsAliveTarget(caster) || caster->stunned || S_UnitPolymorphed(caster) || S_UnitIsCycloned(caster)) return false;
     if (S_UnitIsSilenced(caster)) {
         G_ShowCommandErrorText(clent, "Silenced.");
@@ -566,7 +566,7 @@ static BOOL spell_validate(LPEDICT clent, LPEDICT caster, DWORD code, DWORD leve
 }
 
 /* Shared validation for point-target spells. */
-static BOOL spell_validate_point(spellPointValidateParams_t const *params) {
+static bool spell_validate_point(spellPointValidateParams_t const *params) {
     if (!params || !params->caster || !params->point)
         return false;
     if (!S_SpellIsAliveTarget(params->caster) || params->caster->stunned || S_UnitPolymorphed(params->caster) ||
@@ -589,7 +589,7 @@ static BOOL spell_validate_point(spellPointValidateParams_t const *params) {
 }
 
 /* Start channel: lock caster in place and record the origin for movement-cancel. */
-static void spell_begin_channel(LPEDICT caster, DWORD code) {
+static void spell_begin_channel(LPEDICT caster, uint32_t code) {
     if (caster->stand) caster->stand(caster);
     caster->channel.serial++;
     caster->channel.code = code;
@@ -597,7 +597,7 @@ static void spell_begin_channel(LPEDICT caster, DWORD code) {
 }
 
 /* Pre-execute common work: spend mana, start cooldown, then Mana Flare probes. */
-static void spell_commit(LPEDICT caster, DWORD code, DWORD level) {
+static void spell_commit(LPEDICT caster, uint32_t code, uint32_t level) {
     S_SpellCancelChannel(caster);
     S_HumanBreakInvisibility(caster);
     S_PermanentInvisibilityReveal(caster);
@@ -609,11 +609,11 @@ static void spell_commit(LPEDICT caster, DWORD code, DWORD level) {
 /* Warcraft exposes spell response data only while dispatching the spell event.
  * Publish SPELL_EFFECT at the irreversible cast point: resources have been
  * committed, but the gameplay callback has not run yet. */
-static void spell_publish_effect(LPEDICT caster, DWORD code, spellTarget_t target) {
+static void spell_publish_effect(LPEDICT caster, uint32_t code, spellTarget_t target) {
     LPEDICT source = target.type == SPELL_TARGET_UNIT ? target.entity : NULL;
     LPCVECTOR2 point = target.type == SPELL_TARGET_POINT ? &target.point : NULL;
     gameEventPointParams_t params = MAKE(gameEventPointParams_t, .edict = caster,
-                                         .source = source, .value = (LONG)code, .point = point);
+                                         .source = source, .value = (int32_t)code, .point = point);
 
     params.type = EVENT_PLAYER_UNIT_SPELL_EFFECT;
     G_PublishEventWithPoint(&params);
@@ -645,11 +645,11 @@ static void spell_execute_unit_target(spellUnitTargetParams_t const *params) {
 static void spell_unit_target_approach_think(LPEDICT thinker) {
     LPEDICT caster = thinker ? thinker->owner : NULL;
     LPEDICT target = thinker ? thinker->goalentity : NULL;
-    DWORD code = thinker ? thinker->class_id : 0;
+    uint32_t code = thinker ? thinker->class_id : 0;
     ability_t const *spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
-    DWORD level;
-    FLOAT range;
+    uint32_t level;
+    float range;
     spellTarget_t st;
 
     if (!caster || !caster->inuse || M_IsDead(caster) || !target || !spell ||
@@ -692,7 +692,7 @@ static void spell_unit_target_approach_think(LPEDICT thinker) {
 }
 
 /* Start the ordinary walk order used to bring an out-of-range spell target into range. */
-static BOOL spell_begin_unit_target_approach(LPEDICT caster, DWORD code, LPEDICT target) {
+static bool spell_begin_unit_target_approach(LPEDICT caster, uint32_t code, LPEDICT target) {
     LPEDICT thinker;
 
     if (!caster || !target || (caster->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(caster) ||
@@ -713,11 +713,11 @@ static BOOL spell_begin_unit_target_approach(LPEDICT caster, DWORD code, LPEDICT
 }
 
 /* Called when user clicks a target entity for a UNIT-target spell. */
-static BOOL spell_unit_target_selected(LPEDICT clent, LPEDICT target) {
+static bool spell_unit_target_selected(LPEDICT clent, LPEDICT target) {
     LPEDICT caster = G_GetMainSelectedUnit(clent->client);
-    DWORD code = S_SpellCurrentCode(clent, 0);
-    DWORD level = S_SpellLevel(caster, code);
-    FLOAT range = S_SpellRange(code, level);
+    uint32_t code = S_SpellCurrentCode(clent, 0);
+    uint32_t level = S_SpellLevel(caster, code);
+    float range = S_SpellRange(code, level);
     ability_t const *spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
     spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
@@ -740,11 +740,11 @@ static BOOL spell_unit_target_selected(LPEDICT clent, LPEDICT target) {
 }
 
 /* Called when user clicks a location for a POINT-target spell. */
-static BOOL spell_point_target_selected(LPEDICT clent, LPCVECTOR2 point) {
+static bool spell_point_target_selected(LPEDICT clent, LPCVECTOR2 point) {
     LPEDICT caster = G_GetMainSelectedUnit(clent->client);
-    DWORD code = S_SpellCurrentCode(clent, 0);
-    DWORD level = S_SpellLevel(caster, code);
-    FLOAT range = S_SpellRange(code, level);
+    uint32_t code = S_SpellCurrentCode(clent, 0);
+    uint32_t level = S_SpellLevel(caster, code);
+    float range = S_SpellRange(code, level);
     ability_t const *spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
     spellPointValidateParams_t val = MAKE(spellPointValidateParams_t,
@@ -769,8 +769,8 @@ static BOOL spell_point_target_selected(LPEDICT clent, LPCVECTOR2 point) {
 /* No-target (self-cast / instant) execute in-place. */
 static void spell_no_target_execute(LPEDICT clent) {
     LPEDICT caster = G_GetMainSelectedUnit(clent->client);
-    DWORD code = S_SpellCurrentCode(clent, 0);
-    DWORD level = S_SpellLevel(caster, code);
+    uint32_t code = S_SpellCurrentCode(clent, 0);
+    uint32_t level = S_SpellLevel(caster, code);
     ability_t const *spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
 
@@ -785,8 +785,8 @@ static void spell_no_target_execute(LPEDICT clent) {
     spell_message(caster, A_EXECUTE, &item, &st);
 }
 
-BOOL S_CastNoTargetSpell(LPEDICT caster, DWORD code) {
-    DWORD level;
+bool S_CastNoTargetSpell(LPEDICT caster, uint32_t code) {
+    uint32_t level;
     ability_t const *spell;
     spellTarget_t target = { .type = SPELL_TARGET_NONE };
 
@@ -805,9 +805,9 @@ BOOL S_CastNoTargetSpell(LPEDICT caster, DWORD code) {
     return true;
 }
 
-BOOL S_CastPointTargetSpell(LPEDICT caster, DWORD code, LPCVECTOR2 point) {
-    DWORD level;
-    FLOAT range;
+bool S_CastPointTargetSpell(LPEDICT caster, uint32_t code, LPCVECTOR2 point) {
+    uint32_t level;
+    float range;
     ability_t const *spell;
     spellTarget_t target;
 
@@ -834,8 +834,8 @@ BOOL S_CastPointTargetSpell(LPEDICT caster, DWORD code, LPCVECTOR2 point) {
 }
 
 /* Autocast and AI orders use the same target and resource contract as a player-selected unit spell. */
-BOOL S_CastUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
-    DWORD level;
+bool S_CastUnitTargetSpell(LPEDICT caster, uint32_t code, LPEDICT unit) {
+    uint32_t level;
     ability_t const *spell;
     spellTarget_t target = { .type = SPELL_TARGET_UNIT, .entity = unit };
 
@@ -859,9 +859,9 @@ BOOL S_CastUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
     return true;
 }
 
-BOOL S_IssueUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
-    DWORD level;
-    FLOAT range;
+bool S_IssueUnitTargetSpell(LPEDICT caster, uint32_t code, LPEDICT unit) {
+    uint32_t level;
+    float range;
     ability_t const *spell;
     spellTarget_t target = { .type = SPELL_TARGET_UNIT, .entity = unit };
 
@@ -891,12 +891,12 @@ BOOL S_IssueUnitTargetSpell(LPEDICT caster, DWORD code, LPEDICT unit) {
  * immediately for no-target spells. */
 void spell_cmd(LPEDICT clent) {
     LPEDICT caster = G_GetMainSelectedUnit(clent->client);
-    DWORD code = S_SpellCurrentCode(clent, 0);
+    uint32_t code = S_SpellCurrentCode(clent, 0);
     ability_t const *spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
 
     if (!spell) {
-        fprintf(stderr, "spell_cmd: no executable spell ability for code '%.4s'\n", (LPCSTR)&code);
+        fprintf(stderr, "spell_cmd: no executable spell ability for code '%.4s'\n", (cstring_t)&code);
         return;
     }
     if (!caster) return;
@@ -920,7 +920,7 @@ void spell_cmd(LPEDICT clent) {
         break;
     case SPELL_TARGET_POINT: {
         UI_AddCancelButton(clent);
-        FLOAT area = S_SpellNumber(code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, code));
+        float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, code));
         S_SpellCursorSplat(clent, area > 0 ? area : 200.0f);
         clent->client->menu.on_location_selected = spell_point_target_selected;
         break;
