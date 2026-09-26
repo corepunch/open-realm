@@ -10,7 +10,8 @@ The stock behavior is split across three gameplay abilities:
 
 - `AIpm` is the point-target item ability.  Its authored `UnitID` is spawned at
   the selected point through the ordinary summon path, preserving player
-  ownership and summon events.
+  ownership and summon events. Placement uses the authored `Rng1`: an
+  out-of-range click is rejected without ordering the hero to walk closer.
 - `Amin` is an intrinsic ability on the mine unit.  Data A is the activation
   delay, Data B is the invisibility transition time, and the ability's authored
   cast range is the proximity trigger radius.
@@ -146,6 +147,8 @@ Fixture-only regression coverage should verify:
 
 - `AIpm`, `Amin`, and `Amnx` resolve to their intended procedures;
 - point placement creates an owned real unit at the requested location;
+- an out-of-range placement click leaves the item armed and does not move the
+  hero or consume a charge, while an in-range click places the mine;
 - invalid point item targets do not spend charges and successful placement
   spends exactly one;
 - Data B invisibility transition and True Sight interaction;

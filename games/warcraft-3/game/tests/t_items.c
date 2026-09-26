@@ -1248,7 +1248,7 @@ TEST(wc3_items, jass_item_charge_natives_use_runtime_item_state) {
         "endfunction\n"));
 }
 
-TEST(wc3_items, point_target_item_charge_waits_for_successful_location_cast) {
+TEST(wc3_items, point_target_item_out_of_range_click_does_not_approach_or_consume_charge) {
     static char const ability_slk[] =
         "ID;PWXL;N;EBB;Y4;X14\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
@@ -1260,7 +1260,7 @@ TEST(wc3_items, point_target_item_charge_waits_for_successful_location_cast) {
         "C;Y2;X10;K\"6\"\nC;Y2;X12;K\"1\"\n"
         "C;Y3;X1;K\"AIpm\"\nC;Y3;X2;K\"AIpm\"\nC;Y3;X3;K\"1\"\n"
         "C;Y3;X4;K\"ground\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"0\"\n"
-        "C;Y3;X7;K\"500\"\nC;Y3;X8;K\"0\"\nC;Y3;X14;K\"hfoo\"\n"
+        "C;Y3;X7;K\"96\"\nC;Y3;X8;K\"0\"\nC;Y3;X14;K\"hfoo\"\n"
         "C;Y4;X1;K\"AOfs\"\nC;Y4;X2;K\"AOfs\"\nC;Y4;X3;K\"1\"\n"
         "C;Y4;X4;K\"ground,enemy\"\nC;Y4;X7;K\"500\"\nC;Y4;X8;K\"1\"\n"
         "C;Y4;X16;K\"128\"\nE\n";
@@ -1268,7 +1268,8 @@ TEST(wc3_items, point_target_item_charge_waits_for_successful_location_cast) {
     ItemData_t item_data = { .abilList = "AIpm", .uses = 2, .perishable = false };
     slkTestData_t *rows, *old;
     edict_t *player, *hero, *item, *mine = NULL;
-    vec2_t invalid = { 700, 0 }, valid = { 128, 0 };
+    cstring_t far_click[] = { "point", "700", "0" };
+    cstring_t valid_click[] = { "point", "64", "0" };
     cstring_t far_sight[] = { "button", "AOfs" };
 
     setup_test_world();
@@ -1288,18 +1289,25 @@ TEST(wc3_items, point_target_item_charge_waits_for_successful_location_cast) {
     T_EQ(player->client->menu.ability_item, item);
     T_EQ(player->client->menu.ability_item_spawn_time, item->spawn_time);
     T_EQ(G_ItemCharges(item), 2);
-    T_ASSERT(!player->client->menu.on_location_selected(player, &invalid));
+    G_ClientCommand(player, 3, far_click);
+    T_NOT_NULL(player->client->menu.on_location_selected);
+    T_NULL(hero->goalentity); /* Point items reject out-of-range clicks instead of walking into range. */
     T_EQ(player->client->menu.ability_item, item);
     T_EQ(G_ItemCharges(item), 2);
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') && ent->owner == hero) {
+        mine = ent; break;
+    }
+    T_NULL(mine);
 
     G_ClientCommand(player, 2, far_sight);
     T_NULL(player->client->menu.ability_item);
     T_EQ(player->client->menu.ability_item_spawn_time, 0);
-    T_ASSERT(player->client->menu.on_location_selected(player, &valid));
+    G_ClientCommand(player, 3, valid_click);
     T_EQ(G_ItemCharges(item), 2);
 
     G_UseItem(hero, 0);
-    T_ASSERT(player->client->menu.on_location_selected(player, &valid));
+    G_ClientCommand(player, 3, valid_click);
+    T_NULL(player->client->menu.on_location_selected);
     T_NULL(player->client->menu.ability_item);
     T_EQ(player->client->menu.ability_item_spawn_time, 0);
     T_EQ(G_ItemCharges(item), 1);
