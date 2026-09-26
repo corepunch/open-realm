@@ -196,16 +196,17 @@ void land_mine_think(edict_t * thinker) {
 	}
 }
 
-static bool land_mine_initialize(edict_t * mine, uint32_t code) {
+static bool land_mine_initialize(edict_t *mine, uint32_t code) {
 	uint32_t level;
-	float arm, invis;
-	edict_t * thinker;
+	float arm, invis, collision;
+	edict_t *thinker;
 
 	if (!mine || !mine->inuse || !code || !(level = G_UnitAbilityLevel(mine, code))) return false;
-	land_mine_remove_thinker(mine);
+	thinker = land_mine_thinker(mine);
+	collision = thinker ? thinker->collision : mine->collision;
 	arm = MAX(0.0f, S_SpellData(code, level, 1));
 	invis = S_SpellData(code, level, 2);
-	thinker = G_Spawn();
+	if (!thinker) thinker = G_Spawn();
 	if (!thinker) { fprintf(stderr, "WC3 land mine: failed to allocate thinker for unit %u\n", mine->s.number); return false; }
 	/* Apply gameplay/presentation state only after the thinker owns the lifecycle. */
 	mine->collision = 0.0f;
@@ -215,6 +216,9 @@ static bool land_mine_initialize(edict_t * mine, uint32_t code) {
 	thinker->channel.owner_spawn_time = mine->spawn_time;
 	thinker->class_id = code;
 	thinker->wait = (float)level;
+	thinker->collision = collision;
+	thinker->damage = 0;
+	thinker->resources = 0;
 	thinker->freetime = G_Time() + (uint32_t)(arm * 1000.0f);
 	if (invis > 0.0f) {
 		thinker->damage = 1;
@@ -244,7 +248,13 @@ BZ_ABILITY_PROC(CAbilityLandMine) {
 		/* G_ActorRemoveSkill removes the rawcode before dispatching A_DISABLE,
 		 * so cleanup cannot rely on G_UnitAbilityLevel() still finding Amin. */
 		if (!ent) return false;
-		land_mine_remove_thinker(ent);
+		{
+			edict_t *thinker = land_mine_thinker(ent);
+			if (thinker) {
+				ent->collision = ent->s.collision = thinker->collision;
+				G_FreeEdict(thinker);
+			}
+		}
 		ent->s.renderfx &= ~RF_HIDDEN;
 		return true;
 	case A_UNIT_REMOVE:

@@ -473,8 +473,8 @@ uint32_t MDLX_CollectAttachmentPositions(mdxModel_t const *model, mat4_t const *
                                       mdxAttachmentPosition_t *positions, uint32_t max_positions);
 bool MDLX_EventObjectId(mdxEvent_t const *event, cstring_t type, char *out, uint32_t out_size);
 bool MDLX_EventWorldTransform(mdxModel_t const *model, mdxEvent_t const *event,
-                              renderEntity_t const *entity, matrix4_t const *model_transform,
-                              matrix4_t *out);
+                              renderEntity_t const *entity, mat4_t const *model_transform,
+                              mat4_t *out);
 
 mdxModel_t *R_LoadModelMDLX(void *buffer, uint32_t size);
 void MDLX_Release(mdxModel_t *model);
