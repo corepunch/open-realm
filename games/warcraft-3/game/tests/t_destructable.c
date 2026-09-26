@@ -1003,6 +1003,7 @@ TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
         "  call TriggerRegisterDeathEvent(t, scriptedDest)\n"
         "  call TriggerAddAction(t, function onScriptedDeath)\n"
         "  call KillDestructable(scriptedDest)\n"
+        "  call SetDestructableAnimation(scriptedDest, \"death alternate\")\n"
         "endfunction\n"));
 
     dest = NULL;
@@ -1015,6 +1016,7 @@ TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
 
     T_NOT_NULL(dest);
     T_ASSERT(dest->destructable.dead);
+    T_STREQ(dest->animation_request, "death alternate");
     T_ASSERT(dest->destructable.loot_processed);
     T_FEQ(dest->health.value, 0.0f, 0.01f);
     T_EQ(level.events.write, 1);
