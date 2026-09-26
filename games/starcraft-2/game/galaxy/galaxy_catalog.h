@@ -10,8 +10,8 @@ typedef struct { int32_t abilcmd_h; int32_t pt_h; int32_t unit_h; } sc2GOrder_t;
 static sc2GOrder_t sc2_gorders[MAX_GALAXY_ORDERS];
 static int32_t sc2_gorder_n = 1;  /* 1-based; 0 = null */
 
-static uint32_t sc2_AbilityClass(LPJASS j)       { return jass_pushinteger(j, 0); }
-static uint32_t sc2_AbilityCommand(LPJASS j) {
+static uint32_t sc2_AbilityClass(jass_t * j)       { return jass_pushinteger(j, 0); }
+static uint32_t sc2_AbilityCommand(jass_t * j) {
     cstring_t name = jass_checkstring(j, 1);
     int32_t   cmd  = jass_checkinteger(j, 2);
     if (sc2_gabilcmd_n < MAX_GALAXY_ABILCMDS) {
@@ -25,18 +25,18 @@ static uint32_t sc2_AbilityCommand(LPJASS j) {
             MAX_GALAXY_ABILCMDS, name ? name : "");
     return jass_pushinteger(j, 0);
 }
-static uint32_t sc2_AbilityCommandGetAbility(LPJASS j) {
+static uint32_t sc2_AbilityCommandGetAbility(jass_t * j) {
     int32_t h = jass_checkinteger(j, 1);
     return jass_pushstring(j, (h > 0 && h < sc2_gabilcmd_n) ? sc2_gabilcmds[h].ability : "");
 }
-static uint32_t sc2_AbilityCommandGetCommand(LPJASS j) {
+static uint32_t sc2_AbilityCommandGetCommand(jass_t * j) {
     int32_t h = jass_checkinteger(j, 1);
     return jass_pushinteger(j, (h > 0 && h < sc2_gabilcmd_n) ? sc2_gabilcmds[h].cmd_idx : 0);
 }
 /* Action index is a higher-level concept (e.g. cast vs auto-cast); stub as 0 for now. */
-static uint32_t sc2_AbilityCommandGetAction(LPJASS j) { (void)j; return jass_pushinteger(j, 0); }
-static uint32_t sc2_Order(LPJASS j)              { return jass_pushnullhandle(j, "order"); }
-static uint32_t sc2_OrderTargetingPoint(LPJASS j) {
+static uint32_t sc2_AbilityCommandGetAction(jass_t * j) { (void)j; return jass_pushinteger(j, 0); }
+static uint32_t sc2_Order(jass_t * j)              { return jass_pushnullhandle(j, "order"); }
+static uint32_t sc2_OrderTargetingPoint(jass_t * j) {
     int32_t abilcmd_h = jass_checkinteger(j, 1);
     int32_t pt_h      = (int32_t)(uintptr_t)jass_checkhandle(j, 2, "point");
     if (sc2_gorder_n < MAX_GALAXY_ORDERS) {
@@ -47,7 +47,7 @@ static uint32_t sc2_OrderTargetingPoint(LPJASS j) {
     fprintf(stderr, "OrderTargetingPoint: table full (%d entries)\n", MAX_GALAXY_ORDERS);
     return jass_pushnullhandle(j, "order");
 }
-static uint32_t sc2_OrderTargetingUnit(LPJASS j) {
+static uint32_t sc2_OrderTargetingUnit(jass_t * j) {
     int32_t abilcmd_h = jass_checkinteger(j, 1);
     int32_t unit_h    = (int32_t)(uintptr_t)jass_checkhandle(j, 2, "unit");
     if (sc2_gorder_n < MAX_GALAXY_ORDERS) {
@@ -57,19 +57,19 @@ static uint32_t sc2_OrderTargetingUnit(LPJASS j) {
     }
     return jass_pushnullhandle(j, "order");
 }
-static uint32_t sc2_OrderSetPlayer(LPJASS j)     { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_UnitOrderIsValid(LPJASS j)   { return jass_pushboolean(j, false); }
-static uint32_t sc2_CatalogEntryClass(LPJASS j)  { return jass_pushinteger(j, 0); }
-static uint32_t sc2_CatalogEntryCount(LPJASS j)  { return jass_pushinteger(j, 0); }
-static uint32_t sc2_CatalogEntryGet(LPJASS j)    { return jass_pushstring(j, ""); }
-static uint32_t sc2_CatalogEntryIsValid(LPJASS j){ return jass_pushboolean(j, false); }
-static uint32_t sc2_CatalogEntryParent(LPJASS j) { return jass_pushstring(j, ""); }
-static uint32_t sc2_CatalogEntryScope(LPJASS j)  { return jass_pushstring(j, ""); }
-static uint32_t sc2_CatalogFieldCount(LPJASS j)  { return jass_pushinteger(j, 0); }
-static uint32_t sc2_CatalogFieldGet(LPJASS j)    { return jass_pushstring(j, ""); }
-static uint32_t sc2_CatalogFieldIsArray(LPJASS j){ return jass_pushboolean(j, false); }
-static uint32_t sc2_CatalogFieldIsScope(LPJASS j){ return jass_pushboolean(j, false); }
-static uint32_t sc2_CatalogFieldType(LPJASS j)   { return jass_pushstring(j, ""); }
-static uint32_t sc2_CatalogFieldValueCount(LPJASS j){ return jass_pushinteger(j, 0); }
-static uint32_t sc2_CatalogFieldValueGet(LPJASS j){ return jass_pushstring(j, ""); }
-static uint32_t sc2_CatalogFieldValueSet(LPJASS j){ return jass_pushboolean(j, false); }
+static uint32_t sc2_OrderSetPlayer(jass_t * j)     { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitOrderIsValid(jass_t * j)   { return jass_pushboolean(j, false); }
+static uint32_t sc2_CatalogEntryClass(jass_t * j)  { return jass_pushinteger(j, 0); }
+static uint32_t sc2_CatalogEntryCount(jass_t * j)  { return jass_pushinteger(j, 0); }
+static uint32_t sc2_CatalogEntryGet(jass_t * j)    { return jass_pushstring(j, ""); }
+static uint32_t sc2_CatalogEntryIsValid(jass_t * j){ return jass_pushboolean(j, false); }
+static uint32_t sc2_CatalogEntryParent(jass_t * j) { return jass_pushstring(j, ""); }
+static uint32_t sc2_CatalogEntryScope(jass_t * j)  { return jass_pushstring(j, ""); }
+static uint32_t sc2_CatalogFieldCount(jass_t * j)  { return jass_pushinteger(j, 0); }
+static uint32_t sc2_CatalogFieldGet(jass_t * j)    { return jass_pushstring(j, ""); }
+static uint32_t sc2_CatalogFieldIsArray(jass_t * j){ return jass_pushboolean(j, false); }
+static uint32_t sc2_CatalogFieldIsScope(jass_t * j){ return jass_pushboolean(j, false); }
+static uint32_t sc2_CatalogFieldType(jass_t * j)   { return jass_pushstring(j, ""); }
+static uint32_t sc2_CatalogFieldValueCount(jass_t * j){ return jass_pushinteger(j, 0); }
+static uint32_t sc2_CatalogFieldValueGet(jass_t * j){ return jass_pushstring(j, ""); }
+static uint32_t sc2_CatalogFieldValueSet(jass_t * j){ return jass_pushboolean(j, false); }

@@ -4,49 +4,49 @@
 #define AREA_NODES 128
 
 #define STRUCT_FROM_LINK(l,t,m) ((t *)((uint8_t *)l - (long long)&(((t *)0)->m)))
-#define EDICT_FROM_AREA(l) STRUCT_FROM_LINK(l,EDICT,area)
+#define EDICT_FROM_AREA(l) STRUCT_FROM_LINK(l,edict_t,area)
 #define GET_AXIS(vec, axis) (*((float const *)(vec)+axis))
 #define SET_AXIS(vec, axis, value) (*((float *)(vec)+axis))=value
 
-KNOWN_AS(areanode_s, AREANODE);
+KNOWN_AS(areanode_s, areaNode_t);
 
 struct areanode_s {
     uint32_t axis;  // -1 = leaf node
     uint32_t depth; // for debug
-    BOX2 bounds;
+    box2_t bounds;
     float dist;
     struct areanode_s *children[2];
 //    link_t trigger_edicts;
-    LINK solid_edicts;
+    link_t solid_edicts;
 };
 
-static AREANODE sv_areanodes[AREA_NODES];
+static areaNode_t sv_areanodes[AREA_NODES];
 static uint32_t sv_numareanodes;
 
-void ClearLink (LPLINK l) {
+void ClearLink (link_t * l) {
     l->prev = l->next = l;
 }
 
-void RemoveLink (LPLINK l) {
+void RemoveLink (link_t * l) {
     l->next->prev = l->prev;
     l->prev->next = l->next;
 }
 
-void InsertLinkBefore (LPLINK l, LPLINK before) {
+void InsertLinkBefore (link_t * l, link_t * before) {
     l->next = before;
     l->prev = before->prev;
     l->prev->next = l;
     l->next->prev = l;
 }
 
-LPAREANODE SV_CreateAreaNode(uint32_t depth, LPCVECTOR2 mins, LPCVECTOR2 maxs) {
-    LPAREANODE anode = &sv_areanodes[sv_numareanodes++];
-    VECTOR2 size = Vector2_sub(maxs, mins);
-    VECTOR2 mins1 = *mins, mins2 = *mins, maxs1 = *maxs, maxs2 = *maxs;
+areaNode_t * SV_CreateAreaNode(uint32_t depth, vector2_t const * mins, vector2_t const * maxs) {
+    areaNode_t * anode = &sv_areanodes[sv_numareanodes++];
+    vector2_t size = Vector2_sub(maxs, mins);
+    vector2_t mins1 = *mins, mins2 = *mins, maxs1 = *maxs, maxs2 = *maxs;
 
     ClearLink (&anode->solid_edicts);
  
-    anode->bounds = MAKE(BOX2, *mins, *maxs);
+    anode->bounds = MAKE(box2_t, *mins, *maxs);
     anode->depth = depth;
 
     if (depth == AREA_DEPTH) {
@@ -70,18 +70,18 @@ LPAREANODE SV_CreateAreaNode(uint32_t depth, LPCVECTOR2 mins, LPCVECTOR2 maxs) {
 void SV_ClearWorld(void) {
     memset(sv_areanodes, 0, sizeof(sv_areanodes));
     sv_numareanodes = 0;
-    BOX2 bounds = ge->GetWorldBounds();
+    box2_t bounds = ge->GetWorldBounds();
     SV_CreateAreaNode(0, &bounds.min, &bounds.max);
 }
 
-void SV_UnlinkEntity(LPEDICT ent) {
+void SV_UnlinkEntity(edict_t * ent) {
     if (!ent->area.prev)
         return;        // not linked in anywhere
     RemoveLink(&ent->area);
     ent->area.prev = ent->area.next = NULL;
 }
 
-void SV_LinkEntity(LPEDICT ent) {
+void SV_LinkEntity(edict_t * ent) {
     SV_UnlinkEntity(ent);
     
     if (ent == ge->edicts)
@@ -90,8 +90,8 @@ void SV_LinkEntity(LPEDICT ent) {
     if (!ent->inuse)
         return;
 
-    VECTOR2 const size = { ent->collision, ent->collision };
-    VECTOR2 const eps = { 1, 1 };
+    vector2_t const size = { ent->collision, ent->collision };
+    vector2_t const eps = { 1, 1 };
     
     ent->areanum = 0;
     ent->bounds.min = Vector2_sub(&ent->s.origin2, &size);
@@ -102,7 +102,7 @@ void SV_LinkEntity(LPEDICT ent) {
     ent->bounds.min = Vector2_sub(&ent->bounds.min, &eps);
     ent->bounds.max = Vector2_add(&ent->bounds.max, &eps);
 
-    LPAREANODE node = sv_areanodes;
+    areaNode_t * node = sv_areanodes;
     while (1) {
         if (node->axis == -1)
             break;
@@ -118,18 +118,18 @@ void SV_LinkEntity(LPEDICT ent) {
 }
 
 typedef struct {
-    BOX2 bounds;
-    LPEDICT *list;
+    box2_t bounds;
+    edict_t * *list;
     uint32_t maxcount;
     uint32_t count;
-    bool (*pred)(LPCEDICT);
+    bool (*pred)(edict_t const *);
 } areaworker_t;
 
-void SV_AreaEdicts_r(LPCAREANODE node, areaworker_t *worker) {
-    LPCLINK start = &node->solid_edicts;
+void SV_AreaEdicts_r(areaNode_t const * node, areaworker_t *worker) {
+    link_t const * start = &node->solid_edicts;
     
-    for (LPCLINK l = start->next; l != start; l = l->next) {
-        LPEDICT check = EDICT_FROM_AREA(l);
+    for (link_t const * l = start->next; l != start; l = l->next) {
+        edict_t * check = EDICT_FROM_AREA(l);
 
         if (   check->bounds.min.x > worker->bounds.max.x
             || check->bounds.min.y > worker->bounds.max.y
@@ -158,7 +158,7 @@ void SV_AreaEdicts_r(LPCAREANODE node, areaworker_t *worker) {
         SV_AreaEdicts_r(node->children[1], worker);
 }
 
-uint32_t SV_AreaEdicts(LPCBOX2 area, LPEDICT *list, uint32_t maxcount, bool (*pred)(LPCEDICT)) {
+uint32_t SV_AreaEdicts(box2_t const * area, edict_t * *list, uint32_t maxcount, bool (*pred)(edict_t const *)) {
     areaworker_t w = {
         .bounds = *area,
         .list = list,

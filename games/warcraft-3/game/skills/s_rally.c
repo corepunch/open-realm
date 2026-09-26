@@ -1,21 +1,21 @@
 #include "s_skills.h"
 
-static void G_ClearRallyIndicator(LPGAMECLIENT client) {
+static void G_ClearRallyIndicator(gameClient_t * client) {
     if (!client || !client->rally_indicator) return;
     G_FreeEdict(client->rally_indicator);
     client->rally_indicator = NULL;
 }
 
-static void G_RefreshRallyIndicatorForProducer(LPEDICT producer) {
+static void G_RefreshRallyIndicatorForProducer(edict_t * producer) {
     if (!producer) return;
     FOR_LOOP(i, game.max_clients) {
-        LPGAMECLIENT client = game.clients + i;
+        gameClient_t * client = game.clients + i;
         if (!client->connected || G_GetMainSelectedUnit(client) != producer) continue;
         G_UpdateRallyIndicator(client);
     }
 }
 
-bool G_UnitHasRally(LPCEDICT producer) {
+bool G_UnitHasRally(edict_t const * producer) {
     cstring_t trains;
 
     if (!producer || !producer->data.UnitProfile) return false;
@@ -23,12 +23,12 @@ bool G_UnitHasRally(LPCEDICT producer) {
     return (trains && *trains) || G_UnitCanReviveHeroes(producer);
 }
 
-void G_ResetRallyTarget(LPEDICT producer) {
+void G_ResetRallyTarget(edict_t * producer) {
     if (!producer) return;
     memset(&producer->rally, 0, sizeof(producer->rally));
 }
 
-bool G_SetRallyPoint(LPEDICT producer, LPCVECTOR2 point) {
+bool G_SetRallyPoint(edict_t * producer, vector2_t const * point) {
     if (!G_UnitHasRally(producer) || !point) return false;
     producer->rally.type = RALLY_TARGET_POINT;
     producer->rally.point = *point;
@@ -38,7 +38,7 @@ bool G_SetRallyPoint(LPEDICT producer, LPCVECTOR2 point) {
     return true;
 }
 
-bool G_SetRallyEntity(LPEDICT producer, LPEDICT target) {
+bool G_SetRallyEntity(edict_t * producer, edict_t * target) {
     if (!G_UnitHasRally(producer) || !target || !target->inuse) return false;
     if (target == producer) {
         G_ResetRallyTarget(producer);
@@ -48,13 +48,13 @@ bool G_SetRallyEntity(LPEDICT producer, LPEDICT target) {
     producer->rally.type = RALLY_TARGET_ENTITY;
     producer->rally.entity = target;
     producer->rally.entity_spawn_time = target->spawn_time;
-    producer->rally.point = (VECTOR2){ 0, 0 };
+    producer->rally.point = (vector2_t){ 0, 0 };
     G_RefreshRallyIndicatorForProducer(producer);
     return true;
 }
 
-static bool G_RallyEntityIsValid(LPEDICT producer) {
-    LPEDICT target;
+static bool G_RallyEntityIsValid(edict_t * producer) {
+    edict_t * target;
 
     if (!producer || producer->rally.type != RALLY_TARGET_ENTITY) return false;
     target = producer->rally.entity;
@@ -70,8 +70,8 @@ static bool G_RallyEntityIsValid(LPEDICT producer) {
     return true;
 }
 
-rallyTargetType_t G_ResolveRallyTarget(LPEDICT producer, LPVECTOR2 point, LPEDICT *target) {
-    if (point) *point = (VECTOR2){ 0, 0 };
+rallyTargetType_t G_ResolveRallyTarget(edict_t * producer, vector2_t * point, edict_t * *target) {
+    if (point) *point = (vector2_t){ 0, 0 };
     if (target) *target = NULL;
     if (!G_UnitHasRally(producer)) return RALLY_TARGET_NONE;
 
@@ -94,19 +94,19 @@ rallyTargetType_t G_ResolveRallyTarget(LPEDICT producer, LPVECTOR2 point, LPEDIC
     return RALLY_TARGET_SELF;
 }
 
-void G_UpdateRallyIndicator(LPGAMECLIENT client) {
+void G_UpdateRallyIndicator(gameClient_t * client) {
     static cstring_t const default_model = "UI\\Feedback\\RallyPoint\\RallyPoint.mdx";
-    LPEDICT clent;
-    LPEDICT producer;
-    LPEDICT target = NULL;
+    edict_t * clent;
+    edict_t * producer;
+    edict_t * target = NULL;
     cstring_t model_path;
-    VECTOR2 point;
-    VECTOR3 origin = { 0 };
+    vector2_t point;
+    vector3_t origin = { 0 };
     rallyTargetType_t type;
     uint32_t model;
     float angle;
-    LPEDICT indicator;
-    LPCANIMATION animation;
+    edict_t * indicator;
+    animation_t const * animation;
 
     if (!client || !(clent = G_GetPlayerEntityByNumber(client->ps.number)) || !clent->client) return;
     producer = G_GetMainSelectedUnit(client);
@@ -125,7 +125,7 @@ void G_UpdateRallyIndicator(LPGAMECLIENT client) {
     type = G_ResolveRallyTarget(producer, &point, &target);
     angle = game.constants.buildingAngle * (float)M_PI / 180.0f;
     if (type == RALLY_TARGET_POINT) {
-        origin = (VECTOR3){ point.x, point.y, 0 };
+        origin = (vector3_t){ point.x, point.y, 0 };
     } else if ((type == RALLY_TARGET_SELF || type == RALLY_TARGET_ENTITY) && target) {
         origin = target->s.origin;
         if (target->destructable.initialized) {
@@ -160,9 +160,9 @@ void G_UpdateRallyIndicator(LPGAMECLIENT client) {
     gi.LinkEntity(indicator);
 }
 
-bool G_ApplyRallyOrder(LPEDICT producer, LPEDICT produced) {
-    VECTOR2 point;
-    LPEDICT target;
+bool G_ApplyRallyOrder(edict_t * producer, edict_t * produced) {
+    vector2_t point;
+    edict_t * target;
     rallyTargetType_t type;
 
     if (!producer || !produced || !produced->inuse) return false;
@@ -173,10 +173,10 @@ bool G_ApplyRallyOrder(LPEDICT producer, LPEDICT produced) {
     return false;
 }
 
-void G_InvalidateRallyTarget(LPEDICT target) {
+void G_InvalidateRallyTarget(edict_t * target) {
     if (!target) return;
     FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT producer = &globals.edicts[i];
+        edict_t * producer = &globals.edicts[i];
         if (!producer->inuse || producer->rally.type != RALLY_TARGET_ENTITY ||
             producer->rally.entity != target ||
             producer->rally.entity_spawn_time != target->spawn_time) {
@@ -187,7 +187,7 @@ void G_InvalidateRallyTarget(LPEDICT target) {
     }
 }
 
-static bool rally_selecttarget(LPEDICT clent, LPEDICT target) {
+static bool rally_selecttarget(edict_t * clent, edict_t * target) {
     bool any = false;
 
     if (!clent || !clent->client || !target) return false;
@@ -198,7 +198,7 @@ static bool rally_selecttarget(LPEDICT clent, LPEDICT target) {
     return any;
 }
 
-static bool rally_selectlocation(LPEDICT clent, LPCVECTOR2 point) {
+static bool rally_selectlocation(edict_t * clent, vector2_t const * point) {
     bool any = false;
 
     if (!clent || !clent->client || !point) return false;
@@ -213,7 +213,7 @@ static bool rally_selectlocation(LPEDICT clent, LPCVECTOR2 point) {
 }
 
 BZ_COMMAND_PROC(AbilityRally) {
-    LPEDICT producer;
+    edict_t * producer;
 
     if (!clent || !clent->client) return;
     producer = G_GetMainSelectedUnit(clent->client);

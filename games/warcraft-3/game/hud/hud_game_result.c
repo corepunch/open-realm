@@ -18,9 +18,9 @@ static uint32_t game_result_last_defer_log[MAX_PLAYERS];
  * Reuse the already-loaded Esc-menu frame art so victory/defeat has the same
  * race-skinned panel background, pinned to the authored dialog bounds. */
 static void GameResultPrepareWindow(void) {
-    LPFRAMEDEF dialog = hud.result.GameResultDialog;
-    LPFRAMEDEF backdrop = hud.result.GameResultBackdrop;
-    LPFRAMEDEF menu_backdrop = hud.menu.EscMenuBackdrop;
+    frameDef_t * dialog = hud.result.GameResultDialog;
+    frameDef_t * backdrop = hud.result.GameResultBackdrop;
+    frameDef_t * menu_backdrop = hud.menu.EscMenuBackdrop;
 
     if (!dialog || !backdrop || backdrop->Type != FT_BACKDROP) return;
     if (menu_backdrop && menu_backdrop->Type == FT_BACKDROP)
@@ -39,8 +39,8 @@ static void GameResultPrepareWindow(void) {
  * Keep the window itself unchanged and place Quit directly below Continue,
  * matching the compact vertical button stack used by the other game menus. */
 static void GameResultPositionVictoryQuit(void) {
-    LPFRAMEDEF quit = hud.result.GameResultQuitButton;
-    LPFRAMEDEF continue_button = hud.result.GameResultContinueButton;
+    frameDef_t * quit = hud.result.GameResultQuitButton;
+    frameDef_t * continue_button = hud.result.GameResultContinueButton;
 
     if (!quit || !continue_button) return;
     memset(&quit->Points, 0, sizeof(quit->Points));
@@ -71,7 +71,7 @@ static cstring_t GameResultString(cstring_t key, cstring_t fallback) {
 
 /* This fallback exposes only result actions the current engine can execute.
  * Full Warcraft result policy belongs to Blizzard.j + ScriptDialog. */
-void UI_ShowGameResult(LPEDICT ent, uint32_t result) {
+void UI_ShowGameResult(edict_t * ent, uint32_t result) {
     bool victory, single_player;
 
     G_GameResultDebug("hud show enter ent=%p number=%ld client=%p result=%u",
@@ -134,8 +134,8 @@ void UI_ShowGameResult(LPEDICT ent, uint32_t result) {
 
 void UI_FlushPendingGameResults(void) {
     FOR_LOOP(i, game.max_clients) {
-        LPGAMECLIENT client = game.clients + i;
-        LPEDICT ent;
+        gameClient_t * client = game.clients + i;
+        edict_t * ent;
         uint32_t result;
         uint32_t now;
 
@@ -185,7 +185,7 @@ void UI_FlushPendingGameResults(void) {
     }
 }
 
-void UI_HideGameResult(LPEDICT ent) {
+void UI_HideGameResult(edict_t * ent) {
     if (!ent) return;
     G_GameResultDebug("hud hide ent=%u", (unsigned)ent->s.number);
     /* svc_window result buttons close the client-owned window before forwarding

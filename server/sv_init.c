@@ -109,7 +109,7 @@ static uint32_t SV_SaveLobbyClients(savedLobbyClient_t *saved, uint32_t max_save
         return 0;
     }
     FOR_LOOP(i, svs.num_clients) {
-        LPCLIENT cl = &svs.clients[i];
+        client_t * cl = &svs.clients[i];
 
         if (cl->state != cs_connected && cl->state != cs_spawned) {
             continue;
@@ -133,7 +133,7 @@ static void SV_RestoreLobbyClients(savedLobbyClient_t const *saved, uint32_t cou
         return;
     }
     FOR_LOOP(i, count) {
-        LPCLIENT cl;
+        client_t * cl;
 
         if (svs.num_clients >= MAX_CLIENTS ||
             svs.num_clients >= ge->max_clients) {
@@ -171,7 +171,7 @@ void SV_ClientConnect(void) {
         fprintf(stderr, "SV_ClientConnect: server full\n");
         return;
     }
-    LPCLIENT cl = &svs.clients[svs.num_clients];
+    client_t * cl = &svs.clients[svs.num_clients];
     svs.num_clients++;
     memset(cl, 0, sizeof(*cl));
     cl->state = cs_connected;
@@ -191,9 +191,9 @@ void SV_ClientConnect(void) {
 
 /* Find the client slot whose netchan address matches from.  For loopback
  * addresses, slot 0 (the local client) is always returned. */
-LPCLIENT SV_FindClientByAddr(const netadr_t *from) {
+client_t * SV_FindClientByAddr(const netadr_t *from) {
     FOR_LOOP(i, svs.num_clients) {
-        LPCLIENT cl = &svs.clients[i];
+        client_t * cl = &svs.clients[i];
         if (from->type == NA_LOOPBACK &&
             cl->netchan.remote_address.type == NA_LOOPBACK)
             return cl;
@@ -208,7 +208,7 @@ LPCLIENT SV_FindClientByAddr(const netadr_t *from) {
 
 /* Register a new remote client that sent the first connection packet. */
 void SV_DirectConnect(const netadr_t *from, cstring_t userinfo) {
-    LPCLIENT existing;
+    client_t * existing;
     if (!from) return;
     /* A repeated request means the first reply was lost or a local map restart
      * pre-created this address. Re-send the idempotent handshake response so
@@ -222,7 +222,7 @@ void SV_DirectConnect(const netadr_t *from, cstring_t userinfo) {
         fprintf(stderr, "SV_DirectConnect: server full\n");
         return;
     }
-    LPCLIENT cl = &svs.clients[svs.num_clients];
+    client_t * cl = &svs.clients[svs.num_clients];
     uint32_t clientnum = svs.num_clients;
     svs.num_clients++;
     memset(cl, 0, sizeof(*cl));
@@ -271,7 +271,7 @@ bool SV_BuildLoadingScreen(void) {
 }
 
 /* Dependencies precede the screen; explicit chunks keep each UDP signon packet within its MTU budget. */
-void SV_SendLoadingScreen(LPCLIENT cl) {
+void SV_SendLoadingScreen(client_t * cl) {
     if (!sv.loading.cursize) {
         Com_Error(ERR_DROP, "Missing initial loading presentation");
         return;
@@ -425,7 +425,7 @@ void SV_Shutdown(void) {
         return;
     }
     FOR_LOOP(i, svs.num_clients) {
-        LPCLIENT client = &svs.clients[i];
+        client_t * client = &svs.clients[i];
         if (client->state == cs_free) {
             continue;
         }

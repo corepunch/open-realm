@@ -16,7 +16,7 @@ cparticle_t *R_SpawnParticle(void) {
     emitted[emit_count] = (cparticle_t){ .size_value_scale = 1, .size_time_scale = 1 };
     return &emitted[emit_count++];
 }
-LPCTEXTURE MDLX_GetTexture(mdxModel_t const *model, uint32_t team, uint32_t tex, uint32_t repl, LPCTEXTURE over) {
+texture_t const * MDLX_GetTexture(mdxModel_t const *model, uint32_t team, uint32_t tex, uint32_t repl, texture_t const * over) {
     (void)model; (void)team; (void)tex; (void)repl; (void)over; return NULL;
 }
 void MDLX_ReleaseSprites(mdxModel_t *model) { (void)model; }
@@ -144,10 +144,10 @@ static uint32_t load_count, release_count, register_count;
 static bool fail_load, fail_scoped_load, touch_during_registration;
 static PATHSTR last_model_load;
 static uint32_t spawn_count;
-static LPTEXTURE texture_load_result;
+static texture_t * texture_load_result;
 static PATHSTR last_texture_load;
 static GLenum upload_format, upload_internal;
-static COLOR32 upload_pixel;
+static color32_t upload_pixel;
 static uint32_t upload_count;
 static void const * upload_data;
 static cstring_t test_version = "3.1", test_extension = "";
@@ -169,7 +169,7 @@ static void test_teximage(GLenum target, GLint level, GLint internal, GLsizei w,
     (void)target; (void)level; (void)w; (void)h; (void)border;
     T_EQ(type, GL_UNSIGNED_BYTE);
     upload_format = format; upload_internal = internal; upload_data = data; upload_count++;
-    if (data) upload_pixel = *(LPCCOLOR32)data;
+    if (data) upload_pixel = *(color32_t const *)data;
 }
 static void test_gentex(GLsizei n, GLuint *ids) { while (n--) *ids++ = 99; }
 static void test_bindtex(GLenum target, GLuint id) { (void)target; (void)id; }
@@ -236,7 +236,7 @@ static void test_free(handle_t memory) { free_count++; free(memory); }
 static void test_error(cstring_t format, ...) { (void)format; T_ASSERT(false); }
 static void test_spawn(void *context) { (*(uint32_t *)context)++; }
 
-LPTEXTURE R_LoadTexture(cstring_t filename) {
+texture_t * R_LoadTexture(cstring_t filename) {
     snprintf(last_texture_load, sizeof(last_texture_load), "%s", filename);
     if (cache_minimap_textures) {
         PATHSTR resolved;
@@ -246,7 +246,7 @@ LPTEXTURE R_LoadTexture(cstring_t filename) {
         if (R_MapAssetCandidate(filename, resolved, sizeof(resolved)) && test_minimap_fs_read(resolved, &file) >= 0) {
             free(file); file = NULL; path = resolved;
         }
-        LPTEXTURE texture = R_FindLoadedTexture(path);
+        texture_t * texture = R_FindLoadedTexture(path);
         if (texture) return texture;
         if (test_minimap_fs_read(path, &file) < 0)
             return tr.texture[TEX_PLACEHOLDER];
@@ -260,16 +260,16 @@ LPTEXTURE R_LoadTexture(cstring_t filename) {
 }
 
 static mdxModel_t *cliff_model;
-LPMODEL R_LoadModel(cstring_t filename) {
+model_t * R_LoadModel(cstring_t filename) {
     load_count++;
     snprintf(last_model_load, sizeof(last_model_load), "%s", filename ? filename : "");
     if (fail_load || (fail_scoped_load && strstr(last_model_load, ".w3m\\"))) return NULL;
-    LPMODEL model = test_alloc(sizeof(model_t));
+    model_t * model = test_alloc(sizeof(model_t));
     if (cliff_model) { model->modeltype = ID_MDLX; model->mdx = cliff_model; }
     return model;
 }
 
-void R_ReleaseModel(LPMODEL model) { release_count++; test_free(model); }
+void R_ReleaseModel(model_t * model) { release_count++; test_free(model); }
 
 static bool test_mpq_read(handle_t archive, cstring_t path, void **buffer, uint32_t *size_out) {
     handle_t file = NULL;
@@ -320,11 +320,11 @@ static void reset_registry(void) {
     last_model_load[0] = '\0';
 }
 
-static LPTEXTURE reset_texture_registry(void) {
+static texture_t * reset_texture_registry(void) {
     R_ShutdownTextureCache();
     ri.MemAlloc = test_alloc; ri.MemFree = test_free;
     r_load_streamed = false; r_stream_generation = 0; texture_delete_count = 0;
-    return test_alloc(sizeof(TEXTURE));
+    return test_alloc(sizeof(texture_t));
 }
 
 static rImageCacheEntry_t *test_texture_entry(cstring_t name) {
@@ -374,12 +374,12 @@ TEST(renderer_model, mdx_keytrack_lookup_uses_hermite_stride) {
 }
 
 TEST(renderer_model, mdx_global_sequence_uses_first_key_when_duration_precedes_it) {
-    uint8_t storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(QUATERNION)] = { 0 };
+    uint8_t storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(quaternion_t)] = { 0 };
     mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
     mdxGlobalSequence_t global = { .value = 0 };
     mdxModel_t model = { .globalSequences = &global, .num_globalSequences = 1 };
-    QUATERNION authored = { 0.25f, -0.5f, 0.75f, 1.0f };
-    QUATERNION value = { 0, 0, 0, 1 };
+    quaternion_t authored = { 0.25f, -0.5f, 0.75f, 1.0f };
+    quaternion_t value = { 0, 0, 0, 1 };
     mdxKeyFrame_t *key = (mdxKeyFrame_t *)track->values;
 
     track->keyframeCount = 1;
@@ -426,7 +426,7 @@ TEST(renderer_model, dnc_first_light_follows_sequence_zero_phase) {
     };
     mdxModel_t mdx = { .sequences = &seq, .num_sequences = 1, .lights = &light };
     model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
-    RMODELLIGHT sampled = { 0 };
+    rModelLight_t sampled = { 0 };
 
     intensity->keyframeCount = 2;
     intensity->datatype = TDATA_FLOAT1;
@@ -452,7 +452,7 @@ TEST(renderer_model, dnc_first_light_follows_sequence_zero_phase) {
 
 TEST(renderer_model, geoset_animation_static_colors_convert_bgr_to_rgb) {
     mdxGeosetAnim_t geosetAnim = { .staticColor = { 0.85f, 0.40f, 0.10f } };
-    VECTOR3 rgb = { 0, 0, 0 };
+    vector3_t rgb = { 0, 0, 0 };
 
     MDLX_GetGeosetAnimationStaticColor(&geosetAnim, &rgb);
     T_FEQ(rgb.x, geosetAnim.staticColor.z, 0.001f);
@@ -461,11 +461,11 @@ TEST(renderer_model, geoset_animation_static_colors_convert_bgr_to_rgb) {
 }
 
 TEST(renderer_model, animated_mdx_color_tracks_convert_bgr_to_rgb) {
-    uint8_t storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(VECTOR3)] = { 0 };
+    uint8_t storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vector3_t)] = { 0 };
     mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
     mdxKeyFrame_t *key = (mdxKeyFrame_t *)track->values;
-    VECTOR3 authored_bgr = { 0.85f, 0.40f, 0.10f };
-    VECTOR3 rgb = { 0, 0, 0 };
+    vector3_t authored_bgr = { 0.85f, 0.40f, 0.10f };
+    vector3_t rgb = { 0, 0, 0 };
     mdxSequence_t seq = { .interval = { 0, 1000 } };
     mdxModel_t model = { .sequences = &seq, .num_sequences = 1 };
 
@@ -483,13 +483,13 @@ TEST(renderer_model, animated_mdx_color_tracks_convert_bgr_to_rgb) {
 }
 
 TEST(renderer_model, animated_mdx_light_colors_follow_warsmash_rgb_order) {
-    uint8_t color_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(VECTOR3)] = { 0 };
-    uint8_t ambient_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(VECTOR3)] = { 0 };
+    uint8_t color_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vector3_t)] = { 0 };
+    uint8_t ambient_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vector3_t)] = { 0 };
     mdxKeyTrack_t *color_track = (mdxKeyTrack_t *)color_storage;
     mdxKeyTrack_t *ambient_track = (mdxKeyTrack_t *)ambient_storage;
     mdxKeyFrame_t *color_key = (mdxKeyFrame_t *)color_track->values;
     mdxKeyFrame_t *ambient_key = (mdxKeyFrame_t *)ambient_track->values;
-    VECTOR3 authored_bgr = { 0.799191f, 0.532794f, 0.313408f };
+    vector3_t authored_bgr = { 0.799191f, 0.532794f, 0.313408f };
     mdxSequence_t seq = { .interval = { 0, 1000 } };
     mdxLight_t light = {
         .type = MODELLIGHTTYPE_DIRECT,
@@ -500,7 +500,7 @@ TEST(renderer_model, animated_mdx_light_colors_follow_warsmash_rgb_order) {
     };
     mdxModel_t mdx = { .sequences = &seq, .num_sequences = 1, .lights = &light };
     model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
-    RMODELLIGHT sampled = { 0 };
+    rModelLight_t sampled = { 0 };
 
     color_track->keyframeCount = ambient_track->keyframeCount = 1;
     color_track->datatype = ambient_track->datatype = TDATA_FLOAT3;
@@ -528,10 +528,10 @@ TEST(renderer_model, mdx_ui_particles_preserve_pivot_sizes_and_both_quads) {
         .Speed = 0.02f, .FrameFlags = 2, .TailLength = 0.3f, .Time = 0.5f,
         .Alpha = {255, 255, 0}, .ParticleScaling = {0.01f, 0.004f, 0.002f},
         .SegmentColor = {1,1,1, 1,1,0, 0,0,0}, .Rows = 1, .Columns = 1, .FilterMode = 1 };
-    VECTOR3 pivot = {0.005f, 0.02f, 0.018f};
+    vector3_t pivot = {0.005f, 0.02f, 0.018f};
     mdxModel_t model = { .emitters = &emitter, .pivots = &pivot, .num_pivots = 1 };
     renderEntity_t entity = { .frame = 833, .oldframe = 833 };
-    MATRIX4 matrix;
+    matrix4_t matrix;
     viewDef_t saved = tr.viewDef;
     Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
     tr.viewDef.deltaTime = 20; emit_count = 0;
@@ -546,8 +546,8 @@ TEST(renderer_model, mdx_ui_particles_preserve_pivot_sizes_and_both_quads) {
 
 TEST(renderer_model, mdx_ribbon_trail_emits_connected_edges_and_expires) {
     trail_t trail = { 0 };
-    VECTOR3 above = { 0, 10, 0 }, below = { 0, -10, 0 };
-    COLOR32 white = { 255, 255, 255, 180 };
+    vector3_t above = { 0, 10, 0 }, below = { 0, -10, 0 };
+    color32_t white = { 255, 255, 255, 180 };
     trailVert_t verts[32];
     uint32_t nverts;
 
@@ -568,7 +568,7 @@ TEST(renderer_model, mdx_ribbon_strip_u_survives_adding_an_edge) {
     trail_t trail = { .head = 2, .count = 2 };
     trailVert_t before[12], after[18];
     uint32_t nbefore, nafter;
-    COLOR32 white = { 255, 255, 255, 255 };
+    color32_t white = { 255, 255, 255, 255 };
 
     trail.edges[0] = (trailEdge_t){ .above = { 0, 10, 0 }, .below = { 0, -10, 0 }, .color = white, .age = 0.2f };
     trail.edges[1] = (trailEdge_t){ .above = { 5, 10, 0 }, .below = { 5, -10, 0 }, .color = white, .age = 0.1f };
@@ -588,8 +588,8 @@ TEST(renderer_model, mdx_ribbon_strip_u_survives_adding_an_edge) {
 
 TEST(renderer_model, mdx_ribbon_hitch_does_not_stack_coincident_edges) {
     trail_t trail = { 0 };
-    VECTOR3 above = { 0, 10, 0 }, below = { 0, -10, 0 };
-    COLOR32 white = { 255, 255, 255, 255 };
+    vector3_t above = { 0, 10, 0 }, below = { 0, -10, 0 };
+    color32_t white = { 255, 255, 255, 255 };
     float xmin, xmax;
     int e, alive;
 
@@ -608,8 +608,8 @@ TEST(renderer_model, mdx_ribbon_hitch_does_not_stack_coincident_edges) {
 
 TEST(renderer_model, mdx_ribbon_edges_match_spawn_time_positions) {
     trail_t trail = { 0 };
-    VECTOR3 above = { 0, 10, 0 }, below = { 0, -10, 0 };
-    COLOR32 white = { 255, 255, 255, 255 };
+    vector3_t above = { 0, 10, 0 }, below = { 0, -10, 0 };
+    color32_t white = { 255, 255, 255, 255 };
     int e;
 
     FOR_LOOP(i, 5) { /* linear motion, 1 edge per 100 ms at 10/s */
@@ -625,8 +625,8 @@ TEST(renderer_model, mdx_ribbon_edges_match_spawn_time_positions) {
 
 TEST(renderer_model, mdx_ribbon_edge_colors_stay_historic) {
     trail_t trail = { 0 };
-    VECTOR3 above = { 0, 10, 0 }, below = { 0, -10, 0 };
-    COLOR32 red = { 255, 0, 0, 255 }, white = { 255, 255, 255, 255 };
+    vector3_t above = { 0, 10, 0 }, below = { 0, -10, 0 };
+    color32_t red = { 255, 0, 0, 255 }, white = { 255, 255, 255, 255 };
     trailVert_t verts[12];
 
     R_TrailAdvance(&trail, above, below, red, 10.0f, 10.0f, 0.0f, 1000, 100);
@@ -643,12 +643,12 @@ TEST(renderer_model, mdx_ribbon_visibility_defaults_outside_death_keys) {
     mdxSequence_t seqs[2] = { { .interval = { 0, 1000 } }, { .interval = { 2000, 3000 } } };
     mdxRibbonEmitter_t ribbon = { .heightAbove = 20, .heightBelow = 20, .alpha = 0.7f,
         .color = { 1, 1, 1 }, .lifespan = 0.5f, .emissionRate = 20, .rows = 1, .columns = 1 };
-    VECTOR3 pivot = { 0, 0, 0 };
+    vector3_t pivot = { 0, 0, 0 };
     mdxModel_t model = { .ribbons = &ribbon, .pivots = &pivot, .num_pivots = 1,
         .sequences = seqs, .num_sequences = 2 };
     renderEntity_t entity = { .number = 7, .frame = 0 };
-    MATRIX4 matrix;
-    VERTEX verts[64];
+    matrix4_t matrix;
+    vertex_t verts[64];
     uint32_t nverts;
     float visibility = 1.0f;
     viewDef_t saved = tr.viewDef;
@@ -688,11 +688,11 @@ TEST(renderer_model, mdx_ribbon_visibility_defaults_outside_death_keys) {
 TEST(renderer_model, mdx_ribbon_second_emit_same_frame_does_not_advance) {
     mdxRibbonEmitter_t ribbon = { .heightAbove = 20, .heightBelow = 20, .alpha = 1.0f,
         .color = { 1, 1, 1 }, .lifespan = 1.0f, .emissionRate = 20, .rows = 1, .columns = 1 };
-    VECTOR3 pivot = { 0, 0, 0 };
+    vector3_t pivot = { 0, 0, 0 };
     mdxModel_t model = { .ribbons = &ribbon, .pivots = &pivot, .num_pivots = 1 };
     renderEntity_t entity = { .number = 9, .frame = 0 };
-    MATRIX4 matrix;
-    VERTEX verts[64];
+    matrix4_t matrix;
+    vertex_t verts[64];
     viewDef_t saved = tr.viewDef;
 
     ribbon.node.node_id = 0;
@@ -717,11 +717,11 @@ TEST(renderer_model, mdx_ribbon_second_emit_same_frame_does_not_advance) {
 TEST(renderer_model, mdx_ribbon_entity_reuse_after_gap_drops_old_edges) {
     mdxRibbonEmitter_t ribbon = { .heightAbove = 10, .heightBelow = 10, .alpha = 1.0f,
         .color = { 1, 1, 1 }, .lifespan = 1.0f, .emissionRate = 20, .rows = 1, .columns = 1 };
-    VECTOR3 pivot = { 0, 0, 0 };
+    vector3_t pivot = { 0, 0, 0 };
     mdxModel_t model = { .ribbons = &ribbon, .pivots = &pivot, .num_pivots = 1 };
     renderEntity_t entity = { .number = 11, .frame = 0 };
-    MATRIX4 matrix;
-    VERTEX verts[64];
+    matrix4_t matrix;
+    vertex_t verts[64];
     uint32_t nverts;
     viewDef_t saved = tr.viewDef;
 
@@ -731,7 +731,7 @@ TEST(renderer_model, mdx_ribbon_entity_reuse_after_gap_drops_old_edges) {
     tr.viewDef.deltaTime = 50; tr.viewDef.time = 1000;
     MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
     T_EQ(model.ribbon_states->trails[0].count, 1);
-    Matrix4_translate(&matrix, &(VECTOR3){ 10000.0f, 0.0f, 0.0f }); /* edict reused far away a second later */
+    Matrix4_translate(&matrix, &(vector3_t){ 10000.0f, 0.0f, 0.0f }); /* edict reused far away a second later */
     tr.viewDef.time = 2000;
     MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
     T_EQ(model.ribbon_states->trails[0].count, 1);
@@ -753,8 +753,8 @@ TEST(renderer_model, mdx_detached_ribbon_waits_one_frame_then_fades_out) {
         .color = { 1, 1, 1 }, .lifespan = 0.5f, .emissionRate = 20, .rows = 1, .columns = 1 };
     mdxModel_t model = { .ribbons = &ribbon };
     renderEntity_t entity = { .number = 31 };
-    MATRIX4 matrix;
-    VERTEX verts[64];
+    matrix4_t matrix;
+    vertex_t verts[64];
     viewDef_t saved = tr.viewDef;
 
     ribbon.node.node_id = 0; Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
@@ -779,8 +779,8 @@ TEST(renderer_model, mdx_detached_ribbon_reattach_cancels_orphan) {
         .color = { 1, 1, 1 }, .lifespan = 1.0f, .emissionRate = 20, .rows = 1, .columns = 1 };
     mdxModel_t model = { .ribbons = &ribbon };
     renderEntity_t entity = { .number = 32 };
-    MATRIX4 matrix;
-    VERTEX verts[64];
+    matrix4_t matrix;
+    vertex_t verts[64];
     viewDef_t saved = tr.viewDef;
 
     ribbon.node.node_id = 0; Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
@@ -801,8 +801,8 @@ TEST(renderer_model, mdx_detached_ribbon_reuse_drops_old_owner_state) {
         .color = { 1, 1, 1 }, .lifespan = 1.0f, .emissionRate = 20, .rows = 1, .columns = 1 };
     mdxModel_t model = { .ribbons = &ribbon };
     renderEntity_t entity = { .number = 33 };
-    MATRIX4 matrix;
-    VERTEX verts[64];
+    matrix4_t matrix;
+    vertex_t verts[64];
     viewDef_t saved = tr.viewDef;
 
     ribbon.node.node_id = 0; Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
@@ -811,7 +811,7 @@ TEST(renderer_model, mdx_detached_ribbon_reuse_drops_old_owner_state) {
     MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
     tr.viewDef.time = 3100; MDLX_TickDetachedRibbons();
     T_EQ(MDLX_DetachedRibbonCount(), (uint32_t)1);
-    tr.viewDef.time = 4000; Matrix4_translate(&matrix, &(VECTOR3){10000, 0, 0});
+    tr.viewDef.time = 4000; Matrix4_translate(&matrix, &(vector3_t){10000, 0, 0});
     MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
     T_EQ(MDLX_DetachedRibbonCount(), (uint32_t)0);
     T_ASSERT(model.ribbon_states->trails[0].count >= 1);
@@ -907,9 +907,9 @@ TEST(renderer_model, mdx_particle_filter_modes_preserve_authored_blending) {
 TEST(renderer_model, mdx_attachment_positions_follow_authored_pivot_and_model_transform) {
     mdxAttachment_t sprite = { 0 }, other = { 0 };
     mdxAttachmentPosition_t positions[2] = { 0 };
-    VECTOR3 pivots[] = { { 4.0f, 5.0f, 6.0f }, { 1.0f, 2.0f, 3.0f } };
+    vector3_t pivots[] = { { 4.0f, 5.0f, 6.0f }, { 1.0f, 2.0f, 3.0f } };
     mdxModel_t model = { .attachments = &sprite, .pivots = pivots, .num_pivots = 2 };
-    MATRIX4 transform;
+    matrix4_t transform;
     uint32_t count;
 
     snprintf(sprite.node.name, sizeof(sprite.node.name), "Sprite First Ref");
@@ -921,7 +921,7 @@ TEST(renderer_model, mdx_attachment_positions_follow_authored_pivot_and_model_tr
     model.num_nodes = 2;
 
     Matrix4_identity(&transform);
-    Matrix4_translate(&transform, &(VECTOR3){ 10.0f, 20.0f, 30.0f });
+    Matrix4_translate(&transform, &(vector3_t){ 10.0f, 20.0f, 30.0f });
     count = MDLX_CollectAttachmentPositions(&model, &transform, 0, 0,
                                             "Sprite ", positions,
                                             sizeof(positions) / sizeof(*positions));
@@ -935,14 +935,14 @@ TEST(renderer_model, mdx_attachment_positions_follow_authored_pivot_and_model_tr
 
 
 TEST(renderer_model, mdx_geometry_packs_two_geosets_into_model_ranges) {
-    VECTOR3 pos[] = {{1,2,3}, {4,5,6}, {7,8,9}}, normals[] = {{0,0,1}, {0,1,0}, {1,0,0}};
-    VECTOR2 uv[] = {{0,0}, {1,0}, {0,1}};
+    vector3_t pos[] = {{1,2,3}, {4,5,6}, {7,8,9}}, normals[] = {{0,0,1}, {0,1,0}, {1,0,0}};
+    vector2_t uv[] = {{0,0}, {1,0}, {0,1}};
     short first_idx[] = {0,1,0}, second_idx[] = {0};
     mdxGeoset_t second = {.vertices=pos+2,.normals=normals+2,.texcoord=uv+2,.triangles=second_idx,
         .num_vertices=1,.num_normals=1,.num_texcoord=1,.num_triangles=1};
     mdxGeoset_t first = {.vertices=pos,.normals=normals,.texcoord=uv,.triangles=first_idx,
         .num_vertices=2,.num_normals=2,.num_texcoord=2,.num_triangles=3,.next=&second};
-    mdxModel_t model = {.geosets=&first}; VERTEX vertices[3]; uint16_t indices[4];
+    mdxModel_t model = {.geosets=&first}; vertex_t vertices[3]; uint16_t indices[4];
     ri.MemAlloc = test_alloc; ri.MemFree = test_free;
     MDX_PackModelGeometry(&model, vertices, indices);
     T_FEQ(vertices[2].position.x, 7, 0.001f);
@@ -953,7 +953,7 @@ TEST(renderer_model, mdx_geometry_packs_two_geosets_into_model_ranges) {
 }
 
 TEST(renderer_model, map_scope_precedes_base_model_and_clears_at_boundary) {
-    LPMODEL first, second;
+    model_t * first, *second;
 
     reset_registry();
     R_RegisterMapAssets("Maps\\Campaign\\Human02.w3m");
@@ -974,7 +974,7 @@ TEST(renderer_model, map_scope_precedes_base_model_and_clears_at_boundary) {
 }
 
 TEST(renderer_model, map_scope_falls_back_when_import_is_absent) {
-    LPMODEL model;
+    model_t * model;
 
     reset_registry();
     R_RegisterMapAssets("Maps\\Campaign\\Human03.w3m");
@@ -986,7 +986,7 @@ TEST(renderer_model, map_scope_falls_back_when_import_is_absent) {
 }
 
 TEST(renderer_model, filename_cache_hit_and_miss) {
-    LPMODEL first, second;
+    model_t * first, *second;
     reset_registry();
     first = R_LoadRegisteredModel("Models/Foo.mdx");
     second = R_LoadRegisteredModel("models/foo.mdx");
@@ -997,7 +997,7 @@ TEST(renderer_model, filename_cache_hit_and_miss) {
 }
 
 TEST(renderer_model, registration_keeps_touched_model_then_reclaims_it) {
-    LPMODEL model;
+    model_t * model;
     reset_registry();
     model = R_LoadRegisteredModel("models/touched.mdx"); R_ReleaseRegisteredModel(model);
     touch_during_registration = true; R_RegisterMapAssets("current");
@@ -1007,7 +1007,7 @@ TEST(renderer_model, registration_keeps_touched_model_then_reclaims_it) {
 }
 
 TEST(renderer_model, missing_model_placeholder_is_cached) {
-    LPMODEL first, second;
+    model_t * first, *second;
     reset_registry(); fail_load = true;
     first = R_LoadRegisteredModel("models/missing.mdx"); second = R_LoadRegisteredModel("models/missing.mdx");
     T_ASSERT(first == second); T_EQ(load_count, 1);
@@ -1016,13 +1016,13 @@ TEST(renderer_model, missing_model_placeholder_is_cached) {
 }
 
 TEST(renderer_model, unknown_model_release_is_immediate) {
-    LPMODEL model;
+    model_t * model;
     reset_registry(); model = test_alloc(sizeof(*model));
     R_ReleaseRegisteredModel(model); T_EQ(release_count, 1);
 }
 
 TEST(renderer_texture, cached_registration_preserves_newer_texture_indices) {
-    TEXTURE first = { .texid = 100 }, second = { .texid = 101 };
+    texture_t first = { .texid = 100 }, second = { .texid = 101 };
 
     texture_load_result = &first; T_EQ(R_RegisterTextureFile("first"), 100);
     texture_load_result = &second; T_EQ(R_RegisterTextureFile("second"), 101);
@@ -1032,7 +1032,7 @@ TEST(renderer_texture, cached_registration_preserves_newer_texture_indices) {
 }
 
 TEST(renderer_texture, resident_registry_keeps_entries_beyond_configstring_limit) {
-    static TEXTURE placeholder = { .texid = 77 };
+    static texture_t placeholder = { .texid = 77 };
     char path[64];
 
     ri.MemAlloc = test_alloc; ri.MemFree = test_free; tr.texture[TEX_PLACEHOLDER] = &placeholder;
@@ -1044,7 +1044,7 @@ TEST(renderer_texture, resident_registry_keeps_entries_beyond_configstring_limit
 }
 
 TEST(renderer_texture, wc3_map_registration_reclaims_skin_override_and_keeps_stock) {
-    static TEXTURE placeholder = { .texid = 1 };
+    static texture_t placeholder = { .texid = 1 };
     rImageCacheEntry_t *entry;
     uint32_t map_size = 0;
     void *map_data = NULL;
@@ -1086,7 +1086,7 @@ TEST(renderer_texture, wc3_map_registration_reclaims_skin_override_and_keeps_sto
 }
 
 TEST(renderer_texture, persistent_then_streamed_remains_pinned) {
-    LPTEXTURE texture = reset_texture_registry();
+    texture_t * texture = reset_texture_registry();
 
     R_CacheLoadedTexture("textures/shared.blp", texture);
     T_ASSERT(r_image_cache->pinned); T_ASSERT(!r_image_cache->streamed);
@@ -1097,7 +1097,7 @@ TEST(renderer_texture, persistent_then_streamed_remains_pinned) {
 }
 
 TEST(renderer_texture, streamed_then_persistent_becomes_pinned) {
-    LPTEXTURE texture = reset_texture_registry();
+    texture_t * texture = reset_texture_registry();
 
     r_load_streamed = true; R_CacheLoadedTexture("textures/shared.blp", texture); r_load_streamed = false;
     T_ASSERT(r_image_cache->streamed); T_ASSERT(!r_image_cache->pinned);
@@ -1109,7 +1109,7 @@ TEST(renderer_texture, streamed_then_persistent_becomes_pinned) {
 }
 
 TEST(renderer_texture, stale_streamed_texture_is_reclaimed) {
-    LPTEXTURE texture = reset_texture_registry();
+    texture_t * texture = reset_texture_registry();
 
     r_load_streamed = true; R_CacheLoadedTexture("textures/streamed.blp", texture); r_load_streamed = false;
     R_AdvanceTextureGeneration(); R_ReclaimStreamedTextures(0);
@@ -1117,7 +1117,7 @@ TEST(renderer_texture, stale_streamed_texture_is_reclaimed) {
 }
 
 TEST(renderer_texture, current_streamed_generation_is_retained) {
-    LPTEXTURE texture = reset_texture_registry();
+    texture_t * texture = reset_texture_registry();
 
     r_load_streamed = true; R_CacheLoadedTexture("textures/current.blp", texture); r_load_streamed = false;
     R_ReclaimStreamedTextures(0);
@@ -1126,7 +1126,7 @@ TEST(renderer_texture, current_streamed_generation_is_retained) {
 }
 
 TEST(renderer_texture, persistent_alias_pins_streamed_owner) {
-    LPTEXTURE texture = reset_texture_registry();
+    texture_t * texture = reset_texture_registry();
 
     r_load_streamed = true; R_CacheLoadedTexture("textures/owner.blp", texture); r_load_streamed = false;
     R_CacheLoadedTexture("textures/alias.blp", texture);
@@ -1138,7 +1138,7 @@ TEST(renderer_texture, persistent_alias_pins_streamed_owner) {
 }
 
 TEST(renderer_texture, reclaim_removes_streamed_aliases_with_owner) {
-    LPTEXTURE texture = reset_texture_registry();
+    texture_t * texture = reset_texture_registry();
 
     r_load_streamed = true;
     R_CacheLoadedTexture("textures/owner.blp", texture);
@@ -1177,12 +1177,12 @@ TEST(renderer_instances, dynamic_capacity_reuses_and_grows_power_of_two) {
 }
 
 TEST(renderer_shader, environ_light_converts_to_model_lighting) {
-    ENVIRONLIGHT env = {
+    environLight_t env = {
         .dir = { 1, 0, 0 }, .color = { 0.4f, 0.5f, 0.6f }, .ambient = { 0.1f, 0.2f, 0.3f },
         .intensity = 0.8f, .ambient_intensity = 0.25f, .type = R_MODEL_LIGHT_DIRECT, .valid = true,
     };
-    MODELLIGHTING lighting;
-    ENVIRONLIGHT empty = {0};
+    modelLighting_t lighting;
+    environLight_t empty = {0};
     T_ASSERT(R_LightingFromEnviron(&env, &lighting));
     T_EQ(lighting.count, 1);
     T_EQ(lighting.lights[0].type, R_MODEL_LIGHT_DIRECT);
@@ -1196,8 +1196,8 @@ TEST(renderer_shader, environ_light_converts_to_model_lighting) {
 }
 
 TEST(renderer_shader, directional_light_uses_array_schema) {
-    MATRIX4 packed[BZ_MODEL_LIGHT_MAX];
-    MODELLIGHTING state = {
+    matrix4_t packed[BZ_MODEL_LIGHT_MAX];
+    modelLighting_t state = {
         .ambient = { 1, 1, 1 }, .count = 1,
         .lights[0] = {
             .dir = { 1, 2, 3 }, .color = { 4, 5, 6 }, .ambient = { 7, 8, 9 },
@@ -1211,8 +1211,8 @@ TEST(renderer_shader, directional_light_uses_array_schema) {
 }
 
 TEST(renderer_shader, lighting_state_packs_all_sources) {
-    MATRIX4 packed[BZ_MODEL_LIGHT_MAX];
-    MODELLIGHTING state = { .count = 3 };
+    matrix4_t packed[BZ_MODEL_LIGHT_MAX];
+    modelLighting_t state = { .count = 3 };
     FOR_LOOP(i, state.count) {
         state.lights[i].type = R_MODEL_LIGHT_DIRECT;
         state.lights[i].color.x = (float)i + 1.0f;
@@ -1223,8 +1223,8 @@ TEST(renderer_shader, lighting_state_packs_all_sources) {
 }
 
 TEST(renderer_shader, grass_state_uses_one_matrix) {
-    MATRIX4 packed;
-    MODELGRASS grass = {
+    matrix4_t packed;
+    modelGrass_t grass = {
         .camera = { 1, 2 }, .fade = { 3, 4 }, .time = 5, .wind = { 6, 7, 8 },
         .phase = { 9, 10, 11, 12 }, .height = { 13, 14 }, .enabled = true,
     };
@@ -1239,7 +1239,7 @@ TEST(renderer_bones, model_shader_preserves_high_palette_indices) {
     R_SetShaderSourceFromDesc(1, &sd_model, true, NULL);
     T_NOT_NULL(strstr(shader_src, "uniform mat4 u_bones[128];"));
     T_EQ(sd_model.Uniforms[0].count, BZ_BONE_PALETTE_MAX);
-    T_EQ(sd_model.Uniforms[0].count_offset, offsetof(MODELSTATE, boneCount));
+    T_EQ(sd_model.Uniforms[0].count_offset, offsetof(modelState_t, boneCount));
     T_ASSERT(sd_model.Uniforms[0].counted);
     T_NULL(strstr(shader_src, "BZ_BONE_COUNT"));
     /* Slot 83 must stay 83: the old clamp redirected it to 63 with a 64-matrix palette. */
@@ -1335,15 +1335,15 @@ TEST(renderer_shader, default_world_shader_accepts_environment_lights) {
 
 /* Exercise the shadow descriptor's actual upload ABI and cache across fog enable/disable transitions. */
 TEST(renderer_shader, shadow_fog_uploads_colour_range_and_disable) {
-    SPRITEPROG shader = {0};
+    spriteProg_t shader = {0};
     reset_shader(); R_LoadShader(&sd_shadow_splat, NULL, &shader);
     memset(&upload, 0, sizeof(upload));
     shader.state.fogEnable = true;
     R_ApplyShader(&shader); T_EQ(upload.calls, 1); T_EQ(upload.integer, 1);
-    shader.state.fogColor = (VECTOR3){0.2f, 0.3f, 0.4f};
+    shader.state.fogColor = (vector3_t){0.2f, 0.3f, 0.4f};
     R_ApplyShader(&shader); T_EQ(upload.calls, 2); T_EQ(upload.width, 3);
     T_FEQ(upload.data[0], 0.2f, 0.0001f); T_FEQ(upload.data[2], 0.4f, 0.0001f);
-    shader.state.fogParams = (VECTOR2){800, 3500};
+    shader.state.fogParams = (vector2_t){800, 3500};
     R_ApplyShader(&shader); T_EQ(upload.calls, 3); T_EQ(upload.width, 2);
     T_EQ(upload.data[0], 800); T_EQ(upload.data[1], 3500);
     R_ApplyShader(&shader); T_EQ(upload.calls, 3);
@@ -1354,7 +1354,7 @@ TEST(renderer_shader, shadow_fog_uploads_colour_range_and_disable) {
 
 TEST(renderer_shader, model_cache_checks_compile_and_link_once) {
     reset_shader();
-    MODELPROG * shader = R_ModelShader();
+    modelProg_t * shader = R_ModelShader();
     T_NOT_NULL(shader); T_ASSERT(R_ModelShader() == shader);
     T_EQ(shader_test.creates, 2); T_EQ(shader_test.links, 1); T_EQ(shader_test.deleted, 2);
     T_EQ(shader_test.exitcode, 0); T_EQ(shader_test.logs, 0);
@@ -1363,7 +1363,7 @@ TEST(renderer_shader, model_cache_checks_compile_and_link_once) {
 
 TEST(renderer_shader, instanced_cache_initializes_full_identity_palette_once) {
     reset_shader();
-    MODELPROG * shader = R_ModelShaderInstanced();
+    modelProg_t * shader = R_ModelShaderInstanced();
     T_NOT_NULL(shader); T_ASSERT(R_ModelShaderInstanced() == shader);
     T_EQ(shader_test.creates, 2); T_EQ(shader_test.links, 1); T_EQ(shader_test.uploads, 0);
     FOR_LOOP(i, BZ_BONE_PALETTE_MAX) FOR_LOOP(j, 16) T_EQ(shader->state.bones[i].v[j], j % 5 == 0 ? 1.0f : 0.0f);
@@ -1416,11 +1416,11 @@ TEST(renderer_texture, red_blue_swap_preserves_other_channels) {
 }
 
 TEST(renderer_texture, rgba_upload_preserves_red_blue_and_alpha) {
-    TEXTURE tex = { .texid = 99 };
-    COLOR32 pixel = { 241, 37, 9, 123 };
+    texture_t tex = { .texid = 99 };
+    color32_t pixel = { 241, 37, 9, 123 };
     upload_count = 0;
-    R_LoadTextureMipLevel(&tex, &(TEXMIP){ &pixel, 0, 1, 0, PIXEL_RGBA }); T_EQ(upload_count, 0);
-    R_LoadTextureMipLevel(&tex, &(TEXMIP){ &pixel, 1, 1, 0, PIXEL_RGBA });
+    R_LoadTextureMipLevel(&tex, &(texMip_t){ &pixel, 0, 1, 0, PIXEL_RGBA }); T_EQ(upload_count, 0);
+    R_LoadTextureMipLevel(&tex, &(texMip_t){ &pixel, 1, 1, 0, PIXEL_RGBA });
     T_EQ(upload_count, 1); T_EQ(upload_format, GL_RGBA);
     T_EQ(upload_pixel.r, 241); T_EQ(upload_pixel.g, 37); T_EQ(upload_pixel.b, 9); T_EQ(upload_pixel.a, 123);
 }
@@ -1433,7 +1433,7 @@ TEST(renderer_texture, source_format_and_context_select_upload_without_redundant
         { "OpenGL ES 3.0", "GL_APPLE_texture_format_BGRA8888", GL_RGBA },
         { "OpenGL ES 3.0", "", 0 },
     };
-    TEXTURE tex = { .texid = 99 };
+    texture_t tex = { .texid = 99 };
     ri.MemAlloc = test_alloc; ri.MemFree = test_free;
     FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
         test_version = cases[i].version; test_extension = cases[i].extension;
@@ -1441,11 +1441,11 @@ TEST(renderer_texture, source_format_and_context_select_upload_without_redundant
         T_EQ(r_bgra_internal, cases[i].internal);
         uint32_t queries = ext_count;
         FOR_LOOP(src, 2) {
-            COLOR32 pixel = src == PIXEL_BGRA ? (COLOR32){9, 37, 241, 123} : (COLOR32){241, 37, 9, 123};
-            COLOR32 saved = pixel;
+            color32_t pixel = src == PIXEL_BGRA ? (color32_t){9, 37, 241, 123} : (color32_t){241, 37, 9, 123};
+            color32_t saved = pixel;
             bool convert = src == PIXEL_BGRA && !cases[i].internal;
             alloc_count = free_count = 0;
-            R_LoadTextureMipLevel(&tex, &(TEXMIP){ &pixel, 1, 1, 1, src });
+            R_LoadTextureMipLevel(&tex, &(texMip_t){ &pixel, 1, 1, 1, src });
             T_EQ(upload_format, src == PIXEL_BGRA && !convert ? BZ_GL_BGRA : GL_RGBA);
             T_EQ(upload_internal, src == PIXEL_BGRA && !convert ? cases[i].internal : GL_RGBA);
             T_EQ(upload_pixel.r, src == PIXEL_BGRA && !convert ? 9 : 241);
@@ -1457,18 +1457,18 @@ TEST(renderer_texture, source_format_and_context_select_upload_without_redundant
             T_EQ(ext_count, queries);
         }
         alloc_count = 0;
-        R_LoadTextureMipLevel(&tex, &(TEXMIP){ NULL, 1, 1, 0, PIXEL_BGRA });
+        R_LoadTextureMipLevel(&tex, &(texMip_t){ NULL, 1, 1, 0, PIXEL_BGRA });
         T_NULL(upload_data); T_EQ(alloc_count, 0);
     }
 }
 
 TEST(renderer_texture, blp1_palette_upload_is_rgba) {
-    struct { struct tBLP1Header hdr; COLOR32 pal[256]; uint8_t index; } file = {0};
+    struct { struct tBLP1Header hdr; color32_t pal[256]; uint8_t index; } file = {0};
     ri.MemAlloc = test_alloc; ri.MemFree = test_free;
     r_bgra_internal = 0;
     file.hdr.magic = ID_BLP1; file.hdr.type = 1; file.hdr.width = file.hdr.height = 1;
     file.hdr.offsets[0] = offsetof(__typeof__(file), index); file.hdr.lengths[0] = 1;
-    file.pal[0] = (COLOR32){9, 37, 241, 0};
+    file.pal[0] = (color32_t){9, 37, 241, 0};
     test_free(R_LoadTextureBLP1(&file, sizeof(file)));
     T_EQ(upload_format, GL_RGBA);
     T_EQ(upload_pixel.r, 241); T_EQ(upload_pixel.g, 37); T_EQ(upload_pixel.b, 9); T_EQ(upload_pixel.a, 255);
@@ -1486,7 +1486,7 @@ TEST(renderer_texture, blp2_raw_palette_and_dxt_upload_are_rgba) {
     T_EQ(upload_format, GL_RGBA);
     T_EQ(upload_pixel.r, 241); T_EQ(upload_pixel.b, 9); T_EQ(upload_pixel.a, 123);
     file.hdr.encoding = 1; file.hdr.alphaDepth = 0;
-    file.hdr.palette[0] = (COLOR32){9, 37, 241, 0}; file.data[0] = 0;
+    file.hdr.palette[0] = (color32_t){9, 37, 241, 0}; file.data[0] = 0;
     test_free(R_LoadTextureBLP2(&file, sizeof(file)));
     T_EQ(upload_pixel.r, 241); T_EQ(upload_pixel.b, 9); T_EQ(upload_pixel.a, 255);
     file.hdr.encoding = 2; file.hdr.width = file.hdr.height = 4; file.hdr.lengths[0] = 8;
@@ -1512,7 +1512,7 @@ TEST(renderer_texture, dds_channel_masks_use_the_common_upload_capabilities) {
     ri.MemAlloc = test_alloc; ri.MemFree = test_free;
     FOR_LOOP(bgra, 2) {
         file[23] = bgra ? 0xff0000 : 0xff; file[25] = bgra ? 0xff : 0xff0000;
-        COLOR32 pixel = bgra ? (COLOR32){9, 37, 241, 123} : (COLOR32){241, 37, 9, 123};
+        color32_t pixel = bgra ? (color32_t){9, 37, 241, 123} : (color32_t){241, 37, 9, 123};
         memcpy(file + 32, &pixel, sizeof(pixel));
         FOR_LOOP(support, 2) {
             r_bgra_internal = support ? GL_RGBA : 0;
@@ -1567,7 +1567,7 @@ TEST(renderer_texture, authored_extensions_resolve_without_losing_real_files) {
 
 TEST(renderer_terrain, cliff_ramps_require_adjacent_corners_one_level_apart) {
     static const uint8_t edge[][2] = { {0,1}, {1,3}, {3,2}, {2,0} };
-    WAR3MAPVERTEX tile[4] = {0};
+    war3mapVertex_t tile[4] = {0};
     T_ASSERT(!R_IsCliffRamp(tile));
     FOR_LOOP(i, 4) {
         memset(tile, 0, sizeof(tile));
@@ -1605,17 +1605,17 @@ TEST(renderer_terrain, cliff_texture_skips_non_cliff_corners) {
         { .cliff = {15,15,15,15}, .want = 0 }, /* No nearby explicit type: retail's error default. */
     };
     FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
-        WAR3MAPVERTEX verts[4] = {0};
-        WAR3MAP map = { .width = 2, .height = 2, .vertices = verts };
+        war3mapVertex_t verts[4] = {0};
+        war3map_t map = { .width = 2, .height = 2, .vertices = verts };
         FOR_LOOP(j, 4) verts[3-j].cliff = cases[i].cliff[j];
         T_EQ(R_CliffTexture(&map, 0, 0), cases[i].want);
     }
 }
 
 TEST(renderer_terrain, cliff_texture_searches_retail_neighbourhood) {
-    WAR3MAPVERTEX verts[49];
-    WAR3MAP map = { .width = 7, .height = 7, .vertices = verts };
-    FOR_LOOP(i, 49) verts[i] = (WAR3MAPVERTEX){ .cliff = 15 };
+    war3mapVertex_t verts[49];
+    war3map_t map = { .width = 7, .height = 7, .vertices = verts };
+    FOR_LOOP(i, 49) verts[i] = (war3mapVertex_t){ .cliff = 15 };
     /* X-major, not nearest-distance or row-major; include the full radius of two. */
     verts[1+5*7].cliff = 2; verts[2+1*7].cliff = 1;
     T_EQ(R_CliffTexture(&map, 3, 3), 2);
@@ -1640,9 +1640,9 @@ TEST(renderer_terrain, undead04_waygate_cliff_type_from_native_corners) {
         0xf4, 0xf4, 0xf4, 0xf4, 0xf6,
         0xf4, 0x04, 0xf4, 0xf4, 0xf4,
     };
-    WAR3MAPVERTEX verts[25];
-    WAR3MAP map = { .width = 5, .height = 5, .vertices = verts };
-    FOR_LOOP(i, 25) verts[i] = (WAR3MAPVERTEX){ .cliff = packed[i] >> 4, .level = packed[i] & 15 };
+    war3mapVertex_t verts[25];
+    war3map_t map = { .width = 5, .height = 5, .vertices = verts };
+    FOR_LOOP(i, 25) verts[i] = (war3mapVertex_t){ .cliff = packed[i] >> 4, .level = packed[i] & 15 };
     T_EQ(R_CliffTexture(&map, 2, 2), 0);
     verts[1+4*5].cliff = 1;
     T_EQ(R_CliffTexture(&map, 2, 2), 1); /* Selection follows the data, not grass or ground index. */
@@ -1650,9 +1650,9 @@ TEST(renderer_terrain, undead04_waygate_cliff_type_from_native_corners) {
 }
 
 /* Exercise the terrain/cliff bakers with real height normals, mocking asset lookup and draw submission. */
-void R_DrawBuffer(LPCBUFFER buffer, uint32_t count) {}
-LINE3 R_LineForScreenPoint(viewDef_t const *view, float x, float y) { return (LINE3){0}; }
-LPCTEXTURE R_BlightTexture(void) { return texture_load_result; }
+void R_DrawBuffer(buffer_t const * buffer, uint32_t count) {}
+line3_t R_LineForScreenPoint(viewDef_t const *view, float x, float y) { return (line3_t){0}; }
+texture_t const * R_BlightTexture(void) { return texture_load_result; }
 w3TerrainArt_t const *R_TerrainArt(uint32_t id) { T_ASSERT(false); return NULL; }
 static struct { uint32_t enables, disables, offsets; float factor, units; } splat_bias;
 static void test_splat_enable(GLenum cap) { if (cap == GL_POLYGON_OFFSET_FILL) splat_bias.enables++; }
@@ -1679,9 +1679,9 @@ TEST(renderer_terrain, splat_draw_biases_coplanar_terrain_geometry) {
 }
 
 TEST(renderer_terrain, splat_rect_stops_at_partial_tile_edge) {
-    WAR3MAPVERTEX verts[4] = {0};
-    WAR3MAP map = { .width = 2, .height = 2, .vertices = verts };
-    struct { VECTOR2 mins, maxs; } rects[] = {
+    war3mapVertex_t verts[4] = {0};
+    war3map_t map = { .width = 2, .height = 2, .vertices = verts };
+    struct { vector2_t mins, maxs; } rects[] = {
         { { 32, 24 }, { 96, 104 } },
         { { 32, -1000 }, { 1000, 1000 } },
         { { -1000, -1000 }, { 96, 1000 } },
@@ -1690,12 +1690,12 @@ TEST(renderer_terrain, splat_rect_stops_at_partial_tile_edge) {
     };
     FOR_LOOP(i, 4) verts[i].accurate_height = 8192;
     FOR_LOOP(i, 5) {
-        VECTOR2 *mins = &rects[i].mins, *maxs = &rects[i].maxs;
+        vector2_t *mins = &rects[i].mins, *maxs = &rects[i].maxs;
         ground_current_vertex = ground_vertex_buffer;
         R_MakeSplatTile(&map, 0, 0, mins, maxs->x - mins->x, maxs->y - mins->y, COLOR32_WHITE);
         T_ASSERT(ground_current_vertex > ground_vertex_buffer);
         if (i) T_EQ(ground_current_vertex - ground_vertex_buffer, 9);
-        for (LPVERTEX v = ground_vertex_buffer; v < ground_current_vertex; v++) {
+        for (vertex_t * v = ground_vertex_buffer; v < ground_current_vertex; v++) {
             T_ASSERT(v->position.x >= mins->x && v->position.x <= maxs->x);
             T_ASSERT(v->position.y >= mins->y && v->position.y <= maxs->y);
             T_ASSERT(v->texcoord.x >= 0 && v->texcoord.x <= 1);
@@ -1706,18 +1706,18 @@ TEST(renderer_terrain, splat_rect_stops_at_partial_tile_edge) {
 }
 
 TEST(renderer_terrain, clipped_splat_follows_both_terrain_triangles) {
-    WAR3MAPVERTEX verts[4] = {0};
-    WAR3MAP map = { .width = 2, .height = 2, .vertices = verts };
-    VECTOR2 mins = { 24, 20 }, maxs = { 108, 112 };
+    war3mapVertex_t verts[4] = {0};
+    war3map_t map = { .width = 2, .height = 2, .vertices = verts };
+    vector2_t mins = { 24, 20 }, maxs = { 108, 112 };
     FOR_LOOP(i, 4) verts[i].accurate_height = 8192;
     verts[1].level = 1; verts[2].level = 2;
-    VECTOR3 p0 = R_GetVertexPosition(&map, 0, 0, true), p1 = R_GetVertexPosition(&map, 1, 0, true);
-    VECTOR3 p2 = R_GetVertexPosition(&map, 1, 1, true), p3 = R_GetVertexPosition(&map, 0, 1, true);
+    vector3_t p0 = R_GetVertexPosition(&map, 0, 0, true), p1 = R_GetVertexPosition(&map, 1, 0, true);
+    vector3_t p2 = R_GetVertexPosition(&map, 1, 1, true), p3 = R_GetVertexPosition(&map, 0, 1, true);
     ground_current_vertex = ground_vertex_buffer;
     R_MakeSplatTile(&map, 0, 0, &mins, maxs.x - mins.x, maxs.y - mins.y, COLOR32_WHITE);
     T_ASSERT(ground_current_vertex > ground_vertex_buffer);
     T_ASSERT(ground_current_vertex - ground_vertex_buffer <= SPLAT_TILE_MAX_VERTICES);
-    for (LPVERTEX v = ground_vertex_buffer; v < ground_current_vertex; v++) {
+    for (vertex_t * v = ground_vertex_buffer; v < ground_current_vertex; v++) {
         float u = v->position.x / TILE_SIZE, t = v->position.y / TILE_SIZE;
         float z = u >= t ? p0.z + (u-t)*(p1.z-p0.z) + t*(p2.z-p0.z)
                          : p0.z + u*(p2.z-p0.z) + (t-u)*(p3.z-p0.z);
@@ -1740,7 +1740,7 @@ w3CliffType_t const *R_CliffType(uint32_t id) {
 }
 #include "games/warcraft-3/renderer/w3m/r_war3map_utils.c"
 /* The cliff material test needs the real bake/finalize lifecycle, but no OpenGL context. */
-static LPBUFFER test_cliff_buffer(LPCVERTEX vertices, uint32_t count) { return test_alloc(sizeof(BUFFER)); }
+static buffer_t * test_cliff_buffer(vertex_t const * vertices, uint32_t count) { return test_alloc(sizeof(buffer_t)); }
 #define R_MakeVertexArrayObject test_cliff_buffer
 #include "games/warcraft-3/renderer/w3m/r_war3map_cliffs.c"
 #undef R_MakeVertexArrayObject
@@ -1749,8 +1749,8 @@ TEST(renderer_terrain, cliff_cache_distinguishes_model_directories) {
     cliffData_t city = { .cliffModelDir = "CityCliffs", .rampModelDir = "CityCliffTrans" };
     cliffData_t dirt = { .cliffModelDir = "Cliffs", .rampModelDir = "CliffTrans" };
     reset_registry(); R_SetMapAssetScope(NULL);
-    LPCMODEL a = R_LoadCliffModel(&city, "AABB", false);
-    LPCMODEL b = R_LoadCliffModel(&dirt, "AABB", false);
+    model_t const * a = R_LoadCliffModel(&city, "AABB", false);
+    model_t const * b = R_LoadCliffModel(&dirt, "AABB", false);
     T_ASSERT(a != b); T_EQ(load_count, 2);
     T_STREQ(last_model_load, "Doodads\\Terrain\\Cliffs\\CliffsAABB0.mdx");
     T_ASSERT(R_LoadCliffModel(&city, "AABB", false) == a); T_EQ(load_count, 2);
@@ -1764,11 +1764,11 @@ TEST(renderer_terrain, cliff_cache_distinguishes_model_directories) {
 
 TEST(renderer_terrain, cliff_baker_preserves_native_axes_uvs_and_ground_coverage) {
     /* Human02Interlude (36,36), translated to (1,1) in a small synthetic grid; no retail files required. */
-    WAR3MAPVERTEX verts[25] = {0};
+    war3mapVertex_t verts[25] = {0};
     uint32_t grounds[5] = {0};
-    WAR3MAP map = { .width = 5, .height = 5, .vertices = verts, .grounds = grounds, .num_grounds = 5 };
-    VECTOR3 pos[] = {{-128,0,128}, {-128,256,0}, {0,256,0}}, norm[] = {{1,0,0}, {1,0,0}, {1,0,0}};
-    VECTOR2 uv[] = {{0.1f,0.2f}, {0.3f,0.4f}, {0.5f,0.6f}};
+    war3map_t map = { .width = 5, .height = 5, .vertices = verts, .grounds = grounds, .num_grounds = 5 };
+    vector3_t pos[] = {{-128,0,128}, {-128,256,0}, {0,256,0}}, norm[] = {{1,0,0}, {1,0,0}, {1,0,0}};
+    vector2_t uv[] = {{0.1f,0.2f}, {0.3f,0.4f}, {0.5f,0.6f}};
     short tris[] = {0,1,2};
     mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3, .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
     mdxModel_t mdx = { .geosets = &geo, .bounds.box = { .min = {-128,0,0}, .max = {0,256,128} } };
@@ -1777,7 +1777,7 @@ TEST(renderer_terrain, cliff_baker_preserves_native_axes_uvs_and_ground_coverage
     map.grounds[4] = data.groundTile;
     tr.world = &map; cliff_model = &mdx;
     FOR_LOOP(pass, 2) {
-        FOR_LOOP(i, 25) verts[i] = (WAR3MAPVERTEX){ .level = 5, .cliff = 1, .accurate_height = 8192 };
+        FOR_LOOP(i, 25) verts[i] = (war3mapVertex_t){ .level = 5, .cliff = 1, .accurate_height = 8192 };
         verts[6].level = verts[11].level = 6;
         verts[6].ramp = verts[7].ramp = !pass;
         mdx.bounds.box.max.y = pass ? 128 : 256;
@@ -1789,7 +1789,7 @@ TEST(renderer_terrain, cliff_baker_preserves_native_axes_uvs_and_ground_coverage
         FOR_LOOP(y, 5) FOR_LOOP(x, 5)
             T_EQ(verts[x+y*5].ground, x >= 1 && x <= (pass ? 2 : 3) && y >= 1 && y <= 2 ? 4 : 0);
         FOR_LOOP(i, 3) {
-            LPCVERTEX v = &cliff_bake.vertices[i];
+            vertex_t const * v = &cliff_bake.vertices[i];
             T_FEQ(v->position.x, 128 + pos[i].y, 0.001f);
             T_FEQ(v->position.y, 128 - pos[i].x, 0.001f);
             T_FEQ(v->position.z, 384 + pos[i].z, 0.001f);
@@ -1801,7 +1801,7 @@ TEST(renderer_terrain, cliff_baker_preserves_native_axes_uvs_and_ground_coverage
 }
 
 TEST(renderer_terrain, cliff_welding_ignores_triangle_multiplicity_and_stacked_faces) {
-    VERTEX vertices[] = {
+    vertex_t vertices[] = {
         { .position = {128,256,384}, .normal = {1,0,0} },
         { .position = {128,256,384}, .normal = {1,0,0} },
         { .position = {128,256,384}, .normal = {0.6f,0.8f,0} },
@@ -1819,19 +1819,19 @@ TEST(renderer_terrain, cliff_welding_ignores_triangle_multiplicity_and_stacked_f
 }
 
 TEST(renderer_terrain, undead04_implicit_cliff_and_ground_join) {
-    WAR3MAPVERTEX verts[25];
+    war3mapVertex_t verts[25];
     uint32_t grounds[] = { MAKEFOURCC('V','d','r','t') };
-    WAR3MAP map = { .width = 5, .height = 5, .vertices = verts, .grounds = grounds, .num_grounds = 1 };
+    war3map_t map = { .width = 5, .height = 5, .vertices = verts, .grounds = grounds, .num_grounds = 1 };
     /* AABB native mesh: north edge is high; exterior lip is slightly below the terrain. */
-    VECTOR3 pos[] = {{-128,0,120}, {-128,64,120}, {-128,128,120}};
-    VECTOR3 norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
-    VECTOR2 uv[3] = {0}; short tris[] = {0,1,2};
+    vector3_t pos[] = {{-128,0,120}, {-128,64,120}, {-128,128,120}};
+    vector3_t norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
+    vector2_t uv[3] = {0}; short tris[] = {0,1,2};
     mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3, .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
     mdxModel_t mdx = { .geosets = &geo, .bounds.box = { .min = {-128,0,0}, .max = {0,128,128} } };
     cliffData_t data = { .cliff = 1, .groundTile = grounds[0], .rampModelDir = "CliffTrans", .cliffModelDir = "Cliffs" };
     reset_registry(); R_SetMapAssetScope(NULL); tr.world = &map; cliff_model = &mdx;
     FOR_LOOP(y, 5) FOR_LOOP(x, 5)
-        verts[x+y*5] = (WAR3MAPVERTEX){ .level = y >= 2 ? 5 : 4, .cliff = 15, .accurate_height = 8192 + x*16 };
+        verts[x+y*5] = (war3mapVertex_t){ .level = y >= 2 ? 5 : 4, .cliff = 15, .accurate_height = 8192 + x*16 };
     verts[1].cliff = 1; /* Authored neighbour outside the cell's four corners. */
     cliff_bake.num_vertices = 0;
     R_MakeCliff(&map, 1, 1, &data);
@@ -1845,17 +1845,17 @@ TEST(renderer_terrain, undead04_implicit_cliff_and_ground_join) {
 
 TEST(renderer_terrain, undead04_cliff_material_inherits_nearby_authored_slot) {
     enum { span = SEGMENT_SIZE + 1 };
-    WAR3MAPVERTEX verts[span * span];
+    war3mapVertex_t verts[span * span];
     uint32_t grounds[] = { MAKEFOURCC('V','d','r','t'), MAKEFOURCC('V','d','r','r'), MAKEFOURCC('V','c','b','p'),
         MAKEFOURCC('L','g','r','s'), MAKEFOURCC('L','g','r','d'), MAKEFOURCC('Y','b','t','l'), MAKEFOURCC('Y','r','t','l') };
     uint32_t cliffs[] = { MAKEFOURCC('C','L','g','r'), MAKEFOURCC('C','V','d','i') };
-    WAR3MAP map = { .tileset = 'L', .custom = 1, .width = span, .height = span, .vertices = verts,
+    war3map_t map = { .tileset = 'L', .custom = 1, .width = span, .height = span, .vertices = verts,
         .grounds = grounds, .num_grounds = 7, .cliffs = cliffs, .num_cliffs = 2 };
-    VECTOR3 pos[] = {{-128,0,120}, {-128,64,120}, {-128,128,120}}, norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
-    VECTOR2 uv[3] = {0}; short tris[] = {0,1,2};
+    vector3_t pos[] = {{-128,0,120}, {-128,64,120}, {-128,128,120}}, norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
+    vector2_t uv[3] = {0}; short tris[] = {0,1,2};
     mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3, .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
     mdxModel_t mdx = { .geosets = &geo, .bounds.box = { .min = {-128,0,0}, .max = {0,128,128} } };
-    TEXTURE texture = {0}; LPTEXTURE saved = texture_load_result;
+    texture_t texture = {0}; texture_t * saved = texture_load_result;
     int (*read_file)(cstring_t, void **) = ri.FS_ReadFile;
     reset_registry(); R_SetMapAssetScope(NULL); tr.world = &map; cliff_model = &mdx;
     ri.FS_ReadFile = test_texture_read; texture_file = ""; texture_load_result = &texture;
@@ -1863,26 +1863,26 @@ TEST(renderer_terrain, undead04_cliff_material_inherits_nearby_authored_slot) {
         /* All-15 river cells inherit a nearby explicit cliff, not a fixed second palette slot.
          * Undead04 (93,54) finds CLgr at (92,56); also exercise a neighbour naming dirt. */
         FOR_LOOP(y, span) FOR_LOOP(x, span)
-            verts[x+y*span] = (WAR3MAPVERTEX){ .level = y >= 2 ? 5 : 4, .cliff = y ? 15 : slot,
+            verts[x+y*span] = (war3mapVertex_t){ .level = y >= 2 ? 5 : 4, .cliff = y ? 15 : slot,
                 .ground = 4, .accurate_height = 8192 };
         T_NULL(R_BuildMapSegmentCliffs(&map, 0, 0, 1-slot));
-        LPMAPLAYER layer = R_BuildMapSegmentCliffs(&map, 0, 0, slot);
+        maplayer_t * layer = R_BuildMapSegmentCliffs(&map, 0, 0, slot);
         T_NOT_NULL(layer); T_EQ(layer->num_vertices, SEGMENT_SIZE*3); T_ASSERT(layer->texture == &texture);
         T_STREQ(last_texture_load, slot ? "ReplaceableTextures\\Cliff\\Cliff0.blp" : "ReplaceableTextures\\Cliff\\Cliff1.blp");
         FOR_LOOP(y, span) FOR_LOOP(x, span)
             T_EQ(verts[x+y*span].ground, y == 1 || y == 2 ? (slot ? 0 : 3) : 4);
-        R_FinishCliffs(); test_free((LPBUFFER)layer->buffer); test_free(layer);
+        R_FinishCliffs(); test_free((buffer_t *)layer->buffer); test_free(layer);
         R_ResetCliffCache();
     }
     ri.FS_ReadFile = read_file; texture_load_result = saved; cliff_model = NULL; tr.world = NULL;
 }
 
 TEST(renderer_terrain, blight_preserves_cliff_corners) {
-    WAR3MAPVERTEX verts[25]; uint8_t cells[256];
-    WAR3MAP map = { .width = 5, .height = 5, .vertices = verts };
+    war3mapVertex_t verts[25]; uint8_t cells[256];
+    war3map_t map = { .width = 5, .height = 5, .vertices = verts };
     reset_registry(); tr.world = &map; memset(cells, 1, sizeof(cells));
     FOR_LOOP(y, 5) FOR_LOOP(x, 5)
-        verts[x+y*5] = (WAR3MAPVERTEX){ .level = x < 2 ? 4 : 5, .accurate_height = 8192 };
+        verts[x+y*5] = (war3mapVertex_t){ .level = x < 2 ? 4 : 5, .accurate_height = 8192 };
     viewDef_t view = { .terrain_mask = { .cells = cells, .width = 16, .height = 16, .cell_size = 32, .generation = 1 } };
     T_ASSERT(R_BlightTileCacheUpdate(&view));
     FOR_LOOP(y, 5) {
@@ -1897,7 +1897,7 @@ TEST(renderer_terrain, blight_preserves_cliff_corners) {
 
 TEST(renderer_terrain, ramp_footprints_cover_the_low_neighbour) {
     /* Levels use GetTileVertices' NE,NW,SE,SW order. Bounds are native MDX tile-space bounds. */
-    static const struct { uint8_t level[4]; bool eastwest; VECTOR2 low; } cases[] = {
+    static const struct { uint8_t level[4]; bool eastwest; vector2_t low; } cases[] = {
         { .level = {5,5,5,6}, .eastwest = true, .low = {1,0} }, /* (36,33) AALH -> (37,33). */
         { .level = {5,6,5,5}, .eastwest = true, .low = {1,0} }, /* (36,34) HLAA -> (37,34). */
         { .level = {5,6,5,6}, .eastwest = true, .low = {1,0} }, /* BALH/HLAB: rows 36,37,41,42. */
@@ -1907,14 +1907,14 @@ TEST(renderer_terrain, ramp_footprints_cover_the_low_neighbour) {
         { .level = {6,6,5,5}, .low = {0,-1} }, /* North-high, south-low. */
     };
     FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
-        WAR3MAPVERTEX tile[4] = {0};
-        BOX3 box = { .min = {-TILE_SIZE,0,0}, .max = {0,TILE_SIZE,TILE_SIZE} };
+        war3mapVertex_t tile[4] = {0};
+        box3_t box = { .min = {-TILE_SIZE,0,0}, .max = {0,TILE_SIZE,TILE_SIZE} };
         if (cases[i].eastwest) box.max.y *= 2;
         else box.min.x *= 2;
         FOR_LOOP(j, 4) tile[j].level = cases[i].level[j];
-        VECTOR2 shift = R_CliffRampOffset(tile, &box);
-        VECTOR3 a = Matrix4_multiply_vector3(&r_cliff_axes, &box.min);
-        VECTOR3 b = Matrix4_multiply_vector3(&r_cliff_axes, &box.max);
+        vector2_t shift = R_CliffRampOffset(tile, &box);
+        vector3_t a = Matrix4_multiply_vector3(&r_cliff_axes, &box.min);
+        vector3_t b = Matrix4_multiply_vector3(&r_cliff_axes, &box.max);
         /* The mesh must cover this cliff cell plus exactly the low-side cell skipped by R_MakeTile. */
         T_FEQ((MIN(a.x, b.x) + shift.x) / TILE_SIZE, MIN(0, cases[i].low.x), 0.001f);
         T_FEQ((MAX(a.x, b.x) + shift.x) / TILE_SIZE, MAX(0, cases[i].low.x) + 1, 0.001f);
@@ -1954,18 +1954,18 @@ TEST(renderer_shader, shadow_receiver_contract) {
  * and R_LoadShaderDescInto for each supported GLSL dialect.
  * ----------------------------------------------------------------------- */
 
-typedef struct SDTESTSTATE {
-    MATRIX4 mvp;
+typedef struct sdTestState_s {
+    matrix4_t mvp;
     int texture;
-    VECTOR4 color;
-} SDTESTSTATE;
-typedef struct SDTESTSTATE *LPSDTESTSTATE;
-typedef const struct SDTESTSTATE *LPCSDTESTSTATE;
-typedef struct SDTESTPROG { SHADERPROG prog; SDTESTSTATE state; } SDTESTPROG;
-typedef struct SDTESTPROG *LPSDTESTPROG;
-typedef const struct SDTESTPROG *LPCSDTESTPROG;
+    vector4_t color;
+} sdTestState_t;
 
-#define SHADER_TYPE SDTESTSTATE
+
+typedef struct sdTestProg_s { shaderProg_t prog; sdTestState_t state; } sdTestProg_t;
+
+
+
+#define SHADER_TYPE sdTestState_t
 static const shader_desc_t sd_test = {
     .Name = "test",
     .Uniforms = {
@@ -1992,8 +1992,8 @@ static const shader_desc_t sd_test = {
 };
 #undef SHADER_TYPE
 
-typedef struct { MATRIX4 fixed[2], counted[3]; uint32_t count; } SDARRAYTESTSTATE;
-#define SHADER_TYPE SDARRAYTESTSTATE
+typedef struct { matrix4_t fixed[2], counted[3]; uint32_t count; } sdArrayTestState_t;
+#define SHADER_TYPE sdArrayTestState_t
 static const shader_desc_t sd_array_test = { .Uniforms = {
     UNIFORM(fixed,   UT_FLOAT_MAT4, PRECISION_HIGH, 2),
     UNIFORM(counted, UT_FLOAT_MAT4, PRECISION_HIGH, 3, count),
@@ -2002,15 +2002,15 @@ static const shader_desc_t sd_array_test = { .Uniforms = {
 
 /* UNIFORM(field) stores offsetof(SHADER_TYPE, field); attrib/shared names get a_/v_ prefix. */
 TEST(renderer_shader_desc, macro_expansion_records_offsets_and_prefixed_names) {
-    T_EQ(sd_test.Uniforms[0].offset, offsetof(SDTESTSTATE, mvp));
-    T_EQ(sd_test.Uniforms[1].offset, offsetof(SDTESTSTATE, texture));
-    T_EQ(sd_test.Uniforms[2].offset, offsetof(SDTESTSTATE, color));
+    T_EQ(sd_test.Uniforms[0].offset, offsetof(sdTestState_t, mvp));
+    T_EQ(sd_test.Uniforms[1].offset, offsetof(sdTestState_t, texture));
+    T_EQ(sd_test.Uniforms[2].offset, offsetof(sdTestState_t, color));
     T_STREQ(sd_test.Uniforms[0].name, "u_mvp");
     T_STREQ(sd_test.Uniforms[1].name, "u_texture");
     T_STREQ(sd_test.Uniforms[2].name, "u_color");
     T_EQ(sd_array_test.Uniforms[0].count, 2u); T_ASSERT(!sd_array_test.Uniforms[0].counted);
     T_EQ(sd_array_test.Uniforms[1].count, 3u);
-    T_EQ(sd_array_test.Uniforms[1].count_offset, offsetof(SDARRAYTESTSTATE, count));
+    T_EQ(sd_array_test.Uniforms[1].count_offset, offsetof(sdArrayTestState_t, count));
     T_ASSERT(sd_array_test.Uniforms[1].counted);
     T_STREQ(sd_test.Attributes[0].name, "a_position");
     T_STREQ(sd_test.Attributes[1].name, "a_texcoord");
@@ -2116,7 +2116,7 @@ TEST(renderer_shader_desc, main_fragment_140_assigns_o_color) {
 
 /* Locations stay private to the program and loading preserves caller-owned non-sampler values. */
 TEST(renderer_shader_desc, load_writes_locations_and_initializes_samplers) {
-    SDTESTPROG shader = { .state.color = { 1, 2, 3, 4 } };
+    sdTestProg_t shader = { .state.color = { 1, 2, 3, 4 } };
     reset_shader();
     R_LoadShader(&sd_test, NULL, &shader);
     T_EQ(shader.prog.progid, (GLuint)GL_LINK_STATUS);
@@ -2130,7 +2130,7 @@ TEST(renderer_shader_desc, load_writes_locations_and_initializes_samplers) {
 /* The program cache preserves complete typed state while unchanged draw fields issue no driver uploads.
    Zero-valued uniforms (including unit-0 samplers) match the link-time GL default, so they need no first upload. */
 TEST(renderer_shader_desc, apply_uploads_only_changed_uniforms) {
-    SDTESTPROG shader = { .state.color = { 1, 2, 3, 4 }, .state.mvp = { .v = { 1 } } };
+    sdTestProg_t shader = { .state.color = { 1, 2, 3, 4 }, .state.mvp = { .v = { 1 } } };
     reset_shader(); R_LoadShader(&sd_test, NULL, &shader); memset(&upload, 0, sizeof(upload));
     int uses = shader_test.uses;
     R_ApplyShader(&shader); T_EQ(upload.calls, 2); T_EQ(shader_test.uses, uses);
@@ -2142,12 +2142,12 @@ TEST(renderer_shader_desc, apply_uploads_only_changed_uniforms) {
 
 /* Fixed-capacity GLSL arrays upload only the active CPU prefix named by their count field. */
 TEST(renderer_shader_desc, counted_array_uses_runtime_upload_count) {
-    typedef struct { MATRIX4 values[4]; uint32_t count; } TESTCOUNTSTATE;
-    TESTCOUNTSTATE state = { .count = 2 };
+    typedef struct { matrix4_t values[4]; uint32_t count; } testCountState_t;
+    testCountState_t state = { .count = 2 };
     shader_desc_t desc = { .Name = "counted", .Uniforms = {{
-        .name = "values", .type = UT_FLOAT_MAT4, .count = 4, .count_offset = offsetof(TESTCOUNTSTATE, count), .counted = true,
+        .name = "values", .type = UT_FLOAT_MAT4, .count = 4, .count_offset = offsetof(testCountState_t, count), .counted = true,
     }} };
-    SHADERPROG prog = { .progid = 1, .desc = &desc, .locs = { 0 } };
+    shaderProg_t prog = { .progid = 1, .desc = &desc, .locs = { 0 } };
     memset(&upload, 0, sizeof(upload)); R_UploadShader(&prog, &state);
     T_EQ(upload.calls, 1); T_EQ(upload.count, 2);
 }
@@ -2156,7 +2156,7 @@ TEST(renderer_shader_desc, counted_array_uses_runtime_upload_count) {
 TEST(renderer_shader_desc, upload_dispatches_values_arrays_and_inactive_inputs) {
     union { float f[32]; int i[32]; bool b; } state = { 0 };
     shader_desc_t desc = { .Name = "upload" };
-    SHADERPROG prog = { .progid = 1, .desc = &desc };
+    shaderProg_t prog = { .progid = 1, .desc = &desc };
     static const int widths[] = { 1, 2, 3, 4, 4, 0, 0, 0, 9, 9, 16, 0, 0, 0 };
     FOR_LOOP(type, UT_COUNT) {
         desc.Uniforms[0] = (shaderUniform_t){ .name = "value", .type = type };
@@ -2182,7 +2182,7 @@ TEST(renderer_shader_desc, upload_dispatches_values_arrays_and_inactive_inputs) 
 }
 
 TEST(renderer_shader_desc, sampler_order_and_program_release) {
-    struct { SHADERPROG prog; int state[3]; } shader = { 0 };
+    struct { shaderProg_t prog; int state[3]; } shader = { 0 };
     /* A linked descriptor requires shader bodies even when the test only inspects sampler setup. */
     shader_desc_t desc = { .Name = "samplers", .VertexBody = sd_test.VertexBody, .FragmentBody = sd_test.FragmentBody };
     reset_shader();
@@ -2197,8 +2197,8 @@ TEST(renderer_shader_desc, sampler_order_and_program_release) {
 
 /* Packed array batches preserve their non-zero first vertex and skip empty ranges. */
 TEST(renderer_buffer, array_range_uses_first_and_count) {
-    BUFFER buffer = { .vao = 3, .vbo = 4 };
-    DRAWRANGE draw = { .first = 17, .count = 12 };
+    buffer_t buffer = { .vao = 3, .vbo = 4 };
+    drawRange_t draw = { .first = 17, .count = 12 };
     memset(&draw_test, 0, sizeof(draw_test));
     R_DrawBufferRange(&buffer, &draw);
     T_EQ(draw_test.calls, 1); T_EQ(draw_test.first, 17); T_EQ(draw_test.count, 12); T_EQ(draw_test.instances, 1);
@@ -2208,9 +2208,9 @@ TEST(renderer_buffer, array_range_uses_first_and_count) {
 
 /* Instanced packed batches use the same range and reject an empty instance stream. */
 TEST(renderer_buffer, instanced_array_range_uses_first_count_and_instances) {
-    BUFFER buffer = { .vbo = 4 };
-    INSTANCEBUFFER instances = { .vbo = 5, .count = 9 };
-    DRAWRANGE draw = { .first = 23, .count = 18 };
+    buffer_t buffer = { .vbo = 4 };
+    instanceBuffer_t instances = { .vbo = 5, .count = 9 };
+    drawRange_t draw = { .first = 23, .count = 18 };
     memset(&draw_test, 0, sizeof(draw_test));
     R_DrawBufferRangeInstanced(&buffer, &draw, &instances);
     T_EQ(draw_test.calls, 1); T_EQ(draw_test.first, 23); T_EQ(draw_test.count, 18); T_EQ(draw_test.instances, 9);
@@ -2219,11 +2219,11 @@ TEST(renderer_buffer, instanced_array_range_uses_first_count_and_instances) {
 }
 
 /* Capture backdrop UV generation before GPU submission, including mirrored repeat. */
-static size2_t test_backdrop_size(LPCTEXTURE tex) { (void)tex; return backdrop_size; }
-static VERTEX *test_backdrop_quad(VERTEX *buf, rect_t const * rect, rect_t const * uv, COLOR32 color, float z) {
+static size2_t test_backdrop_size(texture_t const * tex) { (void)tex; return backdrop_size; }
+static vertex_t *test_backdrop_quad(vertex_t *buf, rect_t const * rect, rect_t const * uv, color32_t color, float z) {
     (void)rect; (void)color; (void)z; backdrop_uv = *uv; return buf + 6;
 }
-static void test_backdrop_batch(LPCTEXTURE tex, SHADERTYPE shader, BLEND_MODE blend, float glow, float radialShade, bool hasclip, rect_t const * clip, LPCVERTEX verts, uint32_t count, bool repeat) {
+static void test_backdrop_batch(texture_t const * tex, SHADERTYPE shader, BLEND_MODE blend, float glow, float radialShade, bool hasclip, rect_t const * clip, vertex_t const * verts, uint32_t count, bool repeat) {
     (void)tex; (void)shader; (void)blend; (void)glow; (void)radialShade; (void)hasclip; (void)clip; (void)verts;
     T_EQ(count, 6); backdrop_repeat = repeat;
 }
@@ -2236,7 +2236,7 @@ static void test_backdrop_batch(LPCTEXTURE tex, SHADERTYPE shader, BLEND_MODE bl
 #undef R_DrawImageBatch
 
 TEST(renderer_backdrop, mirrored_background_is_independent_of_tiling) {
-    drawBackdrop_t draw = { .screen = {0, 0, .512f, .032f}, .bg.texture = (LPCTEXTURE)1 };
+    drawBackdrop_t draw = { .screen = {0, 0, .512f, .032f}, .bg.texture = (texture_t const *)1 };
     const struct { uint32_t flags; float x, w; bool repeat; } cases[] = {
         {0, 0, 1, false},
         {DRAW_MIRRORED, 1, -1, false},

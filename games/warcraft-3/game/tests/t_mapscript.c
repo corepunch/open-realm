@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-extern JASSMODULE jass_funcs[];
+extern jassModule_t jass_funcs[];
 void CM_ReadMapScript(handle_t archive);
 
 static cstring_t const kMinimalMapScript =
@@ -56,9 +56,9 @@ static void mapscript_clear_loaded(void) {
 }
 
 TEST(wc3_mapscript, jass_dobuffer_null_returns_false) {
-    LPJASS j;
+    jass_t * j;
 
-    jass_sethost(&MAKE(JASSHOST,
+    jass_sethost(&MAKE(jassHost_t,
         .MemAlloc = gi.MemAlloc,
         .MemFree = gi.MemFree,
         .GetTime = gi.GetTime,

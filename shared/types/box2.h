@@ -4,16 +4,16 @@
 #include "vector2.h"
 
 struct box2 {
-    VECTOR2 min;
-    VECTOR2 max;
+    vector2_t min;
+    vector2_t max;
 };
 
-typedef struct box2 BOX2;
-typedef struct box2 *LPBOX2;
-typedef struct box2 const *LPCBOX2;
+typedef struct box2 box2_t;
 
-VECTOR2 Box2_center(LPCBOX2 box2);
-void Box2_moveTo(LPBOX2 box, LPCVECTOR2 newCenterLoc);
-int Box2_containsPoint(LPCBOX2 box, LPCVECTOR2 point);
+
+
+vector2_t Box2_center(box2_t const * box2);
+void Box2_moveTo(box2_t * box, vector2_t const * newCenterLoc);
+int Box2_containsPoint(box2_t const * box, vector2_t const * point);
 
 #endif

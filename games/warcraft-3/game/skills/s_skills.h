@@ -6,7 +6,7 @@
 #define AURA_UPDATE_MS 2000 // milliseconds; retail aura refresh interval; used to throttle recipient recalculation
 
 #define BZ_SIMPLE_SPELL_PROC(NAME) \
-    static void NAME##_Execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell); \
+    static void NAME##_Execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell); \
     BZ_ABILITY_PROC(C##NAME) { \
         if (msg == A_EXECUTE) { \
             spellTarget_t target = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE); \
@@ -15,7 +15,7 @@
         } \
         return CAbilitySimpleSpell(ent, msg, call); \
     } \
-    void NAME##_Execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell)
+    void NAME##_Execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell)
 #define BZ_VALIDATED_SPELL_PROC(NAME, VALIDATE, EXECUTE) \
     BZ_ABILITY_PROC(C##NAME) { \
         spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ? \
@@ -27,20 +27,20 @@
         } \
     }
 #define BZ_COMMAND_PROC(NAME) \
-    static void NAME##_Command(LPEDICT clent); \
+    static void NAME##_Command(edict_t * clent); \
     BZ_ABILITY_PROC(C##NAME) { \
         if (msg != A_COMMAND) return false; \
         NAME##_Command(call && call->client ? call->client : ent); \
         return true; \
     } \
-    void NAME##_Command(LPEDICT clent)
+    void NAME##_Command(edict_t * clent)
 #define BZ_ITEM_PROC(NAME) \
-    static bool NAME##_ItemUse(LPEDICT clent); \
+    static bool NAME##_ItemUse(edict_t * clent); \
     BZ_ABILITY_PROC(C##NAME) { \
         (void)call; \
         return msg == A_ITEM_USE && NAME##_ItemUse(ent); \
     } \
-    bool NAME##_ItemUse(LPEDICT clent)
+    bool NAME##_ItemUse(edict_t * clent)
 
 /* Concrete AbilityData implementations. */
 
@@ -54,9 +54,9 @@ BZ_ABILITY_PROC(CAbilityAttack);
 BZ_ABILITY_PROC(CAbilityAttackGround);
 BZ_ABILITY_PROC(CAbilityBuild);
 BZ_ABILITY_PROC(CAbilityTrain);
-void TrainSetBuildMove(LPEDICT producer);
-void G_RefreshTrainingQueue(LPEDICT producer);
-void unit_add_build_queue(LPEDICT self, LPEDICT item);
+void TrainSetBuildMove(edict_t * producer);
+void G_RefreshTrainingQueue(edict_t * producer);
+void unit_add_build_queue(edict_t * self, edict_t * item);
 BZ_ABILITY_PROC(CAbilityGoldMine);
 BZ_ABILITY_PROC(CAbilityCancel);
 BZ_ABILITY_PROC(CAbilityRepair);
@@ -132,7 +132,7 @@ BZ_ABILITY_PROC(CAbilityDrunkenBrawler);
 BZ_ABILITY_PROC(CAbilitySellItem);
 BZ_ABILITY_PROC(CAbilitySellUnit);
 BZ_ABILITY_PROC(CAbilityUnstableConcoction);
-void S_UnitDeathAbilities(LPEDICT ent);
+void S_UnitDeathAbilities(edict_t * ent);
 BZ_ABILITY_PROC(CAbilityMirrorImage);
 BZ_ABILITY_PROC(CAbilityBlizzard);
 BZ_ABILITY_PROC(CAbilityStarfall);
@@ -236,7 +236,7 @@ BZ_ABILITY_PROC(CAbilityVoodoo);
 BZ_ABILITY_PROC(CAbilityAcidBomb);
 BZ_ABILITY_PROC(CAbilityManaShield);
 BZ_ABILITY_PROC(CAbilityManaFlare);
-void S_ManaFlareOnCast(LPEDICT caster, uint32_t spell_code, uint32_t spell_level);
+void S_ManaFlareOnCast(edict_t * caster, uint32_t spell_code, uint32_t spell_level);
 BZ_ABILITY_PROC(CAbilityPoisonArrows);
 BZ_ABILITY_PROC(CAbilityOnFireHuman);
 BZ_ABILITY_PROC(CAbilityAttributeModSkill);
@@ -332,123 +332,123 @@ BZ_ABILITY_PROC(CAbilityVolcano);
 BZ_ABILITY_PROC(CAbilityUnsummon);
 BZ_ABILITY_PROC(CAbilitySacrifice);
 uint32_t S_SacrificeAbilityCode(void);
-bool S_SacrificeSkipsFoodReservation(LPCEDICT item);
+bool S_SacrificeSkipsFoodReservation(edict_t const * item);
 BZ_ABILITY_PROC(CAbilityHealingSpray);
 BZ_ABILITY_PROC(CAbilityTransmute);
 
-void human_ability_think(LPEDICT thinker);
-void divine_shield_think(LPEDICT thinker);
-void rain_of_chaos_think(LPEDICT thinker);
-void inferno_think(LPEDICT thinker);
-void dark_portal_think(LPEDICT thinker);
-void exhume_think(LPEDICT thinker);
-void stasis_trap_think(LPEDICT thinker);
-void healing_spray_think(LPEDICT thinker);
-void cannibalize_think(LPEDICT thinker);
-void possession_two_think(LPEDICT thinker);
-void lsh_think(LPEDICT thinker);
-bool S_UnitIsDetected(LPCEDICT unit);
-bool S_UnitIsDetectedByPlayer(LPCEDICT unit, uint32_t player);
-bool S_UnitIsInvisibleToPlayer(LPCEDICT unit, uint32_t player);
-bool S_AuraUnitActive(LPCEDICT unit);
-bool S_UnitUsesInvisibilityRenderFlag(LPCEDICT unit);
-bool S_PermanentInvisibilityActive(LPCEDICT unit);
-void S_PermanentInvisibilityInitialize(LPEDICT unit);
-void S_PermanentInvisibilityReveal(LPEDICT unit);
-void S_InfernoLand(LPEDICT caster, uint32_t code, uint32_t level, LPCVECTOR2 point);
-bool S_HoldPosition(LPEDICT unit);
-bool S_MilitiaEnsureHallAbility(LPEDICT hall);
+void human_ability_think(edict_t * thinker);
+void divine_shield_think(edict_t * thinker);
+void rain_of_chaos_think(edict_t * thinker);
+void inferno_think(edict_t * thinker);
+void dark_portal_think(edict_t * thinker);
+void exhume_think(edict_t * thinker);
+void stasis_trap_think(edict_t * thinker);
+void healing_spray_think(edict_t * thinker);
+void cannibalize_think(edict_t * thinker);
+void possession_two_think(edict_t * thinker);
+void lsh_think(edict_t * thinker);
+bool S_UnitIsDetected(edict_t const * unit);
+bool S_UnitIsDetectedByPlayer(edict_t const * unit, uint32_t player);
+bool S_UnitIsInvisibleToPlayer(edict_t const * unit, uint32_t player);
+bool S_AuraUnitActive(edict_t const * unit);
+bool S_UnitUsesInvisibilityRenderFlag(edict_t const * unit);
+bool S_PermanentInvisibilityActive(edict_t const * unit);
+void S_PermanentInvisibilityInitialize(edict_t * unit);
+void S_PermanentInvisibilityReveal(edict_t * unit);
+void S_InfernoLand(edict_t * caster, uint32_t code, uint32_t level, vector2_t const * point);
+bool S_HoldPosition(edict_t * unit);
+bool S_MilitiaEnsureHallAbility(edict_t * hall);
 float S_MilitiaPairSearchRadius(uint32_t ability);
-float S_RegenerationHealthAura(LPEDICT unit);
-float S_RegenerationManaAura(LPEDICT unit);
-void S_UpdateRegenerationAuraEffects(LPEDICT unit);
-void S_UpdateHeroAuraEffects(LPEDICT unit);
-void S_UpdateUnitPassiveEffects(LPEDICT unit);
-uint32_t S_DevotionAuraBuff(LPEDICT unit);
-uint32_t S_UnholyAuraBuff(LPEDICT unit);
-bool S_RegenerationAuraUpdateDue(LPEDICT unit);
-float S_BrillianceManaRegen(LPEDICT unit);
-float S_DevotionArmorBonus(LPEDICT unit);
-float S_UnholyHealthRegen(LPEDICT unit);
-float S_UnholyMoveBonus(LPEDICT unit);
-float S_VampiricLifeSteal(LPEDICT unit);
-float S_TrueshotAttackBonus(LPEDICT unit);
-int S_SearingArrowDamage(LPEDICT attacker, int damage);
-float S_ThornsDamageReturn(LPCEDICT target, LPCEDICT attacker, float damage);
+float S_RegenerationHealthAura(edict_t * unit);
+float S_RegenerationManaAura(edict_t * unit);
+void S_UpdateRegenerationAuraEffects(edict_t * unit);
+void S_UpdateHeroAuraEffects(edict_t * unit);
+void S_UpdateUnitPassiveEffects(edict_t * unit);
+uint32_t S_DevotionAuraBuff(edict_t * unit);
+uint32_t S_UnholyAuraBuff(edict_t * unit);
+bool S_RegenerationAuraUpdateDue(edict_t * unit);
+float S_BrillianceManaRegen(edict_t * unit);
+float S_DevotionArmorBonus(edict_t * unit);
+float S_UnholyHealthRegen(edict_t * unit);
+float S_UnholyMoveBonus(edict_t * unit);
+float S_VampiricLifeSteal(edict_t * unit);
+float S_TrueshotAttackBonus(edict_t * unit);
+int S_SearingArrowDamage(edict_t * attacker, int damage);
+float S_ThornsDamageReturn(edict_t const * target, edict_t const * attacker, float damage);
 typedef struct { uint32_t alias; uint32_t level; } abilityAliasRef_t;
-abilityAliasRef_t S_ResolveAbilityAlias(LPEDICT ent, uint32_t base_code);
-bool S_EvasionRoll(LPEDICT target);
-int S_CriticalStrikeDamage(LPEDICT attacker, int damage);
-float S_SpikedArmorBonus(LPCEDICT unit);
-float S_SpikedDamageReturn(LPCEDICT unit, float damage);
-void S_PulverizeAttack(LPEDICT attacker, LPCEDICT primary);
-void S_IncinerateOnHit(LPEDICT attacker, LPEDICT target);
-void S_CreepAttackOnHit(LPEDICT attacker, LPEDICT target);
-float S_CreepAttackSpeedReduction(LPCEDICT unit);
-float S_SlowAuraMoveReduction(LPCEDICT unit);
-float S_SlowAuraAttackReduction(LPCEDICT unit);
-float S_CommandAuraAttackBonus(LPEDICT unit);
-float S_WarDrumsAttackBonus(LPEDICT unit);
-int S_ManaShieldDamage(LPEDICT target, int damage);
-void S_SummonUnits(LPEDICT caster, uint32_t unit_id, uint32_t count, float duration);
-LPEDICT S_SummonAt(LPEDICT caster, uint32_t unit_id, LPCVECTOR2 loc, float duration);
-uint32_t S_EnforceSummonedUnitTypeLimit(LPEDICT caster, uint32_t unit_id, uint32_t max_count);
-bool S_UnitHasStatus(LPCEDICT unit, uint32_t code);
-bool S_UnitPolymorphed(LPCEDICT unit);
-void S_PolymorphRemove(LPEDICT unit);
-int S_BlackArrowDamage(LPEDICT attacker, int damage);
-void S_BlackArrowDeath(LPEDICT attacker, LPEDICT target);
-void S_ResolveAttackHit(LPEDICT attacker, LPEDICT target, int damage);
-void S_ResolveArtilleryHit(LPEDICT attacker, LPEDICT target, int raw_damage);
-void S_ResolveArtilleryPointHit(LPEDICT attacker, LPEDICT primary, LPCVECTOR2 impact, int raw_damage,
+abilityAliasRef_t S_ResolveAbilityAlias(edict_t * ent, uint32_t base_code);
+bool S_EvasionRoll(edict_t * target);
+int S_CriticalStrikeDamage(edict_t * attacker, int damage);
+float S_SpikedArmorBonus(edict_t const * unit);
+float S_SpikedDamageReturn(edict_t const * unit, float damage);
+void S_PulverizeAttack(edict_t * attacker, edict_t const * primary);
+void S_IncinerateOnHit(edict_t * attacker, edict_t * target);
+void S_CreepAttackOnHit(edict_t * attacker, edict_t * target);
+float S_CreepAttackSpeedReduction(edict_t const * unit);
+float S_SlowAuraMoveReduction(edict_t const * unit);
+float S_SlowAuraAttackReduction(edict_t const * unit);
+float S_CommandAuraAttackBonus(edict_t * unit);
+float S_WarDrumsAttackBonus(edict_t * unit);
+int S_ManaShieldDamage(edict_t * target, int damage);
+void S_SummonUnits(edict_t * caster, uint32_t unit_id, uint32_t count, float duration);
+edict_t * S_SummonAt(edict_t * caster, uint32_t unit_id, vector2_t const * loc, float duration);
+uint32_t S_EnforceSummonedUnitTypeLimit(edict_t * caster, uint32_t unit_id, uint32_t max_count);
+bool S_UnitHasStatus(edict_t const * unit, uint32_t code);
+bool S_UnitPolymorphed(edict_t const * unit);
+void S_PolymorphRemove(edict_t * unit);
+int S_BlackArrowDamage(edict_t * attacker, int damage);
+void S_BlackArrowDeath(edict_t * attacker, edict_t * target);
+void S_ResolveAttackHit(edict_t * attacker, edict_t * target, int damage);
+void S_ResolveArtilleryHit(edict_t * attacker, edict_t * target, int raw_damage);
+void S_ResolveArtilleryPointHit(edict_t * attacker, edict_t * primary, vector2_t const * impact, int raw_damage,
                                 struct edictArtillery_s const *profile);
-bool S_OrderAttackGround(LPEDICT unit, LPCVECTOR2 point);
-void S_ReincarnationOnDeath(LPEDICT unit);
-bool S_HumanCanAttack(LPCEDICT unit);
-float S_HumanMoveFactor(LPCEDICT unit);
-float S_DefendAttackReduction(LPCEDICT unit);
-float S_HumanArmorBonus(LPCEDICT unit);
-int S_HumanAttackDamage(LPEDICT attacker, LPEDICT target, int damage);
-int S_FeedbackDamage(LPEDICT attacker, LPEDICT target, int damage);
-int S_HardenedSkinDamage(LPEDICT target, int damage);
-int S_OrbAnnihilationDamage(LPEDICT attacker, int damage);
-bool S_UnitIsResistant(LPCEDICT unit);
-void S_HumanAttackSplash(LPEDICT attacker, LPEDICT target, int damage);
-void S_HumanBreakInvisibility(LPEDICT unit);
-void S_HumanStatusExpired(LPEDICT unit, uint32_t code, uint32_t level);
-bool S_UnitSpellImmune(LPCEDICT unit);
-int S_AntiMagicShellAbsorb(LPEDICT target, int damage);
-int S_SpiritLinkRedirect(LPEDICT target, LPEDICT attacker, int damage);
-bool S_PossessionSpellImmune(LPCEDICT unit);
-int S_PossessionDamageTaken(LPEDICT target, int damage);
-bool S_SpellDamage(LPEDICT target, LPEDICT caster, int damage);
-void S_AvatarExpire(LPEDICT unit);
-float S_BloodlustAttackBonus(LPCEDICT unit);
-float S_BloodlustMoveBonus(LPCEDICT unit);
-float S_FaerieArmorDelta(LPCEDICT unit);
-float S_RoarDamageBonus(LPCEDICT unit);
-float S_RejuvHealRate(LPCEDICT unit);
-float S_FrenzyAttackBonus(LPCEDICT unit);
-float S_FrenzyArmorDelta(LPCEDICT unit);
-float S_UnholyFrenzyAttackBonus(LPCEDICT unit);
-float S_UnholyFrenzyLifeDrain(LPCEDICT unit);
-float S_CurseMissChance(LPCEDICT unit);
-float S_CrippleMoveReduction(LPCEDICT unit);
-float S_EarthquakeMoveReduction(LPCEDICT unit);
-float S_CrippleAttackReduction(LPCEDICT unit);
-float S_CrippleDamageReduction(LPCEDICT unit);
-float S_SoulBurnDamageRate(LPCEDICT unit);
-float S_SoulBurnDamageReduction(LPCEDICT unit);
-float S_PurgeMoveReduction(LPCEDICT unit);
-bool S_PurgeIsImmobilized(LPCEDICT unit);
-void S_MoonGlaiveAttack(LPEDICT attacker, LPEDICT primary, int damage);
-void S_SlowPoisonOnHit(LPEDICT attacker, LPEDICT target);
-void S_PoisonOnHit(LPEDICT attacker, LPEDICT target);
-float S_SlowPoisonMoveReduction(LPCEDICT unit);
-float S_SlowPoisonAttackReduction(LPCEDICT unit);
-void S_OrbOnHit(LPEDICT attacker, LPEDICT target);
-float S_BarkskinArmorBonus(LPCEDICT unit);
-float S_ManaFlareArmorBonus(LPCEDICT unit);
+bool S_OrderAttackGround(edict_t * unit, vector2_t const * point);
+void S_ReincarnationOnDeath(edict_t * unit);
+bool S_HumanCanAttack(edict_t const * unit);
+float S_HumanMoveFactor(edict_t const * unit);
+float S_DefendAttackReduction(edict_t const * unit);
+float S_HumanArmorBonus(edict_t const * unit);
+int S_HumanAttackDamage(edict_t * attacker, edict_t * target, int damage);
+int S_FeedbackDamage(edict_t * attacker, edict_t * target, int damage);
+int S_HardenedSkinDamage(edict_t * target, int damage);
+int S_OrbAnnihilationDamage(edict_t * attacker, int damage);
+bool S_UnitIsResistant(edict_t const * unit);
+void S_HumanAttackSplash(edict_t * attacker, edict_t * target, int damage);
+void S_HumanBreakInvisibility(edict_t * unit);
+void S_HumanStatusExpired(edict_t * unit, uint32_t code, uint32_t level);
+bool S_UnitSpellImmune(edict_t const * unit);
+int S_AntiMagicShellAbsorb(edict_t * target, int damage);
+int S_SpiritLinkRedirect(edict_t * target, edict_t * attacker, int damage);
+bool S_PossessionSpellImmune(edict_t const * unit);
+int S_PossessionDamageTaken(edict_t * target, int damage);
+bool S_SpellDamage(edict_t * target, edict_t * caster, int damage);
+void S_AvatarExpire(edict_t * unit);
+float S_BloodlustAttackBonus(edict_t const * unit);
+float S_BloodlustMoveBonus(edict_t const * unit);
+float S_FaerieArmorDelta(edict_t const * unit);
+float S_RoarDamageBonus(edict_t const * unit);
+float S_RejuvHealRate(edict_t const * unit);
+float S_FrenzyAttackBonus(edict_t const * unit);
+float S_FrenzyArmorDelta(edict_t const * unit);
+float S_UnholyFrenzyAttackBonus(edict_t const * unit);
+float S_UnholyFrenzyLifeDrain(edict_t const * unit);
+float S_CurseMissChance(edict_t const * unit);
+float S_CrippleMoveReduction(edict_t const * unit);
+float S_EarthquakeMoveReduction(edict_t const * unit);
+float S_CrippleAttackReduction(edict_t const * unit);
+float S_CrippleDamageReduction(edict_t const * unit);
+float S_SoulBurnDamageRate(edict_t const * unit);
+float S_SoulBurnDamageReduction(edict_t const * unit);
+float S_PurgeMoveReduction(edict_t const * unit);
+bool S_PurgeIsImmobilized(edict_t const * unit);
+void S_MoonGlaiveAttack(edict_t * attacker, edict_t * primary, int damage);
+void S_SlowPoisonOnHit(edict_t * attacker, edict_t * target);
+void S_PoisonOnHit(edict_t * attacker, edict_t * target);
+float S_SlowPoisonMoveReduction(edict_t const * unit);
+float S_SlowPoisonAttackReduction(edict_t const * unit);
+void S_OrbOnHit(edict_t * attacker, edict_t * target);
+float S_BarkskinArmorBonus(edict_t const * unit);
+float S_ManaFlareArmorBonus(edict_t const * unit);
 
 float AB_Data(cstring_t classname, uint32_t level, uint32_t index);
 uint32_t AB_DataId(cstring_t classname, uint32_t level, uint32_t index);
@@ -458,9 +458,9 @@ typedef enum {
 	RETURN_RESOURCE_LUMBER = 2,
 } returnResource_t;
 
-bool S_CanReturnResourceAt(LPEDICT unit, LPEDICT building, returnResource_t resource);
-LPEDICT S_FindNearestResourceDropoff(LPEDICT unit, returnResource_t resource);
-void S_SetCarriedResource(LPEDICT unit, returnResource_t resource, uint32_t amount);
+bool S_CanReturnResourceAt(edict_t * unit, edict_t * building, returnResource_t resource);
+edict_t * S_FindNearestResourceDropoff(edict_t * unit, returnResource_t resource);
+void S_SetCarriedResource(edict_t * unit, returnResource_t resource, uint32_t amount);
 
 typedef enum {
 	ABILITY_NUMBER_CAST,
@@ -471,9 +471,9 @@ typedef enum {
 	ABILITY_NUMBER_AREA,
 	ABILITY_NUMBER_RANGE
 } abilityNumber_t;
-uint32_t S_SpellCurrentCode(LPEDICT clent, uint32_t fallback);
+uint32_t S_SpellCurrentCode(edict_t * clent, uint32_t fallback);
 ability_t const *S_SpellAbilityForCode(uint32_t code);
-uint32_t S_SpellLevel(LPEDICT caster, uint32_t code);
+uint32_t S_SpellLevel(edict_t * caster, uint32_t code);
 float S_SpellNumber(uint32_t code, abilityNumber_t field, uint32_t level);
 cstring_t S_SpellString(uint32_t code, cstring_t field, uint32_t level);
 float S_SpellData(uint32_t code, uint32_t level, uint32_t index);
@@ -481,48 +481,48 @@ uint32_t S_SpellDataId(uint32_t code, uint32_t level, uint32_t index);
 uint32_t S_SpellUnitId(uint32_t code, uint32_t level);
 float S_SpellRange(uint32_t code, uint32_t level);
 float S_SpellDuration(uint32_t code, uint32_t level, bool hero);
-bool S_SpellCooldownReady(LPEDICT caster, uint32_t code);
-float S_SpellCooldownRemaining(LPEDICT caster, uint32_t code);
-float S_SpellCooldownLength(LPEDICT caster, uint32_t code);
-bool S_SpellCooldownWindow(LPEDICT caster, uint32_t code, abilityCooldownWindow_t *window);
-float S_SpellCooldownFraction(LPEDICT caster, uint32_t code, uint32_t level);
-void S_SpellStartCooldownDuration(LPEDICT caster, uint32_t code, float seconds);
-void S_SpellStartCooldown(LPEDICT caster, uint32_t code, uint32_t level);
-void S_SpellEndCooldown(LPEDICT caster, uint32_t code);
-void S_SpellResetCooldowns(LPEDICT caster);
-bool S_SpellSpendMana(LPEDICT caster, uint32_t code, uint32_t level);
-bool S_SpellCanPay(LPEDICT caster, uint32_t code, uint32_t level);
-bool S_CastNoTargetSpell(LPEDICT caster, uint32_t code);
-bool S_CastPointTargetSpell(LPEDICT caster, uint32_t code, LPCVECTOR2 point);
-bool S_CastUnitTargetSpell(LPEDICT caster, uint32_t code, LPEDICT target);
-bool S_IssueUnitTargetSpell(LPEDICT caster, uint32_t code, LPEDICT target);
-bool S_SpellTargetInRange(LPEDICT caster, LPEDICT target, float range);
-bool S_SpellIsAliveTarget(LPEDICT target);
-bool S_UnitIsCycloned(LPCEDICT unit);
+bool S_SpellCooldownReady(edict_t * caster, uint32_t code);
+float S_SpellCooldownRemaining(edict_t * caster, uint32_t code);
+float S_SpellCooldownLength(edict_t * caster, uint32_t code);
+bool S_SpellCooldownWindow(edict_t * caster, uint32_t code, abilityCooldownWindow_t *window);
+float S_SpellCooldownFraction(edict_t * caster, uint32_t code, uint32_t level);
+void S_SpellStartCooldownDuration(edict_t * caster, uint32_t code, float seconds);
+void S_SpellStartCooldown(edict_t * caster, uint32_t code, uint32_t level);
+void S_SpellEndCooldown(edict_t * caster, uint32_t code);
+void S_SpellResetCooldowns(edict_t * caster);
+bool S_SpellSpendMana(edict_t * caster, uint32_t code, uint32_t level);
+bool S_SpellCanPay(edict_t * caster, uint32_t code, uint32_t level);
+bool S_CastNoTargetSpell(edict_t * caster, uint32_t code);
+bool S_CastPointTargetSpell(edict_t * caster, uint32_t code, vector2_t const * point);
+bool S_CastUnitTargetSpell(edict_t * caster, uint32_t code, edict_t * target);
+bool S_IssueUnitTargetSpell(edict_t * caster, uint32_t code, edict_t * target);
+bool S_SpellTargetInRange(edict_t * caster, edict_t * target, float range);
+bool S_SpellIsAliveTarget(edict_t * target);
+bool S_UnitIsCycloned(edict_t const * unit);
 bool S_StatusIsUndispellable(heroabilitystatus_t const *status);
-bool S_SummonIsDispelImmune(LPCEDICT unit);
-bool S_UnitIsSilenced(LPCEDICT unit);
+bool S_SummonIsDispelImmune(edict_t const * unit);
+bool S_UnitIsSilenced(edict_t const * unit);
 bool S_StatusIsEnsnare(uint32_t code);
-bool S_UnitIsEnsnared(LPCEDICT unit);
-bool S_UnitCanTranslate(LPCEDICT unit);
-float S_EnsnareMeleeRange(LPCEDICT unit);
-bool S_SpellIsEnemy(LPEDICT caster, LPEDICT target);
-bool S_SpellIsFriend(LPEDICT caster, LPEDICT target);
-bool S_SpellAllowsTarget(uint32_t code, LPEDICT caster, LPEDICT target);
-bool S_SpellAllowsCorpseTarget(uint32_t code, LPEDICT caster, LPEDICT target);
-bool S_SpellAllowsStoredCorpseTarget(uint32_t code, LPEDICT caster, LPEDICT target);
-void S_SpellHeal(LPEDICT target, float amount);
-void S_SpellCursorSplat(LPEDICT clent, float radius);
+bool S_UnitIsEnsnared(edict_t const * unit);
+bool S_UnitCanTranslate(edict_t const * unit);
+float S_EnsnareMeleeRange(edict_t const * unit);
+bool S_SpellIsEnemy(edict_t * caster, edict_t * target);
+bool S_SpellIsFriend(edict_t * caster, edict_t * target);
+bool S_SpellAllowsTarget(uint32_t code, edict_t * caster, edict_t * target);
+bool S_SpellAllowsCorpseTarget(uint32_t code, edict_t * caster, edict_t * target);
+bool S_SpellAllowsStoredCorpseTarget(uint32_t code, edict_t * caster, edict_t * target);
+void S_SpellHeal(edict_t * target, float amount);
+void S_SpellCursorSplat(edict_t * clent, float radius);
 void S_SpellCodeString(uint32_t code, string_t out);
-bool S_SpellIsChanneling(LPEDICT caster);
-void S_SpellCancelChannel(LPEDICT caster);
-LPEDICT S_SpellChannelThinker(LPEDICT caster, uint32_t code);
-bool S_SpellChannelActive(LPEDICT thinker);
-void S_SpellEndChannel(LPEDICT thinker);
+bool S_SpellIsChanneling(edict_t * caster);
+void S_SpellCancelChannel(edict_t * caster);
+edict_t * S_SpellChannelThinker(edict_t * caster, uint32_t code);
+bool S_SpellChannelActive(edict_t * thinker);
+void S_SpellEndChannel(edict_t * thinker);
 
 /* Unified spell pipeline owns targeting and cast lifecycle; concrete procedures
  * receive validation and execution messages through the registry row. */
-void spell_cmd(LPEDICT clent);
-void spell_run_frame(LPEDICT ent);
+void spell_cmd(edict_t * clent);
+void spell_run_frame(edict_t * ent);
 
 #endif

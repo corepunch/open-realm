@@ -23,8 +23,8 @@ static bool wow_creature_info_cache_loaded = false;
 
 /* Spawn a dynamic object entity for spell impact visuals.
  * Replaces the temp_entity pattern for fireball/frostbolt impacts. */
-LPEDICT Wow_SpawnDynamicObject(uint32_t spell_id, LPCVECTOR2 origin, uint32_t duration) {
-    LPEDICT ent = Wow_Spawn();
+edict_t * Wow_SpawnDynamicObject(uint32_t spell_id, vector2_t const * origin, uint32_t duration) {
+    edict_t * ent = Wow_Spawn();
     if (!ent) return NULL;
 
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
@@ -33,7 +33,7 @@ LPEDICT Wow_SpawnDynamicObject(uint32_t spell_id, LPCVECTOR2 origin, uint32_t du
     local->dyn_duration = duration;
     local->dyn_radius = 2;
 
-    ent->s.origin = (VECTOR3){ origin->x, origin->y, Wow_TerrainHeight(origin->x, origin->y) };
+    ent->s.origin = (vector3_t){ origin->x, origin->y, Wow_TerrainHeight(origin->x, origin->y) };
     ent->s.origin2 = *origin;
     ent->s.model = 0; /* no model — visual-only placeholder */
     ent->s.radius = (float)local->dyn_radius;
@@ -215,21 +215,21 @@ static bool WowGo_IsInteractive(uint32_t display_id) {
 }
 
 /* Keep server-authored interactive entities coincident with renderer-owned MDDF doodads. */
-void WowGo_SetDoodadTransform(LPCWOWDOODADDEF def, LPENTITYSTATE state) {
+void WowGo_SetDoodadTransform(wowDoodadDef_t const * def, entityState_t * state) {
     /* MDDF positions are absolute map coordinates; the old tile offset and terrain projection destroyed authored Z. */
     state->origin = Wow_ObjectPosition(def->position[0], def->position[1], def->position[2]);
-    state->origin2 = (VECTOR2){ state->origin.x, state->origin.y };
-    state->rotation = (VECTOR3){ def->rotation[0], def->rotation[1], def->rotation[2] };
+    state->origin2 = (vector2_t){ state->origin.x, state->origin.y };
+    state->rotation = (vector3_t){ def->rotation[0], def->rotation[1], def->rotation[2] };
     state->scale = def->scale / 1024.0f;
 }
 
 /* Spawn a game object with the exact authored MDDF transform. */
-static void WowGo_SpawnDoodad(LPCWOWDOODADDEF def, cstring_t model_path) {
+static void WowGo_SpawnDoodad(wowDoodadDef_t const * def, cstring_t model_path) {
     uint32_t display_id = WowGo_LookupDisplayId(model_path);
     if (!display_id || !WowGo_IsInteractive(display_id))
         return;
 
-    LPEDICT ent = Wow_Spawn();
+    edict_t * ent = Wow_Spawn();
     if (!ent)
         return;
 
@@ -276,9 +276,9 @@ static void WowGo_SpawnFromTile(int tile_x, int tile_y) {
             mdnm_size = chunk_size;
         } else if (*(uint32_t const *)tag == ID_FDDM && mdnm_data && mdnm_size) {
             /* MDDF: M2 doodad placements */
-            uint32_t count = chunk_size / sizeof(WOWDOODADDEF);
+            uint32_t count = chunk_size / sizeof(wowDoodadDef_t);
             for (uint32_t i = 0; i < count; i++) {
-                LPCWOWDOODADDEF def = (LPCWOWDOODADDEF)(chunk + i * sizeof(*def));
+                wowDoodadDef_t const * def = (wowDoodadDef_t const *)(chunk + i * sizeof(*def));
                 if (def->name_id >= mdnm_size)
                     continue;
                 cstring_t model_path = (cstring_t)(mdnm_data + def->name_id);
@@ -296,7 +296,7 @@ static void WowGo_SpawnFromTile(int tile_x, int tile_y) {
     gi.MemFree(data);
 }
 
-void Wow_SpawnGameObjects(LPCVECTOR2 origin) {
+void Wow_SpawnGameObjects(vector2_t const * origin) {
     uint32_t spawned_before = (uint32_t)globals.num_edicts;
 
     /* Spawn from tiles near the player's spawn origin.
@@ -316,13 +316,13 @@ void Wow_SpawnGameObjects(LPCVECTOR2 origin) {
     fprintf(stderr, "WoW: spawned %u game objects from ADT doodads (%u interactive)\n", (unsigned)(globals.num_edicts - spawned_before), (unsigned)(globals.num_edicts - spawned_before));
 }
 
-void Wow_RunGameObjectFrame(LPEDICT ent) {
+void Wow_RunGameObjectFrame(edict_t * ent) {
     (void)ent;
     /* Static objects — no per-frame logic yet.  Doors/chests will
      * add state transitions (open/close/loot animations). */
 }
 
-void Wow_RunCorpseFrame(LPEDICT ent) {
+void Wow_RunCorpseFrame(edict_t * ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     if (!local || 0 /* trusted caller */)
         return;
@@ -335,7 +335,7 @@ void Wow_RunCorpseFrame(LPEDICT ent) {
     }
 }
 
-void Wow_RunDynamicObjectFrame(LPEDICT ent) {
+void Wow_RunDynamicObjectFrame(edict_t * ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     if (!local || 0 /* trusted caller */)
         return;

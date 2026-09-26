@@ -12,7 +12,7 @@ static float Wow_LerpDegrees(float a, float b, float t) {
 }
 
 /* Shadow callers share the same no-cull override for both cheap and terrain-adjusted bounds. */
-static bool Wow_ShadowBoundsVisible(LPCFRUSTUM3 frustum, LPCBOX3 bounds, bool cull) {
+static bool Wow_ShadowBoundsVisible(frustum3_t const * frustum, box3_t const * bounds, bool cull) {
     return !cull || Frustum_ContainsAABox(frustum, bounds);
 }
 

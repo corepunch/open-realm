@@ -108,30 +108,30 @@ typedef struct shader_desc {
     const char      *FragmentBody;  /* defines vec4 frag() → fragment color */
 } shader_desc_t;
 
-typedef const shader_desc_t *LPCSHADERDESC;
+
 
 /* GL handles stay in the program, never in the typed value state. */
-typedef struct SHADERPROG {
+typedef struct shaderProg_s {
     GLuint progid;
-    LPCSHADERDESC desc;
+    shader_desc_t const * desc;
     GLint locs[MAX_SHADER_UNIFORMS];
     void *cache; /* shadow of last-uploaded state for change detection */
-} SHADERPROG;
-typedef struct SHADERPROG *LPSHADERPROG;
-typedef const struct SHADERPROG *LPCSHADERPROG;
+} shaderProg_t;
 
-typedef struct SHADERLOAD {
-    LPCSHADERDESC desc;
+
+
+typedef struct shaderLoad_s {
+    shader_desc_t const * desc;
     cstring_t defines;
-    LPSHADERPROG prog;
+    shaderProg_t * prog;
     void *state;
-} SHADERLOAD;
-typedef struct SHADERLOAD *LPSHADERLOAD;
-typedef const struct SHADERLOAD *LPCSHADERLOAD;
-void R_LoadShaderState(LPCSHADERLOAD load);
-void R_DeleteShader(LPSHADERPROG prog);
-void R_UploadShader(LPSHADERPROG prog, void const * state);
-#define R_LoadShader(D, F, P) R_LoadShaderState(&(SHADERLOAD){ D, F, &(P)->prog, &(P)->state })
+} shaderLoad_t;
+
+
+void R_LoadShaderState(shaderLoad_t const * load);
+void R_DeleteShader(shaderProg_t * prog);
+void R_UploadShader(shaderProg_t * prog, void const * state);
+#define R_LoadShader(D, F, P) R_LoadShaderState(&(shaderLoad_t){ D, F, &(P)->prog, &(P)->state })
 #define R_ApplyShader(P) R_UploadShader(&(P)->prog, &(P)->state)
 
 /* SHADER_TYPE names the CPU value struct. A fourth argument makes a fixed array;

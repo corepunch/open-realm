@@ -6,12 +6,12 @@
 
 typedef struct {
     PATHSTR name;
-    LPMODEL model;
+    model_t * model;
     uint32_t references;
     uint32_t registration_sequence;
-} KNOWNMODEL;
+} knownModel_t;
 
-static KNOWNMODEL mod_known[MAX_MOD_KNOWN];
+static knownModel_t mod_known[MAX_MOD_KNOWN];
 static uint32_t mod_registration_sequence = 1;
 static PATHSTR r_map_asset_scope;
 
@@ -36,17 +36,17 @@ void R_SetMapAssetScope(cstring_t scope) {
 }
 
 /* Missing files remain valid cached handles, matching Quake II registration semantics. */
-static LPMODEL R_LoadEmptyModel(cstring_t modelFilename, cstring_t reason) {
-    LPMODEL model;
+static model_t * R_LoadEmptyModel(cstring_t modelFilename, cstring_t reason) {
+    model_t * model;
     fprintf(stderr, "R_LoadModel: %s: %s, using empty model\n", reason, modelFilename);
     model = ri.MemAlloc(sizeof(*model));
     memset(model, 0, sizeof(*model));
     return model;
 }
 
-static LPMODEL R_LoadRegisteredModelPath(cstring_t modelFilename, bool cache_missing) {
-    KNOWNMODEL *entry = NULL;
-    LPMODEL model;
+static model_t * R_LoadRegisteredModelPath(cstring_t modelFilename, bool cache_missing) {
+    knownModel_t *entry = NULL;
+    model_t * model;
 
     FOR_LOOP(i, MAX_MOD_KNOWN) {
         if (mod_known[i].model && !strcasecmp(mod_known[i].name, modelFilename)) {
@@ -71,9 +71,9 @@ static LPMODEL R_LoadRegisteredModelPath(cstring_t modelFilename, bool cache_mis
 }
 
 /* Quake II keeps one renderer model entry per resolved filename and marks it during registration. */
-LPMODEL R_LoadRegisteredModel(cstring_t modelFilename) {
+model_t * R_LoadRegisteredModel(cstring_t modelFilename) {
     PATHSTR scoped;
-    LPMODEL model;
+    model_t * model;
 
     if (!modelFilename || !*modelFilename) return R_LoadEmptyModel("<empty>", "empty filename");
     if (R_MapAssetCandidate(modelFilename, scoped, sizeof(scoped))) {
@@ -84,7 +84,7 @@ LPMODEL R_LoadRegisteredModel(cstring_t modelFilename) {
 }
 
 /* Release drops caller ownership; stale resident images are reclaimed at the next registration boundary. */
-void R_ReleaseRegisteredModel(LPMODEL model) {
+void R_ReleaseRegisteredModel(model_t * model) {
     if (!model) return;
     FOR_LOOP(i, MAX_MOD_KNOWN)
         if (mod_known[i].model == model) {
@@ -97,7 +97,7 @@ void R_ReleaseRegisteredModel(LPMODEL model) {
 /* End-of-registration cleanup mirrors Mod_FreeUnused: only unreferenced, unmarked models leave residency. */
 static void R_FreeUnusedModels(bool shutdown) {
     FOR_LOOP(i, MAX_MOD_KNOWN) {
-        KNOWNMODEL *entry = &mod_known[i];
+        knownModel_t *entry = &mod_known[i];
         if (!entry->model || (!shutdown && (entry->references ||
             entry->registration_sequence == mod_registration_sequence))) continue;
         R_ReleaseModel(entry->model);

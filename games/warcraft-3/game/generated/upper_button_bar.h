@@ -5,15 +5,15 @@
 #include "../g_local.h"
 
 typedef struct UpperButtonBar_s {
-    LPFRAMEDEF UpperButtonBarFrame;
-    LPFRAMEDEF UpperButtonBarQuestsButton;
-    LPFRAMEDEF UpperButtonBarMenuButton;
-    LPFRAMEDEF UpperButtonBarAlliesButton;
-    LPFRAMEDEF UpperButtonBarChatButton;
+    frameDef_t * UpperButtonBarFrame;
+    frameDef_t * UpperButtonBarQuestsButton;
+    frameDef_t * UpperButtonBarMenuButton;
+    frameDef_t * UpperButtonBarAlliesButton;
+    frameDef_t * UpperButtonBarChatButton;
 } UpperButtonBar_t;
 
 
-static inline bool UpperButtonBar_Bind(UpperButtonBar_t *out, LPFRAMEDEF bind_root) {
+static inline bool UpperButtonBar_Bind(UpperButtonBar_t *out, frameDef_t * bind_root) {
     bool ok = true;
     if (!out) {
         return false;

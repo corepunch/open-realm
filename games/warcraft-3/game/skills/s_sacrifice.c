@@ -8,8 +8,8 @@
  * targets an Acolyte, while Alam on an Acolyte targets a Sacrificial Pit.
  * Neither ability has object-data fields describing the result type; the
  * stock mechanic always creates a Shade. */
-static bool sacrifice_pair(LPEDICT caster, LPEDICT target, uint32_t ability,
-                           LPEDICT *pit, LPEDICT *worker) {
+static bool sacrifice_pair(edict_t * caster, edict_t * target, uint32_t ability,
+                           edict_t * *pit, edict_t * *worker) {
     uint32_t const code = G_AbilityCode(ability);
 
     if (!caster || !target || !S_SpellIsAliveTarget(caster) || !S_SpellIsAliveTarget(target) ||
@@ -32,8 +32,8 @@ static bool sacrifice_pair(LPEDICT caster, LPEDICT target, uint32_t ability,
     return true;
 }
 
-static bool sacrifice_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    LPEDICT pit = NULL, worker = NULL;
+static bool sacrifice_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+    edict_t * pit = NULL, *worker = NULL;
     if (!spell || st.type != SPELL_TARGET_UNIT || !st.entity ||
         !sacrifice_pair(caster, st.entity, spell->code, &pit, &worker)) return false;
     /* Warsmash's Sacrifice is a producer queue item and a pit can own only one
@@ -42,8 +42,8 @@ static bool sacrifice_validate(LPEDICT caster, spellTarget_t st, abilityitem_t c
     return G_UnitBalance(ID_SHADE) != NULL;
 }
 
-static void sacrifice_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    LPEDICT pit = NULL, worker = NULL;
+static void sacrifice_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+    edict_t * pit = NULL, *worker = NULL;
     if (!sacrifice_validate(caster, st, spell) ||
         !sacrifice_pair(caster, st.entity, spell->code, &pit, &worker)) return;
     G_QueueSacrifice(pit, worker, ID_SHADE);
@@ -54,22 +54,22 @@ uint32_t S_SacrificeAbilityCode(void) { return ID_SACRIFICE_PIT; }
 
 /* The Shade result inherits the consumed worker's food slot, so Train must
  * not reserve additional food while the worker still exists. */
-bool S_SacrificeSkipsFoodReservation(LPCEDICT item) {
+bool S_SacrificeSkipsFoodReservation(edict_t const * item) {
     return item && item->sacrifice.active;
 }
 
 /* The queued worker must be the same live edict owned by the same player.
  * Spawn-time comparison rejects edict slots reused after the worker died. */
-static bool sacrifice_worker_valid(LPCEDICT item) {
-    LPCEDICT worker;
+static bool sacrifice_worker_valid(edict_t const * item) {
+    edict_t const * worker;
     if (!item || !item->sacrifice.active || !(worker = item->sacrifice.worker)) return false;
     return worker->inuse && worker->spawn_time == item->sacrifice.worker_spawn_time &&
         !M_IsDead(worker) && worker->s.player == item->s.player;
 }
 
 /* Inverse of the queue-time hide/pause: restore exactly the stashed state. */
-static void sacrifice_release_worker(LPEDICT item) {
-    LPEDICT worker;
+static void sacrifice_release_worker(edict_t * item) {
+    edict_t * worker;
     if (!item || !item->sacrifice.active || !(worker = item->sacrifice.worker)) return;
     if (worker->inuse && worker->spawn_time == item->sacrifice.worker_spawn_time) {
         if (!item->sacrifice.restore_hidden) worker->s.renderfx &= ~RF_HIDDEN;
@@ -79,15 +79,15 @@ static void sacrifice_release_worker(LPEDICT item) {
 }
 
 /* A_QUEUE_VALIDATE: the queued result may progress only while its worker is intact. */
-static bool sacrifice_queue_validate(LPEDICT producer, LPEDICT item) {
+static bool sacrifice_queue_validate(edict_t * producer, edict_t * item) {
     (void)producer;
     return sacrifice_worker_valid(item);
 }
 
 /* A_QUEUE_COMPLETE: placement already succeeded. Remove the worker first so
  * its food releases, then activate the result without a transient +1. */
-static void sacrifice_queue_complete(LPEDICT producer, LPEDICT item) {
-    LPEDICT worker = item->sacrifice.worker;
+static void sacrifice_queue_complete(edict_t * producer, edict_t * item) {
+    edict_t * worker = item->sacrifice.worker;
     uint32_t const worker_spawn_time = item->sacrifice.worker_spawn_time;
     (void)producer;
     memset(&item->sacrifice, 0, sizeof(item->sacrifice));
@@ -97,7 +97,7 @@ static void sacrifice_queue_complete(LPEDICT producer, LPEDICT item) {
 }
 
 /* A_QUEUE_CANCEL: restore the worker; Train refunds the result cost itself. */
-static void sacrifice_queue_cancel(LPEDICT producer, LPEDICT item) {
+static void sacrifice_queue_cancel(edict_t * producer, edict_t * item) {
     (void)producer;
     sacrifice_release_worker(item);
 }
@@ -105,9 +105,9 @@ static void sacrifice_queue_cancel(LPEDICT producer, LPEDICT item) {
 /* Sacrifice queue creation. Generic allocation/payment/queue-link/move/UI stay
  * Train-owned mechanisms; worker hiding and restore-state stashing are
  * Sacrifice policy owned here. */
-bool G_QueueSacrifice(LPEDICT producer, LPEDICT worker, uint32_t result_id) {
-    LPPLAYER player;
-    LPEDICT result;
+bool G_QueueSacrifice(edict_t * producer, edict_t * worker, uint32_t result_id) {
+    player_t * player;
+    edict_t * result;
     bool restore_hidden;
 
     if (!producer || !worker || !result_id || producer->build || !worker->inuse || M_IsDead(worker) ||
@@ -146,7 +146,7 @@ bool G_QueueSacrifice(LPEDICT producer, LPEDICT worker, uint32_t result_id) {
  * queued worker lifecycle and delegates the rest to the shared spell
  * default, like a TFT override delegates to its parent. */
 BZ_ABILITY_PROC(CAbilitySacrifice) {
-    LPEDICT producer, item;
+    edict_t * producer, *item;
     spellTarget_t target = (msg == A_VALIDATE || msg == A_EXECUTE) && call && call->target ?
         *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
     if (msg == A_QUEUE_VALIDATE || msg == A_QUEUE_COMPLETE || msg == A_QUEUE_CANCEL) {

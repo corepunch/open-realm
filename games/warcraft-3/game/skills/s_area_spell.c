@@ -4,14 +4,14 @@
 #define BLIZZARD_LEVEL_MASK   0x7fffffffu
 #define BLIZZARD_SHARD_DELAY_MS 800u
 
-static uint32_t blizzard_level(LPCEDICT ent) {
+static uint32_t blizzard_level(edict_t const * ent) {
     uint32_t const level = ent ? ent->variation & BLIZZARD_LEVEL_MASK : 0;
     return level ? level : 1;
 }
 
 typedef struct {
-    LPEDICT caster;
-    VECTOR2 direction;
+    edict_t * caster;
+    vector2_t direction;
     float length, width;
 } shockwaveContext_t;
 
@@ -19,8 +19,8 @@ typedef struct {
  * caps the combined damage of this burst (WC3 "Max Damage" / "Maximum Damage per
  * Wave"): when damage*targets would exceed it, the per-target damage is scaled
  * down so the total lands on the cap. */
-static void area_spell_damage(LPEDICT ent, float maxtotal) {
-    LPEDICT caster = ent->owner;
+static void area_spell_damage(edict_t * ent, float maxtotal) {
+    edict_t * caster = ent->owner;
     float radius = ent->collision;
     float damage = (float)ent->damage;
     uint32_t ntargets = 0;
@@ -43,8 +43,8 @@ static void area_spell_damage(LPEDICT ent, float maxtotal) {
 #undef AREA_HITS
 }
 
-static bool blizzard_hits(LPEDICT ent, LPEDICT target) {
-    LPEDICT caster = ent->owner;
+static bool blizzard_hits(edict_t * ent, edict_t * target) {
+    edict_t * caster = ent->owner;
     return target->inuse && target != caster && S_SpellIsAliveTarget(target) &&
            S_SpellAllowsTarget(ent->class_id, caster, target) &&
            Vector2_distance(&target->s.origin2, &ent->s.origin2) <= ent->collision;
@@ -53,8 +53,8 @@ static bool blizzard_hits(LPEDICT ent, LPEDICT target) {
 /* Blizzard counts every eligible target against DataF's per-wave cap, then
  * applies DataD only to structures.  Keep this separate from generic area
  * spells because the building multiplier is specific to Blizzard's fields. */
-static void blizzard_wave_damage(LPEDICT ent) {
-    LPEDICT caster = ent->owner;
+static void blizzard_wave_damage(edict_t * ent) {
+    edict_t * caster = ent->owner;
     uint32_t level = blizzard_level(ent), ntargets = 0;
     float damage = (float)ent->damage;
     float maxtotal = ent->velocity;
@@ -74,7 +74,7 @@ static void blizzard_wave_damage(LPEDICT ent) {
 
 /* Shard art is presentation only.  Use the authored DataC count and the
  * server RNG so visual placement cannot change which units receive damage. */
-static void blizzard_spawn_shards(LPEDICT ent) {
+static void blizzard_spawn_shards(edict_t * ent) {
     uint32_t level = blizzard_level(ent);
     uint32_t shards = (uint32_t)MAX(0.0f, S_SpellData(ent->class_id, level, 3));
     cstring_t effect_id = G_AbilityLevel(ent->class_id, level)->efctID;
@@ -83,7 +83,7 @@ static void blizzard_spawn_shards(LPEDICT ent) {
     FOR_LOOP(i, shards) {
         float angle = ((float)rand() / (float)RAND_MAX) * 2.0f * (float)M_PI;
         float distance = ((float)rand() / (float)RAND_MAX) * ent->collision;
-        VECTOR2 point = ent->s.origin2;
+        vector2_t point = ent->s.origin2;
         point.x += cosf(angle) * distance;
         point.y += sinf(angle) * distance;
         /* Blizzard's shard EffectArt belongs to its authored EfctID object
@@ -95,7 +95,7 @@ static void blizzard_spawn_shards(LPEDICT ent) {
     }
 }
 
-void blizzard_think(LPEDICT ent) {
+void blizzard_think(edict_t * ent) {
     uint32_t now = G_Time();
 
     if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
@@ -124,8 +124,8 @@ void blizzard_think(LPEDICT ent) {
     ent->freetime = now + (uint32_t)MAX(FRAMETIME, ent->wait * 1000.0f);
 }
 
-static bool shockwave_hits(LPEDICT target, shockwaveContext_t const *ctx) {
-    VECTOR2 offset;
+static bool shockwave_hits(edict_t * target, shockwaveContext_t const *ctx) {
+    vector2_t offset;
     float along, across;
 
     if (!target->inuse || target == ctx->caster || !S_SpellIsAliveTarget(target) ||
@@ -136,7 +136,7 @@ static bool shockwave_hits(LPEDICT target, shockwaveContext_t const *ctx) {
     return along >= 0.0f && along <= ctx->length && fabsf(across) <= ctx->width;
 }
 
-void rain_of_fire_think(LPEDICT ent) {
+void rain_of_fire_think(edict_t * ent) {
     uint32_t now = G_Time();
 
     if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
@@ -152,7 +152,7 @@ void rain_of_fire_think(LPEDICT ent) {
 /* Starfall: self-centered periodic area damage.  AbilityData stores the
  * authored damage in DataA, wave interval in DataB, area in Area, and the
  * channel lifetime in Dur. */
-void starfall_think(LPEDICT ent) {
+void starfall_think(edict_t * ent) {
     uint32_t now = G_Time();
 
     if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
@@ -177,7 +177,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityBlizzard) {
     uint32_t waves = (uint32_t)S_SpellData(spell->code, level, 1);
     uint32_t damage = (uint32_t)S_SpellData(spell->code, level, 2);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    LPEDICT thinker;
+    edict_t * thinker;
 
     thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->s.origin2 = st.point;
@@ -203,7 +203,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityBlizzard) {
 /* Carrion Swarm: instant point-target AoE blast. */
 BZ_SIMPLE_SPELL_PROC(AbilityCarrionSwarm) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    LPEDICT blast;
+    edict_t * blast;
 
     blast = G_Spawn();
     blast->owner = caster;
@@ -222,7 +222,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityCarrionSwarm) {
 BZ_SIMPLE_SPELL_PROC(AbilityShockwave) {
     uint32_t level = S_SpellLevel(caster, spell->code), ntargets = 0;
     shockwaveContext_t ctx = { .caster = caster };
-    VECTOR2 offset = Vector2_sub(&st.point, &caster->s.origin2);
+    vector2_t offset = Vector2_sub(&st.point, &caster->s.origin2);
     float distance = Vector2_distance(&caster->s.origin2, &st.point);
     float damage = MAX(1.0f, S_SpellData(spell->code, level, 1));
     float maxtotal = S_SpellData(spell->code, level, 2);
@@ -242,7 +242,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityShockwave) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityRainOfFire) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = S_SpellChannelThinker(caster, spell->code);
+    edict_t * thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->s.origin2 = st.point;
     thinker->s.origin.x = st.point.x;
     thinker->s.origin.y = st.point.y;
@@ -256,9 +256,9 @@ BZ_SIMPLE_SPELL_PROC(AbilityRainOfFire) {
 
 /* Death and Decay deals the authored percentage of each enemy's maximum life
  * on every pulse; unlike Rain of Fire, DataA is not a fixed damage amount. */
-void death_and_decay_think(LPEDICT ent) {
+void death_and_decay_think(edict_t * ent) {
     uint32_t now = G_Time();
-    LPEDICT caster = ent->owner;
+    edict_t * caster = ent->owner;
 
     if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
     if (ent->freetime && now < ent->freetime) return;
@@ -279,7 +279,7 @@ void death_and_decay_think(LPEDICT ent) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityDeathAndDecay) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = S_SpellChannelThinker(caster, spell->code);
+    edict_t * thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->s.origin2 = st.point;
     thinker->s.origin.x = st.point.x;
     thinker->s.origin.y = st.point.y;
@@ -291,7 +291,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDeathAndDecay) {
     death_and_decay_think(thinker);
 }
 
-static void area_damage_status_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void area_damage_status_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     float duration = S_SpellDuration(spell->code, level, false);
@@ -317,7 +317,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityFrostNova) {
     uint32_t rank = S_SpellLevel(caster, spell->code);
     float radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, rank);
     cstring_t buff = G_AbilityLevel(spell->code, rank)->buffID;
-    VECTOR2 center = st.entity->s.origin2;
+    vector2_t center = st.entity->s.origin2;
     FILTER_EDICTS(target, S_SpellIsEnemy(caster, target) && S_SpellAllowsTarget(spell->code, caster, target) &&
                   Vector2_distance(&target->s.origin2, &center) <= radius) {
         float damage = S_SpellData(spell->code, rank, 1);
@@ -327,9 +327,9 @@ BZ_SIMPLE_SPELL_PROC(AbilityFrostNova) {
     }
 }
 
-void tranquility_think(LPEDICT ent) {
+void tranquility_think(edict_t * ent) {
     uint32_t now = G_Time();
-    LPEDICT caster = ent->owner;
+    edict_t * caster = ent->owner;
 
     if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
     if (ent->freetime && now < ent->freetime) return;
@@ -349,7 +349,7 @@ void tranquility_think(LPEDICT ent) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityTranquility) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = S_SpellChannelThinker(caster, spell->code);
+    edict_t * thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->s.origin2 = caster->s.origin2;
     thinker->s.origin.x = caster->s.origin.x;
     thinker->s.origin.y = caster->s.origin.y;
@@ -366,7 +366,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityTranquility) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityStarfall) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = S_SpellChannelThinker(caster, spell->code);
+    edict_t * thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->s.origin2 = caster->s.origin2;
     thinker->s.origin.x = caster->s.origin.x;
     thinker->s.origin.y = caster->s.origin.y;

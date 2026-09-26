@@ -73,7 +73,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityWindWalk) {
  * Ubertip="Sends a bolt of negative energy that burns a target enemy unit's mana and deals damage proportional to the amount of mana burned."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityManaBurn) {
-    LPEDICT target = st.entity;
+    edict_t * target = st.entity;
     uint32_t level = S_SpellLevel(caster, spell->code);
     float amount = MIN(target->mana.value, S_SpellData(spell->code, level, 1));
 
@@ -85,7 +85,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityManaBurn) {
  * Dark Ritual converts the authored fraction of an allied non-hero's maximum
  * life into caster mana, then uses the normal damage/death path to sacrifice it. */
 BZ_SIMPLE_SPELL_PROC(AbilityDarkRitual) {
-    LPEDICT target = st.entity;
+    edict_t * target = st.entity;
     uint32_t level = S_SpellLevel(caster, spell->code);
     float mana = target->health.max_value * S_SpellData(spell->code, level, 1);
 
@@ -99,7 +99,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDarkRitual) {
  * Unubertip="Right-click to deactivate auto-casting."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityFrostArmor) {
-    LPEDICT target = st.entity;
+    edict_t * target = st.entity;
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
 
@@ -111,8 +111,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityFrostArmor) {
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, target, NULL, true);
 }
 
-void divine_shield_think(LPEDICT ent) {
-    LPEDICT caster = ent->owner;
+void divine_shield_think(edict_t * ent) {
+    edict_t * caster = ent->owner;
 
     if (!caster || !caster->inuse) {
         G_FreeEdict(ent);
@@ -130,7 +130,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float duration = MAX(0.1f, S_SpellDuration(spell->code, level, true));
     cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
-    LPEDICT thinker = G_Spawn();
+    edict_t * thinker = G_Spawn();
 
     if (!thinker) return;
     thinker->owner = caster;
@@ -154,7 +154,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
 BZ_SIMPLE_SPELL_PROC(AbilityEntanglingRoots) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
-    LPEDICT target = st.entity;
+    edict_t * target = st.entity;
     float duration;
 
     if (!target || !buff || strlen(buff) < 4) {

@@ -14,8 +14,8 @@ void UI_LoadHudLog(void) {
     UI_SetOnClick(hud.log.LogOkButton, UI_WINDOW_CLOSE_NOTIFY_ACTION);
 }
 
-void UI_MessageLogAppend(LPEDICT ent, cstring_t text) {
-    LPGAMECLIENT client;
+void UI_MessageLogAppend(edict_t * ent, cstring_t text) {
+    gameClient_t * client;
     uint32_t index;
 
     if (!ent || !(client = ent->client) || !text || !*text) return;
@@ -30,7 +30,7 @@ void UI_MessageLogAppend(LPEDICT ent, cstring_t text) {
     snprintf(client->message_log.entries[index], WC3_MESSAGE_LOG_ENTRY_SIZE, "%s", text);
 }
 
-static cstring_t MessageLogText(LPGAMECLIENT client) {
+static cstring_t MessageLogText(gameClient_t * client) {
     size_t used = 0;
 
     hud.log_text[0] = '\0';
@@ -52,8 +52,8 @@ static cstring_t MessageLogText(LPGAMECLIENT client) {
     return hud.log_text;
 }
 
-static void UI_WriteLogWindow(LPEDICT ent) {
-    LPGAMECLIENT client;
+static void UI_WriteLogWindow(edict_t * ent) {
+    gameClient_t * client;
 
     if (!ent || !(client = ent->client) || !client->connected) return;
     UI_SetCurrentClient(client);
@@ -70,7 +70,7 @@ static void UI_WriteLogWindow(LPEDICT ent) {
     UI_SetCurrentClient(NULL);
 }
 
-void UI_ShowLog(LPEDICT ent) {
+void UI_ShowLog(edict_t * ent) {
     if (!ent || !ent->client) return;
     UI_WriteLogWindow(ent);
 }

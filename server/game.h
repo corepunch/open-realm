@@ -10,14 +10,14 @@
 #define SVF_STATIC_SCENERY 0x00000008 // snapshot visibility; client fog shades map doodads/destructibles independently of unit sight
 #define SVF_OWNER_ONLY 0x00000010 // snapshot visibility; send only to the client selected by entityState_t.player
 
-KNOWN_AS(client_s, GAMECLIENT);
-KNOWN_AS(edict_s, EDICT);
-KNOWN_AS(link_s, LINK);
+KNOWN_AS(client_s, gameClient_t);
+KNOWN_AS(edict_s, edict_t);
+KNOWN_AS(link_s, link_t);
 
 typedef struct edict_s edict_t;
 
 struct link_s {
-    LPLINK prev, next;
+    link_t * prev, *next;
 };
 
 typedef enum {
@@ -46,17 +46,17 @@ struct game_import {
     int (*ModelIndex)(cstring_t modelName);
     int (*SoundIndex)(cstring_t soundName);
     int (*SoundIndexAlias)(cstring_t soundName, cstring_t alias);
-    void (*Sound)(LPEDICT ent, int channel, int sound_index, float volume, float attenuation, float timeofs);
-    void (*PositionedSound)(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, float volume,
+    void (*Sound)(edict_t * ent, int channel, int sound_index, float volume, float attenuation, float timeofs);
+    void (*PositionedSound)(vector3_t const * origin, edict_t * ent, int channel, int sound_index, float volume,
                             float attenuation, float timeofs);
-    void (*SoundPolicy)(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, float volume,
+    void (*SoundPolicy)(vector3_t const * origin, edict_t * ent, int channel, int sound_index, float volume,
                          float attenuation, float timeofs, soundPolicy_t const *policy);
-    void (*MinimapPing)(LPEDICT ent, LPCVECTOR2 position, float duration, COLOR32 color, uint32_t flags);
+    void (*MinimapPing)(edict_t * ent, vector2_t const * position, float duration, color32_t color, uint32_t flags);
     int (*ImageIndex)(cstring_t imageName);
     int (*FontIndex)(cstring_t fontName, uint32_t fontSize);
-    void (*LinkEntity)(LPEDICT ent);
-    void (*UnlinkEntity)(LPEDICT ent);
-    uint32_t (*BoxEdicts)(LPCBOX2 area, LPEDICT *list, uint32_t maxcount, bool (*pred)(LPCEDICT));
+    void (*LinkEntity)(edict_t * ent);
+    void (*UnlinkEntity)(edict_t * ent);
+    uint32_t (*BoxEdicts)(box2_t const * area, edict_t * *list, uint32_t maxcount, bool (*pred)(edict_t const *));
     void (*MenuAction)(cstring_t action, cstring_t arg);
     /* Queue a client-side movie to interpose the next deferred session action. */
     void (*QueueMovie)(cstring_t path);
@@ -77,7 +77,7 @@ struct game_import {
     /* Freeze only authoritative simulation advancement. The server keeps
      * packet processing and client transport alive while paused. */
     void (*SetPaused)(bool paused);
-    void (*multicast)(LPCVECTOR3 origin, multicast_t to);
+    void (*multicast)(vector3_t const * origin, multicast_t to);
     void (*unicast)(edict_t *ent);
     void (*Write)(pfWriteType_t type, void const *value);
 
@@ -85,7 +85,7 @@ struct game_import {
     void (*confignstring)(uint32_t index, cstring_t string, uint32_t len);
     cstring_t (*GetConfigstring)(uint32_t index);
     void (*error)(cstring_t fmt, ...);
-    void (*ApplyLobbySettings)(LPMAPINFO info);
+    void (*ApplyLobbySettings)(mapInfo_t * info);
 
     /* Cvar access — allows the game library to read command-line/config values
      * without linking directly against common.  Returns fallback if not set. */
@@ -145,23 +145,23 @@ struct game_export {
     void (*Shutdown)(void);
     void (*RunFrame)(void);
     cstring_t (*GetThemeValue)(cstring_t filename);
-    void (*ClientCommand)(LPEDICT ent, uint32_t argc, cstring_t argv[]);
-    void (*ClientInput)(LPEDICT ent, LPCINPUTCMD cmd);
+    void (*ClientCommand)(edict_t * ent, uint32_t argc, cstring_t argv[]);
+    void (*ClientInput)(edict_t * ent, inputCmd_t const * cmd);
     /* Read destination metadata and write the loading layout into the multicast buffer, before LoadMap. */
     bool (*PrepareMap)(cstring_t mapFilename);
-    void (*ClientBegin)(LPEDICT ent);
-    bool (*CanSeeEntity)(uint32_t player, LPCEDICT ent);
+    void (*ClientBegin)(edict_t * ent);
+    bool (*CanSeeEntity)(uint32_t player, edict_t const * ent);
     /* Cheap predicate, called for each visible candidate to preserve it under saturation. */
-    bool (*IsSnapshotPriorityEntity)(uint32_t player, LPCEDICT ent);
-    void (*CustomizeEntity)(uint32_t player, LPCEDICT ent, LPENTITYSTATE state);
-    uint32_t (*WriteClientDatagram)(LPEDICT ent, uint8_t * data, uint32_t size);
+    bool (*IsSnapshotPriorityEntity)(uint32_t player, edict_t const * ent);
+    void (*CustomizeEntity)(uint32_t player, edict_t const * ent, entityState_t * state);
+    uint32_t (*WriteClientDatagram)(edict_t * ent, uint8_t * data, uint32_t size);
     uint32_t (*PlayerCreateMap)(void);
     bool (*LoadMap)(cstring_t mapFilename);
     bool (*SaveGame)(cstring_t filename);
     bool (*LoadGame)(cstring_t filename);
     bool (*GetSaveMap)(cstring_t filename, string_t map, uint32_t map_size);
-    BOX2 (*GetWorldBounds)(void);
-    bool (*PathingEntityIsIgnored)(LPCEDICT ent);
+    box2_t (*GetWorldBounds)(void);
+    bool (*PathingEntityIsIgnored)(edict_t const * ent);
     
     edict_t *edicts;
     int num_edicts;
@@ -173,13 +173,13 @@ struct game_export {
 struct game_export *GetGameAPI(struct game_import *game_import);
 
 /* Invisible controllers use the same movement axes as actors, with a game-owned focus speed. */
-static inline VECTOR2 input_move_focus(LPCINPUTCMD cmd, LPCPLAYER ps, float speed) {
+static inline vector2_t input_move_focus(inputCmd_t const * cmd, player_t const * ps, float speed) {
     uint32_t bits = cmd->move.buttons;
-    VECTOR3 dir = { !!(bits & BZ_MOVE_FORWARD) - !!(bits & BZ_MOVE_BACK),
+    vector3_t dir = { !!(bits & BZ_MOVE_FORWARD) - !!(bits & BZ_MOVE_BACK),
         !!(bits & BZ_MOVE_LEFT) - !!(bits & BZ_MOVE_RIGHT), 0 };
-    dir = Vector3_rotateAroundAxis(&dir, &(VECTOR3){0, 0, 1}, DEG2RAD(ps->viewangles.z));
-    VECTOR3 pos = Vector3_mad(&ps->vieworigin, speed * cmd->move.msec / 1000.0f, &dir);
-    return (VECTOR2){ pos.x, pos.y };
+    dir = Vector3_rotateAroundAxis(&dir, &(vector3_t){0, 0, 1}, DEG2RAD(ps->viewangles.z));
+    vector3_t pos = Vector3_mad(&ps->vieworigin, speed * cmd->move.msec / 1000.0f, &dir);
+    return (vector2_t){ pos.x, pos.y };
 }
 
 #endif

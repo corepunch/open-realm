@@ -13,14 +13,14 @@
 static umove_t doodad_scripted_move = { .animation = "stand", .think = NULL, .endfunc = G_DoodadAnimationEnd };
 
 /* Identify static scenery that has an authored doodad row for scripted animation. */
-bool G_IsDoodad(LPCEDICT ent) {
+bool G_IsDoodad(edict_t const * ent) {
     return ent && ent->inuse && ent->class_id && (ent->svflags & SVF_STATIC_SCENERY) &&
         ent->data.Doodads && ent->data.Doodads->id == ent->class_id;
 }
 
 /* Hold a non-looping scripted doodad animation on its authored final frame. */
-void G_DoodadAnimationEnd(LPEDICT ent) {
-    LPCANIMATION anim;
+void G_DoodadAnimationEnd(edict_t * ent) {
+    animation_t const * anim;
 
     if (!ent || !(anim = ent->animation)) return;
     if (!(anim->flags & 1)) return;
@@ -34,8 +34,8 @@ void G_DoodadAnimationEnd(LPEDICT ent) {
 }
 
 /* Apply a named scripted animation without changing the doodad footprint. */
-bool G_DoodadSetAnimation(LPEDICT ent, cstring_t anim_name, bool random_animation) {
-    LPCANIMATION anim;
+bool G_DoodadSetAnimation(edict_t * ent, cstring_t anim_name, bool random_animation) {
+    animation_t const * anim;
 
     if (!G_IsDoodad(ent) || !anim_name || !*anim_name) return false;
 
@@ -65,7 +65,7 @@ bool G_DoodadSetAnimation(LPEDICT ent, cstring_t anim_name, bool random_animatio
 
 /* Apply a scripted doodad animation to matching scenery in a circular area. */
 uint32_t G_SetDoodadAnimationRadius(doodadAnimationRadiusParams_t const *params) {
-    LPEDICT nearest = NULL;
+    edict_t * nearest = NULL;
     float nearest_distance_sq = FLT_MAX;
     uint32_t changed = 0;
 
@@ -73,7 +73,7 @@ uint32_t G_SetDoodadAnimationRadius(doodadAnimationRadiusParams_t const *params)
         return 0;
 
     FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT ent = g_edicts + i;
+        edict_t * ent = g_edicts + i;
         float dx, dy, distance_sq;
 
         if (!G_IsDoodad(ent) || ent->class_id != params->doodad_id) continue;
@@ -96,14 +96,14 @@ uint32_t G_SetDoodadAnimationRadius(doodadAnimationRadiusParams_t const *params)
     return changed;
 }
 
-uint32_t G_SetDoodadAnimationRect(LPCBOX2 rect, uint32_t doodad_id,
+uint32_t G_SetDoodadAnimationRect(box2_t const * rect, uint32_t doodad_id,
                                cstring_t anim_name, bool random_animation) {
     uint32_t changed = 0;
 
     if (!rect || !doodad_id || !anim_name || !*anim_name) return 0;
 
     FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT ent = g_edicts + i;
+        edict_t * ent = g_edicts + i;
 
         if (!G_IsDoodad(ent) || ent->class_id != doodad_id ||
             !Box2_containsPoint(rect, &ent->s.origin2))

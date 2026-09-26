@@ -1,7 +1,7 @@
 #include "r_war3map.h"
 
-static VERTEX water_vertex_buffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*6];
-static LPVERTEX water_current_vertex = NULL;
+static vertex_t water_vertex_buffer[(SEGMENT_SIZE+1)*(SEGMENT_SIZE+1)*6];
+static vertex_t * water_current_vertex = NULL;
 
 // HELPERS
 
@@ -17,14 +17,14 @@ static struct color32 GetWaterOpacity(float waterlevel, float height) {
 
 // FUNCTIONS
 
-static void R_MakeWaterTile(LPCWAR3MAP map, uint32_t x, uint32_t y) {
+static void R_MakeWaterTile(war3map_t const * map, uint32_t x, uint32_t y) {
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, tr.world, tile);
 
     if (!IsTileWater(tile))
         return;
 
-    VECTOR2 const pos[] = {
+    vector2_t const pos[] = {
         { tr.world->center.x + x * TILE_SIZE, tr.world->center.y + y * TILE_SIZE },
         { tr.world->center.x + (x + 1) * TILE_SIZE, tr.world->center.y + y * TILE_SIZE },
         { tr.world->center.x + (x + 1) * TILE_SIZE, tr.world->center.y + (y + 1) * TILE_SIZE },
@@ -54,7 +54,7 @@ static void R_MakeWaterTile(LPCWAR3MAP map, uint32_t x, uint32_t y) {
     
 #define WATER_SCALE(x,y) (((x%3)+y)/3.0)
     
-    VECTOR2 const tc[] = {
+    vector2_t const tc[] = {
         { WATER_SCALE(x, 0),  WATER_SCALE(y, 0) },
         { WATER_SCALE(x, 1),  WATER_SCALE(y, 0) },
         { WATER_SCALE(x, 1),  WATER_SCALE(y, 1) },
@@ -101,11 +101,11 @@ static void R_MakeWaterTile(LPCWAR3MAP map, uint32_t x, uint32_t y) {
     };
 
     memcpy(water_current_vertex, geom, sizeof(geom));
-    water_current_vertex += sizeof(geom) / sizeof(VERTEX);
+    water_current_vertex += sizeof(geom) / sizeof(vertex_t);
 }
 
-LPMAPLAYER R_BuildMapSegmentWater(LPCWAR3MAP map, uint32_t sx, uint32_t sy) {
-    LPMAPLAYER mapLayer = ri.MemAlloc(sizeof(MAPLAYER));
+maplayer_t * R_BuildMapSegmentWater(war3map_t const * map, uint32_t sx, uint32_t sy) {
+    maplayer_t * mapLayer = ri.MemAlloc(sizeof(maplayer_t));
     mapLayer->type = MAPLAYERTYPE_WATER;
     mapLayer->texture = tr.texture[TEX_WATER];
     water_current_vertex = water_vertex_buffer;

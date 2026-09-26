@@ -5,10 +5,10 @@
 #define MAX_PARTICLES 10000
 
 typedef struct particle_vertex {
-    VECTOR3 position;
-    COLOR32 color;
+    vector3_t position;
+    color32_t color;
     float size;
-    VECTOR3 tail;
+    vector3_t tail;
     float uv[2];
     uint8_t axis[2];
 } particleVertex_t;
@@ -18,39 +18,39 @@ typedef enum {
     PARTICLE_UV_RIBBON,
 } PARTICLEUVORDER;
 
-typedef struct PARTICLEQUAD {
-    LPCVECTOR3 point, tail;
+typedef struct particlequad_s {
+    vector3_t const * point, *tail;
     float u0, v0, u1, v1;
-    COLOR32 color;
+    color32_t color;
     float size;
-} PARTICLEQUAD;
-typedef PARTICLEQUAD *LPPARTICLEQUAD;
-typedef PARTICLEQUAD const *LPCPARTICLEQUAD;
+} particleQuad_t;
 
-typedef struct PARTICLESTATE {
-    MATRIX4 viewProjection;
-    MATRIX4 textureMatrix;
-    MATRIX4 model;
-    VECTOR3 eye;
+
+
+typedef struct particleState_s {
+    matrix4_t viewProjection;
+    matrix4_t textureMatrix;
+    matrix4_t model;
+    vector3_t eye;
     int texture;
     int fogOfWar;
     bool alphaKey;
     float alphaCutoff;
-} PARTICLESTATE;
-typedef struct PARTICLESTATE *LPPARTICLESTATE;
-typedef const struct PARTICLESTATE *LPCPARTICLESTATE;
-typedef struct PARTICLEPROG {
-    SHADERPROG prog;
-    PARTICLESTATE state;
-} PARTICLEPROG;
-typedef struct PARTICLEPROG *LPPARTICLEPROG;
-typedef const struct PARTICLEPROG *LPCPARTICLEPROG;
+} particleState_t;
+
+
+typedef struct particleProg_s {
+    shaderProg_t prog;
+    particleState_t state;
+} particleProg_t;
+
+
 
 static struct {
-    PARTICLEPROG shader;
-//    LPRENDERTARGET rt[FOW_RT_COUNT];
-    LPBUFFER particles;
-    LPTEXTURE texture;
+    particleProg_t shader;
+//    renderTarget_t * rt[FOW_RT_COUNT];
+    buffer_t * particles;
+    texture_t * texture;
     particleVertex_t vertices[MAX_PARTICLES * NUM_PARTICLE_VERTICES];
 } particles_resources = { 0 };
 
@@ -102,12 +102,12 @@ cparticle_t *R_SpawnParticle(void) {
     p->next = active_particles;
     active_particles = p;
     p->blend_mode = BLEND_MODE_ADD;
-    p->tail = (VECTOR3){0};
+    p->tail = (vector3_t){0};
     p->size_value_scale = p->size_time_scale = 1.0f;
     return p;
 }
 
-#define SHADER_TYPE PARTICLESTATE
+#define SHADER_TYPE particleState_t
 static const shader_desc_t sd_particle = {
     .Name = "particle",
     .Uniforms = {
@@ -177,14 +177,14 @@ static const shader_desc_t sd_particle = {
 
 /* Emit one billboard or ribbon quad from a shared vertex-order table. */
 static particleVertex_t *R_AddParticleQuad(particleVertex_t *buffer,
-                                           LPCPARTICLEQUAD quad, PARTICLEUVORDER order) {
+                                           particleQuad_t const * quad, PARTICLEUVORDER order) {
     static uint8_t const axis[NUM_PARTICLE_VERTICES][2] = {{0,0}, {255,0}, {255,255}, {255,255}, {0,255}, {0,0}};
     static uint8_t const uv_index[2][NUM_PARTICLE_VERTICES][2] = {
         {{0,1}, {2,1}, {2,3}, {2,3}, {0,3}, {0,1}},
         {{0,3}, {0,1}, {2,1}, {2,1}, {2,3}, {0,3}},
     };
     float const uv[4] = {quad->u0, quad->v0, quad->u1, quad->v1};
-    VECTOR3 const tail = quad->tail ? *quad->tail : (VECTOR3){0};
+    vector3_t const tail = quad->tail ? *quad->tail : (vector3_t){0};
 
     FOR_LOOP(i, NUM_PARTICLE_VERTICES) {
         particleVertex_t const vertex = {
@@ -202,14 +202,14 @@ static particleVertex_t *R_AddParticleQuad(particleVertex_t *buffer,
 
 particleVertex_t *
 R_AddParticle(particleVertex_t *buffer,
-              LPCVECTOR3 point,
-              LPCVECTOR3 tail,
-              COLOR32 uvr,
-              COLOR32 color,
+              vector3_t const * point,
+              vector3_t const * tail,
+              color32_t uvr,
+              color32_t color,
               float size)
 {
     uint8_t * uv = (uint8_t *)&uvr;
-    PARTICLEQUAD const quad = {
+    particleQuad_t const quad = {
         .point = point, .tail = tail,
         .u0 = BYTE2FLOAT(uv[0]), .v0 = BYTE2FLOAT(uv[1]),
         .u1 = BYTE2FLOAT(uv[2]), .v1 = BYTE2FLOAT(uv[3]),
@@ -243,8 +243,8 @@ void R_UpdateParticles(void) {
     active_particles = active;
 }
 
-COLOR32 FX_LerpColor(COLOR32 a, COLOR32 b, float t) {
-    return (COLOR32) {
+color32_t FX_LerpColor(color32_t a, color32_t b, float t) {
+    return (color32_t) {
         .r = LerpNumber(a.r, b.r, t),
         .g = LerpNumber(a.g, b.g, t),
         .b = LerpNumber(a.b, b.b, t),
@@ -260,7 +260,7 @@ float FX_BlendFloat(uint8_t const *values, float k, float midtime) {
     }
 }
 
-COLOR32 FX_BlendColor(cparticle_t const *p) {
+color32_t FX_BlendColor(cparticle_t const *p) {
     float k = p->time / p->lifespan;
     float t = (float)p->midtime / (float)0xff;
     if (k > t) {
@@ -270,7 +270,7 @@ COLOR32 FX_BlendColor(cparticle_t const *p) {
     }
 }
 
-static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVertex_t *pv, BLEND_MODE blend_mode) {
+static void R_FlushParticles(texture_t const * texture, matrix4_t const * matrix, particleVertex_t *pv, BLEND_MODE blend_mode) {
     R_Call(glBindVertexArray, particles_resources.particles->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, particles_resources.particles->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(particleVertex_t) * (pv - particles_resources.vertices), particles_resources.vertices, GL_DYNAMIC_DRAW);
@@ -325,7 +325,7 @@ static void R_FlushParticles(LPCTEXTURE texture, LPCMATRIX4 matrix, particleVert
     R_Call(glDrawArrays, GL_TRIANGLES, 0, (GLsizei)(pv - particles_resources.vertices));
 }
 
-static COLOR32 FX_GetFrame(const cparticle_t *p) {
+static color32_t FX_GetFrame(const cparticle_t *p) {
     uint32_t columns = p->columns ? p->columns : 1;
     uint32_t rows = p->rows ? p->rows : 1;
     uint32_t total = columns * rows;
@@ -339,7 +339,7 @@ static COLOR32 FX_GetFrame(const cparticle_t *p) {
     uint32_t v = frame / columns;
     uint32_t usize = 256 / columns;
     uint32_t vsize = 256 / rows;
-    return (COLOR32) {
+    return (color32_t) {
         usize * u,
         vsize * v,
         usize * (u + 1) - 1,
@@ -348,9 +348,9 @@ static COLOR32 FX_GetFrame(const cparticle_t *p) {
 }
 
 void R_DrawParticles(void) {
-    MATRIX4 matrix;
+    matrix4_t matrix;
     particleVertex_t *pv = particles_resources.vertices;
-    LPCTEXTURE texture;
+    texture_t const * texture;
     BLEND_MODE blend_mode;
 
     if (!R_CvarEnabled("r_particles", "1") || !active_particles) return;
@@ -368,10 +368,10 @@ void R_DrawParticles(void) {
          * integrates gravity per-frame (semi-implicit Euler), which over a
          * particle's life is the 1/2*a*t^2 closed form below; applying the full
          * a*t^2 made gravity-driven particles fall ~2x too fast. */
-        VECTOR3 halfAccelT = Vector3_scale(&p->accel, 0.5f * p->time);
-        VECTOR3 vel = Vector3_add(&p->vel, &halfAccelT);
-        VECTOR3 org = Vector3_mad(&p->org, p->time, &vel);
-        COLOR32 col = FX_BlendColor(p);
+        vector3_t halfAccelT = Vector3_scale(&p->accel, 0.5f * p->time);
+        vector3_t vel = Vector3_add(&p->vel, &halfAccelT);
+        vector3_t org = Vector3_mad(&p->org, p->time, &vel);
+        color32_t col = FX_BlendColor(p);
         float size = p->size_value_scale * FX_BlendFloat(p->size, p->time * p->size_time_scale,
                                                          BYTE2FLOAT(p->midtime));
         pv = R_AddParticle(pv, &org, &p->tail, FX_GetFrame(p), col, size);
@@ -386,10 +386,10 @@ void R_DrawParticles(void) {
 /* Draw a single camera-facing (billboarded) sprite at a world position, reusing the particle
  * billboard pipeline. BLP textures are stored top-down and the particle shader maps a quad's top
  * vertex to V=1, so the UV rect is V-flipped to keep the sprite upright (top of image at top of quad). */
-void R_DrawBillboardSprite(LPCTEXTURE texture, LPCVECTOR3 origin, float size, COLOR32 color) {
-    MATRIX4 matrix;
+void R_DrawBillboardSprite(texture_t const * texture, vector3_t const * origin, float size, color32_t color) {
+    matrix4_t matrix;
     particleVertex_t *pv = particles_resources.vertices;
-    COLOR32 const uv = { 0, 255, 255, 0 };
+    color32_t const uv = { 0, 255, 255, 0 };
 
     if (!texture) texture = particles_resources.texture;
     Matrix4_identity(&matrix);
@@ -402,7 +402,7 @@ void R_DrawBillboardSprite(LPCTEXTURE texture, LPCVECTOR3 origin, float size, CO
  * segment into a camera-facing quad, while continuous U coordinates allow
  * tiled textures to move along the complete strip. */
 void R_DrawRibbon(ribbonDraw_t const *draw) {
-    MATRIX4 matrix;
+    matrix4_t matrix;
     particleVertex_t *pv = particles_resources.vertices;
     GLboolean depth_enabled;
     float distance = 0.0f;
@@ -414,11 +414,11 @@ void R_DrawRibbon(ribbonDraw_t const *draw) {
     depth_enabled = glIsEnabled(GL_DEPTH_TEST);
     if (!draw->depth_test && depth_enabled) R_Call(glDisable, GL_DEPTH_TEST);
     FOR_LOOP(i, draw->point_count - 1) {
-        VECTOR3 tail = Vector3_sub(draw->points + i + 1, draw->points + i);
+        vector3_t tail = Vector3_sub(draw->points + i + 1, draw->points + i);
         float length = Vector3_len(&tail);
         if (length <= 0.001f) continue;
         if (pv + NUM_PARTICLE_VERTICES > particles_resources.vertices + MAX_PARTICLES * NUM_PARTICLE_VERTICES) break;
-        PARTICLEQUAD const quad = {
+        particleQuad_t const quad = {
             .point = draw->points + i + 1, .tail = &tail,
             .u0 = draw->texcoord_phase + distance * draw->texcoord_scale,
             .v0 = 0.0f,
@@ -434,8 +434,8 @@ void R_DrawRibbon(ribbonDraw_t const *draw) {
     R_SetAlphaKeyState(false);
 }
 
-static LPBUFFER R_MakeParticlesVertexArrayObject(void) {
-    LPBUFFER buf = ri.MemAlloc(sizeof(BUFFER));
+static buffer_t * R_MakeParticlesVertexArrayObject(void) {
+    buffer_t * buf = ri.MemAlloc(sizeof(buffer_t));
 
     R_Call(glGenVertexArrays, 1, &buf->vao);
     R_Call(glGenBuffers, 1, &buf->vbo);
@@ -472,7 +472,7 @@ float dottexture[DOT_TEXTURE][DOT_TEXTURE] = {
 };
 
 void R_InitParticles(void) {
-    COLOR32 data[DOT_TEXTURE][DOT_TEXTURE];
+    color32_t data[DOT_TEXTURE][DOT_TEXTURE];
     FOR_LOOP(x, DOT_TEXTURE) FOR_LOOP(y, DOT_TEXTURE) {
         data[x][y].r = 0xff;
         data[x][y].g = 0xff;
@@ -481,7 +481,7 @@ void R_InitParticles(void) {
     }
     
     particles_resources.texture = R_AllocateTexture(DOT_TEXTURE, DOT_TEXTURE);
-    R_LoadTextureMipLevel(particles_resources.texture, &(TEXMIP){ data, DOT_TEXTURE, DOT_TEXTURE, 0, PIXEL_RGBA });
+    R_LoadTextureMipLevel(particles_resources.texture, &(texMip_t){ data, DOT_TEXTURE, DOT_TEXTURE, 0, PIXEL_RGBA });
 
     static const char *particle_defines =
 #ifdef USE_FOGOFWAR

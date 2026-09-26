@@ -3,7 +3,7 @@
 #include "test.h"
 #include "../g_local.h"
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 
@@ -29,10 +29,10 @@ static int shortcut_test_font(cstring_t name, uint32_t size) {
     return 1;
 }
 
-static void shortcut_test_unicast(LPEDICT ent) { (void)ent; }
+static void shortcut_test_unicast(edict_t * ent) { (void)ent; }
 
 static void shortcut_test_write(pfWriteType_t type, void const *value) {
-    LPCUIFRAME frame;
+    uiFrame_t const * frame;
 
     if (type != PF_UIFRAME || !value) return;
     frame = value;
@@ -68,7 +68,7 @@ static void shortcut_test_write(pfWriteType_t type, void const *value) {
 
 TEST(wc3_shortcuts, peasant_plain_stand_is_idle_but_busy_move_is_not) {
     umove_t busy = { "walk", NULL, NULL, NULL };
-    LPEDICT worker;
+    edict_t * worker;
 
     reset_entities();
     setup_test_world();
@@ -87,7 +87,7 @@ TEST(wc3_shortcuts, peasant_plain_stand_is_idle_but_busy_move_is_not) {
 }
 
 TEST(wc3_shortcuts, hold_position_worker_is_not_idle) {
-    LPEDICT worker;
+    edict_t * worker;
 
     reset_entities();
     setup_test_world();
@@ -102,8 +102,8 @@ TEST(wc3_shortcuts, hold_position_worker_is_not_idle) {
 }
 
 TEST(wc3_shortcuts, controlled_unit_invalidation_marks_player_dirty) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT worker;
+    gameClient_t * client = &game.clients[0];
+    edict_t * worker;
 
     reset_entities();
     setup_test_world();
@@ -119,8 +119,8 @@ TEST(wc3_shortcuts, controlled_unit_invalidation_marks_player_dirty) {
 
 
 TEST(wc3_shortcuts, hidden_hero_is_not_in_shortcut_roster) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT hero;
+    gameClient_t * client = &game.clients[0];
+    edict_t * hero;
 
     reset_entities();
     setup_test_world();
@@ -137,8 +137,8 @@ TEST(wc3_shortcuts, hidden_hero_is_not_in_shortcut_roster) {
 }
 
 TEST(wc3_shortcuts, hero_skill_point_change_invalidates_shortcut_badge) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT hero;
+    gameClient_t * client = &game.clients[0];
+    edict_t * hero;
 
     reset_entities();
     setup_test_world();
@@ -155,8 +155,8 @@ TEST(wc3_shortcuts, hero_skill_point_change_invalidates_shortcut_badge) {
 }
 
 TEST(wc3_shortcuts, hero_damage_alert_sets_deadline_and_invalidates_owner) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT hero;
+    gameClient_t * client = &game.clients[0];
+    edict_t * hero;
 
     reset_entities();
     setup_test_world();
@@ -174,9 +174,9 @@ TEST(wc3_shortcuts, hero_damage_alert_sets_deadline_and_invalidates_owner) {
 }
 
 TEST(wc3_shortcuts, hero_button_double_click_selects_then_centers_camera) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT clent;
-    LPEDICT hero;
+    gameClient_t * client = &game.clients[0];
+    edict_t * clent;
+    edict_t * hero;
 
     reset_entities();
     setup_test_world();
@@ -186,7 +186,7 @@ TEST(wc3_shortcuts, hero_button_double_click_selects_then_centers_camera) {
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 320.0f, 448.0f);
     hero->svflags |= SVF_MONSTER;
     hero->s.player = 0;
-    client->camera.state.position = (VECTOR2){ 64.0f, 96.0f };
+    client->camera.state.position = (vector2_t){ 64.0f, 96.0f };
     client->camera.old_state.position = client->camera.state.position;
     level.time = 1000;
 
@@ -200,7 +200,7 @@ TEST(wc3_shortcuts, hero_button_double_click_selects_then_centers_camera) {
     T_FEQ(client->camera.state.position.y, hero->s.origin2.y, 0.001f);
 
     level.time += 501; /* beyond Warsmash 500 ms double-click window */
-    client->camera.state.position = (VECTOR2){ 80.0f, 112.0f };
+    client->camera.state.position = (vector2_t){ 80.0f, 112.0f };
     client->camera.old_state.position = client->camera.state.position;
     G_ActivateHeroButton(clent, hero->s.number);
     T_FEQ(client->camera.state.position.x, 80.0f, 0.001f);
@@ -208,9 +208,9 @@ TEST(wc3_shortcuts, hero_button_double_click_selects_then_centers_camera) {
 }
 
 TEST(wc3_shortcuts, hero_function_key_requires_quick_second_press_to_center) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT clent;
-    LPEDICT hero;
+    gameClient_t * client = &game.clients[0];
+    edict_t * clent;
+    edict_t * hero;
 
     reset_entities();
     setup_test_world();
@@ -220,7 +220,7 @@ TEST(wc3_shortcuts, hero_function_key_requires_quick_second_press_to_center) {
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 352.0f, 480.0f);
     hero->svflags |= SVF_MONSTER;
     hero->s.player = 0;
-    client->camera.state.position = (VECTOR2){ 96.0f, 128.0f };
+    client->camera.state.position = (vector2_t){ 96.0f, 128.0f };
     client->camera.old_state.position = client->camera.state.position;
     level.time = 3000;
 
@@ -235,7 +235,7 @@ TEST(wc3_shortcuts, hero_function_key_requires_quick_second_press_to_center) {
     T_FEQ(client->camera.state.position.y, hero->s.origin2.y, 0.001f);
 
     level.time += 501;
-    client->camera.state.position = (VECTOR2){ 112.0f, 144.0f };
+    client->camera.state.position = (vector2_t){ 112.0f, 144.0f };
     client->camera.old_state.position = client->camera.state.position;
     G_ActivateHeroKey(clent, 0);
     T_FEQ(client->camera.state.position.x, 112.0f, 0.001f);
@@ -243,10 +243,10 @@ TEST(wc3_shortcuts, hero_function_key_requires_quick_second_press_to_center) {
 }
 
 TEST(wc3_shortcuts, hero_buttons_match_multiselect_order) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT clent;
-    LPEDICT heroes[3];
-    LPEDICT ordered[3] = { 0 };
+    gameClient_t * client = &game.clients[0];
+    edict_t * clent;
+    edict_t * heroes[3];
+    edict_t * ordered[3] = { 0 };
     UnitData_t hero_data[3] = {
         { .priority = 1 },
         { .priority = 3 },
@@ -308,10 +308,10 @@ TEST(wc3_shortcuts, hero_buttons_match_multiselect_order) {
 }
 
 TEST(wc3_shortcuts, hud_buttons_share_full_canvas_left_root) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT clent;
-    LPEDICT hero;
-    LPEDICT worker;
+    gameClient_t * client = &game.clients[0];
+    edict_t * clent;
+    edict_t * hero;
+    edict_t * worker;
     UnitProfile_t hero_profile;
     UnitProfile_t worker_profile;
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;

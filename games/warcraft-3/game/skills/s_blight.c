@@ -3,7 +3,7 @@
 /* Resolve the concrete authored ability alias whose AbilityData behavior is Abli.
  * This keeps custom object-data derivatives data-driven instead of hard-coding
  * the stock rawcode. */
-static uint32_t blight_growth_ability(LPEDICT ent) {
+static uint32_t blight_growth_ability(edict_t * ent) {
     char alias_name[5] = { 0 };
 
     if (!ent) return 0;
@@ -36,7 +36,7 @@ static uint32_t blight_growth_ability(LPEDICT ent) {
     return 0;
 }
 
-static void blight_growth_reset(LPEDICT ent, uint32_t code, uint32_t now) {
+static void blight_growth_reset(edict_t * ent, uint32_t code, uint32_t now) {
     uint32_t const level = code ? MAX(1u, G_UnitAbilityLevel(ent, code)) : 0;
     float const interval = level ? S_SpellDuration(code, level, false) : 0.0f;
 
@@ -53,7 +53,7 @@ static void blight_growth_reset(LPEDICT ent, uint32_t code, uint32_t now) {
 BZ_ABILITY_PROC(CAbilityBlightGrowth) {
     uint32_t code, level, now;
     float interval, expansion, max_radius;
-    LPGAMECLIENT owner;
+    gameClient_t * owner;
 
     if (!ent) return false;
     switch (msg) {

@@ -5,13 +5,13 @@
 #define WOW_GRASS_MAX_MODELS 64
 
 typedef struct {
-    LPCMODEL model;
-    MATRIX4 *matrices;  /* slice of wow_grass_scratch, not owned */
+    model_t const * model;
+    matrix4_t *matrices;  /* slice of wow_grass_scratch, not owned */
     uint32_t count;
-    INSTANCEBUFFER instances;
+    instanceBuffer_t instances;
 } wowGrassGroup_t;
 
-static MATRIX4 *wow_grass_scratch;
+static matrix4_t *wow_grass_scratch;
 static uint32_t wow_grass_scratch_cap;
 static wowGrassGroup_t wow_grass_groups[WOW_GRASS_MAX_MODELS];
 static uint32_t wow_grass_group_count, wow_grass_draw_count;
@@ -415,7 +415,7 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
                 {
                     uint32_t weights[WOW_GRASS_DOODAD_SLOTS];
                     static uint8_t missing_logged[WOW_GRASS_DOODAD_LOGGED_IDS];
-                    VECTOR3 origin = { chunk->position.x - row_j * WOW_ADT_UNIT_SIZE,
+                    vector3_t origin = { chunk->position.x - row_j * WOW_ADT_UNIT_SIZE,
                                        chunk->position.y - col_j * WOW_ADT_UNIT_SIZE,
                                        chunk->position.z + height + WOW_GRASS_Z_BIAS };
                     Wow_GroundEffectWeights(ground_effect, weights);
@@ -442,13 +442,13 @@ void Wow_BuildGrassForChunk(wowAdtChunk_t *chunk,
 /* Build one immutable cross; gl_InstanceID expands it over the camera-following world-cell grid. */
 void Wow_EnsureCameraGrassMesh(void) {
     float H, HW;
-    VERTEX *verts;
+    vertex_t *verts;
     uint32_t total;
 
     if (wow_world.grass_tile_vbo) return;
 
     total = WOW_GRASS_VERTS_PER_BLADE;
-    verts = ri.MemAlloc(sizeof(VERTEX) * total);
+    verts = ri.MemAlloc(sizeof(vertex_t) * total);
     if (!verts) return;
 
     H  = WOW_GRASS_BLADE_HEIGHT_MIN + WOW_GRASS_BLADE_HEIGHT_VARIATION * 0.5f;
@@ -469,11 +469,11 @@ void Wow_EnsureCameraGrassMesh(void) {
 
         for (q = 0; q < 12; q++) {
             const float *bd = (q < 6) ? A[q] : B[q - 6];
-            VERTEX *v = &verts[q];
+            vertex_t *v = &verts[q];
             memset(v, 0, sizeof(*v));
-            v->position = (VECTOR3){ bd[0] * HW, bd[1] * H, bd[2] * HW };
-            v->texcoord = (VECTOR2){ bd[3], bd[4] };
-            v->normal   = (VECTOR3){ 0, 0, 1 };
+            v->position = (vector3_t){ bd[0] * HW, bd[1] * H, bd[2] * HW };
+            v->texcoord = (vector2_t){ bd[3], bd[4] };
+            v->normal   = (vector3_t){ 0, 0, 1 };
             v->color    = COLOR32_WHITE;
         }
     }
@@ -494,7 +494,7 @@ void Wow_FreeCameraGrassMesh(void) {
 
 void Wow_DrawGrass(void) {
 #if WOW_GRASS_CAMERA_MESH
-    VECTOR3 cam;
+    vector3_t cam;
 
     /* Nothing to draw until at least one chunk has loaded. */
     if (!wow_world.has_atlas_origin || !wow_world.grass_ctrl || !wow_world.height_atlas) return;
@@ -509,8 +509,8 @@ void Wow_DrawGrass(void) {
 
     wow_grass_shader.state.viewProjection = tr.viewDef.viewProjectionMatrix;
     {
-        VECTOR3 sun_dir;
-        LPCENVIRONLIGHT sun = tr.viewDef.terrainLight.valid ? &tr.viewDef.terrainLight : NULL;
+        vector3_t sun_dir;
+        environLight_t const * sun = tr.viewDef.terrainLight.valid ? &tr.viewDef.terrainLight : NULL;
         if (sun) {
             wow_grass_shader.state.sunDir = sun->dir;
             wow_grass_shader.state.sunAmbient = sun->ambient;
@@ -518,20 +518,20 @@ void Wow_DrawGrass(void) {
         } else {
             Wow_SunDirection(Wow_DayFraction(), &sun_dir);
             wow_grass_shader.state.sunDir = sun_dir;
-            wow_grass_shader.state.sunAmbient = (VECTOR3){ WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B };
-            wow_grass_shader.state.sunDiffuse = (VECTOR3){ WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B };
+            wow_grass_shader.state.sunAmbient = (vector3_t){ WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B };
+            wow_grass_shader.state.sunDiffuse = (vector3_t){ WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B };
         }
     }
     wow_grass_shader.state.grassTime = (GLfloat)(tr.viewDef.time / 1000.0f);
-    wow_grass_shader.state.grassCameraOrigin = (VECTOR3){ (GLfloat)cam.x, (GLfloat)cam.y, (GLfloat)cam.z };
+    wow_grass_shader.state.grassCameraOrigin = (vector3_t){ (GLfloat)cam.x, (GLfloat)cam.y, (GLfloat)cam.z };
     wow_grass_shader.state.grassDrawDistance = (GLfloat)WOW_GRASS_DRAW_DISTANCE;
     wow_grass_shader.state.grassFadeStartDistance = (GLfloat)WOW_GRASS_FADE_START_DISTANCE;
-    wow_grass_shader.state.cameraXZ = (VECTOR2){ (GLfloat)cam.x, (GLfloat)cam.y };
+    wow_grass_shader.state.cameraXZ = (vector2_t){ (GLfloat)cam.x, (GLfloat)cam.y };
     wow_grass_shader.state.grassSlotSpacing = (GLfloat)WOW_GRASS_SLOT_SPACING;
-    wow_grass_shader.state.atlasOriginWorld = (VECTOR2){ (GLfloat)wow_world.atlas_world_x, (GLfloat)wow_world.atlas_world_y };
+    wow_grass_shader.state.atlasOriginWorld = (vector2_t){ (GLfloat)wow_world.atlas_world_x, (GLfloat)wow_world.atlas_world_y };
     wow_grass_shader.state.atlasChunkSize = (GLfloat)WOW_ADT_CHUNK_SIZE;
     wow_grass_shader.state.atlasUnitSize = (GLfloat)WOW_ADT_UNIT_SIZE;
-    wow_grass_shader.state.ctrlOriginWorld = (VECTOR2){ (GLfloat)wow_world.atlas_world_x, (GLfloat)wow_world.atlas_world_y };
+    wow_grass_shader.state.ctrlOriginWorld = (vector2_t){ (GLfloat)wow_world.atlas_world_x, (GLfloat)wow_world.atlas_world_y };
     wow_grass_shader.state.ctrlCellSize = (GLfloat)WOW_ADT_UNIT_SIZE;
 
     /* Height atlas on texture unit 5 */
@@ -596,7 +596,7 @@ void Wow_DrawGrass(void) {
                             (unsigned)culled, (unsigned)(wow_grass_draw_count + culled), (double)WOW_GRASS_CULL_RADIUS);
         if (wow_grass_draw_count) {
             wow_grass_scratch_cap = wow_grass_draw_count;
-            wow_grass_scratch = ri.MemAlloc(wow_grass_scratch_cap * sizeof(MATRIX4));
+            wow_grass_scratch = ri.MemAlloc(wow_grass_scratch_cap * sizeof(matrix4_t));
         }
         if (wow_grass_draw_count && !wow_grass_scratch) {
             fprintf(stderr, "[GRASS] failed to allocate %u cached instance matrices\n", (unsigned)wow_grass_draw_count);
@@ -613,7 +613,7 @@ void Wow_DrawGrass(void) {
                 float dx = inst->entity.origin.x - cam_x;
                 float dy = inst->entity.origin.y - cam_y;
                 if (dx*dx + dy*dy > cull_sq) continue;
-                MATRIX4 matrix;
+                matrix4_t matrix;
                 wowGrassGroup_t *group = NULL;
                 FOR_LOOP(i, wow_grass_group_count)
                     if (wow_grass_groups[i].model == inst->entity.model) { group = &wow_grass_groups[i]; break; }

@@ -1,10 +1,10 @@
 #include "s_skills.h"
 
 /* Aast inherits the nearest-target contract: only the caster's dead ordinary Tauren inside authored range qualify. */
-static LPEDICT ancestral_spirit_target(LPEDICT caster, abilityitem_t const *spell) {
+static edict_t * ancestral_spirit_target(edict_t * caster, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float range = S_SpellRange(spell->code, level), nearest = 0.0f;
-    LPEDICT selected = NULL;
+    edict_t * selected = NULL;
     FILTER_EDICTS(target, G_UnitIsRaisableCorpse(target) &&
                   target->class_id == MAKEFOURCC('o','t','a','u') && !G_UnitIsHero(target) &&
                   target->s.player == caster->s.player) {
@@ -17,14 +17,14 @@ static LPEDICT ancestral_spirit_target(LPEDICT caster, abilityitem_t const *spel
 }
 
 /* Reject an empty cast before the common spell path spends the authored 250 mana. */
-static bool ancestral_spirit_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool ancestral_spirit_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     (void)st;
     return ancestral_spirit_target(caster, spell) != NULL;
 }
 
 /* Revive the original edict so JASS handles, owner, unit type and runtime identity remain authoritative. */
-static void ancestral_spirit_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    LPEDICT target = ancestral_spirit_target(caster, spell);
+static void ancestral_spirit_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+    edict_t * target = ancestral_spirit_target(caster, spell);
     uint32_t level = S_SpellLevel(caster, spell->code);
     (void)st;
     if (!target) return;
@@ -44,7 +44,7 @@ BZ_VALIDATED_SPELL_PROC(AbilityAncestralSpirit, ancestral_spirit_validate, ances
  * After any DataD/DataE pause, reduction lerps from the initial slow to 0 over
  * the remaining buff lifetime.
  */
-static heroabilitystatus_t const *purge_status(LPCEDICT unit) {
+static heroabilitystatus_t const *purge_status(edict_t const * unit) {
     if (!unit) return NULL;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t const *slot = unit->abilstatus + i;
@@ -57,11 +57,11 @@ static heroabilitystatus_t const *purge_status(LPCEDICT unit) {
     return NULL;
 }
 
-static float purge_pause_seconds(LPCEDICT unit, heroabilitystatus_t const *slot) {
+static float purge_pause_seconds(edict_t const * unit, heroabilitystatus_t const *slot) {
     return S_SpellData(slot->data, slot->level, G_UnitIsHero(unit) ? 5 : 4);
 }
 
-static void purge_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void purge_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff;
     heroabilitystatus_t *slot;
@@ -88,7 +88,7 @@ static void purge_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const 
 BZ_SIMPLE_SPELL_PROC(AbilityPurge) { purge_execute(caster, st, spell); }
 
 /* True while inside DataD (unit) / DataE (hero) pause window of an active Purge. */
-bool S_PurgeIsImmobilized(LPCEDICT unit) {
+bool S_PurgeIsImmobilized(edict_t const * unit) {
     heroabilitystatus_t const *slot = purge_status(unit);
     float pause;
     uint32_t start, pause_ms;
@@ -101,7 +101,7 @@ bool S_PurgeIsImmobilized(LPCEDICT unit) {
 }
 
 /* Pause is full stop; afterward initial DataA slow recovers linearly over Dur-pause. */
-float S_PurgeMoveReduction(LPCEDICT unit) {
+float S_PurgeMoveReduction(edict_t const * unit) {
     heroabilitystatus_t const *slot = purge_status(unit);
     float dataA, initial, pause, progress;
     uint32_t start, pause_ms, slow_ms, elapsed;
@@ -134,7 +134,7 @@ float S_PurgeMoveReduction(LPCEDICT unit) {
  * damages all other living units within Area of the carrier each second.
  * Attribution uses the original caster for damage and resistance calculations.
  */
-void lsh_think(LPEDICT thinker) {
+void lsh_think(edict_t * thinker) {
     uint32_t level;
     float area, damage;
     if (!thinker->owner || !thinker->owner->inuse) { G_FreeEdict(thinker); return; }
@@ -153,7 +153,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityLightningShield) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float dur = S_SpellDuration(spell->code, level, false);
     cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
-    LPEDICT thinker;
+    edict_t * thinker;
     if (!st.entity || !buff || strlen(buff) < 4) return;
     unit_addtimedstatus(st.entity, buff, level, dur);
     thinker = G_Spawn();

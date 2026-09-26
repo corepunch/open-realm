@@ -3,10 +3,10 @@
 #define ID_TIMED_LIFE "BTLF"
 #define ID_STUN_BUFF "Bstu"
 
-static LPEDICT summon_unit(LPEDICT caster, uint32_t unit_id, uint32_t index, uint32_t count, float duration) {
-    VECTOR2 loc;
+static edict_t * summon_unit(edict_t * caster, uint32_t unit_id, uint32_t index, uint32_t count, float duration) {
+    vector2_t loc;
     float angle;
-    LPEDICT summon;
+    edict_t * summon;
 
     if (!caster || !unit_id)
         return NULL;
@@ -30,13 +30,13 @@ static LPEDICT summon_unit(LPEDICT caster, uint32_t unit_id, uint32_t index, uin
     return summon;
 }
 
-void S_SummonUnits(LPEDICT caster, uint32_t unit_id, uint32_t count, float duration) {
+void S_SummonUnits(edict_t * caster, uint32_t unit_id, uint32_t count, float duration) {
     if (!count) count = 1;
     FOR_LOOP(i, count) (void)summon_unit(caster, unit_id, i, count, duration);
 }
 
-LPEDICT S_SummonAt(LPEDICT caster, uint32_t unit_id, LPCVECTOR2 loc, float duration) {
-    LPEDICT summon;
+edict_t * S_SummonAt(edict_t * caster, uint32_t unit_id, vector2_t const * loc, float duration) {
+    edict_t * summon;
     if (!caster || !unit_id || !loc) return NULL;
     summon = SP_SpawnAtLocation(unit_id, caster->s.player, loc);
     if (!summon) return NULL;
@@ -51,12 +51,12 @@ LPEDICT S_SummonAt(LPEDICT caster, uint32_t unit_id, LPCVECTOR2 loc, float durat
  * results of the cast.  Keep the eviction primitive generic: callers supply
  * the Object Editor limit-check type and the retail cap, while summoned-unit
  * identity comes from the shared summon_ability marker. */
-uint32_t S_EnforceSummonedUnitTypeLimit(LPEDICT caster, uint32_t unit_id, uint32_t max_count) {
+uint32_t S_EnforceSummonedUnitTypeLimit(edict_t * caster, uint32_t unit_id, uint32_t max_count) {
     uint32_t removed = 0;
 
     if (!caster || !unit_id || !max_count) return 0;
     for (;;) {
-        LPEDICT oldest = NULL;
+        edict_t * oldest = NULL;
         uint32_t count = 0;
 
         FILTER_EDICTS(unit, unit->inuse && !M_IsDead(unit) && unit->s.player == caster->s.player &&
@@ -75,7 +75,7 @@ uint32_t S_EnforceSummonedUnitTypeLimit(LPEDICT caster, uint32_t unit_id, uint32
 }
 
 /* Inferno blast hits living ground/structure enemies; air is out of authored targs. */
-static bool inferno_hits(LPEDICT caster, LPEDICT target, float radius, LPCVECTOR2 origin) {
+static bool inferno_hits(edict_t * caster, edict_t * target, float radius, vector2_t const * origin) {
     if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(caster, target)) return false;
     if (Vector2_distance(&target->s.origin2, origin) > radius) return false;
     if (target->targtype == TARG_AIR) return false;
@@ -84,7 +84,7 @@ static bool inferno_hits(LPEDICT caster, LPEDICT target, float radius, LPCVECTOR
 }
 
 /* DataA damage + Bstu Dur/HeroDur, then UnitID with DataB timed life. */
-static void inferno_impact(LPEDICT caster, uint32_t code, uint32_t level, LPCVECTOR2 point) {
+static void inferno_impact(edict_t * caster, uint32_t code, uint32_t level, vector2_t const * point) {
     float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
     int damage = (int)S_SpellData(code, level, 1);
     float life = S_SpellData(code, level, 2);
@@ -102,7 +102,7 @@ static void inferno_impact(LPEDICT caster, uint32_t code, uint32_t level, LPCVEC
     S_SummonAt(caster, unit_id, point, life);
 }
 
-void inferno_think(LPEDICT ent) {
+void inferno_think(edict_t * ent) {
     uint32_t now = G_Time();
     if (ent->freetime && now < ent->freetime) return;
     if (!ent->owner || !ent->owner->inuse) { G_FreeEdict(ent); return; }
@@ -111,9 +111,9 @@ void inferno_think(LPEDICT ent) {
 }
 
 /* DataC<=0 impacts immediately; otherwise a thinker owns the meteor delay. */
-void S_InfernoLand(LPEDICT caster, uint32_t code, uint32_t level, LPCVECTOR2 point) {
+void S_InfernoLand(edict_t * caster, uint32_t code, uint32_t level, vector2_t const * point) {
     float delay;
-    LPEDICT thinker;
+    edict_t * thinker;
     if (!caster || !point) return;
     delay = S_SpellData(code, level, 3);
     if (delay <= 0.0f) { inferno_impact(caster, code, level, point); return; }
@@ -132,10 +132,10 @@ BZ_SIMPLE_SPELL_PROC(AbilityInferno) {
 }
 
 /* Rain of Chaos resolves each landing through the Inferno ability linked by DataA. */
-void rain_of_chaos_think(LPEDICT ent) {
+void rain_of_chaos_think(edict_t * ent) {
     uint32_t now = G_Time(), level = (uint32_t)ent->wait, inferno = ent->damage, code = ent->class_id;
     float angle, radius;
-    VECTOR2 loc = ent->s.origin2;
+    vector2_t loc = ent->s.origin2;
     if (!ent->owner || !ent->owner->inuse || !ent->resources) { G_FreeEdict(ent); return; }
     if (ent->freetime && now < ent->freetime) return;
     angle = ((float)rand() / (float)RAND_MAX) * 2.0f * (float)M_PI;
@@ -154,7 +154,7 @@ void rain_of_chaos_think(LPEDICT ent) {
 /* Unlike Rain of Fire, Rain of Chaos is not channeled: its effect owns the remaining landings after cast. */
 BZ_SIMPLE_SPELL_PROC(AbilityRainOfChaos) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = G_Spawn();
+    edict_t * thinker = G_Spawn();
     thinker->owner = caster; thinker->class_id = spell->code; thinker->s.origin2 = st.point;
     thinker->collision = MAX(0.0f, S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level));
     thinker->damage = S_SpellDataId(spell->code, level, 1);
@@ -164,7 +164,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityRainOfChaos) {
     rain_of_chaos_think(thinker);
 }
 
-static void summon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void summon_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     uint32_t unit_id = S_SpellUnitId(spell->code, level);
     uint32_t count = (uint32_t)S_SpellData(spell->code, level, 1);
@@ -172,7 +172,7 @@ static void summon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const
 
     if (!caster || !unit_id || !count) return;
     FOR_LOOP(i, count) {
-        LPEDICT summon = summon_unit(caster, unit_id, i, count, duration);
+        edict_t * summon = summon_unit(caster, unit_id, i, count, duration);
         if (!summon) continue;
         summon->summon_ability = spell->code;
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, summon, NULL, true);
@@ -189,16 +189,16 @@ BZ_SIMPLE_SPELL_PROC(AbilityWaterElemental) {
     float duration = S_SpellDuration(spell->code, level, false);
     float distance = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
-    VECTOR2 loc = caster->s.origin2;
+    vector2_t loc = caster->s.origin2;
 
     if (!caster || !unit_id || !count) return;
     loc.x += cosf(caster->s.angle) * distance;
     loc.y += sinf(caster->s.angle) * distance;
     FOR_LOOP(i, count) {
         float const angle = caster->s.angle + 2.0f * (float)M_PI * (float)i / (float)count;
-        VECTOR2 spawn = { loc.x + cosf(angle) * MAX(32.0f, caster->collision),
+        vector2_t spawn = { loc.x + cosf(angle) * MAX(32.0f, caster->collision),
                           loc.y + sinf(angle) * MAX(32.0f, caster->collision) };
-        LPEDICT summon = S_SummonAt(caster, unit_id, &spawn, duration);
+        edict_t * summon = S_SummonAt(caster, unit_id, &spawn, duration);
         if (!summon) continue;
         if (G_FindUnitUnstuckPosition(summon, &spawn, &summon->s.origin2)) {
             summon->s.origin.x = summon->s.origin2.x;
@@ -227,7 +227,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityWaterElemental) {
 BZ_SIMPLE_SPELL_PROC(AbilitySpiritWolf) {
     uint32_t level, unit_id, count;
     float duration, distance;
-    VECTOR2 loc;
+    vector2_t loc;
 
     if (!caster) return;
     level = S_SpellLevel(caster, spell->code);
@@ -249,7 +249,7 @@ BZ_SIMPLE_SPELL_PROC(AbilitySpiritWolf) {
     loc.x += cosf(caster->s.angle) * distance;
     loc.y += sinf(caster->s.angle) * distance;
     FOR_LOOP(i, count) {
-        LPEDICT summon = S_SummonAt(caster, unit_id, &loc, duration);
+        edict_t * summon = S_SummonAt(caster, unit_id, &loc, duration);
         if (!summon) continue;
         summon->summon_ability = spell->code;
         G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_SPECIAL, 0, summon, NULL, true);

@@ -19,12 +19,12 @@ typedef struct {
 
 static heroShortcutClick_t hero_shortcut_clicks[MAX_CLIENTS];
 
-static bool G_ShortcutIsControlledMonster(LPGAMECLIENT client, LPCEDICT ent) {
+static bool G_ShortcutIsControlledMonster(gameClient_t * client, edict_t const * ent) {
     return client && ent && ent->inuse && (ent->svflags & SVF_MONSTER) &&
         G_UnitCanControl(client, ent);
 }
 
-static bool G_UnitHasWorkerShortcutCapability(LPCEDICT ent) {
+static bool G_UnitHasWorkerShortcutCapability(edict_t const * ent) {
     cstring_t builds;
 
     if (!ent || !ent->data.UnitProfile) return false;
@@ -33,17 +33,17 @@ static bool G_UnitHasWorkerShortcutCapability(LPCEDICT ent) {
      * harvest-capable custom workers without a build menu. This avoids
      * hard-coding race/unit rawcodes while keeping combat-only resource
      * gatherers out unless their data explicitly makes them builders. */
-    return (builds && *builds) || G_ActorHasSkill((LPEDICT)ent, "Ahar");
+    return (builds && *builds) || G_ActorHasSkill((edict_t *)ent, "Ahar");
 }
 
-bool G_UnitShowsHeroShortcut(LPGAMECLIENT client, LPCEDICT ent) {
+bool G_UnitShowsHeroShortcut(gameClient_t * client, edict_t const * ent) {
     return G_ShortcutIsControlledMonster(client, ent) && ent->data.UnitBalance &&
         ent->data.UnitUI && !ent->training && !(ent->s.renderfx & RF_HIDDEN) &&
         !ent->data.UnitUI->hideHeroBar && !(ent->aiflags & AI_ILLUSION) &&
         G_UnitIsHero(ent);
 }
 
-bool G_UnitIsIdleWorker(LPCEDICT ent) {
+bool G_UnitIsIdleWorker(edict_t const * ent) {
     if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER) ||
         !ent->data.UnitBalance || ent->training || G_UnitIsBuilding(ent->class_id) ||
         M_IsDead(ent) || (ent->s.renderfx & RF_HIDDEN) ||
@@ -55,11 +55,11 @@ bool G_UnitIsIdleWorker(LPCEDICT ent) {
     return G_UnitHasWorkerShortcutCapability(ent);
 }
 
-bool G_UnitShowsIdleWorkerShortcut(LPGAMECLIENT client, LPCEDICT ent) {
+bool G_UnitShowsIdleWorkerShortcut(gameClient_t * client, edict_t const * ent) {
     return G_ShortcutIsControlledMonster(client, ent) && G_UnitIsIdleWorker(ent);
 }
 
-void G_InvalidateUnitShortcuts(LPGAMECLIENT client) {
+void G_InvalidateUnitShortcuts(gameClient_t * client) {
     if (client) client->shortcuts.dirty = true;
 }
 
@@ -67,7 +67,7 @@ void G_InvalidateAllUnitShortcuts(void) {
     FOR_LOOP(i, game.max_clients) G_InvalidateUnitShortcuts(game.clients + i);
 }
 
-void G_InvalidateUnitShortcutsForUnit(LPEDICT ent) {
+void G_InvalidateUnitShortcutsForUnit(edict_t * ent) {
     /* This hook is also called from generic entity destruction paths. Keep it
      * cheap for projectiles, effects, destructables, and ordinary units so
      * they cannot trigger an unnecessary full shortcut-roster rebuild. */
@@ -76,15 +76,15 @@ void G_InvalidateUnitShortcutsForUnit(LPEDICT ent) {
         !G_UnitHasWorkerShortcutCapability(ent)) return;
 
     FOR_LOOP(i, game.max_clients) {
-        LPGAMECLIENT client = game.clients + i;
+        gameClient_t * client = game.clients + i;
         if (G_UnitCanControl(client, ent)) G_InvalidateUnitShortcuts(client);
     }
 }
 
 /* Record one real-damage alert on an owned Hero and rebuild its shortcut once.
  * The client animates until this absolute deadline, so combat does not create per-frame layout traffic. */
-void G_AlertHeroShortcutDamage(LPEDICT ent) {
-    LPGAMECLIENT owner;
+void G_AlertHeroShortcutDamage(edict_t * ent) {
+    gameClient_t * owner;
 
     if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER) ||
         !ent->data.UnitBalance || !G_UnitIsHero(ent)) return;
@@ -96,25 +96,25 @@ void G_AlertHeroShortcutDamage(LPEDICT ent) {
     G_InvalidateUnitShortcuts(owner);
 }
 
-LPEDICT G_GetNextIdleWorker(LPGAMECLIENT client, uint32_t after) {
+edict_t * G_GetNextIdleWorker(gameClient_t * client, uint32_t after) {
     uint32_t count = globals.num_edicts;
 
     if (!client || count <= 1) return NULL;
     if (after >= count) after = 0;
 
     for (uint32_t i = after + 1; i < count; i++) {
-        LPEDICT ent = &globals.edicts[i];
+        edict_t * ent = &globals.edicts[i];
         if (G_UnitShowsIdleWorkerShortcut(client, ent)) return ent;
     }
     for (uint32_t i = 1; i <= after && i < count; i++) {
-        LPEDICT ent = &globals.edicts[i];
+        edict_t * ent = &globals.edicts[i];
         if (G_UnitShowsIdleWorkerShortcut(client, ent)) return ent;
     }
     return NULL;
 }
 
-static LPEDICT G_GetHeroShortcut(LPGAMECLIENT client, uint32_t slot) {
-    LPEDICT ordered[WC3_HERO_FUNCTION_KEYS] = { 0 };
+static edict_t * G_GetHeroShortcut(gameClient_t * client, uint32_t slot) {
+    edict_t * ordered[WC3_HERO_FUNCTION_KEYS] = { 0 };
     uint32_t seen = 0;
 
     if (!client || slot >= WC3_HERO_FUNCTION_KEYS) return NULL;
@@ -133,7 +133,7 @@ static LPEDICT G_GetHeroShortcut(LPGAMECLIENT client, uint32_t slot) {
         }
 
         while (insert > 0 && G_CompareSelectionOrder(ordered[insert], ordered[insert - 1]) < 0) {
-            LPEDICT swap = ordered[insert - 1];
+            edict_t * swap = ordered[insert - 1];
             ordered[insert - 1] = ordered[insert];
             ordered[insert] = swap;
             insert--;
@@ -144,8 +144,8 @@ static LPEDICT G_GetHeroShortcut(LPGAMECLIENT client, uint32_t slot) {
     return slot < MIN(seen, (uint32_t)WC3_HERO_FUNCTION_KEYS) ? ordered[slot] : NULL;
 }
 
-static bool G_SelectShortcutUnit(LPEDICT clent, LPEDICT target) {
-    LPGAMECLIENT client;
+static bool G_SelectShortcutUnit(edict_t * clent, edict_t * target) {
+    gameClient_t * client;
     uint32_t bit;
 
     if (!clent || !(client = clent->client) ||
@@ -163,13 +163,13 @@ static bool G_SelectShortcutUnit(LPEDICT clent, LPEDICT target) {
     return true;
 }
 
-static void G_CenterShortcutUnit(LPEDICT clent, LPCEDICT target) {
+static void G_CenterShortcutUnit(edict_t * clent, edict_t const * target) {
     if (!clent || !clent->client || !target || !target->inuse ||
         !G_UnitCanControl(clent->client, target)) return;
     G_ClientSetCameraPosition(clent, &target->s.origin2);
 }
 
-static void G_ActivateHeroShortcut(LPEDICT clent, LPEDICT hero) {
+static void G_ActivateHeroShortcut(edict_t * clent, edict_t * hero) {
     int32_t client_index;
     heroShortcutClick_t *click;
     uint32_t number;
@@ -197,13 +197,13 @@ static void G_ActivateHeroShortcut(LPEDICT clent, LPEDICT hero) {
         G_SelectShortcutUnit(clent, hero);
 }
 
-void G_ActivateHeroButton(LPEDICT clent, uint32_t number) {
+void G_ActivateHeroButton(edict_t * clent, uint32_t number) {
     if (!clent || !clent->client || number >= globals.num_edicts) return;
     G_ActivateHeroShortcut(clent, &globals.edicts[number]);
 }
 
-void G_ActivateHeroKey(LPEDICT clent, uint32_t slot) {
-    LPEDICT hero;
+void G_ActivateHeroKey(edict_t * clent, uint32_t slot) {
+    edict_t * hero;
 
     if (!clent || !clent->client) return;
     hero = G_GetHeroShortcut(clent->client, slot);
@@ -211,9 +211,9 @@ void G_ActivateHeroKey(LPEDICT clent, uint32_t slot) {
     G_ActivateHeroShortcut(clent, hero);
 }
 
-void G_ActivateIdleWorkerShortcut(LPEDICT clent, uint32_t hinted_number) {
-    LPGAMECLIENT client;
-    LPEDICT worker = NULL;
+void G_ActivateIdleWorkerShortcut(edict_t * clent, uint32_t hinted_number) {
+    gameClient_t * client;
+    edict_t * worker = NULL;
     uint32_t number;
 
     if (!clent || !(client = clent->client)) return;
@@ -223,7 +223,7 @@ void G_ActivateIdleWorkerShortcut(LPEDICT clent, uint32_t hinted_number) {
      * still advance even before the dirty layer has crossed the network. */
     if (hinted_number > 0 && hinted_number < globals.num_edicts &&
         hinted_number != client->shortcuts.last_idle_worker) {
-        LPEDICT hinted = &globals.edicts[hinted_number];
+        edict_t * hinted = &globals.edicts[hinted_number];
         if (G_UnitShowsIdleWorkerShortcut(client, hinted)) worker = hinted;
     }
     if (!worker) worker = G_GetNextIdleWorker(client, client->shortcuts.last_idle_worker);
@@ -242,8 +242,8 @@ void G_ActivateIdleWorkerShortcut(LPEDICT clent, uint32_t hinted_number) {
 
 void G_UpdateClientUnitShortcuts(void) {
     FOR_LOOP(i, game.max_clients) {
-        LPGAMECLIENT client = game.clients + i;
-        LPEDICT clent;
+        gameClient_t * client = game.clients + i;
+        edict_t * clent;
 
         if (!client->shortcuts.dirty || !client->connected) continue;
         clent = G_GetPlayerEntityByNumber(client->ps.number);

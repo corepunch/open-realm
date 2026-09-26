@@ -31,7 +31,7 @@ static void UI_SFileReadString(handle_t file, string_t *lppString) {
     SFileReadFile(file, *lppString, stringLength, NULL, NULL);
 }
 
-static bool UI_ReadInfoInto(handle_t archive, LPMAPINFO info) {
+static bool UI_ReadInfoInto(handle_t archive, mapInfo_t * info) {
     handle_t file;
 
     if (!archive || !info)
@@ -75,11 +75,11 @@ static bool UI_ReadInfoInto(handle_t archive, LPMAPINFO info) {
         SFileReadFile(file, &info->fogStartZ, sizeof(float), NULL, NULL);
         SFileReadFile(file, &info->fogEndZ, sizeof(float), NULL, NULL);
         SFileReadFile(file, &info->fogDensity, sizeof(float), NULL, NULL);
-        SFileReadFile(file, &info->fogColor, sizeof(COLOR32), NULL, NULL);
+        SFileReadFile(file, &info->fogColor, sizeof(color32_t), NULL, NULL);
         SFileReadFile(file, &info->weatherID, sizeof(uint32_t), NULL, NULL);
         UI_SFileReadString(file, &info->soundEnvironment);
         SFileReadFile(file, &info->lightEnvironmentTileset, sizeof(uint8_t), NULL, NULL);
-        SFileReadFile(file, &info->waterColor, sizeof(COLOR32), NULL, NULL);
+        SFileReadFile(file, &info->waterColor, sizeof(color32_t), NULL, NULL);
     }
     if (info->fileFormat >= 28)
         SFileReadFile(file, &info->scriptType, sizeof(uint32_t), NULL, NULL);
@@ -108,7 +108,7 @@ static bool UI_ReadInfoInto(handle_t archive, LPMAPINFO info) {
         SFileReadFile(file, &player->playerRace, sizeof(playerRace_t), NULL, NULL);
         SFileReadFile(file, &player->flags, sizeof(uint32_t), NULL, NULL);
         UI_SFileReadString(file, &player->playerName);
-        SFileReadFile(file, &player->startingPosition, sizeof(VECTOR2), NULL, NULL);
+        SFileReadFile(file, &player->startingPosition, sizeof(vector2_t), NULL, NULL);
         SFileReadFile(file, &player->allyLowPrioritiesFlags, sizeof(uint32_t), NULL, NULL);
         SFileReadFile(file, &player->allyHighPrioritiesFlags, sizeof(uint32_t), NULL, NULL);
         if (info->fileFormat >= 31) {
@@ -187,7 +187,7 @@ static void UI_MapRemoveBom(string_t buffer) {
         memmove(buffer, buffer + 3, strlen(buffer + 3) + 1);
 }
 
-static void UI_ReadStringsInto(handle_t archive, LPMAPINFO info) {
+static void UI_ReadStringsInto(handle_t archive, mapInfo_t * info) {
     handle_t file;
     uint32_t size;
     string_t buffer;
@@ -264,7 +264,7 @@ static bool UI_OpenMapArchive(cstring_t mapFilename, handle_t *mapArchive, void 
     return true;
 }
 
-bool UI_ReadMapInfo(cstring_t mapFilename, LPMAPINFO info) {
+bool UI_ReadMapInfo(cstring_t mapFilename, mapInfo_t * info) {
     handle_t mapArchive;
     void *mapData;
 
@@ -310,7 +310,7 @@ bool UI_FindMapPreviewTexture(cstring_t mapFilename, string_t out, uint32_t out_
     return found;
 }
 
-void UI_FreeMapInfo(LPMAPINFO mapInfo) {
+void UI_FreeMapInfo(mapInfo_t * mapInfo) {
     mapTrigStr_t *string = mapInfo ? mapInfo->strings : NULL;
 
     if (!mapInfo)
@@ -360,7 +360,7 @@ void UI_DefaultMapName(cstring_t path, string_t out, uint32_t out_size) {
         out[len - 4] = '\0';
 }
 
-void UI_ResolveMapInfoString(LPCMAPINFO info, cstring_t text, string_t out, uint32_t out_size) {
+void UI_ResolveMapInfoString(mapInfo_t const * info, cstring_t text, string_t out, uint32_t out_size) {
     uint32_t id;
 
     if (!out || out_size == 0)

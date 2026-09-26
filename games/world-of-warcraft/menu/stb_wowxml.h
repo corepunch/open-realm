@@ -149,12 +149,12 @@ typedef struct {
     float backdrop_insets[4];
     uiFontJustificationH_t halign;
     uiFontJustificationV_t valign;
-    COLOR32 colors[ELEM_COLOR_COUNT];
-    COLOR32 button_text_colors[WOW_XML_BUTTON_TEXT_COUNT];
+    color32_t colors[ELEM_COLOR_COUNT];
+    color32_t button_text_colors[WOW_XML_BUTTON_TEXT_COUNT];
     rect_t texcoord, highlight_texcoord;
-    LPMODEL model;
+    model_t * model;
     uint32_t sequence, frame, oldframe, anim_start;
-    COLOR32 fog_color;
+    color32_t fog_color;
     float fog_near, fog_far;
     bool has_fog;
 } uiWowXmlElem_t;
@@ -504,8 +504,8 @@ static int UIWow_XmlPushElem(uiWowXmlType_t type, cstring_t name, int parent, in
     e->alpha = 1.0f; e->font_size = 14.0f;
     e->colors[ELEM_COLOR_TEXT] = COLOR32_WHITE;
     e->colors[ELEM_COLOR_VERTEX] = COLOR32_WHITE;
-    e->colors[ELEM_COLOR_BACKDROP] = MAKE(COLOR32, 23, 23, 23, 120);
-    e->colors[ELEM_COLOR_BACKDROP_BORDER] = MAKE(COLOR32, 204, 204, 204, 255);
+    e->colors[ELEM_COLOR_BACKDROP] = MAKE(color32_t, 23, 23, 23, 120);
+    e->colors[ELEM_COLOR_BACKDROP_BORDER] = MAKE(color32_t, 204, 204, 204, 255);
     e->halign = FONT_JUSTIFYCENTER; e->valign = FONT_JUSTIFYMIDDLE;
     e->button_text_colors[WOW_XML_BUTTON_TEXT_NORMAL]    = e->colors[ELEM_COLOR_TEXT];
     e->button_text_colors[WOW_XML_BUTTON_TEXT_DISABLED]  = e->colors[ELEM_COLOR_TEXT];
@@ -794,7 +794,7 @@ static void UIWow_XmlReadFont(uiWowXmlElem_t *e, xmlNodePtr node) {
         } else if (!xmlStrcasecmp(c->name, BAD_CAST "Color")) {
             xmlChar *r = xmlGetProp(c, BAD_CAST "r"), *g = xmlGetProp(c, BAD_CAST "g"),
                     *b = xmlGetProp(c, BAD_CAST "b"), *a = xmlGetProp(c, BAD_CAST "a");
-            e->colors[ELEM_COLOR_TEXT] = MAKE(COLOR32,
+            e->colors[ELEM_COLOR_TEXT] = MAKE(color32_t,
                 (uint8_t)(UIWow_XmlFloat(r,1.f)*255.f), (uint8_t)(UIWow_XmlFloat(g,1.f)*255.f),
                 (uint8_t)(UIWow_XmlFloat(b,1.f)*255.f), (uint8_t)(UIWow_XmlFloat(a,1.f)*255.f));
             SAFE_DELETE(r,xmlFree); SAFE_DELETE(g,xmlFree); SAFE_DELETE(b,xmlFree); SAFE_DELETE(a,xmlFree);

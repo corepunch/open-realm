@@ -9,21 +9,21 @@
 #define MAX_FOGOFWAR_REVEALERS MAX_FOGOFWAR_CASTERS
 #define NUM_SIGHT_SECIONS 5
 
-typedef struct FOWRAYCASTSTATE {
-    MATRIX4 viewProjection;
-    MATRIX4 model;
-    VECTOR2 eyePosition;
-} FOWRAYCASTSTATE;
-typedef struct FOWRAYCASTSTATE *LPFOWRAYCASTSTATE;
-typedef const struct FOWRAYCASTSTATE *LPCFOWRAYCASTSTATE;
-typedef struct FOWRAYCASTPROG {
-    SHADERPROG prog;
-    FOWRAYCASTSTATE state;
-} FOWRAYCASTPROG;
-typedef struct FOWRAYCASTPROG *LPFOWRAYCASTPROG;
-typedef const struct FOWRAYCASTPROG *LPCFOWRAYCASTPROG;
+typedef struct fowraycaststate_s {
+    matrix4_t viewProjection;
+    matrix4_t model;
+    vector2_t eyePosition;
+} fowRaycastState_t;
 
-#define SHADER_TYPE FOWRAYCASTSTATE
+
+typedef struct fowraycastprog_s {
+    shaderProg_t prog;
+    fowRaycastState_t state;
+} fowRaycastProg_t;
+
+
+
+#define SHADER_TYPE fowRaycastState_t
 static const shader_desc_t sd_fow_raycast = {
     .Name = "fow_raycast",
     .Uniforms = {
@@ -75,11 +75,11 @@ enum {
 };
 
 static struct {
-    FOWRAYCASTPROG shader;
-    LPRENDERTARGET rt[FOW_RT_COUNT];
-    LPBUFFER casters;
-    LPTEXTURE sight;
-    LPTEXTURE network;
+    fowRaycastProg_t shader;
+    rendertarget_t * rt[FOW_RT_COUNT];
+    buffer_t * casters;
+    texture_t * sight;
+    texture_t * network;
     uint8_t const *network_data;
     uint32_t network_generation;
     uint32_t last_update_time;
@@ -93,14 +93,14 @@ typedef struct caster_vertex {
 static castervertex_t casters[MAX_FOGOFWAR_CASTERS * NUM_SIGHT_SECIONS * NUM_RECT_VERTICES];
 static renderEntity_t const *revealers[MAX_FOGOFWAR_REVEALERS];
 
-LPTEXTURE R_AllocateSightTexture(void) {
-    LPTEXTURE texture = R_AllocateTexture(SIGHT_SIZE, SIGHT_SIZE);
-    COLOR32 col[SIGHT_SIZE * SIGHT_SIZE];
+texture_t * R_AllocateSightTexture(void) {
+    texture_t * texture = R_AllocateTexture(SIGHT_SIZE, SIGHT_SIZE);
+    color32_t col[SIGHT_SIZE * SIGHT_SIZE];
     uint32_t mid = SIGHT_SIZE/2;
-    VECTOR2 center = {mid,mid};
+    vector2_t center = {mid,mid};
     FOR_LOOP(x, SIGHT_SIZE) {
         FOR_LOOP(y, SIGHT_SIZE) {
-            float const d = Vector2_distance(&center, &(VECTOR2){x,y});
+            float const d = Vector2_distance(&center, &(vector2_t){x,y});
             float const f = MAX(0, 1.0 - d / mid);
             uint32_t c = MIN(1, f * 2.0) * 0xff;
             col[x+y*SIGHT_SIZE].r = 0xff;
@@ -109,18 +109,18 @@ LPTEXTURE R_AllocateSightTexture(void) {
             col[x+y*SIGHT_SIZE].a = c;
         }
     }
-    R_LoadTextureMipLevel(texture, &(TEXMIP){ col, SIGHT_SIZE, SIGHT_SIZE, 0, PIXEL_RGBA });
+    R_LoadTextureMipLevel(texture, &(texMip_t){ col, SIGHT_SIZE, SIGHT_SIZE, 0, PIXEL_RGBA });
     return texture;
 }
 
-static void R_MakeSightMatrix(renderEntity_t const *ent, LPMATRIX4 model_matrix) {
+static void R_MakeSightMatrix(renderEntity_t const *ent, matrix4_t * model_matrix) {
     Matrix4_identity(model_matrix);
-    Matrix4_translate(model_matrix, &(VECTOR3) {
+    Matrix4_translate(model_matrix, &(vector3_t) {
         ent->origin.x - tr.world->center.x - SIGHT_DISTANCE / 2,
         ent->origin.y - tr.world->center.y - SIGHT_DISTANCE / 2,
         0
     });
-    Matrix4_scale(model_matrix, &(VECTOR3) {
+    Matrix4_scale(model_matrix, &(vector3_t) {
         SIGHT_DISTANCE,
         SIGHT_DISTANCE,
         SIGHT_DISTANCE,
@@ -174,14 +174,14 @@ static bool R_CasterNearRevealers(renderEntity_t const *caster,
     return false;
 }
 
-static uint32_t R_AddCastersToBuffer(LPCBUFFER buffer,
+static uint32_t R_AddCastersToBuffer(buffer_t const * buffer,
                                   renderEntity_t const **revealer_list,
                                   uint32_t num_revealers)
 {
     castervertex_t *caster_writer = casters;
     castervertex_t *caster_end = casters + sizeof(casters) / sizeof(*casters);
-    COLOR32 white = {255,255,255,255};
-    VERTEX rect[NUM_RECT_VERTICES];
+    color32_t white = {255,255,255,255};
+    vertex_t rect[NUM_RECT_VERTICES];
 
     FOR_LOOP(i, tr.viewDef.num_entities) {
         renderEntity_t *ent = &tr.viewDef.entities[i];
@@ -198,8 +198,8 @@ static uint32_t R_AddCastersToBuffer(LPCBUFFER buffer,
                 goto upload;
             }
             rect_t uv = {((float)j)/NUM_SIGHT_SECIONS,0,1.0/NUM_SIGHT_SECIONS,1};
-            LPCVERTEX end = R_AddQuad(rect, &screen, &uv, white, ent->radius);
-            for (LPCVERTEX v = rect; v != end; v++) {
+            vertex_t const * end = R_AddQuad(rect, &screen, &uv, white, ent->radius);
+            for (vertex_t const * v = rect; v != end; v++) {
                 caster_writer->position.x = v->position.x;
                 caster_writer->position.y = v->position.y;
                 caster_writer->position.z = v->position.z;
@@ -218,9 +218,9 @@ upload:
 }
 
 static uint32_t R_PushRectToBuffer(uint32_t buffer_id, rect_t const * value, float alpha) {
-    COLOR32 white = {255*alpha,255*alpha,255*alpha,255*alpha};
+    color32_t white = {255*alpha,255*alpha,255*alpha,255*alpha};
     rect_t uv = {0,0,1,1};
-    VERTEX rect[NUM_RECT_VERTICES];
+    vertex_t rect[NUM_RECT_VERTICES];
     R_AddQuad(rect, value, &uv, white, 0);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
@@ -229,8 +229,8 @@ static uint32_t R_PushRectToBuffer(uint32_t buffer_id, rect_t const * value, flo
 }
 
 static void R_BlitTexture(GLuint texid, float alpha) {
-    MATRIX4 model_matrix;
-    MATRIX4 proj_matrix;
+    matrix4_t model_matrix;
+    matrix4_t proj_matrix;
     rect_t const uv = {0,0,1,1};
     
     Matrix4_ortho(&proj_matrix, 0, 1, 0, 1, -1, 1);
@@ -276,12 +276,12 @@ void R_RenderFogOfWar(void) {
     uint32_t const texture_height = (tr.world->height - 1) * 4;
     uint32_t const num_revealers = R_CollectRevealers(revealers, MAX_FOGOFWAR_REVEALERS);
 
-    MATRIX4 model_matrix;
-    MATRIX4 proj_matrix;
-    VECTOR2 mapsize = R_WorldSize();
+    matrix4_t model_matrix;
+    matrix4_t proj_matrix;
+    vector2_t mapsize = R_WorldSize();
 
     Matrix4_identity(&model_matrix);
-    Matrix4_translate(&model_matrix, &(VECTOR3) { -tr.world->center.x, -tr.world->center.y, 0 });
+    Matrix4_translate(&model_matrix, &(vector3_t) { -tr.world->center.x, -tr.world->center.y, 0 });
     Matrix4_ortho(&proj_matrix, 0.0f, mapsize.x, 0.0f, mapsize.y, 0.0f, 100.0f);
 
     R_PushRectToBuffer(RBUF_TEMP1, &(rect_t const){0,0,1,1}, 1);
@@ -327,7 +327,7 @@ void R_RenderFogOfWar(void) {
 
         // Draw line of sight into dst alpha
 
-        memcpy(&fow_resources.shader.state.eyePosition, (GLfloat *)&ent->origin, (1) * sizeof(VECTOR2));
+        memcpy(&fow_resources.shader.state.eyePosition, (GLfloat *)&ent->origin, (1) * sizeof(vector2_t));
         R_Call(glBindVertexArray, fow_resources.casters->vao);
         R_Call(glBlendFunc, GL_DST_ALPHA, GL_ZERO);
         R_Call(glBindBuffer, GL_ARRAY_BUFFER, fow_resources.casters->vbo);
@@ -379,8 +379,8 @@ void R_RenderFogOfWar(void) {
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
 }
 
-LPBUFFER R_MakeCastersVertexArrayObject(void) {
-    LPBUFFER buf = ri.MemAlloc(sizeof(BUFFER));
+buffer_t * R_MakeCastersVertexArrayObject(void) {
+    buffer_t * buf = ri.MemAlloc(sizeof(buffer_t));
 
     R_Call(glGenVertexArrays, 1, &buf->vao);
     R_Call(glGenBuffers, 1, &buf->vbo);

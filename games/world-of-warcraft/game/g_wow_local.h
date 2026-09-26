@@ -7,11 +7,11 @@
 #include "common/ui_constants.h"
 #include "common/stb_dbc.h"
 
-void UI_WriteLoadingLayout(LPEDICT ent);
+void UI_WriteLoadingLayout(edict_t * ent);
 extern char wow_loading_texture[MAX_PATHLEN];
 extern char wow_loading_title[128];
 
-typedef struct WOWWEAPON {
+typedef struct wowWeapon_s {
     uint32_t entry;
     cstring_t name;
     uint32_t subclass;
@@ -23,28 +23,28 @@ typedef struct WOWWEAPON {
     float damage_max;
     uint32_t damage_type;
     uint32_t delay;
-} WOWWEAPON;
+} wowWeapon_t;
 
-typedef const WOWWEAPON *LPCWOWWEAPON;
 
-LPCWOWWEAPON Wow_WeaponByEntry(uint32_t entry);
+
+wowWeapon_t const * Wow_WeaponByEntry(uint32_t entry);
 uint32_t Wow_RollWeaponDamage(uint32_t entry);
 
 #define WOW_CREATURE_MODEL_COUNT 4
 
-typedef struct WOWCREATUREMODEL {
+typedef struct wowCreatureModel_s {
     uint32_t index;
     uint32_t display_id;
     float display_scale;
     float probability;
     int32_t verified_build;
-} WOWCREATUREMODEL;
+} wowCreatureModel_t;
 
-typedef const WOWCREATUREMODEL *LPCWOWCREATUREMODEL;
+
 
 /* File-shaped AzerothCore creature_template row plus every creature_template_model
  * variant. The generated table deliberately retains fields not consumed yet. */
-typedef struct WOWCREATURE {
+typedef struct wowCreature_s {
     uint32_t entry;
     uint32_t difficulty_entry[3];
     uint32_t kill_credit[2];
@@ -97,22 +97,22 @@ typedef struct WOWCREATURE {
     uint32_t flags_extra;
     cstring_t script_name;
     int32_t verified_build;
-    WOWCREATUREMODEL models[WOW_CREATURE_MODEL_COUNT];
+    wowCreatureModel_t models[WOW_CREATURE_MODEL_COUNT];
     uint32_t model_count;
-} WOWCREATURE;
+} wowCreature_t;
 
-typedef const WOWCREATURE *LPCWOWCREATURE;
+
 
 uint32_t Wow_CreatureCount(void);
-LPCWOWCREATURE Wow_CreatureByEntry(uint32_t entry);
+wowCreature_t const * Wow_CreatureByEntry(uint32_t entry);
 
 typedef struct {
     uint32_t quest_id;
     uint32_t creature_entry;
     uint32_t display_id;
-    VECTOR3 position;
+    vector3_t position;
     float orientation;
-} WOWQUESTGIVER;
+} wowQuestGiver_t;
 
 /* Race/class -> spawn point, generated from serverdata/playercreateinfo.csv. */
 typedef struct {
@@ -121,8 +121,8 @@ typedef struct {
     uint32_t map;
     float x, y, z;
     float facing;
-} WOWSPAWNPOINT;
-typedef const WOWSPAWNPOINT *LPCWOWSPAWNPOINT;
+} wowSpawnPoint_t;
+
 
 /* AreaTrigger.dbc record — 10 fields, no strings, WoW 1.12. Struct matches
  * the raw 40-byte DBC record layout so records can be cast without decoding. */
@@ -133,8 +133,8 @@ typedef struct {
     float radius;               /* > 0 → sphere trigger; == 0 → use box fields */
     float box_x, box_y, box_z; /* half-extents in local axes */
     float box_orientation;     /* radians; rotates XY into box-local frame */
-} WOWAREATRIG;
-typedef const WOWAREATRIG *LPCWOWAREATRIG;
+} wowAreatrig_t;
+
 
 /* areatrigger_teleport.csv record — cross-map destination for a trigger.
  * Generated into build/generated/g_areatrigger_teleport.c. */
@@ -144,13 +144,13 @@ typedef struct {
     uint32_t target_map;
     float target_x, target_y, target_z;
     float target_orientation;
-} WOWAREATRIGTELEPORT;
-typedef const WOWAREATRIGTELEPORT *LPCWOWAREATRIGTELEPORT;
+} wowAreatrigTeleport_t;
+
 
 typedef struct {
     uint32_t quest_id;
-    VECTOR2 position;
-} WOWQUESTOBJECTIVE;
+    vector2_t position;
+} wowQuestObjective_t;
 
 #define WOW_QUEST_MAX_OBJECTIVE_TEXT 4
 #define WOW_QUEST_MAX_REWARD_ITEMS   2
@@ -159,7 +159,7 @@ typedef struct {
 typedef struct {
     uint32_t display_id;       /* CreatureDisplayInfo.dbc ID to kill */
     uint32_t required_count;
-} WOWQUESTKILLOBJECTIVE;
+} wowQuestKillObjective_t;
 
 typedef struct {
     uint32_t quest_id;
@@ -172,16 +172,16 @@ typedef struct {
     uint32_t reward_items[WOW_QUEST_MAX_REWARD_ITEMS];
     uint32_t prev_quest;
     uint32_t min_level;
-    WOWQUESTKILLOBJECTIVE kill_objectives[WOW_QUEST_MAX_KILL_OBJECTIVES];
+    wowQuestKillObjective_t kill_objectives[WOW_QUEST_MAX_KILL_OBJECTIVES];
     uint32_t kill_objective_count;
-} WOWQUESTDETAIL;
+} wowQuestDetail_t;
 
-typedef const WOWQUESTGIVER *LPCWOWQUESTGIVER;
-typedef const WOWQUESTOBJECTIVE *LPCWOWQUESTOBJECTIVE;
-typedef const WOWQUESTDETAIL *LPCWOWQUESTDETAIL;
+
+
+
 
 /* Queststarter SQL repeats one physical NPC for every quest it can offer. */
-static bool Wow_QuestGiverSame(LPCWOWQUESTGIVER a, LPCWOWQUESTGIVER b) {
+static bool Wow_QuestGiverSame(wowQuestGiver_t const * a, wowQuestGiver_t const * b) {
     return a->creature_entry == b->creature_entry && !memcmp(&a->position, &b->position, sizeof(a->position));
 }
 
@@ -189,13 +189,13 @@ static bool Wow_QuestGiverSame(LPCWOWQUESTGIVER a, LPCWOWQUESTGIVER b) {
 #define WOW_QUEST_GIVER_GROUP_NONE  0xFFFFFFFFU // generated-index sentinel; no physical giver matches the representative row
 
 uint32_t Wow_QuestGiverCount(void);
-LPCWOWQUESTGIVER Wow_QuestGiver(uint32_t index);
-uint32_t Wow_QuestGiverGroup(uint32_t quest_id, LPCVECTOR2 position);
+wowQuestGiver_t const * Wow_QuestGiver(uint32_t index);
+uint32_t Wow_QuestGiverGroup(uint32_t quest_id, vector2_t const * position);
 uint32_t Wow_QuestGiverGroupCount(uint32_t group);
-LPCWOWQUESTGIVER Wow_QuestGiverInGroup(uint32_t group, uint32_t index);
+wowQuestGiver_t const * Wow_QuestGiverInGroup(uint32_t group, uint32_t index);
 uint32_t Wow_QuestObjectiveCount(void);
-LPCWOWQUESTOBJECTIVE Wow_QuestObjective(uint32_t index);
-LPCWOWQUESTDETAIL Wow_QuestDetail(uint32_t quest_id);
+wowQuestObjective_t const * Wow_QuestObjective(uint32_t index);
+wowQuestDetail_t const * Wow_QuestDetail(uint32_t quest_id);
 
 /* Ambient creature display IDs used by both m_creature.c and the loot table. */
 #define WOW_CREATURE_DISPLAY_WOLF   161 // CreatureDisplayInfo.dbc; Timber Wolf family
@@ -229,7 +229,7 @@ LPCWOWQUESTDETAIL Wow_QuestDetail(uint32_t quest_id);
    Spell indices double as the cast_spell value while a spell is being channeled. */
 typedef struct wowSpellDef_s {
     cstring_t name;
-    void (*cast)(LPEDICT caster, LPEDICT target);
+    void (*cast)(edict_t * caster, edict_t * target);
     uint32_t cast_time;     /* ms, 0 = instant */
     uint32_t mana_cost;
     float range;         /* 0 = melee range / self */
@@ -250,9 +250,9 @@ extern uint32_t const wow_spell_count;
 
 typedef struct wowMove_s {
     cstring_t animation;
-    void (*think)(LPEDICT ent);
-    void (*endfunc)(LPEDICT ent);
-} wowMove_t, *LPWOWMOVE;
+    void (*think)(edict_t * ent);
+    void (*endfunc)(edict_t * ent);
+} wowMove_t;
 
 /* Per-frame entity spawn budget (reset each frame) */
 extern uint32_t wow_spawns_this_frame;
@@ -269,9 +269,9 @@ typedef struct {
  * pointers (Quake2 style); there is no type/kind tag. */
 typedef struct {
     uint32_t display_id;
-    LPCANIMATION animation;
-    LPWOWMOVE currentmove;
-    VECTOR2 home;
+    animation_t const * animation;
+    wowmove_t * currentmove;
+    vector2_t home;
     float yaw;
     float patrol_radius;
     float patrol_phase;
@@ -290,13 +290,13 @@ typedef struct {
     bool dead;
     bool hostile;
     uint32_t slow_timer;   /* ms remaining on movement-slow debuff (Frostbolt) */
-    LPEDICT enemy;
+    edict_t * enemy;
     /* Cast state (SpellCast) — WoW-format cast time system */
     uint32_t cast_spell;        /* spell id being cast (0 = idle) */
     uint32_t cast_duration;     /* total cast duration (ms) */
     uint32_t cast_remaining;    /* ms remaining until cast completes */
     uint32_t cast_target;       /* entity number of target */
-    VECTOR2 cast_origin;     /* XY position when cast began (movement cancels) */
+    vector2_t cast_origin;     /* XY position when cast began (movement cancels) */
     uint32_t cast_release_time; /* ms remaining in the post-launch release animation */
     uint32_t gcd_time;          /* ms remaining on global cooldown */
     uint32_t selected_action_slot;  /* highlighted action bar slot (0-11, 255=none) */
@@ -331,11 +331,11 @@ typedef struct {
     uint32_t dyn_duration;
     bool godmode;
     uint32_t copper;        /* player copper balance (written to WOW_STAT_COPPER each frame) */
-    void (*think)(LPEDICT);
-    void (*idle)(LPEDICT);
-    void (*move)(LPEDICT);
-    void (*attack)(LPEDICT);
-    void (*pain)(LPEDICT);
+    void (*think)(edict_t *);
+    void (*idle)(edict_t *);
+    void (*move)(edict_t *);
+    void (*attack)(edict_t *);
+    void (*pain)(edict_t *);
 } wowEntityLocal_t;
 
 typedef struct {
@@ -366,13 +366,13 @@ typedef struct {
     uint32_t outgoing_dmg_timer;   /* ms remaining to display */
 } wowClient_t;
 
-typedef struct WOWDOODADDEF {
+typedef struct wowDoodadDef_s {
     uint32_t name_id, unique_id;
     float position[3], rotation[3];
     uint16_t scale, flags;
-} WOWDOODADDEF;
-typedef struct WOWDOODADDEF *LPWOWDOODADDEF;
-typedef const struct WOWDOODADDEF *LPCWOWDOODADDEF;
+} wowDoodadDef_t;
+
+
 
 extern struct game_import gi;
 extern struct game_export globals;
@@ -395,56 +395,56 @@ static inline void G_DbcFreeMem(void *p) { gi.MemFree(p); }
 extern stbDbcIO_t const g_dbc_io;
 
 int          G_RegisterModel(cstring_t filename);
-LPCANIMATION G_GetAnimation(uint32_t modelindex, cstring_t animname);
+animation_t const * G_GetAnimation(uint32_t modelindex, cstring_t animname);
 float        G_GetAttachmentZ(uint32_t modelindex, int aid);
 void         G_FreeModels(void);
 
 float Wow_Clamp(float value, float min_value, float max_value);
 float Wow_TerrainHeight(float x, float y);
 float Wow_FloorHeight(float x, float y, float z);
-bool Wow_TerrainMoveWalkable(LPCVECTOR3 from, LPCVECTOR3 to, float terrain);
-uint32_t Wow_EntityIndex(LPCEDICT ent);
-wowEntityLocal_t *Wow_EntityLocal(LPCEDICT ent);
-LPCANIMATION Wow_SetEntityAnimation(LPEDICT ent, cstring_t animation_name);
-bool Wow_SetEntityMove(LPEDICT ent, LPWOWMOVE move);
-bool Wow_SetEntityMoveFirstAnimation(LPEDICT ent, LPWOWMOVE move, cstring_t const *animation_names);
-void Wow_AdvanceEntityFrame(LPEDICT ent);
-LPEDICT Wow_Spawn(void);
-void Wow_AIIdle(LPEDICT ent);
-void Wow_AIMove(LPEDICT ent);
-void Wow_FaceTarget(LPEDICT ent, LPEDICT target);
-void Wow_AIAttack(LPEDICT ent);
-void Wow_AIPain(LPEDICT ent);
-void Wow_AIDie(LPEDICT ent, LPEDICT attacker);
-void Wow_ApplyDamage(LPEDICT target, LPEDICT attacker, uint32_t damage);
-bool Wow_AIAdvanceLockedFrame(LPEDICT ent);
-bool Wow_EntityAffectingCombat(LPEDICT ent);
-bool Wow_SetStandMove(LPEDICT ent);
-bool Wow_SetRunMove(LPEDICT ent);
-bool Wow_SetWalkMove(LPEDICT ent);
-bool Wow_SetDirectionalMove(LPEDICT ent, uint32_t flags);
-bool Wow_SetCombatReadyAnimation(LPEDICT ent);
-void Wow_AIRunFrame(LPEDICT ent);
-void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin);
-void Wow_SpawnQuestLocations(LPCVECTOR2 origin);
-void Wow_RunCreatureFrame(LPEDICT ent);
-void Wow_SpawnGameObjects(LPCVECTOR2 origin);
-void WowGo_SetDoodadTransform(LPCWOWDOODADDEF def, LPENTITYSTATE state);
-void Wow_RunGameObjectFrame(LPEDICT ent);
-void Wow_RunCorpseFrame(LPEDICT ent);
-void Wow_RunDynamicObjectFrame(LPEDICT ent);
-LPEDICT Wow_SpawnDynamicObject(uint32_t spell_id, LPCVECTOR2 origin, uint32_t duration);
-LPEDICT Wow_SpawnCorpse(LPEDICT dead_entity);
+bool Wow_TerrainMoveWalkable(vector3_t const * from, vector3_t const * to, float terrain);
+uint32_t Wow_EntityIndex(edict_t const * ent);
+wowEntityLocal_t *Wow_EntityLocal(edict_t const * ent);
+animation_t const * Wow_SetEntityAnimation(edict_t * ent, cstring_t animation_name);
+bool Wow_SetEntityMove(edict_t * ent, wowmove_t * move);
+bool Wow_SetEntityMoveFirstAnimation(edict_t * ent, wowmove_t * move, cstring_t const *animation_names);
+void Wow_AdvanceEntityFrame(edict_t * ent);
+edict_t * Wow_Spawn(void);
+void Wow_AIIdle(edict_t * ent);
+void Wow_AIMove(edict_t * ent);
+void Wow_FaceTarget(edict_t * ent, edict_t * target);
+void Wow_AIAttack(edict_t * ent);
+void Wow_AIPain(edict_t * ent);
+void Wow_AIDie(edict_t * ent, edict_t * attacker);
+void Wow_ApplyDamage(edict_t * target, edict_t * attacker, uint32_t damage);
+bool Wow_AIAdvanceLockedFrame(edict_t * ent);
+bool Wow_EntityAffectingCombat(edict_t * ent);
+bool Wow_SetStandMove(edict_t * ent);
+bool Wow_SetRunMove(edict_t * ent);
+bool Wow_SetWalkMove(edict_t * ent);
+bool Wow_SetDirectionalMove(edict_t * ent, uint32_t flags);
+bool Wow_SetCombatReadyAnimation(edict_t * ent);
+void Wow_AIRunFrame(edict_t * ent);
+void Wow_SpawnAmbientCreatures(vector2_t const * origin);
+void Wow_SpawnQuestLocations(vector2_t const * origin);
+void Wow_RunCreatureFrame(edict_t * ent);
+void Wow_SpawnGameObjects(vector2_t const * origin);
+void WowGo_SetDoodadTransform(wowDoodadDef_t const * def, entityState_t * state);
+void Wow_RunGameObjectFrame(edict_t * ent);
+void Wow_RunCorpseFrame(edict_t * ent);
+void Wow_RunDynamicObjectFrame(edict_t * ent);
+edict_t * Wow_SpawnDynamicObject(uint32_t spell_id, vector2_t const * origin, uint32_t duration);
+edict_t * Wow_SpawnCorpse(edict_t * dead_entity);
 cstring_t Wow_CachedCreatureName(uint32_t display_id);
 uint32_t Wow_CachedCreatureType(uint32_t display_id);
 uint32_t Wow_CachedCreatureFamily(uint32_t display_id);
 uint32_t Wow_CachedCreatureRank(uint32_t display_id);
-void UI_WriteWowHud(LPEDICT ent);
-void UI_WriteWowHover(LPEDICT ent);
-void UI_WriteWelcomeWindow(LPEDICT ent);
+void UI_WriteWowHud(edict_t * ent);
+void UI_WriteWowHover(edict_t * ent);
+void UI_WriteWelcomeWindow(edict_t * ent);
 void Wow_GetPlayerRaceSex(char *race, size_t race_sz, char *sex, size_t sex_sz);
 uint32_t Wow_GetPlayerClass(void);
-void Wow_QuestAwardKillCredit(LPEDICT attacker, uint32_t display_id);
+void Wow_QuestAwardKillCredit(edict_t * attacker, uint32_t display_id);
 
 /* Ability/projectile system */
 uint32_t      Wow_FireboltModel(void);
@@ -453,29 +453,29 @@ uint32_t      Wow_FireboltImpactModel(void);
 uint32_t      Wow_FrostboltImpactModel(void);
 uint32_t      Wow_SpellMissileModel(uint32_t spell_dbc_id);
 uint32_t      Wow_SpellImpactModel(uint32_t spell_dbc_id);
-void       Wow_RunProjectile(LPEDICT ent);
-void       Wow_FireFirebolt(LPEDICT caster, LPEDICT target);
-void       Wow_FireFrostbolt(LPEDICT caster, LPEDICT target);
-void       Wow_HealingTouch(LPEDICT caster);
-LPEDICT    Wow_FindSpellTarget(LPEDICT ent, float range);
+void       Wow_RunProjectile(edict_t * ent);
+void       Wow_FireFirebolt(edict_t * caster, edict_t * target);
+void       Wow_FireFrostbolt(edict_t * caster, edict_t * target);
+void       Wow_HealingTouch(edict_t * caster);
+edict_t *    Wow_FindSpellTarget(edict_t * ent, float range);
 
 /* g_playercreateinfo.c — generated from serverdata/playercreateinfo.csv */
 uint32_t           Wow_SpawnCount(void);
-LPCWOWSPAWNPOINT Wow_SpawnByIndex(uint32_t index);
+wowSpawnPoint_t const * Wow_SpawnByIndex(uint32_t index);
 uint32_t           Wow_SelectSpawnPoint(cstring_t race, uint32_t class_id);
 uint32_t           Wow_PlayerCreateMap(cstring_t race, uint32_t class_id);
-LPCVECTOR3      Wow_GetSpawnPos(uint32_t idx);
+vector3_t const *      Wow_GetSpawnPos(uint32_t idx);
 bool            Wow_HasSpawnForMap(uint32_t map_id); /* true if ANY race spawns on map_id */
 /* g_wow.c — loot system */
-void   Wow_RollLoot(LPEDICT ent);
-LPEDICT Wow_FindNearestCorpse(LPEDICT ent, float range);
+void   Wow_RollLoot(edict_t * ent);
+edict_t * Wow_FindNearestCorpse(edict_t * ent, float range);
 /* g_areatrigger_teleport.c — generated from serverdata/areatrigger_teleport.csv */
 uint32_t                 Wow_AreaTrigTeleportCount(void);
-LPCWOWAREATRIGTELEPORT Wow_AreaTrigTeleportById(uint32_t id);
-LPCWOWAREATRIGTELEPORT Wow_AreaTrigTeleportByName(cstring_t query); /* case-insensitive substr */
-LPCWOWAREATRIGTELEPORT Wow_AreaTrigSpawnForMap(uint32_t map_id);   /* first entry targeting map */
+wowAreatrigTeleport_t const * Wow_AreaTrigTeleportById(uint32_t id);
+wowAreatrigTeleport_t const * Wow_AreaTrigTeleportByName(cstring_t query); /* case-insensitive substr */
+wowAreatrigTeleport_t const * Wow_AreaTrigSpawnForMap(uint32_t map_id);   /* first entry targeting map */
 /* g_spawn.c — teleport entity to a spawn point or arbitrary position */
-void            Wow_TeleportPlayer(LPEDICT ent, uint32_t spawn_index);
-void            Wow_TeleportPlayerToPos(LPEDICT ent, float x, float y, float z, float orientation);
+void            Wow_TeleportPlayer(edict_t * ent, uint32_t spawn_index);
+void            Wow_TeleportPlayerToPos(edict_t * ent, float x, float y, float z, float orientation);
 
 #endif

@@ -1,16 +1,16 @@
 #include "s_skills.h"
 
-void build_walk(LPEDICT ent);
-void build_build(LPEDICT ent);
-void repair_build_legacy(LPEDICT ent, LPEDICT building);
-void repair_build_primary(LPEDICT ent, LPEDICT building);
+void build_walk(edict_t * ent);
+void build_build(edict_t * ent);
+void repair_build_legacy(edict_t * ent, edict_t * building);
+void repair_build_primary(edict_t * ent, edict_t * building);
 
-static void G_BuildError(LPEDICT clent, cstring_t text) {
+static void G_BuildError(edict_t * clent, cstring_t text) {
     if (!clent || !text || !*text) return;
     G_ShowCommandErrorText(clent, text);
 }
 
-static void G_BuildPlacementError(LPEDICT clent, buildPlacementResult_t placement) {
+static void G_BuildPlacementError(edict_t * clent, buildPlacementResult_t placement) {
     if (placement == PLACE_REQUIRES_BLIGHT) {
         G_ShowCommandErrorKey(clent, "Offblight", "Must summon structures upon Blight.");
         return;
@@ -22,7 +22,7 @@ static void G_BuildPlacementError(LPEDICT clent, buildPlacementResult_t placemen
     G_BuildError(clent, "Unable to build there.");
 }
 
-static void G_ClearBuildPlacementCursor(LPEDICT clent) {
+static void G_ClearBuildPlacementCursor(edict_t * clent) {
     entityState_t empty = { 0 };
 
     if (!clent || !clent->client) return;
@@ -32,10 +32,10 @@ static void G_ClearBuildPlacementCursor(LPEDICT clent) {
     gi.unicast(clent);
 }
 
-static void ai_build_walk(LPEDICT ent) {
-    LPEDICT goal = ent ? ent->goalentity : NULL;
+static void ai_build_walk(edict_t * ent) {
+    edict_t * goal = ent ? ent->goalentity : NULL;
     float distance, step, approach_range, reach;
-    VECTOR2 approach = { 0, 0 };
+    vector2_t approach = { 0, 0 };
     bool direct_approach;
 
     if (!ent || !goal || !ent->build_project) {
@@ -129,10 +129,10 @@ static umove_t build_move_walk = { "walk", ai_build_walk, NULL, CAbilityBuild };
 static umove_t build_move_summon = { "stand work", NULL, NULL, CAbilityBuild };
 
 /* Shared callers submit only validated legal orders; build_build revalidates before charging at arrival. */
-bool G_ExecuteBuildOrder(LPEDICT builder, uint32_t building_id, LPCVECTOR2 location) {
-    LPGAMECLIENT client;
-    VECTOR2 snapped;
-    LPEDICT waypoint;
+bool G_ExecuteBuildOrder(edict_t * builder, uint32_t building_id, vector2_t const * location) {
+    gameClient_t * client;
+    vector2_t snapped;
+    edict_t * waypoint;
 
     if (!builder || !location || !(client = G_GetPlayerClientByNumber(builder->s.player))) {
 #ifdef WC3_DEBUG_BUILD
@@ -207,8 +207,8 @@ bool G_ExecuteBuildOrder(LPEDICT builder, uint32_t building_id, LPCVECTOR2 locat
     return true;
 }
 
-bool G_IssueBuildOrder(LPEDICT builder, uint32_t building_id, LPCVECTOR2 location) {
-    VECTOR2 snapped;
+bool G_IssueBuildOrder(edict_t * builder, uint32_t building_id, vector2_t const * location) {
+    vector2_t snapped;
 
     if (!G_ExecuteBuildOrder(builder, building_id, location)) return false;
     snapped = *location;
@@ -220,9 +220,9 @@ bool G_IssueBuildOrder(LPEDICT builder, uint32_t building_id, LPCVECTOR2 locatio
     return true;
 }
 
-bool G_IssueUnitBuildOrder(LPEDICT builder, uint32_t building_id, LPCVECTOR2 location,
+bool G_IssueUnitBuildOrder(edict_t * builder, uint32_t building_id, vector2_t const * location,
                            bool queue, uint32_t issuer_player) {
-    VECTOR2 snapped;
+    vector2_t snapped;
 
     if (!builder || !building_id || !location || M_IsDead(builder) ||
         G_BuildingUpgradeActive(builder) || S_GoldMineWorkerIsInside(builder)) return false;
@@ -230,7 +230,7 @@ bool G_IssueUnitBuildOrder(LPEDICT builder, uint32_t building_id, LPCVECTOR2 loc
     G_SnapBuildingPoint(building_id, &snapped);
 
     if (queue && G_UnitHasActiveOrder(builder)) {
-        LPEDICT preview;
+        edict_t * preview;
         if (G_UnitQueuedOrderCount(builder) >= MAX_UNIT_ORDER_QUEUE) return false;
         preview = G_CreateBuildPreview(builder, building_id, &snapped);
         if (!preview) return false;
@@ -249,7 +249,7 @@ bool G_IssueUnitBuildOrder(LPEDICT builder, uint32_t building_id, LPCVECTOR2 loc
 }
 
 static void build_clear_queued_indicator(unitOrder_t const *queued) {
-    LPEDICT preview;
+    edict_t * preview;
 
     if (!queued || queued->target_type != UNIT_ORDER_TARGET_BUILD ||
         !queued->target_number || queued->target_number >= globals.num_edicts) return;
@@ -258,7 +258,7 @@ static void build_clear_queued_indicator(unitOrder_t const *queued) {
         G_FreeEdict(preview);
 }
 
-static void FillUnitData(LPENTITYSTATE ent, uint32_t unit_id, cstring_t anim) {
+static void FillUnitData(entityState_t * ent, uint32_t unit_id, cstring_t anim) {
     PATHSTR buffer = { 0 };
     UnitUI_t const *ui = G_UnitUI(unit_id);
     cstring_t model_filename = ui->modelFile;
@@ -289,19 +289,19 @@ static void FillUnitData(LPENTITYSTATE ent, uint32_t unit_id, cstring_t anim) {
             ent->pathing_preview = EntityPathingPreviewPack(0, prevented, required);
         }
     }
-    LPCANIMATION animation = G_GetAnimationForProperties(ent->model, anim, G_UnitProfile(unit_id)->animProps);
+    animation_t const * animation = G_GetAnimationForProperties(ent->model, anim, G_UnitProfile(unit_id)->animProps);
     if (animation) {
         ent->frame = animation->interval[0];
     }
 }
 
-void build_build(LPEDICT ent) {
-    LPGAMECLIENT client;
-    VECTOR2 snapped;
+void build_build(edict_t * ent) {
+    gameClient_t * client;
+    vector2_t snapped;
     buildPlacementResult_t placement;
     buildCommandState_t state;
-    LPEDICT building;
-    LPEDICT build_on = NULL;
+    edict_t * building;
+    edict_t * build_on = NULL;
     uint32_t building_id;
     bool construction_started = false;
     unitRace_t race;
@@ -471,10 +471,10 @@ void build_build(LPEDICT ent) {
     Get_Portrait_f(G_GetPlayerEntityByNumber(ent->s.player));
 }
 
-bool build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location) {
-    LPEDICT builder;
-    LPGAMECLIENT owner;
-    VECTOR2 snapped;
+bool build_menu_send_builder(edict_t * clent, vector2_t const * location) {
+    edict_t * builder;
+    gameClient_t * owner;
+    vector2_t snapped;
     buildPlacementResult_t placement;
     buildCommandState_t state;
     char reason[128];
@@ -540,7 +540,7 @@ bool build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location) {
     return true;
 }
 
-bool G_ClearBuildPlacementMode(LPEDICT clent) {
+bool G_ClearBuildPlacementMode(edict_t * clent) {
     if (!clent || !clent->client ||
         clent->client->menu.on_location_selected != build_menu_send_builder) {
         return false;
@@ -554,16 +554,16 @@ bool G_ClearBuildPlacementMode(LPEDICT clent) {
     return true;
 }
 
-bool G_CancelBuildPlacement(LPEDICT clent) {
+bool G_CancelBuildPlacement(edict_t * clent) {
     if (!G_ClearBuildPlacementMode(clent)) return false;
     Get_Commands_f(clent);
     return true;
 }
 
-void build_menu_selectlocation(LPEDICT ent, uint32_t building_id) {
+void build_menu_selectlocation(edict_t * ent, uint32_t building_id) {
     entityState_t cursor;
-    LPEDICT worker;
-    LPGAMECLIENT owner;
+    edict_t * worker;
+    gameClient_t * owner;
     buildCommandState_t state;
     char reason[128];
 
@@ -594,9 +594,9 @@ void build_menu_selectlocation(LPEDICT ent, uint32_t building_id) {
     ent->build_project = building_id;
 }
 
-void ui_builds(LPGAMECLIENT client) {
-    LPEDICT ent = G_GetMainSelectedUnit(client);
-    LPGAMECLIENT owner = ent ? G_GetPlayerClientByNumber(ent->s.player) : NULL;
+void ui_builds(gameClient_t * client) {
+    edict_t * ent = G_GetMainSelectedUnit(client);
+    gameClient_t * owner = ent ? G_GetPlayerClientByNumber(ent->s.player) : NULL;
     cstring_t builds = ent ? G_UnitProfile(ent->class_id)->builds : NULL;
     if (!ent || !owner || owner->ps.number != ent->s.player || !builds)
         return;
@@ -624,7 +624,7 @@ void ui_builds(LPGAMECLIENT client) {
     UI_WriteTooltipFrame();
 }
 
-static void AbilityBuild_Command(LPEDICT clent);
+static void AbilityBuild_Command(edict_t * clent);
 
 BZ_ABILITY_PROC(CAbilityBuild) {
     unitOrder_t const *queued = call ? call->queued_order : NULL;
@@ -643,8 +643,8 @@ BZ_ABILITY_PROC(CAbilityBuild) {
     return false;
 }
 
-static void AbilityBuild_Command(LPEDICT clent) {
-    LPGAMECLIENT client;
+static void AbilityBuild_Command(edict_t * clent) {
+    gameClient_t * client;
 
     if (!clent || !clent->client) return;
     client = clent->client;

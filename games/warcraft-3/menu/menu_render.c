@@ -47,14 +47,14 @@ static frameRuntime_t runtimes[MAX_UI_CLASSES];
 static rect_t scene_rect;
 static bool scene_rect_valid = false;
 static bool animate_frames;
-static LPCFRAMEDEF active_slider = NULL;
-static LPCFRAMEDEF active_popup = NULL;
-static LPCFRAMEDEF active_modal = NULL;
-static LPFRAMEDEF active_edit = NULL;
+static frameDef_t const * active_slider = NULL;
+static frameDef_t const * active_popup = NULL;
+static frameDef_t const * active_modal = NULL;
+static frameDef_t * active_edit = NULL;
 static menuTextInput_t active_ti;
 static int active_popup_hover_item = -1;
 
-static bool UI_FrameIndex(LPCFRAMEDEF frame, uint32_t *index) {
+static bool UI_FrameIndex(frameDef_t const * frame, uint32_t *index) {
     if (!frame || frame < frames || frame >= frames + MAX_UI_CLASSES) {
         return false;
     }
@@ -83,13 +83,13 @@ static uint32_t UI_FontPixelSize(float size) {
 }
 
 /* Forward declarations */
-static rect_t const * UI_LayoutRect(LPCFRAMEDEF frame);
-static rect_t const * UI_LayoutBase(LPCFRAMEDEF frame);
-static void UI_DrawFrameOne(LPCFRAMEDEF frame);
-static bool UI_FrameWithinRoot(LPCFRAMEDEF root, LPCFRAMEDEF frame);
-static bool UI_PointerBlockedByModal(LPCFRAMEDEF frame);
-static bool UI_PointerBlockedByPopup(LPCFRAMEDEF frame);
-static LPCFRAMEDEF UI_FindActiveModalRoot(LPCFRAMEDEF const *roots, uint32_t num_roots);
+static rect_t const * UI_LayoutRect(frameDef_t const * frame);
+static rect_t const * UI_LayoutBase(frameDef_t const * frame);
+static void UI_DrawFrameOne(frameDef_t const * frame);
+static bool UI_FrameWithinRoot(frameDef_t const * root, frameDef_t const * frame);
+static bool UI_PointerBlockedByModal(frameDef_t const * frame);
+static bool UI_PointerBlockedByPopup(frameDef_t const * frame);
+static frameDef_t const * UI_FindActiveModalRoot(frameDef_t const * const *roots, uint32_t num_roots);
 
 /* ========================================================================
  * HIT TESTING — used by event handlers to find frames under the cursor
@@ -100,7 +100,7 @@ static bool UI_PointInRect(float x, float y, rect_t const * rect) {
            y >= rect->y && y < rect->y + rect->h;
 }
 
-static bool UI_FrameIsInteractive(LPCFRAMEDEF frame) {
+static bool UI_FrameIsInteractive(frameDef_t const * frame) {
     if (!frame || frame->hidden || frame->disabled || (frame->ui_flags & UIFLAG_PASSTHROUGH)) {
         return false;
     }
@@ -125,12 +125,12 @@ static bool UI_FrameIsInteractive(LPCFRAMEDEF frame) {
 
 /* Walk the layout cache back-to-front and return the topmost interactive frame
  * at the given FDF-space coordinates. Returns NULL if nothing was hit. */
-LPCFRAMEDEF UI_HitTest(float fdf_x, float fdf_y) {
+frameDef_t const * UI_HitTest(float fdf_x, float fdf_y) {
     for (int i = MAX_UI_CLASSES - 1; i >= 0; i--) {
         if (!runtimes[i].calculated) {
             continue;
         }
-        LPCFRAMEDEF frame = &frames[i];
+        frameDef_t const * frame = &frames[i];
         if (!frame->inuse || !UI_FrameIsInteractive(frame)) {
             continue;
         }
@@ -155,7 +155,7 @@ rect_t UI_GetSceneRect(void) {
     if (scene_rect_valid) {
         return scene_rect;
     }
-    LPRENDERER renderer = mi.GetRenderer();
+    refExport_t * renderer = mi.GetRenderer();
     scene_rect = renderer ? renderer->GetUISceneRect() : (rect_t) { 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT };
     scene_rect_valid = true;
     return scene_rect;
@@ -168,23 +168,23 @@ rect_t UI_GetCenteredSceneRect(void) {
     return scene;
 }
 
-static VECTOR2 UI_GetXBounds(rect_t const * rect) {
-    return (VECTOR2) { rect->x, rect->x + rect->w };
+static vector2_t UI_GetXBounds(rect_t const * rect) {
+    return (vector2_t) { rect->x, rect->x + rect->w };
 }
 
-static VECTOR2 UI_GetYBounds(rect_t const * rect) {
-    return (VECTOR2) { rect->y, rect->y + rect->h };
+static vector2_t UI_GetYBounds(rect_t const * rect) {
+    return (vector2_t) { rect->y, rect->y + rect->h };
 }
 
-static VECTOR2 UI_GetAxisBounds(rect_t const * rect, bool is_x_axis) {
+static vector2_t UI_GetAxisBounds(rect_t const * rect, bool is_x_axis) {
     return is_x_axis ? UI_GetXBounds(rect) : UI_GetYBounds(rect);
 }
 
-static float UI_NormalizeAnchorOffset(LPCFRAMEPOINT p, bool is_x_axis) {
+static float UI_NormalizeAnchorOffset(framePoint_t const * p, bool is_x_axis) {
     return is_x_axis ? p->offset : -p->offset;
 }
 
-static rect_t const * UI_GetRelativeRect(LPCFRAMEDEF frame, LPCFRAMEDEF relativeTo) {
+static rect_t const * UI_GetRelativeRect(frameDef_t const * frame, frameDef_t const * relativeTo) {
     if (!relativeTo) {
         /* Anchor to root scene */
         return &scene_rect;
@@ -195,11 +195,11 @@ static rect_t const * UI_GetRelativeRect(LPCFRAMEDEF frame, LPCFRAMEDEF relative
     return UI_LayoutBase(relativeTo);
 }
 
-static float UI_GetAnchor(LPCFRAMEDEF frame,
-                         LPCFRAMEPOINT p,
+static float UI_GetAnchor(frameDef_t const * frame,
+                         framePoint_t const * p,
                          bool is_x_axis)
 {
-    VECTOR2 b = UI_GetAxisBounds(UI_GetRelativeRect(frame, p->relativeTo), is_x_axis);
+    vector2_t b = UI_GetAxisBounds(UI_GetRelativeRect(frame, p->relativeTo), is_x_axis);
     float offset = UI_NormalizeAnchorOffset(p, is_x_axis);
     
     if (p->targetPos == FPP_MID) {
@@ -211,18 +211,18 @@ static float UI_GetAnchor(LPCFRAMEDEF frame,
     }
 }
 
-static VECTOR2 UI_SolveAxisPosition(LPCFRAMEDEF frame,
-                                   FRAMEPOINT const *points,
+static vector2_t UI_SolveAxisPosition(frameDef_t const * frame,
+                                   framePoint_t const *points,
                                    float size,
                                    bool is_x_axis)
 {
-    LPCFRAMEPOINT pmin = &points[FPP_MIN];
-    LPCFRAMEPOINT pmid = &points[FPP_MID];
-    LPCFRAMEPOINT pmax = &points[FPP_MAX];
+    framePoint_t const * pmin = &points[FPP_MIN];
+    framePoint_t const * pmid = &points[FPP_MID];
+    framePoint_t const * pmax = &points[FPP_MAX];
 
     if (pmid->used) {
         /* Center anchor: position = mid - size/2 */
-        return (VECTOR2) {
+        return (vector2_t) {
             UI_GetAnchor(frame, pmid, is_x_axis) - size / 2.0f,
             size,
         };
@@ -230,29 +230,29 @@ static VECTOR2 UI_SolveAxisPosition(LPCFRAMEDEF frame,
         /* Both min and max: stretch between anchors */
         float anchor_min = UI_GetAnchor(frame, pmin, is_x_axis);
         float anchor_max = UI_GetAnchor(frame, pmax, is_x_axis);
-        return (VECTOR2) {
+        return (vector2_t) {
             anchor_min,
             anchor_max - anchor_min,
         };
     } else if (pmax->used) {
         /* Max anchor only: position = max - size */
-        return (VECTOR2) {
+        return (vector2_t) {
             UI_GetAnchor(frame, pmax, is_x_axis) - size,
             size,
         };
     } else if (pmin->used) {
         /* Min anchor only: position = min */
-        return (VECTOR2) {
+        return (vector2_t) {
             UI_GetAnchor(frame, pmin, is_x_axis),
             size,
         };
     }
     
     /* No anchors set: default to (0,0) with given size */
-    return (VECTOR2) { 0, size };
+    return (vector2_t) { 0, size };
 }
 
-static rect_t const * UI_LayoutBase(LPCFRAMEDEF frame) {
+static rect_t const * UI_LayoutBase(frameDef_t const * frame) {
     static rect_t uncached_rect;
     uint32_t frame_index;
     rect_t *out;
@@ -284,7 +284,7 @@ static rect_t const * UI_LayoutBase(LPCFRAMEDEF frame) {
                 if (frame->Text && frame->Font.Index) {
                     bool auto_width = intrinsic_w == 0;
                     bool auto_height = intrinsic_h == 0;
-                    LPRENDERER renderer = mi.GetRenderer();
+                    refExport_t * renderer = mi.GetRenderer();
                     drawText_t dt = {
                         .font = renderer ? renderer->LoadFont(UI_FontFile(frame->Font.Name),
                                                               UI_FontPixelSize(frame->Font.Size)) : NULL,
@@ -293,7 +293,7 @@ static rect_t const * UI_LayoutBase(LPCFRAMEDEF frame) {
                         .lineHeight = 1.0f,
                         .flags = (intrinsic_w > 0) ? DRAW_WORD_WRAP : 0,
                     };
-                    VECTOR2 text_size = renderer ? renderer->GetTextSize((LPCDRAWTEXT)&dt) : MAKE(VECTOR2, 0, 0);
+                    vector2_t text_size = renderer ? renderer->GetTextSize((drawText_t const *)&dt) : MAKE(vector2_t, 0, 0);
                     if (auto_width) {
                         intrinsic_w = text_size.x;
                     }
@@ -316,8 +316,8 @@ static rect_t const * UI_LayoutBase(LPCFRAMEDEF frame) {
             case FT_TEXTURE:
             case FT_BACKDROP:
                 if (frame->Texture.Image) {
-                    LPRENDERER renderer = mi.GetRenderer();
-                    LPCTEXTURE texture = UI_GetTexture(frame->Texture.Image);
+                    refExport_t * renderer = mi.GetRenderer();
+                    texture_t const * texture = UI_GetTexture(frame->Texture.Image);
                     size2_t tex_size = (renderer && texture) ? renderer->GetTextureSize(texture) : MAKE(size2_t, 0, 0);
                     if (intrinsic_w == 0) intrinsic_w = tex_size.width / 1000.0f;  /* Normalize to 0-1 space */
                     if (intrinsic_h == 0) intrinsic_h = tex_size.height / 1000.0f;
@@ -347,8 +347,8 @@ static rect_t const * UI_LayoutBase(LPCFRAMEDEF frame) {
     }
     
     /* Solve X and Y positions */
-    VECTOR2 x_pos = UI_SolveAxisPosition(frame, frame->Points.x, intrinsic_w, true);
-    VECTOR2 y_pos = UI_SolveAxisPosition(frame, frame->Points.y, intrinsic_h, false);
+    vector2_t x_pos = UI_SolveAxisPosition(frame, frame->Points.x, intrinsic_w, true);
+    vector2_t y_pos = UI_SolveAxisPosition(frame, frame->Points.y, intrinsic_h, false);
     
     *out = (rect_t) {
         .x = x_pos.x,
@@ -362,7 +362,7 @@ static rect_t const * UI_LayoutBase(LPCFRAMEDEF frame) {
 
 /* Resolve anchors in native FDF space, then translate each result once so motion
  * cannot accumulate through child/sibling chains or cross-side references. */
-static rect_t const * UI_LayoutRect(LPCFRAMEDEF frame) {
+static rect_t const * UI_LayoutRect(frameDef_t const * frame) {
     rect_t const * base = UI_LayoutBase(frame);
     uint32_t idx;
     if (!UI_FrameIndex(frame, &idx)) return base;
@@ -375,8 +375,8 @@ static rect_t const * UI_LayoutRect(LPCFRAMEDEF frame) {
  * FRAME RENDERING
  * ======================================================================== */
 
-static void UI_DrawTexture(LPCFRAMEDEF frame, rect_t const * rect) {
-    LPRENDERER renderer = mi.GetRenderer();
+static void UI_DrawTexture(frameDef_t const * frame, rect_t const * rect) {
+    refExport_t * renderer = mi.GetRenderer();
 
     if (!frame->Texture.Image) {
         return;
@@ -386,7 +386,7 @@ static void UI_DrawTexture(LPCFRAMEDEF frame, rect_t const * rect) {
         return;
     }
 
-    LPCTEXTURE tex = UI_GetTexture(frame->Texture.Image);
+    texture_t const * tex = UI_GetTexture(frame->Texture.Image);
     if (!tex) {
         return;
     }
@@ -415,11 +415,11 @@ static void UI_DrawTexture(LPCFRAMEDEF frame, rect_t const * rect) {
         .color = frame->Color,
     };
     
-    renderer->DrawImageEx((LPCDRAWIMAGE)&di);
+    renderer->DrawImageEx((drawImage_t const *)&di);
 }
 
-static void UI_DrawText(LPCFRAMEDEF frame, rect_t const * rect) {
-    LPRENDERER renderer = mi.GetRenderer();
+static void UI_DrawText(frameDef_t const * frame, rect_t const * rect) {
+    refExport_t * renderer = mi.GetRenderer();
     cstring_t font_name;
     uint32_t font_size;
     rect_t text_rect = *rect;
@@ -434,7 +434,7 @@ static void UI_DrawText(LPCFRAMEDEF frame, rect_t const * rect) {
 
     font_name = UI_FontFile(frame->Font.Name);
     font_size = UI_FontPixelSize(frame->Font.Size);
-    LPCFONT font = renderer->LoadFont(font_name, font_size);
+    font_t const * font = renderer->LoadFont(font_name, font_size);
     if (!font) {
         return;
     }
@@ -442,7 +442,7 @@ static void UI_DrawText(LPCFRAMEDEF frame, rect_t const * rect) {
     text_rect.x += frame->Font.Justification.Offset.x;
     text_rect.y += frame->Font.Justification.Offset.y;
 
-    COLOR32 color = frame->Font.Color;
+    color32_t color = frame->Font.Color;
     if (color.a == 0 && (color.r || color.g || color.b)) {
         color.a = 255;
     }
@@ -459,10 +459,10 @@ static void UI_DrawText(LPCFRAMEDEF frame, rect_t const * rect) {
         .valign = frame->Font.Justification.Vertical,
     };
     
-    renderer->DrawText((LPCDRAWTEXT)&dt);
+    renderer->DrawText((drawText_t const *)&dt);
 }
 
-static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, rect_t const * rect);
+static void UI_DrawHighlightFrame(frameDef_t const * frame, rect_t const * rect);
 
 #include "controls/menu_control_backdrop.h"
 #include "controls/menu_control_popup_menu.h"
@@ -476,7 +476,7 @@ static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, rect_t const * rect);
  * PER-TYPE EVENT HANDLERS — called from UI_MouseEventLocal
  * ======================================================================== */
 
-static void UI_ButtonEventHandler(LPFRAMEDEF frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param) {
+static void UI_ButtonEventHandler(frameDef_t * frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param) {
     (void)fdf_x; (void)fdf_y;
     if (param != 1) {
         return;
@@ -491,7 +491,7 @@ static void UI_ButtonEventHandler(LPFRAMEDEF frame, menuMouseEvent_t event, floa
     }
 }
 
-static void UI_CheckBoxEventHandler(LPFRAMEDEF frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param) {
+static void UI_CheckBoxEventHandler(frameDef_t * frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param) {
     (void)fdf_x; (void)fdf_y;
     if (param != 1) {
         return;
@@ -501,14 +501,14 @@ static void UI_CheckBoxEventHandler(LPFRAMEDEF frame, menuMouseEvent_t event, fl
     } else if (event == MENU_MOUSE_UP) {
         frame->ui_flags &= ~UIFLAG_PRESSED;
         frame->ui_flags ^= UIFLAG_CHECKED;
-        ((LPFRAMEDEF)frame)->CheckBox.Checked = (frame->ui_flags & UIFLAG_CHECKED) != 0;
+        ((frameDef_t *)frame)->CheckBox.Checked = (frame->ui_flags & UIFLAG_CHECKED) != 0;
         if (frame->OnClick[0]) {
             UI_QueueCommand(frame->OnClick);
         }
     }
 }
 
-static void UI_SliderEventHandler(LPFRAMEDEF frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param) {
+static void UI_SliderEventHandler(frameDef_t * frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param) {
     if (event == MENU_MOUSE_DOWN && param == 1) {
         UI_SliderBeginDrag(frame, fdf_x, fdf_y);
         frame->ui_flags |= UIFLAG_PRESSED;
@@ -520,14 +520,14 @@ static void UI_SliderEventHandler(LPFRAMEDEF frame, menuMouseEvent_t event, floa
     }
 }
 
-static void UI_EditBoxEventHandler(LPFRAMEDEF frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param) {
+static void UI_EditBoxEventHandler(frameDef_t * frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param) {
     (void)fdf_x; (void)fdf_y;
     if (event == MENU_MOUSE_DOWN && param == 1) {
         UI_EditboxFocusOnHit(frame);
     }
 }
 
-static void UI_MapListEventHandler(LPFRAMEDEF frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param) {
+static void UI_MapListEventHandler(frameDef_t * frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param) {
     if (event == MENU_MOUSE_UP && param == 1) {
         UI_MapListSelectRow(frame, fdf_x, fdf_y);
     }
@@ -539,14 +539,14 @@ static void UI_MapListEventHandler(LPFRAMEDEF frame, menuMouseEvent_t event, flo
     }
 }
 
-static void UI_PopupEventHandler(LPFRAMEDEF frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param) {
+static void UI_PopupEventHandler(frameDef_t * frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param) {
     (void)fdf_x; (void)fdf_y;
     if (event == MENU_MOUSE_UP && param == 1) {
         UI_TogglePopup(frame);
     }
 }
 
-static void UI_PopupMenuEventHandler(LPFRAMEDEF frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param) {
+static void UI_PopupMenuEventHandler(frameDef_t * frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param) {
     (void)frame;
     if (event == MENU_MOUSE_SCROLL && MENU_MOUSE_PARAM_Y(param) > 0) {
         UI_PopupMenuScroll(true);
@@ -563,8 +563,8 @@ static void UI_PopupMenuEventHandler(LPFRAMEDEF frame, menuMouseEvent_t event, f
  * PER-TYPE DRAW FUNCTIONS — called from UI_DrawFrameOne
  * ======================================================================== */
 
-static void UI_ButtonDraw(LPCFRAMEDEF frame, rect_t const * rect) {
-    LPCFRAMEDEF backdrop = UI_ButtonBackdrop(frame, rect);
+static void UI_ButtonDraw(frameDef_t const * frame, rect_t const * rect) {
+    frameDef_t const * backdrop = UI_ButtonBackdrop(frame, rect);
     if (backdrop && backdrop->Type == FT_TEXTURE) {
         UI_DrawTexture(backdrop, rect);
     } else {
@@ -574,15 +574,15 @@ static void UI_ButtonDraw(LPCFRAMEDEF frame, rect_t const * rect) {
     UI_DrawButtonText(frame, rect);
 }
 
-static void UI_CheckBoxDraw(LPCFRAMEDEF frame, rect_t const * rect) {
-    LPCFRAMEDEF backdrop = UI_CheckBoxBackdrop(frame, rect);
+static void UI_CheckBoxDraw(frameDef_t const * frame, rect_t const * rect) {
+    frameDef_t const * backdrop = UI_CheckBoxBackdrop(frame, rect);
     UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
     UI_DrawTexture(frame, rect);
     UI_DrawHighlightFrame(UI_CheckBoxCheckHighlight(frame), rect);
 }
 
 /* Wire per-type event handler and draw function pointers */
-__attribute__((visibility("hidden"))) void UI_WireFrameTypeFunctions(LPFRAMEDEF frame) {
+__attribute__((visibility("hidden"))) void UI_WireFrameTypeFunctions(frameDef_t * frame) {
     if (!frame) {
         return;
     }
@@ -632,15 +632,15 @@ __attribute__((visibility("hidden"))) void UI_WireFrameTypeFunctions(LPFRAMEDEF 
     }
 }
 
-bool UI_EditHasFocus(LPCFRAMEDEF frame) {
+bool UI_EditHasFocus(frameDef_t const * frame) {
     return active_edit && active_edit == frame;
 }
 
-cstring_t UI_EditValue(LPCFRAMEDEF frame) {
+cstring_t UI_EditValue(frameDef_t const * frame) {
     return UI_EditText(frame);
 }
 
-void UI_SetEditValue(LPFRAMEDEF frame, cstring_t text) {
+void UI_SetEditValue(frameDef_t * frame, cstring_t text) {
     UI_SetEditText(frame, text);
 }
 
@@ -648,8 +648,8 @@ void UI_ClearEditFocus(void) {
     UI_FocusEdit(NULL);
 }
 
-static bool UI_FrameWithinRoot(LPCFRAMEDEF root, LPCFRAMEDEF frame) {
-    LPCFRAMEDEF cursor = frame;
+static bool UI_FrameWithinRoot(frameDef_t const * root, frameDef_t const * frame) {
+    frameDef_t const * cursor = frame;
 
     while (cursor) {
         if (cursor == root) {
@@ -661,11 +661,11 @@ static bool UI_FrameWithinRoot(LPCFRAMEDEF root, LPCFRAMEDEF frame) {
     return false;
 }
 
-static bool UI_PointerBlockedByModal(LPCFRAMEDEF frame) {
+static bool UI_PointerBlockedByModal(frameDef_t const * frame) {
     return active_modal && !UI_FrameWithinRoot(active_modal, frame);
 }
 
-static bool UI_FrameInDrawOrder(LPCFRAMEDEF const *draw_order, uint32_t count, LPCFRAMEDEF frame) {
+static bool UI_FrameInDrawOrder(frameDef_t const * const *draw_order, uint32_t count, frameDef_t const * frame) {
     if (!frame) {
         return false;
     }
@@ -677,7 +677,7 @@ static bool UI_FrameInDrawOrder(LPCFRAMEDEF const *draw_order, uint32_t count, L
     return false;
 }
 
-static void UI_SanitizeInteractionState(LPCFRAMEDEF const *draw_order, uint32_t count) {
+static void UI_SanitizeInteractionState(frameDef_t const * const *draw_order, uint32_t count) {
     if (!draw_order || count == 0) {
         active_popup = NULL;
         UI_ResetPopupScroll();
@@ -708,11 +708,11 @@ static void UI_SanitizeInteractionState(LPCFRAMEDEF const *draw_order, uint32_t 
     }
 }
 
-static LPCFRAMEDEF UI_FindActiveModalRoot(LPCFRAMEDEF const *roots, uint32_t num_roots) {
-    LPCFRAMEDEF modal = NULL;
+static frameDef_t const * UI_FindActiveModalRoot(frameDef_t const * const *roots, uint32_t num_roots) {
+    frameDef_t const * modal = NULL;
 
     FOR_LOOP(i, num_roots) {
-        LPCFRAMEDEF frame = roots[i];
+        frameDef_t const * frame = roots[i];
         if (frame && !frame->hidden && frame->Type == FT_DIALOG) {
             modal = frame;
         }
@@ -720,7 +720,7 @@ static LPCFRAMEDEF UI_FindActiveModalRoot(LPCFRAMEDEF const *roots, uint32_t num
     return modal;
 }
 
-static uint32_t UI_FrameDrawOrderIndex(LPCFRAMEDEF const *draw_order, uint32_t count, LPCFRAMEDEF frame) {
+static uint32_t UI_FrameDrawOrderIndex(frameDef_t const * const *draw_order, uint32_t count, frameDef_t const * frame) {
     FOR_LOOP(i, count) {
         if (draw_order[i] == frame) {
             return i;
@@ -730,9 +730,9 @@ static uint32_t UI_FrameDrawOrderIndex(LPCFRAMEDEF const *draw_order, uint32_t c
 }
 
 static void UI_DrawModalDim(void) {
-    LPRENDERER renderer = mi.GetRenderer();
+    refExport_t * renderer = mi.GetRenderer();
     uint32_t texture;
-    LPCTEXTURE tex;
+    texture_t const * tex;
     rect_t const * rect;
 
     if (!active_modal || !renderer || !renderer->DrawImageEx) {
@@ -756,11 +756,11 @@ static void UI_DrawModalDim(void) {
                                 .alphamode = BLEND_MODE_BLEND,
                                 .screen = *rect,
                                 .uv = MAKE(rect_t, 0, 0, 1, 1),
-                                .color = MAKE(COLOR32, 255, 255, 255, 128)));
+                                .color = MAKE(color32_t, 255, 255, 255, 128)));
 }
 
-static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, rect_t const * rect) {
-    LPRENDERER renderer = mi.GetRenderer();
+static void UI_DrawHighlightFrame(frameDef_t const * frame, rect_t const * rect) {
+    refExport_t * renderer = mi.GetRenderer();
 
     if (!frame || !frame->Highlight.AlphaFile) {
         return;
@@ -769,7 +769,7 @@ static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, rect_t const * rect) {
         return;
     }
 
-    LPCTEXTURE tex = UI_GetTexture(frame->Highlight.AlphaFile);
+    texture_t const * tex = UI_GetTexture(frame->Highlight.AlphaFile);
     if (!tex) {
         return;
     }
@@ -783,9 +783,9 @@ static void UI_DrawHighlightFrame(LPCFRAMEDEF frame, rect_t const * rect) {
                                 .color = COLOR32_WHITE));
 }
 
-static void UI_DrawButtonHighlight(LPCFRAMEDEF frame) {
+static void UI_DrawButtonHighlight(frameDef_t const * frame) {
     rect_t const * rect;
-    LPCFRAMEDEF highlight;
+    frameDef_t const * highlight;
 
     if (!frame || !UI_ButtonEnabled(frame)) {
         return;
@@ -818,8 +818,8 @@ static bool UI_RenderIsCheckBoxFrameType(FRAMETYPE type) {
            type == FT_SIMPLECHECKBOX;
 }
 
-static void UI_DrawPortrait(LPCFRAMEDEF frame, rect_t const * rect) {
-    LPRENDERER renderer = mi.GetRenderer();
+static void UI_DrawPortrait(frameDef_t const * frame, rect_t const * rect) {
+    refExport_t * renderer = mi.GetRenderer();
 
     if (!frame->Portrait.model) {
         return;
@@ -829,7 +829,7 @@ static void UI_DrawPortrait(LPCFRAMEDEF frame, rect_t const * rect) {
         return;
     }
 
-    LPCMODEL model = UI_GetModel(frame->Portrait.model);
+    model_t const * model = UI_GetModel(frame->Portrait.model);
     if (!model) {
         return;
     }
@@ -852,8 +852,8 @@ static void UI_DrawPortrait(LPCFRAMEDEF frame, rect_t const * rect) {
 /* Render a live game-unit portrait (cl.portraits[index]) inside the given
  * frame's rect — used for the cinematic transmission portrait, whose model is a
  * game configstring index, not a UI-cache model. Mirrors UI_LayoutDrawPortrait. */
-static void UI_DrawSprite(LPCFRAMEDEF frame, rect_t const * rect) {
-    LPRENDERER renderer = mi.GetRenderer();
+static void UI_DrawSprite(frameDef_t const * frame, rect_t const * rect) {
+    refExport_t * renderer = mi.GetRenderer();
     float x = rect->x;
 
     if (frame->Texture.Image) {
@@ -869,7 +869,7 @@ static void UI_DrawSprite(LPCFRAMEDEF frame, rect_t const * rect) {
         return;
     }
 
-    LPCMODEL model = UI_GetModel(frame->Portrait.model);
+    model_t const * model = UI_GetModel(frame->Portrait.model);
     if (!model) {
         return;
     }
@@ -883,8 +883,8 @@ static void UI_DrawSprite(LPCFRAMEDEF frame, rect_t const * rect) {
     renderer->DrawSprite(&MAKE(drawSprite_t, .model = model, .anim = anim, .x = x, .y = rect->y, .id = frame));
 }
 
-static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
-    LPCFRAMEDEF dialog_backdrop;
+static void UI_DrawFrameOne(frameDef_t const * frame) {
+    frameDef_t const * dialog_backdrop;
 
     if (!frame) {
         return;
@@ -906,21 +906,21 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
         case FT_FRAME:
         case FT_SIMPLEFRAME:
             if (frame->draw) {
-                frame->draw((LPFRAMEDEF)frame, rect);
+                frame->draw((frameDef_t *)frame, rect);
             }
             break;
 
         case FT_DIALOG:
             dialog_backdrop = frame->DialogBackdrop;
             if (!dialog_backdrop && frame->DialogBackdropName[0]) {
-                dialog_backdrop = UI_FindChildFrame((LPFRAMEDEF)frame, frame->DialogBackdropName);
+                dialog_backdrop = UI_FindChildFrame((frameDef_t *)frame, frame->DialogBackdropName);
             }
             UI_DrawBackdropWithColor(dialog_backdrop, rect, frame->Color);
             break;
 
         case FT_CONTROL:
             if (frame->Control.Backdrop.Normal[0]) {
-                LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
+                frameDef_t const * backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
                 UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
             }
             UI_DrawMapListControl(frame, rect);
@@ -954,7 +954,7 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
         case FT_SLASHCHATBOX:
         case FT_MENU:
             if (frame->draw) {
-                frame->draw((LPFRAMEDEF)frame, rect);
+                frame->draw((frameDef_t *)frame, rect);
             }
             break;
 
@@ -962,7 +962,7 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
         case FT_POPUPMENU:
             /* Draw button background */
             {
-                LPCFRAMEDEF backdrop = UI_ButtonBackdrop(frame, rect);
+                frameDef_t const * backdrop = UI_ButtonBackdrop(frame, rect);
                 if (backdrop && backdrop->Type == FT_TEXTURE) {
                     UI_DrawTexture(backdrop, rect);
                 } else {
@@ -995,7 +995,7 @@ static void UI_DrawFrameOne(LPCFRAMEDEF frame) {
  * PUBLIC API
  * ======================================================================== */
 
-static void UI_DrawFrameRangeSprites(LPCFRAMEDEF const *draw_order, uint32_t start, uint32_t end) {
+static void UI_DrawFrameRangeSprites(frameDef_t const * const *draw_order, uint32_t start, uint32_t end) {
     for (uint32_t i = start; i < end; i++) {
         if (draw_order[i]->Type == FT_SPRITE &&
             !UI_IsActivePopupMenu(draw_order[i])) {
@@ -1004,7 +1004,7 @@ static void UI_DrawFrameRangeSprites(LPCFRAMEDEF const *draw_order, uint32_t sta
     }
 }
 
-static void UI_DrawFrameRangeControls(LPCFRAMEDEF const *draw_order, uint32_t start, uint32_t end) {
+static void UI_DrawFrameRangeControls(frameDef_t const * const *draw_order, uint32_t start, uint32_t end) {
     for (uint32_t i = start; i < end; i++) {
         if (draw_order[i]->Type != FT_SPRITE &&
             !UI_IsActivePopupMenu(draw_order[i])) {
@@ -1013,7 +1013,7 @@ static void UI_DrawFrameRangeControls(LPCFRAMEDEF const *draw_order, uint32_t st
     }
 }
 
-static void UI_DrawFrameRangeHighlights(LPCFRAMEDEF const *draw_order, uint32_t start, uint32_t end) {
+static void UI_DrawFrameRangeHighlights(frameDef_t const * const *draw_order, uint32_t start, uint32_t end) {
     for (uint32_t i = start; i < end; i++) {
         if (UI_RenderIsButtonFrameType(draw_order[i]->Type) &&
             !UI_IsActivePopupMenu(draw_order[i])) {
@@ -1026,7 +1026,7 @@ static void UI_DrawFrameRangeHighlights(LPCFRAMEDEF const *draw_order, uint32_t 
     }
 }
 
-void UI_TogglePopup(LPCFRAMEDEF frame) {
+void UI_TogglePopup(frameDef_t const * frame) {
     if (!frame) {
         return;
     }
@@ -1043,7 +1043,7 @@ void UI_TogglePopup(LPCFRAMEDEF frame) {
  * EVENT-TIME CONTROL INTERACTION — called from UI_MouseEventLocal
  * ======================================================================== */
 
-void UI_SliderBeginDrag(LPCFRAMEDEF frame, float fdf_x, float fdf_y) {
+void UI_SliderBeginDrag(frameDef_t const * frame, float fdf_x, float fdf_y) {
     if (!frame || frame->Type != FT_SLIDER) {
         return;
     }
@@ -1051,16 +1051,16 @@ void UI_SliderBeginDrag(LPCFRAMEDEF frame, float fdf_x, float fdf_y) {
     if (!rect) {
         return;
     }
-    LPCFRAMEDEF thumb = UI_FindFrameNear(frame, frame->Slider.ThumbButtonFrame);
+    frameDef_t const * thumb = UI_FindFrameNear(frame, frame->Slider.ThumbButtonFrame);
     rect_t thumb_rect = UI_SliderThumbRect(frame, rect, thumb);
     if (UI_PointInRect(fdf_x, fdf_y, rect) || UI_PointInRect(fdf_x, fdf_y, &thumb_rect)) {
-        VECTOR2 mouse = { fdf_x, fdf_y };
+        vector2_t mouse = { fdf_x, fdf_y };
         active_slider = frame;
-        ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMousePos(frame, rect, thumb, mouse);
+        ((frameDef_t *)frame)->Slider.InitialValue = UI_SliderValueFromMousePos(frame, rect, thumb, mouse);
     }
 }
 
-void UI_SliderUpdateDrag(LPCFRAMEDEF frame, float fdf_x, float fdf_y) {
+void UI_SliderUpdateDrag(frameDef_t const * frame, float fdf_x, float fdf_y) {
     if (!frame || active_slider != frame) {
         return;
     }
@@ -1068,12 +1068,12 @@ void UI_SliderUpdateDrag(LPCFRAMEDEF frame, float fdf_x, float fdf_y) {
     if (!rect) {
         return;
     }
-    LPCFRAMEDEF thumb = UI_FindFrameNear(frame, frame->Slider.ThumbButtonFrame);
-    VECTOR2 mouse = { fdf_x, fdf_y };
-    ((LPFRAMEDEF)frame)->Slider.InitialValue = UI_SliderValueFromMousePos(frame, rect, thumb, mouse);
+    frameDef_t const * thumb = UI_FindFrameNear(frame, frame->Slider.ThumbButtonFrame);
+    vector2_t mouse = { fdf_x, fdf_y };
+    ((frameDef_t *)frame)->Slider.InitialValue = UI_SliderValueFromMousePos(frame, rect, thumb, mouse);
 }
 
-void UI_SliderEndDrag(LPCFRAMEDEF frame) {
+void UI_SliderEndDrag(frameDef_t const * frame) {
     if (frame && active_slider == frame) {
         active_slider = NULL;
     }
@@ -1083,7 +1083,7 @@ bool UI_SliderIsDragging(void) {
     return active_slider != NULL;
 }
 
-LPCFRAMEDEF UI_SliderActiveFrame(void) {
+frameDef_t const * UI_SliderActiveFrame(void) {
     return active_slider;
 }
 
@@ -1091,10 +1091,10 @@ bool UI_HasActivePopup(void) {
     return active_popup != NULL;
 }
 
-void UI_EditboxFocusOnHit(LPCFRAMEDEF frame) {
+void UI_EditboxFocusOnHit(frameDef_t const * frame) {
     if (frame && (frame->Type == FT_EDITBOX || frame->Type == FT_GLUEEDITBOX ||
                   frame->Type == FT_SLASHCHATBOX)) {
-        UI_FocusEdit((LPFRAMEDEF)frame);
+        UI_FocusEdit((frameDef_t *)frame);
     }
 }
 
@@ -1102,7 +1102,7 @@ void UI_EditboxClearFocusOnMiss(void) {
     UI_FocusEdit(NULL);
 }
 
-void UI_MapListSelectRow(LPCFRAMEDEF frame, float fdf_x, float fdf_y) {
+void UI_MapListSelectRow(frameDef_t const * frame, float fdf_x, float fdf_y) {
     if (!frame || !frame->MapListControl.State) {
         return;
     }
@@ -1131,7 +1131,7 @@ void UI_MapListSelectRow(LPCFRAMEDEF frame, float fdf_x, float fdf_y) {
     }
 }
 
-void UI_MapListScroll(LPCFRAMEDEF frame, bool scroll_up) {
+void UI_MapListScroll(frameDef_t const * frame, bool scroll_up) {
     if (!frame || !frame->MapListControl.State) {
         return;
     }
@@ -1164,7 +1164,7 @@ bool UI_PopupPointInside(float fdf_x, float fdf_y) {
     if (popup_rect && UI_PointInRect(fdf_x, fdf_y, popup_rect)) {
         return true;
     }
-    LPFRAMEDEF menu = UI_PopupMenuFrame(active_popup);
+    frameDef_t * menu = UI_PopupMenuFrame(active_popup);
     if (menu) {
         rect_t const * menu_rect = UI_LayoutRect(menu);
         if (menu_rect && UI_PointInRect(fdf_x, fdf_y, menu_rect)) {
@@ -1175,7 +1175,7 @@ bool UI_PopupPointInside(float fdf_x, float fdf_y) {
 }
 
 void UI_PopupMenuScroll(bool scroll_up) {
-    LPFRAMEDEF menu = active_popup ? UI_PopupMenuFrame(active_popup) : NULL;
+    frameDef_t * menu = active_popup ? UI_PopupMenuFrame(active_popup) : NULL;
     if (!menu || menu->hidden) {
         return;
     }
@@ -1199,7 +1199,7 @@ void UI_PopupMenuScroll(bool scroll_up) {
 }
 
 void UI_PopupMenuHover(float fdf_x, float fdf_y) {
-    LPFRAMEDEF menu = active_popup ? UI_PopupMenuFrame(active_popup) : NULL;
+    frameDef_t * menu = active_popup ? UI_PopupMenuFrame(active_popup) : NULL;
     active_popup_hover_item = -1;
     if (!menu || menu->hidden) {
         return;
@@ -1230,11 +1230,11 @@ void UI_PopupMenuHover(float fdf_x, float fdf_y) {
 }
 
 void UI_PopupSelectItem(float fdf_x, float fdf_y) {
-    LPFRAMEDEF menu = active_popup ? UI_PopupMenuFrame(active_popup) : NULL;
+    frameDef_t * menu = active_popup ? UI_PopupMenuFrame(active_popup) : NULL;
     if (!menu || menu->hidden) {
         return;
     }
-    LPRENDERER renderer = mi.GetRenderer();
+    refExport_t * renderer = mi.GetRenderer();
     if (!renderer || !renderer->LoadFont || !renderer->DrawText) {
         return;
     }
@@ -1257,8 +1257,8 @@ void UI_PopupSelectItem(float fdf_x, float fdf_y) {
             break;
         }
         if (UI_PointInRect(fdf_x, fdf_y, &row)) {
-            LPFRAMEDEF popup = (LPFRAMEDEF)menu->Parent;
-            LPFRAMEDEF title = UI_IsPopupFrameType(popup ? popup->Type : FT_NONE)
+            frameDef_t * popup = (frameDef_t *)menu->Parent;
+            frameDef_t * title = UI_IsPopupFrameType(popup ? popup->Type : FT_NONE)
                 ? UI_PopupTitleTextFrame(popup) : NULL;
             char command[160];
             if (title) {
@@ -1275,12 +1275,12 @@ void UI_PopupSelectItem(float fdf_x, float fdf_y) {
     }
 }
 
-void UI_DrawFramesInScene(LPCFRAMEDEF const *roots, uint32_t num_roots, rect_t const * scene) {
-    LPCFRAMEDEF draw_order[MAX_UI_CLASSES];
+void UI_DrawFramesInScene(frameDef_t const * const *roots, uint32_t num_roots, rect_t const * scene) {
+    frameDef_t const * draw_order[MAX_UI_CLASSES];
     uint32_t total;
     uint32_t count;
     uint32_t modal_index;
-    LPFRAMEDEF popup_menu;
+    frameDef_t * popup_menu;
 
     if (!roots || num_roots == 0) {
         return;
@@ -1331,14 +1331,14 @@ void UI_DrawFramesInScene(LPCFRAMEDEF const *roots, uint32_t num_roots, rect_t c
     }
 }
 
-void UI_DrawFrames(LPCFRAMEDEF const *roots, uint32_t num_roots) {
+void UI_DrawFrames(frameDef_t const * const *roots, uint32_t num_roots) {
     UI_DrawFramesInScene(roots, num_roots, NULL);
 }
 
-void UI_DrawFrame(LPCFRAMEDEF frame) {
+void UI_DrawFrame(frameDef_t const * frame) {
     UI_DrawFrameInScene(frame, NULL);
 }
 
-void UI_DrawFrameInScene(LPCFRAMEDEF frame, rect_t const * scene) {
+void UI_DrawFrameInScene(frameDef_t const * frame, rect_t const * scene) {
     UI_DrawFramesInScene(&frame, 1, scene);
 }

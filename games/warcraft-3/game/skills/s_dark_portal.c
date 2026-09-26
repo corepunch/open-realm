@@ -11,9 +11,9 @@ static uint32_t dark_portal_count(uint32_t code, uint32_t level) {
 }
 
 /* Permanent campaign troop: food/stand/summon events, but no owner/BTLF mark. */
-static LPEDICT dark_portal_spawn(LPEDICT caster, uint32_t unit_id, LPCVECTOR2 loc) {
-    LPEDICT troop;
-    VECTOR2 spot;
+static edict_t * dark_portal_spawn(edict_t * caster, uint32_t unit_id, vector2_t const * loc) {
+    edict_t * troop;
+    vector2_t spot;
     float angle = 0.0f;
     if (!caster || !unit_id || !loc) return NULL;
     spot = *loc;
@@ -26,7 +26,7 @@ static LPEDICT dark_portal_spawn(LPEDICT caster, uint32_t unit_id, LPCVECTOR2 lo
     return troop;
 }
 
-void dark_portal_think(LPEDICT ent) {
+void dark_portal_think(edict_t * ent) {
     uint32_t now = G_Time(), code = ent->class_id;
     if (!ent->owner || !ent->owner->inuse || !ent->resources) { G_FreeEdict(ent); return; }
     if (ent->freetime && now < ent->freetime) return;
@@ -52,7 +52,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDarkPortal) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     uint32_t unit = S_SpellDataId(spell->code, level, 1);
     uint32_t count = dark_portal_count(spell->code, level);
-    LPEDICT thinker;
+    edict_t * thinker;
     if (!caster || !count) return;
     if (!unit) {
         fprintf(stderr, "WC3 Dark Portal: missing DataA unit for %.4s\n", (cstring_t)&spell->code);

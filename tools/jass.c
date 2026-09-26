@@ -79,8 +79,8 @@ static uint32_t get_time_ms(void) {
     return 0;
 }
 
-static JASSHOST make_host(void) {
-    return MAKE(JASSHOST,
+static jassHost_t make_host(void) {
+    return MAKE(jassHost_t,
         .MemAlloc           = Tool_MemAlloc,
         .MemFree            = Tool_MemFree,
         .GetTime            = get_time_ms,
@@ -94,7 +94,7 @@ static JASSHOST make_host(void) {
  * Execution helpers
  * ========================================================================= */
 
-static LPJASS g_jass;   /* global state for signal handler */
+static jass_t * g_jass;   /* global state for signal handler */
 
 static void handle_sigint(int sig) {
     (void)sig;
@@ -103,7 +103,7 @@ static void handle_sigint(int sig) {
     fprintf(stderr, "\n(interrupted)\n");
 }
 
-static int do_file(LPJASS j, cstring_t filename) {
+static int do_file(jass_t * j, cstring_t filename) {
     if (!jass_dofile(j, filename)) {
         fprintf(stderr, "jass: error loading '%s'\n", filename);
         return 1;
@@ -111,7 +111,7 @@ static int do_file(LPJASS j, cstring_t filename) {
     return 0;
 }
 
-static int do_string(LPJASS j, cstring_t src) {
+static int do_string(jass_t * j, cstring_t src) {
     size_t len = strlen(src);
     string_t buf = Tool_MemAlloc((long)len + 1);
     memcpy(buf, src, len + 1);
@@ -128,7 +128,7 @@ static int do_string(LPJASS j, cstring_t src) {
  * REPL — interactive line reader
  * ========================================================================= */
 
-static int do_repl(LPJASS j) {
+static int do_repl(jass_t * j) {
     char line[4096];
     char block[65536];
     block[0] = '\0';
@@ -210,10 +210,10 @@ static void print_version(void) {
  * ========================================================================= */
 
 int main(int argc, char *argv[]) {
-    JASSHOST host = make_host();
+    jassHost_t host = make_host();
     jass_sethost(&host);
 
-    LPJASS j = jass_newstate();
+    jass_t * j = jass_newstate();
     g_jass = j;
 
     signal(SIGINT, handle_sigint);

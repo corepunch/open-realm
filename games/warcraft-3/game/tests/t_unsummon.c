@@ -5,7 +5,7 @@
 #define BZ_AUNS MAKEFOURCC('A', 'u', 'n', 's')
 #define BZ_BUNS MAKEFOURCC('B', 'u', 'n', 's')
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 void G_RunEntities(void);
@@ -27,15 +27,15 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
     slkTestData_t *rows, *old;
-    LPEDICT caster, building, enemy_bldg, unit;
+    edict_t * caster, *building, *enemy_bldg, *unit;
     UnitBalance_t bldg_bal, unit_bal;
-    LPGAMECLIENT client;
-} UNSFIX;
+    gameClient_t * client;
+} unsFix_t;
 
-static void uns_setup(UNSFIX *fix) {
+static void uns_setup(unsFix_t *fix) {
     reset_entities(); setup_test_world(); level.time = 1000;
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
     fix->rows = parse_slk_string(UNS_SLK); fix->old = G_SetSLKRows("AbilityData", fix->rows);
     fix->client = &game.clients[0];
@@ -69,25 +69,25 @@ static void uns_setup(UNSFIX *fix) {
     fix->client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 5;
 }
 
-static void uns_done(UNSFIX *fix) {
+static void uns_done(unsFix_t *fix) {
     G_SetSLKRows("AbilityData", fix->old);
     free_slk_rows(fix->rows);
 }
 
-static LPEDICT uns_thinker(LPEDICT caster) {
+static edict_t * uns_thinker(edict_t * caster) {
     FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->think == unsummon_think) return ent;
     return NULL;
 }
 
-static LPEDICT uns_effect(LPEDICT building) {
+static edict_t * uns_effect(edict_t * building) {
     FILTER_EDICTS(ent, ent->inuse && ent->goalentity == building &&
         (ent->s.flags & EF_NOT_SELECTABLE)) return ent;
     return NULL;
 }
 
-static void uns_tick(LPEDICT caster, uint32_t count) {
+static void uns_tick(edict_t * caster, uint32_t count) {
     FOR_LOOP(i, count) {
-        LPEDICT thinker = uns_thinker(caster);
+        edict_t * thinker = uns_thinker(caster);
         if (!thinker) return;
         level.time += FRAMETIME;
         G_RunEntities();
@@ -104,7 +104,7 @@ TEST(wc3_spell, unsummon_procedure_is_unit_target_channel) {
 }
 
 TEST(wc3_spell, unsummon_uses_datab_dps_progressive_refund_and_temporary_magic_immunity) {
-    UNSFIX fix;
+    unsFix_t fix;
     uns_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
     T_FEQ(fix.caster->mana.value, 85, 0.001f);
@@ -132,7 +132,7 @@ TEST(wc3_spell, unsummon_uses_datab_dps_progressive_refund_and_temporary_magic_i
 }
 
 TEST(wc3_spell, unsummon_approaches_before_starting_demolition) {
-    UNSFIX fix;
+    unsFix_t fix;
     uns_setup(&fix);
     fix.caster->s.origin2.x = fix.caster->s.origin.x = 0;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
@@ -152,7 +152,7 @@ TEST(wc3_spell, unsummon_approaches_before_starting_demolition) {
 TEST(wc3_spell, unsummon_built_building_without_walkable_approach_cancels) {
     enum { UNS_MAP_W = 64, UNS_MAP_H = 64, UNS_FOOT_W = 8, UNS_FOOT_H = 8 };
     static uint8_t cells[UNS_MAP_W * UNS_MAP_H];
-    UNSFIX fix;
+    unsFix_t fix;
     pathTex_t *pathtex;
 
     memset(cells, 0, sizeof(cells));
@@ -161,15 +161,15 @@ TEST(wc3_spell, unsummon_built_building_without_walkable_approach_cancels) {
             cells[x + y * UNS_MAP_W] = CM_PATHING_UNWALKABLE;
     uns_setup(&fix);
     setup_test_pathmap(UNS_MAP_W, UNS_MAP_H, cells);
-    fix.caster->s.origin2 = (VECTOR2){ 0.0f, 32.0f };
-    fix.caster->s.origin = MAKE(VECTOR3, 0.0f, 32.0f, 0.0f);
-    fix.building->s.origin2 = (VECTOR2){ 32.0f, 32.0f };
-    fix.building->s.origin = MAKE(VECTOR3, 32.0f, 32.0f, 0.0f);
-    pathtex = gi.MemAlloc(sizeof(*pathtex) + UNS_FOOT_W * UNS_FOOT_H * sizeof(COLOR32));
+    fix.caster->s.origin2 = (vector2_t){ 0.0f, 32.0f };
+    fix.caster->s.origin = MAKE(vector3_t, 0.0f, 32.0f, 0.0f);
+    fix.building->s.origin2 = (vector2_t){ 32.0f, 32.0f };
+    fix.building->s.origin = MAKE(vector3_t, 32.0f, 32.0f, 0.0f);
+    pathtex = gi.MemAlloc(sizeof(*pathtex) + UNS_FOOT_W * UNS_FOOT_H * sizeof(color32_t));
     T_NOT_NULL(pathtex);
     pathtex->width = UNS_FOOT_W;
     pathtex->height = UNS_FOOT_H;
-    FOR_LOOP(i, UNS_FOOT_W * UNS_FOOT_H) pathtex->map[i] = (COLOR32){ 0, 0, 255, 255 };
+    FOR_LOOP(i, UNS_FOOT_W * UNS_FOOT_H) pathtex->map[i] = (color32_t){ 0, 0, 255, 255 };
     fix.building->pathtex = pathtex;
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
@@ -185,7 +185,7 @@ TEST(wc3_spell, unsummon_built_building_without_walkable_approach_cancels) {
 }
 
 TEST(wc3_spell, unsummon_start_at_interaction_range_applies_buns_immediately) {
-    UNSFIX fix;
+    unsFix_t fix;
     uns_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
     T_ASSERT(G_UnitStatusLevel(fix.building, BZ_BUNS));
@@ -195,7 +195,7 @@ TEST(wc3_spell, unsummon_start_at_interaction_range_applies_buns_immediately) {
 }
 
 TEST(wc3_spell, unsummon_interruption_while_approaching_preserves_target) {
-    UNSFIX fix;
+    unsFix_t fix;
     uns_setup(&fix);
     fix.caster->s.origin2.x = fix.caster->s.origin.x = 0;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
@@ -209,7 +209,7 @@ TEST(wc3_spell, unsummon_interruption_while_approaching_preserves_target) {
 }
 
 TEST(wc3_spell, unsummon_order_interruption_after_start_keeps_earned_refund) {
-    UNSFIX fix;
+    unsFix_t fix;
     uint16_t gold;
     uns_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
@@ -225,7 +225,7 @@ TEST(wc3_spell, unsummon_order_interruption_after_start_keeps_earned_refund) {
 }
 
 TEST(wc3_spell, unsummon_moving_away_after_start_keeps_demolition) {
-    UNSFIX fix;
+    unsFix_t fix;
     uns_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
     uns_tick(fix.caster, 2);
@@ -238,7 +238,7 @@ TEST(wc3_spell, unsummon_moving_away_after_start_keeps_demolition) {
 }
 
 TEST(wc3_spell, unsummon_caster_death_after_start_keeps_demolition) {
-    UNSFIX fix;
+    unsFix_t fix;
     uns_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
     uns_tick(fix.caster, 2);
@@ -251,7 +251,7 @@ TEST(wc3_spell, unsummon_caster_death_after_start_keeps_demolition) {
 }
 
 TEST(wc3_spell, unsummon_enemy_damage_reduces_recovered_resources) {
-    UNSFIX fix;
+    unsFix_t fix;
     uns_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
     uns_tick(fix.caster, 5); /* Unsummon removes 40 HP. */
@@ -264,7 +264,7 @@ TEST(wc3_spell, unsummon_enemy_damage_reduces_recovered_resources) {
 }
 
 TEST(wc3_spell, unsummon_cancel_after_start_keeps_demolition_active) {
-    UNSFIX fix;
+    unsFix_t fix;
     uns_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
     uns_tick(fix.caster, 2);
@@ -279,8 +279,8 @@ TEST(wc3_spell, unsummon_cancel_after_start_keeps_demolition_active) {
 }
 
 TEST(wc3_spell, unsummon_approach_uses_matching_channel_and_target) {
-    UNSFIX fix;
-    LPEDICT first;
+    unsFix_t fix;
+    edict_t * first;
 
     uns_setup(&fix);
     fix.enemy_bldg->s.player = 0;
@@ -309,7 +309,7 @@ TEST(wc3_spell, unsummon_approach_uses_matching_channel_and_target) {
 }
 
 TEST(wc3_spell, unsummon_building_destruction_refunds_queued_training) {
-    UNSFIX fix;
+    unsFix_t fix;
     UnitBalance_t training_bal = MAKE(UnitBalance_t, .maxHealth = 100,
         .goldCost = 100, .lumberCost = 20, .foodUsed = 3);
 
@@ -336,7 +336,7 @@ TEST(wc3_spell, unsummon_building_destruction_refunds_queued_training) {
 }
 
 TEST(wc3_spell, unsummon_rejects_invalid_targets_without_mana_spend) {
-    UNSFIX fix;
+    unsFix_t fix;
     float mana;
     uns_setup(&fix);
     mana = fix.caster->mana.value;
@@ -352,7 +352,7 @@ TEST(wc3_spell, unsummon_rejects_invalid_targets_without_mana_spend) {
 }
 
 TEST(wc3_spell, unsummon_reports_under_construction_from_command_strings) {
-    UNSFIX fix;
+    unsFix_t fix;
     float mana;
 
     uns_setup(&fix);
@@ -369,8 +369,8 @@ TEST(wc3_spell, unsummon_reports_under_construction_from_command_strings) {
 
 TEST(wc3_save, unsummon_live_channel_thinker_round_trips) {
     cstring_t filename = "/tmp/openwarcraft3-unsummon-live.bin";
-    UNSFIX fix;
-    LPEDICT thinker;
+    unsFix_t fix;
+    edict_t * thinker;
     uns_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
     thinker = uns_thinker(fix.caster);

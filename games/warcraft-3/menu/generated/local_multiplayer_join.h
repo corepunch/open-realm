@@ -5,38 +5,38 @@
 #include "../menu_local.h"
 
 typedef struct LocalMultiplayerJoin_s {
-    LPFRAMEDEF LocalMultiplayerJoin;
-    LPFRAMEDEF GameListPanel;
-    LPFRAMEDEF GameListTitle;
-    LPFRAMEDEF PlayerNameLabel;
-    LPFRAMEDEF PlayerNameEditBox;
-    LPFRAMEDEF GameListLabel;
-    LPFRAMEDEF GameListContainer;
-    LPFRAMEDEF GameSummaryPanel;
-    LPFRAMEDEF MapInfoPaneContainer;
-    LPFRAMEDEF GameCreatorLabel;
-    LPFRAMEDEF GameCreatorValue;
-    LPFRAMEDEF GameSpeedLabel;
-    LPFRAMEDEF GameSpeedValue;
-    LPFRAMEDEF AdvancedOptionsContainer;
-    LPFRAMEDEF CustomCreateTitle;
-    LPFRAMEDEF CustomCreateInfo;
-    LPFRAMEDEF CreateBackdrop;
-    LPFRAMEDEF CreateButton;
-    LPFRAMEDEF CreateButtonText;
-    LPFRAMEDEF LoadBackdrop;
-    LPFRAMEDEF LoadButton;
-    LPFRAMEDEF LoadButtonText;
-    LPFRAMEDEF JoinBackdrop;
-    LPFRAMEDEF JoinButton;
-    LPFRAMEDEF JoinButtonText;
-    LPFRAMEDEF CancelBackdrop;
-    LPFRAMEDEF CancelButton;
-    LPFRAMEDEF CancelButtonText;
+    frameDef_t * LocalMultiplayerJoin;
+    frameDef_t * GameListPanel;
+    frameDef_t * GameListTitle;
+    frameDef_t * PlayerNameLabel;
+    frameDef_t * PlayerNameEditBox;
+    frameDef_t * GameListLabel;
+    frameDef_t * GameListContainer;
+    frameDef_t * GameSummaryPanel;
+    frameDef_t * MapInfoPaneContainer;
+    frameDef_t * GameCreatorLabel;
+    frameDef_t * GameCreatorValue;
+    frameDef_t * GameSpeedLabel;
+    frameDef_t * GameSpeedValue;
+    frameDef_t * AdvancedOptionsContainer;
+    frameDef_t * CustomCreateTitle;
+    frameDef_t * CustomCreateInfo;
+    frameDef_t * CreateBackdrop;
+    frameDef_t * CreateButton;
+    frameDef_t * CreateButtonText;
+    frameDef_t * LoadBackdrop;
+    frameDef_t * LoadButton;
+    frameDef_t * LoadButtonText;
+    frameDef_t * JoinBackdrop;
+    frameDef_t * JoinButton;
+    frameDef_t * JoinButtonText;
+    frameDef_t * CancelBackdrop;
+    frameDef_t * CancelButton;
+    frameDef_t * CancelButtonText;
 } LocalMultiplayerJoin_t;
 
 
-static inline bool LocalMultiplayerJoin_Bind(LocalMultiplayerJoin_t *out, LPFRAMEDEF bind_root) {
+static inline bool LocalMultiplayerJoin_Bind(LocalMultiplayerJoin_t *out, frameDef_t * bind_root) {
     bool ok = true;
     if (!out) {
         return false;

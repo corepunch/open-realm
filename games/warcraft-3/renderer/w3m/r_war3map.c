@@ -2,8 +2,8 @@
 #include "../mdx/r_mdx.h"
 #include "renderer/r_shader.h"
 
-LPMAPSEGMENT g_mapSegments = NULL;
-LPMAPLAYER g_groundLayers = NULL;
+mapsegment_t * g_mapSegments = NULL;
+maplayer_t * g_groundLayers = NULL;
 static cameraHeightMap_t w3_camera_height;
 
 #define WC3_CAMERA_HEIGHT_RADIUS 4 // terrain cells; half-width of the client camera blur footprint
@@ -11,25 +11,25 @@ static float r_w3_camera_grid_height(void const * data, uint32_t x, uint32_t y) 
     return GetWar3MapVertexHeight(GetWar3MapVertex(data, x, y));
 }
 
-static void R_FreeMapLayers(LPMAPLAYER *layers) {
+static void R_FreeMapLayers(maplayer_t * *layers) {
     while (*layers) {
-        LPMAPLAYER layer = *layers;
+        maplayer_t * layer = *layers;
         *layers = layer->next;
-        if (layer->buffer) R_ReleaseVertexArrayObject((LPBUFFER)layer->buffer);
+        if (layer->buffer) R_ReleaseVertexArrayObject((buffer_t *)layer->buffer);
         ri.MemFree(layer);
     }
 }
 
 static void R_FreeMapSegments(void) {
     while (g_mapSegments) {
-        LPMAPSEGMENT segment = g_mapSegments;
+        mapsegment_t * segment = g_mapSegments;
         g_mapSegments = segment->next;
         R_FreeMapLayers(&segment->layers);
         ri.MemFree(segment);
     }
 }
 
-static void R_FreeWar3Map(LPWAR3MAP map) {
+static void R_FreeWar3Map(war3map_t * map) {
     if (!map) return;
     SAFE_DELETE(map->grounds, ri.MemFree);
     SAFE_DELETE(map->cliffs, ri.MemFree);
@@ -38,7 +38,7 @@ static void R_FreeWar3Map(LPWAR3MAP map) {
 }
 
 void _W3M_ClearMap(void) {
-    LPTEXTURE shadow = tr.texture[TEX_TERRAIN_SHADOW];
+    texture_t * shadow = tr.texture[TEX_TERRAIN_SHADOW];
 
     R_FreeMapSegments();
     R_FreeMapLayers(&g_groundLayers);
@@ -51,12 +51,12 @@ void _W3M_ClearMap(void) {
     tr.texture[TEX_TERRAIN_SHADOW] = NULL;
     if (shadow) R_ReleaseTexture(shadow);
     if (tr.world) {
-        R_FreeWar3Map((LPWAR3MAP)tr.world);
+        R_FreeWar3Map((war3map_t *)tr.world);
         tr.world = NULL;
     }
 }
 
-static void R_FileReadShadowMap(handle_t hMpq, LPWAR3MAP  pWorld) {
+static void R_FileReadShadowMap(handle_t hMpq, war3map_t *  pWorld) {
     handle_t file;
     if (!SFileOpenFileEx(hMpq, "war3map.shd", SFILE_OPEN_FROM_MPQ, &file)) {
         return;
@@ -69,8 +69,8 @@ static void R_FileReadShadowMap(handle_t hMpq, LPWAR3MAP  pWorld) {
         SFileCloseFile(file);
         return;
     }
-    LPTEXTURE pShadowmap = R_AllocateTexture(w, h);
-    LPCOLOR32 pixels = ri.MemAlloc(w * h * sizeof(struct color32));
+    texture_t * pShadowmap = R_AllocateTexture(w, h);
+    color32_t * pixels = ri.MemAlloc(w * h * sizeof(struct color32));
     FOR_LOOP(i, w * h) {
         uint8_t shadow = (uint8_t)shadows[i];
         pixels[i].r = 0;
@@ -78,7 +78,7 @@ static void R_FileReadShadowMap(handle_t hMpq, LPWAR3MAP  pWorld) {
         pixels[i].b = 0;
         pixels[i].a = shadow / 2;
     }
-    R_LoadTextureMipLevel(pShadowmap, &(TEXMIP){ pixels, w, h, 0, PIXEL_RGBA });
+    R_LoadTextureMipLevel(pShadowmap, &(texMip_t){ pixels, w, h, 0, PIXEL_RGBA });
     SFileCloseFile(file);
     ri.MemFree(shadows);
     ri.MemFree(pixels);
@@ -86,48 +86,48 @@ static void R_FileReadShadowMap(handle_t hMpq, LPWAR3MAP  pWorld) {
     tr.texture[TEX_TERRAIN_SHADOW] = pShadowmap;
 }
 
-static LPMAPSEGMENT R_BuildMapSegment(LPCWAR3MAP map, uint32_t sx, uint32_t sy) {
-    LPMAPSEGMENT mapSegment = ri.MemAlloc(sizeof(MAPSEGMENT));
-    LPMAPLAYER mapLayer = R_BuildMapSegmentWater(map, sx, sy);
+static mapsegment_t * R_BuildMapSegment(war3map_t const * map, uint32_t sx, uint32_t sy) {
+    mapsegment_t * mapSegment = ri.MemAlloc(sizeof(mapsegment_t));
+    maplayer_t * mapLayer = R_BuildMapSegmentWater(map, sx, sy);
     ADD_TO_LIST(mapLayer, mapSegment->layers);
     FOR_LOOP(cliff, map->num_cliffs) {
         if ((mapLayer = R_BuildMapSegmentCliffs(map, sx, sy, cliff))) {
             ADD_TO_LIST(mapLayer, mapSegment->layers);
         }
     }
-    mapSegment->bbox.min = MAKE(VECTOR3, FLT_MAX, FLT_MAX, FLT_MAX);
-    mapSegment->bbox.max = MAKE(VECTOR3, -FLT_MAX, -FLT_MAX, -FLT_MAX);
+    mapSegment->bbox.min = MAKE(vector3_t, FLT_MAX, FLT_MAX, FLT_MAX);
+    mapSegment->bbox.max = MAKE(vector3_t, -FLT_MAX, -FLT_MAX, -FLT_MAX);
     return mapSegment;
 }
 
-static void R_BuildGroundLayers(LPCWAR3MAP map) {
+static void R_BuildGroundLayers(war3map_t const * map) {
     for (uint32_t layer = map->num_grounds; layer > 0; layer--) {
-        LPMAPLAYER mapLayer = R_BuildGroundLayerGlobal(map, layer - 1);
+        maplayer_t * mapLayer = R_BuildGroundLayerGlobal(map, layer - 1);
         if (mapLayer) {
             ADD_TO_LIST(mapLayer, g_groundLayers);
         }
     }
 }
 
-static VECTOR3 R_GetMapVertexPoint(LPCWAR3MAP map, uint32_t x, uint32_t y) {
-    LPCWAR3MAPVERTEX mapVertex = GetWar3MapVertex(map, x, y);
-    return (VECTOR3) {
+static vector3_t R_GetMapVertexPoint(war3map_t const * map, uint32_t x, uint32_t y) {
+    war3mapVertex_t const * mapVertex = GetWar3MapVertex(map, x, y);
+    return (vector3_t) {
         .x = map->center.x + x * TILE_SIZE,
         .y = map->center.y + y * TILE_SIZE,
         .z = GetWar3MapVertexHeight(mapVertex),
     };
 }
 
-static void R_LoadMapSegments(LPCWAR3MAP map) {
+static void R_LoadMapSegments(war3map_t const * map) {
     FOR_LOOP(fx, (map->width - 1) / SEGMENT_SIZE) {
         FOR_LOOP(fy, (map->height - 1) / SEGMENT_SIZE) {
-            LPMAPSEGMENT segment = R_BuildMapSegment(map, fx, fy);
+            mapsegment_t * segment = R_BuildMapSegment(map, fx, fy);
             ADD_TO_LIST(segment, g_mapSegments);
             FOR_LOOP(sx, SEGMENT_SIZE+1) {
                 FOR_LOOP(sy, SEGMENT_SIZE+1) {
                     float x = fx * SEGMENT_SIZE + sx;
                     float y = fy * SEGMENT_SIZE + sy;
-                    VECTOR3 v = R_GetMapVertexPoint(map, x, y);
+                    vector3_t v = R_GetMapVertexPoint(map, x, y);
                     segment->bbox.min.x = MIN(segment->bbox.min.x, v.x);
                     segment->bbox.min.y = MIN(segment->bbox.min.y, v.y);
                     segment->bbox.min.z = MIN(segment->bbox.min.z, v.z);
@@ -140,7 +140,7 @@ static void R_LoadMapSegments(LPCWAR3MAP map) {
     }
 }
 
-void R_AllocateFogOfWar(LPWAR3MAP map) {
+void R_AllocateFogOfWar(war3map_t * map) {
     R_InitFogOfWar((map->width - 1) * 4, (map->height - 1) * 4);
 }
 
@@ -170,7 +170,7 @@ static void R_LoadMapMinimap(handle_t hMpq, cstring_t mapFilename) {
     }
 }
 
-static bool R_ReadWar3MapVertex(handle_t file, LPWAR3MAPVERTEX vert) {
+static bool R_ReadWar3MapVertex(handle_t file, war3mapVertex_t * vert) {
     uint16_t water_and_edge;
     uint8_t flags;
     uint8_t variation;
@@ -210,8 +210,8 @@ static bool R_ReadWar3MapVertex(handle_t file, LPWAR3MAPVERTEX vert) {
     return true;
 }
 
-LPWAR3MAP FileReadWar3Map(handle_t archive) {
-    LPWAR3MAP map = ri.MemAlloc(sizeof(WAR3MAP));
+war3map_t * FileReadWar3Map(handle_t archive) {
+    war3map_t * map = ri.MemAlloc(sizeof(war3map_t));
     handle_t file;
     SFileOpenFileEx(archive, "war3map.w3e", SFILE_OPEN_FROM_MPQ, &file);
     SFileReadFile(file, &map->header, 4, NULL, NULL);
@@ -224,11 +224,11 @@ LPWAR3MAP FileReadWar3Map(handle_t archive) {
     SFileReadFile(file, &map->height, 4, NULL, NULL);
     SFileReadFile(file, &map->center, 8, NULL, NULL);
     uint32_t const num_vertices = map->width * map->height;
-    int const vertexblocksize = sizeof(WAR3MAPVERTEX) * num_vertices;
+    int const vertexblocksize = sizeof(war3mapVertex_t) * num_vertices;
     map->vertices = ri.MemAlloc(vertexblocksize);
     R_AllocateFogOfWar(map);
     FOR_LOOP(i, num_vertices) {
-        if (!R_ReadWar3MapVertex(file, (LPWAR3MAPVERTEX)map->vertices + i)) {
+        if (!R_ReadWar3MapVertex(file, (war3mapVertex_t *)map->vertices + i)) {
             break;
         }
     }
@@ -236,14 +236,14 @@ LPWAR3MAP FileReadWar3Map(handle_t archive) {
     FOR_LOOP(y, map->height) {
 //        printf("%04x  ", y);
         FOR_LOOP(x, map->width) {
-            LPWAR3MAPVERTEX vert = (LPWAR3MAPVERTEX)GetWar3MapVertex(map, x, y);
+            war3mapVertex_t * vert = (war3mapVertex_t *)GetWar3MapVertex(map, x, y);
             if (!vert->ramp)
                 continue;
             vert->cliffVariation = 0; // used also to mark mid-ramp
-            LPCWAR3MAPVERTEX l = GetWar3MapVertex(map, x-1, y);
-            LPCWAR3MAPVERTEX r = GetWar3MapVertex(map, x+1, y);
-            LPCWAR3MAPVERTEX t = GetWar3MapVertex(map, x, y-1);
-            LPCWAR3MAPVERTEX b = GetWar3MapVertex(map, x, y+1);
+            war3mapVertex_t const * l = GetWar3MapVertex(map, x-1, y);
+            war3mapVertex_t const * r = GetWar3MapVertex(map, x+1, y);
+            war3mapVertex_t const * t = GetWar3MapVertex(map, x, y-1);
+            war3mapVertex_t const * b = GetWar3MapVertex(map, x, y+1);
             if (l && r && l->ramp && r->ramp && l->level != r->level) {
                 vert->cliffVariation = 1;
             } else if (t && b && t->ramp && b->ramp && t->level != b->level) {
@@ -260,7 +260,7 @@ void _W3M_RegisterMap(char const *mapFilename) {
     handle_t hMpq;
     uint8_t * mapData;
     int mapSize;
-    LPWAR3MAP map;
+    war3map_t * map;
 
     /* A map registration replaces the whole WC3 world.  Free GPU buffers,
      * map-owned models, fog targets and source terrain before creating the
@@ -324,13 +324,13 @@ void _W3M_DrawTerrainShadows(void) {
         return;
     }
 
-    VECTOR2 size = GetWar3MapSize(tr.world);
-    VECTOR2 mins = tr.world->center;
-    VECTOR2 maxs = {
+    vector2_t size = GetWar3MapSize(tr.world);
+    vector2_t mins = tr.world->center;
+    vector2_t maxs = {
         .x = tr.world->center.x + size.x,
         .y = tr.world->center.y + size.y,
     };
-    COLOR32 shadowColor = {0, 0, 0, 255};
+    color32_t shadowColor = {0, 0, 0, 255};
 
     R_RenderRectSplat(&mins, &maxs, tr.texture[TEX_TERRAIN_SHADOW], R_SPLAT_SHADER(&tr.shader_shadowSplat), shadowColor);
 }
@@ -339,7 +339,7 @@ void _W3M_DrawTerrainShadows(void) {
 static void _W3M_SetSceneFog(void) {
     tr.shader_default.state.fogEnable = tr.viewDef.fogEnable;
     tr.shader_default.state.fogColor = tr.viewDef.fogColor;
-    tr.shader_default.state.fogParams = (VECTOR2){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
+    tr.shader_default.state.fogParams = (vector2_t){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
 }
 
 void _W3M_DrawWorld(void) {
@@ -352,13 +352,13 @@ void _W3M_DrawWorld(void) {
     _W3M_SetSceneFog();
 
     {
-        MODELLIGHTING lighting;
+        modelLighting_t lighting;
         R_SetDefaultLighting(&tr.shader_default,
                              R_LightingFromEnviron(&tr.viewDef.terrainLight, &lighting)
                                  ? &lighting : NULL);
     }
 
-    FOR_EACH_LIST(MAPLAYER, layer, g_groundLayers) {
+    FOR_EACH_LIST(maplayer_t, layer, g_groundLayers) {
         if (layer == g_groundLayers) {
             R_Call(glDisable, GL_BLEND);
         } else {
@@ -375,7 +375,7 @@ void _W3M_DrawWorld(void) {
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     R_DrawBlightLayer();
 
-    FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
+    FOR_EACH_LIST(mapsegment_t, segment, g_mapSegments) {
         R_DrawTerrainSegment(segment, (1 << MAPLAYERTYPE_CLIFF));
     }
 }
@@ -389,7 +389,7 @@ void _W3M_DrawAlphaSurfaces(void) {
     R_Call(glDepthMask, GL_FALSE);
     _W3M_SetSceneFog();
 
-    FOR_EACH_LIST(MAPSEGMENT, segment, g_mapSegments) {
+    FOR_EACH_LIST(mapsegment_t, segment, g_mapSegments) {
         R_DrawTerrainSegment(segment, (1 << MAPLAYERTYPE_WATER));
     }
     R_Call(glDepthMask, GL_TRUE);

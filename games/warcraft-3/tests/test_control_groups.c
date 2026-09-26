@@ -2,14 +2,14 @@
 #include "cl_control_groups.h"
 #include "../../client/ui_layout.h"
 
-void SCR_LayoutDrawCommandButton(LPCUIFRAME frame, rect_t const * screen);
+void SCR_LayoutDrawCommandButton(uiFrame_t const * frame, rect_t const * screen);
 static bool button_glow;
 static float button_radial_shade;
-static void capture_button_glow(LPCDRAWIMAGE draw) { button_glow = draw->uActiveGlow; button_radial_shade = draw->uRadialShade; }
+static void capture_button_glow(drawImage_t const * draw) { button_glow = draw->uActiveGlow; button_radial_shade = draw->uRadialShade; }
 
 /* Test the renderer submission, including the shared sentinel and independent autocast flag. */
 TEST(client_layout, command_glow_requires_an_ability_or_autocast) {
-    void (*saved_draw)(LPCDRAWIMAGE) = re.DrawImageEx;
+    void (*saved_draw)(drawImage_t const *) = re.DrawImageEx;
     uint32_t saved_count = cl.num_entities;
     entityState_t saved_ent = cl.ents[0].current;
     uiFrame_t frame = { .flags.type = FT_COMMANDBUTTON, .stat = UINT8_MAX };
@@ -38,7 +38,7 @@ TEST(client_layout, command_glow_requires_an_ability_or_autocast) {
 }
 
 TEST(client_layout, command_cooldown_uses_local_clock_for_radial_shade) {
-    void (*saved_draw)(LPCDRAWIMAGE) = re.DrawImageEx;
+    void (*saved_draw)(drawImage_t const *) = re.DrawImageEx;
     uint32_t const saved_time = cl.time;
     uiCommandButton_t state = { .radialStartTime = 1000, .radialEndTime = 5000 };
     uiFrame_t frame = { .flags.type = FT_COMMANDBUTTON, .stat = UINT8_MAX };

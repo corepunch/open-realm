@@ -7,11 +7,11 @@
 #include <string.h>
 
 #define MDLX_STACK_DRAW_ORDER 64
-LPCTEXTURE MDLX_GetTexture(mdxModel_t const *model,
+texture_t const * MDLX_GetTexture(mdxModel_t const *model,
                                  uint32_t teamID,
                                  uint32_t textureID,
                                  uint32_t replaceableID,
-                                 LPCTEXTURE overrideTexture) {
+                                 texture_t const * overrideTexture) {
     mdxTexture_t const *modeltex = &model->textures[textureID];
     switch (replaceableID) {
         case TEXREPL_TEAMCOLOR: return tr.texture[TEX_TEAM_COLOR + teamID];
@@ -112,7 +112,7 @@ static bool MDLX_MaterialHasPass(mdxMaterial_t const *material, bool blendedPass
     return false;
 }
 
-static VECTOR4 MDLX_EvaluateGeosetColor(mdxModel_t const *model,
+static vector4_t MDLX_EvaluateGeosetColor(mdxModel_t const *model,
                                         mdxGeoset_t const *geoset,
                                         uint32_t frame);
 
@@ -149,7 +149,7 @@ static bool MDLX_IsGeosetVisible(mdxModel_t const *model,
                                  uint32_t frame)
 {
     if (geoset->geosetAnim) {
-        VECTOR4 geosetColor = MDLX_EvaluateGeosetColor(model, geoset, frame);
+        vector4_t geosetColor = MDLX_EvaluateGeosetColor(model, geoset, frame);
         if (geosetColor.w < EPSILON) {
             return false;
         }
@@ -190,9 +190,9 @@ static void MDLX_BindLayerTextureAnimation(mdxModel_t const *model,
                                            mdxMaterialLayer_t const *layer,
                                            uint32_t frame)
 {
-    VECTOR3 translation = { 0, 0, 0 };
-    QUATERNION rotation = { 0, 0, 0, 1 };
-    VECTOR3 scale = { 1, 1, 1 };
+    vector3_t translation = { 0, 0, 0 };
+    quaternion_t rotation = { 0, 0, 0, 1 };
+    vector3_t scale = { 1, 1, 1 };
     mdxTextureAnim_t const *textureAnim = MDLX_GetTextureAnimAtIndex(model, layer->transformId);
 
     if (textureAnim) {
@@ -208,13 +208,13 @@ static void MDLX_BindLayerTextureAnimation(mdxModel_t const *model,
     }
 
     if (!isfinite(translation.x) || !isfinite(translation.y)) {
-        translation = (VECTOR3){ 0, 0, 0 };
+        translation = (vector3_t){ 0, 0, 0 };
     }
     if (!isfinite(rotation.z) || !isfinite(rotation.w)) {
-        rotation = (QUATERNION){ 0, 0, 0, 1 };
+        rotation = (quaternion_t){ 0, 0, 0, 1 };
     }
     if (!isfinite(scale.x) || !isfinite(scale.y)) {
-        scale = (VECTOR3){ 1, 1, 1 };
+        scale = (vector3_t){ 1, 1, 1 };
     }
 
     {
@@ -229,12 +229,12 @@ static void MDLX_BindLayerTextureAnimation(mdxModel_t const *model,
         float tx = scale.x * (c * (translation.x - 0.5f) - s * (translation.y - 0.5f)) + 0.5f;
         float ty = scale.y * (s * (translation.x - 0.5f) + c * (translation.y - 0.5f)) + 0.5f;
         GLfloat m[9] = { scale.x*c, scale.y*s, 0, -scale.x*s, scale.y*c, 0, tx, ty, 1 };
-        memcpy(&mdlx.shader->state.uvMatrix, m, (1) * sizeof(MATRIX3));
+        memcpy(&mdlx.shader->state.uvMatrix, m, (1) * sizeof(matrix3_t));
     }
 }
 
 static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t const *geoset) {
-    MATRIX4 matrixPalette[MDX_MATRIX_PALETTE];
+    matrix4_t matrixPalette[MDX_MATRIX_PALETTE];
     /* Skin indices are geoset-local (0..num_matrixPalette-1), so only the
      * palette entries the geoset actually references need to reach the shader.
      * Uploading the full BZ_BONE_PALETTE_MAX per geoset was wasted uniform
@@ -250,15 +250,15 @@ static void MDLX_BindGeosetMatrixPalette(mdxModel_t const *model, mdxGeoset_t co
         }
     }
 
-    memcpy(&mdlx.shader->state.bones, matrixPalette->v, (count) * sizeof(MATRIX4));
+    memcpy(&mdlx.shader->state.bones, matrixPalette->v, (count) * sizeof(matrix4_t));
     mdlx.shader->state.boneCount = count;
 }
 
-static VECTOR4 MDLX_EvaluateGeosetColor(mdxModel_t const *model,
+static vector4_t MDLX_EvaluateGeosetColor(mdxModel_t const *model,
                                         mdxGeoset_t const *geoset,
                                         uint32_t frame)
 {
-    VECTOR4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
+    vector4_t color = { 1.0f, 1.0f, 1.0f, 1.0f };
 
     if (!geoset->geosetAnim) {
         return color;
@@ -271,7 +271,7 @@ static VECTOR4 MDLX_EvaluateGeosetColor(mdxModel_t const *model,
         MDLX_GetModelKeytrackValue(model, geoset->geosetAnim->alphas, frame, &color.w);
     }
     if (geoset->geosetAnim->flags & 0x2) {
-        VECTOR3 geosetColor = { 1.0f, 1.0f, 1.0f };
+        vector3_t geosetColor = { 1.0f, 1.0f, 1.0f };
 
         /* Warsmash swizzles both the static GeosetAnimation base color and
          * animated KGAC values. Keep this at the semantic VECTOR3 layer rather
@@ -323,15 +323,15 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
                              mdxGeoset_t const *geoset,
                              mdxMaterial_t const *material,
                              uint32_t team,
-                             LPCTEXTURE overrideTexture,
+                             texture_t const * overrideTexture,
                              bool forceUnshaded,
                              uint32_t frame,
-                             LPCVECTOR4 tint,
+                             vector4_t const * tint,
                              bool blendedPass)
 {
     bool force_two_sided = model && !model->cameras;
-    MODELPROG * shader = mdlx.shader;
-    VECTOR4 geosetColor;
+    modelProg_t * shader = mdlx.shader;
+    vector4_t geosetColor;
 
     if (!MDLX_MaterialHasPass(material, blendedPass)) {
         return;
@@ -345,7 +345,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
     }
     MDLX_BindGeosetMatrixPalette(model, geoset);
     shader->state.layerAlpha = 1.0f;
-    shader->state.geosetColor = (VECTOR4){ geosetColor.x, geosetColor.y, geosetColor.z, geosetColor.w };
+    shader->state.geosetColor = (vector4_t){ geosetColor.x, geosetColor.y, geosetColor.z, geosetColor.w };
 
     FOR_LOOP(layerID, material->num_layers) {
         mdxMaterialLayer_t const *layer = &material->layers[layerID];
@@ -399,7 +399,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         MDLX_BindLayerTextureAnimation(model, layer, frame);
         uint32_t textureId = MDLX_EvaluateLayerTextureId(model, layer, frame);
         mdxTexture_t const *modeltex = &model->textures[textureId];
-        LPCTEXTURE texture = MDLX_GetTexture(model, team, textureId, modeltex->replaceableID, overrideTexture);
+        texture_t const * texture = MDLX_GetTexture(model, team, textureId, modeltex->replaceableID, overrideTexture);
         R_BindTexture(texture, 0);
         R_Call(glBindVertexArray, geoset->vertexArrayBuffer);
         /* The geoset VAO already binds the model-owned index buffer. */
@@ -415,7 +415,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
     R_Call(glDepthMask, GL_TRUE);
     shader->state.unshaded = forceUnshaded;
     shader->state.layerAlpha = 1.0f;
-    shader->state.geosetColor = (VECTOR4){ 1.0f, 1.0f, 1.0f, 1.0f };
+    shader->state.geosetColor = (vector4_t){ 1.0f, 1.0f, 1.0f, 1.0f };
 }
 
 mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, cstring_t name) {
@@ -444,9 +444,9 @@ uint32_t MDLX_RemapAnimation(mdxModel_t const *model, uint32_t frame, cstring_t 
     return frame;
 }
 
-static bool MDLX_TraceModelMesh(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 intersection) {
-    MATRIX4 invmodel, matmodel;
-    VECTOR3 best_point = { 0 };
+static bool MDLX_TraceModelMesh(renderEntity_t const *ent, line3_t const * line, vector3_t * intersection) {
+    matrix4_t invmodel, matmodel;
+    vector3_t best_point = { 0 };
     float best_distance = FLT_MAX;
     bool hit = false;
     mdxModel_t const *model;
@@ -459,7 +459,7 @@ static bool MDLX_TraceModelMesh(renderEntity_t const *ent, LPCLINE3 line, LPVECT
 
     R_GetEntityMatrix(ent, &matmodel);
     Matrix4_inverse(&matmodel, &invmodel);
-    LINE3 linelocal = {
+    line3_t linelocal = {
         Matrix4_multiply_vector3(&invmodel, &line->a),
         Matrix4_multiply_vector3(&invmodel, &line->b),
     };
@@ -470,29 +470,29 @@ static bool MDLX_TraceModelMesh(renderEntity_t const *ent, LPCLINE3 line, LPVECT
      * Keep that behavior separate from normal model picking, where WC3 uses
      * CollisionShapes preferentially. */
     FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
-        BOX3 box;
-        VECTOR3 bounds_hit;
+        box3_t box;
+        vector3_t bounds_hit;
 
         if ((geoset->selectable & 4) ||
             !MDLX_IsGeosetVisible(model, geoset, ent->frame))
             continue;
 
-        box = (BOX3) {
-            .min = *(LPCVECTOR3)&geoset->default_bounds.box.min,
-            .max = *(LPCVECTOR3)&geoset->default_bounds.box.max,
+        box = (box3_t) {
+            .min = *(vector3_t const *)&geoset->default_bounds.box.min,
+            .max = *(vector3_t const *)&geoset->default_bounds.box.max,
         };
         if (!Line3_intersect_box3(&linelocal, &box, &bounds_hit))
             continue;
 
         FOR_LOOP(i, geoset->num_triangles / 3) {
-            VECTOR3 local_point;
-            TRIANGLE3 tri = {
+            vector3_t local_point;
+            triangle3_t tri = {
                 .a = geoset->vertices[geoset->triangles[i*3+0]],
                 .b = geoset->vertices[geoset->triangles[i*3+1]],
                 .c = geoset->vertices[geoset->triangles[i*3+2]],
             };
             if (Line3_intersect_triangle(&linelocal, &tri, &local_point)) {
-                VECTOR3 const point = Matrix4_multiply_vector3(&matmodel, &local_point);
+                vector3_t const point = Matrix4_multiply_vector3(&matmodel, &local_point);
                 float const distance = Vector3_distance(&line->a, &point);
                 if (distance < best_distance) {
                     best_distance = distance;
@@ -508,13 +508,13 @@ static bool MDLX_TraceModelMesh(renderEntity_t const *ent, LPCLINE3 line, LPVECT
     return hit;
 }
 
-bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 intersection) {
+bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, line3_t const * line, vector3_t * intersection) {
     return MDLX_TraceModelMesh(ent, line, intersection);
 }
 
-bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 intersection) {
-    MATRIX4 invmodel, matmodel;
-    VECTOR3 best_point = { 0 };
+bool MDLX_TraceModel(renderEntity_t const *ent, line3_t const * line, vector3_t * intersection) {
+    matrix4_t invmodel, matmodel;
+    vector3_t best_point = { 0 };
     float best_distance = FLT_MAX;
     bool hit = false;
     mdxModel_t const *model;
@@ -527,30 +527,30 @@ bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 interse
 
     R_GetEntityMatrix(ent, &matmodel);
     Matrix4_inverse(&matmodel, &invmodel);
-    LINE3 linelocal = {
+    line3_t linelocal = {
         Matrix4_multiply_vector3(&invmodel, &line->a),
         Matrix4_multiply_vector3(&invmodel, &line->b),
     };
 
     if (model->collisionShapes) {
         FOR_EACH_LIST(mdxCollisionShape_t, collisionShape, model->collisionShapes) {
-            VECTOR3 point;
+            vector3_t point;
             bool shape_hit = false;
 
             if (collisionShape->type == SHAPETYPE_BOX) {
-                BOX3 box = {
+                box3_t box = {
                     .min = collisionShape->vertex[0],
                     .max = collisionShape->vertex[1],
                 };
-                VECTOR3 local_point;
+                vector3_t local_point;
                 if (Line3_intersect_box3(&linelocal, &box, &local_point)) {
                     point = Matrix4_multiply_vector3(&matmodel, &local_point);
                     shape_hit = true;
                 }
             } else if (collisionShape->type == SHAPETYPE_SPHERE) {
-                VECTOR3 center;
-                memcpy(&center, &collisionShape->vertex[0], sizeof(VECTOR3));
-                SPHERE3 sphere = {
+                vector3_t center;
+                memcpy(&center, &collisionShape->vertex[0], sizeof(vector3_t));
+                sphere3_t sphere = {
                     .center = Matrix4_multiply_vector3(&matmodel, &center),
                     .radius = collisionShape->radius * ent->scale,
                 };
@@ -579,8 +579,8 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity,
                                const mdxModel_t *model)
 {
     bool forceUnshaded = (entity->flags & RF_NO_LIGHTING) != 0;
-    COLOR32 const color = (entity->tint_valid || entity->tint.a) ? entity->tint : COLOR32_WHITE;
-    VECTOR4 const tint = {
+    color32_t const color = (entity->tint_valid || entity->tint.a) ? entity->tint : COLOR32_WHITE;
+    vector4_t const tint = {
         BYTE2FLOAT(color.r), BYTE2FLOAT(color.g),
         BYTE2FLOAT(color.b), BYTE2FLOAT(color.a)
     };
@@ -652,15 +652,15 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity,
 }
 
 static int MDLX_CollectModelLights(mdxModel_t const *model,
-                                   LPCMATRIX4 modelMatrix,
+                                   matrix4_t const * modelMatrix,
                                    uint32_t frame,
-                                   RMODELLIGHT *lights,
+                                   rModelLight_t *lights,
                                    int maxLights)
 {
     int count = 0;
 
     FOR_EACH_LIST(mdxLight_t, light, model->lights) {
-        RMODELLIGHT evaluated;
+        rModelLight_t evaluated;
         if (!MDLX_EvaluateLight(model, light, modelMatrix, frame, true, &evaluated))
             continue;
         if (count < maxLights)
@@ -671,9 +671,9 @@ static int MDLX_CollectModelLights(mdxModel_t const *model,
     return MIN(count, maxLights);
 }
 
-static BUFFER ribbon_buf;
+static buffer_t ribbon_buf;
 static bool ribbon_buf_ready;
-static VERTEX ribbon_verts[TRAIL_MAX_EDGES * 6];
+static vertex_t ribbon_verts[TRAIL_MAX_EDGES * 6];
 
 mdxMaterial_t *MDLX_MaterialAt(mdxModel_t const *model, uint32_t id) {
     mdxMaterial_t *material = model->materials;
@@ -684,12 +684,12 @@ mdxMaterial_t *MDLX_MaterialAt(mdxModel_t const *model, uint32_t id) {
 
 static void MDLX_EnsureRibbonBuffer(void) {
     static const struct { GLuint attr; GLint size; GLenum type; GLboolean norm; size_t ofs; } attrs[] = {
-        { attrib_position, 3, GL_FLOAT, GL_FALSE, offsetof(VERTEX, position) },
-        { attrib_texcoord, 2, GL_FLOAT, GL_FALSE, offsetof(VERTEX, texcoord) },
-        { attrib_normal, 3, GL_FLOAT, GL_FALSE, offsetof(VERTEX, normal) },
-        { attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, offsetof(VERTEX, color) },
-        { attrib_skin1, 4, GL_UNSIGNED_BYTE, GL_FALSE, offsetof(VERTEX, skin) },
-        { attrib_boneWeight1, 4, GL_UNSIGNED_BYTE, GL_TRUE, offsetof(VERTEX, boneWeight) },
+        { attrib_position, 3, GL_FLOAT, GL_FALSE, offsetof(vertex_t, position) },
+        { attrib_texcoord, 2, GL_FLOAT, GL_FALSE, offsetof(vertex_t, texcoord) },
+        { attrib_normal, 3, GL_FLOAT, GL_FALSE, offsetof(vertex_t, normal) },
+        { attrib_color, 4, GL_UNSIGNED_BYTE, GL_TRUE, offsetof(vertex_t, color) },
+        { attrib_skin1, 4, GL_UNSIGNED_BYTE, GL_FALSE, offsetof(vertex_t, skin) },
+        { attrib_boneWeight1, 4, GL_UNSIGNED_BYTE, GL_TRUE, offsetof(vertex_t, boneWeight) },
     };
     if (ribbon_buf_ready) return;
     R_Call(glGenVertexArrays, 1, &ribbon_buf.vao);
@@ -699,18 +699,18 @@ static void MDLX_EnsureRibbonBuffer(void) {
     FOR_LOOP(i, sizeof(attrs) / sizeof(*attrs)) {
         R_Call(glEnableVertexAttribArray, attrs[i].attr);
         R_Call(glVertexAttribPointer, attrs[i].attr, attrs[i].size, attrs[i].type, attrs[i].norm,
-               sizeof(VERTEX), (void *)attrs[i].ofs);
+               sizeof(vertex_t), (void *)attrs[i].ofs);
     }
     ribbon_buf_ready = true;
 }
 
 /* Upload one strip and run it through the material's layer stack. Shared by live
  * trails and detached (entity-less) orphans so both execute identical GL. */
-void MDLX_DrawRibbonVerts(mdxModel_t const *model, VERTEX *verts, uint32_t nverts,
+void MDLX_DrawRibbonVerts(mdxModel_t const *model, vertex_t *verts, uint32_t nverts,
                           mdxMaterial_t const *material, uint32_t team)
 {
-    MODELPROG *shader = mdlx.shader;
-    MATRIX4 identity;
+    modelProg_t *shader = mdlx.shader;
+    matrix4_t identity;
 
     if (!shader || !model || !verts || !nverts || !material) return;
     MDLX_EnsureRibbonBuffer();
@@ -718,16 +718,16 @@ void MDLX_DrawRibbonVerts(mdxModel_t const *model, VERTEX *verts, uint32_t nvert
     shader->state.model = identity;
     shader->state.bones[0] = identity;
     shader->state.boneCount = 1;
-    shader->state.geosetColor = (VECTOR4){ 1, 1, 1, 1 };
+    shader->state.geosetColor = (vector4_t){ 1, 1, 1, 1 };
     shader->state.layerAlpha = 1.0f;
     R_Call(glBindVertexArray, ribbon_buf.vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, ribbon_buf.vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, nverts * sizeof(VERTEX), verts, GL_STREAM_DRAW);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, nverts * sizeof(vertex_t), verts, GL_STREAM_DRAW);
     FOR_LOOP(layerID, material->num_layers) {
         mdxMaterialLayer_t const *layer = &material->layers[layerID];
         uint32_t textureId = layer->textureId;
         mdxTexture_t const *modeltex;
-        LPCTEXTURE texture;
+        texture_t const * texture;
         bool layerFog;
 
         if (textureId >= (uint32_t)model->num_textures) continue;
@@ -752,9 +752,9 @@ void MDLX_DrawRibbonVerts(mdxModel_t const *model, VERTEX *verts, uint32_t nvert
     }
 }
 
-void MDLX_RenderRibbonEmitters(renderEntity_t const *entity, mdxModel_t const *model, LPCMATRIX4 model_matrix) {
-    MODELPROG *shader;
-    MATRIX4 saved_model;
+void MDLX_RenderRibbonEmitters(renderEntity_t const *entity, mdxModel_t const *model, matrix4_t const * model_matrix) {
+    modelProg_t *shader;
+    matrix4_t saved_model;
     int saved_unshaded, saved_fog;
 
     if (!entity || !model || !model->ribbons || !model_matrix) return;
@@ -774,7 +774,7 @@ void MDLX_RenderRibbonEmitters(renderEntity_t const *entity, mdxModel_t const *m
     shader->state.unshaded = saved_unshaded;
     shader->state.fogEnable = saved_fog;
     shader->state.layerAlpha = 1.0f;
-    shader->state.geosetColor = (VECTOR4){ 1, 1, 1, 1 };
+    shader->state.geosetColor = (vector4_t){ 1, 1, 1, 1 };
     R_Call(glEnable, GL_CULL_FACE);
     R_Call(glDepthMask, GL_TRUE);
     R_SetAlphaKeyState(false);
@@ -782,11 +782,11 @@ void MDLX_RenderRibbonEmitters(renderEntity_t const *entity, mdxModel_t const *m
 
 void MDX_RenderModel(renderEntity_t const *entity,
                      mdxModel_t const *model,
-                     LPCMATRIX4 transform)
+                     matrix4_t const * transform)
 {
     if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL)) {
-        VECTOR3 const center = Box3_Center(&model->bounds.box);
-        SPHERE3 const sphere = {
+        vector3_t const center = Box3_Center(&model->bounds.box);
+        sphere3_t const sphere = {
             .center = Matrix4_multiply_vector3(transform, &center),
             .radius = model->bounds.radius * entity->scale,
         };
@@ -809,8 +809,8 @@ void MDX_RenderModel(renderEntity_t const *entity,
         entity = &remappedEntity;
     }
     
-    MODELPROG * shader = mdlx.shader;
-    MATRIX3 normalMatrix;
+    modelProg_t * shader = mdlx.shader;
+    matrix3_t normalMatrix;
     GLfloat const *viewProjectionMatrix =
 #ifdef USE_SHADOWMAPS
         tr.render_phase == RENDER_PHASE_LIGHTS ? tr.viewDef.lightMatrix.v :
@@ -827,9 +827,9 @@ void MDX_RenderModel(renderEntity_t const *entity,
        Re-uploading them per-instance was pure overhead; skip when unchanged. */
     static struct {
         GLfloat vp[16];
-        MATRIX4 tex, light;
+        matrix4_t tex, light;
         bool fogEnable;
-        VECTOR3 fogColor;
+        vector3_t fogColor;
         float fogStart, fogEnd;
     } last;
     static bool last_valid = false;
@@ -843,14 +843,14 @@ void MDX_RenderModel(renderEntity_t const *entity,
              || last.fogStart != tr.viewDef.fogStart
              || last.fogEnd != tr.viewDef.fogEnd));
     if (view_changed) {
-        memcpy(&shader->state.viewProjection, viewProjectionMatrix, (1) * sizeof(MATRIX4));
+        memcpy(&shader->state.viewProjection, viewProjectionMatrix, (1) * sizeof(matrix4_t));
         shader->state.textureMatrix = tr.viewDef.textureMatrix;
         shader->state.lightMatrix = tr.viewDef.lightMatrix;
         shader->state.fogEnable = tr.viewDef.fogEnable ? 1 : 0;
         shader->state.firstBoneLookupIndex = 0.0f;
         if (tr.viewDef.fogEnable) {
-            shader->state.fogColor = (VECTOR3){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
-            shader->state.fogParams = (VECTOR2){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
+            shader->state.fogColor = (vector3_t){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
+            shader->state.fogParams = (vector2_t){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
         }
         memcpy(last.vp, viewProjectionMatrix, sizeof(last.vp));
         last.tex = tr.viewDef.textureMatrix;
@@ -861,9 +861,9 @@ void MDX_RenderModel(renderEntity_t const *entity,
         last.fogEnd = tr.viewDef.fogEnd;
         last_valid = true;
     }
-    MODELLIGHTING lighting = { 0 };
+    modelLighting_t lighting = { 0 };
     bool const portraitLighting = (entity->flags & RF_PORTRAIT_LIGHTING) != 0;
-    LPCENVIRONLIGHT environment = !portraitLighting && tr.viewDef.entityLight.valid
+    environLight_t const * environment = !portraitLighting && tr.viewDef.entityLight.valid
         ? &tr.viewDef.entityLight
         : (!portraitLighting && tr.viewDef.terrainLight.valid ? &tr.viewDef.terrainLight : NULL);
     int numLights = 0;
@@ -880,18 +880,18 @@ void MDX_RenderModel(renderEntity_t const *entity,
     float ambient = numLights ? (portraitLighting ? 0.22f : 0.0f)
                               : (portraitLighting ? 0.58f : 0.35f);
     float directional = (entity->flags & RF_PORTRAIT_LIGHTING) ? 0.62f : 0.75f;
-    VECTOR3 lightDir = {
+    vector3_t lightDir = {
         -tr.viewDef.lightMatrix.v[2],
         -tr.viewDef.lightMatrix.v[6],
         -tr.viewDef.lightMatrix.v[10],
     };
-    RMODELLIGHT sun = {
+    rModelLight_t sun = {
         .dir = lightDir,
         .color = { directional, directional, directional },
         .intensity = 1.0f,
         .type = R_MODEL_LIGHT_DIRECT,
     };
-    lighting.ambient = (VECTOR3){ ambient, ambient, ambient };
+    lighting.ambient = (vector3_t){ ambient, ambient, ambient };
     lighting.count = numLights ? numLights : 1;
     if (!numLights) lighting.lights[0] = sun;
     R_SetModelLighting(shader, &lighting);

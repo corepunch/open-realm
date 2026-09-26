@@ -2,11 +2,11 @@
 #include "test.h"
 #include "../g_local.h"
 
-extern LPPLAYER currentplayer;
+extern player_t * currentplayer;
 
 TEST(wc3_music, set_map_defers_replacement_until_current_map_track_finishes) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPPLAYER previous = currentplayer;
+    gameClient_t * client = &game.clients[0];
+    player_t * previous = currentplayer;
     wc3MusicState_t saved = client->music;
     uint32_t old_session, new_session;
 
@@ -37,8 +37,8 @@ TEST(wc3_music, set_map_defers_replacement_until_current_map_track_finishes) {
 }
 
 TEST(wc3_music, clear_map_commits_silence_after_current_track_finishes) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPPLAYER previous = currentplayer;
+    gameClient_t * client = &game.clients[0];
+    player_t * previous = currentplayer;
     wc3MusicState_t saved = client->music;
 
     currentplayer = &client->ps;
@@ -60,8 +60,8 @@ TEST(wc3_music, clear_map_commits_silence_after_current_track_finishes) {
 }
 
 TEST(wc3_music, selected_random_initial_track_becomes_sequential_current_state) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPPLAYER previous = currentplayer;
+    gameClient_t * client = &game.clients[0];
+    player_t * previous = currentplayer;
     wc3MusicState_t saved = client->music;
     uint32_t session_id;
 
@@ -83,8 +83,8 @@ TEST(wc3_music, selected_random_initial_track_becomes_sequential_current_state) 
 }
 
 TEST(wc3_music, explicit_music_completion_returns_to_map_session) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPPLAYER previous = currentplayer;
+    gameClient_t * client = &game.clients[0];
+    player_t * previous = currentplayer;
     wc3MusicState_t saved = client->music;
     uint32_t map_session, explicit_session;
 
@@ -107,8 +107,8 @@ TEST(wc3_music, explicit_music_completion_returns_to_map_session) {
 }
 
 TEST(wc3_music, thematic_music_restores_explicit_session_and_snapshot_position) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPPLAYER previous = currentplayer;
+    gameClient_t * client = &game.clients[0];
+    player_t * previous = currentplayer;
     wc3MusicState_t saved = client->music;
     uint32_t explicit_session, thematic_session;
 
@@ -141,8 +141,8 @@ TEST(wc3_music, thematic_music_restores_explicit_session_and_snapshot_position) 
 }
 
 TEST(wc3_music, map_change_during_theme_preserves_interrupted_map_session) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPPLAYER previous = currentplayer;
+    gameClient_t * client = &game.clients[0];
+    player_t * previous = currentplayer;
     wc3MusicState_t saved = client->music;
     uint32_t old_map_session, new_map_session;
 
@@ -166,8 +166,8 @@ TEST(wc3_music, map_change_during_theme_preserves_interrupted_map_session) {
 }
 
 TEST(wc3_music, session_ids_reject_stale_client_completion) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPPLAYER previous = currentplayer;
+    gameClient_t * client = &game.clients[0];
+    player_t * previous = currentplayer;
     wc3MusicState_t saved = client->music;
     uint32_t old_session, new_session;
 
@@ -195,7 +195,7 @@ TEST(wc3_music, map_skin_overrides_stock_music_skin_fields) {
     handle_t archive = NULL;
     uint32_t size = 0;
     handle_t bytes;
-    GAMECLIENT client = { .ps.race = kPlayerRaceHuman };
+    gameClient_t client = { .ps.race = kPlayerRaceHuman };
     cstring_t expected_versioned;
 
     bytes = gi.ReadFile("Maps\\MapOverlay.w3x", &size);

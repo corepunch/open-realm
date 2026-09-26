@@ -22,8 +22,8 @@ static bool rect_eq(rect_t a, rect_t b) {
 /* Console tile anchored on x edge `edge` with an authored offset; retail hangs its wide tiles 0.256 outside
  * the root. */
 static void write_console_tile(sizeBuf_t *msg, uint32_t number, int edge, float offset) {
-    UIFRAME empty = {0};
-    UIFRAME frame = { .number = number, .flags.type = FT_TEXTURE, .size = {0.256f, 0.176f} };
+    uiFrame_t empty = {0};
+    uiFrame_t frame = { .number = number, .flags.type = FT_TEXTURE, .size = {0.256f, 0.176f} };
     int16_t wire = (int16_t)(offset * UI_FRAMEPOINT_SCALE);
     frame.points.x[edge] = MAKE(uiFramePoint_t, .used = 1, .targetPos = edge, .offset = wire);
     frame.points.y[FPP_MAX] = MAKE(uiFramePoint_t, .used = 1, .targetPos = FPP_MAX);
@@ -50,8 +50,8 @@ TEST(client_canvas, stretch_policy_keeps_the_authored_scene_at_every_aspect) {
     test_client_stubs_set_canvas_policy(UI_CANVAS_STRETCH);
     FOR_LOOP(i, sizeof(sizes) / sizeof(sizes[0])) {
         test_client_stubs_set_window_size(sizes[i].width, sizes[i].height);
-        LPCUICANVAS canvas = CL_Canvas();
-        VECTOR2 corner = SCR_ScreenToUI(sizes[i].width, sizes[i].height);
+        uiCanvas_t const * canvas = CL_Canvas();
+        vector2_t corner = SCR_ScreenToUI(sizes[i].width, sizes[i].height);
         T_ASSERT(rect_eq(canvas->scene, MAKE(rect_t, 0, 0, 0.8f, 0.6f)));
         T_ASSERT(rect_eq(SCR_LayoutSceneRect(), canvas->scene));
         T_ASSERT(rect_eq(test_client_stubs_ui_scene(), canvas->scene));
@@ -75,8 +75,8 @@ TEST(client_canvas, expand_center_widens_the_scene_and_centers_the_hud_root) {
     test_client_stubs_set_canvas_policy(UI_CANVAS_EXPAND_CENTER);
     FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
         test_client_stubs_set_window_size(cases[i].size.width, cases[i].size.height);
-        LPCUICANVAS canvas = CL_Canvas();
-        VECTOR2 middle = SCR_ScreenToUI(cases[i].size.width / 2, cases[i].size.height / 2);
+        uiCanvas_t const * canvas = CL_Canvas();
+        vector2_t middle = SCR_ScreenToUI(cases[i].size.width / 2, cases[i].size.height / 2);
         T_ASSERT(rect_eq(canvas->scene, MAKE(rect_t, 0, 0, cases[i].width, 0.6f)));
         T_ASSERT(rect_eq(canvas->root, MAKE(rect_t, cases[i].root_x, 0, 0.8f, 0.6f)));
         T_ASSERT(rect_eq(SCR_LayoutSceneRect(), canvas->root));
@@ -99,7 +99,7 @@ TEST(client_canvas, zero_sized_window_keeps_the_last_canvas) {
     test_client_stubs_init();
     test_client_stubs_set_canvas_policy(UI_CANVAS_EXPAND_CENTER);
     test_client_stubs_set_window_size(1280, 720);
-    UICANVAS before = *CL_Canvas();
+    uiCanvas_t before = *CL_Canvas();
     test_client_stubs_set_window_size(0, 0);
     test_client_stubs_set_window_size(1280, 0);
     T_ASSERT(rect_eq(CL_Canvas()->scene, before.scene));
@@ -157,13 +157,13 @@ TEST(client_canvas, world_projection_matches_the_pointer_canvas) {
     FOR_LOOP(p, 3) {
         test_client_stubs_set_canvas_policy(policies[p]);
         FOR_LOOP(i, sizeof(sizes) / sizeof(sizes[0])) {
-            VECTOR2 screen;
+            vector2_t screen;
             test_client_stubs_set_window_size(sizes[i].width, sizes[i].height);
-            T_ASSERT(SCR_ProjectWorldPoint(&MAKE(VECTOR3, 0, 0, 0), &screen));
+            T_ASSERT(SCR_ProjectWorldPoint(&MAKE(vector3_t, 0, 0, 0), &screen));
             T_FEQ(screen.x, CL_Canvas()->scene.w * 0.5f, 0.0001f); T_FEQ(screen.y, 0.24f, 0.0001f);
-            T_ASSERT(SCR_ProjectWorldPoint(&MAKE(VECTOR3, 1, 0, 0), &screen));
+            T_ASSERT(SCR_ProjectWorldPoint(&MAKE(vector3_t, 1, 0, 0), &screen));
             T_FEQ(screen.x, SCR_ScreenToUI(sizes[i].width, 0).x, 0.0001f);
-            T_ASSERT(!SCR_ProjectWorldPoint(&MAKE(VECTOR3, 1.1f, 0, 0), &screen));
+            T_ASSERT(!SCR_ProjectWorldPoint(&MAKE(vector3_t, 1.1f, 0, 0), &screen));
         }
     }
 }

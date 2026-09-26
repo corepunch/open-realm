@@ -178,14 +178,14 @@ static inline int M_TextInput_Key(menuTextInput_t *ti, int key) {
 
 /* ---- Cursor rendering ---- */
 
-static inline void M_DrawTextInputCursor(LPRENDERER renderer,
-                                   LPCDRAWTEXT style,
+static inline void M_DrawTextInputCursor(refExport_t * renderer,
+                                   drawText_t const * style,
                                    cstring_t text,
                                    uint32_t cursor,
-                                   COLOR32 color) {
+                                   color32_t color) {
     char prefix[1024];
     drawText_t measure, draw;
-    VECTOR2 prefix_size;
+    vector2_t prefix_size;
     rect_t cursor_rect;
     uint32_t len;
 

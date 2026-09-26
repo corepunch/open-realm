@@ -3,8 +3,8 @@
 
 struct vector4 { float x, y, z, w; };
 
-typedef struct vector4 VECTOR4;
-typedef struct vector4 *LPVECTOR4;
-typedef struct vector4 const *LPCVECTOR4;
+typedef struct vector4 vector4_t;
+
+
 
 #endif /* vector4_h */

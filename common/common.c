@@ -825,7 +825,7 @@ static void ExtractStarCraft2(void) {
 //    SFileExtractFile(archive, "Assets\\Units\\Terran\\MarineTychus\\MarineTychus.m3", "/Users/igor/Desktop/MarineTychus.m3", 0);
 //    SFileExtractFile(archive, "Assets\\Textures\\SpecialOps_Dropship_Diffuse.dds", "/Users/igor/Desktop/SpecialOps_Dropship_Diffuse.dds", 0);
     
-    SFILE_FIND_DATA findData;
+    sfileFindData_t findData;
     handle_t handle = SFileFindFirstFile(archive, "*", &findData, 0);
     if (handle) {
         cstring_t skip[] = { NULL };// ".m3", ".ogg", ".ogv", ".fx", ".bls", ".gfx", ".wav", ".dds", ".tga", "\\Cache\\", NULL };
@@ -1241,7 +1241,7 @@ void FS_ReadFileAll(cstring_t filename, void (*callback)(handle_t buf, uint32_t 
     }
 }
 
-static bool FS_FindAdvance(fsFind_t *find, SFILE_FIND_DATA *findData) {
+static bool FS_FindAdvance(fsFind_t *find, sfileFindData_t *findData) {
     if (find && findData && find->looseIndex < find->looseCount) {
         cstring_t name = find->looseFiles[find->looseIndex++];
 
@@ -1275,7 +1275,7 @@ static bool FS_FindAdvance(fsFind_t *find, SFILE_FIND_DATA *findData) {
     return false;
 }
 
-handle_t FS_FindFirstFile(cstring_t mask, SFILE_FIND_DATA *findData) {
+handle_t FS_FindFirstFile(cstring_t mask, sfileFindData_t *findData) {
     fsFind_t *find;
 
     while (filelock) {
@@ -1318,7 +1318,7 @@ handle_t FS_FindFirstFile(cstring_t mask, SFILE_FIND_DATA *findData) {
     return NULL;
 }
 
-bool FS_FindNextFile(handle_t handle, SFILE_FIND_DATA *findData) {
+bool FS_FindNextFile(handle_t handle, sfileFindData_t *findData) {
     return FS_FindAdvance(handle, findData);
 }
 
@@ -1338,7 +1338,7 @@ bool FS_FindClose(handle_t handle) {
 
 uint32_t FS_ListMaps(fsMapListFunc_t func, void *userData) {
     PATHSTR *maps;
-    SFILE_FIND_DATA findData;
+    sfileFindData_t findData;
     handle_t handle;
     uint32_t count = 0;
 
@@ -1469,7 +1469,7 @@ void FS_Init(void) {
 //    FS_ExtractFile("UI\\FrameDef\\UI\\ConsoleUI.fdf", "/Users/igor/Desktop/ConsoleUI.fdf");
 
 #if 0
-    SFILE_FIND_DATA findData;
+    sfileFindData_t findData;
     handle_t handle = SFileFindFirstFile(archives[0], "*", &findData, 0);
     if (handle) {
          do {
@@ -1742,7 +1742,7 @@ static void Com_Dir_f(void) {
     cstring_t path = Cmd_Argc() > 1 ? Cmd_Argv(1) : "*";
     cstring_t extension = Cmd_Argc() > 2 ? Cmd_Argv(2) : NULL;
     char mask[MAX_PATHLEN * 2];
-    SFILE_FIND_DATA findData;
+    sfileFindData_t findData;
     handle_t handle;
     uint32_t count = 0;
 
@@ -1813,7 +1813,7 @@ void Com_Init(int argc, cstring_t *argv) {
     COM_InitArgv(argc, argv);
     Cbuf_Init();
     Cvar_Init();
-    FS_SetSheetHost(&MAKE(SHEETHOST,
+    FS_SetSheetHost(&MAKE(sheetHost_t,
         .ReadFile = FS_ReadFile,
         .FreeFile = FS_FreeFile,
         .MemAlloc = MemAlloc,

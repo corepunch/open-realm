@@ -36,7 +36,7 @@ void free_slk_rows(slkTestData_t *rows);
 #include "../g_local.h"
 
 /* Helpers defined in t_utils.c */
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 void G_RunEntities(void);
@@ -45,18 +45,18 @@ void G_RunEntities(void);
 #include "../game/skills/s_skills.h"
 
 /* Forward declarations for internal functions not in any public header. */
-bool  player_pay(LPPLAYER ps, uint32_t project);
-void  T_Damage(LPEDICT target, LPEDICT attacker, int damage);
-int   G_AttackDamage(LPEDICT attacker, LPEDICT target, int base);
-void  attack_melee(LPEDICT self);
-void  attack_melee_cooldown(LPEDICT self);
-void  attack_ranged(LPEDICT self);
-void  attack_ranged_cooldown(LPEDICT self);
-bool  attack_menu_selecttarget(LPEDICT ent, LPEDICT target);
-void  M_MoveFrame(LPEDICT self);
-void  G_RunEntity(LPEDICT ent);
-void  unit_add_build_queue(LPEDICT self, LPEDICT item);
-void  order_move(LPEDICT self, LPEDICT target);
+bool  player_pay(player_t * ps, uint32_t project);
+void  T_Damage(edict_t * target, edict_t * attacker, int damage);
+int   G_AttackDamage(edict_t * attacker, edict_t * target, int base);
+void  attack_melee(edict_t * self);
+void  attack_melee_cooldown(edict_t * self);
+void  attack_ranged(edict_t * self);
+void  attack_ranged_cooldown(edict_t * self);
+bool  attack_menu_selecttarget(edict_t * ent, edict_t * target);
+void  M_MoveFrame(edict_t * self);
+void  G_RunEntity(edict_t * ent);
+void  unit_add_build_queue(edict_t * self, edict_t * item);
+void  order_move(edict_t * self, edict_t * target);
 
 static animation_t _replacement_anim = {
     .name = "stand alternate",
@@ -70,9 +70,9 @@ static umove_t _replacement_move = { "stand alternate", NULL, NULL, NULL };
 
 /* Minimal die() stub that records calls without touching the move state. */
 static int _die_call_count = 0;
-static LPEDICT _die_last_attacker = NULL;
+static edict_t * _die_last_attacker = NULL;
 static PATHSTR _fire_model;
-static void stub_die(LPEDICT self, LPEDICT attacker) {
+static void stub_die(edict_t * self, edict_t * attacker) {
     (void)self;
     _die_call_count++;
     _die_last_attacker = attacker;
@@ -83,9 +83,9 @@ static int capture_fire_model(cstring_t model) {
     return 77;
 }
 
-static LPEDICT make_combat_unit(uint32_t class_id, float hp, float x, float y) {
+static edict_t * make_combat_unit(uint32_t class_id, float hp, float x, float y) {
     static UnitWeapons_t const test_weapons = { .attacksEnabled = 3 };
-    LPEDICT ent       = alloc_test_unit(class_id, x, y);
+    edict_t * ent       = alloc_test_unit(class_id, x, y);
     ent->health.value     = hp;
     ent->health.max_value = hp;
     ent->stand            = unit_stand;
@@ -102,7 +102,7 @@ static animation_t _stub_anim = {
 };
 
 /* Wire a real animation into an entity so M_MoveFrame has something to work with. */
-static void attach_stub_anim(LPEDICT ent) {
+static void attach_stub_anim(edict_t * ent) {
     ent->animation = &_stub_anim;
 }
 
@@ -111,7 +111,7 @@ static void attach_stub_anim(LPEDICT ent) {
  * ========================================================================== */
 
 TEST(wc3_combat, projectile_presentation_selects_stand_sequence) {
-    LPEDICT missile;
+    edict_t * missile;
 
     setup_test_world();
     reset_entities();
@@ -129,15 +129,15 @@ TEST(wc3_combat, projectile_presentation_selects_stand_sequence) {
 
 TEST(wc3_combat, flymissile_advances_animation_and_tracks_homing_yaw) {
     animation_t stand = { .name = "Stand", .interval = { 1000, 1300 } };
-    LPEDICT missile;
-    LPEDICT target;
+    edict_t * missile;
+    edict_t * target;
 
     setup_test_world();
     reset_entities();
     missile = G_Spawn();
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 100.0f);
     target->s.origin.z = 200.0f;
-    missile->s.origin = (VECTOR3){ 0.0f, 0.0f, 0.0f };
+    missile->s.origin = (vector3_t){ 0.0f, 0.0f, 0.0f };
     missile->goalentity = target;
     missile->movetype = MOVETYPE_FLYMISSILE;
     missile->velocity = 0.1f;
@@ -183,8 +183,8 @@ TEST(wc3_effects, ability_effect_art_selects_requested_entry_and_last_fallback) 
  * ========================================================================== */
 
 TEST(wc3_combat, tdamage_reduces_health) {
-    LPEDICT target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
-    LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
+    edict_t * target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
     _die_call_count  = 0;
 
     T_Damage(target, attacker, 100);
@@ -194,8 +194,8 @@ TEST(wc3_combat, tdamage_reduces_health) {
 }
 
 TEST(wc3_combat, tdamage_does_not_repeat_death_for_already_dead_unit) {
-    LPEDICT target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f, 0.0f);
-    LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
+    edict_t * target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f, 0.0f);
+    edict_t * attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
     _die_call_count  = 0;
 
     T_Damage(target, attacker, 100);
@@ -206,9 +206,9 @@ TEST(wc3_combat, tdamage_does_not_repeat_death_for_already_dead_unit) {
 }
 
 TEST(wc3_combat, tdamage_refreshes_owned_hero_shortcut_alert) {
-    LPGAMECLIENT client;
-    LPEDICT target;
-    LPEDICT attacker;
+    gameClient_t * client;
+    edict_t * target;
+    edict_t * attacker;
 
     reset_entities();
     setup_test_world();
@@ -228,8 +228,8 @@ TEST(wc3_combat, tdamage_refreshes_owned_hero_shortcut_alert) {
 }
 
 TEST(wc3_combat, tdamage_updates_building_fire_model_and_slot_mask) {
-    LPEDICT building = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1000.0f, 0.0f, 0.0f);
-    LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);
+    edict_t * building = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1000.0f, 0.0f, 0.0f);
+    edict_t * attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);
     int (*old_model_index)(cstring_t) = gi.ModelIndex;
 
     building->s.flags |= EF_BUILDING;
@@ -253,9 +253,9 @@ TEST(wc3_combat, tdamage_updates_building_fire_model_and_slot_mask) {
 }
 
 /* Find the persistent ACsp presentation edict owned by a sleeping unit. */
-static LPEDICT find_creep_sleep_overlay(LPCEDICT target) {
+static edict_t * find_creep_sleep_overlay(edict_t const * target) {
     FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT effect = g_edicts + i;
+        edict_t * effect = g_edicts + i;
         if (effect->inuse && effect->owner == target && effect->goalentity == target)
             return effect;
     }
@@ -263,8 +263,8 @@ static LPEDICT find_creep_sleep_overlay(LPCEDICT target) {
 }
 
 TEST(wc3_effects, natural_creep_sleep_uses_persistent_acsp_overhead_target_art) {
-    LPEDICT target;
-    LPEDICT overlay;
+    edict_t * target;
+    edict_t * overlay;
 
     setup_test_world();
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
@@ -311,8 +311,8 @@ TEST(wc3_effects, natural_creep_sleep_uses_persistent_acsp_overhead_target_art) 
 }
 
 TEST(wc3_combat, positive_damage_wakes_natural_creep_sleep) {
-    LPEDICT target;
-    LPEDICT attacker;
+    edict_t * target;
+    edict_t * attacker;
 
     setup_test_world();
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
@@ -341,7 +341,7 @@ TEST(wc3_combat, positive_damage_wakes_natural_creep_sleep) {
 }
 
 TEST(wc3_combat, automatic_acquisition_ignores_invulnerable_units) {
-    LPEDICT target, attacker;
+    edict_t * target, *attacker;
 
     setup_test_world();
     target = make_combat_unit(MAKEFOURCC('u','a','c','o'), 420.0f, 0.0f, 0.0f);
@@ -356,7 +356,7 @@ TEST(wc3_combat, automatic_acquisition_ignores_invulnerable_units) {
 }
 
 TEST(wc3_combat, attack_target_mask_rejects_air_until_air_is_allowed) {
-    LPEDICT attacker, target;
+    edict_t * attacker, *target;
 
     setup_test_world();
     attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
@@ -375,7 +375,7 @@ TEST(wc3_combat, attack_target_mask_rejects_air_until_air_is_allowed) {
 }
 
 TEST(wc3_combat, automatic_acquisition_skips_disallowed_nearer_target) {
-    LPEDICT attacker, air, ground;
+    edict_t * attacker, *air, *ground;
 
     setup_test_world();
     attacker = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
@@ -394,7 +394,7 @@ TEST(wc3_combat, automatic_acquisition_skips_disallowed_nearer_target) {
 }
 
 TEST(wc3_combat, automatic_acquisition_includes_attackable_structures) {
-    LPEDICT tower, building;
+    edict_t * tower, *building;
 
     setup_test_world();
     tower = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 0.0f, 0.0f);
@@ -414,7 +414,7 @@ TEST(wc3_combat, automatic_acquisition_includes_attackable_structures) {
 }
 
 TEST(wc3_combat, immobile_attacker_does_not_acquire_outside_weapon_range) {
-    LPEDICT tower, enemy;
+    edict_t * tower, *enemy;
 
     setup_test_world();
     tower = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 0.0f, 0.0f);
@@ -439,7 +439,7 @@ TEST(wc3_combat, immobile_attacker_does_not_acquire_outside_weapon_range) {
 }
 
 TEST(wc3_combat, immobile_attacker_cancels_explicit_attack_it_cannot_reach) {
-    LPEDICT tower, enemy;
+    edict_t * tower, *enemy;
 
     setup_test_world();
     tower = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 0.0f, 0.0f);
@@ -463,8 +463,8 @@ TEST(wc3_combat, immobile_attacker_cancels_explicit_attack_it_cannot_reach) {
 }
 
 TEST(wc3_combat, tdamage_lethal_calls_die) {
-    LPEDICT target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f, 0.0f);
-    LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
+    edict_t * target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f, 0.0f);
+    edict_t * attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
     _die_call_count  = 0;
     _die_last_attacker = NULL;
 
@@ -476,8 +476,8 @@ TEST(wc3_combat, tdamage_lethal_calls_die) {
 }
 
 TEST(wc3_combat, tdamage_lethal_resets_attacker_to_stand) {
-    LPEDICT target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 50.0f, 0.0f, 0.0f);
-    LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
+    edict_t * target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 50.0f, 0.0f, 0.0f);
+    edict_t * attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
     _die_call_count  = 0;
     attacker->attack1.type = ATK_NORMAL;
     attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
@@ -492,8 +492,8 @@ TEST(wc3_combat, tdamage_lethal_resets_attacker_to_stand) {
 }
 
 TEST(wc3_combat, tdamage_non_lethal_does_not_call_die) {
-    LPEDICT target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
-    LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
+    edict_t * target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
     _die_call_count  = 0;
 
     T_Damage(target, attacker, 1);
@@ -503,9 +503,9 @@ TEST(wc3_combat, tdamage_non_lethal_does_not_call_die) {
 }
 
 TEST(wc3_combat, instant_kill_cheat_makes_owner_damage_lethal) {
-    LPEDICT target;
-    LPEDICT building;
-    LPEDICT attacker;
+    edict_t * target;
+    edict_t * building;
+    edict_t * attacker;
 
     setup_test_world();
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
@@ -528,8 +528,8 @@ TEST(wc3_combat, instant_kill_cheat_makes_owner_damage_lethal) {
 }
 
 TEST(wc3_combat, instant_kill_cheat_does_not_affect_other_players) {
-    LPEDICT target;
-    LPEDICT attacker;
+    edict_t * target;
+    edict_t * attacker;
 
     setup_test_world();
     target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
@@ -546,8 +546,8 @@ TEST(wc3_combat, instant_kill_cheat_does_not_affect_other_players) {
 
 
 TEST(wc3_combat, tdamage_invulnerable_ignores_damage) {
-    LPEDICT target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
-    LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
+    edict_t * target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * attacker = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 50.0f, 0.0f);
     target->invulnerable = true;
     _die_call_count = 0;
 
@@ -558,8 +558,8 @@ TEST(wc3_combat, tdamage_invulnerable_ignores_damage) {
 }
 
 TEST(wc3_combat, friendly_damage_does_not_trigger_counterattack) {
-    LPEDICT target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
-    LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);
+    edict_t * target   = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);
     target->s.player = 0;
     attacker->s.player = 0;
     target->attack1.type = ATK_NORMAL;
@@ -572,9 +572,9 @@ TEST(wc3_combat, friendly_damage_does_not_trigger_counterattack) {
 /* Explicit Attack-button targeting deliberately differs from Smart/right-click:
  * it may force-fire on friendly units and buildings. */
 TEST(wc3_combat, attack_button_accepts_owned_building) {
-    LPEDICT clent = &g_edicts[0];
-    LPEDICT attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
-    LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 100.0f, 0.0f);
+    edict_t * clent = &g_edicts[0];
+    edict_t * attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    edict_t * building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 100.0f, 0.0f);
 
     clent->s.player = 0;
     attacker->s.player = 0;
@@ -593,9 +593,9 @@ TEST(wc3_combat, attack_button_accepts_owned_building) {
 }
 
 TEST(wc3_combat, attack_button_accepts_owned_nonbuilding_unit) {
-    LPEDICT clent = &g_edicts[0];
-    LPEDICT attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
-    LPEDICT friendly = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 0.0f);
+    edict_t * clent = &g_edicts[0];
+    edict_t * attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    edict_t * friendly = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 0.0f);
 
     clent->s.player = 0;
     attacker->s.player = 0;
@@ -614,9 +614,9 @@ TEST(wc3_combat, attack_button_accepts_owned_nonbuilding_unit) {
 }
 
 TEST(wc3_combat, attack_button_accepts_allied_unit) {
-    LPEDICT clent = &g_edicts[0];
-    LPEDICT attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
-    LPEDICT friendly = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 0.0f);
+    edict_t * clent = &g_edicts[0];
+    edict_t * attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    edict_t * friendly = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 0.0f);
 
     clent->s.player = 0;
     attacker->s.player = 0;
@@ -624,8 +624,8 @@ TEST(wc3_combat, attack_button_accepts_allied_unit) {
     friendly->s.player = 1;
     friendly->targtype = TARG_GROUND;
     /* Allied targeting requires active map slots; the old test set only a raw alliance bit for an inactive owner. */
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     G_SetPlayerAlliance(&game.clients[0].ps, &game.clients[1].ps, ALLIANCE_PASSIVE, true);
     attacker->attack1.type = ATK_NORMAL;
     attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
@@ -639,8 +639,8 @@ TEST(wc3_combat, attack_button_accepts_allied_unit) {
 }
 
 TEST(wc3_combat, attack_button_does_not_order_unit_to_attack_itself) {
-    LPEDICT clent = &g_edicts[0];
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    edict_t * clent = &g_edicts[0];
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
 
     clent->s.player = 0;
     unit->s.player = 0;
@@ -658,8 +658,8 @@ TEST(wc3_combat, attack_button_does_not_order_unit_to_attack_itself) {
  * range of the building centre while already being in range of its wall. */
 TEST(wc3_combat, attack_owned_building_starts_at_pathing_footprint_range) {
     enum { W = 8, H = 8 };
-    LPEDICT attacker;
-    LPEDICT building;
+    edict_t * attacker;
+    edict_t * building;
     pathTex_t *pathtex;
 
     setup_test_world();
@@ -674,12 +674,12 @@ TEST(wc3_combat, attack_owned_building_starts_at_pathing_footprint_range) {
     attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_STRUCTURE;
     building->targtype = TARG_STRUCTURE;
 
-    pathtex = gi.MemAlloc(sizeof(*pathtex) + W * H * sizeof(COLOR32));
+    pathtex = gi.MemAlloc(sizeof(*pathtex) + W * H * sizeof(color32_t));
     T_NOT_NULL(pathtex);
     pathtex->width = W;
     pathtex->height = H;
     FOR_LOOP(i, W * H)
-        pathtex->map[i] = (COLOR32){ 0, 0, 255, 255 };
+        pathtex->map[i] = (color32_t){ 0, 0, 255, 255 };
     building->pathtex = pathtex;
 
     /* Centre distance is intentionally beyond melee range. */
@@ -698,8 +698,8 @@ TEST(wc3_combat, attack_owned_building_starts_at_pathing_footprint_range) {
 
 TEST(wc3_combat, attack_destructable_starts_at_pathing_footprint_range) {
     enum { W = 8, H = 8 };
-    LPEDICT attacker;
-    LPEDICT gate;
+    edict_t * attacker;
+    edict_t * gate;
     pathTex_t *pathtex;
 
     setup_test_world();
@@ -719,12 +719,12 @@ TEST(wc3_combat, attack_destructable_starts_at_pathing_footprint_range) {
     attacker->attack1.range = 90.0f;
     attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_DEBRIS;
 
-    pathtex = gi.MemAlloc(sizeof(*pathtex) + W * H * sizeof(COLOR32));
+    pathtex = gi.MemAlloc(sizeof(*pathtex) + W * H * sizeof(color32_t));
     T_NOT_NULL(pathtex);
     pathtex->width = W;
     pathtex->height = H;
     FOR_LOOP(i, W * H)
-        pathtex->map[i] = (COLOR32){ 0, 0, 255, 255 };
+        pathtex->map[i] = (color32_t){ 0, 0, 255, 255 };
     gate->pathtex = pathtex;
 
     T_ASSERT(Vector2_distance(&attacker->s.origin2, &gate->s.origin2) > attacker->attack1.range);
@@ -740,7 +740,7 @@ TEST(wc3_combat, attack_destructable_starts_at_pathing_footprint_range) {
 }
 
 TEST(wc3_combat, secondary_attack_can_target_destructables) {
-    LPEDICT attacker, gate;
+    edict_t * attacker, *gate;
     setup_test_world(); reset_entities();
     attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     gate = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 128.0f, 0.0f);
@@ -756,7 +756,7 @@ TEST(wc3_combat, secondary_attack_can_target_destructables) {
 }
 
 TEST(wc3_combat, secondary_attack_selection_keeps_authored_profiles) {
-    LPEDICT attacker, target;
+    edict_t * attacker, *target;
     UnitWeapons_t weapons = { .attacksEnabled = 3 };
     setup_test_world(); reset_entities();
     attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
@@ -772,7 +772,7 @@ TEST(wc3_combat, secondary_attack_selection_keeps_authored_profiles) {
 }
 
 TEST(wc3_combat, disabled_secondary_attack_cannot_target_air) {
-    LPEDICT attacker, target;
+    edict_t * attacker, *target;
     UnitWeapons_t weapons = { .attacksEnabled = 1 };
     setup_test_world(); reset_entities();
     attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
@@ -785,8 +785,8 @@ TEST(wc3_combat, disabled_secondary_attack_cannot_target_air) {
 }
 
 TEST(wc3_combat, missing_weapon_data_disables_authored_attack_slots) {
-    LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
-    LPEDICT target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 64.0f, 0.0f);
+    edict_t * attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 64.0f, 0.0f);
     attacker->attack1.type = ATK_NORMAL;
     attacker->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
     target->targtype = TARG_GROUND;
@@ -797,9 +797,9 @@ TEST(wc3_combat, missing_weapon_data_disables_authored_attack_slots) {
 
 TEST(wc3_combat, missile_impact_uses_attack2_type_selected_at_launch) {
     UnitWeapons_t weapons = { .attacksEnabled = 3 };
-    LPEDICT attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
-    LPEDICT target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 200.0f, 0.0f);
-    LPEDICT missile = NULL;
+    edict_t * attacker = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 200.0f, 0.0f);
+    edict_t * missile = NULL;
 
     attacker->data.UnitWeapons = &weapons;
     attacker->goalentity = target;
@@ -842,21 +842,21 @@ TEST(wc3_combat, missile_impact_uses_attack2_type_selected_at_launch) {
  * ========================================================================== */
 
 static int _endfunc_called = 0;
-static void stub_endfunc(LPEDICT ent) {
+static void stub_endfunc(edict_t * ent) {
     (void)ent;
     _endfunc_called++;
 }
 
 static umove_t _stub_move = { "stand", NULL, stub_endfunc, NULL };
 
-static void stub_transition_endfunc(LPEDICT ent) {
+static void stub_transition_endfunc(edict_t * ent) {
     _endfunc_called++;
     ent->currentmove = &_replacement_move;
     ent->animation = &_replacement_anim;
 }
 
 TEST(wc3_combat, mmoveframe_no_animation_is_noop) {
-    LPEDICT ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    edict_t * ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     ent->animation   = NULL;
     ent->currentmove = &_stub_move;
     ent->s.frame     = 0;
@@ -867,7 +867,7 @@ TEST(wc3_combat, mmoveframe_no_animation_is_noop) {
 }
 
 TEST(wc3_combat, mmoveframe_hold_frame_flag_inhibits) {
-    LPEDICT ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    edict_t * ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     attach_stub_anim(ent);
     ent->currentmove = &_stub_move;
     ent->s.frame     = 100;
@@ -881,7 +881,7 @@ TEST(wc3_combat, mmoveframe_hold_frame_flag_inhibits) {
 TEST(wc3_combat, mmoveframe_normal_advance) {
     /* FRAMETIME = 100, animation interval [0, 300].
      * Start at frame 50 → next frame = 150 (still inside interval). */
-    LPEDICT ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    edict_t * ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     attach_stub_anim(ent);
     ent->currentmove = &_stub_move;
     ent->s.frame     = 50;
@@ -894,7 +894,7 @@ TEST(wc3_combat, mmoveframe_normal_advance) {
 }
 
 TEST(wc3_combat, mmoveframe_uses_animation_time_scale) {
-    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    edict_t * ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     attach_stub_anim(ent);
     ent->currentmove = &_stub_move;
     ent->animation_speed = 0.5f;
@@ -906,7 +906,7 @@ TEST(wc3_combat, mmoveframe_uses_animation_time_scale) {
 }
 
 TEST(wc3_combat, paused_unit_advances_scripted_animation_only) {
-    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    edict_t * ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     attach_stub_anim(ent);
     ent->currentmove = &_stub_move;
     ent->paused = true;
@@ -922,7 +922,7 @@ TEST(wc3_combat, paused_unit_advances_scripted_animation_only) {
 
 TEST(wc3_combat, mmoveframe_at_end_calls_endfunc_and_wraps) {
     /* Start at frame 250 → next = 350 >= 300 (end) → endfunc, wrap to 0. */
-    LPEDICT ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    edict_t * ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     attach_stub_anim(ent);
     ent->currentmove = &_stub_move;
     ent->s.frame     = 250;
@@ -941,7 +941,7 @@ TEST(wc3_combat, mmoveframe_endfunc_transition_starts_replacement_animation) {
         .interval = { 0, 300 },
     };
     umove_t old_move = { "morph alternate", NULL, stub_transition_endfunc, NULL };
-    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    edict_t * ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
 
     ent->animation = &old_anim;
     ent->currentmove = &old_move;
@@ -958,7 +958,7 @@ TEST(wc3_combat, mmoveframe_endfunc_transition_starts_replacement_animation) {
 
 TEST(wc3_combat, mmoveframe_out_of_range_frame_resets) {
     /* frame > interval[1] → clamped to interval[0]. */
-    LPEDICT ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    edict_t * ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     attach_stub_anim(ent);
     ent->currentmove = &_stub_move;
     ent->s.frame     = 9999;
@@ -975,7 +975,7 @@ TEST(wc3_combat, mmoveframe_out_of_range_frame_resets) {
  * ========================================================================== */
 
 TEST(wc3_combat, runentity_stat_fields_updated) {
-    LPEDICT ent      = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * ent      = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     /* Manually set health below max so we get a non-trivial compressed value. */
     ent->health.max_value = 400.0f;
     ent->health.value     = 200.0f;   /* 50% → 127 */
@@ -990,7 +990,7 @@ TEST(wc3_combat, runentity_stat_fields_updated) {
 }
 
 TEST(wc3_combat, sethealth_updates_ability_level_only_when_health_byte_changes) {
-    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
 
     ent->s.flags |= EF_BUILDING;
     ent->s.effect = 77; ent->s.effect_flags = EFX_MODEL;
@@ -1004,7 +1004,7 @@ TEST(wc3_combat, sethealth_updates_ability_level_only_when_health_byte_changes) 
 }
 
 TEST(wc3_combat, sethealth_zero_clears_building_fire_when_already_zero) {
-    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','b','a','r'), 420.0f, 0.0f, 0.0f);
+    edict_t * ent = make_combat_unit(MAKEFOURCC('h','b','a','r'), 420.0f, 0.0f, 0.0f);
 
     ent->s.flags |= EF_BUILDING;
     ent->health.value = 0.0f;
@@ -1021,10 +1021,10 @@ TEST(wc3_combat, runentity_ability_index_from_currentmove) {
      * umove_t has ability == CAbilityMove, whose index in abilitylist[] is
      * non-zero (CAbilityStop is at index 0).  This ensures the assertion
      * would catch G_RunEntity hard-coding s.ability = 0. */
-    LPEDICT ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    edict_t * ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     ent->movetype    = MOVETYPE_NONE;
-    VECTOR2 dest     = MAKE(VECTOR2, 100.0f, 100.0f);
-    LPEDICT waypoint = Waypoint_add(&dest);
+    vector2_t dest     = MAKE(vector2_t, 100.0f, 100.0f);
+    edict_t * waypoint = Waypoint_add(&dest);
     order_move(ent, waypoint);  /* sets currentmove->proc = CAbilityMove */
     T_NOT_NULL(ent->currentmove);
     T_NOT_NULL(ent->currentmove->proc);
@@ -1040,7 +1040,7 @@ TEST(wc3_combat, runentity_ability_index_from_currentmove) {
  * heals by rate * frametime each frame; "none" never heals; healing caps at
  * max HP.  Test data (test_harness.c): hfoo regenHP 0.5 "always", hbar "none". */
 TEST(wc3_combat, runentity_hp_regen_always) {
-    LPEDICT ent           = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * ent           = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     ent->health.max_value = 420.0f;
     ent->health.value     = 200.0f;
     ent->mana.max_value   = 0.0f;
@@ -1053,7 +1053,7 @@ TEST(wc3_combat, runentity_hp_regen_always) {
 }
 
 TEST(wc3_combat, runentity_hp_regen_caps_at_max) {
-    LPEDICT ent           = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * ent           = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     ent->health.max_value = 420.0f;
     ent->health.value     = 419.99f;   /* less than one frame's regen from full */
     ent->movetype         = MOVETYPE_NONE;
@@ -1065,7 +1065,7 @@ TEST(wc3_combat, runentity_hp_regen_caps_at_max) {
 
 TEST(wc3_combat, runentity_hp_regen_none_does_not_heal) {
     /* regenType "none" must not heal even though regenHP is positive. */
-    LPEDICT ent           = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1500.0f, 0.0f, 0.0f);
+    edict_t * ent           = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1500.0f, 0.0f, 0.0f);
     ent->health.max_value = 1500.0f;
     ent->health.value     = 1000.0f;
     ent->movetype         = MOVETYPE_NONE;
@@ -1086,8 +1086,8 @@ TEST(wc3_combat, regeneration_aura_heals_when_natural_regen_type_is_none) {
 
     reset_entities();
     setup_test_world();
-    LPEDICT fountain = make_combat_unit(MAKEFOURCC('h','p','e','a'), 220.0f, 0.0f, 0.0f);
-    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1500.0f, 100.0f, 0.0f);
+    edict_t * fountain = make_combat_unit(MAKEFOURCC('h','p','e','a'), 220.0f, 0.0f, 0.0f);
+    edict_t * ent = make_combat_unit(MAKEFOURCC('h','b','a','r'), 1500.0f, 100.0f, 0.0f);
     fountain->s.player = ent->s.player = 0;
     fountain->targtype = ent->targtype = TARG_GROUND;
     fountain->abilities.added[0] = MAKEFOURCC('A','C','n','r');
@@ -1108,7 +1108,7 @@ TEST(wc3_combat, regeneration_aura_heals_when_natural_regen_type_is_none) {
  * realdef 3.9, STR 22 / INT 17 / AGI 13.  Per WC3: +25 HP/STR, +15 mana/INT,
  * +0.3 armor/AGI. */
 TEST(wc3_combat, hero_strength_adds_hp) {
-    LPEDICT hero          = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * hero          = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     hero->hero.str        = 22;            /* base */
     hero->health.max_value = 650.0f;
     hero->health.value     = 650.0f;
@@ -1121,7 +1121,7 @@ TEST(wc3_combat, hero_strength_adds_hp) {
 }
 
 TEST(wc3_combat, hero_intelligence_adds_mana) {
-    LPEDICT hero        = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * hero        = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     hero->hero.intel    = 17;              /* base */
     hero->mana.max_value = 255.0f;
     hero->mana.value     = 255.0f;
@@ -1133,7 +1133,7 @@ TEST(wc3_combat, hero_intelligence_adds_mana) {
 }
 
 TEST(wc3_combat, hero_agility_adds_armor) {
-    LPEDICT hero       = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * hero       = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     hero->hero.agi     = 13;               /* base */
     hero->armor_value  = 3.9f;
 
@@ -1146,7 +1146,7 @@ TEST(wc3_combat, hero_agility_adds_armor) {
 /* A hero's Strength adds +0.05 HP regen/sec per point; Intelligence adds +0.05
  * mana regen/sec per point (on top of the unit's base regen). */
 TEST(wc3_combat, hero_strength_hp_regen_bonus) {
-    LPEDICT h            = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * h            = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->hero.str          = 22;
     h->health.max_value  = 650.0f; h->health.value = 600.0f;  /* wounded */
     h->mana.max_value    = 0.0f;                              /* no mana regen */
@@ -1159,7 +1159,7 @@ TEST(wc3_combat, hero_strength_hp_regen_bonus) {
 }
 
 TEST(wc3_combat, hero_intelligence_mana_regen_bonus) {
-    LPEDICT h          = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * h          = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->hero.intel      = 17;
     h->health.max_value = 650.0f; h->health.value = 650.0f;   /* full -> no HP regen */
     h->mana.max_value  = 255.0f; h->mana.value = 100.0f;
@@ -1172,7 +1172,7 @@ TEST(wc3_combat, hero_intelligence_mana_regen_bonus) {
 
 TEST(wc3_combat, hero_primary_attribute_adds_damage) {
     /* Hpal's Primary is STR, so attack damage rises +1 per Strength point. */
-    LPEDICT h     = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * h     = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->hero.str   = 22;
     G_RecomputeHeroStats(h);
     float const dmg0 = h->attack1.damageBase;
@@ -1184,7 +1184,7 @@ TEST(wc3_combat, hero_primary_attribute_adds_damage) {
 }
 
 TEST(wc3_combat, hero_recompute_preserves_attack_and_armor_modifiers) {
-    LPEDICT h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->hero.str = 22;
     h->hero.agi = 13;
     h->attack1.permanentDamageBonus = 2.0f;
@@ -1207,7 +1207,7 @@ TEST(wc3_combat, hero_recompute_preserves_attack_and_armor_modifiers) {
 
 TEST(wc3_combat, hero_stats_noop_for_non_hero) {
     /* Footman has no attributes — recompute must leave its stats untouched. */
-    LPEDICT u            = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * u            = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     u->health.max_value  = 420.0f;
     u->health.value      = 300.0f;
     u->hero.str          = 99;             /* bogus; must be ignored */
@@ -1271,7 +1271,7 @@ TEST(wc3_combat, hero_level_for_xp) {
 }
 
 TEST(wc3_combat, hero_apply_level_truncates_attributes) {
-    LPEDICT h            = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * h            = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->health.max_value  = 650.0f; h->health.value = 650.0f;
     h->mana.max_value    = 255.0f; h->mana.value   = 255.0f;
     h->armor_value       = 3.9f;
@@ -1288,7 +1288,7 @@ TEST(wc3_combat, hero_apply_level_truncates_attributes) {
 }
 
 TEST(wc3_combat, hero_setxp_levels_up) {
-    LPEDICT h           = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * h           = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->health.max_value = 650.0f; h->health.value = 650.0f;
     h->mana.max_value   = 255.0f; h->mana.value   = 255.0f;
     h->hero.level       = 1;
@@ -1305,9 +1305,9 @@ TEST(wc3_combat, hero_setxp_levels_up) {
 /* XP-on-kill (G_GrantKillXP). Mounted ROC/TFT data supplies the victim level;
  * GlobalExperience falls back to eligible allied heroes when none is in range. */
 TEST(wc3_combat, grant_kill_xp_awards_base) {
-    LPEDICT killer = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * killer = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     killer->s.player = 0; killer->hero.level = 1; killer->hero.xp = 0;
-    LPEDICT victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     victim->s.player = 1;
 
     G_GrantKillXP(victim, killer);
@@ -1316,8 +1316,8 @@ TEST(wc3_combat, grant_kill_xp_awards_base) {
 }
 
 TEST(wc3_combat, grant_kill_xp_global_fallback_reaches_out_of_range_hero) {
-    LPEDICT killer = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
-    LPEDICT victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 5000.0f, 0.0f);
+    edict_t * killer = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 5000.0f, 0.0f);
     void *old_misc = game.config.misc.source;
     uint32_t awarded;
     killer->s.player = 0; killer->hero.level = 1; killer->hero.xp = 0;
@@ -1332,8 +1332,8 @@ TEST(wc3_combat, grant_kill_xp_global_fallback_reaches_out_of_range_hero) {
 }
 
 TEST(wc3_combat, grant_kill_xp_respects_disabled_global_experience) {
-    LPEDICT killer = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
-    LPEDICT victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 5000.0f, 0.0f);
+    edict_t * killer = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 5000.0f, 0.0f);
     stbIniCache_t custom = { 0 };
     void *old_misc = game.config.misc.source;
     uint32_t awarded;
@@ -1351,10 +1351,10 @@ TEST(wc3_combat, grant_kill_xp_respects_disabled_global_experience) {
 }
 
 TEST(wc3_combat, grant_kill_xp_splits_between_nearby_owned_heroes) {
-    LPEDICT killer = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * killer = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     /* The test archive has one hero row; a second Hpal still proves per-entity XP splitting. */
-    LPEDICT ally = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 100.0f, 0.0f);
-    LPEDICT victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * ally = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 100.0f, 0.0f);
+    edict_t * victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     killer->s.player = ally->s.player = 0;
     killer->hero.level = ally->hero.level = 1;
     killer->hero.xp = ally->hero.xp = 0;
@@ -1368,9 +1368,9 @@ TEST(wc3_combat, grant_kill_xp_splits_between_nearby_owned_heroes) {
 }
 
 TEST(wc3_combat, grant_kill_xp_honors_directional_shared_xp) {
-    LPEDICT killer = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
-    LPEDICT alliedHero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 100.0f, 0.0f);
-    LPEDICT victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * killer = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * alliedHero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 100.0f, 0.0f);
+    edict_t * victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     killer->s.player = 0;
     alliedHero->s.player = 1;
     alliedHero->hero.level = 1;
@@ -1391,8 +1391,8 @@ TEST(wc3_combat, grant_kill_xp_honors_directional_shared_xp) {
 }
 
 TEST(wc3_combat, grant_kill_xp_does_not_reward_passive_ally_kill) {
-    LPEDICT hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
-    LPEDICT victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * hero = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * victim = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     hero->s.player = 0;
     hero->hero.level = 1;
     hero->hero.xp = 0;
@@ -1406,9 +1406,9 @@ TEST(wc3_combat, grant_kill_xp_does_not_reward_passive_ally_kill) {
 }
 
 TEST(wc3_combat, attack_completion_resumes_persistent_follow) {
-    LPEDICT follower = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
-    LPEDICT leader = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 100.0f, 0.0f);
-    LPEDICT enemy = make_combat_unit(MAKEFOURCC('h','g','r','u'), 100.0f, 50.0f, 0.0f);
+    edict_t * follower = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * leader = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 100.0f, 0.0f);
+    edict_t * enemy = make_combat_unit(MAKEFOURCC('h','g','r','u'), 100.0f, 50.0f, 0.0f);
     follower->s.player = leader->s.player = 0;
     enemy->s.player = 1;
     follower->attack1.type = ATK_HERO;
@@ -1429,7 +1429,7 @@ TEST(wc3_combat, attack_completion_resumes_persistent_follow) {
  * adds it at level 1; learning it again raises its level; a second ability
  * takes its own slot. */
 TEST(wc3_combat, hero_learn_skill) {
-    LPEDICT h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     memset(h->heroabilities, 0, sizeof(h->heroabilities));
 
     unit_learnability(h, MAKEFOURCC('A','H','h','b'));   /* Holy Light */
@@ -1469,7 +1469,7 @@ static const char slk_hero_skill_progression[] =
     "E\n";
 
 TEST(wc3_combat, hero_progression_initializes_preleveled_map_point_budget) {
-    LPEDICT h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
 
     memset(h->heroabilities, 0, sizeof(h->heroabilities));
     h->hero.level = 3;
@@ -1493,7 +1493,7 @@ TEST(wc3_combat, hero_skill_progression_uses_candidate_points_level_and_max_rank
     UnitAbilities_t const tree = { .abilList = "AInv", .heroAbilList = "AHhb,AHds,AHtb" };
     slkTestData_t *rows = parse_slk_string(slk_hero_skill_progression);
     slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
-    LPEDICT h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     uint32_t const holy = MAKEFOURCC('A','H','h','b');
     uint32_t const shield = MAKEFOURCC('A','H','d','s');
     uint32_t const thunder = MAKEFOURCC('A','H','t','b');
@@ -1553,8 +1553,8 @@ TEST(wc3_combat, hero_skill_progression_uses_candidate_points_level_and_max_rank
 /* ReviveHero: a dead hero comes back to life at the given point with HP/mana
  * from the revive factors (defaults: full life, no mana). */
 TEST(wc3_combat, hero_revive) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT h           = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    gameClient_t * client = &game.clients[0];
+    edict_t * h           = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->health.max_value = 650.0f; h->health.value = 0.0f;   /* dead */
     h->mana.max_value   = 255.0f; h->mana.value   = 0.0f;
     h->svflags         |= SVF_DEADMONSTER;
@@ -1574,7 +1574,7 @@ TEST(wc3_combat, hero_revive) {
 }
 
 TEST(wc3_combat, hero_levelup_fires_player_and_unit_events) {
-    LPEDICT h           = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * h           = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->hero.level       = 1;
     h->health.max_value = 650.0f; h->health.value = 650.0f;
     level.events.write  = 0;
@@ -1592,7 +1592,7 @@ TEST(wc3_combat, hero_levelup_fires_player_and_unit_events) {
 }
 
 TEST(wc3_combat, hero_setxp_does_not_lower_xp_or_level) {
-    LPEDICT h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->hero.level = 1;
     h->hero.skillpoints = 1;
     G_HeroSetXP(h, 500);
@@ -1608,7 +1608,7 @@ TEST(wc3_combat, hero_setxp_does_not_lower_xp_or_level) {
 /* Attack timing: the post-swing recovery is cooldown - damagePoint, so the full
  * attack cycle (windup + recovery) equals WC3's "Cooldown Time". */
 TEST(wc3_combat, attack_recovery_excludes_damage_point) {
-    LPEDICT u              = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * u              = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     u->attack1.cooldown    = 1.5f;
     u->attack1.damagePoint = 0.3f;
     attack_melee_cooldown(u);
@@ -1629,7 +1629,7 @@ TEST(wc3_combat, attack_recovery_excludes_damage_point) {
 }
 
 TEST(wc3_combat, ranged_zero_recovery_immediately_starts_next_attack) {
-    LPEDICT u = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
+    edict_t * u = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
     u->attack1.cooldown = 0.25f;
     u->attack1.damagePoint = 0.4f;
 
@@ -1640,8 +1640,8 @@ TEST(wc3_combat, ranged_zero_recovery_immediately_starts_next_attack) {
 }
 
 TEST(wc3_combat, animationless_ranged_attack_enters_recovery_after_launch) {
-    LPEDICT u = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
-    LPEDICT target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 64.0f, 0.0f);
+    edict_t * u = make_combat_unit(MAKEFOURCC('h','r','i','f'), 535.0f, 0.0f, 0.0f);
+    edict_t * target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 64.0f, 0.0f);
 
     u->goalentity = target;
     u->attack1.type = ATK_NORMAL;
@@ -1662,7 +1662,7 @@ TEST(wc3_combat, animationless_ranged_attack_enters_recovery_after_launch) {
     u->wait = 0.01f;
     u->currentmove->think(u);
 
-    LPEDICT missile = NULL;
+    edict_t * missile = NULL;
     FILTER_EDICTS(ent, ent->owner == u && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
     T_NOT_NULL(missile);
     T_EQ((missile->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT, 7);
@@ -1674,8 +1674,8 @@ TEST(wc3_combat, animationless_ranged_attack_enters_recovery_after_launch) {
 
 TEST(wc3_combat, artillery_uses_ranged_attack_state) {
     UnitWeapons_t weapons = { .attacksEnabled = 3, .minimumAttackRange = 0.0f };
-    LPEDICT attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
-    LPEDICT target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 200.0f, 0.0f);
+    edict_t * attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
+    edict_t * target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 200.0f, 0.0f);
 
     attacker->data.UnitWeapons = &weapons;
     attacker->attack1.type = ATK_SIEGE;
@@ -1693,8 +1693,8 @@ TEST(wc3_combat, artillery_minimum_range_makes_mobile_attacker_back_away) {
     UnitWeapons_t weapons = { .attacksEnabled = 3, .minimumAttackRange = 100.0f };
     setup_test_world();
     reset_entities();
-    LPEDICT attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
-    LPEDICT target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);
+    edict_t * attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
+    edict_t * target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 50.0f, 0.0f);
     float before, after;
 
     attacker->data.UnitWeapons = &weapons;
@@ -1714,12 +1714,12 @@ TEST(wc3_combat, artillery_minimum_range_makes_mobile_attacker_back_away) {
 
 TEST(wc3_combat, artillery_splash_uses_authored_three_damage_bands) {
     UnitWeapons_t weapons = { .attacksEnabled = 3, .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND } };
-    LPEDICT attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, -300.0f, 0.0f);
-    LPEDICT primary = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 0.0f, 0.0f);
-    LPEDICT medium = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 75.0f, 0.0f);
-    LPEDICT small = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 125.0f, 0.0f);
-    LPEDICT outside = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 175.0f, 0.0f);
-    LPEDICT units[] = { primary, medium, small, outside };
+    edict_t * attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, -300.0f, 0.0f);
+    edict_t * primary = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 0.0f, 0.0f);
+    edict_t * medium = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 75.0f, 0.0f);
+    edict_t * small = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 125.0f, 0.0f);
+    edict_t * outside = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 175.0f, 0.0f);
+    edict_t * units[] = { primary, medium, small, outside };
 
     attacker->data.UnitWeapons = &weapons;
     attacker->attack1.type = ATK_NORMAL;
@@ -1750,11 +1750,11 @@ TEST(wc3_combat, artillery_splash_uses_authored_three_damage_bands) {
 TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
     UnitWeapons_t weapons = { .attacksEnabled = 3, .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND },
                               .attack2 = { .areaTargets = WC3_TARGET_FLAG_AIR } };
-    LPEDICT attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
-    LPEDICT target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
-    LPEDICT bystander = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
-    LPEDICT retarget = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 500.0f, 0.0f);
-    LPEDICT missile = NULL;
+    edict_t * attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
+    edict_t * target = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
+    edict_t * bystander = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 200.0f, 0.0f);
+    edict_t * retarget = make_combat_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 500.0f, 0.0f);
+    edict_t * missile = NULL;
 
     attacker->data.UnitWeapons = &weapons;
     attacker->goalentity = target;
@@ -1813,9 +1813,9 @@ TEST(wc3_combat, artillery_projectile_locks_target_position_at_damage_point) {
 TEST(wc3_combat, attack_ground_accepts_artillery_point_and_launches_fixed_projectile) {
     UnitWeapons_t weapons = { .attacksEnabled = 3, .minimumAttackRange = 50.0f,
                               .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND } };
-    LPEDICT attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
-    VECTOR2 point = { 200.0f, 75.0f };
-    LPEDICT missile = NULL;
+    edict_t * attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
+    vector2_t point = { 200.0f, 75.0f };
+    edict_t * missile = NULL;
 
     attacker->data.UnitWeapons = &weapons;
     attacker->attack1.type = ATK_SIEGE;
@@ -1852,7 +1852,7 @@ TEST(wc3_combat, attack_ground_accepts_artillery_point_and_launches_fixed_projec
 /* A hero's Agility increases attack speed (+2%/point), dividing the windup and
  * recovery so the whole cycle speeds up. */
 TEST(wc3_combat, attack_speed_scales_with_agility) {
-    LPEDICT h              = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * h              = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->hero.agi            = 20;       /* +40% -> divisor 1.4 */
     h->attack1.cooldown    = 1.5f;
     h->attack1.damagePoint = 0.3f;
@@ -1872,7 +1872,7 @@ TEST(wc3_combat, endurance_aura_ignores_hidden_sources_and_recipients) {
         "C;Y2;X1;K\"AOae\"\nC;Y2;X2;K\"AOae\"\nC;Y2;X3;K\"900\"\n"
         "C;Y2;X4;K\"10\"\nC;Y2;X5;K\"20\"\nC;Y2;X6;K\"1\"\nE\n";
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
-    LPEDICT source, target;
+    edict_t * source, *target;
 
     reset_entities();
     setup_test_world();
@@ -1922,9 +1922,9 @@ TEST(wc3_combat, endurance_aura_uses_map_authored_rank_five) {
         { .modID = MAKEFOURCC('O','a','e','2'), .type = mod_real, .level = 5, .dataPointer = 2, .data = &speed },
     };
     unitData_t original = { .originalUnitID = id, .numbeOfModifications = 3, .modifications = mods };
-    MAPINFO info = { .num_originalAbilities = 1, .originalAbilities = &original };
+    mapInfo_t info = { .num_originalAbilities = 1, .originalAbilities = &original };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
-    LPEDICT source, target;
+    edict_t * source, *target;
 
     reset_entities(); setup_test_world();
     G_SetMapAbilityOverrides(&info);
@@ -1944,7 +1944,7 @@ TEST(wc3_combat, endurance_aura_uses_map_authored_rank_five) {
 }
 
 TEST(wc3_combat, attack_speed_agility_bonus_caps_at_five_times) {
-    LPEDICT h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
+    edict_t * h = make_combat_unit(MAKEFOURCC('H','p','a','l'), 650.0f, 0.0f, 0.0f);
     h->hero.agi = 1000;
     h->attack1.cooldown = 1.5f;
     h->attack1.damagePoint = 0.3f;
@@ -1963,7 +1963,7 @@ TEST(wc3_combat, defend_data_d_reduces_attack_speed_while_active) {
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataD1\"\n"
         "C;Y2;X1;K\"Adef\"\nC;Y2;X2;K\"Adef\"\nC;Y2;X3;K\"0.25\"\nE\n";
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
-    LPEDICT footman = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * footman = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
 
     footman->attack1.cooldown = 1.5f;
     footman->attack1.damagePoint = 0.3f;
@@ -1992,14 +1992,14 @@ TEST(wc3_combat, defend_data_d_reduces_attack_speed_while_active) {
  *   0=none 1=normal 2=pierce 3=siege 4=spells 5=chaos 6=magic 7=hero
  * ========================================================================== */
 
-static LPEDICT make_attacker(uint32_t atk_type) {
-    LPEDICT a = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f, 0.0f);
+static edict_t * make_attacker(uint32_t atk_type) {
+    edict_t * a = make_combat_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f, 0.0f);
     a->attack1.type = atk_type;
     return a;
 }
 
-static LPEDICT make_target(uint32_t def_type, float armor) {
-    LPEDICT t = make_combat_unit(MAKEFOURCC('h','f','o','o'), 1000.0f, 50.0f, 0.0f);
+static edict_t * make_target(uint32_t def_type, float armor) {
+    edict_t * t = make_combat_unit(MAKEFOURCC('h','f','o','o'), 1000.0f, 50.0f, 0.0f);
     t->defense_type = def_type;
     t->armor_value  = armor;
     return t;
@@ -2007,35 +2007,35 @@ static LPEDICT make_target(uint32_t def_type, float armor) {
 
 /* Pierce vs small = 2.0× (infantry shredded by arrows). */
 TEST(wc3_combat, attack_damage_pierce_vs_small) {
-    LPEDICT a = make_attacker(ATK_PIERCE);
-    LPEDICT t = make_target(0 /* small */, 0.0f);
+    edict_t * a = make_attacker(ATK_PIERCE);
+    edict_t * t = make_target(0 /* small */, 0.0f);
     T_EQ(G_AttackDamage(a, t, 100), 200);
 }
 
 /* Normal vs medium = 1.5× (footmen effective vs soldiers). */
 TEST(wc3_combat, attack_damage_normal_vs_medium) {
-    LPEDICT a = make_attacker(ATK_NORMAL);
-    LPEDICT t = make_target(1 /* medium */, 0.0f);
+    edict_t * a = make_attacker(ATK_NORMAL);
+    edict_t * t = make_target(1 /* medium */, 0.0f);
     T_EQ(G_AttackDamage(a, t, 100), 150);
 }
 
 /* Siege vs fort = 1.5× (catapults effective vs buildings). */
 TEST(wc3_combat, attack_damage_siege_vs_fort) {
-    LPEDICT a = make_attacker(ATK_SIEGE);
-    LPEDICT t = make_target(3 /* fort */, 0.0f);
+    edict_t * a = make_attacker(ATK_SIEGE);
+    edict_t * t = make_target(3 /* fort */, 0.0f);
     T_EQ(G_AttackDamage(a, t, 100), 150);
 }
 
 /* Magic vs large = 2.0× (spells shred large units). */
 TEST(wc3_combat, attack_damage_magic_vs_large) {
-    LPEDICT a = make_attacker(ATK_MAGIC);
-    LPEDICT t = make_target(2 /* large */, 0.0f);
+    edict_t * a = make_attacker(ATK_MAGIC);
+    edict_t * t = make_target(2 /* large */, 0.0f);
     T_EQ(G_AttackDamage(a, t, 100), 200);
 }
 
 /* Chaos ignores defense type — always 1.0× regardless of armor type. */
 TEST(wc3_combat, attack_damage_chaos_passthrough) {
-    LPEDICT a = make_attacker(ATK_CHAOS);
+    edict_t * a = make_attacker(ATK_CHAOS);
     T_EQ(G_AttackDamage(a, make_target(0, 0.0f), 100), 100); /* small  */
     T_EQ(G_AttackDamage(a, make_target(2, 0.0f), 100), 100); /* large  */
     T_EQ(G_AttackDamage(a, make_target(3, 0.0f), 100), 100); /* fort   */
@@ -2044,16 +2044,16 @@ TEST(wc3_combat, attack_damage_chaos_passthrough) {
 
 /* Hero attack vs fort = 0.5× (heroes less effective vs buildings). */
 TEST(wc3_combat, attack_damage_hero_vs_fort) {
-    LPEDICT a = make_attacker(ATK_HERO);
-    LPEDICT t = make_target(3 /* fort */, 0.0f);
+    edict_t * a = make_attacker(ATK_HERO);
+    edict_t * t = make_target(3 /* fort */, 0.0f);
     T_EQ(G_AttackDamage(a, t, 100), 50);
 }
 
 /* Divine defense takes only 5% from ordinary attack classes; Chaos remains 100%. */
 TEST(wc3_combat, attack_damage_divine_uses_wc3_multiplier) {
-    LPEDICT normal = make_attacker(ATK_NORMAL);
-    LPEDICT chaos = make_attacker(ATK_CHAOS);
-    LPEDICT divine = make_target(6 /* divine */, 0.0f);
+    edict_t * normal = make_attacker(ATK_NORMAL);
+    edict_t * chaos = make_attacker(ATK_CHAOS);
+    edict_t * divine = make_target(6 /* divine */, 0.0f);
     T_EQ(G_AttackDamage(normal, divine, 100), 5);
     T_EQ(G_AttackDamage(chaos, divine, 100), 100);
 }
@@ -2063,8 +2063,8 @@ TEST(wc3_combat, attack_damage_uses_loaded_gameplay_constants) {
     bool const old_loaded = game.constants.combatConstantsLoaded;
     float const old_mult = game.constants.damageBonus[ATK_NORMAL][4];
     float const old_armor = game.constants.defenseArmor;
-    LPEDICT a = make_attacker(ATK_NORMAL);
-    LPEDICT t = make_target(4 /* normal */, 2.0f);
+    edict_t * a = make_attacker(ATK_NORMAL);
+    edict_t * t = make_target(4 /* normal */, 2.0f);
 
     game.constants.combatConstantsLoaded = true;
     game.constants.damageBonus[ATK_NORMAL][4] = 1.25f;
@@ -2078,8 +2078,8 @@ TEST(wc3_combat, attack_damage_uses_loaded_gameplay_constants) {
 
 /* Armor reduction: dmg / (1 + armor * 0.06). 100 base, 2 armor: 100/1.12 ≈ 89. */
 TEST(wc3_combat, attack_damage_armor_reduces_damage) {
-    LPEDICT a = make_attacker(ATK_NORMAL);
-    LPEDICT t = make_target(4 /* normal */, 2.0f);
+    edict_t * a = make_attacker(ATK_NORMAL);
+    edict_t * t = make_target(4 /* normal */, 2.0f);
     int result = G_AttackDamage(a, t, 100);
     T_ASSERT(result >= 88 && result <= 90);
 }
@@ -2088,23 +2088,23 @@ TEST(wc3_combat, attack_damage_armor_reduces_damage) {
  * At -10 armor and K=.06 this is about 1.4614x, clearly distinct from the old
  * reciprocal approximation (~1.375x). */
 TEST(wc3_combat, attack_damage_negative_armor_uses_exponential_curve) {
-    LPEDICT a = make_attacker(ATK_NORMAL);
-    LPEDICT t = make_target(4 /* normal */, -10.0f);
+    edict_t * a = make_attacker(ATK_NORMAL);
+    edict_t * t = make_target(4 /* normal */, -10.0f);
     int result = G_AttackDamage(a, t, 100);
     T_ASSERT(result >= 145 && result <= 147);
 }
 
 /* Minimum 1: even a tiny base through heavy armor can't go below 1. */
 TEST(wc3_combat, attack_damage_minimum_one) {
-    LPEDICT a = make_attacker(ATK_PIERCE);
-    LPEDICT t = make_target(5 /* hero, pierce=0.5× */, 100.0f); /* enormous armor */
+    edict_t * a = make_attacker(ATK_PIERCE);
+    edict_t * t = make_target(5 /* hero, pierce=0.5× */, 100.0f); /* enormous armor */
     T_EQ(G_AttackDamage(a, t, 1), 1);
 }
 
 /* Zero armor: multiplier applied cleanly with no reduction. */
 TEST(wc3_combat, attack_damage_zero_armor_no_reduction) {
-    LPEDICT a = make_attacker(ATK_NORMAL);
-    LPEDICT t = make_target(4 /* normal */, 0.0f);
+    edict_t * a = make_attacker(ATK_NORMAL);
+    edict_t * t = make_target(4 /* normal */, 0.0f);
     T_EQ(G_AttackDamage(a, t, 100), 100);
 }
 
@@ -2305,10 +2305,10 @@ TEST(wc3_combat, blight_growth_uses_authored_expansion_and_availability) {
         "C;Y2;X6;K219\n"
         "E\n";
     uint32_t const code = MAKEFOURCC('A','b','l','1');
-    VECTOR2 first_ring = { 48.0f, 0.0f }, second_ring = { 176.0f, 0.0f };
+    vector2_t first_ring = { 48.0f, 0.0f }, second_ring = { 176.0f, 0.0f };
     slkTestData_t *rows = parse_slk_string(blight_slk);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
-    LPEDICT unit;
+    edict_t * unit;
 
     setup_test_world(); level.time = 0;
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
@@ -2352,10 +2352,10 @@ TEST(wc3_combat, blight_growth_reads_roc_data_columns) {
         "C;Y2;X6;K73\n"
         "E\n";
     uint32_t const code = MAKEFOURCC('A','b','l','1');
-    VECTOR2 first_ring = { 48.0f, 0.0f };
+    vector2_t first_ring = { 48.0f, 0.0f };
     slkTestData_t *rows = parse_slk_string(blight_roc_slk);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
-    LPEDICT unit;
+    edict_t * unit;
 
     setup_test_world(); level.time = 0;
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
@@ -2369,9 +2369,9 @@ TEST(wc3_combat, blight_growth_reads_roc_data_columns) {
 }
 
 TEST(wc3_combat, blight_regeneration_tracks_world_state_without_movement) {
-    LPEDICT unit;
+    edict_t * unit;
     UnitBalance_t balance;
-    VECTOR2 point = { 0.0f, 0.0f };
+    vector2_t point = { 0.0f, 0.0f };
 
     setup_test_world();
     unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), point.x, point.y);
@@ -2415,7 +2415,7 @@ TEST(wc3_combat, spell_mana_and_cooldown) {
     slkTestData_t *rows = parse_slk_string(slk_ability_helpers);
     slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
     uint32_t thunder = MAKEFOURCC('A', 'H', 't', 'b');
-    LPEDICT caster = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    edict_t * caster = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     caster->mana.value = 100.0f;
     caster->mana.max_value = 100.0f;
     level.time = 1000;
@@ -2448,7 +2448,7 @@ TEST(wc3_combat, spell_cooldowns_do_not_consume_buff_slots_and_share_base_code) 
     slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", rows);
     uint32_t const alias = MAKEFOURCC('A','h','r','p');
     uint32_t const base = MAKEFOURCC('A','r','e','p');
-    LPEDICT caster = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    edict_t * caster = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
 
     level.time = 2000;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
@@ -2469,7 +2469,7 @@ TEST(wc3_combat, spell_cooldowns_do_not_consume_buff_slots_and_share_base_code) 
 }
 
 TEST(wc3_combat, timed_stun_status_expires_without_touching_pause) {
-    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     ent->paused = true;
     level.time = 100;
 
@@ -2484,7 +2484,7 @@ TEST(wc3_combat, timed_stun_status_expires_without_touching_pause) {
 }
 
 TEST(wc3_combat, timed_life_status_kills_unit) {
-    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     _die_call_count = 0;
     level.time = 200;
 
@@ -2497,7 +2497,7 @@ TEST(wc3_combat, timed_life_status_kills_unit) {
 }
 
 TEST(wc3_combat, timed_status_bar_keeps_duration_and_uses_last_eligible_status) {
-    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
+    edict_t * ent = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 0.0f, 0.0f);
     heroabilitystatus_t const *status;
 
     level.time = 1000;
@@ -2532,7 +2532,7 @@ TEST(wc3_combat, timed_status_bar_keeps_duration_and_uses_last_eligible_status) 
 /* Costs come from the mounted ROC/TFT UnitBalance table. */
 
 TEST(wc3_combat, player_pay_deducts_gold) {
-    LPPLAYER p = &game.clients[0].ps;
+    player_t * p = &game.clients[0].ps;
     p->stats[PLAYERSTATE_RESOURCE_GOLD]   = 200;
     p->stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
 
@@ -2545,7 +2545,7 @@ TEST(wc3_combat, player_pay_deducts_gold) {
 }
 
 TEST(wc3_combat, player_pay_insufficient_gold_fails) {
-    LPPLAYER p = &game.clients[0].ps;
+    player_t * p = &game.clients[0].ps;
     p->stats[PLAYERSTATE_RESOURCE_GOLD]   = 50;  /* need 75 */
     p->stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
 
@@ -2556,7 +2556,7 @@ TEST(wc3_combat, player_pay_insufficient_gold_fails) {
 }
 
 TEST(wc3_combat, player_pay_insufficient_lumber_fails) {
-    LPPLAYER p = &game.clients[0].ps;
+    player_t * p = &game.clients[0].ps;
     uint32_t project = MAKEFOURCC('h','b','a','r');
     int32_t gold = G_UnitBalance(project)->goldCost, lumber = G_UnitBalance(project)->lumberCost;
     T_ASSERT(gold > 0 && lumber > 0);
@@ -2580,8 +2580,8 @@ TEST(wc3_combat, player_pay_null_player_fails) {
  * ========================================================================== */
 
 TEST(wc3_combat, build_queue_first_item) {
-    LPEDICT producer = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
-    LPEDICT item1    = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 10.0f, 0.0f);
+    edict_t * producer = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    edict_t * item1    = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 10.0f, 0.0f);
     producer->build  = NULL;
 
     unit_add_build_queue(producer, item1);
@@ -2591,9 +2591,9 @@ TEST(wc3_combat, build_queue_first_item) {
 }
 
 TEST(wc3_combat, build_queue_chained_items) {
-    LPEDICT producer = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
-    LPEDICT item1    = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 10.0f, 0.0f);
-    LPEDICT item2    = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 20.0f, 0.0f);
+    edict_t * producer = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    edict_t * item1    = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 10.0f, 0.0f);
+    edict_t * item2    = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 20.0f, 0.0f);
     producer->build  = NULL;
     item1->build     = NULL;
     item2->build     = NULL;
@@ -2609,10 +2609,10 @@ TEST(wc3_combat, build_queue_chained_items) {
 }
 
 TEST(wc3_combat, build_queue_three_items_linked) {
-    LPEDICT producer = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
-    LPEDICT item1    = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 10.0f, 0.0f);
-    LPEDICT item2    = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 20.0f, 0.0f);
-    LPEDICT item3    = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 30.0f, 0.0f);
+    edict_t * producer = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    edict_t * item1    = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 10.0f, 0.0f);
+    edict_t * item2    = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 20.0f, 0.0f);
+    edict_t * item3    = make_combat_unit(MAKEFOURCC('h','f','o','o'), 420.0f, 30.0f, 0.0f);
     producer->build = item1->build = item2->build = item3->build = NULL;
 
     unit_add_build_queue(producer, item1);
@@ -2630,13 +2630,13 @@ TEST(wc3_combat, build_queue_three_items_linked) {
  * ========================================================================== */
 
 TEST(wc3_combat, quest_make_non_null) {
-    LPQUEST q = G_MakeQuest();
+    quest_t * q = G_MakeQuest();
     T_NOT_NULL(q);
     G_RemoveQuest(q);
 }
 
 TEST(wc3_combat, quest_fields_default_state) {
-    LPQUEST q = G_MakeQuest();
+    quest_t * q = G_MakeQuest();
     T_ASSERT(!q->completed);
     T_ASSERT(!q->failed);
     T_ASSERT(!q->discovered);
@@ -2646,21 +2646,21 @@ TEST(wc3_combat, quest_fields_default_state) {
 }
 
 TEST(wc3_combat, quest_set_title) {
-    LPQUEST q = G_MakeQuest();
+    quest_t * q = G_MakeQuest();
     q->title = strdup("Defeat the Lich King");
     T_STREQ(q->title, "Defeat the Lich King");
     G_RemoveQuest(q);
 }
 
 TEST(wc3_combat, quest_set_completed) {
-    LPQUEST q = G_MakeQuest();
+    quest_t * q = G_MakeQuest();
     q->completed = true;
     T_ASSERT(q->completed);
     G_RemoveQuest(q);
 }
 
 TEST(wc3_combat, quest_set_failed) {
-    LPQUEST q = G_MakeQuest();
+    quest_t * q = G_MakeQuest();
     q->failed = true;
     T_ASSERT(q->failed);
     G_RemoveQuest(q);
@@ -2669,7 +2669,7 @@ TEST(wc3_combat, quest_set_failed) {
 TEST(wc3_combat, quest_remove_clears_from_list) {
     /* Reset the quest list to a known-empty state. */
     memset(level.quests, 0, sizeof(level.quests));
-    LPQUEST q = G_MakeQuest();
+    quest_t * q = G_MakeQuest();
     T_ASSERT(q && q->inuse);
 
     G_RemoveQuest(q);
@@ -2679,7 +2679,7 @@ TEST(wc3_combat, quest_remove_clears_from_list) {
 }
 
 TEST(wc3_combat, quest_discovered_required_enabled_flags) {
-    LPQUEST q = G_MakeQuest();
+    quest_t * q = G_MakeQuest();
     q->discovered = true;
     q->required   = true;
     q->enabled    = true;
@@ -2690,39 +2690,39 @@ TEST(wc3_combat, quest_discovered_required_enabled_flags) {
 }
 
 TEST(wc3_combat, quest_item_create_non_null) {
-    LPQUEST q = G_MakeQuest();
-    LPQUESTITEM item = &q->items[q->num_items++]; item->inuse = true;
+    quest_t * q = G_MakeQuest();
+    questItem_t * item = &q->items[q->num_items++]; item->inuse = true;
     T_NOT_NULL(item);
     G_RemoveQuest(q);
 }
 
 TEST(wc3_combat, quest_item_set_description) {
-    LPQUEST q = G_MakeQuest();
-    LPQUESTITEM item = &q->items[q->num_items++]; item->inuse = true;
+    quest_t * q = G_MakeQuest();
+    questItem_t * item = &q->items[q->num_items++]; item->inuse = true;
     item->description = strdup("Kill 10 footmen");
     T_STREQ(item->description, "Kill 10 footmen");
     G_RemoveQuest(q);
 }
 
 TEST(wc3_combat, quest_item_set_completed) {
-    LPQUEST q = G_MakeQuest();
-    LPQUESTITEM item = &q->items[q->num_items++]; item->inuse = true;
+    quest_t * q = G_MakeQuest();
+    questItem_t * item = &q->items[q->num_items++]; item->inuse = true;
     item->completed = true;
     T_ASSERT(item->completed);
     G_RemoveQuest(q);
 }
 
 TEST(wc3_combat, quest_item_defaults_incomplete) {
-    LPQUEST q = G_MakeQuest();
-    LPQUESTITEM item = &q->items[q->num_items++]; item->inuse = true;
+    quest_t * q = G_MakeQuest();
+    questItem_t * item = &q->items[q->num_items++]; item->inuse = true;
     T_ASSERT(!item->completed);
     G_RemoveQuest(q);
 }
 
 TEST(wc3_combat, quest_multiple_items_linked) {
-    LPQUEST q = G_MakeQuest();
-    LPQUESTITEM a = &q->items[q->num_items++]; a->inuse = true;
-    LPQUESTITEM b = &q->items[q->num_items++]; b->inuse = true;
+    quest_t * q = G_MakeQuest();
+    questItem_t * a = &q->items[q->num_items++]; a->inuse = true;
+    questItem_t * b = &q->items[q->num_items++]; b->inuse = true;
     /* Both items must be reachable from the quest's bounded storage. */
     bool found_a = false, found_b = false;
     FOR_EACH_QUESTITEM(q, it) {
@@ -2736,8 +2736,8 @@ TEST(wc3_combat, quest_multiple_items_linked) {
 
 TEST(wc3_combat, quest_multiple_quests_in_list) {
     memset(level.quests, 0, sizeof(level.quests));
-    LPQUEST q1 = G_MakeQuest();
-    LPQUEST q2 = G_MakeQuest();
+    quest_t * q1 = G_MakeQuest();
+    quest_t * q2 = G_MakeQuest();
     T_NOT_NULL(q1);
     T_NOT_NULL(q2);
     /* Both quests must be reachable from the fixed quest slots. */
@@ -2762,8 +2762,8 @@ TEST(wc3_combat, publish_event_fills_queue) {
     level.events.write = 0;
     level.events.read  = 0;
 
-    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
-    GAMEEVENT *evt = G_PublishEvent(ent, EVENT_UNIT_DEATH);
+    edict_t * ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    gameEvent_t *evt = G_PublishEvent(ent, EVENT_UNIT_DEATH);
 
     T_NOT_NULL(evt);
     T_EQ((int)evt->type, (int)EVENT_UNIT_DEATH);
@@ -2773,9 +2773,9 @@ TEST(wc3_combat, publish_event_sequential) {
     level.events.write = 0;
     level.events.read  = 0;
 
-    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    edict_t * ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     G_PublishEvent(ent, EVENT_UNIT_DEATH);
-    GAMEEVENT *evt2 = G_PublishEvent(ent, EVENT_PLAYER_UNIT_TRAIN_FINISH);
+    gameEvent_t *evt2 = G_PublishEvent(ent, EVENT_PLAYER_UNIT_TRAIN_FINISH);
 
     T_NOT_NULL(evt2);
     T_EQ((int)evt2->type, (int)EVENT_PLAYER_UNIT_TRAIN_FINISH);
@@ -2789,8 +2789,8 @@ TEST(wc3_combat, publish_event_player_victory) {
     level.events.write = 0;
     level.events.read  = 0;
 
-    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
-    GAMEEVENT *evt = G_PublishEvent(ent, EVENT_PLAYER_VICTORY);
+    edict_t * ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    gameEvent_t *evt = G_PublishEvent(ent, EVENT_PLAYER_VICTORY);
 
     T_NOT_NULL(evt);
     T_EQ((int)evt->type, (int)EVENT_PLAYER_VICTORY);
@@ -2801,8 +2801,8 @@ TEST(wc3_combat, publish_event_player_defeat) {
     level.events.write = 0;
     level.events.read  = 0;
 
-    LPEDICT ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
-    GAMEEVENT *evt = G_PublishEvent(ent, EVENT_PLAYER_DEFEAT);
+    edict_t * ent = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
+    gameEvent_t *evt = G_PublishEvent(ent, EVENT_PLAYER_DEFEAT);
 
     T_NOT_NULL(evt);
     T_EQ((int)evt->type, (int)EVENT_PLAYER_DEFEAT);
@@ -2825,8 +2825,8 @@ TEST(wc3_combat, victory_and_defeat_are_distinct_event_types) {
 /* Attack Ground must not translate while movement is locked. Ensnare applied
  * before the order holds the unit at its origin (repro from #476). */
 TEST(wc3_combat, attack_ground_ensnare_before_order_holds_position) {
-    LPEDICT unit;
-    VECTOR2 point = { 1000, 0 };
+    edict_t * unit;
+    vector2_t point = { 1000, 0 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
@@ -2845,8 +2845,8 @@ TEST(wc3_combat, attack_ground_ensnare_before_order_holds_position) {
 
 /* Lock applied mid-approach freezes further steps; the order is retained. */
 TEST(wc3_combat, attack_ground_ensnare_mid_approach_freezes) {
-    LPEDICT unit;
-    VECTOR2 point = { 1000, 0 };
+    edict_t * unit;
+    vector2_t point = { 1000, 0 };
     float frozen_x, frozen_y;
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
@@ -2872,8 +2872,8 @@ TEST(wc3_combat, attack_ground_ensnare_mid_approach_freezes) {
 /* A point inside minimum range must not cause retreat while locked. */
 TEST(wc3_combat, attack_ground_min_range_no_retreat_while_locked) {
     UnitWeapons_t weapons = { .attacksEnabled = 3, .minimumAttackRange = 150.0f };
-    LPEDICT unit;
-    VECTOR2 point = { 50, 0 };
+    edict_t * unit;
+    vector2_t point = { 50, 0 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     unit->data.UnitWeapons = &weapons;
@@ -2892,8 +2892,8 @@ TEST(wc3_combat, attack_ground_min_range_no_retreat_while_locked) {
 
 /* Movement lock must not disable stationary firing at an in-range point. */
 TEST(wc3_combat, attack_ground_locked_still_fires_in_range) {
-    LPEDICT unit, missile = NULL;
-    VECTOR2 point = { 200, 75 };
+    edict_t * unit, *missile = NULL;
+    vector2_t point = { 200, 75 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
@@ -2916,8 +2916,8 @@ TEST(wc3_combat, attack_ground_locked_still_fires_in_range) {
 
 /* Expiry removes the restriction; the retained order then progresses. */
 TEST(wc3_combat, attack_ground_resumes_after_lock_expiry) {
-    LPEDICT unit;
-    VECTOR2 point = { 1000, 0 };
+    edict_t * unit;
+    vector2_t point = { 1000, 0 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
@@ -2942,8 +2942,8 @@ TEST(wc3_combat, attack_ground_resumes_after_lock_expiry) {
 
 /* Stop and replacement orders stay effective while locked. */
 TEST(wc3_combat, attack_ground_stop_and_replace_while_locked) {
-    LPEDICT unit;
-    VECTOR2 point = { 1000, 0 }, other = { 10, 0 };
+    edict_t * unit;
+    vector2_t point = { 1000, 0 }, other = { 10, 0 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
@@ -2964,8 +2964,8 @@ TEST(wc3_combat, attack_ground_stop_and_replace_while_locked) {
 
 /* Roots lock translation the same way; immobile artillery still fires in range. */
 TEST(wc3_combat, attack_ground_roots_and_immobile_cover) {
-    LPEDICT unit, tower, missile = NULL;
-    VECTOR2 far = { 1000, 0 }, near = { 200, 75 };
+    edict_t * unit, *tower, *missile = NULL;
+    vector2_t far = { 1000, 0 }, near = { 200, 75 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
@@ -2996,8 +2996,8 @@ TEST(wc3_combat, attack_ground_roots_and_immobile_cover) {
 
 /* Scheduler-path coverage: issued point order advances through G_RunEntities. */
 TEST(wc3_combat, attack_ground_issued_order_holds_while_ensnared) {
-    LPEDICT unit;
-    VECTOR2 point = { 1000, 0 };
+    edict_t * unit;
+    vector2_t point = { 1000, 0 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 100, 0);
     unit->s.player = 0;

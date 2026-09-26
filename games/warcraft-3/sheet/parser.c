@@ -1,7 +1,7 @@
 #include "common/common.h"
 #include <ctype.h>
 
-static SHEETHOST sheet_host = { 0 };
+static sheetHost_t sheet_host = { 0 };
 
 bool ParserDone(parser_t *p) {
     return !*p->str || p->error;
@@ -24,7 +24,7 @@ void ParserError(parser_t *p) {
     p->error = true;
 }
 
-void FS_SetSheetHost(SHEETHOST const *host) {
+void FS_SetSheetHost(sheetHost_t const *host) {
     if (host) {
         sheet_host = *host;
     } else {

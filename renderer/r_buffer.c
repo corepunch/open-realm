@@ -17,7 +17,7 @@ struct vshort {
     } \
     return buffer + sizeof(data) / sizeof(*data);
 
-VERTEX *R_AddQuad(VERTEX *buffer, rect_t const * screen, rect_t const * uv, COLOR32 color, float z) {
+vertex_t *R_AddQuad(vertex_t *buffer, rect_t const * screen, rect_t const * uv, color32_t color, float z) {
     struct vshort const data[] = {
         { screen->x, screen->y, z, uv->x, uv->y, color },
         { screen->x+screen->w, screen->y, z, uv->x+uv->w, uv->y, color },
@@ -29,7 +29,7 @@ VERTEX *R_AddQuad(VERTEX *buffer, rect_t const * screen, rect_t const * uv, COLO
     WRITE_VERTICES(buffer, data);
 }
 
-VERTEX *R_AddStrip(VERTEX *buffer, rect_t const * screen, COLOR32 color) {
+vertex_t *R_AddStrip(vertex_t *buffer, rect_t const * screen, color32_t color) {
     struct vshort const data[] = {
         { screen->x, screen->y, 0, 0, 0, color },
         { screen->x+screen->w, screen->y, 0, 0, 0, color },
@@ -40,7 +40,7 @@ VERTEX *R_AddStrip(VERTEX *buffer, rect_t const * screen, COLOR32 color) {
     WRITE_VERTICES(buffer, data);
 }
 
-VERTEX *R_AddWireBox(VERTEX *buffer, LPCBOX3 box, COLOR32 color) {
+vertex_t *R_AddWireBox(vertex_t *buffer, box3_t const * box, color32_t color) {
     struct vshort const data[] = {
         { box->min.x, box->min.y, box->min.z, 0, 0, color },
         { box->max.x, box->min.y, box->min.z, 0, 0, color },
@@ -64,8 +64,8 @@ VERTEX *R_AddWireBox(VERTEX *buffer, LPCBOX3 box, COLOR32 color) {
     WRITE_VERTICES(buffer, data);
 }
 
-LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, uint32_t size) {
-    LPBUFFER buf = ri.MemAlloc(sizeof(BUFFER));
+buffer_t * R_MakeVertexArrayObject(vertex_t const * vertices, uint32_t size) {
+    buffer_t * buf = ri.MemAlloc(sizeof(buffer_t));
 
     memset(buf, 0, sizeof(*buf));
     R_Call(glGenVertexArrays, 1, &buf->vao);
@@ -90,14 +90,14 @@ LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, uint32_t size) {
 
 
     if (vertices) {
-        R_Call(glBufferData, GL_ARRAY_BUFFER, size * sizeof(VERTEX), vertices, GL_STATIC_DRAW);
+        R_Call(glBufferData, GL_ARRAY_BUFFER, size * sizeof(vertex_t), vertices, GL_STATIC_DRAW);
     }
 
     return buf;
 }
 
-LPBUFFER R_MakeIndexedVertexArrayObject(LPCVERTEX vertices, uint32_t num_vertices, uint32_t const *indices, uint32_t num_indices) {
-    LPBUFFER buf = R_MakeVertexArrayObject(vertices, num_vertices);
+buffer_t * R_MakeIndexedVertexArrayObject(vertex_t const * vertices, uint32_t num_vertices, uint32_t const *indices, uint32_t num_indices) {
+    buffer_t * buf = R_MakeVertexArrayObject(vertices, num_vertices);
 
     R_Call(glBindVertexArray, buf->vao);
     R_Call(glGenBuffers, 1, &buf->ibo);
@@ -109,7 +109,7 @@ LPBUFFER R_MakeIndexedVertexArrayObject(LPCVERTEX vertices, uint32_t num_vertice
 /* Static instance transforms are immutable until their ADT window is replaced. */
 static GLuint r_instanced_vao = 0;
 
-bool R_MakeInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, uint32_t count) {
+bool R_MakeInstanceBuffer(instanceBuffer_t * buffer, matrix4_t const * matrices, uint32_t count) {
     if (!buffer || !matrices || !count) return false;
     memset(buffer, 0, sizeof(*buffer));
     R_Call(glGenBuffers, 1, &buffer->vbo);
@@ -121,7 +121,7 @@ bool R_MakeInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, uint32_t
 }
 
 /* Visible static doodads regroup by model each frame; retain their VBO allocation across frames. */
-bool R_UpdateInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, uint32_t count) {
+bool R_UpdateInstanceBuffer(instanceBuffer_t * buffer, matrix4_t const * matrices, uint32_t count) {
     uint32_t capacity;
 
     if (!buffer || !matrices || !count) return false;
@@ -138,14 +138,14 @@ bool R_UpdateInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, uint32
     return true;
 }
 
-void R_ReleaseInstanceBuffer(LPINSTANCEBUFFER buffer) {
+void R_ReleaseInstanceBuffer(instanceBuffer_t * buffer) {
     if (!buffer) return;
     if (buffer->vbo) R_Call(glDeleteBuffers, 1, &buffer->vbo);
     memset(buffer, 0, sizeof(*buffer));
 }
 
 /* Both array and indexed draws share one transient VAO for their persistent instance stream. */
-static bool R_BindInstancedBuffer(LPCBUFFER buffer, LPCINSTANCEBUFFER instances) {
+static bool R_BindInstancedBuffer(buffer_t const * buffer, instanceBuffer_t const * instances) {
     if (!buffer || !instances || !instances->vbo || !instances->count) return false;
     if (!r_instanced_vao) R_Call(glGenVertexArrays, 1, &r_instanced_vao);
     R_Call(glBindVertexArray, r_instanced_vao);
@@ -167,7 +167,7 @@ static bool R_BindInstancedBuffer(LPCBUFFER buffer, LPCINSTANCEBUFFER instances)
     FOR_LOOP(i, 4) {
         R_Call(glEnableVertexAttribArray, attrib_instance + i);
         R_Call(glVertexAttribPointer, attrib_instance + i, 4, GL_FLOAT, GL_FALSE,
-            sizeof(MATRIX4), (void *)(i * 4 * sizeof(float)));
+            sizeof(matrix4_t), (void *)(i * 4 * sizeof(float)));
         R_Call(glVertexAttribDivisor, attrib_instance + i, 1);
     }
     return true;
@@ -176,7 +176,7 @@ static bool R_BindInstancedBuffer(LPCBUFFER buffer, LPCINSTANCEBUFFER instances)
 static void R_ResetInstancedBuffer(void) { FOR_LOOP(i, 4) R_Call(glVertexAttribDivisor, attrib_instance + i, 0); }
 
 /* Draw one subrange from a packed array buffer without manufacturing sequential indices. */
-void R_DrawBufferRange(LPCBUFFER buffer, LPCDRAWRANGE draw) {
+void R_DrawBufferRange(buffer_t const * buffer, drawRange_t const * draw) {
     if (!buffer || !draw || !draw->count) return;
     R_Call(glBindVertexArray, buffer->vao);
     R_StatsDraw(GL_TRIANGLES, draw->count, 1);
@@ -184,7 +184,7 @@ void R_DrawBufferRange(LPCBUFFER buffer, LPCDRAWRANGE draw) {
 }
 
 /* Rebind one model batch and its persistent instance stream to the shared VAO. */
-void R_DrawBufferInstanced(LPCBUFFER buffer, uint32_t num_vertices, LPCINSTANCEBUFFER instances) {
+void R_DrawBufferInstanced(buffer_t const * buffer, uint32_t num_vertices, instanceBuffer_t const * instances) {
     if (!num_vertices || !R_BindInstancedBuffer(buffer, instances)) return;
     R_StatsDraw(GL_TRIANGLES, num_vertices, instances->count);
     R_Call(glDrawArraysInstanced, GL_TRIANGLES, 0, num_vertices, instances->count);
@@ -192,7 +192,7 @@ void R_DrawBufferInstanced(LPCBUFFER buffer, uint32_t num_vertices, LPCINSTANCEB
 }
 
 /* Packed batch-expanded M2 geometry shares one VBO, so submit its vertex subrange without a redundant identity EBO. */
-void R_DrawBufferRangeInstanced(LPCBUFFER buffer, LPCDRAWRANGE draw, LPCINSTANCEBUFFER instances) {
+void R_DrawBufferRangeInstanced(buffer_t const * buffer, drawRange_t const * draw, instanceBuffer_t const * instances) {
     if (!draw || !draw->count || !R_BindInstancedBuffer(buffer, instances)) return;
     R_StatsDraw(GL_TRIANGLES, draw->count, instances->count);
     R_Call(glDrawArraysInstanced, GL_TRIANGLES, draw->first, draw->count, instances->count);
@@ -200,7 +200,7 @@ void R_DrawBufferRangeInstanced(LPCBUFFER buffer, LPCDRAWRANGE draw, LPCINSTANCE
 }
 
 /* M2 sections share model geometry while each visible group keeps its authored index range. */
-void R_DrawIndexedBuffer16Instanced(LPCBUFFER buffer, LPCDRAWELEMENTS draw, LPCINSTANCEBUFFER instances) {
+void R_DrawIndexedBuffer16Instanced(buffer_t const * buffer, drawElements_t const * draw, instanceBuffer_t const * instances) {
     if (!draw || !draw->count || !R_BindInstancedBuffer(buffer, instances)) return;
     R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, buffer->ibo);
     R_StatsDraw(GL_TRIANGLES, draw->count, instances->count);
@@ -209,7 +209,7 @@ void R_DrawIndexedBuffer16Instanced(LPCBUFFER buffer, LPCDRAWELEMENTS draw, LPCI
     R_ResetInstancedBuffer();
 }
 
-void R_DrawIndexedBuffer32Instanced(LPCBUFFER buffer, LPCDRAWELEMENTS draw, LPCINSTANCEBUFFER instances) {
+void R_DrawIndexedBuffer32Instanced(buffer_t const * buffer, drawElements_t const * draw, instanceBuffer_t const * instances) {
     if (!draw || !draw->count || !R_BindInstancedBuffer(buffer, instances)) return;
     R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, buffer->ibo);
     R_StatsDraw(GL_TRIANGLES, draw->count, instances->count);
@@ -226,7 +226,7 @@ void R_ShutdownDrawBufferInstanced(void) {
     }
 }
 
-void R_ReleaseVertexArrayObject(LPBUFFER buffer) {
+void R_ReleaseVertexArrayObject(buffer_t * buffer) {
     if (!buffer) {
         return;
     }

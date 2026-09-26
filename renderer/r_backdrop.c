@@ -59,10 +59,10 @@ static rect_t backdrop_edge_uv(BACKDROPCORNER c, float tile, int idx, bool wow) 
     return (rect_t){ idx * k, 0, k, tile };
 }
 
-void R_DrawBackdrop(LPCDRAWBACKDROP db) {
+void R_DrawBackdrop(drawBackdrop_t const * db) {
     rect_t rects[BACKDROP_SIZE];
     rect_t background;
-    VERTEX vertices[(1 + NUM_BACKDROP_CORNERS) * 6];
+    vertex_t vertices[(1 + NUM_BACKDROP_CORNERS) * 6];
     uint32_t num_vertices;
     BACKDROPCORNER const corners[NUM_BACKDROP_CORNERS] = {
         BACKDROP_LEFT_EDGE,
@@ -146,7 +146,7 @@ void R_DrawBackdrop(LPCDRAWBACKDROP db) {
             if (tile > 1.0f) edge_repeat = true;
             R_AddQuad(vertices + num_vertices, rects + c, &uv, db->edge.color, 0);
             if (flip) {
-                VECTOR2 tmp = vertices[num_vertices + 1].texcoord;
+                vector2_t tmp = vertices[num_vertices + 1].texcoord;
                 vertices[num_vertices + 1].texcoord = vertices[num_vertices + 5].texcoord;
                 vertices[num_vertices + 5].texcoord = tmp;
             }

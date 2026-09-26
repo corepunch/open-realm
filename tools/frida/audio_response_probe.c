@@ -2,18 +2,18 @@
  * The fixture supplies authored data; no client acknowledgement is
  * synthesized. A queued request has not yet been admitted or started. */
 #include "games/warcraft-3/game/g_local.h"
-intptr_t CAbilityAttack(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call);
-intptr_t S_AbilityMessage(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call);
+intptr_t CAbilityAttack(edict_t * ent, abilityMsg_t msg, abilityCall_t const *call);
+intptr_t S_AbilityMessage(edict_t * ent, abilityMsg_t msg, abilityCall_t const *call);
 #include "games/warcraft-3/game/g_commands.c"
 struct game_import gi;
 struct game_export globals;
-LPGAMECLIENT G_GetPlayerClientByNumber(uint32_t player) { return NULL; }
+gameClient_t * G_GetPlayerClientByNumber(uint32_t player) { return NULL; }
 uint32_t G_UnitAckSoundVariantCount(cstring_t label, cstring_t suffix) { return 0; }
 int G_UnitAckSoundVariantIndex(cstring_t label, cstring_t suffix, uint32_t variant) { return 0; }
 void G_AcceptSoundVariant(int index, uint32_t owner) {}
 bool G_SoundVariantIsLast(int index, uint32_t owner) { return false; }
 int G_UISoundIndex(cstring_t alias) { return 0; }
-cstring_t Theme_PlayerString(LPGAMECLIENT client, cstring_t key, cstring_t section) { return NULL; }
+cstring_t Theme_PlayerString(gameClient_t * client, cstring_t key, cstring_t section) { return NULL; }
 int main(void) {
     edict_t unit = {0};
     unit.s.number = 24; unit.s.player = 0; unit.spawn_time = 1;

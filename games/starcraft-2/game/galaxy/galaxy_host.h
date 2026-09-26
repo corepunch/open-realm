@@ -9,28 +9,28 @@ void galaxy_set_script_dir(cstring_t dir);
 
 /* galaxy_open — set up JASSHOST, load MapScript (includes TriggerLibs via its
  * own include directives), return VM.  Returns NULL on load failure. */
-LPJASS galaxy_open(handle_t (*readfile)(cstring_t, uint32_t *),
+jass_t * galaxy_open(handle_t (*readfile)(cstring_t, uint32_t *),
                    uint32_t  (*gettime)(void),
                    handle_t (*memalloc)(long),
                    void   (*memfree)(handle_t));
 
 /* galaxy_start — initialize map globals, then register map triggers. Library initialization remains diagnosed. */
-void galaxy_start(LPJASS vm);
+void galaxy_start(jass_t * vm);
 
 /* galaxy_fire_mapinit — fire the MapInit event; call after galaxy_start(). */
-void galaxy_fire_mapinit(LPJASS vm);
+void galaxy_fire_mapinit(jass_t * vm);
 
 /* galaxy_tick — pump pending coroutines; call once per server frame. */
-void galaxy_tick(LPJASS vm);
+void galaxy_tick(jass_t * vm);
 
 /* galaxy_close — destroy VM and reset all tables. */
-void galaxy_close(LPJASS vm);
+void galaxy_close(jass_t * vm);
 
 /* galaxy_reset — reset trigger/unit/point/camera tables without closing VM. */
 void galaxy_reset(void);
 
 /* galaxy_get_natives — return the SC2 native function table for JASSHOST. */
-LPCJASSMODULE galaxy_get_natives(void);
+jassModule_t const * galaxy_get_natives(void);
 
 /* -------------------------------------------------------------------------
  * Callbacks from Galaxy natives into g_sc2.c.
@@ -54,7 +54,7 @@ extern cstring_t (*sc2_galaxy_conversation_field)(cstring_t key, cstring_t field
 extern float (*sc2_galaxy_sound_length)(cstring_t sound_id, int asset);
 extern void (*sc2_galaxy_on_sound)(cstring_t sound_id, int asset);
 
-/* UnitCreate returns LPEDICT cast to void*, or NULL. Host headings are radians; native APIs decode degrees. */
+/* UnitCreate returns edict_t * cast to void*, *or NULL. Host headings are radians; native APIs decode degrees. */
 extern void *(*sc2_galaxy_on_unit_create)(cstring_t unit_type, int player,
                                           float x, float y, float angle);
 

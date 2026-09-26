@@ -5,19 +5,19 @@
 #include "../menu_local.h"
 
 typedef struct CinematicPanel_s {
-    LPFRAMEDEF CinematicPanel;
-    LPFRAMEDEF CinematicBottomBorder;
-    LPFRAMEDEF CinematicScenePanel;
-    LPFRAMEDEF CinematicPortraitBackground;
-    LPFRAMEDEF CinematicPortrait;
-    LPFRAMEDEF CinematicPortraitCover;
-    LPFRAMEDEF CinematicSpeakerText;
-    LPFRAMEDEF CinematicDialogueText;
-    LPFRAMEDEF CinematicTopBorder;
+    frameDef_t * CinematicPanel;
+    frameDef_t * CinematicBottomBorder;
+    frameDef_t * CinematicScenePanel;
+    frameDef_t * CinematicPortraitBackground;
+    frameDef_t * CinematicPortrait;
+    frameDef_t * CinematicPortraitCover;
+    frameDef_t * CinematicSpeakerText;
+    frameDef_t * CinematicDialogueText;
+    frameDef_t * CinematicTopBorder;
 } CinematicPanel_t;
 
 
-static inline bool CinematicPanel_Bind(CinematicPanel_t *out, LPFRAMEDEF bind_root) {
+static inline bool CinematicPanel_Bind(CinematicPanel_t *out, frameDef_t * bind_root) {
     bool ok = true;
     if (!out) {
         return false;

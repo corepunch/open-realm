@@ -5,19 +5,19 @@
 #include "../g_local.h"
 
 typedef struct GameResultDialog_s {
-    LPFRAMEDEF GameResultDialog;
-    LPFRAMEDEF GameResultBackdrop;
-    LPFRAMEDEF GameResultText;
-    LPFRAMEDEF GameResultContinueButton;
-    LPFRAMEDEF GameResultContinueButtonText;
-    LPFRAMEDEF GameResultRestartButton;
-    LPFRAMEDEF GameResultRestartButtonText;
-    LPFRAMEDEF GameResultQuitButton;
-    LPFRAMEDEF GameResultQuitButtonText;
+    frameDef_t * GameResultDialog;
+    frameDef_t * GameResultBackdrop;
+    frameDef_t * GameResultText;
+    frameDef_t * GameResultContinueButton;
+    frameDef_t * GameResultContinueButtonText;
+    frameDef_t * GameResultRestartButton;
+    frameDef_t * GameResultRestartButtonText;
+    frameDef_t * GameResultQuitButton;
+    frameDef_t * GameResultQuitButtonText;
 } GameResultDialog_t;
 
 
-static inline bool GameResultDialog_Bind(GameResultDialog_t *out, LPFRAMEDEF bind_root) {
+static inline bool GameResultDialog_Bind(GameResultDialog_t *out, frameDef_t * bind_root) {
     bool ok = true;
     if (!out) {
         return false;

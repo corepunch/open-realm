@@ -18,15 +18,15 @@ struct tBLP2Header {
     uint32_t    height;
     uint32_t    offsets[16];
     uint32_t    lengths[16];
-    COLOR32 palette[256];   // 256 BGRA colors
+    color32_t palette[256];   // 256 BGRA colors
 };
 
-LPCOLOR32 blp2_convert_paletted_no_alpha(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height);
-LPCOLOR32 blp2_convert_paletted_alpha1(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height);
-LPCOLOR32 blp2_convert_paletted_alpha4(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height);
-LPCOLOR32 blp2_convert_paletted_alpha8(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height);
-LPCOLOR32 blp2_convert_raw_bgra(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height);
-LPCOLOR32 blp2_convert_dxt(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height, int flags);
+color32_t * blp2_convert_paletted_no_alpha(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height);
+color32_t * blp2_convert_paletted_alpha1(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height);
+color32_t * blp2_convert_paletted_alpha4(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height);
+color32_t * blp2_convert_paletted_alpha8(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height);
+color32_t * blp2_convert_raw_bgra(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height);
+color32_t * blp2_convert_dxt(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height, int flags);
 
 uint32_t blp2_width(struct tBLP2Header* pBLPInfos, uint32_t mipLevel) {
     // Check the mip level
@@ -60,7 +60,7 @@ enum tBLPFormat blp2_format(struct tBLP2Header* pBLPInfos) {
     return (pBLPInfos->encoding << 16) | (pBLPInfos->alphaDepth << 8) | pBLPInfos->alphaEncoding;
 }
 
-LPCOLOR32 blp2_convert(handle_t buffer, uint32_t filesize, struct tBLP2Header* pBLPInfos, uint32_t mipLevel) {
+color32_t * blp2_convert(handle_t buffer, uint32_t filesize, struct tBLP2Header* pBLPInfos, uint32_t mipLevel) {
     // Check the mip level
     if (mipLevel >= pBLPInfos->nbMipLevels)
         mipLevel = pBLPInfos->nbMipLevels - 1;
@@ -68,7 +68,7 @@ LPCOLOR32 blp2_convert(handle_t buffer, uint32_t filesize, struct tBLP2Header* p
     // Declarations
     uint32_t width  = blp2_width(pBLPInfos, mipLevel);
     uint32_t height = blp2_height(pBLPInfos, mipLevel);
-    LPCOLOR32 pDst = 0;
+    color32_t * pDst = 0;
     uint32_t offset = pBLPInfos->offsets[mipLevel];
     uint32_t size   = pBLPInfos->lengths[mipLevel];
     uint8_t *pSrc = ri.MemAlloc(size);
@@ -118,7 +118,7 @@ LPCOLOR32 blp2_convert(handle_t buffer, uint32_t filesize, struct tBLP2Header* p
 }
 
 
-LPTEXTURE R_LoadTextureBLP2(handle_t data, uint32_t filesize) {
+texture_t * R_LoadTextureBLP2(handle_t data, uint32_t filesize) {
     struct tBLP2Header* pBLPInfos = ri.MemAlloc(sizeof(struct tBLP2Header));
     uint8_t hasMipLevels;
     memcpy(pBLPInfos, data, sizeof(struct tBLP2Header));
@@ -133,22 +133,22 @@ LPTEXTURE R_LoadTextureBLP2(handle_t data, uint32_t filesize) {
             ++pBLPInfos->nbMipLevels;
         }
     }
-    LPTEXTURE pTexture = R_AllocateTexture(blp2_width(pBLPInfos, 0), blp2_height(pBLPInfos, 0));
+    texture_t * pTexture = R_AllocateTexture(blp2_width(pBLPInfos, 0), blp2_height(pBLPInfos, 0));
     FOR_LOOP(level, blp2_nbMipLevels(pBLPInfos)) {
         uint32_t const width = blp2_width(pBLPInfos, level);
         uint32_t const height = blp2_height(pBLPInfos, level);
-        LPCOLOR32 pPixels = blp2_convert(data, filesize, pBLPInfos, level);
+        color32_t * pPixels = blp2_convert(data, filesize, pBLPInfos, level);
         if (pPixels) {
-            R_LoadTextureMipLevel(pTexture, &(TEXMIP){ pPixels, width, height, level, PIXEL_BGRA });
+            R_LoadTextureMipLevel(pTexture, &(texMip_t){ pPixels, width, height, level, PIXEL_BGRA });
             ri.MemFree(pPixels);
         }
     }
     return pTexture;
 }
 
-LPCOLOR32 blp2_convert_paletted_alpha8(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height) {
-    LPCOLOR32 pBuffer = ri.MemAlloc(sizeof(COLOR32) * width * height);
-    LPCOLOR32 pDst = pBuffer;
+color32_t * blp2_convert_paletted_alpha8(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height) {
+    color32_t * pBuffer = ri.MemAlloc(sizeof(color32_t) * width * height);
+    color32_t * pDst = pBuffer;
     uint8_t* pIndices = pSrc;
     uint8_t* pAlpha = pSrc + width * height;
     FOR_LOOP(y, height) {
@@ -163,9 +163,9 @@ LPCOLOR32 blp2_convert_paletted_alpha8(uint8_t* pSrc, struct tBLP2Header* pHeade
     return pBuffer;
 }
 
-LPCOLOR32 blp2_convert_paletted_no_alpha(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height) {
-    LPCOLOR32 pBuffer = ri.MemAlloc(sizeof(COLOR32) * width * height);
-    LPCOLOR32 pDst = pBuffer;
+color32_t * blp2_convert_paletted_no_alpha(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height) {
+    color32_t * pBuffer = ri.MemAlloc(sizeof(color32_t) * width * height);
+    color32_t * pDst = pBuffer;
     FOR_LOOP(y, height) {
         FOR_LOOP(x, width) {
             *pDst = pHeader->palette[*pSrc];
@@ -177,9 +177,9 @@ LPCOLOR32 blp2_convert_paletted_no_alpha(uint8_t* pSrc, struct tBLP2Header* pHea
     return pBuffer;
 }
 
-LPCOLOR32 blp2_convert_paletted_alpha1(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height) {
-    LPCOLOR32 pBuffer = ri.MemAlloc(sizeof(COLOR32) * width * height);
-    LPCOLOR32 pDst = pBuffer;
+color32_t * blp2_convert_paletted_alpha1(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height) {
+    color32_t * pBuffer = ri.MemAlloc(sizeof(color32_t) * width * height);
+    color32_t * pDst = pBuffer;
     uint8_t* pIndices = pSrc;
     uint8_t* pAlpha = pSrc + width * height;
     uint8_t counter = 0;
@@ -200,9 +200,9 @@ LPCOLOR32 blp2_convert_paletted_alpha1(uint8_t* pSrc, struct tBLP2Header* pHeade
     return pBuffer;
 }
 
-LPCOLOR32 blp2_convert_paletted_alpha4(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height) {
-    LPCOLOR32 pBuffer = ri.MemAlloc(sizeof(COLOR32) * width * height);
-    LPCOLOR32 pDst = pBuffer;
+color32_t * blp2_convert_paletted_alpha4(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height) {
+    color32_t * pBuffer = ri.MemAlloc(sizeof(color32_t) * width * height);
+    color32_t * pDst = pBuffer;
     uint8_t* pIndices = pSrc;
     uint8_t* pAlpha = pSrc + width * height;
     uint8_t counter = 0;
@@ -225,47 +225,47 @@ LPCOLOR32 blp2_convert_paletted_alpha4(uint8_t* pSrc, struct tBLP2Header* pHeade
     return pBuffer;
 }
 
-static COLOR32 blp2_dxt_color(uint16_t color, uint8_t alpha) {
+static color32_t blp2_dxt_color(uint16_t color, uint8_t alpha) {
     uint8_t r = (uint8_t)(((color >> 11) & 0x1f) * 255 / 31);
     uint8_t g = (uint8_t)(((color >> 5) & 0x3f) * 255 / 63);
     uint8_t b = (uint8_t)((color & 0x1f) * 255 / 31);
-    return (COLOR32){ b, g, r, alpha };
+    return (color32_t){ b, g, r, alpha };
 }
 
-static void blp2_dxt_write_pixel(LPCOLOR32 pixels, uint32_t width, uint32_t height, uint32_t x, uint32_t y, COLOR32 color) {
+static void blp2_dxt_write_pixel(color32_t * pixels, uint32_t width, uint32_t height, uint32_t x, uint32_t y, color32_t color) {
     if (x >= width || y >= height) {
         return;
     }
     pixels[y * width + x] = color;
 }
 
-static void blp2_dxt_decode_color_block(uint8_t const *block, COLOR32 colors[4], bool four_color) {
+static void blp2_dxt_decode_color_block(uint8_t const *block, color32_t colors[4], bool four_color) {
     uint16_t c0 = (uint16_t)(block[0] | (block[1] << 8));
     uint16_t c1 = (uint16_t)(block[2] | (block[3] << 8));
     colors[0] = blp2_dxt_color(c0, 255);
     colors[1] = blp2_dxt_color(c1, 255);
 
     if (four_color || c0 > c1) {
-        colors[2] = (COLOR32){
+        colors[2] = (color32_t){
             (uint8_t)((2 * colors[0].r + colors[1].r) / 3),
             (uint8_t)((2 * colors[0].g + colors[1].g) / 3),
             (uint8_t)((2 * colors[0].b + colors[1].b) / 3),
             255
         };
-        colors[3] = (COLOR32){
+        colors[3] = (color32_t){
             (uint8_t)((colors[0].r + 2 * colors[1].r) / 3),
             (uint8_t)((colors[0].g + 2 * colors[1].g) / 3),
             (uint8_t)((colors[0].b + 2 * colors[1].b) / 3),
             255
         };
     } else {
-        colors[2] = (COLOR32){
+        colors[2] = (color32_t){
             (uint8_t)((colors[0].r + colors[1].r) / 2),
             (uint8_t)((colors[0].g + colors[1].g) / 2),
             (uint8_t)((colors[0].b + colors[1].b) / 2),
             255
         };
-        colors[3] = (COLOR32){ 0, 0, 0, 0 };
+        colors[3] = (color32_t){ 0, 0, 0, 0 };
     }
 }
 
@@ -304,15 +304,15 @@ static void blp2_dxt_decode_alpha_dxt5(uint8_t const *block, uint8_t alpha[16]) 
     }
 }
 
-LPCOLOR32 blp2_convert_raw_bgra(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height) {
+color32_t * blp2_convert_raw_bgra(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height) {
     (void)pHeader;
-    LPCOLOR32 pBuffer = ri.MemAlloc(sizeof(COLOR32) * width * height);
-    memcpy(pBuffer, pSrc, sizeof(COLOR32) * width * height);
+    color32_t * pBuffer = ri.MemAlloc(sizeof(color32_t) * width * height);
+    memcpy(pBuffer, pSrc, sizeof(color32_t) * width * height);
     return pBuffer;
 }
 
-LPCOLOR32 blp2_convert_dxt(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height, int format) {
-    LPCOLOR32 pixels = ri.MemAlloc(sizeof(COLOR32) * width * height);
+color32_t * blp2_convert_dxt(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t width, uint32_t height, int format) {
+    color32_t * pixels = ri.MemAlloc(sizeof(color32_t) * width * height);
     uint32_t blocks_x = (width + 3) / 4;
     uint32_t blocks_y = (height + 3) / 4;
     uint8_t const *src = pSrc;
@@ -321,7 +321,7 @@ LPCOLOR32 blp2_convert_dxt(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t 
     FOR_LOOP(by, blocks_y) {
         FOR_LOOP(bx, blocks_x) {
             uint8_t alpha[16];
-            COLOR32 colors[4];
+            color32_t colors[4];
             uint8_t const *color_block;
             uint32_t indices;
 
@@ -348,7 +348,7 @@ LPCOLOR32 blp2_convert_dxt(uint8_t* pSrc, struct tBLP2Header* pHeader, uint32_t 
             FOR_LOOP(py, 4) {
                 FOR_LOOP(px, 4) {
                     uint32_t i = py * 4 + px;
-                    COLOR32 color = colors[(indices >> (2 * i)) & 3];
+                    color32_t color = colors[(indices >> (2 * i)) & 3];
                     if (format != 1) {
                         color.a = alpha[i];
                     }

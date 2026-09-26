@@ -5,7 +5,7 @@
 #define PLAYERSTATE_RESOURCE_FOOD_CAP 4
 #define PLAYERSTATE_RESOURCE_FOOD_USED 5
 
-static UIFRAME frames[MAX_LAYOUT_OBJECTS];
+static uiFrame_t frames[MAX_LAYOUT_OBJECTS];
 static uint32_t num_frames = 0;
 static uint32_t layout_runtime_layer = MAX_LAYOUT_LAYERS;
 
@@ -19,15 +19,15 @@ struct {
  * point and UIFLAG_EXTEND_WIDESCREEN_X frames reach the full scene regardless of the root. */
 rect_t SCR_LayoutSceneRect(void) { return CL_Canvas()->root; }
 
-VECTOR2 get_x(rect_t const * rect) {
-    return (VECTOR2) { rect->x, rect->x + rect->w };
+vector2_t get_x(rect_t const * rect) {
+    return (vector2_t) { rect->x, rect->x + rect->w };
 }
 
-VECTOR2 get_y(rect_t const * rect) {
-    return (VECTOR2) { rect->y, rect->y + rect->h };
+vector2_t get_y(rect_t const * rect) {
+    return (vector2_t) { rect->y, rect->y + rect->h };
 }
 
-VECTOR2 SCR_GetAxisBounds(rect_t const * rect, bool is_x_axis) {
+vector2_t SCR_GetAxisBounds(rect_t const * rect, bool is_x_axis) {
     return is_x_axis ? get_x(rect) : get_y(rect);
 }
 
@@ -36,7 +36,7 @@ float SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis) {
     return offset / UI_FRAMEPOINT_SCALE;
 }
 
-rect_t const * SCR_LayoutRectByNumber(LPCUIFRAME context, uint32_t number) {
+rect_t const * SCR_LayoutRectByNumber(uiFrame_t const * context, uint32_t number) {
     if (number == UI_PARENT) {
         return SCR_LayoutRect(frames+context->parent);
     } else {
@@ -44,12 +44,12 @@ rect_t const * SCR_LayoutRectByNumber(LPCUIFRAME context, uint32_t number) {
     }
 }
 
-float SCR_GetAnchor(LPCUIFRAME f,
+float SCR_GetAnchor(uiFrame_t const * f,
                     uiFramePoint_t const *p,
-                    VECTOR2 (*get)(rect_t const *))
+                    vector2_t (*get)(rect_t const *))
 {
     bool const is_x_axis = (get == get_x);
-    VECTOR2 b = SCR_GetAxisBounds(SCR_LayoutRectByNumber(f, p->relativeTo), is_x_axis);
+    vector2_t b = SCR_GetAxisBounds(SCR_LayoutRectByNumber(f, p->relativeTo), is_x_axis);
     float offset = SCR_NormalizeAnchorOffset(p, is_x_axis);
     if (p->targetPos == FPP_MID) {
         return (b.x + b.y) / 2 + offset;
@@ -60,7 +60,7 @@ float SCR_GetAnchor(LPCUIFRAME f,
     }
 }
 
-VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
+vector2_t SCR_SolveAxisPosition(uiFrame_t const * frame,
                               uiFramePoints_t const points,
                               float width,
                               bool is_x_axis,
@@ -69,7 +69,7 @@ VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
     uiFramePoint_t const *pmin = points + FPP_MIN;
     uiFramePoint_t const *pmid = points + FPP_MID;
     uiFramePoint_t const *pmax = points + FPP_MAX;
-    VECTOR2 (*get)(rect_t const *) = is_x_axis ? get_x : get_y;
+    vector2_t (*get)(rect_t const *) = is_x_axis ? get_x : get_y;
 
     /* Warcraft preserves an authored Width/Height when both opposing anchors
      * exist.  Horizontal layout is left/min anchored; vertical layout is
@@ -77,61 +77,61 @@ VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
      * Only an auto-sized axis stretches between min and max. */
     if (assigned_size && pmin->used && pmax->used) {
         if (is_x_axis) {
-            return (VECTOR2) {
+            return (vector2_t) {
                 SCR_GetAnchor(frame, pmin, get),
                 width,
             };
         }
-        return (VECTOR2) {
+        return (vector2_t) {
             SCR_GetAnchor(frame, pmax, get) - width,
             width,
         };
     }
 
     if (pmid->used) {
-        return (VECTOR2) {
+        return (vector2_t) {
             SCR_GetAnchor(frame, pmid, get) - width / 2,
             width,
         };
     } else if (pmin->used && pmax->used) {
         float anchor_min = SCR_GetAnchor(frame, pmin, get);
         float anchor_max = SCR_GetAnchor(frame, pmax, get);
-        return (VECTOR2) {
+        return (vector2_t) {
             anchor_min,
             anchor_max - anchor_min,
         };
     } else if (pmax->used) {
-        return (VECTOR2) {
+        return (vector2_t) {
             SCR_GetAnchor(frame, pmax, get) - width,
             width,
         };
     } else {
-        return (VECTOR2) {
+        return (vector2_t) {
             SCR_GetAnchor(frame, pmin, get),
             width,
         };
     }
 }
 
-VECTOR2 get_position(LPCUIFRAME frame,
+vector2_t get_position(uiFrame_t const * frame,
                      uiFramePoints_t const p,
                      float width,
-                     VECTOR2 (*get)(rect_t const *),
+                     vector2_t (*get)(rect_t const *),
                      bool assigned_size)
 {
     return SCR_SolveAxisPosition(frame, p, width, get == get_x, assigned_size);
 }
 
-static VECTOR2 SCR_MeasureSizeToContent(LPCUIFRAME f, float avl) {
+static vector2_t SCR_MeasureSizeToContent(uiFrame_t const * f, float avl) {
     uiNameTag_t const *t = f->buffer.data;
     drawText_t d = SCR_GetDrawText(f, avl, SCR_GetStringValue(f), &t->text);
-    VECTOR2 s = re.GetTextSize(&d);
-    return (VECTOR2){ MAX(t->min_width, s.x + t->padding_x * 2), s.y + t->padding_y * 2 };
+    vector2_t s = re.GetTextSize(&d);
+    return (vector2_t){ MAX(t->min_width, s.x + t->padding_x * 2), s.y + t->padding_y * 2 };
 }
 
 /* Context bindings read only recipient-filtered snapshot state already present on the client. */
-LPCENTITYSTATE SCR_LayoutContextEntity(void) {
-    LPCENTITYSTATE ent;
+entityState_t const * SCR_LayoutContextEntity(void) {
+    entityState_t const * ent;
 
     if (!cl.hover_entity || cl.hover_entity >= MAX_CLIENT_ENTITIES) return NULL;
     ent = &cl.ents[cl.hover_entity].current;
@@ -144,7 +144,7 @@ bool SCR_LayoutEntityContextActive(void) {
 }
 
 bool SCR_LayoutContextValue(uint32_t stat, float * value) {
-    LPCENTITYSTATE ent;
+    entityState_t const * ent;
 
     if (!value) return false;
     if (stat == UI_STAT_LOADING_PROGRESS) {
@@ -177,8 +177,8 @@ bool SCR_LayoutContextValue(uint32_t stat, float * value) {
 /* Context-bound presentation occupies no layout space when that capability is absent.
  * Keep zero mana visible when the mana capability exists, and keep segmented cargo
  * visible for an empty holder as long as its authored capacity is nonzero. */
-bool SCR_LayoutContextFrameVisible(LPCUIFRAME frame) {
-    LPCENTITYSTATE ent;
+bool SCR_LayoutContextFrameVisible(uiFrame_t const * frame) {
+    entityState_t const * ent;
     float value;
 
     if (!frame) return false;
@@ -197,7 +197,7 @@ bool SCR_LayoutContextFrameVisible(LPCUIFRAME frame) {
     return ent && frame->stat < ENT_STAT_COUNT && EntityCargoCapacity(ent->stats[frame->stat]) > 0;
 }
 
-cstring_t SCR_GetStringValue(LPCUIFRAME frame) {
+cstring_t SCR_GetStringValue(uiFrame_t const * frame) {
     static char text[1024] = { 0 };
     cstring_t edit_text = CL_WindowEditTextValue(frame ? frame->number : 0);
 
@@ -218,7 +218,7 @@ cstring_t SCR_GetStringValue(LPCUIFRAME frame) {
         }
         return text;
     } else if (SCR_LayoutEntityContextActive() && frame->stat == UI_STAT_CONTEXT_NAME) {
-        LPCENTITYSTATE ent = SCR_LayoutContextEntity();
+        entityState_t const * ent = SCR_LayoutContextEntity();
         cstring_t name;
         uint32_t ni, cs_index;
 
@@ -259,7 +259,7 @@ cstring_t SCR_GetStringValue(LPCUIFRAME frame) {
     return text;
 }
 
-static cstring_t SCR_GetTimeOfDayValue(LPCUIFRAME frame) {
+static cstring_t SCR_GetTimeOfDayValue(uiFrame_t const * frame) {
     static char text[16];
     uint32_t day_minutes, total_minutes;
     uint64_t scaled;
@@ -281,7 +281,7 @@ static cstring_t SCR_GetTimeOfDayValue(LPCUIFRAME frame) {
     return text;
 }
 
-cstring_t SCR_GetTooltipText(LPCUIFRAME frame) {
+cstring_t SCR_GetTooltipText(uiFrame_t const * frame) {
     static char text[2048];
     cstring_t src, token, value, suffix;
     size_t prefix;
@@ -305,20 +305,20 @@ cstring_t SCR_GetTooltipText(LPCUIFRAME frame) {
     return text;
 }
 
-drawText_t SCR_GetDrawText(LPCUIFRAME frame,
+drawText_t SCR_GetDrawText(uiFrame_t const * frame,
                       float avl_width,
                       cstring_t text,
                       uiLabel_t const *label)
 {
-    LPCFONT font = cl.fonts[label->font];
-    COLOR32 color = frame->color;
+    font_t const * font = cl.fonts[label->font];
+    color32_t color = frame->color;
 
     /* FDF edit boxes own their text presentation. The STRING/TEXT child is
      * the editable value carrier, but its standalone label style may be empty
      * or transparent because retail rendering takes the font/text color from
      * the parent edit control. Mirror that contract for transient windows. */
     if (frame->parent < SCR_NumFrames()) {
-        LPCUIFRAME parent = SCR_Frame(frame->parent);
+        uiFrame_t const * parent = SCR_Frame(frame->parent);
         if (parent && (parent->flags.type == FT_EDITBOX ||
                        parent->flags.type == FT_GLUEEDITBOX ||
                        parent->flags.type == FT_SLASHCHATBOX) &&
@@ -340,7 +340,7 @@ drawText_t SCR_GetDrawText(LPCUIFRAME frame,
                 .textWidth = avl_width);
 }
 
-rect_t const * SCR_LayoutRect(LPCUIFRAME frame) {
+rect_t const * SCR_LayoutRect(uiFrame_t const * frame) {
     bool const assigned_width = frame->size.width > 0;
     bool const assigned_height = frame->size.height > 0;
     if (runtimes[frame->number].calculated) {
@@ -349,14 +349,14 @@ rect_t const * SCR_LayoutRect(LPCUIFRAME frame) {
         runtimes[frame->number].calculated = true; // done here to avoid recursion
     }
     if (!SCR_LayoutContextFrameVisible(frame)) {
-        VECTOR2 const rect[] = {
+        vector2_t const rect[] = {
             get_position(frame, frame->points.x, 0.0f, get_x, assigned_width),
             get_position(frame, frame->points.y, 0.0f, get_y, assigned_height),
         };
         runtimes[frame->number].rect = MAKE(rect_t, rect[0].x, rect[1].x, 0.0f, 0.0f);
         return &runtimes[frame->number].rect;
     }
-    VECTOR2 elemsize = {0};
+    vector2_t elemsize = {0};
     float avl_space = runtimes[0].rect.w;
     drawText_t drawtext = {0};
     switch (frame->flags.type) {
@@ -376,7 +376,7 @@ rect_t const * SCR_LayoutRect(LPCUIFRAME frame) {
             elemsize = re.GetTextSize(&drawtext);
             if (frame->size.width == 0 && frame->textLength > 0) {
                 drawText_t space = SCR_GetDrawText(frame, avl_space, " ", label);
-                VECTOR2 const space_size = re.GetTextSize(&space);
+                vector2_t const space_size = re.GetTextSize(&space);
                 elemsize.x = (float)frame->textLength * space_size.x;
             }
             break;
@@ -421,12 +421,12 @@ rect_t const * SCR_LayoutRect(LPCUIFRAME frame) {
     }
     /* Measured size is ignored on a fully min+max-anchored axis; the frame stretches. */
     if (frame->size.width == 0 && !(frame->points.x[FPP_MIN].used && frame->points.x[FPP_MAX].used)) {
-        ((LPUIFRAME )frame)->size.width = elemsize.x;
+        ((uiFrame_t * )frame)->size.width = elemsize.x;
     }
     if (frame->size.height == 0 && !(frame->points.y[FPP_MIN].used && frame->points.y[FPP_MAX].used)) {
-        ((LPUIFRAME )frame)->size.height = elemsize.y;
+        ((uiFrame_t * )frame)->size.height = elemsize.y;
     }
-    VECTOR2 const rect[] = {
+    vector2_t const rect[] = {
         get_position(frame, frame->points.x, frame->size.width, get_x, assigned_width),
         get_position(frame, frame->points.y, frame->size.height, get_y, assigned_height),
     };
@@ -449,7 +449,7 @@ rect_t const * SCR_LayoutRect(LPCUIFRAME frame) {
  * before runtimes[] are populated — never reads runtimes[]. */
 static float scr_frame_abs_y(uint32_t idx) {
     if (idx == 0 || idx >= num_frames) return 0;
-    LPCUIFRAME f = &frames[idx];
+    uiFrame_t const * f = &frames[idx];
     uiFramePoint_t const *pmin_y = &f->points.y[FPP_MIN];
     if (!pmin_y->used) return 0;
     uint32_t rel = pmin_y->relativeTo;
@@ -469,7 +469,7 @@ static float scr_frame_abs_y(uint32_t idx) {
  * and only pmax_y set, infer height from the max y-extent of all descendants. */
 static void SCR_InferContainerHeights(void) {
     for (uint32_t p = num_frames; p-- > 1; ) {
-        LPCUIFRAME f = &frames[p];
+        uiFrame_t const * f = &frames[p];
         if (f->size.height > 0) continue;
         if (f->flags.type != FT_FRAME) continue;
         if (f->points.y[FPP_MIN].used || f->points.y[FPP_MID].used) continue;
@@ -491,11 +491,11 @@ static void SCR_InferContainerHeights(void) {
             if (extent > max_extent) max_extent = extent;
         }
         if (max_extent > 0)
-            ((LPUIFRAME)f)->size.height = max_extent;
+            ((uiFrame_t *)f)->size.height = max_extent;
     }
 }
 
-LPCUIFRAME SCR_ClearLayer(handle_t data, uint32_t layer) {
+uiFrame_t const * SCR_ClearLayer(handle_t data, uint32_t layer) {
     uint32_t layout_size = 0;
     uint8_t * layout_data = (uint8_t *)data;
 
@@ -533,7 +533,7 @@ LPCUIFRAME SCR_ClearLayer(handle_t data, uint32_t layer) {
         if (nument >= MAX_LAYOUT_OBJECTS) {
             break;
         }
-        LPUIFRAME ent = &frames[nument];
+        uiFrame_t * ent = &frames[nument];
         ent->tex.coord[1] = 0xff;
         ent->tex.coord[3] = 0xff;
         MSG_ReadDeltaUIFrame(&msg, ent, nument, bits);
@@ -553,12 +553,12 @@ LPCUIFRAME SCR_ClearLayer(handle_t data, uint32_t layer) {
     return frames;
 }
 
-LPCUIFRAME SCR_Clear(handle_t data) {
+uiFrame_t const * SCR_Clear(handle_t data) {
     return SCR_ClearLayer(data, MAX_LAYOUT_LAYERS);
 }
 
 /* Window packets keep frame text in one trailing arena and encode frame string fields as uint32_t offsets. */
-LPCUIFRAME SCR_ClearWindow(handle_t data) {
+uiFrame_t const * SCR_ClearWindow(handle_t data) {
     uint32_t layout_size = 0, text_size, frame_end;
     uint8_t * layout_data = data;
     sizeBuf_t msg, scan;
@@ -570,7 +570,7 @@ LPCUIFRAME SCR_ClearWindow(handle_t data) {
     msg = MAKE(sizeBuf_t, .data = layout_data + sizeof(layout_size), .cursize = layout_size);
     scan = msg;
     while (scan.readcount + sizeof(uint32_t) + sizeof(uint16_t) <= scan.cursize) {
-        UIFRAME ent = { 0 };
+        uiFrame_t ent = { 0 };
         uint32_t bits, number = MSG_ReadEntityBits(&scan, &bits);
         if (!number && !bits) break;
         if (!MSG_ReadDeltaUIWindowFrame(&scan, &ent, number, bits) || scan.readcount >= scan.cursize) return frames;
@@ -588,7 +588,7 @@ LPCUIFRAME SCR_ClearWindow(handle_t data) {
         uint32_t bits, number = MSG_ReadEntityBits(&msg, &bits);
         if (!number && !bits) break;
         if (number >= MAX_LAYOUT_OBJECTS) return frames;
-        LPUIFRAME ent = &frames[number];
+        uiFrame_t * ent = &frames[number];
         ent->tex.coord[1] = ent->tex.coord[3] = 0xff;
         if (!MSG_ReadDeltaUIWindowFrame(&msg, ent, number, bits) || msg.readcount >= msg.cursize) return frames;
         ent->text = ent->text ? text + (uint32_t)(uintptr_t)ent->text : NULL;
@@ -615,7 +615,7 @@ uint32_t SCR_NumFrames(void) {
     return num_frames;
 }
 
-LPUIFRAME SCR_Frame(uint32_t number) {
+uiFrame_t * SCR_Frame(uint32_t number) {
     if (number >= MAX_LAYOUT_OBJECTS) {
         return NULL;
     }

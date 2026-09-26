@@ -100,7 +100,7 @@ static void NET_SendLoopPacket(NETSOURCE netsrc, int length, const void *data) {
     }
 }
 
-int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
+int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t * msg) {
     struct loopback *buf = &loopbufs[!netsrc];
     if (buf->read == buf->write)
         return 0;
@@ -264,7 +264,7 @@ static void NET_SendUDPPacket(NETSOURCE netsrc, int length, const void *data, ne
     }
 }
 
-static int NET_GetUDPPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
+static int NET_GetUDPPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t * msg) {
     net_socket_t sock = udp_sockets[netsrc];
 
     if (sock == NET_INVALID_SOCKET)
@@ -433,7 +433,7 @@ void NET_SendPacket(NETSOURCE netsrc, int length, const void *data, netadr_t to)
 
 // Check the loopback buffer first (zero latency for local clients), then
 // fall through to the UDP socket for remote clients.
-int NET_GetPacket(NETSOURCE netsrc, netadr_t *from, LPSIZEBUF msg) {
+int NET_GetPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t * msg) {
     int r = NET_GetLoopPacket(netsrc, from, msg);
     if (r)
         return r;
@@ -448,18 +448,18 @@ void Netchan_Transmit(NETSOURCE netsrc, struct netchan *netchan) {
     netchan->message.cursize = 0;
 }
 
-void SZ_Init(LPSIZEBUF buf, uint8_t *data, uint32_t length) {
+void SZ_Init(sizeBuf_t * buf, uint8_t *data, uint32_t length) {
     memset(buf, 0, sizeof(*buf));
     buf->data = data;
     buf->maxsize = length;
 }
 
-void SZ_Clear(LPSIZEBUF buf) {
+void SZ_Clear(sizeBuf_t * buf) {
     buf->cursize = 0;
     buf->overflowed = false;
 }
 
-handle_t SZ_GetSpace(LPSIZEBUF buf, uint32_t length) {
+handle_t SZ_GetSpace(sizeBuf_t * buf, uint32_t length) {
     if (buf->cursize + length > buf->maxsize) {
 //        if (length > buf->maxsize)
 //            Com_Error (ERR_FATAL, "SZ_GetSpace: %i is > full buffer size", length);
@@ -477,7 +477,7 @@ handle_t SZ_GetSpace(LPSIZEBUF buf, uint32_t length) {
     return data;
 }
 
-void SZ_Write(LPSIZEBUF buf, void const *data, uint32_t length) {
+void SZ_Write(sizeBuf_t * buf, void const *data, uint32_t length) {
     memcpy(SZ_GetSpace(buf, length), data, length);
 }
 

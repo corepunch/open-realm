@@ -4,14 +4,14 @@
 #include "vector3.h"
 
 struct box3 {
-    VECTOR3 min;
-    VECTOR3 max;
+    vector3_t min;
+    vector3_t max;
 };
 
-typedef struct box3 BOX3;
-typedef struct box3 *LPBOX3;
-typedef struct box3 const *LPCBOX3;
+typedef struct box3 box3_t;
 
-VECTOR3 Box3_Center(LPCBOX3 box);
+
+
+vector3_t Box3_Center(box3_t const * box);
 
 #endif

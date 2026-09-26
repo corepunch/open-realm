@@ -4,7 +4,7 @@
 
 #include "g_local.h"
 
-#define CLIENTCOMMAND(NAME) void CMD_##NAME(LPEDICT clent, uint32_t argc, cstring_t argv[])
+#define CLIENTCOMMAND(NAME) void CMD_##NAME(edict_t * clent, uint32_t argc, cstring_t argv[])
 #define WC3_SELECTION_LIMIT 12
 #define WC3_ENEMIES_CLEAR_RADIUS 768.0f
 
@@ -30,10 +30,10 @@ uint32_t G_GetTestSelectionChecks(void) { return test_selection_checks; }
 #define TEST_SELECTION_CHECK() ((void)0)
 #endif
 static bool G_DebugIsNumber(cstring_t text);
-static void G_CheatPrintf(LPEDICT clent, cstring_t fmt, ...);
-static void G_PublishEndCinematicForHumans(LPEDICT clent, bool debug_log);
+static void G_CheatPrintf(edict_t * clent, cstring_t fmt, ...);
+static void G_PublishEndCinematicForHumans(edict_t * clent, bool debug_log);
 
-static uint32_t *G_SelectionFocusSlot(LPGAMECLIENT client) {
+static uint32_t *G_SelectionFocusSlot(gameClient_t * client) {
     int32_t index;
 
     if (!client || !game.clients) return NULL;
@@ -42,7 +42,7 @@ static uint32_t *G_SelectionFocusSlot(LPGAMECLIENT client) {
     return &selection_focus[index];
 }
 
-static int32_t G_SelectionPriority(LPCEDICT ent) {
+static int32_t G_SelectionPriority(edict_t const * ent) {
     UnitData_t const *data;
 
     if (!ent) return 0;
@@ -50,7 +50,7 @@ static int32_t G_SelectionPriority(LPCEDICT ent) {
     return data ? data->priority : 0;
 }
 
-static int32_t G_SelectionLevel(LPCEDICT ent) {
+static int32_t G_SelectionLevel(edict_t const * ent) {
     UnitBalance_t const *balance;
 
     if (!ent) return 0;
@@ -74,7 +74,7 @@ static uint32_t G_SelectionRawcodeValue(uint32_t class_id) {
  * unit types compare equal so stable callers preserve authoritative entity
  * scan order for otherwise-identical entries. The multiselect panel and Hero
  * shortcuts intentionally share this comparator. */
-int32_t G_CompareSelectionOrder(LPCEDICT lhs, LPCEDICT rhs) {
+int32_t G_CompareSelectionOrder(edict_t const * lhs, edict_t const * rhs) {
     int32_t left_value;
     int32_t right_value;
     uint32_t left_rawcode;
@@ -94,7 +94,7 @@ int32_t G_CompareSelectionOrder(LPCEDICT lhs, LPCEDICT rhs) {
     return 0;
 }
 
-uint32_t G_GetOrderedSelectedUnits(LPGAMECLIENT client, LPEDICT *out, uint32_t max_out) {
+uint32_t G_GetOrderedSelectedUnits(gameClient_t * client, edict_t * *out, uint32_t max_out) {
     uint32_t seen = 0;
 
     if (!client || !out || !max_out) return 0;
@@ -116,7 +116,7 @@ uint32_t G_GetOrderedSelectedUnits(LPGAMECLIENT client, LPEDICT *out, uint32_t m
         }
 
         while (insert > 0 && G_CompareSelectionOrder(out[insert], out[insert - 1]) < 0) {
-            LPEDICT swap = out[insert - 1];
+            edict_t * swap = out[insert - 1];
             out[insert - 1] = out[insert];
             out[insert] = swap;
             insert--;
@@ -127,7 +127,7 @@ uint32_t G_GetOrderedSelectedUnits(LPGAMECLIENT client, LPEDICT *out, uint32_t m
     return MIN(seen, max_out);
 }
 
-static bool G_TargetModeActive(LPGAMECLIENT client) {
+static bool G_TargetModeActive(gameClient_t * client) {
     return client && (client->menu.on_entity_selected || client->menu.on_location_selected);
 }
 
@@ -138,22 +138,22 @@ static bool G_CommandQueueRequested(uint32_t argc, cstring_t argv[], uint32_t fi
     return false;
 }
 
-static bool G_SelectionListContains(LPEDICT const *selection, uint32_t count, LPCEDICT ent) {
+static bool G_SelectionListContains(edict_t * const *selection, uint32_t count, edict_t const * ent) {
     FOR_LOOP(i, count) {
         if (selection[i] == ent) return true;
     }
     return false;
 }
 
-static void G_PublishSelectionDelta(LPGAMECLIENT client,
-                                    LPEDICT const *old_selection,
+static void G_PublishSelectionDelta(gameClient_t * client,
+                                    edict_t * const *old_selection,
                                     uint32_t old_count) {
     bool const debug = WC3_TUTORIAL_DEBUG_ENABLED();
 
     if (!client) return;
 
     FOR_LOOP(i, old_count) {
-        LPEDICT ent = old_selection[i];
+        edict_t * ent = old_selection[i];
         if (!G_IsEntitySelected(client, ent)) {
             if (debug) {
                 char rawcode[5] = { 0 };
@@ -193,12 +193,12 @@ static bool G_ParseEntityNumber(cstring_t text, uint32_t *number) {
     return true;
 }
 
-LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT client) {
+edict_t * G_GetMainSelectedUnit(gameClient_t * client) {
     uint32_t *focus = G_SelectionFocusSlot(client);
-    LPEDICT ordered[1];
+    edict_t * ordered[1];
 
     if (focus && *focus > 0 && *focus < globals.num_edicts) {
-        LPEDICT ent = &globals.edicts[*focus];
+        edict_t * ent = &globals.edicts[*focus];
         if (G_IsEntitySelected(client, ent)) return ent;
     }
     if (G_GetOrderedSelectedUnits(client, ordered, sizeof(ordered) / sizeof(ordered[0]))) {
@@ -210,8 +210,8 @@ LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT client) {
 }
 
 
-void G_SyncClientSelection(LPGAMECLIENT client) {
-    LPEDICT clent;
+void G_SyncClientSelection(gameClient_t * client) {
+    edict_t * clent;
     uint32_t selected[WC3_SELECTION_LIMIT];
     uint32_t count = 0;
 
@@ -241,7 +241,7 @@ void G_SyncClientSelection(LPGAMECLIENT client) {
     Get_Commands_f(clent);
 }
 
-bool G_FocusSelectedUnit(LPGAMECLIENT client, LPEDICT ent) {
+bool G_FocusSelectedUnit(gameClient_t * client, edict_t * ent) {
     uint32_t *focus = G_SelectionFocusSlot(client);
 
     if (!focus || !G_IsEntitySelected(client, ent)) return false;
@@ -249,9 +249,9 @@ bool G_FocusSelectedUnit(LPGAMECLIENT client, LPEDICT ent) {
     return true;
 }
 
-bool G_CycleSelectionSubgroup(LPGAMECLIENT client) {
-    LPEDICT ordered[WC3_SELECTION_LIMIT];
-    LPEDICT main;
+bool G_CycleSelectionSubgroup(gameClient_t * client) {
+    edict_t * ordered[WC3_SELECTION_LIMIT];
+    edict_t * main;
     uint32_t count;
     uint32_t main_index = 0;
     uint32_t next_index;
@@ -280,13 +280,13 @@ bool G_CycleSelectionSubgroup(LPGAMECLIENT client) {
     return G_FocusSelectedUnit(client, ordered[next_index]);
 }
 
-void G_ResetSelectionFocus(LPGAMECLIENT client) {
+void G_ResetSelectionFocus(gameClient_t * client) {
     uint32_t *focus = G_SelectionFocusSlot(client);
     if (focus) *focus = 0;
 }
 
-LPEDICT G_GetMainControllableUnit(LPGAMECLIENT client) {
-    LPEDICT main = G_GetMainSelectedUnit(client);
+edict_t * G_GetMainControllableUnit(gameClient_t * client) {
+    edict_t * main = G_GetMainSelectedUnit(client);
 
     if (main && G_UnitCanControl(client, main)) return main;
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
@@ -295,7 +295,7 @@ LPEDICT G_GetMainControllableUnit(LPGAMECLIENT client) {
     return NULL;
 }
 
-void G_SelectEntity(LPGAMECLIENT client, LPEDICT ent) {
+void G_SelectEntity(gameClient_t * client, edict_t * ent) {
     bool had_selection = false;
 
     /* Corpses remain networked while their death/decay presentation runs, but
@@ -311,7 +311,7 @@ void G_SelectEntity(LPGAMECLIENT client, LPEDICT ent) {
     if (!had_selection) G_FocusSelectedUnit(client, ent);
 }
 
-void G_DeselectEntity(LPGAMECLIENT client, LPEDICT ent) {
+void G_DeselectEntity(gameClient_t * client, edict_t * ent) {
     uint32_t *focus;
 
     if (!client || !ent) return;
@@ -320,14 +320,14 @@ void G_DeselectEntity(LPGAMECLIENT client, LPEDICT ent) {
     ent->selected &= ~(1 << client->ps.number);
 }
 
-bool G_IsEntitySelected(LPGAMECLIENT client, LPEDICT ent) {
+bool G_IsEntitySelected(gameClient_t * client, edict_t * ent) {
     TEST_SELECTION_CHECK();
     return client && ent && ent->inuse && !M_IsDead(ent) &&
         !(ent->s.flags & EF_NOT_SELECTABLE) && !(ent->s.renderfx & RF_HIDDEN) &&
         (ent->selected & (1 << client->ps.number));
 }
 
-selectionRelation_t G_SelectionRelation(uint32_t viewer, LPCEDICT ent) {
+selectionRelation_t G_SelectionRelation(uint32_t viewer, edict_t const * ent) {
     uint32_t owner;
     uint32_t alliances;
 
@@ -351,7 +351,7 @@ selectionRelation_t G_SelectionRelation(uint32_t viewer, LPCEDICT ent) {
     return SELECT_RELATION_NEUTRAL;
 }
 
-bool G_UnitCanBeSelected(LPGAMECLIENT client, LPCEDICT ent) {
+bool G_UnitCanBeSelected(gameClient_t * client, edict_t const * ent) {
     if (!client || !ent || !ent->inuse || !(ent->svflags & SVF_MONSTER)) {
         return false;
     }
@@ -367,7 +367,7 @@ bool G_UnitCanBeSelected(LPGAMECLIENT client, LPCEDICT ent) {
     return G_FowPlayerCanHoverEntity(client->ps.number, ent);
 }
 
-bool G_UnitCanControl(LPGAMECLIENT client, LPCEDICT ent) {
+bool G_UnitCanControl(gameClient_t * client, edict_t const * ent) {
     uint32_t owner;
     uint32_t alliances;
 
@@ -393,7 +393,7 @@ bool G_UnitCanControl(LPGAMECLIENT client, LPCEDICT ent) {
 
 void G_UpdateClientSelections(void) {
     FOR_LOOP(i, game.max_clients) {
-        LPGAMECLIENT client = game.clients + i;
+        gameClient_t * client = game.clients + i;
         bool changed = false;
         uint32_t bit = 1 << client->ps.number;
 
@@ -440,21 +440,21 @@ void G_ResetSelectionSoundState(void) {
     /* Keep serials across maps/save-load so old reliable replies cannot match. */
 }
 
-bool G_UnitResponseTalking(LPCEDICT ent) {
+bool G_UnitResponseTalking(edict_t const * ent) {
     for (unitResponse_t *r = unit_responses; ent && r; r = r->next)
         if (r->entity == ent->s.number && r->spawn_time == ent->spawn_time &&
             r->owner == ent->s.player && r->started) return true;
     return false;
 }
 
-static void G_DirtyResponsePortrait(LPCEDICT ent) {
-    LPGAMECLIENT client;
+static void G_DirtyResponsePortrait(edict_t const * ent) {
+    gameClient_t * client;
     if (!ent || ent->s.player >= MAX_PLAYERS) return;
     client = G_GetPlayerClientByNumber(ent->s.player);
     if (client && G_GetMainControllableUnit(client) == ent) client->presentation_dirty = true;
 }
 
-void G_ClearUnitResponses(LPCEDICT ent) {
+void G_ClearUnitResponses(edict_t const * ent) {
     for (unitResponse_t **link = &unit_responses; *link;) {
         unitResponse_t *r = *link;
         if (r->entity != ent->s.number) { link = &r->next; continue; }
@@ -463,14 +463,14 @@ void G_ClearUnitResponses(LPCEDICT ent) {
     G_DirtyResponsePortrait(ent);
 }
 
-uint32_t G_UnitResponseRequest(LPCEDICT ent, int sound) {
+uint32_t G_UnitResponseRequest(edict_t const * ent, int sound) {
     for (unitResponse_t *r = unit_responses; ent && r; r = r->next)
         if (r->entity == ent->s.number && r->spawn_time == ent->spawn_time &&
             !r->accepted && r->sound == sound) return r->request;
     return 0;
 }
 
-bool G_QueueUnitResponseSound(LPEDICT ent, int sound) {
+bool G_QueueUnitResponseSound(edict_t * ent, int sound) {
     if (!ent || !sound || ent->s.player >= MAX_PLAYERS || ent->s.number >= MAX_ENTITIES) return false;
     for (unitResponse_t *r = unit_responses; r; r = r->next)
         if (r->entity == ent->s.number && r->spawn_time == ent->spawn_time && !r->accepted) return false;
@@ -489,7 +489,7 @@ void G_UpdateUnitResponsePresentation(void) {
      * Admission/start/end timing never depends on simulation time or duration. */
     for (unitResponse_t **link = &unit_responses; *link;) {
         unitResponse_t *r = *link;
-        LPEDICT ent = g_edicts + r->entity;
+        edict_t * ent = g_edicts + r->entity;
         bool connected = false;
         for (uint32_t i = 0; !connected && i < game.max_clients; i++)
             connected = game.clients[i].connected && game.clients[i].ps.number == r->owner;
@@ -499,11 +499,11 @@ void G_UpdateUnitResponsePresentation(void) {
     }
 }
 
-static void G_ResponseEvent(LPEDICT player, uint32_t user, uint32_t request, uint32_t event) {
+static void G_ResponseEvent(edict_t * player, uint32_t user, uint32_t request, uint32_t event) {
     if (!player || !player->client || !player->client->connected || user >= globals.num_edicts) return;
     for (unitResponse_t **link = &unit_responses; *link; link = &(*link)->next) {
         unitResponse_t *r = *link;
-        LPEDICT ent = g_edicts + user;
+        edict_t * ent = g_edicts + user;
         if (r->request != request || r->entity != user) continue;
         if (r->owner != player->client->ps.number || !ent->inuse ||
             ent->spawn_time != r->spawn_time || ent->s.player != r->owner) return;
@@ -536,7 +536,7 @@ CLIENTCOMMAND(SoundEvent) {
     G_ResponseEvent(clent, value[0], value[1], value[2]);
 }
 
-static selectionSoundState_t *G_SelectionSoundState(LPEDICT ent, bool reset) {
+static selectionSoundState_t *G_SelectionSoundState(edict_t * ent, bool reset) {
     if (!ent || ent->s.player >= MAX_PLAYERS) return NULL;
     selectionSoundState_t *state = selection_sound_state + ent->s.player;
     if (reset || !state->valid || state->entity != (int32_t)ent->s.number || state->spawn_time != ent->spawn_time) {
@@ -547,12 +547,12 @@ static selectionSoundState_t *G_SelectionSoundState(LPEDICT ent, bool reset) {
     return state;
 }
 
-static void G_ResetSelectionResponseForUnit(LPEDICT ent) {
+static void G_ResetSelectionResponseForUnit(edict_t * ent) {
     selectionSoundState_t *state = G_SelectionSoundState(ent, true);
     if (state) state->selected_sound_count = 0;
 }
 
-static int G_RandomResponseSound(LPCEDICT ent, uint16_t const *sounds, uint32_t count) {
+static int G_RandomResponseSound(edict_t const * ent, uint16_t const *sounds, uint32_t count) {
     int index = 0;
     if (count) for (int tries = 0; tries < 11; tries++) {
         index = sounds[rand() % count];
@@ -564,7 +564,7 @@ static int G_RandomResponseSound(LPCEDICT ent, uint16_t const *sounds, uint32_t 
 /* Client commands arrive before G_RunEntities clears the previous snapshot's
  * event, so retain the chosen acknowledgement until that frame begins. Warsmash
  * uses three normal What responses before walking the Pissed bank in order. */
-void G_QueueSelectionSound(LPEDICT ent, bool reset_sequence) {
+void G_QueueSelectionSound(edict_t * ent, bool reset_sequence) {
     selectionSoundState_t *state;
     cstring_t label;
     uint32_t pissed_count, pissed_index;
@@ -572,7 +572,7 @@ void G_QueueSelectionSound(LPEDICT ent, bool reset_sequence) {
 
     if (!ent || !(state = G_SelectionSoundState(ent, reset_sequence))) return;
     if (ent->construction.active) {
-        LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player);
+        gameClient_t * client = G_GetPlayerClientByNumber(ent->s.player);
         cstring_t alias = client ? Theme_PlayerString(client, "ConstructingBuilding", NULL) : NULL;
         int sound_index = G_UISoundIndex(alias);
         if (sound_index) G_QueueUnitResponseSound(ent, sound_index);
@@ -596,7 +596,7 @@ void G_QueueSelectionSound(LPEDICT ent, bool reset_sequence) {
         unit_responses->generation = state->generation;
 }
 
-void G_QueueAttackOrderSound(LPEDICT ent) {
+void G_QueueAttackOrderSound(edict_t * ent) {
     cstring_t label;
     uint32_t count;
     int sound;
@@ -614,7 +614,7 @@ void G_QueueAttackOrderSound(LPEDICT ent) {
     if (sound) G_QueueUnitResponseSound(ent, sound);
 }
 
-static void G_QueueOrderSound(LPEDICT ent) {
+static void G_QueueOrderSound(edict_t * ent) {
     int sound;
     if (!ent) return;
     if (ent->currentmove && ent->currentmove->proc == CAbilityAttack) {
@@ -630,8 +630,8 @@ static void G_QueueOrderSound(LPEDICT ent) {
 /* select/point are left-click completion paths for targeted commands.  A
  * right-click Smart action cancels that mode instead of being interpreted as
  * a new order by the units that were selected when targeting began. */
-static bool G_CancelTargetMode(LPEDICT clent) {
-    LPGAMECLIENT client = clent ? clent->client : NULL;
+static bool G_CancelTargetMode(edict_t * clent) {
+    gameClient_t * client = clent ? clent->client : NULL;
 
     if (!client || (!client->menu.on_entity_selected && !client->menu.on_location_selected))
         return false;
@@ -640,7 +640,7 @@ static bool G_CancelTargetMode(LPEDICT clent) {
     return true;
 }
 
-static void G_PrepareUnitShortcut(LPEDICT clent) {
+static void G_PrepareUnitShortcut(edict_t * clent) {
     if (!clent || !clent->client) return;
     G_CancelBuildPlacement(clent);
     G_CancelTargetMode(clent);
@@ -664,8 +664,8 @@ CLIENTCOMMAND(IdleWorker) {
     G_ActivateIdleWorkerShortcut(clent, hinted_number);
 }
 
-void CMD_CancelCommand(LPEDICT ent) {
-    LPEDICT producer;
+void CMD_CancelCommand(edict_t * ent) {
+    edict_t * producer;
     if (ent && ent->client && ent->client->ps.client_ui_state == CLIENT_UI_CINEMATIC) {
         /* Escape skips the cinematic before it can cancel unrelated gameplay work. */
         G_PublishEndCinematicForHumans(ent, false);
@@ -703,7 +703,7 @@ void CMD_CancelCommand(LPEDICT ent) {
     }
 }
 
-static bool G_SelectionMembershipUnchanged(LPGAMECLIENT client, LPEDICT const *old_selection, uint32_t old_count) {
+static bool G_SelectionMembershipUnchanged(gameClient_t * client, edict_t * const *old_selection, uint32_t old_count) {
     uint32_t current_count = 0;
 
     if (!client) return false;
@@ -719,7 +719,7 @@ static bool G_SelectionMembershipUnchanged(LPGAMECLIENT client, LPEDICT const *o
 }
 
 CLIENTCOMMAND(Select) {
-    LPGAMECLIENT client = clent->client;
+    gameClient_t * client = clent->client;
     if (client->menu.on_entity_selected) {
         uint32_t number;
         bool const queued = client->menu.supports_order_queue &&
@@ -753,7 +753,7 @@ CLIENTCOMMAND(Select) {
         if (client->menu.on_location_selected == build_menu_send_builder && clent->build_project && argc >= 2) {
             uint32_t number;
             if (G_ParseEntityNumber(argv[1], &number) && number < globals.num_edicts) {
-                LPEDICT target = &globals.edicts[number];
+                edict_t * target = &globals.edicts[number];
                 UnitData_t const *building_data = G_UnitData(clent->build_project);
                 if (building_data && building_data->isBuildOn && S_GoldMineIsMine(target)) {
                     bool const queued = client->menu.supports_order_queue &&
@@ -779,9 +779,9 @@ CLIENTCOMMAND(Select) {
         bool cleared = false;
         bool hasunits = false;
         bool const same_type = argc >= 3 && !strcmp(argv[2], "sametype");
-        LPEDICT same_type_anchor = NULL;
-        LPEDICT voice = NULL;
-        LPEDICT old_selection[WC3_SELECTION_LIMIT] = { 0 };
+        edict_t * same_type_anchor = NULL;
+        edict_t * voice = NULL;
+        edict_t * old_selection[WC3_SELECTION_LIMIT] = { 0 };
         uint32_t old_count = 0;
         uint32_t selected_count = 0;
 
@@ -798,7 +798,7 @@ CLIENTCOMMAND(Select) {
         for (uint32_t i = 1; i < argc; i++) {
             uint32_t number;
             if (!G_ParseEntityNumber(argv[i], &number)) continue;
-            LPEDICT e = &globals.edicts[number];
+            edict_t * e = &globals.edicts[number];
             if (same_type && e->class_id != same_type_anchor->class_id) continue;
             if (G_UnitCanBeSelected(client, e) && G_UnitCanControl(client, e) &&
                 !G_UnitIsBuilding(e->class_id)) {
@@ -808,7 +808,7 @@ CLIENTCOMMAND(Select) {
         for (uint32_t i = 1; i < argc; i++) {
             uint32_t number;
             if (!G_ParseEntityNumber(argv[i], &number)) continue;
-            LPEDICT e = &globals.edicts[number];
+            edict_t * e = &globals.edicts[number];
             if (same_type && e->class_id != same_type_anchor->class_id) continue;
             if (G_UnitCanBeSelected(client, e)) {
                 if (hasunits && (!G_UnitCanControl(client, e) || G_UnitIsBuilding(e->class_id)))
@@ -829,7 +829,7 @@ CLIENTCOMMAND(Select) {
             }
         }
         if (cleared) {
-            LPEDICT ordered[1];
+            edict_t * ordered[1];
 
             /* Warsmash chooses the first unit after its priority/level/rawcode
              * sort as the primary selection.  Use the same unit for default
@@ -863,16 +863,16 @@ CLIENTCOMMAND(Select) {
     }
 }
 
-void G_SendPointConfirmation(LPEDICT clent, LPCVECTOR2 point, bool attack) {
+void G_SendPointConfirmation(edict_t * clent, vector2_t const * point, bool attack) {
     if (!clent || !clent->client || !point) return;
     gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });
     gi.Write(PF_BYTE, &(int32_t){ attack ? TE_ATTACK_CONFIRMATION : TE_MOVE_CONFIRMATION });
-    gi.Write(PF_POSITION, &(VECTOR3){ point->x, point->y, 0 });
+    gi.Write(PF_POSITION, &(vector3_t){ point->x, point->y, 0 });
     gi.unicast(clent);
 }
 
 CLIENTCOMMAND(CycleSubgroup) {
-    LPGAMECLIENT client = clent ? clent->client : NULL;
+    gameClient_t * client = clent ? clent->client : NULL;
 
     if (!client || G_TargetModeActive(client)) return;
     if (!G_CycleSelectionSubgroup(client)) return;
@@ -885,9 +885,9 @@ CLIENTCOMMAND(CycleSubgroup) {
 }
 
 CLIENTCOMMAND(Focus) {
-    LPGAMECLIENT client = clent ? clent->client : NULL;
+    gameClient_t * client = clent ? clent->client : NULL;
     uint32_t number;
-    LPEDICT target;
+    edict_t * target;
 
     if (!client || argc < 2) return;
     number = (uint32_t)atoi(argv[1]);
@@ -911,7 +911,7 @@ CLIENTCOMMAND(Focus) {
      * different portrait, including another unit in the same type subgroup,
      * only changes focus and leaves the full selection intact. */
     if (G_GetMainSelectedUnit(client) == target) {
-        LPEDICT old_selection[WC3_SELECTION_LIMIT] = { 0 };
+        edict_t * old_selection[WC3_SELECTION_LIMIT] = { 0 };
         uint32_t old_count = 0;
 
         FOR_SELECTED_UNITS(client, selected) {
@@ -945,12 +945,12 @@ CLIENTCOMMAND(Focus) {
 }
 
 CLIENTCOMMAND(Point) {
-    LPGAMECLIENT client = clent->client;
+    gameClient_t * client = clent->client;
     if (argc < 3) return;
     if (client->menu.on_location_selected) {
         bool const queued = client->menu.supports_order_queue &&
                             G_CommandQueueRequested(argc, argv, 3);
-        VECTOR2 loc = { atoi(argv[1]), atoi(argv[2]) };
+        vector2_t loc = { atoi(argv[1]), atoi(argv[2]) };
         bool accepted;
 
         client->menu.order_queued = queued;
@@ -961,7 +961,7 @@ CLIENTCOMMAND(Point) {
 }
 
 CLIENTCOMMAND(OrderQueueRelease) {
-    LPGAMECLIENT client = clent ? clent->client : NULL;
+    gameClient_t * client = clent ? clent->client : NULL;
 
     (void)argc;
     (void)argv;
@@ -972,14 +972,14 @@ CLIENTCOMMAND(OrderQueueRelease) {
 }
 
 CLIENTCOMMAND(Smart) {
-    LPGAMECLIENT client = clent->client;
+    gameClient_t * client = clent->client;
     bool issued = false;
     bool rallied = false;
     bool queued;
     bool have_click_point = false;
-    VECTOR2 click_point = { 0 };
+    vector2_t click_point = { 0 };
     uint32_t number;
-    LPEDICT target;
+    edict_t * target;
 
     if (G_CancelBuildPlacement(clent) || G_CancelTargetMode(clent)) {
         return;
@@ -997,7 +997,7 @@ CLIENTCOMMAND(Smart) {
     target = &globals.edicts[number];
     queued = G_CommandQueueRequested(argc, argv, 2);
     if (argc >= 4 && strcmp(argv[2], "queue") && strcmp(argv[3], "queue")) {
-        click_point = (VECTOR2){ atoi(argv[2]), atoi(argv[3]) };
+        click_point = (vector2_t){ atoi(argv[2]), atoi(argv[3]) };
         have_click_point = true;
     }
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
@@ -1034,8 +1034,8 @@ CLIENTCOMMAND(Smart) {
 }
 
 CLIENTCOMMAND(SmartPoint) {
-    LPGAMECLIENT client = clent->client;
-    VECTOR2 loc;
+    gameClient_t * client = clent->client;
+    vector2_t loc;
     bool rally = false;
     bool non_rally = false;
     bool issued = false;
@@ -1054,7 +1054,7 @@ CLIENTCOMMAND(SmartPoint) {
     if (argc < 3) {
         return;
     }
-    loc = (VECTOR2){ atoi(argv[1]), atoi(argv[2]) };
+    loc = (vector2_t){ atoi(argv[1]), atoi(argv[2]) };
     queued = G_CommandQueueRequested(argc, argv, 3);
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
         if (G_UnitHasRally(ent)) {
@@ -1085,9 +1085,9 @@ CLIENTCOMMAND(SmartPoint) {
 CLIENTCOMMAND(Button) {
     char ability_name[5] = {0};
     cstring_t classname;
-    LPGAMECLIENT client = clent->client;
+    gameClient_t * client = clent->client;
     ability_t const *ability;
-    LPEDICT producer;
+    edict_t * producer;
     bool ability_off = false;
 
     if (argc < 2) return;
@@ -1140,8 +1140,8 @@ CLIENTCOMMAND(Button) {
 }
 
 CLIENTCOMMAND(Autocast) {
-    LPGAMECLIENT client;
-    LPEDICT main;
+    gameClient_t * client;
+    edict_t * main;
     ability_t const *ability;
     cstring_t classname;
     bool enabled;
@@ -1202,8 +1202,8 @@ CLIENTCOMMAND(Autocast) {
 
 CLIENTCOMMAND(Research) {
     cstring_t classname = argc >= 2 ? argv[1] : NULL;
-    LPGAMECLIENT client = clent->client;
-    LPEDICT ent = G_GetMainSelectedUnit(client);
+    gameClient_t * client = clent->client;
+    edict_t * ent = G_GetMainSelectedUnit(client);
     uint32_t abilcode = 0;
 
     if (!G_UnitCanControl(client, ent) || !classname || strlen(classname) != 4) {
@@ -1220,8 +1220,8 @@ CLIENTCOMMAND(Research) {
 
 CLIENTCOMMAND(Upgrade) {
     cstring_t classname = argc >= 2 ? argv[1] : NULL;
-    LPGAMECLIENT client = clent ? clent->client : NULL;
-    LPEDICT ent = client ? G_GetMainSelectedUnit(client) : NULL;
+    gameClient_t * client = clent ? clent->client : NULL;
+    edict_t * ent = client ? G_GetMainSelectedUnit(client) : NULL;
     uint32_t unit_id = 0;
 
     if (!G_UnitCanControl(client, ent) || !classname || strlen(classname) != 4) return;
@@ -1234,8 +1234,8 @@ bool G_CheatsEnabled(void) {
     return atoi(gi.CvarString("sv_cheats", "0")) != 0;
 }
 
-static LPEDICT G_GiveItem(LPEDICT unit, uint32_t item_code) {
-    LPEDICT item = SP_SpawnAtLocation(item_code, unit->s.player, &unit->s.origin2);
+static edict_t * G_GiveItem(edict_t * unit, uint32_t item_code) {
+    edict_t * item = SP_SpawnAtLocation(item_code, unit->s.player, &unit->s.origin2);
     if (!item || !G_PickupItem(unit, item)) {
         if (item) G_RemoveItem(item);
         return NULL;
@@ -1252,7 +1252,7 @@ static bool G_ParseGiveResourceAmount(cstring_t text, uint32_t *amount) {
     return true;
 }
 
-static void G_AddGiveResource(LPGAMECLIENT client, uint32_t state, uint32_t amount) {
+static void G_AddGiveResource(gameClient_t * client, uint32_t state, uint32_t amount) {
     uint32_t value;
 
     if (!client || state >= MAX_STATS) return;
@@ -1260,8 +1260,8 @@ static void G_AddGiveResource(LPGAMECLIENT client, uint32_t state, uint32_t amou
     client->ps.stats[state] = (uint16_t)MIN(value + amount, (uint32_t)USHRT_MAX);
 }
 
-static bool G_GivePlayerResources(LPEDICT clent, cstring_t target, cstring_t value) {
-    LPGAMECLIENT client = clent ? clent->client : NULL;
+static bool G_GivePlayerResources(edict_t * clent, cstring_t target, cstring_t value) {
+    gameClient_t * client = clent ? clent->client : NULL;
     uint32_t amount;
     bool const give_gold = !strcasecmp(target, "gold") || !strcasecmp(target, "res");
     bool const give_lumber = !strcasecmp(target, "lumber") || !strcasecmp(target, "res");
@@ -1283,8 +1283,8 @@ static bool G_GivePlayerResources(LPEDICT clent, cstring_t target, cstring_t val
 }
 
 CLIENTCOMMAND(Give) {
-    LPGAMECLIENT client = clent->client;
-    LPEDICT unit;
+    gameClient_t * client = clent->client;
+    edict_t * unit;
     uint32_t code;
 
     if (!G_CheatsEnabled()) {
@@ -1340,7 +1340,7 @@ CLIENTCOMMAND(Give) {
 
 /* RTS controllers are not actors: unit cheats act on the primary controllable selection. */
 CLIENTCOMMAND(God) {
-    LPEDICT unit = G_GetMainControllableUnit(clent->client);
+    edict_t * unit = G_GetMainControllableUnit(clent->client);
     if (!G_CheatsEnabled()) {
         G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
         return;
@@ -1353,7 +1353,7 @@ CLIENTCOMMAND(God) {
 
 /* Suicide must execute the same death callback as combat, including food, selection and trigger cleanup. */
 CLIENTCOMMAND(Kill) {
-    LPEDICT unit = G_GetMainControllableUnit(clent->client);
+    edict_t * unit = G_GetMainControllableUnit(clent->client);
     if (!G_CheatsEnabled()) {
         G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
         return;
@@ -1379,8 +1379,8 @@ static bool G_ParseHeroStatAmount(cstring_t text, float maximum, float *value) {
 
 /* Apply the selected controllable Hero cheat without bypassing normal state ownership. */
 CLIENTCOMMAND(Hero) {
-    LPGAMECLIENT client = clent ? clent->client : NULL;
-    LPEDICT hero;
+    gameClient_t * client = clent ? clent->client : NULL;
+    edict_t * hero;
     char hero_number[16];
     uint32_t max_level, spent_points = 0, expected_points;
     float value;
@@ -1395,7 +1395,7 @@ CLIENTCOMMAND(Hero) {
             return;
         }
         FOR_LOOP(i, globals.num_edicts) {
-            LPEDICT candidate = &globals.edicts[i];
+            edict_t * candidate = &globals.edicts[i];
             if (!candidate->inuse || !(candidate->svflags & SVF_MONSTER) ||
                     candidate->s.player != client->ps.number || !G_UnitIsHero(candidate) ||
                     !G_UnitCanBeSelected(client, candidate) || !G_UnitCanControl(client, candidate)) continue;
@@ -1416,7 +1416,7 @@ CLIENTCOMMAND(Hero) {
         hero = client ? G_GetMainSelectedUnit(client) : NULL;
         if (!hero || !G_UnitIsHero(hero)) {
             FOR_LOOP(i, globals.num_edicts) {
-                LPEDICT candidate = &globals.edicts[i];
+                edict_t * candidate = &globals.edicts[i];
                 if (candidate->inuse && (candidate->svflags & SVF_MONSTER) && !M_IsDead(candidate) &&
                         G_UnitIsHero(candidate) && (!client || candidate->s.player == client->ps.number)) {
                     hero = candidate;
@@ -1429,7 +1429,7 @@ CLIENTCOMMAND(Hero) {
         return;
     }
     if (argc >= 2 && !strcasecmp(argv[1], "walk")) {
-        VECTOR2 dest;
+        vector2_t dest;
         float dx = 80.0f, dy = 0.0f;
         hero = client ? G_GetMainSelectedUnit(client) : NULL;
         if (!hero || !G_UnitCanControl(client, hero) || !G_UnitIsHero(hero)) {
@@ -1443,7 +1443,7 @@ CLIENTCOMMAND(Hero) {
             G_CheatPrintf(clent, "WC3: usage: hero walk [dx dy]");
             return;
         }
-        dest = (VECTOR2){ hero->s.origin2.x + dx, hero->s.origin2.y + dy };
+        dest = (vector2_t){ hero->s.origin2.x + dx, hero->s.origin2.y + dy };
         if (!unit_issueorder(hero, "move", &dest)) {
             G_CheatPrintf(clent, "WC3: hero walk order rejected");
             return;
@@ -1505,13 +1505,13 @@ CLIENTCOMMAND(Hero) {
 
 /* Keep the instant-build cheat scoped to the issuing player's live client state. */
 bool G_PlayerInstantBuild(uint32_t player) {
-    LPGAMECLIENT client = G_GetPlayerClientByNumber(player);
+    gameClient_t * client = G_GetPlayerClientByNumber(player);
     return client && client->ps.number == player && client->cheat_instant_build;
 }
 
 /* Keep one-hit damage scoped to the issuing player's live client state. */
 bool G_PlayerInstantKill(uint32_t player) {
-    LPGAMECLIENT client = G_GetPlayerClientByNumber(player);
+    gameClient_t * client = G_GetPlayerClientByNumber(player);
     return client && client->ps.number == player && client->cheat_instant_kill;
 }
 
@@ -1531,8 +1531,8 @@ static bool G_ParseCheatToggle(cstring_t value, bool current, bool *out) {
 }
 
 /* Parse and apply the issuing player's instant-build toggle. */
-static bool G_CheatInstantBuild(LPEDICT clent, cstring_t value, cstring_t usage) {
-    LPGAMECLIENT client = clent ? clent->client : NULL;
+static bool G_CheatInstantBuild(edict_t * clent, cstring_t value, cstring_t usage) {
+    gameClient_t * client = clent ? clent->client : NULL;
     bool enabled;
 
     if (!G_CheatsEnabled()) {
@@ -1551,8 +1551,8 @@ static bool G_CheatInstantBuild(LPEDICT clent, cstring_t value, cstring_t usage)
 }
 
 /* Parse and apply the issuing player's instant-kill toggle. */
-static bool G_CheatInstantKill(LPEDICT clent, cstring_t value) {
-    LPGAMECLIENT client = clent ? clent->client : NULL;
+static bool G_CheatInstantKill(edict_t * clent, cstring_t value) {
+    gameClient_t * client = clent ? clent->client : NULL;
     bool enabled;
 
     if (!G_CheatsEnabled()) {
@@ -1581,7 +1581,7 @@ CLIENTCOMMAND(InstantBuild) {
 
 /* Dispatch the grouped instant cheats while keeping their player-local state independent. */
 CLIENTCOMMAND(Instant) {
-    LPGAMECLIENT client = clent ? clent->client : NULL;
+    gameClient_t * client = clent ? clent->client : NULL;
     bool enabled;
 
     if (!G_CheatsEnabled()) {
@@ -1616,7 +1616,7 @@ CLIENTCOMMAND(Instant) {
     G_CheatPrintf(clent, "WC3: usage: instant <build|kill|all> [on|off]");
 }
 
-static void G_CheatGameResult(LPEDICT clent, uint32_t game_result) {
+static void G_CheatGameResult(edict_t * clent, uint32_t game_result) {
     if (!G_CheatsEnabled()) {
         G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
         return;
@@ -1657,7 +1657,7 @@ static float G_CheatTimeOfDayTarget(bool daytime) {
     return target;
 }
 
-static void G_CheatSetTimeOfDay(LPEDICT clent, bool daytime) {
+static void G_CheatSetTimeOfDay(edict_t * clent, bool daytime) {
     if (!G_CheatsEnabled()) {
         G_CheatPrintf(clent, "WC3: cheats are disabled; set sv_cheats 1");
         return;
@@ -1676,8 +1676,8 @@ CLIENTCOMMAND(Night) {
     G_CheatSetTimeOfDay(clent, false);
 }
 
-static LPEDICT G_GetInventoryInteractionUnit(LPGAMECLIENT client) {
-    LPEDICT selected;
+static edict_t * G_GetInventoryInteractionUnit(gameClient_t * client) {
+    edict_t * selected;
 
     if (!client) return NULL;
     selected = G_GetMainSelectedUnit(client);
@@ -1686,9 +1686,9 @@ static LPEDICT G_GetInventoryInteractionUnit(LPGAMECLIENT client) {
 }
 
 CLIENTCOMMAND(Inventory) {
-    LPGAMECLIENT client = clent->client;
-    LPEDICT ent;
-    LPEDICT item;
+    gameClient_t * client = clent->client;
+    edict_t * ent;
+    edict_t * item;
     int32_t slot;
     cstring_t abilities;
     bool handled = false;
@@ -1754,8 +1754,8 @@ CLIENTCOMMAND(Inventory) {
 }
 
 CLIENTCOMMAND(CargoUnload) {
-    LPGAMECLIENT client;
-    LPEDICT transport;
+    gameClient_t * client;
+    edict_t * transport;
     int32_t slot;
 
     if (!clent || !(client = clent->client) || argc < 2) return;
@@ -1767,8 +1767,8 @@ CLIENTCOMMAND(CargoUnload) {
 }
 
 CLIENTCOMMAND(CancelTrain) {
-    LPGAMECLIENT client;
-    LPEDICT producer;
+    gameClient_t * client;
+    edict_t * producer;
     char *end = NULL;
     unsigned long parsed;
     uint32_t index;
@@ -1785,10 +1785,10 @@ CLIENTCOMMAND(CancelTrain) {
     Get_Commands_f(clent);
 }
 /* Keep an unsupported entity drop in target mode until the player cancels it. */
-static bool G_ItemDragSelectEntity(LPEDICT clent, LPEDICT target) {
-    LPGAMECLIENT client = clent ? clent->client : NULL;
-    LPEDICT item = client ? client->menu.dragged_item : NULL;
-    LPEDICT carrier = G_IsItem(item) ? item->item.carrier : NULL;
+static bool G_ItemDragSelectEntity(edict_t * clent, edict_t * target) {
+    gameClient_t * client = clent ? clent->client : NULL;
+    edict_t * item = client ? client->menu.dragged_item : NULL;
+    edict_t * carrier = G_IsItem(item) ? item->item.carrier : NULL;
 
     if (client && G_CanUseItemShop(client, target) && G_UnitCanControl(client, carrier) &&
         G_InventoryCanDropItems(carrier) && G_ShopPawnItem(&(shopPawnItemParams_t){
@@ -1804,10 +1804,10 @@ static bool G_ItemDragSelectEntity(LPEDICT clent, LPEDICT target) {
 }
 
 /* Complete an inventory point drop using the exact item captured by the drag command. */
-static bool G_ItemDragSelectLocation(LPEDICT clent, LPCVECTOR2 location) {
-    LPGAMECLIENT client = clent ? clent->client : NULL;
-    LPEDICT unit;
-    LPEDICT item;
+static bool G_ItemDragSelectLocation(edict_t * clent, vector2_t const * location) {
+    gameClient_t * client = clent ? clent->client : NULL;
+    edict_t * unit;
+    edict_t * item;
 
     if (!client || !location) return false;
     item = client->menu.dragged_item;
@@ -1821,9 +1821,9 @@ static bool G_ItemDragSelectLocation(LPEDICT clent, LPCVECTOR2 location) {
 }
 
 CLIENTCOMMAND(ItemDrag) {
-    LPGAMECLIENT client;
-    LPEDICT unit;
-    LPEDICT item;
+    gameClient_t * client;
+    edict_t * unit;
+    edict_t * item;
     int32_t slot;
 
     if (!clent || !(client = clent->client) || argc < 2) return;
@@ -1846,7 +1846,7 @@ CLIENTCOMMAND(ItemDrag) {
 }
 
 CLIENTCOMMAND(DropItem) {
-    LPEDICT unit;
+    edict_t * unit;
     int32_t slot;
 
     if (!clent || !clent->client || argc < 2) {
@@ -1861,7 +1861,7 @@ CLIENTCOMMAND(DropItem) {
     G_DropItem(unit, (uint32_t)slot);
 }
 
-static void G_PublishEndCinematicForHumans(LPEDICT clent, bool debug_log) {
+static void G_PublishEndCinematicForHumans(edict_t * clent, bool debug_log) {
     if (!clent) return;
     if (debug_log) {
         fprintf(stderr,
@@ -1874,7 +1874,7 @@ static void G_PublishEndCinematicForHumans(LPEDICT clent, bool debug_log) {
     if (!level.mapinfo) return;
 
     FOR_LOOP(i, game.max_clients) {
-        LPEDICT ent = G_GetPlayerEntityByNumber(i);
+        edict_t * ent = G_GetPlayerEntityByNumber(i);
         if (!ent || ent == clent || level.mapinfo->players[i].playerType != kPlayerTypeHuman)
             continue;
         if (debug_log) {
@@ -1897,7 +1897,7 @@ CLIENTCOMMAND(Cancel) {
     G_PublishEndCinematicForHumans(clent, true);
 }
 
-void UI_ShowQuest(LPEDICT ent, LPCQUEST quest);
+void UI_ShowQuest(edict_t * ent, quest_t const * quest);
 
 CLIENTCOMMAND(Quests) {
     UI_ShowQuests(clent);
@@ -2099,7 +2099,7 @@ CLIENTCOMMAND(AlliesCancel) {
     UI_AlliesCancel(clent);
 }
 
-static void G_CheatPrintf(LPEDICT clent, cstring_t fmt, ...) {
+static void G_CheatPrintf(edict_t * clent, cstring_t fmt, ...) {
     char text[1024];
     va_list args;
 
@@ -2120,7 +2120,7 @@ static void G_CheatPrintf(LPEDICT clent, cstring_t fmt, ...) {
     }
 }
 
-static LPQUEST G_QuestByOrdinal(uint32_t ordinal) {
+static quest_t * G_QuestByOrdinal(uint32_t ordinal) {
     FOR_EACH_QUEST(q) {
         if (ordinal == 0) return q;
         ordinal--;
@@ -2128,13 +2128,13 @@ static LPQUEST G_QuestByOrdinal(uint32_t ordinal) {
     return NULL;
 }
 
-static void G_CheatCompleteQuest(LPQUEST quest) {
+static void G_CheatCompleteQuest(quest_t * quest) {
     if (!quest) return;
     FOR_EACH_QUESTITEM(quest, item) item->completed = true;
     quest->completed = true;
 }
 
-static void G_CheatListQuests(LPEDICT clent) {
+static void G_CheatListQuests(edict_t * clent) {
     uint32_t ordinal = 0;
 
     FOR_EACH_QUEST(q) {
@@ -2152,7 +2152,7 @@ static void G_CheatListQuests(LPEDICT clent) {
     if (!ordinal) G_CheatPrintf(clent, "WC3: no quests are currently allocated");
 }
 
-static void G_CheatCompleteQuestCommand(LPEDICT clent, uint32_t argc, cstring_t argv[]) {
+static void G_CheatCompleteQuestCommand(edict_t * clent, uint32_t argc, cstring_t argv[]) {
     uint32_t index;
     uint32_t count = 0;
 
@@ -2174,7 +2174,7 @@ static void G_CheatCompleteQuestCommand(LPEDICT clent, uint32_t argc, cstring_t 
         return;
     }
     index = (uint32_t)strtoul(argv[2], NULL, 10);
-    LPQUEST quest = G_QuestByOrdinal(index);
+    quest_t * quest = G_QuestByOrdinal(index);
     if (!quest) {
         G_CheatPrintf(clent, "WC3: quest %u does not exist", (unsigned)index);
         return;
@@ -2205,7 +2205,7 @@ CLIENTCOMMAND(Quest) {
     }
     if (!G_DebugIsNumber(argv[1]) || argv[1][0] == '-') return;
     index = (uint32_t)strtoul(argv[1], NULL, 10);
-    LPQUEST quest = G_QuestByOrdinal(index);
+    quest_t * quest = G_QuestByOrdinal(index);
     if (quest) UI_ShowQuest(clent, quest);
 }
 
@@ -2214,29 +2214,29 @@ static bool G_TriggerFunctionMatches(cstring_t filter, struct jass_function cons
     return !filter || !*filter || (name && strstr(name, filter));
 }
 
-static bool G_TriggerMatches(cstring_t filter, LPTRIGGER trigger) {
+static bool G_TriggerMatches(cstring_t filter, trigger_t * trigger) {
     if (!filter || !*filter) return true;
-    FOR_EACH_LIST(TRIGGERCONDITION, condition, trigger->conditions) {
+    FOR_EACH_LIST(gTriggerCondition_t, condition, trigger->conditions) {
         if (G_TriggerFunctionMatches(filter, condition->expr)) return true;
     }
-    FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
+    FOR_EACH_LIST(gTriggerAction_t, action, trigger->actions) {
         if (G_TriggerFunctionMatches(filter, action->func)) return true;
     }
     return false;
 }
 
-static void G_CheatPrintTriggerFunctions(LPEDICT clent, LPTRIGGER trigger) {
-    FOR_EACH_LIST(TRIGGERCONDITION, condition, trigger->conditions) {
+static void G_CheatPrintTriggerFunctions(edict_t * clent, trigger_t * trigger) {
+    FOR_EACH_LIST(gTriggerCondition_t, condition, trigger->conditions) {
         cstring_t name = jass_functionname(condition->expr);
         G_CheatPrintf(clent, "    condition: %s", name ? name : "(anonymous)");
     }
-    FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
+    FOR_EACH_LIST(gTriggerAction_t, action, trigger->actions) {
         cstring_t name = jass_functionname(action->func);
         G_CheatPrintf(clent, "    action:    %s", name ? name : "(anonymous)");
     }
 }
 
-static void G_CheatListTriggers(LPEDICT clent, cstring_t filter) {
+static void G_CheatListTriggers(edict_t * clent, cstring_t filter) {
     uint32_t shown = 0;
 
     if (!level.vm) {
@@ -2244,7 +2244,7 @@ static void G_CheatListTriggers(LPEDICT clent, cstring_t filter) {
         return;
     }
     FOR_LOOP(i, level.num_triggers) {
-        LPTRIGGER trigger = &level.triggers[i];
+        trigger_t * trigger = &level.triggers[i];
         if (!G_TriggerMatches(filter, trigger)) continue;
         G_CheatPrintf(clent, "WC3: trigger %u %s",
                 (unsigned)i, trigger->disabled ? "disabled" : "enabled");
@@ -2259,8 +2259,8 @@ static void G_CheatListTriggers(LPEDICT clent, cstring_t filter) {
     }
 }
 
-static bool G_CheatFireTrigger(LPEDICT clent, uint32_t index, bool use_selected, cstring_t label) {
-    LPEDICT unit = NULL;
+static bool G_CheatFireTrigger(edict_t * clent, uint32_t index, bool use_selected, cstring_t label) {
+    edict_t * unit = NULL;
 
     if (!level.vm) {
         G_CheatPrintf(clent, "WC3: no active JASS VM");
@@ -2360,16 +2360,16 @@ static bool G_CinematicFunctionName(cstring_t name) {
     return G_FunctionNameContainsAny(name, markers, sizeof(markers) / sizeof(markers[0]));
 }
 
-static bool G_TriggerLooksCinematic(LPTRIGGER trigger) {
+static bool G_TriggerLooksCinematic(trigger_t * trigger) {
     /* Classify by action names. Generated condition/helper names frequently
      * inherit words such as Intro without actually starting a cutscene. */
-    FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
+    FOR_EACH_LIST(gTriggerAction_t, action, trigger->actions) {
         if (G_CinematicFunctionName(jass_functionname(action->func))) return true;
     }
     return false;
 }
 
-static void G_CheatListCinematics(LPEDICT clent, cstring_t filter) {
+static void G_CheatListCinematics(edict_t * clent, cstring_t filter) {
     uint32_t shown = 0;
 
     if (!level.vm) {
@@ -2377,7 +2377,7 @@ static void G_CheatListCinematics(LPEDICT clent, cstring_t filter) {
         return;
     }
     FOR_LOOP(i, level.num_triggers) {
-        LPTRIGGER trigger = &level.triggers[i];
+        trigger_t * trigger = &level.triggers[i];
         if (!G_TriggerLooksCinematic(trigger)) continue;
         if (filter && *filter && !G_TriggerMatches(filter, trigger)) continue;
         G_CheatPrintf(clent, "WC3: cinematic candidate trigger %u %s",
@@ -2414,14 +2414,14 @@ static bool G_ObjectiveFunctionName(cstring_t name) {
     return questish && completion;
 }
 
-static bool G_TriggerLooksObjective(LPTRIGGER trigger) {
-    FOR_EACH_LIST(TRIGGERACTION, action, trigger->actions) {
+static bool G_TriggerLooksObjective(trigger_t * trigger) {
+    FOR_EACH_LIST(gTriggerAction_t, action, trigger->actions) {
         if (G_ObjectiveFunctionName(jass_functionname(action->func))) return true;
     }
     return false;
 }
 
-static void G_CheatListObjectives(LPEDICT clent, cstring_t filter) {
+static void G_CheatListObjectives(edict_t * clent, cstring_t filter) {
     uint32_t shown = 0;
 
     if (!level.vm) {
@@ -2429,7 +2429,7 @@ static void G_CheatListObjectives(LPEDICT clent, cstring_t filter) {
         return;
     }
     FOR_LOOP(i, level.num_triggers) {
-        LPTRIGGER trigger = &level.triggers[i];
+        trigger_t * trigger = &level.triggers[i];
         if (!G_TriggerLooksObjective(trigger)) continue;
         if (filter && *filter && !G_TriggerMatches(filter, trigger)) continue;
         G_CheatPrintf(clent, "WC3: objective completion candidate trigger %u %s",
@@ -2574,9 +2574,9 @@ static bool G_DebugIsNumber(cstring_t text) {
     return true;
 }
 
-static LPEDICT G_PortraitCameraUnit(LPEDICT clent, uint32_t argc, cstring_t argv[]) {
+static edict_t * G_PortraitCameraUnit(edict_t * clent, uint32_t argc, cstring_t argv[]) {
     uint32_t number;
-    LPEDICT target;
+    edict_t * target;
     if (!clent || !clent->client || argc < 2 || !G_DebugIsNumber(argv[1])) return NULL;
     number = (uint32_t)atoi(argv[1]);
     if (number >= globals.num_edicts) return NULL;
@@ -2585,22 +2585,22 @@ static LPEDICT G_PortraitCameraUnit(LPEDICT clent, uint32_t argc, cstring_t argv
     return target;
 }
 
-static void CMD_PortraitCameraDown(LPEDICT clent, uint32_t argc, cstring_t argv[]) {
-    LPEDICT target = G_PortraitCameraUnit(clent, argc, argv);
+static void CMD_PortraitCameraDown(edict_t * clent, uint32_t argc, cstring_t argv[]) {
+    edict_t * target = G_PortraitCameraUnit(clent, argc, argv);
     if (!target || clent->client->no_control || clent->client->camera.target_controller) return;
     G_ClientSetCameraPosition(clent, &target->s.origin2);
     clent->client->camera.target_controller = target;
-    clent->client->camera.target_offset = (VECTOR2){ 0, 0 };
+    clent->client->camera.target_offset = (vector2_t){ 0, 0 };
 }
 
-static void CMD_QuickCamera(LPEDICT clent, uint32_t argc, cstring_t argv[]) {
+static void CMD_QuickCamera(edict_t * clent, uint32_t argc, cstring_t argv[]) {
     (void)argc;
     (void)argv;
     if (!clent || !clent->client || !clent->client->camera.quick_position_set) return;
     G_ClientSetCameraPosition(clent, &clent->client->camera.quick_position);
 }
 
-static void CMD_PortraitCameraUp(LPEDICT clent, uint32_t argc, cstring_t argv[]) {
+static void CMD_PortraitCameraUp(edict_t * clent, uint32_t argc, cstring_t argv[]) {
     uint32_t number;
     if (!clent || !clent->client || argc < 2 || !G_DebugIsNumber(argv[1])) return;
     number = (uint32_t)atoi(argv[1]);
@@ -2612,30 +2612,30 @@ static void CMD_PortraitCameraUp(LPEDICT clent, uint32_t argc, cstring_t argv[])
  * compact: `camera move <x> <y>` and `camera selected`.  The client owns
  * `camera edge <0|1>` because edge scrolling is local input state. */
 CLIENTCOMMAND(Camera) {
-    LPGAMECLIENT client = clent ? clent->client : NULL;
+    gameClient_t * client = clent ? clent->client : NULL;
 
     if (!client || argc < 2) {
         fprintf(stderr, "usage: camera <move <x> <y>|selected>\n");
         return;
     }
     if (!strcasecmp(argv[1], "move")) {
-        VECTOR2 point;
+        vector2_t point;
         if (argc != 4 || !G_DebugIsNumber(argv[2]) || !G_DebugIsNumber(argv[3])) {
             fprintf(stderr, "usage: camera move <x> <y>\n");
             return;
         }
-        point = (VECTOR2){ (float)atoi(argv[2]), (float)atoi(argv[3]) };
+        point = (vector2_t){ (float)atoi(argv[2]), (float)atoi(argv[3]) };
         G_ClientSetCameraPosition(clent, &point);
         return;
     }
     if (!strcasecmp(argv[1], "selected")) {
-        LPEDICT target;
+        edict_t * target;
         if (argc != 2 || client->no_control || !(target = G_GetMainSelectedUnit(client))) {
             return;
         }
         G_ClientSetCameraPosition(clent, &target->s.origin2);
         client->camera.target_controller = target;
-        client->camera.target_offset = (VECTOR2){ 0, 0 };
+        client->camera.target_offset = (vector2_t){ 0, 0 };
         return;
     }
     fprintf(stderr, "usage: camera <move <x> <y>|selected>\n");
@@ -2644,9 +2644,9 @@ CLIENTCOMMAND(Camera) {
 /* Remove nearby non-building enemy units around the selected friendly unit so
  * deterministic movement tests are not changed by campaign combat/crowding. */
 CLIENTCOMMAND(EnemiesClear) {
-    LPGAMECLIENT client = clent ? clent->client : NULL;
-    LPEDICT center;
-    VECTOR2 origin;
+    gameClient_t * client = clent ? clent->client : NULL;
+    edict_t * center;
+    vector2_t origin;
     float radius = WC3_ENEMIES_CLEAR_RADIUS;
     float radius_sq;
     uint32_t removed = 0;
@@ -2673,7 +2673,7 @@ CLIENTCOMMAND(EnemiesClear) {
     origin = center->s.origin2;
     radius_sq = radius * radius;
     FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT ent = &globals.edicts[i];
+        edict_t * ent = &globals.edicts[i];
         float dx, dy;
 
         if (!ent->inuse || ent == center || !(ent->svflags & SVF_MONSTER) || !ent->data.UnitData ||
@@ -2692,10 +2692,10 @@ CLIENTCOMMAND(EnemiesClear) {
 }
 
 CLIENTCOMMAND(DebugSpawn) {
-    LPGAMECLIENT client = clent->client;
+    gameClient_t * client = clent->client;
     uint32_t class_id;
-    VECTOR2 location;
-    LPEDICT spawned;
+    vector2_t location;
+    edict_t * spawned;
     uint32_t first_ability = 2;
 
     if (argc < 2 || strlen(argv[1]) < 4) {
@@ -2704,13 +2704,13 @@ CLIENTCOMMAND(DebugSpawn) {
     }
 
     class_id = *((uint32_t const *)argv[1]);
-    location = (VECTOR2){ client->ps.vieworigin.x, client->ps.vieworigin.y };
+    location = (vector2_t){ client->ps.vieworigin.x, client->ps.vieworigin.y };
     if (argc >= 4 && G_DebugIsNumber(argv[2]) && G_DebugIsNumber(argv[3])) {
         location.x = atoi(argv[2]);
         location.y = atoi(argv[3]);
         first_ability = 4;
     } else {
-        LPEDICT selected = G_GetMainSelectedUnit(client);
+        edict_t * selected = G_GetMainSelectedUnit(client);
         if (selected) {
             location = selected->s.origin2;
             location.x += selected->collision + 96.0f;
@@ -2739,10 +2739,10 @@ CLIENTCOMMAND(DebugSpawn) {
 
 typedef struct {
     cstring_t name;
-    void (*func)(LPEDICT ent, uint32_t argc, cstring_t argv[]);
+    void (*func)(edict_t * ent, uint32_t argc, cstring_t argv[]);
 } clientCommand_t;
 
-static void CMD_MusicFinished(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
+static void CMD_MusicFinished(edict_t * ent, uint32_t argc, cstring_t argv[]) {
     uint32_t session_id;
     wc3MusicSource_t source;
 
@@ -2755,7 +2755,7 @@ static void CMD_MusicFinished(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
     else if (source == WC3_MUSIC_SOURCE_THEMATIC) G_MusicThematicFinished(ent->client);
 }
 
-static void CMD_MusicSelected(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
+static void CMD_MusicSelected(edict_t * ent, uint32_t argc, cstring_t argv[]) {
     uint32_t session_id, played_mask;
     int32_t index, position_ms;
 
@@ -2767,7 +2767,7 @@ static void CMD_MusicSelected(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
     G_MusicTrackSelected(ent->client, session_id, index, position_ms, played_mask);
 }
 
-static void CMD_MusicSnapshot(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
+static void CMD_MusicSnapshot(edict_t * ent, uint32_t argc, cstring_t argv[]) {
     uint32_t thematic_session_id, restore_session_id, played_mask;
     int32_t index, position_ms;
 
@@ -2783,7 +2783,7 @@ static void CMD_MusicSnapshot(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
 
 /* The client reports the presentation class its window settled on (docs/architecture/ui-canvas.md).  Nothing
  * is authored here: the next resource-bar refresh re-sends LAYER_CONSOLE with or without extension chrome. */
-static void CMD_UICanvas(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
+static void CMD_UICanvas(edict_t * ent, uint32_t argc, cstring_t argv[]) {
     char *end = NULL;
     long value = argc > 1 && argv[1][0] ? strtol(argv[1], &end, 10) : -1;
     if (value < 0 || value >= UI_CANVAS_CLASS_COUNT || (end && *end)) {
@@ -2870,7 +2870,7 @@ clientCommand_t clientCommands[] = {
     { NULL }
 };
 
-void G_ClientCommand(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
+void G_ClientCommand(edict_t * ent, uint32_t argc, cstring_t argv[]) {
     for (clientCommand_t const *cmd = clientCommands; cmd->name; cmd++) {
         if (!strcmp(cmd->name, argv[0])) {
             cmd->func(ent, argc, argv);
@@ -2879,8 +2879,8 @@ void G_ClientCommand(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
     }
 }
 
-void G_ClientSetCameraPosition(LPEDICT ent, LPCVECTOR2 position) {
-    VECTOR2 clamped;
+void G_ClientSetCameraPosition(edict_t * ent, vector2_t const * position) {
+    vector2_t clamped;
 
     if (ent->client->no_control)
         return;

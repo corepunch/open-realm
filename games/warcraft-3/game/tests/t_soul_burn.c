@@ -8,7 +8,7 @@
 #define BZ_AHTB MAKEFOURCC('A', 'H', 't', 'b') // rawcode; Storm Bolt unit-target probe
 #define BZ_ATAU MAKEFOURCC('A', 't', 'a', 'u') // rawcode; Taunt no-target probe
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -36,14 +36,14 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
     slkTestData_t *rows, *old;
-    LPEDICT caster, enemy, ally;
-} NSOFIX;
+    edict_t * caster, *enemy, *ally;
+} nsoFix_t;
 
-static NSOFIX nso_setup(void) {
-    NSOFIX fix;
+static nsoFix_t nso_setup(void) {
+    nsoFix_t fix;
     reset_entities(); setup_test_world(); level.time = 1000;
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
     fix.rows = parse_slk_string(NSO_SLK); fix.old = G_SetSLKRows("AbilityData", fix.rows);
     fix.caster = alloc_test_unit(MAKEFOURCC('N', 'f', 'i', 'r'), 0, 0);
@@ -62,14 +62,14 @@ static NSOFIX nso_setup(void) {
     return fix;
 }
 
-static void nso_done(NSOFIX fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
+static void nso_done(nsoFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
 
 TEST(wc3_spell, soul_burn_procedure_lookup) {
     T_EQ(S_AbilityItem(BZ_ANSO).ability->proc, CAbilitySoulBurn);
 }
 
 TEST(wc3_spell, soul_burn_applies_authored_drain_and_reduction) {
-    NSOFIX fix = nso_setup();
+    nsoFix_t fix = nso_setup();
     T_ASSERT(S_SpellAllowsTarget(BZ_ANSO, fix.caster, fix.enemy));
     T_ASSERT(!S_SpellAllowsTarget(BZ_ANSO, fix.caster, fix.ally));
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ANSO, fix.enemy));
@@ -85,7 +85,7 @@ TEST(wc3_spell, soul_burn_applies_authored_drain_and_reduction) {
 
 /* BNso blocks unit-target and no-target casts without spending the victim's mana. */
 TEST(wc3_spell, soul_burn_bnso_blocks_casts_without_mana_spend) {
-    NSOFIX fix = nso_setup();
+    nsoFix_t fix = nso_setup();
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ANSO, fix.enemy));
     T_ASSERT(S_UnitIsSilenced(fix.enemy));
     T_ASSERT(!S_CastUnitTargetSpell(fix.enemy, BZ_AHTB, fix.caster));
@@ -97,7 +97,7 @@ TEST(wc3_spell, soul_burn_bnso_blocks_casts_without_mana_spend) {
 
 /* Existing Silence buff BNsi must keep rejecting casts through the shared helper. */
 TEST(wc3_spell, soul_burn_bnsi_still_silences) {
-    NSOFIX fix = nso_setup();
+    nsoFix_t fix = nso_setup();
     unit_addtimedstatus(fix.enemy, "BNsi", 1, 10);
     T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BNSI), 1);
     T_ASSERT(S_UnitIsSilenced(fix.enemy));
@@ -111,7 +111,7 @@ TEST(wc3_spell, soul_burn_bnsi_still_silences) {
 
 /* Expiry clears silence; casting works again; recast re-applies BNso. */
 TEST(wc3_spell, soul_burn_expiry_restores_casting_and_recast) {
-    NSOFIX fix = nso_setup();
+    nsoFix_t fix = nso_setup();
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ANSO, fix.enemy));
     T_ASSERT(S_UnitIsSilenced(fix.enemy));
     level.time += 9000; unit_updatestatuses(fix.enemy);

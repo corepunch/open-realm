@@ -13,29 +13,29 @@ typedef struct {
     float texcoord_scale;
     float duration;
     uint32_t version;
-    LPCTEXTURE texture;
-} W3LIGHTNINGART;
-typedef W3LIGHTNINGART *LPW3LIGHTNINGART;
-typedef W3LIGHTNINGART const *LPCW3LIGHTNINGART;
+    texture_t const * texture;
+} w3lightningart_t;
+
+
 
 static slkField_t const lightning_schema[] = {
-    { "", offsetof(W3LIGHTNINGART, id), STB_SLK_FOURCC },
-    { "Dir", offsetof(W3LIGHTNINGART, dir), STB_SLK_STR },
-    { "file", offsetof(W3LIGHTNINGART, file), STB_SLK_STR },
-    { "AvgSegLen", offsetof(W3LIGHTNINGART, avg_seg_len), STB_SLK_FLOAT },
-    { "Width", offsetof(W3LIGHTNINGART, width), STB_SLK_FLOAT },
-    { "R", offsetof(W3LIGHTNINGART, r), STB_SLK_INT },
-    { "G", offsetof(W3LIGHTNINGART, g), STB_SLK_INT },
-    { "B", offsetof(W3LIGHTNINGART, b), STB_SLK_INT },
-    { "A", offsetof(W3LIGHTNINGART, a), STB_SLK_INT },
-    { "NoiseScale", offsetof(W3LIGHTNINGART, noise_scale), STB_SLK_FLOAT },
-    { "TexCoordScale", offsetof(W3LIGHTNINGART, texcoord_scale), STB_SLK_FLOAT },
-    { "Duration", offsetof(W3LIGHTNINGART, duration), STB_SLK_FLOAT },
-    { "version", offsetof(W3LIGHTNINGART, version), STB_SLK_INT },
+    { "", offsetof(w3lightningart_t, id), STB_SLK_FOURCC },
+    { "Dir", offsetof(w3lightningart_t, dir), STB_SLK_STR },
+    { "file", offsetof(w3lightningart_t, file), STB_SLK_STR },
+    { "AvgSegLen", offsetof(w3lightningart_t, avg_seg_len), STB_SLK_FLOAT },
+    { "Width", offsetof(w3lightningart_t, width), STB_SLK_FLOAT },
+    { "R", offsetof(w3lightningart_t, r), STB_SLK_INT },
+    { "G", offsetof(w3lightningart_t, g), STB_SLK_INT },
+    { "B", offsetof(w3lightningart_t, b), STB_SLK_INT },
+    { "A", offsetof(w3lightningart_t, a), STB_SLK_INT },
+    { "NoiseScale", offsetof(w3lightningart_t, noise_scale), STB_SLK_FLOAT },
+    { "TexCoordScale", offsetof(w3lightningart_t, texcoord_scale), STB_SLK_FLOAT },
+    { "Duration", offsetof(w3lightningart_t, duration), STB_SLK_FLOAT },
+    { "version", offsetof(w3lightningart_t, version), STB_SLK_INT },
     { NULL, 0, 0 },
 };
 
-static W3LIGHTNINGART *lightning_rows;
+static w3lightningart_t *lightning_rows;
 static uint32_t lightning_count;
 static slkIndex_t lightning_index;
 static struct {
@@ -80,13 +80,13 @@ static uint32_t R_LightningLoadSlk(cstring_t filename, void **dest) {
     PATHSTR scoped;
     uint32_t count = 0;
     if (R_MapAssetCandidate(filename, scoped, sizeof(scoped)))
-        count = ri.LoadSlk(scoped, lightning_schema, dest, sizeof(W3LIGHTNINGART));
-    if (!count) count = ri.LoadSlk(filename, lightning_schema, dest, sizeof(W3LIGHTNINGART));
+        count = ri.LoadSlk(scoped, lightning_schema, dest, sizeof(w3lightningart_t));
+    if (!count) count = ri.LoadSlk(filename, lightning_schema, dest, sizeof(w3lightningart_t));
     return count;
 }
 
 /* Cache the authored ribbon texture; malformed rows are logged once and skipped by the caller. */
-static LPCTEXTURE R_LightningTexture(W3LIGHTNINGART *art) {
+static texture_t const * R_LightningTexture(w3lightningart_t *art) {
     PATHSTR path;
     if (!art) return NULL;
     if (art->texture) return art->texture;
@@ -113,7 +113,7 @@ void R_LightningInit(void) {
 /* Release the table and texture references owned by the current map. */
 void R_LightningShutdown(void) {
     FS_SLKFreeIndex(&lightning_index);
-    FS_SLKFreeRows(lightning_schema, lightning_rows, lightning_count, sizeof(W3LIGHTNINGART));
+    FS_SLKFreeRows(lightning_schema, lightning_rows, lightning_count, sizeof(w3lightningart_t));
     lightning_rows = NULL;
     lightning_count = 0;
     R_LightningClearMissing();
@@ -122,12 +122,12 @@ void R_LightningShutdown(void) {
 /* Rebuild the authored LightningData lookup whenever the map asset scope changes. */
 void R_LightningRegisterMap(void) {
     FS_SLKFreeIndex(&lightning_index);
-    FS_SLKFreeRows(lightning_schema, lightning_rows, lightning_count, sizeof(W3LIGHTNINGART));
+    FS_SLKFreeRows(lightning_schema, lightning_rows, lightning_count, sizeof(w3lightningart_t));
     lightning_rows = NULL;
     R_LightningClearMissing();
     lightning_count = R_LightningLoadSlk("Splats\\LightningData.slk", (void **)&lightning_rows);
     if (!lightning_count) fprintf(stderr, "WC3 Lightning: Splats\\LightningData.slk has no rows\n");
-    FS_SLKBuildIndex(&lightning_index, lightning_rows, lightning_count, sizeof(W3LIGHTNINGART));
+    FS_SLKBuildIndex(&lightning_index, lightning_rows, lightning_count, sizeof(w3lightningart_t));
 }
 
 /* Apply the authored channel multiplier without overflowing the byte product. */
@@ -151,10 +151,10 @@ static float R_LightningHashSigned(uint32_t seed) {
 }
 
 /* Build the camera-independent polyline that the shared ribbon renderer expands. */
-static uint32_t R_LightningBuildPoints(W3LIGHTNINGART const *art,
-                                    LPCLIGHTNINGEFFECT state,
-                                    VECTOR3 *points, uint32_t point_capacity) {
-    VECTOR3 delta, direction, reference, side;
+static uint32_t R_LightningBuildPoints(w3lightningart_t const *art,
+                                    lightningEffect_t const * state,
+                                    vector3_t *points, uint32_t point_capacity) {
+    vector3_t delta, direction, reference, side;
     float distance, average, noise_ratio, lateral_scale;
     uint32_t segments, crackle_frame;
 
@@ -163,7 +163,7 @@ static uint32_t R_LightningBuildPoints(W3LIGHTNINGART const *art,
     distance = Vector3_len(&delta);
     if (distance <= 0.001f) return 0;
     direction = Vector3_scale(&delta, 1.0f / distance);
-    reference = fabsf(direction.z) < 0.9f ? (VECTOR3){0, 0, 1} : (VECTOR3){0, 1, 0};
+    reference = fabsf(direction.z) < 0.9f ? (vector3_t){0, 0, 1} : (vector3_t){0, 1, 0};
     side = Vector3_cross(&direction, &reference); Vector3_normalize(&side);
     average = art->avg_seg_len > 0.0f ? art->avg_seg_len : distance;
     segments = (uint32_t)ceilf(distance / average);
@@ -192,8 +192,8 @@ static uint32_t R_LightningBuildPoints(W3LIGHTNINGART const *art,
 }
 
 /* Fade finite bolts while leaving persistent JASS lightning fully opaque. */
-static float R_LightningOpacity(W3LIGHTNINGART const *art,
-                                LPCLIGHTNINGEFFECT state) {
+static float R_LightningOpacity(w3lightningart_t const *art,
+                                lightningEffect_t const * state) {
     uint32_t lifetime, authored;
     float elapsed, duration, fade_start;
 
@@ -213,11 +213,11 @@ static float R_LightningOpacity(W3LIGHTNINGART const *art,
 /* Draw the current endpoint snapshot through the shared ribbon particle pass. */
 void R_LightningDraw(void) {
     FOR_LOOP(i, tr.viewDef.num_lightning_effects) {
-        LPCLIGHTNINGEFFECT state = tr.viewDef.lightning_effects + i;
-        W3LIGHTNINGART *art = FS_SLKLookup(&lightning_index, state->effect_id);
-        VECTOR3 points[WC3_LIGHTNING_MAX_SEGMENTS + 1];
-        COLOR32 color;
-        LPCTEXTURE texture;
+        lightningEffect_t const * state = tr.viewDef.lightning_effects + i;
+        w3lightningart_t *art = FS_SLKLookup(&lightning_index, state->effect_id);
+        vector3_t points[WC3_LIGHTNING_MAX_SEGMENTS + 1];
+        color32_t color;
+        texture_t const * texture;
         float opacity, average, texture_scale, elapsed;
         uint32_t point_count;
         if (!art) {
@@ -232,7 +232,7 @@ void R_LightningDraw(void) {
         texture = R_LightningTexture(art);
         opacity = R_LightningOpacity(art, state);
         if (opacity <= 0.0f) continue;
-        color = MAKE(COLOR32,
+        color = MAKE(color32_t,
             R_LightningMulByte(art->r, state->color.r),
             R_LightningMulByte(art->g, state->color.g),
             R_LightningMulByte(art->b, state->color.b),

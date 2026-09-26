@@ -10,7 +10,7 @@
 #define BZ_DUR 0.5f // fixture Dur; landing interval seconds (not stock 1.0)
 #define BZ_COUNT 3 // fixture DataB; landings (not stock 2)
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -36,30 +36,30 @@ static char const roc_slk[] =
     "C;Y4;X7;K\"50\"\nC;Y4;X8;K\"360\"\nC;Y4;X9;K\"hfoo\"\n"
     "C;Y4;X10;K\"900\"\nC;Y4;X11;K\"175\"\nC;Y4;X12;K\"0\"\nE\n";
 
-typedef struct { slkTestData_t *rows, *old; LPEDICT caster; VECTOR2 point; } ROCFIX;
+typedef struct { slkTestData_t *rows, *old; edict_t * caster; vector2_t point; } rocFix_t;
 
-static ROCFIX roc_setup(uint32_t code) {
-    ROCFIX fix;
+static rocFix_t roc_setup(uint32_t code) {
+    rocFix_t fix;
     reset_entities(); setup_test_world(); level.time = 1000;
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     fix.rows = parse_slk_string(roc_slk); fix.old = G_SetSLKRows("AbilityData", fix.rows);
     fix.caster = alloc_test_unit(MAKEFOURCC('U', 'w', 'a', 'r'), 0, 0);
     fix.caster->s.player = 0; fix.caster->svflags |= SVF_MONSTER; fix.caster->targtype = TARG_GROUND;
     fix.caster->heroabilities[0] = MAKE(heroability_t, .code = code, .level = 1);
     fix.caster->mana.value = fix.caster->mana.max_value = 100;
-    fix.point = MAKE(VECTOR2, .x = 128, .y = 96);
+    fix.point = MAKE(vector2_t, .x = 128, .y = 96);
     return fix;
 }
 
-static void roc_done(ROCFIX fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
+static void roc_done(rocFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
 
-static LPEDICT roc_thinker(LPEDICT caster) {
+static edict_t * roc_thinker(edict_t * caster) {
     FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->think == rain_of_chaos_think)
         return ent;
     return NULL;
 }
 
-static uint32_t roc_summons(LPEDICT caster, VECTOR2 point, float area) {
+static uint32_t roc_summons(edict_t * caster, vector2_t point, float area) {
     uint32_t count = 0;
     FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->class_id == BZ_HFOO) {
         T_ASSERT(Vector2_distance(&ent->s.origin2, &point) <= area + 0.5f);
@@ -84,7 +84,7 @@ TEST(wc3_spell, rain_of_chaos_procedure_and_flags) {
 
 /* Point cast owns landings on a thinker: not channeled, first landing immediate, then Dur spacing. */
 TEST(wc3_spell, rain_of_chaos_schedules_authored_landings) {
-    ROCFIX fix = roc_setup(BZ_ANRC);
+    rocFix_t fix = roc_setup(BZ_ANRC);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANRC, &fix.point));
     T_EQ(fix.caster->channel.code, 0);
     T_EQ(roc_summons(fix.caster, fix.point, BZ_AREA), 1);
@@ -103,7 +103,7 @@ TEST(wc3_spell, rain_of_chaos_schedules_authored_landings) {
 
 /* Moving the caster after cast must not cancel remaining landings (unlike Rain of Fire). */
 TEST(wc3_spell, rain_of_chaos_continues_after_caster_moves) {
-    ROCFIX fix = roc_setup(BZ_ANRC);
+    rocFix_t fix = roc_setup(BZ_ANRC);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANRC, &fix.point));
     T_EQ(roc_summons(fix.caster, fix.point, BZ_AREA), 1);
     fix.caster->s.origin2.x += 400; fix.caster->s.origin.x += 400;
@@ -117,7 +117,7 @@ TEST(wc3_spell, rain_of_chaos_continues_after_caster_moves) {
 }
 
 TEST(wc3_spell, rain_of_chaos_anr3_shares_procedure_cast) {
-    ROCFIX fix = roc_setup(BZ_ANR3);
+    rocFix_t fix = roc_setup(BZ_ANR3);
     T_EQ(S_AbilityItem(BZ_ANR3).ability->proc, CAbilityRainOfChaos);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANR3, &fix.point));
     T_EQ(fix.caster->channel.code, 0);

@@ -1,18 +1,18 @@
 #include "r_wowmap.h"
 
 typedef struct {
-    LPCTEXTURE texture;
+    texture_t const * texture;
     splat_shader_t *shader;
     uint32_t num_vertices;
-    VERTEX vertices[WOW_SPLAT_BATCH_VERTICES];
-} WOWSPLATBATCH;
+    vertex_t vertices[WOW_SPLAT_BATCH_VERTICES];
+} wowSplatbatch_t;
 
-static WOWSPLATBATCH wow_splat_batches[WOW_SPLAT_BATCHES];
+static wowSplatbatch_t wow_splat_batches[WOW_SPLAT_BATCHES];
 
 /* Stream one material batch in a single upload/draw pair. */
-static void Wow_DrawSplatVertices(LPCTEXTURE texture, splat_shader_t *shader,
-                                  LPCVERTEX vertices, uint32_t num_vertices) {
-    MATRIX4 model_matrix;
+static void Wow_DrawSplatVertices(texture_t const * texture, splat_shader_t *shader,
+                                  vertex_t const * vertices, uint32_t num_vertices) {
+    matrix4_t model_matrix;
 
     if (!texture || !shader || !vertices || !num_vertices) return;
     Matrix4_identity(&model_matrix);
@@ -38,7 +38,7 @@ static void Wow_DrawSplatVertices(LPCTEXTURE texture, splat_shader_t *shader,
 
 void Wow_FlushSplats(void) {
     FOR_LOOP(i, WOW_SPLAT_BATCHES) {
-        WOWSPLATBATCH *batch = &wow_splat_batches[i];
+        wowSplatbatch_t *batch = &wow_splat_batches[i];
         if (!batch->num_vertices) continue;
         Wow_DrawSplatVertices(batch->texture, batch->shader, batch->vertices, batch->num_vertices);
         memset(batch, 0, sizeof(*batch));
@@ -46,9 +46,9 @@ void Wow_FlushSplats(void) {
 }
 
 /* Group splats by material; common blob shadows and selection rings become one draw each. */
-static void Wow_QueueSplatVertices(LPCTEXTURE texture, splat_shader_t *shader,
-                                   LPCVERTEX vertices, uint32_t num_vertices) {
-    WOWSPLATBATCH *empty = NULL;
+static void Wow_QueueSplatVertices(texture_t const * texture, splat_shader_t *shader,
+                                   vertex_t const * vertices, uint32_t num_vertices) {
+    wowSplatbatch_t *empty = NULL;
 
     if (!texture || !shader || !vertices || !num_vertices) return;
     if (num_vertices > WOW_SPLAT_BATCH_VERTICES) {
@@ -57,7 +57,7 @@ static void Wow_QueueSplatVertices(LPCTEXTURE texture, splat_shader_t *shader,
         return;
     }
     FOR_LOOP(i, WOW_SPLAT_BATCHES) {
-        WOWSPLATBATCH *batch = &wow_splat_batches[i];
+        wowSplatbatch_t *batch = &wow_splat_batches[i];
         if (!batch->num_vertices) {
             if (!empty) empty = batch;
             continue;
@@ -82,11 +82,11 @@ static void Wow_QueueSplatVertices(LPCTEXTURE texture, splat_shader_t *shader,
 
 bool Wow_MakeSplatVertex(float x,
                                 float y,
-                                LPCVECTOR2 mins,
+                                vector2_t const * mins,
                                 float width,
                                 float height,
-                                COLOR32 color,
-                                LPVERTEX vertex) {
+                                color32_t color,
+                                vertex_t * vertex) {
     float z;
 
     if (!vertex || !Wow_TerrainHeightAtPoint(x, y, &z)) {
@@ -97,15 +97,15 @@ bool Wow_MakeSplatVertex(float x,
     return true;
 }
 
-void Wow_AddSplatTriangle(LPVERTEX vertices,
+void Wow_AddSplatTriangle(vertex_t * vertices,
                                  uint32_t * count,
-                                 VERTEX a,
-                                 VERTEX b,
-                                 VERTEX c,
+                                 vertex_t a,
+                                 vertex_t b,
+                                 vertex_t c,
                                  float max_height_delta) {
     float min_z = MIN(a.position.z, MIN(b.position.z, c.position.z));
     float max_z = MAX(a.position.z, MAX(b.position.z, c.position.z));
-    VECTOR3 normal;
+    vector3_t normal;
 
     if (max_z - min_z > max_height_delta) {
         return;
@@ -123,17 +123,17 @@ void Wow_AddSplatTriangle(LPVERTEX vertices,
 void Wow_DrawTerrainShadows(void) {
 }
 
-void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color) {
+void R_RenderRectSplat(vector2_t const * mins, vector2_t const * maxs, texture_t const * texture, splat_shader_t *shader, color32_t color) {
     float width;
     float height;
     int cols;
     int rows;
     uint32_t max_vertices;
     uint32_t num_vertices = 0;
-    VERTEX stack_vertices[WOW_SPLAT_MIN_SUBDIVISIONS * WOW_SPLAT_MIN_SUBDIVISIONS * 6];
-    VERTEX samples[(WOW_SPLAT_MAX_SUBDIVISIONS + 1) * (WOW_SPLAT_MAX_SUBDIVISIONS + 1)];
+    vertex_t stack_vertices[WOW_SPLAT_MIN_SUBDIVISIONS * WOW_SPLAT_MIN_SUBDIVISIONS * 6];
+    vertex_t samples[(WOW_SPLAT_MAX_SUBDIVISIONS + 1) * (WOW_SPLAT_MAX_SUBDIVISIONS + 1)];
     uint8_t valid[(WOW_SPLAT_MAX_SUBDIVISIONS + 1) * (WOW_SPLAT_MAX_SUBDIVISIONS + 1)];
-    VERTEX *vertices;
+    vertex_t *vertices;
     bool vertices_allocated = false;
     float max_height_delta;
     static bool warned_missing_sample;
@@ -192,10 +192,10 @@ void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, spl
             uint32_t i10 = i00 + 1;
             uint32_t i01 = i00 + (uint32_t)(cols + 1);
             uint32_t i11 = i01 + 1;
-            VERTEX v00;
-            VERTEX v10;
-            VERTEX v11;
-            VERTEX v01;
+            vertex_t v00;
+            vertex_t v10;
+            vertex_t v11;
+            vertex_t v01;
 
             if (valid[i00] && valid[i10] && valid[i11] && valid[i01]) {
                 v00 = samples[i00]; v10 = samples[i10]; v11 = samples[i11]; v01 = samples[i01];
@@ -241,11 +241,11 @@ void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, spl
     if (vertices_allocated) ri.MemFree(vertices);
 }
 
-void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, float z,
-                           LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color) {
+void R_RenderFlatRectSplat(vector2_t const * mins, vector2_t const * maxs, float z,
+                           texture_t const * texture, splat_shader_t *shader, color32_t color) {
     float width;
     float height;
-    VERTEX vertices[6];
+    vertex_t vertices[6];
 
     if (!mins || !maxs || !texture || !shader) {
         return;
@@ -267,10 +267,10 @@ void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, float z,
     Wow_QueueSplatVertices(texture, shader, vertices, 6);
 }
 
-void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color) {
+void R_RenderSplat(vector2_t const * position, float radius, texture_t const * texture, splat_shader_t *shader, color32_t color) {
     if (!position || radius <= 0.0f) return;
-    VECTOR2 mins = { .x = position->x - radius, .y = position->y - radius };
-    VECTOR2 maxs = { .x = position->x + radius, .y = position->y + radius };
+    vector2_t mins = { .x = position->x - radius, .y = position->y - radius };
+    vector2_t maxs = { .x = position->x + radius, .y = position->y + radius };
     R_RenderRectSplat(&mins, &maxs, texture, shader, color);
 }
 
@@ -278,14 +278,14 @@ void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, splat_
  * batch through Wow_QueueSplatVertices, so the shared batch API stays immediate. */
 static splat_shader_t *wow_batch_shader;
 void R_BeginSplatBatch(splat_shader_t *shader) { wow_batch_shader = shader; }
-void R_AddRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, COLOR32 color) {
+void R_AddRectSplat(vector2_t const * mins, vector2_t const * maxs, texture_t const * texture, color32_t color) {
     R_RenderRectSplat(mins, maxs, texture, wow_batch_shader, color);
 }
 void R_EndSplatBatch(void) { }
 
-VECTOR2 GetWar3MapSize(LPCWAR3MAP war3Map) {
+vector2_t GetWar3MapSize(war3map_t const * war3Map) {
     (void)war3Map;
-    return (VECTOR2){ 0.0f, 0.0f };
+    return (vector2_t){ 0.0f, 0.0f };
 }
 
 float GetAccurateHeightAtPoint(float sx, float sy) {
@@ -300,8 +300,8 @@ float Wow_GetHeightAtPoint(float x, float y) {
     return GetAccurateHeightAtPoint(x, y);
 }
 
-bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 output) {
-    LINE3 const line = R_LineForScreenPoint(viewdef, x, y);
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t * output) {
+    line3_t const line = R_LineForScreenPoint(viewdef, x, y);
     float const dz = line.b.z - line.a.z;
     float t;
 

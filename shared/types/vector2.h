@@ -3,21 +3,21 @@
 
 struct vector2 { float x, y; };
 
-typedef struct vector2 VECTOR2;
-typedef struct vector2 *LPVECTOR2;
-typedef struct vector2 const *LPCVECTOR2;
+typedef struct vector2 vector2_t;
 
-void Vector2_set(LPVECTOR2 v, float x, float y);
-VECTOR2 Vector2_scale(LPCVECTOR2 v, float s);
-VECTOR2 Vector2_add(LPCVECTOR2 a, LPCVECTOR2 b);
-VECTOR2 Vector2_sub(LPCVECTOR2 a, LPCVECTOR2 b);
-VECTOR2 Vector2_lerp(LPCVECTOR2 a, LPCVECTOR2 b, float t);
-VECTOR2 Vector2_mad(LPCVECTOR2 v, float s, LPCVECTOR2 b);
-VECTOR2 Vector2_unm(LPCVECTOR2 v);
-float Vector2_distance(LPCVECTOR2 a, LPCVECTOR2 b);
-float Vector2_dot(LPCVECTOR2 a, LPCVECTOR2 b);
-float Vector2_lengthsq(LPCVECTOR2 vec);
-float Vector2_len(LPCVECTOR2 vec);
-void Vector2_normalize(LPVECTOR2 v);
+
+
+void Vector2_set(vector2_t * v, float x, float y);
+vector2_t Vector2_scale(vector2_t const * v, float s);
+vector2_t Vector2_add(vector2_t const * a, vector2_t const * b);
+vector2_t Vector2_sub(vector2_t const * a, vector2_t const * b);
+vector2_t Vector2_lerp(vector2_t const * a, vector2_t const * b, float t);
+vector2_t Vector2_mad(vector2_t const * v, float s, vector2_t const * b);
+vector2_t Vector2_unm(vector2_t const * v);
+float Vector2_distance(vector2_t const * a, vector2_t const * b);
+float Vector2_dot(vector2_t const * a, vector2_t const * b);
+float Vector2_lengthsq(vector2_t const * vec);
+float Vector2_len(vector2_t const * vec);
+void Vector2_normalize(vector2_t * v);
 
 #endif

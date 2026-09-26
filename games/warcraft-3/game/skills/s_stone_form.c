@@ -10,7 +10,7 @@ static bool stone_form_types(uint32_t code, uint32_t *base, uint32_t *stone) {
     return true;
 }
 
-static bool stone_form_order(LPEDICT unit, cstring_t order, uint32_t code) {
+static bool stone_form_order(edict_t * unit, cstring_t order, uint32_t code) {
     uint32_t base, stone, target;
     if (!unit || !order || !stone_form_types(code, &base, &stone)) return false;
     if (!strcmp(order, "unstoneform")) {
@@ -28,13 +28,13 @@ static bool stone_form_order(LPEDICT unit, cstring_t order, uint32_t code) {
     return true;
 }
 
-static bool stone_form_can_transform(LPCEDICT unit, uint32_t code) {
+static bool stone_form_can_transform(edict_t const * unit, uint32_t code) {
     uint32_t base, stone;
     return unit && stone_form_types(code, &base, &stone) &&
            (unit->class_id == base || unit->class_id == stone);
 }
 
-static bool stone_form_execute(LPEDICT unit, uint32_t code) {
+static bool stone_form_execute(edict_t * unit, uint32_t code) {
     uint32_t base, stone;
     if (!unit || !stone_form_types(code, &base, &stone)) return false;
     return stone_form_order(unit, unit->class_id == base ? "stoneform" : "unstoneform", code);

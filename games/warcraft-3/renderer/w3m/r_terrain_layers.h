@@ -3,17 +3,17 @@
 
 #include "renderer/r_local.h"
 
-KNOWN_AS(MapLayer, MAPLAYER);
-KNOWN_AS(MapSegment, MAPSEGMENT);
+KNOWN_AS(MapLayer, maplayer_t);
+KNOWN_AS(MapSegment, mapsegment_t);
 
-typedef struct TERRAINNORMALS {
+typedef struct terrainNormals_s {
     void const * data;
     float (*height)(void const * data, uint32_t x, uint32_t y);
     uint32_t width, height_count;
     float cell_size;
-} TERRAINNORMALS;
-typedef struct TERRAINNORMALS *LPTERRAINNORMALS;
-typedef const struct TERRAINNORMALS *LPCTERRAINNORMALS;
+} terrainNormals_t;
+
+
 
 typedef enum {
     MAPLAYERTYPE_GROUND,
@@ -23,30 +23,30 @@ typedef enum {
 
 struct MapLayer {
     MAPLAYERTYPE type;
-    LPCBUFFER buffer;
-    LPCTEXTURE texture;
-    LPMAPLAYER next;
+    buffer_t const * buffer;
+    texture_t const * texture;
+    maplayer_t * next;
     uint32_t num_vertices;
     uint32_t num_indices;
 };
 
 struct MapSegment {
-    LPMAPLAYER layers;
-    LPMAPSEGMENT next;
-    BOX3 bbox;
+    maplayer_t * layers;
+    mapsegment_t * next;
+    box3_t bbox;
 };
 
-void R_DrawTerrainSegment(LPCMAPSEGMENT segment, uint32_t mask);
+void R_DrawTerrainSegment(mapsegment_t const * segment, uint32_t mask);
 
 /* Both tile renderers need normals independent of triangle diagonals and holes in neighbouring cells. */
-static inline VECTOR3 R_TerrainGridNormal(LPCTERRAINNORMALS grid, uint32_t x, uint32_t y) {
+static inline vector3_t R_TerrainGridNormal(terrainNormals_t const * grid, uint32_t x, uint32_t y) {
     float left = grid->height(grid->data, x ? x - 1 : x, y);
     float right = grid->height(grid->data, x + (x + 1 < grid->width), y);
     float top = grid->height(grid->data, x, y ? y - 1 : y);
     float bottom = grid->height(grid->data, x, y + (y + 1 < grid->height_count));
-    VECTOR3 dx = { x && x + 1 < grid->width ? 2.0f * grid->cell_size : grid->cell_size, 0.0f, right - left };
-    VECTOR3 dy = { 0.0f, y && y + 1 < grid->height_count ? 2.0f * grid->cell_size : grid->cell_size, bottom - top };
-    VECTOR3 normal = Vector3_cross(&dx, &dy);
+    vector3_t dx = { x && x + 1 < grid->width ? 2.0f * grid->cell_size : grid->cell_size, 0.0f, right - left };
+    vector3_t dy = { 0.0f, y && y + 1 < grid->height_count ? 2.0f * grid->cell_size : grid->cell_size, bottom - top };
+    vector3_t normal = Vector3_cross(&dx, &dy);
 
     Vector3_normalize(&normal);
     return normal;

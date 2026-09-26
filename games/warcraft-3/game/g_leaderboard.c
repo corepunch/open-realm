@@ -1,6 +1,6 @@
 #include "g_local.h"
 
-static int32_t leaderboard_index(LPCLEADERBOARD board) {
+static int32_t leaderboard_index(leaderboard_t const * board) {
     uintptr_t ptr = (uintptr_t)board;
     uintptr_t base = (uintptr_t)level.leaderboards;
     size_t span = sizeof(level.leaderboards);
@@ -16,9 +16,9 @@ static uint32_t leaderboard_client_mask(uint32_t player) {
     return 0;
 }
 
-LPLEADERBOARD G_AllocLeaderboard(void) {
+leaderboard_t * G_AllocLeaderboard(void) {
     FOR_LOOP(i, MAX_LEADERBOARDS) if (!level.leaderboards[i].inuse) {
-        LPLEADERBOARD board = &level.leaderboards[i];
+        leaderboard_t * board = &level.leaderboards[i];
         memset(board, 0, sizeof(*board));
         board->inuse = true;
         board->show_label = board->show_names = board->show_values = board->show_icons = true;
@@ -28,7 +28,7 @@ LPLEADERBOARD G_AllocLeaderboard(void) {
     return NULL;
 }
 
-void G_FreeLeaderboard(LPLEADERBOARD board) {
+void G_FreeLeaderboard(leaderboard_t * board) {
     int32_t index = leaderboard_index(board);
     if (index < 0) return;
     FOR_LOOP(i, MAX_PLAYERS) if (level.player_leaderboards[i] == index) {
@@ -38,13 +38,13 @@ void G_FreeLeaderboard(LPLEADERBOARD board) {
     memset(board, 0, sizeof(*board));
 }
 
-LPLEADERBOARD G_PlayerLeaderboard(uint32_t player) {
+leaderboard_t * G_PlayerLeaderboard(uint32_t player) {
     int32_t index;
     if (player >= MAX_PLAYERS || (index = level.player_leaderboards[player]) < 0 || index >= MAX_LEADERBOARDS) return NULL;
     return level.leaderboards[index].inuse ? &level.leaderboards[index] : NULL;
 }
 
-void G_SetPlayerLeaderboard(uint32_t player, LPLEADERBOARD board) {
+void G_SetPlayerLeaderboard(uint32_t player, leaderboard_t * board) {
     int32_t index;
     if (player >= MAX_PLAYERS) return;
     index = board ? leaderboard_index(board) : -1;
@@ -53,7 +53,7 @@ void G_SetPlayerLeaderboard(uint32_t player, LPLEADERBOARD board) {
     level.leaderboard_dirty_clients |= leaderboard_client_mask(player);
 }
 
-void G_SetLeaderboardDisplayed(LPLEADERBOARD board, LPPLAYER player, bool displayed) {
+void G_SetLeaderboardDisplayed(leaderboard_t * board, player_t * player, bool displayed) {
     uint32_t mask;
     if (leaderboard_index(board) < 0) return;
     if (player) mask = leaderboard_client_mask(PLAYER_NUM(player));
@@ -62,7 +62,7 @@ void G_SetLeaderboardDisplayed(LPLEADERBOARD board, LPPLAYER player, bool displa
     level.leaderboard_dirty_clients |= mask;
 }
 
-bool G_IsLeaderboardDisplayed(LPCLEADERBOARD board, LPCPLAYER player) {
+bool G_IsLeaderboardDisplayed(leaderboard_t const * board, player_t const * player) {
     if (!board || !board->inuse) return false;
     if (player) return board->displayed_clients & leaderboard_client_mask(PLAYER_NUM(player));
     uint32_t count = MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS);
@@ -70,7 +70,7 @@ bool G_IsLeaderboardDisplayed(LPCLEADERBOARD board, LPCPLAYER player) {
     return mask && (board->displayed_clients & mask) == mask;
 }
 
-void G_MarkLeaderboardDirty(LPCLEADERBOARD board) {
+void G_MarkLeaderboardDirty(leaderboard_t const * board) {
     int32_t index = leaderboard_index(board);
     if (index < 0) return;
     FOR_LOOP(i, MIN((uint32_t)MAX_PLAYERS, (uint32_t)MAX_CLIENTS))
@@ -81,7 +81,7 @@ void G_UpdateLeaderboards(void) {
     uint32_t dirty = level.leaderboard_dirty_clients;
     if (!dirty) return;
     FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS)) {
-        LPEDICT ent;
+        edict_t * ent;
         if (!(dirty & (1u << i))) continue;
         if (!game.clients[i].connected) { level.leaderboard_dirty_clients &= ~(1u << i); continue; }
         ent = G_GetPlayerEntityByNumber(game.clients[i].ps.number);

@@ -16,7 +16,7 @@
 #define PATHSTR char[512]
 #endif
 
-extern void ReadNode(LPSIZEBUF buffer, mdxNode_t *node, uint32_t size);
+extern void ReadNode(sizeBuf_t * buffer, mdxNode_t *node, uint32_t size);
 extern void R_ReleaseModelNode(mdxNode_t *node);
 
 #define BZ_MDX_MOTION_STEPS 50 // intervals; 2% spacing captures panel overshoot; used for diagnostic motion sampling.
@@ -36,7 +36,7 @@ static long g_fixed_time = -1;   /* logical ms; -1 => wall clock (SDL_GetTicks) 
 static long g_seed = -1;         /* srand seed for particle RNG; -1 => unseeded */
 static handle_t archives[64] = { 0 };
 static viewer_orbit_t orbit;
-static VECTOR3 g_model_center = { 0, 0, 0 };
+static vector3_t g_model_center = { 0, 0, 0 };
 static float g_preview_scale = 1.0f;
 
 typedef struct {
@@ -75,13 +75,13 @@ static const uint32_t TEX_COLS = 4;
 typedef struct {
     uint32_t count;
     char (*paths)[TEXTURE_PREVIEW_PATH_LENGTH];
-    LPCTEXTURE *textures;
+    texture_t const * *textures;
     size2_t *sizes;
 } texture_preview_cache_t;
 
 static texture_preview_cache_t texture_previews = { 0 };
 
-static BOX3 GetPreviewBounds(mdxModel_t const *mdx);
+static box3_t GetPreviewBounds(mdxModel_t const *mdx);
 
 static void Tool_DrawString(refExport_t const *re, cstring_t string, int x, int y) {
     if (!string) {
@@ -172,7 +172,7 @@ static void Matrix4_getPreviewCameraMatrix(viewer_orbit_t const *orbit,
                                            float aspect,
                                            float near_clip,
                                            float far_clip,
-                                           LPMATRIX4 output)
+                                           matrix4_t * output)
 {
     Viewer_OrbitBuildCamera(orbit, aspect, 35.0f, near_clip, far_clip, output);
 }
@@ -180,43 +180,43 @@ static void Matrix4_getPreviewCameraMatrix(viewer_orbit_t const *orbit,
 static void Matrix4_getFrontOrthoCameraMatrix(mdxModel_t const *mdx,
                                               float aspect,
                                               float scale,
-                                              LPMATRIX4 output)
+                                              matrix4_t * output)
 {
     // Mirror the UI scene camera: fixed UI coordinate range 0..0.8 x 0..0.6
     // (aspect and scale are unused — model local coords ARE screen coords)
-    BOX3 const bounds = GetPreviewBounds(mdx);
+    box3_t const bounds = GetPreviewBounds(mdx);
     float const max_z = isfinite(bounds.max.z) ? bounds.max.z : 512.0f;
     float const min_z = isfinite(bounds.min.z) ? bounds.min.z : -512.0f;
     float const eye_z  = max_z + 100.0f;
     float const near_clip = 1.0f;
     float const far_clip  = eye_z - min_z + 100.0f;
-    MATRIX4 proj, view;
+    matrix4_t proj, view;
 
     // Same UI ortho range: left=0, right=0.8, bottom=0, top=0.6
     Matrix4_ortho(&proj, 0.0f, 0.8f, 0.0f, 0.6f, near_clip, far_clip);
     Matrix4_lookAt(&view,
-                   &(VECTOR3){ 0, 0, eye_z },
-                   &(VECTOR3){ 0, 0, -1 },
-                   &(VECTOR3){ 0, 1, 0 });
+                   &(vector3_t){ 0, 0, eye_z },
+                   &(vector3_t){ 0, 0, -1 },
+                   &(vector3_t){ 0, 1, 0 });
     Matrix4_multiply(&proj, &view, output);
 }
 
-static void Matrix4_getSideLightMatrix(LPCVECTOR3 eye, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
-    MATRIX4 proj, view;
-    VECTOR3 forward = Vector3_sub(target, eye);
-    VECTOR3 right = Vector3_cross(&forward, &(VECTOR3){ 0, 0, 1 });
-    VECTOR3 lightEye;
-    VECTOR3 lightOffset;
-    VECTOR3 lightDir;
-    VECTOR3 lightUp = { 0, 0, 1 };
+static void Matrix4_getSideLightMatrix(vector3_t const * eye, vector3_t const * target, float scale, matrix4_t * output) {
+    matrix4_t proj, view;
+    vector3_t forward = Vector3_sub(target, eye);
+    vector3_t right = Vector3_cross(&forward, &(vector3_t){ 0, 0, 1 });
+    vector3_t lightEye;
+    vector3_t lightOffset;
+    vector3_t lightDir;
+    vector3_t lightUp = { 0, 0, 1 };
 
     if (Vector3_len(&right) < 0.001f) {
-        right = (VECTOR3){ 1, 0, 0 };
+        right = (vector3_t){ 1, 0, 0 };
     } else {
         Vector3_normalize(&right);
     }
 
-    lightOffset = Vector3_mad(&right, -1000.0f, &(VECTOR3){ 0, 0, 0 });
+    lightOffset = Vector3_mad(&right, -1000.0f, &(vector3_t){ 0, 0, 0 });
     lightOffset.z += 300.0f;
     lightEye = Vector3_add(eye, &lightOffset);
     lightDir = Vector3_sub(target, &lightEye);
@@ -226,8 +226,8 @@ static void Matrix4_getSideLightMatrix(LPCVECTOR3 eye, LPCVECTOR3 target, float 
     Matrix4_multiply(&proj, &view, output);
 }
 
-static BOX3 GetPreviewBounds(mdxModel_t const *mdx) {
-    BOX3 bounds = { 0 };
+static box3_t GetPreviewBounds(mdxModel_t const *mdx) {
+    box3_t bounds = { 0 };
     bool has_bounds = false;
 
     if (!mdx) {
@@ -237,7 +237,7 @@ static BOX3 GetPreviewBounds(mdxModel_t const *mdx) {
     FOR_EACH_LIST(mdxGeoset_t, geoset, mdx->geosets) {
         if (geoset->vertices && geoset->num_vertices > 0) {
             FOR_LOOP(i, geoset->num_vertices) {
-                VECTOR3 const *v = &geoset->vertices[i];
+                vector3_t const *v = &geoset->vertices[i];
                 if (!isfinite(v->x) || !isfinite(v->y) || !isfinite(v->z)) {
                     continue;
                 }
@@ -262,7 +262,7 @@ static BOX3 GetPreviewBounds(mdxModel_t const *mdx) {
 
     if (!has_bounds) {
         FOR_EACH_LIST(mdxGeoset_t, geoset, mdx->geosets) {
-            BOX3 const *box = &geoset->default_bounds.box;
+            box3_t const *box = &geoset->default_bounds.box;
             if (!has_bounds) {
                 bounds = *box;
                 has_bounds = true;
@@ -289,7 +289,7 @@ static float FitPreviewDistance(mdxModel_t const *mdx, float aspect, float fov_d
         return 850.0f;
     }
 
-    BOX3 const box = GetPreviewBounds(mdx);
+    box3_t const box = GetPreviewBounds(mdx);
     float const width = fabsf(box.max.x - box.min.x);
     float const depth = fabsf(box.max.y - box.min.y);
     float const height = fabsf(box.max.z - box.min.z);
@@ -557,7 +557,7 @@ static void dump_node_motion(uint8_t * data, uint32_t size, mdxModel_t const *mo
             fprintf(stderr, "    %s:", seq->name);
             for (uint32_t step = 0; step <= BZ_MDX_MOTION_STEPS; step++) {
                 uint32_t ms = (seq->interval[1] - seq->interval[0]) * step / BZ_MDX_MOTION_STEPS;
-                VECTOR3 val = {0};
+                vector3_t val = {0};
                 uint32_t time = MIN(seq->interval[0] + ms, seq->interval[1] - 1);
                 tr.viewDef.time = time;
                 MDLX_GetModelKeytrackValue(model, node.translation, time, &val);
@@ -648,7 +648,7 @@ static bool DumpModelInfoNoWindow(cstring_t modelPath) {
                 fprintf(stderr, "  TEXS: count=%u\n", (unsigned)(chunkSize / MDX_TEXTURE_RECORD_SIZE));
                 break;
             case MAKEFOURCC('P', 'I', 'V', 'T'):
-                fprintf(stderr, "  PIVT: count=%u\n", (unsigned)(chunkSize / sizeof(VECTOR3)));
+                fprintf(stderr, "  PIVT: count=%u\n", (unsigned)(chunkSize / sizeof(vector3_t)));
                 break;
             case MAKEFOURCC('C', 'A', 'M', 'S'):
                 fprintf(stderr, "  CAMS: count=%u\n", (unsigned)CountInclusiveSizeEntries(chunk, chunkSize));
@@ -692,9 +692,9 @@ static bool DumpModelInfoNoWindow(cstring_t modelPath) {
     return true;
 }
 
-static void BuildTexturePreviewCache(refExport_t const *re, LPMODEL model) {
+static void BuildTexturePreviewCache(refExport_t const *re, model_t * model) {
     FreeTexturePreviewCache();
-    MODELINFO modelInfo = { 0 };
+    modelInfo_t modelInfo = { 0 };
     uint32_t textureCount = 0;
     if (re->GetModelInfo && re->GetModelInfo(model, &modelInfo)) {
         textureCount = modelInfo.textureCount;
@@ -740,7 +740,7 @@ static void DrawTexturePreviews(refExport_t const *re) {
 
     size2_t window = re->GetWindowSize();
     for (uint32_t i = 0; i < texture_previews.count; i++) {
-        LPCTEXTURE texture = texture_previews.textures[i];
+        texture_t const * texture = texture_previews.textures[i];
         if (!texture) {
             continue;
         }
@@ -782,13 +782,13 @@ static void DrawTexturePreviews(refExport_t const *re) {
     }
 }
 
-static bool BuildModelCameraMatrix(mdxModel_t const *model, float aspect, LPMATRIX4 output, LPVECTOR3 root) {
+static bool BuildModelCameraMatrix(mdxModel_t const *model, float aspect, matrix4_t * output, vector3_t * root) {
     if (!model || !model->cameras) {
         return false;
     }
-    MATRIX4 proj, view;
+    matrix4_t proj, view;
     mdxCamera_t const *camera = model->cameras;
-    VECTOR3 dir = Vector3_sub(&camera->targetPivot, &camera->pivot);
+    vector3_t dir = Vector3_sub(&camera->targetPivot, &camera->pivot);
     float fov_deg = camera->fieldOfView * (180.0f / (float)M_PI);
     float near_clip = camera->nearClip;
     float far_clip = camera->farClip;
@@ -804,11 +804,11 @@ static bool BuildModelCameraMatrix(mdxModel_t const *model, float aspect, LPMATR
     }
 
     Matrix4_perspective(&proj, fov_deg, aspect, near_clip, far_clip);
-    Matrix4_lookAt(&view, &camera->pivot, &dir, &(VECTOR3){ 0, 0, 1 });
+    Matrix4_lookAt(&view, &camera->pivot, &dir, &(vector3_t){ 0, 0, 1 });
     Matrix4_multiply(&proj, &view, output);
 
     if (root) {
-        *root = (VECTOR3){ 0, 0, 0 };
+        *root = (vector3_t){ 0, 0, 0 };
     }
     return true;
 }
@@ -889,7 +889,7 @@ static void DumpLoadedModel(mdxModel_t const *mdx, uint32_t sample_frame) {
     }
 
     FOR_EACH_LIST(mdxLight_t, light, mdx->lights) {
-        VECTOR3 pivot = { 0, 0, 0 };
+        vector3_t pivot = { 0, 0, 0 };
         if (light->node.node_id < (uint32_t)mdx->num_pivots) {
             pivot = mdx->pivots[light->node.node_id];
         }
@@ -1113,12 +1113,12 @@ static bool SaveFramePNG(refExport_t const *re, const char *path) {
     return true;
 }
 
-static void RenderModelFrame(refExport_t const *re, LPMODEL model, uint32_t now, bool useModelCamera) {
+static void RenderModelFrame(refExport_t const *re, model_t * model, uint32_t now, bool useModelCamera) {
     viewDef_t viewdef = { 0 };
     renderEntity_t entity = { 0 };
     mdxModel_t const *mdx = model->mdx;
-    VECTOR3 target = { 0, 0, 0 };
-    VECTOR3 root = { 0, 0, 0 };
+    vector3_t target = { 0, 0, 0 };
+    vector3_t root = { 0, 0, 0 };
     size2_t windowSize = re->GetWindowSize();
     mdxSequence_t const *seq = PickSequence(mdx);
     int seq_index = FindSequenceIndex(mdx, seq);
@@ -1127,13 +1127,13 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, uint32_t now,
     float model_radius = 500.0f;
     float near_clip;
     float far_clip;
-    VECTOR3 preview_origin = Vector3_scale(&g_model_center, -g_preview_scale);
+    vector3_t preview_origin = Vector3_scale(&g_model_center, -g_preview_scale);
 
     entity.model = model;
     entity.scale = g_preview_scale;
     entity.frame = 0;
     entity.oldframe = 0;
-    entity.origin = (VECTOR3){ 0, 0, 0 };
+    entity.origin = (vector3_t){ 0, 0, 0 };
 
     if (seq && seq->interval[1] > seq->interval[0]) {
         uint32_t duration = seq->interval[1] - seq->interval[0];
@@ -1142,7 +1142,7 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, uint32_t now,
     }
 
     if (mdx) {
-        BOX3 const *box = &mdx->bounds.box;
+        box3_t const *box = &mdx->bounds.box;
         float width = fabsf(box->max.x - box->min.x);
         float depth = fabsf(box->max.y - box->min.y);
         float height = fabsf(box->max.z - box->min.z);
@@ -1161,21 +1161,21 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, uint32_t now,
     } else if (g_use_front_ortho) {
         // Use UI coordinate space: no offset, no scale.
         // The model's local vertices are already in 0..0.8 x 0..0.6 world space.
-        entity.origin = (VECTOR3){ 0, 0, 0 };
+        entity.origin = (vector3_t){ 0, 0, 0 };
         entity.scale  = 1.0f;
-        target = (VECTOR3){ 0.4f, 0.3f, 0 };
+        target = (vector3_t){ 0.4f, 0.3f, 0 };
         Matrix4_getFrontOrthoCameraMatrix(mdx, aspect, 1.0f, &viewdef.viewProjectionMatrix);
-        Matrix4_getSideLightMatrix(&(VECTOR3){
+        Matrix4_getSideLightMatrix(&(vector3_t){
             target.x + 8.0f,
             target.y - 12.0f,
             target.z + 16.0f,
         }, &target, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
     } else {
         entity.origin = preview_origin;
-        target = (VECTOR3){ 0, 0, 0 };
+        target = (vector3_t){ 0, 0, 0 };
         orbit.target = target;
         Matrix4_getPreviewCameraMatrix(&orbit, aspect, near_clip, far_clip, &viewdef.viewProjectionMatrix);
-        Matrix4_getSideLightMatrix(&(VECTOR3){
+        Matrix4_getSideLightMatrix(&(vector3_t){
             orbit.target.x + orbit.distance * cosf(orbit.pitch_deg * (float)M_PI / 180.0f) * cosf(orbit.yaw_deg * (float)M_PI / 180.0f),
             orbit.target.y + orbit.distance * cosf(orbit.pitch_deg * (float)M_PI / 180.0f) * sinf(orbit.yaw_deg * (float)M_PI / 180.0f),
             orbit.target.z + orbit.distance * sinf(orbit.pitch_deg * (float)M_PI / 180.0f),
@@ -1197,11 +1197,11 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, uint32_t now,
     /* Clean render: golden-image PNG output skips the debug bbox/overlay/text. */
     bool const clean = (g_output_path != NULL);
     if (mdx && !clean) {
-        MATRIX4 entityMatrix;
+        matrix4_t entityMatrix;
         Matrix4_identity(&entityMatrix);
         Matrix4_translate(&entityMatrix, &entity.origin);
-        Matrix4_scale(&entityMatrix, &(VECTOR3){ entity.scale, entity.scale, entity.scale });
-        COLOR32 box_color = { 0, 255, 128, 180 };
+        Matrix4_scale(&entityMatrix, &(vector3_t){ entity.scale, entity.scale, entity.scale });
+        color32_t box_color = { 0, 255, 128, 180 };
         re->DrawBoundingBox(&mdx->bounds.box, &entityMatrix, &viewdef.viewProjectionMatrix, box_color);
     }
     if (g_run_once) {
@@ -1403,7 +1403,7 @@ int main(int argc, char **argv) {
 
     g_model_path = modelPath;
     fprintf(stderr, "mdxtool: loading model %s\n", modelPath);
-    LPMODEL model = re.LoadModel(modelPath);
+    model_t * model = re.LoadModel(modelPath);
     if (!model || !model->mdx) {
         fprintf(stderr, "Failed to load MDX model: %s\n", modelPath);
         re.Shutdown();
@@ -1412,7 +1412,7 @@ int main(int argc, char **argv) {
 
     fprintf(stderr, "mdxtool: loaded model %s\n", modelPath);
     {
-        BOX3 bounds = GetPreviewBounds(model->mdx);
+        box3_t bounds = GetPreviewBounds(model->mdx);
         float width = fabsf(bounds.max.x - bounds.min.x);
         float depth = fabsf(bounds.max.y - bounds.min.y);
         float height = fabsf(bounds.max.z - bounds.min.z);
@@ -1460,7 +1460,7 @@ int main(int argc, char **argv) {
 
     size2_t window = re.GetWindowSize();
     float const aspect = window.height ? (float)window.width / (float)window.height : 1.0f;
-    VECTOR3 orbit_target = g_model_center;
+    vector3_t orbit_target = g_model_center;
 #ifdef MDXTOOL_USE_OVERLAY_ORBIT_DISTANCE
     float orbit_distance = g_overlay.orbit_distance;
     if (orbit_distance < 1.0f) {

@@ -23,8 +23,8 @@ enum {
     M2_SLOT_LEGS, M2_SLOT_BOOTS, M2_SLOT_GLOVES, M2_SLOT_TABARD, M2_SLOT_CAPE, M2_SLOT_COUNT
 };
 
-typedef struct { uint32_t display_ids[4]; } M2EQUIPMENTITEM;
-typedef struct { uint32_t race_id, gender_id; M2EQUIPMENTITEM items[256]; } M2EQUIPMENTSLOTITEMS;
+typedef struct { uint32_t display_ids[4]; } m2EquipmentItem_t;
+typedef struct { uint32_t race_id, gender_id; m2EquipmentItem_t items[256]; } m2EquipmentSlotItems_t;
 
 static stbDbcCache_t char_start_outfit_dbc;
 static stbDbcCache_t item_display_info_dbc;
@@ -241,7 +241,7 @@ bool M2_DbcCharacterRaceGender(cstring_t model_path, uint32_t * race_id, uint32_
 }
 
 /* CreatureDisplayInfoExtra is decoded once into stable appearance and item display IDs. */
-bool M2_DbcResolveCreatureAppearance(uint32_t display_id, LPM2CREATUREAPPEARANCE out) {
+bool M2_DbcResolveCreatureAppearance(uint32_t display_id, m2CreatureAppearance_t * out) {
     m2CreatureDisplayInfoRec_t const *display;
     m2CreatureDisplayInfoExtraRec_t const *extra;
     if (!display_id || !out) return false;
@@ -267,7 +267,7 @@ static uint32_t const slot_geoset_group_map[M2_SLOT_COUNT][3] = {
     { 13, 9, 0 }, { 5, 0, 0 }, { 4, 0, 0 }, { 0, 0, 0 }, { 15, 0, 0 },
 };
 
-static void M2_DbcAddDisplayInfo(LPM2CHARACTEROUTFIT outfit, uint32_t display_id, uint32_t slot) {
+static void M2_DbcAddDisplayInfo(m2CharacterOutfit_t * outfit, uint32_t display_id, uint32_t slot) {
     m2ItemDisplayInfoRec_t const *record;
     if (!outfit || !display_id || display_id == 0xffffffffu || slot == M2_SLOT_NONE || slot >= M2_SLOT_COUNT)
         return;
@@ -305,25 +305,25 @@ static void M2_DbcAddDisplayInfo(LPM2CHARACTEROUTFIT outfit, uint32_t display_id
         outfit->cape_texture = record->model_texture[0];
 }
 
-static M2EQUIPMENTITEM const *M2_DbcEquipmentItem(M2EQUIPMENTSLOTITEMS const *lists, uint32_t count,
+static m2EquipmentItem_t const *M2_DbcEquipmentItem(m2EquipmentSlotItems_t const *lists, uint32_t count,
                                                   uint32_t race_id, uint32_t gender_id, uint8_t item_index) {
     FOR_LOOP(i, count)
         if (lists[i].race_id == race_id && lists[i].gender_id == gender_id) return &lists[i].items[item_index];
     return NULL;
 }
 
-static void M2_DbcAddEquipmentItem(LPM2CHARACTEROUTFIT outfit, M2EQUIPMENTSLOTITEMS const *lists,
+static void M2_DbcAddEquipmentItem(m2CharacterOutfit_t * outfit, m2EquipmentSlotItems_t const *lists,
                                    uint32_t count, uint32_t race_id, uint32_t gender_id, uint8_t item_index, uint32_t slot) {
-    M2EQUIPMENTITEM const *item = M2_DbcEquipmentItem(lists, count, race_id, gender_id, item_index);
+    m2EquipmentItem_t const *item = M2_DbcEquipmentItem(lists, count, race_id, gender_id, item_index);
     if (!item) return;
     FOR_LOOP(i, 4) M2_DbcAddDisplayInfo(outfit, item->display_ids[i], slot);
 }
 
-static void M2_DbcApplyEquipment(LPM2CHARACTEROUTFIT outfit, uint32_t race_id, uint32_t gender_id, uint32_t equipment) {
-    static M2EQUIPMENTSLOTITEMS const upper[] = { { 2, 0, { [1] = { { 27274 } } } } };
-    static M2EQUIPMENTSLOTITEMS const lower[] = { { 2, 0, { [1] = { { 27275 } } } } };
-    static M2EQUIPMENTSLOTITEMS const hands[] = { { 2, 0, { [1] = { { 27271 } } } } };
-    static M2EQUIPMENTSLOTITEMS const feet[] = { { 2, 0, { [1] = { { 27270 } } } } };
+static void M2_DbcApplyEquipment(m2CharacterOutfit_t * outfit, uint32_t race_id, uint32_t gender_id, uint32_t equipment) {
+    static m2EquipmentSlotItems_t const upper[] = { { 2, 0, { [1] = { { 27274 } } } } };
+    static m2EquipmentSlotItems_t const lower[] = { { 2, 0, { [1] = { { 27275 } } } } };
+    static m2EquipmentSlotItems_t const hands[] = { { 2, 0, { [1] = { { 27271 } } } } };
+    static m2EquipmentSlotItems_t const feet[] = { { 2, 0, { [1] = { { 27270 } } } } };
     wowEquipment_t items = Wow_UnpackEquipment(equipment);
     M2_DbcAddEquipmentItem(outfit, upper, 1, race_id, gender_id, items.upperBodyItem, M2_SLOT_CHEST);
     M2_DbcAddEquipmentItem(outfit, lower, 1, race_id, gender_id, items.lowerBodyItem, M2_SLOT_LEGS);
@@ -331,7 +331,7 @@ static void M2_DbcApplyEquipment(LPM2CHARACTEROUTFIT outfit, uint32_t race_id, u
     M2_DbcAddEquipmentItem(outfit, feet, 1, race_id, gender_id, items.footItem, M2_SLOT_BOOTS);
 }
 
-static bool M2_DbcStartOutfit(cstring_t model_path, uint32_t appearance, LPM2CHARACTEROUTFIT outfit) {
+static bool M2_DbcStartOutfit(cstring_t model_path, uint32_t appearance, m2CharacterOutfit_t * outfit) {
     uint32_t race_id, gender_id, class_id, key;
     m2CharStartOutfitRec_t const *record;
     wowAppearance_t unpacked;
@@ -368,7 +368,7 @@ static uint32_t M2_DbcHelmetHideMask(uint32_t vis_id, uint32_t race_id) {
 }
 
 bool M2_DbcCharacterOutfit(cstring_t model_path, uint32_t appearance, uint32_t equipment,
-                           LPCM2CREATUREAPPEARANCE creature, LPM2CHARACTEROUTFIT outfit) {
+                           m2CreatureAppearance_t const * creature, m2CharacterOutfit_t * outfit) {
     uint32_t race_id, gender_id;
     if (!outfit || !M2_DbcCharacterRaceGender(model_path, &race_id, &gender_id)) return false;
     if (creature) {

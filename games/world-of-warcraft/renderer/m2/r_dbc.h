@@ -38,19 +38,19 @@ typedef struct {
     uint32_t helm_hide;            /* race-resolved geoset hide mask (M2_HELM_HIDE_*) */
     uint32_t geoset[M2_NUM_GEOSET_GROUPS];
     uint32_t flags;
-} M2CHARACTEROUTFIT;
-typedef M2CHARACTEROUTFIT *LPM2CHARACTEROUTFIT;
-typedef M2CHARACTEROUTFIT const *LPCM2CHARACTEROUTFIT;
+} m2CharacterOutfit_t;
+
+
 
 typedef struct {
     uint32_t appearance;
     uint32_t display_ids[11];
-} M2CREATUREAPPEARANCE;
-typedef M2CREATUREAPPEARANCE *LPM2CREATUREAPPEARANCE;
-typedef M2CREATUREAPPEARANCE const *LPCM2CREATUREAPPEARANCE;
+} m2CreatureAppearance_t;
 
-bool M2_DbcResolveCreatureAppearance(uint32_t display_id, LPM2CREATUREAPPEARANCE out);
-bool M2_DbcCharacterOutfit(cstring_t model_path, uint32_t appearance, uint32_t equipment, LPCM2CREATUREAPPEARANCE creature, LPM2CHARACTEROUTFIT outfit);
+
+
+bool M2_DbcResolveCreatureAppearance(uint32_t display_id, m2CreatureAppearance_t * out);
+bool M2_DbcCharacterOutfit(cstring_t model_path, uint32_t appearance, uint32_t equipment, m2CreatureAppearance_t const * creature, m2CharacterOutfit_t * outfit);
 bool M2_DbcCharacterRaceGender(cstring_t model_path, uint32_t * race_id, uint32_t * gender_id);
 bool M2_DbcCharacterVariationTexturePath(cstring_t model_path, uint32_t section_index, uint32_t variation_index, uint32_t color_index, uint32_t texture_index, string_t out, uint32_t out_size);
 bool M2_DbcCharacterTexturePathForType(cstring_t model_path, uint32_t appearance, uint32_t texture_type, string_t out, uint32_t out_size);

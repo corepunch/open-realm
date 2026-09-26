@@ -4,9 +4,9 @@
 #define ID_INCINERATE_ARROW MAKEFOURCC('A','N','i','a')
 
 /* TFT stores full/outer damage in DataB/D and radii in DataC/E; Area is deliberately zero. */
-void incinerate_explode_think(LPEDICT ent) {
+void incinerate_explode_think(edict_t * ent) {
     uint32_t code = ent->class_id, rank = ent->resources;
-    LPEDICT source = ent->owner;
+    edict_t * source = ent->owner;
     float full = S_SpellData(code, rank, 3), outer = S_SpellData(code, rank, 5);
     if (G_Time() < ent->freetime) return;
     if (source && source->inuse && source->spawn_time == ent->channel.owner_spawn_time) {
@@ -21,7 +21,7 @@ void incinerate_explode_think(LPEDICT ent) {
 }
 
 /* Attach the mark before either component of the attack can kill; the victim's death owns the explosion. */
-void S_IncinerateOnHit(LPEDICT attacker, LPEDICT target) {
+void S_IncinerateOnHit(edict_t * attacker, edict_t * target) {
     abilityAliasRef_t ability = S_ResolveAbilityAlias(attacker, ID_INCINERATE_ARROW);
     heroabilitystatus_t *slot;
     cstring_t buff;
@@ -44,7 +44,7 @@ void S_IncinerateOnHit(LPEDICT attacker, LPEDICT target) {
 /* Consume the mark before spawning/damaging: nested death events must not explode it twice. */
 BZ_ABILITY_PROC(CAbilityIncinerate) {
     heroabilitystatus_t *slot = call ? call->status.slot : NULL;
-    LPEDICT blast;
+    edict_t * blast;
     if (msg != A_STATUS_DEATH || !slot) return CAbilityPassive(ent, msg, call);
     if (!slot->source || !slot->source->inuse || slot->source->spawn_time != slot->source_spawn_time) {
         memset(slot, 0, sizeof(*slot));

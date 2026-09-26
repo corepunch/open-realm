@@ -14,8 +14,8 @@
 #define TRAIL_STALE_MS 250 // gap that drops a trail: owner id reused or long-culled entity reappearing
 
 typedef struct {
-    VECTOR3 above, below;
-    COLOR32 color; /* per-edge tint: animated emitter colors stay historic instead of repainting the strip */
+    vector3_t above, below;
+    color32_t color; /* per-edge tint: animated emitter colors stay historic instead of repainting the strip */
     float age;
 } trailEdge_t;
 
@@ -28,9 +28,9 @@ typedef struct {
 
 /* Strip vertex in engine space; games add their own normal/skinning/material fields. */
 typedef struct {
-    VECTOR3 position;
-    VECTOR2 uv;
-    COLOR32 color;
+    vector3_t position;
+    vector2_t uv;
+    color32_t color;
 } trailVert_t;
 
 /* Ages live edges by dt, drops expired ones, and pushes a new edge when the
@@ -38,7 +38,7 @@ typedef struct {
    a redraw stamped in the same frame gets dt = 0 and only re-emits, while a
    gap past TRAIL_STALE_MS clears the trail (owner id reused). A respawn inside
    the same tick still slips past the gap check. Returns live edge count. */
-int R_TrailAdvance(trail_t *trail, VECTOR3 above, VECTOR3 below, COLOR32 color,
+int R_TrailAdvance(trail_t *trail, vector3_t above, vector3_t below, color32_t color,
                    float lifespan, float rate, float gravity, uint32_t now_ms, uint32_t delta_ms);
 
 /* One quad (6 verts) per consecutive edge pair. U is age-based (oldest edges

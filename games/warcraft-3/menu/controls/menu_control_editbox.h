@@ -1,9 +1,9 @@
 #ifndef UI_CONTROL_EDITBOX_H
 #define UI_CONTROL_EDITBOX_H
 
-static LPFRAMEDEF UI_CreateEditTextFrame(LPFRAMEDEF frame) {
-    LPFRAMEDEF text_frame;
-    LPCFRAMEDEF template;
+static frameDef_t * UI_CreateEditTextFrame(frameDef_t * frame) {
+    frameDef_t * text_frame;
+    frameDef_t const * template;
 
     if (!frame) {
         return NULL;
@@ -41,29 +41,29 @@ static LPFRAMEDEF UI_CreateEditTextFrame(LPFRAMEDEF frame) {
     return text_frame;
 }
 
-static LPFRAMEDEF UI_EditTextFrame(LPCFRAMEDEF frame) {
-    LPFRAMEDEF text_frame;
+static frameDef_t * UI_EditTextFrame(frameDef_t const * frame) {
+    frameDef_t * text_frame;
 
     if (!frame) {
         return NULL;
     }
-    text_frame = UI_FindChildFrame((LPFRAMEDEF)frame, frame->Edit.TextFrame);
+    text_frame = UI_FindChildFrame((frameDef_t *)frame, frame->Edit.TextFrame);
     if (!text_frame && frame->Edit.TextFrame[0]) {
         text_frame = UI_FindFrameNear(frame, frame->Edit.TextFrame);
     }
     if (!text_frame) {
-        text_frame = UI_CreateEditTextFrame((LPFRAMEDEF)frame);
+        text_frame = UI_CreateEditTextFrame((frameDef_t *)frame);
     }
     return text_frame;
 }
 
-static cstring_t UI_EditText(LPCFRAMEDEF frame) {
-    LPFRAMEDEF text_frame = UI_EditTextFrame(frame);
+static cstring_t UI_EditText(frameDef_t const * frame) {
+    frameDef_t * text_frame = UI_EditTextFrame(frame);
     return text_frame && text_frame->Text ? text_frame->Text : "";
 }
 
-static void UI_SetEditText(LPCFRAMEDEF frame, cstring_t text) {
-    LPFRAMEDEF text_frame = UI_EditTextFrame(frame);
+static void UI_SetEditText(frameDef_t const * frame, cstring_t text) {
+    frameDef_t * text_frame = UI_EditTextFrame(frame);
 
     if (!text_frame) {
         return;
@@ -71,12 +71,12 @@ static void UI_SetEditText(LPCFRAMEDEF frame, cstring_t text) {
     UI_SetText(text_frame, "%s", text ? text : "");
 }
 
-static uint32_t UI_EditMaxChars(LPCFRAMEDEF frame) {
+static uint32_t UI_EditMaxChars(frameDef_t const * frame) {
     uint32_t max_chars = frame && frame->Edit.MaxChars ? frame->Edit.MaxChars : 255;
-    return MIN(max_chars, sizeof(((LPFRAMEDEF)frame)->TextStorage) - 1);
+    return MIN(max_chars, sizeof(((frameDef_t *)frame)->TextStorage) - 1);
 }
 
-static void UI_FocusEdit(LPFRAMEDEF frame) {
+static void UI_FocusEdit(frameDef_t * frame) {
     if (!frame) {
         active_edit = NULL;
         active_ti.text = NULL;
@@ -86,7 +86,7 @@ static void UI_FocusEdit(LPFRAMEDEF frame) {
         return;
     }
     if (active_edit != frame) {
-        LPFRAMEDEF text_frame = UI_EditTextFrame(frame);
+        frameDef_t * text_frame = UI_EditTextFrame(frame);
         active_edit = frame;
         active_ti.text = text_frame ? text_frame->TextStorage : NULL;
         active_ti.size = text_frame ? sizeof(text_frame->TextStorage) : 0;
@@ -128,10 +128,10 @@ void UI_EditTextInput(cstring_t text) {
     }
 }
 
-static void UI_DrawEditBox(LPCFRAMEDEF frame, rect_t const * rect) {
-    LPRENDERER renderer = mi.GetRenderer();
-    LPFRAMEDEF text_frame = UI_EditTextFrame(frame);
-    LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
+static void UI_DrawEditBox(frameDef_t const * frame, rect_t const * rect) {
+    refExport_t * renderer = mi.GetRenderer();
+    frameDef_t * text_frame = UI_EditTextFrame(frame);
+    frameDef_t const * backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
     rect_t text_rect = *rect;
 
     UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
@@ -152,9 +152,9 @@ static void UI_DrawEditBox(LPCFRAMEDEF frame, rect_t const * rect) {
 
     if (active_edit == frame && renderer && renderer->DrawText && renderer->GetTextSize) {
         cstring_t text = UI_EditText(frame);
-        LPCFONT font = renderer->LoadFont(UI_FontFile(text_frame->Font.Name),
+        font_t const * font = renderer->LoadFont(UI_FontFile(text_frame->Font.Name),
                                           UI_FontPixelSize(text_frame->Font.Size));
-        COLOR32 cursor_color = frame->Edit.CursorColor.a ? frame->Edit.CursorColor : COLOR32_WHITE;
+        color32_t cursor_color = frame->Edit.CursorColor.a ? frame->Edit.CursorColor : COLOR32_WHITE;
 
         if (!font) {
             return;

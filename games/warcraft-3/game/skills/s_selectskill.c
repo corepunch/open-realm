@@ -1,15 +1,15 @@
 #include "s_skills.h"
 
-static void selectskill_menu_selected(LPEDICT clent, uint32_t classname) {
-    LPEDICT ent = G_GetMainSelectedUnit(clent->client);
+static void selectskill_menu_selected(edict_t * clent, uint32_t classname) {
+    edict_t * ent = G_GetMainSelectedUnit(clent->client);
     uint32_t abilcode = classname;
 
     G_HeroLearnSkill(ent, abilcode);
     Get_Commands_f(clent);
 }
 
-void ui_selectskill(LPGAMECLIENT client) {
-    LPEDICT ent = G_GetMainSelectedUnit(client);
+void ui_selectskill(gameClient_t * client) {
+    edict_t * ent = G_GetMainSelectedUnit(client);
     cstring_t abils;
 
     if (!ent || !G_UnitIsHero(ent) || !ent->data.UnitAbilities) {

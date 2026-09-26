@@ -47,9 +47,9 @@ typedef struct {
     bool enabled;
     uint32_t handle;
     uint32_t effect_id;
-    BOX2 bounds;
+    box2_t bounds;
     w3WeatherArt_t const *art;
-    LPCTEXTURE texture;
+    texture_t const * texture;
     float emission_accum;
     uint32_t seen;
 } renderWeatherEffect_t;
@@ -124,7 +124,7 @@ static renderWeatherEffect_t *R_WeatherFind(uint32_t handle) {
     return NULL;
 }
 
-static LPCTEXTURE R_WeatherTexture(w3WeatherArt_t const *art) {
+static texture_t const * R_WeatherTexture(w3WeatherArt_t const *art) {
     PATHSTR path;
 
     if (!art || !art->texFile || !*art->texFile) return NULL;
@@ -207,16 +207,16 @@ static void R_WeatherSync(void) {
         if (weather_effects[i].inuse && weather_effects[i].seen != sync) memset(weather_effects + i, 0, sizeof(*weather_effects));
 }
 
-static BOX2 R_WeatherEmissionBounds(void) {
+static box2_t R_WeatherEmissionBounds(void) {
     float radius = MAX(WEATHER_MIN_EMIT_RADIUS, tr.viewDef.camerastate[0].distance * 1.25f);
-    VECTOR3 center = tr.viewDef.camerastate[0].origin;
-    return (BOX2){
+    vector3_t center = tr.viewDef.camerastate[0].origin;
+    return (box2_t){
         .min = { center.x - radius, center.y - radius },
         .max = { center.x + radius, center.y + radius },
     };
 }
 
-static bool R_WeatherIntersect(LPCBOX2 a, LPCBOX2 b, LPBOX2 out) {
+static bool R_WeatherIntersect(box2_t const * a, box2_t const * b, box2_t * out) {
     if (!a || !b || !out) return false;
     out->min.x = MAX(a->min.x, b->min.x);
     out->min.y = MAX(a->min.y, b->min.y);
@@ -234,11 +234,11 @@ static uint8_t R_WeatherScale(float value) {
     return (uint8_t)MIN(MAX(encoded, 0), 255);
 }
 
-static void R_WeatherSpawn(renderWeatherEffect_t *effect, LPCBOX2 area) {
+static void R_WeatherSpawn(renderWeatherEffect_t *effect, box2_t const * area) {
     w3WeatherArt_t const *art = effect->art;
     cparticle_t *p;
     float ax, ay, speed;
-    VECTOR3 direction;
+    vector3_t direction;
 
     if (!art || !area || art->lifespan <= 0.0f) return;
     p = R_SpawnParticle();
@@ -251,15 +251,15 @@ static void R_WeatherSpawn(renderWeatherEffect_t *effect, LPCBOX2 area) {
 
     ax = art->angleX * WEATHER_DEG2RAD;
     ay = art->angleY * WEATHER_DEG2RAD;
-    direction = (VECTOR3){ sinf(ay) * cosf(ax), -sinf(ax), cosf(ay) * cosf(ax) };
+    direction = (vector3_t){ sinf(ay) * cosf(ax), -sinf(ax), cosf(ay) * cosf(ax) };
     speed = art->velocity;
     p->vel = Vector3_scale(&direction, speed);
     p->accel = Vector3_scale(&direction, art->acceleration);
-    p->tail = art->tail ? Vector3_scale(&p->vel, art->tailLength) : (VECTOR3){0};
+    p->tail = art->tail ? Vector3_scale(&p->vel, art->tailLength) : (vector3_t){0};
 
-    p->color[0] = (COLOR32){ R_WeatherByte(art->redStart), R_WeatherByte(art->greenStart), R_WeatherByte(art->blueStart), R_WeatherByte(art->alphaStart) };
-    p->color[1] = (COLOR32){ R_WeatherByte(art->redMid), R_WeatherByte(art->greenMid), R_WeatherByte(art->blueMid), R_WeatherByte(art->alphaMid) };
-    p->color[2] = (COLOR32){ R_WeatherByte(art->redEnd), R_WeatherByte(art->greenEnd), R_WeatherByte(art->blueEnd), R_WeatherByte(art->alphaEnd) };
+    p->color[0] = (color32_t){ R_WeatherByte(art->redStart), R_WeatherByte(art->greenStart), R_WeatherByte(art->blueStart), R_WeatherByte(art->alphaStart) };
+    p->color[1] = (color32_t){ R_WeatherByte(art->redMid), R_WeatherByte(art->greenMid), R_WeatherByte(art->blueMid), R_WeatherByte(art->alphaMid) };
+    p->color[2] = (color32_t){ R_WeatherByte(art->redEnd), R_WeatherByte(art->greenEnd), R_WeatherByte(art->blueEnd), R_WeatherByte(art->alphaEnd) };
     p->size[0] = R_WeatherScale(art->scaleStart);
     p->size[1] = R_WeatherScale(art->scaleMid);
     p->size[2] = R_WeatherScale(art->scaleEnd);
@@ -276,7 +276,7 @@ static void R_WeatherSpawn(renderWeatherEffect_t *effect, LPCBOX2 area) {
 }
 
 void R_WeatherEmit(void) {
-    BOX2 visible;
+    box2_t visible;
     uint32_t delta_ms;
 
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL) return;
@@ -288,7 +288,7 @@ void R_WeatherEmit(void) {
     FOR_LOOP(i, MAX_RENDER_WEATHER_EFFECTS) {
         renderWeatherEffect_t *effect = weather_effects + i;
         w3WeatherArt_t const *art = effect->art;
-        BOX2 area;
+        box2_t area;
         uint32_t emit_count;
 
         if (!effect->inuse || !effect->enabled || !art || !effect->texture ||

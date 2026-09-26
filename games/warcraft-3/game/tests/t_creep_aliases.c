@@ -60,7 +60,7 @@
 #define BZ_AWAR MAKEFOURCC('A', 'w', 'a', 'r')
 #define BZ_ACPV MAKEFOURCC('A', 'C', 'p', 'v')
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -68,8 +68,8 @@ void free_slk_rows(slkTestData_t *rows);
 
 static void creep_alias_world(void) {
     reset_entities(); setup_test_world(); level.time = 1000;
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
 }
 
@@ -144,7 +144,7 @@ TEST(wc3_spell, creep_mana_shield_uses_alias_data_and_orders) {
         "C;Y3;X5;K\"BNms\"\nC;Y3;X6;K\"128\"\nE\n";
     UnitAbilities_t abilities = { .abilList = "ACmf" };
     slkTestData_t *rows = parse_slk_string(slk), *old;
-    LPEDICT attacker, caster;
+    edict_t * attacker, *caster;
 
     creep_alias_world();
     old = G_SetSLKRows("AbilityData", rows);
@@ -180,7 +180,7 @@ TEST(wc3_spell, creep_searing_arrows_uses_alias_bonus_damage) {
         "C;Y3;X1;K\"ACsa\"\nC;Y3;X2;K\"AHfa\"\nC;Y3;X3;K\"13\"\nE\n";
     UnitAbilities_t abilities = { .abilList = "ACsa" };
     slkTestData_t *rows = parse_slk_string(slk), *old;
-    LPEDICT attacker;
+    edict_t * attacker;
 
     creep_alias_world();
     old = G_SetSLKRows("AbilityData", rows);
@@ -215,7 +215,7 @@ TEST(wc3_spell, creep_polymorph_roc_empty_buffid_applies_bply) {
     UnitData_t ground = { .moveTypeName = "foot" };
     UnitBalance_t creep = { .level = 5 };
     slkTestData_t *rows = parse_slk_string(slk), *old;
-    LPEDICT caster, target;
+    edict_t * caster, *target;
 
     creep_alias_world();
     old = G_SetSLKRows("AbilityData", rows);
@@ -243,7 +243,7 @@ TEST(wc3_spell, creep_sleep_roc_empty_buffid_applies_busl) {
         "C;Y2;X7;K\"20\"\nC;Y2;X8;K\"10\"\nC;Y2;X9;K\"2\"\nE\n";
     UnitAbilities_t abilities = { .abilList = "ACsl" };
     slkTestData_t *rows = parse_slk_string(slk), *old;
-    LPEDICT caster, target;
+    edict_t * caster, *target;
 
     creep_alias_world();
     old = G_SetSLKRows("AbilityData", rows);
@@ -309,7 +309,7 @@ TEST(wc3_spell, creep_heal_slam_animate_dead_use_alias_data) {
     UnitAbilities_t abilities = { .abilList = "Anhe,ACtc,ACad" };
     UnitData_t corpse_data = { .deathType = 3 };
     slkTestData_t *rows = parse_slk_string(slk), *old;
-    LPEDICT caster, ally, enemy, corpse;
+    edict_t * caster, *ally, *enemy, *corpse;
 
     creep_alias_world();
     old = G_SetSLKRows("AbilityData", rows);
@@ -350,7 +350,7 @@ TEST(wc3_spell, creep_evasion_alias_full_chance_avoids_hit) {
         "C;Y3;X1;K\"ACes\"\nC;Y3;X2;K\"AEev\"\nC;Y3;X3;K\"1\"\nE\n";
     UnitAbilities_t abilities = { .abilList = "ACes" };
     slkTestData_t *rows = parse_slk_string(slk), *old;
-    LPEDICT attacker, target;
+    edict_t * attacker, *target;
     creep_alias_world(); old = G_SetSLKRows("AbilityData", rows);
     attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
@@ -373,7 +373,7 @@ TEST(wc3_spell, creep_evasion_zero_chance_alias_takes_hit) {
         "C;Y3;X1;K\"ACev\"\nC;Y3;X2;K\"AEev\"\nC;Y3;X3;K\"0\"\nE\n";
     UnitAbilities_t abilities = { .abilList = "ACev" };
     slkTestData_t *rows = parse_slk_string(slk), *old;
-    LPEDICT attacker, target;
+    edict_t * attacker, *target;
     creep_alias_world(); old = G_SetSLKRows("AbilityData", rows);
     attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
@@ -395,7 +395,7 @@ TEST(wc3_spell, creep_evasion_runtime_added_and_removed) {
         "C;Y3;X1;K\"ACes\"\nC;Y3;X2;K\"AEev\"\nC;Y3;X3;K\"1\"\nE\n";
     UnitAbilities_t abilities = { .abilList = "" };
     slkTestData_t *rows = parse_slk_string(slk), *old;
-    LPEDICT attacker, target;
+    edict_t * attacker, *target;
     creep_alias_world(); old = G_SetSLKRows("AbilityData", rows);
     attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
@@ -424,7 +424,7 @@ TEST(wc3_spell, creep_evasion_ranked_alias_uses_authored_row) {
         "C;Y2;X1;K\"ACes\"\nC;Y2;X2;K\"AEev\"\nC;Y2;X3;K\"2\"\n"
         "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"1\"\nE\n";
     slkTestData_t *rows = parse_slk_string(slk), *old;
-    LPEDICT attacker, target;
+    edict_t * attacker, *target;
     creep_alias_world(); old = G_SetSLKRows("AbilityData", rows);
     attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
@@ -452,7 +452,7 @@ TEST(wc3_spell, creep_evasion_base_and_brawler_retained) {
     UnitAbilities_t base_abils = { .abilList = "AEev" };
     UnitAbilities_t alias_abils = { .abilList = "ACes" };
     slkTestData_t *rows = parse_slk_string(slk), *old;
-    LPEDICT attacker, base_target, alias_target;
+    edict_t * attacker, *base_target, *alias_target;
     creep_alias_world(); old = G_SetSLKRows("AbilityData", rows);
     attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     base_target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
@@ -484,7 +484,7 @@ TEST(wc3_spell, creep_bash_alias_uses_authored_data) {
     UnitAbilities_t base_abils = { .abilList = "AHbh" };
     UnitAbilities_t alias_abils = { .abilList = "ACbh" };
     slkTestData_t *rows = parse_slk_string(slk), *old;
-    LPEDICT base_attacker, alias_attacker, target;
+    edict_t * base_attacker, *alias_attacker, *target;
     creep_alias_world(); old = G_SetSLKRows("AbilityData", rows);
     base_attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     alias_attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 64);

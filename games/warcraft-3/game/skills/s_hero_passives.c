@@ -50,7 +50,7 @@ static aura_cache_key_t const aura_cache_keys[HERO_AURA_CACHE_KEYS] = {
 };
 
 typedef struct {
-    LPEDICT source;
+    edict_t * source;
     auraAbilityRef_t life_orc;
     auraAbilityRef_t life_blight;
     auraAbilityRef_t mana;
@@ -76,9 +76,9 @@ static regenAuraSource_t regen_sources[MAX_ENTITIES];
 static uint32_t regen_source_count;
 static uint32_t regen_cache_frame = UINT_MAX;
 static uint32_t regen_cache_generation = UINT_MAX;
-static LPEDICT regen_overlays[MAX_ENTITIES][REGEN_FAMILY_COUNT];
-static LPEDICT devotion_overlays[MAX_ENTITIES];
-static LPEDICT unholy_overlays[MAX_ENTITIES];
+static edict_t * regen_overlays[MAX_ENTITIES][REGEN_FAMILY_COUNT];
+static edict_t * devotion_overlays[MAX_ENTITIES];
+static edict_t * unholy_overlays[MAX_ENTITIES];
 static uint32_t devotion_recipient_buff[MAX_ENTITIES];
 static uint32_t unholy_recipient_buff[MAX_ENTITIES];
 static uint32_t regen_value_next_update[MAX_ENTITIES];
@@ -114,7 +114,7 @@ static void aura_cache_update_time(void) {
 /* Shared owned-alias resolver: actual rawcode plus actual rank for base_code,
  * across native abilList, runtime-added abilities (honoring removals) and
  * ranked hero slots, via the authored code mapping. */
-abilityAliasRef_t S_ResolveAbilityAlias(LPEDICT ent, uint32_t base_code) {
+abilityAliasRef_t S_ResolveAbilityAlias(edict_t * ent, uint32_t base_code) {
     abilityAliasRef_t result = {0};
     char alias_name[5] = {0};
     if (!ent || !base_code) return result;
@@ -151,7 +151,7 @@ abilityAliasRef_t S_ResolveAbilityAlias(LPEDICT ent, uint32_t base_code) {
     return result;
 }
 
-static auraAbilityRef_t actor_aura_ability(LPEDICT ent, uint32_t base_code) {
+static auraAbilityRef_t actor_aura_ability(edict_t * ent, uint32_t base_code) {
 #ifdef BZ_TESTS
     test_hero_aura_alias_resolves++;
 #endif
@@ -160,7 +160,7 @@ static auraAbilityRef_t actor_aura_ability(LPEDICT ent, uint32_t base_code) {
     return result;
 }
 
-static auraAbilityRef_t unit_ability_with_proc(LPEDICT ent, abilityProc_t proc) {
+static auraAbilityRef_t unit_ability_with_proc(edict_t * ent, abilityProc_t proc) {
     auraAbilityRef_t result = {0};
     char alias_name[5] = {0};
     if (!ent || !proc) return result;
@@ -198,7 +198,7 @@ static auraAbilityRef_t unit_ability_with_proc(LPEDICT ent, abilityProc_t proc) 
     return result;
 }
 
-static auraAbilityRef_t mana_shield_ability(LPEDICT ent) {
+static auraAbilityRef_t mana_shield_ability(edict_t * ent) {
     auraAbilityRef_t ref = actor_aura_ability(ent, ID_MANA_SHIELD);
     return ref.alias ? ref : unit_ability_with_proc(ent, CAbilityManaShield);
 }
@@ -207,7 +207,7 @@ static auraAbilityRef_t mana_shield_ability(LPEDICT ent) {
  * RF_HIDDEN covers ShowUnit-style hidden state and temporary invisibility such as
  * Invisibility/Wind Walk; Permanent Invisibility is tracked independently. Fog
  * visibility and detector state are deliberately irrelevant here. */
-bool S_AuraUnitActive(LPCEDICT unit) {
+bool S_AuraUnitActive(edict_t const * unit) {
     return unit && unit->inuse && !M_IsDead(unit) &&
            !(unit->svflags & SVF_STATIC_SCENERY) &&
            !(unit->s.renderfx & RF_HIDDEN) && !S_PermanentInvisibilityActive(unit);
@@ -229,7 +229,7 @@ static bool aura_target_has_token(cstring_t targets, cstring_t full, cstring_t s
     return false;
 }
 
-static bool aura_allows_target(LPEDICT source, LPEDICT target, cstring_t targets) {
+static bool aura_allows_target(edict_t * source, edict_t * target, cstring_t targets) {
     bool is_self, is_friend, is_enemy, is_neutral;
     bool const wants_vulnerability = aura_target_has_token(targets, "vulnerable", "vuln") ||
         aura_target_has_token(targets, "invulnerable", "invu");
@@ -338,7 +338,7 @@ static void regen_aura_cache_update(void) {
     memset(devotion_overlays, 0, sizeof(devotion_overlays));
     memset(unholy_overlays, 0, sizeof(unholy_overlays));
     FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT effect = g_edicts + i;
+        edict_t * effect = g_edicts + i;
         regenFamily_t family;
         if (!effect->inuse || !effect->owner || effect->owner->s.number >= MAX_ENTITIES ||
             effect->goalentity != effect->owner) continue;
@@ -376,12 +376,12 @@ static regenFamily_t regen_family(uint32_t base_code) {
 }
 
 /* Resolve one regeneration aura directly from live providers for a cache refresh. */
-static regenerationAuraInfo_t regen_aura_info_uncached(LPEDICT unit, uint32_t base_code, bool use_maximum) {
+static regenerationAuraInfo_t regen_aura_info_uncached(edict_t * unit, uint32_t base_code, bool use_maximum) {
     regenerationAuraInfo_t result = {0};
 
     regen_aura_cache_update();
     FOR_LOOP(i, regen_source_count) {
-        LPEDICT source = regen_sources[i].source;
+        edict_t * source = regen_sources[i].source;
         auraAbilityRef_t const ability = regen_aura_ref(regen_sources + i, base_code);
         abilityLevel_t const *row;
         float amount;
@@ -410,7 +410,7 @@ static regenerationAuraInfo_t regen_aura_info_uncached(LPEDICT unit, uint32_t ba
 }
 
 /* Return a recipient's cached regeneration aura value until the retail refresh deadline. */
-static float regen_aura_bonus(LPEDICT unit, uint32_t base_code, bool use_maximum) {
+static float regen_aura_bonus(edict_t * unit, uint32_t base_code, bool use_maximum) {
     regenFamily_t family;
     regenValue_t value;
     void const * ability_data;
@@ -441,12 +441,12 @@ static float regen_aura_bonus(LPEDICT unit, uint32_t base_code, bool use_maximum
     return regen_value_cache[unit->s.number][family][value].amount;
 }
 
-static bool is_regen_aura_overlay(LPCEDICT effect, LPCEDICT unit, uint32_t base_code) {
+static bool is_regen_aura_overlay(edict_t const * effect, edict_t const * unit, uint32_t base_code) {
     return effect && effect->inuse && effect->owner == unit && effect->goalentity == unit &&
            effect->summon_ability == base_code;
 }
 
-static void sync_regen_aura_overlay(LPEDICT unit, uint32_t base_code, regenerationAuraInfo_t const *info) {
+static void sync_regen_aura_overlay(edict_t * unit, uint32_t base_code, regenerationAuraInfo_t const *info) {
     bool const needs_resource = base_code == ID_REGEN_MANA
         ? unit->mana.max_value > 0.0f && unit->mana.value < unit->mana.max_value
         : unit->health.max_value > 0.0f && unit->health.value > 0.0f && unit->health.value < unit->health.max_value;
@@ -462,7 +462,7 @@ static void sync_regen_aura_overlay(LPEDICT unit, uint32_t base_code, regenerati
     }
     uint32_t desired_model = art && *art ? G_RegisterModel(art) : 0;
     regenFamily_t const family = regen_family(base_code);
-    LPEDICT keep = unit->s.number < MAX_ENTITIES ? regen_overlays[unit->s.number][family] : NULL;
+    edict_t * keep = unit->s.number < MAX_ENTITIES ? regen_overlays[unit->s.number][family] : NULL;
 
     if (keep && !is_regen_aura_overlay(keep, unit, base_code)) keep = NULL;
     if (keep && (!desired_model || keep->s.model != desired_model)) {
@@ -472,7 +472,7 @@ static void sync_regen_aura_overlay(LPEDICT unit, uint32_t base_code, regenerati
     }
 
     if (!keep && desired_model) {
-        LPEDICT effect = G_SpawnAbilityEffectTarget(effect_code, WC3_EFFECT_TARGET, 0,
+        edict_t * effect = G_SpawnAbilityEffectTarget(effect_code, WC3_EFFECT_TARGET, 0,
                                                     unit, NULL, false);
         if (effect) {
             /* Effect edicts are not summoned units; this otherwise-unused rawcode
@@ -485,16 +485,16 @@ static void sync_regen_aura_overlay(LPEDICT unit, uint32_t base_code, regenerati
     }
 }
 
-float S_RegenerationHealthAura(LPEDICT unit) {
+float S_RegenerationHealthAura(edict_t * unit) {
     return regen_aura_bonus(unit, ID_REGEN_LIFE_ORC, true) +
            regen_aura_bonus(unit, ID_REGEN_LIFE_BLIGHT, true);
 }
 
-float S_RegenerationManaAura(LPEDICT unit) {
+float S_RegenerationManaAura(edict_t * unit) {
     return regen_aura_bonus(unit, ID_REGEN_MANA, true);
 }
 
-void S_UpdateRegenerationAuraEffects(LPEDICT unit) {
+void S_UpdateRegenerationAuraEffects(edict_t * unit) {
     /* Populate the shared two-second aura snapshot before reading its art metadata. */
     regen_aura_bonus(unit, ID_REGEN_LIFE_ORC, true);
     regenerationAuraInfo_t const health = regen_value_cache[unit->s.number][REGEN_FAMILY_LIFE_ORC][REGEN_VALUE_MAXIMUM];
@@ -508,7 +508,7 @@ void S_UpdateRegenerationAuraEffects(LPEDICT unit) {
 }
 
 /* Gate presentation reconciliation independently from value refreshes. */
-bool S_RegenerationAuraUpdateDue(LPEDICT unit) {
+bool S_RegenerationAuraUpdateDue(edict_t * unit) {
     aura_cache_update_time();
     if (!unit || unit->s.number >= MAX_ENTITIES ||
         level.time < regen_visual_next_update[unit->s.number]) return false;
@@ -518,7 +518,7 @@ bool S_RegenerationAuraUpdateDue(LPEDICT unit) {
 
 /* Aura presentation is an ability-owned periodic update, reached through the
  * shared ability dispatcher rather than the physics implementation. */
-void S_UpdateUnitPassiveEffects(LPEDICT unit) {
+void S_UpdateUnitPassiveEffects(edict_t * unit) {
     if (!unit || !unit->inuse || (unit->svflags & SVF_STATIC_SCENERY) ||
         !unit->data.UnitBalance || !S_RegenerationAuraUpdateDue(unit)) return;
     S_UpdateRegenerationAuraEffects(unit);
@@ -526,7 +526,7 @@ void S_UpdateUnitPassiveEffects(LPEDICT unit) {
 }
 
 /* Refresh all combat aura families together so one recipient scan serves every consumer. */
-static float hero_aura_bonus(LPEDICT unit, uint32_t code, uint32_t data) {
+static float hero_aura_bonus(edict_t * unit, uint32_t code, uint32_t data) {
     uint32_t slot = sizeof(aura_cache_keys) / sizeof(*aura_cache_keys);
     uint32_t ability_generation;
 
@@ -542,7 +542,7 @@ static float hero_aura_bonus(LPEDICT unit, uint32_t code, uint32_t data) {
         regen_aura_cache_update();
         FOR_LOOP(i, regen_source_count) {
             regenAuraSource_t const *source = regen_sources + i;
-            LPEDICT aura = source->source;
+            edict_t * aura = source->source;
             if (!S_AuraUnitActive(aura) || !S_SpellIsFriend(aura, unit)) continue;
             FOR_LOOP(j, sizeof(aura_cache_keys) / sizeof(*aura_cache_keys)) {
                 auraAbilityRef_t const ability = source->combat[j];
@@ -584,12 +584,12 @@ typedef struct {
     uint32_t buff;
 } heroAuraPresentation_t;
 
-static heroAuraPresentation_t hero_aura_presentation(LPEDICT unit, uint32_t base_code) {
+static heroAuraPresentation_t hero_aura_presentation(edict_t * unit, uint32_t base_code) {
     heroAuraPresentation_t result = {0};
 
     regen_aura_cache_update();
     FOR_LOOP(i, regen_source_count) {
-        LPEDICT source = regen_sources[i].source;
+        edict_t * source = regen_sources[i].source;
         auraAbilityRef_t const ability = regen_aura_ref(regen_sources + i, base_code);
         abilityLevel_t const *row;
         float amount;
@@ -618,12 +618,12 @@ static heroAuraPresentation_t hero_aura_presentation(LPEDICT unit, uint32_t base
     return result;
 }
 
-static void hero_aura_sync_overlay(LPEDICT unit, uint32_t base_code, LPEDICT *overlays,
+static void hero_aura_sync_overlay(edict_t * unit, uint32_t base_code, edict_t * *overlays,
                                    heroAuraPresentation_t const *info) {
     uint32_t effect_code = info ? info->buff : 0;
     cstring_t art = effect_code ? G_AbilityEffectArt(effect_code, WC3_EFFECT_TARGET, 0) : NULL;
     uint32_t desired_model;
-    LPEDICT keep = unit->s.number < MAX_ENTITIES ? overlays[unit->s.number] : NULL;
+    edict_t * keep = unit->s.number < MAX_ENTITIES ? overlays[unit->s.number] : NULL;
 
     if ((!art || !*art) && info && info->alias) {
         effect_code = info->alias;
@@ -638,7 +638,7 @@ static void hero_aura_sync_overlay(LPEDICT unit, uint32_t base_code, LPEDICT *ov
         keep = NULL;
     }
     if (!keep && desired_model) {
-        LPEDICT effect = G_SpawnAbilityEffectTarget(effect_code, WC3_EFFECT_TARGET, 0, unit, NULL, false);
+        edict_t * effect = G_SpawnAbilityEffectTarget(effect_code, WC3_EFFECT_TARGET, 0, unit, NULL, false);
         if (effect) {
             effect->owner = unit;
             effect->summon_ability = base_code;
@@ -647,7 +647,7 @@ static void hero_aura_sync_overlay(LPEDICT unit, uint32_t base_code, LPEDICT *ov
     }
 }
 
-void S_UpdateHeroAuraEffects(LPEDICT unit) {
+void S_UpdateHeroAuraEffects(edict_t * unit) {
     heroAuraPresentation_t devotion, unholy;
 
     if (!unit || !unit->inuse || unit->s.number >= MAX_ENTITIES) return;
@@ -660,52 +660,52 @@ void S_UpdateHeroAuraEffects(LPEDICT unit) {
     hero_aura_sync_overlay(unit, ID_UNHOLY_AURA, unholy_overlays, unholy.alias ? &unholy : NULL);
 }
 
-uint32_t S_DevotionAuraBuff(LPEDICT unit) {
+uint32_t S_DevotionAuraBuff(edict_t * unit) {
     if (!unit || unit->s.number >= MAX_ENTITIES) return 0;
     return devotion_recipient_buff[unit->s.number];
 }
 
-uint32_t S_UnholyAuraBuff(LPEDICT unit) {
+uint32_t S_UnholyAuraBuff(edict_t * unit) {
     if (!unit || unit->s.number >= MAX_ENTITIES) return 0;
     return unholy_recipient_buff[unit->s.number];
 }
 
-float S_BrillianceManaRegen(LPEDICT unit) { return hero_aura_bonus(unit, ID_BRILLIANCE, 1); }
-float S_DevotionArmorBonus(LPEDICT unit) { return hero_aura_bonus(unit, ID_DEVOTION_AURA, 1); }
-float S_UnholyHealthRegen(LPEDICT unit) { return hero_aura_bonus(unit, ID_UNHOLY_AURA, 2); }
-float S_UnholyMoveBonus(LPEDICT unit) { return hero_aura_bonus(unit, ID_UNHOLY_AURA, 1); }
-float S_VampiricLifeSteal(LPEDICT unit) { return hero_aura_bonus(unit, ID_VAMPIRIC_AURA, 1); }
+float S_BrillianceManaRegen(edict_t * unit) { return hero_aura_bonus(unit, ID_BRILLIANCE, 1); }
+float S_DevotionArmorBonus(edict_t * unit) { return hero_aura_bonus(unit, ID_DEVOTION_AURA, 1); }
+float S_UnholyHealthRegen(edict_t * unit) { return hero_aura_bonus(unit, ID_UNHOLY_AURA, 2); }
+float S_UnholyMoveBonus(edict_t * unit) { return hero_aura_bonus(unit, ID_UNHOLY_AURA, 1); }
+float S_VampiricLifeSteal(edict_t * unit) { return hero_aura_bonus(unit, ID_VAMPIRIC_AURA, 1); }
 
-static float slow_aura_bonus(LPCEDICT unit, uint32_t data) {
+static float slow_aura_bonus(edict_t const * unit, uint32_t data) {
     float result = 0.0f;
     if (!unit) return 0.0f;
     FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT source = g_edicts + i;
+        edict_t * source = g_edicts + i;
         auraAbilityRef_t ability;
         abilityLevel_t const *row;
-        if (!S_AuraUnitActive(source) || !S_SpellIsAliveTarget(source) || !S_SpellIsEnemy(source, (LPEDICT)unit)) continue;
+        if (!S_AuraUnitActive(source) || !S_SpellIsAliveTarget(source) || !S_SpellIsEnemy(source, (edict_t *)unit)) continue;
         ability = actor_aura_ability(source, ID_SLOW_AURA);
         if (!ability.alias) continue;
         row = G_AbilityLevel(ability.alias, ability.level);
         if (Vector2_distance(&source->s.origin2, &unit->s.origin2) > row->area ||
-            !aura_allows_target(source, (LPEDICT)unit, row->targs)) continue;
+            !aura_allows_target(source, (edict_t *)unit, row->targs)) continue;
         result = MAX(result, row->data[data - 1].number);
     }
     return MAX(0.0f, MIN(0.9f, result));
 }
 
-float S_SlowAuraMoveReduction(LPCEDICT unit) { return slow_aura_bonus(unit, 1); }
-float S_SlowAuraAttackReduction(LPCEDICT unit) { return slow_aura_bonus(unit, 2); }
-float S_CommandAuraAttackBonus(LPEDICT unit) {
+float S_SlowAuraMoveReduction(edict_t const * unit) { return slow_aura_bonus(unit, 1); }
+float S_SlowAuraAttackReduction(edict_t const * unit) { return slow_aura_bonus(unit, 2); }
+float S_CommandAuraAttackBonus(edict_t * unit) {
     return MAX(hero_aura_bonus(unit, ID_COMMAND_AURA, 1), hero_aura_bonus(unit, ID_COMMAND_AURA_NEUTRAL, 1));
 }
-float S_WarDrumsAttackBonus(LPEDICT unit) { return hero_aura_bonus(unit, ID_WAR_DRUMS, 1); }
+float S_WarDrumsAttackBonus(edict_t * unit) { return hero_aura_bonus(unit, ID_WAR_DRUMS, 1); }
 
-float S_TrueshotAttackBonus(LPEDICT unit) {
+float S_TrueshotAttackBonus(edict_t * unit) {
     return unit->attack1.type == ATK_PIERCE ? hero_aura_bonus(unit, ID_TRUESHOT_AURA, 1) : 0.0f;
 }
 
-int S_SearingArrowDamage(LPEDICT attacker, int damage) {
+int S_SearingArrowDamage(edict_t * attacker, int damage) {
     uint32_t code = ID_SEARING_ARROWS, level = 0;
     if (!attacker) return damage;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
@@ -724,7 +724,7 @@ static uint32_t mana_shield_buff(uint32_t code, uint32_t level) {
     return buff && strlen(buff) >= 4 ? FS_SLKKey(buff) : 0;
 }
 
-static void mana_shield_remove(LPEDICT unit, uint32_t buff) {
+static void mana_shield_remove(edict_t * unit, uint32_t buff) {
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == buff)
             memset(unit->abilstatus + i, 0, sizeof(unit->abilstatus[i]));
@@ -773,7 +773,7 @@ BZ_ABILITY_PROC(CAbilityManaShield) {
 }
 
 /* Retail DataA is damage absorbed per mana and DataB is the fraction of each hit absorbed. */
-int S_ManaShieldDamage(LPEDICT target, int damage) {
+int S_ManaShieldDamage(edict_t * target, int damage) {
     auraAbilityRef_t ref = mana_shield_ability(target);
     uint32_t code = ref.alias ? ref.alias : ID_MANA_SHIELD;
     uint32_t level = ref.level ? ref.level : G_UnitAbilityLevel(target, ID_MANA_SHIELD);
@@ -789,13 +789,13 @@ int S_ManaShieldDamage(LPEDICT target, int damage) {
     return damage - (int)absorbed;
 }
 
-float S_ThornsDamageReturn(LPCEDICT target, LPCEDICT attacker, float damage) {
+float S_ThornsDamageReturn(edict_t const * target, edict_t const * attacker, float damage) {
     if (!target || !attacker || (attacker->attack1.weapon != WPN_NORMAL && attacker->attack1.weapon != WPN_INSTANT))
         return 0.0f;
-    return damage * hero_aura_bonus((LPEDICT)target, ID_THORNS_AURA, 1);
+    return damage * hero_aura_bonus((edict_t *)target, ID_THORNS_AURA, 1);
 }
 
-bool S_EvasionRoll(LPEDICT target) {
+bool S_EvasionRoll(edict_t * target) {
     abilityAliasRef_t ev = S_ResolveAbilityAlias(target, ID_EVASION);
     uint32_t level;
     if (ev.alias && ev.level && (float)(rand() % 10000) / 10000.0f < S_SpellData(ev.alias, ev.level, 1)) return true;
@@ -803,7 +803,7 @@ bool S_EvasionRoll(LPEDICT target) {
     return level && (float)(rand() % 10000) / 10000.0f < S_SpellData(ID_DRUNKEN_BRAWLER, level, 4);
 }
 
-int S_CriticalStrikeDamage(LPEDICT attacker, int damage) {
+int S_CriticalStrikeDamage(edict_t * attacker, int damage) {
     uint32_t level = G_UnitAbilityLevel(attacker, ID_CRITICAL_STRIKE);
     uint32_t code = ID_CRITICAL_STRIKE;
     if (!level) { level = G_UnitAbilityLevel(attacker, ID_CREEP_CRITICAL_STRIKE); code = ID_CREEP_CRITICAL_STRIKE; }
@@ -812,12 +812,12 @@ int S_CriticalStrikeDamage(LPEDICT attacker, int damage) {
     return (int)((float)damage * MAX(1.0f, S_SpellData(code, level, 2)));
 }
 
-float S_SpikedArmorBonus(LPCEDICT unit) {
+float S_SpikedArmorBonus(edict_t const * unit) {
     uint32_t level = G_UnitAbilityLevel(unit, ID_SPIKED_CARAPACE);
     return level ? S_SpellData(ID_SPIKED_CARAPACE, level, 3) : 0.0f;
 }
 
-float S_SpikedDamageReturn(LPCEDICT unit, float damage) {
+float S_SpikedDamageReturn(edict_t const * unit, float damage) {
     uint32_t code = ID_SPIKED_CARAPACE, level = G_UnitAbilityLevel(unit, code);
     if (!level) { code = ID_SPIKED_BARRICADES; level = G_UnitAbilityLevel(unit, code); }
     if (!level) return 0.0f;
@@ -828,7 +828,7 @@ float S_SpikedDamageReturn(LPCEDICT unit, float damage) {
  * DataC/D full/half damage radii; the authored Area cell is unused.
  * Its damage is an authored physical-spell event, so secondary victims do not
  * recursively trigger attack listeners. */
-void S_PulverizeAttack(LPEDICT attacker, LPCEDICT primary) {
+void S_PulverizeAttack(edict_t * attacker, edict_t const * primary) {
     abilityAliasRef_t ability = S_ResolveAbilityAlias(attacker, ID_PULVERIZE);
     uint32_t code = ability.alias, level = ability.level;
     float full_radius, partial_radius, chance, full_damage, partial_damage;

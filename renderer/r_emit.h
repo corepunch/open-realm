@@ -13,15 +13,15 @@ static inline void R_EncodeParticleSize(cparticle_t *particle, float const value
     particle->size_time_scale = 1.0f / MAX(particle->lifespan, 0.001f);
 }
 
-static VECTOR3 FX_GenerateRandomDirection(float latitude) {
+static vector3_t FX_GenerateRandomDirection(float latitude) {
 	float theta = (float)(((double)rand() / (double)RAND_MAX) * 2.0 * M_PI);
 	float phi = (float)(((double)rand() / (double)RAND_MAX) * latitude);
-	return (VECTOR3){ sinf(phi) * cosf(theta), sinf(phi) * sinf(theta), cosf(phi) };
+	return (vector3_t){ sinf(phi) * cosf(theta), sinf(phi) * sinf(theta), cosf(phi) };
 }
 
 __attribute__((unused))
-static VECTOR3 FX_GenerateRandomOrigin(float length, float width) {
-	return (VECTOR3){
+static vector3_t FX_GenerateRandomOrigin(float length, float width) {
+	return (vector3_t){
 		(float)(((double)rand() / (double)RAND_MAX - 0.5) * length),
 		(float)(((double)rand() / (double)RAND_MAX - 0.5) * width),
 		0.0f,

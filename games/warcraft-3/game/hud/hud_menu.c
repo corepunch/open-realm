@@ -27,7 +27,7 @@ static int MenuSaveDebugLevel(void) {
     return value ? atoi(value) : 0;
 }
 
-static LPFRAMEDEF MenuPanel(menuPanel_t panel) {
+static frameDef_t * MenuPanel(menuPanel_t panel) {
     switch (panel) {
         case MENU_PANEL_END_GAME: return hud.menu.EndGamePanel;
         case MENU_PANEL_CONFIRM_QUIT: return hud.menu.ConfirmQuitPanel;
@@ -36,7 +36,7 @@ static LPFRAMEDEF MenuPanel(menuPanel_t panel) {
     }
 }
 
-static LPFRAMEDEF MenuSaveListBox(void) {
+static frameDef_t * MenuSaveListBox(void) {
     return hud.save_list.inuse && hud.save_list.Parent == hud.save_list_art.MapListBox ? &hud.save_list : NULL;
 }
 
@@ -94,7 +94,7 @@ static uint32_t MenuBuildSaveList(void) {
     char names[MENU_SAVE_ENUM_TEXT] = { 0 };
     menuSaveRows_t rows = { 0 };
     uint32_t count = 0;
-    LPFRAMEDEF list = MenuSaveListBox();
+    frameDef_t * list = MenuSaveListBox();
 
     if (!MenuSavePanelReady() || !list) {
         if (MenuSaveDebugLevel())
@@ -151,7 +151,7 @@ static uint32_t MenuBuildSaveList(void) {
     return count;
 }
 
-static void MenuSetButton(LPFRAMEDEF button, bool enabled, cstring_t command) {
+static void MenuSetButton(frameDef_t * button, bool enabled, cstring_t command) {
     if (!button) return;
     UI_SetEnabled(button, enabled);
     if (enabled && command) UI_SetOnClick(button, "%s", command);
@@ -200,7 +200,7 @@ void UI_LoadHudMenu(void) {
      * the rest of the pause menu. Retail Warcraft data provides this panel. */
     EscMenuSaveGamePanel_Load(&hud.save_menu);
     if (hud.save_menu.FileListFrame && MapListBox_Load(&hud.save_list_art)) {
-        LPFRAMEDEF root = UI_CloneFrameTree(hud.save_list_art.MapListBox, hud.save_menu.FileListFrame);
+        frameDef_t * root = UI_CloneFrameTree(hud.save_list_art.MapListBox, hud.save_menu.FileListFrame);
         if (!root || !MapListBox_Bind(&hud.save_list_art, root)) {
             fprintf(stderr, "WC3 menu: failed to instantiate MapListBox in FileListFrame\n");
         } else {
@@ -279,7 +279,7 @@ void UI_LoadHudMenu(void) {
 }
 
 static void MenuSelectPanel(menuPanel_t panel) {
-    LPFRAMEDEF active = MenuPanel(panel);
+    frameDef_t * active = MenuPanel(panel);
 
     MenuConfigureMainSaveLoad();
     UI_SetHidden(hud.menu.EscMenuMainPanel, false);
@@ -302,7 +302,7 @@ static void MenuSelectPanel(menuPanel_t panel) {
     UI_CenterFrame(hud.menu.EscMenuBackdrop);
 }
 
-static void MenuWrite(LPEDICT ent, menuPanel_t panel) {
+static void MenuWrite(edict_t * ent, menuPanel_t panel) {
     if (!ent || !ent->client || !ent->client->connected) return;
     /* Decorated Esc-menu art is resolved while the FDF is first loaded, so
      * establish the recipient's race skin before entering the template cache. */
@@ -324,10 +324,10 @@ static void MenuWrite(LPEDICT ent, menuPanel_t panel) {
 
 static void MenuSelectSavePanel(menuSavePanel_t panel) {
     bool saving = panel == MENU_SAVE_PANEL_SAVE;
-    LPFRAMEDEF list = MenuSaveListBox();
+    frameDef_t * list = MenuSaveListBox();
     uint32_t saves = MenuBuildSaveList();
     bool can_load = G_IsSinglePlayer() && list && saves > 0;
-    LPFRAMEDEF root = hud.save_menu.EscMenuSaveGamePanel;
+    frameDef_t * root = hud.save_menu.EscMenuSaveGamePanel;
     char load_command[128] = { 0 };
     char default_name[CMDARG_LEN] = { 0 };
 
@@ -376,7 +376,7 @@ static void MenuSelectSavePanel(menuSavePanel_t panel) {
 
 }
 
-static void MenuWriteSavePanel(LPEDICT ent, menuSavePanel_t panel) {
+static void MenuWriteSavePanel(edict_t * ent, menuSavePanel_t panel) {
     if (!ent || !ent->client || !ent->client->connected ||
         !G_IsSinglePlayer() || !MenuSavePanelReady()) return;
 
@@ -392,22 +392,22 @@ static void MenuWriteSavePanel(LPEDICT ent, menuSavePanel_t panel) {
     UI_SetCurrentClient(NULL);
 }
 
-void UI_ShowMainMenu(LPEDICT ent) {
+void UI_ShowMainMenu(edict_t * ent) {
     MenuWrite(ent, MENU_PANEL_MAIN);
 }
 
-void UI_ShowGameMenuEndGame(LPEDICT ent) {
+void UI_ShowGameMenuEndGame(edict_t * ent) {
     MenuWrite(ent, MENU_PANEL_END_GAME);
 }
 
-void UI_ShowGameMenuConfirmExit(LPEDICT ent) {
+void UI_ShowGameMenuConfirmExit(edict_t * ent) {
     MenuWrite(ent, MENU_PANEL_CONFIRM_QUIT);
 }
 
-void UI_ShowGameMenuSave(LPEDICT ent) {
+void UI_ShowGameMenuSave(edict_t * ent) {
     MenuWriteSavePanel(ent, MENU_SAVE_PANEL_SAVE);
 }
 
-void UI_ShowGameMenuLoad(LPEDICT ent) {
+void UI_ShowGameMenuLoad(edict_t * ent) {
     MenuWriteSavePanel(ent, MENU_SAVE_PANEL_LOAD);
 }

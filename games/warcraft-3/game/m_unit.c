@@ -1,20 +1,20 @@
 #include "g_local.h"
 
-//void unit_die(LPEDICT self);
-//void unit_decay2(LPEDICT self);
-void unit_decay1(LPEDICT self);
-void unit_begin_decay(LPEDICT self);
-void unit_decay_think(LPEDICT self);
-void unit_cooldown(LPEDICT self);
-void unit_stand(LPEDICT self);
-bool G_UnitIsHero(LPCEDICT ent);
+//void unit_die(edict_t * self);
+//void unit_decay2(edict_t * self);
+void unit_decay1(edict_t * self);
+void unit_begin_decay(edict_t * self);
+void unit_decay_think(edict_t * self);
+void unit_cooldown(edict_t * self);
+void unit_stand(edict_t * self);
+bool G_UnitIsHero(edict_t const * ent);
 
 /* WC3 corpse lifetime: DecayTime (flesh, 2s) + BoneDecayTime (bone, 88s) = 90s
  * after the death animation, then the corpse is removed (MiscData.txt). */
 #define UNIT_DEATH_TYPE_RAISE (1 << 0)
 #define UNIT_DEATH_TYPE_DECAY (1 << 1)
 
-void ai_birth2(LPEDICT self) {
+void ai_birth2(edict_t * self) {
     unit_runwait(self, unit_stand);
 }
 
@@ -23,11 +23,11 @@ void ai_birth2(LPEDICT self) {
 static umove_t unit_move_birth = { "birth", ai_birth, unit_stand };
 static umove_t unit_move_stand = { "stand", ai_stand, unit_stand };
 static umove_t unit_move_stand_ready = { "stand ready", ai_stand, unit_stand };
-static void unit_decay_flesh_think(LPEDICT self);
-static void unit_begin_bone_decay(LPEDICT self);
-static float unit_decay_flesh_duration(LPCEDICT self);
-static float unit_decay_bone_duration(LPCEDICT self);
-static float unit_dissipate_duration(LPCEDICT self);
+static void unit_decay_flesh_think(edict_t * self);
+static void unit_begin_bone_decay(edict_t * self);
+static float unit_decay_flesh_duration(edict_t const * self);
+static float unit_decay_bone_duration(edict_t const * self);
+static float unit_dissipate_duration(edict_t const * self);
 static umove_t unit_move_death = { "death", NULL, unit_begin_decay };
 /* Simulation owns corpse lifetime. Presentation stretches the selected Decay
  * sequence across the matching gameplay phase, just as Warsmash does. */
@@ -36,12 +36,12 @@ static umove_t unit_move_decay_bones = { "decay bone", unit_decay_think, NULL, N
 static umove_t unit_move_dissipate = { "dissipate", unit_decay_think, NULL, NULL, unit_dissipate_duration };
 static umove_t unit_move_decay_remove = { "death", unit_decay_think, NULL };
 
-void unit_decay1(LPEDICT self) {
+void unit_decay1(edict_t * self) {
     self->aiflags |= AI_HOLD_FRAME;
 }
 
-static void hero_become_revivable(LPEDICT self) {
-    LPGAMECLIENT owner;
+static void hero_become_revivable(edict_t * self) {
+    gameClient_t * owner;
 
     if (!self || !self->inuse || !G_UnitIsHero(self) ||
         (self->aiflags & AI_ILLUSION) || !(self->svflags & SVF_DEADMONSTER)) return;
@@ -60,23 +60,23 @@ static float unit_decay_wait(float seconds) {
     return MAX(seconds, FRAMETIME / 1000.0f);
 }
 
-static float unit_decay_flesh_duration(LPCEDICT self) {
+static float unit_decay_flesh_duration(edict_t const * self) {
     (void)self;
     return unit_decay_wait(game.constants.decayTime);
 }
 
-static float unit_decay_bone_duration(LPCEDICT self) {
+static float unit_decay_bone_duration(edict_t const * self) {
     if (self && G_UnitIsBuilding(self->class_id))
         return unit_decay_wait(game.constants.structureDecayTime);
     return unit_decay_wait(game.constants.boneDecayTime);
 }
 
-static float unit_dissipate_duration(LPCEDICT self) {
+static float unit_dissipate_duration(edict_t const * self) {
     (void)self;
     return unit_decay_wait(game.constants.dissipateTime);
 }
 
-static void unit_set_decay_move(LPEDICT self, umove_t *move) {
+static void unit_set_decay_move(edict_t * self, umove_t *move) {
     unit_setmove(self, move);
     /* A missing exact secondary sequence may fall back to another sequence in
      * the same primary family. If the model has no usable family at all, keep
@@ -85,7 +85,7 @@ static void unit_set_decay_move(LPEDICT self, umove_t *move) {
     else self->aiflags |= AI_HOLD_FRAME;
 }
 
-static void unit_begin_bone_decay(LPEDICT self) {
+static void unit_begin_bone_decay(edict_t * self) {
     unit_set_decay_move(self, &unit_move_decay_bones);
     self->wait = unit_decay_wait(game.constants.boneDecayTime);
 }
@@ -94,13 +94,13 @@ static void unit_begin_bone_decay(LPEDICT self) {
  * corpse restarts the bone-decay countdown rather than resuming the old
  * remainder.  Keep this phase-specific: the exact flesh-phase cargo behavior
  * is not established by the available retail evidence. */
-void G_RestartCorpseBoneDecayAfterCargo(LPEDICT corpse) {
+void G_RestartCorpseBoneDecayAfterCargo(edict_t * corpse) {
     if (!corpse || !corpse->inuse || corpse->currentmove != &unit_move_decay_bones ||
         G_UnitIsHero(corpse) || G_UnitIsBuilding(corpse->class_id)) return;
     corpse->wait = unit_decay_wait(game.constants.boneDecayTime);
 }
 
-static void unit_decay_flesh_think(LPEDICT self) {
+static void unit_decay_flesh_think(edict_t * self) {
     /* An active corpse consumer owns the remains.  Freeze ordinary decay until
      * that reservation is released or, for Cannibalize, the corpse is consumed. */
     if (self->aiflags & (AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO)) return;
@@ -111,7 +111,7 @@ static void unit_decay_flesh_think(LPEDICT self) {
  * the remains decay at all.  Ordinary corpses then use the map's separate
  * flesh and bone constants; structures use StructureDecayTime; Heroes retain
  * their distinct dissipation/revival lifecycle. */
-void unit_begin_decay(LPEDICT self) {
+void unit_begin_decay(edict_t * self) {
     UnitData_t const *data = self && self->data.UnitData ? self->data.UnitData :
         (self ? G_UnitData(self->class_id) : NULL);
     bool const hero = G_UnitIsHero(self) && !(self->aiflags & AI_ILLUSION);
@@ -140,7 +140,7 @@ void unit_begin_decay(LPEDICT self) {
 
 /* Ordinary corpses are removed. Heroes instead finish their dissipation timer,
  * become hidden/awaiting-revive, and keep the same authoritative edict. */
-void unit_decay_think(LPEDICT self) {
+void unit_decay_think(edict_t * self) {
     if (self->aiflags & (AI_CORPSE_RESERVED | AI_CORPSE_IN_CARGO)) return;
     if (G_UnitIsHero(self) && !(self->aiflags & AI_ILLUSION)) {
         if (!self->revival.awaiting) unit_runwait(self, hero_become_revivable);
@@ -149,20 +149,20 @@ void unit_decay_think(LPEDICT self) {
     unit_runwait(self, G_FreeEdict);
 }
 
-void unit_entercombat(LPEDICT self, LPEDICT target) {
+void unit_entercombat(edict_t * self, edict_t * target) {
     if (!self || !target || target == self || M_IsDead(self) || M_IsDead(target)) {
         return;
     }
     self->combatentity = target;
 }
 
-void unit_leavecombat(LPEDICT self) {
+void unit_leavecombat(edict_t * self) {
     if (self) {
         self->combatentity = NULL;
     }
 }
 
-bool unit_affectingcombat(LPEDICT self) {
+bool unit_affectingcombat(edict_t * self) {
     if (!self || M_IsDead(self)) {
         return false;
     }
@@ -175,7 +175,7 @@ bool unit_affectingcombat(LPEDICT self) {
     return true;
 }
 
-void unit_stand(LPEDICT self) {
+void unit_stand(edict_t * self) {
     /* Reaching stand is the common completion edge for Move, direct Attack,
      * Repair, Harvest, and several cast behaviors. Retire transient state first,
      * then let a pending Shift order become authoritative before installing the
@@ -200,7 +200,7 @@ void unit_stand(LPEDICT self) {
 }
 
 /* All runtime unit-health changes pass here so intrinsic ability levels transition exactly once. */
-void G_SetHealth(LPEDICT ent, float value) {
+void G_SetHealth(edict_t * ent, float value) {
     uint8_t const old = compress_stat(&ent->health);
     float const old_value = ent->health.value;
     uint8_t next;
@@ -216,9 +216,9 @@ void G_SetHealth(LPEDICT ent, float value) {
         S_RefreshAbilityLevel(ent, FindAbilityByClassname("Afih"));
 }
 
-void G_AddHealth(LPEDICT ent, float value) { G_SetHealth(ent, MIN(ent->health.max_value, ent->health.value + value)); }
+void G_AddHealth(edict_t * ent, float value) { G_SetHealth(ent, MIN(ent->health.max_value, ent->health.value + value)); }
 
-static void unit_apply_health_cap_delta(LPEDICT ent, float amount, float *ledger) {
+static void unit_apply_health_cap_delta(edict_t * ent, float amount, float *ledger) {
     float old_max, fraction;
     if (!ent || amount == 0.0f) return;
     old_max = MAX(1.0f, ent->health.max_value);
@@ -229,15 +229,15 @@ static void unit_apply_health_cap_delta(LPEDICT ent, float amount, float *ledger
     G_InvalidateUnitInfoPanel(ent);
 }
 
-void G_ApplyPermanentMaxHealthBonus(LPEDICT ent, float amount) {
+void G_ApplyPermanentMaxHealthBonus(edict_t * ent, float amount) {
     if (ent) unit_apply_health_cap_delta(ent, amount, &ent->permanent_health_bonus);
 }
 
-void G_ApplyTemporaryMaxHealthBonus(LPEDICT ent, float amount) {
+void G_ApplyTemporaryMaxHealthBonus(edict_t * ent, float amount) {
     if (ent) unit_apply_health_cap_delta(ent, amount, &ent->temporary_health_bonus);
 }
 
-void G_ApplyTemporaryMaxManaBonus(LPEDICT ent, float amount) {
+void G_ApplyTemporaryMaxManaBonus(edict_t * ent, float amount) {
     float old_max, fraction;
     if (!ent || amount == 0.0f) return;
     old_max = MAX(1.0f, ent->mana.max_value);
@@ -248,22 +248,22 @@ void G_ApplyTemporaryMaxManaBonus(LPEDICT ent, float amount) {
     G_InvalidateUnitInfoPanel(ent);
 }
 
-static void unit_apply_armor_delta(LPEDICT ent, float amount, float *ledger) {
+static void unit_apply_armor_delta(edict_t * ent, float amount, float *ledger) {
     if (!ent || amount == 0.0f) return;
     *ledger += amount;
     ent->armor_value += amount;
     G_InvalidateUnitInfoPanel(ent);
 }
 
-void G_ApplyPermanentArmorBonus(LPEDICT ent, float amount) {
+void G_ApplyPermanentArmorBonus(edict_t * ent, float amount) {
     if (ent) unit_apply_armor_delta(ent, amount, &ent->permanent_armor_bonus);
 }
 
-void G_ApplyTemporaryArmorBonus(LPEDICT ent, float amount) {
+void G_ApplyTemporaryArmorBonus(edict_t * ent, float amount) {
     if (ent) unit_apply_armor_delta(ent, amount, &ent->temporary_armor_bonus);
 }
 
-void G_ApplyPermanentAttackDamageBonus(LPEDICT ent, float amount) {
+void G_ApplyPermanentAttackDamageBonus(edict_t * ent, float amount) {
     if (!ent || amount == 0.0f) return;
     if (ent->attack1.numberOfDice) {
         ent->attack1.permanentDamageBonus += amount;
@@ -276,14 +276,14 @@ void G_ApplyPermanentAttackDamageBonus(LPEDICT ent, float amount) {
     G_InvalidateUnitInfoPanel(ent);
 }
 
-void G_ApplyTemporaryAttackDamageBonus(LPEDICT ent, float amount) {
+void G_ApplyTemporaryAttackDamageBonus(edict_t * ent, float amount) {
     if (!ent || amount == 0.0f) return;
     ent->attack1.temporaryDamageBonus += amount;
     ent->attack2.temporaryDamageBonus += amount;
     G_InvalidateUnitInfoPanel(ent);
 }
 
-static bool unit_is_raisable_corpse(LPCEDICT ent, bool stored) {
+static bool unit_is_raisable_corpse(edict_t const * ent, bool stored) {
     UnitData_t const *data;
     if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER) ||
         !(ent->svflags & SVF_DEADMONSTER) || !M_IsDead(ent) ||
@@ -293,11 +293,11 @@ static bool unit_is_raisable_corpse(LPCEDICT ent, bool stored) {
     return data && (data->deathType & UNIT_DEATH_TYPE_RAISE) != 0;
 }
 
-bool G_UnitIsRaisableCorpse(LPCEDICT ent) { return unit_is_raisable_corpse(ent, false); }
-bool G_UnitIsRaisableStoredCorpse(LPCEDICT ent) { return unit_is_raisable_corpse(ent, true); }
+bool G_UnitIsRaisableCorpse(edict_t const * ent) { return unit_is_raisable_corpse(ent, false); }
+bool G_UnitIsRaisableStoredCorpse(edict_t const * ent) { return unit_is_raisable_corpse(ent, true); }
 
 /* Ordinary corpse revival keeps handle identity while retiring every death-state owner before returning to idle. */
-void G_ReviveCorpse(LPEDICT ent, float life_fraction) {
+void G_ReviveCorpse(edict_t * ent, float life_fraction) {
     ent->svflags &= ~SVF_DEADMONSTER; ent->s.flags &= ~EF_NOT_SELECTABLE;
     ent->aiflags &= ~AI_HOLD_FRAME; ent->s.renderfx &= ~RF_HIDDEN;
     ent->combatentity = ent->goalentity = ent->secondarygoal = NULL;
@@ -307,8 +307,8 @@ void G_ReviveCorpse(LPEDICT ent, float life_fraction) {
     G_ActivateUnitFood(ent); unit_stand(ent); gi.LinkEntity(ent);
 }
 
-void unit_die(LPEDICT self, LPEDICT attacker) {
-    LPGAMECLIENT owner;
+void unit_die(edict_t * self, edict_t * attacker) {
+    gameClient_t * owner;
     uint32_t selected_mask;
 
     if (!self || (self->svflags & SVF_DEADMONSTER)) return;
@@ -399,7 +399,7 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
      * the packed multiselect layer and local current-selection cache can retain
      * a dead icon until another explicit selection occurs. */
     FOR_LOOP(i, game.max_clients) {
-        LPGAMECLIENT client = game.clients + i;
+        gameClient_t * client = game.clients + i;
         if (client->connected && client->ps.number < MAX_PLAYERS &&
             (selected_mask & (1u << client->ps.number)))
             G_SyncClientSelection(client);
@@ -412,13 +412,13 @@ void unit_die(LPEDICT self, LPEDICT attacker) {
         G_InvalidateCommands(owner);
 }
 
-void unit_birth(LPEDICT self) {
+void unit_birth(edict_t * self) {
     unit_setmove(self, &unit_move_birth);
     self->wait = self->data.UnitBalance->buildTime;
     self->s.renderfx |= RF_NO_UBERSPLAT;
 }
 
-static bool unit_smart_target_is_enemy(LPEDICT self, LPEDICT target) {
+static bool unit_smart_target_is_enemy(edict_t * self, edict_t * target) {
     uint32_t owner;
 
     if (!self || !target || self->s.player >= MAX_PLAYERS || target->s.player >= MAX_PLAYERS) {
@@ -435,7 +435,7 @@ static bool unit_smart_target_is_enemy(LPEDICT self, LPEDICT target) {
     return !G_PlayerTreatsPlayerAsAlly(self->s.player, owner);
 }
 
-static bool unit_smart_target_is_followable(LPEDICT self, LPEDICT target) {
+static bool unit_smart_target_is_followable(edict_t * self, edict_t * target) {
     uint32_t owner;
 
     if (!self || !target || self->s.player >= MAX_PLAYERS || target->s.player >= MAX_PLAYERS) {
@@ -564,7 +564,7 @@ cstring_t G_OrderId2String(uint32_t id) {
     return GetClassName(id);
 }
 
-static uint32_t unit_spell_code_for_order(LPCEDICT unit, cstring_t order) {
+static uint32_t unit_spell_code_for_order(edict_t const * unit, cstring_t order) {
     if (!unit || !order) return 0;
     ability_t const *ordered = FindAbilityByOrder(order);
     if (ordered && (ordered->flags & AB_SPELL) && ordered->classname) {
@@ -584,27 +584,27 @@ static uint32_t unit_spell_code_for_order(LPCEDICT unit, cstring_t order) {
 }
 
 static uint32_t issued_order_ids[MAX_ENTITIES];
-static VECTOR2 issued_order_points[MAX_ENTITIES];
+static vector2_t issued_order_points[MAX_ENTITIES];
 static bool issued_order_point_valid[MAX_ENTITIES];
 
 static uint32_t unit_order_event_id(cstring_t order) {
     return G_OrderId(order);
 }
 
-uint32_t G_GetIssuedOrderId(LPCEDICT self) {
+uint32_t G_GetIssuedOrderId(edict_t const * self) {
     if (!self || self->s.number >= MAX_ENTITIES) return 0;
     return issued_order_ids[self->s.number];
 }
 
-bool G_GetIssuedOrderPoint(LPCEDICT self, LPVECTOR2 point) {
-    if (point) *point = (VECTOR2){ 0.0f, 0.0f };
+bool G_GetIssuedOrderPoint(edict_t const * self, vector2_t * point) {
+    if (point) *point = (vector2_t){ 0.0f, 0.0f };
     if (!self || self->s.number >= MAX_ENTITIES || !point ||
         !issued_order_point_valid[self->s.number]) return false;
     *point = issued_order_points[self->s.number];
     return true;
 }
 
-void G_PublishIssuedPointOrder(LPEDICT self, uint32_t order_id, LPCVECTOR2 point,
+void G_PublishIssuedPointOrder(edict_t * self, uint32_t order_id, vector2_t const * point,
                                uint32_t issuer_player, cstring_t debug_order) {
     if (!self || self->s.number >= MAX_ENTITIES || !point) return;
     issued_order_ids[self->s.number] = order_id;
@@ -621,7 +621,7 @@ void G_PublishIssuedPointOrder(LPEDICT self, uint32_t order_id, LPCVECTOR2 point
     G_PublishEvent(self, EVENT_UNIT_ISSUED_POINT_ORDER);
 }
 
-void G_PublishIssuedImmediateOrder(LPEDICT self, uint32_t order_id,
+void G_PublishIssuedImmediateOrder(edict_t * self, uint32_t order_id,
                                    uint32_t issuer_player, cstring_t debug_order) {
     if (!self || self->s.number >= MAX_ENTITIES) return;
     issued_order_ids[self->s.number] = order_id;
@@ -630,8 +630,8 @@ void G_PublishIssuedImmediateOrder(LPEDICT self, uint32_t order_id,
     G_PublishEvent(self, EVENT_UNIT_ISSUED_ORDER);
 }
 
-static void unit_publish_target_order(LPEDICT self, cstring_t order,
-                                      LPEDICT target, uint32_t issuer_player) {
+static void unit_publish_target_order(edict_t * self, cstring_t order,
+                                      edict_t * target, uint32_t issuer_player) {
     uint32_t const order_id = unit_order_event_id(order);
 
     if (!self || self->s.number >= MAX_ENTITIES) return;
@@ -649,13 +649,13 @@ static void unit_publish_target_order(LPEDICT self, cstring_t order,
     G_PublishEventWithSource(self, EVENT_UNIT_ISSUED_TARGET_ORDER, target);
 }
 
-bool G_UnitHasActiveOrder(LPCEDICT self) {
+bool G_UnitHasActiveOrder(edict_t const * self) {
     return self && self->currentmove && self->currentmove->proc != NULL &&
            !move_is_terminal_hold(self);
 }
 
-bool G_QueueUnitOrder(LPEDICT self, cstring_t order, unitOrderTargetType_t target_type,
-                      LPCVECTOR2 point, LPEDICT target, uint32_t issuer_player,
+bool G_QueueUnitOrder(edict_t * self, cstring_t order, unitOrderTargetType_t target_type,
+                      vector2_t const * point, edict_t * target, uint32_t issuer_player,
                       float group_speed, uint32_t order_id) {
     unitOrderQueue_t *queue;
     unitOrder_t *queued;
@@ -683,7 +683,7 @@ bool G_QueueUnitOrder(LPEDICT self, cstring_t order, unitOrderTargetType_t targe
     return true;
 }
 
-static bool unit_queue_pop(LPEDICT self, unitOrder_t *out) {
+static bool unit_queue_pop(edict_t * self, unitOrder_t *out) {
     unitOrderQueue_t *queue;
 
     if (!self || !out) return false;
@@ -697,7 +697,7 @@ static bool unit_queue_pop(LPEDICT self, unitOrder_t *out) {
     return true;
 }
 
-void G_ClearUnitOrderQueue(LPEDICT self) {
+void G_ClearUnitOrderQueue(edict_t * self) {
     unitOrderQueue_t *queue;
 
     if (!self) return;
@@ -709,13 +709,13 @@ void G_ClearUnitOrderQueue(LPEDICT self) {
     memset(queue, 0, sizeof(*queue));
 }
 
-uint32_t G_UnitQueuedOrderCount(LPCEDICT self) {
+uint32_t G_UnitQueuedOrderCount(edict_t const * self) {
     return self ? self->order_queue.count : 0;
 }
 
-static bool unit_issueorder_now(LPEDICT self, cstring_t order, LPCVECTOR2 point, float group_speed);
+static bool unit_issueorder_now(edict_t * self, cstring_t order, vector2_t const * point, float group_speed);
 
-static bool unit_issuetargetorder_now(LPEDICT self, cstring_t order, LPEDICT target) {
+static bool unit_issuetargetorder_now(edict_t * self, cstring_t order, edict_t * target) {
     if (!self || !order || !target) return false;
     if (M_IsDead(self)) return false;
     if (S_GoldMineWorkerIsInside(self)) return false;
@@ -791,9 +791,9 @@ static bool unit_issuetargetorder_now(LPEDICT self, cstring_t order, LPEDICT tar
     return false;
 }
 
-static bool unit_issueorder_now(LPEDICT self, cstring_t order, LPCVECTOR2 point, float group_speed) {
-    VECTOR2 target;
-    LPEDICT waypoint;
+static bool unit_issueorder_now(edict_t * self, cstring_t order, vector2_t const * point, float group_speed) {
+    vector2_t target;
+    edict_t * waypoint;
 
     if (!self || !order || !point) return false;
     if (M_IsDead(self)) return false;
@@ -821,7 +821,7 @@ static bool unit_issueorder_now(LPEDICT self, cstring_t order, LPCVECTOR2 point,
     return false;
 }
 
-bool G_IssueUnitTargetOrder(LPEDICT self, cstring_t order, LPEDICT target,
+bool G_IssueUnitTargetOrder(edict_t * self, cstring_t order, edict_t * target,
                             bool queue, uint32_t issuer_player) {
     if (!self || !order || !target || !target->inuse || !unit_order_name_valid(order)) {
         return false;
@@ -880,7 +880,7 @@ bool G_IssueUnitTargetOrder(LPEDICT self, cstring_t order, LPEDICT target,
     }
 }
 
-bool G_IssueUnitPointOrder(LPEDICT self, cstring_t order, LPCVECTOR2 point,
+bool G_IssueUnitPointOrder(edict_t * self, cstring_t order, vector2_t const * point,
                            bool queue, uint32_t issuer_player, float group_speed) {
     if (!self || !order || !point || !unit_order_name_valid(order)) return false;
     if (M_IsDead(self) || G_BuildingUpgradeActive(self)) return false;
@@ -935,7 +935,7 @@ bool G_IssueUnitPointOrder(LPEDICT self, cstring_t order, LPCVECTOR2 point,
     }
 }
 
-bool G_UnitStartNextQueuedOrder(LPEDICT self) {
+bool G_UnitStartNextQueuedOrder(edict_t * self) {
     unitOrder_t queued;
 
     if (!self || M_IsDead(self)) return false;
@@ -944,7 +944,7 @@ bool G_UnitStartNextQueuedOrder(LPEDICT self) {
             if (unit_issueorder_now(self, queued.order, &queued.point, queued.group_speed))
                 return true;
         } else if (queued.target_type == UNIT_ORDER_TARGET_ENTITY) {
-            LPEDICT target;
+            edict_t * target;
             if (queued.target_number >= globals.num_edicts) continue;
             target = globals.edicts + queued.target_number;
             if (!target->inuse || target->spawn_time != queued.target_spawn_time) continue;
@@ -954,13 +954,13 @@ bool G_UnitStartNextQueuedOrder(LPEDICT self) {
     return false;
 }
 
-bool unit_issuetargetorder(LPEDICT self, cstring_t order, LPEDICT target) {
+bool unit_issuetargetorder(edict_t * self, cstring_t order, edict_t * target) {
     if (G_BuildingUpgradeActive(self)) return false;
     return G_IssueUnitTargetOrder(self, order, target, false,
                                   self ? self->s.player : 0);
 }
 
-bool unit_issueorder(LPEDICT self, cstring_t order, LPCVECTOR2 point) {
+bool unit_issueorder(edict_t * self, cstring_t order, vector2_t const * point) {
     if (G_BuildingUpgradeActive(self)) return false;
     return G_IssueUnitPointOrder(self, order, point, false,
                                  self ? self->s.player : 0, 0.0f);
@@ -970,8 +970,8 @@ bool unit_issueorder(LPEDICT self, cstring_t order, LPCVECTOR2 point) {
  * authoritative identity and runtime ownership.  Transformation abilities
  * use this instead of CreateUnit/RemoveUnit so JASS handles, selection, and
  * trigger references keep pointing at the same unit. */
-bool G_TransformUnitType(LPEDICT unit, uint32_t type) {
-    LPGAMECLIENT client;
+bool G_TransformUnitType(edict_t * unit, uint32_t type) {
+    gameClient_t * client;
     float health_ratio, mana_ratio, temporary_armor, temporary_health, temporary_mana;
     float temporary_attack1, temporary_attack2;
     uint32_t old_flags;
@@ -1030,7 +1030,7 @@ bool G_TransformUnitType(LPEDICT unit, uint32_t type) {
     return true;
 }
 
-bool unit_issueimmediateorder(LPEDICT self, cstring_t order) {
+bool unit_issueimmediateorder(edict_t * self, cstring_t order) {
 //    printf("%.4s %s\n", &self->class_id, order);
     if (!self || !order) {
         return false;
@@ -1097,17 +1097,17 @@ bool unit_issueimmediateorder(LPEDICT self, cstring_t order) {
 
 /* Create a new runtime unit; explicit JASS creation must not reuse a nearby
  * entity because ReplaceUnitBJ destroys the returned replacement handle. */
-LPEDICT unit_create(uint32_t player, uint32_t unitid, LPCVECTOR2 location, float facing) {
+edict_t * unit_create(uint32_t player, uint32_t unitid, vector2_t const * location, float facing) {
     /* CreateUnit returns an immediately usable unit. SP_SpawnAtLocation's
      * presentation birth is for callers that own a spawn lifecycle; applying
      * it here left a stale birth wait behind the explicit stand transition. */
-    LPEDICT unit = SP_SpawnAtLocationNoBirth(unitid, player, location);
+    edict_t * unit = SP_SpawnAtLocationNoBirth(unitid, player, location);
     if (!unit) {
         return NULL;
     }
     /* Warsmash CreateUnit delegates to createUnitSimple, which checks the
      * spawned unit against static pathing and nudges it to a legal point. */
-    VECTOR2 position;
+    vector2_t position;
     if (G_FindUnitUnstuckPosition(unit, location, &position)) {
         unit->s.origin2 = position;
         unit->s.origin.x = position.x;
@@ -1125,9 +1125,9 @@ LPEDICT unit_create(uint32_t player, uint32_t unitid, LPCVECTOR2 location, float
     return unit;
 }
 
-LPEDICT unit_createorfind(uint32_t player, uint32_t unitid, LPCVECTOR2 location, float facing) {
+edict_t * unit_createorfind(uint32_t player, uint32_t unitid, vector2_t const * location, float facing) {
     FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT ent = &globals.edicts[i];
+        edict_t * ent = &globals.edicts[i];
         if (ent->inuse && !M_IsDead(ent) && ent->class_id == unitid &&
             Vector2_distance(location, &ent->s.origin2) < 10)
         {
@@ -1140,11 +1140,11 @@ LPEDICT unit_createorfind(uint32_t player, uint32_t unitid, LPCVECTOR2 location,
     return unit_create(player, unitid, location, facing);
 }
 
-bool unit_additemtoslot(LPEDICT edict, LPEDICT item, uint32_t i) {
+bool unit_additemtoslot(edict_t * edict, edict_t * item, uint32_t i) {
     return G_AddItemToSlot(edict, item, i);
 }
 
-bool unit_additem(LPEDICT edict, LPEDICT item) {
+bool unit_additem(edict_t * edict, edict_t * item) {
     return G_PickupItem(edict, item);
 }
 
@@ -1155,7 +1155,7 @@ static int unit_timed_status_debug_level(void) {
     return value ? atoi(value) : 0;
 }
 
-static void unit_timed_status_log(cstring_t stage, LPCEDICT ent, heroabilitystatus_t const *status) {
+static void unit_timed_status_log(cstring_t stage, edict_t const * ent, heroabilitystatus_t const *status) {
     char code[5] = { 0 };
     uint32_t now;
     int32_t remaining;
@@ -1204,7 +1204,7 @@ float unit_statusremainingfraction(heroabilitystatus_t const *status) {
     return MIN(1.0f, (float)(status->timestamp - now) / (float)status->duration_ms);
 }
 
-heroabilitystatus_t const *unit_findtimedbarstatus(LPCEDICT ent) {
+heroabilitystatus_t const *unit_findtimedbarstatus(edict_t const * ent) {
     heroabilitystatus_t const *result = NULL;
     uint32_t now;
 
@@ -1222,7 +1222,7 @@ heroabilitystatus_t const *unit_findtimedbarstatus(LPCEDICT ent) {
     return result;
 }
 
-float G_UnitArmorValue(LPCEDICT ent) {
+float G_UnitArmorValue(edict_t const * ent) {
     float armor;
 
     if (!ent) return 0.0f;
@@ -1238,7 +1238,7 @@ float G_UnitArmorValue(LPCEDICT ent) {
             armor += G_AbilityLevel(MAKEFOURCC('A', 'I', 'd', 'a'), status->level)->data[0].number;
         }
     }
-    return armor + S_DevotionArmorBonus((LPEDICT)ent) + S_SpikedArmorBonus(ent) + S_HumanArmorBonus(ent) +
+    return armor + S_DevotionArmorBonus((edict_t *)ent) + S_SpikedArmorBonus(ent) + S_HumanArmorBonus(ent) +
         S_FaerieArmorDelta(ent) + S_FrenzyArmorDelta(ent) + S_BarkskinArmorBonus(ent) +
         S_ManaFlareArmorBonus(ent);
 }
@@ -1249,7 +1249,7 @@ float G_UnitArmorValue(LPCEDICT ent) {
  * status's origin ability rawcode, never from the victim's learned abilities
  * (the victim may not own the casting ability). REMOVE arrives while the slot
  * is still valid; the wipe happens after every owner has run. */
-static void UnitDispatchStatus(LPEDICT ent, heroabilitystatus_t *slot, uint32_t ability, abilityMsg_t msg) {
+static void UnitDispatchStatus(edict_t * ent, heroabilitystatus_t *slot, uint32_t ability, abilityMsg_t msg) {
     abilityitem_t item;
     abilityCall_t call;
     if (!ent || !slot || !slot->level || !ability) return;
@@ -1261,14 +1261,14 @@ static void UnitDispatchStatus(LPEDICT ent, heroabilitystatus_t *slot, uint32_t 
 }
 
 /* Return the live slot so an ability can attach its applying rawcode/source after insertion. */
-heroabilitystatus_t *unit_findstatus(LPEDICT ent, uint32_t code) {
+heroabilitystatus_t *unit_findstatus(edict_t * ent, uint32_t code) {
     if (ent) FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (ent->abilstatus[i].level && ent->abilstatus[i].code == code) return ent->abilstatus + i;
     return NULL;
 }
 
 /* Notify active victim statuses before death cleanup can discard their applying state. */
-void unit_statusdeath(LPEDICT ent) {
+void unit_statusdeath(edict_t * ent) {
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *slot = ent->abilstatus + i;
         if (slot->level && (!slot->timestamp || slot->timestamp > G_Time()))
@@ -1278,7 +1278,7 @@ void unit_statusdeath(LPEDICT ent) {
 
 /* Derived locks come only from statuses that actually remain; owners
  * reconcile their own flight/height state through A_STATUS_REFRESH. */
-void unit_refreshstatusflags(LPEDICT ent) {
+void unit_refreshstatusflags(edict_t * ent) {
     bool stunned = false;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = ent->abilstatus + i;
@@ -1290,7 +1290,7 @@ void unit_refreshstatusflags(LPEDICT ent) {
 }
 
 /* Dispel/Purge share this so owners run their inverse before the slot is wiped. */
-void unit_expirestatus(LPEDICT ent, heroabilitystatus_t *status) {
+void unit_expirestatus(edict_t * ent, heroabilitystatus_t *status) {
     uint32_t origin;
     if (!ent || !status || !status->level) return;
     S_HumanStatusExpired(ent, status->code, status->level);
@@ -1299,7 +1299,7 @@ void unit_expirestatus(LPEDICT ent, heroabilitystatus_t *status) {
     memset(status, 0, sizeof(*status));
 }
 
-void unit_updatestatuses(LPEDICT ent) {
+void unit_updatestatuses(edict_t * ent) {
     uint32_t now = G_Time();
     bool changed = false;
     bool kill = false;
@@ -1340,7 +1340,7 @@ void unit_updatestatuses(LPEDICT ent) {
     }
 }
 
-void unit_addtimedstatus(LPEDICT ent, cstring_t skill, uint32_t level, float duration) {
+void unit_addtimedstatus(edict_t * ent, cstring_t skill, uint32_t level, float duration) {
     uint32_t code;
     uint32_t now;
     uint32_t duration_ms;
@@ -1410,11 +1410,11 @@ void unit_addtimedstatus(LPEDICT ent, cstring_t skill, uint32_t level, float dur
     G_InvalidateUnitInfoPanel(ent);
 }
 
-void unit_addstatus(LPEDICT ent, cstring_t skill, uint32_t level) {
+void unit_addstatus(edict_t * ent, cstring_t skill, uint32_t level) {
     unit_addtimedstatus(ent, skill, level, 0);
 }
 
-uint32_t G_UnitStatusLevel(LPCEDICT ent, uint32_t code) {
+uint32_t G_UnitStatusLevel(edict_t const * ent, uint32_t code) {
     if (!ent || !code) return 0;
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (ent->abilstatus[i].level && ent->abilstatus[i].code == code &&
@@ -1423,7 +1423,7 @@ uint32_t G_UnitStatusLevel(LPCEDICT ent, uint32_t code) {
     return 0;
 }
 
-static heroability_t *G_FindRuntimeAbility(LPEDICT ent, uint32_t abilcode) {
+static heroability_t *G_FindRuntimeAbility(edict_t * ent, uint32_t abilcode) {
     if (!ent || !abilcode) {
         return NULL;
     }
@@ -1436,7 +1436,7 @@ static heroability_t *G_FindRuntimeAbility(LPEDICT ent, uint32_t abilcode) {
     return NULL;
 }
 
-static uint32_t G_HeroSkillLevel(LPCEDICT ent, uint32_t abilcode) {
+static uint32_t G_HeroSkillLevel(edict_t const * ent, uint32_t abilcode) {
     uint32_t const base_code = G_AbilityCode(abilcode);
     if (!ent || !abilcode) {
         return 0;
@@ -1450,7 +1450,7 @@ static uint32_t G_HeroSkillLevel(LPCEDICT ent, uint32_t abilcode) {
     return 0;
 }
 
-void G_HeroInitializeProgression(LPEDICT ent) {
+void G_HeroInitializeProgression(edict_t * ent) {
     uint32_t spent_points = 0;
 
     if (!ent) {
@@ -1467,10 +1467,10 @@ void G_HeroInitializeProgression(LPEDICT ent) {
     }
 }
 
-bool G_HeroModifySkillPoints(LPEDICT ent, int32_t delta) {
+bool G_HeroModifySkillPoints(edict_t * ent, int32_t delta) {
     uint32_t old_points;
     uint32_t new_points;
-    LPGAMECLIENT owner;
+    gameClient_t * owner;
 
     if (!ent || !ent->data.UnitBalance || !G_UnitIsHero(ent)) {
         return false;
@@ -1500,7 +1500,7 @@ bool G_HeroModifySkillPoints(LPEDICT ent, int32_t delta) {
     return true;
 }
 
-uint32_t G_UnitAbilityLevel(LPCEDICT ent, uint32_t abilcode) {
+uint32_t G_UnitAbilityLevel(edict_t const * ent, uint32_t abilcode) {
     uint32_t const hero_level = G_HeroSkillLevel(ent, abilcode);
     char id[5] = { 0 };
     if (hero_level) {
@@ -1513,7 +1513,7 @@ uint32_t G_UnitAbilityLevel(LPCEDICT ent, uint32_t abilcode) {
 
 /* SetUnitAbilityLevel / IncUnitAbilityLevel: rank lives in heroabilities[].
  * Returns the new level, or 0 when the unit does not own the ability. */
-uint32_t G_UnitSetAbilityLevel(LPEDICT ent, uint32_t abilcode, int32_t level) {
+uint32_t G_UnitSetAbilityLevel(edict_t * ent, uint32_t abilcode, int32_t level) {
     heroability_t *existing;
     char id[5] = { 0 };
     uint32_t current;
@@ -1541,7 +1541,7 @@ uint32_t G_UnitSetAbilityLevel(LPEDICT ent, uint32_t abilcode, int32_t level) {
     return 0;
 }
 
-void unit_learnability(LPEDICT ent, uint32_t abilcode) {
+void unit_learnability(edict_t * ent, uint32_t abilcode) {
     heroability_t *existing = G_FindRuntimeAbility(ent, abilcode);
     if (existing) {
         existing->level++;
@@ -1563,7 +1563,7 @@ static uint32_t G_HeroAbilityLevelSkip(void) {
     return skip > 0 ? skip : 2;
 }
 
-bool G_HeroHasCandidateSkill(LPCEDICT ent, uint32_t abilcode) {
+bool G_HeroHasCandidateSkill(edict_t const * ent, uint32_t abilcode) {
     uint32_t const base_code = G_AbilityCode(abilcode);
     cstring_t list;
     if (!ent || !G_UnitIsHero(ent) || !ent->data.UnitAbilities || !abilcode) {
@@ -1591,7 +1591,7 @@ bool G_HeroHasCandidateSkill(LPCEDICT ent, uint32_t abilcode) {
     return false;
 }
 
-uint32_t G_HeroSkillRequiredLevel(LPEDICT ent, uint32_t abilcode) {
+uint32_t G_HeroSkillRequiredLevel(edict_t * ent, uint32_t abilcode) {
     AbilityData_t const *ability = G_AbilityData(abilcode);
     uint32_t const current = G_HeroSkillLevel(ent, abilcode);
     uint32_t const base = ability->reqLevel > 0 ? (uint32_t)ability->reqLevel : 1;
@@ -1599,7 +1599,7 @@ uint32_t G_HeroSkillRequiredLevel(LPEDICT ent, uint32_t abilcode) {
     return base + current * skip;
 }
 
-heroSkillState_t G_HeroSkillState(LPEDICT ent, uint32_t abilcode, uint32_t *next_level, uint32_t *required_level) {
+heroSkillState_t G_HeroSkillState(edict_t * ent, uint32_t abilcode, uint32_t *next_level, uint32_t *required_level) {
     AbilityData_t const *ability;
     uint32_t current;
     uint32_t required;
@@ -1631,7 +1631,7 @@ heroSkillState_t G_HeroSkillState(LPEDICT ent, uint32_t abilcode, uint32_t *next
     return HERO_SKILL_AVAILABLE;
 }
 
-bool G_HeroLearnSkill(LPEDICT ent, uint32_t abilcode) {
+bool G_HeroLearnSkill(edict_t * ent, uint32_t abilcode) {
     uint32_t const old_level = G_HeroSkillLevel(ent, abilcode);
 
     if (G_HeroSkillState(ent, abilcode, NULL, NULL) != HERO_SKILL_AVAILABLE) {
@@ -1655,7 +1655,7 @@ bool G_HeroLearnSkill(LPEDICT ent, uint32_t abilcode) {
  * with the max (gaining Strength heals by the HP gained; losing attributes
  * cannot drop a living hero below 1 HP).  Non-heroes (no attributes) are a
  * no-op.  Call whenever a hero's str/agi/intel change. */
-void G_RecomputeHeroStats(LPEDICT ent) {
+void G_RecomputeHeroStats(edict_t * ent) {
     UnitBalance_t const *balance = ent->data.UnitBalance;
     int32_t const baseStr = balance->strength;
     int32_t const baseAgi = balance->agility;
@@ -1812,7 +1812,7 @@ uint32_t G_HeroLevelForXP(uint32_t xp) {
 }
 
 /* Set a hero's level and derive its attributes + HP/mana/armor for that level. */
-void G_HeroApplyLevel(LPEDICT ent, uint32_t level) {
+void G_HeroApplyLevel(edict_t * ent, uint32_t level) {
     UnitBalance_t const *balance = ent->data.UnitBalance;
     int32_t const baseStr = balance->strength;
     int32_t const baseAgi = balance->agility;
@@ -1832,7 +1832,7 @@ void G_HeroApplyLevel(LPEDICT ent, uint32_t level) {
 }
 
 /* Update a hero's accumulated XP, leveling it up if a threshold was crossed. */
-void G_HeroSetXP(LPEDICT ent, uint32_t xp) {
+void G_HeroSetXP(edict_t * ent, uint32_t xp) {
     uint32_t const oldLevel = ent->hero.level;
     uint32_t newLevel;
 
@@ -1886,13 +1886,13 @@ static float G_MiscListNum(cstring_t key, uint32_t n, float fallback) {
     return val;
 }
 
-bool G_UnitIsHero(LPCEDICT ent) {
+bool G_UnitIsHero(edict_t const * ent) {
     return ent && ent->data.UnitBalance &&
         (ent->data.UnitBalance->strength > 0 || ent->data.UnitBalance->agility > 0 ||
          ent->data.UnitBalance->intelligence > 0);
 }
 
-static bool G_HeroReceivesKillXP(LPCEDICT hero, LPCEDICT victim, LPCEDICT killer, float range) {
+static bool G_HeroReceivesKillXP(edict_t const * hero, edict_t const * victim, edict_t const * killer, float range) {
     if (!hero->inuse || !(hero->svflags & SVF_MONSTER) || !hero->data.UnitBalance ||
         hero->health.value <= 0 || hero->hero.suspend_xp || (hero->aiflags & AI_ILLUSION) ||
         !G_UnitIsHero(hero) ||
@@ -1910,7 +1910,7 @@ static bool G_HeroReceivesKillXP(LPCEDICT hero, LPCEDICT victim, LPCEDICT killer
  * or covered by the killer player's directional SHARED_XP alliance. Warcraft
  * divides the available victim XP across all eligible nearby heroes before
  * applying each receiving Hero's level factor. */
-void G_GrantKillXP(LPEDICT victim, LPEDICT killer) {
+void G_GrantKillXP(edict_t * victim, edict_t * killer) {
     uint32_t const vcls = victim->class_id;
     if (victim->aiflags & AI_ILLUSION) return;
     uint32_t receivers = 0;
@@ -1954,7 +1954,7 @@ void G_GrantKillXP(LPEDICT victim, LPEDICT killer) {
     if (!receivers) return;
 
     FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT h = &globals.edicts[i];
+        edict_t * h = &globals.edicts[i];
         if (!G_HeroReceivesKillXP(h, victim, killer, global ? -1.0f : range)) {
             continue;
         }
@@ -1975,7 +1975,7 @@ void G_GrantKillXP(LPEDICT victim, LPEDICT killer) {
 /* Scripted hero revival (ReviveHero native): bring a dead hero back to life at
  * (x,y) with HP/mana set from the MiscGame revive factors (defaults: full life,
  * no mana).  Dead heroes persist (unit_decay_think) so the edict is still valid. */
-void G_ReviveHero(LPEDICT ent, float x, float y) {
+void G_ReviveHero(edict_t * ent, float x, float y) {
     float mana;
 
     if (!ent) {
@@ -2009,7 +2009,7 @@ void G_ReviveHero(LPEDICT ent, float x, float y) {
     gi.LinkEntity(ent);
 }
 
-void SP_monster_unit(LPEDICT self) {
+void SP_monster_unit(edict_t * self) {
     self->movetype = unit_movedistance(self) > 0 ? MOVETYPE_STEP : MOVETYPE_NONE;
     self->die = unit_die;
     self->stand = unit_stand;

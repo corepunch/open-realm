@@ -57,7 +57,7 @@ def main():
     bindings = dict(re.findall(r'\{\s*"(\w+)"\s*,\s*(\w+)\s*}', (host / 'galaxy_host.c').read_text()))
     impl = '\n'.join(p.read_text() for p in host.glob('*.h'))
     placeholder = set(re.findall(
-        r'static DWORD (\w+)\(LPJASS j\)\s*\{\s*(?:\(void\)j;\s*)?'
+        r'static uint32_t (\w+)\(jass_t \* j\)\s*\{\s*(?:\(void\)j;\s*)?'
         r'return jass_push\w+\(j(?:,\s*(?:0|false|true|"[^"]*"))*\);\s*}', impl))
     external = calls - functions.keys()
     report = {

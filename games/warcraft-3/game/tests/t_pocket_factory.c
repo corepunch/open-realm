@@ -10,13 +10,13 @@
 #define BZ_HFOO MAKEFOURCC('h', 'f', 'o', 'o') // unitCode; fixture factory UnitID (non-stock)
 #define BZ_OGRU MAKEFOURCC('o', 'g', 'r', 'u') // unitCode; fixture DataB Clockwerk (non-stock)
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
 
-typedef struct { slkTestData_t *rows, *old; LPEDICT caster; } PFFIX;
+typedef struct { slkTestData_t *rows, *old; edict_t * caster; } pfFix_t;
 
 /* Non-stock DataA/Dur/DataC/DataE and hfoo/ogru UnitID/DataB prove the execute path is data-driven. */
 static char const pf_slk[] =
@@ -34,10 +34,10 @@ static char const pf_slk[] =
     "C;Y3;X9;K\"25\"\nC;Y3;X10;K\"1\"\nC;Y3;X11;K\"ogru\"\nC;Y3;X12;K\"8\"\n"
     "C;Y3;X13;K\"64\"\nC;Y3;X14;K\"200\"\nC;Y3;X15;K\"hfoo\"\nE\n";
 
-static PFFIX pf_setup(uint32_t code) {
-    PFFIX fix;
+static pfFix_t pf_setup(uint32_t code) {
+    pfFix_t fix;
     reset_entities(); setup_test_world(); level.time = 1000;
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     fix.rows = parse_slk_string(pf_slk); fix.old = G_SetSLKRows("AbilityData", fix.rows);
     fix.caster = alloc_test_unit(MAKEFOURCC('N', 't', 'i', 'n'), 0, 0);
     fix.caster->s.player = 0; fix.caster->svflags |= SVF_MONSTER; fix.caster->targtype = TARG_GROUND;
@@ -47,11 +47,11 @@ static PFFIX pf_setup(uint32_t code) {
     return fix;
 }
 
-static void pf_done(PFFIX fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
+static void pf_done(pfFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
 
 static void pf_tick(uint32_t ms) { level.time += ms; G_RunEntities(); }
 
-static LPEDICT pf_find(uint32_t code) {
+static edict_t * pf_find(uint32_t code) {
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == code) return ent;
     return NULL;
 }
@@ -62,7 +62,7 @@ static uint32_t pf_count(uint32_t code) {
     return n;
 }
 
-static LPEDICT pf_thinker(LPEDICT factory) {
+static edict_t * pf_thinker(edict_t * factory) {
     FILTER_EDICTS(ent, ent->inuse && ent->owner == factory && ent->think && !ent->class_id) return ent;
     return NULL;
 }
@@ -76,9 +76,9 @@ TEST(wc3_spell, pocket_factory_aliases_share_procedure) {
 
 /* Point cast summons the authored UnitID at the point with Dur as BTLF; goblins wait for DataA. */
 TEST(wc3_spell, pocket_factory_cast_creates_owned_factory_and_spawns_on_interval) {
-    PFFIX fix = pf_setup(BZ_ANSY);
-    VECTOR2 point = { 256, 192 };
-    LPEDICT factory, thinker, first;
+    pfFix_t fix = pf_setup(BZ_ANSY);
+    vector2_t point = { 256, 192 };
+    edict_t * factory, *thinker, *first;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
     factory = pf_find(BZ_HFOO); thinker = pf_thinker(factory);
     T_NOT_NULL(factory); T_NOT_NULL(thinker);
@@ -96,9 +96,9 @@ TEST(wc3_spell, pocket_factory_cast_creates_owned_factory_and_spawns_on_interval
 
 /* DataC is each Clockwerk's timed life; expiry goes through unit_updatestatuses, not RunFrame. */
 TEST(wc3_spell, pocket_factory_clockwerk_btlf_matches_datac) {
-    PFFIX fix = pf_setup(BZ_ANSY);
-    VECTOR2 point = { 128, 128 };
-    LPEDICT goblin;
+    pfFix_t fix = pf_setup(BZ_ANSY);
+    vector2_t point = { 128, 128 };
+    edict_t * goblin;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
     pf_tick(2000); goblin = pf_find(BZ_OGRU); T_NOT_NULL(goblin);
     if (goblin) goblin->health.value = goblin->health.max_value = 100;
@@ -111,9 +111,9 @@ TEST(wc3_spell, pocket_factory_clockwerk_btlf_matches_datac) {
 
 /* Freeing the factory invalidates its classless thinker so a later DataA tick cannot spawn. */
 TEST(wc3_spell, pocket_factory_factory_removal_cancels_production) {
-    PFFIX fix = pf_setup(BZ_ANSY);
-    VECTOR2 point = { 128, 128 };
-    LPEDICT factory, thinker;
+    pfFix_t fix = pf_setup(BZ_ANSY);
+    vector2_t point = { 128, 128 };
+    edict_t * factory, *thinker;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
     factory = pf_find(BZ_HFOO); thinker = pf_thinker(factory);
     T_NOT_NULL(factory); T_NOT_NULL(thinker);
@@ -125,8 +125,8 @@ TEST(wc3_spell, pocket_factory_factory_removal_cancels_production) {
 
 /* ANs1 shares CAbilityPocketFactory but reads its own DataA through abilityitem_t.code. */
 TEST(wc3_spell, pocket_factory_ans1_uses_alias_dataa_interval) {
-    PFFIX fix = pf_setup(BZ_ANS1);
-    VECTOR2 point = { 64, 64 };
+    pfFix_t fix = pf_setup(BZ_ANS1);
+    vector2_t point = { 64, 64 };
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANS1, &point));
     T_NOT_NULL(pf_find(BZ_HFOO));
     pf_tick(999); T_EQ(pf_count(BZ_OGRU), 0);
@@ -136,8 +136,8 @@ TEST(wc3_spell, pocket_factory_ans1_uses_alias_dataa_interval) {
 
 /* Thinker allocation failure must roll the factory back instead of leaving an inert summon. */
 TEST(wc3_spell, pocket_factory_thinker_alloc_failure_rolls_back_factory) {
-    PFFIX fix = pf_setup(BZ_ANSY);
-    VECTOR2 point = { 128, 128 };
+    pfFix_t fix = pf_setup(BZ_ANSY);
+    vector2_t point = { 128, 128 };
     uint32_t max_edicts = globals.max_edicts;
     globals.max_edicts = globals.num_edicts + 1;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
@@ -148,9 +148,9 @@ TEST(wc3_spell, pocket_factory_thinker_alloc_failure_rolls_back_factory) {
 
 /* DataE leash: a factory-owned Clockwerk past the authored range is ordered home. */
 TEST(wc3_spell, pocket_factory_datae_leash_returns_clockwerk) {
-    PFFIX fix = pf_setup(BZ_ANSY);
-    VECTOR2 point = { 256, 192 };
-    LPEDICT factory, goblin, thinker;
+    pfFix_t fix = pf_setup(BZ_ANSY);
+    vector2_t point = { 256, 192 };
+    edict_t * factory, *goblin, *thinker;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
     factory = pf_find(BZ_HFOO); thinker = pf_thinker(factory);
     T_NOT_NULL(factory); T_NOT_NULL(thinker);

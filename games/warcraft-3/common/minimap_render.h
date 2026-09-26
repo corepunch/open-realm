@@ -7,7 +7,7 @@
 
 /* World overlays use the centered, aspect-preserving area of WC3's square
  * minimap texture. */
-static inline rect_t WC3_MinimapContentRect(rect_t const * frame, LPCVECTOR2 map_size) {
+static inline rect_t WC3_MinimapContentRect(rect_t const * frame, vector2_t const * map_size) {
     rect_t content = frame ? *frame : (rect_t){ 0 };
     float world_size;
     if (!frame || !map_size || map_size->x <= 0.0f || map_size->y <= 0.0f) return content;
@@ -20,7 +20,7 @@ static inline rect_t WC3_MinimapContentRect(rect_t const * frame, LPCVECTOR2 map
 }
 
 /* Capture-calibrated sizes are UI-canvas units, not pixels. */
-static inline VECTOR2 wc3_minimap_marker_size(wc3MinimapContact_t contact) {
+static inline vector2_t wc3_minimap_marker_size(wc3MinimapContact_t contact) {
     float size;
     switch (contact) {
     case WC3_MINIMAP_CONTACT_UNIT: size = 0.002f; break;
@@ -32,11 +32,11 @@ static inline VECTOR2 wc3_minimap_marker_size(wc3MinimapContact_t contact) {
     case WC3_MINIMAP_CONTACT_NEUTRAL_BUILDING: size = 0.0105f; break;
     default: size = 0.0f; break;
     }
-    return MAKE(VECTOR2, size, size);
+    return MAKE(vector2_t, size, size);
 }
 
-static inline rect_t wc3_minimap_marker_rect(VECTOR2 const *point, wc3MinimapContact_t contact) {
-    VECTOR2 const size = wc3_minimap_marker_size(contact);
+static inline rect_t wc3_minimap_marker_rect(vector2_t const *point, wc3MinimapContact_t contact) {
+    vector2_t const size = wc3_minimap_marker_size(contact);
     return point ? MAKE(rect_t, point->x - size.x * 0.5f, point->y - size.y * 0.5f, size.x, size.y) : (rect_t){ 0 };
 }
 

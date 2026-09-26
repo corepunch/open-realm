@@ -25,7 +25,7 @@ static cstring_t ams_buff_token(cstring_t list, uint32_t index) {
 }
 
 /* DataC > 0 is the TFT melee shield (Aam2); empty DataC is ROC-style targeting immunity (Aams/ACam). */
-static void anti_magic_shell_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void anti_magic_shell_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float absorb = S_SpellData(spell->code, level, 3);
     cstring_t list = G_AbilityLevel(spell->code, level)->buffID;
@@ -55,7 +55,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityAntiMagicShell) { anti_magic_shell_execute(caster, s
 BZ_SIMPLE_SPELL_PROC(AbilityAntiMagicShellInstant) { anti_magic_shell_execute(caster, st, spell); }
 
 /* Bam2 is not magic-immune: spells may target the unit, but S_SpellDamage consumes the authored pool first. */
-int S_AntiMagicShellAbsorb(LPEDICT target, int damage) {
+int S_AntiMagicShellAbsorb(edict_t * target, int damage) {
     heroabilitystatus_t *slot = NULL;
     if (!target || damage <= 0) return damage;
     FOR_LOOP(i, MAX_UNIT_STATUSES)
@@ -71,8 +71,8 @@ int S_AntiMagicShellAbsorb(LPEDICT target, int damage) {
 }
 
 /* Shared unit-target autocast acquire: friendly wounded targets for replenish. */
-static bool undead_unit_autocast_acquire(LPEDICT caster, uint32_t code, bool wounded) {
-    LPEDICT best = NULL;
+static bool undead_unit_autocast_acquire(edict_t * caster, uint32_t code, bool wounded) {
+    edict_t * best = NULL;
     float range = S_SpellRange(code, S_SpellLevel(caster, code));
     float best_distance = FLT_MAX;
     if (range <= 0.0f) range = UNDEAD_AUTOCAST_RADIUS;
@@ -87,7 +87,7 @@ static bool undead_unit_autocast_acquire(LPEDICT caster, uint32_t code, bool wou
 }
 
 /* Shared area autocast acquire: cast self-spell if a worthy friendly exists in area. */
-static bool undead_area_autocast_acquire(LPEDICT caster, uint32_t code, bool needs_hp, bool needs_mana) {
+static bool undead_area_autocast_acquire(edict_t * caster, uint32_t code, bool needs_hp, bool needs_mana) {
     uint32_t level = S_SpellLevel(caster, code);
     float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
     if (area <= 0.0f) area = UNDEAD_AUTOCAST_RADIUS;
@@ -106,15 +106,15 @@ static bool undead_area_autocast_acquire(LPEDICT caster, uint32_t code, bool nee
  * Untip="Right-click to activate auto-casting."
  * DataA = HP restored, DataB = mana restored. BuffID = Brpb.
  */
-static bool replenish_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool replenish_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     (void)spell;
     return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsFriend(caster, st.entity) &&
            !G_UnitIsHero(st.entity);
 }
 
-static void replenish_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void replenish_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    LPEDICT target = st.entity;
+    edict_t * target = st.entity;
     cstring_t buff = undead_buff(spell, level);
     if (!target) return;
     S_SpellHeal(target, S_SpellData(spell->code, level, 1));
@@ -142,7 +142,7 @@ BZ_ABILITY_PROC(CAbilityReplenish) {
  * Untip="Right-click to activate auto-casting."
  * DataA = HP restored per unit in area.
  */
-static void replenish_life_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void replenish_life_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     float amount = S_SpellData(spell->code, level, 1);
@@ -169,7 +169,7 @@ BZ_ABILITY_PROC(CAbilityReplenishLife) {
  * Untip="Right-click to activate auto-casting."
  * DataB = mana restored per unit in area.
  */
-static void replenish_mana_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void replenish_mana_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     float amount = S_SpellData(spell->code, level, 2);
@@ -198,32 +198,32 @@ BZ_ABILITY_PROC(CAbilityReplenishMana) {
  */
 #define ID_GRAVEYARD_CORPSE MAKEFOURCC('A','g','y','d')
 
-static bool graveyard_is_under_construction(LPEDICT graveyard) {
+static bool graveyard_is_under_construction(edict_t * graveyard) {
     return graveyard && (graveyard->construction.active || graveyard->build == graveyard);
 }
 
-static LPEDICT graveyard_find_thinker(LPEDICT graveyard) {
+static edict_t * graveyard_find_thinker(edict_t * graveyard) {
     FILTER_EDICTS(ent, ent->inuse && ent->owner == graveyard && ent->think == graveyard_think &&
                   ent->class_id == ID_GRAVEYARD_CORPSE) return ent;
     return NULL;
 }
 
-static uint32_t graveyard_corpse_count(LPEDICT graveyard, uint32_t unit_id, float radius) {
+static uint32_t graveyard_corpse_count(edict_t * graveyard, uint32_t unit_id, float radius) {
     uint32_t count = 0;
     if (!graveyard || !unit_id || radius < 0.0f) return 0;
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == unit_id && M_IsDead(ent) &&
                   (ent->svflags & SVF_DEADMONSTER)) {
-        VECTOR2 position;
+        vector2_t position;
         if (S_CorpseCargoPosition(ent, &position) &&
             Vector2_distance(&position, &graveyard->s.origin2) <= radius) count++;
     }
     return count;
 }
 
-static void graveyard_spawn_corpse(LPEDICT graveyard, uint32_t unit_id, float radius, uint32_t ordinal) {
-    VECTOR2 point;
+static void graveyard_spawn_corpse(edict_t * graveyard, uint32_t unit_id, float radius, uint32_t ordinal) {
+    vector2_t point;
     float angle;
-    LPEDICT corpse;
+    edict_t * corpse;
 
     if (!graveyard || !unit_id) return;
     angle = fmodf((float)ordinal * 2.3999632297f, 2.0f * (float)M_PI);
@@ -239,8 +239,8 @@ static void graveyard_spawn_corpse(LPEDICT graveyard, uint32_t unit_id, float ra
     unit_begin_decay(corpse);
 }
 
-void graveyard_think(LPEDICT thinker) {
-    LPEDICT graveyard = thinker ? thinker->owner : NULL;
+void graveyard_think(edict_t * thinker) {
+    edict_t * graveyard = thinker ? thinker->owner : NULL;
     uint32_t level, unit_id, cap, count;
     float interval, spawn_radius, corpse_radius;
 
@@ -262,10 +262,10 @@ void graveyard_think(LPEDICT thinker) {
     thinker->freetime = G_Time() + (uint32_t)(interval * 1000.0f);
 }
 
-static void graveyard_ensure(LPEDICT graveyard) {
+static void graveyard_ensure(edict_t * graveyard) {
     uint32_t level;
     float interval;
-    LPEDICT thinker;
+    edict_t * thinker;
 
     /* Agyd is one of the global update procedures. Check ownership before the
      * edict scan; otherwise every updated unit pays for graveyard lookup. */
@@ -292,7 +292,7 @@ BZ_ABILITY_PROC(CAbilityGraveyard) {
  * Ubertip="Consumes a nearby corpse to restore hit points over time."
  * DataA = HP restored per second, DataB = corpse acquisition radius, Dur = channel duration.
  */
-static void corpse_remove_status(LPEDICT corpse, uint32_t code) {
+static void corpse_remove_status(edict_t * corpse, uint32_t code) {
     if (!corpse || !code) return;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         if (corpse->abilstatus[i].level && corpse->abilstatus[i].code == code) {
@@ -303,16 +303,16 @@ static void corpse_remove_status(LPEDICT corpse, uint32_t code) {
     }
 }
 
-static void show_no_usable_corpse(LPEDICT caster) {
+static void show_no_usable_corpse(edict_t * caster) {
     if (!caster) return;
     G_ShowCommandErrorKey(G_GetPlayerEntityByNumber(caster->s.player),
                           "Cantfindcorpse", "There are no usable corpses nearby.");
 }
 
-static LPEDICT cannibalize_corpse(LPEDICT caster, abilityitem_t const *spell) {
+static edict_t * cannibalize_corpse(edict_t * caster, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float range = S_SpellData(spell->code, level, 2), best = FLT_MAX;
-    LPEDICT corpse = NULL;
+    edict_t * corpse = NULL;
 
     FILTER_EDICTS(unit, !G_UnitIsHero(unit) && S_SpellAllowsCorpseTarget(spell->code, caster, unit) &&
                   !G_UnitStatusLevel(unit, spell->code)) {
@@ -322,8 +322,8 @@ static LPEDICT cannibalize_corpse(LPEDICT caster, abilityitem_t const *spell) {
     FILTER_EDICTS(transport, S_CargoIsCorpseHolder(transport) &&
                   transport->s.player == caster->s.player) {
         FOR_LOOP(i, transport->cargo.count) {
-            LPEDICT unit = S_CargoUnitAt(transport, i);
-            VECTOR2 position;
+            edict_t * unit = S_CargoUnitAt(transport, i);
+            vector2_t position;
             float distance;
             if (!unit || !S_CorpseCargoIsStored(unit) || G_UnitIsHero(unit) ||
                 !S_SpellAllowsStoredCorpseTarget(spell->code, caster, unit) ||
@@ -335,8 +335,8 @@ static LPEDICT cannibalize_corpse(LPEDICT caster, abilityitem_t const *spell) {
     return corpse;
 }
 
-static LPEDICT cannibalize_approach_target(LPEDICT corpse) {
-    LPEDICT holder;
+static edict_t * cannibalize_approach_target(edict_t * corpse) {
+    edict_t * holder;
 
     if (!corpse) return NULL;
     if (!S_CorpseCargoIsStored(corpse)) return corpse;
@@ -348,7 +348,7 @@ static LPEDICT cannibalize_approach_target(LPEDICT corpse) {
  * destination.  The wagon remains a live collision entity, but it is the
  * interaction target; treating it as a blocker leaves the Ghoul rotating at
  * the wagon's edge instead of reaching the channel boundary. */
-static void cannibalize_approach_walk(LPEDICT caster) {
+static void cannibalize_approach_walk(edict_t * caster) {
     if (!caster || !caster->goalentity) return;
     unit_changeangle_interaction_ignore_units(caster);
     unit_moveindirection_ignore_units(caster);
@@ -356,40 +356,40 @@ static void cannibalize_approach_walk(LPEDICT caster) {
 
 static umove_t cannibalize_approach_move = { "walk", cannibalize_approach_walk, NULL, CAbilityMove };
 
-static bool cannibalize_corpse_allowed(LPEDICT caster, uint32_t code, LPEDICT corpse) {
+static bool cannibalize_corpse_allowed(edict_t * caster, uint32_t code, edict_t * corpse) {
     if (!caster || !corpse) return false;
     return S_CorpseCargoIsStored(corpse)
         ? S_SpellAllowsStoredCorpseTarget(code, caster, corpse)
         : S_SpellAllowsCorpseTarget(code, caster, corpse);
 }
 
-static bool cannibalize_can_approach(LPEDICT caster) {
+static bool cannibalize_can_approach(edict_t * caster) {
     return caster && !S_GoldMineWorkerIsInside(caster) && !(caster->aiflags & AI_IMMOBILE) &&
         !S_UnitIsCycloned(caster) && !G_UnitStatusLevel(caster, MAKEFOURCC('B', 'E', 'e', 'r')) &&
         !S_UnitIsEnsnared(caster) && !S_PurgeIsImmobilized(caster);
 }
 
-static bool cannibalize_in_range(LPEDICT caster, LPEDICT corpse) {
-    VECTOR2 position;
-    LPEDICT target;
+static bool cannibalize_in_range(edict_t * caster, edict_t * corpse) {
+    vector2_t position;
+    edict_t * target;
 
     if (!caster || !corpse || !S_CorpseCargoPosition(corpse, &position) ||
         !(target = cannibalize_approach_target(corpse))) return false;
     return Vector2_distance(&caster->s.origin2, &position) <= caster->collision + target->collision;
 }
 
-static void cannibalize_approach_cancel(LPEDICT thinker) {
-    LPEDICT caster = thinker ? thinker->owner : NULL;
+static void cannibalize_approach_cancel(edict_t * thinker) {
+    edict_t * caster = thinker ? thinker->owner : NULL;
 
     if (caster && caster->inuse && caster->currentmove == &cannibalize_approach_move)
         unit_stand(caster);
     if (thinker) G_FreeEdict(thinker);
 }
 
-void cannibalize_approach_think(LPEDICT thinker) {
-    LPEDICT caster = thinker ? thinker->owner : NULL;
-    LPEDICT corpse = thinker ? thinker->goalentity : NULL;
-    LPEDICT approach = cannibalize_approach_target(corpse);
+void cannibalize_approach_think(edict_t * thinker) {
+    edict_t * caster = thinker ? thinker->owner : NULL;
+    edict_t * corpse = thinker ? thinker->goalentity : NULL;
+    edict_t * approach = cannibalize_approach_target(corpse);
 
     if (!thinker || !caster || !caster->inuse || M_IsDead(caster) || !corpse || !corpse->inuse ||
         corpse->spawn_time != thinker->channel.target_spawn_time || !approach ||
@@ -408,8 +408,8 @@ void cannibalize_approach_think(LPEDICT thinker) {
     S_CastNoTargetSpell(caster, code);
 }
 
-static bool cannibalize_command(LPEDICT caster, LPEDICT clent, abilityitem_t const *spell) {
-    LPEDICT corpse, thinker;
+static bool cannibalize_command(edict_t * caster, edict_t * clent, abilityitem_t const *spell) {
+    edict_t * corpse, *thinker;
 
     if (!caster || !spell) return false;
     if (caster->health.value >= caster->health.max_value) {
@@ -425,7 +425,7 @@ static bool cannibalize_command(LPEDICT caster, LPEDICT clent, abilityitem_t con
         return S_CastNoTargetSpell(caster, spell->code);
     }
     {
-        LPEDICT approach = cannibalize_approach_target(corpse);
+        edict_t * approach = cannibalize_approach_target(corpse);
         if (!approach || !cannibalize_can_approach(caster)) return false;
         order_move(caster, approach);
         unit_setmove(caster, &cannibalize_approach_move);
@@ -441,14 +441,14 @@ static bool cannibalize_command(LPEDICT caster, LPEDICT clent, abilityitem_t con
     return true;
 }
 
-static bool cannibalize_reserved_corpse_valid(LPCEDICT thinker, LPCEDICT corpse) {
+static bool cannibalize_reserved_corpse_valid(edict_t const * thinker, edict_t const * corpse) {
     return thinker && corpse && corpse->inuse &&
         corpse->spawn_time == thinker->channel.target_spawn_time &&
         (corpse->svflags & SVF_DEADMONSTER) && M_IsDead(corpse);
 }
 
-static void cannibalize_finish(LPEDICT thinker) {
-    LPEDICT corpse = thinker ? thinker->goalentity : NULL;
+static void cannibalize_finish(edict_t * thinker) {
+    edict_t * corpse = thinker ? thinker->goalentity : NULL;
     uint32_t code = thinker ? thinker->class_id : 0;
 
     if (cannibalize_reserved_corpse_valid(thinker, corpse)) {
@@ -462,9 +462,9 @@ static void cannibalize_finish(LPEDICT thinker) {
 /* Warsmash models DataA as an HP-regeneration stat buff.  OpenRealm applies the
  * same continuous HP/sec amount on the simulation cadence while the channel is
  * active, which preserves fractional healing and ends immediately at full HP. */
-void cannibalize_think(LPEDICT thinker) {
-    LPEDICT caster = thinker ? thinker->owner : NULL;
-    LPEDICT corpse = thinker ? thinker->goalentity : NULL;
+void cannibalize_think(edict_t * thinker) {
+    edict_t * caster = thinker ? thinker->owner : NULL;
+    edict_t * corpse = thinker ? thinker->goalentity : NULL;
     uint32_t const now = G_Time();
 
     if (!thinker) return;
@@ -482,7 +482,7 @@ void cannibalize_think(LPEDICT thinker) {
     if (caster->health.value >= caster->health.max_value) cannibalize_finish(thinker);
 }
 
-static bool cannibalize_validate(LPEDICT caster, abilityitem_t const *spell) {
+static bool cannibalize_validate(edict_t * caster, abilityitem_t const *spell) {
     if (caster && caster->health.value >= caster->health.max_value) {
         G_ShowCommandErrorKey(G_GetPlayerEntityByNumber(caster->s.player),
                               "UnitHPmaxed", "Already at full health.");
@@ -502,7 +502,7 @@ BZ_ABILITY_PROC(CAbilityCannibalize) {
         return spell && G_UnitAbilityResearchAvailable(ent, spell->code) && cannibalize_validate(ent, spell);
     case A_EXECUTE: {
         uint32_t level;
-        LPEDICT corpse, thinker;
+        edict_t * corpse, *thinker;
         if (!ent || !spell) return false;
         level = S_SpellLevel(ent, spell->code);
         corpse = cannibalize_corpse(ent, spell);
@@ -528,11 +528,11 @@ BZ_ABILITY_PROC(CAbilityCannibalize) {
  * The Raise Dead object-data family authors two summon groups:
  * DataA x DataC and DataB x DataD.  BuffID is the summoned timed-life buff.
  */
-static float raise_dead_search_range(LPCEDICT caster) {
+static float raise_dead_search_range(edict_t const * caster) {
     return caster ? MAX(0.0f, caster->runtime.acquisition_range) : 0.0f;
 }
 
-static int32_t raise_dead_corpse_rank(LPCEDICT unit) {
+static int32_t raise_dead_corpse_rank(edict_t const * unit) {
     UnitBalance_t const *balance = unit ? unit->data.UnitBalance : NULL;
     if (!balance && unit) balance = G_UnitBalance(unit->class_id);
     return balance ? balance->level : 0;
@@ -541,10 +541,10 @@ static int32_t raise_dead_corpse_rank(LPCEDICT unit) {
 /* Retail Raise Dead preserves more valuable corpses by preferring the lowest-
  * ranked eligible corpse; distance is only the tie-breaker.  UnitBalance.level
  * is already the engine's corpse-power rank for Resurrection/Animate Dead. */
-static LPEDICT raise_dead_corpse(LPEDICT caster, uint32_t code, float range) {
+static edict_t * raise_dead_corpse(edict_t * caster, uint32_t code, float range) {
     float best_distance = FLT_MAX;
     int32_t best_rank = 0;
-    LPEDICT corpse = NULL;
+    edict_t * corpse = NULL;
 
     FILTER_EDICTS(unit, !G_UnitIsHero(unit) && S_SpellAllowsCorpseTarget(code, caster, unit)) {
         float const distance = Vector2_distance(&unit->s.origin2, &caster->s.origin2);
@@ -557,8 +557,8 @@ static LPEDICT raise_dead_corpse(LPEDICT caster, uint32_t code, float range) {
     FILTER_EDICTS(transport, S_CargoIsCorpseHolder(transport) &&
                   transport->s.player == caster->s.player) {
         FOR_LOOP(i, transport->cargo.count) {
-            LPEDICT unit = S_CargoUnitAt(transport, i);
-            VECTOR2 position;
+            edict_t * unit = S_CargoUnitAt(transport, i);
+            vector2_t position;
             float distance;
             int32_t rank;
             if (!unit || !S_CorpseCargoIsStored(unit) || G_UnitIsHero(unit) ||
@@ -575,7 +575,7 @@ static LPEDICT raise_dead_corpse(LPEDICT caster, uint32_t code, float range) {
     return corpse;
 }
 
-static bool raise_dead_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool raise_dead_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     float range;
     (void)st;
     if (!caster || !spell) return false;
@@ -585,21 +585,21 @@ static bool raise_dead_validate(LPEDICT caster, spellTarget_t st, abilityitem_t 
     return false;
 }
 
-static void raise_dead_add_authored_buff(LPEDICT summon, cstring_t buff_list, uint32_t level) {
+static void raise_dead_add_authored_buff(edict_t * summon, cstring_t buff_list, uint32_t level) {
     char buff[5] = {0};
     if (!summon || !buff_list || strlen(buff_list) < 4) return;
     memcpy(buff, buff_list, 4);
     unit_addstatus(summon, buff, level);
 }
 
-static void raise_dead_spawn_group(LPEDICT caster, abilityitem_t const *spell, LPEDICT corpse,
+static void raise_dead_spawn_group(edict_t * caster, abilityitem_t const *spell, edict_t * corpse,
                                    uint32_t level, uint32_t unit_id, uint32_t count, float duration,
                                    cstring_t buff) {
-    VECTOR2 position;
+    vector2_t position;
 
     if (!unit_id || !count || !corpse || !S_CorpseCargoPosition(corpse, &position)) return;
     FOR_LOOP(i, count) {
-        LPEDICT summon = S_SummonAt(caster, unit_id, &position, duration);
+        edict_t * summon = S_SummonAt(caster, unit_id, &position, duration);
         if (!summon) continue;
         summon->s.angle = corpse->s.angle;
         summon->summon_ability = spell->code;
@@ -609,11 +609,11 @@ static void raise_dead_spawn_group(LPEDICT caster, abilityitem_t const *spell, L
     }
 }
 
-static void raise_dead_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void raise_dead_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level, count_a, count_b, unit_a, unit_b;
     float duration, range;
     cstring_t buff;
-    LPEDICT corpse;
+    edict_t * corpse;
     (void)st;
 
     if (!caster || !spell) return;
@@ -638,7 +638,7 @@ static void raise_dead_execute(LPEDICT caster, spellTarget_t st, abilityitem_t c
     G_FreeEdict(corpse);
 }
 
-static bool raise_dead_autocast_acquire(LPEDICT caster, uint32_t code) {
+static bool raise_dead_autocast_acquire(edict_t * caster, uint32_t code) {
     float const range = raise_dead_search_range(caster);
     return raise_dead_corpse(caster, code, range) && S_CastNoTargetSpell(caster, code);
 }
@@ -665,13 +665,13 @@ BZ_ABILITY_PROC(CAbilityRaiseDead) {
 #define BZ_BPOC MAKEFOURCC('B', 'p', 'o', 'c') // rawcode; caster Possession damage amp
 #define BZ_POS_MAGIC_IMMUNE 1u // Bpos.data bit; authored DataD > 0 during channel
 
-static bool possession_is_neutral(LPCEDICT target) {
+static bool possession_is_neutral(edict_t const * target) {
     return target && target->s.player < MAX_PLAYERS && level.mapinfo &&
         level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral;
 }
 
-static bool possession_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    LPEDICT target = st.entity;
+static bool possession_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+    edict_t * target = st.entity;
     uint32_t level = S_SpellLevel(caster, spell->code);
     uint32_t max_level = (uint32_t)S_SpellData(spell->code, level, 1);
     if (!target || !target->data.UnitBalance) return false;
@@ -681,7 +681,7 @@ static bool possession_validate(LPEDICT caster, spellTarget_t st, abilityitem_t 
     return true;
 }
 
-static void possession_clear_status(LPEDICT ent, uint32_t code) {
+static void possession_clear_status(edict_t * ent, uint32_t code) {
     if (!ent) return;
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (ent->abilstatus[i].level && ent->abilstatus[i].code == code)
@@ -689,7 +689,7 @@ static void possession_clear_status(LPEDICT ent, uint32_t code) {
 }
 
 /* Keep stunned in sync after stripping Bpos without waiting for a later status tick. */
-static void possession_refresh_stun(LPEDICT ent) {
+static void possession_refresh_stun(edict_t * ent) {
     if (!ent) return;
     ent->stunned = false;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
@@ -700,7 +700,7 @@ static void possession_refresh_stun(LPEDICT ent) {
     }
 }
 
-static void possession_takeover(LPEDICT caster, LPEDICT target) {
+static void possession_takeover(edict_t * caster, edict_t * target) {
     G_SetUnitPlayer(target, caster->s.player);
     target->owner = NULL;
     target->combatentity = NULL;
@@ -710,14 +710,14 @@ static void possession_takeover(LPEDICT caster, LPEDICT target) {
     else unit_die(caster, caster);
 }
 
-static void possession_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void possession_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     (void)spell;
     if (!st.entity) return;
     possession_takeover(caster, st.entity);
 }
 
-static void possession_strip_channel(LPEDICT thinker) {
-    LPEDICT caster = thinker->owner, target = thinker->goalentity;
+static void possession_strip_channel(edict_t * thinker) {
+    edict_t * caster = thinker->owner, *target = thinker->goalentity;
     if (target && target->inuse && target->spawn_time == thinker->channel.target_spawn_time) {
         possession_clear_status(target, BZ_BPOS);
         possession_refresh_stun(target);
@@ -727,8 +727,8 @@ static void possession_strip_channel(LPEDICT thinker) {
         possession_clear_status(caster, BZ_BPOC);
 }
 
-void possession_two_think(LPEDICT thinker) {
-    LPEDICT caster = thinker->owner, target = thinker->goalentity;
+void possession_two_think(edict_t * thinker) {
+    edict_t * caster = thinker->owner, *target = thinker->goalentity;
     if (!S_SpellChannelActive(thinker) || !S_SpellIsAliveTarget(target) ||
         target->spawn_time != thinker->channel.target_spawn_time) {
         possession_strip_channel(thinker);
@@ -742,7 +742,7 @@ void possession_two_think(LPEDICT thinker) {
         possession_takeover(caster, target);
 }
 
-static void possession_two_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void possession_two_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float duration = S_SpellDuration(spell->code, level, S_UnitIsResistant(st.entity));
     float damage_mult = S_SpellData(spell->code, level, 2);
@@ -750,7 +750,7 @@ static void possession_two_execute(LPEDICT caster, spellTarget_t st, abilityitem
     float magic_imm = S_SpellData(spell->code, level, 4);
     cstring_t buffs = G_AbilityLevel(spell->code, level)->buffID;
     char target_buff[5] = "Bpos", caster_buff[5] = "Bpoc";
-    LPEDICT thinker;
+    edict_t * thinker;
     heroabilitystatus_t *slot;
 
     if (!st.entity) return;
@@ -784,7 +784,7 @@ static void possession_two_execute(LPEDICT caster, spellTarget_t st, abilityitem
     if (invuln > 0.0f) st.entity->invulnerable = true;
 }
 
-bool S_PossessionSpellImmune(LPCEDICT unit) {
+bool S_PossessionSpellImmune(edict_t const * unit) {
     if (!unit) return false;
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BPOS &&
@@ -795,7 +795,7 @@ bool S_PossessionSpellImmune(LPCEDICT unit) {
 }
 
 /* DataB lives on Bpoc.data as milli-units (1.66 → 1660). Attack hits only. */
-int S_PossessionDamageTaken(LPEDICT target, int damage) {
+int S_PossessionDamageTaken(edict_t * target, int damage) {
     uint32_t milli = 0;
     if (!target || damage <= 0) return damage;
     FOR_LOOP(i, MAX_UNIT_STATUSES)

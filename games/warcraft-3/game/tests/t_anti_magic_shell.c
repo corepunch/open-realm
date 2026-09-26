@@ -11,19 +11,19 @@
 #define BZ_BAM2 MAKEFOURCC('B', 'a', 'm', '2') // rawcode; spell-damage absorption buff
 #define BZ_AHTB MAKEFOURCC('A', 'H', 't', 'b') // rawcode; Storm Bolt, used as a hostile spell probe
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
 
-typedef struct { slkTestData_t *rows, *old; LPEDICT caster, ally, enemy; } AMSFIX;
+typedef struct { slkTestData_t *rows, *old; edict_t * caster, *ally, *enemy; } amsFix_t;
 
-static AMSFIX ams_setup(cstring_t slk, uint32_t code) {
-    AMSFIX fix;
+static amsFix_t ams_setup(cstring_t slk, uint32_t code) {
+    amsFix_t fix;
     reset_entities(); setup_test_world(); level.time = 1000;
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
     fix.rows = parse_slk_string(slk); fix.old = G_SetSLKRows("AbilityData", fix.rows);
     fix.caster = alloc_test_unit(MAKEFOURCC('u','n','e','c'), 0, 0);
@@ -38,9 +38,9 @@ static AMSFIX ams_setup(cstring_t slk, uint32_t code) {
     return fix;
 }
 
-static void ams_done(AMSFIX fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
+static void ams_done(amsFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
 
-static uint32_t ams_remaining(LPCEDICT unit) {
+static uint32_t ams_remaining(edict_t const * unit) {
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BAM2) return unit->abilstatus[i].data;
     return 0;
@@ -56,7 +56,7 @@ TEST(wc3_spell, anti_magic_shell_bams_blocks_spells_until_expiry) {
         "C;Y2;X1;K\"Aams\"\nC;Y2;X2;K\"Aams\"\nC;Y2;X3;K\"1\"\n"
         "C;Y2;X4;K\"air,ground\"\nC;Y2;X5;K\"75\"\nC;Y2;X6;K\"0\"\n"
         "C;Y2;X7;K\"500\"\nC;Y2;X8;K\"90\"\nC;Y2;X9;K\"90\"\nC;Y2;X10;K\"Bams,Bam2\"\nE\n";
-    AMSFIX fix = ams_setup(slk, BZ_AMS);
+    amsFix_t fix = ams_setup(slk, BZ_AMS);
 
     T_EQ(S_AbilityItem(BZ_AMS).ability->proc, CAbilityAntiMagicShell);
     T_ASSERT(S_SpellAllowsTarget(BZ_AMS, fix.caster, fix.enemy));
@@ -91,7 +91,7 @@ TEST(wc3_spell, anti_magic_shell_roc_row_without_buffid_still_applies_bams) {
         "C;Y2;X1;K\"Aams\"\nC;Y2;X2;K\"Aams\"\nC;Y2;X3;K\"1\"\n"
         "C;Y2;X4;K\"air,ground\"\nC;Y2;X5;K\"75\"\nC;Y2;X6;K\"500\"\n"
         "C;Y2;X7;K\"90\"\nC;Y2;X8;K\"90\"\nE\n";
-    AMSFIX fix = ams_setup(slk, BZ_AMS);
+    amsFix_t fix = ams_setup(slk, BZ_AMS);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AMS, fix.ally));
     T_EQ(G_UnitStatusLevel(fix.ally, BZ_BAMS), 1);
     T_ASSERT(S_UnitSpellImmune(fix.ally));
@@ -116,7 +116,7 @@ TEST(wc3_spell, anti_magic_shell_aam2_absorbs_authored_spell_damage) {
         "C;Y3;X4;K\"air,ground,enemy\"\nC;Y3;X5;K\"75\"\nC;Y3;X6;K\"600\"\n"
         "C;Y3;X7;K\"5\"\nC;Y3;X8;K\"3\"\nC;Y3;X9;K\"0\"\nC;Y3;X10;K\"BHtb\"\n"
         "C;Y3;X11;K\"9\"\nC;Y3;X12;K\"100\"\nE\n";
-    AMSFIX fix = ams_setup(slk, BZ_AAM2);
+    amsFix_t fix = ams_setup(slk, BZ_AAM2);
 
     T_EQ(S_AbilityItem(BZ_AAM2).ability->proc, CAbilityAntiMagicShell);
     T_ASSERT(!S_SpellAllowsTarget(BZ_AAM2, fix.caster, fix.enemy));
@@ -167,7 +167,7 @@ TEST(wc3_spell, anti_magic_shell_item_aixs_applies_bams_with_authored_duration) 
         "C;Y2;X4;K\"air,ground\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"30\"\n"
         "C;Y2;X7;K\"0\"\nC;Y2;X8;K\"17\"\nC;Y2;X9;K\"17\"\n"
         "C;Y2;X10;K\"Bams,Bam2\"\nC;Y2;X11;K\"10\"\nC;Y2;X12;K\"0\"\nE\n";
-    AMSFIX fix = ams_setup(slk, BZ_AIXS);
+    amsFix_t fix = ams_setup(slk, BZ_AIXS);
     T_EQ(S_AbilityItem(BZ_AIXS).ability->proc, CAbilityAntiMagicShellInstant);
     T_FEQ(S_SpellDuration(BZ_AIXS, 1, false), 17, 0.001f);
     T_FEQ(S_SpellData(BZ_AIXS, 1, 2), 10, 0.001f);
@@ -194,7 +194,7 @@ TEST(wc3_spell, anti_magic_shell_item_aixs_datac_uses_bam2_absorb) {
         "C;Y2;X4;K\"air,ground\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"0\"\n"
         "C;Y2;X7;K\"17\"\nC;Y2;X8;K\"17\"\nC;Y2;X9;K\"140\"\n"
         "C;Y2;X10;K\"Bams,Bam2\"\nC;Y2;X11;K\"10\"\nE\n";
-    AMSFIX fix = ams_setup(slk, BZ_AIXS);
+    amsFix_t fix = ams_setup(slk, BZ_AIXS);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AIXS, fix.ally));
     T_EQ(G_UnitStatusLevel(fix.ally, BZ_BAM2), 1);
     T_EQ(G_UnitStatusLevel(fix.ally, BZ_BAMS), 0);
@@ -215,7 +215,7 @@ TEST(wc3_spell, anti_magic_shell_absorption_survives_save_load) {
         "C;Y2;X4;K\"air,ground,friend,self\"\nC;Y2;X5;K\"75\"\nC;Y2;X6;K\"500\"\n"
         "C;Y2;X7;K\"90\"\nC;Y2;X8;K\"90\"\nC;Y2;X9;K\"300\"\nC;Y2;X10;K\"Bams,Bam2\"\nE\n";
     cstring_t path = "/tmp/openwarcraft3-ams-save.bin";
-    AMSFIX fix = ams_setup(slk, BZ_AAM2);
+    amsFix_t fix = ams_setup(slk, BZ_AAM2);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AAM2, fix.ally));
     T_ASSERT(!S_SpellDamage(fix.ally, fix.enemy, 100));
     T_EQ(ams_remaining(fix.ally), 200);

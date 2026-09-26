@@ -20,7 +20,7 @@ static uint32_t MDLX_CountRibbons(mdxModel_t const *model) {
  * needs an identity bone bind (skin 0, weight 255) plus a face normal. */
 static trailVert_t strip_buf[TRAIL_MAX_EDGES * 6];
 
-static uint32_t MDLX_RibbonConvertStrip(trailVert_t const *strip, uint32_t nverts, VERTEX *out, uint32_t max)
+static uint32_t MDLX_RibbonConvertStrip(trailVert_t const *strip, uint32_t nverts, vertex_t *out, uint32_t max)
 {
     uint32_t n;
 
@@ -31,7 +31,7 @@ static uint32_t MDLX_RibbonConvertStrip(trailVert_t const *strip, uint32_t nvert
         out[i].position = strip[i].position;
         out[i].texcoord = strip[i].uv;
         out[i].color = strip[i].color;
-        out[i].normal = (VECTOR3){ 0, 0, 1 };
+        out[i].normal = (vector3_t){ 0, 0, 1 };
         out[i].boneWeight[0] = 255;
     }
     return n;
@@ -85,7 +85,7 @@ void MDLX_ForgetRibbonModel(mdxModel_t *model) {
 }
 
 #ifndef BZ_MDX_RIBBON_HEADLESS
-static VERTEX orphan_verts[TRAIL_MAX_EDGES * 6];
+static vertex_t orphan_verts[TRAIL_MAX_EDGES * 6];
 static trailVert_t orphan_strip[TRAIL_MAX_EDGES * 6];
 #endif
 
@@ -126,7 +126,7 @@ static void MDLX_DetachStaleInstances(mdxModel_t *model, uint32_t now) {
     model->ribbon_tick = now;
 }
 
-static void MDLX_FadeRibbonVertices(VERTEX *verts, uint32_t nverts, trail_t const *trail,
+static void MDLX_FadeRibbonVertices(vertex_t *verts, uint32_t nverts, trail_t const *trail,
                                     float lifespan)
 {
     int alive, i, write;
@@ -176,7 +176,7 @@ void MDLX_TickDetachedRibbons(void) {
     link = &detached_ribbons;
     while (*link) {
         mdxDetachedRibbon_t *orphan = *link;
-        if (!R_TrailAdvance(&orphan->trail, (VECTOR3){0}, (VECTOR3){0}, (COLOR32){0},
+        if (!R_TrailAdvance(&orphan->trail, (vector3_t){0}, (vector3_t){0}, (color32_t){0},
                             orphan->lifespan, 0.0f, orphan->gravity, now, tr.viewDef.deltaTime) &&
             orphan->trail.count == 0) {
             *link = orphan->next; ri.MemFree(orphan); detached_count--; continue;
@@ -191,12 +191,12 @@ uint32_t MDLX_DetachedRibbonCount(void) {
 }
 
 static void MDLX_RibbonWorldEdge(mdxModel_t const *model, mdxRibbonEmitter_t const *ribbon,
-                                 LPCMATRIX4 model_matrix, float heightAbove, float heightBelow,
-                                 LPVECTOR3 above, LPVECTOR3 below)
+                                 matrix4_t const * model_matrix, float heightAbove, float heightBelow,
+                                 vector3_t * above, vector3_t * below)
 {
-    MATRIX4 world;
-    VECTOR3 local_above = { 0, heightAbove, 0 };
-    VECTOR3 local_below = { 0, -heightBelow, 0 };
+    matrix4_t world;
+    vector3_t local_above = { 0, heightAbove, 0 };
+    vector3_t local_below = { 0, -heightBelow, 0 };
     uint32_t id = ribbon->node.node_id;
 
     if (id < (uint32_t)model->num_pivots) {
@@ -221,15 +221,15 @@ static uint32_t MDLX_RibbonIndex(mdxModel_t const *model, mdxRibbonEmitter_t con
 }
 
 /* Advance one emitter's per-instance trail and write its current triangle strip. */
-uint32_t MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix,
-                              mdxRibbonEmitter_t *ribbon, VERTEX *out, uint32_t max)
+uint32_t MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, matrix4_t const * model_matrix,
+                              mdxRibbonEmitter_t *ribbon, vertex_t *out, uint32_t max)
 {
     mdxRibbonInstance_t *state;
     trail_t *trail;
     uint32_t idx, slot, frame, nverts;
     float visibility = 1.0f, heightAbove, heightBelow, alpha, rate;
-    VECTOR3 color, above, below;
-    COLOR32 rgba;
+    vector3_t color, above, below;
+    color32_t rgba;
 
     if (!model || !entity || !model_matrix || !ribbon || !out) return 0;
     idx = MDLX_RibbonIndex(model, ribbon);
@@ -259,7 +259,7 @@ uint32_t MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity
         MDLX_GetModelKeytrackValue(model, ribbon->keytracks.TextureSlot, frame, &slot);
     MDLX_RibbonWorldEdge(model, ribbon, model_matrix, heightAbove, heightBelow, &above, &below);
     if (visibility < EPSILON) rate = 0.0f;
-    rgba = (COLOR32){
+    rgba = (color32_t){
         (uint8_t)MIN(255, MAX(0, color.x * 255.0f + 0.5f)),
         (uint8_t)MIN(255, MAX(0, color.y * 255.0f + 0.5f)),
         (uint8_t)MIN(255, MAX(0, color.z * 255.0f + 0.5f)),

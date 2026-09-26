@@ -5,7 +5,7 @@
 #define BZ_ASPL MAKEFOURCC('A', 's', 'p', 'l') // rawcode; Spirit Link
 #define BZ_BSPL MAKEFOURCC('B', 's', 'p', 'l') // rawcode; Spirit Link buff
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -27,14 +27,14 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
 	slkTestData_t *rows, *old;
-	LPEDICT caster, a, b, c, d, enemy;
-} SPLFIX;
+	edict_t * caster, *a, *b, *c, *d, *enemy;
+} splFix_t;
 
 /* Fill caller in place; no UnitBalance pointers required. */
-static void spl_setup(SPLFIX *fix) {
+static void spl_setup(splFix_t *fix) {
 	reset_entities(); setup_test_world(); level.time = 1000;
-	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	memset(level.alliances, 0, sizeof(level.alliances));
 	fix->rows = parse_slk_string(SPL_SLK); fix->old = G_SetSLKRows("AbilityData", fix->rows);
 	/* Caster within Rng=750 but outside Area=300 of A so DataB picks A/B/C, not the walker. */
@@ -59,7 +59,7 @@ static void spl_setup(SPLFIX *fix) {
 	fix->enemy->health.value = fix->enemy->health.max_value = 500;
 }
 
-static void spl_done(SPLFIX *fix) { G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows); }
+static void spl_done(splFix_t *fix) { G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows); }
 
 TEST(wc3_spell, spirit_link_procedure_lookup) {
 	T_EQ(S_AbilityItem(BZ_ASPL).ability->proc, CAbilitySpiritLink);
@@ -67,7 +67,7 @@ TEST(wc3_spell, spirit_link_procedure_lookup) {
 
 /* Cast on A links nearest DataB=3 allies in Area (A,B,C); D outside area stays unlinked. */
 TEST(wc3_spell, spirit_link_links_datab_nearest_in_area) {
-	SPLFIX fix; spl_setup(&fix);
+	splFix_t fix; spl_setup(&fix);
 	T_ASSERT(S_SpellAllowsTarget(BZ_ASPL, fix.caster, fix.a));
 	T_ASSERT(!S_SpellAllowsTarget(BZ_ASPL, fix.caster, fix.enemy));
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ASPL, fix.a));
@@ -82,7 +82,7 @@ TEST(wc3_spell, spirit_link_links_datab_nearest_in_area) {
 
 /* DataA=0.25 with 3 linked: 100 dmg -> shared 25 / 3 each; primary keeps 75+portion. */
 TEST(wc3_spell, spirit_link_splits_authored_damage_among_linked) {
-	SPLFIX fix; spl_setup(&fix);
+	splFix_t fix; spl_setup(&fix);
 	int portion, primary;
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ASPL, fix.a));
 	T_Damage(fix.a, fix.enemy, 100);
@@ -98,7 +98,7 @@ TEST(wc3_spell, spirit_link_splits_authored_damage_among_linked) {
 
 /* Unlinked unit takes full T_Damage; linked group is untouched. */
 TEST(wc3_spell, spirit_link_unlinked_unit_takes_full_damage) {
-	SPLFIX fix; spl_setup(&fix);
+	splFix_t fix; spl_setup(&fix);
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ASPL, fix.a));
 	T_Damage(fix.d, fix.enemy, 40);
 	T_FEQ(fix.d->health.value, 460, 0.001f);
@@ -109,7 +109,7 @@ TEST(wc3_spell, spirit_link_unlinked_unit_takes_full_damage) {
 
 /* After Dur expiry, damage no longer redirects. */
 TEST(wc3_spell, spirit_link_expires_and_stops_redirect) {
-	SPLFIX fix; spl_setup(&fix);
+	splFix_t fix; spl_setup(&fix);
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ASPL, fix.a));
 	level.time += 20000; unit_updatestatuses(fix.a); unit_updatestatuses(fix.b); unit_updatestatuses(fix.c);
 	T_EQ(G_UnitStatusLevel(fix.a, BZ_BSPL), 0);
@@ -121,7 +121,7 @@ TEST(wc3_spell, spirit_link_expires_and_stops_redirect) {
 
 /* Recast refreshes Bspl duration on the newly gathered group. */
 TEST(wc3_spell, spirit_link_recast_refreshes_group) {
-	SPLFIX fix; spl_setup(&fix);
+	splFix_t fix; spl_setup(&fix);
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ASPL, fix.a));
 	level.time += 10000; unit_updatestatuses(fix.a);
 	T_ASSERT(G_UnitStatusLevel(fix.a, BZ_BSPL) == 1);
@@ -137,7 +137,7 @@ TEST(wc3_spell, spirit_link_recast_refreshes_group) {
 
 /* Redirected share that would kill clamps to 1 HP and clears Bspl. */
 TEST(wc3_spell, spirit_link_redirect_never_fatal) {
-	SPLFIX fix; spl_setup(&fix);
+	splFix_t fix; spl_setup(&fix);
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ASPL, fix.a));
 	fix.b->health.value = 5;
 	T_Damage(fix.a, fix.enemy, 100);
@@ -153,11 +153,11 @@ TEST(wc3_spell, spirit_link_redirect_never_fatal) {
 /* More eligible allies than the old 64-entry gather cap: the clicked target
  * must still receive the buff (repro from #476). */
 TEST(wc3_spell, spirit_link_clicked_target_linked_in_crowd) {
-    SPLFIX fix;
-    LPEDICT selected;
+    splFix_t fix;
+    edict_t * selected;
     spl_setup(&fix);
     FOR_LOOP(i, 65) {
-        LPEDICT unit = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 100, 0);
+        edict_t * unit = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 100, 0);
         unit->s.player = 0; unit->svflags |= SVF_MONSTER; unit->targtype = TARG_GROUND;
         unit->health.value = unit->health.max_value = 500;
     }
@@ -171,15 +171,15 @@ TEST(wc3_spell, spirit_link_clicked_target_linked_in_crowd) {
 
 /* Closer later-created allies displace farther earlier-created ones. */
 TEST(wc3_spell, spirit_link_prefers_closer_late_allies) {
-    SPLFIX fix;
-    LPEDICT click, near1, near2;
+    splFix_t fix;
+    edict_t * click, *near1, *near2;
     uint32_t linked = 0;
     spl_setup(&fix);
     click = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 200, 0);
     click->s.player = 0; click->svflags |= SVF_MONSTER; click->targtype = TARG_GROUND;
     click->health.value = click->health.max_value = 500;
     FOR_LOOP(i, 70) {
-        LPEDICT unit = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 450, 0);
+        edict_t * unit = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 450, 0);
         unit->s.player = 0; unit->svflags |= SVF_MONSTER; unit->targtype = TARG_GROUND;
         unit->health.value = unit->health.max_value = 500;
     }
@@ -201,8 +201,8 @@ TEST(wc3_spell, spirit_link_prefers_closer_late_allies) {
 
 /* Allocation order does not change the nearest-target outcome. */
 TEST(wc3_spell, spirit_link_order_independent_nearest) {
-    SPLFIX fix;
-    LPEDICT first_far, second_near;
+    splFix_t fix;
+    edict_t * first_far, *second_near;
     spl_setup(&fix);
     first_far = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 290, 0);
     second_near = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 10, 0);
@@ -219,8 +219,8 @@ TEST(wc3_spell, spirit_link_order_independent_nearest) {
 
 /* Exactly DataB units buffed; dead and out-of-area units excluded. */
 TEST(wc3_spell, spirit_link_exact_count_excludes_dead_and_far) {
-    SPLFIX fix;
-    LPEDICT dead;
+    splFix_t fix;
+    edict_t * dead;
     uint32_t linked = 0;
     spl_setup(&fix);
     dead = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 20, 0);
@@ -261,7 +261,7 @@ TEST(wc3_spell, spirit_link_zero_and_single_target_counts) {
         "C;Y2;X5;K\"40\"\nC;Y2;X6;K\"0\"\nC;Y2;X7;K\"750\"\n"
         "C;Y2;X8;K\"20\"\nC;Y2;X9;K\"20\"\nC;Y2;X10;K\"300\"\n"
         "C;Y2;X11;K\"0.25\"\nC;Y2;X12;K\"1\"\nC;Y2;X13;K\"Bspl\"\nC;Y2;X14;K\"0\"\nE\n";
-    SPLFIX fix;
+    splFix_t fix;
     uint32_t linked;
     spl_setup(&fix);
     G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows);

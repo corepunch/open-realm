@@ -156,18 +156,18 @@ BZ_HOST_HIDDEN float Theme_Float(cstring_t entry, cstring_t category) {
     return atof(Theme_String(entry, category));
 }
 
-COLOR32 Theme_ListBoxSelectionColor(void) {
-    return MAKE(COLOR32, 0, 0, 255, 255);
+color32_t Theme_ListBoxSelectionColor(void) {
+    return MAKE(color32_t, 0, 0, 255, 255);
 }
 
-COLOR32 Theme_ListBoxTextColor(void) {
+color32_t Theme_ListBoxTextColor(void) {
     return COLOR32_WHITE;
 }
 
-COLOR32 Theme_ListBoxSelectedTextColor(void) {
-    return MAKE(COLOR32, 252, 210, 17, 255);
+color32_t Theme_ListBoxSelectedTextColor(void) {
+    return MAKE(color32_t, 252, 210, 17, 255);
 }
 
-COLOR32 Theme_ListBoxIconTextColor(void) {
-    return MAKE(COLOR32, 252, 210, 17, 255);
+color32_t Theme_ListBoxIconTextColor(void) {
+    return MAKE(color32_t, 252, 210, 17, 255);
 }

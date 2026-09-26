@@ -19,7 +19,7 @@
 #include "api_cinefilter.h"
 #include "api_hashtable.h"
 
-JASSMODULE jass_funcs[] = {
+jassModule_t jass_funcs[] = {
     { "DisplayText", DisplayText },
     { "DisplayTextI", DisplayTextI },
     { "DisplayTextII", DisplayTextII },

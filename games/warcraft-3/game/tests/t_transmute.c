@@ -4,12 +4,12 @@
 
 #define BZ_ANTM MAKEFOURCC('A', 'N', 't', 'm') // rawcode; TFT Alchemist Transmute
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
-void unit_die(LPEDICT self, LPEDICT attacker);
+void unit_die(edict_t * self, edict_t * attacker);
 
 /* Non-stock Cost/DataA/DataC so tests cannot pass on retail 150/0.8/5. */
 static cstring_t transmute_slk =
@@ -26,15 +26,15 @@ static cstring_t transmute_slk =
 
 typedef struct {
     slkTestData_t *rows, *old;
-    LPEDICT caster, enemy, ally, hero;
+    edict_t * caster, *enemy, *ally, *hero;
     UnitBalance_t enemy_bal, ally_bal, hero_bal;
-} TMFIX;
+} tmFix_t;
 
 /* Fill caller in place: edict UnitBalance pointers must not dangle. */
-static void tm_setup(TMFIX *fix) {
+static void tm_setup(tmFix_t *fix) {
     reset_entities(); setup_test_world(); level.time = 1000;
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
     fix->rows = parse_slk_string(transmute_slk);
     fix->old = G_SetSLKRows("AbilityData", fix->rows);
@@ -65,7 +65,7 @@ static void tm_setup(TMFIX *fix) {
     game.clients[0].ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
 }
 
-static void tm_done(TMFIX *fix) { G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows); }
+static void tm_done(tmFix_t *fix) { G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows); }
 
 TEST(wc3_spell, transmute_procedure_is_unit_spell) {
     abilityitem_t item = S_AbilityItem(BZ_ANTM);
@@ -77,7 +77,7 @@ TEST(wc3_spell, transmute_procedure_is_unit_spell) {
 
 /* Kills the target and credits goldCost * DataA (200 * 0.5 = 100). */
 TEST(wc3_spell, transmute_kills_and_credits_gold_factor) {
-    TMFIX fix; tm_setup(&fix);
+    tmFix_t fix; tm_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ANTM, fix.enemy));
     T_FEQ(fix.caster->mana.value, 160, 0.001f);
     T_ASSERT(M_IsDead(fix.enemy));
@@ -88,7 +88,7 @@ TEST(wc3_spell, transmute_kills_and_credits_gold_factor) {
 
 /* DataB lumberCostFactor credits lumber when authored non-zero. */
 TEST(wc3_spell, transmute_credits_lumber_when_datab_set) {
-    TMFIX fix; tm_setup(&fix);
+    tmFix_t fix; tm_setup(&fix);
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X12\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
@@ -110,7 +110,7 @@ TEST(wc3_spell, transmute_credits_lumber_when_datab_set) {
 
 /* Rejects ally/dead/hero/over-level without spending mana. */
 TEST(wc3_spell, transmute_rejects_invalid_targets_without_mana_spend) {
-    TMFIX fix; tm_setup(&fix);
+    tmFix_t fix; tm_setup(&fix);
     float mana = fix.caster->mana.value;
 
     T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_ANTM, fix.ally));

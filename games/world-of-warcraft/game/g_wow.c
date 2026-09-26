@@ -18,7 +18,7 @@
 struct game_import gi;
 struct game_export globals;
 
-static uint32_t G_WriteClientDatagram(LPEDICT ent, uint8_t * data, uint32_t size) {
+static uint32_t G_WriteClientDatagram(edict_t * ent, uint8_t * data, uint32_t size) {
     (void)ent;
     if (size < sizeof(uint16_t)) return 0;
     memset(data, 0, sizeof(uint16_t));
@@ -39,7 +39,7 @@ typedef struct { bool pending; float x, y, z, orientation; } wowPendingTeleport_
 static wowPendingTeleport_t wow_pending_teleport;
 
 #define WOW_MAX_AREA_TRIGS 256
-static WOWAREATRIG wow_area_trigs[WOW_MAX_AREA_TRIGS];
+static wowAreatrig_t wow_area_trigs[WOW_MAX_AREA_TRIGS];
 static uint32_t       wow_area_trig_count;
 enum {
     WOW_PLAYER_EQUIPMENT_UPPER_BODY = 1,
@@ -170,7 +170,7 @@ static wowItemDef_t const *Wow_ItemByEntry(uint32_t entry) {
 }
 
 /* Roll loot for a freshly-killed creature; results stored on the corpse entity. */
-void Wow_RollLoot(LPEDICT ent) {
+void Wow_RollLoot(edict_t * ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     wowLootEntry_t const *tmpl = NULL;
 
@@ -205,15 +205,15 @@ void Wow_RollLoot(LPEDICT ent) {
 }
 
 /* Find the nearest corpse entity within range that still has items to loot. */
-LPEDICT Wow_FindNearestCorpse(LPEDICT ent, float range) {
-    LPEDICT best = NULL;
+edict_t * Wow_FindNearestCorpse(edict_t * ent, float range) {
+    edict_t * best = NULL;
     float best_dist2 = range * range;
 
     if (!ent) return NULL;
     for (uint32_t i = MAX_CLIENTS; i < (uint32_t)globals.num_edicts && i < WOW_MAX_EDICTS; i++) {
-        LPEDICT c = &wow_edicts[i];
+        edict_t * c = &wow_edicts[i];
         wowEntityLocal_t *local;
-        VECTOR2 delta;
+        vector2_t delta;
         float dist2;
 
         if (!c->inuse) continue;
@@ -244,7 +244,7 @@ typedef struct {
 
 static wowMissingAnimationLog_t wow_missing_animation_log[WOW_MISSING_ANIMATION_LOG_SLOTS];
 
-static void Wow_LogMissingAnimation(LPEDICT ent, cstring_t animation_name, bool invalid_interval) {
+static void Wow_LogMissingAnimation(edict_t * ent, cstring_t animation_name, bool invalid_interval) {
     uint32_t model;
 
     if (!ent || !animation_name || !*animation_name) {
@@ -592,7 +592,7 @@ float Wow_TerrainHeight(float x, float y) {
 float Wow_FloorHeight(float x, float y, float z) { return CM_WowFloorHeight(x, y, z, 1.5f); }
 
 /* Terrain must obey the outdoor slope limit; reachable WMO steps use their authored collision floor instead. */
-bool Wow_TerrainMoveWalkable(LPCVECTOR3 from, LPCVECTOR3 to, float terrain) {
+bool Wow_TerrainMoveWalkable(vector3_t const * from, vector3_t const * to, float terrain) {
     float dx, dy, dist;
     if (fabsf(to->z - terrain) > WOW_GROUND_EPSILON) return true;
     dx = to->x - from->x; dy = to->y - from->y; dist = sqrtf(dx * dx + dy * dy);
@@ -603,7 +603,7 @@ static float Wow_ViewPitch(float wrapped_pitch) {
     return wrapped_pitch > 180.0f ? 360.0f - wrapped_pitch : -wrapped_pitch;
 }
 
-static void Wow_AngleVectors(float yaw, LPVECTOR2 forward, LPVECTOR2 right) {
+static void Wow_AngleVectors(float yaw, vector2_t * forward, vector2_t * right) {
     float angle = (float)DEG2RAD(yaw);
     float sy = sinf(angle);
     float cy = cosf(angle);
@@ -618,14 +618,14 @@ static void Wow_AngleVectors(float yaw, LPVECTOR2 forward, LPVECTOR2 right) {
     }
 }
 
-uint32_t Wow_EntityIndex(LPCEDICT ent) {
+uint32_t Wow_EntityIndex(edict_t const * ent) {
     if (!ent || ent < wow_edicts || ent >= wow_edicts + WOW_MAX_EDICTS) {
         return WOW_MAX_EDICTS;
     }
     return (uint32_t)(ent - wow_edicts);
 }
 
-wowEntityLocal_t *Wow_EntityLocal(LPCEDICT ent) {
+wowEntityLocal_t *Wow_EntityLocal(edict_t const * ent) {
     uint32_t index = Wow_EntityIndex(ent);
 
     if (index >= WOW_MAX_EDICTS) {
@@ -634,9 +634,9 @@ wowEntityLocal_t *Wow_EntityLocal(LPCEDICT ent) {
     return &wow_entity_locals[index];
 }
 
-LPCANIMATION Wow_SetEntityAnimation(LPEDICT ent, cstring_t animation_name) {
+animation_t const * Wow_SetEntityAnimation(edict_t * ent, cstring_t animation_name) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
-    LPCANIMATION anim;
+    animation_t const * anim;
 
     if (!ent || !local || !animation_name || ent->s.model == 0) {
         if (local) {
@@ -657,7 +657,7 @@ LPCANIMATION Wow_SetEntityAnimation(LPEDICT ent, cstring_t animation_name) {
     return local->animation;
 }
 
-bool Wow_SetEntityMoveFirstAnimation(LPEDICT ent, LPWOWMOVE move, cstring_t const *animation_names) {
+bool Wow_SetEntityMoveFirstAnimation(edict_t * ent, wowmove_t * move, cstring_t const *animation_names) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
 
     if (!ent || !local || !move) {
@@ -676,7 +676,7 @@ bool Wow_SetEntityMoveFirstAnimation(LPEDICT ent, LPWOWMOVE move, cstring_t cons
     return false;
 }
 
-bool Wow_SetEntityMove(LPEDICT ent, LPWOWMOVE move) {
+bool Wow_SetEntityMove(edict_t * ent, wowmove_t * move) {
     cstring_t names[2];
 
     if (!move || !move->animation) {
@@ -687,7 +687,7 @@ bool Wow_SetEntityMove(LPEDICT ent, LPWOWMOVE move) {
     return Wow_SetEntityMoveFirstAnimation(ent, move, names);
 }
 
-void Wow_AdvanceEntityFrame(LPEDICT ent) {
+void Wow_AdvanceEntityFrame(edict_t * ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     uint32_t next_frame;
 
@@ -707,8 +707,8 @@ void Wow_AdvanceEntityFrame(LPEDICT ent) {
 /* ---- Projectile system (WC3-style homing missiles) ---- */
 
 /* Forward declarations for functions defined later in this file. */
-static LPEDICT Wow_EdictByNumber(uint32_t number);
-static LPEDICT Wow_FindNearestAttackTarget(LPEDICT ent, float range);
+static edict_t * Wow_EdictByNumber(uint32_t number);
+static edict_t * Wow_FindNearestAttackTarget(edict_t * ent, float range);
 
 #define WOW_FIREBOLT_SPEED      25.0f
 #define WOW_FIREBOLT_DAMAGE     2
@@ -730,14 +730,14 @@ static LPEDICT Wow_FindNearestAttackTarget(LPEDICT ent, float range);
 /* Spell definition table: each spell is a row with function pointers.
  * Pattern follows Quake 2's gitem_t itemlist[] — data-driven, no enum switch. */
 
-static void Wow_SpellAttack(LPEDICT caster, LPEDICT target) {
+static void Wow_SpellAttack(edict_t * caster, edict_t * target) {
     wowEntityLocal_t *cl = Wow_EntityLocal(caster);
     if (cl) cl->enemy = target;
     if (cl && cl->attack) cl->attack(caster);
 }
-static void Wow_SpellFireball(LPEDICT caster, LPEDICT target) { Wow_FireFirebolt(caster, target); }
-static void Wow_SpellFrostbolt(LPEDICT caster, LPEDICT target) { Wow_FireFrostbolt(caster, target); }
-static void Wow_SpellHealingTouch(LPEDICT caster, LPEDICT target) { (void)target; Wow_HealingTouch(caster); }
+static void Wow_SpellFireball(edict_t * caster, edict_t * target) { Wow_FireFirebolt(caster, target); }
+static void Wow_SpellFrostbolt(edict_t * caster, edict_t * target) { Wow_FireFrostbolt(caster, target); }
+static void Wow_SpellHealingTouch(edict_t * caster, edict_t * target) { (void)target; Wow_HealingTouch(caster); }
 
 wowSpellDef_t const wow_spells[] = {
     [WOW_SPELL_ATTACK]        = { "Attack",        Wow_SpellAttack,           0,    0,  5.0f, NULL,                NULL,               0   },
@@ -874,9 +874,9 @@ uint32_t Wow_FireboltModel(void) {
 
 /* ---- Cast State Machine ---- */
 
-static void Wow_BeginSpellCast(LPEDICT caster, uint32_t spell_id, uint32_t target_num) {
+static void Wow_BeginSpellCast(edict_t * caster, uint32_t spell_id, uint32_t target_num) {
     wowEntityLocal_t *cl = Wow_EntityLocal(caster);
-    LPEDICT target = Wow_EdictByNumber(target_num);
+    edict_t * target = Wow_EdictByNumber(target_num);
     if (!cl || spell_id >= wow_spell_count) return;
     wowSpellDef_t const *def = &wow_spells[spell_id];
     cl->attack_damage_time = 0; cl->attack_backswing_time = 0; cl->attack_time = 0;
@@ -884,7 +884,7 @@ static void Wow_BeginSpellCast(LPEDICT caster, uint32_t spell_id, uint32_t targe
     cl->cast_duration  = def->cast_time;
     cl->cast_remaining = def->cast_time;
     cl->cast_target    = target_num;
-    cl->cast_origin    = (VECTOR2){ caster->s.origin.x, caster->s.origin.y };
+    cl->cast_origin    = (vector2_t){ caster->s.origin.x, caster->s.origin.y };
     cl->cast_release_time = 0;
     if (def->ready_anim) {
         cstring_t anim_names[] = { def->ready_anim, NULL };
@@ -895,7 +895,7 @@ static void Wow_BeginSpellCast(LPEDICT caster, uint32_t spell_id, uint32_t targe
     cl->gcd_time = WOW_GCD_MS;
 }
 
-static void Wow_CancelSpellCast(LPEDICT caster) {
+static void Wow_CancelSpellCast(edict_t * caster) {
     wowEntityLocal_t *cl = Wow_EntityLocal(caster);
     if (!cl) return;
     cl->cast_spell = SPELL_NONE;
@@ -904,10 +904,10 @@ static void Wow_CancelSpellCast(LPEDICT caster) {
     /* Mana is NOT consumed on cancel; movement/interrupt refunds the cost */
 }
 
-static void Wow_CompleteSpellCast(LPEDICT caster) {
+static void Wow_CompleteSpellCast(edict_t * caster) {
     wowEntityLocal_t *cl = Wow_EntityLocal(caster);
     if (!cl || cl->cast_spell == SPELL_NONE) return;
-    LPEDICT target = Wow_EdictByNumber(cl->cast_target);
+    edict_t * target = Wow_EdictByNumber(cl->cast_target);
     uint32_t spell = cl->cast_spell;
     cl->cast_spell = SPELL_NONE;
     cl->cast_duration = cl->cast_remaining = 0;
@@ -931,7 +931,7 @@ static void Wow_CompleteSpellCast(LPEDICT caster) {
 }
 
 /* Per-frame cast progress. Returns true while entity is casting (locked). */
-static bool Wow_RunSpellCast(LPEDICT ent) {
+static bool Wow_RunSpellCast(edict_t * ent) {
     wowEntityLocal_t *cl = Wow_EntityLocal(ent);
     if (!cl) return false;
     if (cl->cast_release_time > 0) {
@@ -950,7 +950,7 @@ static bool Wow_RunSpellCast(LPEDICT ent) {
 
     /* Target validation: if target dies/vanishes, cancel cast */
     if (cl->cast_target) {
-        LPEDICT target = Wow_EdictByNumber(cl->cast_target);
+        edict_t * target = Wow_EdictByNumber(cl->cast_target);
         wowEntityLocal_t *target_local = target ? Wow_EntityLocal(target) : NULL;
         if (!target || !target->inuse || (target_local && target_local->dead)) {
             Wow_CancelSpellCast(ent);
@@ -967,9 +967,9 @@ static bool Wow_RunSpellCast(LPEDICT ent) {
 }
 
 /* Each frame: advance active projectile toward its target. */
-void Wow_RunProjectile(LPEDICT ent) {
+void Wow_RunProjectile(edict_t * ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
-    LPEDICT target;
+    edict_t * target;
 
     if (!ent || !local || local->think != Wow_RunProjectile || !ent->inuse) {
         return;
@@ -980,15 +980,15 @@ void Wow_RunProjectile(LPEDICT ent) {
         return;
     }
     {
-        VECTOR2 const t2 = (VECTOR2){ target->s.origin.x, target->s.origin.y };
-        VECTOR2 const p2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
-        VECTOR2 delta = Vector2_sub(&t2, &p2);
+        vector2_t const t2 = (vector2_t){ target->s.origin.x, target->s.origin.y };
+        vector2_t const p2 = (vector2_t){ ent->s.origin.x, ent->s.origin.y };
+        vector2_t delta = Vector2_sub(&t2, &p2);
         float dist = sqrtf(delta.x * delta.x + delta.y * delta.y);
         float step = local->projectile_speed * ((float)FRAMETIME / 1000.0f);
 
         if (dist <= step) {
             /* Hit the target — delegate damage to the shared combat path (Q2 T_Damage analog). */
-            LPEDICT caster = Wow_EdictByNumber(local->projectile_caster);
+            edict_t * caster = Wow_EdictByNumber(local->projectile_caster);
             wowEntityLocal_t *target_local = Wow_EntityLocal(target);
             Wow_ApplyDamage(target, caster, local->projectile_damage);
             /* slow_timer on the projectile encodes the debuff duration to apply. */
@@ -1025,10 +1025,10 @@ void Wow_RunProjectile(LPEDICT ent) {
     }
 }
 
-void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
+void Wow_FireFirebolt(edict_t * caster, edict_t * target) {
     wowEntityLocal_t *caster_local;
     wowEntityLocal_t *pl;
-    LPEDICT proj;
+    edict_t * proj;
     float yaw;
 
     if (!caster || !target || caster == target || !target->inuse) {
@@ -1050,7 +1050,7 @@ void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
 
     pl->think = Wow_RunProjectile;
     {
-        VECTOR2 delta = Vector2_sub(&(VECTOR2){ target->s.origin.x, target->s.origin.y }, &(VECTOR2){ caster->s.origin.x, caster->s.origin.y });
+        vector2_t delta = Vector2_sub(&(vector2_t){ target->s.origin.x, target->s.origin.y }, &(vector2_t){ caster->s.origin.x, caster->s.origin.y });
         yaw = (float)RAD2DEG(atan2f(delta.y, delta.x));
     }
     pl->projectile_target = target->s.number;
@@ -1068,7 +1068,7 @@ void Wow_FireFirebolt(LPEDICT caster, LPEDICT target) {
 
     proj->s.origin.x = caster->s.origin.x;
     proj->s.origin.y = caster->s.origin.y;
-    proj->s.origin2 = (VECTOR2){ proj->s.origin.x, proj->s.origin.y };
+    proj->s.origin2 = (vector2_t){ proj->s.origin.x, proj->s.origin.y };
     proj->s.angle  = (float)DEG2RAD(yaw);
     proj->s.model  = Wow_FireboltModel();
     proj->s.scale  = 0.8f;
@@ -1165,9 +1165,9 @@ uint32_t Wow_FrostboltImpactModel(void) {
 }
 
 /* Fire a Frostbolt: like Firebolt but slower, hits harder, and slows the target. */
-void Wow_FireFrostbolt(LPEDICT caster, LPEDICT target) {
+void Wow_FireFrostbolt(edict_t * caster, edict_t * target) {
     wowEntityLocal_t *caster_local, *pl;
-    LPEDICT proj;
+    edict_t * proj;
     float yaw;
 
     if (!caster || !target || caster == target || !target->inuse) return;
@@ -1184,7 +1184,7 @@ void Wow_FireFrostbolt(LPEDICT caster, LPEDICT target) {
 
     pl->think = Wow_RunProjectile;
     {
-        VECTOR2 delta = Vector2_sub(&(VECTOR2){ target->s.origin.x, target->s.origin.y }, &(VECTOR2){ caster->s.origin.x, caster->s.origin.y });
+        vector2_t delta = Vector2_sub(&(vector2_t){ target->s.origin.x, target->s.origin.y }, &(vector2_t){ caster->s.origin.x, caster->s.origin.y });
         yaw = (float)RAD2DEG(atan2f(delta.y, delta.x));
     }
     pl->projectile_target = target->s.number;
@@ -1205,7 +1205,7 @@ void Wow_FireFrostbolt(LPEDICT caster, LPEDICT target) {
 
     proj->s.origin.x = caster->s.origin.x;
     proj->s.origin.y = caster->s.origin.y;
-    proj->s.origin2 = (VECTOR2){ proj->s.origin.x, proj->s.origin.y };
+    proj->s.origin2 = (vector2_t){ proj->s.origin.x, proj->s.origin.y };
     proj->s.angle   = (float)DEG2RAD(yaw);
     proj->s.model   = Wow_FrostboltModel();
     proj->s.scale   = 0.8f;
@@ -1216,7 +1216,7 @@ void Wow_FireFrostbolt(LPEDICT caster, LPEDICT target) {
     caster_local->enemy = NULL;
 }
 
-void Wow_HealingTouch(LPEDICT caster) {
+void Wow_HealingTouch(edict_t * caster) {
     wowEntityLocal_t *local;
 
     if (!caster) return;
@@ -1233,11 +1233,11 @@ void Wow_HealingTouch(LPEDICT caster) {
 
 /* Find a target in range for the firebolt spell.  Prefers current selection,
    then the current melee enemy, then nearest enemy. */
-LPEDICT Wow_FindSpellTarget(LPEDICT ent, float range) {
+edict_t * Wow_FindSpellTarget(edict_t * ent, float range) {
     if (ent && ent->client && ((wowClient_t *)ent->client)->selected_entity) {
-        LPEDICT t = Wow_EdictByNumber(((wowClient_t *)ent->client)->selected_entity);
+        edict_t * t = Wow_EdictByNumber(((wowClient_t *)ent->client)->selected_entity);
         if (t && t != ent && t->inuse) {
-            VECTOR2 delta = Vector2_sub(&t->s.origin2, &ent->s.origin2);
+            vector2_t delta = Vector2_sub(&t->s.origin2, &ent->s.origin2);
             if (sqrtf(delta.x * delta.x + delta.y * delta.y) <= range) {
                 return t;
             }
@@ -1246,7 +1246,7 @@ LPEDICT Wow_FindSpellTarget(LPEDICT ent, float range) {
     {
         wowEntityLocal_t *local = Wow_EntityLocal(ent);
         if (local && local->enemy && local->enemy != ent && local->enemy->inuse) {
-            VECTOR2 delta = Vector2_sub(&local->enemy->s.origin2, &ent->s.origin2);
+            vector2_t delta = Vector2_sub(&local->enemy->s.origin2, &ent->s.origin2);
             if (sqrtf(delta.x * delta.x + delta.y * delta.y) <= range) {
                 return local->enemy;
             }
@@ -1255,19 +1255,19 @@ LPEDICT Wow_FindSpellTarget(LPEDICT ent, float range) {
     return Wow_FindNearestAttackTarget(ent, range);
 }
 
-static void Wow_UpdateCamera(LPEDICT ent) {
+static void Wow_UpdateCamera(edict_t * ent) {
     gameCamera_t cam;
     if (!ent || !ent->client) return;
     CL_GameDefaultCamera(&cam);
-    ent->client->ps.vieworigin = (VECTOR3){ ent->s.origin.x, ent->s.origin.y, ent->s.origin.z + WOW_CAMERA_EYE_HEIGHT };
+    ent->client->ps.vieworigin = (vector3_t){ ent->s.origin.x, ent->s.origin.y, ent->s.origin.z + WOW_CAMERA_EYE_HEIGHT };
     ent->client->ps.viewangles = Wow_EulerFromCamera(Wow_ViewPitch(wow_move.pitch), wow_move.yaw);
     ent->client->ps.distance = wow_move.distance;
     player_set_lens(&ent->client->ps, &cam);
 }
 
-static void Wow_UpdatePlayerHud(LPEDICT ent) {
+static void Wow_UpdatePlayerHud(edict_t * ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
-    LPPLAYER ps;
+    player_t * ps;
 
     if (!ent || !ent->client || !local) {
         return;
@@ -1296,11 +1296,11 @@ static void Wow_UpdatePlayerHud(LPEDICT ent) {
     else if (local->loot_anim_timer) { local->loot_anim_timer = 0; Wow_SetStandMove(ent); }
 }
 
-static void Wow_MovePlayerFrame(LPEDICT ent) {
+static void Wow_MovePlayerFrame(edict_t * ent) {
     Wow_AdvanceEntityFrame(ent);
 }
 
-static LPEDICT Wow_EdictByNumber(uint32_t number) {
+static edict_t * Wow_EdictByNumber(uint32_t number) {
     if (number >= (uint32_t)globals.num_edicts || number >= WOW_MAX_EDICTS) {
         return NULL;
     }
@@ -1310,8 +1310,8 @@ static LPEDICT Wow_EdictByNumber(uint32_t number) {
     return &wow_edicts[number];
 }
 
-static LPEDICT Wow_FindNearestAttackTarget(LPEDICT ent, float range) {
-    LPEDICT best = NULL;
+static edict_t * Wow_FindNearestAttackTarget(edict_t * ent, float range) {
+    edict_t * best = NULL;
     float best_dist2 = range * range;
 
     if (!ent) {
@@ -1319,8 +1319,8 @@ static LPEDICT Wow_FindNearestAttackTarget(LPEDICT ent, float range) {
     }
 
     for (uint32_t i = globals.max_clients; i < (uint32_t)globals.num_edicts && i < WOW_MAX_EDICTS; i++) {
-        LPEDICT candidate = &wow_edicts[i];
-        VECTOR2 delta;
+        edict_t * candidate = &wow_edicts[i];
+        vector2_t delta;
         float dist2;
 
         if (!candidate->inuse || candidate == ent || !(candidate->svflags & SVF_MONSTER)) {
@@ -1338,8 +1338,8 @@ static LPEDICT Wow_FindNearestAttackTarget(LPEDICT ent, float range) {
     return best;
 }
 
-LPEDICT Wow_Spawn(void) {
-    LPEDICT ent = NULL;
+edict_t * Wow_Spawn(void) {
+    edict_t * ent = NULL;
     uint32_t index;
 
     if (wow_spawns_this_frame >= WOW_MAX_SPAWNS_PER_FRAME)
@@ -1453,8 +1453,8 @@ uint32_t Wow_GetPlayerClass(void) {
     return class_id;
 }
 
-static void Wow_InitPlayer(LPEDICT ent, VECTOR2 spawn_origin, int32_t spawn_location) {
-    LPPLAYER ps;
+static void Wow_InitPlayer(edict_t * ent, vector2_t spawn_origin, int32_t spawn_location) {
+    player_t * ps;
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     float height = Wow_TerrainHeight(spawn_origin.x, spawn_origin.y);
     char race[64], sex[64];
@@ -1487,8 +1487,8 @@ static void Wow_InitPlayer(LPEDICT ent, VECTOR2 spawn_origin, int32_t spawn_loca
     ent->s.model2 = G_RegisterModel(WOW_PLAYER_WEAPON_MODEL);
     ent->s.appearance = appearance;
     ent->s.equipment = Wow_PackEquipment(WOW_PLAYER_EQUIPMENT_UPPER_BODY, WOW_PLAYER_EQUIPMENT_LOWER_BODY, WOW_PLAYER_EQUIPMENT_HANDS, WOW_PLAYER_EQUIPMENT_FEET);
-    ent->s.origin = (VECTOR3){ spawn_origin.x, spawn_origin.y, height };
-    ent->s.origin2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
+    ent->s.origin = (vector3_t){ spawn_origin.x, spawn_origin.y, height };
+    ent->s.origin2 = (vector2_t){ ent->s.origin.x, ent->s.origin.y };
     ent->s.angle = (float)DEG2RAD(wow_move.yaw);
     ent->s.scale = 1.0f;
     ent->s.radius = 1.0f;
@@ -1546,26 +1546,26 @@ static bool Wow_LoadMap(cstring_t mapFilename) {
         gi.ClearWorld();
         gi.configstring(CS_PLAYERSKINS,
             "\\race\\Human\\sex\\Male\\class\\2\\appearance\\0");
-        Wow_InitPlayer(&wow_edicts[0], (VECTOR2){0, 0}, -1);
+        Wow_InitPlayer(&wow_edicts[0], (vector2_t){0, 0}, -1);
         return true;
     }
     if (!CM_LoadMap(mapFilename, gi.LoadingFrame)) {
         return false;
     }
-    gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
+    gi.ApplyLobbySettings((mapInfo_t *)CM_GetMapInfo());
     gi.ClearWorld();
     return Wow_SpawnEntities();
 }
 
 
-static void Wow_ThinkUnit(LPEDICT ent) {
+static void Wow_ThinkUnit(edict_t * ent) {
     wowEntityLocal_t *el = Wow_EntityLocal(ent);
     if (el && el->slow_timer > 0)
         el->slow_timer = el->slow_timer > FRAMETIME ? el->slow_timer - FRAMETIME : 0;
     Wow_RunCreatureFrame(ent);
 }
-static void Wow_ThinkProjectile(LPEDICT ent) { Wow_RunProjectile(ent); }
-static void Wow_ThinkDynamicObject(LPEDICT ent) { Wow_RunDynamicObjectFrame(ent); }
+static void Wow_ThinkProjectile(edict_t * ent) { Wow_RunProjectile(ent); }
+static void Wow_ThinkDynamicObject(edict_t * ent) { Wow_RunDynamicObjectFrame(ent); }
 
 /* Build the WDT path for a numeric map ID by scanning Map.dbc field 1 (directory).
  * Returns true and fills out on success; false when the DBC is absent or the ID
@@ -1595,11 +1595,11 @@ static void Wow_LoadAreaTriggers(void) {
     map_id = CM_WowGetMapId();
     data = gi.ReadFile("DBFilesClient\\AreaTrigger.dbc", &size);
     /* AreaTrigger.dbc: 10 uint32/float fields, no string block — record_size == 40. */
-    if (!Stb_DbcValid(data, size, &h) || h.fields != 10 || h.record_size != sizeof(WOWAREATRIG))
+    if (!Stb_DbcValid(data, size, &h) || h.fields != 10 || h.record_size != sizeof(wowAreatrig_t))
         { SAFE_DELETE(data, gi.MemFree); return; }
     uint8_t const *base = Stb_DbcRecords(data);
     FOR_LOOP(i, h.records) {
-        WOWAREATRIG const *t = (WOWAREATRIG const *)(base + i * h.record_size);
+        wowAreatrig_t const *t = (wowAreatrig_t const *)(base + i * h.record_size);
         if (t->map_id != map_id) continue;
         if (!Wow_AreaTrigTeleportById(t->id)) continue; /* no destination, skip */
         if (wow_area_trig_count >= WOW_MAX_AREA_TRIGS) break;
@@ -1614,12 +1614,12 @@ static void Wow_LoadAreaTriggers(void) {
  * Sphere: dist < radius.  Box: player in local-frame AABB after orientation rotation.
  * On a hit: saves destination to wow_pending_teleport and calls MenuAction("map", ...).
  * Guards on pending to avoid re-entering before the map change completes. */
-static void Wow_CheckAreaTriggers(LPEDICT ent) {
+static void Wow_CheckAreaTriggers(edict_t * ent) {
     char wdt[MAX_PATHLEN];
     if (wow_pending_teleport.pending || !wow_area_trig_count) return;
     FOR_LOOP(i, wow_area_trig_count) {
-        LPCWOWAREATRIG t = &wow_area_trigs[i];
-        LPCWOWAREATRIGTELEPORT dest = Wow_AreaTrigTeleportById(t->id);
+        wowAreatrig_t const * t = &wow_area_trigs[i];
+        wowAreatrigTeleport_t const * dest = Wow_AreaTrigTeleportById(t->id);
         float dx = ent->s.origin.x - t->x, dy = ent->s.origin.y - t->y, dz = ent->s.origin.z - t->z;
         if (!dest) continue;
         if (t->radius > 0.0f) {
@@ -1650,7 +1650,7 @@ static void Wow_CheckAreaTriggers(LPEDICT ent) {
  * (e.g. loading map=0 with an Orc char before a +warp repositions the player). */
 static uint32_t Wow_AnySpawnIndexForMap(uint32_t map_id) {
     FOR_LOOP(i, Wow_SpawnCount()) {
-        LPCWOWSPAWNPOINT sp = Wow_SpawnByIndex(i);
+        wowSpawnPoint_t const * sp = Wow_SpawnByIndex(i);
         if (sp && sp->map == map_id) return i;
     }
     return ~0u;
@@ -1660,7 +1660,7 @@ static bool Wow_SpawnEntities(void) {
     char race[64], sex[64];
     uint32_t class_id, appearance, spawn_index;
     int32_t spawn_location = -1;
-    VECTOR2 spawn_origin = { 0.0f, 0.0f };
+    vector2_t spawn_origin = { 0.0f, 0.0f };
     char buf[MAX_PATHLEN];
 
     /* Read race before spawn selection so the player starts in their race's
@@ -1669,7 +1669,7 @@ static bool Wow_SpawnEntities(void) {
 
     if (wow_pending_teleport.pending) {
         /* Cross-map teleport: destination was saved by Wow_CheckAreaTriggers or warp command. */
-        spawn_origin = (VECTOR2){ wow_pending_teleport.x, wow_pending_teleport.y };
+        spawn_origin = (vector2_t){ wow_pending_teleport.x, wow_pending_teleport.y };
         fprintf(stderr, "WoW: pending teleport → map=%u (%.1f %.1f)\n",
                 (unsigned)CM_WowGetMapId(), spawn_origin.x, spawn_origin.y);
     } else {
@@ -1684,16 +1684,16 @@ static bool Wow_SpawnEntities(void) {
                 fprintf(stderr, "WoW: race=%s class=%u has no spawn on map=%u; using fallback\n",
                         race, (unsigned)class_id, (unsigned)map_id);
                 if (fb == ~0u) return false;
-                LPCVECTOR3 fsp = Wow_GetSpawnPos(fb);
-                if (fsp) { spawn_origin = (VECTOR2){ fsp->x, fsp->y }; spawn_location = (int32_t)fb; }
+                vector3_t const * fsp = Wow_GetSpawnPos(fb);
+                if (fsp) { spawn_origin = (vector2_t){ fsp->x, fsp->y }; spawn_location = (int32_t)fb; }
             } else {
             /* No playercreateinfo for ANY race on this map — it's a dungeon/instance.
              * Fall back to the areatrigger_teleport destination for this map. */
-            LPCWOWAREATRIGTELEPORT at = Wow_AreaTrigSpawnForMap(map_id);
+            wowAreatrigTeleport_t const * at = Wow_AreaTrigSpawnForMap(map_id);
             if (at) {
                 wow_pending_teleport = (wowPendingTeleport_t){ true,
                     at->target_x, at->target_y, at->target_z, at->target_orientation };
-                spawn_origin = (VECTOR2){ at->target_x, at->target_y };
+                spawn_origin = (vector2_t){ at->target_x, at->target_y };
                 fprintf(stderr, "WoW: dungeon map=%u; using areatrigger spawn '%s'\n",
                         (unsigned)map_id, at->name);
             } else {
@@ -1703,9 +1703,9 @@ static bool Wow_SpawnEntities(void) {
             }
             } /* end else-dungeon */
         } else {
-            LPCVECTOR3 sp = Wow_GetSpawnPos(spawn_index);
+            vector3_t const * sp = Wow_GetSpawnPos(spawn_index);
             if (sp) {
-                spawn_origin = (VECTOR2){ sp->x, sp->y };
+                spawn_origin = (vector2_t){ sp->x, sp->y };
                 spawn_location = (int32_t)spawn_index;
                 fprintf(stderr, "WoW: spawn race=%s at (%.1f %.1f)\n", race, sp->x, sp->y);
             }
@@ -1735,7 +1735,7 @@ static bool Wow_SpawnEntities(void) {
     /* Apply authoritative z and orientation from pending teleport AFTER InitPlayer so
      * the SQL z overrides the terrain-height fallback used for dungeon interiors. */
     if (wow_pending_teleport.pending) {
-        LPEDICT p = &wow_edicts[0];
+        edict_t * p = &wow_edicts[0];
         p->s.origin.z = wow_pending_teleport.z;
         p->s.angle    = wow_pending_teleport.orientation;
         wow_pending_teleport.pending = false;
@@ -1760,14 +1760,14 @@ static bool Wow_SpawnEntities(void) {
 }
 
 static void Wow_RunFrame(void) {
-    LPEDICT ent = &wow_edicts[0];
-    VECTOR2 forward;
-    VECTOR2 right;
-    VECTOR2 dir = { 0.0f, 0.0f };
+    edict_t * ent = &wow_edicts[0];
+    vector2_t forward;
+    vector2_t right;
+    vector2_t dir = { 0.0f, 0.0f };
     float len;
     bool moving;
     bool locked;
-    VECTOR3 move_old, move_new;
+    vector3_t move_old, move_new;
 
     wow_spawns_this_frame = 0;
 
@@ -1797,7 +1797,7 @@ static void Wow_RunFrame(void) {
     len = sqrtf(dir.x * dir.x + dir.y * dir.y);
     moving = len > 0.001f;
     move_old = ent->s.origin;
-    ent->s.origin2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
+    ent->s.origin2 = (vector2_t){ ent->s.origin.x, ent->s.origin.y };
     move_new = ent->s.origin;
     if (moving) {
         float step = WOW_WALK_SPEED * ((float)FRAMETIME / 1000.0f) / len;
@@ -1832,15 +1832,15 @@ static void Wow_RunFrame(void) {
      * overriding the cast animation. */
     if (!locked && !moving && Wow_EntityAffectingCombat(ent)) {
         wowEntityLocal_t *local = Wow_EntityLocal(ent);
-        LPEDICT enemy = local->enemy;
+        edict_t * enemy = local->enemy;
         if (enemy) {
-            VECTOR2 delta = Vector2_sub(&enemy->s.origin2, &ent->s.origin2);
+            vector2_t delta = Vector2_sub(&enemy->s.origin2, &ent->s.origin2);
             float dist = Vector2_len(&delta);
             if (dist > WOW_MELEE_RANGE) {
                 float step = MIN(WOW_WALK_SPEED * ((float)FRAMETIME / 1000.0f), dist - WOW_MELEE_RANGE);
                 ent->s.origin.x += delta.x * step / dist;
                 ent->s.origin.y += delta.y * step / dist;
-                ent->s.origin2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
+                ent->s.origin2 = (vector2_t){ ent->s.origin.x, ent->s.origin.y };
                 moving = true;
             }
         }
@@ -1895,7 +1895,7 @@ static void Wow_RunFrame(void) {
 
 process_entities:
     for (uint32_t i = MAX_CLIENTS; i < (uint32_t)globals.num_edicts; i++) {
-        LPEDICT e = &wow_edicts[i];
+        edict_t * e = &wow_edicts[i];
         wowEntityLocal_t *local = Wow_EntityLocal(e);
         if (e->inuse && local && local->think)
             local->think(e);
@@ -1908,10 +1908,10 @@ static cstring_t Wow_GetThemeValue(cstring_t filename) {
 
 static bool Wow_PlayerIsMoving(void) { return wow_move.flags & BZ_WOW_MOVE_MASK; }
 
-static void Wow_SelectEntity(LPEDICT ent, LPEDICT target) {
+static void Wow_SelectEntity(edict_t * ent, edict_t * target) {
     wowClient_t *wc = (wowClient_t *)ent->client;
     uint32_t old = wc->selected_entity;
-    LPEDICT old_target = old ? Wow_EdictByNumber(old) : NULL;
+    edict_t * old_target = old ? Wow_EdictByNumber(old) : NULL;
 
     if (old_target && old_target != target)
         old_target->selected &= ~(1 << ent->client->ps.number);
@@ -1928,14 +1928,14 @@ static void Wow_SelectEntity(LPEDICT ent, LPEDICT target) {
     gi.unicast(ent);
 }
 
-void Wow_QuestAwardKillCredit(LPEDICT attacker, uint32_t display_id) {
+void Wow_QuestAwardKillCredit(edict_t * attacker, uint32_t display_id) {
     wowClient_t *wc;
 
     if (!attacker || !attacker->client) return;
     wc = (wowClient_t *)attacker->client;
     FOR_LOOP(i, wc->quest_count) {
         svQuestEntry_t *qs = &wc->quest_log[i];
-        LPCWOWQUESTDETAIL detail;
+        wowQuestDetail_t const * detail;
         bool all_done;
 
         if (qs->status != SV_QUEST_ACTIVE) continue;
@@ -1965,7 +1965,7 @@ static bool Wow_QuestPrereqMet(wowClient_t *client, uint32_t quest_id) {
 }
 
 static bool Wow_AddQuest(wowClient_t *client, uint32_t quest_id) {
-    LPCWOWQUESTDETAIL detail = Wow_QuestDetail(quest_id);
+    wowQuestDetail_t const * detail = Wow_QuestDetail(quest_id);
     if (!detail) return false;
     if (!Wow_QuestPrereqMet(client, detail->prev_quest)) return false;
     return SV_QuestAdd(client->quest_log, &client->quest_count, SV_MAX_QUEST_LOG, quest_id);
@@ -1978,8 +1978,8 @@ static uint32_t Wow_QuestForGiver(wowClient_t *client, wowEntityLocal_t const *l
     uint32_t group = Wow_QuestGiverGroup(local->quest_id, &local->home);
     if (group == WOW_QUEST_GIVER_GROUP_NONE) return local->quest_id;
     FOR_LOOP(i, Wow_QuestGiverGroupCount(group)) {
-        LPCWOWQUESTGIVER cur = Wow_QuestGiverInGroup(group, i);
-        LPCWOWQUESTDETAIL detail;
+        wowQuestGiver_t const * cur = Wow_QuestGiverInGroup(group, i);
+        wowQuestDetail_t const * detail;
         if (SV_QuestFind(client->quest_log, client->quest_count, cur->quest_id)) continue;
         detail = Wow_QuestDetail(cur->quest_id);
         if (detail && Wow_QuestPrereqMet(client, detail->prev_quest))
@@ -1990,7 +1990,7 @@ static uint32_t Wow_QuestForGiver(wowClient_t *client, wowEntityLocal_t const *l
 
 static void Wow_CompleteQuest(wowClient_t *client, uint32_t quest_id) {
     svQuestEntry_t *state = SV_QuestFind(client->quest_log, client->quest_count, quest_id);
-    LPCWOWQUESTDETAIL detail;
+    wowQuestDetail_t const * detail;
     if (!state || state->status != SV_QUEST_ACTIVE) return;
     detail = Wow_QuestDetail(quest_id);
     if (!detail) return;
@@ -2014,7 +2014,7 @@ static bool Wow_CheatsEnabled(void) {
 }
 
 /* Cheat replies belong to the issuing client; stderr alone only reaches the server operator. */
-static void Wow_CheatPrintf(LPEDICT ent, cstring_t fmt, ...) {
+static void Wow_CheatPrintf(edict_t * ent, cstring_t fmt, ...) {
     char text[1024];
     int32_t opcode = svc_console_print;
     va_list args;
@@ -2027,11 +2027,11 @@ static void Wow_CheatPrintf(LPEDICT ent, cstring_t fmt, ...) {
     gi.unicast(ent);
 }
 
-static void Wow_CheatHelp(LPEDICT ent) {
+static void Wow_CheatHelp(edict_t * ent) {
     Wow_CheatPrintf(ent, "WoW: cheats: give all|health [amount]|mana [amount]|gold [amount]|xp [amount]; god; kill");
 }
 
-static void Wow_GiveCommand(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
+static void Wow_GiveCommand(edict_t * ent, uint32_t argc, cstring_t argv[]) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     uint32_t amount;
 
@@ -2066,7 +2066,7 @@ static void Wow_GiveCommand(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
     Wow_CheatPrintf(ent, "WoW: give %s applied", argv[1]);
 }
 
-static void Wow_CheatCommand(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
+static void Wow_CheatCommand(edict_t * ent, uint32_t argc, cstring_t argv[]) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
 
     if (!Wow_CheatsEnabled()) {
@@ -2091,7 +2091,7 @@ static void Wow_CheatCommand(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
 
 /* Open the loot window for a specific corpse entity.  Snapshots items into the
  * client struct, auto-takes copper, and triggers the player loot animation. */
-static void Wow_OpenLootTarget(LPEDICT ent, LPEDICT corpse) {
+static void Wow_OpenLootTarget(edict_t * ent, edict_t * corpse) {
     wowClient_t *client = (wowClient_t *)ent->client;
     wowEntityLocal_t *player_local = Wow_EntityLocal(ent);
     wowEntityLocal_t *corpse_local = corpse ? Wow_EntityLocal(corpse) : NULL;
@@ -2116,7 +2116,7 @@ static void Wow_OpenLootTarget(LPEDICT ent, LPEDICT corpse) {
     UI_WriteWowHud(ent);
 }
 
-static void Wow_ClientCommand(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
+static void Wow_ClientCommand(edict_t * ent, uint32_t argc, cstring_t argv[]) {
     if (argc >= 1 && !strcasecmp(argv[0], "give")) {
         Wow_GiveCommand(ent, argc, argv);
     } else if (argc >= 1 && (!strcasecmp(argv[0], "god") || !strcasecmp(argv[0], "kill"))) {
@@ -2124,7 +2124,7 @@ static void Wow_ClientCommand(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
     } else if (argc >= 1 && !strcasecmp(argv[0], "quest")) {
         wowClient_t *client = (wowClient_t *)ent->client;
         uint32_t quest_id = argc >= 2 ? (uint32_t)strtoul(argv[1], NULL, 10) : 0;
-        LPEDICT selected = ((wowClient_t *)ent->client)->selected_entity
+        edict_t * selected = ((wowClient_t *)ent->client)->selected_entity
             ? Wow_EdictByNumber(((wowClient_t *)ent->client)->selected_entity) : NULL;
         wowEntityLocal_t *selected_local = selected ? Wow_EntityLocal(selected) : NULL;
         if (!quest_id && selected_local)
@@ -2174,7 +2174,7 @@ static void Wow_ClientCommand(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
         UI_WriteWowHud(ent);
     } else if (argc >= 1 && !strcasecmp(argv[0], "loot")) {
         /* Open loot window for the nearest corpse within melee+loot range. */
-        LPEDICT corpse = Wow_FindNearestCorpse(ent, 10.0f);
+        edict_t * corpse = Wow_FindNearestCorpse(ent, 10.0f);
         if (corpse) Wow_OpenLootTarget(ent, corpse);
     } else if (argc >= 2 && !strcasecmp(argv[0], "loot_take")) {
         /* Move one item from the loot snapshot into the first empty inventory slot. */
@@ -2187,7 +2187,7 @@ static void Wow_ClientCommand(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
             if (inv_slot < WOW_UI_INVENTORY_SLOTS) {
                 client->inventory[inv_slot] = client->loot_snap[slot];
                 /* Sync removal back to corpse entity (keeps corpse state authoritative). */
-                LPEDICT corpse = Wow_EdictByNumber(client->loot_target);
+                edict_t * corpse = Wow_EdictByNumber(client->loot_target);
                 wowEntityLocal_t *cl = corpse ? Wow_EntityLocal(corpse) : NULL;
                 if (cl && cl->loot_items[slot].icon[0]) { cl->loot_items[slot].icon[0] = '\0'; cl->loot_count--; }
             }
@@ -2224,7 +2224,7 @@ static void Wow_ClientCommand(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
         uint32_t n = CM_WowGetAllSpawnCount(); bool found = false;
         /* First: search WorldSafeLocs on current map (same-map warp). */
         FOR_LOOP(i, n) {
-            cstring_t nm = CM_WowGetSpawnName(i); LPCVECTOR3 pos;
+            cstring_t nm = CM_WowGetSpawnName(i); vector3_t const * pos;
             uint32_t qlen = (uint32_t)strlen(query), nlen; bool match = false; uint32_t j;
             if (!nm) continue;
             nlen = (uint32_t)strlen(nm);
@@ -2239,7 +2239,7 @@ static void Wow_ClientCommand(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
         }
         /* Second: search areatrigger_teleport by name (cross-map warp). */
         if (!found) {
-            LPCWOWAREATRIGTELEPORT at = Wow_AreaTrigTeleportByName(query);
+            wowAreatrigTeleport_t const * at = Wow_AreaTrigTeleportByName(query);
             if (at && Wow_WdtPathForMapId(at->target_map, wdt, sizeof(wdt))) {
                 wow_pending_teleport = (wowPendingTeleport_t){ true,
                     at->target_x, at->target_y, at->target_z, at->target_orientation };
@@ -2258,7 +2258,7 @@ static void Wow_ClientCommand(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
     } else if (argc >= 1 && (!strcasecmp(argv[0], "select"))) {
         Wow_SelectEntity(ent, argc >= 2 ? Wow_EdictByNumber((uint32_t)strtoul(argv[1], NULL, 10)) : NULL);
     } else if (argc >= 2 && !strcasecmp(argv[0], "interact")) {
-        LPEDICT target = Wow_EdictByNumber((uint32_t)strtoul(argv[1], NULL, 10));
+        edict_t * target = Wow_EdictByNumber((uint32_t)strtoul(argv[1], NULL, 10));
         wowEntityLocal_t *target_local = target ? Wow_EntityLocal(target) : NULL;
         Wow_SelectEntity(ent, target && target != ent ? target : NULL);
         if (target_local && target_local->think == Wow_RunCorpseFrame) {
@@ -2281,21 +2281,21 @@ static void Wow_ClientCommand(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
         uint32_t old = ((wowClient_t *)ent->client)->selected_entity;
         uint32_t start = old > 0 ? old + 1 : MAX_CLIENTS;
         for (uint32_t i = start; i < (uint32_t)globals.num_edicts; i++) {
-            LPEDICT t = &wow_edicts[i];
+            edict_t * t = &wow_edicts[i];
             if (t->inuse && t != ent && (t->svflags & SVF_MONSTER) && (t->s.renderfx & RF_HOSTILE)) {
                 Wow_SelectEntity(ent, t);
                 return;
             }
         }
         for (uint32_t i = MAX_CLIENTS; i < start && i < (uint32_t)globals.num_edicts; i++) {
-            LPEDICT t = &wow_edicts[i];
+            edict_t * t = &wow_edicts[i];
             if (t->inuse && t != ent && (t->svflags & SVF_MONSTER) && (t->s.renderfx & RF_HOSTILE)) {
                 Wow_SelectEntity(ent, t);
                 return;
             }
         }
     } else if (argc >= 1 && (!strcasecmp(argv[0], "attack") || !strcasecmp(argv[0], "wowattack"))) {
-        LPEDICT target = argc >= 2
+        edict_t * target = argc >= 2
             ? Wow_EdictByNumber((uint32_t)strtoul(argv[1], NULL, 10))
             : Wow_FindNearestAttackTarget(ent, WOW_MELEE_RANGE);
         wowEntityLocal_t *local = Wow_EntityLocal(ent);
@@ -2352,11 +2352,11 @@ static void Wow_ClientCommand(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
             return;
         }
 
-        LPEDICT target = def->range > 0 ? Wow_FindSpellTarget(ent, def->range) : NULL;
+        edict_t * target = def->range > 0 ? Wow_FindSpellTarget(ent, def->range) : NULL;
         /* For instant melee spells, accept the selected target even when out of
          * range — the auto-chase in Wow_RunFrame closes the gap automatically. */
         if (!def->cast_time && !target && ent->client && ((wowClient_t *)ent->client)->selected_entity) {
-            LPEDICT t = Wow_EdictByNumber(((wowClient_t *)ent->client)->selected_entity);
+            edict_t * t = Wow_EdictByNumber(((wowClient_t *)ent->client)->selected_entity);
             if (t && t != ent && t->inuse && (t->svflags & SVF_MONSTER))
                 target = t;
         }
@@ -2388,7 +2388,7 @@ static questMarker_t Wow_QuestMarkerForGiver(wowClient_t *client, wowEntityLocal
     group = Wow_QuestGiverGroup(local->quest_id, &local->home);
     if (group == WOW_QUEST_GIVER_GROUP_NONE) return QUEST_MARKER_NONE;
     FOR_LOOP(i, Wow_QuestGiverGroupCount(group)) {
-        LPCWOWQUESTGIVER cur = Wow_QuestGiverInGroup(group, i);
+        wowQuestGiver_t const * cur = Wow_QuestGiverInGroup(group, i);
         svQuestEntry_t *e;
         e = SV_QuestFind(client->quest_log, client->quest_count, cur->quest_id);
         if (!e || e->status == SV_QUEST_REWARDED) continue;
@@ -2399,7 +2399,7 @@ static questMarker_t Wow_QuestMarkerForGiver(wowClient_t *client, wowEntityLocal
 }
 
 /* Author recipient-specific hover and quest presentation from the private creature state. */
-static void Wow_CustomizeEntity(uint32_t player, LPCEDICT ent, LPENTITYSTATE state) {
+static void Wow_CustomizeEntity(uint32_t player, edict_t const * ent, entityState_t * state) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     if (player >= MAX_CLIENTS) return;
     state->flags &= ~EF_HOVER_HEALTH;
@@ -2426,11 +2426,11 @@ static void Wow_CustomizeEntity(uint32_t player, LPCEDICT ent, LPENTITYSTATE sta
 }
 
 /* Actor movement owns focus; camera input changes only the orbit around that actor. */
-static void Wow_ClientInput(LPEDICT ent, LPCINPUTCMD cmd) {
+static void Wow_ClientInput(edict_t * ent, inputCmd_t const * cmd) {
     if (cmd->action == BZ_INPUT_MOVE) {
         wow_move.flags = cmd->move.buttons;
     } else if (cmd->action == BZ_INPUT_VIEW && ent->client->ps.client_ui_state == CLIENT_UI_GAME) {
-        VECTOR3 native = Wow_CameraFromEuler(&cmd->view.angles);
+        vector3_t native = Wow_CameraFromEuler(&cmd->view.angles);
         wow_move.yaw = native.y;
         wow_move.pitch = Wow_Clamp(360.0f - native.x, WOW_CAMERA_MIN_PITCH, WOW_CAMERA_MAX_PITCH);
         wow_move.distance = Wow_Clamp(cmd->view.distance, WOW_CAMERA_MIN_DISTANCE, WOW_CAMERA_MAX_DISTANCE);
@@ -2438,7 +2438,7 @@ static void Wow_ClientInput(LPEDICT ent, LPCINPUTCMD cmd) {
     }
 }
 
-static void Wow_ClientBegin(LPEDICT ent) {
+static void Wow_ClientBegin(edict_t * ent) {
     if (!ent) {
         return;
     }

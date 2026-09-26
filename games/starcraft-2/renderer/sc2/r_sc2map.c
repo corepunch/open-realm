@@ -50,32 +50,32 @@ do { \
 
 /* SC2 terrain uses its own vertex shader for blend UVs. */
 extern m3SequenceTimeline_t const *M3_FindAnimationAtTime(m3Model_t const *model, uint32_t time, uint32_t *localtime);
-extern VECTOR3 M3_GetVector3AnimValue(m3Model_t const *model,
+extern vector3_t M3_GetVector3AnimValue(m3Model_t const *model,
                                       m3SequenceTimeline_t const *timeline,
                                       m3Vector3AnimRef_t const *animref,
                                       uint32_t time);
-extern VECTOR4 M3_GetVector4AnimValue(m3Model_t const *model,
+extern vector4_t M3_GetVector4AnimValue(m3Model_t const *model,
                                       m3SequenceTimeline_t const *timeline,
                                       m3Vector4AnimRef_t const *animref,
                                       uint32_t time);
-extern void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMATRIX4 transform);
-extern void M3_RenderBuffer(renderEntity_t const *entity, m3Model_t const *model, LPCBUFFER buffer, uint32_t vertices, uint32_t indices);
+extern void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, matrix4_t const * transform);
+extern void M3_RenderBuffer(renderEntity_t const *entity, m3Model_t const *model, buffer_t const * buffer, uint32_t vertices, uint32_t indices);
 
 #include "r_sc2_road_draw.h"
 
-static LPMAPSEGMENT sc2_terrain_segment;
-static LPMAPLAYER sc2_hard_tile_layers;
-static LPCMODEL sc2_hard_tile_model;
+static mapsegment_t * sc2_terrain_segment;
+static maplayer_t * sc2_hard_tile_layers;
+static model_t const * sc2_hard_tile_model;
 static renderEntity_t sc2_hard_tile_entity;
 static bool sc2_terrain_shader_loaded;
 static bool sc2_cliff_shader_loaded;
-static LPTEXTURE sc2_terrain_textures[SC2_TERRAIN_BLEND_LAYERS];
-static LPTEXTURE sc2_terrain_masks[SC2_TERRAIN_BLEND_GROUPS];
+static texture_t * sc2_terrain_textures[SC2_TERRAIN_BLEND_LAYERS];
+static texture_t * sc2_terrain_masks[SC2_TERRAIN_BLEND_GROUPS];
 static uint32_t sc2_num_terrain_layers;
 static cameraHeightMap_t sc2_camera_height;
 /* Shared normal grid: (MAP_W+1)*(MAP_H+1) normals derived from the heightmap.
    Both ground vertices and cliff boundary vertices index into this so seams never appear. */
-static VECTOR3 *sc2_terrain_normals;
+static vector3_t *sc2_terrain_normals;
 
 static float r_sc2_camera_grid_height(void const * data, uint32_t x, uint32_t y) {
     return sc2_map_height_at_grid(data, x, y);
@@ -83,7 +83,7 @@ static float r_sc2_camera_grid_height(void const * data, uint32_t x, uint32_t y)
 
 typedef struct sc2CliffModel_s {
     PATHSTR path;
-    LPCMODEL model;
+    model_t const * model;
     struct sc2CliffModel_s *next;
 } sc2CliffModel_t;
 
@@ -92,12 +92,12 @@ typedef struct rSc2CliffPlacement_s {
     float model_z_offset;
     float z_scale;
     uint32_t join_edges;
-    SC2RAMP const *ramp;
+    sc2Ramp_t const *ramp;
 } rSc2CliffPlacement_t;
 
 typedef struct rSc2CliffBakeBatch_s {
     rCliffBakeList_t list;
-    LPCTEXTURE texture;
+    texture_t const * texture;
     struct rSc2CliffBakeBatch_s *next;
 } rSc2CliffBakeBatch_t;
 
@@ -116,59 +116,59 @@ static sc2CliffModel_t *sc2_cliff_models;
 static void r_sc2_release_cliff_models(void);
 static sc2CliffCell_t const *r_sc2_find_cliff_cell(sc2Map_t const *map, uint32_t index);
 
-typedef struct SC2TERRAINSTATE {
-    MATRIX4 viewProjection;
-    MATRIX4 textureMatrix;
-    MATRIX4 model;
-    MATRIX4 lightMatrix;
-    VECTOR3 lightAmbient;
-    VECTOR3 lightDir[SC2_MAX_DIRECTIONAL_LIGHTS];
-    VECTOR3 lightColor[SC2_MAX_DIRECTIONAL_LIGHTS];
+typedef struct sc2TerrainState_s {
+    matrix4_t viewProjection;
+    matrix4_t textureMatrix;
+    matrix4_t model;
+    matrix4_t lightMatrix;
+    vector3_t lightAmbient;
+    vector3_t lightDir[SC2_MAX_DIRECTIONAL_LIGHTS];
+    vector3_t lightColor[SC2_MAX_DIRECTIONAL_LIGHTS];
     int layer0;
     int layer1;
     int layer2;
     int layer3;
     int mask;
     int shadowmap;
-    VECTOR2 worldUVOffset;
-    VECTOR2 worldUVScale;
-    VECTOR4 fogColor;
-    VECTOR4 fogParams;
-} SC2TERRAINSTATE;
-typedef struct SC2TERRAINSTATE *LPSC2TERRAINSTATE;
-typedef const struct SC2TERRAINSTATE *LPCSC2TERRAINSTATE;
-typedef struct SC2TERRAINPROG {
-    SHADERPROG prog;
-    SC2TERRAINSTATE state;
-} SC2TERRAINPROG;
-typedef struct SC2TERRAINPROG *LPSC2TERRAINPROG;
-typedef const struct SC2TERRAINPROG *LPCSC2TERRAINPROG;
+    vector2_t worldUVOffset;
+    vector2_t worldUVScale;
+    vector4_t fogColor;
+    vector4_t fogParams;
+} sc2TerrainState_t;
 
-typedef struct SC2CLIFFSTATE {
-    MATRIX4 viewProjection;
-    MATRIX4 model;
-    MATRIX4 lightMatrix;
-    VECTOR3 lightAmbient;
-    VECTOR3 lightDir[SC2_MAX_DIRECTIONAL_LIGHTS];
-    VECTOR3 lightColor[SC2_MAX_DIRECTIONAL_LIGHTS];
+
+typedef struct sc2TerrainProg_s {
+    shaderProg_t prog;
+    sc2TerrainState_t state;
+} sc2TerrainProg_t;
+
+
+
+typedef struct sc2CliffState_s {
+    matrix4_t viewProjection;
+    matrix4_t model;
+    matrix4_t lightMatrix;
+    vector3_t lightAmbient;
+    vector3_t lightDir[SC2_MAX_DIRECTIONAL_LIGHTS];
+    vector3_t lightColor[SC2_MAX_DIRECTIONAL_LIGHTS];
     int texture;
     int shadowmap;
-    VECTOR4 fogColor;
-    VECTOR4 fogParams;
-} SC2CLIFFSTATE;
-typedef struct SC2CLIFFSTATE *LPSC2CLIFFSTATE;
-typedef const struct SC2CLIFFSTATE *LPCSC2CLIFFSTATE;
-typedef struct SC2CLIFFPROG {
-    SHADERPROG prog;
-    SC2CLIFFSTATE state;
-} SC2CLIFFPROG;
-typedef struct SC2CLIFFPROG *LPSC2CLIFFPROG;
-typedef const struct SC2CLIFFPROG *LPCSC2CLIFFPROG;
+    vector4_t fogColor;
+    vector4_t fogParams;
+} sc2CliffState_t;
 
-static SC2TERRAINPROG sc2_terrain_shader;
-static SC2CLIFFPROG sc2_cliff_shader;
 
-#define SHADER_TYPE SC2TERRAINSTATE
+typedef struct sc2CliffProg_s {
+    shaderProg_t prog;
+    sc2CliffState_t state;
+} sc2CliffProg_t;
+
+
+
+static sc2TerrainProg_t sc2_terrain_shader;
+static sc2CliffProg_t sc2_cliff_shader;
+
+#define SHADER_TYPE sc2TerrainState_t
 static const shader_desc_t sd_sc2_terrain = {
     .Name = "sc2_terrain",
     .Uniforms = {
@@ -256,7 +256,7 @@ static const shader_desc_t sd_sc2_terrain = {
 };
 #undef SHADER_TYPE
 
-#define SHADER_TYPE SC2CLIFFSTATE
+#define SHADER_TYPE sc2CliffState_t
 static const shader_desc_t sd_sc2_cliff = {
     .Name = "sc2_cliff",
     .Uniforms = {
@@ -353,18 +353,18 @@ static void r_sc2_free_file(handle_t file) {
     ri.FS_FreeFile(file);
 }
 
-static void r_sc2_push_vertex_normal(VERTEX *v,
+static void r_sc2_push_vertex_normal(vertex_t *v,
                                      float x,
                                      float y,
                                      float z,
                                      float u,
                                      float t,
                                      uint8_t alpha,
-                                     VECTOR3 normal) {
-    v->position = (VECTOR3){ x, y, z };
-    v->texcoord = (VECTOR2){ u, t };
+                                     vector3_t normal) {
+    v->position = (vector3_t){ x, y, z };
+    v->texcoord = (vector2_t){ u, t };
     v->normal = normal;
-    v->color = (COLOR32){ 255, 255, 255, alpha };
+    v->color = (color32_t){ 255, 255, 255, alpha };
 }
 
 static uint16_t r_sc2_cliff_level_at_grid(sc2Map_t const *map, uint32_t x, uint32_t y) {
@@ -406,7 +406,7 @@ static bool r_sc2_skip_ground_cell(sc2Map_t const *map, uint32_t x, uint32_t y) 
     uint32_t block_y = SC2_CLIFF_BLOCK_ORIGIN(y);
 
     if (r_sc2_cliff_block_is_ramp(map, block_x, block_y))
-        return r_sc2_ramp_covers_ground(map, (VECTOR2){x+0.5f,y+0.5f});
+        return r_sc2_ramp_covers_ground(map, (vector2_t){x+0.5f,y+0.5f});
     return !r_sc2_cliff_block_is_flat(map, block_x, block_y);
 }
 
@@ -501,7 +501,7 @@ static float r_sc2_ground_height_at_point(sc2Map_t const *map, float x, float y)
         return 0.0f;
     float height[] = { r_sc2_ground_height_at_grid(map, p.x0, p.y0), r_sc2_ground_height_at_grid(map, p.x1, p.y0),
         r_sc2_ground_height_at_grid(map, p.x0, p.y1), r_sc2_ground_height_at_grid(map, p.x1, p.y1) };
-    return r_sc2_ground_triangle_height(height, (VECTOR2){p.tx, p.ty});
+    return r_sc2_ground_triangle_height(height, (vector2_t){p.tx, p.ty});
 }
 
 /* Only cliff sides bordering emitted ground have a seam that must share the height-grid edge. */
@@ -519,7 +519,7 @@ static uint32_t r_sc2_cliff_join_edges(sc2Map_t const *map, uint32_t x, uint32_t
     return edges;
 }
 
-static bool r_sc2_cliff_vertex_joins_ground(LPCVECTOR3 pos, uint32_t edges) {
+static bool r_sc2_cliff_vertex_joins_ground(vector3_t const * pos, uint32_t edges) {
     return ((edges & SC2_CLIFF_JOIN_LEFT) && fabsf(pos->x + 1.0f) < SC2_EPSILON) ||
            ((edges & SC2_CLIFF_JOIN_RIGHT) && fabsf(pos->x - 1.0f) < SC2_EPSILON) ||
            ((edges & SC2_CLIFF_JOIN_BOTTOM) && fabsf(pos->y + 1.0f) < SC2_EPSILON) ||
@@ -529,7 +529,7 @@ static bool r_sc2_cliff_vertex_joins_ground(LPCVECTOR3 pos, uint32_t edges) {
 static void r_sc2_build_terrain_normal_grid(sc2Map_t const *map) {
     uint32_t w = SC2_MAP_WIDTH(map);
     uint32_t h = SC2_MAP_HEIGHT(map);
-    TERRAINNORMALS grid = { map, r_sc2_normal_height, w + 1, h + 1, map->cell_size };
+    terrainNormals_t grid = { map, r_sc2_normal_height, w + 1, h + 1, map->cell_size };
     uint32_t n = (w + 1) * (h + 1);
 
     ri.MemFree(sc2_terrain_normals);
@@ -538,8 +538,8 @@ static void r_sc2_build_terrain_normal_grid(sc2Map_t const *map) {
         sc2_terrain_normals[i] = R_TerrainGridNormal(&grid, i % (w + 1), i / (w + 1));
 }
 
-static VECTOR3 r_sc2_terrain_normal_at_world(sc2Map_t const *map, float wx, float wy) {
-    BOX2 bounds = SC2_MapBounds();
+static vector3_t r_sc2_terrain_normal_at_world(sc2Map_t const *map, float wx, float wy) {
+    box2_t bounds = SC2_MapBounds();
     uint32_t w = SC2_MAP_WIDTH(map);
     uint32_t h = SC2_MAP_HEIGHT(map);
     float gx = (wx - bounds.min.x) / map->cell_size;
@@ -547,9 +547,9 @@ static VECTOR3 r_sc2_terrain_normal_at_world(sc2Map_t const *map, float wx, floa
     int x0 = (int)floorf(gx), y0 = (int)floorf(gy);
     float tx = gx - (float)x0, ty = gy - (float)y0;
     int x1, y1;
-    VECTOR3 n00, n10, n01, n11, n0, n1, result;
+    vector3_t n00, n10, n01, n11, n0, n1, result;
 
-    if (!sc2_terrain_normals) return (VECTOR3){ 0.0f, 0.0f, 1.0f };
+    if (!sc2_terrain_normals) return (vector3_t){ 0.0f, 0.0f, 1.0f };
     x0 = MAX(0, MIN((int)w, x0));
     y0 = MAX(0, MIN((int)h, y0));
     x1 = MIN((int)w, x0 + 1);
@@ -566,7 +566,7 @@ static VECTOR3 r_sc2_terrain_normal_at_world(sc2Map_t const *map, float wx, floa
 }
 
 static void r_sc2_build_ground_vertex_normals(sc2Map_t const *map,
-                                              VERTEX *vertices,
+                                              vertex_t *vertices,
                                               uint32_t w,
                                               uint32_t h) {
     uint32_t num_vertices = (w + 1) * (h + 1);
@@ -577,11 +577,11 @@ static void r_sc2_build_ground_vertex_normals(sc2Map_t const *map,
     }
 }
 
-static void r_sc2_release_layer(LPMAPLAYER layer) {
+static void r_sc2_release_layer(maplayer_t * layer) {
     while (layer) {
-        LPMAPLAYER next = layer->next;
-        R_ReleaseVertexArrayObject((LPBUFFER)layer->buffer);
-        R_ReleaseTexture((LPTEXTURE)layer->texture);
+        maplayer_t * next = layer->next;
+        R_ReleaseVertexArrayObject((buffer_t *)layer->buffer);
+        R_ReleaseTexture((texture_t *)layer->texture);
         ri.MemFree(layer);
         layer = next;
     }
@@ -590,7 +590,7 @@ static void r_sc2_release_layer(LPMAPLAYER layer) {
 static void r_sc2_release_terrain(void) {
     R_FreeCameraHeightMap(&sc2_camera_height);
     while (sc2_terrain_segment) {
-        LPMAPSEGMENT next = sc2_terrain_segment->next;
+        mapsegment_t * next = sc2_terrain_segment->next;
         r_sc2_release_layer(sc2_terrain_segment->layers);
         ri.MemFree(sc2_terrain_segment);
         sc2_terrain_segment = next;
@@ -603,11 +603,11 @@ static void r_sc2_release_terrain(void) {
     }
     r_sc2_release_cliff_models();
     while (sc2_hard_tile_layers) {
-        LPMAPLAYER next = sc2_hard_tile_layers->next;
-        R_ReleaseVertexArrayObject((LPBUFFER)sc2_hard_tile_layers->buffer);
+        maplayer_t * next = sc2_hard_tile_layers->next;
+        R_ReleaseVertexArrayObject((buffer_t *)sc2_hard_tile_layers->buffer);
         ri.MemFree(sc2_hard_tile_layers); sc2_hard_tile_layers = next;
     }
-    if (sc2_hard_tile_model) R_ReleaseModel((LPMODEL)sc2_hard_tile_model);
+    if (sc2_hard_tile_model) R_ReleaseModel((model_t *)sc2_hard_tile_model);
     sc2_hard_tile_model = NULL;
     sc2_num_terrain_layers = 0;
     ri.MemFree(sc2_terrain_normals);
@@ -615,10 +615,10 @@ static void r_sc2_release_terrain(void) {
 }
 
 /* Count or emit the same ground-triangle intersections, including cliff/ramp omissions. */
-static uint32_t r_sc2_project_road(sc2Map_t const *map, LPCSC2ROADTRI tri, LPVERTEX out) {
-    LPCVERTEX road = tri->verts;
-    BOX2 bounds = SC2_MapBounds();
-    VECTOR2 lo = {road[0].position.x, road[0].position.y}, hi = lo;
+static uint32_t r_sc2_project_road(sc2Map_t const *map, sc2RoadTri_t const * tri, vertex_t * out) {
+    vertex_t const * road = tri->verts;
+    box2_t bounds = SC2_MapBounds();
+    vector2_t lo = {road[0].position.x, road[0].position.y}, hi = lo;
     uint32_t total = 0;
     FOR_LOOP(i, 3) {
         lo.x = MIN(lo.x, road[i].position.x); lo.y = MIN(lo.y, road[i].position.y);
@@ -630,15 +630,15 @@ static uint32_t r_sc2_project_road(sc2Map_t const *map, LPCSC2ROADTRI tri, LPVER
     int y1 = MIN((int)SC2_MAP_HEIGHT(map)-1, (int)floorf((hi.y-bounds.min.y)/map->cell_size));
     for (int y = y0; y <= y1; y++) {
         for (int x = x0; x <= x1; x++) {
-            VERTEX corners[4] = {0};
+            vertex_t corners[4] = {0};
             if (r_sc2_skip_ground_cell(map, x, y)) continue;
             FOR_LOOP(i, 4) {
                 uint32_t gx = x + (i == 1 || i == 2), gy = y + (i >= 2);
-                corners[i].position = (VECTOR3){bounds.min.x+gx*map->cell_size, bounds.min.y+gy*map->cell_size, r_sc2_ground_height_at_grid(map, gx, gy)};
+                corners[i].position = (vector3_t){bounds.min.x+gx*map->cell_size, bounds.min.y+gy*map->cell_size, r_sc2_ground_height_at_grid(map, gx, gy)};
                 corners[i].normal = sc2_terrain_normals[gx + gy*(SC2_MAP_WIDTH(map)+1)];
             }
             FOR_LOOP(i, 2) {
-                VERTEX ground[] = {corners[0], corners[i+1], corners[i+2]};
+                vertex_t ground[] = {corners[0], corners[i+1], corners[i+2]};
                 total += r_sc2_clip_road(road, ground, out ? out+total : NULL);
             }
         }
@@ -646,7 +646,7 @@ static uint32_t r_sc2_project_road(sc2Map_t const *map, LPCSC2ROADTRI tri, LPVER
     /* A cliff cell has real M3 top geometry instead of grid triangles, including bridge approaches. */
     for (rSc2CliffBakeBatch_t const *batch = sc2_road_cliffs; batch; batch = batch->next) {
         for (uint32_t i = 0; i < batch->list.num_vertices; i += 3) {
-            LPCVERTEX cliff = batch->list.vertices+i;
+            vertex_t const * cliff = batch->list.vertices+i;
             float minx = MIN(cliff[0].position.x, MIN(cliff[1].position.x, cliff[2].position.x));
             float maxx = MAX(cliff[0].position.x, MAX(cliff[1].position.x, cliff[2].position.x));
             float miny = MIN(cliff[0].position.y, MIN(cliff[1].position.y, cliff[2].position.y));
@@ -659,17 +659,17 @@ static uint32_t r_sc2_project_road(sc2Map_t const *map, LPCSC2ROADTRI tri, LPVER
 }
 
 /* Bake exact-size draped geometry; split M3 buffers before their 16-bit indices overflow. */
-static void r_sc2_bake_roads(sc2Map_t const *map, LPCSC2ROADTRI roads, uint32_t count) {
+static void r_sc2_bake_roads(sc2Map_t const *map, sc2RoadTri_t const * roads, uint32_t count) {
     uint32_t total = 0, used = 0;
     FOR_LOOP(i, count) total += r_sc2_project_road(map, roads+i, NULL);
     if (!total) return;
-    VERTEX *baked = ri.MemAlloc(total * sizeof(*baked));
+    vertex_t *baked = ri.MemAlloc(total * sizeof(*baked));
     if (!baked) { fprintf(stderr, "SC2 road build: allocation failed for %u vertices\n", total); return; }
     FOR_LOOP(i, count) used += r_sc2_project_road(map, roads+i, baked+used);
     for (uint32_t first = 0; first < total;) {
         uint32_t n = MIN(total-first, 65535u); /* Complete triangles, addressable by M3's uint16_t indices. */
         uint16_t *faces = ri.MemAlloc(n * sizeof(*faces));
-        LPMAPLAYER layer = ri.MemAlloc(sizeof(*layer));
+        maplayer_t * layer = ri.MemAlloc(sizeof(*layer));
         if (!faces || !layer) {
             fprintf(stderr, "SC2 road build: buffer allocation failed for %u vertices\n", n);
             ri.MemFree(faces); ri.MemFree(layer); break;
@@ -677,7 +677,7 @@ static void r_sc2_bake_roads(sc2Map_t const *map, LPCSC2ROADTRI roads, uint32_t 
         FOR_LOOP(i, n) faces[i] = i;
         memset(layer, 0, sizeof(*layer));
         layer->num_vertices = layer->num_indices = n;
-        LPBUFFER buffer = R_MakeVertexArrayObject(baked+first, n);
+        buffer_t * buffer = R_MakeVertexArrayObject(baked+first, n);
         layer->buffer = buffer;
         R_Call(glBindVertexArray, layer->buffer->vao);
         R_Call(glGenBuffers, 1, &buffer->ibo);
@@ -694,10 +694,10 @@ static void r_sc2_build_hard_tiles(sc2Map_t const *map) {
     uint32_t count = 0;
     float distance = 0;
     bool chain = false;
-    VERTEX prev[2] = {0};
+    vertex_t prev[2] = {0};
 
     if (!map || IS_ARRAY_EMPTY(map->hard_tiles)) return;
-    SC2ROADTRI *roads = ri.MemAlloc(ARRAY_COUNT(map->hard_tiles)*SC2_HARD_TILE_CURVE_STEPS*2*sizeof(*roads));
+    sc2RoadTri_t *roads = ri.MemAlloc(ARRAY_COUNT(map->hard_tiles)*SC2_HARD_TILE_CURVE_STEPS*2*sizeof(*roads));
     if (!roads) { fprintf(stderr, "SC2 road build: ribbon allocation failed\n"); return; }
     FOR_EACH_ARRAY(sc2MapHardTile_t, tile, map->hard_tiles) {
         uint32_t index = tile-map->hard_tiles;
@@ -717,27 +717,27 @@ static void r_sc2_build_hard_tiles(sc2Map_t const *map) {
         if (!chain) distance = 0;
         for (uint32_t step = chain ? 1 : 0; step <= SC2_HARD_TILE_CURVE_STEPS; step++) {
             float t = step/(float)SC2_HARD_TILE_CURVE_STEPS;
-            VECTOR3 point = r_sc2_hard_tile_curve_point(tile, next, t);
-            VECTOR3 tangent = r_sc2_hard_tile_curve_tangent(tile, next, t);
-            VECTOR3 normal = Vector3_lerp(&tile->normal, &next->normal, t), side;
+            vector3_t point = r_sc2_hard_tile_curve_point(tile, next, t);
+            vector3_t tangent = r_sc2_hard_tile_curve_tangent(tile, next, t);
+            vector3_t normal = Vector3_lerp(&tile->normal, &next->normal, t), side;
             float width = LerpNumber(tile->scale.x, next->scale.x, t);
-            VERTEX cur[2] = {0};
+            vertex_t cur[2] = {0};
             if (step) {
-                VECTOR3 p = r_sc2_hard_tile_curve_point(tile, next, (step-1)/(float)SC2_HARD_TILE_CURVE_STEPS);
+                vector3_t p = r_sc2_hard_tile_curve_point(tile, next, (step-1)/(float)SC2_HARD_TILE_CURVE_STEPS);
                 distance += Vector3_distance(&point, &p)/MAX(width*2*SC2_HARD_TILE_BODY_ASPECT, SC2_EPSILON);
             }
             Vector3_normalize(&normal); side = Vector3_cross(&tangent, &normal); Vector3_normalize(&side);
             FOR_LOOP(edge, 2) {
                 float sign = edge ? 1 : -1;
-                cur[edge].position = Vector3_add(&point, &(VECTOR3){side.x*width*sign, side.y*width*sign, side.z*width*sign});
+                cur[edge].position = Vector3_add(&point, &(vector3_t){side.x*width*sign, side.y*width*sign, side.z*width*sign});
                 cur[edge].normal = normal;
-                cur[edge].texcoord = (VECTOR2){distance, SC2_HARD_TILE_BODY_V + (edge ? .5f : 0)};
+                cur[edge].texcoord = (vector2_t){distance, SC2_HARD_TILE_BODY_V + (edge ? .5f : 0)};
                 cur[edge].color = COLOR32_WHITE; cur[edge].boneWeight[0] = 255;
             }
             if (step) {
                 float depth = MAX(tile->scale.y, next->scale.y);
-                roads[count++] = (SC2ROADTRI){ {prev[0], cur[0], prev[1]}, depth };
-                roads[count++] = (SC2ROADTRI){ {prev[1], cur[0], cur[1]}, depth };
+                roads[count++] = (sc2RoadTri_t){ {prev[0], cur[0], prev[1]}, depth };
+                roads[count++] = (sc2RoadTri_t){ {prev[1], cur[0], cur[1]}, depth };
             }
             memcpy(prev, cur, sizeof(prev));
         }
@@ -751,14 +751,14 @@ static void r_sc2_build_hard_tiles(sc2Map_t const *map) {
 static void r_sc2_release_cliff_models(void) {
     while (sc2_cliff_models) {
         sc2CliffModel_t *next = sc2_cliff_models->next;
-        R_ReleaseModel((LPMODEL)sc2_cliff_models->model);
+        R_ReleaseModel((model_t *)sc2_cliff_models->model);
         ri.MemFree(sc2_cliff_models);
         sc2_cliff_models = next;
     }
 }
 
-static void r_sc2_add_layer(LPMAPLAYER *list, LPMAPLAYER layer) {
-    LPMAPLAYER *tail = list;
+static void r_sc2_add_layer(maplayer_t * *list, maplayer_t * layer) {
+    maplayer_t * *tail = list;
 
     if (!layer) {
         return;
@@ -837,12 +837,12 @@ static void r_sc2_decode_texture_mask_layer(sc2Map_t const *map, uint32_t layer,
     }
 }
 
-static LPTEXTURE r_sc2_build_mask_texture(sc2Map_t const *map, uint32_t group) {
+static texture_t * r_sc2_build_mask_texture(sc2Map_t const *map, uint32_t group) {
     uint32_t w = 1;
     uint32_t h = 1;
     uint8_t *values;
-    COLOR32 *pixels;
-    LPTEXTURE texture;
+    color32_t *pixels;
+    texture_t * texture;
 
     if (map->t3TextureMasks && map->t3TextureMasks->width && map->t3TextureMasks->height) {
         w = map->t3TextureMasks->width;
@@ -871,14 +871,14 @@ static LPTEXTURE r_sc2_build_mask_texture(sc2Map_t const *map, uint32_t group) {
             total = 255;
         }
         /* Layer weights are RGBA on every backend, just like the common texture upload contract. */
-        pixels[i] = (COLOR32){
+        pixels[i] = (color32_t){
                                (uint8_t)((mask[group * SC2_TERRAIN_PASS_LAYERS + 0] * 255u + total / 2) / total),
                                (uint8_t)((mask[group * SC2_TERRAIN_PASS_LAYERS + 1] * 255u + total / 2) / total),
                                (uint8_t)((mask[group * SC2_TERRAIN_PASS_LAYERS + 2] * 255u + total / 2) / total),
                                (uint8_t)((mask[group * SC2_TERRAIN_PASS_LAYERS + 3] * 255u + total / 2) / total)};
     }
     texture = R_AllocateTexture(w, h);
-    R_LoadTextureMipLevel(texture, &(TEXMIP){ pixels, w, h, 0, PIXEL_RGBA });
+    R_LoadTextureMipLevel(texture, &(texMip_t){ pixels, w, h, 0, PIXEL_RGBA });
     R_SetTextureWrap(texture, false, false);
     ri.MemFree(values);
     ri.MemFree(pixels);
@@ -898,13 +898,13 @@ static void r_sc2_load_terrain_textures(sc2Map_t const *map) {
     }
 }
 
-static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
-    BOX2 bounds;
+static maplayer_t * r_sc2_build_ground_layer(sc2Map_t const *map) {
+    box2_t bounds;
     uint32_t w, h, num_vertices, num_indices;
-    VERTEX *vertices;
+    vertex_t *vertices;
     uint32_t *indices;
     uint32_t *out;
-    LPMAPLAYER map_layer;
+    maplayer_t * map_layer;
 
     if (!map || !SC2_MAP_WIDTH(map) || !SC2_MAP_HEIGHT(map))
         return NULL;
@@ -932,7 +932,7 @@ static LPMAPLAYER r_sc2_build_ground_layer(sc2Map_t const *map) {
                                      u,
                                      v,
                                      255,
-                                     (VECTOR3){ 0.0f, 0.0f, 1.0f });
+                                     (vector3_t){ 0.0f, 0.0f, 1.0f });
         }
     }
     r_sc2_build_ground_vertex_normals(map, vertices, w, h);
@@ -975,7 +975,7 @@ static bool r_sc2_file_exists(cstring_t path) {
     return true;
 }
 
-static LPCMODEL r_sc2_load_cliff_model(cstring_t path) {
+static model_t const * r_sc2_load_cliff_model(cstring_t path) {
     sc2CliffModel_t *cliff;
 
     for (cliff = sc2_cliff_models; cliff; cliff = cliff->next) {
@@ -1048,17 +1048,17 @@ static bool r_sc2_cliff_config(sc2Map_t const *map,
     return config[0] != config[1] || config[1] != config[2] || config[2] != config[3];
 }
 
-static VECTOR3 r_sc2_rotate_cliff_vec(VECTOR3 pos, int rotation) {
+static vector3_t r_sc2_rotate_cliff_vec(vector3_t pos, int rotation) {
     switch (rotation & 3) {
-        case 1: return (VECTOR3){ -pos.y,  pos.x, pos.z };
-        case 2: return (VECTOR3){ -pos.x, -pos.y, pos.z };
-        case 3: return (VECTOR3){  pos.y, -pos.x, pos.z };
+        case 1: return (vector3_t){ -pos.y,  pos.x, pos.z };
+        case 2: return (vector3_t){ -pos.x, -pos.y, pos.z };
+        case 3: return (vector3_t){  pos.y, -pos.x, pos.z };
         default: return pos;
     }
 }
 
-static VECTOR3 r_sc2_m3_raw_normal(m3Vertex_t const *vertex) {
-    VECTOR3 normal = {
+static vector3_t r_sc2_m3_raw_normal(m3Vertex_t const *vertex) {
+    vector3_t normal = {
         (float)vertex->normal[0] * SC2_M3_NORMAL_SCALE - 1.0f,
         (float)vertex->normal[1] * SC2_M3_NORMAL_SCALE - 1.0f,
         (float)vertex->normal[2] * SC2_M3_NORMAL_SCALE - 1.0f,
@@ -1067,20 +1067,20 @@ static VECTOR3 r_sc2_m3_raw_normal(m3Vertex_t const *vertex) {
     return normal;
 }
 
-static VECTOR3 r_sc2_matrix_transform(LPCMATRIX4 matrix, LPCVECTOR3 v, float w) {
-    return (VECTOR3){
+static vector3_t r_sc2_matrix_transform(matrix4_t const * matrix, vector3_t const * v, float w) {
+    return (vector3_t){
         matrix->v[0] * v->x + matrix->v[4] * v->y + matrix->v[8]  * v->z + matrix->v[12] * w,
         matrix->v[1] * v->x + matrix->v[5] * v->y + matrix->v[9]  * v->z + matrix->v[13] * w,
         matrix->v[2] * v->x + matrix->v[6] * v->y + matrix->v[10] * v->z + matrix->v[14] * w,
     };
 }
 
-static void r_sc2_m3_make_bone_matrix(LPCVECTOR3 position,
-                                      LPCVECTOR4 rotation,
-                                      LPCVECTOR3 scale,
-                                      LPCMATRIX4 parent,
-                                      LPMATRIX4 matrix) {
-    MATRIX4 local;
+static void r_sc2_m3_make_bone_matrix(vector3_t const * position,
+                                      vector4_t const * rotation,
+                                      vector3_t const * scale,
+                                      matrix4_t const * parent,
+                                      matrix4_t * matrix) {
+    matrix4_t local;
 
     Matrix4_identity(&local);
     Matrix4_translate(&local, position);
@@ -1089,9 +1089,9 @@ static void r_sc2_m3_make_bone_matrix(LPCVECTOR3 position,
     Matrix4_multiply(parent, &local, matrix);
 }
 
-static void r_sc2_m3_build_cliff_bones(m3Model_t const *m3, MATRIX4 bones[SC2_M3_MAX_BONES]) {
-    MATRIX4 tmp[SC2_M3_MAX_BONES];
-    MATRIX4 identity;
+static void r_sc2_m3_build_cliff_bones(m3Model_t const *m3, matrix4_t bones[SC2_M3_MAX_BONES]) {
+    matrix4_t tmp[SC2_M3_MAX_BONES];
+    matrix4_t identity;
     m3SequenceTimeline_t const *timeline;
     uint32_t localtime = 0;
 
@@ -1105,10 +1105,10 @@ static void r_sc2_m3_build_cliff_bones(m3Model_t const *m3, MATRIX4 bones[SC2_M3
     timeline = M3_FindAnimationAtTime(m3, 0, &localtime);
     FOR_LOOP(i, MIN(m3->bonesNum, SC2_M3_MAX_BONES)) {
         m3Bone_t const *bone = &m3->bones[i];
-        VECTOR3 position = M3_GetVector3AnimValue(m3, timeline, &bone->position, localtime);
-        VECTOR4 rotation = M3_GetVector4AnimValue(m3, timeline, &bone->rotation, localtime);
-        VECTOR3 scale = M3_GetVector3AnimValue(m3, timeline, &bone->scale, localtime);
-        LPCMATRIX4 parent = bone->parent >= 0 && bone->parent < (int16_t)m3->bonesNum ? &tmp[bone->parent] : &identity;
+        vector3_t position = M3_GetVector3AnimValue(m3, timeline, &bone->position, localtime);
+        vector4_t rotation = M3_GetVector4AnimValue(m3, timeline, &bone->rotation, localtime);
+        vector3_t scale = M3_GetVector3AnimValue(m3, timeline, &bone->scale, localtime);
+        matrix4_t const * parent = bone->parent >= 0 && bone->parent < (int16_t)m3->bonesNum ? &tmp[bone->parent] : &identity;
 
         r_sc2_m3_make_bone_matrix(&position, &rotation, &scale, parent, &tmp[i]);
     }
@@ -1121,17 +1121,17 @@ static void r_sc2_m3_build_cliff_bones(m3Model_t const *m3, MATRIX4 bones[SC2_M3
     }
 }
 
-static VECTOR3 r_sc2_m3_skin_vertex(m3Vertex_t const *vertex,
+static vector3_t r_sc2_m3_skin_vertex(m3Vertex_t const *vertex,
                                     m3Region_t const *region,
-                                    MATRIX4 const bones[SC2_M3_MAX_BONES],
+                                    matrix4_t const bones[SC2_M3_MAX_BONES],
                                     float w) {
-    VECTOR3 out = { 0 };
-    VECTOR3 raw = w == 0.0f ? r_sc2_m3_raw_normal(vertex) : vertex->pos;
+    vector3_t out = { 0 };
+    vector3_t raw = w == 0.0f ? r_sc2_m3_raw_normal(vertex) : vertex->pos;
 
     FOR_LOOP(i, 4) {
         uint32_t bone = region->firstBoneLookupIndex + vertex->boneIndex[i];
         float weight = (float)vertex->boneWeight[i] / 255.0f;
-        VECTOR3 part;
+        vector3_t part;
 
         if (bone >= SC2_M3_MAX_BONES || weight <= 0.0f)
             continue;
@@ -1143,9 +1143,9 @@ static VECTOR3 r_sc2_m3_skin_vertex(m3Vertex_t const *vertex,
     return out;
 }
 
-static bool r_sc2_cliff_model_bounds(LPCMODEL model, LPBOX3 bounds) {
+static bool r_sc2_cliff_model_bounds(model_t const * model, box3_t * bounds) {
     m3Model_t const *m3;
-    MATRIX4 bones[SC2_M3_MAX_BONES];
+    matrix4_t bones[SC2_M3_MAX_BONES];
     bool have_vertex = false;
 
     if (!model || model->modeltype != ID_43DM || !model->m3 || !model->m3->verticesNum)
@@ -1168,7 +1168,7 @@ static bool r_sc2_cliff_model_bounds(LPCMODEL model, LPBOX3 bounds) {
                 if (!valid)
                     continue;
                 FOR_LOOP(k, 3) {
-                    VECTOR3 pos = r_sc2_m3_skin_vertex(&m3->vertices[vi[k]], region, bones, 1.0f);
+                    vector3_t pos = r_sc2_m3_skin_vertex(&m3->vertices[vi[k]], region, bones, 1.0f);
                     if (!have_vertex) {
                         bounds->min = pos;
                         bounds->max = pos;
@@ -1188,12 +1188,12 @@ static bool r_sc2_cliff_model_bounds(LPCMODEL model, LPBOX3 bounds) {
     return have_vertex;
 }
 
-static VECTOR2 r_sc2_cliff_vertex_xy(sc2Map_t const *map,
-                                     LPCVECTOR2 offset,
-                                     LPCVECTOR3 rotated) {
+static vector2_t r_sc2_cliff_vertex_xy(sc2Map_t const *map,
+                                     vector2_t const * offset,
+                                     vector3_t const * rotated) {
     float scale = SC2_CLIFF_BLOCK_SPAN * map->cell_size / SC2_CLIFF_MODEL_FOOTPRINT;
 
-    return (VECTOR2){
+    return (vector2_t){
         offset->x + rotated->x * scale,
         offset->y + rotated->y * scale,
     };
@@ -1204,9 +1204,9 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
                                     m3Model_t const *m3,
                                     m3Divisions_t const *div,
                                     m3Region_t const *region,
-                                    MATRIX4 const bones[SC2_M3_MAX_BONES],
+                                    matrix4_t const bones[SC2_M3_MAX_BONES],
                                     rSc2CliffPlacement_t const *placement,
-                                    LPCVECTOR2 offset,
+                                    vector2_t const * offset,
                                     int rotation) {
     for (uint32_t index_i = 0; index_i + 2 < region->triangleIndicesCount; index_i += 3) {
         uint32_t fi[3], vi[3];
@@ -1222,19 +1222,19 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
             continue;
         FOR_LOOP(k, 3) {
             m3Vertex_t const *vertex = &m3->vertices[vi[k]];
-            VERTEX *out = R_CliffBakeVertex(list);
-            VECTOR3 local;
-            VECTOR3 normal;
-            VECTOR3 rotated;
-            VECTOR3 position;
-            VECTOR2 xy;
-            VECTOR2 uv;
+            vertex_t *out = R_CliffBakeVertex(list);
+            vector3_t local;
+            vector3_t normal;
+            vector3_t rotated;
+            vector3_t position;
+            vector2_t xy;
+            vector2_t uv;
 
             local = r_sc2_m3_skin_vertex(vertex, region, bones, 1.0f);
             normal = r_sc2_m3_skin_vertex(vertex, region, bones, 0.0f);
             rotated = r_sc2_rotate_cliff_vec(local, rotation);
             xy = r_sc2_cliff_vertex_xy(map, offset, &rotated);
-            position = (VECTOR3){
+            position = (vector3_t){
                 xy.x,
                 xy.y,
                 placement->base_z + (placement->model_z_offset + local.z) * placement->z_scale +
@@ -1245,10 +1245,10 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
                 bool at_ground_edge = r_sc2_cliff_vertex_joins_ground(&rotated, placement->join_edges) &&
                     fabsf(position.z - r_sc2_ground_height_at_point(map, xy.x, xy.y)) < map->cell_size;
                 if (placement->ramp) {
-                    VECTOR2 grid;
+                    vector2_t grid;
                     /* Authored boxes and SC2 world XY share the map's height-grid origin. */
-                    BOX2 world = SC2_MapBounds();
-                    grid = (VECTOR2){ (xy.x-world.min.x)/map->cell_size, (xy.y-world.min.y)/map->cell_size };
+                    box2_t world = SC2_MapBounds();
+                    grid = (vector2_t){ (xy.x-world.min.x)/map->cell_size, (xy.y-world.min.y)/map->cell_size };
                     bool border = false;
                     int ix = (int)floorf(grid.x), iy = (int)floorf(grid.y);
                     for (int y = iy-1; y <= iy; y++) for (int x = ix-1; x <= ix; x++) {
@@ -1262,7 +1262,7 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
                 }
                 if (at_ground_edge)
                     position.z = r_sc2_ground_height_at_point(map, xy.x, xy.y);
-                uv = (VECTOR2){ vertex->uv[0][0] / SC2_M3_UV_SCALE, vertex->uv[0][1] / SC2_M3_UV_SCALE };
+                uv = (vector2_t){ vertex->uv[0][0] / SC2_M3_UV_SCALE, vertex->uv[0][1] / SC2_M3_UV_SCALE };
                 normal = r_sc2_rotate_cliff_vec(normal, rotation);
                 Vector3_normalize(&normal);
                 /* Ground-edge cliff vertices share the heightmap normal so cliff and ground mesh
@@ -1284,17 +1284,17 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
 
 static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
                                    sc2Map_t const *map,
-                                   LPCMODEL model,
+                                   model_t const * model,
                                    uint32_t grid_x,
                                    uint32_t grid_y,
                                    int rotation,
                                    uint16_t baselevel) {
-    BOX2 map_bounds = SC2_MapBounds();
-    BOX3 bounds;
+    box2_t map_bounds = SC2_MapBounds();
+    box3_t bounds;
     rSc2CliffPlacement_t placement = {0};
-    VECTOR2 offset;
+    vector2_t offset;
     m3Model_t const *m3;
-    MATRIX4 bones[SC2_M3_MAX_BONES];
+    matrix4_t bones[SC2_M3_MAX_BONES];
 
     if (!model || model->modeltype != ID_43DM || !model->m3 || !model->m3->verticesNum)
         return;
@@ -1302,10 +1302,10 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
     m3 = model->m3;
     r_sc2_m3_build_cliff_bones(m3, bones);
     if (!r_sc2_cliff_model_bounds(model, &bounds)) {
-        bounds.min = (VECTOR3){ -map->cell_size, -map->cell_size, 0.0f };
-        bounds.max = (VECTOR3){  map->cell_size,  map->cell_size, 0.0f };
+        bounds.min = (vector3_t){ -map->cell_size, -map->cell_size, 0.0f };
+        bounds.max = (vector3_t){  map->cell_size,  map->cell_size, 0.0f };
     }
-    offset = (VECTOR2){
+    offset = (vector2_t){
         map_bounds.min.x + SC2_CLIFF_BLOCK_CENTER(grid_x) * map->cell_size,
         map_bounds.min.y + SC2_CLIFF_BLOCK_CENTER(grid_y) * map->cell_size,
     };
@@ -1350,7 +1350,7 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
     }
 }
 
-static LPCTEXTURE r_sc2_cliff_diffuse_texture(LPCMODEL model) {
+static texture_t const * r_sc2_cliff_diffuse_texture(model_t const * model) {
     m3Model_t const *m3;
 
     if (!model || model->modeltype != ID_43DM || !model->m3)
@@ -1364,7 +1364,7 @@ static LPCTEXTURE r_sc2_cliff_diffuse_texture(LPCMODEL model) {
     return NULL;
 }
 
-static rSc2CliffBakeBatch_t *r_sc2_cliff_bake_batch(rSc2CliffBakeBatch_t **batches, LPCTEXTURE texture) {
+static rSc2CliffBakeBatch_t *r_sc2_cliff_bake_batch(rSc2CliffBakeBatch_t **batches, texture_t const * texture) {
     rSc2CliffBakeBatch_t *batch;
 
     for (batch = *batches; batch; batch = batch->next)
@@ -1450,14 +1450,14 @@ static sc2CliffCell_t r_sc2_cliff_cell_for_index(sc2Map_t const *map, uint32_t i
 
 /* Bake the authored transition footprint instead of discarding every cc flagged as a ramp. */
 static void r_sc2_build_ramp_cliffs(sc2Map_t const *map, rSc2CliffBakeBatch_t **batches) {
-    BOX2 world = SC2_MapBounds();
-    FOR_EACH_ARRAY(SC2RAMP, ramp, map->t3Terrain.ramps) FOR_LOOP(edge, 4) {
-        SC2RAMPBOX const *box = &ramp->edge[edge];
+    box2_t world = SC2_MapBounds();
+    FOR_EACH_ARRAY(sc2Ramp_t, ramp, map->t3Terrain.ramps) FOR_LOOP(edge, 4) {
+        sc2RampBox_t const *box = &ramp->edge[edge];
         if (ramp->variant[edge] == ~0u || box->width <= 0 || box->height <= 0) continue;
         if (ramp->cid >= map->t3Terrain.num_cliff_sets || !map->t3SyncCliffLevel) {
             fprintf(stderr, "SC2 ramp: unresolved cliff set %u or missing level grid\n", ramp->cid); continue;
         }
-        SC2RAMPPIECE piece = r_sc2_ramp_piece(map, ramp, edge);
+        sc2RampPiece_t piece = r_sc2_ramp_piece(map, ramp, edge);
         cstring_t mesh = map->t3Terrain.cliff_sets[ramp->cid].mesh;
         PATHSTR path;
         bool found = false;
@@ -1470,14 +1470,14 @@ static void r_sc2_build_ramp_cliffs(sc2Map_t const *map, rSc2CliffBakeBatch_t **
         if (!found) {
             fprintf(stderr, "SC2 ramp: missing model '%s' at %.1f %.1f\n", path, box->center.x, box->center.y); continue;
         }
-        LPCMODEL model = r_sc2_load_cliff_model(path);
-        BOX3 bounds;
+        model_t const * model = r_sc2_load_cliff_model(path);
+        box3_t bounds;
         if (!model || model->modeltype != ID_43DM || !model->m3 || !r_sc2_cliff_model_bounds(model, &bounds)) {
             fprintf(stderr, "SC2 ramp: invalid M3 '%s'\n", path); continue;
         }
         rSc2CliffPlacement_t place = { .model_z_offset = -bounds.min.z, .z_scale = 1,
             .ramp = ramp };
-        VECTOR2 corners[] = { piece.bounds.min, {piece.bounds.max.x, piece.bounds.min.y},
+        vector2_t corners[] = { piece.bounds.min, {piece.bounds.max.x, piece.bounds.min.y},
             piece.bounds.max, {piece.bounds.min.x, piece.bounds.max.y} };
         uint32_t count = 0;
         FOR_LOOP(i, 4) {
@@ -1492,8 +1492,8 @@ static void r_sc2_build_ramp_cliffs(sc2Map_t const *map, rSc2CliffBakeBatch_t **
         }
         if (!count) { fprintf(stderr, "SC2 ramp: no base-tier sample for '%s'\n", path); continue; }
         place.base_z /= count;
-        VECTOR2 offset = { world.min.x + box->center.x*map->cell_size, world.min.y + box->center.y*map->cell_size };
-        MATRIX4 bones[SC2_M3_MAX_BONES];
+        vector2_t offset = { world.min.x + box->center.x*map->cell_size, world.min.y + box->center.y*map->cell_size };
+        matrix4_t bones[SC2_M3_MAX_BONES];
         m3Model_t const *m3 = model->m3;
         rSc2CliffBakeBatch_t *batch = r_sc2_cliff_bake_batch(batches, r_sc2_cliff_diffuse_texture(model));
         batch->list.current_group++; r_sc2_m3_build_cliff_bones(m3, bones);
@@ -1505,9 +1505,9 @@ static void r_sc2_build_ramp_cliffs(sc2Map_t const *map, rSc2CliffBakeBatch_t **
     }
 }
 
-static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
+static maplayer_t * r_sc2_build_cliff_layer(sc2Map_t const *map) {
     rSc2CliffBakeBatch_t *batches = NULL, *batch;
-    LPMAPLAYER layers = NULL;
+    maplayer_t * layers = NULL;
     uint32_t cliff_width;
     uint32_t cliff_height;
 
@@ -1526,7 +1526,7 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
             uint32_t grid_y = cy * SC2_CLIFF_BLOCK_SPAN;
             uint16_t baselevel;
             int rotation;
-            LPCMODEL model;
+            model_t const * model;
 
             if (r_sc2_cliff_block_is_flat(map, grid_x, grid_y))
                 continue;
@@ -1551,7 +1551,7 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
     r_sc2_build_ramp_cliffs(map, &batches);
     sc2_road_cliffs = batches;
     for (batch = batches; batch; batch = batch->next) {
-        LPMAPLAYER layer;
+        maplayer_t * layer;
         if (!batch->list.num_vertices) continue;
         R_CliffWeldNormals(&batch->list, map->cell_size * 0.5f);
         layer = ri.MemAlloc(sizeof(*layer)); memset(layer, 0, sizeof(*layer));
@@ -1565,7 +1565,7 @@ static LPMAPLAYER r_sc2_build_cliff_layer(sc2Map_t const *map) {
 }
 
 static void r_sc2_build_terrain(sc2Map_t const *map) {
-    BOX2 bounds;
+    box2_t bounds;
     float max_z = 1.0f;
     uint32_t radius;
 
@@ -1602,49 +1602,49 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
             }
         }
     }
-    sc2_terrain_segment->bbox = (BOX3){
+    sc2_terrain_segment->bbox = (box3_t){
         .min = { bounds.min.x, bounds.min.y, -1.0f },
         .max = { bounds.max.x, bounds.max.y, max_z },
     };
 }
 
 
-static LPTEXTURE r_sc2_terrain_layer_texture(uint32_t index) {
+static texture_t * r_sc2_terrain_layer_texture(uint32_t index) {
     if (index < sc2_num_terrain_layers && sc2_terrain_textures[index])
         return sc2_terrain_textures[index];
     return sc2_terrain_textures[0];
 }
 
-static void r_sc2_set_fog_state(LPVECTOR4 u_color, LPVECTOR4 u_params) {
+static void r_sc2_set_fog_state(vector4_t * u_color, vector4_t * u_params) {
     sc2Map_t const *map = SC2_MapCurrent();
     sc2MapTerrain_t const *terrain = map ? &map->t3Terrain : NULL;
-    COLOR32 color = terrain ? terrain->fog_color : COLOR32_BLACK;
+    color32_t color = terrain ? terrain->fog_color : COLOR32_BLACK;
     float enabled = terrain && terrain->fog_enabled && terrain->fog_density > 0.0f ? 1.0f : 0.0f;
 
-    *u_color = (VECTOR4){ color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f };
-    *u_params = (VECTOR4){ terrain ? terrain->fog_start_height : 0.0f, terrain ? terrain->fog_density : 0.0f, terrain ? terrain->fog_falloff : 0.0f, enabled };
+    *u_color = (vector4_t){ color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f };
+    *u_params = (vector4_t){ terrain ? terrain->fog_start_height : 0.0f, terrain ? terrain->fog_density : 0.0f, terrain ? terrain->fog_falloff : 0.0f, enabled };
 }
 
-static void r_sc2_set_light_state(LPVECTOR3 ambient_out, LPVECTOR3 dirs, LPVECTOR3 colors) {
+static void r_sc2_set_light_state(vector3_t * ambient_out, vector3_t * dirs, vector3_t * colors) {
     sc2Map_t const *map = SC2_MapCurrent();
     sc2MapLighting_t const *lighting = map ? &map->lighting : NULL;
-    VECTOR3 ambient = sc2_light_ambient(lighting && lighting->enabled ? lighting : NULL);
+    vector3_t ambient = sc2_light_ambient(lighting && lighting->enabled ? lighting : NULL);
 
-    *ambient_out = (VECTOR3){ ambient.x, ambient.y, ambient.z };
+    *ambient_out = (vector3_t){ ambient.x, ambient.y, ambient.z };
     /* Adding Fill/Back as unshadowed suns lit faces opposite the visible key shadow. */
     FOR_LOOP(i, SC2_DIFFUSE_LIGHTS) {
         sc2DirectionalLight_t const *light = lighting && lighting->enabled ? &lighting->directional[i] : NULL;
         float enabled = light && light->enabled ? 1.0f : 0.0f;
-        VECTOR3 direction = enabled ? (VECTOR3){ -light->direction.x, -light->direction.y, -light->direction.z } : (VECTOR3){ 0.0f, 0.0f, 1.0f };
-        VECTOR3 color = enabled ? light->color : (VECTOR3){ 0.0f, 0.0f, 0.0f };
+        vector3_t direction = enabled ? (vector3_t){ -light->direction.x, -light->direction.y, -light->direction.z } : (vector3_t){ 0.0f, 0.0f, 1.0f };
+        vector3_t color = enabled ? light->color : (vector3_t){ 0.0f, 0.0f, 0.0f };
         float multiplier = enabled ? light->color_multiplier : 0.0f;
 
-        dirs[i] = (VECTOR3){ direction.x, direction.y, direction.z };
-        colors[i] = (VECTOR3){ color.x * multiplier, color.y * multiplier, color.z * multiplier };
+        dirs[i] = (vector3_t){ direction.x, direction.y, direction.z };
+        colors[i] = (vector3_t){ color.x * multiplier, color.y * multiplier, color.z * multiplier };
     }
 }
 
-static void r_sc2_begin_terrain_shader(MATRIX4 const *model_matrix) {
+static void r_sc2_begin_terrain_shader(matrix4_t const *model_matrix) {
 
     sc2_terrain_shader.state.viewProjection = tr.render_phase == RENDER_PHASE_LIGHTS ? tr.viewDef.lightMatrix : tr.viewDef.viewProjectionMatrix;
     sc2_terrain_shader.state.lightMatrix = tr.viewDef.lightMatrix;
@@ -1673,15 +1673,15 @@ static void r_sc2_begin_terrain_pass(uint32_t group) {
 }
 
 static void r_sc2_set_terrain_uv(void) {
-    BOX2 bounds = SC2_MapBounds();
+    box2_t bounds = SC2_MapBounds();
     float map_w = bounds.max.x - bounds.min.x;
     float map_h = bounds.max.y - bounds.min.y;
 
-    sc2_terrain_shader.state.worldUVScale = (VECTOR2){ map_w / SC2_TERRAIN_UV_SCALE, map_h / SC2_TERRAIN_UV_SCALE };
-    sc2_terrain_shader.state.worldUVOffset = (VECTOR2){ bounds.min.x / SC2_TERRAIN_UV_SCALE, bounds.min.y / SC2_TERRAIN_UV_SCALE };
+    sc2_terrain_shader.state.worldUVScale = (vector2_t){ map_w / SC2_TERRAIN_UV_SCALE, map_h / SC2_TERRAIN_UV_SCALE };
+    sc2_terrain_shader.state.worldUVOffset = (vector2_t){ bounds.min.x / SC2_TERRAIN_UV_SCALE, bounds.min.y / SC2_TERRAIN_UV_SCALE };
 }
 
-static void r_sc2_draw_terrain_indexed(LPCMAPLAYER layer) {
+static void r_sc2_draw_terrain_indexed(maplayer_t const * layer) {
     uint32_t groups = tr.render_phase == RENDER_PHASE_LIGHTS ? 1 : SC2_TERRAIN_BLEND_GROUPS;
 
     r_sc2_set_terrain_uv();
@@ -1694,7 +1694,7 @@ static void r_sc2_draw_terrain_indexed(LPCMAPLAYER layer) {
     R_Call(glDepthMask, GL_TRUE);
 }
 
-static void r_sc2_draw_terrain_vertices(LPCMAPLAYER layer) {
+static void r_sc2_draw_terrain_vertices(maplayer_t const * layer) {
     uint32_t groups = tr.render_phase == RENDER_PHASE_LIGHTS ? 1 : SC2_TERRAIN_BLEND_GROUPS;
 
     r_sc2_set_terrain_uv();
@@ -1707,9 +1707,9 @@ static void r_sc2_draw_terrain_vertices(LPCMAPLAYER layer) {
     R_Call(glDepthMask, GL_TRUE);
 }
 
-static void r_sc2_draw_ground_layer(LPCMAPSEGMENT segment) {
-    LPCMAPLAYER layer;
-    MATRIX4 model_matrix;
+static void r_sc2_draw_ground_layer(mapsegment_t const * segment) {
+    maplayer_t const * layer;
+    matrix4_t model_matrix;
 
     if (!sc2_terrain_shader_loaded || !segment)
         return;
@@ -1757,9 +1757,9 @@ void R_SC2RegisterMap(cstring_t mapFileName) {
     r_sc2_load_minimap(mapFileName);
 }
 
-static void r_sc2_draw_cliff_layer(LPCMAPSEGMENT segment) {
-    LPCMAPLAYER layer;
-    MATRIX4 model_matrix;
+static void r_sc2_draw_cliff_layer(mapsegment_t const * segment) {
+    maplayer_t const * layer;
+    matrix4_t model_matrix;
 
     if (!sc2_terrain_shader_loaded || !sc2_cliff_shader_loaded || !segment)
         return;
@@ -1798,14 +1798,14 @@ static void r_sc2_draw_cliff_layer(LPCMAPSEGMENT segment) {
 }
 
 void R_SC2DrawWorld(void) {
-    MATRIX4 model_matrix;
+    matrix4_t model_matrix;
 
     if (!sc2_terrain_segment || (tr.viewDef.rdflags & RDF_NOWORLDMODEL))
         return;
 
     if (tr.render_phase == RENDER_PHASE_LIGHTS) {
         sc2Map_t const *map = SC2_MapCurrent();
-        SC2SHADOWVIEW input = {
+        sc2shadowview_t input = {
             .camera = tr.viewDef.viewProjectionMatrix,
             .target = Vector3_lerp(&tr.viewDef.camerastate[1].origin, &tr.viewDef.camerastate[0].origin, tr.viewDef.lerpfrac),
             .light = map->lighting.directional[SC2_LIGHT_KEY].direction,
@@ -1829,7 +1829,7 @@ void R_SC2DrawWorld(void) {
     r_sc2_draw_road_layers(sc2_hard_tile_layers, &sc2_hard_tile_entity);
 }
 
-static bool r_sc2_clip_trace_to_bounds(LPCLINE3 line, LPCBOX2 bounds, float * t0, float * t1) {
+static bool r_sc2_clip_trace_to_bounds(line3_t const * line, box2_t const * bounds, float * t0, float * t1) {
     float const bounds_min[2] = { bounds->min.x, bounds->min.y };
     float const bounds_max[2] = { bounds->max.x, bounds->max.y };
     float const start[2] = { line->a.x, line->a.y };
@@ -1863,18 +1863,18 @@ static bool r_sc2_clip_trace_to_bounds(LPCLINE3 line, LPCBOX2 bounds, float * t0
     return true;
 }
 
-static bool r_sc2_trace_heightmap_tile(sc2Map_t const *map, uint32_t x, uint32_t y, LPCLINE3 line, LPVECTOR3 output) {
-    BOX2 bounds = SC2_MapBounds();
+static bool r_sc2_trace_heightmap_tile(sc2Map_t const *map, uint32_t x, uint32_t y, line3_t const * line, vector3_t * output) {
+    box2_t bounds = SC2_MapBounds();
     float x0 = bounds.min.x + x * map->cell_size;
     float y0 = bounds.min.y + y * map->cell_size;
     float x1 = x0 + map->cell_size;
     float y1 = y0 + map->cell_size;
-    TRIANGLE3 const tri1 = {
+    triangle3_t const tri1 = {
         { x0, y0, r_sc2_ground_height_at_grid(map, x, y) },
         { x1, y0, r_sc2_ground_height_at_grid(map, x + 1, y) },
         { x1, y1, r_sc2_ground_height_at_grid(map, x + 1, y + 1) },
     };
-    TRIANGLE3 const tri2 = {
+    triangle3_t const tri2 = {
         { x1, y1, r_sc2_ground_height_at_grid(map, x + 1, y + 1) },
         { x0, y1, r_sc2_ground_height_at_grid(map, x, y + 1) },
         { x0, y0, r_sc2_ground_height_at_grid(map, x, y) },
@@ -1885,10 +1885,10 @@ static bool r_sc2_trace_heightmap_tile(sc2Map_t const *map, uint32_t x, uint32_t
     return Line3_intersect_triangle(line, &tri2, output);
 }
 
-bool R_SC2TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 output) {
+bool R_SC2TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t * output) {
     sc2Map_t const *map = SC2_MapCurrent();
-    BOX2 bounds;
-    LINE3 line;
+    box2_t bounds;
+    line3_t line;
     float t0, t1;
     float dir_x, dir_y;
     int tile_x, tile_y;
@@ -1954,8 +1954,8 @@ float R_SC2GetHeightAtPoint(float x, float y) {
 
 float R_SC2GetCameraHeightAtPoint(float x, float y) { return R_SampleCameraHeightMap(&sc2_camera_height, x, y); }
 
-VECTOR2 R_SC2WorldSize(void) {
+vector2_t R_SC2WorldSize(void) {
     sc2Map_t const *map = SC2_MapCurrent();
-    if (!map) return (VECTOR2){ 0.0f, 0.0f };
-    return (VECTOR2){ SC2_MAP_WIDTH(map) * map->cell_size, SC2_MAP_HEIGHT(map) * map->cell_size };
+    if (!map) return (vector2_t){ 0.0f, 0.0f };
+    return (vector2_t){ SC2_MAP_WIDTH(map) * map->cell_size, SC2_MAP_HEIGHT(map) * map->cell_size };
 }

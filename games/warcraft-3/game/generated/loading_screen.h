@@ -5,24 +5,24 @@
 #include "../g_local.h"
 
 typedef struct LoadingScreen_s {
-    LPFRAMEDEF Loading;
-    LPFRAMEDEF LoadingBackground;
-    LPFRAMEDEF LoadingBar;
-    LPFRAMEDEF LoadingBarText;
-    LPFRAMEDEF LoadingCustomPanel;
-    LPFRAMEDEF LoadingTitleText;
-    LPFRAMEDEF LoadingSubtitleText;
-    LPFRAMEDEF LoadingText;
-    LPFRAMEDEF LoadingMeleePanel;
-    LPFRAMEDEF MinimapImage;
-    LPFRAMEDEF LoadingMeleeMapName;
-    LPFRAMEDEF LoadingMeleeGameTypeLabel;
-    LPFRAMEDEF LoadingMeleeGameTypeValue;
-    LPFRAMEDEF LoadingMeleePlayerContainer;
+    frameDef_t * Loading;
+    frameDef_t * LoadingBackground;
+    frameDef_t * LoadingBar;
+    frameDef_t * LoadingBarText;
+    frameDef_t * LoadingCustomPanel;
+    frameDef_t * LoadingTitleText;
+    frameDef_t * LoadingSubtitleText;
+    frameDef_t * LoadingText;
+    frameDef_t * LoadingMeleePanel;
+    frameDef_t * MinimapImage;
+    frameDef_t * LoadingMeleeMapName;
+    frameDef_t * LoadingMeleeGameTypeLabel;
+    frameDef_t * LoadingMeleeGameTypeValue;
+    frameDef_t * LoadingMeleePlayerContainer;
 } LoadingScreen_t;
 
 
-static inline bool LoadingScreen_Bind(LoadingScreen_t *out, LPFRAMEDEF bind_root) {
+static inline bool LoadingScreen_Bind(LoadingScreen_t *out, frameDef_t * bind_root) {
     bool ok = true;
     if (!out) {
         return false;

@@ -3,8 +3,8 @@
 #define BZ_WOW_STR_INNER(x) #x
 #define BZ_WOW_STR(x) BZ_WOW_STR_INNER(x)
 
-WOWTERRAINPROG wow_terrain_shader;
-WOWGRASSPROG wow_grass_shader;
+wowTerrainProg_t wow_terrain_shader;
+wowGrassProg_t wow_grass_shader;
 
 /* Keep terrain and grass on the same exact MCVT diamond interpolation contract. */
 #define WOW_HEIGHT_ATLAS_GLSL \
@@ -41,7 +41,7 @@ WOWGRASSPROG wow_grass_shader;
     "    return HeightAtlas_Bary(p, vec2(.5), ct, vec2(1,0), bl, vec2(1), br);\n" \
     "}\n"
 
-#define SHADER_TYPE WOWTERRAINSTATE
+#define SHADER_TYPE wowTerrainState_t
 static const shader_desc_t sd_wow_terrain = {
     .Name = "wow_terrain",
     .Uniforms = {
@@ -136,7 +136,7 @@ static const shader_desc_t sd_wow_terrain = {
 };
 #undef SHADER_TYPE
 
-#define SHADER_TYPE WOWGRASSSTATE
+#define SHADER_TYPE wowGrassState_t
 static const shader_desc_t sd_wow_grass = {
     .Name = "wow_grass",
     .Uniforms = {
@@ -235,8 +235,8 @@ void Wow_InitTerrainShader(void) {
     wow_terrain_shader.state.alphaAtlasChunks = (GLfloat)WOW_ALPHA_ATLAS_CHUNKS;
     wow_terrain_shader.state.singleTexture = 0;
     wow_terrain_shader.state.wmoIndoor = 0;
-    wow_terrain_shader.state.wmoAmbient = (VECTOR3){ 0.0f, 0.0f, 0.0f };
-    wow_terrain_shader.state.wmoLightAdd = (VECTOR3){ 0.0f, 0.0f, 0.0f };
+    wow_terrain_shader.state.wmoAmbient = (vector3_t){ 0.0f, 0.0f, 0.0f };
+    wow_terrain_shader.state.wmoLightAdd = (vector3_t){ 0.0f, 0.0f, 0.0f };
     wow_terrain_shader.state.wmoBlendMode = 0;
 }
 

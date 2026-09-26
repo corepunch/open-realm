@@ -1,26 +1,26 @@
 #include "../cmath3.h"
 
-void Matrix4_identity(LPMATRIX4 m) {
+void Matrix4_identity(matrix4_t * m) {
     m->v[0] = 1; m->v[1] = 0; m->v[2] = 0; m->v[3] = 0;
     m->v[4] = 0; m->v[5] = 1; m->v[6] = 0; m->v[7] = 0;
     m->v[8] = 0; m->v[9] = 0; m->v[10] = 1;m->v[11] = 0;
     m->v[12] = 0;m->v[13] = 0;m->v[14] = 0;m->v[15] = 1;
 }
 
-void Matrix4_translate(LPMATRIX4 m, LPCVECTOR3 v) {
+void Matrix4_translate(matrix4_t * m, vector3_t const * v) {
     m->v[12] += m->v[0] * v->x + m->v[4] * v->y + m->v[8] * v->z;
     m->v[13] += m->v[1] * v->x + m->v[5] * v->y + m->v[9] * v->z;
     m->v[14] += m->v[2] * v->x + m->v[6] * v->y + m->v[10] * v->z;
     m->v[15] += m->v[3] * v->x + m->v[7] * v->y + m->v[11] * v->z;
 }
 
-void Matrix4_scale(LPMATRIX4 m, LPCVECTOR3 v) {
+void Matrix4_scale(matrix4_t * m, vector3_t const * v) {
     m->v[0] *= v->x; m->v[1] *= v->x; m->v[2] *= v->x;
     m->v[4] *= v->y; m->v[5] *= v->y; m->v[6] *= v->y;
     m->v[8] *= v->z; m->v[9] *= v->z; m->v[10]*= v->z;
 }
 
-void Matrix4_transpose(LPCMATRIX4 m, LPMATRIX4 out) {
+void Matrix4_transpose(matrix4_t const * m, matrix4_t * out) {
     out->v[0] = m->v[0];
     out->v[4] = m->v[1];
     out->v[8] = m->v[2];
@@ -39,8 +39,8 @@ void Matrix4_transpose(LPCMATRIX4 m, LPMATRIX4 out) {
     out->v[15] = m->v[15];
 }
 
-void Matrix4_rotate4(LPMATRIX4 m, LPCVECTOR4 quat) {
-    MATRIX4 r, tmp;
+void Matrix4_rotate4(matrix4_t * m, vector4_t const * quat) {
+    matrix4_t r, tmp;
 
     float fTx  = 2.0f*quat->x;
     float fTy  = 2.0f*quat->y;
@@ -72,7 +72,7 @@ void Matrix4_rotate4(LPMATRIX4 m, LPCVECTOR4 quat) {
 //    memcpy(m, &tmp, sizeof(MATRIX4));
 }
 
-void Matrix4_perspective(LPMATRIX4 m, float vertical_fov, float aspect, float znear, float zfar) {
+void Matrix4_perspective(matrix4_t * m, float vertical_fov, float aspect, float znear, float zfar) {
     float const radians = vertical_fov * 3.14159f / 360.0f;
     float const sine = sin(radians);
     float const cotan = cos(radians) / sine;
@@ -96,7 +96,7 @@ void Matrix4_perspective(LPMATRIX4 m, float vertical_fov, float aspect, float zn
     m->v[15] = 0.0f;
 }
 
-void Matrix4_ortho(LPMATRIX4 m, float left, float right, float bottom, float top, float znear, float zfar) {
+void Matrix4_ortho(matrix4_t * m, float left, float right, float bottom, float top, float znear, float zfar) {
     float const width = right - left;
     float const invheight = top - bottom;
     float const clip = zfar - znear;
@@ -119,11 +119,11 @@ void Matrix4_ortho(LPMATRIX4 m, float left, float right, float bottom, float top
     m->v[15] = 1.0f;
 }
 
-void Matrix4_lookAt(LPMATRIX4 m, LPCVECTOR3 eye, LPCVECTOR3 direction, LPCVECTOR3 up) {
-    VECTOR3 zaxis = Vector3_unm(direction);
-    VECTOR3 xyz = Vector3_unm(eye);
-    VECTOR3 xaxis = Vector3_cross(up, &zaxis);
-    VECTOR3 yaxis = Vector3_cross(&zaxis, &xaxis);
+void Matrix4_lookAt(matrix4_t * m, vector3_t const * eye, vector3_t const * direction, vector3_t const * up) {
+    vector3_t zaxis = Vector3_unm(direction);
+    vector3_t xyz = Vector3_unm(eye);
+    vector3_t xaxis = Vector3_cross(up, &zaxis);
+    vector3_t yaxis = Vector3_cross(&zaxis, &xaxis);
 
     Vector3_normalize(&xaxis);
     Vector3_normalize(&yaxis);
@@ -149,7 +149,7 @@ void Matrix4_lookAt(LPMATRIX4 m, LPCVECTOR3 eye, LPCVECTOR3 direction, LPCVECTOR
     Matrix4_translate(m, &xyz);
 }
 
-void Matrix4_multiply(LPCMATRIX4 m1, LPCMATRIX4 m2, LPMATRIX4 out) {
+void Matrix4_multiply(matrix4_t const * m1, matrix4_t const * m2, matrix4_t * out) {
 //    for (int i = 0 ; i < 4 ; i++) {
 //        for (int j = 0 ; j < 4 ; j++) {
 //            out->v[ i * 4 + j ] =
@@ -177,7 +177,7 @@ void Matrix4_multiply(LPCMATRIX4 m1, LPCMATRIX4 m2, LPMATRIX4 out) {
     out->v[15] = m1->v[3] * m2->v[12] + m1->v[7] * m2->v[13] + m1->v[11] * m2->v[14] + m1->v[15] * m2->v[15];
 }
 
-void Matrix4_inverse(LPCMATRIX4 m, LPMATRIX4 out) {
+void Matrix4_inverse(matrix4_t const * m, matrix4_t * out) {
     float det, invDet;
     
     // 2x2 sub-determinants required to calculate 4x4 determinant
@@ -251,19 +251,19 @@ void Matrix4_inverse(LPCMATRIX4 m, LPMATRIX4 out) {
     out->v[15] = + det3_201_012 * invDet;
 }
 
-VECTOR3 Matrix4_multiply_vector3(LPCMATRIX4 m, LPCVECTOR3 v) {
+vector3_t Matrix4_multiply_vector3(matrix4_t const * m, vector3_t const * v) {
     float fInvW = 1.0f / (m->v[3] * v->x + m->v[7] * v->y + m->v[11] * v->z + m->v[15]);
-    return (VECTOR3) {
+    return (vector3_t) {
         .x = (m->v[0] * v->x + m->v[4] * v->y + m->v[8]  * v->z + m->v[12]) * fInvW,
         .y = (m->v[1] * v->x + m->v[5] * v->y + m->v[9]  * v->z + m->v[13]) * fInvW,
         .z = (m->v[2] * v->x + m->v[6] * v->y + m->v[10] * v->z + m->v[14]) * fInvW,
     };
 }
 
-void Matrix4_rotate(LPMATRIX4 m, LPCVECTOR3 euler, ROTATIONORDER order) {
+void Matrix4_rotate(matrix4_t * m, vector3_t const * euler, ROTATIONORDER order) {
     float const DEG2RAD = 3.14159f / 180.f;
     
-    MATRIX4 rx, ry, rz, tmp, tmp2;
+    matrix4_t rx, ry, rz, tmp, tmp2;
 
     Matrix4_identity(&rx);
     Matrix4_identity(&ry);
@@ -315,15 +315,15 @@ void Matrix4_rotate(LPMATRIX4 m, LPCVECTOR3 euler, ROTATIONORDER order) {
     Matrix4_multiply(&tmp, &tmp2, m);
 }
 
-void Matrix4_rotateQuat(LPMATRIX4 m, LPCQUATERNION quat) {
-    MATRIX4 tmp, tmp2;
-    VECTOR3 zero = { 0, 0, 0 };
+void Matrix4_rotateQuat(matrix4_t * m, quaternion_t const * quat) {
+    matrix4_t tmp, tmp2;
+    vector3_t zero = { 0, 0, 0 };
     tmp = *m;
     Matrix4_from_rotation_origin(&tmp2, quat, &zero);
     Matrix4_multiply(&tmp, &tmp2, m);
 }
 
-void Matrix4_from_rotation_origin(LPMATRIX4 out, LPCQUATERNION rotation, LPCVECTOR3 origin) {
+void Matrix4_from_rotation_origin(matrix4_t * out, quaternion_t const * rotation, vector3_t const * origin) {
     const float x = rotation->x;
     const float y = rotation->y;
     const float z = rotation->z;
@@ -363,7 +363,7 @@ void Matrix4_from_rotation_origin(LPMATRIX4 out, LPCQUATERNION rotation, LPCVECT
 }
 
 
-void Matrix4_from_rotation_translation_scale_origin(LPMATRIX4 out, LPCQUATERNION q, LPCVECTOR3 v, LPCVECTOR3 s, LPCVECTOR3 o) {
+void Matrix4_from_rotation_translation_scale_origin(matrix4_t * out, quaternion_t const * q, vector3_t const * v, vector3_t const * s, vector3_t const * o) {
     const float x = q->x;
     const float y = q->y;
     const float z = q->z;
@@ -414,7 +414,7 @@ void Matrix4_from_rotation_translation_scale_origin(LPMATRIX4 out, LPCQUATERNION
     out->v[15] = 1;
 }
 
-void Matrix4_from_translation(LPMATRIX4 out, LPCVECTOR3 v) {
+void Matrix4_from_translation(matrix4_t * out, vector3_t const * v) {
   out->v[0] = 1;
   out->v[1] = 0;
   out->v[2] = 0;

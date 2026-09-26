@@ -14,7 +14,7 @@
 #define BZ_BSLO MAKEFOURCC('B', 's', 'l', 'o') // rawcode; Slow probe buff
 #define BZ_BPRG MAKEFOURCC('B', 'p', 'r', 'g') // rawcode; Purge slow buff
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -34,14 +34,14 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
     slkTestData_t *rows, *old;
-    LPEDICT caster, ally, enemy, mech;
-} CYCFIX;
+    edict_t * caster, *ally, *enemy, *mech;
+} cycFix_t;
 
-static CYCFIX cyc_setup(cstring_t slk, uint32_t code) {
-    CYCFIX fix;
+static cycFix_t cyc_setup(cstring_t slk, uint32_t code) {
+    cycFix_t fix;
     reset_entities(); setup_test_world(); level.time = 1000;
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
     fix.rows = parse_slk_string(slk); fix.old = G_SetSLKRows("AbilityData", fix.rows);
     fix.caster = alloc_test_unit(MAKEFOURCC('e','d','o','t'), 0, 0);
@@ -63,7 +63,7 @@ static CYCFIX cyc_setup(cstring_t slk, uint32_t code) {
     return fix;
 }
 
-static void cyc_done(CYCFIX fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
+static void cyc_done(cycFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
 
 TEST(wc3_spell, cyclone_aliases_share_procedure) {
     T_EQ(S_AbilityItem(BZ_ACYC).ability->proc, CAbilityCyclone);
@@ -89,10 +89,10 @@ TEST(wc3_spell, cyclone_item_aicy_applies_authored_duration_and_dispel) {
         "C;Y3;X4;K\"air,ground,ward,invu,vuln\"\nC;Y3;X5;K\"61\"\nC;Y3;X6;K\"0\"\n"
         "C;Y3;X7;K\"500\"\nC;Y3;X8;K\"0\"\nC;Y3;X9;K\"0\"\n"
         "C;Y3;X10;K\"\"\nC;Y3;X11;K\"0\"\nC;Y3;X12;K\"250\"\nE\n";
-    CYCFIX fix = cyc_setup(slk, BZ_AICY);
-    LPEDICT priest = alloc_test_unit(MAKEFOURCC('h', 'p', 'r', 'i'), 32, 0);
+    cycFix_t fix = cyc_setup(slk, BZ_AICY);
+    edict_t * priest = alloc_test_unit(MAKEFOURCC('h', 'p', 'r', 'i'), 32, 0);
     heroabilitystatus_t *slot = NULL;
-    VECTOR2 point;
+    vector2_t point;
 
     T_EQ(S_AbilityItem(BZ_AICY).ability->proc, CAbilityCyclone);
     T_FEQ(S_SpellDuration(BZ_AICY, 1, false), 13, 0.001f);
@@ -119,7 +119,7 @@ TEST(wc3_spell, cyclone_item_aicy_applies_authored_duration_and_dispel) {
 
 /* TFT organic token rejects mechanical; organic enemy is accepted; allies are not. */
 TEST(wc3_spell, cyclone_tft_organic_mechanical_and_ally_filters) {
-    CYCFIX fix = cyc_setup(CYC_SLK, BZ_ACYC);
+    cycFix_t fix = cyc_setup(CYC_SLK, BZ_ACYC);
     T_ASSERT(S_SpellAllowsTarget(BZ_ACYC, fix.caster, fix.enemy));
     T_ASSERT(!S_SpellAllowsTarget(BZ_ACYC, fix.caster, fix.mech));
     T_ASSERT(!S_SpellAllowsTarget(BZ_ACYC, fix.caster, fix.ally));
@@ -134,7 +134,7 @@ TEST(wc3_spell, cyclone_tft_organic_mechanical_and_ally_filters) {
 
 /* Recast on an already-cycloned target fails without spending mana. */
 TEST(wc3_spell, cyclone_rejects_already_cycloned_without_mana_spend) {
-    CYCFIX fix = cyc_setup(CYC_SLK, BZ_ACYC);
+    cycFix_t fix = cyc_setup(CYC_SLK, BZ_ACYC);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.enemy));
     T_FEQ(fix.caster->mana.value, 113, 0.001f);
     T_ASSERT(S_UnitIsCycloned(fix.enemy));
@@ -145,14 +145,14 @@ TEST(wc3_spell, cyclone_rejects_already_cycloned_without_mana_spend) {
 
 /* Cyclone locks move, attack both ways, spells on/from victim, and physical damage. */
 TEST(wc3_spell, cyclone_locks_move_attack_spell_and_damage) {
-    CYCFIX fix = cyc_setup(CYC_SLK, BZ_ACYC);
-    LPEDICT wp;
+    cycFix_t fix = cyc_setup(CYC_SLK, BZ_ACYC);
+    edict_t * wp;
     fix.enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_ACYC, .level = 1);
     fix.enemy->mana.value = fix.enemy->mana.max_value = 200;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.enemy));
     T_ASSERT(S_UnitIsCycloned(fix.enemy));
 
-    wp = Waypoint_add(&(VECTOR2){200, 0});
+    wp = Waypoint_add(&(vector2_t){200, 0});
     fix.enemy->goalentity = NULL;
     order_move(fix.enemy, wp);
     T_ASSERT(fix.enemy->goalentity != wp);
@@ -178,7 +178,7 @@ TEST(wc3_spell, cyclone_roc_row_without_buffid_still_applies_bcyc) {
         "C;Y2;X1;K\"Acyc\"\nC;Y2;X2;K\"Acyc\"\nC;Y2;X3;K\"1\"\n"
         "C;Y2;X4;K\"ground,enemy,neutral\"\nC;Y2;X5;K\"87\"\nC;Y2;X6;K\"600\"\n"
         "C;Y2;X7;K\"11\"\nC;Y2;X8;K\"4\"\nE\n";
-    CYCFIX fix = cyc_setup(slk, BZ_ACYC);
+    cycFix_t fix = cyc_setup(slk, BZ_ACYC);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.enemy));
     T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BCYC), 1);
     T_ASSERT(S_UnitIsCycloned(fix.enemy));
@@ -188,9 +188,9 @@ TEST(wc3_spell, cyclone_roc_row_without_buffid_still_applies_bcyc) {
 /* Heroes use HeroDur; ordinary units use Dur. Expiry restores combat. */
 TEST(wc3_spell, cyclone_hero_duration_and_expiry_restore) {
     static UnitBalance_t hero_bal = { .strength = 1 };
-    CYCFIX fix = cyc_setup(CYC_SLK, BZ_ACYC);
-    LPEDICT hero = alloc_test_unit(MAKEFOURCC('O','g','r','h'), 160, 0);
-    LPEDICT wp;
+    cycFix_t fix = cyc_setup(CYC_SLK, BZ_ACYC);
+    edict_t * hero = alloc_test_unit(MAKEFOURCC('O','g','r','h'), 160, 0);
+    edict_t * wp;
 
     hero->s.player = 1; hero->svflags |= SVF_MONSTER; hero->targtype = TARG_GROUND;
     hero->data.UnitBalance = &hero_bal;
@@ -210,7 +210,7 @@ TEST(wc3_spell, cyclone_hero_duration_and_expiry_restore) {
     level.time += 11000; unit_updatestatuses(fix.enemy);
     T_ASSERT(!S_UnitIsCycloned(fix.enemy));
 
-    wp = Waypoint_add(&(VECTOR2){220, 0});
+    wp = Waypoint_add(&(vector2_t){220, 0});
     order_move(fix.enemy, wp);
     T_ASSERT(fix.enemy->goalentity == wp);
     fix.caster->attack1.type = ATK_NORMAL;
@@ -259,9 +259,9 @@ TEST(wc3_spell, cyclone_hero_duration_and_expiry_restore) {
 
 /* DataA != 0: Adis removes Cyclone; Slow probe also clears; mana is spent. */
 TEST(wc3_spell, cyclone_dataa_nonzero_removed_by_adis) {
-    CYCFIX fix = cyc_setup(CYC_DISPEL_SLK_DATAA("2"), BZ_ACYC);
-    LPEDICT priest = alloc_test_unit(MAKEFOURCC('h', 'p', 'r', 'i'), 32, 0);
-    VECTOR2 point;
+    cycFix_t fix = cyc_setup(CYC_DISPEL_SLK_DATAA("2"), BZ_ACYC);
+    edict_t * priest = alloc_test_unit(MAKEFOURCC('h', 'p', 'r', 'i'), 32, 0);
+    vector2_t point;
 
     priest->s.player = 0; priest->svflags |= SVF_MONSTER; priest->targtype = TARG_GROUND;
     priest->heroabilities[0] = MAKE(heroability_t, .code = BZ_ADIS, .level = 1);
@@ -280,9 +280,9 @@ TEST(wc3_spell, cyclone_dataa_nonzero_removed_by_adis) {
 
 /* DataA == 0 (ROC): Adis leaves Cyclone, still clears other timed buffs, still spends mana. */
 TEST(wc3_spell, cyclone_dataa_zero_survives_adis) {
-    CYCFIX fix = cyc_setup(CYC_DISPEL_SLK_DATAA("0"), BZ_ACYC);
-    LPEDICT priest = alloc_test_unit(MAKEFOURCC('h', 'p', 'r', 'i'), 32, 0);
-    VECTOR2 point;
+    cycFix_t fix = cyc_setup(CYC_DISPEL_SLK_DATAA("0"), BZ_ACYC);
+    edict_t * priest = alloc_test_unit(MAKEFOURCC('h', 'p', 'r', 'i'), 32, 0);
+    vector2_t point;
 
     priest->s.player = 0; priest->svflags |= SVF_MONSTER; priest->targtype = TARG_GROUND;
     priest->heroabilities[0] = MAKE(heroability_t, .code = BZ_ADIS, .level = 1);
@@ -300,8 +300,8 @@ TEST(wc3_spell, cyclone_dataa_zero_survives_adis) {
 
 /* Purge shares the undispellable skip. Unit-target S_Cast cannot select cycloned units, so drive A_EXECUTE. */
 TEST(wc3_spell, cyclone_dataa_zero_survives_purge) {
-    CYCFIX fix = cyc_setup(CYC_PURGE_SLK_DATAA("0"), BZ_ACYC);
-    LPEDICT shaman = alloc_test_unit(MAKEFOURCC('o', 's', 'h', 'm'), 32, 0);
+    cycFix_t fix = cyc_setup(CYC_PURGE_SLK_DATAA("0"), BZ_ACYC);
+    edict_t * shaman = alloc_test_unit(MAKEFOURCC('o', 's', 'h', 'm'), 32, 0);
     abilityitem_t item;
     spellTarget_t st;
     abilityCall_t call;
@@ -322,8 +322,8 @@ TEST(wc3_spell, cyclone_dataa_zero_survives_purge) {
 }
 
 TEST(wc3_spell, cyclone_dataa_nonzero_removed_by_purge) {
-    CYCFIX fix = cyc_setup(CYC_PURGE_SLK_DATAA("2"), BZ_ACYC);
-    LPEDICT shaman = alloc_test_unit(MAKEFOURCC('o', 's', 'h', 'm'), 32, 0);
+    cycFix_t fix = cyc_setup(CYC_PURGE_SLK_DATAA("2"), BZ_ACYC);
+    edict_t * shaman = alloc_test_unit(MAKEFOURCC('o', 's', 'h', 'm'), 32, 0);
     abilityitem_t item;
     spellTarget_t st;
     abilityCall_t call;

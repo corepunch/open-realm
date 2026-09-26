@@ -18,20 +18,20 @@ extern struct game_export globals;
 
 /* Level-local state for the Galaxy VM and cinematic system. */
 typedef struct {
-    VECTOR2 origin;
-    VECTOR3 angles;
+    vector2_t origin;
+    vector3_t angles;
     float distance, fov;
-} SC2CAMERA;
-typedef SC2CAMERA *LPSC2CAMERA;
-typedef SC2CAMERA const *LPCSC2CAMERA;
+} sc2Camera_t;
+
+
 
 typedef struct {
-    LPJASS vm;
+    jass_t * vm;
     bool   scriptsStarted;
     float  cinefade;       /* 0=clear … 1=fully black (written to client ps.cinefade) */
     bool   cinematic;      /* true while cinematic bars/overlay is active */
     struct {
-        SC2CAMERA old, state;
+        sc2Camera_t old, state;
         uint32_t start_time, end_time;
         uint8_t log_stage;
     } camera;
@@ -40,7 +40,7 @@ typedef struct {
 extern sc2Level_t sc2_level;
 
 int          G_RegisterModel(cstring_t filename);
-LPCANIMATION G_GetAnimation(uint32_t modelindex, cstring_t animname);
+animation_t const * G_GetAnimation(uint32_t modelindex, cstring_t animname);
 void         G_FreeModels(void);
 
 /* HUD declarations are in hud/hud.h; include that separately in .c files. */

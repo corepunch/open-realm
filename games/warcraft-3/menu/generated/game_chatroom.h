@@ -5,26 +5,26 @@
 #include "../menu_local.h"
 
 typedef struct GameChatroom_s {
-    LPFRAMEDEF GameChatroom;
-    LPFRAMEDEF TeamSetupContainer;
-    LPFRAMEDEF ChatTextArea;
-    LPFRAMEDEF ChatScrollBar;
-    LPFRAMEDEF ChatEditBox;
-    LPFRAMEDEF MapDisplayPanel;
-    LPFRAMEDEF MapInfoPaneContainer;
-    LPFRAMEDEF GameNameLabel;
-    LPFRAMEDEF GameNameValue;
-    LPFRAMEDEF AdvancedOptionsContainer;
-    LPFRAMEDEF StartGameBackdrop;
-    LPFRAMEDEF StartGameButton;
-    LPFRAMEDEF StartGameButtonText;
-    LPFRAMEDEF CancelBackdrop;
-    LPFRAMEDEF CancelButton;
-    LPFRAMEDEF CancelButtonText;
+    frameDef_t * GameChatroom;
+    frameDef_t * TeamSetupContainer;
+    frameDef_t * ChatTextArea;
+    frameDef_t * ChatScrollBar;
+    frameDef_t * ChatEditBox;
+    frameDef_t * MapDisplayPanel;
+    frameDef_t * MapInfoPaneContainer;
+    frameDef_t * GameNameLabel;
+    frameDef_t * GameNameValue;
+    frameDef_t * AdvancedOptionsContainer;
+    frameDef_t * StartGameBackdrop;
+    frameDef_t * StartGameButton;
+    frameDef_t * StartGameButtonText;
+    frameDef_t * CancelBackdrop;
+    frameDef_t * CancelButton;
+    frameDef_t * CancelButtonText;
 } GameChatroom_t;
 
 
-static inline bool GameChatroom_Bind(GameChatroom_t *out, LPFRAMEDEF bind_root) {
+static inline bool GameChatroom_Bind(GameChatroom_t *out, frameDef_t * bind_root) {
     bool ok = true;
     if (!out) {
         return false;

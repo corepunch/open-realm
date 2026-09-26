@@ -524,7 +524,7 @@ static void assign_selected_binding_idents(void) {
 }
 
 static void emit_binding_fields(int node_index) {
-    printf("    LPFRAMEDEF %s;\n", nodes[node_index].binding_ident);
+    printf("    frameDef_t * %s;\n", nodes[node_index].binding_ident);
     for (int child = nodes[node_index].first_child; child >= 0; child = nodes[child].next_sibling) {
         emit_binding_fields(child);
     }
@@ -590,7 +590,7 @@ static void emit_load_function(void) {
     }
 
     printf("    bool ok = true;\n");
-    printf("    LPFRAMEDEF bind_root;\n");
+    printf("    frameDef_t * bind_root;\n");
     printf("    if (!out) {\n");
     printf("        return false;\n");
     printf("    }\n");
@@ -622,7 +622,7 @@ static void emit_bind_at_function(void) {
     }
 
     root = selected_roots[0];
-    printf("\nstatic inline bool %s_Bind(%s_t *out, LPFRAMEDEF bind_root) {\n", prefix, prefix);
+    printf("\nstatic inline bool %s_Bind(%s_t *out, frameDef_t * bind_root) {\n", prefix, prefix);
     printf("    bool ok = true;\n");
     printf("    if (!out) {\n");
     printf("        return false;\n");

@@ -3,7 +3,7 @@
 
 #include "jlex.h"
 
-KNOWN_AS(token, TOKEN);
+KNOWN_AS(token, token_t);
 
 typedef enum {
     TT_UNKNOWN,
@@ -41,17 +41,17 @@ struct token {
     string_t secondary;
     TOKENTYPE type;
     uint32_t flags;
-    LPTOKEN init;
-    LPTOKEN body;
-    LPTOKEN next;
-    LPTOKEN args;
-    LPTOKEN condition;
-    LPTOKEN elseblock;
-    LPTOKEN index;
+    token_t * init;
+    token_t * body;
+    token_t * next;
+    token_t * args;
+    token_t * condition;
+    token_t * elseblock;
+    token_t * index;
 };
 
-LPTOKEN JASS_ParseTokens(LPPARSER p);
-LPTOKEN GALAXY_ParseTokens(LPPARSER p);
-void JASS_FreeTokens(LPTOKEN tokens);
+token_t * JASS_ParseTokens(wordExtractor_t * p);
+token_t * GALAXY_ParseTokens(wordExtractor_t * p);
+void JASS_FreeTokens(token_t * tokens);
 
 #endif

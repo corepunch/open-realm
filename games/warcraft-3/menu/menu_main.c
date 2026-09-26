@@ -19,7 +19,7 @@ typedef struct {
     bool initialized;
     bool active;
     uint32_t time;
-    VECTOR2 mouse_fdf;
+    vector2_t mouse_fdf;
     uiScreen_t *transition_screen;
     void (*configure)(void);
     void (*transition_action)(void);
@@ -32,7 +32,7 @@ static bool ui_menu_commands_registered;
 static void UI_ClearScreen(void);
 static void M_ShowSinglePlayerSkirmishMenu(void);
 
-typedef struct { cstring_t name; void (*func)(void); } MENUCOMMAND;
+typedef struct { cstring_t name; void (*func)(void); } menucommand_t;
 
 static void UI_MenuMain_f(void);
 static void UI_MenuGame_f(void);
@@ -68,7 +68,7 @@ static void UI_MenuSetupMap_f(void);
 static void UI_MenuSetupChat_f(void);
 
 /* All menu entry points are ordinary console commands; clicks only enqueue text. */
-static const MENUCOMMAND menu_commands[] = {
+static const menucommand_t menu_commands[] = {
     { "menu_main", UI_MenuMain_f },
     { "menu_game", UI_MenuGame_f },
     { "menu_multiplayer", M_ShowLanBrowserMenu },
@@ -170,7 +170,7 @@ static void UI_FinishActionTransition(void) {
 
 /* Every menu route uses the same handoff, including commands issued at startup.
  * A loaded destination may prepare resources, but cannot replace outgoing content. */
-static bool UI_RequestScreen(uiScreen_t *screen, GLUEDEST glue, void (*configure)(void)) {
+static bool UI_RequestScreen(uiScreen_t *screen, glueDest_t glue, void (*configure)(void)) {
     if (ui_state.transition_action || !UI_LoadScreen(screen)) return false;
     /* Prepare inactive data before returning to lobby/map command callers. Only
      * installation grants draw ownership, so preparation cannot flash controls. */
@@ -182,7 +182,7 @@ static bool UI_RequestScreen(uiScreen_t *screen, GLUEDEST glue, void (*configure
 }
 
 static void UI_SetScreen(uiScreen_t *screen) {
-    UI_RequestScreen(screen, screen ? screen->glue : (GLUEDEST){0}, NULL);
+    UI_RequestScreen(screen, screen ? screen->glue : (glueDest_t){0}, NULL);
 }
 
 void M_TransitionToAction(void (*action)(void)) {
@@ -207,19 +207,19 @@ void M_ShowOptionsMenu(void) { UI_MenuOptionsGameplay_f(); }
 void M_ShowCreditsMenu(void) { UI_SetScreen(&creditsMenuScreen); }
 
 void M_ShowLanCreateMenu(void) {
-    UI_RequestScreen(&lanJoinScreen, (GLUEDEST){ .panel = UI_GLUE_BATTLENET_CUSTOM, .tab = 1 }, LAN_ShowCreate);
+    UI_RequestScreen(&lanJoinScreen, (glueDest_t){ .panel = UI_GLUE_BATTLENET_CUSTOM, .tab = 1 }, LAN_ShowCreate);
 }
 
 static void M_ShowSinglePlayerSkirmishMenu(void) {
-    UI_RequestScreen(&lanJoinScreen, (GLUEDEST){ .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 }, LAN_ShowSinglePlayerCreate);
+    UI_RequestScreen(&lanJoinScreen, (glueDest_t){ .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 }, LAN_ShowSinglePlayerCreate);
 }
 
 void M_ShowLanBrowserMenu(void) {
-    UI_RequestScreen(&lanJoinScreen, (GLUEDEST){ .panel = UI_GLUE_BATTLENET_CUSTOM }, LAN_ShowBrowser);
+    UI_RequestScreen(&lanJoinScreen, (glueDest_t){ .panel = UI_GLUE_BATTLENET_CUSTOM }, LAN_ShowBrowser);
 }
 
 static bool UI_RequestGameSetup(void) {
-    GLUEDEST glue = LAN_IsSinglePlayerCreate() ? (GLUEDEST){ .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 } : gameSetupScreen.glue;
+    glueDest_t glue = LAN_IsSinglePlayerCreate() ? (glueDest_t){ .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 } : gameSetupScreen.glue;
     return UI_RequestScreen(&gameSetupScreen, glue, NULL);
 }
 
@@ -229,7 +229,7 @@ static void UI_MenuMain_f(void) { M_ShowMainMenu(); }
 static void UI_MenuGame_f(void) { M_ShowSinglePlayerMenu(); }
 
 static void UI_MenuVideo_f(void) {
-    UI_RequestScreen(&optionsMenuScreen, (GLUEDEST){ .panel = UI_GLUE_OPTIONS, .tab = 1, .page = 1 }, OptionsMenu_ShowVideo);
+    UI_RequestScreen(&optionsMenuScreen, (glueDest_t){ .panel = UI_GLUE_OPTIONS, .tab = 1, .page = 1 }, OptionsMenu_ShowVideo);
 }
 
 static void UI_MenuKeys_f(void) { UI_MenuOptionsGameplay_f(); }
@@ -261,7 +261,7 @@ static void UI_MenuDisconnected_f(void) {
 }
 
 static void UI_MenuRealmSelect_f(void) {
-    UI_RequestScreen(&mainMenuScreen, (GLUEDEST){ .panel = UI_GLUE_REALM_SELECTION }, MainMenu_ShowRealmSelect);
+    UI_RequestScreen(&mainMenuScreen, (glueDest_t){ .panel = UI_GLUE_REALM_SELECTION }, MainMenu_ShowRealmSelect);
 }
 
 static void UI_MenuOptionsGameplay_f(void) {
@@ -269,7 +269,7 @@ static void UI_MenuOptionsGameplay_f(void) {
 }
 
 static void UI_MenuOptionsSound_f(void) {
-    UI_RequestScreen(&optionsMenuScreen, (GLUEDEST){ .panel = UI_GLUE_OPTIONS, .tab = 1, .page = 2 }, OptionsMenu_ShowSound);
+    UI_RequestScreen(&optionsMenuScreen, (glueDest_t){ .panel = UI_GLUE_OPTIONS, .tab = 1, .page = 2 }, OptionsMenu_ShowSound);
 }
 
 static void UI_MenuOptionsApply_f(void) {
@@ -278,7 +278,7 @@ static void UI_MenuOptionsApply_f(void) {
 }
 
 static void UI_MenuSinglePlayerCampaign_f(void) {
-    UI_RequestScreen(&singlePlayerMenuScreen, (GLUEDEST){0}, SinglePlayerMenu_ShowCampaign);
+    UI_RequestScreen(&singlePlayerMenuScreen, (glueDest_t){0}, SinglePlayerMenu_ShowCampaign);
 }
 
 static void UI_MenuGameSetupStart_f(void) {
@@ -304,9 +304,9 @@ static void UI_ClearScreen(void) {
 }
 
 /* Refresh frame state flags before dispatch so draw never asks for mouse position. */
-static void UI_UpdateMouseFrameFlags(LPCFRAMEDEF hit, bool clear_pressed) {
+static void UI_UpdateMouseFrameFlags(frameDef_t const * hit, bool clear_pressed) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
-        LPFRAMEDEF frame = &frames[i];
+        frameDef_t * frame = &frames[i];
         if (!frame->inuse) {
             continue;
         }
@@ -320,7 +320,7 @@ static void UI_UpdateMouseFrameFlags(LPCFRAMEDEF hit, bool clear_pressed) {
         else frame->ui_flags &= ~UIFLAG_DISABLED;
     }
     if (hit) {
-        ((LPFRAMEDEF)hit)->ui_flags |= UIFLAG_HOVERED | UIFLAG_ACTIVE;
+        ((frameDef_t *)hit)->ui_flags |= UIFLAG_HOVERED | UIFLAG_ACTIVE;
     }
 }
 
@@ -389,10 +389,10 @@ bool M_IsTransitioning(void) {
 
 /* Left subtree declarations split native FDF without changing its layout. All
  * remaining controls belong to the right side, including screen-level dialogs. */
-float UI_ScreenFrameOffset(LPCFRAMEDEF frame) {
+float UI_ScreenFrameOffset(frameDef_t const * frame) {
     uiScreen_t *screen = UI_GetCurrentScreen();
     if (!screen) return 0;
-    for (LPCFRAMEDEF cur = frame; cur; cur = cur->Parent)
+    for (frameDef_t const * cur = frame; cur; cur = cur->Parent)
         for (cstring_t const *name = screen->left; name && *name; name++)
             if (!strcmp(cur->Name, *name)) return UI_GlueSideOffset(UI_GLUE_LEFT);
     return UI_GlueSideOffset(UI_GLUE_RIGHT);
@@ -441,8 +441,8 @@ void M_KeyEvent(int key, bool down, uint32_t time) {
 }
 
 /* Convert pixel coordinates to FDF/UI space for hit testing */
-static VECTOR2 UI_PixelToFdf(int px, int py) {
-    LPRENDERER renderer = mi.GetRenderer();
+static vector2_t UI_PixelToFdf(int px, int py) {
+    refExport_t * renderer = mi.GetRenderer();
     size2_t window = renderer && renderer->GetWindowSize ? renderer->GetWindowSize() : MAKE(size2_t, 0, 0);
     rect_t scene = UI_GetSceneRect();
     float nx = 0;
@@ -452,7 +452,7 @@ static VECTOR2 UI_PixelToFdf(int px, int py) {
         nx = (float)px / (float)window.width;
         ny = (float)py / (float)window.height;
     }
-    return MAKE(VECTOR2, scene.x + nx * scene.w, scene.y + ny * scene.h);
+    return MAKE(vector2_t, scene.x + nx * scene.w, scene.y + ny * scene.h);
 }
 
 /* All UI mouse work starts here so draw code only consumes event-updated state. */
@@ -471,14 +471,14 @@ bool M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
         return false;
     }
 
-    VECTOR2 fdf = UI_PixelToFdf(x, y);
+    vector2_t fdf = UI_PixelToFdf(x, y);
     ui_state.mouse_fdf = fdf;
-    LPCFRAMEDEF hit = UI_HitTest(fdf.x, fdf.y);
+    frameDef_t const * hit = UI_HitTest(fdf.x, fdf.y);
     UI_UpdateMouseFrameFlags(hit, up && left);
 
     /* Dispatch to per-type event handler */
     if (hit && hit->event_handler) {
-        hit->event_handler((LPFRAMEDEF)hit, event, fdf.x, fdf.y, param);
+        hit->event_handler((frameDef_t *)hit, event, fdf.x, fdf.y, param);
     }
 
     /* Global: editbox clear focus on miss (LEFT_DOWN outside any editbox) */

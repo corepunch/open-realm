@@ -17,14 +17,14 @@
 static uint32_t cheat_packets;
 static int32_t cheat_opcode;
 static bool cheat_writing;
-static LPEDICT cheat_recipient;
+static edict_t * cheat_recipient;
 static char cheat_text[1024];
 static cstring_t cheat_cvar(cstring_t name, cstring_t fallback) { return !strcmp(name, "sv_cheats") ? "1" : fallback; }
 static void cheat_write(pfWriteType_t type, void const *data) {
     if (!cheat_writing && type == PF_BYTE) { cheat_opcode = *(int32_t const *)data; cheat_writing = true; }
     if (cheat_opcode == svc_console_print && type == PF_STRING) snprintf(cheat_text, sizeof(cheat_text), "%s", (cstring_t)data);
 }
-static void cheat_unicast(LPEDICT ent) {
+static void cheat_unicast(edict_t * ent) {
     if (cheat_opcode == svc_console_print) { cheat_packets++; cheat_recipient = ent; }
     cheat_writing = false;
 }
@@ -39,10 +39,10 @@ static int combat_model(void) {
 
 /* Two hostile creatures 2 units apart (inside WOW_MELEE_RANGE), attacker locked
  * onto the target.  Returns real edicts driven by the real AI think function. */
-static void combat_prepare(LPEDICT *attacker_out, LPEDICT *target_out) {
+static void combat_prepare(edict_t * *attacker_out, edict_t * *target_out) {
     int model = combat_model();
-    LPEDICT attacker = &wow_edicts[1];
-    LPEDICT target = &wow_edicts[2];
+    edict_t * attacker = &wow_edicts[1];
+    edict_t * target = &wow_edicts[2];
     wowEntityLocal_t *al, *tl;
 
     memset(wow_edicts, 0, sizeof(wow_edicts));
@@ -55,8 +55,8 @@ static void combat_prepare(LPEDICT *attacker_out, LPEDICT *target_out) {
     target->s.number = 2;
     attacker->s.model = target->s.model = model;
     attacker->svflags = target->svflags = SVF_MONSTER;
-    attacker->s.origin2 = (VECTOR2){ 0.0f, 0.0f };
-    target->s.origin2 = (VECTOR2){ 2.0f, 0.0f };
+    attacker->s.origin2 = (vector2_t){ 0.0f, 0.0f };
+    target->s.origin2 = (vector2_t){ 2.0f, 0.0f };
 
     al = Wow_EntityLocal(attacker);
     tl = Wow_EntityLocal(target);
@@ -73,7 +73,7 @@ static void combat_prepare(LPEDICT *attacker_out, LPEDICT *target_out) {
 
 TEST(wow_combat, cheat_feedback_reaches_issuing_client) {
     struct game_import saved = gi;
-    LPEDICT player, target;
+    edict_t * player, *target;
     cstring_t god[] = { "god" }, give[] = { "give", "health", "25" };
     combat_prepare(&player, &target);
     player->client = &wow_clients[0].client;
@@ -101,7 +101,7 @@ TEST(wow_combat, cheat_feedback_reaches_issuing_client) {
 }
 
 TEST(wow_combat, attack_applies_damage_at_damage_point) {
-    LPEDICT attacker, target;
+    edict_t * attacker, *target;
     wowEntityLocal_t *al, *tl;
     uint32_t hp;
 
@@ -129,7 +129,7 @@ TEST(wow_combat, attack_applies_damage_at_damage_point) {
 }
 
 TEST(wow_combat, explicit_timing_overrides_animation_split) {
-    LPEDICT attacker, target;
+    edict_t * attacker, *target;
     wowEntityLocal_t *al;
 
     combat_prepare(&attacker, &target);
@@ -144,7 +144,7 @@ TEST(wow_combat, explicit_timing_overrides_animation_split) {
 }
 
 TEST(wow_combat, lethal_attack_triggers_death_state) {
-    LPEDICT attacker, target;
+    edict_t * attacker, *target;
     wowEntityLocal_t *al, *tl;
 
     combat_prepare(&attacker, &target);
@@ -163,7 +163,7 @@ TEST(wow_combat, lethal_attack_triggers_death_state) {
 }
 
 TEST(wow_combat, dead_entity_ignores_pain_and_attack) {
-    LPEDICT attacker, target;
+    edict_t * attacker, *target;
     wowEntityLocal_t *tl;
 
     combat_prepare(&attacker, &target);
@@ -180,7 +180,7 @@ TEST(wow_combat, dead_entity_ignores_pain_and_attack) {
 }
 
 TEST(wow_combat, death_holds_terminal_frame) {
-    LPEDICT attacker, target;
+    edict_t * attacker, *target;
     wowEntityLocal_t *tl;
     uint32_t terminal;
     int num_edicts;

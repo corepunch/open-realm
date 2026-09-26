@@ -17,7 +17,7 @@
 #include "jass/jlex.h"
 
 #define SAFE_CALL(FUNC, ...) if (FUNC) FUNC(__VA_ARGS__)
-#define ABILITY(NAME) void M_##NAME(LPEDICT ent, LPEDICT target)
+#define ABILITY(NAME) void M_##NAME(edict_t * ent, edict_t * target)
 #define SEL_SCALE 72
 #define MAX_BUILD_QUEUE 7
 #define MAX_EVENT_QUEUE 1024
@@ -51,7 +51,7 @@ typedef enum {
 } wc3MapGameDataSet_t;
 
 typedef struct {
-    LPCMAPINFO info;
+    mapInfo_t const * info;
     uint32_t version;
     string_t out;
     uint32_t size;
@@ -70,16 +70,16 @@ typedef struct {
 #define MAX_PLAYER_TECH_STATE 256 // slots; NightElfX02 scripts 137 distinct techs for one player, exceeding the former 128; game-local only, not a network contract
 
 #define FILTER_EDICTS(ENT, CONDITION) \
-for (LPEDICT ENT = globals.edicts; \
+for (edict_t * ENT = globals.edicts; \
 ENT - globals.edicts < globals.num_edicts; \
 ENT++) if (CONDITION)
 
-#define PLAYER_NUM(PLAYER) (PLAYER->number)
-#define PLAYER_ENT(PLAYER) G_GetPlayerEntityByNumber(PLAYER_NUM(PLAYER))
-#define PLAYER_CLIENT(PLAYER) G_GetPlayerClientByNumber(PLAYER_NUM(PLAYER))
+#define PLAYER_NUM(player_t) (player_t->number)
+#define PLAYER_ENT(player_t) G_GetPlayerEntityByNumber(PLAYER_NUM(player_t))
+#define PLAYER_CLIENT(player_t) G_GetPlayerClientByNumber(PLAYER_NUM(player_t))
 
 #define UI_CHILD_VALUE(NAME, PARENT, VALUE, ...) \
-LPFRAMEDEF NAME = UI_FindChildFrame(PARENT, #NAME); \
+frameDef_t * NAME = UI_FindChildFrame(PARENT, #NAME); \
 if (NAME) { \
     UI_Set##VALUE(NAME, __VA_ARGS__); \
 } else { \
@@ -97,27 +97,27 @@ if (NAME) { \
 } while (0)
 
 
-#define FOR_SELECTED_UNITS(CLIENT, ENT) \
-FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT))
+#define FOR_SELECTED_UNITS(client_t, ENT) \
+FILTER_EDICTS(ENT, G_IsEntitySelected(client_t, ENT))
 
-#define FOR_CONTROLLABLE_SELECTED_UNITS(CLIENT, ENT) \
-FILTER_EDICTS(ENT, G_IsEntitySelected(CLIENT, ENT) && G_UnitCanControl(CLIENT, ENT))
+#define FOR_CONTROLLABLE_SELECTED_UNITS(client_t, ENT) \
+FILTER_EDICTS(ENT, G_IsEntitySelected(client_t, ENT) && G_UnitCanControl(client_t, ENT))
 
 struct jass_function;
-KNOWN_AS(jass_s, JASS);
-KNOWN_AS(gcamerasetup_s, CAMERASETUP);
-KNOWN_AS(gregion_s, REGION);
-KNOWN_AS(gevent_s, EVENT);
-KNOWN_AS(gtrigger_s, TRIGGER);
-KNOWN_AS(gtimer_s, GTIMER);
-KNOWN_AS(gtimerdialog_s, TIMERDIALOG);
-KNOWN_AS(gleaderboard_s, LEADERBOARD);
-KNOWN_AS(gmultiboard_s, MULTIBOARD);
-KNOWN_AS(gmultiboarditem_s, MULTIBOARDITEM);
-KNOWN_AS(gtexttag_s, TEXTTAG);
-KNOWN_AS(ghashtable_s, HASHTABLE);
-KNOWN_AS(gquest_s, QUEST);
-KNOWN_AS(gquestitem_s, QUESTITEM);
+KNOWN_AS(jass_s, jass_t);
+KNOWN_AS(gcamerasetup_s, camerasetup_t);
+KNOWN_AS(gregion_s, region_t);
+KNOWN_AS(gevent_s, event_t);
+KNOWN_AS(gtrigger_s, trigger_t);
+KNOWN_AS(gtimer_s, gtimer_t);
+KNOWN_AS(gtimerdialog_s, timerdialog_t);
+KNOWN_AS(gleaderboard_s, leaderboard_t);
+KNOWN_AS(gmultiboard_s, multiboard_t);
+KNOWN_AS(gmultiboarditem_s, multiboardItem_t);
+KNOWN_AS(gtexttag_s, texttag_t);
+KNOWN_AS(ghashtable_s, hashtable_t);
+KNOWN_AS(gquest_s, quest_t);
+KNOWN_AS(gquestitem_s, questItem_t);
 
 typedef enum {
     BUILD_COMMAND_ABSENT,
@@ -128,14 +128,14 @@ typedef enum {
 } buildCommandState_t;
 
 typedef struct {
-    LPCEDICT building;
+    edict_t const * building;
     uint32_t unit_id;
     int32_t *gold, *lumber, *food;
 } buildingUpgradeCostParams_t;
 
 typedef struct {
-    LPGAMECLIENT client;
-    LPEDICT producer;
+    gameClient_t * client;
+    edict_t * producer;
     uint32_t unit_id;
     string_t reason;
     uint32_t reason_size;
@@ -169,16 +169,16 @@ typedef struct {
 } playerTechState_t;
 
 typedef struct {
-    bool (*on_entity_selected)(LPEDICT, LPEDICT);
-    bool (*on_location_selected)(LPEDICT, LPCVECTOR2);
-    void (*cmdbutton)(LPEDICT, uint32_t);
-    void (*refresh)(LPEDICT);
+    bool (*on_entity_selected)(edict_t *, edict_t *);
+    bool (*on_location_selected)(edict_t *, vector2_t const *);
+    void (*cmdbutton)(edict_t *, uint32_t);
+    void (*refresh)(edict_t *);
     uint32_t ability_code;
     bool supports_order_queue; /* active target mode accepts Shift chaining */
     bool order_queued;         /* transient modifier for the current target callback */
     bool order_queue_chained;  /* successful Shift target keeps this mode armed until Shift release */
     bool ability_off;          /* command-card separate-off variant selected for this dispatch */
-    LPEDICT dragged_item;      /* transient inventory item carried by the cursor for a drop order */
+    edict_t * dragged_item;      /* transient inventory item carried by the cursor for a drop order */
 } menu_t;
 typedef menu_t clientMenu_s;
 
@@ -449,7 +449,7 @@ typedef enum {
 /* struct uiFrameDef_s is defined in common/stb_fdf.h (shared with UI module) */
 
 struct gregion_s {
-    BOX2 rects[MAX_REGION_SIZE];
+    box2_t rects[MAX_REGION_SIZE];
     uint32_t num_rects;
     uint8_t inuse;
     uint32_t generation;
@@ -477,8 +477,8 @@ struct gcamerasetup_s {
 //    float roll;
 //    float rotations;
     float z_offset;
-    VECTOR3 viewangles;
-    VECTOR2 position;
+    vector3_t viewangles;
+    vector2_t position;
 };
 
 #define WC3_MESSAGE_LOG_MAX_ENTRIES 128 // entries; bounded per-client message history for the Message Log dialog
@@ -529,7 +529,7 @@ typedef struct {
 } wc3MusicState_t;
 
 struct client_s {
-    PLAYER ps;
+    player_t ps;
     bool connected; /* ClientBegin completed for this reserved player edict. */
     bool commands_dirty; /* authoritative command availability changed; rebuild after simulation */
     bool selection_dirty; /* JASS selection changed; synchronize once after simulation */
@@ -549,7 +549,7 @@ struct client_s {
     playerTechState_t tech[MAX_PLAYER_TECH_STATE];
     char playerTextStorage[PLAYERTEXT_COUNT][PLAYER_TEXT_BACKUP][512];
     uint32_t playerTextCursor[PLAYERTEXT_COUNT];
-    LPCMAPPLAYER mapplayer;
+    mapPlayer_t const * mapplayer;
     uint32_t ping;
     bool no_control, no_ui;
     /* Presentation class the client's window settled on (ui_canvas command); gates widescreen console
@@ -562,15 +562,15 @@ struct client_s {
     uint32_t quest_until; /* FlashQuestDialogButton deadline in simulation milliseconds. */
     menu_t menu;
     struct clientCamera_s {
-        CAMERASETUP state;
-        CAMERASETUP old_state;
+        camerasetup_t state;
+        camerasetup_t old_state;
         float target_height;
         uint32_t start_time;
         uint32_t end_time;
-        VECTOR2 quick_position; /* SetCameraQuickPosition spacebar target; does not move the camera */
+        vector2_t quick_position; /* SetCameraQuickPosition spacebar target; does not move the camera */
         bool quick_position_set;
-        LPEDICT target_controller;
-        VECTOR2 target_offset;
+        edict_t * target_controller;
+        vector2_t target_offset;
         bool target_inherit_orientation;
     } camera;
     /* Info-panel cache. For single units entity/xp track static presentation;
@@ -601,9 +601,9 @@ struct client_s {
         bool dirty;
         uint32_t last_idle_worker;
     } shortcuts;
-    LPEDICT rally_indicator;
+    edict_t * rally_indicator;
     struct {
-        VECTOR2 position;
+        vector2_t position;
         uint32_t end_time;        /* game time (ms), 0 = inactive */
         char text[1024];
     } message;
@@ -633,7 +633,7 @@ typedef enum {
 typedef struct {
     char order[UNIT_ORDER_NAME_SIZE];
     unitOrderTargetType_t target_type;
-    VECTOR2 point;
+    vector2_t point;
     /* Entity-target orders identify their gameplay target here. Queued Build
      * orders instead identify their owner-only Construction Site Indicator so
      * queue teardown can remove presentation without storing process pointers. */
@@ -685,8 +685,8 @@ typedef enum {
 typedef struct spell_target_s {
     spellTargetType_t type;
     union {
-        LPEDICT entity;
-        VECTOR2 point;
+        edict_t * entity;
+        vector2_t point;
     };
 } spellTarget_t;
 
@@ -750,22 +750,22 @@ typedef enum {
     A_STATUS_DEATH,     /* Victim died with this status active; independent of the victim's learned abilities. */
 } abilityMsg_t;
 
-#define BZ_ABILITY_PROC(NAME) intptr_t NAME(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call)
+#define BZ_ABILITY_PROC(NAME) intptr_t NAME(edict_t * ent, abilityMsg_t msg, abilityCall_t const *call)
 
-typedef intptr_t (*abilityProc_t)(LPEDICT ent, abilityMsg_t msg, abilityCall_t const *call);
+typedef intptr_t (*abilityProc_t)(edict_t * ent, abilityMsg_t msg, abilityCall_t const *call);
 
 struct ability_call_s {
     abilityitem_t const *item;
     union {
         spellTarget_t const *target;
-        LPEDICT client;
-        LPEDICT projectile;
+        edict_t * client;
+        edict_t * projectile;
         cstring_t order;
-        struct { LPEDICT issuer; cstring_t order; } target_order; /* A_TARGET_ORDER */
+        struct { edict_t * issuer; cstring_t order; } target_order; /* A_TARGET_ORDER */
         cstring_t classname;
         uint32_t level;
         bool enabled;
-        struct { LPEDICT producer; LPEDICT item; } queue; /* A_QUEUE_*: owning producer and queued item. */
+        struct { edict_t * producer; edict_t * item; } queue; /* A_QUEUE_*: owning producer and queued item. */
         unitOrder_t const *queued_order; /* A_QUEUE_ORDER_*: entry being started or discarded from the player FIFO. */
         struct { heroabilitystatus_t *slot; uint32_t ability; } status; /* A_STATUS_*: status slot (valid during REMOVE) and origin ability rawcode. */
     };
@@ -781,19 +781,19 @@ struct ability_s {
 
 typedef struct {
     cstring_t animation;
-    void (*think)(LPEDICT);
-    void (*endfunc)(LPEDICT);
+    void (*think)(edict_t *);
+    void (*endfunc)(edict_t *);
     abilityProc_t proc;
     /* Optional authoritative duration for presentation-only moves such as
      * Warcraft corpse decay. M_MoveFrame maps the selected model sequence
      * across this duration instead of assuming one model frame per ms tick. */
-    float (*animation_duration)(LPCEDICT);
+    float (*animation_duration)(edict_t const *);
 } umove_t;
 
 typedef struct {
     attackType_t type;
     weaponType_t weapon;
-    VECTOR3 origin;
+    vector3_t origin;
     uint32_t damageBase;
     uint32_t numberOfDice;
     uint32_t sidesPerDie;
@@ -825,8 +825,8 @@ typedef struct {
 typedef struct {
     float value;
     float max_value;
-} EDICTSTAT;
-typedef EDICTSTAT edictStat_s;
+} edictStat_t;
+typedef edictStat_t edictStat_s;
 
 typedef struct edictAbilities_s {
     uint32_t added[MAX_ABILITIES];
@@ -844,28 +844,28 @@ typedef struct {
     float TurnSpeed;
     float PropWindow;
     float AcquireRange;
-} UNITINFO;
+} unitInfo_t;
 
 typedef struct gameevent_s {
     EVENTTYPE type;
-    LPEDICT edict;
+    edict_t * edict;
     uint32_t edict_spawn_time;
     bool edict_spawn_tracked;
-    LPEDICT source;
+    edict_t * source;
     uint32_t source_spawn_time;
     bool source_spawn_tracked;
     int32_t value; /* scalar JASS callback payload (for example spell/research rawcode) */
-    VECTOR2 point;
+    vector2_t point;
     bool has_point;
-    LPEVENT responseTo;
-} GAMEEVENT;
+    event_t * responseTo;
+} gameEvent_t;
 
 typedef struct {
-    LPEDICT edict;
+    edict_t * edict;
     EVENTTYPE type;
-    LPEDICT source;
+    edict_t * source;
     int32_t value;
-    LPCVECTOR2 point;
+    vector2_t const * point;
 } gameEventPointParams_t;
 
 typedef enum {
@@ -887,22 +887,22 @@ typedef struct {
     GAMEMSGTYPE type;
     uint32_t actor;
     uint32_t target;
-} GAMEMSG;
-typedef GAMEMSG const *LPCGAMEMSG;
-typedef void (*gameMsgFn)(LPCGAMEMSG, void *);
+} gameMsg_t;
+
+typedef void (*gameMsgFn)(gameMsg_t const *, void *);
 
 typedef struct {
     gameMsgFn fn;
     void *ctx;
-} GAMEMSGSUB;
+} gameMsgSub_t;
 
 typedef struct {
-    GAMEMSGSUB subs[MAX_MESSAGE_SUBSCRIBERS];
-} GAMEMESSAGES;
+    gameMsgSub_t subs[MAX_MESSAGE_SUBSCRIBERS];
+} gameMessages_t;
 
 typedef struct {
     uint32_t class_id;
-    VECTOR2 origin;
+    vector2_t origin;
 } gitem_t;
 
 #define MAX_GROUP_SIZE 256 // entities; Warcraft III group enumeration cap used by JASS group handles
@@ -942,7 +942,7 @@ typedef struct {
 typedef struct {
     uint32_t handle_id; // runtime ordinal in level.groups; rebuilt from slot position on load
     bool inuse;
-    LPEDICT units[MAX_GROUP_SIZE];
+    edict_t * units[MAX_GROUP_SIZE];
     uint32_t num_units;
 } ggroup_t;
 
@@ -951,54 +951,54 @@ typedef struct {
     bool enabled;
     uint32_t handle_id;
     uint32_t effect_id;
-    BOX2 bounds;
+    box2_t bounds;
 } gweather_t;
 
-typedef gweather_t *LPGWEATHER;
-typedef gweather_t const *LPCGWEATHER;
 
-typedef struct GLIGHTNING {
+
+
+typedef struct glightning_s {
     bool inuse;
-    LIGHTNINGEFFECT state;
-    LPEDICT source_entity;
+    lightningEffect_t state;
+    edict_t * source_entity;
     uint32_t source_spawn_time;
-    LPEDICT target_entity;
+    edict_t * target_entity;
     uint32_t target_spawn_time;
     float script_color[4];
-} GLIGHTNING;
-typedef GLIGHTNING *LPGLIGHTNING;
-typedef GLIGHTNING const *LPCGLIGHTNING;
+} gLightning_t;
 
-typedef struct LIGHTNINGADDPARAMS {
+
+
+typedef struct lightningaddparams_s {
     uint32_t effect_id;
-    LPCVECTOR3 source, target;
-    COLOR32 color;
+    vector3_t const * source, *target;
+    color32_t color;
     uint32_t duration_ms;
-} LIGHTNINGADDPARAMS;
-typedef LIGHTNINGADDPARAMS *LPLIGHTNINGADDPARAMS;
-typedef LIGHTNINGADDPARAMS const *LPCLIGHTNINGADDPARAMS;
+} lightningAddParams_t;
 
-typedef struct ABILITYLIGHTNINGPARAMS {
+
+
+typedef struct abilityLightningParams_s {
     uint32_t ability_id, index;
-    LPCEDICT source, target;
+    edict_t const * source, *target;
     uint32_t duration_ms;
-} ABILITYLIGHTNINGPARAMS;
-typedef ABILITYLIGHTNINGPARAMS *LPABILITYLIGHTNINGPARAMS;
-typedef ABILITYLIGHTNINGPARAMS const *LPCABILITYLIGHTNINGPARAMS;
+} abilityLightningParams_t;
+
+
 
 typedef struct gtriggeraction_s {
     struct jass_function const *func;
     struct gtriggeraction_s *next;
-} TRIGGERACTION;
+} gTriggerAction_t;
 
 typedef struct gtriggercondition_s {
     struct jass_function const *expr;
     struct gtriggercondition_s *next;
-} TRIGGERCONDITION;
+} gTriggerCondition_t;
 
 struct gtrigger_s {
-    TRIGGERACTION *actions;
-    TRIGGERCONDITION *conditions;
+    gTriggerAction_t *actions;
+    gTriggerCondition_t *conditions;
     bool disabled;
 };
 
@@ -1010,14 +1010,14 @@ struct gtimer_s {
 };
 
 struct gtimerdialog_s {
-    LPGTIMER timer;
+    gtimer_t * timer;
     bool inuse;
     bool title_set;
     bool title_color_set;
     bool time_color_set;
     uint32_t visible_clients;
-    COLOR32 title_color;
-    COLOR32 time_color;
+    color32_t title_color;
+    color32_t time_color;
     char title[MAX_TRIGSTR_LENGTH];
 };
 
@@ -1027,7 +1027,7 @@ struct gleaderboarditem_s {
     int32_t player; /* player number, -1 = no player */
     bool show_label, show_value, show_icon;
     bool label_color_set, value_color_set;
-    COLOR32 label_color, value_color;
+    color32_t label_color, value_color;
 };
 
 struct gleaderboard_s {
@@ -1035,7 +1035,7 @@ struct gleaderboard_s {
     uint32_t displayed_clients;
     bool show_label, show_names, show_values, show_icons;
     bool label_color_set, value_color_set;
-    COLOR32 label_color, value_color;
+    color32_t label_color, value_color;
     int32_t size_by_item_count;
     uint32_t item_count;
     char label[MAX_TRIGSTR_LENGTH];
@@ -1048,7 +1048,7 @@ struct gmultiboardcell_s {
     float width;
     bool show_value, show_icon;
     bool value_color_set;
-    COLOR32 value_color;
+    color32_t value_color;
 };
 
 struct gmultiboard_s {
@@ -1076,8 +1076,8 @@ struct gtexttag_s {
     float x, y;
     float xvel, yvel;
     float age, lifespan, fadepoint;
-    COLOR32 color;
-    LPEDICT unit; /* SetTextTagPosUnit anchor; NULL when unset */
+    color32_t color;
+    edict_t * unit; /* SetTextTagPosUnit anchor; NULL when unset */
     char text[MAX_MULTIBOARD_VALUE];
 };
 
@@ -1118,7 +1118,7 @@ struct gquest_s {
     string_t title;
     string_t description;
     string_t iconPath;
-    QUESTITEM items[MAX_QUESTITEMS];
+    questItem_t items[MAX_QUESTITEMS];
     uint32_t num_items;
     bool discovered;
     bool required;
@@ -1129,7 +1129,7 @@ struct gquest_s {
 };
 
 /* Quest rows are present in the journal only while both server visibility gates are enabled. */
-static inline bool QuestIsVisible(LPCQUEST quest) { return quest && quest->enabled && quest->discovered; }
+static inline bool QuestIsVisible(quest_t const * quest) { return quest && quest->enabled && quest->discovered; }
 
 typedef struct {
     struct { float day, night; } sight_radius;
@@ -1170,8 +1170,8 @@ typedef struct {
     uint32_t class_id;
     doodadHero_t hero;
     heroability_t abilities[MAX_HERO_ABILITIES];
-    EDICTSTAT health;
-    EDICTSTAT mana;
+    edictStat_t health;
+    edictStat_t mana;
     uint32_t unit_color;
     gameCacheItem_t inventory[MAX_INVENTORY];
 } gameCacheUnit_t;
@@ -1210,7 +1210,7 @@ typedef struct heroabilitystatus_s {
     uint32_t timestamp;
     uint32_t duration_ms; /* milliseconds; original timed-status duration, 0 for persistent state */
     uint32_t data; /* applying ability rawcode for lifecycle dispatch; legacy Anti-Magic Shell absorption payload */
-    LPEDICT source; /* applying entity; F_EDICT fixup, checked against source_spawn_time before use */
+    edict_t * source; /* applying entity; F_EDICT fixup, checked against source_spawn_time before use */
     uint32_t source_spawn_time, rank, next_tick; /* source incarnation, applying ability rank, next pulse in milliseconds */
 } heroabilitystatus_t;
 
@@ -1244,17 +1244,17 @@ typedef struct edictStock_s {
 } edictStock_t;
 
 typedef struct {
-    LPGAMECLIENT client;
-    LPEDICT shop;
+    gameClient_t * client;
+    edict_t * shop;
     gameCommandButton_t *buttons;
     uint8_t max_buttons;
 } shopItemButtonsParams_t;
 
 typedef struct {
-    LPEDICT clent;
-    LPEDICT shop;
-    LPEDICT carrier;
-    LPEDICT item;
+    edict_t * clent;
+    edict_t * shop;
+    edict_t * carrier;
+    edict_t * item;
 } shopPawnItemParams_t;
 
 #define WC3_ANIMATION_REQUEST_SIZE 80
@@ -1273,29 +1273,29 @@ typedef struct edictArtillery_s {
 
 struct edict_s {
     entityState_t s;
-    LPGAMECLIENT client;
+    gameClient_t * client;
     pathTex_t *pathtex;
     float collision;
-    BOX2 bounds;
+    box2_t bounds;
     uint32_t svflags;
     uint32_t selected;
     uint32_t areanum;
-    LINK area;
+    link_t area;
     bool inuse;
-    BOX2 areabounds;
+    box2_t areabounds;
 
     // keep above in sync with server.h
     uint32_t class_id;
     uint32_t variation;
     uint32_t build_project;
-    LPEDICT build_preview; /* translucent Construction Site Indicator for an accepted build order */
+    edict_t * build_preview; /* translucent Construction Site Indicator for an accepted build order */
     bool rally_indicator;
     struct edictConstruction_s {
         bool active;
         bool paused;
         constructionType_t type;
-        LPEDICT primary_builder; /* Human Repair owner; only meaningful for Human construction */
-        LPEDICT worker;          /* Orc/Night Elf internal worker; Undead summoner while casting */
+        edict_t * primary_builder; /* Human Repair owner; only meaningful for Human construction */
+        edict_t * worker;          /* Orc/Night Elf internal worker; Undead summoner while casting */
         uint32_t worker_spawn_time; /* validates worker pointer across remove/reuse */
         bool worker_inside;
         bool consumes_worker;
@@ -1319,8 +1319,8 @@ struct edict_s {
     } research;
     struct edictRally_s {
         rallyTargetType_t type;
-        VECTOR2 point;
-        LPEDICT entity;
+        vector2_t point;
+        edict_t * entity;
         uint32_t entity_spawn_time;
     } rally;
     struct {
@@ -1339,8 +1339,8 @@ struct edict_s {
     struct edictRevival_s {
         bool awaiting;
         bool reviving;
-        LPEDICT producer;
-        LPEDICT queue_next;
+        edict_t * producer;
+        edict_t * queue_next;
         uint32_t player;
         int32_t gold, lumber;
         float progress;
@@ -1350,13 +1350,13 @@ struct edict_s {
      * Sacrificial-Pit-specific state in generic unit AI. */
     struct edictSacrifice_s {
         bool active;
-        LPEDICT worker;
+        edict_t * worker;
         uint32_t worker_spawn_time;
         bool restore_paused;
         bool restore_hidden;
     } sacrifice;
     struct edictUnsummon_s {
-        LPEDICT target;
+        edict_t * target;
         uint32_t target_spawn_time;
         uint32_t ability, level;
         bool approaching, starting;
@@ -1372,7 +1372,7 @@ struct edict_s {
         uint32_t ability;          /* Amil alias that supplied Data A/B and duration */
         uint32_t normal_type;      /* Data A: worker form retained across the timed morph */
         uint32_t militia_type;     /* Data B: alternate combat form */
-        LPEDICT partner;        /* Hall being approached for militia/militiaoff */
+        edict_t * partner;        /* Hall being approached for militia/militiaoff */
         uint32_t partner_spawn_time;
         uint8_t previous_resource; /* returnResource_t remembered for explicit Back to Work */
         bool active;            /* unit has completed the Peasant -> Militia morph */
@@ -1405,7 +1405,7 @@ struct edict_s {
         ensnareHeightState_t phase;
     } ensnare;
     uint32_t heatmap2;
-    VECTOR2 heatmap2_origin;  /* target position when heatmap2 was last built */
+    vector2_t heatmap2_origin;  /* target position when heatmap2 was last built */
     uint32_t heatmap2_time;      /* level.time when heatmap2 was last built */
     float heatmap2_radius;    /* mover collision radius used for heatmap2 */
     uint32_t peonsinside;
@@ -1417,14 +1417,14 @@ struct edict_s {
     uint32_t resources;
     uint32_t freetime;
     struct edictGoldMine_s {
-        LPEDICT mine;
+        edict_t * mine;
         uint32_t mine_spawn_time;
         bool restore_invulnerable;
     } goldmine;
     /* Racial mine overlays keep the original Agld unit as the sole finite
      * gold reservoir. Haunted/Entangled mines own presentation/income only. */
     struct edictMineOverlay_s {
-        LPEDICT parent;
+        edict_t * parent;
         uint32_t parent_spawn_time;
         uint32_t income_time;
         uint32_t active_interval_index;
@@ -1432,13 +1432,13 @@ struct edict_s {
     /* Acolyte harvesting is a visible fixed-slot relationship rather than the
      * conventional hidden-inside/carry/return Gold Mine state above. */
     struct edictAcolyteMine_s {
-        LPEDICT mine;
+        edict_t * mine;
         uint32_t mine_spawn_time;
         int32_t slot;
     } acolyte_mine;
-    LPEDICT inventory[MAX_INVENTORY];
+    edict_t * inventory[MAX_INVENTORY];
     struct edictItem_s {
-        LPEDICT carrier;
+        edict_t * carrier;
         int32_t inventory_slot;
         bool in_world;
         uint32_t charges;
@@ -1476,10 +1476,10 @@ struct edict_s {
         ARRAY(droppableItemSet_t const, drop_sets);
     } destructable;
     struct edictCargo_s {
-        LPEDICT units[MAX_CARGO];
+        edict_t * units[MAX_CARGO];
         uint32_t count;
     } cargo;
-    LPEDICT ground_next;
+    edict_t * ground_next;
     edictStock_t stock;
     float velocity;
     doodadHero_t hero;
@@ -1509,20 +1509,20 @@ struct edict_s {
         uint32_t serial;   // cast identity; old thinkers cannot continue or cancel a replacement cast
         uint32_t owner_spawn_time; // thinker copy of caster identity; rejects reused owner slots
         uint32_t target_spawn_time; // thinker copy of target identity; rejects reused target slots
-        VECTOR2 origin; // position when channel started (movement cancels channel)
+        vector2_t origin; // position when channel started (movement cancels channel)
     } channel;
     uint32_t unit_color;   // WC3_UNIT_COLOR_OVERRIDE_FLAG | playercolor; zero uses owner color
     int32_t user_data;     /* SetUnitUserData script scratch; no gameplay consumer reads it yet */
     bool uses_alt_icon; /* UnitSetUsesAltIcon presentation flag; no minimap consumer reads it yet */
-    VECTOR2 old_origin;
+    vector2_t old_origin;
     unitOrderQueue_t order_queue;
     struct edictWaygate_s {
-        VECTOR2 destination;
+        vector2_t destination;
         bool destination_set;
         bool active;
     } waygate;
     struct edictMovement_s {
-        VECTOR2 last_origin;
+        vector2_t last_origin;
         float last_distance;
         uint32_t blocked_frames;
         uint32_t flow_generation; /* active static-route field selected this tick */
@@ -1530,40 +1530,40 @@ struct edict_s {
         bool flow_unreachable;  /* field exists but current cell has no route */
         bool flow_direct;       /* static path from mover to requested goal is clear */
         bool displacement_active; /* temporary construction exit is being walked */
-        VECTOR2 displacement_target;
-        VECTOR2 flow_fallback_target; /* last unreachable fallback request */
-        VECTOR2 flow_fallback_approach; /* temporary reachable waypoint; target remains authoritative */
+        vector2_t displacement_target;
+        vector2_t flow_fallback_target; /* last unreachable fallback request */
+        vector2_t flow_fallback_approach; /* temporary reachable waypoint; target remains authoritative */
         float flow_fallback_radius;
         uint32_t flow_fallback_time;
         uint32_t waygate_target_spawn_time; /* guards the target edict while explicitly approaching a Way Gate */
-        LPEDICT waygate_target; /* authoritative gate target owned by CAbilityWarp */
-        LPEDICT waygate_goal; /* CAbilityWarp-owned approach waypoint/entity */
-        LPEDICT flow_fallback_goal;
+        edict_t * waygate_target; /* authoritative gate target owned by CAbilityWarp */
+        edict_t * waygate_goal; /* CAbilityWarp-owned approach waypoint/entity */
+        edict_t * flow_fallback_goal;
         moveFallbackState_t flow_fallback_state;
-        ROUTEPATH path; /* persistent WC3 accelerator state shared with other server games */
+        routePath_t path; /* persistent WC3 accelerator state shared with other server games */
         float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         float heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
-        VECTOR2 worker_avoid_origin; /* start of the active resource-worker avoidance corridor */
+        vector2_t worker_avoid_origin; /* start of the active resource-worker avoidance corridor */
         float worker_avoid_heading;  /* direct corridor heading captured when local blocking begins */
         uint32_t worker_avoid_blocked_frames; /* consecutive blocked decisions before queue escape */
         bool worker_avoid_active;    /* resource-worker corridor is constraining lateral sidesteps */
-        LPEDICT attackmove_waypoint;  // resume attack-move after a combat detour
-        LPEDICT patrol_a, patrol_b, patrol_target;
-        LPEDICT follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
+        edict_t * attackmove_waypoint;  // resume attack-move after a combat detour
+        edict_t * patrol_a, *patrol_b, *patrol_target;
+        edict_t * follow_target;        // persistent unit-target Move/Smart goal; resumed after combat
         bool holding_position;
     } movement;
-    EDICTSTAT health;
-    EDICTSTAT mana;
+    edictStat_t health;
+    edictStat_t mana;
     MOVETYPE movetype;
     bool projectile_reflected; /* basic attack missile has already been returned by Defend */
     TARGTYPE targtype;
-    LPEDICT goalentity;
-    LPEDICT item_drop; /* inventory item owned by an active point-drop behavior */
-    LPEDICT combatentity;
-    LPEDICT secondarygoal;
-    LPEDICT owner;
-    LPEDICT build;
-    LPCANIMATION animation;
+    edict_t * goalentity;
+    edict_t * item_drop; /* inventory item owned by an active point-drop behavior */
+    edict_t * combatentity;
+    edict_t * secondarygoal;
+    edict_t * owner;
+    edict_t * build;
+    animation_t const * animation;
     float animation_speed; /* JASS SetUnitTimeScale multiplier for the simulation animation clock */
     bool animation_override; /* JASS presentation animation may advance while gameplay is paused */
     /* Warcraft Required Animation Names (UnitProfile.animProps/uani) plus
@@ -1572,13 +1572,13 @@ struct edict_s {
     char animation_request[WC3_ANIMATION_REQUEST_SIZE];
     char animation_props[WC3_ANIMATION_PROPERTIES_SIZE];
     unitbalance_t runtime;
-    COLOR32 vertex_color;
+    color32_t vertex_color;
     bool vertex_color_set;
     bool vertex_color_override_set;
     umove_t *currentmove;
     unitRace_t race;
     float wait;
-    UNITINFO unitinfo;
+    unitInfo_t unitinfo;
     unitAttack_t attack1;
     unitAttack_t attack2;
     uint32_t defense_type;   /* WC3 defType index: small/medium/large/fort/normal/hero/divine/none */
@@ -1604,16 +1604,16 @@ struct edict_s {
         int attack, death;
     } sound;
 
-    void (*stand)(LPEDICT);
-    void (*birth)(LPEDICT);
-    void (*prethink)(LPEDICT);
-    void (*think)(LPEDICT);
-    void (*die)(LPEDICT, LPEDICT);
-    void (*idle)(LPEDICT);
-    void (*move)(LPEDICT);
-    void (*run)(LPEDICT);
-    void (*attack)(LPEDICT);
-    void (*pain)(LPEDICT);
+    void (*stand)(edict_t *);
+    void (*birth)(edict_t *);
+    void (*prethink)(edict_t *);
+    void (*think)(edict_t *);
+    void (*die)(edict_t *, edict_t *);
+    void (*idle)(edict_t *);
+    void (*move)(edict_t *);
+    void (*run)(edict_t *);
+    void (*attack)(edict_t *);
+    void (*pain)(edict_t *);
 
     struct edictData_s {
         UnitProfile_t const *UnitProfile;
@@ -1653,7 +1653,7 @@ typedef struct clientCamera_s clientCamera_s;
 struct game_locals {
     uint32_t max_clients;
     uint32_t num_abilities;
-    LPGAMECLIENT clients;
+    gameClient_t * clients;
     struct {
         stbIniCache_t theme;
         stbIniCache_t map_skin;
@@ -1701,12 +1701,12 @@ struct game_locals {
 };
 
 struct gevent_s {
-    LPEDICT subject;
+    edict_t * subject;
     uint32_t subject_spawn_time;
     bool subject_spawn_tracked;
     EVENTTYPE type;
-    LPTRIGGER trigger;
-    LPGTIMER timer;
+    trigger_t * trigger;
+    gtimer_t * timer;
     struct jass_function const *filter;
     handle_t region;
     float range;
@@ -1724,18 +1724,18 @@ typedef struct {
     BLEND_MODE blendmode;
     TEXMAP_FLAGS texmapflags;
     struct {
-        BOX2 uv;
-        COLOR32 color;
+        box2_t uv;
+        color32_t color;
         uint32_t time;
     } start, end;
     bool displayed;
-} CINEFILTER;
+} cineFilter_t;
 
 typedef struct {
-    EVENT handlers[MAX_EVENTS];
-    GAMEEVENT queue[MAX_EVENT_QUEUE];
+    event_t handlers[MAX_EVENTS];
+    gameEvent_t queue[MAX_EVENT_QUEUE];
     uint32_t write, read;
-} LEVELEVENTS;
+} levelEvents_t;
 enum {
     WC3_FOG_STATE_MASKED = 1,  /* JASS FOG_OF_WAR_MASKED: unexplored */
     WC3_FOG_STATE_FOGGED = 2,  /* JASS FOG_OF_WAR_FOGGED: explored without current sight */
@@ -1745,9 +1745,9 @@ typedef struct {
     uint32_t player;
     uint32_t state;
     bool shared;
-} FOGWRITE;
-typedef FOGWRITE *LPFOGWRITE;
-typedef FOGWRITE const *LPCFOGWRITE;
+} fogWrite_t;
+
+
 typedef struct {
     uint8_t *visible;
     uint8_t *explored;
@@ -1765,7 +1765,7 @@ typedef struct {
 typedef struct {
     uint32_t width;
     uint32_t height;
-    BOX2 bounds;
+    box2_t bounds;
     uint8_t *blocked;
     uint32_t num_blocked;
     ARRAY(uint32_t, rim_cells);
@@ -1777,7 +1777,7 @@ typedef struct {
 
 typedef struct {
     uint32_t width, height;
-    BOX2 bounds;
+    box2_t bounds;
     uint8_t *cells; /* mutable current Blight, one byte per 32-unit pathing cell */
     uint32_t *dirty_rows; /* one client bit per row; changed rows are sent once per client */
     uint32_t sweep_row[MAX_PLAYERS]; /* per-client background resync cursor; next row to sweep */
@@ -1788,13 +1788,13 @@ typedef struct fogmodifier_s {
     uint32_t player;
     uint32_t state;             /* WC3_FOG_STATE_* */
     bool is_rect;
-    BOX2 rect;               /* used when is_rect */
-    VECTOR2 center;          /* used when !is_rect */
+    box2_t rect;               /* used when is_rect */
+    vector2_t center;          /* used when !is_rect */
     float radius;            /* used when !is_rect */
     bool use_shared_vision;
     bool started;
-} FOGMODIFIER, *LPFOGMODIFIER;
-typedef FOGMODIFIER const *LPCFOGMODIFIER;
+} fogModifier_t;
+
 
 typedef enum {
     BOT_NONE,
@@ -1816,8 +1816,8 @@ typedef enum {
 } botCaptainState_t;
 
 typedef struct {
-    ARRAY(LPEDICT, units);
-    VECTOR2 home, goal;
+    ARRAY(edict_t *, units);
+    vector2_t home, goal;
     uint32_t desired;
     botCaptainState_t state;
 } botCaptain_t;
@@ -1828,8 +1828,8 @@ typedef struct {
 
 typedef struct {
     uint32_t class_id;
-    VECTOR2 origin;
-    LPEDICT unit;
+    vector2_t origin;
+    edict_t * unit;
 } botGuardPost_t;
 
 typedef enum {
@@ -1852,14 +1852,14 @@ typedef enum {
 } botFlag_t;
 
 typedef struct {
-    LPJASS vm;
-    LPPLAYER player;
+    jass_t * vm;
+    player_t * player;
     struct jass_function const *hero_levels;
     botCaptain_t captains[BOT_CAPTAIN_COUNT];
-    VECTOR2 stage; /* SetStagePoint staging area; assault fallback when no enemy target is visible */
+    vector2_t stage; /* SetStagePoint staging area; assault fallback when no enemy target is visible */
     bool stage_valid;
     ARRAY(botCommand_t, commands);
-    ARRAY(LPEDICT, harvesters);
+    ARRAY(edict_t *, harvesters);
     ARRAY(botGuardPost_t, guards);
     botMode_t mode, pending_mode;
     uint32_t flags;
@@ -1874,15 +1874,15 @@ typedef struct {
     int32_t ticks_remaining;
     bool active;
     bool initialized;
-} FALSE_TIMEOFDAY;
+} falseTimeofday_t;
 
 typedef struct {
     float elapsed;
     float pending;
     bool pending_valid;
     bool suspended;
-    FALSE_TIMEOFDAY false_time;
-} TIMEOFDAY;
+    falseTimeofday_t false_time;
+} timeOfDay_t;
 
 typedef enum {
     WC3_ENV_FOG_NONE = 0,
@@ -1896,7 +1896,7 @@ typedef struct {
     float start;
     float end;
     float density;
-    VECTOR3 color;
+    vector3_t color;
 } wc3EnvironmentFogState_t;
 
 typedef struct {
@@ -1908,28 +1908,28 @@ typedef struct {
 typedef struct {
     int32_t style;
     float start, end, density;
-    VECTOR3 color;
+    vector3_t color;
 } wc3EnvironmentFogParams_t;
 
 struct level_locals {
-    LPJASS vm;
+    jass_t * vm;
     ggroup_t **groups;
     uint32_t num_groups;
     uint32_t group_capacity;
     uint32_t first_free_group;
-    TRIGGER triggers[MAX_TRIGGERS];
+    trigger_t triggers[MAX_TRIGGERS];
     uint32_t num_triggers;
-    GTIMER timers[MAX_TIMERS];
+    gtimer_t timers[MAX_TIMERS];
     uint32_t num_timers;
-    TIMERDIALOG timer_dialogs[MAX_TIMERDIALOGS];
-    LEADERBOARD leaderboards[MAX_LEADERBOARDS];
+    timerdialog_t timer_dialogs[MAX_TIMERDIALOGS];
+    leaderboard_t leaderboards[MAX_LEADERBOARDS];
     int32_t player_leaderboards[MAX_PLAYERS]; /* registry index, -1 = none */
     uint32_t leaderboard_dirty_clients;
-    MULTIBOARD multiboards[MAX_MULTIBOARDS];
-    MULTIBOARDITEM multiboard_items[MAX_MULTIBOARD_ITEMS];
-    TEXTTAG texttags[MAX_TEXTTAGS];
-    HASHTABLE hashtables[MAX_HASHTABLES];
-    REGION regions[MAX_REGIONS];
+    multiboard_t multiboards[MAX_MULTIBOARDS];
+    multiboardItem_t multiboard_items[MAX_MULTIBOARD_ITEMS];
+    texttag_t texttags[MAX_TEXTTAGS];
+    hashtable_t hashtables[MAX_HASHTABLES];
+    region_t regions[MAX_REGIONS];
     uint32_t num_regions;
     /* Multiboard HUD presentation is deferred; dirty bits reserved for a later svc/layout path. */
     uint32_t multiboard_dirty_clients;
@@ -1938,10 +1938,10 @@ struct level_locals {
     int32_t timer_dialog_last_seconds[MAX_CLIENTS]; /* transient formatted-value cache */
     gweather_t weather_effects[MAX_WEATHER_EFFECTS];
     uint32_t next_weather_id;
-    GLIGHTNING lightning_effects[MAX_LIGHTNING_EFFECTS];
+    gLightning_t lightning_effects[MAX_LIGHTNING_EFFECTS];
     uint32_t next_lightning_id;
     bot_t bots[MAX_PLAYERS];
-    LPCMAPINFO mapinfo;
+    mapInfo_t const * mapinfo;
     PATHSTR map_path;
     struct {
         char name[MAX_PATHLEN], description[MAX_TRIGSTR_LENGTH];
@@ -1953,28 +1953,28 @@ struct level_locals {
             struct { int32_t location; uint32_t priority; } slots[MAX_START_PRIO];
         } start_prio[MAX_PLAYERS];
     } setup;
-    LEVELEVENTS events;
-    GAMEMESSAGES messages;
-    LPEDICT ground_surfaces;
+    levelEvents_t events;
+    gameMessages_t messages;
+    edict_t * ground_surfaces;
     struct {
         uint32_t item_slots, unit_slots;
     } stock;
     struct {
         uint32_t base, cursor, count;
     } waypoints;
-    QUEST quests[MAX_QUESTS];
+    quest_t quests[MAX_QUESTS];
     uint16_t alliances[MAX_PLAYERS][MAX_PLAYERS];
     fowGrid_t fow;
     blightGrid_t blight;
-    CINEFILTER cinefilter;
+    cineFilter_t cinefilter;
     uint32_t framenum;
     uint32_t time;
     bool script_paused;
     bool quest_paused;
     bool modal_paused;
-    TIMEOFDAY timeofday;
+    timeOfDay_t timeofday;
     wc3EnvironmentFog_t environment_fog;
-    BOX2 camera_bounds; /* map-global camera target rectangle; W3I default, SetCameraBounds may replace it */
+    box2_t camera_bounds; /* map-global camera target rectangle; W3I default, SetCameraBounds may replace it */
     bool started;
     bool scriptsConfigured;
     bool scriptsStarted;
@@ -1984,12 +1984,12 @@ struct level_locals {
 
 #define FOR_EACH_EVENT(property) \
 for (uint32_t event_index = 0; event_index < MAX_EVENTS; ++event_index) \
-    for (LPEVENT property = &level.events.handlers[event_index]; property; property = NULL) \
+    for (event_t * property = &level.events.handlers[event_index]; property; property = NULL) \
         if (property->inuse)
 
 #define FOR_EACH_QUEST(property) \
 for (uint32_t quest_index = 0; quest_index < MAX_QUESTS; ++quest_index) \
-    for (LPQUEST property = &level.quests[quest_index]; property; property = NULL) \
+    for (quest_t * property = &level.quests[quest_index]; property; property = NULL) \
         if (property->inuse)
 
 #define FOR_EACH_QUESTITEM(quest, property) \
@@ -2007,15 +2007,15 @@ typedef struct {
 #define UITRIGGER_T_DEFINED
 typedef struct {
     cstring_t name;
-    void (*callback)(LPEDICT, LPCFRAMEDEF);
+    void (*callback)(edict_t *, frameDef_t const *);
 } uiTrigger_t;
 
 // g_main.c
-LPPLAYER G_GetPlayerByNumber(uint32_t);
+player_t * G_GetPlayerByNumber(uint32_t);
 void G_InitJassHost(void);
-LPEDICT G_GetPlayerEntityByNumber(uint32_t);
-LPGAMECLIENT G_GetPlayerClientByNumber(uint32_t);
-void G_SetClientConnected(LPEDICT player, bool connected);
+edict_t * G_GetPlayerEntityByNumber(uint32_t);
+gameClient_t * G_GetPlayerClientByNumber(uint32_t);
+void G_SetClientConnected(edict_t * player, bool connected);
 void G_ResetStartingResourceCheat(void);
 void G_DisableStartingResourceCheatForLoadedGame(void);
 void G_ApplyStartingResourceCheat(void);
@@ -2037,94 +2037,94 @@ bool G_CampaignProgressSetTutorialCleared(bool cleared);
 bool G_CampaignProgressSetCampaignAvailable(int32_t campaign, bool available);
 bool G_CampaignProgressSetMissionAvailable(int32_t campaign, int32_t mission, bool available);
 void G_SetScriptPaused(bool paused);
-void G_SetClientModal(LPEDICT player, uint32_t modal, bool open);
-void G_SetQuestDialogOpen(LPEDICT player, bool open);
+void G_SetClientModal(edict_t * player, uint32_t modal, bool open);
+void G_SetQuestDialogOpen(edict_t * player, bool open);
 TARGTYPE G_GetTargetType(cstring_t);
 uint32_t G_TargetFlagForType(TARGTYPE);
 cstring_t G_LevelString(cstring_t);
-cstring_t G_MapString(LPCMAPINFO info, cstring_t name);
+cstring_t G_MapString(mapInfo_t const * info, cstring_t name);
 cstring_t G_UnitName(uint32_t);
 float G_Cinefade(void);
 bool G_SkipCutscene(void);
-VECTOR2 G_ClampCameraPosition(LPGAMECLIENT client, LPCVECTOR2 position);
-VECTOR3 G_MakeServerOrigin(float x, float y, float z_offset);
+vector2_t G_ClampCameraPosition(gameClient_t * client, vector2_t const * position);
+vector3_t G_MakeServerOrigin(float x, float y, float z_offset);
 void G_SetCameraBounds(float const bounds[8]);
-void G_ClearCameraTarget(LPGAMECLIENT client, cstring_t func);
-void G_SetPlayerText(LPGAMECLIENT, PLAYERTEXT, cstring_t);
+void G_ClearCameraTarget(gameClient_t * client, cstring_t func);
+void G_SetPlayerText(gameClient_t *, PLAYERTEXT, cstring_t);
 void G_SetAllStockSlots(bool, int32_t);
-void G_SetStockSlots(LPEDICT, bool, int32_t);
-void G_InitStockSlots(LPEDICT);
-bool G_AddItemStock(LPEDICT, uint32_t, int32_t, int32_t);
-void G_RemoveItemStock(LPEDICT, uint32_t);
+void G_SetStockSlots(edict_t *, bool, int32_t);
+void G_InitStockSlots(edict_t *);
+bool G_AddItemStock(edict_t *, uint32_t, int32_t, int32_t);
+void G_RemoveItemStock(edict_t *, uint32_t);
 void G_AddItemStockAll(uint32_t, int32_t, int32_t);
 void G_RemoveItemStockAll(uint32_t);
-bool G_AddUnitStock(LPEDICT, uint32_t, int32_t, int32_t);
-void G_RemoveUnitStock(LPEDICT, uint32_t);
+bool G_AddUnitStock(edict_t *, uint32_t, int32_t, int32_t);
+void G_RemoveUnitStock(edict_t *, uint32_t);
 void G_AddUnitStockAll(uint32_t, int32_t, int32_t);
 void G_RemoveUnitStockAll(uint32_t);
-GAMEEVENT *G_PublishEvent(LPEDICT, EVENTTYPE);
+gameEvent_t *G_PublishEvent(edict_t *, EVENTTYPE);
 static inline bool G_IsDeathEvent(EVENTTYPE type) { return type == EVENT_UNIT_DEATH || type == EVENT_PLAYER_UNIT_DEATH; }
-bool G_HasPendingDeathEvent(LPCEDICT);
-void G_PublishEventResponse(LPEDICT, EVENTTYPE, LPEVENT);
-GAMEEVENT *G_PublishEventWithSource(LPEDICT, EVENTTYPE, LPEDICT);
-GAMEEVENT *G_PublishEventWithValue(LPEDICT, EVENTTYPE, LPEDICT, int32_t);
-GAMEEVENT *G_PublishEventWithPoint(gameEventPointParams_t const *params);
-void G_PublishSummonEvents(LPEDICT summoner, LPEDICT summoned);
-void G_PublishChangeOwnerEvents(LPEDICT unit, uint32_t old_player);
+bool G_HasPendingDeathEvent(edict_t const *);
+void G_PublishEventResponse(edict_t *, EVENTTYPE, event_t *);
+gameEvent_t *G_PublishEventWithSource(edict_t *, EVENTTYPE, edict_t *);
+gameEvent_t *G_PublishEventWithValue(edict_t *, EVENTTYPE, edict_t *, int32_t);
+gameEvent_t *G_PublishEventWithPoint(gameEventPointParams_t const *params);
+void G_PublishSummonEvents(edict_t * summoner, edict_t * summoned);
+void G_PublishChangeOwnerEvents(edict_t * unit, uint32_t old_player);
 bool G_SubscribeMessage(gameMsgFn, void *);
 void G_UnsubscribeMessage(gameMsgFn, void *);
-void G_PublishMessage(LPEDICT, GAMEMSGTYPE, LPEDICT);
+void G_PublishMessage(edict_t *, GAMEMSGTYPE, edict_t *);
 
 // g_bot.c
-bool G_BotStart(LPPLAYER, cstring_t, botMode_t);
+bool G_BotStart(player_t *, cstring_t, botMode_t);
 void G_BotStop(uint32_t);
 void G_BotRequestStop(uint32_t);
 void G_BotShutdown(void);
 void G_BotPause(uint32_t, bool);
 void G_BotRunFrame(void);
-bool G_BotUnitAlive(LPEDICT);
-LPEDICT G_BotTown(LPPLAYER, int32_t);
-LPEDICT G_BotTownMine(LPPLAYER, int32_t);
-int32_t G_BotTownWithMine(LPPLAYER);
-uint32_t G_BotMinesOwned(LPPLAYER);
-uint32_t G_BotGoldOwned(LPPLAYER);
-bool G_BotProduce(LPPLAYER, int32_t, uint32_t, int32_t);
-void G_BotStopGathering(LPPLAYER);
-void G_BotClearHarvest(LPPLAYER);
-void G_BotHarvest(LPPLAYER, int32_t, int32_t, bool);
-void G_BotCreateCaptains(LPPLAYER);
-void G_BotInitAssault(LPPLAYER);
-uint32_t G_BotIgnoredUnits(LPPLAYER, uint32_t);
-bool G_BotCaptainInCombat(LPPLAYER, bool);
-bool G_BotAddAssault(LPPLAYER, int32_t, uint32_t);
-uint32_t G_BotCaptainGroupSize(LPPLAYER);
-bool G_BotCaptainIsFull(LPPLAYER);
-int32_t G_BotCaptainReadiness(LPPLAYER, bool);
-bool G_BotAddDefenders(LPPLAYER, int32_t, uint32_t);
-void G_BotAddGuardPost(LPPLAYER, uint32_t, float, float);
-void G_BotFillGuardPosts(LPPLAYER);
-void G_BotReturnGuardPosts(LPPLAYER);
-bool G_BotPushCommand(LPPLAYER, int32_t, int32_t);
-uint32_t G_BotCommandsWaiting(LPPLAYER);
-int32_t G_BotLastCommand(LPPLAYER);
-int32_t G_BotLastData(LPPLAYER);
-void G_BotPopCommand(LPPLAYER);
-void G_BotSetCaptainHome(LPPLAYER, int32_t, float, float);
-void G_BotSetStagePoint(LPPLAYER, float, float);
-bool G_BotSuicideUnits(LPPLAYER, int32_t, uint32_t, int32_t);
-bool G_BotSuicidePlayer(LPPLAYER, uint32_t, bool);
-bool G_BotMergeUnits(LPPLAYER, int32_t, uint32_t, uint32_t, uint32_t);
+bool G_BotUnitAlive(edict_t *);
+edict_t * G_BotTown(player_t *, int32_t);
+edict_t * G_BotTownMine(player_t *, int32_t);
+int32_t G_BotTownWithMine(player_t *);
+uint32_t G_BotMinesOwned(player_t *);
+uint32_t G_BotGoldOwned(player_t *);
+bool G_BotProduce(player_t *, int32_t, uint32_t, int32_t);
+void G_BotStopGathering(player_t *);
+void G_BotClearHarvest(player_t *);
+void G_BotHarvest(player_t *, int32_t, int32_t, bool);
+void G_BotCreateCaptains(player_t *);
+void G_BotInitAssault(player_t *);
+uint32_t G_BotIgnoredUnits(player_t *, uint32_t);
+bool G_BotCaptainInCombat(player_t *, bool);
+bool G_BotAddAssault(player_t *, int32_t, uint32_t);
+uint32_t G_BotCaptainGroupSize(player_t *);
+bool G_BotCaptainIsFull(player_t *);
+int32_t G_BotCaptainReadiness(player_t *, bool);
+bool G_BotAddDefenders(player_t *, int32_t, uint32_t);
+void G_BotAddGuardPost(player_t *, uint32_t, float, float);
+void G_BotFillGuardPosts(player_t *);
+void G_BotReturnGuardPosts(player_t *);
+bool G_BotPushCommand(player_t *, int32_t, int32_t);
+uint32_t G_BotCommandsWaiting(player_t *);
+int32_t G_BotLastCommand(player_t *);
+int32_t G_BotLastData(player_t *);
+void G_BotPopCommand(player_t *);
+void G_BotSetCaptainHome(player_t *, int32_t, float, float);
+void G_BotSetStagePoint(player_t *, float, float);
+bool G_BotSuicideUnits(player_t *, int32_t, uint32_t, int32_t);
+bool G_BotSuicidePlayer(player_t *, uint32_t, bool);
+bool G_BotMergeUnits(player_t *, int32_t, uint32_t, uint32_t, uint32_t);
 
 // g_blight.c
 void G_BlightInit(void);
 void G_BlightShutdown(void);
-bool G_IsPointBlighted(LPCVECTOR2 point);
-void G_SetBlightPoint(LPCVECTOR2 point, bool add);
-void G_SetBlightRadius(LPCVECTOR2 point, float radius, bool add);
-void G_SetBlightRect(LPCBOX2 rect, bool add);
-void G_BlightInitializeDestructable(LPEDICT ent);
-void G_BlightUpdateDestructables(LPCBOX2 region);
-void G_BlightMarkDestructable(LPEDICT ent);
+bool G_IsPointBlighted(vector2_t const * point);
+void G_SetBlightPoint(vector2_t const * point, bool add);
+void G_SetBlightRadius(vector2_t const * point, float radius, bool add);
+void G_SetBlightRect(box2_t const * rect, bool add);
+void G_BlightInitializeDestructable(edict_t * ent);
+void G_BlightUpdateDestructables(box2_t const * region);
+void G_BlightMarkDestructable(edict_t * ent);
 uint32_t G_GetBlightStateSize(void);
 bool G_GetBlightState(uint8_t * out, uint32_t size);
 bool G_SetBlightState(uint8_t const *data, uint32_t size);
@@ -2136,20 +2136,20 @@ void G_FowConnectPlayer(uint32_t player);
 void G_FowUpdate(void);
 void G_FowMarkBlockersDirty(void);
 void G_FowSendDeltas(void);
-void G_FowSendFull(LPEDICT ent);
-bool G_FowPlayerCanSeeEntity(uint32_t player, LPCEDICT ent);
-bool G_FowPlayerCanHoverEntity(uint32_t player, LPCEDICT ent);
+void G_FowSendFull(edict_t * ent);
+bool G_FowPlayerCanSeeEntity(uint32_t player, edict_t const * ent);
+bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const * ent);
 bool G_FowPlayersShareVision(uint32_t viewer, uint32_t owner);
-bool S_UnitIsDetectedByPlayer(LPCEDICT unit, uint32_t player);
-bool S_UnitIsInvisibleToPlayer(LPCEDICT unit, uint32_t player);
-bool S_UnitUsesInvisibilityRenderFlag(LPCEDICT unit);
-bool S_PermanentInvisibilityActive(LPCEDICT unit);
-void S_PermanentInvisibilityInitialize(LPEDICT unit);
-void S_PermanentInvisibilityReveal(LPEDICT unit);
-void G_FowSetStateRect(LPCFOGWRITE fog, LPCBOX2 box);
-void G_FowSetStateRadius(LPCFOGWRITE fog, LPCVECTOR2 center, float radius);
-void G_FogModifierStart(LPFOGMODIFIER mod);
-void G_FogModifierStop(LPFOGMODIFIER mod);
+bool S_UnitIsDetectedByPlayer(edict_t const * unit, uint32_t player);
+bool S_UnitIsInvisibleToPlayer(edict_t const * unit, uint32_t player);
+bool S_UnitUsesInvisibilityRenderFlag(edict_t const * unit);
+bool S_PermanentInvisibilityActive(edict_t const * unit);
+void S_PermanentInvisibilityInitialize(edict_t * unit);
+void S_PermanentInvisibilityReveal(edict_t * unit);
+void G_FowSetStateRect(fogWrite_t const * fog, box2_t const * box);
+void G_FowSetStateRadius(fogWrite_t const * fog, vector2_t const * center, float radius);
+void G_FogModifierStart(fogModifier_t * mod);
+void G_FogModifierStop(fogModifier_t * mod);
 uint32_t G_FowWorldToCellX(float x);
 uint32_t G_FowWorldToCellY(float y);
 float G_GetTimeOfDay(void);
@@ -2160,7 +2160,7 @@ bool G_IsFalseTimeOfDay(void);
 void G_UpdateTimeOfDay(void);
 bool G_IsNight(void);
 #ifdef WC3_DEBUG_CAMERA_TRACE
-void G_CameraTraceSnapshotForClient(LPGAMECLIENT, cstring_t);
+void G_CameraTraceSnapshotForClient(gameClient_t *, cstring_t);
 void G_CameraTraceSnapshot(cstring_t);
 #endif
 
@@ -2172,36 +2172,36 @@ void G_EnvironmentFogReset(void);
 void G_EnvironmentFogPublish(void);
 
 // skills/s_creep_sleep.c — JASS natural-sleep interface
-bool G_UnitCanSleep(LPCEDICT);
-bool G_UnitIsSleeping(LPCEDICT);
-void G_UnitSetCanSleep(LPEDICT, bool);
-void G_UnitWakeUp(LPEDICT);
+bool G_UnitCanSleep(edict_t const *);
+bool G_UnitIsSleeping(edict_t const *);
+void G_UnitSetCanSleep(edict_t *, bool);
+void G_UnitWakeUp(edict_t *);
 
 // g_spawn.c
 bool WriteGame(cstring_t filename);
 bool ReadGame(cstring_t filename);
-LPEDICT G_Spawn(void);
-void SP_CallSpawn(LPEDICT);
-void G_BindEntityData(LPEDICT);
-void G_BindEntityRuntime(LPEDICT);
+edict_t * G_Spawn(void);
+void SP_CallSpawn(edict_t *);
+void G_BindEntityData(edict_t *);
+void G_BindEntityRuntime(edict_t *);
 void G_SpawnEntities(void);
 #ifdef BZ_TESTS
 bool G_TestMapObjectCreatedByMapScript(uint32_t id);
 #endif
-bool SP_FindEmptySpaceAround(LPEDICT, uint32_t, LPVECTOR2, float *);
-bool G_FindUnitUnstuckPosition(LPEDICT unit, LPCVECTOR2 requested, LPVECTOR2 out);
-bool SP_FindUnitExitPosition(LPEDICT producer, LPEDICT unit, LPVECTOR2 out, float *angle);
-LPEDICT SP_SpawnAtLocation(uint32_t, uint32_t, LPCVECTOR2);
-LPEDICT SP_SpawnAtLocationNoBirth(uint32_t, uint32_t, LPCVECTOR2);
-LPEDICT G_CreateBuildPreview(LPEDICT builder, uint32_t building_id, LPCVECTOR2 location);
-void G_ClearBuildPreview(LPEDICT builder);
-LPEDICT G_CreateDestructable(uint32_t class_id, float x, float y, float z, float facing, float scale, uint32_t variation);
-LPEDICT G_CreateDeadDestructable(uint32_t class_id, float x, float y, float z, float facing, float scale, uint32_t variation);
-bool G_IsDestructable(LPCEDICT ent);
-void SP_monster_tree(LPEDICT);
-void tree_stand(LPEDICT);
-void tree_birth(LPEDICT);
-void tree_pain(LPEDICT);
+bool SP_FindEmptySpaceAround(edict_t *, uint32_t, vector2_t *, float *);
+bool G_FindUnitUnstuckPosition(edict_t * unit, vector2_t const * requested, vector2_t * out);
+bool SP_FindUnitExitPosition(edict_t * producer, edict_t * unit, vector2_t * out, float *angle);
+edict_t * SP_SpawnAtLocation(uint32_t, uint32_t, vector2_t const *);
+edict_t * SP_SpawnAtLocationNoBirth(uint32_t, uint32_t, vector2_t const *);
+edict_t * G_CreateBuildPreview(edict_t * builder, uint32_t building_id, vector2_t const * location);
+void G_ClearBuildPreview(edict_t * builder);
+edict_t * G_CreateDestructable(uint32_t class_id, float x, float y, float z, float facing, float scale, uint32_t variation);
+edict_t * G_CreateDeadDestructable(uint32_t class_id, float x, float y, float z, float facing, float scale, uint32_t variation);
+bool G_IsDestructable(edict_t const * ent);
+void SP_monster_tree(edict_t *);
+void tree_stand(edict_t *);
+void tree_birth(edict_t *);
+void tree_pain(edict_t *);
 
 // g_save.c
 bool WriteGame(cstring_t filename);
@@ -2213,16 +2213,16 @@ bool G_EnsureJassGroupSlots(uint32_t count);
 bool G_JassGroupValid(ggroup_t const *group);
 bool G_JassGroupIndex(ggroup_t const *group, uint32_t *index);
 ggroup_t *G_JassGroupByIndex(uint32_t index);
-bool G_QuestValid(QUEST const *quest);
-bool G_QuestItemValid(QUESTITEM const *item);
+bool G_QuestValid(quest_t const *quest);
+bool G_QuestItemValid(questItem_t const *item);
 void G_FreeJassGroup(ggroup_t *group);
 void G_ClearJassGroupRegistry(void);
 void G_ClearRegionRegistry(void);
-LPREGION G_RegionFromHandle(handle_t);
+region_t * G_RegionFromHandle(handle_t);
 handle_t G_RegionHandle(uint32_t);
 bool G_RegionHandleParts(handle_t, uint32_t *, uint32_t *);
-LPEVENT G_EventFromHandle(handle_t);
-handle_t G_EventHandle(LPEVENT);
+event_t * G_EventFromHandle(handle_t);
+handle_t G_EventHandle(event_t *);
 bool G_EventHandleParts(handle_t, uint32_t *, uint32_t *);
 bool G_JassGroupDebugEnabled(void);
 void G_ResetJassGroupDebug(void);
@@ -2232,188 +2232,188 @@ cstring_t G_GetJassGroupDebugCreator(ggroup_t const *group);
 cstring_t G_GetJassGroupDebugChain(ggroup_t const *group);
 int32_t G_GetJassGroupDebugTrigger(ggroup_t const *group);
 void G_DumpJassGroupDebug(cstring_t failing_creator, cstring_t failing_chain, int32_t failing_trigger);
-LPGWEATHER G_WeatherAdd(LPCBOX2 bounds, uint32_t effect_id, bool enabled);
-void G_WeatherEnable(LPGWEATHER effect, bool enabled);
-void G_WeatherRemove(LPGWEATHER effect);
+gweather_t * G_WeatherAdd(box2_t const * bounds, uint32_t effect_id, bool enabled);
+void G_WeatherEnable(gweather_t * effect, bool enabled);
+void G_WeatherRemove(gweather_t * effect);
 void G_WeatherInitMap(void);
-uint32_t G_WriteClientDatagram(LPEDICT ent, uint8_t * data, uint32_t size);
-void G_BlightMarkClientFull(LPEDICT ent);
-bool G_BlightDatagramPending(LPEDICT ent);
-uint32_t G_BlightWriteDatagram(LPEDICT ent, uint8_t * data, uint32_t size);
-LPTRIGGER G_AllocJassTrigger(void);
-LPGTIMER G_AllocJassTimer(void);
-LPTIMERDIALOG G_AllocTimerDialog(LPGTIMER timer);
-void G_FreeTimerDialog(LPTIMERDIALOG dialog);
-void G_SetTimerDialogVisible(LPTIMERDIALOG dialog, LPPLAYER player, bool visible);
-bool G_IsTimerDialogVisible(LPCTIMERDIALOG dialog, LPCPLAYER player);
-void G_MarkTimerDialogDirty(LPCTIMERDIALOG dialog);
+uint32_t G_WriteClientDatagram(edict_t * ent, uint8_t * data, uint32_t size);
+void G_BlightMarkClientFull(edict_t * ent);
+bool G_BlightDatagramPending(edict_t * ent);
+uint32_t G_BlightWriteDatagram(edict_t * ent, uint8_t * data, uint32_t size);
+trigger_t * G_AllocJassTrigger(void);
+gtimer_t * G_AllocJassTimer(void);
+timerdialog_t * G_AllocTimerDialog(gtimer_t * timer);
+void G_FreeTimerDialog(timerdialog_t * dialog);
+void G_SetTimerDialogVisible(timerdialog_t * dialog, player_t * player, bool visible);
+bool G_IsTimerDialogVisible(timerdialog_t const * dialog, player_t const * player);
+void G_MarkTimerDialogDirty(timerdialog_t const * dialog);
 void G_UpdateTimerDialogs(void);
-void G_FormatTimerDialogValue(LPCGTIMER timer, string_t out, size_t out_size);
-LPLEADERBOARD G_AllocLeaderboard(void);
-void G_FreeLeaderboard(LPLEADERBOARD board);
-void G_MarkLeaderboardDirty(LPCLEADERBOARD board);
-void G_SetLeaderboardDisplayed(LPLEADERBOARD board, LPPLAYER player, bool displayed);
-bool G_IsLeaderboardDisplayed(LPCLEADERBOARD board, LPCPLAYER player);
+void G_FormatTimerDialogValue(gtimer_t const * timer, string_t out, size_t out_size);
+leaderboard_t * G_AllocLeaderboard(void);
+void G_FreeLeaderboard(leaderboard_t * board);
+void G_MarkLeaderboardDirty(leaderboard_t const * board);
+void G_SetLeaderboardDisplayed(leaderboard_t * board, player_t * player, bool displayed);
+bool G_IsLeaderboardDisplayed(leaderboard_t const * board, player_t const * player);
 void G_UpdateLeaderboards(void);
-LPLEADERBOARD G_PlayerLeaderboard(uint32_t player);
-void G_SetPlayerLeaderboard(uint32_t player, LPLEADERBOARD board);
-LPMULTIBOARD G_AllocMultiboard(void);
-void G_FreeMultiboard(LPMULTIBOARD board);
-void G_SetMultiboardDisplayed(LPMULTIBOARD board, LPPLAYER player, bool displayed);
-bool G_IsMultiboardDisplayed(LPCMULTIBOARD board, LPCPLAYER player);
-void G_SetMultiboardMinimized(LPMULTIBOARD board, LPPLAYER player, bool minimized);
-bool G_IsMultiboardMinimized(LPCMULTIBOARD board, LPCPLAYER player);
-void G_MarkMultiboardDirty(LPCMULTIBOARD board);
-void G_MultiboardSetRowCount(LPMULTIBOARD board, int32_t count);
-void G_MultiboardSetColumnCount(LPMULTIBOARD board, int32_t count);
-struct gmultiboardcell_s *G_MultiboardCell(LPMULTIBOARD board, int32_t row, int32_t col);
-LPMULTIBOARDITEM G_MultiboardGetItem(LPMULTIBOARD board, int32_t row, int32_t col);
-void G_MultiboardReleaseItem(LPMULTIBOARDITEM item);
-LPMULTIBOARD G_MultiboardItemBoard(LPCMULTIBOARDITEM item);
-LPTEXTTAG G_AllocTextTag(void);
-void G_FreeTextTag(LPTEXTTAG tag);
-void G_SetTextTagVisible(LPTEXTTAG tag, LPPLAYER player, bool visible);
-bool G_IsTextTagVisible(LPCTEXTTAG tag, LPCPLAYER player);
-LPHASHTABLE G_AllocHashtable(void);
-void G_FreeHashtable(LPHASHTABLE table);
+leaderboard_t * G_PlayerLeaderboard(uint32_t player);
+void G_SetPlayerLeaderboard(uint32_t player, leaderboard_t * board);
+multiboard_t * G_AllocMultiboard(void);
+void G_FreeMultiboard(multiboard_t * board);
+void G_SetMultiboardDisplayed(multiboard_t * board, player_t * player, bool displayed);
+bool G_IsMultiboardDisplayed(multiboard_t const * board, player_t const * player);
+void G_SetMultiboardMinimized(multiboard_t * board, player_t * player, bool minimized);
+bool G_IsMultiboardMinimized(multiboard_t const * board, player_t const * player);
+void G_MarkMultiboardDirty(multiboard_t const * board);
+void G_MultiboardSetRowCount(multiboard_t * board, int32_t count);
+void G_MultiboardSetColumnCount(multiboard_t * board, int32_t count);
+struct gmultiboardcell_s *G_MultiboardCell(multiboard_t * board, int32_t row, int32_t col);
+multiboardItem_t * G_MultiboardGetItem(multiboard_t * board, int32_t row, int32_t col);
+void G_MultiboardReleaseItem(multiboardItem_t * item);
+multiboard_t * G_MultiboardItemBoard(multiboardItem_t const * item);
+texttag_t * G_AllocTextTag(void);
+void G_FreeTextTag(texttag_t * tag);
+void G_SetTextTagVisible(texttag_t * tag, player_t * player, bool visible);
+bool G_IsTextTagVisible(texttag_t const * tag, player_t const * player);
+hashtable_t * G_AllocHashtable(void);
+void G_FreeHashtable(hashtable_t * table);
 void G_ClearHashtableRegistry(void);
-bool G_HashtableIndex(LPCHASHTABLE table, uint32_t *index);
-bool G_HashtableReserve(LPHASHTABLE table, uint32_t need);
+bool G_HashtableIndex(hashtable_t const * table, uint32_t *index);
+bool G_HashtableReserve(hashtable_t * table, uint32_t need);
 void G_ClearSaveRegistries(void);
 bool G_GetSaveMap(cstring_t filename, string_t map, uint32_t map_size);
 void G_HeroSaveLoadAuditFrame(void);
-void G_FormatHeroSaveSnap(LPCEDICT hero, string_t out, uint32_t out_size);
+void G_FormatHeroSaveSnap(edict_t const * hero, string_t out, uint32_t out_size);
 void G_RunTimers(void);
-void G_StartProjectilePresentation(LPEDICT ent);
-void G_TimerStart(LPGTIMER timer, uint32_t timeout, bool periodic, struct jass_function const *handler);
-void G_TimerPause(LPGTIMER timer);
-void G_TimerResume(LPGTIMER timer);
-void G_TimerDestroy(LPGTIMER timer);
+void G_StartProjectilePresentation(edict_t * ent);
+void G_TimerStart(gtimer_t * timer, uint32_t timeout, bool periodic, struct jass_function const *handler);
+void G_TimerPause(gtimer_t * timer);
+void G_TimerResume(gtimer_t * timer);
+void G_TimerDestroy(gtimer_t * timer);
 bool G_TimerCoroutineValid(handle_t timer, uint32_t generation);
-uint32_t G_TimerRemaining(LPCGTIMER timer);
+uint32_t G_TimerRemaining(gtimer_t const * timer);
 
-LPEDICT Waypoint_add(LPCVECTOR2);
+edict_t * Waypoint_add(vector2_t const *);
 void G_InitWaypoints(void);
-void M_CheckGround (LPEDICT);
-void G_RegisterGroundSurface(LPEDICT);
-void G_UnregisterGroundSurface(LPEDICT);
+void M_CheckGround (edict_t *);
+void G_RegisterGroundSurface(edict_t *);
+void G_UnregisterGroundSurface(edict_t *);
 void G_ClearGroundSurfaces(void);
-void monster_start(LPEDICT);
-void monster_think(LPEDICT);
+void monster_start(edict_t *);
+void monster_think(edict_t *);
 
 // g_model.c
 void         G_NormalizeModelFilename(cstring_t authored, string_t out, size_t out_size);
 int          G_RegisterModel(cstring_t filename);
-LPCANIMATION G_GetAnimation(uint32_t modelindex, cstring_t animname);
-LPCANIMATION G_SelectAnimationForProperties(LPCANIMATION animations, uint32_t count, cstring_t animname, cstring_t properties);
-LPCANIMATION G_SelectAnimationVariantForProperties(LPCANIMATION animations, uint32_t count, cstring_t animname, cstring_t properties, bool randomize);
-LPCANIMATION G_GetAnimationForProperties(uint32_t modelindex, cstring_t animname, cstring_t properties);
-LPCANIMATION G_GetAnimationVariant(uint32_t modelindex, cstring_t animname, bool randomize);
-bool         G_AnimationHasPrimary(LPCANIMATION animation, cstring_t primary);
-LPCANIMATION G_GetUnitAnimation(LPEDICT unit, cstring_t animname);
-void         G_SetUnitAnimation(LPEDICT unit, cstring_t animname);
-void         G_ResetUnitAnimationProperties(LPEDICT unit);
-void         G_AddUnitAnimationProperties(LPEDICT unit, cstring_t properties, bool add);
+animation_t const * G_GetAnimation(uint32_t modelindex, cstring_t animname);
+animation_t const * G_SelectAnimationForProperties(animation_t const * animations, uint32_t count, cstring_t animname, cstring_t properties);
+animation_t const * G_SelectAnimationVariantForProperties(animation_t const * animations, uint32_t count, cstring_t animname, cstring_t properties, bool randomize);
+animation_t const * G_GetAnimationForProperties(uint32_t modelindex, cstring_t animname, cstring_t properties);
+animation_t const * G_GetAnimationVariant(uint32_t modelindex, cstring_t animname, bool randomize);
+bool         G_AnimationHasPrimary(animation_t const * animation, cstring_t primary);
+animation_t const * G_GetUnitAnimation(edict_t * unit, cstring_t animname);
+void         G_SetUnitAnimation(edict_t * unit, cstring_t animname);
+void         G_ResetUnitAnimationProperties(edict_t * unit);
+void         G_AddUnitAnimationProperties(edict_t * unit, cstring_t properties, bool add);
 void         G_FreeModels(void);
 
 // g_ai.c
-void ai_birth(LPEDICT);
-void ai_stand(LPEDICT);
-void ai_pain(LPEDICT);
-void ai_idle(LPEDICT);
-void unit_runwait(LPEDICT, void (*callback)(LPEDICT ));
-void unit_stand(LPEDICT);
-void unit_entercombat(LPEDICT, LPEDICT);
-void unit_leavecombat(LPEDICT);
-bool unit_affectingcombat(LPEDICT);
-void unit_updatestatuses(LPEDICT);
-void unit_expirestatus(LPEDICT, heroabilitystatus_t *);
-heroabilitystatus_t *unit_findstatus(LPEDICT, uint32_t);
-void unit_statusdeath(LPEDICT);
-void incinerate_explode_think(LPEDICT);
-void monsoon_think(LPEDICT);
-void unit_refreshstatusflags(LPEDICT);
+void ai_birth(edict_t *);
+void ai_stand(edict_t *);
+void ai_pain(edict_t *);
+void ai_idle(edict_t *);
+void unit_runwait(edict_t *, void (*callback)(edict_t * ));
+void unit_stand(edict_t *);
+void unit_entercombat(edict_t *, edict_t *);
+void unit_leavecombat(edict_t *);
+bool unit_affectingcombat(edict_t *);
+void unit_updatestatuses(edict_t *);
+void unit_expirestatus(edict_t *, heroabilitystatus_t *);
+heroabilitystatus_t *unit_findstatus(edict_t *, uint32_t);
+void unit_statusdeath(edict_t *);
+void incinerate_explode_think(edict_t *);
+void monsoon_think(edict_t *);
+void unit_refreshstatusflags(edict_t *);
 
 // skills/s_move.c — locomotion shared by Move, Follow, Attack, Build and Harvest
-void unit_moveindirection(LPEDICT);
-void unit_moveindirection_ignore_units(LPEDICT);
-bool unit_snap_to_point_ignore_units(LPEDICT, LPCVECTOR2);
-void unit_changeangle(LPEDICT);
-void unit_changeangle_worker(LPEDICT);
-void unit_changeangle_interaction_ignore_units(LPEDICT);
-bool unit_changeangle_towards_point_ignore_units(LPEDICT, LPCVECTOR2);
-void unit_changeangle_towards_point(LPEDICT, LPCVECTOR2);
-void unit_changeangle_towards_point_worker(LPEDICT, LPCVECTOR2);
-void unit_changeangle_for_radius(LPEDICT, float);
-void unit_changeangle_for_radius_worker(LPEDICT, float);
-bool M_MoveIsValid(LPEDICT self, LPCVECTOR2 pos);
-bool M_CheckAttack(LPEDICT);
-bool unit_is_walking(LPCEDICT);
-void unit_setanimation(LPEDICT, cstring_t);
-void unit_setmove(LPEDICT, umove_t *);
-void M_MoveFrame(LPEDICT);
-float M_DistanceToGoal(LPEDICT);
-float unit_movedistance(LPEDICT);
-uint32_t M_RefreshHeatmap(LPEDICT, float);
-uint32_t M_RefreshHeatmapForMover(LPCEDICT, LPEDICT, float);
-uint8_t M_UnitStaticPathingFlags(LPCEDICT);
-bool M_IsDead(LPCEDICT);
-void SP_SpawnUnit(LPEDICT);
+void unit_moveindirection(edict_t *);
+void unit_moveindirection_ignore_units(edict_t *);
+bool unit_snap_to_point_ignore_units(edict_t *, vector2_t const *);
+void unit_changeangle(edict_t *);
+void unit_changeangle_worker(edict_t *);
+void unit_changeangle_interaction_ignore_units(edict_t *);
+bool unit_changeangle_towards_point_ignore_units(edict_t *, vector2_t const *);
+void unit_changeangle_towards_point(edict_t *, vector2_t const *);
+void unit_changeangle_towards_point_worker(edict_t *, vector2_t const *);
+void unit_changeangle_for_radius(edict_t *, float);
+void unit_changeangle_for_radius_worker(edict_t *, float);
+bool M_MoveIsValid(edict_t * self, vector2_t const * pos);
+bool M_CheckAttack(edict_t *);
+bool unit_is_walking(edict_t const *);
+void unit_setanimation(edict_t *, cstring_t);
+void unit_setmove(edict_t *, umove_t *);
+void M_MoveFrame(edict_t *);
+float M_DistanceToGoal(edict_t *);
+float unit_movedistance(edict_t *);
+uint32_t M_RefreshHeatmap(edict_t *, float);
+uint32_t M_RefreshHeatmapForMover(edict_t const *, edict_t *, float);
+uint8_t M_UnitStaticPathingFlags(edict_t const *);
+bool M_IsDead(edict_t const *);
+void SP_SpawnUnit(edict_t *);
 uint32_t unit_spawn_aiflags(uint32_t);
-bool SP_TrainUnit(LPEDICT, uint32_t);
-bool player_pay(LPPLAYER, uint32_t);
+bool SP_TrainUnit(edict_t *, uint32_t);
+bool player_pay(player_t *, uint32_t);
 
 // g_food.c
 bool G_FoodLimitsEnabled(void);
-int32_t G_GetEffectiveFoodCap(LPGAMECLIENT client);
-uint32_t G_GetPlayerUpkeepTier(LPGAMECLIENT client);
+int32_t G_GetEffectiveFoodCap(gameClient_t * client);
+uint32_t G_GetPlayerUpkeepTier(gameClient_t * client);
 int32_t G_GetUpkeepGoldRateForTier(uint32_t tier);
 int32_t G_GetUpkeepLumberRateForTier(uint32_t tier);
-bool G_PlayerHasFoodFor(LPGAMECLIENT client, int32_t food_cost);
-bool G_ReserveTrainingFood(LPEDICT unit);
-void G_SetUnitFoodUsed(LPEDICT unit, int32_t amount);
-void G_SetUnitFoodMade(LPEDICT unit, int32_t amount);
-void G_ActivateUnitFood(LPEDICT unit);
-void G_ClearUnitFood(LPEDICT unit);
-void G_ClearTrainingQueueFood(LPEDICT producer);
-bool G_CancelTrainingQueueItem(LPEDICT producer, uint32_t index, bool refund);
-void G_CancelTrainingQueue(LPEDICT producer, bool refund);
-bool G_QueueSacrifice(LPEDICT producer, LPEDICT worker, uint32_t result_id);
-void G_SetUnitPlayer(LPEDICT unit, uint32_t player);
-uint32_t G_GetUnitTeamColor(LPCEDICT unit);
-void G_SetEntityTeamColor(LPENTITYSTATE state, uint32_t color);
-void G_SetUnitTeamColor(LPEDICT unit, uint32_t color);
-void G_InheritUnitTeamColor(LPEDICT entity, LPCEDICT source);
-void G_InitializeUnitTeamColor(LPEDICT unit);
-void G_InitializeUnitVertexColor(LPEDICT unit);
-void G_ApplyMapUnitTeamColor(LPEDICT unit, LPCDOODAD placement);
-void G_ChangePlayerTeamColor(LPPLAYER player, uint32_t previous_color, uint32_t new_color);
-bool G_GetUnitColorOverride(LPCEDICT unit, uint32_t * color);
-void G_SetUnitColorOverride(LPEDICT unit, uint32_t color);
-void G_ClearUnitColorOverride(LPEDICT unit);
-void G_RecomputePlayerUpkeep(LPGAMECLIENT client);
-int32_t G_ApplyResourceIncome(LPPLAYER player, uint32_t resource_state, int32_t gross_amount);
-int32_t G_CreditResourceIncome(LPPLAYER player, LPEDICT source, uint32_t resource_state, int32_t gross_amount);
-bool G_UnitCanReviveHeroes(LPCEDICT altar);
-bool G_HeroCanBeRevivedAt(LPCEDICT altar, LPCEDICT hero);
+bool G_PlayerHasFoodFor(gameClient_t * client, int32_t food_cost);
+bool G_ReserveTrainingFood(edict_t * unit);
+void G_SetUnitFoodUsed(edict_t * unit, int32_t amount);
+void G_SetUnitFoodMade(edict_t * unit, int32_t amount);
+void G_ActivateUnitFood(edict_t * unit);
+void G_ClearUnitFood(edict_t * unit);
+void G_ClearTrainingQueueFood(edict_t * producer);
+bool G_CancelTrainingQueueItem(edict_t * producer, uint32_t index, bool refund);
+void G_CancelTrainingQueue(edict_t * producer, bool refund);
+bool G_QueueSacrifice(edict_t * producer, edict_t * worker, uint32_t result_id);
+void G_SetUnitPlayer(edict_t * unit, uint32_t player);
+uint32_t G_GetUnitTeamColor(edict_t const * unit);
+void G_SetEntityTeamColor(entityState_t * state, uint32_t color);
+void G_SetUnitTeamColor(edict_t * unit, uint32_t color);
+void G_InheritUnitTeamColor(edict_t * entity, edict_t const * source);
+void G_InitializeUnitTeamColor(edict_t * unit);
+void G_InitializeUnitVertexColor(edict_t * unit);
+void G_ApplyMapUnitTeamColor(edict_t * unit, doodad_t const * placement);
+void G_ChangePlayerTeamColor(player_t * player, uint32_t previous_color, uint32_t new_color);
+bool G_GetUnitColorOverride(edict_t const * unit, uint32_t * color);
+void G_SetUnitColorOverride(edict_t * unit, uint32_t color);
+void G_ClearUnitColorOverride(edict_t * unit);
+void G_RecomputePlayerUpkeep(gameClient_t * client);
+int32_t G_ApplyResourceIncome(player_t * player, uint32_t resource_state, int32_t gross_amount);
+int32_t G_CreditResourceIncome(player_t * player, edict_t * source, uint32_t resource_state, int32_t gross_amount);
+bool G_UnitCanReviveHeroes(edict_t const * altar);
+bool G_HeroCanBeRevivedAt(edict_t const * altar, edict_t const * hero);
 
 // skills/s_rally.c
-bool G_UnitHasRally(LPCEDICT producer);
-void G_ResetRallyTarget(LPEDICT producer);
-bool G_SetRallyPoint(LPEDICT producer, LPCVECTOR2 point);
-bool G_SetRallyEntity(LPEDICT producer, LPEDICT target);
-rallyTargetType_t G_ResolveRallyTarget(LPEDICT producer, LPVECTOR2 point, LPEDICT *target);
-bool G_ApplyRallyOrder(LPEDICT producer, LPEDICT produced);
-void G_InvalidateRallyTarget(LPEDICT target);
-void G_UpdateRallyIndicator(LPGAMECLIENT client);
+bool G_UnitHasRally(edict_t const * producer);
+void G_ResetRallyTarget(edict_t * producer);
+bool G_SetRallyPoint(edict_t * producer, vector2_t const * point);
+bool G_SetRallyEntity(edict_t * producer, edict_t * target);
+rallyTargetType_t G_ResolveRallyTarget(edict_t * producer, vector2_t * point, edict_t * *target);
+bool G_ApplyRallyOrder(edict_t * producer, edict_t * produced);
+void G_InvalidateRallyTarget(edict_t * target);
+void G_UpdateRallyIndicator(gameClient_t * client);
 
-uint32_t G_HeroReviveGoldCost(LPCEDICT hero);
-uint32_t G_HeroReviveLumberCost(LPCEDICT hero);
-float G_HeroReviveTime(LPCEDICT hero);
-bool G_QueueHeroRevive(LPEDICT altar, LPEDICT hero);
-bool G_CancelHeroRevive(LPEDICT altar, LPEDICT hero);
-void G_CancelHeroRevives(LPEDICT altar);
-uint8_t compress_stat(EDICTSTAT const *);
+uint32_t G_HeroReviveGoldCost(edict_t const * hero);
+uint32_t G_HeroReviveLumberCost(edict_t const * hero);
+float G_HeroReviveTime(edict_t const * hero);
+bool G_QueueHeroRevive(edict_t * altar, edict_t * hero);
+bool G_CancelHeroRevive(edict_t * altar, edict_t * hero);
+void G_CancelHeroRevives(edict_t * altar);
+uint8_t compress_stat(edictStat_t const *);
 uint32_t G_LoadShadowTexture(cstring_t, bool);
 
 // g_pathing.c
@@ -2421,54 +2421,54 @@ pathTex_t *LoadTGA(uint8_t const*, size_t);
 pathTex_t *M_LoadPathTex(cstring_t filename);
 
 // g_move.c
-bool SV_CloseEnough(LPEDICT, LPCEDICT, float);
+bool SV_CloseEnough(edict_t *, edict_t const *, float);
 
 // g_phys.c
-void G_RunEntity(LPEDICT);
-void G_SetHealth(LPEDICT, float);
-void G_AddHealth(LPEDICT, float);
-void G_ApplyPermanentMaxHealthBonus(LPEDICT, float);
-void G_ApplyTemporaryMaxHealthBonus(LPEDICT, float);
-void G_ApplyTemporaryMaxManaBonus(LPEDICT, float);
-void G_ApplyPermanentArmorBonus(LPEDICT, float);
-void G_ApplyTemporaryArmorBonus(LPEDICT, float);
-void G_ApplyPermanentAttackDamageBonus(LPEDICT, float);
-void G_ApplyTemporaryAttackDamageBonus(LPEDICT, float);
-void S_EnableAbility(LPEDICT, uint32_t);
-void S_DisableAbility(LPEDICT, uint32_t);
-void S_RefreshAbilityLevel(LPEDICT, ability_t const *);
-bool S_UnitPolymorphed(LPCEDICT unit);
+void G_RunEntity(edict_t *);
+void G_SetHealth(edict_t *, float);
+void G_AddHealth(edict_t *, float);
+void G_ApplyPermanentMaxHealthBonus(edict_t *, float);
+void G_ApplyTemporaryMaxHealthBonus(edict_t *, float);
+void G_ApplyTemporaryMaxManaBonus(edict_t *, float);
+void G_ApplyPermanentArmorBonus(edict_t *, float);
+void G_ApplyTemporaryArmorBonus(edict_t *, float);
+void G_ApplyPermanentAttackDamageBonus(edict_t *, float);
+void G_ApplyTemporaryAttackDamageBonus(edict_t *, float);
+void S_EnableAbility(edict_t *, uint32_t);
+void S_DisableAbility(edict_t *, uint32_t);
+void S_RefreshAbilityLevel(edict_t *, ability_t const *);
+bool S_UnitPolymorphed(edict_t const * unit);
 BZ_ABILITY_PROC(CAbilityOnFireHuman);
-void G_ApplyUnitAbilityTraits(LPEDICT);
+void G_ApplyUnitAbilityTraits(edict_t *);
 void G_SolveCollisions(void);
-bool M_CheckCollision(LPCVECTOR2, float);
-void G_PushEntity(LPEDICT ent, float distance, LPCVECTOR2 direction);
-void G_PushEntity3(LPEDICT ent, float distance, LPCVECTOR3 direction);
-bool G_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBOX2 bounds,
-                                                      float radius, uint8_t blocked_flags, LPVECTOR2 out);
+bool M_CheckCollision(vector2_t const *, float);
+void G_PushEntity(edict_t * ent, float distance, vector2_t const * direction);
+void G_PushEntity3(edict_t * ent, float distance, vector3_t const * direction);
+bool G_ClosestStaticPathablePointInRectForRadiusFlags(vector2_t const * location, box2_t const * bounds,
+                                                      float radius, uint8_t blocked_flags, vector2_t * out);
 
 // g_abilities.c
-void S_RunAbilityUpdates(LPEDICT);
-bool S_UnitAbilityEvent(LPEDICT, abilityMsg_t);
-bool S_UnitAbilityOrderAccepted(LPEDICT, cstring_t);
-bool S_UnitQueuedOrderEvent(LPEDICT, unitOrder_t const *, abilityMsg_t);
-bool S_UnitTargetAbilityOrder(LPEDICT, LPEDICT, cstring_t);
-bool S_UnitProjectileHit(LPEDICT);
+void S_RunAbilityUpdates(edict_t *);
+bool S_UnitAbilityEvent(edict_t *, abilityMsg_t);
+bool S_UnitAbilityOrderAccepted(edict_t *, cstring_t);
+bool S_UnitQueuedOrderEvent(edict_t *, unitOrder_t const *, abilityMsg_t);
+bool S_UnitTargetAbilityOrder(edict_t *, edict_t *, cstring_t);
+bool S_UnitProjectileHit(edict_t *);
 ability_t const *FindAbilityByOrder(cstring_t);
 ability_t const *FindAbilityByClassname(cstring_t);
 ability_t const *FindAbilityForCommand(cstring_t);
 abilityitem_t S_AbilityItem(uint32_t code);
 bool S_AbilityHasCommand(ability_t const *ability);
-void S_AbilityCommand(LPEDICT clent, ability_t const *ability);
+void S_AbilityCommand(edict_t * clent, ability_t const *ability);
 ability_t const *GetAbilityByIndex(uint32_t);
 uint32_t FindAbilityIndex(cstring_t);
 void InitAbilities(void);
 #ifdef WC3_DEBUG_AUTOCAST
 int G_AutocastDebugLevel(void);
 #endif
-bool G_UnitAutocastIsOn(LPEDICT ent, uint32_t code);
-bool G_SetUnitAutocast(LPEDICT ent, uint32_t code, bool enabled);
-bool G_TryUnitAutocast(LPEDICT ent);
+bool G_UnitAutocastIsOn(edict_t * ent, uint32_t code);
+bool G_SetUnitAutocast(edict_t * ent, uint32_t code, bool enabled);
+bool G_TryUnitAutocast(edict_t * ent);
 
 // g_metadata.c
 cstring_t FindConfigValue(cstring_t, cstring_t);
@@ -2476,157 +2476,157 @@ cstring_t GetClassName(uint32_t);
 
 // g_effects.c
 cstring_t G_AbilityEffectArt(uint32_t ability_id, wc3EffectType_t type, uint32_t index);
-LPEDICT G_SpawnModelEffect(cstring_t model, LPCVECTOR2 point, LPEDICT target, cstring_t attach_point, bool temporary);
-LPEDICT G_SpawnAbilityEffectAtPoint(uint32_t ability_id, wc3EffectType_t type, uint32_t index, LPCVECTOR2 point, bool temporary);
-LPEDICT G_SpawnAbilityEffectTarget(uint32_t ability_id, wc3EffectType_t type, uint32_t index, LPEDICT target, cstring_t attach_point, bool temporary);
-void G_DestroyEffect(LPEDICT effect);
+edict_t * G_SpawnModelEffect(cstring_t model, vector2_t const * point, edict_t * target, cstring_t attach_point, bool temporary);
+edict_t * G_SpawnAbilityEffectAtPoint(uint32_t ability_id, wc3EffectType_t type, uint32_t index, vector2_t const * point, bool temporary);
+edict_t * G_SpawnAbilityEffectTarget(uint32_t ability_id, wc3EffectType_t type, uint32_t index, edict_t * target, cstring_t attach_point, bool temporary);
+void G_DestroyEffect(edict_t * effect);
 uint32_t G_AbilityLightningId(uint32_t ability_id, uint32_t index);
-LPGLIGHTNING G_LightningAdd(LPCLIGHTNINGADDPARAMS params);
-bool G_LightningValid(LPCGLIGHTNING effect);
-void G_LightningAttach(LPGLIGHTNING effect, LPCEDICT source, LPCEDICT target);
-void G_LightningUpdateAttached(LPGLIGHTNING effect);
-void G_LightningMove(LPGLIGHTNING effect, LPCVECTOR3 source, LPCVECTOR3 target);
-void G_LightningColor(LPGLIGHTNING effect, COLOR32 color);
-void G_LightningScriptColor(LPGLIGHTNING effect, COLOR32 color, float const * precise);
-void G_LightningRemove(LPGLIGHTNING effect);
-LPGLIGHTNING G_SpawnAbilityLightning(LPCABILITYLIGHTNINGPARAMS params);
-LPEDICT G_SpawnOwnedAbilityEffectAtPoint(LPEDICT owner, uint32_t ability_id, wc3EffectType_t type, uint32_t index, LPCVECTOR2 point);
-void G_DestroyOwnedEffects(LPEDICT owner);
-void G_EffectThink(LPEDICT);
-void G_EffectValidateTarget(LPEDICT);
+gLightning_t * G_LightningAdd(lightningAddParams_t const * params);
+bool G_LightningValid(gLightning_t const * effect);
+void G_LightningAttach(gLightning_t * effect, edict_t const * source, edict_t const * target);
+void G_LightningUpdateAttached(gLightning_t * effect);
+void G_LightningMove(gLightning_t * effect, vector3_t const * source, vector3_t const * target);
+void G_LightningColor(gLightning_t * effect, color32_t color);
+void G_LightningScriptColor(gLightning_t * effect, color32_t color, float const * precise);
+void G_LightningRemove(gLightning_t * effect);
+gLightning_t * G_SpawnAbilityLightning(abilityLightningParams_t const * params);
+edict_t * G_SpawnOwnedAbilityEffectAtPoint(edict_t * owner, uint32_t ability_id, wc3EffectType_t type, uint32_t index, vector2_t const * point);
+void G_DestroyOwnedEffects(edict_t * owner);
+void G_EffectThink(edict_t *);
+void G_EffectValidateTarget(edict_t *);
 
 // hud/hud_resource_text.c
-void G_ResourceGainEvent(LPEDICT source, uint32_t resource_state, int32_t amount);
+void G_ResourceGainEvent(edict_t * source, uint32_t resource_state, int32_t amount);
 
 // hud/hud_unit.c
-uint8_t G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, uint8_t max_buttons);
-bool G_BuildCommandButton(LPEDICT ent, cstring_t code, bool research, uint32_t level, gameCommandButton_t *button);
+uint8_t G_GetCommandButtons(edict_t * ent, gameCommandButton_t *buttons, uint8_t max_buttons);
+bool G_BuildCommandButton(edict_t * ent, cstring_t code, bool research, uint32_t level, gameCommandButton_t *button);
 bool G_BuildAllEnabled(void);
-bool G_WorkerCanBuild(LPEDICT worker, uint32_t building_id);
-bool G_ProducerCanTrain(LPEDICT producer, uint32_t unit_id);
-bool G_ProducerCanResearch(LPEDICT producer, uint32_t upgrade_id);
-bool G_ProducerCanUpgrade(LPEDICT producer, uint32_t unit_id);
-bool G_BuildingUpgradeActive(LPCEDICT building);
-bool G_BuildingIsUnsummoning(LPCEDICT building);
+bool G_WorkerCanBuild(edict_t * worker, uint32_t building_id);
+bool G_ProducerCanTrain(edict_t * producer, uint32_t unit_id);
+bool G_ProducerCanResearch(edict_t * producer, uint32_t upgrade_id);
+bool G_ProducerCanUpgrade(edict_t * producer, uint32_t unit_id);
+bool G_BuildingUpgradeActive(edict_t const * building);
+bool G_BuildingIsUnsummoning(edict_t const * building);
 void G_GetBuildingUpgradeCosts(buildingUpgradeCostParams_t const *params);
-buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, uint32_t building_id, string_t reason, uint32_t reason_size);
-buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer, uint32_t unit_id, string_t reason, uint32_t reason_size);
-buildCommandState_t G_GetResearchCommandState(LPGAMECLIENT client, LPEDICT producer, uint32_t upgrade_id, int32_t *next_level, string_t reason, uint32_t reason_size);
+buildCommandState_t G_GetBuildCommandState(gameClient_t * client, edict_t * worker, uint32_t building_id, string_t reason, uint32_t reason_size);
+buildCommandState_t G_GetTrainCommandState(gameClient_t * client, edict_t * producer, uint32_t unit_id, string_t reason, uint32_t reason_size);
+buildCommandState_t G_GetResearchCommandState(gameClient_t * client, edict_t * producer, uint32_t upgrade_id, int32_t *next_level, string_t reason, uint32_t reason_size);
 buildCommandState_t G_GetBuildingUpgradeCommandState(buildingUpgradeCommandParams_t const *params);
 int32_t G_UpgradeGoldCost(uint32_t upgrade_id, int32_t level_value);
 int32_t G_UpgradeLumberCost(uint32_t upgrade_id, int32_t level_value);
 float G_UpgradeResearchTime(uint32_t upgrade_id, int32_t level_value);
-bool G_QueueResearch(LPEDICT producer, uint32_t upgrade_id);
-bool G_StartBuildingUpgrade(LPEDICT building, uint32_t unit_id);
-bool G_CancelBuildingUpgrade(LPEDICT building);
-void G_StopBuildingUpgrade(LPEDICT building, bool refund);
-void G_RunBuildingUpgradeFrame(LPEDICT building);
-void G_UpdateBuildingUpgradeAnimation(LPEDICT building);
-void G_ApplyPlayerUpgradesToUnit(LPEDICT unit);
-bool G_UnitAbilityResearchAvailable(LPCEDICT unit, uint32_t ability_id);
-uint32_t G_GetUnitUpgradeForClass(LPCEDICT unit, cstring_t wanted_class);
-bool G_ChargeBuilding(LPGAMECLIENT client, uint32_t building_id);
-void G_RefundBuilding(LPGAMECLIENT client, uint32_t building_id);
-void G_SnapBuildingPoint(uint32_t building_id, LPVECTOR2 point);
+bool G_QueueResearch(edict_t * producer, uint32_t upgrade_id);
+bool G_StartBuildingUpgrade(edict_t * building, uint32_t unit_id);
+bool G_CancelBuildingUpgrade(edict_t * building);
+void G_StopBuildingUpgrade(edict_t * building, bool refund);
+void G_RunBuildingUpgradeFrame(edict_t * building);
+void G_UpdateBuildingUpgradeAnimation(edict_t * building);
+void G_ApplyPlayerUpgradesToUnit(edict_t * unit);
+bool G_UnitAbilityResearchAvailable(edict_t const * unit, uint32_t ability_id);
+uint32_t G_GetUnitUpgradeForClass(edict_t const * unit, cstring_t wanted_class);
+bool G_ChargeBuilding(gameClient_t * client, uint32_t building_id);
+void G_RefundBuilding(gameClient_t * client, uint32_t building_id);
+void G_SnapBuildingPoint(uint32_t building_id, vector2_t * point);
 void G_GetBuildPlacementPathingFlags(uint32_t building_id, uint8_t * prevented, uint8_t * required);
-buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, uint32_t building_id, LPCVECTOR2 requested, LPVECTOR2 snapped);
-bool G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building);
-bool G_ExecuteBuildOrder(LPEDICT builder, uint32_t building_id, LPCVECTOR2 location);
-bool G_IssueBuildOrder(LPEDICT builder, uint32_t building_id, LPCVECTOR2 location);
-bool G_IssueUnitBuildOrder(LPEDICT builder, uint32_t building_id, LPCVECTOR2 location, bool queue, uint32_t issuer_player);
-bool G_FindBuildOnTarget(uint32_t building_id, LPCVECTOR2 point, LPEDICT *out);
+buildPlacementResult_t G_EvaluateBuildPlacement(edict_t * builder, uint32_t building_id, vector2_t const * requested, vector2_t * snapped);
+bool G_DisplaceBuildOccupants(edict_t * builder, edict_t * building);
+bool G_ExecuteBuildOrder(edict_t * builder, uint32_t building_id, vector2_t const * location);
+bool G_IssueBuildOrder(edict_t * builder, uint32_t building_id, vector2_t const * location);
+bool G_IssueUnitBuildOrder(edict_t * builder, uint32_t building_id, vector2_t const * location, bool queue, uint32_t issuer_player);
+bool G_FindBuildOnTarget(uint32_t building_id, vector2_t const * point, edict_t * *out);
 float G_BuildApproachDistance(uint32_t building_id);
-bool G_StartHumanConstruction(LPEDICT builder, LPEDICT building);
-bool G_StartOrcConstruction(LPEDICT builder, LPEDICT building);
-bool G_StartUndeadConstruction(LPEDICT builder, LPEDICT building);
-bool G_StartNightElfConstruction(LPEDICT builder, LPEDICT building);
-bool G_StartNightElfOverlayConstruction(LPEDICT building);
-void G_RunConstructionFrame(LPEDICT building);
-void G_UpdateConstructionAnimation(LPEDICT building);
-void G_StopConstruction(LPEDICT building);
-bool G_CancelStructureConstruction(LPEDICT building);
-void G_CompleteConstruction(LPEDICT building);
-bool G_UnitHasHumanRepair(LPEDICT ent);
-bool S_OrderRepair(LPEDICT ent, LPEDICT target, uint32_t preferred);
-bool S_SetRepairAutocast(LPEDICT ent, bool enabled);
-bool S_RepairSmart(LPEDICT ent, LPEDICT target);
-void S_CancelRepair(LPEDICT ent);
-void G_SetPlayerTechMaxAllowed(LPGAMECLIENT client, uint32_t techid, int32_t maximum);
-int32_t G_GetPlayerTechMaxAllowed(LPGAMECLIENT client, uint32_t techid);
-void G_SetPlayerTechResearched(LPGAMECLIENT client, uint32_t techid, int32_t level_value);
-void G_AddPlayerTechResearched(LPGAMECLIENT client, uint32_t techid, int32_t levels);
-int32_t G_GetPlayerTechResearchedLevel(LPGAMECLIENT client, uint32_t techid);
-float G_UnitUpgradeEffectBonus(LPCEDICT unit, uint32_t effect);
+bool G_StartHumanConstruction(edict_t * builder, edict_t * building);
+bool G_StartOrcConstruction(edict_t * builder, edict_t * building);
+bool G_StartUndeadConstruction(edict_t * builder, edict_t * building);
+bool G_StartNightElfConstruction(edict_t * builder, edict_t * building);
+bool G_StartNightElfOverlayConstruction(edict_t * building);
+void G_RunConstructionFrame(edict_t * building);
+void G_UpdateConstructionAnimation(edict_t * building);
+void G_StopConstruction(edict_t * building);
+bool G_CancelStructureConstruction(edict_t * building);
+void G_CompleteConstruction(edict_t * building);
+bool G_UnitHasHumanRepair(edict_t * ent);
+bool S_OrderRepair(edict_t * ent, edict_t * target, uint32_t preferred);
+bool S_SetRepairAutocast(edict_t * ent, bool enabled);
+bool S_RepairSmart(edict_t * ent, edict_t * target);
+void S_CancelRepair(edict_t * ent);
+void G_SetPlayerTechMaxAllowed(gameClient_t * client, uint32_t techid, int32_t maximum);
+int32_t G_GetPlayerTechMaxAllowed(gameClient_t * client, uint32_t techid);
+void G_SetPlayerTechResearched(gameClient_t * client, uint32_t techid, int32_t level_value);
+void G_AddPlayerTechResearched(gameClient_t * client, uint32_t techid, int32_t levels);
+int32_t G_GetPlayerTechResearchedLevel(gameClient_t * client, uint32_t techid);
+float G_UnitUpgradeEffectBonus(edict_t const * unit, uint32_t effect);
 #define ID_UPGRADE_EFFECT_MAX_MANA MAKEFOURCC('r', 'm', 'n', 'x')
-int32_t G_GetPlayerTechInProgress(LPGAMECLIENT client, uint32_t techid);
-void G_AddPlayerTechInProgress(LPGAMECLIENT client, uint32_t techid, int32_t levels);
-int32_t G_GetPlayerTechCountValue(LPGAMECLIENT client, uint32_t techid);
-void G_InvalidateCommands(LPGAMECLIENT client);
-bool G_BuildInventoryItem(LPEDICT ent, LPEDICT item, uint8_t slot, gameInventoryItem_t *out);
-uint8_t G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, uint8_t max_items);
-uint8_t G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, uint8_t max_queue);
+int32_t G_GetPlayerTechInProgress(gameClient_t * client, uint32_t techid);
+void G_AddPlayerTechInProgress(gameClient_t * client, uint32_t techid, int32_t levels);
+int32_t G_GetPlayerTechCountValue(gameClient_t * client, uint32_t techid);
+void G_InvalidateCommands(gameClient_t * client);
+bool G_BuildInventoryItem(edict_t * ent, edict_t * item, uint8_t slot, gameInventoryItem_t *out);
+uint8_t G_GetInventory(edict_t * ent, gameInventoryItem_t *items, uint8_t max_items);
+uint8_t G_GetBuildQueue(edict_t * ent, gameQueueItem_t *queue, uint8_t max_queue);
 
 // g_ai.c
-LPEDICT G_GetMainSelectedUnit(LPGAMECLIENT);
-void Get_Commands_f(LPEDICT);
-void CMD_CancelCommand(LPEDICT ent);
-bool G_ClearBuildPlacementMode(LPEDICT clent);
-bool G_CancelBuildPlacement(LPEDICT clent);
-bool build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location);
-void Get_Portrait_f(LPEDICT);
-void G_RefreshInventoryLayer(LPEDICT);
-void G_InvalidateUnitInfoPanel(LPEDICT);
-void G_InvalidateUnitPortrait(LPEDICT);
-void G_RefreshInfoPanel(LPEDICT);
+edict_t * G_GetMainSelectedUnit(gameClient_t *);
+void Get_Commands_f(edict_t *);
+void CMD_CancelCommand(edict_t * ent);
+bool G_ClearBuildPlacementMode(edict_t * clent);
+bool G_CancelBuildPlacement(edict_t * clent);
+bool build_menu_send_builder(edict_t * clent, vector2_t const * location);
+void Get_Portrait_f(edict_t *);
+void G_RefreshInventoryLayer(edict_t *);
+void G_InvalidateUnitInfoPanel(edict_t *);
+void G_InvalidateUnitPortrait(edict_t *);
+void G_RefreshInfoPanel(edict_t *);
 void G_UpdateClientInfoPanels(void);
-void UI_WriteSelectedPortraitLayer(LPEDICT);
-void G_RefreshResourceBar(LPEDICT);
-void G_AccumulatePlayerFood(LPGAMECLIENT client);
-void G_InitClientUIState(LPGAMECLIENT client);
+void UI_WriteSelectedPortraitLayer(edict_t *);
+void G_RefreshResourceBar(edict_t *);
+void G_AccumulatePlayerFood(gameClient_t * client);
+void G_InitClientUIState(gameClient_t * client);
 void G_UpdateClientResourceBars(void);
-bool G_UnitIsIdleWorker(LPCEDICT ent);
-bool G_UnitShowsIdleWorkerShortcut(LPGAMECLIENT client, LPCEDICT ent);
-bool G_UnitShowsHeroShortcut(LPGAMECLIENT client, LPCEDICT ent);
-LPEDICT G_GetNextIdleWorker(LPGAMECLIENT client, uint32_t after);
-void G_InvalidateUnitShortcuts(LPGAMECLIENT client);
+bool G_UnitIsIdleWorker(edict_t const * ent);
+bool G_UnitShowsIdleWorkerShortcut(gameClient_t * client, edict_t const * ent);
+bool G_UnitShowsHeroShortcut(gameClient_t * client, edict_t const * ent);
+edict_t * G_GetNextIdleWorker(gameClient_t * client, uint32_t after);
+void G_InvalidateUnitShortcuts(gameClient_t * client);
 void G_InvalidateAllUnitShortcuts(void);
-void G_InvalidateUnitShortcutsForUnit(LPEDICT ent);
-void G_AlertHeroShortcutDamage(LPEDICT ent);
-void G_ActivateHeroButton(LPEDICT clent, uint32_t number);
-void G_ActivateHeroKey(LPEDICT clent, uint32_t slot);
-void G_ActivateIdleWorkerShortcut(LPEDICT clent, uint32_t hinted_number);
+void G_InvalidateUnitShortcutsForUnit(edict_t * ent);
+void G_AlertHeroShortcutDamage(edict_t * ent);
+void G_ActivateHeroButton(edict_t * clent, uint32_t number);
+void G_ActivateHeroKey(edict_t * clent, uint32_t slot);
+void G_ActivateIdleWorkerShortcut(edict_t * clent, uint32_t hinted_number);
 void G_UpdateClientUnitShortcuts(void);
-void UI_WriteUnitShortcutLayer(LPEDICT ent);
-void UI_AddCancelButton(LPEDICT);
+void UI_WriteUnitShortcutLayer(edict_t * ent);
+void UI_AddCancelButton(edict_t *);
 void UI_WriteCommandButtonFrame(gameCommandButton_t const *button);
 void UI_AddCommandButton(cstring_t);
 void UI_AddCommandButtonExtended(cstring_t code, bool research, uint32_t level);
 void UI_WriteTooltipFrame(void);
-void UI_SetCurrentClient(LPGAMECLIENT client);
-void UI_ShowInterface(LPEDICT, bool, float);
-void UI_ShowText(LPEDICT, LPCVECTOR2, cstring_t, float);
-void UI_ShowTransientText(LPEDICT, LPCVECTOR2, cstring_t, float);
-void UI_RecordTransmissionMessage(LPEDICT);
-void UI_ClearTextMessages(LPEDICT);
-void UI_InvalidateDialoguePresentation(LPEDICT);
-void UI_WriteDialoguePresentation(LPEDICT);
+void UI_SetCurrentClient(gameClient_t * client);
+void UI_ShowInterface(edict_t *, bool, float);
+void UI_ShowText(edict_t *, vector2_t const *, cstring_t, float);
+void UI_ShowTransientText(edict_t *, vector2_t const *, cstring_t, float);
+void UI_RecordTransmissionMessage(edict_t *);
+void UI_ClearTextMessages(edict_t *);
+void UI_InvalidateDialoguePresentation(edict_t *);
+void UI_WriteDialoguePresentation(edict_t *);
 cstring_t GetBuildCommand(unitRace_t);
-void UI_RenderRoute(LPEDICT, cstring_t);
-void UI_ShowMainMenu(LPEDICT);
-void UI_ShowGameMenuEndGame(LPEDICT);
-void UI_ShowGameMenuConfirmExit(LPEDICT);
-void UI_ShowGameMenuSave(LPEDICT);
-void UI_ShowGameMenuLoad(LPEDICT);
-void UI_ShowRealmSelect(LPEDICT, bool);
-void UI_ShowSinglePlayerMenu(LPEDICT);
-void UI_ShowMultiplayerMenu(LPEDICT);
-void UI_ShowMultiplayerCreateMenu(LPEDICT);
-void UI_ShowMultiplayerGameSetupMenu(LPEDICT, uint32_t);
-void UI_ShowGameInterface(LPEDICT);
-void UI_WriteHoverLayout(LPEDICT);
-void UI_WriteCinematicLayer(LPEDICT);
-void UI_ShowMapSelectMenu(LPEDICT, cstring_t);
-void UI_ShowMultiplayerCreateMapInfo(LPEDICT);
+void UI_RenderRoute(edict_t *, cstring_t);
+void UI_ShowMainMenu(edict_t *);
+void UI_ShowGameMenuEndGame(edict_t *);
+void UI_ShowGameMenuConfirmExit(edict_t *);
+void UI_ShowGameMenuSave(edict_t *);
+void UI_ShowGameMenuLoad(edict_t *);
+void UI_ShowRealmSelect(edict_t *, bool);
+void UI_ShowSinglePlayerMenu(edict_t *);
+void UI_ShowMultiplayerMenu(edict_t *);
+void UI_ShowMultiplayerCreateMenu(edict_t *);
+void UI_ShowMultiplayerGameSetupMenu(edict_t *, uint32_t);
+void UI_ShowGameInterface(edict_t *);
+void UI_WriteHoverLayout(edict_t *);
+void UI_WriteCinematicLayer(edict_t *);
+void UI_ShowMapSelectMenu(edict_t *, cstring_t);
+void UI_ShowMultiplayerCreateMapInfo(edict_t *);
 void UI_ClearCreateGameSlots(void);
 void UI_AddCreateGameSlot(uint32_t, cstring_t, cstring_t, cstring_t, uint32_t);
 
@@ -2637,82 +2637,82 @@ void UI_ResetHud(void);
 void UI_LoadHud(void);
 void UI_LoadHudLoading(void);
 void UI_LoadHudTimerDialogs(void);
-void UI_WriteTimerDialogs(LPEDICT ent);
+void UI_WriteTimerDialogs(edict_t * ent);
 void UI_LoadHudLeaderboards(void);
-void UI_WriteLeaderboard(LPEDICT ent);
-void UI_WriteLoadingLayout(LPEDICT ent, LPCMAPINFO info);
+void UI_WriteLeaderboard(edict_t * ent);
+void UI_WriteLoadingLayout(edict_t * ent, mapInfo_t const * info);
 void UI_ParseFDF(cstring_t);
 void UI_ParseFDF_Buffer(cstring_t, string_t);
-void UI_SetAllPoints(LPFRAMEDEF);
-void UI_SetParent(LPFRAMEDEF, LPCFRAMEDEF);
-void UI_SetText(LPFRAMEDEF, cstring_t, ...);
-void UI_SetOnClick(LPFRAMEDEF, cstring_t, ...);
-void UI_SetTextPointer(LPFRAMEDEF, cstring_t);
-void UI_SetSize(LPFRAMEDEF, float, float);
-void UI_SetTexture(LPFRAMEDEF, cstring_t, bool);
-void UI_SetTexture2(LPFRAMEDEF, cstring_t, bool);
+void UI_SetAllPoints(frameDef_t *);
+void UI_SetParent(frameDef_t *, frameDef_t const *);
+void UI_SetText(frameDef_t *, cstring_t, ...);
+void UI_SetOnClick(frameDef_t *, cstring_t, ...);
+void UI_SetTextPointer(frameDef_t *, cstring_t);
+void UI_SetSize(frameDef_t *, float, float);
+void UI_SetTexture(frameDef_t *, cstring_t, bool);
+void UI_SetTexture2(frameDef_t *, cstring_t, bool);
 #ifdef BZ_TESTS
 void UI_TestResetInfoPanelIconCache(void);
 cstring_t UI_TestResolveTypedInfoPanelIcon(cstring_t prefix, cstring_t type, bool has_upgrade);
-uint16_t UI_TestSelectedTimedStatusStat(LPGAMECLIENT client, LPEDICT selected);
+uint16_t UI_TestSelectedTimedStatusStat(gameClient_t * client, edict_t * selected);
 #endif
-void UI_WriteLayout(LPEDICT, LPCFRAMEDEF, uint32_t);
+void UI_WriteLayout(edict_t *, frameDef_t const *, uint32_t);
 void UI_WriteStart(uint32_t);
-void UI_ClearLayer(LPEDICT, uint32_t);
-void UI_ShowGameResult(LPEDICT, uint32_t);
+void UI_ClearLayer(edict_t *, uint32_t);
+void UI_ShowGameResult(edict_t *, uint32_t);
 void UI_FlushPendingGameResults(void);
-void UI_HideGameResult(LPEDICT);
-void UI_ShowQuests(LPEDICT);
-void UI_HideQuests(LPEDICT);
-void UI_ShowAllies(LPEDICT);
-void UI_AlliesToggle(LPEDICT, uint32_t, PLAYERALLIANCE);
-void UI_AlliesToggleVictory(LPEDICT);
-void UI_AlliesAccept(LPEDICT);
-void UI_AlliesCancel(LPEDICT);
-void UI_ShowLog(LPEDICT);
-void UI_WriteWithTriggers(LPEDICT, LPCFRAMEDEF, uint32_t, uiTrigger_t const *);
-void UI_SetPoint(LPFRAMEDEF, UIFRAMEPOINT, LPCFRAMEDEF, UIFRAMEPOINT, float, float);
-void UI_InitFrame(LPFRAMEDEF, FRAMETYPE);
-void UI_SetHidden(LPFRAMEDEF, bool);
-void UI_InheritFrom(LPFRAMEDEF, cstring_t);
+void UI_HideGameResult(edict_t *);
+void UI_ShowQuests(edict_t *);
+void UI_HideQuests(edict_t *);
+void UI_ShowAllies(edict_t *);
+void UI_AlliesToggle(edict_t *, uint32_t, PLAYERALLIANCE);
+void UI_AlliesToggleVictory(edict_t *);
+void UI_AlliesAccept(edict_t *);
+void UI_AlliesCancel(edict_t *);
+void UI_ShowLog(edict_t *);
+void UI_WriteWithTriggers(edict_t *, frameDef_t const *, uint32_t, uiTrigger_t const *);
+void UI_SetPoint(frameDef_t *, UIFRAMEPOINT, frameDef_t const *, UIFRAMEPOINT, float, float);
+void UI_InitFrame(frameDef_t *, FRAMETYPE);
+void UI_SetHidden(frameDef_t *, bool);
+void UI_InheritFrom(frameDef_t *, cstring_t);
 uint32_t UI_FindFrameNumber(cstring_t);
 uint32_t UI_LoadTexture(cstring_t, bool);
 cstring_t UI_GetString(cstring_t);
-LPFRAMEDEF UI_Spawn(FRAMETYPE, LPFRAMEDEF);
-LPFRAMEDEF UI_FindFrame(cstring_t);
-LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF, cstring_t);
-LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF, cstring_t);
-LPFRAMEDEF UI_FindChildFrameType(LPFRAMEDEF, FRAMETYPE);
+frameDef_t * UI_Spawn(FRAMETYPE, frameDef_t *);
+frameDef_t * UI_FindFrame(cstring_t);
+frameDef_t * UI_FindFrameNear(frameDef_t const *, cstring_t);
+frameDef_t * UI_FindChildFrame(frameDef_t *, cstring_t);
+frameDef_t * UI_FindChildFrameType(frameDef_t *, FRAMETYPE);
 
 cstring_t Theme_String(cstring_t, cstring_t);
-cstring_t Theme_PlayerString(LPGAMECLIENT, cstring_t, cstring_t);
+cstring_t Theme_PlayerString(gameClient_t *, cstring_t, cstring_t);
 float Theme_Float(cstring_t, cstring_t);
 
 // ui_write.c
-void UI_WriteFrame(LPCFRAMEDEF);
-void UI_WriteFrameValue(LPCFRAMEDEF, float);
-uint32_t UI_GetWrittenFrameNumber(LPCFRAMEDEF);
-void UI_WriteFrameWithChildren(LPCFRAMEDEF, LPCFRAMEDEF);
-void UI_WriteFrameWithChildrenWithTriggers(LPEDICT, LPCFRAMEDEF, LPCFRAMEDEF, uiTrigger_t const *);
-bool UI_BuildFrameForWrite(LPCFRAMEDEF frame,
-                           LPUIFRAME out,
+void UI_WriteFrame(frameDef_t const *);
+void UI_WriteFrameValue(frameDef_t const *, float);
+uint32_t UI_GetWrittenFrameNumber(frameDef_t const *);
+void UI_WriteFrameWithChildren(frameDef_t const *, frameDef_t const *);
+void UI_WriteFrameWithChildrenWithTriggers(edict_t *, frameDef_t const *, frameDef_t const *, uiTrigger_t const *);
+bool UI_BuildFrameForWrite(frameDef_t const * frame,
+                           uiFrame_t * out,
                            uint8_t * typedata,
                            uint32_t typedata_max,
                            string_t textbuf,
                            uint32_t textbuf_max);
 
 // g_metadata.c
-cstring_t UnitMetaString(LPEDICT, uint32_t);
-int32_t UnitMetaInteger(LPEDICT, uint32_t);
-bool UnitMetaBoolean(LPEDICT, uint32_t);
-float UnitMetaReal(LPEDICT, uint32_t);
+cstring_t UnitMetaString(edict_t *, uint32_t);
+int32_t UnitMetaInteger(edict_t *, uint32_t);
+bool UnitMetaBoolean(edict_t *, uint32_t);
+float UnitMetaReal(edict_t *, uint32_t);
 
 void InitUnitData(void);
 void ShutdownUnitData(void);
-void G_SetMapUnitOverrides(LPCMAPINFO);
-void G_SetMapAbilityOverrides(LPCMAPINFO);
-bool G_IsReignOfChaosMap(LPCMAPINFO);
-uint32_t G_MapGameDataSet(LPCMAPINFO);
+void G_SetMapUnitOverrides(mapInfo_t const *);
+void G_SetMapAbilityOverrides(mapInfo_t const *);
+bool G_IsReignOfChaosMap(mapInfo_t const *);
+uint32_t G_MapGameDataSet(mapInfo_t const *);
 void G_MapGameDataPrefix(wc3MapGameDataPrefixParams_t const *params);
 #ifdef BZ_TESTS
 typedef struct { cstring_t text; void *rows; uint32_t count; } slkTestData_t;
@@ -2720,29 +2720,29 @@ bool G_SLKStoreOptional(cstring_t);
 slkTestData_t *G_SetSLKRows(cstring_t, slkTestData_t *);
 slkTestData_t *G_SetProfileRows(slkTestData_t *);
 #endif
-void G_RegisterSelectSounds(LPEDICT, cstring_t);
+void G_RegisterSelectSounds(edict_t *, cstring_t);
 void G_RegisterGlobalSounds(void);  /* register world sounds (tree fall, etc.) at map init */
 void G_ResetSoundPresentationState(void);
 soundPolicy_t const *G_SoundIndexPolicy(int index);
-void G_PlaySound(LPCVECTOR3 origin, LPEDICT ent, int channel, int index, float volume, float attenuation, float timeofs);
+void G_PlaySound(vector3_t const * origin, edict_t * ent, int channel, int index, float volume, float attenuation, float timeofs);
 float G_SoundIndexVolume(int);
 uint32_t G_SoundIndexDuration(int);
 int G_UISoundIndex(cstring_t);
-void G_PlayUISoundForPlayer(LPEDICT, cstring_t);
+void G_PlayUISoundForPlayer(edict_t *, cstring_t);
 int G_AbilityEffectSoundIndex(uint32_t ability_id, bool looped);
-void G_PlayAbilityEffectSound(uint32_t ability_id, LPCVECTOR2 point);
+void G_PlayAbilityEffectSound(uint32_t ability_id, vector2_t const * point);
 uint32_t G_UnitAckSoundVariantCount(cstring_t label, cstring_t suffix);
 int G_UnitAckSoundVariantIndex(cstring_t label, cstring_t suffix, uint32_t variant);
 uint32_t G_UnitCombatSoundVariantCount(cstring_t key);
 int G_UnitCombatSoundVariantIndex(cstring_t key, uint32_t variant);
 bool G_SoundLabelDescriptor(cstring_t alias, string_t path, size_t path_size, int *sound_index, float *volume);
-void G_PlayCombatImpactSound(LPEDICT attacker, LPEDICT target);
-void G_SetConstructionLoopSound(LPEDICT building, bool active);
+void G_PlayCombatImpactSound(edict_t * attacker, edict_t * target);
+void G_SetConstructionLoopSound(edict_t * building, bool active);
 
 typedef struct {
     float volume;
-    VECTOR3 origin;
-    LPEDICT emitter;
+    vector3_t origin;
+    edict_t * emitter;
     bool positioned;
 } jassSoundPlayback_t;
 
@@ -2750,20 +2750,20 @@ typedef struct {
 /* Client-owned background music presentation.  The game resolves Warcraft
  * skin/Music.SLK data per recipient and emits reliable svc_music commands. */
 void G_MusicResetState(void);
-void G_MusicSyncClient(LPGAMECLIENT client);
+void G_MusicSyncClient(gameClient_t * client);
 void G_MusicSetMap(cstring_t music_name, bool random, int32_t index);
 void G_MusicClearMap(void);
 void G_MusicPlay(cstring_t music_name, int32_t start_ms, int32_t fade_ms);
 void G_MusicStop(bool fade_out);
 void G_MusicResume(void);
 void G_MusicPlayThematic(cstring_t music_name, int32_t start_ms);
-bool G_MusicAcceptFinished(LPGAMECLIENT client, uint32_t session_id);
-void G_MusicTrackSelected(LPGAMECLIENT client, uint32_t session_id, int32_t index, int32_t position_ms, uint32_t played_mask);
-void G_MusicThematicSnapshot(LPGAMECLIENT client, uint32_t thematic_session_id, uint32_t restore_session_id,
+bool G_MusicAcceptFinished(gameClient_t * client, uint32_t session_id);
+void G_MusicTrackSelected(gameClient_t * client, uint32_t session_id, int32_t index, int32_t position_ms, uint32_t played_mask);
+void G_MusicThematicSnapshot(gameClient_t * client, uint32_t thematic_session_id, uint32_t restore_session_id,
                              int32_t index, int32_t position_ms, uint32_t played_mask);
-void G_MusicMapTransitionFinished(LPGAMECLIENT client);
-void G_MusicExplicitFinished(LPGAMECLIENT client);
-void G_MusicThematicFinished(LPGAMECLIENT client);
+void G_MusicMapTransitionFinished(gameClient_t * client);
+void G_MusicExplicitFinished(gameClient_t * client);
+void G_MusicThematicFinished(gameClient_t * client);
 void G_MusicEndThematic(void);
 void G_MusicSetVolume(int32_t volume);
 void G_MusicSetPosition(int32_t millisecs);
@@ -2773,50 +2773,50 @@ int32_t G_AudioDurationFromMemory(cstring_t filename, uint8_t const *data, uint3
 int32_t G_SoundFileDuration(cstring_t filename);
 void G_JassSoundRuntimeInit(handle_t sound);
 void G_JassSoundSetVolume(handle_t sound, float volume);
-void G_JassSoundSetPosition(handle_t sound, LPCVECTOR3 position);
-void G_JassSoundAttach(handle_t sound, LPEDICT unit);
+void G_JassSoundSetPosition(handle_t sound, vector3_t const * position);
+void G_JassSoundAttach(handle_t sound, edict_t * unit);
 void G_JassSoundPlayback(handle_t sound, jassSoundPlayback_t *playback);
-void G_SendPointConfirmation(LPEDICT, LPCVECTOR2, bool attack);
-void G_QueueReadySound(LPEDICT);
-void G_QueueOwnerSoundAlias(LPEDICT, cstring_t);
-void G_QueueOwnerUISound(LPEDICT, cstring_t);
-void G_SendMinimapPing(LPGAMECLIENT, LPCVECTOR2, float, COLOR32, uint32_t);
-void G_SendOwnerMinimapAlert(LPEDICT);
-COLOR32 G_SmartTargetIndicatorColor(uint32_t, LPCEDICT);
-void G_SendWidgetIndicator(LPEDICT, COLOR32, LPPLAYER);
-void G_ShowCommandErrorKey(LPEDICT, cstring_t, cstring_t);
-void G_ShowCommandErrorText(LPEDICT, cstring_t);
+void G_SendPointConfirmation(edict_t *, vector2_t const *, bool attack);
+void G_QueueReadySound(edict_t *);
+void G_QueueOwnerSoundAlias(edict_t *, cstring_t);
+void G_QueueOwnerUISound(edict_t *, cstring_t);
+void G_SendMinimapPing(gameClient_t *, vector2_t const *, float, color32_t, uint32_t);
+void G_SendOwnerMinimapAlert(edict_t *);
+color32_t G_SmartTargetIndicatorColor(uint32_t, edict_t const *);
+void G_SendWidgetIndicator(edict_t *, color32_t, player_t *);
+void G_ShowCommandErrorKey(edict_t *, cstring_t, cstring_t);
+void G_ShowCommandErrorText(edict_t *, cstring_t);
 extern int g_treeFallSounds[3];     /* Sound\Destructibles\TreeFall{1,2,3}.wav configstring indices */
 extern uint8_t g_numTreeFallSounds;
 
 // g_command.c
-int32_t G_CompareSelectionOrder(LPCEDICT, LPCEDICT);
-uint32_t G_GetOrderedSelectedUnits(LPGAMECLIENT, LPEDICT *, uint32_t);
-void G_SelectEntity(LPGAMECLIENT, LPEDICT);
-void G_DeselectEntity(LPGAMECLIENT, LPEDICT);
-bool G_IsEntitySelected(LPGAMECLIENT, LPEDICT);
-bool G_FocusSelectedUnit(LPGAMECLIENT, LPEDICT);
-bool G_CycleSelectionSubgroup(LPGAMECLIENT);
-void G_ResetSelectionFocus(LPGAMECLIENT);
-bool G_UnitCanBeSelected(LPGAMECLIENT, LPCEDICT);
-bool G_UnitCanControl(LPGAMECLIENT, LPCEDICT);
-selectionRelation_t G_SelectionRelation(uint32_t viewer, LPCEDICT ent);
-LPEDICT G_GetMainControllableUnit(LPGAMECLIENT);
+int32_t G_CompareSelectionOrder(edict_t const *, edict_t const *);
+uint32_t G_GetOrderedSelectedUnits(gameClient_t *, edict_t * *, uint32_t);
+void G_SelectEntity(gameClient_t *, edict_t *);
+void G_DeselectEntity(gameClient_t *, edict_t *);
+bool G_IsEntitySelected(gameClient_t *, edict_t *);
+bool G_FocusSelectedUnit(gameClient_t *, edict_t *);
+bool G_CycleSelectionSubgroup(gameClient_t *);
+void G_ResetSelectionFocus(gameClient_t *);
+bool G_UnitCanBeSelected(gameClient_t *, edict_t const *);
+bool G_UnitCanControl(gameClient_t *, edict_t const *);
+selectionRelation_t G_SelectionRelation(uint32_t viewer, edict_t const * ent);
+edict_t * G_GetMainControllableUnit(gameClient_t *);
 void G_UpdateClientSelections(void);
-void G_SyncClientSelection(LPGAMECLIENT);
+void G_SyncClientSelection(gameClient_t *);
 void G_ResetSelectionSoundState(void);
-void G_ClearUnitResponses(LPCEDICT);
-uint32_t G_UnitResponseRequest(LPCEDICT, int);
+void G_ClearUnitResponses(edict_t const *);
+uint32_t G_UnitResponseRequest(edict_t const *, int);
 void G_AcceptSoundVariant(int, uint32_t);
 bool G_SoundVariantIsLast(int, uint32_t);
-bool G_QueueUnitResponseSound(LPEDICT, int);
-bool G_UnitResponseTalking(LPCEDICT);
+bool G_QueueUnitResponseSound(edict_t *, int);
+bool G_UnitResponseTalking(edict_t const *);
 void G_UpdateUnitResponsePresentation(void);
-void G_QueueSelectionSound(LPEDICT, bool);
-void G_QueueAttackOrderSound(LPEDICT);
-void G_ClientCommand(LPEDICT, uint32_t, cstring_t[]);
+void G_QueueSelectionSound(edict_t *, bool);
+void G_QueueAttackOrderSound(edict_t *);
+void G_ClientCommand(edict_t *, uint32_t, cstring_t[]);
 bool G_CheatsEnabled(void);
-void G_ClientSetCameraPosition(LPEDICT, LPCVECTOR2);
+void G_ClientSetCameraPosition(edict_t *, vector2_t const *);
 
 //  s_skills.c
 float AB_Data(cstring_t, uint32_t, uint32_t);
@@ -2824,77 +2824,77 @@ uint32_t GetAbilityIndex(abilityProc_t);
 void G_ResetHeroPassiveCaches(void);
 
 // g_combat.c
-int G_AttackDamage(LPEDICT, LPEDICT, int);
-int G_AttackDamageWithType(LPEDICT, LPEDICT, int, uint32_t);
-void T_Damage(LPEDICT, LPEDICT, int);
+int G_AttackDamage(edict_t *, edict_t *, int);
+int G_AttackDamageWithType(edict_t *, edict_t *, int, uint32_t);
+void T_Damage(edict_t *, edict_t *, int);
 
 // g_utils.c
-void G_FreeEdict(LPEDICT);
-void G_DeferFreeEdict(LPEDICT);
-bool G_IsDeferredFree(LPCEDICT);
+void G_FreeEdict(edict_t *);
+void G_DeferFreeEdict(edict_t *);
+bool G_IsDeferredFree(edict_t const *);
 void G_RunDeferredFrees(void);
 void G_ResetDeferredFrees(void);
-LPEVENT G_MakeEvent(EVENTTYPE);
-void G_SetEventSubject(LPEVENT, LPEDICT);
-void G_SetPlayerEventSubject(LPEVENT, LPEDICT);
-bool G_EventSubjectIsCurrent(LPEVENT);
-void G_UnitPositionChanged(LPEDICT, LPCVECTOR2);
+event_t * G_MakeEvent(EVENTTYPE);
+void G_SetEventSubject(event_t *, edict_t *);
+void G_SetPlayerEventSubject(event_t *, edict_t *);
+bool G_EventSubjectIsCurrent(event_t *);
+void G_UnitPositionChanged(edict_t *, vector2_t const *);
 void G_JassVariableChanged(cstring_t, float, float);
 bool G_LimitMatches(uint32_t, float, float);
-LPQUEST G_MakeQuest(void);
-bool G_RegionContains(LPCREGION, LPCVECTOR2);
-void G_RemoveQuest(LPQUEST);
-void G_InitPlayerAlliances(LPCMAPINFO);
-void G_SetPlayerAlliance(LPCPLAYER, LPCPLAYER, PLAYERALLIANCE, bool);
-bool G_GetPlayerAlliance(LPCPLAYER, LPCPLAYER, PLAYERALLIANCE);
+quest_t * G_MakeQuest(void);
+bool G_RegionContains(region_t const *, vector2_t const *);
+void G_RemoveQuest(quest_t *);
+void G_InitPlayerAlliances(mapInfo_t const *);
+void G_SetPlayerAlliance(player_t const *, player_t const *, PLAYERALLIANCE, bool);
+bool G_GetPlayerAlliance(player_t const *, player_t const *, PLAYERALLIANCE);
 bool G_PlayerTreatsPlayerAsAlly(uint32_t, uint32_t);
 
 // m_unit.c
-bool unit_issueorder(LPEDICT, cstring_t, LPCVECTOR2);
-bool unit_issueimmediateorder(LPEDICT, cstring_t);
-bool unit_issuetargetorder(LPEDICT, cstring_t, LPEDICT);
-bool G_TransformUnitType(LPEDICT, uint32_t);
-bool G_IssueUnitPointOrder(LPEDICT, cstring_t, LPCVECTOR2, bool, uint32_t, float);
-bool G_IssueUnitTargetOrder(LPEDICT, cstring_t, LPEDICT, bool, uint32_t);
-bool G_QueueUnitOrder(LPEDICT, cstring_t, unitOrderTargetType_t, LPCVECTOR2, LPEDICT, uint32_t, float, uint32_t);
-bool G_UnitHasActiveOrder(LPCEDICT);
-void G_PublishIssuedPointOrder(LPEDICT, uint32_t, LPCVECTOR2, uint32_t, cstring_t);
-void G_PublishIssuedImmediateOrder(LPEDICT, uint32_t, uint32_t, cstring_t);
-uint32_t G_GetIssuedOrderId(LPCEDICT);
-bool G_GetIssuedOrderPoint(LPCEDICT, LPVECTOR2);
+bool unit_issueorder(edict_t *, cstring_t, vector2_t const *);
+bool unit_issueimmediateorder(edict_t *, cstring_t);
+bool unit_issuetargetorder(edict_t *, cstring_t, edict_t *);
+bool G_TransformUnitType(edict_t *, uint32_t);
+bool G_IssueUnitPointOrder(edict_t *, cstring_t, vector2_t const *, bool, uint32_t, float);
+bool G_IssueUnitTargetOrder(edict_t *, cstring_t, edict_t *, bool, uint32_t);
+bool G_QueueUnitOrder(edict_t *, cstring_t, unitOrderTargetType_t, vector2_t const *, edict_t *, uint32_t, float, uint32_t);
+bool G_UnitHasActiveOrder(edict_t const *);
+void G_PublishIssuedPointOrder(edict_t *, uint32_t, vector2_t const *, uint32_t, cstring_t);
+void G_PublishIssuedImmediateOrder(edict_t *, uint32_t, uint32_t, cstring_t);
+uint32_t G_GetIssuedOrderId(edict_t const *);
+bool G_GetIssuedOrderPoint(edict_t const *, vector2_t *);
 uint32_t G_OrderId(cstring_t);
 cstring_t G_OrderId2String(uint32_t);
-bool G_UnitStartNextQueuedOrder(LPEDICT);
-void G_ClearUnitOrderQueue(LPEDICT);
-uint32_t G_UnitQueuedOrderCount(LPCEDICT);
-void unit_birth(LPEDICT);
-void unit_die(LPEDICT, LPEDICT);
-void unit_begin_decay(LPEDICT);
-void G_RestartCorpseBoneDecayAfterCargo(LPEDICT);
-LPEDICT unit_create(uint32_t, uint32_t, LPCVECTOR2, float);
-LPEDICT unit_createorfind(uint32_t, uint32_t, LPCVECTOR2, float);
-bool unit_additemtoslot(LPEDICT, LPEDICT, uint32_t);
-bool unit_additem(LPEDICT, LPEDICT);
-void unit_addstatus(LPEDICT, cstring_t, uint32_t);
-void unit_addtimedstatus(LPEDICT, cstring_t, uint32_t, float);
-uint32_t G_UnitStatusLevel(LPCEDICT, uint32_t);
+bool G_UnitStartNextQueuedOrder(edict_t *);
+void G_ClearUnitOrderQueue(edict_t *);
+uint32_t G_UnitQueuedOrderCount(edict_t const *);
+void unit_birth(edict_t *);
+void unit_die(edict_t *, edict_t *);
+void unit_begin_decay(edict_t *);
+void G_RestartCorpseBoneDecayAfterCargo(edict_t *);
+edict_t * unit_create(uint32_t, uint32_t, vector2_t const *, float);
+edict_t * unit_createorfind(uint32_t, uint32_t, vector2_t const *, float);
+bool unit_additemtoslot(edict_t *, edict_t *, uint32_t);
+bool unit_additem(edict_t *, edict_t *);
+void unit_addstatus(edict_t *, cstring_t, uint32_t);
+void unit_addtimedstatus(edict_t *, cstring_t, uint32_t, float);
+uint32_t G_UnitStatusLevel(edict_t const *, uint32_t);
 bool unit_statusshowstimedbar(uint32_t);
 float unit_statusremainingfraction(heroabilitystatus_t const *);
-heroabilitystatus_t const *unit_findtimedbarstatus(LPCEDICT);
-void unit_learnability(LPEDICT, uint32_t);
-uint32_t G_UnitAbilityLevel(LPCEDICT ent, uint32_t abilcode);
-uint32_t G_UnitSetAbilityLevel(LPEDICT ent, uint32_t abilcode, int32_t level);
-void G_SetPlayerAbilityAvailable(LPGAMECLIENT client, uint32_t abilid, bool avail);
-bool G_IsPlayerAbilityAvailable(LPCGAMECLIENT client, uint32_t abilid);
+heroabilitystatus_t const *unit_findtimedbarstatus(edict_t const *);
+void unit_learnability(edict_t *, uint32_t);
+uint32_t G_UnitAbilityLevel(edict_t const * ent, uint32_t abilcode);
+uint32_t G_UnitSetAbilityLevel(edict_t * ent, uint32_t abilcode, int32_t level);
+void G_SetPlayerAbilityAvailable(gameClient_t * client, uint32_t abilid, bool avail);
+bool G_IsPlayerAbilityAvailable(gameClient_t const * client, uint32_t abilid);
 cstring_t G_ObjectName(uint32_t objectId);
-extern LPEDICT eventsolditem;
-extern LPEDICT eventsoldunit;
-bool G_HeroHasCandidateSkill(LPCEDICT ent, uint32_t abilcode);
-void G_HeroInitializeProgression(LPEDICT ent);
-uint32_t G_HeroSkillRequiredLevel(LPEDICT ent, uint32_t abilcode);
-heroSkillState_t G_HeroSkillState(LPEDICT ent, uint32_t abilcode, uint32_t *next_level, uint32_t *required_level);
-bool G_HeroLearnSkill(LPEDICT ent, uint32_t abilcode);
-bool G_HeroModifySkillPoints(LPEDICT ent, int32_t delta);
+extern edict_t * eventsolditem;
+extern edict_t * eventsoldunit;
+bool G_HeroHasCandidateSkill(edict_t const * ent, uint32_t abilcode);
+void G_HeroInitializeProgression(edict_t * ent);
+uint32_t G_HeroSkillRequiredLevel(edict_t * ent, uint32_t abilcode);
+heroSkillState_t G_HeroSkillState(edict_t * ent, uint32_t abilcode, uint32_t *next_level, uint32_t *required_level);
+bool G_HeroLearnSkill(edict_t * ent, uint32_t abilcode);
+bool G_HeroModifySkillPoints(edict_t * ent, int32_t delta);
 
 void G_GameCacheInit(gameCache_t *cache, cstring_t campaign);
 bool G_GameCacheSave(gameCache_t *cache);
@@ -2905,170 +2905,170 @@ bool G_GameCacheStoreInteger(gameCache_t *cache, cstring_t mission, cstring_t ke
 bool G_GameCacheStoreReal(gameCache_t *cache, cstring_t mission, cstring_t key, float value);
 bool G_GameCacheStoreBoolean(gameCache_t *cache, cstring_t mission, cstring_t key, bool value);
 bool G_GameCacheStoreString(gameCache_t *cache, cstring_t mission, cstring_t key, cstring_t value);
-bool G_GameCacheStoreUnit(gameCache_t *cache, cstring_t mission, cstring_t key, LPCEDICT unit);
+bool G_GameCacheStoreUnit(gameCache_t *cache, cstring_t mission, cstring_t key, edict_t const * unit);
 bool G_GameCacheHave(gameCache_t const *cache, cstring_t mission, cstring_t key, gameCacheValueType_t type);
 int32_t G_GameCacheGetInteger(gameCache_t const *cache, cstring_t mission, cstring_t key);
 float G_GameCacheGetReal(gameCache_t const *cache, cstring_t mission, cstring_t key);
 bool G_GameCacheGetBoolean(gameCache_t const *cache, cstring_t mission, cstring_t key);
 cstring_t G_GameCacheGetString(gameCache_t const *cache, cstring_t mission, cstring_t key);
-LPEDICT G_GameCacheRestoreUnit(gameCache_t const *cache, cstring_t mission, cstring_t key,
-                              uint32_t player, LPCVECTOR2 location, float facing);
+edict_t * G_GameCacheRestoreUnit(gameCache_t const *cache, cstring_t mission, cstring_t key,
+                              uint32_t player, vector2_t const * location, float facing);
 
-void G_RecomputeHeroStats(LPEDICT);
+void G_RecomputeHeroStats(edict_t *);
 uint32_t G_MaxHeroLevel(void);
 uint32_t G_HeroXPForLevel(uint32_t level);
 uint32_t G_HeroLevelForXP(uint32_t xp);
-void G_HeroApplyLevel(LPEDICT, uint32_t level);
-void G_HeroSetXP(LPEDICT, uint32_t xp);
-void G_GrantKillXP(LPEDICT victim, LPEDICT killer);
-void G_ReviveHero(LPEDICT, float x, float y);
-bool G_UnitIsRaisableCorpse(LPCEDICT);
-bool G_UnitIsRaisableStoredCorpse(LPCEDICT);
-void G_ReviveCorpse(LPEDICT, float life_fraction);
-bool G_UnitIsHero(LPCEDICT ent);
-float G_UnitArmorValue(LPCEDICT ent);
-bool S_SpellCooldownReady(LPEDICT caster, uint32_t code);
-float S_SpellCooldownRemaining(LPEDICT caster, uint32_t code);
-float S_SpellCooldownLength(LPEDICT caster, uint32_t code);
-bool S_SpellCooldownWindow(LPEDICT caster, uint32_t code, abilityCooldownWindow_t *window);
-float S_SpellCooldownFraction(LPEDICT caster, uint32_t code, uint32_t level);
-void S_SpellStartCooldownDuration(LPEDICT caster, uint32_t code, float seconds);
-void S_SpellStartCooldown(LPEDICT caster, uint32_t code, uint32_t level);
-void S_SpellEndCooldown(LPEDICT caster, uint32_t code);
-void S_SpellResetCooldowns(LPEDICT caster);
+void G_HeroApplyLevel(edict_t *, uint32_t level);
+void G_HeroSetXP(edict_t *, uint32_t xp);
+void G_GrantKillXP(edict_t * victim, edict_t * killer);
+void G_ReviveHero(edict_t *, float x, float y);
+bool G_UnitIsRaisableCorpse(edict_t const *);
+bool G_UnitIsRaisableStoredCorpse(edict_t const *);
+void G_ReviveCorpse(edict_t *, float life_fraction);
+bool G_UnitIsHero(edict_t const * ent);
+float G_UnitArmorValue(edict_t const * ent);
+bool S_SpellCooldownReady(edict_t * caster, uint32_t code);
+float S_SpellCooldownRemaining(edict_t * caster, uint32_t code);
+float S_SpellCooldownLength(edict_t * caster, uint32_t code);
+bool S_SpellCooldownWindow(edict_t * caster, uint32_t code, abilityCooldownWindow_t *window);
+float S_SpellCooldownFraction(edict_t * caster, uint32_t code, uint32_t level);
+void S_SpellStartCooldownDuration(edict_t * caster, uint32_t code, float seconds);
+void S_SpellStartCooldown(edict_t * caster, uint32_t code, uint32_t level);
+void S_SpellEndCooldown(edict_t * caster, uint32_t code);
+void S_SpellResetCooldowns(edict_t * caster);
 cstring_t S_SpellString(uint32_t code, cstring_t field, uint32_t level);
 
-void order_attack(LPEDICT, LPEDICT);
-bool S_OrderAttack(LPEDICT self, LPEDICT target);
-bool S_AttackCanTarget(LPCEDICT attacker, LPCEDICT target);
-bool S_UnitAttackSlotEnabled(LPCEDICT attacker, uint32_t slot);
-bool S_AttackCanAutoAcquire(LPCEDICT attacker, LPCEDICT target);
-void order_move(LPEDICT, LPEDICT);
-bool move_is_active_order_walk(LPCEDICT);
-void move_start_displacement(LPEDICT, LPCVECTOR2);
-void move_cancel_displacement(LPEDICT);
-bool move_displacement_active(LPCEDICT);
-bool move_displacement_reached(LPEDICT);
-void order_stop(LPEDICT);
-void order_attackmove(LPEDICT, LPEDICT);
-void order_patrol(LPEDICT, LPEDICT);
-void order_patrol_resume(LPEDICT);
-void order_follow(LPEDICT, LPEDICT);
-void order_follow_resume(LPEDICT);
+void order_attack(edict_t *, edict_t *);
+bool S_OrderAttack(edict_t * self, edict_t * target);
+bool S_AttackCanTarget(edict_t const * attacker, edict_t const * target);
+bool S_UnitAttackSlotEnabled(edict_t const * attacker, uint32_t slot);
+bool S_AttackCanAutoAcquire(edict_t const * attacker, edict_t const * target);
+void order_move(edict_t *, edict_t *);
+bool move_is_active_order_walk(edict_t const *);
+void move_start_displacement(edict_t *, vector2_t const *);
+void move_cancel_displacement(edict_t *);
+bool move_displacement_active(edict_t const *);
+bool move_displacement_reached(edict_t *);
+void order_stop(edict_t *);
+void order_attackmove(edict_t *, edict_t *);
+void order_patrol(edict_t *, edict_t *);
+void order_patrol_resume(edict_t *);
+void order_follow(edict_t *, edict_t *);
+void order_follow_resume(edict_t *);
 extern umove_t holdpos_move_stand;
 extern umove_t holdpos_move_stand_ready;
-void unit_stand(LPEDICT);
-bool G_ActorHasSkill(LPCEDICT, cstring_t);
-bool G_ActorAddSkill(LPEDICT, uint32_t);
-bool G_ActorRemoveSkill(LPEDICT, uint32_t);
-bool G_ActorSetSkillPermanent(LPEDICT, uint32_t, bool);
-bool G_ActorSkillPermanent(LPEDICT, uint32_t);
-void G_FreeActorSkills(LPEDICT);
-bool S_GoldMineIsMine(LPCEDICT);
-bool S_GoldMineIsOverlay(LPCEDICT);
+void unit_stand(edict_t *);
+bool G_ActorHasSkill(edict_t const *, cstring_t);
+bool G_ActorAddSkill(edict_t *, uint32_t);
+bool G_ActorRemoveSkill(edict_t *, uint32_t);
+bool G_ActorSetSkillPermanent(edict_t *, uint32_t, bool);
+bool G_ActorSkillPermanent(edict_t *, uint32_t);
+void G_FreeActorSkills(edict_t *);
+bool S_GoldMineIsMine(edict_t const *);
+bool S_GoldMineIsOverlay(edict_t const *);
 bool S_UnitTypeIsGoldMine(uint32_t);
 bool S_UnitTypeReturnsGold(uint32_t);
-uint32_t S_GoldMineMaximumGold(LPCEDICT);
-float S_GoldMineMiningDuration(LPCEDICT);
-uint32_t S_GoldMineCapacity(LPCEDICT);
-bool S_GoldMineCanHarvest(LPCEDICT);
-bool S_GoldMineWorkerIsInside(LPCEDICT);
-bool S_MilitiaTargetOrder(LPEDICT, cstring_t, LPEDICT);
-void S_CancelMilitiaPairing(LPEDICT);
-void S_MilitiaExpire(LPEDICT);
+uint32_t S_GoldMineMaximumGold(edict_t const *);
+float S_GoldMineMiningDuration(edict_t const *);
+uint32_t S_GoldMineCapacity(edict_t const *);
+bool S_GoldMineCanHarvest(edict_t const *);
+bool S_GoldMineWorkerIsInside(edict_t const *);
+bool S_MilitiaTargetOrder(edict_t *, cstring_t, edict_t *);
+void S_CancelMilitiaPairing(edict_t *);
+void S_MilitiaExpire(edict_t *);
 bool S_StatusIsEnsnare(uint32_t);
-void S_GoldMineInitUnit(LPEDICT);
-void S_GoldMineReleaseWorker(LPEDICT);
-bool S_MineOverlayBind(LPEDICT, LPEDICT);
+void S_GoldMineInitUnit(edict_t *);
+void S_GoldMineReleaseWorker(edict_t *);
+bool S_MineOverlayBind(edict_t *, edict_t *);
 void S_MineOverlayBindPreplaced(void);
-void S_MineOverlayRelease(LPEDICT);
-LPEDICT S_CreateBlightedGoldmine(uint32_t, LPCVECTOR2, float);
-void S_GoldMineSetResourceAmount(LPEDICT, uint32_t);
-bool S_AcolyteHarvestOrder(LPEDICT, LPEDICT);
-void S_AcolyteHarvestRelease(LPEDICT);
-bool S_AcolyteHarvestIsActive(LPCEDICT);
-void S_EntangledMineTick(LPEDICT);
-bool S_HarvestCanLumber(LPCEDICT);
-bool S_HarvestCanGold(LPCEDICT);
-void harvest_start(LPEDICT, LPEDICT);
-void harvest_gold_start(LPEDICT, LPEDICT);
-bool harvest_gold_order(LPEDICT, LPEDICT);
-bool harvest_auto_start_gold(LPEDICT);
-bool harvest_auto_start_lumber(LPEDICT);
-bool harvest_lumber_return_to(LPEDICT, LPEDICT);
-bool harvest_gold_return_to(LPEDICT, LPEDICT);
-void cargo_drop_all(LPEDICT);
-void S_CargoInitUnit(LPEDICT);
-bool S_CargoTryLoad(LPEDICT, LPEDICT);
-bool S_CorpseCargoTryLoad(LPEDICT, LPEDICT);
-bool S_CargoOrderBoard(LPEDICT, LPEDICT);
-bool S_CargoAttacksEnabled(LPCEDICT);
-LPEDICT S_CargoTransportForUnit(LPCEDICT);
-void S_CargoReleaseUnit(LPEDICT);
-bool S_CargoIsBurrow(LPEDICT);
-bool S_CargoIsCorpseHolder(LPEDICT);
-bool S_CorpseCargoIsStored(LPCEDICT);
-bool S_CorpseCargoPosition(LPCEDICT, LPVECTOR2);
-uint32_t S_CargoCapacity(LPEDICT);
-LPEDICT S_CargoUnitAt(LPCEDICT, uint32_t);
-bool S_CargoUnloadAt(LPEDICT, uint32_t);
-bool S_CargoBeginUnloadAll(LPEDICT);
-void S_CargoStandDown(LPEDICT);
-bool S_WaygateIsGate(LPCEDICT);
-bool S_WaygateIsActive(LPCEDICT);
-bool S_WaygateGetDestination(LPCEDICT, LPVECTOR2);
-void S_WaygateSetDestination(LPEDICT, LPCVECTOR2);
-void S_WaygateSetActive(LPEDICT, bool);
-void blight_mine_think(LPEDICT);
-void blizzard_think(LPEDICT);
-void flame_strike_tick(LPEDICT);
-void siphon_mana_think(LPEDICT);
-void rain_of_fire_think(LPEDICT);
-void starfall_think(LPEDICT);
-void death_and_decay_think(LPEDICT);
-void tranquility_think(LPEDICT);
-void earthquake_think(LPEDICT);
-void far_sight_think(LPEDICT);
-void chain_lightning_think(LPEDICT);
-void unsummon_think(LPEDICT);
-void whirlwind_think(LPEDICT);
-void volcano_think(LPEDICT);
-void pocket_factory_think(LPEDICT);
-void stasis_trap_think(LPEDICT);
-void rain_of_chaos_think(LPEDICT);
-void inferno_think(LPEDICT);
-void mass_teleport_think(LPEDICT);
-void divine_shield_think(LPEDICT);
-void dark_portal_think(LPEDICT);
-void exhume_think(LPEDICT);
-void graveyard_think(LPEDICT);
-void corpse_cargo_approach_think(LPEDICT);
-void cannibalize_approach_think(LPEDICT);
-void healing_spray_think(LPEDICT);
-void cannibalize_think(LPEDICT);
-void possession_two_think(LPEDICT);
-void lsh_think(LPEDICT);
-bool move_selectlocation(LPEDICT, LPCVECTOR2);
-bool move_should_arrive(LPEDICT, float);
-bool move_is_blocked(LPEDICT, float, float);
-bool move_is_settled_near_goal(LPEDICT, float, float);
-bool move_is_terminal_hold(LPCEDICT);
-void move_reset_progress(LPEDICT);
-LPEDICT G_FindNearestEnemy(LPEDICT, float);
-float G_AcquisitionRange(LPCEDICT);
-float G_FollowStopRange(LPCEDICT follower, LPCEDICT target);
-bool G_ShouldAcquireThisFrame(LPCEDICT);
+void S_MineOverlayRelease(edict_t *);
+edict_t * S_CreateBlightedGoldmine(uint32_t, vector2_t const *, float);
+void S_GoldMineSetResourceAmount(edict_t *, uint32_t);
+bool S_AcolyteHarvestOrder(edict_t *, edict_t *);
+void S_AcolyteHarvestRelease(edict_t *);
+bool S_AcolyteHarvestIsActive(edict_t const *);
+void S_EntangledMineTick(edict_t *);
+bool S_HarvestCanLumber(edict_t const *);
+bool S_HarvestCanGold(edict_t const *);
+void harvest_start(edict_t *, edict_t *);
+void harvest_gold_start(edict_t *, edict_t *);
+bool harvest_gold_order(edict_t *, edict_t *);
+bool harvest_auto_start_gold(edict_t *);
+bool harvest_auto_start_lumber(edict_t *);
+bool harvest_lumber_return_to(edict_t *, edict_t *);
+bool harvest_gold_return_to(edict_t *, edict_t *);
+void cargo_drop_all(edict_t *);
+void S_CargoInitUnit(edict_t *);
+bool S_CargoTryLoad(edict_t *, edict_t *);
+bool S_CorpseCargoTryLoad(edict_t *, edict_t *);
+bool S_CargoOrderBoard(edict_t *, edict_t *);
+bool S_CargoAttacksEnabled(edict_t const *);
+edict_t * S_CargoTransportForUnit(edict_t const *);
+void S_CargoReleaseUnit(edict_t *);
+bool S_CargoIsBurrow(edict_t *);
+bool S_CargoIsCorpseHolder(edict_t *);
+bool S_CorpseCargoIsStored(edict_t const *);
+bool S_CorpseCargoPosition(edict_t const *, vector2_t *);
+uint32_t S_CargoCapacity(edict_t *);
+edict_t * S_CargoUnitAt(edict_t const *, uint32_t);
+bool S_CargoUnloadAt(edict_t *, uint32_t);
+bool S_CargoBeginUnloadAll(edict_t *);
+void S_CargoStandDown(edict_t *);
+bool S_WaygateIsGate(edict_t const *);
+bool S_WaygateIsActive(edict_t const *);
+bool S_WaygateGetDestination(edict_t const *, vector2_t *);
+void S_WaygateSetDestination(edict_t *, vector2_t const *);
+void S_WaygateSetActive(edict_t *, bool);
+void blight_mine_think(edict_t *);
+void blizzard_think(edict_t *);
+void flame_strike_tick(edict_t *);
+void siphon_mana_think(edict_t *);
+void rain_of_fire_think(edict_t *);
+void starfall_think(edict_t *);
+void death_and_decay_think(edict_t *);
+void tranquility_think(edict_t *);
+void earthquake_think(edict_t *);
+void far_sight_think(edict_t *);
+void chain_lightning_think(edict_t *);
+void unsummon_think(edict_t *);
+void whirlwind_think(edict_t *);
+void volcano_think(edict_t *);
+void pocket_factory_think(edict_t *);
+void stasis_trap_think(edict_t *);
+void rain_of_chaos_think(edict_t *);
+void inferno_think(edict_t *);
+void mass_teleport_think(edict_t *);
+void divine_shield_think(edict_t *);
+void dark_portal_think(edict_t *);
+void exhume_think(edict_t *);
+void graveyard_think(edict_t *);
+void corpse_cargo_approach_think(edict_t *);
+void cannibalize_approach_think(edict_t *);
+void healing_spray_think(edict_t *);
+void cannibalize_think(edict_t *);
+void possession_two_think(edict_t *);
+void lsh_think(edict_t *);
+bool move_selectlocation(edict_t *, vector2_t const *);
+bool move_should_arrive(edict_t *, float);
+bool move_is_blocked(edict_t *, float, float);
+bool move_is_settled_near_goal(edict_t *, float, float);
+bool move_is_terminal_hold(edict_t const *);
+void move_reset_progress(edict_t *);
+edict_t * G_FindNearestEnemy(edict_t *, float);
+float G_AcquisitionRange(edict_t const *);
+float G_FollowStopRange(edict_t const * follower, edict_t const * target);
+bool G_ShouldAcquireThisFrame(edict_t const *);
 
 // p_jass.c
-LPJASS jass_newstate(void);
-void jass_close(LPJASS);
-bool jass_dofile(LPJASS, cstring_t);
-bool jass_dofilenative(LPJASS, cstring_t);
-void jass_callbyname(LPJASS, cstring_t, bool);
+jass_t * jass_newstate(void);
+void jass_close(jass_t *);
+bool jass_dofile(jass_t *, cstring_t);
+bool jass_dofilenative(jass_t *, cstring_t);
+void jass_callbyname(jass_t *, cstring_t, bool);
 cstring_t jass_functionname(struct jass_function const *);
-void jass_executetrigger(LPJASS, LPTRIGGER, LPEDICT);
-bool jass_dobuffer(LPJASS, string_t);
-void jass_runevents(LPJASS);
+void jass_executetrigger(jass_t *, trigger_t *, edict_t *);
+bool jass_dobuffer(jass_t *, string_t);
+void jass_runevents(jass_t *);
 
 // g_events.c
 void G_RunEntities(void);
@@ -3076,79 +3076,79 @@ void G_RunEvents(void);
 void G_DrainPausedResultEvents(void);
 
 // g_items.c
-void SP_SpawnItem(LPEDICT);
-bool G_IsItem(LPCEDICT item);
-uint32_t G_InventoryCapacity(LPCEDICT unit);
-bool G_InventoryCanUseItems(LPCEDICT unit);
-bool G_InventoryCanGetItems(LPCEDICT unit);
-bool G_InventoryCanDropItems(LPCEDICT unit);
-void G_DropInventoryOnDeath(LPEDICT unit);
-bool G_UnitHasInventory(LPEDICT unit);
-uint32_t G_ItemCharges(LPCEDICT item);
-void G_SetItemCharges(LPEDICT item, uint32_t charges);
-void G_ConsumeItemCharge(LPEDICT item);
-cstring_t G_ItemAbilityList(LPCEDICT item);
-int32_t G_FindFreeInventorySlot(LPCEDICT unit);
-bool G_CanPickupItem(LPEDICT unit, LPEDICT item);
-bool G_AddItemToSlot(LPEDICT unit, LPEDICT item, uint32_t slot);
-bool G_AddItemToSlotInternal(LPEDICT unit, LPEDICT item, uint32_t slot, bool publish_event);
-bool G_PickupItem(LPEDICT unit, LPEDICT item);
-bool G_OrderPickupItem(LPEDICT unit, LPEDICT item);
-bool G_DropItemAt(LPEDICT unit, uint32_t slot, LPCVECTOR2 position);
-bool G_DropItem(LPEDICT unit, uint32_t slot);
-bool G_OrderDropItemAt(LPEDICT unit, LPEDICT item, LPCVECTOR2 position);
-void G_RemoveItem(LPEDICT item);
-void G_UseItem(LPEDICT unit, uint32_t slot);
+void SP_SpawnItem(edict_t *);
+bool G_IsItem(edict_t const * item);
+uint32_t G_InventoryCapacity(edict_t const * unit);
+bool G_InventoryCanUseItems(edict_t const * unit);
+bool G_InventoryCanGetItems(edict_t const * unit);
+bool G_InventoryCanDropItems(edict_t const * unit);
+void G_DropInventoryOnDeath(edict_t * unit);
+bool G_UnitHasInventory(edict_t * unit);
+uint32_t G_ItemCharges(edict_t const * item);
+void G_SetItemCharges(edict_t * item, uint32_t charges);
+void G_ConsumeItemCharge(edict_t * item);
+cstring_t G_ItemAbilityList(edict_t const * item);
+int32_t G_FindFreeInventorySlot(edict_t const * unit);
+bool G_CanPickupItem(edict_t * unit, edict_t * item);
+bool G_AddItemToSlot(edict_t * unit, edict_t * item, uint32_t slot);
+bool G_AddItemToSlotInternal(edict_t * unit, edict_t * item, uint32_t slot, bool publish_event);
+bool G_PickupItem(edict_t * unit, edict_t * item);
+bool G_OrderPickupItem(edict_t * unit, edict_t * item);
+bool G_DropItemAt(edict_t * unit, uint32_t slot, vector2_t const * position);
+bool G_DropItem(edict_t * unit, uint32_t slot);
+bool G_OrderDropItemAt(edict_t * unit, edict_t * item, vector2_t const * position);
+void G_RemoveItem(edict_t * item);
+void G_UseItem(edict_t * unit, uint32_t slot);
 uint32_t G_ItemTypeFromClass(cstring_t cls);
 
 // g_stock.c / neutral shops
-bool G_IsItemShop(LPCEDICT shop);
-bool G_IsUnitShop(LPCEDICT shop);
-bool G_CanUseItemShop(LPGAMECLIENT client, LPCEDICT shop);
-bool G_CanUseUnitShop(LPGAMECLIENT client, LPCEDICT shop);
-float G_ShopActivationRadius(LPCEDICT shop);
-LPEDICT G_FindShopPatron(LPGAMECLIENT client, LPEDICT shop);
-LPEDICT G_FindUnitShopPatron(LPGAMECLIENT client, LPEDICT shop);
+bool G_IsItemShop(edict_t const * shop);
+bool G_IsUnitShop(edict_t const * shop);
+bool G_CanUseItemShop(gameClient_t * client, edict_t const * shop);
+bool G_CanUseUnitShop(gameClient_t * client, edict_t const * shop);
+float G_ShopActivationRadius(edict_t const * shop);
+edict_t * G_FindShopPatron(gameClient_t * client, edict_t * shop);
+edict_t * G_FindUnitShopPatron(gameClient_t * client, edict_t * shop);
 uint8_t G_GetShopItemButtons(shopItemButtonsParams_t *params);
 uint8_t G_GetShopUnitButtons(shopItemButtonsParams_t *params);
 uint8_t G_GetShopButtons(shopItemButtonsParams_t *params);
-bool G_ShopSellsItem(LPEDICT shop, uint32_t item_id);
-bool G_ShopSellsUnit(LPEDICT shop, uint32_t unit_id);
-bool G_ShopPurchaseItem(LPEDICT clent, LPEDICT shop, uint32_t item_id);
-bool G_ShopPurchaseUnit(LPEDICT clent, LPEDICT shop, uint32_t unit_id);
+bool G_ShopSellsItem(edict_t * shop, uint32_t item_id);
+bool G_ShopSellsUnit(edict_t * shop, uint32_t unit_id);
+bool G_ShopPurchaseItem(edict_t * clent, edict_t * shop, uint32_t item_id);
+bool G_ShopPurchaseUnit(edict_t * clent, edict_t * shop, uint32_t unit_id);
 bool G_ShopPawnItem(shopPawnItemParams_t *params);
 
 // g_destructable.c
 void G_SetDestructableScriptBinding(bool enabled);
-void G_ActivateScriptedDestructable(LPEDICT ent,
+void G_ActivateScriptedDestructable(edict_t * ent,
                                     float x,
                                     float y,
                                     float z,
                                     float facing,
                                     float scale,
                                     uint32_t variation);
-bool G_IsDestructable(LPCEDICT ent);
-bool G_DestructableIsAttackable(LPCEDICT ent);
-bool G_DestructableIsWalkable(LPCEDICT ent);
-bool G_DestructableCanBeAttackedBy(LPCEDICT attacker, LPCEDICT target);
-bool G_DestructableAcceptsSmartAttack(LPCEDICT attacker, LPCEDICT target);
-void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement);
-bool G_DestructableApplyDamage(LPEDICT ent, LPEDICT attacker, float damage);
-bool G_KillDestructable(LPEDICT ent, LPEDICT killer);
-bool G_SetDestructableDeadState(LPEDICT ent, bool process_death);
-bool G_RemoveDestructable(LPEDICT ent);
-bool G_SetDestructableLife(LPEDICT ent, float life);
-bool G_RestoreDestructable(LPEDICT ent, float life, bool birth);
+bool G_IsDestructable(edict_t const * ent);
+bool G_DestructableIsAttackable(edict_t const * ent);
+bool G_DestructableIsWalkable(edict_t const * ent);
+bool G_DestructableCanBeAttackedBy(edict_t const * attacker, edict_t const * target);
+bool G_DestructableAcceptsSmartAttack(edict_t const * attacker, edict_t const * target);
+void G_InitializeDestructablePlacement(edict_t * ent, doodad_t const * placement);
+bool G_DestructableApplyDamage(edict_t * ent, edict_t * attacker, float damage);
+bool G_KillDestructable(edict_t * ent, edict_t * killer);
+bool G_SetDestructableDeadState(edict_t * ent, bool process_death);
+bool G_RemoveDestructable(edict_t * ent);
+bool G_SetDestructableLife(edict_t * ent, float life);
+bool G_RestoreDestructable(edict_t * ent, float life, bool birth);
 uint32_t G_SelectDropItem(droppableItem_t const *entries, uint32_t count, uint32_t roll);
 uint32_t G_SelectRandomTableItem(mapRandomItem_t const *entries, uint32_t count, uint32_t roll);
 mapRandomItemTable_t const *G_FindRandomItemTable(uint32_t table_number);
-void G_SpawnDestructableLoot(LPEDICT ent);
-void G_DestructableStartDeathAnimation(LPEDICT ent);
-void G_DestructableStartAliveAnimation(LPEDICT ent, bool birth);
+void G_SpawnDestructableLoot(edict_t * ent);
+void G_DestructableStartDeathAnimation(edict_t * ent);
+void G_DestructableStartAliveAnimation(edict_t * ent, bool birth);
 
-bool G_IsDoodad(LPCEDICT ent);
-void G_DoodadAnimationEnd(LPEDICT ent);
-bool G_DoodadSetAnimation(LPEDICT ent, cstring_t anim_name, bool random_animation);
+bool G_IsDoodad(edict_t const * ent);
+void G_DoodadAnimationEnd(edict_t * ent);
+bool G_DoodadSetAnimation(edict_t * ent, cstring_t anim_name, bool random_animation);
 typedef struct {
     float x, y, radius;
     uint32_t doodad_id;
@@ -3156,9 +3156,9 @@ typedef struct {
     cstring_t anim_name;
 } doodadAnimationRadiusParams_t;
 uint32_t G_SetDoodadAnimationRadius(doodadAnimationRadiusParams_t const *params);
-uint32_t G_SetDoodadAnimationRect(LPCBOX2 rect, uint32_t doodad_id,
+uint32_t G_SetDoodadAnimationRect(box2_t const * rect, uint32_t doodad_id,
                                cstring_t anim_name, bool random_animation);
-void tree_die(LPEDICT ent, LPEDICT attacker);
+void tree_die(edict_t * ent, edict_t * attacker);
 
 // ui_init
 void UI_Init(void);

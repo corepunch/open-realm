@@ -1,22 +1,22 @@
 #include "r_mdx.h"
 #include "renderer/r_emit.h"
 
-#define GET_PARTICLE_ANIM_PARAM(MODEL, EMITTER, NAME) \
+#define GET_PARTICLE_ANIM_PARAM(model_t, EMITTER, NAME) \
 float NAME = EMITTER->NAME; \
 if (EMITTER->keytracks.NAME) { \
-    MDLX_GetModelKeytrackValue(MODEL, EMITTER->keytracks.NAME, frame, &NAME); \
+    MDLX_GetModelKeytrackValue(model_t, EMITTER->keytracks.NAME, frame, &NAME); \
 }
 
 /* Context for the R_EmitParticles spawn callback — carries the evaluated tracks
    and emitter metadata needed to fill a cparticle_t on each spawn. */
 typedef struct {
     mdxModel_t const *model; mdxParticleEmitter_t const *emitter;
-    LPCMATRIX4 matrix; uint32_t team_id;
+    matrix4_t const * matrix; uint32_t team_id;
     float speed, varia, lat, grav, life, length, width;
 } mdx_pctx_t;
 
-static COLOR32 MDLX_GetEmitterColor(mdxParticleEmitter_t const *emitter, uint32_t seg) {
-    return (COLOR32) {
+static color32_t MDLX_GetEmitterColor(mdxParticleEmitter_t const *emitter, uint32_t seg) {
+    return (color32_t) {
         emitter->SegmentColor[seg*3+0] * 0xff,
         emitter->SegmentColor[seg*3+1] * 0xff,
         emitter->SegmentColor[seg*3+2] * 0xff,
@@ -28,19 +28,19 @@ static void mdx_spawn_particle(void *raw) {
     mdx_pctx_t *ctx = (mdx_pctx_t *)raw;
     cparticle_t *p = R_SpawnParticle(); if (!p) return;
     float r = (float)rand() / (float)RAND_MAX;
-    VECTOR3 origin = {
+    vector3_t origin = {
         (r - 0.5f) * ctx->length,
         ((float)rand() / (float)RAND_MAX - 0.5f) * ctx->width,
         0.0f,
     };
-    VECTOR3 pivot = { 0, 0, 0 };
+    vector3_t pivot = { 0, 0, 0 };
     if (ctx->emitter->node.node_id < (uint32_t)ctx->model->num_pivots)
         pivot = ctx->model->pivots[ctx->emitter->node.node_id];
-    VECTOR3 pivoted = Vector3_add(&origin, &pivot);
-    VECTOR3 dir = FX_GenerateRandomDirection(ctx->lat * (float)M_PI / 180.0f);
+    vector3_t pivoted = Vector3_add(&origin, &pivot);
+    vector3_t dir = FX_GenerateRandomDirection(ctx->lat * (float)M_PI / 180.0f);
     p->org = Matrix4_multiply_vector3(ctx->matrix, &pivoted);
     p->vel = Vector3_scale(&dir, ctx->speed + (r - 0.5f) * ctx->varia);
-    p->accel = (VECTOR3){ 0, 0, -ctx->grav };
+    p->accel = (vector3_t){ 0, 0, -ctx->grav };
     p->lifespan = ctx->life; p->time = 0;
     p->midtime = ctx->emitter->Time * 0xff;
     p->texture = MDLX_GetTexture(ctx->model, ctx->team_id, ctx->emitter->TextureID, ctx->emitter->ReplaceableId, NULL);
@@ -64,7 +64,7 @@ static void mdx_spawn_particle(void *raw) {
    emission across frames (same pattern as WoW's M2_DrawParticles). */
 static void MDLX_RenderHeadEmitter(mdxModel_t const *model,
                                    mdxParticleEmitter_t *emitter,
-                                   LPCMATRIX4 modelMatrix,
+                                   matrix4_t const * modelMatrix,
                                    float frame,
                                    uint32_t teamID)
 {
@@ -77,14 +77,14 @@ static void MDLX_RenderHeadEmitter(mdxModel_t const *model,
     GET_PARTICLE_ANIM_PARAM(model, emitter, Length);
     if (EmissionRate <= 0.0f) return;
     if (emitter->node.node_id >= MDX_MAX_NODES) return;
-    MATRIX4 matrix;
+    matrix4_t matrix;
     Matrix4_multiply(modelMatrix, &node_matrices[emitter->node.node_id], &matrix);
     mdx_pctx_t ctx = { model, emitter, &matrix, teamID,
         Speed, Variation, Latitude, Gravity, emitter->LifeSpan, Length, Width };
     R_EmitParticles(EmissionRate, &emitter->accumulator, tr.viewDef.deltaTime, mdx_spawn_particle, &ctx);
 }
 
-void MDLX_RenderParticleEmitters(const renderEntity_t *entity, const mdxModel_t *model, LPCMATRIX4 model_matrix) {
+void MDLX_RenderParticleEmitters(const renderEntity_t *entity, const mdxModel_t *model, matrix4_t const * model_matrix) {
     /*
      * Dead destructable remains are marked RF_NOT_SELECTABLE.  While their
      * death sequence is advancing oldframe != frame, so the destruction

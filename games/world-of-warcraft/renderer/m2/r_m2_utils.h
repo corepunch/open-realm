@@ -39,9 +39,9 @@ typedef struct {
 
 typedef struct {
     float value[3], midpoint, lifespan;
-} M2PARTICLECURVE;
-typedef M2PARTICLECURVE *LPM2PARTICLECURVE;
-typedef M2PARTICLECURVE const *LPCM2PARTICLECURVE;
+} m2ParticleCurve_t;
+
+
 
 typedef struct {
     void const *owner;
@@ -76,7 +76,7 @@ static uint32_t m2_composite_cache_slot(m2CompositeCacheParams_t *params) {
 }
 
 /* M2 and MDX share compact, lifetime-normalized fractional size curves. */
-static void m2_particle_encode_curve(LPCM2PARTICLECURVE curve, cparticle_t *particle) {
+static void m2_particle_encode_curve(m2ParticleCurve_t const * curve, cparticle_t *particle) {
     particle->lifespan = curve->lifespan;
     R_EncodeParticleSize(particle, curve->value);
     particle->midtime = (uint8_t)MIN(254, MAX(1, (int)(curve->midpoint * 255.0f + 0.5f)));
@@ -262,10 +262,10 @@ static BLEND_MODE m2_particle_blend_mode(uint16_t wow_blend) {
 }
 
 /* M2 stores cone inclination and azimuth ranges in radians around the authored +Z launch axis. */
-static VECTOR3 m2_particle_direction(float vertical_range, float horizontal_range, VECTOR2 random) {
+static vector3_t m2_particle_direction(float vertical_range, float horizontal_range, vector2_t random) {
     float phi = (random.x + 1.0f) * 0.5f * MAX(0.0f, vertical_range);
     float theta = random.y * 0.5f * horizontal_range;
-    return (VECTOR3){ sinf(phi) * cosf(theta), sinf(phi) * sinf(theta), cosf(phi) };
+    return (vector3_t){ sinf(phi) * cosf(theta), sinf(phi) * sinf(theta), cosf(phi) };
 }
 
 static uint32_t m2_read32(uint8_t const *p) {
@@ -285,7 +285,7 @@ static m2CharSectionsLayout_t m2_char_sections_layout(uint8_t const *records, ui
 /* Classic and later ItemDisplayInfo schemas place component textures one field apart. */
 static uint32_t m2_item_display_texture_base(uint32_t fields) { return fields >= 25 ? 15 : fields >= 22 ? 14 : 0; }
 
-static void m2_blend_pixel(LPCOLOR32 dst, COLOR32 src) {
+static void m2_blend_pixel(color32_t * dst, color32_t src) {
     uint32_t inv;
     if (src.a == 0) return;
     if (src.a >= 250) { *dst = src; return; }
@@ -296,8 +296,8 @@ static void m2_blend_pixel(LPCOLOR32 dst, COLOR32 src) {
     dst->a = (uint8_t)MIN(255, src.a + (dst->a * inv) / 255);
 }
 
-static void m2_paste_component(LPCOLOR32 dst, uint32_t dst_width, uint32_t dst_height,
-                               LPCOLOR32 src, uint32_t src_width, uint32_t src_height,
+static void m2_paste_component(color32_t * dst, uint32_t dst_width, uint32_t dst_height,
+                               color32_t * src, uint32_t src_width, uint32_t src_height,
                                uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
     if (!dst || !src || !dst_width || !dst_height || !src_width || !src_height ||
         x >= dst_width || y >= dst_height) return;

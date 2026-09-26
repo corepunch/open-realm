@@ -5,12 +5,12 @@
 
 typedef struct {
     uint32_t sprites, bar, back, texts, sent, bytes, previews, names, rows;
-    UIFRAME preview;
+    uiFrame_t preview;
     int32_t opcode, layer;
-    UIFRAME progress;
+    uiFrame_t progress;
     char anim[32];
-} LOADCAP;
-static LOADCAP loadcap;
+} loadCap_t;
+static loadCap_t loadcap;
 
 /* Capture what a connecting client receives, rather than inspecting manually constructed frames. */
 static void loading_write(pfWriteType_t type, void const *data) {
@@ -19,7 +19,7 @@ static void loading_write(pfWriteType_t type, void const *data) {
         else loadcap.layer = *(int32_t const *)data;
     }
     if (type != PF_UIFRAME) return;
-    LPCUIFRAME frame = data;
+    uiFrame_t const * frame = data;
     if (frame->flags.type == FT_SPRITE) {
         loadcap.sprites++;
         if (frame->stat == UI_STAT_LOADING_PROGRESS) {
@@ -41,7 +41,7 @@ static void loading_write(pfWriteType_t type, void const *data) {
     }
 }
 
-static void loading_unicast(LPEDICT ent) { (void)ent; loadcap.sent++; }
+static void loading_unicast(edict_t * ent) { (void)ent; loadcap.sent++; }
 
 /* tests.mpq carries the native FDF plus ROC/TFT WorldEditData rows and decorated skin keys. */
 TEST(wc3_loading, initial_layout_resolves_campaign_custom_and_melee_art) {
@@ -53,8 +53,8 @@ TEST(wc3_loading, initial_layout_resolves_campaign_custom_and_melee_art) {
     };
     __typeof__(gi.Write) old_write = gi.Write;
     __typeof__(gi.unicast) old_send = gi.unicast;
-    LPCMAPINFO old_info = level.mapinfo;
-    MAPINFO info = { .mapName = "Chapter", .loadingScreenTitle = "Chapter",
+    mapInfo_t const * old_info = level.mapinfo;
+    mapInfo_t info = { .mapName = "Chapter", .loadingScreenTitle = "Chapter",
                     .loadingScreenSubtitle = "Subtitle", .loadingScreenText = "Description" };
 
     info.players[0] = (mapPlayer_t){ .used = true, .playerType = kPlayerTypeHuman, .playerName = "Alice" };

@@ -3,7 +3,7 @@
 #include "../g_local.h"
 #include "../game/skills/s_skills.h"
 
-LPEDICT alloc_test_unit(uint32_t code, float x, float y);
+edict_t * alloc_test_unit(uint32_t code, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -20,7 +20,7 @@ static int review_capture_model(cstring_t model) {
 static char blizzard_sound_path[MAX_PATHLEN];
 static uint32_t blizzard_sound_calls;
 static int blizzard_sound_index;
-static LPEDICT blizzard_sound_emitter;
+static edict_t * blizzard_sound_emitter;
 static float blizzard_sound_volume;
 
 static int review_capture_sound_index(cstring_t path) {
@@ -30,7 +30,7 @@ static int review_capture_sound_index(cstring_t path) {
 static int review_capture_sound_index_alias(cstring_t path, cstring_t alias) { (void)alias; return review_capture_sound_index(path); }
 
 
-static void review_capture_sound_policy(LPCVECTOR3 origin, LPEDICT emitter, int channel, int sound, float volume, float attenuation, float timeofs, soundPolicy_t const *policy) {
+static void review_capture_sound_policy(vector3_t const * origin, edict_t * emitter, int channel, int sound, float volume, float attenuation, float timeofs, soundPolicy_t const *policy) {
     T_NOT_NULL(policy);
     T_EQ(policy->max_total, 24);
     T_EQ(policy->flags, SOUND_IGNORE_USER);
@@ -222,8 +222,8 @@ static char const review_slk[] =
 ;
 
 /* Independent minimal units drive ordinary casting and the production thinker scheduler. */
-static LPEDICT review_unit(uint32_t owner, float x) {
-    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), x, 0);
+static edict_t * review_unit(uint32_t owner, float x) {
+    edict_t * ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), x, 0);
     ent->spawn_time = G_Time(); ent->svflags |= SVF_MONSTER; ent->s.player = owner; ent->targtype = TARG_GROUND;
     ent->health.value = ent->health.max_value = 1000;
     ent->mana.value = 100; ent->mana.max_value = 1000;
@@ -231,26 +231,26 @@ static LPEDICT review_unit(uint32_t owner, float x) {
     return ent;
 }
 
-static LPEDICT review_setup(void) {
+static edict_t * review_setup(void) {
     reset_entities(); setup_test_world(); level.time = 1000;
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
-    LPEDICT caster = review_unit(0, 0);
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    edict_t * caster = review_unit(0, 0);
     caster->data.UnitAbilities = &review_abilities;
     return caster;
 }
 
-static LPEDICT review_thinker(LPEDICT caster) {
+static edict_t * review_thinker(edict_t * caster) {
     FILTER_EDICTS(ent, ent->owner == caster && ent->think) return ent;
     return NULL;
 }
 
 /* Stock AHfs starts burning promptly; DataA is damage per full-damage pulse, not a 15-second delay. */
 TEST(wc3_ability_lifecycle, flame_strike_stock_data_burns_within_two_seconds) {
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     bool cast = S_CastPointTargetSpell(caster, FS_SLKKey("AHfs"), &enemy->s.origin2);
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     level.time += 2000;
     if (thinker) G_RunEntity(thinker);
     float hp = enemy->health.value;
@@ -260,10 +260,10 @@ TEST(wc3_ability_lifecycle, flame_strike_stock_data_burns_within_two_seconds) {
 
 /* Once a flame pulse runs, another server frame must not count as another full burn tick. */
 TEST(wc3_ability_lifecycle, flame_strike_does_not_burn_every_server_frame) {
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     bool cast = S_CastPointTargetSpell(caster, FS_SLKKey("AHfs"), &enemy->s.origin2);
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     float hp = 0;
     if (thinker) {
         level.time = thinker->freetime; G_RunEntity(thinker); hp = enemy->health.value;
@@ -276,10 +276,10 @@ TEST(wc3_ability_lifecycle, flame_strike_does_not_burn_every_server_frame) {
 
 /* Stock Blizzard authors six waves and a zero Dur; zero must not truncate the cast to one second. */
 TEST(wc3_ability_lifecycle, blizzard_stock_zero_duration_keeps_all_six_waves) {
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     bool cast = S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2);
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     /* Six authored waves now have two deadlines each: shard presentation,
      * then the fixed 0.8-second damage phase. */
     FOR_LOOP(i, 12) {
@@ -295,13 +295,13 @@ TEST(wc3_ability_lifecycle, blizzard_stock_zero_duration_keeps_all_six_waves) {
 /* Blizzard resolves shard presentation through the authored EfctID object,
  * not through AHbz's own Func art.  Biml's fixture EffectArt is distinctive. */
 TEST(wc3_ability_lifecycle, blizzard_shards_use_authored_effect_object) {
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     int (*old_model_index)(cstring_t) = gi.ModelIndex;
     blizzard_effect_model[0] = '\0';
     gi.ModelIndex = review_capture_model;
     T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     level.time = thinker->freetime; G_RunEntity(thinker);
     T_STREQ(blizzard_effect_model, "TestUI\\Models\\quad_sprite.mdx");
     gi.ModelIndex = old_model_index;
@@ -335,7 +335,7 @@ TEST(wc3_ability_lifecycle, blizzard_shards_use_authored_ability_sound) {
         "C;Y2;X3;K\"TestUI\\Sounds\\\"\n"
         "C;Y2;X4;K\"63.5\"\n"
         "E\n";
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *ability_rows = parse_slk_string(review_slk), *old_ability = G_SetSLKRows("AbilityData", ability_rows);
     slkTestData_t *buff_rows = parse_slk_string(buff_slk), *old_buff = G_SetSLKRows("AbilityBuffData", buff_rows);
     slkTestData_t *sound_rows = parse_slk_string(sound_slk), *old_sound_rows = G_SetSLKRows("AbilitySounds", sound_rows);
@@ -347,7 +347,7 @@ TEST(wc3_ability_lifecycle, blizzard_shards_use_authored_ability_sound) {
     blizzard_sound_emitter = NULL; blizzard_sound_volume = 0.0f;
     gi.SoundIndex = review_capture_sound_index; gi.SoundIndexAlias = review_capture_sound_index_alias; gi.SoundPolicy = review_capture_sound_policy;
     T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     level.time = thinker->freetime; G_RunEntity(thinker);
     T_EQ(blizzard_sound_calls, 6); T_EQ(blizzard_sound_index, 91);
     T_NULL(blizzard_sound_emitter);
@@ -365,10 +365,10 @@ TEST(wc3_ability_lifecycle, blizzard_shards_use_authored_ability_sound) {
 /* Warsmash shows a Blizzard shard wave first and resolves that wave's damage
  * 0.8 seconds later; Cast owns the delay before the first shard wave. */
 TEST(wc3_ability_lifecycle, blizzard_shards_precede_damage_by_eight_tenths) {
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     T_NOT_NULL(thinker); T_FEQ(enemy->health.value, 1000, .001f);
     T_EQ(thinker->freetime, 2000);
 
@@ -390,10 +390,10 @@ TEST(wc3_ability_lifecycle, blizzard_shards_precede_damage_by_eight_tenths) {
  * another shard phase. */
 TEST(wc3_ability_lifecycle, blizzard_damage_phase_survives_save_load) {
     cstring_t path = "/tmp/openwarcraft3-blizzard-phase-save.bin";
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     level.time = thinker->freetime; G_RunEntity(thinker); /* shards */
     T_FEQ(enemy->health.value, 1000, .001f);
     T_ASSERT(WriteGame(path));
@@ -409,11 +409,11 @@ TEST(wc3_ability_lifecycle, blizzard_damage_phase_survives_save_load) {
 
 /* Blizzard DataD scales structures after ordinary per-target wave damage. */
 TEST(wc3_ability_lifecycle, blizzard_applies_authored_building_reduction) {
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100), building = review_unit(1, 120);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100), *building = review_unit(1, 120);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     building->targtype = TARG_STRUCTURE;
     T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     level.time = thinker->freetime; G_RunEntity(thinker); /* shards */
     level.time = thinker->freetime; G_RunEntity(thinker); /* damage */
     T_FEQ(enemy->health.value, 970, .001f);
@@ -426,10 +426,10 @@ TEST(wc3_ability_lifecycle, blizzard_applies_authored_building_reduction) {
 /* Summon Water Elemental owns DataA as its summon count and marks each result
  * as an ability-created summon for dispel/JASS classification. */
 TEST(wc3_ability_lifecycle, water_elemental_uses_dataa_count_and_marks_summons) {
-    LPEDICT caster = review_setup();
+    edict_t * caster = review_setup();
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     uint32_t count = 0;
-    VECTOR2 first = {0};
+    vector2_t first = {0};
     bool separated = false;
     caster->s.angle = 0.35f;
     T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AHwe")));
@@ -449,16 +449,16 @@ TEST(wc3_ability_lifecycle, water_elemental_uses_dataa_count_and_marks_summons) 
 /* Mass Teleport is a real channel: DataB delays the relocation, the caster
  * counts against DataA, and only the caster player's mobile units are moved. */
 TEST(wc3_ability_lifecycle, mass_teleport_delays_caps_and_excludes_allies_and_structures) {
-    LPEDICT caster = review_setup(), own1 = review_unit(0, 100), ally = review_unit(1, 150);
-    LPEDICT building = review_unit(0, 200), own2 = review_unit(0, 250), own3 = review_unit(0, 300);
-    LPEDICT target = review_unit(0, 2000);
+    edict_t * caster = review_setup(), *own1 = review_unit(0, 100), *ally = review_unit(1, 150);
+    edict_t * building = review_unit(0, 200), *own2 = review_unit(0, 250), *own3 = review_unit(0, 300);
+    edict_t * target = review_unit(0, 2000);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     uint32_t moved = 0;
     level.alliances[0][1] |= 1 << ALLIANCE_PASSIVE;
     building->targtype = TARG_STRUCTURE;
 
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHmt"), target));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     T_NOT_NULL(thinker); T_ASSERT(target->paused); T_FEQ(caster->s.origin2.x, 0, .001f);
     level.time = thinker->freetime - 1; G_RunEntity(thinker);
     T_FEQ(caster->s.origin2.x, 0, .001f);
@@ -473,7 +473,7 @@ TEST(wc3_ability_lifecycle, mass_teleport_delays_caps_and_excludes_allies_and_st
     T_ASSERT(building->s.origin2.x < 1000);
     /* Relocation must also update the server broad phase: the caster vacated
      * x=0, so an unmoved unit can legally occupy that point after completion. */
-    T_ASSERT(G_CanRepositionUnitAt(own3, &MAKE(VECTOR2, 0, 0)));
+    T_ASSERT(G_CanRepositionUnitAt(own3, &MAKE(vector2_t, 0, 0)));
     T_ASSERT(!target->paused); T_EQ(caster->channel.code, 0); T_ASSERT(!thinker->inuse);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -481,11 +481,11 @@ TEST(wc3_ability_lifecycle, mass_teleport_delays_caps_and_excludes_allies_and_st
 /* Structure is a first-class target-mask token; cancelling the channel must
  * also undo Mass Teleport's temporary destination pause. */
 TEST(wc3_ability_lifecycle, mass_teleport_accepts_structure_target_and_cleans_cancel) {
-    LPEDICT caster = review_setup(), target = review_unit(0, 2000);
+    edict_t * caster = review_setup(), *target = review_unit(0, 2000);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     target->targtype = TARG_STRUCTURE;
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHmt"), target));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     T_NOT_NULL(thinker); T_ASSERT(target->paused);
     S_SpellCancelChannel(caster);
     T_ASSERT(!target->paused); T_EQ(caster->channel.code, 0);
@@ -497,10 +497,10 @@ TEST(wc3_ability_lifecycle, mass_teleport_accepts_structure_target_and_cleans_ca
 /* The destination entity stays authoritative until completion; losing it
  * cancels the channel instead of teleporting to a stale cached coordinate. */
 TEST(wc3_ability_lifecycle, mass_teleport_target_death_cancels) {
-    LPEDICT caster = review_setup(), target = review_unit(0, 2000);
+    edict_t * caster = review_setup(), *target = review_unit(0, 2000);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHmt"), target));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     target->health.value = 0;
     G_RunEntity(thinker);
     T_FEQ(caster->s.origin2.x, 0, .001f);
@@ -512,10 +512,10 @@ TEST(wc3_ability_lifecycle, mass_teleport_target_death_cancels) {
  * pause ownership and deadline across the production save/load path. */
 TEST(wc3_ability_lifecycle, mass_teleport_continues_after_save_load) {
     cstring_t path = "/tmp/openwarcraft3-mass-teleport-save.bin";
-    LPEDICT caster = review_setup(), target = review_unit(0, 2000);
+    edict_t * caster = review_setup(), *target = review_unit(0, 2000);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHmt"), target));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     T_NOT_NULL(thinker); T_ASSERT(target->paused); T_ASSERT(WriteGame(path));
     caster->channel.code = 0; thinker->think = NULL; target->paused = false;
     T_ASSERT(ReadGame(path));
@@ -527,10 +527,10 @@ TEST(wc3_ability_lifecycle, mass_teleport_continues_after_save_load) {
 
 /* Cancelling the caster's channel must retire its pending resource transfer too. */
 TEST(wc3_ability_lifecycle, siphon_mana_stops_after_movement_cancel) {
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     bool cast = S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy);
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     caster->s.origin2.x += 10; spell_run_frame(caster);
     uint32_t channel = caster->channel.code;
     level.time += 1000;
@@ -542,11 +542,11 @@ TEST(wc3_ability_lifecycle, siphon_mana_stops_after_movement_cancel) {
 
 /* ANdr's authored DataA drains life even when the target has no mana pool. */
 TEST(wc3_ability_lifecycle, life_drain_transfers_health_from_manaless_target) {
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     caster->health.value = 500; enemy->mana.value = enemy->mana.max_value = 0;
     bool cast = S_CastUnitTargetSpell(caster, FS_SLKKey("ANdr"), enemy);
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     level.time += 1000;
     if (thinker) G_RunEntity(thinker);
     float hp = enemy->health.value, healed = caster->health.value;
@@ -556,7 +556,7 @@ TEST(wc3_ability_lifecycle, life_drain_transfers_health_from_manaless_target) {
 
 /* Tranquility is AB_CHANNEL even though it needs no target-selection click. */
 TEST(wc3_ability_lifecycle, no_target_tranquility_establishes_channel) {
-    LPEDICT caster = review_setup();
+    edict_t * caster = review_setup();
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     bool cast = S_CastNoTargetSpell(caster, FS_SLKKey("AEtq"));
     uint32_t channel = caster->channel.code;
@@ -568,7 +568,7 @@ TEST(wc3_ability_lifecycle, no_target_tranquility_establishes_channel) {
  * consumes it when healing reaches full HP.  Mechanical corpses fail the authored
  * ground,dead,organic target mask rather than a Cannibalize-only type check. */
 TEST(wc3_ability_lifecycle, cannibalize_reserves_nearest_organic_corpse_and_stops_at_full_health) {
-    LPEDICT caster = review_setup(), mechanical = review_unit(1, 10), near = review_unit(1, 30), far = review_unit(1, 40);
+    edict_t * caster = review_setup(), *mechanical = review_unit(1, 10), *near = review_unit(1, 30), *far = review_unit(1, 40);
     UnitData_t corpse_data = { .deathType = 3 };
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     mechanical->data.UnitData = near->data.UnitData = far->data.UnitData = &corpse_data;
@@ -576,7 +576,7 @@ TEST(wc3_ability_lifecycle, cannibalize_reserves_nearest_organic_corpse_and_stop
     mechanical->svflags |= SVF_DEADMONSTER; near->svflags |= SVF_DEADMONSTER; far->svflags |= SVF_DEADMONSTER;
     mechanical->targtype = TARG_MECHANICAL; caster->health.value = 995;
     T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("Acan")));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     T_ASSERT(mechanical->inuse); T_ASSERT(near->inuse); T_ASSERT(far->inuse); T_NOT_NULL(thinker);
     T_ASSERT(near->aiflags & AI_CORPSE_RESERVED); T_ASSERT(!G_UnitIsRaisableCorpse(near));
     FOR_LOOP(i, 5) { level.time += FRAMETIME; G_RunEntities(); }
@@ -587,10 +587,10 @@ TEST(wc3_ability_lifecycle, cannibalize_reserves_nearest_organic_corpse_and_stop
 /* Cannibalize is a no-target command: it acquires the nearest corpse itself and
  * approaches it before starting the channel instead of targeting the corpse. */
 TEST(wc3_ability_lifecycle, cannibalize_command_approaches_nearby_corpse) {
-    LPEDICT caster = review_setup(), corpse = review_unit(1, 200);
+    edict_t * caster = review_setup(), *corpse = review_unit(1, 200);
     UnitData_t corpse_data = { .deathType = 3 };
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
-    LPEDICT clent = &g_edicts[0];
+    edict_t * clent = &g_edicts[0];
     abilityitem_t item = S_AbilityItem(FS_SLKKey("Acan"));
     abilityCall_t call = MAKE(abilityCall_t, .item = &item, .client = clent);
     caster->health.value = 500;
@@ -605,7 +605,7 @@ TEST(wc3_ability_lifecycle, cannibalize_command_approaches_nearby_corpse) {
 /* Dur=33 and DataA=10 are authoritative in both ROC and TFT; healing is continuous
  * on the simulation cadence rather than quantized to one-second pulses. */
 TEST(wc3_ability_lifecycle, cannibalize_heals_for_authored_duration_through_entity_scheduler) {
-    LPEDICT caster = review_setup(), corpse = review_unit(1, 40);
+    edict_t * caster = review_setup(), *corpse = review_unit(1, 40);
     UnitBalance_t caster_balance = *caster->data.UnitBalance;
     UnitData_t corpse_data = { .deathType = 3 };
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
@@ -622,7 +622,7 @@ TEST(wc3_ability_lifecycle, cannibalize_heals_for_authored_duration_through_enti
 
 /* Live, mechanical, Hero-lifecycle and out-of-search-range units cannot fund a cast; movement interrupts an active feast. */
 TEST(wc3_ability_lifecycle, cannibalize_rejects_invalid_corpses_and_stops_when_caster_moves) {
-    LPEDICT caster = review_setup(), live = review_unit(1, 20), mechanical = review_unit(1, 30), far = review_unit(1, 801);
+    edict_t * caster = review_setup(), *live = review_unit(1, 20), *mechanical = review_unit(1, 30), *far = review_unit(1, 801);
     UnitData_t corpse_data = { .deathType = 3 };
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     mechanical->data.UnitData = far->data.UnitData = &corpse_data;
@@ -641,11 +641,11 @@ TEST(wc3_ability_lifecycle, cannibalize_rejects_invalid_corpses_and_stops_when_c
 
 /* A launched bolt must not stun a target which becomes spell immune before impact. */
 TEST(wc3_ability_lifecycle, avatar_blocks_storm_bolt_stun_at_impact) {
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     G_SetUnitColorOverride(caster, 6);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     bool cast = S_CastUnitTargetSpell(caster, FS_SLKKey("AHtb"), enemy);
-    LPEDICT missile = NULL;
+    edict_t * missile = NULL;
     FILTER_EDICTS(ent, ent->owner == caster && ent->movetype == MOVETYPE_FLYMISSILE) { missile = ent; break; }
     T_NOT_NULL(missile);
     T_EQ((missile->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT, 7);
@@ -659,7 +659,7 @@ TEST(wc3_ability_lifecycle, avatar_blocks_storm_bolt_stun_at_impact) {
 
 /* Resurrection's stock tooltip promises ordinary friendly corpses, not exclusively Heroes. */
 TEST(wc3_ability_lifecycle, resurrection_revives_friendly_footman) {
-    LPEDICT caster = review_setup(), ally = review_unit(0, 100);
+    edict_t * caster = review_setup(), *ally = review_unit(0, 100);
     UnitData_t corpse_data = { .deathType = 3 };
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     ally->data.UnitData = &corpse_data;
@@ -672,7 +672,7 @@ TEST(wc3_ability_lifecycle, resurrection_revives_friendly_footman) {
 
 /* Frost Nova's range and target damage require a unit-target order. */
 TEST(wc3_ability_lifecycle, frost_nova_accepts_enemy_unit_target) {
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 500);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 500);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     bool cast = S_CastUnitTargetSpell(caster, FS_SLKKey("AUfn"), enemy);
     float hp = enemy->health.value;
@@ -682,16 +682,16 @@ TEST(wc3_ability_lifecycle, frost_nova_accepts_enemy_unit_target) {
 
 /* Serial ownership separates two casts of the same spell even when both thinkers still exist. */
 TEST(wc3_ability_lifecycle, recast_retires_old_thinker_without_cancelling_new_channel) {
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
-    LPEDICT first = review_thinker(caster);
+    edict_t * first = review_thinker(caster);
     uint32_t serial = caster->channel.serial;
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
     T_NE(caster->channel.serial, serial);
     level.time += 1000; G_RunEntity(first);
     T_ASSERT(!first->inuse); T_EQ(caster->channel.code, FS_SLKKey("AHdr")); T_FEQ(enemy->mana.value, 100, .001f);
-    LPEDICT next = review_thinker(caster);
+    edict_t * next = review_thinker(caster);
     T_NOT_NULL(next);
     if (next) G_RunEntity(next);
     T_FEQ(enemy->mana.value, 85, .001f);
@@ -700,10 +700,10 @@ TEST(wc3_ability_lifecycle, recast_retires_old_thinker_without_cancelling_new_ch
 
 /* Stun can happen after cast commitment but before the caster's next own frame. */
 TEST(wc3_ability_lifecycle, stun_interrupts_blizzard_before_next_wave) {
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     level.time = thinker->freetime; G_RunEntity(thinker); /* shards */
     level.time = thinker->freetime; G_RunEntity(thinker); /* first damage */
     unit_addtimedstatus(caster, "Bstu", 1, 5);
@@ -714,12 +714,12 @@ TEST(wc3_ability_lifecycle, stun_interrupts_blizzard_before_next_wave) {
 
 /* The retired caster slot must not donate its old drain to a newly spawned unit. */
 TEST(wc3_ability_lifecycle, removed_caster_slot_cannot_own_old_drain) {
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     G_FreeEdict(caster); level.time += 2000;
-    LPEDICT fresh = review_unit(0, 0);
+    edict_t * fresh = review_unit(0, 0);
     T_ASSERT(fresh == caster);
     fresh->channel.code = FS_SLKKey("AHdr"); fresh->channel.serial = thinker->channel.serial;
     G_RunEntity(thinker);
@@ -730,12 +730,12 @@ TEST(wc3_ability_lifecycle, removed_caster_slot_cannot_own_old_drain) {
 
 /* The target's edict identity matters independently of the still-active caster and cast token. */
 TEST(wc3_ability_lifecycle, removed_target_slot_cannot_receive_old_drain) {
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     G_FreeEdict(enemy); level.time += 2000;
-    LPEDICT fresh = review_unit(1, 100);
+    edict_t * fresh = review_unit(1, 100);
     T_ASSERT(fresh == enemy); G_RunEntity(thinker);
     T_ASSERT(!thinker->inuse); T_FEQ(fresh->mana.value, 100, .001f); T_EQ(caster->channel.code, 0);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -743,11 +743,11 @@ TEST(wc3_ability_lifecycle, removed_target_slot_cannot_receive_old_drain) {
 
 /* AHdr's authored friendly transfer rate and direction differ from enemy siphoning. */
 TEST(wc3_ability_lifecycle, siphon_sends_mana_to_allies_and_expires) {
-    LPEDICT caster = review_setup(), ally = review_unit(0, 100);
+    edict_t * caster = review_setup(), *ally = review_unit(0, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     caster->mana.value = 500; ally->mana.value = 0;
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), ally));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     FOR_LOOP(i, 6) { level.time += 1000; G_RunEntity(thinker); }
     T_FEQ(caster->mana.value, 320, .001f); T_FEQ(ally->mana.value, 180, .001f);
     T_ASSERT(!thinker->inuse); T_EQ(caster->channel.code, 0);
@@ -756,10 +756,10 @@ TEST(wc3_ability_lifecycle, siphon_sends_mana_to_allies_and_expires) {
 
 /* Correcting the schema must preserve delayed startup, the reduced-damage phase, and final cleanup. */
 TEST(wc3_ability_lifecycle, flame_strike_obeys_authored_phase_intervals_and_expiry) {
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHfs"), &enemy->s.origin2));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     level.time = 2000; G_RunEntity(thinker); T_FEQ(enemy->health.value, 1000, .001f);
     FOR_LOOP(i, 9) { level.time = 2330 + i * 330; G_RunEntity(thinker); }
     T_FEQ(enemy->health.value, 865, .001f);
@@ -772,8 +772,8 @@ TEST(wc3_ability_lifecycle, flame_strike_obeys_authored_phase_intervals_and_expi
 
 /* A targeted nova damages around its victim; nearby units do not receive the direct-target bonus. */
 TEST(wc3_ability_lifecycle, frost_nova_uses_victim_center_and_separate_direct_damage) {
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 500), near = review_unit(1, 550);
-    LPEDICT far = review_unit(1, 50), ally = review_unit(0, 550);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 500), *near = review_unit(1, 550);
+    edict_t * far = review_unit(1, 50), *ally = review_unit(0, 550);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AUfn"), enemy));
     T_FEQ(enemy->health.value, 850, .001f); T_FEQ(near->health.value, 950, .001f);
@@ -783,7 +783,7 @@ TEST(wc3_ability_lifecycle, frost_nova_uses_victim_center_and_separate_direct_da
 
 /* Ordinary corpses restore selection and the idle move instead of retaining their decay callback. */
 TEST(wc3_ability_lifecycle, resurrection_retires_death_state_and_rejects_empty_cast) {
-    LPEDICT caster = review_setup(), ally = review_unit(0, 100), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *ally = review_unit(0, 100), *enemy = review_unit(1, 100);
     UnitData_t corpse_data = { .deathType = 3 };
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     ally->data.UnitData = &corpse_data;
@@ -800,10 +800,10 @@ TEST(wc3_ability_lifecycle, resurrection_retires_death_state_and_rejects_empty_c
 /* Saving a live drain preserves its owner/target pointers, callback, deadline and cast identity together. */
 TEST(wc3_ability_lifecycle, live_drain_continues_once_after_save_load) {
     cstring_t path = "/tmp/openwarcraft3-skill-drain-save.bin";
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     T_ASSERT(WriteGame(path)); caster->channel.code = 0; thinker->think = NULL;
     T_ASSERT(ReadGame(path));
     level.time += 1000; G_RunEntity(thinker);
@@ -822,11 +822,11 @@ TEST(wc3_ability_lifecycle, blizzard_roc_data_columns_keep_all_authored_waves) {
         T_NOT_NULL(at);
         if (at) { at[4] = '1'; at[5] = '1' + i; }
     }
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(roc), *old = G_SetSLKRows("AbilityData", rows);
     T_FEQ(S_SpellData(FS_SLKKey("AHbz"), 1, 1), 6, .001f);
     T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     FOR_LOOP(i, 12) {
         if (!thinker->inuse) break;
         level.time = thinker->freetime; G_RunEntity(thinker);
@@ -837,7 +837,7 @@ TEST(wc3_ability_lifecycle, blizzard_roc_data_columns_keep_all_authored_waves) {
 
 /* UnitBalance creep level is unrelated to Hero identity when selecting Storm Bolt's duration. */
 TEST(wc3_ability_lifecycle, storm_bolt_uses_hero_identity_for_stun_duration) {
-    LPEDICT caster = review_setup(), hero = review_unit(1, 100), creep = review_unit(1, 150);
+    edict_t * caster = review_setup(), *hero = review_unit(1, 100), *creep = review_unit(1, 150);
     UnitBalance_t balance = { .level = 8 }, hero_row = { .level = 1, .strength = 20 };
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     hero->class_id = MAKEFOURCC('H','p','a','l'); hero->data.UnitBalance = &hero_row; creep->data.UnitBalance = &balance;
@@ -853,10 +853,10 @@ TEST(wc3_ability_lifecycle, storm_bolt_uses_hero_identity_for_stun_duration) {
 
 /* Fractional authored intervals accumulate on scheduled deadlines instead of rounding each tick up to FRAMETIME. */
 TEST(wc3_ability_lifecycle, flame_strike_fractional_interval_keeps_cadence_on_server_frames) {
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHfs"), &enemy->s.origin2));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     while (level.time < 5000) { level.time += FRAMETIME; G_RunEntity(thinker); }
     T_FEQ(enemy->health.value, 865, .001f); T_EQ(thinker->freetime, 6000);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
@@ -866,16 +866,16 @@ TEST(wc3_ability_lifecycle, flame_strike_fractional_interval_keeps_cadence_on_se
 TEST(wc3_ability_lifecycle, stop_move_and_attack_retire_channel_before_motion) {
     cstring_t orders[] = { "stop", "move", "attack" };
     FOR_LOOP(i, 3) {
-        LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+        edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
         slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
         caster->unitinfo.MoveSpeed = 300; caster->movetype = MOVETYPE_STEP;
         caster->attack1.type = ATK_NORMAL;
         caster->attack1.range = 600; caster->attack1.damageBase = 10; caster->attack1.cooldown = 1;
         caster->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
         T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
-        LPEDICT thinker = review_thinker(caster);
+        edict_t * thinker = review_thinker(caster);
         if (i == 0) T_ASSERT(unit_issueimmediateorder(caster, orders[i]));
-        else if (i == 1) T_ASSERT(unit_issueorder(caster, orders[i], &MAKE(VECTOR2, .x = 300)));
+        else if (i == 1) T_ASSERT(unit_issueorder(caster, orders[i], &MAKE(vector2_t, .x = 300)));
         else T_ASSERT(unit_issuetargetorder(caster, orders[i], enemy));
         umove_t const *move = caster->currentmove;
         T_EQ(caster->channel.code, 0); T_FEQ(caster->s.origin2.x, 0, .001f);
@@ -892,10 +892,10 @@ TEST(wc3_ability_lifecycle, flame_strike_custom_interval_can_tick_twice_per_fram
     char *interval = strstr(slk, "0.33");
     T_NOT_NULL(interval);
     if (interval) memcpy(interval, "0.05", 4);
-    LPEDICT caster = review_setup(), enemy = review_unit(1, 100);
+    edict_t * caster = review_setup(), *enemy = review_unit(1, 100);
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHfs"), &enemy->s.origin2));
-    LPEDICT thinker = review_thinker(caster);
+    edict_t * thinker = review_thinker(caster);
     level.time = 2300; G_RunEntity(thinker); T_FEQ(enemy->health.value, 1000, .001f);
     level.time = 2400; G_RunEntity(thinker); T_FEQ(enemy->health.value, 970, .001f);
     level.time = 2500; G_RunEntity(thinker); T_FEQ(enemy->health.value, 940, .001f);

@@ -6,7 +6,7 @@
 #define BZ_BMFL MAKEFOURCC('B', 'm', 'f', 'l') // rawcode; Mana Flare caster buff
 #define BZ_AHTB MAKEFOURCC('A', 'H', 't', 'b') // rawcode; Storm Bolt probe for enemy casts
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -36,16 +36,16 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
 	slkTestData_t *rows, *old;
-	LPEDICT flare, enemy, ally, far_enemy, far_bait, splash;
+	edict_t * flare, *enemy, *ally, *far_enemy, *far_bait, *splash;
 	UnitBalance_t enemy_bal, hero_bal;
-} MFLFIX;
+} mflFix_t;
 
 /* Fill FIX in place so UnitBalance pointers stay live (Linux CI HeroDur). */
-static void mfl_setup(MFLFIX *fix, cstring_t slk) {
+static void mfl_setup(mflFix_t *fix, cstring_t slk) {
 	memset(fix, 0, sizeof(*fix));
 	reset_entities(); setup_test_world(); level.time = 1000;
-	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	memset(level.alliances, 0, sizeof(level.alliances));
 	fix->rows = parse_slk_string(slk); fix->old = G_SetSLKRows("AbilityData", fix->rows);
 	fix->enemy_bal = MAKE(UnitBalance_t, .maxHealth = 500, .level = 2);
@@ -84,7 +84,7 @@ static void mfl_setup(MFLFIX *fix, cstring_t slk) {
 	fix->flare->stand = unit_stand; fix->enemy->stand = unit_stand;
 }
 
-static void mfl_done(MFLFIX *fix) {
+static void mfl_done(mflFix_t *fix) {
 	G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows);
 }
 
@@ -99,7 +99,7 @@ TEST(wc3_spell, mana_flare_registers_channel_procedure) {
 
 /* Activation applies Bmfl, spends Cost, locks channel, and adds authored DataE armor. */
 TEST(wc3_spell, mana_flare_activates_buff_channel_and_armor) {
-	MFLFIX fix;
+	mflFix_t fix;
 	mfl_setup(&fix, MFL_SLK);
 	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
 	T_FEQ(fix.flare->mana.value, 175, 0.001f);
@@ -111,7 +111,7 @@ TEST(wc3_spell, mana_flare_activates_buff_channel_and_armor) {
 
 /* Enemy cast inside Area: damage = min(DataC, cost * DataA) = min(70, 10*7) = 70. */
 TEST(wc3_spell, mana_flare_damages_enemy_caster_from_authored_data) {
-	MFLFIX fix;
+	mflFix_t fix;
 	mfl_setup(&fix, MFL_SLK);
 	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
 	T_ASSERT(S_CastUnitTargetSpell(fix.enemy, BZ_AHTB, fix.flare));
@@ -120,7 +120,7 @@ TEST(wc3_spell, mana_flare_damages_enemy_caster_from_authored_data) {
 }
 
 TEST(wc3_spell, mana_flare_ignores_out_of_area_and_friendly_casts) {
-	MFLFIX fix;
+	mflFix_t fix;
 	mfl_setup(&fix, MFL_SLK);
 	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
 	T_ASSERT(S_CastUnitTargetSpell(fix.far_enemy, BZ_AHTB, fix.far_bait));
@@ -132,7 +132,7 @@ TEST(wc3_spell, mana_flare_ignores_out_of_area_and_friendly_casts) {
 
 /* Cast interval gates a second flare until Cast seconds elapse. */
 TEST(wc3_spell, mana_flare_respects_cast_interval_between_flares) {
-	MFLFIX fix;
+	mflFix_t fix;
 	mfl_setup(&fix, MFL_SLK);
 	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
 	T_ASSERT(S_CastUnitTargetSpell(fix.enemy, BZ_AHTB, fix.flare));
@@ -149,7 +149,7 @@ TEST(wc3_spell, mana_flare_respects_cast_interval_between_flares) {
 
 /* Channel cancel strips Bmfl and armor; natural expiry does the same. */
 TEST(wc3_spell, mana_flare_cancel_and_expiry_clear_buff) {
-	MFLFIX fix;
+	mflFix_t fix;
 	mfl_setup(&fix, MFL_SLK);
 	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
 	T_EQ(G_UnitStatusLevel(fix.flare, BZ_BMFL), 1);
@@ -168,7 +168,7 @@ TEST(wc3_spell, mana_flare_cancel_and_expiry_clear_buff) {
 
 /* DataF splash hits a nearby mana-pool enemy within Rng of the primary victim. */
 TEST(wc3_spell, mana_flare_splash_hits_mana_units_in_range) {
-	MFLFIX fix;
+	mflFix_t fix;
 	mfl_setup(&fix, MFL_SLK);
 	T_ASSERT(S_CastNoTargetSpell(fix.flare, BZ_AMFL));
 	T_ASSERT(S_CastUnitTargetSpell(fix.enemy, BZ_AHTB, fix.flare));

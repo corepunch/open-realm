@@ -62,20 +62,20 @@ static inline BOMStatus G_WorldTextRemoveBom(string_t buffer) {
 
 /* WC3 Way Gate entry selection uses the shared router's static grid, but this
  * rectangle-specific policy belongs to the game that consumes it. */
-bool G_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBOX2 bounds,
-                                                      float radius, uint8_t blocked_flags, LPVECTOR2 out) {
-    BOX2 rect;
-    VECTOR2 nmin, nmax;
+bool G_ClosestStaticPathablePointInRectForRadiusFlags(vector2_t const * location, box2_t const * bounds,
+                                                      float radius, uint8_t blocked_flags, vector2_t * out) {
+    box2_t rect;
+    vector2_t nmin, nmax;
     float best_distance = FLT_MAX;
     int radius_cells, x0, x1, y0, y1;
     bool found = false;
 
     if (!location || !bounds || !out) return false;
-    rect.min = (VECTOR2){ MIN(bounds->min.x, bounds->max.x), MIN(bounds->min.y, bounds->max.y) };
-    rect.max = (VECTOR2){ MAX(bounds->min.x, bounds->max.x), MAX(bounds->min.y, bounds->max.y) };
+    rect.min = (vector2_t){ MIN(bounds->min.x, bounds->max.x), MIN(bounds->min.y, bounds->max.y) };
+    rect.max = (vector2_t){ MAX(bounds->min.x, bounds->max.x), MAX(bounds->min.y, bounds->max.y) };
     if (rect.max.x <= rect.min.x || rect.max.y <= rect.min.y) return false;
     if (!pathmap.original || !pathmap.width || !pathmap.height) {
-        *out = (VECTOR2){ MIN(rect.max.x, MAX(rect.min.x, location->x)),
+        *out = (vector2_t){ MIN(rect.max.x, MAX(rect.min.x, location->x)),
                           MIN(rect.max.y, MAX(rect.min.y, location->y)) };
         return true;
     }
@@ -89,7 +89,7 @@ bool G_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBO
     radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
 
     for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) {
-        VECTOR2 a, b, candidate, check;
+        vector2_t a, b, candidate, check;
         float min_x, max_x, min_y, max_y, distance;
         int check_x, check_y;
 
@@ -100,11 +100,11 @@ bool G_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBO
         min_x = MAX(rect.min.x, MIN(a.x, b.x)); max_x = MIN(rect.max.x, MAX(a.x, b.x));
         min_y = MAX(rect.min.y, MIN(a.y, b.y)); max_y = MIN(rect.max.y, MAX(a.y, b.y));
         if (min_x > max_x || min_y > max_y) continue;
-        candidate = (VECTOR2){ MIN(max_x, MAX(min_x, location->x)), MIN(max_y, MAX(min_y, location->y)) };
+        candidate = (vector2_t){ MIN(max_x, MAX(min_x, location->x)), MIN(max_y, MAX(min_y, location->y)) };
         check = CM_GetNormalizedMapPosition(candidate.x, candidate.y);
         check_x = (int)floorf(check.x * pathmap.width); check_y = (int)floorf(check.y * pathmap.height);
         if (check_x != x || check_y != y)
-            candidate = (VECTOR2){ (min_x + max_x) * 0.5f, (min_y + max_y) * 0.5f };
+            candidate = (vector2_t){ (min_x + max_x) * 0.5f, (min_y + max_y) * 0.5f };
         distance = Vector2_distance(location, &candidate);
         if (!found || distance < best_distance) best_distance = distance, *out = candidate, found = true;
     }

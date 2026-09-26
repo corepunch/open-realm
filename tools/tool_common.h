@@ -311,7 +311,7 @@ static inline void Tool_SetSheetHost(handle_t *archives, size_t count) {
     ToolSheetHostState *state = Tool_SheetHostState();
     state->archives = archives;
     state->count = count;
-    FS_SetSheetHost(&MAKE(SHEETHOST,
+    FS_SetSheetHost(&MAKE(sheetHost_t,
         .ReadFile = Tool_ReadFileRaw,
         .FreeFile = Tool_MemFree,
         .MemAlloc = Tool_MemAlloc,

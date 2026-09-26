@@ -28,13 +28,13 @@
 #include "games/warcraft-3/common/terrain.h"
 
 /* Helpers defined in t_utils.c */
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
-void CM_SetupTestWorldBounds(LPCBOX2 bounds);
+void CM_SetupTestWorldBounds(box2_t const * bounds);
 void CM_ProcessPathJobs(uint32_t work_budget);
-extern void ai_train_build(LPEDICT ent);
+extern void ai_train_build(edict_t * ent);
 
 
 
@@ -49,10 +49,10 @@ extern void ai_train_build(LPEDICT ent);
 /* Create a unit at (x, y) with the lifecycle callbacks and zero collision
  * (movement tests don't want unintended push-apart).  Resets entity pool
  * so each test starts from a clean slate. */
-static LPEDICT make_moving_unit(float x, float y) {
+static edict_t * make_moving_unit(float x, float y) {
     reset_entities();
     setup_test_world();
-    LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
+    edict_t * ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
     ent->movetype  = MOVETYPE_STEP;
     ent->stand     = unit_stand;
     ent->birth     = unit_birth;
@@ -66,8 +66,8 @@ static LPEDICT make_moving_unit(float x, float y) {
 
 /* Harvest damage now uses the authoritative destructable lifecycle, so test
  * trees must carry the initialization normally supplied by SP_SpawnDestructable. */
-static LPEDICT make_harvest_tree(float x, float y, float life) {
-    LPEDICT tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), x, y);
+static edict_t * make_harvest_tree(float x, float y, float life) {
+    edict_t * tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), x, y);
     SP_monster_tree(tree);
     tree->destructable.initialized = true;
     tree->destructable.item_table = (uint32_t)-1;
@@ -81,7 +81,7 @@ static UnitAbilities_t const ghoul_harvest_abilities = { .abilList = "Ahrl" };
 static UnitAbilities_t const return_gold_lumber_abilities = { .abilList = "Argl" };
 static UnitAbilities_t const return_lumber_abilities = { .abilList = "Arlm" };
 
-static void make_live_dropoff(LPEDICT building, UnitAbilities_t const *abilities) {
+static void make_live_dropoff(edict_t * building, UnitAbilities_t const *abilities) {
     building->data.UnitAbilities = abilities;
     building->health.value = building->health.max_value = 1000.0f;
 }
@@ -89,13 +89,13 @@ static void make_live_dropoff(LPEDICT building, UnitAbilities_t const *abilities
 /* Command-integration tests exercise server selection/target-mode state, not
  * svc_layout transport. Keep their HUD refreshes inside the game-test boundary. */
 static void movement_noop_write(pfWriteType_t type, void const *value) { (void)type; (void)value; }
-static void movement_noop_unicast(LPEDICT ent) { (void)ent; }
+static void movement_noop_unicast(edict_t * ent) { (void)ent; }
 
 typedef struct {
     uint32_t count;
     pfWriteType_t type[4];
     int32_t value[4];
-    LPEDICT recipient;
+    edict_t * recipient;
 } smartIndicatorCapture_t;
 
 static smartIndicatorCapture_t smart_indicator_capture;
@@ -107,7 +107,7 @@ static void movement_capture_indicator_write(pfWriteType_t type, void const *val
     if (value) smart_indicator_capture.value[slot] = *(int32_t const *)value;
 }
 
-static void movement_capture_indicator_unicast(LPEDICT ent) {
+static void movement_capture_indicator_unicast(edict_t * ent) {
     if (!smart_indicator_capture.recipient) smart_indicator_capture.recipient = ent;
 }
 
@@ -121,8 +121,8 @@ extern float HARVEST_LUMBER_CAPACITY;
 extern float HARVEST_RANGE;
 extern float HARVEST_COOLDOWN;
 extern float HARVEST_SEARCH_RANGE;
-extern void harvest_cooldown(LPEDICT);
-bool harvest_menu_selecttarget(LPEDICT clent, LPEDICT target);
+extern void harvest_cooldown(edict_t *);
+bool harvest_menu_selecttarget(edict_t * clent, edict_t * target);
 
 static const char slk_ghoul_harvest_test_data[] =
     "ID;PWXL;N;E\n"
@@ -147,7 +147,7 @@ static slkTestData_t *install_ghoul_harvest_test_data(slkTestData_t **rows_out) 
 }
 
 TEST(wc3_movement, harvest_command_button_toggles_to_return_resources_ui) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
     gameCommandButton_t button;
 
     worker->data.UnitAbilities = &harvest_abilities;
@@ -182,7 +182,7 @@ TEST(wc3_movement, harvest_command_button_toggles_to_return_resources_ui) {
 
 TEST(wc3_movement, ghoul_ahrl_smart_uses_lumber_only_harvest_data) {
     slkTestData_t *rows, *old_abilities;
-    LPEDICT worker, tree;
+    edict_t * worker, *tree;
     float saved_range = HARVEST_RANGE;
     float saved_damage = HARVEST_TREE_DAMAGE;
     float saved_capacity = HARVEST_LUMBER_CAPACITY;
@@ -224,9 +224,9 @@ TEST(wc3_movement, ghoul_ahrl_smart_uses_lumber_only_harvest_data) {
 
 TEST(wc3_movement, ghoul_ahrl_command_targets_tree_and_autoharvests_lumber) {
     slkTestData_t *rows, *old_abilities;
-    LPEDICT clent = &g_edicts[0];
-    LPGAMECLIENT client;
-    LPEDICT worker, tree;
+    edict_t * clent = &g_edicts[0];
+    gameClient_t * client;
+    edict_t * worker, *tree;
     abilityCall_t call;
 
     worker = make_moving_unit(0.0f, 0.0f);
@@ -254,7 +254,7 @@ TEST(wc3_movement, ghoul_ahrl_command_targets_tree_and_autoharvests_lumber) {
 }
 
 TEST(wc3_movement, runtime_added_call_to_arms_exposes_on_and_off_buttons) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
     gameCommandButton_t buttons[16];
     uint8_t count;
     bool found_on = false, found_off = false;
@@ -290,8 +290,8 @@ TEST(wc3_movement, missing_melee_amic_recovers_only_first_tier_one_hall) {
         .id = MAKEFOURCC('h','t','o','w'),
         .abilList = "",
     };
-    LPEDICT first = make_moving_unit(0.0f, 0.0f);
-    LPEDICT second = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 512.0f, 0.0f);
+    edict_t * first = make_moving_unit(0.0f, 0.0f);
+    edict_t * second = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 512.0f, 0.0f);
 
     first->class_id = first->s.class_id = MAKEFOURCC('h','t','o','w');
     first->data.UnitAbilities = &townhall_abilities;
@@ -311,8 +311,8 @@ TEST(wc3_movement, missing_melee_amic_recovers_only_first_tier_one_hall) {
 }
 
 TEST(wc3_movement, carried_resource_toggle_invalidates_selected_command_card) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
+    gameClient_t * client = &game.clients[0];
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
 
     worker->s.player = client->ps.number;
     G_SelectEntity(client, worker);
@@ -401,7 +401,7 @@ static slkTestData_t *install_racial_goldmine_test_data(slkTestData_t **rows_out
     return G_SetSLKRows("AbilityData", rows);
 }
 
-static uint32_t count_haunted_ring_effects(LPCEDICT mine) {
+static uint32_t count_haunted_ring_effects(edict_t const * mine) {
     uint32_t count = 0;
     FILTER_EDICTS(effect, effect->inuse && effect->owner == mine &&
                   effect->summon_ability == MAKEFOURCC('A','b','g','m') &&
@@ -411,7 +411,7 @@ static uint32_t count_haunted_ring_effects(LPCEDICT mine) {
     return count;
 }
 
-static LPEDICT haunted_ring_effect_slot(LPEDICT mine, uint32_t slot) {
+static edict_t * haunted_ring_effect_slot(edict_t * mine, uint32_t slot) {
     FILTER_EDICTS(effect, effect->inuse && effect->owner == mine &&
                   effect->summon_ability == MAKEFOURCC('A','b','g','m') &&
                   effect->resources == slot + 1 && (effect->s.flags & EF_NOT_SELECTABLE)) {
@@ -426,7 +426,7 @@ static slkTestData_t *install_goldmine_test_data(slkTestData_t **rows_out) {
     return G_SetSLKRows("AbilityData", rows);
 }
 
-static void setup_test_goldmine(LPEDICT mine, UnitAbilities_t const *abilities, uint32_t resources) {
+static void setup_test_goldmine(edict_t * mine, UnitAbilities_t const *abilities, uint32_t resources) {
     mine->data.UnitAbilities = abilities;
     mine->resources = resources;
     mine->health.value = mine->health.max_value = 1000.0f;
@@ -434,12 +434,12 @@ static void setup_test_goldmine(LPEDICT mine, UnitAbilities_t const *abilities, 
 
 static pathTex_t *movement_make_goldmine_pathtex(void) {
     enum { W = 16, H = 16 };
-    pathTex_t *tex = gi.MemAlloc(sizeof(*tex) + W * H * sizeof(COLOR32));
+    pathTex_t *tex = gi.MemAlloc(sizeof(*tex) + W * H * sizeof(color32_t));
     T_ASSERT(tex != NULL);
     tex->width = W;
     tex->height = H;
     FOR_LOOP(i, W * H)
-        tex->map[i] = (COLOR32){ 0, 0, 0, 255 };
+        tex->map[i] = (color32_t){ 0, 0, 0, 255 };
     for (int y = 4; y < 12; y++) {
         for (int x = 4; x < 12; x++)
             tex->map[x + y * W].b = 255;
@@ -447,8 +447,8 @@ static pathTex_t *movement_make_goldmine_pathtex(void) {
     return tex;
 }
 
-static LPEDICT add_gold_worker(float x, float y) {
-    LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
+static edict_t * add_gold_worker(float x, float y) {
+    edict_t * worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
     worker->movetype = MOVETYPE_STEP;
     worker->stand = unit_stand;
     worker->die = unit_die;
@@ -461,16 +461,16 @@ static LPEDICT add_gold_worker(float x, float y) {
 
 static bool tree_died;
 static uint32_t tree_pained;
-static void test_tree_die(LPEDICT tree, LPEDICT attacker) { (void)tree; (void)attacker; tree_died = true; }
-static void test_tree_pain(LPEDICT tree) { (void)tree; tree_pained++; }
+static void test_tree_die(edict_t * tree, edict_t * attacker) { (void)tree; (void)attacker; tree_died = true; }
+static void test_tree_pain(edict_t * tree) { (void)tree; tree_pained++; }
 
 typedef struct {
-    GAMEMSG msg[32];
+    gameMsg_t msg[32];
     uint32_t count;
-} MSGTRACE;
+} msgTrace_t;
 
-static void trace_message(LPCGAMEMSG msg, void *ctx) {
-    MSGTRACE *trace = ctx;
+static void trace_message(gameMsg_t const * msg, void *ctx) {
+    msgTrace_t *trace = ctx;
     if (trace->count < sizeof(trace->msg) / sizeof(trace->msg[0]))
         trace->msg[trace->count++] = *msg;
 }
@@ -482,10 +482,10 @@ static void trace_message(LPCGAMEMSG msg, void *ctx) {
 TEST(wc3_movement, worker_resource_gold_approach_ignores_live_units) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT blocker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 35.0f, 0.0f);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
-    VECTOR2 const origin = worker->s.origin2;
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * blocker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 35.0f, 0.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
+    vector2_t const origin = worker->s.origin2;
     slkTestData_t *rows, *old_abilities;
 
     worker->collision = 16.0f;
@@ -502,7 +502,7 @@ TEST(wc3_movement, worker_resource_gold_approach_ignores_live_units) {
     gi.LinkEntity(blocker);
     gi.LinkEntity(mine);
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -525,8 +525,8 @@ TEST(wc3_movement, worker_resource_gold_approach_ignores_live_units) {
 TEST(wc3_movement, worker_resource_static_detour_uses_worker_radius) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(-320.0f, 0.0f);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 320.0f, 0.0f);
+    edict_t * worker = make_moving_unit(-320.0f, 0.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 320.0f, 0.0f);
     slkTestData_t *rows, *old_abilities;
 
     worker->collision = 16.0f;
@@ -539,7 +539,7 @@ TEST(wc3_movement, worker_resource_static_detour_uses_worker_radius) {
     gi.LinkEntity(worker);
     gi.LinkEntity(mine);
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -554,7 +554,7 @@ TEST(wc3_movement, worker_resource_static_detour_uses_worker_radius) {
         for (int x = 30; x <= 33; x++)
             pathmap[x + y * CELLS] = 0x02;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
     worker->currentmove->think(worker);
@@ -574,9 +574,9 @@ TEST(wc3_movement, worker_resource_static_detour_uses_worker_radius) {
 TEST(wc3_movement, worker_resource_gold_return_targets_near_side_edge) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(-320.0f, 0.0f);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -500.0f, 0.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
+    edict_t * worker = make_moving_unit(-320.0f, 0.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -500.0f, 0.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
     pathTex_t *hall_pathtex = movement_make_goldmine_pathtex();
 
     worker->collision = 16.0f;
@@ -602,7 +602,7 @@ TEST(wc3_movement, worker_resource_gold_return_targets_near_side_edge) {
         for (int x = 30; x <= 33; x++)
             pathmap[x + y * CELLS] = 0x02;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -625,8 +625,8 @@ TEST(wc3_movement, worker_resource_gold_return_targets_near_side_edge) {
 TEST(wc3_movement, worker_resource_lumber_return_targets_near_side_edge) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(-320.0f, 0.0f);
-    LPEDICT mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 320.0f, 0.0f);
+    edict_t * worker = make_moving_unit(-320.0f, 0.0f);
+    edict_t * mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 320.0f, 0.0f);
     pathTex_t *mill_pathtex = movement_make_goldmine_pathtex();
 
     worker->collision = 16.0f;
@@ -647,7 +647,7 @@ TEST(wc3_movement, worker_resource_lumber_return_targets_near_side_edge) {
         for (int x = 30; x <= 33; x++)
             pathmap[x + y * CELLS] = 0x02;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -670,11 +670,11 @@ TEST(wc3_movement, worker_resource_lumber_return_targets_near_side_edge) {
 TEST(wc3_movement, worker_resource_gold_deposits_at_near_side_route_endpoint) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(-320.0f, 0.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
+    edict_t * worker = make_moving_unit(-320.0f, 0.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
     pathTex_t *hall_pathtex = movement_make_goldmine_pathtex();
     uint32_t const old_gold = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD];
-    VECTOR2 approach;
+    vector2_t approach;
     float route_band;
 
     worker->collision = 16.0f;
@@ -693,7 +693,7 @@ TEST(wc3_movement, worker_resource_gold_deposits_at_near_side_route_endpoint) {
         for (int x = 38; x < 46; x++)
             pathmap[x + y * CELLS] = 0x02;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -719,11 +719,11 @@ TEST(wc3_movement, worker_resource_gold_deposits_at_near_side_route_endpoint) {
 TEST(wc3_movement, worker_resource_lumber_deposits_at_near_side_route_endpoint) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(-320.0f, 0.0f);
-    LPEDICT mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 320.0f, 0.0f);
+    edict_t * worker = make_moving_unit(-320.0f, 0.0f);
+    edict_t * mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 320.0f, 0.0f);
     pathTex_t *mill_pathtex = movement_make_goldmine_pathtex();
     uint32_t const old_lumber = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
-    VECTOR2 approach;
+    vector2_t approach;
     float route_band;
 
     worker->collision = 16.0f;
@@ -741,7 +741,7 @@ TEST(wc3_movement, worker_resource_lumber_deposits_at_near_side_route_endpoint) 
         for (int x = 38; x < 46; x++)
             pathmap[x + y * CELLS] = 0x02;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -771,9 +771,9 @@ TEST(wc3_movement, worker_resource_tree_approach_keeps_live_unit_collision) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
     float const saved_range = HARVEST_RANGE;
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT blocker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 35.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(400.0f, 0.0f, 100.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * blocker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 35.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(400.0f, 0.0f, 100.0f);
 
     worker->collision = 16.0f;
     worker->unitinfo.MoveSpeed = 190.0f;
@@ -785,7 +785,7 @@ TEST(wc3_movement, worker_resource_tree_approach_keeps_live_unit_collision) {
     gi.LinkEntity(blocker);
     gi.LinkEntity(tree);
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -803,9 +803,9 @@ TEST(wc3_movement, worker_resource_tree_approach_keeps_live_unit_collision) {
 TEST(wc3_movement, worker_resource_lumber_return_ignores_live_units) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT blocker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 35.0f, 0.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 400.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * blocker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 35.0f, 0.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 400.0f, 0.0f);
 
     worker->collision = 16.0f;
     worker->unitinfo.MoveSpeed = 190.0f;
@@ -822,7 +822,7 @@ TEST(wc3_movement, worker_resource_lumber_return_ignores_live_units) {
     gi.LinkEntity(blocker);
     gi.LinkEntity(hall);
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -836,8 +836,8 @@ TEST(wc3_movement, worker_resource_lumber_return_ignores_live_units) {
 /* Gold workers enter at the mine boundary; the mine's collision footprint must
  * not strand them just outside the older fixed interaction radius. */
 TEST(wc3_movement, gold_worker_enters_large_mine_footprint) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
     worker->collision = 16.0f;
     worker->unitinfo.MoveSpeed = 100.0f;
     mine->collision = 128.0f; /* 8 blocked cells across in ROC 16x16Goldmine.tga. */
@@ -868,8 +868,8 @@ TEST(wc3_movement, gold_worker_enters_large_mine_footprint) {
 TEST(wc3_movement, gold_worker_enters_mine_with_blocked_pathing_footprint) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(158.0f, 0.0f);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 320.0f, 0.0f);
+    edict_t * worker = make_moving_unit(158.0f, 0.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 320.0f, 0.0f);
     pathTex_t *mine_pathtex = movement_make_goldmine_pathtex();
 
     worker->collision = 16.0f;
@@ -890,7 +890,7 @@ TEST(wc3_movement, gold_worker_enters_mine_with_blocked_pathing_footprint) {
             pathmap[x + y * CELLS] = 0x02;
     }
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -918,8 +918,8 @@ TEST(wc3_movement, gold_worker_enters_mine_with_blocked_pathing_footprint) {
 TEST(wc3_movement, gold_worker_static_blocked_edge_does_not_fake_mine_entry) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(151.0f, 0.0f);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 320.0f, 0.0f);
+    edict_t * worker = make_moving_unit(151.0f, 0.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 320.0f, 0.0f);
     pathTex_t *mine_pathtex = movement_make_goldmine_pathtex();
     float footprint;
 
@@ -938,7 +938,7 @@ TEST(wc3_movement, gold_worker_static_blocked_edge_does_not_fake_mine_entry) {
             pathmap[x + y * CELLS] = 0x02;
     }
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -972,8 +972,8 @@ TEST(wc3_movement, gold_worker_static_blocked_edge_does_not_fake_mine_entry) {
 TEST(wc3_movement, gold_worker_enters_at_pathing_footprint_corner) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(170.0f, 170.0f);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 320.0f, 320.0f);
+    edict_t * worker = make_moving_unit(170.0f, 170.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 320.0f, 320.0f);
     pathTex_t *mine_pathtex = movement_make_goldmine_pathtex();
 
     worker->collision = 16.0f;
@@ -987,7 +987,7 @@ TEST(wc3_movement, gold_worker_enters_at_pathing_footprint_corner) {
     gi.LinkEntity(mine);
 
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -1013,10 +1013,10 @@ TEST(wc3_movement, gold_worker_enters_at_pathing_footprint_corner) {
 /* A final chop equal to the remaining life must run the tree's death callback,
  * which owns its fall animation and pathing removal. */
 TEST(wc3_movement, lumber_final_chop_fells_tree) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 10.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(20.0f, 0.0f, 10.0f);
     worker->attack1.damagePoint = 0.01f;
-    MSGTRACE trace = {0};
+    msgTrace_t trace = {0};
     T_ASSERT(G_SubscribeMessage(trace_message, &trace));
     HARVEST_RANGE = 64.0f;
     HARVEST_TREE_DAMAGE = 10.0f;
@@ -1045,8 +1045,8 @@ TEST(wc3_movement, lumber_final_chop_fells_tree) {
 
 /* Non-lethal chops damage but do not fell a living tree. */
 TEST(wc3_movement, lumber_nonlethal_chop_keeps_tree_standing) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 11.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(20.0f, 0.0f, 11.0f);
     tree->pain = test_tree_pain;
     tree->die = test_tree_die;
     tree_died = false;
@@ -1072,9 +1072,9 @@ TEST(wc3_movement, lumber_nonlethal_chop_keeps_tree_standing) {
 TEST(wc3_movement, lumber_pending_flow_does_not_move_on_stale_heading) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(-320.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(320.0f, 0.0f, 500.0f);
-    VECTOR2 const origin = worker->s.origin2;
+    edict_t * worker = make_moving_unit(-320.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(320.0f, 0.0f, 500.0f);
+    vector2_t const origin = worker->s.origin2;
 
     worker->collision = 16.0f;
     worker->unitinfo.MoveSpeed = 190.0f;
@@ -1087,7 +1087,7 @@ TEST(wc3_movement, lumber_pending_flow_does_not_move_on_stale_heading) {
     for (int y = 0; y < CELLS; y++)
         pathmap[32 + y * CELLS] = 0x02;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -1109,11 +1109,11 @@ TEST(wc3_movement, lumber_pending_flow_does_not_move_on_stale_heading) {
 TEST(wc3_movement, lumber_same_tree_workers_preserve_direct_order) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT first = make_moving_unit(-400.0f, 0.0f);
-    LPEDICT second = add_gold_worker(-365.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(0.0f, 0.0f, 500.0f);
-    VECTOR2 const first_origin = first->s.origin2;
-    VECTOR2 const second_origin = second->s.origin2;
+    edict_t * first = make_moving_unit(-400.0f, 0.0f);
+    edict_t * second = add_gold_worker(-365.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(0.0f, 0.0f, 500.0f);
+    vector2_t const first_origin = first->s.origin2;
+    vector2_t const second_origin = second->s.origin2;
 
     first->collision = second->collision = 16.0f;
     first->unitinfo.MoveSpeed = second->unitinfo.MoveSpeed = 190.0f;
@@ -1123,7 +1123,7 @@ TEST(wc3_movement, lumber_same_tree_workers_preserve_direct_order) {
     gi.LinkEntity(second);
     gi.LinkEntity(tree);
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -1157,9 +1157,9 @@ TEST(wc3_movement, lumber_same_tree_workers_preserve_direct_order) {
 TEST(wc3_movement, lumber_same_tree_worker_routes_around_chopper) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT chopper = make_moving_unit(-60.0f, 0.0f);
-    LPEDICT follower = add_gold_worker(-95.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(0.0f, 0.0f, 500.0f);
+    edict_t * chopper = make_moving_unit(-60.0f, 0.0f);
+    edict_t * follower = add_gold_worker(-95.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(0.0f, 0.0f, 500.0f);
     float const saved_range = HARVEST_RANGE;
     bool follower_started_chopping = false;
 
@@ -1172,7 +1172,7 @@ TEST(wc3_movement, lumber_same_tree_worker_routes_around_chopper) {
     gi.LinkEntity(follower);
     gi.LinkEntity(tree);
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -1208,16 +1208,16 @@ TEST(wc3_movement, lumber_same_tree_worker_routes_around_chopper) {
 TEST(wc3_movement, nearby_move_starts_on_accelerated_waypoint) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT unit = make_moving_unit(320.0f, 0.0f);
-    VECTOR2 const origin = unit->s.origin2;
-    VECTOR2 dest = {-320.0f, 0.0f};
+    edict_t * unit = make_moving_unit(320.0f, 0.0f);
+    vector2_t const origin = unit->s.origin2;
+    vector2_t dest = {-320.0f, 0.0f};
 
     FOR_LOOP(y, CELLS)
         pathmap[32 + y * CELLS] = 0x02;
     for (int y = 39; y <= 41; y++)
         pathmap[32 + y * CELLS] = 0;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -1243,9 +1243,9 @@ TEST(wc3_movement, nearby_move_starts_on_accelerated_waypoint) {
 TEST(wc3_movement, lumber_unreachable_clicked_tree_retargets_reachable_edge_tree) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(0.0f, -320.0f);
-    LPEDICT edge = make_harvest_tree(0.0f, -96.0f, 500.0f);
-    LPEDICT interior = make_harvest_tree(0.0f, 0.0f, 500.0f);
+    edict_t * worker = make_moving_unit(0.0f, -320.0f);
+    edict_t * edge = make_harvest_tree(0.0f, -96.0f, 500.0f);
+    edict_t * interior = make_harvest_tree(0.0f, 0.0f, 500.0f);
 
     worker->collision = 16.0f;
     worker->unitinfo.MoveSpeed = 190.0f;
@@ -1261,7 +1261,7 @@ TEST(wc3_movement, lumber_unreachable_clicked_tree_retargets_reachable_edge_tree
             pathmap[x + y * CELLS] = 0x02;
     }
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -1287,9 +1287,9 @@ TEST(wc3_movement, lumber_unreachable_clicked_tree_retargets_reachable_edge_tree
 }
 
 TEST(wc3_movement, lumber_tree_dying_during_approach_retargets_immediately) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT dead = make_harvest_tree(400.0f, 0.0f, 100.0f);
-    LPEDICT live = make_harvest_tree(100.0f, 0.0f, 100.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * dead = make_harvest_tree(400.0f, 0.0f, 100.0f);
+    edict_t * live = make_harvest_tree(100.0f, 0.0f, 100.0f);
 
     HARVEST_RANGE = 64.0f;
     HARVEST_SEARCH_RANGE = 1000.0f;
@@ -1306,8 +1306,8 @@ TEST(wc3_movement, lumber_tree_dying_during_approach_retargets_immediately) {
 /* Ahar slots 1=1 (damage/lumber per swing), 2=10 (capacity): 10 swings are
  * needed per trip. Drives the full cooldown+swing cycle. */
 TEST(wc3_movement, lumber_worker_takes_ten_swings_per_trip) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 500.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(20.0f, 0.0f, 500.0f);
     worker->attack1.damagePoint = 0.01f;
     tree->pain = test_tree_pain; tree->die = test_tree_die;
     tree_pained = 0; tree_died = false;
@@ -1336,8 +1336,8 @@ TEST(wc3_movement, lumber_worker_takes_ten_swings_per_trip) {
 /* A custom/non-even capacity must clamp the final successful chop instead of
  * allowing the worker to carry more lumber than the Harvest capacity. */
 TEST(wc3_movement, lumber_final_chop_clamps_to_capacity) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
     worker->attack1.damagePoint = 0.01f;
     HARVEST_RANGE = 64.0f;
@@ -1365,8 +1365,8 @@ TEST(wc3_movement, lumber_final_chop_clamps_to_capacity) {
 /* Harvest only awards carried lumber when the tree can actually take the
  * chop. Invulnerable destructibles reject G_DestructableApplyDamage. */
 TEST(wc3_movement, lumber_invulnerable_tree_does_not_award_lumber) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
     worker->attack1.damagePoint = 0.01f;
     tree->invulnerable = true;
@@ -1386,8 +1386,8 @@ TEST(wc3_movement, lumber_invulnerable_tree_does_not_award_lumber) {
 /* A worker has one carried-resource presentation.  Starting to collect lumber
  * after gold must replace the gold bag rather than leaving both carry flags set. */
 TEST(wc3_movement, lumber_chop_replaces_gold_carry_state) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
     worker->attack1.damagePoint = 0.01f;
     worker->harvested_gold = 7;
@@ -1410,8 +1410,8 @@ TEST(wc3_movement, lumber_chop_replaces_gold_carry_state) {
 /* Smart-clicking a tree after an interrupted partial lumber trip resumes the
  * same trip and preserves the amount already gathered. */
 TEST(wc3_movement, lumber_smart_click_resumes_partial_trip) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
     worker->data.UnitAbilities = &harvest_abilities;
     worker->attack1.damagePoint = 0.01f;
@@ -1434,8 +1434,8 @@ TEST(wc3_movement, lumber_smart_click_resumes_partial_trip) {
 /* Switching from lumber to gold keeps the lumber carry while travelling and
  * mining.  The first actual gold pickup replaces it atomically. */
 TEST(wc3_movement, lumber_smart_click_gold_mine_switches_on_gold_pickup) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
 
     worker->data.UnitAbilities = &harvest_abilities;
@@ -1464,8 +1464,8 @@ TEST(wc3_movement, lumber_smart_click_gold_mine_switches_on_gold_pickup) {
 /* Switching from gold to lumber similarly keeps the gold while approaching
  * the tree.  Only a successful chop replaces the carried gold with lumber. */
 TEST(wc3_movement, gold_smart_click_tree_switches_on_successful_chop) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
 
     worker->data.UnitAbilities = &harvest_abilities;
     worker->attack1.damagePoint = 0.01f;
@@ -1493,9 +1493,9 @@ TEST(wc3_movement, gold_smart_click_tree_switches_on_successful_chop) {
  * mine redirects the existing load to the nearest gold drop-off without
  * entering/mining, then deposit resumes the originally clicked mine. */
 TEST(wc3_movement, gold_smart_click_gold_mine_visits_mine_then_returns_and_resumes) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
     uint32_t const old_gold = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD];
 
@@ -1542,9 +1542,9 @@ TEST(wc3_movement, gold_smart_click_gold_mine_visits_mine_then_returns_and_resum
 TEST(wc3_movement, gold_three_workers_hold_while_shared_route_is_pending) {
     enum { CELLS = 64, WORKERS = 3 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT mine;
-    LPEDICT workers[WORKERS];
-    VECTOR2 origin[WORKERS];
+    edict_t * mine;
+    edict_t * workers[WORKERS];
+    vector2_t origin[WORKERS];
     slkTestData_t *rows, *old_abilities;
 
     /* make_moving_unit() resets the shared entity array for isolated tests.
@@ -1563,7 +1563,7 @@ TEST(wc3_movement, gold_three_workers_hold_while_shared_route_is_pending) {
         pathmap[32 + y * CELLS] = 0x02;
     pathmap[32 + 40 * CELLS] = 0;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -1616,11 +1616,11 @@ TEST(wc3_movement, gold_three_workers_hold_while_shared_route_is_pending) {
 TEST(wc3_movement, gold_return_prefers_direct_footprint_edge_lane) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -400.0f, 0.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -400.0f, 0.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
     pathTex_t *hall_pathtex = movement_make_goldmine_pathtex();
-    VECTOR2 const origin = worker->s.origin2;
+    vector2_t const origin = worker->s.origin2;
     float const before = 192.0f;
 
     worker->collision = 16.0f;
@@ -1643,7 +1643,7 @@ TEST(wc3_movement, gold_return_prefers_direct_footprint_edge_lane) {
             pathmap[x + y * CELLS] = 0x02;
     }
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -1664,12 +1664,12 @@ TEST(wc3_movement, gold_return_prefers_direct_footprint_edge_lane) {
 TEST(wc3_movement, gold_return_reselects_footprint_edge_after_displacement) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -400.0f, 0.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -400.0f, 0.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
     pathTex_t *hall_pathtex = movement_make_goldmine_pathtex();
-    VECTOR2 const displaced = { 640.0f, 160.0f };
-    VECTOR2 expected, expected_dir, actual_dir;
+    vector2_t const displaced = { 640.0f, 160.0f };
+    vector2_t expected, expected_dir, actual_dir;
     float step, route_band;
 
     worker->collision = 16.0f;
@@ -1690,7 +1690,7 @@ TEST(wc3_movement, gold_return_reselects_footprint_edge_after_displacement) {
             pathmap[x + y * CELLS] = 0x02;
     }
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -1712,7 +1712,7 @@ TEST(wc3_movement, gold_return_reselects_footprint_edge_after_displacement) {
     Vector2_normalize(&expected_dir);
 
     worker->currentmove->think(worker);
-    actual_dir = MAKE(VECTOR2, cosf(worker->movement.heading),
+    actual_dir = MAKE(vector2_t, cosf(worker->movement.heading),
                                sinf(worker->movement.heading));
     T_ASSERT(Vector2_dot(&expected_dir, &actual_dir) > 0.99f);
     gi.MemFree(hall_pathtex);
@@ -1725,16 +1725,16 @@ TEST(wc3_movement, gold_return_reselects_footprint_edge_after_displacement) {
 TEST(wc3_movement, gold_return_holds_while_shared_route_is_pending) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(320.0f, 0.0f);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 500.0f, 0.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), -320.0f, 0.0f);
-    VECTOR2 origin;
+    edict_t * worker = make_moving_unit(320.0f, 0.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 500.0f, 0.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), -320.0f, 0.0f);
+    vector2_t origin;
 
     FOR_LOOP(y, CELLS)
         pathmap[32 + y * CELLS] = 0x02;
     pathmap[32 + 40 * CELLS] = 0;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -1772,10 +1772,10 @@ TEST(wc3_movement, gold_return_holds_while_shared_route_is_pending) {
  * selected and a following lumber Smart order retasks that entire group. */
 TEST(wc3_movement, harvest_target_mode_right_click_cancel_prevents_stale_group_retask) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
-    LPEDICT clent = &g_edicts[0];
-    LPGAMECLIENT client = clent->client;
-    LPEDICT miner1, miner2, idle, tree;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    edict_t * clent = &g_edicts[0];
+    gameClient_t * client = clent->client;
+    edict_t * miner1, *miner2, *idle, *tree;
     char tree_number[16];
     cstring_t cancel_command[] = { "smartpoint", "256", "256" };
     cstring_t harvest_command[] = { "smart", tree_number };
@@ -1824,10 +1824,10 @@ TEST(wc3_movement, harvest_target_mode_right_click_cancel_prevents_stale_group_r
 /* Entity Smart/right-click uses the same cancel contract as ground Smart. */
 TEST(wc3_movement, harvest_target_mode_right_click_entity_cancels_without_order) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
-    LPEDICT clent = &g_edicts[0];
-    LPGAMECLIENT client = clent->client;
-    LPEDICT worker, tree;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    edict_t * clent = &g_edicts[0];
+    gameClient_t * client = clent->client;
+    edict_t * worker, *tree;
     char tree_number[16];
     cstring_t command[] = { "smart", tree_number };
 
@@ -1852,17 +1852,17 @@ TEST(wc3_movement, harvest_target_mode_right_click_entity_cancels_without_order)
     gi.unicast = old_unicast;
 }
 
-static LPEDICT make_smart_destructable(float x, float y,
+static edict_t * make_smart_destructable(float x, float y,
                                         DestructableData_t const *data,
                                         TARGTYPE targtype) {
-    LPEDICT dest = G_Spawn();
+    edict_t * dest = G_Spawn();
     dest->class_id = MAKEFOURCC('L','T','0','5');
     dest->data.DestructableData = data;
     dest->destructable.initialized = true;
     dest->destructable.placement_solid = true;
     dest->health.value = dest->health.max_value = 500.0f;
     dest->targtype = targtype;
-    dest->s.origin2 = (VECTOR2){ x, y };
+    dest->s.origin2 = (vector2_t){ x, y };
     dest->s.origin.x = x;
     dest->s.origin.y = y;
     return dest;
@@ -1870,10 +1870,10 @@ static LPEDICT make_smart_destructable(float x, float y,
 
 TEST(wc3_movement, smart_unit_target_sends_classic_relationship_indicator) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
-    LPEDICT clent = &g_edicts[0];
-    LPGAMECLIENT client = clent->client;
-    LPEDICT unit, target;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    edict_t * clent = &g_edicts[0];
+    gameClient_t * client = clent->client;
+    edict_t * unit, *target;
     char target_number[16];
     cstring_t command[] = { "smart", target_number };
 
@@ -1909,9 +1909,9 @@ TEST(wc3_movement, smart_unit_target_sends_classic_relationship_indicator) {
 
 TEST(wc3_movement, smart_without_accepted_unit_target_sends_no_indicator) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
-    LPEDICT clent = &g_edicts[0];
-    LPEDICT target;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    edict_t * clent = &g_edicts[0];
+    edict_t * target;
     char target_number[16];
     cstring_t command[] = { "smart", target_number };
 
@@ -1942,10 +1942,10 @@ TEST(wc3_movement, smart_walkable_bridge_falls_back_to_clicked_ground_point) {
         .walkable = true,
     };
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
-    LPEDICT clent = &g_edicts[0];
-    LPGAMECLIENT client = clent->client;
-    LPEDICT worker, bridge;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    edict_t * clent = &g_edicts[0];
+    gameClient_t * client = clent->client;
+    edict_t * worker, *bridge;
     char bridge_number[16];
     cstring_t command[] = { "smart", bridge_number, "192", "64" };
 
@@ -1977,10 +1977,10 @@ TEST(wc3_movement, smart_nonwalkable_destructable_does_not_fall_back_to_move) {
         .walkable = false,
     };
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
-    LPEDICT clent = &g_edicts[0];
-    LPGAMECLIENT client = clent->client;
-    LPEDICT worker, wall;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    edict_t * clent = &g_edicts[0];
+    gameClient_t * client = clent->client;
+    edict_t * worker, *wall;
     char wall_number[16];
     cstring_t command[] = { "smart", wall_number, "192", "64" };
 
@@ -2009,10 +2009,10 @@ TEST(wc3_movement, smart_attackable_wall_targets_gate) {
         .walkable = false,
     };
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
-    LPEDICT clent = &g_edicts[0];
-    LPGAMECLIENT client = clent->client;
-    LPEDICT attacker, gate;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    edict_t * clent = &g_edicts[0];
+    gameClient_t * client = clent->client;
+    edict_t * attacker, *gate;
     char gate_number[16];
     cstring_t command[] = { "smart", gate_number };
 
@@ -2043,11 +2043,11 @@ TEST(wc3_movement, shift_smart_walkable_bridge_queues_clicked_ground_point) {
         .walkable = true,
     };
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
-    LPEDICT clent = &g_edicts[0];
-    LPGAMECLIENT client = clent->client;
-    LPEDICT worker, bridge;
-    VECTOR2 first = { 64.0f, 0.0f };
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    edict_t * clent = &g_edicts[0];
+    gameClient_t * client = clent->client;
+    edict_t * worker, *bridge;
+    vector2_t first = { 64.0f, 0.0f };
     char bridge_number[16];
     cstring_t command[] = { "smart", bridge_number, "192", "64", "queue" };
 
@@ -2083,10 +2083,10 @@ TEST(wc3_movement, smart_walkable_debris_keeps_entity_attack_precedence) {
         .walkable = true,
     };
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
-    LPEDICT clent = &g_edicts[0];
-    LPGAMECLIENT client = clent->client;
-    LPEDICT unit, debris;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    edict_t * clent = &g_edicts[0];
+    gameClient_t * client = clent->client;
+    edict_t * unit, *debris;
     char debris_number[16];
     cstring_t command[] = { "smart", debris_number, "192", "64" };
 
@@ -2114,9 +2114,9 @@ TEST(wc3_movement, smart_walkable_debris_keeps_entity_attack_precedence) {
 /* Reissuing Harvest while already full remembers the requested tree but begins
  * return immediately, so no extra over-capacity chop can occur. */
 TEST(wc3_movement, lumber_full_worker_returns_before_new_chop) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(100.0f, 0.0f, 100.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 300.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(100.0f, 0.0f, 100.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 300.0f, 0.0f);
 
     hall->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
@@ -2137,18 +2137,18 @@ TEST(wc3_movement, lumber_full_worker_returns_before_new_chop) {
 TEST(wc3_movement, lumber_lethal_trip_fells_then_selects_next_tree) {
     reset_entities();
     setup_test_world();
-    LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    edict_t * worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     worker->movetype = MOVETYPE_STEP; worker->stand = unit_stand; worker->die = unit_die;
     worker->collision = 0.0f; worker->attack1.damagePoint = 0.01f;
-    LPEDICT tree1 = make_harvest_tree(20.0f, 0.0f, 10.0f);
+    edict_t * tree1 = make_harvest_tree(20.0f, 0.0f, 10.0f);
     tree1->s.model = G_RegisterModel("Doodads\\Terrain\\LordaeronTree\\LordaeronTree0.mdx");
-    LPEDICT tree2 = make_harvest_tree(30.0f, 0.0f, 500.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
+    edict_t * tree2 = make_harvest_tree(30.0f, 0.0f, 500.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
     hall->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
     HARVEST_RANGE = 64.0f; HARVEST_TREE_DAMAGE = 1.0f;
     HARVEST_LUMBER_CAPACITY = 10.0f; HARVEST_COOLDOWN = 0.01f; HARVEST_SEARCH_RANGE = 1000.0f;
-    MSGTRACE trace = {0};
+    msgTrace_t trace = {0};
     T_ASSERT(G_SubscribeMessage(trace_message, &trace));
     harvest_start(worker, tree1);
     worker->currentmove->think(worker); /* enter the first swing */
@@ -2191,14 +2191,14 @@ TEST(wc3_movement, lumber_lethal_trip_fells_then_selects_next_tree) {
 /* With no live tree left, depositing lumber ends in stand and emits no false
  * resume transition naming the felled tree. */
 TEST(wc3_movement, lumber_deposit_without_live_tree_stops) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(20.0f, 0.0f, 1.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(20.0f, 0.0f, 1.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
     worker->attack1.damagePoint = 0.01f;
     hall->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
     HARVEST_RANGE = 64.0f; HARVEST_TREE_DAMAGE = 1.0f; HARVEST_LUMBER_CAPACITY = 1.0f;
-    MSGTRACE trace = {0};
+    msgTrace_t trace = {0};
     T_ASSERT(G_SubscribeMessage(trace_message, &trace));
     harvest_start(worker, tree);
     worker->currentmove->think(worker);
@@ -2217,8 +2217,8 @@ TEST(wc3_movement, lumber_deposit_without_live_tree_stops) {
 
 /* A manual return may carry lumber without a remembered tree target. */
 TEST(wc3_movement, lumber_manual_return_without_tree_stops) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
     hall->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
     worker->harvested_lumber = 1;
@@ -2235,11 +2235,11 @@ TEST(wc3_movement, lumber_manual_return_without_tree_stops) {
 /* If the remembered tree dies while the worker is away, replacement-tree
  * selection is centered on that forest rather than the return building. */
 TEST(wc3_movement, lumber_dead_previous_tree_searches_near_old_tree) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT old_tree = make_harvest_tree(-400.0f, 0.0f, 100.0f);
-    LPEDICT forest_tree = make_harvest_tree(-450.0f, 0.0f, 100.0f);
-    LPEDICT dropoff_tree = make_harvest_tree(50.0f, 0.0f, 100.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * old_tree = make_harvest_tree(-400.0f, 0.0f, 100.0f);
+    edict_t * forest_tree = make_harvest_tree(-450.0f, 0.0f, 100.0f);
+    edict_t * dropoff_tree = make_harvest_tree(50.0f, 0.0f, 100.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
 
     hall->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
@@ -2261,9 +2261,9 @@ TEST(wc3_movement, lumber_dead_previous_tree_searches_near_old_tree) {
 /* Smart-targeting a compatible drop-off while carrying lumber honors the
  * building the player clicked instead of silently choosing another nearer one. */
 TEST(wc3_movement, lumber_smart_click_returns_to_clicked_dropoff) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 100.0f, 0.0f);
-    LPEDICT mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 500.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 100.0f, 0.0f);
+    edict_t * mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 500.0f, 0.0f);
 
     worker->data.UnitAbilities = &harvest_abilities;
     hall->s.player = mill->s.player = worker->s.player;
@@ -2281,9 +2281,9 @@ TEST(wc3_movement, lumber_smart_click_returns_to_clicked_dropoff) {
  * lumber deposit tolerance is reached. Deposit at contact plus one simulation
  * step so the worker does not get stuck against the building pathing map. */
 TEST(wc3_movement, lumber_return_deposits_at_next_step_contact) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(-400.0f, 0.0f, 100.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 220.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(-400.0f, 0.0f, 100.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 220.0f, 0.0f);
     uint32_t const old_lumber = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
 
     worker->collision = 16.0f; worker->unitinfo.MoveSpeed = 190.0f;
@@ -2320,9 +2320,9 @@ TEST(wc3_movement, lumber_return_deposits_at_next_step_contact) {
 TEST(wc3_movement, lumber_return_deposits_at_dropoff_footprint_corner) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(170.0f, 170.0f);
-    LPEDICT tree = make_harvest_tree(-400.0f, 0.0f, 100.0f);
-    LPEDICT mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 320.0f, 320.0f);
+    edict_t * worker = make_moving_unit(170.0f, 170.0f);
+    edict_t * tree = make_harvest_tree(-400.0f, 0.0f, 100.0f);
+    edict_t * mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 320.0f, 320.0f);
     pathTex_t *mill_pathtex = movement_make_goldmine_pathtex();
     uint32_t const old_lumber = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
 
@@ -2338,7 +2338,7 @@ TEST(wc3_movement, lumber_return_deposits_at_dropoff_footprint_corner) {
     gi.LinkEntity(mill);
 
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -2365,9 +2365,9 @@ TEST(wc3_movement, lumber_return_deposits_at_dropoff_footprint_corner) {
 TEST(wc3_movement, lumber_return_reaches_blocked_townhall_footprint) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT tree = make_harvest_tree(-400.0f, 0.0f, 100.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(-400.0f, 0.0f, 100.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
     uint32_t const old_lumber = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
 
     worker->collision = 16.0f;
@@ -2387,7 +2387,7 @@ TEST(wc3_movement, lumber_return_reaches_blocked_townhall_footprint) {
             pathmap[x + y * CELLS] = 0x02;
     }
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -2415,11 +2415,11 @@ TEST(wc3_movement, trained_unit_exit_skips_blocked_producer_footprint) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
     enum { FOOT_W = 16, FOOT_H = 16 };
-    size_t const pathtex_size = sizeof(pathTex_t) + FOOT_W * FOOT_H * sizeof(COLOR32);
+    size_t const pathtex_size = sizeof(pathTex_t) + FOOT_W * FOOT_H * sizeof(color32_t);
     pathTex_t *pathtex;
-    LPEDICT producer = make_moving_unit(0.0f, 0.0f);
-    LPEDICT trained = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    VECTOR2 exit;
+    edict_t * producer = make_moving_unit(0.0f, 0.0f);
+    edict_t * trained = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    vector2_t exit;
     float angle;
 
     producer->class_id = MAKEFOURCC('h','t','o','w');
@@ -2435,7 +2435,7 @@ TEST(wc3_movement, trained_unit_exit_skips_blocked_producer_footprint) {
         }
     }
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -2458,10 +2458,10 @@ TEST(wc3_movement, trained_unit_exit_skips_blocked_producer_footprint) {
 /* Dynamic unit circles are also part of legal exit placement. The first
  * deterministic candidate is occupied, so the trained unit must pick another. */
 TEST(wc3_movement, trained_unit_exit_skips_dynamic_blocker) {
-    LPEDICT producer = make_moving_unit(0.0f, 0.0f);
-    LPEDICT trained = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    LPEDICT blocker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -64.0f, -64.0f);
-    VECTOR2 exit;
+    edict_t * producer = make_moving_unit(0.0f, 0.0f);
+    edict_t * trained = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    edict_t * blocker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -64.0f, -64.0f);
+    vector2_t exit;
     float angle;
 
     producer->movetype = MOVETYPE_NONE;
@@ -2479,11 +2479,11 @@ TEST(wc3_movement, trained_unit_exit_skips_dynamic_blocker) {
  * unit_stand() clears the completed unit's build pointer, which is also the
  * queue link while that unit is waiting behind the producer. */
 TEST(wc3_movement, trained_unit_completion_preserves_remaining_queue) {
-    LPEDICT producer = make_moving_unit(0.0f, 0.0f);
-    LPEDICT first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    LPEDICT second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    edict_t * producer = make_moving_unit(0.0f, 0.0f);
+    edict_t * first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    edict_t * second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     UnitBalance_t balance = { .buildTime = 1, .foodUsed = 2, .foodMade = 4 };
-    LPGAMECLIENT client = &game.clients[0];
+    gameClient_t * client = &game.clients[0];
 
     producer->class_id = MAKEFOURCC('h','t','o','w');
     producer->movetype = MOVETYPE_NONE;
@@ -2521,12 +2521,12 @@ TEST(wc3_movement, trained_unit_completion_preserves_remaining_queue) {
 TEST(wc3_movement, trained_unit_waits_when_no_exit_position_exists) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS];
-    LPEDICT producer = make_moving_unit(0.0f, 0.0f);
-    LPEDICT trained = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    edict_t * producer = make_moving_unit(0.0f, 0.0f);
+    edict_t * trained = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
 
     memset(pathmap, 0x02, sizeof(pathmap));
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -2551,9 +2551,9 @@ TEST(wc3_movement, trained_unit_waits_when_no_exit_position_exists) {
 /* Lumber return is ability-driven and chooses the nearest compatible
  * same-owner building rather than preferring a Town Hall class. */
 TEST(wc3_movement, lumber_return_prefers_nearer_lumber_mill) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 500.0f, 0.0f);
-    LPEDICT mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 100.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 500.0f, 0.0f);
+    edict_t * mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 100.0f, 0.0f);
     hall->s.player = mill->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
     make_live_dropoff(mill, &return_lumber_abilities);
@@ -2570,9 +2570,9 @@ TEST(wc3_movement, lumber_return_prefers_nearer_lumber_mill) {
  * An unfinished War Mill must not become a lumber drop-off merely because its
  * Arlm ability is already present in unit data. */
 TEST(wc3_movement, lumber_return_skips_unfinished_lumber_mill) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('o','g','r','e'), 500.0f, 0.0f);
-    LPEDICT mill = alloc_test_unit(MAKEFOURCC('o','w','a','r'), 100.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('o','g','r','e'), 500.0f, 0.0f);
+    edict_t * mill = alloc_test_unit(MAKEFOURCC('o','w','a','r'), 100.0f, 0.0f);
     hall->s.player = mill->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
     make_live_dropoff(mill, &return_lumber_abilities);
@@ -2593,9 +2593,9 @@ TEST(wc3_movement, lumber_return_skips_unfinished_lumber_mill) {
 /* The same construction gate applies to gold.  A Town Hall whose Argl data is
  * already loaded must not receive carried gold until construction completes. */
 TEST(wc3_movement, gold_return_skips_unfinished_town_hall) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT complete_hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 500.0f, 0.0f);
-    LPEDICT unfinished_hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 100.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * complete_hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 500.0f, 0.0f);
+    edict_t * unfinished_hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 100.0f, 0.0f);
     complete_hall->s.player = unfinished_hall->s.player = worker->s.player;
     make_live_dropoff(complete_hall, &return_gold_lumber_abilities);
     make_live_dropoff(unfinished_hall, &return_gold_lumber_abilities);
@@ -2617,9 +2617,9 @@ TEST(wc3_movement, gold_return_skips_unfinished_town_hall) {
 /* If the chosen Lumber Mill dies during the trip, retain the carried lumber
  * and redirect to the nearest remaining compatible return building. */
 TEST(wc3_movement, lumber_return_retargets_after_lumber_mill_dies) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 500.0f, 0.0f);
-    LPEDICT mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 100.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 500.0f, 0.0f);
+    edict_t * mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 100.0f, 0.0f);
     hall->s.player = mill->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
     make_live_dropoff(mill, &return_lumber_abilities);
@@ -2639,9 +2639,9 @@ TEST(wc3_movement, lumber_return_retargets_after_lumber_mill_dies) {
 
 /* The complete gold loop enters, exits carrying gold, deposits it, and resumes mining. */
 TEST(wc3_movement, gold_worker_deposits_and_resumes_mining) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 0.0f, 0.0f);
     worker->collision = 16.0f; worker->unitinfo.MoveSpeed = 100.0f;
     mine->collision = 128.0f; mine->s.model = 1;
     hall->collision = 64.0f; hall->s.model = 1;
@@ -2651,7 +2651,7 @@ TEST(wc3_movement, gold_worker_deposits_and_resumes_mining) {
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
     HARVEST_GOLD_CAPACITY = 10.0f;
     uint32_t const old_gold = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD];
-    MSGTRACE trace = {0};
+    msgTrace_t trace = {0};
     T_ASSERT(G_SubscribeMessage(trace_message, &trace));
     harvest_gold_start(worker, mine);
 
@@ -2687,8 +2687,8 @@ TEST(wc3_movement, gold_worker_deposits_and_resumes_mining) {
  * survive here, and the renderer checks lumber before gold, so the Peasant
  * continued to display the lumber-carry model while actually carrying gold. */
 TEST(wc3_movement, gold_pickup_replaces_lumber_carry_state) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
 
     setup_test_goldmine(mine, &test_goldmine_cap1, 100);
@@ -2713,9 +2713,9 @@ TEST(wc3_movement, gold_pickup_replaces_lumber_carry_state) {
  * deposit tolerance is reached. The interaction must complete at contact plus
  * one simulation step, just like entering a gold mine. */
 TEST(wc3_movement, gold_return_deposits_at_next_step_contact) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -400.0f, 0.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 220.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -400.0f, 0.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 220.0f, 0.0f);
     uint32_t const old_gold = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD];
 
     worker->collision = 16.0f; worker->unitinfo.MoveSpeed = 190.0f;
@@ -2752,9 +2752,9 @@ TEST(wc3_movement, gold_return_deposits_at_next_step_contact) {
 TEST(wc3_movement, gold_return_deposits_at_townhall_footprint_corner) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT worker = make_moving_unit(170.0f, 170.0f);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -400.0f, 0.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 320.0f);
+    edict_t * worker = make_moving_unit(170.0f, 170.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -400.0f, 0.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 320.0f);
     pathTex_t *hall_pathtex = movement_make_goldmine_pathtex();
     uint32_t const old_gold = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD];
 
@@ -2773,7 +2773,7 @@ TEST(wc3_movement, gold_return_deposits_at_townhall_footprint_corner) {
     gi.LinkEntity(hall);
 
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -2803,10 +2803,10 @@ TEST(wc3_movement, gold_return_deposits_at_townhall_footprint_corner) {
 /* A lumber-only return ability is incompatible with carried gold even when it
  * is closer than a gold+lumber return building. */
 TEST(wc3_movement, gold_return_rejects_nearer_lumber_only_dropoff) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -400.0f, 0.0f);
-    LPEDICT hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 500.0f, 0.0f);
-    LPEDICT mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 100.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -400.0f, 0.0f);
+    edict_t * hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 500.0f, 0.0f);
+    edict_t * mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 100.0f, 0.0f);
     hall->s.player = mill->s.player = worker->s.player;
     make_live_dropoff(hall, &return_gold_lumber_abilities);
     make_live_dropoff(mill, &return_lumber_abilities);
@@ -2828,8 +2828,8 @@ TEST(wc3_movement, gold_return_rejects_nearer_lumber_only_dropoff) {
 
 /* Unsubscription is part of the callback lifetime contract. */
 TEST(wc3_movement, gameplay_message_unsubscribe_stops_delivery) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    MSGTRACE trace = {0};
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    msgTrace_t trace = {0};
     T_ASSERT(G_SubscribeMessage(trace_message, &trace));
     G_PublishMessage(worker, GAME_MSG_HARVEST_MOVE_GOLD, worker);
     G_UnsubscribeMessage(trace_message, &trace);
@@ -2839,8 +2839,8 @@ TEST(wc3_movement, gameplay_message_unsubscribe_stops_delivery) {
 
 /* Duplicate subscriptions are idempotent, and exhaustion is explicit. */
 TEST(wc3_movement, gameplay_message_subscription_capacity_is_bounded) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    MSGTRACE trace[MAX_MESSAGE_SUBSCRIBERS + 1] = {0};
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    msgTrace_t trace[MAX_MESSAGE_SUBSCRIBERS + 1] = {0};
     T_ASSERT(G_SubscribeMessage(trace_message, &trace[0]));
     T_ASSERT(G_SubscribeMessage(trace_message, &trace[0]));
     FOR_LOOP(i, MAX_MESSAGE_SUBSCRIBERS - 1)
@@ -2858,15 +2858,15 @@ TEST(wc3_movement, gameplay_message_subscription_capacity_is_bounded) {
  * --------------------------------------------------------------------- */
 
 TEST(wc3_movement, order_move_sets_goalentity) {
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    LPEDICT wp   = alloc_test_unit(0, 30.0f, 0.0f); /* reuse edict as waypoint */
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
+    edict_t * wp   = alloc_test_unit(0, 30.0f, 0.0f); /* reuse edict as waypoint */
     order_move(unit, wp);
     T_ASSERT(unit->goalentity == wp);
 }
 
 TEST(wc3_movement, order_move_sets_walk_animation) {
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    LPEDICT wp   = alloc_test_unit(0, 30.0f, 0.0f);
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
+    edict_t * wp   = alloc_test_unit(0, 30.0f, 0.0f);
     order_move(unit, wp);
     T_NOT_NULL(unit->currentmove);
     T_STREQ(unit->currentmove->animation, "walk");
@@ -2877,8 +2877,8 @@ TEST(wc3_movement, order_move_sets_walk_animation) {
  * --------------------------------------------------------------------- */
 
 TEST(wc3_movement, waypoint_add_sets_origin) {
-    VECTOR2 dest = {128.0f, 256.0f};
-    LPEDICT wp = Waypoint_add(&dest);
+    vector2_t dest = {128.0f, 256.0f};
+    edict_t * wp = Waypoint_add(&dest);
     T_NOT_NULL(wp);
     T_FEQ(wp->s.origin.x, 128.0f, 0.01f);
     T_FEQ(wp->s.origin.y, 256.0f, 0.01f);
@@ -2890,13 +2890,13 @@ TEST(wc3_movement, waypoint_add_sets_origin) {
 
 TEST(wc3_movement, unit_movedistance_matches_formula) {
     /* unit_movedistance = 10 * speed / FRAMETIME */
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
     float expected = 10.0f * G_UnitBalance(MAKEFOURCC('h','p','e','a'))->speed / (float)FRAMETIME;
     T_FEQ(unit_movedistance(unit), expected, 0.01f);
 }
 
 TEST(wc3_movement, unit_movedistance_uses_scripted_move_speed) {
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
     unit->unitinfo.MoveSpeed = 300.0f;
 
     float expected = 10.0f * 300.0f / (float)FRAMETIME;
@@ -2908,22 +2908,22 @@ TEST(wc3_movement, unit_movedistance_uses_scripted_move_speed) {
  * --------------------------------------------------------------------- */
 
 TEST(wc3_movement, distance_to_goal_along_x_axis) {
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    LPEDICT wp   = alloc_test_unit(0, 100.0f, 0.0f);
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
+    edict_t * wp   = alloc_test_unit(0, 100.0f, 0.0f);
     unit->goalentity = wp;
     T_FEQ(M_DistanceToGoal(unit), 100.0f, 0.01f);
 }
 
 TEST(wc3_movement, distance_to_goal_diagonal) {
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    LPEDICT wp   = alloc_test_unit(0, 30.0f, 40.0f); /* 3-4-5 right triangle → 50 */
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
+    edict_t * wp   = alloc_test_unit(0, 30.0f, 40.0f); /* 3-4-5 right triangle → 50 */
     unit->goalentity = wp;
     T_FEQ(M_DistanceToGoal(unit), 50.0f, 0.1f);
 }
 
 TEST(wc3_movement, distance_to_goal_zero_when_at_goal) {
-    LPEDICT unit = make_moving_unit(10.0f, 10.0f);
-    LPEDICT wp   = alloc_test_unit(0, 10.0f, 10.0f);
+    edict_t * unit = make_moving_unit(10.0f, 10.0f);
+    edict_t * wp   = alloc_test_unit(0, 10.0f, 10.0f);
     unit->goalentity = wp;
     T_FEQ(M_DistanceToGoal(unit), 0.0f, 0.01f);
 }
@@ -2931,16 +2931,16 @@ TEST(wc3_movement, distance_to_goal_zero_when_at_goal) {
 /* Human01 LT05 is a walkable 32x32 destructable above river terrain; ground snapping must retain its deck Z. */
 TEST(wc3_movement, ground_unit_stands_on_walkable_bridge_surface) {
     static DestructableData_t const bridge_data = { .walkable = true };
-    struct { uint16_t width, height; COLOR32 map[4]; } bridge_path = { .width = 2, .height = 2 };
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    LPEDICT bridge = G_Spawn();
+    struct { uint16_t width, height; color32_t map[4]; } bridge_path = { .width = 2, .height = 2 };
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
+    edict_t * bridge = G_Spawn();
     float const terrain = CM_GetHeightAtPoint(0.0f, 0.0f);
 
     bridge->class_id = MAKEFOURCC('L', 'T', '0', '5');
     bridge->data.DestructableData = &bridge_data;
     bridge->destructable.initialized = bridge->destructable.placement_solid = true;
     bridge->pathtex = (pathTex_t *)&bridge_path;
-    bridge->s.origin = MAKE(VECTOR3, 0.0f, 0.0f, terrain + 64.0f);
+    bridge->s.origin = MAKE(vector3_t, 0.0f, 0.0f, terrain + 64.0f);
     G_RegisterGroundSurface(bridge);
     T_ASSERT(bridge->s.flags & EF_GROUND_SURFACE);
     M_CheckGround(unit);
@@ -2954,13 +2954,13 @@ TEST(wc3_movement, ground_unit_stands_on_walkable_bridge_surface) {
 
 TEST(wc3_movement, rectangular_bridge_support_bounds_follow_quarter_turns) {
     static DestructableData_t const bridge_data = { .walkable = true };
-    struct { uint16_t width, height; COLOR32 map[15]; } bridge_path = { .width = 5, .height = 3 };
+    struct { uint16_t width, height; color32_t map[15]; } bridge_path = { .width = 5, .height = 3 };
 
     FOR_LOOP(angle, 4) {
         bool const vertical = !(angle & 1);
         float cell, width;
-        LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-        LPEDICT bridge = G_Spawn();
+        edict_t * unit = make_moving_unit(0.0f, 0.0f);
+        edict_t * bridge = G_Spawn();
 
         cell = CM_PathCellWorldSize();
         width = (vertical ? 3.0f : 5.0f) * cell;
@@ -2969,7 +2969,7 @@ TEST(wc3_movement, rectangular_bridge_support_bounds_follow_quarter_turns) {
         bridge->data.DestructableData = &bridge_data;
         bridge->destructable.initialized = bridge->destructable.placement_solid = true;
         bridge->pathtex = (pathTex_t *)&bridge_path;
-        bridge->s.origin = MAKE(VECTOR3, 0.0f, 0.0f, 100.0f);
+        bridge->s.origin = MAKE(vector3_t, 0.0f, 0.0f, 100.0f);
         bridge->targtype = TARG_BRIDGE;
         bridge->s.angle = angle * (float)M_PI / 2.0f;
         G_RegisterGroundSurface(bridge);
@@ -2986,7 +2986,7 @@ TEST(wc3_movement, rectangular_bridge_support_bounds_follow_quarter_turns) {
 
 TEST(wc3_movement, ground_surface_flag_clears_when_unregistered) {
     static DestructableData_t const bridge_data = { .walkable = true };
-    LPEDICT bridge = G_Spawn();
+    edict_t * bridge = G_Spawn();
 
     bridge->class_id = MAKEFOURCC('L', 'T', '0', '5');
     bridge->data.DestructableData = &bridge_data;
@@ -3001,14 +3001,14 @@ TEST(wc3_movement, ground_surface_flag_clears_when_unregistered) {
 }
 
 static void set_uniform_test_water_height(float height) {
-    LPWAR3MAPVERTEX vertices = (LPWAR3MAPVERTEX)world.map->vertices;
+    war3mapVertex_t * vertices = (war3mapVertex_t *)world.map->vertices;
     uint16_t const encoded = (uint16_t)(0x2000 + (height + WATER_HEIGHT_COR) * 4.0f);
     uint32_t const count = world.map->width * world.map->height;
     FOR_LOOP(i, count) vertices[i].waterlevel = encoded;
 }
 
 TEST(wc3_movement, fly_height_is_added_to_support_surface) {
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
     float const terrain = CM_GetHeightAtPoint(0.0f, 0.0f);
 
     unit->unitinfo.FlyHeight = 300.0f;
@@ -3020,7 +3020,7 @@ TEST(wc3_movement, fly_height_is_added_to_support_surface) {
 
 TEST(wc3_movement, flyer_uses_water_surface_before_fly_height) {
     static UnitData_t const fly_data = { .moveTypeName = "fly" };
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
 
     unit->data.UnitData = &fly_data;
     unit->unitinfo.FlyHeight = 300.0f;
@@ -3033,16 +3033,16 @@ TEST(wc3_movement, flyer_uses_water_surface_before_fly_height) {
 TEST(wc3_movement, float_unit_uses_water_surface_and_ignores_bridge) {
     static UnitData_t const float_data = { .moveTypeName = "float" };
     static DestructableData_t const bridge_data = { .walkable = true };
-    struct { uint16_t width, height; COLOR32 map[4]; } bridge_path = { .width = 2, .height = 2 };
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    LPEDICT bridge = G_Spawn();
+    struct { uint16_t width, height; color32_t map[4]; } bridge_path = { .width = 2, .height = 2 };
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
+    edict_t * bridge = G_Spawn();
 
     unit->data.UnitData = &float_data;
     set_uniform_test_water_height(32.0f);
     bridge->data.DestructableData = &bridge_data;
     bridge->destructable.initialized = bridge->destructable.placement_solid = true;
     bridge->pathtex = (pathTex_t *)&bridge_path;
-    bridge->s.origin = MAKE(VECTOR3, 0.0f, 0.0f, 96.0f);
+    bridge->s.origin = MAKE(vector3_t, 0.0f, 0.0f, 96.0f);
     G_RegisterGroundSurface(bridge);
     M_CheckGround(unit);
 
@@ -3052,7 +3052,7 @@ TEST(wc3_movement, float_unit_uses_water_surface_and_ignores_bridge) {
 /* WPM water stays unwalkable; only the explicitly passable bridge lane may connect its banks. */
 TEST(wc3_movement, water_is_blocked_except_at_authored_bridge_lane) {
     uint8_t pathmap[15] = { 0 };
-    VECTOR2 const from = { 0.5f, 1.5f }, target = { 4.5f, 1.5f };
+    vector2_t const from = { 0.5f, 1.5f }, target = { 4.5f, 1.5f };
 
     pathmap[2] = pathmap[12] = 2;
     setup_test_pathmap(5, 3, pathmap);
@@ -3071,10 +3071,10 @@ TEST(wc3_movement, water_is_blocked_except_at_authored_bridge_lane) {
  * ===================================================================== */
 
 TEST(wc3_movement, unit_moves_closer_to_goal_after_one_frame) {
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
     /* Place waypoint within NAVI_THRESHOLD so direct vector math is used
      * and we don't need the heatmap mock to return a meaningful direction. */
-    VECTOR2 dest = {40.0f, 0.0f};
+    vector2_t dest = {40.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
     T_NOT_NULL(unit->currentmove);
     T_NOT_NULL(unit->currentmove->think);
@@ -3087,10 +3087,10 @@ TEST(wc3_movement, unit_moves_closer_to_goal_after_one_frame) {
 }
 
 TEST(wc3_movement, unit_reaches_goal_and_transitions_to_stand) {
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
     /* Distance = 40, move_distance ≈ 27.  After two frames the unit
      * should have arrived (40 - 27 = 13 < 27) and called stand(). */
-    VECTOR2 dest = {40.0f, 0.0f};
+    vector2_t dest = {40.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
 
     /* Run up to 10 frames — should arrive well within that. */
@@ -3104,8 +3104,8 @@ TEST(wc3_movement, unit_reaches_goal_and_transitions_to_stand) {
 }
 
 TEST(wc3_movement, unit_position_changes_after_move_frame) {
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    VECTOR2 dest = {40.0f, 0.0f};
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
+    vector2_t dest = {40.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
 
     float x0 = unit->s.origin2.x;
@@ -3121,13 +3121,13 @@ TEST(wc3_movement, unit_position_changes_after_move_frame) {
 TEST(wc3_movement, move_order_detours_with_unit_collision_radius) {
     enum { CELLS = 16 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT unit = make_moving_unit(80.0f, 240.0f);
-    VECTOR2 dest = {432.0f, 240.0f};
+    edict_t * unit = make_moving_unit(80.0f, 240.0f);
+    vector2_t dest = {432.0f, 240.0f};
 
     for (int y = 3; y <= 12; y++)
         pathmap[y * CELLS + 7] = 2;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
     unit->collision = 16.0f;
     unit->unitinfo.MoveSpeed = 80.0f;
     gi.LinkEntity(unit);
@@ -3149,14 +3149,14 @@ TEST(wc3_movement, move_order_detours_with_unit_collision_radius) {
 TEST(wc3_movement, unreachable_move_settles_at_closest_boundary) {
     enum { CELLS = 16 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT unit = make_moving_unit(80.0f, 240.0f);
-    VECTOR2 const start = unit->s.origin2;
-    VECTOR2 dest = {432.0f, 240.0f};
+    edict_t * unit = make_moving_unit(80.0f, 240.0f);
+    vector2_t const start = unit->s.origin2;
+    vector2_t dest = {432.0f, 240.0f};
 
     for (int y = 0; y < CELLS; y++)
         pathmap[y * CELLS + 7] = 2;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {0.0f, 0.0f}, .max = {512.0f, 512.0f}));
     unit->collision = 16.0f;
     unit->unitinfo.MoveSpeed = 80.0f;
     gi.LinkEntity(unit);
@@ -3176,9 +3176,9 @@ TEST(wc3_movement, unreachable_move_settles_at_closest_boundary) {
 
 /* Immobile is a single movement/facing contract, not just a command-menu filter. */
 TEST(wc3_movement, immobile_unit_neither_moves_nor_rotates) {
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    LPEDICT wp = alloc_test_unit(0, 100.0f, 100.0f);
-    VECTOR2 const origin = unit->s.origin2;
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
+    edict_t * wp = alloc_test_unit(0, 100.0f, 100.0f);
+    vector2_t const origin = unit->s.origin2;
     float const angle = unit->s.angle;
     unit->aiflags |= AI_IMMOBILE;
     unit->goalentity = wp;
@@ -3192,8 +3192,8 @@ TEST(wc3_movement, immobile_unit_neither_moves_nor_rotates) {
 }
 
 TEST(wc3_movement, immobile_unit_rejects_ground_move_order) {
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    VECTOR2 dest = {100.0f, 0.0f};
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
+    vector2_t dest = {100.0f, 0.0f};
     unit->aiflags |= AI_IMMOBILE;
 
     T_ASSERT(!unit_issueorder(unit, "move", &dest));
@@ -3202,8 +3202,8 @@ TEST(wc3_movement, immobile_unit_rejects_ground_move_order) {
 }
 
 TEST(wc3_movement, unit_does_not_overshoot_goal) {
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    VECTOR2 dest = {40.0f, 0.0f};
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
+    vector2_t dest = {40.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
 
     /* Run frames until the unit stands. */
@@ -3221,13 +3221,13 @@ TEST(wc3_movement, unit_does_not_overshoot_goal) {
 
 TEST(wc3_movement, group_move_assigns_distinct_reserved_destinations) {
     reset_entities();
-    LPEDICT clent = alloc_test_unit(0, 0.0f, 0.0f);
+    edict_t * clent = alloc_test_unit(0, 0.0f, 0.0f);
     clent->client = &game.clients[0];
 
-    LPEDICT a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    LPEDICT b = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20.0f, 0.0f);
-    LPEDICT c = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 20.0f);
-    LPEDICT units[] = { a, b, c };
+    edict_t * a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    edict_t * b = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20.0f, 0.0f);
+    edict_t * c = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 20.0f);
+    edict_t * units[] = { a, b, c };
 
     FOR_LOOP(i, 3) {
         units[i]->collision = 16.0f;
@@ -3236,7 +3236,7 @@ TEST(wc3_movement, group_move_assigns_distinct_reserved_destinations) {
         unit_stand(units[i]);
     }
 
-    VECTOR2 dest = {100.0f, 100.0f};
+    vector2_t dest = {100.0f, 100.0f};
     T_ASSERT(move_selectlocation(clent, &dest));
 
     T_NOT_NULL(a->goalentity);
@@ -3252,11 +3252,11 @@ TEST(wc3_movement, group_move_assigns_distinct_reserved_destinations) {
 
 TEST(wc3_movement, group_move_ignores_selected_buildings) {
     reset_entities();
-    LPEDICT clent = alloc_test_unit(0, 0.0f, 0.0f);
+    edict_t * clent = alloc_test_unit(0, 0.0f, 0.0f);
     clent->client = &game.clients[0];
 
-    LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
-    LPEDICT peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20.0f, 0.0f);
+    edict_t * building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    edict_t * peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20.0f, 0.0f);
 
     building->collision = 64.0f;
     building->aiflags |= AI_IMMOBILE;
@@ -3269,7 +3269,7 @@ TEST(wc3_movement, group_move_ignores_selected_buildings) {
     peasant->stand = unit_stand;
     unit_stand(peasant);
 
-    VECTOR2 dest = {100.0f, 100.0f};
+    vector2_t dest = {100.0f, 100.0f};
     T_ASSERT(move_selectlocation(clent, &dest));
 
     T_NULL(building->goalentity);
@@ -3280,14 +3280,14 @@ TEST(wc3_movement, group_move_ignores_selected_buildings) {
  * together instead of stringing out (WC3 group movement). */
 TEST(wc3_movement, group_move_travels_at_slowest_member_speed) {
     reset_entities();
-    LPEDICT clent = alloc_test_unit(0, 0.0f, 0.0f);
+    edict_t * clent = alloc_test_unit(0, 0.0f, 0.0f);
     clent->client = &game.clients[0];
 
-    LPEDICT fast = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    LPEDICT slow = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20.0f, 0.0f);
+    edict_t * fast = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    edict_t * slow = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20.0f, 0.0f);
     fast->unitinfo.MoveSpeed = 300.0f;
     slow->unitinfo.MoveSpeed = 100.0f;
-    LPEDICT units[] = { fast, slow };
+    edict_t * units[] = { fast, slow };
     FOR_LOOP(i, 2) {
         units[i]->collision = 16.0f;
         units[i]->selected = 1 << clent->client->ps.number;
@@ -3295,7 +3295,7 @@ TEST(wc3_movement, group_move_travels_at_slowest_member_speed) {
         unit_stand(units[i]);
     }
 
-    VECTOR2 dest = {400.0f, 0.0f};
+    vector2_t dest = {400.0f, 0.0f};
     T_ASSERT(move_selectlocation(clent, &dest));
 
     /* Both units adopt the slowest member's speed for the group move... */
@@ -3307,9 +3307,9 @@ TEST(wc3_movement, group_move_travels_at_slowest_member_speed) {
 
 /* A lone unit keeps its own speed (no group cap). */
 TEST(wc3_movement, single_unit_move_keeps_own_speed) {
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
     unit->unitinfo.MoveSpeed = 300.0f;
-    VECTOR2 dest = {200.0f, 0.0f};
+    vector2_t dest = {200.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
 
     T_FEQ(unit->movement.group_speed, 0.0f, 0.01f);
@@ -3319,8 +3319,8 @@ TEST(wc3_movement, single_unit_move_keeps_own_speed) {
 TEST(wc3_movement, plain_move_uses_collision_sized_static_route) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    LPEDICT unit = make_moving_unit(-320.0f, 0.0f);
-    VECTOR2 dest = {320.0f, 0.0f};
+    edict_t * unit = make_moving_unit(-320.0f, 0.0f);
+    vector2_t dest = {320.0f, 0.0f};
 
     unit->collision = 16.0f; /* one 32u path-cell radius in this fixture */
     unit->unitinfo.MoveSpeed = 190.0f;
@@ -3331,7 +3331,7 @@ TEST(wc3_movement, plain_move_uses_collision_sized_static_route) {
         pathmap[32 + y * CELLS] = 0x02;
     pathmap[32 + 32 * CELLS] = 0;
     CM_SetupTestPathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2,
+    CM_SetupTestWorldBounds(&MAKE(box2_t,
         .min = {-1024.0f, -1024.0f},
         .max = { 1024.0f,  1024.0f}));
 
@@ -3347,9 +3347,9 @@ TEST(wc3_movement, plain_move_uses_collision_sized_static_route) {
 }
 
 TEST(wc3_movement, blocked_move_keeps_order_alive_away_from_goal) {
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    VECTOR2 origin = unit->s.origin2;
-    VECTOR2 dest = {400.0f, 0.0f};
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
+    vector2_t origin = unit->s.origin2;
+    vector2_t dest = {400.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
 
     /* Budget exceeds MOVE_BLOCKED_FRAMES.  A distant plain move must remain
@@ -3373,14 +3373,14 @@ TEST(wc3_movement, blocked_move_keeps_order_alive_away_from_goal) {
 }
 
 TEST(wc3_movement, near_goal_jitter_settles_to_stand) {
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    VECTOR2 dest = {100.0f, 0.0f};
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
+    vector2_t dest = {100.0f, 0.0f};
     /* Keep the fixture inside the settle band but beyond arrival tolerance for
      * both ROC and TFT, whose archive-backed Peasant move speeds differ. */
     unit->s.origin2.x = dest.x - unit_movedistance(unit) - 6.0f;
     unit->s.origin.x = unit->s.origin2.x;
     gi.LinkEntity(unit);
-    VECTOR2 jitter = unit->s.origin2;
+    vector2_t jitter = unit->s.origin2;
     unit_issueorder(unit, "move", &dest);
 
     for (int i = 0; i < 10; i++) {
@@ -3401,9 +3401,9 @@ TEST(wc3_movement, near_goal_jitter_settles_to_stand) {
 }
 
 TEST(wc3_movement, unit_stops_when_goal_is_occupied) {
-    LPEDICT unit = make_moving_unit(0.0f, 0.0f);
-    LPEDICT blocker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f);
-    VECTOR2 dest = {100.0f, 0.0f};
+    edict_t * unit = make_moving_unit(0.0f, 0.0f);
+    edict_t * blocker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f);
+    vector2_t dest = {100.0f, 0.0f};
 
     unit->collision = 16.0f;
     blocker->collision = 16.0f;
@@ -3442,8 +3442,8 @@ TEST(wc3_movement, unit_stops_when_goal_is_occupied) {
  * to go: it stops in stand state.  The RETURN_GOLD, DEPOSIT_GOLD, and
  * RESUME_GOLD messages must NOT be published. */
 TEST(wc3_movement, gold_worker_stops_when_no_townhall) {
-    LPEDICT worker = make_moving_unit(0.0f, 0.0f);
-    LPEDICT mine   = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
+    edict_t * worker = make_moving_unit(0.0f, 0.0f);
+    edict_t * mine   = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
     worker->collision = 16.0f; worker->unitinfo.MoveSpeed = 100.0f;
     mine->collision = 128.0f; mine->s.model = 1; mine->movetype = MOVETYPE_NONE;
     setup_test_goldmine(mine, &test_goldmine_cap1, 100);
@@ -3451,7 +3451,7 @@ TEST(wc3_movement, gold_worker_stops_when_no_townhall) {
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
     HARVEST_GOLD_CAPACITY = 10.0f;
 
-    MSGTRACE trace = {0};
+    msgTrace_t trace = {0};
     T_ASSERT(G_SubscribeMessage(trace_message, &trace));
     harvest_gold_start(worker, mine);
 
@@ -3479,8 +3479,8 @@ TEST(wc3_movement, gold_worker_stops_when_no_townhall) {
  * outside.  When the first worker exits, it wakes the second, which enters
  * immediately without a new walk order from the player. */
 TEST(wc3_movement, gold_mine_queues_second_worker_when_at_capacity) {
-    LPEDICT worker1 = make_moving_unit(0.0f, 0.0f);
-    LPEDICT mine    = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
+    edict_t * worker1 = make_moving_unit(0.0f, 0.0f);
+    edict_t * mine    = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
     worker1->collision = 16.0f; worker1->unitinfo.MoveSpeed = 100.0f;
     mine->collision = 128.0f; mine->s.model = 1; mine->movetype = MOVETYPE_NONE;
     setup_test_goldmine(mine, &test_goldmine_cap1, 100);
@@ -3498,7 +3498,7 @@ TEST(wc3_movement, gold_mine_queues_second_worker_when_at_capacity) {
     T_EQ((int)mine->peonsinside, 1);
 
     /* Worker2: wire and place at the mine entrance so it reaches immediately. */
-    LPEDICT worker2 = alloc_test_unit(MAKEFOURCC('h','p','e','a'),
+    edict_t * worker2 = alloc_test_unit(MAKEFOURCC('h','p','e','a'),
                                       mine->s.origin2.x - mine->collision - 16.0f,
                                       mine->s.origin2.y);
     worker2->movetype = MOVETYPE_STEP;
@@ -3534,13 +3534,13 @@ TEST(wc3_movement, gold_mine_stock_capacity_never_exceeds_one_with_six_workers) 
     reset_entities();
     setup_test_world();
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
     setup_test_goldmine(mine, &test_goldmine_stock, 12500);
     HARVEST_GOLD_CAPACITY = 10.0f;
 
     T_EQ(S_GoldMineCapacity(mine), 1);
     FOR_LOOP(i, 6) {
-        LPEDICT worker = add_gold_worker(150.0f + (float)i, 0.0f);
+        edict_t * worker = add_gold_worker(150.0f + (float)i, 0.0f);
         worker->goalentity = worker->secondarygoal = mine;
         harvestgold_minegold(worker);
         T_ASSERT(mine->peonsinside <= 1);
@@ -3565,8 +3565,8 @@ TEST(wc3_movement, gold_mines_keep_independent_custom_capacity_duration_and_gold
     reset_entities();
     setup_test_world();
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
-    LPEDICT mine1 = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
-    LPEDICT mine2 = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 500.0f, 0.0f);
+    edict_t * mine1 = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    edict_t * mine2 = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 500.0f, 0.0f);
     setup_test_goldmine(mine1, &test_goldmine_cap1, 0);
     setup_test_goldmine(mine2, &test_goldmine_cap2, 0);
     S_GoldMineInitUnit(mine1);
@@ -3579,11 +3579,11 @@ TEST(wc3_movement, gold_mines_keep_independent_custom_capacity_duration_and_gold
     T_FEQ(S_GoldMineMiningDuration(mine1), 0.01f, 0.001f);
     T_FEQ(S_GoldMineMiningDuration(mine2), 2.0f, 0.001f);
 
-    LPEDICT a = add_gold_worker(0.0f, 0.0f);
-    LPEDICT b = add_gold_worker(0.0f, 0.0f);
-    LPEDICT c = add_gold_worker(500.0f, 0.0f);
-    LPEDICT d = add_gold_worker(500.0f, 0.0f);
-    LPEDICT e = add_gold_worker(500.0f, 0.0f);
+    edict_t * a = add_gold_worker(0.0f, 0.0f);
+    edict_t * b = add_gold_worker(0.0f, 0.0f);
+    edict_t * c = add_gold_worker(500.0f, 0.0f);
+    edict_t * d = add_gold_worker(500.0f, 0.0f);
+    edict_t * e = add_gold_worker(500.0f, 0.0f);
     a->goalentity = b->goalentity = mine1;
     c->goalentity = d->goalentity = e->goalentity = mine2;
     harvestgold_minegold(a);
@@ -3609,9 +3609,9 @@ TEST(wc3_movement, gold_miner_inside_is_non_orderable_and_unregisters_once) {
     reset_entities();
     setup_test_world();
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
-    LPEDICT worker = add_gold_worker(0.0f, 0.0f);
-    VECTOR2 point = { 100.0f, 100.0f };
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    edict_t * worker = add_gold_worker(0.0f, 0.0f);
+    vector2_t point = { 100.0f, 100.0f };
     setup_test_goldmine(mine, &test_goldmine_cap1, 100);
     worker->goalentity = worker->secondarygoal = mine;
     HARVEST_GOLD_CAPACITY = 10.0f;
@@ -3638,7 +3638,7 @@ TEST(wc3_movement, gold_miner_inside_is_non_orderable_and_unregisters_once) {
     harvestgold_walkback(worker); /* cannot unregister/decrement twice */
     T_EQ(mine->peonsinside, 0);
 
-    LPEDICT removed = add_gold_worker(0.0f, 0.0f);
+    edict_t * removed = add_gold_worker(0.0f, 0.0f);
     removed->goalentity = removed->secondarygoal = mine;
     harvestgold_minegold(removed);
     T_EQ(mine->peonsinside, 1);
@@ -3655,9 +3655,9 @@ TEST(wc3_movement, gold_mine_partial_final_trip_depletes_and_rejects_waiter) {
     reset_entities();
     setup_test_world();
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
-    LPEDICT miner = add_gold_worker(0.0f, 0.0f);
-    LPEDICT waiter = add_gold_worker(0.0f, 0.0f);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    edict_t * miner = add_gold_worker(0.0f, 0.0f);
+    edict_t * waiter = add_gold_worker(0.0f, 0.0f);
     setup_test_goldmine(mine, &test_goldmine_cap1, 6);
     HARVEST_GOLD_CAPACITY = 10.0f;
     miner->goalentity = miner->secondarygoal = mine;
@@ -3686,8 +3686,8 @@ TEST(wc3_movement, gold_mine_partial_final_trip_depletes_and_rejects_waiter) {
  * directly according to Warsmash's integer worker-count interval scaling. */
 TEST(wc3_movement, haunted_mine_uses_acolyte_ring_slots_and_parent_gold) {
     slkTestData_t *rows, *old_abilities;
-    LPGAMECLIENT client;
-    LPEDICT parent, haunted, first, second;
+    gameClient_t * client;
+    edict_t * parent, *haunted, *first, *second;
 
     reset_entities();
     setup_test_world();
@@ -3727,7 +3727,7 @@ TEST(wc3_movement, haunted_mine_uses_acolyte_ring_slots_and_parent_gold) {
     blight_mine_think(haunted);
     T_EQ(count_haunted_ring_effects(haunted), 5);
     FOR_LOOP(slot, 5) {
-        LPEDICT effect = haunted_ring_effect_slot(haunted, slot);
+        edict_t * effect = haunted_ring_effect_slot(haunted, slot);
         float const angle = (float)(M_PI / 2.0 + (M_PI * 2.0 / 5.0) * slot);
         T_NOT_NULL(effect);
         T_FEQ(effect->s.angle, angle, 0.001f);
@@ -3760,7 +3760,7 @@ TEST(wc3_movement, haunted_mine_uses_acolyte_ring_slots_and_parent_gold) {
 /* Map-loaded overlays must bind to the neutral mine at the same authored location. */
 TEST(wc3_movement, preplaced_haunted_mine_binds_to_neutral_parent) {
     slkTestData_t *rows, *old_abilities;
-    LPEDICT parent, haunted;
+    edict_t * parent, *haunted;
 
     reset_entities();
     setup_test_world();
@@ -3786,8 +3786,8 @@ TEST(wc3_movement, preplaced_haunted_mine_binds_to_neutral_parent) {
 /* Script-created Haunted Mines must return a live bound overlay and preserve parent gold. */
 TEST(wc3_movement, scripted_haunted_mine_creation_binds_parent) {
     slkTestData_t *rows, *old_abilities;
-    LPEDICT parent, haunted;
-    VECTOR2 point = { 256.0f, 256.0f };
+    edict_t * parent, *haunted;
+    vector2_t point = { 256.0f, 256.0f };
 
     reset_entities();
     setup_test_world();
@@ -3810,11 +3810,11 @@ TEST(wc3_movement, scripted_haunted_mine_creation_binds_parent) {
 
 /* Restoration spawns must initialize gameplay data without replaying Birth presentation. */
 TEST(wc3_movement, no_birth_spawn_skips_birth_callback) {
-    LPEDICT unit;
+    edict_t * unit;
 
     reset_entities();
     setup_test_world();
-    unit = SP_SpawnAtLocationNoBirth(MAKEFOURCC('u','g','o','l'), 0, &MAKE(VECTOR2, 0, 0));
+    unit = SP_SpawnAtLocationNoBirth(MAKEFOURCC('u','g','o','l'), 0, &MAKE(vector2_t, 0, 0));
     T_NOT_NULL(unit);
     T_ASSERT(unit->birth != NULL);
     T_ASSERT(unit->currentmove == NULL || strcmp(unit->currentmove->animation, "birth"));
@@ -3825,8 +3825,8 @@ TEST(wc3_movement, no_birth_spawn_skips_birth_callback) {
  * kills the overlay, unloads Wisps, and restores the original mine. */
 TEST(wc3_movement, entangled_mine_round_robin_income_depletes_parent_and_unloads_wisps) {
     slkTestData_t *rows, *old_abilities;
-    LPGAMECLIENT client;
-    LPEDICT parent, mine, first, second;
+    gameClient_t * client;
+    edict_t * parent, *mine, *first, *second;
 
     reset_entities();
     setup_test_world();
@@ -3879,7 +3879,7 @@ TEST(wc3_movement, entangled_mine_round_robin_income_depletes_parent_and_unloads
 /* Depletion must retire an Entangled Mine even when every Wisp has already left it. */
 TEST(wc3_movement, empty_entangled_mine_dies_when_parent_is_depleted) {
     slkTestData_t *rows, *old_abilities;
-    LPEDICT parent, mine;
+    edict_t * parent, *mine;
 
     reset_entities();
     setup_test_world();
@@ -3914,14 +3914,14 @@ static char const cargo_unload_test_data[] =
     "E\n";
 
 /* Give cargo scenarios the same lifecycle callbacks as spawned units. */
-static LPEDICT cargo_unload_transport(void) {
+static edict_t * cargo_unload_transport(void) {
     static UnitAbilities_t const abilities = { .abilList = "Acar,Adro,Adri" };
-    LPEDICT transport = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256, 256);
+    edict_t * transport = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256, 256);
     transport->data.UnitAbilities = &abilities;
     transport->think = monster_think; transport->stand = unit_stand; transport->die = unit_die;
     unit_stand(transport);
     FOR_LOOP(i, 3) {
-        LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256, 256);
+        edict_t * unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256, 256);
         T_ASSERT(S_CargoTryLoad(transport, unit));
     }
     return transport;
@@ -3932,11 +3932,11 @@ TEST(wc3_movement, unload_all_stop_and_move_cancel_remaining_passengers) {
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
     setup_test_world();
     FOR_LOOP(i, 2) {
-        LPEDICT transport = cargo_unload_transport();
+        edict_t * transport = cargo_unload_transport();
         level.time = 1000;
         T_ASSERT(S_CargoBeginUnloadAll(transport));
         T_EQ(transport->cargo.count, 2);
-        if (i) order_move(transport, Waypoint_add(&MAKE(VECTOR2, 512, 512)));
+        if (i) order_move(transport, Waypoint_add(&MAKE(vector2_t, 512, 512)));
         else order_stop(transport);
         level.time += 1000; G_RunEntities();
         T_EQ(transport->cargo.count, 2);
@@ -3950,7 +3950,7 @@ TEST(wc3_movement, unload_all_pause_and_stun_suspend_passengers) {
     slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
     setup_test_world();
-    LPEDICT transport = cargo_unload_transport();
+    edict_t * transport = cargo_unload_transport();
     level.time = 1000;
     T_ASSERT(S_CargoBeginUnloadAll(transport));
     transport->paused = true;
@@ -3967,14 +3967,14 @@ TEST(wc3_movement, unload_all_pause_and_stun_suspend_passengers) {
 
 TEST(wc3_movement, unload_all_command_and_instant_dispatch) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
+    void (*old_unicast)(edict_t *) = gi.unicast;
     gi.Write = movement_noop_write; gi.unicast = movement_noop_unicast;
     slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
     cstring_t drop[] = { "button", "Adro" }, instant[] = { "button", "Adri" };
-    LPEDICT clent = &g_edicts[0];
+    edict_t * clent = &g_edicts[0];
     setup_test_world();
-    LPEDICT transport = cargo_unload_transport();
+    edict_t * transport = cargo_unload_transport();
     transport->svflags |= SVF_MONSTER;
     G_SelectEntity(clent->client, transport);
     level.time = 1000;
@@ -3987,7 +3987,7 @@ TEST(wc3_movement, unload_all_command_and_instant_dispatch) {
     T_EQ(transport->cargo.count, 2);
     G_ClientCommand(clent, 2, instant);
     T_EQ(transport->cargo.count, 0);
-    LPEDICT passenger = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256, 256);
+    edict_t * passenger = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256, 256);
     T_ASSERT(S_CargoTryLoad(transport, passenger));
     level.time += 1000; G_RunEntities();
     T_EQ(transport->cargo.count, 1); /* Instant cancels the old timed unload. */
@@ -4000,13 +4000,13 @@ TEST(wc3_movement, unload_all_round_trip_resumes_remaining_cargo) {
     slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
     setup_test_world();
-    LPEDICT transport = cargo_unload_transport();
+    edict_t * transport = cargo_unload_transport();
     /* Runtime abilities survive data-pointer rebinding during ReadGame. */
     transport->abilities.added[0] = MAKEFOURCC('A','c','a','r');
     ARRAY_COUNT(transport->abilities.added) = 1;
     level.time = 1000;
     T_ASSERT(S_CargoBeginUnloadAll(transport));
-    LPEDICT second = transport->cargo.units[0], third = transport->cargo.units[1];
+    edict_t * second = transport->cargo.units[0], *third = transport->cargo.units[1];
     level.time += 100;
     T_ASSERT(WriteGame(filename));
     order_stop(transport); cargo_drop_all(transport);
@@ -4029,7 +4029,7 @@ TEST(wc3_movement, unload_all_zero_duration_roc_hold_and_single_slot) {
         "C;Y2;X1;K\"Acar\"\nC;X2;K8\nC;X3;K0\nE\n");
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
     setup_test_world();
-    LPEDICT transport = cargo_unload_transport();
+    edict_t * transport = cargo_unload_transport();
     T_ASSERT(S_CargoUnloadAt(transport, 1));
     level.time = 1000; G_RunEntities();
     T_EQ(transport->cargo.count, 2); /* A cargo-slot click only ejects that passenger. */
@@ -4045,10 +4045,10 @@ TEST(wc3_movement, unload_all_transport_death_ejects_remaining_cargo) {
     slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
     setup_test_world();
-    LPEDICT transport = cargo_unload_transport();
+    edict_t * transport = cargo_unload_transport();
     level.time = 1000;
     T_ASSERT(S_CargoBeginUnloadAll(transport));
-    LPEDICT passenger = transport->cargo.units[0];
+    edict_t * passenger = transport->cargo.units[0];
     transport->health.value = 0; unit_die(transport, NULL);
     T_EQ(transport->cargo.count, 0);
     T_ASSERT(!passenger->paused && !(passenger->s.renderfx & RF_HIDDEN));
@@ -4061,7 +4061,7 @@ TEST(wc3_movement, unload_all_repeats_one_passenger_per_cargo_duration) {
     static UnitAbilities_t const transport_abilities = { .abilList = "Acar" };
     slkTestData_t *rows = parse_slk_string(cargo_unload_test_data);
     slkTestData_t *old_abilities;
-    LPEDICT transport, first, second, third;
+    edict_t * transport, *first, *second, *third;
 
     reset_entities();
     setup_test_world();
@@ -4122,8 +4122,8 @@ TEST(wc3_movement, occupied_burrow_exposes_attack_stop_and_stand_down_only_with_
         .id = MAKEFOURCC('o','b','u','r'),
         .speed = 0,
     };
-    LPEDICT burrow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 256.0f);
-    LPEDICT peon = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
+    edict_t * burrow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 256.0f);
+    edict_t * peon = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
     gameCommandButton_t buttons[16];
     uint8_t count;
     bool attack, stop, stand_down;
@@ -4162,9 +4162,9 @@ TEST(wc3_movement, stand_down_stops_attack_before_unloading_burrow) {
         .id = MAKEFOURCC('o','b','u','r'),
         .abilList = "Abun",
     };
-    LPEDICT burrow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 256.0f);
-    LPEDICT peon = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
-    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 320.0f, 256.0f);
+    edict_t * burrow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 256.0f);
+    edict_t * peon = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
+    edict_t * target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 320.0f, 256.0f);
 
     burrow->data.UnitAbilities = &burrow_abilities;
     burrow->stand = unit_stand;
@@ -4193,7 +4193,7 @@ TEST(wc3_movement, stand_down_stops_attack_before_unloading_burrow) {
 }
 
 TEST(wc3_movement, removing_loaded_unit_releases_transport_slot) {
-    LPEDICT transport, passenger;
+    edict_t * transport, *passenger;
 
     reset_entities();
     setup_test_world();
@@ -4211,9 +4211,9 @@ TEST(wc3_movement, removing_loaded_unit_releases_transport_slot) {
 }
 
 TEST(wc3_movement, cargo_unload_at_releases_requested_occupant_and_keeps_remaining_order) {
-    LPEDICT burrow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 256.0f);
-    LPEDICT first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
-    LPEDICT second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 320.0f, 256.0f);
+    edict_t * burrow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 256.0f);
+    edict_t * first = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
+    edict_t * second = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 320.0f, 256.0f);
 
     first->s.renderfx |= RF_HIDDEN; first->paused = true;
     second->s.renderfx |= RF_HIDDEN; second->paused = true;

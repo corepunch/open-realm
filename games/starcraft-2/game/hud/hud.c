@@ -225,7 +225,7 @@ static uint32_t assign_number(uint32_t index) {
 /* ------------------------------------------------------------------ */
 /* Anchor → uiFramePoint_t conversion */
 
-static void copy_points(uiFrame_t *out, LPCSC2BASEFRAME frame) {
+static void copy_points(uiFrame_t *out, sc2BaseFrame_t const * frame) {
     for (int i = 0; i < FPP_COUNT; i++) {
         /* X axis */
         sc2BaseFramePoint_t const *px = &frame->points.x[i];
@@ -252,7 +252,7 @@ static void copy_points(uiFrame_t *out, LPCSC2BASEFRAME frame) {
 
 /* ------------------------------------------------------------------ */
 
-bool SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
+bool SC2_HUD_BuildFrameForWrite(sc2BaseFrame_t const * frame, uiFrame_t *out) {
     if (!frame || !out) return false;
 
     memset(out, 0, sizeof(*out));
@@ -291,14 +291,14 @@ bool SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
     return true;
 }
 
-void SC2_HUD_WriteFrame(LPCSC2BASEFRAME frame) {
+void SC2_HUD_WriteFrame(sc2BaseFrame_t const * frame) {
     uiFrame_t tmp;
     if (!SC2_HUD_BuildFrameForWrite(frame, &tmp)) return;
     gi.Write(PF_UIFRAME, &tmp);
 }
 
-void SC2_HUD_WriteFrameWithChildren(LPCSC2BASEFRAME frames, uint32_t count,
-                                    LPCSC2BASEFRAME frame) {
+void SC2_HUD_WriteFrameWithChildren(sc2BaseFrame_t const * frames, uint32_t count,
+                                    sc2BaseFrame_t const * frame) {
     if (!frame || (frame->ui_flags & SC2_UIFLAG_HIDDEN)) return;
     SC2_HUD_WriteFrame(frame);
     for (uint32_t i = 0; i < count; i++) {
@@ -311,10 +311,10 @@ void SC2_HUD_WriteFrameWithChildren(LPCSC2BASEFRAME frames, uint32_t count,
 /* Walk the parent chain of 'frame' to the root and write each ancestor
  * once (root first), so every parent has a smaller wire number than its
  * children.  Already-assigned frames are silently skipped by assign_number. */
-void SC2_HUD_WriteAncestors(LPCSC2BASEFRAME frames, uint32_t count,
-                             LPCSC2BASEFRAME frame) {
+void SC2_HUD_WriteAncestors(sc2BaseFrame_t const * frames, uint32_t count,
+                             sc2BaseFrame_t const * frame) {
     if (!frame || frame->parent_index == (uint32_t)-1) return;
-    LPCSC2BASEFRAME parent = &frames[frame->parent_index];
+    sc2BaseFrame_t const * parent = &frames[frame->parent_index];
     SC2_HUD_WriteAncestors(frames, count, parent);
     if (!(parent->ui_flags & SC2_UIFLAG_HIDDEN))
         SC2_HUD_WriteFrame(parent);
@@ -367,14 +367,14 @@ void SC2_HUD_WriteStart(uint32_t layer) {
     gi.Write(PF_BYTE, &(int32_t){ layer });
 }
 
-void SC2_HUD_WriteEnd(LPEDICT ent) {
+void SC2_HUD_WriteEnd(edict_t * ent) {
     gi.Write(PF_LONG,  &(int32_t){ 0 });  /* bits=0  — frame terminator */
     gi.Write(PF_SHORT, &(int32_t){ 0 });  /* number=0 */
     if (ent) gi.unicast(ent);
 }
 
-void SC2_HUD_WriteLayout(LPEDICT ent, LPCSC2BASEFRAME frames, uint32_t count,
-                         LPCSC2BASEFRAME root, uint32_t layer) {
+void SC2_HUD_WriteLayout(edict_t * ent, sc2BaseFrame_t const * frames, uint32_t count,
+                         sc2BaseFrame_t const * root, uint32_t layer) {
     SC2_HUD_WriteStart(layer);   /* resets num_frames_written to 0 */
     SC2_HUD_WriteFrameWithChildren(frames, count, root);
     SC2_HUD_WriteEnd(ent);

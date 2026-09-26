@@ -135,33 +135,33 @@ netField_t uiFrameFields[] = {
 
 /* Player-state deltas use a 32-bit mask; map metadata moved to configstrings, leaving room for generic camera fields. */
 netField_t playerStateFields[] = {
-    { NETF(PLAYER, viewangles), NFT_VECTOR3_FLOAT },
-    { NETF(PLAYER, vieworigin), NFT_VECTOR3_FLOAT },
-    { NETF(PLAYER, fov), NFT_FLOAT },
+    { NETF(player_t, viewangles), NFT_VECTOR3_FLOAT },
+    { NETF(player_t, vieworigin), NFT_VECTOR3_FLOAT },
+    { NETF(player_t, fov), NFT_FLOAT },
     /* distance, znear, zfar are consecutive FLOATs packed as one VECTOR3 field. */
-    { NETF(PLAYER, distance), NFT_VECTOR3_FLOAT },
-    { NETF(PLAYER, rdflags), NFT_LONG },
-    { NETF(PLAYER, uiflags), NFT_LONG },
-    { NETF(PLAYER, client_ui_state), NFT_LONG },
+    { NETF(player_t, distance), NFT_VECTOR3_FLOAT },
+    { NETF(player_t, rdflags), NFT_LONG },
+    { NETF(player_t, uiflags), NFT_LONG },
+    { NETF(player_t, client_ui_state), NFT_LONG },
     /* cinematic_portrait, team, color, race are consecutive BYTEs; one int32_t keeps the 32-bit mask. */
-    { NETF(PLAYER, cinematic_portrait), NFT_LONG },
-    { NETF(PLAYER, name), NFT_DUPTEXT },
-    { NETF(PLAYER, start_location), NFT_LONG },
-    { NETF(PLAYER, cinefade), NFT_FLOAT },
-    { NETF(PLAYER, stats[0]), NFT_LONG },
-    { NETF(PLAYER, stats[2]), NFT_LONG },
-    { NETF(PLAYER, stats[4]), NFT_LONG },
-    { NETF(PLAYER, stats[6]), NFT_LONG },
-    { NETF(PLAYER, stats[8]), NFT_LONG },
-    { NETF(PLAYER, stats[16]), NFT_LONG },
+    { NETF(player_t, cinematic_portrait), NFT_LONG },
+    { NETF(player_t, name), NFT_DUPTEXT },
+    { NETF(player_t, start_location), NFT_LONG },
+    { NETF(player_t, cinefade), NFT_FLOAT },
+    { NETF(player_t, stats[0]), NFT_LONG },
+    { NETF(player_t, stats[2]), NFT_LONG },
+    { NETF(player_t, stats[4]), NFT_LONG },
+    { NETF(player_t, stats[6]), NFT_LONG },
+    { NETF(player_t, stats[8]), NFT_LONG },
+    { NETF(player_t, stats[16]), NFT_LONG },
     /* stats[18..22] are generic live-selection HUD bindings; stats[23] is a
      * generic environment-presentation variant paired with the final slot. */
-    { NETF(PLAYER, stats[18]), NFT_LONG },
-    { NETF(PLAYER, stats[20]), NFT_LONG },
-    { NETF(PLAYER, stats[22]), NFT_LONG },
-    { NETF(PLAYER, stats[23]), NFT_LONG },
-    { NETF(PLAYER, texts[0]), NFT_DUPTEXT },
-    { NETF(PLAYER, texts[1]), NFT_DUPTEXT },
+    { NETF(player_t, stats[18]), NFT_LONG },
+    { NETF(player_t, stats[20]), NFT_LONG },
+    { NETF(player_t, stats[22]), NFT_LONG },
+    { NETF(player_t, stats[23]), NFT_LONG },
+    { NETF(player_t, texts[0]), NFT_DUPTEXT },
+    { NETF(player_t, texts[1]), NFT_DUPTEXT },
     /* Map metadata moved to the WoW map-info configstring; only cinematic text remains in player state. */
     { NULL }
 };
@@ -170,7 +170,7 @@ _Static_assert(MSG_FIELD_COUNT(playerStateFields) <= 32, "player-state delta mas
 _Static_assert(MSG_FIELD_COUNT(entityStateFields) <= 32, "entity-state delta mask is 32 bits");
 _Static_assert(MSG_FIELD_COUNT(uiFrameFields) <= 32, "ui-frame delta mask is 32 bits");
 
-void MSG_Write(LPSIZEBUF buf, void const * value, uint32_t size) {
+void MSG_Write(sizeBuf_t * buf, void const * value, uint32_t size) {
     if (buf->cursize + size > buf->maxsize) {
         fprintf(stderr,
                 "Write buffer overflow (msg): size=%u cursize=%u maxsize=%u\n",
@@ -184,65 +184,65 @@ void MSG_Write(LPSIZEBUF buf, void const * value, uint32_t size) {
     buf->cursize += size;
 }
 
-void MSG_WriteByte(LPSIZEBUF buf, int value) {
+void MSG_WriteByte(sizeBuf_t * buf, int value) {
     uint8_t val = (uint8_t)value;
     MSG_Write(buf, &val, 1);
 }
 
-void MSG_WriteShort(LPSIZEBUF buf, int value) {
+void MSG_WriteShort(sizeBuf_t * buf, int value) {
     short val = value;
     MSG_Write(buf, &val, 2);
 }
 
-void MSG_WriteLong(LPSIZEBUF buf, int value) {
+void MSG_WriteLong(sizeBuf_t * buf, int value) {
     MSG_Write(buf, &value, 4);
 }
 
-void MSG_WriteFloat(LPSIZEBUF buf, float value) {
+void MSG_WriteFloat(sizeBuf_t * buf, float value) {
     MSG_Write(buf, &value, 4);
 }
 
-void MSG_WriteFloat2(LPSIZEBUF buf, float value) {
+void MSG_WriteFloat2(sizeBuf_t * buf, float value) {
     MSG_WriteShort(buf, value * 0xffff);
 }
 
-void MSG_WriteString(LPSIZEBUF buf, cstring_t value) {
+void MSG_WriteString(sizeBuf_t * buf, cstring_t value) {
     MSG_Write(buf, value, (int)strlen(value) + 1);
 }
 
-void MSG_WritePos(LPSIZEBUF buf, LPCVECTOR3 pos) {
+void MSG_WritePos(sizeBuf_t * buf, vector3_t const * pos) {
     MSG_WriteShort(buf, pos->x);
     MSG_WriteShort(buf, pos->y);
     MSG_WriteShort(buf, pos->z);
 }
 
-void MSG_ReadPos(LPSIZEBUF buf, LPVECTOR3 pos) {
+void MSG_ReadPos(sizeBuf_t * buf, vector3_t * pos) {
     pos->x = MSG_ReadShort(buf);
     pos->y = MSG_ReadShort(buf);
     pos->z = MSG_ReadShort(buf);
 }
 
-void MSG_WriteDir(LPSIZEBUF buf, LPCVECTOR3 dir) {
+void MSG_WriteDir(sizeBuf_t * buf, vector3_t const * dir) {
     MSG_WriteFloat(buf, dir->x);
     MSG_WriteFloat(buf, dir->y);
     MSG_WriteFloat(buf, dir->z);
 }
 
-void MSG_ReadDir(LPSIZEBUF buf, LPVECTOR3 dir) {
+void MSG_ReadDir(sizeBuf_t * buf, vector3_t * dir) {
     dir->x = MSG_ReadFloat(buf);
     dir->y = MSG_ReadFloat(buf);
     dir->z = MSG_ReadFloat(buf);
 }
 
-void MSG_WriteAngle(LPSIZEBUF buf, float f) {
+void MSG_WriteAngle(sizeBuf_t * buf, float f) {
     MSG_WriteByte(buf, (int)(f*256/(2*M_PI))&0xff);
 }
 
-float MSG_ReadAngle(LPSIZEBUF buf) {
+float MSG_ReadAngle(sizeBuf_t * buf) {
     return MSG_ReadByte(buf)*(2*M_PI)/256;
 }
 
-int MSG_Read(LPSIZEBUF buf, handle_t value, uint32_t size) {
+int MSG_Read(sizeBuf_t * buf, handle_t value, uint32_t size) {
     if (buf->readcount + size > buf->cursize) {
         return 0;
     }
@@ -251,31 +251,31 @@ int MSG_Read(LPSIZEBUF buf, handle_t value, uint32_t size) {
     return size;
 }
 
-int MSG_ReadByte(LPSIZEBUF buf) {
+int MSG_ReadByte(sizeBuf_t * buf) {
     uint8_t value = 0;
     MSG_Read(buf, &value, 1);
     return value;
 }
 
-int MSG_ReadShort(LPSIZEBUF buf) {
+int MSG_ReadShort(sizeBuf_t * buf) {
     short value = 0;
     MSG_Read(buf, &value, 2);
     return value;
 }
 
-int MSG_ReadLong(LPSIZEBUF buf) {
+int MSG_ReadLong(sizeBuf_t * buf) {
     int value = 0;
     MSG_Read(buf, &value, 4);
     return value;
 }
 
-float MSG_ReadFloat(LPSIZEBUF buf) {
+float MSG_ReadFloat(sizeBuf_t * buf) {
     float value = 0;
     MSG_Read(buf, &value, 4);
     return value;
 }
 
-void MSG_ReadString(LPSIZEBUF buf, string_t value) {
+void MSG_ReadString(sizeBuf_t * buf, string_t value) {
     for (int c = MSG_ReadByte(buf), i = 0;; c = MSG_ReadByte(buf), i++) {
         value[i] = c;
         if (c == 0)
@@ -283,7 +283,7 @@ void MSG_ReadString(LPSIZEBUF buf, string_t value) {
     }
 }
 
-void MSG_ReadStringN(LPSIZEBUF buf, string_t value, int maxlen) {
+void MSG_ReadStringN(sizeBuf_t * buf, string_t value, int maxlen) {
     int i = 0;
     for (;;) {
         int c = MSG_ReadByte(buf);
@@ -295,7 +295,7 @@ void MSG_ReadStringN(LPSIZEBUF buf, string_t value, int maxlen) {
     value[i] = '\0';
 }
 
-cstring_t MSG_ReadString2(LPSIZEBUF buf) {
+cstring_t MSG_ReadString2(sizeBuf_t * buf) {
     static char buffer[2048];
     MSG_ReadString(buf, buffer);
     return buffer;
@@ -309,17 +309,17 @@ static uint32_t MSG_GetBits(void const *from, void const *to, netField_t *fields
         int *toF = (int *)((uint8_t *)to + field->offset);
         switch (field->type) {
             case NFT_VECTOR2:
-                if (memcmp(fromF, toF, sizeof(VECTOR2))!=0) bits |= MSG_FIELDBIT(field, fields);
+                if (memcmp(fromF, toF, sizeof(vector2_t))!=0) bits |= MSG_FIELDBIT(field, fields);
                 break;
             case NFT_BOX2:
-                if (memcmp(fromF, toF, sizeof(BOX2))!=0) bits |= MSG_FIELDBIT(field, fields);
+                if (memcmp(fromF, toF, sizeof(box2_t))!=0) bits |= MSG_FIELDBIT(field, fields);
                 break;
             case NFT_VECTOR3:
             case NFT_VECTOR3_FLOAT:
-                if (memcmp(fromF, toF, sizeof(VECTOR3))!=0) bits |= MSG_FIELDBIT(field, fields);
+                if (memcmp(fromF, toF, sizeof(vector3_t))!=0) bits |= MSG_FIELDBIT(field, fields);
                 break;
             case NFT_QUATERNION:
-                if (memcmp(fromF, toF, sizeof(QUATERNION))!=0) bits |= MSG_FIELDBIT(field, fields);
+                if (memcmp(fromF, toF, sizeof(quaternion_t))!=0) bits |= MSG_FIELDBIT(field, fields);
                 break;
             case NFT_BYTE:
                 if (*(uint8_t *)fromF != *(uint8_t *)toF) bits |= MSG_FIELDBIT(field, fields);
@@ -340,7 +340,7 @@ static uint32_t MSG_GetBits(void const *from, void const *to, netField_t *fields
     return bits;
 }
 
-static void MSG_WriteFields(LPSIZEBUF msg,
+static void MSG_WriteFields(sizeBuf_t * msg,
                             void const *to,
                             netField_t *fields,
                             uint32_t bits,
@@ -375,7 +375,7 @@ static void MSG_WriteFields(LPSIZEBUF msg,
     }
 }
 
-static void MSG_ReadFields(LPSIZEBUF msg,
+static void MSG_ReadFields(sizeBuf_t * msg,
                            void const *edict,
                            netField_t *fields,
                            uint32_t bits,
@@ -419,9 +419,9 @@ static void MSG_ReadFields(LPSIZEBUF msg,
     }
 }
 
-void MSG_WriteDeltaEntity(LPSIZEBUF msg,
-                          LPCENTITYSTATE from,
-                          LPCENTITYSTATE to,
+void MSG_WriteDeltaEntity(sizeBuf_t * msg,
+                          entityState_t const * from,
+                          entityState_t const * to,
                           bool force)
 {
     /* Unchanged snapshots dominate static scenes; the old path walked every wire field before discovering no delta. */
@@ -434,8 +434,8 @@ void MSG_WriteDeltaEntity(LPSIZEBUF msg,
     MSG_WriteFields(msg, to, entityStateFields, bits, false);
 }
 
-void MSG_ReadDeltaEntity(LPSIZEBUF msg,
-                         LPENTITYSTATE edict,
+void MSG_ReadDeltaEntity(sizeBuf_t * msg,
+                         entityState_t * edict,
                          int number,
                          int bits)
 {
@@ -443,9 +443,9 @@ void MSG_ReadDeltaEntity(LPSIZEBUF msg,
     MSG_ReadFields(msg, edict, entityStateFields, bits, false);
 }
 
-void MSG_WriteDeltaUIFrame(LPSIZEBUF msg,
-                           LPCUIFRAME from,
-                           LPCUIFRAME to,
+void MSG_WriteDeltaUIFrame(sizeBuf_t * msg,
+                           uiFrame_t const * from,
+                           uiFrame_t const * to,
                            bool force)
 {
     uint32_t bits = MSG_GetBits(from, to, uiFrameFields, false);
@@ -455,8 +455,8 @@ void MSG_WriteDeltaUIFrame(LPSIZEBUF msg,
     MSG_WriteFields(msg, to, uiFrameFields, bits, false);
 }
 
-void MSG_ReadDeltaUIFrame(LPSIZEBUF msg,
-                          LPUIFRAME edict,
+void MSG_ReadDeltaUIFrame(sizeBuf_t * msg,
+                          uiFrame_t * edict,
                           int number,
                           int bits)
 {
@@ -465,14 +465,14 @@ void MSG_ReadDeltaUIFrame(LPSIZEBUF msg,
 }
 
 /* Window frame strings are uint32_t offsets into the packet's trailing text arena. */
-void MSG_WriteDeltaUIWindowFrame(LPSIZEBUF msg, LPCUIFRAME from, LPCUIFRAME to, bool force) {
+void MSG_WriteDeltaUIWindowFrame(sizeBuf_t * msg, uiFrame_t const * from, uiFrame_t const * to, bool force) {
     uint32_t bits = MSG_GetBits(from, to, uiFrameFields, true);
     if (!bits && !force) return;
     MSG_WriteEntityBits(msg, (uint32_t)bits, to->number);
     MSG_WriteFields(msg, to, uiFrameFields, bits, true);
 }
 
-bool MSG_ReadDeltaUIWindowFrame(LPSIZEBUF msg, LPUIFRAME edict, int number, int bits) {
+bool MSG_ReadDeltaUIWindowFrame(sizeBuf_t * msg, uiFrame_t * edict, int number, int bits) {
     uint32_t size = 0, known = 0;
 
     for (netField_t *field = uiFrameFields; field->name; field++) {
@@ -497,17 +497,17 @@ bool MSG_ReadDeltaUIWindowFrame(LPSIZEBUF msg, LPUIFRAME edict, int number, int 
     return true;
 }
 
-void MSG_WriteDeltaPlayerState(LPSIZEBUF msg,
-                               LPCPLAYER from,
-                               LPCPLAYER to)
+void MSG_WriteDeltaPlayerState(sizeBuf_t * msg,
+                               player_t const * from,
+                               player_t const * to)
 {
     uint32_t bits = MSG_GetBits(from, to, playerStateFields, false);
     MSG_WritePlayerBits(msg, bits, to->number);
     MSG_WriteFields(msg, to, playerStateFields, bits, false);
 }
 
-void MSG_ReadDeltaPlayerState(LPSIZEBUF msg,
-                              LPPLAYER edict,
+void MSG_ReadDeltaPlayerState(sizeBuf_t * msg,
+                              player_t * edict,
                               int number,
                               int bits)
 {
@@ -515,7 +515,7 @@ void MSG_ReadDeltaPlayerState(LPSIZEBUF msg,
     MSG_ReadFields(msg, edict, playerStateFields, bits, false);
 }
 
-void SZ_Printf(LPSIZEBUF msg, cstring_t fmt, ...) {
+void SZ_Printf(sizeBuf_t * msg, cstring_t fmt, ...) {
     va_list argptr;
     int written;
 
@@ -539,28 +539,28 @@ void SZ_Printf(LPSIZEBUF msg, cstring_t fmt, ...) {
     msg->cursize += written + 1;
 }
 
-void MSG_WriteEntityBits(LPSIZEBUF buf, uint32_t bits, uint32_t number) {
+void MSG_WriteEntityBits(sizeBuf_t * buf, uint32_t bits, uint32_t number) {
     MSG_WriteLong(buf, bits);
     MSG_WriteShort(buf, number);
 }
 
-int MSG_ReadEntityBits(LPSIZEBUF buf, uint32_t *bits) {
+int MSG_ReadEntityBits(sizeBuf_t * buf, uint32_t *bits) {
     *bits = MSG_ReadLong(buf);
     return MSG_ReadShort(buf);
 }
 
-void MSG_WritePlayerBits(LPSIZEBUF buf, uint32_t bits, uint32_t number) {
+void MSG_WritePlayerBits(sizeBuf_t * buf, uint32_t bits, uint32_t number) {
     MSG_WriteLong(buf, bits);
     MSG_WriteShort(buf, number);
 }
 
-int MSG_ReadPlayerBits(LPSIZEBUF buf, uint32_t *bits) {
+int MSG_ReadPlayerBits(sizeBuf_t * buf, uint32_t *bits) {
     *bits = MSG_ReadLong(buf);
     return MSG_ReadShort(buf);
 }
 
 /* Each controller operation carries only its typed payload; no native struct padding goes on the wire. */
-void MSG_WriteInput(LPSIZEBUF buf, LPCINPUTCMD cmd) {
+void MSG_WriteInput(sizeBuf_t * buf, inputCmd_t const * cmd) {
     MSG_WriteByte(buf, cmd->action);
     switch (cmd->action) {
     case BZ_INPUT_FOCUS:
@@ -576,14 +576,14 @@ void MSG_WriteInput(LPSIZEBUF buf, LPCINPUTCMD cmd) {
 }
 
 /* Validate the complete operation before the server passes it to an authoritative player edict. */
-bool MSG_ReadInput(LPSIZEBUF buf, LPINPUTCMD cmd) {
+bool MSG_ReadInput(sizeBuf_t * buf, inputCmd_t * cmd) {
     static uint32_t const sizes[] = { 8, 16, 3 };
     if (buf->readcount >= buf->cursize) return false;
-    *cmd = (INPUTCMD){ .action = MSG_ReadByte(buf) };
+    *cmd = (inputCmd_t){ .action = MSG_ReadByte(buf) };
     if (cmd->action > BZ_INPUT_MOVE || sizes[cmd->action] > buf->cursize - buf->readcount) return false;
     switch (cmd->action) {
     case BZ_INPUT_FOCUS:
-        cmd->focus = (VECTOR2){ MSG_ReadFloat(buf), MSG_ReadFloat(buf) };
+        cmd->focus = (vector2_t){ MSG_ReadFloat(buf), MSG_ReadFloat(buf) };
         return isfinite(cmd->focus.x) && isfinite(cmd->focus.y);
     case BZ_INPUT_VIEW:
         MSG_ReadDir(buf, &cmd->view.angles); cmd->view.distance = MSG_ReadFloat(buf);

@@ -48,7 +48,7 @@ uint32_t SV_ConfigStringWireSize(uint32_t index) {
     return 1 + 2 + (uint32_t)strlen(ge->GetThemeValue(sv.configstrings[index])) + 1;
 }
 
-static void SV_AppendConfigString(LPSIZEBUF msg, uint32_t i) {
+static void SV_AppendConfigString(sizeBuf_t * msg, uint32_t i) {
     MSG_WriteByte(msg, svc_configstring);
     MSG_WriteShort(msg, i);
     if (i == CS_STATUSBAR) {
@@ -58,7 +58,7 @@ static void SV_AppendConfigString(LPSIZEBUF msg, uint32_t i) {
     }
 }
 
-static bool SV_QueueConfigString(LPCLIENT client, uint32_t i) {
+static bool SV_QueueConfigString(client_t * client, uint32_t i) {
     uint32_t size = SV_ConfigStringWireSize(i);
     uint32_t limit = SV_SignonLimit(&client->netchan);
 
@@ -72,7 +72,7 @@ static bool SV_QueueConfigString(LPCLIENT client, uint32_t i) {
     return true;
 }
 
-void SV_WriteConfigString(LPSIZEBUF msg, uint32_t i) {
+void SV_WriteConfigString(sizeBuf_t * msg, uint32_t i) {
     SV_AppendConfigString(msg, i);
     sv.syncstrings[i] = true;
 }
@@ -85,7 +85,7 @@ void SV_QueuePendingConfigStrings(void) {
         if (!*sv.configstrings[i] || sv.syncstrings[i]) continue;
         bool queued = true;
         FOR_LOOP(client_index, svs.num_clients) {
-            LPCLIENT client = &svs.clients[client_index];
+            client_t * client = &svs.clients[client_index];
             if (client->state == cs_free || client->state == cs_zombie) continue;
             if (!SV_QueueConfigString(client, i)) queued = false;
         }
@@ -93,7 +93,7 @@ void SV_QueuePendingConfigStrings(void) {
     }
 }
 
-static void SV_SendClientDatagram(LPCLIENT client) {
+static void SV_SendClientDatagram(client_t * client) {
     SV_BuildClientFrame(client);
     SV_WriteFrameToClient(client);
 }
@@ -103,7 +103,7 @@ static void SV_SendClientDatagram(LPCLIENT client) {
 static void SV_SendClientMessages(void) {
     SV_QueuePendingConfigStrings();
     FOR_LOOP(i, svs.num_clients) {
-        LPCLIENT client = &svs.clients[i];
+        client_t * client = &svs.clients[i];
         if (client->state == cs_spawned && sv.state == ss_game) {
             SV_SendClientDatagram(client);
         } else if (client->state == cs_connected || client->state == cs_spawned) {
@@ -117,7 +117,7 @@ static void SV_SendClientMessages(void) {
     if (svs.realtime >= sv.keepalive) sv.keepalive = svs.realtime + BZ_KEEPALIVE_MSEC;
 }
 
-static void SV_ProcessPacket(netadr_t *from, LPSIZEBUF net_message, int r) {
+static void SV_ProcessPacket(netadr_t *from, sizeBuf_t * net_message, int r) {
     if (r >= 4) {
         int hdr;
         memcpy(&hdr, net_message->data, sizeof(hdr));
@@ -126,7 +126,7 @@ static void SV_ProcessPacket(netadr_t *from, LPSIZEBUF net_message, int r) {
             return;
         }
     }
-    LPCLIENT client = SV_FindClientByAddr(from);
+    client_t * client = SV_FindClientByAddr(from);
     if (client) {
         SV_ParseClientMessage(net_message, client);
     }

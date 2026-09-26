@@ -29,7 +29,7 @@ void UIWow_DrawLoadingScreenC(cstring_t map, cstring_t status, float progress) {
     if (map_title && *map_title) {
         rect_t title = MAKE(rect_t, 0.16f, 0.77f, 0.68f, 0.05f);
         wow_ui.renderer->DrawText(&MAKE(drawText_t, .font = UIWow_LoadFont(22), .text = map_title, .rect = title,
-            .color = MAKE(COLOR32,235,210,160,255), .textWidth = title.w, .lineHeight = title.h,
+            .color = MAKE(color32_t,235,210,160,255), .textWidth = title.w, .lineHeight = title.h,
             .halign = FONT_JUSTIFYCENTER, .valign = FONT_JUSTIFYMIDDLE));
     }
 

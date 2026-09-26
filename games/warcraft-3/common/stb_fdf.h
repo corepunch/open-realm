@@ -35,8 +35,8 @@
 /* -------------------------------------------------------------------------- */
 typedef struct uiFrameDef_s frameDef_t;
 typedef frameDef_t FRAMEDEF;
-typedef frameDef_t *LPFRAMEDEF;
-typedef frameDef_t const *LPCFRAMEDEF;
+
+
 
 /* -------------------------------------------------------------------------- */
 /* Mouse event types (used by frame event_handler)                             */
@@ -95,16 +95,16 @@ typedef enum {
 typedef struct {
     UINAME frame;
     UINAME text;
-} BUTTONTEXT;
+} buttonText_t;
 
 typedef struct {
-    LPCFRAMEDEF relativeTo;
+    frameDef_t const * relativeTo;
     float offset;
     uiFramePointPos_t targetPos: 7;
     uint32_t used: 1;
-} FRAMEPOINT;
+} framePoint_t;
 
-typedef FRAMEPOINT const *LPCFRAMEPOINT;
+
 
 typedef struct {
     UINAME text;
@@ -139,8 +139,8 @@ typedef struct {
     UINAME SelectCommand;
     UINAME FontName;
     float FontSize;
-    COLOR32 TextColor;
-    COLOR32 SelectedTextColor;
+    color32_t TextColor;
+    color32_t SelectedTextColor;
 } uiMapListControl_t;
 
 /* -------------------------------------------------------------------------- */
@@ -160,14 +160,14 @@ typedef struct {
 #ifndef UIFRAMEDEF_S_DEFINED
 #define UIFRAMEDEF_S_DEFINED
 struct uiFrameDef_s {
-    LPCFRAMEDEF Parent;
+    frameDef_t const * Parent;
     FRAMETYPE Type;
     UINAME Name;
     UINAME TextStorage;
     UINAME OnClick;
     cstring_t Text, Tip, Ubertip;
     float Width, Height;
-    COLOR32 Color;
+    color32_t Color;
     BLEND_MODE AlphaMode;
     uint32_t DecorateFileNames: 1;
     uint32_t inuse: 1;
@@ -179,13 +179,13 @@ struct uiFrameDef_s {
     string_t DynamicText;
     uint32_t DynamicTextCapacity;
     struct {
-        FRAMEPOINT x[FPP_COUNT];
-        FRAMEPOINT y[FPP_COUNT];
+        framePoint_t x[FPP_COUNT];
+        framePoint_t y[FPP_COUNT];
     } Points;
     struct {
         uint32_t Image;
         uint32_t Image2;
-        BOX2 TexCoord;
+        box2_t TexCoord;
     } Texture;
     struct {
         uint32_t Background;
@@ -199,7 +199,7 @@ struct uiFrameDef_s {
         uint32_t Mirrored: 1;
     } Backdrop;
     UINAME DialogBackdropName;
-    LPCFRAMEDEF DialogBackdrop;
+    frameDef_t const * DialogBackdrop;
     struct {
         uint32_t model;
     } Portrait;
@@ -209,7 +209,7 @@ struct uiFrameDef_s {
     } Anchor;
     struct {
         UIFRAMEPOINT type;
-        LPCFRAMEDEF relativeTo;
+        frameDef_t const * relativeTo;
         UIFRAMEPOINT target;
         float x, y;
     } SetPoint;
@@ -219,13 +219,13 @@ struct uiFrameDef_s {
         UIFONTFLAGS FontFlags;
         float Size;
         uint32_t Index;
-        COLOR32 Color;
-        COLOR32 HighlightColor;
-        COLOR32 DisabledColor;
-        COLOR32 ShadowColor;
-        VECTOR2 ShadowOffset;
+        color32_t Color;
+        color32_t HighlightColor;
+        color32_t DisabledColor;
+        color32_t ShadowColor;
+        vector2_t ShadowOffset;
         struct {
-            VECTOR2 Offset;
+            vector2_t Offset;
             uiFontJustificationH_t Horizontal;
             uiFontJustificationV_t Vertical;
         } Justification;
@@ -234,17 +234,17 @@ struct uiFrameDef_s {
         HIGHLIGHTTYPE Type;
         uint32_t AlphaFile;
         BLEND_MODE AlphaMode;
-        COLOR32 Color;
+        color32_t Color;
     } Highlight;
     struct {
-        VECTOR2 PushedTextOffset;
+        vector2_t PushedTextOffset;
         UINAME NormalTexture;
         UINAME PushedTexture;
         UINAME DisabledTexture;
         UINAME UseHighlight;
-        BUTTONTEXT NormalText;
-        BUTTONTEXT DisabledText;
-        BUTTONTEXT HighlightText;
+        buttonText_t NormalText;
+        buttonText_t DisabledText;
+        buttonText_t HighlightText;
     } Button;
     struct {
         uint32_t Style;
@@ -274,7 +274,7 @@ struct uiFrameDef_s {
         float Border;
         UINAME ScrollBar;
         UINAME FetchCommand;
-        LPCFRAMEDEF EditTarget;
+        frameDef_t const * EditTarget;
     } ListBox;
     uiMapListControl_t MapListControl;
     struct {
@@ -286,19 +286,19 @@ struct uiFrameDef_s {
         } Item;
         uint32_t ItemCount;
         uiMenuItem_t *Items; // lazily UI_FdfAlloc'd at UI_MAX_MENU_ITEMS on first UI_MenuAddItem; most frames never use Menu, so no fixed array here
-        COLOR32 TextHighlightColor;
+        color32_t TextHighlightColor;
     } Menu;
     struct {
         float BorderSize;
-        COLOR32 CursorColor;
-        COLOR32 HighlightColor;
+        color32_t CursorColor;
+        color32_t HighlightColor;
         uint32_t MaxChars;
         uint32_t HighlightInitial: 1;
         uint32_t Focus: 1;
         UINAME Text;
-        COLOR32 TextColor;
+        color32_t TextColor;
         UINAME TextFrame;
-        VECTOR2 TextOffset;
+        vector2_t TextOffset;
     } Edit;
     struct {
         UINAME ArrowFrame;
@@ -331,9 +331,9 @@ struct uiFrameDef_s {
     /* Interaction state — updated by event handler, read by draw */
     uint32_t ui_flags;
     /* Per-type event handler: called from UI_MouseEventLocal */
-    void (*event_handler)(LPFRAMEDEF frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param);
+    void (*event_handler)(frameDef_t * frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param);
     /* Per-type draw function: called from UI_DrawFrameOne */
-    void (*draw)(LPCFRAMEDEF frame, rect_t const * rect);
+    void (*draw)(frameDef_t const * frame, rect_t const * rect);
 };
 #endif /* UIFRAMEDEF_S_DEFINED */
 
@@ -362,11 +362,11 @@ FRAMEDEF frames[MAX_UI_CLASSES] = { 0 };
 /* -------------------------------------------------------------------------- */
 /* Convenience macros for frame lookup                                         */
 /* -------------------------------------------------------------------------- */
-#define UI_FRAME_GLOBAL(NAME) LPFRAMEDEF NAME = UI_FindFrame(#NAME);
-#define UI_FRAME_CHILD(PARENT, NAME) LPFRAMEDEF NAME = UI_FindChildFrame(PARENT, #NAME);
+#define UI_FRAME_GLOBAL(NAME) frameDef_t * NAME = UI_FindFrame(#NAME);
+#define UI_FRAME_CHILD(PARENT, NAME) frameDef_t * NAME = UI_FindChildFrame(PARENT, #NAME);
 #define UI_FRAME_SELECT(_1, _2, NAME, ...) NAME
 #define UI_FRAME(...) UI_FRAME_SELECT(__VA_ARGS__, UI_FRAME_CHILD, UI_FRAME_GLOBAL)(__VA_ARGS__)
-#define UI_CHILD_FRAME(NAME, PARENT) LPFRAMEDEF NAME = UI_FindChildFrame(PARENT, #NAME);
+#define UI_CHILD_FRAME(NAME, PARENT) frameDef_t * NAME = UI_FindChildFrame(PARENT, #NAME);
 
 /* -------------------------------------------------------------------------- */
 /* FDF bind macros (used by generated headers)                                 */
@@ -410,14 +410,14 @@ void UI_ClearTextures(void);
 /* Pure helpers are static inline under STB_FDF_IMPLEMENTATION (see below).    */
 /* Host-dependent functions remain extern — each module provides its own.      */
 /* -------------------------------------------------------------------------- */
-LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent);
-LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent);
+frameDef_t * UI_Spawn(FRAMETYPE type, frameDef_t * parent);
+frameDef_t * UI_CloneFrameTree(frameDef_t const * source, frameDef_t * parent);
 uint32_t UI_FindFrameNumber(cstring_t name);
-void UI_SetText(LPFRAMEDEF frame, cstring_t format, ...);
-void UI_SetTextPointer(LPFRAMEDEF frame, cstring_t text);
-void UI_SetTexture(LPFRAMEDEF frame, cstring_t name, bool decorate);
-void UI_SetTexture2(LPFRAMEDEF frame, cstring_t name, bool decorate);
-void UI_InheritFrom(LPFRAMEDEF frame, cstring_t inheritName);
+void UI_SetText(frameDef_t * frame, cstring_t format, ...);
+void UI_SetTextPointer(frameDef_t * frame, cstring_t text);
+void UI_SetTexture(frameDef_t * frame, cstring_t name, bool decorate);
+void UI_SetTexture2(frameDef_t * frame, cstring_t name, bool decorate);
+void UI_InheritFrom(frameDef_t * frame, cstring_t inheritName);
 
 /* -------------------------------------------------------------------------- */
 /* Asset loading (implemented by host module)                                  */
@@ -444,15 +444,15 @@ float Theme_Float(cstring_t key, cstring_t fallback);
 /* -------------------------------------------------------------------------- */
 /* Map list support                                                            */
 /* -------------------------------------------------------------------------- */
-void UI_BindMapList(LPFRAMEDEF frame, uiMapListState_t *state, LPCFRAMEDEF label, uint32_t visible_rows, cstring_t select_command);
+void UI_BindMapList(frameDef_t * frame, uiMapListState_t *state, frameDef_t const * label, uint32_t visible_rows, cstring_t select_command);
 
 /* -------------------------------------------------------------------------- */
 /* Layout serialization (implemented by host module — stubs in client UI)       */
 /* -------------------------------------------------------------------------- */
 void UI_WriteStart(uint32_t layer);
-void UI_WriteFrame(LPCFRAMEDEF frame);
-void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent);
-/* UI_WriteLayout and UI_WriteWithTriggers use LPEDICT and are declared
+void UI_WriteFrame(frameDef_t const * frame);
+void UI_WriteFrameWithChildren(frameDef_t const * frame, frameDef_t const * parent);
+/* UI_WriteLayout and UI_WriteWithTriggers use edict_t * and are declared
  * in g_local.h (game module) since they need game types. */
 
 /* -------------------------------------------------------------------------- */
@@ -460,7 +460,7 @@ void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent);
 /* -------------------------------------------------------------------------- */
 #ifndef WORD_EXTRACTOR_DEFINED
 #define WORD_EXTRACTOR_DEFINED
-KNOWN_AS(word_extractor, PARSER);
+KNOWN_AS(word_extractor, wordExtractor_t);
 struct word_extractor {
     cstring_t buffer;
     cstring_t start;
@@ -474,28 +474,28 @@ struct word_extractor {
 /* Pure frame helpers — extern declarations for non-implementation TUs          */
 /* -------------------------------------------------------------------------- */
 #ifndef STB_FDF_IMPLEMENTATION
-cstring_t parse_token(LPPARSER p);
-cstring_t parse_segment(LPPARSER p);
-cstring_t parse_segment2(LPPARSER p);
-cstring_t peek_token(LPPARSER p);
-bool eat_token(LPPARSER p, cstring_t value);
-void parser_error(LPPARSER parser);
-LPFRAMEDEF UI_FindFrame(cstring_t name);
-LPFRAMEDEF UI_FindFrameByNumber(uint32_t number);
-LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, cstring_t name);
-LPFRAMEDEF UI_FindChildFrameType(LPFRAMEDEF frame, FRAMETYPE type);
-LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF anchor, cstring_t name);
-void UI_InitFrame(LPFRAMEDEF frame, FRAMETYPE type);
-void UI_SetPoint(LPFRAMEDEF frame, UIFRAMEPOINT framePoint, LPCFRAMEDEF other, UIFRAMEPOINT otherPoint, float x, float y);
-void UI_SetAllPoints(LPFRAMEDEF frame);
-void UI_SetParent(LPFRAMEDEF frame, LPCFRAMEDEF parent);
-void UI_SetSize(LPFRAMEDEF frame, float width, float height);
-void UI_SetEnabled(LPFRAMEDEF frame, bool enabled);
-void UI_SetHidden(LPFRAMEDEF frame, bool value);
-void UI_SetOnClick(LPFRAMEDEF frame, cstring_t format, ...);
-uint32_t UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, uint32_t max);
-void UI_MenuClearItems(LPFRAMEDEF frame);
-void UI_MenuAddItem(LPFRAMEDEF frame, cstring_t text, int32_t value);
+cstring_t parse_token(wordExtractor_t * p);
+cstring_t parse_segment(wordExtractor_t * p);
+cstring_t parse_segment2(wordExtractor_t * p);
+cstring_t peek_token(wordExtractor_t * p);
+bool eat_token(wordExtractor_t * p, cstring_t value);
+void parser_error(wordExtractor_t * parser);
+frameDef_t * UI_FindFrame(cstring_t name);
+frameDef_t * UI_FindFrameByNumber(uint32_t number);
+frameDef_t * UI_FindChildFrame(frameDef_t * frame, cstring_t name);
+frameDef_t * UI_FindChildFrameType(frameDef_t * frame, FRAMETYPE type);
+frameDef_t * UI_FindFrameNear(frameDef_t const * anchor, cstring_t name);
+void UI_InitFrame(frameDef_t * frame, FRAMETYPE type);
+void UI_SetPoint(frameDef_t * frame, UIFRAMEPOINT framePoint, frameDef_t const * other, UIFRAMEPOINT otherPoint, float x, float y);
+void UI_SetAllPoints(frameDef_t * frame);
+void UI_SetParent(frameDef_t * frame, frameDef_t const * parent);
+void UI_SetSize(frameDef_t * frame, float width, float height);
+void UI_SetEnabled(frameDef_t * frame, bool enabled);
+void UI_SetHidden(frameDef_t * frame, bool value);
+void UI_SetOnClick(frameDef_t * frame, cstring_t format, ...);
+uint32_t UI_CollectFrameTree(frameDef_t const * root, frameDef_t const * *out, uint32_t max);
+void UI_MenuClearItems(frameDef_t * frame);
+void UI_MenuAddItem(frameDef_t * frame, cstring_t text, int32_t value);
 #endif /* !STB_FDF_IMPLEMENTATION */
 
 #ifdef STB_FDF_IMPLEMENTATION
@@ -512,7 +512,7 @@ void UI_MenuAddItem(LPFRAMEDEF frame, cstring_t text, int32_t value);
 
 #define PARSER_MAX_SEGMENT 1024
 
-static void parser_skip_ws(LPPARSER p) {
+static void parser_skip_ws(wordExtractor_t * p) {
     for (;;) {
         while (isspace((unsigned char)*p->buffer)) ++p->buffer;
         if (p->buffer[0] == '/' && p->buffer[1] == '/') {
@@ -537,7 +537,7 @@ static void parser_rtrim(string_t s) {
     while (end > s && isspace((unsigned char)end[-1])) *--end = '\0';
 }
 
-static inline cstring_t parse_token(LPPARSER p) {
+static inline cstring_t parse_token(wordExtractor_t * p) {
     static char word[PARSER_MAX_SEGMENT];
     parser_skip_ws(p);
     if (*p->buffer == '"') {
@@ -562,19 +562,19 @@ static inline cstring_t parse_token(LPPARSER p) {
     }
 }
 
-static inline cstring_t peek_token(LPPARSER p) {
-    PARSER tmp = *p;
+static inline cstring_t peek_token(wordExtractor_t * p) {
+    wordExtractor_t tmp = *p;
     cstring_t tok = parse_token(p);
     *p = tmp;
     return tok;
 }
 
-static inline bool eat_token(LPPARSER p, cstring_t value) {
+static inline bool eat_token(wordExtractor_t * p, cstring_t value) {
     if (!strcmp(peek_token(p), value)) { parse_token(p); return true; }
     return false;
 }
 
-static inline cstring_t parse_segment(LPPARSER p) {
+static inline cstring_t parse_segment(wordExtractor_t * p) {
     static char seg[PARSER_MAX_SEGMENT];
     memset(seg, 0, PARSER_MAX_SEGMENT);
     if (*p->buffer == '\0') return NULL;
@@ -615,7 +615,7 @@ static inline cstring_t parse_segment(LPPARSER p) {
     return seg;
 }
 
-static inline cstring_t parse_segment2(LPPARSER p) {
+static inline cstring_t parse_segment2(wordExtractor_t * p) {
     static char seg[PARSER_MAX_SEGMENT];
     string_t out = seg;
     bool quoted = false, have = false;
@@ -647,7 +647,7 @@ static inline cstring_t parse_segment2(LPPARSER p) {
     return seg;
 }
 
-static inline void parser_error(LPPARSER parser) { parser->error = true; }
+static inline void parser_error(wordExtractor_t * parser) { parser->error = true; }
 
 static inline void *find_in_array(void const *array, long sizeofelem, cstring_t name) {
     string_t str = (string_t)array;
@@ -660,7 +660,7 @@ static inline void *find_in_array(void const *array, long sizeofelem, cstring_t 
 
 /* ---- Small pure helpers --------------------------------------------------- */
 
-static inline bool UI_FrameNameEquals(LPCFRAMEDEF frame, cstring_t name) {
+static inline bool UI_FrameNameEquals(frameDef_t const * frame, cstring_t name) {
     return frame && name && *name && !strcmp(frame->Name, name);
 }
 
@@ -685,7 +685,7 @@ static inline uint32_t UI_DecodeFramePointY(uint32_t framepoint) {
 
 /* ---- Frame lookup --------------------------------------------------------- */
 
-LPFRAMEDEF UI_FindFrame(cstring_t name) {
+frameDef_t * UI_FindFrame(cstring_t name) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
         if (!strcmp(frames[i].Name, name)) {
             return frames + i;
@@ -694,27 +694,27 @@ LPFRAMEDEF UI_FindFrame(cstring_t name) {
     return NULL;
 }
 
-LPFRAMEDEF UI_FindFrameByNumber(uint32_t number) {
+frameDef_t * UI_FindFrameByNumber(uint32_t number) {
     if (number < MAX_UI_CLASSES && frames[number].inuse) {
         return &frames[number];
     }
     return NULL;
 }
 
-LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, cstring_t name) {
+frameDef_t * UI_FindChildFrame(frameDef_t * frame, cstring_t name) {
     if (!strcmp(frame->Name, name))
         return frame;
     FOR_LOOP(i, MAX_UI_CLASSES) {
         if (frames[i].Parent != frame)
             continue;
-        LPFRAMEDEF found = UI_FindChildFrame(frames + i, name);
+        frameDef_t * found = UI_FindChildFrame(frames + i, name);
         if (found)
             return found;
     }
     return NULL;
 }
 
-LPFRAMEDEF UI_FindChildFrameType(LPFRAMEDEF frame, FRAMETYPE type) {
+frameDef_t * UI_FindChildFrameType(frameDef_t * frame, FRAMETYPE type) {
     if (!frame)
         return NULL;
     if (frame->Type == type)
@@ -722,27 +722,27 @@ LPFRAMEDEF UI_FindChildFrameType(LPFRAMEDEF frame, FRAMETYPE type) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
         if (frames[i].Parent != frame)
             continue;
-        LPFRAMEDEF found = UI_FindChildFrameType(frames + i, type);
+        frameDef_t * found = UI_FindChildFrameType(frames + i, type);
         if (found)
             return found;
     }
     return NULL;
 }
 
-LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF anchor, cstring_t name) {
+frameDef_t * UI_FindFrameNear(frameDef_t const * anchor, cstring_t name) {
     if (!name || !*name) {
         return NULL;
     }
     if (!anchor || anchor < frames || anchor >= frames + MAX_UI_CLASSES) {
         return UI_FindFrame(name);
     }
-    LPFRAMEDEF child = UI_FindChildFrame((LPFRAMEDEF)anchor, name);
+    frameDef_t * child = UI_FindChildFrame((frameDef_t *)anchor, name);
     if (child) {
         return child;
     }
     uint32_t const anchor_index = (uint32_t)(anchor - frames);
     uint32_t best_distance = MAX_UI_CLASSES;
-    LPFRAMEDEF best = NULL;
+    frameDef_t * best = NULL;
     FOR_LOOP(i, MAX_UI_CLASSES) {
         if (!strcmp(frames[i].Name, name)) {
             uint32_t const distance = i > anchor_index ? i - anchor_index : anchor_index - i;
@@ -757,7 +757,7 @@ LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF anchor, cstring_t name) {
 
 /* ---- Frame initialization ------------------------------------------------- */
 
-void UI_InitFrame(LPFRAMEDEF frame, FRAMETYPE type) {
+void UI_InitFrame(frameDef_t * frame, FRAMETYPE type) {
     memset(frame, 0, sizeof(FRAMEDEF));
     frame->inuse = true;
     frame->Type = type;
@@ -782,13 +782,13 @@ void UI_InitFrame(LPFRAMEDEF frame, FRAMETYPE type) {
 
 /* ---- Point manipulation --------------------------------------------------- */
 
-static inline void UI_ApplyFramePoints(LPFRAMEDEF frame) {
+static inline void UI_ApplyFramePoints(frameDef_t * frame) {
     if (!frame->AnyPointsSet) {
         memset(&frame->Points, 0, sizeof(frame->Points));
         frame->AnyPointsSet = true;
     }
     uint32_t const x = frame->SetPoint.type & 3;
-    FRAMEPOINT *xp = frame->Points.x;
+    framePoint_t *xp = frame->Points.x;
     if (x != FPP_MID || (!xp[FPP_MIN].used && !xp[FPP_MAX].used)) {
         xp[FPP_MID].used = false;
         xp[x].used = true;
@@ -797,7 +797,7 @@ static inline void UI_ApplyFramePoints(LPFRAMEDEF frame) {
         xp[x].relativeTo = frame->SetPoint.relativeTo;
     }
     uint32_t y = UI_DecodeFramePointY(frame->SetPoint.type);
-    FRAMEPOINT *yp = frame->Points.y;
+    framePoint_t *yp = frame->Points.y;
     if (y != FPP_MID || (!yp[FPP_MIN].used && !yp[FPP_MAX].used)) {
         yp[FPP_MID].used = false;
         yp[y].used = true;
@@ -813,9 +813,9 @@ static inline void UI_ApplyFramePoints(LPFRAMEDEF frame) {
     if (yp[FPP_MIN].used && yp[FPP_MAX].used) frame->Height = 0.0f;
 }
 
-void UI_SetPoint(LPFRAMEDEF frame,
+void UI_SetPoint(frameDef_t * frame,
                                UIFRAMEPOINT framePoint,
-                               LPCFRAMEDEF other,
+                               frameDef_t const * other,
                                UIFRAMEPOINT otherPoint,
                                float x, float y)
 {
@@ -827,37 +827,37 @@ void UI_SetPoint(LPFRAMEDEF frame,
     UI_ApplyFramePoints(frame);
 }
 
-void UI_SetAllPoints(LPFRAMEDEF frame) {
+void UI_SetAllPoints(frameDef_t * frame) {
     UI_SetPoint(frame, FRAMEPOINT_TOPLEFT, NULL, FRAMEPOINT_TOPLEFT, 0, 0);
     UI_SetPoint(frame, FRAMEPOINT_BOTTOMRIGHT, NULL, FRAMEPOINT_BOTTOMRIGHT, 0, 0);
 }
 
 /* ---- Simple property setters ---------------------------------------------- */
 
-void UI_SetParent(LPFRAMEDEF frame, LPCFRAMEDEF parent) {
+void UI_SetParent(frameDef_t * frame, frameDef_t const * parent) {
     frame->Parent = parent;
 }
 
-void UI_SetSize(LPFRAMEDEF frame, float width, float height) {
+void UI_SetSize(frameDef_t * frame, float width, float height) {
     frame->Width = width;
     frame->Height = height;
 }
 
-void UI_SetEnabled(LPFRAMEDEF frame, bool enabled) {
+void UI_SetEnabled(frameDef_t * frame, bool enabled) {
     if (!frame) return;
     frame->disabled = !enabled;
     if (frame->disabled) frame->ui_flags |= UIFLAG_DISABLED;
     else frame->ui_flags &= ~UIFLAG_DISABLED;
 }
 
-void UI_SetHidden(LPFRAMEDEF frame, bool value) {
+void UI_SetHidden(frameDef_t * frame, bool value) {
     if (!frame) return;
     frame->hidden = value;
     if (frame->hidden) frame->ui_flags &= ~UIFLAG_VISIBLE;
     else frame->ui_flags |= UIFLAG_VISIBLE;
 }
 
-void UI_SetOnClick(LPFRAMEDEF frame, cstring_t format, ...) {
+void UI_SetOnClick(frameDef_t * frame, cstring_t format, ...) {
     va_list argptr;
     if (!frame || !format) return;
     va_start(argptr, format);
@@ -867,7 +867,7 @@ void UI_SetOnClick(LPFRAMEDEF frame, cstring_t format, ...) {
 
 /* ---- Embedded control detection ------------------------------------------- */
 
-static inline bool UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
+static inline bool UI_IsEmbeddedControlPart(frameDef_t const * parent, frameDef_t const * child) {
     if (!parent || !child) return false;
     if (child->Type == FT_BACKDROP || child->Type == FT_TEXTURE) {
         if (UI_FrameNameEquals(child, parent->Control.Backdrop.Normal) ||
@@ -910,14 +910,14 @@ static inline bool UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF chil
 /* Server-authored control payloads fold state artwork into their typed parent
  * frame.  The text child of a GLUETEXTBUTTON remains a separately serialized
  * frame because the generic layout client draws that label independently. */
-static inline bool UI_IsEmbeddedControlArtPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
+static inline bool UI_IsEmbeddedControlArtPart(frameDef_t const * parent, frameDef_t const * child) {
     return child && child->Type != FT_TEXT && UI_IsEmbeddedControlPart(parent, child);
 }
 
 /* ---- Frame tree collection ------------------------------------------------ */
 
-uint32_t UI_CollectFrameTreeRecursiveEx(LPCFRAMEDEF frame,
-                                                    LPCFRAMEDEF *out,
+uint32_t UI_CollectFrameTreeRecursiveEx(frameDef_t const * frame,
+                                                    frameDef_t const * *out,
                                                     uint32_t max,
                                                     bool include_embedded)
 {
@@ -926,7 +926,7 @@ uint32_t UI_CollectFrameTreeRecursiveEx(LPCFRAMEDEF frame,
     if (out && total < max) out[total] = frame;
     total++;
     FOR_LOOP(i, MAX_UI_CLASSES) {
-        LPCFRAMEDEF child = frames + i;
+        frameDef_t const * child = frames + i;
         if (child->Parent == frame &&
             (include_embedded || (!child->hidden && !UI_IsEmbeddedControlPart(frame, child)))) {
             uint32_t emitted = UI_CollectFrameTreeRecursiveEx(child,
@@ -939,20 +939,20 @@ uint32_t UI_CollectFrameTreeRecursiveEx(LPCFRAMEDEF frame,
     return total;
 }
 
-uint32_t UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, uint32_t max) {
+uint32_t UI_CollectFrameTree(frameDef_t const * root, frameDef_t const * *out, uint32_t max) {
     return UI_CollectFrameTreeRecursiveEx(root, out, max, false);
 }
 
 /* ---- Menu helpers --------------------------------------------------------- */
 
-void UI_MenuClearItems(LPFRAMEDEF frame) {
+void UI_MenuClearItems(frameDef_t * frame) {
     if (!frame) return;
     UI_FdfFree(frame->Menu.Items);
     frame->Menu.Items = NULL;
     frame->Menu.ItemCount = 0;
 }
 
-void UI_MenuAddItem(LPFRAMEDEF frame, cstring_t text, int32_t value) {
+void UI_MenuAddItem(frameDef_t * frame, cstring_t text, int32_t value) {
     if (!frame || frame->Menu.ItemCount >= UI_MAX_MENU_ITEMS) return;
     if (!frame->Menu.Items) {
         frame->Menu.Items = UI_FdfAlloc((long)(sizeof(uiMenuItem_t) * UI_MAX_MENU_ITEMS));
@@ -971,7 +971,7 @@ void UI_MenuAddItem(LPFRAMEDEF frame, cstring_t text, int32_t value) {
  * FDF Parser (merged from fdf_parser.c)
  * ====================================================================== */
 
-extern void UI_WireFrameTypeFunctions(LPFRAMEDEF frame);
+extern void UI_WireFrameTypeFunctions(frameDef_t * frame);
 extern void UI_ClearTheme(void);
 
 #define UINAME_FMT "\"%79[^\"]\""
@@ -1090,16 +1090,16 @@ cstring_t CornerFlags[] = {
 static PATHSTR ui_loaded_fdfs[128] = { 0 };
 static uint32_t ui_num_loaded_fdfs = 0;
 
-void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame);
+void FDF_ParseFrame(wordExtractor_t * p, frameDef_t * frame);
 static char *UI_Trim(char *text);
 static void UI_CopyDisplayString(char *out, size_t out_size, cstring_t in);
-static void UI_SetFrameDisplayString(LPFRAMEDEF frame, cstring_t text);
-static void UI_FixCopiedFrameTextPointer(LPFRAMEDEF frame, LPCFRAMEDEF source);
-static void UI_FreeFrameDynamicText(LPFRAMEDEF frame);
-static void UI_FreeFrameMenuItems(LPFRAMEDEF frame);
-static void UI_FixCopiedFrameMenuItems(LPFRAMEDEF frame, LPCFRAMEDEF source);
+static void UI_SetFrameDisplayString(frameDef_t * frame, cstring_t text);
+static void UI_FixCopiedFrameTextPointer(frameDef_t * frame, frameDef_t const * source);
+static void UI_FreeFrameDynamicText(frameDef_t * frame);
+static void UI_FreeFrameMenuItems(frameDef_t * frame);
+static void UI_FixCopiedFrameMenuItems(frameDef_t * frame, frameDef_t const * source);
 static void UI_RemoveBom(string_t buffer);
-static void UI_CloneTemplateChildren(LPCFRAMEDEF source, LPFRAMEDEF parent);
+static void UI_CloneTemplateChildren(frameDef_t const * source, frameDef_t * parent);
 static void UI_ClearStringList(void);
 
 void UI_ClearTemplates(void) {
@@ -1115,10 +1115,10 @@ void UI_ClearTemplates(void) {
     UI_ClearTextures();
 }
 
-LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent) {
+frameDef_t * UI_Spawn(FRAMETYPE type, frameDef_t * parent) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
         if (i==0) continue;
-        LPFRAMEDEF frame = &frames[i];
+        frameDef_t * frame = &frames[i];
         if (!frame->inuse) {
             UI_InitFrame(frame, type);
             UI_WireFrameTypeFunctions(frame);
@@ -1133,18 +1133,18 @@ LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent) {
 typedef struct {
     cstring_t name;
     uint32_t fofs;
-    void (*func)(cstring_t, LPFRAMEDEF frame, void *);
+    void (*func)(cstring_t, frameDef_t * frame, void *);
 } fdf_parseArg_t;
 
 typedef struct {
     cstring_t name;
     fdf_parseArg_t args[16];
-    void (*func)(LPPARSER , LPFRAMEDEF);
+    void (*func)(wordExtractor_t * , frameDef_t *);
 } fdf_parseItem_t;
 
 typedef struct {
     cstring_t name;
-    void (*func)(LPPARSER , LPFRAMEDEF);
+    void (*func)(wordExtractor_t * , frameDef_t *);
 } fdf_parse_class_t;
 
 int FDF_ParseEnumString(cstring_t token, cstring_t const *values) {
@@ -1188,7 +1188,7 @@ static void UI_CopyDisplayString(char *out, size_t out_size, cstring_t in) {
     snprintf(out, out_size, "%s", in);
 }
 
-static void UI_FreeFrameDynamicText(LPFRAMEDEF frame) {
+static void UI_FreeFrameDynamicText(frameDef_t * frame) {
     if (frame && frame->DynamicText) {
         UI_FdfFree(frame->DynamicText);
         frame->DynamicText = NULL;
@@ -1196,7 +1196,7 @@ static void UI_FreeFrameDynamicText(LPFRAMEDEF frame) {
     }
 }
 
-static void UI_FreeFrameMenuItems(LPFRAMEDEF frame) {
+static void UI_FreeFrameMenuItems(frameDef_t * frame) {
     if (frame && frame->Menu.Items) {
         UI_FdfFree(frame->Menu.Items);
         frame->Menu.Items = NULL;
@@ -1207,7 +1207,7 @@ static void UI_FreeFrameMenuItems(LPFRAMEDEF frame) {
 /* memcpy-based frame copies (UI_InheritFrom, UI_CloneFrameTree) shallow-copy the
  * Items pointer; give the copy its own buffer so growing/clearing one menu can't
  * corrupt the template or sibling clone it was copied from. */
-static void UI_FixCopiedFrameMenuItems(LPFRAMEDEF frame, LPCFRAMEDEF source) {
+static void UI_FixCopiedFrameMenuItems(frameDef_t * frame, frameDef_t const * source) {
     if (!frame) return;
     if (!source || !source->Menu.Items || !source->Menu.ItemCount) {
         frame->Menu.Items = NULL;
@@ -1221,7 +1221,7 @@ static void UI_FixCopiedFrameMenuItems(LPFRAMEDEF frame, LPCFRAMEDEF source) {
     }
 }
 
-static void UI_SetFrameDisplayString(LPFRAMEDEF frame, cstring_t text) {
+static void UI_SetFrameDisplayString(frameDef_t * frame, cstring_t text) {
     size_t len;
 
     if (!frame) {
@@ -1254,7 +1254,7 @@ static void UI_SetFrameDisplayString(LPFRAMEDEF frame, cstring_t text) {
     }
 }
 
-static void UI_FixCopiedFrameTextPointer(LPFRAMEDEF frame, LPCFRAMEDEF source) {
+static void UI_FixCopiedFrameTextPointer(frameDef_t * frame, frameDef_t const * source) {
     cstring_t copied_text;
 
     if (!frame || !source || !source->Text) {
@@ -1275,10 +1275,10 @@ static void UI_FixCopiedFrameTextPointer(LPFRAMEDEF frame, LPCFRAMEDEF source) {
 }
 
 #define FDF_MAKE_PARSER(TYPE) \
-void FDF_Parse##TYPE(cstring_t token, LPFRAMEDEF frame, void *out)
+void FDF_Parse##TYPE(cstring_t token, frameDef_t * frame, void *out)
 
 #define FDF_MAKE_PARSERCALL(TYPE) \
-void TYPE(LPPARSER parser, LPFRAMEDEF frame)
+void TYPE(wordExtractor_t * parser, frameDef_t * frame)
 
 #define FDF_MAKE_ENUMPARSER(TYPE) \
 FDF_MAKE_PARSER(TYPE) { \
@@ -1321,20 +1321,20 @@ FDF_MAKE_PARSER(Vector4) { FDF_ParseFloatList(token, out, 4); }
 FDF_MAKE_PARSER(Color) {
     float values[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     FDF_ParseFloatList(token, values, 4);
-    ((COLOR32 *)out)->r = (uint8_t)(values[0] * 0xff);
-    ((COLOR32 *)out)->g = (uint8_t)(values[1] * 0xff);
-    ((COLOR32 *)out)->b = (uint8_t)(values[2] * 0xff);
-    ((COLOR32 *)out)->a = (uint8_t)(values[3] * 0xff);
+    ((color32_t *)out)->r = (uint8_t)(values[0] * 0xff);
+    ((color32_t *)out)->g = (uint8_t)(values[1] * 0xff);
+    ((color32_t *)out)->b = (uint8_t)(values[2] * 0xff);
+    ((color32_t *)out)->a = (uint8_t)(values[3] * 0xff);
 }
 FDF_MAKE_PARSER(FramePtr) {
-    *(LPCFRAMEDEF *)out = NULL;
+    *(frameDef_t const * *)out = NULL;
     UINAME name = {0};
     sscanf(token, UINAME_FMT, name);
     FOR_LOOP(i, MAX_UI_CLASSES) {
-        if (labs(frames+i-frame) > labs(*((LPCFRAMEDEF *)out)-frame))
+        if (labs(frames+i-frame) > labs(*((frameDef_t const * *)out)-frame))
             return;
         if (!strcmp(frames[i].Name, name)) {
-            *(LPCFRAMEDEF *)out = frames+i;
+            *(frameDef_t const * *)out = frames+i;
         }
     }
 }
@@ -1343,8 +1343,8 @@ FDF_MAKE_PARSER(Name) {
     sscanf(token, UINAME_FMT, (string_t)out);
 }
 FDF_MAKE_PARSER(ButtonText) {
-    BUTTONTEXT *bt = out;
-    memset(bt, 0, sizeof(BUTTONTEXT));
+    buttonText_t *bt = out;
+    memset(bt, 0, sizeof(buttonText_t));
     assert(sscanf(token, UINAME_FMT " " UINAME_FMT, bt->frame, bt->text) == 2);
 }
 FDF_MAKE_PARSER(Text) {
@@ -1522,11 +1522,11 @@ FDF_MAKE_PARSERCALL(String) {
 FDF_MAKE_PARSERCALL(Frame) {
     cstring_t stype = parse_token(parser);
     FRAMETYPE type = (FRAMETYPE)FDF_ParseEnumString(stype, FrameType);
-    LPFRAMEDEF current = UI_Spawn(type, frame);
+    frameDef_t * current = UI_Spawn(type, frame);
     FDF_ParseFrame(parser, current);
     if (type == FT_POPUPMENU || type == FT_GLUEPOPUPMENU) {
-        LPFRAMEDEF title = UI_FindChildFrame(current, current->Popup.TitleFrame);
-        LPFRAMEDEF arrow = UI_FindChildFrame(current, current->Popup.ArrowFrame);
+        frameDef_t * title = UI_FindChildFrame(current, current->Popup.TitleFrame);
+        frameDef_t * arrow = UI_FindChildFrame(current, current->Popup.ArrowFrame);
         if (title) title->ui_flags |= UIFLAG_PASSTHROUGH;
         if (arrow) arrow->ui_flags |= UIFLAG_PASSTHROUGH;
     }
@@ -1688,7 +1688,7 @@ static fdf_parseItem_t items[] = {
     FDF_F_END
 };
 
-void parse_item(LPPARSER parser, LPFRAMEDEF frame, fdf_parseItem_t *item) {
+void parse_item(wordExtractor_t * parser, frameDef_t * frame, fdf_parseItem_t *item) {
     for (fdf_parseArg_t *arg = item->args; arg->name; arg++) {
         cstring_t token = parse_segment2(parser);
         arg->func(token, frame, (uint8_t *)frame + arg->fofs);
@@ -1701,7 +1701,7 @@ void parse_item(LPPARSER parser, LPFRAMEDEF frame, fdf_parseItem_t *item) {
     }
 }
 
-void parse_func(LPPARSER parser, LPFRAMEDEF frame) {
+void parse_func(wordExtractor_t * parser, frameDef_t * frame) {
     cstring_t token = NULL;
     while ((token = parse_token(parser)) && *token && (*token != '}')) {
         if (frame->Type == FT_STRINGLIST) {
@@ -1735,9 +1735,9 @@ void parse_func(LPPARSER parser, LPFRAMEDEF frame) {
     }
 }
 
-LPFRAMEDEF FindFrameTemplate(cstring_t str) {
+frameDef_t * FindFrameTemplate(cstring_t str) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
-        LPFRAMEDEF tmp = frames+i;
+        frameDef_t * tmp = frames+i;
         if (!strcmp(tmp->Name, str))
             return tmp;
     }
@@ -1762,8 +1762,8 @@ static bool UI_FrameTypesCompatible(FRAMETYPE frameType, FRAMETYPE inheritType) 
     }
 }
 
-void UI_InheritFrom(LPFRAMEDEF frame, cstring_t inheritName) {
-    LPFRAMEDEF inherit = FindFrameTemplate(inheritName);
+void UI_InheritFrom(frameDef_t * frame, cstring_t inheritName) {
+    frameDef_t * inherit = FindFrameTemplate(inheritName);
     if (inherit && UI_FrameTypesCompatible(frame->Type, inherit->Type)) {
         FRAMEDEF tmp;
         FRAMETYPE requested_type = frame->Type;
@@ -1785,7 +1785,7 @@ void UI_InheritFrom(LPFRAMEDEF frame, cstring_t inheritName) {
     }
 }
 
-void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame) {
+void FDF_ParseFrame(wordExtractor_t * p, frameDef_t * frame) {
     uint32_t state = 0;
     cstring_t tok;
     while ((tok = parse_token(p)) && (*tok != '{')) {
@@ -1812,9 +1812,9 @@ void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame) {
     parse_func(p, frame);
 }
 
-static LPCFRAMEDEF UI_RemapClonedFrame(LPCFRAMEDEF frame,
-                                       LPCFRAMEDEF const *sources,
-                                       LPFRAMEDEF const *copies,
+static frameDef_t const * UI_RemapClonedFrame(frameDef_t const * frame,
+                                       frameDef_t const * const *sources,
+                                       frameDef_t * const *copies,
                                        uint32_t count)
 {
     FOR_LOOP(i, count) {
@@ -1825,9 +1825,9 @@ static LPCFRAMEDEF UI_RemapClonedFrame(LPCFRAMEDEF frame,
     return frame;
 }
 
-static void UI_RemapClonedPoint(FRAMEPOINT *point,
-                                LPCFRAMEDEF const *sources,
-                                LPFRAMEDEF const *copies,
+static void UI_RemapClonedPoint(framePoint_t *point,
+                                frameDef_t const * const *sources,
+                                frameDef_t * const *copies,
                                 uint32_t count)
 {
     if (point && point->relativeTo) {
@@ -1835,10 +1835,10 @@ static void UI_RemapClonedPoint(FRAMEPOINT *point,
     }
 }
 
-static void UI_RemapClonedFramePointers(LPFRAMEDEF frame,
-                                        LPFRAMEDEF parent,
-                                        LPCFRAMEDEF const *sources,
-                                        LPFRAMEDEF const *copies,
+static void UI_RemapClonedFramePointers(frameDef_t * frame,
+                                        frameDef_t * parent,
+                                        frameDef_t const * const *sources,
+                                        frameDef_t * const *copies,
                                         uint32_t count)
 {
     frame->Parent = UI_RemapClonedFrame(frame->Parent, sources, copies, count);
@@ -1853,10 +1853,10 @@ static void UI_RemapClonedFramePointers(LPFRAMEDEF frame,
     }
 }
 
-LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent) {
+frameDef_t * UI_CloneFrameTree(frameDef_t const * source, frameDef_t * parent) {
     enum { MAX_CLONED_FRAMES = 128 };
-    LPCFRAMEDEF sources[MAX_CLONED_FRAMES];
-    LPFRAMEDEF copies[MAX_CLONED_FRAMES];
+    frameDef_t const * sources[MAX_CLONED_FRAMES];
+    frameDef_t * copies[MAX_CLONED_FRAMES];
     uint32_t const count = source ? UI_CollectFrameTreeRecursiveEx(source, sources, MAX_CLONED_FRAMES, true) : 0;
 
     if (count == 0 || count > MAX_CLONED_FRAMES) {
@@ -1880,7 +1880,7 @@ LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent) {
     return copies[0];
 }
 
-static void UI_CloneTemplateChildren(LPCFRAMEDEF source, LPFRAMEDEF parent) {
+static void UI_CloneTemplateChildren(frameDef_t const * source, frameDef_t * parent) {
     if (!source || !parent) {
         return;
     }
@@ -1892,9 +1892,9 @@ static void UI_CloneTemplateChildren(LPCFRAMEDEF source, LPFRAMEDEF parent) {
     }
 }
 
-void FDF_ParseScene(LPPARSER parser) {
+void FDF_ParseScene(wordExtractor_t * parser) {
     cstring_t token = NULL;
-    LPFRAMEDEF frame = NULL;
+    frameDef_t * frame = NULL;
     while (*(token = parse_token(parser))) {
         for (fdf_parse_class_t *it = classes; it->name; it++) {
             if (!strcmp(it->name, token)) {
@@ -1915,7 +1915,7 @@ void FDF_ParseScene(LPPARSER parser) {
 void UI_ParseFDF_Buffer(cstring_t fileName, string_t buffer2) {
     string_t buffer = buffer2;
     UI_RemoveBom(buffer);
-    PARSER parser = {
+    wordExtractor_t parser = {
         .buffer = buffer,
         .delimiters = ",;{}",
         .eat_quotes = true,
@@ -1991,7 +1991,7 @@ void UI_ParseFDF(cstring_t fileName) {
     UI_EnsureFDF(fileName);
 }
 
-void UI_SetText(LPFRAMEDEF frame, cstring_t format, ...) {
+void UI_SetText(frameDef_t * frame, cstring_t format, ...) {
     va_list argptr;
     static char text[1024];
     if (!frame || !format) {
@@ -2003,7 +2003,7 @@ void UI_SetText(LPFRAMEDEF frame, cstring_t format, ...) {
     UI_SetFrameDisplayString(frame, UI_GetString(text));
 }
 
-void UI_SetTextPointer(LPFRAMEDEF frame, cstring_t text) {
+void UI_SetTextPointer(frameDef_t * frame, cstring_t text) {
     UI_FreeFrameDynamicText(frame);
     frame->Text = text;
 }
@@ -2017,11 +2017,11 @@ cstring_t UI_GetString(cstring_t textID) {
     return textID;
 }
 
-void UI_SetTexture(LPFRAMEDEF frame, cstring_t name, bool decorate) {
+void UI_SetTexture(frameDef_t * frame, cstring_t name, bool decorate) {
     frame->Texture.Image = UI_LoadTexture(name, decorate);
 }
 
-void UI_SetTexture2(LPFRAMEDEF frame, cstring_t name, bool decorate) {
+void UI_SetTexture2(frameDef_t * frame, cstring_t name, bool decorate) {
     frame->Texture.Image2 = UI_LoadTexture(name, decorate);
 }
 

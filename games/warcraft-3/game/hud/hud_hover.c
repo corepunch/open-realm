@@ -8,7 +8,7 @@
 #include "hud_local.h"
 
 /* Write one texture inside a context-bound hover row. */
-static void UI_WriteHoverTexture(uint32_t parent, float y, float w, float h, cstring_t art, uint32_t stat, COLOR32 color) {
+static void UI_WriteHoverTexture(uint32_t parent, float y, float w, float h, cstring_t art, uint32_t stat, color32_t color) {
     uiFrame_t frame = { 0 };
 
     frame.flags.type = FT_TEXTURE; frame.tex.index = gi.ImageIndex(art); frame.stat = stat; frame.color = color;
@@ -19,7 +19,7 @@ static void UI_WriteHoverTexture(uint32_t parent, float y, float w, float h, cst
 }
 
 /* Write a fill bar whose fraction is resolved from the hovered snapshot entity. */
-static void UI_WriteHoverBar(uint32_t parent, float y, float w, float h, cstring_t art, uint32_t stat, COLOR32 color) {
+static void UI_WriteHoverBar(uint32_t parent, float y, float w, float h, cstring_t art, uint32_t stat, color32_t color) {
     uiFrame_t frame = { 0 };
 
     frame.flags.type = FT_SIMPLESTATUSBAR; frame.tex.index = gi.ImageIndex(art); frame.stat = stat; frame.color = color;
@@ -65,7 +65,7 @@ static uint32_t UI_WriteHoverCargoBar(cstring_t filled_art, cstring_t empty_art)
     frame.tex.index = gi.ImageIndex(filled_art);
     frame.tex.index2 = gi.ImageIndex(empty_art);
     frame.stat = ENT_CARGO;
-    frame.color = MAKE(COLOR32, 255, 204, 0, 255);
+    frame.color = MAKE(color32_t, 255, 204, 0, 255);
     frame.value = 0.001f; /* separation between capacity-sized segments */
     frame.size.width = 0.043f; frame.size.height = 0.004f;
     UI_SetFramePoint(&frame.points.x[FPP_MID], FPP_MID, 0, 0.0f, false);
@@ -75,7 +75,7 @@ static uint32_t UI_WriteHoverCargoBar(cstring_t filled_art, cstring_t empty_art)
 }
 
 /* The server owns the complete widget; only its declared context changes at draw time. */
-void UI_WriteHoverLayout(LPEDICT ent) {
+void UI_WriteHoverLayout(edict_t * ent) {
     uiFrame_t frame = { 0 };
     cstring_t black = "Textures\\Black32.blp";
     cstring_t hp = "SimpleHpBarConsoleSmall";
@@ -90,14 +90,14 @@ void UI_WriteHoverLayout(LPEDICT ent) {
     cargo = UI_WriteHoverCargoBar(hp, black);
     mana_row = UI_WriteHoverRow(UI_STAT_CONTEXT_MANA, cargo, 0.009f);
     UI_WriteHoverTexture(mana_row, 0.0f, 0.045f, 0.008f, black, UI_STAT_CONTEXT_MANA,
-                         MAKE(COLOR32, 0, 0, 0, 220));
+                         MAKE(color32_t, 0, 0, 0, 220));
     UI_WriteHoverBar(mana_row, 0.001f, 0.043f, 0.006f, mana, UI_STAT_CONTEXT_MANA,
-                     MAKE(COLOR32, 60, 90, 235, 255));
+                     MAKE(color32_t, 60, 90, 235, 255));
     health_row = UI_WriteHoverRow(UI_STAT_CONTEXT_HEALTH, mana_row, 0.009f);
     UI_WriteHoverTexture(health_row, 0.0f, 0.045f, 0.008f, black, UI_STAT_CONTEXT_HEALTH,
-                         MAKE(COLOR32, 0, 0, 0, 220));
+                         MAKE(color32_t, 0, 0, 0, 220));
     UI_WriteHoverBar(health_row, 0.001f, 0.043f, 0.006f, hp, UI_STAT_CONTEXT_HEALTH,
-                     MAKE(COLOR32, 80, 200, 80, 255));
+                     MAKE(color32_t, 80, 200, 80, 255));
 
     frame.flags.type = FT_NAMETAG; frame.flagsvalue |= UIFLAG_SIZE_TO_CONTENT; frame.stat = UI_STAT_CONTEXT_NAME;
     frame.color = COLOR32_WHITE;

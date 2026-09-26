@@ -1,11 +1,11 @@
 #ifndef UI_CONTROL_MAP_LIST_H
 #define UI_CONTROL_MAP_LIST_H
 
-static void UI_DrawMapListControl(LPCFRAMEDEF frame, rect_t const * rect) {
-    LPRENDERER renderer = mi.GetRenderer();
+static void UI_DrawMapListControl(frameDef_t const * frame, rect_t const * rect) {
+    refExport_t * renderer = mi.GetRenderer();
     uiMapListControl_t const *control;
     uiMapListState_t *state;
-    LPCFONT font;
+    font_t const * font;
     uint32_t visible_rows;
     float row_height;
     uint32_t first_row;
@@ -95,7 +95,7 @@ static void UI_DrawMapListControl(LPCFRAMEDEF frame, rect_t const * rect) {
         icon_rect.h = row_height - 0.002f;
         if (renderer->DrawImageEx) {
             uint32_t const icon = UI_LoadTexture("ui\\widgets\\glues\\icon-file-melee.blp", false);
-            LPCTEXTURE icon_texture = UI_GetTexture(icon);
+            texture_t const * icon_texture = UI_GetTexture(icon);
 
             if (icon_texture) {
                 renderer->DrawImageEx(&MAKE(drawImage_t,
@@ -111,7 +111,7 @@ static void UI_DrawMapListControl(LPCFRAMEDEF frame, rect_t const * rect) {
         }
         if (item->players > 0) {
             char players[8];
-            LPCFONT small_font = renderer->LoadFont(UI_FontFile(control->FontName), 9);
+            font_t const * small_font = renderer->LoadFont(UI_FontFile(control->FontName), 9);
 
             snprintf(players, sizeof(players), "%u", (unsigned)item->players);
             if (small_font) {

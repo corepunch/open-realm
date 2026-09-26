@@ -5,7 +5,7 @@ void Wow_LoadAdt(uint8_t const *data, uint32_t size, uint32_t tile_x, uint32_t t
     uint32_t offset = 0;
     char **textures = NULL;
     uint32_t num_textures = 0;
-    VERTEX *object_vertices = NULL;
+    vertex_t *object_vertices = NULL;
     uint32_t object_vertex_count = 0;
 #if !WOW_DEBUG_DOODAD_ERROR_MESHES
     uint8_t const *doodad_names = NULL;
@@ -84,7 +84,7 @@ void Wow_LoadAdt(uint8_t const *data, uint32_t size, uint32_t tile_x, uint32_t t
             uint32_t layer_count = 0;
             uint8_t const *mcal = NULL;
             uint32_t mcal_size = 0;
-            COLOR32 const *mccv = NULL;
+            color32_t const *mccv = NULL;
             uint8_t const *mcsh = NULL;
             float heights[WOW_MCVT_COUNT];
             uint8_t normals[WOW_MCVT_COUNT * 3];
@@ -128,8 +128,8 @@ void Wow_LoadAdt(uint8_t const *data, uint32_t size, uint32_t tile_x, uint32_t t
                 } else if (*(uint32_t const *)subtag == ID_LACM) {
                     mcal = subchunk;
                     mcal_size = sub_size;
-                } else if (*(uint32_t const *)subtag == ID_VCCM && sub_size >= WOW_MCVT_COUNT * sizeof(COLOR32)) {
-                    mccv = (COLOR32 const *)subchunk;
+                } else if (*(uint32_t const *)subtag == ID_VCCM && sub_size >= WOW_MCVT_COUNT * sizeof(color32_t)) {
+                    mccv = (color32_t const *)subchunk;
                 } else if (*(uint32_t const *)subtag == ID_HSCM && sub_size >= 512) {
                     mcsh = subchunk;
                 } else if (*(uint32_t const *)subtag == ID_FRCM) {

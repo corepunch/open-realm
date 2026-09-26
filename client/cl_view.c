@@ -18,7 +18,7 @@ static bool begin_sent = false;
 
 /* Optional CS_MODELS indices become handles here. Games that do not publish
  * CS_TERRAIN_LIGHT_MODEL / CS_ENTITY_LIGHT_MODEL leave the slots empty. */
-static LPCMODEL V_ConfigLightModel(uint32_t configstring) {
+static model_t const * V_ConfigLightModel(uint32_t configstring) {
     cstring_t value;
     char *end = NULL;
     unsigned long index;
@@ -31,7 +31,7 @@ static LPCMODEL V_ConfigLightModel(uint32_t configstring) {
     return cl.models[index];
 }
 
-static LPCMODEL V_ConfigSkyModel(void) {
+static model_t const * V_ConfigSkyModel(void) {
     char *end = NULL;
     unsigned long index = strtoul(cl.configstrings[CS_SKY], &end, 10);
     if (!*cl.configstrings[CS_SKY] || end == cl.configstrings[CS_SKY] || *end || index == 0 || index >= MAX_MODELS)
@@ -51,7 +51,7 @@ static void V_UpdateSceneFog(viewDef_t *view, bool world) {
     if (!view) return;
     view->fogEnable = false;
     view->fogStart = view->fogEnd = 0.0f;
-    view->fogColor = (VECTOR3){0};
+    view->fogColor = (vector3_t){0};
     if (!world || !*cl.configstrings[CS_SCENE_FOG]) {
         invalid_logged = false;
         return;
@@ -69,7 +69,7 @@ static void V_UpdateSceneFog(viewDef_t *view, bool world) {
     view->fogEnable = true;
     view->fogStart = start;
     view->fogEnd = end;
-    view->fogColor = (VECTOR3){ red, green, blue };
+    view->fogColor = (vector3_t){ red, green, blue };
 }
 
 /* Client copies sampling inputs and the day-phase stat. The game renderer
@@ -77,8 +77,8 @@ static void V_UpdateSceneFog(viewDef_t *view, bool world) {
  * not include a game header or compile-guard the clock slot. */
 static void V_UpdateEnvironmentLighting(viewDef_t *view, bool world) {
     if (!view) return;
-    view->terrainLight = (ENVIRONLIGHT){0};
-    view->entityLight = (ENVIRONLIGHT){0};
+    view->terrainLight = (environLight_t){0};
+    view->entityLight = (environLight_t){0};
     V_UpdateSceneFog(view, world);
     if (!world) {
         view->terrainLightModel = NULL;
@@ -94,7 +94,7 @@ static void V_UpdateEnvironmentLighting(viewDef_t *view, bool world) {
         (float)cl.playerstate.stats[UI_PLAYERSTAT_ENV_PHASE] / (float)USHRT_MAX;
 }
 
-VECTOR3 lightAngles = {-40,0,60};
+vector3_t lightAngles = {-40,0,60};
 
 /* A reconnect receives a fresh configstring table; reset only the refresh
  * lifecycle flags so CL_PrepRefresh performs one registration pass. */
@@ -127,63 +127,63 @@ static void CL_SendBegin(void) {
     MSG_WriteString(&cls.netchan.message, "begin");
 }
 
-static void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output) {
-    VECTOR3 const vieworg = Vector3_unm(target);
+static void Matrix4_fromViewAngles(vector3_t const * target, vector3_t const * angles, float distance, matrix4_t * output) {
+    vector3_t const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
-    Matrix4_translate(output, &(VECTOR3){0, 0, -distance});
+    Matrix4_translate(output, &(vector3_t){0, 0, -distance});
     Matrix4_rotate(output, angles, ROTATE_ZYX);
     Matrix4_translate(output, &vieworg);
 }
 
-void Matrix4_fromViewQuat(LPCVECTOR3 target, LPCQUATERNION quat, float distance, LPMATRIX4 output) {
-    VECTOR3 const vieworg = Vector3_unm(target);
+void Matrix4_fromViewQuat(vector3_t const * target, quaternion_t const * quat, float distance, matrix4_t * output) {
+    vector3_t const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
-    Matrix4_translate(output, &(VECTOR3){0, 0, -distance});
+    Matrix4_translate(output, &(vector3_t){0, 0, -distance});
     Matrix4_rotateQuat(output, quat);
     Matrix4_translate(output, &vieworg);
 }
 
-static void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, float scale, LPMATRIX4 output) {
-    MATRIX4 proj, view, tmp1, tmp2;
-    VECTOR3 const target = cl.viewDef.target;
+static void Matrix4_getLightMatrix(vector3_t const * sunangles, float scale, matrix4_t * output) {
+    matrix4_t proj, view, tmp1, tmp2;
+    vector3_t const target = cl.viewDef.target;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0, 3000.0);
     Matrix4_identity(&tmp1);
-    Matrix4_rotate(&tmp1, &(VECTOR3){0,0,45}, ROTATE_XYZ);
+    Matrix4_rotate(&tmp1, &(vector3_t){0,0,45}, ROTATE_XYZ);
     Matrix4_fromViewAngles(&target, sunangles, 1000, &tmp2);
     Matrix4_multiply(&tmp1, &tmp2, &view);
-    Matrix4_translate(&view, &(VECTOR3){0,-500,0});
+    Matrix4_translate(&view, &(vector3_t){0,-500,0});
     Matrix4_multiply(&proj, &view, output);
 }
 
-static void Matrix4_getPreviewCameraMatrix(LPCVECTOR3 target, LPMATRIX4 output) {
-    MATRIX4 proj, view;
+static void Matrix4_getPreviewCameraMatrix(vector3_t const * target, matrix4_t * output) {
+    matrix4_t proj, view;
     size2_t windowSize = re.GetWindowSize();
-    VECTOR3 eye = { 520.0f, -420.0f, 220.0f };
-    VECTOR3 dir = Vector3_sub(target, &eye);
+    vector3_t eye = { 520.0f, -420.0f, 220.0f };
+    vector3_t dir = Vector3_sub(target, &eye);
     float aspect = (float)windowSize.width / (float)windowSize.height;
 
     Matrix4_perspective(&proj, 35.0f, aspect, 10.0f, 4000.0f);
-    Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){0, 0, 1});
+    Matrix4_lookAt(&view, &eye, &dir, &(vector3_t){0, 0, 1});
     Matrix4_multiply(&proj, &view, output);
 }
 
-static void Matrix4_getPreviewLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
-    MATRIX4 proj, view;
+static void Matrix4_getPreviewLightMatrix(vector3_t const * sunangles, vector3_t const * target, float scale, matrix4_t * output) {
+    matrix4_t proj, view;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0, 3000.0);
     Matrix4_fromViewAngles(target, sunangles, 1000, &view);
     Matrix4_multiply(&proj, &view, output);
 }
 
-void Matrix4_getCameraMatrix(LPMATRIX4 output) {
+void Matrix4_getCameraMatrix(matrix4_t * output) {
     if (!world_loaded) {
         Matrix4_identity(output);
         return;
     }
-    MATRIX4 proj, view, inverse;
+    matrix4_t proj, view, inverse;
     size2_t windowSize = re.GetWindowSize();
     viewCamera_t *a = cl.viewDef.camerastate+1;
     viewCamera_t *b = cl.viewDef.camerastate+0;
-    VECTOR3 origin = Vector3_lerp(&a->origin, &b->origin, cl.viewDef.lerpfrac);
+    vector3_t origin = Vector3_lerp(&a->origin, &b->origin, cl.viewDef.lerpfrac);
     if (re.CameraUsesTerrainHeight()) {
         float az = a->origin.z - re.GetHeightAtPoint(a->origin.x, a->origin.y);
         float bz = b->origin.z - re.GetHeightAtPoint(b->origin.x, b->origin.y);
@@ -191,9 +191,9 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
         origin.z = re.GetCameraHeightAtPoint(origin.x, origin.y) + LerpNumber(az, bz, cl.viewDef.lerpfrac);
     }
     cl.viewDef.target = origin;
-    QUATERNION qa = Quaternion_fromEuler(&a->viewangles, ROTATE_ZYX);
-    QUATERNION qb = Quaternion_fromEuler(&b->viewangles, ROTATE_ZYX);
-    QUATERNION quat = Quaternion_slerp(&qa, &qb, cl.viewDef.lerpfrac);
+    quaternion_t qa = Quaternion_fromEuler(&a->viewangles, ROTATE_ZYX);
+    quaternion_t qb = Quaternion_fromEuler(&b->viewangles, ROTATE_ZYX);
+    quaternion_t quat = Quaternion_slerp(&qa, &qb, cl.viewDef.lerpfrac);
     float distance = LerpNumber(a->distance, b->distance, cl.viewDef.lerpfrac);
     float fov = LerpNumber(a->fov, b->fov, cl.viewDef.lerpfrac);
     float viewport_width = cl.viewDef.viewport.w * windowSize.width;
@@ -207,11 +207,11 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_fromViewQuat(&origin, &quat, distance, &view);
     Matrix4_inverse(&view, &inverse);
-    cl.viewDef.camerastate[0].eye = (VECTOR3){ inverse.v[12], inverse.v[13], inverse.v[14] };
+    cl.viewDef.camerastate[0].eye = (vector3_t){ inverse.v[12], inverse.v[13], inverse.v[14] };
     /* Some game cameras orbit a target and require a world-up basis to keep low shots upright. */
     if (distance > 0.0f && CL_GameCameraUsesWorldUp()) {
-        VECTOR3 direction = Vector3_sub(&origin, &cl.viewDef.camerastate[0].eye);
-        Matrix4_lookAt(&view, &cl.viewDef.camerastate[0].eye, &direction, &(VECTOR3){0, 0, 1});
+        vector3_t direction = Vector3_sub(&origin, &cl.viewDef.camerastate[0].eye);
+        Matrix4_lookAt(&view, &cl.viewDef.camerastate[0].eye, &direction, &(vector3_t){0, 0, 1});
     }
     Matrix4_multiply(&proj, &view, output);
 }
@@ -331,7 +331,7 @@ static void V_AddClientEntity(centity_t const *ent) {
         re.name = NULL;
         re.number = 0;
         re.health = 0;
-        re.indicator = (COLOR32){ 0 };
+        re.indicator = (color32_t){ 0 };
         re.flags &= ~RF_BUILDING;
         re.flags |= RF_NO_SHADOW;
         if (ent->current.renderfx & RF_ATTACH_OVERHEAD) {
@@ -350,7 +350,7 @@ static void V_ClearScene(void) {
     cl.viewDef.num_splat_rects = 0;
 }
 
-static bool CL_CircleOverlapsSplatRect(LPCENTITYSTATE state, renderSplatRect_t const *rect) {
+static bool CL_CircleOverlapsSplatRect(entityState_t const * state, renderSplatRect_t const *rect) {
     float const x = MAX(rect->mins.x, MIN(rect->maxs.x, state->origin.x));
     float const y = MAX(rect->mins.y, MIN(rect->maxs.y, state->origin.y));
     float const dx = x - state->origin.x;
@@ -358,7 +358,7 @@ static bool CL_CircleOverlapsSplatRect(LPCENTITYSTATE state, renderSplatRect_t c
     return dx * dx + dy * dy < state->collision * state->collision;
 }
 
-static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
+static void CL_AddBuildingPlacementGrid(vector3_t const * origin) {
     uint32_t const width = cl.cursorEntity->pathing_width;
     uint32_t const height = cl.cursorEntity->pathing_height;
     uint32_t const preview = cl.cursorEntity->pathing_preview;
@@ -382,7 +382,7 @@ static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
     FOR_LOOP(x, width) {
         FOR_LOOP(y, height) {
             renderSplatRect_t rect;
-            VECTOR2 sample;
+            vector2_t sample;
             uint8_t pathing = 0;
             bool blocked;
 
@@ -390,7 +390,7 @@ static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
             rect.mins.y = origin->y - half_height + y * cell_size;
             rect.maxs.x = rect.mins.x + cell_size;
             rect.maxs.y = rect.mins.y + cell_size;
-            sample = (VECTOR2){
+            sample = (vector2_t){
                 (rect.mins.x + rect.maxs.x) * 0.5f,
                 (rect.mins.y + rect.maxs.y) * 0.5f,
             };
@@ -399,8 +399,8 @@ static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
             blocked = blocked || (pathing & prevented) != 0 ||
                       (pathing & required) != required;
             rect.color = blocked || mine_blocked
-                ? (COLOR32){ 255, 0, 0, 166 }
-                : (COLOR32){ 0, 255, 0, 166 };
+                ? (color32_t){ 255, 0, 0, 166 }
+                : (color32_t){ 0, 255, 0, 166 };
             view_state.splat_rects[view_state.num_splat_rects++] = rect;
         }
     }
@@ -435,7 +435,7 @@ static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
             for (int32_t y = y0; y <= y1; y++) {
                 renderSplatRect_t *rect = &view_state.splat_rects[first_rect + (uint32_t)x * height + (uint32_t)y];
                 if (CL_CircleOverlapsSplatRect(state, rect)) {
-                    rect->color = (COLOR32){ 255, 0, 0, 166 };
+                    rect->color = (color32_t){ 255, 0, 0, 166 };
                 }
             }
         }
@@ -479,7 +479,7 @@ static void CL_AddBuilding(void) {
     ent.frame = cl.cursorEntity->frame;
     ent.oldframe = cl.cursorEntity->frame;
     ent.model = cl.models[cl.cursorEntity->model];
-    ent.tint = MAKE(COLOR32, 255, 255, 255, 255);
+    ent.tint = MAKE(color32_t, 255, 255, 255, 255);
 
     CL_AddBuildingPlacementGrid(&ent.origin);
     view_state.entities[view_state.num_entities++] = ent;
@@ -487,7 +487,7 @@ static void CL_AddBuilding(void) {
 
 static void CL_AddCursorSplat(void) {
     renderDecal_t decal;
-    VECTOR3 point;
+    vector3_t point;
 
     if (!cl.cursor_splat.image || cl.cursor_splat.image >= MAX_IMAGES ||
         cl.cursor_splat.radius <= 0.0f) {
@@ -501,10 +501,10 @@ static void CL_AddCursorSplat(void) {
     }
 
     memset(&decal, 0, sizeof(decal));
-    decal.origin = (VECTOR2){ point.x, point.y };
+    decal.origin = (vector2_t){ point.x, point.y };
     decal.radius = cl.cursor_splat.radius;
     decal.texture = cl.pics[cl.cursor_splat.image];
-    decal.color = (COLOR32){ 255, 255, 255, 180 };
+    decal.color = (color32_t){ 255, 255, 255, 180 };
     V_AddDecal(&decal);
 }
 
@@ -563,7 +563,7 @@ void CL_PrepRefresh(void) {
 
         CL_GameDefaultCamera(&defaults);
         camera.origin = defaults.target;
-        camera.viewangles = (VECTOR3){ defaults.pitch, 0.0f, defaults.yaw };
+        camera.viewangles = (vector3_t){ defaults.pitch, 0.0f, defaults.yaw };
         camera.fov = defaults.fov;
         camera.distance = defaults.distance;
         camera.znear = defaults.znear;
@@ -628,7 +628,7 @@ void V_RenderView(void) {
     cl.viewDef.fow_generation = cl.fow.generation;
     cl.viewDef.terrain_mask = cl.terrain_mask;
     if (!world_loaded || cls.state != ca_active) {
-        VECTOR3 target = { 0, 0, 90 };
+        vector3_t target = { 0, 0, 90 };
         uint32_t const elapsed = lastTime && cl.time >= lastTime ? cl.time - lastTime : 0;
 
         cl.viewDef.target = target;
@@ -675,8 +675,8 @@ void V_RenderView(void) {
 #if !defined(WOW) && !defined(SC2)
         {
             float yaw_rad = (float)DEG2RAD(cl.playerstate.viewangles.z);
-            VECTOR2 listener_origin = { cl.playerstate.vieworigin.x, cl.playerstate.vieworigin.y };
-            VECTOR2 listener_right = { cosf(yaw_rad), sinf(yaw_rad) };
+            vector2_t listener_origin = { cl.playerstate.vieworigin.x, cl.playerstate.vieworigin.y };
+            vector2_t listener_right = { cosf(yaw_rad), sinf(yaw_rad) };
             S_SetListener(&listener_origin, &listener_right);
         }
 #endif
@@ -695,7 +695,7 @@ void V_RenderView(void) {
 //    re.DrawPic(tex2, 512, 0);
 
     if (cl.selection.in_progress) {
-        re.DrawSelectionRect(&cl.selection.rect, (COLOR32){0,255,0,255});
+        re.DrawSelectionRect(&cl.selection.rect, (color32_t){0,255,0,255});
     }
     
     lastTime = cl.time;
@@ -738,11 +738,11 @@ static float v_test_exact(float x, float y) { (void)y; return x; }
 static float v_test_blurred(float x, float y) { (void)x; (void)y; return 50.0f; }
 
 TEST(client_entities, omitted_scale_defaults_to_one_in_render_path) {
-    MODEL model = { 0 };
+    model_t model = { 0 };
     centity_t cent = { .prev = { .number = 7, .model = 1 }, .current = { .number = 7, .model = 1 } };
     viewDef_t saved_view = cl.viewDef;
     renderEntity_t saved_entity;
-    LPMODEL saved_model = cl.models[1];
+    model_t * saved_model = cl.models[1];
     int const saved_count = view_state.num_entities;
     bool const had_entity = saved_count > 0;
 
@@ -774,10 +774,10 @@ TEST(client_entities, omitted_scale_defaults_to_one_in_render_path) {
 
 /* Recover camera Z from the actual projection with a zero-angle, zero-distance test camera. */
 static float v_test_camera_z(void) {
-    MATRIX4 inv;
+    matrix4_t inv;
     Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
     Matrix4_inverse(&cl.viewDef.viewProjectionMatrix, &inv);
-    return Matrix4_multiply_vector3(&inv, &(VECTOR3){ 0, 0, -1 }).z + 1.0f;
+    return Matrix4_multiply_vector3(&inv, &(vector3_t){ 0, 0, -1 }).z + 1.0f;
 }
 
 /* Sky and particles consume the same interpolated eye used to build the final view. */
@@ -820,7 +820,7 @@ TEST(client_camera, terrain_offsets_interpolate) {
     cl.viewDef = (viewDef_t){ .viewport = { 0, 0, 1, 1 } };
     cl.viewDef.camerastate[1] = (viewCamera_t){ .origin = { 0, 0, 20 }, .fov = 60, .znear = 1, .zfar = 1000 };
     cl.viewDef.camerastate[0] = cl.viewDef.camerastate[1];
-    cl.viewDef.camerastate[0].origin = (VECTOR3){ 100, 0, 140 };
+    cl.viewDef.camerastate[0].origin = (vector3_t){ 100, 0, 140 };
     FOR_LOOP(i, 3) {
         cl.viewDef.lerpfrac = i * 0.5f;
         T_FEQ(v_test_camera_z(), 70.0f + i * 10.0f, 0.001f);
@@ -831,7 +831,7 @@ TEST(client_camera, terrain_offsets_interpolate) {
     T_FEQ(v_test_camera_z(), 50.0f, 0.001f);
     world_loaded = false;
     Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
-    MATRIX4 identity;
+    matrix4_t identity;
     Matrix4_identity(&identity);
     T_EQ(memcmp(&cl.viewDef.viewProjectionMatrix, &identity, sizeof(identity)), 0);
     cl.viewDef = saved; re = api; world_loaded = loaded;

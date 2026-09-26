@@ -5,23 +5,23 @@
 #include "../menu_local.h"
 
 typedef struct DialogWar3_s {
-    LPFRAMEDEF DialogWar3;
-    LPFRAMEDEF DialogBackdrop;
-    LPFRAMEDEF DialogText;
-    LPFRAMEDEF DialogIcon;
-    LPFRAMEDEF DialogButtonOKBackdrop;
-    LPFRAMEDEF DialogButtonOK;
-    LPFRAMEDEF DialogButtonOKText;
-    LPFRAMEDEF DialogButtonNoBackdrop;
-    LPFRAMEDEF DialogButtonNo;
-    LPFRAMEDEF DialogButtonNoText;
-    LPFRAMEDEF DialogButtonYesBackdrop;
-    LPFRAMEDEF DialogButtonYes;
-    LPFRAMEDEF DialogButtonYesText;
+    frameDef_t * DialogWar3;
+    frameDef_t * DialogBackdrop;
+    frameDef_t * DialogText;
+    frameDef_t * DialogIcon;
+    frameDef_t * DialogButtonOKBackdrop;
+    frameDef_t * DialogButtonOK;
+    frameDef_t * DialogButtonOKText;
+    frameDef_t * DialogButtonNoBackdrop;
+    frameDef_t * DialogButtonNo;
+    frameDef_t * DialogButtonNoText;
+    frameDef_t * DialogButtonYesBackdrop;
+    frameDef_t * DialogButtonYes;
+    frameDef_t * DialogButtonYesText;
 } DialogWar3_t;
 
 
-static inline bool DialogWar3_Bind(DialogWar3_t *out, LPFRAMEDEF bind_root) {
+static inline bool DialogWar3_Bind(DialogWar3_t *out, frameDef_t * bind_root) {
     bool ok = true;
     if (!out) {
         return false;

@@ -19,8 +19,8 @@
 
 /* Keep predicted camera targets inside the loaded map. Scripted WC3 camera
  * rectangles stay server-side; the client does not get a per-player copy. */
-VECTOR2 CL_ClampCameraPosition(VECTOR2 position) {
-    BOX2 bounds = CM_GetWorldBounds();
+vector2_t CL_ClampCameraPosition(vector2_t position) {
+    box2_t bounds = CM_GetWorldBounds();
     if (bounds.max.x > bounds.min.x)
         position.x = MAX(bounds.min.x, MIN(bounds.max.x, position.x));
     if (bounds.max.y > bounds.min.y)
@@ -73,7 +73,7 @@ void CL_RemoveActiveEntity(uint32_t index) {
     }
 }
 
-static void CL_ReadPacketEntities(LPSIZEBUF msg) {
+static void CL_ReadPacketEntities(sizeBuf_t * msg) {
     int count = 0;
     int previous = 0;
     int debug_entities = Cvar_Integer("cl_debug_entities", 0);
@@ -188,7 +188,7 @@ static void CL_ReadPacketEntities(LPSIZEBUF msg) {
     }
 }
 
-static void CL_ParseConfigString(LPSIZEBUF msg) {
+static void CL_ParseConfigString(sizeBuf_t * msg) {
     static PATHSTR last_world;
     PATHSTR olds;
     int const index = MSG_ReadShort(msg);
@@ -219,7 +219,7 @@ static void CL_ParseConfigString(LPSIZEBUF msg) {
     }
 }
 
-static void CL_ParseBaseline(LPSIZEBUF msg) {
+static void CL_ParseBaseline(sizeBuf_t * msg) {
     uint32_t bits = 0;
     uint32_t index = MSG_ReadEntityBits(msg, &bits);
     if (index >= MAX_CLIENT_ENTITIES) {
@@ -240,7 +240,7 @@ static void CL_ParseBaseline(LPSIZEBUF msg) {
     }
 }
 
-static bool CL_EnsureTerrainMaskSize(uint32_t width, uint32_t height, VECTOR2 origin, float cell_size) {
+static bool CL_EnsureTerrainMaskSize(uint32_t width, uint32_t height, vector2_t origin, float cell_size) {
     uint32_t cells;
 
     if (!width || !height || !cell_size || height > UINT_MAX / width) return false;
@@ -271,7 +271,7 @@ static void CL_MaskUnpackRun(uint32_t index, uint8_t value, uint32_t count, void
     FOR_LOOP(i, count) if (dst[i] != value) { dst[i] = value; *c->changed = true; }
 }
 
-static bool CL_ParseTerrainMaskChunk(LPSIZEBUF msg) {
+static bool CL_ParseTerrainMaskChunk(sizeBuf_t * msg) {
     terrainMaskChunk_t chunk;
     uint8_t const *payload;
     uint32_t row_cells, decoded;
@@ -300,7 +300,7 @@ static bool CL_ParseTerrainMaskChunk(LPSIZEBUF msg) {
         return false;
     }
     if (!CL_EnsureTerrainMaskSize(chunk.width, chunk.height,
-            (VECTOR2){ chunk.min_x, chunk.min_y }, chunk.cell_size)) return false;
+            (vector2_t){ chunk.min_x, chunk.min_y }, chunk.cell_size)) return false;
     ctx = (maskUnpackCtx_t){ chunk.first_row, cl.terrain_mask.width, &changed };
     decoded = MSG_DecodeRLE(payload, chunk.payload_bytes, row_cells, CL_MaskUnpackRun, &ctx);
     assert(decoded == row_cells); /* validated above, so the decode cannot fail */
@@ -311,7 +311,7 @@ static bool CL_ParseTerrainMaskChunk(LPSIZEBUF msg) {
 
 /* Handle the svc_frame header and its game-owned datagram, then snapshot entity
  * states into "prev" so the renderer can interpolate the current scene. */
-void CL_ParseFrame(LPSIZEBUF msg) {
+void CL_ParseFrame(sizeBuf_t * msg) {
     cl.frame.serverframe = MSG_ReadLong(msg);
     cl.frame.servertime = MSG_ReadLong(msg);
     cl.frame.oldclientframe = MSG_ReadLong(msg);
@@ -357,17 +357,17 @@ void CL_ParseFrame(LPSIZEBUF msg) {
         }
         lightning_count = (uint16_t)MSG_ReadShort(msg);
         if (lightning_count > MAX_LIGHTNING_EFFECTS ||
-            msg->readcount + lightning_count * sizeof(LIGHTNINGEFFECT) > msg->cursize) {
+            msg->readcount + lightning_count * sizeof(lightningEffect_t) > msg->cursize) {
             msg->readcount = msg->cursize;
             return;
         }
         cl.viewDef.num_lightning_effects = lightning_count;
         cl.num_lightning_effects = lightning_count;
-        FOR_LOOP(i, lightning_count) MSG_Read(msg, &cl.lightning_effects[i], sizeof(LIGHTNINGEFFECT));
+        FOR_LOOP(i, lightning_count) MSG_Read(msg, &cl.lightning_effects[i], sizeof(lightningEffect_t));
     }
     if (has_entity_tints) {
         uint32_t tint_count = (uint16_t)MSG_ReadShort(msg);
-        uint32_t const tint_wire_size = sizeof(uint16_t) + sizeof(COLOR32);
+        uint32_t const tint_wire_size = sizeof(uint16_t) + sizeof(color32_t);
         if (tint_count > MAX_CLIENT_ENTITIES || msg->readcount + tint_count * tint_wire_size > msg->cursize) {
             msg->readcount = msg->cursize;
             return;
@@ -375,7 +375,7 @@ void CL_ParseFrame(LPSIZEBUF msg) {
         FOR_LOOP(i, cl.num_active) cl.ents[cl.active_entities[i]].tint_valid = false;
         FOR_LOOP(i, tint_count) {
             uint32_t number = (uint16_t)MSG_ReadShort(msg);
-            COLOR32 color;
+            color32_t color;
             MSG_Read(msg, &color, sizeof(color));
             if (number >= MAX_CLIENT_ENTITIES) continue;
             cl.ents[number].tint = color;
@@ -388,7 +388,7 @@ void CL_ParseFrame(LPSIZEBUF msg) {
     }
 }
 
-void CL_ParsePlayerInfo(LPSIZEBUF msg) {
+void CL_ParsePlayerInfo(sizeBuf_t * msg) {
     uint32_t bits;
     uint32_t plnum = MSG_ReadPlayerBits(msg, &bits);
     MSG_ReadDeltaPlayerState(msg, &cl.playerstate, plnum, bits);
@@ -422,7 +422,7 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
     if (cl.time - cl.camera_prediction.focus_ms > BZ_INPUT_MAX_MSEC) cl.camera_prediction.active = false;
     if (cl.time - cl.camera_prediction.view_ms > BZ_INPUT_MAX_MSEC) cl.camera_prediction.view = false;
     if (cl.camera_prediction.view) {
-        if (!memcmp(&cl.playerstate.viewangles, &cl.camera_prediction.angles, sizeof(VECTOR3)) &&
+        if (!memcmp(&cl.playerstate.viewangles, &cl.camera_prediction.angles, sizeof(vector3_t)) &&
             cl.playerstate.distance == cl.camera_prediction.distance) {
             cl.camera_prediction.view = false;
         } else {
@@ -454,7 +454,7 @@ void CL_ParsePlayerInfo(LPSIZEBUF msg) {
  * svc_layout header) are never attributed to any layer and are silently dropped
  * as an unknown message.  The server must open a layer before writing frames
  * (see UI_WriteStart/UI_WriteEnd in games/world-of-warcraft/game/g_ui.c). */
-void CL_ParseLayout(LPSIZEBUF msg) {
+void CL_ParseLayout(sizeBuf_t * msg) {
     uint32_t layer = MSG_ReadByte(msg);
     uint32_t payload_size = 0;
     bool terminated = false;
@@ -477,7 +477,7 @@ void CL_ParseLayout(LPSIZEBUF msg) {
     SAFE_DELETE(cl.layout[layer], MemFree);
     uint32_t start = msg->readcount;
     while (true) {
-        UIFRAME ent = { 0 };
+        uiFrame_t ent = { 0 };
         uint32_t bits = 0;
         if (msg->readcount + sizeof(uint32_t) + sizeof(uint16_t) > msg->cursize) {
             break;
@@ -535,7 +535,7 @@ void CL_ParseLayout(LPSIZEBUF msg) {
         bool found = false;
         SCR_Clear(cl.layout[layer]);
         FOR_LOOP(i, SCR_NumFrames()) {
-            LPCUIFRAME frame = SCR_Frame(i);
+            uiFrame_t const * frame = SCR_Frame(i);
             if (!frame || frame->stat != UI_STAT_SELECTION_TIMED_STATUS) continue;
             found = true;
             fprintf(stderr,
@@ -571,7 +571,7 @@ void CL_ParseLayout(LPSIZEBUF msg) {
 #endif
 }
 
-void CL_ParseCursor(LPSIZEBUF msg) {
+void CL_ParseCursor(sizeBuf_t * msg) {
     uint32_t bits = 0;
     SAFE_DELETE(cl.cursorEntity, MemFree);
     cl.cursorEntity = MemAlloc(sizeof(entityState_t));
@@ -582,7 +582,7 @@ void CL_ParseCursor(LPSIZEBUF msg) {
     }
 }
 
-void CL_ParseCursorSplat(LPSIZEBUF msg) {
+void CL_ParseCursorSplat(sizeBuf_t * msg) {
     cl.cursor_splat.image = MSG_ReadShort(msg);
     cl.cursor_splat.radius = MSG_ReadFloat(msg);
     if (!cl.cursor_splat.image || cl.cursor_splat.radius <= 0.0f ||
@@ -684,7 +684,7 @@ static void CL_FogUnpackRun(uint32_t index, uint8_t value, uint32_t count, void 
 }
 
 /* Apply one validated wire chunk and report whether the caller must publish the assembled texture. */
-static bool CL_ParseFogOfWar(LPSIZEBUF msg) {
+static bool CL_ParseFogOfWar(sizeBuf_t * msg) {
     uint32_t flags = MSG_ReadByte(msg);
     uint32_t width = MSG_ReadShort(msg);
     uint32_t height = MSG_ReadShort(msg);
@@ -735,7 +735,7 @@ static bool CL_ParseFogOfWar(LPSIZEBUF msg) {
 }
 
 /* Publish only a complete loading layout; offsets reject missing, reordered, or mismatched chunks. */
-static void CL_ParseLoadingScreen(LPSIZEBUF netmsg) {
+static void CL_ParseLoadingScreen(sizeBuf_t * netmsg) {
     uint8_t buf[MAX_MSGLEN];
     uLongf size = sizeof(buf);
     if (netmsg->cursize - netmsg->readcount < BZ_LOADING_HEADER_SIZE - 1) goto invalid;
@@ -770,7 +770,7 @@ invalid:
     Com_Error(ERR_DROP, "Invalid loading screen payload");
 }
 
-void CL_MirrorMessage(LPSIZEBUF msg) {
+void CL_MirrorMessage(sizeBuf_t * msg) {
     char buf[256] = { 0 };
     MSG_ReadString(msg, buf);
     if (!strcmp(buf, "begin")) {
@@ -782,7 +782,7 @@ void CL_MirrorMessage(LPSIZEBUF msg) {
     MSG_WriteString(&cls.netchan.message, buf);
 }
 
-static void CL_ParseLobbySetup(LPSIZEBUF msg) {
+static void CL_ParseLobbySetup(sizeBuf_t * msg) {
     lobbyState_t state;
     int slot_count;
     int local_slot;
@@ -853,14 +853,14 @@ static void CL_ParseLobbySetup(LPSIZEBUF msg) {
     if (CL_MenuActive()) menu.UpdateLobbySetup(&state);
 }
 
-static void CL_ParseConsolePrint(LPSIZEBUF msg) {
+static void CL_ParseConsolePrint(sizeBuf_t * msg) {
     char text[MAX_CONSOLE_MESSAGE_LEN] = { 0 };
 
     MSG_ReadStringN(msg, text, sizeof(text));
     if (text[0]) CON_printf("%s", text);
 }
 
-static void CL_ParseLobbyChat(LPSIZEBUF msg) {
+static void CL_ParseLobbyChat(sizeBuf_t * msg) {
     char text[512] = { 0 };
     char command[sizeof(text) + 32];
     int own;
@@ -877,7 +877,7 @@ static void CL_ParseLobbyChat(LPSIZEBUF msg) {
 
 /* Apply an authoritative server selection to the client cache and refresh the active unit UI.
  * The payload is a count-prefixed array of entity numbers; malformed or oversized payloads are rejected. */
-static void CL_ParseSetSelection(LPSIZEBUF msg) {
+static void CL_ParseSetSelection(sizeBuf_t * msg) {
     uint32_t count = MSG_ReadByte(msg), selected = 0;
 
     if (msg->readcount + count * sizeof(uint32_t) > msg->cursize) {
@@ -904,11 +904,11 @@ static void CL_ParseSetSelection(LPSIZEBUF msg) {
 
 /* Read the Quake 2 sound packet contract and resolve entity-relative origins
  * from the current client snapshot before handing playback to the mixer. */
-static void CL_ParseSound(LPSIZEBUF msg) {
+static void CL_ParseSound(sizeBuf_t * msg) {
     uint32_t flags = (uint32_t)MSG_ReadByte(msg);
     int sound_index = MSG_ReadShort(msg), channel = 0, entity = 0;
     float volume = DEFAULT_SOUND_PACKET_VOLUME, attenuation = DEFAULT_SOUND_PACKET_ATTENUATION, timeofs = 0.0f;
-    VECTOR3 origin = { 0 };
+    vector3_t origin = { 0 };
     cstring_t path;
     soundPolicy_t policy = {0};
 
@@ -973,8 +973,8 @@ TEST(client_sound, packed_entity_above_4095_reaches_mixer) {
     strlcpy(cl.configstrings[CS_SOUNDS + 1], "packet-test.wav", sizeof(path));
     FOR_LOOP(i, sizeof(entities) / sizeof(*entities)) {
         uint32_t entity = entities[i];
-        VECTOR3 origin = cl.ents[entity].current.origin;
-        cl.ents[entity].current.origin = (VECTOR3){ 123, 456, 0 };
+        vector3_t origin = cl.ents[entity].current.origin;
+        cl.ents[entity].current.origin = (vector3_t){ 123, 456, 0 };
         memset(s.channels, 0, sizeof(s.channels));
         SZ_Init(&msg, data, sizeof(data));
         MSG_WriteByte(&msg, SND_ENT | SND_POS | (i ? SND_PRIORITY : 0));
@@ -1021,7 +1021,7 @@ TEST(client_sound, packed_entity_above_4095_reaches_mixer) {
 }
 #endif
 
-static void CL_ParseWindow(LPSIZEBUF msg) {
+static void CL_ParseWindow(sizeBuf_t * msg) {
     uiWindowDef_t def;
     uint32_t op = MSG_ReadByte(msg), start, frame_end, text_size, size;
     bool terminated = false;
@@ -1039,7 +1039,7 @@ static void CL_ParseWindow(LPSIZEBUF msg) {
     start = msg->readcount;
     scan = *msg;
     while (scan.readcount + sizeof(uint32_t) + sizeof(uint16_t) <= scan.cursize) {
-        UIFRAME frame = { 0 };
+        uiFrame_t frame = { 0 };
         uint32_t bits, number = MSG_ReadEntityBits(&scan, &bits);
         if (!number && !bits) { terminated = true; break; }
         if (!MSG_ReadDeltaUIWindowFrame(&scan, &frame, number, bits) || scan.readcount >= scan.cursize)
@@ -1057,7 +1057,7 @@ static void CL_ParseWindow(LPSIZEBUF msg) {
     if (text[0]) goto malformed_window;
     validate = *msg; validate.cursize = frame_end; terminated = false;
     while (validate.readcount + sizeof(uint32_t) + sizeof(uint16_t) <= validate.cursize) {
-        UIFRAME frame = { 0 };
+        uiFrame_t frame = { 0 };
         uint32_t bits, number = MSG_ReadEntityBits(&validate, &bits);
         if (!number && !bits) { terminated = true; break; }
         if (!MSG_ReadDeltaUIWindowFrame(&validate, &frame, number, bits) || validate.readcount >= validate.cursize)
@@ -1085,7 +1085,7 @@ malformed_window:
     msg->readcount = msg->cursize;
 }
 
-static void CL_ParseMusic(LPSIZEBUF msg) {
+static void CL_ParseMusic(sizeBuf_t * msg) {
     musicCommand_t command = (musicCommand_t)MSG_ReadByte(msg);
     char playlist[2048];
 
@@ -1147,7 +1147,7 @@ static void CL_ParseMusic(LPSIZEBUF msg) {
     }
 }
 
-static void CL_ParseUIWindow(LPSIZEBUF msg) {
+static void CL_ParseUIWindow(sizeBuf_t * msg) {
     char window_id[64];
     MSG_ReadStringN(msg, window_id, sizeof(window_id));
     int show = MSG_ReadByte(msg);
@@ -1157,7 +1157,7 @@ static void CL_ParseUIWindow(LPSIZEBUF msg) {
 /* Dispatch loop for a complete server message buffer.  Each iteration reads
  * one message-type byte and calls the matching handler.  An unknown type
  * stops processing and prints an error to stderr. */
-void CL_ParseServerMessage(LPSIZEBUF msg) {
+void CL_ParseServerMessage(sizeBuf_t * msg) {
     uint8_t pack_id = 0;
     while (MSG_Read(msg, &pack_id, 1)) {
         switch (pack_id) {

@@ -47,10 +47,10 @@ pathTex_t *LoadTGA(uint8_t const* mem, size_t size) {
     /* Pathing TGAs are archive data, but rejecting truncated payloads here keeps
      * a bad bridge resource from reading beyond its VFS buffer. Valid WC3 BGRA
      * bytes retain their existing channel and row interpretation. */
-    if (num_pixels > (SIZE_MAX - sizeof(pathTex_t)) / sizeof(COLOR32) ||
+    if (num_pixels > (SIZE_MAX - sizeof(pathTex_t)) / sizeof(color32_t) ||
         num_pixels > (size - offset) / bytes_per_pixel) return NULL;
     // Allocate memory for decoded image
-    pathTex_t *pathTex = gi.MemAlloc(num_pixels * sizeof(COLOR32) + sizeof(pathTex_t));
+    pathTex_t *pathTex = gi.MemAlloc(num_pixels * sizeof(color32_t) + sizeof(pathTex_t));
     if (!pathTex)
         return NULL;
     pathTex->width = columns;
@@ -59,7 +59,7 @@ pathTex_t *LoadTGA(uint8_t const* mem, size_t size) {
     if (header->image_type==2 || header->image_type==3) {
         for (int row=rows-1; row>=0; row--) {
             for (int column=0; column<columns; column++) {
-                LPCCOLOR32 pcolor = &pathTex->map[column + row * columns];
+                color32_t const * pcolor = &pathTex->map[column + row * columns];
                 uint8_t * dest = (uint8_t *)pcolor;
                 uint8_t value;
                 switch (header->pixel_size) {

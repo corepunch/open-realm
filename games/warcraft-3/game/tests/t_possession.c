@@ -8,7 +8,7 @@
 #define BZ_BPOS MAKEFOURCC('B', 'p', 'o', 's') // rawcode; target Possession stun buff
 #define BZ_BPOC MAKEFOURCC('B', 'p', 'o', 'c') // rawcode; caster Possession damage-amp buff
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -43,21 +43,21 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
     slkTestData_t *rows, *old;
-    LPEDICT caster, enemy, ally, flyer, hero;
+    edict_t * caster, *enemy, *ally, *flyer, *hero;
     UnitBalance_t enemy_bal, hero_bal, ally_bal;
-} POSFIX;
+} posFix_t;
 
-static LPEDICT pos_thinker(LPEDICT caster) {
+static edict_t * pos_thinker(edict_t * caster) {
     FILTER_EDICTS(ent, ent->owner == caster && ent->think) return ent;
     return NULL;
 }
 
 /* Fill the caller's POSFIX. Returning a copy would dangle UnitBalance pointers
  * (&local.enemy_bal) after return; Linux then misreads G_UnitIsHero / DataA level. */
-static void pos_setup(POSFIX *fix, cstring_t slk, uint32_t code) {
+static void pos_setup(posFix_t *fix, cstring_t slk, uint32_t code) {
     reset_entities(); setup_test_world(); level.time = 1000;
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
     fix->rows = parse_slk_string(slk); fix->old = G_SetSLKRows("AbilityData", fix->rows);
     fix->enemy_bal = MAKE(UnitBalance_t, .maxHealth = 500, .level = 2);
@@ -88,7 +88,7 @@ static void pos_setup(POSFIX *fix, cstring_t slk, uint32_t code) {
     fix->caster->stand = unit_stand; fix->enemy->stand = unit_stand;
 }
 
-static void pos_done(POSFIX fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
+static void pos_done(posFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
 
 TEST(wc3_spell, possession_aliases_share_procedures) {
     T_EQ(S_AbilityItem(BZ_APOS).ability->proc, CAbilityPossession);
@@ -100,7 +100,7 @@ TEST(wc3_spell, possession_aliases_share_procedures) {
 
 /* Instant Apos transfers ownership and kills the caster; mana is spent. */
 TEST(wc3_spell, possession_apos_takes_over_and_consumes_caster) {
-    POSFIX fix; pos_setup(&fix, POS_APOS_SLK, BZ_APOS);
+    posFix_t fix; pos_setup(&fix, POS_APOS_SLK, BZ_APOS);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APOS, fix.enemy));
     T_FEQ(fix.caster->mana.value, 60, 0.001f);
     T_EQ(fix.enemy->s.player, 0);
@@ -111,7 +111,7 @@ TEST(wc3_spell, possession_apos_takes_over_and_consumes_caster) {
 
 /* ACps shares CAbilityPossession and reads its own AbilityData row. */
 TEST(wc3_spell, possession_acps_alias_takes_over) {
-    POSFIX fix; pos_setup(&fix, POS_APOS_SLK, BZ_ACPS);
+    posFix_t fix; pos_setup(&fix, POS_APOS_SLK, BZ_ACPS);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACPS, fix.enemy));
     T_EQ(fix.enemy->s.player, 0);
     T_ASSERT(M_IsDead(fix.caster));
@@ -120,7 +120,7 @@ TEST(wc3_spell, possession_acps_alias_takes_over) {
 
 /* Rejects ally/dead/hero/flyer/over-level/magic-immune without spending mana. */
 TEST(wc3_spell, possession_rejects_invalid_targets_without_mana_spend) {
-    POSFIX fix; pos_setup(&fix, POS_APOS_SLK, BZ_APOS);
+    posFix_t fix; pos_setup(&fix, POS_APOS_SLK, BZ_APOS);
     float mana = fix.caster->mana.value;
 
     T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_APOS, fix.ally));
@@ -153,8 +153,8 @@ TEST(wc3_spell, possession_rejects_invalid_targets_without_mana_spend) {
 
 /* After a successful take-over the dead caster cannot recast. */
 TEST(wc3_spell, possession_apos_invalid_after_caster_consumed) {
-    POSFIX fix; pos_setup(&fix, POS_APOS_SLK, BZ_APOS);
-    LPEDICT other = alloc_test_unit(MAKEFOURCC('o', 'g', 'r', 'u'), 200, 0);
+    posFix_t fix; pos_setup(&fix, POS_APOS_SLK, BZ_APOS);
+    edict_t * other = alloc_test_unit(MAKEFOURCC('o', 'g', 'r', 'u'), 200, 0);
     UnitBalance_t bal = MAKE(UnitBalance_t, .maxHealth = 500, .level = 2);
     other->s.player = 1; other->svflags |= SVF_MONSTER; other->targtype = TARG_GROUND;
     other->data.UnitBalance = &bal; other->health.value = other->health.max_value = 500;
@@ -166,8 +166,8 @@ TEST(wc3_spell, possession_apos_invalid_after_caster_consumed) {
 
 /* Aps2 locks both sides, then transfers ownership when the channel expires. */
 TEST(wc3_spell, possession_aps2_channel_completes_takeover) {
-    POSFIX fix; pos_setup(&fix, POS_APS2_SLK, BZ_APS2);
-    LPEDICT thinker;
+    posFix_t fix; pos_setup(&fix, POS_APS2_SLK, BZ_APS2);
+    edict_t * thinker;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APS2, fix.enemy));
     T_EQ(fix.caster->channel.code, BZ_APS2);
     T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPOS), 1);
@@ -189,8 +189,8 @@ TEST(wc3_spell, possession_aps2_channel_completes_takeover) {
 
 /* Cancel mid-channel restores the target and does not transfer ownership. */
 TEST(wc3_spell, possession_aps2_abort_keeps_owner) {
-    POSFIX fix; pos_setup(&fix, POS_APS2_SLK, BZ_APS2);
-    LPEDICT thinker;
+    posFix_t fix; pos_setup(&fix, POS_APS2_SLK, BZ_APS2);
+    edict_t * thinker;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APS2, fix.enemy));
     thinker = pos_thinker(fix.caster);
     T_NOT_NULL(thinker);
@@ -208,7 +208,7 @@ TEST(wc3_spell, possession_aps2_abort_keeps_owner) {
 
 /* DataB multiplies attack damage taken by the channeling caster. */
 TEST(wc3_spell, possession_aps2_datab_amplifies_attack_damage) {
-    POSFIX fix; pos_setup(&fix, POS_APS2_SLK, BZ_APS2);
+    posFix_t fix; pos_setup(&fix, POS_APS2_SLK, BZ_APS2);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APS2, fix.enemy));
     S_ResolveAttackHit(fix.enemy, fix.caster, 40);
     T_FEQ(fix.caster->health.value, 200, 0.001f); /* 300 - 40*2.5 */

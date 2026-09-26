@@ -5,15 +5,15 @@
 #include "../g_local.h"
 
 typedef struct ResourceBar_s {
-    LPFRAMEDEF ResourceBarFrame;
-    LPFRAMEDEF ResourceBarGoldText;
-    LPFRAMEDEF ResourceBarLumberText;
-    LPFRAMEDEF ResourceBarSupplyText;
-    LPFRAMEDEF ResourceBarUpkeepText;
+    frameDef_t * ResourceBarFrame;
+    frameDef_t * ResourceBarGoldText;
+    frameDef_t * ResourceBarLumberText;
+    frameDef_t * ResourceBarSupplyText;
+    frameDef_t * ResourceBarUpkeepText;
 } ResourceBar_t;
 
 
-static inline bool ResourceBar_Bind(ResourceBar_t *out, LPFRAMEDEF bind_root) {
+static inline bool ResourceBar_Bind(ResourceBar_t *out, frameDef_t * bind_root) {
     bool ok = true;
     if (!out) {
         return false;

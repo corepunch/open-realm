@@ -7,14 +7,14 @@
 #include "../g_local.h"
 #include "jass/jass.h"
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
 bool run_test_jass(cstring_t src);
 slkTestData_t *parse_slk_string(const char *slk_text);
 void free_slk_rows(slkTestData_t *rows);
 
 static uint32_t inventory_refresh_unicast_count;
-static LPEDICT inventory_refresh_unicast_target;
+static edict_t * inventory_refresh_unicast_target;
 static bool inventory_refresh_layout_pending;
 static bool inventory_refresh_saw_inventory_layer;
 static bool inventory_refresh_saw_other_layer;
@@ -24,14 +24,14 @@ static uiFrame_t inventory_panel_frame;
 static bool inventory_panel_frame_seen;
 
 /* Supply a valid target callback so the Cancel command exercises target-mode cleanup. */
-static bool item_test_target_callback(LPEDICT clent, LPEDICT target) {
+static bool item_test_target_callback(edict_t * clent, edict_t * target) {
     (void)clent;
     (void)target;
     return false;
 }
 
 /* Supply a valid point callback for the same target-mode cleanup test. */
-static bool item_test_location_callback(LPEDICT clent, LPCVECTOR2 location) {
+static bool item_test_location_callback(edict_t * clent, vector2_t const * location) {
     (void)clent;
     (void)location;
     return false;
@@ -42,7 +42,7 @@ static void item_noop_write(pfWriteType_t type, void const *value) {
     (void)value;
 }
 
-static void item_noop_unicast(LPEDICT ent) {
+static void item_noop_unicast(edict_t * ent) {
     (void)ent;
 }
 
@@ -85,7 +85,7 @@ static void capture_inventory_refresh_write(pfWriteType_t type, void const *valu
     inventory_refresh_layout_pending = byte == svc_layout;
 }
 
-static void capture_inventory_refresh_unicast(LPEDICT ent) {
+static void capture_inventory_refresh_unicast(edict_t * ent) {
     inventory_refresh_unicast_count++;
     inventory_refresh_unicast_target = ent;
 }
@@ -98,9 +98,9 @@ static void reset_inventory_refresh_capture(void) {
     inventory_refresh_saw_other_layer = false;
 }
 
-static LPEDICT make_item_test_inventory_unit(float x, float y) {
+static edict_t * make_item_test_inventory_unit(float x, float y) {
     static UnitAbilities_t abilities = { .abilList = "AInv", .heroAbilList = "" };
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), x, y);
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), x, y);
     unit->data.UnitAbilities = &abilities;
     unit->s.model = 1;
     unit->s.player = PLAYER_NEUTRAL_PASSIVE;
@@ -116,8 +116,8 @@ static LPEDICT make_item_test_inventory_unit(float x, float y) {
     return unit;
 }
 
-static LPEDICT make_item_test_world_item(uint32_t class_id, float x, float y) {
-    LPEDICT item = alloc_test_unit(class_id, x, y);
+static edict_t * make_item_test_world_item(uint32_t class_id, float x, float y) {
+    edict_t * item = alloc_test_unit(class_id, x, y);
     item->s.model = 1;
     item->movetype = MOVETYPE_NONE;
     item->targtype = TARG_ITEM;
@@ -128,10 +128,10 @@ static LPEDICT make_item_test_world_item(uint32_t class_id, float x, float y) {
     return item;
 }
 
-static LPEDICT make_item_test_shop(float x, float y) {
+static edict_t * make_item_test_shop(float x, float y) {
     static UnitProfile_t profile;
     static UnitAbilities_t abilities = { .abilList = "Apit", .heroAbilList = "" };
-    LPEDICT shop = alloc_test_unit(MAKEFOURCC('h','f','o','o'), x, y);
+    edict_t * shop = alloc_test_unit(MAKEFOURCC('h','f','o','o'), x, y);
 
     memset(&profile, 0, sizeof(profile));
     profile.sellItems = "spro";
@@ -145,10 +145,10 @@ static LPEDICT make_item_test_shop(float x, float y) {
     return shop;
 }
 
-static LPEDICT make_unit_test_shop(float x, float y) {
+static edict_t * make_unit_test_shop(float x, float y) {
     static UnitProfile_t profile;
     static UnitAbilities_t abilities = { .abilList = "Aneu,Asud", .heroAbilList = "" };
-    LPEDICT shop = alloc_test_unit(MAKEFOURCC('h','f','o','o'), x, y);
+    edict_t * shop = alloc_test_unit(MAKEFOURCC('h','f','o','o'), x, y);
 
     memset(&profile, 0, sizeof(profile));
     profile.sellUnits = "nmer";
@@ -162,8 +162,8 @@ static LPEDICT make_unit_test_shop(float x, float y) {
     return shop;
 }
 
-static LPEDICT make_unit_shop_patron(float x, float y, uint32_t player) {
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
+static edict_t * make_unit_shop_patron(float x, float y, uint32_t player) {
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
     unit->s.player = player;
     unit->health.value = unit->health.max_value = 100.0f;
     unit->movetype = MOVETYPE_STEP;
@@ -174,7 +174,7 @@ static LPEDICT make_unit_shop_patron(float x, float y, uint32_t player) {
 }
 
 TEST(wc3_items, spawn_initializes_world_state) {
-    LPEDICT item = alloc_test_unit(MAKEFOURCC('r','a','t','f'), 32, 64);
+    edict_t * item = alloc_test_unit(MAKEFOURCC('r','a','t','f'), 32, 64);
 
     SP_SpawnItem(item);
 
@@ -188,7 +188,7 @@ TEST(wc3_items, spawn_initializes_world_state) {
 }
 
 TEST(wc3_items, spawn_initializes_scroll_charges_from_item_data) {
-    LPEDICT item = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 32, 64);
+    edict_t * item = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 32, 64);
 
     SP_SpawnItem(item);
 
@@ -197,8 +197,8 @@ TEST(wc3_items, spawn_initializes_scroll_charges_from_item_data) {
 
 TEST(wc3_items, change_time_item_uses_ability_hour_minute_and_duration) {
     ability_t const *ability;
-    LPEDICT player;
-    LPEDICT hero;
+    edict_t * player;
+    edict_t * hero;
 
     setup_test_world();
     player = &g_edicts[0];
@@ -226,9 +226,9 @@ TEST(wc3_items, change_time_item_uses_ability_hour_minute_and_duration) {
 }
 
 TEST(wc3_items, inventory_capacity_comes_from_inventory_ability_data) {
-    LPEDICT standard = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
-    LPEDICT small = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 0, 0);
-    LPEDICT none = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t * standard = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    edict_t * small = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 0, 0);
+    edict_t * none = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
 
     T_EQ(G_InventoryCapacity(standard), 6);
     T_EQ(G_InventoryCapacity(small), 2);
@@ -237,10 +237,10 @@ TEST(wc3_items, inventory_capacity_comes_from_inventory_ability_data) {
 
 TEST(wc3_items, roc_hero_without_authored_inventory_gets_default_ainv_capacity) {
     UnitAbilities_t no_inventory = { .abilList = "", .heroAbilList = "AHhb" };
-    LPEDICT hero;
+    edict_t * hero;
 
     setup_test_world();
-    ((LPMAPINFO)level.mapinfo)->fileFormat = 24;
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     hero->data.UnitAbilities = &no_inventory;
 
@@ -250,10 +250,10 @@ TEST(wc3_items, roc_hero_without_authored_inventory_gets_default_ainv_capacity) 
 
 TEST(wc3_items, tft_hero_without_authored_inventory_does_not_get_roc_default) {
     UnitAbilities_t no_inventory = { .abilList = "", .heroAbilList = "AHhb" };
-    LPEDICT hero;
+    edict_t * hero;
 
     setup_test_world();
-    ((LPMAPINFO)level.mapinfo)->fileFormat = 25;
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 25;
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     hero->data.UnitAbilities = &no_inventory;
 
@@ -277,11 +277,11 @@ TEST(wc3_items, roc_hero_inventory_does_not_read_attribute_bonus_as_capacity) {
     uint32_t capacity[3], image_count[3]; bool use[3], get[3], drop[3];
     slkTestData_t *rows = parse_slk_string(roc_inventory_slk), *old = G_SetSLKRows("AbilityData", rows);
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
+    void (*old_unicast)(edict_t *) = gi.unicast;
     int (*old_image_index)(cstring_t) = gi.ImageIndex;
     setup_test_world();
-    ((LPMAPINFO)level.mapinfo)->fileFormat = 24;
-    LPEDICT player = &g_edicts[0], hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    edict_t * player = &g_edicts[0], *hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     player->client->ps.race = kPlayerRaceUndead; G_SelectEntity(player->client, hero);
     gi.Write = capture_inventory_refresh_write; gi.unicast = capture_inventory_refresh_unicast;
     gi.ImageIndex = capture_inventory_panel_image;
@@ -304,8 +304,8 @@ TEST(wc3_items, attribute_bonus_does_not_grant_unit_inventory) {
     UnitAbilities_t abilities = { .abilList = "AIa6" };
     slkTestData_t *rows = parse_slk_string(roc_inventory_slk), *old = G_SetSLKRows("AbilityData", rows);
     setup_test_world();
-    ((LPMAPINFO)level.mapinfo)->fileFormat = 24;
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     unit->data.UnitAbilities = &abilities;
     uint32_t capacity = G_InventoryCapacity(unit);
     bool use = G_InventoryCanUseItems(unit), get = G_InventoryCanGetItems(unit), drop = G_InventoryCanDropItems(unit);
@@ -317,8 +317,8 @@ TEST(wc3_items, roc_authored_inventory_capacity_overrides_hero_default_including
     UnitAbilities_t abilities = { .abilList = "Aiv4" };
     slkTestData_t *rows = parse_slk_string(roc_inventory_slk), *old = G_SetSLKRows("AbilityData", rows);
     setup_test_world();
-    ((LPMAPINFO)level.mapinfo)->fileFormat = 24;
-    LPEDICT hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
+    edict_t * hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     hero->data.UnitAbilities = &abilities;
     uint32_t capacity = G_InventoryCapacity(hero);
     abilities.abilList = "Aiv0";
@@ -328,8 +328,8 @@ TEST(wc3_items, roc_authored_inventory_capacity_overrides_hero_default_including
 }
 
 TEST(wc3_items, inventory_capacity_rejects_zero_and_clamps_above_storage_limit) {
-    LPEDICT zero = alloc_test_unit(MAKEFOURCC('H','0','0','2'), 0, 0);
-    LPEDICT oversized = alloc_test_unit(MAKEFOURCC('H','0','0','9'), 0, 0);
+    edict_t * zero = alloc_test_unit(MAKEFOURCC('H','0','0','2'), 0, 0);
+    edict_t * oversized = alloc_test_unit(MAKEFOURCC('H','0','0','9'), 0, 0);
 
     T_EQ(G_InventoryCapacity(zero), 0);
     T_EQ(G_InventoryCapacity(oversized), MAX_INVENTORY);
@@ -337,10 +337,10 @@ TEST(wc3_items, inventory_capacity_rejects_zero_and_clamps_above_storage_limit) 
 
 TEST(wc3_items, pickup_respects_inventory_capacity_not_storage_size) {
     setup_test_world();
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 0, 0);
-    LPEDICT first = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
-    LPEDICT second = make_item_test_world_item(MAKEFOURCC('r','d','e','2'), 64, 0);
-    LPEDICT extra = make_item_test_world_item(MAKEFOURCC('s','p','r','o'), 96, 0);
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 0, 0);
+    edict_t * first = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
+    edict_t * second = make_item_test_world_item(MAKEFOURCC('r','d','e','2'), 64, 0);
+    edict_t * extra = make_item_test_world_item(MAKEFOURCC('s','p','r','o'), 96, 0);
 
     unit->health.value = unit->health.max_value = 100;
     T_ASSERT(G_AddItemToSlot(unit, first, 0));
@@ -352,8 +352,8 @@ TEST(wc3_items, pickup_respects_inventory_capacity_not_storage_size) {
 
 TEST(wc3_items, pickup_sets_both_sides_of_inventory_state) {
     setup_test_world();
-    LPEDICT unit = make_item_test_inventory_unit(0, 0);
-    LPEDICT item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 0);
+    edict_t * unit = make_item_test_inventory_unit(0, 0);
+    edict_t * item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 0);
 
     T_ASSERT(G_AddItemToSlot(unit, item, 2));
     T_ASSERT(unit->inventory[2] == item);
@@ -367,9 +367,9 @@ TEST(wc3_items, pickup_sets_both_sides_of_inventory_state) {
 
 TEST(wc3_items, pickup_uses_first_empty_slot) {
     setup_test_world();
-    LPEDICT unit = make_item_test_inventory_unit(0, 0);
-    LPEDICT first = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
-    LPEDICT second = make_item_test_world_item(MAKEFOURCC('r','d','e','2'), 64, 0);
+    edict_t * unit = make_item_test_inventory_unit(0, 0);
+    edict_t * first = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
+    edict_t * second = make_item_test_world_item(MAKEFOURCC('r','d','e','2'), 64, 0);
 
     T_ASSERT(G_AddItemToSlot(unit, first, 0));
     T_ASSERT(G_PickupItem(unit, second));
@@ -379,8 +379,8 @@ TEST(wc3_items, pickup_uses_first_empty_slot) {
 
 TEST(wc3_items, unit_without_inventory_capability_rejects_item) {
     setup_test_world();
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    LPEDICT item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t * item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
 
     unit->health.value = unit->health.max_value = 100;
     T_ASSERT(!G_UnitHasInventory(unit));
@@ -391,13 +391,13 @@ TEST(wc3_items, unit_without_inventory_capability_rejects_item) {
 
 TEST(wc3_items, full_inventory_leaves_item_in_world) {
     setup_test_world();
-    LPEDICT unit = make_item_test_inventory_unit(0, 0);
+    edict_t * unit = make_item_test_inventory_unit(0, 0);
 
     FOR_LOOP(slot, MAX_INVENTORY) {
-        LPEDICT item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
+        edict_t * item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32.0f + slot, 0);
         T_ASSERT(G_AddItemToSlot(unit, item, slot));
     }
-    LPEDICT extra = make_item_test_world_item(MAKEFOURCC('r','d','e','2'), 96, 0);
+    edict_t * extra = make_item_test_world_item(MAKEFOURCC('r','d','e','2'), 96, 0);
 
     T_ASSERT(!G_PickupItem(unit, extra));
     T_ASSERT(extra->item.in_world);
@@ -409,8 +409,8 @@ TEST(wc3_items, full_inventory_leaves_item_in_world) {
 }
 
 TEST(wc3_items, reserved_client_connection_state_transitions_both_directions) {
-    LPEDICT player = &g_edicts[0];
-    LPGAMECLIENT client = player->client;
+    edict_t * player = &g_edicts[0];
+    gameClient_t * client = player->client;
 
     T_NOT_NULL(client);
     T_ASSERT(!player->inuse);
@@ -425,12 +425,12 @@ TEST(wc3_items, reserved_client_connection_state_transitions_both_directions) {
 
 TEST(wc3_items, pickup_refreshes_inventory_for_connected_reserved_client_edict) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
-    LPEDICT player;
-    LPGAMECLIENT client;
-    LPEDICT unit;
-    LPEDICT first;
-    LPEDICT second;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    edict_t * player;
+    gameClient_t * client;
+    edict_t * unit;
+    edict_t * first;
+    edict_t * second;
     bool first_picked;
     bool second_picked;
     uint32_t disconnected_unicasts;
@@ -479,10 +479,10 @@ TEST(wc3_items, pickup_refreshes_inventory_for_connected_reserved_client_edict) 
 
 TEST(wc3_items, inventory_panel_uses_race_cover_when_selected_unit_has_no_inventory) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
+    void (*old_unicast)(edict_t *) = gi.unicast;
     int (*old_image_index)(cstring_t) = gi.ImageIndex;
-    LPEDICT player, peasant;
-    LPGAMECLIENT client;
+    edict_t * player, *peasant;
+    gameClient_t * client;
 
     setup_test_world();
     player = &g_edicts[0]; client = player->client;
@@ -519,10 +519,10 @@ TEST(wc3_items, inventory_panel_uses_race_cover_when_selected_unit_has_no_invent
 
 TEST(wc3_items, footman_unit_inventory_stays_covered_until_human_backpack_is_researched) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
+    void (*old_unicast)(edict_t *) = gi.unicast;
     int (*old_image_index)(cstring_t) = gi.ImageIndex;
-    LPEDICT player, footman;
-    LPGAMECLIENT client;
+    edict_t * player, *footman;
+    gameClient_t * client;
 
     setup_test_world();
     player = &g_edicts[0]; client = player->client;
@@ -551,8 +551,8 @@ TEST(wc3_items, footman_unit_inventory_stays_covered_until_human_backpack_is_res
 }
 
 TEST(wc3_items, human_backpack_carrier_cannot_use_item_abilities) {
-    LPEDICT player, footman, hero, item;
-    LPGAMECLIENT client;
+    edict_t * player, *footman, *hero, *item;
+    gameClient_t * client;
 
     setup_test_world();
     player = &g_edicts[0]; client = player->client;
@@ -588,8 +588,8 @@ TEST(wc3_items, human_backpack_carrier_cannot_use_item_abilities) {
 }
 
 TEST(wc3_items, backpack_carrier_drops_items_on_death_but_hero_retains_them) {
-    LPEDICT player, footman, hero, carried, hero_item;
-    LPGAMECLIENT client;
+    edict_t * player, *footman, *hero, *carried, *hero_item;
+    gameClient_t * client;
 
     setup_test_world();
     player = &g_edicts[0]; client = player->client;
@@ -630,8 +630,8 @@ TEST(wc3_items, inventory_get_and_drop_flags_gate_orders_but_not_script_style_mu
         "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"0\"\nC;Y2;X7;K\"0\"\nE\n";
     UnitAbilities_t abilities = { .abilList = "Agt0", .heroAbilList = "" };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
-    LPEDICT unit, item;
-    VECTOR2 destination = { 64.0f, 0.0f };
+    edict_t * unit, *item;
+    vector2_t destination = { 64.0f, 0.0f };
 
     setup_test_world();
     unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
@@ -666,9 +666,9 @@ TEST(wc3_items, inventory_get_and_drop_flags_gate_orders_but_not_script_style_mu
 
 TEST(wc3_items, inventory_panel_uses_local_player_race_not_selected_unit_race) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
+    void (*old_unicast)(edict_t *) = gi.unicast;
     int (*old_image_index)(cstring_t) = gi.ImageIndex;
-    LPEDICT player, peasant; LPGAMECLIENT client;
+    edict_t * player, *peasant; gameClient_t * client;
 
     setup_test_world(); player = &g_edicts[0]; client = player->client;
     peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
@@ -683,9 +683,9 @@ TEST(wc3_items, inventory_panel_uses_local_player_race_not_selected_unit_race) {
 
 TEST(wc3_items, inventory_panel_falls_back_to_default_skin_for_unknown_player_race) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
+    void (*old_unicast)(edict_t *) = gi.unicast;
     int (*old_image_index)(cstring_t) = gi.ImageIndex;
-    LPEDICT player, peasant; LPGAMECLIENT client;
+    edict_t * player, *peasant; gameClient_t * client;
 
     setup_test_world(); player = &g_edicts[0]; client = player->client;
     peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
@@ -700,9 +700,9 @@ TEST(wc3_items, inventory_panel_falls_back_to_default_skin_for_unknown_player_ra
 
 TEST(wc3_items, inventory_panel_marks_only_slots_outside_reduced_capacity) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
+    void (*old_unicast)(edict_t *) = gi.unicast;
     int (*old_image_index)(cstring_t) = gi.ImageIndex;
-    LPEDICT player, unit; LPGAMECLIENT client;
+    edict_t * player, *unit; gameClient_t * client;
 
     setup_test_world(); player = &g_edicts[0]; client = player->client;
     unit = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 0, 0);
@@ -717,9 +717,9 @@ TEST(wc3_items, inventory_panel_marks_only_slots_outside_reduced_capacity) {
 
 TEST(wc3_items, inventory_panel_leaves_all_slots_visible_at_full_capacity) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
+    void (*old_unicast)(edict_t *) = gi.unicast;
     int (*old_image_index)(cstring_t) = gi.ImageIndex;
-    LPEDICT player, unit; LPGAMECLIENT client;
+    edict_t * player, *unit; gameClient_t * client;
 
     setup_test_world(); player = &g_edicts[0]; client = player->client;
     unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
@@ -733,10 +733,10 @@ TEST(wc3_items, inventory_panel_leaves_all_slots_visible_at_full_capacity) {
 
 TEST(wc3_items, multiselect_inventory_panel_follows_focused_selected_unit) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
+    void (*old_unicast)(edict_t *) = gi.unicast;
     int (*old_image_index)(cstring_t) = gi.ImageIndex;
-    LPEDICT player, peasant, inventory_unit;
-    LPGAMECLIENT client;
+    edict_t * player, *peasant, *inventory_unit;
+    gameClient_t * client;
 
     setup_test_world();
     player = &g_edicts[0]; client = player->client;
@@ -774,8 +774,8 @@ TEST(wc3_items, multiselect_inventory_panel_follows_focused_selected_unit) {
 
 TEST(wc3_items, inventory_ui_resolves_scroll_metadata_and_charge) {
     gameInventoryItem_t items[MAX_INVENTORY];
-    LPEDICT unit;
-    LPEDICT item;
+    edict_t * unit;
+    edict_t * item;
     uint8_t count;
 
     setup_test_world();
@@ -799,10 +799,10 @@ TEST(wc3_items, inventory_ui_resolves_scroll_metadata_and_charge) {
 }
 
 TEST(wc3_items, neutral_shop_purchases_authored_item_into_nearby_hero_inventory) {
-    LPEDICT player;
-    LPGAMECLIENT client;
-    LPEDICT hero;
-    LPEDICT shop;
+    edict_t * player;
+    gameClient_t * client;
+    edict_t * hero;
+    edict_t * shop;
 
     setup_test_world();
     player = &g_edicts[0];
@@ -823,10 +823,10 @@ TEST(wc3_items, neutral_shop_purchases_authored_item_into_nearby_hero_inventory)
 }
 
 TEST(wc3_items, enemy_item_shop_does_not_gain_neutral_shop_access) {
-    LPEDICT player;
-    LPGAMECLIENT client;
-    LPEDICT hero;
-    LPEDICT shop;
+    edict_t * player;
+    gameClient_t * client;
+    edict_t * hero;
+    edict_t * shop;
 
     setup_test_world();
     player = &g_edicts[0];
@@ -842,10 +842,10 @@ TEST(wc3_items, enemy_item_shop_does_not_gain_neutral_shop_access) {
 }
 
 TEST(wc3_items, neutral_shop_rejects_purchase_without_nearby_inventory_unit) {
-    LPEDICT player;
-    LPGAMECLIENT client;
-    LPEDICT hero;
-    LPEDICT shop;
+    edict_t * player;
+    gameClient_t * client;
+    edict_t * hero;
+    edict_t * shop;
 
     setup_test_world();
     player = &g_edicts[0];
@@ -865,10 +865,10 @@ TEST(wc3_items, neutral_shop_rejects_purchase_without_nearby_inventory_unit) {
 }
 
 TEST(wc3_items, neutral_shop_stock_is_shared_and_replenishes_from_item_data) {
-    LPEDICT player;
-    LPGAMECLIENT client;
-    LPEDICT hero;
-    LPEDICT shop;
+    edict_t * player;
+    gameClient_t * client;
+    edict_t * hero;
+    edict_t * shop;
 
     setup_test_world();
     player = &g_edicts[0];
@@ -889,9 +889,9 @@ TEST(wc3_items, neutral_shop_stock_is_shared_and_replenishes_from_item_data) {
 
 TEST(wc3_items, neutral_item_shop_runtime_stock_override_is_immediate_and_replenishes) {
     static UnitAbilities_t abilities = { .abilList = "Apit,Asid", .heroAbilList = "" };
-    LPEDICT player;
-    LPGAMECLIENT client;
-    LPEDICT shop;
+    edict_t * player;
+    gameClient_t * client;
+    edict_t * shop;
     gameCommandButton_t buttons[12];
     shopItemButtonsParams_t params;
 
@@ -924,11 +924,11 @@ TEST(wc3_items, neutral_item_shop_runtime_stock_override_is_immediate_and_replen
 }
 
 TEST(wc3_items, neutral_unit_shop_uses_non_inventory_patron_and_hires_immediately) {
-    LPEDICT player;
-    LPGAMECLIENT client;
-    LPEDICT patron;
-    LPEDICT shop;
-    LPEDICT hired = NULL;
+    edict_t * player;
+    gameClient_t * client;
+    edict_t * patron;
+    edict_t * shop;
+    edict_t * hired = NULL;
 
     setup_test_world();
     player = &g_edicts[0];
@@ -941,7 +941,7 @@ TEST(wc3_items, neutral_unit_shop_uses_non_inventory_patron_and_hires_immediatel
     patron = make_unit_shop_patron(100, 0, 0);
     shop = make_unit_test_shop(0, 0);
     {
-        LPEDICT nonunit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20, 0);
+        edict_t * nonunit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 20, 0);
         nonunit->s.player = 0;
         nonunit->collision = 8.0f;
         gi.LinkEntity(nonunit);
@@ -967,9 +967,9 @@ TEST(wc3_items, neutral_unit_shop_uses_non_inventory_patron_and_hires_immediatel
 }
 
 TEST(wc3_items, neutral_unit_shop_runtime_stock_override_is_immediate_and_replenishes) {
-    LPEDICT player;
-    LPGAMECLIENT client;
-    LPEDICT shop;
+    edict_t * player;
+    gameClient_t * client;
+    edict_t * shop;
     gameCommandButton_t buttons[12];
     shopItemButtonsParams_t params;
 
@@ -1003,9 +1003,9 @@ TEST(wc3_items, neutral_unit_shop_runtime_stock_override_is_immediate_and_replen
 }
 
 TEST(wc3_items, neutral_unit_shop_stock_delay_and_replenishment_are_shared) {
-    LPEDICT player;
-    LPGAMECLIENT client;
-    LPEDICT shop;
+    edict_t * player;
+    gameClient_t * client;
+    edict_t * shop;
     gameCommandButton_t buttons[12];
     shopItemButtonsParams_t params;
 
@@ -1036,9 +1036,9 @@ TEST(wc3_items, neutral_unit_shop_stock_delay_and_replenishment_are_shared) {
 }
 
 TEST(wc3_items, neutral_unit_shop_food_failure_preserves_stock_and_resources) {
-    LPEDICT player;
-    LPGAMECLIENT client;
-    LPEDICT shop;
+    edict_t * player;
+    gameClient_t * client;
+    edict_t * shop;
 
     setup_test_world();
     player = &g_edicts[0];
@@ -1061,11 +1061,11 @@ TEST(wc3_items, neutral_unit_shop_food_failure_preserves_stock_and_resources) {
 }
 
 TEST(wc3_items, neutral_shop_pawns_pawnable_item_at_misc_rate) {
-    LPEDICT player;
-    LPGAMECLIENT client;
-    LPEDICT hero;
-    LPEDICT shop;
-    LPEDICT item;
+    edict_t * player;
+    gameClient_t * client;
+    edict_t * hero;
+    edict_t * shop;
+    edict_t * item;
 
     setup_test_world();
     player = &g_edicts[0];
@@ -1089,11 +1089,11 @@ TEST(wc3_items, neutral_shop_pawns_pawnable_item_at_misc_rate) {
 
 TEST(wc3_items, carried_charge_change_refreshes_inventory_and_same_value_is_noop) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
-    LPEDICT player;
-    LPGAMECLIENT client;
-    LPEDICT unit;
-    LPEDICT item;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    edict_t * player;
+    gameClient_t * client;
+    edict_t * unit;
+    edict_t * item;
 
     setup_test_world();
     player = &g_edicts[0];
@@ -1139,7 +1139,7 @@ TEST(wc3_items, carried_charge_change_refreshes_inventory_and_same_value_is_noop
 
 TEST(wc3_items, perishable_success_consumes_charge_and_removes_at_zero) {
     ItemData_t perishable = { .perishable = true };
-    LPEDICT item;
+    edict_t * item;
 
     setup_test_world();
     item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 0);
@@ -1156,7 +1156,7 @@ TEST(wc3_items, perishable_success_consumes_charge_and_removes_at_zero) {
 
 TEST(wc3_items, nonperishable_use_decrements_charges_but_keeps_item_at_zero) {
     ItemData_t reusable = { .perishable = false };
-    LPEDICT item;
+    edict_t * item;
 
     setup_test_world();
     item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 0);
@@ -1174,11 +1174,11 @@ TEST(wc3_items, nonperishable_use_decrements_charges_but_keeps_item_at_zero) {
 
 TEST(wc3_items, inventory_click_uses_itemdata_ability_list_and_applies_scroll) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
-    LPEDICT clent;
-    LPGAMECLIENT client;
-    LPEDICT unit;
-    LPEDICT item;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    edict_t * clent;
+    gameClient_t * client;
+    edict_t * unit;
+    edict_t * item;
     float base_armor;
     bool found_buff = false;
     cstring_t command[] = { "inventory", "0" };
@@ -1222,8 +1222,8 @@ TEST(wc3_items, inventory_click_uses_itemdata_ability_list_and_applies_scroll) {
 
 TEST(wc3_items, drop_preserves_item_charges) {
     setup_test_world();
-    LPEDICT unit = make_item_test_inventory_unit(128, 256);
-    LPEDICT item = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 64, 0);
+    edict_t * unit = make_item_test_inventory_unit(128, 256);
+    edict_t * item = alloc_test_unit(MAKEFOURCC('s','p','r','o'), 64, 0);
 
     SP_SpawnItem(item); gi.LinkEntity(item);
     T_EQ(G_ItemCharges(item), 1);
@@ -1247,8 +1247,8 @@ TEST(wc3_items, jass_item_charge_natives_use_runtime_item_state) {
 
 TEST(wc3_items, pickup_event_detects_arthas_urn) {
     static UnitAbilities_t abilities = { .abilList = "AInv", .heroAbilList = "" };
-    LPEDICT arthas = NULL;
-    LPEDICT urn;
+    edict_t * arthas = NULL;
+    edict_t * urn;
 
     setup_test_world();
     T_ASSERT(run_test_jass(
@@ -1293,8 +1293,8 @@ TEST(wc3_items, pickup_event_detects_arthas_urn) {
 }
 
 TEST(wc3_items, jass_set_item_drop_id_stores_unit_rawcode) {
-    LPEDICT item = NULL;
-    LPEDICT unit;
+    edict_t * item = NULL;
+    edict_t * unit;
 
     setup_test_world();
     T_ASSERT(run_test_jass(
@@ -1324,7 +1324,7 @@ TEST(wc3_items, jass_set_item_drop_id_stores_unit_rawcode) {
 
 TEST(wc3_items, jass_set_item_drop_id_round_trips_save) {
     cstring_t path = "/tmp/openwarcraft3-wc3-item-drop-id.bin";
-    LPEDICT item = NULL;
+    edict_t * item = NULL;
     uint32_t index;
 
     setup_test_world();
@@ -1350,8 +1350,8 @@ TEST(wc3_items, jass_set_item_drop_id_round_trips_save) {
 
 TEST(wc3_items, drop_restores_same_item_to_world) {
     setup_test_world();
-    LPEDICT unit = make_item_test_inventory_unit(128, 256);
-    LPEDICT item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 0);
+    edict_t * unit = make_item_test_inventory_unit(128, 256);
+    edict_t * item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 0);
 
     T_ASSERT(G_AddItemToSlot(unit, item, 3));
     T_ASSERT(G_DropItem(unit, 3));
@@ -1368,8 +1368,8 @@ TEST(wc3_items, drop_restores_same_item_to_world) {
 
 TEST(wc3_items, pickup_order_waits_for_simulation_tick) {
     setup_test_world();
-    LPEDICT unit = make_item_test_inventory_unit(0, 0);
-    LPEDICT item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), ITEM_PICKUP_RANGE - 1, 0);
+    edict_t * unit = make_item_test_inventory_unit(0, 0);
+    edict_t * item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), ITEM_PICKUP_RANGE - 1, 0);
 
     T_ASSERT(unit_issuetargetorder(unit, "smart", item));
     T_NULL(unit->inventory[0]);
@@ -1384,18 +1384,18 @@ TEST(wc3_items, pickup_order_waits_for_simulation_tick) {
 
 TEST(wc3_items, mixed_selection_smart_item_orders_roc_hero_even_when_nonhero_is_first) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
+    void (*old_unicast)(edict_t *) = gi.unicast;
     UnitAbilities_t no_inventory = { .abilList = "", .heroAbilList = "AHhb" };
-    LPEDICT clent;
-    LPGAMECLIENT client;
-    LPEDICT footman;
-    LPEDICT hero;
-    LPEDICT item;
+    edict_t * clent;
+    gameClient_t * client;
+    edict_t * footman;
+    edict_t * hero;
+    edict_t * item;
     char item_number[16];
     cstring_t command[] = { "smart", item_number };
 
     setup_test_world();
-    ((LPMAPINFO)level.mapinfo)->fileFormat = 24;
+    ((mapInfo_t *)level.mapinfo)->fileFormat = 24;
     clent = &g_edicts[0];
     client = clent->client;
     gi.Write = item_noop_write;
@@ -1431,8 +1431,8 @@ TEST(wc3_items, mixed_selection_smart_item_orders_roc_hero_even_when_nonhero_is_
 
 TEST(wc3_items, pickup_order_moves_and_revalidates_item) {
     setup_test_world();
-    LPEDICT unit = make_item_test_inventory_unit(0, 0);
-    LPEDICT item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), ITEM_PICKUP_RANGE + 100, 0);
+    edict_t * unit = make_item_test_inventory_unit(0, 0);
+    edict_t * item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), ITEM_PICKUP_RANGE + 100, 0);
 
     T_ASSERT(G_OrderPickupItem(unit, item));
     unit->currentmove->think(unit);
@@ -1448,9 +1448,9 @@ TEST(wc3_items, pickup_order_moves_and_revalidates_item) {
 
 TEST(wc3_items, point_drop_waits_for_simulation_tick) {
     setup_test_world();
-    LPEDICT unit = make_item_test_inventory_unit(0, 0);
-    LPEDICT item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
-    VECTOR2 destination = { ITEM_DROP_RANGE - 1.0f, 0.0f };
+    edict_t * unit = make_item_test_inventory_unit(0, 0);
+    edict_t * item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
+    vector2_t destination = { ITEM_DROP_RANGE - 1.0f, 0.0f };
 
     T_ASSERT(G_PickupItem(unit, item));
     T_ASSERT(G_OrderDropItemAt(unit, item, &destination));
@@ -1469,9 +1469,9 @@ TEST(wc3_items, point_drop_waits_for_simulation_tick) {
 
 TEST(wc3_items, distant_point_drop_moves_before_releasing_item) {
     setup_test_world();
-    LPEDICT unit = make_item_test_inventory_unit(0, 0);
-    LPEDICT item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
-    VECTOR2 destination = { ITEM_DROP_RANGE + 200.0f, 0.0f };
+    edict_t * unit = make_item_test_inventory_unit(0, 0);
+    edict_t * item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
+    vector2_t destination = { ITEM_DROP_RANGE + 200.0f, 0.0f };
 
     T_ASSERT(G_PickupItem(unit, item));
     T_ASSERT(G_OrderDropItemAt(unit, item, &destination));
@@ -1486,9 +1486,9 @@ TEST(wc3_items, distant_point_drop_moves_before_releasing_item) {
 
 TEST(wc3_items, point_drop_revalidates_carried_item) {
     setup_test_world();
-    LPEDICT unit = make_item_test_inventory_unit(0, 0);
-    LPEDICT item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
-    VECTOR2 destination = { ITEM_DROP_RANGE + 200.0f, 0.0f };
+    edict_t * unit = make_item_test_inventory_unit(0, 0);
+    edict_t * item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
+    vector2_t destination = { ITEM_DROP_RANGE + 200.0f, 0.0f };
 
     T_ASSERT(G_PickupItem(unit, item));
     T_ASSERT(G_OrderDropItemAt(unit, item, &destination));
@@ -1501,10 +1501,10 @@ TEST(wc3_items, point_drop_revalidates_carried_item) {
 }
 
 TEST(wc3_items, cancel_command_clears_point_drop_target_mode) {
-    LPGAMECLIENT client;
-    LPEDICT clent;
-    LPEDICT unit;
-    LPEDICT item;
+    gameClient_t * client;
+    edict_t * clent;
+    edict_t * unit;
+    edict_t * item;
     cstring_t command[] = { "cancel" };
 
     setup_test_world();
@@ -1527,8 +1527,8 @@ TEST(wc3_items, cancel_command_clears_point_drop_target_mode) {
 
 TEST(wc3_items, removing_carried_item_clears_slot) {
     setup_test_world();
-    LPEDICT unit = make_item_test_inventory_unit(0, 0);
-    LPEDICT item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
+    edict_t * unit = make_item_test_inventory_unit(0, 0);
+    edict_t * item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
 
     T_ASSERT(G_PickupItem(unit, item));
     G_RemoveItem(item);
@@ -1542,7 +1542,7 @@ TEST(wc3_items, drop_at_rejects_slot_beyond_capacity) {
      * slot index in-range for the hard array but beyond the unit's authored
      * capacity is rejected cleanly instead of silently failing on item guard. */
     setup_test_world();
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 0, 0);
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('H','0','0','1'), 0, 0);
     unit->s.model = 1;
     unit->s.player = PLAYER_NEUTRAL_PASSIVE;
     unit->movetype = MOVETYPE_STEP;
@@ -1553,12 +1553,12 @@ TEST(wc3_items, drop_at_rejects_slot_beyond_capacity) {
     gi.LinkEntity(unit);
     T_EQ(G_InventoryCapacity(unit), 2);
 
-    LPEDICT item0 = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 0);
-    LPEDICT item1 = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 32);
+    edict_t * item0 = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 0);
+    edict_t * item1 = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 64, 32);
     T_ASSERT(G_AddItemToSlot(unit, item0, 0));
     T_ASSERT(G_AddItemToSlot(unit, item1, 1));
 
-    VECTOR2 pos = MAKE(VECTOR2, 0, 0);
+    vector2_t pos = MAKE(vector2_t, 0, 0);
     T_ASSERT(!G_DropItemAt(unit, 4, &pos));
     T_ASSERT(unit->inventory[0] == item0);
     T_ASSERT(unit->inventory[1] == item1);

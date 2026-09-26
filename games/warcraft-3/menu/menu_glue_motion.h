@@ -2,12 +2,12 @@
  * 51 uniform samples per sequence, in FDF Y-down units relative to the open pose.
  * Keep departure tracks separate: they are not reversed entrances. */
 #define BZ_GLUE_SAMPLES 51 // samples; 2% intervals retain native bounce; used for panel-content interpolation.
-typedef struct { float enter[BZ_GLUE_SAMPLES], leave[BZ_GLUE_SAMPLES]; } GLUEMOTION;
-typedef GLUEMOTION *LPGLUEMOTION;
-typedef const GLUEMOTION *LPCGLUEMOTION;
+typedef struct { float enter[BZ_GLUE_SAMPLES], leave[BZ_GLUE_SAMPLES]; } glueMotion_t;
+
+
 
 /* TopRightPanel node 1: MainMenu Birth / MainMenu Death. */
-static const GLUEMOTION motion_main = {
+static const glueMotion_t motion_main = {
     .enter = {
         -0.594891f, -0.596086f, -0.596442f, -0.595959f, -0.594638f, -0.592478f, -0.589803f, -0.586753f,
         -0.583071f, -0.578497f, -0.572773f, -0.565642f, -0.556843f, -0.546119f, -0.532558f, -0.514103f,
@@ -29,7 +29,7 @@ static const GLUEMOTION motion_main = {
 };
 
 /* TopRightPanel node 16: Options Birth / Options Death. */
-static const GLUEMOTION motion_opts = {
+static const glueMotion_t motion_opts = {
     .enter = {
         -0.594891f, -0.597092f, -0.598035f, -0.597721f, -0.596149f, -0.593320f, -0.589296f, -0.584077f,
         -0.577622f, -0.569891f, -0.560843f, -0.550436f, -0.538451f, -0.522505f, -0.502250f, -0.478185f,
@@ -51,7 +51,7 @@ static const GLUEMOTION motion_opts = {
 };
 
 /* TopLeftPanel node 12: Options Morph / Options Morph Alternate. */
-static const GLUEMOTION motion_tab = {
+static const glueMotion_t motion_tab = {
     .enter = {
         -0.597870f, -0.600754f, -0.602525f, -0.603182f, -0.602725f, -0.601154f, -0.598469f, -0.594693f,
         -0.589949f, -0.584183f, -0.577309f, -0.569245f, -0.559906f, -0.549208f, -0.536371f, -0.519341f,
@@ -73,7 +73,7 @@ static const GLUEMOTION motion_tab = {
 };
 
 /* TopLeftPanel node 13: BattlenetCustom Birth / BattlenetCustom Death. */
-static const GLUEMOTION motion_lan = {
+static const glueMotion_t motion_lan = {
     .enter = {
         -0.597871f, -0.599015f, -0.598705f, -0.596941f, -0.593735f, -0.589049f, -0.582921f, -0.575408f,
         -0.566567f, -0.556455f, -0.545128f, -0.530926f, -0.512594f, -0.490586f, -0.465359f, -0.437366f,
@@ -95,7 +95,7 @@ static const GLUEMOTION motion_lan = {
 };
 
 /* TopLeftPanel node 13: BattlenetCustomCreate Birth / BattlenetCustomCreate Death. */
-static const GLUEMOTION motion_create = {
+static const glueMotion_t motion_create = {
     .enter = {
         -0.597871f, -0.597919f, -0.598016f, -0.596978f, -0.593912f, -0.589251f, -0.583125f, -0.575592f,
         -0.566709f, -0.556535f, -0.545128f, -0.530964f, -0.512687f, -0.490750f, -0.465604f, -0.437703f,
@@ -117,7 +117,7 @@ static const GLUEMOTION motion_create = {
 };
 
 /* TopLeftPanel node 10: MultiplayerPreGameChat Birth / MultiplayerPreGameChat Death. */
-static const GLUEMOTION motion_chat = {
+static const glueMotion_t motion_chat = {
     .enter = {
         -0.597871f, -0.600755f, -0.602526f, -0.603183f, -0.602726f, -0.601155f, -0.598470f, -0.594683f,
         -0.589897f, -0.584072f, -0.577122f, -0.568961f, -0.559503f, -0.548662f, -0.535645f, -0.518460f,
@@ -139,7 +139,7 @@ static const GLUEMOTION motion_chat = {
 };
 
 /* TopLeftPanel node 21: RealmSelection Birth / RealmSelection Death. */
-static const GLUEMOTION motion_realm = {
+static const glueMotion_t motion_realm = {
     .enter = {
         -0.597871f, -0.600755f, -0.602526f, -0.603183f, -0.602726f, -0.601155f, -0.598470f, -0.594683f,
         -0.589897f, -0.584072f, -0.577122f, -0.568961f, -0.559503f, -0.548662f, -0.535645f, -0.518460f,
@@ -161,7 +161,7 @@ static const GLUEMOTION motion_realm = {
 };
 
 /* TopRightPanel node 8: MultiplayerPreGameChat Birth / MultiplayerPreGameChat Death. */
-static const GLUEMOTION motion_chatnav = {
+static const glueMotion_t motion_chatnav = {
     .enter = {
         -0.597871f, -0.598258f, -0.598966f, -0.599321f, -0.598645f, -0.596261f, -0.592176f, -0.586852f,
         -0.580268f, -0.572408f, -0.563252f, -0.552781f, -0.540784f, -0.525016f, -0.505205f, -0.481820f,
@@ -183,7 +183,7 @@ static const GLUEMOTION motion_chatnav = {
 };
 
 /* TopRightPanel node 15: BattlenetCustom Birth / BattlenetCustom Death. */
-static const GLUEMOTION motion_lannav = {
+static const glueMotion_t motion_lannav = {
     .enter = {
         -0.594891f, -0.594860f, -0.595063f, -0.595040f, -0.594331f, -0.592478f, -0.589786f, -0.586713f,
         -0.582997f, -0.578374f, -0.572580f, -0.565354f, -0.556431f, -0.545549f, -0.531752f, -0.513057f,

@@ -68,20 +68,20 @@ def gen_playercreateinfo(output_dir):
     print(f"  playercreateinfo.csv: {len(rows)} rows")
 
     lines = ['#include "g_wow_local.h"', '#include "common/wow_character_utils.h"', '']
-    lines.append('static const WOWSPAWNPOINT wow_spawn_points[] = {')
+    lines.append('static const wowSpawnPoint_t wow_spawn_points[] = {')
     for r in rows:
         race, cls, map_id, x, y, z, facing = r[:7]
         lines.append(f'    {{ {race}, {cls}, {map_id}, {c_float(x)}, {c_float(y)}, {c_float(z)}, {c_float(facing)} }},')
     lines.extend([
         '};', '',
-        'DWORD Wow_SpawnCount(void) { return sizeof(wow_spawn_points) / sizeof(wow_spawn_points[0]); }', '',
-        'LPCWOWSPAWNPOINT Wow_SpawnByIndex(DWORD index) {',
+        'uint32_t Wow_SpawnCount(void) { return sizeof(wow_spawn_points) / sizeof(wow_spawn_points[0]); }', '',
+        'wowSpawnPoint_t const * Wow_SpawnByIndex(uint32_t index) {',
         '    return index < Wow_SpawnCount() ? &wow_spawn_points[index] : NULL;',
         '}', '',
         '/* Race string + class -> spawn index on the currently loaded map, or ~0u. */',
-        'DWORD Wow_SelectSpawnPoint(LPCSTR race, DWORD class_id) {',
-        '    DWORD race_num = Wow_RaceNumber(race);',
-        '    DWORD map_id = CM_WowGetMapId();',
+        'uint32_t Wow_SelectSpawnPoint(cstring_t race, uint32_t class_id) {',
+        '    uint32_t race_num = Wow_RaceNumber(race);',
+        '    uint32_t map_id = CM_WowGetMapId();',
         '    if (!race_num) return ~0u;',
         '    FOR_LOOP(i, Wow_SpawnCount())',
         '        if (wow_spawn_points[i].race == race_num && wow_spawn_points[i].cls == class_id &&',
@@ -90,16 +90,16 @@ def gen_playercreateinfo(output_dir):
         '    return ~0u;',
         '}', '',
         '/* Race string + class -> map id, or ~0u. */',
-        'DWORD Wow_PlayerCreateMap(LPCSTR race, DWORD class_id) {',
-        '    DWORD race_num = Wow_RaceNumber(race);',
+        'uint32_t Wow_PlayerCreateMap(cstring_t race, uint32_t class_id) {',
+        '    uint32_t race_num = Wow_RaceNumber(race);',
         '    if (!race_num) return ~0u;',
         '    FOR_LOOP(i, Wow_SpawnCount())',
         '        if (wow_spawn_points[i].race == race_num && wow_spawn_points[i].cls == class_id)',
         '            return wow_spawn_points[i].map;',
         '    return ~0u;',
         '}', '',
-        'LPCVECTOR3 Wow_GetSpawnPos(DWORD idx) {',
-        '    static VECTOR3 v;',
+        'vector3_t const * Wow_GetSpawnPos(uint32_t idx) {',
+        '    static vector3_t v;',
         '    if (idx >= Wow_SpawnCount()) return NULL;',
         '    v.x = wow_spawn_points[idx].x;',
         '    v.y = wow_spawn_points[idx].y;',
@@ -108,7 +108,7 @@ def gen_playercreateinfo(output_dir):
         '}', '',
         '/* True if playercreateinfo has ANY entry for map_id (any race/class). */',
         '/* Used to distinguish a dungeon map (no entries at all) from a race mismatch. */',
-        'BOOL Wow_HasSpawnForMap(DWORD map_id) {',
+        'bool Wow_HasSpawnForMap(uint32_t map_id) {',
         '    FOR_LOOP(i, Wow_SpawnCount())',
         '        if (wow_spawn_points[i].map == map_id) return true;',
         '    return false;',
@@ -131,23 +131,23 @@ def gen_weapons(output_dir):
     print(f"  weapons.csv: {len(rows)} rows")
 
     lines = ['#include "g_wow_local.h"', '#include <stdio.h>', '#include <stdlib.h>', '']
-    lines.append(f'static const WOWWEAPON wow_weapons[] = {{')
+    lines.append(f'static const wowWeapon_t wow_weapons[] = {{')
     for r in rows:
         entry, name, subclass, displayid, inv_type, ilvl, rlvl, dmin, dmax, dtype, delay = r[:11]
         lines.append(f'    {{ {entry}, "{escape_c(name)}", {subclass}, {displayid}, '
                      f'{inv_type}, {ilvl}, {rlvl}, {float(dmin):.1f}f, {float(dmax):.1f}f, {dtype}, {delay} }},')
     lines.append('};')
     lines.append('')
-    lines.append('LPCWOWWEAPON Wow_WeaponByEntry(DWORD entry) {')
+    lines.append('wowWeapon_t const * Wow_WeaponByEntry(uint32_t entry) {')
     lines.append('    FOR_LOOP(i, sizeof(wow_weapons) / sizeof(wow_weapons[0]))')
     lines.append('        if (wow_weapons[i].entry == entry) return &wow_weapons[i];')
     lines.append('    return NULL;')
     lines.append('}')
     lines.append('')
-    lines.append('DWORD Wow_RollWeaponDamage(DWORD entry) {')
-    lines.append('    static DWORD last_missing = ~0u;')
-    lines.append('    LPCWOWWEAPON weapon = Wow_WeaponByEntry(entry);')
-    lines.append('    DWORD min_damage, max_damage;')
+    lines.append('uint32_t Wow_RollWeaponDamage(uint32_t entry) {')
+    lines.append('    static uint32_t last_missing = ~0u;')
+    lines.append('    wowWeapon_t const * weapon = Wow_WeaponByEntry(entry);')
+    lines.append('    uint32_t min_damage, max_damage;')
     lines.append('')
     lines.append('    if (!entry) return 1;')
     lines.append('    if (!weapon) {')
@@ -157,9 +157,9 @@ def gen_weapons(output_dir):
     lines.append('        }')
     lines.append('        return 1;')
     lines.append('    }')
-    lines.append('    min_damage = (DWORD)weapon->damage_min;')
-    lines.append('    max_damage = (DWORD)weapon->damage_max;')
-    lines.append('    return min_damage + (max_damage > min_damage ? (DWORD)(rand() % (max_damage - min_damage + 1)) : 0);')
+    lines.append('    min_damage = (uint32_t)weapon->damage_min;')
+    lines.append('    max_damage = (uint32_t)weapon->damage_max;')
+    lines.append('    return min_damage + (max_damage > min_damage ? (uint32_t)(rand() % (max_damage - min_damage + 1)) : 0);')
     lines.append('}')
     lines.append('')
 
@@ -193,25 +193,25 @@ def gen_quests(output_dir):
     lines = ['#include "g_wow_local.h"', '']
 
     # Quest givers
-    lines.append(f'static const WOWQUESTGIVER wow_quest_givers[] = {{')
+    lines.append(f'static const wowQuestGiver_t wow_quest_givers[] = {{')
     for g in givers:
         _, qid, entry, dispid, x, y, z, o = g
         lines.append(f'    {{ {qid}, {entry}, {dispid}, {{ {float(x):.4f}f, {float(y):.3f}f, {float(z):.4f}f }}, {float(o):.5f}f }},')
     lines.append('};')
     lines.append('')
-    lines.append('typedef struct { DWORD first, count; } WOWQUESTGIVERGROUP;')
-    lines.append('typedef struct { DWORD quest_id; VECTOR2 position; DWORD group; } WOWQUESTGIVERLOOKUP;')
-    lines.append('static const DWORD wow_quest_giver_group_rows[] = {')
+    lines.append('typedef struct { uint32_t first, count; } wowQuestGiverGroup_t;')
+    lines.append('typedef struct { uint32_t quest_id; vector2_t position; uint32_t group; } wowQuestGiverLookup_t;')
+    lines.append('static const uint32_t wow_quest_giver_group_rows[] = {')
     for rows in groups:
         lines.append('    ' + ', '.join(str(i) for i in rows) + ',')
     lines.append('};')
-    lines.append('static const WOWQUESTGIVERGROUP wow_quest_giver_groups[] = {')
+    lines.append('static const wowQuestGiverGroup_t wow_quest_giver_groups[] = {')
     first = 0
     for rows in groups:
         lines.append(f'    {{ {first}, {len(rows)} }},')
         first += len(rows)
     lines.append('};')
-    lines.append('static const WOWQUESTGIVERLOOKUP wow_quest_giver_lookup[] = {')
+    lines.append('static const wowQuestGiverLookup_t wow_quest_giver_lookup[] = {')
     lookup = sorted(((int(g[1]), float(g[4]), float(g[5]), row_group[i]) for i, g in enumerate(givers)))
     for qid, x, y, group in lookup:
         lines.append(f'    {{ {qid}, {{ {x:.4f}f, {y:.3f}f }}, {group} }},')
@@ -219,7 +219,7 @@ def gen_quests(output_dir):
     lines.append('')
 
     # Quest objectives
-    lines.append(f'static const WOWQUESTOBJECTIVE wow_quest_objectives[] = {{')
+    lines.append(f'static const wowQuestObjective_t wow_quest_objectives[] = {{')
     for o in objectives:
         _, qid, _, _, x, y, _, _ = o
         lines.append(f'    {{ {qid}, {{ {float(x):.1f}f, {float(y):.1f}f }} }},')
@@ -227,7 +227,7 @@ def gen_quests(output_dir):
     lines.append('')
 
     # Quest details
-    lines.append(f'static const WOWQUESTDETAIL wow_quest_details[] = {{')
+    lines.append(f'static const wowQuestDetail_t wow_quest_details[] = {{')
     for r in quest_rows:
         qid = r[0]
         title = escape_c(r[1])
@@ -256,42 +256,42 @@ def gen_quests(output_dir):
     lines.append('')
 
     # Accessor functions
-    lines.append('DWORD Wow_QuestGiverCount(void) { return sizeof(wow_quest_givers) / sizeof(wow_quest_givers[0]); }')
-    lines.append('LPCWOWQUESTGIVER Wow_QuestGiver(DWORD index) {')
+    lines.append('uint32_t Wow_QuestGiverCount(void) { return sizeof(wow_quest_givers) / sizeof(wow_quest_givers[0]); }')
+    lines.append('wowQuestGiver_t const * Wow_QuestGiver(uint32_t index) {')
     lines.append('    return index < Wow_QuestGiverCount() ? &wow_quest_givers[index] : NULL;')
     lines.append('}')
-    lines.append('DWORD Wow_QuestGiverGroup(DWORD quest_id, LPCVECTOR2 position) {')
-    lines.append('    DWORD lo = 0, hi = sizeof(wow_quest_giver_lookup) / sizeof(wow_quest_giver_lookup[0]);')
+    lines.append('uint32_t Wow_QuestGiverGroup(uint32_t quest_id, vector2_t const * position) {')
+    lines.append('    uint32_t lo = 0, hi = sizeof(wow_quest_giver_lookup) / sizeof(wow_quest_giver_lookup[0]);')
     lines.append('    if (!position) return WOW_QUEST_GIVER_GROUP_NONE;')
     lines.append('    while (lo < hi) {')
-    lines.append('        DWORD mid = lo + (hi - lo) / 2;')
-    lines.append('        WOWQUESTGIVERLOOKUP const *cur = &wow_quest_giver_lookup[mid];')
+    lines.append('        uint32_t mid = lo + (hi - lo) / 2;')
+    lines.append('        wowQuestGiverLookup_t const *cur = &wow_quest_giver_lookup[mid];')
     lines.append('        if (cur->quest_id < quest_id || (cur->quest_id == quest_id && (cur->position.x < position->x ||')
     lines.append('            (cur->position.x == position->x && cur->position.y < position->y)))) lo = mid + 1;')
     lines.append('        else hi = mid;')
     lines.append('    }')
     lines.append('    if (lo < sizeof(wow_quest_giver_lookup) / sizeof(wow_quest_giver_lookup[0])) {')
-    lines.append('        WOWQUESTGIVERLOOKUP const *cur = &wow_quest_giver_lookup[lo];')
+    lines.append('        wowQuestGiverLookup_t const *cur = &wow_quest_giver_lookup[lo];')
     lines.append('        if (cur->quest_id == quest_id && !memcmp(&cur->position, position, sizeof(*position))) return cur->group;')
     lines.append('    }')
     lines.append('    return WOW_QUEST_GIVER_GROUP_NONE;')
     lines.append('}')
-    lines.append('DWORD Wow_QuestGiverGroupCount(DWORD group) {')
+    lines.append('uint32_t Wow_QuestGiverGroupCount(uint32_t group) {')
     lines.append('    return group < sizeof(wow_quest_giver_groups) / sizeof(wow_quest_giver_groups[0]) ? wow_quest_giver_groups[group].count : 0;')
     lines.append('}')
-    lines.append('LPCWOWQUESTGIVER Wow_QuestGiverInGroup(DWORD group, DWORD index) {')
-    lines.append('    WOWQUESTGIVERGROUP const *cur;')
+    lines.append('wowQuestGiver_t const * Wow_QuestGiverInGroup(uint32_t group, uint32_t index) {')
+    lines.append('    wowQuestGiverGroup_t const *cur;')
     lines.append('    if (group >= sizeof(wow_quest_giver_groups) / sizeof(wow_quest_giver_groups[0])) return NULL;')
     lines.append('    cur = &wow_quest_giver_groups[group];')
     lines.append('    return index < cur->count ? &wow_quest_givers[wow_quest_giver_group_rows[cur->first + index]] : NULL;')
     lines.append('}')
-    lines.append('DWORD Wow_QuestObjectiveCount(void) {')
+    lines.append('uint32_t Wow_QuestObjectiveCount(void) {')
     lines.append('    return sizeof(wow_quest_objectives) / sizeof(wow_quest_objectives[0]);')
     lines.append('}')
-    lines.append('LPCWOWQUESTOBJECTIVE Wow_QuestObjective(DWORD index) {')
+    lines.append('wowQuestObjective_t const * Wow_QuestObjective(uint32_t index) {')
     lines.append('    return index < Wow_QuestObjectiveCount() ? &wow_quest_objectives[index] : NULL;')
     lines.append('}')
-    lines.append('LPCWOWQUESTDETAIL Wow_QuestDetail(DWORD quest_id) {')
+    lines.append('wowQuestDetail_t const * Wow_QuestDetail(uint32_t quest_id) {')
     lines.append('    FOR_LOOP(i, sizeof(wow_quest_details) / sizeof(wow_quest_details[0]))')
     lines.append('        if (wow_quest_details[i].quest_id == quest_id) return &wow_quest_details[i];')
     lines.append('    return NULL;')
@@ -325,7 +325,7 @@ def gen_creatures(output_dir):
     print(f"  creatures.csv: {len(rows)} joined rows, {len(creatures)} creatures")
 
     lines = ['#include "g_wow_local.h"', '']
-    lines.append('static const WOWCREATURE wow_creatures[] = {')
+    lines.append('static const wowCreature_t wow_creatures[] = {')
     for creature in creatures:
         r = creature['row']
         models = sorted(creature['models'], key=lambda model: int(model['model_idx']))
@@ -357,12 +357,12 @@ def gen_creatures(output_dir):
         )
     lines.extend([
         '};', '',
-        'DWORD Wow_CreatureCount(void) { return sizeof(wow_creatures) / sizeof(wow_creatures[0]); }', '',
+        'uint32_t Wow_CreatureCount(void) { return sizeof(wow_creatures) / sizeof(wow_creatures[0]); }', '',
         '/* The generated table is entry-sorted, so server lookups stay logarithmic. */',
-        'LPCWOWCREATURE Wow_CreatureByEntry(DWORD entry) {',
-        '    DWORD first = 0, count = Wow_CreatureCount();',
+        'wowCreature_t const * Wow_CreatureByEntry(uint32_t entry) {',
+        '    uint32_t first = 0, count = Wow_CreatureCount();',
         '    while (count) {',
-        '        DWORD step = count / 2, index = first + step;',
+        '        uint32_t step = count / 2, index = first + step;',
         '        if (wow_creatures[index].entry < entry) { first = index + 1; count -= step + 1; }',
         '        else count = step;',
         '    }',
@@ -384,26 +384,26 @@ def gen_areatrigger_teleport(output_dir):
     print(f"  areatrigger_teleport.csv: {len(rows)} rows")
 
     lines = ['#include "g_wow_local.h"', '#include <string.h>', '']
-    lines.append('static const WOWAREATRIGTELEPORT wow_areatrig_teleports[] = {')
+    lines.append('static const wowAreatrigTeleport_t wow_areatrig_teleports[] = {')
     for r in rows:
         id_, name, target_map, tx, ty, tz, to_ = r[:7]
         lines.append(f'    {{ {id_}, "{escape_c(name)}", {target_map}, '
                      f'{c_float(tx)}, {c_float(ty)}, {c_float(tz)}, {c_float(to_)} }},')
     lines.extend([
         '};', '',
-        'DWORD Wow_AreaTrigTeleportCount(void) {',
+        'uint32_t Wow_AreaTrigTeleportCount(void) {',
         '    return sizeof(wow_areatrig_teleports) / sizeof(wow_areatrig_teleports[0]);',
         '}', '',
-        'LPCWOWAREATRIGTELEPORT Wow_AreaTrigTeleportById(DWORD id) {',
+        'wowAreatrigTeleport_t const * Wow_AreaTrigTeleportById(uint32_t id) {',
         '    FOR_LOOP(i, Wow_AreaTrigTeleportCount())',
         '        if (wow_areatrig_teleports[i].id == id) return &wow_areatrig_teleports[i];',
         '    return NULL;',
         '}', '',
         '/* Case-insensitive substring match — warp command entry point. */',
-        'LPCWOWAREATRIGTELEPORT Wow_AreaTrigTeleportByName(LPCSTR query) {',
-        '    DWORD qlen = (DWORD)strlen(query), j, nlen;',
+        'wowAreatrigTeleport_t const * Wow_AreaTrigTeleportByName(cstring_t query) {',
+        '    uint32_t qlen = (uint32_t)strlen(query), j, nlen;',
         '    FOR_LOOP(i, Wow_AreaTrigTeleportCount()) {',
-        '        nlen = (DWORD)strlen(wow_areatrig_teleports[i].name);',
+        '        nlen = (uint32_t)strlen(wow_areatrig_teleports[i].name);',
         '        if (nlen < qlen) continue;',
         '        for (j = 0; j <= nlen - qlen; j++)',
         '            if (!strncasecmp(wow_areatrig_teleports[i].name + j, query, qlen))',
@@ -413,7 +413,7 @@ def gen_areatrigger_teleport(output_dir):
         '}', '',
         '/* First areatrigger_teleport entry whose target_map matches map_id.',
         ' * Used as spawn-position fallback when loading a dungeon directly. */',
-        'LPCWOWAREATRIGTELEPORT Wow_AreaTrigSpawnForMap(DWORD map_id) {',
+        'wowAreatrigTeleport_t const * Wow_AreaTrigSpawnForMap(uint32_t map_id) {',
         '    FOR_LOOP(i, Wow_AreaTrigTeleportCount())',
         '        if (wow_areatrig_teleports[i].target_map == map_id)',
         '            return &wow_areatrig_teleports[i];',

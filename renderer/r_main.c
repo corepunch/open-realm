@@ -77,12 +77,12 @@ static void R_Screenshot(void) {
     ri.MemFree(pixels);
 }
 
-LPTEXTURE R_LoadTextureBLP1(handle_t data, uint32_t filesize);
-LPTEXTURE R_LoadTextureBLP2(handle_t data, uint32_t filesize);
-LPTEXTURE R_LoadTextureDDS(handle_t data, uint32_t filesize);
+texture_t * R_LoadTextureBLP1(handle_t data, uint32_t filesize);
+texture_t * R_LoadTextureBLP2(handle_t data, uint32_t filesize);
+texture_t * R_LoadTextureDDS(handle_t data, uint32_t filesize);
 
 bool R_IsTexturePCX(handle_t data, uint32_t filesize);
-LPTEXTURE R_LoadTexturePCX(handle_t data, uint32_t filesize);
+texture_t * R_LoadTexturePCX(handle_t data, uint32_t filesize);
 
 static bool R_PathHasExtension(cstring_t path, cstring_t extension) {
     size_t pathLen;
@@ -113,11 +113,11 @@ static bool R_PathHasExtension(cstring_t path, cstring_t extension) {
     return true;
 }
 
-static LPTEXTURE R_LoadTextureSTB(handle_t data, uint32_t filesize) {
+static texture_t * R_LoadTextureSTB(handle_t data, uint32_t filesize) {
     int width;
     int height;
     uint8_t *image;
-    LPTEXTURE texture;
+    texture_t * texture;
 
     if (!data || filesize > INT32_MAX) {
         return NULL;
@@ -129,7 +129,7 @@ static LPTEXTURE R_LoadTextureSTB(handle_t data, uint32_t filesize) {
 
     /* STB already returns RGBA; the old BGRA copy made colors depend on the uploader's OS branch. */
     texture = R_AllocateTexture((uint32_t)width, (uint32_t)height);
-    R_LoadTextureMipLevel(texture, &(TEXMIP){ image, (uint32_t)width, (uint32_t)height, 0, PIXEL_RGBA });
+    R_LoadTextureMipLevel(texture, &(texMip_t){ image, (uint32_t)width, (uint32_t)height, 0, PIXEL_RGBA });
     stbi_image_free(image);
     return texture;
 }
@@ -141,23 +141,23 @@ void R_Viewport(rect_t const * viewport) {
                viewport->h * tr.drawableSize.height / 600);
 }
 
-static LPTEXTURE R_MakePlaceholderTexture(void) {
+static texture_t * R_MakePlaceholderTexture(void) {
     enum { SIZE = 16 };
-    COLOR32 pixels[SIZE * SIZE];
-    LPTEXTURE texture = R_AllocateTexture(SIZE, SIZE);
+    color32_t pixels[SIZE * SIZE];
+    texture_t * texture = R_AllocateTexture(SIZE, SIZE);
 
     FOR_LOOP(y, SIZE) FOR_LOOP(x, SIZE) {
         bool const checker = ((x ^ y) & 1) != 0;
-        pixels[y * SIZE + x] = checker ? MAKE(COLOR32, 255, 0, 255, 255)
-                                        : MAKE(COLOR32, 0, 0, 0, 255);
+        pixels[y * SIZE + x] = checker ? MAKE(color32_t, 255, 0, 255, 255)
+                                        : MAKE(color32_t, 0, 0, 0, 255);
     }
-    R_LoadTextureMipLevel(texture, &(TEXMIP){ pixels, SIZE, SIZE, 0, PIXEL_RGBA });
+    R_LoadTextureMipLevel(texture, &(texMip_t){ pixels, SIZE, SIZE, 0, PIXEL_RGBA });
     return texture;
 }
 
-LPTEXTURE R_AllocateSinglePixelTexture(int color) {
-    LPTEXTURE texture = R_AllocateTexture(1, 1);
-    R_LoadTextureMipLevel(texture, &(TEXMIP){ &color, 1, 1, 0, PIXEL_RGBA });
+texture_t * R_AllocateSinglePixelTexture(int color) {
+    texture_t * texture = R_AllocateTexture(1, 1);
+    R_LoadTextureMipLevel(texture, &(texMip_t){ &color, 1, 1, 0, PIXEL_RGBA });
     return texture;
 }
 
@@ -167,10 +167,10 @@ static float R_SmoothStep(float edge0, float edge1, float x) {
     return t * t * (3.0f - 2.0f * t);
 }
 
-LPTEXTURE R_MakeLoadingIndicatorTexture(void) {
+texture_t * R_MakeLoadingIndicatorTexture(void) {
     enum { TEXTURE_SIZE = 128 };
-    COLOR32 pixels[TEXTURE_SIZE * TEXTURE_SIZE];
-    LPTEXTURE texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
+    color32_t pixels[TEXTURE_SIZE * TEXTURE_SIZE];
+    texture_t * texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
 
     FOR_LOOP(y, TEXTURE_SIZE) {
         FOR_LOOP(x, TEXTURE_SIZE) {
@@ -189,18 +189,18 @@ LPTEXTURE R_MakeLoadingIndicatorTexture(void) {
                 angle += 1.0f;
             }
             alpha = (uint8_t)(255.0f * ring * angle);
-            pixels[y * TEXTURE_SIZE + x] = MAKE(COLOR32, 255, 255, 255, alpha);
+            pixels[y * TEXTURE_SIZE + x] = MAKE(color32_t, 255, 255, 255, alpha);
         }
     }
-    R_LoadTextureMipLevel(texture, &(TEXMIP){ pixels, TEXTURE_SIZE, TEXTURE_SIZE, 0, PIXEL_RGBA });
+    R_LoadTextureMipLevel(texture, &(texMip_t){ pixels, TEXTURE_SIZE, TEXTURE_SIZE, 0, PIXEL_RGBA });
     return texture;
 }
 
 /* WoW archives do not contain Warcraft III's selection-circle assets. */
-LPTEXTURE R_MakeSelectionCircleTexture(void) {
+texture_t * R_MakeSelectionCircleTexture(void) {
     enum { TEXTURE_SIZE = 128 };
-    COLOR32 pixels[TEXTURE_SIZE * TEXTURE_SIZE];
-    LPTEXTURE texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
+    color32_t pixels[TEXTURE_SIZE * TEXTURE_SIZE];
+    texture_t * texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
 
     FOR_LOOP(y, TEXTURE_SIZE) FOR_LOOP(x, TEXTURE_SIZE) {
         float fx = ((float)x + 0.5f) / TEXTURE_SIZE * 2.0f - 1.0f;
@@ -209,16 +209,16 @@ LPTEXTURE R_MakeSelectionCircleTexture(void) {
         float outer = 0.92f, inner = 0.78f, edge = 0.035f;
         float ring = R_SmoothStep(inner - edge, inner, distance) *
                      (1.0f - R_SmoothStep(outer, outer + edge, distance));
-        pixels[y * TEXTURE_SIZE + x] = MAKE(COLOR32, 255, 255, 255, (uint8_t)(ring * 255.0f));
+        pixels[y * TEXTURE_SIZE + x] = MAKE(color32_t, 255, 255, 255, (uint8_t)(ring * 255.0f));
     }
-    R_LoadTextureMipLevel(texture, &(TEXMIP){ pixels, TEXTURE_SIZE, TEXTURE_SIZE, 0, PIXEL_RGBA });
+    R_LoadTextureMipLevel(texture, &(texMip_t){ pixels, TEXTURE_SIZE, TEXTURE_SIZE, 0, PIXEL_RGBA });
     return texture;
 }
 
-static LPTEXTURE R_MakeBlobShadowTexture(void) {
+static texture_t * R_MakeBlobShadowTexture(void) {
     enum { TEXTURE_SIZE = 64 };
-    COLOR32 pixels[TEXTURE_SIZE * TEXTURE_SIZE];
-    LPTEXTURE texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
+    color32_t pixels[TEXTURE_SIZE * TEXTURE_SIZE];
+    texture_t * texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
 
     FOR_LOOP(y, TEXTURE_SIZE) {
         FOR_LOOP(x, TEXTURE_SIZE) {
@@ -227,16 +227,16 @@ static LPTEXTURE R_MakeBlobShadowTexture(void) {
             float const distance = sqrtf(fx * fx + fy * fy);
             float const alpha = 1.0f - R_SmoothStep(0.25f, 1.0f, distance);
 
-            pixels[y * TEXTURE_SIZE + x] = MAKE(COLOR32, 255, 255, 255, (uint8_t)(alpha * 255.0f));
+            pixels[y * TEXTURE_SIZE + x] = MAKE(color32_t, 255, 255, 255, (uint8_t)(alpha * 255.0f));
         }
     }
 
-    R_LoadTextureMipLevel(texture, &(TEXMIP){ pixels, TEXTURE_SIZE, TEXTURE_SIZE, 0, PIXEL_RGBA });
+    R_LoadTextureMipLevel(texture, &(texMip_t){ pixels, TEXTURE_SIZE, TEXTURE_SIZE, 0, PIXEL_RGBA });
     return texture;
 }
 
-static LPTEXTURE R_LoadTexturePath(cstring_t textureFilename, bool *found) {
-    LPTEXTURE texture = R_FindLoadedTexture(textureFilename);
+static texture_t * R_LoadTexturePath(cstring_t textureFilename, bool *found) {
+    texture_t * texture = R_FindLoadedTexture(textureFilename);
     void *buffer = NULL;
     PATHSTR load_path;
     int fileSize;
@@ -278,9 +278,9 @@ static LPTEXTURE R_LoadTexturePath(cstring_t textureFilename, bool *found) {
     return texture;
 }
 
-LPTEXTURE R_LoadTexture(cstring_t textureFilename) {
+texture_t * R_LoadTexture(cstring_t textureFilename) {
     PATHSTR scoped;
-    LPTEXTURE texture;
+    texture_t * texture;
     bool found = false;
     bool has_scope;
 
@@ -302,14 +302,14 @@ LPTEXTURE R_LoadTexture(cstring_t textureFilename) {
     return tr.texture[TEX_PLACEHOLDER];
 }
 
-LPRENDERTARGET
+rendertarget_t *
 R_AllocateRenderTexture(GLsizei width,
                         GLsizei height,
                         GLenum format,
                         GLenum type,
                         GLenum attachment)
 {
-    LPRENDERTARGET rt = ri.MemAlloc(sizeof(RENDERTARGET));
+    rendertarget_t * rt = ri.MemAlloc(sizeof(rendertarget_t));
     R_Call(glGenFramebuffers, 1, &rt->buffer);
     R_Call(glGenTextures, 1, &rt->texture);
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, rt->buffer);
@@ -325,7 +325,7 @@ R_AllocateRenderTexture(GLsizei width,
     return rt;
 }
 
-void R_ReleaseRenderTexture(LPRENDERTARGET rt) {
+void R_ReleaseRenderTexture(rendertarget_t * rt) {
     if (!rt) {
         return;
     }
@@ -343,9 +343,9 @@ void R_ReleaseRenderTexture(LPRENDERTARGET rt) {
 void R_SetupGL(bool drawLight) {
     size2_t const window = R_GetWindowSize();
     
-    MATRIX4 model_matrix;
-    MATRIX3 normal_matrix;
-    MATRIX4 ui_matrix;
+    matrix4_t model_matrix;
+    matrix3_t normal_matrix;
+    matrix4_t ui_matrix;
 
     Matrix4_identity(&model_matrix);
     R_SetupTextureMatrix();
@@ -362,7 +362,7 @@ void R_SetupGL(bool drawLight) {
 #endif
         tr.viewDef.viewProjectionMatrix.v;
 
-    memcpy(&tr.shader_default.state.viewProjection, viewProjectionMatrix, (1) * sizeof(MATRIX4));
+    memcpy(&tr.shader_default.state.viewProjection, viewProjectionMatrix, (1) * sizeof(matrix4_t));
     tr.shader_default.state.textureMatrix = tr.viewDef.textureMatrix;
     tr.shader_default.state.model = model_matrix;
     tr.shader_default.state.lightMatrix = tr.viewDef.lightMatrix;
@@ -909,11 +909,11 @@ void R_RenderView(void) {
     R_RevertSettings();
     R_SetupScissor(&(rect_t){0, 0, 1, 1});
 
-//    extern LPCTEXTURE dds;
+//    extern texture_t const * dds;
 //    R_DrawPic(dds, 0, 0);
 }
 
-void R_DrawBuffer(LPCBUFFER buffer, uint32_t num_vertices) {
+void R_DrawBuffer(buffer_t const * buffer, uint32_t num_vertices) {
     R_Call(glBindVertexArray, buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_StatsDraw(GL_TRIANGLES, num_vertices, 1);
@@ -921,27 +921,27 @@ void R_DrawBuffer(LPCBUFFER buffer, uint32_t num_vertices) {
 }
 
 /* Model-owned element buffers retain per-section ranges as byte offsets. */
-void R_DrawIndexedBuffer16(LPCBUFFER buffer, LPCDRAWELEMENTS draw) {
+void R_DrawIndexedBuffer16(buffer_t const * buffer, drawElements_t const * draw) {
     R_Call(glBindVertexArray, buffer->vao);
     R_StatsDraw(GL_TRIANGLES, draw->count, 1);
     R_Call(glDrawElements, GL_TRIANGLES, draw->count, GL_UNSIGNED_SHORT, (void *)(uintptr_t)draw->offset);
 }
 
-void R_DrawIndexedBuffer32(LPCBUFFER buffer, LPCDRAWELEMENTS draw) {
+void R_DrawIndexedBuffer32(buffer_t const * buffer, drawElements_t const * draw) {
     R_Call(glBindVertexArray, buffer->vao);
     R_StatsDraw(GL_TRIANGLES, draw->count, 1);
     R_Call(glDrawElements, GL_TRIANGLES, draw->count, GL_UNSIGNED_INT, (void *)(uintptr_t)draw->offset);
 }
 
 /* Static procedural batches need only gl_InstanceID; their shared VAO has no per-instance stream. */
-void R_DrawBufferCopies(LPCBUFFER buffer, uint32_t num_vertices, uint32_t num_instances) {
+void R_DrawBufferCopies(buffer_t const * buffer, uint32_t num_vertices, uint32_t num_instances) {
     R_Call(glBindVertexArray, buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_StatsDraw(GL_TRIANGLES, num_vertices, num_instances);
     R_Call(glDrawArraysInstanced, GL_TRIANGLES, 0, num_vertices, num_instances);
 }
 
-void R_DrawIndexedBuffer(LPCBUFFER buffer, uint32_t num_indices) {
+void R_DrawIndexedBuffer(buffer_t const * buffer, uint32_t num_indices) {
     R_Call(glBindVertexArray, buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, buffer->ibo);
@@ -951,9 +951,9 @@ void R_DrawIndexedBuffer(LPCBUFFER buffer, uint32_t num_indices) {
 
 typedef struct {
     uint64_t draws, vertices, triangles, instances;
-} RENDERSTATS;
+} renderStats_t;
 
-static RENDERSTATS r_frame_stats, r_stats_accum;
+static renderStats_t r_frame_stats, r_stats_accum;
 static uint32_t r_stats_frames, r_stats_start;
 
 uint32_t R_GetFrameDrawCalls(void) { return (uint32_t)r_frame_stats.draws; }
@@ -1041,7 +1041,7 @@ void R_SetWindowSize(uint32_t width, uint32_t height) {
             (unsigned)tr.drawableSize.height);
 }
 
-size2_t R_GetTextureSize(LPCTEXTURE texture) {
+size2_t R_GetTextureSize(texture_t const * texture) {
     if (!texture) {
         return (size2_t) { 0, 0 };
     } else {
@@ -1055,13 +1055,13 @@ size2_t R_GetTextureSize(LPCTEXTURE texture) {
 
 
 /* Keep model-format bounds inside the renderer while clients place game-owned world UI. */
-bool R_GetEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
+bool R_GetEntityOverheadPosition(renderEntity_t const *entity, vector3_t * out) {
     return R_EntityOverheadPosition(entity, out);
 }
 
 /* Keep attachment-name/model-format knowledge in the selected game renderer.
  * Shared client presentation can request an authored attachment by prefix. */
-bool R_GetEntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, LPVECTOR3 out) {
+bool R_GetEntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vector3_t * out) {
     return R_EntityAttachmentPosition(entity, prefix, out);
 }
 

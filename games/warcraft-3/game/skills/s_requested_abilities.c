@@ -6,17 +6,17 @@
 #define CHAIN_LIGHTNING_JUMP_MS 250
 #define CHAIN_LIGHTNING_BOLT_MS 2000
 
-void whirlwind_think(LPEDICT ent);
+void whirlwind_think(edict_t * ent);
 
 typedef struct {
-    LPEDICT caster;
+    edict_t * caster;
     spellTarget_t target;
     abilityitem_t const *spell;
     float scale;
     bool random_jumps;
 } bounceParams_t;
 
-bool S_UnitHasStatus(LPCEDICT unit, uint32_t code) {
+bool S_UnitHasStatus(edict_t const * unit, uint32_t code) {
     if (!unit) return false;
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == code &&
@@ -35,7 +35,7 @@ static cstring_t spell_buff(abilityitem_t const *spell, uint32_t level) {
     return buff && strlen(buff) >= 4 ? buff : spell_buff_fallback(spell->code);
 }
 
-static void target_status_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void target_status_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = spell_buff(spell, level);
     if (!st.entity || !buff) return;
@@ -43,7 +43,7 @@ static void target_status_execute(LPEDICT caster, spellTarget_t st, abilityitem_
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
 }
 
-static void toggle_status_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void toggle_status_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = caster->abilstatus + i;
         if (status->level && status->code == spell->code) { memset(status, 0, sizeof(*status)); return; }
@@ -51,7 +51,7 @@ static void toggle_status_execute(LPEDICT caster, spellTarget_t st, abilityitem_
     unit_addstatus(caster, GetClassName(spell->code), S_SpellLevel(caster, spell->code));
 }
 
-static void radial_damage_status(LPEDICT caster, VECTOR2 point, abilityitem_t const *spell, uint32_t data) {
+static void radial_damage_status(edict_t * caster, vector2_t point, abilityitem_t const *spell, uint32_t data) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     cstring_t buff = spell_buff(spell, level);
@@ -63,20 +63,20 @@ static void radial_damage_status(LPEDICT caster, VECTOR2 point, abilityitem_t co
     }
 }
 
-static bool earthquake_hits_destructable(LPEDICT target, float radius, LPCVECTOR2 origin) {
+static bool earthquake_hits_destructable(edict_t * target, float radius, vector2_t const * origin) {
     if (!target || !target->inuse || (target->targtype != TARG_TREE && target->targtype != TARG_DEBRIS)) return false;
     if (!G_IsDestructable(target) || target->destructable.dead) return false;
     return Vector2_distance(&target->s.origin2, origin) <= radius;
 }
 
-float S_EarthquakeMoveReduction(LPCEDICT unit) {
+float S_EarthquakeMoveReduction(edict_t const * unit) {
     uint32_t level = G_UnitStatusLevel(unit, ID_EARTHQUAKE_BUFF);
     if (!level) return 0.0f;
     return MIN(1.0f, MAX(0.0f, S_SpellData(ID_EARTHQUAKE, level, 3)));
 }
 
-static LPEDICT spell_begin_area_presentation(LPEDICT owner, uint32_t code, LPCVECTOR2 point) {
-    LPEDICT effect;
+static edict_t * spell_begin_area_presentation(edict_t * owner, uint32_t code, vector2_t const * point) {
+    edict_t * effect;
     int loop_sound;
     G_PlayAbilityEffectSound(code, point);
     effect = G_SpawnOwnedAbilityEffectAtPoint(owner, code, WC3_EFFECT_AREA_EFFECT, 0, point);
@@ -86,11 +86,11 @@ static LPEDICT spell_begin_area_presentation(LPEDICT owner, uint32_t code, LPCVE
     return effect;
 }
 
-static void spell_end_area_presentation(LPEDICT owner) {
+static void spell_end_area_presentation(edict_t * owner) {
     G_DestroyOwnedEffects(owner);
 }
 
-void earthquake_think(LPEDICT ent) {
+void earthquake_think(edict_t * ent) {
     if (!S_SpellChannelActive(ent)) { spell_end_area_presentation(ent); S_SpellEndChannel(ent); return; }
     uint32_t level = S_SpellLevel(ent->owner, ent->class_id), now = G_Time();
     abilityitem_t item = S_AbilityItem(ent->class_id);
@@ -113,17 +113,17 @@ void earthquake_think(LPEDICT ent) {
     ent->freetime = now + 1000;
 }
 
-void far_sight_think(LPEDICT thinker) {
+void far_sight_think(edict_t * thinker) {
     if (G_Time() >= thinker->spawn_time || thinker->s.player >= MAX_PLAYERS) {
         spell_end_area_presentation(thinker);
         G_FreeEdict(thinker);
         return;
     }
-    G_FowSetStateRadius(&(FOGWRITE){ thinker->s.player, WC3_FOG_STATE_VISIBLE, true },
+    G_FowSetStateRadius(&(fogWrite_t){ thinker->s.player, WC3_FOG_STATE_VISIBLE, true },
                         &thinker->s.origin2, thinker->collision);
 }
 
-void whirlwind_think(LPEDICT ent) {
+void whirlwind_think(edict_t * ent) {
     if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
     abilityitem_t item = S_AbilityItem(ent->class_id);
     uint32_t data = item.ability && item.ability->proc == CAbilityStampede ? 2 : 1;
@@ -135,41 +135,41 @@ void whirlwind_think(LPEDICT ent) {
     ent->freetime = G_Time() + 1000;
 }
 
-static void whirlwind_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void whirlwind_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = S_SpellChannelThinker(caster, spell->code);
+    edict_t * thinker = S_SpellChannelThinker(caster, spell->code);
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, true) * 1000.0f);
     thinker->think = whirlwind_think; whirlwind_think(thinker);
 }
 
-static void morph_end(LPEDICT thinker) {
+static void morph_end(edict_t * thinker) {
     if (G_Time() < thinker->spawn_time) return;
     if (thinker->owner && thinker->owner->inuse) G_TransformUnitType(thinker->owner, thinker->resources);
     G_FreeEdict(thinker);
 }
 
-static void summon_execute_requested(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void summon_execute_requested(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     S_SummonUnits(caster, S_SpellUnitId(spell->code, level), (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)),
                   S_SpellDuration(spell->code, level, false));
 }
 
-int S_BlackArrowDamage(LPEDICT attacker, int damage) {
+int S_BlackArrowDamage(edict_t * attacker, int damage) {
     uint32_t level = G_UnitStatusLevel(attacker, MAKEFOURCC('A','N','b','a'));
     return level ? damage + (int)S_SpellData(MAKEFOURCC('A','N','b','a'), level, 1) : damage;
 }
 
-void S_BlackArrowDeath(LPEDICT attacker, LPEDICT target) {
+void S_BlackArrowDeath(edict_t * attacker, edict_t * target) {
     uint32_t level = G_UnitStatusLevel(attacker, MAKEFOURCC('A','N','b','a'));
     if (level && target && M_IsDead(target))
         S_SummonAt(attacker, S_SpellUnitId(MAKEFOURCC('A','N','b','a'), level), &target->s.origin2,
                    S_SpellData(MAKEFOURCC('A','N','b','a'), level, 3));
 }
 
-static void death_coil_projectile_hit(LPEDICT missile);
+static void death_coil_projectile_hit(edict_t * missile);
 static umove_t death_coil_projectile_move = { "stand", NULL, death_coil_projectile_hit, CAbilityDeathCoil };
 
-static bool death_coil_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool death_coil_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     cstring_t race = st.entity && st.entity->data.UnitData ? st.entity->data.UnitData->race : NULL;
     (void)spell;
     if (!S_SpellIsAliveTarget(st.entity) || st.entity == caster || !race) return false;
@@ -187,8 +187,8 @@ static float death_coil_missile_speed(uint32_t code) {
     return speed > 0.0f ? speed : 1000.0f;
 }
 
-static void death_coil_projectile_hit(LPEDICT missile) {
-    LPEDICT target = missile->goalentity, caster = missile->owner;
+static void death_coil_projectile_hit(edict_t * missile) {
+    edict_t * target = missile->goalentity, *caster = missile->owner;
     cstring_t race = target && target->data.UnitData ? target->data.UnitData->race : NULL;
     bool applied = false;
 
@@ -205,10 +205,10 @@ static void death_coil_projectile_hit(LPEDICT missile) {
     G_FreeEdict(missile);
 }
 
-static void death_coil_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void death_coil_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t art = G_AbilityEffectArt(spell->code, WC3_EFFECT_MISSILE, 0);
-    LPEDICT missile = G_Spawn();
+    edict_t * missile = G_Spawn();
 
     missile->class_id = spell->code;
     missile->s.origin = caster->s.origin;
@@ -225,17 +225,17 @@ static void death_coil_execute(LPEDICT caster, spellTarget_t st, abilityitem_t c
 
 /* Resolve chained damage jumps while keeping target selection separate from spell metadata. */
 static void bounce_execute(bounceParams_t const *params) {
-    LPEDICT caster = params->caster;
+    edict_t * caster = params->caster;
     spellTarget_t st = params->target;
     abilityitem_t const *spell = params->spell;
     float scale = params->scale;
     bool random_jumps = params->random_jumps;
     uint32_t level = S_SpellLevel(caster, spell->code), hits = (uint32_t)S_SpellData(spell->code, level, 2);
     float damage = S_SpellData(spell->code, level, 1);
-    LPEDICT current = st.entity, visited[32] = {0};
+    edict_t * current = st.entity, *visited[32] = {0};
     uint32_t nvisited = 0;
     FOR_LOOP(i, MIN(hits, 32)) {
-        LPEDICT candidates[MAX_GROUP_SIZE];
+        edict_t * candidates[MAX_GROUP_SIZE];
         uint32_t candidate_count = 0;
         if (!current) break;
         S_SpellDamage(current, caster, (int)MAX(1.0f, damage));
@@ -258,7 +258,7 @@ static void bounce_execute(bounceParams_t const *params) {
  * thinker owns the next damage/radius/jump count, while small no-client marker
  * edicts remember target identity (pointer + spawn generation) so simultaneous
  * or delayed jumps cannot revisit an earlier unit. */
-static bool chain_lightning_visited(LPEDICT thinker, LPCEDICT target) {
+static bool chain_lightning_visited(edict_t * thinker, edict_t const * target) {
     FILTER_EDICTS(marker, marker->class_id == ID_CHAIN_LIGHTNING_VISIT && marker->owner == thinker &&
                   marker->channel.owner_spawn_time == thinker->spawn_time &&
                   marker->goalentity == target && marker->resources == target->spawn_time)
@@ -266,8 +266,8 @@ static bool chain_lightning_visited(LPEDICT thinker, LPCEDICT target) {
     return false;
 }
 
-static void chain_lightning_mark_visited(LPEDICT thinker, LPEDICT target) {
-    LPEDICT marker = G_Spawn();
+static void chain_lightning_mark_visited(edict_t * thinker, edict_t * target) {
+    edict_t * marker = G_Spawn();
     if (!marker) return;
     marker->class_id = ID_CHAIN_LIGHTNING_VISIT;
     marker->svflags |= SVF_NOCLIENT;
@@ -277,8 +277,8 @@ static void chain_lightning_mark_visited(LPEDICT thinker, LPEDICT target) {
     marker->resources = target->spawn_time;
 }
 
-static void chain_lightning_finish(LPEDICT thinker) {
-    LPEDICT markers[32];
+static void chain_lightning_finish(edict_t * thinker) {
+    edict_t * markers[32];
     uint32_t count = 0;
     FILTER_EDICTS(marker, marker->class_id == ID_CHAIN_LIGHTNING_VISIT && marker->owner == thinker &&
                   marker->channel.owner_spawn_time == thinker->spawn_time)
@@ -287,8 +287,8 @@ static void chain_lightning_finish(LPEDICT thinker) {
     G_FreeEdict(thinker);
 }
 
-void chain_lightning_think(LPEDICT thinker) {
-    LPEDICT caster, next = NULL;
+void chain_lightning_think(edict_t * thinker) {
+    edict_t * caster, *next = NULL;
     float nearest_distance = 0.0f;
 
     if (!thinker || !thinker->inuse) return;
@@ -318,18 +318,18 @@ void chain_lightning_think(LPEDICT thinker) {
     }
 
     if (thinker->goalentity && thinker->goalentity->inuse && thinker->goalentity->spawn_time == thinker->damage) {
-        G_SpawnAbilityLightning(&(ABILITYLIGHTNINGPARAMS){
+        G_SpawnAbilityLightning(&(abilityLightningParams_t){
             .ability_id = thinker->class_id, .index = 1,
             .source = thinker->goalentity, .target = next,
             .duration_ms = CHAIN_LIGHTNING_BOLT_MS,
         });
     } else {
-        VECTOR3 from = { thinker->s.origin2.x, thinker->s.origin2.y,
+        vector3_t from = { thinker->s.origin2.x, thinker->s.origin2.y,
             CM_GetHeightAtPoint(thinker->s.origin2.x, thinker->s.origin2.y) + next->s.radius * 0.5f };
-        VECTOR3 to = next->s.origin;
+        vector3_t to = next->s.origin;
         uint32_t lightning = G_AbilityLightningId(thinker->class_id, 1);
         to.z += next->s.radius * 0.5f;
-        if (lightning) G_LightningAdd(&(LIGHTNINGADDPARAMS){
+        if (lightning) G_LightningAdd(&(lightningAddParams_t){
             .effect_id = lightning, .source = &from, .target = &to,
             .color = COLOR32_WHITE, .duration_ms = CHAIN_LIGHTNING_BOLT_MS,
         });
@@ -349,15 +349,15 @@ void chain_lightning_think(LPEDICT thinker) {
     thinker->freetime = G_Time() + CHAIN_LIGHTNING_JUMP_MS;
 }
 
-static void chain_lightning_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void chain_lightning_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     uint32_t hits = MIN(32, (uint32_t)MAX(0.0f, S_SpellData(spell->code, level, 2)));
     float damage = S_SpellData(spell->code, level, 1);
-    LPEDICT thinker;
+    edict_t * thinker;
 
     if (!st.entity || !hits) return;
     G_PlayAbilityEffectSound(spell->code, &st.entity->s.origin2);
-    G_SpawnAbilityLightning(&(ABILITYLIGHTNINGPARAMS){
+    G_SpawnAbilityLightning(&(abilityLightningParams_t){
         .ability_id = spell->code, .source = caster, .target = st.entity,
         .duration_ms = CHAIN_LIGHTNING_BOLT_MS,
     });
@@ -383,17 +383,17 @@ static void chain_lightning_execute(LPEDICT caster, spellTarget_t st, abilityite
     chain_lightning_mark_visited(thinker, st.entity);
 }
 
-static void reincarnation_think(LPEDICT thinker) {
+static void reincarnation_think(edict_t * thinker) {
     if (!thinker->owner || !thinker->owner->inuse) { G_FreeEdict(thinker); return; }
     if (G_Time() < thinker->spawn_time) return;
     if (M_IsDead(thinker->owner)) G_ReviveHero(thinker->owner, thinker->s.origin2.x, thinker->s.origin2.y);
     G_FreeEdict(thinker);
 }
 
-void S_ReincarnationOnDeath(LPEDICT unit) {
+void S_ReincarnationOnDeath(edict_t * unit) {
     static uint32_t const codes[] = { MAKEFOURCC('A','O','r','e'), MAKEFOURCC('A','C','r','n'), MAKEFOURCC('A','N','r','n') };
     uint32_t code = 0, level = 0;
-    LPEDICT thinker;
+    edict_t * thinker;
     FOR_LOOP(i, sizeof(codes) / sizeof(*codes)) if ((level = G_UnitAbilityLevel(unit, codes[i]))) { code = codes[i]; break; }
     if (!level || !S_SpellCooldownReady(unit, code)) return;
     thinker = G_Spawn(); thinker->owner = unit; thinker->s.origin2 = unit->s.origin2;
@@ -401,8 +401,8 @@ void S_ReincarnationOnDeath(LPEDICT unit) {
     thinker->think = reincarnation_think; S_SpellStartCooldown(unit, code, level);
 }
 
-static void acid_bomb_think(LPEDICT thinker) {
-    LPEDICT target = thinker->goalentity;
+static void acid_bomb_think(edict_t * thinker) {
+    edict_t * target = thinker->goalentity;
     if (G_Time() >= thinker->spawn_time || !target || !target->inuse || M_IsDead(target)) { G_FreeEdict(thinker); return; }
     if (!thinker->freetime || G_Time() >= thinker->freetime) {
         S_SpellDamage(target, thinker->owner, thinker->damage); thinker->freetime = G_Time() + 1000;
@@ -412,8 +412,8 @@ static void acid_bomb_think(LPEDICT thinker) {
 /* Mass Teleport keeps its channel-owned area effects on the thinker so cancel,
  * target death, save/load continuation and successful completion all use the
  * same cleanup path. */
-static void mass_teleport_cleanup(LPEDICT thinker) {
-    LPEDICT target = thinker ? thinker->goalentity : NULL;
+static void mass_teleport_cleanup(edict_t * thinker) {
+    edict_t * target = thinker ? thinker->goalentity : NULL;
 
     if (!thinker) return;
     if (target && target->inuse && target->spawn_time == thinker->channel.target_spawn_time &&
@@ -427,14 +427,14 @@ static void mass_teleport_cleanup(LPEDICT thinker) {
     }
 }
 
-static void mass_teleport_track_effect(LPEDICT thinker, LPEDICT effect) {
+static void mass_teleport_track_effect(edict_t * thinker, edict_t * effect) {
     if (!thinker || !effect) return;
     effect->owner = thinker;
     effect->summon_ability = thinker->class_id;
 }
 
-static void mass_teleport_move_unit(LPEDICT unit, uint32_t code, LPCVECTOR2 requested) {
-    VECTOR2 source, position;
+static void mass_teleport_move_unit(edict_t * unit, uint32_t code, vector2_t const * requested) {
+    vector2_t source, position;
 
     if (!unit || !requested) return;
     source = unit->s.origin2;
@@ -450,13 +450,13 @@ static void mass_teleport_move_unit(LPEDICT unit, uint32_t code, LPCVECTOR2 requ
     G_SpawnAbilityEffectAtPoint(code, WC3_EFFECT_SPECIAL, 0, &unit->s.origin2, true);
 }
 
-void mass_teleport_think(LPEDICT thinker) {
-    LPEDICT caster = thinker ? thinker->owner : NULL;
-    LPEDICT target = thinker ? thinker->goalentity : NULL;
+void mass_teleport_think(edict_t * thinker) {
+    edict_t * caster = thinker ? thinker->owner : NULL;
+    edict_t * target = thinker ? thinker->goalentity : NULL;
     uint32_t now = G_Time(), level, limit, count = 1;
     float area;
     bool cluster;
-    VECTOR2 src, dst;
+    vector2_t src, dst;
 
     if (!thinker) return;
     if (!S_SpellChannelActive(thinker)) {
@@ -491,8 +491,8 @@ void mass_teleport_think(LPEDICT thinker) {
                   unit->s.player == caster->s.player && unit->targtype != TARG_STRUCTURE &&
                   !G_UnitIsBuilding(unit->class_id) &&
                   Vector2_distance(&unit->s.origin2, &src) <= area) {
-        VECTOR2 offset = Vector2_sub(&unit->s.origin2, &src);
-        VECTOR2 requested = cluster ? dst : Vector2_add(&dst, &offset);
+        vector2_t offset = Vector2_sub(&unit->s.origin2, &src);
+        vector2_t requested = cluster ? dst : Vector2_add(&dst, &offset);
         mass_teleport_move_unit(unit, thinker->class_id, &requested);
         count++;
     }
@@ -516,7 +516,7 @@ BZ_ABILITY_PROC(CAbilityMassTeleport) {
     }
     if (msg == A_EXECUTE) {
         spellTarget_t st = call && call->target ? *call->target : MAKE(spellTarget_t, .type = SPELL_TARGET_NONE);
-        LPEDICT target = st.entity, thinker, effect;
+        edict_t * target = st.entity, *thinker, *effect;
         uint32_t level;
         float delay;
 
@@ -547,7 +547,7 @@ BZ_ABILITY_PROC(CAbilityMassTeleport) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityStampede) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = S_SpellChannelThinker(caster, spell->code); thinker->s.origin2 = st.point;
+    edict_t * thinker = S_SpellChannelThinker(caster, spell->code); thinker->s.origin2 = st.point;
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f);
     thinker->freetime = G_Time(); thinker->think = whirlwind_think;
 }
@@ -573,7 +573,7 @@ BZ_SIMPLE_SPELL_PROC(AbilitySummonPhoenix) { summon_execute_requested(caster, st
 BZ_SIMPLE_SPELL_PROC(AbilityCarrionScarabs) {
     uint32_t level = S_SpellLevel(caster, spell->code), count = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
     float range = S_SpellRange(spell->code, level);
-    LPEDICT corpse = NULL;
+    edict_t * corpse = NULL;
     FILTER_EDICTS(unit, G_UnitIsRaisableCorpse(unit) && !G_UnitIsHero(unit) &&
                   Vector2_distance(&unit->s.origin2, &caster->s.origin2) <= range) { corpse = unit; break; }
     if (!corpse) return;
@@ -586,14 +586,14 @@ BZ_SIMPLE_SPELL_PROC(AbilityCarrionScarabs) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityImpale) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    VECTOR2 offset = Vector2_sub(&st.point, &caster->s.origin2);
+    vector2_t offset = Vector2_sub(&st.point, &caster->s.origin2);
     float distance = Vector2_distance(&caster->s.origin2, &st.point);
-    VECTOR2 direction;
+    vector2_t direction;
     cstring_t buff = spell_buff(spell, level);
     if (distance <= 0.0f) return;
     direction = Vector2_scale(&offset, 1.0f / distance);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target)) {
-        VECTOR2 delta = Vector2_sub(&target->s.origin2, &caster->s.origin2);
+        vector2_t delta = Vector2_sub(&target->s.origin2, &caster->s.origin2);
         float along = Vector2_dot(&delta, &direction);
         float across = delta.x * direction.y - delta.y * direction.x;
         if (along < 0.0f || along > S_SpellData(spell->code, level, 1) ||
@@ -634,13 +634,13 @@ BZ_SIMPLE_SPELL_PROC(AbilitySilence) {
 /* Corpse ultimates prefer higher-level units before lower-level ones. Equal-level
  * ties retain the stable entity-enumeration order until a stricter retail tie-break
  * is established. */
-static int32_t corpse_unit_level(LPCEDICT unit) {
+static int32_t corpse_unit_level(edict_t const * unit) {
     UnitBalance_t const *balance = unit ? unit->data.UnitBalance : NULL;
     if (!balance && unit) balance = G_UnitBalance(unit->class_id);
     return balance ? balance->level : 0;
 }
 
-static bool corpse_preferred(LPCEDICT candidate, LPCEDICT current, LPCEDICT caster, bool nearest_tie) {
+static bool corpse_preferred(edict_t const * candidate, edict_t const * current, edict_t const * caster, bool nearest_tie) {
     int32_t candidate_level, current_level;
 
     if (!current) return true;
@@ -654,20 +654,20 @@ static bool corpse_preferred(LPCEDICT candidate, LPCEDICT current, LPCEDICT cast
 /* Name=Animate Dead
  * Ubertip="Raises a number of corpses to serve the caster for a limited time."
  */
-static bool animate_dead_target(LPEDICT caster, LPEDICT unit, abilityitem_t const *spell) {
+static bool animate_dead_target(edict_t * caster, edict_t * unit, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     return G_UnitIsRaisableCorpse(unit) && !G_UnitIsHero(unit) && !G_UnitIsBuilding(unit->class_id) &&
         Vector2_distance(&unit->s.origin2, &caster->s.origin2) <= area;
 }
 
-static bool animate_dead_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool animate_dead_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     (void)st;
     FILTER_EDICTS(unit, animate_dead_target(caster, unit, spell)) return true;
     return false;
 }
 
-static void animate_dead_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void animate_dead_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code), count = 0;
     uint32_t limit = (uint32_t)S_SpellData(spell->code, level, 1);
     bool raised_invulnerable = S_SpellData(spell->code, level, 2) != 0.0f;
@@ -676,7 +676,7 @@ static void animate_dead_execute(LPEDICT caster, spellTarget_t st, abilityitem_t
 
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
     while (count < limit) {
-        LPEDICT selected = NULL;
+        edict_t * selected = NULL;
         FILTER_EDICTS(unit, animate_dead_target(caster, unit, spell))
             if (corpse_preferred(unit, selected, caster, false)) selected = unit;
         if (!selected) break;
@@ -710,7 +710,7 @@ BZ_VALIDATED_SPELL_PROC(AbilityDeathCoil, death_coil_validate, death_coil_execut
 /* Name=Death Pact
  * Ubertip="Sacrifices a friendly undead unit to restore the Death Knight's life and mana."
  */
-static bool death_pact_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool death_pact_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t race = st.entity && st.entity->data.UnitData ? st.entity->data.UnitData->race : NULL;
     float mana_value = S_SpellData(spell->code, level, 1);
@@ -746,7 +746,7 @@ static bool death_pact_validate(LPEDICT caster, spellTarget_t st, abilityitem_t 
     return mana_value != 0.0f && !full_mana;
 }
 
-static void death_pact_lose_life(LPEDICT unit, float amount) {
+static void death_pact_lose_life(edict_t * unit, float amount) {
     if (!unit || amount <= 0.0f || M_IsDead(unit)) return;
     G_SetHealth(unit, MAX(0.0f, unit->health.value - amount));
     /* Warsmash's negative-heal/value path goes through setLife(), which kills
@@ -757,7 +757,7 @@ static void death_pact_lose_life(LPEDICT unit, float amount) {
     }
 }
 
-static void death_pact_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void death_pact_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float target_life = st.entity->health.value;
     float mana_value = S_SpellData(spell->code, level, 1);
@@ -810,7 +810,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityMetamorphosis) {
     uint32_t level = S_SpellLevel(caster, spell->code), form = S_SpellUnitId(spell->code, level), original = caster->class_id;
     float duration = S_SpellDuration(spell->code, level, true);
     if (!form || !G_TransformUnitType(caster, form) || duration <= 0.0f) return;
-    LPEDICT thinker = G_Spawn();
+    edict_t * thinker = G_Spawn();
     thinker->owner = caster; thinker->resources = original;
     thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f); thinker->think = morph_end;
 }
@@ -861,7 +861,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityForkedLightning) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityEarthquake) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = S_SpellChannelThinker(caster, spell->code); thinker->s.origin2 = st.point;
+    edict_t * thinker = S_SpellChannelThinker(caster, spell->code); thinker->s.origin2 = st.point;
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f);
     thinker->freetime = G_Time() + (uint32_t)(MAX(0.0f, S_SpellData(spell->code, level, 1)) * 1000.0f);
     thinker->think = earthquake_think;
@@ -873,7 +873,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityEarthquake) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityFarSight) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    LPEDICT thinker = G_Spawn();
+    edict_t * thinker = G_Spawn();
     thinker->class_id = spell->code;
     thinker->s.player = caster->s.player;
     thinker->s.origin2 = st.point;
@@ -884,7 +884,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityFarSight) {
     far_sight_think(thinker);
 }
 /* Resurrection operates on nearby ordinary corpses; Heroes retain their separate altar revival lifecycle. */
-static bool resurrection_target(LPEDICT caster, LPEDICT target, abilityitem_t const *spell) {
+static bool resurrection_target(edict_t * caster, edict_t * target, abilityitem_t const *spell) {
     float radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, spell->code));
     return G_UnitIsRaisableCorpse(target) && !G_UnitIsHero(target) &&
         !G_UnitIsBuilding(target->class_id) && S_SpellIsFriend(caster, target) &&
@@ -892,20 +892,20 @@ static bool resurrection_target(LPEDICT caster, LPEDICT target, abilityitem_t co
 }
 
 /* Reject empty casts before the shared pipeline commits mana and cooldown. */
-static bool resurrection_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool resurrection_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     FILTER_EDICTS(target, resurrection_target(caster, target, spell)) return true;
     return false;
 }
 
 /* Reuse each corpse's edict and retire its death animation/timer before restoring ordinary unit activity. */
-static void resurrection_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void resurrection_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t rank = S_SpellLevel(caster, spell->code), count = 0;
     uint32_t limit = (uint32_t)S_SpellData(spell->code, rank, 1);
     bool raised_invulnerable = S_SpellData(spell->code, rank, 2) != 0.0f;
     (void)st;
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_CASTER, 0, caster, NULL, true);
     while (count < limit) {
-        LPEDICT selected = NULL;
+        edict_t * selected = NULL;
         FILTER_EDICTS(target, resurrection_target(caster, target, spell))
             if (corpse_preferred(target, selected, caster, true)) selected = target;
         if (!selected) break;
@@ -954,7 +954,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityDoom) { target_status_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityHealingWave) {
     uint32_t level = S_SpellLevel(caster, spell->code), count = (uint32_t)S_SpellData(spell->code, level, 2);
     float amount = S_SpellData(spell->code, level, 1), loss = S_SpellData(spell->code, level, 3);
-    LPEDICT current = st.entity, visited[32] = {0};
+    edict_t * current = st.entity, *visited[32] = {0};
     FOR_LOOP(i, MIN(count ? count : 1, 32)) {
         if (!current || !S_SpellIsAliveTarget(current) || !S_SpellIsFriend(caster, current)) break;
         S_SpellHeal(current, amount); visited[i] = current; amount *= 1.0f - loss;
@@ -983,7 +983,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityVoodoo) {
 BZ_SIMPLE_SPELL_PROC(AbilityAcidBomb) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = spell_buff(spell, level);
-    LPEDICT thinker;
+    edict_t * thinker;
     if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
     if (buff) unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, false));
     thinker = G_Spawn(); thinker->owner = caster; thinker->goalentity = st.entity; thinker->damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 3));
