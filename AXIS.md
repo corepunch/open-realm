@@ -48,6 +48,11 @@ so picking between frames and nested UI render views do not depend on cache prep
 `SC2_RunUnit` writes `atan2f(dir.y, dir.x)` as gameplay heading. `R_GetEntityMatrix` then aligns the M3's -Y
 front with that heading. The model loader contains no extra orientation or 100x scale correction.
 
+Layout-camera console models and unit portraits set `RF_PORTRAIT_LIGHTING`. `R_EntityPose` returns
+`sc2_native_basis` (identity) for that flag. Those cameras are authored in native M3 axes — the console
+looks along +Y with +Z up — and the Birth pose was matched to an identity matrix. Applying `sc2_model_basis`
+there turns the HUD edge-on. See [console chrome](docs/games/starcraft-2/hud-layout-pipeline.md).
+
 Placed-object `Angle` already describes native mesh placement. `SC2_SpawnEntities` calls
 `SC2_PlacementHeading(raw) = raw - pi/2`, so the final transform preserves the authored placement:
 `Rz(raw - pi/2) * Rz(pi/2) = Rz(raw)`. This applies to placed units and scenery alike. It requires no model-name,

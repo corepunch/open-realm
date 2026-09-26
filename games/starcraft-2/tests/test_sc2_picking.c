@@ -40,6 +40,20 @@ TEST(sc2_control, fractional_snapshot_geometry) {
     }
 }
 
+/* HUD chrome and portraits are framed in native M3 axes. The world basis is a yaw. */
+TEST(sc2_control, layout_models_keep_native_axes) {
+    model_t model = { .modeltype = ID_43DM };
+    renderEntity_t ent = { .model = &model, .scale = 1, .flags = RF_PORTRAIT_LIGHTING };
+    mat4_t matrix;
+    R_GetEntityMatrix(&ent, &matrix);
+    vec3_t right = Matrix4_multiply_vector3(&matrix, &MAKE(vec3_t, 1, 0, 0));
+    vec3_t front = Matrix4_multiply_vector3(&matrix, &MAKE(vec3_t, 0, -1, 0));
+    vec3_t up = Matrix4_multiply_vector3(&matrix, &MAKE(vec3_t, 0, 0, 1));
+    T_FEQ(right.x, 1, 0.0001f); T_FEQ(right.y, 0, 0.0001f); T_FEQ(right.z, 0, 0.0001f);
+    T_FEQ(front.x, 0, 0.0001f); T_FEQ(front.y, -1, 0.0001f); T_FEQ(front.z, 0, 0.0001f);
+    T_FEQ(up.x, 0, 0.0001f); T_FEQ(up.y, 0, 0.0001f); T_FEQ(up.z, 1, 0.0001f);
+}
+
 /* M3's native -Y front must follow the snapshot's +X-based gameplay heading. */
 TEST(sc2_control, model_front_follows_heading) {
     model_t model = { .modeltype = ID_43DM };

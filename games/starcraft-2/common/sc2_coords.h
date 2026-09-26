@@ -3,8 +3,10 @@
 
 #include "common/shared.h"
 
-/* Native -Y forward, +Z up -> canonical +X forward, +Z up. */
+/* Native -Y forward, +Z up -> canonical +X forward, +Z up. World actors only. */
 static mat4_t const sc2_model_basis = { .v = { 0,1,0,0, -1,0,0,0, 0,0,1,0, 0,0,0,1 } };
+/* Layout cameras and portrait framing are authored in native M3 axes. */
+static mat4_t const sc2_native_basis = { .v = { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 } };
 
 /* Placed-object Angle already orients native M3 geometry. Decode it to actor heading
  * so the mandatory model basis preserves that authored transform, including scenery. */

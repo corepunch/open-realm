@@ -281,9 +281,17 @@ selects an enum. Template inheritance tracks eight presence bits, preserving exp
 bounds-derived camera. The layout camera uses normalized viewport Position: X anchors the left/center/right
 edge, Y anchors the bottom, and Z is model depth. Native SC2 console assets use X=-1/0/+1, Y=-1, scale=1,
 eye=(0,-5,0), target=(0,0,0), FOV=90, near=1, far=1000. The three chrome models use the final frame of
-their `Birth` sequence as the stable assembled pose. In particular, `ConsoleTerran_01.m3` moves its parent
-bone from Z=-0.414 to Z=+0.007 during `Birth`; its `Stand` sequences omit that placement track and reset to
-the hidden bind pose, leaving the center console absent. At the authored 4:3 aspect, the orthographic
+their `Birth` sequence as the stable assembled pose. In particular, `ConsoleTerran_01.m3` `Birth` (0..1333)
+moves bone `ConsoleTerran_01~DUP~0` from Z=-0.414 to Z=+0.007; the last in-sequence sample is frame 1332.
+`Stand` holds that same assembled translation, but other steady sequences omit the placement track and fall
+back to the bind pose, which sits below the ortho bottom. Do not switch the payload back to frame 0.
+
+These draws set `RF_PORTRAIT_LIGHTING` and must keep native M3 axes (`sc2_native_basis`). Commit `15480ab8`
+(2026-09-24) started applying `sc2_model_basis`, a +90° yaw that aligns a unit's -Y front with world heading.
+The layout camera is not that heading: it looks along +Y with +Z up, and was matched to an identity model
+matrix. The yaw turns the wide console edge-on, so the assembled pose reads as the opening frame shoved to
+the side. World actors still use `sc2_model_basis`. Unit portraits use the same lighting flag; their camera
+is extracted from the same matrix, so identity preserves the pre-change portrait framing. At the authored 4:3 aspect, the orthographic
 half-width is tan(FOV/2), half-height is half-width/(4/3). Widening changes only half-width; model dimensions
 remain proportional to screen height. The `Stand` info-panel mesh can sit below the bottom edge in its
 unselected state; do not recenter it from its bounding sphere.

@@ -336,7 +336,12 @@ bool R_TraceModel(renderEntity_t const *entity, line3_t const *line, float *dist
 }
 
 mat4_t const *R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
-    (void)entity; (void)pose;
+    (void)pose;
+    /* Console chrome and unit portraits share this flag. Their cameras were
+     * authored against an identity model matrix; the world yaw turns the
+     * wide assembled console edge-on. */
+    if (entity && (entity->flags & RF_PORTRAIT_LIGHTING))
+        return &sc2_native_basis;
     return &sc2_model_basis;
 }
 
