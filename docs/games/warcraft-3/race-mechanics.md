@@ -116,7 +116,7 @@ The manual `Ambt` replenish cast follows Warsmash's `CAbilityMoonWell` ordering 
 - `DataA` is well-mana spent per target mana point restored;
 - one cast restores missing life first, then spends the remaining Moon Well mana on missing target mana.
 
-The fields are ratios, not per-cast caps. A full-health friendly target with missing mana is therefore still a valid replenish target. Nearest-valid autocast honors `DataC` and authored Area/Range, `DataE` gates the well's natural mana regeneration to night, and persistent water `EffectArt` height follows `DataD * current_mana_fraction`.
+The fields are ratios, not per-cast caps. A full-health friendly target with missing mana is therefore still a valid replenish target. Nearest-valid autocast honors `DataC` and the authored `Area` acquisition radius; stock ROC and TFT `Ambt` have `Area=400` and `Rng=99999`, so cast range must not substitute when Area is zero. `DataE` gates the well's natural mana regeneration to night, and persistent water `EffectArt` height follows `DataD * current_mana_fraction`.
 
 ## Undead defensive tower upgrades
 

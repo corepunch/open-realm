@@ -730,7 +730,7 @@ static uint32_t wisp_harvest_alias(edict_t const * ent) {
     return harvest_actor_ability_alias(ent, MAKEFOURCC('A','w','h','a'));
 }
 
-static void wisp_harvest_warn_missing_data(uint32_t alias) {
+static void wisp_harvest_warn_invalid_data(uint32_t alias) {
     static uint32_t warned[256];
     static uint32_t warned_count;
     char name[5] = {0};
@@ -738,7 +738,7 @@ static void wisp_harvest_warn_missing_data(uint32_t alias) {
     FOR_LOOP(i, warned_count) if (warned[i] == alias) return;
     if (warned_count < sizeof(warned) / sizeof(warned[0])) warned[warned_count++] = alias;
     memcpy(name, &alias, 4);
-    fprintf(stderr, "WC3 AbilityData: missing or invalid %s DataA for Wisp harvest\n", name);
+    fprintf(stderr, "WC3 AbilityData: missing or invalid %s DataA/Rng/Dur for Wisp harvest\n", name);
 }
 
 bool S_WispHarvestCanLumber(edict_t const * ent) {
@@ -746,8 +746,9 @@ bool S_WispHarvestCanLumber(edict_t const * ent) {
     AbilityData_t const *data;
     if (!alias) return false;
     data = G_AbilityData(alias);
-    if (data->id == alias && data->level[0].data[0].number > 0.0f) return true;
-    wisp_harvest_warn_missing_data(alias);
+    if (data && data->id == alias && data->level[0].data[0].number > 0.0f &&
+        data->level[0].range > 0.0f && data->level[0].dur > 0.0f) return true;
+    wisp_harvest_warn_invalid_data(alias);
     return false;
 }
 
@@ -755,8 +756,8 @@ static wispHarvestTuning_t wisp_harvest_tuning(edict_t const * ent) {
     wispHarvestTuning_t tuning = {
         .lumber_per_interval = 0.0f,
         .art_attachment_height = 0.0f,
-        .search_range = HARVEST_SEARCH_RANGE,
-        .interval = 1.0f,
+        .search_range = 0.0f,
+        .interval = 0.0f,
     };
     uint32_t const alias = wisp_harvest_alias(ent);
     AbilityData_t const *data;
@@ -765,10 +766,8 @@ static wispHarvestTuning_t wisp_harvest_tuning(edict_t const * ent) {
         return tuning;
     tuning.lumber_per_interval = data->level[0].data[0].number; /* DataA */
     tuning.art_attachment_height = data->level[0].data[2].number;         /* DataC */
-    if (data->level[0].range > 0.0f)
-        tuning.search_range = data->level[0].range;                       /* Cast Range */
-    if (data->level[0].dur > 0.0f)
-        tuning.interval = data->level[0].dur;                             /* Duration */
+    tuning.search_range = data->level[0].range;                           /* Rng */
+    tuning.interval = data->level[0].dur;                                 /* Duration */
     return tuning;
 }
 
@@ -843,9 +842,9 @@ static bool wisp_tree_owned(edict_t const * tree, edict_t const * except) {
 static edict_t * wisp_find_nearest_tree(edict_t * worker, edict_t const * origin) {
     wispHarvestTuning_t const tuning = wisp_harvest_tuning(worker);
     edict_t * best = NULL;
-    float best_distance = tuning.search_range > 0.0f ? tuning.search_range : FLT_MAX;
+    float best_distance = tuning.search_range;
 
-    if (!worker || !origin) return NULL;
+    if (!worker || !origin || !S_WispHarvestCanLumber(worker)) return NULL;
     FOR_LOOP(i, globals.num_edicts) {
         edict_t * tree = globals.edicts + i;
         float distance;

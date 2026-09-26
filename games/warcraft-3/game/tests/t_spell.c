@@ -1379,7 +1379,7 @@ TEST(wc3_spell, moon_well_autocast_uses_threshold_and_nearest_valid_target) {
         "C;Y1;X7;K\"Area1\"\nC;Y1;X8;K\"Rng1\"\nC;Y1;X9;K\"DataE1\"\n"
         "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K\"ground,friend\"\n"
         "C;Y2;X4;K\"0.5\"\nC;Y2;X5;K\"2.0\"\nC;Y2;X6;K\"25\"\n"
-        "C;Y2;X7;K\"600\"\nC;Y2;X8;K\"600\"\nC;Y2;X9;K\"1\"\nE\n";
+        "C;Y2;X7;K\"100\"\nC;Y2;X8;K\"99999\"\nC;Y2;X9;K\"1\"\nE\n";
     UnitAbilities_t abilities = { .abilList = "Ambt" };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t * well = make_hero(MAKEFOURCC('e','m','o','w'), 100, 80, 0, 0);
@@ -1408,6 +1408,76 @@ TEST(wc3_spell, moon_well_autocast_uses_threshold_and_nearest_valid_target) {
     near->health.value = 50.0f;
     T_ASSERT(!S_AbilityMessage(well, A_AUTOCAST_ACQUIRE, &call));
     T_FEQ(near->health.value, 50.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, moon_well_autocast_does_not_substitute_cast_range_for_area) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
+        "C;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"Area1\"\nC;Y1;X7;K\"Rng1\"\n"
+        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\n"
+        "C;Y2;X3;K2\nC;Y2;X4;K0.5\nC;Y2;X5;K10\n"
+        "C;Y2;X6;K0\nC;Y2;X7;K99999\nE\n";
+    UnitAbilities_t abilities = { .abilList = "Ambt" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *well = make_hero(MAKEFOURCC('e','m','o','w'), 100, 80, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("Ambt"));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+
+    well->data.UnitAbilities = &abilities;
+    well->s.player = target->s.player = 0;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
+    target->health.max_value = 100.0f;
+    target->health.value = 50.0f;
+
+    T_ASSERT(!S_AbilityMessage(well, A_AUTOCAST_ACQUIRE, &call));
+    T_FEQ(target->health.value, 50.0f, 0.001f);
+    T_FEQ(well->mana.value, 80.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* Stock ROC and TFT Ambt values from ability_audit -raw Ambt. Area=400 is the
+ * autocast acquisition radius; Rng=99999 is the manual cast range. */
+TEST(wc3_spell, moon_well_stock_data_uses_area_for_autocast) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"DataC1\"\n"
+        "C;Y1;X7;K\"Area1\"\nC;Y1;X8;K\"Rng1\"\nC;Y1;X9;K\"DataE1\"\n"
+        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K\"air,ground,invu,vuln,friend,organic\"\n"
+        "C;Y2;X4;K2\nC;Y2;X5;K0.5\nC;Y2;X6;K10\n"
+        "C;Y2;X7;K400\nC;Y2;X8;K99999\nC;Y2;X9;K1\nE\n";
+    UnitAbilities_t abilities = { .abilList = "Ambt" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *well = make_hero(MAKEFOURCC('e','m','o','w'), 100, 80, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 500, 0);
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("Ambt"));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+
+    well->data.UnitAbilities = &abilities;
+    well->s.player = target->s.player = 0;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
+    target->health.max_value = 100.0f;
+    target->health.value = 50.0f;
+    T_EQ((int)G_AbilityLevel(item.code, 1)->area, 400);
+    T_EQ((int)G_AbilityLevel(item.code, 1)->range, 99999);
+    T_ASSERT(!S_AbilityMessage(well, A_AUTOCAST_ACQUIRE, &call));
+    T_FEQ(target->health.value, 50.0f, 0.001f);
+
+    target->s.origin2.x = 300.0f;
+    target->s.origin.x = 300.0f;
+    T_ASSERT(S_AbilityMessage(well, A_AUTOCAST_ACQUIRE, &call));
+    T_FEQ(target->health.value, 100.0f, 0.001f);
+    T_FEQ(well->mana.value, 55.0f, 0.001f);
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);

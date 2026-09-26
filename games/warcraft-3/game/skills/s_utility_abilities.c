@@ -212,7 +212,6 @@ static bool moon_well_autocast_acquire(edict_t * caster, uint32_t code) {
     row = G_AbilityLevel(code, level);
     if (caster->mana.value <= row->data[2].number) /* DataC */ return false;
     range = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
-    if (range <= 0.0f) range = S_SpellRange(code, level);
     if (range <= 0.0f) return false;
 
     FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target)) {

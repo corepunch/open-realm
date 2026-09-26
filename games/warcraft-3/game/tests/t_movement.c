@@ -134,10 +134,22 @@ static const char slk_wisp_harvest_test_data[] =
     "C;Y1;X5;K\"Dur1\"\n"
     "C;Y2;X1;K\"Awha\"\n"
     "C;Y2;X2;K\"Awha\"\n"
-    "C;Y2;X3;K5\n"
+    "C;Y2;X3;K9\n"
     "C;Y2;X4;K500\n"
     "C;Y2;X5;K1.0\n"
     "E\n";
+
+/* ROC/TFT stock Awha values from ability_audit -raw Awha. Keep a stock-shaped
+ * fixture beside the non-stock DataA case above. */
+static const char slk_wisp_harvest_stock_data[] =
+    "ID;PWXL;N;E\n"
+    "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+    "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
+    "C;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"Rng1\"\n"
+    "C;Y1;X7;K\"Dur1\"\n"
+    "C;Y2;X1;K\"Awha\"\nC;Y2;X2;K\"Awha\"\n"
+    "C;Y2;X3;K5\nC;Y2;X4;K5\nC;Y2;X5;K150\n"
+    "C;Y2;X6;K900\nC;Y2;X7;K8\nE\n";
 
 static const char slk_ghoul_harvest_test_data[] =
     "ID;PWXL;N;E\n"
@@ -384,6 +396,7 @@ static const char slk_racial_goldmine_test_data[] =
     "C;Y1;X5;K\"DataB1\"\n"
     "C;Y1;X6;K\"DataC1\"\n"
     "C;Y1;X7;K\"DataD1\"\n"
+    "C;Y1;X8;K\"UnitID1\"\n"
     "C;Y2;X1;K\"Agld\"\n"
     "C;Y2;X2;K\"Agld\"\n"
     "C;Y3;X1;K\"Aaha\"\n"
@@ -404,6 +417,9 @@ static const char slk_racial_goldmine_test_data[] =
     "C;Y6;X4;K5\n"
     "C;Y7;X1;K\"Agl2\"\n"
     "C;Y7;X2;K\"Agl2\"\n"
+    "C;Y8;X1;K\"Aent\"\n"
+    "C;Y8;X2;K\"Aent\"\n"
+    "C;Y8;X8;K\"hbar\"\n"
     "E\n";
 
 static UnitAbilities_t const test_haunted_mine = { .abilList = "Abgm" };
@@ -2279,11 +2295,13 @@ TEST(wc3_movement, lumber_dead_previous_tree_searches_near_old_tree) {
 TEST(wc3_movement, wisp_harvest_persists_and_credits_periodic_lumber) {
     slkTestData_t *rows = parse_slk_string(slk_wisp_harvest_test_data);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    float const old_range = HARVEST_RANGE;
     edict_t * wisp = make_moving_unit(0.0f, 0.0f);
     edict_t * tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
     uint32_t const old_lumber = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
 
     wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    HARVEST_RANGE = 128.0f;
     wisp->s.player = 0;
     gi.LinkEntity(wisp);
     gi.LinkEntity(tree);
@@ -2298,12 +2316,42 @@ TEST(wc3_movement, wisp_harvest_persists_and_credits_periodic_lumber) {
 
     wisp->wait = FRAMETIME / 2000.0f;
     wisp->currentmove->think(wisp); /* first periodic credit */
-    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], old_lumber + 5);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], old_lumber + 9);
     T_ASSERT(wisp->inuse && !M_IsDead(wisp));
     T_EQ(wisp->harvested_lumber, 0);
     T_FEQ(tree->health.value, 100.0f, 0.001f);
     T_FEQ(wisp->wait, 1.0f, 0.001f);
 
+    HARVEST_RANGE = old_range;
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, wisp_harvest_uses_stock_range_and_duration) {
+    slkTestData_t *rows = parse_slk_string(slk_wisp_harvest_stock_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    float const old_range = HARVEST_RANGE;
+    float const old_search_range = HARVEST_SEARCH_RANGE;
+    edict_t *wisp = make_moving_unit(0.0f, 0.0f);
+    edict_t *first_tree = make_harvest_tree(32.0f, 0.0f, 100.0f);
+    edict_t *next_tree = make_harvest_tree(700.0f, 0.0f, 100.0f);
+
+    /* Make the old general Harvest search radius too short to find next_tree. */
+    HARVEST_RANGE = 128.0f;
+    HARVEST_SEARCH_RANGE = 100.0f;
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    wisp->s.player = 0;
+    T_ASSERT(unit_issuetargetorder(wisp, "smart", first_tree));
+    wisp->currentmove->think(wisp);
+    T_ASSERT(wisp->goalentity == first_tree);
+    T_FEQ(wisp->wait, 8.0f, 0.001f);
+
+    G_SetHealth(first_tree, 0.0f);
+    wisp->currentmove->think(wisp);
+    T_ASSERT(wisp->goalentity == next_tree);
+
+    HARVEST_RANGE = old_range;
+    HARVEST_SEARCH_RANGE = old_search_range;
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }
@@ -2316,11 +2364,13 @@ TEST(wc3_movement, wisp_harvest_reads_roc_data_columns) {
         "C;Y2;X1;K\"Awha\"\nC;Y2;X2;K\"Awha\"\nC;Y2;X3;K9\n"
         "C;Y2;X4;K500\nC;Y2;X5;K1\nE\n";
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    float const old_range = HARVEST_RANGE;
     edict_t *wisp = make_moving_unit(0.0f, 0.0f);
     edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
     uint32_t const old_lumber = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
 
     wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    HARVEST_RANGE = 128.0f;
     wisp->s.player = 0;
     T_ASSERT(unit_issuetargetorder(wisp, "smart", tree));
     wisp->currentmove->think(wisp);
@@ -2328,6 +2378,7 @@ TEST(wc3_movement, wisp_harvest_reads_roc_data_columns) {
     wisp->currentmove->think(wisp);
     T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], old_lumber + 9);
 
+    HARVEST_RANGE = old_range;
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }
@@ -2349,6 +2400,40 @@ TEST(wc3_movement, wisp_harvest_rejects_missing_ability_data) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_movement, wisp_harvest_rejects_missing_duration) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"Rng1\"\n"
+        "C;Y2;X1;K\"Awha\"\nC;Y2;X2;K\"Awha\"\nC;Y2;X3;K9\nC;Y2;X4;K500\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *wisp = make_moving_unit(0.0f, 0.0f);
+    edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    T_ASSERT(!unit_issuetargetorder(wisp, "smart", tree));
+    T_ASSERT(!wisp->goalentity);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, wisp_harvest_rejects_missing_range) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Awha\"\nC;Y2;X2;K\"Awha\"\nC;Y2;X3;K9\nC;Y2;X4;K1\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *wisp = make_moving_unit(0.0f, 0.0f);
+    edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    T_ASSERT(!unit_issuetargetorder(wisp, "smart", tree));
+    T_ASSERT(!wisp->goalentity);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_movement, wisp_harvest_move_leave_releases_its_tree_effect) {
     slkTestData_t *rows = parse_slk_string(slk_wisp_harvest_test_data);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
@@ -2356,10 +2441,12 @@ TEST(wc3_movement, wisp_harvest_move_leave_releases_its_tree_effect) {
     edict_t *effect = alloc_test_unit(MAKEFOURCC('e','f','f','t'), 0.0f, 0.0f);
 
     wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    T_ASSERT(unit_issuetargetorder(wisp, "smart", make_harvest_tree(20.0f, 0.0f, 100.0f)));
+    T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityWispHarvest);
     effect->owner = wisp;
     effect->summon_ability = MAKEFOURCC('A','w','h','a');
     effect->s.flags |= EF_NOT_SELECTABLE;
-    S_UnitAbilityEvent(wisp, A_MOVE_LEAVE);
+    unit_stand(wisp);
     T_ASSERT(!effect->inuse);
 
     G_SetSLKRows("AbilityData", old);
@@ -2372,12 +2459,14 @@ TEST(wc3_movement, wisp_harvest_move_leave_releases_its_tree_effect) {
 TEST(wc3_movement, wisp_harvest_retargets_when_clicked_tree_is_owned) {
     slkTestData_t *rows = parse_slk_string(slk_wisp_harvest_test_data);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    float const old_range = HARVEST_RANGE;
     edict_t * first = make_moving_unit(0.0f, 0.0f);
     edict_t * second = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0.0f, 20.0f);
     edict_t * tree1 = make_harvest_tree(20.0f, 0.0f, 100.0f);
     edict_t * tree2 = make_harvest_tree(80.0f, 0.0f, 100.0f);
 
     first->data.UnitAbilities = second->data.UnitAbilities = &wisp_harvest_abilities;
+    HARVEST_RANGE = 128.0f;
     first->s.player = second->s.player = 0;
     second->movetype = MOVETYPE_STEP;
     second->stand = unit_stand;
@@ -2396,6 +2485,7 @@ TEST(wc3_movement, wisp_harvest_retargets_when_clicked_tree_is_owned) {
     T_ASSERT(second->goalentity != tree1);
     T_ASSERT(second->inuse && !M_IsDead(second));
 
+    HARVEST_RANGE = old_range;
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }
@@ -4042,58 +4132,118 @@ TEST(wc3_movement, entangle_command_hidden_tracks_live_overlay_caster_generation
     T_ASSERT(!S_EntangleCommandHidden(caster, ability));
 }
 
+static edict_t *movement_find_entangle_overlay(edict_t *caster, edict_t *parent) {
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *overlay = globals.edicts + i;
+        if (overlay->inuse && overlay->mineoverlay.parent == parent &&
+            overlay->mineoverlay.caster == caster &&
+            overlay->mineoverlay.entangle_ability == MAKEFOURCC('A','e','n','t'))
+            return overlay;
+    }
+    return NULL;
+}
+
+static bool movement_issue_entangle_command(edict_t *clent, gameClient_t *client,
+                                            edict_t *caster, edict_t *parent) {
+    abilityCall_t call = MAKE(abilityCall_t, .client = clent);
+    if (!CAbilityEntangle(caster, A_COMMAND, &call) || !client->menu.on_entity_selected)
+        return false;
+    return client->menu.on_entity_selected(clent, parent);
+}
+
 TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {
-    UnitAbilities_t const entangle_abilities = { .abilList = "Aent" };
+    cstring_t const filename = "/tmp/openwarcraft3-wc3-entangle-lifecycle.bin";
     uint32_t const ability = MAKEFOURCC('A','e','n','t');
-    edict_t *caster, *overlay, *parent;
+    edict_t *clent, *caster, *parent, *overlay;
+    gameClient_t *client;
+    slkTestData_t *rows, *old_abilities;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
 
     reset_entities();
     setup_test_world();
-    caster = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 0.0f, 0.0f);
-    overlay = alloc_test_unit(MAKEFOURCC('e','g','o','l'), 64.0f, 0.0f);
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    clent = &g_edicts[0];
+    client = &game.clients[0];
+    clent->client = client;
+    caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 0.0f, 0.0f);
     parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 64.0f, 0.0f);
-    caster->data.UnitAbilities = &entangle_abilities;
+    caster->s.player = parent->s.player = client->ps.number;
+    setup_test_goldmine(parent, &test_goldmine_stock, 5000);
+    G_SelectEntity(client, caster);
     T_ASSERT(G_ActorSetSkillPermanent(caster, ability, true));
-    overlay->mineoverlay.parent = parent;
-    overlay->mineoverlay.parent_spawn_time = parent->spawn_time;
-    overlay->mineoverlay.caster = caster;
-    overlay->mineoverlay.caster_spawn_time = caster->spawn_time;
-    overlay->mineoverlay.entangle_ability = ability;
-    overlay->mineoverlay.entangle_permanent_before = true;
+    T_ASSERT(movement_issue_entangle_command(clent, client, caster, parent));
+    overlay = movement_find_entangle_overlay(caster, parent);
+    T_NOT_NULL(overlay);
+    T_ASSERT(overlay && overlay->mineoverlay.entangle_permanent_before);
+    T_ASSERT(overlay && overlay->construction.active);
 
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(G_ActorSetSkillPermanent(caster, ability, false));
+    overlay->mineoverlay.entangle_permanent_before = false;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(G_ActorSkillPermanent(caster, ability));
+    overlay = movement_find_entangle_overlay(caster, parent);
+    T_NOT_NULL(overlay);
+    T_ASSERT(overlay && overlay->mineoverlay.entangle_permanent_before);
     S_MineOverlayRelease(overlay);
     T_ASSERT(G_ActorSkillPermanent(caster, ability));
+    T_ASSERT(!(parent->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!parent->paused);
+    remove(filename);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_movement, entangle_overlays_share_permanent_state_until_last_release) {
-    UnitAbilities_t const entangle_abilities = { .abilList = "Aent" };
     uint32_t const ability = MAKEFOURCC('A','e','n','t');
-    edict_t *caster, *first, *second, *parent1, *parent2;
+    edict_t *clent, *caster, *first, *second, *parent1, *parent2;
+    gameClient_t *client;
+    slkTestData_t *rows, *old_abilities;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
 
     reset_entities();
     setup_test_world();
-    caster = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 0.0f, 0.0f);
-    first = alloc_test_unit(MAKEFOURCC('e','g','o','l'), 64.0f, 0.0f);
-    second = alloc_test_unit(MAKEFOURCC('e','g','o','l'), 128.0f, 0.0f);
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    clent = &g_edicts[0];
+    client = &game.clients[0];
+    clent->client = client;
+    caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 0.0f, 0.0f);
     parent1 = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 64.0f, 0.0f);
     parent2 = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 128.0f, 0.0f);
-    caster->data.UnitAbilities = &entangle_abilities;
-    first->mineoverlay.parent = parent1;
-    first->mineoverlay.parent_spawn_time = parent1->spawn_time;
-    first->mineoverlay.caster = caster;
-    first->mineoverlay.caster_spawn_time = caster->spawn_time;
-    first->mineoverlay.entangle_ability = ability;
-    second->mineoverlay.parent = parent2;
-    second->mineoverlay.parent_spawn_time = parent2->spawn_time;
-    second->mineoverlay.caster = caster;
-    second->mineoverlay.caster_spawn_time = caster->spawn_time;
-    second->mineoverlay.entangle_ability = ability;
-    T_ASSERT(G_ActorSetSkillPermanent(caster, ability, true));
+    caster->s.player = parent1->s.player = parent2->s.player = client->ps.number;
+    setup_test_goldmine(parent1, &test_goldmine_stock, 5000);
+    setup_test_goldmine(parent2, &test_goldmine_stock, 5000);
+    G_SelectEntity(client, caster);
+
+    T_ASSERT(movement_issue_entangle_command(clent, client, caster, parent1));
+    first = movement_find_entangle_overlay(caster, parent1);
+    T_NOT_NULL(first);
+    T_ASSERT(first && !first->mineoverlay.entangle_permanent_before);
+    T_ASSERT(G_ActorSkillPermanent(caster, ability));
+
+    T_ASSERT(movement_issue_entangle_command(clent, client, caster, parent2));
+    second = movement_find_entangle_overlay(caster, parent2);
+    T_NOT_NULL(second);
+    T_ASSERT(second && !second->mineoverlay.entangle_permanent_before);
 
     S_MineOverlayRelease(first);
     T_ASSERT(G_ActorSkillPermanent(caster, ability));
     S_MineOverlayRelease(second);
     T_ASSERT(!G_ActorSkillPermanent(caster, ability));
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
 }
 
 /* Depletion must retire an Entangled Mine even when every Wisp has already left it. */
