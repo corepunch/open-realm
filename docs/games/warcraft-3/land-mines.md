@@ -11,7 +11,9 @@ The stock behavior is split across three gameplay abilities:
 - `AIpm` is the point-target item ability.  Its authored `UnitID` is spawned at
   the selected point through the ordinary summon path, preserving player
   ownership and summon events. Placement uses the authored `Rng1`: an
-  out-of-range click is rejected without ordering the hero to walk closer.
+  out-of-range click orders the hero to walk toward the clicked point, then
+  places the mine there once the hero reaches cast range. Replacing that move
+  order cancels placement without consuming a charge.
 - `Amin` is an intrinsic ability on the mine unit.  Data A is the activation
   delay, Data B is the invisibility transition time, and the ability's authored
   cast range is the proximity trigger radius.
@@ -40,18 +42,19 @@ Research references used for the non-obvious compatibility rules in this file:
 
 ## Placement and charged items
 
-Point-target item commands retain the exact carried item while target mode is
-active.  Clicking the inventory button does not consume a charge.  Invalid
-point clicks and Cancel leave the charge unchanged.  After the shared point
-spell path successfully executes the ability, it publishes the normal
+Point-target item commands retain the exact carried item while target mode or
+an approach order is active. Clicking the inventory button does not consume a
+charge. Invalid targets, Cancel, and a replaced approach order leave the charge
+unchanged. An out-of-range click walks the hero into cast range while retaining
+the original clicked location. After the shared point spell path successfully
+executes the ability, it publishes the normal
 `EVENT_PLAYER_UNIT_USE_ITEM` / `EVENT_UNIT_USE_ITEM` events and consumes one
 charge.  A final perishable charge can therefore remove the item only after a
 successful placement.
 
-This completion contract currently covers point-target item abilities.  A
-unit-target item that walks into range before executing still needs an
-analogous carried-item completion token attached to the deferred approach
-order.
+This completion contract covers point-target item abilities. A unit-target item
+that walks into range before executing still needs an analogous carried-item
+completion token attached to the deferred approach order.
 
 ## `Amin` runtime state
 
@@ -147,8 +150,9 @@ Fixture-only regression coverage should verify:
 
 - `AIpm`, `Amin`, and `Amnx` resolve to their intended procedures;
 - point placement creates an owned real unit at the requested location;
-- an out-of-range placement click leaves the item armed and does not move the
-  hero or consume a charge, while an in-range click places the mine;
+- an out-of-range placement click moves the hero toward the clicked point and
+  places the mine there after entering cast range; replacing the approach
+  order leaves the charge unchanged;
 - invalid point item targets do not spend charges and successful placement
   spends exactly one;
 - Data B invisibility transition and True Sight interaction;
