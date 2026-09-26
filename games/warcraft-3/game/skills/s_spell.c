@@ -809,7 +809,14 @@ static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
         spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, st);
     bool const executed = spell_message(caster, A_EXECUTE, &item, &st);
-    if (executed && source_item) G_CompleteItemUse(caster, source_item);
+    if (executed && source_item) {
+        G_CompleteItemUse(caster, source_item);
+        if (clent->client->menu.ability_item == source_item &&
+            clent->client->menu.ability_item_spawn_time == source_item_spawn_time) {
+            clent->client->menu.ability_item = NULL;
+            clent->client->menu.ability_item_spawn_time = 0;
+        }
+    }
     if (source_item && !executed) return false;
     S_SpellCursorSplat(clent, 0.0f);
     G_SendPointConfirmation(clent, point, false);

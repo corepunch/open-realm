@@ -1250,7 +1250,7 @@ TEST(wc3_items, jass_item_charge_natives_use_runtime_item_state) {
 
 TEST(wc3_items, point_target_item_charge_waits_for_successful_location_cast) {
     static char const ability_slk[] =
-        "ID;PWXL;N;EBB;Y3;X14\n"
+        "ID;PWXL;N;EBB;Y4;X14\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
         "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
         "C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n"
@@ -1260,12 +1260,16 @@ TEST(wc3_items, point_target_item_charge_waits_for_successful_location_cast) {
         "C;Y2;X10;K\"6\"\nC;Y2;X12;K\"1\"\n"
         "C;Y3;X1;K\"AIpm\"\nC;Y3;X2;K\"AIpm\"\nC;Y3;X3;K\"1\"\n"
         "C;Y3;X4;K\"ground\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"0\"\n"
-        "C;Y3;X7;K\"500\"\nC;Y3;X8;K\"0\"\nC;Y3;X14;K\"hfoo\"\nE\n";
+        "C;Y3;X7;K\"500\"\nC;Y3;X8;K\"0\"\nC;Y3;X14;K\"hfoo\"\n"
+        "C;Y4;X1;K\"AOfs\"\nC;Y4;X2;K\"AOfs\"\nC;Y4;X3;K\"1\"\n"
+        "C;Y4;X4;K\"ground,enemy\"\nC;Y4;X7;K\"500\"\nC;Y4;X8;K\"1\"\n"
+        "C;Y4;X16;K\"128\"\nE\n";
     static UnitAbilities_t abilities = { .abilList = "AInv", .heroAbilList = "" };
     ItemData_t item_data = { .abilList = "AIpm", .uses = 2, .perishable = false };
     slkTestData_t *rows, *old;
     edict_t *player, *hero, *item, *mine = NULL;
     vec2_t invalid = { 700, 0 }, valid = { 128, 0 };
+    cstring_t far_sight[] = { "button", "AOfs" };
 
     setup_test_world();
     rows = parse_slk_string(ability_slk); old = G_SetSLKRows("AbilityData", rows);
@@ -1273,20 +1277,31 @@ TEST(wc3_items, point_target_item_charge_waits_for_successful_location_cast) {
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     hero->data.UnitAbilities = &abilities; hero->s.player = 0; hero->svflags |= SVF_MONSTER;
     hero->targtype = TARG_GROUND; hero->health.value = hero->health.max_value = 100;
+    hero->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','O','f','s'), .level = 1);
     item = make_item_test_world_item(MAKEFOURCC('g','o','b','m'), 0, 0);
-    item->data.ItemData = &item_data; item->item.charges = 2;
+    item->data.ItemData = &item_data; item->item.charges = 2; item->spawn_time = 1234;
     T_ASSERT(G_AddItemToSlot(hero, item, 0));
     G_SelectEntity(player->client, hero);
 
     G_UseItem(hero, 0);
     T_NOT_NULL(player->client->menu.on_location_selected);
     T_EQ(player->client->menu.ability_item, item);
+    T_EQ(player->client->menu.ability_item_spawn_time, item->spawn_time);
     T_EQ(G_ItemCharges(item), 2);
     T_ASSERT(!player->client->menu.on_location_selected(player, &invalid));
     T_EQ(player->client->menu.ability_item, item);
     T_EQ(G_ItemCharges(item), 2);
+
+    G_ClientCommand(player, 2, far_sight);
+    T_NULL(player->client->menu.ability_item);
+    T_EQ(player->client->menu.ability_item_spawn_time, 0);
+    T_ASSERT(player->client->menu.on_location_selected(player, &valid));
+    T_EQ(G_ItemCharges(item), 2);
+
+    G_UseItem(hero, 0);
     T_ASSERT(player->client->menu.on_location_selected(player, &valid));
     T_NULL(player->client->menu.ability_item);
+    T_EQ(player->client->menu.ability_item_spawn_time, 0);
     T_EQ(G_ItemCharges(item), 1);
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') && ent->owner == hero) {
         mine = ent; break;
