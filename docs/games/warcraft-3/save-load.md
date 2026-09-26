@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 49, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 50, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -529,3 +529,8 @@ Version 49 persists whether Aent was already permanent before an Entangle
 overlay made it permanent. The final live overlay restores that original value,
 including after save/load; version 48 saves are rejected by the exact-version
 guard.
+
+Version 50 persists the generation-guarded Tree owner on an Entangled Mine
+overlay, alongside the caster relationship. Direct Tree removal can therefore
+find and tear down the exact overlay after load without relying on proximity;
+version 49 saves are rejected by the exact-version guard.

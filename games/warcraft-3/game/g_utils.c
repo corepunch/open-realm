@@ -67,6 +67,14 @@ void G_FreeEdict(edict_t *ent) {
      * cancellation refund. */
     if (G_BuildingUpgradeActive(ent)) G_StopBuildingUpgrade(ent, false);
     if (ent->construction.active) G_StopConstruction(ent);
+    /* Removing an Entangle owner must release the overlay through its normal
+     * death cleanup, restoring the original mine and unloading any Wisps. */
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *overlay = globals.edicts + i;
+        if (!overlay->inuse || overlay == ent || overlay->mineoverlay.entangle_tree != ent ||
+            overlay->mineoverlay.entangle_tree_spawn_time != ent->spawn_time) continue;
+        unit_die(overlay, NULL);
+    }
     if (ent->mineoverlay.parent || ent->think == blight_mine_think) S_MineOverlayRelease(ent);
     if (S_AcolyteHarvestIsActive(ent)) S_AcolyteHarvestRelease(ent);
     S_CargoReleaseUnit(ent);

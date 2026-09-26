@@ -1454,6 +1454,8 @@ struct edict_s {
          * from inheriting the hidden/permanent Aent state after load/teardown. */
         edict_t *caster;
         uint32_t caster_spawn_time;
+        edict_t *entangle_tree;
+        uint32_t entangle_tree_spawn_time;
         uint32_t entangle_ability;
         bool entangle_permanent_before;
     } mineoverlay;

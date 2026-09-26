@@ -1164,6 +1164,20 @@ static bool entangle_overlay_has_caster(edict_t const *overlay, edict_t const *c
            overlay->mineoverlay.parent->spawn_time == overlay->mineoverlay.parent_spawn_time;
 }
 
+/* A Tree can maintain one mine link. Overlay ownership is generation-guarded
+ * and already persisted, so it is the authoritative relationship until Root
+ * gains its full rooted/uprroot lifecycle state. */
+static edict_t *entangle_tree_overlay(edict_t const *caster) {
+    if (!caster || !caster->inuse) return NULL;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *overlay = globals.edicts + i;
+        if (entangle_overlay_has_caster(overlay, caster,
+                                        overlay->mineoverlay.entangle_ability, NULL))
+            return overlay;
+    }
+    return NULL;
+}
+
 static bool entangle_existing_permanent_state(edict_t const *caster, uint32_t alias,
                                               bool *permanent_before) {
     if (!caster || !alias || !permanent_before) return false;
@@ -1206,6 +1220,8 @@ static void entangle_remove_caster_effects(edict_t *overlay) {
     }
     overlay->mineoverlay.caster = NULL;
     overlay->mineoverlay.caster_spawn_time = 0;
+    overlay->mineoverlay.entangle_tree = NULL;
+    overlay->mineoverlay.entangle_tree_spawn_time = 0;
     overlay->mineoverlay.entangle_ability = 0;
     overlay->mineoverlay.entangle_permanent_before = false;
 }
@@ -1243,11 +1259,24 @@ static bool entangle_goldmine_selecttarget(edict_t *clent, edict_t *target) {
         return false;
     }
     caster = G_GetMainSelectedUnit(clent->client);
-    if (!caster || !(alias = goldmine_actor_ability_alias(caster, MAKEFOURCC('A','e','n','t')))) {
+    if (!caster) {
+        return false;
+    }
+    if (!caster->no_pathing) {
+        G_ShowCommandErrorKey(clent, "Mustroottoentangle", "Must be rooted to entangle a Gold Mine.");
+        return false;
+    }
+    if (!(alias = goldmine_actor_ability_alias(caster, MAKEFOURCC('A','e','n','t')))) return false;
+    if (entangle_tree_overlay(caster)) {
+        G_ShowCommandErrorKey(clent, "AlreadyEntangled", "This Tree already entangles a Gold Mine.");
+        return false;
+    }
+    if (!S_SpellTargetInRange(caster, target, MAX(0.0f, G_AbilityLevel(alias, 1)->range))) {
+        G_ShowCommandErrorKey(clent, "Mustbeclosertomine", "Must be closer to the Gold Mine.");
         return false;
     }
     resulting_type = G_AbilityLevel(alias, 1)->unitID;
-    if (!resulting_type || !G_UnitIsBuilding(resulting_type)) {
+    if (!resulting_type) {
         return false;
     }
 
@@ -1272,6 +1301,8 @@ static bool entangle_goldmine_selecttarget(edict_t *clent, edict_t *target) {
     }
     entangled->mineoverlay.caster = caster;
     entangled->mineoverlay.caster_spawn_time = caster->spawn_time;
+    entangled->mineoverlay.entangle_tree = caster;
+    entangled->mineoverlay.entangle_tree_spawn_time = caster->spawn_time;
     entangled->mineoverlay.entangle_ability = alias;
     G_ActorSetSkillPermanent(caster, alias, true);
     {

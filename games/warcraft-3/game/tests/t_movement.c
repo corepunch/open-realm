@@ -397,6 +397,13 @@ static const char slk_racial_goldmine_test_data[] =
     "C;Y1;X6;K\"DataC1\"\n"
     "C;Y1;X7;K\"DataD1\"\n"
     "C;Y1;X8;K\"UnitID1\"\n"
+    "C;Y1;X9;K\"Rng2\"\n"
+    "C;Y1;X10;K\"Dur1\"\n"
+    "C;Y1;X11;K\"DataA1\"\n"
+    "C;Y1;X12;K\"DataB1\"\n"
+    "C;Y1;X13;K\"UnitID1\"\n"
+    "C;Y1;X14;K\"isbldg\"\n"
+    "C;Y1;X15;K\"alias\"\n"
     "C;Y2;X1;K\"Agld\"\n"
     "C;Y2;X2;K\"Agld\"\n"
     "C;Y3;X1;K\"Aaha\"\n"
@@ -419,12 +426,16 @@ static const char slk_racial_goldmine_test_data[] =
     "C;Y7;X2;K\"Agl2\"\n"
     "C;Y8;X1;K\"Aent\"\n"
     "C;Y8;X2;K\"Aent\"\n"
-    "C;Y8;X8;K\"hbar\"\n"
+    "C;Y8;X3;K64\n"
+    "C;Y8;X13;K\"hbar\"\n"
+    "C;Y8;X14;K1\n"
+    "C;Y8;X15;K\"Aent\"\n"
     "E\n";
 
 static UnitAbilities_t const test_haunted_mine = { .abilList = "Abgm" };
 static UnitAbilities_t const test_acolyte_harvest = { .abilList = "Aaha" };
 static UnitAbilities_t const test_entangled_mine = { .abilList = "Aegm,Aenc" };
+static UnitAbilities_t const test_entangle_caster = { .abilList = "Aent" };
 
 static slkTestData_t *install_racial_goldmine_test_data(slkTestData_t **rows_out) {
     slkTestData_t *rows = parse_slk_string(slk_racial_goldmine_test_data);
@@ -4163,17 +4174,25 @@ TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {
     reset_entities();
     setup_test_world();
     old_abilities = install_racial_goldmine_test_data(&rows);
+    /* The test archive omits normal unit metadata; make the resulting hbar
+     * building explicit so runtime spawn follows the authored Aent contract. */
     gi.Write = movement_noop_write;
     gi.unicast = movement_noop_unicast;
     clent = &g_edicts[0];
     client = &game.clients[0];
     clent->client = client;
     caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 0.0f, 0.0f);
-    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 64.0f, 0.0f);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
+    caster->no_pathing = true; /* rooted Ancient state */
     caster->s.player = parent->s.player = client->ps.number;
     setup_test_goldmine(parent, &test_goldmine_stock, 5000);
-    G_SelectEntity(client, caster);
+    caster->data.UnitAbilities = &test_entangle_caster;
     T_ASSERT(G_ActorSetSkillPermanent(caster, ability, true));
+    G_ActorAddSkill(caster, ability);
+    G_SelectEntity(client, caster);
+    caster->no_pathing = false;
+    T_ASSERT(!movement_issue_entangle_command(clent, client, caster, parent));
+    caster->no_pathing = true;
     T_ASSERT(movement_issue_entangle_command(clent, client, caster, parent));
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
@@ -4200,7 +4219,7 @@ TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {
     free_slk_rows(rows);
 }
 
-TEST(wc3_movement, entangle_overlays_share_permanent_state_until_last_release) {
+TEST(wc3_movement, one_tree_cannot_entangle_multiple_gold_mines) {
     uint32_t const ability = MAKEFOURCC('A','e','n','t');
     edict_t *clent, *caster, *first, *second, *parent1, *parent2;
     gameClient_t *client;
@@ -4217,11 +4236,13 @@ TEST(wc3_movement, entangle_overlays_share_permanent_state_until_last_release) {
     client = &game.clients[0];
     clent->client = client;
     caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 0.0f, 0.0f);
-    parent1 = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 64.0f, 0.0f);
-    parent2 = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 128.0f, 0.0f);
+    parent1 = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
+    parent2 = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 48.0f, 0.0f);
     caster->s.player = parent1->s.player = parent2->s.player = client->ps.number;
+    caster->no_pathing = true; /* rooted Ancient state */
     setup_test_goldmine(parent1, &test_goldmine_stock, 5000);
     setup_test_goldmine(parent2, &test_goldmine_stock, 5000);
+    caster->abilities.added[0] = ability;
     G_SelectEntity(client, caster);
 
     T_ASSERT(movement_issue_entangle_command(clent, client, caster, parent1));
@@ -4230,14 +4251,11 @@ TEST(wc3_movement, entangle_overlays_share_permanent_state_until_last_release) {
     T_ASSERT(first && !first->mineoverlay.entangle_permanent_before);
     T_ASSERT(G_ActorSkillPermanent(caster, ability));
 
-    T_ASSERT(movement_issue_entangle_command(clent, client, caster, parent2));
+    T_ASSERT(!movement_issue_entangle_command(clent, client, caster, parent2));
     second = movement_find_entangle_overlay(caster, parent2);
-    T_NOT_NULL(second);
-    T_ASSERT(second && !second->mineoverlay.entangle_permanent_before);
+    T_NULL(second);
 
     S_MineOverlayRelease(first);
-    T_ASSERT(G_ActorSkillPermanent(caster, ability));
-    S_MineOverlayRelease(second);
     T_ASSERT(!G_ActorSkillPermanent(caster, ability));
 
     gi.Write = old_write;
