@@ -274,4 +274,21 @@ $(FONT_HEADER): $(FONT_SRC) $(BIN_DIR)/img2sysfont$(EXE_EXT)
 clean:
 	rm -rf build
 
+# iPad builds (no Xcode project; see packaging/ipad/README.md). Delegates to
+# packaging/ipad/build.mk, mirroring the mapview/ui ipad workflow: direct
+# xcrun SDK compiles, CMake-built SDL2 runtime, SDK-only bundling/signing.
+.PHONY: ipad ipad-simulator ipad-run ipad-deploy ipad-mac list-devices
+ipad:
+	$(MAKE) -f packaging/ipad/build.mk SDK=iphoneos app
+ipad-simulator:
+	$(MAKE) -f packaging/ipad/build.mk SDK=iphonesimulator app
+ipad-run:
+	$(MAKE) -f packaging/ipad/build.mk SDK=iphonesimulator run
+ipad-deploy:
+	$(MAKE) -f packaging/ipad/build.mk SDK=iphoneos deploy
+ipad-mac:
+	$(MAKE) -f packaging/ipad/build.mk SDK=iphoneos mac
+list-devices:
+	xcrun devicectl list devices
+
 .PHONY: default build shared tools font $(TOOL_NAMES) diag clean install-share $(WC3_PHONY) $(WOW_PHONY) $(SC2_PHONY)

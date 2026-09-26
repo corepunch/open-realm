@@ -31,6 +31,7 @@ The shared runtime contains the client, server, renderer backend, networking, ar
 Pre-built binaries and Flatpak bundles are available from the [latest release](https://github.com/corepunch/open-realm/releases/latest). CI artifacts are published by the [CI workflow](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml). Neither releases nor CI artifacts contain retail assets.
 
 For Flatpak and Steam Deck packaging, see [Flatpak And Steam Deck Packaging](docs/flatpak-steam-deck.md).
+For iPad deployment without an Xcode project, see [packaging/ipad/README.md](packaging/ipad/README.md).
 
 ## Build
 

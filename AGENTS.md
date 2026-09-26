@@ -156,6 +156,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | Launching UI/model scenes and maps from the command line; `make run-wow`, `make build-run-wow-*`, `make run-sc2` shortcuts | [docs/rendering-scene-workflow.md](docs/rendering-scene-workflow.md) |
 | Release/debug builds, MSAA, GL/GLES backends, GLSL version (`GLSL=120/140/150`), shader dialect tokens, bone palette, video modes | [docs/build-and-renderer-platforms.md](docs/build-and-renderer-platforms.md) |
 | Flatpak/Steam Deck packaging, portal-selected Warcraft data, XDG writable state, Steam shortcut integration | [docs/flatpak-steam-deck.md](docs/flatpak-steam-deck.md) |
+| iPad packaging without Xcode project, Makefile-driven SDL2/GLES3 build, bundle/sign/deploy, Documents data import | [packaging/ipad/README.md](packaging/ipad/README.md) |
 | Shared model shader lighting and packed grass uniform contracts | [docs/architecture/model-shader.md](docs/architecture/model-shader.md) |
 | Renderer backend: thin pipelines, root struct, GL state cache, MSAA/alpha-key, `r_stats` | [docs/renderer-backend.md](docs/renderer-backend.md) |
 | `CS_SKY`, WC3 `SetSkyModel`, camera-relative sky models, sequence-0 animation, cross-game producer gaps | [docs/architecture/skybox-and-cs-sky.md](docs/architecture/skybox-and-cs-sky.md) |

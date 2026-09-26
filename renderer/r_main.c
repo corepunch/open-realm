@@ -9,9 +9,13 @@
 #ifdef _WIN32
 #include <direct.h>
 #endif
-#ifdef __APPLE__
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+#if defined(__APPLE__) && !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
 /* Forward-declare the Objective-C runtime calls we need without pulling in
- * <objc/objc.h>. */
+ * <objc/objc.h>. macOS only: on iOS there is no NSApplication, and SDL owns
+ * the UIApplication lifecycle. */
 extern void *objc_getClass(char const *name);
 extern void *sel_registerName(char const *str);
 extern void *objc_msgSend(void *, void *, ...);
@@ -28,6 +32,15 @@ SDL_GLContext context;
 
 static bool renderer_shutdown = false;
 static bool drawable_dirty;
+
+/* SDL's drawable framebuffer. On desktop GL this is id 0; on iOS SDL renders
+ * into its own FBO (SDL_uikitopenglview viewFramebuffer, non-zero) and
+ * presents whichever renderbuffer is bound, so drawing to 0 draws nowhere.
+ * Captured once the context is current (SDL leaves its FBO bound after
+ * creation; updateFrame reallocates storage on the same ids across resizes).
+ * Every "back to the drawable" site must use R_BindDefaultFramebuffer. */
+static GLuint r_default_framebuffer;
+void R_BindDefaultFramebuffer(void) { R_Call(glBindFramebuffer, GL_FRAMEBUFFER, r_default_framebuffer); }
 
 /* Capture the physical GL drawable; SDL window dimensions are logical points on Retina. */
 static void R_Screenshot(void) {
@@ -318,7 +331,7 @@ rendertarget_t *R_AllocateRenderTexture(GLsizei width,
     if (attachment == GL_COLOR_ATTACHMENT0) {
         glClear(GL_COLOR_BUFFER_BIT);
     }
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+    R_BindDefaultFramebuffer();
     return rt;
 }
 
@@ -380,13 +393,13 @@ void R_SetupGL(bool drawLight) {
         R_Call(glDepthMask, GL_TRUE);
         R_Call(glClear, GL_DEPTH_BUFFER_BIT);
     } else {
-        R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+        R_BindDefaultFramebuffer();
         R_Call(glActiveTexture, GL_TEXTURE1);
         R_Call(glBindTexture, GL_TEXTURE_2D, tr.rt[RT_DEPTHMAP]->texture);
     }
 #else
     (void)drawLight;
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+    R_BindDefaultFramebuffer();
 #endif
 }
 
@@ -637,7 +650,7 @@ void R_InitRenderer(uint32_t width, uint32_t height) {
     int requested_msaa = BZ_MSAA_SAMPLES;
     SDL_version sdl_version;
 
-#ifdef __APPLE__
+#if defined(__APPLE__) && !TARGET_OS_IPHONE && !TARGET_IPHONE_SIMULATOR
     /* On macOS, SDL_Init(SDL_INIT_VIDEO) calls [NSApp finishLaunching] which
      * activates the process regardless of window visibility.  Set the policy
      * to Prohibited first so the app never appears in the Dock or takes focus.
@@ -673,6 +686,12 @@ void R_InitRenderer(uint32_t width, uint32_t height) {
 #endif
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, requested_msaa ? 1 : 0);
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, requested_msaa);
+#if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+    /* EGL-style drivers build the drawable from these attributes; the window
+     * system provides no implicit depth buffer as desktop GL does, while the
+     * renderer clears and depth-tests unconditionally. */
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+#endif
 
     fprintf(stderr, "Video initialization.\n");
     SDL_GetVersion(&sdl_version);
@@ -700,8 +719,13 @@ void R_InitRenderer(uint32_t width, uint32_t height) {
         context = window ? SDL_GL_CreateContext(window) : NULL;
     }
     if (context && SDL_GL_MakeCurrent(window, context) == 0) {
+        GLint drawable_binding = 0;
         gl_current = true;
         R_UpdateSwapInterval();
+        /* Capture SDL's drawable FBO while it is still bound (creation leaves
+         * it bound; see r_default_framebuffer). Desktop queries back 0. */
+        R_Call(glGetIntegerv, GL_FRAMEBUFFER_BINDING, &drawable_binding);
+        r_default_framebuffer = (GLuint)drawable_binding;
     } else {
         fprintf(stderr, "ref_gl::R_Init() - could not make GL context current: %s\n", SDL_GetError());
     }
