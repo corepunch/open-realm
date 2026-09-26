@@ -5,6 +5,7 @@
 
 #include "test.h"
 #include "../g_local.h"
+#include "../skills/s_skills.h"
 #include "jass/jass.h"
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -1248,7 +1249,7 @@ TEST(wc3_items, jass_item_charge_natives_use_runtime_item_state) {
         "endfunction\n"));
 }
 
-TEST(wc3_items, point_target_item_out_of_range_click_does_not_approach_or_consume_charge) {
+TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point) {
     static char const ability_slk[] =
         "ID;PWXL;N;EBB;Y4;X14\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
@@ -1267,10 +1268,11 @@ TEST(wc3_items, point_target_item_out_of_range_click_does_not_approach_or_consum
     static UnitAbilities_t abilities = { .abilList = "AInv", .heroAbilList = "" };
     ItemData_t item_data = { .abilList = "AIpm", .uses = 2, .perishable = false };
     slkTestData_t *rows, *old;
-    edict_t *player, *hero, *item, *mine = NULL;
+    edict_t *player, *hero, *item, *mine = NULL, *approach = NULL;
     cstring_t far_click[] = { "point", "700", "0" };
-    cstring_t valid_click[] = { "point", "64", "0" };
-    cstring_t far_sight[] = { "button", "AOfs" };
+    cstring_t replace_approach[] = { "button", "Amov" };
+    cstring_t replace_click[] = { "point", "20", "0" };
+    cstring_t valid_click[] = { "point", "640", "0" };
 
     setup_test_world();
     rows = parse_slk_string(ability_slk); old = G_SetSLKRows("AbilityData", rows);
@@ -1290,31 +1292,65 @@ TEST(wc3_items, point_target_item_out_of_range_click_does_not_approach_or_consum
     T_EQ(player->client->menu.ability_item_spawn_time, item->spawn_time);
     T_EQ(G_ItemCharges(item), 2);
     G_ClientCommand(player, 3, far_click);
-    T_NOT_NULL(player->client->menu.on_location_selected);
-    T_NULL(hero->goalentity); /* Point items reject out-of-range clicks instead of walking into range. */
-    T_EQ(player->client->menu.ability_item, item);
+    T_NULL(player->client->menu.on_location_selected);
+    T_ASSERT(move_is_active_order_walk(hero));
+    T_NOT_NULL(hero->goalentity);
+    if (hero->goalentity) T_FEQ(hero->goalentity->s.origin2.x, 700.0f, 0.001f);
     T_EQ(G_ItemCharges(item), 2);
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && ent->spell_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
+        approach = ent; break;
+    }
+    T_NOT_NULL(approach);
+    if (!approach) { G_SetSLKRows("AbilityData", old); free_slk_rows(rows); return; }
+    T_FEQ(approach->s.origin2.x, 700.0f, 0.001f);
+
+    /* Replacing the approach order cancels its deferred item cast. */
+    G_ClientCommand(player, 2, replace_approach);
+    G_ClientCommand(player, 3, replace_click);
+    level.time += FRAMETIME;
+    G_RunEntities();
+    T_ASSERT(!approach->inuse);
+    T_EQ(G_ItemCharges(item), 2);
+    mine = NULL;
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') && ent->owner == hero) {
         mine = ent; break;
     }
     T_NULL(mine);
 
-    G_ClientCommand(player, 2, far_sight);
-    T_NULL(player->client->menu.ability_item);
-    T_EQ(player->client->menu.ability_item_spawn_time, 0);
-    G_ClientCommand(player, 3, valid_click);
-    T_EQ(G_ItemCharges(item), 2);
-
     G_UseItem(hero, 0);
-    G_ClientCommand(player, 3, valid_click);
-    T_NULL(player->client->menu.on_location_selected);
+    G_ClientCommand(player, 3, far_click);
+    T_NOT_NULL(hero->goalentity);
+    if (hero->goalentity) T_FEQ(hero->goalentity->s.origin2.x, 700.0f, 0.001f);
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && ent->spell_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
+        approach = ent; break;
+    }
+    T_NOT_NULL(approach);
+    if (!approach) { G_SetSLKRows("AbilityData", old); free_slk_rows(rows); return; }
+    hero->s.origin2 = (vec2_t){ 604, 0 };
+    hero->s.origin.x = 604;
+    hero->s.origin.y = 0;
+    level.time += FRAMETIME;
+    G_RunEntities();
+    T_ASSERT(!approach->inuse);
+    T_EQ(G_ItemCharges(item), 1);
     T_NULL(player->client->menu.ability_item);
     T_EQ(player->client->menu.ability_item_spawn_time, 0);
-    T_EQ(G_ItemCharges(item), 1);
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') && ent->owner == hero) {
         mine = ent; break;
     }
     T_NOT_NULL(mine);
+    T_FEQ(mine->s.origin2.x, 700.0f, 0.001f);
+
+    G_UseItem(hero, 0);
+    G_ClientCommand(player, 3, valid_click);
+    T_NULL(player->client->menu.on_location_selected);
+    T_EQ(G_ItemCharges(item), 0);
+    T_NULL(player->client->menu.ability_item);
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') && ent->owner == hero) {
+        if (ent != mine) { mine = ent; break; }
+    }
+    T_NOT_NULL(mine);
+    T_FEQ(mine->s.origin2.x, 640.0f, 0.001f);
 
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -1816,7 +1852,7 @@ TEST(wc3_items, soul_gem_approach_is_cancelled_if_grom_dies_before_revival_dispa
     thinker_slot = globals.num_edicts;
     G_ClientCommand(clent, 2, select);
     thinker = &globals.edicts[thinker_slot];
-    T_ASSERT(thinker->inuse && thinker->think == S_SpellUnitTargetApproachThink);
+    T_ASSERT(thinker->inuse && thinker->think == S_SpellTargetApproachThink);
     T_ASSERT(carrier->goalentity == grom);
     T_FEQ(S_SpellRange(MAKEFOURCC('A','I','s','o'), 1), 96.0f, 0.001f);
     T_ASSERT(Vector2_distance(&carrier->s.origin2, &grom->s.origin2) > S_SpellRange(MAKEFOURCC('A','I','s','o'), 1));

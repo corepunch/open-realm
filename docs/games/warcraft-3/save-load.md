@@ -326,9 +326,10 @@ and `tree_stand`/`tree_birth`/`tree_pain`/`tree_die`. `idle`/`move`/`run`/`attac
 production assignments yet; they still go through `F_CFUNCTION` so a later assignment must be
 rostered.
 
-The shared targeted-spell approach callback `S_SpellUnitTargetApproachThink` is also in the roster.
+The shared targeted-spell approach callback `S_SpellTargetApproachThink` is also in the roster.
 `wc3_items.soul_gem_pending_approach_round_trips_save` verifies that a Soul Gem cast waiting to
-walk into range preserves both this callback and its originating item across save/load.
+walk into range preserves both this callback and its originating item across save/load. Point-target
+spells use the same callback and retain their clicked destination while walking into range.
 
 `ReadEdict()` rebinds SLK table rows with `G_BindEntityData` but does **not** call
 `G_BindEntityRuntime`. Class defaults would clobber a saved `blight_mine_think`, `G_EffectThink`,
