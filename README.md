@@ -4,9 +4,9 @@
 
 # OpenWarcraft3
 
-OpenWarcraft3 is an open-source, Quake-style engine and compatibility project for Blizzard-era game data. Warcraft III is the primary playable target; StarCraft II and World of Warcraft provide additional format and renderer targets.
+OpenWarcraft3 is an open-source, Quake-style engine and compatibility project for Blizzard-era game data. Warcraft III is the primary playable target and runs on Windows, Linux, macOS, and iPad; StarCraft II and World of Warcraft provide additional format and renderer targets.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![CI](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml/badge.svg)](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml) [![Platform: Windows, Linux, macOS](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](#) [![Language: C](https://img.shields.io/badge/Language-C-blue.svg)](#) [![Discord](https://img.shields.io/badge/Discord-join-blue?logo=discord)](https://discord.gg/MxkUMWsKGs)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE) [![CI](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml/badge.svg)](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml) [![Platform: Windows, Linux, macOS, iPadOS](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20iPadOS-lightgrey)](#run-on-ipad) [![Language: C](https://img.shields.io/badge/Language-C-blue.svg)](#) [![Discord](https://img.shields.io/badge/Discord-join-blue?logo=discord)](https://discord.gg/MxkUMWsKGs)
 
 The project does not include retail game data. Use it only with data you legally own. OpenWarcraft3 is not affiliated with Blizzard Entertainment.
 
@@ -20,7 +20,7 @@ The project does not include retail game data. Use it only with data you legally
 
 ## Current targets
 
-- **Warcraft III** — `openwarcraft3`, the main development target, including the client/server runtime, JASS, SLK/profile data, FDF UI, campaign flow, maps, fog, units, and networking.
+- **Warcraft III** — `openwarcraft3`, the main development target, including the client/server runtime, JASS, SLK/profile data, FDF UI, campaign flow, maps, fog, units, and networking. Also builds as an iPad app with touch controls (see [Run on iPad](#run-on-ipad)).
 - **World of Warcraft** — `openwow`, an exploratory M2/WMO/DBC/MPQ and UI target with a Lua-backed interface.
 - **StarCraft II** — `opensc2`, an exploratory M3/SC2Map/SC2Layout target.
 
