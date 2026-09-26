@@ -47,19 +47,19 @@ static uint32_t test_renderer_load_slk(cstring_t path, slkField_t const *schema,
     return count;
 }
 
-static void test_renderer_play_sound(cstring_t path, vec3_t const * origin, float volume) {
+static void test_renderer_play_sound(cstring_t path, vec3_t const *origin, float volume) {
     (void)volume;
     snprintf(test_sound_path, sizeof(test_sound_path), "%s", path);
     test_sound_origin = *origin;
     test_sound_count++;
 }
 
-void R_GetEntityMatrix(renderEntity_t const *entity, mat4_t * matrix) {
+void R_GetEntityMatrix(renderEntity_t const *entity, mat4_t *matrix) {
     Matrix4_identity(matrix);
     Matrix4_translate(matrix, &entity->origin);
 }
 
-void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, mat4_t const * transform) {
+void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, mat4_t const *transform) {
     (void)model;
     test_spn_render_count++;
     test_spn_render_entity = *entity;
@@ -82,7 +82,7 @@ TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) 
     uint32_t saved_time = tr.viewDef.time;
     render_phase_t saved_phase = tr.render_phase;
     refImport_t saved_imports = ri;
-    model_t * child_model = NULL;
+    model_t *child_model = NULL;
 
     memset(&event, 0, sizeof(event));
     event.num_keys = 1; event.globalSeqId = (uint32_t)-1; event.keys = &key;

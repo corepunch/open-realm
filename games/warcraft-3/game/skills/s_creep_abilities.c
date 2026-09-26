@@ -68,7 +68,7 @@ float S_CreepAttackSpeedReduction(edict_t const *unit) {
 
 /* Death Damage AOE is physical damage: authored target classes/alliance apply,
  * while spell immunity/invisibility do not suppress an explosion. */
-static bool death_damage_aoe_allows(uint32_t code, uint32_t ability_level, edict_t * source, edict_t * target) {
+static bool death_damage_aoe_allows(uint32_t code, uint32_t ability_level, edict_t *source, edict_t *target) {
     abilityLevel_t const *row;
     cstring_t targets;
     bool structure;
@@ -98,7 +98,7 @@ static bool death_damage_aoe_allows(uint32_t code, uint32_t ability_level, edict
 /* AIdm was the old tree/wall helper; retail Amnx/Adda now uses its own
  * Targets Allowed list for destructibles. Destructibles have no player
  * alliance, so only their authored target class participates here. */
-static bool death_damage_aoe_allows_destructable(uint32_t code, uint32_t ability_level, edict_t const * target) {
+static bool death_damage_aoe_allows_destructable(uint32_t code, uint32_t ability_level, edict_t const *target) {
     abilityLevel_t const *row;
     cstring_t targets;
 
@@ -116,7 +116,7 @@ static bool death_damage_aoe_allows_destructable(uint32_t code, uint32_t ability
     }
 }
 
-static void death_damage_aoe_apply(edict_t * source, uint32_t code, uint32_t level, vec2_t const * origin) {
+static void death_damage_aoe_apply(edict_t *source, uint32_t code, uint32_t level, vec2_t const *origin) {
     float full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
     float part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
     if (!source || !origin || (full_d <= 0.0f && part_d <= 0.0f)) return;
@@ -139,8 +139,8 @@ static void death_damage_aoe_apply(edict_t * source, uint32_t code, uint32_t lev
 
 /* Delayed Amnx/Adda damage snapshots only the death position. Victims are
  * enumerated when Duration expires, preserving retail's fast-unit escape. */
-void death_damage_aoe_think(edict_t * thinker) {
-    edict_t * source;
+void death_damage_aoe_think(edict_t *thinker) {
+    edict_t *source;
     uint32_t code, level;
 
     if (!thinker || !thinker->inuse) return;
@@ -153,10 +153,10 @@ void death_damage_aoe_think(edict_t * thinker) {
     G_FreeEdict(thinker);
 }
 
-static void death_damage_aoe(edict_t * ent, uint32_t code) {
+static void death_damage_aoe(edict_t *ent, uint32_t code) {
     uint32_t level;
     float delay;
-    edict_t * thinker;
+    edict_t *thinker;
 
     if (!ent || !code) return;
     level = MAX(1u, G_UnitAbilityLevel(ent, code));

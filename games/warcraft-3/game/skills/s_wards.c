@@ -100,7 +100,7 @@ BZ_ABILITY_PROC(CAbilityPlaceMine) {
 	case A_VALIDATE:
 		return ent && call && call->target && call->target->type == SPELL_TARGET_POINT && unit_id;
 	case A_EXECUTE: {
-		edict_t * mine;
+		edict_t *mine;
 		float life;
 		if (!ent || !call || !call->target || call->target->type != SPELL_TARGET_POINT || !unit_id) return false;
 		life = S_SpellDuration(code, level, false);
@@ -114,14 +114,14 @@ BZ_ABILITY_PROC(CAbilityPlaceMine) {
 	}
 }
 
-static edict_t * land_mine_thinker(edict_t const * mine) {
+static edict_t *land_mine_thinker(edict_t const *mine) {
 	if (!mine) return NULL;
 	FILTER_EDICTS(th, th->inuse && th->owner == mine && th->think == land_mine_think) return th;
 	return NULL;
 }
 
-static void land_mine_remove_thinker(edict_t const * mine) {
-	edict_t * thinker = land_mine_thinker(mine);
+static void land_mine_remove_thinker(edict_t const *mine) {
+	edict_t *thinker = land_mine_thinker(mine);
 	if (thinker) G_FreeEdict(thinker);
 }
 
@@ -129,7 +129,7 @@ static void land_mine_remove_thinker(edict_t const * mine) {
  * Their mobile/uprooted form is the exception to the ordinary structure
  * exclusion, so key that distinction to the Root-family ability plus current
  * movement state instead of hard-coding Night Elf unit rawcodes. */
-static bool land_mine_is_uprooted_ancient(edict_t const * target) {
+static bool land_mine_is_uprooted_ancient(edict_t const *target) {
 	bool root_capable;
 
 	if (!target || (target->targtype != TARG_STRUCTURE && !G_UnitIsBuilding(target->class_id))) return false;
@@ -140,7 +140,7 @@ static bool land_mine_is_uprooted_ancient(edict_t const * target) {
 
 /* Retail mines are walk-over traps: air and ordinary/rooted structures do not
  * trigger them, while a mobile uprooted Ancient behaves as a ground unit. */
-static bool land_mine_trigger_target(edict_t * mine, edict_t * target, float radius) {
+static bool land_mine_trigger_target(edict_t *mine, edict_t *target, float radius) {
 	bool structure;
 
 	if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(mine, target)) return false;
@@ -153,8 +153,8 @@ static bool land_mine_trigger_target(edict_t * mine, edict_t * target, float rad
 /* Amin DataA is activation delay, DataB is invisibility transition time, and
  * Cast Range is the proximity trigger radius. The mine kills itself through
  * the normal death path so Amnx and scripted death events still fire. */
-void land_mine_think(edict_t * thinker) {
-	edict_t * mine = thinker ? thinker->owner : NULL;
+void land_mine_think(edict_t *thinker) {
+	edict_t *mine = thinker ? thinker->owner : NULL;
 	uint32_t code, level;
 	float radius;
 	bool trigger = false;
@@ -266,7 +266,7 @@ BZ_ABILITY_PROC(CAbilityLandMine) {
 	}
 }
 
-static bool ward_is_sentry(edict_t const * ward) {
+static bool ward_is_sentry(edict_t const *ward) {
 	return ward && ward->inuse && G_AbilityCode(ward->summon_ability) == ID_AEYE;
 }
 
