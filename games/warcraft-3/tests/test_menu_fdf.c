@@ -3067,12 +3067,13 @@ static void test_single_player_campaign_profile(bool tft) {
     T_ASSERT(human_button->hidden);
     T_ASSERT(!campaign_list_box->hidden);
     T_FEQ(campaign_list_box->Width, 0.34f, 0.001f);
-    T_FEQ(campaign_list_box->Height, 0.11f, 0.001f);
+    T_FEQ(campaign_list_box->Height, 0.13f, 0.001f);
     T_FEQ(campaign_list_box->Points.x[FPP_MIN].offset, -0.14f, 0.001f);
     T_FEQ(campaign_list_box->Points.y[FPP_MAX].offset, 0.04f, 0.001f);
     T_ASSERT(campaign_list_box->Points.x[FPP_MIN].relativeTo == back_button);
     T_ASSERT(campaign_list_box->Points.y[FPP_MAX].relativeTo == back_button);
     T_ASSERT(campaign_list_box->MapListControl.State != NULL);
+    T_EQ((int)campaign_list_box->MapListControl.VisibleRows, 5);
     T_NOT_NULL(campaign_list_box->event_handler);
     T_EQ((int)campaign_list_box->MapListControl.State->count, 4);
     T_STREQ(campaign_list_box->MapListControl.State->items[0].name,
