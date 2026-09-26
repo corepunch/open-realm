@@ -755,11 +755,19 @@ typedef enum {
     A_STATUS_REMOVE,    /* Status expiring/dispelled: owner runs its inverse while the slot is still valid. Sent before the slot is wiped. Payload: call->status of the expiring slot. */
     A_STATUS_TICK,      /* Active status scheduler; owner advances its saved next_tick before applying damage. */
     A_STATUS_DEATH,     /* Victim died with this status active; independent of the victim's learned abilities. */
+    A_ISSUED_TARGET_ORDER, /* Issuer ability gets the target/order before generic Smart fallback. */
+    A_NATURAL_MANA_REGEN_BLOCKED, /* Ability query: return true to suppress UnitBalance.manaRegen. */
 } abilityMsg_t;
 
 #define BZ_ABILITY_PROC(NAME) intptr_t NAME(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call)
 
 typedef intptr_t (*abilityProc_t)(edict_t *ent, abilityMsg_t msg, abilityCall_t const *call);
+
+typedef enum {
+    ABILITY_ORDER_UNHANDLED,
+    ABILITY_ORDER_REJECTED,
+    ABILITY_ORDER_ACCEPTED,
+} abilityOrderResult_t;
 
 struct ability_call_s {
     abilityitem_t const *item;
@@ -770,7 +778,9 @@ struct ability_call_s {
         edict_t *client;
         edict_t *projectile;
         cstring_t order;
+        abilityProc_t next_move_proc; /* A_MOVE_LEAVE: move procedure replacing the current move. */
         struct { edict_t *issuer; cstring_t order; } target_order; /* A_TARGET_ORDER */
+        struct { edict_t *target; cstring_t order; } issued_target_order; /* A_ISSUED_TARGET_ORDER */
         cstring_t classname;
         uint32_t level;
         bool enabled;
@@ -1445,6 +1455,7 @@ struct edict_s {
         edict_t *caster;
         uint32_t caster_spawn_time;
         uint32_t entangle_ability;
+        bool entangle_permanent_before;
     } mineoverlay;
     /* Acolyte harvesting is a visible fixed-slot relationship rather than the
      * conventional hidden-inside/carry/return Gold Mine state above. */
@@ -2495,7 +2506,9 @@ bool G_ClosestStaticPathablePointInRectForRadiusFlags(vec2_t const *location, bo
 // g_abilities.c
 void S_RunAbilityUpdates(edict_t *);
 bool S_UnitAbilityEvent(edict_t *, abilityMsg_t);
+void S_UnitAbilityMoveLeave(edict_t *, abilityProc_t);
 bool S_UnitAbilityOrderAccepted(edict_t *, cstring_t);
+abilityOrderResult_t S_UnitIssuedTargetOrder(edict_t *, cstring_t, edict_t *);
 bool S_UnitQueuedOrderEvent(edict_t *, unitOrder_t const *, abilityMsg_t);
 bool S_UnitTargetAbilityOrder(edict_t *, edict_t *, cstring_t);
 bool S_UnitProjectileHit(edict_t *);
@@ -3040,7 +3053,6 @@ bool S_HarvestCanLumber(edict_t const *);
 bool S_HarvestCanGold(edict_t const *);
 bool S_WispHarvestCanLumber(edict_t const *);
 void S_WispHarvestRelease(edict_t *);
-bool S_MoonWellNaturalManaRegenAllowed(edict_t const *);
 void S_MoonWellEffectsRelease(edict_t *);
 void harvest_start(edict_t *, edict_t *);
 void wisp_harvest_start(edict_t *, edict_t *);

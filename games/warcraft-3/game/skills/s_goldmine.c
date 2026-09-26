@@ -1154,6 +1154,28 @@ static edict_t *entangle_overlay_caster(edict_t *overlay) {
     return caster;
 }
 
+static bool entangle_overlay_has_caster(edict_t const *overlay, edict_t const *caster,
+                                        uint32_t alias, edict_t const *except) {
+    return overlay && overlay != except && overlay->inuse && !M_IsDead(overlay) &&
+           overlay->mineoverlay.caster == caster &&
+           overlay->mineoverlay.caster_spawn_time == caster->spawn_time &&
+           overlay->mineoverlay.entangle_ability == alias &&
+           overlay->mineoverlay.parent && overlay->mineoverlay.parent->inuse &&
+           overlay->mineoverlay.parent->spawn_time == overlay->mineoverlay.parent_spawn_time;
+}
+
+static bool entangle_existing_permanent_state(edict_t const *caster, uint32_t alias,
+                                              bool *permanent_before) {
+    if (!caster || !alias || !permanent_before) return false;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t const *overlay = globals.edicts + i;
+        if (!entangle_overlay_has_caster(overlay, caster, alias, NULL)) continue;
+        *permanent_before = overlay->mineoverlay.entangle_permanent_before;
+        return true;
+    }
+    return false;
+}
+
 static void entangle_remove_caster_effects(edict_t *overlay) {
     uint32_t const base = MAKEFOURCC('A','e','n','t');
     uint32_t const alias = overlay ? overlay->mineoverlay.entangle_ability : 0;
@@ -1161,7 +1183,15 @@ static void entangle_remove_caster_effects(edict_t *overlay) {
 
     if (!overlay) return;
     if (caster && alias) {
-        G_ActorSetSkillPermanent(caster, alias, false);
+        bool other_overlay_active = false;
+        FOR_LOOP(i, globals.num_edicts) {
+            if (entangle_overlay_has_caster(globals.edicts + i, caster, alias, overlay)) {
+                other_overlay_active = true;
+                break;
+            }
+        }
+        if (!other_overlay_active)
+            G_ActorSetSkillPermanent(caster, alias, overlay->mineoverlay.entangle_permanent_before);
         gameClient_t *client = G_GetPlayerClientByNumber(caster->s.player);
         if (client) G_InvalidateCommands(client);
     }
@@ -1177,6 +1207,7 @@ static void entangle_remove_caster_effects(edict_t *overlay) {
     overlay->mineoverlay.caster = NULL;
     overlay->mineoverlay.caster_spawn_time = 0;
     overlay->mineoverlay.entangle_ability = 0;
+    overlay->mineoverlay.entangle_permanent_before = false;
 }
 
 bool S_EntangleCommandHidden(edict_t const *caster, uint32_t ability_code) {
@@ -1233,6 +1264,12 @@ static bool entangle_goldmine_selecttarget(edict_t *clent, edict_t *target) {
     }
     G_SetUnitFoodUsed(entangled, entangled->data.UnitBalance ? entangled->data.UnitBalance->foodUsed : 0);
     entangled->build = entangled;
+    {
+        bool permanent_before;
+        if (!entangle_existing_permanent_state(caster, alias, &permanent_before))
+            permanent_before = G_ActorSkillPermanent(caster, alias);
+        entangled->mineoverlay.entangle_permanent_before = permanent_before;
+    }
     entangled->mineoverlay.caster = caster;
     entangled->mineoverlay.caster_spawn_time = caster->spawn_time;
     entangled->mineoverlay.entangle_ability = alias;

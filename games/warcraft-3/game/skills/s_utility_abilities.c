@@ -71,16 +71,16 @@ static uint32_t moon_well_alias(edict_t const * ent) {
     return 0;
 }
 
-/* DataE means the Moon Well's authored base mana regeneration only runs at
- * night.  Other regeneration sources stay independent instead of being
- * accidentally suppressed by this racial ability. */
-bool S_MoonWellNaturalManaRegenAllowed(edict_t const * ent) {
-    uint32_t const alias = moon_well_alias(ent);
-    AbilityData_t const *data;
-
-    if (!alias || !(data = G_AbilityData(alias)) || data->id != alias)
-        return true;
-    return data->level[0].data[4].number == 0.0f || G_IsNight(); /* DataE */
+static void moon_well_warn_missing_data(uint32_t alias) {
+    static uint32_t warned[256];
+    static uint32_t warned_count;
+    char name[5] = {0};
+    if (!alias) return;
+    FOR_LOOP(i, warned_count) if (warned[i] == alias) return;
+    if (warned_count < sizeof(warned) / sizeof(warned[0])) warned[warned_count++] = alias;
+    memcpy(name, &alias, 4);
+    fprintf(stderr, "WC3 AbilityData: missing %s row; suppressing Moon Well natural mana regeneration\n",
+            name);
 }
 
 static bool moon_well_effect_matches(edict_t const * effect, edict_t const * well) {
@@ -245,6 +245,18 @@ BZ_ABILITY_PROC(CAbilityManaBattery) {
     case A_AUTOCAST_SET: return true;
     case A_AUTOCAST_ACQUIRE: return code && moon_well_autocast_acquire(ent, code);
     case A_UPDATE: moon_well_update_effect(ent); return true;
+    case A_NATURAL_MANA_REGEN_BLOCKED:
+        if (!ent || !code || G_AbilityCode(code) != ID_MOON_WELL) return false;
+        {
+            AbilityData_t const *data = G_AbilityData(code);
+            if (data->id != code) {
+                moon_well_warn_missing_data(code);
+                return true;
+            }
+            return data->level[0].data[4].number != 0.0f && !G_IsNight(); /* DataE */
+        }
+    case A_DEATH:
+    case A_UNIT_REMOVE:
     case A_DISABLE: S_MoonWellEffectsRelease(ent); return true;
     default: return CAbilitySimpleSpell(ent, msg, call);
     }

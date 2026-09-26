@@ -758,48 +758,121 @@ void S_RunAbilityUpdates(edict_t *ent) {
     S_UpdateUnitPassiveEffects(ent);
 }
 
+static intptr_t unit_dispatch_ability_code(edict_t *ent, abilityMsg_t msg, abilityCall_t const *payload,
+                                           uint32_t code, uint32_t *seen, uint32_t *count,
+                                           uint32_t capacity, bool require_skill) {
+    abilityitem_t item;
+    abilityCall_t invoke;
+    char name[5] = {0};
+
+    if (!ent || !code || !seen || !count) return ABILITY_ORDER_UNHANDLED;
+    FOR_LOOP(i, *count) if (seen[i] == code) return ABILITY_ORDER_UNHANDLED;
+    if (*count < capacity) seen[(*count)++] = code;
+    if (require_skill) {
+        memcpy(name, &code, 4);
+        if (!G_ActorHasSkill(ent, name)) return ABILITY_ORDER_UNHANDLED;
+    }
+    item = S_AbilityItem(code);
+    if (!item.ability) return ABILITY_ORDER_UNHANDLED;
+    invoke = payload ? *payload : MAKE(abilityCall_t, 0);
+    invoke.item = &item;
+    return S_AbilityMessage(ent, msg, &invoke);
+}
+
+/* Dispatch lifecycle notifications to the unit's concrete authored abilities.
+ * The active order is visited first, then innate hooks and AbilityData rows;
+ * stop-first queries retain the owning procedure's result. */
+static intptr_t unit_dispatch_authored_abilities(edict_t *ent, abilityMsg_t msg,
+                                                 abilityCall_t const *payload, bool stop_first,
+                                                 bool include_innate, bool include_channel) {
+    uint32_t seen[MAX_ABILITIES * 2 + MAX_HERO_ABILITIES] = {0}, count = 0;
+    uint32_t const capacity = sizeof(seen) / sizeof(*seen);
+    bool handled = false;
+
+    if (!ent) return ABILITY_ORDER_UNHANDLED;
+    if (include_channel && msg == A_MOVE_LEAVE && ent->channel.code) {
+        intptr_t const result = unit_dispatch_ability_code(ent, msg, payload, ent->channel.code,
+                                                            seen, &count, capacity, false);
+        if (msg == A_ISSUED_TARGET_ORDER && result != ABILITY_ORDER_UNHANDLED) return result;
+        handled |= result != 0;
+        if (stop_first && handled) return true;
+    }
+    if (include_innate) {
+        FOR_LOOP(i, num_innate) {
+            abilityitem_t const *item = innate_items + i;
+            abilityCall_t invoke = payload ? *payload : MAKE(abilityCall_t, 0);
+            intptr_t result;
+            if (item->code) {
+                bool duplicate = false;
+                FOR_LOOP(k, count) if (seen[k] == item->code) { duplicate = true; break; }
+                if (duplicate) continue;
+                if (count < capacity) seen[count++] = item->code;
+            }
+            invoke.item = item;
+            result = S_AbilityMessage(ent, msg, &invoke);
+            if (msg == A_ISSUED_TARGET_ORDER && result != ABILITY_ORDER_UNHANDLED) return result;
+            handled |= result != 0;
+            if (stop_first && handled) return true;
+        }
+    }
+#define DISPATCH_AUTHORED_ABILITY(code_) do { \
+        intptr_t const result = unit_dispatch_ability_code(ent, msg, payload, (code_), \
+                                                             seen, &count, capacity, true); \
+        if (msg == A_ISSUED_TARGET_ORDER && result != ABILITY_ORDER_UNHANDLED) return result; \
+        handled |= result != 0; \
+        if (stop_first && handled) return true; \
+    } while (0)
+    if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
+        PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
+            uint32_t code = 0;
+            if (strlen(token) == 4) { memcpy(&code, token, 4); DISPATCH_AUTHORED_ABILITY(code); }
+        }
+    }
+    if (msg == A_UNIT_REMOVE) {
+        for (int32_t i = (int32_t)ARRAY_COUNT(ent->abilities.added) - 1; i >= 0; i--)
+            if (ent->abilities.added[i]) DISPATCH_AUTHORED_ABILITY(ent->abilities.added[i]);
+    } else {
+        FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added))
+            if (ent->abilities.added[i]) DISPATCH_AUTHORED_ABILITY(ent->abilities.added[i]);
+    }
+    FOR_LOOP(i, MAX_HERO_ABILITIES)
+        if (ent->heroabilities[i].level && ent->heroabilities[i].code)
+            DISPATCH_AUTHORED_ABILITY(ent->heroabilities[i].code);
+#undef DISPATCH_AUTHORED_ABILITY
+    return handled;
+}
+
 /* Unit-data abilities exist independently of command-card slots. Notifications visit every owner;
- * idle and acquisition queries stop when an owner consumes the decision. */
+ * idle, acquisition, and ability queries stop when an owner consumes the decision. */
 bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
     bool handled = false;
-    if (msg == A_MOVE_LEAVE && ent && ent->channel.code) {
-        abilityitem_t item = S_AbilityItem(ent->channel.code);
-        abilityCall_t call = MAKE(abilityCall_t, .item = &item);
-        handled = S_AbilityMessage(ent, msg, &call) != 0;
-    }
+
+    if (!ent) return false;
+    if (msg == A_MOVE_LEAVE || msg == A_DEATH || msg == A_UNIT_REMOVE)
+        return unit_dispatch_authored_abilities(ent, msg, NULL, false,
+                                                 msg != A_DEATH, msg == A_MOVE_LEAVE) != 0;
+    if (msg == A_NATURAL_MANA_REGEN_BLOCKED)
+        return unit_dispatch_authored_abilities(ent, msg, NULL, true, false, false) != 0;
+
     FOR_LOOP(i, num_innate) {
         abilityCall_t call = MAKE(abilityCall_t, .item = innate_items + i);
         handled |= S_AbilityMessage(ent, msg, &call) != 0;
         if (handled && (msg == A_IDLE || msg == A_NO_ACQUIRE)) break;
     }
-    if (ent && msg == A_UNIT_REMOVE) {
-        uint32_t seen[MAX_ABILITIES * 2 + MAX_HERO_ABILITIES] = {0}, count = 0;
-#define UNIT_REMOVE_ABILITY(code_) do { \
-            uint32_t const code = (code_); bool known = false; \
-            for (uint32_t k = 0; k < count; k++) if (seen[k] == code) { known = true; break; } \
-            if (code && !known && count < sizeof(seen) / sizeof(seen[0])) { \
-                char name[5] = {0}; memcpy(name, &code, 4); \
-                if (G_ActorHasSkill(ent, name)) { \
-                    abilityitem_t item = S_AbilityItem(code); \
-                    abilityCall_t call = MAKE(abilityCall_t, .item = &item); \
-                    seen[count++] = code; \
-                    if (item.ability) handled |= S_AbilityMessage(ent, msg, &call) != 0; \
-                } \
-            } \
-        } while (0)
-        if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
-            PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
-                uint32_t token_code = 0;
-                if (strlen(token) == 4) { memcpy(&token_code, token, 4); UNIT_REMOVE_ABILITY(token_code); }
-            }
-        }
-        for (int32_t i = ARRAY_COUNT(ent->abilities.added) - 1; i >= 0; i--)
-            if (ent->abilities.added[i]) UNIT_REMOVE_ABILITY(ent->abilities.added[i]);
-        FOR_LOOP(i, MAX_HERO_ABILITIES) if (ent->heroabilities[i].level && ent->heroabilities[i].code)
-            UNIT_REMOVE_ABILITY(ent->heroabilities[i].code);
-#undef UNIT_REMOVE_ABILITY
-    }
     return handled;
+}
+
+void S_UnitAbilityMoveLeave(edict_t *ent, abilityProc_t next_move_proc) {
+    abilityCall_t call = MAKE(abilityCall_t, .next_move_proc = next_move_proc);
+    if (ent)
+        unit_dispatch_authored_abilities(ent, A_MOVE_LEAVE, &call, false, true, true);
+}
+
+abilityOrderResult_t S_UnitIssuedTargetOrder(edict_t *issuer, cstring_t order, edict_t *target) {
+    abilityCall_t call = MAKE(abilityCall_t, .issued_target_order = { target, order });
+    if (!issuer || !order || !target || !target->inuse) return ABILITY_ORDER_UNHANDLED;
+    return (abilityOrderResult_t)unit_dispatch_authored_abilities(
+        issuer, A_ISSUED_TARGET_ORDER, &call, true, false, false);
 }
 
 /* Accepted instant/spell orders can leave the current movement object untouched.

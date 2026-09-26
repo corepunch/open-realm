@@ -1315,9 +1315,11 @@ TEST(wc3_spell, mirror_image_immediate_order_spawns_summoned_illusion) {
 
 TEST(wc3_spell, moon_well_replenishes_life_then_mana_using_authored_ratios) {
     const char slk[] =
-        "ID;PWXL;N;EBB;Y2;X4\n"
-        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
-        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K\"0.5\"\nC;Y2;X4;K\"2.0\"\nE\n";
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\n"
+        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K\"ground,friend\"\n"
+        "C;Y2;X4;K\"0.5\"\nC;Y2;X5;K\"2.0\"\nE\n";
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t *well = make_hero(MAKEFOURCC('h','b','a','r'), 100, 50, 0, 0);
     edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
@@ -1325,6 +1327,8 @@ TEST(wc3_spell, moon_well_replenishes_life_then_mana_using_authored_ratios) {
     spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
 
     well->s.player = target->s.player = 0;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
     target->health.max_value = 100.0f; target->health.value = 80.0f;
     target->mana.max_value = 100.0f; target->mana.value = 50.0f;
     T_NOT_NULL(item.ability);
@@ -1340,9 +1344,11 @@ TEST(wc3_spell, moon_well_replenishes_life_then_mana_using_authored_ratios) {
 
 TEST(wc3_spell, moon_well_accepts_mana_only_replenishment) {
     const char slk[] =
-        "ID;PWXL;N;EBB;Y2;X4\n"
-        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
-        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K\"0.5\"\nC;Y2;X4;K\"2.0\"\nE\n";
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\n"
+        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K\"ground,friend\"\n"
+        "C;Y2;X4;K\"0.5\"\nC;Y2;X5;K\"2.0\"\nE\n";
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t *well = make_hero(MAKEFOURCC('h','b','a','r'), 100, 10, 0, 0);
     edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
@@ -1350,6 +1356,8 @@ TEST(wc3_spell, moon_well_accepts_mana_only_replenishment) {
     spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
 
     well->s.player = target->s.player = 0;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
     target->health.max_value = target->health.value = 100.0f;
     target->mana.max_value = 100.0f; target->mana.value = 50.0f;
     T_ASSERT(test_ability_message(well, A_VALIDATE, &item, &st));
@@ -1382,6 +1390,8 @@ TEST(wc3_spell, moon_well_autocast_uses_threshold_and_nearest_valid_target) {
 
     well->data.UnitAbilities = &abilities;
     well->s.player = near->s.player = far->s.player = 0;
+    near->svflags |= SVF_MONSTER;
+    far->svflags |= SVF_MONSTER;
     near->targtype = far->targtype = TARG_GROUND;
     near->health.max_value = far->health.max_value = 100.0f;
     near->health.value = far->health.value = 50.0f;
@@ -1412,6 +1422,8 @@ TEST(wc3_spell, moon_well_datae_gates_only_natural_mana_regen_to_night) {
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t * well = make_hero(MAKEFOURCC('e','m','o','w'), 100, 50, 0, 0);
     UnitBalance_t balance = *well->data.UnitBalance;
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("Ambt"));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
 
     well->data.UnitAbilities = &abilities;
     balance.manaRegen = 2.0f;
@@ -1420,18 +1432,77 @@ TEST(wc3_spell, moon_well_datae_gates_only_natural_mana_regen_to_night) {
     well->mana.value = 50.0f;
     well->mana_regen_bonus = 1.0f;
 
+    T_ASSERT(G_ActorHasSkill(well, "Ambt"));
+    T_ASSERT(item.ability && item.ability->proc == CAbilityManaBattery);
     G_SetTimeOfDay(12.0f);
-    T_ASSERT(!S_MoonWellNaturalManaRegenAllowed(well));
+    G_UpdateTimeOfDay();
+    T_EQ(G_AbilityData(item.code)->id, item.code);
+    T_EQ(G_AbilityCode(item.code), MAKEFOURCC('A','m','b','t'));
+    T_FEQ(G_AbilityData(item.code)->level[0].data[4].number, 1.0f, 0.001f);
+    T_ASSERT(!G_IsNight());
+    T_ASSERT(S_AbilityMessage(well, A_NATURAL_MANA_REGEN_BLOCKED, &call));
+    T_ASSERT(S_UnitAbilityEvent(well, A_NATURAL_MANA_REGEN_BLOCKED));
     G_RunEntity(well);
     T_FEQ(well->mana.value, 50.1f, 0.001f); /* external +1/sec remains active */
 
     well->mana.value = 50.0f;
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
-    T_ASSERT(S_MoonWellNaturalManaRegenAllowed(well));
+    G_UpdateTimeOfDay();
+    T_ASSERT(!S_UnitAbilityEvent(well, A_NATURAL_MANA_REGEN_BLOCKED));
     G_RunEntity(well);
     T_FEQ(well->mana.value, 50.3f, 0.001f); /* natural 2/sec + bonus 1/sec */
 
     G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, moon_well_missing_ability_data_does_not_restore_natural_regen) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"Afoo\"\nC;Y2;X2;K\"Afoo\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "Ambt" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *well = make_hero(MAKEFOURCC('e','m','o','w'), 100, 50, 0, 0);
+    UnitBalance_t balance = *well->data.UnitBalance;
+
+    well->data.UnitAbilities = &abilities;
+    balance.manaRegen = 2.0f;
+    well->data.UnitBalance = &balance;
+    well->mana.max_value = 100.0f;
+    well->mana.value = 50.0f;
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+    T_ASSERT(S_UnitAbilityEvent(well, A_NATURAL_MANA_REGEN_BLOCKED));
+    G_RunEntity(well);
+    T_FEQ(well->mana.value, 50.0f, 0.001f);
+
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, moon_well_roc_data11_does_not_alias_datae) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Data11\"\n"
+        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K1\nE\n";
+    UnitAbilities_t abilities = { .abilList = "Ambt" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *well = make_hero(MAKEFOURCC('e','m','o','w'), 100, 50, 0, 0);
+
+    well->data.UnitAbilities = &abilities;
+    T_FEQ(G_AbilityLevel(MAKEFOURCC('A','m','b','t'), 1)->data[0].number, 1.0f, 0.001f);
+    T_FEQ(G_AbilityLevel(MAKEFOURCC('A','m','b','t'), 1)->data[4].number, 0.0f, 0.001f);
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+    T_ASSERT(!S_UnitAbilityEvent(well, A_NATURAL_MANA_REGEN_BLOCKED));
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
 }

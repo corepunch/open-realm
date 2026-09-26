@@ -3905,6 +3905,7 @@ TEST(wc3_save, racial_gold_mine_state_round_trip) {
     overlay->mineoverlay.parent_spawn_time = parent->spawn_time;
     overlay->mineoverlay.income_time = 12345;
     overlay->mineoverlay.active_interval_index = 3;
+    overlay->mineoverlay.entangle_permanent_before = true;
     acolyte->acolyte_mine.mine = overlay;
     acolyte->acolyte_mine.mine_spawn_time = overlay->spawn_time;
     acolyte->acolyte_mine.slot = 4;
@@ -3914,6 +3915,7 @@ TEST(wc3_save, racial_gold_mine_state_round_trip) {
     overlay->mineoverlay.parent_spawn_time = 0;
     overlay->mineoverlay.income_time = 0;
     overlay->mineoverlay.active_interval_index = 0;
+    overlay->mineoverlay.entangle_permanent_before = false;
     acolyte->acolyte_mine.mine = NULL;
     acolyte->acolyte_mine.mine_spawn_time = 0;
     acolyte->acolyte_mine.slot = -1;
@@ -3924,6 +3926,7 @@ TEST(wc3_save, racial_gold_mine_state_round_trip) {
     T_EQ(overlay->mineoverlay.parent_spawn_time, parent->spawn_time);
     T_EQ(overlay->mineoverlay.income_time, 12345);
     T_EQ(overlay->mineoverlay.active_interval_index, 3);
+    T_ASSERT(overlay->mineoverlay.entangle_permanent_before);
     T_ASSERT(acolyte->acolyte_mine.mine == overlay);
     T_EQ(acolyte->acolyte_mine.mine_spawn_time, overlay->spawn_time);
     T_EQ(acolyte->acolyte_mine.slot, 4);

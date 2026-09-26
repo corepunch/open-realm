@@ -730,8 +730,25 @@ static uint32_t wisp_harvest_alias(edict_t const * ent) {
     return harvest_actor_ability_alias(ent, MAKEFOURCC('A','w','h','a'));
 }
 
+static void wisp_harvest_warn_missing_data(uint32_t alias) {
+    static uint32_t warned[256];
+    static uint32_t warned_count;
+    char name[5] = {0};
+    if (!alias) return;
+    FOR_LOOP(i, warned_count) if (warned[i] == alias) return;
+    if (warned_count < sizeof(warned) / sizeof(warned[0])) warned[warned_count++] = alias;
+    memcpy(name, &alias, 4);
+    fprintf(stderr, "WC3 AbilityData: missing or invalid %s DataA for Wisp harvest\n", name);
+}
+
 bool S_WispHarvestCanLumber(edict_t const * ent) {
-    return wisp_harvest_alias(ent) != 0;
+    uint32_t const alias = wisp_harvest_alias(ent);
+    AbilityData_t const *data;
+    if (!alias) return false;
+    data = G_AbilityData(alias);
+    if (data->id == alias && data->level[0].data[0].number > 0.0f) return true;
+    wisp_harvest_warn_missing_data(alias);
+    return false;
 }
 
 static wispHarvestTuning_t wisp_harvest_tuning(edict_t const * ent) {
@@ -746,7 +763,7 @@ static wispHarvestTuning_t wisp_harvest_tuning(edict_t const * ent) {
 
     if (!alias || !(data = G_AbilityData(alias)) || data->id != alias)
         return tuning;
-    tuning.lumber_per_interval = MAX(0.0f, data->level[0].data[0].number); /* DataA */
+    tuning.lumber_per_interval = data->level[0].data[0].number; /* DataA */
     tuning.art_attachment_height = data->level[0].data[2].number;         /* DataC */
     if (data->level[0].range > 0.0f)
         tuning.search_range = data->level[0].range;                       /* Cast Range */
@@ -858,7 +875,14 @@ static void wisp_harvest_income(edict_t * ent) {
     edict_t * tree = ent ? ent->goalentity : NULL;
     player_t * player;
 
-    if (!ent || !tree || !tree->inuse || tree->targtype != TARG_TREE || M_IsDead(tree)) {
+    if (!ent || !S_WispHarvestCanLumber(ent)) {
+        if (ent) {
+            S_WispHarvestRelease(ent);
+            if (ent->stand) ent->stand(ent);
+        }
+        return;
+    }
+    if (!tree || !tree->inuse || tree->targtype != TARG_TREE || M_IsDead(tree)) {
         if (ent) wisp_harvest_retarget_or_stop(ent);
         return;
     }
@@ -873,6 +897,13 @@ static void wisp_harvest_income(edict_t * ent) {
 static void ai_wisp_mine(edict_t * ent) {
     edict_t * tree = ent ? ent->goalentity : NULL;
 
+    if (!S_WispHarvestCanLumber(ent)) {
+        if (ent) {
+            S_WispHarvestRelease(ent);
+            if (ent->stand) ent->stand(ent);
+        }
+        return;
+    }
     if (!tree || !tree->inuse || tree->targtype != TARG_TREE || M_IsDead(tree)) {
         wisp_harvest_retarget_or_stop(ent);
         return;
@@ -886,6 +917,13 @@ static void ai_wisp_walktree(edict_t * ent) {
     edict_t * tree = ent ? ent->goalentity : NULL;
     wispHarvestTuning_t const tuning = wisp_harvest_tuning(ent);
 
+    if (!S_WispHarvestCanLumber(ent)) {
+        if (ent) {
+            S_WispHarvestRelease(ent);
+            if (ent->stand) ent->stand(ent);
+        }
+        return;
+    }
     if (!tree || !tree->inuse || tree->targtype != TARG_TREE || M_IsDead(tree)) {
         wisp_harvest_retarget_or_stop(ent);
         return;
@@ -945,11 +983,47 @@ static void wisp_harvest_command(edict_t * clent) {
     clent->client->menu.on_entity_selected = wisp_harvest_selecttarget;
 }
 
+/* Ahrb (CAbilityHarvestBase) inherits CPower in TFT. Neither abstract class
+ * has an additional engine-side message here, but keep both parent procedures
+ * explicit so concrete harvest abilities preserve the retail delegation path. */
+BZ_ABILITY_PROC(CAbilityPower) {
+    return CAbilityNoop(ent, msg, call);
+}
+
+BZ_ABILITY_PROC(CAbilityHarvestBase) {
+    return CAbilityPower(ent, msg, call);
+}
+
 BZ_ABILITY_PROC(CAbilityWispHarvest) {
     switch (msg) {
     case A_INIT: return true;
     case A_COMMAND: wisp_harvest_command(call && call->client ? call->client : ent); return true;
-    default: return false;
+    case A_ISSUED_TARGET_ORDER: {
+        edict_t *target = call ? call->issued_target_order.target : NULL;
+        cstring_t order = call ? call->issued_target_order.order : NULL;
+        if (!order || strcmp(order, "smart") || !target || target->targtype != TARG_TREE)
+            return ABILITY_ORDER_UNHANDLED;
+        if (!S_WispHarvestCanLumber(ent)) return ABILITY_ORDER_REJECTED;
+        wisp_harvest_start(ent, target);
+        return ABILITY_ORDER_ACCEPTED;
+    }
+    case A_MOVE_LEAVE:
+        if (call && call->next_move_proc == CAbilityWispHarvest) return true;
+        S_WispHarvestRelease(ent);
+        return true;
+    case A_DISABLE:
+        S_WispHarvestRelease(ent);
+        if (ent && ent->currentmove && ent->currentmove->proc == CAbilityWispHarvest) {
+            ent->goalentity = NULL;
+            ent->secondarygoal = NULL;
+            if (ent->stand) ent->stand(ent);
+        }
+        return true;
+    case A_DEATH:
+    case A_UNIT_REMOVE:
+        S_WispHarvestRelease(ent);
+        return true;
+    default: return CAbilityHarvestBase(ent, msg, call);
     }
 }
 

@@ -77,8 +77,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format 48 adds the Entangled Mine -> caster relationship used by Aent command state. */
-static uint32_t const save_version = 48;
+/* Format 49 persists the Aent permanence state that Entangle must restore on teardown. */
+static uint32_t const save_version = 49;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -1985,8 +1985,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-45.bin",
         "/tmp/openwarcraft3-wc3-save-version-46.bin",
         "/tmp/openwarcraft3-wc3-save-version-47.bin",
+        "/tmp/openwarcraft3-wc3-save-version-48.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48 };
 
     reset_entities();
     setup_test_world();

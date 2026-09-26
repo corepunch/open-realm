@@ -338,7 +338,6 @@ void unit_die(edict_t *self, edict_t *attacker) {
     }
     if (self->mineoverlay.parent || self->think == blight_mine_think) S_MineOverlayRelease(self);
     if (S_AcolyteHarvestIsActive(self)) S_AcolyteHarvestRelease(self);
-    S_MoonWellEffectsRelease(self);
     S_CargoReleaseUnit(self);
     if (self->training) G_ClearTrainingQueueFood(self);
     else { G_CancelHeroRevives(self); G_CancelTrainingQueue(self, true); }
@@ -380,7 +379,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
     G_PublishEventWithSource(self, EVENT_UNIT_DEATH, attacker);
     G_PublishEventWithSource(self, EVENT_PLAYER_UNIT_DEATH, attacker);
     self->svflags |= SVF_DEADMONSTER;
-    S_UnitDeathAbilities(self);
+    S_UnitAbilityEvent(self, A_DEATH);
     S_ReincarnationOnDeath(self);
     /* Static building footprints are baked into pathmap.original. Rebuild after
      * the death flag becomes authoritative so destroyed/cancelled structures
@@ -729,15 +728,15 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
         if (G_IsItem(target)) {
             return G_OrderPickupItem(self, target);
         }
+        {
+            abilityOrderResult_t const result = S_UnitIssuedTargetOrder(self, order, target);
+            if (result != ABILITY_ORDER_UNHANDLED) return result == ABILITY_ORDER_ACCEPTED;
+        }
         if (G_ActorHasSkill(self, "Aaha") && G_ActorHasSkill(target, "Abgm")) {
             return S_AcolyteHarvestOrder(self, target);
         }
         if (S_HarvestCanGold(self) && S_GoldMineCanHarvest(target)) {
             return harvest_gold_order(self, target);
-        }
-        if (S_WispHarvestCanLumber(self) && target->targtype == TARG_TREE) {
-            wisp_harvest_start(self, target);
-            return true;
         }
         if (S_HarvestCanLumber(self) && target->targtype == TARG_TREE) {
             harvest_start(self, target);

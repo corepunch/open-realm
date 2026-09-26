@@ -69,8 +69,6 @@ void G_FreeEdict(edict_t *ent) {
     if (ent->construction.active) G_StopConstruction(ent);
     if (ent->mineoverlay.parent || ent->think == blight_mine_think) S_MineOverlayRelease(ent);
     if (S_AcolyteHarvestIsActive(ent)) S_AcolyteHarvestRelease(ent);
-    S_WispHarvestRelease(ent);
-    S_MoonWellEffectsRelease(ent);
     S_CargoReleaseUnit(ent);
     if (ent->cargo.count > 0) cargo_drop_all(ent);
     if (ent->buildwork.ability) S_CancelRepair(ent);

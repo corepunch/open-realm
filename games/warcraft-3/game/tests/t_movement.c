@@ -2308,6 +2308,64 @@ TEST(wc3_movement, wisp_harvest_persists_and_credits_periodic_lumber) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_movement, wisp_harvest_reads_roc_data_columns) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Data11\"\n"
+        "C;Y1;X4;K\"Rng1\"\nC;Y1;X5;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Awha\"\nC;Y2;X2;K\"Awha\"\nC;Y2;X3;K9\n"
+        "C;Y2;X4;K500\nC;Y2;X5;K1\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *wisp = make_moving_unit(0.0f, 0.0f);
+    edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+    uint32_t const old_lumber = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
+
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    wisp->s.player = 0;
+    T_ASSERT(unit_issuetargetorder(wisp, "smart", tree));
+    wisp->currentmove->think(wisp);
+    wisp->wait = FRAMETIME / 2000.0f;
+    wisp->currentmove->think(wisp);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], old_lumber + 9);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, wisp_harvest_rejects_missing_ability_data) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y2;X1;K\"Afoo\"\nC;Y2;X2;K\"Afoo\"\nC;Y2;X3;K7\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *wisp = make_moving_unit(0.0f, 0.0f);
+    edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    T_ASSERT(!unit_issuetargetorder(wisp, "smart", tree));
+    T_ASSERT(!wisp->goalentity);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, wisp_harvest_move_leave_releases_its_tree_effect) {
+    slkTestData_t *rows = parse_slk_string(slk_wisp_harvest_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *wisp = make_moving_unit(0.0f, 0.0f);
+    edict_t *effect = alloc_test_unit(MAKEFOURCC('e','f','f','t'), 0.0f, 0.0f);
+
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    effect->owner = wisp;
+    effect->summon_ability = MAKEFOURCC('A','w','h','a');
+    effect->s.flags |= EF_NOT_SELECTABLE;
+    S_UnitAbilityEvent(wisp, A_MOVE_LEAVE);
+    T_ASSERT(!effect->inuse);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 /* Warsmash reserves an actively harvested tree to one Wisp. If two Wisps were
  * ordered to the same tree, the later arrival should acquire the nearest free
  * live tree instead of stacking on the occupied target. */
@@ -3965,7 +4023,7 @@ TEST(wc3_movement, entangled_mine_round_robin_income_depletes_parent_and_unloads
  * exactly the live overlay generation.  The helper deliberately derives this
  * from saved overlay state rather than the optional CasterArt effect. */
 TEST(wc3_movement, entangle_command_hidden_tracks_live_overlay_caster_generation) {
-    edict_t * caster, overlay, parent;
+    edict_t * caster, *overlay, *parent;
     uint32_t const ability = MAKEFOURCC('A','e','n','t');
 
     reset_entities();
@@ -3982,6 +4040,60 @@ TEST(wc3_movement, entangle_command_hidden_tracks_live_overlay_caster_generation
     T_ASSERT(S_EntangleCommandHidden(caster, ability));
     overlay->mineoverlay.caster_spawn_time++;
     T_ASSERT(!S_EntangleCommandHidden(caster, ability));
+}
+
+TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {
+    UnitAbilities_t const entangle_abilities = { .abilList = "Aent" };
+    uint32_t const ability = MAKEFOURCC('A','e','n','t');
+    edict_t *caster, *overlay, *parent;
+
+    reset_entities();
+    setup_test_world();
+    caster = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 0.0f, 0.0f);
+    overlay = alloc_test_unit(MAKEFOURCC('e','g','o','l'), 64.0f, 0.0f);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 64.0f, 0.0f);
+    caster->data.UnitAbilities = &entangle_abilities;
+    T_ASSERT(G_ActorSetSkillPermanent(caster, ability, true));
+    overlay->mineoverlay.parent = parent;
+    overlay->mineoverlay.parent_spawn_time = parent->spawn_time;
+    overlay->mineoverlay.caster = caster;
+    overlay->mineoverlay.caster_spawn_time = caster->spawn_time;
+    overlay->mineoverlay.entangle_ability = ability;
+    overlay->mineoverlay.entangle_permanent_before = true;
+
+    S_MineOverlayRelease(overlay);
+    T_ASSERT(G_ActorSkillPermanent(caster, ability));
+}
+
+TEST(wc3_movement, entangle_overlays_share_permanent_state_until_last_release) {
+    UnitAbilities_t const entangle_abilities = { .abilList = "Aent" };
+    uint32_t const ability = MAKEFOURCC('A','e','n','t');
+    edict_t *caster, *first, *second, *parent1, *parent2;
+
+    reset_entities();
+    setup_test_world();
+    caster = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 0.0f, 0.0f);
+    first = alloc_test_unit(MAKEFOURCC('e','g','o','l'), 64.0f, 0.0f);
+    second = alloc_test_unit(MAKEFOURCC('e','g','o','l'), 128.0f, 0.0f);
+    parent1 = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 64.0f, 0.0f);
+    parent2 = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 128.0f, 0.0f);
+    caster->data.UnitAbilities = &entangle_abilities;
+    first->mineoverlay.parent = parent1;
+    first->mineoverlay.parent_spawn_time = parent1->spawn_time;
+    first->mineoverlay.caster = caster;
+    first->mineoverlay.caster_spawn_time = caster->spawn_time;
+    first->mineoverlay.entangle_ability = ability;
+    second->mineoverlay.parent = parent2;
+    second->mineoverlay.parent_spawn_time = parent2->spawn_time;
+    second->mineoverlay.caster = caster;
+    second->mineoverlay.caster_spawn_time = caster->spawn_time;
+    second->mineoverlay.entangle_ability = ability;
+    T_ASSERT(G_ActorSetSkillPermanent(caster, ability, true));
+
+    S_MineOverlayRelease(first);
+    T_ASSERT(G_ActorSkillPermanent(caster, ability));
+    S_MineOverlayRelease(second);
+    T_ASSERT(!G_ActorSkillPermanent(caster, ability));
 }
 
 /* Depletion must retire an Entangled Mine even when every Wisp has already left it. */

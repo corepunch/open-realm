@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 48, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 49, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -524,3 +524,8 @@ caster spawn generation and Entangle ability alias let load restore the same
 per-unit hidden/permanent Aent lifecycle without trusting a recycled entity
 slot. Version 47 saves are rejected by the exact-version guard; the expanded
 `edict_t` size remains an independent layout check.
+
+Version 49 persists whether Aent was already permanent before an Entangle
+overlay made it permanent. The final live overlay restores that original value,
+including after save/load; version 48 saves are rejected by the exact-version
+guard.
