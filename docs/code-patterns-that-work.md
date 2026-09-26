@@ -8,8 +8,8 @@ Patterns observed across the codebase that are consistently good. Reference thes
 
 ```c
 typedef struct {
-    DWORD width, height;
-    BYTE  cells[];
+    uint32_t width, height;
+    uint8_t cells[];
 } terrainData_t;
 terrainData_t *td = (terrainData_t *)ri.FS_ReadFile(path, &size);
 // validate: sizeof(header) + width*height == size
@@ -25,13 +25,13 @@ The SC2 map loading pattern: read the outer file once into a buffer, then open t
 
 **When not:** single flat files like BLP textures — just read and parse directly.
 
-## Pointer-walk parsers with const BYTE *
+## Pointer-walk parsers with uint8_t const *
 
-ADT, M2, and MDX parsers all take `BYTE const *data` and walk the chunk tree with pointer arithmetic. No re-reading, no intermediate buffers, no fseek. This works identically with heap pointers and mmap'd pointers.
+ADT, M2, and MDX parsers all take `uint8_t const *data` and walk the chunk tree with pointer arithmetic. No re-reading, no intermediate buffers, no fseek. This works identically with heap pointers and mmap'd pointers.
 
 ```c
 // Wow_LoadAdt pattern: walk chunk tree in-place
-BYTE const *p = data + header->mcnk_offset;
+uint8_t const *p = data + header->mcnk_offset;
 for (i = 0; i < MCNK_COUNT; i++) {
     MCNK const *chunk = (MCNK const *)p;
     // read from chunk->*, advance p
@@ -70,13 +70,13 @@ All UI layout engines (`stb_fdf.h`, `stb_sc2layout.h`, `stb_wowxml.h`), SLK tabl
 
 ```c
 static const struct field_s {
-    const char *name;
+    char const *name;
     ptrdiff_t   offset;
     int         type;
 } fields[] = {
-    { "Width",  offsetof(FRAMEDEF, Width),  FLOAT },
-    { "Height", offsetof(FRAMEDEF, Height), FLOAT },
-    { "Text",   offsetof(FRAMEDEF, TextStorage), TEXT },
+    { "Width",  offsetof(frameDef_t, Width),  FLOAT },
+    { "Height", offsetof(frameDef_t, Height), FLOAT },
+    { "Text",   offsetof(frameDef_t, TextStorage), TEXT },
 };
 // then one generic loop: for each token, walk table, dispatch by type
 ```
@@ -148,10 +148,10 @@ if (ent->flags & EF_DEAD) return;
 A pointer and its element count are one unit, not two loose variables. Declare them with `ARRAY(type, name)`, then read the count and iterate through the macros — never touch `name##_count` directly:
 
 ```c
-typedef struct { ARRAY(wowVec3_t const, vertices); ARRAY(WORD const, indices); } chunks_t;
-// expands to: wowVec3_t const *vertices; DWORD vertices_count; WORD const *indices; DWORD indices_count;
+typedef struct { ARRAY(wowVec3_t const, vertices); ARRAY(uint16_t const, indices); } chunks_t;
+// expands to: wowVec3_t const *vertices; uint32_t vertices_count; uint16_t const *indices; uint32_t indices_count;
 
-FOR_EACH_ARRAY(WORD const, idx, chunks.indices)   // pointer loop
+FOR_EACH_ARRAY(uint16_t const, idx, chunks.indices)   // pointer loop
     draw_vertex(chunks.vertices[*idx]);
 
 FOR_LOOP(i, ARRAY_COUNT(chunks.indices))          // index loop when i is needed
@@ -169,7 +169,7 @@ ri.MemAlloc(ARRAY_COUNT(chunks.vertices) * sizeof(*chunks.vertices));
 
 ```c
 typedef enum { CLIENT_UI_GAME, CLIENT_UI_LOADING, CLIENT_UI_CINEMATIC } client_ui_state;
-// not: BOOL in_game; BOOL in_loading; BOOL in_cinematic;
+// avoid separate bool fields for mutually exclusive states
 ```
 
 ## Server-authored UI state via STAT bits
@@ -179,8 +179,8 @@ typedef enum { CLIENT_UI_GAME, CLIENT_UI_LOADING, CLIENT_UI_CINEMATIC } client_u
 ## WoW UI: log once, keep going
 
 ```c
-static LPCSTR last_missing = NULL;
-void warn_missing(LPCSTR path) {
+static cstring_t last_missing = NULL;
+void warn_missing(cstring_t path) {
     if (last_missing != path) { fprintf(stderr, "UIWow: missing %s\n", path); last_missing = path; }
 }
 ```

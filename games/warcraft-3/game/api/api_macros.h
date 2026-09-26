@@ -3,7 +3,6 @@
 
 typedef int jassdef_integer;
 typedef float jassdef_number;
-typedef char const *jassdef_string;
 
 #define EVAL0(...) __VA_ARGS__
 #define EVAL1(...) EVAL0(EVAL0(EVAL0(__VA_ARGS__)))

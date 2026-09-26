@@ -337,10 +337,10 @@ static handle_t sc2_source_read(sc2MapSource_t *source, cstring_t filename, uint
     return data;
 }
 
-static xmlDocPtr sc2_read_xml(sc2MapSource_t *source, cstring_t filename) {
+static xmlDoc *sc2_read_xml(sc2MapSource_t *source, cstring_t filename) {
     uint32_t size = 0;
     uint8_t *data = sc2_source_read(source, filename, &size);
-    xmlDocPtr doc = NULL;
+    xmlDoc *doc = NULL;
     if (data && size > 0) {
         doc = xmlReadMemory((char const *)data, (int)size, filename, NULL,
                             XML_PARSE_RECOVER | XML_PARSE_NONET | XML_PARSE_NOERROR | XML_PARSE_NOWARNING);
@@ -349,10 +349,10 @@ static xmlDocPtr sc2_read_xml(sc2MapSource_t *source, cstring_t filename) {
     return doc;
 }
 
-static xmlDocPtr sc2_read_global_xml(cstring_t filename) {
+static xmlDoc *sc2_read_global_xml(cstring_t filename) {
     uint32_t size = 0;
     uint8_t *data = sc2_read_file(filename, &size);
-    xmlDocPtr doc = NULL;
+    xmlDoc *doc = NULL;
 
     if (!data && filename) {
         PATHSTR path;
@@ -399,14 +399,14 @@ static uint8_t *sc2_read_disk_file(cstring_t filename, uint32_t *size) {
     return data;
 }
 
-static xmlDocPtr sc2_read_catalog_xml_from_archive(cstring_t archive_name, cstring_t filename) {
+static xmlDoc *sc2_read_catalog_xml_from_archive(cstring_t archive_name, cstring_t filename) {
     uint32_t archive_size = 0;
     uint32_t file_size;
     uint8_t *archive_data;
     uint8_t *data;
     handle_t archive;
     handle_t file;
-    xmlDocPtr doc = NULL;
+    xmlDoc *doc = NULL;
     PATHSTR path;
 
     if (!archive_name || !*archive_name || !filename || !*filename)
@@ -440,10 +440,10 @@ static xmlDocPtr sc2_read_catalog_xml_from_archive(cstring_t archive_name, cstri
     return doc;
 }
 
-static xmlDocPtr sc2_read_catalog_xml(cstring_t root, cstring_t filename) {
+static xmlDoc *sc2_read_catalog_xml(cstring_t root, cstring_t filename) {
     PATHSTR path;
     PATHSTR archive_path;
-    xmlDocPtr doc;
+    xmlDoc *doc;
     cstring_t data_dir;
 
     if (!root || !*root) return sc2_read_global_xml(filename);
@@ -461,9 +461,9 @@ static xmlDocPtr sc2_read_catalog_xml(cstring_t root, cstring_t filename) {
     return sc2_read_catalog_xml_from_archive(archive_path, filename);
 }
 
-static xmlDocPtr sc2_read_map_catalog_xml(sc2MapSource_t *source, cstring_t filename) {
+static xmlDoc *sc2_read_map_catalog_xml(sc2MapSource_t *source, cstring_t filename) {
     PATHSTR path;
-    xmlDocPtr doc;
+    xmlDoc *doc;
 
     snprintf(path, sizeof(path), "Base.SC2Data/%s", filename);
     for (char *p = path; *p; p++) if (*p == '\\') *p = '/';
@@ -504,13 +504,13 @@ static bool sc2_catalog_include_path(cstring_t in, string_t out, uint32_t out_si
     return true;
 }
 
-static xmlDocPtr sc2_read_layer_catalog_xml(sc2MapSource_t *source, cstring_t root_name, cstring_t filename) {
+static xmlDoc *sc2_read_layer_catalog_xml(sc2MapSource_t *source, cstring_t root_name, cstring_t filename) {
     return source ? sc2_read_map_catalog_xml(source, filename) : sc2_read_catalog_xml(root_name, filename);
 }
 
-static bool sc2_xml_attr(xmlNodePtr node, cstring_t attr_name, string_t buffer, uint32_t size) {
+static bool sc2_xml_attr(xmlNode *node, cstring_t attr_name, string_t buffer, uint32_t size) {
     if (!node || !attr_name || !buffer || !size) return false;
-    for (xmlAttrPtr attr = node->properties; attr; attr = attr->next) {
+    for (xmlAttr *attr = node->properties; attr; attr = attr->next) {
         xmlChar *text;
 
         if (!sc2_streqi((char const *)attr->name, attr_name))
@@ -524,7 +524,7 @@ static bool sc2_xml_attr(xmlNodePtr node, cstring_t attr_name, string_t buffer, 
     return false;
 }
 
-static cstring_t sc2_xml_content(xmlNodePtr node, char *buffer, uint32_t size) {
+static cstring_t sc2_xml_content(xmlNode *node, char *buffer, uint32_t size) {
     xmlChar *text;
     if (!node || !buffer || size == 0) return NULL;
     text = xmlNodeGetContent(node);
@@ -661,7 +661,7 @@ static sc2XmlField_t const sc2_directional_light_fields[] = {
     SC2_DIRECTIONAL_LIGHT_XML_FIELD("Direction", direction, SC2_XML_FIELD_VEC3),
 };
 
-static void sc2_parse_terrain_data_node(xmlNodePtr node, cstring_t terrain_id) {
+static void sc2_parse_terrain_data_node(xmlNode *node, cstring_t terrain_id) {
     char id[64];
     char value[256];
 
@@ -678,7 +678,7 @@ static void sc2_parse_terrain_data_node(xmlNodePtr node, cstring_t terrain_id) {
                             value)) {
         sc2_map.t3Terrain.fog_enabled = true;
     }
-    for (xmlNodePtr child = node->children; child; child = child->next)
+    for (xmlNode *child = node->children; child; child = child->next)
         sc2_parse_terrain_data_node(child, terrain_id);
 }
 
@@ -707,7 +707,7 @@ static void sc2_init_directional_light(sc2DirectionalLight_t *light) {
     light->direction = (vector3_t){ 0.0f, 0.0f, -1.0f };
 }
 
-static void sc2_parse_light_data_value(xmlNodePtr node, int light_index, cstring_t name, cstring_t value) {
+static void sc2_parse_light_data_value(xmlNode *node, int light_index, cstring_t name, cstring_t value) {
     sc2DirectionalLight_t *light;
 
     if (!node || !name || !value || !*value)
@@ -729,7 +729,7 @@ static void sc2_parse_light_data_value(xmlNodePtr node, int light_index, cstring
                         value);
 }
 
-static void sc2_parse_light_data_node(xmlNodePtr node, cstring_t light_id, int light_index) {
+static void sc2_parse_light_data_node(xmlNode *node, cstring_t light_id, int light_index) {
     char id[64];
     char value[256];
     cstring_t field;
@@ -749,7 +749,7 @@ static void sc2_parse_light_data_node(xmlNodePtr node, cstring_t light_id, int l
             sc2_xml_attr(node, "index", id, sizeof(id))) {
             light_index = sc2_light_index(id);
         }
-        for (xmlAttrPtr attr = node->properties; attr; attr = attr->next) {
+        for (xmlAttr *attr = node->properties; attr; attr = attr->next) {
             xmlChar *text = xmlNodeListGetString(node->doc, attr->children, 1);
             if (text) {
                 sc2_parse_light_data_value(node, light_index, (char const *)attr->name, (char const *)text);
@@ -761,11 +761,11 @@ static void sc2_parse_light_data_node(xmlNodePtr node, cstring_t light_id, int l
         if (sc2_xml_attr(node, "value", value, sizeof(value)))
             sc2_parse_light_data_value(node, light_index, field, value);
     }
-    for (xmlNodePtr child = node->children; child; child = child->next)
+    for (xmlNode *child = node->children; child; child = child->next)
         sc2_parse_light_data_node(child, light_id, light_index);
 }
 
-static void sc2_parse_cliff_set_node(xmlNodePtr node) {
+static void sc2_parse_cliff_set_node(xmlNode *node) {
     char value[64];
     uint32_t index;
 
@@ -781,7 +781,7 @@ static void sc2_parse_cliff_set_node(xmlNodePtr node) {
     sc2_map.t3Terrain.num_cliff_sets = MAX(sc2_map.t3Terrain.num_cliff_sets, index + 1);
 }
 
-static void sc2_parse_cliff_cell_node(xmlNodePtr node) {
+static void sc2_parse_cliff_cell_node(xmlNode *node) {
     sc2CliffCell_t *cell;
     char value[64];
 
@@ -814,10 +814,10 @@ static void sc2_map_try_size_field(cstring_t key, cstring_t value) {
     }
 }
 
-static void sc2_parse_mapinfo_node(xmlNodePtr node) {
+static void sc2_parse_mapinfo_node(xmlNode *node) {
     char value[256];
     if (!node || node->type != XML_ELEMENT_NODE) return;
-    for (xmlAttrPtr attr = node->properties; attr; attr = attr->next) {
+    for (xmlAttr *attr = node->properties; attr; attr = attr->next) {
         xmlChar *text = xmlNodeListGetString(node->doc, attr->children, 1);
         if (text) {
             cstring_t key = sc2_streqi((char const *)attr->name, "value") ?
@@ -828,7 +828,7 @@ static void sc2_parse_mapinfo_node(xmlNodePtr node) {
     }
     if (sc2_xml_content(node, value, sizeof(value)) && sc2_has_nonspace(value))
         sc2_map_try_size_field((char const *)node->name, value);
-    for (xmlNodePtr child = node->children; child; child = child->next)
+    for (xmlNode *child = node->children; child; child = child->next)
         sc2_parse_mapinfo_node(child);
 }
 
@@ -855,7 +855,7 @@ static bool sc2_parse_mapinfo_binary(sc2MapSource_t *source) {
 }
 
 static void sc2_parse_mapinfo(sc2MapSource_t *source) {
-    xmlDocPtr doc;
+    xmlDoc *doc;
 
     if (sc2_parse_mapinfo_binary(source))
         return;
@@ -882,7 +882,7 @@ static sc2XmlNodeFields_t const sc2_terrain_node_fields[] = {
     { "vertData",  sc2_terrain_vert_data_fields,  SC2_ARRAY_LEN(sc2_terrain_vert_data_fields) },
 };
 
-static void sc2_parse_terrain_field(xmlNodePtr node, cstring_t name, cstring_t value) {
+static void sc2_parse_terrain_field(xmlNode *node, cstring_t name, cstring_t value) {
     FOR_LOOP(i, SC2_ARRAY_LEN(sc2_terrain_node_fields)) {
         sc2XmlNodeFields_t const *mapping = &sc2_terrain_node_fields[i];
         if (sc2_streqi((char const *)node->name, mapping->node_name)) {
@@ -912,19 +912,19 @@ static struct { cstring_t name; size_t offset; } const sc2_ramp_boxes[] = {
     { "mid", offsetof(sc2Ramp_t, mid) },
 };
 
-static void sc2_parse_ramp_list(xmlNodePtr node) {
+static void sc2_parse_ramp_list(xmlNode *node) {
     if (!sc2_streqi((cstring_t)node->name, "rampList")) return;
     uint32_t count = 0;
-    for (xmlNodePtr child = node->children; child; child = child->next)
+    for (xmlNode *child = node->children; child; child = child->next)
         if (sc2_streqi((cstring_t)child->name, "ramp")) count++;
     SAFE_DELETE(sc2_map.t3Terrain.ramps, sc2_free);
     sc2_map.t3Terrain.ramps = count ? sc2_alloc(count * sizeof(sc2Ramp_t)) : NULL;
     ARRAY_COUNT(sc2_map.t3Terrain.ramps) = 0;
-    for (xmlNodePtr child = node->children; child; child = child->next) {
+    for (xmlNode *child = node->children; child; child = child->next) {
         if (!sc2_streqi((cstring_t)child->name, "ramp")) continue;
         sc2Ramp_t *ramp = &sc2_map.t3Terrain.ramps[ARRAY_COUNT(sc2_map.t3Terrain.ramps)++];
         memset(ramp, 0, sizeof(*ramp));
-        for (xmlAttrPtr attr = child->properties; attr; attr = attr->next) {
+        for (xmlAttr *attr = child->properties; attr; attr = attr->next) {
             xmlChar *value = xmlNodeListGetString(child->doc, attr->children, 1);
             if (!value) continue;
             sc2_parse_xml_field(ramp, sc2_ramp_fields, SC2_ARRAY_LEN(sc2_ramp_fields), (cstring_t)attr->name, (cstring_t)value);
@@ -939,7 +939,7 @@ static void sc2_parse_ramp_list(xmlNodePtr node) {
     }
 }
 
-static void sc2_parse_terrain_node(xmlNodePtr node) {
+static void sc2_parse_terrain_node(xmlNode *node) {
     char value[256];
 
     if (!node || node->type != XML_ELEMENT_NODE)
@@ -947,7 +947,7 @@ static void sc2_parse_terrain_node(xmlNodePtr node) {
     sc2_parse_ramp_list(node);
     sc2_parse_cliff_set_node(node);
     sc2_parse_cliff_cell_node(node);
-    for (xmlAttrPtr attr = node->properties; attr; attr = attr->next) {
+    for (xmlAttr *attr = node->properties; attr; attr = attr->next) {
         xmlChar *text = xmlNodeListGetString(node->doc, attr->children, 1);
         if (text) {
             cstring_t key = (sc2_contains_i((char const *)node->name, "texture") &&
@@ -961,13 +961,13 @@ static void sc2_parse_terrain_node(xmlNodePtr node) {
     if (sc2_xml_content(node, value, sizeof(value)) && sc2_has_nonspace(value)) {
         sc2_parse_terrain_value((char const *)node->name, value);
     }
-    for (xmlNodePtr child = node->children; child; child = child->next) {
+    for (xmlNode *child = node->children; child; child = child->next) {
         sc2_parse_terrain_node(child);
     }
 }
 
 static void sc2_parse_terrain(sc2MapSource_t *source) {
-    xmlDocPtr doc = sc2_read_xml(source, "t3Terrain.xml");
+    xmlDoc *doc = sc2_read_xml(source, "t3Terrain.xml");
     if (!doc) doc = sc2_read_xml(source, "t3Terrain");
     if (!doc) return;
     sc2_parse_terrain_node(xmlDocGetRootElement(doc));
@@ -975,7 +975,7 @@ static void sc2_parse_terrain(sc2MapSource_t *source) {
 }
 
 static void sc2_parse_terrain_data(sc2MapSource_t *source) {
-    xmlDocPtr doc = sc2_read_xml(source, "Base.SC2Data/GameData/TerrainData.xml");
+    xmlDoc *doc = sc2_read_xml(source, "Base.SC2Data/GameData/TerrainData.xml");
     if (!doc) doc = sc2_read_xml(source, "Base.SC2Data\\GameData\\TerrainData.xml");
     if (!doc) return;
     sc2_parse_terrain_data_node(xmlDocGetRootElement(doc), NULL);
@@ -983,7 +983,7 @@ static void sc2_parse_terrain_data(sc2MapSource_t *source) {
 }
 
 static void sc2_parse_terrain_data_catalog_file(cstring_t root_name) {
-    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\TerrainData.xml");
+    xmlDoc *doc = sc2_read_catalog_xml(root_name, "GameData\\TerrainData.xml");
     if (!doc) return;
     sc2_parse_terrain_data_node(xmlDocGetRootElement(doc), NULL);
     xmlFreeDoc(doc);
@@ -996,7 +996,7 @@ static void sc2_parse_terrain_data_catalogs(void) {
 }
 
 static void sc2_parse_light_data(sc2MapSource_t *source) {
-    xmlDocPtr doc = sc2_read_xml(source, "Base.SC2Data/GameData/LightData.xml");
+    xmlDoc *doc = sc2_read_xml(source, "Base.SC2Data/GameData/LightData.xml");
     if (!doc) doc = sc2_read_xml(source, "Base.SC2Data\\GameData\\LightData.xml");
     if (!doc) return;
     sc2_parse_light_data_node(xmlDocGetRootElement(doc), NULL, -1);
@@ -1004,7 +1004,7 @@ static void sc2_parse_light_data(sc2MapSource_t *source) {
 }
 
 static void sc2_parse_light_data_catalog_file(cstring_t root_name) {
-    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\LightData.xml");
+    xmlDoc *doc = sc2_read_catalog_xml(root_name, "GameData\\LightData.xml");
     if (!doc) return;
     sc2_parse_light_data_node(xmlDocGetRootElement(doc), NULL, -1);
     xmlFreeDoc(doc);
@@ -1115,7 +1115,7 @@ static bool sc2_parse_xml_field(void *base, sc2XmlField_t const *fields, uint32_
 
 /* Catalog scalar children share one DDX-style decoder; nested productions stay with their owning grammar. */
 static bool sc2_parse_xml_child_field(void *base, sc2XmlField_t const *fields, uint32_t num_fields,
-                                      xmlNodePtr node, cstring_t attr_name) {
+                                      xmlNode *node, cstring_t attr_name) {
     char value[256];
 
     if (!node || node->type != XML_ELEMENT_NODE || !sc2_xml_attr(node, attr_name, value, sizeof(value))) return false;
@@ -1159,7 +1159,7 @@ static struct {
     { "ObjectCamera", SC2_OBJECT_CAMERA, true }, { "Camera", SC2_OBJECT_CAMERA, false },
 };
 
-static bool sc2_object_type(xmlNodePtr node, sc2ObjectType_t *type) {
+static bool sc2_object_type(xmlNode *node, sc2ObjectType_t *type) {
     cstring_t name = (char const *)node->name;
 
     FOR_LOOP(i, SC2_ARRAY_LEN(sc2_object_types)) {
@@ -1172,7 +1172,7 @@ static bool sc2_object_type(xmlNodePtr node, sc2ObjectType_t *type) {
     return false;
 }
 
-static void sc2_object_flag(sc2MapObject_t *object, xmlNodePtr node) {
+static void sc2_object_flag(sc2MapObject_t *object, xmlNode *node) {
     char index[64];
     char value[64];
 
@@ -1190,7 +1190,7 @@ static void sc2_object_flag(sc2MapObject_t *object, xmlNodePtr node) {
     }
 }
 
-static void sc2_parse_object_node(xmlNodePtr node) {
+static void sc2_parse_object_node(xmlNode *node) {
     sc2MapObject_t object;
     bool has_position = false;
     sc2ObjectType_t type;
@@ -1198,7 +1198,7 @@ static void sc2_parse_object_node(xmlNodePtr node) {
 
     if (!node || node->type != XML_ELEMENT_NODE) return;
     if (!sc2_object_type(node, &type)) {
-        for (xmlNodePtr child = node->children; child; child = child->next)
+        for (xmlNode *child = node->children; child; child = child->next)
             sc2_parse_object_node(child);
         return;
     }
@@ -1206,14 +1206,14 @@ static void sc2_parse_object_node(xmlNodePtr node) {
     object.scale = 1.0f;
     object.type = type;
 
-    for (xmlAttrPtr attr = node->properties; attr; attr = attr->next) {
+    for (xmlAttr *attr = node->properties; attr; attr = attr->next) {
         xmlChar *text = xmlNodeListGetString(node->doc, attr->children, 1);
         if (text) {
             sc2_parse_object_fields(&object, type, (char const *)attr->name, (char const *)text, &has_position);
             xmlFree(text);
         }
     }
-    for (xmlNodePtr child = node->children; child; child = child->next) {
+    for (xmlNode *child = node->children; child; child = child->next) {
         char index[64];
         if (child->type != XML_ELEMENT_NODE)
             continue;
@@ -1244,7 +1244,7 @@ static void sc2_parse_object_node(xmlNodePtr node) {
 }
 
 static void sc2_parse_objects(sc2MapSource_t *source) {
-    xmlDocPtr doc = sc2_read_xml(source, "Objects");
+    xmlDoc *doc = sc2_read_xml(source, "Objects");
     if (!doc) doc = sc2_read_xml(source, "Objects.xml");
     if (!doc) return;
     sc2_parse_object_node(xmlDocGetRootElement(doc));
@@ -1698,53 +1698,53 @@ static sc2XmlField_t const sc2_catalog_tile_fields[] = {
     SC2_STRUCT_XML_STRING_FIELD(sc2CatalogTile_t, "Material", model),
 };
 
-static void sc2_parse_model_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
-    xmlNodePtr root = xmlDocGetRootElement(doc);
-    for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
+static void sc2_parse_model_catalog_doc(sc2Catalog_t *catalog, xmlDoc *doc) {
+    xmlNode *root = xmlDocGetRootElement(doc);
+    for (xmlNode *node = root ? root->children : NULL; node; node = node->next) {
         sc2CatalogModel_t model = { .variants = -1 };
         if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CModel")) continue;
         if (!sc2_xml_attr(node, "id", model.id, sizeof(model.id))) continue;
         sc2_xml_attr(node, "parent", model.parent, sizeof(model.parent));
         sc2_xml_attr(node, "Race", model.race, sizeof(model.race));
-        for (xmlNodePtr child = node->children; child; child = child->next)
+        for (xmlNode *child = node->children; child; child = child->next)
             sc2_parse_xml_child_field(&model, sc2_catalog_model_fields, SC2_ARRAY_LEN(sc2_catalog_model_fields), child, "value");
         sc2_catalog_add_model(catalog, &model);
     }
 }
 
-static void sc2_parse_sound_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
-    xmlNodePtr root = xmlDocGetRootElement(doc);
-    for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
+static void sc2_parse_sound_catalog_doc(sc2Catalog_t *catalog, xmlDoc *doc) {
+    xmlNode *root = xmlDocGetRootElement(doc);
+    for (xmlNode *node = root ? root->children : NULL; node; node = node->next) {
         sc2CatalogSound_t sound = {0};
         if (node->type != XML_ELEMENT_NODE || !sc2_streqi((char const *)node->name, "CSound")) continue;
         if (!sc2_xml_attr(node, "id", sound.id, sizeof(sound.id))) continue;
         sc2_xml_attr(node, "parent", sound.parent, sizeof(sound.parent));
-        for (xmlNodePtr child = node->children; child; child = child->next)
+        for (xmlNode *child = node->children; child; child = child->next)
             sc2_parse_xml_child_field(&sound, sc2_catalog_sound_fields, SC2_ARRAY_LEN(sc2_catalog_sound_fields), child, "File");
         sc2_catalog_add_sound(catalog, &sound);
     }
 }
 
 static void sc2_parse_model_catalog_file(sc2Catalog_t *catalog, cstring_t root_name) {
-    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\ModelData.xml");
+    xmlDoc *doc = sc2_read_catalog_xml(root_name, "GameData\\ModelData.xml");
 
     sc2_parse_model_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
 static void sc2_parse_model_catalog_source(sc2Catalog_t *catalog, sc2MapSource_t *source) {
-    xmlDocPtr doc = sc2_read_map_catalog_xml(source, "GameData\\ModelData.xml");
+    xmlDoc *doc = sc2_read_map_catalog_xml(source, "GameData\\ModelData.xml");
 
     sc2_parse_model_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
-static void sc2_parse_actor_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
-    xmlNodePtr root;
+static void sc2_parse_actor_catalog_doc(sc2Catalog_t *catalog, xmlDoc *doc) {
+    xmlNode *root;
 
     if (!doc) return;
     root = xmlDocGetRootElement(doc);
-    for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
+    for (xmlNode *node = root ? root->children : NULL; node; node = node->next) {
         char id[64];
         char unit_name[64] = "";
         sc2CatalogActor_t actor = {0};
@@ -1755,7 +1755,7 @@ static void sc2_parse_actor_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
                      sc2_contains_i((char const *)node->name, "CActorDoodad");
         if (!actor_node || !sc2_xml_attr(node, "id", id, sizeof(id))) continue;
         sc2_xml_attr(node, "unitName", unit_name, sizeof(unit_name));
-        for (xmlNodePtr child = node->children; child; child = child->next)
+        for (xmlNode *child = node->children; child; child = child->next)
             sc2_parse_xml_child_field(&actor, sc2_catalog_actor_fields, SC2_ARRAY_LEN(sc2_catalog_actor_fields), child, "value");
         if (!actor.model[0]) snprintf(actor.model, sizeof(actor.model), "%s", id);
         sc2_catalog_add_actor(catalog, id, actor.model, actor.footprint);
@@ -1764,25 +1764,25 @@ static void sc2_parse_actor_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
 }
 
 static void sc2_parse_actor_catalog_file(sc2Catalog_t *catalog, cstring_t root_name) {
-    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\ActorData.xml");
+    xmlDoc *doc = sc2_read_catalog_xml(root_name, "GameData\\ActorData.xml");
 
     sc2_parse_actor_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
 static void sc2_parse_actor_catalog_source(sc2Catalog_t *catalog, sc2MapSource_t *source) {
-    xmlDocPtr doc = sc2_read_map_catalog_xml(source, "GameData\\ActorData.xml");
+    xmlDoc *doc = sc2_read_map_catalog_xml(source, "GameData\\ActorData.xml");
 
     sc2_parse_actor_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
-static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
-    xmlNodePtr root;
+static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDoc *doc) {
+    xmlNode *root;
 
     if (!doc) return;
     root = xmlDocGetRootElement(doc);
-    for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
+    for (xmlNode *node = root ? root->children : NULL; node; node = node->next) {
         char id[64];
         sc2CatalogUnit_t unit = {0};
         bool has_radius = false, has_height = false;
@@ -1790,7 +1790,7 @@ static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
         if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CUnit"))
             continue;
         if (!sc2_xml_attr(node, "id", id, sizeof(id))) continue;
-        for (xmlNodePtr child = node->children; child; child = child->next) {
+        for (xmlNode *child = node->children; child; child = child->next) {
             char value[64];
 
             if (sc2_parse_xml_child_field(&unit, sc2_catalog_unit_fields, SC2_ARRAY_LEN(sc2_catalog_unit_fields), child, "value")) {
@@ -1813,25 +1813,25 @@ static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
 }
 
 static void sc2_parse_unit_catalog_file(sc2Catalog_t *catalog, cstring_t root_name) {
-    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\UnitData.xml");
+    xmlDoc *doc = sc2_read_catalog_xml(root_name, "GameData\\UnitData.xml");
 
     sc2_parse_unit_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
 static void sc2_parse_unit_catalog_source(sc2Catalog_t *catalog, sc2MapSource_t *source) {
-    xmlDocPtr doc = sc2_read_map_catalog_xml(source, "GameData\\UnitData.xml");
+    xmlDoc *doc = sc2_read_map_catalog_xml(source, "GameData\\UnitData.xml");
 
     sc2_parse_unit_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
-static void sc2_parse_footprint_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
-    xmlNodePtr root;
+static void sc2_parse_footprint_catalog_doc(sc2Catalog_t *catalog, xmlDoc *doc) {
+    xmlNode *root;
 
     if (!doc) return;
     root = xmlDocGetRootElement(doc);
-    for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
+    for (xmlNode *node = root ? root->children : NULL; node; node = node->next) {
         char id[64];
         float width = 0.0f;
         float height = 0.0f;
@@ -1840,7 +1840,7 @@ static void sc2_parse_footprint_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc
         if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CFootprint"))
             continue;
         if (!sc2_xml_attr(node, "id", id, sizeof(id))) continue;
-        for (xmlNodePtr child = node->children; child; child = child->next) {
+        for (xmlNode *child = node->children; child; child = child->next) {
             char value[64];
             float child_width;
             float child_height;
@@ -1863,7 +1863,7 @@ static void sc2_parse_footprint_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc
                     sc2_xml_attr(child, "radius", value, sizeof(value))) {
                     sscanf(value, "%f", &radius);
                 }
-                for (xmlNodePtr shape = child->children; shape; shape = shape->next) {
+                for (xmlNode *shape = child->children; shape; shape = shape->next) {
                     if (shape->type == XML_ELEMENT_NODE &&
                         sc2_streqi((char const *)shape->name, "Radius") &&
                         sc2_xml_attr(shape, "value", value, sizeof(value))) {
@@ -1877,108 +1877,108 @@ static void sc2_parse_footprint_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc
 }
 
 static void sc2_parse_footprint_catalog_file(sc2Catalog_t *catalog, cstring_t root_name) {
-    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\FootprintData.xml");
+    xmlDoc *doc = sc2_read_catalog_xml(root_name, "GameData\\FootprintData.xml");
 
     sc2_parse_footprint_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
 static void sc2_parse_footprint_catalog_source(sc2Catalog_t *catalog, sc2MapSource_t *source) {
-    xmlDocPtr doc = sc2_read_map_catalog_xml(source, "GameData\\FootprintData.xml");
+    xmlDoc *doc = sc2_read_map_catalog_xml(source, "GameData\\FootprintData.xml");
 
     sc2_parse_footprint_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
-static void sc2_parse_terrain_tex_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
-    xmlNodePtr root;
+static void sc2_parse_terrain_tex_catalog_doc(sc2Catalog_t *catalog, xmlDoc *doc) {
+    xmlNode *root;
 
     if (!doc) return;
     root = xmlDocGetRootElement(doc);
-    for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
+    for (xmlNode *node = root ? root->children : NULL; node; node = node->next) {
         char id[64];
         sc2CatalogTerrainTex_t tex = {0};
 
         if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CTerrainTex"))
             continue;
         if (!sc2_xml_attr(node, "id", id, sizeof(id))) continue;
-        for (xmlNodePtr child = node->children; child; child = child->next)
+        for (xmlNode *child = node->children; child; child = child->next)
             sc2_parse_xml_child_field(&tex, sc2_catalog_terrain_tex_fields, SC2_ARRAY_LEN(sc2_catalog_terrain_tex_fields), child, "value");
         sc2_catalog_add_terrain_tex(catalog, id, tex.diffuse, tex.normal);
     }
 }
 
 static void sc2_parse_terrain_tex_catalog_file(sc2Catalog_t *catalog, cstring_t root_name) {
-    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\TerrainTexData.xml");
+    xmlDoc *doc = sc2_read_catalog_xml(root_name, "GameData\\TerrainTexData.xml");
 
     sc2_parse_terrain_tex_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
 static void sc2_parse_terrain_tex_catalog_source(sc2Catalog_t *catalog, sc2MapSource_t *source) {
-    xmlDocPtr doc = sc2_read_map_catalog_xml(source, "GameData\\TerrainTexData.xml");
+    xmlDoc *doc = sc2_read_map_catalog_xml(source, "GameData\\TerrainTexData.xml");
 
     sc2_parse_terrain_tex_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
-static void sc2_parse_cliff_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
-    xmlNodePtr root;
+static void sc2_parse_cliff_catalog_doc(sc2Catalog_t *catalog, xmlDoc *doc) {
+    xmlNode *root;
 
     if (!doc) return;
     root = xmlDocGetRootElement(doc);
-    for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
+    for (xmlNode *node = root ? root->children : NULL; node; node = node->next) {
         char id[64];
         sc2CatalogCliff_t cliff = {0};
 
         if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CCliff"))
             continue;
         if (!sc2_xml_attr(node, "id", id, sizeof(id))) continue;
-        for (xmlNodePtr child = node->children; child; child = child->next)
+        for (xmlNode *child = node->children; child; child = child->next)
             sc2_parse_xml_child_field(&cliff, sc2_catalog_cliff_fields, SC2_ARRAY_LEN(sc2_catalog_cliff_fields), child, "value");
         sc2_catalog_add_cliff(catalog, id, cliff.mesh);
     }
 }
 
 static void sc2_parse_cliff_catalog_file(sc2Catalog_t *catalog, cstring_t root_name) {
-    xmlDocPtr doc = sc2_read_catalog_xml(root_name, "GameData\\CliffData.xml");
+    xmlDoc *doc = sc2_read_catalog_xml(root_name, "GameData\\CliffData.xml");
 
     sc2_parse_cliff_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
 static void sc2_parse_cliff_catalog_source(sc2Catalog_t *catalog, sc2MapSource_t *source) {
-    xmlDocPtr doc = sc2_read_map_catalog_xml(source, "GameData\\CliffData.xml");
+    xmlDoc *doc = sc2_read_map_catalog_xml(source, "GameData\\CliffData.xml");
 
     sc2_parse_cliff_catalog_doc(catalog, doc);
     xmlFreeDoc(doc);
 }
 
-static void sc2_parse_tile_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
-    xmlNodePtr root;
+static void sc2_parse_tile_catalog_doc(sc2Catalog_t *catalog, xmlDoc *doc) {
+    xmlNode *root;
 
     if (!doc) return;
     root = xmlDocGetRootElement(doc);
-    for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
+    for (xmlNode *node = root ? root->children : NULL; node; node = node->next) {
         char id[64];
         sc2CatalogTile_t tile = {0};
 
         if (node->type != XML_ELEMENT_NODE || !sc2_streqi((char const *)node->name, "CTile")) continue;
         if (!sc2_xml_attr(node, "id", id, sizeof(id))) continue;
-        for (xmlNodePtr child = node->children; child; child = child->next)
+        for (xmlNode *child = node->children; child; child = child->next)
             sc2_parse_xml_child_field(&tile, sc2_catalog_tile_fields, SC2_ARRAY_LEN(sc2_catalog_tile_fields), child, "value");
         sc2_catalog_add_tile(catalog, id, tile.model);
     }
 }
 
 /* Indices use both compact attributes and child value tags; dependency layers merge by group|index. */
-static void sc2_parse_conversation_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
-    xmlNodePtr root = xmlDocGetRootElement(doc);
-    for (xmlNodePtr node = root ? root->children : NULL; node; node = node->next) {
+static void sc2_parse_conversation_doc(sc2Catalog_t *catalog, xmlDoc *doc) {
+    xmlNode *root = xmlDocGetRootElement(doc);
+    for (xmlNode *node = root ? root->children : NULL; node; node = node->next) {
         char group[64];
         if (node->type != XML_ELEMENT_NODE || strcmp((cstring_t)node->name, "CConversationState")) continue;
         if (!sc2_xml_attr(node, "id", group, sizeof(group))) continue;
-        for (xmlNodePtr idx = node->children; idx; idx = idx->next) {
+        for (xmlNode *idx = node->children; idx; idx = idx->next) {
             sc2Conversation_t row = {0};
             char key[256], val[256];
             if (idx->type != XML_ELEMENT_NODE || strcmp((cstring_t)idx->name, "Indices")) continue;
@@ -1987,7 +1987,7 @@ static void sc2_parse_conversation_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
                 if (sc2_xml_attr(idx, field, val, sizeof(val)))
                     sc2_parse_xml_field(&row, sc2_conv_fields, SC2_ARRAY_LEN(sc2_conv_fields), field, val);
             }
-            for (xmlNodePtr child = idx->children; child; child = child->next) {
+            for (xmlNode *child = idx->children; child; child = child->next) {
                 if (child->type != XML_ELEMENT_NODE) continue;
                 sc2_parse_xml_child_field(&row, sc2_conv_fields, SC2_ARRAY_LEN(sc2_conv_fields), child, "value");
             }
@@ -2005,7 +2005,7 @@ static void sc2_parse_conversation_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
                 if (*text) strlcpy((string_t)out + sc2_conv_fields[i].offset, text, sc2_conv_fields[i].size);
             }
             /* InfoText is a repeated keyed production; preserve every authored text ID, including empty values. */
-            for (xmlNodePtr child = idx->children; child; child = child->next) {
+            for (xmlNode *child = idx->children; child; child = child->next) {
                 sc2Convtext_t info = {0};
                 if (child->type != XML_ELEMENT_NODE || strcmp((cstring_t)child->name, "InfoText")) continue;
                 FOR_LOOP(i, SC2_ARRAY_LEN(sc2_conv_text_fields)) {
@@ -2013,7 +2013,7 @@ static void sc2_parse_conversation_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
                     if (sc2_xml_attr(child, field, val, sizeof(val)))
                         sc2_parse_xml_field(&info, sc2_conv_text_fields, SC2_ARRAY_LEN(sc2_conv_text_fields), field, val);
                 }
-                for (xmlNodePtr sub = child->children; sub; sub = sub->next)
+                for (xmlNode *sub = child->children; sub; sub = sub->next)
                     sc2_parse_xml_child_field(&info, sc2_conv_text_fields, SC2_ARRAY_LEN(sc2_conv_text_fields), sub, "value");
                 if (!info.id[0]) { fprintf(stderr, "SC2 conversation: missing InfoText ID in %s\n", key); continue; }
                 sc2Convtext_t *text = out->text;
@@ -2026,7 +2026,7 @@ static void sc2_parse_conversation_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
     }
 }
 
-static void sc2_parse_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
+static void sc2_parse_catalog_doc(sc2Catalog_t *catalog, xmlDoc *doc) {
     sc2_parse_unit_catalog_doc(catalog, doc);
     sc2_parse_model_catalog_doc(catalog, doc);
     sc2_parse_actor_catalog_doc(catalog, doc);
@@ -2041,9 +2041,9 @@ static void sc2_parse_catalog_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
 static void sc2_parse_catalog_layer_doc(sc2Catalog_t *catalog,
                                         sc2MapSource_t *source,
                                         cstring_t root_name,
-                                        xmlDocPtr doc,
+                                        xmlDoc *doc,
                                         uint32_t depth) {
-    xmlNodePtr root;
+    xmlNode *root;
 
     if (!catalog || !doc)
         return;
@@ -2057,10 +2057,10 @@ static void sc2_parse_catalog_layer_doc(sc2Catalog_t *catalog,
     if (!sc2_streqi((char const *)root->name, "Includes") ||
         depth >= SC2_MAX_CATALOG_INCLUDE_DEPTH)
         return;
-    for (xmlNodePtr node = root->children; node; node = node->next) {
+    for (xmlNode *node = root->children; node; node = node->next) {
         char include_path[MAX_PATHLEN];
         char path[MAX_PATHLEN];
-        xmlDocPtr include_doc;
+        xmlDoc *include_doc;
 
         if (node->type != XML_ELEMENT_NODE || !sc2_streqi((char const *)node->name, "Catalog"))
             continue;
@@ -2081,7 +2081,7 @@ static void sc2_parse_catalog_layer_fallback(sc2Catalog_t *catalog,
                                              sc2MapSource_t *source,
                                              cstring_t root_name) {
     for (uint32_t i = 0; sc2_catalog_known_files[i]; i++) {
-        xmlDocPtr doc = sc2_read_layer_catalog_xml(source, root_name, sc2_catalog_known_files[i]);
+        xmlDoc *doc = sc2_read_layer_catalog_xml(source, root_name, sc2_catalog_known_files[i]);
 
         sc2_parse_catalog_doc(catalog, doc);
         xmlFreeDoc(doc);
@@ -2091,7 +2091,7 @@ static void sc2_parse_catalog_layer_fallback(sc2Catalog_t *catalog,
 static void sc2_parse_catalog_layer(sc2Catalog_t *catalog,
                                     sc2MapSource_t *source,
                                     cstring_t root_name) {
-    xmlDocPtr manifest = sc2_read_layer_catalog_xml(source, root_name, "GameData.xml");
+    xmlDoc *manifest = sc2_read_layer_catalog_xml(source, root_name, "GameData.xml");
 
     if (manifest) {
         sc2_parse_catalog_layer_doc(catalog, source, root_name, manifest, 0);

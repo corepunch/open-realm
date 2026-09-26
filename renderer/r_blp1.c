@@ -7,9 +7,6 @@
 #undef STBI_WARCRAFT3_BLP_JPEG_RGBA_BANDS
 #undef STB_IMAGE_IMPLEMENTATION
 
-// Opaque type representing a BLP file
-typedef void* tBLPInfos;
-
 // A description of the BLP1 format can be found in the file doc/MagosBformat.txt
 struct tBLP1Header
 {
@@ -52,19 +49,6 @@ color32_t *blp1_convert_paletted_no_alpha(uint8_t* pSrc, struct tBLP1Infos* pInf
 color32_t *blp1_convert_paletted_separated_alpha(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height);
 color32_t *blp1_convert_paletted_alpha1(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height);
 color32_t *blp1_convert_paletted_alpha4(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height);
-
-//struct tInternalBLPInfos *blp_processFile(FILE* pFile);
-//void blp_release(tBLPInfos binfos);
-//
-//uint8_t blp_version(tBLPInfos binfos);
-//tBLPFormat blp_format(tBLPInfos binfos);
-//
-//uint32_t blp_width(tBLPInfos binfos, uint32_t mipLevel = 0);
-//uint32_t blp_height(tBLPInfos binfos, uint32_t mipLevel = 0);
-//uint32_t blp_nbMipLevels(tBLPInfos binfos);
-//
-//color32* blp_convert(FILE* pFile, tBLPInfos binfos, uint32_t mipLevel = 0);
-
 
 void blp1_release(struct tInternalBLPInfos* pBLPInfos) {
     if (pBLPInfos->header.type == 0)

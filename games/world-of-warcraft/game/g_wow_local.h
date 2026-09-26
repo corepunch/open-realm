@@ -270,7 +270,7 @@ typedef struct {
 typedef struct {
     uint32_t display_id;
     animation_t const *animation;
-    wowmove_t *currentmove;
+    wowMove_t *currentmove;
     vector2_t home;
     float yaw;
     float patrol_radius;
@@ -406,8 +406,8 @@ bool Wow_TerrainMoveWalkable(vector3_t const *from, vector3_t const *to, float t
 uint32_t Wow_EntityIndex(edict_t const *ent);
 wowEntityLocal_t *Wow_EntityLocal(edict_t const *ent);
 animation_t const *Wow_SetEntityAnimation(edict_t *ent, cstring_t animation_name);
-bool Wow_SetEntityMove(edict_t *ent, wowmove_t *move);
-bool Wow_SetEntityMoveFirstAnimation(edict_t *ent, wowmove_t *move, cstring_t const *animation_names);
+bool Wow_SetEntityMove(edict_t *ent, wowMove_t *move);
+bool Wow_SetEntityMoveFirstAnimation(edict_t *ent, wowMove_t *move, cstring_t const *animation_names);
 void Wow_AdvanceEntityFrame(edict_t *ent);
 edict_t *Wow_Spawn(void);
 void Wow_AIIdle(edict_t *ent);

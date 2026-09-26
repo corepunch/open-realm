@@ -14,9 +14,9 @@ from rename_ability_callbacks import rename_callbacks
 
 
 SOURCE = '''// holy_validate must stay in this comment.
-static const char *label = "holy_execute";
-static bool holy_validate(edict_t * ent, spellTarget_t st) { return true; }
-static void holy_execute(edict_t * ent, spellTarget_t st, ability_t const *ability) {}
+static char const *label = "holy_execute";
+static bool holy_validate(edict_t *ent, spellTarget_t st) { return true; }
+static void holy_execute(edict_t *ent, spellTarget_t st, ability_t const *ability) {}
 ability_t CAbilityHolyBolt = {
     .validate = holy_validate,
     .execute = holy_execute,
@@ -41,7 +41,7 @@ class RenameCallbacksTest(unittest.TestCase):
     def test_null_optional_validator(self):
         result = rename_callbacks(SOURCE.replace(".validate = holy_validate", ".validate = NULL"), "CAbilityHolyBolt")
         self.assertIn(".validate = NULL", result)
-        self.assertIn("static BOOL holy_validate(", result)
+        self.assertIn("static bool holy_validate(", result)
 
     def test_unsupported_or_unsafe_rename(self):
         for source, reason in [
@@ -60,7 +60,7 @@ class RenameCallbacksTest(unittest.TestCase):
             cmd = [sys.executable, str(ROOT / "tools/rename_ability_callbacks.py"), str(path), "--ability", "CAbilityHolyBolt"]
             preview = subprocess.run(cmd, capture_output=True, text=True)
             self.assertEqual(preview.returncode, 0, preview.stderr)
-            self.assertIn("+static BOOL CAbilityHolyBolt_Validate", preview.stdout)
+            self.assertIn("+static bool CAbilityHolyBolt_Validate", preview.stdout)
             self.assertEqual(path.read_bytes(), original)
             applied = subprocess.run(cmd + ["--write"], capture_output=True, text=True)
             self.assertEqual(applied.returncode, 0, applied.stderr)
