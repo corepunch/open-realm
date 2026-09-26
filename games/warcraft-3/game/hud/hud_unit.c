@@ -463,7 +463,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
             buttons[idx].number = ent->hero.skillpoints;
         }
     }
-    if (G_UnitIsStructure(ent) && G_UnitHasRally(ent)) {
+    if ((!S_AncientHasRootAbility(ent) || S_AncientIsRooted(ent)) && G_UnitHasRally(ent)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdRally, false, 0);
     }
     if (a->abilList) {
@@ -490,7 +490,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
             }
         }
     }
-    if (G_UnitIsStructure(ent) && G_UnitProfile(ent->class_id)->upgrade) {
+    if ((!S_AncientHasRootAbility(ent) || S_AncientIsRooted(ent)) && G_UnitProfile(ent->class_id)->upgrade) {
         PARSE_LIST(G_UnitProfile(ent->class_id)->upgrade, upgrade_to, parse_segment) {
             gameClient_t *client = G_GetPlayerClientByNumber(ent->s.player);
             uint32_t unit_id = 0;

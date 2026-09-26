@@ -566,19 +566,17 @@ bool G_WorkerCanBuild(edict_t *worker, uint32_t building_id) {
 }
 
 bool G_ProducerCanTrain(edict_t *producer, uint32_t unit_id) {
-    return producer && G_UnitIsStructure(producer) &&
-        (!S_AncientHasRootAbility(producer) || S_AncientIsRooted(producer)) && producer->data.UnitProfile &&
+    return producer && (!S_AncientHasRootAbility(producer) || S_AncientIsRooted(producer)) && producer->data.UnitProfile &&
         G_ProducerContains(producer->data.UnitProfile->trains, unit_id);
 }
 
 bool G_ProducerCanResearch(edict_t *producer, uint32_t upgrade_id) {
-    return producer && G_UnitIsStructure(producer) &&
-        (!S_AncientHasRootAbility(producer) || S_AncientIsRooted(producer)) && producer->data.UnitProfile &&
+    return producer && (!S_AncientHasRootAbility(producer) || S_AncientIsRooted(producer)) && producer->data.UnitProfile &&
         G_ProducerContains(producer->data.UnitProfile->researches, upgrade_id);
 }
 
 bool G_ProducerCanUpgrade(edict_t *producer, uint32_t unit_id) {
-    return producer && G_UnitIsStructure(producer) && producer->data.UnitProfile &&
+    return producer && producer->data.UnitProfile &&
         (!S_AncientHasRootAbility(producer) || S_AncientIsRooted(producer)) &&
         G_UnitIsBuilding(unit_id) &&
         G_ProducerContains(producer->data.UnitProfile->upgrade, unit_id);

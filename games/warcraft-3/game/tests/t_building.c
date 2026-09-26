@@ -1460,6 +1460,29 @@ TEST(wc3_building, mobile_builders_keep_race_build_menu_button) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_building, race_building_commands_use_producer_profile_state) {
+    uint32_t const producers[] = {
+        MAKEFOURCC('h','b','a','r'), MAKEFOURCC('o','b','a','r'),
+        MAKEFOURCC('u','z','i','g'), MAKEFOURCC('e','a','r','c')
+    };
+    uint32_t const producers_count = sizeof(producers) / sizeof(producers[0]);
+    UnitProfile_t profile = { .trains = "hfoo", .researches = "Rhme" };
+
+    setup_test_world();
+    FOR_LOOP(i, producers_count) {
+        edict_t *producer = alloc_test_unit(producers[i], 0.0f, 0.0f);
+        producer->data.UnitProfile = &profile;
+        /* A unit's authored producer profile remains the source for its
+         * command card. EF_BUILDING is the live structure presentation bit;
+         * it can change during Ancient mode transitions and must not erase
+         * unrelated race building commands. Ancient availability is gated
+         * separately by Root state. */
+        producer->s.flags &= ~EF_BUILDING;
+        T_ASSERT(G_ProducerCanTrain(producer, MAKEFOURCC('h','f','o','o')));
+        T_ASSERT(G_ProducerCanResearch(producer, MAKEFOURCC('R','h','m','e')));
+    }
+}
+
 TEST(wc3_building, upgraded_buildings_satisfy_predecessor_requirements) {
     static const char profile_slk[] =
         "C;Y1;X1;K\"id\"\n"
