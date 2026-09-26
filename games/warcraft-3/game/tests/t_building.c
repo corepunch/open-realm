@@ -725,6 +725,8 @@ TEST(wc3_building, research_state_uses_upgrade_cost_progression_and_player_lock)
 
     memset(client->tech, 0, sizeof(client->tech));
     producer->data.UnitProfile = &profile;
+    producer->s.flags |= EF_BUILDING;
+    producer->runtime.flags |= UNIT_BALANCE_BUILDING;
     producer->s.player = client->ps.number;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
@@ -800,6 +802,8 @@ TEST(wc3_building, queued_research_charges_locks_and_cancel_refunds) {
 
     memset(client->tech, 0, sizeof(client->tech));
     producer->data.UnitProfile = &profile;
+    producer->s.flags |= EF_BUILDING;
+    producer->runtime.flags |= UNIT_BALANCE_BUILDING;
     producer->s.player = client->ps.number;
     producer->stand = building_test_stand;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 500;
@@ -834,6 +838,8 @@ TEST(wc3_building, instant_build_cheat_completes_research_on_next_tick) {
 
     setup_test_world();
     producer = alloc_test_unit(MAKEFOURCC('h','b','l','a'), 0, 0);
+    producer->s.flags |= EF_BUILDING;
+    producer->runtime.flags |= UNIT_BALANCE_BUILDING;
     old = building_install_upgrade_data(&rows);
     memset(client->tech, 0, sizeof(client->tech));
     producer->data.UnitProfile = &profile;
@@ -869,6 +875,8 @@ TEST(wc3_building, research_events_publish_producer_and_rawcode_context) {
 
     setup_test_world();
     producer = alloc_test_unit(MAKEFOURCC('h','b','l','a'), 0, 0);
+    producer->s.flags |= EF_BUILDING;
+    producer->runtime.flags |= UNIT_BALANCE_BUILDING;
     old = building_install_upgrade_data(&rows);
     memset(client->tech, 0, sizeof(client->tech));
     producer->data.UnitProfile = &profile;
@@ -1423,6 +1431,33 @@ TEST(wc3_building, build_command_state_covers_available_hidden_unaffordable_and_
 
     worker_profile.builds = "hfoo";
     T_EQ(G_GetBuildCommandState(client, worker, barracks, reason, sizeof(reason)), BUILD_COMMAND_ABSENT);
+}
+
+TEST(wc3_building, mobile_builders_keep_race_build_menu_button) {
+    static char const profile_slk[] =
+        "ID;PWXL;N;EBB;Y5;X2\n"
+        "C;Y1;X1;K\"id\"\nC;Y1;X2;K\"Builds\"\n"
+        "C;Y2;X1;K\"hpea\"\nC;Y2;X2;K\"hbar\"\n"
+        "C;Y3;X1;K\"opeo\"\nC;Y3;X2;K\"obar\"\n"
+        "C;Y4;X1;K\"uaco\"\nC;Y4;X2;K\"uzig\"\n"
+        "C;Y5;X1;K\"ewsp\"\nC;Y5;X2;K\"earc\"\nE\n";
+    uint32_t const builders[] = {
+        MAKEFOURCC('h','p','e','a'), MAKEFOURCC('o','p','e','o'),
+        MAKEFOURCC('u','a','c','o'), MAKEFOURCC('e','w','s','p')
+    };
+    uint32_t const builders_count = sizeof(builders) / sizeof(builders[0]);
+    slkTestData_t *rows = parse_slk_string(profile_slk);
+    slkTestData_t *old = G_SetProfileRows(rows);
+
+    setup_test_world();
+    FOR_LOOP(i, builders_count) {
+        edict_t *worker = alloc_test_unit(builders[i], 0.0f, 0.0f);
+        T_ASSERT(!(worker->runtime.flags & UNIT_BALANCE_BUILDING));
+        T_ASSERT(G_UnitHasBuildMenu(worker));
+    }
+
+    G_SetProfileRows(old);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_building, upgraded_buildings_satisfy_predecessor_requirements) {

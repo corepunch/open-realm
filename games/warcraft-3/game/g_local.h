@@ -2541,6 +2541,7 @@ bool S_AncientAbilityAvailable(edict_t const *, ability_t const *);
 uint32_t S_AncientAttackMask(edict_t const *);
 bool G_UnitIsStructure(edict_t const *);
 TARGTYPE G_UnitTargetType(edict_t const *);
+bool G_UnitHasBuildMenu(edict_t const *);
 void S_ReleaseEntangledMineForTree(edict_t *);
 void S_UnitAbilityMoveLeave(edict_t *, abilityProc_t);
 bool S_UnitAbilityOrderAccepted(edict_t *, cstring_t);

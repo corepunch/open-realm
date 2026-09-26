@@ -281,6 +281,11 @@ static bool G_AncientAbilityVisible(edict_t const *unit, ability_t const *abilit
     return S_AncientAbilityAvailable(unit, ability);
 }
 
+bool G_UnitHasBuildMenu(edict_t const *unit) {
+    UnitProfile_t const *profile = unit ? G_UnitProfile(unit->class_id) : NULL;
+    return profile && profile->builds && *profile->builds;
+}
+
 static bool G_HasCommandRawcode(gameCommandButton_t const *buttons, uint8_t count, uint32_t code) {
     FOR_LOOP(i, count) {
         uint32_t button_code = 0;
@@ -448,7 +453,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     if (burrow_occupied) {
         G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, "Astd");
     }
-    if ((ent->runtime.flags & UNIT_BALANCE_BUILDING) && G_UnitProfile(ent->class_id)->builds) {
+    if (G_UnitHasBuildMenu(ent)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdBuild, false, 0);
     }
     if (a->heroAbilList) {
@@ -458,7 +463,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
             buttons[idx].number = ent->hero.skillpoints;
         }
     }
-    if ((ent->runtime.flags & UNIT_BALANCE_BUILDING) && G_UnitHasRally(ent)) {
+    if (G_UnitIsStructure(ent) && G_UnitHasRally(ent)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdRally, false, 0);
     }
     if (a->abilList) {
@@ -485,7 +490,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
             }
         }
     }
-    if ((ent->runtime.flags & UNIT_BALANCE_BUILDING) && G_UnitProfile(ent->class_id)->upgrade) {
+    if (G_UnitIsStructure(ent) && G_UnitProfile(ent->class_id)->upgrade) {
         PARSE_LIST(G_UnitProfile(ent->class_id)->upgrade, upgrade_to, parse_segment) {
             gameClient_t *client = G_GetPlayerClientByNumber(ent->s.player);
             uint32_t unit_id = 0;
