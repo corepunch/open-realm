@@ -20,10 +20,11 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_AVATAR: ${{ github.event.pull_request.user.avatar_url }}
         run: |
           if [ -z "$DISCORD_WEBHOOK_URL" ]; then echo "DISCORD_WEBHOOK_URL not set, skipping."; exit 0; fi
-          TITLE="$PR_AUTHOR #$PR_NUMBER: $PR_TITLE"; URL="$PR_URL"
-          jq -n --arg title "$TITLE" --arg url "$URL" \
-            '{embeds: [{title: ($title | .[0:256]), url: $url, color: 3066993}], allowed_mentions: {parse: []}}' \
+          TITLE="#$PR_NUMBER: $PR_TITLE"; URL="$PR_URL"
+          jq -n --arg author "$PR_AUTHOR" --arg avatar "$PR_AVATAR" --arg title "$TITLE" --arg url "$URL" \
+            '{embeds: [{author: {name: $author, icon_url: $avatar}, title: ($title | .[0:256]), url: $url, color: 3066993}], allowed_mentions: {parse: []}}' \
             | curl -sS --fail-with-body --connect-timeout 10 --max-time 30 \
                 -X POST -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL"
