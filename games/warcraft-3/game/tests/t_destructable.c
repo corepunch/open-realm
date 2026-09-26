@@ -22,6 +22,7 @@ edict_t *Waypoint_add(vec2_t const *spot);
 bool unit_issuetargetorder(edict_t *self, cstring_t order, edict_t *target);
 void T_Damage(edict_t *target, edict_t *attacker, int damage);
 bool run_test_jass(cstring_t src);
+bool G_TestFixOrc07BridgeRestoreScript(char *script);
 slkTestData_t *parse_slk_string(char const *slk_text);
 void free_slk_rows(slkTestData_t *rows);
 
@@ -1028,6 +1029,64 @@ TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
     jass_runevents(level.vm);
     T_ASSERT(!dest->inuse);
 
+    G_SetSLKRows("DestructableData", saved);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_destructable, orc07_gemstone_restores_named_bridge) {
+    static char const *slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"targType\"\n"
+        "C;Y1;X4;K\"HP\"\n"
+        "C;Y1;X5;K\"radius\"\n"
+        "C;Y1;X6;K\"walkable\"\n"
+        "C;Y2;X1;K\"DTsb\"\n"
+        "C;Y2;X2;K\"Doodads\\Test\\Test\"\n"
+        "C;Y2;X3;K\"bridge\"\n"
+        "C;Y2;X4;K2500\n"
+        "C;Y2;X5;K16\n"
+        "C;Y2;X6;K1\n"
+        "E\n";
+    char script[] =
+        "globals\n"
+        "  destructable gg_dest_DTsb_0099 = null\n"
+        "  destructable bj_lastCreatedDestructable = null\n"
+        "endglobals\n"
+        "function GetLastCreatedDestructable takes nothing returns destructable\n"
+        "  return bj_lastCreatedDestructable\n"
+        "endfunction\n"
+        "function Trig_GemstoneReturned_Actions takes nothing returns nothing\n"
+        "  call DestructableRestoreLife( gg_dest_DTsb_0099, GetDestructableMaxLife(GetLastCreatedDestructable()), true )\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set gg_dest_DTsb_0099 = CreateDestructable('DTsb', 64.0, 64.0, 0.0, 1.0, 0)\n"
+        "  call SetDestructableLife(gg_dest_DTsb_0099, 0.0)\n"
+        "  call Trig_GemstoneReturned_Actions()\n"
+        "  call BJassAssert(GetDestructableLife(gg_dest_DTsb_0099) > 0.0, \"Orc07 bridge remained dead after gemstone return\")\n"
+        "endfunction\n";
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *saved;
+    edict_t *bridge = NULL;
+
+    setup_test_world();
+    saved = G_SetSLKRows("DestructableData", rows);
+    T_ASSERT(G_TestFixOrc07BridgeRestoreScript(script));
+    T_ASSERT(strstr(script, "GetDestructableMaxLife(gg_dest_DTsb_0099") != NULL);
+    T_NULL(strstr(script, "GetDestructableMaxLife(GetLastCreatedDestructable())"));
+    T_ASSERT(run_test_jass(script));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].class_id == MAKEFOURCC('D', 'T', 's', 'b')) {
+            bridge = &g_edicts[i];
+            break;
+        }
+    }
+    T_NOT_NULL(bridge);
+    T_ASSERT(!bridge->destructable.dead);
+    T_ASSERT(G_DestructableIsWalkable(bridge));
+    T_FEQ(bridge->health.value, 2500.0f, 0.01f);
     G_SetSLKRows("DestructableData", saved);
     free_slk_rows(rows);
 }
