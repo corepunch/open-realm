@@ -10,7 +10,7 @@ import subprocess
 FRAMEWORKS = ('shared', 'jass', 'sheet', 'renderer', 'game', 'menu')
 
 
-def framework_plist(name, bundle_id):
+def framework_plist(name, bundle_id, minimum):
     return {
         'CFBundleIdentifier': bundle_id + '.' + name,
         'CFBundleExecutable': name,
@@ -21,7 +21,7 @@ def framework_plist(name, bundle_id):
         'CFBundlePackageType': 'FMWK',
         'CFBundleShortVersionString': '1.0',
         'CFBundleVersion': '1',
-        'MinimumOSVersion': '16.0',
+        'MinimumOSVersion': minimum,
     }
 
 
@@ -54,7 +54,7 @@ def main():
     for name in FRAMEWORKS:
         dest = frameworks_dir / (name + '.framework')
         shutil.copytree(args.frameworks / (name + '.framework'), dest)
-        (dest / 'Info.plist').write_bytes(plistlib.dumps(framework_plist(name, args.bundle_id)))
+        (dest / 'Info.plist').write_bytes(plistlib.dumps(framework_plist(name, args.bundle_id, args.minimum)))
     shutil.copytree(root / 'share', target / 'share')
     wc3_share = root / 'games/warcraft-3/share'
     if wc3_share.is_dir():

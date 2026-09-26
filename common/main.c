@@ -199,17 +199,14 @@ static void Sys_ShowStartupError(cstring_t message) {
 /* iPad sandbox: the Files-visible Documents directory is both the data import
  * drop point (copy War3.mpq et al via Files/AirDrop) and, lacking XDG, the
  * writable home. $HOME is the sandbox root, so Documents is $HOME/Documents. */
-static bool Sys_iOSDocumentsDir(string_t out, size_t out_size) {
 #if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+static bool Sys_iOSDocumentsDir(string_t out, size_t out_size) {
     cstring_t home = getenv("HOME");
     if (!home || !*home) return false;
     snprintf(out, out_size, "%s/Documents", home);
     return true;
-#else
-    (void)out; (void)out_size;
-    return false;
-#endif
 }
+#endif
 
 /* Anchor the read-only share/ tree at the executable's location so the binary
  * finds its configs regardless of the working directory. Probes three layouts:
