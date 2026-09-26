@@ -789,8 +789,8 @@ bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
         } while (0)
         if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
             PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
-                uint32_t code = 0;
-                if (strlen(token) == 4) { memcpy(&code, token, 4); UNIT_REMOVE_ABILITY(code); }
+                uint32_t token_code = 0;
+                if (strlen(token) == 4) { memcpy(&token_code, token, 4); UNIT_REMOVE_ABILITY(token_code); }
             }
         }
         for (int32_t i = ARRAY_COUNT(ent->abilities.added) - 1; i >= 0; i--)
@@ -957,8 +957,8 @@ bool S_UnitAbilityMessage(edict_t *ent, abilityMsg_t msg, abilityCall_t const *c
     } while (0)
     if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
         PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
-            uint32_t code = 0;
-            if (strlen(token) == 4) { memcpy(&code, token, 4); DISPATCH_UNIT_ABILITY(code); }
+            uint32_t token_code = 0;
+            if (strlen(token) == 4) { memcpy(&token_code, token, 4); DISPATCH_UNIT_ABILITY(token_code); }
         }
     }
     FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added))

@@ -977,7 +977,7 @@ extern void UI_ClearTheme(void);
 #define UINAME_FMT "\"%79[^\"]\""
 #define PATHSTR_FMT "\"%255[^\"]\""
 
-#define FDF_F(x, type) { #x,((uint8_t *)&((FRAMEDEF *)0)->x - (uint8_t *)NULL), FDF_Parse##type }
+#define FDF_F(x, type) { #x,offsetof(FRAMEDEF, x), FDF_Parse##type }
 
 cstring_t FrameType[] = {
     "",

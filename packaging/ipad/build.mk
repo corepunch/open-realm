@@ -58,7 +58,8 @@ SDL_LIB := $(SDL_PREFIX)/lib/libSDL2.a
 SDL_MAIN_LIB := $(SDL_PREFIX)/lib/libSDL2main.a
 SDL_MARKER := $(SDL_BUILD)/built-by-make
 
-# Engine flags. BASE is game-agnostic (shared/sheet, like desktop CFLAGS);
+# Engine flags. BASE is game-agnostic (shared/sheet); warnings match desktop
+# CFLAGS, and GLES_SILENCE_DEPRECATION mirrors macOS GL_SILENCE_DEPRECATION.
 # WC3 carries the game selector + GLES3 renderer (r_local.h selects
 # <OpenGLES/ES3/gl.h> under TARGET_OS_IPHONE, r_main.c requests an ES 3.0 SDL
 # GL context; epoxy is never used on Apple targets). FDF repeats the desktop
@@ -66,8 +67,8 @@ SDL_MARKER := $(SDL_BUILD)/built-by-make
 # eat_token, which an implementation TU would redefine as static).
 BASE_INCLUDES := -I. -Ishared -Ishared/types -I"$(SDL_PREFIX)/include"
 BASE_FLAGS := -isysroot "$(SDK_PATH)" -arch $(ARCH) $(MIN_FLAG) -O2 -g \
-	-Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers \
-	-MMD -MP $(BASE_INCLUDES)
+	-Wall -Wmisleading-indentation -fno-common \
+	-DGLES_SILENCE_DEPRECATION -MMD -MP $(BASE_INCLUDES)
 WC3_INCLUDES := -Icommon -Iclient -Iserver -Irenderer -Isound \
 	-Igames/warcraft-3 -Igames/warcraft-3/common -Igames/warcraft-3/game \
 	-Igames/warcraft-3/game/api -Igames/warcraft-3/game/skills \
