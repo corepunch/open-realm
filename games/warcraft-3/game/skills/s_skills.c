@@ -225,7 +225,7 @@ static ability_t abilitylist[] = {
     { "AEsh", CAbilityShadowStrike, AB_SPELL, SPELL_TARGET_UNIT },  /* Shadow Strike */
     { "AEsv", CAbilitySpiritOfVengeance, AB_SPELL },  /* Vengeance */
     { "Aeat", CAbilityEatTree, AB_SPELL, SPELL_TARGET_UNIT },  /* Eat Tree */
-    { "Ambt", CAbilityManaBattery, AB_SPELL, SPELL_TARGET_UNIT },  /* Replenish Mana and Life */
+    { "Ambt", CAbilityManaBattery, AB_SPELL | AB_AUTOCAST | AB_UPDATE, SPELL_TARGET_UNIT },  /* Replenish Mana and Life */
     { "Awha", CAbilityWispHarvest, AB_COMMAND },  /* Gather */
     { "Aent", CAbilityEntangle, AB_COMMAND },  /* Entangle Gold Mine */
     { "Aenc", CAbilityPassive, AB_PASSIVE },  /* Load */

@@ -78,6 +78,7 @@ static edict_t *make_harvest_tree(float x, float y, float life) {
 
 static UnitAbilities_t const harvest_abilities = { .abilList = "Ahar" };
 static UnitAbilities_t const ghoul_harvest_abilities = { .abilList = "Ahrl" };
+static UnitAbilities_t const wisp_harvest_abilities = { .abilList = "Awha" };
 static UnitAbilities_t const return_gold_lumber_abilities = { .abilList = "Argl" };
 static UnitAbilities_t const return_lumber_abilities = { .abilList = "Arlm" };
 
@@ -123,6 +124,20 @@ extern float HARVEST_COOLDOWN;
 extern float HARVEST_SEARCH_RANGE;
 extern void harvest_cooldown(edict_t *);
 bool harvest_menu_selecttarget(edict_t *clent, edict_t *target);
+
+static const char slk_wisp_harvest_test_data[] =
+    "ID;PWXL;N;E\n"
+    "C;Y1;X1;K\"alias\"\n"
+    "C;Y1;X2;K\"code\"\n"
+    "C;Y1;X3;K\"DataA1\"\n"
+    "C;Y1;X4;K\"Rng1\"\n"
+    "C;Y1;X5;K\"Dur1\"\n"
+    "C;Y2;X1;K\"Awha\"\n"
+    "C;Y2;X2;K\"Awha\"\n"
+    "C;Y2;X3;K5\n"
+    "C;Y2;X4;K500\n"
+    "C;Y2;X5;K1.0\n"
+    "E\n";
 
 static const char slk_ghoul_harvest_test_data[] =
     "ID;PWXL;N;E\n"
@@ -2258,6 +2273,75 @@ TEST(wc3_movement, lumber_dead_previous_tree_searches_near_old_tree) {
     T_EQ(worker->harvested_lumber, 0);
 }
 
+/* Wisps do not use the normal chop/carry/drop-off loop. Awha attaches to a
+ * tree, leaves the tree intact, and credits authored DataA lumber each Duration
+ * interval directly to the owning player. */
+TEST(wc3_movement, wisp_harvest_persists_and_credits_periodic_lumber) {
+    slkTestData_t *rows = parse_slk_string(slk_wisp_harvest_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    edict_t * wisp = make_moving_unit(0.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+    uint32_t const old_lumber = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
+
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    wisp->s.player = 0;
+    gi.LinkEntity(wisp);
+    gi.LinkEntity(tree);
+
+    T_ASSERT(unit_issuetargetorder(wisp, "smart", tree));
+    T_ASSERT(wisp->goalentity == tree);
+    wisp->currentmove->think(wisp); /* attach to tree */
+    T_ASSERT(wisp->inuse && !M_IsDead(wisp));
+    T_ASSERT(wisp->goalentity == tree);
+    T_STREQ(wisp->currentmove->animation, "stand lumber");
+    T_FEQ(tree->health.value, 100.0f, 0.001f);
+
+    wisp->wait = FRAMETIME / 2000.0f;
+    wisp->currentmove->think(wisp); /* first periodic credit */
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], old_lumber + 5);
+    T_ASSERT(wisp->inuse && !M_IsDead(wisp));
+    T_EQ(wisp->harvested_lumber, 0);
+    T_FEQ(tree->health.value, 100.0f, 0.001f);
+    T_FEQ(wisp->wait, 1.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* Warsmash reserves an actively harvested tree to one Wisp. If two Wisps were
+ * ordered to the same tree, the later arrival should acquire the nearest free
+ * live tree instead of stacking on the occupied target. */
+TEST(wc3_movement, wisp_harvest_retargets_when_clicked_tree_is_owned) {
+    slkTestData_t *rows = parse_slk_string(slk_wisp_harvest_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    edict_t * first = make_moving_unit(0.0f, 0.0f);
+    edict_t * second = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0.0f, 20.0f);
+    edict_t * tree1 = make_harvest_tree(20.0f, 0.0f, 100.0f);
+    edict_t * tree2 = make_harvest_tree(80.0f, 0.0f, 100.0f);
+
+    first->data.UnitAbilities = second->data.UnitAbilities = &wisp_harvest_abilities;
+    first->s.player = second->s.player = 0;
+    second->movetype = MOVETYPE_STEP;
+    second->stand = unit_stand;
+    second->collision = 0.0f;
+    second->health.value = second->health.max_value = 120.0f;
+    gi.LinkEntity(first); gi.LinkEntity(second); gi.LinkEntity(tree1); gi.LinkEntity(tree2);
+
+    wisp_harvest_start(first, tree1);
+    first->currentmove->think(first); /* tree1 becomes actively owned */
+    T_ASSERT(first->goalentity == tree1);
+    T_STREQ(first->currentmove->animation, "stand lumber");
+
+    wisp_harvest_start(second, tree1);
+    second->currentmove->think(second); /* collision-free reservation retarget */
+    T_ASSERT(second->goalentity == tree2);
+    T_ASSERT(second->goalentity != tree1);
+    T_ASSERT(second->inuse && !M_IsDead(second));
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 /* Smart-targeting a compatible drop-off while carrying lumber honors the
  * building the player clicked instead of silently choosing another nearer one. */
 TEST(wc3_movement, lumber_smart_click_returns_to_clicked_dropoff) {
@@ -3874,6 +3958,30 @@ TEST(wc3_movement, entangled_mine_round_robin_income_depletes_parent_and_unloads
 
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
+}
+
+
+/* A successful Entangle owns a caster-local hidden/permanent command state for
+ * exactly the live overlay generation.  The helper deliberately derives this
+ * from saved overlay state rather than the optional CasterArt effect. */
+TEST(wc3_movement, entangle_command_hidden_tracks_live_overlay_caster_generation) {
+    edict_t * caster, overlay, parent;
+    uint32_t const ability = MAKEFOURCC('A','e','n','t');
+
+    reset_entities();
+    setup_test_world();
+    caster = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 0.0f, 0.0f);
+    overlay = alloc_test_unit(MAKEFOURCC('e','g','o','l'), 64.0f, 0.0f);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 64.0f, 0.0f);
+    overlay->mineoverlay.parent = parent;
+    overlay->mineoverlay.parent_spawn_time = parent->spawn_time;
+    overlay->mineoverlay.caster = caster;
+    overlay->mineoverlay.caster_spawn_time = caster->spawn_time;
+    overlay->mineoverlay.entangle_ability = ability;
+
+    T_ASSERT(S_EntangleCommandHidden(caster, ability));
+    overlay->mineoverlay.caster_spawn_time++;
+    T_ASSERT(!S_EntangleCommandHidden(caster, ability));
 }
 
 /* Depletion must retire an Entangled Mine even when every Wisp has already left it. */

@@ -106,7 +106,7 @@ construction completes.
 `mineoverlay.parent` and `acolyte_mine.mine` are persistent edict references with `F_EDICT` fixups. Save format 21 adds those fields
 and the associated scalar timing/index/slot state.
 
-Haunted Mine ring `EffectArt` now follows the same deterministic slot positions/facing as Warsmash and is removed with the overlay; Acolyte wrong-target, wrong-owner, and full-ring failures use Warcraft `CommandStrings` error keys. Known remaining gaps are primarily Entangle cast/icon/effect presentation and broader retail visual verification. Wisp lumber remains separate from Entangled gold cargo.
+Haunted Mine ring `EffectArt` follows the same deterministic slot positions/facing as Warsmash and is removed with the overlay; Acolyte wrong-target, wrong-owner, and full-ring failures use Warcraft `CommandStrings` error keys. Entangle uses `Targetgoldmine`, retains the casting Tree's persistent caster art, and hides/marks Aent permanent only for the live overlay lifetime. Wisp lumber remains separate from Entangled gold cargo and now uses persistent direct DataA income, one-Wisp-per-tree reservation, TargetArt at DataC height, and authored looped harvest audio.
 
 ## Moon Well replenish
 
@@ -116,7 +116,7 @@ The manual `Ambt` replenish cast follows Warsmash's `CAbilityMoonWell` ordering 
 - `DataA` is well-mana spent per target mana point restored;
 - one cast restores missing life first, then spends the remaining Moon Well mana on missing target mana.
 
-The fields are ratios, not per-cast caps. A full-health friendly target with missing mana is therefore still a valid replenish target. Autocast selection, `DataE` night-only regeneration gating, and `DataD` water-height presentation remain separate gaps.
+The fields are ratios, not per-cast caps. A full-health friendly target with missing mana is therefore still a valid replenish target. Nearest-valid autocast honors `DataC` and authored Area/Range, `DataE` gates the well's natural mana regeneration to night, and persistent water `EffectArt` height follows `DataD * current_mana_fraction`.
 
 ## Undead defensive tower upgrades
 
@@ -134,13 +134,7 @@ Undead corpse mechanics now share authored raisability and lifetime state: `deat
 
 Undead worker conversion/destruction mechanics are also implemented at the broad-race level: `Auns` now channels authored `DataB` demolition damage, grants temporary `Buns` spell immunity, and returns the `DataA` resource pool progressively only for HP removed by Unsummon; `Asac`/`Alam` now queue the fixed Shade result at a Sacrificial Pit using the Shade's authored build time while hiding the Acolyte and preserving its food slot. See [Unsummon](unsummon.md) and [Undead Sacrifice](sacrifice.md). Remaining work in these two mechanics is presentation/command-error polish plus upgraded-building accumulated-cost parity for Unsummon.
 
-The following items remain outside this patch's high-confidence isolated scope:
-
-- Wisp periodic lumber harvesting and per-tree Wisp reservation;
-- full Ancient Root/Uproot classification, footprint, ability, attack, defense, and movement transitions;
-- Moon Well autocast, night-only mana regeneration, and water-level presentation. Manual replenish now restores life first and then mana using the authored DataB/DataA ratios.
-
-Existing placeholder handlers for those mechanics must not be treated as retail-compatible merely because their rawcode is recognized.
+The principal remaining Night Elf race-mechanics gap is full Ancient Root/Uproot classification, footprint, ability, attack, defense, and movement transitions. The current `Aroo` handler remains a placeholder `no_pathing`/movetype toggle; it must not be treated as retail-compatible merely because the rawcode is recognized. Root/Uproot needs one shared dynamic structure/attack-state seam so targeting, Repair, combat, pathing, and command availability change atomically.
 
 ## Verification
 
@@ -167,7 +161,8 @@ Runtime checks should cover at least:
 6. Cancelling/destroying an unfinished Ancient returns the Wisp and restores its Food Used.
 7. Human construction still pauses when its primary builder stops and still supports Power Build; Repair does not accelerate autonomous race construction.
 8. Save/load during each worker-owned construction state preserves the correct worker relationship and release/consumption behavior.
-9. Moon Well replenish heals before restoring mana and accepts a full-health friendly unit that is missing mana.
-10. Haunted construction hides the original mine; Acolytes occupy distinct visible ring slots, scale direct income, and free slots when retasked.
-11. Entangled Mine Wisps board through cargo, income follows occupied round-robin slots, and depletion ejects Wisps/restores the parent mine.
-12. Save/load during Haunted/Entangled mining preserves parent references, income timing/index state, and Acolyte slot ownership.
+9. Moon Well replenish heals before restoring mana; autocast honors DataC and nearest valid range, natural well regeneration is night-gated by DataE, and water height tracks remaining mana.
+10. Wisp lumber remains attached to one reserved tree, credits periodic direct lumber, retargets when its tree is unavailable, and retires TargetArt plus looped harvest sound when harvesting stops.
+11. Haunted construction hides the original mine; Acolytes occupy distinct visible ring slots, scale direct income, and free slots when retasked.
+12. Entangled Mine Wisps board through cargo, income follows occupied round-robin slots, depletion ejects Wisps/restores the parent mine, and the casting Tree's Entangle command remains hidden/permanent only for that overlay lifetime.
+13. Save/load during Haunted/Entangled mining preserves parent references, Entangle caster identity, income timing/index state, and Acolyte slot ownership.

@@ -338,6 +338,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
     }
     if (self->mineoverlay.parent || self->think == blight_mine_think) S_MineOverlayRelease(self);
     if (S_AcolyteHarvestIsActive(self)) S_AcolyteHarvestRelease(self);
+    S_MoonWellEffectsRelease(self);
     S_CargoReleaseUnit(self);
     if (self->training) G_ClearTrainingQueueFood(self);
     else { G_CancelHeroRevives(self); G_CancelTrainingQueue(self, true); }
@@ -733,6 +734,10 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
         }
         if (S_HarvestCanGold(self) && S_GoldMineCanHarvest(target)) {
             return harvest_gold_order(self, target);
+        }
+        if (S_WispHarvestCanLumber(self) && target->targtype == TARG_TREE) {
+            wisp_harvest_start(self, target);
+            return true;
         }
         if (S_HarvestCanLumber(self) && target->targtype == TARG_TREE) {
             harvest_start(self, target);

@@ -715,65 +715,239 @@ void harvest_start(edict_t *self, edict_t *target) {
     harvest_walk(self);
 }
 
-/* ---- Wisp harvest: walk to tree, gather lumber, wisp dies ---------------- */
-static float wisp_lumber_per_interval;
-static uint32_t wisp_interval_count;
+/* ---- Wisp harvest: reserve one tree and credit periodic lumber directly --- */
+typedef struct wispHarvestTuning_s {
+    float lumber_per_interval;
+    float art_attachment_height;
+    float search_range;
+    float interval;
+} wispHarvestTuning_t;
 
-static void ai_wisp_mine(edict_t *ent) {
-    unit_runwait(ent, NULL);
-    /* Wisp gathers lumber and is consumed. */
-    player_t *player = G_GetPlayerByNumber(ent->s.player);
-    if (player) {
-        G_CreditResourceIncome(player, ent, PLAYERSTATE_RESOURCE_LUMBER,
-                               (int32_t)wisp_lumber_per_interval);
-    }
-    G_SetHealth(ent, 0);
-    if (ent->die) {
-        ent->die(ent, ent);
+static umove_t wisp_harvest_mine;
+static umove_t wisp_harvest_walk;
+
+static uint32_t wisp_harvest_alias(edict_t const * ent) {
+    return harvest_actor_ability_alias(ent, MAKEFOURCC('A','w','h','a'));
+}
+
+bool S_WispHarvestCanLumber(edict_t const * ent) {
+    return wisp_harvest_alias(ent) != 0;
+}
+
+static wispHarvestTuning_t wisp_harvest_tuning(edict_t const * ent) {
+    wispHarvestTuning_t tuning = {
+        .lumber_per_interval = 0.0f,
+        .art_attachment_height = 0.0f,
+        .search_range = HARVEST_SEARCH_RANGE,
+        .interval = 1.0f,
+    };
+    uint32_t const alias = wisp_harvest_alias(ent);
+    AbilityData_t const *data;
+
+    if (!alias || !(data = G_AbilityData(alias)) || data->id != alias)
+        return tuning;
+    tuning.lumber_per_interval = MAX(0.0f, data->level[0].data[0].number); /* DataA */
+    tuning.art_attachment_height = data->level[0].data[2].number;         /* DataC */
+    if (data->level[0].range > 0.0f)
+        tuning.search_range = data->level[0].range;                       /* Cast Range */
+    if (data->level[0].dur > 0.0f)
+        tuning.interval = data->level[0].dur;                             /* Duration */
+    return tuning;
+}
+
+/* Wisp TargetArt is a persistent render component attached to the harvested
+ * tree.  Tag it with the worker+ability so order replacement can retire it
+ * without adding a serialized pointer to edict_t. */
+static bool wisp_harvest_effect_matches(edict_t const * effect, edict_t const * worker) {
+    uint32_t const base = MAKEFOURCC('A','w','h','a');
+    return effect && effect->inuse && effect->owner == worker && effect->summon_ability &&
+           (effect->summon_ability == base || G_AbilityCode(effect->summon_ability) == base) &&
+           (effect->s.flags & EF_NOT_SELECTABLE);
+}
+
+void S_WispHarvestRelease(edict_t * worker) {
+    if (!worker) return;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t * effect = globals.edicts + i;
+        if (!wisp_harvest_effect_matches(effect, worker)) continue;
+        /* Death art can outlive its owner, so sever serialized references before
+         * the Wisp/tree edict slots can be reused. */
+        effect->owner = NULL;
+        effect->summon_ability = 0;
+        G_DestroyEffect(effect);
     }
 }
 
-static umove_t wisp_harvest_mine = { "stand", ai_wisp_mine, NULL, CAbilityWispHarvest };
+static void wisp_harvest_ensure_effect(edict_t * worker, edict_t * tree) {
+    uint32_t const alias = wisp_harvest_alias(worker);
+    wispHarvestTuning_t const tuning = wisp_harvest_tuning(worker);
 
-static void ai_wisp_walktree(edict_t *ent) {
+    if (!worker || !tree || !alias) return;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t * effect = globals.edicts + i;
+        if (!wisp_harvest_effect_matches(effect, worker)) continue;
+        if (effect->goalentity == tree && effect->damage == tree->spawn_time) {
+            effect->wait = tuning.art_attachment_height;
+            return;
+        }
+        effect->owner = NULL;
+        effect->summon_ability = 0;
+        G_DestroyEffect(effect);
+    }
+
+    edict_t * effect = G_SpawnAbilityEffectTarget(alias, WC3_EFFECT_TARGET, 0, tree, NULL, false);
+    if (!effect) return;
+    effect->owner = worker;
+    effect->summon_ability = alias;
+    effect->wait = tuning.art_attachment_height;
+    effect->s.origin.z += tuning.art_attachment_height;
+    /* Warsmash starts Awha EffectSoundLooped with the tree attachment and
+     * stops it when harvesting ends.  The persistent effect entity already
+     * owns exactly that lifetime, so its ordinary looping-sound field gives
+     * us the same cleanup semantics without a Wisp-specific audio handle. */
+    effect->s.sound = (uint16_t)G_AbilityEffectSoundIndex(alias, true);
+    gi.LinkEntity(effect);
+}
+
+/* Warsmash tags a tree only while a Wisp is attached to it.  Derive that
+ * ownership from the active harvest state instead of adding another persistent
+ * edict pointer: a saved/restored Wisp already preserves currentmove+goalentity. */
+static bool wisp_tree_owned(edict_t const * tree, edict_t const * except) {
+    if (!tree) return false;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t const * other = globals.edicts + i;
+        if (other == except || !other->inuse || M_IsDead(other)) continue;
+        if (other->currentmove == &wisp_harvest_mine && other->goalentity == tree)
+            return true;
+    }
+    return false;
+}
+
+static edict_t * wisp_find_nearest_tree(edict_t * worker, edict_t const * origin) {
+    wispHarvestTuning_t const tuning = wisp_harvest_tuning(worker);
+    edict_t * best = NULL;
+    float best_distance = tuning.search_range > 0.0f ? tuning.search_range : FLT_MAX;
+
+    if (!worker || !origin) return NULL;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t * tree = globals.edicts + i;
+        float distance;
+        if (!tree->inuse || tree->targtype != TARG_TREE || M_IsDead(tree) ||
+            wisp_tree_owned(tree, worker)) continue;
+        distance = Vector2_distance(&origin->s.origin2, &tree->s.origin2);
+        if (distance < best_distance) {
+            best = tree;
+            best_distance = distance;
+        }
+    }
+    return best;
+}
+
+static void wisp_harvest_retarget_or_stop(edict_t * ent) {
+    edict_t * next = wisp_find_nearest_tree(ent, ent);
+    if (next) {
+        wisp_harvest_start(ent, next);
+    } else {
+        S_WispHarvestRelease(ent);
+        if (ent->stand) ent->stand(ent);
+    }
+}
+
+static void wisp_harvest_income(edict_t * ent) {
+    wispHarvestTuning_t const tuning = wisp_harvest_tuning(ent);
+    edict_t * tree = ent ? ent->goalentity : NULL;
+    player_t * player;
+
+    if (!ent || !tree || !tree->inuse || tree->targtype != TARG_TREE || M_IsDead(tree)) {
+        if (ent) wisp_harvest_retarget_or_stop(ent);
+        return;
+    }
+    player = G_GetPlayerByNumber(ent->s.player);
+    if (player && tuning.lumber_per_interval > 0.0f) {
+        G_CreditResourceIncome(player, ent, PLAYERSTATE_RESOURCE_LUMBER,
+                               (int32_t)tuning.lumber_per_interval);
+    }
+    ent->wait = tuning.interval;
+}
+
+static void ai_wisp_mine(edict_t * ent) {
+    edict_t * tree = ent ? ent->goalentity : NULL;
+
+    if (!tree || !tree->inuse || tree->targtype != TARG_TREE || M_IsDead(tree)) {
+        wisp_harvest_retarget_or_stop(ent);
+        return;
+    }
+    unit_runwait(ent, wisp_harvest_income);
+}
+
+static umove_t wisp_harvest_mine = { "stand lumber", ai_wisp_mine, NULL, CAbilityWispHarvest };
+
+static void ai_wisp_walktree(edict_t * ent) {
+    edict_t * tree = ent ? ent->goalentity : NULL;
+    wispHarvestTuning_t const tuning = wisp_harvest_tuning(ent);
+
+    if (!tree || !tree->inuse || tree->targtype != TARG_TREE || M_IsDead(tree)) {
+        wisp_harvest_retarget_or_stop(ent);
+        return;
+    }
+    /* Another Wisp may have reached a shared clicked tree first.  Warsmash
+     * retargets the later arrival rather than allowing multiple Wisps to own it. */
+    if (wisp_tree_owned(tree, ent)) {
+        wisp_harvest_retarget_or_stop(ent);
+        return;
+    }
     if (M_DistanceToGoal(ent) > HARVEST_RANGE) {
         unit_changeangle(ent);
         unit_moveindirection(ent);
-    } else {
-        unit_setmove(ent, &wisp_harvest_mine);
-        ent->wait = 1.0f;
+        return;
     }
+
+    /* The attached Wisp lives at the tree while harvesting and never damages
+     * it or carries lumber back to a drop-off. */
+    ent->s.origin2 = tree->s.origin2;
+    ent->s.origin.x = tree->s.origin.x;
+    ent->s.origin.y = tree->s.origin.y;
+    ent->s.origin.z = CM_GetHeightAtPoint(tree->s.origin2.x, tree->s.origin2.y);
+    gi.LinkEntity(ent);
+    unit_setmove(ent, &wisp_harvest_mine);
+    wisp_harvest_ensure_effect(ent, tree);
+    ent->wait = tuning.interval;
 }
 
 static umove_t wisp_harvest_walk = { "walk", ai_wisp_walktree, NULL, CAbilityWispHarvest };
 
-void wisp_harvest_start(edict_t *self, edict_t *target) {
+void wisp_harvest_start(edict_t * self, edict_t * target) {
+    if (!self || !target || target->targtype != TARG_TREE || M_IsDead(target) ||
+        !S_WispHarvestCanLumber(self)) return;
+    S_WispHarvestRelease(self);
     self->goalentity = target;
+    self->secondarygoal = NULL;
+    self->wait = 0.0f;
+    move_reset_progress(self);
     unit_setmove(self, &wisp_harvest_walk);
 }
 
-static bool wisp_harvest_selecttarget(edict_t *clent, edict_t *target) {
-    if (!target || target->targtype != TARG_TREE || M_IsDead(target)) {
+static bool wisp_harvest_selecttarget(edict_t * clent, edict_t * target) {
+    bool issued = false;
+    if (!clent || !clent->client || !target || target->targtype != TARG_TREE || M_IsDead(target))
         return false;
-    }
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
+        if (!S_WispHarvestCanLumber(ent)) continue;
         wisp_harvest_start(ent, target);
+        issued = true;
     }
-    return true;
+    return issued;
 }
 
-static void wisp_harvest_command(edict_t *clent) {
+static void wisp_harvest_command(edict_t * clent) {
+    if (!clent || !clent->client) return;
     UI_AddCancelButton(clent);
     clent->client->menu.on_entity_selected = wisp_harvest_selecttarget;
 }
 
 BZ_ABILITY_PROC(CAbilityWispHarvest) {
     switch (msg) {
-    case A_INIT:
-        if (!call || !call->classname) return false;
-        wisp_lumber_per_interval = G_AbilityDataName(call->classname)->level[0].data[0].number;
-        wisp_interval_count = (uint32_t)G_AbilityDataName(call->classname)->level[0].data[1].number;
-        return true;
+    case A_INIT: return true;
     case A_COMMAND: wisp_harvest_command(call && call->client ? call->client : ent); return true;
     default: return false;
     }

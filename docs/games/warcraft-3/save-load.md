@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 46, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 48, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -517,3 +517,10 @@ Version 46 adds unit-specific forced-visibility reference counts used by
 Soul Trap, plus the completed Soul Trap item links. Version 45 saves are
 rejected by the exact-version guard; the expanded `edict_t` size is checked
 separately before decoding the raw edict records.
+
+Version 48 adds the Entangled Gold Mine overlay's caster relationship.
+`mineoverlay.caster` uses the normal `F_EDICT` relocation path, while the saved
+caster spawn generation and Entangle ability alias let load restore the same
+per-unit hidden/permanent Aent lifecycle without trusting a recycled entity
+slot. Version 47 saves are rejected by the exact-version guard; the expanded
+`edict_t` size remains an independent layout check.

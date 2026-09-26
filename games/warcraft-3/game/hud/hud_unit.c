@@ -296,6 +296,9 @@ static void G_AddAbilityCommandButtons(edict_t *ent, gameCommandButton_t *button
 
     if (!S_AbilityHasCommand(ability) || strlen(code) != 4 || *count >= max_buttons) return;
     memcpy(&rawcode, code, sizeof(rawcode));
+    /* Entangle Gold Mine becomes hidden/permanent per unit while the resulting
+     * mine exists. Keep the authored command unavailable for that overlay lifetime. */
+    if (ability->proc == CAbilityEntangle && S_EntangleCommandHidden(ent, rawcode)) return;
     researched = G_UnitAbilityResearchAvailable(ent, rawcode);
     /* Stand Down only has meaning while a Burrow contains cargo. Resolve by
      * implementation pointer rather than rawcode so custom abilities derived

@@ -1439,6 +1439,12 @@ struct edict_s {
         uint32_t parent_spawn_time;
         uint32_t income_time;
         uint32_t active_interval_index;
+        /* Entangle Gold Mine owns caster-local ability presentation for exactly
+         * the overlay lifetime. Generation guards keep a recycled edict slot
+         * from inheriting the hidden/permanent Aent state after load/teardown. */
+        edict_t *caster;
+        uint32_t caster_spawn_time;
+        uint32_t entangle_ability;
     } mineoverlay;
     /* Acolyte harvesting is a visible fixed-slot relationship rather than the
      * conventional hidden-inside/carry/return Gold Mine state above. */
@@ -3029,9 +3035,15 @@ bool S_AcolyteHarvestOrder(edict_t *, edict_t *);
 void S_AcolyteHarvestRelease(edict_t *);
 bool S_AcolyteHarvestIsActive(edict_t const *);
 void S_EntangledMineTick(edict_t *);
+bool S_EntangleCommandHidden(edict_t const *, uint32_t);
 bool S_HarvestCanLumber(edict_t const *);
 bool S_HarvestCanGold(edict_t const *);
+bool S_WispHarvestCanLumber(edict_t const *);
+void S_WispHarvestRelease(edict_t *);
+bool S_MoonWellNaturalManaRegenAllowed(edict_t const *);
+void S_MoonWellEffectsRelease(edict_t *);
 void harvest_start(edict_t *, edict_t *);
+void wisp_harvest_start(edict_t *, edict_t *);
 void harvest_gold_start(edict_t *, edict_t *);
 bool harvest_gold_order(edict_t *, edict_t *);
 bool harvest_auto_start_gold(edict_t *);
