@@ -156,8 +156,10 @@ uint32_t SetDestructableAnimation(jass_t *j) {
     cstring_t animation = jass_checkstring(j, 2);
     if (G_IsDestructable(d) && animation) {
         G_SetUnitAnimation(d, animation);
-        d->animation_override = true;
-        if (d->animation) d->s.frame = d->animation->interval[0];
+        if (d->animation) {
+            d->animation_override = true;
+            d->s.frame = d->animation->interval[0];
+        }
     }
     return 0;
 }
