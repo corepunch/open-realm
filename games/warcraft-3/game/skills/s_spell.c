@@ -656,6 +656,11 @@ static bool spell_item_source_valid(edict_t const *caster, edict_t const *item, 
         !item->item.pending_use_removal && item->item.carrier == caster;
 }
 
+static edict_t const *spell_approach_move_goal(edict_t const *thinker) {
+    if (!thinker) return NULL;
+    return thinker->goalentity == thinker ? thinker : thinker->goalentity;
+}
+
 /* A committed new cast replaces deferred spell casts. Keep the approach that
  * reached range alive until its caller finishes, but retire any older ones. */
 static void spell_cancel_target_approaches(edict_t *caster, edict_t *except) {
@@ -664,9 +669,9 @@ static void spell_cancel_target_approaches(edict_t *caster, edict_t *except) {
     if (!caster || !caster->inuse) return;
     FILTER_EDICTS(thinker, thinker != except && thinker->inuse &&
                   thinker->owner == caster && thinker->think == S_SpellTargetApproachThink) {
-        if (caster->goalentity == thinker) {
+        if (move_is_active_order_walk(caster) && caster->goalentity == spell_approach_move_goal(thinker)) {
             caster->goalentity = NULL;
-            stop_move = move_is_active_order_walk(caster);
+            stop_move = true;
         }
         G_FreeEdict(thinker);
     }
@@ -733,7 +738,8 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
     ability_t const *spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
     edict_t *source_item = thinker ? thinker->spell_item : NULL;
-    bool const point_target = spell && spell->target_type == SPELL_TARGET_POINT;
+    bool const point_target = spell && (spell->target_type == SPELL_TARGET_POINT ||
+        (spell->target_type == SPELL_TARGET_UNIT_OR_POINT && target == thinker));
     uint32_t level;
     float range;
     spellTarget_t st;
@@ -741,7 +747,8 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
     if (!caster || !caster->inuse || M_IsDead(caster) || !target || !spell ||
         !spell_item_source_valid(caster, source_item, thinker->spell_item_spawn_time) ||
         (!point_target && spell->target_type != SPELL_TARGET_UNIT &&
-         spell->target_type != SPELL_TARGET_UNIT_OR_POINT)) {
+         spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
+        (spell->target_type == SPELL_TARGET_POINT && target != thinker)) {
         if (caster && caster->inuse && caster->goalentity == thinker) {
             caster->goalentity = NULL;
             unit_stand(caster);
@@ -813,8 +820,7 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
     edict_t *thinker, *goal;
 
     if (!caster || (!target && !point) || (target && point) ||
-        (caster->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(caster) ||
-        G_UnitStatusLevel(caster, MAKEFOURCC('B', 'E', 'e', 'r')))
+        !S_UnitCanTranslate(caster) || S_GoldMineWorkerIsInside(caster))
         return false;
 
     thinker = G_Spawn();
@@ -828,6 +834,9 @@ static bool spell_begin_target_approach(edict_t *caster, uint32_t code, edict_t 
     thinker->spell_item_spawn_time = source_item_spawn_time;
     thinker->think = S_SpellTargetApproachThink;
     thinker->freetime = G_Time();
+    /* Replace the old pending cast before installing a new Move order. A unit
+     * target pointer alone cannot distinguish two casts aimed at that same unit. */
+    spell_cancel_target_approaches(caster, thinker);
     order_move(caster, goal);
     if (caster->goalentity != goal || !move_is_active_order_walk(caster)) {
         G_FreeEdict(thinker);

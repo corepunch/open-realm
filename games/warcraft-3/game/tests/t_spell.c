@@ -2540,6 +2540,109 @@ TEST(wc3_spell, unit_target_click_accepts_out_of_range_target_and_casts_after_ap
     free_slk_rows(rows);
 }
 
+TEST(wc3_spell, unit_target_approach_replaces_same_target_cast) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X9\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AOcl\"\nC;Y2;X2;K\"AOcl\"\n"
+        "C;Y2;X3;K\"air,ground,enemy,neutral\"\nC;Y2;X4;K\"75\"\n"
+        "C;Y2;X5;K\"9\"\nC;Y2;X6;K\"100\"\nC;Y2;X7;K\"100\"\n"
+        "C;Y2;X8;K\"1\"\nC;Y2;X9;K\"0\"\n"
+        "C;Y3;X1;K\"AHtb\"\nC;Y3;X2;K\"AHtb\"\n"
+        "C;Y3;X3;K\"air,ground,enemy,neutral\"\nC;Y3;X4;K\"75\"\n"
+        "C;Y3;X5;K\"9\"\nC;Y3;X6;K\"100\"\nC;Y3;X7;K\"100\"\n"
+        "C;Y3;X8;K\"1\"\nC;Y3;X9;K\"55\"\nE\n";
+    slkTestData_t *rows, *old;
+    edict_t *caster, *target, *first, *latest;
+    uint32_t first_slot, latest_slot;
+
+    reset_entities(); setup_test_world();
+    rows = parse_slk_string(slk); old = G_SetSLKRows("AbilityData", rows);
+    caster = alloc_test_unit(MAKEFOURCC('O','f','a','r'), 0, 0);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 600, 0);
+    caster->s.player = 0; target->s.player = 1;
+    caster->svflags |= SVF_MONSTER; target->svflags |= SVF_MONSTER;
+    caster->targtype = target->targtype = TARG_GROUND;
+    caster->mana.value = caster->mana.max_value = 300;
+    target->health.value = target->health.max_value = 500;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    level.events.read = level.events.write = 0;
+    memset(level.events.queue, 0, sizeof(level.events.queue));
+    caster->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','O','c','l'), .level = 1);
+    caster->heroabilities[1] = MAKE(heroability_t, .code = MAKEFOURCC('A','H','t','b'), .level = 1);
+
+    first_slot = globals.num_edicts;
+    T_ASSERT(S_IssueUnitTargetSpell(caster, MAKEFOURCC('A','O','c','l'), target));
+    first = &globals.edicts[first_slot];
+    T_ASSERT(first->inuse && first->think == S_SpellTargetApproachThink);
+
+    latest_slot = globals.num_edicts;
+    T_ASSERT(S_IssueUnitTargetSpell(caster, MAKEFOURCC('A','H','t','b'), target));
+    latest = &globals.edicts[latest_slot];
+    T_ASSERT(!first->inuse);
+    T_ASSERT(latest->inuse && latest->think == S_SpellTargetApproachThink);
+    T_EQ(latest->class_id, MAKEFOURCC('A','H','t','b'));
+
+    caster->s.origin2.x = caster->s.origin.x = 500;
+    if (latest->think) latest->think(latest);
+    T_EQ((uint32_t)level.events.queue[0].value, MAKEFOURCC('A','H','t','b'));
+    T_ASSERT(!latest->inuse);
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, committed_cast_cancels_unit_target_approach_and_move) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y3;X9\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
+        "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
+        "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"DataC1\"\n"
+        "C;Y2;X1;K\"AOcl\"\nC;Y2;X2;K\"AOcl\"\n"
+        "C;Y2;X3;K\"air,ground,enemy,neutral\"\nC;Y2;X4;K\"75\"\n"
+        "C;Y2;X5;K\"9\"\nC;Y2;X6;K\"100\"\nC;Y2;X7;K\"100\"\n"
+        "C;Y2;X8;K\"1\"\nC;Y2;X9;K\"0\"\n"
+        "C;Y3;X1;K\"AHtb\"\nC;Y3;X2;K\"AHtb\"\n"
+        "C;Y3;X3;K\"air,ground,enemy,neutral\"\nC;Y3;X4;K\"75\"\n"
+        "C;Y3;X5;K\"9\"\nC;Y3;X6;K\"100\"\nC;Y3;X7;K\"100\"\n"
+        "C;Y3;X8;K\"1\"\nC;Y3;X9;K\"55\"\nE\n";
+    slkTestData_t *rows, *old;
+    edict_t *caster, *far_target, *near_target, *approach;
+    uint32_t approach_slot;
+
+    reset_entities(); setup_test_world();
+    rows = parse_slk_string(slk); old = G_SetSLKRows("AbilityData", rows);
+    caster = alloc_test_unit(MAKEFOURCC('O','f','a','r'), 0, 0);
+    far_target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 600, 0);
+    near_target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+    caster->s.player = 0; far_target->s.player = near_target->s.player = 1;
+    caster->svflags |= SVF_MONSTER;
+    far_target->svflags |= SVF_MONSTER; near_target->svflags |= SVF_MONSTER;
+    caster->targtype = far_target->targtype = near_target->targtype = TARG_GROUND;
+    caster->mana.value = caster->mana.max_value = 300;
+    far_target->health.value = far_target->health.max_value = 500;
+    near_target->health.value = near_target->health.max_value = 500;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    memset(level.alliances, 0, sizeof(level.alliances));
+    caster->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','O','c','l'), .level = 1);
+    caster->heroabilities[1] = MAKE(heroability_t, .code = MAKEFOURCC('A','H','t','b'), .level = 1);
+
+    approach_slot = globals.num_edicts;
+    T_ASSERT(S_IssueUnitTargetSpell(caster, MAKEFOURCC('A','O','c','l'), far_target));
+    approach = &globals.edicts[approach_slot];
+    T_ASSERT(approach->inuse && move_is_active_order_walk(caster));
+    T_ASSERT(S_IssueUnitTargetSpell(caster, MAKEFOURCC('A','H','t','b'), near_target));
+    T_ASSERT(!approach->inuse);
+    T_ASSERT(!move_is_active_order_walk(caster));
+    T_NULL(caster->goalentity);
+
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 
 TEST(wc3_spell, target_order_name_routes_chain_lightning_through_spell_pipeline) {
     const char slk[] =
