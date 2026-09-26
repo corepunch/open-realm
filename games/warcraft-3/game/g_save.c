@@ -64,10 +64,10 @@ typedef struct {
 #define F_METADATA_F_FUNCTION_LIST(...) 0, 0
 #define F_METADATA_F_CFUNCTION(...) 0, 0
 #define F_METADATA_F_MMOVE(...) 0, 0
-#define F(TYPE, x, kind, ...) { #x, FOFS(TYPE, x) - (handle_t)NULL, kind, sizeof(((struct TYPE *)NULL)->x), F_METADATA(kind, ##__VA_ARGS__), UINT32_MAX }
+#define F(TYPE, x, kind, ...) { #x, offsetof(struct TYPE, x), kind, sizeof(((struct TYPE *)NULL)->x), F_METADATA(kind, ##__VA_ARGS__), UINT32_MAX }
 #define TF(TYPE, x, kind, ...) { #x, offsetof(TYPE, x), kind, sizeof(((TYPE *)NULL)->x), F_METADATA(kind, ##__VA_ARGS__), UINT32_MAX }
-#define FC(TYPE, x, kind, count, schema, count_field) { #x, FOFS(TYPE, x) - (handle_t)NULL, kind, sizeof(((struct TYPE *)NULL)->x), count, (uintptr_t)(schema), FOFS(TYPE, count_field) - (handle_t)NULL }
-#define FR(TYPE, x, count, ring) { #x, FOFS(TYPE, x) - (handle_t)NULL, F_STRUCT_RING, sizeof(((struct TYPE *)NULL)->x), count, (uintptr_t)(ring), UINT32_MAX }
+#define FC(TYPE, x, kind, count, schema, count_field) { #x, offsetof(struct TYPE, x), kind, sizeof(((struct TYPE *)NULL)->x), count, (uintptr_t)(schema), offsetof(struct TYPE, count_field) }
+#define FR(TYPE, x, count, ring) { #x, offsetof(struct TYPE, x), F_STRUCT_RING, sizeof(((struct TYPE *)NULL)->x), count, (uintptr_t)(ring), UINT32_MAX }
 #define TFC(TYPE, x, kind, count, count_field) { #x, offsetof(TYPE, x), kind, sizeof(((TYPE *)NULL)->x), count, 0, offsetof(TYPE, count_field) }
 
 enum {

@@ -2,7 +2,7 @@
 
 #include "common.h"
 
-#define NETF(type, x) #x,((uint8_t *)&((type*)0)->x - (uint8_t *)NULL)
+#define NETF(type, x) #x,offsetof(type, x)
 #define MSG_FIELDBIT(field, fields) (1u << ((field) - (fields)))
 #define MSG_FIELD_COUNT(arr) ((int)(sizeof(arr) / sizeof((arr)[0]) - 1))
 
