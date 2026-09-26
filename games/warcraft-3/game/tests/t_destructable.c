@@ -1114,6 +1114,7 @@ TEST(wc3_destructable, orc07_gemstone_restores_named_bridge) {
         "  return bj_lastCreatedDestructable\n"
         "endfunction\n"
         "function Trig_GemstoneReturned_Actions takes nothing returns nothing\n"
+        /* Exact restore call from the extracted Orc07 war3map.j. */
         "  call DestructableRestoreLife( gg_dest_DTsb_0099, GetDestructableMaxLife(GetLastCreatedDestructable()), true )\n"
         "endfunction\n"
         "function main takes nothing returns nothing\n"
@@ -1122,6 +1123,16 @@ TEST(wc3_destructable, orc07_gemstone_restores_named_bridge) {
         "  call Trig_GemstoneReturned_Actions()\n"
         "  call BJassAssert(GetDestructableLife(gg_dest_DTsb_0099) > 0.0, \"Orc07 bridge remained dead after gemstone return\")\n"
         "endfunction\n";
+    char formatted_script[] =
+        "function Trig_GemstoneReturned_Actions takes nothing returns nothing\n"
+        "  call DestructableRestoreLife (\n"
+        "    gg_dest_DTsb_0099,\n"
+        "    GetDestructableMaxLife (\n"
+        "      GetLastCreatedDestructable ( )\n"
+        "    ), true )\n"
+        "endfunction\n";
+    char unrelated_script[] = "function Other_Actions takes nothing returns nothing\nendfunction\n";
+    char unchanged_script[sizeof(unrelated_script)];
     slkTestData_t *rows = parse_slk_string(slk);
     slkTestData_t *saved;
     edict_t *bridge = NULL;
@@ -1129,8 +1140,14 @@ TEST(wc3_destructable, orc07_gemstone_restores_named_bridge) {
     setup_test_world();
     saved = G_SetSLKRows("DestructableData", rows);
     T_ASSERT(G_TestFixOrc07BridgeRestoreScript(script));
+    T_ASSERT(G_TestFixOrc07BridgeRestoreScript(script));
     T_ASSERT(strstr(script, "GetDestructableMaxLife(gg_dest_DTsb_0099") != NULL);
     T_NULL(strstr(script, "GetDestructableMaxLife(GetLastCreatedDestructable())"));
+    T_ASSERT(G_TestFixOrc07BridgeRestoreScript(formatted_script));
+    T_ASSERT(strstr(formatted_script, "GetDestructableMaxLife (\n") != NULL);
+    memcpy(unchanged_script, unrelated_script, sizeof(unrelated_script));
+    T_ASSERT(!G_TestFixOrc07BridgeRestoreScript(unrelated_script));
+    T_STREQ(unrelated_script, unchanged_script);
     T_ASSERT(run_test_jass(script));
 
     FOR_LOOP(i, globals.num_edicts) {
