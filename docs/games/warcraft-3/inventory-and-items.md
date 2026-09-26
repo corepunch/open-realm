@@ -140,7 +140,7 @@ example, healing an already full-health unit) publish neither event and consume
 no charge. A successful charged-item use decrements a positive runtime charge
 count. Non-perishable items remain present at zero charges. A final perishable
 charge detaches the item from gameplay immediately but keeps its edict/handle
-alive until queued use-item events and any sleeping jass_t action carrying that
+alive until queued use-item events and any sleeping JASS action carrying that
 event context have finished; this keeps `GetManipulatedItem()` valid while the
 trigger responds to the use. The retained item is then retired automatically.
 
@@ -153,7 +153,7 @@ The same completion hook is used for point/no-target spell commands where the
 shared spell pipeline can report execution success.
 
 `SetItemDroppable` supplies a runtime override of authored `ItemData.droppable`.
-Player/manual drop paths honor that effective value. Explicit jass_t inventory
+Player/manual drop paths honor that effective value. Explicit JASS inventory
 manipulation can move an undroppable quest item deliberately. A missing
 ItemData row is logged and rejects dropping instead of silently treating the
 item as droppable. Drop-on-death remains a separate inventory policy, matching
@@ -179,7 +179,7 @@ world movement and unit think while trapped; status timers and construction or
 upgrade progress still use their normal paths. The shared `G_UnitIsWorldActive`
 check keeps trapped units out of selection, control, spell targeting, and
 region-touch processing. The target remains alive with its original health and
-jass_t handle.
+JASS handle.
 
 The carrier receives the `Asou` lifecycle ability. Its death releases every
 bound target at the carrier's death coordinates, removes the corresponding
@@ -202,9 +202,9 @@ rules. The reveal follows carrier movement and does not mark surrounding fog
 cells visible or explored. It ends when the relationship is removed.
 
 Final-charge item use must preserve the `GetManipulatedItem()` handle while
-jass_t handles `EVENT_PLAYER_UNIT_USE_ITEM`. `G_CompleteItemUse` detaches the
+JASS handles `EVENT_PLAYER_UNIT_USE_ITEM`. `G_CompleteItemUse` detaches the
 perishable `gsou` immediately but retains its edict while a use event or sleeping
-jass_t response references it. After the response finishes,
+JASS response references it. After the response finishes,
 `S_SoulTrapFinalizeConsumedItem` binds the map-created `soul` item to that
 specific trapped target (or creates one from the `soul` ItemData row when no
 script created it), then makes the filled item nondroppable. Each item and
@@ -218,7 +218,7 @@ The local War3local `Orc08.w3m` script confirms these integration points:
 - The ritual path removes the filled item and removes `Asou` from `udg_Grom`
   before moving or replacing Grom.
 - `Trig_Grom_Dead` calls `ReviveHeroLoc` with the Grom-pop rectangle center.
-  The jass_t native now delegates to `G_ReviveHero`, preserving the unit edict and
+  The JASS native now delegates to `G_ReviveHero`, preserving the unit edict and
   restoring its live Hero state at that location.
 
 The focused tests are `wc3_items.soul_gem*`,
