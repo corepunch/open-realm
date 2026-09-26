@@ -28,7 +28,7 @@ static struct {
 } input = { .focus = true };
 
 /* Commands share a typed controller contract; each game decides how its player can move. */
-static void CL_SendInput(inputCmd_t const * cmd) {
+static void CL_SendInput(inputCmd_t const *cmd) {
     MSG_WriteByte(&cls.netchan.message, clc_input);
     MSG_WriteInput(&cls.netchan.message, cmd);
 }
@@ -181,7 +181,7 @@ static void CL_SendOrderQueueReleaseOnShiftUp(int sym, SDL_Keymod mods) {
     CL_SendOrderQueueRelease();
 }
 
-static bool CL_TracePan(float x, float y, vector3_t * point) {
+static bool CL_TracePan(float x, float y, vector3_t *point) {
     return Cvar_Integer("cl_camera_pan_plane", 0)
         ? re.TraceCameraPlane(&cl.viewDef, x, y, point) : re.TraceLocation(&cl.viewDef, x, y, point);
 }
@@ -956,33 +956,33 @@ void CL_InitInput(void) {
 
 #ifdef BZ_TESTS
 #include "shared/test.h"
-void CL_ParseLayout(sizeBuf_t * msg);
+void CL_ParseLayout(sizeBuf_t *msg);
 static uint32_t pan_terrain, pan_plane;
-static bool CL_TestTerrain(viewDef_t const *view, float x, float y, vector3_t * point) {
+static bool CL_TestTerrain(viewDef_t const *view, float x, float y, vector3_t *point) {
     (void)view; (void)x; (void)y;
     pan_terrain++; *point = (vector3_t){ 1, 2, 3 }; return true;
 }
-static bool CL_TestPlane(viewDef_t const *view, float x, float y, vector3_t * point) {
+static bool CL_TestPlane(viewDef_t const *view, float x, float y, vector3_t *point) {
     (void)view; (void)x; (void)y;
     pan_plane++; *point = (vector3_t){ 4, 5, 6 }; return true;
 }
-static bool CL_TestSmartEntity(viewDef_t const *view, float x, float y, uint32_t * number) {
+static bool CL_TestSmartEntity(viewDef_t const *view, float x, float y, uint32_t *number) {
     (void)view; (void)x; (void)y; *number = 42; return true;
 }
-static bool CL_TestSelectEntity(viewDef_t const *view, float x, float y, uint32_t * number) {
+static bool CL_TestSelectEntity(viewDef_t const *view, float x, float y, uint32_t *number) {
     (void)view; (void)x; (void)y; *number = 7; return true;
 }
-static bool CL_TestSmartLocation(viewDef_t const *view, float x, float y, vector3_t * point) {
+static bool CL_TestSmartLocation(viewDef_t const *view, float x, float y, vector3_t *point) {
     (void)view; (void)x; (void)y; *point = (vector3_t){ 123, 456, 0 }; return true;
 }
-static bool CL_TestNoLocation(viewDef_t const *view, float x, float y, vector3_t * point) {
+static bool CL_TestNoLocation(viewDef_t const *view, float x, float y, vector3_t *point) {
     (void)view; (void)x; (void)y; (void)point; return false;
 }
-static bool CL_TestMinimap(float x, float y, vector2_t * point) {
+static bool CL_TestMinimap(float x, float y, vector2_t *point) {
     (void)y; *point = (vector2_t){ 300, 400 }; return x >= 0 && x <= 100 && y >= 0 && y <= 100;
 }
 static rect_t same_type_rect;
-static uint32_t CL_TestEntitiesInRect(viewDef_t const *view, rect_t const * rect, uint32_t max, uint32_t * array) {
+static uint32_t CL_TestEntitiesInRect(viewDef_t const *view, rect_t const *rect, uint32_t max, uint32_t *array) {
     (void)view;
     same_type_rect = *rect;
     T_ASSERT(max >= 3);
@@ -993,10 +993,10 @@ static bool CL_TestCameraUsesTerrainHeight(void) { return false; }
 static size2_t CL_TestWindowSize(void) { return (size2_t){ 1024, 768 }; }
 
 static int smart_trace_order;
-static bool CL_TestSmartEntityOrder(viewDef_t const *view, float x, float y, uint32_t * number) {
+static bool CL_TestSmartEntityOrder(viewDef_t const *view, float x, float y, uint32_t *number) {
     (void)view; (void)x; (void)y; smart_trace_order = 1; *number = 42; return true;
 }
-static bool CL_TestSmartLocationOrder(viewDef_t const *view, float x, float y, vector3_t * point) {
+static bool CL_TestSmartLocationOrder(viewDef_t const *view, float x, float y, vector3_t *point) {
     (void)view; (void)x; (void)y; T_ASSERT(smart_trace_order == 1); *point = (vector3_t){ 123, 456, 0 }; return true;
 }
 
@@ -1222,7 +1222,7 @@ TEST(client_input, smart_entity_trace_precedes_ground_trace) {
 /* A remote client owns its collision world; input tests cannot borrow a previous game-module fixture. */
 static void CL_TestWorldBounds(bool set) {
 #ifdef BZ_CLIENT_WORLD
-    extern void CM_SetupTestWorldBounds(box2_t const * bounds);
+    extern void CM_SetupTestWorldBounds(box2_t const *bounds);
     box2_t bounds = { .min = { 0, 0 }, .max = { 1024, 768 } };
     CM_SetupTestWorldBounds(set ? &bounds : NULL);
 #else
@@ -1329,7 +1329,7 @@ TEST(client_input, minimap_focus_and_release_are_selection_independent) {
 
 static uint32_t hover_trace_calls;
 static vector2_t hover_trace_point;
-static bool CL_TestHoverEntity(viewDef_t const *view, float x, float y, uint32_t * number) {
+static bool CL_TestHoverEntity(viewDef_t const *view, float x, float y, uint32_t *number) {
     (void)view; hover_trace_calls++; hover_trace_point = (vector2_t){ x, y }; *number = 7; return true;
 }
 

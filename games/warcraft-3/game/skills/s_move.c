@@ -53,17 +53,17 @@ typedef enum {
     MOVE_IGNORE_UNITS,
 } moveCollisionPolicy_t;
 
-static edict_t * trymove_self = NULL;
-static edict_t * trymove_blocker = NULL;  /* unit that rejected the last candidate (NULL = clear or terrain) */
-static edict_t * trymove_colliders[MAX_MOVE_COLLIDERS];
+static edict_t *trymove_self = NULL;
+static edict_t *trymove_blocker = NULL;  /* unit that rejected the last candidate (NULL = clear or terrain) */
+static edict_t *trymove_colliders[MAX_MOVE_COLLIDERS];
 
-static void unit_apply_heading(edict_t * self, vector2_t const * dir, moveAvoidPolicy_t policy);
-static bool move_fallback_steer(edict_t * self, moveAvoidPolicy_t policy);
-static bool move_displacement_steer(edict_t * self, moveAvoidPolicy_t policy);
+static void unit_apply_heading(edict_t *self, vector2_t const *dir, moveAvoidPolicy_t policy);
+static bool move_fallback_steer(edict_t *self, moveAvoidPolicy_t policy);
+static bool move_displacement_steer(edict_t *self, moveAvoidPolicy_t policy);
 
 /* Keep a failed exceptional route search from monopolizing the frame while
  * the same goal remains unreachable; order changes clear this state below. */
-static bool move_fallback_throttled(edict_t * self, vector2_t const * target, float radius) {
+static bool move_fallback_throttled(edict_t *self, vector2_t const *target, float radius) {
     if (self->movement.flow_fallback_state == MOVE_FALLBACK_APPLIED &&
         self->movement.flow_fallback_goal == self->goalentity) {
         self->movement.flow_unreachable = true;
@@ -85,7 +85,7 @@ static bool move_fallback_throttled(edict_t * self, vector2_t const * target, fl
 
 static bool move_has_active_construction(void) {
     FOR_LOOP(i, globals.num_edicts) {
-        edict_t * ent = &g_edicts[i];
+        edict_t *ent = &g_edicts[i];
         if (ent->inuse && !(ent->s.flags & EF_NOT_SELECTABLE) &&
             (ent->s.flags & EF_BUILDING) && ent->construction.active)
             return true;
@@ -104,13 +104,13 @@ static float angle_wrap(float a) {
  * the give-way helpers, which are declared below. */
 
 /* A unit is actively executing a ground move order (right-click move). */
-bool unit_is_walking(edict_t const * ent) {
+bool unit_is_walking(edict_t const *ent) {
     return ent->currentmove && ent->currentmove->proc == CAbilityMove;
 }
 
 /* Location orders own a legal ground endpoint; interaction orders route to an
  * entity centre and let their behavior-specific range decide arrival. */
-static bool unit_routes_to_location(edict_t const * ent) {
+static bool unit_routes_to_location(edict_t const *ent) {
     if (!ent->currentmove)
         return false;
     if (ent->currentmove->proc == CAbilityMove || ent->currentmove->proc == CAbilityPatrol)
@@ -123,7 +123,7 @@ static bool unit_routes_to_location(edict_t const * ent) {
  * stringing out (WC3); the cap is gated on the move state so it never leaks
  * into a later attack/harvest order that reuses this.  Using the *capped*
  * speed means members of one group compare equal (no give-way within a group). */
-static float unit_apply_earthquake_speed(edict_t const * unit, float speed) {
+static float unit_apply_earthquake_speed(edict_t const *unit, float speed) {
     float reduction = S_EarthquakeMoveReduction(unit);
     if (reduction <= 0.0f) return speed;
     /* Stock Earthquake cannot force a normally faster unit below 140, and it
@@ -131,7 +131,7 @@ static float unit_apply_earthquake_speed(edict_t const * unit, float speed) {
     return MIN(speed, MAX(EARTHQUAKE_MIN_MOVE_SPEED, speed * (1.0f - reduction)));
 }
 
-static float unit_current_speed(edict_t const * self) {
+static float unit_current_speed(edict_t const *self) {
     float speed = self->unitinfo.MoveSpeed > 0
         ? self->unitinfo.MoveSpeed
         : self->data.UnitBalance->speed;
@@ -142,7 +142,7 @@ static float unit_current_speed(edict_t const * self) {
     return speed;
 }
 
-float unit_movedistance(edict_t * self) {
+float unit_movedistance(edict_t *self) {
     return 10 * unit_current_speed(self) / FRAMETIME;
 }
 
@@ -155,11 +155,11 @@ float unit_movedistance(edict_t * self) {
  * immovable obstacles: walking into one never displaces it (the WC3 invariant
  * that the old post-move push solver violated). */
 
-static bool unit_is_flying(edict_t const * ent) {
+static bool unit_is_flying(edict_t const *ent) {
     return ent && (ent->aiflags & AI_FLYING) != 0;
 }
 
-uint8_t M_UnitStaticPathingFlags(edict_t const * ent) {
+uint8_t M_UnitStaticPathingFlags(edict_t const *ent) {
     return unit_is_flying(ent) ? CM_PATHING_UNFLYABLE : CM_PATHING_UNWALKABLE;
 }
 
@@ -167,7 +167,7 @@ uint8_t M_UnitStaticPathingFlags(edict_t const * ent) {
  * layer.  Excludes self, hollow entities, zero-collision entities (waypoints,
  * effects, missiles), and the opposite air/ground layer (flyers and ground
  * units pass through each other). */
-static bool filter_blockers(edict_t const * ent) {
+static bool filter_blockers(edict_t const *ent) {
     if (ent == trymove_self || IS_HOLLOW(ent) || ent->collision <= 0.0f)
         return false;
     /* An alive walkable destructable is a ground surface, not a circle-shaped
@@ -184,7 +184,7 @@ static bool filter_blockers(edict_t const * ent) {
 }
 
 /* Distance from point p to the segment [a,b]. */
-static float point_segment_distance(vector2_t const * a, vector2_t const * b, vector2_t const * p) {
+static float point_segment_distance(vector2_t const *a, vector2_t const *b, vector2_t const *p) {
     vector2_t const ab = Vector2_sub(b, a);
     vector2_t const ap = Vector2_sub(p, a);
     float const ab2 = ab.x * ab.x + ab.y * ab.y;
@@ -198,7 +198,7 @@ static float point_segment_distance(vector2_t const * a, vector2_t const * b, ve
 /* Is the position 'cand' free for 'self' (static world + other units)?  On a
  * unit rejection, records the blocking unit in trymove_blocker (NULL otherwise)
  * so the slide can apply speed-priority give-way. */
-static bool move_is_valid_policy(edict_t * self, vector2_t const * cand,
+static bool move_is_valid_policy(edict_t *self, vector2_t const *cand,
                                  moveCollisionPolicy_t collision_policy) {
     uint8_t const blocked_flags = M_UnitStaticPathingFlags(self);
     trymove_blocker = NULL;
@@ -239,7 +239,7 @@ static bool move_is_valid_policy(edict_t * self, vector2_t const * cand,
     trymove_self = self;
     uint32_t const num = gi.BoxEdicts(&box, trymove_colliders, MAX_MOVE_COLLIDERS, filter_blockers);
     FOR_LOOP(i, num) {
-        edict_t * const b = trymove_colliders[i];
+        edict_t *const b = trymove_colliders[i];
         float const rr = self->collision + b->collision;
         /* Swept test: the unit's whole PATH this tick (origin -> cand) must
          * clear b, not just the endpoint — otherwise a fast unit (step ~one
@@ -259,20 +259,20 @@ static bool move_is_valid_policy(edict_t * self, vector2_t const * cand,
     return true;
 }
 
-static bool move_is_valid(edict_t * self, vector2_t const * cand) {
+static bool move_is_valid(edict_t *self, vector2_t const *cand) {
     return move_is_valid_policy(self, cand, MOVE_COLLIDE_UNITS);
 }
 
 /* Shared steering uses the same static-only policy as resource interaction movement. */
-static bool move_static_is_valid(edict_t * self, vector2_t const * cand) { return move_is_valid_policy(self, cand, MOVE_IGNORE_UNITS); }
+static bool move_static_is_valid(edict_t *self, vector2_t const *cand) { return move_is_valid_policy(self, cand, MOVE_IGNORE_UNITS); }
 
 /* Public: would 'pos' be a free standing spot for 'self' (terrain + units)?
  * Used by the move arrival to avoid snapping a unit onto an occupied goal. */
-bool M_MoveIsValid(edict_t * self, vector2_t const * pos) {
+bool M_MoveIsValid(edict_t *self, vector2_t const *pos) {
     return move_is_valid(self, pos);
 }
 
-static void unit_commit_step(edict_t * self, vector2_t const * cand) {
+static void unit_commit_step(edict_t *self, vector2_t const *cand) {
     if (self->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     self->s.origin2 = *cand;
     gi.LinkEntity(self);
@@ -291,7 +291,7 @@ static void unit_commit_step(edict_t * self, vector2_t const * cand) {
  * disagreed with the heading unit_changeangle had already chosen and re-decided
  * a different direction every tick — that disagreement is what made units
  * visibly rotate/wobble and crab sideways past each other and trees. */
-static void unit_moveindirection_policy(edict_t * self,
+static void unit_moveindirection_policy(edict_t *self,
                                         moveCollisionPolicy_t collision_policy) {
     if (self->aiflags & AI_IMMOBILE)
         return;
@@ -319,11 +319,11 @@ static void unit_moveindirection_policy(edict_t * self,
     }
 }
 
-void unit_moveindirection(edict_t * self) {
+void unit_moveindirection(edict_t *self) {
     unit_moveindirection_policy(self, MOVE_COLLIDE_UNITS);
 }
 
-void unit_moveindirection_ignore_units(edict_t * self) {
+void unit_moveindirection_ignore_units(edict_t *self) {
     unit_moveindirection_policy(self, MOVE_IGNORE_UNITS);
 }
 
@@ -333,7 +333,7 @@ void unit_moveindirection_ignore_units(edict_t * self) {
  * selecting it again from the opposite side next think.  This is the same
  * arrival snap used by ordinary Move, but deliberately ignores live units for
  * Warsmash-style Mine/drop-off legs while retaining all static pathing. */
-bool unit_snap_to_point_ignore_units(edict_t * self, vector2_t const * point) {
+bool unit_snap_to_point_ignore_units(edict_t *self, vector2_t const *point) {
     if (!self || !point || (self->aiflags & AI_IMMOBILE))
         return false;
     if (Vector2_distance(&self->s.origin2, point) > unit_movedistance(self) + 0.001f)
@@ -348,7 +348,7 @@ bool unit_snap_to_point_ignore_units(edict_t * self, vector2_t const * point) {
  * rate ('umvr', radians/tick; WC3 default 0.5).  Pure 2-D vector math (cross =
  * signed sin of the angle to turn, dot = cos); atan2 only writes the canonical
  * s.angle the renderer/network consume. */
-static void unit_turn_toward(edict_t * self, float target) {
+static void unit_turn_toward(edict_t *self, float target) {
     vector2_t const facing = { cosf(self->s.angle), sinf(self->s.angle) };
     vector2_t const goal   = { cosf(target), sinf(target) };
     float const cross = facing.x * goal.y - facing.y * goal.x;
@@ -372,7 +372,7 @@ static void unit_turn_toward(edict_t * self, float target) {
  * around; crossing traffic may pass immediately.  This is the minimal policy
  * that stayed close to the direct Human02 resource corridor in the 30-worker
  * simulation while still breaking counterflow deadlocks. */
-static bool unit_worker_same_stream(edict_t const * blocker, float goal_angle) {
+static bool unit_worker_same_stream(edict_t const *blocker, float goal_angle) {
     vector2_t dir, goal;
     float len;
 
@@ -387,17 +387,17 @@ static bool unit_worker_same_stream(edict_t const * blocker, float goal_angle) {
     return Vector2_dot(&goal, &dir) / len > 0.25f;
 }
 
-static float unit_worker_lateral_deviation(edict_t const * self, vector2_t const * point) {
+static float unit_worker_lateral_deviation(edict_t const *self, vector2_t const *point) {
     vector2_t const delta = Vector2_sub(point, &self->movement.worker_avoid_origin);
     vector2_t const direct = { cosf(self->movement.worker_avoid_heading),
                              sinf(self->movement.worker_avoid_heading) };
     return fabsf(direct.x * delta.y - direct.y * delta.x);
 }
 
-static float unit_worker_desired_heading(edict_t * self, float goal_angle, float dist) {
+static float unit_worker_desired_heading(edict_t *self, float goal_angle, float dist) {
     vector2_t const straight = Vector2_mad(&self->s.origin2, dist,
                                          &MAKE(vector2_t, cosf(goal_angle), sinf(goal_angle)));
-    edict_t * blocker;
+    edict_t *blocker;
     float max_deviation;
 
     if (move_is_valid(self, &straight)) {
@@ -450,7 +450,7 @@ static float unit_worker_desired_heading(edict_t * self, float goal_angle, float
 /* Pick the heading the unit actually wants to move along this tick.  Generic
  * units retain speed-priority block-and-slide; resource workers use the
  * queue/pass-right policy above. */
-static float unit_desired_heading(edict_t * self, float goal_angle, float dist,
+static float unit_desired_heading(edict_t *self, float goal_angle, float dist,
                                   moveAvoidPolicy_t policy) {
     moveCollisionPolicy_t const collision_policy =
         policy == MOVE_AVOID_STATIC_ONLY ? MOVE_IGNORE_UNITS : MOVE_COLLIDE_UNITS;
@@ -462,7 +462,7 @@ static float unit_desired_heading(edict_t * self, float goal_angle, float dist,
         return goal_angle;
 
     int max_rings = MOVE_SLIDE_RINGS;
-    edict_t * const b = trymove_blocker;
+    edict_t *const b = trymove_blocker;
     if (b && unit_is_walking(self) && unit_is_walking(b) &&
         unit_current_speed(self) > unit_current_speed(b)) {
         max_rings = MOVE_SLIDE_RINGS_YIELD;
@@ -472,7 +472,7 @@ static float unit_desired_heading(edict_t * self, float goal_angle, float dist,
     return CM_SlideRoute(&slide);
 }
 
-static void unit_apply_heading(edict_t * self, vector2_t const * dir, moveAvoidPolicy_t policy) {
+static void unit_apply_heading(edict_t *self, vector2_t const *dir, moveAvoidPolicy_t policy) {
     float const dirlen = Vector2_len(dir);
     if (dirlen <= 0.001f)
         return;  /* no meaningful heading this tick: hold current facing */
@@ -487,7 +487,7 @@ static void unit_apply_heading(edict_t * self, vector2_t const * dir, moveAvoidP
     unit_turn_toward(self, desired);
 }
 
-static bool move_displacement_steer(edict_t * self, moveAvoidPolicy_t policy) {
+static bool move_displacement_steer(edict_t *self, moveAvoidPolicy_t policy) {
     vector2_t dir;
 
     if (!self || !self->movement.displacement_active) return false;
@@ -498,7 +498,7 @@ static bool move_displacement_steer(edict_t * self, moveAvoidPolicy_t policy) {
     return true;
 }
 
-static void unit_changeangle_towards_point_policy(edict_t * self, vector2_t const * point,
+static void unit_changeangle_towards_point_policy(edict_t *self, vector2_t const *point,
                                                    moveAvoidPolicy_t policy) {
     vector2_t dir;
 
@@ -516,27 +516,27 @@ static void unit_changeangle_towards_point_policy(edict_t * self, vector2_t cons
 
 /* Keep the bounded point-route turn until it is reached; retail likewise owns
  * route progress on each mover instead of rebuilding from its current point. */
-static bool unit_accel_direction_to_point(edict_t * self, vector2_t const * target,
-                                          float radius, vector2_t * dir) {
+static bool unit_accel_direction_to_point(edict_t *self, vector2_t const *target,
+                                          float radius, vector2_t *dir) {
     if (!self || !target || !dir) return false;
     pathAccelParams_t params = { &self->s.origin2, target, radius, M_UnitStaticPathingFlags(self) };
     return CM_AccelerateRoute(&self->movement.path, &params, dir);
 }
 
-static bool unit_accel_direction(edict_t * self, float radius, vector2_t * dir) {
+static bool unit_accel_direction(edict_t *self, float radius, vector2_t *dir) {
     return unit_accel_direction_to_point(self, &self->goalentity->s.origin2,
                                          radius, dir);
 }
 
-void unit_changeangle_towards_point(edict_t * self, vector2_t const * point) {
+void unit_changeangle_towards_point(edict_t *self, vector2_t const *point) {
     unit_changeangle_towards_point_policy(self, point, MOVE_AVOID_GENERIC);
 }
 
-void unit_changeangle_towards_point_worker(edict_t * self, vector2_t const * point) {
+void unit_changeangle_towards_point_worker(edict_t *self, vector2_t const *point) {
     unit_changeangle_towards_point_policy(self, point, MOVE_AVOID_RESOURCE_WORKER);
 }
 
-bool unit_changeangle_towards_point_ignore_units(edict_t * self, vector2_t const * point) {
+bool unit_changeangle_towards_point_ignore_units(edict_t *self, vector2_t const *point) {
     vector2_t dir;
 
     if (!self || !point || (self->aiflags & AI_IMMOBILE))
@@ -565,7 +565,7 @@ bool unit_changeangle_towards_point_ignore_units(edict_t * self, vector2_t const
     return true;
 }
 
-static void unit_changeangle_policy(edict_t * self, moveAvoidPolicy_t policy) {
+static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
     if (self->aiflags & AI_IMMOBILE)
         return;
     if (move_displacement_steer(self, policy))
@@ -623,7 +623,7 @@ static void unit_changeangle_policy(edict_t * self, moveAvoidPolicy_t policy) {
                  * closest legal point in this mover's component; aiming at the
                  * raw click made local avoidance walk forever along walls. */
                 if (radius > 0.0f && self->movement.flow_unreachable) {
-                    vector2_t const * from = &self->s.origin2, *target = &self->goalentity->s.origin2;
+                    vector2_t const *from = &self->s.origin2, *target = &self->goalentity->s.origin2;
                     vector2_t closest;
                     if (move_fallback_throttled(self, target, radius))
                         return;
@@ -662,11 +662,11 @@ static void unit_changeangle_policy(edict_t * self, moveAvoidPolicy_t policy) {
     unit_apply_heading(self, &dir, policy);
 }
 
-void unit_changeangle(edict_t * self) {
+void unit_changeangle(edict_t *self) {
     unit_changeangle_policy(self, MOVE_AVOID_GENERIC);
 }
 
-void unit_changeangle_worker(edict_t * self) {
+void unit_changeangle_worker(edict_t *self) {
     unit_changeangle_policy(self, MOVE_AVOID_RESOURCE_WORKER);
 }
 
@@ -675,7 +675,7 @@ void unit_changeangle_worker(edict_t * self) {
  * unreachable tree. Build and Repair instead route toward behavior-owned legal
  * approach points, so reaching the adjusted flow goal never changes their
  * gameplay target. Generic point movement continues through unit_changeangle(). */
-static void unit_changeangle_for_radius_policy(edict_t * self, float radius,
+static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
                                                moveAvoidPolicy_t policy,
                                                bool continue_to_target) {
     if (self->aiflags & AI_IMMOBILE)
@@ -728,15 +728,15 @@ static void unit_changeangle_for_radius_policy(edict_t * self, float radius,
     unit_apply_heading(self, &dir, policy);
 }
 
-void unit_changeangle_for_radius(edict_t * self, float radius) {
+void unit_changeangle_for_radius(edict_t *self, float radius) {
     unit_changeangle_for_radius_policy(self, radius, MOVE_AVOID_GENERIC, false);
 }
 
-void unit_changeangle_for_radius_worker(edict_t * self, float radius) {
+void unit_changeangle_for_radius_worker(edict_t *self, float radius) {
     unit_changeangle_for_radius_policy(self, radius, MOVE_AVOID_RESOURCE_WORKER, false);
 }
 
-void unit_changeangle_interaction_ignore_units(edict_t * self) {
+void unit_changeangle_interaction_ignore_units(edict_t *self) {
     /* Warsmash's mover owns a collision-sized path even when the ranged
      * behavior disables unit collision.  Use the worker radius for static
      * routing, but keep mobile-unit collision disabled at steering/move time. */
@@ -750,7 +750,7 @@ void G_InitWaypoints(void) {
     if (level.waypoints.count) return;
     base = level.waypoints.base = globals.num_edicts;
     FOR_LOOP(i, MAX_WAYPOINTS) {
-        edict_t * waypoint = G_Spawn();
+        edict_t *waypoint = G_Spawn();
         if (waypoint != g_edicts + base + i) gi.error("G_InitWaypoints: waypoint ring is not contiguous\n");
         waypoint->svflags |= SVF_NOCLIENT;
     }
@@ -758,8 +758,8 @@ void G_InitWaypoints(void) {
 }
 
 /* Recycle one real edict from the fixed ring, matching Quake II's TRAIL/body queue ownership model. */
-edict_t * Waypoint_add(vector2_t const * spot) {
-    edict_t * waypoint;
+edict_t *Waypoint_add(vector2_t const *spot) {
+    edict_t *waypoint;
     G_InitWaypoints();
     waypoint = g_edicts + level.waypoints.base + level.waypoints.cursor;
     level.waypoints.cursor = (level.waypoints.cursor + 1) % MAX_WAYPOINTS;
@@ -779,8 +779,8 @@ static int move_harvest_path_debug_level(void) {
     return value ? atoi(value) : 0;
 }
 
-uint32_t M_RefreshHeatmapForMover(edict_t const * mover, edict_t * self, float radius) {
-    edict_t * route = self && self->secondarygoal ? self->secondarygoal : self;
+uint32_t M_RefreshHeatmapForMover(edict_t const *mover, edict_t *self, float radius) {
+    edict_t *route = self && self->secondarygoal ? self->secondarygoal : self;
     uint8_t const blocked_flags = M_UnitStaticPathingFlags(mover);
     bool radius_matches;
     bool cached = false;
@@ -826,15 +826,15 @@ uint32_t M_RefreshHeatmapForMover(edict_t const * mover, edict_t * self, float r
     return route->heatmap2;
 }
 
-uint32_t M_RefreshHeatmap(edict_t * self, float radius) {
+uint32_t M_RefreshHeatmap(edict_t *self, float radius) {
     return M_RefreshHeatmapForMover(NULL, self, radius);
 }
 
-static cstring_t M_UnitMoveTypeName(edict_t const * self) {
+static cstring_t M_UnitMoveTypeName(edict_t const *self) {
     return self && self->data.UnitData ? self->data.UnitData->moveTypeName : NULL;
 }
 
-static bool M_UnitUsesWaterSurface(edict_t const * self, cstring_t movetp) {
+static bool M_UnitUsesWaterSurface(edict_t const *self, cstring_t movetp) {
     if (!movetp) return false;
     if (!strcmp(movetp, "fly") || !strcmp(movetp, "hover") || !strcmp(movetp, "float"))
         return true;
@@ -845,7 +845,7 @@ static bool M_UnitUsesWaterSurface(edict_t const * self, cstring_t movetp) {
     return false;
 }
 
-static bool move_fallback_steer(edict_t * self, moveAvoidPolicy_t policy) {
+static bool move_fallback_steer(edict_t *self, moveAvoidPolicy_t policy) {
     vector2_t dir;
 
     if (!self || self->movement.flow_fallback_state != MOVE_FALLBACK_APPLIED ||
@@ -867,7 +867,7 @@ static bool move_fallback_steer(edict_t * self, moveAvoidPolicy_t policy) {
  * FOOT/HORSE stay terrain-based; FLY/HOVER/float and swimming AMPH units use
  * max(terrain, water).  Walkable destructables can raise every movement type
  * except float, matching Warsmash's "boats can't go on bridges" rule. */
-void M_CheckGround(edict_t * self) {
+void M_CheckGround(edict_t *self) {
     cstring_t const movetp = M_UnitMoveTypeName(self);
     bool const floating = movetp && !strcmp(movetp, "float");
     float height = CM_GetHeightAtPoint(self->s.origin.x, self->s.origin.y);
@@ -877,7 +877,7 @@ void M_CheckGround(edict_t * self) {
         height = MAX(height, CM_GetWaterHeightAtPoint(self->s.origin.x, self->s.origin.y));
 
     if (!floating) {
-        for (edict_t * surface = level.ground_surfaces; surface; surface = surface->ground_next) {
+        for (edict_t *surface = level.ground_surfaces; surface; surface = surface->ground_next) {
             pathTex_t const *pathtex = surface->pathtex;
             pathTexTransform_t const transform = CM_GetPathTexTransform(surface);
             if (!surface->inuse || surface->destructable.dead ||
@@ -891,7 +891,7 @@ void M_CheckGround(edict_t * self) {
     self->s.origin.z = height + self->s.ground_offset;
 }
 
-float M_DistanceToGoal(edict_t * ent) {
+float M_DistanceToGoal(edict_t *ent) {
     if (ent->goalentity) {
         return Vector2_distance(&ent->goalentity->s.origin2, &ent->s.origin2);
     } else {
@@ -899,7 +899,7 @@ float M_DistanceToGoal(edict_t * ent) {
     }
 }
 
-static float move_slot_spacing(edict_t * const *units, uint32_t count) {
+static float move_slot_spacing(edict_t *const *units, uint32_t count) {
     float max_radius = 0;
     FOR_LOOP(i, count) {
         max_radius = MAX(max_radius, units[i]->collision);
@@ -907,7 +907,7 @@ static float move_slot_spacing(edict_t * const *units, uint32_t count) {
     return MAX(MOVE_MIN_SLOT_SPACING, max_radius * 2 + MOVE_SLOT_MARGIN);
 }
 
-static bool move_slot_overlaps(vector2_t const * point,
+static bool move_slot_overlaps(vector2_t const *point,
                                float radius,
                                moveSlot_t const *reserved,
                                uint32_t num_reserved) {
@@ -920,12 +920,12 @@ static bool move_slot_overlaps(vector2_t const * point,
     return false;
 }
 
-static bool move_try_slot(vector2_t const * point,
+static bool move_try_slot(vector2_t const *point,
                           float radius,
                           uint8_t blocked_flags,
                           moveSlot_t const *reserved,
                           uint32_t num_reserved,
-                          vector2_t * out) {
+                          vector2_t *out) {
     vector2_t pathable = *point;
     if (!CM_ClosestPathablePointForRadiusFlags(point, radius, blocked_flags, &pathable)) {
         return false;
@@ -937,15 +937,15 @@ static bool move_try_slot(vector2_t const * point,
     return true;
 }
 
-static bool move_find_reserved_slot(vector2_t const * location,
-                                    vector2_t const * preferred,
+static bool move_find_reserved_slot(vector2_t const *location,
+                                    vector2_t const *preferred,
                                     float radius,
                                     uint8_t blocked_flags,
                                     float spacing,
                                     uint32_t unit_count,
                                     moveSlot_t const *reserved,
                                     uint32_t num_reserved,
-                                    vector2_t * out) {
+                                    vector2_t *out) {
     float best_distance = 0;
     bool found = false;
     vector2_t best = *location;
@@ -990,9 +990,9 @@ static bool move_find_reserved_slot(vector2_t const * location,
     return false;
 }
 
-static vector2_t move_preferred_slot(edict_t * ent,
-                                   vector2_t const * group_center,
-                                   vector2_t const * location,
+static vector2_t move_preferred_slot(edict_t *ent,
+                                   vector2_t const *group_center,
+                                   vector2_t const *location,
                                    float spacing,
                                    uint32_t unit_count) {
     vector2_t offset = Vector2_sub(&ent->s.origin2, group_center);
@@ -1004,10 +1004,10 @@ static vector2_t move_preferred_slot(edict_t * ent,
     return Vector2_add(location, &offset);
 }
 
-static uint32_t move_collect_selected(gameClient_t * client,
+static uint32_t move_collect_selected(gameClient_t *client,
                                    edict_t * *units,
                                    uint32_t max_units,
-                                   vector2_t * center) {
+                                   vector2_t *center) {
     uint32_t count = 0;
     *center = MAKE(vector2_t, 0, 0);
 
@@ -1030,7 +1030,7 @@ static uint32_t move_collect_selected(gameClient_t * client,
     return count;
 }
 
-void move_reset_progress(edict_t * self) {
+void move_reset_progress(edict_t *self) {
     self->movement.last_origin = self->s.origin2;
     self->movement.last_distance = -1;
     self->movement.blocked_frames = 0;
@@ -1047,16 +1047,16 @@ void move_reset_progress(edict_t * self) {
     self->movement.group_speed = 0;  /* single-unit/default: travel at own speed */
 }
 
-void move_cancel_displacement(edict_t * self) {
+void move_cancel_displacement(edict_t *self) {
     if (!self) return;
     self->movement.displacement_active = false;
 }
 
-bool move_displacement_active(edict_t const * self) {
+bool move_displacement_active(edict_t const *self) {
     return self && self->movement.displacement_active;
 }
 
-bool move_displacement_reached(edict_t * self) {
+bool move_displacement_reached(edict_t *self) {
     if (!self || !self->movement.displacement_active) return false;
     if (Vector2_distance(&self->s.origin2, &self->movement.displacement_target) >
         unit_movedistance(self) + MOVE_ARRIVE_TOLERANCE)
@@ -1072,7 +1072,7 @@ bool move_displacement_reached(edict_t * self) {
     return true;
 }
 
-void move_start_displacement(edict_t * self, vector2_t const * target) {
+void move_start_displacement(edict_t *self, vector2_t const *target) {
     if (!self || !target) return;
     move_reset_progress(self);
     self->movement.displacement_target = *target;
@@ -1081,7 +1081,7 @@ void move_start_displacement(edict_t * self, vector2_t const * target) {
 }
 
 /* Effective current move speed of a unit (runtime override, else data table). */
-static float unit_effective_speed(edict_t * ent) {
+static float unit_effective_speed(edict_t *ent) {
     float speed = ent->unitinfo.MoveSpeed > 0 ? ent->unitinfo.MoveSpeed : ent->data.UnitBalance->speed;
     uint32_t level = G_UnitStatusLevel(ent, MAKEFOURCC('B', 'O', 'w', 'k'));
     if (level) speed *= 1.0f + G_AbilityLevel(MAKEFOURCC('A', 'O', 'w', 'k'), level)->data[0].number * 0.01f;
@@ -1094,7 +1094,7 @@ static float unit_effective_speed(edict_t * ent) {
     speed *= 1.0f - S_SlowPoisonMoveReduction(ent);
     if (S_AuraUnitActive(ent)) {
         FOR_LOOP(i, globals.num_edicts) {
-            edict_t * aura = g_edicts + i;
+            edict_t *aura = g_edicts + i;
             uint32_t aura_level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
             if (S_AuraUnitActive(aura) && aura_level && S_SpellIsFriend(aura, ent) &&
                 Vector2_distance(&aura->s.origin2, &ent->s.origin2) <=
@@ -1106,7 +1106,7 @@ static float unit_effective_speed(edict_t * ent) {
 }
 
 /* Slowest move speed across a group, so the whole group travels at it. */
-static float move_group_speed(edict_t * const *units, uint32_t count) {
+static float move_group_speed(edict_t *const *units, uint32_t count) {
     float slowest = 0;
     FOR_LOOP(i, count) {
         float const s = unit_effective_speed(units[i]);
@@ -1117,7 +1117,7 @@ static float move_group_speed(edict_t * const *units, uint32_t count) {
     return slowest;
 }
 
-bool move_should_arrive(edict_t * ent, float move_distance) {
+bool move_should_arrive(edict_t *ent, float move_distance) {
     vector2_t to_goal = Vector2_sub(&ent->goalentity->s.origin2, &ent->s.origin2);
     float distance = Vector2_len(&to_goal);
 
@@ -1141,7 +1141,7 @@ bool move_should_arrive(edict_t * ent, float move_distance) {
     return lateral <= MAX(MOVE_ARRIVE_TOLERANCE, ent->collision + MOVE_SLOT_MARGIN);
 }
 
-bool move_is_blocked(edict_t * ent, float distance, float move_distance) {
+bool move_is_blocked(edict_t *ent, float distance, float move_distance) {
     float const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
     if (ent->movement.last_distance >= 0) {
         /* move_last_distance is the *closest* the unit has come to its goal (a
@@ -1185,7 +1185,7 @@ bool move_is_blocked(edict_t * ent, float distance, float move_distance) {
  * each behavior.  This only reports true when the unit has both stopped making
  * progress and reached the same near-goal band where an ordinary Move would
  * settle; a wall or disconnected route farther away is not an arrival. */
-bool move_is_settled_near_goal(edict_t * ent, float distance, float move_distance) {
+bool move_is_settled_near_goal(edict_t *ent, float distance, float move_distance) {
     float const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
     bool const blocked = move_is_blocked(ent, distance, move_distance);
     return blocked && ent->movement.last_distance <= settle_distance;
@@ -1194,7 +1194,7 @@ bool move_is_settled_near_goal(edict_t * ent, float distance, float move_distanc
 /* Unit-target Move/Smart is a persistent follow order rather than a snapshot
  * point move. Keep the target entity authoritative so a moving ally can be
  * tracked and the retained goal can be resumed after opportunistic combat. */
-static bool follow_target_is_valid(edict_t const * self, edict_t const * target) {
+static bool follow_target_is_valid(edict_t const *self, edict_t const *target) {
     uint32_t owner;
 
     if (!self || !target || !target->inuse || !(target->svflags & SVF_MONSTER) || M_IsDead((edict_t *)target)) {
@@ -1214,7 +1214,7 @@ static bool follow_target_is_valid(edict_t const * self, edict_t const * target)
     return G_PlayerTreatsPlayerAsAlly(self->s.player, owner);
 }
 
-static bool follow_can_auto_attack(edict_t const * self) {
+static bool follow_can_auto_attack(edict_t const *self) {
     if (!self || !S_CargoAttacksEnabled(self) || self->attack1.cooldown <= 0.0f ||
         (self->attack1.damageBase <= 0 && self->attack1.numberOfDice <= 0)) {
         return false;
@@ -1222,7 +1222,7 @@ static bool follow_can_auto_attack(edict_t const * self) {
     return !level.mapinfo || level.mapinfo->players[self->s.player].playerType != kPlayerTypeNeutral;
 }
 
-float G_FollowStopRange(edict_t const * follower, edict_t const * target) {
+float G_FollowStopRange(edict_t const *follower, edict_t const *target) {
     float configured;
     float collision_range;
 
@@ -1250,7 +1250,7 @@ float G_FollowStopRange(edict_t const * follower, edict_t const * target) {
  * margin, while the follower radius is the hard no-overlap lower bound.  The
  * target collision radius is intentionally not added when a real footprint is
  * available because that would count the building extent twice. */
-static bool follow_footprint_distance(edict_t const * follower, edict_t const * target,
+static bool follow_footprint_distance(edict_t const *follower, edict_t const *target,
                                       float *distance) {
     float footprint;
 
@@ -1265,8 +1265,8 @@ static bool follow_footprint_distance(edict_t const * follower, edict_t const * 
     return true;
 }
 
-static void ai_follow_walk(edict_t * ent) {
-    edict_t * target = ent->movement.follow_target;
+static void ai_follow_walk(edict_t *ent) {
+    edict_t *target = ent->movement.follow_target;
     float distance;
     float follow_range;
     bool standing;
@@ -1280,7 +1280,7 @@ static void ai_follow_walk(edict_t * ent) {
 
     ent->goalentity = target;
     if (follow_can_auto_attack(ent) && G_ShouldAcquireThisFrame(ent)) {
-        edict_t * enemy = G_FindNearestEnemy(ent, G_AcquisitionRange(ent));
+        edict_t *enemy = G_FindNearestEnemy(ent, G_AcquisitionRange(ent));
         if (enemy) {
             order_attack(ent, enemy);
             return;
@@ -1311,8 +1311,8 @@ static void ai_follow_walk(edict_t * ent) {
 
 static umove_t follow_move_walk = { "walk", ai_follow_walk, NULL, CAbilityMove };
 
-void order_follow_resume(edict_t * self) {
-    edict_t * target;
+void order_follow_resume(edict_t *self) {
+    edict_t *target;
 
     if (!self || S_GoldMineWorkerIsInside(self) || (self->aiflags & AI_IMMOBILE)) {
         return;
@@ -1330,7 +1330,7 @@ void order_follow_resume(edict_t * self) {
     unit_setmove(self, &follow_move_walk);
 }
 
-void order_follow(edict_t * self, edict_t * target) {
+void order_follow(edict_t *self, edict_t *target) {
     if (!self || (self->aiflags & AI_IMMOBILE) || S_GoldMineWorkerIsInside(self) ||
         !follow_target_is_valid(self, target)) {
         return;
@@ -1346,11 +1346,11 @@ void order_follow(edict_t * self, edict_t * target) {
 
 static umove_t move_move_hold = { "stand", NULL, NULL, CAbilityMove };
 
-bool move_is_terminal_hold(edict_t const * ent) {
+bool move_is_terminal_hold(edict_t const *ent) {
     return ent && ent->currentmove == &move_move_hold;
 }
 
-static void move_hold(edict_t * ent) {
+static void move_hold(edict_t *ent) {
     /* A terminal blocked/unreachable Move is complete for queue purposes.
      * Continue a Shift chain instead of stranding pending commands behind the
      * legacy hold pose. */
@@ -1363,7 +1363,7 @@ static void move_hold(edict_t * ent) {
     unit_setmove(ent, &move_move_hold);
 }
 
-static void ai_move_walk(edict_t * ent) {
+static void ai_move_walk(edict_t *ent) {
     float distance = M_DistanceToGoal(ent);
     float move_distance = unit_movedistance(ent);
     float const settle_distance = move_distance + ent->collision + MOVE_SLOT_MARGIN;
@@ -1478,7 +1478,7 @@ static void ai_move_walk(edict_t * ent) {
 static umove_t move_move_walk = { "walk", ai_move_walk, NULL, CAbilityMove };
 
 /* Identify the ordinary walk move so spell approach orders can detect replacement. */
-bool move_is_active_order_walk(edict_t const * ent) {
+bool move_is_active_order_walk(edict_t const *ent) {
     return ent && ent->currentmove == &move_move_walk;
 }
 
@@ -1486,7 +1486,7 @@ bool move_is_active_order_walk(edict_t const * ent) {
  * position this tick (immobile, Cyclone, Entangling Roots, Ensnare, Purge
  * pause). This is distinct from being unable to attack: a locked artillery
  * unit must hold its firing point and still fire in-range targets. */
-bool S_UnitCanTranslate(edict_t const * unit) {
+bool S_UnitCanTranslate(edict_t const *unit) {
     if (!unit) return false;
     if ((unit->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(unit) ||
         G_UnitStatusLevel(unit, MAKEFOURCC('B', 'E', 'e', 'r')) ||
@@ -1496,7 +1496,7 @@ bool S_UnitCanTranslate(edict_t const * unit) {
 
 /* Set the unit's move target and begin walking.
  * goalentity must be a waypoint or any entity whose origin is the destination. */
-void order_move(edict_t * self, edict_t * target) {
+void order_move(edict_t *self, edict_t *target) {
     if (S_GoldMineWorkerIsInside(self))
         return;
     if ((self->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(self) || G_UnitStatusLevel(self, MAKEFOURCC('B', 'E', 'e', 'r'))
@@ -1527,8 +1527,8 @@ void order_move(edict_t * self, edict_t * target) {
  * Creates a shared waypoint at the clicked map position, issues move orders
  * to all currently selected units, and sends a move-confirmation effect back
  * to the commanding client (svc_temp_entity / TE_MOVE_CONFIRMATION). */
-bool move_selectlocation(edict_t * clent, vector2_t const * location) {
-    edict_t * units[MAX_SELECTED_ENTITIES];
+bool move_selectlocation(edict_t *clent, vector2_t const *location) {
+    edict_t *units[MAX_SELECTED_ENTITIES];
     moveSlot_t reserved[MAX_SELECTED_ENTITIES];
     vector2_t center;
     vector2_t confirmation = *location;
@@ -1536,7 +1536,7 @@ bool move_selectlocation(edict_t * clent, vector2_t const * location) {
     bool issued = false;
     uint32_t num_units = move_collect_selected(clent->client, units, MAX_SELECTED_ENTITIES, &center);
     float spacing = move_slot_spacing(units, num_units);
-    edict_t * route_waypoint;
+    edict_t *route_waypoint;
 
     if (num_units == 0) {
         return false;
@@ -1547,7 +1547,7 @@ bool move_selectlocation(edict_t * clent, vector2_t const * location) {
     route_waypoint = clent->client->menu.order_queued ? NULL : Waypoint_add(location);
 
     FOR_LOOP(i, num_units) {
-        edict_t * ent = units[i];
+        edict_t *ent = units[i];
         vector2_t preferred = move_preferred_slot(ent, &center, location, spacing, num_units);
         vector2_t target;
 
@@ -1576,7 +1576,7 @@ bool move_selectlocation(edict_t * clent, vector2_t const * location) {
                 issued = true;
             }
         } else {
-            edict_t * waypoint = Waypoint_add(&target);
+            edict_t *waypoint = Waypoint_add(&target);
             waypoint->secondarygoal = route_waypoint;
             G_ClearUnitOrderQueue(ent);
             ent->movement.holding_position = false;

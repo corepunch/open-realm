@@ -6,7 +6,7 @@
 /* Way Gate is authored as a passive ability. Resolve aliases rather than
  * hard-coding Awrp so map object-data copies retain their DataA/DataB entry
  * rectangle and normal JASS Waygate* behavior. */
-static uint32_t waygate_actor_ability_alias(edict_t const * gate) {
+static uint32_t waygate_actor_ability_alias(edict_t const *gate) {
     char alias_name[5] = {0};
 
     if (!gate) return 0;
@@ -28,7 +28,7 @@ static uint32_t waygate_actor_ability_alias(edict_t const * gate) {
     return 0;
 }
 
-static bool waygate_dimensions(edict_t const * gate, float *width, float *height) {
+static bool waygate_dimensions(edict_t const *gate, float *width, float *height) {
     uint32_t const alias = waygate_actor_ability_alias(gate);
     abilityLevel_t const *row;
 
@@ -40,33 +40,33 @@ static bool waygate_dimensions(edict_t const * gate, float *width, float *height
     return *width > 0.0f && *height > 0.0f;
 }
 
-bool S_WaygateIsGate(edict_t const * gate) {
+bool S_WaygateIsGate(edict_t const *gate) {
     return gate && gate->inuse && waygate_actor_ability_alias(gate) != 0;
 }
 
-bool S_WaygateIsActive(edict_t const * gate) {
+bool S_WaygateIsActive(edict_t const *gate) {
     return S_WaygateIsGate(gate) && gate->waygate.active;
 }
 
-bool S_WaygateGetDestination(edict_t const * gate, vector2_t * destination) {
+bool S_WaygateGetDestination(edict_t const *gate, vector2_t *destination) {
     if (!S_WaygateIsGate(gate) || !destination) return false;
     *destination = gate->waygate.destination;
     return gate->waygate.destination_set;
 }
 
-void S_WaygateSetDestination(edict_t * gate, vector2_t const * destination) {
+void S_WaygateSetDestination(edict_t *gate, vector2_t const *destination) {
     if (!S_WaygateIsGate(gate) || !destination) return;
     gate->waygate.destination = *destination;
     gate->waygate.destination_set = true;
 }
 
-void S_WaygateSetActive(edict_t * gate, bool active) {
+void S_WaygateSetActive(edict_t *gate, bool active) {
     if (!S_WaygateIsGate(gate)) return;
     gate->waygate.active = active != false;
     G_AddUnitAnimationProperties(gate, "alternate", gate->waygate.active);
 }
 
-static bool waygate_point_inside(edict_t const * gate, vector2_t const * point) {
+static bool waygate_point_inside(edict_t const *gate, vector2_t const *point) {
     float width, height;
 
     if (!gate || !point || !waygate_dimensions(gate, &width, &height)) return false;
@@ -74,26 +74,26 @@ static bool waygate_point_inside(edict_t const * gate, vector2_t const * point) 
            fabsf(point->y - gate->s.origin2.y) <= height * 0.5f;
 }
 
-static bool waygate_target_inside(edict_t const * gate, edict_t const * unit) {
+static bool waygate_target_inside(edict_t const *gate, edict_t const *unit) {
     return unit && waygate_point_inside(gate, &unit->s.origin2);
 }
 
-static bool waygate_target_valid(edict_t const * unit, edict_t const * gate, uint32_t spawn_time) {
+static bool waygate_target_valid(edict_t const *unit, edict_t const *gate, uint32_t spawn_time) {
     if (!unit || !gate || unit == gate || !gate->inuse || gate->spawn_time != spawn_time) return false;
     if (M_IsDead(unit) || M_IsDead(gate) || !S_UnitCanTranslate(unit)) return false;
     return S_WaygateIsActive(gate) && gate->waygate.destination_set;
 }
 
-static bool waygate_behavior_active(edict_t const * unit) {
+static bool waygate_behavior_active(edict_t const *unit) {
     return unit && (unit->movement.waygate_target || unit->movement.waygate_goal ||
                     unit->movement.waygate_target_spawn_time);
 }
 
-static void waygate_cancel(edict_t * unit);
+static void waygate_cancel(edict_t *unit);
 
 /* CAbilityWarp owns only its pointers. In particular, secondarygoal is shared
  * by unrelated movement behaviors and must never be cleared by Way Gate exit. */
-static void waygate_clear_order(edict_t * unit) {
+static void waygate_clear_order(edict_t *unit) {
     if (!unit) return;
     if (unit->goalentity == unit->movement.waygate_goal)
         unit->goalentity = NULL;
@@ -103,7 +103,7 @@ static void waygate_clear_order(edict_t * unit) {
     move_reset_progress(unit);
 }
 
-static bool waygate_complete(edict_t * unit, edict_t * gate) {
+static bool waygate_complete(edict_t *unit, edict_t *gate) {
     vector2_t source, position;
 
     if (!unit || !gate) return false;
@@ -126,7 +126,7 @@ static bool waygate_complete(edict_t * unit, edict_t * gate) {
     return true;
 }
 
-static bool waygate_find_entry_point(edict_t * unit, edict_t * gate, vector2_t * out) {
+static bool waygate_find_entry_point(edict_t *unit, edict_t *gate, vector2_t *out) {
     float width, height;
     box2_t entry;
 
@@ -137,7 +137,7 @@ static bool waygate_find_entry_point(edict_t * unit, edict_t * gate, vector2_t *
         unit->collision, M_UnitStaticPathingFlags(unit), out);
 }
 
-static edict_t * waygate_create_approach_goal(edict_t * unit, edict_t * gate) {
+static edict_t *waygate_create_approach_goal(edict_t *unit, edict_t *gate) {
     vector2_t approach;
 
     if (waygate_find_entry_point(unit, gate, &approach))
@@ -147,13 +147,13 @@ static edict_t * waygate_create_approach_goal(edict_t * unit, edict_t * gate) {
     return NULL;
 }
 
-static void waygate_cancel(edict_t * unit) {
+static void waygate_cancel(edict_t *unit) {
     waygate_clear_order(unit);
     unit_stand(unit);
 }
 
-static void ai_waygate_walk(edict_t * unit) {
-    edict_t * gate = unit ? unit->movement.waygate_target : NULL;
+static void ai_waygate_walk(edict_t *unit) {
+    edict_t *gate = unit ? unit->movement.waygate_target : NULL;
     uint32_t const spawn_time = unit ? unit->movement.waygate_target_spawn_time : 0;
     float distance, step;
 
@@ -166,7 +166,7 @@ static void ai_waygate_walk(edict_t * unit) {
         return;
     }
     if (!unit->movement.waygate_goal || !unit->movement.waygate_goal->inuse) {
-        edict_t * goal = waygate_create_approach_goal(unit, gate);
+        edict_t *goal = waygate_create_approach_goal(unit, gate);
         if (!goal) {
             waygate_cancel(unit);
             return;
@@ -190,8 +190,8 @@ static void ai_waygate_walk(edict_t * unit) {
 
 static umove_t waygate_move_walk = { "walk", ai_waygate_walk, NULL, CAbilityWarp };
 
-static bool waygate_order_use(edict_t * unit, edict_t * gate) {
-    edict_t * goal = NULL;
+static bool waygate_order_use(edict_t *unit, edict_t *gate) {
+    edict_t *goal = NULL;
     uint32_t const spawn_time = gate ? gate->spawn_time : 0;
 
     if (!waygate_target_valid(unit, gate, spawn_time)) return false;

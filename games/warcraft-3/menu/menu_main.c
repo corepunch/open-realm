@@ -304,9 +304,9 @@ static void UI_ClearScreen(void) {
 }
 
 /* Refresh frame state flags before dispatch so draw never asks for mouse position. */
-static void UI_UpdateMouseFrameFlags(frameDef_t const * hit, bool clear_pressed) {
+static void UI_UpdateMouseFrameFlags(frameDef_t const *hit, bool clear_pressed) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
-        frameDef_t * frame = &frames[i];
+        frameDef_t *frame = &frames[i];
         if (!frame->inuse) {
             continue;
         }
@@ -389,10 +389,10 @@ bool M_IsTransitioning(void) {
 
 /* Left subtree declarations split native FDF without changing its layout. All
  * remaining controls belong to the right side, including screen-level dialogs. */
-float UI_ScreenFrameOffset(frameDef_t const * frame) {
+float UI_ScreenFrameOffset(frameDef_t const *frame) {
     uiScreen_t *screen = UI_GetCurrentScreen();
     if (!screen) return 0;
-    for (frameDef_t const * cur = frame; cur; cur = cur->Parent)
+    for (frameDef_t const *cur = frame; cur; cur = cur->Parent)
         for (cstring_t const *name = screen->left; name && *name; name++)
             if (!strcmp(cur->Name, *name)) return UI_GlueSideOffset(UI_GLUE_LEFT);
     return UI_GlueSideOffset(UI_GLUE_RIGHT);
@@ -442,7 +442,7 @@ void M_KeyEvent(int key, bool down, uint32_t time) {
 
 /* Convert pixel coordinates to FDF/UI space for hit testing */
 static vector2_t UI_PixelToFdf(int px, int py) {
-    refExport_t * renderer = mi.GetRenderer();
+    refExport_t *renderer = mi.GetRenderer();
     size2_t window = renderer && renderer->GetWindowSize ? renderer->GetWindowSize() : MAKE(size2_t, 0, 0);
     rect_t scene = UI_GetSceneRect();
     float nx = 0;
@@ -473,7 +473,7 @@ bool M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
 
     vector2_t fdf = UI_PixelToFdf(x, y);
     ui_state.mouse_fdf = fdf;
-    frameDef_t const * hit = UI_HitTest(fdf.x, fdf.y);
+    frameDef_t const *hit = UI_HitTest(fdf.x, fdf.y);
     UI_UpdateMouseFrameFlags(hit, up && left);
 
     /* Dispatch to per-type event handler */
@@ -526,7 +526,7 @@ void UI_QueueCommand(cstring_t command) {
 }
 
 /* IDs must be complete unsigned uint32_t tokens, not negative or overflowing scanf conversions. */
-static bool UI_MenuNumber(cstring_t text, uint32_t * value) {
+static bool UI_MenuNumber(cstring_t text, uint32_t *value) {
     char *end;
     errno = 0;
     if (*text < '0' || *text > '9') return false;
@@ -537,7 +537,7 @@ static bool UI_MenuNumber(cstring_t text, uint32_t * value) {
 }
 
 /* Console tokenization owns quoting/whitespace; these callbacks validate only their argument shape. */
-static bool UI_MenuNumbers(uint32_t * nums, int count) {
+static bool UI_MenuNumbers(uint32_t *nums, int count) {
     if (mi.Cmd_Argc() == count + 1) {
         int i;
         for (i = 0; i < count && UI_MenuNumber(mi.Cmd_Argv(i + 1), &nums[i]); i++) {}

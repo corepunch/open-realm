@@ -5,25 +5,25 @@
 #include "../g_local.h"
 
 typedef struct QuestDialog_s {
-    frameDef_t * QuestDialog;
-    frameDef_t * QuestBackdrop;
-    frameDef_t * QuestTitleValue;
-    frameDef_t * QuestSubtitleValue;
-    frameDef_t * QuestMainTitle;
-    frameDef_t * QuestMainContainer;
-    frameDef_t * QuestOptionalTitle;
-    frameDef_t * QuestOptionalContainer;
-    frameDef_t * QuestDisplayBackdrop;
-    frameDef_t * QuestDetailsTitle;
-    frameDef_t * QuestItemListContainer;
-    frameDef_t * QuestDisplay;
-    frameDef_t * QuestDisplayScrollBar;
-    frameDef_t * QuestAcceptButton;
-    frameDef_t * QuestAcceptButtonText;
+    frameDef_t *QuestDialog;
+    frameDef_t *QuestBackdrop;
+    frameDef_t *QuestTitleValue;
+    frameDef_t *QuestSubtitleValue;
+    frameDef_t *QuestMainTitle;
+    frameDef_t *QuestMainContainer;
+    frameDef_t *QuestOptionalTitle;
+    frameDef_t *QuestOptionalContainer;
+    frameDef_t *QuestDisplayBackdrop;
+    frameDef_t *QuestDetailsTitle;
+    frameDef_t *QuestItemListContainer;
+    frameDef_t *QuestDisplay;
+    frameDef_t *QuestDisplayScrollBar;
+    frameDef_t *QuestAcceptButton;
+    frameDef_t *QuestAcceptButtonText;
 } QuestDialog_t;
 
 
-static inline bool QuestDialog_Bind(QuestDialog_t *out, frameDef_t * bind_root) {
+static inline bool QuestDialog_Bind(QuestDialog_t *out, frameDef_t *bind_root) {
     bool ok = true;
     if (!out) {
         return false;

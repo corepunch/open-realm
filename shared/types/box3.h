@@ -12,6 +12,6 @@ typedef struct box3 box3_t;
 
 
 
-vector3_t Box3_Center(box3_t const * box);
+vector3_t Box3_Center(box3_t const *box);
 
 #endif

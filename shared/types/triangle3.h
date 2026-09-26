@@ -13,6 +13,6 @@ typedef struct triangle3 triangle3_t;
 
 
 
-vector3_t Triangle_normal(triangle3_t const * triangle);
+vector3_t Triangle_normal(triangle3_t const *triangle);
 
 #endif

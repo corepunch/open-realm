@@ -81,7 +81,7 @@ static uint16_t G_UnitNameConfigstring(cstring_t name) {
 
 /* A few AzerothCore rows begin above index zero; primary means the lowest
  * populated model index, not blindly models[0]. */
-static wowCreatureModel_t const * Wow_CreaturePrimaryModel(wowCreature_t const * creature) {
+static wowCreatureModel_t const *Wow_CreaturePrimaryModel(wowCreature_t const *creature) {
     if (!creature) return NULL;
     FOR_LOOP(i, WOW_CREATURE_MODEL_COUNT)
         if (creature->models[i].display_id) return &creature->models[i];
@@ -164,9 +164,9 @@ static bool Wow_CachedCreatureModel(uint32_t display_id,
     return Wow_ResolveCreatureModel(display_id, model_path, model_path_size, scale, radius);
 }
 
-static void Wow_MonsterStart(edict_t * ent,
+static void Wow_MonsterStart(edict_t *ent,
                              uint32_t display_id,
-                             vector2_t const * home,
+                             vector2_t const *home,
                              float yaw,
                              float patrol_radius,
                              float walk_speed) {
@@ -201,15 +201,15 @@ static void Wow_MonsterStart(edict_t * ent,
     }
 }
 
-static edict_t * Wow_SpawnCreature(uint32_t display_id,
-                                 vector2_t const * origin,
+static edict_t *Wow_SpawnCreature(uint32_t display_id,
+                                 vector2_t const *origin,
                                  float yaw,
                                  float patrol_radius,
                                  float walk_speed) {
     PATHSTR model_path;
     float scale = 1.0f;
     float radius = 1.0f;
-    edict_t * ent;
+    edict_t *ent;
 
     if (!origin || !Wow_CachedCreatureModel(display_id, model_path, sizeof(model_path), &scale, &radius)) {
         fprintf(stderr, "WoW creature display %u could not be resolved\n", (unsigned)display_id);
@@ -246,7 +246,7 @@ static int Wow_CmpGiverDist(void const *a, void const *b) {
 
 /* Spawn non-hostile quest NPCs and server-side objective anchors from the
  * imported world database, limited to the player's nearby starting area. */
-void Wow_SpawnQuestLocations(vector2_t const * origin) {
+void Wow_SpawnQuestLocations(vector2_t const *origin) {
     uint32_t givers = 0;
     uint32_t objectives = 0;
     uint32_t budget = WOW_QUEST_LOCATION_BUDGET;
@@ -261,7 +261,7 @@ void Wow_SpawnQuestLocations(vector2_t const * origin) {
     /* Pre-sort by distance so the budget always favours the nearest quest
      * givers; table order (quest_id) is irrelevant to spawn priority. */
     FOR_LOOP(i, Wow_QuestGiverCount()) {
-        wowQuestGiver_t const * data = Wow_QuestGiver(i);
+        wowQuestGiver_t const *data = Wow_QuestGiver(i);
         vector2_t pos = { data->position.x, data->position.y };
         vector2_t delta = Vector2_sub(&pos, origin);
         float dist2 = delta.x * delta.x + delta.y * delta.y;
@@ -275,14 +275,14 @@ void Wow_SpawnQuestLocations(vector2_t const * origin) {
 
     FOR_LOOP(si, nsorted) {
         uint32_t i = sorted[si].idx;
-        wowQuestGiver_t const * data = Wow_QuestGiver(i);
-        wowCreature_t const * creature = Wow_CreatureByEntry(data->creature_entry);
-        wowCreatureModel_t const * creature_model;
+        wowQuestGiver_t const *data = Wow_QuestGiver(i);
+        wowCreature_t const *creature = Wow_CreatureByEntry(data->creature_entry);
+        wowCreatureModel_t const *creature_model;
         PATHSTR model_path;
         float scale = 1.0f;
         float radius = 1.0f;
         vector2_t position;
-        edict_t * ent;
+        edict_t *ent;
         wowEntityLocal_t *local;
         bool duplicate = false;
 
@@ -337,10 +337,10 @@ void Wow_SpawnQuestLocations(vector2_t const * origin) {
     }
 
     FOR_LOOP(i, Wow_QuestObjectiveCount()) {
-        wowQuestObjective_t const * data = Wow_QuestObjective(i);
+        wowQuestObjective_t const *data = Wow_QuestObjective(i);
         vector2_t position = data->position;
         vector2_t delta = Vector2_sub(&position, origin);
-        edict_t * ent;
+        edict_t *ent;
         wowEntityLocal_t *local;
 
         if (!budget)
@@ -366,7 +366,7 @@ void Wow_SpawnQuestLocations(vector2_t const * origin) {
     fprintf(stderr, "WoW: spawned %u quest givers and %u objective anchors\n", (unsigned)givers, (unsigned)objectives);
 }
 
-void Wow_SpawnAmbientCreatures(vector2_t const * origin) {
+void Wow_SpawnAmbientCreatures(vector2_t const *origin) {
     vector2_t creature_origin;
     uint32_t spawned = 0;
 

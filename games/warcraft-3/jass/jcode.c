@@ -3,7 +3,7 @@
 #include "jopcodes.h"
 #include "jparser.h"
 
-#define TOKENFUNC(NAME) void write_##NAME(writer_t * w, token_t const * t)
+#define TOKENFUNC(NAME) void write_##NAME(writer_t *w, token_t const *t)
 #define TOKENEVAL(NAME) { #NAME, TT_##NAME, write_##NAME }
 
 KNOWN_AS(vmWriter, writer_t);
@@ -29,7 +29,7 @@ static bool jcode_atob(cstring_t str) {
     return !strcmp(str, "true");
 }
 
-void VM_Write(struct vmBuffer *buffer, const char *format, ...) {
+void VM_Write(struct vmBuffer *buffer, char const *format, ...) {
     assert(buffer->writecount < buffer->buffersize);
     va_list args;
     va_start(args, format);
@@ -63,8 +63,8 @@ TOKENFUNC(Boolean) {
 }
 
 TOKENFUNC(Identifier) {
-//    jassFunc_t const * f = NULL;
-//    jassVar_t const * v = NULL;
+//    jassFunc_t const *f = NULL;
+//    jassVar_t const *v = NULL;
 //    if (t->flags & TF_FUNCTION) {
 //        if ((f = find_function(j, t->primary))) {
 //            return jass_pushfunction(j, f);
@@ -96,7 +96,7 @@ TOKENFUNC(Call) {
     VM_Write(&w->text, "\tbl _%s, %d", t->primary, num_args);
 //    }
 
-//    jassFunc_t const * f = NULL;
+//    jassFunc_t const *f = NULL;
 //    jassCFunction_t cf = NULL;
 //    uint32_t stacksize = j->num_stack;
 //    if (!strcmp(t->primary, "CommentString") && t->args) {
@@ -131,7 +131,7 @@ TOKENFUNC(Call) {
 
 static struct {
     TOKENTYPE tokentype;
-    void (*func)(writer_t * w, token_t const * t);
+    void (*func)(writer_t *w, token_t const *t);
 } compiler_token_types[] = {
     { TT_INTEGER, write_Integer },
     { TT_REAL, write_Real },
@@ -161,7 +161,7 @@ TOKENFUNC(TYPEDEF) {
     VM_Write(&w->global, "\t.asciz \"%s\"", t->primary);
 }
 
-void VM_InitValue(writer_t * w, token_t const * t, cstring_t name) {
+void VM_InitValue(writer_t *w, token_t const *t, cstring_t name) {
     uint32_t start = w->text.writecount;
     write_RegularToken(w, t);
     uint32_t diff = w->text.writecount - start;
@@ -228,7 +228,7 @@ TOKENFUNC(TOKENS) {
     }
 }
 
-vmprogram_t VM_Compile(token_t const * t) {
+vmprogram_t VM_Compile(token_t const *t) {
     memset(vmBuffers, 0, sizeof(vmBuffers));
     writer_t w = {
         .global = {

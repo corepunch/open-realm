@@ -18,7 +18,7 @@ static videoMode_t const video_modes[] = {
 };
 
 static inline uint32_t video_mode_count(void) { return sizeof(video_modes) / sizeof(*video_modes); }
-static inline videoMode_t const * video_mode_get(int mode) {
+static inline videoMode_t const *video_mode_get(int mode) {
     return mode >= 0 && mode < (int)video_mode_count() ? video_modes + mode : video_modes + BZ_VIDEO_MODE_DEFAULT;
 }
 

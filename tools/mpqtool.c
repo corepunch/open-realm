@@ -71,7 +71,7 @@ static unsigned int rd_u32le(const unsigned char *p) {
     return (unsigned int)(p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24));
 }
 
-static const char *blp_content_name(unsigned int content) {
+static char const *blp_content_name(unsigned int content) {
     switch (content) {
         case 0: return "JPEG";
         case 1: return "DIRECT_PALETTED";
@@ -79,7 +79,7 @@ static const char *blp_content_name(unsigned int content) {
     }
 }
 
-static const char *blp2_encoding_name(unsigned int encoding) {
+static char const *blp2_encoding_name(unsigned int encoding) {
     switch (encoding) {
         case 0: return "JPEG";
         case 1: return "PALETTIZED";
@@ -89,7 +89,7 @@ static const char *blp2_encoding_name(unsigned int encoding) {
     }
 }
 
-static int cmd_imginfo(handle_t archive, const char *file_path) {
+static int cmd_imginfo(handle_t archive, char const *file_path) {
     handle_t file;
     unsigned char header[512];
     uint32_t read_bytes = 0;
@@ -243,7 +243,7 @@ static int cmd_imginfo(handle_t archive, const char *file_path) {
     return 0;
 }
 
-static bool starts_with_ci(const char *s, const char *prefix) {
+static bool starts_with_ci(char const *s, char const *prefix) {
 #ifdef _WIN32
     return _strnicmp(s, prefix, strlen(prefix)) == 0;
 #else
@@ -251,7 +251,7 @@ static bool starts_with_ci(const char *s, const char *prefix) {
 #endif
 }
 
-static void entries_add_or_merge(entry_list_t *list, const char *name, bool is_dir) {
+static void entries_add_or_merge(entry_list_t *list, char const *name, bool is_dir) {
     size_t i;
     for (i = 0; i < list->count; i++) {
         if (strcmp(list->items[i].name, name) == 0) {
@@ -277,9 +277,9 @@ static void entries_add_or_merge(entry_list_t *list, const char *name, bool is_d
     list->count++;
 }
 
-static int entry_cmp(const void *a, const void *b) {
-    const entry_t *ea = (const entry_t *)a;
-    const entry_t *eb = (const entry_t *)b;
+static int entry_cmp(void const *a, void const *b) {
+    entry_t const *ea = (entry_t const *)a;
+    entry_t const *eb = (entry_t const *)b;
 #ifdef _WIN32
     return _stricmp(ea->name, eb->name);
 #else
@@ -287,7 +287,7 @@ static int entry_cmp(const void *a, const void *b) {
 #endif
 }
 
-static int cmd_cat(handle_t archive, const char *file_path) {
+static int cmd_cat(handle_t archive, char const *file_path) {
     handle_t file;
     unsigned char buf[64 * 1024];
     uint32_t read_bytes = 0;
@@ -310,7 +310,7 @@ static int cmd_cat(handle_t archive, const char *file_path) {
     return 0;
 }
 
-static int cmd_info(handle_t archive, const char *file_path) {
+static int cmd_info(handle_t archive, char const *file_path) {
     sfileFindData_t fd;
     handle_t hfind;
 
@@ -333,7 +333,7 @@ static int cmd_info(handle_t archive, const char *file_path) {
     return 0;
 }
 
-static const char *mpq_strcasestr(const char *hay, const char *needle) {
+static char const *mpq_strcasestr(char const *hay, char const *needle) {
     size_t nlen = strlen(needle);
     if (!nlen) return hay;
     for (; *hay; hay++)
@@ -342,19 +342,19 @@ static const char *mpq_strcasestr(const char *hay, const char *needle) {
     return NULL;
 }
 
-static bool is_binary_ext(const char *filename) {
-    static const char *const exts[] = {
+static bool is_binary_ext(char const *filename) {
+    static char const *const exts[] = {
         ".dds", ".blp", ".wav", ".ogg", ".mp3", ".m3", ".m3a",
         ".png", ".jpg", ".jpeg", ".tga", ".bmp", NULL,
     };
-    const char *ext = Tool_PathExt(filename);
+    char const *ext = Tool_PathExt(filename);
     for (int i = 0; exts[i]; i++)
         if (strcasecmp(ext, exts[i] + 1) == 0)
             return true;
     return false;
 }
 
-static int cmd_grep(handle_t archive, const char *pattern, const char *path_prefix) {
+static int cmd_grep(handle_t archive, char const *pattern, char const *path_prefix) {
     sfileFindData_t fd;
     handle_t hfind;
     char prefix[512] = {0};
@@ -375,7 +375,7 @@ static int cmd_grep(handle_t archive, const char *pattern, const char *path_pref
     }
 
     do {
-        const char *full = fd.cFileName;
+        char const *full = fd.cFileName;
         handle_t file;
         uint32_t file_size, read_bytes;
         char *buf;
@@ -430,7 +430,7 @@ static int cmd_grep(handle_t archive, const char *pattern, const char *path_pref
     return matches > 0 ? 0 : 1;
 }
 
-static int cmd_ls(handle_t archive, const char *path) {
+static int cmd_ls(handle_t archive, char const *path) {
     sfileFindData_t fd;
     handle_t hfind;
     char prefix[512];
@@ -453,8 +453,8 @@ static int cmd_ls(handle_t archive, const char *path) {
     }
 
     do {
-        const char *full = fd.cFileName;
-        const char *rest = full;
+        char const *full = fd.cFileName;
+        char const *rest = full;
 
         if (prefix_len > 0) {
             if (!starts_with_ci(full, prefix)) {
@@ -472,7 +472,7 @@ static int cmd_ls(handle_t archive, const char *path) {
         }
 
         {
-            const char *slash = strchr(rest, '\\');
+            char const *slash = strchr(rest, '\\');
             char child[512];
             bool is_dir = (slash != NULL);
             size_t n = is_dir ? (size_t)(slash - rest) : strlen(rest);
@@ -500,7 +500,7 @@ static int cmd_ls(handle_t archive, const char *path) {
     return 0;
 }
 
-static int cmd_create(const char *mpq_path, const char *arg)
+static int cmd_create(char const *mpq_path, char const *arg)
 {
     handle_t archive;
     uint32_t max_files = 16;
@@ -526,7 +526,7 @@ static int cmd_create(const char *mpq_path, const char *arg)
     return 0;
 }
 
-static int cmd_pack(const char *mpq_path, int pair_count, char **pairs)
+static int cmd_pack(char const *mpq_path, int pair_count, char **pairs)
 {
     handle_t archive;
     int i;
@@ -596,11 +596,11 @@ static void xml_unescape(char *s)
     *out = '\0';
 }
 
-static bool xml_attr(const char *line, const char *attr, char *out, size_t out_size)
+static bool xml_attr(char const *line, char const *attr, char *out, size_t out_size)
 {
     char pattern[64];
-    const char *p;
-    const char *end;
+    char const *p;
+    char const *end;
     size_t len;
 
     snprintf(pattern, sizeof(pattern), "%s=\"", attr);
@@ -623,7 +623,7 @@ static bool xml_attr(const char *line, const char *attr, char *out, size_t out_s
     return true;
 }
 
-static int mkpath(const char *path)
+static int mkpath(char const *path)
 {
     char tmp[512];
     size_t len;
@@ -663,7 +663,7 @@ static int mkpath(const char *path)
     return 0;
 }
 
-static int ensure_parent_dir(const char *path)
+static int ensure_parent_dir(char const *path)
 {
     char tmp[512];
     char *slash;
@@ -678,7 +678,7 @@ static int ensure_parent_dir(const char *path)
     return mkpath(tmp);
 }
 
-static bool read_archive_file(handle_t archive, const char *path, uint8_t **out_data, uint32_t *out_size)
+static bool read_archive_file(handle_t archive, char const *path, uint8_t **out_data, uint32_t *out_size)
 {
     handle_t file;
     uint32_t size;
@@ -713,14 +713,14 @@ static bool read_archive_file(handle_t archive, const char *path, uint8_t **out_
     return true;
 }
 
-static void archive_path_join(char *out, size_t out_size, const char *base, const char *from)
+static void archive_path_join(char *out, size_t out_size, char const *base, char const *from)
 {
     snprintf(out, out_size, "%s%s", base ? base : "", from ? from : "");
     Tool_NormalizeSlashes(out, '\\');
     Tool_TrimEdgeSlashes(out);
 }
 
-static void output_path_for_container(char *out, size_t out_size, const char *out_dir, const char *container)
+static void output_path_for_container(char *out, size_t out_size, char const *out_dir, char const *container)
 {
     char converted[256];
 
@@ -738,7 +738,7 @@ static void strip_wow_data_prefix(char *container)
     }
 }
 
-static wow_target_t *get_wow_target(wow_target_t *targets, size_t *count, const char *out_dir, const char *container)
+static wow_target_t *get_wow_target(wow_target_t *targets, size_t *count, char const *out_dir, char const *container)
 {
     size_t i;
 
@@ -788,7 +788,7 @@ static int close_wow_targets(wow_target_t *targets, size_t count)
     return rc;
 }
 
-static int cmd_wow_install(const char *out_dir, const char **disc_paths, bool strip_data_prefix)
+static int cmd_wow_install(char const *out_dir, char const **disc_paths, bool strip_data_prefix)
 {
     handle_t discs[4] = { 0 };
     uint8_t *manifest = NULL;
@@ -945,11 +945,11 @@ static void data_collect_archive(cstring_t path, void *ud) {
     data_archive_count++;
 }
 
-static int data_path_cmp(const void *a, const void *b) {
-    return strcasecmp((const char *)a, (const char *)b);
+static int data_path_cmp(void const *a, void const *b) {
+    return strcasecmp((char const *)a, (char const *)b);
 }
 
-static bool data_open_archives(const char *data_dir) {
+static bool data_open_archives(char const *data_dir) {
     /* Collect all archive paths under data_dir. */
     Tool_ForEachArchive(data_dir, data_collect_archive, NULL);
     /* Sort so the engine's deterministic priority order is preserved. */
@@ -975,8 +975,8 @@ static void data_close_archives(void) {
 }
 
 /* grep one archive, tagging each match with the archive path. */
-static int grep_one_archive(handle_t archive, const char *archive_label,
-                             const char *pattern, const char *path_prefix) {
+static int grep_one_archive(handle_t archive, char const *archive_label,
+                             char const *pattern, char const *path_prefix) {
     sfileFindData_t fd;
     handle_t hfind;
     char prefix[512] = {0};
@@ -994,7 +994,7 @@ static int grep_one_archive(handle_t archive, const char *archive_label,
     if (!hfind) return 0;
 
     do {
-        const char *full = fd.cFileName;
+        char const *full = fd.cFileName;
         handle_t file;
         uint32_t file_size, read_bytes;
         char *buf;
@@ -1042,15 +1042,15 @@ static int grep_one_archive(handle_t archive, const char *archive_label,
     return matches;
 }
 
-static int cmd_grep_data(const char *pattern, const char *path_prefix) {
+static int cmd_grep_data(char const *pattern, char const *path_prefix) {
     int total = 0;
     for (int i = 0; i < data_archive_count; i++) {
         if (!data_archives[i]) continue;
         /* Label is the last two path components for readability. */
-        const char *label = data_archive_paths[i];
-        const char *slash = strrchr(label, '/');
+        char const *label = data_archive_paths[i];
+        char const *slash = strrchr(label, '/');
         if (slash) {
-            const char *prev = slash - 1;
+            char const *prev = slash - 1;
             while (prev > label && *prev != '/') prev--;
             if (*prev == '/') label = prev + 1;
         }
@@ -1059,7 +1059,7 @@ static int cmd_grep_data(const char *pattern, const char *path_prefix) {
     return total > 0 ? 0 : 1;
 }
 
-static int cmd_cat_data(const char *file_path) {
+static int cmd_cat_data(char const *file_path) {
     char path[512];
     strncpy(path, file_path, sizeof(path) - 1);
     path[sizeof(path) - 1] = '\0';
@@ -1092,10 +1092,10 @@ static int cmd_cat_data(const char *file_path) {
 }
 
 int main(int argc, char **argv) {
-    const char *mpq = NULL;
-    const char *data = NULL;
-    const char *cmd = NULL;
-    const char *arg = NULL;
+    char const *mpq = NULL;
+    char const *data = NULL;
+    char const *cmd = NULL;
+    char const *arg = NULL;
     char **extra = NULL;
     int extra_count = 0;
     handle_t archive;
@@ -1114,7 +1114,7 @@ int main(int argc, char **argv) {
             return 1;
         }
         {
-            const char *disc_paths[4] = { argv[argi + 1], argv[argi + 2], argv[argi + 3], argv[argi + 4] };
+            char const *disc_paths[4] = { argv[argi + 1], argv[argi + 2], argv[argi + 3], argv[argi + 4] };
             return cmd_wow_install(argv[argi], disc_paths, strip_data_prefix);
         }
     }

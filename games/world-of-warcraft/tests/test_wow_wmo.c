@@ -507,8 +507,8 @@ TEST(wow_wmo_doodad_sets, modn_blob_offset_lookup) {
     const char blob[] = "path/to/model_a.mdx\0path/to/model_b.mdx\0";
 
     /* Manually verify offset math as production code does it */
-    const char *a = (const char *)blob + 0;
-    const char *b = (const char *)blob + 20; /* strlen("path/to/model_a.mdx") + 1 */
+    char const *a = (char const *)blob + 0;
+    char const *b = (char const *)blob + 20; /* strlen("path/to/model_a.mdx") + 1 */
 
     T_STREQ(a, "path/to/model_a.mdx");
     T_STREQ(b, "path/to/model_b.mdx");
@@ -830,10 +830,10 @@ TEST(wow_wmo_global, mwmo_name_blob_null_terminated_strings) {
     uint32_t blob_size = (uint32_t)(sizeof(blob) - 1);
 
     /* First string at offset 0 */
-    const char *first = blob + 0;
+    char const *first = blob + 0;
     /* Second string at offset strlen(first)+1 */
     uint32_t second_off = (uint32_t)(strlen(first) + 1);
-    const char *second = blob + second_off;
+    char const *second = blob + second_off;
 
     T_STREQ(first,  "World/wmo/Test.wmo");
     T_STREQ(second, "World/wmo/Other.wmo");
@@ -845,8 +845,8 @@ TEST(wow_wmo_global, mwid_offset_array_indexes_mwmo_blob) {
     const char mwmo[] = "path/a.wmo\0path/b.wmo\0";
     uint32_t offsets[2] = { 0, 11 }; /* 0 and strlen("path/a.wmo")+1 */
 
-    const char *a = mwmo + offsets[0];
-    const char *b = mwmo + offsets[1];
+    char const *a = mwmo + offsets[0];
+    char const *b = mwmo + offsets[1];
     T_STREQ(a, "path/a.wmo");
     T_STREQ(b, "path/b.wmo");
 }
@@ -860,7 +860,7 @@ TEST(wow_wmo_global, name_id_in_modf_is_index_into_mwid) {
 
     /* Direct lookup to simulate Wow_StringRefFromOffsets */
     uint32_t name_offset = offsets[name_id];
-    const char *path = mwmo + name_offset;
+    char const *path = mwmo + name_offset;
     T_STREQ(path, "WorldB.wmo");
 }
 
@@ -1037,7 +1037,7 @@ TEST(wow_wmo_portal, no_portals_no_containment_culling) {
    Reference mirrors the updated Wow_WmoMaterialSlot using void* for texture.
    ======================================================================= */
 
-static uint32_t ref_wmo_material_slot(uint32_t material_id, void * const *materials,
+static uint32_t ref_wmo_material_slot(uint32_t material_id, void *const *materials,
                                     uint8_t const *blend_modes, uint32_t count) {
     void *texture = material_id < count ? materials[material_id] : (void *)0;
     uint8_t blend = (blend_modes && material_id < count) ? blend_modes[material_id] : 0;
@@ -1052,7 +1052,7 @@ TEST(wow_wmo_mat_slot, same_texture_same_blend_deduplicates_to_first_slot) {
        Deduplication should still work: both map to slot 0. */
     void *tex_a = (void *)0x1000;
     void *tex_b = (void *)0x2000;
-    void * const mats[3] = { tex_a, tex_b, tex_a };
+    void *const mats[3] = { tex_a, tex_b, tex_a };
     uint8_t blends[3] = { 0, 0, 0 };
     T_EQ((int)ref_wmo_material_slot(0, mats, blends, 3), 0);
     T_EQ((int)ref_wmo_material_slot(1, mats, blends, 3), 1);
@@ -1064,7 +1064,7 @@ TEST(wow_wmo_mat_slot, same_texture_different_blend_stays_in_own_slot) {
        They must NOT collapse to the same slot — material 2's blend would be lost. */
     void *tex_a = (void *)0x1000;
     void *tex_b = (void *)0x2000;
-    void * const mats[3] = { tex_a, tex_b, tex_a };
+    void *const mats[3] = { tex_a, tex_b, tex_a };
     uint8_t blends[3] = { 0, 0, 2 }; /* mat 0=Opaque, mat 2=Alpha blend */
     T_EQ((int)ref_wmo_material_slot(0, mats, blends, 3), 0);
     T_EQ((int)ref_wmo_material_slot(2, mats, blends, 3), 2); /* not deduped */
@@ -1072,7 +1072,7 @@ TEST(wow_wmo_mat_slot, same_texture_different_blend_stays_in_own_slot) {
 
 TEST(wow_wmo_mat_slot, out_of_range_material_id_returns_count) {
     void *tex_a = (void *)0x1000;
-    void * const mats[1] = { tex_a };
+    void *const mats[1] = { tex_a };
     uint8_t blends[1] = { 0 };
     T_EQ((int)ref_wmo_material_slot(99, mats, blends, 1), 1); /* fallback slot */
 }

@@ -23,7 +23,7 @@ void CL_PredictCameraPosition(vector2_t pos) {
     bool terrain = re.CameraUsesTerrainHeight();
     float height = terrain ? re.GetHeightAtPoint(pos.x, pos.y) : 0.0f;
     FOR_LOOP(i, 2) {
-        vector3_t * org = &cl.viewDef.camerastate[i].origin;
+        vector3_t *org = &cl.viewDef.camerastate[i].origin;
         /* Changing XY alone paired the previous terrain Z with the new location and caused acknowledgment jumps. */
         if (terrain) org->z += height - re.GetHeightAtPoint(org->x, org->y);
         org->x = pos.x; org->y = pos.y;
@@ -49,7 +49,7 @@ void CL_ClearMinimap(void) {
 }
 
 /* Keep newest alert positions first so Space traversal is deterministic. */
-static void CL_RememberMinimapPosition(vector2_t const * position) {
+static void CL_RememberMinimapPosition(vector2_t const *position) {
     uint32_t move = MIN(minimap_recent_count, CL_MINIMAP_RECENT_COUNT - 1);
     if (move) memmove(&minimap_recent[1], minimap_recent, move * sizeof(*minimap_recent));
     minimap_recent[0] = *position;
@@ -58,7 +58,7 @@ static void CL_RememberMinimapPosition(vector2_t const * position) {
 }
 
 /* Decode the fixed transient marker packet directly into client presentation state. */
-void CL_ParseMinimapPing(sizeBuf_t * msg) {
+void CL_ParseMinimapPing(sizeBuf_t *msg) {
     minimapPing_t ping = { .active = true, .start_time = cl.time };
     uint32_t slot = CL_MINIMAP_PING_COUNT, oldest = 0, oldest_age = 0;
     float duration;
@@ -127,7 +127,7 @@ void CL_UpdateMinimapModel(void) {
 }
 
 /* Draw the server-authored minimap frame and all transient attention markers. */
-void CL_LayoutDrawMinimap(uiFrame_t const * frame, rect_t const * screen) {
+void CL_LayoutDrawMinimap(uiFrame_t const *frame, rect_t const *screen) {
     /* bool is a byte and truncated bit 15 to zero, selecting the unloaded gameplay texture. */
     bool preview = frame->flagsvalue & UIFLAG_MINIMAP_PREVIEW;
     re.DrawMinimap(screen, preview ? frame->text : NULL);

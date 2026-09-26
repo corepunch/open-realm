@@ -1,7 +1,7 @@
 #include <string.h>
 #include "../cmath3.h"
 
-void Matrix3_normal(matrix3_t * out, matrix4_t const * modelview) {
+void Matrix3_normal(matrix3_t *out, matrix4_t const *modelview) {
     struct matrix4 inverse;
     Matrix4_inverse(modelview, &inverse);
     float const m33[9] = {

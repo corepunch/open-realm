@@ -5,13 +5,13 @@
 
 bool run_test_jass(cstring_t src);
 void setup_test_world(void);
-extern player_t * currentplayer;
+extern player_t *currentplayer;
 
 TEST(wc3_api, multiboard_natives_manage_cells_display_and_minimize) {
-    player_t * saved = currentplayer;
-    multiboard_t * board;
+    player_t *saved = currentplayer;
+    multiboard_t *board;
     struct gmultiboardcell_s *cell;
-    multiboardItem_t * stale;
+    multiboardItem_t *stale;
     setup_test_world();
     currentplayer = NULL;
     T_ASSERT(run_test_jass(
@@ -93,7 +93,7 @@ TEST(wc3_api, multiboard_natives_manage_cells_display_and_minimize) {
 }
 
 TEST(wc3_api, multiboard_display_uses_client_slot_for_mapped_player) {
-    multiboard_t * board;
+    multiboard_t *board;
     setup_test_world();
     game.clients[0].ps.number = 1;
     game.clients[1].ps.number = 0;
@@ -109,8 +109,8 @@ TEST(wc3_api, multiboard_display_uses_client_slot_for_mapped_player) {
 }
 
 TEST(wc3_api, texttag_natives_store_unit_anchor_and_style) {
-    player_t * saved = currentplayer;
-    texttag_t * tag;
+    player_t *saved = currentplayer;
+    texttag_t *tag;
     setup_test_world();
     currentplayer = NULL;
     T_ASSERT(run_test_jass(

@@ -1,6 +1,6 @@
 #include "../cmath3.h"
 
-void Frustum_Calculate(matrix4_t const * matrix, frustum3_t * output) {
+void Frustum_Calculate(matrix4_t const *matrix, frustum3_t *output) {
     output->right.normal.x = matrix->v[ 3] - matrix->v[ 0];
     output->right.normal.y = matrix->v[ 7] - matrix->v[ 4];
     output->right.normal.z = matrix->v[11] - matrix->v[ 8];
@@ -44,7 +44,7 @@ void Frustum_Calculate(matrix4_t const * matrix, frustum3_t * output) {
     Plane3_Normalize(&output->front);
 }
 
-int Frustum_ContainsSphere(frustum3_t const * frustum, sphere3_t const * sphere) {
+int Frustum_ContainsSphere(frustum3_t const *frustum, sphere3_t const *sphere) {
     for (unsigned i = 0; i < FRUSTUM_NUM_PLANES; i++) {
         if (Plane3_MultiplyVector3(frustum->planes+i, &sphere->center) <= -sphere->radius) {
             return 0;
@@ -53,11 +53,11 @@ int Frustum_ContainsSphere(frustum3_t const * frustum, sphere3_t const * sphere)
     return 1;
 }
 
-int Frustum_ContainsPoint(frustum3_t const * frustum, vector3_t const * point) {
+int Frustum_ContainsPoint(frustum3_t const *frustum, vector3_t const *point) {
     return Frustum_ContainsSphere(frustum, &(sphere3_t){.center=*point,.radius=0});
 }
 
-int Frustum_ContainsBox(frustum3_t const * frustum, box3_t const * box, matrix4_t const * matrix) {
+int Frustum_ContainsBox(frustum3_t const *frustum, box3_t const *box, matrix4_t const *matrix) {
     vector3_t const points[] = {
         Matrix4_multiply_vector3(matrix, &(vector3_t) { box->min.x, box->min.y, box->min.z }),
         Matrix4_multiply_vector3(matrix, &(vector3_t) { box->max.x, box->min.y, box->min.z }),
@@ -80,7 +80,7 @@ int Frustum_ContainsBox(frustum3_t const * frustum, box3_t const * box, matrix4_
     return 1;
 }
 
-int Frustum_ContainsAABox(frustum3_t const * frustum, box3_t const * box) {
+int Frustum_ContainsAABox(frustum3_t const *frustum, box3_t const *box) {
     vector3_t const points[] = {
         { box->min.x, box->min.y, box->min.z },
         { box->max.x, box->min.y, box->min.z },

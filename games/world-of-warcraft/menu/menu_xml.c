@@ -529,7 +529,7 @@ bool UIWow_XMLSetButtonChecked(cstring_t name, bool checked) {
 }
 
 /* Runtime FrameXML scripts use the same native point and positive-Y-up coordinate contract as XML anchors. */
-bool UIWow_XMLSetFramePoint(cstring_t name, wowXmlPoint_t const * in) {
+bool UIWow_XMLSetFramePoint(cstring_t name, wowXmlPoint_t const *in) {
     int idx = UIWow_XmlFindByName(name); uiWowXmlElem_t *e;
     if (idx < 0 || !in || !in->point || !in->point[0]) return false;
     e = &wow_xml.elems[idx];
@@ -543,7 +543,7 @@ bool UIWow_XMLSetFramePoint(cstring_t name, wowXmlPoint_t const * in) {
 
 /* Reproduce FrameXML's GetHeight + SetHeight sizing before the parent backdrop is drawn. */
 bool UIWow_XMLSizeFrameToText(cstring_t frame, cstring_t text, float padding) {
-    int fi = UIWow_XmlFindByName(frame), ti = UIWow_XmlFindByName(text); rect_t r; font_t const * font; vector2_t sz;
+    int fi = UIWow_XmlFindByName(frame), ti = UIWow_XmlFindByName(text); rect_t r; font_t const *font; vector2_t sz;
     if (fi < 0 || ti < 0 || wow_xml.elems[ti].type != WOW_XML_FONTSTRING || !wow_ui.renderer || !wow_ui.renderer->GetTextSize)
         return false;
     r = UIWow_XmlComputeRect(ti); font = UIWow_LoadFont((uint32_t)wow_xml.elems[ti].font_size);
@@ -717,7 +717,7 @@ static void UIWow_XMLComputeScrollRanges(void) {
     }
 }
 
-static void UIWow_XMLDrawImage(texture_t * tex, rect_t const * screen, rect_t const * uv, color32_t color, BLEND_MODE mode) {
+static void UIWow_XMLDrawImage(texture_t *tex, rect_t const *screen, rect_t const *uv, color32_t color, BLEND_MODE mode) {
     if (!wow_ui.renderer || !tex) return;
     if (wow_ui.renderer->DrawImageEx) {
         wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t, .texture = tex, .shader = SHADER_UI, .alphamode = mode, .screen = *screen, .uv = *uv, .color = color, .flags = s_has_scroll_clip ? DRAW_CLIP : 0, .clip = s_scroll_clip));
@@ -726,11 +726,11 @@ static void UIWow_XMLDrawImage(texture_t * tex, rect_t const * screen, rect_t co
     }
 }
 
-static void UIWow_XMLDrawBackdrop(uiWowXmlElem_t const *e, rect_t const * r) {
+static void UIWow_XMLDrawBackdrop(uiWowXmlElem_t const *e, rect_t const *r) {
     cstring_t bg_path = e->texts[ELEM_BACKDROP_BG];
     cstring_t edge_path = e->texts[ELEM_BACKDROP_EDGE];
-    texture_t const * bg_tex = NULL;
-    texture_t const * edge_tex = NULL;
+    texture_t const *bg_tex = NULL;
+    texture_t const *edge_tex = NULL;
     drawBackdrop_t db;
 
     if (!wow_ui.renderer || !wow_ui.renderer->DrawBackdrop) return;
@@ -790,7 +790,7 @@ static cstring_t UIWow_XMLDisplayText(uiWowXmlElem_t const *e, string_t out, siz
 
 /* Return the live character actor for Blizzard's background model scene.
    Handles both char-create (customize) and char-select screens. */
-static model_t * UIWow_XMLCharCustomizeModel(int i) {
+static model_t *UIWow_XMLCharCustomizeModel(int i) {
     char path[MAX_PATHLEN];
     bool is_char_select = (i == wow_ui.char_select_frame_idx);
     bool is_char_customize = (i == wow_ui.char_customize_frame_idx);
@@ -814,7 +814,7 @@ static model_t * UIWow_XMLCharCustomizeModel(int i) {
 }
 
 /* Report unresolved authored geometry once without fabricating a drawable or clickable rectangle. */
-static void UIWow_XMLWarnGeometry(uiWowXmlElem_t *e, rect_t const * r) {
+static void UIWow_XMLWarnGeometry(uiWowXmlElem_t *e, rect_t const *r) {
     if ((r->w > 0.0f && r->h > 0.0f) || e->flags & EF_LOGGED_GEOMETRY) return;
     mi.Printf("UIWow: unresolved FrameXML geometry frame=%s source=%s width=%g height=%g\n",
         UIWow_ElemStr(e, ELEM_NAME) ? e->texts[ELEM_NAME] : "<unnamed>",
@@ -927,7 +927,7 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         if ((file && file[0] && e->type == WOW_XML_TEXTURE) || (e->type == WOW_XML_BUTTON && ((normal_file && normal_file[0]) || (file && file[0])))) {
             cstring_t src = (e->type == WOW_XML_BUTTON && pressed && pushed_file && pushed_file[0]) ? pushed_file :
                          ((e->type == WOW_XML_BUTTON && normal_file && normal_file[0]) ? normal_file : file);
-            texture_t * t = UIWow_LoadTexture(src);
+            texture_t *t = UIWow_LoadTexture(src);
             if (e->flags & EF_HAS_TEXCOORD) uv = e->texcoord;
             /* Scrollbar thumb: reposition ThumbTexture based on scroll_y / scroll_range. */
             if (e->type == WOW_XML_TEXTURE && e->parent >= 0 && e->parent < wow_xml.count) {
@@ -950,11 +950,11 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                 UIWow_XMLDrawImage(t, &r, &uv, MAKE(color32_t, e->colors[ELEM_COLOR_VERTEX].r, e->colors[ELEM_COLOR_VERTEX].g, e->colors[ELEM_COLOR_VERTEX].b, (uint8_t)(e->colors[ELEM_COLOR_VERTEX].a * e->alpha)), BLEND_MODE_BLEND);
             }
             if (e->type == WOW_XML_BUTTON && e->flags & EF_CHECKED && checked_file) {
-                texture_t * ct = UIWow_LoadTexture(checked_file);
+                texture_t *ct = UIWow_LoadTexture(checked_file);
                 if (ct) UIWow_XMLDrawImage(ct, &r, &MAKE(rect_t,0,0,1,1), COLOR32_WHITE, BLEND_MODE_BLEND);
             }
             if (e->type == WOW_XML_BUTTON && hovered && highlight_file && highlight_file[0]) {
-                texture_t * ht = UIWow_LoadTexture(highlight_file);
+                texture_t *ht = UIWow_LoadTexture(highlight_file);
                 rect_t huv = MAKE(rect_t, 0, 0, 1, 1);
                 if (e->flags & EF_HAS_HIGHLIGHT_TEXCOORD) huv = e->highlight_texcoord;
                 if (ht) UIWow_XMLDrawImage(ht, &r, &huv, COLOR32_WHITE, BLEND_MODE_ADD);
@@ -962,7 +962,7 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         }
         if (((elem_text && elem_text[0]) || (e->type == WOW_XML_EDITBOX && wow_xml.focus == i)) &&
             (e->type == WOW_XML_FONTSTRING || e->type == WOW_XML_EDITBOX || e->type == WOW_XML_BUTTON)) {
-            font_t const * f = UIWow_LoadFont((uint32_t)e->font_size);
+            font_t const *f = UIWow_LoadFont((uint32_t)e->font_size);
             /* FrameXML may leave either FontString axis to its renderer-measured natural size. */
             if (f && e->type == WOW_XML_FONTSTRING && (e->size.w == 0 || e->size.h == 0) && wow_ui.renderer->GetTextSize) {
                 cstring_t display = UIWow_XMLDisplayText(e, text, sizeof(text));

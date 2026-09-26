@@ -7,9 +7,9 @@
 #include <float.h>
 #include <stdlib.h>
 
-void R_GetEntityMatrix(renderEntity_t const *entity, matrix4_t * matrix) {
+void R_GetEntityMatrix(renderEntity_t const *entity, matrix4_t *matrix) {
     modelPose_t pose = { .origin = entity->origin, .angles.yaw = entity->angle, .scale = entity->scale };
-    matrix4_t const * basis = R_EntityPose(entity, &pose);
+    matrix4_t const *basis = R_EntityPose(entity, &pose);
     quaternion_t rotation = Quaternion_fromOrientation(&pose.angles);
     matrix4_t placement;
     Matrix4_from_rotation_translation_scale_origin(&placement, &rotation, &pose.origin,
@@ -19,7 +19,7 @@ void R_GetEntityMatrix(renderEntity_t const *entity, matrix4_t * matrix) {
 }
 
 /* A socket already includes the parent's model basis. Apply only the child's local pose. */
-void R_GetAttachmentMatrix(renderEntity_t const *entity, matrix4_t const * socket, matrix4_t * matrix) {
+void R_GetAttachmentMatrix(renderEntity_t const *entity, matrix4_t const *socket, matrix4_t *matrix) {
     quaternion_t rotation = Quaternion_fromOrientation(&entity->attachment.angles);
     *matrix = *socket;
     Matrix4_rotateQuat(matrix, &rotation);
@@ -191,15 +191,15 @@ void R_DrawDecals(void) {
 
 uint32_t selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };
 
-static void R_RenderUberSplat(const renderEntity_t *entity, vector2_t const * origin) {
+static void R_RenderUberSplat(renderEntity_t const *entity, vector2_t const *origin) {
     if (entity->splat && !(entity->flags & RF_NO_UBERSPLAT)) {
         R_RenderSplat(origin, entity->splatsize, entity->splat, R_SPLAT_SHADER(&tr.shader_default), COLOR32_WHITE);
     }
 }
 
-static void R_DrawEntityShadow(const renderEntity_t *entity, vector2_t const * origin, bool shad) {
+static void R_DrawEntityShadow(renderEntity_t const *entity, vector2_t const *origin, bool shad) {
 #ifndef USE_SHADOWMAPS
-    texture_t const * shadow = entity->shadow;
+    texture_t const *shadow = entity->shadow;
     box3_t bounds;
 
     if (R_RenderShadow(entity, origin)) {
@@ -261,7 +261,7 @@ static void R_DrawEntityShadows(bool shad) {
 #endif
 }
 
-static void R_RenderSelectedCircle(const renderEntity_t *entity, vector2_t const * origin) {
+static void R_RenderSelectedCircle(renderEntity_t const *entity, vector2_t const *origin) {
     if (entity->flags & RF_SELECTED) {
         color32_t color;
         if (entity->flags & RF_HOSTILE) {
@@ -290,7 +290,7 @@ static void R_RenderSelectedCircle(const renderEntity_t *entity, vector2_t const
     }
 }
 
-static void R_RenderEntityIndicator(renderEntity_t const *entity, vector2_t const * origin) {
+static void R_RenderEntityIndicator(renderEntity_t const *entity, vector2_t const *origin) {
     if (!entity->indicator.a) return;
 
     float radius = R_SelectionRadius(entity);

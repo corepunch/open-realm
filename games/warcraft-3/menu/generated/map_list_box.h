@@ -5,13 +5,13 @@
 #include "../menu_local.h"
 
 typedef struct MapListBox_s {
-    frameDef_t * MapListBox;
-    frameDef_t * MapListBoxBackdrop;
-    frameDef_t * MapListScrollBar;
+    frameDef_t *MapListBox;
+    frameDef_t *MapListBoxBackdrop;
+    frameDef_t *MapListScrollBar;
 } MapListBox_t;
 
 
-static inline bool MapListBox_Bind(MapListBox_t *out, frameDef_t * bind_root) {
+static inline bool MapListBox_Bind(MapListBox_t *out, frameDef_t *bind_root) {
     bool ok = true;
     if (!out) {
         return false;

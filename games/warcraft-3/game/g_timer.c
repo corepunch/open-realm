@@ -10,16 +10,16 @@ static uint32_t TimerDialogPlayerMask(void) {
     return mask;
 }
 
-static uint32_t TimerDialogDisplaySeconds(gtimer_t const * timer) {
+static uint32_t TimerDialogDisplaySeconds(gtimer_t const *timer) {
     uint32_t millis = G_TimerRemaining(timer);
     return millis / 1000u + (millis % 1000u != 0);
 }
 
-static timerdialog_t * VisibleTimerDialogForPlayer(uint32_t player_num, int32_t *index) {
+static timerdialog_t *VisibleTimerDialogForPlayer(uint32_t player_num, int32_t *index) {
     if (index) *index = -1;
     if (player_num >= MAX_CLIENTS) return NULL;
     FOR_LOOP(i, MAX_TIMERDIALOGS) {
-        timerdialog_t * dialog = &level.timer_dialogs[i];
+        timerdialog_t *dialog = &level.timer_dialogs[i];
         if (!dialog->inuse || !(dialog->visible_clients & (1u << player_num))) continue;
         if (index) *index = (int32_t)i;
         return dialog;
@@ -27,15 +27,15 @@ static timerdialog_t * VisibleTimerDialogForPlayer(uint32_t player_num, int32_t 
     return NULL;
 }
 
-gtimer_t * G_AllocJassTimer(void) {
+gtimer_t *G_AllocJassTimer(void) {
     if (level.num_timers >= MAX_TIMERS) return NULL;
-    gtimer_t * timer = &level.timers[level.num_timers++];
+    gtimer_t *timer = &level.timers[level.num_timers++];
     memset(timer, 0, sizeof(*timer)); return timer;
 }
 
-timerdialog_t * G_AllocTimerDialog(gtimer_t * timer) {
+timerdialog_t *G_AllocTimerDialog(gtimer_t *timer) {
     FOR_LOOP(i, MAX_TIMERDIALOGS) if (!level.timer_dialogs[i].inuse) {
-        timerdialog_t * dialog = &level.timer_dialogs[i];
+        timerdialog_t *dialog = &level.timer_dialogs[i];
         memset(dialog, 0, sizeof(*dialog));
         dialog->inuse = true;
         dialog->timer = timer;
@@ -47,7 +47,7 @@ timerdialog_t * G_AllocTimerDialog(gtimer_t * timer) {
     return NULL;
 }
 
-void G_FreeTimerDialog(timerdialog_t * dialog) {
+void G_FreeTimerDialog(timerdialog_t *dialog) {
     uint32_t dirty;
     if (!dialog || !dialog->inuse) return;
     dirty = dialog->visible_clients;
@@ -55,7 +55,7 @@ void G_FreeTimerDialog(timerdialog_t * dialog) {
     level.timer_dialog_dirty_clients |= dirty;
 }
 
-void G_SetTimerDialogVisible(timerdialog_t * dialog, player_t * player, bool visible) {
+void G_SetTimerDialogVisible(timerdialog_t *dialog, player_t *player, bool visible) {
     uint32_t mask, old_mask;
     if (!dialog || !dialog->inuse) return;
     if (player) {
@@ -75,7 +75,7 @@ void G_SetTimerDialogVisible(timerdialog_t * dialog, player_t * player, bool vis
                         (unsigned)G_TimerRemaining(dialog->timer));
 }
 
-bool G_IsTimerDialogVisible(timerdialog_t const * dialog, player_t const * player) {
+bool G_IsTimerDialogVisible(timerdialog_t const *dialog, player_t const *player) {
     uint32_t mask;
     if (!dialog || !dialog->inuse) return false;
     if (player) {
@@ -86,20 +86,20 @@ bool G_IsTimerDialogVisible(timerdialog_t const * dialog, player_t const * playe
     return mask && (dialog->visible_clients & mask) == mask;
 }
 
-void G_MarkTimerDialogDirty(timerdialog_t const * dialog) {
+void G_MarkTimerDialogDirty(timerdialog_t const *dialog) {
     if (dialog && dialog->inuse) level.timer_dialog_dirty_clients |= dialog->visible_clients;
 }
 
-void G_FormatTimerDialogValue(gtimer_t const * timer, string_t out, size_t out_size) {
+void G_FormatTimerDialogValue(gtimer_t const *timer, string_t out, size_t out_size) {
     uint32_t seconds = TimerDialogDisplaySeconds(timer);
     uint32_t minutes = seconds / 60u;
     if (!out || !out_size) return;
     snprintf(out, out_size, "%02u:%02u", (unsigned)minutes, (unsigned)(seconds % 60u));
 }
 
-uint32_t G_TimerRemaining(gtimer_t const * timer) { return timer ? timer->remaining : 0; }
+uint32_t G_TimerRemaining(gtimer_t const *timer) { return timer ? timer->remaining : 0; }
 
-void G_TimerStart(gtimer_t * timer, uint32_t timeout, bool periodic, jassFunc_t const * handler) {
+void G_TimerStart(gtimer_t *timer, uint32_t timeout, bool periodic, jassFunc_t const *handler) {
     if (!timer) return;
     timer->generation++;
     timer->handler = handler; timer->duration = timeout; timer->remaining = timeout;
@@ -110,18 +110,18 @@ void G_TimerStart(gtimer_t * timer, uint32_t timeout, bool periodic, jassFunc_t 
                             (unsigned)level.timer_dialogs[i].visible_clients);
 }
 
-void G_TimerPause(gtimer_t * timer) {
+void G_TimerPause(gtimer_t *timer) {
     if (!timer || !timer->running || timer->paused) return;
     timer->generation++;
     timer->paused = true;
 }
 
-void G_TimerResume(gtimer_t * timer) {
+void G_TimerResume(gtimer_t *timer) {
     if (!timer || !timer->running || !timer->paused) return;
     timer->paused = false;
 }
 
-void G_TimerDestroy(gtimer_t * timer) {
+void G_TimerDestroy(gtimer_t *timer) {
     if (!timer) return;
     timer->generation++;
     timer->running = false;
@@ -129,7 +129,7 @@ void G_TimerDestroy(gtimer_t * timer) {
 }
 
 bool G_TimerCoroutineValid(handle_t handle, uint32_t generation) {
-    gtimer_t const * timer = handle;
+    gtimer_t const *timer = handle;
     /* A one-shot timer is marked not-running when it expires, but its handler
      * still must run. Periodic timers remain running until explicitly paused. */
     return timer && !timer->paused && timer->generation == generation &&
@@ -138,10 +138,10 @@ bool G_TimerCoroutineValid(handle_t handle, uint32_t generation) {
 
 void G_UpdateTimerDialogs(void) {
     FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS)) {
-        gameClient_t * client = &game.clients[i];
+        gameClient_t *client = &game.clients[i];
         uint32_t player_num = client->ps.number;
-        edict_t * ent;
-        timerdialog_t * dialog;
+        edict_t *ent;
+        timerdialog_t *dialog;
         int32_t dialog_index;
         int32_t seconds = -1;
         bool dirty;
@@ -171,7 +171,7 @@ void G_UpdateTimerDialogs(void) {
 /* Timer callbacks enter the same coroutine/event path as authored map triggers. */
 void G_RunTimers(void) {
     FOR_LOOP(i, level.num_timers) {
-        gtimer_t * timer = &level.timers[i];
+        gtimer_t *timer = &level.timers[i];
         if (!timer->running || timer->paused) continue;
         /* Countdown rather than a level.time deadline: a save carries no clock-absolute
          * state, so a loaded timer resumes with exactly the time it had left. */

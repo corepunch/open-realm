@@ -6,8 +6,7 @@
  * combat parameters, models, and collision radii.
  *
  * The think function registered on every unit entity is monster_think(),
- * which advances the current animation frame and calls the active umove_t
- * think callback each game tick.
+ * which advances the current animation frame and calls the active umove_t *think callback each game tick.
  */
 #include "g_local.h"
 
@@ -72,7 +71,7 @@ static float get_unit_collision(pathTex_t const *pathtex) {
     return size * 16;
 }
 
-bool player_pay(player_t * ps, uint32_t project) {
+bool player_pay(player_t *ps, uint32_t project) {
     UnitBalance_t const *b;
     if (!ps) return false;
     b = G_UnitBalance(project);
@@ -83,14 +82,14 @@ bool player_pay(player_t * ps, uint32_t project) {
     return true;
 }
 
-bool M_IsDead(edict_t const * ent) {
+bool M_IsDead(edict_t const *ent) {
     return ent->health.value <= 0;
 }
 
 /* Advance the unit's animation frame by its scaled simulation timestep.
  * If the new frame would exceed the animation's end interval, the current
  * umove_t endfunc is called and walk variants are rerolled when the move remains active. */
-void M_MoveFrame(edict_t * self) {
+void M_MoveFrame(edict_t *self) {
     /* Construction keeps AI_HOLD_FRAME so the birth sequence never advances
      * independently of authoritative construction progress. Human progress is
      * Repair-driven; Orc/Undead/Night Elf progress is advanced by
@@ -102,7 +101,7 @@ void M_MoveFrame(edict_t * self) {
     if (self->aiflags & AI_HOLD_FRAME)
         return;
     umove_t const *move = self->currentmove;
-    animation_t const * anim = self->animation;
+    animation_t const *anim = self->animation;
     float frame_step = MAX(0.0f, FRAMETIME * self->animation_speed);
     if (!anim) {
         unit_setmove(self, self->currentmove);
@@ -146,7 +145,7 @@ void M_MoveFrame(edict_t * self) {
              * whichever animation is active after the callback; resetting to
              * the completed clip's first frame leaves the replacement model
              * sampling an unrelated sequence for one simulation tick. */
-            animation_t const * active_anim = self->animation ? self->animation : anim;
+            animation_t const *active_anim = self->animation ? self->animation : anim;
             self->s.frame = active_anim->interval[0];
         }
     } else {
@@ -157,7 +156,7 @@ void M_MoveFrame(edict_t * self) {
 /* Per-unit think function registered on every monster/unit entity.
  * Called each game frame by G_RunEntity; drives the animation clock and
  * invokes the active umove_t think callback (e.g. ai_walk, ai_melee). */
-void monster_think(edict_t * self) {
+void monster_think(edict_t *self) {
     S_RunAbilityUpdates(self);
     if (!self->currentmove)
         return;
@@ -171,8 +170,8 @@ void monster_think(edict_t * self) {
     }
 }
 
-void monster_start(edict_t * self) {
-    animation_t const * anim = self->animation;
+void monster_start(edict_t *self) {
+    animation_t const *anim = self->animation;
     if (anim) {
         uint32_t len = MAX(1, anim->interval[1] - anim->interval[0] - 1);
         self->s.frame = (anim->interval[0] + (rand() % len));
@@ -267,7 +266,7 @@ uint32_t G_LoadShadowTexture(cstring_t shadow, bool allowDDSFallback) {
     return 0;
 }
 
-static void M_SetUnitShadow(edict_t * self) {
+static void M_SetUnitShadow(edict_t *self) {
     UnitUI_t const *ui = self->data.UnitUI;
     cstring_t unit_shadow = ui->unitShadowTexture;
     uint32_t shadow = G_LoadShadowTexture(unit_shadow, true);
@@ -295,7 +294,7 @@ static void M_SetUnitShadow(edict_t * self) {
 #endif
 }
 
-static void M_SetBuildingShadow(edict_t * self) {
+static void M_SetBuildingShadow(edict_t *self) {
     UnitUI_t const *ui = self->data.UnitUI;
     cstring_t building_shadow = ui->buildingShadowTexture;
     uint32_t shadow = G_LoadShadowTexture(building_shadow, false);
@@ -334,14 +333,14 @@ static void G_RegisterSoundVariants(uint16_t out[], uint8_t *count, cstring_t la
 
 /* Cache every native selection response so repeated clicks can choose among
  * the authored UnitAckSounds variants instead of repeating the first file. */
-void G_RegisterSelectSounds(edict_t * self, cstring_t label) {
+void G_RegisterSelectSounds(edict_t *self, cstring_t label) {
     G_RegisterSoundVariants(self->sound.select, &self->sound.num_select, label, "What");
 }
 
 /* Populate the unit's cached sound indices from UnitAckSounds.slk using the
  * "unitSound" label (e.g. "Footman").  Falls back gracefully if entries are
  * missing — sounds simply won't fire for that unit. */
-static void G_RegisterUnitSounds(edict_t * self) {
+static void G_RegisterUnitSounds(edict_t *self) {
     cstring_t label = self->data.UnitUI->soundLabel;
     if (!label || !label[0]) return;
     G_RegisterSelectSounds(self, label);
@@ -393,7 +392,7 @@ void G_RegisterGlobalSounds(void) {
 uint32_t unit_spawn_aiflags(uint32_t class_id) { return G_UnitIsBuilding(class_id) ? AI_IMMOBILE : 0; }
 
 /* Apply static ability traits after ordinary collision and vulnerability state. */
-void G_ApplyUnitAbilityTraits(edict_t * ent) {
+void G_ApplyUnitAbilityTraits(edict_t *ent) {
     if (!G_ActorHasSkill(ent, "Aloc")) return;
     ent->s.flags |= EF_NOT_SELECTABLE;
     ent->invulnerable = true;
@@ -405,7 +404,7 @@ void G_ApplyUnitAbilityTraits(edict_t * ent) {
  * Reads model path, scale, collision radius, HP, mana, and attack parameters
  * (type, weapon class, damage dice, range, projectile model/speed) for the
  * unit's class_id and stores them in the edict. */
-void SP_SpawnUnit(edict_t * self) {
+void SP_SpawnUnit(edict_t *self) {
     PATHSTR model_filename;
     UnitBalance_t const *b = self->data.UnitBalance;
     UnitData_t const *d = self->data.UnitData;
@@ -592,7 +591,7 @@ void SP_SpawnUnit(edict_t * self) {
 }
 
 /* Walkable destructables are sparse, so keep a level list instead of scanning every map edict per unit tick. */
-void G_RegisterGroundSurface(edict_t * ent) {
+void G_RegisterGroundSurface(edict_t *ent) {
     if (!G_IsDestructable(ent) || !ent->data.DestructableData->walkable) return;
     G_UnregisterGroundSurface(ent);
     ent->ground_next = level.ground_surfaces;
@@ -601,7 +600,7 @@ void G_RegisterGroundSurface(edict_t * ent) {
         ent->s.flags |= EF_GROUND_SURFACE;
 }
 
-void G_UnregisterGroundSurface(edict_t * ent) {
+void G_UnregisterGroundSurface(edict_t *ent) {
     edict_t * *link = &level.ground_surfaces;
     while (*link && *link != ent) link = &(*link)->ground_next;
     if (*link) *link = ent->ground_next;
@@ -613,7 +612,7 @@ void G_UnregisterGroundSurface(edict_t * ent) {
 
 void G_ClearGroundSurfaces(void) { level.ground_surfaces = NULL; }
 
-bool M_CheckAttack(edict_t * self) {
+bool M_CheckAttack(edict_t *self) {
     return false;
 }
 

@@ -11,7 +11,7 @@ rect_t R_UISceneRect(void) {
     return MAKE(rect_t, 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT);
 }
 
-void R_SetUIScene(rect_t const * scene) {
+void R_SetUIScene(rect_t const *scene) {
     if (!scene || scene->w <= 0.0f || scene->h <= 0.0f) {
         fprintf(stderr, "R_SetUIScene: rejected empty scene\n");
         return;
@@ -73,7 +73,7 @@ void R_DrawChar(int x, int y, int c) {
     R_DrawCharScaled((float)x, (float)y, c, 1.0f);
 }
 
-void R_DrawFill(rect_t const * rect, color32_t color) {
+void R_DrawFill(rect_t const *rect, color32_t color) {
     vertex_t simp[6];
     matrix4_t ui_matrix;
     size2_t window = R_GetWindowSize();
@@ -120,7 +120,7 @@ void R_SetBlending(BLEND_MODE mode) {
 //    }
 }
 
-static void R_SetUIClipScissor(rect_t const * clip) {
+static void R_SetUIClipScissor(rect_t const *clip) {
     rect_t const scene = R_UISceneRect();
     float x = (clip->x - scene.x) / scene.w;
     float y = 1.0f - ((clip->y + clip->h - scene.y) / scene.h);
@@ -144,14 +144,14 @@ static void R_ResetUIScissor(void) {
     R_Call(glScissor, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
 }
 
-void R_DrawImageBatch(texture_t const * texture,
+void R_DrawImageBatch(texture_t const *texture,
                       SHADERTYPE shaderType,
                       BLEND_MODE alphamode,
                       float uActiveGlow,
                       float uRadialShade,
                       bool hasClip,
-                      rect_t const * clip,
-                      vertex_t const * vertices,
+                      rect_t const *clip,
+                      vertex_t const *vertices,
                       uint32_t num_vertices,
                       bool repeat)
 {
@@ -208,7 +208,7 @@ void R_DrawImageBatch(texture_t const * texture,
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-void R_DrawImageEx(drawImage_t const * drawImage) {
+void R_DrawImageEx(drawImage_t const *drawImage) {
     vertex_t simp[6];
     R_AddQuad(simp, &drawImage->screen, &drawImage->uv, drawImage->color, 0);
 
@@ -239,7 +239,7 @@ void R_DrawImageEx(drawImage_t const * drawImage) {
                      drawImage->uv.w > 1 || drawImage->uv.h > 1);
 }
 
-void R_DrawImage(texture_t const * texture, rect_t const * screen, rect_t const * uv, color32_t color) {
+void R_DrawImage(texture_t const *texture, rect_t const *screen, rect_t const *uv, color32_t color) {
     R_DrawImageEx(&MAKE(drawImage_t,
                         .texture = texture,
                         .screen = *screen,
@@ -261,7 +261,7 @@ static void R_DisableCinematicPBO(void) {
 }
 
 /* Map a pixel-unpack buffer so video uploads do not make the driver copy client memory synchronously. */
-static bool R_MapCinematicFrame(drawCinematicFrame_t const * frame) {
+static bool R_MapCinematicFrame(drawCinematicFrame_t const *frame) {
     uint32_t size = frame->width * frame->height * 4;
     void *mapped;
     GLboolean unmapped;
@@ -312,7 +312,7 @@ static bool R_MapCinematicFrame(drawCinematicFrame_t const * frame) {
 }
 
 /* Upload and draw one decoded cinematic frame while keeping the video texture renderer-owned. */
-void R_DrawCinematicFrame(drawCinematicFrame_t const * frame) {
+void R_DrawCinematicFrame(drawCinematicFrame_t const *frame) {
     if (!frame) {
         SAFE_DELETE(tr.cinematic, R_ReleaseTexture);
         R_ReleaseCinematicPBO();
@@ -334,7 +334,7 @@ void R_DrawCinematicFrame(drawCinematicFrame_t const * frame) {
     R_DrawImage(tr.cinematic, &frame->screen, &(rect_t){0, 0, 1, 1}, COLOR32_WHITE);
 }
 
-static bool R_MinimapPointForWorld(vector3_t const * world, rect_t const * screen, vector2_t * out) {
+static bool R_MinimapPointForWorld(vector3_t const *world, rect_t const *screen, vector2_t *out) {
     vector2_t map_size;
     float nx;
     float ny;
@@ -358,7 +358,7 @@ static bool R_MinimapPointForWorld(vector3_t const * world, rect_t const * scree
     return true;
 }
 
-static bool R_TraceViewportCornerToMinimap(float x, float y, rect_t const * screen, vector2_t * out, vector3_t * world_out) {
+static bool R_TraceViewportCornerToMinimap(float x, float y, rect_t const *screen, vector2_t *out, vector3_t *world_out) {
     vector3_t world;
     line3_t line;
     plane3_t ground = {
@@ -399,7 +399,7 @@ static void R_DrawUILineStrip(vertex_t const *vertices, uint32_t count) {
     R_Call(glDepthMask, GL_TRUE);
 }
 
-void R_DrawMinimapCameraRect(rect_t const * screen) {
+void R_DrawMinimapCameraRect(rect_t const *screen) {
     size2_t window = R_GetWindowSize();
     float left = tr.viewDef.viewport.x * window.width;
     float right = (tr.viewDef.viewport.x + tr.viewDef.viewport.w) * window.width;
@@ -436,7 +436,7 @@ void R_DrawMinimapCameraRect(rect_t const * screen) {
     R_DrawUILineStrip(vertices, 5);
 }
 
-void R_DrawMinimapBorder(rect_t const * screen, color32_t color) {
+void R_DrawMinimapBorder(rect_t const *screen, color32_t color) {
     vertex_t vertices[5];
 
     if (!screen || screen->w <= 0.0f || screen->h <= 0.0f) return;
@@ -448,7 +448,7 @@ void R_DrawMinimapBorder(rect_t const * screen, color32_t color) {
     R_DrawUILineStrip(vertices, 5);
 }
 
-bool R_WorldToMinimap(vector2_t const * world, vector2_t * outScreen) {
+bool R_WorldToMinimap(vector2_t const *world, vector2_t *outScreen) {
     vector3_t point;
 
     if (!tr.hasMinimap || !tr.world || !world || !outScreen) {
@@ -460,7 +460,7 @@ bool R_WorldToMinimap(vector2_t const * world, vector2_t * outScreen) {
 
 /* Inverse of R_MinimapPointForWorld: map a window-pixel click over the minimap
  * to a world position, so a minimap click can recenter the camera. */
-bool R_TraceMinimap(float x, float y, vector2_t * outWorld) {
+bool R_TraceMinimap(float x, float y, vector2_t *outWorld) {
     size2_t window;
     rect_t scene;
     vector2_t map_size;
@@ -493,7 +493,7 @@ bool R_TraceMinimap(float x, float y, vector2_t * outWorld) {
     return true;
 }
 
-void R_DrawMinimapScene(rect_t const * screen, cstring_t map) {
+void R_DrawMinimapScene(rect_t const *screen, cstring_t map) {
     if (!screen) {
         return;
     }
@@ -504,12 +504,12 @@ void R_DrawMinimapScene(rect_t const * screen, cstring_t map) {
     R_DrawMinimap(screen, map);
 }
 
-void R_DrawPic(texture_t const * texture, float x, float y) {
+void R_DrawPic(texture_t const *texture, float x, float y) {
     rect_t screen = { x, y, texture->width / 2000.0, texture->height / 2000.0};
     R_DrawImage(texture, &screen, NULL, COLOR32_WHITE);
 }
 
-void R_DrawLoadingIndicator(rect_t const * rect, uint32_t time, color32_t color) {
+void R_DrawLoadingIndicator(rect_t const *rect, uint32_t time, color32_t color) {
     float const cx = rect->x + rect->w * 0.5f;
     float const cy = rect->y + rect->h * 0.5f;
     float const size = MAX(MIN(rect->w, rect->h) * 0.11f, 0.006f);
@@ -528,7 +528,7 @@ void R_DrawLoadingIndicator(rect_t const * rect, uint32_t time, color32_t color)
                         .angle = -360.0f * (float)(time % 900) / 900.0f));
 }
 
-void R_DrawWireRect(rect_t const * rect, color32_t color) {
+void R_DrawWireRect(rect_t const *rect, color32_t color) {
     static vertex_t simp[5];
     R_AddStrip(simp, rect, color);
 
@@ -551,14 +551,14 @@ void R_DrawWireRect(rect_t const * rect, color32_t color) {
     R_Call(glDrawArrays, GL_LINE_STRIP, 0, sizeof(simp) / sizeof(*simp));
 }
 
-void R_DrawSelectionRect(rect_t const * rect, color32_t color) {
+void R_DrawSelectionRect(rect_t const *rect, color32_t color) {
     /* Selection is a world overlay even though the marquee is drawn in window coordinates. */
     R_SetupScissor(&tr.viewDef.scissor);
     R_DrawWireRect(rect, color);
     R_SetupScissor(&(rect_t){0, 0, 1, 1});
 }
 
-void R_DrawBoundingBox(box3_t const * box, matrix4_t const * modelMatrix, matrix4_t const * vpMatrix, color32_t color) {
+void R_DrawBoundingBox(box3_t const *box, matrix4_t const *modelMatrix, matrix4_t const *vpMatrix, color32_t color) {
     static const int edges[12][2] = {
         {0,1},{1,2},{2,3},{3,0},
         {4,5},{5,6},{6,7},{7,4},

@@ -4,7 +4,7 @@
 #define WATER(INDEX) \
 MakeColor(color[INDEX], LerpNumber(color[INDEX], 1, 0.25f), LerpNumber(color[INDEX], 1, 0.5f), 1)
 
-texture_t const * g_groundTextures[MAX_MAP_LAYERS] = { NULL };
+texture_t const *g_groundTextures[MAX_MAP_LAYERS] = { NULL };
 
 void R_ResetGroundTextures(void) {
     memset(g_groundTextures, 0, sizeof(g_groundTextures));
@@ -14,10 +14,10 @@ void R_ResetGroundTextures(void) {
 #define SPLAT_TILE_MAX_VERTICES 30 // vertices; two clipped terrain triangles can each form a seven-corner polygon
 
 static vertex_t ground_vertex_buffer[GROUND_VERTEX_BUFFER_CAPACITY];
-static vertex_t * ground_current_vertex = NULL;
+static vertex_t *ground_current_vertex = NULL;
 
-vector3_t R_GetVertexPosition(war3map_t const * map, uint32_t x, uint32_t y, bool useLevel) {
-    war3mapVertex_t const * vert = GetWar3MapVertex(map, x, y);
+vector3_t R_GetVertexPosition(war3map_t const *map, uint32_t x, uint32_t y, bool useLevel) {
+    war3mapVertex_t const *vert = GetWar3MapVertex(map, x, y);
     float level = useLevel ? vert->level * TILE_SIZE - HEIGHT_COR : 0;
     if (useLevel && vert->ramp && vert->cliffVariation) {
         level += 0.5 * TILE_SIZE;
@@ -30,17 +30,17 @@ vector3_t R_GetVertexPosition(war3map_t const * map, uint32_t x, uint32_t y, boo
     };
 }
 
-static float r_war3_normal_height(void const * data, uint32_t x, uint32_t y) {
+static float r_war3_normal_height(void const *data, uint32_t x, uint32_t y) {
     return R_GetVertexPosition(data, x, y, false).z;
 }
 
-vector3_t R_GetVertexNormal(war3map_t const * map, uint32_t x, uint32_t y) {
+vector3_t R_GetVertexNormal(war3map_t const *map, uint32_t x, uint32_t y) {
     terrainNormals_t grid = { map, r_war3_normal_height, map->width, map->height, TILE_SIZE };
 
     return R_TerrainGridNormal(&grid, x, y);
 }
 
-static void R_MakeTile(war3map_t const * map, uint32_t x, uint32_t y, uint32_t ground, texture_t const * texture) {
+static void R_MakeTile(war3map_t const *map, uint32_t x, uint32_t y, uint32_t ground, texture_t const *texture) {
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, map, tile);
     int _tile = GetTile(tile, ground);
@@ -92,14 +92,14 @@ static void R_MakeTile(war3map_t const * map, uint32_t x, uint32_t y, uint32_t g
     ground_current_vertex += sizeof(geom) / sizeof(vertex_t);
 }
 
-static bool R_TileAcceptsSplat(war3map_t const * map, uint32_t x, uint32_t y) {
+static bool R_TileAcceptsSplat(war3map_t const *map, uint32_t x, uint32_t y) {
     struct War3MapVertex tile[4];
 
     GetTileVertices(x, y, map, tile);
     return GetTile(tile, 0) && R_TileHasGround(tile);
 }
 
-static void R_BuildSplatQuad(war3map_t const * map, uint32_t x, uint32_t y, vector2_t const * mins, float width, float height, color32_t color, vertex_t * geom) {
+static void R_BuildSplatQuad(war3map_t const *map, uint32_t x, uint32_t y, vector2_t const *mins, float width, float height, color32_t color, vertex_t *geom) {
     vector3_t const p[] = {
         R_GetVertexPosition(map, x, y, true),
         R_GetVertexPosition(map, x + 1, y, true),
@@ -126,13 +126,13 @@ static void R_BuildSplatQuad(war3map_t const * map, uint32_t x, uint32_t y, vect
 
 /* Clip in world XY while interpolating Z on each original terrain triangle. */
 struct splClip { uint32_t count, axis; float edge; bool above; };
-static uint32_t R_ClipSplatPoly(vector3_t const * src, vector3_t * dst, struct splClip clip) {
-    vector3_t const * prev = &src[clip.count - 1];
+static uint32_t R_ClipSplatPoly(vector3_t const *src, vector3_t *dst, struct splClip clip) {
+    vector3_t const *prev = &src[clip.count - 1];
     float pv = clip.axis ? prev->y : prev->x;
     bool pin = clip.above ? pv >= clip.edge : pv <= clip.edge;
     uint32_t out = 0;
     FOR_LOOP(i, clip.count) {
-        vector3_t const * cur = &src[i];
+        vector3_t const *cur = &src[i];
         float cv = clip.axis ? cur->y : cur->x;
         bool cin = clip.above ? cv >= clip.edge : cv <= clip.edge;
         if (pin != cin && pv != clip.edge && cv != clip.edge) {
@@ -148,7 +148,7 @@ static uint32_t R_ClipSplatPoly(vector3_t const * src, vector3_t * dst, struct s
     return out;
 }
 
-static void R_MakeSplatTile(war3map_t const * map, uint32_t x, uint32_t y, vector2_t const * mins, float width, float height, color32_t color) {
+static void R_MakeSplatTile(war3map_t const *map, uint32_t x, uint32_t y, vector2_t const *mins, float width, float height, color32_t color) {
     vertex_t geom[6];
     struct splClip clips[4];
     uint32_t num_clips = 0;
@@ -166,12 +166,12 @@ static void R_MakeSplatTile(war3map_t const * map, uint32_t x, uint32_t y, vecto
     if (geom[2].position.y > mins->y + height) clips[num_clips++] = (struct splClip){ 0, 1, mins->y + height, false };
     FOR_LOOP(tri, 2) {
         vector3_t a[8], b[8];
-        vector3_t * poly = a, *scratch = b;
+        vector3_t *poly = a, *scratch = b;
         uint32_t n = 3;
         FOR_LOOP(i, 3) a[i] = geom[tri * 3 + i].position;
         FOR_LOOP(edge, num_clips) {
             struct splClip clip = clips[edge];
-            vector3_t * swap;
+            vector3_t *swap;
             clip.count = n;
             n = R_ClipSplatPoly(poly, scratch, clip);
             if (!n) break;
@@ -189,7 +189,7 @@ static void R_MakeSplatTile(war3map_t const * map, uint32_t x, uint32_t y, vecto
     }
 }
 
-static void R_MakeBlightTile(war3map_t const * map, uint32_t x, uint32_t y, vector2_t const * mins, float width, float height, uint32_t blight_tile) {
+static void R_MakeBlightTile(war3map_t const *map, uint32_t x, uint32_t y, vector2_t const *mins, float width, float height, uint32_t blight_tile) {
     vertex_t geom[6];
     R_BuildSplatQuad(map, x, y, mins, width, height, COLOR32_WHITE, geom);
     /* Mixed tiles use the atlas's left-hand alpha mask selected by the
@@ -216,7 +216,7 @@ static void R_FlushSplatBatch(void) {
 /* Bind the splat shader/VAO/VBO and upload the per-view uniforms once.  All
  * splats in a batch share this state; only the texture and per-tile geometry
  * vary, so re-issuing it per splat was pure overhead. */
-static texture_t const * g_splat_texture;
+static texture_t const *g_splat_texture;
 static splat_shader_t *g_splat_shader;
 
 static void R_SetSplatDepthBias(bool enabled) {
@@ -229,7 +229,7 @@ static void R_SetSplatDepthBias(bool enabled) {
     }
 }
 
-static void R_SetupSplatState(texture_t const * texture, splat_shader_t *shader) {
+static void R_SetupSplatState(texture_t const *texture, splat_shader_t *shader) {
     matrix4_t mModelMatrix;
 
     Matrix4_identity(&mModelMatrix);
@@ -252,7 +252,7 @@ static void R_SetupSplatState(texture_t const * texture, splat_shader_t *shader)
 
 /* Emit terrain-conforming tiles for one splat rect into the shared buffer,
  * flushing to the GPU only when the buffer fills. */
-static void R_GenerateSplatTiles(vector2_t const * mins, vector2_t const * maxs, color32_t color) {
+static void R_GenerateSplatTiles(vector2_t const *mins, vector2_t const *maxs, color32_t color) {
     int x_start, x_end;
     int y_start, y_end;
 
@@ -291,7 +291,7 @@ void R_BeginSplatBatch(splat_shader_t *shader) {
     ground_current_vertex = ground_vertex_buffer;
 }
 
-void R_AddRectSplat(vector2_t const * mins, vector2_t const * maxs, texture_t const * texture, color32_t color) {
+void R_AddRectSplat(vector2_t const *mins, vector2_t const *maxs, texture_t const *texture, color32_t color) {
     if (!tr.world || !texture) {
         return;
     }
@@ -355,7 +355,7 @@ static uint32_t R_BlightEmittedTiles(void) {
 }
 
 void R_UpdateBlightLayer(void) {
-    vertex_t * vertices;
+    vertex_t *vertices;
     uint32_t count = 0, tiles;
     uint32_t stride = blight_tiles.width + 1;
 
@@ -466,9 +466,9 @@ static bool R_BlightTileCacheUpdate(viewDef_t const *view) {
     return true;
 }
 
-void R_RenderRectSplat(vector2_t const * mins,
-                       vector2_t const * maxs,
-                       texture_t const * texture,
+void R_RenderRectSplat(vector2_t const *mins,
+                       vector2_t const *maxs,
+                       texture_t const *texture,
                        splat_shader_t *shader,
                        color32_t color)
 {
@@ -482,8 +482,8 @@ void R_RenderRectSplat(vector2_t const * mins,
     R_Call(glDepthMask, GL_TRUE);
 }
 
-maplayer_t * R_BuildMapSegmentLayer(war3map_t const * map, uint32_t sx, uint32_t sy, uint32_t layer) {
-    maplayer_t * mapLayer = ri.MemAlloc(sizeof(maplayer_t));
+maplayer_t *R_BuildMapSegmentLayer(war3map_t const *map, uint32_t sx, uint32_t sy, uint32_t layer) {
+    maplayer_t *mapLayer = ri.MemAlloc(sizeof(maplayer_t));
     PATHSTR zBuffer;
     if (g_groundTextures[layer] == NULL) {
         w3TerrainArt_t const *terrain = R_TerrainArt(map->grounds[layer]);
@@ -507,8 +507,8 @@ maplayer_t * R_BuildMapSegmentLayer(war3map_t const * map, uint32_t sx, uint32_t
     return mapLayer;
 }
 
-maplayer_t * R_BuildGroundLayerGlobal(war3map_t const * map, uint32_t layer) {
-    maplayer_t * mapLayer;
+maplayer_t *R_BuildGroundLayerGlobal(war3map_t const *map, uint32_t layer) {
+    maplayer_t *mapLayer;
     PATHSTR zBuffer;
 
     if (g_groundTextures[layer] == NULL) {
@@ -522,7 +522,7 @@ maplayer_t * R_BuildGroundLayerGlobal(war3map_t const * map, uint32_t layer) {
     }
 
     /* Construction scratch must not remain resident (or leak when the next map is larger). */
-    vertex_t * whole_map_buffer = ri.MemAlloc(sizeof(vertex_t) * (map->width - 1) * (map->height - 1) * 6);
+    vertex_t *whole_map_buffer = ri.MemAlloc(sizeof(vertex_t) * (map->width - 1) * (map->height - 1) * 6);
 
     mapLayer = ri.MemAlloc(sizeof(maplayer_t));
     mapLayer->texture = g_groundTextures[layer];
@@ -545,10 +545,10 @@ maplayer_t * R_BuildGroundLayerGlobal(war3map_t const * map, uint32_t layer) {
     return mapLayer;
 }
 
-void R_RenderFlatRectSplat(vector2_t const * mins,
-                           vector2_t const * maxs,
+void R_RenderFlatRectSplat(vector2_t const *mins,
+                           vector2_t const *maxs,
                            float z,
-                           texture_t const * texture,
+                           texture_t const *texture,
                            splat_shader_t *shader,
                            color32_t color)
 {
@@ -588,9 +588,9 @@ void R_RenderFlatRectSplat(vector2_t const * mins,
     R_Call(glDepthMask, GL_TRUE);
 }
 
-void R_RenderSplat(vector2_t const * position,
+void R_RenderSplat(vector2_t const *position,
                    float radius,
-                   texture_t const * texture,
+                   texture_t const *texture,
                    splat_shader_t *shader,
                    color32_t color)
 {
@@ -606,7 +606,7 @@ void R_RenderSplat(vector2_t const * position,
     R_RenderRectSplat(&mins, &maxs, texture, shader, color);
 }
 
-vector3_t CM_PointIntoHeightmap(vector3_t const * point) {
+vector3_t CM_PointIntoHeightmap(vector3_t const *point) {
     if (!point || !tr.world) {
         return (vector3_t){0};
     }
@@ -621,7 +621,7 @@ float R_GetHeightMapValue(int x, int y) {
     return GetWar3MapVertexHeight(GetWar3MapVertex(tr.world, x, y));
 }
 
-vector3_t R_PointFromHeightmap(vector3_t const * point) {
+vector3_t R_PointFromHeightmap(vector3_t const *point) {
     return (vector3_t) {
         .x = point->x * TILE_SIZE + tr.world->center.x,
         .y = point->y * TILE_SIZE + tr.world->center.y,
@@ -629,7 +629,7 @@ vector3_t R_PointFromHeightmap(vector3_t const * point) {
     };
 }
 
-static bool R_ClipTraceToHeightmap(line3_t const * line, float max_x, float max_y, float * t0, float * t1) {
+static bool R_ClipTraceToHeightmap(line3_t const *line, float max_x, float max_y, float *t0, float *t1) {
     float const bounds_min[2] = { 0.0f, 0.0f };
     float const bounds_max[2] = { max_x, max_y };
     float const start[2] = { line->a.x, line->a.y };
@@ -665,7 +665,7 @@ static bool R_ClipTraceToHeightmap(line3_t const * line, float max_x, float max_
     return true;
 }
 
-static bool R_TraceHeightmapTile(int x, int y, line3_t const * line, vector3_t * output) {
+static bool R_TraceHeightmapTile(int x, int y, line3_t const *line, vector3_t *output) {
     triangle3_t const tri1 = {
         { x, y, R_GetHeightMapValue(x, y) },
         { x+1, y, R_GetHeightMapValue(x+1, y) },
@@ -683,7 +683,7 @@ static bool R_TraceHeightmapTile(int x, int y, line3_t const * line, vector3_t *
     return Line3_intersect_triangle(line, &tri2, output);
 }
 
-bool _W3M_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t * output) {
+bool _W3M_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t *output) {
     if (!viewdef || !output || !tr.world) {
         return false;
     }

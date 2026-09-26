@@ -53,7 +53,7 @@ typedef struct {
     m2CompositeCacheKey_t *keys;
     uint32_t count;
     m2CompositeCacheKey_t wanted;
-    uint32_t * clock;
+    uint32_t *clock;
     bool hit;
 } m2CompositeCacheParams_t;
 
@@ -76,7 +76,7 @@ static uint32_t m2_composite_cache_slot(m2CompositeCacheParams_t *params) {
 }
 
 /* M2 and MDX share compact, lifetime-normalized fractional size curves. */
-static void m2_particle_encode_curve(m2ParticleCurve_t const * curve, cparticle_t *particle) {
+static void m2_particle_encode_curve(m2ParticleCurve_t const *curve, cparticle_t *particle) {
     particle->lifespan = curve->lifespan;
     R_EncodeParticleSize(particle, curve->value);
     particle->midtime = (uint8_t)MIN(254, MAX(1, (int)(curve->midpoint * 255.0f + 0.5f)));
@@ -128,7 +128,7 @@ static bool m2_validate_skin_vertex_range(uint16_t const *skin_vertices, uint32_
 }
 
 
-static uint8_t const *m2_find_chunk(uint8_t const *data, uint32_t size, uint32_t fourcc, uint32_t * chunk_size) {
+static uint8_t const *m2_find_chunk(uint8_t const *data, uint32_t size, uint32_t fourcc, uint32_t *chunk_size) {
     uint32_t offset = 0;
     while (offset + 8 <= size) {
         uint32_t current_size;
@@ -151,7 +151,7 @@ static bool m2_copy_with_extension(cstring_t path, cstring_t extension, string_t
 }
 
 /* All file arrays remain offsets until a bounded consumer requests a pointer. */
-static bool m2_array_range(m2Array_t array, uint32_t elem_size, uint32_t file_size, uint32_t * offset, uint32_t * bytes) {
+static bool m2_array_range(m2Array_t array, uint32_t elem_size, uint32_t file_size, uint32_t *offset, uint32_t *bytes) {
     if (array.size <= 0 || array.offset < 0 || !elem_size || (uint32_t)array.size > ~(uint32_t)0 / elem_size) return false;
     *offset = (uint32_t)array.offset; *bytes = (uint32_t)array.size * elem_size;
     return *offset <= file_size && *bytes <= file_size - *offset;
@@ -285,7 +285,7 @@ static m2CharSectionsLayout_t m2_char_sections_layout(uint8_t const *records, ui
 /* Classic and later ItemDisplayInfo schemas place component textures one field apart. */
 static uint32_t m2_item_display_texture_base(uint32_t fields) { return fields >= 25 ? 15 : fields >= 22 ? 14 : 0; }
 
-static void m2_blend_pixel(color32_t * dst, color32_t src) {
+static void m2_blend_pixel(color32_t *dst, color32_t src) {
     uint32_t inv;
     if (src.a == 0) return;
     if (src.a >= 250) { *dst = src; return; }
@@ -296,8 +296,8 @@ static void m2_blend_pixel(color32_t * dst, color32_t src) {
     dst->a = (uint8_t)MIN(255, src.a + (dst->a * inv) / 255);
 }
 
-static void m2_paste_component(color32_t * dst, uint32_t dst_width, uint32_t dst_height,
-                               color32_t * src, uint32_t src_width, uint32_t src_height,
+static void m2_paste_component(color32_t *dst, uint32_t dst_width, uint32_t dst_height,
+                               color32_t *src, uint32_t src_width, uint32_t src_height,
                                uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
     if (!dst || !src || !dst_width || !dst_height || !src_width || !src_height ||
         x >= dst_width || y >= dst_height) return;

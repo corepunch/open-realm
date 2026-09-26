@@ -65,7 +65,7 @@
 "  - Remote clients still need the game data for asset loading.\n" \
 "  - Dedicated mode runs the server headless without renderer, sound, or UI.\n"
 
-extern texture_t * Texture;
+extern texture_t *Texture;
 
 static void Com_LimitFrameRate(Uint64 frame_start, Uint64 frequency, bool dedicated) {
     int maxfps;

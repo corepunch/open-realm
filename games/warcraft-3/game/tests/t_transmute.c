@@ -4,12 +4,12 @@
 
 #define BZ_ANTM MAKEFOURCC('A', 'N', 't', 'm') // rawcode; TFT Alchemist Transmute
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
-void unit_die(edict_t * self, edict_t * attacker);
+void unit_die(edict_t *self, edict_t *attacker);
 
 /* Non-stock Cost/DataA/DataC so tests cannot pass on retail 150/0.8/5. */
 static cstring_t transmute_slk =
@@ -26,7 +26,7 @@ static cstring_t transmute_slk =
 
 typedef struct {
     slkTestData_t *rows, *old;
-    edict_t * caster, *enemy, *ally, *hero;
+    edict_t *caster, *enemy, *ally, *hero;
     UnitBalance_t enemy_bal, ally_bal, hero_bal;
 } tmFix_t;
 

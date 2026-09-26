@@ -58,32 +58,32 @@ extern vector4_t M3_GetVector4AnimValue(m3Model_t const *model,
                                       m3SequenceTimeline_t const *timeline,
                                       m3Vector4AnimRef_t const *animref,
                                       uint32_t time);
-extern void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, matrix4_t const * transform);
-extern void M3_RenderBuffer(renderEntity_t const *entity, m3Model_t const *model, buffer_t const * buffer, uint32_t vertices, uint32_t indices);
+extern void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, matrix4_t const *transform);
+extern void M3_RenderBuffer(renderEntity_t const *entity, m3Model_t const *model, buffer_t const *buffer, uint32_t vertices, uint32_t indices);
 
 #include "r_sc2_road_draw.h"
 
-static mapsegment_t * sc2_terrain_segment;
-static maplayer_t * sc2_hard_tile_layers;
-static model_t const * sc2_hard_tile_model;
+static mapsegment_t *sc2_terrain_segment;
+static maplayer_t *sc2_hard_tile_layers;
+static model_t const *sc2_hard_tile_model;
 static renderEntity_t sc2_hard_tile_entity;
 static bool sc2_terrain_shader_loaded;
 static bool sc2_cliff_shader_loaded;
-static texture_t * sc2_terrain_textures[SC2_TERRAIN_BLEND_LAYERS];
-static texture_t * sc2_terrain_masks[SC2_TERRAIN_BLEND_GROUPS];
+static texture_t *sc2_terrain_textures[SC2_TERRAIN_BLEND_LAYERS];
+static texture_t *sc2_terrain_masks[SC2_TERRAIN_BLEND_GROUPS];
 static uint32_t sc2_num_terrain_layers;
 static cameraHeightMap_t sc2_camera_height;
 /* Shared normal grid: (MAP_W+1)*(MAP_H+1) normals derived from the heightmap.
    Both ground vertices and cliff boundary vertices index into this so seams never appear. */
 static vector3_t *sc2_terrain_normals;
 
-static float r_sc2_camera_grid_height(void const * data, uint32_t x, uint32_t y) {
+static float r_sc2_camera_grid_height(void const *data, uint32_t x, uint32_t y) {
     return sc2_map_height_at_grid(data, x, y);
 }
 
 typedef struct sc2CliffModel_s {
     PATHSTR path;
-    model_t const * model;
+    model_t const *model;
     struct sc2CliffModel_s *next;
 } sc2CliffModel_t;
 
@@ -97,7 +97,7 @@ typedef struct rSc2CliffPlacement_s {
 
 typedef struct rSc2CliffBakeBatch_s {
     rCliffBakeList_t list;
-    texture_t const * texture;
+    texture_t const *texture;
     struct rSc2CliffBakeBatch_s *next;
 } rSc2CliffBakeBatch_t;
 
@@ -338,7 +338,7 @@ static void r_sc2_init_terrain_shader(void) {
     r_sc2_init_cliff_shader();
 }
 
-static handle_t r_sc2_read_file(cstring_t filename, uint32_t * size) {
+static handle_t r_sc2_read_file(cstring_t filename, uint32_t *size) {
     void *buffer = NULL;
     int result = ri.FS_ReadFile(filename, &buffer);
     if (result < 0) {
@@ -490,7 +490,7 @@ static float r_sc2_ground_height_at_grid(sc2Map_t const *map, uint32_t grid_x, u
 }
 #endif
 
-static float r_sc2_normal_height(void const * data, uint32_t x, uint32_t y) {
+static float r_sc2_normal_height(void const *data, uint32_t x, uint32_t y) {
     return r_sc2_ground_height_at_grid(data, x, y);
 }
 
@@ -519,7 +519,7 @@ static uint32_t r_sc2_cliff_join_edges(sc2Map_t const *map, uint32_t x, uint32_t
     return edges;
 }
 
-static bool r_sc2_cliff_vertex_joins_ground(vector3_t const * pos, uint32_t edges) {
+static bool r_sc2_cliff_vertex_joins_ground(vector3_t const *pos, uint32_t edges) {
     return ((edges & SC2_CLIFF_JOIN_LEFT) && fabsf(pos->x + 1.0f) < SC2_EPSILON) ||
            ((edges & SC2_CLIFF_JOIN_RIGHT) && fabsf(pos->x - 1.0f) < SC2_EPSILON) ||
            ((edges & SC2_CLIFF_JOIN_BOTTOM) && fabsf(pos->y + 1.0f) < SC2_EPSILON) ||
@@ -577,9 +577,9 @@ static void r_sc2_build_ground_vertex_normals(sc2Map_t const *map,
     }
 }
 
-static void r_sc2_release_layer(maplayer_t * layer) {
+static void r_sc2_release_layer(maplayer_t *layer) {
     while (layer) {
-        maplayer_t * next = layer->next;
+        maplayer_t *next = layer->next;
         R_ReleaseVertexArrayObject((buffer_t *)layer->buffer);
         R_ReleaseTexture((texture_t *)layer->texture);
         ri.MemFree(layer);
@@ -590,7 +590,7 @@ static void r_sc2_release_layer(maplayer_t * layer) {
 static void r_sc2_release_terrain(void) {
     R_FreeCameraHeightMap(&sc2_camera_height);
     while (sc2_terrain_segment) {
-        mapsegment_t * next = sc2_terrain_segment->next;
+        mapsegment_t *next = sc2_terrain_segment->next;
         r_sc2_release_layer(sc2_terrain_segment->layers);
         ri.MemFree(sc2_terrain_segment);
         sc2_terrain_segment = next;
@@ -603,7 +603,7 @@ static void r_sc2_release_terrain(void) {
     }
     r_sc2_release_cliff_models();
     while (sc2_hard_tile_layers) {
-        maplayer_t * next = sc2_hard_tile_layers->next;
+        maplayer_t *next = sc2_hard_tile_layers->next;
         R_ReleaseVertexArrayObject((buffer_t *)sc2_hard_tile_layers->buffer);
         ri.MemFree(sc2_hard_tile_layers); sc2_hard_tile_layers = next;
     }
@@ -615,8 +615,8 @@ static void r_sc2_release_terrain(void) {
 }
 
 /* Count or emit the same ground-triangle intersections, including cliff/ramp omissions. */
-static uint32_t r_sc2_project_road(sc2Map_t const *map, sc2RoadTri_t const * tri, vertex_t * out) {
-    vertex_t const * road = tri->verts;
+static uint32_t r_sc2_project_road(sc2Map_t const *map, sc2RoadTri_t const *tri, vertex_t *out) {
+    vertex_t const *road = tri->verts;
     box2_t bounds = SC2_MapBounds();
     vector2_t lo = {road[0].position.x, road[0].position.y}, hi = lo;
     uint32_t total = 0;
@@ -646,7 +646,7 @@ static uint32_t r_sc2_project_road(sc2Map_t const *map, sc2RoadTri_t const * tri
     /* A cliff cell has real M3 top geometry instead of grid triangles, including bridge approaches. */
     for (rSc2CliffBakeBatch_t const *batch = sc2_road_cliffs; batch; batch = batch->next) {
         for (uint32_t i = 0; i < batch->list.num_vertices; i += 3) {
-            vertex_t const * cliff = batch->list.vertices+i;
+            vertex_t const *cliff = batch->list.vertices+i;
             float minx = MIN(cliff[0].position.x, MIN(cliff[1].position.x, cliff[2].position.x));
             float maxx = MAX(cliff[0].position.x, MAX(cliff[1].position.x, cliff[2].position.x));
             float miny = MIN(cliff[0].position.y, MIN(cliff[1].position.y, cliff[2].position.y));
@@ -659,7 +659,7 @@ static uint32_t r_sc2_project_road(sc2Map_t const *map, sc2RoadTri_t const * tri
 }
 
 /* Bake exact-size draped geometry; split M3 buffers before their 16-bit indices overflow. */
-static void r_sc2_bake_roads(sc2Map_t const *map, sc2RoadTri_t const * roads, uint32_t count) {
+static void r_sc2_bake_roads(sc2Map_t const *map, sc2RoadTri_t const *roads, uint32_t count) {
     uint32_t total = 0, used = 0;
     FOR_LOOP(i, count) total += r_sc2_project_road(map, roads+i, NULL);
     if (!total) return;
@@ -669,7 +669,7 @@ static void r_sc2_bake_roads(sc2Map_t const *map, sc2RoadTri_t const * roads, ui
     for (uint32_t first = 0; first < total;) {
         uint32_t n = MIN(total-first, 65535u); /* Complete triangles, addressable by M3's uint16_t indices. */
         uint16_t *faces = ri.MemAlloc(n * sizeof(*faces));
-        maplayer_t * layer = ri.MemAlloc(sizeof(*layer));
+        maplayer_t *layer = ri.MemAlloc(sizeof(*layer));
         if (!faces || !layer) {
             fprintf(stderr, "SC2 road build: buffer allocation failed for %u vertices\n", n);
             ri.MemFree(faces); ri.MemFree(layer); break;
@@ -677,7 +677,7 @@ static void r_sc2_bake_roads(sc2Map_t const *map, sc2RoadTri_t const * roads, ui
         FOR_LOOP(i, n) faces[i] = i;
         memset(layer, 0, sizeof(*layer));
         layer->num_vertices = layer->num_indices = n;
-        buffer_t * buffer = R_MakeVertexArrayObject(baked+first, n);
+        buffer_t *buffer = R_MakeVertexArrayObject(baked+first, n);
         layer->buffer = buffer;
         R_Call(glBindVertexArray, layer->buffer->vao);
         R_Call(glGenBuffers, 1, &buffer->ibo);
@@ -757,7 +757,7 @@ static void r_sc2_release_cliff_models(void) {
     }
 }
 
-static void r_sc2_add_layer(maplayer_t * *list, maplayer_t * layer) {
+static void r_sc2_add_layer(maplayer_t * *list, maplayer_t *layer) {
     maplayer_t * *tail = list;
 
     if (!layer) {
@@ -798,7 +798,7 @@ static uint32_t r_sc2_texture_mask_layers(sc2Map_t const *map) {
     return (map->t3TextureMasksSize - sizeof(*map->t3TextureMasks)) / stride;
 }
 
-static void r_sc2_decode_texture_mask_block(uint8_t * out, uint8_t * src, uint32_t width, uint32_t height, uint32_t blocks_x, uint32_t block) {
+static void r_sc2_decode_texture_mask_block(uint8_t *out, uint8_t *src, uint32_t width, uint32_t height, uint32_t blocks_x, uint32_t block) {
     uint32_t bx = block % blocks_x;
     uint32_t by = block / blocks_x;
 
@@ -813,9 +813,9 @@ static void r_sc2_decode_texture_mask_block(uint8_t * out, uint8_t * src, uint32
     }
 }
 
-static void r_sc2_decode_texture_mask_layer(sc2Map_t const *map, uint32_t layer, uint8_t * values) {
+static void r_sc2_decode_texture_mask_layer(sc2Map_t const *map, uint32_t layer, uint8_t *values) {
     uint32_t w, h, stride, block_stride, blocks_x, blocks_y;
-    uint8_t * src;
+    uint8_t *src;
 
     if (!map->t3TextureMasks || !map->t3TextureMasks->width || !map->t3TextureMasks->height || layer >= r_sc2_texture_mask_layers(map))
         return;
@@ -837,12 +837,12 @@ static void r_sc2_decode_texture_mask_layer(sc2Map_t const *map, uint32_t layer,
     }
 }
 
-static texture_t * r_sc2_build_mask_texture(sc2Map_t const *map, uint32_t group) {
+static texture_t *r_sc2_build_mask_texture(sc2Map_t const *map, uint32_t group) {
     uint32_t w = 1;
     uint32_t h = 1;
     uint8_t *values;
     color32_t *pixels;
-    texture_t * texture;
+    texture_t *texture;
 
     if (map->t3TextureMasks && map->t3TextureMasks->width && map->t3TextureMasks->height) {
         w = map->t3TextureMasks->width;
@@ -898,13 +898,13 @@ static void r_sc2_load_terrain_textures(sc2Map_t const *map) {
     }
 }
 
-static maplayer_t * r_sc2_build_ground_layer(sc2Map_t const *map) {
+static maplayer_t *r_sc2_build_ground_layer(sc2Map_t const *map) {
     box2_t bounds;
     uint32_t w, h, num_vertices, num_indices;
     vertex_t *vertices;
     uint32_t *indices;
     uint32_t *out;
-    maplayer_t * map_layer;
+    maplayer_t *map_layer;
 
     if (!map || !SC2_MAP_WIDTH(map) || !SC2_MAP_HEIGHT(map))
         return NULL;
@@ -975,7 +975,7 @@ static bool r_sc2_file_exists(cstring_t path) {
     return true;
 }
 
-static model_t const * r_sc2_load_cliff_model(cstring_t path) {
+static model_t const *r_sc2_load_cliff_model(cstring_t path) {
     sc2CliffModel_t *cliff;
 
     for (cliff = sc2_cliff_models; cliff; cliff = cliff->next) {
@@ -1067,7 +1067,7 @@ static vector3_t r_sc2_m3_raw_normal(m3Vertex_t const *vertex) {
     return normal;
 }
 
-static vector3_t r_sc2_matrix_transform(matrix4_t const * matrix, vector3_t const * v, float w) {
+static vector3_t r_sc2_matrix_transform(matrix4_t const *matrix, vector3_t const *v, float w) {
     return (vector3_t){
         matrix->v[0] * v->x + matrix->v[4] * v->y + matrix->v[8]  * v->z + matrix->v[12] * w,
         matrix->v[1] * v->x + matrix->v[5] * v->y + matrix->v[9]  * v->z + matrix->v[13] * w,
@@ -1075,11 +1075,11 @@ static vector3_t r_sc2_matrix_transform(matrix4_t const * matrix, vector3_t cons
     };
 }
 
-static void r_sc2_m3_make_bone_matrix(vector3_t const * position,
-                                      vector4_t const * rotation,
-                                      vector3_t const * scale,
-                                      matrix4_t const * parent,
-                                      matrix4_t * matrix) {
+static void r_sc2_m3_make_bone_matrix(vector3_t const *position,
+                                      vector4_t const *rotation,
+                                      vector3_t const *scale,
+                                      matrix4_t const *parent,
+                                      matrix4_t *matrix) {
     matrix4_t local;
 
     Matrix4_identity(&local);
@@ -1108,7 +1108,7 @@ static void r_sc2_m3_build_cliff_bones(m3Model_t const *m3, matrix4_t bones[SC2_
         vector3_t position = M3_GetVector3AnimValue(m3, timeline, &bone->position, localtime);
         vector4_t rotation = M3_GetVector4AnimValue(m3, timeline, &bone->rotation, localtime);
         vector3_t scale = M3_GetVector3AnimValue(m3, timeline, &bone->scale, localtime);
-        matrix4_t const * parent = bone->parent >= 0 && bone->parent < (int16_t)m3->bonesNum ? &tmp[bone->parent] : &identity;
+        matrix4_t const *parent = bone->parent >= 0 && bone->parent < (int16_t)m3->bonesNum ? &tmp[bone->parent] : &identity;
 
         r_sc2_m3_make_bone_matrix(&position, &rotation, &scale, parent, &tmp[i]);
     }
@@ -1143,7 +1143,7 @@ static vector3_t r_sc2_m3_skin_vertex(m3Vertex_t const *vertex,
     return out;
 }
 
-static bool r_sc2_cliff_model_bounds(model_t const * model, box3_t * bounds) {
+static bool r_sc2_cliff_model_bounds(model_t const *model, box3_t *bounds) {
     m3Model_t const *m3;
     matrix4_t bones[SC2_M3_MAX_BONES];
     bool have_vertex = false;
@@ -1189,8 +1189,8 @@ static bool r_sc2_cliff_model_bounds(model_t const * model, box3_t * bounds) {
 }
 
 static vector2_t r_sc2_cliff_vertex_xy(sc2Map_t const *map,
-                                     vector2_t const * offset,
-                                     vector3_t const * rotated) {
+                                     vector2_t const *offset,
+                                     vector3_t const *rotated) {
     float scale = SC2_CLIFF_BLOCK_SPAN * map->cell_size / SC2_CLIFF_MODEL_FOOTPRINT;
 
     return (vector2_t){
@@ -1206,7 +1206,7 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
                                     m3Region_t const *region,
                                     matrix4_t const bones[SC2_M3_MAX_BONES],
                                     rSc2CliffPlacement_t const *placement,
-                                    vector2_t const * offset,
+                                    vector2_t const *offset,
                                     int rotation) {
     for (uint32_t index_i = 0; index_i + 2 < region->triangleIndicesCount; index_i += 3) {
         uint32_t fi[3], vi[3];
@@ -1284,7 +1284,7 @@ static void r_sc2_bake_cliff_region(rCliffBakeList_t *list,
 
 static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
                                    sc2Map_t const *map,
-                                   model_t const * model,
+                                   model_t const *model,
                                    uint32_t grid_x,
                                    uint32_t grid_y,
                                    int rotation,
@@ -1350,7 +1350,7 @@ static void r_sc2_bake_cliff_model(rCliffBakeList_t *list,
     }
 }
 
-static texture_t const * r_sc2_cliff_diffuse_texture(model_t const * model) {
+static texture_t const *r_sc2_cliff_diffuse_texture(model_t const *model) {
     m3Model_t const *m3;
 
     if (!model || model->modeltype != ID_43DM || !model->m3)
@@ -1364,7 +1364,7 @@ static texture_t const * r_sc2_cliff_diffuse_texture(model_t const * model) {
     return NULL;
 }
 
-static rSc2CliffBakeBatch_t *r_sc2_cliff_bake_batch(rSc2CliffBakeBatch_t **batches, texture_t const * texture) {
+static rSc2CliffBakeBatch_t *r_sc2_cliff_bake_batch(rSc2CliffBakeBatch_t **batches, texture_t const *texture) {
     rSc2CliffBakeBatch_t *batch;
 
     for (batch = *batches; batch; batch = batch->next)
@@ -1470,7 +1470,7 @@ static void r_sc2_build_ramp_cliffs(sc2Map_t const *map, rSc2CliffBakeBatch_t **
         if (!found) {
             fprintf(stderr, "SC2 ramp: missing model '%s' at %.1f %.1f\n", path, box->center.x, box->center.y); continue;
         }
-        model_t const * model = r_sc2_load_cliff_model(path);
+        model_t const *model = r_sc2_load_cliff_model(path);
         box3_t bounds;
         if (!model || model->modeltype != ID_43DM || !model->m3 || !r_sc2_cliff_model_bounds(model, &bounds)) {
             fprintf(stderr, "SC2 ramp: invalid M3 '%s'\n", path); continue;
@@ -1505,9 +1505,9 @@ static void r_sc2_build_ramp_cliffs(sc2Map_t const *map, rSc2CliffBakeBatch_t **
     }
 }
 
-static maplayer_t * r_sc2_build_cliff_layer(sc2Map_t const *map) {
+static maplayer_t *r_sc2_build_cliff_layer(sc2Map_t const *map) {
     rSc2CliffBakeBatch_t *batches = NULL, *batch;
-    maplayer_t * layers = NULL;
+    maplayer_t *layers = NULL;
     uint32_t cliff_width;
     uint32_t cliff_height;
 
@@ -1526,7 +1526,7 @@ static maplayer_t * r_sc2_build_cliff_layer(sc2Map_t const *map) {
             uint32_t grid_y = cy * SC2_CLIFF_BLOCK_SPAN;
             uint16_t baselevel;
             int rotation;
-            model_t const * model;
+            model_t const *model;
 
             if (r_sc2_cliff_block_is_flat(map, grid_x, grid_y))
                 continue;
@@ -1551,7 +1551,7 @@ static maplayer_t * r_sc2_build_cliff_layer(sc2Map_t const *map) {
     r_sc2_build_ramp_cliffs(map, &batches);
     sc2_road_cliffs = batches;
     for (batch = batches; batch; batch = batch->next) {
-        maplayer_t * layer;
+        maplayer_t *layer;
         if (!batch->list.num_vertices) continue;
         R_CliffWeldNormals(&batch->list, map->cell_size * 0.5f);
         layer = ri.MemAlloc(sizeof(*layer)); memset(layer, 0, sizeof(*layer));
@@ -1609,13 +1609,13 @@ static void r_sc2_build_terrain(sc2Map_t const *map) {
 }
 
 
-static texture_t * r_sc2_terrain_layer_texture(uint32_t index) {
+static texture_t *r_sc2_terrain_layer_texture(uint32_t index) {
     if (index < sc2_num_terrain_layers && sc2_terrain_textures[index])
         return sc2_terrain_textures[index];
     return sc2_terrain_textures[0];
 }
 
-static void r_sc2_set_fog_state(vector4_t * u_color, vector4_t * u_params) {
+static void r_sc2_set_fog_state(vector4_t *u_color, vector4_t *u_params) {
     sc2Map_t const *map = SC2_MapCurrent();
     sc2MapTerrain_t const *terrain = map ? &map->t3Terrain : NULL;
     color32_t color = terrain ? terrain->fog_color : COLOR32_BLACK;
@@ -1625,7 +1625,7 @@ static void r_sc2_set_fog_state(vector4_t * u_color, vector4_t * u_params) {
     *u_params = (vector4_t){ terrain ? terrain->fog_start_height : 0.0f, terrain ? terrain->fog_density : 0.0f, terrain ? terrain->fog_falloff : 0.0f, enabled };
 }
 
-static void r_sc2_set_light_state(vector3_t * ambient_out, vector3_t * dirs, vector3_t * colors) {
+static void r_sc2_set_light_state(vector3_t *ambient_out, vector3_t *dirs, vector3_t *colors) {
     sc2Map_t const *map = SC2_MapCurrent();
     sc2MapLighting_t const *lighting = map ? &map->lighting : NULL;
     vector3_t ambient = sc2_light_ambient(lighting && lighting->enabled ? lighting : NULL);
@@ -1681,7 +1681,7 @@ static void r_sc2_set_terrain_uv(void) {
     sc2_terrain_shader.state.worldUVOffset = (vector2_t){ bounds.min.x / SC2_TERRAIN_UV_SCALE, bounds.min.y / SC2_TERRAIN_UV_SCALE };
 }
 
-static void r_sc2_draw_terrain_indexed(maplayer_t const * layer) {
+static void r_sc2_draw_terrain_indexed(maplayer_t const *layer) {
     uint32_t groups = tr.render_phase == RENDER_PHASE_LIGHTS ? 1 : SC2_TERRAIN_BLEND_GROUPS;
 
     r_sc2_set_terrain_uv();
@@ -1694,7 +1694,7 @@ static void r_sc2_draw_terrain_indexed(maplayer_t const * layer) {
     R_Call(glDepthMask, GL_TRUE);
 }
 
-static void r_sc2_draw_terrain_vertices(maplayer_t const * layer) {
+static void r_sc2_draw_terrain_vertices(maplayer_t const *layer) {
     uint32_t groups = tr.render_phase == RENDER_PHASE_LIGHTS ? 1 : SC2_TERRAIN_BLEND_GROUPS;
 
     r_sc2_set_terrain_uv();
@@ -1707,8 +1707,8 @@ static void r_sc2_draw_terrain_vertices(maplayer_t const * layer) {
     R_Call(glDepthMask, GL_TRUE);
 }
 
-static void r_sc2_draw_ground_layer(mapsegment_t const * segment) {
-    maplayer_t const * layer;
+static void r_sc2_draw_ground_layer(mapsegment_t const *segment) {
+    maplayer_t const *layer;
     matrix4_t model_matrix;
 
     if (!sc2_terrain_shader_loaded || !segment)
@@ -1757,8 +1757,8 @@ void R_SC2RegisterMap(cstring_t mapFileName) {
     r_sc2_load_minimap(mapFileName);
 }
 
-static void r_sc2_draw_cliff_layer(mapsegment_t const * segment) {
-    maplayer_t const * layer;
+static void r_sc2_draw_cliff_layer(mapsegment_t const *segment) {
+    maplayer_t const *layer;
     matrix4_t model_matrix;
 
     if (!sc2_terrain_shader_loaded || !sc2_cliff_shader_loaded || !segment)
@@ -1829,7 +1829,7 @@ void R_SC2DrawWorld(void) {
     r_sc2_draw_road_layers(sc2_hard_tile_layers, &sc2_hard_tile_entity);
 }
 
-static bool r_sc2_clip_trace_to_bounds(line3_t const * line, box2_t const * bounds, float * t0, float * t1) {
+static bool r_sc2_clip_trace_to_bounds(line3_t const *line, box2_t const *bounds, float *t0, float *t1) {
     float const bounds_min[2] = { bounds->min.x, bounds->min.y };
     float const bounds_max[2] = { bounds->max.x, bounds->max.y };
     float const start[2] = { line->a.x, line->a.y };
@@ -1863,7 +1863,7 @@ static bool r_sc2_clip_trace_to_bounds(line3_t const * line, box2_t const * boun
     return true;
 }
 
-static bool r_sc2_trace_heightmap_tile(sc2Map_t const *map, uint32_t x, uint32_t y, line3_t const * line, vector3_t * output) {
+static bool r_sc2_trace_heightmap_tile(sc2Map_t const *map, uint32_t x, uint32_t y, line3_t const *line, vector3_t *output) {
     box2_t bounds = SC2_MapBounds();
     float x0 = bounds.min.x + x * map->cell_size;
     float y0 = bounds.min.y + y * map->cell_size;
@@ -1885,7 +1885,7 @@ static bool r_sc2_trace_heightmap_tile(sc2Map_t const *map, uint32_t x, uint32_t
     return Line3_intersect_triangle(line, &tri2, output);
 }
 
-bool R_SC2TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t * output) {
+bool R_SC2TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t *output) {
     sc2Map_t const *map = SC2_MapCurrent();
     box2_t bounds;
     line3_t line;

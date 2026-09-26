@@ -25,21 +25,21 @@
 /* IS_HOLLOW is shared and lives in g_local.h. */
 #define IS_STATIC(ent) (ent->movetype == MOVETYPE_NONE)
 #define IS_MOVING(ent) (ent->currentmove && ent->currentmove->proc == CAbilityMove)
-extern void spell_run_frame(edict_t * ent);
+extern void spell_run_frame(edict_t *ent);
 
-void G_PushEntity(edict_t * ent, float distance, vector2_t const * direction) {
+void G_PushEntity(edict_t *ent, float distance, vector2_t const *direction) {
     ent->s.origin2 = Vector2_mad(&ent->s.origin2, distance, direction);
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     gi.LinkEntity(ent);
 }
 
-void G_PushEntity3(edict_t * ent, float distance, vector3_t const * direction) {
+void G_PushEntity3(edict_t *ent, float distance, vector3_t const *direction) {
     ent->s.origin = Vector3_mad(&ent->s.origin, distance, direction);
     if (ent->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     gi.LinkEntity(ent);
 }
 
-void SV_Physics_Step(edict_t * ent) {
+void SV_Physics_Step(edict_t *ent) {
     M_CheckGround(ent);
 }
 
@@ -50,8 +50,8 @@ void SV_Physics_Step(edict_t * ent) {
  * that only provide a one-shot sequence.  Keeping this state on the server
  * means the existing entity snapshot contract remains sufficient for every
  * client renderer. */
-void G_StartProjectilePresentation(edict_t * ent) {
-    animation_t const * anim;
+void G_StartProjectilePresentation(edict_t *ent) {
+    animation_t const *anim;
 
     if (!ent) return;
     ent->s.flags |= EF_NOT_SELECTABLE;
@@ -66,8 +66,8 @@ void G_StartProjectilePresentation(edict_t * ent) {
     if (anim) ent->s.frame = anim->interval[0];
 }
 
-static void G_AdvanceProjectilePresentation(edict_t * ent) {
-    animation_t const * anim = ent->animation;
+static void G_AdvanceProjectilePresentation(edict_t *ent) {
+    animation_t const *anim = ent->animation;
     uint32_t step;
     uint32_t next;
 
@@ -95,7 +95,7 @@ static void G_AdvanceProjectilePresentation(edict_t * ent) {
 /* Move a projectile (MOVETYPE_FLYMISSILE) one frame toward its target.
  * If the distance remaining is less than the per-frame travel distance the
  * projectile hits, deals damage via T_Damage(), and is freed. */
-void SV_Physics_Toss(edict_t * ent) {
+void SV_Physics_Toss(edict_t *ent) {
     float distance;
     vector3_t target, dir;
     bool const fixed_target = (ent->aiflags & AI_PROJECTILE_FIXED_TARGET) != 0;
@@ -124,7 +124,7 @@ void SV_Physics_Toss(edict_t * ent) {
              * missiles install currentmove/endfunc and bypass this branch. */
             if (fixed_target) {
                 vector2_t impact = fixed_target ? ent->channel.origin : ent->goalentity->s.origin2;
-                edict_t * primary = ent->goalentity;
+                edict_t *primary = ent->goalentity;
                 if (fixed_target && primary &&
                     (!primary->inuse || primary->spawn_time != ent->channel.target_spawn_time)) primary = NULL;
                 S_ResolveArtilleryPointHit(ent->owner, primary, &impact, ent->damage, &ent->artillery);
@@ -145,7 +145,7 @@ void SV_Physics_Toss(edict_t * ent) {
     }
 }
 
-void SV_Physics_Link(edict_t * ent) {
+void SV_Physics_Link(edict_t *ent) {
     vector3_t const old = ent->s.origin;
     ent->s.origin = ent->goalentity->s.origin;
     ent->s.angle = ent->goalentity->s.angle;
@@ -155,7 +155,7 @@ void SV_Physics_Link(edict_t * ent) {
 /* Whether a unit's hit points regenerate right now, per its WC3 regenType
  * ("uhrt": always / night / blight / none).  Unknown/missing defaults to
  * always, which is the most common case. */
-static bool G_UnitRegeneratesHP(edict_t const * ent) {
+static bool G_UnitRegeneratesHP(edict_t const *ent) {
     cstring_t const type = ent->data.UnitBalance->healthRegenType;
     if (!type || !*type) {
         return true;
@@ -175,7 +175,7 @@ static bool G_UnitRegeneratesHP(edict_t const * ent) {
 /* Per-entity update called every game frame.  Runs physics based on movetype,
  * then calls the entity's think function, and finally compresses health/mana
  * into the 8-bit stat fields that are sent to clients. */
-void G_RunEntity(edict_t * ent) {
+void G_RunEntity(edict_t *ent) {
     if (!ent->inuse) return; /* defensive: freed edicts carry no simulation state */
     spell_run_frame(ent);
     unit_updatestatuses(ent);
@@ -235,8 +235,8 @@ void G_RunEntity(edict_t * ent) {
     ent->s.class_id = ent->class_id;
 }
 
-inline bool M_CheckCollision(vector2_t const * origin, float radius) {
-    for (edict_t * a = globals.edicts; a - globals.edicts < globals.num_edicts; a++) {
+inline bool M_CheckCollision(vector2_t const *origin, float radius) {
+    for (edict_t *a = globals.edicts; a - globals.edicts < globals.num_edicts; a++) {
         vector2_t d = Vector2_sub(&a->s.origin2, origin);
         if (IS_HOLLOW(a))
             continue;
@@ -261,12 +261,12 @@ inline bool M_CheckCollision(vector2_t const * origin, float radius) {
  * The query helpers it used are retired with it; left commented in case a
  * future global de-overlap pass is ever needed.  (Linux -Wall would warn that
  * these are unused.) */
-// static edict_t const * phys_current_entity = NULL;
-// static bool FilterColliders(edict_t const * ent) {
+// static edict_t const *phys_current_entity = NULL;
+// static bool FilterColliders(edict_t const *ent) {
 //     return ent != phys_current_entity && !IS_HOLLOW(ent);
 // }
 // #define MAX_COLLIDERS 256
-// static edict_t * sv_colliders[MAX_COLLIDERS];
+// static edict_t *sv_colliders[MAX_COLLIDERS];
 
 void G_SolveCollisions(void) {
 }

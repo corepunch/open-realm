@@ -47,11 +47,11 @@ struct tInternalBLPInfos {
     struct tBLP1Infos  infos;
 };
 
-color32_t * blp1_convert_jpeg(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t size);
-color32_t * blp1_convert_paletted_no_alpha(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height);
-color32_t * blp1_convert_paletted_separated_alpha(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height);
-color32_t * blp1_convert_paletted_alpha1(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height);
-color32_t * blp1_convert_paletted_alpha4(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height);
+color32_t *blp1_convert_jpeg(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t size);
+color32_t *blp1_convert_paletted_no_alpha(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height);
+color32_t *blp1_convert_paletted_separated_alpha(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height);
+color32_t *blp1_convert_paletted_alpha1(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height);
+color32_t *blp1_convert_paletted_alpha4(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height);
 
 //struct tInternalBLPInfos *blp_processFile(FILE* pFile);
 //void blp_release(tBLPInfos binfos);
@@ -109,14 +109,14 @@ uint32_t blp1_nbMipLevels(struct tInternalBLPInfos* pBLPInfos) {
     return pBLPInfos->infos.nbMipLevels;
 }
 
-color32_t * blp1_convert(handle_t buffer, uint32_t filesize, struct tInternalBLPInfos* pBLPInfos, uint32_t mipLevel) {
+color32_t *blp1_convert(handle_t buffer, uint32_t filesize, struct tInternalBLPInfos* pBLPInfos, uint32_t mipLevel) {
     // Check the mip level
     if (mipLevel >= pBLPInfos->infos.nbMipLevels)
         mipLevel = pBLPInfos->infos.nbMipLevels - 1;
     // Declarations
     uint32_t width  = blp1_width(pBLPInfos, mipLevel);
     uint32_t height = blp1_height(pBLPInfos, mipLevel);
-    color32_t * pDst = 0;
+    color32_t *pDst = 0;
     uint32_t offset = pBLPInfos->header.offsets[mipLevel];
     uint32_t size   = pBLPInfos->header.lengths[mipLevel];
     uint8_t* pSrc = ri.MemAlloc(size);
@@ -147,7 +147,7 @@ color32_t * blp1_convert(handle_t buffer, uint32_t filesize, struct tInternalBLP
     return pDst;
 }
 
-texture_t * R_LoadTextureBLP1(handle_t data, uint32_t filesize) {
+texture_t *R_LoadTextureBLP1(handle_t data, uint32_t filesize) {
     struct tInternalBLPInfos* pBLPInfos = ri.MemAlloc(sizeof(struct tInternalBLPInfos));
     memcpy(&pBLPInfos->header, data, sizeof(struct tBLP1Header));
     pBLPInfos->infos.nbMipLevels = 0;
@@ -168,12 +168,12 @@ texture_t * R_LoadTextureBLP1(handle_t data, uint32_t filesize) {
         memcpy(&pBLPInfos->infos.palette, data + sizeof(struct tBLP1Header), sizeof(pBLPInfos->infos.palette));
     }
 
-    texture_t * pTexture = R_AllocateTexture(blp1_width(pBLPInfos, 0), blp1_height(pBLPInfos, 0));
+    texture_t *pTexture = R_AllocateTexture(blp1_width(pBLPInfos, 0), blp1_height(pBLPInfos, 0));
 
     FOR_LOOP(level, blp1_nbMipLevels(pBLPInfos)) {
         uint32_t const width = blp1_width(pBLPInfos, level);
         uint32_t const height = blp1_height(pBLPInfos, level);
-        color32_t * pPixels = blp1_convert(data, filesize, pBLPInfos, level);
+        color32_t *pPixels = blp1_convert(data, filesize, pBLPInfos, level);
         if (pPixels) {
             R_LoadTextureMipLevel(pTexture, &(texMip_t){ pPixels, width, height, level, PIXEL_BGRA });
             ri.MemFree(pPixels);
@@ -183,7 +183,7 @@ texture_t * R_LoadTextureBLP1(handle_t data, uint32_t filesize) {
     return pTexture;
 }
 
-color32_t * blp1_convert_jpeg(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t dataSize) {
+color32_t *blp1_convert_jpeg(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t dataSize) {
     uint8_t* pSrcBuffer = ri.MemAlloc(pInfos->jpeg.headerSize + dataSize);
 
     if (pInfos->jpeg.headerSize > 0) {
@@ -206,7 +206,7 @@ color32_t * blp1_convert_jpeg(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t
         return NULL;
     }
 
-    color32_t * pBuffer = ri.MemAlloc(sizeof(color32_t) * width * height);
+    color32_t *pBuffer = ri.MemAlloc(sizeof(color32_t) * width * height);
 
     for (uint32_t p = 0; p < (uint32_t)(width * height); ++p) {
         pBuffer[p].r = image[p * 4 + 2];
@@ -221,9 +221,9 @@ color32_t * blp1_convert_jpeg(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t
     return pBuffer;
 }
 
-color32_t * blp1_convert_paletted_separated_alpha(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height) {
-    color32_t * pBuffer = ri.MemAlloc(sizeof(color32_t) * width * height);
-    color32_t * pDst = pBuffer;
+color32_t *blp1_convert_paletted_separated_alpha(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height) {
+    color32_t *pBuffer = ri.MemAlloc(sizeof(color32_t) * width * height);
+    color32_t *pDst = pBuffer;
     uint8_t* pIndices = pSrc;
     uint8_t* pAlpha = pSrc + width * height;
     FOR_LOOP(y, height) {
@@ -238,9 +238,9 @@ color32_t * blp1_convert_paletted_separated_alpha(uint8_t* pSrc, struct tBLP1Inf
     return pBuffer;
 }
 
-color32_t * blp1_convert_paletted_alpha1(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height) {
-    color32_t * pBuffer = ri.MemAlloc(sizeof(color32_t) * width * height);
-    color32_t * pDst = pBuffer;
+color32_t *blp1_convert_paletted_alpha1(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height) {
+    color32_t *pBuffer = ri.MemAlloc(sizeof(color32_t) * width * height);
+    color32_t *pDst = pBuffer;
     uint8_t* pIndices = pSrc;
     uint8_t* pAlpha = pSrc + width * height;
     uint8_t counter = 0;
@@ -260,9 +260,9 @@ color32_t * blp1_convert_paletted_alpha1(uint8_t* pSrc, struct tBLP1Infos* pInfo
     return pBuffer;
 }
 
-color32_t * blp1_convert_paletted_alpha4(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height) {
-    color32_t * pBuffer = ri.MemAlloc(sizeof(color32_t) * width * height);
-    color32_t * pDst = pBuffer;
+color32_t *blp1_convert_paletted_alpha4(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height) {
+    color32_t *pBuffer = ri.MemAlloc(sizeof(color32_t) * width * height);
+    color32_t *pDst = pBuffer;
     uint8_t* pIndices = pSrc;
     uint8_t* pAlpha = pSrc + width * height;
     uint8_t counter = 0;
@@ -284,9 +284,9 @@ color32_t * blp1_convert_paletted_alpha4(uint8_t* pSrc, struct tBLP1Infos* pInfo
     return pBuffer;
 }
 
-color32_t * blp1_convert_paletted_no_alpha(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height) {
-    color32_t * pBuffer = ri.MemAlloc(sizeof(color32_t) * width * height);
-    color32_t * pDst = pBuffer;
+color32_t *blp1_convert_paletted_no_alpha(uint8_t* pSrc, struct tBLP1Infos* pInfos, uint32_t width, uint32_t height) {
+    color32_t *pBuffer = ri.MemAlloc(sizeof(color32_t) * width * height);
+    color32_t *pDst = pBuffer;
     uint8_t* pIndices = pSrc;
     FOR_LOOP(y, height) {
         FOR_LOOP(x, width) {

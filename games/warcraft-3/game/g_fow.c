@@ -208,7 +208,7 @@ static int G_FowRadiusCells(float radius) {
 }
 
 /* Circular trigger/modifier state writes reuse the ordinary fog-grid rasterization. */
-static void G_FowSetDiskState(fowPlayerGrid_t *grid, fogDisk_t const * disk) {
+static void G_FowSetDiskState(fowPlayerGrid_t *grid, fogDisk_t const *disk) {
     int radius_sq = disk->cells * disk->cells;
 
     for (int dy = -disk->cells; dy <= disk->cells; dy++) {
@@ -472,7 +472,7 @@ static void G_FowRevealBlockerRim(fowPlayerGrid_t *grid, uint32_t cx, uint32_t c
     G_FowCommitRimCells(grid, rim_count);
 }
 
-static void G_FowRevealCircle(uint32_t player, edict_t const * ent, float radius) {
+static void G_FowRevealCircle(uint32_t player, edict_t const *ent, float radius) {
     fowPlayerGrid_t *grid;
     uint32_t cx, cy;
     int radius_cells;
@@ -517,7 +517,7 @@ bool G_IsNight(void) {
              time < game.constants.duskTimeGameHours);
 }
 
-static float G_FowEntitySightRadius(edict_t const * ent) {
+static float G_FowEntitySightRadius(edict_t const *ent) {
     float day;
     float night;
 
@@ -533,7 +533,7 @@ static float G_FowEntitySightRadius(edict_t const * ent) {
     return G_IsNight() ? night : day;
 }
 
-static bool G_FowEntityIsRevealer(edict_t const * ent) {
+static bool G_FowEntityIsRevealer(edict_t const *ent) {
     if (!ent || !ent->inuse || ent->s.player >= MAX_PLAYERS) {
         return false;
     }
@@ -549,7 +549,7 @@ static bool G_FowEntityIsRevealer(edict_t const * ent) {
     return G_FowEntitySightRadius(ent) > 0.0f;
 }
 
-static bool G_FowEntityIsBlocker(edict_t const * ent) {
+static bool G_FowEntityIsBlocker(edict_t const *ent) {
     if (!ent || !ent->inuse || !(ent->s.flags & EF_FOW_BLOCKER)) {
         return false;
     }
@@ -592,7 +592,7 @@ static bool G_FowBlockersChanged(void) {
     if (!g_fow_blockers_dirty) return false;
     g_fow_blockers_dirty = false;
     FOR_LOOP(i, globals.num_edicts) {
-        edict_t const * ent = &g_edicts[i];
+        edict_t const *ent = &g_edicts[i];
 
         if (!G_FowEntityIsBlocker(ent)) {
             continue;
@@ -630,7 +630,7 @@ static bool G_FowBlockersChanged(void) {
     return true;
 }
 
-static int G_FowBlockerDilation(edict_t const * ent) {
+static int G_FowBlockerDilation(edict_t const *ent) {
     if (ent->targtype == TARG_TREE) {
         return FOW_TREE_DILATION_CELLS;
     }
@@ -642,7 +642,7 @@ static int G_FowBlockerDilation(edict_t const * ent) {
     return 0;
 }
 
-static bool G_FowMarkBlockerPathTex(edict_t const * ent, int dilation) {
+static bool G_FowMarkBlockerPathTex(edict_t const *ent, int dilation) {
     pathTex_t const *pathtex = ent->pathtex;
     float scale;
     bool marked = false;
@@ -682,7 +682,7 @@ static bool G_FowMarkBlockerPathTex(edict_t const * ent, int dilation) {
     return marked;
 }
 
-static void G_FowMarkBlocker(edict_t const * ent) {
+static void G_FowMarkBlocker(edict_t const *ent) {
     uint32_t cx;
     uint32_t cy;
     float radius;
@@ -740,7 +740,7 @@ static void G_FowRebuildBlockers(void) {
 }
 
 /* Reveal directly into connected viewer grids; source-owner grids are irrelevant when nobody consumes them. */
-static void G_FowRevealForViewers(edict_t const * ent, float radius, uint32_t viewers) {
+static void G_FowRevealForViewers(edict_t const *ent, float radius, uint32_t viewers) {
     FOR_LOOP(viewer, MAX_PLAYERS)
         if (viewers & (1u << viewer))
             G_FowRevealCircle(viewer, ent, radius);
@@ -751,16 +751,16 @@ static void G_FowRevealForViewers(edict_t const * ent, float radius, uint32_t vi
  * contract. Modifiers are applied after unit sight so their state persists. */
 #define MAX_FOG_MODIFIERS 256 // handles; bounded active map-script fog modifiers
 
-static fogModifier_t * g_fog_modifiers[MAX_FOG_MODIFIERS];
+static fogModifier_t *g_fog_modifiers[MAX_FOG_MODIFIERS];
 static uint32_t g_num_fog_modifiers;
 
-static void G_FowApplyModifierForPlayer(uint32_t player, fogModifier_t const * mod);
+static void G_FowApplyModifierForPlayer(uint32_t player, fogModifier_t const *mod);
 
 /* Start is observable immediately in Warcraft scripts. This matters for the
  * common reveal pattern that starts and destroys/stops a VISIBLE modifier in
  * the same trigger turn: exploration must still be recorded even if the
  * modifier is gone before the next simulation fog update. */
-static void G_FowApplyModifierImmediately(fogModifier_t const * mod) {
+static void G_FowApplyModifierImmediately(fogModifier_t const *mod) {
     if (!mod || !G_FowReady() || !G_FowStateValid(mod->state) ||
         mod->player >= MAX_PLAYERS) {
         return;
@@ -774,7 +774,7 @@ static void G_FowApplyModifierImmediately(fogModifier_t const * mod) {
     }
 }
 
-void G_FogModifierStart(fogModifier_t * mod) {
+void G_FogModifierStart(fogModifier_t *mod) {
     if (!mod) {
         return;
     }
@@ -790,7 +790,7 @@ void G_FogModifierStart(fogModifier_t * mod) {
     }
 }
 
-void G_FogModifierStop(fogModifier_t * mod) {
+void G_FogModifierStop(fogModifier_t *mod) {
     if (!mod) {
         return;
     }
@@ -804,7 +804,7 @@ void G_FogModifierStop(fogModifier_t * mod) {
 }
 
 /* Rectangular writes use the same cell-state contract as circular reveals. */
-static void G_FowSetBoxState(fowPlayerGrid_t *grid, box2_t const * box, uint32_t state) {
+static void G_FowSetBoxState(fowPlayerGrid_t *grid, box2_t const *box, uint32_t state) {
     uint32_t x0 = G_FowWorldToCellX(box->min.x);
     uint32_t y0 = G_FowWorldToCellY(box->min.y);
     uint32_t x1 = G_FowWorldToCellX(box->max.x);
@@ -826,7 +826,7 @@ static void G_FowSetBoxState(fowPlayerGrid_t *grid, box2_t const * box, uint32_t
 }
 
 /* Immediate JASS writes persist in the target grid even when no client currently consumes it. */
-void G_FowSetStateRect(fogWrite_t const * fog, box2_t const * box) {
+void G_FowSetStateRect(fogWrite_t const *fog, box2_t const *box) {
     if (!fog || fog->player >= MAX_PLAYERS || !box ||
         !G_FowReady() || !G_FowStateValid(fog->state))
         return;
@@ -838,7 +838,7 @@ void G_FowSetStateRect(fogWrite_t const * fog, box2_t const * box) {
 }
 
 /* Radius and location natives share one authoritative circular state path. */
-void G_FowSetStateRadius(fogWrite_t const * fog, vector2_t const * center, float radius) {
+void G_FowSetStateRadius(fogWrite_t const *fog, vector2_t const *center, float radius) {
     uint32_t cx, cy;
     int cells;
     if (!fog || fog->player >= MAX_PLAYERS || !center ||
@@ -857,7 +857,7 @@ void G_FowSetStateRadius(fogWrite_t const * fog, vector2_t const * center, float
     }
 }
 
-static void G_FowApplyModifierForPlayer(uint32_t player, fogModifier_t const * mod) {
+static void G_FowApplyModifierForPlayer(uint32_t player, fogModifier_t const *mod) {
     fowPlayerGrid_t *grid = &level.fow.players[player];
     if (mod->is_rect) {
         G_FowSetBoxState(grid, &mod->rect, mod->state);
@@ -878,7 +878,7 @@ static void G_FowApplyModifierForPlayer(uint32_t player, fogModifier_t const * m
 
 static void G_FowApplyModifiers(uint32_t viewers) {
     FOR_LOOP(i, g_num_fog_modifiers) {
-        fogModifier_t const * mod = g_fog_modifiers[i];
+        fogModifier_t const *mod = g_fog_modifiers[i];
         if (!mod || !mod->started || !G_FowStateValid(mod->state) ||
             mod->player >= MAX_PLAYERS) {
             continue;
@@ -1009,7 +1009,7 @@ void G_FowUpdate(void) {
     }
 
     FOR_LOOP(i, globals.num_edicts) {
-        edict_t const * ent = &g_edicts[i];
+        edict_t const *ent = &g_edicts[i];
         float radius;
 
         if (ent->s.player >= MAX_PLAYERS || !owner_viewers[ent->s.player] || !G_FowEntityIsRevealer(ent)) {
@@ -1024,7 +1024,7 @@ void G_FowUpdate(void) {
      * rebuild. Its save-safe thinker owns only lifetime/state; apply the disk
      * here, after unit sight and before script fog modifiers. */
     FOR_LOOP(i, globals.num_edicts) {
-        edict_t const * ent = &g_edicts[i];
+        edict_t const *ent = &g_edicts[i];
         if (!ent->inuse || ent->think != far_sight_think || ent->s.player >= MAX_PLAYERS ||
             G_Time() >= ent->spawn_time || ent->collision <= 0.0f) {
             continue;
@@ -1043,13 +1043,13 @@ void G_FowUpdate(void) {
    (still-fogged) cinematic area are never networked and the scene renders
    without its actors. */
 static bool G_FowPlayerFogDisabled(uint32_t player) {
-    gameClient_t * client = G_GetPlayerClientByNumber(player);
+    gameClient_t *client = G_GetPlayerClientByNumber(player);
     return client && (client->ps.rdflags & RDF_NOFOG);
 }
 
 /* Hover information is interactive gameplay state, so unlike explored
  * scenery it is exposed only while the entity is actively visible. */
-bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const * ent) {
+bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const *ent) {
     uint32_t x, y, index;
     fowPlayerGrid_t const *grid;
 
@@ -1079,7 +1079,7 @@ bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const * ent) {
     return grid->visible && grid->visible[index] != 0;
 }
 
-bool G_FowPlayerCanSeeEntity(uint32_t player, edict_t const * ent) {
+bool G_FowPlayerCanSeeEntity(uint32_t player, edict_t const *ent) {
     uint32_t x, y, index;
     fowPlayerGrid_t const *grid;
 
@@ -1171,7 +1171,7 @@ static uint32_t G_FowPackRows(fowPlayerGrid_t *grid,
     return MSG_EncodeRLE(payload, payload_size, c.plane_bits * c.plane_count, G_FowPackBit, &c);
 }
 
-static void G_FowWriteRows(edict_t * ent, uint32_t player, uint32_t flags, uint32_t first_row, uint32_t row_count) {
+static void G_FowWriteRows(edict_t *ent, uint32_t player, uint32_t flags, uint32_t first_row, uint32_t row_count) {
     uint8_t payload[FOW_CHUNK_TARGET_BYTES];
     uint32_t plane_count = 0;
     uint32_t payload_bytes;
@@ -1229,7 +1229,7 @@ static uint32_t G_FowRowsPerChunk(uint32_t flags) {
     return MAX(1, (FOW_CHUNK_TARGET_BYTES - 1) / (level.fow.width * plane_count));
 }
 
-void G_FowSendFull(edict_t * ent) {
+void G_FowSendFull(edict_t *ent) {
     uint32_t player;
     uint32_t rows_per_chunk;
 
@@ -1251,7 +1251,7 @@ void G_FowSendFull(edict_t * ent) {
     }
 }
 
-static void G_FowSendDirtyPlane(edict_t * ent,
+static void G_FowSendDirtyPlane(edict_t *ent,
                                 uint32_t player,
                                 uint8_t *dirty_rows,
                                 uint32_t plane_flag)
@@ -1287,7 +1287,7 @@ void G_FowSendDeltas(void) {
     }
 
     FOR_LOOP(player, MIN((uint32_t)game.max_clients, (uint32_t)MAX_PLAYERS)) {
-        edict_t * ent = G_GetPlayerEntityByNumber(player);
+        edict_t *ent = G_GetPlayerEntityByNumber(player);
         if (!level.fow.players[player].client_connected || !ent || !ent->client) {
             continue;
         }

@@ -11,7 +11,7 @@
 #include "hud_utils.h"
 
 uint32_t ui_next_frame_number;
-gameClient_t * ui_current_client;
+gameClient_t *ui_current_client;
 static uint8_t ui_window_text[MAX_MSGLEN];
 static uint32_t ui_window_text_size;
 bool ui_window_writing;
@@ -23,11 +23,11 @@ cstring_t UI_LevelStringSafe(cstring_t text) {
     return G_LevelString(text);
 }
 
-void UI_SetCurrentClient(gameClient_t * client) {
+void UI_SetCurrentClient(gameClient_t *client) {
     ui_current_client = client;
 }
 
-void UI_CenterFrame(frameDef_t * frame) {
+void UI_CenterFrame(frameDef_t *frame) {
     if (!frame) return;
     memset(&frame->Points, 0, sizeof(frame->Points));
     frame->AnyPointsSet = true;
@@ -41,14 +41,14 @@ void UI_SetFramePoint(uiFramePoint_t *point, uiFramePointPos_t target, uint32_t 
     point->offset = (int16_t)((y_axis ? -offset : offset) * UI_FRAMEPOINT_SCALE);
 }
 
-void UI_SetFrameRect(uiFrame_t * frame, float x, float y, float w, float h) {
+void UI_SetFrameRect(uiFrame_t *frame, float x, float y, float w, float h) {
     UI_SetFramePoint(&frame->points.x[FPP_MIN], FPP_MIN, 0, x, false);
     UI_SetFramePoint(&frame->points.y[FPP_MIN], FPP_MIN, 0, y, true);
     frame->size.width = w;
     frame->size.height = h;
 }
 
-void UI_WriteProxyFrame(uiFrame_t * frame, handle_t data, uint32_t data_size) {
+void UI_WriteProxyFrame(uiFrame_t *frame, handle_t data, uint32_t data_size) {
     frame->number = ui_next_frame_number++;
     frame->color = frame->color.a ? frame->color : COLOR32_WHITE;
     if (!frame->tex.coord[1] && !frame->tex.coord[3]) {
@@ -60,7 +60,7 @@ void UI_WriteProxyFrame(uiFrame_t * frame, handle_t data, uint32_t data_size) {
     gi.Write(ui_window_writing ? PF_UIWINDOWFRAME : PF_UIFRAME, frame);
 }
 
-void UI_WriteProxyFrameToParent(uiFrame_t * frame, handle_t data, uint32_t data_size, uint32_t parent) {
+void UI_WriteProxyFrameToParent(uiFrame_t *frame, handle_t data, uint32_t data_size, uint32_t parent) {
     frame->parent = parent;
     UI_WriteProxyFrame(frame, data, data_size);
 }
@@ -412,7 +412,7 @@ static uint32_t Theme_GameVersion(void) {
 /* Resolve a local player's race skin first, then the shared Default section.
  * Warcraft skin data also carries versioned aliases (for example Music_V1),
  * so fall back to the mounted game edition when the unversioned key is absent. */
-cstring_t Theme_PlayerString(gameClient_t * client, cstring_t key, cstring_t def) {
+cstring_t Theme_PlayerString(gameClient_t *client, cstring_t key, cstring_t def) {
     cstring_t category, value;
     char versioned[128];
 
@@ -479,7 +479,7 @@ void UI_WriteStart(uint32_t layer) {
     ui_next_frame_number = 1;
 }
 
-void UI_WriteEnd(edict_t * ent) {
+void UI_WriteEnd(edict_t *ent) {
     gi.Write(PF_LONG, &(int32_t){0});   /* bits=0 */
     gi.Write(PF_SHORT, &(int32_t){0});  /* number=0  — MSG_ReadEntityBits reads int32_t+int16_t */
     /* A NULL recipient leaves the initial loading layout for the server signon buffer. */
@@ -512,7 +512,7 @@ void UI_WriteWindowStart(uiWindowDef_t const *def) {
     ui_next_frame_number = 1;
 }
 
-void UI_WriteWindowEnd(edict_t * ent) {
+void UI_WriteWindowEnd(edict_t *ent) {
     pfWriteData_t text = { .data = ui_window_text, .size = ui_window_text_size };
     ui_window_writing = false;
     gi.Write(PF_LONG, &(int32_t){0}); gi.Write(PF_SHORT, &(int32_t){0});

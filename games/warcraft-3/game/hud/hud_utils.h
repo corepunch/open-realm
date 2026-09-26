@@ -7,7 +7,7 @@ static void UI_CopyString(string_t out, uint32_t size, cstring_t text) {
 }
 
 /* ROC rows are label,sequence,model; TFT prepends a numeric expansion category (even for ROC campaigns). */
-static inline bool UI_ParseLoadingRow(cstring_t row, uint32_t * sequence, string_t model) {
+static inline bool UI_ParseLoadingRow(cstring_t row, uint32_t *sequence, string_t model) {
     int offset = 0;
     *sequence = 0; model[0] = 0;
     if (!row) return false;
@@ -46,14 +46,14 @@ static void UI_InfoPanelIconSkinKey(cstring_t prefix, cstring_t type, bool has_u
     code[0] = (char)toupper((unsigned char)code[0]);
     snprintf(out, out_size, "InfoPanelIcon%s%s%s", prefix, code, has_upgrade ? "" : "Neutral");
 }
-static void UI_SetPortraitFrameModel(frameDef_t * frame, uint32_t model) {
+static void UI_SetPortraitFrameModel(frameDef_t *frame, uint32_t model) {
     frame->Type = FT_PORTRAIT;
     frame->Portrait.model = model;
 }
 
 /* Dynamic lists repeat authored row geometry; only the row index is runtime data. */
-static frameDef_t * UI_CloneStackedRow(frameDef_t const * tmpl, frameDef_t * parent, uint32_t row) {
-    frameDef_t * frame = UI_CloneFrameTree(tmpl, parent);
+static frameDef_t *UI_CloneStackedRow(frameDef_t const *tmpl, frameDef_t *parent, uint32_t row) {
+    frameDef_t *frame = UI_CloneFrameTree(tmpl, parent);
     if (frame) UI_SetPoint(frame, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0.0f, -(float)row * frame->Height);
     return frame;
 }

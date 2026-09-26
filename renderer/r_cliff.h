@@ -38,19 +38,19 @@ static inline void R_CliffBakeGrow(rCliffBakeList_t *list, uint32_t add) {
     list->capacity = capacity;
 }
 
-static inline vertex_t * R_CliffBakeVertex(rCliffBakeList_t *list) {
+static inline vertex_t *R_CliffBakeVertex(rCliffBakeList_t *list) {
     R_CliffBakeGrow(list, 1);
     list->groups[list->num_vertices] = list->current_group;
     return &list->vertices[list->num_vertices++];
 }
 
-static inline bool R_CliffWeldCompatible(vertex_t const * a, uint32_t a_group, vertex_t const * b, uint32_t b_group, float z_snap) {
+static inline bool R_CliffWeldCompatible(vertex_t const *a, uint32_t a_group, vertex_t const *b, uint32_t b_group, float z_snap) {
 	return a_group != b_group &&
 		   (int)roundf(a->position.z / z_snap) == (int)roundf(b->position.z / z_snap) &&
 		   Vector3_dot(&a->normal, &b->normal) > 0.0f;
 }
 
-static inline int r_cliff_weld_cmp(const void *a, const void *b) {
+static inline int r_cliff_weld_cmp(void const *a, void const *b) {
     rNormalWeldKey_t const *ka = a, *kb = b;
     if (ka->qx != kb->qx) return ka->qx < kb->qx ? -1 : 1;
     if (ka->qy != kb->qy) return ka->qy < kb->qy ? -1 : 1;

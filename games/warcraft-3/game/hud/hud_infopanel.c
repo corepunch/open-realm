@@ -24,7 +24,7 @@ static int timed_status_debug_level(void) {
     return value ? atoi(value) : 0;
 }
 
-static void timed_status_debug_dump(edict_t * ent, gameClient_t * viewer, cstring_t stage) {
+static void timed_status_debug_dump(edict_t *ent, gameClient_t *viewer, cstring_t stage) {
     int const debug = timed_status_debug_level();
     uint32_t const now = G_Time();
     char unit_code[5] = { 0 };
@@ -73,7 +73,7 @@ static bool InfoPanelStringsResolved(void) {
     return true;
 }
 
-static void InitStatusWrapper(frameDef_t * frame, float x, float y, float width, float height) {
+static void InitStatusWrapper(frameDef_t *frame, float x, float y, float width, float height) {
     UI_InitFrame(frame, FT_SIMPLEFRAME);
     UI_SetSize(frame, width, height);
     UI_SetPoint(frame, FRAMEPOINT_TOPLEFT, hud.simple.SimpleInfoPanelUnitDetail,
@@ -190,7 +190,7 @@ void UI_LoadHudInfoPanel(void) {
 }
 
 static void HideLegacyUnitStats(void) {
-    frameDef_t * const frames_to_hide[] = {
+    frameDef_t *const frames_to_hide[] = {
         hud.unit.DefenseLabel, hud.unit.DefenseValue,
         hud.unit.AttackLabel1, hud.unit.AttackValue1,
         hud.unit.AttackLabel2, hud.unit.AttackValue2,
@@ -220,7 +220,7 @@ static void FormatAttackDamageValue(char *buffer, size_t buffer_size,
     }
 }
 
-static void WriteLegacyUnitStats(edict_t * ent, UnitWeapons_t const *weapons,
+static void WriteLegacyUnitStats(edict_t *ent, UnitWeapons_t const *weapons,
                                  bool has_attack2, int32_t min_damage, int32_t max_damage,
                                  int32_t min_damage2, int32_t max_damage2, bool is_hero,
                                  uint32_t level) {
@@ -256,7 +256,7 @@ static void WriteLegacyUnitStats(edict_t * ent, UnitWeapons_t const *weapons,
         struct { cstring_t code; uint32_t val; } attrs[3] = {
             { "STR", ent->hero.str }, { "AGI", ent->hero.agi }, { "INT", ent->hero.intel },
         };
-        frameDef_t * icon_values[3] = {
+        frameDef_t *icon_values[3] = {
             hud.unit.IconValue1, hud.unit.IconValue2, hud.unit.IconValue3,
         };
 
@@ -382,7 +382,7 @@ cstring_t UI_TestResolveTypedInfoPanelIcon(cstring_t prefix, cstring_t type, boo
 }
 #endif
 
-static void SetTypedInfoPanelIcon(frameDef_t * frame, cstring_t prefix, cstring_t type, bool has_upgrade) {
+static void SetTypedInfoPanelIcon(frameDef_t *frame, cstring_t prefix, cstring_t type, bool has_upgrade) {
     cstring_t texture;
 
     if (!frame || !prefix) return;
@@ -438,7 +438,7 @@ static uint32_t RawcodeFromListToken(cstring_t text) {
     return length == 4 ? FS_SLKKey(rawcode) : 0;
 }
 
-static uint32_t UnitWeaponUpgrade(edict_t * ent) {
+static uint32_t UnitWeaponUpgrade(edict_t *ent) {
     static cstring_t const classes[] = { "melee", "ranged", "artillery" };
 
     if (!ent || !ent->data.UnitBalance) return 0;
@@ -449,13 +449,13 @@ static uint32_t UnitWeaponUpgrade(edict_t * ent) {
     return 0;
 }
 
-static uint32_t UnitArmorUpgrade(edict_t * ent) {
+static uint32_t UnitArmorUpgrade(edict_t *ent) {
     if (!ent || !ent->data.UnitBalance) return 0;
     return G_GetUnitUpgradeForClass(ent, "armor");
 }
 
-static void SetUpgradeLevel(frameDef_t * frame, uint32_t upgrade, edict_t * ent) {
-    gameClient_t * owner;
+static void SetUpgradeLevel(frameDef_t *frame, uint32_t upgrade, edict_t *ent) {
+    gameClient_t *owner;
 
     if (!frame) return;
     if (!upgrade || !ent || !(owner = G_GetPlayerClientByNumber(ent->s.player))) {
@@ -535,7 +535,7 @@ static void WriteVirtualBuffStatusFrame(uint32_t buff_code, uint32_t shown[MAX_U
     cstring_t art;
     cstring_t tip;
     cstring_t ubertip;
-    frameDef_t * icon;
+    frameDef_t *icon;
 
     if (!buff_code || !slot || *slot >= MAX_UNIT_STATUSES) return;
     FOR_LOOP(i, *slot) if (shown[i] == buff_code) { duplicate = true; break; }
@@ -553,7 +553,7 @@ static void WriteVirtualBuffStatusFrame(uint32_t buff_code, uint32_t shown[MAX_U
     (*slot)++;
 }
 
-static void WriteBuffStatusFrames(edict_t * ent) {
+static void WriteBuffStatusFrames(edict_t *ent) {
     uint32_t slot = 0;
     uint32_t shown[MAX_UNIT_STATUSES] = { 0 };
 
@@ -566,7 +566,7 @@ static void WriteBuffStatusFrames(edict_t * ent) {
         cstring_t art;
         cstring_t tip;
         cstring_t ubertip;
-        frameDef_t * icon;
+        frameDef_t *icon;
         uint32_t const buff_code = StatusBuffCode(status);
 
         if (!status->level || slot >= MAX_UNIT_STATUSES || !buff_code) continue;
@@ -612,7 +612,7 @@ static void WriteBuffStatusFrames(edict_t * ent) {
     WriteVirtualBuffStatusFrame(S_UnholyAuraBuff(ent), shown, &slot);
 }
 
-static void WriteSelectedUnitStatusFrames(edict_t * ent, UnitWeapons_t const *weapons,
+static void WriteSelectedUnitStatusFrames(edict_t *ent, UnitWeapons_t const *weapons,
                                           bool has_attack1, bool has_attack2,
                                           int32_t min_damage, int32_t max_damage,
                                           int32_t min_damage2, int32_t max_damage2,
@@ -697,7 +697,7 @@ static void WriteSelectedUnitStatusFrames(edict_t * ent, UnitWeapons_t const *we
     WriteBuffStatusFrames(ent);
 }
 
-static float HeroLevelProgress(edict_t * ent) {
+static float HeroLevelProgress(edict_t *ent) {
     uint32_t level;
     uint32_t have;
     uint32_t need;
@@ -711,9 +711,9 @@ static float HeroLevelProgress(edict_t * ent) {
     return MIN(1.0f, (float)(ent->hero.xp - have) / (float)(need - have));
 }
 
-static void WriteSimpleUnitHeader(edict_t * ent, cstring_t display_name, bool is_hero, gameClient_t * viewer) {
+static void WriteSimpleUnitHeader(edict_t *ent, cstring_t display_name, bool is_hero, gameClient_t *viewer) {
     char class_text[128];
-    frameDef_t * unit_action_label;
+    frameDef_t *unit_action_label;
     heroabilitystatus_t const *timed_status = NULL;
     cstring_t timed_label = NULL;
     cstring_t unit_name;
@@ -803,7 +803,7 @@ static void WriteSimpleUnitHeader(edict_t * ent, cstring_t display_name, bool is
     }
 }
 
-uint32_t UI_WriteBuildingQueueShell(edict_t * ent, cstring_t action_key, bool show_queue_slots) {
+uint32_t UI_WriteBuildingQueueShell(edict_t *ent, cstring_t action_key, bool show_queue_slots) {
     cstring_t name;
 
     if (!ent) return 0;
@@ -822,7 +822,7 @@ uint32_t UI_WriteBuildingQueueShell(edict_t * ent, cstring_t action_key, bool sh
     return UI_GetWrittenFrameNumber(hud.simple.SimpleBuildTimeIndicator);
 }
 
-void UI_WriteSingleInfo(edict_t * ent, gameClient_t * viewer) {
+void UI_WriteSingleInfo(edict_t *ent, gameClient_t *viewer) {
     UnitBalance_t const *balance = ent->data.UnitBalance;
     UnitWeapons_t const *weapons = ent->data.UnitWeapons;
     cstring_t name = G_LevelString(G_UnitProfile(ent->class_id)->properNames);
@@ -871,7 +871,7 @@ void UI_WriteSingleInfo(edict_t * ent, gameClient_t * viewer) {
 
             FOR_LOOP(i, capacity) {
                 float const x = 0.310f + (float)i * (0.02671875f * 1.20f);
-                edict_t * occupant = S_CargoUnitAt(ent, i);
+                edict_t *occupant = S_CargoUnitAt(ent, i);
                 uiFrame_t backdrop = { .flags = { .type = FT_TEXTURE }, .tex = { .index = slot_image },
                                        .color = COLOR32_WHITE };
 
@@ -930,13 +930,13 @@ void UI_WriteSingleInfo(edict_t * ent, gameClient_t * viewer) {
                                   is_hero);
 }
 
-void UI_WriteMultiselect(edict_t * *ents, uint32_t count, gameClient_t * viewer) {
-    edict_t * focused = viewer ? G_GetMainSelectedUnit(viewer) : NULL;
+void UI_WriteMultiselect(edict_t * *ents, uint32_t count, gameClient_t *viewer) {
+    edict_t *focused = viewer ? G_GetMainSelectedUnit(viewer) : NULL;
     cstring_t highlight = Theme_String("SelectedSubgroupHighlight", NULL);
 
     if (count > 12) count = 12;
     uint32_t size = sizeof(uiMultiselect_t) + sizeof(uiMultiselectItem_t) * count;
-    uint8_t * buffer = gi.MemAlloc(size);
+    uint8_t *buffer = gi.MemAlloc(size);
     uiMultiselect_t *multi = (uiMultiselect_t *)buffer;
     uiFrame_t frame;
 
@@ -964,7 +964,7 @@ void UI_WriteMultiselect(edict_t * *ents, uint32_t count, gameClient_t * viewer)
     gi.MemFree(buffer);
 }
 
-static bool UI_UsesBuildingQueuePanel(gameClient_t * viewer, edict_t * unit) {
+static bool UI_UsesBuildingQueuePanel(gameClient_t *viewer, edict_t *unit) {
     if (!viewer || !unit || !unit->data.UnitBalance || !unit->data.UnitBalance->isBuilding)
         return false;
     if (!G_UnitCanControl(viewer, unit))
@@ -973,12 +973,12 @@ static bool UI_UsesBuildingQueuePanel(gameClient_t * viewer, edict_t * unit) {
 }
 
 #ifdef BZ_TESTS
-bool UI_TestUsesBuildingQueuePanel(gameClient_t * viewer, edict_t * unit) {
+bool UI_TestUsesBuildingQueuePanel(gameClient_t *viewer, edict_t *unit) {
     return UI_UsesBuildingQueuePanel(viewer, unit);
 }
 #endif
 
-void UI_SeedInfoPanelCache(edict_t * ent, edict_t * *selected, uint32_t count) {
+void UI_SeedInfoPanelCache(edict_t *ent, edict_t * *selected, uint32_t count) {
     if (!ent->client) return;
     if (count == 1 && !UI_UsesBuildingQueuePanel(ent->client, selected[0])) {
         ent->client->infopanel.entity = selected[0]->s.number;
@@ -997,7 +997,7 @@ void UI_SeedInfoPanelCache(edict_t * ent, edict_t * *selected, uint32_t count) {
     }
 }
 
-void UI_SendInfoPanel(edict_t * ent, edict_t * *selected, uint32_t count) {
+void UI_SendInfoPanel(edict_t *ent, edict_t * *selected, uint32_t count) {
     UI_WriteStart(LAYER_INFOPANEL);
     if (count == 1) {
         if (UI_UsesBuildingQueuePanel(ent->client, selected[0])) {
@@ -1017,13 +1017,13 @@ void UI_SendInfoPanel(edict_t * ent, edict_t * *selected, uint32_t count) {
     UI_SeedInfoPanelCache(ent, selected, count);
 }
 
-static uint32_t SelectedUnits(gameClient_t * client, edict_t * *out, uint32_t max_out) {
+static uint32_t SelectedUnits(gameClient_t *client, edict_t * *out, uint32_t max_out) {
     return G_GetOrderedSelectedUnits(client, out, max_out);
 }
 
-void Get_Commands_f(edict_t * ent) {
-    edict_t * selected = ent && ent->client ? G_GetMainSelectedUnit(ent->client) : NULL;
-    gameClient_t * previous_ui_client;
+void Get_Commands_f(edict_t *ent) {
+    edict_t *selected = ent && ent->client ? G_GetMainSelectedUnit(ent->client) : NULL;
+    gameClient_t *previous_ui_client;
     gameCommandButton_t buttons[12];
     uint8_t count;
 
@@ -1061,7 +1061,7 @@ void Get_Commands_f(edict_t * ent) {
     UI_SetCurrentClient(previous_ui_client);
 }
 
-static void WritePortraitFrame(edict_t * ent) {
+static void WritePortraitFrame(edict_t *ent) {
     uiFrame_t frame;
     char command[64];
 
@@ -1078,7 +1078,7 @@ static void WritePortraitFrame(edict_t * ent) {
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
-static color32_t PortraitHealthColor(edict_t * ent) {
+static color32_t PortraitHealthColor(edict_t *ent) {
     float ratio;
     float red;
     float green;
@@ -1116,7 +1116,7 @@ static void WritePortraitText(cstring_t text, color32_t color, float bottom, uin
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
-static void WritePortraitStats(edict_t * ent) {
+static void WritePortraitStats(edict_t *ent) {
     char health[32];
     char mana[32];
     int32_t hp;
@@ -1146,9 +1146,9 @@ static void WritePortraitStats(edict_t * ent) {
     WritePortraitText(mana, COLOR32_WHITE, 0.5985f, UI_STAT_SELECTION_MANA_TEXT);
 }
 
-void UI_WriteSelectedPortraitLayer(edict_t * ent) {
-    edict_t * selected[MAX_SELECTED_ENTITIES];
-    edict_t * focused;
+void UI_WriteSelectedPortraitLayer(edict_t *ent) {
+    edict_t *selected[MAX_SELECTED_ENTITIES];
+    edict_t *focused;
     uint32_t count;
 
     if (!ent || !ent->client) return;
@@ -1181,7 +1181,7 @@ static void WriteInventoryCharge(float x, float y, float w, float h, uint32_t ch
 
 /* WC3's classic inventory cover has no usable ROC FDF definition, so construct
  * the native frame directly and send its symbolic war3skins key to the client. */
-static void WriteInventoryCover(edict_t * player) {
+static void WriteInventoryCover(edict_t *player) {
     static FRAMEDEF frame;
     cstring_t art = "ConsoleInventoryCoverTexture";
 
@@ -1220,7 +1220,7 @@ static void WriteInventoryTitle(void) {
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
-static void WriteInventory(edict_t * player, edict_t * ent) {
+static void WriteInventory(edict_t *player, edict_t *ent) {
     gameInventoryItem_t items[MAX_INVENTORY];
     uint32_t capacity = G_InventoryCapacity(ent);
     uint8_t count;
@@ -1264,8 +1264,8 @@ static void WriteInventory(edict_t * player, edict_t * ent) {
     if (count) UI_WriteTooltipFrame();
 }
 
-static void UI_SendInventoryLayer(edict_t * ent, edict_t * *selected, uint32_t count) {
-    edict_t * focused = count > 0 && ent && ent->client ? G_GetMainSelectedUnit(ent->client) : NULL;
+static void UI_SendInventoryLayer(edict_t *ent, edict_t * *selected, uint32_t count) {
+    edict_t *focused = count > 0 && ent && ent->client ? G_GetMainSelectedUnit(ent->client) : NULL;
 
     (void)selected;
     /* Neutral shops borrow the selected patron's inventory presentation while
@@ -1279,8 +1279,8 @@ static void UI_SendInventoryLayer(edict_t * ent, edict_t * *selected, uint32_t c
     UI_WriteEnd(ent);
 }
 
-void G_RefreshInventoryLayer(edict_t * ent) {
-    edict_t * selected[MAX_SELECTED_ENTITIES];
+void G_RefreshInventoryLayer(edict_t *ent) {
+    edict_t *selected[MAX_SELECTED_ENTITIES];
     uint32_t count;
 
     if (!ent || !ent->client) return;
@@ -1288,8 +1288,8 @@ void G_RefreshInventoryLayer(edict_t * ent) {
     UI_SendInventoryLayer(ent, selected, count);
 }
 
-void Get_Portrait_f(edict_t * ent) {
-    edict_t * selected[MAX_SELECTED_ENTITIES];
+void Get_Portrait_f(edict_t *ent) {
+    edict_t *selected[MAX_SELECTED_ENTITIES];
     uint32_t count;
 
     if (!ent || !ent->client) return;
@@ -1304,10 +1304,10 @@ void Get_Portrait_f(edict_t * ent) {
     UI_SendInventoryLayer(ent, selected, count);
 }
 
-void G_InvalidateUnitInfoPanel(edict_t * unit) {
+void G_InvalidateUnitInfoPanel(edict_t *unit) {
     if (!unit) return;
     FOR_LOOP(i, game.max_clients) {
-        gameClient_t * client = game.clients + i;
+        gameClient_t *client = game.clients + i;
         if (client->connected && G_IsEntitySelected(client, unit)) {
             client->infopanel.entity = 0;
             /* -1 means the queue layer was already serialized. Preserve the
@@ -1323,10 +1323,10 @@ void G_InvalidateUnitInfoPanel(edict_t * unit) {
  * to dirty the selected-unit presentation explicitly so G_RunClients() emits
  * the new model on the next server frame. Keep this deferred rather than
  * writing svc_layout from inside gameplay state mutation. */
-void G_InvalidateUnitPortrait(edict_t * unit) {
+void G_InvalidateUnitPortrait(edict_t *unit) {
     if (!unit) return;
     FOR_LOOP(i, game.max_clients) {
-        gameClient_t * client = game.clients + i;
+        gameClient_t *client = game.clients + i;
         if (client->connected && G_IsEntitySelected(client, unit))
             client->presentation_dirty = true;
     }
@@ -1337,7 +1337,7 @@ static uint16_t SelectedPortraitStat(float value) {
     return (uint16_t)MIN(whole, USHRT_MAX);
 }
 
-static uint16_t SelectedTimedStatusStat(gameClient_t * client, edict_t * selected) {
+static uint16_t SelectedTimedStatusStat(gameClient_t *client, edict_t *selected) {
     heroabilitystatus_t const *status;
     float fraction;
 
@@ -1349,12 +1349,12 @@ static uint16_t SelectedTimedStatusStat(gameClient_t * client, edict_t * selecte
 }
 
 #ifdef BZ_TESTS
-uint16_t UI_TestSelectedTimedStatusStat(gameClient_t * client, edict_t * selected) {
+uint16_t UI_TestSelectedTimedStatusStat(gameClient_t *client, edict_t *selected) {
     return SelectedTimedStatusStat(client, selected);
 }
 #endif
 
-static void UpdateSelectedLiveStats(gameClient_t * client, edict_t * selected) {
+static void UpdateSelectedLiveStats(gameClient_t *client, edict_t *selected) {
     uint16_t old_timed;
     uint16_t new_timed;
     int debug;
@@ -1398,8 +1398,8 @@ static void UpdateSelectedLiveStats(gameClient_t * client, edict_t * selected) {
  * playerState so live bars/text update through ordinary snapshots instead of
  * forcing a whole FDF layer resend every server frame. Re-send LAYER_INFOPANEL
  * only when its static presentation (selection, timer eligibility/label, XP) changes. */
-void G_RefreshInfoPanel(edict_t * ent) {
-    edict_t * selected[MAX_SELECTED_ENTITIES];
+void G_RefreshInfoPanel(edict_t *ent) {
+    edict_t *selected[MAX_SELECTED_ENTITIES];
     uint32_t count;
     bool queue_panel;
 
@@ -1444,8 +1444,8 @@ void G_RefreshInfoPanel(edict_t * ent) {
  * in-use world entities, so do not gate this on edict->inuse. */
 void G_UpdateClientInfoPanels(void) {
     FOR_LOOP(i, game.max_clients) {
-        gameClient_t * client = game.clients + i;
-        edict_t * ent;
+        gameClient_t *client = game.clients + i;
+        edict_t *ent;
 
         if (!client->connected) continue;
         ent = G_GetPlayerEntityByNumber(client->ps.number);
@@ -1454,8 +1454,8 @@ void G_UpdateClientInfoPanels(void) {
 }
 
 /* Re-send LAYER_CONSOLE only when resource display/tooltip state changed. */
-void G_RefreshResourceBar(edict_t * ent) {
-    player_t * ps;
+void G_RefreshResourceBar(edict_t *ent) {
+    player_t *ps;
     int32_t gold, lumber, food_u, food_c, gold_rate, lumber_rate;
 
     if (!ent || !ent->client) return;
@@ -1496,7 +1496,7 @@ void G_RefreshResourceBar(edict_t * ent) {
 /* Reserved player edicts are connected clients, not inuse world units. */
 void G_UpdateClientResourceBars(void) {
     FOR_LOOP(i, game.max_clients) {
-        gameClient_t * client = &game.clients[i];
+        gameClient_t *client = &game.clients[i];
         if (client->connected) G_RefreshResourceBar(G_GetPlayerEntityByNumber(client->ps.number));
     }
 }

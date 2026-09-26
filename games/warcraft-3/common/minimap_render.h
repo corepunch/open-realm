@@ -7,7 +7,7 @@
 
 /* World overlays use the centered, aspect-preserving area of WC3's square
  * minimap texture. */
-static inline rect_t WC3_MinimapContentRect(rect_t const * frame, vector2_t const * map_size) {
+static inline rect_t WC3_MinimapContentRect(rect_t const *frame, vector2_t const *map_size) {
     rect_t content = frame ? *frame : (rect_t){ 0 };
     float world_size;
     if (!frame || !map_size || map_size->x <= 0.0f || map_size->y <= 0.0f) return content;
@@ -89,7 +89,7 @@ static inline cstring_t wc3_minimap_skin_texture_path(
 
 typedef struct {
     wc3MinimapContact_t contact;
-    const char *key, *path;
+    char const *key, *path;
     bool map_override;
 } wc3MinimapSpecialAsset_t;
 

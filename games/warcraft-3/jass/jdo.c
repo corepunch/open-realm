@@ -27,11 +27,11 @@
 #define BZ_JASS_SNAPSHOT_MAX_STRING (1u << 20) // bytes; bounds strings from corrupt snapshots
 
 typedef struct {
-    trigger_t * trigger;
-    edict_t * unit;
-    edict_t * source;
+    trigger_t *trigger;
+    edict_t *unit;
+    edict_t *source;
     int32_t value;
-    vector2_t const * point;
+    vector2_t const *point;
     bool has_point;
     handle_t timer;
     handle_t region;
@@ -42,16 +42,16 @@ typedef struct {
 #define JASSALLOC(type) jass_alloc(sizeof(type))
 #define BZ_JASS_REQUIRE_STACK(j) if (j->num_stack >= MAX_JASS_STACK) jass_rterror(j, "stack overflow")
 
-static void jass_setnull(jassVar_t * var);
-static void jass_deletedict(jassdict_t * dict);
+static void jass_setnull(jassVar_t *var);
+static void jass_deletedict(jassdict_t *dict);
 
 #define JASS_ADD_STACK(j, VAR, TYPE) \
 BZ_JASS_REQUIRE_STACK(j); \
-jassVar_t * VAR = &j->stack[j->num_stack++]; \
+jassVar_t *VAR = &j->stack[j->num_stack++]; \
 memset(VAR, 0, sizeof(*VAR)); \
 VAR->type = &jass_types[TYPE];
 
-static void jass_store_value(jassVar_t * var, void const * value, uint32_t size) {
+static void jass_store_value(jassVar_t *var, void const *value, uint32_t size) {
     jass_setnull(var);
     if (!value) {
         return;
@@ -61,12 +61,12 @@ static void jass_store_value(jassVar_t * var, void const * value, uint32_t size)
 }
 
 #define JASS_CMPOP(NAME, OP) \
-uint32_t NAME(jass_t * j) { \
+uint32_t NAME(jass_t *j) { \
     return jass_pushboolean(j, jass_checknumber(j, 1) OP jass_checknumber(j, 2)); \
 }
 
 #define JASS_NUMOP(NAME, OP) \
-uint32_t NAME(jass_t * j) { \
+uint32_t NAME(jass_t *j) { \
     if (jass_gettype(j, 1) == jasstype_integer && jass_gettype(j, 2) == jasstype_integer) { \
         return jass_pushinteger(j, jass_checkinteger(j, 1) OP jass_checkinteger(j, 2)); \
     } else { \
@@ -80,12 +80,12 @@ uint32_t NAME(jass_t * j) { \
 #ifdef TOKENEVAL
 #undef TOKENEVAL
 #endif
-#define TOKENFUNC(NAME) void eval_##NAME(jass_t * j, token_t const * token)
+#define TOKENFUNC(NAME) void eval_##NAME(jass_t *j, token_t const *token)
 #define TOKENEVAL(NAME) { #NAME, TT_##NAME, eval_##NAME }
 
-player_t * currentplayer = NULL;
-edict_t * currentunit = NULL;
-player_t * currentenumplayer = NULL;
+player_t *currentplayer = NULL;
+edict_t *currentunit = NULL;
+player_t *currentenumplayer = NULL;
 static handle_t currenttimer = NULL;
 
 cstring_t keywords[] = {
@@ -96,7 +96,7 @@ static jassHost_t jass_host;
 
 typedef struct {
     cstring_t delimiters;
-    token_t * (*parse)(wordExtractor_t * p);
+    token_t * (*parse)(wordExtractor_t *p);
     uint32_t flags;
 } jassSyntax_t;
 
@@ -124,25 +124,25 @@ jassType_t jass_types[] = {
  * Forward declarations
  * ========================================================================= */
 
-static void jass_missingcall(jass_t * j, cstring_t name, bool native);
-static jassVar_t * jass_stackvalue(jass_t * j, int index);
-static jassVar_t * jass_topvalue(jass_t * j);
-static JASSTYPEID jass_getvarbasetype(jassVar_t const * var);
-static uint32_t jass_dotoken(jass_t * j, token_t const * token);
-static jassFunc_t const * find_function(jass_t const * j, cstring_t name);
-static jassVar_t * find_global(jass_t const * j, cstring_t name);
-static void eval_SINGLETOKEN(jass_t * j, token_t const * token);
-static void eval_VARDECL(jass_t * j, token_t const * token);
-void eval_TOKENS(jass_t * j, token_t const * token);
-static void jass_copy(jass_t * j, jassVar_t * var, jassVar_t const * other);
-void jass_setreturn(jass_t * j);
-bool jass_mustreturn(jass_t * j);
-bool uses_localplayer(token_t const * token);
-static void jass_setnull(jassVar_t * var);
-static jassType_t const * find_type(jass_t const * j, cstring_t name);
-static jassType_t const * get_base_type(jassType_t const * type);
-static jassVar_t * ensure_array_value(jass_t * j, jassVar_t * dest, uint32_t index);
-static void jass_discard(jass_t * j, uint32_t count);
+static void jass_missingcall(jass_t *j, cstring_t name, bool native);
+static jassVar_t *jass_stackvalue(jass_t *j, int index);
+static jassVar_t *jass_topvalue(jass_t *j);
+static JASSTYPEID jass_getvarbasetype(jassVar_t const *var);
+static uint32_t jass_dotoken(jass_t *j, token_t const *token);
+static jassFunc_t const *find_function(jass_t const *j, cstring_t name);
+static jassVar_t *find_global(jass_t const *j, cstring_t name);
+static void eval_SINGLETOKEN(jass_t *j, token_t const *token);
+static void eval_VARDECL(jass_t *j, token_t const *token);
+void eval_TOKENS(jass_t *j, token_t const *token);
+static void jass_copy(jass_t *j, jassVar_t *var, jassVar_t const *other);
+void jass_setreturn(jass_t *j);
+bool jass_mustreturn(jass_t *j);
+bool uses_localplayer(token_t const *token);
+static void jass_setnull(jassVar_t *var);
+static jassType_t const *find_type(jass_t const *j, cstring_t name);
+static jassType_t const *get_base_type(jassType_t const *type);
+static jassVar_t *ensure_array_value(jass_t *j, jassVar_t *dest, uint32_t index);
+static void jass_discard(jass_t *j, uint32_t count);
 
 /* =========================================================================
  * Host interface
@@ -171,7 +171,7 @@ static uint32_t jass_gettime(void) {
     return jass_host.GetTime ? jass_host.GetTime() : 0;
 }
 
-static player_t * jass_getplayerbyindex(uint32_t number) {
+static player_t *jass_getplayerbyindex(uint32_t number) {
     return jass_host.GetPlayerByNumber ? jass_host.GetPlayerByNumber(number) : NULL;
 }
 
@@ -179,7 +179,7 @@ static player_t * jass_getplayerbyindex(uint32_t number) {
  * Operators (built-in native functions for arithmetic / comparison)
  * ========================================================================= */
 
-uint32_t __add(jass_t * j) {
+uint32_t __add(jass_t *j) {
     if (jass_gettype(j, 1) == jasstype_string && jass_gettype(j, 2) == jasstype_string) {
         cstring_t a = jass_checkstring(j, 1);
         cstring_t b = jass_checkstring(j, 2);
@@ -205,7 +205,7 @@ uint32_t __add(jass_t * j) {
     return jass_pushnumber(j, jass_checknumber(j, 1) + jass_checknumber(j, 2));
 }
 
-uint32_t __unm(jass_t * j) {
+uint32_t __unm(jass_t *j) {
     if (jass_gettype(j, 1) == jasstype_integer) {
         return jass_pushinteger(j, -jass_checkinteger(j, 1));
     } else {
@@ -234,7 +234,7 @@ static bool jass_valuehandle(cstring_t type) {
     return false;
 }
 
-static bool var_eq(jassVar_t const * a, jassVar_t const * b) {
+static bool var_eq(jassVar_t const *a, jassVar_t const *b) {
     switch ((a->value == NULL) + (b->value == NULL)) {
         case 2: return true;
         case 1: return false;
@@ -256,39 +256,39 @@ static bool var_eq(jassVar_t const * a, jassVar_t const * b) {
     return false;
 }
 
-uint32_t __eq(jass_t * j) {
+uint32_t __eq(jass_t *j) {
     return jass_pushboolean(j, var_eq(jass_stackvalue(j, 1), jass_stackvalue(j, 2)));
 }
 
-uint32_t __ne(jass_t * j) {
+uint32_t __ne(jass_t *j) {
     return jass_pushboolean(j, !var_eq(jass_stackvalue(j, 1), jass_stackvalue(j, 2)));
 }
 
-uint32_t __and(jass_t * j) {
+uint32_t __and(jass_t *j) {
     return jass_pushboolean(j, jass_toboolean(j, 1) && jass_toboolean(j, 2));
 }
 
-uint32_t __or(jass_t * j) {
+uint32_t __or(jass_t *j) {
     return jass_pushboolean(j, jass_toboolean(j, 1) || jass_toboolean(j, 2));
 }
 
-uint32_t __not(jass_t * j) {
+uint32_t __not(jass_t *j) {
     return jass_pushboolean(j, !jass_toboolean(j, 1));
 }
 
-uint32_t __lsh(jass_t * j) {
+uint32_t __lsh(jass_t *j) {
     return jass_pushinteger(j, (int32_t)jass_checkinteger(j, 1) << (int32_t)jass_checkinteger(j, 2));
 }
-uint32_t __rsh(jass_t * j) {
+uint32_t __rsh(jass_t *j) {
     return jass_pushinteger(j, (int32_t)jass_checkinteger(j, 1) >> (int32_t)jass_checkinteger(j, 2));
 }
-uint32_t __bor(jass_t * j) {
+uint32_t __bor(jass_t *j) {
     return jass_pushinteger(j, (int32_t)jass_checkinteger(j, 1) | (int32_t)jass_checkinteger(j, 2));
 }
-uint32_t __band(jass_t * j) {
+uint32_t __band(jass_t *j) {
     return jass_pushinteger(j, (int32_t)jass_checkinteger(j, 1) & (int32_t)jass_checkinteger(j, 2));
 }
-uint32_t __xor(jass_t * j) {
+uint32_t __xor(jass_t *j) {
     return jass_pushinteger(j, (int32_t)jass_checkinteger(j, 1) ^ (int32_t)jass_checkinteger(j, 2));
 }
 
@@ -380,20 +380,20 @@ bool is_comma(cstring_t str) {
  * Context
  * ========================================================================= */
 
-jassContext_t const * jass_getcontext(jass_t * j) {
+jassContext_t const *jass_getcontext(jass_t *j) {
     return &j->context;
 }
 
-static jass_t * jass_root(jass_t * j) { return j->root ? j->root : j; }
-jass_t * jass_getroot(jass_t * j)     { return jass_root(j); }
-bool jass_isrunning(jass_t * j)     { return jass_root(j)->current_coroutine != NULL; }
-void jass_haltevents(jass_t * j)    { jass_root(j)->halt_events = true; }
+static jass_t *jass_root(jass_t *j) { return j->root ? j->root : j; }
+jass_t *jass_getroot(jass_t *j)     { return jass_root(j); }
+bool jass_isrunning(jass_t *j)     { return jass_root(j)->current_coroutine != NULL; }
+void jass_haltevents(jass_t *j)    { jass_root(j)->halt_events = true; }
 
 /* =========================================================================
  * Coroutine frame management
  * ========================================================================= */
 
-static void jass_free_frame(jasscoroutine_t * co, jassCoroutineframe_t * frame) {
+static void jass_free_frame(jasscoroutine_t *co, jassCoroutineframe_t *frame) {
     if (frame->locals) {
         FOR_LOOP(i, co->state->num_stack)
             if (co->state->stack[i].env.locals == frame->locals) co->state->stack[i].env.locals = NULL;
@@ -402,9 +402,9 @@ static void jass_free_frame(jasscoroutine_t * co, jassCoroutineframe_t * frame) 
     jass_free(frame);
 }
 
-static void jass_free_coroutine(jasscoroutine_t * co) {
+static void jass_free_coroutine(jasscoroutine_t *co) {
     while (co->frames) {
-        jassCoroutineframe_t * next = co->frames->next;
+        jassCoroutineframe_t *next = co->frames->next;
         jass_free_frame(co, co->frames);
         co->frames = next;
     }
@@ -413,12 +413,12 @@ static void jass_free_coroutine(jasscoroutine_t * co) {
     jass_free(co);
 }
 
-static jassCoroutineframe_t * jass_coroutine_pushframe(jasscoroutine_t * co,
+static jassCoroutineframe_t *jass_coroutine_pushframe(jasscoroutine_t *co,
                                                      JASSFRAMETYPE type,
-                                                     jassFunc_t const * func,
-                                                     token_t const * body,
-                                                     jassdict_t * locals) {
-    jassCoroutineframe_t * frame = JASSALLOC(jassCoroutineframe_t);
+                                                     jassFunc_t const *func,
+                                                     token_t const *body,
+                                                     jassdict_t *locals) {
+    jassCoroutineframe_t *frame = JASSALLOC(jassCoroutineframe_t);
     frame->type = type;
     frame->func = func;
     frame->body = body;
@@ -429,8 +429,8 @@ static jassCoroutineframe_t * jass_coroutine_pushframe(jasscoroutine_t * co,
     return frame;
 }
 
-static void jass_coroutine_popframe(jasscoroutine_t * co) {
-    jassCoroutineframe_t * frame = co->frames;
+static void jass_coroutine_popframe(jasscoroutine_t *co) {
+    jassCoroutineframe_t *frame = co->frames;
     if (frame) {
         JASSFRAMETYPE type = frame->type;
         co->frames = frame->next;
@@ -441,7 +441,7 @@ static void jass_coroutine_popframe(jasscoroutine_t * co) {
     }
 }
 
-static jassCoroutineframe_t * jass_coroutine_functionframe(jasscoroutine_t * co) {
+static jassCoroutineframe_t *jass_coroutine_functionframe(jasscoroutine_t *co) {
     FOR_EACH_LIST(jassCoroutineframe_t, frame, co->frames) {
         if (frame->type == JASS_FRAME_FUNCTION) {
             return frame;
@@ -450,19 +450,19 @@ static jassCoroutineframe_t * jass_coroutine_functionframe(jasscoroutine_t * co)
     return NULL;
 }
 
-static void jass_coroutine_useframe(jass_t * j, jasscoroutine_t * co) {
-    jassCoroutineframe_t * frame = jass_coroutine_functionframe(co);
+static void jass_coroutine_useframe(jass_t *j, jasscoroutine_t *co) {
+    jassCoroutineframe_t *frame = jass_coroutine_functionframe(co);
     if (j->num_stack && frame) {
         j->stack[0].env.locals = frame->locals;
     }
 }
 
-static jassdict_t * jass_coroutine_buildlocals(jass_t * j, jassFunc_t const * func, token_t const * args) {
-    jassdict_t * locals = NULL;
-    token_t const * arg_token = args;
+static jassdict_t *jass_coroutine_buildlocals(jass_t *j, jassFunc_t const *func, token_t const *args) {
+    jassdict_t *locals = NULL;
+    token_t const *arg_token = args;
 
     FOR_EACH_LIST(jassarg_t, arg, func->args) {
-        jassdict_t * local = JASSALLOC(jassdict_t);
+        jassdict_t *local = JASSALLOC(jassdict_t);
         local->key = arg->name;
         local->value.type = arg->type;
         if (arg_token) {
@@ -482,9 +482,9 @@ static jassdict_t * jass_coroutine_buildlocals(jass_t * j, jassFunc_t const * fu
  * Coroutine lifecycle
  * ========================================================================= */
 
-jasscoroutine_t * jass_startcoroutine(jass_t * j, jassContext_t const * context) {
-    jass_t * root = jass_root(j);
-    jass_t * co_state = JASSALLOC(jass_t);
+jasscoroutine_t *jass_startcoroutine(jass_t *j, jassContext_t const *context) {
+    jass_t *root = jass_root(j);
+    jass_t *co_state = JASSALLOC(jass_t);
     memcpy(co_state, root, sizeof(jass_t));
     memset(co_state->stack, 0, sizeof(co_state->stack));
     co_state->stack_pointer = co_state->stack;
@@ -510,7 +510,7 @@ jasscoroutine_t * jass_startcoroutine(jass_t * j, jassContext_t const * context)
     co_state->coroutines = NULL;
     co_state->current_coroutine = NULL;
 
-    jasscoroutine_t * co = JASSALLOC(jasscoroutine_t);
+    jasscoroutine_t *co = JASSALLOC(jasscoroutine_t);
     co->state = co_state;
     co->frames = NULL;
     co->wake_time = jass_gettime();
@@ -531,8 +531,8 @@ jasscoroutine_t * jass_startcoroutine(jass_t * j, jassContext_t const * context)
     return co;
 }
 
-jasscoroutine_t * jass_startcoroutinebyname(jass_t * j, cstring_t name) {
-    jassFunc_t const * func = find_function(jass_root(j), name);
+jasscoroutine_t *jass_startcoroutinebyname(jass_t *j, cstring_t name) {
+    jassFunc_t const *func = find_function(jass_root(j), name);
     jassContext_t context = *jass_getcontext(j);
 
     if (!func) {
@@ -544,8 +544,8 @@ jasscoroutine_t * jass_startcoroutinebyname(jass_t * j, cstring_t name) {
 }
 
 /* AI roots have no ambient map-trigger context, so their entrypoint must carry the owning player explicitly. */
-jasscoroutine_t * jass_startcoroutinebynameforplayer(jass_t * j, cstring_t name, struct playerState_s *player) {
-    jassFunc_t const * func = find_function(jass_root(j), name);
+jasscoroutine_t *jass_startcoroutinebynameforplayer(jass_t *j, cstring_t name, struct playerState_s *player) {
+    jassFunc_t const *func = find_function(jass_root(j), name);
     jassContext_t context = *jass_getcontext(j);
     if (!func) {
         jass_missingcall(j, name, false);
@@ -557,31 +557,31 @@ jasscoroutine_t * jass_startcoroutinebynameforplayer(jass_t * j, cstring_t name,
 }
 
 /* Dynamic wait-done calls must share the active coroutine so yielded child frames resume before their caller. */
-bool jass_callcoroutinebyname(jass_t * j, cstring_t name) {
-    jass_t * root = jass_root(j);
-    jasscoroutine_t * co = root->current_coroutine;
-    jassFunc_t const * func = find_function(root, name);
+bool jass_callcoroutinebyname(jass_t *j, cstring_t name) {
+    jass_t *root = jass_root(j);
+    jasscoroutine_t *co = root->current_coroutine;
+    jassFunc_t const *func = find_function(root, name);
 
     if (!co || !func || func->nativefunc) return false;
     jass_coroutine_pushframe(co, JASS_FRAME_FUNCTION, func, func->code, NULL);
     return true;
 }
 
-cstring_t jass_functionname(jassFunc_t const * func) {
+cstring_t jass_functionname(jassFunc_t const *func) {
     return func ? func->name : NULL;
 }
 
-cstring_t jass_currentfunctionname(jass_t * j) {
-    jass_t * root = jass_root(j);
-    jasscoroutine_t * co = root->current_coroutine;
-    jassCoroutineframe_t * frame = co ? jass_coroutine_functionframe(co) : NULL;
-    jassFunc_t const * func = frame ? frame->func : j->context.func;
+cstring_t jass_currentfunctionname(jass_t *j) {
+    jass_t *root = jass_root(j);
+    jasscoroutine_t *co = root->current_coroutine;
+    jassCoroutineframe_t *frame = co ? jass_coroutine_functionframe(co) : NULL;
+    jassFunc_t const *func = frame ? frame->func : j->context.func;
     return jass_functionname(func);
 }
 
-uint32_t jass_formatcallchain(jass_t * j, string_t buffer, uint32_t size) {
-    jass_t * root;
-    jasscoroutine_t * co;
+uint32_t jass_formatcallchain(jass_t *j, string_t buffer, uint32_t size) {
+    jass_t *root;
+    jasscoroutine_t *co;
     uint32_t used = 0;
     bool any = false;
 
@@ -611,10 +611,10 @@ uint32_t jass_formatcallchain(jass_t * j, string_t buffer, uint32_t size) {
     return (uint32_t)strlen(buffer);
 }
 
-jassFunc_t const * jass_functionbyname(jass_t * j, cstring_t name) { return find_function(jass_root(j), name); }
+jassFunc_t const *jass_functionbyname(jass_t *j, cstring_t name) { return find_function(jass_root(j), name); }
 void jass_settimercontext(handle_t timer) { currenttimer = timer; }
 
-bool jass_triggerdisabled(trigger_t * trigger) {
+bool jass_triggerdisabled(trigger_t *trigger) {
     return trigger ? trigger->disabled : false;
 }
 
@@ -622,9 +622,9 @@ bool jass_triggerdisabled(trigger_t * trigger) {
  * Sleep / yield
  * ========================================================================= */
 
-void jass_sleep(jass_t * j, uint32_t msec) {
-    jass_t * root = jass_root(j);
-    jasscoroutine_t * co = root->current_coroutine;
+void jass_sleep(jass_t *j, uint32_t msec) {
+    jass_t *root = jass_root(j);
+    jasscoroutine_t *co = root->current_coroutine;
     if (!co) {
         return;
     }
@@ -632,9 +632,9 @@ void jass_sleep(jass_t * j, uint32_t msec) {
     co->yielded = true;
 }
 
-static bool jass_yielded(jass_t * j) {
-    jass_t * root = jass_root(j);
-    jasscoroutine_t * co = root->current_coroutine;
+static bool jass_yielded(jass_t *j) {
+    jass_t *root = jass_root(j);
+    jasscoroutine_t *co = root->current_coroutine;
     return co && co->yielded;
 }
 
@@ -642,17 +642,17 @@ static bool jass_yielded(jass_t * j) {
  * Runtime error boundary  (JASS equivalent of Lua error())
  * ========================================================================= */
 
-static void jass_setruntimeerror(jass_t * j, cstring_t message) {
-    jass_t * root = jass_root(j);
+static void jass_setruntimeerror(jass_t *j, cstring_t message) {
+    jass_t *root = jass_root(j);
     root->rterror_pending = true;
     snprintf(root->rterror_message, sizeof(root->rterror_message), "%s", message ? message : "(nil)");
     jass_host.RuntimeError(root->rterror_message);
 }
 
 /* Missing calls unwind like native errors; returning no value used to let broken callers continue. */
-static void jass_missingcall(jass_t * j, cstring_t name, bool native) {
-    jass_t * root = jass_root(j);
-    jassmissing_t * item = root->missing;
+static void jass_missingcall(jass_t *j, cstring_t name, bool native) {
+    jass_t *root = jass_root(j);
+    jassmissing_t *item = root->missing;
     char message[256];
     while (item && strcmp(item->name, name)) item = item->next;
     if (!item) {
@@ -666,23 +666,23 @@ static void jass_missingcall(jass_t * j, cstring_t name, bool native) {
     else jass_setruntimeerror(j, message);
 }
 
-uint32_t jass_missingcount(jass_t * j) {
+uint32_t jass_missingcount(jass_t *j) {
     uint32_t count = 0;
-    for (jassmissing_t * item = jass_root(j)->missing; item; item = item->next) count++;
+    for (jassmissing_t *item = jass_root(j)->missing; item; item = item->next) count++;
     return count;
 }
 
-cstring_t jass_missingname(jass_t * j, uint32_t index) {
-    jassmissing_t * item = jass_root(j)->missing;
+cstring_t jass_missingname(jass_t *j, uint32_t index) {
+    jassmissing_t *item = jass_root(j)->missing;
     while (item && index--) item = item->next;
     return item ? item->name : NULL;
 }
 
-void jass_rterror(jass_t * j, cstring_t message) {
-    jass_t * root = jass_root(j);
+void jass_rterror(jass_t *j, cstring_t message) {
+    jass_t *root = jass_root(j);
     jass_setruntimeerror(root, message);
 
-    jasscoroutine_t * co = root->current_coroutine;
+    jasscoroutine_t *co = root->current_coroutine;
     if (co && co->rterror_jmp_set) {
         longjmp(co->rterror_jmp, 1);
     }
@@ -691,16 +691,16 @@ void jass_rterror(jass_t * j, cstring_t message) {
     abort();
 }
 
-bool jass_rterror_pending(jass_t * j) {
+bool jass_rterror_pending(jass_t *j) {
     return jass_root(j)->rterror_pending;
 }
 
-cstring_t jass_rterror_message(jass_t * j) {
+cstring_t jass_rterror_message(jass_t *j) {
     return jass_root(j)->rterror_message;
 }
 
-void jass_rterror_clear(jass_t * j) {
-    jass_t * root = jass_root(j);
+void jass_rterror_clear(jass_t *j) {
+    jass_t *root = jass_root(j);
     root->rterror_pending = false;
     root->rterror_message[0] = '\0';
 }
@@ -709,7 +709,7 @@ void jass_rterror_clear(jass_t * j) {
  * Player event helpers
  * ========================================================================= */
 
-static player_t * jass_eventplayer(edict_t * unit) {
+static player_t *jass_eventplayer(edict_t *unit) {
     if (!unit) {
         return NULL;
     }
@@ -723,9 +723,9 @@ static player_t * jass_eventplayer(edict_t * unit) {
  * Coroutine resume engine
  * ========================================================================= */
 
-static bool jass_coroutine_callstatement(jass_t * j, jasscoroutine_t * co, token_t const * token) {
-    jassFunc_t const * func = NULL;
-    jassdict_t * locals;
+static bool jass_coroutine_callstatement(jass_t *j, jasscoroutine_t *co, token_t const *token) {
+    jassFunc_t const *func = NULL;
+    jassdict_t *locals;
 
     if (token->type != TT_CALL || !(func = find_function(j, token->primary))) {
         return false;
@@ -743,7 +743,7 @@ static bool jass_coroutine_callstatement(jass_t * j, jasscoroutine_t * co, token
     return true;
 }
 
-static token_t const * jass_coroutine_selectifbody(jass_t * j, token_t const * token) {
+static token_t const *jass_coroutine_selectifbody(jass_t *j, token_t const *token) {
     if (uses_localplayer(token->condition) && currentplayer) {
         if (jass_dotoken(j, token->condition) && jass_popboolean(j)) {
             return token->body;
@@ -764,8 +764,8 @@ static token_t const * jass_coroutine_selectifbody(jass_t * j, token_t const * t
     return NULL;
 }
 
-static bool jass_coroutine_runlocalplayerif(jass_t * j, jasscoroutine_t * co, token_t const * token) {
-    player_t * previous_player;
+static bool jass_coroutine_runlocalplayerif(jass_t *j, jasscoroutine_t *co, token_t const *token) {
+    player_t *previous_player;
 
     if (!uses_localplayer(token->condition) || currentplayer) {
         return false;
@@ -787,7 +787,7 @@ static bool jass_coroutine_runlocalplayerif(jass_t * j, jasscoroutine_t * co, to
     return true;
 }
 
-static void jass_coroutine_return(jasscoroutine_t * co) {
+static void jass_coroutine_return(jasscoroutine_t *co) {
     while (co->frames) {
         JASSFRAMETYPE type = co->frames->type;
         jass_coroutine_popframe(co);
@@ -797,8 +797,8 @@ static void jass_coroutine_return(jasscoroutine_t * co) {
     }
 }
 
-static void jass_resumecoroutine(jasscoroutine_t * co) {
-    jass_t * j = co->state;
+static void jass_resumecoroutine(jasscoroutine_t *co) {
+    jass_t *j = co->state;
 
     if (!j->num_stack) {
         jass_pushfunction(j, j->context.func);
@@ -818,9 +818,9 @@ static void jass_resumecoroutine(jasscoroutine_t * co) {
 
     co->yielded = false;
     while (co->frames && !co->yielded) {
-        jassCoroutineframe_t * frame = co->frames;
-        token_t const * token = frame->pc;
-        token_t const * next;
+        jassCoroutineframe_t *frame = co->frames;
+        token_t const *token = frame->pc;
+        token_t const *next;
 
         jass_coroutine_useframe(j, co);
         if (!token) {
@@ -845,7 +845,7 @@ static void jass_resumecoroutine(jasscoroutine_t * co) {
                 }
                 break;
             case TT_IF: {
-                token_t const * body;
+                token_t const *body;
                 frame->pc = next;
                 if (jass_coroutine_runlocalplayerif(j, co, token)) {
                     break;
@@ -886,7 +886,7 @@ static void jass_resumecoroutine(jasscoroutine_t * co) {
                 eval_VARDECL(j, token);
                 /* Sync the new local back into the current function frame. */
                 {
-                    jassCoroutineframe_t * fn_frame = jass_coroutine_functionframe(co);
+                    jassCoroutineframe_t *fn_frame = jass_coroutine_functionframe(co);
                     if (fn_frame) {
                         fn_frame->locals = j->stack[0].env.locals;
                     }
@@ -905,17 +905,17 @@ static void jass_resumecoroutine(jasscoroutine_t * co) {
     }
 }
 
-bool jass_coroutinedone(jasscoroutine_t const * co) {
+bool jass_coroutinedone(jasscoroutine_t const *co) {
     return !co || co->done;
 }
 
-bool jass_resume(jass_t * j, jasscoroutine_t * co) {
-    jass_t * root = jass_root(j);
-    jasscoroutine_t * previous_coroutine = root->current_coroutine;
+bool jass_resume(jass_t *j, jasscoroutine_t *co) {
+    jass_t *root = jass_root(j);
+    jasscoroutine_t *previous_coroutine = root->current_coroutine;
     uint32_t now = jass_gettime();
-    player_t * previous_player;
-    edict_t * previous_unit;
-    jassVar_t * loop_index = find_global(jass_root(j), "bj_forLoopAIndex");
+    player_t *previous_player;
+    edict_t *previous_unit;
+    jassVar_t *loop_index = find_global(jass_root(j), "bj_forLoopAIndex");
     int32_t previous_loop_index = 0;
     bool restore_loop_index = co && co->loop_a_index_valid && loop_index && loop_index->value &&
         jass_getvarbasetype(loop_index) == jasstype_integer;
@@ -952,7 +952,7 @@ bool jass_resume(jass_t * j, jasscoroutine_t * co) {
     currentplayer = co->state->context.localPlayerState;
     currentunit = co->state->context.unit;
     if (jass_host.CoroutineTrace) {
-        jassCoroutineframe_t * frame = jass_coroutine_functionframe(co);
+        jassCoroutineframe_t *frame = jass_coroutine_functionframe(co);
         jass_host.CoroutineTrace(co->state->context.trigger,
                                 frame && frame->func ? jass_functionname(frame->func) : NULL,
                                 "resume", now, co->wake_time,
@@ -960,7 +960,7 @@ bool jass_resume(jass_t * j, jasscoroutine_t * co) {
     }
     jass_resumecoroutine(co);
     if (jass_host.CoroutineTrace) {
-        jassCoroutineframe_t * frame = jass_coroutine_functionframe(co);
+        jassCoroutineframe_t *frame = jass_coroutine_functionframe(co);
         jass_host.CoroutineTrace(co->state->context.trigger,
                                 frame && frame->func ? jass_functionname(frame->func) : NULL,
                                 co->done ? "done" : (co->yielded ? "yield" : "return"),
@@ -979,13 +979,13 @@ bool jass_resume(jass_t * j, jasscoroutine_t * co) {
     return true;
 }
 
-void jass_runevents(jass_t * j) {
-    jass_t * root = jass_root(j);
-    jasscoroutine_t * prev = NULL;
-    jasscoroutine_t * co = root->coroutines;
+void jass_runevents(jass_t *j) {
+    jass_t *root = jass_root(j);
+    jasscoroutine_t *prev = NULL;
+    jasscoroutine_t *co = root->coroutines;
 
     while (co) {
-        jasscoroutine_t * next;
+        jasscoroutine_t *next;
         jass_resume(root, co);
 
         next = co->next;
@@ -1008,8 +1008,8 @@ void jass_runevents(jass_t * j) {
  * Trigger evaluation / execution
  * ========================================================================= */
 
-static bool jass_evaluatetriggercontext(jass_t * j, jassTriggerContextParams_t const *params) {
-    player_t * player = jass_eventplayer(params->unit);
+static bool jass_evaluatetriggercontext(jass_t *j, jassTriggerContextParams_t const *params) {
+    player_t *player = jass_eventplayer(params->unit);
 
     if (params->trigger->disabled) {
         return false;
@@ -1030,7 +1030,7 @@ static bool jass_evaluatetriggercontext(jass_t * j, jassTriggerContextParams_t c
         tmp_state.context.timer = currenttimer;
         tmp_state.context.region = params->region ? params->region : jass_getcontext(j)->region;
         jass_pushfunction(&tmp_state, cond->expr);
-        edict_t * previous_unit = currentunit;
+        edict_t *previous_unit = currentunit;
         currentunit = params->unit;
         uint32_t result_count = jass_call(&tmp_state, 0);
         currentunit = previous_unit;
@@ -1041,7 +1041,7 @@ static bool jass_evaluatetriggercontext(jass_t * j, jassTriggerContextParams_t c
     return true;
 }
 
-bool jass_evaluatetrigger(jass_t * j, trigger_t * trigger, edict_t * unit) {
+bool jass_evaluatetrigger(jass_t *j, trigger_t *trigger, edict_t *unit) {
     return jass_evaluatetriggercontext(j, &(jassTriggerContextParams_t){ .trigger = trigger, .unit = unit });
 }
 
@@ -1050,7 +1050,7 @@ bool jass_evaluatetrigger(jass_t * j, trigger_t * trigger, edict_t * unit) {
  * function in a scratch state with the unit bound as the context/current unit
  * so GetFilterUnit()/GetEnumUnit() inside the filter resolve to it.  Returns
  * the filter's boolean result; a null filter passes (matches "no filter"). */
-bool jass_evaluateboolexpr(jass_t * j, jassFunc_t const * expr, edict_t * unit) {
+bool jass_evaluateboolexpr(jass_t *j, jassFunc_t const *expr, edict_t *unit) {
     if (!expr) {
         return true;
     }
@@ -1060,7 +1060,7 @@ bool jass_evaluateboolexpr(jass_t * j, jassFunc_t const * expr, edict_t * unit) 
     tmp_state.num_stack = 0;
     tmp_state.context.unit = unit;
     jass_pushfunction(&tmp_state, expr);
-    edict_t * previous_unit = currentunit;
+    edict_t *previous_unit = currentunit;
     currentunit = unit;
     uint32_t result_count = jass_call(&tmp_state, 0);
     currentunit = previous_unit;
@@ -1069,7 +1069,7 @@ bool jass_evaluateboolexpr(jass_t * j, jassFunc_t const * expr, edict_t * unit) 
 
 /* Force filters bind players through the same scratch-state context used by
  * trigger callbacks, keeping GetFilterPlayer isolated across nested calls. */
-bool jass_evaluateplayerexpr(jass_t * j, jassFunc_t const * expr, player_t * player) {
+bool jass_evaluateplayerexpr(jass_t *j, jassFunc_t const *expr, player_t *player) {
     if (!expr) return true;
     jass_t tmp_state;
     memcpy(&tmp_state, j, sizeof(struct jass_s));
@@ -1081,11 +1081,11 @@ bool jass_evaluateplayerexpr(jass_t * j, jassFunc_t const * expr, player_t * pla
     return result_count == 1 && jass_popboolean(&tmp_state);
 }
 
-static void jass_executetriggercontext(jass_t * j, jassTriggerContextParams_t const *params, bool immediate) {
-    jasscoroutine_t * first = NULL, *last = NULL;
+static void jass_executetriggercontext(jass_t *j, jassTriggerContextParams_t const *params, bool immediate) {
+    jasscoroutine_t *first = NULL, *last = NULL;
     FOR_EACH_LIST(gTriggerAction_t, action, params->trigger->actions) {
-        player_t * player = jass_eventplayer(params->unit);
-        jasscoroutine_t * co = jass_startcoroutine(j, &MAKE(jassContext_t,
+        player_t *player = jass_eventplayer(params->unit);
+        jasscoroutine_t *co = jass_startcoroutine(j, &MAKE(jassContext_t,
                                   .trigger = params->trigger,
                                   .func = action->func,
                                   .unit = params->unit,
@@ -1100,7 +1100,7 @@ static void jass_executetriggercontext(jass_t * j, jassTriggerContextParams_t co
                                   .timer_generation = params->timer ? ((gtimer_t const *)params->timer)->generation : 0,
                                   .timer_pending = params->timer_pending,
                               ));
-        jassVar_t * loop_index = find_global(j, "bj_forLoopAIndex");
+        jassVar_t *loop_index = find_global(j, "bj_forLoopAIndex");
         /* Keep queued and suspended actions on the loop index captured at dispatch. */
         if (co && loop_index && loop_index->value && jass_getvarbasetype(loop_index) == jasstype_integer) {
             co->loop_a_index = *(int32_t *)loop_index->value;
@@ -1114,9 +1114,9 @@ static void jass_executetriggercontext(jass_t * j, jassTriggerContextParams_t co
     /* Run only the coroutines created for this dispatch. Callbacks can mutate
      * the trigger's action list or append coroutines through nested executes. */
     if (immediate) {
-        jass_t * root = jass_root(j);
-        for (jasscoroutine_t * co = first; co;) {
-            jasscoroutine_t * next = co->next;
+        jass_t *root = jass_root(j);
+        for (jasscoroutine_t *co = first; co;) {
+            jasscoroutine_t *next = co->next;
             jass_resume(root, co);
             if (co == last) break;
             co = next;
@@ -1124,27 +1124,27 @@ static void jass_executetriggercontext(jass_t * j, jassTriggerContextParams_t co
     }
 }
 
-void jass_executetrigger(jass_t * j, trigger_t * trigger, edict_t * unit) {
+void jass_executetrigger(jass_t *j, trigger_t *trigger, edict_t *unit) {
     jass_executetriggercontext(j, &(jassTriggerContextParams_t){ .trigger = trigger, .unit = unit }, true);
 }
 
-static bool jass_calltriggercontext(jass_t * j, jassTriggerContextParams_t const *params) {
+static bool jass_calltriggercontext(jass_t *j, jassTriggerContextParams_t const *params) {
     if (!jass_evaluatetriggercontext(j, params))
         return false;
     jass_executetriggercontext(j, params, false);
     return true;
 }
 
-bool jass_calltriggerwithvalue(jass_t * j,
-                               trigger_t * trigger,
-                               edict_t * unit,
-                               edict_t * source,
+bool jass_calltriggerwithvalue(jass_t *j,
+                               trigger_t *trigger,
+                               edict_t *unit,
+                               edict_t *source,
                                int32_t eventValue) {
     return jass_calltriggercontext(j, &(jassTriggerContextParams_t){
         .trigger = trigger, .unit = unit, .source = source, .value = eventValue });
 }
 
-bool jass_calltriggerevent(jass_t * j, trigger_t * trigger, gameEvent_t const *event) {
+bool jass_calltriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *event) {
     if (!event) return false;
     return jass_calltriggercontext(j, &(jassTriggerContextParams_t){
         .trigger = trigger, .unit = event->edict, .source = event->source, .value = event->value,
@@ -1153,7 +1153,7 @@ bool jass_calltriggerevent(jass_t * j, trigger_t * trigger, gameEvent_t const *e
             ? event->responseTo->region : NULL });
 }
 
-bool jass_calltriggerwithtimer(jass_t * j, trigger_t * trigger, handle_t timer) {
+bool jass_calltriggerwithtimer(jass_t *j, trigger_t *trigger, handle_t timer) {
     bool queued;
     jassTriggerContextParams_t params = { .trigger = trigger, .timer = timer, .timer_pending = true };
     currenttimer = timer;
@@ -1162,10 +1162,10 @@ bool jass_calltriggerwithtimer(jass_t * j, trigger_t * trigger, handle_t timer) 
     return queued;
 }
 
-bool jass_calltrigger(jass_t * j,
-                      trigger_t * trigger,
-                      edict_t * unit,
-                      edict_t * source) {
+bool jass_calltrigger(jass_t *j,
+                      trigger_t *trigger,
+                      edict_t *unit,
+                      edict_t *source) {
     return jass_calltriggerwithvalue(j, trigger, unit, source, 0);
 }
 
@@ -1173,21 +1173,21 @@ bool jass_calltrigger(jass_t * j,
  * Lookup helpers
  * ========================================================================= */
 
-static jassCFunction_t find_cfunction(jass_t const * j, cstring_t name) {
-    for (jassModule_t const * m = jass_operators; m->name; m++) {
+static jassCFunction_t find_cfunction(jass_t const *j, cstring_t name) {
+    for (jassModule_t const *m = jass_operators; m->name; m++) {
         if (!strcmp(m->name, name)) {
             return m->func;
         }
     }
     if (jass_host.natives) {
-        for (jassModule_t const * m = jass_host.natives; m->name; m++) {
+        for (jassModule_t const *m = jass_host.natives; m->name; m++) {
             if (!strcmp(m->name, name)) {
                 return m->func;
             }
         }
     }
     if (jass_host.galaxy_natives) {
-        for (jassModule_t const * m = jass_host.galaxy_natives; m->name; m++) {
+        for (jassModule_t const *m = jass_host.galaxy_natives; m->name; m++) {
             if (!strcmp(m->name, name)) {
                 return m->func;
             }
@@ -1203,8 +1203,8 @@ static uint32_t jass_hash(cstring_t name) {
     return hash & (BZ_JASS_HASH_SIZE - 1);
 }
 
-static jassFunc_t const * find_function(jass_t const * j, cstring_t name) {
-    for (jassFunc_t const * func = j->function_hash[jass_hash(name)]; func; func = func->hash_next) {
+static jassFunc_t const *find_function(jass_t const *j, cstring_t name) {
+    for (jassFunc_t const *func = j->function_hash[jass_hash(name)]; func; func = func->hash_next) {
         if (!strcmp(func->name, name)) {
             return func;
         }
@@ -1212,7 +1212,7 @@ static jassFunc_t const * find_function(jass_t const * j, cstring_t name) {
     return NULL;
 }
 
-static jassVar_t * find_dict(jassdict_t * dict, cstring_t name) {
+static jassVar_t *find_dict(jassdict_t *dict, cstring_t name) {
     FOR_EACH_LIST(jassdict_t, item, dict) {
         if (!strcmp(item->key, name)) {
             return &item->value;
@@ -1221,14 +1221,14 @@ static jassVar_t * find_dict(jassdict_t * dict, cstring_t name) {
     return NULL;
 }
 
-static jassVar_t * find_global(jass_t const * j, cstring_t name) {
-    for (jassdict_t * item = j->global_hash[jass_hash(name)]; item; item = item->hash_next) {
+static jassVar_t *find_global(jass_t const *j, cstring_t name) {
+    for (jassdict_t *item = j->global_hash[jass_hash(name)]; item; item = item->hash_next) {
         if (!strcmp(item->key, name)) return &item->value;
     }
     return NULL;
 }
 
-static jassType_t const * find_type(jass_t const * j, cstring_t name) {
+static jassType_t const *find_type(jass_t const *j, cstring_t name) {
     FOR_LOOP(i, sizeof(jass_types)/sizeof(*jass_types)) {
         if (!strcmp(jass_types[i].name, name)) {
             return &jass_types[i];
@@ -1242,7 +1242,7 @@ static jassType_t const * find_type(jass_t const * j, cstring_t name) {
     return NULL;
 }
 
-jassType_t const * get_base_type(jassType_t const * type) {
+jassType_t const *get_base_type(jassType_t const *type) {
     if (!type) return &jass_types[jasstype_handle];  /* Galaxy SC2 types → opaque handle */
     while (type->inherit) {
         type = type->inherit;
@@ -1254,24 +1254,24 @@ jassType_t const * get_base_type(jassType_t const * type) {
  * Stack: return / done flags
  * ========================================================================= */
 
-void jass_setreturn(jass_t * j) {
+void jass_setreturn(jass_t *j) {
     jass_stackvalue(j, 0)->env.done = true;
     jass_stackvalue(j, 0)->env.returnstack = j->num_stack;
 }
 
-bool jass_mustreturn(jass_t * j) {
+bool jass_mustreturn(jass_t *j) {
     return jass_stackvalue(j, 0)->env.done;
 }
 
-uint32_t jass_top(jass_t * j) {
+uint32_t jass_top(jass_t *j) {
     return j->num_stack - 1;
 }
 
-jassVar_t * jass_topvalue(jass_t * j) {
+jassVar_t *jass_topvalue(jass_t *j) {
     return j->stack + jass_top(j);
 }
 
-jassVar_t * jass_stackvalue(jass_t * j, int index) {
+jassVar_t *jass_stackvalue(jass_t *j, int index) {
     if (index < 0) {
         return j->stack + (j->num_stack + index);
     } else {
@@ -1279,24 +1279,24 @@ jassVar_t * jass_stackvalue(jass_t * j, int index) {
     }
 }
 
-JASSTYPEID jass_getvarbasetype(jassVar_t const * var) {
+JASSTYPEID jass_getvarbasetype(jassVar_t const *var) {
     return (JASSTYPEID)(get_base_type(var->type) - jass_types);
 }
 
-JASSTYPEID jass_gettype(jass_t * j, int index) {
-    jassVar_t const * var = jass_stackvalue(j, index);
+JASSTYPEID jass_gettype(jass_t *j, int index) {
+    jassVar_t const *var = jass_stackvalue(j, index);
     return jass_getvarbasetype(var);
 }
 
-bool jass_checktype(jassVar_t const * var, JASSTYPEID type) {
+bool jass_checktype(jassVar_t const *var, JASSTYPEID type) {
     return get_base_type(var->type) == jass_types + type;
 }
 
-void jass_pop(jass_t * j, uint32_t count) {
+void jass_pop(jass_t *j, uint32_t count) {
     j->num_stack -= count;
 }
 
-static void jass_discard(jass_t * j, uint32_t count) {
+static void jass_discard(jass_t *j, uint32_t count) {
     while (count-- && j->num_stack) {
         jass_setnull(jass_topvalue(j));
         jass_pop(j, 1);
@@ -1307,20 +1307,20 @@ static void jass_discard(jass_t * j, uint32_t count) {
  * Memory: null / copy / free
  * ========================================================================= */
 
-static void jass_deletedict(jassdict_t * dict) {
+static void jass_deletedict(jassdict_t *dict) {
     SAFE_DELETE(dict->next, jass_deletedict);
     jass_setnull(&dict->value);
     jass_free(dict);
 }
 
-static void jass_deletearray(jassArray_t * array) {
+static void jass_deletearray(jassArray_t *array) {
     if (!array) return;
     jass_deletearray(array->next);
     jass_setnull(&array->value);
     jass_free(array);
 }
 
-void jass_setnull(jassVar_t * var) {
+void jass_setnull(jassVar_t *var) {
     if (!var || !var->type) {
         return;
     }
@@ -1354,7 +1354,7 @@ void jass_setnull(jassVar_t * var) {
     }
 }
 
-bool is_handle_convertible(jassType_t const * from, jassType_t const * to) {
+bool is_handle_convertible(jassType_t const *from, jassType_t const *to) {
     if (from == to) {
         return true;
     } else if (from->inherit) {
@@ -1364,21 +1364,21 @@ bool is_handle_convertible(jassType_t const * from, jassType_t const * to) {
     }
 }
 
-static jassVar_t * ensure_array_value(jass_t * j, jassVar_t * dest, uint32_t index) {
+static jassVar_t *ensure_array_value(jass_t *j, jassVar_t *dest, uint32_t index) {
     (void)j;
     FOR_EACH_LIST(jassArray_t, var, dest->_array) {
         if (var->index == index) {
             return &var->value;
         }
     }
-    jassArray_t * jv = JASSALLOC(jassArray_t);
+    jassArray_t *jv = JASSALLOC(jassArray_t);
     jv->value.type = dest->type;
     jv->index = index;
     ADD_TO_LIST(jv, dest->_array);
     return &jv->value;
 }
 
-void jass_copy(jass_t * j, jassVar_t * var, jassVar_t const * other) {
+void jass_copy(jass_t *j, jassVar_t *var, jassVar_t const *other) {
     float fval = 0;
     jass_setnull(var);
     if (other->_array) {
@@ -1438,18 +1438,18 @@ void jass_copy(jass_t * j, jassVar_t * var, jassVar_t const * other) {
  * Public C API — stack push / check / pop (mirrors Lua's lapi.c)
  * ========================================================================= */
 
-uint32_t jass_pushnull(jass_t * j) {
+uint32_t jass_pushnull(jass_t *j) {
     JASS_ADD_STACK(j, var, jasstype_handle);
     return 1;
 }
 
-uint32_t jass_pushinteger(jass_t * j, int32_t value) {
+uint32_t jass_pushinteger(jass_t *j, int32_t value) {
     JASS_ADD_STACK(j, var, jasstype_integer);
     jass_store_value(var, &value, sizeof(value));
     return 1;
 }
 
-uint32_t jass_pushhandle(jass_t * j, handle_t value, cstring_t type) {
+uint32_t jass_pushhandle(jass_t *j, handle_t value, cstring_t type) {
     JASS_ADD_STACK(j, var, jasstype_handle);
     jass_setnull(var);
     var->type = find_type(j, type);
@@ -1461,22 +1461,22 @@ uint32_t jass_pushhandle(jass_t * j, handle_t value, cstring_t type) {
     return 1;
 }
 
-uint32_t jass_pushnullhandle(jass_t * j, cstring_t type) {
+uint32_t jass_pushnullhandle(jass_t *j, cstring_t type) {
     return jass_pushhandle(j, 0, type);
 }
 
-handle_t jass_newhandle(jass_t * j, uint32_t size, cstring_t type) {
+handle_t jass_newhandle(jass_t *j, uint32_t size, cstring_t type) {
     handle_t data = size ? jass_alloc(size) : NULL;
     jass_pushhandle(j, data, type);
     if (data) {
-        jassVar_t * var = jass_topvalue(j);
+        jassVar_t *var = jass_topvalue(j);
         var->ref->size = size;
         var->ref->id = ++jass_root(j)->next_handle_id;
     }
     return data;
 }
 
-uint32_t jass_pushlighthandle(jass_t * j, handle_t value, cstring_t type) {
+uint32_t jass_pushlighthandle(jass_t *j, handle_t value, cstring_t type) {
     JASS_ADD_STACK(j, var, jasstype_handle);
     jass_setnull(var);
     var->type = find_type(j, type);
@@ -1486,19 +1486,19 @@ uint32_t jass_pushlighthandle(jass_t * j, handle_t value, cstring_t type) {
     return 1;
 }
 
-uint32_t jass_pushnumber(jass_t * j, float value) {
+uint32_t jass_pushnumber(jass_t *j, float value) {
     JASS_ADD_STACK(j, var, jasstype_real);
     jass_store_value(var, &value, sizeof(value));
     return 1;
 }
 
-uint32_t jass_pushboolean(jass_t * j, bool value) {
+uint32_t jass_pushboolean(jass_t *j, bool value) {
     JASS_ADD_STACK(j, var, jasstype_boolean);
     jass_store_value(var, &value, sizeof(value));
     return 1;
 }
 
-uint32_t jass_pushstringlen(jass_t * j, cstring_t value, uint32_t len) {
+uint32_t jass_pushstringlen(jass_t *j, cstring_t value, uint32_t len) {
     JASS_ADD_STACK(j, var, jasstype_string);
     jass_store_value(var, value, len+1);
     ((string_t)var->value)[len] = '\0';
@@ -1506,7 +1506,7 @@ uint32_t jass_pushstringlen(jass_t * j, cstring_t value, uint32_t len) {
     return 1;
 }
 
-uint32_t jass_pushstring(jass_t * j, cstring_t value) {
+uint32_t jass_pushstring(jass_t *j, cstring_t value) {
     /* Tolerate a NULL string from a native (several are stubs that return 0);
      * strlen(NULL) would crash.  An unset JASS string is the empty string. */
     if (!value)
@@ -1515,37 +1515,37 @@ uint32_t jass_pushstring(jass_t * j, cstring_t value) {
     return 1;
 }
 
-uint32_t jass_pushcfunction(jass_t * j, jassCFunction_t func) {
+uint32_t jass_pushcfunction(jass_t *j, jassCFunction_t func) {
     JASS_ADD_STACK(j, var, jasstype_cfunction);
     jass_store_value(var, &func, sizeof(jassCFunction_t));
     return 1;
 }
 
 /* Code values retain their declaration so native and scripted callbacks share one stable representation. */
-uint32_t jass_pushfunction(jass_t * j, jassFunc_t const * func) {
+uint32_t jass_pushfunction(jass_t *j, jassFunc_t const *func) {
     JASS_ADD_STACK(j, var, jasstype_code);
     var->value = (jassFunc_t *)func;
     return 1;
 }
 
-uint32_t jass_pushvalue(jass_t * j, jassVar_t const * other) {
-    jassType_t const * type = other->type;
+uint32_t jass_pushvalue(jass_t *j, jassVar_t const *other) {
+    jassType_t const *type = other->type;
     BZ_JASS_REQUIRE_STACK(j);
-    jassVar_t * var = &j->stack[j->num_stack++];
+    jassVar_t *var = &j->stack[j->num_stack++];
     memset(var, 0, sizeof(*var));
     var->type = type;
     jass_copy(j, var, other);
     return 1;
 }
 
-int32_t jass_checkinteger(jass_t * j, int index) {
-    jassVar_t const * var = jass_stackvalue(j, index);
+int32_t jass_checkinteger(jass_t *j, int index) {
+    jassVar_t const *var = jass_stackvalue(j, index);
     assert_type(var, jasstype_integer);
     return var->value ? *(int32_t *)var->value : 0;
 }
 
-float jass_checknumber(jass_t * j, int index) {
-    jassVar_t const * var = jass_stackvalue(j, index);
+float jass_checknumber(jass_t *j, int index) {
+    jassVar_t const *var = jass_stackvalue(j, index);
     if (!var->value) {
         return 0;
     }
@@ -1561,14 +1561,14 @@ float jass_checknumber(jass_t * j, int index) {
     return 0.0f;  /* Galaxy: treat unknown numeric type as 0 */
 }
 
-bool jass_checkboolean(jass_t * j, int index) {
-    jassVar_t const * var = jass_stackvalue(j, index);
+bool jass_checkboolean(jass_t *j, int index) {
+    jassVar_t const *var = jass_stackvalue(j, index);
     assert_type(var, jasstype_boolean);
     return var->value ? *(bool *)var->value : 0;
 }
 
-bool jass_toboolean(jass_t * j, int index) {
-    jassVar_t const * var = jass_stackvalue(j, index);
+bool jass_toboolean(jass_t *j, int index) {
+    jassVar_t const *var = jass_stackvalue(j, index);
     JASSTYPEID type = jass_getvarbasetype(var);
     if (var->value == NULL)
         return false;
@@ -1583,8 +1583,8 @@ bool jass_toboolean(jass_t * j, int index) {
     }
 }
 
-cstring_t jass_checkstring(jass_t * j, int index) {
-    jassVar_t const * var = jass_stackvalue(j, index);
+cstring_t jass_checkstring(jass_t *j, int index) {
+    jassVar_t const *var = jass_stackvalue(j, index);
     /* JASS null is polymorphic.  The VM stores it as a null handle, but Blizzard's
      * cinematic helpers pass null through string parameters; treat that value as
      * the empty string while retaining argument validation for non-null values. */
@@ -1594,20 +1594,20 @@ cstring_t jass_checkstring(jass_t * j, int index) {
     return var->value;
 }
 
-jassFunc_t const * jass_checkcode(jass_t * j, int index) {
-    jassVar_t const * var = jass_stackvalue(j, index);
+jassFunc_t const *jass_checkcode(jass_t *j, int index) {
+    jassVar_t const *var = jass_stackvalue(j, index);
     assert_type(var, jasstype_code);
     return var->value;
 }
 
-handle_t jass_checkhandle(jass_t * j, int index, cstring_t type) {
-    jassVar_t const * var = jass_stackvalue(j, index);
+handle_t jass_checkhandle(jass_t *j, int index, cstring_t type) {
+    jassVar_t const *var = jass_stackvalue(j, index);
     if (!var->value) {
         return NULL;
     }
     /* Skip type check for Galaxy — SC2 types are unregistered (type == NULL). */
     if (var->type) {
-        jassType_t const * expected = find_type(j, type);
+        jassType_t const *expected = find_type(j, type);
         if (expected && !is_handle_convertible(var->type, expected)) {
             fprintf(stderr, "Warning: jass_checkhandle type mismatch\n");
         }
@@ -1615,13 +1615,13 @@ handle_t jass_checkhandle(jass_t * j, int index, cstring_t type) {
     return var->value;
 }
 
-bool jass_popboolean(jass_t * j) {
+bool jass_popboolean(jass_t *j) {
     bool value = jass_toboolean(j, -1);
     jass_pop(j, 1);
     return value;
 }
 
-static uint32_t jass_popinteger(jass_t * j) {
+static uint32_t jass_popinteger(jass_t *j) {
     uint32_t value = jass_checkinteger(j, -1);
     jass_pop(j, 1);
     return value;
@@ -1631,27 +1631,27 @@ static uint32_t jass_popinteger(jass_t * j) {
  * Token evaluators — expression evaluation (jass_dotoken)
  * ========================================================================= */
 
-uint32_t VM_EvalInteger(jass_t * j, token_t const * token) {
+uint32_t VM_EvalInteger(jass_t *j, token_t const *token) {
     cstring_t s = token->primary;
     if (s && *s == '$') return jass_pushinteger(j, (int32_t)strtol(s + 1, NULL, 16));
     return jass_pushinteger(j, (int32_t)strtol(s, NULL, 0));
 }
 
-uint32_t VM_EvalReal(jass_t * j, token_t const * token) {
+uint32_t VM_EvalReal(jass_t *j, token_t const *token) {
     return jass_pushnumber(j, atof(token->primary));
 }
 
-uint32_t VM_EvalString(jass_t * j, token_t const * token) {
+uint32_t VM_EvalString(jass_t *j, token_t const *token) {
     return jass_pushstring(j, token->primary);
 }
 
-uint32_t VM_EvalBoolean(jass_t * j, token_t const * token) {
+uint32_t VM_EvalBoolean(jass_t *j, token_t const *token) {
     return jass_pushboolean(j, jass_atob(token->primary));
 }
 
-uint32_t VM_EvalIdentifier(jass_t * j, token_t const * token) {
-    jassFunc_t const * f = NULL;
-    jassVar_t const * v = NULL;
+uint32_t VM_EvalIdentifier(jass_t *j, token_t const *token) {
+    jassFunc_t const *f = NULL;
+    jassVar_t const *v = NULL;
     if (token->flags & TF_FUNCTION) {
         if ((f = find_function(j, token->primary))) {
             return jass_pushfunction(j, f);
@@ -1668,7 +1668,7 @@ uint32_t VM_EvalIdentifier(jass_t * j, token_t const * token) {
 }
 
 /* Resolve every authored dimension through the VM's existing nested sparse-array representation. */
-static jassVar_t * jass_array_value(jass_t * j, jassVar_t * var, token_t const * token) {
+static jassVar_t *jass_array_value(jass_t *j, jassVar_t *var, token_t const *token) {
     while (token) {
         /* Evaluate before asserting: release builds must not erase the VM operation. */
         uint32_t count = jass_dotoken(j, token->index);
@@ -1679,13 +1679,13 @@ static jassVar_t * jass_array_value(jass_t * j, jassVar_t * var, token_t const *
     return var;
 }
 
-uint32_t VM_EvalArrayAccess(jass_t * j, token_t const * token) {
+uint32_t VM_EvalArrayAccess(jass_t *j, token_t const *token) {
     uint32_t count = jass_dotoken(j, token->index);
     if (count != 1) { jass_pushnull(j); }
     uint32_t index_val = jass_popinteger(j);
     VM_EvalIdentifier(j, token);
-    jassVar_t * var = jass_stackvalue(j, -1);
-    jassVar_t * item = ensure_array_value(j, var, index_val);
+    jassVar_t *var = jass_stackvalue(j, -1);
+    jassVar_t *item = ensure_array_value(j, var, index_val);
     if (token->body) item = jass_array_value(j, item, token->body);
     jass_pop(j, 1);
     jassVar_t tmp;
@@ -1694,12 +1694,12 @@ uint32_t VM_EvalArrayAccess(jass_t * j, token_t const * token) {
     return 1;
 }
 
-uint32_t VM_EvalFourCC(jass_t * j, token_t const * token) {
+uint32_t VM_EvalFourCC(jass_t *j, token_t const *token) {
     return jass_pushinteger(j, *(uint32_t *)token->primary);
 }
 
-uint32_t VM_EvalCall(jass_t * j, token_t const * token) {
-    jassFunc_t const * f = NULL;
+uint32_t VM_EvalCall(jass_t *j, token_t const *token) {
+    jassFunc_t const *f = NULL;
     jassCFunction_t cf = NULL;
     uint32_t stacksize = j->num_stack;
     if (!strcmp(token->primary, "CommentString") && token->args) {
@@ -1740,7 +1740,7 @@ uint32_t VM_EvalCall(jass_t * j, token_t const * token) {
 
 static struct {
     TOKENTYPE tokentype;
-    uint32_t (*func)(jass_t * j, token_t const * token);
+    uint32_t (*func)(jass_t *j, token_t const *token);
 } vm_token_types[] = {
     { TT_INTEGER,     VM_EvalInteger     },
     { TT_REAL,        VM_EvalReal        },
@@ -1752,7 +1752,7 @@ static struct {
     { TT_CALL,        VM_EvalCall        },
 };
 
-uint32_t jass_dotoken(jass_t * j, token_t const * token) {
+uint32_t jass_dotoken(jass_t *j, token_t const *token) {
     if (!token)
         return 0;
     FOR_LOOP(idx, sizeof(vm_token_types)/sizeof(*vm_token_types)) {
@@ -1768,14 +1768,14 @@ uint32_t jass_dotoken(jass_t * j, token_t const * token) {
  * Statement evaluators
  * ========================================================================= */
 
-static float jass_numbervalue(jassVar_t const * var) {
+static float jass_numbervalue(jassVar_t const *var) {
     if (!var || !var->value) return 0.0f;
     if (jass_getvarbasetype(var) == jasstype_real) return *(float *)var->value;
     if (jass_getvarbasetype(var) == jasstype_integer) return *(int32_t *)var->value;
     return 0.0f;
 }
 
-static void jass_set_value(jass_t * j, jassVar_t * dest, token_t const * init, cstring_t name) {
+static void jass_set_value(jass_t *j, jassVar_t *dest, token_t const *init, cstring_t name) {
     uint32_t stack = jass_dotoken(j, init);
     /* Normally an initializer expression yields exactly one value.  Tolerate
      * other counts instead of aborting: a value-returning function whose body
@@ -1792,12 +1792,12 @@ static void jass_set_value(jass_t * j, jassVar_t * dest, token_t const * init, c
     }
 }
 
-static void jass_set_array_value(jass_t * j, jassVar_t * dest, token_t const * token, token_t const * init) {
+static void jass_set_array_value(jass_t *j, jassVar_t *dest, token_t const *token, token_t const *init) {
     /* Evaluate before asserting: NDEBUG previously skipped both expressions and copied an unrelated stack value. */
     uint32_t count = jass_dotoken(j, token->index);
     if (count != 1) { jass_pushnull(j); }
     uint32_t index_val = jass_popinteger(j);
-    jassVar_t * index_dest = ensure_array_value(j, dest, index_val);
+    jassVar_t *index_dest = ensure_array_value(j, dest, index_val);
     if (token->body) index_dest = jass_array_value(j, index_dest, token->body);
     count = jass_dotoken(j, init);
     if (count != 1) { jass_pushnull(j); }
@@ -1805,8 +1805,8 @@ static void jass_set_array_value(jass_t * j, jassVar_t * dest, token_t const * t
     jass_pop(j, 1);
 }
 
-static jassdict_t * parse_dict(jass_t * j, token_t const * token) {
-    jassdict_t * item = JASSALLOC(jassdict_t);
+static jassdict_t *parse_dict(jass_t *j, token_t const *token) {
+    jassdict_t *item = JASSALLOC(jassdict_t);
     item->value.constant = token->flags & TF_CONSTANT;
     item->value.array = token->flags & TF_ARRAY;
     item->value.type = find_type(j, token->primary);
@@ -1821,13 +1821,13 @@ TOKENFUNC(TOKENS);
 TOKENFUNC(SINGLETOKEN);
 
 TOKENFUNC(TYPEDEF) {
-    jassType_t * type = JASSALLOC(jassType_t);
+    jassType_t *type = JASSALLOC(jassType_t);
     type->name = token->primary;
     type->inherit = find_type(j, token->secondary);
     ADD_TO_LIST(type, j->types);
 }
 
-bool uses_localplayer(token_t const * token) {
+bool uses_localplayer(token_t const *token) {
     if (!token) return false;
     if (token->type == TT_CALL && token->primary && !strcmp(token->primary, "GetLocalPlayer")) {
         return true;
@@ -1866,7 +1866,7 @@ TOKENFUNC(IF) {
 }
 
 TOKENFUNC(SET) {
-    jassVar_t * v = NULL;
+    jassVar_t *v = NULL;
     if ((v = find_global(j, token->secondary))) {
         if (token->index) {
             return jass_set_array_value(j, v, token, token->init);
@@ -1886,12 +1886,12 @@ TOKENFUNC(SET) {
 }
 
 TOKENFUNC(VARDECL) {
-    jassdict_t * vardecl = parse_dict(j, token);
+    jassdict_t *vardecl = parse_dict(j, token);
     ADD_TO_LIST(vardecl, jass_stackvalue(j, 0)->env.locals);
 }
 
 TOKENFUNC(GLOBAL) {
-    jassdict_t * global = parse_dict(j, token);
+    jassdict_t *global = parse_dict(j, token);
     jassdict_t * *bucket = &j->global_hash[jass_hash(global->key)];
     ADD_TO_LIST(global, j->globals);
     global->hash_next = *bucket;
@@ -1899,25 +1899,25 @@ TOKENFUNC(GLOBAL) {
 }
 
 TOKENFUNC(FUNCTION) {
-    jassFunc_t * func = JASSALLOC(jassFunc_t);
+    jassFunc_t *func = JASSALLOC(jassFunc_t);
     jassFunc_t * *bucket;
     func->name = token->primary;
     func->code = token->body;
     func->native = token->flags & TF_NATIVE;
     func->returns = find_type(j, token->secondary);
     FOR_EACH_LIST(token_t, arg, token->args) {
-        jassarg_t * jarg = JASSALLOC(jassarg_t);
+        jassarg_t *jarg = JASSALLOC(jassarg_t);
         jarg->name = arg->secondary;
         jarg->type = find_type(j, arg->primary);
         PUSH_BACK(jassarg_t, jarg, func->args);
     }
     if (token->flags & TF_NATIVE) {
         if (jass_host.natives) {
-            jassModule_t const * mod = find_in_array(jass_host.natives, sizeof(jassModule_t), func->name);
+            jassModule_t const *mod = find_in_array(jass_host.natives, sizeof(jassModule_t), func->name);
             if (mod) func->nativefunc = mod->func;
         }
         if (!func->nativefunc && jass_host.galaxy_natives) {
-            jassModule_t const * mod = find_in_array(jass_host.galaxy_natives, sizeof(jassModule_t), func->name);
+            jassModule_t const *mod = find_in_array(jass_host.galaxy_natives, sizeof(jassModule_t), func->name);
             if (mod) func->nativefunc = mod->func;
         }
     }
@@ -2057,7 +2057,7 @@ static void jass_remove_bom(string_t buf) {
 }
 
 /* Forward declaration — galaxy_preprocess_includes calls jass_dofile_ex. */
-bool jass_dofile_ex(jass_t * j, cstring_t fileName, JASSMODE mode);
+bool jass_dofile_ex(jass_t *j, cstring_t fileName, JASSMODE mode);
 
 /* Include-once guard: tracks files already loaded in this VM to prevent
  * re-parsing when multiple files include the same library. */
@@ -2082,7 +2082,7 @@ void galaxy_loaded_reset(void) {
  * overwrite each with spaces (preserving newlines for line-number stability),
  * and recursively load the included file before the main buffer is parsed.
  * Each unique path is loaded at most once per VM lifetime. */
-static void galaxy_preprocess_includes(jass_t * j, string_t buf, JASSMODE mode) {
+static void galaxy_preprocess_includes(jass_t *j, string_t buf, JASSMODE mode) {
     string_t cur = buf;
     while (*cur) {
         while (*cur && isspace((unsigned char)*cur)) cur++;
@@ -2127,10 +2127,10 @@ static void galaxy_preprocess_includes(jass_t * j, string_t buf, JASSMODE mode) 
 }
 
 /* Global initializers can call natives before a script entry point establishes its call boundary. */
-static void jass_evalprogram(jass_t * j, token_t const * program) {
-    jass_t * root = jass_root(j);
+static void jass_evalprogram(jass_t *j, token_t const *program) {
+    jass_t *root = jass_root(j);
     uint32_t base = j->num_stack;
-    jassVar_t * saved = j->stack_pointer;
+    jassVar_t *saved = j->stack_pointer;
     if (root->current_coroutine || root->sync_rterror_jmp_set) { eval_TOKENS(j, program); return; }
     root->sync_rterror_jmp_set = true;
     if (!setjmp(root->sync_rterror_jmp)) eval_TOKENS(j, program);
@@ -2138,7 +2138,7 @@ static void jass_evalprogram(jass_t * j, token_t const * program) {
     root->sync_rterror_jmp_set = false;
 }
 
-bool jass_dobuffer_ex(jass_t * j, string_t buffer, JASSMODE mode) {
+bool jass_dobuffer_ex(jass_t *j, string_t buffer, JASSMODE mode) {
     if (!buffer) {
         /* Missing mapscript used to SIGSEGV in jass_remove_comments(NULL). */
         jass_setruntimeerror(j, "null buffer");
@@ -2147,30 +2147,30 @@ bool jass_dobuffer_ex(jass_t * j, string_t buffer, JASSMODE mode) {
     jass_remove_comments(buffer);
     jass_remove_bom(buffer);
     if ((uint32_t)mode >= sizeof(jass_syntax) / sizeof(jass_syntax[0])) {
-        jass_t * root = jass_root(j);
+        jass_t *root = jass_root(j);
         root->rterror_pending = true;
         snprintf(root->rterror_message, sizeof(root->rterror_message), "unknown syntax mode");
         return false;
     }
-    const jassSyntax_t *syntax = &jass_syntax[mode];
+    jassSyntax_t const *syntax = &jass_syntax[mode];
     if (syntax->flags & SYNTAX_INCLUDES)
         galaxy_preprocess_includes(j, buffer, mode);
     wordExtractor_t parser = MAKE(wordExtractor_t, .buffer = buffer, .start = buffer, .delimiters = syntax->delimiters);
-    token_t * program = syntax->parse(&parser);
+    token_t *program = syntax->parse(&parser);
     if (parser.error) {
-        jass_t * root = jass_root(j);
+        jass_t *root = jass_root(j);
         root->rterror_pending = true;
         snprintf(root->rterror_message, sizeof(root->rterror_message), "parse error");
         return false;
     }
-    jassprogram_t * owned = JASSALLOC(jassprogram_t);
+    jassprogram_t *owned = JASSALLOC(jassprogram_t);
     owned->tokens = program;
     ADD_TO_LIST(owned, jass_root(j)->programs);
     jass_evalprogram(j, program);
     return !jass_rterror_pending(j);
 }
 
-bool jass_dobuffer(jass_t * j, string_t buffer) {
+bool jass_dobuffer(jass_t *j, string_t buffer) {
     return jass_dobuffer_ex(j, buffer, JASS_MODE_JASS);
 }
 
@@ -2181,7 +2181,7 @@ typedef struct {
 static uint32_t const jass_snapshot_magic = MAKEFOURCC('J', 'S', 'V', 'M');
 
 /* Snapshot identity hashes immutable parser metadata, never process-local addresses. */
-static uint32_t jass_snapshot_hashbytes(uint32_t hash, void const * data, size_t size) {
+static uint32_t jass_snapshot_hashbytes(uint32_t hash, void const *data, size_t size) {
     uint8_t const *bytes = data;
     while (size--) hash = (hash ^ *bytes++) * 16777619u;
     return hash;
@@ -2193,7 +2193,7 @@ static uint32_t jass_snapshot_hashstr(uint32_t hash, cstring_t text) {
     return len ? jass_snapshot_hashbytes(hash, text, len) : hash;
 }
 
-static uint32_t jass_snapshot_hashtokens(uint32_t hash, token_t const * token) {
+static uint32_t jass_snapshot_hashtokens(uint32_t hash, token_t const *token) {
     FOR_EACH_LIST(token_t const, item, token) {
         hash = jass_snapshot_hashbytes(hash, &item->type, sizeof(item->type));
         hash = jass_snapshot_hashbytes(hash, &item->flags, sizeof(item->flags));
@@ -2209,13 +2209,13 @@ static uint32_t jass_snapshot_hashtokens(uint32_t hash, token_t const * token) {
     return hash;
 }
 
-static uint32_t jass_snapshot_identity(jass_t const * j) {
+static uint32_t jass_snapshot_identity(jass_t const *j) {
     uint32_t hash = 2166136261u;
     FOR_EACH_LIST(jassprogram_t const, program, j->programs) hash = jass_snapshot_hashtokens(hash, program->tokens);
     return hash;
 }
 
-uint32_t jass_programidentity(jass_t * j) { return jass_snapshot_identity(jass_root(j)); }
+uint32_t jass_programidentity(jass_t *j) { return jass_snapshot_identity(jass_root(j)); }
 
 static bool jass_snapshot_io(jassSnapshot_t *snapshot, void *data, size_t size) {
     return size <= UINT32_MAX && snapshot && snapshot->transfer && snapshot->transfer(snapshot->context, data, (uint32_t)size);
@@ -2238,7 +2238,7 @@ static bool jass_snapshot_readstr(jassSnapshot_t *snapshot, string_t *text) {
     return true;
 }
 
-static uint32_t jass_snapshot_arraycount(jassArray_t const * array) {
+static uint32_t jass_snapshot_arraycount(jassArray_t const *array) {
     uint32_t count = 0;
     FOR_EACH_LIST(jassArray_t const, item, array) count++;
     return count;
@@ -2257,7 +2257,7 @@ typedef struct jass_snapshot_handle_s {
     uint32_t id, size;
     cstring_t type;
     handle_t value;
-    jassref_t * ref;
+    jassref_t *ref;
 } jassSnapshotHandle_t;
 
 static bool jass_snapshot_ownedhandle(cstring_t type) {
@@ -2291,7 +2291,7 @@ static void jass_snapshot_freehandles(jassSnapshot_t *snapshot) {
 }
 
 /* Handles use explicit encodings: native IDs relocate through the host, while safe VM-owned payloads carry identity+bytes. */
-static bool jass_snapshot_writehandle(jass_t * j, jassSnapshot_t *snapshot, jassVar_t const * var) {
+static bool jass_snapshot_writehandle(jass_t *j, jassSnapshot_t *snapshot, jassVar_t const *var) {
     uint32_t encoding, id;
     (void)j;
     if (jass_valuehandle(var->type->name)) {
@@ -2325,7 +2325,7 @@ static bool jass_snapshot_writehandle(jass_t * j, jassSnapshot_t *snapshot, jass
     return false;
 }
 
-static bool jass_snapshot_readhandle(jass_t * j, jassSnapshot_t *snapshot, jassVar_t * var) {
+static bool jass_snapshot_readhandle(jass_t *j, jassSnapshot_t *snapshot, jassVar_t *var) {
     uint32_t encoding, id, size;
     handle_t value;
     string_t name = NULL;
@@ -2387,7 +2387,7 @@ static bool jass_snapshot_readhandle(jass_t * j, jassSnapshot_t *snapshot, jassV
 }
 
 /* Values carry their declared type so changed scripts and corrupt tags reject before mutation. */
-static bool jass_snapshot_writevar(jass_t * j, jassSnapshot_t *snapshot, jassVar_t const * var) {
+static bool jass_snapshot_writevar(jass_t *j, jassSnapshot_t *snapshot, jassVar_t const *var) {
     uint32_t present = var->value || var->_array, count = jass_snapshot_arraycount(var->_array);
     JASSTYPEID base;
     if (!var->type) { fprintf(stderr, "JASS snapshot: value has no declared type\n"); return false; }
@@ -2410,10 +2410,10 @@ static bool jass_snapshot_writevar(jass_t * j, jassSnapshot_t *snapshot, jassVar
     }
 }
 
-static bool jass_snapshot_readvar(jass_t * j, jassSnapshot_t *snapshot, jassVar_t * var) {
+static bool jass_snapshot_readvar(jass_t *j, jassSnapshot_t *snapshot, jassVar_t *var) {
     string_t type = NULL, text = NULL;
     uint32_t present, count;
-    jassType_t const * declared;
+    jassType_t const *declared;
     if (!jass_snapshot_readstr(snapshot, &type) || !type || !(declared = find_type(j, type)) ||
         !jass_snapshot_io(snapshot, &present, sizeof(present)) || present > 1 ||
         !jass_snapshot_io(snapshot, &count, sizeof(count)) || count > BZ_JASS_SNAPSHOT_MAX_COUNT) {
@@ -2442,19 +2442,19 @@ static bool jass_snapshot_readvar(jass_t * j, jassSnapshot_t *snapshot, jassVar_
     }
 }
 
-static uint32_t jass_snapshot_globalcount(jass_t const * j) {
+static uint32_t jass_snapshot_globalcount(jass_t const *j) {
     uint32_t count = 0;
     FOR_EACH_LIST(jassdict_t const, item, j->globals) if (!item->value.constant) count++;
     return count;
 }
 
-static uint32_t jass_snapshot_coroutinecount(jass_t const * j) {
+static uint32_t jass_snapshot_coroutinecount(jass_t const *j) {
     uint32_t count = 0;
     FOR_EACH_LIST(jasscoroutine_t const, co, j->coroutines) if (!co->done) count++;
     return count;
 }
 
-static bool jass_snapshot_findtoken(token_t const * token, token_t const * wanted, uint32_t *ordinal, uint32_t *found) {
+static bool jass_snapshot_findtoken(token_t const *token, token_t const *wanted, uint32_t *ordinal, uint32_t *found) {
     FOR_EACH_LIST(token_t const, item, token) {
         uint32_t current = (*ordinal)++;
         if (item == wanted) { *found = current; return true; }
@@ -2468,7 +2468,7 @@ static bool jass_snapshot_findtoken(token_t const * token, token_t const * wante
     return false;
 }
 
-static uint32_t jass_snapshot_tokenid(jass_t const * j, token_t const * wanted) {
+static uint32_t jass_snapshot_tokenid(jass_t const *j, token_t const *wanted) {
     uint32_t ordinal = 0, found = UINT32_MAX;
     if (!wanted) return UINT32_MAX;
     FOR_EACH_LIST(jassprogram_t const, program, j->programs)
@@ -2476,10 +2476,10 @@ static uint32_t jass_snapshot_tokenid(jass_t const * j, token_t const * wanted) 
     return UINT32_MAX;
 }
 
-static token_t const * jass_snapshot_gettoken(token_t const * token, uint32_t wanted, uint32_t *ordinal) {
+static token_t const *jass_snapshot_gettoken(token_t const *token, uint32_t wanted, uint32_t *ordinal) {
     FOR_EACH_LIST(token_t const, item, token) {
         if ((*ordinal)++ == wanted) return item;
-        token_t const * found = jass_snapshot_gettoken(item->init, wanted, ordinal);
+        token_t const *found = jass_snapshot_gettoken(item->init, wanted, ordinal);
         if (!found) found = jass_snapshot_gettoken(item->body, wanted, ordinal);
         if (!found) found = jass_snapshot_gettoken(item->args, wanted, ordinal);
         if (!found) found = jass_snapshot_gettoken(item->condition, wanted, ordinal);
@@ -2490,23 +2490,23 @@ static token_t const * jass_snapshot_gettoken(token_t const * token, uint32_t wa
     return NULL;
 }
 
-static token_t const * jass_snapshot_token(jass_t const * j, uint32_t wanted) {
+static token_t const *jass_snapshot_token(jass_t const *j, uint32_t wanted) {
     uint32_t ordinal = 0;
     if (wanted == UINT32_MAX) return NULL;
     FOR_EACH_LIST(jassprogram_t const, program, j->programs) {
-        token_t const * found = jass_snapshot_gettoken(program->tokens, wanted, &ordinal);
+        token_t const *found = jass_snapshot_gettoken(program->tokens, wanted, &ordinal);
         if (found) return found;
     }
     return NULL;
 }
 
-static uint32_t jass_snapshot_dictcount(jassdict_t const * dict) {
+static uint32_t jass_snapshot_dictcount(jassdict_t const *dict) {
     uint32_t count = 0;
     FOR_EACH_LIST(jassdict_t const, item, dict) count++;
     return count;
 }
 
-static bool jass_snapshot_writedict(jass_t * j, jassSnapshot_t *snapshot, jassdict_t const * dict) {
+static bool jass_snapshot_writedict(jass_t *j, jassSnapshot_t *snapshot, jassdict_t const *dict) {
     uint32_t count = jass_snapshot_dictcount(dict);
     if (!jass_snapshot_io(snapshot, &count, sizeof(count))) return false;
     FOR_EACH_LIST(jassdict_t const, item, dict)
@@ -2514,11 +2514,11 @@ static bool jass_snapshot_writedict(jass_t * j, jassSnapshot_t *snapshot, jassdi
     return true;
 }
 
-static bool jass_snapshot_readdict(jass_t * j, jassSnapshot_t *snapshot, jassdict_t * *dict) {
+static bool jass_snapshot_readdict(jass_t *j, jassSnapshot_t *snapshot, jassdict_t * *dict) {
     uint32_t count;
     if (!jass_snapshot_io(snapshot, &count, sizeof(count)) || count > BZ_JASS_SNAPSHOT_MAX_COUNT) return false;
     FOR_LOOP(i, count) {
-        jassdict_t * item = JASSALLOC(jassdict_t);
+        jassdict_t *item = JASSALLOC(jassdict_t);
         string_t name = NULL;
         if (!jass_snapshot_readstr(snapshot, &name) || !name || find_dict(*dict, name)) {
             SAFE_DELETE(name, jass_free); jass_free(item); return false;
@@ -2552,7 +2552,7 @@ static bool jass_snapshot_writecontext_handle(jassSnapshot_t *snapshot, cstring_
         jass_snapshot_io(snapshot, &id, sizeof(id));
 }
 
-static bool jass_snapshot_writecontext(jassSnapshot_t *snapshot, jassContext_t const * context) {
+static bool jass_snapshot_writecontext(jassSnapshot_t *snapshot, jassContext_t const *context) {
     struct { cstring_t type; handle_t value; } handles[] = {
         { "trigger", context->trigger }, { "unit", context->unit }, { "unit", context->source },
         { "player", context->playerState }, { "player", context->localPlayerState },
@@ -2569,7 +2569,7 @@ static bool jass_snapshot_writecontext(jassSnapshot_t *snapshot, jassContext_t c
     return true;
 }
 
-static bool jass_snapshot_readcontext(jass_t * j, jassSnapshot_t *snapshot, jassContext_t * context) {
+static bool jass_snapshot_readcontext(jass_t *j, jassSnapshot_t *snapshot, jassContext_t *context) {
     struct { cstring_t type; handle_t *value; } handles[] = {
         { "trigger", (handle_t *)&context->trigger }, { "unit", (handle_t *)&context->unit },
         { "unit", (handle_t *)&context->source }, { "player", (handle_t *)&context->playerState },
@@ -2598,7 +2598,7 @@ static bool jass_snapshot_readcontext(jass_t * j, jassSnapshot_t *snapshot, jass
     return true;
 }
 
-static bool jass_snapshot_writecoroutines(jass_t * j, jassSnapshot_t *snapshot) {
+static bool jass_snapshot_writecoroutines(jass_t *j, jassSnapshot_t *snapshot) {
     uint32_t count = jass_snapshot_coroutinecount(j), now = jass_gettime();
     if (!jass_snapshot_io(snapshot, &count, sizeof(count))) return false;
     FOR_EACH_LIST(jasscoroutine_t const, co, j->coroutines) {
@@ -2621,12 +2621,12 @@ static bool jass_snapshot_writecoroutines(jass_t * j, jassSnapshot_t *snapshot) 
     return true;
 }
 
-static bool jass_snapshot_readcoroutines(jass_t * j, jassSnapshot_t *snapshot, jasscoroutine_t * *list) {
+static bool jass_snapshot_readcoroutines(jass_t *j, jassSnapshot_t *snapshot, jasscoroutine_t * *list) {
     uint32_t count, now = jass_gettime();
     if (!jass_snapshot_io(snapshot, &count, sizeof(count)) || count > BZ_JASS_SNAPSHOT_MAX_COUNT) return false;
     FOR_LOOP(i, count) {
-        jass_t * state = JASSALLOC(jass_t);
-        jasscoroutine_t * co = JASSALLOC(jasscoroutine_t);
+        jass_t *state = JASSALLOC(jass_t);
+        jasscoroutine_t *co = JASSALLOC(jasscoroutine_t);
         jassCoroutineframe_t * *tail = &co->frames;
         uint32_t remaining, frames;
         memcpy(state, j, sizeof(*state));
@@ -2642,7 +2642,7 @@ static bool jass_snapshot_readcoroutines(jass_t * j, jassSnapshot_t *snapshot, j
         }
         co->wake_time += remaining;
         FOR_LOOP(k, frames) {
-            jassCoroutineframe_t * frame = JASSALLOC(jassCoroutineframe_t);
+            jassCoroutineframe_t *frame = JASSALLOC(jassCoroutineframe_t);
             string_t func = NULL;
             uint32_t body, pc;
             memset(frame, 0, sizeof(*frame));
@@ -2667,8 +2667,8 @@ static bool jass_snapshot_readcoroutines(jass_t * j, jassSnapshot_t *snapshot, j
     return true;
 }
 
-bool jass_writesnapshot(jass_t * j, jassSnapshot_t *snapshot) {
-    jass_t * root = jass_root(j);
+bool jass_writesnapshot(jass_t *j, jassSnapshot_t *snapshot) {
+    jass_t *root = jass_root(j);
     jassSnapshotHeader_t header = {
         jass_snapshot_magic, BZ_JASS_SNAPSHOT_VERSION, jass_snapshot_identity(root), jass_snapshot_globalcount(root),
         jass_snapshot_coroutinecount(root)
@@ -2686,11 +2686,11 @@ bool jass_writesnapshot(jass_t * j, jassSnapshot_t *snapshot) {
     return jass_snapshot_writecoroutines(root, snapshot);
 }
 
-bool jass_readsnapshot(jass_t * j, jassSnapshot_t *snapshot) {
-    jass_t * root = jass_root(j);
+bool jass_readsnapshot(jass_t *j, jassSnapshot_t *snapshot) {
+    jass_t *root = jass_root(j);
     jassSnapshotHeader_t header;
-    jassdict_t * staged = NULL;
-    jasscoroutine_t * coroutines = NULL;
+    jassdict_t *staged = NULL;
+    jasscoroutine_t *coroutines = NULL;
     bool ok = false;
     if (root->current_coroutine || root->sync_rterror_jmp_set || !jass_snapshot_io(snapshot, &header, sizeof(header)) ||
         header.magic != jass_snapshot_magic || header.version != BZ_JASS_SNAPSHOT_VERSION ||
@@ -2698,8 +2698,8 @@ bool jass_readsnapshot(jass_t * j, jassSnapshot_t *snapshot) {
         header.globals > BZ_JASS_SNAPSHOT_MAX_COUNT || header.coroutines > BZ_JASS_SNAPSHOT_MAX_COUNT) return false;
     FOR_LOOP(i, header.globals) {
         string_t name = NULL;
-        jassdict_t * item = NULL;
-        jassVar_t * live;
+        jassdict_t *item = NULL;
+        jassVar_t *live;
         if (!jass_snapshot_readstr(snapshot, &name) || !name || find_dict(staged, name) ||
             !(live = find_global(root, name)) || live->constant) { SAFE_DELETE(name, jass_free); goto done; }
         item = JASSALLOC(jassdict_t);
@@ -2710,36 +2710,36 @@ bool jass_readsnapshot(jass_t * j, jassSnapshot_t *snapshot) {
     if (!jass_snapshot_readcoroutines(root, snapshot, &coroutines) ||
         header.coroutines != jass_snapshot_coroutinecount(&(jass_t){ .coroutines = coroutines })) goto done;
     FOR_EACH_LIST(jassdict_t, item, staged) {
-        jassVar_t * live = find_global(root, item->key);
+        jassVar_t *live = find_global(root, item->key);
         if (live->type != item->value.type) goto done;
     }
     FOR_EACH_LIST(jassdict_t, item, staged) jass_copy(root, find_global(root, item->key), &item->value);
     while (root->coroutines) {
-        jasscoroutine_t * next = root->coroutines->next;
+        jasscoroutine_t *next = root->coroutines->next;
         jass_free_coroutine(root->coroutines); root->coroutines = next;
     }
     root->coroutines = coroutines; coroutines = NULL;
     ok = true;
 done:
     SAFE_DELETE(staged, jass_deletedict);
-    while (coroutines) { jasscoroutine_t * next = coroutines->next; jass_free_coroutine(coroutines); coroutines = next; }
+    while (coroutines) { jasscoroutine_t *next = coroutines->next; jass_free_coroutine(coroutines); coroutines = next; }
     jass_snapshot_freehandles(snapshot);
     return ok;
 }
 
-jass_t * jass_newstate(void) {
-    jass_t * j = JASSALLOC(jass_t);
+jass_t *jass_newstate(void) {
+    jass_t *j = JASSALLOC(jass_t);
     j->stack_pointer = j->stack;
     j->root = j;
     galaxy_loaded_reset(); /* each new VM session starts with a fresh include-once guard */
     return j;
 }
 
-void jass_close(jass_t * j) {
-    jass_t * root = jass_root(j);
-    jasscoroutine_t * co = root->coroutines;
+void jass_close(jass_t *j) {
+    jass_t *root = jass_root(j);
+    jasscoroutine_t *co = root->coroutines;
     while (co) {
-        jasscoroutine_t * next = co->next;
+        jasscoroutine_t *next = co->next;
         jass_free_coroutine(co);
         co = next;
     }
@@ -2747,14 +2747,14 @@ void jass_close(jass_t * j) {
     SAFE_DELETE(root->globals, jass_deletedict);
     DELETE_LIST(jassmissing_t, root->missing, jass_free);
     while (root->functions) {
-        jassFunc_t * func = root->functions, *next = func->next;
+        jassFunc_t *func = root->functions, *next = func->next;
         DELETE_LIST(jassarg_t, func->args, jass_free);
         jass_free(func);
         root->functions = next;
     }
     DELETE_LIST(jassType_t, root->types, jass_free);
     while (root->programs) {
-        jassprogram_t * program = root->programs, *next = program->next;
+        jassprogram_t *program = root->programs, *next = program->next;
         JASS_FreeTokens(program->tokens);
         jass_free(program);
         root->programs = next;
@@ -2762,7 +2762,7 @@ void jass_close(jass_t * j) {
     jass_free(root);
 }
 
-bool jass_dofile_ex(jass_t * j, cstring_t fileName, JASSMODE mode) {
+bool jass_dofile_ex(jass_t *j, cstring_t fileName, JASSMODE mode) {
     uint32_t size = 0;
     string_t buffer = jass_host.ReadFile(fileName, &size);
     if (buffer) {
@@ -2778,7 +2778,7 @@ bool jass_dofile_ex(jass_t * j, cstring_t fileName, JASSMODE mode) {
     }
 }
 
-bool jass_dofile(jass_t * j, cstring_t fileName) {
+bool jass_dofile(jass_t *j, cstring_t fileName) {
     /* Auto-detect Galaxy mode from file extension. */
     cstring_t dot = strrchr(fileName, '.');
     JASSMODE mode = (dot && !strcmp(dot, ".galaxy")) ? JASS_MODE_GALAXY : JASS_MODE_JASS;
@@ -2793,9 +2793,9 @@ bool jass_dofile(jass_t * j, cstring_t fileName) {
 static int depth = 0, callnum = 0;
 #endif
 
-static uint32_t jass_call_impl(jass_t * j, uint32_t args) {
-    jassVar_t * root = &j->stack[j->num_stack - args - 1];
-    jassVar_t * old_stack_pointer = j->stack_pointer;
+static uint32_t jass_call_impl(jass_t *j, uint32_t args) {
+    jassVar_t *root = &j->stack[j->num_stack - args - 1];
+    jassVar_t *old_stack_pointer = j->stack_pointer;
     uint32_t ret = 0;
     j->stack_pointer = &j->stack[j->num_stack - args - 1];
 #ifdef DEBUG_JASS
@@ -2822,8 +2822,8 @@ static uint32_t jass_call_impl(jass_t * j, uint32_t args) {
 #endif
         ret = func(j);
     } else {
-        jassFunc_t const * func = root->value;
-        jassdict_t * locals = NULL;
+        jassFunc_t const *func = root->value;
+        jassdict_t *locals = NULL;
         uint32_t argnum = 1;
 #ifdef DEBUG_JASS
         printf("%s\n", func->name);
@@ -2832,7 +2832,7 @@ static uint32_t jass_call_impl(jass_t * j, uint32_t args) {
             ret = func->nativefunc(j);
         } else {
             FOR_EACH_LIST(jassarg_t, arg, func->args) {
-                jassdict_t * local = JASSALLOC(jassdict_t);
+                jassdict_t *local = JASSALLOC(jassdict_t);
                 local->key = arg->name;
                 local->value.type = arg->type;
                 jass_copy(j, &local->value, &j->stack_pointer[argnum]);
@@ -2846,8 +2846,8 @@ static uint32_t jass_call_impl(jass_t * j, uint32_t args) {
             if (root->env.returnstack != -1) ret = j->num_stack - root->env.returnstack;
         }
     }
-    jassVar_t * last = &j->stack[j->num_stack - ret];
-    for (jassVar_t * it = root; it < last; it++) jass_setnull(it);
+    jassVar_t *last = &j->stack[j->num_stack - ret];
+    for (jassVar_t *it = root; it < last; it++) jass_setnull(it);
     memmove(root, last, ret * sizeof(jassVar_t));
     j->num_stack -= last - root;
     j->stack_pointer = old_stack_pointer;
@@ -2858,9 +2858,9 @@ static uint32_t jass_call_impl(jass_t * j, uint32_t args) {
 }
 
 /* Synchronous native failures unwind to the outer call instead of executing later script statements. */
-uint32_t jass_call(jass_t * j, uint32_t args) {
-    jass_t * root = jass_root(j);
-    jassVar_t * stack_pointer = j->stack_pointer;
+uint32_t jass_call(jass_t *j, uint32_t args) {
+    jass_t *root = jass_root(j);
+    jassVar_t *stack_pointer = j->stack_pointer;
     uint32_t stack_base = j->num_stack - args - 1;
     uint32_t ret;
 
@@ -2877,8 +2877,8 @@ uint32_t jass_call(jass_t * j, uint32_t args) {
     return ret;
 }
 
-void jass_callbyname(jass_t * j, cstring_t name, bool spawn_coroutine) {
-    jassFunc_t const * func = find_function(j, name);
+void jass_callbyname(jass_t *j, cstring_t name, bool spawn_coroutine) {
+    jassFunc_t const *func = find_function(j, name);
     if (!func) {
         jass_missingcall(j, name, false);
         return;

@@ -18,7 +18,7 @@ static uint32_t fnv1a32(cstring_t str) {
     return hash;
 }
 
-static void ConvertMDLXAnimationName(animation_t * seq) {
+static void ConvertMDLXAnimationName(animation_t *seq) {
     char buffer[80];
     char *last_char = buffer;
     memset(buffer, 0, sizeof(buffer));
@@ -92,7 +92,7 @@ static uint8_t const *ModelDataAt(uint8_t const *data, uint32_t data_size, uint3
     return data + offset;
 }
 
-static int compare_animation_name(const void *a, const void *b) {
+static int compare_animation_name(void const *a, void const *b) {
     return strcmp(((animation_t const *)a)->name, ((animation_t const *)b)->name);
 }
 
@@ -131,7 +131,7 @@ static animation_t *LoadModelMD34(uint8_t const *data, uint32_t data_size, uint3
             char const *name = src->name.ref < hdr->nRefs
                 ? (char const *)ModelDataAt(data, data_size, ent[src->name.ref].offset, src->name.nEntries)
                 : NULL;
-            animation_t * dest = animations + j;
+            animation_t *dest = animations + j;
             if (name) {
                 uint32_t name_len = MIN(src->name.nEntries, sizeof(dest->name) - 1);
                 memcpy(dest->name, name, name_len);
@@ -313,7 +313,7 @@ static g_cmodel_t *GetModel(uint32_t modelindex) {
     return entry->animations ? entry : NULL;
 }
 
-animation_t const * G_GetAnimation(uint32_t modelindex, cstring_t animname) {
+animation_t const *G_GetAnimation(uint32_t modelindex, cstring_t animname) {
     g_cmodel_t *model = GetModel(modelindex);
     if (!model)
         return NULL;
@@ -411,9 +411,9 @@ static void AnimationTagSetReplace(animationTagSet_t const *source, cstring_t fr
     }
 }
 
-static animation_t const * AnimationFindContainingSet(animation_t const * animations, uint32_t count, cstring_t primary,
+static animation_t const *AnimationFindContainingSet(animation_t const *animations, uint32_t count, cstring_t primary,
                                                animationTagSet_t const *required) {
-    animation_t const * contains = NULL;
+    animation_t const *contains = NULL;
     uint32_t contains_extras = UINT32_MAX;
 
     FOR_LOOP(i, count) {
@@ -443,13 +443,13 @@ static animation_t const * AnimationFindContainingSet(animation_t const * animat
  * only expose `Alternate` sequences (notably Medivh raven form). Preserve a real
  * AlternateEx sequence when present, but retry Alternate before dropping to an
  * unrelated/untagged fallback. */
-animation_t const * G_SelectAnimationForProperties(animation_t const * animations, uint32_t count,
+animation_t const *G_SelectAnimationForProperties(animation_t const *animations, uint32_t count,
                                             cstring_t animname, cstring_t properties) {
     animationTagSet_t required = {0};
     char primary[WC3_ANIMATION_TAG_SIZE];
-    animation_t const * contains = NULL;
-    animation_t const * overlap = NULL;
-    animation_t const * primary_fallback = NULL;
+    animation_t const *contains = NULL;
+    animation_t const *overlap = NULL;
+    animation_t const *primary_fallback = NULL;
     uint32_t contains_extras = UINT32_MAX;
     uint32_t overlap_matches = 0;
     uint32_t overlap_extras = UINT32_MAX;
@@ -490,7 +490,7 @@ animation_t const * G_SelectAnimationForProperties(animation_t const * animation
     if (AnimationTagSetContains(&required, "alternateex") &&
         !AnimationTagSetContains(&required, "alternate")) {
         animationTagSet_t alternate_fallback = {0};
-        animation_t const * alternate;
+        animation_t const *alternate;
 
         AnimationTagSetReplace(&required, "alternateex", "alternate", &alternate_fallback);
         alternate = AnimationFindContainingSet(animations, count, primary, &alternate_fallback);
@@ -505,9 +505,9 @@ animation_t const * G_SelectAnimationForProperties(animation_t const * animation
     return NULL;
 }
 
-animation_t const * G_GetAnimationForProperties(uint32_t modelindex, cstring_t animname, cstring_t properties) {
+animation_t const *G_GetAnimationForProperties(uint32_t modelindex, cstring_t animname, cstring_t properties) {
     g_cmodel_t *model = GetModel(modelindex);
-    animation_t const * selected;
+    animation_t const *selected;
 
     if (!model) return NULL;
     selected = G_SelectAnimationForProperties(model->animations, model->num_animations, animname, properties);
@@ -517,10 +517,10 @@ animation_t const * G_GetAnimationForProperties(uint32_t modelindex, cstring_t a
 }
 
 /* Select numbered variants without crossing the selected sequence's tag set. */
-animation_t const * G_SelectAnimationVariantForProperties(animation_t const * animations, uint32_t count,
+animation_t const *G_SelectAnimationVariantForProperties(animation_t const *animations, uint32_t count,
                                                     cstring_t animname, cstring_t properties, bool randomize) {
-    animation_t const * selected;
-    animation_t const * choice = NULL;
+    animation_t const *selected;
+    animation_t const *choice = NULL;
     animationTagSet_t selected_tags = {0};
     char primary[WC3_ANIMATION_TAG_SIZE];
     char candidate_primary[WC3_ANIMATION_TAG_SIZE];
@@ -530,7 +530,7 @@ animation_t const * G_SelectAnimationVariantForProperties(animation_t const * an
     if (!selected || !randomize) return selected;
     AnimationParseRequest(selected->name, primary, &selected_tags);
     FOR_LOOP(i, count) {
-        animation_t const * candidate = animations + i;
+        animation_t const *candidate = animations + i;
         animationTagSet_t candidate_tags = {0};
         AnimationParseRequest(candidate->name, candidate_primary, &candidate_tags);
         if (candidate->syncpoint != selected->syncpoint) continue;
@@ -544,20 +544,20 @@ animation_t const * G_SelectAnimationVariantForProperties(animation_t const * an
 }
 
 /* Select an authored animation variant while preserving the ordinary selector's fallback. */
-animation_t const * G_GetAnimationVariant(uint32_t modelindex, cstring_t animname, bool randomize) {
+animation_t const *G_GetAnimationVariant(uint32_t modelindex, cstring_t animname, bool randomize) {
     g_cmodel_t *model = GetModel(modelindex);
     if (!model) return NULL;
     return G_SelectAnimationVariantForProperties(model->animations, model->num_animations,
                                                   animname, NULL, randomize);
 }
 
-static animation_t const * AnimationVariantForProperties(g_cmodel_t *model, cstring_t animname, cstring_t properties) {
+static animation_t const *AnimationVariantForProperties(g_cmodel_t *model, cstring_t animname, cstring_t properties) {
     if (!model) return NULL;
     return G_SelectAnimationVariantForProperties(model->animations, model->num_animations,
                                                   animname, properties, true);
 }
 
-bool G_AnimationHasPrimary(animation_t const * animation, cstring_t primary) {
+bool G_AnimationHasPrimary(animation_t const *animation, cstring_t primary) {
     size_t len;
     unsigned char next;
 
@@ -577,7 +577,7 @@ static void AnimationTagSetWrite(animationTagSet_t const *set, string_t out, siz
     }
 }
 
-void G_ResetUnitAnimationProperties(edict_t * unit) {
+void G_ResetUnitAnimationProperties(edict_t *unit) {
     animationTagSet_t properties = {0};
     cstring_t authored;
 
@@ -588,11 +588,11 @@ void G_ResetUnitAnimationProperties(edict_t * unit) {
     unit->animation_request[0] = '\0';
 }
 
-animation_t const * G_GetUnitAnimation(edict_t * unit, cstring_t animname) {
+animation_t const *G_GetUnitAnimation(edict_t *unit, cstring_t animname) {
     return unit ? G_GetAnimationForProperties(unit->s.model, animname, unit->animation_props) : NULL;
 }
 
-void G_SetUnitAnimation(edict_t * unit, cstring_t animname) {
+void G_SetUnitAnimation(edict_t *unit, cstring_t animname) {
     char request[WC3_ANIMATION_REQUEST_SIZE];
     char primary[WC3_ANIMATION_TAG_SIZE];
     animationTagSet_t request_tags = {0};
@@ -606,7 +606,7 @@ void G_SetUnitAnimation(edict_t * unit, cstring_t animname) {
     if (!unit->animation) unit->animation = G_GetUnitAnimation(unit, request);
 }
 
-void G_AddUnitAnimationProperties(edict_t * unit, cstring_t properties, bool add) {
+void G_AddUnitAnimationProperties(edict_t *unit, cstring_t properties, bool add) {
     animationTagSet_t current = {0};
     animationTagSet_t changed = {0};
     animationTagSet_t result = {0};

@@ -570,7 +570,7 @@ static void R_CheckShader(GLuint obj, GLenum check, cstring_t label) {
     exit(EXIT_FAILURE);
 }
 
-static const char *R_GLSLTypeStr(uniformType_t type) {
+static char const *R_GLSLTypeStr(uniformType_t type) {
     switch (type) {
         case UT_FLOAT:            return "float";
         case UT_FLOAT_VEC2:       return "vec2";
@@ -590,11 +590,11 @@ static const char *R_GLSLTypeStr(uniformType_t type) {
     }
 }
 
-int R_BuildShaderDeclarations(char *buf, int size, const shader_desc_t *desc,
+int R_BuildShaderDeclarations(char *buf, int size, shader_desc_t const *desc,
                               bool is_vertex, glsl_dialect_t dialect) {
-    const char *attr_kw  = (dialect == GLSL_DIALECT_120) ? "attribute" : "in";
-    const char *vsout_kw = (dialect == GLSL_DIALECT_120) ? "varying"   : "out";
-    const char *fsin_kw  = (dialect == GLSL_DIALECT_120) ? "varying"   : "in";
+    char const *attr_kw  = (dialect == GLSL_DIALECT_120) ? "attribute" : "in";
+    char const *vsout_kw = (dialect == GLSL_DIALECT_120) ? "varying"   : "out";
+    char const *fsin_kw  = (dialect == GLSL_DIALECT_120) ? "varying"   : "in";
     int n = 0;
 
     /* GLSL 120 has no `texture` builtin; alias it so fragment bodies can
@@ -636,10 +636,10 @@ int R_BuildShaderMain(char *buf, int size, bool is_vertex, glsl_dialect_t dialec
                     dialect == GLSL_DIALECT_120 ? "gl_FragColor" : "o_color");
 }
 
-static void R_SetShaderSourceFromDesc(GLuint stage, const shader_desc_t *desc,
-                                      bool is_vertex, const char *defines) {
+static void R_SetShaderSourceFromDesc(GLuint stage, shader_desc_t const *desc,
+                                      bool is_vertex, char const *defines) {
     /* Indexed by glsl_dialect_t — must stay in enum order. */
-    static const char *const version_prefix[] = {
+    static char const *const version_prefix[] = {
         "#version 120\n",
         "#version 140\n",
         "#version 150\n",
@@ -658,7 +658,7 @@ static void R_SetShaderSourceFromDesc(GLuint stage, const shader_desc_t *desc,
     char decls[2048], main_wrapper[128];
     R_BuildShaderDeclarations(decls, sizeof(decls), desc, is_vertex, dialect);
     R_BuildShaderMain(main_wrapper, sizeof(main_wrapper), is_vertex, dialect);
-    const char *strings[] = {
+    char const *strings[] = {
         version_prefix[dialect],
         defines ? defines : "",
         decls,
@@ -681,10 +681,10 @@ static size_t R_UniformTypeSize(uniformType_t type) {
 static GLuint shader_bound;
 
 /* Descriptor compilation and lookup never overwrite caller-owned non-sampler values. */
-void R_LoadShaderState(shaderLoad_t const * load) {
-    shader_desc_t const * desc = load->desc;
+void R_LoadShaderState(shaderLoad_t const *load) {
+    shader_desc_t const *desc = load->desc;
     cstring_t defines = load->defines;
-    shaderProg_t * prog = load->prog;
+    shaderProg_t *prog = load->prog;
     void *state = load->state;
     GLuint vs = R_Call(glCreateShader, GL_VERTEX_SHADER);
     GLuint fs = R_Call(glCreateShader, GL_FRAGMENT_SHADER);
@@ -714,7 +714,7 @@ void R_LoadShaderState(shaderLoad_t const * load) {
     int unit = 0;
     size_t cache_size = 0;
     for (int i = 0; i < MAX_SHADER_UNIFORMS && desc->Uniforms[i].name; i++) {
-        const shaderUniform_t *u = &desc->Uniforms[i];
+        shaderUniform_t const *u = &desc->Uniforms[i];
         size_t end = u->offset + R_UniformTypeSize(u->type) * (u->count ? u->count : 1);
         prog->locs[i] = glGetUniformLocation(progid, u->name);
         cache_size = MAX(cache_size, end);
@@ -727,7 +727,7 @@ void R_LoadShaderState(shaderLoad_t const * load) {
 }
 
 /* Release linked programs before their GL context is destroyed. */
-void R_DeleteShader(shaderProg_t * prog) {
+void R_DeleteShader(shaderProg_t *prog) {
     if (prog->progid) glDeleteProgram(prog->progid);
     if (shader_bound == prog->progid) shader_bound = 0;
     if (prog->cache) ri.MemFree(prog->cache);
@@ -735,14 +735,14 @@ void R_DeleteShader(shaderProg_t * prog) {
 }
 
 /* One typed state submission owns all uniforms; exact per-program caching avoids redundant driver calls. */
-void R_UploadShader(shaderProg_t * prog, void const * state) {
+void R_UploadShader(shaderProg_t *prog, void const *state) {
     if (shader_bound != prog->progid) {
         R_Call(glUseProgram, prog->progid);
         shader_bound = prog->progid;
     }
     for (int i = 0; i < MAX_SHADER_UNIFORMS && prog->desc->Uniforms[i].name; i++) {
-        const shaderUniform_t *u = &prog->desc->Uniforms[i];
-        const void *data = (const char *)state + u->offset;
+        shaderUniform_t const *u = &prog->desc->Uniforms[i];
+        void const *data = (char const *)state + u->offset;
         GLint loc = prog->locs[i];
         GLsizei count = u->counted ? *(uint32_t const *)((char const *)state + u->count_offset) :
                                      (u->count ? u->count : 1);
@@ -764,7 +764,7 @@ void R_UploadShader(shaderProg_t * prog, void const * state) {
             case UT_INT_VEC2: R_Call(glUniform2iv, loc, count, data); break;
             case UT_BOOL: {
                 GLint values[count];
-                FOR_LOOP(j, count) values[j] = ((const bool *)data)[j];
+                FOR_LOOP(j, count) values[j] = ((bool const *)data)[j];
                 R_Call(glUniform1iv, loc, count, values); break;
             }
             case UT_FLOAT_MAT3: R_Call(glUniformMatrix3fv, loc, count, GL_FALSE, data); break;
@@ -816,7 +816,7 @@ modelProg_t *R_ModelShaderInstanced(void) {
 /* Ground/world callers use the same semantic light schema as models. A zero
  * count explicitly selects the legacy fixed terrain light so games without an
  * environment-light model retain their existing appearance. */
-void R_SetDefaultLighting(defaultProg_t *shader, modelLighting_t const * lighting) {
+void R_SetDefaultLighting(defaultProg_t *shader, modelLighting_t const *lighting) {
     if (!shader) return;
     if (!lighting || lighting->count == 0) {
         shader->state.lightCount = 0;
@@ -832,7 +832,7 @@ void R_SetDefaultLighting(defaultProg_t *shader, modelLighting_t const * lightin
 }
 
 /* Model callers submit one semantic lighting state; only this proxy knows the uniform packing contract. */
-void R_SetModelLighting(modelProg_t *shader, modelLighting_t const * lighting) {
+void R_SetModelLighting(modelProg_t *shader, modelLighting_t const *lighting) {
     if (!lighting || lighting->count < 1 || lighting->count > BZ_MODEL_LIGHT_MAX) {
         ri.error("R_SetModelLighting: light count must be 1..%u, got %u", BZ_MODEL_LIGHT_MAX,
                  lighting ? lighting->count : 0);
@@ -843,7 +843,7 @@ void R_SetModelLighting(modelProg_t *shader, modelLighting_t const * lighting) {
 }
 
 /* Grass uses the same proxy boundary so game code never uploads its packed matrix directly. */
-void R_SetModelGrass(modelProg_t *shader, modelGrass_t const * grass) {
+void R_SetModelGrass(modelProg_t *shader, modelGrass_t const *grass) {
     R_PackModelGrass(&shader->state.grassParams, grass);
 }
 
@@ -867,7 +867,7 @@ spriteProg_t *R_SpriteShader(SHADERTYPE type) {
 }
 
 /* Builtin lifetime is renderer-owned; this table is shared by load and shutdown. */
-static struct { shader_desc_t const * desc; spriteProg_t *shader; } builtin_shaders[] = {
+static struct { shader_desc_t const *desc; spriteProg_t *shader; } builtin_shaders[] = {
     { &sd_unlit, &tr.shader_ui }, { &sd_splat, &tr.shader_splat },
     { &sd_shadow_splat, &tr.shader_shadowSplat }, { &sd_commandbutton, &tr.shader_commandButton },
     { &sd_minimap, &tr.shader_minimap }, { &sd_minimap_fog, &tr.shader_minimapFog },

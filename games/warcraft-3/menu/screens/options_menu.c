@@ -49,15 +49,15 @@ static bool OptionsMenu_LoadScreen(void) {
     return OptionsMenu_Load(&options_menu);
 }
 
-static void OptionsMenu_SetHidden(frameDef_t * frame, bool hidden) {
+static void OptionsMenu_SetHidden(frameDef_t *frame, bool hidden) {
     if (frame) {
         UI_SetHidden(frame, hidden);
     }
 }
 
-static frameDef_t * OptionsMenu_EnsureEditText(frameDef_t * edit, cstring_t name) {
-    frameDef_t * text;
-    frameDef_t const * template;
+static frameDef_t *OptionsMenu_EnsureEditText(frameDef_t *edit, cstring_t name) {
+    frameDef_t *text;
+    frameDef_t const *template;
 
     if (!edit || !name || !*name) {
         return NULL;
@@ -87,22 +87,22 @@ static frameDef_t * OptionsMenu_EnsureEditText(frameDef_t * edit, cstring_t name
     return text;
 }
 
-static cstring_t OptionsMenu_EditText(frameDef_t * edit) {
-    frameDef_t * text = edit ? UI_FindChildFrame(edit, edit->Edit.TextFrame) : NULL;
+static cstring_t OptionsMenu_EditText(frameDef_t *edit) {
+    frameDef_t *text = edit ? UI_FindChildFrame(edit, edit->Edit.TextFrame) : NULL;
     return text && text->Text ? text->Text : "";
 }
 
-static void OptionsMenu_SetEditText(frameDef_t * edit, cstring_t text) {
-    frameDef_t * text_frame = OptionsMenu_EnsureEditText(edit, "GamePortEditBoxText");
+static void OptionsMenu_SetEditText(frameDef_t *edit, cstring_t text) {
+    frameDef_t *text_frame = OptionsMenu_EnsureEditText(edit, "GamePortEditBoxText");
 
     if (text_frame) {
         UI_SetText(text_frame, "%s", text ? text : "");
     }
 }
 
-static frameDef_t * OptionsMenu_PopupTitleText(frameDef_t * popup) {
-    frameDef_t * title;
-    frameDef_t * text;
+static frameDef_t *OptionsMenu_PopupTitleText(frameDef_t *popup) {
+    frameDef_t *title;
+    frameDef_t *text;
 
     if (!popup) {
         return NULL;
@@ -115,16 +115,16 @@ static frameDef_t * OptionsMenu_PopupTitleText(frameDef_t * popup) {
     return text ? text : title;
 }
 
-static void OptionsMenu_SetPopupTitle(frameDef_t * popup, cstring_t text) {
-    frameDef_t * title = OptionsMenu_PopupTitleText(popup);
+static void OptionsMenu_SetPopupTitle(frameDef_t *popup, cstring_t text) {
+    frameDef_t *title = OptionsMenu_PopupTitleText(popup);
 
     if (title) {
         UI_SetText(title, "%s", text ? text : "");
     }
 }
 
-static void OptionsMenu_SetPopupItems(frameDef_t * popup,
-                                      frameDef_t * menu,
+static void OptionsMenu_SetPopupItems(frameDef_t *popup,
+                                      frameDef_t *menu,
                                       optionsMenuItem_t const *items,
                                       uint32_t count,
                                       uint32_t selected) {
@@ -154,14 +154,14 @@ static float OptionsMenu_CvarFloat(cstring_t name, float fallback) {
     return value && *value ? (float)atof(value) : fallback;
 }
 
-static void OptionsMenu_SetCheckBox(frameDef_t * frame, bool checked) {
+static void OptionsMenu_SetCheckBox(frameDef_t *frame, bool checked) {
     if (!frame) return;
     frame->CheckBox.Checked = checked;
     if (checked) frame->ui_flags |= UIFLAG_CHECKED;
     else frame->ui_flags &= ~UIFLAG_CHECKED;
 }
 
-static bool OptionsMenu_CheckBoxValue(frameDef_t const * frame, bool fallback) {
+static bool OptionsMenu_CheckBoxValue(frameDef_t const *frame, bool fallback) {
     if (!frame) return fallback;
     return (frame->ui_flags & UIFLAG_CHECKED) != 0;
 }
@@ -224,7 +224,7 @@ static uint32_t OptionsMenu_CvarSelection(cstring_t name, uint32_t fallback, uin
     return (uint32_t)value;
 }
 
-static void OptionsMenu_SetPopupCvar(frameDef_t * menu, cstring_t name) {
+static void OptionsMenu_SetPopupCvar(frameDef_t *menu, cstring_t name) {
     if (menu) {
         UI_SetOnClick(menu, "seta %s %%u", name);
     }

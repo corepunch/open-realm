@@ -10,15 +10,15 @@
 #define BZ_ANSY MAKEFOURCC('A', 'N', 's', 'y') // rawcode; Pocket Factory
 #define BZ_OGRU MAKEFOURCC('o', 'g', 'r', 'u') // unitCode; fixture Clockwerk
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
 	slkTestData_t *rows, *old;
-	edict_t * goblin, *near_enemy, *far_enemy;
+	edict_t *goblin, *near_enemy, *far_enemy;
 } sdFix_t;
 
 /* Non-stock DataA/B/C/D/E/F prove death blast reads abilityitem_t.code, not hardcoded Clockwerk values. */
@@ -174,7 +174,7 @@ TEST(wc3_spell, self_destruct_pocket_factory_goblin_btlf_detonates) {
 		"C;Y3;X9;K\"0.1\"\nC;Y3;X10;K\"80\"\nC;Y3;X11;K\"40\"\nC;Y3;X12;K\"160\"\n"
 		"C;Y3;X13;K\"15\"\nC;Y3;X14;K\"1\"\nC;Y3;X15;K\"1\"\nC;Y3;X16;K\"\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(both), *old;
-	edict_t * caster, *goblin = NULL, *enemy;
+	edict_t *caster, *goblin = NULL, *enemy;
 	vector2_t point = { 128, 128 };
 	reset_entities(); setup_test_world(); level.time = 1000;
 	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;

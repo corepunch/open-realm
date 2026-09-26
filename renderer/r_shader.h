@@ -59,9 +59,9 @@ typedef struct modelGrass_s {
 
 
 /* Translate semantic fixed-pipeline-style state into the private shader mat4 schema. */
-static inline void R_PackModelLighting(matrix4_t * out, modelLighting_t const * in) {
+static inline void R_PackModelLighting(matrix4_t *out, modelLighting_t const *in) {
     FOR_LOOP(i, in->count) {
-        rModelLight_t const * light = &in->lights[i];
+        rModelLight_t const *light = &in->lights[i];
         out[i] = (matrix4_t){ .v = {
             light->pos.x, light->pos.y, light->pos.z, (float)light->type,
             -light->dir.x, -light->dir.y, -light->dir.z, light->atten_start,
@@ -75,7 +75,7 @@ static inline void R_PackModelLighting(matrix4_t * out, modelLighting_t const * 
 }
 
 /* Instanced grass uses four packed vec4 columns so one upload owns the complete effect state. */
-static inline void R_PackModelGrass(matrix4_t * out, modelGrass_t const * in) {
+static inline void R_PackModelGrass(matrix4_t *out, modelGrass_t const *in) {
     *out = (matrix4_t){ .v = {
         in->camera.x, in->camera.y, in->fade.x, in->fade.y,
         in->time, in->wind.x, in->wind.y, in->wind.z,
@@ -84,7 +84,7 @@ static inline void R_PackModelGrass(matrix4_t * out, modelGrass_t const * in) {
     }};
 }
 
-static inline environLight_t R_EnvironLightFromModel(rModelLight_t const * in) {
+static inline environLight_t R_EnvironLightFromModel(rModelLight_t const *in) {
     if (!in) return (environLight_t){0};
     return (environLight_t){
         .dir = in->dir, .color = in->color, .ambient = in->ambient,
@@ -93,7 +93,7 @@ static inline environLight_t R_EnvironLightFromModel(rModelLight_t const * in) {
     };
 }
 
-static inline bool R_LightingFromEnviron(environLight_t const * in, modelLighting_t * out) {
+static inline bool R_LightingFromEnviron(environLight_t const *in, modelLighting_t *out) {
     if (!out) return false;
     *out = (modelLighting_t){0};
     if (!in || !in->valid) return false;
@@ -106,8 +106,8 @@ static inline bool R_LightingFromEnviron(environLight_t const * in, modelLightin
     return true;
 }
 
-void R_SetDefaultLighting(defaultProg_t *shader, modelLighting_t const * lighting);
-void R_SetModelLighting(modelProg_t *shader, modelLighting_t const * lighting);
-void R_SetModelGrass(modelProg_t *shader, modelGrass_t const * grass);
+void R_SetDefaultLighting(defaultProg_t *shader, modelLighting_t const *lighting);
+void R_SetModelLighting(modelProg_t *shader, modelLighting_t const *lighting);
+void R_SetModelGrass(modelProg_t *shader, modelGrass_t const *grass);
 
 #endif

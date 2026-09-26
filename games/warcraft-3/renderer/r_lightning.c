@@ -13,7 +13,7 @@ typedef struct {
     float texcoord_scale;
     float duration;
     uint32_t version;
-    texture_t const * texture;
+    texture_t const *texture;
 } w3lightningart_t;
 
 
@@ -86,7 +86,7 @@ static uint32_t R_LightningLoadSlk(cstring_t filename, void **dest) {
 }
 
 /* Cache the authored ribbon texture; malformed rows are logged once and skipped by the caller. */
-static texture_t const * R_LightningTexture(w3lightningart_t *art) {
+static texture_t const *R_LightningTexture(w3lightningart_t *art) {
     PATHSTR path;
     if (!art) return NULL;
     if (art->texture) return art->texture;
@@ -152,7 +152,7 @@ static float R_LightningHashSigned(uint32_t seed) {
 
 /* Build the camera-independent polyline that the shared ribbon renderer expands. */
 static uint32_t R_LightningBuildPoints(w3lightningart_t const *art,
-                                    lightningEffect_t const * state,
+                                    lightningEffect_t const *state,
                                     vector3_t *points, uint32_t point_capacity) {
     vector3_t delta, direction, reference, side;
     float distance, average, noise_ratio, lateral_scale;
@@ -193,7 +193,7 @@ static uint32_t R_LightningBuildPoints(w3lightningart_t const *art,
 
 /* Fade finite bolts while leaving persistent JASS lightning fully opaque. */
 static float R_LightningOpacity(w3lightningart_t const *art,
-                                lightningEffect_t const * state) {
+                                lightningEffect_t const *state) {
     uint32_t lifetime, authored;
     float elapsed, duration, fade_start;
 
@@ -213,11 +213,11 @@ static float R_LightningOpacity(w3lightningart_t const *art,
 /* Draw the current endpoint snapshot through the shared ribbon particle pass. */
 void R_LightningDraw(void) {
     FOR_LOOP(i, tr.viewDef.num_lightning_effects) {
-        lightningEffect_t const * state = tr.viewDef.lightning_effects + i;
+        lightningEffect_t const *state = tr.viewDef.lightning_effects + i;
         w3lightningart_t *art = FS_SLKLookup(&lightning_index, state->effect_id);
         vector3_t points[WC3_LIGHTNING_MAX_SEGMENTS + 1];
         color32_t color;
-        texture_t const * texture;
+        texture_t const *texture;
         float opacity, average, texture_scale, elapsed;
         uint32_t point_count;
         if (!art) {

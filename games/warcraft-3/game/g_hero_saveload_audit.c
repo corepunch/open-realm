@@ -48,7 +48,7 @@ static void hsa_append(string_t out, uint32_t size, cstring_t fmt, ...) {
     va_end(args);
 }
 
-static void hsa_capture(edict_t const * hero, hsaSnap_t *snap) {
+static void hsa_capture(edict_t const *hero, hsaSnap_t *snap) {
     memset(snap, 0, sizeof(*snap));
     if (!hero) return;
     snap->number = hero->s.number;
@@ -70,7 +70,7 @@ static void hsa_capture(edict_t const * hero, hsaSnap_t *snap) {
         strlcpy(snap->move, hero->currentmove->animation, sizeof(snap->move));
 }
 
-void G_FormatHeroSaveSnap(edict_t const * hero, string_t out, uint32_t out_size) {
+void G_FormatHeroSaveSnap(edict_t const *hero, string_t out, uint32_t out_size) {
     hsaSnap_t snap;
     char code[5];
     bool any;
@@ -114,32 +114,32 @@ void G_FormatHeroSaveSnap(edict_t const * hero, string_t out, uint32_t out_size)
     hsa_append(out, out_size, " move=%s", snap.move[0] ? snap.move : "none");
 }
 
-static bool hsa_hero_ok(edict_t const * ent) {
+static bool hsa_hero_ok(edict_t const *ent) {
     return ent && ent->inuse && (ent->svflags & SVF_MONSTER) && !M_IsDead(ent) &&
         G_UnitIsHero(ent) && !(ent->s.renderfx & RF_HIDDEN);
 }
 
-static edict_t * hsa_find_hero(void) {
+static edict_t *hsa_find_hero(void) {
     FOR_LOOP(player, MAX_PLAYERS) {
         if (level.mapinfo && (!level.mapinfo->players[player].used ||
                 level.mapinfo->players[player].playerType != kPlayerTypeHuman))
             continue;
         FOR_LOOP(i, globals.num_edicts) {
-            edict_t * ent = g_edicts + i;
+            edict_t *ent = g_edicts + i;
             if (hsa_hero_ok(ent) && ent->s.player == player)
                 return ent;
         }
         if (!level.mapinfo) break;
     }
     FOR_LOOP(i, globals.num_edicts) {
-        edict_t * ent = g_edicts + i;
+        edict_t *ent = g_edicts + i;
         if (hsa_hero_ok(ent))
             return ent;
     }
     return NULL;
 }
 
-static bool hsa_in_cinematic(edict_t const * hero) {
+static bool hsa_in_cinematic(edict_t const *hero) {
     if (hero && hero->s.player < (uint32_t)game.max_clients)
         return game.clients[hero->s.player].ps.client_ui_state == CLIENT_UI_CINEMATIC;
     FOR_LOOP(i, game.max_clients)
@@ -149,12 +149,12 @@ static bool hsa_in_cinematic(edict_t const * hero) {
     return false;
 }
 
-static bool hsa_ready_to_walk(edict_t const * hero, bool timed_out) {
+static bool hsa_ready_to_walk(edict_t const *hero, bool timed_out) {
     if (!hsa_hero_ok(hero) || hero->paused) return false;
     return timed_out || !hsa_in_cinematic(hero);
 }
 
-static bool hsa_issue_walk(edict_t * hero) {
+static bool hsa_issue_walk(edict_t *hero) {
     static float const dist[] = { HSA_WALK_DIST, 160.0f, 256.0f, 512.0f };
     static vector2_t const dirs[] = {
         { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 },
@@ -178,7 +178,7 @@ static bool hsa_issue_walk(edict_t * hero) {
     return false;
 }
 
-static cstring_t hsa_compare(edict_t const * hero, hsaSnap_t const *want) {
+static cstring_t hsa_compare(edict_t const *hero, hsaSnap_t const *want) {
     hsaSnap_t got;
     if (!hero) return "fail_missing";
     hsa_capture(hero, &got);
@@ -199,14 +199,14 @@ static cstring_t hsa_compare(edict_t const * hero, hsaSnap_t const *want) {
     return "pass";
 }
 
-static void hsa_finish(cstring_t status, edict_t const * hero) {
+static void hsa_finish(cstring_t status, edict_t const *hero) {
     char snap[512];
     G_FormatHeroSaveSnap(hero, snap, sizeof(snap));
     fprintf(stderr, "HERO_SAVELOAD status=%s %s\n", status, snap);
     hsa_phase = HSA_DONE;
 }
 
-static void hsa_saveload(edict_t * hero) {
+static void hsa_saveload(edict_t *hero) {
     PATHSTR path;
     char snap[512];
     cstring_t status;
@@ -234,7 +234,7 @@ static void hsa_saveload(edict_t * hero) {
     hsa_finish(status, hero);
 }
 
-static bool hsa_start_walk(edict_t * hero) {
+static bool hsa_start_walk(edict_t *hero) {
     hsa_index = hero->s.number;
     hsa_before.origin = hero->s.origin;
     if (!hsa_issue_walk(hero)) {
@@ -248,7 +248,7 @@ static bool hsa_start_walk(edict_t * hero) {
 
 void G_HeroSaveLoadAuditFrame(void) {
     cstring_t armed = gi.CvarString ? gi.CvarString("wc3_hero_saveload_audit", "0") : "0";
-    edict_t * hero;
+    edict_t *hero;
     bool timed_out, walking;
     float dx, dy;
 

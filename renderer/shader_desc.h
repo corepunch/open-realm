@@ -72,7 +72,7 @@ typedef enum {
 /* Uniform offsets address typed CPU values. count=0 is scalar; arrays upload as one block. */
 typedef struct {
     size_t          offset;    /* offsetof(SHADER_TYPE, field) */
-    const char     *name;      /* GLSL name, e.g. "u_mvp" */
+    char const *name;      /* GLSL name, e.g. "u_mvp" */
     uniformType_t   type;
     precisionType_t precision;
     uint32_t           count;     /* array size; 0 = scalar */
@@ -81,13 +81,13 @@ typedef struct {
 } shaderUniform_t;
 
 typedef struct {
-    const char     *name;      /* GLSL name, e.g. "a_position" */
+    char const *name;      /* GLSL name, e.g. "a_position" */
     t_attrib_id     attrib;    /* explicit location for glBindAttribLocation */
     uniformType_t   type;
 } shaderAttrib_t;
 
 typedef struct {
-    const char     *name;      /* GLSL name, e.g. "v_texcoord0" */
+    char const *name;      /* GLSL name, e.g. "v_texcoord0" */
     uniformType_t   type;
 } shaderVarying_t;
 
@@ -100,12 +100,12 @@ typedef struct {
 #define MAX_SHADER_SHARED 8 // varyings; shared shader interface capacity; bounds descriptor table
 
 typedef struct shader_desc {
-    const char      *Name;
+    char const *Name;
     shaderUniform_t  Uniforms[MAX_SHADER_UNIFORMS];
     shaderAttrib_t   Attributes[MAX_SHADER_ATTRIBS];
     shaderVarying_t  Shared[MAX_SHADER_SHARED];
-    const char      *VertexBody;    /* defines vec4 vert() → clip-space position */
-    const char      *FragmentBody;  /* defines vec4 frag() → fragment color */
+    char const *VertexBody;    /* defines vec4 vert() → clip-space position */
+    char const *FragmentBody;  /* defines vec4 frag() → fragment color */
 } shader_desc_t;
 
 
@@ -113,7 +113,7 @@ typedef struct shader_desc {
 /* GL handles stay in the program, never in the typed value state. */
 typedef struct shaderProg_s {
     GLuint progid;
-    shader_desc_t const * desc;
+    shader_desc_t const *desc;
     GLint locs[MAX_SHADER_UNIFORMS];
     void *cache; /* shadow of last-uploaded state for change detection */
 } shaderProg_t;
@@ -121,16 +121,16 @@ typedef struct shaderProg_s {
 
 
 typedef struct shaderLoad_s {
-    shader_desc_t const * desc;
+    shader_desc_t const *desc;
     cstring_t defines;
-    shaderProg_t * prog;
+    shaderProg_t *prog;
     void *state;
 } shaderLoad_t;
 
 
-void R_LoadShaderState(shaderLoad_t const * load);
-void R_DeleteShader(shaderProg_t * prog);
-void R_UploadShader(shaderProg_t * prog, void const * state);
+void R_LoadShaderState(shaderLoad_t const *load);
+void R_DeleteShader(shaderProg_t *prog);
+void R_UploadShader(shaderProg_t *prog, void const *state);
 #define R_LoadShader(D, F, P) R_LoadShaderState(&(shaderLoad_t){ D, F, &(P)->prog, &(P)->state })
 #define R_ApplyShader(P) R_UploadShader(&(P)->prog, &(P)->state)
 
@@ -164,7 +164,7 @@ void R_UploadShader(shaderProg_t * prog, void const * state);
  *   (otherwise) for the fragment stage.  Bodies define vert()/frag() and never
  *   reference gl_Position, gl_FragColor, or o_color directly.
  * ----------------------------------------------------------------------- */
-int R_BuildShaderDeclarations(char *buf, int size, const shader_desc_t *desc,
+int R_BuildShaderDeclarations(char *buf, int size, shader_desc_t const *desc,
                               bool is_vertex, glsl_dialect_t dialect);
 int R_BuildShaderMain(char *buf, int size, bool is_vertex, glsl_dialect_t dialect);
 

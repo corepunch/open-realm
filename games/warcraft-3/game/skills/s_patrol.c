@@ -1,8 +1,8 @@
 #include "s_skills.h"
 
-static void ai_patrol_walk(edict_t * ent) {
+static void ai_patrol_walk(edict_t *ent) {
     if (G_ShouldAcquireThisFrame(ent)) {
-        edict_t * enemy = G_FindNearestEnemy(ent, G_AcquisitionRange(ent));
+        edict_t *enemy = G_FindNearestEnemy(ent, G_AcquisitionRange(ent));
         if (enemy) {
             order_attack(ent, enemy);
             return;
@@ -25,7 +25,7 @@ static void ai_patrol_walk(edict_t * ent) {
 
 static umove_t patrol_move_walk = { "walk", ai_patrol_walk, NULL, CAbilityPatrol };
 
-void order_patrol_resume(edict_t * self) {
+void order_patrol_resume(edict_t *self) {
     if (S_GoldMineWorkerIsInside(self))
         return;
     self->goalentity = self->movement.patrol_target;
@@ -33,7 +33,7 @@ void order_patrol_resume(edict_t * self) {
     unit_setmove(self, &patrol_move_walk);
 }
 
-void order_patrol(edict_t * self, edict_t * b) {
+void order_patrol(edict_t *self, edict_t *b) {
     if (S_GoldMineWorkerIsInside(self))
         return;
     self->movement.attackmove_waypoint = NULL;
@@ -45,7 +45,7 @@ void order_patrol(edict_t * self, edict_t * b) {
     order_patrol_resume(self);
 }
 
-static bool patrol_selectlocation(edict_t * clent, vector2_t const * location) {
+static bool patrol_selectlocation(edict_t *clent, vector2_t const *location) {
     bool any = false;
 
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {

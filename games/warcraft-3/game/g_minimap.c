@@ -4,8 +4,8 @@
 #define WC3_DEFAULT_ALERT_PING_DURATION 1.0f
 
 /* Serialize transient minimap presentation for one connected client. */
-void G_SendMinimapPing(gameClient_t * client, vector2_t const * position, float duration, color32_t color, uint32_t flags) {
-    edict_t * clent;
+void G_SendMinimapPing(gameClient_t *client, vector2_t const *position, float duration, color32_t color, uint32_t flags) {
+    edict_t *clent;
     cstring_t model;
 
     if (!client || !position || duration <= 0.0f || !client->connected || !gi.MinimapPing) return;
@@ -18,8 +18,8 @@ void G_SendMinimapPing(gameClient_t * client, vector2_t const * position, float 
 }
 
 /* Derive owner alerts from the completed entity so no alert state enters save/load. */
-void G_SendOwnerMinimapAlert(edict_t * ent) {
-    gameClient_t * client;
+void G_SendOwnerMinimapAlert(edict_t *ent) {
+    gameClient_t *client;
 
     if (!ent || ent->s.player >= MAX_PLAYERS) return;
     client = G_GetPlayerClientByNumber(ent->s.player);

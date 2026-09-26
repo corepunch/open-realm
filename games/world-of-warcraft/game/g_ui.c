@@ -72,7 +72,7 @@ static void UI_WriteWindowStart(uiWindowDef_t const *def) {
 }
 
 /* Finish and unicast one complete server-authored window packet. */
-static void UI_WriteWindowEnd(edict_t * ent) {
+static void UI_WriteWindowEnd(edict_t *ent) {
     pfWriteData_t text = { .data = ui_window_text, .size = ui_window_text_size };
     ui_window_writing = false;
     gi.Write(PF_LONG, &(int32_t){0}); gi.Write(PF_SHORT, &(int32_t){0});
@@ -88,14 +88,14 @@ static void UI_SetFramePoint(uiFramePoint_t *point, uiFramePointPos_t target, ui
     point->offset = (int16_t)((y_axis ? -offset : offset) * UI_FRAMEPOINT_SCALE);
 }
 
-static void UI_SetFrameRect(uiFrame_t * frame, float x, float y, float w, float h) {
+static void UI_SetFrameRect(uiFrame_t *frame, float x, float y, float w, float h) {
     UI_SetFramePoint(&frame->points.x[FPP_MIN], FPP_MIN, 0, x, false);
     UI_SetFramePoint(&frame->points.y[FPP_MIN], FPP_MIN, 0, y, true);
     frame->size.width = w;
     frame->size.height = h;
 }
 
-static void UI_WriteProxyFrame(uiFrame_t * frame, handle_t data, uint32_t data_size) {
+static void UI_WriteProxyFrame(uiFrame_t *frame, handle_t data, uint32_t data_size) {
     if (ui_layout_layer == 0xFF) {
         fprintf(stderr, "WoW UI: FT_%d frame written outside a svc_layout layer (missing UI_WriteStart); skipped\n",
                 (int)frame->flags.type);
@@ -136,7 +136,7 @@ static void UI_WriteTextFrame(float x, float y, float w, float h, cstring_t text
 }
 
 /* Write the static world-hover widget; the client resolves its selected creature context each frame. */
-void UI_WriteWowHover(edict_t * ent) {
+void UI_WriteWowHover(edict_t *ent) {
     uiFrame_t frame = { 0 };
     uiLabel_t label = { 0 };
 
@@ -278,7 +278,7 @@ static void UI_WriteQuestPortrait(float x, float y, RESOURCE model) {
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
-typedef struct { edict_t * ent; cstring_t src; string_t dst; size_t size; } wowQuestText_t;
+typedef struct { edict_t *ent; cstring_t src; string_t dst; size_t size; } wowQuestText_t;
 
 /* Expand the player tokens retained from authoritative quest_template text. */
 static void UI_FormatQuestText(wowQuestText_t const *fmt) {
@@ -307,8 +307,8 @@ static void UI_FormatQuestText(wowQuestText_t const *fmt) {
 /* Resolve the queststarter relation back to the creature-template name. */
 static cstring_t UI_QuestGiverName(uint32_t quest_id) {
     FOR_LOOP(i, Wow_QuestGiverCount()) {
-        wowQuestGiver_t const * data = Wow_QuestGiver(i);
-        wowCreature_t const * creature;
+        wowQuestGiver_t const *data = Wow_QuestGiver(i);
+        wowCreature_t const *creature;
         if (data->quest_id != quest_id) continue;
         creature = Wow_CreatureByEntry(data->creature_entry);
         return creature ? creature->name : NULL;
@@ -322,16 +322,16 @@ static cstring_t UI_QuestGiverName(uint32_t quest_id) {
  * svc_layout messages to LAYER_QUESTDIALOG; the second write always cleared the
  * first.  Merged into a single write: quest_open takes priority, then
  * questlog_open, otherwise the layer is cleared. */
-static void UI_WriteQuestDialog(edict_t * ent) {
+static void UI_WriteQuestDialog(edict_t *ent) {
     wowClient_t *wc = (wowClient_t *)ent->client;
 
     UI_WriteStart(LAYER_QUESTDIALOG);
 
     if (wc->quest_open) {
-        wowQuestDetail_t const * detail = Wow_QuestDetail(wc->quest_id);
+        wowQuestDetail_t const *detail = Wow_QuestDetail(wc->quest_id);
         svQuestEntry_t *state = SV_QuestFind(wc->quest_log, wc->quest_count, wc->quest_id);
         uint32_t slot = state ? (uint32_t)(state - wc->quest_log) : 0;
-        edict_t * selected = wc->selected_entity && wc->selected_entity < (uint32_t)globals.num_edicts
+        edict_t *selected = wc->selected_entity && wc->selected_entity < (uint32_t)globals.num_edicts
             ? &wow_edicts[wc->selected_entity] : NULL;
         wowEntityLocal_t *giver = selected ? Wow_EntityLocal(selected) : NULL;
         cstring_t giver_name = NULL;
@@ -399,7 +399,7 @@ static void UI_WriteQuestDialog(edict_t * ent) {
             UI_WriteTextFrame(x + PW(42), line_y, PW(280), PH(22), "No active quests.", MAKE(color32_t, 160, 150, 140, 255), FONT_JUSTIFYCENTER);
         } else FOR_LOOP(i, wc->quest_count) {
             svQuestEntry_t *qs = &wc->quest_log[i];
-            wowQuestDetail_t const * detail = Wow_QuestDetail(qs->quest_id);
+            wowQuestDetail_t const *detail = Wow_QuestDetail(qs->quest_id);
             cstring_t status = qs->status == SV_QUEST_COMPLETE ? " (Complete)" : "";
 
             snprintf(buf, sizeof(buf), "%s%s", detail ? detail->title : "Unknown Quest", status);
@@ -414,7 +414,7 @@ static void UI_WriteQuestDialog(edict_t * ent) {
     UI_WriteEnd();
 }
 
-static void UI_WriteQuestLog(edict_t * ent) {
+static void UI_WriteQuestLog(edict_t *ent) {
     (void)ent; /* merged into UI_WriteQuestDialog */
 }
 
@@ -441,7 +441,7 @@ static void UI_WriteImage(cstring_t path, float x, float y, float w, float h, co
 }
 
 /* Draw the server-owned unread message pool and its selected message panel. */
-void UI_WriteWowMessageQueue(edict_t * ent) {
+void UI_WriteWowMessageQueue(edict_t *ent) {
     wowClient_t *wc = ent ? (wowClient_t *)ent->client : NULL;
     uiMessageQueue_t queue = {0};
     char command[64];
@@ -499,7 +499,7 @@ static void UI_WriteColorRect(float x, float y, float w, float h, color32_t colo
 }
 
 /* Author the initial loading screen; only the progress value remains client-owned. */
-void UI_WriteLoadingLayout(edict_t * ent) {
+void UI_WriteLoadingLayout(edict_t *ent) {
     uiFrame_t frame = { 0 };
     uiTextureUV_t uv = { .l = 0, .r = 1, .t = 0, .b = 1, .color = COLOR32_WHITE, .alphamode = BLEND_MODE_ALPHAKEY };
 
@@ -597,8 +597,8 @@ static void UI_WriteActionButtonSlot(float x, float y, uint32_t image_index, uin
 }
 
 /* Targeting frame: the WoW character frame backdrop + health/mana bars + name/level text */
-static void UI_WriteTargetingFrame(edict_t * ent) {
-    player_t * ps = &ent->client->ps;
+static void UI_WriteTargetingFrame(edict_t *ent) {
+    player_t *ps = &ent->client->ps;
     char name_buf[64], level_buf[32], health_buf[32], power_buf[32];
     float health = ps->stats[WOW_STAT_HEALTH_MAX] ? (float)ps->stats[WOW_STAT_HEALTH] / ps->stats[WOW_STAT_HEALTH_MAX] : 0;
     float power = ps->stats[WOW_STAT_POWER_MAX] ? (float)ps->stats[WOW_STAT_POWER] / ps->stats[WOW_STAT_POWER_MAX] : 0;
@@ -652,7 +652,7 @@ static void UI_WriteTargetingFrame(edict_t * ent) {
  * Items are stored in client->loot_snap[] so the window is fully server-authored
  * and requires no direct entity access in the layout pass.
  * -------------------------------------------------------------------------*/
-static void UI_WriteLootWindow(edict_t * ent) {
+static void UI_WriteLootWindow(edict_t *ent) {
     wowClient_t *wc = (wowClient_t *)ent->client;
     char buf[96];
     uint32_t visible = 0;
@@ -728,7 +728,7 @@ static void UI_WriteLootWindow(edict_t * ent) {
  * Backpack window — 4×4 grid showing all WOW_UI_INVENTORY_SLOTS item slots.
  * Positioned in the upper-right, above the bag slot row.
  * -------------------------------------------------------------------------*/
-static void UI_WriteBackpackWindow(edict_t * ent) {
+static void UI_WriteBackpackWindow(edict_t *ent) {
     wowClient_t *wc = (wowClient_t *)ent->client;
     float x, y, w, h;
 
@@ -760,7 +760,7 @@ static void UI_WriteBackpackWindow(edict_t * ent) {
 }
 
 /* Show the welcome tutorial without taking control away from the player. */
-void UI_WriteWelcomeWindow(edict_t * ent) {
+void UI_WriteWelcomeWindow(edict_t *ent) {
     uiFrame_t frame = {0};
     uiBackdrop_t backdrop = {0};
 
@@ -779,8 +779,8 @@ void UI_WriteWelcomeWindow(edict_t * ent) {
 }
 
 /* Build and unicast the WoW HUD layer for a player */
-void UI_WriteWowHud(edict_t * ent) {
-    player_t * ps;
+void UI_WriteWowHud(edict_t *ent) {
+    player_t *ps;
     wowClient_t *wc;
     char copper_buf[64];
 

@@ -34,7 +34,7 @@ static void entity_pathtex_transform(pathTexTransformParams_t const *params, pat
         transform->turn = 0, transform->width = pt->width, transform->height = pt->height;
 }
 
-static inline handle_t G_WorldReadFile(cstring_t filename, uint32_t * size) { return gi.ReadFile(filename, size); }
+static inline handle_t G_WorldReadFile(cstring_t filename, uint32_t *size) { return gi.ReadFile(filename, size); }
 static inline handle_t G_WorldMemAlloc(long size) { return gi.MemAlloc(size); }
 static inline void G_WorldMemFree(handle_t mem) { gi.MemFree(mem); }
 static inline void G_WorldSetPriorityArchive(handle_t archive) { gi.SetPriorityArchive(archive); }
@@ -62,8 +62,8 @@ static inline BOMStatus G_WorldTextRemoveBom(string_t buffer) {
 
 /* WC3 Way Gate entry selection uses the shared router's static grid, but this
  * rectangle-specific policy belongs to the game that consumes it. */
-bool G_ClosestStaticPathablePointInRectForRadiusFlags(vector2_t const * location, box2_t const * bounds,
-                                                      float radius, uint8_t blocked_flags, vector2_t * out) {
+bool G_ClosestStaticPathablePointInRectForRadiusFlags(vector2_t const *location, box2_t const *bounds,
+                                                      float radius, uint8_t blocked_flags, vector2_t *out) {
     box2_t rect;
     vector2_t nmin, nmax;
     float best_distance = FLT_MAX;

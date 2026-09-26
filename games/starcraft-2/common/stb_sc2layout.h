@@ -341,8 +341,8 @@ static void SC2_Strncpyz(char *dst, cstring_t src, size_t dst_size) {
 }
 
 static cstring_t SC2_XmlGetProp(void *node, cstring_t name) {
-    xmlChar *val = xmlGetProp((xmlNode *)node, (const xmlChar *)name);
-    return (const char *)val;
+    xmlChar *val = xmlGetProp((xmlNode *)node, (xmlChar const *)name);
+    return (char const *)val;
 }
 
 static void SC2_XmlFree(cstring_t s) {
@@ -539,7 +539,7 @@ static void SC2_ResolveTemplate(sc2Frame_t *frame, sc2Frame_t *tmpl) {
     };
     FOR_LOOP(i, sizeof(copy_props) / sizeof(*copy_props)) {
         if (!(frame->flags & copy_props[i].present) && (tmpl->flags & copy_props[i].present)) {
-            memcpy((char *)frame + copy_props[i].offset, (const char *)tmpl + copy_props[i].offset, copy_props[i].size);
+            memcpy((char *)frame + copy_props[i].offset, (char const *)tmpl + copy_props[i].offset, copy_props[i].size);
             frame->flags |= copy_props[i].present;
         }
     }
@@ -575,7 +575,7 @@ static void SC2_ResolveTemplate(sc2Frame_t *frame, sc2Frame_t *tmpl) {
     };
     FOR_LOOP(i, sizeof(fields) / sizeof(*fields)) {
         if ((frame->model_flags & (1u << i)) || !(tmpl->model_flags & (1u << i))) continue;
-        memcpy((char *)&frame->model + fields[i].offset, (const char *)&tmpl->model + fields[i].offset, fields[i].size);
+        memcpy((char *)&frame->model + fields[i].offset, (char const *)&tmpl->model + fields[i].offset, fields[i].size);
         frame->model_flags |= 1u << i;
     }
 
@@ -647,7 +647,7 @@ static void SC2_ParseInclude(void *node) {
 static void SC2_ResolveIncludes(void *node) {
     for (xmlNode *cur = (xmlNode *)node; cur; cur = cur->next) {
         if (cur->type != XML_ELEMENT_NODE) continue;
-        if (!strcasecmp((const char *)cur->name, "Include"))
+        if (!strcasecmp((char const *)cur->name, "Include"))
             SC2_ParseInclude(cur);
     }
 }
@@ -1004,7 +1004,7 @@ static const sc2ChildTag_t sc2_child_tags[] = {
 static void SC2_ParseFrameChildren(void *node, sc2Frame_t *frame) {
     for (xmlNode *cur = ((xmlNode *)node)->children; cur; cur = cur->next) {
         if (cur->type != XML_ELEMENT_NODE) continue;
-        cstring_t tag = (const char *)cur->name;
+        cstring_t tag = (char const *)cur->name;
 
         if (SC2_ParseFrameField(cur, frame)) continue;
         for (sc2ChildTag_t const *ct = sc2_child_tags; ct->name; ct++) {
@@ -1028,14 +1028,14 @@ static void SC2_ParseDescNode(void *node) {
 
     for (xmlNode *cur = (xmlNode *)node; cur; cur = cur->next) {
         if (cur->type != XML_ELEMENT_NODE) continue;
-        if (!strcasecmp((const char *)cur->name, "Constant"))
+        if (!strcasecmp((char const *)cur->name, "Constant"))
             SC2_ParseConstant(cur);
     }
 
     int templates_before = sc2_layout.num_templates;
     for (xmlNode *cur = (xmlNode *)node; cur; cur = cur->next) {
         if (cur->type != XML_ELEMENT_NODE) continue;
-        if (!strcasecmp((const char *)cur->name, "Frame"))
+        if (!strcasecmp((char const *)cur->name, "Frame"))
             SC2_ParseTopLevelFrame(cur);
     }
 
@@ -1286,7 +1286,7 @@ bool SC2_LayoutParseFile(cstring_t filename) {
     }
 
     xmlNode *root = xmlDocGetRootElement(doc);
-    if (!root || strcasecmp((const char *)root->name, "Desc")) {
+    if (!root || strcasecmp((char const *)root->name, "Desc")) {
         fprintf(stderr, "SC2_Layout: root element is not <Desc> in '%s'\n", filename);
         xmlFreeDoc(doc);
         return false;

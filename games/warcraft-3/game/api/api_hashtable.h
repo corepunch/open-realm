@@ -56,7 +56,7 @@ static uint32_t hashtable_sstrhash2(cstring_t text) {
 }
 
 static bool hashtable_is_edict(handle_t h, uint32_t *out_id) {
-    edict_t * ent = h;
+    edict_t *ent = h;
     uintptr_t ptr, base;
     if (!h || !g_edicts || globals.num_edicts == 0) return false;
     ptr = (uintptr_t)ent;
@@ -88,7 +88,7 @@ static uint32_t hashtable_handle_id(handle_t h) {
     return HASHTABLE_HANDLE_ID_BASE + 0x1000u + (uint32_t)((p >> 3) ^ (p >> 32));
 }
 
-static hashtableEntry_t *hashtable_find(hashtable_t * table, int32_t parent, int32_t child, hashtableSlotType_t type) {
+static hashtableEntry_t *hashtable_find(hashtable_t *table, int32_t parent, int32_t child, hashtableSlotType_t type) {
     uint32_t i;
     if (!table || !table->inuse) return NULL;
     for (i = 0; i < table->num_entries; i++) {
@@ -98,7 +98,7 @@ static hashtableEntry_t *hashtable_find(hashtable_t * table, int32_t parent, int
     return NULL;
 }
 
-static hashtableEntry_t *hashtable_ensure(hashtable_t * table, int32_t parent, int32_t child, hashtableSlotType_t type) {
+static hashtableEntry_t *hashtable_ensure(hashtable_t *table, int32_t parent, int32_t child, hashtableSlotType_t type) {
     hashtableEntry_t *e = hashtable_find(table, parent, child, type);
     if (e) return e;
     if (!table || !G_HashtableReserve(table, table->num_entries + 1)) return NULL;
@@ -110,13 +110,13 @@ static hashtableEntry_t *hashtable_ensure(hashtable_t * table, int32_t parent, i
     return e;
 }
 
-static void hashtable_remove_at(hashtable_t * table, uint32_t index) {
+static void hashtable_remove_at(hashtable_t *table, uint32_t index) {
     if (!table || index >= table->num_entries) return;
     table->entries[index] = table->entries[table->num_entries - 1];
     table->num_entries--;
 }
 
-static void hashtable_remove(hashtable_t * table, int32_t parent, int32_t child, hashtableSlotType_t type) {
+static void hashtable_remove(hashtable_t *table, int32_t parent, int32_t child, hashtableSlotType_t type) {
     uint32_t i;
     if (!table) return;
     for (i = 0; i < table->num_entries; i++) {
@@ -132,7 +132,7 @@ static handle_t hashtable_live_handle(handle_t h) {
     uint32_t id;
     if (!h) return NULL;
     if (hashtable_is_edict(h, &id)) {
-        edict_t * ent = (edict_t *)h;
+        edict_t *ent = (edict_t *)h;
         if (!ent->inuse || G_IsDeferredFree(ent)) return NULL;
         return h;
     }
@@ -141,43 +141,43 @@ static handle_t hashtable_live_handle(handle_t h) {
     return h;
 }
 
-uint32_t InitHashtable(jass_t * j) {
-    hashtable_t * hashtable = G_AllocHashtable();
+uint32_t InitHashtable(jass_t *j) {
+    hashtable_t *hashtable = G_AllocHashtable();
     if (!hashtable) return jass_pushnullhandle(j, "hashtable");
     return jass_pushlighthandle(j, hashtable, "hashtable");
 }
 
-uint32_t GetHandleId(jass_t * j) {
+uint32_t GetHandleId(jass_t *j) {
     return jass_pushinteger(j, (int32_t)hashtable_handle_id(jass_checkhandle(j, 1, "handle")));
 }
 
-uint32_t StringHash(jass_t * j) {
+uint32_t StringHash(jass_t *j) {
     return jass_pushinteger(j, (int32_t)hashtable_sstrhash2(jass_checkstring(j, 1)));
 }
 
-uint32_t SaveInteger(jass_t * j) {
-    hashtable_t * table = jass_checkhandle(j, 1, "hashtable");
+uint32_t SaveInteger(jass_t *j) {
+    hashtable_t *table = jass_checkhandle(j, 1, "hashtable");
     hashtableEntry_t *e = hashtable_ensure(table, jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_INTEGER);
     if (e) e->value.integer = jass_checkinteger(j, 4);
     return 0;
 }
 
-uint32_t SaveReal(jass_t * j) {
-    hashtable_t * table = jass_checkhandle(j, 1, "hashtable");
+uint32_t SaveReal(jass_t *j) {
+    hashtable_t *table = jass_checkhandle(j, 1, "hashtable");
     hashtableEntry_t *e = hashtable_ensure(table, jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_REAL);
     if (e) e->value.real = jass_checknumber(j, 4);
     return 0;
 }
 
-uint32_t SaveBoolean(jass_t * j) {
-    hashtable_t * table = jass_checkhandle(j, 1, "hashtable");
+uint32_t SaveBoolean(jass_t *j) {
+    hashtable_t *table = jass_checkhandle(j, 1, "hashtable");
     hashtableEntry_t *e = hashtable_ensure(table, jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_BOOLEAN);
     if (e) e->value.boolean = jass_checkboolean(j, 4);
     return 0;
 }
 
-uint32_t SaveStr(jass_t * j) {
-    hashtable_t * table = jass_checkhandle(j, 1, "hashtable");
+uint32_t SaveStr(jass_t *j) {
+    hashtable_t *table = jass_checkhandle(j, 1, "hashtable");
     cstring_t text = jass_checkstring(j, 4);
     hashtableEntry_t *e;
     if (!table || !text) return jass_pushboolean(j, false);
@@ -187,7 +187,7 @@ uint32_t SaveStr(jass_t * j) {
     return jass_pushboolean(j, true);
 }
 
-static bool hashtable_save_handle(hashtable_t * table, int32_t parent, int32_t child, handle_t value, cstring_t type) {
+static bool hashtable_save_handle(hashtable_t *table, int32_t parent, int32_t child, handle_t value, cstring_t type) {
     hashtableEntry_t *e;
     if (!table || !value || !type) return false;
     e = hashtable_ensure(table, parent, child, HT_HANDLE);
@@ -197,74 +197,74 @@ static bool hashtable_save_handle(hashtable_t * table, int32_t parent, int32_t c
     return true;
 }
 
-uint32_t LoadInteger(jass_t * j) {
+uint32_t LoadInteger(jass_t *j) {
     hashtableEntry_t *e = hashtable_find(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_INTEGER);
     return jass_pushinteger(j, e ? e->value.integer : 0);
 }
 
-uint32_t LoadReal(jass_t * j) {
+uint32_t LoadReal(jass_t *j) {
     hashtableEntry_t *e = hashtable_find(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_REAL);
     return jass_pushnumber(j, e ? e->value.real : 0.0f);
 }
 
-uint32_t LoadBoolean(jass_t * j) {
+uint32_t LoadBoolean(jass_t *j) {
     hashtableEntry_t *e = hashtable_find(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_BOOLEAN);
     return jass_pushboolean(j, e ? e->value.boolean : false);
 }
 
-uint32_t LoadStr(jass_t * j) {
+uint32_t LoadStr(jass_t *j) {
     hashtableEntry_t *e = hashtable_find(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_STRING);
     return jass_pushstring(j, e ? e->value.string : "");
 }
 
-uint32_t HaveSavedInteger(jass_t * j) {
+uint32_t HaveSavedInteger(jass_t *j) {
     return jass_pushboolean(j, !!hashtable_find(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_INTEGER));
 }
-uint32_t HaveSavedReal(jass_t * j) {
+uint32_t HaveSavedReal(jass_t *j) {
     return jass_pushboolean(j, !!hashtable_find(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_REAL));
 }
-uint32_t HaveSavedBoolean(jass_t * j) {
+uint32_t HaveSavedBoolean(jass_t *j) {
     return jass_pushboolean(j, !!hashtable_find(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_BOOLEAN));
 }
-uint32_t HaveSavedString(jass_t * j) {
+uint32_t HaveSavedString(jass_t *j) {
     return jass_pushboolean(j, !!hashtable_find(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_STRING));
 }
-uint32_t HaveSavedHandle(jass_t * j) {
+uint32_t HaveSavedHandle(jass_t *j) {
     return jass_pushboolean(j, !!hashtable_find(jass_checkhandle(j, 1, "hashtable"),
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_HANDLE));
 }
 
-uint32_t RemoveSavedInteger(jass_t * j) {
+uint32_t RemoveSavedInteger(jass_t *j) {
     hashtable_remove(jass_checkhandle(j, 1, "hashtable"), jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_INTEGER);
     return 0;
 }
-uint32_t RemoveSavedReal(jass_t * j) {
+uint32_t RemoveSavedReal(jass_t *j) {
     hashtable_remove(jass_checkhandle(j, 1, "hashtable"), jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_REAL);
     return 0;
 }
-uint32_t RemoveSavedBoolean(jass_t * j) {
+uint32_t RemoveSavedBoolean(jass_t *j) {
     hashtable_remove(jass_checkhandle(j, 1, "hashtable"), jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_BOOLEAN);
     return 0;
 }
-uint32_t RemoveSavedString(jass_t * j) {
+uint32_t RemoveSavedString(jass_t *j) {
     hashtable_remove(jass_checkhandle(j, 1, "hashtable"), jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_STRING);
     return 0;
 }
-uint32_t RemoveSavedHandle(jass_t * j) {
+uint32_t RemoveSavedHandle(jass_t *j) {
     hashtable_remove(jass_checkhandle(j, 1, "hashtable"), jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_HANDLE);
     return 0;
 }
 
-uint32_t FlushParentHashtable(jass_t * j) {
-    hashtable_t * table = jass_checkhandle(j, 1, "hashtable");
+uint32_t FlushParentHashtable(jass_t *j) {
+    hashtable_t *table = jass_checkhandle(j, 1, "hashtable");
     if (table && table->inuse) {
         if (table->entries) gi.MemFree(table->entries);
         table->entries = NULL;
@@ -273,8 +273,8 @@ uint32_t FlushParentHashtable(jass_t * j) {
     return 0;
 }
 
-uint32_t FlushChildHashtable(jass_t * j) {
-    hashtable_t * table = jass_checkhandle(j, 1, "hashtable");
+uint32_t FlushChildHashtable(jass_t *j) {
+    hashtable_t *table = jass_checkhandle(j, 1, "hashtable");
     int32_t parent = jass_checkinteger(j, 2);
     uint32_t i;
     if (!table) return 0;
@@ -286,12 +286,12 @@ uint32_t FlushChildHashtable(jass_t * j) {
 }
 
 #define HT_SAVE_HANDLE(Name, Type) \
-uint32_t Save##Name##Handle(jass_t * j) { \
+uint32_t Save##Name##Handle(jass_t *j) { \
     return jass_pushboolean(j, hashtable_save_handle(jass_checkhandle(j, 1, "hashtable"), \
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), jass_checkhandle(j, 4, Type), Type)); \
 }
 #define HT_LOAD_HANDLE(Name, Type) \
-uint32_t Load##Name##Handle(jass_t * j) { \
+uint32_t Load##Name##Handle(jass_t *j) { \
     hashtableEntry_t *e = hashtable_find(jass_checkhandle(j, 1, "hashtable"), \
         jass_checkinteger(j, 2), jass_checkinteger(j, 3), HT_HANDLE); \
     handle_t value = e ? hashtable_live_handle(e->value.handle) : NULL; \

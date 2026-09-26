@@ -1,7 +1,7 @@
 #include "g_local.h"
 
 typedef struct {
-    edict_t * ent;
+    edict_t *ent;
     uint32_t spawn_time;
 } deferred_free_t;
 
@@ -9,7 +9,7 @@ static deferred_free_t deferred_frees[MAX_ENTITIES];
 static uint32_t deferred_free_count;
 
 /* Drop a queued removal when another lifecycle path frees the same edict first. */
-static void G_CancelDeferredFree(edict_t * ent) {
+static void G_CancelDeferredFree(edict_t *ent) {
     FOR_LOOP(i, deferred_free_count) {
         if (deferred_frees[i].ent != ent) continue;
         deferred_frees[i] = deferred_frees[--deferred_free_count];
@@ -18,7 +18,7 @@ static void G_CancelDeferredFree(edict_t * ent) {
 }
 
 /* Identify hidden-but-live edicts whose JASS handles must already behave as null. */
-bool G_IsDeferredFree(edict_t const * ent) {
+bool G_IsDeferredFree(edict_t const *ent) {
     if (!ent) return false;
     FOR_LOOP(i, deferred_free_count)
         if (deferred_frees[i].ent == ent && deferred_frees[i].spawn_time == ent->spawn_time) return true;
@@ -26,7 +26,7 @@ bool G_IsDeferredFree(edict_t const * ent) {
 }
 
 /* Remove an entity from every live JASS group before its handle becomes stale. */
-static void G_RemoveEntityFromJassGroups(edict_t * ent) {
+static void G_RemoveEntityFromJassGroups(edict_t *ent) {
     FOR_LOOP(i, level.num_groups) {
         ggroup_t *group = level.groups[i];
         if (!group->inuse) continue;
@@ -38,7 +38,7 @@ static void G_RemoveEntityFromJassGroups(edict_t * ent) {
     }
 }
 
-void G_SetPlayerText(gameClient_t * client, PLAYERTEXT index, cstring_t text) {
+void G_SetPlayerText(gameClient_t *client, PLAYERTEXT index, cstring_t text) {
     uint32_t cursor;
 
     if (!client || index >= PLAYERTEXT_COUNT) {
@@ -52,7 +52,7 @@ void G_SetPlayerText(gameClient_t * client, PLAYERTEXT index, cstring_t text) {
     client->ps.texts[index] = client->playerTextStorage[index][cursor];
 }
 
-void G_FreeEdict(edict_t * ent) {
+void G_FreeEdict(edict_t *ent) {
     if (!ent) return;
     G_ClearUnitResponses(ent);
     G_CancelDeferredFree(ent);
@@ -97,7 +97,7 @@ void G_FreeEdict(edict_t * ent) {
 }
 
 /* Match Warsmash RemoveUnit: hide now, then retire the handle after this simulation tick. */
-void G_DeferFreeEdict(edict_t * ent) {
+void G_DeferFreeEdict(edict_t *ent) {
     if (!ent || !ent->inuse) return;
     FOR_LOOP(i, deferred_free_count)
         if (deferred_frees[i].ent == ent && deferred_frees[i].spawn_time == ent->spawn_time) return;
@@ -131,9 +131,9 @@ void G_RunDeferredFrees(void) {
 
 void G_ResetDeferredFrees(void) { deferred_free_count = 0; }
 
-event_t * G_MakeEvent(EVENTTYPE type) {
+event_t *G_MakeEvent(EVENTTYPE type) {
     FOR_LOOP(i, MAX_EVENTS) if (!level.events.handlers[i].inuse && !level.events.handlers[i].generation_exhausted) {
-        event_t * evt = &level.events.handlers[i];
+        event_t *evt = &level.events.handlers[i];
         uintptr_t generation = evt->handle_generation;
         memset(evt, 0, sizeof(*evt)); evt->handle_generation = generation;
         evt->inuse = true; evt->type = type; return evt;
@@ -142,19 +142,19 @@ event_t * G_MakeEvent(EVENTTYPE type) {
     return NULL;
 }
 
-void G_SetEventSubject(event_t * evt, edict_t * subject) {
+void G_SetEventSubject(event_t *evt, edict_t *subject) {
     evt->subject = subject;
     evt->subject_spawn_time = subject ? subject->spawn_time : 0;
     evt->subject_spawn_tracked = subject != NULL;
 }
 
-void G_SetPlayerEventSubject(event_t * evt, edict_t * subject) {
+void G_SetPlayerEventSubject(event_t *evt, edict_t *subject) {
     evt->subject = subject;
     evt->subject_spawn_time = 0;
     evt->subject_spawn_tracked = false;
 }
 
-bool G_EventSubjectIsCurrent(event_t * evt) {
+bool G_EventSubjectIsCurrent(event_t *evt) {
     return !evt->subject || !evt->subject_spawn_tracked ||
         (evt->subject->inuse && evt->subject->spawn_time == evt->subject_spawn_time &&
          (G_IsDeathEvent(evt->type) || !G_IsDeferredFree(evt->subject)));
@@ -472,9 +472,9 @@ void G_ClearRegionRegistry(void) {
     level.num_regions = 0;
 }
 
-region_t * G_RegionFromHandle(handle_t handle) {
+region_t *G_RegionFromHandle(handle_t handle) {
     uint32_t slot, generation;
-    region_t * region;
+    region_t *region;
     if (!G_RegionHandleParts(handle, &slot, &generation) || slot >= level.num_regions) return NULL;
     region = &level.regions[slot];
     return region->inuse && region->generation == generation ? region : NULL;
@@ -491,18 +491,18 @@ bool G_RegionHandleParts(handle_t handle, uint32_t *slot, uint32_t *generation) 
 }
 
 handle_t G_RegionHandle(uint32_t slot) {
-    region_t * region;
+    region_t *region;
     if (slot >= level.num_regions || slot >= MAX_REGIONS) return NULL;
     region = &level.regions[slot];
     if (!region->inuse) return NULL;
     return (handle_t)((region->generation << REGION_TOKEN_SLOT_BITS) | ((uintptr_t)slot << 2) | 1);
 }
 
-event_t * G_EventFromHandle(handle_t handle) {
+event_t *G_EventFromHandle(handle_t handle) {
     uintptr_t token = (uintptr_t)handle, base = (uintptr_t)level.events.handlers;
     if ((token & 3) == 3) {
         uint32_t slot, generation;
-        event_t * event;
+        event_t *event;
         if (!G_EventHandleParts(handle, &slot, &generation)) return NULL;
         event = &level.events.handlers[slot];
         return event->inuse && (event->type == EVENT_GAME_ENTER_REGION || event->type == EVENT_GAME_LEAVE_REGION) &&
@@ -511,7 +511,7 @@ event_t * G_EventFromHandle(handle_t handle) {
     if (token < base || token >= base + sizeof(level.events.handlers) ||
         (token - base) % sizeof(*level.events.handlers)) return NULL;
     {
-        event_t * event = handle;
+        event_t *event = handle;
         return event->inuse ? event : NULL;
     }
 }
@@ -526,7 +526,7 @@ bool G_EventHandleParts(handle_t handle, uint32_t *slot, uint32_t *generation) {
     return true;
 }
 
-handle_t G_EventHandle(event_t * event) {
+handle_t G_EventHandle(event_t *event) {
     uint32_t slot;
     if (!event) return NULL;
     if (event->type != EVENT_GAME_ENTER_REGION && event->type != EVENT_GAME_LEAVE_REGION) return event;
@@ -534,13 +534,13 @@ handle_t G_EventHandle(event_t * event) {
     return (handle_t)((event->handle_generation << EVENT_TOKEN_SLOT_BITS) | ((uintptr_t)slot << 2) | 3);
 }
 
-trigger_t * G_AllocJassTrigger(void) {
+trigger_t *G_AllocJassTrigger(void) {
     if (level.num_triggers >= MAX_TRIGGERS) return NULL;
-    trigger_t * trigger = &level.triggers[level.num_triggers++];
+    trigger_t *trigger = &level.triggers[level.num_triggers++];
     memset(trigger, 0, sizeof(*trigger)); return trigger;
 }
 
-bool G_RegionContains(region_t const * region, vector2_t const * point) {
+bool G_RegionContains(region_t const *region, vector2_t const *point) {
     FOR_LOOP(i, region->num_rects) {
         if (Box2_containsPoint(region->rects+i, point)) {
             return true;
@@ -549,9 +549,9 @@ bool G_RegionContains(region_t const * region, vector2_t const * point) {
     return false;
 }
 
-quest_t * G_MakeQuest(void) {
+quest_t *G_MakeQuest(void) {
     FOR_LOOP(i, MAX_QUESTS) if (!level.quests[i].inuse) {
-    quest_t * quest = &level.quests[i];
+    quest_t *quest = &level.quests[i];
     memset(quest, 0, sizeof(*quest));
     /* CreateQuestBJ does not call QuestSetEnabled; Warcraft quests are usable
      * immediately unless a map explicitly disables them. */
@@ -562,12 +562,12 @@ quest_t * G_MakeQuest(void) {
     return NULL;
 }
 
-static void DeleteQuestItem(questItem_t * questitem) {
+static void DeleteQuestItem(questItem_t *questitem) {
     free(questitem->description);
     memset(questitem, 0, sizeof(*questitem));
 }
 
-static void DeleteQuest(quest_t * quest) {
+static void DeleteQuest(quest_t *quest) {
     FOR_LOOP(i, MAX_QUESTITEMS) if (quest->items[i].inuse) DeleteQuestItem(&quest->items[i]);
     free(quest->description);
     free(quest->title);
@@ -575,11 +575,11 @@ static void DeleteQuest(quest_t * quest) {
     memset(quest, 0, sizeof(*quest));
 }
 
-void G_RemoveQuest(quest_t * quest) {
+void G_RemoveQuest(quest_t *quest) {
     if (quest && quest->inuse) DeleteQuest(quest);
 }
 
-void G_InitPlayerAlliances(mapInfo_t const * mapinfo) {
+void G_InitPlayerAlliances(mapInfo_t const *mapinfo) {
     uint32_t const passive = 1u << ALLIANCE_PASSIVE;
 
     memset(level.alliances, 0, sizeof(level.alliances));
@@ -607,7 +607,7 @@ void G_InitPlayerAlliances(mapInfo_t const * mapinfo) {
     }
 }
 
-void G_SetPlayerAlliance(player_t const * p1, player_t const * p2, PLAYERALLIANCE type, bool value) {
+void G_SetPlayerAlliance(player_t const *p1, player_t const *p2, PLAYERALLIANCE type, bool value) {
     uint32_t const flag = 1u << type;
     uint32_t const before = level.alliances[p1->number][p2->number];
 
@@ -623,7 +623,7 @@ void G_SetPlayerAlliance(player_t const * p1, player_t const * p2, PLAYERALLIANC
     }
 }
 
-bool G_GetPlayerAlliance(player_t const * p1, player_t const * p2, PLAYERALLIANCE type) {
+bool G_GetPlayerAlliance(player_t const *p1, player_t const *p2, PLAYERALLIANCE type) {
     return level.alliances[p1->number][p2->number] & (1 << type);
 }
 

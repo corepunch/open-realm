@@ -13,7 +13,7 @@
 //} mdxVertexAttribute_t;
 
 
-static void Matrix4_fromViewAngles(vector3_t const * target, vector3_t const * angles, float distance, matrix4_t * output) {
+static void Matrix4_fromViewAngles(vector3_t const *target, vector3_t const *angles, float distance, matrix4_t *output) {
     vector3_t const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
     Matrix4_translate(output, &(vector3_t){0, 0, -distance});
@@ -21,7 +21,7 @@ static void Matrix4_fromViewAngles(vector3_t const * target, vector3_t const * a
     Matrix4_translate(output, &vieworg);
 }
 
-static void Matrix4_getLightMatrix(vector3_t const * sunangles, vector3_t const * target, float scale, matrix4_t * output) {
+static void Matrix4_getLightMatrix(vector3_t const *sunangles, vector3_t const *target, float scale, matrix4_t *output) {
     matrix4_t proj, view;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, 100.0, 3500.0);
     Matrix4_fromViewAngles(target, sunangles, 1000, &view);
@@ -29,7 +29,7 @@ static void Matrix4_getLightMatrix(vector3_t const * sunangles, vector3_t const 
 }
 
 static bool
-R_GetModelCameraMatrix(mdxModel_t const *model, uint32_t frame, float aspect, matrix4_t * output, vector3_t * root)
+R_GetModelCameraMatrix(mdxModel_t const *model, uint32_t frame, float aspect, matrix4_t *output, vector3_t *root)
 {
     if (!model || !model->cameras) {
         return false;
@@ -87,7 +87,7 @@ R_GetModelCameraMatrix(mdxModel_t const *model, uint32_t frame, float aspect, ma
     return true;
 }
 
-static bool R_UIAnimationRatio(cstring_t anim, float * ratio) {
+static bool R_UIAnimationRatio(cstring_t anim, float *ratio) {
     cstring_t marker;
     char *end = NULL;
     float value;
@@ -183,7 +183,7 @@ static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, cstring_t 
     return seq;
 }
 
-bool MDLX_ExtractCamera(mdxModel_t const *model, uint32_t frame, float aspect, matrix4_t * output, matrix4_t * light) {
+bool MDLX_ExtractCamera(mdxModel_t const *model, uint32_t frame, float aspect, matrix4_t *output, matrix4_t *light) {
     vector3_t root;
     vector3_t lightAngles = { 10, 270, 0 };
     bool ok = R_GetModelCameraMatrix(model, frame, aspect, output, &root);
@@ -193,7 +193,7 @@ bool MDLX_ExtractCamera(mdxModel_t const *model, uint32_t frame, float aspect, m
     return ok;
 }
 
-bool MDLX_SetEntityAnimationFrame(model_t const * model, cstring_t anim, renderEntity_t *entity) {
+bool MDLX_SetEntityAnimationFrame(model_t const *model, cstring_t anim, renderEntity_t *entity) {
     if (!model || !model->mdx || !entity) {
         return false;
     }
@@ -263,7 +263,7 @@ void MDLX_ReleaseSprites(mdxModel_t *model) {
 }
 
 void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, color32_t tint) {
-    model_t const * model = sprite->model;
+    model_t const *model = sprite->model;
     cstring_t anim = sprite->anim;
     float x = sprite->x, y = sprite->y;
     renderEntity_t entity;
@@ -324,11 +324,11 @@ void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, color32_t tint) {
     tr.viewDef = saved_viewdef;
 }
 
-void MDLX_DrawSpriteTinted(model_t const * model, cstring_t anim, float x, float y, color32_t tint) {
+void MDLX_DrawSpriteTinted(model_t const *model, cstring_t anim, float x, float y, color32_t tint) {
     MDLX_DrawSpriteInstance(&MAKE(drawSprite_t, .model = model, .anim = anim, .x = x, .y = y, .id = model), tint);
 }
 
-void MDLX_DrawSprite(model_t const * model, cstring_t anim, float x, float y) {
+void MDLX_DrawSprite(model_t const *model, cstring_t anim, float x, float y) {
     MDLX_DrawSpriteTinted(model, anim, x, y, COLOR32_WHITE);
 }
 

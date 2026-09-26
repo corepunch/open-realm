@@ -6,13 +6,13 @@ static cstring_t campaign_buff(abilityitem_t const *spell, uint32_t level) {
     return buff && strlen(buff) >= 4 ? buff : NULL;
 }
 
-static void campaign_status_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static void campaign_status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = campaign_buff(spell, level);
     if (st.entity && buff) unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
 }
 
-static void campaign_area_damage_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static void campaign_area_damage_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     uint32_t damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
@@ -20,14 +20,14 @@ static void campaign_area_damage_execute(edict_t * caster, spellTarget_t st, abi
         S_SpellDamage(target, caster, damage);
 }
 
-static void campaign_summon_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static void campaign_summon_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code), count = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
     uint32_t unit = S_SpellUnitId(spell->code, level); float duration = S_SpellDuration(spell->code, level, false);
     if (st.type == SPELL_TARGET_POINT) { FOR_LOOP(i, count) S_SummonAt(caster, unit, &st.point, duration); }
     else S_SummonUnits(caster, unit, count, duration);
 }
 
-static void campaign_toggle_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static void campaign_toggle_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *status = caster->abilstatus + i;
         if (status->level && status->code == spell->code) { memset(status, 0, sizeof(*status)); return; }
@@ -45,7 +45,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityAvatarCampaign) {
  * campaign JASS observes that summon and owns its final replacement/order. */
 BZ_SIMPLE_SPELL_PROC(AbilityDarkConversion) {
     uint32_t level = S_SpellLevel(caster, spell->code), unit = S_SpellUnitId(spell->code, level);
-    edict_t * summon;
+    edict_t *summon;
     cstring_t buff;
 
     if (!caster || !st.entity || !unit) return;
@@ -93,7 +93,7 @@ static cstring_t ensnare_buff_token(cstring_t list, uint32_t index) {
     }
 }
 
-static bool ensnare_is_flyer(edict_t const * unit) {
+static bool ensnare_is_flyer(edict_t const *unit) {
     cstring_t movetp;
     if (!unit) return false;
     if (unit->aiflags & AI_FLYING) return true;
@@ -101,7 +101,7 @@ static bool ensnare_is_flyer(edict_t const * unit) {
     return movetp && !strcmp(movetp, "fly");
 }
 
-static heroabilitystatus_t *ensnare_status(edict_t * unit) {
+static heroabilitystatus_t *ensnare_status(edict_t *unit) {
     if (!unit) return NULL;
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         heroabilitystatus_t *slot = unit->abilstatus + i;
@@ -112,12 +112,12 @@ static heroabilitystatus_t *ensnare_status(edict_t * unit) {
     return NULL;
 }
 
-static float ensnare_authored_height(edict_t const * unit) {
+static float ensnare_authored_height(edict_t const *unit) {
     return unit && unit->data.UnitData ? unit->data.UnitData->moveHeight : 0.0f;
 }
 
 /* Apply DataA/B land: zero DataA snaps; otherwise start at DataB (else current/authored). */
-static void ensnare_begin_land(edict_t * unit, uint32_t spell_code, uint32_t level) {
+static void ensnare_begin_land(edict_t *unit, uint32_t spell_code, uint32_t level) {
     float adjust, height;
     if (!unit || !ensnare_is_flyer(unit)) {
         if (unit) memset(&unit->ensnare, 0, sizeof(unit->ensnare));
@@ -140,14 +140,14 @@ static void ensnare_begin_land(edict_t * unit, uint32_t spell_code, uint32_t lev
     gi.LinkEntity(unit);
 }
 
-static void ensnare_set_height(edict_t * unit, float height) {
+static void ensnare_set_height(edict_t *unit, float height) {
     unit->unitinfo.FlyHeight = MAX(0.0f, height);
     M_CheckGround(unit);
     gi.LinkEntity(unit);
 }
 
 /* Advance land/rise owned by CAbilityEnsnare (AB_UPDATE). */
-static void ensnare_update(edict_t * unit) {
+static void ensnare_update(edict_t *unit) {
     float frac, target;
     if (!unit || unit->ensnare.phase == ENSNARE_HEIGHT_NONE || unit->ensnare.adjust <= 0.0f) return;
     frac = ((float)G_Time() - (float)unit->ensnare.start) / (unit->ensnare.adjust * 1000.0f);
@@ -175,20 +175,20 @@ bool S_StatusIsEnsnare(uint32_t code) {
         code == MAKEFOURCC('B','w','e','b');
 }
 
-bool S_UnitIsEnsnared(edict_t const * unit) {
+bool S_UnitIsEnsnared(edict_t const *unit) {
     if (unit) FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (S_StatusIsEnsnare(unit->abilstatus[i].code) && S_UnitHasStatus(unit, unit->abilstatus[i].code)) return true;
     return false;
 }
 
 /* DataC Melee Attack Range while the bind is active; 0 when not ensnared. */
-float S_EnsnareMeleeRange(edict_t const * unit) {
+float S_EnsnareMeleeRange(edict_t const *unit) {
     heroabilitystatus_t const *slot = ensnare_status((edict_t *)unit);
     if (!slot || !slot->data) return 0.0f;
     return S_SpellData(slot->data, slot->level, 3);
 }
 
-static bool ensnare_authored_flyer(edict_t const * unit) {
+static bool ensnare_authored_flyer(edict_t const *unit) {
     cstring_t movetp = unit && unit->data.UnitData ? unit->data.UnitData->moveTypeName : NULL;
     return movetp && !strcmp(movetp, "fly");
 }
@@ -196,7 +196,7 @@ static bool ensnare_authored_flyer(edict_t const * unit) {
 /* Restore authored flight after the last bind ends. Dispel/expiry mid-land
  * converts the stored DataA land into a rise; a snapped land restores height
  * immediately. Unrelated flight state is never touched. */
-static void ensnare_restore_flight(edict_t * unit) {
+static void ensnare_restore_flight(edict_t *unit) {
     if (!unit || !ensnare_authored_flyer(unit) || (unit->aiflags & AI_FLYING)) return;
     unit->aiflags |= AI_FLYING;
     unit->targtype = TARG_AIR;
@@ -212,7 +212,7 @@ static void ensnare_restore_flight(edict_t * unit) {
 }
 
 /* A_STATUS_REFRESH: reconcile derived flight state with binds that remain. */
-static void ensnare_refresh(edict_t * unit) {
+static void ensnare_refresh(edict_t *unit) {
     if (!unit) return;
     if (S_UnitIsEnsnared(unit)) {
         if (unit->aiflags & AI_FLYING) {
@@ -226,7 +226,7 @@ static void ensnare_refresh(edict_t * unit) {
 /* A_STATUS_REMOVE: inverse while the expiring slot is still valid. Buff
  * expiry starts a gradual rise when DataA was non-zero; flight restores only
  * when no other Ensnare bind remains on the victim. */
-static void ensnare_remove(edict_t * unit, heroabilitystatus_t const *expiring) {
+static void ensnare_remove(edict_t *unit, heroabilitystatus_t const *expiring) {
     float adjust, target;
     if (!unit || !expiring) return;
     /* Web and Ensnare share one height transition: removing either cannot release the other. */
@@ -248,7 +248,7 @@ static void ensnare_remove(edict_t * unit, heroabilitystatus_t const *expiring) 
     ensnare_restore_flight(unit);
 }
 
-static void ensnare_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static void ensnare_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t list, buff;
     heroabilitystatus_t *slot;
@@ -287,7 +287,7 @@ BZ_ABILITY_PROC(CAbilityEnsnare) {
 BZ_ABILITY_PROC(CAbilityWeb) {
     if (msg == A_AUTOCAST_ON || msg == A_AUTOCAST_SET) return CAbilityModalSpell(ent, msg, call);
     if (msg == A_VALIDATE) {
-        edict_t * target = call && call->target ? call->target->entity : NULL;
+        edict_t *target = call && call->target ? call->target->entity : NULL;
         return target && target != ent && target->targtype == TARG_AIR &&
             S_SpellIsAliveTarget(target) && S_SpellIsEnemy(ent, target);
     }

@@ -12,7 +12,7 @@
 
 #define NUM_BACKDROP_CORNERS 8
 
-static void backdrop_rects(rect_t const * screen, rect_t * rects, float corner_size) {
+static void backdrop_rects(rect_t const *screen, rect_t *rects, float corner_size) {
     float x[] = { 0, corner_size, screen->w - corner_size, screen->w };
     float y[] = { 0, corner_size, screen->h - corner_size, screen->h };
     FOR_LOOP(i, BACKDROP_SIZE) {
@@ -23,7 +23,7 @@ static void backdrop_rects(rect_t const * screen, rect_t * rects, float corner_s
     }
 }
 
-static float backdrop_edge_tile(rect_t const * rect, BACKDROPCORNER edge, float imagesize) {
+static float backdrop_edge_tile(rect_t const *rect, BACKDROPCORNER edge, float imagesize) {
     switch (edge) {
         case BACKDROP_LEFT_EDGE:
         case BACKDROP_RIGHT_EDGE:
@@ -59,7 +59,7 @@ static rect_t backdrop_edge_uv(BACKDROPCORNER c, float tile, int idx, bool wow) 
     return (rect_t){ idx * k, 0, k, tile };
 }
 
-void R_DrawBackdrop(drawBackdrop_t const * db) {
+void R_DrawBackdrop(drawBackdrop_t const *db) {
     rect_t rects[BACKDROP_SIZE];
     rect_t background;
     vertex_t vertices[(1 + NUM_BACKDROP_CORNERS) * 6];

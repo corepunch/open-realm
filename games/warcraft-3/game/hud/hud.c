@@ -23,14 +23,14 @@ hud_t hud;
 /* frames[] is defined in fdf_parser.c (common/) */
 
 #define MAX_FRAMES_WRITE 1024
-static frameDef_t const * framesWritten[MAX_FRAMES_WRITE];
+static frameDef_t const *framesWritten[MAX_FRAMES_WRITE];
 static frameDef_t const * *frameptr;
 
 void UI_ResetFrameWriteList(void) {
     frameptr = framesWritten;
 }
 
-static bool AddFrame(frameDef_t const * frame) {
+static bool AddFrame(frameDef_t const *frame) {
     if (frameptr - framesWritten < MAX_FRAMES_WRITE) {
         *(frameptr++) = frame;
         return true;
@@ -38,7 +38,7 @@ static bool AddFrame(frameDef_t const * frame) {
     return false;
 }
 
-static uint32_t FindFrameNumber(frameDef_t const * frame, uint32_t def) {
+static uint32_t FindFrameNumber(frameDef_t const *frame, uint32_t def) {
     for (frameDef_t const * *it = framesWritten; it < frameptr; it++) {
         if (*it == frame) {
             def = (uint32_t)(it - framesWritten) + 1;
@@ -48,7 +48,7 @@ static uint32_t FindFrameNumber(frameDef_t const * frame, uint32_t def) {
 }
 
 uint32_t UI_FindFrameNumber(cstring_t name) {
-    frameDef_t * frame = UI_FindFrame(name);
+    frameDef_t *frame = UI_FindFrame(name);
     return frame ? FindFrameNumber(frame, 0) : 0;
 }
 
@@ -58,7 +58,7 @@ uint32_t UI_FindFrameNumber(cstring_t name) {
     DEST[2] = SRC.min.y * 0xff; \
     DEST[3] = SRC.max.y * 0xff;
 
-static void UI_CopyFrameBase(uiFrame_t * dest, frameDef_t const * src) {
+static void UI_CopyFrameBase(uiFrame_t *dest, frameDef_t const *src) {
     AddFrame(src);
     FOR_LOOP(i, FPP_COUNT * 2) {
         dest->points.x[i].targetPos = src->Points.x[i].targetPos;
@@ -95,7 +95,7 @@ static void UI_CopyFrameBase(uiFrame_t * dest, frameDef_t const * src) {
     dest->onclick = src->OnClick;
 }
 
-static uiBackdrop_t MakeBackdrop(frameDef_t const * frame) {
+static uiBackdrop_t MakeBackdrop(frameDef_t const *frame) {
     if (!frame) return (uiBackdrop_t){ 0 };
     return MAKE(uiBackdrop_t,
         .CornerFlags = frame->Backdrop.CornerFlags,
@@ -115,7 +115,7 @@ static uiBackdrop_t MakeBackdrop(frameDef_t const * frame) {
     );
 }
 
-static uiHighlight_t MakeHighlight(frameDef_t const * frame) {
+static uiHighlight_t MakeHighlight(frameDef_t const *frame) {
     if (!frame) return (uiHighlight_t){ 0 };
     return MAKE(uiHighlight_t,
         .alphaFile = UI_LiveImage(frame->Highlight.AlphaFile),
@@ -123,7 +123,7 @@ static uiHighlight_t MakeHighlight(frameDef_t const * frame) {
     );
 }
 
-static uiLabel_t MakeLabel(frameDef_t const * frame) {
+static uiLabel_t MakeLabel(frameDef_t const *frame) {
     return MAKE(uiLabel_t,
         .textalignx = frame->Font.Justification.Horizontal,
         .textaligny = frame->Font.Justification.Vertical,
@@ -135,7 +135,7 @@ static uiLabel_t MakeLabel(frameDef_t const * frame) {
     );
 }
 
-static frameDef_t const * UI_ButtonPart(frameDef_t const * frame, cstring_t name) {
+static frameDef_t const *UI_ButtonPart(frameDef_t const *frame, cstring_t name) {
     if (!frame || !name || !*name) return NULL;
     return UI_FindFrameNear(frame, name);
 }
@@ -203,8 +203,8 @@ static uint32_t UI_ControlThemeImage(cstring_t key) {
     return gi.ImageIndex(UI_ThemeImagePath(key));
 }
 
-static uiBackdrop_t MakeButtonBackdrop(frameDef_t const * frame, cstring_t name) {
-    frameDef_t const * part = UI_ButtonPart(frame, name);
+static uiBackdrop_t MakeButtonBackdrop(frameDef_t const *frame, cstring_t name) {
+    frameDef_t const *part = UI_ButtonPart(frame, name);
     uiBackdrop_t result = { 0 };
     uiControlSkin_t skin;
     uint32_t themed;
@@ -223,8 +223,8 @@ static uiBackdrop_t MakeButtonBackdrop(frameDef_t const * frame, cstring_t name)
     return result;
 }
 
-static uiHighlight_t MakeButtonHighlight(frameDef_t const * frame, cstring_t name) {
-    frameDef_t const * part = UI_ButtonPart(frame, name);
+static uiHighlight_t MakeButtonHighlight(frameDef_t const *frame, cstring_t name) {
+    frameDef_t const *part = UI_ButtonPart(frame, name);
     uiHighlight_t result = { 0 };
     cstring_t skin_key;
     uint32_t themed;
@@ -255,7 +255,7 @@ static cstring_t UI_ButtonStateName(cstring_t preferred, cstring_t fallback) {
     return preferred && *preferred ? preferred : fallback;
 }
 
-static uiGlueTextButton_t MakeGlueTextButton(frameDef_t const * frame) {
+static uiGlueTextButton_t MakeGlueTextButton(frameDef_t const *frame) {
     cstring_t normal = UI_ButtonStateName(frame->Control.Backdrop.Normal, frame->Button.NormalTexture);
     cstring_t pushed = UI_ButtonStateName(frame->Control.Backdrop.Pushed, frame->Button.PushedTexture);
     cstring_t disabled = UI_ButtonStateName(frame->Control.Backdrop.Disabled, frame->Button.DisabledTexture);
@@ -277,7 +277,7 @@ static uiGlueTextButton_t MakeGlueTextButton(frameDef_t const * frame) {
     return result;
 }
 
-static uiCheckBox_t MakeCheckBox(frameDef_t const * frame) {
+static uiCheckBox_t MakeCheckBox(frameDef_t const *frame) {
     cstring_t normal = UI_ButtonStateName(frame->Control.Backdrop.Normal, frame->Button.NormalTexture);
     cstring_t pushed = UI_ButtonStateName(frame->Control.Backdrop.Pushed, frame->Button.PushedTexture);
     cstring_t disabled = UI_ButtonStateName(frame->Control.Backdrop.Disabled, frame->Button.DisabledTexture);
@@ -318,7 +318,7 @@ static uint32_t UI_ScrollBarThemeImage(cstring_t key, cstring_t fallback) {
     return image;
 }
 
-static uiScrollBar_t MakeScrollBar(frameDef_t const * frame) {
+static uiScrollBar_t MakeScrollBar(frameDef_t const *frame) {
     uiScrollBar_t result = { 0 };
     uint32_t track = UI_ScrollBarThemeImage(
         "EscMenuSliderBackground", "UI\\Widgets\\EscMenu\\Human\\slider-background.blp");
@@ -349,8 +349,8 @@ static uiScrollBar_t MakeScrollBar(frameDef_t const * frame) {
     return result;
 }
 
-static void UI_PrepareScrollBar(frameDef_t const * owner) {
-    frameDef_t * scrollbar = NULL;
+static void UI_PrepareScrollBar(frameDef_t const *owner) {
+    frameDef_t *scrollbar = NULL;
     float inset;
 
     if (!owner) return;
@@ -363,7 +363,7 @@ static void UI_PrepareScrollBar(frameDef_t const * owner) {
          * selectable ListBox.  The type union no longer retains TextArea's
          * scrollbar name, but the authored scrollbar remains a direct child. */
         FOR_LOOP(i, MAX_UI_CLASSES) {
-            frameDef_t * child = frames + i;
+            frameDef_t *child = frames + i;
             if (child->Parent == owner && child->Type == FT_SCROLLBAR) {
                 scrollbar = child;
                 break;
@@ -387,13 +387,13 @@ static void UI_PrepareScrollBar(frameDef_t const * owner) {
     if (scrollbar->Width <= 0.0f) scrollbar->Width = 0.015f;
 }
 
-static uiSimpleButtonState_t MakeSimpleButtonState(frameDef_t const * frame,
+static uiSimpleButtonState_t MakeSimpleButtonState(frameDef_t const *frame,
                                                     cstring_t texture_name,
                                                     buttonText_t const *button_text,
                                                     color32_t fallback_color)
 {
-    frameDef_t const * texture = UI_ButtonPart(frame, texture_name);
-    frameDef_t const * text = button_text && button_text->frame[0]
+    frameDef_t const *texture = UI_ButtonPart(frame, texture_name);
+    frameDef_t const *text = button_text && button_text->frame[0]
         ? UI_ButtonPart(frame, button_text->frame)
         : NULL;
     color32_t fontcolor = text && text->Font.Color.a
@@ -412,7 +412,7 @@ static uiSimpleButtonState_t MakeSimpleButtonState(frameDef_t const * frame,
     return result;
 }
 
-static uiSimpleButton_t MakeSimpleButton(frameDef_t const * frame) {
+static uiSimpleButton_t MakeSimpleButton(frameDef_t const *frame) {
     uiSimpleButton_t result = {
         .normal = MakeSimpleButtonState(frame, frame->Button.NormalTexture,
                                         &frame->Button.NormalText, frame->Font.Color),
@@ -443,14 +443,14 @@ static bool UI_IsSingleLineText(cstring_t text) {
     return strchr(text, '\n') == NULL && strchr(text, '\r') == NULL;
 }
 
-bool UI_BuildFrameForWrite(frameDef_t const * frame,
-                                  uiFrame_t * out,
-                                  uint8_t * typedata,
+bool UI_BuildFrameForWrite(frameDef_t const *frame,
+                                  uiFrame_t *out,
+                                  uint8_t *typedata,
                                   uint32_t typedata_max,
                                   string_t textbuf,
                                   uint32_t textbuf_max)
 {
-    struct { uint8_t * data; uint32_t maxsize; uint32_t cursize; bool overflowed; } buf = {
+    struct { uint8_t *data; uint32_t maxsize; uint32_t cursize; bool overflowed; } buf = {
         .data = typedata, .maxsize = typedata_max,
     };
 
@@ -539,7 +539,7 @@ bool UI_BuildFrameForWrite(frameDef_t const * frame,
         case FT_EDITBOX:
         case FT_GLUEEDITBOX:
         case FT_SLASHCHATBOX: {
-            frameDef_t const * text_frame = frame->Edit.TextFrame[0]
+            frameDef_t const *text_frame = frame->Edit.TextFrame[0]
                 ? UI_FindFrameNear(frame, frame->Edit.TextFrame)
                 : NULL;
             cstring_t save_debug = gi.CvarString("wc3_save_menu_debug", "0");
@@ -694,7 +694,7 @@ bool UI_BuildFrameForWrite(frameDef_t const * frame,
 
 _Static_assert(sizeof(uiNameTag_t) <= UINT8_MAX, "uiNameTag_t exceeds the one-byte layout payload size");
 
-static void UI_WriteBuiltFrame(frameDef_t const * frame, float value, bool override_value, uiSizeToTextParams_t const *fit) {
+static void UI_WriteBuiltFrame(frameDef_t const *frame, float value, bool override_value, uiSizeToTextParams_t const *fit) {
     UINAME textbuf;
     uiFrame_t tmp;
     uint8_t typedata[256] = { 0 };
@@ -734,21 +734,21 @@ static void UI_WriteBuiltFrame(frameDef_t const * frame, float value, bool overr
     gi.Write(ui_window_writing ? PF_UIWINDOWFRAME : PF_UIFRAME, &tmp);
 }
 
-void UI_WriteFrame(frameDef_t const * frame) {
+void UI_WriteFrame(frameDef_t const *frame) {
     UI_WriteBuiltFrame(frame, 0.0f, false, NULL);
 }
 
-void UI_WriteFrameValue(frameDef_t const * frame, float value) {
+void UI_WriteFrameValue(frameDef_t const *frame, float value) {
     UI_WriteBuiltFrame(frame, MAX(0.0f, MIN(value, 1.0f)), true, NULL);
 }
 
-uint32_t UI_GetWrittenFrameNumber(frameDef_t const * frame) {
+uint32_t UI_GetWrittenFrameNumber(frameDef_t const *frame) {
     return FindFrameNumber(frame, 0);
 }
 
 void UI_WriteFrameWithChildrenSizedToText(uiSizeToTextParams_t const *params) {
-    frameDef_t const * oldparent = NULL;
-    frameDef_t const * frame;
+    frameDef_t const *oldparent = NULL;
+    frameDef_t const *frame;
 
     if (!params || !(frame = params->frame)) return;
     UI_PrepareScrollBar(frame);
@@ -760,7 +760,7 @@ void UI_WriteFrameWithChildrenSizedToText(uiSizeToTextParams_t const *params) {
     if (params->parent) ((frameDef_t *)frame)->Parent = oldparent;
 
     FOR_LOOP(i, MAX_UI_CLASSES) {
-        frameDef_t const * it = frames + i;
+        frameDef_t const *it = frames + i;
         if (it->Parent == frame && !it->hidden &&
             !UI_IsEmbeddedControlArtPart(frame, it)) {
             UI_WriteFrameWithChildren(it, NULL);
@@ -768,14 +768,14 @@ void UI_WriteFrameWithChildrenSizedToText(uiSizeToTextParams_t const *params) {
     }
 }
 
-void UI_WriteFrameWithChildren(frameDef_t const * frame, frameDef_t const * parent) {
+void UI_WriteFrameWithChildren(frameDef_t const *frame, frameDef_t const *parent) {
     UI_WriteFrameWithChildrenSizedToText(&(uiSizeToTextParams_t){ .frame = frame, .parent = parent });
 }
 
-void UI_WriteFrameWithChildrenWithTriggers(edict_t * ent, frameDef_t const * frame, frameDef_t const * parent, uiTrigger_t const *triggers) {
+void UI_WriteFrameWithChildrenWithTriggers(edict_t *ent, frameDef_t const *frame, frameDef_t const *parent, uiTrigger_t const *triggers) {
     UI_PrepareScrollBar(frame);
     if (parent) {
-        frameDef_t const * oldparent = frame->Parent;
+        frameDef_t const *oldparent = frame->Parent;
         ((frameDef_t *)frame)->Parent = parent;
         UI_WriteFrame(frame);
         ((frameDef_t *)frame)->Parent = oldparent;
@@ -788,7 +788,7 @@ void UI_WriteFrameWithChildrenWithTriggers(edict_t * ent, frameDef_t const * fra
         }
     }
     FOR_LOOP(i, MAX_UI_CLASSES) {
-        frameDef_t const * it = frames + i;
+        frameDef_t const *it = frames + i;
         if (it->Parent == frame && !it->hidden &&
             !UI_IsEmbeddedControlArtPart(frame, it)) {
             UI_WriteFrameWithChildrenWithTriggers(ent, it, NULL, triggers);
@@ -796,19 +796,19 @@ void UI_WriteFrameWithChildrenWithTriggers(edict_t * ent, frameDef_t const * fra
     }
 }
 
-void UI_WriteLayout(edict_t * ent, frameDef_t const * root, uint32_t layer) {
+void UI_WriteLayout(edict_t *ent, frameDef_t const *root, uint32_t layer) {
     UI_WriteStart(layer);
     UI_WriteFrameWithChildren(root, NULL);
     UI_WriteEnd(ent);
 }
 
-void UI_WriteWindow(edict_t * ent, frameDef_t const * root, uiWindowDef_t const *def) {
+void UI_WriteWindow(edict_t *ent, frameDef_t const *root, uiWindowDef_t const *def) {
     UI_WriteWindowStart(def);
     UI_WriteFrameWithChildren(root, NULL);
     UI_WriteWindowEnd(ent);
 }
 
-void UI_WriteWithTriggers(edict_t * ent, frameDef_t const * root, uint32_t layer, uiTrigger_t const *triggers) {
+void UI_WriteWithTriggers(edict_t *ent, frameDef_t const *root, uint32_t layer, uiTrigger_t const *triggers) {
     UI_WriteStart(layer);
     UI_WriteFrameWithChildrenWithTriggers(ent, root, NULL, triggers);
     UI_WriteEnd(ent);
@@ -856,7 +856,7 @@ BZ_HOST_HIDDEN int UI_FdfReadFile(cstring_t name, handle_t *out) {
 BZ_HOST_HIDDEN void UI_FdfFreeFile(handle_t buf) { gi.MemFree(buf); }
 
 /* Game module doesn't handle UI events or themes — stub these */
-BZ_HOST_HIDDEN void UI_WireFrameTypeFunctions(frameDef_t * frame) { (void)frame; }
+BZ_HOST_HIDDEN void UI_WireFrameTypeFunctions(frameDef_t *frame) { (void)frame; }
 BZ_HOST_HIDDEN void UI_ClearTheme(void) {}
 
 /* Game module doesn't load 3D models for UI — stub */

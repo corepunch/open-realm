@@ -13,7 +13,7 @@ typedef struct SheetCell {
     string_t text;
     uint16_t column;
     uint16_t row;
-    sheet_t * next;
+    sheet_t *next;
 } sheetCell_t;
 
 typedef struct sheet_field_s {
@@ -40,8 +40,8 @@ static sheetRow_t rows[1024 * 1024] = { 0 };
 static sheetField_t fields[1024 * 1024] = { 0 };
 static char text_buffer[8 * 1024 * 1024] = { 0 };
 static string_t current_text = text_buffer;
-static sheet_t * current_cell = cells;
-static sheet_t * previous_cell = cells;
+static sheet_t *current_cell = cells;
+static sheet_t *previous_cell = cells;
 static sheetRow_t *current_row = rows;
 static sheetField_t *current_field = fields;
 
@@ -120,7 +120,7 @@ static void FS_FillSheetCell(uint32_t x, uint32_t y, cstring_t text) {
     current_cell++;
 }
 
-static sheetTable_t *FS_MakeRowsFromSheet(sheet_t * sheet) {
+static sheetTable_t *FS_MakeRowsFromSheet(sheet_t *sheet) {
     cstring_t columns[256] = { 0 };
     sheetRow_t *start = NULL;
     sheetRow_t *last_row = NULL;
@@ -193,7 +193,7 @@ static sheetTable_t *FS_MakeRowsFromSheet(sheet_t * sheet) {
 
 static sheetTable_t *FS_ParseSLK_Buffer(cstring_t buffer)
 {
-    sheet_t * start = current_cell;
+    sheet_t *start = current_cell;
     uint32_t X = 1, Y = 1;
     char field[MAX_SHEET_LINE];
 
@@ -468,8 +468,8 @@ static void *FS_LoadSheetTyped(sheetTable_t const *sheet, slkField_t const *sche
  * pools are only scratch space during parsing.  Reset cursors so they can be
  * reused by the next load without exhausting the fixed-size arenas. */
 #define SHEET_POOL_SAVE() \
-    sheet_t *     _saved_cell  = current_cell;  \
-    sheet_t *     _saved_prev  = previous_cell; \
+    sheet_t *_saved_cell  = current_cell;  \
+    sheet_t *_saved_prev  = previous_cell; \
     sheetRow_t *_saved_row   = current_row;   \
     sheetField_t *_saved_fld = current_field; \
     string_t       _saved_text  = current_text

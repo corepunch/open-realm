@@ -12,14 +12,14 @@ void _W3M_RegisterMap(cstring_t mapFileName);
 void _W3M_DrawWorld(void);
 void _W3M_DrawTerrainShadows(void);
 void _W3M_DrawAlphaSurfaces(void);
-bool _W3M_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t * output);
+bool _W3M_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t *output);
 
 /* MMP v0 is a fixed little-endian header followed by 16-byte icon records. */
 typedef struct { uint32_t kind, x, y; color32_t bgra; } mmpIcon_t;
 typedef struct { uint32_t version, count; mmpIcon_t icons[]; } mmp_t;
-static struct { PATHSTR map; texture_t const * image, *icons[3]; mmp_t *mmp; } preview;
+static struct { PATHSTR map; texture_t const *image, *icons[3]; mmp_t *mmp; } preview;
 
-static texture_t const * minimap_special[WC3_MINIMAP_CONTACT_NEUTRAL_BUILDING + 1];
+static texture_t const *minimap_special[WC3_MINIMAP_CONTACT_NEUTRAL_BUILDING + 1];
 static stbIniCache_t minimap_theme, minimap_map_skin;
 
 static cstring_t const preview_art[] = {
@@ -59,12 +59,12 @@ static cstring_t modelNames[MODEL_COUNT] = {
 };
 
 static cstring_t const cursor_model_name = "UI\\Cursor\\HumanCursor.mdx";
-static model_t * cursor_model;
+static model_t *cursor_model;
 static bool cursor_load_attempted;
 
 static w3TerrainArt_t *g_terrain_rows; static uint32_t g_terrain_count; static slkIndex_t g_terrain_idx;
 static w3CliffType_t *g_cliff_rows;   static uint32_t g_cliff_count;   static slkIndex_t g_cliff_idx;
-static texture_t const * g_blight_texture;
+static texture_t const *g_blight_texture;
 
 typedef struct {
     cstring_t name;
@@ -98,7 +98,7 @@ static wc3AnimLookup_t *anim_lookup_rows; static uint32_t anim_lookup_count;
 static wc3AnimSound_t *anim_sound_rows; static uint32_t anim_sound_count;
 
 typedef struct {
-    model_t const * model;
+    model_t const *model;
     uint32_t frame;
     uint32_t render_time;
     bool valid;
@@ -108,7 +108,7 @@ static wc3EventSoundState_t event_sound_state[MAX_GAME_ENTITIES];
 /* WorldEditData is the authoritative tileset-to-Blight-art mapping.  Keep the
  * lookup data-driven because custom/expansion tilesets can add rows there. */
 void R_LoadBlightTexture(uint8_t tileset) {
-    uint8_t * data;
+    uint8_t *data;
     uint32_t size;
     PATHSTR path = { 0 };
     char const *cursor;
@@ -151,12 +151,12 @@ void R_LoadBlightTexture(uint8_t tileset) {
                  (unsigned)g_blight_texture->height);
 }
 
-texture_t const * R_BlightTexture(void) {
+texture_t const *R_BlightTexture(void) {
     return g_blight_texture;
 }
 
 typedef struct {
-    model_t * model;
+    model_t *model;
     uint32_t count;
     char paths[256][512];
 } model_texture_cache_t;
@@ -164,7 +164,7 @@ typedef struct {
 static model_texture_cache_t model_texture_cache = { 0 };
 
 typedef struct {
-    model_t * model;
+    model_t *model;
     PATHSTR path;
 } wc3AttachmentModel_t;
 
@@ -172,7 +172,7 @@ static wc3AttachmentModel_t wc3_attachment_models[32];
 static uint32_t wc3_attachment_model_count;
 
 /* Cache authored MDX attachment children because they can be visited every frame while a unit animates. */
-static model_t * R_W3AttachmentModel(cstring_t path) {
+static model_t *R_W3AttachmentModel(cstring_t path) {
     if (!path || !*path) return NULL;
     FOR_LOOP(i, wc3_attachment_model_count)
         if (!strcasecmp(wc3_attachment_models[i].path, path)) return wc3_attachment_models[i].model;
@@ -216,7 +216,7 @@ static uint32_t R_W3AttachmentFrame(mdxModel_t const *parent, mdxModel_t const *
     return dst->interval[0] + MIN(span - 1, (uint32_t)(ratio * (float)span));
 }
 
-static void R_W3RenderAttachmentModels(renderEntity_t const *entity, matrix4_t const * transform) {
+static void R_W3RenderAttachmentModels(renderEntity_t const *entity, matrix4_t const *transform) {
     mdxAttachmentPosition_t attachments[32];
     uint32_t count;
 
@@ -226,7 +226,7 @@ static void R_W3RenderAttachmentModels(renderEntity_t const *entity, matrix4_t c
                                              sizeof(attachments) / sizeof(*attachments));
     FOR_LOOP(i, count) {
         renderEntity_t child = *entity;
-        model_t * model;
+        model_t *model;
 
         if (!attachments[i].path[0]) continue;
         model = R_W3AttachmentModel(attachments[i].path);
@@ -394,7 +394,7 @@ static void load_preview(cstring_t map) {
 }
 
 /* MMP positions include the thumbnail's letterboxing, so project in image space, without world/fog state. */
-static void draw_preview(rect_t const * screen, cstring_t map) {
+static void draw_preview(rect_t const *screen, cstring_t map) {
     load_preview(map);
     if (preview.image) R_DrawImage(preview.image, screen, &MAKE(rect_t, 0, 0, 1, 1), COLOR32_WHITE);
     if (!preview.mmp) return;
@@ -529,7 +529,7 @@ static color32_t R_MinimapAllianceColor(renderEntity_t const *entity) {
     }
 }
 
-static texture_t const * R_MinimapOrdinaryContactTexture(renderEntity_t const *entity, color32_t * color) {
+static texture_t const *R_MinimapOrdinaryContactTexture(renderEntity_t const *entity, color32_t *color) {
     wc3MinimapColorKind_t const kind = R_MinimapColorKind(entity);
     if (kind == WC3_MINIMAP_COLOR_TEAM) {
         *color = COLOR32_WHITE;
@@ -544,7 +544,7 @@ static texture_t const * R_MinimapOrdinaryContactTexture(renderEntity_t const *e
  * assigns minimap semantics to it. */
 static void R_DrawMinimapEntityMarker(renderEntity_t const *entity) {
     wc3MinimapContact_t const contact = wc3_minimap_contact_get(entity ? entity->effect_flags : 0);
-    texture_t const * texture = NULL;
+    texture_t const *texture = NULL;
     color32_t color = COLOR32_WHITE;
     vector2_t point, world, size;
     rect_t marker;
@@ -585,9 +585,9 @@ static void R_DrawMinimapEntityMarkers(void) {
         R_DrawMinimapEntityMarker(&tr.viewDef.entities[i]);
 }
 
-void R_DrawMinimap(rect_t const * screen, cstring_t map) {
+void R_DrawMinimap(rect_t const *screen, cstring_t map) {
     if (map) { draw_preview(screen, map); return; }
-    texture_t const * tex = tr.minimap ? tr.minimap : tr.texture[TEX_WHITE];
+    texture_t const *tex = tr.minimap ? tr.minimap : tr.texture[TEX_WHITE];
     vector2_t const map_size = R_WorldSize();
     rect_t const content = WC3_MinimapContentRect(screen, &map_size);
 
@@ -659,7 +659,7 @@ void R_DrawAlphaSurfaces(void) {
     R_WeatherEmit();
 }
 
-bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t * point) {
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t *point) {
     return _W3M_TraceLocation(viewdef, x, y, point);
 }
 
@@ -671,7 +671,7 @@ float R_GetCameraHeightAtPoint(float x, float y) { return R_W3CameraHeightAtPoin
 bool R_CameraUsesTerrainHeight(void) { return true; }
 
 
-static bool R_W3WalkableSurfaceHit(renderEntity_t const *surface, float x, float y, float * z) {
+static bool R_W3WalkableSurfaceHit(renderEntity_t const *surface, float x, float y, float *z) {
     line3_t line;
     vector3_t hit;
 
@@ -730,10 +730,10 @@ vector2_t R_WorldSize(void) {
     return tr.world ? GetWar3MapSize(tr.world) : (vector2_t){ 0 };
 }
 
-model_t * R_LoadModel(cstring_t modelFilename) {
+model_t *R_LoadModel(cstring_t modelFilename) {
     void *buffer = NULL;
     int fileSize = ri.FS_ReadFile(modelFilename, &buffer);
-    model_t * model = NULL;
+    model_t *model = NULL;
 
     /* WC3 data files reference models with any extension (.MDL, .MDX, variant
      * digits, etc.).  Strip to the stem via the last dot, optionally remove a
@@ -783,7 +783,7 @@ model_t * R_LoadModel(cstring_t modelFilename) {
     return model;
 }
 
-void R_ReleaseModel(model_t * model) {
+void R_ReleaseModel(model_t *model) {
     if (model->modeltype == ID_MDLX) {
         MDLX_Release(model->mdx);
     }
@@ -842,7 +842,7 @@ static uint32_t R_W3SoundVariantCount(wc3AnimSound_t const *row) {
 }
 
 static vector3_t R_W3EventWorldPosition(mdxModel_t const *model, mdxEvent_t const *event,
-                                      renderEntity_t const *entity, matrix4_t const * transform) {
+                                      renderEntity_t const *entity, matrix4_t const *transform) {
     vector3_t pivot = {0}, local = {0};
     if (event->node.node_id < (uint32_t)model->num_pivots) pivot = model->pivots[event->node.node_id];
     MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
@@ -854,7 +854,7 @@ static vector3_t R_W3EventWorldPosition(mdxModel_t const *model, mdxEvent_t cons
 }
 
 static void R_W3EmitSoundEvent(renderEntity_t const *entity, mdxModel_t const *model,
-                               mdxEvent_t const *event, uint32_t key, matrix4_t const * transform) {
+                               mdxEvent_t const *event, uint32_t key, matrix4_t const *transform) {
     cstring_t id;
     cstring_t label;
     wc3AnimSound_t const *row;
@@ -933,7 +933,7 @@ void R_RenderModel(renderEntity_t const *entity) {
         mdxAttachmentPosition_t attachments[16];
         uint32_t attachment_count;
         uint32_t slot_mask;
-        model_t const * fire_model = entity->effect_model;
+        model_t const *fire_model = entity->effect_model;
 
         if (!fire_model || fire_model->modeltype != ID_MDLX || !fire_model->mdx) {
             return;
@@ -975,7 +975,7 @@ void R_RenderModel(renderEntity_t const *entity) {
     }
 }
 
-bool R_TraceModel(renderEntity_t const *entity, line3_t const * line, float * distance) {
+bool R_TraceModel(renderEntity_t const *entity, line3_t const *line, float *distance) {
     vector3_t intersection;
 
     if (!entity || !entity->model || entity->model->modeltype != ID_MDLX) {
@@ -992,19 +992,19 @@ bool R_TraceModel(renderEntity_t const *entity, line3_t const * line, float * di
 
 /* Share MDX authored bounds with the outer renderer culler so tall doodads are
  * not rejected by their smaller gameplay selection radius. */
-bool R_GetEntityBounds(renderEntity_t const *entity, box3_t * bounds) {
+bool R_GetEntityBounds(renderEntity_t const *entity, box3_t *bounds) {
     if (!entity || !bounds || !entity->model || entity->model->modeltype != ID_MDLX || !entity->model->mdx)
         return false;
     *bounds = entity->model->mdx->bounds.box;
     return true;
 }
 
-matrix4_t const * R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
+matrix4_t const *R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
     (void)entity; (void)pose;
     return &wc3_model_basis;
 }
 
-bool R_RenderShadow(renderEntity_t const *entity, vector2_t const * origin) {
+bool R_RenderShadow(renderEntity_t const *entity, vector2_t const *origin) {
     (void)entity;
     (void)origin;
     return false;
@@ -1024,14 +1024,14 @@ float R_EntityHeight(renderEntity_t const *entity) {
     seq = R_FindSequenceAtTime(mdx, entity->frame);
     return (seq ? seq->bounds.box.max.z : mdx->info.bounds.box.max.z) * entity->scale;
 }
-bool R_EntityOverheadPosition(renderEntity_t const *entity, vector3_t * out) {
+bool R_EntityOverheadPosition(renderEntity_t const *entity, vector3_t *out) {
     if (!entity || !out) return false;
     /* Match Warsmash: the status stack is centered on the transformed model-bounds maximum. */
     *out = entity->origin; out->z += R_EntityHeight(entity);
     return true;
 }
 
-bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vector3_t * out) {
+bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vector3_t *out) {
     matrix4_t transform;
     mdxAttachmentPosition_t attachment;
 
@@ -1063,7 +1063,7 @@ static void R_W3TextureCacheAdd(cstring_t path) {
     model_texture_cache.count++;
 }
 
-static void R_W3BuildModelTextureCache(model_t * model) {
+static void R_W3BuildModelTextureCache(model_t *model) {
     if (model_texture_cache.model == model) {
         return;
     }
@@ -1077,7 +1077,7 @@ static void R_W3BuildModelTextureCache(model_t * model) {
     }
 }
 
-bool R_GetModelInfo(model_t * model, modelInfo_t * info) {
+bool R_GetModelInfo(model_t *model, modelInfo_t *info) {
     bool found = false;
     float min_u = 1.0f, min_v = 1.0f, max_u = 0.0f, max_v = 0.0f;
 
@@ -1134,7 +1134,7 @@ bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t
     return ok;
 }
 
-bool R_SetEntityAnimFrame(model_t const * model, cstring_t anim, renderEntity_t *entity) {
+bool R_SetEntityAnimFrame(model_t const *model, cstring_t anim, renderEntity_t *entity) {
     return MDLX_SetEntityAnimationFrame(model, anim, entity);
 }
 

@@ -5,7 +5,7 @@
 #define WOW_GRASS_MAX_MODELS 64
 
 typedef struct {
-    model_t const * model;
+    model_t const *model;
     matrix4_t *matrices;  /* slice of wow_grass_scratch, not owned */
     uint32_t count;
     instanceBuffer_t instances;
@@ -47,7 +47,7 @@ static bool Wow_GrassRoadTexture(cstring_t path) {
                     strcasestr(path, "street") || strcasestr(path, "pavement") || strcasestr(path, "brick"));
 }
 
-static float Wow_GrassRandom(uint32_t * seed) {
+static float Wow_GrassRandom(uint32_t *seed) {
     *seed = Wow_GrassHash(*seed + 0x9e3779b9U);
     return (float)(*seed & 0xffff) / 65535.0f;
 }
@@ -69,7 +69,7 @@ static bool Wow_GroundEffectModelPath(uint32_t const *record, uint8_t const *str
     uint32_t fields[2] = { WOW_GRASS_DOODAD_MODEL_FIELD, 1 };
     FOR_LOOP(i, 2) {
         cstring_t name = Wow_StringAt((cstring_t)strings, string_size, record[fields[i]]);
-        uint8_t * data = NULL;
+        uint8_t *data = NULL;
         int size;
         if (!name || !*name) continue;
         snprintf(out, out_size, "World\\NoDXT\\Detail\\%s", name);
@@ -89,7 +89,7 @@ static bool Wow_GroundEffectModelPath(uint32_t const *record, uint8_t const *str
 
 static void Wow_LoadGroundEffectDoodads(void) {
     stbDbc_t h;
-    uint8_t * data = NULL;
+    uint8_t *data = NULL;
     int size = ri.FS_ReadFile("DBFilesClient\\GroundEffectDoodad.dbc", (void **)&data);
     if (Stb_DbcValid(data, (uint32_t)size, &h) && h.record_size >= WOW_GRASS_DOODAD_FIELD_COUNT * sizeof(uint32_t)) {
         uint8_t const *records = Stb_DbcRecords(data);
@@ -137,7 +137,7 @@ void Wow_FreeGrassScratch(void) {
 
 void Wow_LoadGroundEffectDBCs(void) {
     stbDbc_t h = { 0 };
-    uint8_t * data;
+    uint8_t *data;
     uint32_t size = 0, records, record_size;
     uint32_t records_to_copy = 0;
     uint8_t const *records_base;
@@ -218,7 +218,7 @@ static wowGroundEffectTexture_t *Wow_GetGroundEffectTexture(uint32_t effect_id) 
     return NULL;
 }
 
-static uint32_t Wow_SelectDoodadFromWeights(uint32_t const weights[WOW_GRASS_DOODAD_SLOTS], uint32_t * seed) {
+static uint32_t Wow_SelectDoodadFromWeights(uint32_t const weights[WOW_GRASS_DOODAD_SLOTS], uint32_t *seed) {
     uint32_t total_weight = 0;
     uint32_t roll;
     FOR_LOOP(i, WOW_GRASS_DOODAD_SLOTS) total_weight += weights[i];
@@ -468,7 +468,7 @@ void Wow_EnsureCameraGrassMesh(void) {
         };
 
         for (q = 0; q < 12; q++) {
-            const float *bd = (q < 6) ? A[q] : B[q - 6];
+            float const *bd = (q < 6) ? A[q] : B[q - 6];
             vertex_t *v = &verts[q];
             memset(v, 0, sizeof(*v));
             v->position = (vector3_t){ bd[0] * HW, bd[1] * H, bd[2] * HW };
@@ -510,7 +510,7 @@ void Wow_DrawGrass(void) {
     wow_grass_shader.state.viewProjection = tr.viewDef.viewProjectionMatrix;
     {
         vector3_t sun_dir;
-        environLight_t const * sun = tr.viewDef.terrainLight.valid ? &tr.viewDef.terrainLight : NULL;
+        environLight_t const *sun = tr.viewDef.terrainLight.valid ? &tr.viewDef.terrainLight : NULL;
         if (sun) {
             wow_grass_shader.state.sunDir = sun->dir;
             wow_grass_shader.state.sunAmbient = sun->ambient;

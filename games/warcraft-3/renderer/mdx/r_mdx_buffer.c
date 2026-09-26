@@ -2,7 +2,7 @@
 
 typedef struct { uint32_t count; int first; } mdxPaletteError_t;
 
-static uint8_t R_AddGeosetMatrixPaletteEntry(mdxGeoset_t *geoset, int matrix_id, mdxPaletteError_t * overflow) {
+static uint8_t R_AddGeosetMatrixPaletteEntry(mdxGeoset_t *geoset, int matrix_id, mdxPaletteError_t *overflow) {
     if (matrix_id < 0) {
         matrix_id = 0;
     }
@@ -22,7 +22,7 @@ static uint8_t R_AddGeosetMatrixPaletteEntry(mdxGeoset_t *geoset, int matrix_id,
 }
 
 /* Keep geoset-local palette indices while packing every stream into the shared vertex format. */
-static void mdx_pack_vertices(mdxGeoset_t *geoset, vertex_t * vertices) {
+static void mdx_pack_vertices(mdxGeoset_t *geoset, vertex_t *vertices) {
     typedef uint8_t matrixGroup_t[MAX_SKIN_BONES];
     uint32_t matrixGroupCount = geoset->num_matrixGroupSizes > 0 && geoset->matrixGroupSizes && geoset->matrices
         ? (uint32_t)geoset->num_matrixGroupSizes
@@ -138,7 +138,7 @@ static void mdx_pack_vertices(mdxGeoset_t *geoset, vertex_t * vertices) {
 }
 
 /* One model owns two buffers; VAOs retain each geoset's vertex range and local 16-bit index interpretation. */
-void MDX_PackModelGeometry(mdxModel_t *model, vertex_t * vertices, uint16_t *indices) {
+void MDX_PackModelGeometry(mdxModel_t *model, vertex_t *vertices, uint16_t *indices) {
     uint32_t base = 0, elems = 0;
     FOR_EACH_LIST(mdxGeoset_t, geo, model->geosets) {
         mdx_pack_vertices(geo, vertices + base);
@@ -164,7 +164,7 @@ void MDX_BuildBuffers(mdxModel_t *model) {
         elems += geo->num_triangles;
     }
     if (!model->geosets) return;
-    vertex_t * vertices = ri.MemAlloc(verts * sizeof(*vertices));
+    vertex_t *vertices = ri.MemAlloc(verts * sizeof(*vertices));
     uint16_t *indices = ri.MemAlloc(elems * sizeof(*indices));
     MDX_PackModelGeometry(model, vertices, indices);
     R_Call(glGenBuffers, BZ_MDX_BUFFER_COUNT, model->buffers);

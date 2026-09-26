@@ -30,7 +30,7 @@
 #include "../g_local.h"
 
 /* Helpers defined in t_utils.c */
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 
@@ -42,7 +42,7 @@ void setup_test_world(void);
 
 /* Defined in routing.c, only compiled for test builds. */
 void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
-void CM_SetupTestWorldBounds(box2_t const * bounds);
+void CM_SetupTestWorldBounds(box2_t const *bounds);
 
 struct routePerfStats_s;
 void CM_ResetTestPathPerfStats(void);
@@ -54,39 +54,39 @@ uint32_t  CM_BuildHeatmapForRadius(edict_t *goalentity, float radius);
 uint32_t  CM_RequestHeatmapForRadius(edict_t *goalentity, float radius);
 uint32_t  CM_RequestHeatmapForRadiusFlags(edict_t *goalentity, float radius, uint8_t blocked_flags);
 void   CM_ProcessPathJobs(uint32_t work_budget);
-bool   CM_ClosestPathablePointForRadius(vector2_t const * location, float radius, vector2_t * out);
-bool   CM_ClosestPathablePointForRadiusFlags(vector2_t const * location, float radius, uint8_t blocked_flags, vector2_t * out);
-bool   G_ClosestStaticPathablePointInRectForRadiusFlags(vector2_t const * location, box2_t const * bounds, float radius, uint8_t blocked_flags, vector2_t * out);
-bool   CM_ClosestReachablePointForRadius(vector2_t const * from, vector2_t const * target, float radius, vector2_t * out);
-bool   CM_ClosestReachablePointForRadiusFlags(vector2_t const * from, vector2_t const * target, float radius,
-                                              uint8_t blocked_flags, vector2_t * out);
-bool   CM_LineIsWalkableForRadius(vector2_t const * a, vector2_t const * b, float radius);
-bool   CM_LineIsPathableForRadiusFlags(vector2_t const * a, vector2_t const * b, float radius, uint8_t blocked_flags);
-bool   CM_FindDirectApproachPointForRadius(vector2_t const * from, vector2_t const * target, float range, float radius, vector2_t * out);
-bool   CM_FindApproachPointToFootprintForRadius(edict_t const * target, vector2_t const * from, float range, float radius, vector2_t * out);
-bool   CM_FindInnerApproachPointToFootprintForRadius(edict_t const * target, vector2_t const * from, float range, float radius, vector2_t * out);
+bool   CM_ClosestPathablePointForRadius(vector2_t const *location, float radius, vector2_t *out);
+bool   CM_ClosestPathablePointForRadiusFlags(vector2_t const *location, float radius, uint8_t blocked_flags, vector2_t *out);
+bool   G_ClosestStaticPathablePointInRectForRadiusFlags(vector2_t const *location, box2_t const *bounds, float radius, uint8_t blocked_flags, vector2_t *out);
+bool   CM_ClosestReachablePointForRadius(vector2_t const *from, vector2_t const *target, float radius, vector2_t *out);
+bool   CM_ClosestReachablePointForRadiusFlags(vector2_t const *from, vector2_t const *target, float radius,
+                                              uint8_t blocked_flags, vector2_t *out);
+bool   CM_LineIsWalkableForRadius(vector2_t const *a, vector2_t const *b, float radius);
+bool   CM_LineIsPathableForRadiusFlags(vector2_t const *a, vector2_t const *b, float radius, uint8_t blocked_flags);
+bool   CM_FindDirectApproachPointForRadius(vector2_t const *from, vector2_t const *target, float range, float radius, vector2_t *out);
+bool   CM_FindApproachPointToFootprintForRadius(edict_t const *target, vector2_t const *from, float range, float radius, vector2_t *out);
+bool   CM_FindInnerApproachPointToFootprintForRadius(edict_t const *target, vector2_t const *from, float range, float radius, vector2_t *out);
 bool   CM_FlowReachedGoal(uint32_t generation, float x, float y);
 bool   CM_FlowCanReach(uint32_t generation, float x, float y);
 vector2_t get_flow_direction(uint32_t heatmapindex, float fnx, float fny);
 
 /* Static-map point test from routing.c — the static half of move-time
  * collision (unit_trymove in skills/s_move.c). */
-bool CM_PointIsPathableForRadius(vector2_t const * location, float radius);
-bool CM_PointIsPathableForRadiusFlags(vector2_t const * location, float radius, uint8_t blocked_flags);
+bool CM_PointIsPathableForRadius(vector2_t const *location, float radius);
+bool CM_PointIsPathableForRadiusFlags(vector2_t const *location, float radius, uint8_t blocked_flags);
 
 /* From g_monster.c */
-edict_t * Waypoint_add(vector2_t const * spot);
-uint32_t M_RefreshHeatmap(edict_t * goal, float radius);
+edict_t *Waypoint_add(vector2_t const *spot);
+uint32_t M_RefreshHeatmap(edict_t *goal, float radius);
 
 /* From s_move.c — needed to set up a moving unit. */
-void order_move(edict_t * self, edict_t * target);
-void order_patrol(edict_t * self, edict_t * target);
-void order_attackmove(edict_t * self, edict_t * target);
-bool M_MoveIsValid(edict_t * self, vector2_t const * pos);
-void unit_changeangle(edict_t * self);
+void order_move(edict_t *self, edict_t *target);
+void order_patrol(edict_t *self, edict_t *target);
+void order_attackmove(edict_t *self, edict_t *target);
+bool M_MoveIsValid(edict_t *self, vector2_t const *pos);
+void unit_changeangle(edict_t *self);
 
 /* From m_unit.c */
-void unit_stand(edict_t * self);
+void unit_stand(edict_t *self);
 
 /* -----------------------------------------------------------------------
  * Test-world helpers
@@ -132,7 +132,7 @@ static void build_split_map(void) {
 }
 
 /* The test world maps one world unit to one pathmap cell. */
-static edict_t * make_waypoint(float cell_x, float cell_y) {
+static edict_t *make_waypoint(float cell_x, float cell_y) {
     vector2_t pos = { cell_x, cell_y };
     return Waypoint_add(&pos);
 }
@@ -141,7 +141,7 @@ static edict_t * make_waypoint(float cell_x, float cell_y) {
  * can pass the real handle (get_flow_direction now activates the field for that
  * generation rather than reading whatever was globally active). */
 static uint32_t g_flow_gen = 0;
-static uint32_t build_flow(edict_t * goal) {
+static uint32_t build_flow(edict_t *goal) {
     g_flow_gen = CM_BuildHeatmap(goal);
     return g_flow_gen;
 }
@@ -154,8 +154,8 @@ static vector2_t flow_at_cell(float cell_x, float cell_y) {
 /* Make a minimal unit that looks "stopped" (no currentmove).
  * s.model is set to 1 so the entity is not treated as IS_HOLLOW by
  * G_SolveCollisions (which skips entities with model == 0). */
-static edict_t * make_unit_at(float x, float y) {
-    edict_t * ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
+static edict_t *make_unit_at(float x, float y) {
+    edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), x, y);
     ent->movetype  = MOVETYPE_STEP;
     ent->collision = 16.0f;
     ent->s.model   = 1;
@@ -207,7 +207,7 @@ TEST(wc3_pathfinding, movement_class_pathing_distinguishes_walk_and_fly_bits) {
 TEST(wc3_pathfinding, static_path_texture_green_channel_marks_unflyable) {
     uint8_t cells[8 * 8] = { 0 }, flags = 0;
     vector2_t center = { 4.5f, 4.5f };
-    edict_t * building;
+    edict_t *building;
     pathTex_t *pathtex;
 
     setup_test_pathmap(8, 8, cells);
@@ -234,7 +234,7 @@ TEST(wc3_pathfinding, static_path_texture_green_channel_marks_unflyable) {
 TEST(wc3_pathfinding, flyer_move_validation_uses_unflyable_static_pathing) {
     uint8_t cells[8 * 8] = { 0 };
     vector2_t target = { 4.5f, 4.5f };
-    edict_t * flyer;
+    edict_t *flyer;
 
     cells[4 * 8 + 4] = CM_PATHING_UNWALKABLE;
     setup_test_pathmap(8, 8, cells);
@@ -251,7 +251,7 @@ TEST(wc3_pathfinding, flyer_move_validation_uses_unflyable_static_pathing) {
 
 TEST(wc3_pathfinding, heatmap_cache_separates_ground_and_flying_pathing) {
     uint8_t cells[10 * 10] = { 0 };
-    edict_t * goal;
+    edict_t *goal;
     uint32_t fly_gen, ground_gen;
 
     for (int y = 0; y < 10; y++)
@@ -279,7 +279,7 @@ TEST(wc3_pathfinding, heatmap_cache_hit_same_goal) {
     setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
-    edict_t * wp = make_waypoint(5.0f, 5.0f);
+    edict_t *wp = make_waypoint(5.0f, 5.0f);
     uint32_t gen1 = CM_BuildHeatmap(wp);
     uint32_t gen2 = CM_BuildHeatmap(wp);
 
@@ -292,8 +292,8 @@ TEST(wc3_pathfinding, heatmap_cache_hit_same_target_different_waypoint) {
     setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
-    edict_t * wp1 = make_waypoint(5.0f, 5.0f);
-    edict_t * wp2 = make_waypoint(5.0f, 5.0f);
+    edict_t *wp1 = make_waypoint(5.0f, 5.0f);
+    edict_t *wp2 = make_waypoint(5.0f, 5.0f);
     uint32_t gen1 = CM_BuildHeatmap(wp1);
     uint32_t gen2 = CM_BuildHeatmap(wp2);
 
@@ -307,8 +307,8 @@ TEST(wc3_pathfinding, heatmap_cache_perf_same_target_builds_once) {
     reset_entities();
     CM_ResetTestPathPerfStats();
 
-    edict_t * wp1 = make_waypoint(5.0f, 5.0f);
-    edict_t * wp2 = make_waypoint(5.0f, 5.0f);
+    edict_t *wp1 = make_waypoint(5.0f, 5.0f);
+    edict_t *wp2 = make_waypoint(5.0f, 5.0f);
     CM_BuildHeatmap(wp1);
     CM_BuildHeatmap(wp2);
 
@@ -330,8 +330,8 @@ TEST(wc3_pathfinding, heatmap_cache_miss_different_goal) {
     setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
-    edict_t * wp1 = make_waypoint(2.0f, 2.0f);
-    edict_t * wp2 = make_waypoint(7.0f, 7.0f);
+    edict_t *wp1 = make_waypoint(2.0f, 2.0f);
+    edict_t *wp2 = make_waypoint(7.0f, 7.0f);
     uint32_t gen1 = CM_BuildHeatmap(wp1);
     uint32_t gen2 = CM_BuildHeatmap(wp2);
 
@@ -344,7 +344,7 @@ TEST(wc3_pathfinding, heatmap_generation_is_nonzero) {
     setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
-    edict_t * wp = make_waypoint(3.0f, 3.0f);
+    edict_t *wp = make_waypoint(3.0f, 3.0f);
     uint32_t gen = CM_BuildHeatmap(wp);
 
     T_ASSERT(gen != 0);
@@ -359,8 +359,8 @@ TEST(wc3_pathfinding, invalidation_does_not_recycle_heatmap_generation) {
     setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
-    edict_t * first = make_waypoint(2.0f, 2.0f);
-    edict_t * second = make_waypoint(7.0f, 7.0f);
+    edict_t *first = make_waypoint(2.0f, 2.0f);
+    edict_t *second = make_waypoint(7.0f, 7.0f);
     uint32_t old_gen = CM_BuildHeatmap(first);
 
     T_ASSERT(old_gen != 0);
@@ -380,8 +380,8 @@ TEST(wc3_pathfinding, incremental_heatmap_serializes_cache_misses_without_losing
     reset_entities();
     CM_ResetTestPathPerfStats();
 
-    edict_t * first = make_waypoint(2.0f, 2.0f);
-    edict_t * second = make_waypoint(7.0f, 7.0f);
+    edict_t *first = make_waypoint(2.0f, 2.0f);
+    edict_t *second = make_waypoint(7.0f, 7.0f);
 
     /* A cache miss only queues work; a second goal waits rather than being
      * permanently denied by the old lifetime two-build quota. */
@@ -408,7 +408,7 @@ TEST(wc3_pathfinding, incremental_heatmap_serializes_cache_misses_without_losing
 TEST(wc3_pathfinding, production_budget_completes_large_open_field_in_two_frames) {
     enum { WIDTH = 256, HEIGHT = 256 };
     static uint8_t open[WIDTH * HEIGHT];
-    edict_t * goal;
+    edict_t *goal;
 
     memset(open, 0, sizeof(open));
     setup_test_pathmap(WIDTH, HEIGHT, open);
@@ -426,7 +426,7 @@ TEST(wc3_pathfinding, heatmap_reuses_neighbor_pathability_queries) {
     enum { WIDTH = 256, HEIGHT = 256 };
     static uint8_t open[WIDTH * HEIGHT];
     struct routePerfStats_s stats;
-    edict_t * goal;
+    edict_t *goal;
 
     memset(open, 0, sizeof(open));
     setup_test_pathmap(WIDTH, HEIGHT, open);
@@ -484,7 +484,7 @@ TEST(wc3_pathfinding, heatmap_cache_separates_collision_radius) {
     setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
-    edict_t * wp = make_waypoint(5.0f, 5.0f);
+    edict_t *wp = make_waypoint(5.0f, 5.0f);
     uint32_t point_gen = CM_BuildHeatmapForRadius(wp, 0.0f);
     uint32_t wide_gen = CM_BuildHeatmapForRadius(wp, 1.0f);
 
@@ -505,8 +505,8 @@ TEST(wc3_pathfinding, multi_goal_cache_no_thrash) {
     setup_test_pathmap(MAP_W, MAP_H, open_map);
 
     /* Use distinct waypoint slots from the global pool so pointers differ. */
-    edict_t * wp_a = make_waypoint(1.0f, 1.0f);
-    edict_t * wp_b = make_waypoint(8.0f, 8.0f);
+    edict_t *wp_a = make_waypoint(1.0f, 1.0f);
+    edict_t *wp_b = make_waypoint(8.0f, 8.0f);
 
     /* Verify the two waypoints are actually different pointers. */
     T_ASSERT(wp_a != wp_b);
@@ -531,14 +531,14 @@ TEST(wc3_pathfinding, heatmap_cache_ignores_stale_dynamic_pathmap_stamps) {
     setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
-    edict_t * wp1 = make_waypoint(5.0f, 5.0f);
+    edict_t *wp1 = make_waypoint(5.0f, 5.0f);
     uint32_t gen1 = CM_BuildHeatmap(wp1);
 
-    edict_t * unit = make_unit_at(wp1->s.origin.x, wp1->s.origin.y);
+    edict_t *unit = make_unit_at(wp1->s.origin.x, wp1->s.origin.y);
     vector2_t pathable;
     CM_ClosestPathablePointForRadius(&wp1->s.origin2, unit->collision, &pathable);
 
-    edict_t * wp2 = make_waypoint(5.0f, 5.0f);
+    edict_t *wp2 = make_waypoint(5.0f, 5.0f);
     uint32_t gen2 = CM_BuildHeatmap(wp2);
 
     T_EQ(gen1, gen2);
@@ -550,7 +550,7 @@ TEST(wc3_pathfinding, heatmap_build_does_not_bake_whole_flow_field) {
     reset_entities();
     CM_ResetTestPathPerfStats();
 
-    edict_t * wp = make_waypoint(7.0f, 5.0f);
+    edict_t *wp = make_waypoint(7.0f, 5.0f);
     CM_BuildHeatmap(wp);
 
     struct routePerfStats_s stats = CM_GetTestPathPerfStats();
@@ -570,7 +570,7 @@ TEST(wc3_pathfinding, flow_reachability_distinguishes_disconnected_component) {
     setup_test_pathmap(MAP_W, MAP_H, split_map);
     reset_entities();
 
-    edict_t * wp = make_waypoint(7.0f, 5.0f);
+    edict_t *wp = make_waypoint(7.0f, 5.0f);
     uint32_t gen = CM_BuildHeatmap(wp);
 
     T_ASSERT(CM_FlowCanReach(gen, 7.0f, 5.0f));
@@ -592,7 +592,7 @@ TEST(wc3_pathfinding, wall_routes_flow_around_obstacle) {
      * should NOT point straight right (+x only) through the wall; it will
      * bend toward the gap at y=8/9, giving a downward (y) component.
      * We also verify the goal IS reachable from the right side (7,5). */
-    edict_t * wp = make_waypoint(7.0f, 5.0f);
+    edict_t *wp = make_waypoint(7.0f, 5.0f);
     build_flow(wp);
 
     /* Flow at (7, 5) itself is zero by contract.  Flow at (8, 5) — right
@@ -613,7 +613,7 @@ TEST(wc3_pathfinding, flow_direction_points_toward_goal_open) {
     reset_entities();
 
     /* Goal at right edge; sample from left side. */
-    edict_t * wp = make_waypoint(9.0f, 5.0f);
+    edict_t *wp = make_waypoint(9.0f, 5.0f);
     build_flow(wp);
 
     /* At cell (2, 5), flow should point roughly rightward (+x). */
@@ -626,7 +626,7 @@ TEST(wc3_pathfinding, flow_goal_has_no_outward_direction) {
     setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
-    edict_t * wp = make_waypoint(5.0f, 5.0f);
+    edict_t *wp = make_waypoint(5.0f, 5.0f);
     uint32_t gen = CM_BuildHeatmap(wp);
     vector2_t dir = get_flow_direction(gen, 5.0f, 5.0f);
 
@@ -642,7 +642,7 @@ TEST(wc3_pathfinding, flow_goal_reports_adjusted_blocked_target_cell) {
     setup_test_pathmap(MAP_W, MAP_H, blocked_goal);
     reset_entities();
 
-    edict_t * wp = make_waypoint(5.0f, 5.0f);
+    edict_t *wp = make_waypoint(5.0f, 5.0f);
     uint32_t gen = CM_BuildHeatmap(wp);
 
     T_ASSERT(gen != 0);
@@ -667,7 +667,7 @@ TEST(wc3_pathfinding, point_flow_adjusted_goal_has_no_outward_direction) {
     setup_test_pathmap(MAP_W, MAP_H, blocked_goal);
     reset_entities();
 
-    edict_t * wp = make_waypoint(5.0f, 5.0f);
+    edict_t *wp = make_waypoint(5.0f, 5.0f);
     uint32_t gen = CM_BuildHeatmap(wp);
 
     T_ASSERT(gen != 0);
@@ -695,7 +695,7 @@ TEST(wc3_pathfinding, interaction_point_route_reports_adjusted_goal) {
     setup_test_pathmap(MAP_W, MAP_H, blocked_goal);
     reset_entities();
 
-    edict_t * target = make_waypoint(5.0f, 5.0f);
+    edict_t *target = make_waypoint(5.0f, 5.0f);
     uint32_t gen = CM_BuildHeatmap(target);
     T_ASSERT(gen != 0);
     if (!CM_FlowReachedGoal(gen, goal_x, goal_y)) {
@@ -704,7 +704,7 @@ TEST(wc3_pathfinding, interaction_point_route_reports_adjusted_goal) {
     }
     T_ASSERT(CM_FlowReachedGoal(gen, goal_x, goal_y));
 
-    edict_t * unit = make_unit_at(goal_x, goal_y);
+    edict_t *unit = make_unit_at(goal_x, goal_y);
     unit->collision = 0.0f;
     unit->goalentity = target;
     target->heatmap2 = gen;
@@ -753,7 +753,7 @@ TEST(wc3_pathfinding, direct_approach_stops_before_blocked_target_center) {
 
 TEST(wc3_pathfinding, footprint_approach_returns_legal_point_beside_blocked_building) {
     uint8_t blocked_target[MAP_W * MAP_H];
-    edict_t * building;
+    edict_t *building;
     pathTex_t *pathtex;
     vector2_t from = { 1.0f, 5.0f };
     vector2_t approach = { 0 };
@@ -786,7 +786,7 @@ TEST(wc3_pathfinding, footprint_approach_returns_legal_point_beside_blocked_buil
  * side among points on that ring. */
 TEST(wc3_pathfinding, footprint_inner_approach_prefers_contact_ring_over_outer_staging) {
     uint8_t blocked_target[MAP_W * MAP_H];
-    edict_t * building;
+    edict_t *building;
     pathTex_t *pathtex;
     vector2_t from = { 0.5f, 5.5f };
     vector2_t staging = { 0 }, inner = { 0 };
@@ -823,7 +823,7 @@ TEST(wc3_pathfinding, footprint_inner_approach_prefers_contact_ring_over_outer_s
  * either authored blocked pixel. */
 TEST(wc3_pathfinding, footprint_approach_respects_sparse_path_texture) {
     uint8_t blocked_target[MAP_W * MAP_H];
-    edict_t * building;
+    edict_t *building;
     pathTex_t *pathtex;
     vector2_t from = { 5.5f, 5.5f };
     vector2_t approach = { 0 };
@@ -863,7 +863,7 @@ TEST(wc3_pathfinding, heatmap_rejects_corridor_too_narrow_for_radius) {
     setup_test_pathmap(MAP_W, MAP_H, corridor);
     reset_entities();
 
-    edict_t * wp = make_waypoint(8.0f, 5.0f);
+    edict_t *wp = make_waypoint(8.0f, 5.0f);
     T_ASSERT(CM_BuildHeatmapForRadius(wp, 0.0f) != 0);
     T_EQ(CM_BuildHeatmapForRadius(wp, 1.0f), 0);
 }
@@ -878,8 +878,8 @@ TEST(wc3_pathfinding, move_order_requests_collision_sized_route) {
     setup_test_pathmap(MAP_W, MAP_H, gap_map);
     reset_entities();
 
-    edict_t * unit = make_unit_at(2.0f, 5.0f);
-    edict_t * wp = make_waypoint(8.0f, 5.0f);
+    edict_t *unit = make_unit_at(2.0f, 5.0f);
+    edict_t *wp = make_waypoint(8.0f, 5.0f);
     unit->collision = 1.0f;
     order_move(unit, wp);
 
@@ -898,8 +898,8 @@ TEST(wc3_pathfinding, patrol_requests_collision_sized_route) {
     setup_test_pathmap(MAP_W, MAP_H, gap_map);
     reset_entities();
 
-    edict_t * unit = make_unit_at(2.0f, 5.0f);
-    edict_t * wp = make_waypoint(8.0f, 5.0f);
+    edict_t *unit = make_unit_at(2.0f, 5.0f);
+    edict_t *wp = make_waypoint(8.0f, 5.0f);
     unit->collision = 1.0f;
     order_patrol(unit, wp);
     T_ASSERT(CM_BuildHeatmapForRadius(wp, unit->collision));
@@ -916,8 +916,8 @@ TEST(wc3_pathfinding, attack_move_requests_collision_sized_route) {
     setup_test_pathmap(MAP_W, MAP_H, gap_map);
     reset_entities();
 
-    edict_t * unit = make_unit_at(2.0f, 5.0f);
-    edict_t * wp = make_waypoint(8.0f, 5.0f);
+    edict_t *unit = make_unit_at(2.0f, 5.0f);
+    edict_t *wp = make_waypoint(8.0f, 5.0f);
     unit->collision = 1.0f;
     order_attackmove(unit, wp);
     T_ASSERT(CM_BuildHeatmapForRadius(wp, unit->collision));
@@ -939,8 +939,8 @@ TEST(wc3_pathfinding, unit_presence_does_not_invalidate_heatmap_cache) {
     setup_test_pathmap(MAP_W, MAP_H, open_map);
     reset_entities();
 
-    edict_t * wp   = make_waypoint(7.0f, 5.0f);
-    edict_t * unit = make_unit_at(3.0f, 5.0f);
+    edict_t *wp   = make_waypoint(7.0f, 5.0f);
+    edict_t *unit = make_unit_at(3.0f, 5.0f);
     (void)unit;
 
     uint32_t gen1 = CM_BuildHeatmap(wp);
@@ -982,7 +982,7 @@ TEST(wc3_pathfinding, closest_pathable_keeps_exact_open_point) {
  * command-time dynamic obstacle pass after their static footprint is gone. */
 TEST(wc3_pathfinding, closest_pathable_ignores_dead_dynamic_unit) {
     vector2_t point = { 2.0f, 5.0f }, live_out = {0}, dead_out = {0};
-    edict_t * blocker;
+    edict_t *blocker;
 
     build_open_map();
     setup_test_pathmap(MAP_W, MAP_H, open_map);
@@ -1004,7 +1004,7 @@ TEST(wc3_pathfinding, closest_pathable_ignores_dead_dynamic_unit) {
 TEST(wc3_pathfinding, closest_pathable_dynamic_units_use_movement_layer) {
     uint8_t cells[MAP_W * MAP_H] = { 0 };
     vector2_t point = { 2.0f, 5.0f }, out = { 0 };
-    edict_t * blocker;
+    edict_t *blocker;
 
     setup_test_pathmap(MAP_W, MAP_H, cells);
     reset_entities();
@@ -1063,7 +1063,7 @@ TEST(wc3_pathfinding, movement_throttles_repeated_unreachable_fallback) {
     uint8_t blocked_map[MAP_W * MAP_H];
     uint32_t first_time, second_time, first_calls;
     struct routePerfStats_s stats;
-    edict_t * unit, *goal;
+    edict_t *unit, *goal;
 
     memset(blocked_map, 0, sizeof(blocked_map));
     setup_test_pathmap(MAP_W, MAP_H, blocked_map);
@@ -1093,7 +1093,7 @@ TEST(wc3_pathfinding, movement_throttles_repeated_unreachable_fallback) {
  * has already been adjusted once. */
 TEST(wc3_pathfinding, movement_remembers_applied_unreachable_fallback) {
     uint8_t split[MAP_W * MAP_H];
-    edict_t * unit, *goal;
+    edict_t *unit, *goal;
 
     build_split_map();
     memcpy(split, split_map, sizeof(split));
@@ -1123,7 +1123,7 @@ TEST(wc3_pathfinding, no_diagonal_corner_cutting) {
     setup_test_pathmap(MAP_W, MAP_H, corner_map);
     reset_entities();
 
-    edict_t * wp = make_waypoint(1.0f, 1.0f);  /* goal at cell (1,1) */
+    edict_t *wp = make_waypoint(1.0f, 1.0f);  /* goal at cell (1,1) */
     build_flow(wp);
 
     vector2_t flow = flow_at_cell(0.0f, 0.0f);
@@ -1164,7 +1164,7 @@ TEST(wc3_pathfinding, closest_reachable_does_not_cross_diagonal_corner) {
 TEST(wc3_pathfinding, movement_rejects_swept_static_obstacle) {
     uint8_t blocked_map[MAP_W * MAP_H];
     vector2_t from = { 0.0f, 0.0f }, to = { 2.0f, 2.0f };
-    edict_t * unit;
+    edict_t *unit;
     memset(blocked_map, 0, sizeof(blocked_map));
     blocked_map[1 * MAP_W + 1] = 2;
     setup_test_pathmap(MAP_W, MAP_H, blocked_map);
@@ -1187,7 +1187,7 @@ TEST(wc3_pathfinding, flow_cache_consistent_after_hit) {
     build_open_map();
     setup_test_pathmap(MAP_W, MAP_H, open_map);
 
-    edict_t * wp = make_waypoint(9.0f, 5.0f);
+    edict_t *wp = make_waypoint(9.0f, 5.0f);
     build_flow(wp);
     vector2_t dir1 = flow_at_cell(2.0f, 5.0f);
 
@@ -1210,8 +1210,8 @@ TEST(wc3_pathfinding, flow_consistent_across_goal_switches) {
     build_open_map();
     setup_test_pathmap(MAP_W, MAP_H, open_map);
 
-    edict_t * wp_left  = make_waypoint(1.0f, 5.0f);
-    edict_t * wp_right = make_waypoint(9.0f, 5.0f);
+    edict_t *wp_left  = make_waypoint(1.0f, 5.0f);
+    edict_t *wp_right = make_waypoint(9.0f, 5.0f);
 
     /* Build both goals. */
     build_flow(wp_right);
@@ -1245,8 +1245,8 @@ TEST(wc3_pathfinding, proximity_shortcut_gives_correct_angle) {
     reset_entities();
 
     /* Place the unit beside its goal in the open corridor. */
-    edict_t * unit = make_unit_at(0.0f, 0.0f);
-    edict_t * wp   = make_waypoint(5.0f, 5.0f);
+    edict_t *unit = make_unit_at(0.0f, 0.0f);
+    edict_t *wp   = make_waypoint(5.0f, 5.0f);
     unit->collision = 0.0f;
     unit->goalentity = wp;
     unit->stand      = unit_stand;
@@ -1303,7 +1303,7 @@ TEST(wc3_pathfinding, static_rect_query_ignores_temporary_unit_occupancy) {
     uint8_t cells[4 * 4] = { 0 };
     box2_t rect = { .min = {1.25f, 1.25f}, .max = {1.75f, 1.75f} };
     vector2_t from = {1.50f, 1.50f}, out = {0};
-    edict_t * blocker;
+    edict_t *blocker;
 
     setup_test_pathmap(4, 4, cells);
     reset_entities();

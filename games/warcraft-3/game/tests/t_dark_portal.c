@@ -9,10 +9,10 @@
 #define BZ_MIN 3 // fixture DataB; min count (not stock L1 3 alone — paired with max)
 #define BZ_MAX 3 // fixture DataC; max==min so count is deterministic (not stock 5)
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 void G_RunEntities(void);
 
@@ -28,7 +28,7 @@ static char const andp_slk[] =
     "C;Y2;X7;K\"hfoo\"\nC;Y2;X8;K\"3\"\nC;Y2;X9;K\"3\"\n"
     "C;Y2;X10;K\"800\"\nC;Y2;X11;K\"0\"\nE\n";
 
-typedef struct { slkTestData_t *rows, *old; edict_t * caster; vector2_t point; } dpFix_t;
+typedef struct { slkTestData_t *rows, *old; edict_t *caster; vector2_t point; } dpFix_t;
 
 static dpFix_t dp_setup(void) {
     dpFix_t fix;
@@ -45,13 +45,13 @@ static dpFix_t dp_setup(void) {
 
 static void dp_done(dpFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
 
-static edict_t * dp_thinker(edict_t * caster) {
+static edict_t *dp_thinker(edict_t *caster) {
     FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->think == dark_portal_think)
         return ent;
     return NULL;
 }
 
-static uint32_t dp_troops(edict_t * caster) {
+static uint32_t dp_troops(edict_t *caster) {
     uint32_t count = 0;
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == BZ_HFOO && ent->s.player == caster->s.player) {
         T_ASSERT(!S_UnitHasStatus(ent, BZ_BTLF));

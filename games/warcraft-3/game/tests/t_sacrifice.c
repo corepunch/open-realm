@@ -6,13 +6,13 @@
 #define ID_ALAM MAKEFOURCC('A','l','a','m')
 #define ID_SHADE MAKEFOURCC('u','s','h','d')
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 void G_RunEntity(edict_t *);
 void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
-void CM_SetupTestWorldBounds(box2_t const * bounds);
-slkTestData_t *parse_slk_string(const char *text);
+void CM_SetupTestWorldBounds(box2_t const *bounds);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
 #define SAC_SLK \
@@ -34,9 +34,9 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
     slkTestData_t *rows, *old, *balance_rows, *old_balance;
-    edict_t * pit, *acolyte, *other;
+    edict_t *pit, *acolyte, *other;
     UnitBalance_t pit_balance, acolyte_balance, other_balance;
-    gameClient_t * client;
+    gameClient_t *client;
     pathTex_t *pathtex;
 } sacFix_t;
 
@@ -105,7 +105,7 @@ TEST(wc3_spell, sacrifice_registers_both_retail_endpoints) {
 
 TEST(wc3_spell, sacrifice_pit_target_hides_acolyte_and_queues_shade) {
     sacFix_t fix;
-    edict_t * result;
+    edict_t *result;
     sac_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.acolyte));
     result = fix.pit->build;
@@ -127,7 +127,7 @@ TEST(wc3_spell, sacrifice_pit_target_hides_acolyte_and_queues_shade) {
 
 TEST(wc3_spell, sacrifice_uses_result_build_time_then_replaces_worker_without_extra_food) {
     sacFix_t fix;
-    edict_t * result;
+    edict_t *result;
     UnitBalance_t result_balance;
     sac_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.acolyte, ID_ALAM, fix.pit));
@@ -154,7 +154,7 @@ TEST(wc3_spell, sacrifice_uses_result_build_time_then_replaces_worker_without_ex
 
 TEST(wc3_spell, sacrifice_cancel_restores_acolyte_and_removes_queued_shade) {
     sacFix_t fix;
-    edict_t * result;
+    edict_t *result;
     sac_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.acolyte));
     result = fix.pit->build;
@@ -171,7 +171,7 @@ TEST(wc3_spell, sacrifice_cancel_restores_acolyte_and_removes_queued_shade) {
 
 TEST(wc3_spell, sacrifice_requires_counterpart_ability_and_idle_pit) {
     sacFix_t fix;
-    edict_t * blocker;
+    edict_t *blocker;
     sac_setup(&fix);
     T_ASSERT(!S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.other));
     blocker = alloc_test_unit(MAKEFOURCC('u','g','h','o'), 128, 0);
@@ -187,7 +187,7 @@ TEST(wc3_spell, sacrifice_requires_counterpart_ability_and_idle_pit) {
  * is not consumed and the queue clears. */
 TEST(wc3_spell, sacrifice_worker_death_cancels_queue) {
     sacFix_t fix;
-    edict_t * result;
+    edict_t *result;
     sac_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.acolyte));
     result = fix.pit->build;
@@ -204,7 +204,7 @@ TEST(wc3_spell, sacrifice_worker_death_cancels_queue) {
 /* Ownership change invalidates the queue; the former worker survives. */
 TEST(wc3_spell, sacrifice_worker_ownership_change_cancels_queue) {
     sacFix_t fix;
-    edict_t * result;
+    edict_t *result;
     sac_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.acolyte));
     result = fix.pit->build;
@@ -222,7 +222,7 @@ TEST(wc3_spell, sacrifice_worker_ownership_change_cancels_queue) {
  * queue cancels and the new occupant survives. */
 TEST(wc3_spell, sacrifice_reused_slot_not_consumed) {
     sacFix_t fix;
-    edict_t * result, *occupant;
+    edict_t *result, *occupant;
     uint32_t slot;
     sac_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.acolyte));
@@ -244,7 +244,7 @@ TEST(wc3_spell, sacrifice_reused_slot_not_consumed) {
  * clearing space lets the retained order finish. */
 TEST(wc3_spell, sacrifice_blocked_placement_preserves_worker) {
     sacFix_t fix;
-    edict_t * result;
+    edict_t *result;
     UnitBalance_t result_balance;
     sac_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.acolyte));
@@ -279,7 +279,7 @@ TEST(wc3_spell, sacrifice_blocked_placement_preserves_worker) {
 TEST(wc3_save, sacrifice_queue_round_trips_then_completes) {
     cstring_t filename = "/tmp/openwarcraft3-sacrifice-queue.bin";
     sacFix_t fix;
-    edict_t * result;
+    edict_t *result;
     UnitBalance_t result_balance;
     sac_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.acolyte));
@@ -311,7 +311,7 @@ TEST(wc3_save, sacrifice_queue_round_trips_then_completes) {
 TEST(wc3_save, sacrifice_queue_round_trips_then_cancels) {
     cstring_t filename = "/tmp/openwarcraft3-sacrifice-cancel.bin";
     sacFix_t fix;
-    edict_t * result;
+    edict_t *result;
     sac_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.pit, ID_ASAC, fix.acolyte));
     result = fix.pit->build;

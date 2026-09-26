@@ -88,7 +88,7 @@ static int GetLittleLong(void) {
     return val;
 }
 
-static void FindNextChunk(const char *name) {
+static void FindNextChunk(char const *name) {
     while (1) {
         data_p = last_chunk;
         if (data_p >= iff_end) { data_p = NULL; return; }
@@ -101,12 +101,12 @@ static void FindNextChunk(const char *name) {
     }
 }
 
-static void FindChunk(const char *name) {
+static void FindChunk(char const *name) {
     last_chunk = iff_data;
     FindNextChunk(name);
 }
 
-static wavinfo_t GetWavinfo(const char *name, uint8_t *wav, int wavlength) {
+static wavinfo_t GetWavinfo(char const *name, uint8_t *wav, int wavlength) {
     wavinfo_t info;
     memset(&info, 0, sizeof(info));
     if (!wav) return info;
@@ -170,7 +170,7 @@ static bool s_is_mp3_path(cstring_t path) {
     return extension && !strcasecmp(extension, ".mp3");
 }
 
-static sfxcache_t *S_ResampleLoad(const char *path) {
+static sfxcache_t *S_ResampleLoad(char const *path) {
     uint32_t file_size = 0;
     uint8_t *file_data = FS_ReadFile(path, &file_size);
     if (!file_data || !file_size) {
@@ -615,7 +615,7 @@ static int S_AdmitSound(sfxcache_t *sc, soundPolicy_t const *p) {
     return free_slot;
 }
 
-static bool S_StartSound(sfxcache_t *sc, float volume, vector2_t const * origin, bool is_positional, int channel,
+static bool S_StartSound(sfxcache_t *sc, float volume, vector2_t const *origin, bool is_positional, int channel,
                          float attenuation, float timeofs, soundPolicy_t const *policy) {
     int selected = -1;
     unsigned priority = policy ? policy->priority : SOUND_PRIORITY(channel);
@@ -699,7 +699,7 @@ void S_PlaySoundFile(cstring_t path) {
 }
 
 /* Play a positional sound at a 2D world origin (distance attenuation + stereo pan). */
-void S_PlaySoundAt(cstring_t path, vector2_t const * origin) {
+void S_PlaySoundAt(cstring_t path, vector2_t const *origin) {
     if (!s.initialized || !path || !*path) return;
     sfx_t *sfx = S_FindSfx(path, true);
     if (!sfx) return;
@@ -707,7 +707,7 @@ void S_PlaySoundAt(cstring_t path, vector2_t const * origin) {
     S_StartSound(S_LoadSfx(sfx), 1.0f, origin, true, 0, DEFAULT_SOUND_PACKET_ATTENUATION, 0, NULL);
 }
 
-void S_PlaySoundPacket(cstring_t path, vector3_t const * origin, bool positioned, int channel, float volume,
+void S_PlaySoundPacket(cstring_t path, vector3_t const *origin, bool positioned, int channel, float volume,
                        float attenuation, float timeofs) {
     sfx_t *sfx;
     if (!s.initialized || !path || !*path) return;
@@ -723,7 +723,7 @@ void S_BeginLoopingSounds(void) {
     if (++s.loop_generation == 0) ++s.loop_generation;
 }
 
-void S_UpdateLoopingSound(uint32_t entity, cstring_t path, vector2_t const * origin, float volume, float attenuation) {
+void S_UpdateLoopingSound(uint32_t entity, cstring_t path, vector2_t const *origin, float volume, float attenuation) {
     sfx_t *sfx;
     sfxcache_t *sc;
     int free_channel = -1;
@@ -860,13 +860,13 @@ void S_StreamStop(sStreamId_t stream) {
     SDL_UnlockAudioDevice(s.device);
 }
 
-void S_SetListener(vector2_t const * origin, vector2_t const * right) {
+void S_SetListener(vector2_t const *origin, vector2_t const *right) {
     s.listener.origin = *origin;
     s.listener.right  = *right;
 }
 
 
-bool S_PlaySoundPolicy(cstring_t path, vector3_t const * origin, bool positioned, int channel, float volume,
+bool S_PlaySoundPolicy(cstring_t path, vector3_t const *origin, bool positioned, int channel, float volume,
                        float attenuation, float timeofs, soundPolicy_t const *policy) {
     sfx_t *sfx;
     if (policy && policy->request) S_ReserveSoundEvents();

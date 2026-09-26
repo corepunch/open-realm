@@ -23,24 +23,24 @@ struct areanode_s {
 static areaNode_t sv_areanodes[AREA_NODES];
 static uint32_t sv_numareanodes;
 
-void ClearLink (link_t * l) {
+void ClearLink (link_t *l) {
     l->prev = l->next = l;
 }
 
-void RemoveLink (link_t * l) {
+void RemoveLink (link_t *l) {
     l->next->prev = l->prev;
     l->prev->next = l->next;
 }
 
-void InsertLinkBefore (link_t * l, link_t * before) {
+void InsertLinkBefore (link_t *l, link_t *before) {
     l->next = before;
     l->prev = before->prev;
     l->prev->next = l;
     l->next->prev = l;
 }
 
-areaNode_t * SV_CreateAreaNode(uint32_t depth, vector2_t const * mins, vector2_t const * maxs) {
-    areaNode_t * anode = &sv_areanodes[sv_numareanodes++];
+areaNode_t *SV_CreateAreaNode(uint32_t depth, vector2_t const *mins, vector2_t const *maxs) {
+    areaNode_t *anode = &sv_areanodes[sv_numareanodes++];
     vector2_t size = Vector2_sub(maxs, mins);
     vector2_t mins1 = *mins, mins2 = *mins, maxs1 = *maxs, maxs2 = *maxs;
 
@@ -74,14 +74,14 @@ void SV_ClearWorld(void) {
     SV_CreateAreaNode(0, &bounds.min, &bounds.max);
 }
 
-void SV_UnlinkEntity(edict_t * ent) {
+void SV_UnlinkEntity(edict_t *ent) {
     if (!ent->area.prev)
         return;        // not linked in anywhere
     RemoveLink(&ent->area);
     ent->area.prev = ent->area.next = NULL;
 }
 
-void SV_LinkEntity(edict_t * ent) {
+void SV_LinkEntity(edict_t *ent) {
     SV_UnlinkEntity(ent);
     
     if (ent == ge->edicts)
@@ -102,7 +102,7 @@ void SV_LinkEntity(edict_t * ent) {
     ent->bounds.min = Vector2_sub(&ent->bounds.min, &eps);
     ent->bounds.max = Vector2_add(&ent->bounds.max, &eps);
 
-    areaNode_t * node = sv_areanodes;
+    areaNode_t *node = sv_areanodes;
     while (1) {
         if (node->axis == -1)
             break;
@@ -125,11 +125,11 @@ typedef struct {
     bool (*pred)(edict_t const *);
 } areaworker_t;
 
-void SV_AreaEdicts_r(areaNode_t const * node, areaworker_t *worker) {
-    link_t const * start = &node->solid_edicts;
+void SV_AreaEdicts_r(areaNode_t const *node, areaworker_t *worker) {
+    link_t const *start = &node->solid_edicts;
     
-    for (link_t const * l = start->next; l != start; l = l->next) {
-        edict_t * check = EDICT_FROM_AREA(l);
+    for (link_t const *l = start->next; l != start; l = l->next) {
+        edict_t *check = EDICT_FROM_AREA(l);
 
         if (   check->bounds.min.x > worker->bounds.max.x
             || check->bounds.min.y > worker->bounds.max.y
@@ -158,7 +158,7 @@ void SV_AreaEdicts_r(areaNode_t const * node, areaworker_t *worker) {
         SV_AreaEdicts_r(node->children[1], worker);
 }
 
-uint32_t SV_AreaEdicts(box2_t const * area, edict_t * *list, uint32_t maxcount, bool (*pred)(edict_t const *)) {
+uint32_t SV_AreaEdicts(box2_t const *area, edict_t * *list, uint32_t maxcount, bool (*pred)(edict_t const *)) {
     areaworker_t w = {
         .bounds = *area,
         .list = list,

@@ -3,10 +3,10 @@
 #include "test.h"
 #include "../g_local.h"
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-extern void ai_train_build(edict_t * ent);
+extern void ai_train_build(edict_t *ent);
 
 static UnitProfile_t const rally_train_profile = {
     .trains = "hpea",
@@ -20,15 +20,15 @@ static UnitProfile_t const rally_research_profile = {
     .researches = "Rhme",
 };
 
-static edict_t * rally_unit(uint32_t class_id, float x, float y) {
-    edict_t * ent = alloc_test_unit(class_id, x, y);
+static edict_t *rally_unit(uint32_t class_id, float x, float y) {
+    edict_t *ent = alloc_test_unit(class_id, x, y);
     ent->svflags |= SVF_MONSTER;
     ent->health.value = ent->health.max_value = 100.0f;
     return ent;
 }
 
 TEST(wc3_rally, capability_is_train_or_revive_driven) {
-    edict_t * producer;
+    edict_t *producer;
 
     reset_entities();
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
@@ -50,8 +50,8 @@ TEST(wc3_rally, command_handler_is_registered) {
 }
 
 TEST(wc3_rally, default_target_is_producer_itself) {
-    edict_t * producer;
-    edict_t * target = NULL;
+    edict_t *producer;
+    edict_t *target = NULL;
     vector2_t point;
 
     reset_entities();
@@ -69,8 +69,8 @@ TEST(wc3_rally, default_orc_barracks_rally_stops_trained_unit_outside_footprint)
     float const old_structure = game.constants.structureFollowRange;
     size_t const pathtex_size = sizeof(pathTex_t) + W * H * sizeof(color32_t);
     pathTex_t *pathtex;
-    edict_t * producer;
-    edict_t * trained;
+    edict_t *producer;
+    edict_t *trained;
     vector2_t exit;
     float angle;
 
@@ -128,9 +128,9 @@ TEST(wc3_rally, default_orc_barracks_rally_stops_trained_unit_outside_footprint)
 }
 
 TEST(wc3_rally, setrally_and_smart_store_point_and_widget_targets) {
-    edict_t * producer;
-    edict_t * target;
-    edict_t * resolved = NULL;
+    edict_t *producer;
+    edict_t *target;
+    edict_t *resolved = NULL;
     vector2_t point = { 320.0f, 448.0f };
     vector2_t resolved_point;
 
@@ -157,8 +157,8 @@ TEST(wc3_rally, setrally_and_smart_store_point_and_widget_targets) {
 }
 
 TEST(wc3_rally, setting_producer_as_target_restores_default) {
-    edict_t * producer;
-    edict_t * target = NULL;
+    edict_t *producer;
+    edict_t *target = NULL;
 
     reset_entities();
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
@@ -170,9 +170,9 @@ TEST(wc3_rally, setting_producer_as_target_restores_default) {
 }
 
 TEST(wc3_rally, dead_unit_target_resets_to_producer) {
-    edict_t * producer;
-    edict_t * target;
-    edict_t * resolved = NULL;
+    edict_t *producer;
+    edict_t *target;
+    edict_t *resolved = NULL;
 
     reset_entities();
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
@@ -186,9 +186,9 @@ TEST(wc3_rally, dead_unit_target_resets_to_producer) {
 }
 
 TEST(wc3_rally, removing_widget_target_resets_before_edict_reuse) {
-    edict_t * producer;
-    edict_t * target;
-    edict_t * resolved = NULL;
+    edict_t *producer;
+    edict_t *target;
+    edict_t *resolved = NULL;
 
     reset_entities();
     producer = rally_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
@@ -202,8 +202,8 @@ TEST(wc3_rally, removing_widget_target_resets_before_edict_reuse) {
 }
 
 TEST(wc3_rally, selected_producer_owns_one_snapshot_indicator) {
-    edict_t * clent, *producer, *target, *indicator;
-    gameClient_t * client;
+    edict_t *clent, *producer, *target, *indicator;
+    gameClient_t *client;
 
     reset_entities();
     setup_test_world();
@@ -246,8 +246,8 @@ TEST(wc3_rally, selected_producer_owns_one_snapshot_indicator) {
 }
 
 TEST(wc3_rally, point_handoff_uses_smart_movement) {
-    edict_t * producer;
-    edict_t * produced;
+    edict_t *producer;
+    edict_t *produced;
     vector2_t point = { 384.0f, 256.0f };
 
     reset_entities();
@@ -267,8 +267,8 @@ TEST(wc3_rally, point_handoff_uses_smart_movement) {
 
 TEST(wc3_rally, training_completion_reads_latest_rally_target) {
     UnitBalance_t balance = { .buildTime = 1, .foodUsed = 0, .foodMade = 0 };
-    edict_t * producer;
-    edict_t * trained;
+    edict_t *producer;
+    edict_t *trained;
     vector2_t first = { 256.0f, 128.0f };
     vector2_t latest = { 512.0f, 320.0f };
 

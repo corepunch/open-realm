@@ -5,10 +5,10 @@
 #define ID_ASTA MAKEFOURCC('A', 's', 't', 'a') // Stasis Trap placement
 #define ID_AEYE MAKEFOURCC('A', 'e', 'y', 'e') // Sentry Ward placement base code
 
-void stasis_trap_think(edict_t * thinker);
+void stasis_trap_think(edict_t *thinker);
 
 /* Land units only; air never arms or takes the stun. */
-static bool stasis_land_enemy(edict_t * ward, edict_t * target, float radius) {
+static bool stasis_land_enemy(edict_t *ward, edict_t *target, float radius) {
 	if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(ward, target)) return false;
 	if (target->targtype == TARG_AIR || target->targtype == TARG_STRUCTURE) return false;
 	if (G_UnitIsBuilding(target->class_id)) return false;
@@ -20,8 +20,8 @@ static cstring_t stasis_buff(uint32_t code, uint32_t level) {
 	return (buff && strlen(buff) >= 4) ? buff : ID_STASIS_BUFF;
 }
 
-static void stasis_kill_ward(edict_t * ward) {
-	edict_t * th_list[8];
+static void stasis_kill_ward(edict_t *ward) {
+	edict_t *th_list[8];
 	uint32_t n = 0;
 	if (!ward || !ward->inuse) return;
 	FILTER_EDICTS(th, th->inuse && th->owner == ward && th->think == stasis_trap_think)
@@ -31,8 +31,8 @@ static void stasis_kill_ward(edict_t * ward) {
 }
 
 /* After DataA arm delay, DataB trigger, DataC stun + peer-ward destroy; DataD/HeroDur stun. */
-void stasis_trap_think(edict_t * thinker) {
-	edict_t * ward = thinker->owner, *peers[16];
+void stasis_trap_think(edict_t *thinker) {
+	edict_t *ward = thinker->owner, *peers[16];
 	uint32_t code = thinker->class_id, level = (uint32_t)thinker->wait, pn = 0;
 	float detect, area, stun;
 	cstring_t buff;
@@ -65,7 +65,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityStasisTrap) {
 	uint32_t unit_id = S_SpellUnitId(spell->code, level);
 	float life = S_SpellDuration(spell->code, level, false);
 	float arm = S_SpellData(spell->code, level, 1);
-	edict_t * ward, *thinker;
+	edict_t *ward, *thinker;
 
 	if (!unit_id) {
 		fprintf(stderr, "WC3 Stasis Trap: missing UnitID for %.4s\n", (cstring_t)&spell->code);
@@ -84,7 +84,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityStasisTrap) {
 	thinker->think = stasis_trap_think;
 }
 
-static bool ward_is_sentry(edict_t const * ward) {
+static bool ward_is_sentry(edict_t const *ward) {
 	return ward && ward->inuse && G_AbilityCode(ward->summon_ability) == ID_AEYE;
 }
 
@@ -95,7 +95,7 @@ static bool ward_is_sentry(edict_t const * ward) {
 
 /* Passive detectors all expose their authored true-sight radius through Rng.
  * Keep this list data-driven rather than keying detection to unit rawcodes. */
-static float unit_detector_range(edict_t const * detector) {
+static float unit_detector_range(edict_t const *detector) {
 	static uint32_t const abilities[] = {
 		MAKEFOURCC('A', 'd', 'e', 't'), /* Detector */
 		MAKEFOURCC('A', 'g', 'y', 'v'), /* True Sight (Flying Machine) */
@@ -112,17 +112,17 @@ static float unit_detector_range(edict_t const * detector) {
 	return range;
 }
 
-static float permanent_invisibility_transition(edict_t const * unit) {
+static float permanent_invisibility_transition(edict_t const *unit) {
 	uint32_t level = unit ? G_UnitAbilityLevel(unit, ID_APIV) : 0;
 	return level ? S_SpellDuration(ID_APIV, level, false) : -1.0f;
 }
 
-bool S_PermanentInvisibilityActive(edict_t const * unit) {
+bool S_PermanentInvisibilityActive(edict_t const *unit) {
 	return unit && unit->inuse && (unit->runtime.flags & UNIT_BALANCE_PERMANENT_INVISIBLE) &&
 		G_Time() >= unit->permanent_invisibility_reveal_until;
 }
 
-void S_PermanentInvisibilityInitialize(edict_t * unit) {
+void S_PermanentInvisibilityInitialize(edict_t *unit) {
     float transition;
     if (!unit || !G_UnitAbilityLevel(unit, ID_APIV)) {
         if (unit) {
@@ -161,7 +161,7 @@ BZ_ABILITY_PROC(CAbilityPermanentInvisibility) {
     }
 }
 
-void S_PermanentInvisibilityReveal(edict_t * unit) {
+void S_PermanentInvisibilityReveal(edict_t *unit) {
 	float transition;
 	if (!unit || !(unit->runtime.flags & UNIT_BALANCE_PERMANENT_INVISIBLE)) return;
 	transition = permanent_invisibility_transition(unit);
@@ -177,7 +177,7 @@ void S_PermanentInvisibilityReveal(edict_t * unit) {
 /* RF_HIDDEN is also used for cargo, mines, training and revival.  This narrow
  * predicate identifies only states that true sight is allowed to reveal in a
  * per-client snapshot. */
-bool S_UnitUsesInvisibilityRenderFlag(edict_t const * unit) {
+bool S_UnitUsesInvisibilityRenderFlag(edict_t const *unit) {
 	uint32_t summon;
 	if (!unit || !unit->inuse || !(unit->s.renderfx & RF_HIDDEN)) return false;
 	if (G_UnitStatusLevel(unit, ID_BINV) || G_UnitStatusLevel(unit, ID_BOWK)) return true;
@@ -185,14 +185,14 @@ bool S_UnitUsesInvisibilityRenderFlag(edict_t const * unit) {
 	return summon == ID_AEYE || summon == ID_ASTA;
 }
 
-static bool detector_shared_with_player(edict_t const * detector, uint32_t player) {
+static bool detector_shared_with_player(edict_t const *detector, uint32_t player) {
 	return detector && detector->s.player < MAX_PLAYERS &&
 		G_FowPlayersShareVision(player, detector->s.player);
 }
 
 /* Player-local true sight.  Detector ownership/shared vision determines who
  * receives the reveal; the hidden entity itself is never globally unhidden. */
-bool S_UnitIsDetectedByPlayer(edict_t const * unit, uint32_t player) {
+bool S_UnitIsDetectedByPlayer(edict_t const *unit, uint32_t player) {
 	if (!unit || !unit->inuse || player >= MAX_PLAYERS) return false;
 
 	/* Far Sight owns an independent timed thinker after the caster is gone. */
@@ -218,7 +218,7 @@ bool S_UnitIsDetectedByPlayer(edict_t const * unit, uint32_t player) {
  * owner's shared vision keep access to their invisible units; hostile viewers
  * need a detector covering the target. Non-invisibility RF_HIDDEN states are
  * deliberately outside this predicate. */
-bool S_UnitIsInvisibleToPlayer(edict_t const * unit, uint32_t player) {
+bool S_UnitIsInvisibleToPlayer(edict_t const *unit, uint32_t player) {
 	if (!unit || !unit->inuse || player >= MAX_PLAYERS) return false;
 	if (unit->s.player < MAX_PLAYERS && G_FowPlayersShareVision(player, unit->s.player)) return false;
 	if (!S_PermanentInvisibilityActive(unit) && !S_UnitUsesInvisibilityRenderFlag(unit)) return false;
@@ -227,7 +227,7 @@ bool S_UnitIsInvisibleToPlayer(edict_t const * unit, uint32_t player) {
 
 /* Legacy aggregate query retained for ability/tests that only need to know
  * whether any player's detector currently covers the unit. */
-bool S_UnitIsDetected(edict_t const * unit) {
+bool S_UnitIsDetected(edict_t const *unit) {
 	if (!unit || !unit->inuse) return false;
 	FOR_LOOP(player, MAX_PLAYERS)
 		if (S_UnitIsDetectedByPlayer(unit, player)) return true;
@@ -239,7 +239,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityEvilEye) {
 	uint32_t level = S_SpellLevel(caster, spell->code);
 	uint32_t unit_id = S_SpellUnitId(spell->code, level);
 	float life = S_SpellDuration(spell->code, level, false);
-	edict_t * ward;
+	edict_t *ward;
 
 	if (!unit_id) {
 		fprintf(stderr, "WC3 Sentry Ward: missing UnitID for %.4s\n", (cstring_t)&spell->code);

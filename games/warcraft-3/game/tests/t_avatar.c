@@ -5,13 +5,13 @@
 #define BZ_AVATAR MAKEFOURCC('A', 'H', 'a', 'v')
 #define BZ_AVATAR_BUFF MAKEFOURCC('B', 'H', 'a', 'v')
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
-typedef struct { slkTestData_t *rows, *old; edict_t * unit; } avFix_t;
+typedef struct { slkTestData_t *rows, *old; edict_t *unit; } avFix_t;
 static const char avatar_slk[] =
     "ID;PWXL;N;EBB;Y2;X15\n"
     "C;Y1;X1;K\"alias\"\n"
@@ -66,7 +66,7 @@ static void avatar_done(avFix_t fix) { G_SetSLKRows("AbilityData", fix.old); fre
 
 TEST(wc3_avatar, cast_expire_recast_keeps_other_bonuses) {
     avFix_t fix = avatar_setup(1);
-    edict_t * unit = fix.unit;
+    edict_t *unit = fix.unit;
     T_ASSERT(unit_issueimmediateorder(unit, "avatar"));
     T_FEQ(unit->mana.value, 75, 0.001f);
     T_FEQ(unit->health.max_value, 1150, 0.001f);
@@ -99,9 +99,9 @@ TEST(wc3_avatar, cast_expire_recast_keeps_other_bonuses) {
 
 TEST(wc3_avatar, runtime_health_bonus_publishes_life_limit_events) {
     avFix_t fix = avatar_setup(1);
-    edict_t * unit = fix.unit;
-    event_t * gained = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
-    event_t * lost = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
+    edict_t *unit = fix.unit;
+    event_t *gained = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
+    event_t *lost = G_MakeEvent(EVENT_GAME_STATE_LIMIT);
     bool saw_gain = false, saw_loss = false;
 
     G_SetEventSubject(gained, unit); G_SetEventSubject(lost, unit);
@@ -128,7 +128,7 @@ TEST(wc3_avatar, runtime_health_bonus_publishes_life_limit_events) {
 
 TEST(wc3_avatar, level_change_death_and_removal_reverse_stored_values) {
     avFix_t fix = avatar_setup(2);
-    edict_t * unit = fix.unit;
+    edict_t *unit = fix.unit;
     T_ASSERT(S_CastNoTargetSpell(unit, BZ_AVATAR));
     T_FEQ(unit->health.max_value, 1250, 0.001f);
     T_FEQ(unit->attack2.temporaryDamageBonus, 35, 0.001f);
@@ -148,7 +148,7 @@ TEST(wc3_avatar, level_change_death_and_removal_reverse_stored_values) {
 
 TEST(wc3_avatar, ability_removal_expires_active_avatar) {
     avFix_t fix = avatar_setup(1);
-    edict_t * unit = fix.unit;
+    edict_t *unit = fix.unit;
     T_ASSERT(G_ActorAddSkill(unit, BZ_AVATAR));
     T_ASSERT(S_CastNoTargetSpell(unit, BZ_AVATAR));
     T_ASSERT(G_ActorRemoveSkill(unit, BZ_AVATAR));
@@ -159,7 +159,7 @@ TEST(wc3_avatar, ability_removal_expires_active_avatar) {
 
 TEST(wc3_avatar, immunity_rechecks_impact_and_leaves_physical_damage) {
     avFix_t fix = avatar_setup(1);
-    edict_t * unit = fix.unit, *enemy = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
+    edict_t *unit = fix.unit, *enemy = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
     enemy->health.value = 100; enemy->svflags |= SVF_MONSTER;
     T_ASSERT(S_CastNoTargetSpell(unit, BZ_AVATAR));
     T_ASSERT(!S_SpellAllowsTarget(MAKEFOURCC('A','H','t','b'), enemy, unit));
@@ -175,7 +175,7 @@ TEST(wc3_avatar, immunity_rechecks_impact_and_leaves_physical_damage) {
 
 TEST(wc3_avatar, no_mana_or_capacity_does_not_commit) {
     avFix_t fix = avatar_setup(1);
-    edict_t * unit = fix.unit;
+    edict_t *unit = fix.unit;
     unit->mana.value = 24;
     T_ASSERT(!S_CastNoTargetSpell(unit, BZ_AVATAR));
     T_EQ(unit->avatar.level, 0);
@@ -188,7 +188,7 @@ TEST(wc3_avatar, no_mana_or_capacity_does_not_commit) {
 }
 TEST(wc3_avatar, jass_added_ability_casts_by_order_and_publishes_spell_effect) {
     avFix_t fix = avatar_setup(1);
-    edict_t * unit = fix.unit;
+    edict_t *unit = fix.unit;
 
     memset(unit->heroabilities, 0, sizeof(unit->heroabilities));
     T_EQ(G_UnitAbilityLevel(unit, BZ_AVATAR), 0);

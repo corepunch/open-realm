@@ -8,10 +8,10 @@
 #define BZ_BPOS MAKEFOURCC('B', 'p', 'o', 's') // rawcode; target Possession stun buff
 #define BZ_BPOC MAKEFOURCC('B', 'p', 'o', 'c') // rawcode; caster Possession damage-amp buff
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock Cost/DataA so tests cannot pass on retail 250/5. */
@@ -43,11 +43,11 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
     slkTestData_t *rows, *old;
-    edict_t * caster, *enemy, *ally, *flyer, *hero;
+    edict_t *caster, *enemy, *ally, *flyer, *hero;
     UnitBalance_t enemy_bal, hero_bal, ally_bal;
 } posFix_t;
 
-static edict_t * pos_thinker(edict_t * caster) {
+static edict_t *pos_thinker(edict_t *caster) {
     FILTER_EDICTS(ent, ent->owner == caster && ent->think) return ent;
     return NULL;
 }
@@ -154,7 +154,7 @@ TEST(wc3_spell, possession_rejects_invalid_targets_without_mana_spend) {
 /* After a successful take-over the dead caster cannot recast. */
 TEST(wc3_spell, possession_apos_invalid_after_caster_consumed) {
     posFix_t fix; pos_setup(&fix, POS_APOS_SLK, BZ_APOS);
-    edict_t * other = alloc_test_unit(MAKEFOURCC('o', 'g', 'r', 'u'), 200, 0);
+    edict_t *other = alloc_test_unit(MAKEFOURCC('o', 'g', 'r', 'u'), 200, 0);
     UnitBalance_t bal = MAKE(UnitBalance_t, .maxHealth = 500, .level = 2);
     other->s.player = 1; other->svflags |= SVF_MONSTER; other->targtype = TARG_GROUND;
     other->data.UnitBalance = &bal; other->health.value = other->health.max_value = 500;
@@ -167,7 +167,7 @@ TEST(wc3_spell, possession_apos_invalid_after_caster_consumed) {
 /* Aps2 locks both sides, then transfers ownership when the channel expires. */
 TEST(wc3_spell, possession_aps2_channel_completes_takeover) {
     posFix_t fix; pos_setup(&fix, POS_APS2_SLK, BZ_APS2);
-    edict_t * thinker;
+    edict_t *thinker;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APS2, fix.enemy));
     T_EQ(fix.caster->channel.code, BZ_APS2);
     T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPOS), 1);
@@ -190,7 +190,7 @@ TEST(wc3_spell, possession_aps2_channel_completes_takeover) {
 /* Cancel mid-channel restores the target and does not transfer ownership. */
 TEST(wc3_spell, possession_aps2_abort_keeps_owner) {
     posFix_t fix; pos_setup(&fix, POS_APS2_SLK, BZ_APS2);
-    edict_t * thinker;
+    edict_t *thinker;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APS2, fix.enemy));
     thinker = pos_thinker(fix.caster);
     T_NOT_NULL(thinker);

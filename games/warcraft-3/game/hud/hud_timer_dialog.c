@@ -12,9 +12,9 @@
 #define BZ_WC3_TIMER_DIALOG_MIN_WIDTH  0.060f // normalized UI units; preserves a readable stock timer strip
 
 typedef struct {
-    frameDef_t * frame;
+    frameDef_t *frame;
     uiFramePointPos_t point;
-    frameDef_t const * relative;
+    frameDef_t const *relative;
     uiFramePointPos_t target;
     float offset;
 } timerDialogPointParams_t;
@@ -31,9 +31,9 @@ static void TimerDialogSetHorizontalPoint(timerDialogPointParams_t const *params
 }
 
 static uint32_t TimerDialogMeasureFont(void) {
-    frameDef_t * title = hud.timer_dialog.TimerDialogTitle;
-    frameDef_t * value = hud.timer_dialog.TimerDialogValue;
-    frameDef_t * measure = title;
+    frameDef_t *title = hud.timer_dialog.TimerDialogTitle;
+    frameDef_t *value = hud.timer_dialog.TimerDialogValue;
+    frameDef_t *measure = title;
 
     uint32_t font;
 
@@ -42,10 +42,10 @@ static uint32_t TimerDialogMeasureFont(void) {
     return font ? font : gi.FontIndex("Fonts\\FRIZQT__.TTF", HUD_FONT_SIZE);
 }
 
-static timerdialog_t * UI_VisibleTimerDialog(uint32_t player_num) {
+static timerdialog_t *UI_VisibleTimerDialog(uint32_t player_num) {
     if (player_num >= MAX_CLIENTS) return NULL;
     FOR_LOOP(i, MAX_TIMERDIALOGS) {
-        timerdialog_t * dialog = &level.timer_dialogs[i];
+        timerdialog_t *dialog = &level.timer_dialogs[i];
         if (dialog->inuse && (dialog->visible_clients & (1u << player_num))) return dialog;
     }
     return NULL;
@@ -124,8 +124,8 @@ void UI_LoadHudTimerDialogs(void) {
         hud.timer_dialog_default_time_color = hud.timer_dialog.TimerDialogValue->Color;
 }
 
-void UI_WriteTimerDialogs(edict_t * ent) {
-    timerdialog_t * dialog;
+void UI_WriteTimerDialogs(edict_t *ent) {
+    timerdialog_t *dialog;
     cstring_t title;
     char value[32];
     char measure[MAX_TRIGSTR_LENGTH + sizeof(value) + 8];

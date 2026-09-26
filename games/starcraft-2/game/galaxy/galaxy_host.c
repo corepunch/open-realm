@@ -70,16 +70,16 @@ bool (*sc2_galaxy_get_camera_by_id)(uint32_t map_id,
     float *tx, float *ty, float *tz,
     float *pitch, float *yaw, float *dist, float *fov, float *height_offset);
 bool (*sc2_galaxy_get_point_by_id)(uint32_t map_id, float *x, float *y);
-const char *(*sc2_galaxy_get_unit_model)(cstring_t unit_type);
+char const *(*sc2_galaxy_get_unit_model)(cstring_t unit_type);
 void (*sc2_galaxy_unit_set_position)(void *ent, float x, float y, float facing);
 void (*sc2_galaxy_unit_move)(void *ent, float x, float y);
 bool (*sc2_galaxy_unit_is_moving)(void *ent);
 bool (*sc2_galaxy_unit_is_alive)(void *ent);
 int (*sc2_galaxy_unit_owner)(void *ent);
 
-void (*sc2_galaxy_on_actor_create)(unsigned actor_id, const char *model,
+void (*sc2_galaxy_on_actor_create)(unsigned actor_id, char const *model,
                                    unsigned unit_id, float x, float y);
-void (*sc2_galaxy_on_actor_send)(unsigned actor_id, const char *msg);
+void (*sc2_galaxy_on_actor_send)(unsigned actor_id, char const *msg);
 void (*sc2_galaxy_on_actor_destroy)(unsigned actor_id);
 
 /* -------------------------------------------------------------------------
@@ -141,7 +141,7 @@ void galaxy_reset(void) {
     galaxy_loaded_reset();
 }
 
-void galaxy_fire_mapinit(jass_t * j) {
+void galaxy_fire_mapinit(jass_t *j) {
     fprintf(stderr, "galaxy_fire_mapinit: %u triggers registered, firing MapInit\n", sc2_trig_n);
     for (uint32_t i = 0; i < sc2_trig_n; i++) {
         if (sc2_trigs[i].mapinit && sc2_trigs[i].func) {
@@ -152,7 +152,7 @@ void galaxy_fire_mapinit(jass_t * j) {
     jass_runevents(j);
 }
 
-jass_t * galaxy_open(handle_t (*readfile)(cstring_t, uint32_t *),
+jass_t *galaxy_open(handle_t (*readfile)(cstring_t, uint32_t *),
                    uint32_t  (*gettime)(void),
                    handle_t (*memalloc)(long),
                    void   (*memfree)(handle_t)) {
@@ -167,7 +167,7 @@ jass_t * galaxy_open(handle_t (*readfile)(cstring_t, uint32_t *),
         .ReadFile       = sc2_galaxy_readfile,
         .galaxy_natives = galaxy_get_natives(),
     });
-    jass_t * vm = jass_newstate();
+    jass_t *vm = jass_newstate();
     /* Load MapScript.galaxy only — it includes NativeLib/LibertyLib/CampaignLib
      * via its own `include` directives, each parsed exactly once.  Pre-loading
      * them separately causes each to be re-parsed 4–7 times via nested includes,
@@ -183,7 +183,7 @@ jass_t * galaxy_open(handle_t (*readfile)(cstring_t, uint32_t *),
     return vm;
 }
 
-void galaxy_close(jass_t * vm) {
+void galaxy_close(jass_t *vm) {
     if (vm) {
         for (uint32_t i = 0; i < jass_missingcount(vm); i++)
             fprintf(stderr, "galaxy: missing function: %s\n", jass_missingname(vm, i));
@@ -192,7 +192,7 @@ void galaxy_close(jass_t * vm) {
     galaxy_reset();
 }
 
-void galaxy_start(jass_t * vm) {
+void galaxy_start(jass_t *vm) {
     /* TODO: InitLibs reaches unimplemented dialog/purchase event producers. Keep this gap explicit until wired. */
     fprintf(stderr, "galaxy_start: warning: InitLibs is not yet supported (library event bindings incomplete)\n");
     static cstring_t const entry[] = { "InitGlobals", "InitTriggers" };
@@ -208,7 +208,7 @@ void galaxy_start(jass_t * vm) {
     fprintf(stderr, "galaxy_start: done, %u triggers registered\n", sc2_trig_n);
 }
 
-void galaxy_tick(jass_t * vm) {
+void galaxy_tick(jass_t *vm) {
     sc2_run_unit_orders();
     jass_runevents(vm);
     if (jass_rterror_pending(vm)) {
@@ -645,4 +645,4 @@ static jassModule_t sc2_galaxy_natives[] = {
     { NULL, NULL },
 };
 
-jassModule_t const * galaxy_get_natives(void) { return sc2_galaxy_natives; }
+jassModule_t const *galaxy_get_natives(void) { return sc2_galaxy_natives; }

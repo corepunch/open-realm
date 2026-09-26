@@ -17,7 +17,7 @@ KNOWN_AS(link_s, link_t);
 typedef struct edict_s edict_t;
 
 struct link_s {
-    link_t * prev, *next;
+    link_t *prev, *next;
 };
 
 typedef enum {
@@ -46,17 +46,17 @@ struct game_import {
     int (*ModelIndex)(cstring_t modelName);
     int (*SoundIndex)(cstring_t soundName);
     int (*SoundIndexAlias)(cstring_t soundName, cstring_t alias);
-    void (*Sound)(edict_t * ent, int channel, int sound_index, float volume, float attenuation, float timeofs);
-    void (*PositionedSound)(vector3_t const * origin, edict_t * ent, int channel, int sound_index, float volume,
+    void (*Sound)(edict_t *ent, int channel, int sound_index, float volume, float attenuation, float timeofs);
+    void (*PositionedSound)(vector3_t const *origin, edict_t *ent, int channel, int sound_index, float volume,
                             float attenuation, float timeofs);
-    void (*SoundPolicy)(vector3_t const * origin, edict_t * ent, int channel, int sound_index, float volume,
+    void (*SoundPolicy)(vector3_t const *origin, edict_t *ent, int channel, int sound_index, float volume,
                          float attenuation, float timeofs, soundPolicy_t const *policy);
-    void (*MinimapPing)(edict_t * ent, vector2_t const * position, float duration, color32_t color, uint32_t flags);
+    void (*MinimapPing)(edict_t *ent, vector2_t const *position, float duration, color32_t color, uint32_t flags);
     int (*ImageIndex)(cstring_t imageName);
     int (*FontIndex)(cstring_t fontName, uint32_t fontSize);
-    void (*LinkEntity)(edict_t * ent);
-    void (*UnlinkEntity)(edict_t * ent);
-    uint32_t (*BoxEdicts)(box2_t const * area, edict_t * *list, uint32_t maxcount, bool (*pred)(edict_t const *));
+    void (*LinkEntity)(edict_t *ent);
+    void (*UnlinkEntity)(edict_t *ent);
+    uint32_t (*BoxEdicts)(box2_t const *area, edict_t * *list, uint32_t maxcount, bool (*pred)(edict_t const *));
     void (*MenuAction)(cstring_t action, cstring_t arg);
     /* Queue a client-side movie to interpose the next deferred session action. */
     void (*QueueMovie)(cstring_t path);
@@ -64,7 +64,7 @@ struct game_import {
     /* Keep the native window responsive during synchronous map loading without
      * advancing commands, client simulation, or server simulation. */
     void (*LoadingFrame)(void);
-    handle_t (*ReadFile)(cstring_t filename, uint32_t * size);
+    handle_t (*ReadFile)(cstring_t filename, uint32_t *size);
     /* Calls callback for every archive copy of filename, lowest priority first.
      * Useful for merging layered data files (e.g. GameData/Assets.txt). */
     void (*ReadFileAll)(cstring_t filename, void (*callback)(handle_t buf, uint32_t size, void *ud), void *ud);
@@ -77,7 +77,7 @@ struct game_import {
     /* Freeze only authoritative simulation advancement. The server keeps
      * packet processing and client transport alive while paused. */
     void (*SetPaused)(bool paused);
-    void (*multicast)(vector3_t const * origin, multicast_t to);
+    void (*multicast)(vector3_t const *origin, multicast_t to);
     void (*unicast)(edict_t *ent);
     void (*Write)(pfWriteType_t type, void const *value);
 
@@ -85,7 +85,7 @@ struct game_import {
     void (*confignstring)(uint32_t index, cstring_t string, uint32_t len);
     cstring_t (*GetConfigstring)(uint32_t index);
     void (*error)(cstring_t fmt, ...);
-    void (*ApplyLobbySettings)(mapInfo_t * info);
+    void (*ApplyLobbySettings)(mapInfo_t *info);
 
     /* Cvar access — allows the game library to read command-line/config values
      * without linking directly against common.  Returns fallback if not set. */
@@ -145,23 +145,23 @@ struct game_export {
     void (*Shutdown)(void);
     void (*RunFrame)(void);
     cstring_t (*GetThemeValue)(cstring_t filename);
-    void (*ClientCommand)(edict_t * ent, uint32_t argc, cstring_t argv[]);
-    void (*ClientInput)(edict_t * ent, inputCmd_t const * cmd);
+    void (*ClientCommand)(edict_t *ent, uint32_t argc, cstring_t argv[]);
+    void (*ClientInput)(edict_t *ent, inputCmd_t const *cmd);
     /* Read destination metadata and write the loading layout into the multicast buffer, before LoadMap. */
     bool (*PrepareMap)(cstring_t mapFilename);
-    void (*ClientBegin)(edict_t * ent);
-    bool (*CanSeeEntity)(uint32_t player, edict_t const * ent);
+    void (*ClientBegin)(edict_t *ent);
+    bool (*CanSeeEntity)(uint32_t player, edict_t const *ent);
     /* Cheap predicate, called for each visible candidate to preserve it under saturation. */
-    bool (*IsSnapshotPriorityEntity)(uint32_t player, edict_t const * ent);
-    void (*CustomizeEntity)(uint32_t player, edict_t const * ent, entityState_t * state);
-    uint32_t (*WriteClientDatagram)(edict_t * ent, uint8_t * data, uint32_t size);
+    bool (*IsSnapshotPriorityEntity)(uint32_t player, edict_t const *ent);
+    void (*CustomizeEntity)(uint32_t player, edict_t const *ent, entityState_t *state);
+    uint32_t (*WriteClientDatagram)(edict_t *ent, uint8_t *data, uint32_t size);
     uint32_t (*PlayerCreateMap)(void);
     bool (*LoadMap)(cstring_t mapFilename);
     bool (*SaveGame)(cstring_t filename);
     bool (*LoadGame)(cstring_t filename);
     bool (*GetSaveMap)(cstring_t filename, string_t map, uint32_t map_size);
     box2_t (*GetWorldBounds)(void);
-    bool (*PathingEntityIsIgnored)(edict_t const * ent);
+    bool (*PathingEntityIsIgnored)(edict_t const *ent);
     
     edict_t *edicts;
     int num_edicts;
@@ -173,7 +173,7 @@ struct game_export {
 struct game_export *GetGameAPI(struct game_import *game_import);
 
 /* Invisible controllers use the same movement axes as actors, with a game-owned focus speed. */
-static inline vector2_t input_move_focus(inputCmd_t const * cmd, player_t const * ps, float speed) {
+static inline vector2_t input_move_focus(inputCmd_t const *cmd, player_t const *ps, float speed) {
     uint32_t bits = cmd->move.buttons;
     vector3_t dir = { !!(bits & BZ_MOVE_FORWARD) - !!(bits & BZ_MOVE_BACK),
         !!(bits & BZ_MOVE_LEFT) - !!(bits & BZ_MOVE_RIGHT), 0 };

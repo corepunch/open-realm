@@ -18,7 +18,7 @@ uint32_t UI_ClassIdFromCode(cstring_t code) {
 }
 
 static void UI_FormatTooltipLevel(cstring_t code, cstring_t tip, cstring_t ubertip, float manacost, int32_t level,
-                                   edict_t const * producer, bool building_upgrade, string_t out, uint32_t out_size) {
+                                   edict_t const *producer, bool building_upgrade, string_t out, uint32_t out_size) {
     uint32_t class_id = UI_ClassIdFromCode(code);
     UnitBalance_t const *balance = class_id ? G_UnitBalance(class_id) : NULL;
     ItemData_t const *item = class_id ? G_ItemData(class_id) : NULL;
@@ -93,7 +93,7 @@ void UI_FormatTooltip(cstring_t code, cstring_t tip, cstring_t ubertip, float ma
 }
 
 static void UI_FormatCommandTooltip(gameCommandButton_t const *button, string_t out, uint32_t out_size) {
-    edict_t * producer = ui_current_client ? G_GetMainSelectedUnit(ui_current_client) : NULL;
+    edict_t *producer = ui_current_client ? G_GetMainSelectedUnit(ui_current_client) : NULL;
     UI_FormatTooltipLevel(button->command, button->tooltip, button->ubertip, button->manacost,
                           button->research ? (int32_t)button->level : 0, producer,
                           button->building_upgrade != 0, out, out_size);
@@ -198,7 +198,7 @@ void UI_WriteCommandButtonFrame(gameCommandButton_t const *button) {
 
 void UI_WriteCommandButton(cstring_t code, bool research, uint32_t level) {
     gameCommandButton_t buttons[1];
-    edict_t * ent = G_GetMainSelectedUnit(ui_current_client);
+    edict_t *ent = G_GetMainSelectedUnit(ui_current_client);
 
     if (!ent || !code || !*code) {
         return;
@@ -210,12 +210,12 @@ void UI_WriteCommandButton(cstring_t code, bool research, uint32_t level) {
     UI_WriteCommandButtonFrame(buttons);
 }
 
-void UI_WriteBuildQueue(edict_t * ent) {
+void UI_WriteBuildQueue(edict_t *ent) {
     gameQueueItem_t queue[MAX_BUILD_QUEUE];
     uint8_t count = G_GetBuildQueue(ent, queue, MAX_BUILD_QUEUE);
     uint32_t size;
     uint32_t buildtimer_number;
-    uint8_t * buffer;
+    uint8_t *buffer;
     uiBuildQueue_t *buildqueue;
     uiFrame_t firstitem;
     uiFrame_t buildtimer;
@@ -323,7 +323,7 @@ void UI_AddCommandButton(cstring_t code) {
     UI_AddCommandButtonExtended(code, false, 0);
 }
 
-void UI_AddCancelButton(edict_t * ent) {
+void UI_AddCancelButton(edict_t *ent) {
     UI_SetCurrentClient(ent ? ent->client : NULL);
     UI_WriteStart(LAYER_COMMANDBAR);
     UI_AddCommandButton(STR_CmdCancel);

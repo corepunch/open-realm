@@ -11,7 +11,7 @@ static cstring_t status_buff(abilityitem_t const *spell, uint32_t level) {
     return buff && strlen(buff) >= 4 ? buff : status_buff_fallback(spell->code);
 }
 
-static void status_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static void status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = status_buff(spell, level);
     if (!st.entity || !buff) return;
@@ -23,7 +23,7 @@ static void status_execute(edict_t * caster, spellTarget_t st, abilityitem_t con
  * Name=Cripple
  * Ubertip="Reduces movement speed by <Acri,DataA1,%>%, attack rate by <Acri,DataB1,%>%, and damage by <Acri,DataC1,%>% of a target enemy unit. |nLasts <Acri,Dur1> seconds."
  */
-static bool cripple_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool cripple_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     (void)spell;
     return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsEnemy(caster, st.entity);
 }
@@ -31,17 +31,17 @@ static bool cripple_validate(edict_t * caster, spellTarget_t st, abilityitem_t c
 BZ_VALIDATED_SPELL_PROC(AbilityCripple, cripple_validate, status_execute)
 
 /* DataA = movement speed reduction fraction; DataB = attack rate reduction; DataC = damage reduction. */
-float S_CrippleMoveReduction(edict_t const * unit) {
+float S_CrippleMoveReduction(edict_t const *unit) {
     uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'c', 'r', 'i'));
     return level ? S_SpellData(MAKEFOURCC('A', 'c', 'r', 'i'), level, 1) : 0.0f;
 }
 
-float S_CrippleAttackReduction(edict_t const * unit) {
+float S_CrippleAttackReduction(edict_t const *unit) {
     uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'c', 'r', 'i'));
     return level ? S_SpellData(MAKEFOURCC('A', 'c', 'r', 'i'), level, 2) : 0.0f;
 }
 
-float S_CrippleDamageReduction(edict_t const * unit) {
+float S_CrippleDamageReduction(edict_t const *unit) {
     uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'c', 'r', 'i'));
     return level ? S_SpellData(MAKEFOURCC('A', 'c', 'r', 'i'), level, 3) : 0.0f;
 }
@@ -54,11 +54,11 @@ float S_CrippleDamageReduction(edict_t const * unit) {
 #define BZ_SOUL_BURN_BUFF MAKEFOURCC('B', 'N', 's', 'o') // rawcode; Soul Burn cast lock + drain
 
 /* BNsi (Silence) and BNso (Soul Burn) both reject spell casts with "Silenced." */
-bool S_UnitIsSilenced(edict_t const * unit) {
+bool S_UnitIsSilenced(edict_t const *unit) {
     return unit && (S_UnitHasStatus(unit, BZ_SILENCE_BUFF) || S_UnitHasStatus(unit, BZ_SOUL_BURN_BUFF));
 }
 
-static bool soul_burn_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool soul_burn_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     (void)spell;
     return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsEnemy(caster, st.entity);
 }
@@ -66,12 +66,12 @@ static bool soul_burn_validate(edict_t * caster, spellTarget_t st, abilityitem_t
 BZ_VALIDATED_SPELL_PROC(AbilitySoulBurn, soul_burn_validate, status_execute)
 
 /* DataA = damage per second; DataC = attack damage reduction fraction. */
-float S_SoulBurnDamageRate(edict_t const * unit) {
+float S_SoulBurnDamageRate(edict_t const *unit) {
     uint32_t level = G_UnitStatusLevel(unit, BZ_SOUL_BURN_BUFF);
     return level ? S_SpellData(MAKEFOURCC('A', 'N', 's', 'o'), level, 1) : 0.0f;
 }
 
-float S_SoulBurnDamageReduction(edict_t const * unit) {
+float S_SoulBurnDamageReduction(edict_t const *unit) {
     uint32_t level = G_UnitStatusLevel(unit, BZ_SOUL_BURN_BUFF);
     return level ? S_SpellData(MAKEFOURCC('A', 'N', 's', 'o'), level, 3) : 0.0f;
 }
@@ -120,7 +120,7 @@ static cstring_t poison_buffs(uint32_t code) {
     return NULL;
 }
 
-static void poison_apply(edict_t * attacker, edict_t * target, uint32_t code, uint32_t *seen, uint32_t *count) {
+static void poison_apply(edict_t *attacker, edict_t *target, uint32_t code, uint32_t *seen, uint32_t *count) {
     cstring_t buffs;
     uint32_t level;
     FOR_LOOP(i, *count)
@@ -139,7 +139,7 @@ static void poison_apply(edict_t * attacker, edict_t * target, uint32_t code, ui
 
 /* Called from S_ResolveAttackHit after a hit lands on an enemy. Checks native
  * poison ownership and held poison-orb items; the same poison from both applies once. */
-void S_PoisonOnHit(edict_t * attacker, edict_t * target) {
+void S_PoisonOnHit(edict_t *attacker, edict_t *target) {
     uint32_t seen[sizeof(poison_codes) / sizeof(poison_codes[0])];
     uint32_t count = 0;
     if (!attacker || !target || !S_SpellIsEnemy(attacker, target)) return;
@@ -147,7 +147,7 @@ void S_PoisonOnHit(edict_t * attacker, edict_t * target) {
         if (G_UnitAbilityLevel(attacker, poison_codes[o])) poison_apply(attacker, target, poison_codes[o], seen, &count);
     if (!G_InventoryCanUseItems(attacker)) return;
     FOR_LOOP(i, MAX_INVENTORY) {
-        edict_t * item = attacker->inventory[i];
+        edict_t *item = attacker->inventory[i];
         cstring_t abilities;
         if (!item) continue;
         abilities = G_ItemAbilityList(item);

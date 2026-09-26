@@ -2,18 +2,18 @@
 #include "../mdx/r_mdx.h"
 #include "renderer/r_shader.h"
 
-mapsegment_t * g_mapSegments = NULL;
-maplayer_t * g_groundLayers = NULL;
+mapsegment_t *g_mapSegments = NULL;
+maplayer_t *g_groundLayers = NULL;
 static cameraHeightMap_t w3_camera_height;
 
 #define WC3_CAMERA_HEIGHT_RADIUS 4 // terrain cells; half-width of the client camera blur footprint
-static float r_w3_camera_grid_height(void const * data, uint32_t x, uint32_t y) {
+static float r_w3_camera_grid_height(void const *data, uint32_t x, uint32_t y) {
     return GetWar3MapVertexHeight(GetWar3MapVertex(data, x, y));
 }
 
 static void R_FreeMapLayers(maplayer_t * *layers) {
     while (*layers) {
-        maplayer_t * layer = *layers;
+        maplayer_t *layer = *layers;
         *layers = layer->next;
         if (layer->buffer) R_ReleaseVertexArrayObject((buffer_t *)layer->buffer);
         ri.MemFree(layer);
@@ -22,14 +22,14 @@ static void R_FreeMapLayers(maplayer_t * *layers) {
 
 static void R_FreeMapSegments(void) {
     while (g_mapSegments) {
-        mapsegment_t * segment = g_mapSegments;
+        mapsegment_t *segment = g_mapSegments;
         g_mapSegments = segment->next;
         R_FreeMapLayers(&segment->layers);
         ri.MemFree(segment);
     }
 }
 
-static void R_FreeWar3Map(war3map_t * map) {
+static void R_FreeWar3Map(war3map_t *map) {
     if (!map) return;
     SAFE_DELETE(map->grounds, ri.MemFree);
     SAFE_DELETE(map->cliffs, ri.MemFree);
@@ -38,7 +38,7 @@ static void R_FreeWar3Map(war3map_t * map) {
 }
 
 void _W3M_ClearMap(void) {
-    texture_t * shadow = tr.texture[TEX_TERRAIN_SHADOW];
+    texture_t *shadow = tr.texture[TEX_TERRAIN_SHADOW];
 
     R_FreeMapSegments();
     R_FreeMapLayers(&g_groundLayers);
@@ -56,7 +56,7 @@ void _W3M_ClearMap(void) {
     }
 }
 
-static void R_FileReadShadowMap(handle_t hMpq, war3map_t *  pWorld) {
+static void R_FileReadShadowMap(handle_t hMpq, war3map_t *pWorld) {
     handle_t file;
     if (!SFileOpenFileEx(hMpq, "war3map.shd", SFILE_OPEN_FROM_MPQ, &file)) {
         return;
@@ -69,8 +69,8 @@ static void R_FileReadShadowMap(handle_t hMpq, war3map_t *  pWorld) {
         SFileCloseFile(file);
         return;
     }
-    texture_t * pShadowmap = R_AllocateTexture(w, h);
-    color32_t * pixels = ri.MemAlloc(w * h * sizeof(struct color32));
+    texture_t *pShadowmap = R_AllocateTexture(w, h);
+    color32_t *pixels = ri.MemAlloc(w * h * sizeof(struct color32));
     FOR_LOOP(i, w * h) {
         uint8_t shadow = (uint8_t)shadows[i];
         pixels[i].r = 0;
@@ -86,9 +86,9 @@ static void R_FileReadShadowMap(handle_t hMpq, war3map_t *  pWorld) {
     tr.texture[TEX_TERRAIN_SHADOW] = pShadowmap;
 }
 
-static mapsegment_t * R_BuildMapSegment(war3map_t const * map, uint32_t sx, uint32_t sy) {
-    mapsegment_t * mapSegment = ri.MemAlloc(sizeof(mapsegment_t));
-    maplayer_t * mapLayer = R_BuildMapSegmentWater(map, sx, sy);
+static mapsegment_t *R_BuildMapSegment(war3map_t const *map, uint32_t sx, uint32_t sy) {
+    mapsegment_t *mapSegment = ri.MemAlloc(sizeof(mapsegment_t));
+    maplayer_t *mapLayer = R_BuildMapSegmentWater(map, sx, sy);
     ADD_TO_LIST(mapLayer, mapSegment->layers);
     FOR_LOOP(cliff, map->num_cliffs) {
         if ((mapLayer = R_BuildMapSegmentCliffs(map, sx, sy, cliff))) {
@@ -100,17 +100,17 @@ static mapsegment_t * R_BuildMapSegment(war3map_t const * map, uint32_t sx, uint
     return mapSegment;
 }
 
-static void R_BuildGroundLayers(war3map_t const * map) {
+static void R_BuildGroundLayers(war3map_t const *map) {
     for (uint32_t layer = map->num_grounds; layer > 0; layer--) {
-        maplayer_t * mapLayer = R_BuildGroundLayerGlobal(map, layer - 1);
+        maplayer_t *mapLayer = R_BuildGroundLayerGlobal(map, layer - 1);
         if (mapLayer) {
             ADD_TO_LIST(mapLayer, g_groundLayers);
         }
     }
 }
 
-static vector3_t R_GetMapVertexPoint(war3map_t const * map, uint32_t x, uint32_t y) {
-    war3mapVertex_t const * mapVertex = GetWar3MapVertex(map, x, y);
+static vector3_t R_GetMapVertexPoint(war3map_t const *map, uint32_t x, uint32_t y) {
+    war3mapVertex_t const *mapVertex = GetWar3MapVertex(map, x, y);
     return (vector3_t) {
         .x = map->center.x + x * TILE_SIZE,
         .y = map->center.y + y * TILE_SIZE,
@@ -118,10 +118,10 @@ static vector3_t R_GetMapVertexPoint(war3map_t const * map, uint32_t x, uint32_t
     };
 }
 
-static void R_LoadMapSegments(war3map_t const * map) {
+static void R_LoadMapSegments(war3map_t const *map) {
     FOR_LOOP(fx, (map->width - 1) / SEGMENT_SIZE) {
         FOR_LOOP(fy, (map->height - 1) / SEGMENT_SIZE) {
-            mapsegment_t * segment = R_BuildMapSegment(map, fx, fy);
+            mapsegment_t *segment = R_BuildMapSegment(map, fx, fy);
             ADD_TO_LIST(segment, g_mapSegments);
             FOR_LOOP(sx, SEGMENT_SIZE+1) {
                 FOR_LOOP(sy, SEGMENT_SIZE+1) {
@@ -140,7 +140,7 @@ static void R_LoadMapSegments(war3map_t const * map) {
     }
 }
 
-void R_AllocateFogOfWar(war3map_t * map) {
+void R_AllocateFogOfWar(war3map_t *map) {
     R_InitFogOfWar((map->width - 1) * 4, (map->height - 1) * 4);
 }
 
@@ -170,7 +170,7 @@ static void R_LoadMapMinimap(handle_t hMpq, cstring_t mapFilename) {
     }
 }
 
-static bool R_ReadWar3MapVertex(handle_t file, war3mapVertex_t * vert) {
+static bool R_ReadWar3MapVertex(handle_t file, war3mapVertex_t *vert) {
     uint16_t water_and_edge;
     uint8_t flags;
     uint8_t variation;
@@ -210,8 +210,8 @@ static bool R_ReadWar3MapVertex(handle_t file, war3mapVertex_t * vert) {
     return true;
 }
 
-war3map_t * FileReadWar3Map(handle_t archive) {
-    war3map_t * map = ri.MemAlloc(sizeof(war3map_t));
+war3map_t *FileReadWar3Map(handle_t archive) {
+    war3map_t *map = ri.MemAlloc(sizeof(war3map_t));
     handle_t file;
     SFileOpenFileEx(archive, "war3map.w3e", SFILE_OPEN_FROM_MPQ, &file);
     SFileReadFile(file, &map->header, 4, NULL, NULL);
@@ -236,14 +236,14 @@ war3map_t * FileReadWar3Map(handle_t archive) {
     FOR_LOOP(y, map->height) {
 //        printf("%04x  ", y);
         FOR_LOOP(x, map->width) {
-            war3mapVertex_t * vert = (war3mapVertex_t *)GetWar3MapVertex(map, x, y);
+            war3mapVertex_t *vert = (war3mapVertex_t *)GetWar3MapVertex(map, x, y);
             if (!vert->ramp)
                 continue;
             vert->cliffVariation = 0; // used also to mark mid-ramp
-            war3mapVertex_t const * l = GetWar3MapVertex(map, x-1, y);
-            war3mapVertex_t const * r = GetWar3MapVertex(map, x+1, y);
-            war3mapVertex_t const * t = GetWar3MapVertex(map, x, y-1);
-            war3mapVertex_t const * b = GetWar3MapVertex(map, x, y+1);
+            war3mapVertex_t const *l = GetWar3MapVertex(map, x-1, y);
+            war3mapVertex_t const *r = GetWar3MapVertex(map, x+1, y);
+            war3mapVertex_t const *t = GetWar3MapVertex(map, x, y-1);
+            war3mapVertex_t const *b = GetWar3MapVertex(map, x, y+1);
             if (l && r && l->ramp && r->ramp && l->level != r->level) {
                 vert->cliffVariation = 1;
             } else if (t && b && t->ramp && b->ramp && t->level != b->level) {
@@ -258,9 +258,9 @@ war3map_t * FileReadWar3Map(handle_t archive) {
 
 void _W3M_RegisterMap(char const *mapFilename) {
     handle_t hMpq;
-    uint8_t * mapData;
+    uint8_t *mapData;
     int mapSize;
-    war3map_t * map;
+    war3map_t *map;
 
     /* A map registration replaces the whole WC3 world.  Free GPU buffers,
      * map-owned models, fog targets and source terrain before creating the

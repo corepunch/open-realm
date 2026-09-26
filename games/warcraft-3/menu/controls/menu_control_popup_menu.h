@@ -4,7 +4,7 @@
 #define UI_POPUP_MAX_VISIBLE_ROWS 8
 #define UI_POPUP_BOTTOM_PADDING_PIXELS 4.0f
 
-static frameDef_t const * active_popup_scroll_menu = NULL;
+static frameDef_t const *active_popup_scroll_menu = NULL;
 static uint32_t active_popup_scroll = 0;
 
 static bool UI_IsPopupFrameType(FRAMETYPE type) {
@@ -22,8 +22,8 @@ static color32_t UI_PopupHoverBackgroundColor(color32_t color) {
     return color;
 }
 
-static frameDef_t * UI_PopupMenuFrame(frameDef_t const * popup) {
-    frameDef_t * menu;
+static frameDef_t *UI_PopupMenuFrame(frameDef_t const *popup) {
+    frameDef_t *menu;
 
     if (!popup || !popup->Popup.MenuFrame[0]) {
         return NULL;
@@ -35,12 +35,12 @@ static frameDef_t * UI_PopupMenuFrame(frameDef_t const * popup) {
     return menu;
 }
 
-static bool UI_IsActivePopupMenu(frameDef_t const * frame) {
+static bool UI_IsActivePopupMenu(frameDef_t const *frame) {
     return frame && active_popup && frame == UI_PopupMenuFrame(active_popup);
 }
 
-static bool UI_PointerBlockedByPopup(frameDef_t const * frame) {
-    frameDef_t * menu;
+static bool UI_PointerBlockedByPopup(frameDef_t const *frame) {
+    frameDef_t *menu;
 
     if (UI_PointerBlockedByModal(frame)) {
         return true;
@@ -55,9 +55,9 @@ static bool UI_PointerBlockedByPopup(frameDef_t const * frame) {
     return !UI_FrameWithinRoot(menu, frame);
 }
 
-static frameDef_t * UI_PopupTitleTextFrame(frameDef_t const * popup) {
-    frameDef_t * title;
-    frameDef_t * text;
+static frameDef_t *UI_PopupTitleTextFrame(frameDef_t const *popup) {
+    frameDef_t *title;
+    frameDef_t *text;
 
     if (!popup) {
         return NULL;
@@ -77,7 +77,7 @@ static frameDef_t * UI_PopupTitleTextFrame(frameDef_t const * popup) {
 }
 
 static float UI_PopupBottomPadding(void) {
-    refExport_t * renderer = mi.GetRenderer();
+    refExport_t *renderer = mi.GetRenderer();
     rect_t scene = UI_GetSceneRect();
     size2_t window;
 
@@ -91,8 +91,8 @@ static float UI_PopupBottomPadding(void) {
     return scene.h * UI_POPUP_BOTTOM_PADDING_PIXELS / (float)window.height;
 }
 
-static float UI_PopupMenuMaxHeight(frameDef_t const * popup, frameDef_t const * menu, float row_height, float border) {
-    rect_t const * popup_rect;
+static float UI_PopupMenuMaxHeight(frameDef_t const *popup, frameDef_t const *menu, float row_height, float border) {
+    rect_t const *popup_rect;
     rect_t scene;
     float menu_top;
     float screen_bottom;
@@ -116,10 +116,10 @@ static float UI_PopupMenuMaxHeight(frameDef_t const * popup, frameDef_t const * 
     return MIN(full_height, MIN(max_height, available_height));
 }
 
-static void UI_PositionPopupParts(frameDef_t * popup) {
-    frameDef_t * title;
-    frameDef_t * arrow;
-    frameDef_t * menu;
+static void UI_PositionPopupParts(frameDef_t *popup) {
+    frameDef_t *title;
+    frameDef_t *arrow;
+    frameDef_t *menu;
     float inset;
     float arrow_width;
     float title_width;
@@ -140,7 +140,7 @@ static void UI_PositionPopupParts(frameDef_t * popup) {
         UI_SetPoint(title, FRAMEPOINT_LEFT, popup, FRAMEPOINT_LEFT, inset, 0.0f);
     }
     if (title) {
-        frameDef_t * title_text = UI_PopupTitleTextFrame(popup);
+        frameDef_t *title_text = UI_PopupTitleTextFrame(popup);
         if (title_text) {
             title_text->Font.Justification.Horizontal = FONT_JUSTIFYLEFT;
             title_text->Font.Justification.Offset.x = 0.0f;
@@ -162,15 +162,15 @@ static void UI_PositionPopupParts(frameDef_t * popup) {
     }
 }
 
-static void UI_UpdatePopupVisibility(frameDef_t const * const *draw_order, uint32_t count) {
+static void UI_UpdatePopupVisibility(frameDef_t const *const *draw_order, uint32_t count) {
     FOR_LOOP(i, count) {
-        frameDef_t * frame = (frameDef_t *)draw_order[i];
+        frameDef_t *frame = (frameDef_t *)draw_order[i];
 
         if (!UI_IsPopupFrameType(frame->Type)) {
             continue;
         }
 
-        frameDef_t * menu = UI_PopupMenuFrame(frame);
+        frameDef_t *menu = UI_PopupMenuFrame(frame);
         UI_PositionPopupParts(frame);
         if (menu) {
             UI_SetHidden(menu, active_popup != frame);
@@ -178,10 +178,10 @@ static void UI_UpdatePopupVisibility(frameDef_t const * const *draw_order, uint3
     }
 }
 
-static void UI_DrawMenu(frameDef_t const * frame, rect_t const * rect) {
-    refExport_t * renderer = mi.GetRenderer();
-    frameDef_t const * backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
-    font_t const * font;
+static void UI_DrawMenu(frameDef_t const *frame, rect_t const *rect) {
+    refExport_t *renderer = mi.GetRenderer();
+    frameDef_t const *backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
+    font_t const *font;
     float const border = frame->Menu.Border > 0.0f ? frame->Menu.Border : 0.006f;
     float const row_height = frame->Menu.Item.Height > 0.0f ? frame->Menu.Item.Height : 0.014f;
     float const content_height = MAX(0.0f, rect->h - border * 2.0f);

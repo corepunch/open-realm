@@ -2,11 +2,11 @@
 #include "test.h"
 #include "../g_local.h"
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
-void unit_die(edict_t * self, edict_t * attacker);
-void ai_train_build(edict_t * ent);
-void unit_build(edict_t * ent, uint32_t class_id);
+void unit_die(edict_t *self, edict_t *attacker);
+void ai_train_build(edict_t *ent);
+void unit_build(edict_t *ent, uint32_t class_id);
 bool run_test_jass(cstring_t src);
 
 bool UI_TestUpkeepBodyHasTierRanges(cstring_t text);
@@ -65,15 +65,15 @@ static int resource_gain_test_font(cstring_t name, uint32_t size) {
     return 17;
 }
 
-static void resource_gain_test_multicast(vector3_t const * origin, multicast_t to) {
+static void resource_gain_test_multicast(vector3_t const *origin, multicast_t to) {
     resource_gain_capture.multicast_count++;
     resource_gain_capture.multicast_to = to;
     if (origin) resource_gain_capture.multicast_origin = *origin;
 }
 
 TEST(wc3_food, unit_food_accounting_is_delta_based_and_death_releases_it) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    gameClient_t *client = &game.clients[0];
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
     UnitBalance_t balance = *unit->data.UnitBalance;
 
     balance.foodUsed = 3;
@@ -98,8 +98,8 @@ TEST(wc3_food, unit_food_accounting_is_delta_based_and_death_releases_it) {
 }
 
 TEST(wc3_food, explicit_remove_releases_used_and_made_food) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    gameClient_t *client = &game.clients[0];
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
     UnitBalance_t balance = *unit->data.UnitBalance;
 
     balance.foodUsed = 2;
@@ -118,9 +118,9 @@ TEST(wc3_food, explicit_remove_releases_used_and_made_food) {
 }
 
 TEST(wc3_food, owner_change_transfers_accounted_food) {
-    gameClient_t * old_client = &game.clients[0];
-    gameClient_t * new_client = &game.clients[1];
-    edict_t * unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    gameClient_t *old_client = &game.clients[0];
+    gameClient_t *new_client = &game.clients[1];
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
     UnitBalance_t balance = *unit->data.UnitBalance;
 
     balance.foodUsed = 3;
@@ -140,7 +140,7 @@ TEST(wc3_food, owner_change_transfers_accounted_food) {
 
 
 TEST(wc3_food, food_cap_ceiling_limits_effective_supply_without_losing_raw_cap) {
-    gameClient_t * client = &game.clients[0];
+    gameClient_t *client = &game.clients[0];
 
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 120;
     client->ps.stats[PLAYERSTATE_FOOD_CAP_CEILING] = 100;
@@ -156,8 +156,8 @@ TEST(wc3_food, food_cap_ceiling_limits_effective_supply_without_losing_raw_cap) 
 }
 
 TEST(wc3_food, food_limits_cvar_allows_training_over_cap_but_keeps_accounting) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    gameClient_t *client = &game.clients[0];
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
     UnitBalance_t balance = *unit->data.UnitBalance;
     cstring_t (*saved_cvar)(cstring_t, cstring_t) = gi.CvarString;
 
@@ -207,8 +207,8 @@ TEST(wc3_food, upkeep_tooltip_fallback_legend_uses_gameplay_thresholds_and_rates
 }
 
 TEST(wc3_food, upkeep_rates_follow_food_used_thresholds) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    gameClient_t *client = &game.clients[0];
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
 
     unit->s.player = client->ps.number;
 
@@ -227,7 +227,7 @@ TEST(wc3_food, upkeep_rates_follow_food_used_thresholds) {
 }
 
 TEST(wc3_food, resource_income_applies_upkeep_rate_only_to_selected_resource) {
-    player_t * player = &game.clients[0].ps;
+    player_t *player = &game.clients[0].ps;
 
     player->stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 70;
     player->stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
@@ -239,8 +239,8 @@ TEST(wc3_food, resource_income_applies_upkeep_rate_only_to_selected_resource) {
 }
 
 TEST(wc3_food, credited_gold_emits_net_resource_gain_world_text) {
-    player_t * player = &game.clients[0].ps;
-    edict_t * source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 200.0f);
+    player_t *player = &game.clients[0].ps;
+    edict_t *source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 200.0f);
     void (*saved_write)(pfWriteType_t, void const *) = gi.Write;
     void (*saved_multicast)(vector3_t const *, multicast_t) = gi.multicast;
     int (*saved_font)(cstring_t, uint32_t) = gi.FontIndex;
@@ -290,10 +290,10 @@ TEST(wc3_food, credited_gold_emits_net_resource_gain_world_text) {
 }
 
 TEST(wc3_food, active_training_waits_for_food_and_only_head_reserves) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
-    edict_t * first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
-    edict_t * second = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    gameClient_t *client = &game.clients[0];
+    edict_t *producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    edict_t *first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    edict_t *second = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
     UnitBalance_t balance = { .buildTime = 10, .foodUsed = 3 };
 
     setup_test_world();
@@ -325,8 +325,8 @@ TEST(wc3_food, active_training_waits_for_food_and_only_head_reserves) {
 }
 
 TEST(wc3_food, first_queued_unit_reserves_food_immediately) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * producer;
+    gameClient_t *client = &game.clients[0];
+    edict_t *producer;
     UnitBalance_t const *balance = G_UnitBalance(MAKEFOURCC('h','f','o','o'));
 
     setup_test_world();
@@ -344,9 +344,9 @@ TEST(wc3_food, first_queued_unit_reserves_food_immediately) {
 }
 
 TEST(wc3_food, food_blocked_queue_uses_paused_timer_sentinel) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
-    edict_t * queued = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    gameClient_t *client = &game.clients[0];
+    edict_t *producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    edict_t *queued = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
     UnitBalance_t balance = { .buildTime = 10, .foodUsed = 3 };
     gameQueueItem_t queue[2];
 
@@ -366,9 +366,9 @@ TEST(wc3_food, food_blocked_queue_uses_paused_timer_sentinel) {
 }
 
 TEST(wc3_food, cancelling_unreserved_head_does_not_release_unowned_food) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
-    edict_t * queued = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    gameClient_t *client = &game.clients[0];
+    edict_t *producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    edict_t *queued = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
     UnitBalance_t balance = { .goldCost = 100, .lumberCost = 20, .foodUsed = 3 };
 
     producer->s.player = queued->s.player = client->ps.number;
@@ -394,10 +394,10 @@ TEST(wc3_food, cancelling_unreserved_head_does_not_release_unowned_food) {
 }
 
 TEST(wc3_food, cancelling_waiting_item_refunds_cost_without_touching_head_reservation) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
-    edict_t * first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
-    edict_t * second = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    gameClient_t *client = &game.clients[0];
+    edict_t *producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    edict_t *first = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    edict_t *second = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
     UnitBalance_t balance = { .goldCost = 100, .lumberCost = 20, .foodUsed = 3 };
 
     producer->s.player = first->s.player = second->s.player = client->ps.number;
@@ -422,9 +422,9 @@ TEST(wc3_food, cancelling_waiting_item_refunds_cost_without_touching_head_reserv
 }
 
 TEST(wc3_food, producer_death_cancels_queue_refunds_costs_and_releases_food) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
-    edict_t * queued = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
+    gameClient_t *client = &game.clients[0];
+    edict_t *producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    edict_t *queued = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
     UnitBalance_t balance = { .goldCost = 100, .lumberCost = 20, .foodUsed = 3 };
 
     producer->s.player = queued->s.player = client->ps.number;

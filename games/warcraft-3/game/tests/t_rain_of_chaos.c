@@ -10,10 +10,10 @@
 #define BZ_DUR 0.5f // fixture Dur; landing interval seconds (not stock 1.0)
 #define BZ_COUNT 3 // fixture DataB; landings (not stock 2)
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 void G_RunEntities(void);
 
@@ -36,7 +36,7 @@ static char const roc_slk[] =
     "C;Y4;X7;K\"50\"\nC;Y4;X8;K\"360\"\nC;Y4;X9;K\"hfoo\"\n"
     "C;Y4;X10;K\"900\"\nC;Y4;X11;K\"175\"\nC;Y4;X12;K\"0\"\nE\n";
 
-typedef struct { slkTestData_t *rows, *old; edict_t * caster; vector2_t point; } rocFix_t;
+typedef struct { slkTestData_t *rows, *old; edict_t *caster; vector2_t point; } rocFix_t;
 
 static rocFix_t roc_setup(uint32_t code) {
     rocFix_t fix;
@@ -53,13 +53,13 @@ static rocFix_t roc_setup(uint32_t code) {
 
 static void roc_done(rocFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
 
-static edict_t * roc_thinker(edict_t * caster) {
+static edict_t *roc_thinker(edict_t *caster) {
     FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->think == rain_of_chaos_think)
         return ent;
     return NULL;
 }
 
-static uint32_t roc_summons(edict_t * caster, vector2_t point, float area) {
+static uint32_t roc_summons(edict_t *caster, vector2_t point, float area) {
     uint32_t count = 0;
     FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->class_id == BZ_HFOO) {
         T_ASSERT(Vector2_distance(&ent->s.origin2, &point) <= area + 0.5f);

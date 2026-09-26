@@ -84,9 +84,9 @@ static uint32_t campaign_count;
 static uint32_t campaign_order[SINGLE_PLAYER_MAX_CAMPAIGNS];
 static uint32_t campaign_order_count;
 static uiMapListState_t campaign_list;
-static frameDef_t * campaign_list_frame;
+static frameDef_t *campaign_list_frame;
 static uiMapListState_t mission_list;
-static frameDef_t * mission_list_frame;
+static frameDef_t *mission_list_frame;
 static uint32_t campaign_background_model = 0;
 static uint32_t selected_campaign_index = SINGLE_PLAYER_MAX_CAMPAIGNS;
 static singlePlayerView_t current_view = SINGLE_PLAYER_VIEW_MAIN;
@@ -460,7 +460,7 @@ static singlePlayerCampaign_t const *SinglePlayer_SelectedCampaign(void) {
     return &campaigns[selected_campaign_index];
 }
 
-static void SinglePlayer_SetHidden(frameDef_t * frame, bool hidden) {
+static void SinglePlayer_SetHidden(frameDef_t *frame, bool hidden) {
     if (frame) {
         UI_SetHidden(frame, hidden);
     }
@@ -501,8 +501,8 @@ static void SinglePlayer_SetCampaignBackdrop(singlePlayerCampaign_t const *campa
 }
 
 static void SinglePlayer_DrawCampaignBackdrop(void) {
-    refExport_t * renderer = mi.GetRenderer();
-    model_t const * model = UI_GetModel(campaign_background_model);
+    refExport_t *renderer = mi.GetRenderer();
+    model_t const *model = UI_GetModel(campaign_background_model);
 
     if (renderer && renderer->RenderFrame && model) {
         renderEntity_t entity = {0};
@@ -728,7 +728,7 @@ static void SinglePlayer_PopulateCampaignList(void) {
 }
 
 static void SinglePlayer_CreateCampaignList(void) {
-    frameDef_t * template_frame;
+    frameDef_t *template_frame;
 
     if (campaign_list_frame || !single_player.CampaignSelectFrame) {
         return;
@@ -756,7 +756,7 @@ static void SinglePlayer_CreateCampaignList(void) {
 }
 
 static void SinglePlayer_CreateMissionList(void) {
-    frameDef_t * template_frame;
+    frameDef_t *template_frame;
 
     if (mission_list_frame || !single_player.MissionSelectFrame) {
         return;
@@ -812,7 +812,7 @@ static cstring_t SinglePlayer_DifficultyName(uint32_t difficulty) {
 }
 
 static void SinglePlayer_UpdateDifficultyTitle(uint32_t difficulty) {
-    frameDef_t * title = single_player.DifficultySelect
+    frameDef_t *title = single_player.DifficultySelect
         ? UI_FindChildFrame(single_player.DifficultySelect, "CampaignPopupMenuTitleTextTemplate")
         : NULL;
 
@@ -822,7 +822,7 @@ static void SinglePlayer_UpdateDifficultyTitle(uint32_t difficulty) {
 }
 
 static void SinglePlayer_BindCampaignMenu(void) {
-    frameDef_t * DifficultyMenu;
+    frameDef_t *DifficultyMenu;
     uint32_t difficulty = 1;
     cstring_t difficulty_value;
 

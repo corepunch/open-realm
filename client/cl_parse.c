@@ -73,7 +73,7 @@ void CL_RemoveActiveEntity(uint32_t index) {
     }
 }
 
-static void CL_ReadPacketEntities(sizeBuf_t * msg) {
+static void CL_ReadPacketEntities(sizeBuf_t *msg) {
     int count = 0;
     int previous = 0;
     int debug_entities = Cvar_Integer("cl_debug_entities", 0);
@@ -188,7 +188,7 @@ static void CL_ReadPacketEntities(sizeBuf_t * msg) {
     }
 }
 
-static void CL_ParseConfigString(sizeBuf_t * msg) {
+static void CL_ParseConfigString(sizeBuf_t *msg) {
     static PATHSTR last_world;
     PATHSTR olds;
     int const index = MSG_ReadShort(msg);
@@ -219,7 +219,7 @@ static void CL_ParseConfigString(sizeBuf_t * msg) {
     }
 }
 
-static void CL_ParseBaseline(sizeBuf_t * msg) {
+static void CL_ParseBaseline(sizeBuf_t *msg) {
     uint32_t bits = 0;
     uint32_t index = MSG_ReadEntityBits(msg, &bits);
     if (index >= MAX_CLIENT_ENTITIES) {
@@ -267,11 +267,11 @@ typedef struct { uint32_t first_row, width; bool *changed; } maskUnpackCtx_t;
 
 static void CL_MaskUnpackRun(uint32_t index, uint8_t value, uint32_t count, void *ctx) {
     maskUnpackCtx_t *c = ctx;
-    uint8_t * dst = cl.terrain_mask.cells + c->first_row * c->width + index;
+    uint8_t *dst = cl.terrain_mask.cells + c->first_row * c->width + index;
     FOR_LOOP(i, count) if (dst[i] != value) { dst[i] = value; *c->changed = true; }
 }
 
-static bool CL_ParseTerrainMaskChunk(sizeBuf_t * msg) {
+static bool CL_ParseTerrainMaskChunk(sizeBuf_t *msg) {
     terrainMaskChunk_t chunk;
     uint8_t const *payload;
     uint32_t row_cells, decoded;
@@ -311,7 +311,7 @@ static bool CL_ParseTerrainMaskChunk(sizeBuf_t * msg) {
 
 /* Handle the svc_frame header and its game-owned datagram, then snapshot entity
  * states into "prev" so the renderer can interpolate the current scene. */
-void CL_ParseFrame(sizeBuf_t * msg) {
+void CL_ParseFrame(sizeBuf_t *msg) {
     cl.frame.serverframe = MSG_ReadLong(msg);
     cl.frame.servertime = MSG_ReadLong(msg);
     cl.frame.oldclientframe = MSG_ReadLong(msg);
@@ -388,7 +388,7 @@ void CL_ParseFrame(sizeBuf_t * msg) {
     }
 }
 
-void CL_ParsePlayerInfo(sizeBuf_t * msg) {
+void CL_ParsePlayerInfo(sizeBuf_t *msg) {
     uint32_t bits;
     uint32_t plnum = MSG_ReadPlayerBits(msg, &bits);
     MSG_ReadDeltaPlayerState(msg, &cl.playerstate, plnum, bits);
@@ -454,7 +454,7 @@ void CL_ParsePlayerInfo(sizeBuf_t * msg) {
  * svc_layout header) are never attributed to any layer and are silently dropped
  * as an unknown message.  The server must open a layer before writing frames
  * (see UI_WriteStart/UI_WriteEnd in games/world-of-warcraft/game/g_ui.c). */
-void CL_ParseLayout(sizeBuf_t * msg) {
+void CL_ParseLayout(sizeBuf_t *msg) {
     uint32_t layer = MSG_ReadByte(msg);
     uint32_t payload_size = 0;
     bool terminated = false;
@@ -535,7 +535,7 @@ void CL_ParseLayout(sizeBuf_t * msg) {
         bool found = false;
         SCR_Clear(cl.layout[layer]);
         FOR_LOOP(i, SCR_NumFrames()) {
-            uiFrame_t const * frame = SCR_Frame(i);
+            uiFrame_t const *frame = SCR_Frame(i);
             if (!frame || frame->stat != UI_STAT_SELECTION_TIMED_STATUS) continue;
             found = true;
             fprintf(stderr,
@@ -571,7 +571,7 @@ void CL_ParseLayout(sizeBuf_t * msg) {
 #endif
 }
 
-void CL_ParseCursor(sizeBuf_t * msg) {
+void CL_ParseCursor(sizeBuf_t *msg) {
     uint32_t bits = 0;
     SAFE_DELETE(cl.cursorEntity, MemFree);
     cl.cursorEntity = MemAlloc(sizeof(entityState_t));
@@ -582,7 +582,7 @@ void CL_ParseCursor(sizeBuf_t * msg) {
     }
 }
 
-void CL_ParseCursorSplat(sizeBuf_t * msg) {
+void CL_ParseCursorSplat(sizeBuf_t *msg) {
     cl.cursor_splat.image = MSG_ReadShort(msg);
     cl.cursor_splat.radius = MSG_ReadFloat(msg);
     if (!cl.cursor_splat.image || cl.cursor_splat.radius <= 0.0f ||
@@ -684,7 +684,7 @@ static void CL_FogUnpackRun(uint32_t index, uint8_t value, uint32_t count, void 
 }
 
 /* Apply one validated wire chunk and report whether the caller must publish the assembled texture. */
-static bool CL_ParseFogOfWar(sizeBuf_t * msg) {
+static bool CL_ParseFogOfWar(sizeBuf_t *msg) {
     uint32_t flags = MSG_ReadByte(msg);
     uint32_t width = MSG_ReadShort(msg);
     uint32_t height = MSG_ReadShort(msg);
@@ -735,7 +735,7 @@ static bool CL_ParseFogOfWar(sizeBuf_t * msg) {
 }
 
 /* Publish only a complete loading layout; offsets reject missing, reordered, or mismatched chunks. */
-static void CL_ParseLoadingScreen(sizeBuf_t * netmsg) {
+static void CL_ParseLoadingScreen(sizeBuf_t *netmsg) {
     uint8_t buf[MAX_MSGLEN];
     uLongf size = sizeof(buf);
     if (netmsg->cursize - netmsg->readcount < BZ_LOADING_HEADER_SIZE - 1) goto invalid;
@@ -770,7 +770,7 @@ invalid:
     Com_Error(ERR_DROP, "Invalid loading screen payload");
 }
 
-void CL_MirrorMessage(sizeBuf_t * msg) {
+void CL_MirrorMessage(sizeBuf_t *msg) {
     char buf[256] = { 0 };
     MSG_ReadString(msg, buf);
     if (!strcmp(buf, "begin")) {
@@ -782,7 +782,7 @@ void CL_MirrorMessage(sizeBuf_t * msg) {
     MSG_WriteString(&cls.netchan.message, buf);
 }
 
-static void CL_ParseLobbySetup(sizeBuf_t * msg) {
+static void CL_ParseLobbySetup(sizeBuf_t *msg) {
     lobbyState_t state;
     int slot_count;
     int local_slot;
@@ -853,14 +853,14 @@ static void CL_ParseLobbySetup(sizeBuf_t * msg) {
     if (CL_MenuActive()) menu.UpdateLobbySetup(&state);
 }
 
-static void CL_ParseConsolePrint(sizeBuf_t * msg) {
+static void CL_ParseConsolePrint(sizeBuf_t *msg) {
     char text[MAX_CONSOLE_MESSAGE_LEN] = { 0 };
 
     MSG_ReadStringN(msg, text, sizeof(text));
     if (text[0]) CON_printf("%s", text);
 }
 
-static void CL_ParseLobbyChat(sizeBuf_t * msg) {
+static void CL_ParseLobbyChat(sizeBuf_t *msg) {
     char text[512] = { 0 };
     char command[sizeof(text) + 32];
     int own;
@@ -877,7 +877,7 @@ static void CL_ParseLobbyChat(sizeBuf_t * msg) {
 
 /* Apply an authoritative server selection to the client cache and refresh the active unit UI.
  * The payload is a count-prefixed array of entity numbers; malformed or oversized payloads are rejected. */
-static void CL_ParseSetSelection(sizeBuf_t * msg) {
+static void CL_ParseSetSelection(sizeBuf_t *msg) {
     uint32_t count = MSG_ReadByte(msg), selected = 0;
 
     if (msg->readcount + count * sizeof(uint32_t) > msg->cursize) {
@@ -904,7 +904,7 @@ static void CL_ParseSetSelection(sizeBuf_t * msg) {
 
 /* Read the Quake 2 sound packet contract and resolve entity-relative origins
  * from the current client snapshot before handing playback to the mixer. */
-static void CL_ParseSound(sizeBuf_t * msg) {
+static void CL_ParseSound(sizeBuf_t *msg) {
     uint32_t flags = (uint32_t)MSG_ReadByte(msg);
     int sound_index = MSG_ReadShort(msg), channel = 0, entity = 0;
     float volume = DEFAULT_SOUND_PACKET_VOLUME, attenuation = DEFAULT_SOUND_PACKET_ATTENUATION, timeofs = 0.0f;
@@ -1021,7 +1021,7 @@ TEST(client_sound, packed_entity_above_4095_reaches_mixer) {
 }
 #endif
 
-static void CL_ParseWindow(sizeBuf_t * msg) {
+static void CL_ParseWindow(sizeBuf_t *msg) {
     uiWindowDef_t def;
     uint32_t op = MSG_ReadByte(msg), start, frame_end, text_size, size;
     bool terminated = false;
@@ -1085,7 +1085,7 @@ malformed_window:
     msg->readcount = msg->cursize;
 }
 
-static void CL_ParseMusic(sizeBuf_t * msg) {
+static void CL_ParseMusic(sizeBuf_t *msg) {
     musicCommand_t command = (musicCommand_t)MSG_ReadByte(msg);
     char playlist[2048];
 
@@ -1147,7 +1147,7 @@ static void CL_ParseMusic(sizeBuf_t * msg) {
     }
 }
 
-static void CL_ParseUIWindow(sizeBuf_t * msg) {
+static void CL_ParseUIWindow(sizeBuf_t *msg) {
     char window_id[64];
     MSG_ReadStringN(msg, window_id, sizeof(window_id));
     int show = MSG_ReadByte(msg);
@@ -1157,7 +1157,7 @@ static void CL_ParseUIWindow(sizeBuf_t * msg) {
 /* Dispatch loop for a complete server message buffer.  Each iteration reads
  * one message-type byte and calls the matching handler.  An unknown type
  * stops processing and prints an error to stderr. */
-void CL_ParseServerMessage(sizeBuf_t * msg) {
+void CL_ParseServerMessage(sizeBuf_t *msg) {
     uint8_t pack_id = 0;
     while (MSG_Read(msg, &pack_id, 1)) {
         switch (pack_id) {

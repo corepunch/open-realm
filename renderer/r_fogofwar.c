@@ -76,10 +76,10 @@ enum {
 
 static struct {
     fowRaycastProg_t shader;
-    rendertarget_t * rt[FOW_RT_COUNT];
-    buffer_t * casters;
-    texture_t * sight;
-    texture_t * network;
+    rendertarget_t *rt[FOW_RT_COUNT];
+    buffer_t *casters;
+    texture_t *sight;
+    texture_t *network;
     uint8_t const *network_data;
     uint32_t network_generation;
     uint32_t last_update_time;
@@ -93,8 +93,8 @@ typedef struct caster_vertex {
 static castervertex_t casters[MAX_FOGOFWAR_CASTERS * NUM_SIGHT_SECIONS * NUM_RECT_VERTICES];
 static renderEntity_t const *revealers[MAX_FOGOFWAR_REVEALERS];
 
-texture_t * R_AllocateSightTexture(void) {
-    texture_t * texture = R_AllocateTexture(SIGHT_SIZE, SIGHT_SIZE);
+texture_t *R_AllocateSightTexture(void) {
+    texture_t *texture = R_AllocateTexture(SIGHT_SIZE, SIGHT_SIZE);
     color32_t col[SIGHT_SIZE * SIGHT_SIZE];
     uint32_t mid = SIGHT_SIZE/2;
     vector2_t center = {mid,mid};
@@ -113,7 +113,7 @@ texture_t * R_AllocateSightTexture(void) {
     return texture;
 }
 
-static void R_MakeSightMatrix(renderEntity_t const *ent, matrix4_t * model_matrix) {
+static void R_MakeSightMatrix(renderEntity_t const *ent, matrix4_t *model_matrix) {
     Matrix4_identity(model_matrix);
     Matrix4_translate(model_matrix, &(vector3_t) {
         ent->origin.x - tr.world->center.x - SIGHT_DISTANCE / 2,
@@ -174,7 +174,7 @@ static bool R_CasterNearRevealers(renderEntity_t const *caster,
     return false;
 }
 
-static uint32_t R_AddCastersToBuffer(buffer_t const * buffer,
+static uint32_t R_AddCastersToBuffer(buffer_t const *buffer,
                                   renderEntity_t const **revealer_list,
                                   uint32_t num_revealers)
 {
@@ -198,8 +198,8 @@ static uint32_t R_AddCastersToBuffer(buffer_t const * buffer,
                 goto upload;
             }
             rect_t uv = {((float)j)/NUM_SIGHT_SECIONS,0,1.0/NUM_SIGHT_SECIONS,1};
-            vertex_t const * end = R_AddQuad(rect, &screen, &uv, white, ent->radius);
-            for (vertex_t const * v = rect; v != end; v++) {
+            vertex_t const *end = R_AddQuad(rect, &screen, &uv, white, ent->radius);
+            for (vertex_t const *v = rect; v != end; v++) {
                 caster_writer->position.x = v->position.x;
                 caster_writer->position.y = v->position.y;
                 caster_writer->position.z = v->position.z;
@@ -217,7 +217,7 @@ upload:
     return (uint32_t)(caster_writer - casters);
 }
 
-static uint32_t R_PushRectToBuffer(uint32_t buffer_id, rect_t const * value, float alpha) {
+static uint32_t R_PushRectToBuffer(uint32_t buffer_id, rect_t const *value, float alpha) {
     color32_t white = {255*alpha,255*alpha,255*alpha,255*alpha};
     rect_t uv = {0,0,1,1};
     vertex_t rect[NUM_RECT_VERTICES];
@@ -379,8 +379,8 @@ void R_RenderFogOfWar(void) {
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
 }
 
-buffer_t * R_MakeCastersVertexArrayObject(void) {
-    buffer_t * buf = ri.MemAlloc(sizeof(buffer_t));
+buffer_t *R_MakeCastersVertexArrayObject(void) {
+    buffer_t *buf = ri.MemAlloc(sizeof(buffer_t));
 
     R_Call(glGenVertexArrays, 1, &buf->vao);
     R_Call(glGenBuffers, 1, &buf->vbo);

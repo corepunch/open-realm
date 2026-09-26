@@ -5,10 +5,10 @@
 #define BZ_ASPL MAKEFOURCC('A', 's', 'p', 'l') // rawcode; Spirit Link
 #define BZ_BSPL MAKEFOURCC('B', 's', 'p', 'l') // rawcode; Spirit Link buff
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock DataA=0.25 / DataB=3 / Cost=40 so tests cannot pass on retail 0.5/4/75. */
@@ -27,7 +27,7 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
 	slkTestData_t *rows, *old;
-	edict_t * caster, *a, *b, *c, *d, *enemy;
+	edict_t *caster, *a, *b, *c, *d, *enemy;
 } splFix_t;
 
 /* Fill caller in place; no UnitBalance pointers required. */
@@ -154,10 +154,10 @@ TEST(wc3_spell, spirit_link_redirect_never_fatal) {
  * must still receive the buff (repro from #476). */
 TEST(wc3_spell, spirit_link_clicked_target_linked_in_crowd) {
     splFix_t fix;
-    edict_t * selected;
+    edict_t *selected;
     spl_setup(&fix);
     FOR_LOOP(i, 65) {
-        edict_t * unit = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 100, 0);
+        edict_t *unit = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 100, 0);
         unit->s.player = 0; unit->svflags |= SVF_MONSTER; unit->targtype = TARG_GROUND;
         unit->health.value = unit->health.max_value = 500;
     }
@@ -172,14 +172,14 @@ TEST(wc3_spell, spirit_link_clicked_target_linked_in_crowd) {
 /* Closer later-created allies displace farther earlier-created ones. */
 TEST(wc3_spell, spirit_link_prefers_closer_late_allies) {
     splFix_t fix;
-    edict_t * click, *near1, *near2;
+    edict_t *click, *near1, *near2;
     uint32_t linked = 0;
     spl_setup(&fix);
     click = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 200, 0);
     click->s.player = 0; click->svflags |= SVF_MONSTER; click->targtype = TARG_GROUND;
     click->health.value = click->health.max_value = 500;
     FOR_LOOP(i, 70) {
-        edict_t * unit = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 450, 0);
+        edict_t *unit = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 450, 0);
         unit->s.player = 0; unit->svflags |= SVF_MONSTER; unit->targtype = TARG_GROUND;
         unit->health.value = unit->health.max_value = 500;
     }
@@ -202,7 +202,7 @@ TEST(wc3_spell, spirit_link_prefers_closer_late_allies) {
 /* Allocation order does not change the nearest-target outcome. */
 TEST(wc3_spell, spirit_link_order_independent_nearest) {
     splFix_t fix;
-    edict_t * first_far, *second_near;
+    edict_t *first_far, *second_near;
     spl_setup(&fix);
     first_far = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 290, 0);
     second_near = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 10, 0);
@@ -220,7 +220,7 @@ TEST(wc3_spell, spirit_link_order_independent_nearest) {
 /* Exactly DataB units buffed; dead and out-of-area units excluded. */
 TEST(wc3_spell, spirit_link_exact_count_excludes_dead_and_far) {
     splFix_t fix;
-    edict_t * dead;
+    edict_t *dead;
     uint32_t linked = 0;
     spl_setup(&fix);
     dead = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 20, 0);

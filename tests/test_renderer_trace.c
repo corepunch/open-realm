@@ -4,11 +4,11 @@
 #include "renderer/r_camera_height.h"
 
 refImport_t ri;
-static float camera_step(void const * data, uint32_t x, uint32_t y) { (void)data; (void)y; return x < 24 ? 0 : 10; }
+static float camera_step(void const *data, uint32_t x, uint32_t y) { (void)data; (void)y; return x < 24 ? 0 : 10; }
 static handle_t camera_alloc(long size) { return calloc(1, (size_t)size); }
 
 size2_t R_GetWindowSize(void) { return (size2_t){ 1024, 768 }; }
-bool R_TraceModel(renderEntity_t const *ent, line3_t const * line, float * distance) {
+bool R_TraceModel(renderEntity_t const *ent, line3_t const *line, float *distance) {
     (void)ent; (void)line; (void)distance; return false;
 }
 

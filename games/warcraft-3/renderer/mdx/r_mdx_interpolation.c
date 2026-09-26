@@ -84,8 +84,8 @@ interpFloat(float const *left,
 }
 
 static vector3_t
-interpVec3(vector3_t const * left,
-           vector3_t const * right,
+interpVec3(vector3_t const *left,
+           vector3_t const *right,
            float t,
            MODELKEYTRACKTYPE lineType)
 {
@@ -98,8 +98,8 @@ interpVec3(vector3_t const * left,
 }
 
 static quaternion_t
-interpQuat(quaternion_t const * left,
-           quaternion_t const * right,
+interpQuat(quaternion_t const *left,
+           quaternion_t const *right,
            float t,
            MODELKEYTRACKTYPE lineType)
 {

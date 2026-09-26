@@ -2,7 +2,7 @@
 
 void Wow_RegisterMap(cstring_t mapFileName) {
     PATHSTR path;
-    uint8_t * data = NULL;
+    uint8_t *data = NULL;
     int size;
 
     fprintf(stderr, "[MAP_REGISTER] Starting: %s\n", mapFileName);
@@ -44,7 +44,7 @@ typedef struct {
 } wowDrawStats_t;
 
 /* Pointer hash counts visible model/material diversity without quadratic profiling overhead. */
-static bool Wow_StatPointer(void const * ptr, void const * *table, uint32_t size) {
+static bool Wow_StatPointer(void const *ptr, void const * *table, uint32_t size) {
     uint32_t slot = ((uintptr_t)ptr >> 4) & (size - 1);
     FOR_LOOP(i, size) {
         uint32_t at = (slot + i) & (size - 1);
@@ -83,7 +83,7 @@ static void Wow_DrawTerrainAndWmos(wowDrawStats_t *stats) {
     };
     matrix3_t normal_matrix;
     wowAdtChunk_t *chunk;
-    texture_t const * bound_textures[5] = { NULL, NULL, NULL, NULL, NULL };
+    texture_t const *bound_textures[5] = { NULL, NULL, NULL, NULL, NULL };
     uint32_t texture_binds = 0;
     int bound_indoor = 0;
     bool draw_terrain = R_CvarEnabled("r_terrain", "1") && !(wow_world.wdt_flags & 0x01);
@@ -96,7 +96,7 @@ static void Wow_DrawTerrainAndWmos(wowDrawStats_t *stats) {
     wow_terrain_shader.state.model = identity;
     {
         vector3_t sun_dir;
-        environLight_t const * sun = tr.viewDef.terrainLight.valid ? &tr.viewDef.terrainLight : NULL;
+        environLight_t const *sun = tr.viewDef.terrainLight.valid ? &tr.viewDef.terrainLight : NULL;
         if (sun) {
             wow_terrain_shader.state.sunDir = sun->dir;
             wow_terrain_shader.state.sunAmbient = sun->ambient;
@@ -308,7 +308,7 @@ static bool Wow_QueueDoodadInstance(wowDoodadInstance_t *doodad) {
     return true;
 }
 
-typedef struct { rect_t dst, mask, uv; texture_t const * tex; } wowMinimapDraw_t;
+typedef struct { rect_t dst, mask, uv; texture_t const *tex; } wowMinimapDraw_t;
 
 /* Encode mask-local position in vertex color so every authoritative tile shares one circular fragment mask. */
 static void Wow_DrawMinimapTile(wowMinimapDraw_t const *draw) {
@@ -330,7 +330,7 @@ static void Wow_DrawMinimapTile(wowMinimapDraw_t const *draw) {
 }
 
 /* Blizzard ships an authoritative 64x64 tile atlas; crop its local 256px tiles around the camera. */
-void Wow_DrawMinimap(rect_t const * screen) {
+void Wow_DrawMinimap(rect_t const *screen) {
     vector3_t cam = tr.viewDef.camerastate[0].origin;
     float r = WOW_MINIMAP_WORLD_RADIUS, x0 = cam.x - r, x1 = cam.x + r, y0 = cam.y - r, y1 = cam.y + r;
     int center_x = Wow_TileIndex(cam.y), center_y = Wow_TileIndex(cam.x);

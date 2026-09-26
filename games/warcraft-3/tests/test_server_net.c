@@ -33,9 +33,9 @@ bool CM_LoadMap(cstring_t mapFilename, cmLoadYield_t yield) {
     return true;
 }
 uint32_t CM_GetMapChecksum(void) { return 0x1234; }
-doodad_t * CM_GetDoodads(void) { return NULL; }
-static mapInfo_t * test_mapinfo;
-mapInfo_t const * CM_GetMapInfo(void) { return test_mapinfo; }
+doodad_t *CM_GetDoodads(void) { return NULL; }
+static mapInfo_t *test_mapinfo;
+mapInfo_t const *CM_GetMapInfo(void) { return test_mapinfo; }
 float CM_GetHeightAtPoint(float x, float y) { (void)x; (void)y; return 0.0f; }
 vector2_t CM_GetNormalizedMapPosition(float x, float y) { return (vector2_t){ x, y }; }
 vector2_t CM_GetDenormalizedMapPosition(float x, float y) { return (vector2_t){ x, y }; }
@@ -75,11 +75,11 @@ static int test_model_index(cstring_t name) {
     return 0;
 }
 
-static void test_customize_entity(uint32_t player, edict_t const * ent, entityState_t * state) {
+static void test_customize_entity(uint32_t player, edict_t const *ent, entityState_t *state) {
     (void)player; (void)ent; (void)state;
 }
 
-static bool test_snapshot_priority_entity(uint32_t player, edict_t const * ent) {
+static bool test_snapshot_priority_entity(uint32_t player, edict_t const *ent) {
     (void)player;
     return ent && ent->s.class_id == MAKEFOURCC('m', 'm', 'c', 't');
 }
@@ -122,16 +122,16 @@ TEST(server_net, scheduler_clamps_multi_tick_wall_clock_backlog) {
     T_EQ(SV_ClampSimulationDeadline(180, 100), 100);
 }
 
-void SV_HandleUnitUIRequest(client_t * client, sizeBuf_t * msg) { (void)client; (void)msg; }
+void SV_HandleUnitUIRequest(client_t *client, sizeBuf_t *msg) { (void)client; (void)msg; }
 
 static struct game_export test_ge;
 static edict_t test_edicts[MAX_CLIENT_ENTITIES];
 static uint32_t test_game_shutdowns;
 static uint32_t test_camera_calls;
-static edict_t * test_camera_ent;
+static edict_t *test_camera_ent;
 static vector2_t test_camera_pos;
 
-static void test_set_camera(edict_t * ent, inputCmd_t const * cmd) {
+static void test_set_camera(edict_t *ent, inputCmd_t const *cmd) {
     test_camera_calls++; test_camera_ent = ent; test_camera_pos = cmd->focus;
 }
 
@@ -167,7 +167,7 @@ static void test_game_shutdown(void) {
     test_game_shutdowns++;
 }
 
-static uint32_t test_write_client_datagram(edict_t * ent, uint8_t * data, uint32_t size) {
+static uint32_t test_write_client_datagram(edict_t *ent, uint8_t *data, uint32_t size) {
     (void)ent;
     if (size < sizeof(uint16_t)) return 0;
     memset(data, 0, sizeof(uint16_t));
@@ -206,7 +206,7 @@ static void reset_server_state(int max_players) {
 }
 
 TEST(server_net, entity_recipient_prefers_exact_client_edict_over_player_slot) {
-    client_t * client;
+    client_t *client;
 
     reset_server_state(1);
     svs.num_clients = 1;
@@ -220,7 +220,7 @@ TEST(server_net, entity_recipient_prefers_exact_client_edict_over_player_slot) {
 }
 
 TEST(server_net, entity_recipient_falls_back_to_world_entity_owner) {
-    client_t * client;
+    client_t *client;
     gameClient_t player = { .ps.number = 4 };
 
     reset_server_state(2);
@@ -246,7 +246,7 @@ TEST(server_net, unit_ack_uses_game_player_identity_after_campaign_begin) {
     svs.num_clients = 2;
     NET_Config(false);
     FOR_LOOP(i, 2) {
-        client_t * client = &svs.clients[i];
+        client_t *client = &svs.clients[i];
         client->state = cs_spawned;
         client->playernum = i; /* Opposite to the actual game identities. */
         client->edict = &test_edicts[i];
@@ -299,7 +299,7 @@ TEST(server_net, unit_ack_uses_game_player_identity_after_campaign_begin) {
 }
 
 TEST(server_net, edict_recipient_rejects_unowned_edict) {
-    client_t * client;
+    client_t *client;
     uint8_t data[16];
     sizeBuf_t msg = { .data = data, .maxsize = sizeof(data) };
     netadr_t from;
@@ -326,7 +326,7 @@ TEST(server_net, edict_recipient_unicast_delivers_to_exact_client_edict) {
     uint8_t data[16];
     sizeBuf_t msg = { .data = data, .maxsize = sizeof(data) };
     netadr_t from;
-    client_t * target, *other;
+    client_t *target, *other;
 
     reset_server_state(2);
     svs.num_clients = 2;
@@ -355,7 +355,7 @@ TEST(server_net, edict_recipient_unicast_delivers_to_exact_client_edict) {
 TEST(server_net, camera_packet_waits_for_spawned_client_edict) {
     uint8_t data[16];
     sizeBuf_t msg = { data, sizeof(data), 0, 0 };
-    client_t * client;
+    client_t *client;
 
     reset_server_state(1);
     client = &svs.clients[0]; client->state = cs_connected;
@@ -377,7 +377,7 @@ TEST(server_net, typed_input_rejects_truncation_and_waits_for_spawn) {
     sizeBuf_t msg;
     inputCmd_t cmd = { .action = BZ_INPUT_FOCUS, .focus = {12, -34} };
     reset_server_state(1);
-    client_t * client = &svs.clients[0];
+    client_t *client = &svs.clients[0];
     client->state = cs_connected;
     test_camera_calls = 0;
     SZ_Init(&msg, data, sizeof(data));
@@ -621,7 +621,7 @@ TEST(server_net, pending_image_configstring_precedes_dependent_payload) {
     uint8_t copy[MAX_MSGLEN];
     char name[MAX_PATHLEN];
     sizeBuf_t msg;
-    client_t * client;
+    client_t *client;
     int image;
 
     reset_server_state(1);
@@ -653,7 +653,7 @@ TEST(server_net, pending_configstrings_flush_before_message_limit) {
     char value[32];
     sizeBuf_t msg = { .data = packet, .maxsize = sizeof(packet) };
     netadr_t from;
-    client_t * client;
+    client_t *client;
     uint32_t index;
     int count = 0;
 
@@ -901,8 +901,8 @@ TEST(server_net, server_snapshot_ring_scales_to_client_capacity) {
 
 TEST(server_net, snapshot_overflow_keeps_nearest_entities_in_wire_order) {
     static struct client_s game_client;
-    client_t * client;
-    clientFrame_t * frame;
+    client_t *client;
+    clientFrame_t *frame;
 
     reset_server_state(1);
     SV_InitGame();
@@ -927,8 +927,8 @@ TEST(server_net, snapshot_overflow_keeps_nearest_entities_in_wire_order) {
 
 TEST(server_net, snapshot_overflow_retains_game_prioritized_minimap_contact) {
     static struct client_s game_client;
-    client_t * client;
-    clientFrame_t * frame;
+    client_t *client;
+    clientFrame_t *frame;
     uint32_t contact_number = MAX_PACKET_ENTITIES + 1;
     bool contact_retained = false;
 
@@ -960,8 +960,8 @@ TEST(server_net, snapshot_overflow_retains_game_prioritized_minimap_contact) {
 
 TEST(server_net, snapshot_owner_only_entity_reaches_only_owner) {
     static struct client_s game_clients[2];
-    client_t * owner, *other;
-    clientFrame_t * frame;
+    client_t *owner, *other;
+    clientFrame_t *frame;
 
     reset_server_state(2);
     SV_InitGame();
@@ -1115,7 +1115,7 @@ TEST(server_net, lobby_rejects_remote_when_slots_full) {
 TEST(server_net, lobby_setup_message_round_trips_slot_table) {
     uint8_t msg_buf[MAX_MSGLEN];
     sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
-    client_t * cl;
+    client_t *cl;
     char text[128];
 
     reset_server_state(4);
@@ -1500,8 +1500,8 @@ TEST(server_net, review_snapshot_keeps_nearby_world_entity_among_distant_contact
     static struct client_s game_client;
     reset_server_state(1);
     SV_InitGame();
-    client_t * client = &svs.clients[0];
-    clientFrame_t * frame = &client->frames[0];
+    client_t *client = &svs.clients[0];
+    clientFrame_t *frame = &client->frames[0];
     memset(&game_client, 0, sizeof(game_client));
     test_edicts[0].client = &game_client; client->edict = &test_edicts[0];
     test_ge.IsSnapshotPriorityEntity = test_snapshot_priority_entity;

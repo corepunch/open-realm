@@ -5,38 +5,38 @@
 #include "../menu_local.h"
 
 typedef struct LocalMultiplayerJoin_s {
-    frameDef_t * LocalMultiplayerJoin;
-    frameDef_t * GameListPanel;
-    frameDef_t * GameListTitle;
-    frameDef_t * PlayerNameLabel;
-    frameDef_t * PlayerNameEditBox;
-    frameDef_t * GameListLabel;
-    frameDef_t * GameListContainer;
-    frameDef_t * GameSummaryPanel;
-    frameDef_t * MapInfoPaneContainer;
-    frameDef_t * GameCreatorLabel;
-    frameDef_t * GameCreatorValue;
-    frameDef_t * GameSpeedLabel;
-    frameDef_t * GameSpeedValue;
-    frameDef_t * AdvancedOptionsContainer;
-    frameDef_t * CustomCreateTitle;
-    frameDef_t * CustomCreateInfo;
-    frameDef_t * CreateBackdrop;
-    frameDef_t * CreateButton;
-    frameDef_t * CreateButtonText;
-    frameDef_t * LoadBackdrop;
-    frameDef_t * LoadButton;
-    frameDef_t * LoadButtonText;
-    frameDef_t * JoinBackdrop;
-    frameDef_t * JoinButton;
-    frameDef_t * JoinButtonText;
-    frameDef_t * CancelBackdrop;
-    frameDef_t * CancelButton;
-    frameDef_t * CancelButtonText;
+    frameDef_t *LocalMultiplayerJoin;
+    frameDef_t *GameListPanel;
+    frameDef_t *GameListTitle;
+    frameDef_t *PlayerNameLabel;
+    frameDef_t *PlayerNameEditBox;
+    frameDef_t *GameListLabel;
+    frameDef_t *GameListContainer;
+    frameDef_t *GameSummaryPanel;
+    frameDef_t *MapInfoPaneContainer;
+    frameDef_t *GameCreatorLabel;
+    frameDef_t *GameCreatorValue;
+    frameDef_t *GameSpeedLabel;
+    frameDef_t *GameSpeedValue;
+    frameDef_t *AdvancedOptionsContainer;
+    frameDef_t *CustomCreateTitle;
+    frameDef_t *CustomCreateInfo;
+    frameDef_t *CreateBackdrop;
+    frameDef_t *CreateButton;
+    frameDef_t *CreateButtonText;
+    frameDef_t *LoadBackdrop;
+    frameDef_t *LoadButton;
+    frameDef_t *LoadButtonText;
+    frameDef_t *JoinBackdrop;
+    frameDef_t *JoinButton;
+    frameDef_t *JoinButtonText;
+    frameDef_t *CancelBackdrop;
+    frameDef_t *CancelButton;
+    frameDef_t *CancelButtonText;
 } LocalMultiplayerJoin_t;
 
 
-static inline bool LocalMultiplayerJoin_Bind(LocalMultiplayerJoin_t *out, frameDef_t * bind_root) {
+static inline bool LocalMultiplayerJoin_Bind(LocalMultiplayerJoin_t *out, frameDef_t *bind_root) {
     bool ok = true;
     if (!out) {
         return false;

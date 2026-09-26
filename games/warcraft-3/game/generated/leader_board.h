@@ -5,14 +5,14 @@
 #include "../g_local.h"
 
 typedef struct LeaderBoard_s {
-    frameDef_t * Leaderboard;
-    frameDef_t * LeaderboardBackdrop;
-    frameDef_t * LeaderboardTitle;
-    frameDef_t * LeaderboardListContainer;
+    frameDef_t *Leaderboard;
+    frameDef_t *LeaderboardBackdrop;
+    frameDef_t *LeaderboardTitle;
+    frameDef_t *LeaderboardListContainer;
 } LeaderBoard_t;
 
 
-static inline bool LeaderBoard_Bind(LeaderBoard_t *out, frameDef_t * bind_root) {
+static inline bool LeaderBoard_Bind(LeaderBoard_t *out, frameDef_t *bind_root) {
     bool ok = true;
     if (!out) {
         return false;

@@ -21,7 +21,7 @@ float SCR_UICanvasWidth(void) { return CL_Canvas()->scene.w; }
  * new window size.
  */
 vector2_t SCR_ScreenToUI(int x, int y) {
-    uiCanvas_t const * canvas = CL_Canvas();
+    uiCanvas_t const *canvas = CL_Canvas();
     float nx = 0.0f, ny = 0.0f;
 
     if (canvas->window.width > 0 && canvas->window.height > 0) {
@@ -89,7 +89,7 @@ static color32_t SCR_CursorTint(void) {
     uint32_t const entnum = cl.hover_entity;
 
     if (entnum && entnum < MAX_CLIENT_ENTITIES) {
-        entityState_t const * state = &cl.ents[entnum].current;
+        entityState_t const *state = &cl.ents[entnum].current;
         if (CL_EntityAllowsWorldHover(state)) {
             if (state->flags & EF_HOSTILE) {
                 return MAKE(color32_t, 255, 0, 0, 255);
@@ -239,7 +239,7 @@ void SCR_UpdateScreen(uint32_t msec) {
 
 static cstring_t active_tooltip = NULL;
 static handle_t layout_layers[MAX_LAYOUT_LAYERS];
-static texture_t * layout_dynamic_pics[MAX_DYNAMIC_IMAGES];
+static texture_t *layout_dynamic_pics[MAX_DYNAMIC_IMAGES];
 static char layout_dynamic_pic_names[MAX_DYNAMIC_IMAGES][512];
 static uint32_t layout_dynamic_pic_cursor;
 static bool layout_left_down;
@@ -254,7 +254,7 @@ static bool layout_current_window;
 /* Project a world point through the active camera into the virtual UI canvas.
  * The world scissor is authoritative: callers should not turn an off-screen
  * world event into a HUD notification pinned to the nearest edge. */
-bool SCR_ProjectWorldPoint(vector3_t const * point, vector2_t * screen) {
+bool SCR_ProjectWorldPoint(vector3_t const *point, vector2_t *screen) {
     float const *m;
     float cx, cy, cw, vx, vy;
 
@@ -273,8 +273,8 @@ bool SCR_ProjectWorldPoint(vector3_t const * point, vector2_t * screen) {
 }
 
 /* Entity-context layouts use a server-authored tree rooted at the client-projected model top. */
-bool SCR_LayoutWorldHoverRoot(rect_t * root) {
-    entityState_t const * ent = SCR_LayoutContextEntity();
+bool SCR_LayoutWorldHoverRoot(rect_t *root) {
+    entityState_t const *ent = SCR_LayoutContextEntity();
     vector3_t top;
     vector2_t screen;
 
@@ -293,11 +293,11 @@ static rect_t get_uvrect(uint8_t const *tc) {
     return (rect_t){ tc[0], tc[2], tc[1]-tc[0], tc[3]-tc[2] };
 }
 
-static texture_t const * SCR_LayoutPic(RESOURCE image) {
+static texture_t const *SCR_LayoutPic(RESOURCE image) {
     return image && image < MAX_IMAGES ? cl.pics[image] : NULL;
 }
 
-static texture_t const * SCR_LayoutGetDynamicTexture(cstring_t resource) {
+static texture_t const *SCR_LayoutGetDynamicTexture(cstring_t resource) {
     if (!resource || !*resource || !strcmp(resource, " ")) return NULL;
 
     uint32_t slot = MAX_DYNAMIC_IMAGES;
@@ -318,21 +318,21 @@ static texture_t const * SCR_LayoutGetDynamicTexture(cstring_t resource) {
     return layout_dynamic_pics[slot];
 }
 
-static rect_t scale_rect(rect_t const * r, float f) {
+static rect_t scale_rect(rect_t const *r, float f) {
     float dx = r->w * (1-f), dy = r->h * (1-f);
     return (rect_t){ r->x + dx/2, r->y + dy/2, r->w - dx, r->h - dy };
 }
 
-static entityState_t const * SCR_LayoutSelectedEntity(void) {
+static entityState_t const *SCR_LayoutSelectedEntity(void) {
     FOR_LOOP(i, cl.num_entities) {
-        entityState_t const * ent = &cl.ents[i].current;
+        entityState_t const *ent = &cl.ents[i].current;
         if (ent && (ent->renderfx & RF_SELECTED)) return ent;
     }
     return NULL;
 }
 
-void SCR_LayoutDrawSegmentedStatusbar(uiFrame_t const * frame, rect_t const * screen) {
-    entityState_t const * ent;
+void SCR_LayoutDrawSegmentedStatusbar(uiFrame_t const *frame, rect_t const *screen) {
+    entityState_t const *ent;
     uint32_t count, capacity;
     float gap, width;
     rect_t const uv = { 0, 0, 1, 1 };
@@ -363,7 +363,7 @@ void SCR_LayoutDrawSegmentedStatusbar(uiFrame_t const * frame, rect_t const * sc
     }
 }
 
-void SCR_LayoutDrawStatusbar(uiFrame_t const * frame, rect_t const * screen) {
+void SCR_LayoutDrawStatusbar(uiFrame_t const *frame, rect_t const *screen) {
     rect_t const uv = { 0, 0, 255, 255 };
     rect_t screen2 = *screen, uv2 = uv;
     float value = frame->value;
@@ -391,7 +391,7 @@ void SCR_LayoutDrawStatusbar(uiFrame_t const * frame, rect_t const * screen) {
     }
 }
 
-void SCR_LayoutDrawTexture(uiFrame_t const * frame, rect_t const * screen) {
+void SCR_LayoutDrawTexture(uiFrame_t const *frame, rect_t const *screen) {
     float value = 0;
     bool const has = SCR_LayoutContextValue(frame->stat, &value);
     bool const ctx = SCR_LayoutEntityContextActive() &&
@@ -400,10 +400,10 @@ void SCR_LayoutDrawTexture(uiFrame_t const * frame, rect_t const * screen) {
      * drops at value 0 because that snapshot means the unit is dead. */
     if (has ? (value <= 0.0f && frame->stat != UI_STAT_CONTEXT_MANA) : ctx) return;
     if (!frame->tex.index) return;  /* unresolved texture — skip to avoid drawing cl.pics[0] */
-    texture_t const * tex = cl.pics[frame->tex.index];
+    texture_t const *tex = cl.pics[frame->tex.index];
     if (frame->stat >= MAX_STATS && frame->stat - MAX_STATS < PLAYERTEXT_COUNT) {
         cstring_t resource = cl.playerstate.texts[frame->stat - MAX_STATS];
-        texture_t const * dyn = SCR_LayoutGetDynamicTexture(resource);
+        texture_t const *dyn = SCR_LayoutGetDynamicTexture(resource);
         if (dyn) tex = dyn;
     }
     if (frame->buffer.data && frame->buffer.size >= sizeof(uiTextureUV_t)) {
@@ -423,8 +423,8 @@ void SCR_LayoutDrawTexture(uiFrame_t const * frame, rect_t const * screen) {
     }
 }
 
-static void SCR_LayoutDrawHighlightData(uiHighlight_t const *h, rect_t const * screen) {
-    texture_t const * texture;
+static void SCR_LayoutDrawHighlightData(uiHighlight_t const *h, rect_t const *screen) {
+    texture_t const *texture;
     if (!h || !screen || !(texture = SCR_LayoutPic(h->alphaFile))) return;
     re.DrawImageEx(&MAKE(drawImage_t,
         .texture   = texture,
@@ -435,19 +435,19 @@ static void SCR_LayoutDrawHighlightData(uiHighlight_t const *h, rect_t const * s
         .shader    = SHADER_UI));
 }
 
-void SCR_LayoutDrawHighlight(uiFrame_t const * frame, rect_t const * screen) {
+void SCR_LayoutDrawHighlight(uiFrame_t const *frame, rect_t const *screen) {
     SCR_LayoutDrawHighlightData(frame->buffer.data, screen);
 }
 
-static bool SCR_LayoutFrameIsHovered(uiFrame_t const * frame);
+static bool SCR_LayoutFrameIsHovered(uiFrame_t const *frame);
 
-void SCR_LayoutSimpleButton(uiFrame_t const * frame, rect_t const * screen) {
+void SCR_LayoutSimpleButton(uiFrame_t const *frame, rect_t const *screen) {
     uiSimpleButton_t const *b = frame->buffer.data;
     bool const enabled = SCR_LayoutFrameHasClickCommand(frame);
     bool const hovered = SCR_LayoutFrameIsHovered(frame);
     bool const pushed = enabled && hovered && layout_left_down;
     uiSimpleButtonState_t const *state = !enabled ? &b->disabled : pushed ? &b->pushed : &b->normal;
-    texture_t const * texture = SCR_LayoutPic(state->texture);
+    texture_t const *texture = SCR_LayoutPic(state->texture);
     if (!texture) {
         state = &b->normal;
         texture = SCR_LayoutPic(state->texture);
@@ -465,8 +465,8 @@ void SCR_LayoutSimpleButton(uiFrame_t const * frame, rect_t const * screen) {
         .textWidth = screen->w));
 }
 
-void SCR_LayoutDrawBackdrop2(uiFrame_t const * frame, rect_t const * screen, uiBackdrop_t const *bd) {
-    texture_t const * background, *edge;
+void SCR_LayoutDrawBackdrop2(uiFrame_t const *frame, rect_t const *screen, uiBackdrop_t const *bd) {
+    texture_t const *background, *edge;
     if (!bd || !screen || screen->w <= 0 || screen->h <= 0) return;
     background = SCR_LayoutPic(bd->Background);
     edge = SCR_LayoutPic(bd->EdgeFile);
@@ -487,7 +487,7 @@ void SCR_LayoutDrawBackdrop2(uiFrame_t const * frame, rect_t const * screen, uiB
                | (bd->Mirrored       ? DRAW_MIRRORED : 0)));
 }
 
-void SCR_LayoutDrawBackdrop(uiFrame_t const * frame, rect_t const * screen) {
+void SCR_LayoutDrawBackdrop(uiFrame_t const *frame, rect_t const *screen) {
     SCR_LayoutDrawBackdrop2(frame, screen, frame->buffer.data);
 }
 
@@ -495,15 +495,15 @@ static bool SCR_LayoutBackdropHasArt(uiBackdrop_t const *bd) {
     return bd && (bd->Background || bd->EdgeFile);
 }
 
-static void SCR_LayoutDrawBackdropPart(uiFrame_t const * frame, rect_t const * screen, uiBackdrop_t const *bd) {
+static void SCR_LayoutDrawBackdropPart(uiFrame_t const *frame, rect_t const *screen, uiBackdrop_t const *bd) {
     if (SCR_LayoutBackdropHasArt(bd) && screen->w > 0 && screen->h > 0)
         SCR_LayoutDrawBackdrop2(frame, screen, bd);
 }
 
 /* WoW sliders use compact cropped textures; retain backdrop drawing for legacy FDF scrollbars. */
-static bool SCR_LayoutDrawScrollImage(RESOURCE texture, uint8_t const *texcoord, rect_t const * screen) {
+static bool SCR_LayoutDrawScrollImage(RESOURCE texture, uint8_t const *texcoord, rect_t const *screen) {
     rect_t uv, suv;
-    texture_t const * image = SCR_LayoutPic(texture);
+    texture_t const *image = SCR_LayoutPic(texture);
     if (!image) return false;
     uv = get_uvrect(texcoord); suv = Rect_div(&uv, 0xff);
     re.DrawImage(image, screen, &suv, COLOR32_WHITE);
@@ -511,22 +511,22 @@ static bool SCR_LayoutDrawScrollImage(RESOURCE texture, uint8_t const *texcoord,
 }
 
 
-static uiFrame_t const * SCR_LayoutTextAreaScrollBar(uiFrame_t const * frame) {
+static uiFrame_t const *SCR_LayoutTextAreaScrollBar(uiFrame_t const *frame) {
     if (!frame || !frame->number || frame->flags.type != FT_TEXTAREA) return NULL;
     FOR_LOOP(i, SCR_NumFrames()) {
-        uiFrame_t const * child = SCR_Frame(i);
+        uiFrame_t const *child = SCR_Frame(i);
         if (child && child->parent == frame->number && child->flags.type == FT_SCROLLBAR)
             return child;
     }
     return NULL;
 }
 
-static rect_t SCR_LayoutTextAreaView(uiFrame_t const * frame, rect_t const * screen) {
+static rect_t SCR_LayoutTextAreaView(uiFrame_t const *frame, rect_t const *screen) {
     uiTextArea_t const *ta = frame && frame->buffer.data ? frame->buffer.data : NULL;
     float inset = ta ? ta->inset : 0.0f;
     rect_t view = { screen->x + inset, screen->y + inset,
                   MAX(0.0f, screen->w - inset * 2), MAX(0.0f, screen->h - inset * 2) };
-    uiFrame_t const * scrollbar = SCR_LayoutTextAreaScrollBar(frame);
+    uiFrame_t const *scrollbar = SCR_LayoutTextAreaScrollBar(frame);
     if (scrollbar) {
         float sw = SCR_LayoutRect(scrollbar)->w;
         if (sw > 0.0f && sw < view.w) view.w = MAX(0.0f, view.w - sw);
@@ -534,7 +534,7 @@ static rect_t SCR_LayoutTextAreaView(uiFrame_t const * frame, rect_t const * scr
     return view;
 }
 
-float SCR_LayoutTextAreaMaxScroll(uiFrame_t const * frame) {
+float SCR_LayoutTextAreaMaxScroll(uiFrame_t const *frame) {
     uiTextArea_t const *ta;
     rect_t view;
     drawText_t measure;
@@ -552,7 +552,7 @@ float SCR_LayoutTextAreaMaxScroll(uiFrame_t const * frame) {
     return MAX(0.0f, re.GetTextSize(&measure).y - view.h);
 }
 
-static int SCR_LayoutListBoxVisibleRows(uiFrame_t const * frame, rect_t const * view) {
+static int SCR_LayoutListBoxVisibleRows(uiFrame_t const *frame, rect_t const *view) {
     uiListBox_t const *lb;
     float item_height;
 
@@ -563,7 +563,7 @@ static int SCR_LayoutListBoxVisibleRows(uiFrame_t const * frame, rect_t const * 
     return MAX((int)floorf(view->h / item_height), 1);
 }
 
-static int SCR_LayoutListBoxMaxScroll(uiFrame_t const * frame) {
+static int SCR_LayoutListBoxMaxScroll(uiFrame_t const *frame) {
     uiListBox_t const *lb;
     rect_t view;
     int count = 0, visible;
@@ -580,10 +580,10 @@ static int SCR_LayoutListBoxMaxScroll(uiFrame_t const * frame) {
     return MAX(count - visible, 0);
 }
 
-void SCR_LayoutDrawScrollBar(uiFrame_t const * frame, rect_t const * screen) {
+void SCR_LayoutDrawScrollBar(uiFrame_t const *frame, rect_t const *screen) {
     uiScrollBarImage_t const *art = frame->buffer.size == sizeof(*art) ? frame->buffer.data : NULL;
     uiScrollBar_t const *sb = !art && frame->buffer.size >= sizeof(*sb) ? frame->buffer.data : NULL;
-    uiFrame_t const * parent = frame->parent < SCR_NumFrames() ? SCR_Frame(frame->parent) : NULL;
+    uiFrame_t const *parent = frame->parent < SCR_NumFrames() ? SCR_Frame(frame->parent) : NULL;
     if ((!art && !sb) || screen->w <= 0 || screen->h <= 0) return;
 
     if (parent && parent->flags.type == FT_TEXTAREA) {
@@ -626,14 +626,14 @@ void SCR_LayoutDrawScrollBar(uiFrame_t const * frame, rect_t const * screen) {
     else SCR_LayoutDrawBackdropPart(frame, &thumb, &sb->thumbButton);
 }
 
-bool SCR_LayoutFrameHasClickCommand(uiFrame_t const * frame) {
+bool SCR_LayoutFrameHasClickCommand(uiFrame_t const *frame) {
     return frame && frame->onclick && *frame->onclick;
 }
-static bool SCR_LayoutGlueTextButtonIsPushed(uiFrame_t const * frame) {
+static bool SCR_LayoutGlueTextButtonIsPushed(uiFrame_t const *frame) {
     /* The left button is global, but the pushed state belongs only to the hovered layout frame. */
     return layout_left_down && SCR_LayoutFrameHasClickCommand(frame) && SCR_LayoutFrameIsHovered(frame);
 }
-static bool SCR_LayoutFrameIsHovered(uiFrame_t const * frame) {
+static bool SCR_LayoutFrameIsHovered(uiFrame_t const *frame) {
     if (!frame || frame->number != layout_hovered_number) return false;
     /* Transient windows identify the hovered layout by handle. Persistent HUD
      * layers identify it by layer number; layout_current is also used while
@@ -671,7 +671,7 @@ static void SCR_LayoutFormatOnClickCommand(cstring_t src, string_t dst, uint32_t
     dst[out] = '\0';
 }
 
-void SCR_LayoutSendFrameCommand(uiFrame_t const * frame) {
+void SCR_LayoutSendFrameCommand(uiFrame_t const *frame) {
     char command[CMDARG_LEN * 2];
     if (!SCR_LayoutFrameHasClickCommand(frame)) return;
     SCR_LayoutFormatOnClickCommand(frame->onclick, command, sizeof(command));
@@ -685,7 +685,7 @@ void SCR_LayoutSetPointer(handle_t layout, uint32_t number, bool down) {
     layout_left_down = down;
 }
 
-void SCR_WindowPrepare(handle_t layout, rect_t const * root) {
+void SCR_WindowPrepare(handle_t layout, rect_t const *root) {
     layout_current_window = true;
     layout_current = layout;
     SCR_ClearWindow(layout);
@@ -696,7 +696,7 @@ bool SCR_WindowLayoutIsCurrent(handle_t layout) {
     return layout && layout_current_window && layout_current == layout;
 }
 
-static void SCR_LayoutCheckBox(uiFrame_t const * frame, rect_t const * screen) {
+static void SCR_LayoutCheckBox(uiFrame_t const *frame, rect_t const *screen) {
     uiCheckBox_t const *cb = frame->buffer.data;
     bool const enabled = SCR_LayoutFrameHasClickCommand(frame);
     bool const pushed = enabled && SCR_LayoutFrameIsHovered(frame) && layout_left_down;
@@ -711,7 +711,7 @@ static void SCR_LayoutCheckBox(uiFrame_t const * frame, rect_t const * screen) {
         SCR_LayoutDrawHighlightData(&cb->mouseOver, screen);
 }
 
-void SCR_LayoutGlueTextButton(uiFrame_t const * frame, rect_t const * screen) {
+void SCR_LayoutGlueTextButton(uiFrame_t const *frame, rect_t const *screen) {
     uiGlueTextButton_t const *gb = frame->buffer.data;
     bool const enabled = SCR_LayoutFrameHasClickCommand(frame);
     bool const pushed  = SCR_LayoutGlueTextButtonIsPushed(frame);
@@ -721,17 +721,17 @@ void SCR_LayoutGlueTextButton(uiFrame_t const * frame, rect_t const * screen) {
     SCR_LayoutDrawBackdrop2(frame, screen, bd);
 }
 
-static void SCR_LayoutDrawGlueTextButtonHighlight(uiFrame_t const * frame) {
+static void SCR_LayoutDrawGlueTextButtonHighlight(uiFrame_t const *frame) {
     uiGlueTextButton_t const *gb = frame->buffer.data;
     if (SCR_LayoutFrameHasClickCommand(frame) && SCR_LayoutFrameIsHovered(frame))
         SCR_LayoutDrawHighlightData(&gb->highlight, SCR_LayoutRect(frame));
 }
 
-bool SCR_LayoutScrollTextAreaAt(handle_t layout, vector2_t const * point, int wheel_y) {
+bool SCR_LayoutScrollTextAreaAt(handle_t layout, vector2_t const *point, int wheel_y) {
     (void)layout;
     if (!point || !wheel_y) return false;
     for (uint32_t i = SCR_NumFrames(); i > 0; i--) {
-        uiFrame_t * frame = SCR_Frame(i - 1);
+        uiFrame_t *frame = SCR_Frame(i - 1);
         if (!frame || frame->flags.type != FT_TEXTAREA ||
             !Rect_contains(SCR_LayoutRect(frame), point)) continue;
         if (SCR_LayoutTextAreaMaxScroll(frame) > 0.0f)
@@ -741,7 +741,7 @@ bool SCR_LayoutScrollTextAreaAt(handle_t layout, vector2_t const * point, int wh
     return false;
 }
 
-void SCR_LayoutDrawBuildQueue(uiFrame_t const * frame, rect_t const * scrn) {
+void SCR_LayoutDrawBuildQueue(uiFrame_t const *frame, rect_t const *scrn) {
     rect_t screen = *scrn;
     rect_t const uv = { 0, 0, 1, 1 };
     uiBuildQueue_t const *queue = frame->buffer.data;
@@ -761,7 +761,7 @@ void SCR_LayoutDrawBuildQueue(uiFrame_t const * frame, rect_t const * scrn) {
     }
 }
 
-static void SCR_LayoutDrawMessageQueue(uiFrame_t const * frame, rect_t const * screen) {
+static void SCR_LayoutDrawMessageQueue(uiFrame_t const *frame, rect_t const *screen) {
     uiMessageQueue_t const *message = frame->buffer.data;
     rect_t uv = MAKE(rect_t, 0, 0, 0.53125f, 0.6875f);
     if (!message || frame->buffer.size < sizeof(*message)) {
@@ -769,7 +769,7 @@ static void SCR_LayoutDrawMessageQueue(uiFrame_t const * frame, rect_t const * s
         return;
     }
     if (message->flags & UI_MESSAGE_UNREAD) {
-        texture_t const * icon = SCR_LayoutPic(message->image);
+        texture_t const *icon = SCR_LayoutPic(message->image);
         if (icon) re.DrawImage(icon, screen, &uv, COLOR32_WHITE);
     }
     if (message->flags & UI_MESSAGE_OPEN) {
@@ -786,10 +786,10 @@ static void SCR_LayoutDrawMessageQueue(uiFrame_t const * frame, rect_t const * s
     }
 }
 
-void SCR_LayoutUpdateBuildQueue(uiFrame_t const * frame, rect_t const * screen) {
+void SCR_LayoutUpdateBuildQueue(uiFrame_t const *frame, rect_t const *screen) {
     uiBuildQueue_t const *queue = frame->buffer.data;
-    uiFrame_t * buildtimer = SCR_Frame(queue->buildtimer);
-    uiFrame_t * firstitem  = SCR_Frame(queue->firstitem);
+    uiFrame_t *buildtimer = SCR_Frame(queue->buildtimer);
+    uiFrame_t *firstitem  = SCR_Frame(queue->firstitem);
 
     if (queue->numitems && queue->items[0].starttime == 0 && queue->items[0].endtime == 0) {
         if (buildtimer) buildtimer->value = 0;
@@ -813,7 +813,7 @@ void SCR_LayoutUpdateBuildQueue(uiFrame_t const * frame, rect_t const * screen) 
 #define HP_BAR_HEIGHT_RATIO  0.175f
 #define HP_BAR_SPACING_RATIO 0.02f
 
-static uint32_t SCR_LayoutMultiselectEntityAt(uiFrame_t const * frame, vector2_t const * point) {
+static uint32_t SCR_LayoutMultiselectEntityAt(uiFrame_t const *frame, vector2_t const *point) {
     uiMultiselect_t const *ms;
     uint32_t count;
 
@@ -837,7 +837,7 @@ static uint32_t SCR_LayoutMultiselectEntityAt(uiFrame_t const * frame, vector2_t
     return 0;
 }
 
-void SCR_LayoutDrawMultiSelect(uiFrame_t const * frame, rect_t const * scrn) {
+void SCR_LayoutDrawMultiSelect(uiFrame_t const *frame, rect_t const *scrn) {
     rect_t screen = *scrn;
     uiMultiselect_t const *ms = frame->buffer.data;
     uint32_t column = 0;
@@ -855,7 +855,7 @@ void SCR_LayoutDrawMultiSelect(uiFrame_t const * frame, rect_t const * scrn) {
                          MAKE(color32_t, 255, 255, 0, 255));
         }
         re.DrawImage(cl.pics[item->image], &screen, &uv, frame->color);
-        entityState_t const * ent = &cl.ents[item->entity].current;
+        entityState_t const *ent = &cl.ents[item->entity].current;
         if (ent) {
             float hp   = BYTE2FLOAT(ent->stats[ENT_HEALTH]);
             float mana = BYTE2FLOAT(ent->stats[ENT_MANA]);
@@ -877,7 +877,7 @@ void SCR_LayoutDrawMultiSelect(uiFrame_t const * frame, rect_t const * scrn) {
     }
 }
 
-void SCR_LayoutDrawPortrait(uiFrame_t const * frame, rect_t const * screen) {
+void SCR_LayoutDrawPortrait(uiFrame_t const *frame, rect_t const *screen) {
     float const canvas_w = SCR_UICanvasWidth();
     rect_t const viewport = {
         screen->x / canvas_w,
@@ -885,9 +885,9 @@ void SCR_LayoutDrawPortrait(uiFrame_t const * frame, rect_t const * screen) {
         screen->w / canvas_w,
         screen->h / UI_BASE_HEIGHT
     };
-    model_t const * port  = cl.portraits[frame->tex.index];
-    model_t const * model = cl.models[frame->tex.index];
-    model_t const * draw  = port ? port : model;
+    model_t const *port  = cl.portraits[frame->tex.index];
+    model_t const *model = cl.models[frame->tex.index];
+    model_t const *draw  = port ? port : model;
 
     if (!draw) return;
 
@@ -918,7 +918,7 @@ void SCR_LayoutDrawPortrait(uiFrame_t const * frame, rect_t const * screen) {
 }
 
 /* Loading bars are the one client-owned layout value; their art remains server-authored. */
-void SCR_LayoutDrawLoadingBar(uiFrame_t const * frame, rect_t const * screen) {
+void SCR_LayoutDrawLoadingBar(uiFrame_t const *frame, rect_t const *screen) {
     rect_t fill = *screen, uv = { 0, 0, 255, 255 };
     fill.w *= cl.loading_progress;
     uv.w *= cl.loading_progress;
@@ -927,8 +927,8 @@ void SCR_LayoutDrawLoadingBar(uiFrame_t const * frame, rect_t const * screen) {
     re.DrawImage(SCR_LayoutPic(frame->tex.index), &fill, &suv, frame->color);
 }
 
-void SCR_LayoutDrawSprite(uiFrame_t const * frame, rect_t const * screen) {
-    model_t const * model = cl.models[frame->tex.index];
+void SCR_LayoutDrawSprite(uiFrame_t const *frame, rect_t const *screen) {
+    model_t const *model = cl.models[frame->tex.index];
     cstring_t anim = (frame->text && *frame->text) ? frame->text : "Stand";
     char sequence_anim[96];
     char phased_anim[96];
@@ -969,7 +969,7 @@ void SCR_LayoutDrawSprite(uiFrame_t const * frame, rect_t const * screen) {
 }
 
 /* Resolve the generic transient command-button alert tint from an absolute client/server clock deadline. */
-static color32_t SCR_CommandButtonColor(uiFrame_t const * frame) {
+static color32_t SCR_CommandButtonColor(uiFrame_t const *frame) {
     color32_t color = COLOR32_WHITE;
     uint32_t deadline;
     float phase, pulse;
@@ -984,7 +984,7 @@ static color32_t SCR_CommandButtonColor(uiFrame_t const * frame) {
     return color;
 }
 
-static float SCR_CommandButtonRadialShade(uiFrame_t const * frame) {
+static float SCR_CommandButtonRadialShade(uiFrame_t const *frame) {
     uiCommandButton_t const *state;
     uint32_t duration;
 
@@ -997,8 +997,8 @@ static float SCR_CommandButtonRadialShade(uiFrame_t const * frame) {
     return MIN(1.0f, (float)(uint32_t)(state->radialEndTime - cl.time) / (float)duration);
 }
 
-void SCR_LayoutDrawCommandButton(uiFrame_t const * frame, rect_t const * screen) {
-    entityState_t const * sel = SCR_LayoutSelectedEntity();
+void SCR_LayoutDrawCommandButton(uiFrame_t const *frame, rect_t const *screen) {
+    entityState_t const *sel = SCR_LayoutSelectedEntity();
     rect_t const uv = get_uvrect(frame->tex.coord);
     rect_t const suv = Rect_div(&uv, 0xff);
     rect_t scrn = scale_rect(screen, SCR_LayoutFrameIsHovered(frame) && layout_left_down ? 0.875f : 0.925f);
@@ -1014,16 +1014,16 @@ void SCR_LayoutDrawCommandButton(uiFrame_t const * frame, rect_t const * screen)
         .uRadialShade = SCR_CommandButtonRadialShade(frame)));
 }
 
-void layout_text(uiFrame_t const * frame, rect_t const * screen, cstring_t text) {
+void layout_text(uiFrame_t const *frame, rect_t const *screen, cstring_t text) {
     drawText_t dt = SCR_GetDrawText(frame, screen->w, text, frame->buffer.data);
     dt.rect   = *screen;
     dt.flags |= DRAW_WORD_WRAP;
     re.DrawText(&dt);
 }
 
-static void SCR_LayoutApplyPushedTextOffset(uiFrame_t const * frame, rect_t * screen) {
+static void SCR_LayoutApplyPushedTextOffset(uiFrame_t const *frame, rect_t *screen) {
     if (frame->parent >= SCR_NumFrames()) return;
-    uiFrame_t const * parent = SCR_Frame(frame->parent);
+    uiFrame_t const *parent = SCR_Frame(frame->parent);
     if (!parent) return;
     if (parent->flags.type != FT_GLUETEXTBUTTON && parent->flags.type != FT_GLUEBUTTON) return;
     if (!SCR_LayoutFrameHasClickCommand(parent) || !SCR_LayoutGlueTextButtonIsPushed(parent)) return;
@@ -1032,7 +1032,7 @@ static void SCR_LayoutApplyPushedTextOffset(uiFrame_t const * frame, rect_t * sc
     screen->y -= b->pushedTextOffset.y;
 }
 
-void SCR_LayoutDrawString(uiFrame_t const * frame, rect_t const * screen) {
+void SCR_LayoutDrawString(uiFrame_t const *frame, rect_t const *screen) {
     uiLabel_t const *label = frame->buffer.data;
     cstring_t value = SCR_GetStringValue(frame);
     uint32_t cursor = 0;
@@ -1041,7 +1041,7 @@ void SCR_LayoutDrawString(uiFrame_t const * frame, rect_t const * screen) {
      * Keeping the child STRING/TEXT only as the authored geometry carrier
      * avoids relying on generic label rendering for edit-control text. */
     if (frame->parent < SCR_NumFrames()) {
-        uiFrame_t const * parent = SCR_Frame(frame->parent);
+        uiFrame_t const *parent = SCR_Frame(frame->parent);
         if (parent && (parent->flags.type == FT_EDITBOX ||
                        parent->flags.type == FT_GLUEEDITBOX ||
                        parent->flags.type == FT_SLASHCHATBOX))
@@ -1060,7 +1060,7 @@ void SCR_LayoutDrawString(uiFrame_t const * frame, rect_t const * screen) {
 }
 
 /* Draw a nameplate whose backdrop and text share the measured content rect. */
-void SCR_LayoutDrawNameTag(uiFrame_t const * frame, rect_t const * screen) {
+void SCR_LayoutDrawNameTag(uiFrame_t const *frame, rect_t const *screen) {
     uiNameTag_t const *tag = frame->buffer.data;
     rect_t text = { screen->x + tag->padding_x, screen->y + tag->padding_y,
                   screen->w - tag->padding_x * 2, screen->h - tag->padding_y * 2 };
@@ -1069,7 +1069,7 @@ void SCR_LayoutDrawNameTag(uiFrame_t const * frame, rect_t const * screen) {
     dt.rect = text; dt.flags |= DRAW_WORD_WRAP; re.DrawText(&dt);
 }
 
-void SCR_LayoutDrawTextArea(uiFrame_t const * frame, rect_t const * screen) {
+void SCR_LayoutDrawTextArea(uiFrame_t const *frame, rect_t const *screen) {
     uiTextArea_t const *ta = frame->buffer.data;
     cstring_t value = SCR_GetStringValue(frame);
     rect_t view = SCR_LayoutTextAreaView(frame, screen);
@@ -1091,9 +1091,9 @@ void SCR_LayoutDrawTextArea(uiFrame_t const * frame, rect_t const * screen) {
     re.DrawText(&dt);
 }
 
-void SCR_LayoutDrawEditBox(uiFrame_t const * frame, rect_t const * screen) {
+void SCR_LayoutDrawEditBox(uiFrame_t const *frame, rect_t const *screen) {
     uiEditBox_t const *edit = frame->buffer.data;
-    uiFrame_t const * text_frame = NULL;
+    uiFrame_t const *text_frame = NULL;
     cstring_t value = NULL;
     uint32_t cursor = 0;
     uiLabel_t label = { 0 };
@@ -1104,7 +1104,7 @@ void SCR_LayoutDrawEditBox(uiFrame_t const * frame, rect_t const * screen) {
     SCR_LayoutDrawBackdrop2(frame, screen, &edit->background);
 
     FOR_LOOP(i, SCR_NumFrames()) {
-        uiFrame_t const * child = SCR_Frame(i);
+        uiFrame_t const *child = SCR_Frame(i);
         if (!child || child->parent != frame->number) continue;
         if (child->flags.type == FT_STRING || child->flags.type == FT_TEXT) {
             text_frame = child;
@@ -1159,7 +1159,7 @@ void SCR_LayoutDrawEditBox(uiFrame_t const * frame, rect_t const * screen) {
         M_DrawTextInputCursor(&re, &dt, value, cursor, COLOR32_WHITE);
 }
 
-void SCR_LayoutDrawListBox(uiFrame_t const * frame, rect_t const * screen) {
+void SCR_LayoutDrawListBox(uiFrame_t const *frame, rect_t const *screen) {
     uiListBox_t const *lb = frame->buffer.data;
     rect_t list_rect = Rect_inset(screen, lb->border);
     float item_height = lb->itemHeight > 0 ? lb->itemHeight : 0.018f;
@@ -1169,9 +1169,9 @@ void SCR_LayoutDrawListBox(uiFrame_t const * frame, rect_t const * screen) {
 
     SCR_LayoutDrawBackdrop2(frame, screen, &lb->background);
 
-    uiFrame_t const * scrollbar = NULL;
+    uiFrame_t const *scrollbar = NULL;
     FOR_LOOP(i, SCR_NumFrames()) {
-        uiFrame_t const * child = SCR_Frame(i);
+        uiFrame_t const *child = SCR_Frame(i);
         if (child && child->parent == frame->number && child->flags.type == FT_SCROLLBAR) {
             scrollbar = child; break;
         }
@@ -1234,7 +1234,7 @@ void SCR_LayoutDrawListBox(uiFrame_t const * frame, rect_t const * screen) {
     }
 }
 
-void SCR_LayoutDrawTooltip(uiFrame_t const * frame, rect_t const * scrn) {
+void SCR_LayoutDrawTooltip(uiFrame_t const *frame, rect_t const *scrn) {
     if (!active_tooltip) return;
     /* Several HUD layers may carry the shared tooltip presentation frame.
      * Draw it only in the layer/window that owns the hovered source frame so a
@@ -1304,7 +1304,7 @@ static drawer_t drawers[] = {
     { FT_GLUEBUTTON,     SCR_LayoutGlueTextButton },
 };
 
-void SCR_LayoutDrawFrame(uiFrame_t const * frame) {
+void SCR_LayoutDrawFrame(uiFrame_t const *frame) {
     rect_t const *screen = SCR_LayoutRect(frame);
     /* Model sprites and dynamic drawers legitimately have no authored size.
      * Only absent context bindings suppress drawing, just as they collapse layout. */
@@ -1317,7 +1317,7 @@ void SCR_LayoutDrawFrame(uiFrame_t const * frame) {
     }
 }
 
-void SCR_LayoutUpdateFrame(uiFrame_t const * frame) {
+void SCR_LayoutUpdateFrame(uiFrame_t const *frame) {
     rect_t const *screen = SCR_LayoutRect(frame);
 
     /* Tooltip ownership is a generic frame contract, not a command-button
@@ -1336,7 +1336,7 @@ void SCR_LayoutUpdateFrame(uiFrame_t const * frame) {
 
 static void SCR_LayoutRunFrames(handle_t layout, void (*fn)(uiFrame_t const *)) {
     FOR_LOOP(i, SCR_NumFrames()) {
-        uiFrame_t const * frame = SCR_Frame(i);
+        uiFrame_t const *frame = SCR_Frame(i);
         if (frame) fn(frame);
     }
 }
@@ -1348,20 +1348,20 @@ void SCR_LayoutUpdateTooltip(handle_t layout) {
 void SCR_LayoutDrawOverlay(handle_t layout) {
     layout_current = layout;
     FOR_LOOP(i, SCR_NumFrames()) {
-        uiFrame_t const * f = SCR_Frame(i);
+        uiFrame_t const *f = SCR_Frame(i);
         if (f && f->flags.type == FT_SPRITE && !(f->flagsvalue & UIFLAG_SPRITE_OVERLAY)) SCR_LayoutDrawFrame(f);
     }
     FOR_LOOP(i, SCR_NumFrames()) {
-        uiFrame_t const * f = SCR_Frame(i);
+        uiFrame_t const *f = SCR_Frame(i);
         if (f && f->flags.type != FT_SPRITE) SCR_LayoutDrawFrame(f);
     }
     FOR_LOOP(i, SCR_NumFrames()) {
-        uiFrame_t const * f = SCR_Frame(i);
+        uiFrame_t const *f = SCR_Frame(i);
         if (f && (f->flags.type == FT_GLUETEXTBUTTON || f->flags.type == FT_GLUEBUTTON))
             SCR_LayoutDrawGlueTextButtonHighlight(f);
     }
     FOR_LOOP(i, SCR_NumFrames()) {
-        uiFrame_t const * f = SCR_Frame(i);
+        uiFrame_t const *f = SCR_Frame(i);
         if (f && f->flags.type == FT_SPRITE && (f->flagsvalue & UIFLAG_SPRITE_OVERLAY)) SCR_LayoutDrawFrame(f);
     }
 }
@@ -1442,7 +1442,7 @@ bool SCR_LayoutModalActive(void) { return SCR_LayoutModalLayer() >= 0; }
 
 bool SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     vector2_t const point = SCR_ScreenToUI(x, y);
-    uiFrame_t const * hovered_frame = NULL;
+    uiFrame_t const *hovered_frame = NULL;
     int const modal_layer = SCR_LayoutModalLayer();
     /* This path handles persistent layout layers, not client-managed windows. */
     layout_current_window = false;
@@ -1455,7 +1455,7 @@ bool SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
         if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
         SCR_Clear(layout);
         for (uint32_t i = SCR_NumFrames(); i > 0; i--) {
-            uiFrame_t const * frame = SCR_Frame(i - 1);
+            uiFrame_t const *frame = SCR_Frame(i - 1);
             bool hit;
 
             if (!frame) continue;
@@ -1526,7 +1526,7 @@ bool SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
         if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
         SCR_Clear(layout);
         for (uint32_t i = SCR_NumFrames(); i > 0; i--) {
-            uiFrame_t const * frame = SCR_Frame(i - 1);
+            uiFrame_t const *frame = SCR_Frame(i - 1);
 
             if (!frame) continue;
             if (frame->flags.type == FT_MULTISELECT) {
@@ -1563,7 +1563,7 @@ bool SCR_LayoutKeyEvent(int key) {
         if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
         SCR_Clear(layout);
         for (uint32_t i = SCR_NumFrames(); i > 0; i--) {
-            uiFrame_t const * frame = SCR_Frame(i - 1);
+            uiFrame_t const *frame = SCR_Frame(i - 1);
             if (!frame || !SCR_LayoutFrameHasClickCommand(frame)) continue;
             bool const is_cancel = key == K_ESCAPE && !strcmp(frame->onclick, "button CmdCancel");
             if (is_cancel || (frame->hotkey && toupper(frame->hotkey) == upper)) {
@@ -1616,7 +1616,7 @@ static bool SCR_RangesOverlap(float a0, float a1, float b0, float b1) {
  * and selection hit-testing out of authored HUD regions instead of relying on
  * transparent console art to hide the line.  Full-screen world games have a
  * scissor bottom at UI_BASE_HEIGHT, making this a no-op. */
-void SCR_LayoutClampSelectionRect(rect_t * rect) {
+void SCR_LayoutClampSelectionRect(rect_t *rect) {
     vector2_t start, finish, clamped;
     float world_bottom;
     float xmin, xmax;
@@ -1645,8 +1645,8 @@ void SCR_LayoutClampSelectionRect(rect_t * rect) {
         if (!layout || layer == LAYER_WORLD_HOVER || ((1 << layer) & flags)) continue;
         SCR_Clear(layout);
         FOR_LOOP(i, SCR_NumFrames()) {
-            uiFrame_t const * frame = SCR_Frame(i);
-            rect_t const * r;
+            uiFrame_t const *frame = SCR_Frame(i);
+            rect_t const *r;
             float bottom;
             if (!frame || !SCR_LayoutSelectionBlockerType(frame->flags.type)) continue;
             r = SCR_LayoutRect(frame);
@@ -1675,7 +1675,7 @@ bool SCR_LayoutHitTest(int x, int y) {
         if (!layout || layer == LAYER_WORLD_HOVER || (1 << layer) & flags) continue;
         SCR_Clear(layout);
         FOR_LOOP(i, SCR_NumFrames()) {
-            uiFrame_t const * frame = SCR_Frame(i);
+            uiFrame_t const *frame = SCR_Frame(i);
             if (!frame) continue;
             /* Persistent controls may intentionally sit over the world instead
              * of over a console texture. Any clickable server-authored frame
@@ -1694,7 +1694,7 @@ bool SCR_LayoutHitTest(int x, int y) {
 }
 
 /* Consume the old wire shape to preserve packet alignment; current games author svc_layout. */
-void CL_ParseUnitUI(sizeBuf_t * msg) {
+void CL_ParseUnitUI(sizeBuf_t *msg) {
     int count = MSG_ReadByte(msg);
     if (count) fprintf(stderr, "CL_ParseUnitUI: obsolete HUD packet; server must author svc_layout\n");
     for (int i = 0; i < count && msg->readcount < msg->cursize; i++) {

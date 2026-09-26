@@ -248,7 +248,7 @@ void Wow_LoadAdtFile(uint32_t tile_x, uint32_t tile_y) {
     if (ri.FS_MunmapFile) ri.FS_MunmapFile(data);
 }
 
-uint8_t const *Wow_FindMainChunk(uint8_t const *data, uint32_t size, uint32_t * main_size) {
+uint8_t const *Wow_FindMainChunk(uint8_t const *data, uint32_t size, uint32_t *main_size) {
     uint32_t offset = 0;
 
     while (offset + 8 <= size) {
@@ -359,7 +359,7 @@ bool Wow_LoadWdtTiles(uint8_t const *data, uint32_t size) {
 
 void Wow_LoadMapDbcFlags(void) {
     stbDbc_t h;
-    uint8_t * data = NULL;
+    uint8_t *data = NULL;
     int size = ri.FS_ReadFile("DBFilesClient\\Map.dbc", (void **)&data);
     uint8_t const *records_base;
     uint8_t const *strings_base;

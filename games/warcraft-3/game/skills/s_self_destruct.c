@@ -1,7 +1,7 @@
 #include "s_skills.h"
 
 /* Self Destruct blast is physical: armor applies, spell immunity does not block it. */
-static bool self_destruct_allows(uint32_t code, edict_t * caster, edict_t * target) {
+static bool self_destruct_allows(uint32_t code, edict_t *caster, edict_t *target) {
 	cstring_t targets;
 	if (!caster || !S_SpellIsAliveTarget(target) || target == caster || S_UnitIsCycloned(target))
 		return false;
@@ -18,7 +18,7 @@ static bool self_destruct_allows(uint32_t code, edict_t * caster, edict_t * targ
 	return !strstr(targets, "friend") && !strstr(targets, "enemy") && !strstr(targets, "neutral");
 }
 
-static void self_destruct_explode(edict_t * ent, uint32_t code) {
+static void self_destruct_explode(edict_t *ent, uint32_t code) {
 	uint32_t level = MAX(1u, G_UnitAbilityLevel(ent, code));
 	float full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
 	float part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
@@ -40,7 +40,7 @@ static void self_destruct_explode(edict_t * ent, uint32_t code) {
 static bool kaboom_cast;
 
 /* Intentional Kaboom always blasts, then kills the caster; DataF does not gate this path. */
-static void self_destruct_kaboom(edict_t * ent, uint32_t code) {
+static void self_destruct_kaboom(edict_t *ent, uint32_t code) {
 	if (!ent || !code || M_IsDead(ent)) return;
 	self_destruct_explode(ent, code);
 	kaboom_cast = true;
@@ -51,7 +51,7 @@ static void self_destruct_kaboom(edict_t * ent, uint32_t code) {
 }
 
 /* Autocast: detonate in place when a valid target is already inside DataA. */
-static bool self_destruct_autocast_acquire(edict_t * caster, uint32_t code) {
+static bool self_destruct_autocast_acquire(edict_t *caster, uint32_t code) {
 	uint32_t level = MAX(1u, G_UnitAbilityLevel(caster, code));
 	float full_r = S_SpellData(code, level, 1);
 	vector2_t point;
@@ -70,7 +70,7 @@ static bool death_seen(uint32_t *seen, uint32_t *n, uint32_t code) {
 	return false;
 }
 
-static void death_ability_one(edict_t * ent, uint32_t code, uint32_t *seen, uint32_t *n) {
+static void death_ability_one(edict_t *ent, uint32_t code, uint32_t *seen, uint32_t *n) {
 	abilityitem_t item;
 	abilityCall_t call;
 	char name[5] = {0};
@@ -85,7 +85,7 @@ static void death_ability_one(edict_t * ent, uint32_t code, uint32_t *seen, uint
 }
 
 /* Walk the dying unit's concrete abilities; do not use the global innate list. */
-void S_UnitDeathAbilities(edict_t * ent) {
+void S_UnitDeathAbilities(edict_t *ent) {
 	uint32_t seen[32], n = 0;
 	if (!ent) return;
 	if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {

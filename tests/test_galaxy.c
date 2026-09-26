@@ -31,14 +31,14 @@ static void *gal_alloc(long size) { return calloc(1, (size_t)size); }
 static void  gal_free(void *p)    { free(p); }
 
 /* ReadFile searches these prefixes in order until one works. */
-static const char *gal_search_dirs[] = {
+static char const *gal_search_dirs[] = {
     "data/TRaynor01-galaxy/",
     "",
     NULL,
 };
 
-static void *gal_read_file(const char *path, unsigned int *out_size) {
-    for (const char **dir = gal_search_dirs; *dir; dir++) {
+static void *gal_read_file(char const *path, unsigned int *out_size) {
+    for (char const **dir = gal_search_dirs; *dir; dir++) {
         char full[1024];
         snprintf(full, sizeof(full), "%s%s", *dir, path);
         FILE *f = fopen(full, "rb");
@@ -59,11 +59,11 @@ static void *gal_read_file(const char *path, unsigned int *out_size) {
 
 /* Native stubs for the test host.  TestFail wires Galaxy assertions into
  * jass_rterror so T_ASSERT(!jass_rterror_pending(j)) detects failures. */
-static unsigned int gal_stub(jass_t * j)    { return jass_pushnull(j); }
-static unsigned int gal_void(jass_t * j)    { (void)j; return 0; }
-static unsigned int gal_true(jass_t * j) { return jass_pushboolean(j, 1); }
-static unsigned int gal_false_ret(jass_t * j) { return jass_pushboolean(j, 0); }
-static unsigned int gal_zero(jass_t * j)    { return jass_pushinteger(j, 0); }
+static unsigned int gal_stub(jass_t *j)    { return jass_pushnull(j); }
+static unsigned int gal_void(jass_t *j)    { (void)j; return 0; }
+static unsigned int gal_true(jass_t *j) { return jass_pushboolean(j, 1); }
+static unsigned int gal_false_ret(jass_t *j) { return jass_pushboolean(j, 0); }
+static unsigned int gal_zero(jass_t *j)    { return jass_pushinteger(j, 0); }
 static float gal_sound_length(cstring_t id, int asset) {
     return !strcmp(id, "IntroLine") && asset == 2 ? 2.5f : 0.0f;
 }
@@ -72,7 +72,7 @@ static void gal_actor_destroy(unsigned id) { gal_actor_destroyed++; gal_actor_la
 static bool gal_unit_moving;
 static int32_t gal_move_count;
 static float gal_move_x;
-static jassFunc_t const * gal_saved_code;
+static jassFunc_t const *gal_saved_code;
 static uint32_t gal_code_calls;
 static void *gal_unit_create(cstring_t type, int player, float x, float y, float angle) {
     (void)type; (void)player; (void)x; (void)y; (void)angle;
@@ -98,11 +98,11 @@ static void gal_unit_move(void *ent, float x, float y) {
 }
 static bool gal_is_moving(void *ent) { (void)ent; return gal_unit_moving; }
 
-static uint32_t gal_save_code(jass_t * j) { gal_saved_code = jass_checkcode(j, 1); return 0; }
-static uint32_t gal_call_saved(jass_t * j) { jass_pushfunction(j, gal_saved_code); return jass_call(j, 0); }
-static uint32_t gal_code_callback(jass_t * j) { (void)j; gal_code_calls++; return 0; }
+static uint32_t gal_save_code(jass_t *j) { gal_saved_code = jass_checkcode(j, 1); return 0; }
+static uint32_t gal_call_saved(jass_t *j) { jass_pushfunction(j, gal_saved_code); return jass_call(j, 0); }
+static uint32_t gal_code_callback(jass_t *j) { (void)j; gal_code_calls++; return 0; }
 
-static unsigned int gal_TestFail(jass_t * j) {
+static unsigned int gal_TestFail(jass_t *j) {
     cstring_t msg = jass_checkstring(j, 1);
     jass_rterror(j, msg ? msg : "TestFail");
     return 0;
@@ -240,7 +240,7 @@ static jassModule_t gal_assert_natives[] = {
  * ========================================================================= */
 
 typedef struct {
-    jass_t * j;
+    jass_t *j;
     char   errmsg[256];
 } gal_state_t;
 
@@ -263,7 +263,7 @@ static void gal_destroy(gal_state_t *s) {
 }
 
 /* Load source and call main() if it exists. */
-static int gal_run_mode(gal_state_t *s, const char *src, JASSMODE mode) {
+static int gal_run_mode(gal_state_t *s, char const *src, JASSMODE mode) {
     unsigned int len = (unsigned int)strlen(src);
     char *buf = malloc(len + 1);
     memcpy(buf, src, len + 1);
@@ -284,10 +284,10 @@ static int gal_run_mode(gal_state_t *s, const char *src, JASSMODE mode) {
     return 1;
 }
 
-static int gal_run(gal_state_t *s, const char *src) { return gal_run_mode(s, src, JASS_MODE_GALAXY); }
+static int gal_run(gal_state_t *s, char const *src) { return gal_run_mode(s, src, JASS_MODE_GALAXY); }
 
 /* Parse-only: load but don't call main(). */
-static int gal_parse_mode(gal_state_t *s, const char *src, JASSMODE mode) {
+static int gal_parse_mode(gal_state_t *s, char const *src, JASSMODE mode) {
     unsigned int len = (unsigned int)strlen(src);
     char *buf = malloc(len + 1);
     memcpy(buf, src, len + 1);
@@ -301,7 +301,7 @@ static int gal_parse_mode(gal_state_t *s, const char *src, JASSMODE mode) {
     return 1;
 }
 
-static int gal_parse(gal_state_t *s, const char *src) { return gal_parse_mode(s, src, JASS_MODE_GALAXY); }
+static int gal_parse(gal_state_t *s, char const *src) { return gal_parse_mode(s, src, JASS_MODE_GALAXY); }
 
 /* =========================================================================
  * Parser tests — verify specific Galaxy constructs parse without error
@@ -1300,7 +1300,7 @@ static char gal_sub_content[] =
     "int gv_subval = 42;\n"
     "void sub_set(int v) { gv_subval = v; }\n";
 
-static void *gal_include_read_file(const char *path, unsigned int *out_size) {
+static void *gal_include_read_file(char const *path, unsigned int *out_size) {
     if (!strcmp(path, "sub.galaxy")) {
         *out_size = (unsigned int)strlen(gal_sub_content);
         char *buf = malloc(*out_size + 1);
@@ -1317,7 +1317,7 @@ TEST(galaxy, include_loads_sub_file) {
         .ReadFile       = gal_include_read_file,
         .galaxy_natives = gal_test_natives,
     ));
-    jass_t * j = jass_newstate();
+    jass_t *j = jass_newstate();
 
     static const char src[] =
         "include \"sub\"\n"
@@ -1346,7 +1346,7 @@ TEST(galaxy, include_sub_function_callable) {
         .ReadFile       = gal_include_read_file,
         .galaxy_natives = gal_test_natives,
     ));
-    jass_t * j = jass_newstate();
+    jass_t *j = jass_newstate();
 
     static const char src[] =
         "include \"sub\"\n"
@@ -1379,7 +1379,7 @@ TEST(galaxy, dofile_autodetects_galaxy_extension) {
         "native void TestFail(string msg);\n"
         "int gv_probe = 0;\n"
         "void probe() { gv_probe = 7; }\n";
-    const char *path = "/tmp/openwarcraft3_test_autodetect.galaxy";
+    char const *path = "/tmp/openwarcraft3_test_autodetect.galaxy";
     FILE *f = fopen(path, "wb");
     if (!f) return;  /* skip if /tmp not writable */
     fwrite(src, 1, strlen(src), f);
@@ -1391,7 +1391,7 @@ TEST(galaxy, dofile_autodetects_galaxy_extension) {
         .ReadFile       = gal_read_file,
         .galaxy_natives = gal_test_natives,
     ));
-    jass_t * j = jass_newstate();
+    jass_t *j = jass_newstate();
     jass_dofile(j, path);
     jass_callbyname(j, "probe", false);
     jass_runevents(j);
@@ -1407,7 +1407,7 @@ TEST(galaxy, dofile_autodetects_galaxy_extension) {
  * Loads all four Galaxy files, calls InitGlobals(), verifies no crash.
  * ========================================================================= */
 
-static int gal_file_exists(const char *path) {
+static int gal_file_exists(char const *path) {
     FILE *f = fopen(path, "rb");
     if (f) { fclose(f); return 1; }
     return 0;
@@ -1415,7 +1415,7 @@ static int gal_file_exists(const char *path) {
 
 static int gal_load_errors = 0;
 
-static void gal_load(jass_t * j, const char *path) {
+static void gal_load(jass_t *j, char const *path) {
     jass_rterror_clear(j);
     bool ok = jass_dofile_ex(j, path, JASS_MODE_GALAXY);
     if (!ok || jass_rterror_pending(j)) {

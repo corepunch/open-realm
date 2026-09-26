@@ -5,34 +5,34 @@
 #include "../g_local.h"
 
 typedef struct ChatDialog_s {
-    frameDef_t * ChatDialog;
-    frameDef_t * ChatBackdrop;
-    frameDef_t * ChatTitle;
-    frameDef_t * ChatPlayerRadioButton;
-    frameDef_t * ChatAlliesRadioButton;
-    frameDef_t * ChatObserversRadioButton;
-    frameDef_t * ChatEveryoneRadioButton;
-    frameDef_t * ChatPlayerLabel;
-    frameDef_t * ChatAlliesLabel;
-    frameDef_t * ChatObserversLabel;
-    frameDef_t * ChatEveryoneLabel;
-    frameDef_t * ChatPlayerMenu;
-    frameDef_t * EscMenuPopupMenuBackdropTemplate;
-    frameDef_t * EscMenuPopupMenuDisabledBackdropTemplate;
-    frameDef_t * PopupMenuTitleTemplate;
-    frameDef_t * PopupMenuArrowTemplate;
-    frameDef_t * PopupMenuMenuTemplate;
-    frameDef_t * ChatAcceptButton;
-    frameDef_t * ChatAcceptButtonText;
-    frameDef_t * ChatHistoryDisplayBackdrop;
-    frameDef_t * ChatHistoryDisplay;
-    frameDef_t * ChatHistoryScrollBar;
-    frameDef_t * ChatHistoryLabel;
-    frameDef_t * ChatInfoText;
+    frameDef_t *ChatDialog;
+    frameDef_t *ChatBackdrop;
+    frameDef_t *ChatTitle;
+    frameDef_t *ChatPlayerRadioButton;
+    frameDef_t *ChatAlliesRadioButton;
+    frameDef_t *ChatObserversRadioButton;
+    frameDef_t *ChatEveryoneRadioButton;
+    frameDef_t *ChatPlayerLabel;
+    frameDef_t *ChatAlliesLabel;
+    frameDef_t *ChatObserversLabel;
+    frameDef_t *ChatEveryoneLabel;
+    frameDef_t *ChatPlayerMenu;
+    frameDef_t *EscMenuPopupMenuBackdropTemplate;
+    frameDef_t *EscMenuPopupMenuDisabledBackdropTemplate;
+    frameDef_t *PopupMenuTitleTemplate;
+    frameDef_t *PopupMenuArrowTemplate;
+    frameDef_t *PopupMenuMenuTemplate;
+    frameDef_t *ChatAcceptButton;
+    frameDef_t *ChatAcceptButtonText;
+    frameDef_t *ChatHistoryDisplayBackdrop;
+    frameDef_t *ChatHistoryDisplay;
+    frameDef_t *ChatHistoryScrollBar;
+    frameDef_t *ChatHistoryLabel;
+    frameDef_t *ChatInfoText;
 } ChatDialog_t;
 
 
-static inline bool ChatDialog_Bind(ChatDialog_t *out, frameDef_t * bind_root) {
+static inline bool ChatDialog_Bind(ChatDialog_t *out, frameDef_t *bind_root) {
     bool ok = true;
     if (!out) {
         return false;

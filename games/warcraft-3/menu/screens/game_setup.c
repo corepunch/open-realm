@@ -29,8 +29,8 @@
 
 typedef struct {
     PlayerSlot_t frames;
-    frameDef_t * name_text;
-    frameDef_t * race_text;
+    frameDef_t *name_text;
+    frameDef_t *race_text;
 } gameSetupSlotRow_t;
 
 typedef enum {
@@ -60,12 +60,12 @@ typedef struct {
     UINAME map_name;
     mapInfo_t map_info;
     bool have_map_info;
-    frameDef_t * root;
-    frameDef_t * game_name;
-    frameDef_t * start_button;
-    frameDef_t * cancel_button;
-    frameDef_t * chat_text;
-    frameDef_t * team_container;
+    frameDef_t *root;
+    frameDef_t *game_name;
+    frameDef_t *start_button;
+    frameDef_t *cancel_button;
+    frameDef_t *chat_text;
+    frameDef_t *team_container;
     char chat_lines[GAME_SETUP_CHAT_LINES][GAME_SETUP_CHAT_LINE];
     bool chat_line_own[GAME_SETUP_CHAT_LINES];
     uint32_t num_chat_lines;
@@ -83,7 +83,7 @@ static cstring_t const setup_lf[] = {
 
 static gameSetupState_t setup;
 
-static uint32_t GameSetup_CountPlayers(mapInfo_t const * info);
+static uint32_t GameSetup_CountPlayers(mapInfo_t const *info);
 static void GameSetup_PublishLobby(void);
 static void GameSetup_AppendText(string_t out, size_t out_size, size_t *used, cstring_t text);
 static bool GameSetup_FixedPlayerSettings(void);
@@ -118,9 +118,9 @@ static cstring_t GameSetup_BaseName(cstring_t path) {
     return base;
 }
 
-static frameDef_t * GameSetup_FindPopupTitleText(frameDef_t * popup) {
-    frameDef_t * title;
-    frameDef_t * text;
+static frameDef_t *GameSetup_FindPopupTitleText(frameDef_t *popup) {
+    frameDef_t *title;
+    frameDef_t *text;
 
     if (!popup) {
         return NULL;
@@ -130,9 +130,9 @@ static frameDef_t * GameSetup_FindPopupTitleText(frameDef_t * popup) {
     return text ? text : title;
 }
 
-static void GameSetup_PositionPopupMenuParts(frameDef_t * popup) {
-    frameDef_t * title;
-    frameDef_t * arrow;
+static void GameSetup_PositionPopupMenuParts(frameDef_t *popup) {
+    frameDef_t *title;
+    frameDef_t *arrow;
     float const inset = popup ? popup->Popup.ButtonInset : 0.0f;
     float arrow_width;
     float title_width;
@@ -155,7 +155,7 @@ static void GameSetup_PositionPopupMenuParts(frameDef_t * popup) {
     }
 }
 
-static void GameSetup_SetBackdropTexture(frameDef_t * frame, cstring_t name, bool decorate) {
+static void GameSetup_SetBackdropTexture(frameDef_t *frame, cstring_t name, bool decorate) {
     if (!frame) {
         return;
     }
@@ -164,7 +164,7 @@ static void GameSetup_SetBackdropTexture(frameDef_t * frame, cstring_t name, boo
     frame->Color = COLOR32_WHITE;
 }
 
-static void GameSetup_SetTextIfPresent(frameDef_t * frame, cstring_t format, ...) {
+static void GameSetup_SetTextIfPresent(frameDef_t *frame, cstring_t format, ...) {
     va_list argptr;
     char text[1024];
 
@@ -209,8 +209,8 @@ static void GameSetup_UpdateSlotControlState(gameSetupSlotRow_t *row) {
     UI_SetEnabled(row->frames.ColorButton, host && !fixed);
 }
 
-static frameDef_t * GameSetup_EnsureChatText(void) {
-    frameDef_t const * template;
+static frameDef_t *GameSetup_EnsureChatText(void) {
+    frameDef_t const *template;
 
     if (setup.chat_text) {
         return setup.chat_text;
@@ -361,7 +361,7 @@ static void GameSetup_SetupSlotRow(gameSetupSlotRow_t *slot) {
 }
 
 static void GameSetup_BuildSlotRows(void) {
-    frameDef_t * previous = NULL;
+    frameDef_t *previous = NULL;
 
     if (!setup.team_container || !setup.slot_template.PlayerSlot || setup.slots[0].frames.PlayerSlot) {
         return;
@@ -369,7 +369,7 @@ static void GameSetup_BuildSlotRows(void) {
 
     FOR_LOOP(i, MAX_PLAYERS) {
         gameSetupSlotRow_t *slot = &setup.slots[i];
-        frameDef_t * row;
+        frameDef_t *row;
 
         row = UI_CloneFrameTree(setup.slot_template.PlayerSlot, setup.team_container);
         if (!row || !PlayerSlot_Bind(&slot->frames, row)) {
@@ -594,7 +594,7 @@ static void GameSetup_UseResolvedMapTitle(void) {
     }
 }
 
-static void GameSetup_SlotName(mapPlayer_t const * player, bool first_human, string_t out, uint32_t out_size) {
+static void GameSetup_SlotName(mapPlayer_t const *player, bool first_human, string_t out, uint32_t out_size) {
     cstring_t name;
 
     if (!player) {
@@ -616,7 +616,7 @@ static void GameSetup_SlotName(mapPlayer_t const * player, bool first_human, str
     }
 }
 
-static uint32_t GameSetup_ForceForPlayer(mapInfo_t const * info, uint32_t player_index) {
+static uint32_t GameSetup_ForceForPlayer(mapInfo_t const *info, uint32_t player_index) {
     if (!info || !info->teams) {
         return player_index;
     }
@@ -645,7 +645,7 @@ static uint32_t GameSetup_VisibleSlotCount(void) {
     return count;
 }
 
-static uint32_t GameSetup_DefaultTeamForSlot(mapInfo_t const * info, uint32_t map_player, uint32_t row_index) {
+static uint32_t GameSetup_DefaultTeamForSlot(mapInfo_t const *info, uint32_t map_player, uint32_t row_index) {
     if (setup.have_map_info &&
         (setup.map_info.flags & use_custom_forces) != 0 &&
         (setup.map_info.flags & melee_map) == 0) {
@@ -748,8 +748,8 @@ static void GameSetup_PopulateSlots(void) {
     GameSetup_DrawSlotConfigs();
 }
 
-static void GameSetup_BindMapInfoPane(frameDef_t * container) {
-    frameDef_t * root;
+static void GameSetup_BindMapInfoPane(frameDef_t *container) {
+    frameDef_t *root;
 
     if (setup.map_info_pane.MapInfoPane || !container) {
         return;
@@ -769,7 +769,7 @@ static void GameSetup_BindMapInfoPane(frameDef_t * container) {
     UI_LayoutMapInfoPane(setup.map_info_pane.MapInfoPane);
 }
 
-static uint32_t GameSetup_CountPlayers(mapInfo_t const * info) {
+static uint32_t GameSetup_CountPlayers(mapInfo_t const *info) {
     uint32_t count = 0;
 
     FOR_LOOP(i, MAX_PLAYERS) {

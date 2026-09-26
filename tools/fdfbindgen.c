@@ -16,7 +16,7 @@ typedef struct {
     char *data;
     size_t size;
     size_t pos;
-    const char *name;
+    char const *name;
     int line;
 } lexer_t;
 
@@ -40,11 +40,11 @@ static fdf_node_t nodes[MAX_FDF_NODES];
 static int node_count = 0;
 static int selected_roots[MAX_ROOTS];
 static int selected_root_count = 0;
-static const char *root_filters[MAX_ROOTS];
+static char const *root_filters[MAX_ROOTS];
 static int root_filter_count = 0;
-static const char *optional_root_filters[MAX_ROOTS];
+static char const *optional_root_filters[MAX_ROOTS];
 static int optional_root_filter_count = 0;
-static const char *load_paths[MAX_FILES];
+static char const *load_paths[MAX_FILES];
 static int load_path_count = 0;
 static int current_file_index = -1;
 static int parsed_file_count = 0;
@@ -69,7 +69,7 @@ static void usage(void) {
             "  mpqtool -mpq War3.mpq cat UI/FrameDef/Glue/MainMenu.fdf | fdfbindgen -prefix MainMenu -root MainMenuFrame -load UI\\\\FrameDef\\\\Glue\\\\MainMenu.fdf -\n");
 }
 
-static bool read_all(FILE *fp, const char *name, char **out_data, size_t *out_size) {
+static bool read_all(FILE *fp, char const *name, char **out_data, size_t *out_size) {
     size_t cap = 8192;
     size_t len = 0;
     char *data = malloc(cap + 1);
@@ -198,15 +198,15 @@ static bool lexer_next(lexer_t *lx, char *out, size_t out_size, bool *quoted) {
     return true;
 }
 
-static bool is_declaration_token(const char *tok) {
+static bool is_declaration_token(char const *tok) {
     return !strcmp(tok, "Frame") ||
            !strcmp(tok, "Texture") ||
            !strcmp(tok, "String") ||
            !strcmp(tok, "Layer");
 }
 
-static bool is_c_keyword(const char *ident) {
-    static const char *keywords[] = {
+static bool is_c_keyword(char const *ident) {
+    static char const *keywords[] = {
         "auto", "break", "case", "char", "const", "continue", "default", "do",
         "double", "else", "enum", "extern", "float", "for", "goto", "if",
         "inline", "int", "long", "register", "restrict", "return", "short",
@@ -221,7 +221,7 @@ static bool is_c_keyword(const char *ident) {
     return false;
 }
 
-static void make_ident(const char *name, char *out, size_t out_size) {
+static void make_ident(char const *name, char *out, size_t out_size) {
     size_t len = 0;
     if (!name || !*name) {
         name = "frame";
@@ -254,7 +254,7 @@ static void make_ident(const char *name, char *out, size_t out_size) {
     }
 }
 
-static bool ident_used_by_sibling(int parent, const char *ident, int before_node) {
+static bool ident_used_by_sibling(int parent, char const *ident, int before_node) {
     int child = parent >= 0 ? nodes[parent].first_child : -1;
     if (parent < 0) {
         for (int i = 0; i < before_node; i++) {
@@ -293,7 +293,7 @@ static void mark_node_seen(int index) {
     }
 }
 
-static int find_child_node(int parent, const char *name) {
+static int find_child_node(int parent, char const *name) {
     if (parent < 0) {
         for (int i = 0; i < node_count; i++) {
             if (nodes[i].parent < 0 && !strcmp(nodes[i].name, name)) {
@@ -310,7 +310,7 @@ static int find_child_node(int parent, const char *name) {
     return -1;
 }
 
-static int add_node(int parent, const char *name, const char *frame_type) {
+static int add_node(int parent, char const *name, char const *frame_type) {
     int index;
     int existing;
     existing = find_child_node(parent, name ? name : "");
@@ -416,7 +416,7 @@ static void parse_scope(lexer_t *lx, int parent) {
     }
 }
 
-static bool parse_file(const char *path) {
+static bool parse_file(char const *path) {
     FILE *fp = NULL;
     char *data = NULL;
     size_t size = 0;
@@ -451,7 +451,7 @@ static bool parse_file(const char *path) {
     return true;
 }
 
-static bool is_optional_root_name(const char *name) {
+static bool is_optional_root_name(char const *name) {
     for (int i = 0; i < optional_root_filter_count; i++) {
         if (!strcmp(name, optional_root_filters[i])) {
             return true;
@@ -487,7 +487,7 @@ static void select_roots(void) {
     }
 }
 
-static bool binding_ident_used(const char *ident, int self_index) {
+static bool binding_ident_used(char const *ident, int self_index) {
     for (int i = 0; i < node_count; i++) {
         if (i == self_index) {
             continue;
@@ -530,7 +530,7 @@ static void emit_binding_fields(int node_index) {
     }
 }
 
-static void emit_c_string(const char *text) {
+static void emit_c_string(char const *text) {
     putchar('"');
     for (size_t i = 0; text && text[i]; i++) {
         if (text[i] == '\\' || text[i] == '"') {
@@ -561,7 +561,7 @@ static void emit_binding_type(void) {
     printf("} %s_t;\n\n", prefix);
 }
 
-static void emit_bind_children(int node_index, const char *node_expr) {
+static void emit_bind_children(int node_index, char const *node_expr) {
     for (int child = nodes[node_index].first_child; child >= 0; child = nodes[child].next_sibling) {
         char child_expr[1024];
         snprintf(child_expr, sizeof(child_expr), "out->%s", nodes[child].binding_ident);
@@ -590,7 +590,7 @@ static void emit_load_function(void) {
     }
 
     printf("    bool ok = true;\n");
-    printf("    frameDef_t * bind_root;\n");
+    printf("    frameDef_t *bind_root;\n");
     printf("    if (!out) {\n");
     printf("        return false;\n");
     printf("    }\n");
@@ -622,7 +622,7 @@ static void emit_bind_at_function(void) {
     }
 
     root = selected_roots[0];
-    printf("\nstatic inline bool %s_Bind(%s_t *out, frameDef_t * bind_root) {\n", prefix, prefix);
+    printf("\nstatic inline bool %s_Bind(%s_t *out, frameDef_t *bind_root) {\n", prefix, prefix);
     printf("    bool ok = true;\n");
     printf("    if (!out) {\n");
     printf("        return false;\n");
@@ -664,8 +664,8 @@ static void emit_header(void) {
     printf("\n#endif /* %s */\n", guard);
 }
 
-static void derive_prefix_from_path(const char *path) {
-    const char *base = strrchr(path, '/');
+static void derive_prefix_from_path(char const *path) {
+    char const *base = strrchr(path, '/');
     char tmp[MAX_IDENT];
     if (!base) {
         base = strrchr(path, '\\');
@@ -685,7 +685,7 @@ static void derive_prefix_from_path(const char *path) {
 }
 
 int main(int argc, char **argv) {
-    const char *files[MAX_FILES];
+    char const *files[MAX_FILES];
     int file_count = 0;
     bool ok = true;
 

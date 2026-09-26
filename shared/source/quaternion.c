@@ -1,6 +1,6 @@
 #include "../cmath3.h"
 
-quaternion_t Quaternion_slerp(quaternion_t const * a, quaternion_t const * b, float t) {
+quaternion_t Quaternion_slerp(quaternion_t const *a, quaternion_t const *b, float t) {
     float ax = a->x, ay = a->y, az = a->z, aw = a->w;
     float bx = b->x, by = b->y, bz = b->z, bw = b->w;
     float omega, cosom, sinom, scale0, scale1;
@@ -29,21 +29,21 @@ quaternion_t Quaternion_slerp(quaternion_t const * a, quaternion_t const * b, fl
     };
 }
 
-quaternion_t Quaternion_sqlerp(quaternion_t const * a, quaternion_t const * b, quaternion_t const * c, quaternion_t const * d, float t) {
+quaternion_t Quaternion_sqlerp(quaternion_t const *a, quaternion_t const *b, quaternion_t const *c, quaternion_t const *d, float t) {
     quaternion_t temp1 = Quaternion_slerp(a, d, t);
     quaternion_t temp2 = Quaternion_slerp(b, c, t);
     return Quaternion_slerp(&temp1, &temp2, 2 * t * (1 - t));
 }
 
-float Quaternion_dotProduct(quaternion_t const * left, quaternion_t const * right) {
+float Quaternion_dotProduct(quaternion_t const *left, quaternion_t const *right) {
     return left->w * right->w + left->x * right->x + left->y * right->y + left->z * right->z;
 }
 
-float Quaternion_length(quaternion_t const * param) {
+float Quaternion_length(quaternion_t const *param) {
     return sqrt(Quaternion_dotProduct(param, param));
 }
 
-quaternion_t Quaternion_unm(quaternion_t const * param) {
+quaternion_t Quaternion_unm(quaternion_t const *param) {
     return Quaternion_normalized(&(quaternion_t) {
         .x = -param->x,
         .y = -param->y,
@@ -52,7 +52,7 @@ quaternion_t Quaternion_unm(quaternion_t const * param) {
     });
 }
 
-quaternion_t Quaternion_normalized(quaternion_t const * param) {
+quaternion_t Quaternion_normalized(quaternion_t const *param) {
     quaternion_t r;
     float length = Quaternion_length(param);
     if (length < EPSILON)
@@ -64,7 +64,7 @@ quaternion_t Quaternion_normalized(quaternion_t const * param) {
     return r;
 }
 
-quaternion_t Quaternion_fromMatrix(matrix4_t const * mat) {
+quaternion_t Quaternion_fromMatrix(matrix4_t const *mat) {
     quaternion_t r;
 
     // Algorithm in Ken Shoemake's article in 1987 SIGGRAPH course notes
@@ -103,7 +103,7 @@ quaternion_t Quaternion_fromMatrix(matrix4_t const * mat) {
     return Quaternion_normalized(&r);
 }
 
-quaternion_t Quaternion_fromEuler(vector3_t const * euler, ROTATIONORDER order) {
+quaternion_t Quaternion_fromEuler(vector3_t const *euler, ROTATIONORDER order) {
     matrix4_t tmp;
     Matrix4_identity(&tmp);
     Matrix4_rotate(&tmp, euler, order);

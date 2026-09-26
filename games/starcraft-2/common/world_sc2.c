@@ -17,8 +17,8 @@ bool CL_GameCameraUsesWorldUp(void) { return false; }
 UICANVASPOLICY CL_GameCanvasPolicy(void) { return UI_CANVAS_POLICY; }
 float CL_GameLerpDegrees(float a, float b, float fraction) { return SC2_LerpDegrees(a, b, fraction); }
 cstring_t CL_GameOrderQueueReleaseCommand(void) { return NULL; }
-bool CL_GameBuildCursorBlocked(vector3_t const * origin) { (void)origin; return false; }
-void CL_GameModifyBuildPathing(vector2_t const * point, uint8_t * flags) { (void)point; (void)flags; }
+bool CL_GameBuildCursorBlocked(vector3_t const *origin) { (void)origin; return false; }
+void CL_GameModifyBuildPathing(vector2_t const *point, uint8_t *flags) { (void)point; (void)flags; }
 bool CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection) {
     (void)selection;
     return false;

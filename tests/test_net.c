@@ -31,7 +31,7 @@
 #include "../client/client.h"
 
 static cstring_t minimap_map;
-static void capture_minimap(rect_t const * screen, cstring_t map) { (void)screen; minimap_map = map; }
+static void capture_minimap(rect_t const *screen, cstring_t map) { (void)screen; minimap_map = map; }
 
 static sizeBuf_t make_msg_buf(uint8_t *buf, uint32_t bufsz);
 
@@ -41,18 +41,18 @@ void test_client_stubs_set_canvas_policy(UICANVASPOLICY policy);
 void test_client_stubs_set_cvar(cstring_t name, cstring_t value);
 void test_client_stubs_set_world_bounds(box2_t bounds);
 void test_client_stubs_set_existing_file(cstring_t path);
-void CL_ParseLayout(sizeBuf_t * msg);
-void CL_ParseFrame(sizeBuf_t * msg);
-void SCR_LayoutDrawScrollBar(uiFrame_t const * frame, rect_t const * screen);
-void SCR_LayoutDrawStatusbar(uiFrame_t const * frame, rect_t const * screen);
-void SCR_LayoutDrawSegmentedStatusbar(uiFrame_t const * frame, rect_t const * screen);
-void SCR_LayoutDrawTexture(uiFrame_t const * frame, rect_t const * screen);
-void SCR_LayoutDrawTextArea(uiFrame_t const * frame, rect_t const * screen);
-void SCR_LayoutDrawListBox(uiFrame_t const * frame, rect_t const * screen);
-void SCR_LayoutDrawSprite(uiFrame_t const * frame, rect_t const * screen);
+void CL_ParseLayout(sizeBuf_t *msg);
+void CL_ParseFrame(sizeBuf_t *msg);
+void SCR_LayoutDrawScrollBar(uiFrame_t const *frame, rect_t const *screen);
+void SCR_LayoutDrawStatusbar(uiFrame_t const *frame, rect_t const *screen);
+void SCR_LayoutDrawSegmentedStatusbar(uiFrame_t const *frame, rect_t const *screen);
+void SCR_LayoutDrawTexture(uiFrame_t const *frame, rect_t const *screen);
+void SCR_LayoutDrawTextArea(uiFrame_t const *frame, rect_t const *screen);
+void SCR_LayoutDrawListBox(uiFrame_t const *frame, rect_t const *screen);
+void SCR_LayoutDrawSprite(uiFrame_t const *frame, rect_t const *screen);
 void SCR_LayoutDrawOverlay(handle_t layout);
-void SCR_LayoutDrawLoadingBar(uiFrame_t const * frame, rect_t const * screen);
-void SCR_LayoutClampSelectionRect(rect_t * rect);
+void SCR_LayoutDrawLoadingBar(uiFrame_t const *frame, rect_t const *screen);
+void SCR_LayoutClampSelectionRect(rect_t *rect);
 bool SCR_LayoutModalActive(void);
 void SCR_UpdateScreen(uint32_t msec);
 extern bool scr_initialized;
@@ -66,7 +66,7 @@ extern char test_menu_action_arg[128];
 extern char test_console_message[MAX_CONSOLE_MESSAGE_LEN];
 
 static rect_t test_scroll_rects[3], test_scroll_uvs[3];
-static texture_t const * test_scroll_tex[3];
+static texture_t const *test_scroll_tex[3];
 static uint32_t test_scroll_draws;
 static drawText_t test_textarea_draw;
 static uint32_t test_textarea_draws;
@@ -77,7 +77,7 @@ static uint32_t test_model_loads, test_model_releases, test_tex_loads, test_tex_
 static vector3_t test_overhead_point;
 static rect_t test_status_rect;
 static uint32_t test_status_draws;
-static texture_t const * test_status_textures[16];
+static texture_t const *test_status_textures[16];
 static color32_t test_status_colors[16];
 static rect_t test_fade_rect;
 static color32_t test_fade_color;
@@ -86,7 +86,7 @@ static PATHSTR test_model_load_paths[4];
 static char test_sprite_anim[96];
 static uint32_t test_sprite_draws;
 
-static model_t * capture_load_model(cstring_t filename) {
+static model_t *capture_load_model(cstring_t filename) {
     uint32_t slot = test_model_loads;
     if (slot < sizeof(test_model_load_paths) / sizeof(test_model_load_paths[0]))
         snprintf(test_model_load_paths[slot], sizeof(test_model_load_paths[slot]), "%s", filename ? filename : "");
@@ -94,12 +94,12 @@ static model_t * capture_load_model(cstring_t filename) {
     return (model_t *)(uintptr_t)(0x1000u + test_model_loads);
 }
 
-static void capture_release_model(model_t * model) {
+static void capture_release_model(model_t *model) {
     (void)model;
     test_model_releases++;
 }
 
-static void capture_scroll_image(texture_t const * texture, rect_t const * screen, rect_t const * uv, color32_t color) {
+static void capture_scroll_image(texture_t const *texture, rect_t const *screen, rect_t const *uv, color32_t color) {
     (void)color;
     if (test_scroll_draws >= 3) return;
     test_scroll_tex[test_scroll_draws] = texture;
@@ -107,22 +107,22 @@ static void capture_scroll_image(texture_t const * texture, rect_t const * scree
     test_scroll_uvs[test_scroll_draws++] = *uv;
 }
 
-static void capture_textarea(drawText_t const * text) { test_textarea_draw = *text; test_textarea_draws++; }
-static void capture_listbox_text(drawText_t const * text) {
+static void capture_textarea(drawText_t const *text) { test_textarea_draw = *text; test_textarea_draws++; }
+static void capture_listbox_text(drawText_t const *text) {
     if (test_listbox_draws < sizeof(test_listbox_draw) / sizeof(test_listbox_draw[0]))
         test_listbox_draw[test_listbox_draws] = *text;
     test_listbox_draws++;
 }
-static vector2_t tall_textarea_size(drawText_t const * text) {
+static vector2_t tall_textarea_size(drawText_t const *text) {
     (void)text;
     return MAKE(vector2_t, 0.2f, 0.8f);
 }
 static void capture_begin_frame(void) { test_begin_frames++; }
 static void capture_end_frame(void) { test_end_frames++; }
-static bool capture_overhead_point(renderEntity_t const *entity, vector3_t * out) {
+static bool capture_overhead_point(renderEntity_t const *entity, vector3_t *out) {
     (void)entity; *out = test_overhead_point; return true;
 }
-static void capture_status_image(texture_t const * texture, rect_t const * screen, rect_t const * uv, color32_t color) {
+static void capture_status_image(texture_t const *texture, rect_t const *screen, rect_t const *uv, color32_t color) {
     (void)uv; test_status_rect = *screen;
     if (test_status_draws < sizeof(test_status_textures) / sizeof(test_status_textures[0])) {
         test_status_textures[test_status_draws] = texture;
@@ -130,13 +130,13 @@ static void capture_status_image(texture_t const * texture, rect_t const * scree
     }
     test_status_draws++;
 }
-static void capture_fade_image(texture_t const * texture, rect_t const * screen, rect_t const * uv, color32_t color) {
+static void capture_fade_image(texture_t const *texture, rect_t const *screen, rect_t const *uv, color32_t color) {
     (void)texture; (void)uv; test_fade_rect = *screen; test_fade_color = color; test_fade_draws++;
 }
-static texture_t * capture_load_texture(cstring_t name) {
+static texture_t *capture_load_texture(cstring_t name) {
     (void)name; test_tex_loads++; return (texture_t *)(uintptr_t)test_tex_loads;
 }
-static void capture_release_texture(texture_t * texture) { (void)texture; test_tex_releases++; }
+static void capture_release_texture(texture_t *texture) { (void)texture; test_tex_releases++; }
 static void capture_sprite(drawSprite_t const *sprite) {
     cstring_t anim = sprite->anim;
     test_sprite_draws++;
@@ -489,7 +489,7 @@ TEST(client_layout, world_hover_context_rows_compact_through_relative_anchor_cha
     uint8_t buf[512];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     uiFrame_t empty = {0}, cargo = {0}, mana = {0}, health = {0};
-    rect_t const * cargo_rect, mana_rect, health_rect;
+    rect_t const *cargo_rect, mana_rect, health_rect;
 
     cargo.number = 1; cargo.flags.type = FT_SEGMENTED_STATUSBAR; cargo.stat = ENT_CARGO;
     cargo.size.width = 0.043f; cargo.size.height = 0.004f;
@@ -1181,12 +1181,12 @@ TEST(net, ui_window_frame_delta_preserves_text_offsets) {
     T_EQ(out.flags.type, FT_SIMPLEFRAME);
 }
 
-static vector2_t text_length_mock_size(drawText_t const * text);
+static vector2_t text_length_mock_size(drawText_t const *text);
 
 static uint32_t test_scoped_hud_text_draws;
 static uint32_t test_scoped_edit_text_draws;
 
-static void capture_layout_scoped_text(drawText_t const * text) {
+static void capture_layout_scoped_text(drawText_t const *text) {
     if (!text || !text->text) return;
     if (!strcmp(text->text, "HUD frame")) test_scoped_hud_text_draws++;
     if (!strcmp(text->text, "save-name")) test_scoped_edit_text_draws++;
@@ -1575,7 +1575,7 @@ TEST(net, ui_frame_delta_preserves_timed_status_binding) {
     T_EQ(out.stat, UI_STAT_SELECTION_TIMED_STATUS);
 }
 
-static vector2_t text_length_mock_size(drawText_t const * text) {
+static vector2_t text_length_mock_size(drawText_t const *text) {
     if (text && text->text && !strcmp(text->text, " ")) {
         return MAKE(vector2_t, 0.006f, 0.012f);
     }
@@ -1604,7 +1604,7 @@ TEST(net, layout_widescreen_extension_flag_reaches_full_canvas) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     uiFrame_t empty = {0}, frame = {0};
-    rect_t const * rect;
+    rect_t const *rect;
 
     frame.number = 1;
     frame.flags.type = FT_BACKDROP;
@@ -1643,7 +1643,7 @@ TEST(net, layout_text_length_uses_space_advance_for_implicit_width) {
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     uiFrame_t empty = {0}, frame = {0};
     uiLabel_t label = {0};
-    rect_t const * rect;
+    rect_t const *rect;
 
     frame.number = 1;
     frame.flags.type = FT_STRING;
@@ -1683,7 +1683,7 @@ TEST(net, layout_structural_frame_sizes_to_measured_text) {
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     uiFrame_t empty = {0}, frame = {0};
     uiNameTag_t fit = {0};
-    rect_t const * rect;
+    rect_t const *rect;
 
     frame.number = 1;
     frame.flags.type = FT_SIMPLEFRAME;
@@ -1724,7 +1724,7 @@ TEST(net, layout_authored_height_with_top_bottom_anchors_keeps_bottom_edge) {
     uint8_t buf[512];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     uiFrame_t empty = {0}, parent = {0}, child = {0};
-    rect_t const * parent_rect, child_rect;
+    rect_t const *parent_rect, child_rect;
 
     parent.number = 1;
     parent.flags.type = FT_SIMPLEFRAME;
@@ -2168,7 +2168,7 @@ TEST(net, packed_entity_names_survive_configstring_transport) {
 TEST(net, model_configstring_skips_identical_reload) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    model_t * first;
+    model_t *first;
 
     test_client_stubs_init();
     test_model_loads = test_model_releases = 0;
@@ -2207,7 +2207,7 @@ TEST(net, model_configstring_skips_identical_reload) {
 TEST(net, image_configstring_skips_identical_reload) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    texture_t const * first;
+    texture_t const *first;
 
     test_client_stubs_init();
     test_tex_loads = test_tex_releases = 0;
@@ -3607,7 +3607,7 @@ TEST(net, layout_topleft_y_negative_offset_resolves_below_screen_top) {
     T_ASSERT(cl.layout[LAYER_INFOPANEL] != NULL);
     SCR_Clear(cl.layout[LAYER_INFOPANEL]);
 
-    rect_t const * r = SCR_LayoutRect(SCR_Frame(1));
+    rect_t const *r = SCR_LayoutRect(SCR_Frame(1));
     T_NOT_NULL(r);
     T_FEQ(r->x, 0.310f, 0.002f);
     T_FEQ(r->y, 0.480f, 0.002f);
@@ -4085,7 +4085,7 @@ static int sprite_order[3], sprite_order_count;
 static void capture_sprite_order(drawSprite_t const *sprite) {
     if (sprite_order_count < 3) sprite_order[sprite_order_count++] = atoi(sprite->anim + 1);
 }
-static void capture_image_order(texture_t const * tex, rect_t const * rect, rect_t const * uv, color32_t color) {
+static void capture_image_order(texture_t const *tex, rect_t const *rect, rect_t const *uv, color32_t color) {
     (void)tex; (void)rect; (void)uv; (void)color;
     if (sprite_order_count < 3) sprite_order[sprite_order_count++] = 2;
 }

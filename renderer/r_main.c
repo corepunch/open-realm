@@ -14,8 +14,8 @@
  * <objc/objc.h>, which redefines bool and conflicts with our project typedef. */
 typedef void *MacId;
 typedef void *MacSel;
-extern MacId  objc_getClass(const char *name);
-extern MacSel sel_registerName(const char *str);
+extern MacId  objc_getClass(char const *name);
+extern MacSel sel_registerName(char const *str);
 extern MacId  objc_msgSend(MacId, MacSel, ...);
 #endif
 #ifndef __APPLE__
@@ -77,12 +77,12 @@ static void R_Screenshot(void) {
     ri.MemFree(pixels);
 }
 
-texture_t * R_LoadTextureBLP1(handle_t data, uint32_t filesize);
-texture_t * R_LoadTextureBLP2(handle_t data, uint32_t filesize);
-texture_t * R_LoadTextureDDS(handle_t data, uint32_t filesize);
+texture_t *R_LoadTextureBLP1(handle_t data, uint32_t filesize);
+texture_t *R_LoadTextureBLP2(handle_t data, uint32_t filesize);
+texture_t *R_LoadTextureDDS(handle_t data, uint32_t filesize);
 
 bool R_IsTexturePCX(handle_t data, uint32_t filesize);
-texture_t * R_LoadTexturePCX(handle_t data, uint32_t filesize);
+texture_t *R_LoadTexturePCX(handle_t data, uint32_t filesize);
 
 static bool R_PathHasExtension(cstring_t path, cstring_t extension) {
     size_t pathLen;
@@ -113,11 +113,11 @@ static bool R_PathHasExtension(cstring_t path, cstring_t extension) {
     return true;
 }
 
-static texture_t * R_LoadTextureSTB(handle_t data, uint32_t filesize) {
+static texture_t *R_LoadTextureSTB(handle_t data, uint32_t filesize) {
     int width;
     int height;
     uint8_t *image;
-    texture_t * texture;
+    texture_t *texture;
 
     if (!data || filesize > INT32_MAX) {
         return NULL;
@@ -134,17 +134,17 @@ static texture_t * R_LoadTextureSTB(handle_t data, uint32_t filesize) {
     return texture;
 }
 
-void R_Viewport(rect_t const * viewport) {
+void R_Viewport(rect_t const *viewport) {
     glViewport(viewport->x * tr.drawableSize.width / 800,
                viewport->y * tr.drawableSize.height / 600,
                viewport->w * tr.drawableSize.width / 800,
                viewport->h * tr.drawableSize.height / 600);
 }
 
-static texture_t * R_MakePlaceholderTexture(void) {
+static texture_t *R_MakePlaceholderTexture(void) {
     enum { SIZE = 16 };
     color32_t pixels[SIZE * SIZE];
-    texture_t * texture = R_AllocateTexture(SIZE, SIZE);
+    texture_t *texture = R_AllocateTexture(SIZE, SIZE);
 
     FOR_LOOP(y, SIZE) FOR_LOOP(x, SIZE) {
         bool const checker = ((x ^ y) & 1) != 0;
@@ -155,8 +155,8 @@ static texture_t * R_MakePlaceholderTexture(void) {
     return texture;
 }
 
-texture_t * R_AllocateSinglePixelTexture(int color) {
-    texture_t * texture = R_AllocateTexture(1, 1);
+texture_t *R_AllocateSinglePixelTexture(int color) {
+    texture_t *texture = R_AllocateTexture(1, 1);
     R_LoadTextureMipLevel(texture, &(texMip_t){ &color, 1, 1, 0, PIXEL_RGBA });
     return texture;
 }
@@ -167,10 +167,10 @@ static float R_SmoothStep(float edge0, float edge1, float x) {
     return t * t * (3.0f - 2.0f * t);
 }
 
-texture_t * R_MakeLoadingIndicatorTexture(void) {
+texture_t *R_MakeLoadingIndicatorTexture(void) {
     enum { TEXTURE_SIZE = 128 };
     color32_t pixels[TEXTURE_SIZE * TEXTURE_SIZE];
-    texture_t * texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
+    texture_t *texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
 
     FOR_LOOP(y, TEXTURE_SIZE) {
         FOR_LOOP(x, TEXTURE_SIZE) {
@@ -197,10 +197,10 @@ texture_t * R_MakeLoadingIndicatorTexture(void) {
 }
 
 /* WoW archives do not contain Warcraft III's selection-circle assets. */
-texture_t * R_MakeSelectionCircleTexture(void) {
+texture_t *R_MakeSelectionCircleTexture(void) {
     enum { TEXTURE_SIZE = 128 };
     color32_t pixels[TEXTURE_SIZE * TEXTURE_SIZE];
-    texture_t * texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
+    texture_t *texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
 
     FOR_LOOP(y, TEXTURE_SIZE) FOR_LOOP(x, TEXTURE_SIZE) {
         float fx = ((float)x + 0.5f) / TEXTURE_SIZE * 2.0f - 1.0f;
@@ -215,10 +215,10 @@ texture_t * R_MakeSelectionCircleTexture(void) {
     return texture;
 }
 
-static texture_t * R_MakeBlobShadowTexture(void) {
+static texture_t *R_MakeBlobShadowTexture(void) {
     enum { TEXTURE_SIZE = 64 };
     color32_t pixels[TEXTURE_SIZE * TEXTURE_SIZE];
-    texture_t * texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
+    texture_t *texture = R_AllocateTexture(TEXTURE_SIZE, TEXTURE_SIZE);
 
     FOR_LOOP(y, TEXTURE_SIZE) {
         FOR_LOOP(x, TEXTURE_SIZE) {
@@ -235,8 +235,8 @@ static texture_t * R_MakeBlobShadowTexture(void) {
     return texture;
 }
 
-static texture_t * R_LoadTexturePath(cstring_t textureFilename, bool *found) {
-    texture_t * texture = R_FindLoadedTexture(textureFilename);
+static texture_t *R_LoadTexturePath(cstring_t textureFilename, bool *found) {
+    texture_t *texture = R_FindLoadedTexture(textureFilename);
     void *buffer = NULL;
     PATHSTR load_path;
     int fileSize;
@@ -278,9 +278,9 @@ static texture_t * R_LoadTexturePath(cstring_t textureFilename, bool *found) {
     return texture;
 }
 
-texture_t * R_LoadTexture(cstring_t textureFilename) {
+texture_t *R_LoadTexture(cstring_t textureFilename) {
     PATHSTR scoped;
-    texture_t * texture;
+    texture_t *texture;
     bool found = false;
     bool has_scope;
 
@@ -302,14 +302,13 @@ texture_t * R_LoadTexture(cstring_t textureFilename) {
     return tr.texture[TEX_PLACEHOLDER];
 }
 
-rendertarget_t *
-R_AllocateRenderTexture(GLsizei width,
+rendertarget_t *R_AllocateRenderTexture(GLsizei width,
                         GLsizei height,
                         GLenum format,
                         GLenum type,
                         GLenum attachment)
 {
-    rendertarget_t * rt = ri.MemAlloc(sizeof(rendertarget_t));
+    rendertarget_t *rt = ri.MemAlloc(sizeof(rendertarget_t));
     R_Call(glGenFramebuffers, 1, &rt->buffer);
     R_Call(glGenTextures, 1, &rt->texture);
     R_Call(glBindFramebuffer, GL_FRAMEBUFFER, rt->buffer);
@@ -325,7 +324,7 @@ R_AllocateRenderTexture(GLsizei width,
     return rt;
 }
 
-void R_ReleaseRenderTexture(rendertarget_t * rt) {
+void R_ReleaseRenderTexture(rendertarget_t *rt) {
     if (!rt) {
         return;
     }
@@ -825,7 +824,7 @@ void R_ShutdownRenderer(void) {
     SDL_Quit();
 }
 
-void R_SetupViewport(rect_t const * r) {
+void R_SetupViewport(rect_t const *r) {
     R_Call(glViewport,
            r->x * tr.drawableSize.width,
            r->y * tr.drawableSize.height,
@@ -833,7 +832,7 @@ void R_SetupViewport(rect_t const * r) {
            r->h * tr.drawableSize.height);
 }
 
-void R_SetupScissor(rect_t const * r) {
+void R_SetupScissor(rect_t const *r) {
     R_Call(glEnable, GL_SCISSOR_TEST);
     R_Call(glScissor,
            r->x * tr.drawableSize.width,
@@ -909,11 +908,11 @@ void R_RenderView(void) {
     R_RevertSettings();
     R_SetupScissor(&(rect_t){0, 0, 1, 1});
 
-//    extern texture_t const * dds;
+//    extern texture_t const *dds;
 //    R_DrawPic(dds, 0, 0);
 }
 
-void R_DrawBuffer(buffer_t const * buffer, uint32_t num_vertices) {
+void R_DrawBuffer(buffer_t const *buffer, uint32_t num_vertices) {
     R_Call(glBindVertexArray, buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_StatsDraw(GL_TRIANGLES, num_vertices, 1);
@@ -921,27 +920,27 @@ void R_DrawBuffer(buffer_t const * buffer, uint32_t num_vertices) {
 }
 
 /* Model-owned element buffers retain per-section ranges as byte offsets. */
-void R_DrawIndexedBuffer16(buffer_t const * buffer, drawElements_t const * draw) {
+void R_DrawIndexedBuffer16(buffer_t const *buffer, drawElements_t const *draw) {
     R_Call(glBindVertexArray, buffer->vao);
     R_StatsDraw(GL_TRIANGLES, draw->count, 1);
     R_Call(glDrawElements, GL_TRIANGLES, draw->count, GL_UNSIGNED_SHORT, (void *)(uintptr_t)draw->offset);
 }
 
-void R_DrawIndexedBuffer32(buffer_t const * buffer, drawElements_t const * draw) {
+void R_DrawIndexedBuffer32(buffer_t const *buffer, drawElements_t const *draw) {
     R_Call(glBindVertexArray, buffer->vao);
     R_StatsDraw(GL_TRIANGLES, draw->count, 1);
     R_Call(glDrawElements, GL_TRIANGLES, draw->count, GL_UNSIGNED_INT, (void *)(uintptr_t)draw->offset);
 }
 
 /* Static procedural batches need only gl_InstanceID; their shared VAO has no per-instance stream. */
-void R_DrawBufferCopies(buffer_t const * buffer, uint32_t num_vertices, uint32_t num_instances) {
+void R_DrawBufferCopies(buffer_t const *buffer, uint32_t num_vertices, uint32_t num_instances) {
     R_Call(glBindVertexArray, buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_StatsDraw(GL_TRIANGLES, num_vertices, num_instances);
     R_Call(glDrawArraysInstanced, GL_TRIANGLES, 0, num_vertices, num_instances);
 }
 
-void R_DrawIndexedBuffer(buffer_t const * buffer, uint32_t num_indices) {
+void R_DrawIndexedBuffer(buffer_t const *buffer, uint32_t num_indices) {
     R_Call(glBindVertexArray, buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_Call(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, buffer->ibo);
@@ -1041,7 +1040,7 @@ void R_SetWindowSize(uint32_t width, uint32_t height) {
             (unsigned)tr.drawableSize.height);
 }
 
-size2_t R_GetTextureSize(texture_t const * texture) {
+size2_t R_GetTextureSize(texture_t const *texture) {
     if (!texture) {
         return (size2_t) { 0, 0 };
     } else {
@@ -1055,13 +1054,13 @@ size2_t R_GetTextureSize(texture_t const * texture) {
 
 
 /* Keep model-format bounds inside the renderer while clients place game-owned world UI. */
-bool R_GetEntityOverheadPosition(renderEntity_t const *entity, vector3_t * out) {
+bool R_GetEntityOverheadPosition(renderEntity_t const *entity, vector3_t *out) {
     return R_EntityOverheadPosition(entity, out);
 }
 
 /* Keep attachment-name/model-format knowledge in the selected game renderer.
  * Shared client presentation can request an authored attachment by prefix. */
-bool R_GetEntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vector3_t * out) {
+bool R_GetEntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vector3_t *out) {
     return R_EntityAttachmentPosition(entity, prefix, out);
 }
 

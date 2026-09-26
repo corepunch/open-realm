@@ -17,7 +17,7 @@ int R_ReadTextureFile(cstring_t name, string_t path, void **buffer) {
 }
 
 /* texid -> texture index for model texture resolution; the cache below owns the texture memory. */
-static texture_t * g_textures = NULL;
+static texture_t *g_textures = NULL;
 static GLenum r_bgra_internal;
 
 /* Source bytes determine channel order; context capabilities only determine whether conversion is necessary. */
@@ -39,7 +39,7 @@ void R_InitTextureFormats(void) {
 
 typedef struct rImageCacheEntry_s {
     char *name;
-    texture_t * texture;
+    texture_t *texture;
     bool owns_texture;
     bool streamed;              /* eligible for generation reclaim (streaming world texture) */
     bool pinned;               /* a non-streaming consumer depends on it; never reclaim */
@@ -85,7 +85,7 @@ static uint32_t R_TextureNameHash(cstring_t name) {
     return hash;
 }
 
-texture_t * R_FindLoadedTexture(cstring_t name) {
+texture_t *R_FindLoadedTexture(cstring_t name) {
     rImageCacheEntry_t *entry;
     uint32_t hash;
 
@@ -96,7 +96,7 @@ texture_t * R_FindLoadedTexture(cstring_t name) {
     return NULL;
 }
 
-void R_CacheLoadedTexture(cstring_t name, texture_t * texture) {
+void R_CacheLoadedTexture(cstring_t name, texture_t *texture) {
     rImageCacheEntry_t *entry, *known;
     uint32_t hash;
 
@@ -138,8 +138,8 @@ void R_ShutdownTextureCache(void) {
 
 /* Streaming world loads route through here so their cache entries are stamped
    with the current generation and become eligible for reclaim. */
-texture_t * R_LoadTextureStreamed(cstring_t name) {
-    texture_t * texture;
+texture_t *R_LoadTextureStreamed(cstring_t name) {
+    texture_t *texture;
     r_load_streamed = true;
     texture = R_LoadTexture(name);
     r_load_streamed = false;
@@ -153,7 +153,7 @@ void R_AdvanceTextureGeneration(void) {
 }
 
 /* Remove a texture from the texid index list before its memory is freed. */
-static void R_UnlinkTextureFromIndex(texture_t * texture) {
+static void R_UnlinkTextureFromIndex(texture_t *texture) {
     texture_t * *pp = &g_textures;
     while (*pp) {
         if (*pp == texture) { *pp = texture->next; return; }
@@ -185,7 +185,7 @@ void R_ReclaimStreamedTextures(uint32_t keep_recent) {
         rImageCacheEntry_t *entry = *pp;
         if (entry->streamed && !entry->pinned && entry->owns_texture &&
             (r_stream_generation - entry->generation) > keep_recent) {
-            texture_t * texture = entry->texture;
+            texture_t *texture = entry->texture;
             rImageCacheEntry_t **alias = &r_image_cache;
 
             /* The owner and every path alias become invalid together when the allocation is reclaimed. */
@@ -205,7 +205,7 @@ void R_ReclaimStreamedTextures(uint32_t keep_recent) {
 }
 
 int R_RegisterTextureFile(char const *textureFileName) {
-    texture_t * tex = (texture_t *)R_LoadTexture(textureFileName);
+    texture_t *tex = (texture_t *)R_LoadTexture(textureFileName);
     if (tex) {
         /* The cache can return an existing node; the old unbraced macro call always reassigned the head. */
         if (!R_FindTextureByID(tex->texid)) {
@@ -218,19 +218,19 @@ int R_RegisterTextureFile(char const *textureFileName) {
 }
 
 struct texture const* R_FindTextureByID(uint32_t textureID) {
-    for (texture_t const * tex = g_textures; tex; tex = tex->next) {
+    for (texture_t const *tex = g_textures; tex; tex = tex->next) {
         if (tex->texid == textureID)
             return tex;
     }
     return NULL;
 }
 
-void R_BindTexture(texture_t const * texture, uint32_t unit) {
+void R_BindTexture(texture_t const *texture, uint32_t unit) {
     R_Call(glActiveTexture, GL_TEXTURE0 + unit);
     R_Call(glBindTexture, GL_TEXTURE_2D, texture ? texture->texid : tr.texture[TEX_WHITE]->texid);
 }
 
-void R_SetTextureWrap(texture_t const * texture, bool wrapS, bool wrapT) {
+void R_SetTextureWrap(texture_t const *texture, bool wrapS, bool wrapT) {
     if (!texture) {
         return;
     }
@@ -239,8 +239,8 @@ void R_SetTextureWrap(texture_t const * texture, bool wrapS, bool wrapT) {
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 }
 
-texture_t * R_AllocateTexture(uint32_t width, uint32_t height) {
-    texture_t * texture = ri.MemAlloc(sizeof(texture_t));
+texture_t *R_AllocateTexture(uint32_t width, uint32_t height) {
+    texture_t *texture = ri.MemAlloc(sizeof(texture_t));
     R_Call(glGenTextures, 1, &texture->texid);
     R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
     texture->width = width;
@@ -248,7 +248,7 @@ texture_t * R_AllocateTexture(uint32_t width, uint32_t height) {
     return texture;
 }
 
-void R_ReleaseTexture(texture_t * texture) {
+void R_ReleaseTexture(texture_t *texture) {
     rImageCacheEntry_t *entry;
 
     if (!texture) {
@@ -268,7 +268,7 @@ void R_ReleaseTexture(texture_t * texture) {
 }
 
 /* The format describes the supplied bytes, never the host OS; unsupported BGRA preserves the caller's buffer. */
-void R_LoadTextureMipLevel(texture_t const * texture, texMip_t const * mip) {
+void R_LoadTextureMipLevel(texture_t const *texture, texMip_t const *mip) {
     GLenum format = GL_RGBA, internal = GL_RGBA;
     uint8_t *rgba = NULL;
     if (!mip->width || !mip->height)

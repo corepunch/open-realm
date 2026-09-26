@@ -58,7 +58,7 @@ static void victory_noop_write(pfWriteType_t type, void const *value) {
     (void)value;
 }
 
-static void victory_noop_unicast(edict_t * ent) {
+static void victory_noop_unicast(edict_t *ent) {
     (void)ent;
 }
 
@@ -79,7 +79,7 @@ static void cheat_console_capture_write(pfWriteType_t type, void const *value) {
     }
 }
 
-static void cheat_console_capture_unicast(edict_t * ent) {
+static void cheat_console_capture_unicast(edict_t *ent) {
     (void)ent;
     cheat_console_unicasts++;
 }
@@ -576,7 +576,7 @@ TEST(wc3_jass_map, map_metadata_and_start_priority_persist) {
  * the removed Crypt must not satisfy CheckGreenBuildings, even while its
  * deferred edict is still alive for the current frame. */
 TEST(wc3_jass_map, human07_normal_removal_is_absent_from_green_building_count) {
-    edict_t * crypt = NULL, *town_hall = NULL;
+    edict_t *crypt = NULL, *town_hall = NULL;
 
     setup_test_world();
     T_ASSERT(run_test_jass(
@@ -660,7 +660,7 @@ cleanup:
  * the authored order and verify the replacement is the only counted/selectable
  * building before deferred handles are finally released. */
 TEST(wc3_jass_map, human04_cancel_replaces_townhall_after_difficulty_removal) {
-    edict_t * crypt = NULL, *old_town_hall = NULL, *replacement = NULL;
+    edict_t *crypt = NULL, *old_town_hall = NULL, *replacement = NULL;
     uint32_t const bit = 1u << game.clients[0].ps.number;
 
     setup_test_world();
@@ -1550,7 +1550,7 @@ TEST(wc3_jass_map, endgame_without_campaign_select_returns_to_main_menu) {
 
 TEST(wc3_jass_map, escape_menu_quit_campaign_returns_to_campaign_select) {
     void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
-    mapInfo_t const * old_mapinfo = level.mapinfo;
+    mapInfo_t const *old_mapinfo = level.mapinfo;
     cstring_t command[] = { "menu_quit_game" };
     char old_map[MAX_PATHLEN];
 
@@ -1573,7 +1573,7 @@ TEST(wc3_jass_map, escape_menu_quit_campaign_returns_to_campaign_select) {
 
 TEST(wc3_jass_map, escape_menu_quit_frozen_throne_campaign_returns_to_campaign_select) {
     void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
-    mapInfo_t const * old_mapinfo = level.mapinfo;
+    mapInfo_t const *old_mapinfo = level.mapinfo;
     cstring_t command[] = { "menu_quit_game" };
     char old_map[MAX_PATHLEN];
 
@@ -1596,7 +1596,7 @@ TEST(wc3_jass_map, escape_menu_quit_frozen_throne_campaign_returns_to_campaign_s
 
 TEST(wc3_jass_map, escape_menu_quit_non_campaign_returns_to_main_menu) {
     void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
-    mapInfo_t const * old_mapinfo = level.mapinfo;
+    mapInfo_t const *old_mapinfo = level.mapinfo;
     cstring_t command[] = { "menu_quit_game" };
     char old_map[MAX_PATHLEN];
 

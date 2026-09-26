@@ -5,46 +5,46 @@
 #include "../g_local.h"
 
 typedef struct EscMenuSaveGamePanel_s {
-    frameDef_t * EscMenuSaveGamePanel;
-    frameDef_t * EscMenuSaveLoadContainer;
-    frameDef_t * SaveAndLoad;
-    frameDef_t * FileListFrame;
-    frameDef_t * LoadOnly;
-    frameDef_t * LoadGameTitleText;
-    frameDef_t * LoadGameLoadButton;
-    frameDef_t * LoadGameLoadButtonText;
-    frameDef_t * LoadGameCancelButton;
-    frameDef_t * LoadGameCancelButtonText;
-    frameDef_t * SaveOnly;
-    frameDef_t * SaveGameTitleText;
-    frameDef_t * SaveGameSaveButton;
-    frameDef_t * SaveGameSaveButtonText;
-    frameDef_t * SaveGameDeleteButton;
-    frameDef_t * SaveGameDeleteButtonText;
-    frameDef_t * SaveGameCancelButton;
-    frameDef_t * SaveGameCancelButtonText;
-    frameDef_t * SaveGameFileEditBox;
-    frameDef_t * SaveGameFileEditBoxText;
-    frameDef_t * EscMenuOverwriteContainer;
-    frameDef_t * OverwriteOnly;
-    frameDef_t * OverwriteTitleText;
-    frameDef_t * OverwriteMessageText;
-    frameDef_t * OverwriteOverwriteButton;
-    frameDef_t * OverwriteOverwriteButtonText;
-    frameDef_t * OverwriteCancelButton;
-    frameDef_t * OverwriteCancelButtonText;
-    frameDef_t * EscMenuDeleteContainer;
-    frameDef_t * DeleteOnly;
-    frameDef_t * DeleteTitleText;
-    frameDef_t * DeleteMessageText;
-    frameDef_t * DeleteDeleteButton;
-    frameDef_t * DeleteDeleteButtonText;
-    frameDef_t * DeleteCancelButton;
-    frameDef_t * DeleteCancelButtonText;
+    frameDef_t *EscMenuSaveGamePanel;
+    frameDef_t *EscMenuSaveLoadContainer;
+    frameDef_t *SaveAndLoad;
+    frameDef_t *FileListFrame;
+    frameDef_t *LoadOnly;
+    frameDef_t *LoadGameTitleText;
+    frameDef_t *LoadGameLoadButton;
+    frameDef_t *LoadGameLoadButtonText;
+    frameDef_t *LoadGameCancelButton;
+    frameDef_t *LoadGameCancelButtonText;
+    frameDef_t *SaveOnly;
+    frameDef_t *SaveGameTitleText;
+    frameDef_t *SaveGameSaveButton;
+    frameDef_t *SaveGameSaveButtonText;
+    frameDef_t *SaveGameDeleteButton;
+    frameDef_t *SaveGameDeleteButtonText;
+    frameDef_t *SaveGameCancelButton;
+    frameDef_t *SaveGameCancelButtonText;
+    frameDef_t *SaveGameFileEditBox;
+    frameDef_t *SaveGameFileEditBoxText;
+    frameDef_t *EscMenuOverwriteContainer;
+    frameDef_t *OverwriteOnly;
+    frameDef_t *OverwriteTitleText;
+    frameDef_t *OverwriteMessageText;
+    frameDef_t *OverwriteOverwriteButton;
+    frameDef_t *OverwriteOverwriteButtonText;
+    frameDef_t *OverwriteCancelButton;
+    frameDef_t *OverwriteCancelButtonText;
+    frameDef_t *EscMenuDeleteContainer;
+    frameDef_t *DeleteOnly;
+    frameDef_t *DeleteTitleText;
+    frameDef_t *DeleteMessageText;
+    frameDef_t *DeleteDeleteButton;
+    frameDef_t *DeleteDeleteButtonText;
+    frameDef_t *DeleteCancelButton;
+    frameDef_t *DeleteCancelButtonText;
 } EscMenuSaveGamePanel_t;
 
 
-static inline bool EscMenuSaveGamePanel_Bind(EscMenuSaveGamePanel_t *out, frameDef_t * bind_root) {
+static inline bool EscMenuSaveGamePanel_Bind(EscMenuSaveGamePanel_t *out, frameDef_t *bind_root) {
     bool ok = true;
     if (!out) {
         return false;

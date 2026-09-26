@@ -5,21 +5,21 @@
 #include "../g_local.h"
 
 typedef struct InfoPanelBuildingDetail_s {
-    frameDef_t * InfoPanelBuildingDetail;
-    frameDef_t * BuildingNameValue;
-    frameDef_t * BuildingDescriptionValue;
-    frameDef_t * BuildingStatPanel;
-    frameDef_t * BuildingDefenseLabel;
-    frameDef_t * BuildingDefenseValue;
-    frameDef_t * BuildingSupplyLabel;
-    frameDef_t * BuildingSupplyValue;
-    frameDef_t * BuildTimeIndicator;
-    frameDef_t * BuildingActionLabel;
-    frameDef_t * BuildQueueBackdrop;
+    frameDef_t *InfoPanelBuildingDetail;
+    frameDef_t *BuildingNameValue;
+    frameDef_t *BuildingDescriptionValue;
+    frameDef_t *BuildingStatPanel;
+    frameDef_t *BuildingDefenseLabel;
+    frameDef_t *BuildingDefenseValue;
+    frameDef_t *BuildingSupplyLabel;
+    frameDef_t *BuildingSupplyValue;
+    frameDef_t *BuildTimeIndicator;
+    frameDef_t *BuildingActionLabel;
+    frameDef_t *BuildQueueBackdrop;
 } InfoPanelBuildingDetail_t;
 
 
-static inline bool InfoPanelBuildingDetail_Bind(InfoPanelBuildingDetail_t *out, frameDef_t * bind_root) {
+static inline bool InfoPanelBuildingDetail_Bind(InfoPanelBuildingDetail_t *out, frameDef_t *bind_root) {
     bool ok = true;
     if (!out) {
         return false;

@@ -59,8 +59,8 @@ pathTex_t *LoadTGA(uint8_t const* mem, size_t size) {
     if (header->image_type==2 || header->image_type==3) {
         for (int row=rows-1; row>=0; row--) {
             for (int column=0; column<columns; column++) {
-                color32_t const * pcolor = &pathTex->map[column + row * columns];
-                uint8_t * dest = (uint8_t *)pcolor;
+                color32_t const *pcolor = &pathTex->map[column + row * columns];
+                uint8_t *dest = (uint8_t *)pcolor;
                 uint8_t value;
                 switch (header->pixel_size) {
                     case 8:

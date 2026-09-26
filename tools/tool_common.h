@@ -19,14 +19,14 @@ static inline handle_t Tool_MemAlloc(long size);
 static inline void Tool_MemFree(handle_t mem);
 void *Tool_XMalloc(size_t size);
 void *Tool_XRealloc(void *ptr, size_t size);
-static inline char *Tool_XStrdup(const char *s);
+static inline char *Tool_XStrdup(char const *s);
 
 static inline void Tool_NormalizeSlashes(char *path, char slash);
 static inline void Tool_TrimEdgeSlashes(char *path);
-static inline char *Tool_PathJoin(const char *base, const char *name);
-static inline char *Tool_PathParent(const char *path);
-static inline const char *Tool_PathBasename(const char *path);
-static inline const char *Tool_PathExt(const char *path);
+static inline char *Tool_PathJoin(char const *base, char const *name);
+static inline char *Tool_PathParent(char const *path);
+static inline char const *Tool_PathBasename(char const *path);
+static inline char const *Tool_PathExt(char const *path);
 
 #ifndef TOOL_COMMON_NO_MPQ
 #include "../common/mpq.h"
@@ -38,8 +38,8 @@ static inline const char *Tool_PathExt(const char *path);
 /* Recursively walk 'dir', calling cb(archive_path, ud) for every file
  * whose extension is a recognised archive type (.mpq / .SC2Assets /
  * .SC2Data / .SC2Maps).  Caller collects paths, sorts, then opens. */
-static inline void Tool_ForEachArchive(const char *dir,
-                                       void (*cb)(const char *path, void *ud),
+static inline void Tool_ForEachArchive(char const *dir,
+                                       void (*cb)(char const *path, void *ud),
                                        void *ud) {
     DIR *d = opendir(dir);
     if (!d) return;
@@ -53,7 +53,7 @@ static inline void Tool_ForEachArchive(const char *dir,
         if (S_ISDIR(st.st_mode)) {
             Tool_ForEachArchive(path, cb, ud);
         } else if (S_ISREG(st.st_mode)) {
-            const char *ext = Tool_PathExt(e->d_name);
+            char const *ext = Tool_PathExt(e->d_name);
             if (!strcasecmp(ext, "mpq") ||
                 !strcasecmp(ext, "SC2Assets") ||
                 !strcasecmp(ext, "SC2Data") ||
@@ -157,7 +157,7 @@ void *Tool_XRealloc(void *ptr, size_t size) {
     return next;
 }
 
-static inline char *Tool_XStrdup(const char *s) {
+static inline char *Tool_XStrdup(char const *s) {
     size_t len = s ? strlen(s) : 0;
     char *copy = Tool_XMalloc(len + 1);
     if (len) {
@@ -194,7 +194,7 @@ static inline void Tool_TrimEdgeSlashes(char *path) {
     }
 }
 
-static inline char *Tool_PathJoin(const char *base, const char *name) {
+static inline char *Tool_PathJoin(char const *base, char const *name) {
     size_t base_len = base ? strlen(base) : 0;
     size_t name_len = name ? strlen(name) : 0;
     bool need_slash = base_len > 0 && name_len > 0;
@@ -210,7 +210,7 @@ static inline char *Tool_PathJoin(const char *base, const char *name) {
     return out;
 }
 
-static inline char *Tool_PathParent(const char *path) {
+static inline char *Tool_PathParent(char const *path) {
     char *copy = Tool_XStrdup(path ? path : "");
     char *slash;
 
@@ -224,10 +224,10 @@ static inline char *Tool_PathParent(const char *path) {
     return copy;
 }
 
-static inline const char *Tool_PathBasename(const char *path) {
-    const char *slash;
-    const char *back;
-    const char *base;
+static inline char const *Tool_PathBasename(char const *path) {
+    char const *slash;
+    char const *back;
+    char const *base;
 
     if (!path) {
         return "";
@@ -242,14 +242,14 @@ static inline const char *Tool_PathBasename(const char *path) {
     return base ? base + 1 : path;
 }
 
-static inline const char *Tool_PathExt(const char *path) {
-    const char *base = Tool_PathBasename(path);
-    const char *dot = strrchr(base, '.');
+static inline char const *Tool_PathExt(char const *path) {
+    char const *base = Tool_PathBasename(path);
+    char const *dot = strrchr(base, '.');
     return dot ? dot + 1 : "";
 }
 
 #ifndef TOOL_COMMON_NO_MPQ
-static inline handle_t Tool_ReadFileRaw(cstring_t filename, uint32_t * size);
+static inline handle_t Tool_ReadFileRaw(cstring_t filename, uint32_t *size);
 
 /* Tool-specific FS_ReadFile wrapper for Quake 3 pattern */
 static inline int Tool_FS_ReadFile(cstring_t filename, void **buf) {
@@ -273,7 +273,7 @@ static inline ToolSheetHostState *Tool_SheetHostState(void) {
     return &state;
 }
 
-static inline handle_t Tool_ReadFileRaw(cstring_t filename, uint32_t * size) {
+static inline handle_t Tool_ReadFileRaw(cstring_t filename, uint32_t *size) {
     ToolSheetHostState *state = Tool_SheetHostState();
     handle_t file;
     handle_t buffer;

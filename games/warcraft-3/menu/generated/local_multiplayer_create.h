@@ -5,38 +5,38 @@
 #include "../menu_local.h"
 
 typedef struct LocalMultiplayerCreate_s {
-    frameDef_t * LocalMultiplayerCreate;
-    frameDef_t * GameSettingsPanel;
-    frameDef_t * GameSettingsTitle;
-    frameDef_t * GameSpeedLabel;
-    frameDef_t * GameSpeedSliderBackdrop;
-    frameDef_t * GameSpeedSlider;
-    frameDef_t * GameSpeedThumbButton;
-    frameDef_t * GameSpeedThumbButtonBackdrop;
-    frameDef_t * GameSpeedThumbButtonDisabledBackdrop;
-    frameDef_t * GameSpeedValue;
-    frameDef_t * MapListLabel;
-    frameDef_t * MapListContainer;
-    frameDef_t * MapInfoPanel;
-    frameDef_t * MapInfoPaneContainer;
-    frameDef_t * MapInfoBackdrop;
-    frameDef_t * MapInfoButton;
-    frameDef_t * MapInfoButtonText;
-    frameDef_t * AdvancedOptionsPanel;
-    frameDef_t * AdvancedOptionsPaneContainer;
-    frameDef_t * AdvancedOptionsBackdrop;
-    frameDef_t * AdvancedOptionsButton;
-    frameDef_t * AdvancedOptionsButtonText;
-    frameDef_t * PlayBackdrop;
-    frameDef_t * PlayButton;
-    frameDef_t * PlayButtonText;
-    frameDef_t * CancelBackdrop;
-    frameDef_t * CancelButton;
-    frameDef_t * CancelButtonText;
+    frameDef_t *LocalMultiplayerCreate;
+    frameDef_t *GameSettingsPanel;
+    frameDef_t *GameSettingsTitle;
+    frameDef_t *GameSpeedLabel;
+    frameDef_t *GameSpeedSliderBackdrop;
+    frameDef_t *GameSpeedSlider;
+    frameDef_t *GameSpeedThumbButton;
+    frameDef_t *GameSpeedThumbButtonBackdrop;
+    frameDef_t *GameSpeedThumbButtonDisabledBackdrop;
+    frameDef_t *GameSpeedValue;
+    frameDef_t *MapListLabel;
+    frameDef_t *MapListContainer;
+    frameDef_t *MapInfoPanel;
+    frameDef_t *MapInfoPaneContainer;
+    frameDef_t *MapInfoBackdrop;
+    frameDef_t *MapInfoButton;
+    frameDef_t *MapInfoButtonText;
+    frameDef_t *AdvancedOptionsPanel;
+    frameDef_t *AdvancedOptionsPaneContainer;
+    frameDef_t *AdvancedOptionsBackdrop;
+    frameDef_t *AdvancedOptionsButton;
+    frameDef_t *AdvancedOptionsButtonText;
+    frameDef_t *PlayBackdrop;
+    frameDef_t *PlayButton;
+    frameDef_t *PlayButtonText;
+    frameDef_t *CancelBackdrop;
+    frameDef_t *CancelButton;
+    frameDef_t *CancelButtonText;
 } LocalMultiplayerCreate_t;
 
 
-static inline bool LocalMultiplayerCreate_Bind(LocalMultiplayerCreate_t *out, frameDef_t * bind_root) {
+static inline bool LocalMultiplayerCreate_Bind(LocalMultiplayerCreate_t *out, frameDef_t *bind_root) {
     bool ok = true;
     if (!out) {
         return false;

@@ -14,7 +14,7 @@ static uint32_t G_BlightConnectedMask(void) {
     return mask;
 }
 
-static bool G_BlightCell(vector2_t const * point, uint32_t * x, uint32_t * y) {
+static bool G_BlightCell(vector2_t const *point, uint32_t *x, uint32_t *y) {
     if (!point || !level.blight.cells) return false;
     return TerrainMask_CellForPoint(level.blight.bounds.min, WC3_BLIGHT_PATH_CELL, level.blight.width, level.blight.height, point, x, y);
 }
@@ -47,7 +47,7 @@ static float G_SnapBlightCorner(float value, float minimum) {
     return minimum + floorf((value - minimum) / WC3_BLIGHT_TERRAIN_CELL) * WC3_BLIGHT_TERRAIN_CELL;
 }
 
-static bool G_BlightDestructableFootprintBlighted(edict_t const * ent) {
+static bool G_BlightDestructableFootprintBlighted(edict_t const *ent) {
     pathTex_t const *pathtex;
 
     if (!ent || !G_IsDestructable(ent) || ent->destructable.dead) return false;
@@ -64,7 +64,7 @@ static bool G_BlightDestructableFootprintBlighted(edict_t const * ent) {
     return true;
 }
 
-void G_BlightMarkDestructable(edict_t * ent) {
+void G_BlightMarkDestructable(edict_t *ent) {
     DestructableData_t const *data;
     PATHSTR blight_texture;
     cstring_t dot;
@@ -89,11 +89,11 @@ void G_BlightMarkDestructable(edict_t * ent) {
                 blight_texture, (cstring_t)&ent->class_id);
 }
 
-void G_BlightInitializeDestructable(edict_t * ent) {
+void G_BlightInitializeDestructable(edict_t *ent) {
     if (G_BlightDestructableFootprintBlighted(ent)) G_BlightMarkDestructable(ent);
 }
 
-void G_BlightUpdateDestructables(box2_t const * region) {
+void G_BlightUpdateDestructables(box2_t const *region) {
     box2_t expanded;
 
     if (!region) return;
@@ -160,12 +160,12 @@ void G_BlightInit(void) {
                 (unsigned)unavailable);
 }
 
-bool G_IsPointBlighted(vector2_t const * point) {
+bool G_IsPointBlighted(vector2_t const *point) {
     uint32_t x, y;
     return G_BlightCell(point, &x, &y) && level.blight.cells[x + y * level.blight.width] != 0;
 }
 
-void G_SetBlightPoint(vector2_t const * point, bool add) {
+void G_SetBlightPoint(vector2_t const *point, bool add) {
     float x, y;
     uint32_t mask;
     if (!point || !level.blight.cells) return;
@@ -180,7 +180,7 @@ void G_SetBlightPoint(vector2_t const * point, bool add) {
     }
 }
 
-void G_SetBlightRadius(vector2_t const * point, float radius, bool add) {
+void G_SetBlightRadius(vector2_t const *point, float radius, bool add) {
     float min_x, min_y, max_x, max_y;
     uint32_t mask;
     if (!point || !level.blight.cells || radius < 0.0f) return;
@@ -200,7 +200,7 @@ void G_SetBlightRadius(vector2_t const * point, float radius, bool add) {
     }
 }
 
-void G_SetBlightRect(box2_t const * rect, bool add) {
+void G_SetBlightRect(box2_t const *rect, bool add) {
     float min_x, min_y;
     uint32_t mask;
     if (!rect || !level.blight.cells) return;
@@ -215,7 +215,7 @@ void G_SetBlightRect(box2_t const * rect, bool add) {
 
 uint32_t G_GetBlightStateSize(void) { return level.blight.cells ? G_BlightCellCount() : 0; }
 
-bool G_GetBlightState(uint8_t * out, uint32_t size) {
+bool G_GetBlightState(uint8_t *out, uint32_t size) {
     uint32_t const expected = G_GetBlightStateSize();
     if (size != expected || (size && !out)) return false;
     if (size) memcpy(out, level.blight.cells, size);
@@ -231,7 +231,7 @@ bool G_SetBlightState(uint8_t const *data, uint32_t size) {
     return true;
 }
 
-void G_BlightMarkClientFull(edict_t * ent) {
+void G_BlightMarkClientFull(edict_t *ent) {
     uint32_t player;
     if (!ent || !ent->client || !level.blight.dirty_rows) return;
     player = ent->client->ps.number;
@@ -247,7 +247,7 @@ static bool G_BlightSweepDue(uint32_t player) {
     return true;
 }
 
-bool G_BlightDatagramPending(edict_t * ent) {
+bool G_BlightDatagramPending(edict_t *ent) {
     uint32_t player;
     if (!ent || !ent->client || !level.blight.dirty_rows) return false;
     player = ent->client->ps.number;
@@ -263,7 +263,7 @@ static uint8_t G_BlightPackBit(uint32_t index, void *ctx) {
     return level.blight.cells[c->first_row * c->width + index] ? 1 : 0;
 }
 
-static uint32_t G_BlightPackRows(uint8_t * out, uint32_t capacity, uint32_t first_row, uint32_t row_count) {
+static uint32_t G_BlightPackRows(uint8_t *out, uint32_t capacity, uint32_t first_row, uint32_t row_count) {
     blightPackCtx_t c = { first_row, level.blight.width };
     uint32_t const bits = level.blight.width * row_count;
     uint32_t n;
@@ -275,7 +275,7 @@ static uint32_t G_BlightPackRows(uint8_t * out, uint32_t capacity, uint32_t firs
     return MSG_EncodeBitpack(out, capacity, bits, G_BlightPackBit, &c);
 }
 
-uint32_t G_BlightWriteDatagram(edict_t * ent, uint8_t * data, uint32_t size) {
+uint32_t G_BlightWriteDatagram(edict_t *ent, uint8_t *data, uint32_t size) {
     uint32_t player, first = 0, rows, max_rows, available, payload_bytes;
     terrainMaskChunk_t chunk;
     uint8_t *payload;

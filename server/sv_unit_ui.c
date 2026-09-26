@@ -8,7 +8,7 @@
 
 #include "server.h"
 
-void SV_HandleUnitUIRequest(client_t * client, sizeBuf_t * msg) {
+void SV_HandleUnitUIRequest(client_t *client, sizeBuf_t *msg) {
     uint8_t num_selected = MSG_ReadByte(msg);
 
     (void)client;

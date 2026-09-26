@@ -17,14 +17,14 @@
 static uint32_t cheat_packets;
 static int32_t cheat_opcode;
 static bool cheat_writing;
-static edict_t * cheat_recipient;
+static edict_t *cheat_recipient;
 static char cheat_text[1024];
 static cstring_t cheat_cvar(cstring_t name, cstring_t fallback) { return !strcmp(name, "sv_cheats") ? "1" : fallback; }
 static void cheat_write(pfWriteType_t type, void const *data) {
     if (!cheat_writing && type == PF_BYTE) { cheat_opcode = *(int32_t const *)data; cheat_writing = true; }
     if (cheat_opcode == svc_console_print && type == PF_STRING) snprintf(cheat_text, sizeof(cheat_text), "%s", (cstring_t)data);
 }
-static void cheat_unicast(edict_t * ent) {
+static void cheat_unicast(edict_t *ent) {
     if (cheat_opcode == svc_console_print) { cheat_packets++; cheat_recipient = ent; }
     cheat_writing = false;
 }
@@ -41,8 +41,8 @@ static int combat_model(void) {
  * onto the target.  Returns real edicts driven by the real AI think function. */
 static void combat_prepare(edict_t * *attacker_out, edict_t * *target_out) {
     int model = combat_model();
-    edict_t * attacker = &wow_edicts[1];
-    edict_t * target = &wow_edicts[2];
+    edict_t *attacker = &wow_edicts[1];
+    edict_t *target = &wow_edicts[2];
     wowEntityLocal_t *al, *tl;
 
     memset(wow_edicts, 0, sizeof(wow_edicts));
@@ -73,7 +73,7 @@ static void combat_prepare(edict_t * *attacker_out, edict_t * *target_out) {
 
 TEST(wow_combat, cheat_feedback_reaches_issuing_client) {
     struct game_import saved = gi;
-    edict_t * player, *target;
+    edict_t *player, *target;
     cstring_t god[] = { "god" }, give[] = { "give", "health", "25" };
     combat_prepare(&player, &target);
     player->client = &wow_clients[0].client;
@@ -101,7 +101,7 @@ TEST(wow_combat, cheat_feedback_reaches_issuing_client) {
 }
 
 TEST(wow_combat, attack_applies_damage_at_damage_point) {
-    edict_t * attacker, *target;
+    edict_t *attacker, *target;
     wowEntityLocal_t *al, *tl;
     uint32_t hp;
 
@@ -129,7 +129,7 @@ TEST(wow_combat, attack_applies_damage_at_damage_point) {
 }
 
 TEST(wow_combat, explicit_timing_overrides_animation_split) {
-    edict_t * attacker, *target;
+    edict_t *attacker, *target;
     wowEntityLocal_t *al;
 
     combat_prepare(&attacker, &target);
@@ -144,7 +144,7 @@ TEST(wow_combat, explicit_timing_overrides_animation_split) {
 }
 
 TEST(wow_combat, lethal_attack_triggers_death_state) {
-    edict_t * attacker, *target;
+    edict_t *attacker, *target;
     wowEntityLocal_t *al, *tl;
 
     combat_prepare(&attacker, &target);
@@ -163,7 +163,7 @@ TEST(wow_combat, lethal_attack_triggers_death_state) {
 }
 
 TEST(wow_combat, dead_entity_ignores_pain_and_attack) {
-    edict_t * attacker, *target;
+    edict_t *attacker, *target;
     wowEntityLocal_t *tl;
 
     combat_prepare(&attacker, &target);
@@ -180,7 +180,7 @@ TEST(wow_combat, dead_entity_ignores_pain_and_attack) {
 }
 
 TEST(wow_combat, death_holds_terminal_frame) {
-    edict_t * attacker, *target;
+    edict_t *attacker, *target;
     wowEntityLocal_t *tl;
     uint32_t terminal;
     int num_edicts;

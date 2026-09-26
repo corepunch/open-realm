@@ -10,13 +10,13 @@
 #define BZ_HFOO MAKEFOURCC('h', 'f', 'o', 'o') // unitCode; fixture factory UnitID (non-stock)
 #define BZ_OGRU MAKEFOURCC('o', 'g', 'r', 'u') // unitCode; fixture DataB Clockwerk (non-stock)
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
-typedef struct { slkTestData_t *rows, *old; edict_t * caster; } pfFix_t;
+typedef struct { slkTestData_t *rows, *old; edict_t *caster; } pfFix_t;
 
 /* Non-stock DataA/Dur/DataC/DataE and hfoo/ogru UnitID/DataB prove the execute path is data-driven. */
 static char const pf_slk[] =
@@ -51,7 +51,7 @@ static void pf_done(pfFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_sl
 
 static void pf_tick(uint32_t ms) { level.time += ms; G_RunEntities(); }
 
-static edict_t * pf_find(uint32_t code) {
+static edict_t *pf_find(uint32_t code) {
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == code) return ent;
     return NULL;
 }
@@ -62,7 +62,7 @@ static uint32_t pf_count(uint32_t code) {
     return n;
 }
 
-static edict_t * pf_thinker(edict_t * factory) {
+static edict_t *pf_thinker(edict_t *factory) {
     FILTER_EDICTS(ent, ent->inuse && ent->owner == factory && ent->think && !ent->class_id) return ent;
     return NULL;
 }
@@ -78,7 +78,7 @@ TEST(wc3_spell, pocket_factory_aliases_share_procedure) {
 TEST(wc3_spell, pocket_factory_cast_creates_owned_factory_and_spawns_on_interval) {
     pfFix_t fix = pf_setup(BZ_ANSY);
     vector2_t point = { 256, 192 };
-    edict_t * factory, *thinker, *first;
+    edict_t *factory, *thinker, *first;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
     factory = pf_find(BZ_HFOO); thinker = pf_thinker(factory);
     T_NOT_NULL(factory); T_NOT_NULL(thinker);
@@ -98,7 +98,7 @@ TEST(wc3_spell, pocket_factory_cast_creates_owned_factory_and_spawns_on_interval
 TEST(wc3_spell, pocket_factory_clockwerk_btlf_matches_datac) {
     pfFix_t fix = pf_setup(BZ_ANSY);
     vector2_t point = { 128, 128 };
-    edict_t * goblin;
+    edict_t *goblin;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
     pf_tick(2000); goblin = pf_find(BZ_OGRU); T_NOT_NULL(goblin);
     if (goblin) goblin->health.value = goblin->health.max_value = 100;
@@ -113,7 +113,7 @@ TEST(wc3_spell, pocket_factory_clockwerk_btlf_matches_datac) {
 TEST(wc3_spell, pocket_factory_factory_removal_cancels_production) {
     pfFix_t fix = pf_setup(BZ_ANSY);
     vector2_t point = { 128, 128 };
-    edict_t * factory, *thinker;
+    edict_t *factory, *thinker;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
     factory = pf_find(BZ_HFOO); thinker = pf_thinker(factory);
     T_NOT_NULL(factory); T_NOT_NULL(thinker);
@@ -150,7 +150,7 @@ TEST(wc3_spell, pocket_factory_thinker_alloc_failure_rolls_back_factory) {
 TEST(wc3_spell, pocket_factory_datae_leash_returns_clockwerk) {
     pfFix_t fix = pf_setup(BZ_ANSY);
     vector2_t point = { 256, 192 };
-    edict_t * factory, *goblin, *thinker;
+    edict_t *factory, *goblin, *thinker;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
     factory = pf_find(BZ_HFOO); thinker = pf_thinker(factory);
     T_NOT_NULL(factory); T_NOT_NULL(thinker);

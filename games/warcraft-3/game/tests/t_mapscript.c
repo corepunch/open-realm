@@ -56,7 +56,7 @@ static void mapscript_clear_loaded(void) {
 }
 
 TEST(wc3_mapscript, jass_dobuffer_null_returns_false) {
-    jass_t * j;
+    jass_t *j;
 
     jass_sethost(&MAKE(jassHost_t,
         .MemAlloc = gi.MemAlloc,

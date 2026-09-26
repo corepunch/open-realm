@@ -34,7 +34,7 @@ line3_t R_LineForScreenPoint(viewDef_t const *viewdef, float x, float y) {
 }
 
 /* Drag-panning stays on the camera target plane instead of jumping across terrain tiers. */
-bool R_TraceCameraPlane(viewDef_t const *viewdef, float x, float y, vector3_t * point) {
+bool R_TraceCameraPlane(viewDef_t const *viewdef, float x, float y, vector3_t *point) {
     line3_t line;
     plane3_t plane;
 
@@ -45,7 +45,7 @@ bool R_TraceCameraPlane(viewDef_t const *viewdef, float x, float y, vector3_t * 
     return Line3_intersect_plane3(&line, &plane, point);
 }
 
-bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, uint32_t * number) {
+bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, uint32_t *number) {
     if (!viewdef || !number) {
         return false;
     }
@@ -72,7 +72,7 @@ bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, uint32_t * number
     return false;
 }
 
-uint32_t R_EntitiesInRect(viewDef_t const *viewdef, rect_t const * rect, uint32_t max, uint32_t * array) {
+uint32_t R_EntitiesInRect(viewDef_t const *viewdef, rect_t const *rect, uint32_t max, uint32_t *array) {
     if (!viewdef || !rect || !array || max == 0) {
         return 0;
     }

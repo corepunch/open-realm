@@ -5,8 +5,8 @@
 #define MAX_REPOSITION_BLOCKERS 256 // entities; bounded broad-phase results, any hit rejects the point
 
 extern jassModule_t jass_funcs[];
-static edict_t * reposition_unit;
-static vector2_t const * reposition_point;
+static edict_t *reposition_unit;
+static vector2_t const *reposition_point;
 
 static bool G_TutorialFlowDebugEnabledForMapSource(void) {
     return WC3_TUTORIAL_DEBUG_ENABLED();
@@ -30,7 +30,7 @@ bool G_TestMapObjectCreatedByMapScript(uint32_t id) { return G_MapObjectCreatedB
 
 static void G_JassCoroutineTrace(handle_t trigger_handle, cstring_t function, cstring_t phase,
                                  uint32_t now, uint32_t wake_time, bool yielded, bool done) {
-    trigger_t * trigger = trigger_handle;
+    trigger_t *trigger = trigger_handle;
     int32_t ordinal;
     if (!G_TutorialFlowDebugEnabledForMapSource() || !trigger ||
         trigger < level.triggers || trigger >= level.triggers + level.num_triggers) {
@@ -273,7 +273,7 @@ TARGTYPE G_GetTargetType(cstring_t str) {
 
 //struct spawn {
 //    cstring_t name;
-//    void (*func)(edict_t * edict);
+//    void (*func)(edict_t *edict);
 //};
 
 //static struct spawn spawns[] = {
@@ -281,10 +281,10 @@ TARGTYPE G_GetTargetType(cstring_t str) {
 //    { NULL, NULL }
 //};
 
-void SP_monster_unit(edict_t * edict);
-void SP_monster_tree(edict_t * edict);
+void SP_monster_unit(edict_t *edict);
+void SP_monster_tree(edict_t *edict);
 
-static void G_InitEdict(edict_t * e) {
+static void G_InitEdict(edict_t *e) {
     memset(e, 0, sizeof(edict_t));
     e->inuse = true;
     e->item.inventory_slot = -1;
@@ -293,9 +293,9 @@ static void G_InitEdict(edict_t * e) {
     e->s.number = (int)(e - g_edicts);
 }
 
-edict_t * G_Spawn(void) {
+edict_t *G_Spawn(void) {
     for (uint32_t i = game.max_clients; i < globals.num_edicts; i++) {
-        edict_t * e = &g_edicts[i];
+        edict_t *e = &g_edicts[i];
         if (!e->inuse && e->freetime + 1000 < level.time) {
             G_InitEdict(e);
             return e;
@@ -305,7 +305,7 @@ edict_t * G_Spawn(void) {
         gi.error("G_Spawn: no free edicts (%d max)\n", globals.max_edicts);
         return NULL;
     }
-    edict_t * edict = &g_edicts[globals.num_edicts++];
+    edict_t *edict = &g_edicts[globals.num_edicts++];
     G_InitEdict(edict);
     return edict;
 }
@@ -367,7 +367,7 @@ static void SP_DoodadModelFilename(Doodads_t const *row, uint32_t variation,
     snprintf(out, out_size, "%s.mdx", stem);
 }
 
-static void SP_SpawnDoodad(edict_t * edict) {
+static void SP_SpawnDoodad(edict_t *edict) {
     Doodads_t const *row = edict->data.Doodads;
     PATHSTR buffer;
 
@@ -415,7 +415,7 @@ static void SP_DestructableModelFilename(DestructableData_t const *row,
     }
 }
 
-static void SP_SpawnDestructable(edict_t * edict) {
+static void SP_SpawnDestructable(edict_t *edict) {
     DestructableData_t const *row = edict->data.DestructableData;
     cstring_t path_tex = row->pathingTexture;
     float radius = row->radius;
@@ -459,7 +459,7 @@ static void SP_SpawnDestructable(edict_t * edict) {
 /* The destructable currently being visited by EnumDestructablesInRect, read
  * back by the GetEnumDestructable native inside the enum action (mirrors the
  * jass-lib `currentunit`/GetEnumUnit pair). */
-edict_t * currentdestructable = NULL;
+edict_t *currentdestructable = NULL;
 
 static bool G_ClassIdIsPrintable(uint32_t class_id) {
     uint8_t const *id = (uint8_t const *)&class_id;
@@ -473,7 +473,7 @@ static bool G_ClassIdIsPrintable(uint32_t class_id) {
 }
 
 /* Bind immutable table rows after class_id is assigned and before entity-specific initialization. */
-void G_BindEntityData(edict_t * edict) {
+void G_BindEntityData(edict_t *edict) {
     edict->data.UnitProfile = G_UnitProfile(edict->class_id);
     edict->data.UnitBalance = G_UnitBalance(edict->class_id);
     edict->data.UnitData = G_UnitData(edict->class_id);
@@ -488,7 +488,7 @@ void G_BindEntityData(edict_t * edict) {
 /* Install class-owned unit/destructable lifecycle callbacks. Load restores the saved C callbacks
  * through F_CFUNCTION; this helper is for spawn/tests that have class data but have not assigned
  * those pointers yet. */
-void G_BindEntityRuntime(edict_t * edict) {
+void G_BindEntityRuntime(edict_t *edict) {
     if (edict->data.DestructableData->file) {
         edict->stand = tree_stand; edict->birth = tree_birth; edict->pain = tree_pain; edict->die = tree_die;
         edict->think = monster_think;
@@ -498,7 +498,7 @@ void G_BindEntityRuntime(edict_t * edict) {
     }
 }
 
-void SP_CallSpawn(edict_t * edict) {
+void SP_CallSpawn(edict_t *edict) {
     if (!edict->class_id)
         return;
     edict->s.class_id = edict->class_id;
@@ -521,7 +521,7 @@ void SP_CallSpawn(edict_t * edict) {
         }
         edict->svflags |= SVF_NOCLIENT;
         if (!G_ClassIdIsPrintable(edict->class_id)) {
-            fprintf(stderr, "Warning: Invalid map object ID %.4s\n", (const char *)&edict->class_id);
+            fprintf(stderr, "Warning: Invalid map object ID %.4s\n", (char const *)&edict->class_id);
         }
     }
 //    for (struct spawn *s = spawns; s->func; s++) {
@@ -532,10 +532,10 @@ void SP_CallSpawn(edict_t * edict) {
 //    }
 }
 
-void SP_worldspawn(edict_t * ent) {
+void SP_worldspawn(edict_t *ent) {
 }
 
-static uint32_t G_MapPlayerTeam(mapInfo_t const * mapinfo, uint32_t playernum) {
+static uint32_t G_MapPlayerTeam(mapInfo_t const *mapinfo, uint32_t playernum) {
     if (!mapinfo || !mapinfo->teams) {
         return playernum;
     }
@@ -547,7 +547,7 @@ static uint32_t G_MapPlayerTeam(mapInfo_t const * mapinfo, uint32_t playernum) {
     return playernum;
 }
 
-static uint32_t G_LocalMapPlayerNumber(mapInfo_t const * mapinfo) {
+static uint32_t G_LocalMapPlayerNumber(mapInfo_t const *mapinfo) {
     if (!mapinfo) {
         return 0;
     }
@@ -559,7 +559,7 @@ static uint32_t G_LocalMapPlayerNumber(mapInfo_t const * mapinfo) {
     return 0;
 }
 
-static uint32_t G_ClientSlotMapPlayerNumber(mapInfo_t const * mapinfo, uint32_t slot, uint32_t local_player) {
+static uint32_t G_ClientSlotMapPlayerNumber(mapInfo_t const *mapinfo, uint32_t slot, uint32_t local_player) {
     uint32_t count = 1;
 
     if (slot == 0) {
@@ -577,7 +577,7 @@ static uint32_t G_ClientSlotMapPlayerNumber(mapInfo_t const * mapinfo, uint32_t 
 }
 
 /* JASS mapcontrol values do not match W3I playerType values after computer. */
-static uint32_t G_MapControl(mapPlayer_t const * player) {
+static uint32_t G_MapControl(mapPlayer_t const *player) {
     if (!player) return 5;
     switch (player->playerType) {
         case kPlayerTypeHuman: return 0;
@@ -589,7 +589,7 @@ static uint32_t G_MapControl(mapPlayer_t const * player) {
 }
 
 /* Race preferences are bit flags, unlike the sequential W3I race enum. */
-static uint32_t G_RacePreference(mapPlayer_t const * player) {
+static uint32_t G_RacePreference(mapPlayer_t const *player) {
     if (!player) return 0;
     switch (player->playerRace) {
         case kPlayerRaceHuman: return 1;
@@ -600,10 +600,10 @@ static uint32_t G_RacePreference(mapPlayer_t const * player) {
     }
 }
 
-static void G_InitMapPlayer(edict_t * clent, mapInfo_t const * mapinfo, uint32_t playernum) {
-    mapPlayer_t const * player = mapinfo ? mapinfo->players + playernum : NULL;
+static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t playernum) {
+    mapPlayer_t const *player = mapinfo ? mapinfo->players + playernum : NULL;
     cstring_t name = player && player->playerName ? G_LevelString(player->playerName) : NULL;
-    player_t * ps = &clent->client->ps;
+    player_t *ps = &clent->client->ps;
     G_SetClientConnected(clent, false);
     G_ResetSelectionFocus(clent->client);
     clent->client->commands_dirty = false;
@@ -656,8 +656,8 @@ static void G_InitMapPlayer(edict_t * clent, mapInfo_t const * mapinfo, uint32_t
 }
 
 void G_SpawnEntities(void) {
-    mapInfo_t const * mapinfo = CM_GetMapInfo();
-    doodad_t const * entities = CM_GetDoodads();
+    mapInfo_t const *mapinfo = CM_GetMapInfo();
+    doodad_t const *entities = CM_GetDoodads();
     uint32_t local_player = G_LocalMapPlayerNumber(mapinfo);
     int32_t difficulty = 1;
     cstring_t map_path = gi.CvarString("map", "");
@@ -706,7 +706,7 @@ void G_SpawnEntities(void) {
     level.vm = jass_newstate();
     
     FOR_LOOP(p, MAX_PLAYERS) {
-        gameClient_t * client = game.clients+p;
+        gameClient_t *client = game.clients+p;
         uint32_t playernum = G_ClientSlotMapPlayerNumber(mapinfo, p, local_player);
         g_edicts[p].client = client;
         G_InitMapPlayer(g_edicts+p, mapinfo, playernum);
@@ -728,7 +728,7 @@ void G_SpawnEntities(void) {
 //            int a=0;
 //            printf("%.4s", )
 //        }
-        edict_t * ent = G_Spawn();
+        edict_t *ent = G_Spawn();
         if (!ent) {
             break;
         }
@@ -778,9 +778,9 @@ void G_SpawnEntities(void) {
 }
  
 /* Spawn a unit at a point while allowing map-restoration paths to skip presentation-only birth. */
-static edict_t * SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, vector2_t const * location, bool play_birth) {
-    edict_t * ent = G_Spawn();
-    gameClient_t * client;
+static edict_t *SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, vector2_t const *location, bool play_birth) {
+    edict_t *ent = G_Spawn();
+    gameClient_t *client;
     if (!ent) {
         return NULL;
     }
@@ -817,11 +817,11 @@ static edict_t * SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, 
     return ent;
 }
 
-edict_t * SP_SpawnAtLocation(uint32_t class_id, uint32_t player, vector2_t const * location) {
+edict_t *SP_SpawnAtLocation(uint32_t class_id, uint32_t player, vector2_t const *location) {
     return SP_SpawnAtLocationInternal(class_id, player, location, true);
 }
 
-edict_t * SP_SpawnAtLocationNoBirth(uint32_t class_id, uint32_t player, vector2_t const * location) {
+edict_t *SP_SpawnAtLocationNoBirth(uint32_t class_id, uint32_t player, vector2_t const *location) {
     return SP_SpawnAtLocationInternal(class_id, player, location, false);
 }
 
@@ -852,13 +852,13 @@ void G_SetDestructableScriptBinding(bool enabled) {
  * duplicate.  Match a same-type destructable within 10 units of the spot. */
 /* HACK: Positional binding is required until the map parser exposes the
  * generated script variable's editor creation ID. */
-edict_t * G_CreateDestructable(uint32_t class_id, float x, float y, float z, float facing, float scale, uint32_t variation) {
+edict_t *G_CreateDestructable(uint32_t class_id, float x, float y, float z, float facing, float scale, uint32_t variation) {
     if (bind_map_destructables) {
-        edict_t * best = NULL;
+        edict_t *best = NULL;
         float best_distance = 10.0f;
 
         FOR_LOOP(i, globals.num_edicts) {
-            edict_t * existing = &g_edicts[i];
+            edict_t *existing = &g_edicts[i];
             float distance;
 
             if (!existing->inuse ||
@@ -896,7 +896,7 @@ edict_t * G_CreateDestructable(uint32_t class_id, float x, float y, float z, flo
             return best;
         }
     }
-    edict_t * ent = G_Spawn();
+    edict_t *ent = G_Spawn();
     if (!ent) return NULL;
     ent->class_id = class_id;
     ent->variation = variation;
@@ -912,14 +912,14 @@ edict_t * G_CreateDestructable(uint32_t class_id, float x, float y, float z, flo
     return ent;
 }
 
-edict_t * G_CreateDeadDestructable(uint32_t class_id,
+edict_t *G_CreateDeadDestructable(uint32_t class_id,
                                  float x,
                                  float y,
                                  float z,
                                  float facing,
                                  float scale,
                                  uint32_t variation) {
-    edict_t * ent = G_CreateDestructable(class_id, x, y, z, facing, scale, variation);
+    edict_t *ent = G_CreateDestructable(class_id, x, y, z, facing, scale, variation);
 
     if (ent) {
         G_SetDestructableDeadState(ent, false);
@@ -927,7 +927,7 @@ edict_t * G_CreateDeadDestructable(uint32_t class_id,
     return ent;
 }
 
-bool SP_FindEmptySpaceAround(edict_t * townhall, uint32_t class_id, vector2_t * out, float *angle) {
+bool SP_FindEmptySpaceAround(edict_t *townhall, uint32_t class_id, vector2_t *out, float *angle) {
     float const colsize = G_UnitUI(class_id)->selectionScale * SEL_SCALE / 2;
     float const start_angle = M_PI * 1.25f;
     FOR_LOOP(i, MAX_SPAWN_ITERATIONS) {
@@ -947,7 +947,7 @@ bool SP_FindEmptySpaceAround(edict_t * townhall, uint32_t class_id, vector2_t * 
     return false;
 }
 
-static bool SP_CanPlaceUnitAt(edict_t * unit, vector2_t const * point) {
+static bool SP_CanPlaceUnitAt(edict_t *unit, vector2_t const *point) {
     uint8_t const blocked_flags = M_UnitStaticPathingFlags(unit);
     if (!unit || !point) {
         return false;
@@ -957,7 +957,7 @@ static bool SP_CanPlaceUnitAt(edict_t * unit, vector2_t const * point) {
     }
 
     FOR_LOOP(i, globals.num_edicts) {
-        edict_t * other = &globals.edicts[i];
+        edict_t *other = &globals.edicts[i];
         vector2_t delta;
 
         if (other == unit || IS_HOLLOW(other) || other->movetype == MOVETYPE_NONE || other->collision <= 0.0f) {
@@ -977,9 +977,9 @@ static bool SP_CanPlaceUnitAt(edict_t * unit, vector2_t const * point) {
 /* The old per-candidate full edict scan made crowded CreateUnit spawns costly.
  * BoxEdicts bounds include each linked entity's collision radius; keep the
  * same precise circle/layer rules while querying only nearby units. */
-static bool G_RepositionBlocker(edict_t const * other) {
+static bool G_RepositionBlocker(edict_t const *other) {
     float dx, dy, reach;
-    edict_t * unit = reposition_unit;
+    edict_t *unit = reposition_unit;
     if (other == unit || (G_IsItem(unit) && other == unit->item.carrier) ||
         IS_HOLLOW(other) || other->collision <= 0.0f ||
         !!(other->aiflags & AI_FLYING) != !!(unit->aiflags & AI_FLYING)) return false;
@@ -989,8 +989,8 @@ static bool G_RepositionBlocker(edict_t const * other) {
     return dx * dx + dy * dy < reach * reach;
 }
 
-static bool G_CanRepositionUnitAt(edict_t * unit, vector2_t const * point) {
-    edict_t * blockers[MAX_REPOSITION_BLOCKERS];
+static bool G_CanRepositionUnitAt(edict_t *unit, vector2_t const *point) {
+    edict_t *blockers[MAX_REPOSITION_BLOCKERS];
     float radius;
     box2_t area;
     if (!unit || !point) return false;
@@ -1007,7 +1007,7 @@ static bool G_CanRepositionUnitAt(edict_t * unit, vector2_t const * point) {
  * then walk a deterministic 64-world-unit square spiral for at most 300
  * candidates. Keep the requested point as the fallback when no candidate is
  * legal, matching Warsmash's outputX/outputY initialization. */
-bool G_FindUnitUnstuckPosition(edict_t * unit, vector2_t const * requested, vector2_t * out) {
+bool G_FindUnitUnstuckPosition(edict_t *unit, vector2_t const *requested, vector2_t *out) {
     int check_x = 0, check_y = 0;
 
     if (!unit || !requested || !out) {
@@ -1039,10 +1039,10 @@ bool G_FindUnitUnstuckPosition(edict_t * unit, vector2_t const * requested, vect
 }
 
 typedef struct {
-    edict_t *   producer;
-    edict_t *   unit;
+    edict_t *producer;
+    edict_t *unit;
     float     spacing;
-    vector2_t * out;
+    vector2_t *out;
     float    *angle;
 } unitExitCtx_t;
 
@@ -1070,7 +1070,7 @@ static bool SP_TryUnitExitCandidate(unitExitCtx_t const *ctx, int grid_x, int gr
  * exit point is found. Search deterministic 64-world-unit square rings, using
  * the trained unit's real collision radius against both the baked static
  * pathmap and dynamic unit circles. */
-bool SP_FindUnitExitPosition(edict_t * producer, edict_t * unit, vector2_t * out, float *angle) {
+bool SP_FindUnitExitPosition(edict_t *producer, edict_t *unit, vector2_t *out, float *angle) {
     uint32_t const max_candidates = 300;
     uint32_t tested = 0;
     unitExitCtx_t ctx;

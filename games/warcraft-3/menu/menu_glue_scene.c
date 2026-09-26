@@ -34,7 +34,7 @@ typedef struct {
 
 typedef struct {
     bool loaded;
-    model_t const * background, *top_left_panel, *top_right_panel;
+    model_t const *background, *top_left_panel, *top_right_panel;
     glueLayer_t layers[UI_GLUE_SIDE_COUNT];
     uiGluePanelChanged_f exited, changed;
 } glueScene_t;
@@ -65,7 +65,7 @@ static const gluePanel_t glue_panels[UI_GLUE_PANEL_COUNT] = {
 
 /* Content without a moving left mesh (logo/profile) follows the navigation's
  * sampled travel. Each side intentionally moves as one rigid FDF partition. */
-static glueMotion_t const * const motion[UI_GLUE_PANEL_COUNT][UI_GLUE_SIDE_COUNT][BZ_GLUE_MAX_TABS] = {
+static glueMotion_t const *const motion[UI_GLUE_PANEL_COUNT][UI_GLUE_SIDE_COUNT][BZ_GLUE_MAX_TABS] = {
     [UI_GLUE_MAIN_MENU] = {{&motion_main}, {&motion_main}},
     [UI_GLUE_REALM_SELECTION] = {{&motion_realm}, {&motion_main}},
     [UI_GLUE_SINGLE_PLAYER] = {{&motion_main, &motion_main}, {&motion_main}},
@@ -76,7 +76,7 @@ static glueMotion_t const * const motion[UI_GLUE_PANEL_COUNT][UI_GLUE_SIDE_COUNT
 
 static cstring_t const phases[] = { "Stand", "Death", "Birth" };
 static uint32_t const durations[] = { 0, UI_GLUE_DEATH_TIME, UI_GLUE_BIRTH_TIME };
-static void UI_GlueReleaseModel(model_t const * model) {
+static void UI_GlueReleaseModel(model_t const *model) {
     mi.GetRenderer()->ReleaseModel((model_t *)model);
 }
 
@@ -102,7 +102,7 @@ static cstring_t UI_GlueTopRightPanelPath(void) {
 
 /* The stock sprite layers are an authored 4:3 pair: the left layer stays at the scene origin and the right
  * layer follows whatever extra width the engine canvas resolved (zero under the classic stretched policy). */
-static float UI_GlueRightPanelOffset(refExport_t * renderer) {
+static float UI_GlueRightPanelOffset(refExport_t *renderer) {
     return renderer->GetUISceneRect().w - UI_BASE_WIDTH;
 }
 
@@ -114,10 +114,10 @@ static void UI_GlueProgress(string_t anim, uint32_t start, uint32_t duration) {
 
 /* A non-default left panel must enter/leave its authored pose. Options Birth
  * animates only the base layout; using it before Stand Alternate caused a snap. */
-static cstring_t UI_GlueLayerAnimation(glueLayer_t const * layer, string_t anim) {
-    gluePanel_t const * panel = &glue_panels[layer->current.panel];
+static cstring_t UI_GlueLayerAnimation(glueLayer_t const *layer, string_t anim) {
+    gluePanel_t const *panel = &glue_panels[layer->current.panel];
     if (layer->current.tab) {
-        glueTab_t const * tab = &panel->tabs[layer->current.tab];
+        glueTab_t const *tab = &panel->tabs[layer->current.tab];
         cstring_t names[] = { tab->stand, tab->leave, tab->enter };
         snprintf(anim, UI_GLUE_ANIM_NAME, "%s", names[layer->phase]);
     } else snprintf(anim, UI_GLUE_ANIM_NAME, "%s %s", panel->name, phases[layer->phase]);
@@ -128,7 +128,7 @@ static cstring_t UI_GlueLayerAnimation(glueLayer_t const * layer, string_t anim)
 
 #ifdef WC3_DEBUG_GLUE
 /* Boundary diagnostics share the exact sequence resolver used for drawing. */
-static void UI_GlueDebugPhase(glueLayer_t const * layer) {
+static void UI_GlueDebugPhase(glueLayer_t const *layer) {
     char anim[UI_GLUE_ANIM_NAME];
     fprintf(stderr, "WC3 glue: side=%ld current=%u/%d/%d target=%u/%d/%d anim=\"%s\"\n",
             layer - scene.layers, layer->current.panel, layer->current.tab, layer->current.page,
@@ -156,8 +156,8 @@ void UI_ReleaseGlueSceneModels(void) {
 }
 
 /* Cache one load attempt per scene lifetime, but identify every missing sprite layer. */
-static model_t const * UI_GlueLoadModel(cstring_t path) {
-    model_t const * model = mi.GetRenderer()->LoadModel(path);
+static model_t const *UI_GlueLoadModel(cstring_t path) {
+    model_t const *model = mi.GetRenderer()->LoadModel(path);
     if (!model) fprintf(stderr, "UI: failed to load glue model '%s'\n", path);
     return model;
 }
@@ -176,15 +176,15 @@ static bool UI_GlueSameDest(glueDest_t a, glueDest_t b) {
 }
 
 bool UI_GlueSideReady(uiGlueSide_t side) {
-    glueLayer_t const * layer = &scene.layers[side];
+    glueLayer_t const *layer = &scene.layers[side];
     return layer->phase == UI_GLUE_PANEL_IDLE && UI_GlueSameDest(layer->current, layer->target);
 }
 
 /* Sample the same phase clock as the MDX; retain overshoot and the native exit curve. */
 float UI_GlueSideOffset(uiGlueSide_t side) {
-    glueLayer_t const * layer = &scene.layers[side];
+    glueLayer_t const *layer = &scene.layers[side];
     if (layer->phase == UI_GLUE_PANEL_IDLE || !layer->current.panel) return 0;
-    glueMotion_t const * track = motion[layer->current.panel][side][layer->current.tab];
+    glueMotion_t const *track = motion[layer->current.panel][side][layer->current.tab];
     float pos = (BZ_GLUE_SAMPLES - 1) * (float)MIN(M_Time() - layer->start, durations[layer->phase]) / durations[layer->phase];
     int idx = MIN((int)pos, BZ_GLUE_SAMPLES - 2);
     float const *curve = layer->phase == UI_GLUE_PANEL_ENTER ? track->enter : track->leave;
@@ -197,7 +197,7 @@ bool UI_GlueIsTransitioning(void) {
 
 /* Finish the running sequence before honoring a retarget. A tab leaves through
  * its base pose; a different family leaves through the closed-panel state. */
-static void UI_GlueAdvanceLayer(glueLayer_t * layer) {
+static void UI_GlueAdvanceLayer(glueLayer_t *layer) {
     if (layer->phase != UI_GLUE_PANEL_IDLE) {
         if (M_Time() - layer->start < durations[layer->phase]) return;
         if (layer->phase == UI_GLUE_PANEL_EXIT) {
@@ -224,7 +224,7 @@ static void UI_GlueAdvanceLayer(glueLayer_t * layer) {
 static void UI_GlueAdvanceTransition(void) {
     bool arrived = true;
     FOR_LOOP(i, UI_GLUE_SIDE_COUNT) {
-        glueLayer_t * layer = &scene.layers[i];
+        glueLayer_t *layer = &scene.layers[i];
         if (!UI_GlueSideReady(i)) UI_GlueAdvanceLayer(layer);
         if (layer->phase == UI_GLUE_PANEL_EXIT || !UI_GlueSameDest(layer->current, layer->target)) arrived = false;
     }
@@ -254,7 +254,7 @@ void UI_GotoGluePanel(glueDest_t dest, uiGluePanelChanged_f exited, uiGluePanelC
     scene.exited = exited;
     scene.changed = changed;
     FOR_LOOP(i, UI_GLUE_SIDE_COUNT) {
-        glueLayer_t * layer = &scene.layers[i];
+        glueLayer_t *layer = &scene.layers[i];
         layer->target = i == UI_GLUE_LEFT ? dest : (glueDest_t){ .panel = dest.panel };
         if (startup) {
             layer->current = layer->target;
@@ -269,7 +269,7 @@ void UI_GotoGluePanel(glueDest_t dest, uiGluePanelChanged_f exited, uiGluePanelC
 void UI_CloseGluePanel(uiGluePanelChanged_f changed) { UI_GotoGluePanel((glueDest_t){0}, NULL, changed); }
 
 void UI_DrawGlueScene(void) {
-    refExport_t * renderer = mi.GetRenderer();
+    refExport_t *renderer = mi.GetRenderer();
     float right_offset;
     char left_anim[UI_GLUE_ANIM_NAME];
     char right_anim[UI_GLUE_ANIM_NAME];

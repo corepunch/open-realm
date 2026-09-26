@@ -5,7 +5,7 @@
 #define GL_COMPRESSED_RGBA_S3TC_DXT3_EXT 0x83F2
 #define GL_COMPRESSED_RGBA_S3TC_DXT5_EXT 0x83F3
 
-texture_t const * dds = NULL;
+texture_t const *dds = NULL;
 
 static void DDS_ParseHeader(uint8_t const *buf, uint32_t *headerSize, uint32_t *width, uint32_t *height, uint32_t *mipMapCount) {
     *headerSize   = (buf[4])  | (buf[5]  << 8) | (buf[6]  << 16) | (buf[7]  << 24);
@@ -35,7 +35,7 @@ static void DDS_UnsupportedOnce(void) {
     }
 }
 
-texture_t * R_LoadTextureDDS(handle_t data, uint32_t filesize) {
+texture_t *R_LoadTextureDDS(handle_t data, uint32_t filesize) {
     uint8_t const *buf = data;
 
     uint32_t headerSize, width, height, mipMapCount;
@@ -49,7 +49,7 @@ texture_t * R_LoadTextureDDS(handle_t data, uint32_t filesize) {
 
     uint32_t pixelOffset = headerSize + 4;
 
-    texture_t * texture = ri.MemAlloc(sizeof(texture_t));
+    texture_t *texture = ri.MemAlloc(sizeof(texture_t));
     R_Call(glGenTextures, 1, &texture->texid);
     R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);

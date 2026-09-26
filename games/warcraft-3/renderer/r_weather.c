@@ -49,7 +49,7 @@ typedef struct {
     uint32_t effect_id;
     box2_t bounds;
     w3WeatherArt_t const *art;
-    texture_t const * texture;
+    texture_t const *texture;
     float emission_accum;
     uint32_t seen;
 } renderWeatherEffect_t;
@@ -124,7 +124,7 @@ static renderWeatherEffect_t *R_WeatherFind(uint32_t handle) {
     return NULL;
 }
 
-static texture_t const * R_WeatherTexture(w3WeatherArt_t const *art) {
+static texture_t const *R_WeatherTexture(w3WeatherArt_t const *art) {
     PATHSTR path;
 
     if (!art || !art->texFile || !*art->texFile) return NULL;
@@ -216,7 +216,7 @@ static box2_t R_WeatherEmissionBounds(void) {
     };
 }
 
-static bool R_WeatherIntersect(box2_t const * a, box2_t const * b, box2_t * out) {
+static bool R_WeatherIntersect(box2_t const *a, box2_t const *b, box2_t *out) {
     if (!a || !b || !out) return false;
     out->min.x = MAX(a->min.x, b->min.x);
     out->min.y = MAX(a->min.y, b->min.y);
@@ -234,7 +234,7 @@ static uint8_t R_WeatherScale(float value) {
     return (uint8_t)MIN(MAX(encoded, 0), 255);
 }
 
-static void R_WeatherSpawn(renderWeatherEffect_t *effect, box2_t const * area) {
+static void R_WeatherSpawn(renderWeatherEffect_t *effect, box2_t const *area) {
     w3WeatherArt_t const *art = effect->art;
     cparticle_t *p;
     float ax, ay, speed;

@@ -41,17 +41,17 @@ struct token {
     string_t secondary;
     TOKENTYPE type;
     uint32_t flags;
-    token_t * init;
-    token_t * body;
-    token_t * next;
-    token_t * args;
-    token_t * condition;
-    token_t * elseblock;
-    token_t * index;
+    token_t *init;
+    token_t *body;
+    token_t *next;
+    token_t *args;
+    token_t *condition;
+    token_t *elseblock;
+    token_t *index;
 };
 
-token_t * JASS_ParseTokens(wordExtractor_t * p);
-token_t * GALAXY_ParseTokens(wordExtractor_t * p);
-void JASS_FreeTokens(token_t * tokens);
+token_t *JASS_ParseTokens(wordExtractor_t *p);
+token_t *GALAXY_ParseTokens(wordExtractor_t *p);
+void JASS_FreeTokens(token_t *tokens);
 
 #endif

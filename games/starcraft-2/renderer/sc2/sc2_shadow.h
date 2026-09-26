@@ -12,7 +12,7 @@ typedef struct sc2shadowview_s {
 
 
 /* Fit native SC2 units to the visible ground footprint, rather than a WC3-sized 3000-unit square. */
-static bool sc2_shadow_matrix(sc2shadowview_t const * in, matrix4_t * out) {
+static bool sc2_shadow_matrix(sc2shadowview_t const *in, matrix4_t *out) {
     matrix4_t inv, view, proj;
     vector3_t dir = in->light;
     float radius = 0;

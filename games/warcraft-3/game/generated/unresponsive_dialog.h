@@ -5,15 +5,15 @@
 #include "../g_local.h"
 
 typedef struct UnresponsiveDialog_s {
-    frameDef_t * UnresponsiveDialog;
-    frameDef_t * UnresponsiveBackdrop;
-    frameDef_t * UnresponsiveTitleText;
-    frameDef_t * UnresponsiveDisconnectButton;
-    frameDef_t * UnresponsiveDisconnectButtonText;
+    frameDef_t *UnresponsiveDialog;
+    frameDef_t *UnresponsiveBackdrop;
+    frameDef_t *UnresponsiveTitleText;
+    frameDef_t *UnresponsiveDisconnectButton;
+    frameDef_t *UnresponsiveDisconnectButtonText;
 } UnresponsiveDialog_t;
 
 
-static inline bool UnresponsiveDialog_Bind(UnresponsiveDialog_t *out, frameDef_t * bind_root) {
+static inline bool UnresponsiveDialog_Bind(UnresponsiveDialog_t *out, frameDef_t *bind_root) {
     bool ok = true;
     if (!out) {
         return false;

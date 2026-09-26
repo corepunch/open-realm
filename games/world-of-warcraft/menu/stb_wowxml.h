@@ -152,7 +152,7 @@ typedef struct {
     color32_t colors[ELEM_COLOR_COUNT];
     color32_t button_text_colors[WOW_XML_BUTTON_TEXT_COUNT];
     rect_t texcoord, highlight_texcoord;
-    model_t * model;
+    model_t *model;
     uint32_t sequence, frame, oldframe, anim_start;
     color32_t fog_color;
     float fog_near, fog_far;
@@ -207,7 +207,7 @@ float  UIWow_XmlY(float pixels);
 bool   UIWow_XmlResolvePath(cstring_t base, cstring_t rel, string_t out, size_t n);
 bool   UIWow_XMLProcessFile(cstring_t path, int depth);
 
-static inline bool UIWow_XMLPointInRect(float x, float y, rect_t const * r) {
+static inline bool UIWow_XMLPointInRect(float x, float y, rect_t const *r) {
     return r && x >= r->x && y >= r->y && x <= r->x + r->w && y <= r->y + r->h;
 }
 
@@ -558,7 +558,7 @@ static void UIWow_XmlInheritElem(uiWowXmlElem_t *e, cstring_t inherits) {
     }
 }
 
-static void UIWow_XmlPointFactors(cstring_t point, float * fx, float * fy) {
+static void UIWow_XmlPointFactors(cstring_t point, float *fx, float *fy) {
     if (!point || !*point) point = "CENTER";
     for (int i = 0; uiwow_point_factors[i].name; i++) {
         if (!strcasecmp(point, uiwow_point_factors[i].name)) {
@@ -570,7 +570,7 @@ static void UIWow_XmlPointFactors(cstring_t point, float * fx, float * fy) {
     *fx = 0.5f; *fy = 0.5f;
 }
 
-static void UIWow_XmlRectPoint(rect_t const * r, cstring_t point, float * x, float * y) {
+static void UIWow_XmlRectPoint(rect_t const *r, cstring_t point, float *x, float *y) {
     float fx, fy;
     UIWow_XmlPointFactors(point, &fx, &fy);
     *x = r->x + r->w * fx;

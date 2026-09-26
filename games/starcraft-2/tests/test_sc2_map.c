@@ -28,8 +28,8 @@
 static bool sc2_tests_initialized;
 static uint32_t short_terrain_dimensions;
 
-static float test_grid_height(void const * data, uint32_t x, uint32_t y) {
-    float const * heights = data;
+static float test_grid_height(void const *data, uint32_t x, uint32_t y) {
+    float const *heights = data;
 
     return heights[x + y * 3];
 }
@@ -317,10 +317,10 @@ static void use_sc2_fs_host(void) {
     });
 }
 
-static handle_t read_test_disk_path(cstring_t filename, uint32_t * size) {
+static handle_t read_test_disk_path(cstring_t filename, uint32_t *size) {
     FILE *file;
     long file_size;
-    uint8_t * data;
+    uint8_t *data;
     struct stat st;
 
     if (size) *size = 0;
@@ -357,7 +357,7 @@ static void normalize_disk_path(string_t path) {
     }
 }
 
-static handle_t read_test_disk_file(cstring_t filename, uint32_t * size) {
+static handle_t read_test_disk_file(cstring_t filename, uint32_t *size) {
     char path[MAX_PATHLEN * 2];
     handle_t data;
 
@@ -397,7 +397,7 @@ static bool test_path_leaf_is(cstring_t filename, cstring_t leaf) {
     return !strcmp(base, leaf);
 }
 
-static handle_t read_test_no_manifest_file(cstring_t filename, uint32_t * size) {
+static handle_t read_test_no_manifest_file(cstring_t filename, uint32_t *size) {
     if (test_path_leaf_is(filename, "GameData.xml")) {
         if (size) *size = 0;
         return NULL;
@@ -430,7 +430,7 @@ static uint32_t short_terrain_height(uint32_t height) {
     return height;
 }
 
-static handle_t make_short_height_map(uint32_t * size) {
+static handle_t make_short_height_map(uint32_t *size) {
     sc2MapHeightMap_t *layer = MemAlloc(sizeof(*layer));
 
     if (!layer)
@@ -443,7 +443,7 @@ static handle_t make_short_height_map(uint32_t * size) {
     return layer;
 }
 
-static handle_t make_short_sync_height_map(uint32_t * size) {
+static handle_t make_short_sync_height_map(uint32_t *size) {
     sc2MapSyncHeightMap_t *layer = MemAlloc(sizeof(*layer));
 
     if (!layer)
@@ -456,7 +456,7 @@ static handle_t make_short_sync_height_map(uint32_t * size) {
     return layer;
 }
 
-static handle_t make_short_cell_flags(uint32_t * size) {
+static handle_t make_short_cell_flags(uint32_t *size) {
     sc2MapCellFlags_t *layer = MemAlloc(sizeof(*layer));
 
     if (!layer)
@@ -469,7 +469,7 @@ static handle_t make_short_cell_flags(uint32_t * size) {
     return layer;
 }
 
-static handle_t make_short_sync_cliff_level(uint32_t * size) {
+static handle_t make_short_sync_cliff_level(uint32_t *size) {
     sc2MapSyncCliffLevel_t *layer = MemAlloc(sizeof(*layer));
 
     if (!layer)
@@ -482,7 +482,7 @@ static handle_t make_short_sync_cliff_level(uint32_t * size) {
     return layer;
 }
 
-static handle_t make_short_texture_masks(uint32_t * size) {
+static handle_t make_short_texture_masks(uint32_t *size) {
     sc2MapTextureMasks_t *layer = MemAlloc(sizeof(*layer));
 
     if (!layer)
@@ -495,7 +495,7 @@ static handle_t make_short_texture_masks(uint32_t * size) {
     return layer;
 }
 
-static handle_t make_short_hard_tiles(uint32_t * size) {
+static handle_t make_short_hard_tiles(uint32_t *size) {
     uint8_t *layer = MemAlloc(32);
 
     if (!layer) return NULL;
@@ -505,7 +505,7 @@ static handle_t make_short_hard_tiles(uint32_t * size) {
     return layer;
 }
 
-static handle_t read_test_short_terrain_file(cstring_t filename, uint32_t * size) {
+static handle_t read_test_short_terrain_file(cstring_t filename, uint32_t *size) {
     if (size) *size = 0;
     if (test_path_leaf_is(filename, "t3HeightMap"))
         return make_short_height_map(size);
@@ -1071,7 +1071,7 @@ static void road_disable(GLenum cap) { T_EQ(cap, GL_POLYGON_OFFSET_FILL); road_p
 static void road_offset(GLfloat factor, GLfloat units) {
     road_pass.factor = factor; road_pass.units = units; road_pass.calls++;
 }
-static void road_draw(renderEntity_t const *entity, m3Model_t const *model, buffer_t const * buffer, uint32_t vertices, uint32_t indices) {
+static void road_draw(renderEntity_t const *entity, m3Model_t const *model, buffer_t const *buffer, uint32_t vertices, uint32_t indices) {
     T_ASSERT(entity->model->m3 == model); T_NOT_NULL(buffer); T_EQ(vertices, 3); T_EQ(indices, 3);
     T_ASSERT(road_pass.offset); T_ASSERT(road_pass.factor < -1); T_ASSERT(road_pass.units < -1);
     road_pass.draws++;

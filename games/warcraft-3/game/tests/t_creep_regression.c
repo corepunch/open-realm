@@ -2,14 +2,14 @@
 #include "test.h"
 #include "../skills/s_skills.h"
 
-edict_t * alloc_test_unit(uint32_t, float, float);
+edict_t *alloc_test_unit(uint32_t, float, float);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *);
+slkTestData_t *parse_slk_string(char const *);
 void free_slk_rows(slkTestData_t *);
 
 /* Stock column meanings with deterministic proc chance; all cases drive production entry points. */
-typedef struct { slkTestData_t *rows, *old; edict_t * caster, *target; UnitAbilities_t abilities; } creepFix_t;
+typedef struct { slkTestData_t *rows, *old; edict_t *caster, *target; UnitAbilities_t abilities; } creepFix_t;
 
 typedef struct { cstring_t id, parent, buffs, targs; float area, data[6]; bool roc; } creepData_t;
 
@@ -54,8 +54,8 @@ static void creep_setup(creepFix_t *fix, creepData_t const *row) {
 
 static void creep_done(creepFix_t *fix) { G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows); }
 
-static edict_t * creep_neighbor(float x) {
-    edict_t * unit = alloc_test_unit(FS_SLKKey("hfoo"), x, 0);
+static edict_t *creep_neighbor(float x) {
+    edict_t *unit = alloc_test_unit(FS_SLKKey("hfoo"), x, 0);
     unit->svflags |= SVF_MONSTER; unit->targtype = TARG_GROUND; unit->s.player = 1;
     unit->health.value = unit->health.max_value = 500; unit->die = unit_die;
     return unit;
@@ -73,7 +73,7 @@ TEST(wc3_spell, creep_regression_disease_uses_dps_not_duration) {
 
 TEST(wc3_spell, creep_regression_pulverize_stock_columns) {
     creepFix_t fix;
-    edict_t * nearby;
+    edict_t *nearby;
     creep_setup(&fix, &(creepData_t){ .id = "Awar", .parent = "Awar", .buffs = "", .area = 0, .data = {100, 60, 250, 350, 0} });
     nearby = alloc_test_unit(FS_SLKKey("hfoo"), 500, 0);
     nearby->svflags |= SVF_MONSTER; nearby->targtype = TARG_GROUND; nearby->s.player = 1;
@@ -108,7 +108,7 @@ TEST(wc3_spell, creep_regression_monsoon_hits_requested_point) {
 
 TEST(wc3_spell, creep_regression_incinerate_uses_authored_explosion_radius) {
     creepFix_t fix;
-    edict_t * nearby;
+    edict_t *nearby;
     creep_setup(&fix, &(creepData_t){ .id = "ANic", .parent = "ANic", .buffs = "BNic", .area = 0, .data = {2, 30, 120, 15, 240} });
     nearby = alloc_test_unit(FS_SLKKey("hfoo"), 500, 0);
     nearby->svflags |= SVF_MONSTER; nearby->s.player = 1; nearby->targtype = TARG_GROUND;
@@ -122,7 +122,7 @@ TEST(wc3_spell, creep_regression_incinerate_uses_authored_explosion_radius) {
 
 TEST(wc3_spell, creep_regression_incinerate_explodes_on_normal_lethal_hit) {
     creepFix_t fix;
-    edict_t * nearby;
+    edict_t *nearby;
     /* Nonzero Area isolates the death hook from the independent radius bug. */
     creep_setup(&fix, &(creepData_t){ .id = "ANic", .parent = "ANic", .buffs = "BNic", .area = 120, .data = {2, 30, 120, 15, 240} });
     nearby = alloc_test_unit(FS_SLKKey("hfoo"), 500, 0);
@@ -159,7 +159,7 @@ TEST(wc3_spell, creep_regression_disease_roc_lingers_expires_and_dispels) {
 
 TEST(wc3_spell, creep_regression_pulverize_roc_outer_ring_and_target_filter) {
     creepFix_t fix;
-    edict_t * full, *half, *outside, *air, *friend;
+    edict_t *full, *half, *outside, *air, *friend;
     creep_setup(&fix, &(creepData_t){ .id = "Zpul", .parent = "Awar", .buffs = "", .data = {100, 40, 100, 200}, .roc = true });
     full = creep_neighbor(500); half = creep_neighbor(600); outside = creep_neighbor(700);
     air = creep_neighbor(500); air->targtype = TARG_AIR;
@@ -201,7 +201,7 @@ TEST(wc3_spell, creep_regression_web_roc_validation_and_last_bind_release) {
 
 TEST(wc3_spell, creep_regression_monsoon_interval_buildings_and_cancellation) {
     creepFix_t fix;
-    edict_t * building, *outside, *thinker = NULL;
+    edict_t *building, *outside, *thinker = NULL;
     creep_setup(&fix, &(creepData_t){ .id = "Zmon", .parent = "ANmo", .buffs = "ANmd", .targs = "air,ground,structure,enemy,neutral", .area = 64, .data = {20, 1.5f, 0.35f} });
     building = creep_neighbor(460); building->targtype = TARG_STRUCTURE;
     outside = creep_neighbor(600);
@@ -223,7 +223,7 @@ TEST(wc3_spell, creep_regression_monsoon_interval_buildings_and_cancellation) {
 
 TEST(wc3_spell, creep_regression_incinerate_delayed_third_party_death_and_rings) {
     creepFix_t fix;
-    edict_t * full, *half, *outside, *blast = NULL;
+    edict_t *full, *half, *outside, *blast = NULL;
     creep_setup(&fix, &(creepData_t){ .id = "Zinc", .parent = "ANic", .buffs = "BNic", .targs = "enemy,neutral,organic,nonancient", .data = {2, 30, 120, 15, 240, 0.2f} });
     full = creep_neighbor(500); half = creep_neighbor(650); outside = creep_neighbor(750);
     S_ResolveAttackHit(fix.caster, fix.target, 10);
@@ -246,7 +246,7 @@ TEST(wc3_spell, creep_regression_incinerate_delayed_third_party_death_and_rings)
 TEST(wc3_spell, creep_regression_incinerate_expiry_dispel_and_source_reuse) {
     FOR_LOOP(reason, 3) {
         creepFix_t fix;
-        edict_t * nearby;
+        edict_t *nearby;
         creep_setup(&fix, &(creepData_t){ .id = "ANic", .parent = "ANic", .buffs = "BNic", .data = {2, 30, 120, 15, 240} });
         nearby = creep_neighbor(500);
         S_ResolveAttackHit(fix.caster, fix.target, 10);
@@ -281,7 +281,7 @@ TEST(wc3_save, creep_disease_status_round_trip_and_source_reuse) {
 TEST(wc3_save, creep_incinerate_mark_and_delayed_explosion_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-creep-incinerate.bin";
     creepFix_t fix;
-    edict_t * nearby, *blast = NULL;
+    edict_t *nearby, *blast = NULL;
     creep_setup(&fix, &(creepData_t){ .id = "ANic", .parent = "ANic", .buffs = "BNic", .data = {2, 30, 120, 15, 240, 0.2f} });
     nearby = creep_neighbor(500);
     S_ResolveAttackHit(fix.caster, fix.target, 10);
@@ -301,7 +301,7 @@ TEST(wc3_save, creep_incinerate_mark_and_delayed_explosion_round_trip) {
 TEST(wc3_save, creep_monsoon_channel_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-creep-monsoon.bin";
     creepFix_t fix;
-    edict_t * thinker = NULL;
+    edict_t *thinker = NULL;
     creep_setup(&fix, &(creepData_t){ .id = "ANmo", .parent = "ANmo", .buffs = "ANmd", .targs = "air,ground,structure,enemy,neutral", .area = 64, .data = {20, 1.5f, 0.35f} });
     T_ASSERT(S_CastPointTargetSpell(fix.caster, FS_SLKKey("ANmo"), &fix.target->s.origin2));
     FILTER_EDICTS(ent, ent->think == monsoon_think) { thinker = ent; break; }

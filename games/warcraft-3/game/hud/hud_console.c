@@ -198,7 +198,7 @@ void UI_TestFormatUpkeepLegend(string_t out, uint32_t out_size, cstring_t info, 
 }
 #endif
 
-static void UI_SetResourceTooltip(frameDef_t * frame, resourceTooltipText_t *storage,
+static void UI_SetResourceTooltip(frameDef_t *frame, resourceTooltipText_t *storage,
                                   cstring_t label_key, cstring_t label_fallback,
                                   cstring_t ubertip_key) {
     cstring_t label;
@@ -216,7 +216,7 @@ static void UI_SetResourceTooltip(frameDef_t * frame, resourceTooltipText_t *sto
     frame->Ubertip = storage->ubertip[0] ? storage->ubertip : NULL;
 }
 
-static void UI_SetUpkeepTooltip(frameDef_t * frame, resourceTooltipText_t *storage,
+static void UI_SetUpkeepTooltip(frameDef_t *frame, resourceTooltipText_t *storage,
                                 uint32_t tier, int32_t gold_rate) {
     cstring_t upkeep_label;
     cstring_t upkeep_prefix;
@@ -242,7 +242,7 @@ static void UI_SetUpkeepTooltip(frameDef_t * frame, resourceTooltipText_t *stora
 static void UI_CollectConsoleWideChrome(void) {
     hud.console_wide_count = 0;
     FOR_LOOP(i, MAX_UI_CLASSES) {
-        frameDef_t * it = frames + i;
+        frameDef_t *it = frames + i;
         if (!it->inuse || it->Parent != hud.console.ConsoleUI || it->Type != FT_TEXTURE) continue;
         if (!UI_IsWideChromeKey(UI_ImageKey(it->Texture.Image))) continue;
         if (hud.console_wide_count == HUD_CONSOLE_WIDE_MAX) {
@@ -288,7 +288,7 @@ void UI_LoadHudConsole(void) {
     hud.res.ResourceBarSupplyText->Stat = PLAYERSTATE_RESOURCE_FOOD_USED;
 }
 
-static void UI_WriteTimeOfDayIndicator(gameClient_t * client) {
+static void UI_WriteTimeOfDayIndicator(gameClient_t *client) {
     uiFrame_t frame;
     uiFrame_t listener;
     cstring_t model;
@@ -335,7 +335,7 @@ static void UI_WriteTimeOfDayIndicator(gameClient_t * client) {
 }
 
 /* Native attention art has no FDF frame; anchor its authored model to the real button. */
-static void UI_WriteQuestIndicator(gameClient_t * client) {
+static void UI_WriteQuestIndicator(gameClient_t *client) {
     uint32_t parent = UI_GetWrittenFrameNumber(hud.upper.UpperButtonBarQuestsButton);
     cstring_t model;
     uiFrame_t frame = { .flags.type = FT_SPRITE, .color = COLOR32_WHITE, .text = "Stand" };
@@ -367,7 +367,7 @@ void UI_WriteMinimapFrame(void) {
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
-void UI_WriteConsoleBackdrop(gameClient_t * client, int32_t food_used, int32_t food_cap) {
+void UI_WriteConsoleBackdrop(gameClient_t *client, int32_t food_used, int32_t food_cap) {
     uint32_t upkeep_tier;
     cstring_t upkeep_text;
     color32_t upkeep_color;
@@ -382,7 +382,7 @@ void UI_WriteConsoleBackdrop(gameClient_t * client, int32_t food_used, int32_t f
     }
 
     if (hud.upper.UpperButtonBarFrame) {
-        frameDef_t * buttons[] = {
+        frameDef_t *buttons[] = {
             hud.upper.UpperButtonBarQuestsButton,
             hud.upper.UpperButtonBarMenuButton,
             hud.upper.UpperButtonBarAlliesButton,

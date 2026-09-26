@@ -418,11 +418,11 @@ static handle_t OpenFileFallback(cstring_t path, string_t resolved, uint32_t res
     return NULL;
 }
 
-static uint8_t * ReadWholeFile(cstring_t path, uint32_t * out_size, string_t resolved, uint32_t resolved_size) {
+static uint8_t *ReadWholeFile(cstring_t path, uint32_t *out_size, string_t resolved, uint32_t resolved_size) {
     handle_t file = OpenFileFallback(path, resolved, resolved_size);
     uint32_t size;
     uint32_t read_size = 0;
-    uint8_t * data;
+    uint8_t *data;
 
     if (!file) {
         return NULL;
@@ -470,7 +470,7 @@ enum {
 #define M2TOOL_NUM_GEOSET_GROUPS 16
 
 typedef struct {
-    uint8_t * data;
+    uint8_t *data;
     uint32_t size;
     uint32_t records;
     uint32_t fields;
@@ -1955,7 +1955,7 @@ static void PrintSkinInfo(cstring_t model_path, uint8_t const *m2_data, uint32_t
     PATHSTR requested;
     PATHSTR resolved = { 0 };
     uint32_t size = 0;
-    uint8_t * data;
+    uint8_t *data;
     m2SkinHeader_t const *skin;
 
     if (g_skin_path) {
@@ -2016,7 +2016,7 @@ static uint32_t CollectSkinSections(cstring_t model_path,
     PATHSTR requested;
     PATHSTR resolved = { 0 };
     uint32_t size = 0;
-    uint8_t * data;
+    uint8_t *data;
     m2SkinHeader_t const *skin;
     uint32_t count = 0;
 
@@ -2186,7 +2186,7 @@ static void PrintHeaderArrays(m2HeaderInfo_t const *h) {
 static void InspectModel(void) {
     PATHSTR resolved = { 0 };
     uint32_t file_size = 0;
-    uint8_t * file_data;
+    uint8_t *file_data;
     uint8_t const *payload;
     uint32_t payload_size;
     m2HeaderInfo_t header;
@@ -2285,7 +2285,7 @@ static void InspectModel(void) {
 static bool LoadPreviewBounds(box3_t *bounds, float *extent_out) {
     PATHSTR resolved = { 0 };
     uint32_t file_size = 0;
-    uint8_t * file_data;
+    uint8_t *file_data;
     uint8_t const *payload;
     uint32_t payload_size;
     m2HeaderInfo_t header;
@@ -2315,7 +2315,7 @@ static bool LoadPreviewBounds(box3_t *bounds, float *extent_out) {
     return true;
 }
 
-static void RenderViewerFrame(refExport_t const *re, model_t * model, uint32_t now, box3_t const * bounds) {
+static void RenderViewerFrame(refExport_t const *re, model_t *model, uint32_t now, box3_t const *bounds) {
     viewDef_t viewdef = { 0 };
     renderEntity_t entity = { 0 };
     size2_t window = re->GetWindowSize();
@@ -2365,7 +2365,7 @@ static void RenderViewerFrame(refExport_t const *re, model_t * model, uint32_t n
 
 static int RunViewer(void) {
     refExport_t re;
-    model_t * model;
+    model_t *model;
     box3_t bounds = { 0 };
     bool has_bounds;
     float extent = 2.5f;

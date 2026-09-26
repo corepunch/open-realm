@@ -5,20 +5,20 @@
 #include "../menu_local.h"
 
 typedef struct CreditsMenu_s {
-    frameDef_t * CreditsMenu;
-    frameDef_t * CreditsControlLayer;
-    frameDef_t * CreditsTitleText;
-    frameDef_t * CreditsSubtitleText;
-    frameDef_t * CreditsBodyText;
-    frameDef_t * CreditsFooterText;
-    frameDef_t * CreditsBackBackdrop;
-    frameDef_t * CreditsBackButton;
-    frameDef_t * CreditsBackButtonText;
+    frameDef_t *CreditsMenu;
+    frameDef_t *CreditsControlLayer;
+    frameDef_t *CreditsTitleText;
+    frameDef_t *CreditsSubtitleText;
+    frameDef_t *CreditsBodyText;
+    frameDef_t *CreditsFooterText;
+    frameDef_t *CreditsBackBackdrop;
+    frameDef_t *CreditsBackButton;
+    frameDef_t *CreditsBackButtonText;
 } CreditsMenu_t;
 
 static inline bool CreditsMenu_Load(CreditsMenu_t *out) {
     bool ok = true;
-    frameDef_t * bind_root;
+    frameDef_t *bind_root;
     if (!out) {
         return false;
     }

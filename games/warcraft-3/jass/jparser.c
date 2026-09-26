@@ -4,7 +4,7 @@
 
 #define ALLOC(type) jass_alloc(sizeof(type))
 #define FREE(val) SAFE_DELETE(val, jass_free)
-#define wordExtractor_t(NAME, ...) static token_t * NAME(wordExtractor_t * p, ##__VA_ARGS__)
+#define wordExtractor_t(NAME, ...) static token_t *NAME(wordExtractor_t *p, ##__VA_ARGS__)
 
 #define PARSER_THROW(...) do { \
     fprintf(stderr, __VA_ARGS__); \
@@ -37,7 +37,7 @@ static bool token_in(cstring_t tok, cstring_t const *grammar, uint32_t count) {
     return false;
 }
 
-static uint32_t parser_line(wordExtractor_t * p) {
+static uint32_t parser_line(wordExtractor_t *p) {
     uint32_t line = 1;
     for (cstring_t cur = p->start; cur && cur < p->buffer; cur++) {
         if (*cur == '\n' || *cur == '\r') {
@@ -53,7 +53,7 @@ bool is_multiplicative_operator(cstring_t str) {
     return token_in(str, grammar, sizeof(grammar) / sizeof(*grammar));
 }
 
-bool is_additive_operator(wordExtractor_t * p, cstring_t str) {
+bool is_additive_operator(wordExtractor_t *p, cstring_t str) {
     static cstring_t const grammar[] = { "+", "-" };
     static cstring_t const c_grammar[] = { "<<", ">>" };
     (void)p;
@@ -66,7 +66,7 @@ bool is_compare_operator(cstring_t str) {
     return token_in(str, grammar, sizeof(grammar) / sizeof(*grammar));
 }
 
-bool is_logic_operator(wordExtractor_t * p, cstring_t str) {
+bool is_logic_operator(wordExtractor_t *p, cstring_t str) {
     static cstring_t const grammar[] = { "and", "or" };
     static cstring_t const c_grammar[] = { "&&", "||", "|", "&", "^" };
     (void)p;
@@ -90,7 +90,7 @@ cstring_t jass_getoperator(cstring_t str) {
 void parser_throw(void) {
 }
 
-string_t read_identifier(wordExtractor_t * p) {
+string_t read_identifier(wordExtractor_t *p) {
     if (is_identifier(peek_token(p))) {
         return strdup(parse_token(p));
     } else {
@@ -98,7 +98,7 @@ string_t read_identifier(wordExtractor_t * p) {
     }
 }
 
-static grammarFunc_t eat_keyword(wordExtractor_t * p, parseClass_t *keywords) {
+static grammarFunc_t eat_keyword(wordExtractor_t *p, parseClass_t *keywords) {
     for (parseClass_t *cl = keywords; cl->name; cl++) {
         if (eat_token(p, cl->name)) {
             return cl->func;
@@ -107,8 +107,8 @@ static grammarFunc_t eat_keyword(wordExtractor_t * p, parseClass_t *keywords) {
     return NULL;
 }
 
-static bool parse_body(wordExtractor_t * p, token_t * function) {
-    token_t * token = NULL;
+static bool parse_body(wordExtractor_t *p, token_t *function) {
+    token_t *token = NULL;
     grammarFunc_t func = eat_keyword(p, function_keywords);
     if (func && (token = func(p))) {
         PUSH_BACK(token_t, token, function->body);
@@ -118,16 +118,16 @@ static bool parse_body(wordExtractor_t * p, token_t * function) {
     return true;
 }
 
-static token_t * alloc_token(TOKENTYPE type) {
-    token_t * token = ALLOC(token_t);
+static token_t *alloc_token(TOKENTYPE type) {
+    token_t *token = ALLOC(token_t);
     token->type = type;
     return token;
 }
 
 /* Parsed programs own every AST edge and string; runtime declarations borrow those strings until VM close. */
-void JASS_FreeTokens(token_t * tokens) {
+void JASS_FreeTokens(token_t *tokens) {
     while (tokens) {
-        token_t * next = tokens->next;
+        token_t *next = tokens->next;
         JASS_FreeTokens(tokens->init);
         JASS_FreeTokens(tokens->body);
         JASS_FreeTokens(tokens->args);
@@ -142,13 +142,13 @@ void JASS_FreeTokens(token_t * tokens) {
 }
 
 //PARSER(parse_identifier) {
-//    token_t * token = alloc_token(TT_IDENTIFIER);
+//    token_t *token = alloc_token(TT_IDENTIFIER);
 //    token->primary = read_identifier(p);
 //    return token;
 //}
 
 wordExtractor_t(keyword_type) {
-    token_t * token = alloc_token(TT_TYPEDEF);
+    token_t *token = alloc_token(TT_TYPEDEF);
     token->primary = read_identifier(p);
     if (eat_token(p, "extends")) {
         token->secondary = read_identifier(p);
@@ -162,9 +162,9 @@ wordExtractor_t(parse_args) {
     if (eat_token(p, "nothing")) {
         return NULL;
     }
-    token_t * args = NULL;
+    token_t *args = NULL;
     while (!args || eat_token(p, ",")) {
-        token_t * arg = alloc_token(TT_VARDECL);
+        token_t *arg = alloc_token(TT_VARDECL);
         arg->primary = read_identifier(p);
         arg->secondary = read_identifier(p);
         PUSH_BACK(token_t, arg, args);
@@ -173,7 +173,7 @@ wordExtractor_t(parse_args) {
 }
 
 wordExtractor_t(parse_function_decl) {
-    token_t * token = alloc_token(TT_FUNCTION);
+    token_t *token = alloc_token(TT_FUNCTION);
     token->primary = read_identifier(p);
     if (eat_token(p, "takes")) {
         token->args = parse_args(p);
@@ -187,19 +187,19 @@ wordExtractor_t(parse_function_decl) {
 wordExtractor_t(keyword_function);
 
 wordExtractor_t(keyword_native) {
-    token_t * token = parse_function_decl(p);
+    token_t *token = parse_function_decl(p);
     token->flags |= TF_NATIVE;
     return token;
 }
 
 wordExtractor_t(keyword_constant) {
     if (eat_token(p, "native")) {
-        token_t * token = keyword_native(p);
+        token_t *token = keyword_native(p);
         token->flags |= TF_CONSTANT;
         return token;
     }
     if (eat_token(p, "function")) {
-        token_t * token = keyword_function(p);
+        token_t *token = keyword_function(p);
         token->flags |= TF_CONSTANT;
         return token;
     }
@@ -214,17 +214,17 @@ static void jass_remove_quotes(string_t str, char quote) {
     }
 }
 
-token_t * alloc_ident_token(wordExtractor_t * p, TOKENTYPE tt) {
-    token_t * t = alloc_token(tt);
+token_t *alloc_ident_token(wordExtractor_t *p, TOKENTYPE tt) {
+    token_t *t = alloc_token(tt);
     t->primary = strdup(parse_token(p));
     return t;
 }
 
-token_t * parse_operator_token(wordExtractor_t * p) {
+token_t *parse_operator_token(wordExtractor_t *p) {
     UINAME op = { 0 };
     strlcpy(op, parse_token(p), sizeof(op));
     cstring_t operatorid = jass_getoperator(op);
-    token_t * t = alloc_token(TT_CALL);
+    token_t *t = alloc_token(TT_CALL);
     t->primary = strdup(operatorid);
     return t;
 }
@@ -232,10 +232,10 @@ token_t * parse_operator_token(wordExtractor_t * p) {
 wordExtractor_t(parse_logical_expression);
 
 /* Preserve each Galaxy array dimension so the VM can walk nested sparse arrays. */
-static void parse_array_indices(wordExtractor_t * p, token_t * token) {
+static void parse_array_indices(wordExtractor_t *p, token_t *token) {
     token_t * *next = &token->body;
     while (eat_token(p, "[")) {
-        token_t * access = token;
+        token_t *access = token;
         if (token->index) {
             access = alloc_token(TT_ARRAYACCESS);
             *next = access; next = &access->body;
@@ -246,7 +246,7 @@ static void parse_array_indices(wordExtractor_t * p, token_t * token) {
 
 wordExtractor_t(read_single_identifier) {
     cstring_t tok = peek_token(p);
-    token_t * left = NULL;
+    token_t *left = NULL;
     if (eat_token(p, "function")) {
         left = alloc_ident_token(p, TT_IDENTIFIER);
         left->flags |= TF_FUNCTION;
@@ -288,10 +288,10 @@ wordExtractor_t(read_single_identifier) {
 }
 
 wordExtractor_t(parse_multiplicative_expression) {
-    token_t * left = read_single_identifier(p);
+    token_t *left = read_single_identifier(p);
     if (is_multiplicative_operator(peek_token(p))) {
-        token_t * oper = parse_operator_token(p);
-        token_t * right = parse_multiplicative_expression(p);
+        token_t *oper = parse_operator_token(p);
+        token_t *right = parse_multiplicative_expression(p);
         PUSH_BACK(token_t, left, oper->args);
         PUSH_BACK(token_t, right, oper->args);
         return oper;
@@ -300,10 +300,10 @@ wordExtractor_t(parse_multiplicative_expression) {
 }
 
 wordExtractor_t(parse_additive_expression) {
-    token_t * left = parse_multiplicative_expression(p);
+    token_t *left = parse_multiplicative_expression(p);
     if (is_additive_operator(p, peek_token(p))) {
-        token_t * oper = parse_operator_token(p);
-        token_t * right = parse_additive_expression(p);
+        token_t *oper = parse_operator_token(p);
+        token_t *right = parse_additive_expression(p);
         PUSH_BACK(token_t, left, oper->args);
         PUSH_BACK(token_t, right, oper->args);
         return oper;
@@ -312,10 +312,10 @@ wordExtractor_t(parse_additive_expression) {
 }
 
 wordExtractor_t(parse_comparison_expression) {
-    token_t * left = parse_additive_expression(p);
+    token_t *left = parse_additive_expression(p);
     if (is_compare_operator(peek_token(p))) {
-        token_t * oper = parse_operator_token(p);
-        token_t * right = parse_comparison_expression(p);
+        token_t *oper = parse_operator_token(p);
+        token_t *right = parse_comparison_expression(p);
         PUSH_BACK(token_t, left, oper->args);
         PUSH_BACK(token_t, right, oper->args);
         return oper;
@@ -324,10 +324,10 @@ wordExtractor_t(parse_comparison_expression) {
 }
 
 wordExtractor_t(parse_logical_expression) {
-    token_t * left = parse_comparison_expression(p);
+    token_t *left = parse_comparison_expression(p);
     if (is_logic_operator(p, peek_token(p))) {
-        token_t * oper = parse_operator_token(p);
-        token_t * right = parse_logical_expression(p);
+        token_t *oper = parse_operator_token(p);
+        token_t *right = parse_logical_expression(p);
         PUSH_BACK(token_t, left, oper->args);
         PUSH_BACK(token_t, right, oper->args);
         return oper;
@@ -343,9 +343,9 @@ wordExtractor_t(parse_logical_expression) {
 }
 
 wordExtractor_t(keyword_globals) {
-    token_t * globals = NULL;
+    token_t *globals = NULL;
     while (!eat_token(p, "endglobals")) {
-        token_t * token = alloc_token(TT_GLOBAL);
+        token_t *token = alloc_token(TT_GLOBAL);
         if (eat_token(p, "constant")) {
             token->flags |= TF_CONSTANT;
         }
@@ -363,7 +363,7 @@ wordExtractor_t(keyword_globals) {
 }
 
 wordExtractor_t(statement_set) {
-    token_t * token = alloc_token(TT_SET);
+    token_t *token = alloc_token(TT_SET);
     token->secondary = read_identifier(p);
     if (eat_token(p, "[")) {
         token->index = parse_logical_expression(p);
@@ -379,7 +379,7 @@ wordExtractor_t(statement_call) {
 }
 
 wordExtractor_t(statement_local) {
-    token_t * token = alloc_token(TT_VARDECL);
+    token_t *token = alloc_token(TT_VARDECL);
     token->primary = read_identifier(p);
     if (eat_token(p, "array")) {
         token->flags |= TF_ARRAY;
@@ -392,8 +392,8 @@ wordExtractor_t(statement_local) {
 }
 
 wordExtractor_t(statement_if) {
-    token_t * token = alloc_token(TT_IF);
-    token_t * target = token;
+    token_t *token = alloc_token(TT_IF);
+    token_t *target = token;
     token->condition = parse_logical_expression(p);
     if (!eat_token(p, "then")) {
         FREE(token);
@@ -401,7 +401,7 @@ wordExtractor_t(statement_if) {
     }
     while (!eat_token(p, "endif")) {
         if (eat_token(p, "elseif")) {
-            token_t * next = alloc_token(TT_ELSE);
+            token_t *next = alloc_token(TT_ELSE);
             next->condition = parse_logical_expression(p);
             if (!eat_token(p, "then")) {
                 FREE(token);
@@ -410,7 +410,7 @@ wordExtractor_t(statement_if) {
             target->elseblock = next;
             target = next;
         } else if (eat_token(p, "else")) {
-            token_t * next = alloc_token(TT_ELSE);
+            token_t *next = alloc_token(TT_ELSE);
             target->elseblock = next;
             target = next;
         } else if (!parse_body(p, target)) {
@@ -422,16 +422,16 @@ wordExtractor_t(statement_if) {
 }
 
 wordExtractor_t(statement_exitwhen) {
-    token_t * token = alloc_token(TT_EXITWHEN);
+    token_t *token = alloc_token(TT_EXITWHEN);
     token->condition = parse_logical_expression(p);
     return token;
 }
 
 wordExtractor_t(statement_loop) {
-    token_t * loop = alloc_token(TT_LOOP);
+    token_t *loop = alloc_token(TT_LOOP);
     while (!eat_token(p, "endloop")) {
         if (eat_token(p, "exitwhen")) {
-            token_t * exitwhen = statement_exitwhen(p);
+            token_t *exitwhen = statement_exitwhen(p);
             PUSH_BACK(token_t, exitwhen, loop->body);
         } else if (!parse_body(p, loop)) {
             FREE(loop);
@@ -442,7 +442,7 @@ wordExtractor_t(statement_loop) {
 }
 
 wordExtractor_t(statement_return) {
-    token_t * ret = alloc_token(TT_RETURN);
+    token_t *ret = alloc_token(TT_RETURN);
     ret->body = parse_logical_expression(p);
     return ret;
 }
@@ -450,7 +450,7 @@ wordExtractor_t(statement_return) {
 /* Retail JASS parses debug-prefixed statements but excludes them from release execution. */
 wordExtractor_t(statement_debug) {
     grammarFunc_t func = eat_keyword(p, function_keywords);
-    token_t * token = func ? func(p) : NULL;
+    token_t *token = func ? func(p) : NULL;
     if (!token) PARSER_THROW("invalid debug statement at line %u near '%s'", parser_line(p), peek_token(p));
     token->flags |= TF_DEBUG;
     return token;
@@ -469,7 +469,7 @@ parseClass_t function_keywords[] = {
 };
 
 wordExtractor_t(keyword_function) {
-    token_t * function = parse_function_decl(p);
+    token_t *function = parse_function_decl(p);
     while (!eat_token(p, "endfunction")) {
         if (!parse_body(p, function)) {
             FREE(function);
@@ -488,11 +488,11 @@ static parseClass_t global_keywords[] = {
     { NULL },
 };
 
-token_t * JASS_ParseTokens(wordExtractor_t * p) {
+token_t *JASS_ParseTokens(wordExtractor_t *p) {
     c_operators = false;
-    token_t * tokens = NULL;
+    token_t *tokens = NULL;
     if (setjmp(exception_env) == 0) {
-        token_t * token = NULL;
+        token_t *token = NULL;
         while (*peek_token(p)) {
             grammarFunc_t func = eat_keyword(p, global_keywords);
             if (!func) {
@@ -541,7 +541,7 @@ static cstring_t galaxy_normalize_type(cstring_t name) {
 }
 
 /* Consume all `[N]` dimension brackets (handles 1D, 2D, 3D, …). */
-static void galaxy_eat_array_dims(wordExtractor_t * p) {
+static void galaxy_eat_array_dims(wordExtractor_t *p) {
     while (eat_token(p, "[")) {
         while (!eat_token(p, "]") && *peek_token(p)) parse_token(p);
     }
@@ -549,7 +549,7 @@ static void galaxy_eat_array_dims(wordExtractor_t * p) {
 
 /* Two-token lookahead: returns true when the next tokens look like
  * "type [N]* varname" rather than "ident (" or "ident =". */
-static bool galaxy_looks_like_decl(wordExtractor_t * p) {
+static bool galaxy_looks_like_decl(wordExtractor_t *p) {
     wordExtractor_t saved = *p;
     if (!is_identifier(peek_token(p))) { return false; }
     parse_token(p);          /* consume type name */
@@ -564,9 +564,9 @@ static bool galaxy_looks_like_decl(wordExtractor_t * p) {
  * Caller has already consumed the opening `(`. */
 wordExtractor_t(galaxy_parse_args) {
     if (eat_token(p, ")")) return NULL;
-    token_t * args = NULL;
+    token_t *args = NULL;
     do {
-        token_t * arg  = alloc_token(TT_VARDECL);
+        token_t *arg  = alloc_token(TT_VARDECL);
         arg->primary = strdup(galaxy_normalize_type(parse_token(p)));   /* type */
         arg->secondary = read_identifier(p);                             /* name */
         PUSH_BACK(token_t, arg, args);
@@ -577,7 +577,7 @@ wordExtractor_t(galaxy_parse_args) {
 
 /* Parse `rettype name(args)` — shared by function defs and native decls. */
 wordExtractor_t(galaxy_parse_function_decl) {
-    token_t * token  = alloc_token(TT_FUNCTION);
+    token_t *token  = alloc_token(TT_FUNCTION);
     token->secondary = strdup(galaxy_normalize_type(parse_token(p)));  /* return type */
     token->primary   = read_identifier(p);                              /* name        */
     if (!token->primary) token->primary = strdup("__unnamed");
@@ -587,7 +587,7 @@ wordExtractor_t(galaxy_parse_function_decl) {
 }
 
 wordExtractor_t(galaxy_statement_return) {
-    token_t * ret = alloc_token(TT_RETURN);
+    token_t *ret = alloc_token(TT_RETURN);
     if (!eat_token(p, ";")) {
         ret->body = parse_logical_expression(p);
         eat_token(p, ";");
@@ -596,10 +596,10 @@ wordExtractor_t(galaxy_statement_return) {
 }
 
 /* Forward decl — galaxy_statement_if calls galaxy_parse_body_stmt. */
-static bool galaxy_parse_body_stmt(wordExtractor_t * p, token_t * function);
+static bool galaxy_parse_body_stmt(wordExtractor_t *p, token_t *function);
 
 wordExtractor_t(galaxy_statement_if) {
-    token_t * token = alloc_token(TT_IF);
+    token_t *token = alloc_token(TT_IF);
     token->condition = parse_logical_expression(p);
     eat_token(p, "{");
     for (;;) {
@@ -609,7 +609,7 @@ wordExtractor_t(galaxy_statement_if) {
     /* Parse optional else / else-if chain. */
     token_t * *chain = &token->elseblock;
     while (eat_token(p, "else")) {
-        token_t * branch = alloc_token(TT_ELSE);
+        token_t *branch = alloc_token(TT_ELSE);
         if (eat_token(p, "if")) {
             branch->condition = parse_logical_expression(p);
         }
@@ -628,13 +628,13 @@ wordExtractor_t(galaxy_statement_if) {
 /* `while (cond) { body }` maps to TT_LOOP with an injected TT_EXITWHEN
  * as the first body statement (same layout the VM expects). */
 wordExtractor_t(galaxy_statement_while) {
-    token_t * loop = alloc_token(TT_LOOP);
-    token_t * cond = parse_logical_expression(p);
+    token_t *loop = alloc_token(TT_LOOP);
+    token_t *cond = parse_logical_expression(p);
     /* exitwhen !cond */
-    token_t * not_cond = alloc_token(TT_CALL);
+    token_t *not_cond = alloc_token(TT_CALL);
     not_cond->primary = strdup("__not");
     not_cond->args    = cond;
-    token_t * exitwhen  = alloc_token(TT_EXITWHEN);
+    token_t *exitwhen  = alloc_token(TT_EXITWHEN);
     exitwhen->condition = not_cond;
     PUSH_BACK(token_t, exitwhen, loop->body);
     eat_token(p, "{");
@@ -646,7 +646,7 @@ wordExtractor_t(galaxy_statement_while) {
 }
 
 wordExtractor_t(galaxy_statement_break) {
-    token_t * token = alloc_token(TT_EXITWHEN);
+    token_t *token = alloc_token(TT_EXITWHEN);
     token->condition = alloc_token(TT_BOOLEAN);
     token->condition->primary = strdup("true");
     eat_token(p, ";");
@@ -656,7 +656,7 @@ wordExtractor_t(galaxy_statement_break) {
 wordExtractor_t(galaxy_statement_continue) {
     /* TODO: proper continue — skip remaining loop body and re-evaluate condition.
      * For now, treat as exitwhen(false) which is a parse-safe no-op at runtime. */
-    token_t * token = alloc_token(TT_EXITWHEN);
+    token_t *token = alloc_token(TT_EXITWHEN);
     token->condition = alloc_token(TT_BOOLEAN);
     token->condition->primary = strdup("false");
     eat_token(p, ";");
@@ -665,7 +665,7 @@ wordExtractor_t(galaxy_statement_continue) {
 
 /* Parse a local variable declaration: `[const] type [N]* name [= expr];` */
 wordExtractor_t(galaxy_parse_local) {
-    token_t * token    = alloc_token(TT_VARDECL);
+    token_t *token    = alloc_token(TT_VARDECL);
     /* Consume the qualifier first; previously const int declared a variable named int and lost the real name. */
     if (eat_token(p, "const")) token->flags |= TF_CONSTANT;
     token->primary   = strdup(galaxy_normalize_type(parse_token(p)));
@@ -688,7 +688,7 @@ wordExtractor_t(galaxy_parse_local) {
 }
 
 /* Parse an assignment (`name [idx] = expr;`) or a call expression (`name(args);`). */
-static token_t * galaxy_parse_expression_stmt(wordExtractor_t * p) {
+static token_t *galaxy_parse_expression_stmt(wordExtractor_t *p) {
     /* strdup immediately: parse_token returns a pointer to a static buffer that
      * subsequent eat_token / parse_token calls will overwrite. */
     string_t name = strdup(parse_token(p));
@@ -697,9 +697,9 @@ static token_t * galaxy_parse_expression_stmt(wordExtractor_t * p) {
     token_t indices = { 0 };
     parse_array_indices(p, &indices);
 
-    token_t * result = NULL;
+    token_t *result = NULL;
     if (eat_token(p, "=")) {
-        token_t * token    = alloc_token(TT_SET);
+        token_t *token    = alloc_token(TT_SET);
         token->secondary = name;   /* transfer ownership */
         token->index     = indices.index;
         token->body      = indices.body;
@@ -707,7 +707,7 @@ static token_t * galaxy_parse_expression_stmt(wordExtractor_t * p) {
         eat_token(p, ";");
         result = token;
     } else if (eat_token(p, "(")) {
-        token_t * token  = alloc_token(TT_CALL);
+        token_t *token  = alloc_token(TT_CALL);
         token->primary = name;   /* transfer ownership */
         if (!eat_token(p, ")")) {
             token->args = parse_logical_expression(p);  /* eats ) */
@@ -716,7 +716,7 @@ static token_t * galaxy_parse_expression_stmt(wordExtractor_t * p) {
         result = token;
     } else {
         eat_token(p, ";");
-        token_t * token  = alloc_token(TT_IDENTIFIER);
+        token_t *token  = alloc_token(TT_IDENTIFIER);
         token->primary = name;   /* transfer ownership */
         result = token;
     }
@@ -724,14 +724,14 @@ static token_t * galaxy_parse_expression_stmt(wordExtractor_t * p) {
 }
 
 /* Dispatch one statement inside a function body. */
-static bool galaxy_parse_body_stmt(wordExtractor_t * p, token_t * function) {
+static bool galaxy_parse_body_stmt(wordExtractor_t *p, token_t *function) {
     static parseClass_t statements[] = {
         { "if", galaxy_statement_if }, { "while", galaxy_statement_while }, { "return", galaxy_statement_return },
         { "break", galaxy_statement_break }, { "continue", galaxy_statement_continue }, { NULL }
     };
     if (!*peek_token(p)) return false;
     grammarFunc_t func = eat_keyword(p, statements);
-    token_t * stmt = NULL;
+    token_t *stmt = NULL;
     if (func) {
         stmt = func(p);
     } else if (galaxy_looks_like_decl(p)) {
@@ -745,7 +745,7 @@ static bool galaxy_parse_body_stmt(wordExtractor_t * p, token_t * function) {
 }
 
 /* Skip all tokens up to and including the matching closing brace. */
-static void galaxy_skip_function_body(wordExtractor_t * p) {
+static void galaxy_skip_function_body(wordExtractor_t *p) {
     int depth = 1;
     cstring_t tok;
     while (depth > 0 && *(tok = peek_token(p))) {
@@ -763,7 +763,7 @@ static void galaxy_skip_function_body(wordExtractor_t * p) {
  * the cutscene doesn't need.  MapScript.galaxy functions have full bodies only,
  * so they are always found correctly. */
 wordExtractor_t(galaxy_keyword_function) {
-    token_t * function = galaxy_parse_function_decl(p);
+    token_t *function = galaxy_parse_function_decl(p);
     if (!eat_token(p, "{")) {
         /* Forward declaration — no body, empty function stub. */
         eat_token(p, ";");
@@ -783,7 +783,7 @@ wordExtractor_t(galaxy_keyword_function) {
 
 /* Top-level `[const] type [N]* name [= expr];` */
 wordExtractor_t(galaxy_parse_global) {
-    token_t * token = alloc_token(TT_GLOBAL);
+    token_t *token = alloc_token(TT_GLOBAL);
     if (eat_token(p, "const")) token->flags |= TF_CONSTANT;
     token->primary = strdup(galaxy_normalize_type(parse_token(p)));
     if (eat_token(p, "[")) {
@@ -812,7 +812,7 @@ wordExtractor_t(galaxy_parse_global) {
 
 /* `native rettype name(args);` */
 wordExtractor_t(galaxy_parse_native) {
-    token_t * token = galaxy_parse_function_decl(p);
+    token_t *token = galaxy_parse_function_decl(p);
     token->flags |= TF_NATIVE;
     eat_token(p, ";");
     return token;
@@ -820,7 +820,7 @@ wordExtractor_t(galaxy_parse_native) {
 
 /* Peek ahead to decide: top-level function definition vs global variable.
  * If after (optional `[N]`) we see `name (`, it's a function; otherwise global. */
-static token_t * galaxy_parse_global_or_func(wordExtractor_t * p) {
+static token_t *galaxy_parse_global_or_func(wordExtractor_t *p) {
     wordExtractor_t saved = *p;
     parse_token(p);              /* consume return/type name */
     galaxy_eat_array_dims(p);   /* skip [N]+ brackets */
@@ -830,12 +830,12 @@ static token_t * galaxy_parse_global_or_func(wordExtractor_t * p) {
     return is_func ? galaxy_keyword_function(p) : galaxy_parse_global(p);
 }
 
-token_t * GALAXY_ParseTokens(wordExtractor_t * p) {
+token_t *GALAXY_ParseTokens(wordExtractor_t *p) {
     c_operators = true;
-    token_t * tokens = NULL;
+    token_t *tokens = NULL;
     if (setjmp(exception_env) == 0) {
         while (*peek_token(p)) {
-            token_t * token = NULL;
+            token_t *token = NULL;
             cstring_t  tok   = peek_token(p);
             if (!strcmp(tok, "native")) {
                 parse_token(p);

@@ -1,8 +1,8 @@
 #include "r_wowmap.h"
 
-texture_t * Wow_CreateAlphaTexture(uint8_t const alpha[4][WOW_ALPHA_TEXELS]) {
+texture_t *Wow_CreateAlphaTexture(uint8_t const alpha[4][WOW_ALPHA_TEXELS]) {
     uint8_t pixels[WOW_ALPHA_TEXELS * 4];
-    texture_t * texture = R_AllocateTexture(64, 64);
+    texture_t *texture = R_AllocateTexture(64, 64);
 
     FOR_LOOP(i, WOW_ALPHA_TEXELS) {
         pixels[i * 4 + 0] = alpha[0][i];

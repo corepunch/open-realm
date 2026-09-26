@@ -3,7 +3,7 @@
 
 typedef int jassdef_integer;
 typedef float jassdef_number;
-typedef const char *jassdef_string;
+typedef char const *jassdef_string;
 
 #define EVAL0(...) __VA_ARGS__
 #define EVAL1(...) EVAL0(EVAL0(EVAL0(__VA_ARGS__)))
@@ -52,7 +52,7 @@ typedef const char *jassdef_string;
 
 #define JASS_API(NAME, ...) \
 void NAME##_native(MAP_LIST(JASS_ARG, __VA_ARGS__)); \
-uint32_t NAME(jass_t * j) { \
+uint32_t NAME(jass_t *j) { \
     uint32_t __arg = 0; \
     MAP(JASS_STACK, __VA_ARGS__); \
     NAME##_native(MAP_LIST(JASS_VALUE, __VA_ARGS__)); \

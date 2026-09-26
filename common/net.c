@@ -66,7 +66,7 @@ struct loopback {
 // receiver reads from bufs[!netsrc].
 static struct loopback loopbufs[2];
 
-static void NET_SendLoopPacket(NETSOURCE netsrc, int length, const void *data) {
+static void NET_SendLoopPacket(NETSOURCE netsrc, int length, void const *data) {
     struct loopback *buf = &loopbufs[netsrc];
     if (length <= 0 || length > BZ_LOOPBACK_LIMIT - (int)sizeof(uint32_t)) {
         fprintf(stderr, "NET_SendLoopPacket: bad packet length %d\n", length);
@@ -96,11 +96,11 @@ static void NET_SendLoopPacket(NETSOURCE netsrc, int length, const void *data) {
         buf->data[(buf->write++) % ARRAY_COUNT(buf->data)] = ((char *)&len)[i];
     }
     FOR_LOOP(i, length) {
-        buf->data[(buf->write++) % ARRAY_COUNT(buf->data)] = ((const char *)data)[i];
+        buf->data[(buf->write++) % ARRAY_COUNT(buf->data)] = ((char const *)data)[i];
     }
 }
 
-int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t * msg) {
+int NET_GetLoopPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t *msg) {
     struct loopback *buf = &loopbufs[!netsrc];
     if (buf->read == buf->write)
         return 0;
@@ -170,7 +170,7 @@ static net_socket_t NET_UDPSocket(unsigned short port) {
         return NET_INVALID_SOCKET;
     }
 
-    setsockopt(newsocket, SOL_SOCKET, SO_BROADCAST, (const char *)&flag, sizeof(flag));
+    setsockopt(newsocket, SOL_SOCKET, SO_BROADCAST, (char const *)&flag, sizeof(flag));
 
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
@@ -230,7 +230,7 @@ static void NET_OpenIP(NETSOURCE netsrc) {
     }
 }
 
-static void NET_SendUDPPacket(NETSOURCE netsrc, int length, const void *data, netadr_t to) {
+static void NET_SendUDPPacket(NETSOURCE netsrc, int length, void const *data, netadr_t to) {
     net_socket_t sock = udp_sockets[netsrc];
 
     if (sock == NET_INVALID_SOCKET) {
@@ -255,7 +255,7 @@ static void NET_SendUDPPacket(NETSOURCE netsrc, int length, const void *data, ne
     }
     addr.sin_port = to.port;    // already in network byte order
 
-    if (sendto(sock, (const char *)data, length, 0,
+    if (sendto(sock, (char const *)data, length, 0,
                (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR) {
         fprintf(stderr,
                 "NET_SendUDPPacket: sendto %s failed: %d\n",
@@ -264,7 +264,7 @@ static void NET_SendUDPPacket(NETSOURCE netsrc, int length, const void *data, ne
     }
 }
 
-static int NET_GetUDPPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t * msg) {
+static int NET_GetUDPPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t *msg) {
     net_socket_t sock = udp_sockets[netsrc];
 
     if (sock == NET_INVALID_SOCKET)
@@ -396,7 +396,7 @@ bool NET_StringToAdr(cstring_t s, unsigned short default_port, netadr_t *adr) {
     return true;
 }
 
-cstring_t NET_AdrToString(const netadr_t *adr) {
+cstring_t NET_AdrToString(netadr_t const *adr) {
     static char buffers[4][64];
     static uint32_t index;
     char host[INET_ADDRSTRLEN] = "0.0.0.0";
@@ -417,7 +417,7 @@ cstring_t NET_AdrToString(const netadr_t *adr) {
 
 // Route a packet to the loopback buffer or the UDP socket depending on
 // the destination address type — the core of the Quake 2 network model.
-void NET_SendPacket(NETSOURCE netsrc, int length, const void *data, netadr_t to) {
+void NET_SendPacket(NETSOURCE netsrc, int length, void const *data, netadr_t to) {
     switch (to.type) {
     case NA_LOOPBACK:
         NET_SendLoopPacket(netsrc, length, data);
@@ -433,7 +433,7 @@ void NET_SendPacket(NETSOURCE netsrc, int length, const void *data, netadr_t to)
 
 // Check the loopback buffer first (zero latency for local clients), then
 // fall through to the UDP socket for remote clients.
-int NET_GetPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t * msg) {
+int NET_GetPacket(NETSOURCE netsrc, netadr_t *from, sizeBuf_t *msg) {
     int r = NET_GetLoopPacket(netsrc, from, msg);
     if (r)
         return r;
@@ -448,18 +448,18 @@ void Netchan_Transmit(NETSOURCE netsrc, struct netchan *netchan) {
     netchan->message.cursize = 0;
 }
 
-void SZ_Init(sizeBuf_t * buf, uint8_t *data, uint32_t length) {
+void SZ_Init(sizeBuf_t *buf, uint8_t *data, uint32_t length) {
     memset(buf, 0, sizeof(*buf));
     buf->data = data;
     buf->maxsize = length;
 }
 
-void SZ_Clear(sizeBuf_t * buf) {
+void SZ_Clear(sizeBuf_t *buf) {
     buf->cursize = 0;
     buf->overflowed = false;
 }
 
-handle_t SZ_GetSpace(sizeBuf_t * buf, uint32_t length) {
+handle_t SZ_GetSpace(sizeBuf_t *buf, uint32_t length) {
     if (buf->cursize + length > buf->maxsize) {
 //        if (length > buf->maxsize)
 //            Com_Error (ERR_FATAL, "SZ_GetSpace: %i is > full buffer size", length);
@@ -477,7 +477,7 @@ handle_t SZ_GetSpace(sizeBuf_t * buf, uint32_t length) {
     return data;
 }
 
-void SZ_Write(sizeBuf_t * buf, void const *data, uint32_t length) {
+void SZ_Write(sizeBuf_t *buf, void const *data, uint32_t length) {
     memcpy(SZ_GetSpace(buf, length), data, length);
 }
 

@@ -3,7 +3,7 @@
 #include "test.h"
 #include "../g_local.h"
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 
@@ -29,10 +29,10 @@ static int shortcut_test_font(cstring_t name, uint32_t size) {
     return 1;
 }
 
-static void shortcut_test_unicast(edict_t * ent) { (void)ent; }
+static void shortcut_test_unicast(edict_t *ent) { (void)ent; }
 
 static void shortcut_test_write(pfWriteType_t type, void const *value) {
-    uiFrame_t const * frame;
+    uiFrame_t const *frame;
 
     if (type != PF_UIFRAME || !value) return;
     frame = value;
@@ -68,7 +68,7 @@ static void shortcut_test_write(pfWriteType_t type, void const *value) {
 
 TEST(wc3_shortcuts, peasant_plain_stand_is_idle_but_busy_move_is_not) {
     umove_t busy = { "walk", NULL, NULL, NULL };
-    edict_t * worker;
+    edict_t *worker;
 
     reset_entities();
     setup_test_world();
@@ -87,7 +87,7 @@ TEST(wc3_shortcuts, peasant_plain_stand_is_idle_but_busy_move_is_not) {
 }
 
 TEST(wc3_shortcuts, hold_position_worker_is_not_idle) {
-    edict_t * worker;
+    edict_t *worker;
 
     reset_entities();
     setup_test_world();
@@ -102,8 +102,8 @@ TEST(wc3_shortcuts, hold_position_worker_is_not_idle) {
 }
 
 TEST(wc3_shortcuts, controlled_unit_invalidation_marks_player_dirty) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * worker;
+    gameClient_t *client = &game.clients[0];
+    edict_t *worker;
 
     reset_entities();
     setup_test_world();
@@ -119,8 +119,8 @@ TEST(wc3_shortcuts, controlled_unit_invalidation_marks_player_dirty) {
 
 
 TEST(wc3_shortcuts, hidden_hero_is_not_in_shortcut_roster) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * hero;
+    gameClient_t *client = &game.clients[0];
+    edict_t *hero;
 
     reset_entities();
     setup_test_world();
@@ -137,8 +137,8 @@ TEST(wc3_shortcuts, hidden_hero_is_not_in_shortcut_roster) {
 }
 
 TEST(wc3_shortcuts, hero_skill_point_change_invalidates_shortcut_badge) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * hero;
+    gameClient_t *client = &game.clients[0];
+    edict_t *hero;
 
     reset_entities();
     setup_test_world();
@@ -155,8 +155,8 @@ TEST(wc3_shortcuts, hero_skill_point_change_invalidates_shortcut_badge) {
 }
 
 TEST(wc3_shortcuts, hero_damage_alert_sets_deadline_and_invalidates_owner) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * hero;
+    gameClient_t *client = &game.clients[0];
+    edict_t *hero;
 
     reset_entities();
     setup_test_world();
@@ -174,9 +174,9 @@ TEST(wc3_shortcuts, hero_damage_alert_sets_deadline_and_invalidates_owner) {
 }
 
 TEST(wc3_shortcuts, hero_button_double_click_selects_then_centers_camera) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * clent;
-    edict_t * hero;
+    gameClient_t *client = &game.clients[0];
+    edict_t *clent;
+    edict_t *hero;
 
     reset_entities();
     setup_test_world();
@@ -208,9 +208,9 @@ TEST(wc3_shortcuts, hero_button_double_click_selects_then_centers_camera) {
 }
 
 TEST(wc3_shortcuts, hero_function_key_requires_quick_second_press_to_center) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * clent;
-    edict_t * hero;
+    gameClient_t *client = &game.clients[0];
+    edict_t *clent;
+    edict_t *hero;
 
     reset_entities();
     setup_test_world();
@@ -243,10 +243,10 @@ TEST(wc3_shortcuts, hero_function_key_requires_quick_second_press_to_center) {
 }
 
 TEST(wc3_shortcuts, hero_buttons_match_multiselect_order) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * clent;
-    edict_t * heroes[3];
-    edict_t * ordered[3] = { 0 };
+    gameClient_t *client = &game.clients[0];
+    edict_t *clent;
+    edict_t *heroes[3];
+    edict_t *ordered[3] = { 0 };
     UnitData_t hero_data[3] = {
         { .priority = 1 },
         { .priority = 3 },
@@ -308,10 +308,10 @@ TEST(wc3_shortcuts, hero_buttons_match_multiselect_order) {
 }
 
 TEST(wc3_shortcuts, hud_buttons_share_full_canvas_left_root) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * clent;
-    edict_t * hero;
-    edict_t * worker;
+    gameClient_t *client = &game.clients[0];
+    edict_t *clent;
+    edict_t *hero;
+    edict_t *worker;
     UnitProfile_t hero_profile;
     UnitProfile_t worker_profile;
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;

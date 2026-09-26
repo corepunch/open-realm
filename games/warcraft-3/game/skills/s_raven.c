@@ -1,7 +1,7 @@
 #include "s_skills.h"
 
-static void raven_forward_end(edict_t * unit);
-static void raven_reverse_end(edict_t * unit);
+static void raven_forward_end(edict_t *unit);
+static void raven_reverse_end(edict_t *unit);
 
 static umove_t raven_morph = { "morph", NULL, raven_forward_end, CAbilityRavenForm };
 static umove_t raven_morph_alt = { "morph alternate", NULL, raven_reverse_end, CAbilityRavenForm };
@@ -20,8 +20,8 @@ static uint32_t const raven_codes[] = {
 
 /* Play the authored morph sequence after a form rebind; the reverse transform
  * uses the source form's Alternate sequence before returning to ordinary stand. */
-static void raven_play_morph(edict_t * unit, bool raven_form) {
-    animation_t const * morph;
+static void raven_play_morph(edict_t *unit, bool raven_form) {
+    animation_t const *morph;
 
     if (raven_form) G_AddUnitAnimationProperties(unit, "alternate,alternateex", false);
     /* Keep the morph as the active move, rather than only replacing the
@@ -45,7 +45,7 @@ static void raven_play_morph(edict_t * unit, bool raven_form) {
 }
 
 /* Takeoff is independent of the active order once the destination form has been installed. */
-static void raven_begin_rise(edict_t * unit) {
+static void raven_begin_rise(edict_t *unit) {
     if (unit->raven.rise_state != RAVEN_RISE_AFTER_MORPH) return;
     if (unit->raven.rise_duration > 0.0f) {
         unit->raven.rise_start = (float)G_Time();
@@ -58,7 +58,7 @@ static void raven_begin_rise(edict_t * unit) {
     }
 }
 
-static void raven_forward_end(edict_t * unit) {
+static void raven_forward_end(edict_t *unit) {
     /* nmdm requires alternateex; alternate would select Medivh's base stand sequence. */
     G_AddUnitAnimationProperties(unit, "alternateex", true);
     raven_begin_rise(unit);
@@ -66,7 +66,7 @@ static void raven_forward_end(edict_t * unit) {
 }
 
 /* Advance Raven Form's authored takeoff height independently from animation. */
-static void raven_update(edict_t * unit) {
+static void raven_update(edict_t *unit) {
     float fraction;
     if (!unit) return;
     /* Prologue01 replaces Morph with Move after 0.5s. Its endfunc then never runs;
@@ -85,13 +85,13 @@ static void raven_update(edict_t * unit) {
     gi.LinkEntity(unit);
 }
 
-static void raven_reverse_end(edict_t * unit) {
+static void raven_reverse_end(edict_t *unit) {
     G_AddUnitAnimationProperties(unit, "alternate,alternateex", false);
     unit_stand(unit);
 }
 
 /* Preplaced campaign forms resolve through the same authored endpoints as learned abilities. */
-static bool raven_form_data(edict_t * unit, ravenForm_t * out) {
+static bool raven_form_data(edict_t *unit, ravenForm_t *out) {
     if (!unit || !out) return false;
     FOR_LOOP(i, sizeof(raven_codes) / sizeof(raven_codes[0])) {
         AbilityData_t const *ability = G_AbilityData(raven_codes[i]);
@@ -117,7 +117,7 @@ static bool raven_form_data(edict_t * unit, ravenForm_t * out) {
 }
 
 /* Rebind in place so script handles and selection survive both morph directions. */
-static bool raven_form_order(edict_t * unit, bool raven_form) {
+static bool raven_form_order(edict_t *unit, bool raven_form) {
     ravenForm_t form = {0};
     uint32_t target_type;
 
@@ -159,16 +159,16 @@ static bool raven_form_order(edict_t * unit, bool raven_form) {
 }
 
 /* Orders and the command card share the same ability-owned form transition. */
-static bool raven_order(edict_t * unit, cstring_t order) {
+static bool raven_order(edict_t *unit, cstring_t order) {
     return raven_form_order(unit, !strcmp(order, raven_orders[0]));
 }
 
-static bool raven_is_on(edict_t * unit) {
+static bool raven_is_on(edict_t *unit) {
     ravenForm_t form;
     return raven_form_data(unit, &form) && unit->class_id == form.raven_type;
 }
 
-static void raven_command(edict_t * ent) {
+static void raven_command(edict_t *ent) {
     FOR_CONTROLLABLE_SELECTED_UNITS(ent->client, unit)
         unit_issueimmediateorder(unit, raven_orders[raven_is_on(unit) ? 1 : 0]);
 }

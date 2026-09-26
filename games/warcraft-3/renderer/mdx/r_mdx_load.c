@@ -3,7 +3,7 @@
 
 uint32_t GetModelKeyFrameSize(MODELKEYTRACKDATATYPE dataType, MODELKEYTRACKTYPE keyTrackType);
 
-#define cstring_t const char *
+#define cstring_t char const *
 #define FOR_EACH_LIST(type, property, list) \
 for (type *property = list, *next = list ? (list)->next : NULL; \
 property; \
@@ -108,14 +108,14 @@ typedef enum {
     BLOCKREAD_ERROR,
 } blockReadCode_t;
 
-typedef blockReadCode_t (*blockReaderFunc_t)(sizeBuf_t * sb, void *model);
+typedef blockReadCode_t (*blockReaderFunc_t)(sizeBuf_t *sb, void *model);
 
 typedef struct {
     cstring_t block_id;
     blockReaderFunc_t read;
 } blockReader_t;
 
-blockReadCode_t MSG_ReadBlock(sizeBuf_t * buffer, blockReader_t const *readers, void *data) {
+blockReadCode_t MSG_ReadBlock(sizeBuf_t *buffer, blockReader_t const *readers, void *data) {
     uint32_t blockHeader;
     while (MSG_Read(buffer, &blockHeader, 4)) {
         sizeBuf_t block;
@@ -138,7 +138,7 @@ blockReadCode_t MSG_ReadBlock(sizeBuf_t * buffer, blockReader_t const *readers, 
     return BLOCKREAD_OK;
 }
 
-int MSG_Read(sizeBuf_t * buffer, void *dest, uint32_t bytes) {
+int MSG_Read(sizeBuf_t *buffer, void *dest, uint32_t bytes) {
     if (buffer->readcount + bytes > buffer->cursize)
         return 0;
     memcpy(dest, (char *)buffer->data + buffer->readcount, bytes);
@@ -146,19 +146,19 @@ int MSG_Read(sizeBuf_t * buffer, void *dest, uint32_t bytes) {
     return bytes;
 }
 
-int MSG_ReadLong(sizeBuf_t * buffer) {
+int MSG_ReadLong(sizeBuf_t *buffer) {
     uint32_t value = 0;
     MSG_Read(buffer, &value, 4);
     return value;
 }
 
-int MSG_ReadByte(sizeBuf_t * buffer) {
+int MSG_ReadByte(sizeBuf_t *buffer) {
     uint32_t value = 0;
     MSG_Read(buffer, &value, 1);
     return value;
 }
 
-sizeBuf_t FileReadBlock(sizeBuf_t * buffer) {
+sizeBuf_t FileReadBlock(sizeBuf_t *buffer) {
     sizeBuf_t buf;
     buf.data = buffer->data + buffer->readcount;
     buf.readcount = 0;
@@ -167,11 +167,11 @@ sizeBuf_t FileReadBlock(sizeBuf_t * buffer) {
     return buf;
 }
 
-int FileIsAtEndOfBlock(sizeBuf_t * sb) {
+int FileIsAtEndOfBlock(sizeBuf_t *sb) {
     return sb->readcount >= sb->cursize;
 }
 
-void ReadGeosetMatrices(sizeBuf_t * buffer, mdxGeoset_t *geoset) {
+void ReadGeosetMatrices(sizeBuf_t *buffer, mdxGeoset_t *geoset) {
     SFileReadArray2(buffer, geoset, matrices, sizeof(int));
     MSG_Read(buffer, &geoset->materialID, sizeof(int));
     MSG_Read(buffer, &geoset->group, sizeof(int));
@@ -180,7 +180,7 @@ void ReadGeosetMatrices(sizeBuf_t * buffer, mdxGeoset_t *geoset) {
     SFileReadArray2(buffer, geoset, bounds, sizeof(mdxBounds_t));
 }
 
-void ReadGeoset(sizeBuf_t * buffer, mdxGeoset_t *geoset) {
+void ReadGeoset(sizeBuf_t *buffer, mdxGeoset_t *geoset) {
     uint32_t header;
     while (MSG_Read(buffer, &header, 4)) {
         switch (header) {
@@ -201,7 +201,7 @@ void ReadGeoset(sizeBuf_t * buffer, mdxGeoset_t *geoset) {
     };
 }
 
-void ReadKeyTrack(sizeBuf_t * buffer, MODELKEYTRACKDATATYPE dataType, mdxKeyTrack_t **output) {
+void ReadKeyTrack(sizeBuf_t *buffer, MODELKEYTRACKDATATYPE dataType, mdxKeyTrack_t **output) {
     uint32_t keyframeCount = MSG_ReadLong(buffer);
     MODELKEYTRACKTYPE keyTrackType = MSG_ReadLong(buffer);
     uint32_t globalSeqId = MSG_ReadLong(buffer);
@@ -214,7 +214,7 @@ void ReadKeyTrack(sizeBuf_t * buffer, MODELKEYTRACKDATATYPE dataType, mdxKeyTrac
     MSG_Read(buffer, (*output)->values, dataSize);
 }
 
-void ReadMaterialLayer(sizeBuf_t * buffer, mdxMaterialLayer_t *layer) {
+void ReadMaterialLayer(sizeBuf_t *buffer, mdxMaterialLayer_t *layer) {
     uint32_t blockHeader;
     MSG_Read(buffer, &layer->blendMode, 4);
     MSG_Read(buffer, &layer->flags, 4);
@@ -233,7 +233,7 @@ void ReadMaterialLayer(sizeBuf_t * buffer, mdxMaterialLayer_t *layer) {
     }
 }
 
-void ReadMaterialLayers(sizeBuf_t * buffer, mdxMaterial_t *material) {
+void ReadMaterialLayers(sizeBuf_t *buffer, mdxMaterial_t *material) {
     if (!(material->num_layers = MSG_ReadLong(buffer)))
         return;
     material->layers = ri.MemAlloc(sizeof(mdxMaterialLayer_t) * material->num_layers);
@@ -244,7 +244,7 @@ void ReadMaterialLayers(sizeBuf_t * buffer, mdxMaterial_t *material) {
     }
 }
 
-void ReadMaterial(sizeBuf_t * buffer, mdxMaterial_t *material) {
+void ReadMaterial(sizeBuf_t *buffer, mdxMaterial_t *material) {
     uint32_t blockHeader;
     material->priority = MSG_ReadLong(buffer);
     material->flags = MSG_ReadLong(buffer);
@@ -261,7 +261,7 @@ void ReadMaterial(sizeBuf_t * buffer, mdxMaterial_t *material) {
     };
 }
 
-void ReadTextureAnim(sizeBuf_t * buffer, mdxTextureAnim_t *textureAnim) {
+void ReadTextureAnim(sizeBuf_t *buffer, mdxTextureAnim_t *textureAnim) {
     uint32_t blockHeader;
     while (MSG_Read(buffer, &blockHeader, 4)) {
         switch (blockHeader) {
@@ -275,7 +275,7 @@ void ReadTextureAnim(sizeBuf_t * buffer, mdxTextureAnim_t *textureAnim) {
     }
 }
 
-void ReadNode(sizeBuf_t * buffer, mdxNode_t *node, uint32_t blockSize) {
+void ReadNode(sizeBuf_t *buffer, mdxNode_t *node, uint32_t blockSize) {
     uint32_t blockEnd = buffer->readcount + blockSize;
     MSG_Read(buffer, &node->name, sizeof(mdxObjectName_t));
     node->node_id = MSG_ReadLong(buffer);
@@ -296,22 +296,22 @@ void ReadNode(sizeBuf_t * buffer, mdxNode_t *node, uint32_t blockSize) {
     }
 }
 
-void MSG_ReadOverflow(sizeBuf_t * buffer, void *dest, uint32_t bytes) {
+void MSG_ReadOverflow(sizeBuf_t *buffer, void *dest, uint32_t bytes) {
     buffer->cursize += bytes;
     MSG_Read(buffer, dest, bytes);
 }
 
-void ReadBone(sizeBuf_t * buffer, mdxBone_t *bone) {
+void ReadBone(sizeBuf_t *buffer, mdxBone_t *bone) {
     ReadNode(buffer, &bone->node, buffer->cursize - buffer->readcount);
     MSG_ReadOverflow(buffer, &bone->geoset_id, sizeof(uint32_t));
     MSG_ReadOverflow(buffer, &bone->geoset_animation_id, sizeof(uint32_t));
 }
 
-void ReadHelper(sizeBuf_t * buffer, mdxHelper_t *helper) {
+void ReadHelper(sizeBuf_t *buffer, mdxHelper_t *helper) {
     ReadNode(buffer, &helper->node, buffer->cursize - buffer->readcount);
 }
 
-void ReadCollisionShape(sizeBuf_t * buffer, mdxCollisionShape_t *cs) {
+void ReadCollisionShape(sizeBuf_t *buffer, mdxCollisionShape_t *cs) {
     ReadNode(buffer, &cs->node, buffer->cursize - buffer->readcount);
     MSG_ReadOverflow(buffer, &cs->type, sizeof(uint32_t));
     MSG_ReadOverflow(buffer, &cs->vertex[0], sizeof(vector3_t));
@@ -326,7 +326,7 @@ void ReadCollisionShape(sizeBuf_t * buffer, mdxCollisionShape_t *cs) {
 #define MSG_READ(buffer_t, VAR) \
 MSG_Read(buffer_t, &VAR, sizeof(VAR));
 
-void ReadParticleEmitter(sizeBuf_t * buffer, mdxParticleEmitter_t *pe) {
+void ReadParticleEmitter(sizeBuf_t *buffer, mdxParticleEmitter_t *pe) {
     uint32_t emitterSize = MSG_ReadLong(buffer), header;
     ReadNode(buffer, &pe->node, emitterSize - sizeof(emitterSize));
     MSG_READ(buffer, pe->Speed);
@@ -383,7 +383,7 @@ void ReadParticleEmitter(sizeBuf_t * buffer, mdxParticleEmitter_t *pe) {
     }
 }
 
-void ReadRibbonEmitter(sizeBuf_t * buffer, mdxRibbonEmitter_t *ribbon) {
+void ReadRibbonEmitter(sizeBuf_t *buffer, mdxRibbonEmitter_t *ribbon) {
     uint32_t emitterSize = MSG_ReadLong(buffer), header;
     ReadNode(buffer, &ribbon->node, emitterSize - sizeof(emitterSize));
     MSG_READ(buffer, ribbon->heightAbove);
@@ -412,7 +412,7 @@ void ReadRibbonEmitter(sizeBuf_t * buffer, mdxRibbonEmitter_t *ribbon) {
     }
 }
 
-void ReadCamera(sizeBuf_t * buffer, mdxCamera_t *camera) {
+void ReadCamera(sizeBuf_t *buffer, mdxCamera_t *camera) {
     uint32_t blockHeader;
     MSG_Read(buffer, &camera->name, sizeof(mdxObjectName_t));
     MSG_Read(buffer, &camera->pivot, sizeof(vector3_t));
@@ -431,7 +431,7 @@ void ReadCamera(sizeBuf_t * buffer, mdxCamera_t *camera) {
     }
 }
 
-void ReadEvent(sizeBuf_t * buffer, mdxEvent_t *event) {
+void ReadEvent(sizeBuf_t *buffer, mdxEvent_t *event) {
     ReadNode(buffer, &event->node, buffer->cursize - buffer->readcount);
     uint32_t blockHeader;
     MSG_ReadOverflow(buffer, &blockHeader, 4);
@@ -445,7 +445,7 @@ void ReadEvent(sizeBuf_t * buffer, mdxEvent_t *event) {
     }
 }
 
-void ReadAttachment(sizeBuf_t * buffer, mdxAttachment_t *attachment) {
+void ReadAttachment(sizeBuf_t *buffer, mdxAttachment_t *attachment) {
     uint32_t attachmentSize = MSG_ReadLong(buffer), header;
     ReadNode(buffer, &attachment->node, attachmentSize - sizeof(attachmentSize));
     MSG_Read(buffer, attachment->path, MODEL_ATTACHMENT_PATH_LENGTH);
@@ -463,7 +463,7 @@ void ReadAttachment(sizeBuf_t * buffer, mdxAttachment_t *attachment) {
     }
 }
 
-void ReadLight(sizeBuf_t * buffer, mdxLight_t *light) {
+void ReadLight(sizeBuf_t *buffer, mdxLight_t *light) {
     uint32_t lightSize = MSG_ReadLong(buffer), header;
     ReadNode(buffer, &light->node, lightSize - sizeof(lightSize));
     MSG_READ(buffer, light->type);
@@ -494,7 +494,7 @@ void ReadLight(sizeBuf_t * buffer, mdxLight_t *light) {
 
 }
 
-void ReadGeosetAnim(sizeBuf_t * buffer, mdxGeosetAnim_t *geosetAnim) {
+void ReadGeosetAnim(sizeBuf_t *buffer, mdxGeosetAnim_t *geosetAnim) {
     uint32_t blockHeader;
     MSG_Read(buffer, geosetAnim, 24);
     while (MSG_Read(buffer, &blockHeader, 4)) {
@@ -525,12 +525,12 @@ mdxNode_t *MDLX_GetModelNodeWithObjectID(mdxModel_t *model, uint32_t objectID) {
     return NULL;
 }
 
-blockReadCode_t MDLX_ReadMODL(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadMODL(sizeBuf_t *sb, mdxModel_t *model) {
     MSG_Read(sb, &model->info, sizeof(mdxInfo_t));
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDLX_ReadVERS(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadVERS(sizeBuf_t *sb, mdxModel_t *model) {
     if ((model->version = MSG_ReadLong(sb)) != 800) {
         fprintf(stderr, "Usupported MDLX version %d\n", model->version);
         return BLOCKREAD_ERROR;
@@ -539,68 +539,68 @@ blockReadCode_t MDLX_ReadVERS(sizeBuf_t * sb, mdxModel_t *model) {
     }
 }
 
-blockReadCode_t MDLX_ReadEVTS(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadEVTS(sizeBuf_t *sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Event, events);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDLX_ReadGEOS(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadGEOS(sizeBuf_t *sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Geoset, geosets);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDLX_ReadMTLS(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadMTLS(sizeBuf_t *sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Material, materials);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDLX_ReadTXAN(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadTXAN(sizeBuf_t *sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, TextureAnim, textureAnims);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDLX_ReadBONE(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadBONE(sizeBuf_t *sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Bone, bones);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDLX_ReadGEOA(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadGEOA(sizeBuf_t *sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, GeosetAnim, geosetAnims);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDLX_ReadHELP(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadHELP(sizeBuf_t *sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Helper, helpers);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDLX_ReadCLID(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadCLID(sizeBuf_t *sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, CollisionShape, collisionShapes);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDLX_ReadCAMS(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadCAMS(sizeBuf_t *sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Camera, cameras);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDLX_ReadSEQS(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadSEQS(sizeBuf_t *sb, mdxModel_t *model) {
     MODEL_READ_ARRAY(sb, Sequence, sequences);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDLX_ReadGLBS(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadGLBS(sizeBuf_t *sb, mdxModel_t *model) {
     MODEL_READ_ARRAY(sb, GlobalSequence, globalSequences);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDLX_ReadPIVT(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadPIVT(sizeBuf_t *sb, mdxModel_t *model) {
     typedef vector3_t mdxVec3_t;
     MODEL_READ_ARRAY(sb, Vec3, pivots);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDLX_ReadTEXS(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadTEXS(sizeBuf_t *sb, mdxModel_t *model) {
     // MODEL_READ_ARRAY(sb, Texture, textures);
     // TEXS records are fixed 268-byte file records; mdxTexture_t also carries runtime texid state.
     model->num_textures = sb->cursize / MDX_TEXTURE_RECORD_SIZE;
@@ -622,22 +622,22 @@ blockReadCode_t MDLX_ReadTEXS(sizeBuf_t * sb, mdxModel_t *model) {
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDLX_ReadPRE2(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadPRE2(sizeBuf_t *sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, ParticleEmitter, emitters);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDLX_ReadRIBB(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadRIBB(sizeBuf_t *sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, RibbonEmitter, ribbons);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDLX_ReadATCH(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadATCH(sizeBuf_t *sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Attachment, attachments);
     return BLOCKREAD_OK;
 }
 
-blockReadCode_t MDLX_ReadLITE(sizeBuf_t * sb, mdxModel_t *model) {
+blockReadCode_t MDLX_ReadLITE(sizeBuf_t *sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, Light, lights);
     return BLOCKREAD_OK;
 }
@@ -719,7 +719,7 @@ mdxModel_t *R_LoadModelMDLX(void *data, uint32_t size) {
             continue;
         }
         tex->texid = R_RegisterTextureFile(tex->path);
-        texture_t const * loaded = R_FindTextureByID(tex->texid);
+        texture_t const *loaded = R_FindTextureByID(tex->texid);
         R_SetTextureWrap(loaded, tex->nWrapping & 0x1, tex->nWrapping & 0x2);
     }
     FOR_EACH_LIST(mdxGeosetAnim_t, geosetAnim, model->geosetAnims) {

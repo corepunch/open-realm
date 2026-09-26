@@ -1,7 +1,7 @@
 #include "r_wowmap.h"
 
 typedef struct {
-    texture_t const * texture;
+    texture_t const *texture;
     splat_shader_t *shader;
     uint32_t num_vertices;
     vertex_t vertices[WOW_SPLAT_BATCH_VERTICES];
@@ -10,8 +10,8 @@ typedef struct {
 static wowSplatbatch_t wow_splat_batches[WOW_SPLAT_BATCHES];
 
 /* Stream one material batch in a single upload/draw pair. */
-static void Wow_DrawSplatVertices(texture_t const * texture, splat_shader_t *shader,
-                                  vertex_t const * vertices, uint32_t num_vertices) {
+static void Wow_DrawSplatVertices(texture_t const *texture, splat_shader_t *shader,
+                                  vertex_t const *vertices, uint32_t num_vertices) {
     matrix4_t model_matrix;
 
     if (!texture || !shader || !vertices || !num_vertices) return;
@@ -46,8 +46,8 @@ void Wow_FlushSplats(void) {
 }
 
 /* Group splats by material; common blob shadows and selection rings become one draw each. */
-static void Wow_QueueSplatVertices(texture_t const * texture, splat_shader_t *shader,
-                                   vertex_t const * vertices, uint32_t num_vertices) {
+static void Wow_QueueSplatVertices(texture_t const *texture, splat_shader_t *shader,
+                                   vertex_t const *vertices, uint32_t num_vertices) {
     wowSplatbatch_t *empty = NULL;
 
     if (!texture || !shader || !vertices || !num_vertices) return;
@@ -82,11 +82,11 @@ static void Wow_QueueSplatVertices(texture_t const * texture, splat_shader_t *sh
 
 bool Wow_MakeSplatVertex(float x,
                                 float y,
-                                vector2_t const * mins,
+                                vector2_t const *mins,
                                 float width,
                                 float height,
                                 color32_t color,
-                                vertex_t * vertex) {
+                                vertex_t *vertex) {
     float z;
 
     if (!vertex || !Wow_TerrainHeightAtPoint(x, y, &z)) {
@@ -97,8 +97,8 @@ bool Wow_MakeSplatVertex(float x,
     return true;
 }
 
-void Wow_AddSplatTriangle(vertex_t * vertices,
-                                 uint32_t * count,
+void Wow_AddSplatTriangle(vertex_t *vertices,
+                                 uint32_t *count,
                                  vertex_t a,
                                  vertex_t b,
                                  vertex_t c,
@@ -123,7 +123,7 @@ void Wow_AddSplatTriangle(vertex_t * vertices,
 void Wow_DrawTerrainShadows(void) {
 }
 
-void R_RenderRectSplat(vector2_t const * mins, vector2_t const * maxs, texture_t const * texture, splat_shader_t *shader, color32_t color) {
+void R_RenderRectSplat(vector2_t const *mins, vector2_t const *maxs, texture_t const *texture, splat_shader_t *shader, color32_t color) {
     float width;
     float height;
     int cols;
@@ -241,8 +241,8 @@ void R_RenderRectSplat(vector2_t const * mins, vector2_t const * maxs, texture_t
     if (vertices_allocated) ri.MemFree(vertices);
 }
 
-void R_RenderFlatRectSplat(vector2_t const * mins, vector2_t const * maxs, float z,
-                           texture_t const * texture, splat_shader_t *shader, color32_t color) {
+void R_RenderFlatRectSplat(vector2_t const *mins, vector2_t const *maxs, float z,
+                           texture_t const *texture, splat_shader_t *shader, color32_t color) {
     float width;
     float height;
     vertex_t vertices[6];
@@ -267,7 +267,7 @@ void R_RenderFlatRectSplat(vector2_t const * mins, vector2_t const * maxs, float
     Wow_QueueSplatVertices(texture, shader, vertices, 6);
 }
 
-void R_RenderSplat(vector2_t const * position, float radius, texture_t const * texture, splat_shader_t *shader, color32_t color) {
+void R_RenderSplat(vector2_t const *position, float radius, texture_t const *texture, splat_shader_t *shader, color32_t color) {
     if (!position || radius <= 0.0f) return;
     vector2_t mins = { .x = position->x - radius, .y = position->y - radius };
     vector2_t maxs = { .x = position->x + radius, .y = position->y + radius };
@@ -278,12 +278,12 @@ void R_RenderSplat(vector2_t const * position, float radius, texture_t const * t
  * batch through Wow_QueueSplatVertices, so the shared batch API stays immediate. */
 static splat_shader_t *wow_batch_shader;
 void R_BeginSplatBatch(splat_shader_t *shader) { wow_batch_shader = shader; }
-void R_AddRectSplat(vector2_t const * mins, vector2_t const * maxs, texture_t const * texture, color32_t color) {
+void R_AddRectSplat(vector2_t const *mins, vector2_t const *maxs, texture_t const *texture, color32_t color) {
     R_RenderRectSplat(mins, maxs, texture, wow_batch_shader, color);
 }
 void R_EndSplatBatch(void) { }
 
-vector2_t GetWar3MapSize(war3map_t const * war3Map) {
+vector2_t GetWar3MapSize(war3map_t const *war3Map) {
     (void)war3Map;
     return (vector2_t){ 0.0f, 0.0f };
 }
@@ -300,7 +300,7 @@ float Wow_GetHeightAtPoint(float x, float y) {
     return GetAccurateHeightAtPoint(x, y);
 }
 
-bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t * output) {
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t *output) {
     line3_t const line = R_LineForScreenPoint(viewdef, x, y);
     float const dz = line.b.z - line.a.z;
     float t;

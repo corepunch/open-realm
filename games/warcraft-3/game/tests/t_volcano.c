@@ -6,10 +6,10 @@
 #define BZ_BSTU MAKEFOURCC('B', 's', 't', 'u') // rawcode; shared stun timed status
 #define BZ_VTST MAKEFOURCC('V', 't', 's', 't') // UnitID; non-stock volcano doodad
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock DataB/C/D/E/F and UnitID so tests cannot pass on hardcoded retail 8/5/2/100/0.5/Volc. */
@@ -38,29 +38,29 @@ static cstring_t volcano_dest_slk =
 
 typedef struct {
     slkTestData_t *rows, *old, *dest_rows, *dest_old;
-    edict_t * caster, *enemy, *building, *far, *hero, *outer, *tree, *debris;
+    edict_t *caster, *enemy, *building, *far, *hero, *outer, *tree, *debris;
     UnitBalance_t unit_bal, bldg_bal, hero_bal;
 } volcFix_t;
 
-static edict_t * volcano_thinker(edict_t * caster) {
+static edict_t *volcano_thinker(edict_t *caster) {
     FILTER_EDICTS(ent, ent->owner == caster && ent->think) return ent;
     return NULL;
 }
 
-static edict_t * volcano_doodad(void) {
+static edict_t *volcano_doodad(void) {
     FILTER_EDICTS(ent, ent->class_id == BZ_VTST && G_IsDestructable(ent)) return ent;
     return NULL;
 }
 
-static uint32_t volcano_stun_ms(edict_t const * unit) {
+static uint32_t volcano_stun_ms(edict_t const *unit) {
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSTU)
             return unit->abilstatus[i].duration_ms;
     return 0;
 }
 
-static edict_t * volcano_make_destructable(float life, float x, float y, TARGTYPE type) {
-    edict_t * ent = G_Spawn();
+static edict_t *volcano_make_destructable(float life, float x, float y, TARGTYPE type) {
+    edict_t *ent = G_Spawn();
     ent->class_id = MAKEFOURCC('B', '0', '0', 'X');
     ent->s.class_id = ent->class_id;
     G_BindEntityData(ent);
@@ -184,7 +184,7 @@ TEST(wc3_spell, volcano_damages_trees_and_debris_in_area) {
 TEST(wc3_spell, volcano_spawns_unitid_destructible_at_point) {
     volcFix_t fix; volcano_setup(&fix);
     vector2_t point = MAKE(vector2_t, 32, 48);
-    edict_t * doodad;
+    edict_t *doodad;
     T_EQ((int)S_SpellUnitId(BZ_ANVC, 1), (int)BZ_VTST);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANVC, &point));
     doodad = volcano_doodad();
@@ -199,7 +199,7 @@ TEST(wc3_spell, volcano_second_wave_after_authored_interval) {
     volcFix_t fix; volcano_setup(&fix);
     vector2_t point = fix.enemy->s.origin2;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANVC, &point));
-    edict_t * thinker = volcano_thinker(fix.caster);
+    edict_t *thinker = volcano_thinker(fix.caster);
     T_NOT_NULL(thinker);
     T_FEQ(fix.enemy->health.value, 460, 0.001f);
     level.time += FRAMETIME; G_RunEntities();
@@ -215,7 +215,7 @@ TEST(wc3_spell, volcano_caster_move_cancels_remaining_waves) {
     volcFix_t fix; volcano_setup(&fix);
     vector2_t point = fix.enemy->s.origin2;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANVC, &point));
-    edict_t * thinker = volcano_thinker(fix.caster);
+    edict_t *thinker = volcano_thinker(fix.caster);
     T_NOT_NULL(thinker);
     fix.caster->s.origin2.x += 10; fix.caster->s.origin.x += 10;
     level.time = thinker->freetime; G_RunEntities();

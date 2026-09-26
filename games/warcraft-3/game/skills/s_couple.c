@@ -3,8 +3,8 @@
 /* Hippogryph couple: Acoa/Acoh merge two living same-owner units into UnitID;
  * Adec splits the rider into DataA+DataB. Not Defend, not cargo, not Raven Form. */
 
-static bool couple_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
-	edict_t * target = st.entity;
+static bool couple_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+	edict_t *target = st.entity;
 	uint32_t level, partner, rider;
 
 	if (!caster || !spell || !target || target == caster) return false;
@@ -17,8 +17,8 @@ static bool couple_validate(edict_t * caster, spellTarget_t st, abilityitem_t co
 }
 
 /* Spawn the authored rider first, then remove both inputs (Warsmash CoupleInstant). */
-static void couple_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
-	edict_t * target = st.entity, *rider;
+static void couple_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+	edict_t *target = st.entity, *rider;
 	uint32_t level, result;
 	vector2_t origin;
 
@@ -39,7 +39,7 @@ static void couple_execute(edict_t * caster, spellTarget_t st, abilityitem_t con
 	G_FreeEdict(caster);
 }
 
-static bool decouple_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool decouple_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
 	uint32_t level, a, b;
 
 	(void)st;
@@ -50,8 +50,8 @@ static bool decouple_validate(edict_t * caster, spellTarget_t st, abilityitem_t 
 	return a && b;
 }
 
-static edict_t * decouple_spawn(edict_t * rider, uint32_t unit_id) {
-	edict_t * ent;
+static edict_t *decouple_spawn(edict_t *rider, uint32_t unit_id) {
+	edict_t *ent;
 
 	if (!rider || !unit_id) return NULL;
 	ent = SP_SpawnAtLocationNoBirth(unit_id, rider->s.player, &rider->s.origin2);
@@ -65,9 +65,9 @@ static edict_t * decouple_spawn(edict_t * rider, uint32_t unit_id) {
 	return ent;
 }
 
-static void decouple_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static void decouple_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
 	uint32_t level, a, b;
-	edict_t * first, *second;
+	edict_t *first, *second;
 
 	(void)st;
 	if (!caster || !spell || !decouple_validate(caster, st, spell)) return;

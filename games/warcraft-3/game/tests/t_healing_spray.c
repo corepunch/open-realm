@@ -4,10 +4,10 @@
 
 #define BZ_ANHS MAKEFOURCC('A', 'N', 'h', 's') // rawcode; TFT Alchemist Healing Spray
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock DataA/B/D/F so tests cannot pass on retail 40/1/280/3. */
@@ -28,11 +28,11 @@ static cstring_t healing_spray_slk =
 
 typedef struct {
     slkTestData_t *rows, *old;
-    edict_t * caster, *ally, *ally2, *enemy, *mech, *far;
+    edict_t *caster, *ally, *ally2, *enemy, *mech, *far;
     UnitBalance_t unit_bal, mech_bal;
 } hsFix_t;
 
-static edict_t * hs_thinker(edict_t * caster) {
+static edict_t *hs_thinker(edict_t *caster) {
     FILTER_EDICTS(ent, ent->owner == caster && ent->think) return ent;
     return NULL;
 }
@@ -132,7 +132,7 @@ TEST(wc3_spell, healing_spray_second_wave_after_authored_interval) {
     hsFix_t fix; hs_setup(&fix);
     vector2_t point = fix.ally->s.origin2;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANHS, &point));
-    edict_t * thinker = hs_thinker(fix.caster);
+    edict_t *thinker = hs_thinker(fix.caster);
     T_NOT_NULL(thinker);
     T_FEQ(fix.ally->health.value, 125, 0.001f);
     level.time += FRAMETIME; G_RunEntities();
@@ -148,7 +148,7 @@ TEST(wc3_spell, healing_spray_caster_move_cancels_remaining_waves) {
     hsFix_t fix; hs_setup(&fix);
     vector2_t point = fix.ally->s.origin2;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANHS, &point));
-    edict_t * thinker = hs_thinker(fix.caster);
+    edict_t *thinker = hs_thinker(fix.caster);
     T_NOT_NULL(thinker);
     fix.caster->s.origin2.x += 10; fix.caster->s.origin.x += 10;
     level.time = thinker->freetime; G_RunEntities();

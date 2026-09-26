@@ -5,26 +5,26 @@
 #include "../menu_local.h"
 
 typedef struct PlayerSlot_s {
-    frameDef_t * PlayerSlot;
-    frameDef_t * DownloadValue;
-    frameDef_t * NameMenu;
-    frameDef_t * NamePopupMenuMenu;
-    frameDef_t * RaceMenu;
-    frameDef_t * RacePopupMenuMenu;
-    frameDef_t * TeamButton;
-    frameDef_t * TeamButtonBackdrop;
-    frameDef_t * TeamButtonDisabledBackdrop;
-    frameDef_t * TeamButtonTitle;
-    frameDef_t * TeamButtonArrow;
-    frameDef_t * ColorButton;
-    frameDef_t * ColorButtonBackdrop;
-    frameDef_t * ColorButtonDisabledBackdrop;
-    frameDef_t * ColorButtonValue;
-    frameDef_t * ColorButtonArrow;
+    frameDef_t *PlayerSlot;
+    frameDef_t *DownloadValue;
+    frameDef_t *NameMenu;
+    frameDef_t *NamePopupMenuMenu;
+    frameDef_t *RaceMenu;
+    frameDef_t *RacePopupMenuMenu;
+    frameDef_t *TeamButton;
+    frameDef_t *TeamButtonBackdrop;
+    frameDef_t *TeamButtonDisabledBackdrop;
+    frameDef_t *TeamButtonTitle;
+    frameDef_t *TeamButtonArrow;
+    frameDef_t *ColorButton;
+    frameDef_t *ColorButtonBackdrop;
+    frameDef_t *ColorButtonDisabledBackdrop;
+    frameDef_t *ColorButtonValue;
+    frameDef_t *ColorButtonArrow;
 } PlayerSlot_t;
 
 
-static inline bool PlayerSlot_Bind(PlayerSlot_t *out, frameDef_t * bind_root) {
+static inline bool PlayerSlot_Bind(PlayerSlot_t *out, frameDef_t *bind_root) {
     bool ok = true;
     if (!out) {
         return false;
