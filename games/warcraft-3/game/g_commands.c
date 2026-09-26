@@ -1125,6 +1125,8 @@ CLIENTCOMMAND(Button) {
     }
     ability = FindAbilityForCommand(classname);
     if (S_AbilityHasCommand(ability)) {
+        client->menu.ability_item = NULL;
+        client->menu.ability_item_spawn_time = 0;
         client->menu.ability_code = *((uint32_t const *)classname);
         client->menu.ability_off = ability_off;
         S_AbilityCommand(clent, ability);
