@@ -161,41 +161,43 @@ FW_DEPS = $(SDL_MARKER) $(APP_ROOT)/settings packaging/ipad/build.mk
 FW_LINK_BASE = -isysroot "$(SDK_PATH)" -arch $(ARCH) $(MIN_FLAG) -dynamiclib \
 	-Wl,-install_name,@rpath/$(notdir $(@D))/$(notdir $@) -Wl,-rpath,@loader_path/..
 
-$(FW_DIR)/shared.framework/shared: $(BUILD_ROOT)/unity_shared.c $(FW_DEPS)
+# Unity objects are real targets so the -MMD depfiles (which name the .o)
+# rebuild them, and hence their framework, when an included header changes.
+$(BUILD_ROOT)/unity_shared.o $(BUILD_ROOT)/unity_sheet.o: TU_FLAGS = $(BASE_FLAGS)
+$(BUILD_ROOT)/unity_jass.o $(BUILD_ROOT)/unity_renderer.o: TU_FLAGS = $(WC3_FLAGS)
+$(BUILD_ROOT)/unity_game.o $(BUILD_ROOT)/unity_menu.o: TU_FLAGS = $(WC3_FLAGS) $(FDF_FLAGS)
+$(BUILD_ROOT)/unity_%.o: $(BUILD_ROOT)/unity_%.c $(FW_DEPS)
+	$(COMPILER) $(TU_FLAGS) -c "$<" -o "$@"
+
+$(FW_DIR)/shared.framework/shared: $(BUILD_ROOT)/unity_shared.o
 	@mkdir -p "$(@D)"
-	$(COMPILER) $(BASE_FLAGS) -c "$(BUILD_ROOT)/unity_shared.c" -o "$(BUILD_ROOT)/unity_shared.o"
-	$(COMPILER) $(FW_LINK_BASE) "$(BUILD_ROOT)/unity_shared.o" \
+	$(COMPILER) $(FW_LINK_BASE) "$<" \
 		-force_load "$(SDL_LIB)" -lz -lm $(SDL_SYSTEM_LIBS) -o "$@"
 
-$(FW_DIR)/jass.framework/jass: $(BUILD_ROOT)/unity_jass.c $(FW_DEPS) $(FW_DIR)/shared.framework/shared
+$(FW_DIR)/jass.framework/jass: $(BUILD_ROOT)/unity_jass.o $(FW_DIR)/shared.framework/shared
 	@mkdir -p "$(@D)"
-	$(COMPILER) $(WC3_FLAGS) -c "$(BUILD_ROOT)/unity_jass.c" -o "$(BUILD_ROOT)/unity_jass.o"
-	$(COMPILER) $(FW_LINK_BASE) "$(BUILD_ROOT)/unity_jass.o" \
+	$(COMPILER) $(FW_LINK_BASE) "$<" \
 		-F"$(FW_DIR)" -framework shared -lm -o "$@"
 
-$(FW_DIR)/sheet.framework/sheet: $(BUILD_ROOT)/unity_sheet.c $(FW_DEPS)
+$(FW_DIR)/sheet.framework/sheet: $(BUILD_ROOT)/unity_sheet.o
 	@mkdir -p "$(@D)"
-	$(COMPILER) $(BASE_FLAGS) -c "$(BUILD_ROOT)/unity_sheet.c" -o "$(BUILD_ROOT)/unity_sheet.o"
-	$(COMPILER) $(FW_LINK_BASE) "$(BUILD_ROOT)/unity_sheet.o" -o "$@"
+	$(COMPILER) $(FW_LINK_BASE) "$<" -o "$@"
 
-$(FW_DIR)/renderer.framework/renderer: $(BUILD_ROOT)/unity_renderer.c $(FW_DEPS) $(FW_DIR)/shared.framework/shared $(FW_DIR)/sheet.framework/sheet
+$(FW_DIR)/renderer.framework/renderer: $(BUILD_ROOT)/unity_renderer.o $(FW_DIR)/shared.framework/shared $(FW_DIR)/sheet.framework/sheet
 	@mkdir -p "$(@D)"
-	$(COMPILER) $(WC3_FLAGS) -c "$(BUILD_ROOT)/unity_renderer.c" -o "$(BUILD_ROOT)/unity_renderer.o"
-	$(COMPILER) $(FW_LINK_BASE) "$(BUILD_ROOT)/unity_renderer.o" \
+	$(COMPILER) $(FW_LINK_BASE) "$<" \
 		-F"$(FW_DIR)" -framework shared -framework sheet \
 		-framework OpenGLES -lz -lm -o "$@"
 
-$(FW_DIR)/game.framework/game: $(BUILD_ROOT)/unity_game.c $(FW_DEPS) $(FW_DIR)/shared.framework/shared $(FW_DIR)/sheet.framework/sheet $(FW_DIR)/jass.framework/jass
+$(FW_DIR)/game.framework/game: $(BUILD_ROOT)/unity_game.o $(FW_DIR)/shared.framework/shared $(FW_DIR)/sheet.framework/sheet $(FW_DIR)/jass.framework/jass
 	@mkdir -p "$(@D)"
-	$(COMPILER) $(WC3_FLAGS) $(FDF_FLAGS) -c "$(BUILD_ROOT)/unity_game.c" -o "$(BUILD_ROOT)/unity_game.o"
-	$(COMPILER) $(FW_LINK_BASE) "$(BUILD_ROOT)/unity_game.o" \
+	$(COMPILER) $(FW_LINK_BASE) "$<" \
 		-F"$(FW_DIR)" -framework sheet -framework shared -framework jass \
 		-lm -lz -o "$@"
 
-$(FW_DIR)/menu.framework/menu: $(BUILD_ROOT)/unity_menu.c $(FW_DEPS) $(FW_DIR)/shared.framework/shared $(FW_DIR)/sheet.framework/sheet
+$(FW_DIR)/menu.framework/menu: $(BUILD_ROOT)/unity_menu.o $(FW_DIR)/shared.framework/shared $(FW_DIR)/sheet.framework/sheet
 	@mkdir -p "$(@D)"
-	$(COMPILER) $(WC3_FLAGS) $(FDF_FLAGS) -c "$(BUILD_ROOT)/unity_menu.c" -o "$(BUILD_ROOT)/unity_menu.o"
-	$(COMPILER) $(FW_LINK_BASE) "$(BUILD_ROOT)/unity_menu.o" \
+	$(COMPILER) $(FW_LINK_BASE) "$<" \
 		-F"$(FW_DIR)" -framework shared -framework sheet -lm -lz -o "$@"
 
 frameworks: $(FW_BINS)
@@ -244,8 +246,8 @@ deploy: app
 		fi; \
 		echo "Auto-selected iPad $$device"; \
 	fi; \
-	python3 tools/ipad/sign.py "$(BUNDLE)" $(if $(TEAM),--team "$(TEAM)") $(if $(PROFILE),--profile "$(PROFILE)"); \
-	xcrun devicectl device install app --device "$$device" "$(BUNDLE)"; \
+	python3 tools/ipad/sign.py "$(BUNDLE)" $(if $(TEAM),--team "$(TEAM)") $(if $(PROFILE),--profile "$(PROFILE)") && \
+	xcrun devicectl device install app --device "$$device" "$(BUNDLE)" && \
 	xcrun devicectl device process launch --device "$$device" --terminate-existing "$(BUNDLE_ID)"
 
 mac: app

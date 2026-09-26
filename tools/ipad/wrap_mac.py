@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Wrap a signed iPad development build for local Apple silicon Mac launch."""
 from pathlib import Path
+import plistlib
 import shutil
 import subprocess
 import sys
@@ -8,7 +9,9 @@ import sys
 
 def main():
     source, destination = (Path(arg).resolve() for arg in sys.argv[1:])
-    if not (source / 'Info.plist').is_file() or not (source / source.stem).is_file():
+    info = source / 'Info.plist'
+    executable = plistlib.loads(info.read_bytes()).get('CFBundleExecutable') if info.is_file() else None
+    if not executable or not (source / executable).is_file():
         raise SystemExit('Expected a built iOS app bundle')
     if destination == source or source in destination.parents or destination in source.parents:
         raise SystemExit('The wrapper must be separate from the source app')
