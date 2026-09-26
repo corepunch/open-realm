@@ -145,7 +145,8 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(cannibalize_approach_think),
     SAVE_CFUNCTION(incinerate_explode_think),
     SAVE_CFUNCTION(monsoon_think),
-    SAVE_CFUNCTION(S_SpellTargetApproachThink),
+    /* Keep the prior v47 name hash; the implementation now handles point targets too. */
+    { .name = "S_SpellUnitTargetApproachThink", .func = (void *)(S_SpellTargetApproachThink) },
     SAVE_CFUNCTION(land_mine_think),
     SAVE_CFUNCTION(death_damage_aoe_think),
 };

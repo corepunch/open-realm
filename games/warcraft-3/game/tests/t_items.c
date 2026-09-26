@@ -47,6 +47,41 @@ static void item_noop_unicast(edict_t *ent) {
     (void)ent;
 }
 
+static bool item_save_contains_callback(cstring_t path, uint32_t index, cstring_t name) {
+    FILE *file = fopen(path, "rb");
+    long length;
+    uint8_t *bytes;
+    uint32_t hash = 0;
+    uint32_t token[2];
+    bool found = false;
+
+    if (!file) return false;
+    if (fseek(file, 0, SEEK_END) || (length = ftell(file)) < 0 || fseek(file, 0, SEEK_SET)) {
+        fclose(file);
+        return false;
+    }
+    bytes = malloc((size_t)length);
+    if (!bytes) {
+        fclose(file);
+        return false;
+    }
+    if (fread(bytes, 1, (size_t)length, file) == (size_t)length) {
+        for (size_t i = 0; name[i]; i++) hash = (hash ^ (uint8_t)name[i]) * 16777619u;
+        hash = (hash ^ 0) * 16777619u;
+        token[0] = index;
+        token[1] = hash;
+        for (size_t i = 0; i + sizeof(token) <= (size_t)length; i++) {
+            if (!memcmp(bytes + i, token, sizeof(token))) {
+                found = true;
+                break;
+            }
+        }
+    }
+    free(bytes);
+    fclose(file);
+    return found;
+}
+
 static int capture_inventory_panel_image(cstring_t name) {
     uint32_t index = inventory_panel_image_count;
     if (index < sizeof(inventory_panel_images) / sizeof(inventory_panel_images[0]))
@@ -1266,12 +1301,13 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
         "C;Y4;X4;K\"ground,enemy\"\nC;Y4;X7;K\"500\"\nC;Y4;X8;K\"1\"\n"
         "C;Y4;X16;K\"128\"\nE\n";
     static UnitAbilities_t abilities = { .abilList = "AInv", .heroAbilList = "" };
-    ItemData_t item_data = { .abilList = "AIpm", .uses = 2, .perishable = false };
+    ItemData_t item_data = { .abilList = "AIpm", .uses = 4, .perishable = false };
     slkTestData_t *rows, *old;
     edict_t *player, *hero, *item, *mine = NULL, *approach = NULL;
     cstring_t far_click[] = { "point", "700", "0" };
     cstring_t replace_approach[] = { "button", "Amov" };
     cstring_t replace_click[] = { "point", "20", "0" };
+    cstring_t another_far_click[] = { "point", "1300", "0" };
     cstring_t valid_click[] = { "point", "640", "0" };
 
     setup_test_world();
@@ -1280,9 +1316,11 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     hero->data.UnitAbilities = &abilities; hero->s.player = 0; hero->svflags |= SVF_MONSTER;
     hero->targtype = TARG_GROUND; hero->health.value = hero->health.max_value = 100;
+    hero->think = monster_think; hero->stand = unit_stand; hero->movetype = MOVETYPE_STEP;
+    hero->collision = 16.0f; unit_stand(hero); gi.LinkEntity(hero);
     hero->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','O','f','s'), .level = 1);
     item = make_item_test_world_item(MAKEFOURCC('g','o','b','m'), 0, 0);
-    item->data.ItemData = &item_data; item->item.charges = 2; item->spawn_time = 1234;
+    item->data.ItemData = &item_data; item->item.charges = 4; item->spawn_time = 1234;
     T_ASSERT(G_AddItemToSlot(hero, item, 0));
     G_SelectEntity(player->client, hero);
 
@@ -1290,13 +1328,13 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     T_NOT_NULL(player->client->menu.on_location_selected);
     T_EQ(player->client->menu.ability_item, item);
     T_EQ(player->client->menu.ability_item_spawn_time, item->spawn_time);
-    T_EQ(G_ItemCharges(item), 2);
+    T_EQ(G_ItemCharges(item), 4);
     G_ClientCommand(player, 3, far_click);
     T_NULL(player->client->menu.on_location_selected);
     T_ASSERT(move_is_active_order_walk(hero));
     T_NOT_NULL(hero->goalentity);
     if (hero->goalentity) T_FEQ(hero->goalentity->s.origin2.x, 700.0f, 0.001f);
-    T_EQ(G_ItemCharges(item), 2);
+    T_EQ(G_ItemCharges(item), 4);
     FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && ent->spell_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
         approach = ent; break;
     }
@@ -1310,7 +1348,7 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     level.time += FRAMETIME;
     G_RunEntities();
     T_ASSERT(!approach->inuse);
-    T_EQ(G_ItemCharges(item), 2);
+    T_EQ(G_ItemCharges(item), 4);
     mine = NULL;
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') && ent->owner == hero) {
         mine = ent; break;
@@ -1326,13 +1364,18 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     }
     T_NOT_NULL(approach);
     if (!approach) { G_SetSLKRows("AbilityData", old); free_slk_rows(rows); return; }
-    hero->s.origin2 = (vec2_t){ 604, 0 };
-    hero->s.origin.x = 604;
-    hero->s.origin.y = 0;
-    level.time += FRAMETIME;
-    G_RunEntities();
+    {
+        float const start_x = hero->s.origin2.x;
+        uint32_t frame;
+        for (frame = 0; frame < 200 && approach->inuse; frame++) {
+            level.time += FRAMETIME;
+            G_RunEntities();
+        }
+        T_ASSERT(hero->s.origin2.x > start_x);
+        T_ASSERT(frame < 200);
+    }
     T_ASSERT(!approach->inuse);
-    T_EQ(G_ItemCharges(item), 1);
+    T_EQ(G_ItemCharges(item), 3);
     T_NULL(player->client->menu.ability_item);
     T_EQ(player->client->menu.ability_item_spawn_time, 0);
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') && ent->owner == hero) {
@@ -1341,16 +1384,35 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     T_NOT_NULL(mine);
     T_FEQ(mine->s.origin2.x, 700.0f, 0.001f);
 
+    /* An accepted in-range point cast replaces an older deferred cast too. */
+    G_UseItem(hero, 0);
+    G_ClientCommand(player, 3, another_far_click);
+    approach = NULL;
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && ent->spell_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
+        approach = ent; break;
+    }
+    T_NOT_NULL(approach);
+    if (!approach) { G_SetSLKRows("AbilityData", old); free_slk_rows(rows); return; }
+    T_ASSERT(move_is_active_order_walk(hero));
+    T_FEQ(approach->s.origin2.x, 1300.0f, 0.001f);
     G_UseItem(hero, 0);
     G_ClientCommand(player, 3, valid_click);
-    T_NULL(player->client->menu.on_location_selected);
-    T_EQ(G_ItemCharges(item), 0);
+    T_ASSERT(!approach->inuse);
+    T_ASSERT(!move_is_active_order_walk(hero));
+    T_EQ(G_ItemCharges(item), 2);
     T_NULL(player->client->menu.ability_item);
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') && ent->owner == hero) {
-        if (ent != mine) { mine = ent; break; }
+        if (Vector2_distance(&ent->s.origin2, &(vec2_t){640, 0}) < 0.001f) mine = ent;
     }
     T_NOT_NULL(mine);
-    T_FEQ(mine->s.origin2.x, 640.0f, 0.001f);
+    for (uint32_t frame = 0; frame < 100; frame++) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+    }
+    T_EQ(G_ItemCharges(item), 2);
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') && ent->owner == hero) {
+        T_ASSERT(Vector2_distance(&ent->s.origin2, &(vec2_t){1300, 0}) > 0.001f);
+    }
 
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -2165,10 +2227,13 @@ TEST(wc3_items, soul_gem_pending_approach_round_trips_save) {
     bool const saved = WriteGame(path);
     T_ASSERT(saved);
     if (saved) {
+        /* The append-only approach callback slot retains its v47 serialized name. */
+        T_ASSERT(item_save_contains_callback(path, 44, "S_SpellUnitTargetApproachThink"));
         thinker->think = NULL; thinker->spell_item = NULL;
         T_ASSERT(ReadGame(path));
         thinker = &globals.edicts[thinker_slot];
         T_NOT_NULL(thinker->think);
+        T_EQ(thinker->think, S_SpellTargetApproachThink);
         T_ASSERT(thinker->spell_item == gem);
         carrier->s.origin2.x = carrier->s.origin.x = 480.0f;
         if (thinker->think) thinker->think(thinker);

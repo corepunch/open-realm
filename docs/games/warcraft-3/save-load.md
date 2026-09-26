@@ -319,7 +319,10 @@ from that index after the hash matches. NULL stays 0/0. An unrostered pointer fa
 `C callback %p is not in the save roster`; a bad index or hash fails the load instead of installing
 a wild pointer.
 
-The roster is append-only because the index is in the file. Production assignments retained by version 10:
+The roster is append-only because the index is in the file. The callback name is hashed into the same
+record, so keep that serialized name stable when an implementation symbol is renamed; point the old
+name at the current function instead of changing the on-disk identity. Production assignments retained
+by version 10:
 `monster_think`, `blight_mine_think`, `G_FreeEdict`, `G_EffectThink`, `G_EffectValidateTarget`,
 `blizzard_think`, `flame_strike_tick`, `siphon_mana_think`, `unit_stand`/`unit_birth`/`unit_die`,
 and `tree_stand`/`tree_birth`/`tree_pain`/`tree_die`. `idle`/`move`/`run`/`attack` have no
