@@ -11,19 +11,20 @@
 
 #include "test.h"
 
+extern void R_TestUseProductionModelLoader(bool enabled);
 static uint32_t test_spn_render_count;
 static renderEntity_t test_spn_render_entity;
-static matrix4_t test_spn_render_transform;
-static HANDLE test_renderer_archive;
+static mat4_t test_spn_render_transform;
+static handle_t test_renderer_archive;
 static char test_sound_path[512];
-static vector3_t test_sound_origin;
+static vec3_t test_sound_origin;
 static uint32_t test_sound_count;
 
-static HANDLE test_renderer_alloc(long size) { return calloc(1, (size_t)size); }
-static void test_renderer_free(HANDLE ptr) { free(ptr); }
+static handle_t test_renderer_alloc(long size) { return calloc(1, (size_t)size); }
+static void test_renderer_free(handle_t ptr) { free(ptr); }
 
 static int test_renderer_read(cstring_t path, void **buffer) {
-    HANDLE file = NULL;
+    handle_t file = NULL;
     uint32_t size, read = 0;
     *buffer = NULL;
     if (!test_renderer_archive || !SFileOpenFileEx(test_renderer_archive, path, 0, &file)) return -1;
@@ -32,7 +33,7 @@ static int test_renderer_read(cstring_t path, void **buffer) {
     if (!*buffer || !SFileReadFile(file, *buffer, size, &read, NULL) || read != size) {
         free(*buffer); *buffer = NULL; SFileCloseFile(file); return -1;
     }
-    ((BYTE *)*buffer)[size] = 0;
+    ((uint8_t *)*buffer)[size] = 0;
     SFileCloseFile(file);
     return (int)size;
 }
@@ -46,19 +47,19 @@ static uint32_t test_renderer_load_slk(cstring_t path, slkField_t const *schema,
     return count;
 }
 
-static void test_renderer_play_sound(cstring_t path, vector3_t const * origin, float volume) {
+static void test_renderer_play_sound(cstring_t path, vec3_t const * origin, float volume) {
     (void)volume;
     snprintf(test_sound_path, sizeof(test_sound_path), "%s", path);
     test_sound_origin = *origin;
     test_sound_count++;
 }
 
-void R_GetEntityMatrix(renderEntity_t const *entity, matrix4_t * matrix) {
+void R_GetEntityMatrix(renderEntity_t const *entity, mat4_t * matrix) {
     Matrix4_identity(matrix);
     Matrix4_translate(matrix, &entity->origin);
 }
 
-void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, matrix4_t const * transform) {
+void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, mat4_t const * transform) {
     (void)model;
     test_spn_render_count++;
     test_spn_render_entity = *entity;
@@ -71,7 +72,7 @@ mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, cstring_t 
 
 TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) {
     static uint32_t key = 100;
-    static vector3_t pivot = { 1.0f, 2.0f, 3.0f };
+    static vec3_t pivot = { 1.0f, 2.0f, 3.0f };
     static mdxSequence_t parent_sequence = { .interval = { 0, 1000 } };
     static mdxEvent_t event;
     static mdxModel_t parent_mdx;
@@ -103,8 +104,8 @@ TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) 
     if (!spawn_data_rows || spawn_data_count != 1) goto cleanup_spn_test;
     T_STREQ(spawn_data_rows[0].name, "TestSpawn");
     T_STREQ(spawn_data_rows[0].model_path, "TestUI\\Models\\quad_sprite.mdx");
-    child_model = R_TestProductionLoadModel(spawn_data_rows[0].model_path);
-    spawn_data_rows[0].model = child_model;
+    R_TestUseProductionModelLoader(true);
+    child_model = R_W3SpawnModel(spawn_data_rows);
     T_NOT_NULL(child_model);
     if (!child_model || !child_model->mdx) goto cleanup_spn_test;
     T_EQ(child_model->modeltype, ID_MDLX);
@@ -139,12 +140,9 @@ TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) 
 
 cleanup_spn_test:
     R_W3ClearEventSpawns();
-    if (spawn_data_rows && spawn_data_count) spawn_data_rows[0].model = NULL;
-    R_W3FreeSpawnData(false);
-    if (child_model) {
-        if (child_model->mdx) R_TestProductionReleaseModel(child_model);
-        else test_renderer_free(child_model);
-    }
+    R_W3FreeSpawnData(true);
+    R_ShutdownModels();
+    R_TestUseProductionModelLoader(false);
     if (test_renderer_archive) { SFileCloseArchive(test_renderer_archive); test_renderer_archive = NULL; }
     ri = saved_imports;
     event_sound_state[7] = saved_state; tr.viewDef.time = saved_time; tr.render_phase = saved_phase;
@@ -152,7 +150,7 @@ cleanup_spn_test:
 
 TEST(renderer_model, production_snd_dispatch_uses_event_world_transform) {
     static uint32_t key = 100;
-    static vector3_t pivot = { 1.0f, 2.0f, 3.0f };
+    static vec3_t pivot = { 1.0f, 2.0f, 3.0f };
     static mdxSequence_t sequence = { .interval = { 0, 1000 } };
     static wc3AnimSound_t sound = { .name = "TestSound", .files = "hit.wav", .directory = "Sounds", .volume = 127.0f };
     mdxEvent_t event = { .num_keys = 1, .globalSeqId = (uint32_t)-1, .keys = &key };
@@ -164,7 +162,7 @@ TEST(renderer_model, production_snd_dispatch_uses_event_world_transform) {
     uint32_t saved_sound_count = anim_sound_count, saved_time = tr.viewDef.time;
     render_phase_t saved_phase = tr.render_phase;
     wc3EventSoundState_t saved_state = event_sound_state[8];
-    void (*saved_play_sound)(cstring_t, vector3_t const *, float) = ri.PlaySoundAt;
+    void (*saved_play_sound)(cstring_t, vec3_t const *, float) = ri.PlaySoundAt;
 
     snprintf(event.node.name, sizeof(event.node.name), "SNDxTestSound");
     event.node.node_id = 0; event.node.parent_id = (uint32_t)-1;

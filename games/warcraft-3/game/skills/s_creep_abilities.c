@@ -116,7 +116,7 @@ static bool death_damage_aoe_allows_destructable(uint32_t code, uint32_t ability
     }
 }
 
-static void death_damage_aoe_apply(edict_t * source, uint32_t code, uint32_t level, vector2_t const * origin) {
+static void death_damage_aoe_apply(edict_t * source, uint32_t code, uint32_t level, vec2_t const * origin) {
     float full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
     float part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
     if (!source || !origin || (full_d <= 0.0f && part_d <= 0.0f)) return;

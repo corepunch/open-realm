@@ -1265,7 +1265,7 @@ TEST(wc3_items, point_target_item_charge_waits_for_successful_location_cast) {
     ItemData_t item_data = { .abilList = "AIpm", .uses = 2, .perishable = false };
     slkTestData_t *rows, *old;
     edict_t *player, *hero, *item, *mine = NULL;
-    vector2_t invalid = { 700, 0 }, valid = { 128, 0 };
+    vec2_t invalid = { 700, 0 }, valid = { 128, 0 };
 
     setup_test_world();
     rows = parse_slk_string(ability_slk); old = G_SetSLKRows("AbilityData", rows);

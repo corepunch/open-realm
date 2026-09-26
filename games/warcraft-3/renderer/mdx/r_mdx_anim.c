@@ -69,9 +69,9 @@ bool MDLX_EventObjectId(mdxEvent_t const *event, cstring_t type, char *out, uint
 
 /* Keep the animated node basis and place the child at its transformed pivot. */
 bool MDLX_EventWorldTransform(mdxModel_t const *model, mdxEvent_t const *event,
-                              renderEntity_t const *entity, matrix4_t const *model_transform,
-                              matrix4_t *out) {
-    vector3_t pivot = {0}, local, world;
+                              renderEntity_t const *entity, mat4_t const *model_transform,
+                              mat4_t *out) {
+    vec3_t pivot = {0}, local, world;
     if (!model || !event || !entity || !model_transform || !out) return false;
     MDLX_BindBoneMatrices(model, model_transform, entity->frame, entity->oldframe);
     if (event->node.node_id < (uint32_t)model->num_pivots) pivot = model->pivots[event->node.node_id];
