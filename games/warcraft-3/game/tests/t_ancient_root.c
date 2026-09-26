@@ -25,7 +25,7 @@ static char const ancient_root_tft[] =
     "C;Y2;X5;K\"2.25\"\nC;Y2;X6;K\"6.75\"\n"
     "C;Y2;X7;K\"3\"\nC;Y2;X8;K\"3\"\nC;Y2;X10;K\"1\"\n"
     "C;Y3;X1;K\"AHhb\"\nC;Y3;X2;K\"AHhb\"\nC;Y3;X3;K\"1\"\n"
-    "C;Y3;X4;K\"ground,enemy\"\nE\n";
+    "C;Y3;X4;K\"ground\"\nE\n";
 
 /* ROC keeps AbilityData's row-major Data11..Data34 columns. */
 static char const ancient_root_roc[] =
@@ -35,7 +35,7 @@ static char const ancient_root_roc[] =
     "C;Y1;X7;K\"Data13\"\nC;Y1;X8;K\"Data14\"\nC;Y1;X9;K\"levels\"\n"
     "C;Y2;X1;K\"Aroo\"\nC;Y2;X3;K\"2.25\"\nC;Y2;X4;K\"6.75\"\n"
     "C;Y2;X5;K\"3\"\nC;Y2;X6;K\"3\"\nC;Y2;X8;K\"1\"\nC;Y2;X9;K\"1\"\n"
-    "C;Y3;X1;K\"AHhb\"\nC;Y3;X2;K\"ground,enemy\"\nC;Y3;X9;K\"1\"\nE\n";
+    "C;Y3;X1;K\"AHhb\"\nC;Y3;X2;K\"ground\"\nC;Y3;X9;K\"1\"\nE\n";
 
 static edict_t *ancient_test_unit(bool rooted) {
     edict_t *unit = alloc_test_unit(TEST_HBAR, 64.0f, 64.0f);

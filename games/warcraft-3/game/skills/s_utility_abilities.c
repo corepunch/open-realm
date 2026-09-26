@@ -40,7 +40,7 @@ bool S_AncientIsRooted(edict_t const *unit) {
 }
 
 bool S_AncientHasRootAbility(edict_t const *unit) {
-    return ancient_root_ability(unit) != 0;
+	return unit && root_code(unit->ancient_root.ability) ? true : ancient_root_ability(unit) != 0;
 }
 
 bool S_AncientCanReceiveOrder(edict_t const *unit) {
