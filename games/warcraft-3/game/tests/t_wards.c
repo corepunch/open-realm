@@ -260,6 +260,37 @@ TEST(wc3_spell, item_place_mine_spawns_real_owned_unit_at_point) {
 	ward_done(&fix);
 }
 
+TEST(wc3_spell, unit_or_point_approach_keeps_its_point_target_shape) {
+	wardFix_t fix; vec2_t point = { 700, 0 }; edict_t *thinker, *mine;
+	ability_t *place;
+	spellTargetType_t stock_target_type;
+	uint32_t thinker_slot;
+
+	ward_setup(&fix);
+	place = (ability_t *)FindAbilityForCommand("AIpm");
+	T_NOT_NULL(place);
+	if (!place) { ward_done(&fix); return; }
+	stock_target_type = place->target_type;
+	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AIPM, .level = 1);
+	place->target_type = SPELL_TARGET_UNIT_OR_POINT;
+	thinker_slot = globals.num_edicts;
+	T_ASSERT(S_IssuePointTargetSpell(fix.caster, BZ_AIPM, &point));
+	thinker = &globals.edicts[thinker_slot];
+	T_ASSERT(thinker->inuse && thinker->think == S_SpellTargetApproachThink);
+	fix.caster->s.origin2.x = fix.caster->s.origin.x = 250;
+	if (thinker->think) thinker->think(thinker);
+	mine = ward_find(BZ_HFOO);
+	T_NOT_NULL(mine);
+	if (mine) {
+		T_EQ(mine->summon_ability, BZ_AIPM);
+		T_FEQ(mine->s.origin2.x, point.x, .001f);
+		T_FEQ(mine->s.origin2.y, point.y, .001f);
+	}
+	T_ASSERT(!thinker->inuse);
+	place->target_type = stock_target_type;
+	ward_done(&fix);
+}
+
 TEST(wc3_spell, goblin_land_mine_arms_and_transitions_to_viewer_specific_invisibility) {
 	wardFix_t fix; edict_t *mine;
 	ward_setup(&fix);

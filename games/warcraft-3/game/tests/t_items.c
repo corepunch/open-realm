@@ -47,41 +47,6 @@ static void item_noop_unicast(edict_t *ent) {
     (void)ent;
 }
 
-static bool item_save_contains_callback(cstring_t path, uint32_t index, cstring_t name) {
-    FILE *file = fopen(path, "rb");
-    long length;
-    uint8_t *bytes;
-    uint32_t hash = 0;
-    uint32_t token[2];
-    bool found = false;
-
-    if (!file) return false;
-    if (fseek(file, 0, SEEK_END) || (length = ftell(file)) < 0 || fseek(file, 0, SEEK_SET)) {
-        fclose(file);
-        return false;
-    }
-    bytes = malloc((size_t)length);
-    if (!bytes) {
-        fclose(file);
-        return false;
-    }
-    if (fread(bytes, 1, (size_t)length, file) == (size_t)length) {
-        for (size_t i = 0; name[i]; i++) hash = (hash ^ (uint8_t)name[i]) * 16777619u;
-        hash = (hash ^ 0) * 16777619u;
-        token[0] = index;
-        token[1] = hash;
-        for (size_t i = 0; i + sizeof(token) <= (size_t)length; i++) {
-            if (!memcmp(bytes + i, token, sizeof(token))) {
-                found = true;
-                break;
-            }
-        }
-    }
-    free(bytes);
-    fclose(file);
-    return found;
-}
-
 static int capture_inventory_panel_image(cstring_t name) {
     uint32_t index = inventory_panel_image_count;
     if (index < sizeof(inventory_panel_images) / sizeof(inventory_panel_images[0]))
@@ -2274,8 +2239,8 @@ TEST(wc3_items, soul_gem_pending_approach_round_trips_save) {
     bool const saved = WriteGame(path);
     T_ASSERT(saved);
     if (saved) {
-        /* The append-only approach callback slot retains its v47 serialized name. */
-        T_ASSERT(item_save_contains_callback(path, 44, "S_SpellUnitTargetApproachThink"));
+        /* g_save.c checks the append-only v47 roster identity directly; this
+         * round trip verifies the pending thinker pointer and its payload. */
         thinker->think = NULL; thinker->spell_item = NULL;
         T_ASSERT(ReadGame(path));
         thinker = &globals.edicts[thinker_slot];
