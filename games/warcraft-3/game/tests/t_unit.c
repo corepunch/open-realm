@@ -397,7 +397,6 @@ TEST(wc3_unit, unused_client_slot_cannot_retire_another_clients_playback) {
     T_ASSERT(G_QueueUnitResponseSound(ent, 11));
     uint32_t request = G_UnitResponseRequest(ent, 11);
     test_sound_event(ent, request, SOUND_ACCEPTED); test_sound_event(ent, request, SOUND_STARTED);
-    gameClient_t unused = {0}; /* unused slots can still carry zero-initialized player zero */
     G_UpdateUnitResponsePresentation();
     T_ASSERT(G_UnitResponseTalking(ent));
     G_ResetSelectionSoundState();
