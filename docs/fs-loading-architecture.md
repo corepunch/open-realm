@@ -70,6 +70,9 @@ Every `FS_MmapFile` result has a 16-byte header before the returned pointer:
 4. Catalog `.SC2Data` archives follow the same pattern: read → archive-from-memory → extract XML → parse → free.
 5. Binary terrain layers are read once and kept alive for the session.
 
+The installed-map discovery and terminal selection path is documented in
+[SC2 map picker](games/starcraft-2/map-picker.md).
+
 **Why this is clean:** only one outer-file copy. All internal access is pointer arithmetic into that buffer. Compressed data must be decompressed (unavoidable), but uncompressed sections can be walked in-place.
 
 ## WoW Map Loading — now improved with mmap
