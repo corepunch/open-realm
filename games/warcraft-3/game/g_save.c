@@ -145,7 +145,7 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(cannibalize_approach_think),
     SAVE_CFUNCTION(incinerate_explode_think),
     SAVE_CFUNCTION(monsoon_think),
-    SAVE_CFUNCTION(S_SpellUnitTargetApproachThink),
+    SAVE_CFUNCTION(S_SpellTargetApproachThink),
     SAVE_CFUNCTION(land_mine_think),
     SAVE_CFUNCTION(death_damage_aoe_think),
 };
