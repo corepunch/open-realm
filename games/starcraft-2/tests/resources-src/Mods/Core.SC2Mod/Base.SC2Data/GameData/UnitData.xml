@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="us-ascii"?>
 <Catalog>
-    <CUnit id="Marine">
+    <CUnit default="1"><LifeStart value="1"/><LifeMax value="1"/><Speed value="0"/></CUnit>
+    <CUnit id="InfantryBase"><LifeStart value="73"/><LifeMax value="91"/><LifeRegenRate value="1.5"/>
+        <EnergyStart value="17"/><EnergyMax value="31"/><ShieldStart value="11"/><ShieldMax value="19"/>
+        <Speed value="3.75"/><Food value="-2"/></CUnit>
+    <CUnit id="Marine" parent="InfantryBase">
         <Actor value="MarineActor"/>
         <Footprint value="FootprintCoreMarine"/>
         <Mover value="None"/>

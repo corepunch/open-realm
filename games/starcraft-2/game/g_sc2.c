@@ -41,6 +41,7 @@ typedef struct {
 } sc2MoveState_t;
 
 static sc2MoveState_t sc2_move[SC2_MAX_EDICTS];
+#include "g_unit.h"
 
 static bool SC2_ObjectIsMobile(sc2MapObject_t const *object) {
     if (!object || object->type != SC2_OBJECT_UNIT) {
@@ -108,7 +109,7 @@ static void SC2_LinkUnit(edict_t *ent) {
 
     ent->s.origin.x = ent->s.origin2.x;
     ent->s.origin.y = ent->s.origin2.y;
-    ent->s.origin.z = sc2_unit_world_height(terrain, sc2_move[number].height, sc2_move[number].flying);
+    ent->s.origin.z = terrain + sc2_move[number].height;
     gi.LinkEntity(ent);
 }
 
@@ -123,7 +124,9 @@ static bool SC2_IsSelectable(edict_t const *ent, uint32_t player) {
         ent->inuse &&
         ent->s.model &&
         ent->s.player == player &&
-        sc2_move[number].mobile;
+        sc2_move[number].mobile && (!sc2_units[number].initialized ||
+        (SC2_UnitAlive(&sc2_units[number]) && (sc2_units[number].states & (1u<<SC2_UNIT_SELECTABLE)) &&
+         !(sc2_units[number].states & (1u<<SC2_UNIT_HIDDEN))));
 }
 
 /* Selection replaces membership, including empty/invalid requests, then reconciles the client cache. */
@@ -171,14 +174,14 @@ static void SC2_OrderMove(edict_t *ent, vector2_t const *target) {
     uint32_t number = SC2_EdictNumber(ent);
     vector2_t pathable = *target;
 
-    if (number >= SC2_MAX_EDICTS || !sc2_move[number].mobile) {
+    if (number >= SC2_MAX_EDICTS || !sc2_move[number].mobile || !SC2_UnitCanMove(number)) {
         return;
     }
     if (!sc2_move[number].flying && !CM_ClosestPathablePointForRadius(target, ent->collision, &pathable)) return;
     sc2_move[number].target = pathable;
     sc2_move[number].moving = true;
     sc2_move[number].path.valid = false;
-    sc2_move[number].speed = SC2_MOVE_SPEED;
+    sc2_move[number].speed = sc2_units[number].initialized ? sc2_units[number].speed : SC2_MOVE_SPEED;
     sc2_waypoints[number].s.origin2 = pathable;
     sc2_waypoints[number].s.origin.z = SC2_MapHeightAtPoint(pathable.x, pathable.y);
     SC2_UnitAnimation(ent, "Stand");
@@ -225,7 +228,7 @@ static void SC2_RunUnit(edict_t *ent) {
     float dist;
     float step;
 
-    if (number >= SC2_MAX_EDICTS || !sc2_move[number].moving) {
+    if (number >= SC2_MAX_EDICTS || !sc2_move[number].moving || !SC2_UnitCanMove(number)) {
         return;
     }
     to_goal = Vector2_sub(&sc2_move[number].target, &ent->s.origin2);
@@ -260,7 +263,7 @@ static void SC2_RunUnit(edict_t *ent) {
         }
     }
     Vector2_normalize(&dir);
-    ent->s.angle = atan2f(dir.y, dir.x);
+    if (!(sc2_units[number].states & (1u<<SC2_UNIT_TURN_SUPPRESSED))) ent->s.angle = atan2f(dir.y, dir.x);
     vector2_t next = Vector2_mad(&ent->s.origin2, step, &dir);
     if (!SC2_MoveIsValid(ent, &next)) {
         /* WC3 resolves blocked flow steps with local steering; SC2 previously stalled at the same corner forever. */
@@ -276,7 +279,7 @@ static void SC2_RunUnit(edict_t *ent) {
 }
 
 static bool sc2_collision_filter(edict_t const *ent) {
-    return ent && ent->inuse && ent->s.model && ent->collision > 0;
+    return ent && ent->inuse && !(ent->svflags & SVF_DEADMONSTER) && ent->s.model && ent->collision > 0;
 }
 
 static void SC2_PushEntity(edict_t *ent, float distance, vector2_t const *dir) {
@@ -399,6 +402,7 @@ static void SC2_GalaxySetCamera(float target_x, float target_y,
                                 float yaw, float pitch,
                                 float dist, float fov, float height_offset, float duration) {
     SC2_UpdateCamera();
+
     sc2_level.camera.old = (sc2Camera_t){
         { sc2_clients[0].ps.vieworigin.x, sc2_clients[0].ps.vieworigin.y },
         SC2_CameraAnglesFromPlayer(&sc2_clients[0].ps),
@@ -506,14 +510,14 @@ static void SC2_GalaxyUnitSetPosition(void *ent_ptr, float x, float y, float fac
         ent->s.origin2 = (vector2_t){ x, y };
         SC2_LinkUnit(ent);
     }
-    ent->s.angle = facing;
+    if (!isnan(facing)) ent->s.angle = facing;
 }
 
 static int SC2_GalaxyUnitOwner(void *ptr) { return ((edict_t const *)ptr)->s.player; }
 
 static bool SC2_GalaxyUnitIsAlive(void *ent_ptr) {
     edict_t *ent = (edict_t *)ent_ptr;
-    return ent && ent->inuse;
+    return ent && ent->inuse && SC2_UnitAlive(SC2_UnitState(ent));
 }
 
 static void SC2_GalaxyUnitMove(void *ent_ptr, float x, float y) {
@@ -574,6 +578,7 @@ static void *SC2_GalaxyCreateUnit(cstring_t unit_type, int player, float x, floa
         sc2_move[ent->s.number].speed = SC2_MOVE_SPEED;
         sc2_move[ent->s.number].height = object.move_height;
         if (sc2_move[ent->s.number].mobile) SC2_UnitAnimation(ent, "Stand");
+    SC2_UnitInit(ent,&object);
     SC2_LinkUnit(ent);
             fprintf(stderr, "SC2_GalaxyCreateUnit: ent=%u type=%s model=%s mover=%s mobile=%d collision=%.2f player=%d at (%.1f,%.1f)\n",
                     ent->s.number, unit_type, model, object.mover, !!sc2_move[ent->s.number].mobile, ent->collision, player, x, y);
@@ -596,6 +601,12 @@ static void SC2_InitGalaxyHost(void) {
     sc2_galaxy_unit_is_moving     = SC2_GalaxyUnitIsMoving;
     sc2_galaxy_unit_is_alive      = SC2_GalaxyUnitIsAlive;
     sc2_galaxy_unit_owner         = SC2_GalaxyUnitOwner;
+    sc2_galaxy_unit_state = SC2_UnitState;
+    sc2_galaxy_unit_changed = SC2_UnitChanged;
+    sc2_galaxy_unit_location = SC2_UnitLocation;
+    sc2_galaxy_unit_from_id = SC2_UnitFromId;
+    sc2_galaxy_unit_remove = SC2_UnitRemove;
+    sc2_galaxy_unit_set_owner = SC2_UnitSetOwner;
 }
 
 static void SC2_InitClients(void) {
@@ -628,6 +639,7 @@ static void SC2_Init(void) {
     memset(sc2_edicts,  0, sizeof(sc2_edicts));
     memset(sc2_clients, 0, sizeof(sc2_clients));
     memset(sc2_move,    0, sizeof(sc2_move));
+    memset(sc2_units,   0, sizeof(sc2_units));
     memset(sc2_waypoints, 0, sizeof(sc2_waypoints));
     memset(&sc2_level, 0, sizeof(sc2_level));
 
@@ -653,13 +665,14 @@ static bool SC2_LoadMap(cstring_t mapFilename) {
         return false;
     }
     gi.ApplyLobbySettings((mapInfo_t *)CM_GetMapInfo());
+    if (sc2_level.vm) { galaxy_close(sc2_level.vm); sc2_level.vm = NULL; }
+    else galaxy_reset();
     gi.ClearWorld();
     SC2_SpawnEntities();
     /* Register HUD configstrings after memset(&sv,...) in SV_Map wipes them. */
     SC2_HUD_EnsureLayout(NULL);
 
     /* Open Galaxy VM and load map scripts. */
-    if (sc2_level.vm) { galaxy_close(sc2_level.vm); sc2_level.vm = NULL; }
     sc2_level.scriptsStarted = false;
     /* SC2Map archives contain MapScript.galaxy below the map directory; use that
      * authoritative path before the development-only extracted-script fallback. */
@@ -681,7 +694,10 @@ static void SC2_SpawnEntities(void) {
            sizeof(sc2_move) - sizeof(sc2_move[0]) * globals.max_clients);
     memset(sc2_waypoints, 0, sizeof(sc2_waypoints));
     SC2_InitClients();
+    memset(sc2_units,0,sizeof(sc2_units));
     globals.num_edicts = globals.max_clients;
+    /* world_sc2 currently exposes one human lobby slot, mapped to Galaxy player 1. */
+    sc2_players[1].type=1; sc2_players[1].active=true;
 
     FOR_LOOP(i, map->num_objects) {
         sc2MapObject_t const *object = &map->objects[i];
@@ -720,6 +736,11 @@ static void SC2_SpawnEntities(void) {
         sc2_move[number].flying = !strcasecmp(object->mover, "Fly");
         sc2_move[number].speed = SC2_MOVE_SPEED;
         sc2_move[number].height = object->move_height;
+        if (object->type == SC2_OBJECT_UNIT) {
+            SC2_UnitInit(ent,object);
+            if (sc2_gunit_n < SC2_MAX_EDICTS) sc2_gunits[sc2_gunit_n++]=ent;
+
+        }
         ent->s.origin.z = SC2_ObjectSpawnZ(object, sc2_move[number].flying);
         gi.LinkEntity(ent);
     }
@@ -735,6 +756,12 @@ static void SC2_RunFrame(void) {
     if (sc2_level.vm && sc2_level.scriptsStarted)
         galaxy_tick(sc2_level.vm);
     SC2_UpdateCamera();
+    for (uint32_t c=0;c<globals.max_clients;c++) {
+        uint32_t p=sc2_clients[c].ps.number; if (p>=32) continue;
+        static const int props[]={0,1,4,5};
+        static const int stats[]={PLAYERSTATE_RESOURCE_GOLD,PLAYERSTATE_RESOURCE_LUMBER,PLAYERSTATE_RESOURCE_FOOD_USED,PLAYERSTATE_RESOURCE_FOOD_CAP};
+        for (int i=0;i<4;i++) sc2_clients[c].ps.stats[stats[i]]=(uint16_t)MAX(0,MIN(65535,sc2_players[p].properties[props[i]]));
+    }
 
 #ifdef SC2_DEBUG_CUTSCENE
     {
@@ -761,9 +788,10 @@ static void SC2_RunFrame(void) {
 
     FOR_LOOP(i, globals.num_edicts) {
         if (!sc2_edicts[i].inuse) continue;
+        SC2_UnitTick(&sc2_edicts[i]);
         SC2_RunUnit(&sc2_edicts[i]);
         animation_t const *anim = sc2_move[i].anim;
-        if (anim && anim->interval[1] > anim->interval[0])
+        if (anim && !(sc2_units[i].states & (1u<<SC2_UNIT_PAUSED)) && anim->interval[1] > anim->interval[0])
             sc2_edicts[i].s.frame = anim->interval[0] + (gi.GetTime() - sc2_move[i].animtime) % (anim->interval[1] - anim->interval[0]);
     }
     SC2_SolveCollisions();

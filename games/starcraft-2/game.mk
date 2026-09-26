@@ -107,3 +107,5 @@ $(RENDERER_SC2_LIB): $(wildcard $(SC2_DIR)/renderer/sc2/*.h) renderer/r_cliff.h
 $(RENDERER_SC2_LIB): renderer/r_game.h
 
 $(GAME_SC2_TEST_LIB): $(RENDERER_SC2_LIB)
+
+$(BIN_DIR)/test_galaxy$(EXE_EXT): $(SC2_GAME_HEADERS) $(SC2_COMMON_HEADERS) tests/test_galaxy_foundations.h

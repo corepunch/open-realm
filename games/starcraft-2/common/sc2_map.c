@@ -56,6 +56,8 @@ typedef struct {
     char footprint[64];
     char mover[64];
     uint32_t flags;
+    char parent[64];
+    float properties[24]; uint32_t property_mask;
     bool has_radius, has_height;
     float radius, height;
 } sc2CatalogUnit_t;
@@ -71,6 +73,7 @@ typedef struct {
     float footprint_radius;
     float move_height;
     uint32_t unit_flags, variation;
+    float unit_properties[24];
 } sc2ResolvedObjectModel_t;
 
 typedef struct {
@@ -1329,11 +1332,10 @@ static void sc2_catalog_add_unit(sc2Catalog_t *catalog,
                                  float radius,
                                  bool has_radius,
                                  float height,
-                                 bool has_height) {
+                                 bool has_height, sc2CatalogUnit_t const *src) {
     sc2CatalogUnit_t *unit;
 
-    if (!catalog || !id || !*id ||
-        ((!actor_id || !*actor_id) && (!footprint || !*footprint) && (!mover || !*mover) && !flags && !has_radius && !has_height))
+    if (!catalog || !id || !*id)
         return;
     FOR_LOOP(i, catalog->units_count) {
         if (!strcasecmp(catalog->units[i].id, id)) {
@@ -1343,6 +1345,9 @@ static void sc2_catalog_add_unit(sc2Catalog_t *catalog,
                 snprintf(catalog->units[i].footprint, sizeof(catalog->units[i].footprint), "%s", footprint);
             if (mover && *mover)
                 snprintf(catalog->units[i].mover, sizeof(catalog->units[i].mover), "%s", mover);
+            if (*src->parent) snprintf(catalog->units[i].parent,sizeof(catalog->units[i].parent),"%s",src->parent);
+            for (int p=0;p<24;p++) if (src->property_mask & (1u<<p)) catalog->units[i].properties[p]=src->properties[p];
+            catalog->units[i].property_mask |= src->property_mask;
             catalog->units[i].flags |= flags;
             if (has_radius) {
                 catalog->units[i].has_radius = true;
@@ -1355,8 +1360,9 @@ static void sc2_catalog_add_unit(sc2Catalog_t *catalog,
             return;
         }
     }
-    if (catalog->units_count >= SC2_MAX_CATALOG_UNITS) return;
+    if (catalog->units_count >= SC2_MAX_CATALOG_UNITS) { fprintf(stderr,"SC2 CUnit catalog full: dropped '%s'\n",id); return; }
     unit = &catalog->units[catalog->units_count++];
+    *unit = *src;
     snprintf(unit->id, sizeof(unit->id), "%s", id);
     snprintf(unit->actor, sizeof(unit->actor), "%s", actor_id ? actor_id : "");
     snprintf(unit->footprint, sizeof(unit->footprint), "%s", footprint ? footprint : "");
@@ -1777,6 +1783,13 @@ static void sc2_parse_actor_catalog_source(sc2Catalog_t *catalog, sc2MapSource_t
     xmlFreeDoc(doc);
 }
 
+/* Property slots are the native c_unitProp indices; omitted scalar fields inherit. */
+static cstring_t const sc2_unit_property_fields[24] = {
+    "LifeStart", NULL, "LifeMax", "LifeRegenRate", "EnergyStart", NULL, "EnergyMax", "EnergyRegenRate",
+    "ShieldStart", NULL, "ShieldMax", "ShieldRegenRate", NULL, NULL, NULL, NULL, NULL, NULL,
+    "Acceleration", "Height", "Speed", "TurningRate", NULL, "Radius"
+};
+
 static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDoc *doc) {
     xmlNode *root;
 
@@ -1789,9 +1802,20 @@ static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDoc *doc) {
 
         if (node->type != XML_ELEMENT_NODE || !sc2_contains_i((char const *)node->name, "CUnit"))
             continue;
-        if (!sc2_xml_attr(node, "id", id, sizeof(id))) continue;
+        if (!sc2_xml_attr(node,"id",id,sizeof(id))) {
+            char def[16]; if (!sc2_xml_attr(node,"default",def,sizeof(def)) || !atoi(def)) continue;
+            snprintf(id,sizeof(id),"$CUnit");
+        }
+        sc2_xml_attr(node,"parent",unit.parent,sizeof(unit.parent));
         for (xmlNode *child = node->children; child; child = child->next) {
             char value[64];
+            for (int p=0;p<24;p++) if (sc2_unit_property_fields[p] && sc2_streqi((char const *)child->name,sc2_unit_property_fields[p]) && sc2_xml_attr(child,"value",value,sizeof(value))) {
+                unit.properties[p]=strtof(value,NULL); unit.property_mask |= 1u<<p;
+            }
+            if (sc2_streqi((char const *)child->name,"Food") && sc2_xml_attr(child,"value",value,sizeof(value))) {
+                float food=strtof(value,NULL); unit.properties[12]=MAX(0,-food); unit.properties[13]=MAX(0,food);
+                unit.property_mask |= (1u<<12)|(1u<<13);
+            }
 
             if (sc2_parse_xml_child_field(&unit, sc2_catalog_unit_fields, SC2_ARRAY_LEN(sc2_catalog_unit_fields), child, "value")) {
                 if (sc2_streqi((char const *)child->name, "Radius")) has_radius = unit.radius > 0.0f;
@@ -1808,7 +1832,7 @@ static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDoc *doc) {
             }
         }
         sc2_catalog_add_unit(catalog, id, unit.actor, unit.footprint, unit.mover, unit.flags,
-                             unit.radius, has_radius, unit.height, has_height);
+                             unit.radius, has_radius, unit.height, has_height, &unit);
     }
 }
 
@@ -2256,6 +2280,17 @@ static void sc2_resolve_object_footprint(sc2Catalog_t const *catalog, sc2MapObje
     object->footprint_radius = footprint->radius;
 }
 
+static void sc2_resolve_unit_properties(sc2Catalog_t const *catalog, sc2CatalogUnit_t const *unit, float *values, int depth) {
+    if (!unit) return;
+    if (depth >= SC2_MAX_CATALOG_PARENT_DEPTH) { fprintf(stderr,"SC2 CUnit parent cycle/depth at '%s'\n",unit->id); return; }
+    if (*unit->parent) {
+        sc2CatalogUnit_t const *parent=sc2_catalog_unit(catalog,unit->parent);
+        if (!parent) fprintf(stderr,"SC2 CUnit '%s': unresolved parent '%s'\n",unit->id,unit->parent);
+        else sc2_resolve_unit_properties(catalog,parent,values,depth+1);
+    }
+    for (int p=0;p<24;p++) if (unit->property_mask & (1u<<p)) values[p]=unit->properties[p];
+}
+
 /* Resolves object->model/footprint/mover from its name via the unit->actor->model
  * catalog chain. Shared by pre-placed map objects and dynamically spawned units
  * (galaxy UnitCreate has no map object, so it builds a throwaway object here). */
@@ -2264,6 +2299,8 @@ static void sc2_resolve_object_model(sc2Catalog_t const *catalog, sc2MapObject_t
     if (!object->name[0]) return;
     if (object->type == SC2_OBJECT_UNIT) {
         sc2CatalogUnit_t const *unit = sc2_catalog_unit(catalog, object->name);
+        sc2_resolve_unit_properties(catalog,sc2_catalog_unit(catalog,"$CUnit"),object->unit_properties,0);
+        sc2_resolve_unit_properties(catalog,unit,object->unit_properties,0);
         if (unit) {
             if (unit->has_radius) object->radius = unit->radius;
             if (unit->has_height) object->move_height = unit->height;
@@ -2309,6 +2346,7 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
                 object->footprint_radius = resolved[j].footprint_radius;
                 object->move_height = resolved[j].move_height;
                 object->unit_flags = resolved[j].unit_flags;
+                memcpy(object->unit_properties,resolved[j].unit_properties,sizeof(object->unit_properties));
                 goto next_object;
             }
         }
@@ -2327,6 +2365,7 @@ static void sc2_resolve_object_models(sc2Catalog_t const *catalog) {
             resolved[resolved_count].move_height = object->move_height;
             resolved[resolved_count].unit_flags = object->unit_flags;
             resolved[resolved_count].variation = object->variation;
+            memcpy(resolved[resolved_count].unit_properties,object->unit_properties,sizeof(object->unit_properties));
             resolved_count++;
         }
 next_object:

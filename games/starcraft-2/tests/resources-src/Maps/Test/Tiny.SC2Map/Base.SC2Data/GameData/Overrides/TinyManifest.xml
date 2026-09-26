@@ -2,6 +2,7 @@
 <Catalog>
     <CUnit id="Marine">
         <Radius value="0.875"/>
+        <LifeMax value="117"/><EnergyStart value="0"/>
     </CUnit>
     <CModel id="MarineManifestModel" parent="Unit" Race="Terran">
         <Occlusion value="Show"/>
