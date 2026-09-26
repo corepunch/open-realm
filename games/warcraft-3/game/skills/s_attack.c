@@ -166,7 +166,7 @@ bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target) {
          (!S_UnitAttackSlotEnabled(attacker, 1) || attacker->attack2.type == ATK_NONE)) || S_UnitIsCycloned(target)) {
         return false;
     }
-    if (attacker->s.player < MAX_PLAYERS && S_UnitIsInvisibleToPlayer(target, attacker->s.player)) return false;
+    if (S_UnitIsHiddenFromPlayer(target, attacker->s.player)) return false;
     if (target->destructable.initialized) {
         return G_DestructableCanBeAttackedBy(attacker, target);
     }

@@ -152,11 +152,15 @@ uint32_t QueueDestructableAnimation(jass_t *j) {
     return 0;
 }
 uint32_t SetDestructableAnimation(jass_t *j) {
-    /* Ghidra: the original SetDestructableAnimation (FUN_003f8740) ignores its
-     * args and calls FUN_00418990(0) — effectively a no-op at this layer, so
-     * the empty body is already parity. */
-    //handle_t d = jass_checkhandle(j, 1, "destructable");
-    //cstring_t whichAnimation = jass_checkstring(j, 2);
+    edict_t *d = jass_checkhandle(j, 1, "destructable");
+    cstring_t animation = jass_checkstring(j, 2);
+    if (G_IsDestructable(d) && animation) {
+        G_SetUnitAnimation(d, animation);
+        if (d->animation) {
+            d->animation_override = true;
+            d->s.frame = d->animation->interval[0];
+        }
+    }
     return 0;
 }
 /* Ghidra: ShowDestructable=FUN_003f8790 — show (flag!=0) calls the entity's

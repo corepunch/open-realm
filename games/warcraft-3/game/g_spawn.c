@@ -24,8 +24,82 @@ static bool G_MapObjectCreatedByMapScript(uint32_t id) {
     return G_UnitUI(id)->modelFile || G_ItemData(id)->file;
 }
 
+static char *G_Orc07SkipScriptSpace(char *cursor, char *end) {
+    while (cursor < end && (*cursor == ' ' || *cursor == '\t' || *cursor == '\r' || *cursor == '\n')) cursor++;
+    return cursor;
+}
+
+static bool G_Orc07TakeScriptToken(char **cursor, char *end, cstring_t token) {
+    size_t length = strlen(token);
+    size_t i;
+    bool identifier = true;
+    char *at = G_Orc07SkipScriptSpace(*cursor, end);
+
+    if (length > (size_t)(end - at) || strncmp(at, token, length)) return false;
+    for (i = 0; i < length; i++)
+        if (!((token[i] >= 'a' && token[i] <= 'z') || (token[i] >= 'A' && token[i] <= 'Z') ||
+              (token[i] >= '0' && token[i] <= '9') || token[i] == '_')) identifier = false;
+    if (identifier && at + length < end) {
+        char next = at[length];
+        if ((next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z') ||
+            (next >= '0' && next <= '9') || next == '_') return false;
+    }
+    *cursor = at + length;
+    return true;
+}
+
+/* HACK: The shipped Orc07 trigger asks the BJ last-created global for a
+ * destructable max life even though its map initializer only calls the native
+ * CreateDestructable. Rewrite that getter in the named bridge's restore call;
+ * changing BJ last-created semantics would affect unrelated maps, and the
+ * mounted campaign MPQ is read-only. */
+static bool G_FixOrc07BridgeRestoreScript(char *script) {
+    static cstring_t const function = "function Trig_GemstoneReturned_Actions takes";
+    static cstring_t const ending = "endfunction";
+    static cstring_t const restore = "DestructableRestoreLife";
+    static cstring_t const max_life = "GetDestructableMaxLife";
+    static cstring_t const last_created = "GetLastCreatedDestructable";
+    static cstring_t const bridge = "gg_dest_DTsb_0099";
+    char *start, *end, *cursor, *restore_call, *getter, *getter_end;
+    size_t old_size, new_size = strlen(bridge);
+
+    if (!script || !(start = strstr(script, function))) return false;
+    end = strstr(start, ending);
+    restore_call = strstr(start, restore);
+    if (!end || !restore_call || restore_call >= end) goto unsupported;
+
+    cursor = restore_call;
+    if (!G_Orc07TakeScriptToken(&cursor, end, restore) ||
+        !G_Orc07TakeScriptToken(&cursor, end, "(") ||
+        !G_Orc07TakeScriptToken(&cursor, end, bridge) ||
+        !G_Orc07TakeScriptToken(&cursor, end, ",") ||
+        !G_Orc07TakeScriptToken(&cursor, end, max_life) ||
+        !G_Orc07TakeScriptToken(&cursor, end, "(")) goto unsupported;
+
+    getter = G_Orc07SkipScriptSpace(cursor, end);
+    cursor = getter;
+    if (G_Orc07TakeScriptToken(&cursor, end, bridge) &&
+        G_Orc07TakeScriptToken(&cursor, end, ")")) return true;
+
+    cursor = getter;
+    if (!G_Orc07TakeScriptToken(&cursor, end, last_created) ||
+        !G_Orc07TakeScriptToken(&cursor, end, "(") ||
+        !G_Orc07TakeScriptToken(&cursor, end, ")")) goto unsupported;
+    getter_end = cursor;
+    old_size = (size_t)(getter_end - getter);
+    if (new_size > old_size) goto unsupported;
+    memcpy(getter, bridge, new_size);
+    memset(getter + new_size, ' ', old_size - new_size);
+    return true;
+
+unsupported:
+    fprintf(stderr, "G_SpawnEntities: Orc07 gemstone restore trigger has an unsupported script form\n");
+    return false;
+}
+
 #ifdef BZ_TESTS
 bool G_TestMapObjectCreatedByMapScript(uint32_t id) { return G_MapObjectCreatedByMapScript(id); }
+bool G_TestFixOrc07BridgeRestoreScript(char *script) { return G_FixOrc07BridgeRestoreScript(script); }
 #endif
 
 static void G_JassCoroutineTrace(handle_t trigger_handle, cstring_t function, cstring_t phase,
@@ -758,9 +832,10 @@ void G_SpawnEntities(void) {
     gi.LoadingFrame();
 //    jass_dofilenative(level.vm, "/Users/igor/Desktop/war3map.j");
     G_DumpPrologue02BurrowHandoffSource(level.mapinfo->mapscript);
-    if (level.mapinfo->mapscript)
+    if (level.mapinfo->mapscript) {
+        G_FixOrc07BridgeRestoreScript(level.mapinfo->mapscript);
         jass_dobuffer(level.vm, level.mapinfo->mapscript);
-    else
+    } else
         fprintf(stderr, "G_SpawnEntities: missing mapscript; skipping jass_dobuffer\n");
     gi.LoadingFrame();
 

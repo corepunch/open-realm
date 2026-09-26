@@ -22,6 +22,7 @@ edict_t *Waypoint_add(vec2_t const *spot);
 bool unit_issuetargetorder(edict_t *self, cstring_t order, edict_t *target);
 void T_Damage(edict_t *target, edict_t *attacker, int damage);
 bool run_test_jass(cstring_t src);
+bool G_TestFixOrc07BridgeRestoreScript(char *script);
 slkTestData_t *parse_slk_string(char const *slk_text);
 void free_slk_rows(slkTestData_t *rows);
 
@@ -1028,6 +1029,137 @@ TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
     jass_runevents(level.vm);
     T_ASSERT(!dest->inuse);
 
+    G_SetSLKRows("DestructableData", saved);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_destructable, set_animation_selects_only_resolved_model_sequences) {
+    static cstring_t const slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"targType\"\n"
+        "C;Y1;X4;K\"HP\"\n"
+        "C;Y1;X5;K\"radius\"\n"
+        "C;Y2;X1;K\"B004\"\n"
+        "C;Y2;X2;K\"Units/Creeps/Medivh/Medivh.mdx\"\n"
+        "C;Y2;X3;K\"debris\"\n"
+        "C;Y2;X4;K100\n"
+        "C;Y2;X5;K16\n"
+        "E\n";
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *saved;
+    edict_t *valid = NULL, *missing = NULL;
+
+    setup_test_world();
+    saved = G_SetSLKRows("DestructableData", rows);
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  destructable validDest = null\n"
+        "  destructable missingDest = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set validDest = CreateDestructable('B004', 64.0, 64.0, 0.0, 1.0, 0)\n"
+        "  set missingDest = CreateDestructable('B004', 128.0, 64.0, 0.0, 1.0, 0)\n"
+        "  call SetDestructableAnimation(validDest, \"stand alternate\")\n"
+        "  call SetDestructableAnimation(missingDest, \"death alternate\")\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = &g_edicts[i];
+        if (!G_IsDestructable(ent) || ent->class_id != MAKEFOURCC('B', '0', '0', '4')) continue;
+        if (ent->s.origin2.x == 64.0f) valid = ent;
+        if (ent->s.origin2.x == 128.0f) missing = ent;
+    }
+    T_NOT_NULL(valid); T_NOT_NULL(missing);
+    if (valid && missing) {
+        T_STREQ(valid->animation_request, "stand alternate");
+        T_NOT_NULL(valid->animation);
+        if (valid->animation) {
+            T_STREQ(valid->animation->name, "Stand Alternate");
+            T_EQ(valid->s.frame, valid->animation->interval[0]);
+            T_ASSERT(valid->animation_override);
+        }
+        T_STREQ(missing->animation_request, "death alternate");
+        T_NULL(missing->animation);
+        T_ASSERT(!missing->animation_override);
+    }
+
+    G_SetSLKRows("DestructableData", saved);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_destructable, orc07_gemstone_restores_named_bridge) {
+    static char const *slk =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"ID\"\n"
+        "C;Y1;X2;K\"file\"\n"
+        "C;Y1;X3;K\"targType\"\n"
+        "C;Y1;X4;K\"HP\"\n"
+        "C;Y1;X5;K\"radius\"\n"
+        "C;Y1;X6;K\"walkable\"\n"
+        "C;Y2;X1;K\"DTsb\"\n"
+        "C;Y2;X2;K\"Doodads\\Test\\Test\"\n"
+        "C;Y2;X3;K\"bridge\"\n"
+        "C;Y2;X4;K2500\n"
+        "C;Y2;X5;K16\n"
+        "C;Y2;X6;K1\n"
+        "E\n";
+    char script[] =
+        "globals\n"
+        "  destructable gg_dest_DTsb_0099 = null\n"
+        "  destructable bj_lastCreatedDestructable = null\n"
+        "endglobals\n"
+        "function GetLastCreatedDestructable takes nothing returns destructable\n"
+        "  return bj_lastCreatedDestructable\n"
+        "endfunction\n"
+        "function Trig_GemstoneReturned_Actions takes nothing returns nothing\n"
+        /* Exact restore call from the extracted Orc07 war3map.j. */
+        "  call DestructableRestoreLife( gg_dest_DTsb_0099, GetDestructableMaxLife(GetLastCreatedDestructable()), true )\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set gg_dest_DTsb_0099 = CreateDestructable('DTsb', 64.0, 64.0, 0.0, 1.0, 0)\n"
+        "  call SetDestructableLife(gg_dest_DTsb_0099, 0.0)\n"
+        "  call Trig_GemstoneReturned_Actions()\n"
+        "  call BJassAssert(GetDestructableLife(gg_dest_DTsb_0099) > 0.0, \"Orc07 bridge remained dead after gemstone return\")\n"
+        "endfunction\n";
+    char formatted_script[] =
+        "function Trig_GemstoneReturned_Actions takes nothing returns nothing\n"
+        "  call DestructableRestoreLife (\n"
+        "    gg_dest_DTsb_0099,\n"
+        "    GetDestructableMaxLife (\n"
+        "      GetLastCreatedDestructable ( )\n"
+        "    ), true )\n"
+        "endfunction\n";
+    char unrelated_script[] = "function Other_Actions takes nothing returns nothing\nendfunction\n";
+    char unchanged_script[sizeof(unrelated_script)];
+    slkTestData_t *rows = parse_slk_string(slk);
+    slkTestData_t *saved;
+    edict_t *bridge = NULL;
+
+    setup_test_world();
+    saved = G_SetSLKRows("DestructableData", rows);
+    T_ASSERT(G_TestFixOrc07BridgeRestoreScript(script));
+    T_ASSERT(G_TestFixOrc07BridgeRestoreScript(script));
+    T_ASSERT(strstr(script, "GetDestructableMaxLife(gg_dest_DTsb_0099") != NULL);
+    T_NULL(strstr(script, "GetDestructableMaxLife(GetLastCreatedDestructable())"));
+    T_ASSERT(G_TestFixOrc07BridgeRestoreScript(formatted_script));
+    T_ASSERT(strstr(formatted_script, "GetDestructableMaxLife (\n") != NULL);
+    memcpy(unchanged_script, unrelated_script, sizeof(unrelated_script));
+    T_ASSERT(!G_TestFixOrc07BridgeRestoreScript(unrelated_script));
+    T_STREQ(unrelated_script, unchanged_script);
+    T_ASSERT(run_test_jass(script));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        if (g_edicts[i].class_id == MAKEFOURCC('D', 'T', 's', 'b')) {
+            bridge = &g_edicts[i];
+            break;
+        }
+    }
+    T_NOT_NULL(bridge);
+    T_ASSERT(!bridge->destructable.dead);
+    T_ASSERT(G_DestructableIsWalkable(bridge));
+    T_FEQ(bridge->health.value, 2500.0f, 0.01f);
     G_SetSLKRows("DestructableData", saved);
     free_slk_rows(rows);
 }
