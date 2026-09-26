@@ -66,16 +66,122 @@ float S_CreepAttackSpeedReduction(edict_t const *unit) {
     return level ? S_SpellData(ID_LIQUID_FIRE, level, 3) : 0.0f;
 }
 
-static void death_damage_aoe(edict_t *ent, uint32_t code) {
-    uint32_t level = MAX(1u, G_UnitAbilityLevel(ent, code));
+/* Death Damage AOE is physical damage: authored target classes/alliance apply,
+ * while spell immunity/invisibility do not suppress an explosion. */
+static bool death_damage_aoe_allows(uint32_t code, uint32_t ability_level, edict_t *source, edict_t *target) {
+    abilityLevel_t const *row;
+    cstring_t targets;
+    bool structure;
+
+    if (!source || !S_SpellIsAliveTarget(target) || target == source || S_UnitIsCycloned(target)) return false;
+    row = G_AbilityLevel(code, ability_level);
+    targets = row ? row->targs : NULL;
+    if (!targets || !*targets) return S_SpellIsEnemy(source, target);
+
+    structure = target->targtype == TARG_STRUCTURE || G_UnitIsBuilding(target->class_id);
+    if ((strstr(targets, "air") || strstr(targets, "ground") || strstr(targets, "structure")) &&
+        !(strstr(targets, "air") && target->targtype == TARG_AIR) &&
+        !(strstr(targets, "ground") && target->targtype == TARG_GROUND) &&
+        !(strstr(targets, "structure") && structure)) return false;
+    if (strstr(targets, "organic") && target->targtype == TARG_MECHANICAL) return false;
+    if (strstr(targets, "mechanical") && target->targtype != TARG_MECHANICAL) return false;
+
+    if (strstr(targets, "player") && target->s.player == source->s.player) return true;
+    if (strstr(targets, "friend") && S_SpellIsFriend(source, target)) return true;
+    if (strstr(targets, "enemy") && S_SpellIsEnemy(source, target)) return true;
+    if (strstr(targets, "neutral") && target->s.player < MAX_PLAYERS && level.mapinfo &&
+        level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral) return true;
+    return !strstr(targets, "player") && !strstr(targets, "friend") &&
+        !strstr(targets, "enemy") && !strstr(targets, "neutral");
+}
+
+/* AIdm was the old tree/wall helper; retail Amnx/Adda now uses its own
+ * Targets Allowed list for destructibles. Destructibles have no player
+ * alliance, so only their authored target class participates here. */
+static bool death_damage_aoe_allows_destructable(uint32_t code, uint32_t ability_level, edict_t const *target) {
+    abilityLevel_t const *row;
+    cstring_t targets;
+
+    if (!target || !G_IsDestructable(target) || target->destructable.dead || target->invulnerable) return false;
+    row = G_AbilityLevel(code, ability_level);
+    targets = row ? row->targs : NULL;
+    if (!targets || !*targets) return false;
+    switch (target->targtype) {
+    case TARG_TREE:       return strstr(targets, "tree") != NULL;
+    case TARG_WALL:       return strstr(targets, "wall") != NULL;
+    case TARG_DEBRIS:     return strstr(targets, "debris") != NULL;
+    case TARG_BRIDGE:     return strstr(targets, "bridge") != NULL;
+    case TARG_DECORATION: return strstr(targets, "decoration") != NULL;
+    default:              return false;
+    }
+}
+
+static void death_damage_aoe_apply(edict_t *source, uint32_t code, uint32_t level, vec2_t const *origin) {
     float full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
     float part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
-    vec2_t origin = ent->s.origin2;
+    if (!source || !origin || (full_d <= 0.0f && part_d <= 0.0f)) return;
     if (part_r < full_r) part_r = full_r;
-    FILTER_EDICTS(target, target != ent && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(ent, target)) {
-        float dist = Vector2_distance(&target->s.origin2, &origin);
-        if (dist <= part_r) T_Damage(target, ent, (int)(dist <= full_r ? full_d : part_d));
+    FILTER_EDICTS(target, death_damage_aoe_allows(code, level, source, target)) {
+        float dist = Vector2_distance(&target->s.origin2, origin);
+        float damage;
+        if (dist > part_r) continue;
+        damage = dist <= full_r ? full_d : part_d;
+        if (damage > 0.0f) T_Damage(target, source, (int)damage);
     }
+    FILTER_EDICTS(target, death_damage_aoe_allows_destructable(code, level, target)) {
+        float dist = Vector2_distance(&target->s.origin2, origin);
+        float damage;
+        if (dist > part_r) continue;
+        damage = dist <= full_r ? full_d : part_d;
+        if (damage > 0.0f) G_DestructableApplyDamage(target, source, damage);
+    }
+}
+
+/* Delayed Amnx/Adda damage snapshots only the death position. Victims are
+ * enumerated when Duration expires, preserving retail's fast-unit escape. */
+void death_damage_aoe_think(edict_t *thinker) {
+    edict_t *source;
+    uint32_t code, level;
+
+    if (!thinker || !thinker->inuse) return;
+    if (G_Time() < thinker->freetime) return;
+    source = thinker->owner;
+    if (!source || !source->inuse || source->spawn_time != thinker->channel.owner_spawn_time) source = thinker;
+    code = thinker->class_id;
+    level = MAX(1u, (uint32_t)thinker->wait);
+    death_damage_aoe_apply(source, code, level, &thinker->s.origin2);
+    G_FreeEdict(thinker);
+}
+
+static void death_damage_aoe(edict_t *ent, uint32_t code) {
+    uint32_t level;
+    float delay;
+    edict_t *thinker;
+
+    if (!ent || !code) return;
+    level = MAX(1u, G_UnitAbilityLevel(ent, code));
+    delay = S_SpellDuration(code, level, false);
+    if (delay <= 0.0f) {
+        death_damage_aoe_apply(ent, code, level, &ent->s.origin2);
+        return;
+    }
+
+    thinker = G_Spawn();
+    if (!thinker) {
+        /* HACK: edict exhaustion leaves no timer entity; resolve damage now rather than lose the death effect. */
+        fprintf(stderr, "WC3 death AOE: no thinker for ability %c%c%c%c on unit %u; resolving immediately\n",
+                (char)(code & 255), (char)((code >> 8) & 255), (char)((code >> 16) & 255), (char)(code >> 24), ent->s.number);
+        death_damage_aoe_apply(ent, code, level, &ent->s.origin2);
+        return;
+    }
+    thinker->owner = ent;
+    thinker->channel.owner_spawn_time = ent->spawn_time;
+    thinker->class_id = code;
+    thinker->wait = (float)level;
+    thinker->s.origin2 = ent->s.origin2;
+    thinker->s.player = ent->s.player;
+    thinker->freetime = G_Time() + (uint32_t)(delay * 1000.0f);
+    thinker->think = death_damage_aoe_think;
 }
 
 BZ_ABILITY_PROC(CAbilityDeathDamageAoe) {

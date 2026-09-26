@@ -319,16 +319,20 @@ from that index after the hash matches. NULL stays 0/0. An unrostered pointer fa
 `C callback %p is not in the save roster`; a bad index or hash fails the load instead of installing
 a wild pointer.
 
-The roster is append-only because the index is in the file. Production assignments retained by version 10:
+The roster is append-only because the index is in the file. The callback name is hashed into the same
+record, so keep that serialized name stable when an implementation symbol is renamed; point the old
+name at the current function instead of changing the on-disk identity. Production assignments retained
+by version 10:
 `monster_think`, `blight_mine_think`, `G_FreeEdict`, `G_EffectThink`, `G_EffectValidateTarget`,
 `blizzard_think`, `flame_strike_tick`, `siphon_mana_think`, `unit_stand`/`unit_birth`/`unit_die`,
 and `tree_stand`/`tree_birth`/`tree_pain`/`tree_die`. `idle`/`move`/`run`/`attack` have no
 production assignments yet; they still go through `F_CFUNCTION` so a later assignment must be
 rostered.
 
-The shared targeted-spell approach callback `S_SpellUnitTargetApproachThink` is also in the roster.
+The shared targeted-spell approach callback `S_SpellTargetApproachThink` is also in the roster.
 `wc3_items.soul_gem_pending_approach_round_trips_save` verifies that a Soul Gem cast waiting to
-walk into range preserves both this callback and its originating item across save/load.
+walk into range preserves both this callback and its originating item across save/load. Point-target
+spells use the same callback and retain their clicked destination while walking into range.
 
 `ReadEdict()` rebinds SLK table rows with `G_BindEntityData` but does **not** call
 `G_BindEntityRuntime`. Class defaults would clobber a saved `blight_mine_think`, `G_EffectThink`,

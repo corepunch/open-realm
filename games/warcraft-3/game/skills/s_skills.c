@@ -337,7 +337,7 @@ static ability_t abilitylist[] = {
     // TODO: AIrc a_item_reincarnation  /* Item Reincarnation */
     // TODO: AIrt a_item_recall  /* Item Recall */
     // TODO: AItp a_item_town_portal  /* Item Town Portal */
-    // TODO: AIpm a_button  /* Item Place Goblin Land Mine */
+    { "AIpm", CAbilityPlaceMine, AB_SPELL, SPELL_TARGET_POINT },  /* Item Place Goblin Land Mine */
     // TODO: AIaa a_damage_bonus_base  /* Item Permanent Damage Gain */
     // TODO: AIva a_attack_mod  /* Item Life Steal */
     // TODO: AIcf CAbilityImmolation  /* Item Immolation */
@@ -436,7 +436,7 @@ static ability_t abilitylist[] = {
     { "Adda", CAbilityDeathDamageAoe, AB_PASSIVE },  /* AOE damage upon death */
     { "Agho", CAbilityGhost, AB_PASSIVE },  /* Ghost */
     { "Aeth", CAbilityGhostVisible, AB_PASSIVE },  /* Ghost */
-    { "Amin", CAbilityStasisTrap, AB_SPELL, SPELL_TARGET_POINT },  /* Mine - exploding */
+    { "Amin", CAbilityLandMine, AB_PASSIVE | AB_INNATE },  /* Mine - exploding */
     { "Apiv", CAbilityPermanentInvisibility, AB_PASSIVE | AB_INNATE },  /* Permanent Invisibility */
     { "Awan", CAbilityWander, AB_PASSIVE },  /* Wander */
     /* Aarm is registered with the explicit regeneration family below. */

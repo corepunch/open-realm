@@ -260,16 +260,29 @@ texture_t *R_LoadTexture(cstring_t filename) {
 }
 
 static mdxModel_t *cliff_model;
+static bool use_production_model_loader;
+extern model_t *R_TestProductionLoadModel(cstring_t filename);
+extern void R_TestProductionReleaseModel(model_t *model);
+void R_TestUseProductionModelLoader(bool enabled) { use_production_model_loader = enabled; }
+
 model_t *R_LoadModel(cstring_t filename) {
     load_count++;
     snprintf(last_model_load, sizeof(last_model_load), "%s", filename ? filename : "");
     if (fail_load || (fail_scoped_load && strstr(last_model_load, ".w3m\\"))) return NULL;
+    if (use_production_model_loader && strstr(last_model_load, "TestUI\\Models\\quad_sprite.mdx"))
+        return R_TestProductionLoadModel(filename);
     model_t *model = test_alloc(sizeof(model_t));
     if (cliff_model) { model->modeltype = ID_MDLX; model->mdx = cliff_model; }
     return model;
 }
 
-void R_ReleaseModel(model_t *model) { release_count++; test_free(model); }
+void R_ReleaseModel(model_t *model) {
+    if (use_production_model_loader && model && model->modeltype == ID_MDLX && model->mdx) {
+        R_TestProductionReleaseModel(model);
+        return;
+    }
+    release_count++; test_free(model);
+}
 
 static bool test_mpq_read(handle_t archive, cstring_t path, void **buffer, uint32_t *size_out) {
     handle_t file = NULL;
@@ -894,6 +907,34 @@ TEST(renderer_model, mdx_sound_event_keys_follow_sequence_and_global_sequence_ti
     T_ASSERT(MDLX_EventKeyCrossed(&model, &event, 25, 0, 0, 950, 1050));
     T_ASSERT(!MDLX_EventKeyCrossed(&model, &event, 500, 0, 0, 950, 1050));
     T_ASSERT(MDLX_EventKeyCrossed(&model, &event, 500, 0, 0, 50, 1050));
+}
+
+TEST(renderer_model, mdx_event_object_id_parses_spawn_rows) {
+    mdxEvent_t event = { 0 };
+    char id[32] = { 0 };
+
+    snprintf(event.node.name, sizeof(event.node.name), "SPNxTestSpawn   ");
+    T_ASSERT(MDLX_EventObjectId(&event, "SPN", id, sizeof(id)));
+    T_STREQ(id, "TestSpawn");
+    T_ASSERT(!MDLX_EventObjectId(&event, "SND", id, sizeof(id)));
+}
+
+TEST(renderer_model, mdx_event_world_transform_uses_event_pivot) {
+    mdxEvent_t event = { 0 };
+    vec3_t pivots[] = { { 4.0f, 5.0f, 6.0f } };
+    mdxModel_t model = { .events = &event, .pivots = pivots, .num_pivots = 1 };
+    renderEntity_t entity = { .frame = 100, .oldframe = 90 };
+    mat4_t parent, world;
+
+    event.node.node_id = 0; event.node.parent_id = (uint32_t)-1;
+    model.nodes[0] = &event.node; model.node_list[0] = &event.node; model.num_nodes = 1;
+    Matrix4_identity(&parent);
+    Matrix4_translate(&parent, &(vec3_t){ 10.0f, 20.0f, 30.0f });
+
+    T_ASSERT(MDLX_EventWorldTransform(&model, &event, &entity, &parent, &world));
+    T_FEQ(world.v[12], 14.0f, 0.001f);
+    T_FEQ(world.v[13], 25.0f, 0.001f);
+    T_FEQ(world.v[14], 36.0f, 0.001f);
 }
 
 TEST(renderer_model, mdx_particle_filter_modes_preserve_authored_blending) {

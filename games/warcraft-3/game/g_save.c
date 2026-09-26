@@ -145,7 +145,10 @@ static saveCFunction_t const save_cfunctions[] = {
     SAVE_CFUNCTION(cannibalize_approach_think),
     SAVE_CFUNCTION(incinerate_explode_think),
     SAVE_CFUNCTION(monsoon_think),
-    SAVE_CFUNCTION(S_SpellUnitTargetApproachThink),
+    /* Keep the prior v47 name hash; the implementation now handles point targets too. */
+    { .name = "S_SpellUnitTargetApproachThink", .func = (void *)(S_SpellTargetApproachThink) },
+    SAVE_CFUNCTION(land_mine_think),
+    SAVE_CFUNCTION(death_damage_aoe_think),
 };
 
 static int SaveCFunctionIndex(void *func) {
@@ -1934,6 +1937,14 @@ bool ReadGame(cstring_t filename) {
 }
 
 #ifdef BZ_TESTS
+TEST(wc3_save, spell_approach_callback_keeps_v47_roster_identity) {
+    int const index = SaveCFunctionIndex((void *)S_SpellTargetApproachThink);
+
+    T_EQ(index, 44);
+    if (index > 0 && index <= (int)(sizeof(save_cfunctions) / sizeof(save_cfunctions[0])))
+        T_STREQ(save_cfunctions[index - 1].name, "S_SpellUnitTargetApproachThink");
+}
+
 static bool write_save_fixture_header(cstring_t source_path, cstring_t output_path, uint32_t version, uint32_t edict_size) {
     uint8_t buffer[4096];
     saveHeader_t header;

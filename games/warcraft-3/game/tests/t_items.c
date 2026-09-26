@@ -5,6 +5,7 @@
 
 #include "test.h"
 #include "../g_local.h"
+#include "../skills/s_skills.h"
 #include "jass/jass.h"
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
@@ -1248,6 +1249,191 @@ TEST(wc3_items, jass_item_charge_natives_use_runtime_item_state) {
         "endfunction\n"));
 }
 
+TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point) {
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y4;X14\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
+        "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
+        "C;Y1;X7;K\"Rng1\"\nC;Y1;X8;K\"Dur1\"\nC;Y1;X9;K\"HeroDur1\"\n"
+        "C;Y1;X10;K\"DataA1\"\nC;Y1;X11;K\"DataB1\"\nC;Y1;X12;K\"DataC1\"\n"
+        "C;Y1;X13;K\"DataD1\"\nC;Y1;X14;K\"UnitID1\"\n"
+        "C;Y2;X1;K\"AInv\"\nC;Y2;X2;K\"AInv\"\nC;Y2;X3;K\"1\"\n"
+        "C;Y2;X10;K\"6\"\nC;Y2;X12;K\"1\"\n"
+        "C;Y3;X1;K\"AIpm\"\nC;Y3;X2;K\"AIpm\"\nC;Y3;X3;K\"1\"\n"
+        "C;Y3;X4;K\"ground\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"0\"\n"
+        "C;Y3;X7;K\"96\"\nC;Y3;X8;K\"0\"\nC;Y3;X14;K\"hfoo\"\n"
+        "C;Y4;X1;K\"AOfs\"\nC;Y4;X2;K\"AOfs\"\nC;Y4;X3;K\"1\"\n"
+        "C;Y4;X4;K\"ground,enemy\"\nC;Y4;X7;K\"500\"\nC;Y4;X8;K\"1\"\n"
+        "C;Y4;X16;K\"128\"\nE\n";
+    static UnitAbilities_t abilities = { .abilList = "AInv", .heroAbilList = "" };
+    ItemData_t item_data = { .abilList = "AIpm", .uses = 4, .perishable = false };
+    slkTestData_t *rows, *old;
+    edict_t *player, *hero, *item, *mine = NULL, *approach = NULL;
+    uint32_t hero_slot, item_slot;
+    cstring_t const save_path = "/tmp/openwarcraft3-point-item-approach-save.bin";
+    cstring_t far_click[] = { "point", "700", "0" };
+    cstring_t replace_approach[] = { "button", "Amov" };
+    cstring_t replace_click[] = { "point", "20", "0" };
+    cstring_t another_far_click[] = { "point", "1300", "0" };
+    cstring_t save_far_click[] = { "point", "620", "800" };
+    cstring_t valid_click[] = { "point", "640", "0" };
+
+    setup_test_world();
+    rows = parse_slk_string(ability_slk); old = G_SetSLKRows("AbilityData", rows);
+    player = &g_edicts[0]; player->client->ps.number = 0;
+    hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    hero_slot = (uint32_t)(hero - g_edicts);
+    hero->data.UnitAbilities = &abilities; hero->s.player = 0; hero->svflags |= SVF_MONSTER;
+    hero->targtype = TARG_GROUND; hero->health.value = hero->health.max_value = 100;
+    hero->think = monster_think; hero->stand = unit_stand; hero->movetype = MOVETYPE_STEP;
+    hero->collision = 16.0f; unit_stand(hero); gi.LinkEntity(hero);
+    hero->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','O','f','s'), .level = 1);
+    item = make_item_test_world_item(MAKEFOURCC('g','o','b','m'), 0, 0);
+    item_slot = (uint32_t)(item - g_edicts);
+    item->data.ItemData = &item_data; item->item.charges = 4; item->spawn_time = 1234;
+    T_ASSERT(G_AddItemToSlot(hero, item, 0));
+    G_SelectEntity(player->client, hero);
+
+    G_UseItem(hero, 0);
+    T_NOT_NULL(player->client->menu.on_location_selected);
+    T_EQ(player->client->menu.ability_item, item);
+    T_EQ(player->client->menu.ability_item_spawn_time, item->spawn_time);
+    T_EQ(G_ItemCharges(item), 4);
+    G_ClientCommand(player, 3, far_click);
+    T_NULL(player->client->menu.on_location_selected);
+    T_ASSERT(move_is_active_order_walk(hero));
+    T_NOT_NULL(hero->goalentity);
+    if (hero->goalentity) T_FEQ(hero->goalentity->s.origin2.x, 700.0f, 0.001f);
+    T_EQ(G_ItemCharges(item), 4);
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && ent->spell_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
+        approach = ent; break;
+    }
+    T_NOT_NULL(approach);
+    if (!approach) { G_SetSLKRows("AbilityData", old); free_slk_rows(rows); return; }
+    T_FEQ(approach->s.origin2.x, 700.0f, 0.001f);
+
+    /* Replacing the approach order cancels its deferred item cast. */
+    G_ClientCommand(player, 2, replace_approach);
+    G_ClientCommand(player, 3, replace_click);
+    level.time += FRAMETIME;
+    G_RunEntities();
+    T_ASSERT(!approach->inuse);
+    T_EQ(G_ItemCharges(item), 4);
+    mine = NULL;
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') && ent->owner == hero) {
+        mine = ent; break;
+    }
+    T_NULL(mine);
+
+    G_UseItem(hero, 0);
+    G_ClientCommand(player, 3, far_click);
+    T_NOT_NULL(hero->goalentity);
+    if (hero->goalentity) T_FEQ(hero->goalentity->s.origin2.x, 700.0f, 0.001f);
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && ent->spell_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
+        approach = ent; break;
+    }
+    T_NOT_NULL(approach);
+    if (!approach) { G_SetSLKRows("AbilityData", old); free_slk_rows(rows); return; }
+    {
+        float const start_x = hero->s.origin2.x;
+        uint32_t frame;
+        for (frame = 0; frame < 200 && approach->inuse; frame++) {
+            level.time += FRAMETIME;
+            G_RunEntities();
+        }
+        T_ASSERT(hero->s.origin2.x > start_x);
+        T_ASSERT(frame < 200);
+    }
+    T_ASSERT(!approach->inuse);
+    T_EQ(G_ItemCharges(item), 3);
+    T_NULL(player->client->menu.ability_item);
+    T_EQ(player->client->menu.ability_item_spawn_time, 0);
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') && ent->owner == hero) {
+        mine = ent; break;
+    }
+    T_NOT_NULL(mine);
+    T_FEQ(mine->s.origin2.x, 700.0f, 0.001f);
+
+    /* An accepted in-range point cast replaces an older deferred cast too. */
+    G_UseItem(hero, 0);
+    G_ClientCommand(player, 3, another_far_click);
+    approach = NULL;
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && ent->spell_item == item && ent->class_id == MAKEFOURCC('A','I','p','m')) {
+        approach = ent; break;
+    }
+    T_NOT_NULL(approach);
+    if (!approach) { G_SetSLKRows("AbilityData", old); free_slk_rows(rows); return; }
+    T_ASSERT(move_is_active_order_walk(hero));
+    T_FEQ(approach->s.origin2.x, 1300.0f, 0.001f);
+    G_UseItem(hero, 0);
+    G_ClientCommand(player, 3, valid_click);
+    T_ASSERT(!approach->inuse);
+    T_ASSERT(!move_is_active_order_walk(hero));
+    T_EQ(G_ItemCharges(item), 2);
+    T_NULL(player->client->menu.ability_item);
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') && ent->owner == hero) {
+        if (Vector2_distance(&ent->s.origin2, &(vec2_t){640, 0}) < 0.001f) mine = ent;
+    }
+    T_NOT_NULL(mine);
+    for (uint32_t frame = 0; frame < 100; frame++) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+    }
+    T_EQ(G_ItemCharges(item), 2);
+    FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') && ent->owner == hero) {
+        T_ASSERT(Vector2_distance(&ent->s.origin2, &(vec2_t){1300, 0}) > 0.001f);
+    }
+
+    G_UseItem(hero, 0);
+    G_ClientCommand(player, 3, save_far_click);
+    approach = NULL;
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && ent->spell_item == item &&
+                  ent->class_id == MAKEFOURCC('A','I','p','m')) {
+        approach = ent; break;
+    }
+    T_NOT_NULL(approach);
+    if (approach) {
+        uint32_t const approach_slot = (uint32_t)(approach - g_edicts);
+        bool const saved = WriteGame(save_path);
+        T_ASSERT(saved);
+        if (saved && ReadGame(save_path)) {
+            hero = &globals.edicts[hero_slot]; item = &globals.edicts[item_slot];
+            approach = &globals.edicts[approach_slot];
+            T_ASSERT(hero->goalentity == approach);
+            T_ASSERT(approach->goalentity == approach);
+            T_ASSERT(move_is_active_order_walk(hero));
+            T_FEQ(approach->s.origin2.x, 620.0f, 0.001f);
+            T_FEQ(approach->s.origin2.y, 800.0f, 0.001f);
+            {
+                float const start_y = hero->s.origin2.y;
+                uint32_t frame;
+                for (frame = 0; frame < 400 && approach->inuse; frame++) {
+                    level.time += FRAMETIME;
+                    G_RunEntities();
+                }
+                T_ASSERT(hero->s.origin2.y > start_y);
+                T_ASSERT(frame < 400);
+            }
+            T_ASSERT(!approach->inuse);
+            T_EQ(G_ItemCharges(item), 1);
+            mine = NULL;
+            FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') &&
+                          ent->owner == hero && Vector2_distance(&ent->s.origin2, &(vec2_t){620, 800}) < 0.001f)
+                mine = ent;
+            T_NOT_NULL(mine);
+            if (mine) {
+                T_FEQ(mine->s.origin2.x, 620.0f, 0.001f);
+                T_FEQ(mine->s.origin2.y, 800.0f, 0.001f);
+            }
+        } else if (saved) {
+            T_ASSERT(false);
+        }
+    }
+
+    remove(save_path);
+    G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
+}
+
 TEST(wc3_items, pickup_event_detects_arthas_urn) {
     static UnitAbilities_t abilities = { .abilList = "AInv", .heroAbilList = "" };
     edict_t *arthas = NULL;
@@ -1745,7 +1931,7 @@ TEST(wc3_items, soul_gem_approach_is_cancelled_if_grom_dies_before_revival_dispa
     thinker_slot = globals.num_edicts;
     G_ClientCommand(clent, 2, select);
     thinker = &globals.edicts[thinker_slot];
-    T_ASSERT(thinker->inuse && thinker->think == S_SpellUnitTargetApproachThink);
+    T_ASSERT(thinker->inuse && thinker->think == S_SpellTargetApproachThink);
     T_ASSERT(carrier->goalentity == grom);
     T_FEQ(S_SpellRange(MAKEFOURCC('A','I','s','o'), 1), 96.0f, 0.001f);
     T_ASSERT(Vector2_distance(&carrier->s.origin2, &grom->s.origin2) > S_SpellRange(MAKEFOURCC('A','I','s','o'), 1));
@@ -2054,15 +2240,22 @@ TEST(wc3_items, soul_gem_pending_approach_round_trips_save) {
     thinker = &globals.edicts[thinker_slot];
     T_ASSERT(thinker->inuse && thinker->think);
     T_ASSERT(thinker->spell_item == gem);
+    T_EQ(thinker->channel.owner_spawn_time, carrier->spawn_time);
+    T_EQ(thinker->channel.target_spawn_time, target->spawn_time);
 
     bool const saved = WriteGame(path);
     T_ASSERT(saved);
     if (saved) {
+        /* g_save.c checks the append-only v47 roster identity directly; this
+         * round trip verifies the pending thinker pointer and its payload. */
         thinker->think = NULL; thinker->spell_item = NULL;
         T_ASSERT(ReadGame(path));
         thinker = &globals.edicts[thinker_slot];
         T_NOT_NULL(thinker->think);
+        T_EQ(thinker->think, S_SpellTargetApproachThink);
         T_ASSERT(thinker->spell_item == gem);
+        T_EQ(thinker->channel.owner_spawn_time, carrier->spawn_time);
+        T_EQ(thinker->channel.target_spawn_time, target->spawn_time);
         carrier->s.origin2.x = carrier->s.origin.x = 480.0f;
         if (thinker->think) thinker->think(thinker);
         T_ASSERT(!thinker->inuse);

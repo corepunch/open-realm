@@ -76,6 +76,11 @@ typedef struct {
     cstring_t directory;
     float volume, pitch, pitch_variance, min_distance, max_distance, distance_cutoff;
 } wc3AnimSound_t;
+typedef struct {
+    cstring_t name;
+    cstring_t model_path;
+    model_t *model;
+} wc3SpawnData_t;
 
 static slkField_t const anim_lookup_schema[] = {
     { "", offsetof(wc3AnimLookup_t, name), STB_SLK_STR },
@@ -94,16 +99,26 @@ static slkField_t const anim_sound_schema[] = {
     { "DistanceCutoff", offsetof(wc3AnimSound_t, distance_cutoff), STB_SLK_FLOAT },
     { NULL, 0, 0 },
 };
+
 static wc3AnimLookup_t *anim_lookup_rows; static uint32_t anim_lookup_count;
 static wc3AnimSound_t *anim_sound_rows; static uint32_t anim_sound_count;
-
-typedef struct {
-    model_t const *model;
-    uint32_t frame;
-    uint32_t render_time;
-    bool valid;
-} wc3EventSoundState_t;
+static slkField_t const spawn_data_schema[] = {
+    { "", offsetof(wc3SpawnData_t, name), STB_SLK_STR },
+    { "Model", offsetof(wc3SpawnData_t, model_path), STB_SLK_STR },
+    { NULL, 0, 0 },
+};
+static wc3SpawnData_t *spawn_data_rows; static uint32_t spawn_data_count;
+typedef struct { model_t const *model; uint32_t frame, render_time; bool valid; } wc3EventSoundState_t;
 static wc3EventSoundState_t event_sound_state[MAX_GAME_ENTITIES];
+#define WC3_EVENT_SPAWN_MAX 128
+typedef struct {
+    model_t *model; mat4_t transform;
+    uint32_t team, flags, start_time, frame, serial;
+    float scale; bool active;
+} wc3EventSpawn_t;
+static wc3EventSpawn_t event_spawns[WC3_EVENT_SPAWN_MAX];
+static uint32_t event_spawn_serial;
+static void R_W3DrawEventSpawns(void);
 
 /* WorldEditData is the authoritative tileset-to-Blight-art mapping.  Keep the
  * lookup data-driven because custom/expansion tilesets can add rows there. */
@@ -255,6 +270,53 @@ static bool R_W3PathHasExtension(cstring_t path, cstring_t extension) {
     return !strcasecmp(path + pathLen - extLen, extension);
 }
 
+static void R_W3ReleaseSpawnModels(void) {
+    FOR_LOOP(i, spawn_data_count) {
+        if (!spawn_data_rows[i].model) continue;
+        R_ReleaseRegisteredModel(spawn_data_rows[i].model);
+        spawn_data_rows[i].model = NULL;
+    }
+}
+
+static void R_W3FreeSpawnData(bool release_models) {
+    if (release_models) R_W3ReleaseSpawnModels();
+    FS_SLKFreeRows(spawn_data_schema, spawn_data_rows, spawn_data_count, sizeof(wc3SpawnData_t));
+    spawn_data_rows = NULL; spawn_data_count = 0;
+}
+
+static void R_W3LoadSpawnData(void) {
+    PATHSTR scoped;
+
+    R_W3FreeSpawnData(true);
+    if (ri.LoadSlk && R_MapAssetCandidate("Splats\\SpawnData.slk", scoped, sizeof(scoped)))
+        spawn_data_count = ri.LoadSlk(scoped, spawn_data_schema,
+                                      (void **)&spawn_data_rows, sizeof(wc3SpawnData_t));
+    if (!spawn_data_count && ri.LoadSlk)
+        spawn_data_count = ri.LoadSlk("Splats\\SpawnData.slk", spawn_data_schema,
+                                      (void **)&spawn_data_rows, sizeof(wc3SpawnData_t));
+    if (ri.LoadSlk && !spawn_data_count)
+        fprintf(stderr, "WC3 renderer: failed to load Splats\\SpawnData.slk for MDX SPN events\n");
+}
+
+static wc3SpawnData_t *R_W3SpawnData(cstring_t id) {
+    if (!id || !*id) return NULL;
+    FOR_LOOP(i, spawn_data_count)
+        if (spawn_data_rows[i].name && !strcasecmp(spawn_data_rows[i].name, id))
+            return spawn_data_rows + i;
+    return NULL;
+}
+
+static model_t *R_W3SpawnModel(wc3SpawnData_t *row) {
+    if (!row || !row->model_path || !row->model_path[0]) return NULL;
+    if (!row->model) row->model = R_LoadRegisteredModel(row->model_path);
+    return row->model && row->model->modeltype == ID_MDLX && row->model->mdx ? row->model : NULL;
+}
+
+static void R_W3ClearEventSpawns(void) {
+    memset(event_spawns, 0, sizeof(event_spawns));
+    event_spawn_serial = 0;
+}
+
 void R_LoadAssets(void) {
     FOR_LOOP(i, MODEL_COUNT) {
         tr.model[i] = R_LoadModel(modelNames[i]);
@@ -277,7 +339,9 @@ void R_LoadAssets(void) {
                                    (void **)&anim_lookup_rows, sizeof(wc3AnimLookup_t));
     anim_sound_count = ri.LoadSlk("UI\\SoundInfo\\AnimSounds.slk", anim_sound_schema,
                                   (void **)&anim_sound_rows, sizeof(wc3AnimSound_t));
+    R_W3LoadSpawnData();
     memset(event_sound_state, 0, sizeof(event_sound_state));
+    R_W3ClearEventSpawns();
 
     FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
         tr.texture[TEX_SELECTION_CIRCLE+i] = R_LoadTexture(selCirclesNames[i]);
@@ -320,7 +384,9 @@ void R_Shutdown(void) {
     FS_SLKFreeRows(anim_sound_schema, anim_sound_rows, anim_sound_count, sizeof(wc3AnimSound_t));
     anim_lookup_rows = NULL; anim_lookup_count = 0;
     anim_sound_rows = NULL; anim_sound_count = 0;
+    R_W3FreeSpawnData(false);
     memset(event_sound_state, 0, sizeof(event_sound_state));
+    R_W3ClearEventSpawns();
     R_WeatherShutdown();
     R_LightningShutdown();
     MDLX_Shutdown();
@@ -626,6 +692,9 @@ void R_DrawMinimap(rect_t const *screen, cstring_t map) {
 void R_RegisterMap(cstring_t mapFileName) {
     R_SetMapAssetScope(mapFileName);
     R_AdvanceTextureGeneration();
+    R_W3LoadSpawnData();
+    R_W3ClearEventSpawns();
+    memset(event_sound_state, 0, sizeof(event_sound_state));
     memset(&model_texture_cache, 0, sizeof(model_texture_cache));
     R_ClearMinimapSpecialAssets();
     if (mapFileName && *mapFileName) R_LoadMinimapSpecialAssets();
@@ -647,6 +716,7 @@ void R_SetupEnvironmentLighting(void) {
 
 void R_DrawWorld(void) {
     _W3M_DrawWorld();
+    R_W3DrawEventSpawns();
 }
 
 void R_DrawTerrainShadows(void) {
@@ -841,52 +911,121 @@ static uint32_t R_W3SoundVariantCount(wc3AnimSound_t const *row) {
     return count;
 }
 
-static vec3_t R_W3EventWorldPosition(mdxModel_t const *model, mdxEvent_t const *event,
-                                      renderEntity_t const *entity, mat4_t const *transform) {
-    vec3_t pivot = {0}, local = {0};
-    if (event->node.node_id < (uint32_t)model->num_pivots) pivot = model->pivots[event->node.node_id];
-    MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
-    if (event->node.node_id < MDX_MAX_NODES && model->nodes[event->node.node_id])
-        local = Matrix4_multiply_vector3(&node_matrices[event->node.node_id], &pivot);
-    else
-        local = pivot;
-    return Matrix4_multiply_vector3(transform, &local);
-}
-
 static void R_W3EmitSoundEvent(renderEntity_t const *entity, mdxModel_t const *model,
                                mdxEvent_t const *event, uint32_t key, mat4_t const *transform) {
-    cstring_t id;
+    char id[sizeof(event->node.name) + 1];
     cstring_t label;
     wc3AnimSound_t const *row;
     uint32_t count, pick;
     char path[512];
     vec3_t origin;
-    if (!ri.PlaySoundAt || strncmp(event->node.name, "SND", 3)) return;
+
+    if (!ri.PlaySoundAt || !MDLX_EventObjectId(event, "SND", id, sizeof(id))) return;
+    label = R_W3AnimLookupLabel(id);
+    row = R_W3AnimSound(label ? label : id);
+    if (!row) return;
+    if (!(count = R_W3SoundVariantCount(row))) return;
+    pick = R_W3PresentationPick(entity->number, key, tr.viewDef.time, count);
+    if (!R_W3SoundPath(row, pick, path, sizeof(path))) return;
     {
-        char trimmed[sizeof(event->node.name) + 1];
-        size_t n;
-        snprintf(trimmed, sizeof(trimmed), "%.*s", (int)sizeof(event->node.name) - 4, event->node.name + 4);
-        while (trimmed[0] && isspace((unsigned char)trimmed[0])) memmove(trimmed, trimmed + 1, strlen(trimmed));
-        n = strlen(trimmed);
-        while (n && isspace((unsigned char)trimmed[n - 1])) trimmed[--n] = '\0';
-        id = trimmed;
-        label = R_W3AnimLookupLabel(id);
-        row = R_W3AnimSound(label ? label : id);
-        if (!row) return;
-        if (!(count = R_W3SoundVariantCount(row))) return;
-        pick = R_W3PresentationPick(entity->number, key, tr.viewDef.time, count);
-        if (!R_W3SoundPath(row, pick, path, sizeof(path))) return;
-        origin = R_W3EventWorldPosition(model, event, entity, transform);
-        ri.PlaySoundAt(path, &origin, MAX(0.0f, MIN(1.0f, row->volume / 127.0f)));
+        mat4_t event_transform;
+        if (!MDLX_EventWorldTransform(model, event, entity, transform, &event_transform)) return;
+        origin = MAKE(vec3_t, event_transform.v[12], event_transform.v[13], event_transform.v[14]);
     }
-    return;
+    ri.PlaySoundAt(path, &origin, MAX(0.0f, MIN(1.0f, row->volume / 127.0f)));
 }
 
-static void R_W3UpdateModelSoundEvents(renderEntity_t const *entity) {
+static wc3EventSpawn_t *R_W3AllocEventSpawn(void) {
+    wc3EventSpawn_t *oldest = event_spawns;
+
+    FOR_LOOP(i, WC3_EVENT_SPAWN_MAX) {
+        if (!event_spawns[i].active) return event_spawns + i;
+        if (event_spawns[i].serial < oldest->serial) oldest = event_spawns + i;
+    }
+    return oldest;
+}
+
+static bool R_W3RenderEventSpawn(wc3EventSpawn_t *spawn, uint32_t slot) {
+    renderEntity_t child = { 0 };
+    mdxSequence_t const *seq;
+    uint32_t elapsed, span, frame;
+
+    if (!spawn || !spawn->active || !spawn->model || !spawn->model->mdx ||
+        !spawn->model->mdx->sequences || spawn->model->mdx->num_sequences < 1) {
+        if (spawn) spawn->active = false;
+        return false;
+    }
+    seq = spawn->model->mdx->sequences;
+    span = seq->interval[1] - seq->interval[0];
+    if (!span) { spawn->active = false; return false; }
+    elapsed = tr.viewDef.time - spawn->start_time;
+    if (elapsed >= span) { spawn->active = false; return false; }
+    frame = seq->interval[0] + elapsed;
+
+    child.model = spawn->model;
+    child.number = MAX_GAME_ENTITIES + slot + 1;
+    child.team = spawn->team;
+    child.flags = spawn->flags | RF_NO_SHADOW | RF_NO_UBERSPLAT;
+    child.scale = spawn->scale;
+    child.frame = frame;
+    child.oldframe = spawn->frame;
+    child.tint = COLOR32_WHITE;
+    MDX_RenderModel(&child, spawn->model->mdx, &spawn->transform);
+    R_W3RenderAttachmentModels(&child, &spawn->transform);
+    spawn->frame = frame;
+    return true;
+}
+
+static void R_W3EmitSpawnEvent(renderEntity_t const *entity, mdxModel_t const *model,
+                               mdxEvent_t const *event, mat4_t const *transform) {
+    char id[sizeof(event->node.name) + 1];
+    wc3SpawnData_t *row;
+    wc3EventSpawn_t *spawn;
+    model_t *child_model;
+    mdxSequence_t const *seq;
+    uint32_t slot;
+
+    if (!MDLX_EventObjectId(event, "SPN", id, sizeof(id))) return;
+    row = R_W3SpawnData(id);
+    if (!row) { fprintf(stderr, "WC3 renderer: MDX SPN event '%s' has no SpawnData row\n", id); return; }
+    child_model = R_W3SpawnModel(row);
+    if (!child_model) { fprintf(stderr, "WC3 renderer: MDX SPN '%s' model '%s' did not resolve to MDLX\n", id, row->model_path ? row->model_path : "(empty)"); return; }
+    if (!child_model->mdx->sequences || child_model->mdx->num_sequences < 1) {
+        fprintf(stderr, "WC3 renderer: MDX SPN '%s' model '%s' has no sequences\n", id, row->model_path);
+        return;
+    }
+    spawn = R_W3AllocEventSpawn();
+    slot = (uint32_t)(spawn - event_spawns);
+    seq = child_model->mdx->sequences;
+    *spawn = (wc3EventSpawn_t){
+        .model = child_model, .team = entity->team,
+        .flags = entity->flags & (RF_NO_FOGOFWAR | RF_NO_LIGHTING | RF_PORTRAIT_LIGHTING),
+        .start_time = tr.viewDef.time, .frame = seq->interval[0],
+        .serial = ++event_spawn_serial, .scale = entity->scale > 0.0f ? entity->scale : 1.0f,
+        .active = true,
+    };
+    if (!MDLX_EventWorldTransform(model, event, entity, transform, &spawn->transform)) {
+        spawn->active = false;
+        fprintf(stderr, "WC3 renderer: failed to transform MDX SPN event '%s'\n", id);
+        return;
+    }
+    /* Render the event on the crossing frame; the retained slot continues from
+     * the same sequence on later frames after the parent entity is gone. */
+    R_W3RenderEventSpawn(spawn, slot);
+}
+
+static void R_W3DrawEventSpawns(void) {
+    if (tr.render_phase != RENDER_PHASE_SOLID) return;
+    FOR_LOOP(i, WC3_EVENT_SPAWN_MAX) R_W3RenderEventSpawn(event_spawns + i, i);
+}
+
+static void R_W3UpdateModelEvents(renderEntity_t const *entity) {
     mdxModel_t const *model;
     wc3EventSoundState_t *state;
     mat4_t transform;
 
+    /* Presentation events belong to the color pass, not the shadow-map pass. */
+    if (tr.render_phase == RENDER_PHASE_LIGHTS) return;
     if (!entity || (entity->flags & RF_HIDDEN) || !entity->model || entity->model->modeltype != ID_MDLX ||
         !entity->model->mdx || entity->number >= MAX_GAME_ENTITIES) return;
     model = entity->model->mdx;
@@ -894,19 +1033,21 @@ static void R_W3UpdateModelSoundEvents(renderEntity_t const *entity) {
     state = event_sound_state + entity->number;
     if (!state->valid || state->model != entity->model) {
         *state = (wc3EventSoundState_t){ .model = entity->model, .frame = entity->frame,
-                                        .render_time = tr.viewDef.time, .valid = true };
+                                   .render_time = tr.viewDef.time, .valid = true };
         return;
     }
     if (state->frame == entity->frame && state->render_time == tr.viewDef.time) return;
 
     R_GetEntityMatrix(entity, &transform);
     FOR_EACH_LIST(mdxEvent_t, event, model->events) {
-        if (strncmp(event->node.name, "SND", 3) || !event->num_keys) continue;
+        if (!event->num_keys || (strncmp(event->node.name, "SND", 3) && strncmp(event->node.name, "SPN", 3))) continue;
         FOR_LOOP(i, event->num_keys) {
+
             uint32_t key = event->keys[i];
-            if (MDLX_EventKeyCrossed(model, event, key, state->frame, entity->frame,
-                                     state->render_time, tr.viewDef.time))
-                R_W3EmitSoundEvent(entity, model, event, key, &transform);
+            if (!MDLX_EventKeyCrossed(model, event, key, state->frame, entity->frame,
+                                      state->render_time, tr.viewDef.time)) continue;
+            if (!strncmp(event->node.name, "SND", 3)) R_W3EmitSoundEvent(entity, model, event, key, &transform);
+            else R_W3EmitSpawnEvent(entity, model, event, &transform);
         }
     }
     state->frame = entity->frame;
@@ -914,7 +1055,7 @@ static void R_W3UpdateModelSoundEvents(renderEntity_t const *entity) {
 }
 
 void R_UpdateEntityPresentation(renderEntity_t const *entity) {
-    R_W3UpdateModelSoundEvents(entity);
+    R_W3UpdateModelEvents(entity);
 }
 
 void R_RenderModel(renderEntity_t const *entity) {

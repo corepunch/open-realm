@@ -1,5 +1,6 @@
 #include "r_mdx.h"
 #include "renderer/r_local.h"
+#include <ctype.h>
 
 /* Shared state used across anim, geoset, and render translation units.
    Must live in the first file included by the unity build (alphabetically). */
@@ -49,6 +50,39 @@ bool MDLX_EventKeyCrossed(mdxModel_t const *model, mdxEvent_t const *event, uint
     if (previous_seq != current_seq) return key >= current_seq->interval[0] && key <= current_frame;
     if (current_frame >= previous_frame) return key > previous_frame && key <= current_frame;
     return key > previous_frame || key <= current_frame;
+}
+
+bool MDLX_EventObjectId(mdxEvent_t const *event, cstring_t type, char *out, uint32_t out_size) {
+    size_t name_len, offset, len;
+    if (!event || !type || !out || out_size < 2 || strlen(type) != 3) return false;
+    name_len = strnlen(event->node.name, sizeof(event->node.name));
+    if (name_len <= 4 || strncmp(event->node.name, type, 3)) return false;
+    offset = 4;
+    while (offset < name_len && isspace((unsigned char)event->node.name[offset])) offset++;
+    len = name_len - offset;
+    while (len && isspace((unsigned char)event->node.name[offset + len - 1])) len--;
+    if (!len) return false;
+    len = MIN(len, (size_t)out_size - 1);
+    memcpy(out, event->node.name + offset, len); out[len] = '\0';
+    return true;
+}
+
+/* Keep the animated node basis and place the child at its transformed pivot. */
+bool MDLX_EventWorldTransform(mdxModel_t const *model, mdxEvent_t const *event,
+                              renderEntity_t const *entity, mat4_t const *model_transform,
+                              mat4_t *out) {
+    vec3_t pivot = {0}, local, world;
+    if (!model || !event || !entity || !model_transform || !out) return false;
+    MDLX_BindBoneMatrices(model, model_transform, entity->frame, entity->oldframe);
+    if (event->node.node_id < (uint32_t)model->num_pivots) pivot = model->pivots[event->node.node_id];
+    local = pivot; *out = *model_transform;
+    if (event->node.node_id < MDX_MAX_NODES && model->nodes[event->node.node_id]) {
+        local = Matrix4_multiply_vector3(&node_matrices[event->node.node_id], &pivot);
+        Matrix4_multiply(model_transform, &node_matrices[event->node.node_id], out);
+    }
+    world = Matrix4_multiply_vector3(model_transform, &local);
+    out->v[12] = world.x; out->v[13] = world.y; out->v[14] = world.z;
+    return true;
 }
 
 static mdxKeyFrame_t *R_KeyFrameAt(mdxKeyTrack_t const *track, uint32_t stride, uint32_t index) {
