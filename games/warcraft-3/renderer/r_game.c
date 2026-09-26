@@ -913,7 +913,7 @@ static uint32_t R_W3SoundVariantCount(wc3AnimSound_t const *row) {
 
 static void R_W3EmitSoundEvent(renderEntity_t const *entity, mdxModel_t const *model,
                                mdxEvent_t const *event, uint32_t key, mat4_t const *transform) {
-    cstring_t id;
+    char id[sizeof(event->node.name) + 1];
     cstring_t label;
     wc3AnimSound_t const *row;
     uint32_t count, pick;
