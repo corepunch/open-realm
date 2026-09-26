@@ -115,7 +115,7 @@ input code (`client/cl_input.c`) for the desktop assumptions that still apply.
 
 ## Icons
 
-`icons/warcraft3.png` is a project-owned placeholder (navy/gold ring mark,
-1024x1024). `tools/ipad/bundle.py` emits it as a single-size universal
+`icons/warcraft3.png` is the Warcraft III orc (Grom Hellscream) cover art,
+upscaled to 1024x1024. `tools/ipad/bundle.py` emits it as a single-size universal
 1024x1024 app icon (converted with `sips`) and `actool` derives every iPad
 size. Replace the file to rebrand.
