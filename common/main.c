@@ -194,6 +194,10 @@ static void Sys_ShowStartupError(cstring_t message) {
 
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
+#if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
+#include <dirent.h>
+#include <strings.h>
+#endif
 #endif
 
 /* iPad sandbox: the Files-visible Documents directory is both the data import
@@ -205,6 +209,22 @@ static bool Sys_iOSDocumentsDir(string_t out, size_t out_size) {
     if (!home || !*home) return false;
     snprintf(out, out_size, "%s/Documents", home);
     return true;
+}
+
+/* The Documents folder always exists, so FS_AddDataDirectory succeeds even
+ * before the user has copied any data in; check for war3.mpq explicitly
+ * (any case: the iOS filesystem is case-sensitive). */
+static bool Sys_iOSHasWarcraftArchive(cstring_t dirname) {
+    DIR *dir = opendir(dirname);
+    struct dirent *entry;
+    bool found = false;
+
+    if (!dir) return false;
+    while (!found && (entry = readdir(dir)) != NULL) {
+        found = !strcasecmp(entry->d_name, "war3.mpq");
+    }
+    closedir(dir);
+    return found;
 }
 #endif
 
@@ -345,6 +365,17 @@ int main(int argc, string_t argv[]) {
         Cvar_Set("data", ios_data_dir);
         data_dir = Cvar_String("data", "");
         fprintf(stderr, "iOS data directory: %s\n", data_dir);
+    }
+    if (data_dir && *data_dir && !Sys_iOSHasWarcraftArchive(data_dir)) {
+        fprintf(stderr, "No war3.mpq in %s\n", data_dir);
+        SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR,
+                                 "Warcraft III data not found",
+                                 "Copy War3.mpq and War3Local.mpq (plus War3x.mpq and "
+                                 "War3xLocal.mpq for The Frozen Throne) into "
+                                 "On My iPad > OpenWarcraft3 using the Files app or "
+                                 "Finder, then relaunch OpenWarcraft3.",
+                                 NULL);
+        return 1;
     }
 #endif
 #ifdef _WIN32
