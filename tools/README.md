@@ -20,6 +20,20 @@ build/bin/ability_audit -data 'data/Warcraft III' -tft -raw Aam2
 strings, and `code=` aliases. `-roc` opens War3.mpq only; `-tft` searches
 War3x.mpq first. Without either flag, `-raw` prints both sections.
 
+## `update_credits.py`
+
+Regenerate the contributor list on the WC3 main-menu credits screen from the
+GitHub contributors API (sorted by commit count, bots excluded). Writes
+`games/warcraft-3/menu/generated/contributors.h`; commit the result.
+
+```sh
+GH_TOKEN=$(gh auth token) python3 tools/update_credits.py
+python3 tools/update_credits.py --dry-run
+```
+
+Automation accounts that GitHub reports as regular users are listed in
+`NON_HUMAN_LOGINS` inside the script.
+
 ## `extract_wc3_ability_classes.py`
 
 Extract the demo/TFT binaries' actual FOURCC-to-class registration mappings using Python's
