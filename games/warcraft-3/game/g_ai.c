@@ -119,7 +119,7 @@ static bool filter_sight(edict_t const *ent) {
         return false;
     if (ent->svflags & SVF_DEADMONSTER)
         return false;
-    if (S_UnitIsInvisibleToPlayer(ent, ai_current_entity->s.player))
+    if (S_UnitIsHiddenFromPlayer(ent, ai_current_entity->s.player))
         return false;
     /* Warsmash excludes invulnerable units from automatic attack acquisition;
      * explicit orders still perform their own target validation. */

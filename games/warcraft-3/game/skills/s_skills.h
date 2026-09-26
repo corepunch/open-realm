@@ -353,6 +353,7 @@ void lsh_think(edict_t *thinker);
 bool S_UnitIsDetected(edict_t const *unit);
 bool S_UnitIsDetectedByPlayer(edict_t const *unit, uint32_t player);
 bool S_UnitIsInvisibleToPlayer(edict_t const *unit, uint32_t player);
+bool S_UnitIsHiddenFromPlayer(edict_t const *unit, uint32_t player);
 bool S_AuraUnitActive(edict_t const *unit);
 bool S_UnitUsesInvisibilityRenderFlag(edict_t const *unit);
 bool S_PermanentInvisibilityActive(edict_t const *unit);

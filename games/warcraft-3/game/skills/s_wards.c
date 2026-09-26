@@ -225,6 +225,14 @@ bool S_UnitIsInvisibleToPlayer(edict_t const *unit, uint32_t player) {
 	return !S_UnitIsDetectedByPlayer(unit, player);
 }
 
+/* Script-hidden units are absent from ordinary targeting. RF_HIDDEN also backs
+ * player-local invisibility, so retain its detector-aware target policy. */
+BOOL S_UnitIsHiddenFromPlayer(LPCEDICT unit, DWORD player) {
+	if (!unit || !unit->inuse) return true;
+	if ((unit->s.renderfx & RF_HIDDEN) && !S_UnitUsesInvisibilityRenderFlag(unit)) return true;
+	return S_UnitIsInvisibleToPlayer(unit, player);
+}
+
 /* Legacy aggregate query retained for ability/tests that only need to know
  * whether any player's detector currently covers the unit. */
 bool S_UnitIsDetected(edict_t const *unit) {
