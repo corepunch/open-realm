@@ -124,7 +124,7 @@ The bridge also provides:
 - successful item pickup/use context via `GetManipulatingUnit()` and
   `GetManipulatedItem()`; final-charge perishable uses retain the consumed item
   handle through queued event dispatch and sleeping trigger-action context so
-  the response remains valid while jass_t is handling that use;
+  the response remains valid while JASS is handling that use;
 - successful Hero skill learning via `GetLearningUnit()`, `GetLearnedSkill()`
   and `GetLearnedSkillLevel()`;
 - region enter/leave with `GetTriggeringRegion()` and entering/leaving unit;

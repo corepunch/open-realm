@@ -376,7 +376,7 @@ void G_CompleteItemUse(edict_t *unit, edict_t *item) {
     G_PublishEventWithSource(unit, EVENT_PLAYER_UNIT_USE_ITEM, item);
     G_PublishEventWithSource(unit, EVENT_UNIT_USE_ITEM, item);
 
-    /* A one-charge perishable has to leave gameplay immediately, but its jass_t
+    /* A one-charge perishable has to leave gameplay immediately, but its JASS
      * handle remains observable as GetManipulatedItem() until the queued event
      * and any sleeping response action have released that event context. */
     if (item->data.ItemData && item->item.charges == 1 && item->data.ItemData->perishable) {
