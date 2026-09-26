@@ -648,6 +648,13 @@ static char *UIWow_LuaCompatBuffer(cstring_t script, size_t len) {
     return out;
 }
 
+/* Portable stand-in for memmem(), which MinGW does not provide. */
+static bool UIWow_LineContains(cstring_t line, size_t len, cstring_t needle, size_t needle_len) {
+    for (size_t i = 0; i + needle_len <= len; i++)
+        if (!memcmp(line + i, needle, needle_len)) return true;
+    return false;
+}
+
 static char *UIWow_LuaCompatVarargs(cstring_t script, size_t len) {
     static cstring_t insert = "    local arg = { ... }; arg.n = select('#', ...)\n";
     size_t extra = 0; char *out, *dst; cstring_t src = script;
@@ -655,7 +662,7 @@ static char *UIWow_LuaCompatVarargs(cstring_t script, size_t len) {
     while (*src) {
         cstring_t line = src, end = src;
         while (*end && *end != '\n' && *end != '\r') end++;
-        if (!strncmp(line, "function ", 9) && memmem(line, (size_t)(end - line), "(...)", 5) && extra < SIZE_MAX - strlen(insert))
+        if (!strncmp(line, "function ", 9) && UIWow_LineContains(line, (size_t)(end - line), "(...)", 5) && extra < SIZE_MAX - strlen(insert))
             extra += strlen(insert);
         src = end;
         while (*src == '\n' || *src == '\r') src++;
@@ -670,7 +677,7 @@ static char *UIWow_LuaCompatVarargs(cstring_t script, size_t len) {
         memcpy(dst, line, (size_t)(end - line));
         dst += end - line;
         while (*end == '\r' || *end == '\n') *dst++ = *end++;
-        if (!strncmp(line, "function ", 9) && memmem(line, (size_t)(end - line), "(...)", 5)) {
+        if (!strncmp(line, "function ", 9) && UIWow_LineContains(line, (size_t)(end - line), "(...)", 5)) {
             size_t n = strlen(insert);
             memcpy(dst, insert, n);
             dst += n;
