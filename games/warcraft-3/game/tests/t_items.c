@@ -1416,10 +1416,15 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
             }
             T_ASSERT(!approach->inuse);
             T_EQ(G_ItemCharges(item), 1);
+            mine = NULL;
             FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') &&
                           ent->owner == hero && Vector2_distance(&ent->s.origin2, &(vec2_t){620, 800}) < 0.001f)
                 mine = ent;
             T_NOT_NULL(mine);
+            if (mine) {
+                T_FEQ(mine->s.origin2.x, 620.0f, 0.001f);
+                T_FEQ(mine->s.origin2.y, 800.0f, 0.001f);
+            }
         } else if (saved) {
             T_ASSERT(false);
         }
@@ -2235,6 +2240,8 @@ TEST(wc3_items, soul_gem_pending_approach_round_trips_save) {
     thinker = &globals.edicts[thinker_slot];
     T_ASSERT(thinker->inuse && thinker->think);
     T_ASSERT(thinker->spell_item == gem);
+    T_EQ(thinker->channel.owner_spawn_time, carrier->spawn_time);
+    T_EQ(thinker->channel.target_spawn_time, target->spawn_time);
 
     bool const saved = WriteGame(path);
     T_ASSERT(saved);
@@ -2247,6 +2254,8 @@ TEST(wc3_items, soul_gem_pending_approach_round_trips_save) {
         T_NOT_NULL(thinker->think);
         T_EQ(thinker->think, S_SpellTargetApproachThink);
         T_ASSERT(thinker->spell_item == gem);
+        T_EQ(thinker->channel.owner_spawn_time, carrier->spawn_time);
+        T_EQ(thinker->channel.target_spawn_time, target->spawn_time);
         carrier->s.origin2.x = carrier->s.origin.x = 480.0f;
         if (thinker->think) thinker->think(thinker);
         T_ASSERT(!thinker->inuse);
