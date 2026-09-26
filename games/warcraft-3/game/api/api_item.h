@@ -111,13 +111,14 @@ uint32_t SetItemPlayer(jass_t *j) {
     return 0;
 }
 uint32_t SetItemInvulnerable(jass_t *j) {
-    //handle_t whichItem = jass_checkhandle(j, 1, "item");
-    //bool flag = jass_checkboolean(j, 2);
+    edict_t *item = jass_checkhandle(j, 1, "item");
+    bool flag = jass_checkboolean(j, 2);
+    if (item && G_IsItem(item)) item->invulnerable = flag;
     return 0;
 }
 uint32_t IsItemInvulnerable(jass_t *j) {
-    //handle_t whichItem = jass_checkhandle(j, 1, "item");
-    return jass_pushboolean(j, 0);
+    edict_t *item = jass_checkhandle(j, 1, "item");
+    return jass_pushboolean(j, item && G_IsItem(item) && item->invulnerable);
 }
 uint32_t GetManipulatedItem(jass_t *j) {
     edict_t *item = jass_getcontext(j)->source;
