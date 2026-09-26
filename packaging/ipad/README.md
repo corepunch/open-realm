@@ -108,10 +108,15 @@ renders the Reign of Chaos main menu (logo, 3D battlefield backdrop, full
 button list) identically to the desktop build.
 
 ## Touch status
-SDL translates single-finger touch to mouse events, so menus and unit orders
-respond to taps out of the box. Multi-touch gestures, pinch zoom, and the
-software-keyboard flow have not been tuned for this build; see the in-game
-input code (`client/cl_input.c`) for the desktop assumptions that still apply.
+
+SDL translates the first finger to mouse events, so menus, selection, and
+unit orders respond to taps and drags out of the box. Two fingers pan the
+map like the middle-mouse `+pan` drag: the ground under the fingers'
+midpoint follows them, and the second finger cancels the first finger's
+pending click or box selection (`client/cl_input.c`, direct touchscreens
+only). A touch-driven cursor never edge-scrolls (`cl_camera_edge_scroll`
+still applies to a trackpad or mouse). Pinch zoom and the software-keyboard
+flow have not been tuned yet.
 
 ## Icons
 

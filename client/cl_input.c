@@ -21,7 +21,7 @@ static bool CL_MouseOverGameplayUIAt(int x, int y);
 
 static struct {
     uint32_t buttons, sent, last_ms;
-    bool select, look, focus;
+    bool select, look, focus, touch_pointer;
     vec2_t down, travel;
     uint32_t last_select_entity, last_select_ms;
     SDL_Cursor *arrow, *cross, *hand;
@@ -220,6 +220,78 @@ static void CL_EndPan(void) {
     camera_drag.active = false;
 }
 
+/* Two fingers on a touchscreen pan the camera like +pan (middle mouse): the
+ * ground under the fingers' midpoint follows them. SDL also synthesizes
+ * mouse events from the first finger (which == SDL_TOUCH_MOUSEID), so the
+ * second finger cancels that finger's pending click/box selection, and its
+ * synthetic motion is dropped until every finger has lifted. Only direct
+ * touchscreens qualify: SDL reports macOS trackpad contacts as indirect
+ * touches alongside its own wheel events. */
+static struct {
+    SDL_FingerID id[2];
+    vec2_t pos[2];
+    uint32_t count;
+    bool gesture;
+} touch_pan;
+
+static bool CL_TouchIsDirect(SDL_TouchID touch) {
+    return SDL_GetTouchDeviceType(touch) == SDL_TOUCH_DEVICE_DIRECT;
+}
+static bool (*touch_is_direct)(SDL_TouchID) = CL_TouchIsDirect;
+
+static vec2_t CL_TouchPanCenter(void) {
+    return (vec2_t){ (touch_pan.pos[0].x + touch_pan.pos[1].x) * 0.5f,
+                     (touch_pan.pos[0].y + touch_pan.pos[1].y) * 0.5f };
+}
+
+static void CL_TouchFingerEvent(SDL_TouchFingerEvent const *finger) {
+    size2_t win = re.GetWindowSize();
+    vec2_t pos = { finger->x * win.width, finger->y * win.height };
+    int32_t slot = -1;
+
+    if (!touch_is_direct(finger->touchId)) return;
+    FOR_LOOP(i, touch_pan.count) if (touch_pan.id[i] == finger->fingerId) slot = (int32_t)i;
+    switch (finger->type) {
+        case SDL_FINGERDOWN:
+            if (slot >= 0 || touch_pan.count >= 2) return;
+            touch_pan.id[touch_pan.count] = finger->fingerId;
+            touch_pan.pos[touch_pan.count++] = pos;
+            if (touch_pan.count == 2 && CL_GameplayInputReady()) {
+                touch_pan.gesture = true;
+                input.select = false;
+                cl.selection.in_progress = false;
+                CL_EndMinimapDrag();
+                vec2_t center = CL_TouchPanCenter();
+                CL_BeginPan(center.x, center.y);
+            }
+            break;
+        case SDL_FINGERMOTION:
+            if (slot < 0) return;
+            touch_pan.pos[slot] = pos;
+            if (touch_pan.gesture && touch_pan.count == 2) {
+                vec2_t center = CL_TouchPanCenter();
+                CL_UpdatePan(center.x, center.y);
+            }
+            break;
+        case SDL_FINGERUP:
+            if (slot < 0) return;
+            touch_pan.id[slot] = touch_pan.id[touch_pan.count - 1];
+            touch_pan.pos[slot] = touch_pan.pos[touch_pan.count - 1];
+            if (--touch_pan.count < 2 && touch_pan.gesture) CL_EndPan();
+            if (!touch_pan.count) touch_pan.gesture = false;
+            break;
+    }
+}
+
+/* During a two-finger gesture the first finger's synthetic mouse motion and
+ * presses would fight the pan; button-ups still pass to release key state. */
+static bool CL_TouchGestureOwnsMouse(SDL_Event const *event) {
+    if (!touch_pan.gesture) return false;
+    if (event->type == SDL_MOUSEMOTION) return event->motion.which == SDL_TOUCH_MOUSEID;
+    if (event->type == SDL_MOUSEBUTTONDOWN) return event->button.which == SDL_TOUCH_MOUSEID;
+    return false;
+}
+
 static void CL_SendSmartPointCommand(float x, float y) {
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     SZ_Printf(&cls.netchan.message, CL_OrderQueueModifierDown()
@@ -413,10 +485,13 @@ static void CL_ScrollFrame(void) {
     if (cam_north) dy += 1.0f;
     if (cam_south) dy -= 1.0f;
 
-    /* Screen-edge scrolling (only while the cursor is inside the window). */
+    /* Screen-edge scrolling (only while the cursor is inside the window). A
+     * touch-driven cursor rests wherever the last finger lifted, so it never
+     * edge-scrolls; touchscreens pan with two fingers instead. */
     size2_t win = re.GetWindowSize();
     float mx = mouse.origin.x, my = mouse.origin.y, margin = Cvar_Value("cl_camera_edge_margin", 6);
-    if (Cvar_Value("cl_camera_edge_scroll", 0.0f) != 0.0f && win.width > 0 && win.height > 0 &&
+    if (Cvar_Value("cl_camera_edge_scroll", 0.0f) != 0.0f && !input.touch_pointer &&
+        win.width > 0 && win.height > 0 &&
         mx >= 0 && my >= 0 && mx < win.width && my < win.height) {
         if (mx <= margin)               dx -= 1.0f;
         if (mx >= (float)win.width - 1 - margin)  dx += 1.0f;
@@ -562,10 +637,17 @@ void CL_Input(void) {
             }
             continue;
         }
+        if (CL_TouchGestureOwnsMouse(&event)) continue;
         switch(event.type) {
+            case SDL_FINGERDOWN:
+            case SDL_FINGERMOTION:
+            case SDL_FINGERUP:
+                CL_TouchFingerEvent(&event.tfinger);
+                break;
             case SDL_MOUSEBUTTONDOWN:
                 {
                     keyCode_t mousevt = CL_MouseButtonKey(&event.button);
+                    input.touch_pointer = event.button.which == SDL_TOUCH_MOUSEID;
                     mouse.origin.x = event.button.x;
                     mouse.origin.y = event.button.y;
                     if (mousevt && cls.key_dest != key_console) {
@@ -588,6 +670,7 @@ void CL_Input(void) {
                 }
                 break;
             case SDL_MOUSEMOTION:
+                input.touch_pointer = event.motion.which == SDL_TOUCH_MOUSEID;
                 mouse.origin.x = event.motion.x;
                 mouse.origin.y = event.motion.y;
                 break;
@@ -1549,6 +1632,115 @@ TEST(client_input, minimap_sdl_click_drag_release_over_hud) {
     if (add_smart_down) Cmd_RemoveCommand("+smart");
     if (add_smart_up) Cmd_RemoveCommand("-smart");
     Cvar_SetValue("cl_camera_edge_scroll", old_edge); Cvar_SetValue("cl_context_cursor", old_cursor);
+    SDL_QuitSubSystem(SDL_INIT_EVENTS);
+    CL_TestWorldBounds(false);
+}
+
+static bool CL_TestTouchDirect(SDL_TouchID touch) { (void)touch; return true; }
+static bool CL_TestScreenGround(viewDef_t const *view, float x, float y, vec3_t *point) {
+    (void)view; *point = (vec3_t){ x, 768 - y, 0 }; return true;
+}
+static uint32_t CL_TestCountFocus(sizeBuf_t *msg, inputCmd_t *last) {
+    uint32_t n = 0;
+    inputCmd_t cmd;
+    while (msg->readcount < msg->cursize) {
+        int type = MSG_ReadByte(msg);
+        if (type != clc_input) return UINT32_MAX;
+        T_ASSERT(MSG_ReadInput(msg, &cmd));
+        if (cmd.action == BZ_INPUT_FOCUS) { n++; *last = cmd; }
+    }
+    return n;
+}
+
+/* Two fingers pan like +pan and cancel the first finger's synthetic selection;
+ * a touch-driven cursor never edge-scrolls. */
+TEST(client_input, two_finger_touch_pans_camera) {
+    CL_TestWorldBounds(true);
+    struct client_state *old_cl = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    refExport_t old_re = re;
+    __typeof__(input) old_input = input;
+    mouseEvent_t old_mouse = mouse;
+    bool (*old_direct)(SDL_TouchID) = touch_is_direct;
+    UINAME select_binding;
+    float old_edge = Cvar_Value("cl_camera_edge_scroll", 0), old_speed = Cvar_Value("cl_camera_scroll_speed", 0);
+    bool add_select_down = !Cmd_Exists("+select"), add_select_up = !Cmd_Exists("-select");
+    uint8_t data[512];
+    inputCmd_t focus = { 0 };
+    SDL_Event event;
+
+    memcpy(old_cl, &cl, sizeof(cl));
+    strlcpy(select_binding, Key_GetBinding(K_MOUSE1, 0), sizeof(select_binding));
+    T_EQ(SDL_InitSubSystem(SDL_INIT_EVENTS), 0);
+    if (add_select_down) Cmd_AddCommand("+select", IN_SelectDown);
+    if (add_select_up) Cmd_AddCommand("-select", IN_SelectUp);
+    Key_SetBinding(K_MOUSE1, 0, "+select");
+    Cvar_Set("cl_camera_edge_scroll", "0");
+    memset(&cl, 0, sizeof(cl)); input = (__typeof__(input)){ .focus = true };
+    memset(&touch_pan, 0, sizeof(touch_pan)); touch_is_direct = CL_TestTouchDirect;
+    cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    re.TraceMinimap = CL_TestNoMinimap; re.GetWindowSize = CL_TestWindowSize;
+    re.CameraUsesTerrainHeight = CL_TestCameraUsesTerrainHeight;
+    re.TraceLocation = CL_TestScreenGround; re.TraceEntity = CL_TestSelectEntity;
+    FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(i);
+    FOR_LOOP(j, 2) { cl.viewDef.camerastate[j].origin.x = 500; cl.viewDef.camerastate[j].origin.y = 400; }
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+
+    /* First finger: SDL's synthetic left press starts an ordinary selection. */
+    event = (SDL_Event){ .tfinger = { .type = SDL_FINGERDOWN, .touchId = 1, .fingerId = 1, .x = 0.4f, .y = 0.5f } };
+    T_EQ(SDL_PushEvent(&event), 1);
+    event = (SDL_Event){ .button = { .type = SDL_MOUSEBUTTONDOWN, .which = SDL_TOUCH_MOUSEID,
+        .button = SDL_BUTTON_LEFT, .x = 410, .y = 384 } };
+    T_EQ(SDL_PushEvent(&event), 1);
+    CL_Input(); Cbuf_Execute();
+    T_ASSERT(input.select && !camera_drag.active);
+
+    /* Second finger: the selection is cancelled and the midpoint anchors a pan. */
+    event = (SDL_Event){ .tfinger = { .type = SDL_FINGERDOWN, .touchId = 1, .fingerId = 2, .x = 0.6f, .y = 0.5f } };
+    T_EQ(SDL_PushEvent(&event), 1); CL_Input(); Cbuf_Execute();
+    T_ASSERT(!input.select && !cl.selection.in_progress && camera_drag.active);
+
+    /* Moving one finger drags the midpoint 51.2px right; the first finger's
+     * synthetic motion must not pan on its own. */
+    event = (SDL_Event){ .tfinger = { .type = SDL_FINGERMOTION, .touchId = 1, .fingerId = 1, .x = 0.5f, .y = 0.5f } };
+    T_EQ(SDL_PushEvent(&event), 1);
+    event = (SDL_Event){ .motion = { .type = SDL_MOUSEMOTION, .which = SDL_TOUCH_MOUSEID, .x = 900, .y = 700 } };
+    T_EQ(SDL_PushEvent(&event), 1);
+    CL_Input(); Cbuf_Execute();
+    T_EQ(CL_TestCountFocus(&cls.netchan.message, &focus), 1);
+    vec2_t expected = CL_ClampCameraPosition((vec2_t){ 500 + 512 - 563.2f, 400 });
+    T_FEQ(focus.focus.x, expected.x, 0.01f); T_FEQ(focus.focus.y, expected.y, 0.01f);
+
+    /* Lifting ends the pan without turning the first touch into a click. */
+    SZ_Init(&cls.netchan.message, data, sizeof(data));
+    event = (SDL_Event){ .tfinger = { .type = SDL_FINGERUP, .touchId = 1, .fingerId = 1, .x = 0.5f, .y = 0.5f } };
+    T_EQ(SDL_PushEvent(&event), 1);
+    event = (SDL_Event){ .button = { .type = SDL_MOUSEBUTTONUP, .which = SDL_TOUCH_MOUSEID,
+        .button = SDL_BUTTON_LEFT, .x = 512, .y = 384 } };
+    T_EQ(SDL_PushEvent(&event), 1);
+    event = (SDL_Event){ .tfinger = { .type = SDL_FINGERUP, .touchId = 1, .fingerId = 2, .x = 0.6f, .y = 0.5f } };
+    T_EQ(SDL_PushEvent(&event), 1);
+    CL_Input(); Cbuf_Execute();
+    T_EQ(cls.netchan.message.cursize, 0);
+    T_ASSERT(!camera_drag.active && !touch_pan.count && !touch_pan.gesture);
+
+    /* Edge scroll: a touch cursor parked on the edge stays put, a mouse scrolls. */
+    Cvar_Set("cl_camera_edge_scroll", "1"); Cvar_Set("cl_camera_scroll_speed", "1000");
+    FOR_LOOP(i, 2) {
+        SZ_Init(&cls.netchan.message, data, sizeof(data));
+        event = (SDL_Event){ .motion = { .type = SDL_MOUSEMOTION, .which = i ? 0 : SDL_TOUCH_MOUSEID, .x = 0, .y = 384 } };
+        T_EQ(SDL_PushEvent(&event), 1);
+        CL_Input(); SDL_Delay(5); CL_Input(); Cbuf_Execute();
+        T_EQ(CL_TestCountFocus(&cls.netchan.message, &focus) > 0, i == 1);
+    }
+
+    cl = *old_cl; MemFree(old_cl); cls = old_cls; re = old_re; input = old_input; mouse = old_mouse;
+    touch_is_direct = old_direct; memset(&touch_pan, 0, sizeof(touch_pan));
+    FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_SetLayoutLayer(i, cl.layout[i]);
+    Key_SetBinding(K_MOUSE1, 0, select_binding);
+    if (add_select_down) Cmd_RemoveCommand("+select");
+    if (add_select_up) Cmd_RemoveCommand("-select");
+    Cvar_SetValue("cl_camera_edge_scroll", old_edge); Cvar_SetValue("cl_camera_scroll_speed", old_speed);
     SDL_QuitSubSystem(SDL_INIT_EVENTS);
     CL_TestWorldBounds(false);
 }
