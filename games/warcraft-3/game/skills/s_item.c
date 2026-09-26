@@ -16,7 +16,7 @@
 /* ---- Active items (consume on use) -------------------------------------- */
 
 BZ_ITEM_PROC(AbilityItemHeal) {
-    LPEDICT target = G_GetMainSelectedUnit(clent->client);
+    edict_t * target = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_HEAL);
     float amount = S_SpellData(code, 1, 1);
 
@@ -29,7 +29,7 @@ BZ_ITEM_PROC(AbilityItemHeal) {
 }
 
 BZ_ITEM_PROC(AbilityItemManaRestore) {
-    LPEDICT target = G_GetMainSelectedUnit(clent->client);
+    edict_t * target = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_MANA);
     float amount = S_SpellData(code, 1, 1);
 
@@ -42,7 +42,7 @@ BZ_ITEM_PROC(AbilityItemManaRestore) {
 }
 
 BZ_ITEM_PROC(AbilityMaxLifeMod) {
-    LPEDICT target = G_GetMainSelectedUnit(clent->client);
+    edict_t * target = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_LIFE_GAIN);
     float amount = S_SpellData(code, 1, 1);
 
@@ -58,7 +58,7 @@ BZ_ITEM_PROC(AbilityMaxLifeMod) {
 /* WarSmash: CAbilityItemPermanentStatGain.checkBeforeQueue
  * Permanently adds to hero base stats, consumes the item. */
 BZ_ITEM_PROC(AbilityStrengthMod) {
-    LPEDICT target = G_GetMainSelectedUnit(clent->client);
+    edict_t * target = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, 0);
     float str = S_SpellData(code, 1, 3);
     float agi = S_SpellData(code, 1, 1);
@@ -77,7 +77,7 @@ BZ_ITEM_PROC(AbilityStrengthMod) {
 
 /* WarSmash: CAbilityItemExperienceGain — grants XP. */
 BZ_ITEM_PROC(AbilityExperienceMod) {
-    LPEDICT target = G_GetMainSelectedUnit(clent->client);
+    edict_t * target = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_XP_GAIN);
     uint32_t amount = (uint32_t)S_SpellData(code, 1, 1);
 
@@ -91,7 +91,7 @@ BZ_ITEM_PROC(AbilityExperienceMod) {
 
 /* WarSmash: CAbilityItemLevelGain — grants hero level. */
 BZ_ITEM_PROC(AbilityLevelMod) {
-    LPEDICT target = G_GetMainSelectedUnit(clent->client);
+    edict_t * target = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_LEVEL_GAIN);
     uint32_t levels = (uint32_t)S_SpellData(code, 1, 1);
 
@@ -110,14 +110,14 @@ BZ_ITEM_PROC(AbilityLevelMod) {
 
 /* WarSmash: CAbilityItemFigurineSummon — summons a unit. */
 BZ_ITEM_PROC(AbilityFigurineSkeleton) {
-    LPEDICT target = G_GetMainSelectedUnit(clent->client);
+    edict_t * target = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_FIGURINE);
     uint32_t unit_id = S_SpellUnitId(code, 1);
 
     if (!target || !unit_id) {
         return false;
     }
-    LPEDICT summon = SP_SpawnAtLocation(unit_id, target->s.player, &target->s.origin2);
+    edict_t * summon = SP_SpawnAtLocation(unit_id, target->s.player, &target->s.origin2);
     if (!summon) {
         return false;
     }
@@ -131,7 +131,7 @@ BZ_ITEM_PROC(AbilityFigurineSkeleton) {
  * visible status rawcode in BuffID. Keep the item itself as a thin ability
  * carrier: the ability data decides the actual numbers. */
 BZ_ITEM_PROC(AbilityItemDefenseAoe) {
-    LPEDICT caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
+    edict_t * caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
     uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_DEFENSE_AOE);
     uint32_t level = 1;
     float bonus = S_SpellData(code, level, 1);
@@ -164,7 +164,7 @@ BZ_ITEM_PROC(AbilityItemDefenseAoe) {
  * simulation override, not a renderer-only tint, so all day/night consumers
  * see the same temporary time. */
 BZ_ITEM_PROC(AbilityItemChangeTOD) {
-    LPEDICT caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
+    edict_t * caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
     uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_CHANGE_TIME);
     int32_t hour = (int32_t)S_SpellData(code, 1, 1);
     int32_t minute = (int32_t)S_SpellData(code, 1, 2);

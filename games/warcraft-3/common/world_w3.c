@@ -55,10 +55,10 @@ void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
 }
 
 /* Client collision circles add live blockers; this lookup supplies the map's authored terrain flags. */
-bool CM_GetPathingFlagsAt(LPCVECTOR2 pos, uint8_t * flags) {
+bool CM_GetPathingFlagsAt(vector2_t const * pos, uint8_t * flags) {
     if (flags) *flags = 0;
     if (!pos || !flags || !cl_path.cells) return false;
-    VECTOR2 n = CM_GetNormalizedMapPosition(pos->x, pos->y);
+    vector2_t n = CM_GetNormalizedMapPosition(pos->x, pos->y);
     int x = (int)floorf(n.x * cl_path.width), y = (int)floorf(n.y * cl_path.height);
     if (x < 0 || y < 0 || x >= cl_path.width || y >= cl_path.height) return false;
     *flags = cl_path.cells[x + y * cl_path.width];
@@ -69,7 +69,7 @@ bool CM_GetPathingFlagsAt(LPCVECTOR2 pos, uint8_t * flags) {
 
 cstring_t CL_GameOrderQueueReleaseCommand(void) { return "orderqueuerelease"; }
 
-bool CL_GameBuildCursorBlocked(LPCVECTOR3 origin) {
+bool CL_GameBuildCursorBlocked(vector3_t const * origin) {
     float const min_dist_sq = WC3_GOLD_MINE_MIN_DISTANCE * WC3_GOLD_MINE_MIN_DISTANCE;
     if (!origin || !cl.cursorEntity || !(cl.cursorEntity->flags & EF_RESOURCE_RETURN)) return false;
     FOR_LOOP(i, cl.num_active) {
@@ -86,7 +86,7 @@ bool CL_GameBuildCursorBlocked(LPCVECTOR3 origin) {
     return false;
 }
 
-void CL_GameModifyBuildPathing(LPCVECTOR2 point, uint8_t * flags) {
+void CL_GameModifyBuildPathing(vector2_t const * point, uint8_t * flags) {
     uint32_t x, y;
 
     if (!point || !flags || !cl.terrain_mask.cells) return;
@@ -162,28 +162,28 @@ float CM_GetCameraHeightOffset(void) {
 }
 
 #ifdef BZ_TESTS
-static BOX2 test_world_bounds;
+static box2_t test_world_bounds;
 static bool test_world_bounds_set;
 
-void CM_SetupTestWorldBounds(LPCBOX2 bounds) {
+void CM_SetupTestWorldBounds(box2_t const * bounds) {
 	test_world_bounds_set = bounds != NULL;
 	if (bounds) test_world_bounds = *bounds;
 }
 #endif
 
-static LPCWAR3MAPVERTEX CM_GetWar3MapVertex(uint32_t x, uint32_t y) {
+static war3mapVertex_t const * CM_GetWar3MapVertex(uint32_t x, uint32_t y) {
 	if (!world.map || !world.map->vertices) return NULL;
 	int const index = x + y * world.map->width;
-	char const *ptr = ((char const *)world.map->vertices) + index * sizeof(WAR3MAPVERTEX);
-	return (LPCWAR3MAPVERTEX)ptr;
+	char const *ptr = ((char const *)world.map->vertices) + index * sizeof(war3mapVertex_t);
+	return (war3mapVertex_t const *)ptr;
 }
 
-static float CM_GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert) {
+static float CM_GetWar3MapVertexHeight(war3mapVertex_t const * vert) {
 	if (!vert) return 0;
 	return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILE_SIZE - HEIGHT_COR;
 }
 
-static float CM_GetWar3MapVertexWaterHeight(LPCWAR3MAPVERTEX vert) {
+static float CM_GetWar3MapVertexWaterHeight(war3mapVertex_t const * vert) {
     if (!vert) return -FLT_MAX;
     return DECODE_HEIGHT(vert->waterlevel) - WATER_HEIGHT_COR;
 }
@@ -234,7 +234,7 @@ static bool CM_W3ReadWeatherRegions(handle_t archive) {
         memset(regions, 0, sizeof(*regions) * count);
     }
     FOR_LOOP(i, count) {
-        BOX2 bounds;
+        box2_t bounds;
         uint32_t region_id, weather_id;
         uint8_t color[4];
 
@@ -287,7 +287,7 @@ static void CM_W3FreeDroppedItemSets(uint32_t num_sets, droppableItemSet_t *sets
     MemFree(sets);
 }
 
-static void CM_W3FreeDoodadPlacement(LPDOODAD doodad) {
+static void CM_W3FreeDoodadPlacement(doodad_t * doodad) {
     if (!doodad) return;
     CM_W3FreeDroppedItemSets(doodad->num_droppedItemSets, doodad->droppableItemSets);
     SAFE_DELETE(doodad->inventoryItems, MemFree);
@@ -314,7 +314,7 @@ static void CM_W3ClearMapData(void) {
     CM_W3FreeUnitOverrides(world.info.num_userCreatedAbilities, &world.info.userCreatedAbilities);
     CM_ReleaseModel();
     while (world.doodads) {
-        LPDOODAD doodad = world.doodads;
+        doodad_t * doodad = world.doodads;
         world.doodads = doodad->next;
         CM_W3FreeDoodadPlacement(doodad);
         MemFree(doodad);
@@ -360,10 +360,10 @@ float CM_GetHeightAtPoint(float sx, float sy) {
     float y = (sy - world.map->center.y) / TILE_SIZE;
     float fx = floorf(x);
     float fy = floorf(y);
-    LPCWAR3MAPVERTEX va = CM_GetWar3MapVertex(fx, fy);
-    LPCWAR3MAPVERTEX vb = CM_GetWar3MapVertex(fx + 1, fy);
-    LPCWAR3MAPVERTEX vc = CM_GetWar3MapVertex(fx, fy + 1);
-    LPCWAR3MAPVERTEX vd = CM_GetWar3MapVertex(fx + 1, fy + 1);
+    war3mapVertex_t const * va = CM_GetWar3MapVertex(fx, fy);
+    war3mapVertex_t const * vb = CM_GetWar3MapVertex(fx + 1, fy);
+    war3mapVertex_t const * vc = CM_GetWar3MapVertex(fx, fy + 1);
+    war3mapVertex_t const * vd = CM_GetWar3MapVertex(fx + 1, fy + 1);
     float a = CM_GetWar3MapVertexHeight(va);
     float b = CM_GetWar3MapVertexHeight(vb);
     float c = CM_GetWar3MapVertexHeight(vc);
@@ -388,38 +388,38 @@ float CM_GetWaterHeightAtPoint(float sx, float sy) {
     return LerpNumber(ab, cd, y - fy);
 }
 
-VECTOR2 CM_GetNormalizedMapPosition(float x, float y) {
+vector2_t CM_GetNormalizedMapPosition(float x, float y) {
 #ifdef BZ_TESTS
 	if (test_world_bounds_set) {
 		float width = test_world_bounds.max.x - test_world_bounds.min.x;
 		float height = test_world_bounds.max.y - test_world_bounds.min.y;
-		return (VECTOR2){ width ? (x - test_world_bounds.min.x) / width : 0,
+		return (vector2_t){ width ? (x - test_world_bounds.min.x) / width : 0,
 		                  height ? (y - test_world_bounds.min.y) / height : 0 };
 	}
 #endif
-	if (!world.map) return (VECTOR2){0, 0};
+	if (!world.map) return (vector2_t){0, 0};
 	float _x = (x - world.map->center.x) / ((world.map->width - 1) * TILE_SIZE);
 	float _y = (y - world.map->center.y) / ((world.map->height - 1) * TILE_SIZE);
-	return (VECTOR2){ _x, _y };
+	return (vector2_t){ _x, _y };
 }
 
-VECTOR2 CM_GetDenormalizedMapPosition(float x, float y) {
+vector2_t CM_GetDenormalizedMapPosition(float x, float y) {
 #ifdef BZ_TESTS
 	if (test_world_bounds_set)
-		return (VECTOR2){ x * (test_world_bounds.max.x - test_world_bounds.min.x) + test_world_bounds.min.x,
+		return (vector2_t){ x * (test_world_bounds.max.x - test_world_bounds.min.x) + test_world_bounds.min.x,
 		                  y * (test_world_bounds.max.y - test_world_bounds.min.y) + test_world_bounds.min.y };
 #endif
-	if (!world.map) return (VECTOR2){0, 0};
+	if (!world.map) return (vector2_t){0, 0};
 	float _x = x * (world.map->width - 1) * TILE_SIZE + world.map->center.x;
 	float _y = y * (world.map->height - 1) * TILE_SIZE + world.map->center.y;
-	return (VECTOR2){ _x, _y };
+	return (vector2_t){ _x, _y };
 }
 
-BOX2 CM_GetWorldBounds(void) {
+box2_t CM_GetWorldBounds(void) {
 #ifdef BZ_TESTS
     if (test_world_bounds_set) return test_world_bounds;
 #endif
-    return MAKE(BOX2,
+    return MAKE(box2_t,
         .min = world.map->center,
         .max = {
             .x = (world.map->width - 1)  * TILE_SIZE + world.map->center.x,
@@ -461,15 +461,15 @@ void CM_ReadPathMap(handle_t archive) {
 /* Client path queries must use their own cells and replace them cleanly between maps. */
 TEST(client_world, terrain_path_flags_survive_load_replace_and_clear) {
     uint8_t cells[] = { 2, 4, 8, 16 }, flags = 0;
-    CM_SetupTestWorldBounds(&(BOX2){ .min = { 0, 0 }, .max = { 64, 64 } });
+    CM_SetupTestWorldBounds(&(box2_t){ .min = { 0, 0 }, .max = { 64, 64 } });
     CM_SetupPathMap(2, 2, cells);
-    T_ASSERT(CM_GetPathingFlagsAt(&(VECTOR2){ 48, 16 }, &flags)); T_EQ(flags, 4);
-    T_ASSERT(CM_GetPathingFlagsAt(&(VECTOR2){ 16, 48 }, &flags)); T_EQ(flags, 8);
-    T_ASSERT(!CM_GetPathingFlagsAt(&(VECTOR2){ 64, 16 }, &flags));
+    T_ASSERT(CM_GetPathingFlagsAt(&(vector2_t){ 48, 16 }, &flags)); T_EQ(flags, 4);
+    T_ASSERT(CM_GetPathingFlagsAt(&(vector2_t){ 16, 48 }, &flags)); T_EQ(flags, 8);
+    T_ASSERT(!CM_GetPathingFlagsAt(&(vector2_t){ 64, 16 }, &flags));
     CM_SetupPathMap(1, 1, cells);
-    T_ASSERT(CM_GetPathingFlagsAt(&(VECTOR2){ 48, 48 }, &flags)); T_EQ(flags, 2);
+    T_ASSERT(CM_GetPathingFlagsAt(&(vector2_t){ 48, 48 }, &flags)); T_EQ(flags, 2);
     CM_SetupPathMap(0, 0, NULL);
-    T_ASSERT(!CM_GetPathingFlagsAt(&(VECTOR2){ 16, 16 }, &flags));
+    T_ASSERT(!CM_GetPathingFlagsAt(&(vector2_t){ 16, 16 }, &flags));
     CM_SetupTestWorldBounds(NULL);
 }
 #endif

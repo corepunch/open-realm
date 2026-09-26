@@ -16,7 +16,7 @@
 void test_client_stubs_init(void);
 void test_client_stubs_clear_cvars(void);
 void test_client_stubs_set_cvar(cstring_t name, cstring_t value);
-void test_client_stubs_set_world_bounds(BOX2 bounds);
+void test_client_stubs_set_world_bounds(box2_t bounds);
 struct game_import gi;
 static uint32_t map_defer_count;
 static uint32_t cm_loading_frame_calls;
@@ -33,19 +33,19 @@ bool CM_LoadMap(cstring_t mapFilename, cmLoadYield_t yield) {
     return true;
 }
 uint32_t CM_GetMapChecksum(void) { return 0x1234; }
-LPDOODAD CM_GetDoodads(void) { return NULL; }
-static LPMAPINFO test_mapinfo;
-LPCMAPINFO CM_GetMapInfo(void) { return test_mapinfo; }
+doodad_t * CM_GetDoodads(void) { return NULL; }
+static mapInfo_t * test_mapinfo;
+mapInfo_t const * CM_GetMapInfo(void) { return test_mapinfo; }
 float CM_GetHeightAtPoint(float x, float y) { (void)x; (void)y; return 0.0f; }
-VECTOR2 CM_GetNormalizedMapPosition(float x, float y) { return (VECTOR2){ x, y }; }
-VECTOR2 CM_GetDenormalizedMapPosition(float x, float y) { return (VECTOR2){ x, y }; }
+vector2_t CM_GetNormalizedMapPosition(float x, float y) { return (vector2_t){ x, y }; }
+vector2_t CM_GetDenormalizedMapPosition(float x, float y) { return (vector2_t){ x, y }; }
 /* CM_GetWorldBounds lives in test_client_stubs.c so net and server tests share one map box. */
-handle_t FS_FindFirstFile(cstring_t mask, SFILE_FIND_DATA *findData) {
+handle_t FS_FindFirstFile(cstring_t mask, sfileFindData_t *findData) {
     (void)mask;
     (void)findData;
     return NULL;
 }
-bool FS_FindNextFile(handle_t find, SFILE_FIND_DATA *findData) {
+bool FS_FindNextFile(handle_t find, sfileFindData_t *findData) {
     (void)find;
     (void)findData;
     return false;
@@ -75,11 +75,11 @@ static int test_model_index(cstring_t name) {
     return 0;
 }
 
-static void test_customize_entity(uint32_t player, LPCEDICT ent, LPENTITYSTATE state) {
+static void test_customize_entity(uint32_t player, edict_t const * ent, entityState_t * state) {
     (void)player; (void)ent; (void)state;
 }
 
-static bool test_snapshot_priority_entity(uint32_t player, LPCEDICT ent) {
+static bool test_snapshot_priority_entity(uint32_t player, edict_t const * ent) {
     (void)player;
     return ent && ent->s.class_id == MAKEFOURCC('m', 'm', 'c', 't');
 }
@@ -122,16 +122,16 @@ TEST(server_net, scheduler_clamps_multi_tick_wall_clock_backlog) {
     T_EQ(SV_ClampSimulationDeadline(180, 100), 100);
 }
 
-void SV_HandleUnitUIRequest(LPCLIENT client, LPSIZEBUF msg) { (void)client; (void)msg; }
+void SV_HandleUnitUIRequest(client_t * client, sizeBuf_t * msg) { (void)client; (void)msg; }
 
 static struct game_export test_ge;
 static edict_t test_edicts[MAX_CLIENT_ENTITIES];
 static uint32_t test_game_shutdowns;
 static uint32_t test_camera_calls;
-static LPEDICT test_camera_ent;
-static VECTOR2 test_camera_pos;
+static edict_t * test_camera_ent;
+static vector2_t test_camera_pos;
 
-static void test_set_camera(LPEDICT ent, LPCINPUTCMD cmd) {
+static void test_set_camera(edict_t * ent, inputCmd_t const * cmd) {
     test_camera_calls++; test_camera_ent = ent; test_camera_pos = cmd->focus;
 }
 
@@ -154,7 +154,7 @@ static bool test_load_map(cstring_t mapFilename) {
     if (!CM_LoadMap(mapFilename, CL_LoadingFrame)) {
         return false;
     }
-    SV_ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
+    SV_ApplyLobbySettings((mapInfo_t *)CM_GetMapInfo());
     SV_ClearWorld();
     test_spawn_entities();
     return true;
@@ -167,7 +167,7 @@ static void test_game_shutdown(void) {
     test_game_shutdowns++;
 }
 
-static uint32_t test_write_client_datagram(LPEDICT ent, uint8_t * data, uint32_t size) {
+static uint32_t test_write_client_datagram(edict_t * ent, uint8_t * data, uint32_t size) {
     (void)ent;
     if (size < sizeof(uint16_t)) return 0;
     memset(data, 0, sizeof(uint16_t));
@@ -182,7 +182,7 @@ static void reset_server_state(int max_players) {
     memset(test_edicts, 0, sizeof(test_edicts));
     test_game_shutdowns = 0;
     test_mapinfo = NULL;
-    test_client_stubs_set_world_bounds((BOX2){
+    test_client_stubs_set_world_bounds((box2_t){
         .min = { 0, 0 },
         .max = { TILE_SIZE * 4.0f, TILE_SIZE * 3.0f },
     });
@@ -206,7 +206,7 @@ static void reset_server_state(int max_players) {
 }
 
 TEST(server_net, entity_recipient_prefers_exact_client_edict_over_player_slot) {
-    LPCLIENT client;
+    client_t * client;
 
     reset_server_state(1);
     svs.num_clients = 1;
@@ -220,8 +220,8 @@ TEST(server_net, entity_recipient_prefers_exact_client_edict_over_player_slot) {
 }
 
 TEST(server_net, entity_recipient_falls_back_to_world_entity_owner) {
-    LPCLIENT client;
-    GAMECLIENT player = { .ps.number = 4 };
+    client_t * client;
+    gameClient_t player = { .ps.number = 4 };
 
     reset_server_state(2);
     svs.num_clients = 2;
@@ -237,7 +237,7 @@ TEST(server_net, entity_recipient_falls_back_to_world_entity_owner) {
 
 /* Campaign player identity is assigned by the game, independently of lobby slots. */
 TEST(server_net, unit_ack_uses_game_player_identity_after_campaign_begin) {
-    GAMECLIENT players[2] = { { .ps.number = 1 }, { .ps.number = 0 } };
+    gameClient_t players[2] = { { .ps.number = 1 }, { .ps.number = 0 } };
     uint8_t data[32];
     sizeBuf_t msg = { .data = data, .maxsize = sizeof(data) };
     netadr_t from;
@@ -246,7 +246,7 @@ TEST(server_net, unit_ack_uses_game_player_identity_after_campaign_begin) {
     svs.num_clients = 2;
     NET_Config(false);
     FOR_LOOP(i, 2) {
-        LPCLIENT client = &svs.clients[i];
+        client_t * client = &svs.clients[i];
         client->state = cs_spawned;
         client->playernum = i; /* Opposite to the actual game identities. */
         client->edict = &test_edicts[i];
@@ -299,7 +299,7 @@ TEST(server_net, unit_ack_uses_game_player_identity_after_campaign_begin) {
 }
 
 TEST(server_net, edict_recipient_rejects_unowned_edict) {
-    LPCLIENT client;
+    client_t * client;
     uint8_t data[16];
     sizeBuf_t msg = { .data = data, .maxsize = sizeof(data) };
     netadr_t from;
@@ -326,7 +326,7 @@ TEST(server_net, edict_recipient_unicast_delivers_to_exact_client_edict) {
     uint8_t data[16];
     sizeBuf_t msg = { .data = data, .maxsize = sizeof(data) };
     netadr_t from;
-    LPCLIENT target, other;
+    client_t * target, *other;
 
     reset_server_state(2);
     svs.num_clients = 2;
@@ -355,11 +355,11 @@ TEST(server_net, edict_recipient_unicast_delivers_to_exact_client_edict) {
 TEST(server_net, camera_packet_waits_for_spawned_client_edict) {
     uint8_t data[16];
     sizeBuf_t msg = { data, sizeof(data), 0, 0 };
-    LPCLIENT client;
+    client_t * client;
 
     reset_server_state(1);
     client = &svs.clients[0]; client->state = cs_connected;
-    test_camera_calls = 0; test_camera_ent = NULL; test_camera_pos = MAKE(VECTOR2, 0, 0);
+    test_camera_calls = 0; test_camera_ent = NULL; test_camera_pos = MAKE(vector2_t, 0, 0);
     MSG_WriteByte(&msg, clc_camera_position); MSG_WriteFloat(&msg, 12.0f); MSG_WriteFloat(&msg, -34.0f);
     SV_ParseClientMessage(&msg, client);
     T_EQ(test_camera_calls, 0);
@@ -375,9 +375,9 @@ TEST(server_net, camera_packet_waits_for_spawned_client_edict) {
 TEST(server_net, typed_input_rejects_truncation_and_waits_for_spawn) {
     uint8_t data[32];
     sizeBuf_t msg;
-    INPUTCMD cmd = { .action = BZ_INPUT_FOCUS, .focus = {12, -34} };
+    inputCmd_t cmd = { .action = BZ_INPUT_FOCUS, .focus = {12, -34} };
     reset_server_state(1);
-    LPCLIENT client = &svs.clients[0];
+    client_t * client = &svs.clients[0];
     client->state = cs_connected;
     test_camera_calls = 0;
     SZ_Init(&msg, data, sizeof(data));
@@ -621,7 +621,7 @@ TEST(server_net, pending_image_configstring_precedes_dependent_payload) {
     uint8_t copy[MAX_MSGLEN];
     char name[MAX_PATHLEN];
     sizeBuf_t msg;
-    LPCLIENT client;
+    client_t * client;
     int image;
 
     reset_server_state(1);
@@ -653,7 +653,7 @@ TEST(server_net, pending_configstrings_flush_before_message_limit) {
     char value[32];
     sizeBuf_t msg = { .data = packet, .maxsize = sizeof(packet) };
     netadr_t from;
-    LPCLIENT client;
+    client_t * client;
     uint32_t index;
     int count = 0;
 
@@ -795,7 +795,7 @@ TEST(server_net, lan_info_query_returns_lobby_metadata) {
 }
 
 TEST(server_net, lobby_team_selection_expands_map_forces) {
-    MAPINFO info;
+    mapInfo_t info;
     lobbySlot_t slot;
 
     reset_server_state(4);
@@ -854,7 +854,7 @@ TEST(server_net, lobby_team_selection_expands_map_forces) {
 }
 
 TEST(server_net, local_map_uses_loopback_without_udp) {
-    MAPINFO info;
+    mapInfo_t info;
 
     NET_Shutdown();
     reset_server_state(4);
@@ -901,8 +901,8 @@ TEST(server_net, server_snapshot_ring_scales_to_client_capacity) {
 
 TEST(server_net, snapshot_overflow_keeps_nearest_entities_in_wire_order) {
     static struct client_s game_client;
-    LPCLIENT client;
-    LPCLIENTFRAME frame;
+    client_t * client;
+    clientFrame_t * frame;
 
     reset_server_state(1);
     SV_InitGame();
@@ -927,8 +927,8 @@ TEST(server_net, snapshot_overflow_keeps_nearest_entities_in_wire_order) {
 
 TEST(server_net, snapshot_overflow_retains_game_prioritized_minimap_contact) {
     static struct client_s game_client;
-    LPCLIENT client;
-    LPCLIENTFRAME frame;
+    client_t * client;
+    clientFrame_t * frame;
     uint32_t contact_number = MAX_PACKET_ENTITIES + 1;
     bool contact_retained = false;
 
@@ -960,8 +960,8 @@ TEST(server_net, snapshot_overflow_retains_game_prioritized_minimap_contact) {
 
 TEST(server_net, snapshot_owner_only_entity_reaches_only_owner) {
     static struct client_s game_clients[2];
-    LPCLIENT owner, other;
-    LPCLIENTFRAME frame;
+    client_t * owner, *other;
+    clientFrame_t * frame;
 
     reset_server_state(2);
     SV_InitGame();
@@ -984,7 +984,7 @@ TEST(server_net, snapshot_owner_only_entity_reaches_only_owner) {
 }
 
 TEST(server_net, lobby_start_preserves_connected_clients) {
-    MAPINFO info;
+    mapInfo_t info;
     lobbySlot_t slot;
     netadr_t remote = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 13) };
 
@@ -1040,7 +1040,7 @@ TEST(server_net, lobby_start_preserves_connected_clients) {
 }
 
 TEST(server_net, lobby_start_same_map_is_noop) {
-    MAPINFO info;
+    mapInfo_t info;
     lobbySlot_t slot;
     netadr_t remote = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 14) };
 
@@ -1082,7 +1082,7 @@ TEST(server_net, lobby_start_same_map_is_noop) {
 }
 
 TEST(server_net, lobby_rejects_remote_when_slots_full) {
-    MAPINFO info;
+    mapInfo_t info;
     lobbySlot_t slot;
     netadr_t remote = { NA_IP, { 127, 0, 0, 1 }, { 0 }, htons(PORT_SERVER + 15) };
 
@@ -1115,7 +1115,7 @@ TEST(server_net, lobby_rejects_remote_when_slots_full) {
 TEST(server_net, lobby_setup_message_round_trips_slot_table) {
     uint8_t msg_buf[MAX_MSGLEN];
     sizeBuf_t msg = { msg_buf, MAX_MSGLEN, 0, 0 };
-    LPCLIENT cl;
+    client_t * cl;
     char text[128];
 
     reset_server_state(4);
@@ -1182,7 +1182,7 @@ TEST(server_net, lobby_setup_message_round_trips_slot_table) {
 
 TEST(server_net, multicast_syncs_updates_to_all_connected_clients) {
     uint8_t payload[] = { 0x11, 0x22, 0x33, 0x44 };
-    VECTOR3 origin = { 0, 0, 0 };
+    vector3_t origin = { 0, 0, 0 };
     reset_server_state(4);
     SZ_Init(&sv.multicast, sv.multicast_buf, sizeof(sv.multicast_buf));
     FOR_LOOP(i, 3) {
@@ -1233,7 +1233,7 @@ TEST(server_net, lobby_chat_broadcasts_to_connected_clients) {
 
 /* Early and late clients receive the same loading resources, before any world-only configstrings. */
 TEST(server_net, loading_batch_precedes_world_and_retains_resource_indices) {
-    MAPINFO info = { 0 };
+    mapInfo_t info = { 0 };
     bool model = false, image = false, font = false;
     uint8_t buf[MAX_MSGLEN], packed[4096] = { 0 }, layout[256];
     sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
@@ -1280,7 +1280,7 @@ TEST(server_net, loading_batch_precedes_world_and_retains_resource_indices) {
 
 /* Dedicated startup must not defer commands on behalf of a nonexistent local client. */
 TEST(server_net, dedicated_map_does_not_defer_operator_commands_for_a_local_client) {
-    MAPINFO info = { 0 };
+    mapInfo_t info = { 0 };
     NET_Shutdown(); reset_server_state(1); test_mapinfo = &info;
     uint32_t before = map_defer_count;
     test_client_stubs_set_cvar("dedicated", "1");
@@ -1372,8 +1372,8 @@ TEST(server_net, loading_screen_preserves_full_text_and_geometry) {
     uint8_t raw[MAX_MSGLEN];
     char text[4096];
     uint32_t seed = 1;
-    UIFRAME empty = { .tex.coord = { 0, 255, 0, 255 } };
-    UIFRAME frame = { .number = 1, .flags.type = FT_STRING, .size = { .width = 321, .height = 123 }, .tex.coord = { 0, 255, 0, 255 } };
+    uiFrame_t empty = { .tex.coord = { 0, 255, 0, 255 } };
+    uiFrame_t frame = { .number = 1, .flags.type = FT_STRING, .size = { .width = 321, .height = 123 }, .tex.coord = { 0, 255, 0, 255 } };
     reset_server_state(1);
     FOR_LOOP(i, sizeof(text) - 1) {
         seed = seed * 1664525u + 1013904223u;
@@ -1500,8 +1500,8 @@ TEST(server_net, review_snapshot_keeps_nearby_world_entity_among_distant_contact
     static struct client_s game_client;
     reset_server_state(1);
     SV_InitGame();
-    LPCLIENT client = &svs.clients[0];
-    LPCLIENTFRAME frame = &client->frames[0];
+    client_t * client = &svs.clients[0];
+    clientFrame_t * frame = &client->frames[0];
     memset(&game_client, 0, sizeof(game_client));
     test_edicts[0].client = &game_client; client->edict = &test_edicts[0];
     test_ge.IsSnapshotPriorityEntity = test_snapshot_priority_entity;

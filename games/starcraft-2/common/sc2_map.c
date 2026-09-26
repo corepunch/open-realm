@@ -105,20 +105,20 @@ typedef struct {
 typedef struct sc2_convtext {
     struct sc2_convtext *next;
     char id[64], text[256];
-} SC2CONVTEXT;
-typedef SC2CONVTEXT *LPSC2CONVTEXT;
-typedef const SC2CONVTEXT *LPCSC2CONVTEXT;
+} sc2Convtext_t;
+
+
 
 typedef struct sc2_conversation {
     struct sc2_conversation *next;
-    LPSC2CONVTEXT text;
+    sc2Convtext_t * text;
     char id[128], name[256], image[256];
-} SC2CONVERSATION;
-typedef SC2CONVERSATION *LPSC2CONVERSATION;
-typedef const SC2CONVERSATION *LPCSC2CONVERSATION;
+} sc2Conversation_t;
+
+
 
 typedef struct {
-    LPSC2CONVERSATION conv;
+    sc2Conversation_t * conv;
     uint32_t models_count;
     uint32_t actors_count;
     uint32_t units_count;
@@ -192,15 +192,15 @@ static cstring_t const sc2_catalog_known_files[] = {
 };
 
 static sc2XmlField_t const sc2_conv_fields[] = {
-    SC2_STRUCT_XML_STRING_FIELD(SC2CONVERSATION, "Id", id),
-    SC2_STRUCT_XML_STRING_FIELD(SC2CONVERSATION, "Name", name),
-    SC2_STRUCT_XML_STRING_FIELD(SC2CONVERSATION, "ImagePath", image),
+    SC2_STRUCT_XML_STRING_FIELD(sc2Conversation_t, "Id", id),
+    SC2_STRUCT_XML_STRING_FIELD(sc2Conversation_t, "Name", name),
+    SC2_STRUCT_XML_STRING_FIELD(sc2Conversation_t, "ImagePath", image),
 
 };
 
 static sc2XmlField_t const sc2_conv_text_fields[] = {
-    SC2_STRUCT_XML_STRING_FIELD(SC2CONVTEXT, "Id", id),
-    SC2_STRUCT_XML_STRING_FIELD(SC2CONVTEXT, "Text", text),
+    SC2_STRUCT_XML_STRING_FIELD(sc2Convtext_t, "Id", id),
+    SC2_STRUCT_XML_STRING_FIELD(sc2Convtext_t, "Text", text),
 };
 
 static bool sc2_mapinfo_fourcc(sc2MapInfo_t const *mapInfo);
@@ -238,9 +238,9 @@ static bool sc2_file_exists(cstring_t path) {
 /* Conversation strings share the catalog lifetime, including replacement on the next map load. */
 static void sc2_free_catalog(sc2Catalog_t *catalog) {
     while (catalog->conv) {
-        LPSC2CONVERSATION next = catalog->conv->next;
+        sc2Conversation_t * next = catalog->conv->next;
         while (catalog->conv->text) {
-            LPSC2CONVTEXT text = catalog->conv->text;
+            sc2Convtext_t * text = catalog->conv->text;
             catalog->conv->text = text->next; sc2_free(text);
         }
         sc2_free(catalog->conv); catalog->conv = next;
@@ -584,33 +584,33 @@ static void sc2_parse_terrain_value(cstring_t key, cstring_t value) {
     }
 }
 
-static bool sc2_parse_argb_color(cstring_t text, LPCOLOR32 color) {
+static bool sc2_parse_argb_color(cstring_t text, color32_t * color) {
     uint32_t a, r, g, b;
 
     if (!text || !color)
         return false;
     if (sscanf(text, "%u,%u,%u,%u", &a, &r, &g, &b) == 4) {
-        *color = (COLOR32){ (uint8_t)r, (uint8_t)g, (uint8_t)b, (uint8_t)a };
+        *color = (color32_t){ (uint8_t)r, (uint8_t)g, (uint8_t)b, (uint8_t)a };
         return true;
     }
     if (sscanf(text, "%u,%u,%u", &r, &g, &b) == 3) {
-        *color = (COLOR32){ (uint8_t)r, (uint8_t)g, (uint8_t)b, 255 };
+        *color = (color32_t){ (uint8_t)r, (uint8_t)g, (uint8_t)b, 255 };
         return true;
     }
     return false;
 }
 
-static bool sc2_parse_rgba_color(cstring_t text, LPCOLOR32 color) {
+static bool sc2_parse_rgba_color(cstring_t text, color32_t * color) {
     uint32_t r, g, b, a;
 
     if (!text || !color)
         return false;
     if (sscanf(text, "%u,%u,%u,%u", &r, &g, &b, &a) == 4) {
-        *color = (COLOR32){ (uint8_t)r, (uint8_t)g, (uint8_t)b, (uint8_t)a };
+        *color = (color32_t){ (uint8_t)r, (uint8_t)g, (uint8_t)b, (uint8_t)a };
         return true;
     }
     if (sscanf(text, "%u,%u,%u", &r, &g, &b) == 3) {
-        *color = (COLOR32){ (uint8_t)r, (uint8_t)g, (uint8_t)b, 255 };
+        *color = (color32_t){ (uint8_t)r, (uint8_t)g, (uint8_t)b, 255 };
         return true;
     }
     return false;
@@ -701,10 +701,10 @@ static void sc2_init_directional_light(sc2DirectionalLight_t *light) {
     if (!light || light->enabled)
         return;
     light->enabled = true;
-    light->color = (VECTOR3){ 1.0f, 1.0f, 1.0f };
+    light->color = (vector3_t){ 1.0f, 1.0f, 1.0f };
     light->color_multiplier = 1.0f;
     light->spec_color_multiplier = 1.0f;
-    light->direction = (VECTOR3){ 0.0f, 0.0f, -1.0f };
+    light->direction = (vector3_t){ 0.0f, 0.0f, -1.0f };
 }
 
 static void sc2_parse_light_data_value(xmlNodePtr node, int light_index, cstring_t name, cstring_t value) {
@@ -800,7 +800,7 @@ static void sc2_parse_cliff_cell_node(xmlNodePtr node) {
 
 static void sc2_map_try_size_field(cstring_t key, cstring_t value) {
     sc2MapInfo_t *mapInfo = sc2_ensure_mapinfo();
-    VECTOR3 v;
+    vector3_t v;
     if (!mapInfo || !key || !value || !*value) return;
     if ((sc2_contains_i(key, "width") || sc2_streqi(key, "x")) && atoi(value) > 0)
         mapInfo->width = (uint32_t)atoi(value);
@@ -894,22 +894,22 @@ static void sc2_parse_terrain_field(xmlNodePtr node, cstring_t name, cstring_t v
 
 /* Scalar attributes use the XML schema; the nested oriented-box grammar is one explicit production. */
 static sc2XmlField_t const sc2_ramp_fields[] = {
-    { "dir", offsetof(SC2RAMP, dir), BZ_FIELD_U32 },
-    { "hi", offsetof(SC2RAMP, hi), BZ_FIELD_U32 },
-    { "lo", offsetof(SC2RAMP, lo), BZ_FIELD_U32 },
-    { "cid", offsetof(SC2RAMP, cid), BZ_FIELD_U32 },
-    { "leftLoVar", offsetof(SC2RAMP, variant[0]), BZ_FIELD_U32 },
-    { "leftHiVar", offsetof(SC2RAMP, variant[1]), BZ_FIELD_U32 },
-    { "rightLoVar", offsetof(SC2RAMP, variant[2]), BZ_FIELD_U32 },
-    { "rightHiVar", offsetof(SC2RAMP, variant[3]), BZ_FIELD_U32 },
+    { "dir", offsetof(sc2Ramp_t, dir), BZ_FIELD_U32 },
+    { "hi", offsetof(sc2Ramp_t, hi), BZ_FIELD_U32 },
+    { "lo", offsetof(sc2Ramp_t, lo), BZ_FIELD_U32 },
+    { "cid", offsetof(sc2Ramp_t, cid), BZ_FIELD_U32 },
+    { "leftLoVar", offsetof(sc2Ramp_t, variant[0]), BZ_FIELD_U32 },
+    { "leftHiVar", offsetof(sc2Ramp_t, variant[1]), BZ_FIELD_U32 },
+    { "rightLoVar", offsetof(sc2Ramp_t, variant[2]), BZ_FIELD_U32 },
+    { "rightHiVar", offsetof(sc2Ramp_t, variant[3]), BZ_FIELD_U32 },
 };
 static struct { cstring_t name; size_t offset; } const sc2_ramp_boxes[] = {
-    { "leftLo", offsetof(SC2RAMP, edge[0]) },
-    { "leftHi", offsetof(SC2RAMP, edge[1]) },
-    { "rightLo", offsetof(SC2RAMP, edge[2]) },
-    { "rightHi", offsetof(SC2RAMP, edge[3]) },
-    { "base", offsetof(SC2RAMP, base) },
-    { "mid", offsetof(SC2RAMP, mid) },
+    { "leftLo", offsetof(sc2Ramp_t, edge[0]) },
+    { "leftHi", offsetof(sc2Ramp_t, edge[1]) },
+    { "rightLo", offsetof(sc2Ramp_t, edge[2]) },
+    { "rightHi", offsetof(sc2Ramp_t, edge[3]) },
+    { "base", offsetof(sc2Ramp_t, base) },
+    { "mid", offsetof(sc2Ramp_t, mid) },
 };
 
 static void sc2_parse_ramp_list(xmlNodePtr node) {
@@ -918,11 +918,11 @@ static void sc2_parse_ramp_list(xmlNodePtr node) {
     for (xmlNodePtr child = node->children; child; child = child->next)
         if (sc2_streqi((cstring_t)child->name, "ramp")) count++;
     SAFE_DELETE(sc2_map.t3Terrain.ramps, sc2_free);
-    sc2_map.t3Terrain.ramps = count ? sc2_alloc(count * sizeof(SC2RAMP)) : NULL;
+    sc2_map.t3Terrain.ramps = count ? sc2_alloc(count * sizeof(sc2Ramp_t)) : NULL;
     ARRAY_COUNT(sc2_map.t3Terrain.ramps) = 0;
     for (xmlNodePtr child = node->children; child; child = child->next) {
         if (!sc2_streqi((cstring_t)child->name, "ramp")) continue;
-        SC2RAMP *ramp = &sc2_map.t3Terrain.ramps[ARRAY_COUNT(sc2_map.t3Terrain.ramps)++];
+        sc2Ramp_t *ramp = &sc2_map.t3Terrain.ramps[ARRAY_COUNT(sc2_map.t3Terrain.ramps)++];
         memset(ramp, 0, sizeof(*ramp));
         for (xmlAttrPtr attr = child->properties; attr; attr = attr->next) {
             xmlChar *value = xmlNodeListGetString(child->doc, attr->children, 1);
@@ -930,7 +930,7 @@ static void sc2_parse_ramp_list(xmlNodePtr node) {
             sc2_parse_xml_field(ramp, sc2_ramp_fields, SC2_ARRAY_LEN(sc2_ramp_fields), (cstring_t)attr->name, (cstring_t)value);
             FOR_LOOP(i, SC2_ARRAY_LEN(sc2_ramp_boxes)) {
                 if (!sc2_streqi((cstring_t)attr->name, sc2_ramp_boxes[i].name)) continue;
-                SC2RAMPBOX *box = (SC2RAMPBOX *)((char *)ramp + sc2_ramp_boxes[i].offset);
+                sc2RampBox_t *box = (sc2RampBox_t *)((char *)ramp + sc2_ramp_boxes[i].offset);
                 if (sscanf((cstring_t)value, "u(%f, %f) r(%f, %f) c=(%f, %f) w=%f h=%f", &box->up.x, &box->up.y, &box->right.x, &box->right.y, &box->center.x, &box->center.y, &box->width, &box->height) != 8)
                     fprintf(stderr, "SC2 ramp: invalid %s box '%s'\n", sc2_ramp_boxes[i].name, value);
             }
@@ -1102,11 +1102,11 @@ static bool sc2_parse_xml_field(void *base, sc2XmlField_t const *fields, uint32_
                 snprintf(out, field->size, "%s", value);
                 return true;
             case SC2_XML_FIELD_VEC3:
-                return sc2_parse_vec3(value, (LPVECTOR3)out);
+                return sc2_parse_vec3(value, (vector3_t *)out);
             case SC2_XML_FIELD_COLOR_ARGB:
-                return sc2_parse_argb_color(value, (LPCOLOR32)out);
+                return sc2_parse_argb_color(value, (color32_t *)out);
             case SC2_XML_FIELD_COLOR_RGBA:
-                return sc2_parse_rgba_color(value, (LPCOLOR32)out);
+                return sc2_parse_rgba_color(value, (color32_t *)out);
             default: return false; /* BZ_FIELD_BOOL / BZ_FIELD_CSTR / BZ_FIELD_FOURCC not used in SC2 XML */
         }
     }
@@ -1979,7 +1979,7 @@ static void sc2_parse_conversation_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
         if (node->type != XML_ELEMENT_NODE || strcmp((cstring_t)node->name, "CConversationState")) continue;
         if (!sc2_xml_attr(node, "id", group, sizeof(group))) continue;
         for (xmlNodePtr idx = node->children; idx; idx = idx->next) {
-            SC2CONVERSATION row = {0};
+            sc2Conversation_t row = {0};
             char key[256], val[256];
             if (idx->type != XML_ELEMENT_NODE || strcmp((cstring_t)idx->name, "Indices")) continue;
             FOR_LOOP(i, SC2_ARRAY_LEN(sc2_conv_fields)) {
@@ -1993,7 +1993,7 @@ static void sc2_parse_conversation_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
             }
             if (!row.id[0]) { fprintf(stderr, "SC2 conversation: missing index ID in %s\n", group); continue; }
             snprintf(key, sizeof(key), "%s|%s", group, row.id);
-            LPSC2CONVERSATION out = catalog->conv;
+            sc2Conversation_t * out = catalog->conv;
             while (out && strcmp(out->id, key)) out = out->next;
             if (!out) {
                 out = sc2_alloc(sizeof(*out));
@@ -2006,7 +2006,7 @@ static void sc2_parse_conversation_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
             }
             /* InfoText is a repeated keyed production; preserve every authored text ID, including empty values. */
             for (xmlNodePtr child = idx->children; child; child = child->next) {
-                SC2CONVTEXT info = {0};
+                sc2Convtext_t info = {0};
                 if (child->type != XML_ELEMENT_NODE || strcmp((cstring_t)child->name, "InfoText")) continue;
                 FOR_LOOP(i, SC2_ARRAY_LEN(sc2_conv_text_fields)) {
                     cstring_t field = sc2_conv_text_fields[i].name;
@@ -2016,7 +2016,7 @@ static void sc2_parse_conversation_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
                 for (xmlNodePtr sub = child->children; sub; sub = sub->next)
                     sc2_parse_xml_child_field(&info, sc2_conv_text_fields, SC2_ARRAY_LEN(sc2_conv_text_fields), sub, "value");
                 if (!info.id[0]) { fprintf(stderr, "SC2 conversation: missing InfoText ID in %s\n", key); continue; }
-                LPSC2CONVTEXT text = out->text;
+                sc2Convtext_t * text = out->text;
                 while (text && strcmp(text->id, info.id)) text = text->next;
                 if (!text) { text = sc2_alloc(sizeof(*text)); info.next = out->text; out->text = text; }
                 else info.next = text->next;
@@ -2835,8 +2835,8 @@ float SC2_MapAirHeightAtPoint(float x, float y) {
     return sc2_map_broad_height_at_point(&sc2_map, x, y);
 }
 
-BOX2 SC2_MapBounds(void) {
-    return (BOX2){
+box2_t SC2_MapBounds(void) {
+    return (box2_t){
         .min = sc2_map.origin,
         .max = {
             sc2_map.origin.x + sc2_map_width() * sc2_map.cell_size,
@@ -2845,17 +2845,17 @@ BOX2 SC2_MapBounds(void) {
     };
 }
 
-VECTOR2 SC2_MapNormalizedPosition(float x, float y) {
-    BOX2 bounds = SC2_MapBounds();
-    return (VECTOR2){
+vector2_t SC2_MapNormalizedPosition(float x, float y) {
+    box2_t bounds = SC2_MapBounds();
+    return (vector2_t){
         (x - bounds.min.x) / MAX(1.0f, bounds.max.x - bounds.min.x),
         (y - bounds.min.y) / MAX(1.0f, bounds.max.y - bounds.min.y),
     };
 }
 
-VECTOR2 SC2_MapDenormalizedPosition(float x, float y) {
-    BOX2 bounds = SC2_MapBounds();
-    return (VECTOR2){
+vector2_t SC2_MapDenormalizedPosition(float x, float y) {
+    box2_t bounds = SC2_MapBounds();
+    return (vector2_t){
         bounds.min.x + x * (bounds.max.x - bounds.min.x),
         bounds.min.y + y * (bounds.max.y - bounds.min.y),
     };
@@ -2872,7 +2872,7 @@ bool SC2_MapDefaultCamera(sc2MapCamera_t *camera) {
         return false;
     }
     if (sc2_map.MapInfo.width && sc2_map.MapInfo.height) {
-        value.target = (VECTOR3){
+        value.target = (vector3_t){
             sc2_map.origin.x + (float)sc2_map.MapInfo.width * sc2_map.cell_size * 0.5f,
             sc2_map.origin.y + (float)sc2_map.MapInfo.height * sc2_map.cell_size * 0.5f,
             0.0f,
@@ -2914,10 +2914,10 @@ bool SC2_MapDefaultCamera(sc2MapCamera_t *camera) {
 
 /* Galaxy state IDs are catalog group and index joined by '|', not guessed localization paths. */
 cstring_t SC2_MapConversationField(cstring_t key, cstring_t field) {
-    LPSC2CONVERSATION row = sc2_persistent_catalog ? sc2_persistent_catalog->conv : NULL;
+    sc2Conversation_t * row = sc2_persistent_catalog ? sc2_persistent_catalog->conv : NULL;
     while (row && strcmp(row->id, key)) row = row->next;
     if (row && !strncmp(field, "Text:", 5)) {
-        for (LPSC2CONVTEXT text = row->text; text; text = text->next)
+        for (sc2Convtext_t * text = row->text; text; text = text->next)
             if (!strcmp(text->id, field + 5)) return text->text;
     }
     if (row) for (uint32_t i = 1; i < SC2_ARRAY_LEN(sc2_conv_fields); i++)

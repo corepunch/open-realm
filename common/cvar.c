@@ -15,12 +15,12 @@ typedef struct cvaralias_s {
     struct cvaralias_s *next;
     string_t name;
     cvar_t *target;
-} CVARALIAS;
-typedef CVARALIAS *LPCVARALIAS;
-typedef CVARALIAS const *LPCCVARALIAS;
+} cvarAlias_t;
+
+
 
 static cvar_t *cvar_vars;
-static LPCVARALIAS aliases;
+static cvarAlias_t * aliases;
 static bool aliases_open;
 
 static bool Cvar_NameMatches(cstring_t name, cstring_t partial) {
@@ -85,7 +85,7 @@ static cvar_t *Cvar_FindVar(cstring_t name) {
     if (!name) {
         return NULL;
     }
-    FOR_EACH_LIST(CVARALIAS, alias, aliases)
+    FOR_EACH_LIST(cvarAlias_t, alias, aliases)
         if (!strcmp(alias->name, name)) return alias->target;
     FOR_EACH_LIST(cvar_t, var, cvar_vars) {
         if (!strcmp(var->name, name)) {
@@ -468,7 +468,7 @@ static void Cvar_Alias_f(void) {
         fprintf(stderr, "cvar_alias: define canonical cvar %s first\n", dest);
         return;
     }
-    FOR_EACH_LIST(CVARALIAS, alias, aliases) {
+    FOR_EACH_LIST(cvarAlias_t, alias, aliases) {
         if (strcmp(alias->name, name)) continue;
         if (alias->target != target) fprintf(stderr, "cvar_alias: %s already names %s\n", name, alias->target->name);
         return;
@@ -486,7 +486,7 @@ static void Cvar_Alias_f(void) {
         /* Early command-line settings can precede the shipped alias declaration. Keep their value and flags. */
         Cvar_Set(target->name, old->string);
         target->flags |= old->flags;
-        FOR_EACH_LIST(CVARALIAS, alias, aliases)
+        FOR_EACH_LIST(cvarAlias_t, alias, aliases)
             if (alias->target == old) alias->target = target;
         for (cvar_t **link = &cvar_vars; *link; link = &(*link)->next) {
             if (*link != old) continue;
@@ -495,8 +495,8 @@ static void Cvar_Alias_f(void) {
             break;
         }
     }
-    LPCVARALIAS alias = MemAlloc(sizeof(*alias));
-    *alias = (CVARALIAS){ .next = aliases, .name = Cvar_CopyString(name), .target = target };
+    cvarAlias_t * alias = MemAlloc(sizeof(*alias));
+    *alias = (cvarAlias_t){ .next = aliases, .name = Cvar_CopyString(name), .target = target };
     aliases = alias;
 }
 

@@ -37,7 +37,7 @@ typedef struct {
     uint32_t dwFileTimeLo;
     uint32_t dwFileTimeHi;
     uint32_t lcLocale;
-} SFILE_FIND_DATA;
+} sfileFindData_t;
 
 bool SFileOpenArchive(cstring_t filename, uint32_t priority, uint32_t flags, handle_t *archive);
 bool SFileOpenArchiveFromMemory(const void *data, uint32_t size, uint32_t flags, handle_t *archive);
@@ -57,8 +57,8 @@ uint32_t SFileSetFilePointer(handle_t file, int32_t distance, int32_t * distance
 
 bool SFileExtractFile(handle_t archive, cstring_t toExtract, cstring_t extracted, uint32_t flags);
 
-handle_t SFileFindFirstFile(handle_t archive, cstring_t mask, SFILE_FIND_DATA *findData, cstring_t listFile);
-bool SFileFindNextFile(handle_t find, SFILE_FIND_DATA *findData);
+handle_t SFileFindFirstFile(handle_t archive, cstring_t mask, sfileFindData_t *findData, cstring_t listFile);
+bool SFileFindNextFile(handle_t find, sfileFindData_t *findData);
 bool SFileFindClose(handle_t find);
 
 #ifdef MPQ_TEST_API

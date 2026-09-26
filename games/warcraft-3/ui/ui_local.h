@@ -52,27 +52,27 @@ bool UI_EnsureFDF(cstring_t filename);
 void UI_ParseFDF(cstring_t filename);
 void UI_ParseFDF_Buffer(cstring_t filename, string_t buffer);
 void UI_ClearTemplates(void);
-void UI_WireFrameTypeFunctions(LPFRAMEDEF frame);
-void UI_SetText(LPFRAMEDEF, cstring_t, ...);
-void UI_SetTextPointer(LPFRAMEDEF, cstring_t);
-void UI_SetTexture(LPFRAMEDEF, cstring_t, bool);
-void UI_SetTexture2(LPFRAMEDEF, cstring_t, bool);
-void UI_InheritFrom(LPFRAMEDEF, cstring_t);
+void UI_WireFrameTypeFunctions(frameDef_t * frame);
+void UI_SetText(frameDef_t *, cstring_t, ...);
+void UI_SetTextPointer(frameDef_t *, cstring_t);
+void UI_SetTexture(frameDef_t *, cstring_t, bool);
+void UI_SetTexture2(frameDef_t *, cstring_t, bool);
+void UI_InheritFrom(frameDef_t *, cstring_t);
 void UI_LoadTheme(cstring_t fileName);
 void UI_ClearTheme(void);
 void UI_MenuCommandLocal(cstring_t command);
-LPCFRAMEDEF UI_HitTest(float fdf_x, float fdf_y);
-void UI_TogglePopup(LPCFRAMEDEF frame);
-void UI_SliderBeginDrag(LPCFRAMEDEF frame, float fdf_x, float fdf_y);
-void UI_SliderUpdateDrag(LPCFRAMEDEF frame, float fdf_x, float fdf_y);
-void UI_SliderEndDrag(LPCFRAMEDEF frame);
+frameDef_t const * UI_HitTest(float fdf_x, float fdf_y);
+void UI_TogglePopup(frameDef_t const * frame);
+void UI_SliderBeginDrag(frameDef_t const * frame, float fdf_x, float fdf_y);
+void UI_SliderUpdateDrag(frameDef_t const * frame, float fdf_x, float fdf_y);
+void UI_SliderEndDrag(frameDef_t const * frame);
 bool UI_SliderIsDragging(void);
-LPCFRAMEDEF UI_SliderActiveFrame(void);
+frameDef_t const * UI_SliderActiveFrame(void);
 bool UI_HasActivePopup(void);
-void UI_EditboxFocusOnHit(LPCFRAMEDEF frame);
+void UI_EditboxFocusOnHit(frameDef_t const * frame);
 void UI_EditboxClearFocusOnMiss(void);
-void UI_MapListSelectRow(LPCFRAMEDEF frame, float fdf_x, float fdf_y);
-void UI_MapListScroll(LPCFRAMEDEF frame, bool scroll_up);
+void UI_MapListSelectRow(frameDef_t const * frame, float fdf_x, float fdf_y);
+void UI_MapListScroll(frameDef_t const * frame, bool scroll_up);
 void UI_PopupCloseOnMiss(void);
 bool UI_PopupPointInside(float fdf_x, float fdf_y);
 void UI_PopupMenuScroll(bool scroll_up);
@@ -80,12 +80,12 @@ void UI_PopupMenuHover(float fdf_x, float fdf_y);
 void UI_PopupSelectItem(float fdf_x, float fdf_y);
 uint32_t UI_LoadTexture(cstring_t, bool);
 cstring_t UI_TextureName(uint32_t index);
-LPCTEXTURE UI_GetTexture(uint32_t index);
-LPCMODEL UI_GetModel(uint32_t index);
+texture_t const * UI_GetTexture(uint32_t index);
+model_t const * UI_GetModel(uint32_t index);
 uint32_t UI_LoadModel(cstring_t file, bool decorate);
 cstring_t UI_GetString(cstring_t);
-LPFRAMEDEF UI_Spawn(FRAMETYPE, LPFRAMEDEF);
-LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent);
+frameDef_t * UI_Spawn(FRAMETYPE, frameDef_t *);
+frameDef_t * UI_CloneFrameTree(frameDef_t const * source, frameDef_t * parent);
 
 #ifndef BZ_FDF_REPORT_MISSING
 #define BZ_FDF_REPORT_MISSING(NAME) \
@@ -115,17 +115,17 @@ LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent);
     do { (OUT)->FIELD = (PARENT) ? UI_FindChildFrame((PARENT), (NAME)) : NULL; } while (0)
 #endif
 
-void UI_BindMapList(LPFRAMEDEF frame,
+void UI_BindMapList(frameDef_t * frame,
                     uiMapListState_t *state,
-                    LPCFRAMEDEF label,
+                    frameDef_t const * label,
                     uint32_t visible_rows,
                     cstring_t select_command);
-void UI_LayoutMapInfoPane(LPFRAMEDEF frame);
-bool UI_ReadMapInfo(cstring_t mapFilename, LPMAPINFO info);
+void UI_LayoutMapInfoPane(frameDef_t * frame);
+bool UI_ReadMapInfo(cstring_t mapFilename, mapInfo_t * info);
 bool UI_FindMapPreviewTexture(cstring_t mapFilename, string_t out, uint32_t out_size);
-void UI_FreeMapInfo(LPMAPINFO info);
+void UI_FreeMapInfo(mapInfo_t * info);
 void UI_DefaultMapName(cstring_t path, string_t out, uint32_t out_size);
-void UI_ResolveMapInfoString(LPCMAPINFO info, cstring_t text, string_t out, uint32_t out_size);
+void UI_ResolveMapInfoString(mapInfo_t const * info, cstring_t text, string_t out, uint32_t out_size);
 bool UI_MapNameMatchesFile(cstring_t name, cstring_t path);
 cstring_t UI_MapTilesetName(uint8_t tileset);
 cstring_t UI_MapSizeName(uint32_t width, uint32_t height);
@@ -133,24 +133,24 @@ void UI_SanitizeMapListField(string_t text);
 void UI_SanitizeMapInfoText(string_t text);
 cstring_t Theme_String(cstring_t, cstring_t);
 float Theme_Float(cstring_t, cstring_t);
-COLOR32 Theme_ListBoxSelectionColor(void);
-COLOR32 Theme_ListBoxTextColor(void);
-COLOR32 Theme_ListBoxSelectedTextColor(void);
-COLOR32 Theme_ListBoxIconTextColor(void);
+color32_t Theme_ListBoxSelectionColor(void);
+color32_t Theme_ListBoxTextColor(void);
+color32_t Theme_ListBoxSelectedTextColor(void);
+color32_t Theme_ListBoxIconTextColor(void);
 
 /* ui_frame.c — Frame tree manipulation (to be created) */
 // Additional frame management functions will be declared here
 
 /* ui_render.c — Frame rendering */
-void UI_DrawFrame(LPCFRAMEDEF frame);
-void UI_DrawGamePortraitInFrame(LPCFRAMEDEF frame, uint32_t modelIndex, cstring_t anim);
-void UI_DrawFrames(LPCFRAMEDEF const *roots, uint32_t num_roots);
+void UI_DrawFrame(frameDef_t const * frame);
+void UI_DrawGamePortraitInFrame(frameDef_t const * frame, uint32_t modelIndex, cstring_t anim);
+void UI_DrawFrames(frameDef_t const * const *roots, uint32_t num_roots);
 bool UI_EditKey(int key);
 bool UI_MouseEventLocal(uiMouseEvent_t event, int x, int y, int32_t param);
 void UI_TextInputLocal(cstring_t text);
-bool UI_EditHasFocus(LPCFRAMEDEF frame);
-cstring_t UI_EditValue(LPCFRAMEDEF frame);
-void UI_SetEditValue(LPFRAMEDEF frame, cstring_t text);
+bool UI_EditHasFocus(frameDef_t const * frame);
+cstring_t UI_EditValue(frameDef_t const * frame);
+void UI_SetEditValue(frameDef_t * frame, cstring_t text);
 void UI_ClearEditFocus(void);
 
 uiScreen_t *UI_GetCurrentScreen(void);

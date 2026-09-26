@@ -10,10 +10,10 @@
 #include "../g_local.h"
 #include "jass/jass.h"
 
-extern JASSMODULE jass_funcs[];
+extern jassModule_t jass_funcs[];
 
-void test_sound_event(LPEDICT ent, uint32_t request, uint32_t event) {
-    LPEDICT player = g_edicts;
+void test_sound_event(edict_t * ent, uint32_t request, uint32_t event) {
+    edict_t * player = g_edicts;
     player->client = game.clients;
     player->client->connected = true;
     player->client->ps.number = ent->s.player;
@@ -25,16 +25,16 @@ void test_sound_event(LPEDICT ent, uint32_t request, uint32_t event) {
     G_ClientCommand(player, 4, args);
 }
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y) {
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y) {
     static UnitWeapons_t const test_weapons = { .attacksEnabled = 3 };
-    LPEDICT ent = G_Spawn();
+    edict_t * ent = G_Spawn();
     ent->class_id = class_id;
     G_BindEntityData(ent);
     /* The fixture archive has no UnitWeapons.slk. Tests that construct attacks
      * by hand start with both authored weapon slots enabled unless they attach
      * a specific row for a disabled-slot case. */
     ent->data.UnitWeapons = &test_weapons;
-    ent->s.origin2 = (VECTOR2){x, y};
+    ent->s.origin2 = (vector2_t){x, y};
     ent->s.origin.x = x;
     ent->s.origin.y = y;
     ent->s.origin.z = 0;
@@ -71,7 +71,7 @@ void reset_entities(void) {
 
 /* CM_SetupTestPathmap is in routing.c, only compiled for test builds. */
 void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
-void CM_SetupTestWorldBounds(LPCBOX2 bounds);
+void CM_SetupTestWorldBounds(box2_t const * bounds);
 
 /*
  * Minimal test world: an all-walkable pathmap covering coords up to 2048×2048
@@ -80,9 +80,9 @@ void CM_SetupTestWorldBounds(LPCBOX2 bounds);
  */
 #define TEST_PATHMAP_CELLS 64
 static uint8_t test_pathmap_cells[TEST_PATHMAP_CELLS * TEST_PATHMAP_CELLS];
-static MAPINFO test_mapinfo;
-static WAR3MAP test_worldmap;
-static WAR3MAPVERTEX test_vertices[(TEST_PATHMAP_CELLS + 1) * (TEST_PATHMAP_CELLS + 1)];
+static mapInfo_t test_mapinfo;
+static war3map_t test_worldmap;
+static war3mapVertex_t test_vertices[(TEST_PATHMAP_CELLS + 1) * (TEST_PATHMAP_CELLS + 1)];
 
 static uint32_t test_get_time(void) { return level.time; }
 static void test_set_paused(bool paused) { (void)paused; }
@@ -90,7 +90,7 @@ static void test_set_paused(bool paused) { (void)paused; }
 /* Pathmap tests need an explicit world-space transform; production maps normally provide it via war3map.w3e. */
 void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells) {
     CM_SetupTestPathmap(width, height, cells);
-    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {0, 0}, .max = {(float)width, (float)height}));
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {0, 0}, .max = {(float)width, (float)height}));
 }
 
 void setup_test_world(void) {
@@ -110,7 +110,7 @@ void setup_test_world(void) {
 
 	memset(test_pathmap_cells, 0, sizeof(test_pathmap_cells));
 	CM_SetupTestPathmap(TEST_PATHMAP_CELLS, TEST_PATHMAP_CELLS, test_pathmap_cells);
-	CM_SetupTestWorldBounds(&MAKE(BOX2,
+	CM_SetupTestWorldBounds(&MAKE(box2_t,
 		.min = {-TEST_PATHMAP_CELLS * 16.0f, -TEST_PATHMAP_CELLS * 16.0f},
 		.max = { TEST_PATHMAP_CELLS * 16.0f,  TEST_PATHMAP_CELLS * 16.0f}));
 	G_BlightInit();
@@ -172,7 +172,7 @@ static void reset_test_state(void) {
     G_InitPlayerAlliances(level.mapinfo);
     gi.GetTime = test_get_time;
     gi.SetPaused = test_set_paused;
-    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {0, 0}, .max = {512, 384}));
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {0, 0}, .max = {512, 384}));
     gi.ClearWorld();
 }
 
@@ -198,7 +198,7 @@ static bool run_test_jass_impl(cstring_t src, cstring_t expected) {
 
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
 
-    jass_sethost(&MAKE(JASSHOST,
+    jass_sethost(&MAKE(jassHost_t,
         .MemAlloc         = gi.MemAlloc,
         .MemFree          = gi.MemFree,
         .GetTime          = gi.GetTime,

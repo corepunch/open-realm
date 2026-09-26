@@ -4,24 +4,24 @@
  * Follows WarSmash pattern: CAbilityItemAttackBonus.onAdd/onRemove,
  * CAbilityItemDefenseBonus.onAdd/onRemove, etc. */
 
-static void apply_attack(LPEDICT unit, float amount) {
+static void apply_attack(edict_t * unit, float amount) {
     G_ApplyTemporaryAttackDamageBonus(unit, amount);
 }
 
-static void apply_defense(LPEDICT unit, float amount) {
+static void apply_defense(edict_t * unit, float amount) {
     G_ApplyTemporaryArmorBonus(unit, amount);
 }
 
-static void apply_life(LPEDICT unit, float amount) {
+static void apply_life(edict_t * unit, float amount) {
     G_ApplyTemporaryMaxHealthBonus(unit, amount);
 }
 
-static void apply_mana(LPEDICT unit, float amount) {
+static void apply_mana(edict_t * unit, float amount) {
     G_ApplyTemporaryMaxManaBonus(unit, amount);
 }
 
 /* Attribute aliases share the authored Agility/Intelligence/Strength field order used by tomes. */
-static void apply_stat(LPEDICT unit, uint32_t code, float sign) {
+static void apply_stat(edict_t * unit, uint32_t code, float sign) {
     float str = sign * S_SpellData(code, 1, 3);
     float agi = sign * S_SpellData(code, 1, 1);
     float intel = sign * S_SpellData(code, 1, 2);
@@ -88,7 +88,7 @@ static cstring_t orb_buff(uint32_t code) {
     return NULL;
 }
 
-static void orb_apply(LPEDICT attacker, LPEDICT target, uint32_t orb, uint32_t *seen, uint32_t *count) {
+static void orb_apply(edict_t * attacker, edict_t * target, uint32_t orb, uint32_t *seen, uint32_t *count) {
     cstring_t buff;
     uint32_t level;
     FOR_LOOP(i, *count)
@@ -102,7 +102,7 @@ static void orb_apply(LPEDICT attacker, LPEDICT target, uint32_t orb, uint32_t *
 
 /* Called from S_ResolveAttackHit after a hit lands on an enemy. Checks native
  * orb ownership and held orb items; the same orb from both sources applies once. */
-void S_OrbOnHit(LPEDICT attacker, LPEDICT target) {
+void S_OrbOnHit(edict_t * attacker, edict_t * target) {
     uint32_t seen[sizeof(orb_codes) / sizeof(orb_codes[0])];
     uint32_t count = 0;
     if (!attacker || !target || !S_SpellIsEnemy(attacker, target)) return;
@@ -110,7 +110,7 @@ void S_OrbOnHit(LPEDICT attacker, LPEDICT target) {
         if (G_UnitAbilityLevel(attacker, orb_codes[o])) orb_apply(attacker, target, orb_codes[o], seen, &count);
     if (!G_InventoryCanUseItems(attacker)) return;
     FOR_LOOP(i, MAX_INVENTORY) {
-        LPEDICT item = attacker->inventory[i];
+        edict_t * item = attacker->inventory[i];
         cstring_t abilities;
         if (!item) continue;
         abilities = G_ItemAbilityList(item);

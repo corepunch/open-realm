@@ -7,13 +7,13 @@
 #define BZ_SCH2 MAKEFOURCC('S', 'c', 'h', '2')
 #define BZ_HFOO MAKEFOURCC('h', 'f', 'o', 'o') // unitCode; non-stock fixture corpse UnitID
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
 
-typedef struct { slkTestData_t *rows, *old, *unit_rows, *old_units; LPEDICT wagon; } EXHFIX;
+typedef struct { slkTestData_t *rows, *old, *unit_rows, *old_units; edict_t * wagon; } exhFix_t;
 
 /* Non-stock Dur=2 / DataA=2 / UnitID=hfoo prove the update path is data-driven. */
 static char const exh_slk[] =
@@ -38,9 +38,9 @@ static char const exh_unit_slk[] =
 	"C;Y2;X1;K\"hfoo\"\nC;Y2;X2;K3\nC;Y2;X3;K\"ground\"\nE\n";
 
 /* Fill in place: fixture must not return-by-value when pointing at local SLK state. */
-static void exh_setup(EXHFIX *fix) {
+static void exh_setup(exhFix_t *fix) {
 	reset_entities(); setup_test_world(); level.time = 1000;
-	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
 	fix->rows = parse_slk_string(exh_slk); fix->old = G_SetSLKRows("AbilityData", fix->rows);
 	fix->unit_rows = parse_slk_string(exh_unit_slk); fix->old_units = G_SetSLKRows("UnitData", fix->unit_rows);
 	fix->wagon = alloc_test_unit(MAKEFOURCC('u', 'm', 't', 'w'), 100, 100);
@@ -54,28 +54,28 @@ static void exh_setup(EXHFIX *fix) {
 	fix->wagon->think = monster_think;
 }
 
-static void exh_done(EXHFIX *fix) {
+static void exh_done(exhFix_t *fix) {
 	G_SetSLKRows("AbilityData", fix->old); G_SetSLKRows("UnitData", fix->old_units);
 	free_slk_rows(fix->rows); free_slk_rows(fix->unit_rows);
 }
 
 static void exh_tick(uint32_t ms) { level.time += ms; G_RunEntities(); }
 
-static uint32_t exh_corpse_count(LPEDICT wagon) {
+static uint32_t exh_corpse_count(edict_t * wagon) {
 	uint32_t n = 0;
 	FOR_LOOP(i, wagon->cargo.count) {
-		LPEDICT ent = S_CargoUnitAt(wagon, i);
+		edict_t * ent = S_CargoUnitAt(wagon, i);
 		if (ent && ent->class_id == BZ_HFOO && S_CorpseCargoIsStored(ent)) n++;
 	}
 	return n;
 }
 
-static LPEDICT exh_thinker(LPEDICT wagon) {
+static edict_t * exh_thinker(edict_t * wagon) {
 	FILTER_EDICTS(ent, ent->inuse && ent->owner == wagon && ent->think && !ent->class_id) return ent;
 	return NULL;
 }
 
-static LPEDICT corpse_cargo_thinker(LPEDICT wagon) {
+static edict_t * corpse_cargo_thinker(edict_t * wagon) {
     FILTER_EDICTS(ent, ent->inuse && ent->owner == wagon && ent->class_id == BZ_EXH_AMEL && ent->think) return ent;
     return NULL;
 }
@@ -91,7 +91,7 @@ TEST(wc3_spell, exhume_registers_passive_update_procedure) {
 
 /* First pulse waits a full Dur; then one authored UnitID corpse appears near the wagon. */
 TEST(wc3_spell, exhume_spawns_corpse_after_dur_interval) {
-	EXHFIX fix; LPEDICT corpse;
+	exhFix_t fix; edict_t * corpse;
 	exh_setup(&fix);
 	S_RunAbilityUpdates(fix.wagon);
 	T_NOT_NULL(exh_thinker(fix.wagon));
@@ -100,7 +100,7 @@ TEST(wc3_spell, exhume_spawns_corpse_after_dur_interval) {
 	exh_tick(1); T_EQ(exh_corpse_count(fix.wagon), 1);
 	corpse = NULL;
 	FOR_LOOP(i, fix.wagon->cargo.count) {
-		LPEDICT ent = S_CargoUnitAt(fix.wagon, i);
+		edict_t * ent = S_CargoUnitAt(fix.wagon, i);
 		if (ent && ent->class_id == BZ_HFOO && S_CorpseCargoIsStored(ent) && !corpse) corpse = ent;
 	}
 	T_NOT_NULL(corpse);
@@ -115,7 +115,7 @@ TEST(wc3_spell, exhume_spawns_corpse_after_dur_interval) {
 /* Amtc is corpse-only storage.  A Meat Wagon must not become a generic
  * transport just because the shared cargo array has empty slots. */
 TEST(wc3_spell, meat_wagon_corpse_hold_rejects_living_unit_boarding) {
-    EXHFIX fix; LPEDICT living;
+    exhFix_t fix; edict_t * living;
 
     exh_setup(&fix);
     living = alloc_test_unit(BZ_HFOO, fix.wagon->s.origin2.x, fix.wagon->s.origin2.y);
@@ -134,17 +134,17 @@ TEST(wc3_spell, meat_wagon_corpse_hold_rejects_living_unit_boarding) {
 }
 
 TEST(wc3_spell, corpse_cargo_effective_position_tracks_moving_holder) {
-    EXHFIX fix; LPEDICT corpse = NULL; VECTOR2 effective;
+    exhFix_t fix; edict_t * corpse = NULL; vector2_t effective;
     exh_setup(&fix);
     S_RunAbilityUpdates(fix.wagon);
     exh_tick(2000);
     FOR_LOOP(i, fix.wagon->cargo.count) {
-        LPEDICT ent = S_CargoUnitAt(fix.wagon, i);
+        edict_t * ent = S_CargoUnitAt(fix.wagon, i);
         if (ent && S_CorpseCargoIsStored(ent)) { corpse = ent; break; }
     }
     T_NOT_NULL(corpse);
     if (corpse) {
-        fix.wagon->s.origin2 = (VECTOR2){ 420.0f, 315.0f };
+        fix.wagon->s.origin2 = (vector2_t){ 420.0f, 315.0f };
         fix.wagon->s.origin.x = 420.0f; fix.wagon->s.origin.y = 315.0f;
         T_ASSERT(S_CorpseCargoPosition(corpse, &effective));
         T_FEQ(effective.x, 420.0f, 0.001f); T_FEQ(effective.y, 315.0f, 0.001f);
@@ -155,7 +155,7 @@ TEST(wc3_spell, corpse_cargo_effective_position_tracks_moving_holder) {
 /* Get Corpse acquires the nearest valid corpse, rolls to it, then loads it at
  * the authored Amel interaction range without requiring a corpse click. */
 TEST(wc3_spell, get_corpse_approaches_and_loads_nearby_corpse) {
-    EXHFIX fix; LPEDICT corpse, thinker, clent = &g_edicts[0];
+    exhFix_t fix; edict_t * corpse, *thinker, *clent = &g_edicts[0];
     abilityitem_t item;
     abilityCall_t call;
 
@@ -189,8 +189,8 @@ TEST(wc3_spell, get_corpse_approaches_and_loads_nearby_corpse) {
 
 
 TEST(wc3_spell, get_corpse_autocast_acquires_authored_valid_enemy_corpse) {
-    EXHFIX fix;
-    LPEDICT corpse, thinker;
+    exhFix_t fix;
+    edict_t * corpse, *thinker;
     abilityitem_t item;
 
     exh_setup(&fix);
@@ -220,8 +220,8 @@ TEST(wc3_spell, get_corpse_autocast_acquires_authored_valid_enemy_corpse) {
 
 TEST(wc3_spell, cannibalize_approaches_moving_corpse_holder_not_hidden_corpse_origin) {
     static UnitAbilities_t const abilities = { .abilList = "Acan" };
-    EXHFIX fix;
-    LPEDICT corpse = NULL, caster, clent = &g_edicts[0];
+    exhFix_t fix;
+    edict_t * corpse = NULL, *caster, *clent = &g_edicts[0];
     abilityitem_t item;
     abilityCall_t call;
 
@@ -229,7 +229,7 @@ TEST(wc3_spell, cannibalize_approaches_moving_corpse_holder_not_hidden_corpse_or
     S_RunAbilityUpdates(fix.wagon);
     exh_tick(2000);
     FOR_LOOP(i, fix.wagon->cargo.count) {
-        LPEDICT ent = S_CargoUnitAt(fix.wagon, i);
+        edict_t * ent = S_CargoUnitAt(fix.wagon, i);
         if (ent && S_CorpseCargoIsStored(ent)) { corpse = ent; break; }
     }
     T_NOT_NULL(corpse);
@@ -238,7 +238,7 @@ TEST(wc3_spell, cannibalize_approaches_moving_corpse_holder_not_hidden_corpse_or
     /* The hidden corpse keeps its original 100,100 origin. Move its holder far
      * away, then issue Cannibalize from a unit near the holder. The approach
      * order must follow the Wagon, while the thinker still owns the real corpse. */
-    fix.wagon->s.origin2 = (VECTOR2){ 500.0f, 100.0f };
+    fix.wagon->s.origin2 = (vector2_t){ 500.0f, 100.0f };
     fix.wagon->s.origin.x = 500.0f; fix.wagon->s.origin.y = 100.0f;
     gi.LinkEntity(fix.wagon);
     caster = alloc_test_unit(MAKEFOURCC('u','g','h','o'), 800.0f, 100.0f);
@@ -260,7 +260,7 @@ TEST(wc3_spell, cannibalize_approaches_moving_corpse_holder_not_hidden_corpse_or
     T_ASSERT(caster->goalentity == fix.wagon);
     T_STREQ(caster->currentmove->animation, "walk");
     {
-        LPEDICT thinker = NULL;
+        edict_t * thinker = NULL;
         FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->goalentity == corpse && ent->think) { thinker = ent; break; }
         T_NOT_NULL(thinker);
     }
@@ -275,8 +275,8 @@ TEST(wc3_spell, cannibalize_approaches_moving_corpse_holder_not_hidden_corpse_or
 
 TEST(wc3_spell, cannibalize_approach_cancels_when_corpse_disappears) {
     static UnitAbilities_t const abilities = { .abilList = "Acan" };
-    EXHFIX fix;
-    LPEDICT corpse = NULL, caster, thinker = NULL, clent = &g_edicts[0];
+    exhFix_t fix;
+    edict_t * corpse = NULL, *caster, *thinker = NULL, *clent = &g_edicts[0];
     abilityitem_t item;
     abilityCall_t call;
 
@@ -284,7 +284,7 @@ TEST(wc3_spell, cannibalize_approach_cancels_when_corpse_disappears) {
     S_RunAbilityUpdates(fix.wagon);
     exh_tick(2000);
     FOR_LOOP(i, fix.wagon->cargo.count) {
-        LPEDICT ent = S_CargoUnitAt(fix.wagon, i);
+        edict_t * ent = S_CargoUnitAt(fix.wagon, i);
         if (ent && S_CorpseCargoIsStored(ent)) { corpse = ent; break; }
     }
     T_NOT_NULL(corpse);
@@ -308,7 +308,7 @@ TEST(wc3_spell, cannibalize_approach_cancels_when_corpse_disappears) {
 }
 
 TEST(wc3_spell, unloading_bone_phase_corpse_restarts_bone_decay_time) {
-    EXHFIX fix; LPEDICT corpse;
+    exhFix_t fix; edict_t * corpse;
     exh_setup(&fix);
     game.constants.decayTime = (float)FRAMETIME / 1000.0f;
     game.constants.boneDecayTime = 2.75f;
@@ -329,7 +329,7 @@ TEST(wc3_spell, unloading_bone_phase_corpse_restarts_bone_decay_time) {
 
 /* DataA caps how many owned corpses the wagon keeps; further pulses wait until under cap. */
 TEST(wc3_spell, exhume_respects_dataa_corpse_cap) {
-	EXHFIX fix;
+	exhFix_t fix;
 	exh_setup(&fix);
 	S_RunAbilityUpdates(fix.wagon);
 	exh_tick(2000); T_EQ(exh_corpse_count(fix.wagon), 1);
@@ -340,7 +340,7 @@ TEST(wc3_spell, exhume_respects_dataa_corpse_cap) {
 
 /* Freeing the wagon cancels its thinker so a later pulse cannot spawn. */
 TEST(wc3_spell, exhume_wagon_removal_cancels_production) {
-	EXHFIX fix; LPEDICT thinker;
+	exhFix_t fix; edict_t * thinker;
 	exh_setup(&fix);
 	S_RunAbilityUpdates(fix.wagon);
 	thinker = exh_thinker(fix.wagon); T_NOT_NULL(thinker);
@@ -362,12 +362,12 @@ static char const graveyard_slk[] =
     "C;Y2;X4;K\"1\"\nC;Y2;X5;K\"2\"\nC;Y2;X6;K\"64\"\n"
     "C;Y2;X7;K\"128\"\nC;Y2;X8;K\"hfoo\"\nC;Y2;X9;K\"_\"\nE\n";
 
-static LPEDICT graveyard_test_thinker(LPEDICT graveyard) {
+static edict_t * graveyard_test_thinker(edict_t * graveyard) {
     FILTER_EDICTS(ent, ent->inuse && ent->owner == graveyard && ent->think == graveyard_think) return ent;
     return NULL;
 }
 
-static uint32_t graveyard_test_corpse_count(LPEDICT graveyard) {
+static uint32_t graveyard_test_corpse_count(edict_t * graveyard) {
     uint32_t count = 0;
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == BZ_HFOO && M_IsDead(ent) &&
                   Vector2_distance(&ent->s.origin2, &graveyard->s.origin2) <= 128.0f) count++;
@@ -376,7 +376,7 @@ static uint32_t graveyard_test_corpse_count(LPEDICT graveyard) {
 
 TEST(wc3_spell, graveyard_waits_for_construction_completion_before_starting_cooldown) {
     slkTestData_t *rows, *old;
-    LPEDICT graveyard, thinker;
+    edict_t * graveyard, *thinker;
 
     reset_entities(); setup_test_world(); level.time = 1000;
     rows = parse_slk_string(graveyard_slk); old = G_SetSLKRows("AbilityData", rows);
@@ -412,7 +412,7 @@ TEST(wc3_spell, graveyard_waits_for_construction_completion_before_starting_cool
 
 TEST(wc3_spell, graveyard_waits_for_legacy_self_link_construction) {
     slkTestData_t *rows, *old;
-    LPEDICT graveyard, thinker;
+    edict_t * graveyard, *thinker;
 
     reset_entities(); setup_test_world(); level.time = 1000;
     rows = parse_slk_string(graveyard_slk); old = G_SetSLKRows("AbilityData", rows);
@@ -443,7 +443,7 @@ TEST(wc3_spell, graveyard_waits_for_legacy_self_link_construction) {
 
 TEST(wc3_spell, graveyard_uses_cool_dataa_datab_datac_unitid) {
     slkTestData_t *rows, *old;
-    LPEDICT graveyard, thinker;
+    edict_t * graveyard, *thinker;
     abilityitem_t item = S_AbilityItem(BZ_AGYD);
 
     reset_entities(); setup_test_world(); level.time = 1000;
@@ -461,7 +461,7 @@ TEST(wc3_spell, graveyard_uses_cool_dataa_datab_datac_unitid) {
     level.time += 999; graveyard_think(thinker); T_EQ(graveyard_test_corpse_count(graveyard), 0);
     level.time += 1; graveyard_think(thinker); T_EQ(graveyard_test_corpse_count(graveyard), 1);
     {
-        LPEDICT first = NULL;
+        edict_t * first = NULL;
         FILTER_EDICTS(ent, ent->inuse && ent->class_id == BZ_HFOO && M_IsDead(ent)) { first = ent; break; }
         T_NOT_NULL(first);
         if (first) {
@@ -469,7 +469,7 @@ TEST(wc3_spell, graveyard_uses_cool_dataa_datab_datac_unitid) {
              * nearby-corpse cap.  Move the first corpse outside Gyd2 but keep
              * it inside Gyd3; it must still count against DataA. */
             T_FEQ(Vector2_distance(&first->s.origin2, &graveyard->s.origin2), 64.0f, 0.01f);
-            first->s.origin2 = (VECTOR2){ graveyard->s.origin2.x + 100.0f, graveyard->s.origin2.y };
+            first->s.origin2 = (vector2_t){ graveyard->s.origin2.x + 100.0f, graveyard->s.origin2.y };
             first->s.origin.x = first->s.origin2.x; first->s.origin.y = first->s.origin2.y;
         }
     }

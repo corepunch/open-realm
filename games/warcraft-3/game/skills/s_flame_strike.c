@@ -2,7 +2,7 @@
 
 /* Flame Strike stores its cast rank and start time; Hfs1/Hfs3 are pulse damage,
  * Hfs2/Hfs4 are pulse intervals, Cast is the delay and HeroDur is the full-damage phase. */
-void flame_strike_tick(LPEDICT ent) {
+void flame_strike_tick(edict_t * ent) {
     uint32_t now = G_Time(), rank = ent->resources, code = ent->class_id;
     float delay = S_SpellNumber(code, ABILITY_NUMBER_CAST, rank);
     float age = (now - ent->spawn_time) / 1000.0f - delay;
@@ -35,7 +35,7 @@ void flame_strike_tick(LPEDICT ent) {
 }
 
 /* Zero damage intervals cannot schedule a fire patch; reject malformed rows rather than substituting guessed values. */
-static bool flame_strike_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool flame_strike_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t rank = S_SpellLevel(caster, spell->code);
     if (S_SpellData(spell->code, rank, 2) >= .001f && S_SpellData(spell->code, rank, 4) >= .001f) return true;
     fprintf(stderr, "WC3 Flame Strike: invalid damage intervals for %.4s rank %u\n", (cstring_t)&spell->code, rank);
@@ -43,9 +43,9 @@ static bool flame_strike_validate(LPEDICT caster, spellTarget_t st, abilityitem_
 }
 
 /* The authored delay and intervals schedule persistent ground damage independently of the caster's next order. */
-static void flame_strike_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void flame_strike_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t rank = S_SpellLevel(caster, spell->code);
-    LPEDICT ent = G_Spawn();
+    edict_t * ent = G_Spawn();
     ent->owner = caster; ent->class_id = spell->code; ent->resources = rank;
     ent->s.origin2 = st.point; ent->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, rank);
     ent->spawn_time = G_Time();

@@ -13,14 +13,14 @@
 void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void setup_test_world(void);
 void reset_entities(void);
-void CM_SetupTestWorldBounds(LPCBOX2 bounds);
-bool CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, float radius);
-bool CM_PointIsPathableForRadius(LPCVECTOR2 location, float radius);
-uint32_t CM_BuildHeatmapForRadius(LPEDICT goalentity, float radius);
+void CM_SetupTestWorldBounds(box2_t const * bounds);
+bool CM_LineIsWalkableForRadius(vector2_t const * a, vector2_t const * b, float radius);
+bool CM_PointIsPathableForRadius(vector2_t const * location, float radius);
+uint32_t CM_BuildHeatmapForRadius(edict_t * goalentity, float radius);
 bool CM_FlowCanReach(uint32_t generation, float x, float y);
-LPEDICT Waypoint_add(LPCVECTOR2 spot);
-bool unit_issuetargetorder(LPEDICT self, cstring_t order, LPEDICT target);
-void T_Damage(LPEDICT target, LPEDICT attacker, int damage);
+edict_t * Waypoint_add(vector2_t const * spot);
+bool unit_issuetargetorder(edict_t * self, cstring_t order, edict_t * target);
+void T_Damage(edict_t * target, edict_t * attacker, int damage);
 bool run_test_jass(cstring_t src);
 slkTestData_t *parse_slk_string(const char *slk_text);
 void free_slk_rows(slkTestData_t *rows);
@@ -33,7 +33,7 @@ TEST(wc3_destructable, unknown_entity_without_data_is_not_destructable) {
 typedef struct {
     uint16_t width;
     uint16_t height;
-    COLOR32 map[1];
+    color32_t map[1];
 } one_cell_pathtex_t;
 
 static one_cell_pathtex_t destructable_blocked_death_pathtex = {
@@ -44,7 +44,7 @@ static one_cell_pathtex_t destructable_blocked_death_pathtex = {
 
 typedef struct {
     uint16_t width, height;
-    COLOR32 map[15];
+    color32_t map[15];
 } bridge_band_pathtex_t;
 
 /* Clear padding | blocked rail | clear deck | blocked rail | clear padding. */
@@ -122,28 +122,28 @@ static human06_bridge_fixture_t const human06_bridge_fixtures[] = {
 
 typedef struct {
     uint16_t width, height;
-    COLOR32 map[32 * 32];
+    color32_t map[32 * 32];
 } human06_bridge_pathtex_t;
 
 static human06_bridge_pathtex_t make_human06_bridge_pathtex(human06_bridge_fixture_t const *fixture) {
     human06_bridge_pathtex_t pathtex = { .width = fixture->width, .height = fixture->height };
 
     FOR_LOOP(y, fixture->height) FOR_LOOP(x, fixture->width) {
-        pathtex.map[x + y * fixture->width] = MAKE(COLOR32, .r = 255, .g = 255,
+        pathtex.map[x + y * fixture->width] = MAKE(color32_t, .r = 255, .g = 255,
             .b = fixture->mask[x + y * fixture->width] == '.' ? 0 : 255, .a = 255);
     }
     return pathtex;
 }
 
-static LPEDICT make_test_destructable(float life, float x, float y) {
-    LPEDICT ent = G_Spawn();
+static edict_t * make_test_destructable(float life, float x, float y) {
+    edict_t * ent = G_Spawn();
 
     ent->class_id = MAKEFOURCC('B', '0', '0', 'X');
     ent->s.class_id = ent->class_id;
     G_BindEntityData(ent);
     ent->s.model = 1;
     ent->s.scale = 1.0f;
-    ent->s.origin = (VECTOR3){ x, y, 0.0f };
+    ent->s.origin = (vector3_t){ x, y, 0.0f };
     ent->targtype = TARG_DEBRIS;
     ent->health.value = life;
     ent->health.max_value = life;
@@ -156,8 +156,8 @@ static LPEDICT make_test_destructable(float life, float x, float y) {
 }
 
 TEST(wc3_destructable, blight_presentation_is_initial_and_one_way) {
-    VECTOR2 point = { 32.0f, 32.0f };
-    LPEDICT tree;
+    vector2_t point = { 32.0f, 32.0f };
+    edict_t * tree;
 
     setup_test_world();
     tree = make_test_destructable(100.0f, 32.0f, 32.0f);
@@ -175,16 +175,16 @@ TEST(wc3_destructable, blight_presentation_is_initial_and_one_way) {
     T_ASSERT(tree->destructable.blighted);
 }
 
-static LPEDICT make_destructable_test_attacker(float x, float y) {
+static edict_t * make_destructable_test_attacker(float x, float y) {
     static UnitWeapons_t const weapons = { .attacksEnabled = 3 };
-    LPEDICT ent = G_Spawn();
+    edict_t * ent = G_Spawn();
 
     ent->class_id = MAKEFOURCC('h', 'f', 'o', 'o');
     ent->s.class_id = ent->class_id;
     G_BindEntityData(ent);
     ent->data.UnitWeapons = &weapons;
     ent->s.model = 1;
-    ent->s.origin = (VECTOR3){ x, y, 0.0f };
+    ent->s.origin = (vector3_t){ x, y, 0.0f };
     ent->health.value = 100.0f;
     ent->health.max_value = 100.0f;
     ent->svflags |= SVF_MONSTER;
@@ -226,9 +226,9 @@ TEST(wc3_destructable, wood_bridge_uses_authoritative_animation_intervals) {
         { .name = "Death", .interval = { 2000, 3000 }, .flags = 1 },
         { .name = "Birth", .interval = { 3333, 10000 }, .flags = 1 },
     };
-    LPCANIMATION stand = G_SelectAnimationForProperties(animations, 3, "stand", NULL);
-    LPCANIMATION death = G_SelectAnimationForProperties(animations, 3, "death", NULL);
-    LPCANIMATION birth = G_SelectAnimationForProperties(animations, 3, "birth", NULL);
+    animation_t const * stand = G_SelectAnimationForProperties(animations, 3, "stand", NULL);
+    animation_t const * death = G_SelectAnimationForProperties(animations, 3, "death", NULL);
+    animation_t const * birth = G_SelectAnimationForProperties(animations, 3, "birth", NULL);
 
     T_NOT_NULL(stand);
     T_EQ(stand->interval[0], 133);
@@ -245,8 +245,8 @@ TEST(wc3_destructable, wood_bridge_uses_authoritative_animation_intervals) {
 }
 
 TEST(wc3_destructable, placement_applies_life_flags_and_editor_id) {
-    LPEDICT dest = make_test_destructable(200.0f, 0.0f, 0.0f);
-    DOODAD placement = {
+    edict_t * dest = make_test_destructable(200.0f, 0.0f, 0.0f);
+    doodad_t placement = {
         .flags = 2,
         .treeLife = 40,
         .unitID = 12345,
@@ -263,8 +263,8 @@ TEST(wc3_destructable, placement_applies_life_flags_and_editor_id) {
 }
 
 TEST(wc3_destructable, hidden_nonsolid_placement_is_not_targetable) {
-    LPEDICT dest = make_test_destructable(100.0f, 0.0f, 0.0f);
-    DOODAD placement = { .flags = 0, .treeLife = 100 };
+    edict_t * dest = make_test_destructable(100.0f, 0.0f, 0.0f);
+    doodad_t placement = { .flags = 0, .treeLife = 100 };
 
     G_InitializeDestructablePlacement(dest, &placement);
 
@@ -276,8 +276,8 @@ TEST(wc3_destructable, hidden_nonsolid_placement_is_not_targetable) {
 }
 
 TEST(wc3_destructable, generated_script_reuses_and_activates_hidden_placement) {
-    DOODAD placement = { .flags = 0, .treeLife = 100, .unitID = 77 };
-    LPEDICT dest, created;
+    doodad_t placement = { .flags = 0, .treeLife = 100, .unitID = 77 };
+    edict_t * dest, *created;
     uint32_t count;
 
     setup_test_world();
@@ -300,7 +300,7 @@ TEST(wc3_destructable, generated_script_reuses_and_activates_hidden_placement) {
 }
 
 TEST(wc3_destructable, instant_kill_cheat_makes_gate_damage_lethal) {
-    LPEDICT dest, attacker;
+    edict_t * dest, *attacker;
 
     setup_test_world();
     dest = make_test_destructable(500.0f, 0.0f, 0.0f);
@@ -325,8 +325,8 @@ TEST(wc3_destructable, instant_kill_cheat_makes_gate_damage_lethal) {
 }
 
 TEST(wc3_destructable, lethal_damage_does_not_require_die_callback) {
-    LPEDICT dest = make_test_destructable(25.0f, 0.0f, 0.0f);
-    LPEDICT attacker = make_destructable_test_attacker(10.0f, 0.0f);
+    edict_t * dest = make_test_destructable(25.0f, 0.0f, 0.0f);
+    edict_t * attacker = make_destructable_test_attacker(10.0f, 0.0f);
 
     dest->die = NULL;
     T_Damage(dest, attacker, 25);
@@ -344,15 +344,15 @@ TEST(wc3_destructable, lethal_damage_does_not_require_die_callback) {
 
 static int death_callback_count;
 
-static void count_death_callback(LPEDICT self, LPEDICT attacker) {
+static void count_death_callback(edict_t * self, edict_t * attacker) {
     (void)self;
     (void)attacker;
     death_callback_count++;
 }
 
 TEST(wc3_destructable, death_transition_event_and_callback_fire_once) {
-    LPEDICT dest = make_test_destructable(10.0f, 0.0f, 0.0f);
-    LPEDICT attacker = make_destructable_test_attacker(10.0f, 0.0f);
+    edict_t * dest = make_test_destructable(10.0f, 0.0f, 0.0f);
+    edict_t * attacker = make_destructable_test_attacker(10.0f, 0.0f);
 
     death_callback_count = 0;
     dest->die = count_death_callback;
@@ -368,8 +368,8 @@ TEST(wc3_destructable, death_transition_event_and_callback_fire_once) {
 }
 
 TEST(wc3_destructable, smart_order_attacks_neutral_destructable) {
-    LPEDICT attacker = make_destructable_test_attacker(0.0f, 0.0f);
-    LPEDICT dest = make_test_destructable(50.0f, 32.0f, 0.0f);
+    edict_t * attacker = make_destructable_test_attacker(0.0f, 0.0f);
+    edict_t * dest = make_test_destructable(50.0f, 32.0f, 0.0f);
 
     dest->s.player = PLAYER_NEUTRAL_PASSIVE;
 
@@ -379,8 +379,8 @@ TEST(wc3_destructable, smart_order_attacks_neutral_destructable) {
 }
 
 TEST(wc3_destructable, smart_order_requires_destructable_target_mask) {
-    LPEDICT attacker = make_destructable_test_attacker(0.0f, 0.0f);
-    LPEDICT dest = make_test_destructable(50.0f, 32.0f, 0.0f);
+    edict_t * attacker = make_destructable_test_attacker(0.0f, 0.0f);
+    edict_t * dest = make_test_destructable(50.0f, 32.0f, 0.0f);
 
     attacker->attack1.targetsAllowed = 64u; /* TARGET_FLAG_TREE only */
 
@@ -389,8 +389,8 @@ TEST(wc3_destructable, smart_order_requires_destructable_target_mask) {
 }
 
 TEST(wc3_destructable, tree_requires_explicit_attack) {
-    LPEDICT attacker = make_destructable_test_attacker(0.0f, 0.0f);
-    LPEDICT dest = make_test_destructable(50.0f, 32.0f, 0.0f);
+    edict_t * attacker = make_destructable_test_attacker(0.0f, 0.0f);
+    edict_t * dest = make_test_destructable(50.0f, 32.0f, 0.0f);
 
     dest->targtype = TARG_TREE;
     /* Standard melee targs1 commonly contains debris but not tree. Retail
@@ -403,8 +403,8 @@ TEST(wc3_destructable, tree_requires_explicit_attack) {
 }
 
 TEST(wc3_destructable, explicit_attack_rejects_disallowed_destructable_class) {
-    LPEDICT attacker = make_destructable_test_attacker(0.0f, 0.0f);
-    LPEDICT dest = make_test_destructable(50.0f, 32.0f, 0.0f);
+    edict_t * attacker = make_destructable_test_attacker(0.0f, 0.0f);
+    edict_t * dest = make_test_destructable(50.0f, 32.0f, 0.0f);
 
     dest->targtype = TARG_BRIDGE;
     attacker->attack1.targetsAllowed = 256u; /* TARGET_FLAG_DEBRIS only */
@@ -415,8 +415,8 @@ TEST(wc3_destructable, explicit_attack_rejects_disallowed_destructable_class) {
 }
 
 TEST(wc3_destructable, explicit_attack_accepts_allowed_bridge) {
-    LPEDICT attacker = make_destructable_test_attacker(0.0f, 0.0f);
-    LPEDICT dest = make_test_destructable(50.0f, 32.0f, 0.0f);
+    edict_t * attacker = make_destructable_test_attacker(0.0f, 0.0f);
+    edict_t * dest = make_test_destructable(50.0f, 32.0f, 0.0f);
 
     dest->targtype = TARG_BRIDGE;
     attacker->attack1.targetsAllowed = 1024u; /* TARGET_FLAG_BRIDGE */
@@ -427,8 +427,8 @@ TEST(wc3_destructable, explicit_attack_accepts_allowed_bridge) {
 }
 
 TEST(wc3_destructable, dead_remains_reject_attack_orders) {
-    LPEDICT attacker = make_destructable_test_attacker(0.0f, 0.0f);
-    LPEDICT dest = make_test_destructable(1.0f, 32.0f, 0.0f);
+    edict_t * attacker = make_destructable_test_attacker(0.0f, 0.0f);
+    edict_t * dest = make_test_destructable(1.0f, 32.0f, 0.0f);
 
     G_KillDestructable(dest, attacker);
 
@@ -438,8 +438,8 @@ TEST(wc3_destructable, dead_remains_reject_attack_orders) {
 
 TEST(wc3_destructable, death_removes_alive_static_footprint) {
     uint8_t cells[8 * 8] = { 0 };
-    VECTOR2 center = { 4.0f, 4.0f };
-    LPEDICT dest;
+    vector2_t center = { 4.0f, 4.0f };
+    edict_t * dest;
 
     setup_test_pathmap(8, 8, cells);
     dest = make_test_destructable(10.0f, center.x, center.y);
@@ -452,8 +452,8 @@ TEST(wc3_destructable, death_removes_alive_static_footprint) {
 
 TEST(wc3_destructable, death_replacement_pathing_remains_blocking) {
     uint8_t cells[8 * 8] = { 0 };
-    VECTOR2 center = { 4.0f, 4.0f };
-    LPEDICT dest;
+    vector2_t center = { 4.0f, 4.0f };
+    edict_t * dest;
 
     setup_test_pathmap(8, 8, cells);
     dest = make_test_destructable(10.0f, center.x, center.y);
@@ -469,8 +469,8 @@ TEST(wc3_destructable, death_replacement_pathing_remains_blocking) {
 TEST(wc3_destructable, alive_walkable_bridge_opens_terrain_until_death) {
     static DestructableData_t const bridge_data = { .walkable = true };
     uint8_t cells[8 * 8] = { 0 };
-    VECTOR2 center = { 4.0f, 4.0f };
-    LPEDICT bridge, unit;
+    vector2_t center = { 4.0f, 4.0f };
+    edict_t * bridge, *unit;
 
     cells[4 + 4 * 8] = 2; /* terrain no-walk under the bridge deck */
     setup_test_pathmap(8, 8, cells);
@@ -501,12 +501,12 @@ TEST(wc3_destructable, alive_walkable_bridge_opens_terrain_until_death) {
 TEST(wc3_destructable, alive_walkable_bridge_preserves_clear_padding_outside_rails) {
     static DestructableData_t const bridge_data = { .walkable = true };
     uint8_t cells[9 * 7];
-    VECTOR2 center = { 4.0f, 3.0f };
-    VECTOR2 deck = { 4.0f, 3.0f };
-    VECTOR2 left_outside = { 2.0f, 3.0f };
-    VECTOR2 right_outside = { 6.0f, 3.0f };
-    VECTOR2 left_rail = { 3.0f, 3.0f };
-    LPEDICT bridge;
+    vector2_t center = { 4.0f, 3.0f };
+    vector2_t deck = { 4.0f, 3.0f };
+    vector2_t left_outside = { 2.0f, 3.0f };
+    vector2_t right_outside = { 6.0f, 3.0f };
+    vector2_t left_rail = { 3.0f, 3.0f };
+    edict_t * bridge;
 
     memset(cells, 2, sizeof(cells)); /* river no-walk across the whole footprint */
     setup_test_pathmap(9, 7, cells);
@@ -531,24 +531,24 @@ TEST(wc3_destructable, human06_bridge_fixtures_cross_from_both_sides) {
 
         uint8_t cells[64 * 64];
         human06_bridge_pathtex_t pathtex = make_human06_bridge_pathtex(fixture);
-        VECTOR2 axis = fixture->axis == BRIDGE_X ? MAKE(VECTOR2, 0.0f, 1.0f) :
-            fixture->axis == BRIDGE_Y ? MAKE(VECTOR2, 1.0f, 0.0f) : MAKE(VECTOR2, 1.0f, -1.0f);
+        vector2_t axis = fixture->axis == BRIDGE_X ? MAKE(vector2_t, 0.0f, 1.0f) :
+            fixture->axis == BRIDGE_Y ? MAKE(vector2_t, 1.0f, 0.0f) : MAKE(vector2_t, 1.0f, -1.0f);
         float const extent = fixture->axis == BRIDGE_DIAGONAL ? 192.0f : 320.0f;
-        VECTOR2 from = MAKE(VECTOR2, -extent * axis.x, -extent * axis.y);
-        VECTOR2 to = fixture->axis == BRIDGE_DIAGONAL ? MAKE(VECTOR2, 320.0f, -192.0f) :
-            MAKE(VECTOR2, extent * axis.x, extent * axis.y);
-        LPEDICT bridge, goal;
+        vector2_t from = MAKE(vector2_t, -extent * axis.x, -extent * axis.y);
+        vector2_t to = fixture->axis == BRIDGE_DIAGONAL ? MAKE(vector2_t, 320.0f, -192.0f) :
+            MAKE(vector2_t, extent * axis.x, extent * axis.y);
+        edict_t * bridge, *goal;
         uint32_t generation;
 
         memset(cells, 2, sizeof(cells));
         reset_entities();
         setup_test_world();
         setup_test_pathmap(64, 64, cells);
-        CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
+        CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
         bridge = make_test_destructable(2500.0f, 0.0f, 0.0f);
         bridge->class_id = fixture->id;
         bridge->s.class_id = fixture->id;
-        bridge->s.origin2 = (VECTOR2){ 0.0f, 0.0f };
+        bridge->s.origin2 = (vector2_t){ 0.0f, 0.0f };
         bridge->data.DestructableData = &bridge_data;
         bridge->destructable.alive_pathtex = (pathTex_t *)&pathtex;
         bridge->pathtex = (pathTex_t *)&pathtex;
@@ -580,16 +580,16 @@ TEST(wc3_destructable, human06_yt20_runtime_bridge_crosses_north_to_south) {
     static DestructableData_t const bridge_data = { .walkable = true };
     human06_bridge_pathtex_t pathtex = make_human06_bridge_pathtex(&human06_bridge_fixtures[1]);
     uint8_t cells[64 * 64];
-    VECTOR2 deck = { 4.0f, 0.0f }, from = { 19.0f, 732.0f }, to = { 4.0f, -718.0f };
-    LPEDICT bridge;
+    vector2_t deck = { 4.0f, 0.0f }, from = { 19.0f, 732.0f }, to = { 4.0f, -718.0f };
+    edict_t * bridge;
 
     memset(cells, 0, sizeof(cells));
     FOR_LOOP(y, 22) FOR_LOOP(x, 64) cells[x + (21 + y) * 64] = 2;
     reset_entities(); setup_test_world(); setup_test_pathmap(64, 64, cells);
-    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
     bridge = make_test_destructable(2500.0f, 0.0f, 0.0f);
     bridge->class_id = MAKEFOURCC('Y', 'T', '2', '0'); bridge->s.class_id = bridge->class_id;
-    bridge->s.origin2 = (VECTOR2){ 0.0f, 0.0f }; bridge->data.DestructableData = &bridge_data;
+    bridge->s.origin2 = (vector2_t){ 0.0f, 0.0f }; bridge->data.DestructableData = &bridge_data;
     bridge->destructable.alive_pathtex = (pathTex_t *)&pathtex; bridge->pathtex = (pathTex_t *)&pathtex;
     bridge->targtype = TARG_BRIDGE; G_RegisterGroundSurface(bridge); CM_BakeStaticObstacles();
 
@@ -604,19 +604,19 @@ TEST(wc3_destructable, bridge_path_texture_rotation_covers_all_quarter_turns) {
     FOR_LOOP(angle, 4) {
         uint8_t cells[64 * 64];
         bool const vertical = !(angle & 1);
-        VECTOR2 from = vertical ? MAKE(VECTOR2, 0.0f, -900.0f) : MAKE(VECTOR2, -900.0f, 0.0f);
-        VECTOR2 to = vertical ? MAKE(VECTOR2, 0.0f, 900.0f) : MAKE(VECTOR2, 900.0f, 0.0f);
-        LPEDICT bridge;
+        vector2_t from = vertical ? MAKE(vector2_t, 0.0f, -900.0f) : MAKE(vector2_t, -900.0f, 0.0f);
+        vector2_t to = vertical ? MAKE(vector2_t, 0.0f, 900.0f) : MAKE(vector2_t, 900.0f, 0.0f);
+        edict_t * bridge;
         pathTexTransform_t transform;
 
         memset(cells, 0, sizeof(cells));
         if (vertical) FOR_LOOP(y, 32) FOR_LOOP(x, 64) cells[x + (y + 16) * 64] = 2;
         else FOR_LOOP(y, 64) FOR_LOOP(x, 32) cells[x + 16 + y * 64] = 2;
         reset_entities(); setup_test_world(); setup_test_pathmap(64, 64, cells);
-        CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
+        CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-1024.0f, -1024.0f}, .max = {1024.0f, 1024.0f}));
         bridge = make_test_destructable(2500.0f, 0.0f, 0.0f);
         bridge->class_id = MAKEFOURCC('Y', 'T', '2', '0'); bridge->s.class_id = bridge->class_id;
-        bridge->s.origin2 = (VECTOR2){ 0.0f, 0.0f }; bridge->s.angle = angle * (float)M_PI / 2.0f;
+        bridge->s.origin2 = (vector2_t){ 0.0f, 0.0f }; bridge->s.angle = angle * (float)M_PI / 2.0f;
         bridge->data.DestructableData = &bridge_data;
         bridge->destructable.alive_pathtex = (pathTex_t *)&pathtex; bridge->pathtex = (pathTex_t *)&pathtex;
         bridge->targtype = TARG_BRIDGE; G_RegisterGroundSurface(bridge); CM_BakeStaticObstacles();
@@ -633,7 +633,7 @@ TEST(wc3_destructable, bridge_path_texture_rotation_covers_all_quarter_turns) {
 
 TEST(wc3_destructable, completed_death_holds_authored_final_frame) {
     animation_t death = { .name = "Death", .interval = { 2000, 3000 }, .flags = 1 };
-    LPEDICT dest = make_test_destructable(10.0f, 0.0f, 0.0f);
+    edict_t * dest = make_test_destructable(10.0f, 0.0f, 0.0f);
 
     dest->aiflags |= AI_HOLD_FRAME;
     G_DestructableStartDeathAnimation(dest);
@@ -659,14 +659,14 @@ TEST(wc3_destructable, placement_retains_inline_drop_sets) {
     droppableItemSet_t sets[] = {
         { 1, entries },
     };
-    DOODAD placement = {
+    doodad_t placement = {
         .flags = 2,
         .treeLife = 100,
         .droppedItemSetPtr = (uint32_t)-1,
         .num_droppedItemSets = 1,
         .droppableItemSets = sets,
     };
-    LPEDICT dest = make_test_destructable(100.0f, 0.0f, 0.0f);
+    edict_t * dest = make_test_destructable(100.0f, 0.0f, 0.0f);
 
     G_InitializeDestructablePlacement(dest, &placement);
 
@@ -702,16 +702,16 @@ TEST(wc3_destructable, death_spawns_each_inline_result_once_as_world_item) {
         { 1, first_entries },
         { 1, second_entries },
     };
-    DOODAD placement = {
+    doodad_t placement = {
         .flags = 2,
         .treeLife = 100,
         .droppedItemSetPtr = (uint32_t)-1,
         .num_droppedItemSets = 2,
         .droppableItemSets = sets,
     };
-    LPEDICT dest;
-    LPEDICT first;
-    LPEDICT second;
+    edict_t * dest;
+    edict_t * first;
+    edict_t * second;
     uint32_t first_item;
 
     setup_test_world();
@@ -744,14 +744,14 @@ TEST(wc3_destructable, empty_probability_remainder_spawns_no_item) {
     droppableItemSet_t sets[] = {
         { 1, entries },
     };
-    DOODAD placement = {
+    doodad_t placement = {
         .flags = 2,
         .treeLife = 100,
         .droppedItemSetPtr = (uint32_t)-1,
         .num_droppedItemSets = 1,
         .droppableItemSets = sets,
     };
-    LPEDICT dest;
+    edict_t * dest;
     uint32_t before;
 
     setup_test_world();
@@ -788,10 +788,10 @@ TEST(wc3_destructable, random_item_table_lookup_uses_table_number) {
         { .tableNumber = 7 },
         { .tableNumber = 42 },
     };
-    LPMAPINFO mapinfo;
+    mapInfo_t * mapinfo;
 
     setup_test_world();
-    mapinfo = (LPMAPINFO)level.mapinfo;
+    mapinfo = (mapInfo_t *)level.mapinfo;
     mapinfo->num_randomItems = 2;
     mapinfo->randomItems = tables;
 
@@ -815,17 +815,17 @@ TEST(wc3_destructable, death_spawns_map_table_sets_once_as_world_items) {
         { .tableNumber = 3 },
         { .tableNumber = 42, .num_sets = 2, .sets = sets },
     };
-    DOODAD placement = {
+    doodad_t placement = {
         .flags = 2,
         .treeLife = 100,
         .droppedItemSetPtr = 42,
     };
-    LPMAPINFO mapinfo;
-    LPEDICT dest;
+    mapInfo_t * mapinfo;
+    edict_t * dest;
     uint32_t first_item;
 
     setup_test_world();
-    mapinfo = (LPMAPINFO)level.mapinfo;
+    mapinfo = (mapInfo_t *)level.mapinfo;
     mapinfo->num_randomItems = 2;
     mapinfo->randomItems = tables;
     dest = make_test_destructable(10.0f, 100.0f, 200.0f);
@@ -844,12 +844,12 @@ TEST(wc3_destructable, death_spawns_map_table_sets_once_as_world_items) {
 }
 
 TEST(wc3_destructable, missing_random_item_table_spawns_nothing) {
-    DOODAD placement = {
+    doodad_t placement = {
         .flags = 2,
         .treeLife = 100,
         .droppedItemSetPtr = 999,
     };
-    LPEDICT dest;
+    edict_t * dest;
     uint32_t before;
 
     setup_test_world();
@@ -879,17 +879,17 @@ TEST(wc3_destructable, empty_encoded_and_invalid_table_entries_spawn_nothing) {
         .num_sets = 3,
         .sets = sets,
     };
-    DOODAD placement = {
+    doodad_t placement = {
         .flags = 2,
         .treeLife = 100,
         .droppedItemSetPtr = 9,
     };
-    LPMAPINFO mapinfo;
-    LPEDICT dest;
+    mapInfo_t * mapinfo;
+    edict_t * dest;
     uint32_t before;
 
     setup_test_world();
-    mapinfo = (LPMAPINFO)level.mapinfo;
+    mapinfo = (mapInfo_t *)level.mapinfo;
     mapinfo->num_randomItems = 1;
     mapinfo->randomItems = &table;
     dest = make_test_destructable(10.0f, 100.0f, 200.0f);
@@ -902,7 +902,7 @@ TEST(wc3_destructable, empty_encoded_and_invalid_table_entries_spawn_nothing) {
 }
 
 TEST(wc3_destructable, silent_dead_state_has_no_event_or_loot) {
-    LPEDICT dest = make_test_destructable(100.0f, 0.0f, 0.0f);
+    edict_t * dest = make_test_destructable(100.0f, 0.0f, 0.0f);
 
     T_ASSERT(G_SetDestructableDeadState(dest, false));
     T_ASSERT(dest->destructable.dead);
@@ -912,8 +912,8 @@ TEST(wc3_destructable, silent_dead_state_has_no_event_or_loot) {
 }
 
 TEST(wc3_destructable, restore_reenables_targeting_pathing_and_second_death) {
-    LPEDICT dest = make_test_destructable(100.0f, 4.0f, 4.0f);
-    LPEDICT attacker = make_destructable_test_attacker(8.0f, 4.0f);
+    edict_t * dest = make_test_destructable(100.0f, 4.0f, 4.0f);
+    edict_t * attacker = make_destructable_test_attacker(8.0f, 4.0f);
 
     T_ASSERT(G_KillDestructable(dest, attacker));
     T_ASSERT(G_RestoreDestructable(dest, 150.0f, true));
@@ -934,7 +934,7 @@ TEST(wc3_destructable, restore_reenables_targeting_pathing_and_second_death) {
 }
 
 TEST(wc3_destructable, set_life_uses_death_and_restore_transitions) {
-    LPEDICT dest = make_test_destructable(100.0f, 0.0f, 0.0f);
+    edict_t * dest = make_test_destructable(100.0f, 0.0f, 0.0f);
 
     T_ASSERT(G_SetDestructableLife(dest, 0.0f));
     T_ASSERT(dest->destructable.dead);
@@ -949,7 +949,7 @@ TEST(wc3_destructable, set_life_uses_death_and_restore_transitions) {
 }
 
 TEST(wc3_destructable, remove_bypasses_death_event_and_loot) {
-    LPEDICT dest = make_test_destructable(100.0f, 0.0f, 0.0f);
+    edict_t * dest = make_test_destructable(100.0f, 0.0f, 0.0f);
 
     T_ASSERT(G_RemoveDestructable(dest));
     T_ASSERT(!dest->inuse);
@@ -971,7 +971,7 @@ TEST(wc3_destructable, scripted_lifecycle_natives_use_authoritative_state) {
         "C;Y2;X5;K16\n"
         "E\n";
     slkTestData_t *rows = parse_slk_string(slk);
-    LPEDICT dest;
+    edict_t * dest;
 
     setup_test_world();
     slkTestData_t *saved = G_SetSLKRows("DestructableData", rows);

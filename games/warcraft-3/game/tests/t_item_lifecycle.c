@@ -3,7 +3,7 @@
 #include "../g_local.h"
 #include "../skills/s_skills.h"
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
@@ -67,11 +67,11 @@ TEST(wc3_item_lifecycle, passive_item_alias_applies_authored_attack_bonus) {
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     slkTestData_t *idata = parse_slk_string(items), *olditem = G_SetSLKRows("ItemData", idata);
     setup_test_world();
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     unit->attack1.temporaryDamageBonus = unit->attack2.temporaryDamageBonus = 0;
     unit->temporary_armor_bonus = 0;
     FOR_LOOP(i, 3) {
-        LPEDICT item = alloc_test_unit(codes[i], 32, 0);
+        edict_t * item = alloc_test_unit(codes[i], 32, 0);
         item->targtype = TARG_ITEM;
         item->item.in_world = true;
         item->item.inventory_slot = -1;
@@ -120,7 +120,7 @@ TEST(wc3_item_lifecycle, passive_item_removal_ignores_current_can_use_permission
     slkTestData_t *old_abilities = G_SetSLKRows("AbilityData", enabled);
     slkTestData_t *idata = parse_slk_string(items);
     slkTestData_t *old_items = G_SetSLKRows("ItemData", idata);
-    LPEDICT unit, item;
+    edict_t * unit, *item;
 
     setup_test_world();
     unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
@@ -166,7 +166,7 @@ TEST(wc3_item_lifecycle, max_resource_item_bonuses_survive_hero_recompute) {
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     UnitBalance_t balance;
     setup_test_world();
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     balance = *unit->data.UnitBalance;
     unit->data.UnitBalance = &balance;
     unit->hero.str = balance.strength;
@@ -216,8 +216,8 @@ TEST(wc3_item_lifecycle, strength_tome_modifies_strength) {
     };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     setup_test_world();
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
-    LPEDICT clent = g_edicts;
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    edict_t * clent = g_edicts;
     unit->s.player = 0;
     G_SelectEntity(clent->client, unit);
     FOR_LOOP(i, 3) {
@@ -261,10 +261,10 @@ TEST(wc3_item_lifecycle, orb_pickup_applies_authored_bonus_damage) {
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     slkTestData_t *idata = parse_slk_string(items), *olditem = G_SetSLKRows("ItemData", idata);
     setup_test_world();
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
     unit->attack1.temporaryDamageBonus = unit->attack2.temporaryDamageBonus = 0;
     FOR_LOOP(i, 2) {
-        LPEDICT item = alloc_test_unit(codes[i], 32, 0);
+        edict_t * item = alloc_test_unit(codes[i], 32, 0);
         item->targtype = TARG_ITEM;
         item->item.in_world = true;
         item->item.inventory_slot = -1;
@@ -311,15 +311,15 @@ TEST(wc3_item_lifecycle, orb_on_hit_applies_buff_state) {
     slkTestData_t *idata = parse_slk_string(items), *olditem = G_SetSLKRows("ItemData", idata);
     setup_test_world();
     level.time = 0;
-    LPEDICT attacker = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 300, 0);
-    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
-    LPEDICT item = alloc_test_unit(MAKEFOURCC('o','r','b','c'), 32, 0);
+    edict_t * attacker = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 300, 0);
+    edict_t * target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+    edict_t * item = alloc_test_unit(MAKEFOURCC('o','r','b','c'), 32, 0);
     attacker->data.UnitAbilities = &abilities; attacker->s.player = 0;
     attacker->svflags |= SVF_MONSTER;
     target->s.player = 1; target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
     target->health.value = target->health.max_value = 200.0f;
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
     item->targtype = TARG_ITEM;
     item->item.in_world = true;
@@ -340,7 +340,7 @@ TEST(wc3_item_lifecycle, orb_on_hit_applies_buff_state) {
 /* A regeneration aura uses owner+goalentity too; natural sleep must remove only its own art. */
 TEST(wc3_item_lifecycle, waking_creep_preserves_regeneration_overlay) {
     setup_test_world();
-    LPEDICT creep = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    edict_t * creep = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     creep->s.player = PLAYER_NEUTRAL_AGGRESSIVE;
     creep->svflags |= SVF_MONSTER;
     creep->sleep.can_sleep = true;
@@ -348,13 +348,13 @@ TEST(wc3_item_lifecycle, waking_creep_preserves_regeneration_overlay) {
     unit_stand(creep);
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
-    LPEDICT effect = G_Spawn();
+    edict_t * effect = G_Spawn();
     effect->owner = effect->goalentity = creep;
     effect->summon_ability = MAKEFOURCC('A','o','a','r');
     FOR_LOOP(i, 3) {
         ai_stand(creep);
         T_ASSERT(G_UnitIsSleeping(creep));
-        LPEDICT sleep = NULL;
+        edict_t * sleep = NULL;
         FOR_LOOP(j, globals.num_edicts)
             if (g_edicts[j].inuse && g_edicts[j].owner == creep &&
                 g_edicts[j].summon_ability == MAKEFOURCC('A','C','s','p')) sleep = g_edicts + j;

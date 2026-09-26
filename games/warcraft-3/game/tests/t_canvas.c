@@ -18,8 +18,8 @@ typedef struct {
     __typeof__(gi.unicast) unicast;
     int (*image)(cstring_t);
     cstring_t (*configstring)(uint32_t);
-} CANVASCAP;
-static CANVASCAP cap;
+} canvasCap_t;
+static canvasCap_t cap;
 
 static int canvas_image_index(cstring_t name) {
     if (!name || !*name) return 0;
@@ -50,14 +50,14 @@ static void canvas_write(pfWriteType_t type, void const *value) {
         return;
     }
     if (type != PF_UIFRAME || !cap.in_console) return;
-    LPCUIFRAME frame = value;
+    uiFrame_t const * frame = value;
     if (frame->flags.type != FT_TEXTURE || !frame->tex.index || frame->tex.index >= MAX_IMAGES) return;
     cstring_t name = cap.images[frame->tex.index];
     if (!strstr(name, "-tile0")) return;
     cap.tiles++;
     if (strstr(name, "tile05") || strstr(name, "tile06")) cap.wide_tiles++;
 }
-static void canvas_unicast(LPEDICT ent) { (void)ent; cap.unicasts++; cap.in_console = false; }
+static void canvas_unicast(edict_t * ent) { (void)ent; cap.unicasts++; cap.in_console = false; }
 
 static void canvas_reset_counts(void) {
     cap.tiles = cap.wide_tiles = cap.console_layouts = cap.unicasts = 0;
@@ -87,7 +87,7 @@ static void canvas_teardown(void) {
     gi.Write = cap.write; gi.unicast = cap.unicast; gi.ImageIndex = cap.image; gi.GetConfigstring = cap.configstring;
 }
 
-static void write_console(LPEDICT ent) {
+static void write_console(edict_t * ent) {
     UI_WriteStart(LAYER_CONSOLE);
     UI_WriteConsoleBackdrop(ent->client, 10, 20);
     UI_WriteMinimapFrame();
@@ -99,7 +99,7 @@ TEST(wc3_canvas, console_load_defers_widescreen_tiles_and_collects_their_frames)
     T_NOT_NULL(hud.console.ConsoleUI);
     T_EQ(hud.console_wide_count, 4);
     FOR_LOOP(i, hud.console_wide_count) {
-        LPCFRAMEDEF frame = hud.console_wide[i];
+        frameDef_t const * frame = hud.console_wide[i];
         T_ASSERT(frame->Texture.Image >= HUD_DEFERRED_IMAGE_BASE);
         T_ASSERT(UI_IsWideChromeKey(UI_ImageKey(frame->Texture.Image)));
         T_ASSERT(frame->Parent == hud.console.ConsoleUI);
@@ -113,8 +113,8 @@ TEST(wc3_canvas, console_load_defers_widescreen_tiles_and_collects_their_frames)
 }
 
 TEST(wc3_canvas, console_write_authors_extension_tiles_for_wide_clients_only) {
-    LPEDICT ent = &g_edicts[0];
-    LPGAMECLIENT client = ent->client;
+    edict_t * ent = &g_edicts[0];
+    gameClient_t * client = ent->client;
     canvas_setup();
     client->connected = true;
     client->ps.race = kPlayerRaceOrc;
@@ -144,8 +144,8 @@ TEST(wc3_canvas, console_write_authors_extension_tiles_for_wide_clients_only) {
 }
 
 TEST(wc3_canvas, ui_canvas_command_validates_class_and_resends_console_through_run_frame) {
-    LPEDICT ent = &g_edicts[0];
-    LPGAMECLIENT client = ent->client;
+    edict_t * ent = &g_edicts[0];
+    gameClient_t * client = ent->client;
     cstring_t rejected[] = { "2", "-1", "x", "1x", "" };
     canvas_setup();
     client->connected = true;

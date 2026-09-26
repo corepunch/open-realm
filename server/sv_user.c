@@ -1,7 +1,7 @@
 #include "server.h"
 #include <stdlib.h>
 
-static uint32_t SV_ClientPlayerNumber(LPCLIENT cl) {
+static uint32_t SV_ClientPlayerNumber(client_t * cl) {
     return cl->playernum < MAX_PLAYERS ? cl->playernum : 0;
 }
 
@@ -18,7 +18,7 @@ static int SV_SignonStart(int argc, cstring_t *argv, uint32_t count) {
 }
 
 /* Q2-style request pacing bounds UDP packets and avoids flooding the receiver during registration. */
-void SV_Configstrings_f(LPCLIENT cl, int argc, cstring_t *argv) {
+void SV_Configstrings_f(client_t * cl, int argc, cstring_t *argv) {
     int start = SV_SignonStart(argc, argv, MAX_CONFIGSTRINGS);
     uint32_t limit = SV_SignonLimit(&cl->netchan);
     if (cl->state != cs_connected || start < 0) return;
@@ -38,7 +38,7 @@ void SV_Configstrings_f(LPCLIENT cl, int argc, cstring_t *argv) {
 }
 
 /* Baselines share the configstring continuation contract, so begin cannot overtake later entity pages. */
-void SV_Baselines_f(LPCLIENT cl, int argc, cstring_t *argv) {
+void SV_Baselines_f(client_t * cl, int argc, cstring_t *argv) {
     entityState_t empty = { 0 };
     int start = SV_SignonStart(argc, argv, ge->num_edicts);
     uint32_t limit = SV_SignonLimit(&cl->netchan);
@@ -58,7 +58,7 @@ void SV_Baselines_f(LPCLIENT cl, int argc, cstring_t *argv) {
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
-void SV_Begin_f(LPCLIENT cl, int argc, cstring_t *argv) {
+void SV_Begin_f(client_t * cl, int argc, cstring_t *argv) {
     uint32_t playernum;
 
     (void)argc;
@@ -77,7 +77,7 @@ void SV_Begin_f(LPCLIENT cl, int argc, cstring_t *argv) {
     ge->ClientBegin(cl->edict);
 }
 
-void SV_PlayerInfo_f(LPCLIENT cl, int argc, cstring_t *argv) {
+void SV_PlayerInfo_f(client_t * cl, int argc, cstring_t *argv) {
     uint32_t playernum;
 
     (void)argc;
@@ -88,7 +88,7 @@ void SV_PlayerInfo_f(LPCLIENT cl, int argc, cstring_t *argv) {
     cl->edict = EDICT_NUM(playernum);
 }
 
-void SV_New_f(LPCLIENT cl, int argc, cstring_t *argv) {
+void SV_New_f(client_t * cl, int argc, cstring_t *argv) {
     (void)argc;
     (void)argv;
 
@@ -103,14 +103,14 @@ void SV_New_f(LPCLIENT cl, int argc, cstring_t *argv) {
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
-static uint32_t SV_ClientIndex(LPCLIENT client) {
+static uint32_t SV_ClientIndex(client_t * client) {
     if (!client || client < svs.clients || client >= svs.clients + MAX_CLIENTS) {
         return 0;
     }
     return (uint32_t)(client - svs.clients);
 }
 
-static void SV_LobbySayClient_f(LPCLIENT cl, int argc, cstring_t *argv) {
+static void SV_LobbySayClient_f(client_t * cl, int argc, cstring_t *argv) {
     char text[256];
     size_t used = 0;
     char sender[32];
@@ -140,7 +140,7 @@ static void SV_LobbySayClient_f(LPCLIENT cl, int argc, cstring_t *argv) {
 
 typedef struct {
     cstring_t name;
-    void (*func)(LPCLIENT client, int argc, cstring_t *argv);
+    void (*func)(client_t * client, int argc, cstring_t *argv);
 } ucmd_t;
 
 ucmd_t ucmds[] = {
@@ -153,7 +153,7 @@ ucmd_t ucmds[] = {
     { NULL }
 };
 
-void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client) {
+void SV_ExecuteUserCommand(sizeBuf_t * msg, client_t * client) {
     typedef char cmdarg_t[CMDARG_LEN];
     static cmdarg_t args[MAX_CMDARGS];
     static cstring_t argv[MAX_CMDARGS];

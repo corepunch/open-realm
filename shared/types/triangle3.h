@@ -4,15 +4,15 @@
 #include "vector3.h"
 
 struct triangle3 {
-    VECTOR3 a;
-    VECTOR3 b;
-    VECTOR3 c;
+    vector3_t a;
+    vector3_t b;
+    vector3_t c;
 };
 
-typedef struct triangle3 TRIANGLE3;
-typedef struct triangle3 *LPTRIANGLE3;
-typedef struct triangle3 const *LPCTRIANGLE3;
+typedef struct triangle3 triangle3_t;
 
-VECTOR3 Triangle_normal(LPCTRIANGLE3 triangle);
+
+
+vector3_t Triangle_normal(triangle3_t const * triangle);
 
 #endif

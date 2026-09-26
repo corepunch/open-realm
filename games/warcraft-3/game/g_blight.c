@@ -14,7 +14,7 @@ static uint32_t G_BlightConnectedMask(void) {
     return mask;
 }
 
-static bool G_BlightCell(LPCVECTOR2 point, uint32_t * x, uint32_t * y) {
+static bool G_BlightCell(vector2_t const * point, uint32_t * x, uint32_t * y) {
     if (!point || !level.blight.cells) return false;
     return TerrainMask_CellForPoint(level.blight.bounds.min, WC3_BLIGHT_PATH_CELL, level.blight.width, level.blight.height, point, x, y);
 }
@@ -30,7 +30,7 @@ static bool G_SetBlightCell(int32_t x, int32_t y, bool add, uint32_t mask) {
 }
 
 static uint32_t G_SetBlightCorner(float x, float y, bool add, uint32_t mask) {
-    VECTOR2 sample;
+    vector2_t sample;
     uint32_t ux, uy;
     int32_t cx, cy;
     uint32_t changed = 0;
@@ -47,7 +47,7 @@ static float G_SnapBlightCorner(float value, float minimum) {
     return minimum + floorf((value - minimum) / WC3_BLIGHT_TERRAIN_CELL) * WC3_BLIGHT_TERRAIN_CELL;
 }
 
-static bool G_BlightDestructableFootprintBlighted(LPCEDICT ent) {
+static bool G_BlightDestructableFootprintBlighted(edict_t const * ent) {
     pathTex_t const *pathtex;
 
     if (!ent || !G_IsDestructable(ent) || ent->destructable.dead) return false;
@@ -55,7 +55,7 @@ static bool G_BlightDestructableFootprintBlighted(LPCEDICT ent) {
     if (!pathtex || !pathtex->width || !pathtex->height)
         return G_IsPointBlighted(&ent->s.origin2);
     FOR_LOOP(y, pathtex->height) FOR_LOOP(x, pathtex->width) {
-        VECTOR2 sample;
+        vector2_t sample;
         if (!pathtex->map[x + y * pathtex->width].b) continue;
         sample.x = ent->s.origin2.x + ((float)x + 0.5f - (float)pathtex->width * 0.5f) * WC3_BLIGHT_PATH_CELL;
         sample.y = ent->s.origin2.y + ((float)y + 0.5f - (float)pathtex->height * 0.5f) * WC3_BLIGHT_PATH_CELL;
@@ -64,14 +64,14 @@ static bool G_BlightDestructableFootprintBlighted(LPCEDICT ent) {
     return true;
 }
 
-void G_BlightMarkDestructable(LPEDICT ent) {
+void G_BlightMarkDestructable(edict_t * ent) {
     DestructableData_t const *data;
     PATHSTR blight_texture;
     cstring_t dot;
 
     if (!ent || !G_IsDestructable(ent) || ent->destructable.blighted) return;
     ent->destructable.blighted = true;
-    ent->vertex_color = MAKE(COLOR32, 120, 185, 72, 255);
+    ent->vertex_color = MAKE(color32_t, 120, 185, 72, 255);
     ent->vertex_color_set = true;
     data = ent->data.DestructableData;
     if (!data || !data->textureFile || !*data->textureFile || !strcmp(data->textureFile, "_")) return;
@@ -89,12 +89,12 @@ void G_BlightMarkDestructable(LPEDICT ent) {
                 blight_texture, (cstring_t)&ent->class_id);
 }
 
-void G_BlightInitializeDestructable(LPEDICT ent) {
+void G_BlightInitializeDestructable(edict_t * ent) {
     if (G_BlightDestructableFootprintBlighted(ent)) G_BlightMarkDestructable(ent);
 }
 
-void G_BlightUpdateDestructables(LPCBOX2 region) {
-    BOX2 expanded;
+void G_BlightUpdateDestructables(box2_t const * region) {
+    box2_t expanded;
 
     if (!region) return;
     expanded = *region;
@@ -117,7 +117,7 @@ void G_BlightShutdown(void) {
 void G_BlightInit(void) {
     uint32_t cells;
     uint32_t unavailable = 0;
-    VECTOR2 sample;
+    vector2_t sample;
 
     G_BlightShutdown();
     level.blight.bounds = CM_GetWorldBounds();
@@ -160,12 +160,12 @@ void G_BlightInit(void) {
                 (unsigned)unavailable);
 }
 
-bool G_IsPointBlighted(LPCVECTOR2 point) {
+bool G_IsPointBlighted(vector2_t const * point) {
     uint32_t x, y;
     return G_BlightCell(point, &x, &y) && level.blight.cells[x + y * level.blight.width] != 0;
 }
 
-void G_SetBlightPoint(LPCVECTOR2 point, bool add) {
+void G_SetBlightPoint(vector2_t const * point, bool add) {
     float x, y;
     uint32_t mask;
     if (!point || !level.blight.cells) return;
@@ -174,13 +174,13 @@ void G_SetBlightPoint(LPCVECTOR2 point, bool add) {
     y = G_SnapBlightCorner(point->y, level.blight.bounds.min.y);
     G_SetBlightCorner(x, y, add, mask);
     if (add) {
-        BOX2 region = { { x - WC3_BLIGHT_TERRAIN_CELL, y - WC3_BLIGHT_TERRAIN_CELL },
+        box2_t region = { { x - WC3_BLIGHT_TERRAIN_CELL, y - WC3_BLIGHT_TERRAIN_CELL },
                         { x + WC3_BLIGHT_TERRAIN_CELL, y + WC3_BLIGHT_TERRAIN_CELL } };
         G_BlightUpdateDestructables(&region);
     }
 }
 
-void G_SetBlightRadius(LPCVECTOR2 point, float radius, bool add) {
+void G_SetBlightRadius(vector2_t const * point, float radius, bool add) {
     float min_x, min_y, max_x, max_y;
     uint32_t mask;
     if (!point || !level.blight.cells || radius < 0.0f) return;
@@ -194,13 +194,13 @@ void G_SetBlightRadius(LPCVECTOR2 point, float radius, bool add) {
             if (dx * dx + dy * dy <= radius * radius) G_SetBlightCorner(x, y, add, mask);
         }
     if (add) {
-        BOX2 region = { { point->x - radius, point->y - radius },
+        box2_t region = { { point->x - radius, point->y - radius },
                         { point->x + radius, point->y + radius } };
         G_BlightUpdateDestructables(&region);
     }
 }
 
-void G_SetBlightRect(LPCBOX2 rect, bool add) {
+void G_SetBlightRect(box2_t const * rect, bool add) {
     float min_x, min_y;
     uint32_t mask;
     if (!rect || !level.blight.cells) return;
@@ -231,7 +231,7 @@ bool G_SetBlightState(uint8_t const *data, uint32_t size) {
     return true;
 }
 
-void G_BlightMarkClientFull(LPEDICT ent) {
+void G_BlightMarkClientFull(edict_t * ent) {
     uint32_t player;
     if (!ent || !ent->client || !level.blight.dirty_rows) return;
     player = ent->client->ps.number;
@@ -247,7 +247,7 @@ static bool G_BlightSweepDue(uint32_t player) {
     return true;
 }
 
-bool G_BlightDatagramPending(LPEDICT ent) {
+bool G_BlightDatagramPending(edict_t * ent) {
     uint32_t player;
     if (!ent || !ent->client || !level.blight.dirty_rows) return false;
     player = ent->client->ps.number;
@@ -275,7 +275,7 @@ static uint32_t G_BlightPackRows(uint8_t * out, uint32_t capacity, uint32_t firs
     return MSG_EncodeBitpack(out, capacity, bits, G_BlightPackBit, &c);
 }
 
-uint32_t G_BlightWriteDatagram(LPEDICT ent, uint8_t * data, uint32_t size) {
+uint32_t G_BlightWriteDatagram(edict_t * ent, uint8_t * data, uint32_t size) {
     uint32_t player, first = 0, rows, max_rows, available, payload_bytes;
     terrainMaskChunk_t chunk;
     uint8_t *payload;

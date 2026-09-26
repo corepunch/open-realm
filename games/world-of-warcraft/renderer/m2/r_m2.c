@@ -19,8 +19,8 @@ typedef struct m2KnownTexture_s {
 static m2KnownTexture_t *m2_known_textures;
 
 typedef struct m2ModelBatch_s {
-	LPTEXTURE texture;
-	DRAWRANGE draw;
+	texture_t * texture;
+	drawRange_t draw;
 	uint32_t texture_type;
 	uint16_t bone_count;
 	uint16_t bone_combo_index;
@@ -39,11 +39,11 @@ struct m2Model_s {
     uint32_t file_size;
     m2FormatDef_t const *format;
     PATHSTR filename;
-    BOX3 bounds;
-    BOX3 geometry_bounds;
+    box3_t bounds;
+    box3_t geometry_bounds;
     uint32_t flags;
     /* Renderer-owned state that has no representation in the M2 file. */
-    LPBUFFER buffer;
+    buffer_t * buffer;
     m2ModelBatch_t *batches;
     uint32_t num_batches;
 };
@@ -57,10 +57,10 @@ typedef struct {
     m2Box_t bounding_box;
 } m2GeometryInfo_t;
 
-static MODELPROG * m2_shader;
-static MATRIX4 m2_bone_matrices[M2_MAX_BONES];
+static modelProg_t * m2_shader;
+static matrix4_t m2_bone_matrices[M2_MAX_BONES];
 
-static MODELPROG * M2_Shader(void) {
+static modelProg_t * M2_Shader(void) {
     if (!m2_shader) {
         m2_shader = R_ModelShader();
     }
@@ -77,31 +77,31 @@ static void M2_LogFallback(cstring_t modelFilename, cstring_t reason) {
 }
 
 static m2Model_t *M2_CreateFallbackModel(cstring_t modelFilename, cstring_t reason) {
-    static VERTEX vertices[12];
+    static vertex_t vertices[12];
     static bool initialized;
     m2Model_t *model;
     m2ModelBatch_t *batch;
-    COLOR32 color = { 90, 230, 130, 255 };
+    color32_t color = { 90, 230, 130, 255 };
 
     M2_LogFallback(modelFilename, reason);
 
     if (!initialized) {
-        VECTOR3 base[4] = {
+        vector3_t base[4] = {
             { -14.0f, -14.0f, 0.0f },
             {  14.0f, -14.0f, 0.0f },
             {  14.0f,  14.0f, 0.0f },
             { -14.0f,  14.0f, 0.0f },
         };
-        VECTOR3 top = { 0.0f, 0.0f, 42.0f };
+        vector3_t top = { 0.0f, 0.0f, 42.0f };
         int tri[12] = { 0, 1, 2, 0, 2, 3, 0, 1, 4, 2, 3, 4 };
-        VECTOR3 points[5];
+        vector3_t points[5];
         memcpy(points, base, sizeof(base));
         points[4] = top;
         FOR_LOOP(i, 12) {
             memset(&vertices[i], 0, sizeof(vertices[i]));
             vertices[i].position = points[tri[i]];
-            vertices[i].normal = (VECTOR3){ 0.0f, 0.0f, 1.0f };
-            vertices[i].texcoord = (VECTOR2){ 0.0f, 0.0f };
+            vertices[i].normal = (vector3_t){ 0.0f, 0.0f, 1.0f };
+            vertices[i].texcoord = (vector2_t){ 0.0f, 0.0f };
             vertices[i].color = color;
         }
         initialized = true;
@@ -111,7 +111,7 @@ static m2Model_t *M2_CreateFallbackModel(cstring_t modelFilename, cstring_t reas
     memset(model, 0, sizeof(*model));
     model->format = m2_format_def(0);
     snprintf(model->filename, sizeof(model->filename), "%s", modelFilename ? modelFilename : "<null>");
-    model->bounds = (BOX3){
+    model->bounds = (box3_t){
         .min = { -14.0f, -14.0f, 0.0f },
         .max = { 14.0f, 14.0f, 42.0f },
     };
@@ -130,10 +130,10 @@ static m2Model_t *M2_CreateFallbackModel(cstring_t modelFilename, cstring_t reas
 #define M2_CHARACTER_COMPOSITE_RESOLUTION 256 // pixels; Classic character body atlases use this native resolution
 #define M2_CHARACTER_COMPOSITE_CACHE_SIZE 16 // atlases; bounded global LRU shared across all loaded character models
 typedef struct {
-    LPRENDERTARGET target;
-    TEXTURE texture;
-} M2CHARCOMPOSITECACHE;
-static M2CHARCOMPOSITECACHE m2_character_composite_cache[M2_CHARACTER_COMPOSITE_CACHE_SIZE];
+    rendertarget_t * target;
+    texture_t texture;
+} m2CharCompositeCache_t;
+static m2CharCompositeCache_t m2_character_composite_cache[M2_CHARACTER_COMPOSITE_CACHE_SIZE];
 static m2CompositeCacheKey_t m2_character_composite_keys[M2_CHARACTER_COMPOSITE_CACHE_SIZE];
 static uint32_t m2_character_composite_clock;
 static uint8_t M2_CharacterTextureSlotForSection(uint16_t section_id) {
@@ -647,23 +647,23 @@ static bool M2_FindTrackKeys(m2Model_t const *model,
     return true;
 }
 
-static VECTOR3 M2_EvaluateVectorTrack(m2Model_t const *model,
+static vector3_t M2_EvaluateVectorTrack(m2Model_t const *model,
                                       m2TrackView_t const *track,
                                       uint32_t seq,
                                       uint32_t tim,
-                                      VECTOR3 default_value) {
+                                      vector3_t default_value) {
     void const *left;
     void const *right;
     float ratio;
     uint32_t track_time = M2_TrackTime(model, track, seq, tim);
 
-    if (!M2_FindTrackKeys(model, track, seq, track_time, sizeof(VECTOR3), &left, &right, &ratio)) {
+    if (!M2_FindTrackKeys(model, track, seq, track_time, sizeof(vector3_t), &left, &right, &ratio)) {
         return default_value;
     }
     if (left == right) {
-        return *(VECTOR3 const *)left;
+        return *(vector3_t const *)left;
     }
-    return Vector3_lerp((LPCVECTOR3)left, (LPCVECTOR3)right, ratio);
+    return Vector3_lerp((vector3_t const *)left, (vector3_t const *)right, ratio);
 }
 
 static float M2_EvaluateFloatTrack(m2Model_t const *model,
@@ -687,18 +687,18 @@ static float M2_EvaluateFloatTrack(m2Model_t const *model,
 
 bool M2_CameraView(m2Model_t const *model,
                    uint32_t camera_index,
-                   LPVECTOR3 eye,
-                   LPVECTOR3 target,
+                   vector3_t * eye,
+                   vector3_t * target,
                    float * fov_degrees,
                    float * znear,
                    float * zfar) {
     m2PoseTime_t pose;
     m2TrackView_t position_track;
     m2TrackView_t target_track;
-    VECTOR3 position_value;
-    VECTOR3 target_value;
-    VECTOR3 position_pivot;
-    VECTOR3 target_pivot;
+    vector3_t position_value;
+    vector3_t target_value;
+    vector3_t position_pivot;
+    vector3_t target_pivot;
     float fov;
     float far_clip;
     float near_clip;
@@ -730,8 +730,8 @@ bool M2_CameraView(m2Model_t const *model,
         fov = camera->fov; near_clip = camera->near_clip; far_clip = camera->far_clip;
     }
     M2_FrameToPoseTime(model, tr.viewDef.time, &pose);
-    position_value = M2_EvaluateVectorTrack(model, &position_track, pose.seq, pose.tim, (VECTOR3){ 0.0f, 0.0f, 0.0f });
-    target_value = M2_EvaluateVectorTrack(model, &target_track, pose.seq, pose.tim, (VECTOR3){ 0.0f, 0.0f, 0.0f });
+    position_value = M2_EvaluateVectorTrack(model, &position_track, pose.seq, pose.tim, (vector3_t){ 0.0f, 0.0f, 0.0f });
+    target_value = M2_EvaluateVectorTrack(model, &target_track, pose.seq, pose.tim, (vector3_t){ 0.0f, 0.0f, 0.0f });
     *eye = Vector3_add(&position_pivot, &position_value);
     *target = Vector3_add(&target_pivot, &target_value);
     if (fov_degrees)
@@ -743,8 +743,8 @@ bool M2_CameraView(m2Model_t const *model,
     return true;
 }
 
-static QUATERNION M2_DecodeCompQuat(m2CompQuat_t const *source) {
-    return (QUATERNION) {
+static quaternion_t M2_DecodeCompQuat(m2CompQuat_t const *source) {
+    return (quaternion_t) {
         .x = (float)(source->auCompQ[0] & 0xFFFF) * 0.000030518044f - 1.0f,
         .y = (float)(source->auCompQ[0] >> 16)    * 0.000030518044f - 1.0f,
         .z = (float)(source->auCompQ[1] & 0xFFFF) * 0.000030518044f - 1.0f,
@@ -752,8 +752,8 @@ static QUATERNION M2_DecodeCompQuat(m2CompQuat_t const *source) {
     };
 }
 
-static QUATERNION M2_QuaternionNlerp(LPCQUATERNION q1, LPCQUATERNION q2, float ratio) {
-    QUATERNION out = {
+static quaternion_t M2_QuaternionNlerp(quaternion_t const * q1, quaternion_t const * q2, float ratio) {
+    quaternion_t out = {
         .x = (q2->x - q1->x) * ratio + q1->x,
         .y = (q2->y - q1->y) * ratio + q1->y,
         .z = (q2->z - q1->z) * ratio + q1->z,
@@ -776,35 +776,35 @@ static QUATERNION M2_QuaternionNlerp(LPCQUATERNION q1, LPCQUATERNION q2, float r
     return out;
 }
 
-static QUATERNION M2_EvaluateRotationTrack(m2Model_t const *model,
+static quaternion_t M2_EvaluateRotationTrack(m2Model_t const *model,
                                            m2TrackView_t const *track,
                                            uint32_t seq,
                                            uint32_t tim,
-                                           QUATERNION default_value) {
+                                           quaternion_t default_value) {
     void const *left;
     void const *right;
     float ratio;
     uint32_t track_time = M2_TrackTime(model, track, seq, tim);
-    uint32_t elem_size = track && track->classic ? sizeof(QUATERNION) : sizeof(m2CompQuat_t);
+    uint32_t elem_size = track && track->classic ? sizeof(quaternion_t) : sizeof(m2CompQuat_t);
 
     if (!M2_FindTrackKeys(model, track, seq, track_time, elem_size, &left, &right, &ratio)) {
         return default_value;
     }
     if (track->classic) {
         if (left == right) {
-            return *(QUATERNION const *)left;
+            return *(quaternion_t const *)left;
         }
 
-        QUATERNION q1 = *(QUATERNION const *)left;
-        QUATERNION q2 = *(QUATERNION const *)right;
+        quaternion_t q1 = *(quaternion_t const *)left;
+        quaternion_t q2 = *(quaternion_t const *)right;
         return M2_QuaternionNlerp(&q1, &q2, ratio);
     }
     if (left == right) {
         return M2_DecodeCompQuat((m2CompQuat_t const *)left);
     }
 
-    QUATERNION q1 = M2_DecodeCompQuat((m2CompQuat_t const *)left);
-    QUATERNION q2 = M2_DecodeCompQuat((m2CompQuat_t const *)right);
+    quaternion_t q1 = M2_DecodeCompQuat((m2CompQuat_t const *)left);
+    quaternion_t q2 = M2_DecodeCompQuat((m2CompQuat_t const *)right);
     return M2_QuaternionNlerp(&q1, &q2, ratio);
 }
 
@@ -848,11 +848,11 @@ static uint16_t M2_BoneParentIndex(m2Model_t const *model, uint32_t bone_index) 
     return ((m2CompBoneModern_t const *)bone)->parent_index;
 }
 
-static VECTOR3 M2_BonePivot(m2Model_t const *model, uint32_t bone_index) {
+static vector3_t M2_BonePivot(m2Model_t const *model, uint32_t bone_index) {
     void const *bone = M2_BonePtr(model, bone_index);
 
     if (!bone) {
-        return (VECTOR3){ 0.0f, 0.0f, 0.0f };
+        return (vector3_t){ 0.0f, 0.0f, 0.0f };
     }
     if (model->format->format == M2_FORMAT_CLASSIC) {
         return ((m2CompBoneClassic_t const *)bone)->pivot;
@@ -943,10 +943,10 @@ static void m2_sample_part_track(m2Model_t const *model, m2PartTrack_t const *tr
 			uint8_t const *a = vals + (i - 1) * elem_size, *b = vals + i * elem_size;
 			if (elem_size == sizeof(int16_t))
 				*(int16_t *)out = (int16_t)LerpNumber((float)*(int16_t *)a, (float)*(int16_t *)b, ratio);
-			else if (elem_size == sizeof(VECTOR2))
-				*(VECTOR2 *)out = Vector2_lerp((LPCVECTOR2)a, (LPCVECTOR2)b, ratio);
-			else if (elem_size == sizeof(VECTOR3))
-				*(VECTOR3 *)out = Vector3_lerp((LPCVECTOR3)a, (LPCVECTOR3)b, ratio);
+			else if (elem_size == sizeof(vector2_t))
+				*(vector2_t *)out = Vector2_lerp((vector2_t const *)a, (vector2_t const *)b, ratio);
+			else if (elem_size == sizeof(vector3_t))
+				*(vector3_t *)out = Vector3_lerp((vector3_t const *)a, (vector3_t const *)b, ratio);
 			else memcpy(out, a, elem_size);
 			return;
 		}
@@ -954,7 +954,7 @@ static void m2_sample_part_track(m2Model_t const *model, m2PartTrack_t const *tr
 	memcpy(out, vals + (count - 1) * elem_size, elem_size);
 }
 
-static LPTEXTURE m2_particle_texture(m2Model_t const *model, m2Particle_t const *p) {
+static texture_t * m2_particle_texture(m2Model_t const *model, m2Particle_t const *p) {
 	m2TextureDisk_t const *tex; cstring_t path; m2Array_t textures;
 	if (!model || !p) return tr.texture[TEX_WHITE];
 	textures = M2_TexturesArray(model);
@@ -966,7 +966,7 @@ static LPTEXTURE m2_particle_texture(m2Model_t const *model, m2Particle_t const 
 	return path && *path ? R_LoadTexture(path) : tr.texture[TEX_WHITE];
 }
 
-static LPTEXTURE m2_ribbon_texture(m2Model_t const *model, m2Ribbon_t const *r, uint32_t slot) {
+static texture_t * m2_ribbon_texture(m2Model_t const *model, m2Ribbon_t const *r, uint32_t slot) {
 	uint16_t const *indices; m2TextureDisk_t const *tex; uint32_t idx; cstring_t path; m2Array_t textures;
 	if (!model || !r) return tr.texture[TEX_WHITE];
 	textures = M2_TexturesArray(model);
@@ -980,20 +980,20 @@ static LPTEXTURE m2_ribbon_texture(m2Model_t const *model, m2Ribbon_t const *r, 
 	return path && *path ? R_LoadTexture(path) : tr.texture[TEX_WHITE];
 }
 
-#define M2_C32(v,a) (COLOR32){ (uint8_t)((v).x < 0 ? 0 : (v).x > 1 ? 255 : (uint8_t)((v).x*255+.5f)), \
+#define M2_C32(v,a) (color32_t){ (uint8_t)((v).x < 0 ? 0 : (v).x > 1 ? 255 : (uint8_t)((v).x*255+.5f)), \
                                (uint8_t)((v).y < 0 ? 0 : (v).y > 1 ? 255 : (uint8_t)((v).y*255+.5f)), \
                                (uint8_t)((v).z < 0 ? 0 : (v).z > 1 ? 255 : (uint8_t)((v).z*255+.5f)), \
                                (uint8_t)((a) < 0 ? 0 : (a) > 1 ? 255 : (uint8_t)((a)*255+.5f)) }
 
 typedef struct {
 	float speed, varia, lat, lon, grav, life, life_var, zsource, midpoint;
-	float alpha[3]; VECTOR2 scale[3]; VECTOR3 color[3];
-	LPTEXTURE texture; uint16_t bone_index;
-	m2Model_t const *model; m2Particle_t const *p; LPCMATRIX4 model_matrix;
+	float alpha[3]; vector2_t scale[3]; vector3_t color[3];
+	texture_t * texture; uint16_t bone_index;
+	m2Model_t const *model; m2Particle_t const *p; matrix4_t const * model_matrix;
 } m2_pctx_t;
 
 /* M2 emitter positions are local to their bone, not the model origin. */
-static void M2_EmitterMatrix(m2_pctx_t const *ctx, LPMATRIX4 out) {
+static void M2_EmitterMatrix(m2_pctx_t const *ctx, matrix4_t * out) {
     if (ctx->model && ctx->bone_index < (uint32_t)M2_BonesArray(ctx->model).size) {
         Matrix4_multiply(ctx->model_matrix, &m2_bone_matrices[ctx->bone_index], out);
         return;
@@ -1005,27 +1005,27 @@ static void m2_spawn_particle(void *raw) {
 	m2_pctx_t *ctx = (m2_pctx_t *)raw;
 	cparticle_t *fx = R_SpawnParticle(); if (!fx) return;
 	float r = (float)rand() / (float)RAND_MAX;
-	MATRIX4 emitter_matrix;
+	matrix4_t emitter_matrix;
 	M2_EmitterMatrix(ctx, &emitter_matrix);
-	VECTOR3 local_origin = ctx->p->position;
+	vector3_t local_origin = ctx->p->position;
 	local_origin.z += ctx->zsource;
-	VECTOR3 org = Matrix4_multiply_vector3(&emitter_matrix, &local_origin);
-	VECTOR3 dir = m2_particle_direction(ctx->lat, ctx->lon, (VECTOR2){ 2.0f * (float)rand() / (float)RAND_MAX - 1.0f, 2.0f * (float)rand() / (float)RAND_MAX - 1.0f });
-	VECTOR3 w_dir = Matrix4_multiply_vector3(&emitter_matrix, &dir);
-	VECTOR3 w_zero = Matrix4_multiply_vector3(&emitter_matrix, &(VECTOR3){ 0, 0, 0 });
+	vector3_t org = Matrix4_multiply_vector3(&emitter_matrix, &local_origin);
+	vector3_t dir = m2_particle_direction(ctx->lat, ctx->lon, (vector2_t){ 2.0f * (float)rand() / (float)RAND_MAX - 1.0f, 2.0f * (float)rand() / (float)RAND_MAX - 1.0f });
+	vector3_t w_dir = Matrix4_multiply_vector3(&emitter_matrix, &dir);
+	vector3_t w_zero = Matrix4_multiply_vector3(&emitter_matrix, &(vector3_t){ 0, 0, 0 });
 	dir = Vector3_sub(&w_dir, &w_zero);
 	Vector3_normalize(&dir);
 	fx->texture = ctx->texture;
 	fx->blend_mode = m2_particle_blend_mode(ctx->p->blend_mode);
 	fx->org = org;
 	fx->vel = Vector3_scale(&dir, MAX(0.0f, ctx->speed + (r - 0.5f) * ctx->varia));
-	fx->accel = (VECTOR3){ 0, 0, -ctx->grav };
+	fx->accel = (vector3_t){ 0, 0, -ctx->grav };
 	fx->color[0] = M2_C32(ctx->color[0], ctx->alpha[0]);
 	fx->color[1] = M2_C32(ctx->color[1], ctx->alpha[1]);
 	fx->color[2] = M2_C32(ctx->color[2], ctx->alpha[2]);
 	float s[3] = { MAX(ctx->scale[0].x, ctx->scale[0].y), MAX(ctx->scale[1].x, ctx->scale[1].y), MAX(ctx->scale[2].x, ctx->scale[2].y) };
 	fx->time = 0.0f; fx->lifespan = MAX(0.05f, ctx->life + (r - 0.5f) * ctx->life_var);
-	m2_particle_encode_curve(&(M2PARTICLECURVE){ { s[0], s[1], s[2] }, ctx->midpoint, fx->lifespan }, fx);
+	m2_particle_encode_curve(&(m2ParticleCurve_t){ { s[0], s[1], s[2] }, ctx->midpoint, fx->lifespan }, fx);
 	fx->columns = MAX(1, ctx->p->cols); fx->rows = MAX(1, ctx->p->rows);
 }
 
@@ -1037,17 +1037,17 @@ static void m2p_sample_classic_data(uint8_t const *raw, m2_pctx_t *ctx) {
     if (midpoint < 0.0f || midpoint > 1.0f) midpoint = 0.5f;
     FOR_LOOP(i, 3) {
         uint32_t bgra = p->colors[i];
-        ctx->color[i] = (VECTOR3){ ((bgra >> 16) & 0xff) / 255.0f, ((bgra >> 8) & 0xff) / 255.0f,
+        ctx->color[i] = (vector3_t){ ((bgra >> 16) & 0xff) / 255.0f, ((bgra >> 8) & 0xff) / 255.0f,
                                    (bgra & 0xff) / 255.0f };
         ctx->alpha[i] = ((bgra >> 24) & 0xff) / 255.0f;
-        ctx->scale[i] = (VECTOR2){ p->scales[i], 0.0f };
+        ctx->scale[i] = (vector2_t){ p->scales[i], 0.0f };
         if (ctx->alpha[i] > 0.01f) all_alpha_zero = false;
     }
     if (all_alpha_zero) { ctx->alpha[0] = 1.0f; ctx->alpha[1] = 1.0f; ctx->alpha[2] = 0.0f; }
     ctx->midpoint = midpoint;
 }
 
-static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix) {
+static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entity, matrix4_t const * model_matrix) {
 	m2Array_t particles;
 	if (!model || !entity) return;
 	particles = M2_ParticlesArray(model);
@@ -1092,12 +1092,12 @@ static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entit
 			  ctx.alpha[1] = m2_fixed16_to_float(raw2);
 			  m2_sample_part_track(model, alpha_pt, 1.0f, sizeof(raw2), &raw2);
 			  ctx.alpha[2] = m2_fixed16_to_float(raw2); }
-			m2_sample_part_track(model, scale_pt, 0.0f, sizeof(VECTOR2), &ctx.scale[0]);
-			m2_sample_part_track(model, scale_pt, 0.5f, sizeof(VECTOR2), &ctx.scale[1]);
-			m2_sample_part_track(model, scale_pt, 1.0f, sizeof(VECTOR2), &ctx.scale[2]);
-			m2_sample_part_track(model, color_pt, 0.0f, sizeof(VECTOR3), &ctx.color[0]);
-			m2_sample_part_track(model, color_pt, 0.5f, sizeof(VECTOR3), &ctx.color[1]);
-			m2_sample_part_track(model, color_pt, 1.0f, sizeof(VECTOR3), &ctx.color[2]);
+			m2_sample_part_track(model, scale_pt, 0.0f, sizeof(vector2_t), &ctx.scale[0]);
+			m2_sample_part_track(model, scale_pt, 0.5f, sizeof(vector2_t), &ctx.scale[1]);
+			m2_sample_part_track(model, scale_pt, 1.0f, sizeof(vector2_t), &ctx.scale[2]);
+			m2_sample_part_track(model, color_pt, 0.0f, sizeof(vector3_t), &ctx.color[0]);
+			m2_sample_part_track(model, color_pt, 0.5f, sizeof(vector3_t), &ctx.color[1]);
+			m2_sample_part_track(model, color_pt, 1.0f, sizeof(vector3_t), &ctx.color[2]);
 		}
 		ctx.texture = m2_particle_texture(model, p);
 		ctx.bone_index = p->bone_index;
@@ -1105,7 +1105,7 @@ static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entit
 	}
 }
 
-static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix) {
+static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity, matrix4_t const * model_matrix) {
 	m2Array_t ribbons;
 	if (!model || !entity) return;
 	ribbons = M2_RibbonsArray(model);
@@ -1122,7 +1122,7 @@ static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity,
 		if (eps <= 0.0f) continue;
 		float edge_life = m2_ribbon_edge_lifetime(model->format, raw);
 		m2TrackView_t color_t = m2_ribbon_track(model->format, raw, M2_RIBBON_COLOR);
-		VECTOR3 col = M2_EvaluateVectorTrack(model, &color_t, seq_idx, seq_time, (VECTOR3){ 1, 1, 1 });
+		vector3_t col = M2_EvaluateVectorTrack(model, &color_t, seq_idx, seq_time, (vector3_t){ 1, 1, 1 });
 		m2TrackView_t alpha_t = m2_ribbon_track(model->format, raw, M2_RIBBON_ALPHA);
 		void const *la, *ra; float rta;
 		uint32_t tt = M2_TrackTime(model, &alpha_t, seq_idx, seq_time);
@@ -1143,16 +1143,16 @@ static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity,
 		uint32_t tts = M2_TrackTime(model, &slot_t, seq_idx, seq_time);
 		if (M2_FindTrackKeys(model, &slot_t, seq_idx, tts, sizeof(uint16_t), &ls, &rs_, &rts))
 			slot = (uint16_t)LerpNumber((float)*(uint16_t const *)ls, (float)*(uint16_t const *)rs_, rts);
-		COLOR32 rgba = M2_C32(col, a);
+		color32_t rgba = M2_C32(col, a);
 		uint8_t size_b = (uint8_t)MIN(255, (int)(w + 0.5f));
 		uint32_t cols = MAX(1, m2_ribbon_cols(model->format, raw));
 		uint32_t rows = MAX(1, m2_ribbon_rows(model->format, raw));
-		LPTEXTURE tex = m2_ribbon_texture(model, r, slot);
+		texture_t * tex = m2_ribbon_texture(model, r, slot);
 		float grav = m2_ribbon_gravity(model->format, raw);
-		MATRIX4 emitter_matrix = *model_matrix;
+		matrix4_t emitter_matrix = *model_matrix;
 		if (r->bone_index < (uint32_t)M2_BonesArray(model).size)
 			Matrix4_multiply(model_matrix, &m2_bone_matrices[r->bone_index], &emitter_matrix);
-		VECTOR3 spine = Matrix4_multiply_vector3(&emitter_matrix, &r->position);
+		vector3_t spine = Matrix4_multiply_vector3(&emitter_matrix, &r->position);
 		uint32_t last_ms = tr.viewDef.time - tr.viewDef.deltaTime;
 		uint32_t start_ms = last_ms - last_ms % 1000;
 		for (float t = (float)start_ms; t < (float)tr.viewDef.time; t += 1000.0f / eps) {
@@ -1161,8 +1161,8 @@ static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity,
 			fx = R_SpawnParticle();
 			if (!fx) break;
 			fx->texture = tex; fx->org = spine;
-			fx->vel = (VECTOR3){ 0, 0, 0 };
-			fx->accel = (VECTOR3){ 0, 0, -MAX(0.0f, grav) };
+			fx->vel = (vector3_t){ 0, 0, 0 };
+			fx->accel = (vector3_t){ 0, 0, -MAX(0.0f, grav) };
 			fx->color[0] = fx->color[1] = fx->color[2] = rgba;
 			fx->size[0] = fx->size[1] = fx->size[2] = size_b;
 			fx->midtime = 0x80; fx->columns = cols; fx->rows = rows;
@@ -1172,7 +1172,7 @@ static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity,
 }
 
 static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t const *entity) {
-    MATRIX4 identity;
+    matrix4_t identity;
     m2PoseTime_t cur, old;
     float pose_lerp = 1.0f;
     uint32_t bone_count;
@@ -1196,27 +1196,27 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
     FOR_LOOP(i, bone_count) {
         uint16_t parent_index = M2_BoneParentIndex(model, i);
         uint32_t flags = M2_BoneFlags(model, i);
-        VECTOR3 pivot = M2_BonePivot(model, i);
+        vector3_t pivot = M2_BonePivot(model, i);
         m2TrackView_t ttrk = M2_BoneTranslationTrack(model, i);
         m2TrackView_t rtrk = M2_BoneRotationTrack(model, i);
         m2TrackView_t strk = M2_BoneScaleTrack(model, i);
         bool has_keys = M2_TrackHasKeys(&ttrk) || M2_TrackHasKeys(&rtrk) || M2_TrackHasKeys(&strk);
-        LPCMATRIX4 parent = &identity;
+        matrix4_t const * parent = &identity;
 
         if (parent_index != 0xFFFF && parent_index < i) {
             parent = &m2_bone_matrices[parent_index];
         }
 
         if ((flags & (0x80 | 0x200)) || has_keys) {
-            MATRIX4 local;
-            VECTOR3 tran = M2_EvaluateVectorTrack(model, &ttrk, cur.seq, cur.tim, (VECTOR3){ 0.0f, 0.0f, 0.0f });
-            QUATERNION rot = M2_EvaluateRotationTrack(model, &rtrk, cur.seq, cur.tim, (QUATERNION){ 0.0f, 0.0f, 0.0f, 1.0f });
-            VECTOR3 scl = M2_EvaluateVectorTrack(model, &strk, cur.seq, cur.tim, (VECTOR3){ 1.0f, 1.0f, 1.0f });
+            matrix4_t local;
+            vector3_t tran = M2_EvaluateVectorTrack(model, &ttrk, cur.seq, cur.tim, (vector3_t){ 0.0f, 0.0f, 0.0f });
+            quaternion_t rot = M2_EvaluateRotationTrack(model, &rtrk, cur.seq, cur.tim, (quaternion_t){ 0.0f, 0.0f, 0.0f, 1.0f });
+            vector3_t scl = M2_EvaluateVectorTrack(model, &strk, cur.seq, cur.tim, (vector3_t){ 1.0f, 1.0f, 1.0f });
 
             if (pose_lerp < 1.0f) {
-                VECTOR3 otrn = M2_EvaluateVectorTrack(model, &ttrk, old.seq, old.tim, (VECTOR3){ 0.0f, 0.0f, 0.0f });
-                QUATERNION orot = M2_EvaluateRotationTrack(model, &rtrk, old.seq, old.tim, (QUATERNION){ 0.0f, 0.0f, 0.0f, 1.0f });
-                VECTOR3 oscl = M2_EvaluateVectorTrack(model, &strk, old.seq, old.tim, (VECTOR3){ 1.0f, 1.0f, 1.0f });
+                vector3_t otrn = M2_EvaluateVectorTrack(model, &ttrk, old.seq, old.tim, (vector3_t){ 0.0f, 0.0f, 0.0f });
+                quaternion_t orot = M2_EvaluateRotationTrack(model, &rtrk, old.seq, old.tim, (quaternion_t){ 0.0f, 0.0f, 0.0f, 1.0f });
+                vector3_t oscl = M2_EvaluateVectorTrack(model, &strk, old.seq, old.tim, (vector3_t){ 1.0f, 1.0f, 1.0f });
 
                 tran = Vector3_lerp(&otrn, &tran, pose_lerp);
                 rot = Quaternion_slerp(&orot, &rot, pose_lerp);
@@ -1231,8 +1231,8 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
     }
 }
 
-static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *batch, MODELPROG * shader) {
-    MATRIX4 palette[BZ_BONE_PALETTE_MAX];
+static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *batch, modelProg_t * shader) {
+    matrix4_t palette[BZ_BONE_PALETTE_MAX];
     uint16_t const *bone_lookup = model ? M2_BoneLookup(model) : NULL;
     uint32_t nlook = model ? (uint32_t)M2_BoneLookupArray(model).size : 0;
     uint32_t nbone = model ? (uint32_t)M2_BonesArray(model).size : 0;
@@ -1254,11 +1254,11 @@ static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *ba
         }
     }
 
-    memcpy(&shader->state.bones, palette[0].v, count * sizeof(MATRIX4));
+    memcpy(&shader->state.bones, palette[0].v, count * sizeof(matrix4_t));
     shader->state.boneCount = count;
 }
 
-static LPTEXTURE M2_TextureForBatch(uint8_t const *m2_data,
+static texture_t * M2_TextureForBatch(uint8_t const *m2_data,
                                     uint32_t m2_size,
                                     m2GeometryInfo_t const *geom,
                                     m2Batch_t const *batch,
@@ -1328,8 +1328,8 @@ static bool M2_SkinPath(cstring_t model_path, string_t out, uint32_t out_size) {
     return true;
 }
 
-static VERTEX M2_MakeVertex(m2VertexDisk_t const *src) {
-    VERTEX out;
+static vertex_t M2_MakeVertex(m2VertexDisk_t const *src) {
+    vertex_t out;
     memset(&out, 0, sizeof(out));
     out.position = src->pos; out.normal = src->normal; out.texcoord = src->tex_coords[0]; out.color = COLOR32_WHITE;
     memcpy(out.skin, src->bone_indices, sizeof(src->bone_indices));
@@ -1337,7 +1337,7 @@ static VERTEX M2_MakeVertex(m2VertexDisk_t const *src) {
     return out;
 }
 
-static bool M2_CalculateGeometryBounds(m2VertexDisk_t const *verts, uint32_t nverts, BOX3 *bounds) {
+static bool M2_CalculateGeometryBounds(m2VertexDisk_t const *verts, uint32_t nverts, box3_t *bounds) {
     if (!verts || !nverts || !bounds) {
         return false;
     }
@@ -1345,7 +1345,7 @@ static bool M2_CalculateGeometryBounds(m2VertexDisk_t const *verts, uint32_t nve
     bounds->min = verts[0].pos;
     bounds->max = verts[0].pos;
     for (uint32_t i = 1; i < nverts; i++) {
-        VECTOR3 p = verts[i].pos;
+        vector3_t p = verts[i].pos;
         bounds->min.x = MIN(bounds->min.x, p.x);
         bounds->min.y = MIN(bounds->min.y, p.y);
         bounds->min.z = MIN(bounds->min.z, p.z);
@@ -1459,7 +1459,7 @@ static bool M2_IsCharacterModelPath(cstring_t model_path) {
  *   variant absent from certain race/gender models (retail fallback behavior).
  *   All other groups are pure GROUP*100+variant arithmetic. */
 static bool M2_CharacterGeosetVisible(m2Model_t const *model,
-                                       LPCM2CHARACTEROUTFIT outfit,
+                                       m2CharacterOutfit_t const * outfit,
                                        uint16_t section_id) {
     uint32_t group, geoset, n;
     uint16_t available[64];
@@ -1573,7 +1573,7 @@ m2Model_t *R_LoadModelM2(cstring_t modelFilename, void *buffer, uint32_t size, b
     m2Batch_t const *batches;
     m2Ubyte4_t const *skin_bones;
     m2Model_t *model;
-    VERTEX *verts;
+    vertex_t *verts;
     uint32_t batch_count;
     uint32_t section_count;
     uint32_t skin_vertex_count;
@@ -1664,7 +1664,7 @@ m2Model_t *R_LoadModelM2(cstring_t modelFilename, void *buffer, uint32_t size, b
     model = ri.MemAlloc(sizeof(*model));
     memset(model, 0, sizeof(*model));
     snprintf(model->filename, sizeof(model->filename), "%s", modelFilename ? modelFilename : "");
-    model->bounds = (BOX3){ geom.bounding_box.min, geom.bounding_box.max };
+    model->bounds = (box3_t){ geom.bounding_box.min, geom.bounding_box.max };
     if (!M2_CalculateGeometryBounds(m2_vertices, (uint32_t)geom.vertices.size, &model->geometry_bounds))
         model->geometry_bounds = model->bounds;
     if (M2_IsCharacterModelPath(modelFilename)) model->flags |= M2_MODEL_CHARACTER;
@@ -1752,7 +1752,7 @@ m2Model_t *R_LoadModelM2(cstring_t modelFilename, void *buffer, uint32_t size, b
         out = ri.MemAlloc(sizeof(*out));
         memset(out, 0, sizeof(*out));
         /* The loader already expands every skin index into one vertex; the batch is therefore an array range. */
-        out->draw = (DRAWRANGE){ vertex_offset, index_count };
+        out->draw = (drawRange_t){ vertex_offset, index_count };
         out->texture = M2_TextureForBatch(m2_base, m2_size, &geom, batch, modelFilename, true, &out->texture_type);
         out->bone_count = bone_count;
         out->bone_combo_index = bone_combo_index;
@@ -1777,7 +1777,7 @@ m2Model_t *R_LoadModelM2(cstring_t modelFilename, void *buffer, uint32_t size, b
     return model;
 }
 
-static bool M2_CharacterTextureModified(LPCM2CHARACTEROUTFIT outfit, uint32_t appearance) {
+static bool M2_CharacterTextureModified(m2CharacterOutfit_t const * outfit, uint32_t appearance) {
     wowAppearance_t unpacked = Wow_UnpackAppearance(appearance);
 
     if (unpacked.faceID || unpacked.facialHairStyleID) return true;
@@ -1788,10 +1788,10 @@ static bool M2_CharacterTextureModified(LPCM2CHARACTEROUTFIT outfit, uint32_t ap
     return false;
 }
 
-static void M2_DrawCompositeQuad(LPTEXTURE texture, rect_t const * screen, bool blend) {
-    VERTEX vertices[6];
-    MATRIX4 projection;
-    MATRIX4 identity;
+static void M2_DrawCompositeQuad(texture_t * texture, rect_t const * screen, bool blend) {
+    vertex_t vertices[6];
+    matrix4_t projection;
+    matrix4_t identity;
     rect_t uv = { 0, 0, 1, 1 };
 
     R_AddQuad(vertices, screen, &uv, COLOR32_WHITE, 0);
@@ -1819,7 +1819,7 @@ static void M2_DrawCompositeComponent(cstring_t stem, uint8_t slot, cstring_t mo
                                       uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
     if (stem && *stem) {
         PATHSTR resolved;
-        LPTEXTURE texture;
+        texture_t * texture;
 
         if (!M2_CharacterComponentTexturePath(stem, slot, model_path, resolved, sizeof(resolved))) return;
         texture = R_LoadTexture(resolved);
@@ -1834,7 +1834,7 @@ static void M2_DrawCompositeHeadVariation(cstring_t model_path, uint32_t section
 
     FOR_LOOP(i, 2) {
         PATHSTR path;
-        LPTEXTURE texture;
+        texture_t * texture;
 
         if (!M2_DbcCharacterVariationTexturePath(model_path, section_id, variation_index, color_index, texture_indices[i], path, sizeof(path))) continue;
         texture = R_LoadTexture(path);
@@ -1844,17 +1844,17 @@ static void M2_DrawCompositeHeadVariation(cstring_t model_path, uint32_t section
     }
 }
 
-static LPTEXTURE M2_PrepareCharacterTexture(m2Model_t const *model,
+static texture_t * M2_PrepareCharacterTexture(m2Model_t const *model,
                                             renderEntity_t const *entity,
-                                            LPCM2CHARACTEROUTFIT outfit) {
+                                            m2CharacterOutfit_t const * outfit) {
     static uint32_t const rects[M2_CHAR_TEX_COMPONENT_COUNT][4] = {
         { 0, 0, 128, 64 }, { 0, 64, 128, 64 }, { 0, 128, 128, 32 },
         { 128, 0, 128, 64 }, { 128, 64, 128, 32 }, { 128, 96, 128, 64 },
         { 128, 160, 128, 64 }, { 128, 224, 128, 32 }
     };
     PATHSTR base_path;
-    LPTEXTURE base;
-    M2CHARCOMPOSITECACHE *cached;
+    texture_t * base;
+    m2CharCompositeCache_t *cached;
     m2CompositeCacheParams_t cache;
     uint32_t cache_slot;
     GLint old_framebuffer;
@@ -1916,7 +1916,7 @@ static LPTEXTURE M2_PrepareCharacterTexture(m2Model_t const *model,
     return &cached->texture;
 }
 
-static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
+static texture_t * M2_CharacterTextureForBatch(m2Model_t const *model,
                                              renderEntity_t const *entity,
                                              m2ModelBatch_t *batch) {
     PATHSTR texture_path;
@@ -1928,8 +1928,8 @@ static LPTEXTURE M2_CharacterTextureForBatch(m2Model_t const *model,
     return batch->texture;
 }
 
-bool M2_AttachmentMatrix(m2Model_t const *model, uint32_t attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
-void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform);
+bool M2_AttachmentMatrix(m2Model_t const *model, uint32_t attachment_id, matrix4_t const * model_matrix, matrix4_t * out);
+void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, matrix4_t const * transform);
 
 /* Race abbreviation used by Item\ObjectComponents\Head\<name>_<race><gender>.m2. */
 static cstring_t M2_RaceCode(uint32_t race_id) {
@@ -1960,9 +1960,9 @@ static bool M2_ItemAttachmentPath(cstring_t character_path, cstring_t model_name
 
 /* Item attachment models are loaded once per path and kept resident by their
  * single R_LoadModel reference; the per-frame path would otherwise leak refs. */
-static LPCMODEL M2_ItemModel(cstring_t path) {
+static model_t const * M2_ItemModel(cstring_t path) {
     static PATHSTR cached_path[64];
-    static LPCMODEL cached_model[64];
+    static model_t const * cached_model[64];
     uint32_t free_slot = 64;
     if (!path || !*path) return NULL;
     FOR_LOOP(i, 64) {
@@ -1992,11 +1992,11 @@ static bool M2_ItemTexturePath(cstring_t texture_name, bool helm, string_t out, 
  * parent's bone scratch stays intact. The item's model texture (ItemDisplayInfo
  * field 3/4) overrides the attachment's replaceable object skin. */
 static void M2_RenderItemAttachments(renderEntity_t const *entity, m2Model_t const *model,
-                                     LPCMATRIX4 transform, LPCM2CHARACTEROUTFIT outfit) {
+                                     matrix4_t const * transform, m2CharacterOutfit_t const * outfit) {
     static uint32_t const ids[3] = { 11, 6, 5 }; /* helm, shoulder-left, shoulder-right */
-    LPCMODEL models[3] = { NULL, NULL, NULL };
-    LPTEXTURE textures[3] = { NULL, NULL, NULL };
-    MATRIX4 matrices[3];
+    model_t const * models[3] = { NULL, NULL, NULL };
+    texture_t * textures[3] = { NULL, NULL, NULL };
+    matrix4_t matrices[3];
     bool valid[3] = { false, false, false };
     PATHSTR path;
     if (!entity || !model || !transform || !outfit) return;
@@ -2024,7 +2024,7 @@ static void M2_RenderItemAttachments(renderEntity_t const *entity, m2Model_t con
 }
 
 /* Keep ordinary and instanced M2 batches on the same material-state contract. */
-static void M2_SetBlendMode(MODELPROG * shader, uint32_t mode) {
+static void M2_SetBlendMode(modelProg_t * shader, uint32_t mode) {
     shader->state.alphaKey = mode == BLEND_MODE_ALPHAKEY;
     R_SetAlphaKeyState(mode == BLEND_MODE_ALPHAKEY);
     if (mode == BLEND_MODE_NONE) {
@@ -2040,10 +2040,10 @@ static void M2_SetBlendMode(MODELPROG * shader, uint32_t mode) {
 }
 
 /* WoW's world sun is an ordinary directional entry; the shared shader never has a zero-light mode. */
-static void M2_BindSunLight(MODELPROG * shader) {
-    MODELLIGHTING light;
+static void M2_BindSunLight(modelProg_t * shader) {
+    modelLighting_t light;
     if (!R_LightingFromEnviron(&tr.viewDef.entityLight, &light)) {
-        light = (MODELLIGHTING){
+        light = (modelLighting_t){
             .ambient = { WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B },
             .count = 1,
             .lights[0] = {
@@ -2057,17 +2057,17 @@ static void M2_BindSunLight(MODELPROG * shader) {
     R_SetModelLighting(shader, &light);
 }
 
-void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform) {
+void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, matrix4_t const * transform) {
     renderEntity_t resolved_entity;
     renderEntity_t const *draw_entity = entity;
-    M2CREATUREAPPEARANCE creature = { 0 };
-    LPCM2CREATUREAPPEARANCE creature_ptr = NULL;
-    MATRIX3 normal_matrix;
-    M2CHARACTEROUTFIT outfit_data;
-    LPCM2CHARACTEROUTFIT outfit = NULL;
-    LPTEXTURE character_texture = NULL;
+    m2CreatureAppearance_t creature = { 0 };
+    m2CreatureAppearance_t const * creature_ptr = NULL;
+    matrix3_t normal_matrix;
+    m2CharacterOutfit_t outfit_data;
+    m2CharacterOutfit_t const * outfit = NULL;
+    texture_t * character_texture = NULL;
     m2ModelBatch_t *batch;
-    MODELPROG * shader;
+    modelProg_t * shader;
     bool ground_effect;
     float ground_alpha = 1.0f;
 
@@ -2078,7 +2078,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 
     ground_effect = entity->flags & RF_GROUND_EFFECT;
     if (ground_effect) {
-        VECTOR3 delta = Vector3_sub(&entity->origin, &tr.viewDef.camerastate[0].origin);
+        vector3_t delta = Vector3_sub(&entity->origin, &tr.viewDef.camerastate[0].origin);
         float distance = Vector3_len(&delta);
         float fade_range = WOW_GRASS_DRAW_DISTANCE - WOW_GRASS_FADE_START_DISTANCE;
         ground_alpha = 1.0f - MAX(0.0f, MIN(1.0f, (distance - WOW_GRASS_FADE_START_DISTANCE) / fade_range));
@@ -2108,21 +2108,21 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
     shader->state.normalMatrix = normal_matrix;
     M2_BindSunLight(shader);
     /* Set identity defaults for UV/color/layer uniforms that M2 does not animate. */
-    shader->state.geosetColor = (VECTOR4){ 1.0f, 1.0f, 1.0f, ground_alpha };
+    shader->state.geosetColor = (vector4_t){ 1.0f, 1.0f, 1.0f, ground_alpha };
     shader->state.layerAlpha = 1.0f;
-    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; memcpy(&shader->state.uvMatrix, m, (1) * sizeof(MATRIX3)); }
+    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; memcpy(&shader->state.uvMatrix, m, (1) * sizeof(matrix3_t)); }
     shader->state.alphaKey = 0;
     shader->state.unshaded = 0;
     shader->state.fogEnable = tr.viewDef.fogEnable;
-    shader->state.fogColor = (VECTOR3){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
-    shader->state.fogParams = (VECTOR2){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
+    shader->state.fogColor = (vector3_t){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
+    shader->state.fogParams = (vector2_t){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
     shader->state.firstBoneLookupIndex = 0.0f;
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDisable, GL_BLEND);
 
 	for (batch = model->batches; batch; batch = batch->next) {
-		LPCTEXTURE texture;
+		texture_t const * texture;
 
 		if (!M2_CharacterGeosetVisible(model, outfit, batch->section_id)) {
 			continue;
@@ -2149,9 +2149,9 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMAT
 /* Static-mesh instanced path for ground-effect clutter. Renders `count` copies
    of the model in one draw call per batch. Classic detail M2s have no keyed bone
    tracks, so this path adds root-anchored wind in the vertex shader. */
-void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, uint32_t flags) {
+void M2_RenderInstanced(m2Model_t const *model, instanceBuffer_t const * instances, uint32_t flags) {
     m2ModelBatch_t *batch;
-    MODELPROG * shader;
+    modelProg_t * shader;
 
     if (!model || !instances || !instances->count) return;
 
@@ -2169,18 +2169,18 @@ void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, uin
     shader->state.textureMatrix = tr.viewDef.textureMatrix;
     shader->state.lightMatrix = tr.viewDef.lightMatrix;
     M2_BindSunLight(shader);
-    shader->state.geosetColor = (VECTOR4){ 1.0f, 1.0f, 1.0f, 1.0f };
+    shader->state.geosetColor = (vector4_t){ 1.0f, 1.0f, 1.0f, 1.0f };
     shader->state.layerAlpha = 1.0f;
-    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; memcpy(&shader->state.uvMatrix, m, (1) * sizeof(MATRIX3)); }
+    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; memcpy(&shader->state.uvMatrix, m, (1) * sizeof(matrix3_t)); }
     shader->state.alphaKey = 0;
     shader->state.unshaded = 0;
     shader->state.fogEnable = tr.viewDef.fogEnable;
-    shader->state.fogColor = (VECTOR3){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
-    shader->state.fogParams = (VECTOR2){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
+    shader->state.fogColor = (vector3_t){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
+    shader->state.fogParams = (vector2_t){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
     shader->state.firstBoneLookupIndex = 0.0f;
     {
-        VECTOR3 cam = tr.viewDef.camerastate[0].origin;
-        MODELGRASS grass = {
+        vector3_t cam = tr.viewDef.camerastate[0].origin;
+        modelGrass_t grass = {
             .camera = { cam.x, cam.y },
             .fade = { WOW_GRASS_FADE_START_DISTANCE, WOW_GRASS_DRAW_DISTANCE },
             .height = { model->geometry_bounds.min.z, model->geometry_bounds.max.z },
@@ -2210,14 +2210,14 @@ void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, uin
 
 bool M2_AttachmentMatrix(m2Model_t const *model,
                          uint32_t attachment_id,
-                         LPCMATRIX4 model_matrix,
-                         LPMATRIX4 out) {
+                         matrix4_t const * model_matrix,
+                         matrix4_t * out) {
     uint8_t const *attachments;
     uint16_t const *lookup;
     uint32_t attachment_index = 0xFFFFu;
     uint16_t bone_index;
-    VECTOR3 position;
-    MATRIX4 local;
+    vector3_t position;
+    matrix4_t local;
     m2Array_t attachment_array;
     m2Array_t lookup_array;
 
@@ -2269,20 +2269,20 @@ bool M2_AttachmentMatrix(m2Model_t const *model,
 
 /* Rebuild the requested entity pose before resolving an attachment outside the M2 draw pass. */
 bool M2_EntityAttachmentPosition(m2Model_t const *model, renderEntity_t const *entity, uint32_t attachment_id,
-                                 LPCMATRIX4 model_matrix, LPVECTOR3 out) {
-    MATRIX4 matrix;
+                                 matrix4_t const * model_matrix, vector3_t * out) {
+    matrix4_t matrix;
     if (!model || !entity || !model_matrix || !out) return false;
     M2_CalculateBoneMatrices(model, entity);
     if (!M2_AttachmentMatrix(model, attachment_id, model_matrix, &matrix)) return false;
-    *out = MAKE(VECTOR3, matrix.v[12], matrix.v[13], matrix.v[14]);
+    *out = MAKE(vector3_t, matrix.v[12], matrix.v[13], matrix.v[14]);
     return true;
 }
 
 /* Resolve an attachment while this model's just-calculated pose still owns the shared bone palette. */
-bool M2_PosedAttachmentPosition(m2Model_t const *model, uint32_t attachment_id, LPCMATRIX4 model_matrix, LPVECTOR3 out) {
-    MATRIX4 matrix;
+bool M2_PosedAttachmentPosition(m2Model_t const *model, uint32_t attachment_id, matrix4_t const * model_matrix, vector3_t * out) {
+    matrix4_t matrix;
     if (!model || !model_matrix || !out || !M2_AttachmentMatrix(model, attachment_id, model_matrix, &matrix)) return false;
-    *out = MAKE(VECTOR3, matrix.v[12], matrix.v[13], matrix.v[14]);
+    *out = MAKE(vector3_t, matrix.v[12], matrix.v[13], matrix.v[14]);
     return true;
 }
 

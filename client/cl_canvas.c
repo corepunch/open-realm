@@ -15,7 +15,7 @@
 #define CL_CANVAS_SETTLE_MS 250 // milliseconds; a window size must hold this long before the class is committed
 
 static struct {
-    UICANVAS live;         // canvas for the current window; drives layout, projection and input every frame
+    uiCanvas_t live;         // canvas for the current window; drives layout, projection and input every frame
     size2_t stable;        // window size seen at the last frame boundary; a difference restarts the settle timer
     UICANVASCLASS settled; // class committed after the window settled; what the server should author for
     UICANVASCLASS sent;    // class last written to the current connection; UI_CANVAS_CLASS_COUNT before begin
@@ -89,7 +89,7 @@ void CL_CanvasWriteChrome(void) {
     MSG_WriteString(&cls.netchan.message, command);
 }
 
-LPCUICANVAS CL_Canvas(void) { return &canvas.live; }
+uiCanvas_t const * CL_Canvas(void) { return &canvas.live; }
 
 /* Presentation class the server should currently author for; tests and diagnostics read it, gameplay never does. */
 UICANVASCLASS CL_CanvasSettledChrome(void) { return canvas.settled; }

@@ -4,7 +4,7 @@
 
 #define BZ_ANHS MAKEFOURCC('A', 'N', 'h', 's') // rawcode; TFT Alchemist Healing Spray
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -28,20 +28,20 @@ static cstring_t healing_spray_slk =
 
 typedef struct {
     slkTestData_t *rows, *old;
-    LPEDICT caster, ally, ally2, enemy, mech, far;
+    edict_t * caster, *ally, *ally2, *enemy, *mech, *far;
     UnitBalance_t unit_bal, mech_bal;
-} HSFIX;
+} hsFix_t;
 
-static LPEDICT hs_thinker(LPEDICT caster) {
+static edict_t * hs_thinker(edict_t * caster) {
     FILTER_EDICTS(ent, ent->owner == caster && ent->think) return ent;
     return NULL;
 }
 
 /* Fill caller in place: edict UnitBalance pointers must not dangle. */
-static void hs_setup(HSFIX *fix) {
+static void hs_setup(hsFix_t *fix) {
     reset_entities(); setup_test_world(); level.time = 1000;
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
     fix->rows = parse_slk_string(healing_spray_slk);
     fix->old = G_SetSLKRows("AbilityData", fix->rows);
@@ -77,7 +77,7 @@ static void hs_setup(HSFIX *fix) {
     fix->caster->health.value = fix->caster->health.max_value = 500;
 }
 
-static void hs_done(HSFIX *fix) { G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows); }
+static void hs_done(hsFix_t *fix) { G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows); }
 
 TEST(wc3_spell, healing_spray_procedure_is_channel_point_spell) {
     abilityitem_t item = S_AbilityItem(BZ_ANHS);
@@ -89,8 +89,8 @@ TEST(wc3_spell, healing_spray_procedure_is_channel_point_spell) {
 
 /* First wave heals friendlies in Area by DataA; enemy/mech/far are untouched. */
 TEST(wc3_spell, healing_spray_first_wave_heals_friendlies_in_area) {
-    HSFIX fix; hs_setup(&fix);
-    VECTOR2 point = fix.ally->s.origin2;
+    hsFix_t fix; hs_setup(&fix);
+    vector2_t point = fix.ally->s.origin2;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANHS, &point));
     T_EQ(fix.caster->channel.code, BZ_ANHS);
     T_FEQ(fix.ally->health.value, 125, 0.001f);
@@ -103,8 +103,8 @@ TEST(wc3_spell, healing_spray_first_wave_heals_friendlies_in_area) {
 
 /* DataD caps the wave: two allies at DataA=25 would be 50, so each gets 20. */
 TEST(wc3_spell, healing_spray_scales_heal_to_max_gained_hp) {
-    HSFIX fix; hs_setup(&fix);
-    VECTOR2 point = fix.ally->s.origin2;
+    hsFix_t fix; hs_setup(&fix);
+    vector2_t point = fix.ally->s.origin2;
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X16\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
@@ -129,10 +129,10 @@ TEST(wc3_spell, healing_spray_scales_heal_to_max_gained_hp) {
 
 /* Second pulse waits for authored DataB, then fires through the entity scheduler. */
 TEST(wc3_spell, healing_spray_second_wave_after_authored_interval) {
-    HSFIX fix; hs_setup(&fix);
-    VECTOR2 point = fix.ally->s.origin2;
+    hsFix_t fix; hs_setup(&fix);
+    vector2_t point = fix.ally->s.origin2;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANHS, &point));
-    LPEDICT thinker = hs_thinker(fix.caster);
+    edict_t * thinker = hs_thinker(fix.caster);
     T_NOT_NULL(thinker);
     T_FEQ(fix.ally->health.value, 125, 0.001f);
     level.time += FRAMETIME; G_RunEntities();
@@ -145,10 +145,10 @@ TEST(wc3_spell, healing_spray_second_wave_after_authored_interval) {
 }
 
 TEST(wc3_spell, healing_spray_caster_move_cancels_remaining_waves) {
-    HSFIX fix; hs_setup(&fix);
-    VECTOR2 point = fix.ally->s.origin2;
+    hsFix_t fix; hs_setup(&fix);
+    vector2_t point = fix.ally->s.origin2;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANHS, &point));
-    LPEDICT thinker = hs_thinker(fix.caster);
+    edict_t * thinker = hs_thinker(fix.caster);
     T_NOT_NULL(thinker);
     fix.caster->s.origin2.x += 10; fix.caster->s.origin.x += 10;
     level.time = thinker->freetime; G_RunEntities();

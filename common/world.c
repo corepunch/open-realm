@@ -60,7 +60,7 @@ static uint32_t SFileBytesRemaining(handle_t file) {
     return size - position;
 }
 
-static bool CM_ReadInfoInto(handle_t archive, LPMAPINFO info, bool setup_only) {
+static bool CM_ReadInfoInto(handle_t archive, mapInfo_t * info, bool setup_only) {
     handle_t file;
 
     if (!archive || !info) {
@@ -109,11 +109,11 @@ static bool CM_ReadInfoInto(handle_t archive, LPMAPINFO info, bool setup_only) {
         SFileReadFile(file, &info->fogStartZ, sizeof(float), NULL, NULL);
         SFileReadFile(file, &info->fogEndZ, sizeof(float), NULL, NULL);
         SFileReadFile(file, &info->fogDensity, sizeof(float), NULL, NULL);
-        SFileReadFile(file, &info->fogColor, sizeof(COLOR32), NULL, NULL);
+        SFileReadFile(file, &info->fogColor, sizeof(color32_t), NULL, NULL);
         SFileReadFile(file, &info->weatherID, sizeof(uint32_t), NULL, NULL);
         SFileReadString(file, &info->soundEnvironment);
         SFileReadFile(file, &info->lightEnvironmentTileset, sizeof(uint8_t), NULL, NULL);
-        SFileReadFile(file, &info->waterColor, sizeof(COLOR32), NULL, NULL);
+        SFileReadFile(file, &info->waterColor, sizeof(color32_t), NULL, NULL);
     }
     if (info->fileFormat >= 28) {
         SFileReadFile(file, &info->scriptType, sizeof(uint32_t), NULL, NULL);
@@ -144,7 +144,7 @@ static bool CM_ReadInfoInto(handle_t archive, LPMAPINFO info, bool setup_only) {
         SFileReadFile(file, &player->playerRace, sizeof(playerRace_t), NULL, NULL);
         SFileReadFile(file, &player->flags, sizeof(uint32_t), NULL, NULL);
         SFileReadString(file, &player->playerName);
-        SFileReadFile(file, &player->startingPosition, sizeof(VECTOR2), NULL, NULL);
+        SFileReadFile(file, &player->startingPosition, sizeof(vector2_t), NULL, NULL);
         SFileReadFile(file, &player->allyLowPrioritiesFlags, sizeof(uint32_t), NULL, NULL);
         SFileReadFile(file, &player->allyHighPrioritiesFlags, sizeof(uint32_t), NULL, NULL);
         if (info->fileFormat >= 31) {
@@ -252,7 +252,7 @@ static void __attribute__((unused)) CM_ReadInfo(handle_t archive) {
     CM_ReadInfoInto(archive, &world.info, false);
 }
 
-void CM_FreeMapInfo(LPMAPINFO mapInfo) {
+void CM_FreeMapInfo(mapInfo_t * mapInfo) {
     mapTrigStr_t *string = mapInfo ? mapInfo->strings : NULL;
 
     if (!mapInfo) {
@@ -386,7 +386,7 @@ static void CM_FreeDroppedItemSets(uint32_t num_sets, droppableItemSet_t *sets) 
     MemFree(sets);
 }
 
-static void CM_FreeDoodadPlacementData(LPDOODAD doodad) {
+static void CM_FreeDoodadPlacementData(doodad_t * doodad) {
     if (!doodad) {
         return;
     }
@@ -468,7 +468,7 @@ static void __attribute__((unused)) CM_ReadDoodads(handle_t archive) {
 
     FOR_LOOP(index, header.count) {
         uint32_t count;
-        LPDOODAD doodad = MemAlloc(sizeof(DOODAD));
+        doodad_t * doodad = MemAlloc(sizeof(doodad_t));
         char context[128];
 
         snprintf(context, sizeof(context), "war3map.doo doodad %u", (unsigned)index);
@@ -480,9 +480,9 @@ static void __attribute__((unused)) CM_ReadDoodads(handle_t archive) {
         doodad->targetAcquisition = -1.0f;
         SFileReadFile(file, &doodad->doodID, sizeof(uint32_t), NULL, NULL);
         SFileReadFile(file, &doodad->variation, sizeof(uint32_t), NULL, NULL);
-        SFileReadFile(file, &doodad->position, sizeof(VECTOR3), NULL, NULL);
+        SFileReadFile(file, &doodad->position, sizeof(vector3_t), NULL, NULL);
         SFileReadFile(file, &doodad->angle, sizeof(float), NULL, NULL);
-        SFileReadFile(file, &doodad->scale, sizeof(VECTOR3), NULL, NULL);
+        SFileReadFile(file, &doodad->scale, sizeof(vector3_t), NULL, NULL);
         SFileReadFile(file, &doodad->flags, sizeof(uint8_t), NULL, NULL);
         SFileReadFile(file, &doodad->treeLife, sizeof(uint8_t), NULL, NULL);
         if (header.tft) {
@@ -555,9 +555,9 @@ static bool CM_ReadUnit(handle_t file, struct Doodad *unit, cmPlacementHeader_t 
 
     SFileReadFile(file, &unit->doodID, sizeof(uint32_t), NULL, NULL);
     SFileReadFile(file, &unit->variation, sizeof(uint32_t), NULL, NULL);
-    SFileReadFile(file, &unit->position, sizeof(VECTOR3), NULL, NULL);
+    SFileReadFile(file, &unit->position, sizeof(vector3_t), NULL, NULL);
     SFileReadFile(file, &unit->angle, sizeof(float), NULL, NULL);
-    SFileReadFile(file, &unit->scale, sizeof(VECTOR3), NULL, NULL);
+    SFileReadFile(file, &unit->scale, sizeof(vector3_t), NULL, NULL);
     SFileReadFile(file, &unit->flags, sizeof(uint8_t), NULL, NULL);
     SFileReadFile(file, &unit->player, sizeof(uint32_t), NULL, NULL);
     SFileReadFile(file, &unit->unknown1, sizeof(uint8_t), NULL, NULL);
@@ -641,7 +641,7 @@ static void __attribute__((unused)) CM_ReadUnitDoodads(handle_t archive) {
     }
 
     FOR_LOOP(index, header.count) {
-        LPDOODAD doodad = MemAlloc(sizeof(DOODAD));
+        doodad_t * doodad = MemAlloc(sizeof(doodad_t));
         if (!CM_ReadUnit(file, doodad, &header, index)) {
             CM_FreeDoodadPlacementData(doodad);
             MemFree(doodad);
@@ -653,7 +653,7 @@ static void __attribute__((unused)) CM_ReadUnitDoodads(handle_t archive) {
     SFileCloseFile(file);
 }
 
-static bool CM_ReadWar3MapVertex(handle_t file, LPWAR3MAPVERTEX vert) {
+static bool CM_ReadWar3MapVertex(handle_t file, war3mapVertex_t * vert) {
     uint16_t water_and_edge;
     uint8_t flags;
     uint8_t variation;
@@ -694,7 +694,7 @@ static bool CM_ReadWar3MapVertex(handle_t file, LPWAR3MAPVERTEX vert) {
 }
 
 static void __attribute__((unused)) CM_ReadHeightmap(handle_t archive) {
-    world.map = MemAlloc(sizeof(WAR3MAP));
+    world.map = MemAlloc(sizeof(war3map_t));
     handle_t file;
     if (!SFileOpenFileEx(archive, "war3map.w3e", SFILE_OPEN_FROM_MPQ, &file)) {
         return;
@@ -709,10 +709,10 @@ static void __attribute__((unused)) CM_ReadHeightmap(handle_t archive) {
     SFileReadFile(file, &world.map->height, 4, NULL, NULL);
     SFileReadFile(file, &world.map->center, 8, NULL, NULL);
     uint32_t const num_vertices = world.map->width * world.map->height;
-    int const vertexblocksize = sizeof(WAR3MAPVERTEX) * num_vertices;
+    int const vertexblocksize = sizeof(war3mapVertex_t) * num_vertices;
     world.map->vertices = MemAlloc(vertexblocksize);
     FOR_LOOP(i, num_vertices) {
-        if (!CM_ReadWar3MapVertex(file, (LPWAR3MAPVERTEX)world.map->vertices + i)) {
+        if (!CM_ReadWar3MapVertex(file, (war3mapVertex_t *)world.map->vertices + i)) {
             break;
         }
     }
@@ -964,7 +964,7 @@ static void CM_AppendTrigStringText(mapTrigStr_t *entry, cstring_t line) {
     }
 }
 
-static void CM_ReadStringsInto(handle_t archive, LPMAPINFO info) {
+static void CM_ReadStringsInto(handle_t archive, mapInfo_t * info) {
     string_t buffer = FS_ReadArchiveFileIntoString(archive, "war3map.wts");
     cstring_t cursor;
     mapTrigStr_t *entry = NULL;
@@ -1016,7 +1016,7 @@ static void CM_ReadStringsInto(handle_t archive, LPMAPINFO info) {
 }
 
 /* Loading presentation needs only map metadata and trigger strings, before terrain or entity parsing. */
-bool CM_ReadMapInfo(cstring_t filename, LPMAPINFO info) {
+bool CM_ReadMapInfo(cstring_t filename, mapInfo_t * info) {
     handle_t archive, data;
     uint32_t size = 0;
     bool valid;
@@ -1086,20 +1086,20 @@ bool CM_IsMapLoaded(cstring_t mapFilename) {
 #endif
 }
 
-LPDOODAD CM_GetDoodads(void) {
+doodad_t * CM_GetDoodads(void) {
     return world.doodads;
 }
 
 uint32_t CM_GetLocalPlayerNumber(void) {
     FOR_LOOP(i, MAX_PLAYERS) {
-        LPCMAPPLAYER player = world.info.players + i;
+        mapPlayer_t const * player = world.info.players + i;
         if (player->playerType == kPlayerTypeHuman)
             return i;
     }
     return 0;
 }
 
-LPCMAPINFO CM_GetMapInfo(void) {
+mapInfo_t const * CM_GetMapInfo(void) {
     return &world.info;
 }
 

@@ -3,23 +3,23 @@
 
 #include "common/shared.h"
 
-KNOWN_AS(jass_s, JASS);
-KNOWN_AS(jass_function, JASSFUNC);
-KNOWN_AS(jass_coroutine, JASSCOROUTINE);
-KNOWN_AS(jass_module, JASSMODULE);
+KNOWN_AS(jass_s, jass_t);
+KNOWN_AS(jass_function, jassFunc_t);
+KNOWN_AS(jass_coroutine, jasscoroutine_t);
+KNOWN_AS(jass_module, jassModule_t);
 
-typedef uint32_t (*LPJASSCFUNCTION)(LPJASS);
-typedef bool (*LPJASSSNAPSHOTIO)(void *context, void *data, uint32_t size);
+typedef uint32_t (*jassCFunction_t)(jass_t *);
+typedef bool (*jassSnapshotIo_t)(void *context, void *data, uint32_t size);
 
 typedef struct {
     void *context;
-    LPJASSSNAPSHOTIO transfer;
+    jassSnapshotIo_t transfer;
     void *handles;
-} JASSSNAPSHOT;
+} jassSnapshot_t;
 
 struct jass_module {
     cstring_t name;
-    LPJASSCFUNCTION func;
+    jassCFunction_t func;
 };
 
 typedef enum {
@@ -35,8 +35,8 @@ typedef struct {
     void   (*MemFree)(handle_t ptr);
     uint32_t  (*GetTime)(void);
     handle_t (*ReadFile)(cstring_t filename, uint32_t *size);
-    LPCJASSMODULE natives;
-    LPCJASSMODULE galaxy_natives;
+    jassModule_t const * natives;
+    jassModule_t const * galaxy_natives;
     struct playerState_s *(*GetPlayerByNumber)(uint32_t number);
     void (*RuntimeError)(cstring_t message);
     bool (*SaveHandle)(cstring_t type, handle_t value, uint32_t *id);
@@ -47,58 +47,58 @@ typedef struct {
                            uint32_t now, uint32_t wake_time, bool yielded, bool done);
     bool (*TimerCoroutineValid)(handle_t timer, uint32_t generation);
     void (*VariableChanged)(cstring_t name, float before, float after);
-} JASSHOST;
+} jassHost_t;
 
 /* VM lifecycle */
-void   jass_sethost(JASSHOST const *host);
-LPJASS jass_newstate(void);
-void   jass_close(LPJASS j);
-bool   jass_dofile(LPJASS j, cstring_t fileName);
-bool   jass_dofile_ex(LPJASS j, cstring_t fileName, JASSMODE mode);
-bool   jass_dobuffer(LPJASS j, string_t buffer);
-bool   jass_dobuffer_ex(LPJASS j, string_t buffer, JASSMODE mode);
-void   jass_callbyname(LPJASS j, cstring_t name, bool spawn_coroutine);
-void   jass_runevents(LPJASS j);
-bool   jass_writesnapshot(LPJASS j, JASSSNAPSHOT *snapshot);
-bool   jass_readsnapshot(LPJASS j, JASSSNAPSHOT *snapshot);
-uint32_t  jass_programidentity(LPJASS j);
+void   jass_sethost(jassHost_t const *host);
+jass_t * jass_newstate(void);
+void   jass_close(jass_t * j);
+bool   jass_dofile(jass_t * j, cstring_t fileName);
+bool   jass_dofile_ex(jass_t * j, cstring_t fileName, JASSMODE mode);
+bool   jass_dobuffer(jass_t * j, string_t buffer);
+bool   jass_dobuffer_ex(jass_t * j, string_t buffer, JASSMODE mode);
+void   jass_callbyname(jass_t * j, cstring_t name, bool spawn_coroutine);
+void   jass_runevents(jass_t * j);
+bool   jass_writesnapshot(jass_t * j, jassSnapshot_t *snapshot);
+bool   jass_readsnapshot(jass_t * j, jassSnapshot_t *snapshot);
+uint32_t  jass_programidentity(jass_t * j);
 
 /* Heap allocation (via jass_host.MemAlloc/MemFree) */
 handle_t jass_alloc(long size);
 void   jass_free(handle_t ptr);
 
 /* Return the root VM state (coroutine states share globals with the root). */
-LPJASS jass_getroot(LPJASS j);
-bool jass_isrunning(LPJASS j);
-void jass_haltevents(LPJASS j);
+jass_t * jass_getroot(jass_t * j);
+bool jass_isrunning(jass_t * j);
+void jass_haltevents(jass_t * j);
 
 /* Runtime error boundary */
-void   jass_rterror(LPJASS j, cstring_t message);
-bool   jass_rterror_pending(LPJASS j);
-cstring_t jass_rterror_message(LPJASS j);
-void   jass_rterror_clear(LPJASS j);
+void   jass_rterror(jass_t * j, cstring_t message);
+bool   jass_rterror_pending(jass_t * j);
+cstring_t jass_rterror_message(jass_t * j);
+void   jass_rterror_clear(jass_t * j);
 /* Unique missing calls persist until VM close, independently of the latest error. */
-uint32_t  jass_missingcount(LPJASS j);
-cstring_t jass_missingname(LPJASS j, uint32_t index);
+uint32_t  jass_missingcount(jass_t * j);
+cstring_t jass_missingname(jass_t * j, uint32_t index);
 
 /* Stack / value API */
-int32_t   jass_checkinteger(LPJASS j, int index);
-float  jass_checknumber(LPJASS j, int index);
-bool   jass_checkboolean(LPJASS j, int index);
-cstring_t jass_checkstring(LPJASS j, int index);
-handle_t jass_checkhandle(LPJASS j, int index, cstring_t type);
-uint32_t  jass_pushnull(LPJASS j);
-uint32_t  jass_pushnullhandle(LPJASS j, cstring_t type);
-uint32_t  jass_pushinteger(LPJASS j, int32_t value);
-uint32_t  jass_pushnumber(LPJASS j, float value);
-uint32_t  jass_pushboolean(LPJASS j, bool value);
-uint32_t  jass_pushstring(LPJASS j, cstring_t value);
-uint32_t  jass_pushstringlen(LPJASS j, cstring_t value, uint32_t len);
-uint32_t  jass_pushlighthandle(LPJASS j, handle_t value, cstring_t type);
-LPJASSCOROUTINE jass_startcoroutinebyname(LPJASS j, cstring_t name);
-LPJASSCOROUTINE jass_startcoroutinebynameforplayer(LPJASS j, cstring_t name, struct playerState_s *player);
-bool   jass_callcoroutinebyname(LPJASS j, cstring_t name);
-void   jass_sleep(LPJASS j, uint32_t msec);
+int32_t   jass_checkinteger(jass_t * j, int index);
+float  jass_checknumber(jass_t * j, int index);
+bool   jass_checkboolean(jass_t * j, int index);
+cstring_t jass_checkstring(jass_t * j, int index);
+handle_t jass_checkhandle(jass_t * j, int index, cstring_t type);
+uint32_t  jass_pushnull(jass_t * j);
+uint32_t  jass_pushnullhandle(jass_t * j, cstring_t type);
+uint32_t  jass_pushinteger(jass_t * j, int32_t value);
+uint32_t  jass_pushnumber(jass_t * j, float value);
+uint32_t  jass_pushboolean(jass_t * j, bool value);
+uint32_t  jass_pushstring(jass_t * j, cstring_t value);
+uint32_t  jass_pushstringlen(jass_t * j, cstring_t value, uint32_t len);
+uint32_t  jass_pushlighthandle(jass_t * j, handle_t value, cstring_t type);
+jasscoroutine_t * jass_startcoroutinebyname(jass_t * j, cstring_t name);
+jasscoroutine_t * jass_startcoroutinebynameforplayer(jass_t * j, cstring_t name, struct playerState_s *player);
+bool   jass_callcoroutinebyname(jass_t * j, cstring_t name);
+void   jass_sleep(jass_t * j, uint32_t msec);
 void   jass_settimercontext(handle_t timer);
 
 #endif

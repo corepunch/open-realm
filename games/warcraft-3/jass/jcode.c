@@ -3,10 +3,10 @@
 #include "jopcodes.h"
 #include "jparser.h"
 
-#define TOKENFUNC(NAME) void write_##NAME(LPWRITER w, LPCTOKEN t)
+#define TOKENFUNC(NAME) void write_##NAME(writer_t * w, token_t const * t)
 #define TOKENEVAL(NAME) { #NAME, TT_##NAME, write_##NAME }
 
-KNOWN_AS(vmWriter, WRITER);
+KNOWN_AS(vmWriter, writer_t);
 
 typedef char vmBuffer_t[1024 * 1024];
 
@@ -63,8 +63,8 @@ TOKENFUNC(Boolean) {
 }
 
 TOKENFUNC(Identifier) {
-//    LPCJASSFUNC f = NULL;
-//    LPCJASSVAR v = NULL;
+//    jassFunc_t const * f = NULL;
+//    jassVar_t const * v = NULL;
 //    if (t->flags & TF_FUNCTION) {
 //        if ((f = find_function(j, t->primary))) {
 //            return jass_pushfunction(j, f);
@@ -86,7 +86,7 @@ TOKENFUNC(FourCC) {
 
 TOKENFUNC(Call) {
     uint32_t num_args = 0;
-    FOR_EACH_LIST(TOKEN, arg, t->args) {
+    FOR_EACH_LIST(token_t, arg, t->args) {
         write_RegularToken(w, arg);
         num_args++;
     }
@@ -96,8 +96,8 @@ TOKENFUNC(Call) {
     VM_Write(&w->text, "\tbl _%s, %d", t->primary, num_args);
 //    }
 
-//    LPCJASSFUNC f = NULL;
-//    LPJASSCFUNCTION cf = NULL;
+//    jassFunc_t const * f = NULL;
+//    jassCFunction_t cf = NULL;
 //    uint32_t stacksize = j->num_stack;
 //    if (!strcmp(t->primary, "CommentString") && t->args) {
 //        fprintf(stdout, "%s\n", t->args->primary);
@@ -131,7 +131,7 @@ TOKENFUNC(Call) {
 
 static struct {
     TOKENTYPE tokentype;
-    void (*func)(LPWRITER w, LPCTOKEN t);
+    void (*func)(writer_t * w, token_t const * t);
 } compiler_token_types[] = {
     { TT_INTEGER, write_Integer },
     { TT_REAL, write_Real },
@@ -161,7 +161,7 @@ TOKENFUNC(TYPEDEF) {
     VM_Write(&w->global, "\t.asciz \"%s\"", t->primary);
 }
 
-void VM_InitValue(LPWRITER w, LPCTOKEN t, cstring_t name) {
+void VM_InitValue(writer_t * w, token_t const * t, cstring_t name) {
     uint32_t start = w->text.writecount;
     write_RegularToken(w, t);
     uint32_t diff = w->text.writecount - start;
@@ -194,7 +194,7 @@ TOKENFUNC(FUNCTION) {
 struct {
     cstring_t name;
     TOKENTYPE type;
-    void (*func)(LPWRITER, LPCTOKEN);
+    void (*func)(writer_t *, token_t const *);
 } token_writers[] = {
     TOKENEVAL(TYPEDEF),
     TOKENEVAL(FUNCTION),
@@ -218,7 +218,7 @@ TOKENFUNC(SINGLETOKEN) {
 }
 
 TOKENFUNC(TOKENS) {
-    FOR_EACH_LIST(TOKEN const, tok, t) {
+    FOR_EACH_LIST(token_t const, tok, t) {
 //        if (tok->type == TT_RETURN) {
 //            jass_setreturn(j);
 //            jass_dotoken(j, tok->body);
@@ -228,9 +228,9 @@ TOKENFUNC(TOKENS) {
     }
 }
 
-VMPROGRAM VM_Compile(LPCTOKEN t) {
+vmprogram_t VM_Compile(token_t const * t) {
     memset(vmBuffers, 0, sizeof(vmBuffers));
-    WRITER w = {
+    writer_t w = {
         .global = {
             .data = vmBuffers[0],
             .writecount = 0,
@@ -253,7 +253,7 @@ VMPROGRAM VM_Compile(LPCTOKEN t) {
         }
     };
     write_TOKENS(&w, t);
-    VMPROGRAM program = { vmBuffers[0], 0 };
+    vmprogram_t program = { vmBuffers[0], 0 };
     return program;
 }
 

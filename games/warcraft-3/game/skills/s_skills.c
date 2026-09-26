@@ -752,7 +752,7 @@ ability_t const *FindAbilityByOrder(cstring_t order) {
 }
 
 /* Persistent effects can outlive their active order; the callback owns its per-unit state checks. */
-void S_RunAbilityUpdates(LPEDICT ent) {
+void S_RunAbilityUpdates(edict_t * ent) {
     FOR_LOOP(i, num_updates)
         ability_updates[i](ent, A_UPDATE, NULL);
     S_UpdateUnitPassiveEffects(ent);
@@ -760,7 +760,7 @@ void S_RunAbilityUpdates(LPEDICT ent) {
 
 /* Unit-data abilities exist independently of command-card slots. Notifications visit every owner;
  * idle and acquisition queries stop when an owner consumes the decision. */
-bool S_UnitAbilityEvent(LPEDICT ent, abilityMsg_t msg) {
+bool S_UnitAbilityEvent(edict_t * ent, abilityMsg_t msg) {
     bool handled = false;
     if (msg == A_MOVE_LEAVE && ent && ent->channel.code) {
         abilityitem_t item = S_AbilityItem(ent->channel.code);
@@ -778,7 +778,7 @@ bool S_UnitAbilityEvent(LPEDICT ent, abilityMsg_t msg) {
 /* Accepted instant/spell orders can leave the current movement object untouched.
  * Give innate behavior owners one generic post-accept hook so they can retire
  * their own state without putting ability names in m_unit.c. */
-bool S_UnitAbilityOrderAccepted(LPEDICT ent, cstring_t order) {
+bool S_UnitAbilityOrderAccepted(edict_t * ent, cstring_t order) {
     bool handled = false;
     if (!ent || !order) return false;
     FOR_LOOP(i, num_innate) {
@@ -790,7 +790,7 @@ bool S_UnitAbilityOrderAccepted(LPEDICT ent, cstring_t order) {
 
 /* Queued work is returned to the procedure that owns its order. The stored
  * order_id remains the concrete rawcode payload for that ability. */
-bool S_UnitQueuedOrderEvent(LPEDICT ent, unitOrder_t const *queued, abilityMsg_t msg) {
+bool S_UnitQueuedOrderEvent(edict_t * ent, unitOrder_t const *queued, abilityMsg_t msg) {
     ability_t const *ability;
     abilityitem_t item;
     abilityCall_t call;
@@ -803,7 +803,7 @@ bool S_UnitQueuedOrderEvent(LPEDICT ent, unitOrder_t const *queued, abilityMsg_t
     return S_AbilityMessage(ent, msg, &call) != 0;
 }
 
-static bool unit_target_ability_try(LPEDICT target, LPEDICT issuer, cstring_t order, uint32_t code,
+static bool unit_target_ability_try(edict_t * target, edict_t * issuer, cstring_t order, uint32_t code,
                                     uint32_t *seen, uint32_t *seen_count, uint32_t seen_capacity) {
     abilityitem_t item;
     abilityCall_t call;
@@ -819,7 +819,7 @@ static bool unit_target_ability_try(LPEDICT target, LPEDICT issuer, cstring_t or
 
 /* Generic target-owned interaction dispatch. The target's concrete authored
  * rawcode is retained so derived AbilityData aliases can consume their own data. */
-bool S_UnitTargetAbilityOrder(LPEDICT target, LPEDICT issuer, cstring_t order) {
+bool S_UnitTargetAbilityOrder(edict_t * target, edict_t * issuer, cstring_t order) {
     uint32_t seen[MAX_ABILITIES * 2 + MAX_HERO_ABILITIES] = {0};
     uint32_t seen_count = 0;
     uint32_t const seen_capacity = sizeof(seen) / sizeof(*seen);
@@ -850,8 +850,8 @@ bool S_UnitTargetAbilityOrder(LPEDICT target, LPEDICT issuer, cstring_t order) {
 }
 
 /* Dispatch projectile impact to the target's authored abilities before damage is applied. */
-bool S_UnitProjectileHit(LPEDICT projectile) {
-    LPEDICT target = projectile ? projectile->goalentity : NULL;
+bool S_UnitProjectileHit(edict_t * projectile) {
+    edict_t * target = projectile ? projectile->goalentity : NULL;
     if (!target || !target->inuse) return false;
     FOR_LOOP(i, game.num_abilities) {
         ability_t const *ability = abilitylist + i;
@@ -904,20 +904,20 @@ BZ_ABILITY_PROC(S_AbilityMessage) {
     return ability && ability->proc ? ability->proc(ent, msg, call) : false;
 }
 
-void S_EnableAbility(LPEDICT ent, uint32_t code) {
+void S_EnableAbility(edict_t * ent, uint32_t code) {
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     if (item.ability) S_AbilityMessage(ent, A_ENABLE, &call);
 }
 
-void S_DisableAbility(LPEDICT ent, uint32_t code) {
+void S_DisableAbility(edict_t * ent, uint32_t code) {
     if (ent && ent->autocast_code == code) G_SetUnitAutocast(ent, code, false);
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     if (item.ability) S_AbilityMessage(ent, A_DISABLE, &call);
 }
 
-void S_RefreshAbilityLevel(LPEDICT ent, ability_t const *ability) {
+void S_RefreshAbilityLevel(edict_t * ent, ability_t const *ability) {
     abilityitem_t item = MAKE(abilityitem_t, .ability = ability);
     abilityCall_t query = MAKE(abilityCall_t, .item = &item);
     abilityCall_t changed;
@@ -927,7 +927,7 @@ void S_RefreshAbilityLevel(LPEDICT ent, ability_t const *ability) {
 }
 
 /* The selected rawcode is shared state; each procedure owns its autocast policy and side effects. */
-bool G_UnitAutocastIsOn(LPEDICT ent, uint32_t code) {
+bool G_UnitAutocastIsOn(edict_t * ent, uint32_t code) {
     abilityitem_t item = S_AbilityItem(code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
     return ent && code && ent->autocast_code == code && item.ability && (item.ability->flags & AB_AUTOCAST) &&
@@ -935,7 +935,7 @@ bool G_UnitAutocastIsOn(LPEDICT ent, uint32_t code) {
 }
 
 /* Keeping the alias through the UI and scheduler preserves authored cost, range and effect data. */
-bool G_SetUnitAutocast(LPEDICT ent, uint32_t code, bool enabled) {
+bool G_SetUnitAutocast(edict_t * ent, uint32_t code, bool enabled) {
     abilityitem_t item = S_AbilityItem(code), old;
     abilityCall_t call = MAKE(abilityCall_t, .item = &item, .enabled = enabled);
     if (!ent || !item.ability || !(item.ability->flags & AB_AUTOCAST) ||
@@ -962,7 +962,7 @@ bool G_SetUnitAutocast(LPEDICT ent, uint32_t code, bool enabled) {
 }
 
 /* Dispatch the selected alias directly, including runtime-added abilities absent from UnitAbilities. */
-bool G_TryUnitAutocast(LPEDICT ent) {
+bool G_TryUnitAutocast(edict_t * ent) {
     if (!ent || !(ent->aiflags & AI_AUTOCAST_ACTIVE)) return false;
     abilityitem_t item = S_AbilityItem(ent->autocast_code);
     abilityCall_t call = MAKE(abilityCall_t, .item = &item);
@@ -986,7 +986,7 @@ bool S_AbilityHasCommand(ability_t const *ability) {
 
 /* The shared-cast bit owns dispatch; procedures can override command handling
  * and delegate the message to CAbilitySimpleSpell when it is not specialized. */
-void S_AbilityCommand(LPEDICT clent, ability_t const *ability) {
+void S_AbilityCommand(edict_t * clent, ability_t const *ability) {
     abilityitem_t item;
     abilityCall_t call;
 

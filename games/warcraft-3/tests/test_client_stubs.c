@@ -20,13 +20,13 @@ menuExport_t menu;
 mouseEvent_t mouse;
 uint32_t test_fow_upload_calls;
 uint32_t test_cursor_draw_calls;
-COLOR32 test_cursor_tint;
+color32_t test_cursor_tint;
 char test_forwarded_command[128];
 char test_menu_action[32];
 char test_menu_action_arg[128];
 char test_console_message[MAX_CONSOLE_MESSAGE_LEN];
 static PATHSTR test_existing_file;
-static BOX2 test_world_bounds;
+static box2_t test_world_bounds;
 static size2_t test_window_size;
 static UICANVASPOLICY test_canvas_policy = UI_CANVAS_POLICY;
 static rect_t test_ui_scene;
@@ -44,8 +44,8 @@ bool FS_FileExists(cstring_t fileName) {
     return fileName && test_existing_file[0] && !strcasecmp(fileName, test_existing_file);
 }
 
-void test_client_stubs_set_world_bounds(BOX2 bounds) { test_world_bounds = bounds; }
-BOX2 CM_GetWorldBounds(void) { return test_world_bounds; }
+void test_client_stubs_set_world_bounds(box2_t bounds) { test_world_bounds = bounds; }
+box2_t CM_GetWorldBounds(void) { return test_world_bounds; }
 
 void test_client_stubs_set_cvar(cstring_t name, cstring_t value) {
     FOR_LOOP(i, MOCK_CVAR_COUNT) {
@@ -69,10 +69,10 @@ void test_client_stubs_set_canvas_policy(UICANVASPOLICY policy) {
     test_canvas_policy = policy;
     CL_CanvasResolvePolicy();
 }
-static void mock_DrawLoadingIndicator(rect_t const * rect, uint32_t time, COLOR32 color) { (void)rect; (void)time; (void)color; }
-static void mock_DrawFill(rect_t const * rect, COLOR32 color) { (void)rect; (void)color; }
-static void mock_DrawImageEx(LPCDRAWIMAGE image) { (void)image; }
-static bool mock_DrawCursor(float x, float y, COLOR32 tint) {
+static void mock_DrawLoadingIndicator(rect_t const * rect, uint32_t time, color32_t color) { (void)rect; (void)time; (void)color; }
+static void mock_DrawFill(rect_t const * rect, color32_t color) { (void)rect; (void)color; }
+static void mock_DrawImageEx(drawImage_t const * image) { (void)image; }
+static bool mock_DrawCursor(float x, float y, color32_t tint) {
     (void)x; (void)y;
     test_cursor_draw_calls++;
     test_cursor_tint = tint;
@@ -134,7 +134,7 @@ cvar_t *Cvar_Set(cstring_t name, cstring_t value) {
     return NULL;
 }
 
-void CL_ParseTEnt(LPSIZEBUF msg) { (void)msg; }
+void CL_ParseTEnt(sizeBuf_t * msg) { (void)msg; }
 void CL_BeginLoadingMap(cstring_t mapName) { (void)mapName; cl.playerstate.client_ui_state = CLIENT_UI_LOADING; cls.state = ca_connected; cl.num_active = 0; }
 void CL_SetGameplayInput(void) { cls.key_dest = key_game; }
 void CL_ReloadImageResources(void) {}
@@ -142,11 +142,11 @@ void CL_Disconnect(cstring_t reason, bool notify) { (void)reason; (void)notify; 
 void CL_EntityEvent(entityState_t const *ent) { (void)ent; }
 void S_RegisterSound(cstring_t path) { (void)path; }
 void S_PlaySoundFile(cstring_t path) { (void)path; }
-void S_PlaySoundPacket(cstring_t path, LPCVECTOR3 origin, bool positioned, int channel, float volume, float attenuation,
+void S_PlaySoundPacket(cstring_t path, vector3_t const * origin, bool positioned, int channel, float volume, float attenuation,
                        float timeofs) {
     (void)path; (void)origin; (void)positioned; (void)channel; (void)volume; (void)attenuation; (void)timeofs;
 }
-bool S_PlaySoundPolicy(cstring_t path, LPCVECTOR3 origin, bool positioned, int channel, float volume,
+bool S_PlaySoundPolicy(cstring_t path, vector3_t const * origin, bool positioned, int channel, float volume,
                        float attenuation, float timeofs, soundPolicy_t const *policy) {
     (void)policy;
     S_PlaySoundPacket(path, origin, positioned, channel, volume, attenuation, timeofs);
@@ -199,7 +199,7 @@ void test_client_stubs_init(void) {
     test_menu_action_arg[0] = '\0';
     test_console_message[0] = '\0';
     test_existing_file[0] = '\0';
-    test_world_bounds = (BOX2){ 0 };
+    test_world_bounds = (box2_t){ 0 };
     test_window_size = MAKE(size2_t, 1024, 768);
     test_canvas_policy = UI_CANVAS_POLICY;
     test_ui_scene = (rect_t){ 0 };

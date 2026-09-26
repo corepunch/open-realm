@@ -72,7 +72,7 @@ static void SV_LanInfo(const netadr_t *from) {
                            slots);
 }
 
-void SV_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
+void SV_ConnectionlessPacket(const netadr_t *from, sizeBuf_t * msg) {
     char payload[256];
     char command[32] = { 0 };
     char *status;

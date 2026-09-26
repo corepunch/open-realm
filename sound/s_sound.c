@@ -615,7 +615,7 @@ static int S_AdmitSound(sfxcache_t *sc, soundPolicy_t const *p) {
     return free_slot;
 }
 
-static bool S_StartSound(sfxcache_t *sc, float volume, LPCVECTOR2 origin, bool is_positional, int channel,
+static bool S_StartSound(sfxcache_t *sc, float volume, vector2_t const * origin, bool is_positional, int channel,
                          float attenuation, float timeofs, soundPolicy_t const *policy) {
     int selected = -1;
     unsigned priority = policy ? policy->priority : SOUND_PRIORITY(channel);
@@ -641,7 +641,7 @@ static bool S_StartSound(sfxcache_t *sc, float volume, LPCVECTOR2 origin, bool i
         s.channels[ch].master_vol   = volume;
         s.channels[ch].leftvol      = volume;
         s.channels[ch].rightvol     = volume;
-        s.channels[ch].origin       = origin ? *origin : (VECTOR2){ 0.0f, 0.0f };
+        s.channels[ch].origin       = origin ? *origin : (vector2_t){ 0.0f, 0.0f };
         s.channels[ch].attenuation  = attenuation;
         s.channels[ch].channel      = channel & 7;
         s.channels[ch].priority     = priority;
@@ -699,7 +699,7 @@ void S_PlaySoundFile(cstring_t path) {
 }
 
 /* Play a positional sound at a 2D world origin (distance attenuation + stereo pan). */
-void S_PlaySoundAt(cstring_t path, LPCVECTOR2 origin) {
+void S_PlaySoundAt(cstring_t path, vector2_t const * origin) {
     if (!s.initialized || !path || !*path) return;
     sfx_t *sfx = S_FindSfx(path, true);
     if (!sfx) return;
@@ -707,14 +707,14 @@ void S_PlaySoundAt(cstring_t path, LPCVECTOR2 origin) {
     S_StartSound(S_LoadSfx(sfx), 1.0f, origin, true, 0, DEFAULT_SOUND_PACKET_ATTENUATION, 0, NULL);
 }
 
-void S_PlaySoundPacket(cstring_t path, LPCVECTOR3 origin, bool positioned, int channel, float volume,
+void S_PlaySoundPacket(cstring_t path, vector3_t const * origin, bool positioned, int channel, float volume,
                        float attenuation, float timeofs) {
     sfx_t *sfx;
     if (!s.initialized || !path || !*path) return;
     sfx = S_FindSfx(path, true);
     if (!sfx) return;
     sfx->registration_sequence = s.registration_sequence;
-    S_StartSound(S_LoadSfx(sfx), volume, positioned ? &(VECTOR2){ origin->x, origin->y } : NULL, positioned,
+    S_StartSound(S_LoadSfx(sfx), volume, positioned ? &(vector2_t){ origin->x, origin->y } : NULL, positioned,
                  channel, attenuation, timeofs, NULL);
 }
 
@@ -723,7 +723,7 @@ void S_BeginLoopingSounds(void) {
     if (++s.loop_generation == 0) ++s.loop_generation;
 }
 
-void S_UpdateLoopingSound(uint32_t entity, cstring_t path, LPCVECTOR2 origin, float volume, float attenuation) {
+void S_UpdateLoopingSound(uint32_t entity, cstring_t path, vector2_t const * origin, float volume, float attenuation) {
     sfx_t *sfx;
     sfxcache_t *sc;
     int free_channel = -1;
@@ -742,7 +742,7 @@ void S_UpdateLoopingSound(uint32_t entity, cstring_t path, LPCVECTOR2 origin, fl
                 s.channels[ch].sc = sc;
                 s.channels[ch].pos = 0;
             }
-            s.channels[ch].origin = origin ? *origin : (VECTOR2){0};
+            s.channels[ch].origin = origin ? *origin : (vector2_t){0};
             s.channels[ch].master_vol = volume;
             s.channels[ch].attenuation = attenuation;
             s.channels[ch].is_positional = origin != NULL;
@@ -758,7 +758,7 @@ void S_UpdateLoopingSound(uint32_t entity, cstring_t path, LPCVECTOR2 origin, fl
         s.channels[ch].sc = sc;
         s.channels[ch].master_vol = volume;
         s.channels[ch].leftvol = s.channels[ch].rightvol = volume;
-        s.channels[ch].origin = origin ? *origin : (VECTOR2){0};
+        s.channels[ch].origin = origin ? *origin : (vector2_t){0};
         s.channels[ch].attenuation = attenuation;
         s.channels[ch].entity = entity;
         s.channels[ch].loop_generation = s.loop_generation;
@@ -860,13 +860,13 @@ void S_StreamStop(sStreamId_t stream) {
     SDL_UnlockAudioDevice(s.device);
 }
 
-void S_SetListener(LPCVECTOR2 origin, LPCVECTOR2 right) {
+void S_SetListener(vector2_t const * origin, vector2_t const * right) {
     s.listener.origin = *origin;
     s.listener.right  = *right;
 }
 
 
-bool S_PlaySoundPolicy(cstring_t path, LPCVECTOR3 origin, bool positioned, int channel, float volume,
+bool S_PlaySoundPolicy(cstring_t path, vector3_t const * origin, bool positioned, int channel, float volume,
                        float attenuation, float timeofs, soundPolicy_t const *policy) {
     sfx_t *sfx;
     if (policy && policy->request) S_ReserveSoundEvents();
@@ -882,7 +882,7 @@ bool S_PlaySoundPolicy(cstring_t path, LPCVECTOR3 origin, bool positioned, int c
     }
     if (!(sfx = S_FindSfx(path, true))) goto rejected;
     sfx->registration_sequence = s.registration_sequence;
-    if (S_StartSound(S_LoadSfx(sfx), volume, positioned ? &(VECTOR2){ origin->x, origin->y } : NULL,
+    if (S_StartSound(S_LoadSfx(sfx), volume, positioned ? &(vector2_t){ origin->x, origin->y } : NULL,
                      positioned, channel, attenuation, timeofs, policy)) return true;
 rejected:
     SDL_LockAudioDevice(s.device);

@@ -17,19 +17,19 @@ enum {
 
 struct frustum3 {
     union {
-        struct { PLANE3 left, right, bottom, top, front, back; };
-        PLANE3 planes[FRUSTUM_NUM_PLANES];
+        struct { plane3_t left, right, bottom, top, front, back; };
+        plane3_t planes[FRUSTUM_NUM_PLANES];
     };
 };
 
-typedef struct frustum3 FRUSTUM3;
-typedef struct frustum3 *LPFRUSTUM3;
-typedef struct frustum3 const *LPCFRUSTUM3;
+typedef struct frustum3 frustum3_t;
 
-void Frustum_Calculate(LPCMATRIX4 matrix, LPFRUSTUM3 output);
-int Frustum_ContainsPoint(LPCFRUSTUM3 frustum, LPCVECTOR3 point);
-int Frustum_ContainsSphere(LPCFRUSTUM3 frustum, LPCSPHERE3 sphere);
-int Frustum_ContainsBox(LPCFRUSTUM3 frustum, LPCBOX3 box, LPCMATRIX4 matrix);
-int Frustum_ContainsAABox(LPCFRUSTUM3 frustum, LPCBOX3 box);
+
+
+void Frustum_Calculate(matrix4_t const * matrix, frustum3_t * output);
+int Frustum_ContainsPoint(frustum3_t const * frustum, vector3_t const * point);
+int Frustum_ContainsSphere(frustum3_t const * frustum, sphere3_t const * sphere);
+int Frustum_ContainsBox(frustum3_t const * frustum, box3_t const * box, matrix4_t const * matrix);
+int Frustum_ContainsAABox(frustum3_t const * frustum, box3_t const * box);
 
 #endif

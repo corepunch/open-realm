@@ -305,7 +305,7 @@ typedef struct {
     uint32_t dwBlockTablePos;      // Offset to block table from archive start
     uint32_t dwHashTableSize;      // Number of hash table entries
     uint32_t dwBlockTableSize;     // Number of block table entries
-} MPQ_HEADER_V1;
+} mpqHeaderV1_t;
 
 typedef struct {
     uint32_t dwNameHash1;          // First name hash
@@ -314,14 +314,14 @@ typedef struct {
     uint8_t bPlatform;             // Platform
     uint8_t bFlags;                // Flags
     uint32_t dwBlockIndex;         // Block table index (or 0xFFFFFFFF for free/deleted)
-} MPQ_HASH_ENTRY;
+} mpqHashEntry_t;
 
 typedef struct {
     uint32_t dwBlockOffset;        // Offset from MPQ header
     uint32_t dwBlockSize;          // Compressed size
     uint32_t dwFileSize;           // Uncompressed size
     uint32_t dwFlags;              // File flags
-} MPQ_BLOCK_ENTRY;
+} mpqBlockEntry_t;
 
 struct mpq_cache_entry;
 
@@ -334,9 +334,9 @@ typedef struct {
     uint32_t base_offset;
     struct mpq_cache_entry **lookup_cache;
     uint32_t lookup_cache_size;
-    MPQ_HEADER_V1 header;
-    MPQ_HASH_ENTRY *hashtable;
-    MPQ_BLOCK_ENTRY *blocktable;
+    mpqHeaderV1_t header;
+    mpqHashEntry_t *hashtable;
+    mpqBlockEntry_t *blocktable;
     uint32_t sector_size;
     uint8_t *sector_buffer;
     bool write_mode;
@@ -344,10 +344,10 @@ typedef struct {
     struct mpq_write_entry *write_entries;
     uint32_t write_count;
     uint32_t write_capacity;
-} MPQ_ARCHIVE;
+} mpqArchive_t;
 
 typedef struct {
-    MPQ_ARCHIVE *archive;
+    mpqArchive_t *archive;
     handle_t owner_archive;
     uint8_t *owner_memory;
     uint32_t block_index;
@@ -358,21 +358,21 @@ typedef struct {
     uint32_t file_key;
     uint32_t sector_count;
     uint32_t *sector_offsets;
-} MPQ_FILE;
+} mpqFile_t;
 
 typedef struct {
-    MPQ_ARCHIVE *archive;
+    mpqArchive_t *archive;
     uint32_t current_index;
     uint32_t file_count;
     char **files;
     char mask[MAX_PATH];
-} MPQ_FIND;
+} mpqFind_t;
 
 typedef struct mpq_cache_entry {
     char *name;
     uint32_t block_index;
     struct mpq_cache_entry *next;
-} MPQ_CACHE_ENTRY;
+} mpqCacheEntry_t;
 
 typedef struct mpq_write_entry {
     char *name;
@@ -380,18 +380,18 @@ typedef struct mpq_write_entry {
     uint32_t block_size;
     uint32_t file_size;
     uint32_t flags;
-} MPQ_WRITE_ENTRY;
+} mpqWriteEntry_t;
 
 typedef struct {
     char *name;
     uint32_t hash1;
     uint32_t hash2;
-} MPQ_LISTFILE_ENTRY;
+} mpqListfileEntry_t;
 
 typedef struct mpq_listfile_bucket_entry {
-    MPQ_LISTFILE_ENTRY *entry;
+    mpqListfileEntry_t *entry;
     struct mpq_listfile_bucket_entry *next;
-} MPQ_LISTFILE_BUCKET_ENTRY;
+} mpqListfileBucketEntry_t;
 
 #define STORM_BUFFER_SIZE 0x500
 
@@ -517,11 +517,11 @@ static void CanonicalizeMpqKey(const char *src, char *dst, size_t dst_size)
     TrimEdgeSlashes(dst);
 }
 
-static bool LookupCachedBlock(MPQ_ARCHIVE *mpq, const char *fileName, uint32_t *block_index)
+static bool LookupCachedBlock(mpqArchive_t *mpq, const char *fileName, uint32_t *block_index)
 {
     char key[1024];
     uint32_t hash;
-    MPQ_CACHE_ENTRY *entry;
+    mpqCacheEntry_t *entry;
 
     if (!mpq->lookup_cache || mpq->lookup_cache_size == 0) {
         return false;
@@ -541,11 +541,11 @@ static bool LookupCachedBlock(MPQ_ARCHIVE *mpq, const char *fileName, uint32_t *
     return false;
 }
 
-static void CacheBlockLookup(MPQ_ARCHIVE *mpq, const char *fileName, uint32_t block_index)
+static void CacheBlockLookup(mpqArchive_t *mpq, const char *fileName, uint32_t block_index)
 {
     char key[1024];
     uint32_t hash;
-    MPQ_CACHE_ENTRY *entry;
+    mpqCacheEntry_t *entry;
 
     if (!mpq->lookup_cache || mpq->lookup_cache_size == 0) {
         return;
@@ -553,7 +553,7 @@ static void CacheBlockLookup(MPQ_ARCHIVE *mpq, const char *fileName, uint32_t bl
 
     CanonicalizeMpqKey(fileName, key, sizeof(key));
     hash = CacheKeyHash(key);
-    entry = (MPQ_CACHE_ENTRY *)malloc(sizeof(MPQ_CACHE_ENTRY));
+    entry = (mpqCacheEntry_t *)malloc(sizeof(mpqCacheEntry_t));
     if (!entry) {
         return;
     }
@@ -599,7 +599,7 @@ static bool HasArchiveExtensionAt(cstring_t path, size_t dot)
     return false;
 }
 
-static bool FindBlockIndex(MPQ_ARCHIVE *mpq, const char *fileName, uint32_t hash1, uint32_t hash2, uint32_t *block_index)
+static bool FindBlockIndex(mpqArchive_t *mpq, const char *fileName, uint32_t hash1, uint32_t hash2, uint32_t *block_index)
 {
     uint32_t hash_pos;
     uint32_t index;
@@ -611,7 +611,7 @@ static bool FindBlockIndex(MPQ_ARCHIVE *mpq, const char *fileName, uint32_t hash
                 fileName, hash1, hash2, mpq->header.dwHashTableSize, hash_pos);
     }
     for (index = 0; index < mpq->header.dwHashTableSize; index++) {
-        MPQ_HASH_ENTRY *entry = &mpq->hashtable[(hash_pos + index) & (mpq->header.dwHashTableSize - 1)];
+        mpqHashEntry_t *entry = &mpq->hashtable[(hash_pos + index) & (mpq->header.dwHashTableSize - 1)];
 
         if (trace && index < 8) {
             fprintf(stderr, "MPQ lookup probe[%u]: block=%08x h1=%08x h2=%08x\n",
@@ -642,7 +642,7 @@ static bool FindBlockIndex(MPQ_ARCHIVE *mpq, const char *fileName, uint32_t hash
         fprintf(stderr, "MPQ lookup: falling back to full scan\n");
     }
     for (index = 0; index < mpq->header.dwHashTableSize; index++) {
-        MPQ_HASH_ENTRY *entry = &mpq->hashtable[index];
+        mpqHashEntry_t *entry = &mpq->hashtable[index];
 
         if (entry->dwBlockIndex == MPQ_HASH_ENTRY_DELETED ||
             entry->dwBlockIndex == MPQ_HASH_ENTRY_FREE) {
@@ -750,7 +750,7 @@ static uint32_t NextPowerOfTwo(uint32_t value)
     return result;
 }
 
-static void FreeWriterEntries(MPQ_ARCHIVE *mpq)
+static void FreeWriterEntries(mpqArchive_t *mpq)
 {
     uint32_t i;
 
@@ -768,7 +768,7 @@ static void FreeWriterEntries(MPQ_ARCHIVE *mpq)
     mpq->write_capacity = 0;
 }
 
-static bool WriterHasEntry(MPQ_ARCHIVE *mpq, const char *fileName)
+static bool WriterHasEntry(mpqArchive_t *mpq, const char *fileName)
 {
     uint32_t i;
     char key[1024];
@@ -829,9 +829,9 @@ static bool WriterCompressData(const uint8_t *data, uint32_t size, uint8_t **out
     return true;
 }
 
-static bool WriterAddData(MPQ_ARCHIVE *mpq, const char *archivedName, const uint8_t *data, uint32_t size)
+static bool WriterAddData(mpqArchive_t *mpq, const char *archivedName, const uint8_t *data, uint32_t size)
 {
-    MPQ_WRITE_ENTRY *entry;
+    mpqWriteEntry_t *entry;
     uint8_t *compressed = NULL;
     const uint8_t *to_write = data;
     uint32_t write_size = size;
@@ -875,7 +875,7 @@ static bool WriterAddData(MPQ_ARCHIVE *mpq, const char *archivedName, const uint
 
     if (mpq->write_count == mpq->write_capacity) {
         uint32_t next = mpq->write_capacity ? mpq->write_capacity * 2 : 16;
-        MPQ_WRITE_ENTRY *tmp = (MPQ_WRITE_ENTRY *)realloc(mpq->write_entries, next * sizeof(*tmp));
+        mpqWriteEntry_t *tmp = (mpqWriteEntry_t *)realloc(mpq->write_entries, next * sizeof(*tmp));
         if (!tmp) {
             return false;
         }
@@ -898,11 +898,11 @@ static bool WriterAddData(MPQ_ARCHIVE *mpq, const char *archivedName, const uint
     return true;
 }
 
-static bool FinalizeCreatedArchive(MPQ_ARCHIVE *mpq)
+static bool FinalizeCreatedArchive(mpqArchive_t *mpq)
 {
-    MPQ_HEADER_V1 header;
-    MPQ_HASH_ENTRY *hash_table = NULL;
-    MPQ_BLOCK_ENTRY *block_table = NULL;
+    mpqHeaderV1_t header;
+    mpqHashEntry_t *hash_table = NULL;
+    mpqBlockEntry_t *block_table = NULL;
     uint32_t total_entries;
     uint32_t hash_size;
     uint32_t block_size = 0;
@@ -958,8 +958,8 @@ static bool FinalizeCreatedArchive(MPQ_ARCHIVE *mpq)
         goto done;
     }
 
-    hash_table = (MPQ_HASH_ENTRY *)malloc(hash_size * sizeof(*hash_table));
-    block_table = (MPQ_BLOCK_ENTRY *)malloc(total_entries * sizeof(*block_table));
+    hash_table = (mpqHashEntry_t *)malloc(hash_size * sizeof(*hash_table));
+    block_table = (mpqBlockEntry_t *)malloc(total_entries * sizeof(*block_table));
     if (!hash_table || !block_table) {
         goto done;
     }
@@ -985,7 +985,7 @@ static bool FinalizeCreatedArchive(MPQ_ARCHIVE *mpq)
 
     offset = (uint32_t)table_pos;
     for (i = 0; i < total_entries; i++) {
-        MPQ_WRITE_ENTRY *entry = &mpq->write_entries[i];
+        mpqWriteEntry_t *entry = &mpq->write_entries[i];
         uint32_t slot = HashString(entry->name, MPQ_HASH_NAME_A) & (hash_size - 1);
 
         block_table[i].dwBlockOffset = entry->offset;
@@ -1062,7 +1062,7 @@ static bool SectorTableLooksValid(const uint32_t *offsets, uint32_t sector_count
     return true;
 }
 
-static void PreloadListfileCache(MPQ_ARCHIVE *mpq);
+static void PreloadListfileCache(mpqArchive_t *mpq);
 
 static bool TryInflateSector(const uint8_t *compressed, uint32_t compressed_size, uint32_t uncompressed_size, uint8_t *out, uint32_t *out_size)
 {
@@ -1109,7 +1109,7 @@ static bool TryInflateSector(const uint8_t *compressed, uint32_t compressed_size
     return true;
 }
 
-static bool MpqSeek(MPQ_ARCHIVE *mpq, uint32_t offset)
+static bool MpqSeek(mpqArchive_t *mpq, uint32_t offset)
 {
     uint32_t pos;
 
@@ -1127,7 +1127,7 @@ static bool MpqSeek(MPQ_ARCHIVE *mpq, uint32_t offset)
     return mpq->fp && fseek(mpq->fp, pos, SEEK_SET) == 0;
 }
 
-static size_t MpqRead(MPQ_ARCHIVE *mpq, void *buffer, size_t size)
+static size_t MpqRead(mpqArchive_t *mpq, void *buffer, size_t size)
 {
     size_t available;
 
@@ -1149,7 +1149,7 @@ static size_t MpqRead(MPQ_ARCHIVE *mpq, void *buffer, size_t size)
     return mpq->fp ? fread(buffer, 1, size, mpq->fp) : 0;
 }
 
-static void MpqFreeReadArchive(MPQ_ARCHIVE *mpq)
+static void MpqFreeReadArchive(mpqArchive_t *mpq)
 {
     if (!mpq) {
         return;
@@ -1157,9 +1157,9 @@ static void MpqFreeReadArchive(MPQ_ARCHIVE *mpq)
     if (mpq->lookup_cache) {
         uint32_t i;
         for (i = 0; i < mpq->lookup_cache_size; i++) {
-            MPQ_CACHE_ENTRY *entry = mpq->lookup_cache[i];
+            mpqCacheEntry_t *entry = mpq->lookup_cache[i];
             while (entry) {
-                MPQ_CACHE_ENTRY *next = entry->next;
+                mpqCacheEntry_t *next = entry->next;
                 free(entry->name);
                 free(entry);
                 entry = next;
@@ -1174,7 +1174,7 @@ static void MpqFreeReadArchive(MPQ_ARCHIVE *mpq)
     free(mpq);
 }
 
-static bool SFileOpenArchiveSource(MPQ_ARCHIVE *mpq, handle_t *archive)
+static bool SFileOpenArchiveSource(mpqArchive_t *mpq, handle_t *archive)
 {
     unsigned char probe[1024];
     size_t read;
@@ -1186,7 +1186,7 @@ static bool SFileOpenArchiveSource(MPQ_ARCHIVE *mpq, handle_t *archive)
     }
 
     mpq->lookup_cache_size = 4096;
-    mpq->lookup_cache = (MPQ_CACHE_ENTRY **)calloc(mpq->lookup_cache_size, sizeof(MPQ_CACHE_ENTRY *));
+    mpq->lookup_cache = (mpqCacheEntry_t **)calloc(mpq->lookup_cache_size, sizeof(mpqCacheEntry_t *));
     if (!mpq->lookup_cache) {
         goto fail;
     }
@@ -1208,7 +1208,7 @@ static bool SFileOpenArchiveSource(MPQ_ARCHIVE *mpq, handle_t *archive)
     }
 
     // Read MPQ header
-    if (MpqRead(mpq, &mpq->header, sizeof(MPQ_HEADER_V1)) != sizeof(MPQ_HEADER_V1)) {
+    if (MpqRead(mpq, &mpq->header, sizeof(mpqHeaderV1_t)) != sizeof(mpqHeaderV1_t)) {
         goto fail;
     }
 
@@ -1234,7 +1234,7 @@ static bool SFileOpenArchiveSource(MPQ_ARCHIVE *mpq, handle_t *archive)
     }
 
     // Read hash table
-    mpq->hashtable = (MPQ_HASH_ENTRY *)malloc(mpq->header.dwHashTableSize * sizeof(MPQ_HASH_ENTRY));
+    mpq->hashtable = (mpqHashEntry_t *)malloc(mpq->header.dwHashTableSize * sizeof(mpqHashEntry_t));
     if (!mpq->hashtable) {
         goto fail;
     }
@@ -1242,17 +1242,17 @@ static bool SFileOpenArchiveSource(MPQ_ARCHIVE *mpq, handle_t *archive)
     if (!MpqSeek(mpq, mpq->header.dwHashTablePos)) {
         goto fail;
     }
-    read = MpqRead(mpq, mpq->hashtable, mpq->header.dwHashTableSize * sizeof(MPQ_HASH_ENTRY));
-    if (read != mpq->header.dwHashTableSize * sizeof(MPQ_HASH_ENTRY)) {
+    read = MpqRead(mpq, mpq->hashtable, mpq->header.dwHashTableSize * sizeof(mpqHashEntry_t));
+    if (read != mpq->header.dwHashTableSize * sizeof(mpqHashEntry_t)) {
         goto fail;
     }
 
     // Decrypt hash table
-    DecryptBlock((uint8_t *)mpq->hashtable, mpq->header.dwHashTableSize * sizeof(MPQ_HASH_ENTRY),
+    DecryptBlock((uint8_t *)mpq->hashtable, mpq->header.dwHashTableSize * sizeof(mpqHashEntry_t),
                  MPQ_KEY_HASH_TABLE);
 
     // Read block table
-    mpq->blocktable = (MPQ_BLOCK_ENTRY *)malloc(mpq->header.dwBlockTableSize * sizeof(MPQ_BLOCK_ENTRY));
+    mpq->blocktable = (mpqBlockEntry_t *)malloc(mpq->header.dwBlockTableSize * sizeof(mpqBlockEntry_t));
     if (!mpq->blocktable) {
         goto fail;
     }
@@ -1260,13 +1260,13 @@ static bool SFileOpenArchiveSource(MPQ_ARCHIVE *mpq, handle_t *archive)
     if (!MpqSeek(mpq, mpq->header.dwBlockTablePos)) {
         goto fail;
     }
-    read = MpqRead(mpq, mpq->blocktable, mpq->header.dwBlockTableSize * sizeof(MPQ_BLOCK_ENTRY));
-    if (read != mpq->header.dwBlockTableSize * sizeof(MPQ_BLOCK_ENTRY)) {
+    read = MpqRead(mpq, mpq->blocktable, mpq->header.dwBlockTableSize * sizeof(mpqBlockEntry_t));
+    if (read != mpq->header.dwBlockTableSize * sizeof(mpqBlockEntry_t)) {
         goto fail;
     }
 
     // Decrypt block table
-    DecryptBlock((uint8_t *)mpq->blocktable, mpq->header.dwBlockTableSize * sizeof(MPQ_BLOCK_ENTRY),
+    DecryptBlock((uint8_t *)mpq->blocktable, mpq->header.dwBlockTableSize * sizeof(mpqBlockEntry_t),
                  MPQ_KEY_BLOCK_TABLE);
 
     PreloadListfileCache(mpq);
@@ -1281,7 +1281,7 @@ fail:
 
 bool SFileOpenArchive(cstring_t filename, uint32_t priority, uint32_t flags, handle_t *archive)
 {
-    MPQ_ARCHIVE *mpq;
+    mpqArchive_t *mpq;
     FILE *fp;
 
     (void)priority;
@@ -1296,7 +1296,7 @@ bool SFileOpenArchive(cstring_t filename, uint32_t priority, uint32_t flags, han
         return false;
     }
 
-    mpq = (MPQ_ARCHIVE *)calloc(1, sizeof(MPQ_ARCHIVE));
+    mpq = (mpqArchive_t *)calloc(1, sizeof(mpqArchive_t));
     if (!mpq) {
         fclose(fp);
         return false;
@@ -1309,7 +1309,7 @@ bool SFileOpenArchive(cstring_t filename, uint32_t priority, uint32_t flags, han
 
 bool SFileOpenArchiveFromMemory(const void *data, uint32_t size, uint32_t flags, handle_t *archive)
 {
-    MPQ_ARCHIVE *mpq;
+    mpqArchive_t *mpq;
 
     (void)flags;
 
@@ -1317,7 +1317,7 @@ bool SFileOpenArchiveFromMemory(const void *data, uint32_t size, uint32_t flags,
         return false;
     }
 
-    mpq = (MPQ_ARCHIVE *)calloc(1, sizeof(MPQ_ARCHIVE));
+    mpq = (mpqArchive_t *)calloc(1, sizeof(mpqArchive_t));
     if (!mpq) {
         return false;
     }
@@ -1330,8 +1330,8 @@ bool SFileOpenArchiveFromMemory(const void *data, uint32_t size, uint32_t flags,
 
 bool SFileCreateArchive(cstring_t filename, uint32_t flags, uint32_t maxFiles, handle_t *archive)
 {
-    MPQ_ARCHIVE *mpq;
-    MPQ_HEADER_V1 header;
+    mpqArchive_t *mpq;
+    mpqHeaderV1_t header;
     FILE *fp;
 
     (void)flags;
@@ -1345,7 +1345,7 @@ bool SFileCreateArchive(cstring_t filename, uint32_t flags, uint32_t maxFiles, h
         return false;
     }
 
-    mpq = (MPQ_ARCHIVE *)calloc(1, sizeof(*mpq));
+    mpq = (mpqArchive_t *)calloc(1, sizeof(*mpq));
     if (!mpq) {
         fclose(fp);
         return false;
@@ -1368,7 +1368,7 @@ bool SFileCreateArchive(cstring_t filename, uint32_t flags, uint32_t maxFiles, h
 
 bool SFileAddFile(handle_t archive, cstring_t sourceFile, cstring_t archivedName)
 {
-    MPQ_ARCHIVE *mpq = (MPQ_ARCHIVE *)archive;
+    mpqArchive_t *mpq = (mpqArchive_t *)archive;
     FILE *fp;
     uint8_t *buffer;
     long size_long;
@@ -1415,7 +1415,7 @@ bool SFileAddFile(handle_t archive, cstring_t sourceFile, cstring_t archivedName
 
 bool SFileAddFileFromBuffer(handle_t archive, cstring_t archivedName, const void *data, uint32_t size)
 {
-    MPQ_ARCHIVE *mpq = (MPQ_ARCHIVE *)archive;
+    mpqArchive_t *mpq = (mpqArchive_t *)archive;
 
     if (!mpq || !mpq->write_mode || !archivedName || (size > 0 && !data)) {
         return false;
@@ -1426,7 +1426,7 @@ bool SFileAddFileFromBuffer(handle_t archive, cstring_t archivedName, const void
 
 bool SFileCloseArchive(handle_t archive)
 {
-    MPQ_ARCHIVE *mpq = (MPQ_ARCHIVE *)archive;
+    mpqArchive_t *mpq = (mpqArchive_t *)archive;
 
     if (!mpq) {
         return false;
@@ -1447,8 +1447,8 @@ bool SFileCloseArchive(handle_t archive)
 
 static bool SFileOpenFileDirect(handle_t archive, cstring_t fileName, uint32_t searchScope, handle_t *file)
 {
-    MPQ_ARCHIVE *mpq = (MPQ_ARCHIVE *)archive;
-    MPQ_FILE *mpqfile;
+    mpqArchive_t *mpq = (mpqArchive_t *)archive;
+    mpqFile_t *mpqfile;
     char canonical_name[1024];
     uint32_t hash1, hash2;
     uint32_t block_index;
@@ -1477,12 +1477,12 @@ static bool SFileOpenFileDirect(handle_t archive, cstring_t fileName, uint32_t s
         return false;
     }
 
-    mpqfile = (MPQ_FILE *)malloc(sizeof(MPQ_FILE));
+    mpqfile = (mpqFile_t *)malloc(sizeof(mpqFile_t));
     if (!mpqfile) {
         return false;
     }
 
-    memset(mpqfile, 0, sizeof(MPQ_FILE));
+    memset(mpqfile, 0, sizeof(mpqFile_t));
     mpqfile->archive = mpq;
     mpqfile->block_index = block_index;
     mpqfile->file_size = mpq->blocktable[block_index].dwFileSize;
@@ -1503,7 +1503,7 @@ static bool SFileOpenFileDirect(handle_t archive, cstring_t fileName, uint32_t s
     if ((mpqfile->flags & MPQ_FILE_COMPRESS) && !(mpqfile->flags & MPQ_FILE_SINGLE_UNIT)) {
         uint32_t sector_count;
         uint32_t offset_count;
-        MPQ_BLOCK_ENTRY *block;
+        mpqBlockEntry_t *block;
         bool offsets_valid = false;
 
         block = &mpq->blocktable[block_index];
@@ -1595,7 +1595,7 @@ static bool SFileOpenNestedFile(handle_t archive, cstring_t fileName, uint32_t s
             continue;
         }
         if (SFileOpenFileDirect(nestedArchive, innerName, searchScope, file)) {
-            MPQ_FILE *mpqfile = (MPQ_FILE *)*file;
+            mpqFile_t *mpqfile = (mpqFile_t *)*file;
             mpqfile->owner_archive = nestedArchive;
             mpqfile->owner_memory = outerData;
             return true;
@@ -1628,7 +1628,7 @@ bool SFileOpenFileFromArchiveMemory(uint8_t *data, uint32_t size, cstring_t file
         return false;
     }
     if (SFileOpenFileDirect(nestedArchive, fileName, searchScope, file)) {
-        MPQ_FILE *mpqfile = (MPQ_FILE *)*file;
+        mpqFile_t *mpqfile = (mpqFile_t *)*file;
 
         mpqfile->owner_archive = nestedArchive;
         mpqfile->owner_memory = data;
@@ -1641,7 +1641,7 @@ bool SFileOpenFileFromArchiveMemory(uint8_t *data, uint32_t size, cstring_t file
 bool SFileCloseFile(handle_t file)
 {
     if (file) {
-        MPQ_FILE *mpqfile = (MPQ_FILE *)file;
+        mpqFile_t *mpqfile = (mpqFile_t *)file;
         handle_t owner_archive = mpqfile->owner_archive;
         uint8_t *owner_memory = mpqfile->owner_memory;
 
@@ -1661,9 +1661,9 @@ bool SFileCloseFile(handle_t file)
 
 bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t * bytesRead, void * overlapped)
 {
-    MPQ_FILE *mpqfile = (MPQ_FILE *)file;
-    MPQ_ARCHIVE *mpq;
-    MPQ_BLOCK_ENTRY *block;
+    mpqFile_t *mpqfile = (mpqFile_t *)file;
+    mpqArchive_t *mpq;
+    mpqBlockEntry_t *block;
     uint8_t *dest = (uint8_t *)buffer;
     uint32_t read_so_far = 0;
     uint32_t to_read_in_block;
@@ -1844,7 +1844,7 @@ bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t * byte
 
 uint32_t SFileGetFileSize(handle_t file, uint32_t * highSize)
 {
-    MPQ_FILE *mpqfile = (MPQ_FILE *)file;
+    mpqFile_t *mpqfile = (mpqFile_t *)file;
 
     if (!mpqfile) {
         return 0;
@@ -1859,7 +1859,7 @@ uint32_t SFileGetFileSize(handle_t file, uint32_t * highSize)
 
 uint32_t SFileSetFilePointer(handle_t file, int32_t distance, int32_t * distanceHigh, uint32_t moveMethod)
 {
-    MPQ_FILE *mpqfile = (MPQ_FILE *)file;
+    mpqFile_t *mpqfile = (mpqFile_t *)file;
     uint32_t new_pos;
 
     if (!mpqfile) {
@@ -1937,7 +1937,7 @@ static uint32_t PreloadBucketHash(uint32_t hash1, uint32_t hash2)
     return hash1 ^ (hash2 * 16777619u);
 }
 
-static void PreloadListfileCache(MPQ_ARCHIVE *mpq)
+static void PreloadListfileCache(mpqArchive_t *mpq)
 {
     handle_t list_file;
     uint32_t list_size;
@@ -1947,8 +1947,8 @@ static void PreloadListfileCache(MPQ_ARCHIVE *mpq)
     char *line;
     size_t entry_count = 0;
     size_t bucket_count = 0;
-    MPQ_LISTFILE_ENTRY *entries = NULL;
-    MPQ_LISTFILE_BUCKET_ENTRY **buckets = NULL;
+    mpqListfileEntry_t *entries = NULL;
+    mpqListfileBucketEntry_t **buckets = NULL;
     size_t i;
     bool trace = getenv("BZ_MPQ_TRACE") != NULL;
 
@@ -2006,7 +2006,7 @@ static void PreloadListfileCache(MPQ_ARCHIVE *mpq)
         return;
     }
 
-    entries = (MPQ_LISTFILE_ENTRY *)calloc(entry_count, sizeof(MPQ_LISTFILE_ENTRY));
+    entries = (mpqListfileEntry_t *)calloc(entry_count, sizeof(mpqListfileEntry_t));
     if (!entries) {
         free(buffer);
         return;
@@ -2049,7 +2049,7 @@ static void PreloadListfileCache(MPQ_ARCHIVE *mpq)
         bucket_count <<= 1;
     }
 
-    buckets = (MPQ_LISTFILE_BUCKET_ENTRY **)calloc(bucket_count, sizeof(MPQ_LISTFILE_BUCKET_ENTRY *));
+    buckets = (mpqListfileBucketEntry_t **)calloc(bucket_count, sizeof(mpqListfileBucketEntry_t *));
     if (!buckets) {
         for (i = 0; i < entry_count; i++) {
             free(entries[i].name);
@@ -2060,7 +2060,7 @@ static void PreloadListfileCache(MPQ_ARCHIVE *mpq)
     }
 
     for (i = 0; i < entry_count; i++) {
-        MPQ_LISTFILE_BUCKET_ENTRY *node = (MPQ_LISTFILE_BUCKET_ENTRY *)malloc(sizeof(MPQ_LISTFILE_BUCKET_ENTRY));
+        mpqListfileBucketEntry_t *node = (mpqListfileBucketEntry_t *)malloc(sizeof(mpqListfileBucketEntry_t));
         uint32_t slot;
 
         if (!node) {
@@ -2073,9 +2073,9 @@ static void PreloadListfileCache(MPQ_ARCHIVE *mpq)
     }
 
     for (i = 0; i < mpq->header.dwHashTableSize; i++) {
-        MPQ_HASH_ENTRY *hash_entry = &mpq->hashtable[i];
+        mpqHashEntry_t *hash_entry = &mpq->hashtable[i];
         uint32_t slot;
-        MPQ_LISTFILE_BUCKET_ENTRY *node;
+        mpqListfileBucketEntry_t *node;
 
         if (hash_entry->dwBlockIndex == MPQ_HASH_ENTRY_FREE ||
             hash_entry->dwBlockIndex == MPQ_HASH_ENTRY_DELETED) {
@@ -2099,9 +2099,9 @@ static void PreloadListfileCache(MPQ_ARCHIVE *mpq)
     }
 
     for (i = 0; i < bucket_count; i++) {
-        MPQ_LISTFILE_BUCKET_ENTRY *node = buckets[i];
+        mpqListfileBucketEntry_t *node = buckets[i];
         while (node) {
-            MPQ_LISTFILE_BUCKET_ENTRY *next = node->next;
+            mpqListfileBucketEntry_t *next = node->next;
             free(node);
             node = next;
         }
@@ -2115,13 +2115,13 @@ static void PreloadListfileCache(MPQ_ARCHIVE *mpq)
 }
 
 static bool FilenameMatches(const char *filename, const char *mask);
-static void FreeFindList(MPQ_FIND *find);
-static bool AppendFindListEntry(MPQ_FIND *find, const char *name);
+static void FreeFindList(mpqFind_t *find);
+static bool AppendFindListEntry(mpqFind_t *find, const char *name);
 
-handle_t SFileFindFirstFile(handle_t archive, cstring_t mask, SFILE_FIND_DATA *findData, cstring_t listFile)
+handle_t SFileFindFirstFile(handle_t archive, cstring_t mask, sfileFindData_t *findData, cstring_t listFile)
 {
-    MPQ_ARCHIVE *mpq = (MPQ_ARCHIVE *)archive;
-    MPQ_FIND *find;
+    mpqArchive_t *mpq = (mpqArchive_t *)archive;
+    mpqFind_t *find;
     handle_t list_file;
     uint32_t list_size;
     uint8_t *list_buffer;
@@ -2134,12 +2134,12 @@ handle_t SFileFindFirstFile(handle_t archive, cstring_t mask, SFILE_FIND_DATA *f
         return NULL;
     }
 
-    find = (MPQ_FIND *)malloc(sizeof(MPQ_FIND));
+    find = (mpqFind_t *)malloc(sizeof(mpqFind_t));
     if (!find) {
         return NULL;
     }
 
-    memset(find, 0, sizeof(MPQ_FIND));
+    memset(find, 0, sizeof(mpqFind_t));
     find->archive = mpq;
     find->current_index = 0;
     find->file_count = 0;
@@ -2227,7 +2227,7 @@ static bool FilenameMatches(const char *filename, const char *mask)
     return strcmp(filename, mask) == 0;
 }
 
-static void FreeFindList(MPQ_FIND *find)
+static void FreeFindList(mpqFind_t *find)
 {
     uint32_t i;
 
@@ -2243,7 +2243,7 @@ static void FreeFindList(MPQ_FIND *find)
     find->file_count = 0;
 }
 
-static bool AppendFindListEntry(MPQ_FIND *find, const char *name)
+static bool AppendFindListEntry(mpqFind_t *find, const char *name)
 {
     char **next;
     char *copy;
@@ -2264,9 +2264,9 @@ static bool AppendFindListEntry(MPQ_FIND *find, const char *name)
     return true;
 }
 
-bool SFileFindNextFile(handle_t find, SFILE_FIND_DATA *findData)
+bool SFileFindNextFile(handle_t find, sfileFindData_t *findData)
 {
-    MPQ_FIND *mpqfind = (MPQ_FIND *)find;
+    mpqFind_t *mpqfind = (mpqFind_t *)find;
     const char *name;
     uint32_t block_index;
 
@@ -2289,7 +2289,7 @@ bool SFileFindNextFile(handle_t find, SFILE_FIND_DATA *findData)
                        HashString(name, MPQ_HASH_NAME_A),
                        HashString(name, MPQ_HASH_NAME_B),
                        &block_index)) {
-        MPQ_BLOCK_ENTRY *block = &mpqfind->archive->blocktable[block_index];
+        mpqBlockEntry_t *block = &mpqfind->archive->blocktable[block_index];
 
         findData->dwBlockIndex = block_index;
         findData->dwFileSize = block->dwFileSize;
@@ -2302,7 +2302,7 @@ bool SFileFindNextFile(handle_t find, SFILE_FIND_DATA *findData)
 bool SFileFindClose(handle_t find)
 {
     if (find) {
-        FreeFindList((MPQ_FIND *)find);
+        FreeFindList((mpqFind_t *)find);
         free(find);
     }
     return true;

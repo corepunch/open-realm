@@ -22,7 +22,7 @@
     "  }\n"
 
 /* --- unlit / ui: texture * vertex-color, no lighting ------------------- */
-#define SHADER_TYPE SPRITESTATE
+#define SHADER_TYPE spriteState_t
 const shader_desc_t sd_unlit = {
     .Name = "unlit",
     .Uniforms = {
@@ -53,7 +53,7 @@ const shader_desc_t sd_unlit = {
 #undef SHADER_TYPE
 
 /* --- minimap: circular mask applied to alpha ---------------------------- */
-#define SHADER_TYPE SPRITESTATE
+#define SHADER_TYPE spriteState_t
 const shader_desc_t sd_minimap = {
     .Name = "minimap",
     .Uniforms = {
@@ -86,7 +86,7 @@ const shader_desc_t sd_minimap = {
 #undef SHADER_TYPE
 
 /* --- splat: crop edges to [0,1] bounds ---------------------------------- */
-#define SHADER_TYPE SPRITESTATE
+#define SHADER_TYPE spriteState_t
 const shader_desc_t sd_splat = {
     .Name = "splat",
     .Uniforms = {
@@ -122,7 +122,7 @@ const shader_desc_t sd_splat = {
 #undef SHADER_TYPE
 
 /* --- shadow splat: black silhouette with texture alpha ------------------ */
-#define SHADER_TYPE SPRITESTATE
+#define SHADER_TYPE spriteState_t
 const shader_desc_t sd_shadow_splat = {
     .Name = "shadow_splat",
     .Uniforms = {
@@ -163,7 +163,7 @@ const shader_desc_t sd_shadow_splat = {
 #undef SHADER_TYPE
 
 /* --- commandbutton: edge glow controlled by u_activeGlow ---------------- */
-#define SHADER_TYPE SPRITESTATE
+#define SHADER_TYPE spriteState_t
 const shader_desc_t sd_commandbutton = {
     .Name = "commandbutton",
     .Uniforms = {
@@ -208,7 +208,7 @@ const shader_desc_t sd_commandbutton = {
 #undef SHADER_TYPE
 
 /* --- minimap fog: fog-of-war overlay with y-flip ------------------------ */
-#define SHADER_TYPE SPRITESTATE
+#define SHADER_TYPE spriteState_t
 const shader_desc_t sd_minimap_fog = {
     .Name = "minimap_fog",
     .Uniforms = {
@@ -241,7 +241,7 @@ const shader_desc_t sd_minimap_fog = {
 #undef SHADER_TYPE
 
 /* --- default: ground/world sprite with per-vertex lighting --------------- */
-#define SHADER_TYPE DEFAULTSTATE
+#define SHADER_TYPE defaultState_t
 const shader_desc_t sd_default = {
     .Name = "default",
     .Uniforms = {
@@ -361,7 +361,7 @@ const shader_desc_t sd_default = {
 /* --- model: shared skinned shader for MDX/M2/M3, compiled twice -----------
  * (normal + BZ_USE_INSTANCING).  USE_SHADOWMAPS/USE_FOGOFWAR/BZ_USE_MSAA are
  * injected as GLSL defines from the matching C preprocessor macros. */
-#define SHADER_TYPE MODELSTATE
+#define SHADER_TYPE modelState_t
 const shader_desc_t sd_model = {
     .Name = "model",
     .Uniforms = {
@@ -681,10 +681,10 @@ static size_t R_UniformTypeSize(uniformType_t type) {
 static GLuint shader_bound;
 
 /* Descriptor compilation and lookup never overwrite caller-owned non-sampler values. */
-void R_LoadShaderState(LPCSHADERLOAD load) {
-    LPCSHADERDESC desc = load->desc;
+void R_LoadShaderState(shaderLoad_t const * load) {
+    shader_desc_t const * desc = load->desc;
     cstring_t defines = load->defines;
-    LPSHADERPROG prog = load->prog;
+    shaderProg_t * prog = load->prog;
     void *state = load->state;
     GLuint vs = R_Call(glCreateShader, GL_VERTEX_SHADER);
     GLuint fs = R_Call(glCreateShader, GL_FRAGMENT_SHADER);
@@ -727,7 +727,7 @@ void R_LoadShaderState(LPCSHADERLOAD load) {
 }
 
 /* Release linked programs before their GL context is destroyed. */
-void R_DeleteShader(LPSHADERPROG prog) {
+void R_DeleteShader(shaderProg_t * prog) {
     if (prog->progid) glDeleteProgram(prog->progid);
     if (shader_bound == prog->progid) shader_bound = 0;
     if (prog->cache) ri.MemFree(prog->cache);
@@ -735,7 +735,7 @@ void R_DeleteShader(LPSHADERPROG prog) {
 }
 
 /* One typed state submission owns all uniforms; exact per-program caching avoids redundant driver calls. */
-void R_UploadShader(LPSHADERPROG prog, void const * state) {
+void R_UploadShader(shaderProg_t * prog, void const * state) {
     if (shader_bound != prog->progid) {
         R_Call(glUseProgram, prog->progid);
         shader_bound = prog->progid;
@@ -777,12 +777,12 @@ void R_UploadShader(LPSHADERPROG prog, void const * state) {
     }
 }
 
-static MODELPROG model_shader;
-static MODELPROG instanced_shader;
+static modelProg_t model_shader;
+static modelProg_t instanced_shader;
 static bool model_shader_loaded;
 static bool instanced_shader_loaded;
 
-static void R_LoadModelShader(MODELPROG *out, bool instancing) {
+static void R_LoadModelShader(modelProg_t *out, bool instancing) {
     memset(out, 0, sizeof(*out));
     R_LoadShader(&sd_model, R_ShaderDefines(instancing), out);
 
@@ -792,7 +792,7 @@ static void R_LoadModelShader(MODELPROG *out, bool instancing) {
 /* Returns the shared model shader, compiling it on first call. All three model
    formats (MDX/M2/M3) use this single shader; per-format data is normalised at
    load time so the GPU path is identical. */
-MODELPROG *R_ModelShader(void) {
+modelProg_t *R_ModelShader(void) {
     if (!model_shader_loaded) {
         R_LoadModelShader(&model_shader, false);
         model_shader_loaded = true;
@@ -803,7 +803,7 @@ MODELPROG *R_ModelShader(void) {
 /* Instanced model shader for static meshes (ground-effect clutter). Uses the
    model shader compiled with BZ_USE_INSTANCING to replace uModelMatrix with
    per-instance attributes. */
-MODELPROG *R_ModelShaderInstanced(void) {
+modelProg_t *R_ModelShaderInstanced(void) {
     if (!instanced_shader_loaded) {
         R_LoadModelShader(&instanced_shader, true);
         FOR_LOOP(i, BZ_BONE_PALETTE_MAX) Matrix4_identity(&instanced_shader.state.bones[i]);
@@ -816,7 +816,7 @@ MODELPROG *R_ModelShaderInstanced(void) {
 /* Ground/world callers use the same semantic light schema as models. A zero
  * count explicitly selects the legacy fixed terrain light so games without an
  * environment-light model retain their existing appearance. */
-void R_SetDefaultLighting(DEFAULTPROG *shader, LPCMODELLIGHTING lighting) {
+void R_SetDefaultLighting(defaultProg_t *shader, modelLighting_t const * lighting) {
     if (!shader) return;
     if (!lighting || lighting->count == 0) {
         shader->state.lightCount = 0;
@@ -832,7 +832,7 @@ void R_SetDefaultLighting(DEFAULTPROG *shader, LPCMODELLIGHTING lighting) {
 }
 
 /* Model callers submit one semantic lighting state; only this proxy knows the uniform packing contract. */
-void R_SetModelLighting(MODELPROG *shader, LPCMODELLIGHTING lighting) {
+void R_SetModelLighting(modelProg_t *shader, modelLighting_t const * lighting) {
     if (!lighting || lighting->count < 1 || lighting->count > BZ_MODEL_LIGHT_MAX) {
         ri.error("R_SetModelLighting: light count must be 1..%u, got %u", BZ_MODEL_LIGHT_MAX,
                  lighting ? lighting->count : 0);
@@ -843,7 +843,7 @@ void R_SetModelLighting(MODELPROG *shader, LPCMODELLIGHTING lighting) {
 }
 
 /* Grass uses the same proxy boundary so game code never uploads its packed matrix directly. */
-void R_SetModelGrass(MODELPROG *shader, LPCMODELGRASS grass) {
+void R_SetModelGrass(modelProg_t *shader, modelGrass_t const * grass) {
     R_PackModelGrass(&shader->state.grassParams, grass);
 }
 
@@ -854,7 +854,7 @@ void R_ShutdownModelShader(void) {
 }
 
 /* Map the public SHADERTYPE selector to the matching sprite program. */
-SPRITEPROG *R_SpriteShader(SHADERTYPE type) {
+spriteProg_t *R_SpriteShader(SHADERTYPE type) {
     switch (type) {
         case SHADER_SPLAT:         return &tr.shader_splat;
         case SHADER_SHADOWSPLAT:   return &tr.shader_shadowSplat;
@@ -867,7 +867,7 @@ SPRITEPROG *R_SpriteShader(SHADERTYPE type) {
 }
 
 /* Builtin lifetime is renderer-owned; this table is shared by load and shutdown. */
-static struct { LPCSHADERDESC desc; SPRITEPROG *shader; } builtin_shaders[] = {
+static struct { shader_desc_t const * desc; spriteProg_t *shader; } builtin_shaders[] = {
     { &sd_unlit, &tr.shader_ui }, { &sd_splat, &tr.shader_splat },
     { &sd_shadow_splat, &tr.shader_shadowSplat }, { &sd_commandbutton, &tr.shader_commandButton },
     { &sd_minimap, &tr.shader_minimap }, { &sd_minimap_fog, &tr.shader_minimapFog },
@@ -876,7 +876,7 @@ static struct { LPCSHADERDESC desc; SPRITEPROG *shader; } builtin_shaders[] = {
 
 void R_LoadBuiltinShaders(void) {
     FOR_LOOP(i, sizeof(builtin_shaders) / sizeof(*builtin_shaders)) {
-        SPRITEPROG *shader = builtin_shaders[i].shader;
+        spriteProg_t *shader = builtin_shaders[i].shader;
         memset(shader, 0, sizeof(*shader));
         R_LoadShader(builtin_shaders[i].desc, R_ShaderDefines(false), shader);
     }

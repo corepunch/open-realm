@@ -18,11 +18,11 @@ BZ_ABILITY_PROC(CAbilityMoonGlaive) { return CAbilityPassive(ent, msg, call); }
 /* Called from S_ResolveAttackHit after the primary hit lands. Stock Amgl DataA
  * and Area are 0; that means one extra bounce inside attack range, not "no bounce".
  * Authored DataA>0 is total targets. Damage is the already-mitigated primary hit. */
-void S_MoonGlaiveAttack(LPEDICT attacker, LPEDICT primary, int damage) {
+void S_MoonGlaiveAttack(edict_t * attacker, edict_t * primary, int damage) {
     uint32_t level = G_UnitAbilityLevel(attacker, ID_MOON_GLAIVE);
     float data_a, range;
     uint32_t total;
-    LPEDICT visited[8], current;
+    edict_t * visited[8], *current;
     uint32_t nvisited = 0;
     if (!level) level = G_UnitAbilityLevel(attacker, ID_MOON_GLAIVER);
     if (!level || !primary) return;
@@ -33,7 +33,7 @@ void S_MoonGlaiveAttack(LPEDICT attacker, LPEDICT primary, int damage) {
     if (nvisited < 8) visited[nvisited++] = primary;
     current = primary;
     for (uint32_t i = 1; i < total; i++) {
-        LPEDICT next = NULL;
+        edict_t * next = NULL;
         FILTER_EDICTS(other, other != attacker && S_SpellIsAliveTarget(other) &&
                       S_SpellIsEnemy(attacker, other) &&
                       Vector2_distance(&other->s.origin2, &current->s.origin2) <= range) {
@@ -54,7 +54,7 @@ BZ_ABILITY_PROC(CAbilitySlowPoison) { return CAbilityPassive(ent, msg, call); }
 
 /* Called from S_ResolveAttackHit after a hit lands on an enemy.  Applies the
  * Bspo buff which the movement and attack-speed hooks read each frame. */
-void S_SlowPoisonOnHit(LPEDICT attacker, LPEDICT target) {
+void S_SlowPoisonOnHit(edict_t * attacker, edict_t * target) {
     uint32_t level = G_UnitAbilityLevel(attacker, ID_SLOW_POISON);
     if (!level || !target || !S_SpellIsEnemy(attacker, target)) return;
     /* DataA DPS / BuffID Bssd are leftover; this slice only applies Bspo slow. */
@@ -62,13 +62,13 @@ void S_SlowPoisonOnHit(LPEDICT attacker, LPEDICT target) {
 }
 
 /* DataB/DataC are fractions (stock 0.5 / 0.25), same %>% convention as Bloodlust. */
-float S_SlowPoisonMoveReduction(LPCEDICT unit) {
+float S_SlowPoisonMoveReduction(edict_t const * unit) {
     uint32_t level = G_UnitStatusLevel(unit, BUFF_SLOW_POI);
     if (!level) return 0.0f;
     return S_SpellData(ID_SLOW_POISON, level, 2);
 }
 
-float S_SlowPoisonAttackReduction(LPCEDICT unit) {
+float S_SlowPoisonAttackReduction(edict_t const * unit) {
     uint32_t level = G_UnitStatusLevel(unit, BUFF_SLOW_POI);
     if (!level) return 0.0f;
     return S_SpellData(ID_SLOW_POISON, level, 3);
@@ -76,12 +76,12 @@ float S_SlowPoisonAttackReduction(LPCEDICT unit) {
 
 /* ---- Barkskin (Abar): modal autocast of a timed friendly armor buff ------- */
 
-static bool barkskin_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool barkskin_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     return spell && st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsFriend(caster, st.entity) &&
         S_SpellAllowsTarget(spell->code, caster, st.entity);
 }
 
-static void barkskin_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void barkskin_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
     if (!st.entity || !buff || strlen(buff) < 4) return;
@@ -89,8 +89,8 @@ static void barkskin_execute(LPEDICT caster, spellTarget_t st, abilityitem_t con
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
 }
 
-static bool barkskin_acquire(LPEDICT caster, uint32_t code) {
-    LPEDICT best = NULL;
+static bool barkskin_acquire(edict_t * caster, uint32_t code) {
+    edict_t * best = NULL;
     float range = S_SpellRange(code, S_SpellLevel(caster, code)), dist = FLT_MAX;
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target)) {
         float cur;
@@ -118,7 +118,7 @@ BZ_ABILITY_PROC(CAbilityBarkskin) {
 }
 
 /* Bbar reads Abar DataA so expiry removes the armor without mutating base unit state. */
-float S_BarkskinArmorBonus(LPCEDICT unit) {
+float S_BarkskinArmorBonus(edict_t const * unit) {
     uint32_t level = G_UnitStatusLevel(unit, BUFF_BARKSKIN);
     return level ? S_SpellData(ID_BARKSKIN, level, 1) : 0.0f;
 }

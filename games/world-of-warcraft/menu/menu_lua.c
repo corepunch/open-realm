@@ -42,8 +42,8 @@ static uint8_t UIWow_LuaColorByte(lua_State *L, int index, uint8_t fallback) {
     return (uint8_t)(value + 0.5);
 }
 
-static COLOR32 UIWow_LuaColor(lua_State *L, int first, COLOR32 fallback) {
-    return MAKE(COLOR32, UIWow_LuaColorByte(L, first,     fallback.r), UIWow_LuaColorByte(L, first + 1, fallback.g), UIWow_LuaColorByte(L, first + 2, fallback.b), UIWow_LuaColorByte(L, first + 3, fallback.a));
+static color32_t UIWow_LuaColor(lua_State *L, int first, color32_t fallback) {
+    return MAKE(color32_t, UIWow_LuaColorByte(L, first,     fallback.r), UIWow_LuaColorByte(L, first + 1, fallback.g), UIWow_LuaColorByte(L, first + 2, fallback.b), UIWow_LuaColorByte(L, first + 3, fallback.a));
 }
 
 static rect_t UIWow_LuaRect(lua_State *L, int first) {
@@ -58,8 +58,8 @@ static int UIWow_LuaDrawImage(lua_State *L) {
     cstring_t name = luaL_checkstring(L, 1);
     rect_t screen = UIWow_LuaRect(L, 2);
     rect_t uv = MAKE(rect_t, 0, 0, 1, 1);
-    COLOR32 color = UIWow_LuaColor(L, 6, COLOR32_WHITE);
-    LPTEXTURE texture = UIWow_LoadTexture(name);
+    color32_t color = UIWow_LuaColor(L, 6, COLOR32_WHITE);
+    texture_t * texture = UIWow_LoadTexture(name);
 
     if (wow_ui.renderer && texture) {
         wow_ui.renderer->DrawImage(texture, &screen, &uv, color);
@@ -76,8 +76,8 @@ static int UIWow_LuaDrawImageUV(lua_State *L) {
     float top    = (float)luaL_checknumber(L, 8);
     float bottom = (float)luaL_checknumber(L, 9);
     rect_t uv = MAKE(rect_t, left, top, right - left, bottom - top);
-    COLOR32 color = UIWow_LuaColor(L, 10, COLOR32_WHITE);
-    LPTEXTURE texture = UIWow_LoadTexture(name);
+    color32_t color = UIWow_LuaColor(L, 10, COLOR32_WHITE);
+    texture_t * texture = UIWow_LoadTexture(name);
 
     if (wow_ui.renderer && texture) {
         wow_ui.renderer->DrawImage(texture, &screen, &uv, color);
@@ -88,7 +88,7 @@ static int UIWow_LuaDrawImageUV(lua_State *L) {
 
 static int UIWow_LuaDrawColor(lua_State *L) {
     rect_t screen = UIWow_LuaRect(L, 1);
-    COLOR32 color = UIWow_LuaColor(L, 5, COLOR32_WHITE);
+    color32_t color = UIWow_LuaColor(L, 5, COLOR32_WHITE);
 
     UIWow_EnsureRenderer();
     if (wow_ui.renderer && wow_ui.renderer->DrawFill) {
@@ -121,7 +121,7 @@ static int UIWow_LuaDrawBackdrop(lua_State *L) {
 
     /* Background — stretched inside the inset */
     if (bg_path && *bg_path) {
-        LPTEXTURE bg = UIWow_LoadTexture(bg_path);
+        texture_t * bg = UIWow_LoadTexture(bg_path);
         if (bg) {
             rect_t inner = MAKE(rect_t, sc.x + e, sc.y + e, sc.w - e * 2.0f, sc.h - e * 2.0f);
             wow_ui.renderer->DrawImage(bg, &inner, &fuv, COLOR32_WHITE);
@@ -133,7 +133,7 @@ static int UIWow_LuaDrawBackdrop(lua_State *L) {
      * each holding one corner/edge piece at half-texture size).
      * UV layout: corners at the four quadrants, edges along each side. */
     if (border_path && *border_path && e > 0.0f) {
-        LPTEXTURE border = UIWow_LoadTexture(border_path);
+        texture_t * border = UIWow_LoadTexture(border_path);
         if (border) {
             float r = sc.x + sc.w; /* right edge */
             float b = sc.y + sc.h; /* bottom edge */
@@ -180,9 +180,9 @@ static int UIWow_LuaDrawText(lua_State *L) {
     cstring_t text = luaL_checkstring(L, 1);
     rect_t screen = UIWow_LuaRect(L, 2);
     uint32_t size = (uint32_t)luaL_optinteger(L, 6, 14);
-    COLOR32 color = UIWow_LuaColor(L, 7, COLOR32_WHITE);
+    color32_t color = UIWow_LuaColor(L, 7, COLOR32_WHITE);
     cstring_t align = luaL_optstring(L, 11, "left");
-    LPCFONT font = UIWow_LoadFont(size);
+    font_t const * font = UIWow_LoadFont(size);
     uiFontJustificationH_t halign = FONT_JUSTIFYLEFT;
 
     if (!strcasecmp(align, "center")) {
@@ -232,8 +232,8 @@ static int UIWow_LuaDrawImageAdditive(lua_State *L) {
     cstring_t name = luaL_checkstring(L, 1);
     rect_t screen = UIWow_LuaRect(L, 2);
     rect_t uv = MAKE(rect_t, 0, 0, 1, 1);
-    COLOR32 color = UIWow_LuaColor(L, 6, COLOR32_WHITE);
-    LPTEXTURE texture = UIWow_LoadTexture(name);
+    color32_t color = UIWow_LuaColor(L, 6, COLOR32_WHITE);
+    texture_t * texture = UIWow_LoadTexture(name);
 
     if (wow_ui.renderer && texture) {
         wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t, .texture   = texture, .screen    = screen, .uv        = uv, .color     = color, .shader    = SHADER_UI, .alphamode = BLEND_MODE_ADD));

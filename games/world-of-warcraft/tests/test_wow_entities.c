@@ -164,7 +164,7 @@ static handle_t test_mem_alloc(long n) { return calloc(1, (size_t)n); }
 static void test_mem_free(handle_t m) { free(m); }
 static void test_clear_world(void) {}
 static void test_loading_frame(void) {}
-static void test_apply_lobby_settings(LPMAPINFO info) { (void)info; }
+static void test_apply_lobby_settings(mapInfo_t * info) { (void)info; }
 static int test_model_index(cstring_t name) {
     FOR_LOOP(i, test_num_models)
         if (!strcasecmp(test_models[i].name, name)) return test_models[i].index;
@@ -189,10 +189,10 @@ static void test_error(cstring_t fmt, ...) {
     vsnprintf(test_last_error, sizeof(test_last_error), fmt, args);
     va_end(args);
 }
-void UI_WriteWowHud(LPEDICT ent) { (void)ent; }
-void UI_WriteWowHover(LPEDICT ent) { (void)ent; }
-void UI_WriteWelcomeWindow(LPEDICT ent) { (void)ent; }
-void UI_WriteLoadingLayout(LPEDICT ent) { (void)ent; }
+void UI_WriteWowHud(edict_t * ent) { (void)ent; }
+void UI_WriteWowHover(edict_t * ent) { (void)ent; }
+void UI_WriteWelcomeWindow(edict_t * ent) { (void)ent; }
+void UI_WriteLoadingLayout(edict_t * ent) { (void)ent; }
 
 static struct game_import test_import(void) {
     struct game_import import;
@@ -214,7 +214,7 @@ static struct game_import test_import(void) {
 }
 
 int G_RegisterModel(cstring_t filename) { return gi.ModelIndex(filename); }
-LPCANIMATION G_GetAnimation(uint32_t idx, cstring_t name) {
+animation_t const * G_GetAnimation(uint32_t idx, cstring_t name) {
     (void)idx;
     FOR_LOOP(i, sizeof(test_animations) / sizeof(test_animations[0]))
         if (!strcasecmp(test_animations[i].name, name)) return &test_animations[i];
@@ -246,14 +246,14 @@ static struct game_export *init_game(void) {
 
 /* Entities are identified by their game-local think function pointer (Quake2
  * style); there is no kind tag. */
-static LPEDICT first_with_think(void (*think)(LPEDICT)) {
+static edict_t * first_with_think(void (*think)(edict_t *)) {
     for (uint32_t i = MAX_CLIENTS; i < (uint32_t)globals.num_edicts; i++) {
         if (wow_edicts[i].inuse && Wow_EntityLocal(&wow_edicts[i])->think == think) return &wow_edicts[i];
     }
     return NULL;
 }
 
-static uint32_t count_with_think(void (*think)(LPEDICT)) {
+static uint32_t count_with_think(void (*think)(edict_t *)) {
     uint32_t count = 0;
     for (uint32_t i = MAX_CLIENTS; i < (uint32_t)globals.num_edicts; i++) {
         if (wow_edicts[i].inuse && Wow_EntityLocal(&wow_edicts[i])->think == think) count++;
@@ -271,11 +271,11 @@ TEST(wow_entities, dying_creature_becomes_corpse) {
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame(); /* reset spawn budget */
 
-    LPEDICT creature = first_with_think(Wow_RunCreatureFrame);
+    edict_t * creature = first_with_think(Wow_RunCreatureFrame);
     T_NOT_NULL(creature);
     wowEntityLocal_t *cl = Wow_EntityLocal(creature);
     uint32_t model = creature->s.model;
-    VECTOR3 origin = creature->s.origin;
+    vector3_t origin = creature->s.origin;
     num_edicts = (uint32_t)globals.num_edicts;
 
     Wow_AIDie(creature, &wow_edicts[0]);
@@ -300,7 +300,7 @@ TEST(wow_entities, corpse_decays_over_time) {
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
-    LPEDICT creature = first_with_think(Wow_RunCreatureFrame);
+    edict_t * creature = first_with_think(Wow_RunCreatureFrame);
     T_NOT_NULL(creature);
     Wow_AIDie(creature, &wow_edicts[0]);
     while (Wow_EntityLocal(creature)->death_time > 0) Wow_AIAdvanceLockedFrame(creature);
@@ -321,7 +321,7 @@ TEST(wow_entities, corpse_removed_after_timer_expires) {
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
-    LPEDICT creature = first_with_think(Wow_RunCreatureFrame);
+    edict_t * creature = first_with_think(Wow_RunCreatureFrame);
     T_NOT_NULL(creature);
     Wow_AIDie(creature, &wow_edicts[0]);
     while (Wow_EntityLocal(creature)->death_time > 0) Wow_AIAdvanceLockedFrame(creature);
@@ -340,7 +340,7 @@ TEST(wow_entities, walking_creature_reanchors_to_terrain) {
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
-    LPEDICT creature = first_with_think(Wow_RunCreatureFrame);
+    edict_t * creature = first_with_think(Wow_RunCreatureFrame);
     T_NOT_NULL(creature);
     wowEntityLocal_t *cl = Wow_EntityLocal(creature);
     T_ASSERT(cl->patrol_radius > 0.0f && cl->walk_speed > 0.0f);
@@ -365,8 +365,8 @@ TEST(wow_entities, dynamic_object_spawn_and_properties) {
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
-    VECTOR2 origin = { 100.0f, 200.0f };
-    LPEDICT dobj = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 5000);
+    vector2_t origin = { 100.0f, 200.0f };
+    edict_t * dobj = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 5000);
     T_NOT_NULL(dobj);
 
     wowEntityLocal_t *dl = Wow_EntityLocal(dobj);
@@ -391,8 +391,8 @@ TEST(wow_entities, dynamic_object_despawns_after_duration) {
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
-    VECTOR2 origin = { 0, 0 };
-    LPEDICT dobj = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, FRAMETIME);
+    vector2_t origin = { 0, 0 };
+    edict_t * dobj = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, FRAMETIME);
     T_NOT_NULL(dobj);
 
     game->RunFrame();
@@ -433,12 +433,12 @@ TEST(wow_entities, spawn_budget_resets_per_frame) {
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
-    VECTOR2 origin = { 0, 0 };
-    LPEDICT d1 = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 1000);
+    vector2_t origin = { 0, 0 };
+    edict_t * d1 = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 1000);
     T_NOT_NULL(d1);
     game->RunFrame();
 
-    LPEDICT d2 = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 1000);
+    edict_t * d2 = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 1000);
     T_NOT_NULL(d2);
     T_ASSERT(d1 != d2);
 
@@ -469,7 +469,7 @@ TEST(wow_entities, edict_limit_reached_returns_null) {
     uint32_t num = (uint32_t)globals.num_edicts;
     /* Fill remaining edicts with corpses (up to WOW_MAX_EDICTS) */
     while (num < WOW_MAX_EDICTS) {
-        LPEDICT e = &wow_edicts[num++];
+        edict_t * e = &wow_edicts[num++];
         memset(e, 0, sizeof(*e));
         memset(&wow_entity_locals[num - 1], 0, sizeof(wow_entity_locals[0]));
         e->inuse = true;
@@ -478,8 +478,8 @@ TEST(wow_entities, edict_limit_reached_returns_null) {
         globals.num_edicts = (int)num;
     }
 
-    VECTOR2 origin = { 0, 0 };
-    LPEDICT should_fail = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 1000);
+    vector2_t origin = { 0, 0 };
+    edict_t * should_fail = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 1000);
     T_NULL(should_fail);
 
     if (game->Shutdown) game->Shutdown();

@@ -11,7 +11,7 @@
 #define BZ_BTLF MAKEFOURCC('B', 'T', 'L', 'F') // rawcode; timed-life lifecycle status
 #define BZ_AUAN MAKEFOURCC('A', 'U', 'a', 'n') // rawcode; Animate Dead
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -39,14 +39,14 @@ static cstring_t dispel_family_slk =
 
 typedef struct {
 	slkTestData_t *rows, *old;
-	LPEDICT caster, enemy, summon, far;
-} DISPELFIX;
+	edict_t * caster, *enemy, *summon, *far;
+} dispelFix_t;
 
-static DISPELFIX dispel_setup(uint32_t code) {
-	DISPELFIX fix;
+static dispelFix_t dispel_setup(uint32_t code) {
+	dispelFix_t fix;
 	reset_entities(); setup_test_world(); level.time = 1000;
-	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	memset(level.alliances, 0, sizeof(level.alliances));
 	fix.rows = parse_slk_string(dispel_family_slk);
 	fix.old = G_SetSLKRows("AbilityData", fix.rows);
@@ -70,7 +70,7 @@ static DISPELFIX dispel_setup(uint32_t code) {
 	return fix;
 }
 
-static void dispel_done(DISPELFIX fix) {
+static void dispel_done(dispelFix_t fix) {
 	G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows);
 }
 
@@ -82,8 +82,8 @@ TEST(wc3_spell, dispel_magic_aliases_share_procedure) {
 
 /* Adis reads its own DataB for summoned damage; ordinary units are untouched. */
 TEST(wc3_spell, dispel_adis_damages_summoned_with_datab) {
-	DISPELFIX fix = dispel_setup(BZ_ADIS);
-	VECTOR2 point = fix.summon->s.origin2;
+	dispelFix_t fix = dispel_setup(BZ_ADIS);
+	vector2_t point = fix.summon->s.origin2;
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ADIS, &point));
 	T_FEQ(fix.summon->health.value, 389, 0.001f); /* 500 - 111 */
 	T_FEQ(fix.enemy->health.value, 500, 0.001f);
@@ -94,8 +94,8 @@ TEST(wc3_spell, dispel_adis_damages_summoned_with_datab) {
 /* Animated Dead is temporary but not destroyable by dispel summoned-unit damage.
  * Its BTLF marker must likewise survive so the unit still expires normally. */
 TEST(wc3_spell, dispel_does_not_damage_animated_dead) {
-	DISPELFIX fix = dispel_setup(BZ_ADIS);
-	VECTOR2 point = fix.summon->s.origin2;
+	dispelFix_t fix = dispel_setup(BZ_ADIS);
+	vector2_t point = fix.summon->s.origin2;
 	fix.summon->summon_ability = BZ_AUAN;
 	unit_addtimedstatus(fix.summon, "BTLF", 1, 30.0f);
 	T_ASSERT(S_SummonIsDispelImmune(fix.summon));
@@ -107,8 +107,8 @@ TEST(wc3_spell, dispel_does_not_damage_animated_dead) {
 
 /* Adch is not an Adis alias; it must still damage summons from its DataB row. */
 TEST(wc3_spell, dispel_adch_damages_summoned_with_datab) {
-	DISPELFIX fix = dispel_setup(BZ_ADCH);
-	VECTOR2 point = fix.summon->s.origin2;
+	dispelFix_t fix = dispel_setup(BZ_ADCH);
+	vector2_t point = fix.summon->s.origin2;
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ADCH, &point));
 	T_FEQ(fix.summon->health.value, 278, 0.001f); /* 500 - 222 */
 	T_FEQ(fix.enemy->health.value, 500, 0.001f);
@@ -116,8 +116,8 @@ TEST(wc3_spell, dispel_adch_damages_summoned_with_datab) {
 }
 
 TEST(wc3_spell, dispel_removes_timed_statuses_in_area) {
-	DISPELFIX fix = dispel_setup(BZ_ADIS);
-	VECTOR2 point = fix.enemy->s.origin2;
+	dispelFix_t fix = dispel_setup(BZ_ADIS);
+	vector2_t point = fix.enemy->s.origin2;
 	unit_addtimedstatus(fix.enemy, "Bslo", 1, 30.0f);
 	unit_addtimedstatus(fix.enemy, "Binf", 1, 30.0f);
 	T_ASSERT(S_UnitHasStatus(fix.enemy, BZ_BSLO));
@@ -132,8 +132,8 @@ TEST(wc3_spell, dispel_removes_timed_statuses_in_area) {
 /* Timed life is lifecycle ownership, not a dispellable magic buff: clearing BTLF
  * would accidentally turn a temporary summon into a permanent unit. */
 TEST(wc3_spell, dispel_preserves_timed_life_status) {
-	DISPELFIX fix = dispel_setup(BZ_ADIS);
-	VECTOR2 point = fix.enemy->s.origin2;
+	dispelFix_t fix = dispel_setup(BZ_ADIS);
+	vector2_t point = fix.enemy->s.origin2;
 	unit_addtimedstatus(fix.enemy, "BTLF", 1, 30.0f);
 	unit_addtimedstatus(fix.enemy, "Bslo", 1, 30.0f);
 	T_ASSERT(S_UnitHasStatus(fix.enemy, BZ_BTLF));
@@ -145,8 +145,8 @@ TEST(wc3_spell, dispel_preserves_timed_life_status) {
 
 /* Advm heals DataA HP and DataB mana per buff removed (two buffs, non-stock values). */
 TEST(wc3_spell, devour_magic_heals_per_buff_removed) {
-	DISPELFIX fix = dispel_setup(BZ_ADVM);
-	VECTOR2 point = fix.enemy->s.origin2;
+	dispelFix_t fix = dispel_setup(BZ_ADVM);
+	vector2_t point = fix.enemy->s.origin2;
 	fix.caster->health.value = 100;
 	fix.caster->mana.value = 10;
 	unit_addtimedstatus(fix.enemy, "Bslo", 1, 30.0f);
@@ -162,8 +162,8 @@ TEST(wc3_spell, devour_magic_heals_per_buff_removed) {
 
 /* Advm summoned damage must use DataE=91, not DataB=23. */
 TEST(wc3_spell, devour_magic_summoned_damage_uses_datae) {
-	DISPELFIX fix = dispel_setup(BZ_ADVM);
-	VECTOR2 point = fix.summon->s.origin2;
+	dispelFix_t fix = dispel_setup(BZ_ADVM);
+	vector2_t point = fix.summon->s.origin2;
 	fix.caster->health.value = 100;
 	fix.caster->mana.value = 10;
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ADVM, &point));
@@ -189,11 +189,11 @@ TEST(wc3_spell, dispel_restores_ensnared_flyer) {
 		"C;Y3;X4;K\"ground,air,enemy,neutral\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"500\"\n"
 		"C;Y3;X7;K\"7\"\nC;Y3;X8;K\"3\"\nC;Y3;X10;K\"Bena,Beng\"\nE\n";
 	slkTestData_t *rows, *old;
-	LPEDICT priest, raider, flyer;
-	VECTOR2 point;
+	edict_t * priest, *raider, *flyer;
+	vector2_t point;
 	reset_entities(); setup_test_world(); level.time = 1000;
-	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	memset(level.alliances, 0, sizeof(level.alliances));
 	rows = parse_slk_string(slk); old = G_SetSLKRows("AbilityData", rows);
 	priest = alloc_test_unit(MAKEFOURCC('h', 'p', 'r', 'i'), 0, 0);
@@ -222,8 +222,8 @@ TEST(wc3_spell, dispel_restores_ensnared_flyer) {
 }
 
 TEST(wc3_spell, devour_magic_empty_area_heals_nothing) {
-	DISPELFIX fix = dispel_setup(BZ_ADVM);
-	VECTOR2 point = { 400, 400 };
+	dispelFix_t fix = dispel_setup(BZ_ADVM);
+	vector2_t point = { 400, 400 };
 	fix.caster->health.value = 100;
 	fix.caster->mana.value = 10;
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ADVM, &point));

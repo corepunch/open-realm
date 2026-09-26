@@ -65,7 +65,7 @@ bool G_EnvironmentFogDefault(wc3EnvironmentFogState_t *fog) {
     }
     fog->style = (int32_t)style + 1;
     (void)alpha; /* viewDef currently carries RGB only. */
-    fog->color = (VECTOR3){ red / 255.0f, green / 255.0f, blue / 255.0f };
+    fog->color = (vector3_t){ red / 255.0f, green / 255.0f, blue / 255.0f };
     return true;
 }
 

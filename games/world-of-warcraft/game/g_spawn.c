@@ -24,28 +24,28 @@
  *  lookups Wow_SelectSpawnPoint / Wow_PlayerCreateMap).  Only entity placement
  *  stays here because it touches game-runtime state.
  */
-void Wow_TeleportPlayer(LPEDICT ent, uint32_t idx) {
-    LPCWOWSPAWNPOINT sp = Wow_SpawnByIndex(idx);
+void Wow_TeleportPlayer(edict_t * ent, uint32_t idx) {
+    wowSpawnPoint_t const * sp = Wow_SpawnByIndex(idx);
     float z;
     if (!sp) return;
     z = Wow_TerrainHeight(sp->x, sp->y);
     if (z == 0.0f) z = sp->z;
-    ent->s.origin = (VECTOR3){ sp->x, sp->y, z };
-    ent->s.origin2 = (VECTOR2){ sp->x, sp->y };
+    ent->s.origin = (vector3_t){ sp->x, sp->y, z };
+    ent->s.origin2 = (vector2_t){ sp->x, sp->y };
     ent->s.angle = sp->facing;
-    ent->client->ps.vieworigin = (VECTOR3){ sp->x, sp->y, 0 };
+    ent->client->ps.vieworigin = (vector3_t){ sp->x, sp->y, 0 };
     fprintf(stderr, "WoW: respawned at map=%u (%.1f %.1f %.1f)\n", sp->map, sp->x, sp->y, sp->z);
 }
 
 /* Teleport to an explicit world position — used for area trigger destinations
  * and warp-by-name where there is no playercreateinfo entry. */
-void Wow_TeleportPlayerToPos(LPEDICT ent, float x, float y, float z, float orientation) {
+void Wow_TeleportPlayerToPos(edict_t * ent, float x, float y, float z, float orientation) {
     float tz = Wow_TerrainHeight(x, y);
     /* SQL z is authoritative for dungeon interiors where terrain height is 0. */
     if (tz != 0.0f) z = tz;
-    ent->s.origin = (VECTOR3){ x, y, z };
-    ent->s.origin2 = (VECTOR2){ x, y };
+    ent->s.origin = (vector3_t){ x, y, z };
+    ent->s.origin2 = (vector2_t){ x, y };
     ent->s.angle = orientation;
-    ent->client->ps.vieworigin = (VECTOR3){ x, y, 0 };
+    ent->client->ps.vieworigin = (vector3_t){ x, y, 0 };
     fprintf(stderr, "WoW: teleported to (%.1f %.1f %.1f)\n", x, y, z);
 }

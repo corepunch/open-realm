@@ -3,16 +3,16 @@
 
 bool MDLX_EvaluateLight(mdxModel_t const *model,
                         mdxLight_t const *light,
-                        LPCMATRIX4 modelMatrix,
+                        matrix4_t const * modelMatrix,
                         uint32_t frame,
                         bool useVisibility,
-                        LPRMODELLIGHT output)
+                        rModelLight_t * output)
 {
     float visibility = 1.0f;
-    VECTOR3 color, ambc;
+    vector3_t color, ambc;
     float intensity, ambIntensity, astart;
-    VECTOR3 pivot = { 0, 0, 0 };
-    VECTOR3 localPos, localDirTarget, worldPos, worldDirTarget, worldDir;
+    vector3_t pivot = { 0, 0, 0 };
+    vector3_t localPos, localDirTarget, worldPos, worldDirTarget, worldDir;
 
     if (!model || !light || !modelMatrix || !output) return false;
 
@@ -40,7 +40,7 @@ bool MDLX_EvaluateLight(mdxModel_t const *model,
     if (light->node.node_id < (uint32_t)model->num_pivots)
         pivot = model->pivots[light->node.node_id];
     localPos = pivot;
-    localDirTarget = (VECTOR3){ pivot.x, pivot.y, pivot.z - 1.0f };
+    localDirTarget = (vector3_t){ pivot.x, pivot.y, pivot.z - 1.0f };
     if (light->node.node_id < MDX_MAX_NODES && model->nodes[light->node.node_id]) {
         localPos = Matrix4_multiply_vector3(&node_matrices[light->node.node_id], &pivot);
         localDirTarget = Matrix4_multiply_vector3(&node_matrices[light->node.node_id], &localDirTarget);
@@ -50,11 +50,11 @@ bool MDLX_EvaluateLight(mdxModel_t const *model,
     worldDirTarget = Matrix4_multiply_vector3(modelMatrix, &localDirTarget);
     worldDir = Vector3_sub(&worldDirTarget, &worldPos);
     if (Vector3_lengthsq(&worldDir) < EPSILON)
-        worldDir = (VECTOR3){ 0, 0, -1 };
+        worldDir = (vector3_t){ 0, 0, -1 };
     else
         Vector3_normalize(&worldDir);
 
-    *output = (RMODELLIGHT){
+    *output = (rModelLight_t){
         .pos = worldPos,
         .dir = Vector3_unm(&worldDir),
         .color = color,
@@ -71,10 +71,10 @@ bool MDLX_EvaluateLight(mdxModel_t const *model,
  * game-time ratio. Warsmash consumes the first light from each DNC instance
  * directly; its DNC world-light manager does not filter that light through the
  * normal scene-light visibility list. */
-bool MDLX_SampleFirstLight(LPCMODEL model, float ratio, LPRMODELLIGHT output) {
+bool MDLX_SampleFirstLight(model_t const * model, float ratio, rModelLight_t * output) {
     mdxModel_t const *mdx;
     mdxSequence_t const *seq;
-    MATRIX4 identity;
+    matrix4_t identity;
     uint32_t length, offset, frame;
 
     if (!model || model->modeltype != ID_MDLX || !model->mdx || !output)
@@ -97,12 +97,12 @@ bool MDLX_SampleFirstLight(LPCMODEL model, float ratio, LPRMODELLIGHT output) {
      * local so resource reloads cannot leave a stale cross-frame result. */
     {
         typedef struct {
-            LPCMODEL model;
+            model_t const * model;
             uint32_t frame;
             uint32_t viewTime;
-            RMODELLIGHT light;
-        } DNC_SAMPLE_CACHE;
-        static DNC_SAMPLE_CACHE cache[2];
+            rModelLight_t light;
+        } dncSampleCache_t;
+        static dncSampleCache_t cache[2];
         static uint32_t nextCache;
 
         FOR_LOOP(i, 2) {
@@ -118,7 +118,7 @@ bool MDLX_SampleFirstLight(LPCMODEL model, float ratio, LPRMODELLIGHT output) {
         if (!MDLX_EvaluateLight(mdx, mdx->lights, &identity, frame, false, output))
             return false;
 
-        cache[nextCache] = (DNC_SAMPLE_CACHE){
+        cache[nextCache] = (dncSampleCache_t){
             .model = model,
             .frame = frame,
             .viewTime = tr.viewDef.time,

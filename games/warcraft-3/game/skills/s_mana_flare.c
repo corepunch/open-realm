@@ -3,21 +3,21 @@
 #define ID_MANA_FLARE MAKEFOURCC('A', 'm', 'f', 'l') // rawcode; Faerie Dragon Mana Flare
 #define ID_BMFL MAKEFOURCC('B', 'm', 'f', 'l') // rawcode; Mana Flare caster buff
 
-static void mana_flare_strip(LPEDICT unit) {
+static void mana_flare_strip(edict_t * unit) {
 	FOR_LOOP(i, MAX_UNIT_STATUSES)
 		if (unit->abilstatus[i].level && unit->abilstatus[i].code == ID_BMFL)
 			memset(unit->abilstatus + i, 0, sizeof(unit->abilstatus[i]));
 	G_InvalidateUnitInfoPanel(unit);
 }
 
-static heroabilitystatus_t *mana_flare_status(LPEDICT unit) {
+static heroabilitystatus_t *mana_flare_status(edict_t * unit) {
 	FOR_LOOP(i, MAX_UNIT_STATUSES)
 		if (unit->abilstatus[i].level && unit->abilstatus[i].code == ID_BMFL)
 			return unit->abilstatus + i;
 	return NULL;
 }
 
-static bool mana_flare_can_splash(LPEDICT flare, LPEDICT primary, LPEDICT target, float splash_r, bool mana_only) {
+static bool mana_flare_can_splash(edict_t * flare, edict_t * primary, edict_t * target, float splash_r, bool mana_only) {
 	if (!target || target == primary || target == flare || !S_SpellIsAliveTarget(target)) return false;
 	if (!S_SpellIsEnemy(flare, target)) return false;
 	if (Vector2_distance(&target->s.origin2, &primary->s.origin2) > splash_r) return false;
@@ -25,7 +25,7 @@ static bool mana_flare_can_splash(LPEDICT flare, LPEDICT primary, LPEDICT target
 	return S_SpellAllowsTarget(ID_MANA_FLARE, flare, target);
 }
 
-static int mana_flare_damage(LPEDICT flare, LPEDICT victim, float cost) {
+static int mana_flare_damage(edict_t * flare, edict_t * victim, float cost) {
 	uint32_t level = MAX(1u, G_UnitAbilityLevel(flare, ID_MANA_FLARE));
 	bool hero = G_UnitIsHero(victim);
 	float per = S_SpellData(ID_MANA_FLARE, level, hero ? 2 : 1);
@@ -68,13 +68,13 @@ BZ_ABILITY_PROC(CAbilityManaFlare) {
 }
 
 /* DataE armor while Bmfl is active; ubertip binds armor to DataE. */
-float S_ManaFlareArmorBonus(LPCEDICT unit) {
+float S_ManaFlareArmorBonus(edict_t const * unit) {
 	uint32_t level = G_UnitStatusLevel(unit, ID_BMFL);
 	return level ? S_SpellData(ID_MANA_FLARE, level, 5) : 0.0f;
 }
 
 /* After a successful spell_commit: each enemy Amfl in Area may flare the caster. */
-void S_ManaFlareOnCast(LPEDICT caster, uint32_t spell_code, uint32_t spell_level) {
+void S_ManaFlareOnCast(edict_t * caster, uint32_t spell_code, uint32_t spell_level) {
 	float cost;
 	if (!caster || !spell_code || !S_SpellIsAliveTarget(caster)) return;
 	cost = S_SpellNumber(spell_code, ABILITY_NUMBER_COST, MAX(1u, spell_level));

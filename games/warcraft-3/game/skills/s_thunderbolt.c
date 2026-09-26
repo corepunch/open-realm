@@ -8,7 +8,7 @@ static float firebolt_missile_speed;
 
 static float ConfigNumber(cstring_t classname, cstring_t field) { cstring_t value = FindConfigValue(classname, field); return value ? atof(value) : 0; }
 
-static void thunderbolt_projectile_hit(LPEDICT missile);
+static void thunderbolt_projectile_hit(edict_t * missile);
 
 static umove_t thunderbolt_projectile_move = { "stand", NULL, thunderbolt_projectile_hit, CAbilityThunderBolt };
 static umove_t firebolt_projectile_move = { "stand", NULL, thunderbolt_projectile_hit, CAbilityFireBolt };
@@ -19,9 +19,9 @@ static float bolt_missile_speed(uint32_t code) {
     return speed > 0 ? speed : 1000;
 }
 
-static void thunderbolt_projectile_hit(LPEDICT missile) {
-    LPEDICT target = missile->goalentity;
-    LPEDICT caster = missile->owner;
+static void thunderbolt_projectile_hit(edict_t * missile) {
+    edict_t * target = missile->goalentity;
+    edict_t * caster = missile->owner;
 
     if (S_SpellIsAliveTarget(target)) {
         if (S_SpellDamage(target, caster, missile->damage) && !M_IsDead(target)) {
@@ -31,14 +31,14 @@ static void thunderbolt_projectile_hit(LPEDICT missile) {
     G_FreeEdict(missile);
 }
 
-static void thunderbolt_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    LPEDICT target = st.entity;
+static void thunderbolt_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+    edict_t * target = st.entity;
     uint32_t code = spell->code;
     uint32_t level = S_SpellLevel(caster, code);
     cstring_t art = G_AbilityEffectArt(code, WC3_EFFECT_MISSILE, 0);
     float speed = bolt_missile_speed(code);
     float duration = S_SpellDuration(code, level, S_UnitIsResistant(target));
-    LPEDICT missile;
+    edict_t * missile;
 
     unit_setmove(caster, &spell_cast_move);
     missile = G_Spawn();

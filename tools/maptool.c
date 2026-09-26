@@ -17,8 +17,8 @@
 static handle_t archives[64] = { 0 };
 static const char *g_map_path = NULL;
 static struct {
-    VECTOR2 position;
-    VECTOR3 viewangles;
+    vector2_t position;
+    vector3_t viewangles;
     float target_distance;
     float fov;
     float z_offset;
@@ -77,24 +77,24 @@ void MemFree(handle_t mem) { Viewer_MemFree(mem); }
 
 void Sys_Quit(void) { exit(0); }
 
-static void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output) {
-    VECTOR3 const vieworg = Vector3_unm(target);
+static void Matrix4_fromViewAngles(vector3_t const * target, vector3_t const * angles, float distance, matrix4_t * output) {
+    vector3_t const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
-    Matrix4_translate(output, &(VECTOR3){0, 0, -distance});
+    Matrix4_translate(output, &(vector3_t){0, 0, -distance});
     Matrix4_rotate(output, angles, ROTATE_ZYX);
     Matrix4_translate(output, &vieworg);
 }
 
-static void Matrix4_fromViewQuat(LPCVECTOR3 target, LPCQUATERNION quat, float distance, LPMATRIX4 output) {
-    VECTOR3 const vieworg = Vector3_unm(target);
+static void Matrix4_fromViewQuat(vector3_t const * target, quaternion_t const * quat, float distance, matrix4_t * output) {
+    vector3_t const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
-    Matrix4_translate(output, &(VECTOR3){0, 0, -distance});
+    Matrix4_translate(output, &(vector3_t){0, 0, -distance});
     Matrix4_rotateQuat(output, quat);
     Matrix4_translate(output, &vieworg);
 }
 
-static void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output) {
-    MATRIX4 proj, view;
+static void Matrix4_getLightMatrix(vector3_t const * sunangles, vector3_t const * target, float scale, matrix4_t * output) {
+    matrix4_t proj, view;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, 100.0, 3500.0);
     Matrix4_fromViewAngles(target, sunangles, 1000, &view);
     Matrix4_multiply(&proj, &view, output);
@@ -112,8 +112,8 @@ static void BuildMapCamera(refExport_t const *re, viewDef_t *viewdef) {
         Matrix4_identity(&viewdef->lightMatrix);
         return;
     }
-    VECTOR2 size = GetWar3MapSize(tr.world);
-    VECTOR3 target = {
+    vector2_t size = GetWar3MapSize(tr.world);
+    vector3_t target = {
         camera.position.x,
         camera.position.y,
         re->GetHeightAtPoint(camera.position.x, camera.position.y) - 128.0f + camera.z_offset,
@@ -122,12 +122,12 @@ static void BuildMapCamera(refExport_t const *re, viewDef_t *viewdef) {
     size2_t window = R_GetWindowSize();
     float aspect = window.height ? (float)window.width / (float)window.height : 1.0f;
 
-    MATRIX4 proj, view;
-    QUATERNION quat = Quaternion_fromEuler(&camera.viewangles, ROTATE_ZYX);
+    matrix4_t proj, view;
+    quaternion_t quat = Quaternion_fromEuler(&camera.viewangles, ROTATE_ZYX);
     Matrix4_perspective(&proj, camera.fov, aspect, 100.0f, 5000.0f);
     Matrix4_fromViewQuat(&target, &quat, camera.target_distance, &view);
     Matrix4_multiply(&proj, &view, &viewdef->viewProjectionMatrix);
-    Matrix4_getLightMatrix(&(VECTOR3){ -40, 0, 60 }, &target, radius, &viewdef->lightMatrix);
+    Matrix4_getLightMatrix(&(vector3_t){ -40, 0, 60 }, &target, radius, &viewdef->lightMatrix);
 }
 
 int main(int argc, char **argv) {
@@ -191,8 +191,8 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    VECTOR2 mapSize = GetWar3MapSize(tr.world);
-    camera.position = (VECTOR2){
+    vector2_t mapSize = GetWar3MapSize(tr.world);
+    camera.position = (vector2_t){
         tr.world->center.x + mapSize.x * 0.5f,
         tr.world->center.y + mapSize.y * 0.5f,
     };

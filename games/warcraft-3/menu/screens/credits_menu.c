@@ -6,7 +6,7 @@
 #include "../menu_dialog.h"
 #include "../menu_screen.h"
 
-static LPFRAMEDEF credits_root;
+static frameDef_t * credits_root;
 static uiDialogWar3_t credits_dialog;
 
 static bool CreditsMenu_LoadScreen(void) {

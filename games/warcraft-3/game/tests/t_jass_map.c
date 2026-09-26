@@ -58,7 +58,7 @@ static void victory_noop_write(pfWriteType_t type, void const *value) {
     (void)value;
 }
 
-static void victory_noop_unicast(LPEDICT ent) {
+static void victory_noop_unicast(edict_t * ent) {
     (void)ent;
 }
 
@@ -79,7 +79,7 @@ static void cheat_console_capture_write(pfWriteType_t type, void const *value) {
     }
 }
 
-static void cheat_console_capture_unicast(LPEDICT ent) {
+static void cheat_console_capture_unicast(edict_t * ent) {
     (void)ent;
     cheat_console_unicasts++;
 }
@@ -95,7 +95,7 @@ static void cheat_console_capture_reset(void) {
  * ========================================================================= */
 
 TEST(wc3_jass_map, parse_segment_quoted_single_value_stops_at_end) {
-    PARSER parser = {
+    wordExtractor_t parser = {
         .buffer = "\"Learn Holy Light - [Level %d]\"",
         .delimiters = ""
     };
@@ -107,7 +107,7 @@ TEST(wc3_jass_map, parse_segment_quoted_single_value_stops_at_end) {
 }
 
 TEST(wc3_jass_map, parse_segment_quoted_list_advances_to_next_value) {
-    PARSER parser = {
+    wordExtractor_t parser = {
         .buffer = "\"Level 1\",\"Level 2\"",
         .delimiters = ""
     };
@@ -128,7 +128,7 @@ TEST(wc3_jass_map, parse_segment_quoted_list_advances_to_next_value) {
  * Call jlex_parse_token: game unity TU shadows parse_token with stb_fdf's copy. */
 TEST(wc3_jass_map, minified_return_empty_string_tokens) {
     char const *src = "return\"\"";
-    PARSER parser = {
+    wordExtractor_t parser = {
         .buffer = src,
         .start = src,
         .delimiters = ",;()[]+-/*=<>!"
@@ -145,7 +145,7 @@ TEST(wc3_jass_map, minified_return_empty_string_tokens) {
 
 TEST(wc3_jass_map, minified_return_nonempty_string_tokens) {
     char const *src = "return\"hello\"";
-    PARSER parser = {
+    wordExtractor_t parser = {
         .buffer = src,
         .start = src,
         .delimiters = ",;()[]+-/*=<>!"
@@ -162,7 +162,7 @@ TEST(wc3_jass_map, minified_return_nonempty_string_tokens) {
 
 TEST(wc3_jass_map, jass_lexer_eof_does_not_advance_past_nul) {
     char const src[] = "";
-    PARSER parser = { .buffer = src, .start = src, .delimiters = ",;()[]+-/*=<>!" };
+    wordExtractor_t parser = { .buffer = src, .start = src, .delimiters = ",;()[]+-/*=<>!" };
 
     T_STREQ(jlex_parse_token(&parser), "");
     T_ASSERT(parser.buffer == src);
@@ -576,7 +576,7 @@ TEST(wc3_jass_map, map_metadata_and_start_priority_persist) {
  * the removed Crypt must not satisfy CheckGreenBuildings, even while its
  * deferred edict is still alive for the current frame. */
 TEST(wc3_jass_map, human07_normal_removal_is_absent_from_green_building_count) {
-    LPEDICT crypt = NULL, town_hall = NULL;
+    edict_t * crypt = NULL, *town_hall = NULL;
 
     setup_test_world();
     T_ASSERT(run_test_jass(
@@ -660,7 +660,7 @@ cleanup:
  * the authored order and verify the replacement is the only counted/selectable
  * building before deferred handles are finally released. */
 TEST(wc3_jass_map, human04_cancel_replaces_townhall_after_difficulty_removal) {
-    LPEDICT crypt = NULL, old_town_hall = NULL, replacement = NULL;
+    edict_t * crypt = NULL, *old_town_hall = NULL, *replacement = NULL;
     uint32_t const bit = 1u << game.clients[0].ps.number;
 
     setup_test_world();
@@ -1009,7 +1009,7 @@ TEST(wc3_jass_map, quest_complete_all_cheat_marks_every_allocated_quest) {
 TEST(wc3_jass_map, cheat_console_feedback_skips_disconnected_client_transport) {
     cstring_t (*old_cvar)(cstring_t, cstring_t);
     void (*old_write)(pfWriteType_t, void const *);
-    void (*old_unicast)(LPEDICT);
+    void (*old_unicast)(edict_t *);
     cstring_t command[] = { "quest", "complete", "all" };
 
     T_ASSERT(run_test_jass(
@@ -1084,7 +1084,7 @@ TEST(wc3_jass_map, trigger_fire_cheat_bypasses_disabled_conditions_and_can_suppl
 TEST(wc3_jass_map, cinematic_list_rejects_helpers_and_victory_defeat_triggers) {
     cstring_t (*old_cvar)(cstring_t, cstring_t);
     void (*old_write)(pfWriteType_t, void const *);
-    void (*old_unicast)(LPEDICT);
+    void (*old_unicast)(edict_t *);
     cstring_t command[] = { "cinematic", "list" };
 
     T_ASSERT(run_test_jass(
@@ -1150,7 +1150,7 @@ TEST(wc3_jass_map, cinematic_list_rejects_helpers_and_victory_defeat_triggers) {
 TEST(wc3_jass_map, objective_list_finds_real_victory_progression_not_cheat_or_defeat) {
     cstring_t (*old_cvar)(cstring_t, cstring_t);
     void (*old_write)(pfWriteType_t, void const *);
-    void (*old_unicast)(LPEDICT);
+    void (*old_unicast)(edict_t *);
     cstring_t command[] = { "objective", "list" };
 
     T_ASSERT(run_test_jass(
@@ -1475,7 +1475,7 @@ TEST(wc3_jass_map, paused_victory_drains_result_event_and_releases_fallback) {
 TEST(wc3_jass_map, victory_continue_runs_blizzard_continuation_while_paused) {
     void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
+    void (*old_unicast)(edict_t *) = gi.unicast;
     cstring_t command[] = { "hidegameresult" };
 
     T_ASSERT(run_test_jass(
@@ -1550,7 +1550,7 @@ TEST(wc3_jass_map, endgame_without_campaign_select_returns_to_main_menu) {
 
 TEST(wc3_jass_map, escape_menu_quit_campaign_returns_to_campaign_select) {
     void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
-    LPCMAPINFO old_mapinfo = level.mapinfo;
+    mapInfo_t const * old_mapinfo = level.mapinfo;
     cstring_t command[] = { "menu_quit_game" };
     char old_map[MAX_PATHLEN];
 
@@ -1573,7 +1573,7 @@ TEST(wc3_jass_map, escape_menu_quit_campaign_returns_to_campaign_select) {
 
 TEST(wc3_jass_map, escape_menu_quit_frozen_throne_campaign_returns_to_campaign_select) {
     void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
-    LPCMAPINFO old_mapinfo = level.mapinfo;
+    mapInfo_t const * old_mapinfo = level.mapinfo;
     cstring_t command[] = { "menu_quit_game" };
     char old_map[MAX_PATHLEN];
 
@@ -1596,7 +1596,7 @@ TEST(wc3_jass_map, escape_menu_quit_frozen_throne_campaign_returns_to_campaign_s
 
 TEST(wc3_jass_map, escape_menu_quit_non_campaign_returns_to_main_menu) {
     void (*old_menu_action)(cstring_t, cstring_t) = gi.MenuAction;
-    LPCMAPINFO old_mapinfo = level.mapinfo;
+    mapInfo_t const * old_mapinfo = level.mapinfo;
     cstring_t command[] = { "menu_quit_game" };
     char old_map[MAX_PATHLEN];
 

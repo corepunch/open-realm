@@ -22,7 +22,7 @@ typedef struct {
     entityState_t current;
     entityState_t prev;
     uint32_t serverframe;
-    COLOR32 tint;
+    color32_t tint;
     bool tint_valid;
     bool selected;
 } centity_t;
@@ -42,7 +42,7 @@ typedef struct {
     mouseEventType_t event;
     uint32_t button;
     int wheel;
-    VECTOR2 origin;
+    vector2_t origin;
 } mouseEvent_t;
 
 typedef enum {
@@ -70,30 +70,30 @@ struct client_state {
     sizeBuf_t loading;        /* compressed loading-screen chunks; released after decode or disconnect */
     float loading_progress;   /* client-owned normalized loading progress [0,1] */
     bool precache_ready;       /* complete media table received after the loading-only batch */
-    LPMODEL models[MAX_MODELS];
-    LPMODEL portraits[MAX_MODELS];
-    LPMODEL minimap_model;
-    LPCTEXTURE pics[MAX_IMAGES];
-    LPTEXTURE dynamicPics[MAX_DYNAMIC_IMAGES];
+    model_t * models[MAX_MODELS];
+    model_t * portraits[MAX_MODELS];
+    model_t * minimap_model;
+    texture_t const * pics[MAX_IMAGES];
+    texture_t * dynamicPics[MAX_DYNAMIC_IMAGES];
     char dynamicPicNames[MAX_DYNAMIC_IMAGES][512];
     uint32_t dynamicPicCursor;
-    LPCFONT fonts[MAX_FONTSTYLES];
+    font_t const * fonts[MAX_FONTSTYLES];
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
     centity_t ents[MAX_CLIENT_ENTITIES];
     handle_t layout[MAX_LAYOUT_LAYERS];
     viewDef_t viewDef;
     wc3WeatherEffect_t weather_effects[MAX_WEATHER_EFFECTS];
     uint32_t num_weather_effects;
-    LIGHTNINGEFFECT lightning_effects[MAX_LIGHTNING_EFFECTS];
+    lightningEffect_t lightning_effects[MAX_LIGHTNING_EFFECTS];
     uint32_t num_lightning_effects;
     struct frame frame;
-    VECTOR2 startingPosition;
-    PLAYER playerstate;
+    vector2_t startingPosition;
+    player_t playerstate;
     struct {
         bool active;
-        VECTOR2 origin;
+        vector2_t origin;
         bool view;
-        VECTOR3 angles;
+        vector3_t angles;
         float distance;
         uint32_t focus_ms, view_ms;
     } camera_prediction;
@@ -106,13 +106,13 @@ struct client_state {
         uint32_t generation;
     } fow;
     terrainMask_t terrain_mask;
-    LPENTITYSTATE cursorEntity;
+    entityState_t * cursorEntity;
     struct {
         uint32_t image;
         float radius;
     } cursor_splat;
     uint32_t hover_entity;     /* entity number under mouse cursor (0 = none) */
-    LPMODEL moveConfirmation;
+    model_t * moveConfirmation;
     uint32_t num_entities;
     /* Compact list of entity numbers whose current state carries a live model.
      * CL_ParseFrame and CL_AddEntities iterate this instead of scanning all
@@ -184,8 +184,8 @@ void CL_MovieUpdate(void);
 void CL_MovieDraw(void);
 bool CL_MovieKeyEvent(keyCode_t key, bool down);
 void CL_MovieShutdown(void);
-VECTOR2 CL_ClampCameraPosition(VECTOR2 position);
-void CL_PredictCameraPosition(VECTOR2 position);
+vector2_t CL_ClampCameraPosition(vector2_t position);
+void CL_PredictCameraPosition(vector2_t position);
 static inline float cl_normalize_entity_scale(float scale) { return scale > 0.0f ? scale : 1.0f; }
 
 void V_RenderView(void);
@@ -195,7 +195,7 @@ void CL_RegisterConfigString(uint32_t index);
 void CL_UpdateConfigString(uint32_t index, cstring_t olds);
 void CL_RestartRefresh(void);
 // cl_parse.c
-void CL_ParseServerMessage(LPSIZEBUF msg);
+void CL_ParseServerMessage(sizeBuf_t * msg);
 void CL_AddActiveEntity(uint32_t index);
 void CL_RemoveActiveEntity(uint32_t index);
 
@@ -205,7 +205,7 @@ void CL_CanvasResolvePolicy(void);
 void CL_CanvasWindowChanged(void);
 void CL_CanvasFrame(uint32_t now);
 void CL_CanvasWriteChrome(void);
-LPCUICANVAS CL_Canvas(void);
+uiCanvas_t const * CL_Canvas(void);
 UICANVASCLASS CL_CanvasSettledChrome(void);
 
 // cl_window.c
@@ -231,9 +231,9 @@ void CON_TextInput(cstring_t text);
 void CON_KeyEvent(int key, bool down);
 
 // cl_view.c
-//void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output);
-//void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, float scale, LPMATRIX4 output);
-void Matrix4_getCameraMatrix(LPMATRIX4 output);
+//void Matrix4_fromViewAngles(vector3_t const * target, vector3_t const * angles, float distance, matrix4_t * output);
+//void Matrix4_getLightMatrix(vector3_t const * sunangles, vector3_t const * target, float scale, matrix4_t * output);
+void Matrix4_getCameraMatrix(matrix4_t * output);
 /* Paused views retain the last scene and render time. Zero delta is required
  * because model renderers emit effects while submitting cached entities. */
 static inline bool V_AdvanceSceneTime(viewDef_t *view, uint32_t now, uint32_t * last, bool paused) {
@@ -261,15 +261,15 @@ bool V_FindEntity(uint32_t number, renderEntity_t *out);
 void V_AddDecal(renderDecal_t *decal);
 
 // cl_scrn.c
-LPCUIFRAME SCR_Clear(handle_t data);
-LPCUIFRAME SCR_ClearLayer(handle_t data, uint32_t layer);
-LPCUIFRAME SCR_ClearWindow(handle_t data);
+uiFrame_t const * SCR_Clear(handle_t data);
+uiFrame_t const * SCR_ClearLayer(handle_t data, uint32_t layer);
+uiFrame_t const * SCR_ClearWindow(handle_t data);
 uint32_t SCR_NumFrames(void);
-LPUIFRAME SCR_Frame(uint32_t number);
-rect_t const * SCR_LayoutRect(LPCUIFRAME frame);
-void CL_LayoutDrawMinimap(LPCUIFRAME frame, rect_t const * screen);
+uiFrame_t * SCR_Frame(uint32_t number);
+rect_t const * SCR_LayoutRect(uiFrame_t const * frame);
+void CL_LayoutDrawMinimap(uiFrame_t const * frame, rect_t const * screen);
 void CL_ClearMinimap(void);
-void CL_ParseMinimapPing(LPSIZEBUF msg);
+void CL_ParseMinimapPing(sizeBuf_t * msg);
 void CL_UpdateMinimapModel(void);
 #ifdef BZ_TESTS
 uint32_t CL_MinimapPingCount(void);
@@ -278,31 +278,31 @@ uint32_t CL_MinimapRecentCount(void);
 /* World-hover targeting and UI_STAT_CONTEXT_* name/vital bindings share this
  * snapshot gate so a stale hover cannot keep a name after death or flag loss.
  * Invulnerable units may publish a name with neither bar flag. */
-static inline bool CL_EntityAllowsWorldHover(LPCENTITYSTATE state) {
+static inline bool CL_EntityAllowsWorldHover(entityState_t const * state) {
     return state && state->model &&
            state->stats[ENT_HEALTH] > 0 &&
            !(state->flags & EF_NOT_SELECTABLE) &&
            (state->name || (state->flags & (EF_HOVER_HEALTH | EF_HOVER_MANA)));
 }
 
-LPCENTITYSTATE SCR_LayoutContextEntity(void);
+entityState_t const * SCR_LayoutContextEntity(void);
 bool SCR_LayoutEntityContextActive(void);
 bool SCR_LayoutContextValue(uint32_t stat, float * value);
-bool SCR_LayoutContextFrameVisible(LPCUIFRAME frame);
+bool SCR_LayoutContextFrameVisible(uiFrame_t const * frame);
 bool SCR_LayoutWorldHoverRoot(rect_t * root);
 float SCR_UICanvasWidth(void);
-VECTOR2 SCR_ScreenToUI(int x, int y);
-bool SCR_ProjectWorldPoint(LPCVECTOR3 point, LPVECTOR2 screen);
-VECTOR2 SCR_GetAxisBounds(rect_t const * rect, bool is_x_axis);
+vector2_t SCR_ScreenToUI(int x, int y);
+bool SCR_ProjectWorldPoint(vector3_t const * point, vector2_t * screen);
+vector2_t SCR_GetAxisBounds(rect_t const * rect, bool is_x_axis);
 float SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis);
-VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
+vector2_t SCR_SolveAxisPosition(uiFrame_t const * frame,
                               uiFramePoints_t const points,
                               float width,
                               bool is_x_axis,
                               bool assigned_size);
-cstring_t SCR_GetStringValue(LPCUIFRAME frame);
-cstring_t SCR_GetTooltipText(LPCUIFRAME frame);
-drawText_t SCR_GetDrawText(LPCUIFRAME frame,
+cstring_t SCR_GetStringValue(uiFrame_t const * frame);
+cstring_t SCR_GetTooltipText(uiFrame_t const * frame);
+drawText_t SCR_GetDrawText(uiFrame_t const * frame,
                          float avl_width,
                          cstring_t text,
                          uiLabel_t const *label);
@@ -323,7 +323,7 @@ void CL_Input(void);
 void CL_InitInput(void);
 
 // cl_tent.c
-void CL_ParseTEnt(LPSIZEBUF msg);
+void CL_ParseTEnt(sizeBuf_t * msg);
 void CL_AddTEnts(void);
 void CL_ApplyIndicator(renderEntity_t *ent);
 void CL_DrawTEnts(void);
@@ -339,7 +339,7 @@ void CL_UIMenuCommand(cstring_t command);
 void CL_EntityEvent(entityState_t const *ent);
 
 /* Unit UI data parsing (Phase 8) */
-void CL_ParseUnitUI(LPSIZEBUF msg);
+void CL_ParseUnitUI(sizeBuf_t * msg);
 
 extern struct client_state cl;
 extern struct client_static cls;

@@ -183,7 +183,7 @@ typedef struct sc2BaseFrame_s {
     uint32_t parent_index;
     struct { sc2BaseFramePoints_t x, y; } points;
     rect_t screen_rect;
-    COLOR32 color;
+    color32_t color;
     float alpha;
     struct { float width, height; } size;
     uint32_t image;
@@ -191,7 +191,7 @@ typedef struct sc2BaseFrame_s {
     cstring_t text;
     uint32_t stat;
     uiLabel_t label;
-    COLOR32 text_color;
+    color32_t text_color;
     struct {
         uint32_t bg;
         uint32_t edge;
@@ -199,13 +199,13 @@ typedef struct sc2BaseFrame_s {
         float insets[4];
     } backdrop;
     uint32_t ui_flags;
-    UIMODEL model;
+    uiModel_t model;
     uint32_t model_flags;
     void (*on_event)(struct sc2BaseFrame_s *frame, float x, float y, int button, bool down);
 } sc2BaseFrame_t;
 
-typedef sc2BaseFrame_t *LPSC2BASEFRAME;
-typedef sc2BaseFrame_t const *LPCSC2BASEFRAME;
+
+
 
 /* -------------------------------------------------------------------------- */
 /* Parsed frame types (before flattening)                                      */
@@ -237,7 +237,7 @@ typedef struct sc2Frame_s {
     UINAME image_ref;
     float width, height;
     uint32_t flags;
-    COLOR32 color;
+    color32_t color;
     float alpha;
     sc2ParsedAnchor_t anchors[SC2_MAX_ANCHORS];
     int num_anchors;
@@ -248,7 +248,7 @@ typedef struct sc2Frame_s {
     struct sc2Frame_s *parent;
     sc2BaseFrame_t *resolved_frame;
     PATHSTR source_file;
-    UIMODEL model;
+    uiModel_t model;
     uint32_t model_flags;
 } sc2Frame_t;
 
@@ -477,8 +477,8 @@ static bool xmlGetAttrInt(void *node, cstring_t name, int *out) {
     return true;
 }
 
-static COLOR32 SC2_ParseColor(cstring_t str) {
-    COLOR32 c = { 255, 255, 255, 255 };
+static color32_t SC2_ParseColor(cstring_t str) {
+    color32_t c = { 255, 255, 255, 255 };
     if (!str) return c;
     int r = 0, g = 0, b = 0, a = 255;
     sscanf(str, "%d,%d,%d,%d", &r, &g, &b, &a);
@@ -534,7 +534,7 @@ static void SC2_ResolveTemplate(sc2Frame_t *frame, sc2Frame_t *tmpl) {
     } copy_props[] = {
         { offsetof(sc2Frame_t, width),  sizeof(float),   SC2_FRAME_HAS_WIDTH },
         { offsetof(sc2Frame_t, height), sizeof(float),   SC2_FRAME_HAS_HEIGHT },
-        { offsetof(sc2Frame_t, color),  sizeof(COLOR32), SC2_FRAME_HAS_COLOR },
+        { offsetof(sc2Frame_t, color),  sizeof(color32_t), SC2_FRAME_HAS_COLOR },
         { offsetof(sc2Frame_t, alpha),  sizeof(float),   SC2_FRAME_HAS_ALPHA },
     };
     FOR_LOOP(i, sizeof(copy_props) / sizeof(*copy_props)) {
@@ -568,10 +568,10 @@ static void SC2_ResolveTemplate(sc2Frame_t *frame, sc2Frame_t *tmpl) {
     }
 
     static const struct { size_t offset, size; } fields[] = {
-        { offsetof(UIMODEL, pos), sizeof(VECTOR3) }, { offsetof(UIMODEL, scale), sizeof(VECTOR3) },
-        { offsetof(UIMODEL, eye), sizeof(VECTOR3) }, { offsetof(UIMODEL, target), sizeof(VECTOR3) },
-        { offsetof(UIMODEL, fov), sizeof(float) }, { offsetof(UIMODEL, znear), sizeof(float) },
-        { offsetof(UIMODEL, zfar), sizeof(float) }, { offsetof(UIMODEL, projection), sizeof(UIMODELPROJECTION) },
+        { offsetof(uiModel_t, pos), sizeof(vector3_t) }, { offsetof(uiModel_t, scale), sizeof(vector3_t) },
+        { offsetof(uiModel_t, eye), sizeof(vector3_t) }, { offsetof(uiModel_t, target), sizeof(vector3_t) },
+        { offsetof(uiModel_t, fov), sizeof(float) }, { offsetof(uiModel_t, znear), sizeof(float) },
+        { offsetof(uiModel_t, zfar), sizeof(float) }, { offsetof(uiModel_t, projection), sizeof(UIMODELPROJECTION) },
     };
     FOR_LOOP(i, sizeof(fields) / sizeof(*fields)) {
         if ((frame->model_flags & (1u << i)) || !(tmpl->model_flags & (1u << i))) continue;
@@ -765,13 +765,13 @@ static void SC2_ParseModel(void *node, sc2Frame_t *frame) {
         SC2_XmlFree(val);
     }
     static const struct { cstring_t name; size_t offset; } fields[] = {
-        { "Position", offsetof(UIMODEL, pos) }, { "Scale", offsetof(UIMODEL, scale) },
+        { "Position", offsetof(uiModel_t, pos) }, { "Scale", offsetof(uiModel_t, scale) },
     };
     for (xmlNode *child = ((xmlNode *)node)->children; child; child = child->next) {
         FOR_LOOP(i, sizeof(fields) / sizeof(*fields)) {
             if (strcasecmp((cstring_t)child->name, fields[i].name)) continue;
             cstring_t text = SC2_XmlGetProp(child, "val");
-            VECTOR3 *v = (VECTOR3 *)((char *)&frame->model + fields[i].offset);
+            vector3_t *v = (vector3_t *)((char *)&frame->model + fields[i].offset);
             if (text && sscanf(text, "%f,%f,%f", &v->x, &v->y, &v->z) == 3)
                 frame->model_flags |= 1u << i;
             else fprintf(stderr, "SC2_Layout: invalid Model %s on %s\n", fields[i].name, frame->name);
@@ -783,9 +783,9 @@ static void SC2_ParseModel(void *node, sc2Frame_t *frame) {
 /* Camera attributes stay together in the model payload, including the authored clip planes. */
 static void SC2_ParseCamera(void *node, sc2Frame_t *frame) {
     static const struct { cstring_t name; size_t offset; int count; } fields[] = {
-        { "position", offsetof(UIMODEL, eye), 3 }, { "target", offsetof(UIMODEL, target), 3 },
-        { "fov", offsetof(UIMODEL, fov), 1 }, { "minz", offsetof(UIMODEL, znear), 1 },
-        { "maxz", offsetof(UIMODEL, zfar), 1 },
+        { "position", offsetof(uiModel_t, eye), 3 }, { "target", offsetof(uiModel_t, target), 3 },
+        { "fov", offsetof(uiModel_t, fov), 1 }, { "minz", offsetof(uiModel_t, znear), 1 },
+        { "maxz", offsetof(uiModel_t, zfar), 1 },
     };
     FOR_LOOP(i, sizeof(fields) / sizeof(*fields)) {
         cstring_t text = SC2_XmlGetProp(node, fields[i].name);
@@ -1211,7 +1211,7 @@ static void SC2_FlattenFrame(sc2Frame_t *frame, int parent_index) {
             dst->label.font = (RESOURCE)sc2_layout_import.FontIndex("UI/Fonts/EurostileExt-Med.otf", 16);
         dst->label.textaligny = FONT_JUSTIFYMIDDLE;
     }
-    dst->color = (frame->flags & SC2_FRAME_HAS_COLOR) ? frame->color : (COLOR32){255, 255, 255, 255};
+    dst->color = (frame->flags & SC2_FRAME_HAS_COLOR) ? frame->color : (color32_t){255, 255, 255, 255};
     dst->alpha = (frame->flags & SC2_FRAME_HAS_ALPHA) ? frame->alpha : 1.0f;
     dst->model = frame->model;
     dst->model.aspect = UI_MIN_ASPECT;
@@ -1453,7 +1453,7 @@ void SC2_InitFrame(sc2Frame_t *frame, sc2FrameType type) {
     memset(frame, 0, sizeof(*frame));
     frame->type = type;
     frame->alpha = 1.0f;
-    frame->color = (COLOR32){255, 255, 255, 255};
+    frame->color = (color32_t){255, 255, 255, 255};
 }
 
 void SC2_SetSize(sc2Frame_t *frame, float width, float height) {

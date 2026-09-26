@@ -44,7 +44,7 @@ static void CL_RegisterImageConfigString(uint32_t index, bool replace, cstring_t
     if (!replace && cl.pics[image]) return;
     if (replace && CL_SameResource(cl.pics[image], olds, name)) return;
     if (cl.pics[image]) {
-        re.ReleaseTexture((LPTEXTURE)cl.pics[image]);
+        re.ReleaseTexture((texture_t *)cl.pics[image]);
         cl.pics[image] = NULL;
     }
     if (*name) cl.pics[image] = re.LoadTexture(name);

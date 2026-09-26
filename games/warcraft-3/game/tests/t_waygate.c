@@ -4,7 +4,7 @@
 
 #define BZ_TEST_WARP MAKEFOURCC('Z','w','r','p')
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -26,13 +26,13 @@ static char const waygate_slk[] =
 
 typedef struct {
     slkTestData_t *rows, *old;
-    LPEDICT gate;
-    LPEDICT unit;
-} WAYFIX;
+    edict_t * gate;
+    edict_t * unit;
+} wayFix_t;
 
-static WAYFIX waygate_setup(float unit_x, float unit_y) {
-    WAYFIX fix = {0};
-    VECTOR2 destination = { 400.0f, 320.0f };
+static wayFix_t waygate_setup(float unit_x, float unit_y) {
+    wayFix_t fix = {0};
+    vector2_t destination = { 400.0f, 320.0f };
 
     reset_entities(); setup_test_world(); level.time = 1000;
     fix.rows = parse_slk_string(waygate_slk);
@@ -56,20 +56,20 @@ static WAYFIX waygate_setup(float unit_x, float unit_y) {
     return fix;
 }
 
-static void waygate_done(WAYFIX fix) {
+static void waygate_done(wayFix_t fix) {
     G_SetSLKRows("AbilityData", fix.old);
     free_slk_rows(fix.rows);
 }
 
-static void assert_no_waygate_order(LPCEDICT unit) {
+static void assert_no_waygate_order(edict_t const * unit) {
     T_NULL(unit->movement.waygate_target);
     T_NULL(unit->movement.waygate_goal);
     T_EQ(unit->movement.waygate_target_spawn_time, 0);
 }
 
 TEST(wc3_waygate, runtime_state_and_activation_animation) {
-    WAYFIX fix = waygate_setup(96.0f, 0.0f);
-    VECTOR2 destination = {0};
+    wayFix_t fix = waygate_setup(96.0f, 0.0f);
+    vector2_t destination = {0};
 
     T_ASSERT(S_WaygateIsGate(fix.gate));
     T_ASSERT(S_WaygateIsActive(fix.gate));
@@ -85,7 +85,7 @@ TEST(wc3_waygate, runtime_state_and_activation_animation) {
 }
 
 TEST(wc3_waygate, smart_use_reads_rectangular_authored_data_and_teleports) {
-    WAYFIX fix = waygate_setup(70.0f, 30.0f); /* inside 160x80, but outside a 40-radius circle */
+    wayFix_t fix = waygate_setup(70.0f, 30.0f); /* inside 160x80, but outside a 40-radius circle */
 
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
     T_FEQ(fix.unit->s.origin2.x, 400.0f, 0.001f);
@@ -96,8 +96,8 @@ TEST(wc3_waygate, smart_use_reads_rectangular_authored_data_and_teleports) {
 
 TEST(wc3_waygate, blocked_destination_cancels_without_raw_position_fallback) {
     uint8_t blocked[64 * 64];
-    WAYFIX fix = waygate_setup(70.0f, 0.0f);
-    VECTOR2 before = fix.unit->s.origin2;
+    wayFix_t fix = waygate_setup(70.0f, 0.0f);
+    vector2_t before = fix.unit->s.origin2;
 
     memset(blocked, CM_PATHING_UNWALKABLE, sizeof(blocked));
     setup_test_pathmap(64, 64, blocked);
@@ -109,8 +109,8 @@ TEST(wc3_waygate, blocked_destination_cancels_without_raw_position_fallback) {
 }
 
 TEST(wc3_waygate, disabled_gate_does_not_consume_smart_as_waygate) {
-    WAYFIX fix = waygate_setup(70.0f, 0.0f);
-    VECTOR2 before = fix.unit->s.origin2;
+    wayFix_t fix = waygate_setup(70.0f, 0.0f);
+    vector2_t before = fix.unit->s.origin2;
 
     S_WaygateSetActive(fix.gate, false);
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
@@ -122,7 +122,7 @@ TEST(wc3_waygate, disabled_gate_does_not_consume_smart_as_waygate) {
 }
 
 TEST(wc3_waygate, approach_revalidates_gate_generation_before_teleport) {
-    WAYFIX fix = waygate_setup(300.0f, 0.0f);
+    wayFix_t fix = waygate_setup(300.0f, 0.0f);
 
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
     T_ASSERT(fix.unit->movement.waygate_target == fix.gate);
@@ -137,7 +137,7 @@ TEST(wc3_waygate, approach_revalidates_gate_generation_before_teleport) {
 }
 
 TEST(wc3_waygate, approach_rechecks_activation_before_traversal) {
-    WAYFIX fix = waygate_setup(300.0f, 0.0f);
+    wayFix_t fix = waygate_setup(300.0f, 0.0f);
 
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
     S_WaygateSetActive(fix.gate, false);
@@ -149,12 +149,12 @@ TEST(wc3_waygate, approach_rechecks_activation_before_traversal) {
 }
 
 TEST(wc3_waygate, approach_uses_live_destination_at_traversal_time) {
-    WAYFIX fix = waygate_setup(300.0f, 0.0f);
-    VECTOR2 destination = { 640.0f, -128.0f };
+    wayFix_t fix = waygate_setup(300.0f, 0.0f);
+    vector2_t destination = { 640.0f, -128.0f };
 
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
     S_WaygateSetDestination(fix.gate, &destination);
-    fix.unit->s.origin2 = (VECTOR2){ 70.0f, 0.0f };
+    fix.unit->s.origin2 = (vector2_t){ 70.0f, 0.0f };
     fix.unit->s.origin.x = 70.0f;
     fix.unit->s.origin.y = 0.0f;
     T_NOT_NULL(fix.unit->currentmove);
@@ -166,8 +166,8 @@ TEST(wc3_waygate, approach_uses_live_destination_at_traversal_time) {
 }
 
 TEST(wc3_waygate, rejected_replacement_order_preserves_inflight_approach) {
-    WAYFIX fix = waygate_setup(300.0f, 0.0f);
-    LPEDICT goal;
+    wayFix_t fix = waygate_setup(300.0f, 0.0f);
+    edict_t * goal;
 
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
     goal = fix.unit->movement.waygate_goal;
@@ -181,8 +181,8 @@ TEST(wc3_waygate, rejected_replacement_order_preserves_inflight_approach) {
 }
 
 TEST(wc3_waygate, accepted_point_order_replaces_inflight_approach) {
-    WAYFIX fix = waygate_setup(300.0f, 0.0f);
-    VECTOR2 destination = { 500.0f, 100.0f };
+    wayFix_t fix = waygate_setup(300.0f, 0.0f);
+    vector2_t destination = { 500.0f, 100.0f };
 
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
     T_ASSERT(G_IssueUnitPointOrder(fix.unit, "move", &destination, false, 0, 0.0f));
@@ -192,8 +192,8 @@ TEST(wc3_waygate, accepted_point_order_replaces_inflight_approach) {
 }
 
 TEST(wc3_waygate, accepted_target_order_replaces_inflight_approach) {
-    WAYFIX fix = waygate_setup(300.0f, 0.0f);
-    LPEDICT friend = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 0.0f);
+    wayFix_t fix = waygate_setup(300.0f, 0.0f);
+    edict_t * friend = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 0.0f);
     friend->svflags |= SVF_MONSTER;
 
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
@@ -204,9 +204,9 @@ TEST(wc3_waygate, accepted_target_order_replaces_inflight_approach) {
 }
 
 TEST(wc3_waygate, shift_queued_order_does_not_interrupt_inflight_approach) {
-    WAYFIX fix = waygate_setup(300.0f, 0.0f);
-    VECTOR2 destination = { 500.0f, 100.0f };
-    LPEDICT goal;
+    wayFix_t fix = waygate_setup(300.0f, 0.0f);
+    vector2_t destination = { 500.0f, 100.0f };
+    edict_t * goal;
 
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
     goal = fix.unit->movement.waygate_goal;
@@ -219,13 +219,13 @@ TEST(wc3_waygate, shift_queued_order_does_not_interrupt_inflight_approach) {
 }
 
 TEST(wc3_waygate, stop_and_hold_replace_inflight_approach) {
-    WAYFIX stop = waygate_setup(300.0f, 0.0f);
+    wayFix_t stop = waygate_setup(300.0f, 0.0f);
     T_ASSERT(G_IssueUnitTargetOrder(stop.unit, "smart", stop.gate, false, 0));
     T_ASSERT(unit_issueimmediateorder(stop.unit, "stop"));
     assert_no_waygate_order(stop.unit);
     waygate_done(stop);
 
-    WAYFIX hold = waygate_setup(300.0f, 0.0f);
+    wayFix_t hold = waygate_setup(300.0f, 0.0f);
     T_ASSERT(G_IssueUnitTargetOrder(hold.unit, "smart", hold.gate, false, 0));
     T_ASSERT(unit_issueimmediateorder(hold.unit, "holdposition"));
     assert_no_waygate_order(hold.unit);
@@ -234,7 +234,7 @@ TEST(wc3_waygate, stop_and_hold_replace_inflight_approach) {
 }
 
 TEST(wc3_waygate, accepted_instant_order_hook_retires_inflight_approach) {
-    WAYFIX fix = waygate_setup(300.0f, 0.0f);
+    wayFix_t fix = waygate_setup(300.0f, 0.0f);
 
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
     T_ASSERT(S_UnitAbilityOrderAccepted(fix.unit, "test-instant-order"));
@@ -268,7 +268,7 @@ TEST(wc3_waygate, jass_natives_preserve_destination_and_boolean_activation) {
 
 TEST(wc3_save, waygate_state_and_inflight_approach_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-waygate-save.bin";
-    WAYFIX fix = waygate_setup(300.0f, 0.0f);
+    wayFix_t fix = waygate_setup(300.0f, 0.0f);
     uint32_t const gate_number = fix.gate->s.number;
     uint32_t const unit_number = fix.unit->s.number;
     uint32_t goal_number;
@@ -278,7 +278,7 @@ TEST(wc3_save, waygate_state_and_inflight_approach_round_trip) {
     goal_number = fix.unit->movement.waygate_goal->s.number;
     T_ASSERT(WriteGame(filename));
     fix.gate->waygate.active = false;
-    fix.gate->waygate.destination = (VECTOR2){0};
+    fix.gate->waygate.destination = (vector2_t){0};
     fix.gate->waygate.destination_set = false;
     fix.unit->movement.waygate_target = NULL;
     fix.unit->movement.waygate_goal = NULL;
@@ -302,16 +302,16 @@ TEST(wc3_save, waygate_state_and_inflight_approach_round_trip) {
 
 TEST(wc3_save, rejects_invalid_waygate_entity_references) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-waygate-invalid-reference.bin";
-    WAYFIX fix = waygate_setup(300.0f, 0.0f);
-    LPEDICT target, goal;
+    wayFix_t fix = waygate_setup(300.0f, 0.0f);
+    edict_t * target, *goal;
 
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
     target = fix.unit->movement.waygate_target;
     goal = fix.unit->movement.waygate_goal;
-    fix.unit->movement.waygate_target = (LPEDICT)(uintptr_t)1;
+    fix.unit->movement.waygate_target = (edict_t *)(uintptr_t)1;
     T_ASSERT(!WriteGame(filename));
     fix.unit->movement.waygate_target = target;
-    fix.unit->movement.waygate_goal = (LPEDICT)(uintptr_t)1;
+    fix.unit->movement.waygate_goal = (edict_t *)(uintptr_t)1;
     T_ASSERT(!WriteGame(filename));
     fix.unit->movement.waygate_goal = goal;
     waygate_done(fix);

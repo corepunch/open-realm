@@ -5,8 +5,8 @@
 
 /* ---- Charm (ANch): transfer target ownership to caster -------------------- */
 
-static bool charm_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    LPEDICT target = st.entity;
+static bool charm_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+    edict_t * target = st.entity;
     uint32_t level = S_SpellLevel(caster, spell->code);
     uint32_t max_level = (uint32_t)S_SpellData(spell->code, level, 1);
 
@@ -15,8 +15,8 @@ static bool charm_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const
     return true;
 }
 
-static void charm_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    LPEDICT target = st.entity;
+static void charm_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+    edict_t * target = st.entity;
     (void)spell;
 
     G_SetUnitPlayer(target, caster->s.player);
@@ -28,15 +28,15 @@ static void charm_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const 
 
 /* ---- Eat Tree (Aeat): consume a tree for healing ------------------------- */
 
-static bool eat_tree_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool eat_tree_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
     (void)spell;
-    LPEDICT target = st.entity;
+    edict_t * target = st.entity;
     if (!target || target->targtype != TARG_TREE) return false;
     return true;
 }
 
-static void eat_tree_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    LPEDICT target = st.entity;
+static void eat_tree_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+    edict_t * target = st.entity;
     uint32_t level = S_SpellLevel(caster, spell->code);
     float heal = S_SpellData(spell->code, level, 3);
 
@@ -46,8 +46,8 @@ static void eat_tree_execute(LPEDICT caster, spellTarget_t st, abilityitem_t con
 
 /* ---- Moon Well (Ambt): spend the well's mana on friendly life, then mana -- */
 
-static bool moon_well_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    LPEDICT target = st.entity;
+static bool moon_well_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+    edict_t * target = st.entity;
     uint32_t level = S_SpellLevel(caster, spell->code);
     float mana_ratio = S_SpellData(spell->code, level, 1); /* DataA: well mana / target mana */
     float life_ratio = S_SpellData(spell->code, level, 2); /* DataB: well mana / target HP */
@@ -57,8 +57,8 @@ static bool moon_well_validate(LPEDICT caster, spellTarget_t st, abilityitem_t c
     return mana_ratio > 0.0f && target->mana.value < target->mana.max_value;
 }
 
-static void moon_well_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    LPEDICT target = st.entity;
+static void moon_well_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+    edict_t * target = st.entity;
     uint32_t level = S_SpellLevel(caster, spell->code);
     float mana_ratio = S_SpellData(spell->code, level, 1);
     float life_ratio = S_SpellData(spell->code, level, 2);
@@ -97,7 +97,7 @@ BZ_VALIDATED_SPELL_PROC(AbilityManaBattery, moon_well_validate, moon_well_execut
 /* ---- Root (Aroo): toggle rooted state ------------------------------------ */
 
 BZ_COMMAND_PROC(AbilityRoot) {
-    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
+    edict_t * caster = G_GetMainSelectedUnit(clent->client);
     if (!caster) return;
     caster->no_pathing = !caster->no_pathing;
     caster->movetype = caster->no_pathing ? MOVETYPE_NONE : MOVETYPE_STEP;

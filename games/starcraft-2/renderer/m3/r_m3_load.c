@@ -8,8 +8,8 @@
 #define M3_FOR_EACH(TYPE, VAR, LIST) \
 for (m3##TYPE##_t const *VAR = LIST; VAR && VAR < LIST + LIST##Num; VAR++)
 
-#define M3_READ(BUFFER, VAR, VERSION) \
-if ((BUFFER)->ent.version > VERSION || VERSION == 0) M3_Read(BUFFER, &VAR, sizeof(VAR));
+#define M3_READ(buffer_t, VAR, VERSION) \
+if ((buffer_t)->ent.version > VERSION || VERSION == 0) M3_Read(buffer_t, &VAR, sizeof(VAR));
 
 #define READ_REFERENCE(TARGET, REF, TYPE) { \
     m3Reader_t reader##__LINE__ = M3_MakeSizeBuf(currentmodel, REF); \
@@ -21,10 +21,10 @@ if ((BUFFER)->ent.version > VERSION || VERSION == 0) M3_Read(BUFFER, &VAR, sizeo
     } \
 }
 
-#define M3_REFR(BUFFER, TARGET, TYPE, VERSION) \
-if ((BUFFER)->ent.version > VERSION) { \
+#define M3_REFR(buffer_t, TARGET, TYPE, VERSION) \
+if ((buffer_t)->ent.version > VERSION) { \
     Reference ref; \
-    M3_Read(BUFFER, &ref, sizeof(ref)); \
+    M3_Read(buffer_t, &ref, sizeof(ref)); \
     READ_REFERENCE(TARGET, ref, TYPE); \
 }
 
@@ -39,13 +39,13 @@ M3_READER(TYPE##SequenceData) { \
     M3_REFR(sb, data->values, TYPE, 0); \
 }
 
-static MATRIX4 bonemats[BZ_BONE_PALETTE_MAX];
-static MATRIX4 tmp[M3_MAX_NODES];
+static matrix4_t bonemats[BZ_BONE_PALETTE_MAX];
+static matrix4_t tmp[M3_MAX_NODES];
 
 m3Model_t *currentmodel;
 
 static struct {
-    MODELPROG * shader;
+    modelProg_t * shader;
     uint32_t uDiffuseMap;
     uint32_t indexofs;
 } m3 = { 0 };
@@ -67,7 +67,7 @@ R_EvalKeyframeValue(void const *left,
                     handle_t out);
 
 /* M3 diffuse uses the same shadow-casting authored key as SC2 terrain. */
-static void M3_SetLighting(MODELPROG * shader, renderEntity_t const *entity) {
+static void M3_SetLighting(modelProg_t * shader, renderEntity_t const *entity) {
     sc2Map_t const *map = SC2_MapCurrent();
     sc2MapLighting_t const *src = map ? &map->lighting : NULL;
     /* Layout-camera chrome is a separate scene: the map's colorized ambient made the HUD nearly black. */
@@ -75,32 +75,32 @@ static void M3_SetLighting(MODELPROG * shader, renderEntity_t const *entity) {
     bool const portrait = entity && (entity->flags & RF_PORTRAIT_LIGHTING);
     /* Portrait/HUD chrome: bright neutral ambient so chrome is visible regardless of map lighting.
        Mirrors WC3's RF_PORTRAIT_LIGHTING path: 0.58 ambient (no directional) / 0.22 (with lights). */
-    VECTOR3 ambient = lit ? sc2_light_ambient(src)
-                          : (portrait ? (VECTOR3){ 0.58f, 0.58f, 0.58f }
+    vector3_t ambient = lit ? sc2_light_ambient(src)
+                          : (portrait ? (vector3_t){ 0.58f, 0.58f, 0.58f }
                                       : sc2_light_ambient(NULL));
-    MODELLIGHTING state = { .ambient = ambient, .count = SC2_DIFFUSE_LIGHTS };
+    modelLighting_t state = { .ambient = ambient, .count = SC2_DIFFUSE_LIGHTS };
     /* Fill/back are not extra unshadowed Lambert suns; they otherwise illuminate key-backfacing surfaces. */
     FOR_LOOP(i, SC2_DIFFUSE_LIGHTS) {
         sc2DirectionalLight_t const *light = lit ? &src->directional[i] : NULL;
         bool const enabled = light && light->enabled;
         if (enabled) {
-            state.lights[i] = (RMODELLIGHT){
+            state.lights[i] = (rModelLight_t){
                 .dir       = Vector3_unm(&light->direction),
                 .color     = light->color,
                 .intensity = light->color_multiplier,
                 .type      = R_MODEL_LIGHT_DIRECT,
             };
         } else if (!lit && i == 0) {
-            state.lights[i] = (RMODELLIGHT){
+            state.lights[i] = (rModelLight_t){
                 .dir       = { 0.577f, 0.577f, 0.577f },
                 .color     = { 1.0f, 0.90f, 0.80f },
                 /* Portrait chrome: key at 0.62 matching WC3's portrait directional intensity. */
                 .intensity = portrait ? 0.62f : 1.0f,
                 .type      = R_MODEL_LIGHT_DIRECT,
             };
-            if (portrait) state.ambient = (VECTOR3){ 0.22f, 0.22f, 0.22f };
+            if (portrait) state.ambient = (vector3_t){ 0.22f, 0.22f, 0.22f };
         } else {
-            state.lights[i] = (RMODELLIGHT){
+            state.lights[i] = (rModelLight_t){
                 .dir  = { 0.0f, 0.0f, 1.0f },
                 .type = R_MODEL_LIGHT_DIRECT,
             };
@@ -183,7 +183,7 @@ static uint32_t M3_VertexUVCount(uint32_t flags) {
 }
 
 static uint32_t M3_VertexDiskSize(uint32_t flags) {
-    return 28 + M3_VertexUVCount(flags) * sizeof(int16_t) * 2 + ((flags & 0x200) ? sizeof(COLOR32) : 0);
+    return 28 + M3_VertexUVCount(flags) * sizeof(int16_t) * 2 + ((flags & 0x200) ? sizeof(color32_t) : 0);
 }
 
 M3_READER(Vertex) {
@@ -384,15 +384,15 @@ M3_READER(Bone) {
    float layout expected by the shared model shader. Uploads a VERTEX array so
    M3 uses the same VAO layout as MDX/M2. */
 void M3_MakeBuffer(m3Model_t *model) {
-    VERTEX *verts = model->verticesNum ? ri.MemAlloc(model->verticesNum * sizeof(VERTEX)) : NULL;
+    vertex_t *verts = model->verticesNum ? ri.MemAlloc(model->verticesNum * sizeof(vertex_t)) : NULL;
     uint32_t elems = 0;
 
     FOR_LOOP(i, model->verticesNum) {
         m3Vertex_t const *src = &model->vertices[i];
-        VERTEX *dst = &verts[i];
+        vertex_t *dst = &verts[i];
         dst->position = src->pos;
-        dst->texcoord = (VECTOR2){ src->uv[0][0] / 2048.0f, src->uv[0][1] / 2048.0f };
-        dst->normal = (VECTOR3){
+        dst->texcoord = (vector2_t){ src->uv[0][0] / 2048.0f, src->uv[0][1] / 2048.0f };
+        dst->normal = (vector3_t){
             src->normal[0] / 127.5f - 1.0f,
             src->normal[1] / 127.5f - 1.0f,
             src->normal[2] / 127.5f - 1.0f,
@@ -506,7 +506,7 @@ uint32_t M3_FindKeyAtTime(m3Uint32_t const *keys, uint32_t numkeys, uint32_t tim
     return numkeys - 1;
 }
 
-#define M3_GET_POINTER(MODEL, REF, TYPE) ((m3##TYPE##_t const *)M3_MakeSizeBuf(MODEL, REF).data)
+#define M3_GET_POINTER(model_t, REF, TYPE) ((m3##TYPE##_t const *)M3_MakeSizeBuf(model_t, REF).data)
 
 #define M3_GET_ANIM_VALUE(ANIMREF, DATATYPE) \
 M3_Get##ANIMREF##AnimValue(m3Model_t const *model, \
@@ -539,8 +539,8 @@ M3_Get##ANIMREF##AnimValue(m3Model_t const *model, \
 
 uint32_t   M3_GET_ANIM_VALUE(Uint32,  TDATA_INT1);
 float   M3_GET_ANIM_VALUE(Float32, TDATA_FLOAT1);
-VECTOR3 M3_GET_ANIM_VALUE(Vector3, TDATA_FLOAT3);
-VECTOR4 M3_GET_ANIM_VALUE(Vector4, TDATA_FLOAT4);
+vector3_t M3_GET_ANIM_VALUE(Vector3, TDATA_FLOAT3);
+vector4_t M3_GET_ANIM_VALUE(Vector4, TDATA_FLOAT4);
 
 static bool M3_MaterialIsBlended(m3Material_t const *material) {
     return material && material->blendMode >= BLEND_MODE_BLEND;
@@ -565,8 +565,8 @@ static float M3_MaterialAlphaCutoff(m3Material_t const *material) {
     return -1.0f;
 }
 
-static COLOR32 M3_LayerColor(m3Layer_t const *layer) {
-    COLOR32 color;
+static color32_t M3_LayerColor(m3Layer_t const *layer) {
+    color32_t color;
 
     if (!layer)
         return COLOR32_WHITE;
@@ -634,7 +634,7 @@ m3Model_t *R_LoadModelM3(void *data, uint32_t size) {
     if (!model)
         return NULL;
     memset(model, 0, sizeof(*model));
-    if (!data || size < sizeof(struct MD33)) {
+    if (!data || size < sizeof(struct m3Header)) {
         return model;
     }
     model->buffer = malloc(size);
@@ -666,14 +666,14 @@ static void M3_DrawEmissiveLayer(m3Region_t const *region, m3Material_t const *m
     m3Layer_t const *emissive = material->emissiveLayer;
     if (!emissive || !emissive->texture)
         return;
-    COLOR32 ec = M3_LayerColor(emissive);
+    color32_t ec = M3_LayerColor(emissive);
     bool prev_unshaded = m3.shader->state.unshaded;
     R_Call(glEnable, GL_BLEND);
     R_Call(glBlendFunc, GL_ONE, GL_ONE);
     R_Call(glDepthMask, GL_FALSE);
     m3.shader->state.unshaded = 1;
     m3.shader->state.alphaKey = 0;
-    m3.shader->state.geosetColor = (VECTOR4){ ec.r / 255.0f, ec.g / 255.0f, ec.b / 255.0f, ec.a / 255.0f * alpha };
+    m3.shader->state.geosetColor = (vector4_t){ ec.r / 255.0f, ec.g / 255.0f, ec.b / 255.0f, ec.a / 255.0f * alpha };
     m3.shader->state.firstBoneLookupIndex = (float)region->firstBoneLookupIndex;
     R_Call(glActiveTexture, GL_TEXTURE0);
     R_Call(glBindTexture, GL_TEXTURE_2D, emissive->texture->texid);
@@ -687,8 +687,8 @@ static void M3_DrawEmissiveLayer(m3Region_t const *region, m3Material_t const *m
 }
 
 static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *material, float alpha) {
-    LPCTEXTURE diffuse = material->diffuseLayer && material->diffuseLayer->texture ? material->diffuseLayer->texture : tr.texture[TEX_WHITE];
-    COLOR32 diffuse_color = M3_LayerColor(material->diffuseLayer);
+    texture_t const * diffuse = material->diffuseLayer && material->diffuseLayer->texture ? material->diffuseLayer->texture : tr.texture[TEX_WHITE];
+    color32_t diffuse_color = M3_LayerColor(material->diffuseLayer);
 #ifndef __linux__
     uint32_t const num_indices = region->triangleIndicesCount;
     uint32_t const first_vertex = region->firstVertexIndex;
@@ -698,7 +698,7 @@ static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *
     if (!M3_SetMaterialBlendMode(material)) {
         return;
     }
-    m3.shader->state.geosetColor = (VECTOR4){ diffuse_color.r / 255.0f, diffuse_color.g / 255.0f, diffuse_color.b / 255.0f, diffuse_color.a / 255.0f * alpha };
+    m3.shader->state.geosetColor = (vector4_t){ diffuse_color.r / 255.0f, diffuse_color.g / 255.0f, diffuse_color.b / 255.0f, diffuse_color.a / 255.0f * alpha };
     {
         float cutoff = M3_MaterialAlphaCutoff(material);
         bool alpha_key = cutoff >= 0.0f;
@@ -774,8 +774,8 @@ void M3_DrawDivisions(m3Model_t const *model, m3Divisions_t const *divisions, bo
     }
 }
 
-void M3_MakeBoneMatrix(LPCVECTOR3 p, LPCVECTOR4 r, LPCVECTOR3 s, LPCMATRIX4 par, LPMATRIX4 m) {
-    MATRIX4 matrix;
+void M3_MakeBoneMatrix(vector3_t const * p, vector4_t const * r, vector3_t const * s, matrix4_t const * par, matrix4_t * m) {
+    matrix4_t matrix;
     Matrix4_identity(&matrix);
     Matrix4_translate(&matrix, p);
     Matrix4_rotate4(&matrix, r);
@@ -823,8 +823,8 @@ M3_FindAnimationAtTime(m3Model_t const *model,
     return NULL;
 }
 
-void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMATRIX4 transform) {
-    MATRIX4 identity;
+void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, matrix4_t const * transform) {
+    matrix4_t identity;
     if (!entity || !model || !model->renbuf || !model->bones || !model->absoluteInverseBoneRestPositions)
         return;
     Matrix4_identity(&identity);
@@ -838,18 +838,18 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     b.stc = M3_FindAnimationAtTime(model, entity->frame, &b.time);
 
     M3_FOR_EACH(Bone, bone, model->bones) {
-        LPCMATRIX4 parent = bone->parent >= 0 && bone->parent < (int16_t)model->bonesNum ? tmp+bone->parent : &identity;
-        VECTOR3 a_p = M3_GetVector3AnimValue(model, a.stc, &bone->position, a.time);
-        VECTOR4 a_r = M3_GetVector4AnimValue(model, a.stc, &bone->rotation, a.time);
-        VECTOR3 a_s = M3_GetVector3AnimValue(model, a.stc, &bone->scale, a.time);
-        VECTOR3 b_p = M3_GetVector3AnimValue(model, b.stc, &bone->position, b.time);
-        VECTOR4 b_r = M3_GetVector4AnimValue(model, b.stc, &bone->rotation, b.time);
-        VECTOR3 b_s = M3_GetVector3AnimValue(model, b.stc, &bone->scale, b.time);
-        VECTOR3 p = Vector3_lerp(&a_p, &b_p, tr.viewDef.lerpfrac);
-        QUATERNION r = Quaternion_slerp((LPCQUATERNION)&a_r, (LPCQUATERNION)&b_r, tr.viewDef.lerpfrac);
-        VECTOR3 s = Vector3_lerp(&a_s, &b_s, tr.viewDef.lerpfrac);
+        matrix4_t const * parent = bone->parent >= 0 && bone->parent < (int16_t)model->bonesNum ? tmp+bone->parent : &identity;
+        vector3_t a_p = M3_GetVector3AnimValue(model, a.stc, &bone->position, a.time);
+        vector4_t a_r = M3_GetVector4AnimValue(model, a.stc, &bone->rotation, a.time);
+        vector3_t a_s = M3_GetVector3AnimValue(model, a.stc, &bone->scale, a.time);
+        vector3_t b_p = M3_GetVector3AnimValue(model, b.stc, &bone->position, b.time);
+        vector4_t b_r = M3_GetVector4AnimValue(model, b.stc, &bone->rotation, b.time);
+        vector3_t b_s = M3_GetVector3AnimValue(model, b.stc, &bone->scale, b.time);
+        vector3_t p = Vector3_lerp(&a_p, &b_p, tr.viewDef.lerpfrac);
+        quaternion_t r = Quaternion_slerp((quaternion_t const *)&a_r, (quaternion_t const *)&b_r, tr.viewDef.lerpfrac);
+        vector3_t s = Vector3_lerp(&a_s, &b_s, tr.viewDef.lerpfrac);
 //        float v = M3_GetUint32AnimValue(model, a.stc, &bone->visibility, a.time);
-        M3_MakeBoneMatrix(&p, (LPCVECTOR4)&r, &s, parent, tmp+(bone-model->bones));
+        M3_MakeBoneMatrix(&p, (vector4_t const *)&r, &s, parent, tmp+(bone-model->bones));
     }
 
     /* Build a full 128-entry bone palette indexed by boneLookup[i].
@@ -858,7 +858,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
        palette slot. This removes the need for uFirstBoneLookupIndex. */
     memset(bonemats, 0, sizeof(bonemats));
     FOR_LOOP(j, BZ_BONE_PALETTE_MAX) {
-        MATRIX4 ident; Matrix4_identity(&ident); bonemats[j] = ident;
+        matrix4_t ident; Matrix4_identity(&ident); bonemats[j] = ident;
     }
     M3_FOR_EACH(Uint16, boneLookup, model->boneLookup) {
         m3Uint16_t boneIndex = *boneLookup;
@@ -871,10 +871,10 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
                          bonemats + paletteIndex);
     }
 
-    MATRIX4 mScaledMatrix;
-    MATRIX3 mNormalMatrix;
+    matrix4_t mScaledMatrix;
+    matrix3_t mNormalMatrix;
 
-    memcpy(&mScaledMatrix, transform, sizeof(MATRIX4));
+    memcpy(&mScaledMatrix, transform, sizeof(matrix4_t));
     Matrix3_normal(&mNormalMatrix, &mScaledMatrix);
 
     R_Call(glDisable, GL_BLEND);
@@ -894,14 +894,14 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
     m3.shader->state.textureMatrix = tr.viewDef.textureMatrix;
     m3.shader->state.model = mScaledMatrix;
     m3.shader->state.normalMatrix = mNormalMatrix;
-    memcpy(&m3.shader->state.bones, bonemats->v, (MIN(model->boneLookupNum, BZ_BONE_PALETTE_MAX)) * sizeof(MATRIX4));
+    memcpy(&m3.shader->state.bones, bonemats->v, (MIN(model->boneLookupNum, BZ_BONE_PALETTE_MAX)) * sizeof(matrix4_t));
     m3.shader->state.boneCount = MAX(1, MIN(model->boneLookupNum, BZ_BONE_PALETTE_MAX));
     M3_SetLighting(m3.shader, entity);
     /* The unified model shader requires identity defaults for uniforms that
        M3 does not animate (texture UV transform, layer alpha, geoset colour). */
-    m3.shader->state.geosetColor = (VECTOR4){ 1.0f, 1.0f, 1.0f, 1.0f };
+    m3.shader->state.geosetColor = (vector4_t){ 1.0f, 1.0f, 1.0f, 1.0f };
     m3.shader->state.layerAlpha = 1.0f;
-    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; memcpy(&m3.shader->state.uvMatrix, m, (1) * sizeof(MATRIX3)); }
+    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; memcpy(&m3.shader->state.uvMatrix, m, (1) * sizeof(matrix3_t)); }
     m3.shader->state.alphaKey = 0;
     m3.shader->state.alphaCutoff = 0.5f;
     /* Portrait/HUD chrome renders at full texture brightness; lighting is cosmetic there. */
@@ -932,19 +932,19 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, LPCMAT
 }
 
 /* Draw generated geometry through an M3 model's first authored material. */
-void M3_RenderBuffer(renderEntity_t const *entity, m3Model_t const *model, LPCBUFFER buffer, uint32_t vertices, uint32_t indices) {
+void M3_RenderBuffer(renderEntity_t const *entity, m3Model_t const *model, buffer_t const * buffer, uint32_t vertices, uint32_t indices) {
     m3Model_t view;
     m3Divisions_t div = {0};
     m3Region_t region = {.verticesCount=vertices,.triangleIndicesCount=indices,.bonesCount=1,.boneLookupIndicesCount=1};
     m3Batch_t batch = {0};
-    MATRIX4 identity;
+    matrix4_t identity;
 
     if (!model || !buffer || !indices || !model->divisions || !model->divisionsNum ||
         !model->divisions[0].batches || !model->divisions[0].batchesNum) return;
     view = *model; batch.materialReferenceIndex = model->divisions[0].batches[0].materialReferenceIndex;
     div.regions = &region; div.regionsNum = 1;
     div.batches = &batch; div.batchesNum = 1;
-    view.renbuf = (LPBUFFER)buffer; view.divisions = &div; view.divisionsNum = 1;
+    view.renbuf = (buffer_t *)buffer; view.divisions = &div; view.divisionsNum = 1;
     Matrix4_identity(&identity); M3_RenderModel(entity, &view, &identity);
 }
 

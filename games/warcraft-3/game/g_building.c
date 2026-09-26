@@ -13,9 +13,9 @@
  * snapshots. It has no collision and never bakes static pathing. Its footprint
  * still displaces friendly mobile units at placement time; the real structure
  * repeats that displacement when construction starts. */
-LPEDICT G_CreateBuildPreview(LPEDICT builder, uint32_t building_id, LPCVECTOR2 location) {
-    LPEDICT preview;
-    LPCANIMATION stand;
+edict_t * G_CreateBuildPreview(edict_t * builder, uint32_t building_id, vector2_t const * location) {
+    edict_t * preview;
+    animation_t const * stand;
 
     if (!builder || !location || !G_UnitIsBuilding(building_id)) return NULL;
     preview = G_Spawn();
@@ -47,7 +47,7 @@ LPEDICT G_CreateBuildPreview(LPEDICT builder, uint32_t building_id, LPCVECTOR2 l
     stand = preview->animation;
     if (stand) preview->s.frame = stand->interval[0];
     preview->aiflags |= AI_HOLD_FRAME;
-    preview->vertex_color = MAKE(COLOR32, 255, 255, 255, WC3_BUILD_SITE_INDICATOR_ALPHA);
+    preview->vertex_color = MAKE(color32_t, 255, 255, 255, WC3_BUILD_SITE_INDICATOR_ALPHA);
     preview->vertex_color_set = true;
     if (!G_DisplaceBuildOccupants(builder, preview)) {
 #ifdef WC3_DEBUG_BUILD
@@ -63,8 +63,8 @@ LPEDICT G_CreateBuildPreview(LPEDICT builder, uint32_t building_id, LPCVECTOR2 l
     return preview;
 }
 
-void G_ClearBuildPreview(LPEDICT builder) {
-    LPEDICT preview;
+void G_ClearBuildPreview(edict_t * builder) {
+    edict_t * preview;
 
     if (!builder || !(preview = builder->build_preview)) return;
 #ifdef WC3_DEBUG_BUILD
@@ -149,7 +149,7 @@ bool G_BuildAllEnabled(void) {
     return atoi(gi.CvarString("wc3_build_all", "0")) != 0;
 }
 
-static int32_t G_FindTechSlot(LPGAMECLIENT client, uint32_t techid, bool create) {
+static int32_t G_FindTechSlot(gameClient_t * client, uint32_t techid, bool create) {
     int32_t free_slot = -1;
 
     if (!client || !techid) return -1;
@@ -168,7 +168,7 @@ static int32_t G_FindTechSlot(LPGAMECLIENT client, uint32_t techid, bool create)
     return free_slot;
 }
 
-static bool G_UnitUsesUpgrade(LPCEDICT unit, uint32_t upgrade_id) {
+static bool G_UnitUsesUpgrade(edict_t const * unit, uint32_t upgrade_id) {
     char token[64];
     cstring_t upgrades;
 
@@ -180,7 +180,7 @@ static bool G_UnitUsesUpgrade(LPCEDICT unit, uint32_t upgrade_id) {
     return false;
 }
 
-uint32_t G_GetUnitUpgradeForClass(LPCEDICT unit, cstring_t wanted_class) {
+uint32_t G_GetUnitUpgradeForClass(edict_t const * unit, cstring_t wanted_class) {
     char token[64];
     cstring_t upgrades;
 
@@ -248,8 +248,8 @@ static bool G_UpgradeResearchesAbility(UpgradeData_t const *upgrade, uint32_t ab
            G_ResearchCommentsMatch(ability->comments, upgrade->comments);
 }
 
-float G_UnitUpgradeEffectBonus(LPCEDICT unit, uint32_t effect) {
-    LPGAMECLIENT owner;
+float G_UnitUpgradeEffectBonus(edict_t const * unit, uint32_t effect) {
+    gameClient_t * owner;
     char token[64];
     float bonus = 0.0f;
 
@@ -274,8 +274,8 @@ float G_UnitUpgradeEffectBonus(LPCEDICT unit, uint32_t effect) {
  * checkDep flag and the authored ability/upgrade comments because those rows
  * have no effect/code pair.  Keep both paths data-driven so custom
  * units/upgrades inherit the same command-card and execution gate. */
-bool G_UnitAbilityResearchAvailable(LPCEDICT unit, uint32_t ability_id) {
-    LPGAMECLIENT owner;
+bool G_UnitAbilityResearchAvailable(edict_t const * unit, uint32_t ability_id) {
+    gameClient_t * owner;
     cstring_t upgrades;
     char token[64];
     bool gated = false;
@@ -310,7 +310,7 @@ bool G_UnitAbilityResearchAvailable(LPCEDICT unit, uint32_t ability_id) {
     return !gated;
 }
 
-static void G_ApplyUpgradeLevelDelta(LPEDICT unit, UpgradeData_t const *upgrade,
+static void G_ApplyUpgradeLevelDelta(edict_t * unit, UpgradeData_t const *upgrade,
                                      int32_t old_level, int32_t new_level) {
     bool changed = false;
 
@@ -394,7 +394,7 @@ static void G_ApplyUpgradeLevelDelta(LPEDICT unit, UpgradeData_t const *upgrade,
     if (changed) G_InvalidateUnitInfoPanel(unit);
 }
 
-static void G_ApplyTechLevelToOwnedUnits(LPGAMECLIENT client, uint32_t techid,
+static void G_ApplyTechLevelToOwnedUnits(gameClient_t * client, uint32_t techid,
                                          int32_t old_level, int32_t new_level) {
     UpgradeData_t const *upgrade;
     uint32_t player;
@@ -408,8 +408,8 @@ static void G_ApplyTechLevelToOwnedUnits(LPGAMECLIENT client, uint32_t techid,
     }
 }
 
-void G_ApplyPlayerUpgradesToUnit(LPEDICT unit) {
-    LPGAMECLIENT client;
+void G_ApplyPlayerUpgradesToUnit(edict_t * unit) {
+    gameClient_t * client;
     char token[64];
     cstring_t upgrades;
 
@@ -432,7 +432,7 @@ void G_ApplyPlayerUpgradesToUnit(LPEDICT unit) {
     }
 }
 
-void G_SetPlayerTechMaxAllowed(LPGAMECLIENT client, uint32_t techid, int32_t maximum) {
+void G_SetPlayerTechMaxAllowed(gameClient_t * client, uint32_t techid, int32_t maximum) {
     int32_t slot;
     /* The default (-1/unlimited) needs no entry; allocating one per default
      * write exhausts the table before genuine restrictions (NightElfX02 uses
@@ -444,12 +444,12 @@ void G_SetPlayerTechMaxAllowed(LPGAMECLIENT client, uint32_t techid, int32_t max
     G_InvalidateCommands(client);
 }
 
-int32_t G_GetPlayerTechMaxAllowed(LPGAMECLIENT client, uint32_t techid) {
+int32_t G_GetPlayerTechMaxAllowed(gameClient_t * client, uint32_t techid) {
     int32_t slot = G_FindTechSlot(client, techid, false);
     return slot < 0 ? -1 : client->tech[slot].max_allowed;
 }
 
-void G_SetPlayerTechResearched(LPGAMECLIENT client, uint32_t techid, int32_t level_value) {
+void G_SetPlayerTechResearched(gameClient_t * client, uint32_t techid, int32_t level_value) {
     int32_t slot;
     int32_t old_level;
     int32_t new_level;
@@ -465,7 +465,7 @@ void G_SetPlayerTechResearched(LPGAMECLIENT client, uint32_t techid, int32_t lev
     G_InvalidateCommands(client);
 }
 
-void G_AddPlayerTechResearched(LPGAMECLIENT client, uint32_t techid, int32_t levels) {
+void G_AddPlayerTechResearched(gameClient_t * client, uint32_t techid, int32_t levels) {
     int32_t slot;
     int32_t old_level;
     int32_t new_level;
@@ -492,17 +492,17 @@ void G_AddPlayerTechResearched(LPGAMECLIENT client, uint32_t techid, int32_t lev
     G_InvalidateCommands(client);
 }
 
-int32_t G_GetPlayerTechResearchedLevel(LPGAMECLIENT client, uint32_t techid) {
+int32_t G_GetPlayerTechResearchedLevel(gameClient_t * client, uint32_t techid) {
     int32_t slot = G_FindTechSlot(client, techid, false);
     return slot < 0 ? 0 : MAX(0, client->tech[slot].researched);
 }
 
-int32_t G_GetPlayerTechInProgress(LPGAMECLIENT client, uint32_t techid) {
+int32_t G_GetPlayerTechInProgress(gameClient_t * client, uint32_t techid) {
     int32_t slot = G_FindTechSlot(client, techid, false);
     return slot < 0 ? 0 : MAX(0, client->tech[slot].in_progress);
 }
 
-void G_AddPlayerTechInProgress(LPGAMECLIENT client, uint32_t techid, int32_t levels) {
+void G_AddPlayerTechInProgress(gameClient_t * client, uint32_t techid, int32_t levels) {
     int32_t slot = G_FindTechSlot(client, techid, false);
     int32_t in_progress = slot < 0 ? 0 : MAX(0, client->tech[slot].in_progress);
     int32_t new_level = MAX(0, in_progress + levels);
@@ -535,7 +535,7 @@ float G_UpgradeResearchTime(uint32_t upgrade_id, int32_t level_value) {
     return (float)MAX(0, upgrade->timeBase + upgrade->timeMod * (level_value - 1));
 }
 
-int32_t G_GetPlayerTechCountValue(LPGAMECLIENT client, uint32_t techid) {
+int32_t G_GetPlayerTechCountValue(gameClient_t * client, uint32_t techid) {
     int32_t count = G_GetPlayerTechResearchedLevel(client, techid);
     uint32_t player;
 
@@ -560,35 +560,35 @@ static bool G_ProducerContains(cstring_t list, uint32_t type_id) {
     return false;
 }
 
-bool G_WorkerCanBuild(LPEDICT worker, uint32_t building_id) {
+bool G_WorkerCanBuild(edict_t * worker, uint32_t building_id) {
     return worker && worker->data.UnitProfile &&
         G_ProducerContains(worker->data.UnitProfile->builds, building_id);
 }
 
-bool G_ProducerCanTrain(LPEDICT producer, uint32_t unit_id) {
+bool G_ProducerCanTrain(edict_t * producer, uint32_t unit_id) {
     return producer && producer->data.UnitProfile &&
         G_ProducerContains(producer->data.UnitProfile->trains, unit_id);
 }
 
-bool G_ProducerCanResearch(LPEDICT producer, uint32_t upgrade_id) {
+bool G_ProducerCanResearch(edict_t * producer, uint32_t upgrade_id) {
     return producer && producer->data.UnitProfile &&
         G_ProducerContains(producer->data.UnitProfile->researches, upgrade_id);
 }
 
-bool G_ProducerCanUpgrade(LPEDICT producer, uint32_t unit_id) {
+bool G_ProducerCanUpgrade(edict_t * producer, uint32_t unit_id) {
     return producer && producer->data.UnitProfile &&
         G_UnitIsBuilding(producer->class_id) && G_UnitIsBuilding(unit_id) &&
         G_ProducerContains(producer->data.UnitProfile->upgrade, unit_id);
 }
 
-bool G_BuildingUpgradeActive(LPCEDICT building) {
+bool G_BuildingUpgradeActive(edict_t const * building) {
     return building && building->inuse && !building->training &&
         building->research.upgrade != 0 &&
         G_UnitIsBuilding(building->class_id) &&
         G_UnitIsBuilding(building->research.upgrade);
 }
 
-bool G_BuildingIsUnsummoning(LPCEDICT building) {
+bool G_BuildingIsUnsummoning(edict_t const * building) {
     return building && building->inuse &&
         G_UnitStatusLevel(building, MAKEFOURCC('B', 'u', 'n', 's')) != 0;
 }
@@ -634,7 +634,7 @@ static int32_t G_RequirementAmount(cstring_t amounts, uint32_t index) {
 
 /* Count the owner's completed real heroes for tiered WC3 requirements. Dead
  * heroes still occupy a hero tier; queued training entities and illusions do not. */
-static uint32_t G_PlayerHeroCount(LPGAMECLIENT client) {
+static uint32_t G_PlayerHeroCount(gameClient_t * client) {
     uint32_t count = 0;
 
     if (!client) return 0;
@@ -683,7 +683,7 @@ static bool G_UnitTypeSatisfiesRequirement(uint32_t type_id, uint32_t requiremen
     return G_UnitTypeSatisfiesRequirement_r(type_id, requirement_id, visited, 0);
 }
 
-static int32_t G_PlayerRequirementCount(LPGAMECLIENT client, uint32_t techid) {
+static int32_t G_PlayerRequirementCount(gameClient_t * client, uint32_t techid) {
     int32_t count = G_GetPlayerTechResearchedLevel(client, techid);
     uint32_t player;
 
@@ -714,7 +714,7 @@ static int32_t G_UpgradeRequirementAmount(uint32_t upgrade_id, int32_t level_val
     return G_RequirementAmount(amounts, index);
 }
 
-static bool G_UpgradeRequirementsSatisfied(LPGAMECLIENT client, uint32_t upgrade_id, int32_t level_value,
+static bool G_UpgradeRequirementsSatisfied(gameClient_t * client, uint32_t upgrade_id, int32_t level_value,
                                            string_t reason, uint32_t reason_size) {
     cstring_t requirements = G_UpgradeLevelField(upgrade_id, "Requires", level_value);
     char requirement[64];
@@ -746,7 +746,7 @@ static bool G_UpgradeRequirementsSatisfied(LPGAMECLIENT client, uint32_t upgrade
     return true;
 }
 
-static bool G_RequirementsListSatisfied(LPGAMECLIENT client, uint32_t type_id, cstring_t requirements,
+static bool G_RequirementsListSatisfied(gameClient_t * client, uint32_t type_id, cstring_t requirements,
                                         cstring_t amounts, string_t reason, uint32_t reason_size) {
     char requirement[64];
 
@@ -778,7 +778,7 @@ static bool G_RequirementsListSatisfied(LPGAMECLIENT client, uint32_t type_id, c
     return true;
 }
 
-static bool G_RequirementsSatisfied(LPGAMECLIENT client, uint32_t type_id, string_t reason, uint32_t reason_size) {
+static bool G_RequirementsSatisfied(gameClient_t * client, uint32_t type_id, string_t reason, uint32_t reason_size) {
     UnitProfile_t const *profile = G_UnitProfile(type_id);
     uint32_t hero_count, tier_count, tier;
 
@@ -795,7 +795,7 @@ static bool G_RequirementsSatisfied(LPGAMECLIENT client, uint32_t type_id, strin
                                        reason, reason_size);
 }
 
-static bool G_ProductionResourcesAvailable(LPGAMECLIENT client, uint32_t type_id, string_t reason, uint32_t reason_size) {
+static bool G_ProductionResourcesAvailable(gameClient_t * client, uint32_t type_id, string_t reason, uint32_t reason_size) {
     UnitBalance_t const *b = G_UnitBalance(type_id);
 
     if (!client) return false;
@@ -814,7 +814,7 @@ static bool G_ProductionResourcesAvailable(LPGAMECLIENT client, uint32_t type_id
     return true;
 }
 
-buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, uint32_t building_id,
+buildCommandState_t G_GetBuildCommandState(gameClient_t * client, edict_t * worker, uint32_t building_id,
                                            string_t reason, uint32_t reason_size) {
     int32_t maximum;
 
@@ -836,7 +836,7 @@ buildCommandState_t G_GetBuildCommandState(LPGAMECLIENT client, LPEDICT worker, 
     return BUILD_COMMAND_AVAILABLE;
 }
 
-buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer, uint32_t unit_id,
+buildCommandState_t G_GetTrainCommandState(gameClient_t * client, edict_t * producer, uint32_t unit_id,
                                            string_t reason, uint32_t reason_size) {
     int32_t maximum;
 
@@ -858,7 +858,7 @@ buildCommandState_t G_GetTrainCommandState(LPGAMECLIENT client, LPEDICT producer
     return BUILD_COMMAND_AVAILABLE;
 }
 
-buildCommandState_t G_GetResearchCommandState(LPGAMECLIENT client, LPEDICT producer, uint32_t upgrade_id,
+buildCommandState_t G_GetResearchCommandState(gameClient_t * client, edict_t * producer, uint32_t upgrade_id,
                                               int32_t *next_level, string_t reason, uint32_t reason_size) {
     UpgradeData_t const *upgrade;
     int32_t current;
@@ -902,8 +902,8 @@ buildCommandState_t G_GetBuildingUpgradeCommandState(buildingUpgradeCommandParam
     int32_t maximum;
     int32_t gold, lumber, food;
     UnitBalance_t const *target;
-    LPGAMECLIENT client = params ? params->client : NULL;
-    LPEDICT producer = params ? params->producer : NULL;
+    gameClient_t * client = params ? params->client : NULL;
+    edict_t * producer = params ? params->producer : NULL;
     uint32_t unit_id = params ? params->unit_id : 0;
     string_t reason = params ? params->reason : NULL;
     uint32_t reason_size = params ? params->reason_size : 0;
@@ -946,7 +946,7 @@ buildCommandState_t G_GetBuildingUpgradeCommandState(buildingUpgradeCommandParam
     return BUILD_COMMAND_AVAILABLE;
 }
 
-bool G_ChargeBuilding(LPGAMECLIENT client, uint32_t building_id) {
+bool G_ChargeBuilding(gameClient_t * client, uint32_t building_id) {
     UnitBalance_t const *b;
 
     if (!client) return false;
@@ -958,7 +958,7 @@ bool G_ChargeBuilding(LPGAMECLIENT client, uint32_t building_id) {
     return true;
 }
 
-void G_RefundBuilding(LPGAMECLIENT client, uint32_t building_id) {
+void G_RefundBuilding(gameClient_t * client, uint32_t building_id) {
     UnitBalance_t const *b;
     if (!client || G_BuildAllEnabled()) return;
     b = G_UnitBalance(building_id);
@@ -966,9 +966,9 @@ void G_RefundBuilding(LPGAMECLIENT client, uint32_t building_id) {
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] += MAX(0, b->lumberCost);
 }
 
-static void G_RefreshBuildingUpgradeUI(LPEDICT building) {
-    LPGAMECLIENT client;
-    LPEDICT clent;
+static void G_RefreshBuildingUpgradeUI(edict_t * building) {
+    gameClient_t * client;
+    edict_t * clent;
 
     if (!building) return;
     client = G_GetPlayerClientByNumber(building->s.player);
@@ -981,8 +981,8 @@ static void G_RefreshBuildingUpgradeUI(LPEDICT building) {
     Get_Portrait_f(clent);
 }
 
-void G_UpdateBuildingUpgradeAnimation(LPEDICT building) {
-    LPCANIMATION anim;
+void G_UpdateBuildingUpgradeAnimation(edict_t * building) {
+    animation_t const * anim;
     float fraction;
     uint32_t first, last, span, frame;
 
@@ -1001,9 +1001,9 @@ void G_UpdateBuildingUpgradeAnimation(LPEDICT building) {
     building->s.frame = frame;
 }
 
-bool G_StartBuildingUpgrade(LPEDICT building, uint32_t unit_id) {
-    LPGAMECLIENT client;
-    LPEDICT clent;
+bool G_StartBuildingUpgrade(edict_t * building, uint32_t unit_id) {
+    gameClient_t * client;
+    edict_t * clent;
     buildCommandState_t state;
     UnitBalance_t const *target;
     int32_t gold, lumber, food;
@@ -1047,8 +1047,8 @@ bool G_StartBuildingUpgrade(LPEDICT building, uint32_t unit_id) {
     return true;
 }
 
-void G_StopBuildingUpgrade(LPEDICT building, bool refund) {
-    LPGAMECLIENT client;
+void G_StopBuildingUpgrade(edict_t * building, bool refund) {
+    gameClient_t * client;
     uint32_t unit_id;
 
     if (!G_BuildingUpgradeActive(building)) return;
@@ -1074,7 +1074,7 @@ void G_StopBuildingUpgrade(LPEDICT building, bool refund) {
     G_RefreshBuildingUpgradeUI(building);
 }
 
-bool G_CancelBuildingUpgrade(LPEDICT building) {
+bool G_CancelBuildingUpgrade(edict_t * building) {
     if (!G_BuildingUpgradeActive(building)) return false;
     G_PublishEvent(building, EVENT_PLAYER_UNIT_UPGRADE_CANCEL);
     G_PublishEvent(building, EVENT_UNIT_UPGRADE_CANCEL);
@@ -1082,8 +1082,8 @@ bool G_CancelBuildingUpgrade(LPEDICT building) {
     return true;
 }
 
-static bool G_CompleteBuildingUpgrade(LPEDICT building) {
-    LPGAMECLIENT client;
+static bool G_CompleteBuildingUpgrade(edict_t * building) {
+    gameClient_t * client;
     uint32_t unit_id;
     int32_t charged_gold, charged_lumber;
 
@@ -1122,7 +1122,7 @@ static bool G_CompleteBuildingUpgrade(LPEDICT building) {
     return true;
 }
 
-void G_RunBuildingUpgradeFrame(LPEDICT building) {
+void G_RunBuildingUpgradeFrame(edict_t * building) {
     if (!G_BuildingUpgradeActive(building)) return;
     if (G_BuildingIsUnsummoning(building)) return;
     if (M_IsDead(building) || (building->svflags & SVF_DEADMONSTER)) {
@@ -1154,7 +1154,7 @@ void G_GetBuildPlacementPathingFlags(uint32_t building_id, uint8_t * prevented, 
     }
 }
 
-void G_SnapBuildingPoint(uint32_t building_id, LPVECTOR2 point) {
+void G_SnapBuildingPoint(uint32_t building_id, vector2_t * point) {
     pathTex_t *pathtex;
     UnitData_t const *data;
 
@@ -1178,7 +1178,7 @@ static bool G_PathCellUsed(pathTex_t const *pathtex, uint32_t x, uint32_t y) {
     return pathtex->map[x + y * pathtex->width].b != 0;
 }
 
-bool G_FindBuildOnTarget(uint32_t building_id, LPCVECTOR2 point, LPEDICT *out) {
+bool G_FindBuildOnTarget(uint32_t building_id, vector2_t const * point, edict_t * *out) {
     UnitData_t const *data = G_UnitData(building_id);
     if (out) *out = NULL;
     if (!data->isBuildOn) return true;
@@ -1203,25 +1203,25 @@ bool G_FindBuildOnTarget(uint32_t building_id, LPCVECTOR2 point, LPEDICT *out) {
     return false;
 }
 
-static bool G_BuildUnitCanDisplace(LPEDICT builder, LPEDICT ent) {
+static bool G_BuildUnitCanDisplace(edict_t * builder, edict_t * ent) {
     return builder && ent && ent->s.player == builder->s.player && !G_UnitIsBuilding(ent->class_id) &&
            ent->movetype != MOVETYPE_NONE && ent->collision > 0.0f;
 }
 
-static bool G_LiveUnitBlocksBuild(LPEDICT builder, LPEDICT build_on, LPCBOX2 footprint) {
+static bool G_LiveUnitBlocksBuild(edict_t * builder, edict_t * build_on, box2_t const * footprint) {
     FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) && !(ent->svflags & SVF_DEADMONSTER)) {
         float x, y;
         /* Friendly mobile units can be displaced when construction starts; everything else is a hard blocker. */
         if (ent == builder || ent == build_on || ent->collision <= 0.0f) continue;
         x = MAX(footprint->min.x, MIN(footprint->max.x, ent->s.origin2.x));
         y = MAX(footprint->min.y, MIN(footprint->max.y, ent->s.origin2.y));
-        VECTOR2 nearest = { x, y };
+        vector2_t nearest = { x, y };
         if (Vector2_distance(&nearest, &ent->s.origin2) < ent->collision && !G_BuildUnitCanDisplace(builder, ent)) return true;
     }
     return false;
 }
 
-static bool G_BuildTooCloseToGoldMine(uint32_t building_id, LPCVECTOR2 point) {
+static bool G_BuildTooCloseToGoldMine(uint32_t building_id, vector2_t const * point) {
     if (!point || !S_UnitTypeReturnsGold(building_id)) return false;
 
     FILTER_EDICTS(mine, mine->inuse && !M_IsDead(mine) && S_GoldMineIsMine(mine)) {
@@ -1232,9 +1232,9 @@ static bool G_BuildTooCloseToGoldMine(uint32_t building_id, LPCVECTOR2 point) {
 }
 
 /* Move friendly mobile units clear of a newly baked footprint while retaining their active orders. */
-bool G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building) {
-    LPEDICT *units;
-    VECTOR2 *positions;
+bool G_DisplaceBuildOccupants(edict_t * builder, edict_t * building) {
+    edict_t * *units;
+    vector2_t *positions;
     uint32_t count = 0;
 
     if (!builder || !building || !globals.num_edicts) return false;
@@ -1292,16 +1292,16 @@ bool G_DisplaceBuildOccupants(LPEDICT builder, LPEDICT building) {
     return true;
 }
 
-buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, uint32_t building_id, LPCVECTOR2 requested,
-                                                LPVECTOR2 snapped) {
+buildPlacementResult_t G_EvaluateBuildPlacement(edict_t * builder, uint32_t building_id, vector2_t const * requested,
+                                                vector2_t * snapped) {
     UnitData_t const *data = G_UnitData(building_id);
     uint8_t prevented = 0;
     uint8_t required = 0;
     pathTex_t *pathtex = NULL;
-    LPEDICT build_on = NULL;
+    edict_t * build_on = NULL;
     uint32_t width = 1, height = 1;
-    BOX2 footprint;
-    VECTOR2 point;
+    box2_t footprint;
+    vector2_t point;
 
     if (!requested || !G_UnitIsBuilding(building_id)) {
 #ifdef WC3_DEBUG_MINING
@@ -1346,7 +1346,7 @@ buildPlacementResult_t G_EvaluateBuildPlacement(LPEDICT builder, uint32_t buildi
     if (!build_on) {
         FOR_LOOP(x, width) {
             FOR_LOOP(y, height) {
-                VECTOR2 sample;
+                vector2_t sample;
                 uint8_t flags;
                 if (pathtex && !G_PathCellUsed(pathtex, x, y)) continue;
                 sample.x = point.x + ((float)x + 0.5f - (float)width * 0.5f) * WC3_BUILD_CELL_SIZE;
@@ -1410,8 +1410,8 @@ float G_BuildApproachDistance(uint32_t building_id) {
     return result;
 }
 
-void G_UpdateConstructionAnimation(LPEDICT building) {
-    LPCANIMATION anim;
+void G_UpdateConstructionAnimation(edict_t * building) {
+    animation_t const * anim;
     float duration, fraction;
     uint32_t first, last, span, frame;
 
@@ -1437,7 +1437,7 @@ void G_UpdateConstructionAnimation(LPEDICT building) {
     building->s.frame = frame;
 }
 
-static bool G_ConstructionHasClassification(LPCEDICT unit, cstring_t wanted) {
+static bool G_ConstructionHasClassification(edict_t const * unit, cstring_t wanted) {
     cstring_t list;
     UnitBalance_t const *balance;
     UnitData_t const *data;
@@ -1455,7 +1455,7 @@ static bool G_ConstructionHasClassification(LPCEDICT unit, cstring_t wanted) {
     return false;
 }
 
-static bool G_StartConstruction(LPEDICT building, constructionType_t type, bool paused) {
+static bool G_StartConstruction(edict_t * building, constructionType_t type, bool paused) {
     edictStat_s *hp;
 
     if (!building || !G_UnitIsBuilding(building->class_id)) return false;
@@ -1490,7 +1490,7 @@ static bool G_StartConstruction(LPEDICT building, constructionType_t type, bool 
     return true;
 }
 
-static void G_AssignConstructionWorker(LPEDICT building, LPEDICT worker, bool inside) {
+static void G_AssignConstructionWorker(edict_t * building, edict_t * worker, bool inside) {
     if (!building || !worker) return;
     building->construction.worker = worker;
     building->construction.worker_spawn_time = worker->spawn_time;
@@ -1508,26 +1508,26 @@ static void G_AssignConstructionWorker(LPEDICT building, LPEDICT worker, bool in
     G_InvalidateUnitShortcutsForUnit(worker);
 }
 
-bool G_StartHumanConstruction(LPEDICT builder, LPEDICT building) {
+bool G_StartHumanConstruction(edict_t * builder, edict_t * building) {
     if (!builder || !G_StartConstruction(building, CONSTRUCTION_HUMAN, true)) return false;
     building->construction.primary_builder = builder;
     return true;
 }
 
-bool G_StartOrcConstruction(LPEDICT builder, LPEDICT building) {
+bool G_StartOrcConstruction(edict_t * builder, edict_t * building) {
     if (!builder || !G_StartConstruction(building, CONSTRUCTION_ORC, false)) return false;
     G_AssignConstructionWorker(building, builder, true);
     return true;
 }
 
-bool G_StartUndeadConstruction(LPEDICT builder, LPEDICT building) {
+bool G_StartUndeadConstruction(edict_t * builder, edict_t * building) {
     if (!builder || !G_StartConstruction(building, CONSTRUCTION_UNDEAD, false)) return false;
     G_AssignConstructionWorker(building, builder, false);
     building->construction.worker_release_time = G_Time() + WC3_UNDEAD_BUILD_WORK_MS;
     return true;
 }
 
-bool G_StartNightElfConstruction(LPEDICT builder, LPEDICT building) {
+bool G_StartNightElfConstruction(edict_t * builder, edict_t * building) {
     if (!builder || !G_StartConstruction(building, CONSTRUCTION_NIGHTELF, false)) return false;
     G_AssignConstructionWorker(building, builder, true);
     if (G_ConstructionHasClassification(building, "ancient")) {
@@ -1541,12 +1541,12 @@ bool G_StartNightElfConstruction(LPEDICT builder, LPEDICT building) {
 
 /* Entangle Gold Mine creates a Night Elf building without consuming/owning a
  * Wisp. It still uses the same authoritative autonomous construction clock. */
-bool G_StartNightElfOverlayConstruction(LPEDICT building) {
+bool G_StartNightElfOverlayConstruction(edict_t * building) {
     return G_StartConstruction(building, CONSTRUCTION_NIGHTELF, false);
 }
 
-static LPEDICT G_ConstructionWorker(LPEDICT building) {
-    LPEDICT worker;
+static edict_t * G_ConstructionWorker(edict_t * building) {
+    edict_t * worker;
 
     if (!building || !(worker = building->construction.worker)) return NULL;
     if (!worker->inuse || worker->spawn_time != building->construction.worker_spawn_time) {
@@ -1559,8 +1559,8 @@ static LPEDICT G_ConstructionWorker(LPEDICT building) {
     return worker;
 }
 
-static void G_ReleaseConstructionWorker(LPEDICT building, bool completed) {
-    LPEDICT worker;
+static void G_ReleaseConstructionWorker(edict_t * building, bool completed) {
+    edict_t * worker;
     bool consumes, inside;
 
     if (!building) return;
@@ -1588,7 +1588,7 @@ static void G_ReleaseConstructionWorker(LPEDICT building, bool completed) {
         G_SetUnitFoodUsed(worker, worker->data.UnitBalance->foodUsed);
 
     if (inside) {
-        VECTOR2 origin;
+        vector2_t origin;
         float angle;
         if (SP_FindUnitExitPosition(building, worker, &origin, &angle)) {
             worker->s.origin2 = origin;
@@ -1601,7 +1601,7 @@ static void G_ReleaseConstructionWorker(LPEDICT building, bool completed) {
     if (worker->stand) worker->stand(worker);
 }
 
-void G_RunConstructionFrame(LPEDICT building) {
+void G_RunConstructionFrame(edict_t * building) {
     float duration, hp_gain;
     edictStat_s *hp;
 
@@ -1642,7 +1642,7 @@ void G_RunConstructionFrame(LPEDICT building) {
 /* Construction teardown releases Human Repair participants and any race-owned
  * worker before the target enters death/completion cleanup; otherwise workers
  * retain pointers to an entity whose construction state no longer exists. */
-void G_StopConstruction(LPEDICT building) {
+void G_StopConstruction(edict_t * building) {
     if (!building || !building->construction.active) return;
 #ifdef WC3_DEBUG_BUILD
     fprintf(stderr, "WC3_BUILD construction-stop building=%ld id=%.4s type=%d health=%.1f/%.1f progress=%.1f primary=%ld build=%ld\n",
@@ -1692,8 +1692,8 @@ static int32_t G_ConstructionCancelRefund(int32_t paid) {
 /* A player cancellation is distinct from destruction: publish the Warcraft
  * construct-cancel events and refund only the recorded base construction
  * payment, then use ordinary unit death for selection/food/death semantics. */
-bool G_CancelStructureConstruction(LPEDICT building) {
-    LPGAMECLIENT payer;
+bool G_CancelStructureConstruction(edict_t * building) {
+    gameClient_t * payer;
     int32_t gold, lumber;
 
     if (!building || !building->inuse || !building->construction.active ||
@@ -1726,8 +1726,8 @@ bool G_CancelStructureConstruction(LPEDICT building) {
     return true;
 }
 
-void G_CompleteConstruction(LPEDICT building) {
-    LPGAMECLIENT client;
+void G_CompleteConstruction(edict_t * building) {
+    gameClient_t * client;
     bool legacy;
 
     if (!building) return;
@@ -1794,7 +1794,7 @@ void G_CompleteConstruction(LPEDICT building) {
                 building->food.made);
     }
     if (client) {
-        LPEDICT clent = G_GetPlayerEntityByNumber(client->ps.number);
+        edict_t * clent = G_GetPlayerEntityByNumber(client->ps.number);
         G_InvalidateCommands(client);
         G_RefreshResourceBar(clent);
         Get_Portrait_f(clent);

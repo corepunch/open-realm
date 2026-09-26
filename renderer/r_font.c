@@ -15,7 +15,7 @@
 #define TEXT_BATCH_VERTICES 1020
 
 typedef struct {
-    LPTEXTURE image;
+    texture_t * image;
     stbtt_bakedchar glyphs[MAX_GLYPHSET];
 } glyphSet_t;
 
@@ -85,15 +85,15 @@ retry:
         set->glyphs[i].xadvance = floor(set->glyphs[i].xadvance);
     }
     
-    LPCOLOR32 pixels = ri.MemAlloc(sizeof(COLOR32) * width * height);
+    color32_t * pixels = ri.MemAlloc(sizeof(color32_t) * width * height);
     /* convert 8bit data to 32bit */
     for (int i = 0; i < width * height; i++) {
         uint8_t n = fontimage[i];
-        pixels[i] = (COLOR32) { .r = 255, .g = 255, .b = 255, .a = n };
+        pixels[i] = (color32_t) { .r = 255, .g = 255, .b = 255, .a = n };
     }
     set->image = R_AllocateTexture(width, height);
     
-    R_LoadTextureMipLevel(set->image, &(TEXMIP){ pixels, width, height, 0, PIXEL_RGBA });
+    R_LoadTextureMipLevel(set->image, &(texMip_t){ pixels, width, height, 0, PIXEL_RGBA });
     ri.MemFree(pixels);
     ri.MemFree(fontimage);
     
@@ -110,7 +110,7 @@ static glyphSet_t* R_GetGlyphSet(font_t *font, int codepoint) {
 }
 
 
-LPFONT R_LoadFont(cstring_t filename, uint32_t size) {
+font_t * R_LoadFont(cstring_t filename, uint32_t size) {
     if (!filename || !*filename) {
         return NULL;
     }
@@ -164,7 +164,7 @@ fail:
     return NULL;
 }
 
-void R_ReleaseFont(LPFONT font) {
+void R_ReleaseFont(font_t * font) {
     font_t **link = &r_fonts;
     while (*link) {
         if (*link == font) {
@@ -191,7 +191,7 @@ void R_ShutdownFonts(void) {
     }
 }
 
-float R_GetFontWidth(LPFONT font, cstring_t text) {
+float R_GetFontWidth(font_t * font, cstring_t text) {
     float x = 0;
     cstring_t p = text;
     unsigned codepoint;
@@ -205,23 +205,23 @@ float R_GetFontWidth(LPFONT font, cstring_t text) {
 }
 
 
-float R_GetFontHeight(LPFONT font) {
+float R_GetFontHeight(font_t * font) {
     return FONT_SCALE * INV_SCALE_Y(font->height);
 }
 
-bool will_word_fit(cstring_t text, float width, LPCFONT font) {
+bool will_word_fit(cstring_t text, float width, font_t const * font) {
     cstring_t p = text;
     for (; *p && !isspace(*p) && *p != '|';) {
         unsigned codepoint;
         p = utf8_to_codepoint(p, &codepoint);
-        glyphSet_t *set = R_GetGlyphSet((LPFONT)font, codepoint);
+        glyphSet_t *set = R_GetGlyphSet((font_t *)font, codepoint);
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
         width -= INV_SCALE_X(g->xadvance);
     }
     for (; *p && isspace(*p) && *p != '\n';) {
         unsigned codepoint;
         p = utf8_to_codepoint(p, &codepoint);
-        glyphSet_t *set = R_GetGlyphSet((LPFONT)font, codepoint);
+        glyphSet_t *set = R_GetGlyphSet((font_t *)font, codepoint);
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
         width -= INV_SCALE_X(g->xadvance);
     }
@@ -229,9 +229,9 @@ bool will_word_fit(cstring_t text, float width, LPCFONT font) {
     return R_TextFitsWidth(width);
 }
 
-static VECTOR2 get_position(LPCDRAWTEXT arg) {
-    VECTOR2 pos = { 0 };
-    VECTOR2 size = R_GetTextSize(arg);
+static vector2_t get_position(drawText_t const * arg) {
+    vector2_t pos = { 0 };
+    vector2_t size = R_GetTextSize(arg);
     switch (arg->halign) {
         case FONT_JUSTIFYRIGHT: pos.x = arg->rect.x + arg->rect.w - size.x; break;
         case FONT_JUSTIFYCENTER: pos.x = arg->rect.x + (arg->rect.w - size.x) / 2; break;
@@ -256,7 +256,7 @@ static rect_t get_uvrect(stbtt_bakedchar *g, float h, float w) {
     return uv_rect;
 }
 
-static rect_t get_screenrect(LPCVECTOR2 cursor, stbtt_bakedchar *g) {
+static rect_t get_screenrect(vector2_t const * cursor, stbtt_bakedchar *g) {
     rect_t const screen = {
         .x = cursor->x + INV_SCALE_X(g->xoff),
         .y = cursor->y + INV_SCALE_Y(g->yoff),
@@ -267,12 +267,12 @@ static rect_t get_screenrect(LPCVECTOR2 cursor, stbtt_bakedchar *g) {
 }
 
 typedef struct {
-    VERTEX vertices[TEXT_BATCH_VERTICES];
+    vertex_t vertices[TEXT_BATCH_VERTICES];
     uint32_t count;
-    LPCTEXTURE texture;
+    texture_t const * texture;
 } textBatch_t;
 
-static void flush_text_batch(textBatch_t *batch, LPCDRAWTEXT arg) {
+static void flush_text_batch(textBatch_t *batch, drawText_t const * arg) {
     if (!batch->count) {
         return;
     }
@@ -291,11 +291,11 @@ static void flush_text_batch(textBatch_t *batch, LPCDRAWTEXT arg) {
 }
 
 static void add_text_glyph(textBatch_t *batch,
-                           LPCDRAWTEXT arg,
-                           LPCTEXTURE texture,
+                           drawText_t const * arg,
+                           texture_t const * texture,
                            rect_t const * screen,
                            rect_t const * uv,
-                           COLOR32 color)
+                           color32_t color)
 {
     if (batch->texture != texture || batch->count + 6 > TEXT_BATCH_VERTICES) {
         flush_text_batch(batch, arg);
@@ -305,15 +305,15 @@ static void add_text_glyph(textBatch_t *batch,
     batch->count += 6;
 }
 
-static VECTOR2 process_text(LPCDRAWTEXT arg, bool draw) {
+static vector2_t process_text(drawText_t const * arg, bool draw) {
     if (!arg->font) {
-        return MAKE(VECTOR2, 0, 0);
+        return MAKE(vector2_t, 0, 0);
     }
-    VECTOR2 pos = draw ? get_position(arg) : MAKE(VECTOR2, 0, 0);
-    COLOR32 color = arg->color;
-    VECTOR2 cursor = pos;
-    VECTOR2 linesize = MAKE(VECTOR2, 0.5f * arg->font->size / UI_FONT_COORD_SCALE, 0.5f * arg->font->size / UI_FONT_COORD_SCALE * UI_PIXEL_ASPECT);
-    float line_height = R_GetFontHeight((LPFONT)arg->font);
+    vector2_t pos = draw ? get_position(arg) : MAKE(vector2_t, 0, 0);
+    color32_t color = arg->color;
+    vector2_t cursor = pos;
+    vector2_t linesize = MAKE(vector2_t, 0.5f * arg->font->size / UI_FONT_COORD_SCALE, 0.5f * arg->font->size / UI_FONT_COORD_SCALE * UI_PIXEL_ASPECT);
+    float line_height = R_GetFontHeight((font_t *)arg->font);
     float line_advance = line_height * (arg->lineHeight > 0 ? arg->lineHeight : 1.0f);
     float max_cursor_x = pos.x;
     float min_cursor_y = pos.y;
@@ -370,7 +370,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, bool draw) {
             continue;
         }
         if (!strncmp(p, "|c", 2) || !strncmp(p, "|C", 2)) {
-            COLOR32 c;
+            color32_t c;
             sscanf(p+2, "%08x", (uint32_t *)&c);
             color.a = c.a;
             color.b = c.r;
@@ -386,7 +386,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, bool draw) {
         }
         unsigned codepoint;
         p = utf8_to_codepoint(p, &codepoint);
-        glyphSet_t *set = R_GetGlyphSet((LPFONT)arg->font, codepoint);
+        glyphSet_t *set = R_GetGlyphSet((font_t *)arg->font, codepoint);
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
         if (draw) {
             float const w = set->image->width;
@@ -402,18 +402,18 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, bool draw) {
     if (draw) {
         flush_text_batch(&batch, arg);
     }
-    return MAKE(VECTOR2,
+    return MAKE(vector2_t,
                 max_cursor_x - pos.x,
-                (max_cursor_y - min_cursor_y) + R_GetFontHeight((LPFONT)arg->font));
+                (max_cursor_y - min_cursor_y) + R_GetFontHeight((font_t *)arg->font));
 }
 
 
-void R_DrawText(LPCDRAWTEXT arg) {
+void R_DrawText(drawText_t const * arg) {
     process_text(arg, true);
     
 //    R_DrawWireRect(&arg->rect, MAKE(COLOR32, 255, 0, 255, 255));
 }
 
-VECTOR2 R_GetTextSize(LPCDRAWTEXT arg) {
+vector2_t R_GetTextSize(drawText_t const * arg) {
     return process_text(arg, false);
 }

@@ -1,14 +1,14 @@
 #include "../cmath3.h"
 
-void Vector4_set(VECTOR4* v, float x, float y, float z, float w) {
+void Vector4_set(vector4_t* v, float x, float y, float z, float w) {
     v->x = x;
     v->y = y;
     v->z = z;
     v->w = w;
 }
 
-VECTOR4 Vector4_scale(LPCVECTOR4 v, float s) {
-    return (VECTOR4) {
+vector4_t Vector4_scale(vector4_t const * v, float s) {
+    return (vector4_t) {
         .x = v->x * s,
         .y = v->y * s,
         .z = v->z * s,
@@ -16,8 +16,8 @@ VECTOR4 Vector4_scale(LPCVECTOR4 v, float s) {
     };
 }
 
-VECTOR4 Vector4_add(LPCVECTOR4 a, LPCVECTOR4 b) {
-    return (VECTOR4) {
+vector4_t Vector4_add(vector4_t const * a, vector4_t const * b) {
+    return (vector4_t) {
         .x = a->x + b->x,
         .y = a->y + b->y,
         .z = a->z + b->z,
@@ -25,8 +25,8 @@ VECTOR4 Vector4_add(LPCVECTOR4 a, LPCVECTOR4 b) {
     };
 }
 
-VECTOR4 Vector4_unm(LPCVECTOR4 v) {
-    return (VECTOR4) {
+vector4_t Vector4_unm(vector4_t const * v) {
+    return (vector4_t) {
         .x = -v->x,
         .y = -v->y,
         .z = -v->z,

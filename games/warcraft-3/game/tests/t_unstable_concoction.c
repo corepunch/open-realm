@@ -4,7 +4,7 @@
 
 #define BZ_AUCO MAKEFOURCC('A', 'u', 'c', 'o') // rawcode; Unstable Concoction
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -12,8 +12,8 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
 	slkTestData_t *rows, *old;
-	LPEDICT caster, primary, splash, ground, ally;
-} UCFIX;
+	edict_t * caster, *primary, *splash, *ground, *ally;
+} ucFix_t;
 
 /* Non-stock DataB/DataC/DataD prove execute reads abilityitem_t.code, not retail 600/200/140. */
 static char const uc_slk[] =
@@ -29,10 +29,10 @@ static char const uc_slk[] =
 	"C;Y2;X14;K\"0\"\nE\n";
 
 /* Fill in place: fixture stores no dangling UnitBalance pointers, but keep the void pattern. */
-static void uc_setup(UCFIX *fix) {
+static void uc_setup(ucFix_t *fix) {
 	reset_entities(); setup_test_world(); level.time = 1000;
-	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	memset(level.alliances, 0, sizeof(level.alliances));
 	fix->rows = parse_slk_string(uc_slk); fix->old = G_SetSLKRows("AbilityData", fix->rows);
 	fix->caster = alloc_test_unit(MAKEFOURCC('o', 't', 'b', 'r'), 0, 0);
@@ -60,7 +60,7 @@ static void uc_setup(UCFIX *fix) {
 	fix->caster->mana.value = fix->caster->mana.max_value = 100;
 }
 
-static void uc_done(UCFIX *fix) {
+static void uc_done(ucFix_t *fix) {
 	G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows);
 }
 
@@ -70,7 +70,7 @@ TEST(wc3_spell, unstable_concoction_procedure_registered) {
 
 /* Primary air takes DataB; nearby air in DataC takes DataD; ground and allies untouched; caster dies. */
 TEST(wc3_spell, unstable_concoction_explodes_on_air_and_kills_caster) {
-	UCFIX fix;
+	ucFix_t fix;
 	uc_setup(&fix);
 	T_ASSERT(S_SpellAllowsTarget(BZ_AUCO, fix.caster, fix.primary));
 	T_ASSERT(!S_SpellAllowsTarget(BZ_AUCO, fix.caster, fix.ground));
@@ -86,7 +86,7 @@ TEST(wc3_spell, unstable_concoction_explodes_on_air_and_kills_caster) {
 
 /* Air outside DataC is not splashed; primary still takes authored DataB. */
 TEST(wc3_spell, unstable_concoction_splash_respects_datac_radius) {
-	UCFIX fix;
+	ucFix_t fix;
 	uc_setup(&fix);
 	fix.splash->s.origin2.x = 300; fix.splash->s.origin.x = 300;
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUCO, fix.primary));
@@ -97,7 +97,7 @@ TEST(wc3_spell, unstable_concoction_splash_respects_datac_radius) {
 
 /* Ground primary is rejected without spending mana (cost is 0; still no cast). */
 TEST(wc3_spell, unstable_concoction_rejects_ground_target) {
-	UCFIX fix;
+	ucFix_t fix;
 	uc_setup(&fix);
 	T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_AUCO, fix.ground));
 	T_ASSERT(!M_IsDead(fix.caster));

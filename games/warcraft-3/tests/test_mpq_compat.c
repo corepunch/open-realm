@@ -268,7 +268,7 @@ int main(int argc, char **argv)
     const char *dota_path = resolve_dota_path(argc, argv);
     handle_t archive;
     handle_t file;
-    SFILE_FIND_DATA find_data;
+    sfileFindData_t find_data;
     handle_t find;
     uint32_t bytes_read;
     uint32_t size_low;

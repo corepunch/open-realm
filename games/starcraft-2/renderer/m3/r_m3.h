@@ -10,15 +10,15 @@ m3##TYPE##_t *NAME;
 typedef uint16_t m3Face_t;
 typedef char m3Char_t;
 typedef float m3Float32_t;
-typedef MATRIX4 m3Matrix4_t;
+typedef matrix4_t m3Matrix4_t;
 typedef int32_t m3Int32_t;
 typedef uint32_t m3Uint32_t;
 typedef int16_t m3Int16_t;
 typedef uint16_t m3Uint16_t;
-typedef VECTOR2 m3Vector2_t;
-typedef VECTOR3 m3Vector3_t;
-typedef VECTOR4 m3Vector4_t;
-typedef COLOR32 m3Pixel_t;
+typedef vector2_t m3Vector2_t;
+typedef vector3_t m3Vector3_t;
+typedef vector4_t m3Vector4_t;
+typedef color32_t m3Pixel_t;
 
 typedef struct {
     uint16_t interpolationType;
@@ -36,17 +36,17 @@ typedef struct { \
     uint32_t unknown; \
 } m3##name##AnimRef_t;
 
-M3_DECL_ANIMREF(Pixel, COLOR32);
+M3_DECL_ANIMREF(Pixel, color32_t);
 M3_DECL_ANIMREF(Uint16, uint16_t);
 M3_DECL_ANIMREF(Uint32, uint32_t);
 M3_DECL_ANIMREF(Float32, float);
-M3_DECL_ANIMREF(Vector2, VECTOR2);
-M3_DECL_ANIMREF(Vector3, VECTOR3);
-M3_DECL_ANIMREF(Vector4, VECTOR4);
+M3_DECL_ANIMREF(Vector2, vector2_t);
+M3_DECL_ANIMREF(Vector3, vector3_t);
+M3_DECL_ANIMREF(Vector4, vector4_t);
 
 typedef struct {
-    VECTOR3 min;
-    VECTOR3 max;
+    vector3_t min;
+    vector3_t max;
     float radius;
 } BoundingSphere;
 
@@ -54,9 +54,9 @@ typedef struct {
     uint32_t shape;
     uint16_t bone;
     uint16_t unknown0;
-    MATRIX4 matrix;
+    matrix4_t matrix;
     uint32_t unknown[6];
-    VECTOR3 size;
+    vector3_t size;
 } BoundingShape;
 
 typedef struct {
@@ -72,7 +72,7 @@ struct ReferenceEntry {
     uint32_t version;
 };
 
-struct MD33
+struct m3Header
 {
     char id[4];
     uint32_t ofsRefs;
@@ -100,22 +100,22 @@ typedef struct {
 } m3Bone_t;
 
 typedef struct m3Vertex_s {
-    VECTOR3 pos;
+    vector3_t pos;
     uint8_t boneWeight[4];
     uint8_t boneIndex[4];
     uint8_t normal[4];
-    COLOR32 color;
+    color32_t color;
     int16_t uv[4][2];
     uint8_t tangent[4];
 } m3Vertex_t;
 
-struct MATM
+struct m3MaterialMap
 {
     uint32_t d1;
     uint32_t d2; // Index into MAT-table?
 };
 
-struct MAT
+struct m3Material
 {
     Reference name;
     int ukn1[8];
@@ -124,14 +124,14 @@ struct MAT
     int ukn2[15];
 };
 
-struct LAYR
+struct m3Layer
 {
     int unk;
     Reference name;
     float unk2[85];
 };
 
-struct DIV {
+struct m3Division {
     Reference faces; // U16
     Reference regions; // REGN - Region
     Reference BAT;
@@ -156,7 +156,7 @@ typedef struct {
     uint32_t unknown5[2];
 } m3Region_t;
 
-struct CAM
+struct m3Camera
 {
     /*0x00*/ int32_t d1;
     /*0x04*/ Reference name;
@@ -164,7 +164,7 @@ struct CAM
     /*0x0E*/ uint16_t flags2;
 };
 
-struct EVNT
+struct m3Event
 {
     /*0x00*/ Reference name;
     /*0x08*/ int16_t unk1[4];
@@ -172,14 +172,14 @@ struct EVNT
     /*0x50*/ int32_t unk2[4];
 };
 
-struct ATT
+struct m3Attachment
 {
     /*0x00*/ int32_t unk;
     /*0x04*/ Reference name;
     /*0x0C*/ int32_t bone;
 };
 
-struct PHSH
+struct m3Physics
 {
     float m[4][4];
     float f1;
@@ -223,11 +223,11 @@ typedef struct {
     M3_ENTRIES(Uint32, stcID);
 } m3SequenceGetter_t;
 
-struct BNDS
+struct m3Bounds
 {
-    /*0x00*/ VECTOR3 extents1[2];
+    /*0x00*/ vector3_t extents1[2];
     /*0x18*/ float radius1;
-    /*0x1C*/ VECTOR3 extents2[2];
+    /*0x1C*/ vector3_t extents2[2];
     /*0x34*/ float radius2;
 };
 
@@ -331,7 +331,7 @@ typedef struct {
         float RotationPitch;
         uint32_t unknown7;
     } fresnel2;
-    LPCTEXTURE texture;
+    texture_t const * texture;
 } m3Layer_t;
 
 typedef struct {
@@ -372,7 +372,7 @@ typedef struct {
 } m3Material_t;
 
 typedef struct m3Model_s {
-    struct MD33* head;
+    struct m3Header* head;
     struct ReferenceEntry* refs;
     struct render_buffer *renbuf;
     handle_t buffer;

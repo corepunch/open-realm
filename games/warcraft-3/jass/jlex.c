@@ -3,7 +3,7 @@
 
 #define MAX_SEGMENT_SIZE 16384  /* Galaxy scripts contain long string literals */
 
-bool eat_token(LPPARSER p, cstring_t value) {
+bool eat_token(wordExtractor_t * p, cstring_t value) {
     cstring_t tok = peek_token(p);
     if (!strcmp(tok, value)) {
         parse_token(p);
@@ -13,7 +13,7 @@ bool eat_token(LPPARSER p, cstring_t value) {
     }
 }
 
-cstring_t parse_token(LPPARSER p) {
+cstring_t parse_token(wordExtractor_t * p) {
     static char word[MAX_SEGMENT_SIZE];
     while (isspace(*p->buffer)) ++p->buffer;
     if (*p->buffer == '\"' || *p->buffer == '\'') {
@@ -81,16 +81,16 @@ cstring_t parse_token(LPPARSER p) {
     }
 }
 
-cstring_t jlex_parse_token(LPPARSER p) { return parse_token(p); }
+cstring_t jlex_parse_token(wordExtractor_t * p) { return parse_token(p); }
 
-cstring_t peek_token(LPPARSER p) {
-    PARSER tmp = *p;
+cstring_t peek_token(wordExtractor_t * p) {
+    wordExtractor_t tmp = *p;
     cstring_t token = parse_token(p);
     *p = tmp;
     return token;
 }
 
-cstring_t parse_segment(LPPARSER p) {
+cstring_t parse_segment(wordExtractor_t * p) {
     static char segment[MAX_SEGMENT_SIZE];
     memset(segment, 0, MAX_SEGMENT_SIZE);
     if (*p->buffer == '\0')
@@ -140,7 +140,7 @@ cstring_t parse_segment(LPPARSER p) {
     return segment;
 }
 
-cstring_t parse_segment2(LPPARSER p) {
+cstring_t parse_segment2(wordExtractor_t * p) {
     static char segment[MAX_SEGMENT_SIZE];
     memset(segment, 0, MAX_SEGMENT_SIZE);
     if (*p->buffer == '\0')
@@ -167,7 +167,7 @@ cstring_t parse_segment2(LPPARSER p) {
 
 
 
-void parser_error(LPPARSER parser) {
+void parser_error(wordExtractor_t * parser) {
     parser->error = true;
 }
 

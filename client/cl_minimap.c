@@ -7,23 +7,23 @@
 
 typedef struct {
     bool active;
-    VECTOR2 position;
-    COLOR32 color;
+    vector2_t position;
+    color32_t color;
     uint32_t start_time, end_time;
     uint32_t flags;
 } minimapPing_t;
 
 static bool minimap_drag_active;
 static minimapPing_t minimap_pings[CL_MINIMAP_PING_COUNT];
-static VECTOR2 minimap_recent[CL_MINIMAP_RECENT_COUNT];
+static vector2_t minimap_recent[CL_MINIMAP_RECENT_COUNT];
 static uint32_t minimap_recent_count, minimap_recent_cursor;
 
 /* Keep each predicted XYZ sample terrain-relative before replacing its XY, including unacknowledged snapshots. */
-void CL_PredictCameraPosition(VECTOR2 pos) {
+void CL_PredictCameraPosition(vector2_t pos) {
     bool terrain = re.CameraUsesTerrainHeight();
     float height = terrain ? re.GetHeightAtPoint(pos.x, pos.y) : 0.0f;
     FOR_LOOP(i, 2) {
-        LPVECTOR3 org = &cl.viewDef.camerastate[i].origin;
+        vector3_t * org = &cl.viewDef.camerastate[i].origin;
         /* Changing XY alone paired the previous terrain Z with the new location and caused acknowledgment jumps. */
         if (terrain) org->z += height - re.GetHeightAtPoint(org->x, org->y);
         org->x = pos.x; org->y = pos.y;
@@ -31,14 +31,14 @@ void CL_PredictCameraPosition(VECTOR2 pos) {
 }
 
 /* Apply one camera position through local prediction and the authoritative client message. */
-void CL_SetCameraPosition(VECTOR2 position) {
+void CL_SetCameraPosition(vector2_t position) {
     position = CL_ClampCameraPosition(position);
     CL_PredictCameraPosition(position);
     cl.camera_prediction.active = true;
     cl.camera_prediction.origin = position;
     cl.camera_prediction.focus_ms = cl.time;
     MSG_WriteByte(&cls.netchan.message, clc_input);
-    MSG_WriteInput(&cls.netchan.message, &(INPUTCMD){ .action = BZ_INPUT_FOCUS, .focus = position });
+    MSG_WriteInput(&cls.netchan.message, &(inputCmd_t){ .action = BZ_INPUT_FOCUS, .focus = position });
 }
 
 void CL_ClearMinimap(void) {
@@ -49,7 +49,7 @@ void CL_ClearMinimap(void) {
 }
 
 /* Keep newest alert positions first so Space traversal is deterministic. */
-static void CL_RememberMinimapPosition(LPCVECTOR2 position) {
+static void CL_RememberMinimapPosition(vector2_t const * position) {
     uint32_t move = MIN(minimap_recent_count, CL_MINIMAP_RECENT_COUNT - 1);
     if (move) memmove(&minimap_recent[1], minimap_recent, move * sizeof(*minimap_recent));
     minimap_recent[0] = *position;
@@ -58,7 +58,7 @@ static void CL_RememberMinimapPosition(LPCVECTOR2 position) {
 }
 
 /* Decode the fixed transient marker packet directly into client presentation state. */
-void CL_ParseMinimapPing(LPSIZEBUF msg) {
+void CL_ParseMinimapPing(sizeBuf_t * msg) {
     minimapPing_t ping = { .active = true, .start_time = cl.time };
     uint32_t slot = CL_MINIMAP_PING_COUNT, oldest = 0, oldest_age = 0;
     float duration;
@@ -70,7 +70,7 @@ void CL_ParseMinimapPing(LPSIZEBUF msg) {
     }
     ping.position.x = MSG_ReadFloat(msg); ping.position.y = MSG_ReadFloat(msg);
     duration = MSG_ReadFloat(msg);
-    ping.color = MAKE(COLOR32, MSG_ReadByte(msg), MSG_ReadByte(msg), MSG_ReadByte(msg), MSG_ReadByte(msg));
+    ping.color = MAKE(color32_t, MSG_ReadByte(msg), MSG_ReadByte(msg), MSG_ReadByte(msg), MSG_ReadByte(msg));
     ping.flags = (uint32_t)MSG_ReadByte(msg);
     if (!isfinite(ping.position.x) || !isfinite(ping.position.y) || !isfinite(duration) || duration <= 0.0f ||
         duration > MINIMAP_PING_DURATION_MAX) {
@@ -93,7 +93,7 @@ void CL_ParseMinimapPing(LPSIZEBUF msg) {
 static void CL_DrawMinimapPings(void) {
     FOR_LOOP(i, CL_MINIMAP_PING_COUNT) {
         minimapPing_t *ping = &minimap_pings[i];
-        VECTOR2 screen;
+        vector2_t screen;
         rect_t marker;
         float pulse;
         if (!ping->active) continue;
@@ -127,7 +127,7 @@ void CL_UpdateMinimapModel(void) {
 }
 
 /* Draw the server-authored minimap frame and all transient attention markers. */
-void CL_LayoutDrawMinimap(LPCUIFRAME frame, rect_t const * screen) {
+void CL_LayoutDrawMinimap(uiFrame_t const * frame, rect_t const * screen) {
     /* bool is a byte and truncated bit 15 to zero, selecting the unloaded gameplay texture. */
     bool preview = frame->flagsvalue & UIFLAG_MINIMAP_PREVIEW;
     re.DrawMinimap(screen, preview ? frame->text : NULL);
@@ -136,7 +136,7 @@ void CL_LayoutDrawMinimap(LPCUIFRAME frame, rect_t const * screen) {
 
 /* Left-click (or click-drag) on the minimap recenters the camera there. */
 bool CL_TryMinimapClick(float x, float y) {
-    VECTOR2 world;
+    vector2_t world;
     /* TraceMinimap is mandatory; its result reports whether a minimap was hit. */
     if (!CL_GameplayInputReady() || !re.TraceMinimap(x, y, &world)) return false;
     minimap_drag_active = true;
@@ -145,7 +145,7 @@ bool CL_TryMinimapClick(float x, float y) {
 }
 
 void CL_UpdateMinimapDrag(float x, float y) {
-    VECTOR2 world;
+    vector2_t world;
     if (!minimap_drag_active || !re.TraceMinimap(x, y, &world)) return;
     CL_SetCameraPosition(world);
 }

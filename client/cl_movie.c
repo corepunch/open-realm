@@ -497,7 +497,7 @@ static rect_t movie_test_rect;
 static size2_t movie_test_window;
 static rect_t CL_MovieTestScene(void) { return MAKE(rect_t, 0, 0, 0.8f, 0.6f); }
 static size2_t CL_MovieTestWindow(void) { return movie_test_window; }
-static void CL_MovieTestFill(rect_t const * rect, COLOR32 color) { (void)rect; (void)color; }
+static void CL_MovieTestFill(rect_t const * rect, color32_t color) { (void)rect; (void)color; }
 static void CL_MovieTestFrame(drawCinematicFrame_t const *frame) { movie_test_rect = frame->screen; }
 TEST(client_movie, letterboxing_uses_physical_aspect_on_stretched_canvas) {
     refExport_t saved_re = re;

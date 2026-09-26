@@ -81,7 +81,7 @@ typedef struct {
     void (*LAN_ConnectServer)(uint32_t index);
    
     /* Renderer access for frame drawing */
-    LPRENDERER (*GetRenderer)(void);
+    refExport_t * (*GetRenderer)(void);
     
     /* Output */
     void (*Printf)(cstring_t fmt, ...);

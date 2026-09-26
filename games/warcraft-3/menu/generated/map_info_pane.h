@@ -5,25 +5,25 @@
 #include "../menu_local.h"
 
 typedef struct MapInfoPane_s {
-    LPFRAMEDEF MapInfoPane;
-    LPFRAMEDEF MaxPlayersIcon;
-    LPFRAMEDEF MaxPlayersValue;
-    LPFRAMEDEF MapNameValue;
-    LPFRAMEDEF AuthIcon;
-    LPFRAMEDEF MinimapImage;
-    LPFRAMEDEF MinimapImageBackdrop;
-    LPFRAMEDEF SuggestedPlayersLabel;
-    LPFRAMEDEF SuggestedPlayersValue;
-    LPFRAMEDEF MapSizeLabel;
-    LPFRAMEDEF MapSizeValue;
-    LPFRAMEDEF MapTilesetLabel;
-    LPFRAMEDEF MapTilesetValue;
-    LPFRAMEDEF MapDescLabel;
-    LPFRAMEDEF MapDescValue;
+    frameDef_t * MapInfoPane;
+    frameDef_t * MaxPlayersIcon;
+    frameDef_t * MaxPlayersValue;
+    frameDef_t * MapNameValue;
+    frameDef_t * AuthIcon;
+    frameDef_t * MinimapImage;
+    frameDef_t * MinimapImageBackdrop;
+    frameDef_t * SuggestedPlayersLabel;
+    frameDef_t * SuggestedPlayersValue;
+    frameDef_t * MapSizeLabel;
+    frameDef_t * MapSizeValue;
+    frameDef_t * MapTilesetLabel;
+    frameDef_t * MapTilesetValue;
+    frameDef_t * MapDescLabel;
+    frameDef_t * MapDescValue;
 } MapInfoPane_t;
 
 
-static inline bool MapInfoPane_Bind(MapInfoPane_t *out, LPFRAMEDEF bind_root) {
+static inline bool MapInfoPane_Bind(MapInfoPane_t *out, frameDef_t * bind_root) {
     bool ok = true;
     if (!out) {
         return false;

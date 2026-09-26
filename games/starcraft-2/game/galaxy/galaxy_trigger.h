@@ -9,8 +9,8 @@ static int32_t  sc2_trig_next_id = 1;
 /* Fire a named Galaxy trigger function with the Galaxy convention (testConds=false, runActions=true).
  * Galaxy trigger functions have signature `bool f(bool testConds, bool runActions)`.
  * We compile a thin wrapper so jass_startcoroutinebyname (no args) correctly enters with args. */
-static void sc2_fire_trigger_func(LPJASS j, cstring_t funcname, bool testConds, bool as_coroutine) {
-    LPJASS root = jass_getroot(j);
+static void sc2_fire_trigger_func(jass_t * j, cstring_t funcname, bool testConds, bool as_coroutine) {
+    jass_t * root = jass_getroot(j);
     char name[128];
     /* Encode testConds in the wrapper name so each variant is compiled at most once. */
     snprintf(name, sizeof(name), "__trig_%llx_%d",
@@ -56,12 +56,12 @@ static void sc2_fire_trigger_func(LPJASS j, cstring_t funcname, bool testConds, 
 }
 
 /* Triggers are opaque handles; extract the integer ID via pointer cast. */
-static int32_t sc2_trigger_id(LPJASS j, int index) {
+static int32_t sc2_trigger_id(jass_t * j, int index) {
     handle_t h = jass_checkhandle(j, index, "trigger");
     return h ? (int32_t)(uintptr_t)h : 0;
 }
 
-static uint32_t sc2_TriggerCreate(LPJASS j) {
+static uint32_t sc2_TriggerCreate(jass_t * j) {
     cstring_t name = jass_checkstring(j, 1);
     int32_t id = 0;
     if (name && sc2_trig_n < MAX_SC2_TRIGGERS) {
@@ -73,13 +73,13 @@ static uint32_t sc2_TriggerCreate(LPJASS j) {
               : jass_pushnullhandle(j, "trigger");
 }
 
-static uint32_t sc2_TriggerEnable(LPJASS j)      { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerStop(LPJASS j)        { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerGetCurrent(LPJASS j)  { return jass_pushnullhandle(j, "trigger"); }
-static uint32_t sc2_TriggerGetExecCount(LPJASS j){ return jass_pushinteger(j, 0); }
-static uint32_t sc2_TriggerIsEnabled(LPJASS j)   { return jass_pushboolean(j, true); }
+static uint32_t sc2_TriggerEnable(jass_t * j)      { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerStop(jass_t * j)        { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerGetCurrent(jass_t * j)  { return jass_pushnullhandle(j, "trigger"); }
+static uint32_t sc2_TriggerGetExecCount(jass_t * j){ return jass_pushinteger(j, 0); }
+static uint32_t sc2_TriggerIsEnabled(jass_t * j)   { return jass_pushboolean(j, true); }
 
-static uint32_t sc2_TriggerExecute(LPJASS j) {
+static uint32_t sc2_TriggerExecute(jass_t * j) {
     int32_t   id        = sc2_trigger_id(j, 1);
     bool   testConds = jass_checkboolean(j, 2);
     bool   waitDone  = jass_checkboolean(j, 3);
@@ -96,7 +96,7 @@ static uint32_t sc2_TriggerExecute(LPJASS j) {
     return jass_pushnull(j);
 }
 
-static uint32_t sc2_TriggerAddEventMapInit(LPJASS j) {
+static uint32_t sc2_TriggerAddEventMapInit(jass_t * j) {
     int32_t id = sc2_trigger_id(j, 1);
     for (uint32_t i = 0; i < sc2_trig_n; i++) {
         if (sc2_trigs[i].id == id) { sc2_trigs[i].mapinit = true; break; }
@@ -104,34 +104,34 @@ static uint32_t sc2_TriggerAddEventMapInit(LPJASS j) {
     return jass_pushnull(j);
 }
 
-static uint32_t sc2_TriggerSkippableBegin(LPJASS j) { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerSkippableEnd(LPJASS j)   { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerQueueEnter(LPJASS j)     { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerQueueExit(LPJASS j)      { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerQueueIsEmpty(LPJASS j)   { return jass_pushboolean(j, true); }
-static uint32_t sc2_TriggerQueuePause(LPJASS j)     { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerQueueClear(LPJASS j)     { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerSkippableBegin(jass_t * j) { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerSkippableEnd(jass_t * j)   { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerQueueEnter(jass_t * j)     { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerQueueExit(jass_t * j)      { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerQueueIsEmpty(jass_t * j)   { return jass_pushboolean(j, true); }
+static uint32_t sc2_TriggerQueuePause(jass_t * j)     { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerQueueClear(jass_t * j)     { (void)j; return jass_pushnull(j); }
 
-static uint32_t sc2_Wait(LPJASS j) {
+static uint32_t sc2_Wait(jass_t * j) {
     float secs = jass_checknumber(j, 1);
     jass_sleep(j, (uint32_t)(secs * 1000.0f));
     return 0;
 }
 
 /* Event registration stubs */
-static uint32_t sc2_TriggerAddEventPlayerAIWave(LPJASS j)            { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerAddEventPlayerAllianceChange(LPJASS j)    { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerAddEventPlayerLeft(LPJASS j)              { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerAddEventPlayerPropChange(LPJASS j)        { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerAddEventTimeElapsed(LPJASS j)             { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerAddEventTimePeriodic(LPJASS j)            { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerAddEventTimer(LPJASS j)                   { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerAddEventUnitAttacked(LPJASS j)            { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerAddEventUnitCargo(LPJASS j)               { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerAddEventUnitDamaged(LPJASS j)             { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerAddEventUnitDied(LPJASS j)                { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerAddEventUnitOrder(LPJASS j)               { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerAddEventUnitRange(LPJASS j)               { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerAddEventUnitRangePoint(LPJASS j)          { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerAddEventUnitRegion(LPJASS j)              { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TriggerDebugOutput(LPJASS j)                     { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerAddEventPlayerAIWave(jass_t * j)            { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerAddEventPlayerAllianceChange(jass_t * j)    { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerAddEventPlayerLeft(jass_t * j)              { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerAddEventPlayerPropChange(jass_t * j)        { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerAddEventTimeElapsed(jass_t * j)             { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerAddEventTimePeriodic(jass_t * j)            { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerAddEventTimer(jass_t * j)                   { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerAddEventUnitAttacked(jass_t * j)            { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerAddEventUnitCargo(jass_t * j)               { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerAddEventUnitDamaged(jass_t * j)             { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerAddEventUnitDied(jass_t * j)                { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerAddEventUnitOrder(jass_t * j)               { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerAddEventUnitRange(jass_t * j)               { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerAddEventUnitRangePoint(jass_t * j)          { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerAddEventUnitRegion(jass_t * j)              { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TriggerDebugOutput(jass_t * j)                     { (void)j; return jass_pushnull(j); }

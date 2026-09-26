@@ -6,6 +6,6 @@
 #include "jass.h"
 #include "jparser.h"
 
-VMPROGRAM VM_Compile(LPCTOKEN token);
+vmprogram_t VM_Compile(token_t const * token);
 
 #endif /* jvm_h */

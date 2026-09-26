@@ -7,20 +7,20 @@
 #include <float.h>
 #include <stdlib.h>
 
-void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix) {
+void R_GetEntityMatrix(renderEntity_t const *entity, matrix4_t * matrix) {
     modelPose_t pose = { .origin = entity->origin, .angles.yaw = entity->angle, .scale = entity->scale };
-    LPCMATRIX4 basis = R_EntityPose(entity, &pose);
-    QUATERNION rotation = Quaternion_fromOrientation(&pose.angles);
-    MATRIX4 placement;
+    matrix4_t const * basis = R_EntityPose(entity, &pose);
+    quaternion_t rotation = Quaternion_fromOrientation(&pose.angles);
+    matrix4_t placement;
     Matrix4_from_rotation_translation_scale_origin(&placement, &rotation, &pose.origin,
-        &MAKE(VECTOR3, pose.scale, pose.scale, pose.scale), &MAKE(VECTOR3, 0, 0, 0));
+        &MAKE(vector3_t, pose.scale, pose.scale, pose.scale), &MAKE(vector3_t, 0, 0, 0));
     /* Native skinning precedes this basis. All world-space consumers use this same composition. */
     Matrix4_multiply(&placement, basis, matrix);
 }
 
 /* A socket already includes the parent's model basis. Apply only the child's local pose. */
-void R_GetAttachmentMatrix(renderEntity_t const *entity, LPCMATRIX4 socket, LPMATRIX4 matrix) {
-    QUATERNION rotation = Quaternion_fromOrientation(&entity->attachment.angles);
+void R_GetAttachmentMatrix(renderEntity_t const *entity, matrix4_t const * socket, matrix4_t * matrix) {
+    quaternion_t rotation = Quaternion_fromOrientation(&entity->attachment.angles);
     *matrix = *socket;
     Matrix4_rotateQuat(matrix, &rotation);
 }
@@ -30,7 +30,7 @@ static int R_DebugEntities(void) {
 }
 
 static float R_EntityRingZ(renderEntity_t const *entity) {
-    BOX3 bounds;
+    box3_t bounds;
 
     if (R_GetEntityBounds(entity, &bounds))
         return entity->origin.z + bounds.min.z * entity->scale - 1.0f;
@@ -38,8 +38,8 @@ static float R_EntityRingZ(renderEntity_t const *entity) {
 }
 
 static bool R_EntityInView(renderEntity_t const *entity) {
-    BOX3 bounds;
-    MATRIX4 matrix;
+    box3_t bounds;
+    matrix4_t matrix;
     float radius;
 
     if (!entity || (entity->flags & RF_HIDDEN) || !entity->model) {
@@ -57,7 +57,7 @@ static bool R_EntityInView(renderEntity_t const *entity) {
     }
 
     radius = MAX(entity->radius * MAX(entity->scale, 1.0f), 16.0f);
-    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){
+    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(sphere3_t){
         .center = entity->origin,
         .radius = radius,
     });
@@ -149,13 +149,13 @@ void R_DrawSplatRects(void) {
     R_BeginSplatBatch(R_SPLAT_SHADER(&tr.shader_splat));
     FOR_LOOP(i, tr.viewDef.num_splat_rects) {
         renderSplatRect_t const *rect = tr.viewDef.splat_rects + i;
-        BOX3 bounds;
+        box3_t bounds;
 
         if (rect->maxs.x <= rect->mins.x || rect->maxs.y <= rect->mins.y) {
             continue;
         }
         if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL)) {
-            bounds = (BOX3){
+            bounds = (box3_t){
                 .min = { rect->mins.x, rect->mins.y, -4096.0f },
                 .max = { rect->maxs.x, rect->maxs.y, 4096.0f },
             };
@@ -171,13 +171,13 @@ void R_DrawSplatRects(void) {
 void R_DrawDecals(void) {
     FOR_LOOP(i, tr.viewDef.num_decals) {
         renderDecal_t const *decal = tr.viewDef.decals + i;
-        BOX3 bounds;
+        box3_t bounds;
 
         if (!decal->texture || decal->radius <= 0.0f) {
             continue;
         }
         if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL)) {
-            bounds = (BOX3){
+            bounds = (box3_t){
                 .min = { decal->origin.x - decal->radius, decal->origin.y - decal->radius, -4096.0f },
                 .max = { decal->origin.x + decal->radius, decal->origin.y + decal->radius, 4096.0f },
             };
@@ -191,16 +191,16 @@ void R_DrawDecals(void) {
 
 uint32_t selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };
 
-static void R_RenderUberSplat(const renderEntity_t *entity, LPCVECTOR2 origin) {
+static void R_RenderUberSplat(const renderEntity_t *entity, vector2_t const * origin) {
     if (entity->splat && !(entity->flags & RF_NO_UBERSPLAT)) {
         R_RenderSplat(origin, entity->splatsize, entity->splat, R_SPLAT_SHADER(&tr.shader_default), COLOR32_WHITE);
     }
 }
 
-static void R_DrawEntityShadow(const renderEntity_t *entity, LPCVECTOR2 origin, bool shad) {
+static void R_DrawEntityShadow(const renderEntity_t *entity, vector2_t const * origin, bool shad) {
 #ifndef USE_SHADOWMAPS
-    LPCTEXTURE shadow = entity->shadow;
-    BOX3 bounds;
+    texture_t const * shadow = entity->shadow;
+    box3_t bounds;
 
     if (R_RenderShadow(entity, origin)) {
         return;
@@ -209,8 +209,8 @@ static void R_DrawEntityShadow(const renderEntity_t *entity, LPCVECTOR2 origin, 
         return;
     }
 
-    VECTOR2 mins;
-    VECTOR2 maxs;
+    vector2_t mins;
+    vector2_t maxs;
     if (entity->shadow_rect.w > 0 && entity->shadow_rect.h > 0) {
         mins.x = origin->x - entity->shadow_rect.x;
         mins.y = origin->y - entity->shadow_rect.y;
@@ -227,9 +227,9 @@ static void R_DrawEntityShadow(const renderEntity_t *entity, LPCVECTOR2 origin, 
         maxs.y = mins.y + height;
     }
 
-    COLOR32 shadowColor = {0, 0, 0, 128};
+    color32_t shadowColor = {0, 0, 0, 128};
     if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL)) {
-        bounds = (BOX3){
+        bounds = (box3_t){
             .min = { mins.x, mins.y, entity->origin.z - 32.0f },
             .max = { maxs.x, maxs.y, entity->origin.z + 32.0f },
         };
@@ -255,28 +255,28 @@ static void R_DrawEntityShadows(bool shad) {
         if ((ent->flags & RF_HIDDEN) || !ent->model) {
             continue;
         }
-        R_DrawEntityShadow(ent, (LPCVECTOR2)&ent->origin, shad);
+        R_DrawEntityShadow(ent, (vector2_t const *)&ent->origin, shad);
     }
     R_EndSplatBatch();
 #endif
 }
 
-static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 origin) {
+static void R_RenderSelectedCircle(const renderEntity_t *entity, vector2_t const * origin) {
     if (entity->flags & RF_SELECTED) {
-        COLOR32 color;
+        color32_t color;
         if (entity->flags & RF_HOSTILE) {
-            color = MAKE(COLOR32, 255, 80, 80, 255);
+            color = MAKE(color32_t, 255, 80, 80, 255);
         } else if (entity->flags & RF_NEUTRAL) {
-            color = MAKE(COLOR32, 255, 220, 80, 255);
+            color = MAKE(color32_t, 255, 220, 80, 255);
         } else {
-            color = MAKE(COLOR32, 80, 200, 80, 255);
+            color = MAKE(color32_t, 80, 200, 80, 255);
         }
         float radius = R_SelectionRadius(entity);
         FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
             if ((radius * 2) > selCircles[i])
                 continue;
-            VECTOR2 mins = { origin->x - radius, origin->y - radius };
-            VECTOR2 maxs = { origin->x + radius, origin->y + radius };
+            vector2_t mins = { origin->x - radius, origin->y - radius };
+            vector2_t maxs = { origin->x + radius, origin->y + radius };
             /* Flying units carry their selection circle with them; ground units
              * retain terrain-conforming rings for ramps and uneven terrain. */
             if (entity->ground_offset > 0.0f)
@@ -290,14 +290,14 @@ static void R_RenderSelectedCircle(const renderEntity_t *entity, LPCVECTOR2 orig
     }
 }
 
-static void R_RenderEntityIndicator(renderEntity_t const *entity, LPCVECTOR2 origin) {
+static void R_RenderEntityIndicator(renderEntity_t const *entity, vector2_t const * origin) {
     if (!entity->indicator.a) return;
 
     float radius = R_SelectionRadius(entity);
     FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
         if ((radius * 2) > selCircles[i]) continue;
-        VECTOR2 mins = { entity->origin.x - radius, entity->origin.y - radius };
-        VECTOR2 maxs = { entity->origin.x + radius, entity->origin.y + radius };
+        vector2_t mins = { entity->origin.x - radius, entity->origin.y - radius };
+        vector2_t maxs = { entity->origin.x + radius, entity->origin.y + radius };
         if (entity->ground_offset > 0.0f)
             R_RenderFlatRectSplat(&mins, &maxs, R_EntityRingZ(entity),
                                   tr.texture[TEX_SELECTION_CIRCLE+i], R_SPLAT_SHADER(&tr.shader_splat), entity->indicator);
@@ -316,25 +316,25 @@ static void R_RenderHoverHighlight(renderEntity_t const *entity) {
     if (entity->flags & RF_SELECTED) {
         return; /* selection circle already visible, skip hover */
     }
-    COLOR32 color;
+    color32_t color;
     if (entity->flags & RF_HOSTILE) {
-        color = MAKE(COLOR32, 255, 80, 80, 128);   /* enemy: faint red */
+        color = MAKE(color32_t, 255, 80, 80, 128);   /* enemy: faint red */
     } else if (entity->flags & RF_NEUTRAL) {
-        color = MAKE(COLOR32, 255, 220, 80, 128);  /* neutral/passive ally: faint yellow */
+        color = MAKE(color32_t, 255, 220, 80, 128);  /* neutral/passive ally: faint yellow */
     } else {
-        color = MAKE(COLOR32, 80, 200, 80, 128);   /* own/shared-control: faint green */
+        color = MAKE(color32_t, 80, 200, 80, 128);   /* own/shared-control: faint green */
     }
     float radius = R_SelectionRadius(entity);
     FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
         if ((radius * 2) > selCircles[i])
             continue;
-        VECTOR2 mins = { entity->origin.x - radius, entity->origin.y - radius };
-        VECTOR2 maxs = { entity->origin.x + radius, entity->origin.y + radius };
+        vector2_t mins = { entity->origin.x - radius, entity->origin.y - radius };
+        vector2_t maxs = { entity->origin.x + radius, entity->origin.y + radius };
         if (entity->ground_offset > 0.0f)
             R_RenderFlatRectSplat(&mins, &maxs, R_EntityRingZ(entity),
                                   tr.texture[TEX_SELECTION_CIRCLE+i], R_SPLAT_SHADER(&tr.shader_splat), color);
         else
-            R_RenderSplat(&(VECTOR2){ entity->origin.x, entity->origin.y },
+            R_RenderSplat(&(vector2_t){ entity->origin.x, entity->origin.y },
                           radius, tr.texture[TEX_SELECTION_CIRCLE+i],
                           R_SPLAT_SHADER(&tr.shader_splat), color);
         break;
@@ -353,9 +353,9 @@ void R_DrawEntity(renderEntity_t const *entity, bool shad) {
     }
 #endif
 
-    R_RenderUberSplat(entity, (LPCVECTOR2)&entity->origin);
+    R_RenderUberSplat(entity, (vector2_t const *)&entity->origin);
     R_RenderModel(entity);
-    R_RenderSelectedCircle(entity, (LPCVECTOR2)&entity->origin);
+    R_RenderSelectedCircle(entity, (vector2_t const *)&entity->origin);
     R_RenderHoverHighlight(entity);
-    R_RenderEntityIndicator(entity, (LPCVECTOR2)&entity->origin);
+    R_RenderEntityIndicator(entity, (vector2_t const *)&entity->origin);
 }

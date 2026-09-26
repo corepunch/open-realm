@@ -1,7 +1,7 @@
 #include "server.h"
 #include <stdlib.h>
 
-static bool SV_LobbyEnsureTeams(LPMAPINFO info, uint32_t num_teams) {
+static bool SV_LobbyEnsureTeams(mapInfo_t * info, uint32_t num_teams) {
     mapTeam_t *teams;
 
     if (!info) {
@@ -27,7 +27,7 @@ static bool SV_LobbyEnsureTeams(LPMAPINFO info, uint32_t num_teams) {
     return true;
 }
 
-static void SV_LobbyClearPlayerTeams(LPMAPINFO info, uint32_t player) {
+static void SV_LobbyClearPlayerTeams(mapInfo_t * info, uint32_t player) {
     if (!info || !info->teams || player >= MAX_PLAYERS) {
         return;
     }
@@ -36,7 +36,7 @@ static void SV_LobbyClearPlayerTeams(LPMAPINFO info, uint32_t player) {
     }
 }
 
-static void SV_LobbyMovePlayerToTeam(LPMAPINFO info, uint32_t player, uint32_t team) {
+static void SV_LobbyMovePlayerToTeam(mapInfo_t * info, uint32_t player, uint32_t team) {
     if (!info || player >= MAX_PLAYERS || team >= MAX_PLAYERS) {
         return;
     }
@@ -47,7 +47,7 @@ static void SV_LobbyMovePlayerToTeam(LPMAPINFO info, uint32_t player, uint32_t t
     info->teams[team].playerMasks |= 1u << player;
 }
 
-static uint32_t SV_LobbyMapPlayerTeam(LPCMAPINFO info, uint32_t player) {
+static uint32_t SV_LobbyMapPlayerTeam(mapInfo_t const * info, uint32_t player) {
     if (!info || !info->teams || player >= MAX_PLAYERS) {
         return player;
     }
@@ -177,7 +177,7 @@ static cstring_t SV_PlayerTypeName(playerType_t type) {
     return "unknown";
 }
 
-static void SV_LobbySendChat(LPCLIENT client, uint32_t clientnum, uint32_t sender_client, cstring_t text) {
+static void SV_LobbySendChat(client_t * client, uint32_t clientnum, uint32_t sender_client, cstring_t text) {
     uint8_t payload_buf[MAX_MSGLEN];
     sizeBuf_t payload;
 
@@ -195,7 +195,7 @@ static void SV_LobbySendChat(LPCLIENT client, uint32_t clientnum, uint32_t sende
 }
 
 static void SV_LobbyClearClientAssignment(uint32_t clientnum) {
-    LPCLIENT cl;
+    client_t * cl;
 
     if (clientnum >= svs.num_clients) {
         return;
@@ -206,7 +206,7 @@ static void SV_LobbyClearClientAssignment(uint32_t clientnum) {
 }
 
 static bool SV_LobbyAssignClientToSlot(uint32_t clientnum, uint32_t slotnum) {
-    LPCLIENT cl;
+    client_t * cl;
     lobbySlot_t *slot;
 
     if (clientnum >= svs.num_clients || slotnum >= MAX_PLAYERS) {
@@ -237,7 +237,7 @@ static bool SV_LobbyClientAssigned(uint32_t clientnum) {
     return false;
 }
 
-void SV_LobbyClientInit(LPCLIENT cl, cstring_t userinfo) {
+void SV_LobbyClientInit(client_t * cl, cstring_t userinfo) {
     char raw_name[sizeof(cl->name)];
 
     if (!cl) {
@@ -293,7 +293,7 @@ bool SV_LobbyAssignClient(uint32_t clientnum, bool host) {
     return false;
 }
 
-void SV_LobbyWriteSetup(LPCLIENT cl) {
+void SV_LobbyWriteSetup(client_t * cl) {
     uint8_t payload_buf[MAX_MSGLEN];
     sizeBuf_t payload;
     uint32_t local_slot = cl ? cl->lobby_slot : MAX_PLAYERS;
@@ -329,7 +329,7 @@ void SV_LobbyBroadcastSetup(void) {
         return;
     }
     FOR_LOOP(i, svs.num_clients) {
-        LPCLIENT cl = &svs.clients[i];
+        client_t * cl = &svs.clients[i];
 
         if (cl->state != cs_connected && cl->state != cs_spawned) {
             continue;
@@ -376,7 +376,7 @@ void SV_LobbySetSlot(uint32_t slotnum, lobbySlot_t const *config) {
             SV_LobbyClearClientAssignment(old.client);
         }
     } else if (old.occupied && old.client < svs.num_clients) {
-        LPCLIENT cl = &svs.clients[old.client];
+        client_t * cl = &svs.clients[old.client];
 
         slot->map_player = config->map_player;
         cl->lobby_slot = slotnum;
@@ -399,7 +399,7 @@ void SV_LobbySetSlot(uint32_t slotnum, lobbySlot_t const *config) {
     svs.lobby.revision++;
 }
 
-void SV_ApplyLobbySettings(LPMAPINFO info) {
+void SV_ApplyLobbySettings(mapInfo_t * info) {
     if (!info) {
         return;
     }

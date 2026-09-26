@@ -2,18 +2,18 @@
 #include "test.h"
 #include "../skills/s_skills.h"
 
-LPEDICT alloc_test_unit(uint32_t, float, float);
+edict_t * alloc_test_unit(uint32_t, float, float);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *);
 void free_slk_rows(slkTestData_t *);
 
 /* Stock column meanings with deterministic proc chance; all cases drive production entry points. */
-typedef struct { slkTestData_t *rows, *old; LPEDICT caster, target; UnitAbilities_t abilities; } CREEPFIX;
+typedef struct { slkTestData_t *rows, *old; edict_t * caster, *target; UnitAbilities_t abilities; } creepFix_t;
 
-typedef struct { cstring_t id, parent, buffs, targs; float area, data[6]; bool roc; } CREEPDATA;
+typedef struct { cstring_t id, parent, buffs, targs; float area, data[6]; bool roc; } creepData_t;
 
-static void creep_setup(CREEPFIX *fix, CREEPDATA const *row) {
+static void creep_setup(creepFix_t *fix, creepData_t const *row) {
     char slk[4096];
     snprintf(slk, sizeof(slk),
         "ID;PWXL;N;EBB;Y2;X15\n"
@@ -33,8 +33,8 @@ static void creep_setup(CREEPFIX *fix, CREEPDATA const *row) {
         row->targs ? row->targs : "air,ground,enemy,organic,neutral", row->data[5]);
     reset_entities(); setup_test_world(); level.time = 1000; level.framenum = 0;
     memset(level.alliances, 0, sizeof(level.alliances));
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     fix->rows = parse_slk_string(slk); fix->old = G_SetSLKRows("AbilityData", fix->rows);
     fix->caster = alloc_test_unit(FS_SLKKey("ogru"), 400, 0);
     fix->target = alloc_test_unit(FS_SLKKey("hfoo"), 450, 0);
@@ -52,18 +52,18 @@ static void creep_setup(CREEPFIX *fix, CREEPDATA const *row) {
     unit_stand(fix->caster); unit_stand(fix->target);
 }
 
-static void creep_done(CREEPFIX *fix) { G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows); }
+static void creep_done(creepFix_t *fix) { G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows); }
 
-static LPEDICT creep_neighbor(float x) {
-    LPEDICT unit = alloc_test_unit(FS_SLKKey("hfoo"), x, 0);
+static edict_t * creep_neighbor(float x) {
+    edict_t * unit = alloc_test_unit(FS_SLKKey("hfoo"), x, 0);
     unit->svflags |= SVF_MONSTER; unit->targtype = TARG_GROUND; unit->s.player = 1;
     unit->health.value = unit->health.max_value = 500; unit->die = unit_die;
     return unit;
 }
 
 TEST(wc3_spell, creep_regression_disease_uses_dps_not_duration) {
-    CREEPFIX fix;
-    creep_setup(&fix, &(CREEPDATA){ .id = "Aap1", .parent = "Aapl", .buffs = "Bapl", .area = 176, .data = {120, 1, 10, 0, 0} });
+    creepFix_t fix;
+    creep_setup(&fix, &(creepData_t){ .id = "Aap1", .parent = "Aapl", .buffs = "Bapl", .area = 176, .data = {120, 1, 10, 0, 0} });
     G_RunEntities();
     T_ASSERT(fix.target->health.value >= 499);
     level.time += 1000; unit_updatestatuses(fix.target);
@@ -72,9 +72,9 @@ TEST(wc3_spell, creep_regression_disease_uses_dps_not_duration) {
 }
 
 TEST(wc3_spell, creep_regression_pulverize_stock_columns) {
-    CREEPFIX fix;
-    LPEDICT nearby;
-    creep_setup(&fix, &(CREEPDATA){ .id = "Awar", .parent = "Awar", .buffs = "", .area = 0, .data = {100, 60, 250, 350, 0} });
+    creepFix_t fix;
+    edict_t * nearby;
+    creep_setup(&fix, &(creepData_t){ .id = "Awar", .parent = "Awar", .buffs = "", .area = 0, .data = {100, 60, 250, 350, 0} });
     nearby = alloc_test_unit(FS_SLKKey("hfoo"), 500, 0);
     nearby->svflags |= SVF_MONSTER; nearby->targtype = TARG_GROUND; nearby->s.player = 1;
     nearby->health.value = nearby->health.max_value = 500;
@@ -84,9 +84,9 @@ TEST(wc3_spell, creep_regression_pulverize_stock_columns) {
 }
 
 TEST(wc3_spell, creep_regression_web_grounds_and_locks_flyer) {
-    CREEPFIX fix;
+    creepFix_t fix;
     UnitData_t flight = { .moveTypeName = "fly", .moveHeight = 180 };
-    creep_setup(&fix, &(CREEPDATA){ .id = "Aweb", .parent = "Aweb", .buffs = "Bwea,Bweb", .area = 0, .data = {0.6f, 200, 128, 0, 0} });
+    creep_setup(&fix, &(creepData_t){ .id = "Aweb", .parent = "Aweb", .buffs = "Bwea,Bweb", .area = 0, .data = {0.6f, 200, 128, 0, 0} });
     fix.target->data.UnitData = &flight; fix.target->targtype = TARG_AIR;
     fix.target->aiflags |= AI_FLYING; fix.target->unitinfo.FlyHeight = 180;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, FS_SLKKey("Aweb"), fix.target));
@@ -98,8 +98,8 @@ TEST(wc3_spell, creep_regression_web_grounds_and_locks_flyer) {
 }
 
 TEST(wc3_spell, creep_regression_monsoon_hits_requested_point) {
-    CREEPFIX fix;
-    creep_setup(&fix, &(CREEPDATA){ .id = "ANmo", .parent = "ANmo", .buffs = "ANmd", .targs = "air,ground,structure,enemy,neutral", .area = 64, .data = {20, 1.5f, 0.35f, 0, 0} });
+    creepFix_t fix;
+    creep_setup(&fix, &(creepData_t){ .id = "ANmo", .parent = "ANmo", .buffs = "ANmd", .targs = "air,ground,structure,enemy,neutral", .area = 64, .data = {20, 1.5f, 0.35f, 0, 0} });
     T_ASSERT(S_CastPointTargetSpell(fix.caster, FS_SLKKey("ANmo"), &fix.target->s.origin2));
     level.time += 1600; G_RunEntities();
     T_ASSERT(fix.target->health.value < 500);
@@ -107,9 +107,9 @@ TEST(wc3_spell, creep_regression_monsoon_hits_requested_point) {
 }
 
 TEST(wc3_spell, creep_regression_incinerate_uses_authored_explosion_radius) {
-    CREEPFIX fix;
-    LPEDICT nearby;
-    creep_setup(&fix, &(CREEPDATA){ .id = "ANic", .parent = "ANic", .buffs = "BNic", .area = 0, .data = {2, 30, 120, 15, 240} });
+    creepFix_t fix;
+    edict_t * nearby;
+    creep_setup(&fix, &(creepData_t){ .id = "ANic", .parent = "ANic", .buffs = "BNic", .area = 0, .data = {2, 30, 120, 15, 240} });
     nearby = alloc_test_unit(FS_SLKKey("hfoo"), 500, 0);
     nearby->svflags |= SVF_MONSTER; nearby->s.player = 1; nearby->targtype = TARG_GROUND;
     nearby->health.value = nearby->health.max_value = 500;
@@ -121,10 +121,10 @@ TEST(wc3_spell, creep_regression_incinerate_uses_authored_explosion_radius) {
 }
 
 TEST(wc3_spell, creep_regression_incinerate_explodes_on_normal_lethal_hit) {
-    CREEPFIX fix;
-    LPEDICT nearby;
+    creepFix_t fix;
+    edict_t * nearby;
     /* Nonzero Area isolates the death hook from the independent radius bug. */
-    creep_setup(&fix, &(CREEPDATA){ .id = "ANic", .parent = "ANic", .buffs = "BNic", .area = 120, .data = {2, 30, 120, 15, 240} });
+    creep_setup(&fix, &(creepData_t){ .id = "ANic", .parent = "ANic", .buffs = "BNic", .area = 120, .data = {2, 30, 120, 15, 240} });
     nearby = alloc_test_unit(FS_SLKKey("hfoo"), 500, 0);
     nearby->svflags |= SVF_MONSTER; nearby->s.player = 1; nearby->targtype = TARG_GROUND;
     nearby->health.value = nearby->health.max_value = 500;
@@ -138,8 +138,8 @@ TEST(wc3_spell, creep_regression_incinerate_explodes_on_normal_lethal_hit) {
 }
 
 TEST(wc3_spell, creep_regression_disease_roc_lingers_expires_and_dispels) {
-    CREEPFIX fix;
-    creep_setup(&fix, &(CREEPDATA){ .id = "Zdis", .parent = "Aapl", .buffs = "", .area = 176, .data = {3, 7}, .roc = true });
+    creepFix_t fix;
+    creep_setup(&fix, &(creepData_t){ .id = "Zdis", .parent = "Aapl", .buffs = "", .area = 176, .data = {3, 7}, .roc = true });
     S_RunAbilityUpdates(fix.caster);
     T_ASSERT(S_UnitHasStatus(fix.target, FS_SLKKey("Bapl")));
     fix.caster->s.origin.x = 900;
@@ -158,9 +158,9 @@ TEST(wc3_spell, creep_regression_disease_roc_lingers_expires_and_dispels) {
 }
 
 TEST(wc3_spell, creep_regression_pulverize_roc_outer_ring_and_target_filter) {
-    CREEPFIX fix;
-    LPEDICT full, half, outside, air, friend;
-    creep_setup(&fix, &(CREEPDATA){ .id = "Zpul", .parent = "Awar", .buffs = "", .data = {100, 40, 100, 200}, .roc = true });
+    creepFix_t fix;
+    edict_t * full, *half, *outside, *air, *friend;
+    creep_setup(&fix, &(creepData_t){ .id = "Zpul", .parent = "Awar", .buffs = "", .data = {100, 40, 100, 200}, .roc = true });
     full = creep_neighbor(500); half = creep_neighbor(600); outside = creep_neighbor(700);
     air = creep_neighbor(500); air->targtype = TARG_AIR;
     friend = creep_neighbor(500); friend->s.player = 0;
@@ -172,9 +172,9 @@ TEST(wc3_spell, creep_regression_pulverize_roc_outer_ring_and_target_filter) {
 }
 
 TEST(wc3_spell, creep_regression_web_roc_validation_and_last_bind_release) {
-    CREEPFIX fix;
+    creepFix_t fix;
     UnitData_t flight = { .moveTypeName = "fly", .moveHeight = 180 };
-    creep_setup(&fix, &(CREEPDATA){ .id = "Zweb", .parent = "Aweb", .buffs = "", .targs = "air,enemy,neutral", .data = {0.6f, 200, 128}, .roc = true });
+    creep_setup(&fix, &(creepData_t){ .id = "Zweb", .parent = "Aweb", .buffs = "", .targs = "air,enemy,neutral", .data = {0.6f, 200, 128}, .roc = true });
     T_ASSERT(!S_CastUnitTargetSpell(fix.caster, FS_SLKKey("Zweb"), fix.target));
     fix.target->data.UnitData = &flight; fix.target->targtype = TARG_AIR;
     fix.target->aiflags |= AI_FLYING; fix.target->unitinfo.FlyHeight = 180;
@@ -200,9 +200,9 @@ TEST(wc3_spell, creep_regression_web_roc_validation_and_last_bind_release) {
 }
 
 TEST(wc3_spell, creep_regression_monsoon_interval_buildings_and_cancellation) {
-    CREEPFIX fix;
-    LPEDICT building, outside, thinker = NULL;
-    creep_setup(&fix, &(CREEPDATA){ .id = "Zmon", .parent = "ANmo", .buffs = "ANmd", .targs = "air,ground,structure,enemy,neutral", .area = 64, .data = {20, 1.5f, 0.35f} });
+    creepFix_t fix;
+    edict_t * building, *outside, *thinker = NULL;
+    creep_setup(&fix, &(creepData_t){ .id = "Zmon", .parent = "ANmo", .buffs = "ANmd", .targs = "air,ground,structure,enemy,neutral", .area = 64, .data = {20, 1.5f, 0.35f} });
     building = creep_neighbor(460); building->targtype = TARG_STRUCTURE;
     outside = creep_neighbor(600);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, FS_SLKKey("Zmon"), &fix.target->s.origin2));
@@ -222,9 +222,9 @@ TEST(wc3_spell, creep_regression_monsoon_interval_buildings_and_cancellation) {
 }
 
 TEST(wc3_spell, creep_regression_incinerate_delayed_third_party_death_and_rings) {
-    CREEPFIX fix;
-    LPEDICT full, half, outside, blast = NULL;
-    creep_setup(&fix, &(CREEPDATA){ .id = "Zinc", .parent = "ANic", .buffs = "BNic", .targs = "enemy,neutral,organic,nonancient", .data = {2, 30, 120, 15, 240, 0.2f} });
+    creepFix_t fix;
+    edict_t * full, *half, *outside, *blast = NULL;
+    creep_setup(&fix, &(creepData_t){ .id = "Zinc", .parent = "ANic", .buffs = "BNic", .targs = "enemy,neutral,organic,nonancient", .data = {2, 30, 120, 15, 240, 0.2f} });
     full = creep_neighbor(500); half = creep_neighbor(650); outside = creep_neighbor(750);
     S_ResolveAttackHit(fix.caster, fix.target, 10);
     T_Damage(fix.target, full, 1000);
@@ -245,9 +245,9 @@ TEST(wc3_spell, creep_regression_incinerate_delayed_third_party_death_and_rings)
 
 TEST(wc3_spell, creep_regression_incinerate_expiry_dispel_and_source_reuse) {
     FOR_LOOP(reason, 3) {
-        CREEPFIX fix;
-        LPEDICT nearby;
-        creep_setup(&fix, &(CREEPDATA){ .id = "ANic", .parent = "ANic", .buffs = "BNic", .data = {2, 30, 120, 15, 240} });
+        creepFix_t fix;
+        edict_t * nearby;
+        creep_setup(&fix, &(creepData_t){ .id = "ANic", .parent = "ANic", .buffs = "BNic", .data = {2, 30, 120, 15, 240} });
         nearby = creep_neighbor(500);
         S_ResolveAttackHit(fix.caster, fix.target, 10);
         if (reason == 0) { level.time += 12000; unit_updatestatuses(fix.target); }
@@ -261,9 +261,9 @@ TEST(wc3_spell, creep_regression_incinerate_expiry_dispel_and_source_reuse) {
 
 TEST(wc3_save, creep_disease_status_round_trip_and_source_reuse) {
     cstring_t filename = "/tmp/openwarcraft3-creep-disease.bin";
-    CREEPFIX fix;
+    creepFix_t fix;
     heroabilitystatus_t *slot;
-    creep_setup(&fix, &(CREEPDATA){ .id = "Aap1", .parent = "Aapl", .buffs = "Bapl", .area = 176, .data = {120, 1} });
+    creep_setup(&fix, &(creepData_t){ .id = "Aap1", .parent = "Aapl", .buffs = "Bapl", .area = 176, .data = {120, 1} });
     S_RunAbilityUpdates(fix.caster);
     T_ASSERT(WriteGame(filename)); T_ASSERT(ReadGame(filename));
     slot = unit_findstatus(fix.target, FS_SLKKey("Bapl")); T_ASSERT(slot != NULL);
@@ -280,9 +280,9 @@ TEST(wc3_save, creep_disease_status_round_trip_and_source_reuse) {
 
 TEST(wc3_save, creep_incinerate_mark_and_delayed_explosion_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-creep-incinerate.bin";
-    CREEPFIX fix;
-    LPEDICT nearby, blast = NULL;
-    creep_setup(&fix, &(CREEPDATA){ .id = "ANic", .parent = "ANic", .buffs = "BNic", .data = {2, 30, 120, 15, 240, 0.2f} });
+    creepFix_t fix;
+    edict_t * nearby, *blast = NULL;
+    creep_setup(&fix, &(creepData_t){ .id = "ANic", .parent = "ANic", .buffs = "BNic", .data = {2, 30, 120, 15, 240, 0.2f} });
     nearby = creep_neighbor(500);
     S_ResolveAttackHit(fix.caster, fix.target, 10);
     T_ASSERT(WriteGame(filename)); T_ASSERT(ReadGame(filename));
@@ -300,9 +300,9 @@ TEST(wc3_save, creep_incinerate_mark_and_delayed_explosion_round_trip) {
 
 TEST(wc3_save, creep_monsoon_channel_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-creep-monsoon.bin";
-    CREEPFIX fix;
-    LPEDICT thinker = NULL;
-    creep_setup(&fix, &(CREEPDATA){ .id = "ANmo", .parent = "ANmo", .buffs = "ANmd", .targs = "air,ground,structure,enemy,neutral", .area = 64, .data = {20, 1.5f, 0.35f} });
+    creepFix_t fix;
+    edict_t * thinker = NULL;
+    creep_setup(&fix, &(creepData_t){ .id = "ANmo", .parent = "ANmo", .buffs = "ANmd", .targs = "air,ground,structure,enemy,neutral", .area = 64, .data = {20, 1.5f, 0.35f} });
     T_ASSERT(S_CastPointTargetSpell(fix.caster, FS_SLKKey("ANmo"), &fix.target->s.origin2));
     FILTER_EDICTS(ent, ent->think == monsoon_think) { thinker = ent; break; }
     T_ASSERT(thinker != NULL);
@@ -320,11 +320,11 @@ TEST(wc3_save, creep_monsoon_channel_round_trip) {
 
 TEST(wc3_save, creep_web_autocast_landing_and_expiry_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-creep-web.bin";
-    CREEPFIX fix;
+    creepFix_t fix;
     slkTestData_t *units, *old_units;
     abilityitem_t item;
     abilityCall_t call;
-    creep_setup(&fix, &(CREEPDATA){ .id = "ACwb", .parent = "Aweb", .buffs = "Bwea,Bweb", .targs = "air,enemy,neutral", .data = {2, 160, 90} });
+    creep_setup(&fix, &(creepData_t){ .id = "ACwb", .parent = "Aweb", .buffs = "Bwea,Bweb", .targs = "air,enemy,neutral", .data = {2, 160, 90} });
     units = parse_slk_string("ID;PWXL;N;EBB;Y2;X3\n"
         "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"movetp\"\nC;Y1;X3;K\"moveHeight\"\n"
         "C;Y2;X1;K\"hgry\"\nC;Y2;X2;K\"fly\"\nC;Y2;X3;K\"180\"\nE\n");

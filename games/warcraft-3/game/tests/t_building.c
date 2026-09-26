@@ -4,14 +4,14 @@
 #include "../hud/hud_local.h"
 #include "jass/jass.h"
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
 void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
-void repair_build_primary(LPEDICT ent, LPEDICT building);
-void repair_build_legacy(LPEDICT ent, LPEDICT building);
-void build_build(LPEDICT ent);
-bool build_menu_send_builder(LPEDICT clent, LPCVECTOR2 location);
-void build_menu_selectlocation(LPEDICT ent, uint32_t building_id);
+void repair_build_primary(edict_t * ent, edict_t * building);
+void repair_build_legacy(edict_t * ent, edict_t * building);
+void build_build(edict_t * ent);
+bool build_menu_send_builder(edict_t * clent, vector2_t const * location);
+void build_menu_selectlocation(edict_t * ent, uint32_t building_id);
 slkTestData_t *parse_slk_string(const char *slk_text);
 void free_slk_rows(slkTestData_t *rows);
 bool run_test_jass(cstring_t src);
@@ -44,7 +44,7 @@ static int building_test_sound_index(cstring_t path) {
 static int building_test_sound_index_alias(cstring_t path, cstring_t alias) { (void)alias; return building_test_sound_index(path); }
 
 
-static void building_test_stand(LPEDICT ent) {
+static void building_test_stand(edict_t * ent) {
     (void)ent;
     building_stand_calls++;
 }
@@ -105,7 +105,7 @@ static void building_queue_capture_write(pfWriteType_t type, void const *value) 
     building_queue_endtime = queue->items[0].endtime;
 }
 
-static void building_test_unicast(LPEDICT ent) { (void)ent; }
+static void building_test_unicast(edict_t * ent) { (void)ent; }
 
 static cstring_t building_all_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "wc3_build_all") ? "1" : fallback;
@@ -371,8 +371,8 @@ static void building_restore_repair_data(slkTestData_t *old, slkTestData_t *rows
 
 TEST(wc3_building, hud_texture_paths_are_authored_per_recipient) {
     stbIniCache_t old = game.config.theme, custom = {0};
-    LPGAMECLIENT previous = ui_current_client;
-    GAMECLIENT client = { .ps.race = kPlayerRaceHuman };
+    gameClient_t * previous = ui_current_client;
+    gameClient_t client = { .ps.race = kPlayerRaceHuman };
     int (*old_index)(cstring_t) = gi.ImageIndex;
     PATHSTR old_key, old_name;
     bool old_dec = hud.image_decorated[1];
@@ -396,8 +396,8 @@ TEST(wc3_building, hud_texture_paths_are_authored_per_recipient) {
 }
 
 TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT building;
+    gameClient_t * client = &game.clients[0];
+    edict_t * building;
     UnitBalance_t balance;
     umove_t birth = { .animation = "birth", .think = ai_birth };
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
@@ -448,13 +448,13 @@ TEST(wc3_building, construction_and_upgrade_keep_progress_queue_transport) {
 }
 
 TEST(wc3_building, selected_building_rebuilds_info_panel_for_construction_and_upgrade) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT player = &g_edicts[0];
-    LPEDICT building;
+    gameClient_t * client = &game.clients[0];
+    edict_t * player = &g_edicts[0];
+    edict_t * building;
     UnitBalance_t balance;
     umove_t birth = { .animation = "birth", .think = ai_birth };
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*old_unicast)(LPEDICT) = gi.unicast;
+    void (*old_unicast)(edict_t *) = gi.unicast;
     int (*old_image_index)(cstring_t) = gi.ImageIndex;
 
     reset_entities();
@@ -507,10 +507,10 @@ TEST(wc3_building, selected_building_rebuilds_info_panel_for_construction_and_up
 }
 
 TEST(wc3_building, unsummoning_refreshes_training_queue_progress_panel) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT player = &g_edicts[0];
-    LPEDICT building;
-    LPEDICT trainee;
+    gameClient_t * client = &game.clients[0];
+    edict_t * player = &g_edicts[0];
+    edict_t * building;
+    edict_t * trainee;
     UnitBalance_t balance;
     int (*old_image_index)(cstring_t) = gi.ImageIndex;
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
@@ -553,7 +553,7 @@ TEST(wc3_building, unsummoning_refreshes_training_queue_progress_panel) {
 }
 
 TEST(wc3_building, player_tech_state_tracks_max_and_researched_levels) {
-    LPGAMECLIENT client = &game.clients[0];
+    gameClient_t * client = &game.clients[0];
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
 
     T_EQ(G_GetPlayerTechMaxAllowed(client, barracks), -1);
@@ -572,12 +572,12 @@ TEST(wc3_building, player_tech_state_tracks_max_and_researched_levels) {
 }
 
 TEST(wc3_building, building_upgrade_uses_relative_unit_costs_and_cancel_restores_state) {
-    LPGAMECLIENT client = &game.clients[0];
+    gameClient_t * client = &game.clients[0];
     uint32_t const source_id = MAKEFOURCC('h','b','a','r');
     uint32_t const target_id = MAKEFOURCC('o','t','r','b');
     UnitProfile_t profile = { .upgrade = "otrb" };
     buildingMorphRows_t rows;
-    LPEDICT building;
+    edict_t * building;
     int32_t gold = 0, lumber = 0, food = 0;
     char reason[128];
     buildingUpgradeCommandParams_t params;
@@ -637,12 +637,12 @@ TEST(wc3_building, building_upgrade_uses_relative_unit_costs_and_cancel_restores
 }
 
 TEST(wc3_building, instant_build_cheat_completes_building_upgrade_on_next_frame) {
-    LPGAMECLIENT client = &game.clients[0];
+    gameClient_t * client = &game.clients[0];
     uint32_t const source_id = MAKEFOURCC('h','b','a','r');
     uint32_t const target_id = MAKEFOURCC('o','t','r','b');
     UnitProfile_t profile = { .upgrade = "otrb" };
     buildingMorphRows_t rows;
-    LPEDICT building;
+    edict_t * building;
 
     setup_test_world();
     rows = building_install_morph_data();
@@ -670,13 +670,13 @@ TEST(wc3_building, instant_build_cheat_completes_building_upgrade_on_next_frame)
 }
 
 TEST(wc3_building, building_upgrade_completion_morphs_in_place_and_preserves_health_ratio) {
-    LPGAMECLIENT client = &game.clients[0];
+    gameClient_t * client = &game.clients[0];
     uint32_t const source_id = MAKEFOURCC('h','b','a','r');
     uint32_t const target_id = MAKEFOURCC('o','t','r','b');
     UnitProfile_t profile = { .upgrade = "otrb" };
     buildingMorphRows_t rows;
-    LPEDICT building;
-    LPEDICT identity;
+    edict_t * building;
+    edict_t * identity;
 
     setup_test_world();
     rows = building_install_morph_data();
@@ -714,8 +714,8 @@ TEST(wc3_building, building_upgrade_completion_morphs_in_place_and_preserves_hea
 }
 
 TEST(wc3_building, research_state_uses_upgrade_cost_progression_and_player_lock) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT producer = alloc_test_unit(MAKEFOURCC('h','b','l','a'), 0, 0);
+    gameClient_t * client = &game.clients[0];
+    edict_t * producer = alloc_test_unit(MAKEFOURCC('h','b','l','a'), 0, 0);
     UnitProfile_t profile = { .researches = "Rhme" };
     slkTestData_t *rows = NULL;
     slkTestData_t *old = building_install_upgrade_data(&rows);
@@ -760,7 +760,7 @@ TEST(wc3_building, research_state_uses_upgrade_cost_progression_and_player_lock)
 }
 
 TEST(wc3_building, research_tooltip_formats_next_level_resource_costs) {
-    LPGAMECLIENT client = &game.clients[0];
+    gameClient_t * client = &game.clients[0];
     slkTestData_t *rows = NULL;
     slkTestData_t *old = building_install_upgrade_data(&rows);
     uint32_t const upgrade = MAKEFOURCC('R','h','m','e');
@@ -791,8 +791,8 @@ TEST(wc3_building, research_tooltip_formats_next_level_resource_costs) {
 }
 
 TEST(wc3_building, queued_research_charges_locks_and_cancel_refunds) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT producer = alloc_test_unit(MAKEFOURCC('h','b','l','a'), 0, 0);
+    gameClient_t * client = &game.clients[0];
+    edict_t * producer = alloc_test_unit(MAKEFOURCC('h','b','l','a'), 0, 0);
     UnitProfile_t profile = { .researches = "Rhme" };
     slkTestData_t *rows = NULL;
     slkTestData_t *old = building_install_upgrade_data(&rows);
@@ -825,8 +825,8 @@ TEST(wc3_building, queued_research_charges_locks_and_cancel_refunds) {
 }
 
 TEST(wc3_building, instant_build_cheat_completes_research_on_next_tick) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT producer;
+    gameClient_t * client = &game.clients[0];
+    edict_t * producer;
     UnitProfile_t profile = { .researches = "Rhme" };
     slkTestData_t *rows = NULL;
     slkTestData_t *old;
@@ -860,8 +860,8 @@ TEST(wc3_building, instant_build_cheat_completes_research_on_next_tick) {
 }
 
 TEST(wc3_building, research_events_publish_producer_and_rawcode_context) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT producer;
+    gameClient_t * client = &game.clients[0];
+    edict_t * producer;
     UnitProfile_t profile = { .researches = "Rhme" };
     slkTestData_t *rows = NULL;
     slkTestData_t *old;
@@ -977,9 +977,9 @@ TEST(wc3_building, research_events_publish_producer_and_rawcode_context) {
 }
 
 TEST(wc3_building, researched_blacksmith_effects_update_existing_and_future_units) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    LPEDICT future;
+    gameClient_t * client = &game.clients[0];
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    edict_t * future;
     UnitBalance_t balance = {
         .upgrades = "Rhme,Rhar",
         .armorPerUpgrade = 2.0f
@@ -1020,8 +1020,8 @@ TEST(wc3_building, researched_blacksmith_effects_update_existing_and_future_unit
 }
 
 TEST(wc3_building, researched_attack_damage_effect_tracks_level_delta) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    gameClient_t * client = &game.clients[0];
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     UnitBalance_t balance = { .upgrades = "Rhat" };
     slkTestData_t *rows = NULL;
     slkTestData_t *old = building_install_upgrade_data(&rows);
@@ -1057,9 +1057,9 @@ TEST(wc3_building, researched_attack_damage_effect_tracks_level_delta) {
 }
 
 TEST(wc3_building, researched_attack_range_effect_updates_existing_and_future_units) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','r','i','f'), 0, 0);
-    LPEDICT future;
+    gameClient_t * client = &game.clients[0];
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('h','r','i','f'), 0, 0);
+    edict_t * future;
     UnitBalance_t balance = { .upgrades = "Rhri" };
     slkTestData_t *rows = NULL;
     slkTestData_t *old = building_install_upgrade_data(&rows);
@@ -1096,9 +1096,9 @@ TEST(wc3_building, researched_attack_range_effect_updates_existing_and_future_un
 }
 
 TEST(wc3_building, researched_hit_points_effect_preserves_health_ratio) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','k','n','i'), 0, 0);
-    LPEDICT future;
+    gameClient_t * client = &game.clients[0];
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('h','k','n','i'), 0, 0);
+    edict_t * future;
     UnitBalance_t balance = { .upgrades = "Rhan" };
     slkTestData_t *rows = NULL;
     slkTestData_t *old = building_install_upgrade_data(&rows);
@@ -1138,8 +1138,8 @@ TEST(wc3_building, researched_hit_points_effect_preserves_health_ratio) {
 }
 
 TEST(wc3_building, researched_spell_level_effect_gates_and_levels_unit_ability) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    gameClient_t * client = &game.clients[0];
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     UnitBalance_t balance = { .upgrades = "Rhde" };
     UnitAbilities_t abilities = { .abilList = "Adef", .heroAbilList = "" };
     slkTestData_t *rows = NULL;
@@ -1167,8 +1167,8 @@ TEST(wc3_building, researched_spell_level_effect_gates_and_levels_unit_ability) 
 }
 
 TEST(wc3_building, unresearched_unit_ability_remains_visible_but_disabled) {
-    LPGAMECLIENT client;
-    LPEDICT unit;
+    gameClient_t * client;
+    edict_t * unit;
     UnitBalance_t balance = { .upgrades = "Rhde" };
     UnitAbilities_t abilities = { .abilList = "Amic" };
     gameCommandButton_t buttons[16];
@@ -1207,8 +1207,8 @@ TEST(wc3_building, unresearched_unit_ability_remains_visible_but_disabled) {
 }
 
 TEST(wc3_building, gate_only_dependency_disables_cannibalize_until_researched) {
-    LPGAMECLIENT client;
-    LPEDICT unit;
+    gameClient_t * client;
+    edict_t * unit;
     UnitBalance_t balance = { .upgrades = "Ruac" };
     UnitAbilities_t abilities = { .abilList = "Amic" };
     gameCommandButton_t buttons[16];
@@ -1254,8 +1254,8 @@ TEST(wc3_building, gate_only_dependency_disables_cannibalize_until_researched) {
 }
 
 TEST(wc3_building, researched_caster_mana_effects_update_existing_units) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','s','o','r'), 0, 0);
+    gameClient_t * client = &game.clients[0];
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('h','s','o','r'), 0, 0);
     UnitBalance_t balance = { .upgrades = "Rhst", .manaRegen = 0.5f };
     slkTestData_t *rows = NULL;
     slkTestData_t *old = building_install_upgrade_data(&rows);
@@ -1282,8 +1282,8 @@ TEST(wc3_building, researched_caster_mana_effects_update_existing_units) {
 }
 
 TEST(wc3_building, researched_mana_survives_hero_recompute_with_item_bonus) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT unit, future;
+    gameClient_t * client = &game.clients[0];
+    edict_t * unit, *future;
     UnitBalance_t balance;
     slkTestData_t *rows = NULL;
     slkTestData_t *old = building_install_upgrade_data(&rows);
@@ -1328,11 +1328,11 @@ TEST(wc3_building, researched_mana_survives_hero_recompute_with_item_bonus) {
 }
 
 TEST(wc3_building, status_upgrade_families_follow_unit_upgrades_used) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT footman = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    LPEDICT rifleman = alloc_test_unit(MAKEFOURCC('h','r','i','f'), 0, 0);
-    LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','l','a'), 0, 0);
-    LPEDICT peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    gameClient_t * client = &game.clients[0];
+    edict_t * footman = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    edict_t * rifleman = alloc_test_unit(MAKEFOURCC('h','r','i','f'), 0, 0);
+    edict_t * building = alloc_test_unit(MAKEFOURCC('h','b','l','a'), 0, 0);
+    edict_t * peasant = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     UnitBalance_t footman_balance = { .upgrades = "Rhme,Rhar" };
     UnitBalance_t rifleman_balance = { .upgrades = "Rhla,Rhra,Rhri,Rhpm,Rguv" };
     UnitBalance_t building_balance = { .upgrades = "Rhac,Rgfo" };
@@ -1370,9 +1370,9 @@ TEST(wc3_building, status_upgrade_families_follow_unit_upgrades_used) {
 }
 
 TEST(wc3_building, tech_count_includes_owned_structures_and_research) {
-    LPGAMECLIENT client = &game.clients[0];
+    gameClient_t * client = &game.clients[0];
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
-    LPEDICT building = alloc_test_unit(barracks, 0, 0);
+    edict_t * building = alloc_test_unit(barracks, 0, 0);
 
     building->s.player = client->ps.number;
     building->svflags |= SVF_MONSTER;
@@ -1385,7 +1385,7 @@ TEST(wc3_building, tech_count_includes_owned_structures_and_research) {
 }
 
 TEST(wc3_building, building_charge_checks_and_deducts_resources) {
-    LPGAMECLIENT client = &game.clients[0];
+    gameClient_t * client = &game.clients[0];
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
     UnitBalance_t const *balance = G_UnitBalance(barracks);
 
@@ -1400,8 +1400,8 @@ TEST(wc3_building, building_charge_checks_and_deducts_resources) {
 }
 
 TEST(wc3_building, build_command_state_covers_available_hidden_unaffordable_and_absent) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    gameClient_t * client = &game.clients[0];
+    edict_t * worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
     UnitProfile_t worker_profile = { .builds = "hbar" };
     char reason[128];
@@ -1438,8 +1438,8 @@ TEST(wc3_building, upgraded_buildings_satisfy_predecessor_requirements) {
         "C;Y5;X1;K\"hbar\"\n"
         "C;Y5;X3;K\"htow\"\n"
         "E\n";
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT worker, keep, castle;
+    gameClient_t * client = &game.clients[0];
+    edict_t * worker, *keep, *castle;
     UnitProfile_t worker_profile = { .builds = "hbar" };
     slkTestData_t *profile_rows = parse_slk_string(profile_slk);
     slkTestData_t *old_profile = G_SetProfileRows(profile_rows);
@@ -1471,8 +1471,8 @@ TEST(wc3_building, upgraded_buildings_satisfy_predecessor_requirements) {
 }
 
 TEST(wc3_building, train_command_state_uses_trains_list_and_player_maximum) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    gameClient_t * client = &game.clients[0];
+    edict_t * producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
     uint32_t const trainee = MAKEFOURCC('u','0','0','1');
     UnitProfile_t producer_profile = { .trains = "u001" };
     char reason[128];
@@ -1510,8 +1510,8 @@ TEST(wc3_building, hero_train_requirements_follow_owner_hero_tiers) {
         "C;Y2;X3;K\"hkee\"\n"
         "C;Y2;X4;K\"hcas\"\n"
         "E\n";
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT producer, hero1, hero2, keep, castle;
+    gameClient_t * client = &game.clients[0];
+    edict_t * producer, *hero1, *hero2, *keep, *castle;
     UnitProfile_t producer_profile = { .trains = "H001" };
     slkTestData_t *balance_rows = parse_slk_string(balance_slk);
     slkTestData_t *profile_rows = parse_slk_string(profile_slk);
@@ -1544,8 +1544,8 @@ TEST(wc3_building, hero_train_requirements_follow_owner_hero_tiers) {
 }
 
 TEST(wc3_building, train_command_state_reports_food_shortage) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    gameClient_t * client = &game.clients[0];
+    edict_t * producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
     uint32_t const trainee = MAKEFOURCC('h','f','o','o');
     UnitBalance_t const *balance = G_UnitBalance(trainee);
     UnitProfile_t producer_profile = { .trains = "hfoo" };
@@ -1572,8 +1572,8 @@ TEST(wc3_building, train_command_state_reports_food_shortage) {
 
 TEST(wc3_building, build_all_cvar_bypasses_training_tech_gates_but_not_trains_list) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    gameClient_t * client = &game.clients[0];
+    edict_t * producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
     uint32_t const trainee = MAKEFOURCC('u','0','0','1');
     UnitProfile_t producer_profile = { .trains = "u001" };
 
@@ -1590,9 +1590,9 @@ TEST(wc3_building, build_all_cvar_bypasses_training_tech_gates_but_not_trains_li
 }
 
 TEST(wc3_building, queued_training_counts_against_player_tech_maximum) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
-    LPEDICT queued = alloc_test_unit(MAKEFOURCC('u','0','0','1'), 0, 0);
+    gameClient_t * client = &game.clients[0];
+    edict_t * producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0, 0);
+    edict_t * queued = alloc_test_unit(MAKEFOURCC('u','0','0','1'), 0, 0);
     uint32_t const trainee = MAKEFOURCC('u','0','0','1');
     UnitProfile_t producer_profile = { .trains = "u001" };
 
@@ -1607,9 +1607,9 @@ TEST(wc3_building, queued_training_counts_against_player_tech_maximum) {
 }
 
 TEST(wc3_building, shared_controller_command_card_invalidates_with_owner_state) {
-    LPGAMECLIENT owner = &game.clients[0];
-    LPGAMECLIENT viewer = &game.clients[1];
-    LPEDICT producer;
+    gameClient_t * owner = &game.clients[0];
+    gameClient_t * viewer = &game.clients[1];
+    edict_t * producer;
 
     setup_test_world();
     owner->connected = viewer->connected = true;
@@ -1626,9 +1626,9 @@ TEST(wc3_building, shared_controller_command_card_invalidates_with_owner_state) 
 }
 
 TEST(wc3_building, enable_user_ui_does_not_block_build_command_button) {
-    LPEDICT clent = &g_edicts[0];
-    LPGAMECLIENT client = clent->client;
-    LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t * clent = &g_edicts[0];
+    gameClient_t * client = clent->client;
+    edict_t * worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     UnitProfile_t worker_profile = { .builds = "hbar" };
     cstring_t button[] = { "button", "CmdBuild" };
 
@@ -1827,7 +1827,7 @@ TEST(wc3_building, command_button_number_draws_bottom_right_overlay) {
 }
 
 TEST(wc3_building, tech_state_default_values_do_not_consume_slots) {
-    LPGAMECLIENT client = &game.clients[0];
+    gameClient_t * client = &game.clients[0];
 
     memset(client->tech, 0, sizeof(client->tech));
     /* Default max_allowed (-1/unlimited) and researched/in-progress 0 must not
@@ -1851,7 +1851,7 @@ TEST(wc3_building, tech_state_default_values_do_not_consume_slots) {
 }
 
 TEST(wc3_building, tech_state_capacity_is_bounded_without_clobbering_existing_entries) {
-    LPGAMECLIENT client = &game.clients[0];
+    gameClient_t * client = &game.clients[0];
 
     FOR_LOOP(i, MAX_PLAYER_TECH_STATE) {
         uint32_t const techid = 0x41000000u + i + 1;
@@ -1868,7 +1868,7 @@ TEST(wc3_building, tech_state_capacity_is_bounded_without_clobbering_existing_en
 }
 
 TEST(wc3_building, building_charge_rejects_short_gold_and_refund_restores_resources) {
-    LPGAMECLIENT client = &game.clients[0];
+    gameClient_t * client = &game.clients[0];
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
     UnitBalance_t const *balance = G_UnitBalance(barracks);
 
@@ -1885,12 +1885,12 @@ TEST(wc3_building, building_charge_rejects_short_gold_and_refund_restores_resour
 }
 
 TEST(wc3_building, placement_accepts_open_ground_rejects_live_unit_and_map_edge) {
-    LPEDICT builder;
-    LPEDICT worker;
-    LPEDICT blocker;
+    edict_t * builder;
+    edict_t * worker;
+    edict_t * blocker;
     UnitAbilities_t abilities = { .abilList = "Arep" };
-    VECTOR2 requested = { 64.0f, 64.0f };
-    VECTOR2 snapped;
+    vector2_t requested = { 64.0f, 64.0f };
+    vector2_t snapped;
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
 
     setup_test_world();
@@ -1913,16 +1913,16 @@ TEST(wc3_building, placement_accepts_open_ground_rejects_live_unit_and_map_edge)
     blocker->collision = 16.0f;
     T_EQ(G_EvaluateBuildPlacement(builder, barracks, &requested, &snapped), PLACE_UNIT_BLOCKED);
 
-    requested = (VECTOR2){ 100000.0f, 100000.0f };
+    requested = (vector2_t){ 100000.0f, 100000.0f };
     T_EQ(G_EvaluateBuildPlacement(builder, barracks, &requested, &snapped), PLACE_OUT_OF_BOUNDS);
 }
 
 TEST(wc3_building, gold_return_building_respects_gold_mine_exclusion_radius) {
-    LPEDICT builder;
-    LPEDICT mine;
+    edict_t * builder;
+    edict_t * mine;
     UnitAbilities_t mine_abilities = { .abilList = "Abgm" };
-    VECTOR2 requested = { 0.0f, 0.0f };
-    VECTOR2 snapped;
+    vector2_t requested = { 0.0f, 0.0f };
+    vector2_t snapped;
     uint32_t const gold_return_building = MAKEFOURCC('h','T','S','T');
     uint32_t const ordinary_building = MAKEFOURCC('h','b','a','r');
 
@@ -1966,10 +1966,10 @@ TEST(wc3_building, blight_required_placement_tracks_runtime_blight) {
         "E\n";
     uint32_t const building = MAKEFOURCC('u','B','l','t');
     uint32_t const anti_blight = MAKEFOURCC('u','N','o','B');
-    VECTOR2 requested = { 32.0f, 32.0f }, snapped;
+    vector2_t requested = { 32.0f, 32.0f }, snapped;
     slkTestData_t *rows;
     slkTestData_t *old;
-    LPEDICT builder;
+    edict_t * builder;
 
     setup_test_world();
     builder = alloc_test_unit(MAKEFOURCC('u','a','c','o'), -128.0f, -128.0f);
@@ -1995,7 +1995,7 @@ TEST(wc3_building, placement_preview_uses_authoritative_pathing_flags) {
 }
 
 TEST(wc3_building, spawned_unit_exports_gameplay_collision_radius) {
-    LPEDICT unit;
+    edict_t * unit;
 
     setup_test_world();
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
@@ -2010,10 +2010,10 @@ TEST(wc3_building, spawned_unit_exports_gameplay_collision_radius) {
 }
 
 TEST(wc3_building, shared_build_order_uses_authoritative_validation) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT builder;
+    gameClient_t * client = &game.clients[0];
+    edict_t * builder;
     UnitProfile_t profile = { .builds = "hbar" };
-    VECTOR2 point = { 64.0f, 64.0f };
+    vector2_t point = { 64.0f, 64.0f };
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
 
     setup_test_world();
@@ -2039,24 +2039,24 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
     static UnitProfile_t const profile = { .builds = "hhou,hbar,htow" };
     static UnitAbilities_t const abilities = { .abilList = "Arep" };
     static UnitData_t const worker_data = { .moveTypeName = "foot", .race = STR_HUMAN };
-    LPEDICT farm, barracks, townhall;
-    VECTOR2 const farm_point = { -1360.0f, -4608.0f };
-    VECTOR2 const barracks_point = { -1744.0f, -3536.0f };
-    VECTOR2 const townhall_point = { -2208.0f, -4048.0f };
-    LPEDICT workers[3];
+    edict_t * farm, *barracks, *townhall;
+    vector2_t const farm_point = { -1360.0f, -4608.0f };
+    vector2_t const barracks_point = { -1744.0f, -3536.0f };
+    vector2_t const townhall_point = { -2208.0f, -4048.0f };
+    edict_t * workers[3];
     uint32_t const worker_ids[3] = {
         MAKEFOURCC('h','p','e','a'), MAKEFOURCC('h','p','e','a'), MAKEFOURCC('h','p','e','a')
     };
-    VECTOR2 const starts[3] = {
+    vector2_t const starts[3] = {
         { -3709.839f, -6104.534f },
         { -3814.181f, -6050.230f },
         { -3692.568f, -5993.369f }
     };
-    VECTOR2 const points[3] = { farm_point, barracks_point, townhall_point };
-    VECTOR2 const region_min[3] = {
+    vector2_t const points[3] = { farm_point, barracks_point, townhall_point };
+    vector2_t const region_min[3] = {
         { -1440.0f, -4768.0f }, { -1856.0f, -3648.0f }, { -2336.0f, -4192.0f }
     };
-    VECTOR2 const region_max[3] = {
+    vector2_t const region_max[3] = {
         { -1280.0f, -4448.0f }, { -1632.0f, -3424.0f }, { -2080.0f, -3904.0f }
     };
     uint32_t const buildings[3] = {
@@ -2065,12 +2065,12 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
     bool issued[3] = { false, false, false };
     bool barracks_spawned = false;
     bool townhall_spawned = false;
-    LPGAMECLIENT client;
+    gameClient_t * client;
 
     setup_test_world();
     memset(pathmap, 0, sizeof(pathmap));
     setup_test_pathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = { -8192.0f, -8192.0f },
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -8192.0f, -8192.0f },
                                   .max = { 8192.0f, 8192.0f }));
     client = &game.clients[0];
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 10000;
@@ -2112,8 +2112,8 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
                 /* Leave the mobile Barracks peasant in the Town Hall footprint.
                  * Retail accepts the order and displaces it when construction
                  * materializes; it is not a placement-time hard blocker. */
-                LPEDICT const barracks_goal = workers[1]->goalentity;
-                VECTOR2 const before_preview = workers[1]->s.origin2;
+                edict_t * const barracks_goal = workers[1]->goalentity;
+                vector2_t const before_preview = workers[1]->s.origin2;
                 workers[1]->s.origin2 = points[i];
                 gi.LinkEntity(workers[1]);
                 T_ASSERT(G_IssueBuildOrder(workers[i], buildings[i], &points[i]));
@@ -2158,15 +2158,15 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
 TEST(wc3_building, construction_blocks_after_site_indicator) {
     enum { CELLS = 64 };
     static uint8_t pathmap[CELLS * CELLS];
-    size_t const pathtex_size = sizeof(pathTex_t) + sizeof(COLOR32);
-    LPEDICT building;
+    size_t const pathtex_size = sizeof(pathTex_t) + sizeof(color32_t);
+    edict_t * building;
     pathTex_t *pathtex;
-    VECTOR2 point = { 0.0f, 0.0f };
+    vector2_t point = { 0.0f, 0.0f };
 
     setup_test_world();
     memset(pathmap, 0, sizeof(pathmap));
     setup_test_pathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = { -1024.0f, -1024.0f },
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -1024.0f, -1024.0f },
                                   .max = { 1024.0f, 1024.0f }));
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), point.x, point.y);
     building->s.flags |= EF_BUILDING | EF_NOT_SELECTABLE;
@@ -2194,19 +2194,19 @@ TEST(wc3_building, construction_blocks_after_site_indicator) {
 TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     enum { CELLS = 128, FOOTPRINT = 9 };
     static uint8_t pathmap[CELLS * CELLS];
-    size_t const pathtex_size = sizeof(pathTex_t) + FOOTPRINT * FOOTPRINT * sizeof(COLOR32);
-    LPEDICT builder, worker, building, waypoint;
+    size_t const pathtex_size = sizeof(pathTex_t) + FOOTPRINT * FOOTPRINT * sizeof(color32_t);
+    edict_t * builder, *worker, *building, *waypoint;
     pathTex_t *pathtex;
-    VECTOR2 const building_point = { 0.0f, 0.0f };
-    VECTOR2 const worker_start = { 0.0f, -192.0f };
-    VECTOR2 const later_build = { 0.0f, 512.0f };
-    VECTOR2 before_displace, after_first_step;
+    vector2_t const building_point = { 0.0f, 0.0f };
+    vector2_t const worker_start = { 0.0f, -192.0f };
+    vector2_t const later_build = { 0.0f, 512.0f };
+    vector2_t before_displace, after_first_step;
     float normal_step;
 
     setup_test_world();
     memset(pathmap, 0, sizeof(pathmap));
     setup_test_pathmap(CELLS, CELLS, pathmap);
-    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = { -2048.0f, -2048.0f },
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = { -2048.0f, -2048.0f },
                                   .max = { 2048.0f, 2048.0f }));
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -512.0f, -512.0f);
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), worker_start.x, worker_start.y);
@@ -2263,10 +2263,10 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
 }
 
 TEST(wc3_building, acolyte_places_haunted_mine_on_off_grid_gold_mine) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT worker, mine;
+    gameClient_t * client = &game.clients[0];
+    edict_t * worker, *mine;
     UnitProfile_t profile = { .builds = "ugol" };
-    VECTOR2 requested = { 101.0f, 99.0f }, snapped;
+    vector2_t requested = { 101.0f, 99.0f }, snapped;
     uint32_t const haunted = MAKEFOURCC('u','g','o','l');
 
     setup_test_world();
@@ -2288,10 +2288,10 @@ TEST(wc3_building, acolyte_places_haunted_mine_on_off_grid_gold_mine) {
 }
 
 TEST(wc3_building, shared_build_order_releases_builder_from_gold_mine) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT builder, mine;
+    gameClient_t * client = &game.clients[0];
+    edict_t * builder, *mine;
     UnitProfile_t profile = { .builds = "hbar" };
-    VECTOR2 point = { 64.0f, 64.0f };
+    vector2_t point = { 64.0f, 64.0f };
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
 
     setup_test_world();
@@ -2311,7 +2311,7 @@ TEST(wc3_building, shared_build_order_releases_builder_from_gold_mine) {
 }
 
 TEST(wc3_building, building_snap_without_authored_pathing_uses_32_unit_grid) {
-    VECTOR2 point = { 47.0f, 79.0f };
+    vector2_t point = { 47.0f, 79.0f };
 
     G_SnapBuildingPoint(MAKEFOURCC('h','p','e','a'), &point);
 
@@ -2320,8 +2320,8 @@ TEST(wc3_building, building_snap_without_authored_pathing_uses_32_unit_grid) {
 }
 
 TEST(wc3_building, human_construction_start_sets_explicit_state_and_start_life) {
-    LPEDICT builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 64);
+    edict_t * builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t * building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 64);
 
     building->health.max_value = 1000.0f;
     building->health.value = 1000.0f;
@@ -2355,8 +2355,8 @@ TEST(wc3_building, construction_sound_label_drives_snapshot_loop_until_stop) {
         "C;Y2;X4;K\"96\"\n"
         "E\n";
     UnitProfile_t profile = { .buildingSoundLabel = "BuildingConstructionLoop" };
-    LPEDICT builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 64);
+    edict_t * builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t * building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 64);
     slkTestData_t *rows = parse_slk_string(slk);
     slkTestData_t *old_rows = G_SetSLKRows("AmbienceSounds", rows);
     int (*old_soundindex)(cstring_t) = gi.SoundIndex;
@@ -2382,9 +2382,9 @@ TEST(wc3_building, construction_sound_label_drives_snapshot_loop_until_stop) {
 }
 
 TEST(wc3_building, instant_build_cheat_completes_started_human_construction_on_next_frame) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT builder;
-    LPEDICT building;
+    gameClient_t * client = &game.clients[0];
+    edict_t * builder;
+    edict_t * building;
     UnitBalance_t balance;
 
     setup_test_world();
@@ -2411,9 +2411,9 @@ TEST(wc3_building, instant_build_cheat_completes_started_human_construction_on_n
 }
 
 TEST(wc3_building, instant_build_cheat_completes_autonomous_construction_on_next_frame) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT worker;
-    LPEDICT building;
+    gameClient_t * client = &game.clients[0];
+    edict_t * worker;
+    edict_t * building;
     UnitBalance_t balance;
 
     setup_test_world();
@@ -2440,8 +2440,8 @@ TEST(wc3_building, instant_build_cheat_completes_autonomous_construction_on_next
 }
 
 TEST(wc3_building, removing_construction_releases_repair_worker) {
-    LPEDICT builder;
-    LPEDICT building;
+    edict_t * builder;
+    edict_t * building;
 
     setup_test_world();
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
@@ -2462,8 +2462,8 @@ TEST(wc3_building, removing_construction_releases_repair_worker) {
 }
 
 TEST(wc3_building, orc_construction_hides_worker_and_progresses_autonomously) {
-    LPEDICT worker;
-    LPEDICT building;
+    edict_t * worker;
+    edict_t * building;
     UnitBalance_t balance;
     float hp_before;
 
@@ -2496,12 +2496,12 @@ TEST(wc3_building, orc_construction_hides_worker_and_progresses_autonomously) {
 }
 
 TEST(wc3_building, orc_build_dispatch_hides_peon_with_shared_repair_ability) {
-    LPGAMECLIENT client = &game.clients[0];
+    gameClient_t * client = &game.clients[0];
     UnitData_t worker_data;
     UnitProfile_t profile = { .builds = "hbar" };
     UnitAbilities_t abilities = { .abilList = "Arep" };
-    LPEDICT worker, building = NULL;
-    VECTOR2 point = { 64.0f, 64.0f };
+    edict_t * worker, *building = NULL;
+    vector2_t point = { 64.0f, 64.0f };
     uint32_t const barracks = MAKEFOURCC('h', 'b', 'a', 'r');
 
     setup_test_world();
@@ -2527,12 +2527,12 @@ TEST(wc3_building, orc_build_dispatch_hides_peon_with_shared_repair_ability) {
 }
 
 TEST(wc3_building, legacy_custom_worker_construction_progresses_from_zero_health) {
-    LPGAMECLIENT client = &game.clients[0];
+    gameClient_t * client = &game.clients[0];
     UnitData_t worker_data;
     UnitBalance_t building_balance;
     UnitProfile_t profile = { .builds = "hbar" };
-    LPEDICT worker, building;
-    VECTOR2 point = { 64.0f, 64.0f };
+    edict_t * worker, *building;
+    vector2_t point = { 64.0f, 64.0f };
     uint32_t const barracks = MAKEFOURCC('h', 'b', 'a', 'r');
 
     setup_test_world();
@@ -2570,8 +2570,8 @@ TEST(wc3_building, legacy_custom_worker_construction_progresses_from_zero_health
 }
 
 TEST(wc3_building, removing_orc_construction_releases_internal_worker) {
-    LPEDICT worker;
-    LPEDICT building;
+    edict_t * worker;
+    edict_t * building;
 
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
@@ -2592,8 +2592,8 @@ TEST(wc3_building, removing_orc_construction_releases_internal_worker) {
 }
 
 TEST(wc3_building, orc_construction_restores_worker_state_after_cancel) {
-    LPEDICT worker;
-    LPEDICT building;
+    edict_t * worker;
+    edict_t * building;
 
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
@@ -2614,8 +2614,8 @@ TEST(wc3_building, orc_construction_restores_worker_state_after_cancel) {
 }
 
 TEST(wc3_building, undead_construction_releases_summoner_and_keeps_progressing) {
-    LPEDICT worker;
-    LPEDICT building;
+    edict_t * worker;
+    edict_t * building;
     UnitBalance_t balance;
     uint32_t release_time;
 
@@ -2663,14 +2663,14 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
         "C;Y2;X1;K\"uzig\"\nC;Y2;X2;K100\nC;Y2;X3;K50\n"
         "C;Y2;X4;K1000\nC;Y2;X5;K60\nC;Y2;X6;K0\n"
         "C;Y2;X7;K0\nC;Y2;X8;K1\nE\n";
-    LPGAMECLIENT client;
+    gameClient_t * client;
     UnitData_t acolyte_data;
     UnitProfile_t acolyte_profile = { .builds = "uzig" };
     UnitBalance_t ziggurat_balance;
-    LPEDICT acolyte, ziggurat = NULL;
+    edict_t * acolyte, *ziggurat = NULL;
     slkTestData_t *ability_rows, *old_ability, *balance_rows, *old_balance;
-    VECTOR2 const build_point = { 64.0f, 0.0f };
-    VECTOR2 const move_point = { -128.0f, 0.0f };
+    vector2_t const build_point = { 64.0f, 0.0f };
+    vector2_t const move_point = { -128.0f, 0.0f };
     uint32_t const acolyte_id = MAKEFOURCC('u', 'a', 'c', 'o');
     uint32_t const ziggurat_id = MAKEFOURCC('u', 'z', 'i', 'g');
 
@@ -2775,8 +2775,8 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
 }
 
 TEST(wc3_building, cancelling_undead_construction_releases_summoner) {
-    LPEDICT worker;
-    LPEDICT building;
+    edict_t * worker;
+    edict_t * building;
 
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
@@ -2792,8 +2792,8 @@ TEST(wc3_building, cancelling_undead_construction_releases_summoner) {
 }
 
 TEST(wc3_building, night_elf_ancient_cancel_restores_wisp_and_food) {
-    LPEDICT worker;
-    LPEDICT building;
+    edict_t * worker;
+    edict_t * building;
     UnitBalance_t worker_balance;
     UnitBalance_t building_balance;
 
@@ -2824,9 +2824,9 @@ TEST(wc3_building, night_elf_ancient_cancel_restores_wisp_and_food) {
 }
 
 TEST(wc3_building, night_elf_ancient_completion_consumes_wisp) {
-    LPGAMECLIENT saved_client;
-    LPEDICT worker;
-    LPEDICT building;
+    gameClient_t * saved_client;
+    edict_t * worker;
+    edict_t * building;
     UnitBalance_t building_balance;
 
     setup_test_world();
@@ -2852,8 +2852,8 @@ TEST(wc3_building, night_elf_ancient_completion_consumes_wisp) {
 }
 
 TEST(wc3_building, night_elf_non_ancient_completion_releases_wisp) {
-    LPEDICT worker;
-    LPEDICT building;
+    edict_t * worker;
+    edict_t * building;
 
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
@@ -2872,8 +2872,8 @@ TEST(wc3_building, night_elf_non_ancient_completion_releases_wisp) {
 }
 
 TEST(wc3_building, cancelling_night_elf_non_ancient_construction_releases_wisp) {
-    LPEDICT worker;
-    LPEDICT building;
+    edict_t * worker;
+    edict_t * building;
 
     setup_test_world();
     worker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
@@ -2893,10 +2893,10 @@ TEST(wc3_building, cancel_build_command_resolves_to_shared_cancel_handler) {
 }
 
 TEST(wc3_building, replacing_pre_spawn_build_order_clears_project) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT builder;
+    gameClient_t * client = &game.clients[0];
+    edict_t * builder;
     UnitProfile_t profile = { .builds = "hbar" };
-    VECTOR2 point = { 64.0f, 64.0f };
+    vector2_t point = { 64.0f, 64.0f };
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
 
     setup_test_world();
@@ -2914,9 +2914,9 @@ TEST(wc3_building, replacing_pre_spawn_build_order_clears_project) {
 }
 
 TEST(wc3_building, cancel_human_construction_refunds_releases_and_publishes) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT builder;
-    LPEDICT building;
+    gameClient_t * client = &game.clients[0];
+    edict_t * builder;
+    edict_t * building;
     UnitAbilities_t abilities = { .abilList = "Arep" };
     UnitBalance_t balance;
     slkTestData_t *rows, *old_abilities;
@@ -2982,9 +2982,9 @@ TEST(wc3_building, cancel_human_construction_refunds_releases_and_publishes) {
 }
 
 TEST(wc3_building, cancel_human_construction_without_payment_does_not_refund) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT builder;
-    LPEDICT building;
+    gameClient_t * client = &game.clients[0];
+    edict_t * builder;
+    edict_t * building;
 
     setup_test_world();
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
@@ -3006,9 +3006,9 @@ TEST(wc3_building, cancel_human_construction_without_payment_does_not_refund) {
 }
 
 TEST(wc3_building, cancel_command_cancels_selected_spawned_construction) {
-    LPEDICT clent;
-    LPGAMECLIENT client;
-    LPEDICT building;
+    edict_t * clent;
+    gameClient_t * client;
+    edict_t * building;
     bool was_connected;
 
     setup_test_world();
@@ -3039,10 +3039,10 @@ TEST(wc3_building, cancel_command_cancels_selected_spawned_construction) {
 }
 
 TEST(wc3_building, dead_building_releases_baked_static_pathing) {
-    LPEDICT building;
+    edict_t * building;
     pathTex_t *pathtex;
-    VECTOR2 point = { 0.0f, 0.0f };
-    size_t const pathtex_size = sizeof(*pathtex) + sizeof(COLOR32);
+    vector2_t point = { 0.0f, 0.0f };
+    size_t const pathtex_size = sizeof(*pathtex) + sizeof(color32_t);
 
     setup_test_world();
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), point.x, point.y);
@@ -3066,11 +3066,11 @@ TEST(wc3_building, dead_building_releases_baked_static_pathing) {
 }
 
 TEST(wc3_building, legacy_orc_burrow_completion_publishes_construct_finish_and_grants_food) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT builder;
-    LPEDICT building;
+    gameClient_t * client = &game.clients[0];
+    edict_t * builder;
+    edict_t * building;
     UnitBalance_t balance;
-    LPGAMECLIENT saved_client;
+    gameClient_t * saved_client;
 
     setup_test_world();
     builder = alloc_test_unit(MAKEFOURCC('o','p','e','o'), 0, 0);
@@ -3118,9 +3118,9 @@ TEST(wc3_building, legacy_orc_burrow_completion_publishes_construct_finish_and_g
 }
 
 TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grants_food_once) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 64);
+    gameClient_t * client = &game.clients[0];
+    edict_t * builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t * building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 64);
     UnitBalance_t balance = *building->data.UnitBalance;
 
     balance.foodMade = 6;
@@ -3149,7 +3149,7 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
         /* Prevent G_CompleteConstruction from invoking HUD refresh (which
          * requires FDF/UI state unavailable in tests) by hiding the player
          * entity from G_GetPlayerEntityByNumber while the call runs. */
-        LPGAMECLIENT saved_client = g_edicts[0].client;
+        gameClient_t * saved_client = g_edicts[0].client;
         g_edicts[0].client = NULL;
         G_CompleteConstruction(building);
         g_edicts[0].client = saved_client;
@@ -3184,7 +3184,7 @@ TEST(wc3_building, completing_construction_clears_state_publishes_once_and_grant
 
 TEST(wc3_building, legacy_construction_death_clears_snapshot_loop) {
     setup_test_world();
-    LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 64);
+    edict_t * building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 64);
 
     building->build = building;
     building->s.sound = 91;
@@ -3197,7 +3197,7 @@ TEST(wc3_building, plain_build_error_text_is_not_resolved_as_trigger_string_zero
     mapTrigStr_t zero = { .id = 0 };
 
     snprintf(zero.text, sizeof(zero.text), "Human02");
-    ((LPMAPINFO)level.mapinfo)->strings = &zero;
+    ((mapInfo_t *)level.mapinfo)->strings = &zero;
 
     T_STREQ(G_LevelString("Unable to build there."), "Unable to build there.");
     T_STREQ(G_LevelString("TRIGSTR_0"), "Human02");
@@ -3205,7 +3205,7 @@ TEST(wc3_building, plain_build_error_text_is_not_resolved_as_trigger_string_zero
 }
 
 TEST(wc3_building, human_repair_capability_comes_from_unit_ability_list) {
-    LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t * worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     UnitAbilities_t human_repair = { .abilList = "Arep" };
     UnitAbilities_t generic_repair = { .abilList = "Aren" };
 
@@ -3221,13 +3221,13 @@ TEST(wc3_building, human_repair_capability_comes_from_unit_ability_list) {
 
 TEST(wc3_building, human_builder_exit_is_outside_baked_building_footprint) {
     enum { FOOTPRINT_W = 10, FOOTPRINT_H = 10 };
-    LPEDICT builder;
-    LPEDICT building;
+    edict_t * builder;
+    edict_t * building;
     pathTex_t *pathtex;
     UnitAbilities_t abilities = { .abilList = "Arep" };
     slkTestData_t *rows, *old_abilities;
     size_t const pathtex_size = sizeof(*pathtex) +
-                                FOOTPRINT_W * FOOTPRINT_H * sizeof(COLOR32);
+                                FOOTPRINT_W * FOOTPRINT_H * sizeof(color32_t);
 
     old_abilities = building_install_repair_data(&rows);
     setup_test_world();
@@ -3267,12 +3267,12 @@ TEST(wc3_building, human_builder_exit_is_outside_baked_building_footprint) {
 }
 
 TEST(wc3_building, completed_repair_uses_repair_time_ratios_and_fractional_costs) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT worker;
-    LPEDICT building;
+    gameClient_t * client = &game.clients[0];
+    edict_t * worker;
+    edict_t * building;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     UnitBalance_t balance;
-    LPGAMECLIENT saved_client;
+    gameClient_t * saved_client;
     slkTestData_t *rows, *old_abilities;
 
     old_abilities = building_install_repair_data(&rows);
@@ -3317,9 +3317,9 @@ TEST(wc3_building, completed_repair_uses_repair_time_ratios_and_fractional_costs
 }
 
 TEST(wc3_building, repair_accepts_authored_mechanical_unit_and_rejects_organic_unit) {
-    LPEDICT worker;
-    LPEDICT mechanical;
-    LPEDICT organic;
+    edict_t * worker;
+    edict_t * mechanical;
+    edict_t * organic;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     AbilityData_t *repair;
     UnitBalance_t mechanical_balance;
@@ -3384,8 +3384,8 @@ TEST(wc3_building, repair_accepts_authored_mechanical_unit_and_rejects_organic_u
 }
 
 TEST(wc3_building, repair_mobile_unit_requires_mechanical_target_mask) {
-    LPEDICT worker;
-    LPEDICT mechanical;
+    edict_t * worker;
+    edict_t * mechanical;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     UnitBalance_t balance;
     UnitData_t data;
@@ -3417,15 +3417,15 @@ TEST(wc3_building, repair_mobile_unit_requires_mechanical_target_mask) {
 }
 
 TEST(wc3_building, repair_friend_target_allows_allied_completed_structure) {
-    LPEDICT worker;
-    LPEDICT building;
+    edict_t * worker;
+    edict_t * building;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     slkTestData_t *rows, *old_abilities;
 
     old_abilities = building_install_repair_data(&rows);
     setup_test_world();
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 0);
@@ -3444,17 +3444,17 @@ TEST(wc3_building, repair_friend_target_allows_allied_completed_structure) {
 }
 
 TEST(wc3_building, allied_repair_does_not_take_over_active_human_construction) {
-    LPEDICT primary;
-    LPEDICT ally;
-    LPEDICT building;
+    edict_t * primary;
+    edict_t * ally;
+    edict_t * building;
     UnitAbilities_t human_repair = { .abilList = "Arep" };
     AbilityData_t *repair;
     slkTestData_t *rows, *old_abilities;
 
     old_abilities = building_install_repair_data(&rows);
     setup_test_world();
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
     level.alliances[1][0] |= 1u << ALLIANCE_PASSIVE;
 
@@ -3479,9 +3479,9 @@ TEST(wc3_building, allied_repair_does_not_take_over_active_human_construction) {
 }
 
 TEST(wc3_building, repair_datae_adds_range_only_for_floating_mechanical_units) {
-    LPEDICT worker;
-    LPEDICT floating;
-    LPEDICT ground;
+    edict_t * worker;
+    edict_t * floating;
+    edict_t * ground;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     AbilityData_t *repair;
     UnitBalance_t floating_balance;
@@ -3543,8 +3543,8 @@ TEST(wc3_building, repair_datae_adds_range_only_for_floating_mechanical_units) {
 }
 
 TEST(wc3_building, repair_nonancient_mask_rejects_ancient_but_renew_can_accept_it) {
-    LPEDICT worker;
-    LPEDICT ancient;
+    edict_t * worker;
+    edict_t * ancient;
     UnitAbilities_t abilities = { .abilList = "Arep,Arst" };
     AbilityData_t *repair;
     AbilityData_t *renew;
@@ -3579,10 +3579,10 @@ TEST(wc3_building, repair_nonancient_mask_rejects_ancient_but_renew_can_accept_i
 }
 
 TEST(wc3_building, repair_order_walks_to_remote_target_without_teleporting) {
-    LPEDICT worker;
-    LPEDICT building;
+    edict_t * worker;
+    edict_t * building;
     UnitAbilities_t abilities = { .abilList = "Aren" };
-    VECTOR2 start;
+    vector2_t start;
     slkTestData_t *rows, *old_abilities;
 
     old_abilities = building_install_repair_data(&rows);
@@ -3613,10 +3613,10 @@ TEST(wc3_building, repair_order_walks_to_remote_target_without_teleporting) {
 }
 
 TEST(wc3_building, repair_button_then_target_issues_repair_order) {
-    LPEDICT clent = &g_edicts[0];
-    LPGAMECLIENT client = clent->client;
-    LPEDICT worker;
-    LPEDICT building;
+    edict_t * clent = &g_edicts[0];
+    gameClient_t * client = clent->client;
+    edict_t * worker;
+    edict_t * building;
     UnitAbilities_t abilities = { .abilList = "Arep" };
     slkTestData_t *rows, *old_abilities;
     char target_number[16];
@@ -3654,7 +3654,7 @@ TEST(wc3_building, repair_button_then_target_issues_repair_order) {
 }
 
 TEST(wc3_building, repair_autocast_toggle_is_unit_state) {
-    LPEDICT worker;
+    edict_t * worker;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     ability_t const *repair;
     slkTestData_t *rows, *old_abilities;
@@ -3680,7 +3680,7 @@ TEST(wc3_building, repair_autocast_toggle_is_unit_state) {
 }
 
 TEST(wc3_building, repairon_and_repairoff_immediate_orders_toggle_without_starting_repair) {
-    LPEDICT worker;
+    edict_t * worker;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     ability_t const *repair;
     slkTestData_t *rows, *old_abilities;
@@ -3709,7 +3709,7 @@ TEST(wc3_building, repairon_and_repairoff_immediate_orders_toggle_without_starti
 }
 
 TEST(wc3_building, repair_command_button_exposes_autocast_secondary_command) {
-    LPEDICT worker;
+    edict_t * worker;
     UnitAbilities_t abilities = { .abilList = "Arep" };
     gameCommandButton_t button;
     ability_t const *repair;
@@ -3735,9 +3735,9 @@ TEST(wc3_building, repair_command_button_exposes_autocast_secondary_command) {
 }
 
 TEST(wc3_building, repair_autocast_chooses_nearest_valid_damaged_building) {
-    LPEDICT worker;
-    LPEDICT near_building;
-    LPEDICT far_building;
+    edict_t * worker;
+    edict_t * near_building;
+    edict_t * far_building;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     ability_t const *repair;
     slkTestData_t *rows, *old_abilities;
@@ -3770,8 +3770,8 @@ TEST(wc3_building, repair_autocast_chooses_nearest_valid_damaged_building) {
 }
 
 TEST(wc3_building, repair_autocast_can_choose_damaged_mechanical_unit) {
-    LPEDICT worker;
-    LPEDICT mechanical;
+    edict_t * worker;
+    edict_t * mechanical;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     AbilityData_t *repair_data;
     ability_t const *repair;
@@ -3816,8 +3816,8 @@ TEST(wc3_building, repair_autocast_can_choose_damaged_mechanical_unit) {
 }
 
 TEST(wc3_building, repair_autocast_uses_collision_aware_nearest_valid_distance) {
-    LPEDICT worker;
-    LPEDICT building;
+    edict_t * worker;
+    edict_t * building;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     ability_t const *repair;
     slkTestData_t *rows, *old_abilities;
@@ -3849,13 +3849,13 @@ TEST(wc3_building, repair_autocast_uses_collision_aware_nearest_valid_distance) 
 }
 
 TEST(wc3_building, moving_away_while_repairing_preserves_replacement_goal) {
-    LPEDICT worker;
-    LPEDICT building;
-    LPEDICT waypoint;
+    edict_t * worker;
+    edict_t * building;
+    edict_t * waypoint;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     ability_t const *repair;
     slkTestData_t *rows, *old_abilities;
-    VECTOR2 destination = { 512.0f, 0.0f };
+    vector2_t destination = { 512.0f, 0.0f };
 
     old_abilities = building_install_repair_data(&rows);
     setup_test_world();
@@ -3892,9 +3892,9 @@ TEST(wc3_building, moving_away_while_repairing_preserves_replacement_goal) {
 }
 
 TEST(wc3_building, idle_acquisition_prefers_auto_repair_over_auto_attack) {
-    LPEDICT worker;
-    LPEDICT building;
-    LPEDICT enemy;
+    edict_t * worker;
+    edict_t * building;
+    edict_t * enemy;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     ability_t const *repair;
     slkTestData_t *rows, *old_abilities;
@@ -3902,8 +3902,8 @@ TEST(wc3_building, idle_acquisition_prefers_auto_repair_over_auto_attack) {
 
     old_abilities = building_install_repair_data(&rows);
     setup_test_world();
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 160, 0);
     enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
@@ -3936,13 +3936,13 @@ TEST(wc3_building, idle_acquisition_prefers_auto_repair_over_auto_attack) {
 }
 
 TEST(wc3_building, idle_acquisition_without_autocast_still_auto_attacks) {
-    LPEDICT worker;
-    LPEDICT enemy;
+    edict_t * worker;
+    edict_t * enemy;
     uint32_t stagger;
 
     setup_test_world();
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
     worker->svflags |= SVF_MONSTER;
@@ -3965,9 +3965,9 @@ TEST(wc3_building, idle_acquisition_without_autocast_still_auto_attacks) {
 }
 
 TEST(wc3_building, repair_autocast_ignores_full_health_nearer_building) {
-    LPEDICT worker;
-    LPEDICT full_building;
-    LPEDICT damaged_building;
+    edict_t * worker;
+    edict_t * full_building;
+    edict_t * damaged_building;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     ability_t const *repair;
     slkTestData_t *rows, *old_abilities;
@@ -3999,8 +3999,8 @@ TEST(wc3_building, repair_autocast_ignores_full_health_nearer_building) {
 }
 
 TEST(wc3_building, normal_target_order_routes_repair_through_repair_behavior) {
-    LPEDICT worker;
-    LPEDICT building;
+    edict_t * worker;
+    edict_t * building;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     slkTestData_t *rows, *old_abilities;
 
@@ -4021,8 +4021,8 @@ TEST(wc3_building, normal_target_order_routes_repair_through_repair_behavior) {
 }
 
 TEST(wc3_building, smart_order_repairs_damaged_owned_building) {
-    LPEDICT worker;
-    LPEDICT building;
+    edict_t * worker;
+    edict_t * building;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     slkTestData_t *rows, *old_abilities;
 
@@ -4047,8 +4047,8 @@ TEST(wc3_building, smart_order_repairs_damaged_owned_building) {
 }
 
 TEST(wc3_building, repair_stops_and_releases_state_when_target_dies) {
-    LPEDICT worker;
-    LPEDICT building;
+    edict_t * worker;
+    edict_t * building;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     slkTestData_t *rows, *old_abilities;
 
@@ -4077,9 +4077,9 @@ TEST(wc3_building, repair_stops_and_releases_state_when_target_dies) {
 }
 
 TEST(wc3_building, standard_repair_rejects_construction_and_human_requires_paused_state) {
-    LPEDICT human;
-    LPEDICT standard;
-    LPEDICT building;
+    edict_t * human;
+    edict_t * standard;
+    edict_t * building;
     UnitAbilities_t human_abilities = { .abilList = "Arep" };
     UnitAbilities_t standard_abilities = { .abilList = "Aren" };
     slkTestData_t *rows, *old_abilities;
@@ -4112,9 +4112,9 @@ TEST(wc3_building, standard_repair_rejects_construction_and_human_requires_pause
 
 TEST(wc3_building, placement_cursor_uses_configured_player_color) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    LPEDICT clent;
-    LPGAMECLIENT client;
-    LPEDICT worker;
+    edict_t * clent;
+    gameClient_t * client;
+    edict_t * worker;
     UnitProfile_t worker_profile = { .builds = "hbar" };
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
 
@@ -4150,7 +4150,7 @@ TEST(wc3_building, placement_cursor_uses_configured_player_color) {
     T_EQ((building_cursor_effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT, 7);
 }
 
-static LPEDICT building_queued_build_preview(LPEDICT worker, uint32_t queue_offset) {
+static edict_t * building_queued_build_preview(edict_t * worker, uint32_t queue_offset) {
     unitOrder_t const *queued;
     uint32_t slot;
 
@@ -4168,12 +4168,12 @@ static LPEDICT building_queued_build_preview(LPEDICT worker, uint32_t queue_offs
     return &g_edicts[queued->target_number];
 }
 
-static LPEDICT building_begin_barracks_placement(LPEDICT *out_clent) {
+static edict_t * building_begin_barracks_placement(edict_t * *out_clent) {
     static UnitProfile_t const worker_profile = { .builds = "hbar" };
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
-    LPEDICT clent;
-    LPGAMECLIENT client;
-    LPEDICT worker;
+    edict_t * clent;
+    gameClient_t * client;
+    edict_t * worker;
 
     setup_test_world();
     clent = &g_edicts[0];
@@ -4196,7 +4196,7 @@ static LPEDICT building_begin_barracks_placement(LPEDICT *out_clent) {
 }
 
 TEST(wc3_building, build_placement_enables_shift_queue_targeting) {
-    LPEDICT clent;
+    edict_t * clent;
 
     building_begin_barracks_placement(&clent);
 
@@ -4207,8 +4207,8 @@ TEST(wc3_building, build_placement_enables_shift_queue_targeting) {
 
 TEST(wc3_building, normal_build_click_clears_placement_overlay) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    LPEDICT clent;
-    LPEDICT worker = building_begin_barracks_placement(&clent);
+    edict_t * clent;
+    edict_t * worker = building_begin_barracks_placement(&clent);
     cstring_t command[] = { "point", "64", "64" };
 
     building_cursor_opcode_seen = false;
@@ -4225,8 +4225,8 @@ TEST(wc3_building, normal_build_click_clears_placement_overlay) {
 
 TEST(wc3_building, shift_build_click_keeps_overlay_and_queues_followup_site) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    LPEDICT clent;
-    LPEDICT worker = building_begin_barracks_placement(&clent);
+    edict_t * clent;
+    edict_t * worker = building_begin_barracks_placement(&clent);
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
     cstring_t first[] = { "point", "64", "64", "queue" };
     cstring_t second[] = { "point", "512", "64", "queue" };
@@ -4255,7 +4255,7 @@ TEST(wc3_building, shift_build_click_keeps_overlay_and_queues_followup_site) {
     T_FEQ(worker->order_queue.entries[worker->order_queue.head].point.x, 512.0f, 0.01f);
     T_FEQ(worker->order_queue.entries[worker->order_queue.head].point.y, 64.0f, 0.01f);
     {
-        LPEDICT preview = building_queued_build_preview(worker, 0);
+        edict_t * preview = building_queued_build_preview(worker, 0);
         T_NOT_NULL(preview);
         T_ASSERT(preview != worker->build_preview);
         T_EQ(preview->class_id, barracks);
@@ -4270,12 +4270,12 @@ TEST(wc3_building, shift_build_click_keeps_overlay_and_queues_followup_site) {
 }
 
 TEST(wc3_building, clearing_build_queue_removes_only_queued_placeholders) {
-    LPEDICT clent;
-    LPEDICT worker = building_begin_barracks_placement(&clent);
+    edict_t * clent;
+    edict_t * worker = building_begin_barracks_placement(&clent);
     cstring_t first[] = { "point", "64", "64", "queue" };
     cstring_t second[] = { "point", "512", "64", "queue" };
-    LPEDICT active_preview;
-    LPEDICT queued_preview;
+    edict_t * active_preview;
+    edict_t * queued_preview;
     uint32_t queued_spawn_time;
 
     G_ClientCommand(clent, 4, first);
@@ -4295,11 +4295,11 @@ TEST(wc3_building, clearing_build_queue_removes_only_queued_placeholders) {
 }
 
 TEST(wc3_building, starting_queued_build_replaces_queued_placeholder_with_active_indicator) {
-    LPEDICT clent;
-    LPEDICT worker = building_begin_barracks_placement(&clent);
+    edict_t * clent;
+    edict_t * worker = building_begin_barracks_placement(&clent);
     cstring_t first[] = { "point", "64", "64", "queue" };
     cstring_t second[] = { "point", "512", "64", "queue" };
-    LPEDICT queued_preview;
+    edict_t * queued_preview;
     uint32_t queued_spawn_time;
 
     G_ClientCommand(clent, 4, first);
@@ -4323,12 +4323,12 @@ TEST(wc3_building, starting_queued_build_replaces_queued_placeholder_with_active
 }
 
 TEST(wc3_building, scheduler_starts_queued_build_after_current_move_completes) {
-    LPEDICT clent;
-    LPEDICT worker = building_begin_barracks_placement(&clent);
+    edict_t * clent;
+    edict_t * worker = building_begin_barracks_placement(&clent);
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
-    VECTOR2 const move_target = { 0.0f, 0.0f };
+    vector2_t const move_target = { 0.0f, 0.0f };
     cstring_t build[] = { "point", "512", "64", "queue" };
-    LPEDICT queued_preview;
+    edict_t * queued_preview;
     uint32_t queued_spawn_time;
 
     worker->movetype = MOVETYPE_STEP;
@@ -4365,11 +4365,11 @@ TEST(wc3_building, scheduler_starts_queued_build_after_current_move_completes) {
 }
 
 TEST(wc3_building, scheduler_discards_queued_build_that_loses_its_resources) {
-    LPEDICT clent;
-    LPEDICT worker = building_begin_barracks_placement(&clent);
-    VECTOR2 const move_target = { 0.0f, 0.0f };
+    edict_t * clent;
+    edict_t * worker = building_begin_barracks_placement(&clent);
+    vector2_t const move_target = { 0.0f, 0.0f };
     cstring_t build[] = { "point", "512", "64", "queue" };
-    LPEDICT queued_preview;
+    edict_t * queued_preview;
     uint32_t queued_spawn_time;
 
     worker->movetype = MOVETYPE_STEP;
@@ -4406,10 +4406,10 @@ TEST(wc3_building, scheduler_discards_queued_build_that_loses_its_resources) {
 TEST(wc3_building, queued_build_payload_and_indicator_survive_save_load) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-queued-build.bin";
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
-    VECTOR2 const point = { 512.0f, 64.0f };
-    LPEDICT clent;
-    LPEDICT worker = building_begin_barracks_placement(&clent);
-    LPEDICT preview = G_CreateBuildPreview(worker, barracks, &point);
+    vector2_t const point = { 512.0f, 64.0f };
+    edict_t * clent;
+    edict_t * worker = building_begin_barracks_placement(&clent);
+    edict_t * preview = G_CreateBuildPreview(worker, barracks, &point);
     uint32_t const worker_number = worker->s.number;
     uint32_t const preview_number = preview ? preview->s.number : 0;
     uint32_t const preview_spawn_time = preview ? preview->spawn_time : 0;
@@ -4439,12 +4439,12 @@ TEST(wc3_building, queued_build_payload_and_indicator_survive_save_load) {
 }
 
 TEST(wc3_building, removing_worker_clears_active_and_queued_build_placeholders) {
-    LPEDICT clent;
-    LPEDICT worker = building_begin_barracks_placement(&clent);
+    edict_t * clent;
+    edict_t * worker = building_begin_barracks_placement(&clent);
     cstring_t first[] = { "point", "64", "64", "queue" };
     cstring_t second[] = { "point", "512", "64", "queue" };
-    LPEDICT active_preview;
-    LPEDICT queued_preview;
+    edict_t * active_preview;
+    edict_t * queued_preview;
     uint32_t active_spawn_time, queued_spawn_time;
 
     G_ClientCommand(clent, 4, first);
@@ -4464,7 +4464,7 @@ TEST(wc3_building, removing_worker_clears_active_and_queued_build_placeholders) 
 
 TEST(wc3_building, shift_release_before_success_does_not_cancel_build_overlay) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    LPEDICT clent;
+    edict_t * clent;
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
     cstring_t release[] = { "orderqueuerelease" };
 
@@ -4482,8 +4482,8 @@ TEST(wc3_building, shift_release_before_success_does_not_cancel_build_overlay) {
 
 TEST(wc3_building, final_shift_release_clears_overlay_without_discarding_build_orders) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    LPEDICT clent;
-    LPEDICT worker = building_begin_barracks_placement(&clent);
+    edict_t * clent;
+    edict_t * worker = building_begin_barracks_placement(&clent);
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
     cstring_t first[] = { "point", "64", "64", "queue" };
     cstring_t second[] = { "point", "512", "64", "queue" };
@@ -4492,7 +4492,7 @@ TEST(wc3_building, final_shift_release_clears_overlay_without_discarding_build_o
     G_ClientCommand(clent, 4, first);
     G_ClientCommand(clent, 4, second);
     T_EQ(G_UnitQueuedOrderCount(worker), 1);
-    LPEDICT queued_preview = building_queued_build_preview(worker, 0);
+    edict_t * queued_preview = building_queued_build_preview(worker, 0);
     T_NOT_NULL(queued_preview);
     uint32_t const queued_preview_spawn_time = queued_preview->spawn_time;
 
@@ -4513,8 +4513,8 @@ TEST(wc3_building, final_shift_release_clears_overlay_without_discarding_build_o
 
 TEST(wc3_building, invalid_nonshift_build_click_keeps_overlay_armed) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    LPEDICT clent;
-    LPEDICT worker = building_begin_barracks_placement(&clent);
+    edict_t * clent;
+    edict_t * worker = building_begin_barracks_placement(&clent);
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
     cstring_t command[] = { "point", "5000", "5000" };
 
@@ -4534,8 +4534,8 @@ TEST(wc3_building, invalid_nonshift_build_click_keeps_overlay_armed) {
 
 TEST(wc3_building, invalid_shift_build_click_keeps_overlay_armed) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    LPEDICT clent;
-    LPEDICT worker = building_begin_barracks_placement(&clent);
+    edict_t * clent;
+    edict_t * worker = building_begin_barracks_placement(&clent);
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
     cstring_t command[] = { "point", "5000", "5000", "queue" };
 
@@ -4555,9 +4555,9 @@ TEST(wc3_building, invalid_shift_build_click_keeps_overlay_armed) {
 
 TEST(wc3_building, selection_replacement_cancels_build_overlay) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    LPEDICT clent;
-    LPEDICT worker = building_begin_barracks_placement(&clent);
-    LPEDICT other = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 128);
+    edict_t * clent;
+    edict_t * worker = building_begin_barracks_placement(&clent);
+    edict_t * other = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 128);
     char number[16];
     cstring_t command[] = { "select", number };
 
@@ -4579,7 +4579,7 @@ TEST(wc3_building, selection_replacement_cancels_build_overlay) {
 
 TEST(wc3_building, command_card_refresh_cancels_build_overlay) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    LPEDICT clent;
+    edict_t * clent;
 
     building_begin_barracks_placement(&clent);
     building_cursor_opcode_seen = false;
@@ -4595,8 +4595,8 @@ TEST(wc3_building, command_card_refresh_cancels_build_overlay) {
 
 TEST(wc3_building, selected_worker_death_cancels_build_overlay) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    LPEDICT clent;
-    LPEDICT worker = building_begin_barracks_placement(&clent);
+    edict_t * clent;
+    edict_t * worker = building_begin_barracks_placement(&clent);
 
     building_cursor_opcode_seen = false;
     building_cursor_clear_seen = false;
@@ -4612,8 +4612,8 @@ TEST(wc3_building, selected_worker_death_cancels_build_overlay) {
 
 TEST(wc3_building, cancel_command_clears_active_build_placement_cursor) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    LPEDICT clent = &g_edicts[0];
-    LPGAMECLIENT client = clent->client;
+    edict_t * clent = &g_edicts[0];
+    gameClient_t * client = clent->client;
 
     client->menu.on_location_selected = build_menu_send_builder;
     clent->build_project = MAKEFOURCC('h','b','a','r');
@@ -4632,9 +4632,9 @@ TEST(wc3_building, cancel_command_clears_active_build_placement_cursor) {
 
 TEST(wc3_building, smartpoint_cancels_build_placement_without_moving_selected_worker) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    LPEDICT clent = &g_edicts[0];
-    LPGAMECLIENT client = clent->client;
-    LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t * clent = &g_edicts[0];
+    gameClient_t * client = clent->client;
+    edict_t * worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     cstring_t command[] = { "smartpoint", "256", "256" };
 
     G_SelectEntity(client, worker);
@@ -4657,10 +4657,10 @@ TEST(wc3_building, smartpoint_cancels_build_placement_without_moving_selected_wo
 
 TEST(wc3_building, smart_target_cancels_build_placement_before_issuing_order) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    LPEDICT clent = &g_edicts[0];
-    LPGAMECLIENT client = clent->client;
-    LPEDICT worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 0);
+    edict_t * clent = &g_edicts[0];
+    gameClient_t * client = clent->client;
+    edict_t * worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t * target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 0);
     char target_number[16];
     cstring_t command[] = { "smart", target_number };
 
@@ -4685,8 +4685,8 @@ TEST(wc3_building, smart_target_cancels_build_placement_before_issuing_order) {
 
 
 TEST(wc3_building, repair_order_from_stand_keeps_staged_target_and_walks) {
-    LPEDICT worker;
-    LPEDICT building;
+    edict_t * worker;
+    edict_t * building;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     slkTestData_t *rows, *old_abilities;
 
@@ -4717,9 +4717,9 @@ TEST(wc3_building, repair_order_from_stand_keeps_staged_target_and_walks) {
 }
 
 TEST(wc3_building, repair_walk_handoff_requires_actual_contact) {
-    LPGAMECLIENT client = &game.clients[0];
-    LPEDICT worker;
-    LPEDICT building;
+    gameClient_t * client = &game.clients[0];
+    edict_t * worker;
+    edict_t * building;
     UnitAbilities_t abilities = { .abilList = "Aren" };
     AbilityData_t *repair;
     UnitBalance_t balance;
@@ -4787,7 +4787,7 @@ TEST(wc3_building, repair_walk_handoff_requires_actual_contact) {
 }
 
 TEST(wc3_building, held_construction_birth_animation_tracks_progress) {
-    LPEDICT building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 64);
+    edict_t * building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64, 64);
     UnitBalance_t balance = *building->data.UnitBalance;
     animation_t birth = {
         .name = "birth",
@@ -4815,9 +4815,9 @@ TEST(wc3_building, held_construction_birth_animation_tracks_progress) {
 }
 
 TEST(wc3_building, primary_human_builder_ignores_datad_but_extra_builder_requires_it) {
-    LPEDICT primary;
-    LPEDICT extra;
-    LPEDICT building;
+    edict_t * primary;
+    edict_t * extra;
+    edict_t * building;
     UnitAbilities_t abilities = { .abilList = "Arep" };
     AbilityData_t *repair;
     slkTestData_t *rows, *old_abilities;

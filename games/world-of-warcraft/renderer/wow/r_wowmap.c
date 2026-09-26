@@ -41,7 +41,7 @@ typedef struct {
     uint32_t considered, chunks, vertices, wmo_groups, wmo_batches, wmo_instances, wmo_models, wmo_textures, wmo_batched;
     void const *model_hash[128], *texture_hash[1024];
     bool collect;
-} WOWDRAWSTATS;
+} wowDrawStats_t;
 
 /* Pointer hash counts visible model/material diversity without quadratic profiling overhead. */
 static bool Wow_StatPointer(void const * ptr, void const * *table, uint32_t size) {
@@ -63,7 +63,7 @@ static void Wow_SetupFog(void) {
     if (end <= start) end = start + 1.0f;
     tr.viewDef.fogEnable = R_CvarEnabled("r_fog", "1");
     tr.viewDef.fogStart = start; tr.viewDef.fogEnd = MIN(end, WOW_WORLD_FAR_CLIP);
-    tr.viewDef.fogColor = (VECTOR3){ WOW_WORLD_FOG_RED, WOW_WORLD_FOG_GREEN, WOW_WORLD_FOG_BLUE };
+    tr.viewDef.fogColor = (vector3_t){ WOW_WORLD_FOG_RED, WOW_WORLD_FOG_GREEN, WOW_WORLD_FOG_BLUE };
     if (!logged) {
         logged = true;
         fprintf(stderr, "WoW fog: Light*.dbc absent; fallback start=%.0f end=%.0f hard_clip=%.0f\n",
@@ -72,8 +72,8 @@ static void Wow_SetupFog(void) {
 }
 
 /* Draw the loaded terrain chunks + WMO instances using the current view/frustum. */
-static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
-    static MATRIX4 const identity = {
+static void Wow_DrawTerrainAndWmos(wowDrawStats_t *stats) {
+    static matrix4_t const identity = {
         .v = {
             1.0f, 0.0f, 0.0f, 0.0f,
             0.0f, 1.0f, 0.0f, 0.0f,
@@ -81,9 +81,9 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
             0.0f, 0.0f, 0.0f, 1.0f,
         },
     };
-    MATRIX3 normal_matrix;
+    matrix3_t normal_matrix;
     wowAdtChunk_t *chunk;
-    LPCTEXTURE bound_textures[5] = { NULL, NULL, NULL, NULL, NULL };
+    texture_t const * bound_textures[5] = { NULL, NULL, NULL, NULL, NULL };
     uint32_t texture_binds = 0;
     int bound_indoor = 0;
     bool draw_terrain = R_CvarEnabled("r_terrain", "1") && !(wow_world.wdt_flags & 0x01);
@@ -95,8 +95,8 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
     wow_terrain_shader.state.viewProjection = tr.viewDef.viewProjectionMatrix;
     wow_terrain_shader.state.model = identity;
     {
-        VECTOR3 sun_dir;
-        LPCENVIRONLIGHT sun = tr.viewDef.terrainLight.valid ? &tr.viewDef.terrainLight : NULL;
+        vector3_t sun_dir;
+        environLight_t const * sun = tr.viewDef.terrainLight.valid ? &tr.viewDef.terrainLight : NULL;
         if (sun) {
             wow_terrain_shader.state.sunDir = sun->dir;
             wow_terrain_shader.state.sunAmbient = sun->ambient;
@@ -104,8 +104,8 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
         } else {
             Wow_SunDirection(Wow_DayFraction(), &sun_dir);
             wow_terrain_shader.state.sunDir = sun_dir;
-            wow_terrain_shader.state.sunAmbient = (VECTOR3){ WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B };
-            wow_terrain_shader.state.sunDiffuse = (VECTOR3){ WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B };
+            wow_terrain_shader.state.sunAmbient = (vector3_t){ WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B };
+            wow_terrain_shader.state.sunDiffuse = (vector3_t){ WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B };
         }
     }
     wow_terrain_shader.state.normalMatrix = normal_matrix;
@@ -113,9 +113,9 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
     wow_terrain_shader.state.singleTexture = 0;
     wow_terrain_shader.state.wmoIndoor = bound_indoor;
     wow_terrain_shader.state.fogEnable = tr.viewDef.fogEnable;
-    wow_terrain_shader.state.fogColor = (VECTOR3){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
-    wow_terrain_shader.state.fogParams = (VECTOR2){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
-    wow_terrain_shader.state.fogCamera = (VECTOR3){ tr.viewDef.camerastate[0].origin.x, tr.viewDef.camerastate[0].origin.y, tr.viewDef.camerastate[0].origin.z };
+    wow_terrain_shader.state.fogColor = (vector3_t){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
+    wow_terrain_shader.state.fogParams = (vector2_t){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
+    wow_terrain_shader.state.fogCamera = (vector3_t){ tr.viewDef.camerastate[0].origin.x, tr.viewDef.camerastate[0].origin.y, tr.viewDef.camerastate[0].origin.z };
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
     R_Call(glDepthFunc, GL_LEQUAL);
@@ -135,7 +135,7 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
         Wow_BindWorldTexture(chunk->textures[2] ? chunk->textures[2] : chunk->textures[0], 2, bound_textures, &texture_binds);
         Wow_BindWorldTexture(chunk->textures[3] ? chunk->textures[3] : chunk->textures[0], 3, bound_textures, &texture_binds);
         Wow_BindWorldTexture(chunk->alpha_texture ? chunk->alpha_texture : tr.texture[TEX_WHITE], 4, bound_textures, &texture_binds);
-        wow_terrain_shader.state.alphaOrigin = (VECTOR2){ (GLfloat)chunk->alpha_index_x, (GLfloat)chunk->alpha_index_y };
+        wow_terrain_shader.state.alphaOrigin = (vector2_t){ (GLfloat)chunk->alpha_index_x, (GLfloat)chunk->alpha_index_y };
         R_ApplyShader(&wow_terrain_shader);
         R_DrawBuffer(chunk->buffer, chunk->num_vertices);
         stats->chunks++; stats->vertices += chunk->num_vertices;
@@ -147,14 +147,14 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
     wow_terrain_shader.state.singleTexture = 1;
     wow_terrain_shader.state.wmoBlendMode = 0;
     wow_terrain_shader.state.useWeightedBlend = 0;     /* constant: WMOs don't use weighted alpha blend */
-    wow_terrain_shader.state.alphaOrigin = (VECTOR2){ 0.0f, 0.0f }; /* constant: WMOs use full-texture coords */
+    wow_terrain_shader.state.alphaOrigin = (vector2_t){ 0.0f, 0.0f }; /* constant: WMOs use full-texture coords */
     {
         /* Per-WMO pre-computed data. WMOs are static so this is stable across passes. */
         enum { WMO_CACHE_MAX = 256 };
-        struct { uint32_t vis; uint64_t vis_bits; bool inside, model_batch, has_trans; MATRIX3 nm; VECTOR3 molt; } wmo_cache[WMO_CACHE_MAX];
+        struct { uint32_t vis; uint64_t vis_bits; bool inside, model_batch, has_trans; matrix3_t nm; vector3_t molt; } wmo_cache[WMO_CACHE_MAX];
         wowWmoInstance_t *wmo_ptrs[WMO_CACHE_MAX];
         int wmo_n = 0;
-        VECTOR3 cam = tr.viewDef.camerastate[0].origin;
+        vector3_t cam = tr.viewDef.camerastate[0].origin;
         for (wowWmoInstance_t *wmo = wow_world.wmos; wmo; wmo = wmo->next) {
             wmo->visible = false;
             if (wmo->visible_groups) memset(wmo->visible_groups, 0, wmo->model->num_groups);
@@ -164,8 +164,8 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
             if (!wmo->model || !wmo->model->groups) { wmo_ptrs[wmo_n++] = NULL; continue; }
             /* Cheap whole-WMO distance reject before iterating all groups. */
             if (wmo->model->has_bounds) {
-                VECTOR3 wc = Matrix4_multiply_vector3(&wmo->matrix, &wmo->model->bounds_center);
-                VECTOR3 d = Vector3_sub(&wc, &cam);
+                vector3_t wc = Matrix4_multiply_vector3(&wmo->matrix, &wmo->model->bounds_center);
+                vector3_t d = Vector3_sub(&wc, &cam);
                 if (Vector3_len(&d) - wmo->model->bounds_radius > tr.viewDef.fogEnd) {
                     wmo_ptrs[wmo_n++] = NULL; continue;
                 }
@@ -217,10 +217,10 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
                 if (wmo_pass == 1 && !wmo_cache[wi].has_trans) continue;
                 cam_inside = wmo_cache[wi].inside;
                 model_batch = wmo_cache[wi].model_batch;
-                memcpy(&wow_terrain_shader.state.model, wmo->matrix.v, (1) * sizeof(MATRIX4));
+                memcpy(&wow_terrain_shader.state.model, wmo->matrix.v, (1) * sizeof(matrix4_t));
                 wow_terrain_shader.state.normalMatrix = wmo_cache[wi].nm;
-                wow_terrain_shader.state.wmoAmbient = (VECTOR3){ wmo->model->amb_color.r / 255.0f, wmo->model->amb_color.g / 255.0f, wmo->model->amb_color.b / 255.0f };
-                wow_terrain_shader.state.wmoLightAdd = (VECTOR3){ wmo_cache[wi].molt.x, wmo_cache[wi].molt.y, wmo_cache[wi].molt.z };
+                wow_terrain_shader.state.wmoAmbient = (vector3_t){ wmo->model->amb_color.r / 255.0f, wmo->model->amb_color.g / 255.0f, wmo->model->amb_color.b / 255.0f };
+                wow_terrain_shader.state.wmoLightAdd = (vector3_t){ wmo_cache[wi].molt.x, wmo_cache[wi].molt.y, wmo_cache[wi].molt.z };
                 if (model_batch) {
                     for (wowWmoBatch_t *batch = wmo->model->batches; batch; batch = batch->next) {
                         if (!batch->buffer || !batch->num_vertices) continue;
@@ -282,15 +282,15 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
     wow_terrain_shader.state.useWeightedBlend = wow_world.use_weighted_blend ? 1 : 0;
     wow_terrain_shader.state.singleTexture = 0;
     wow_terrain_shader.state.wmoIndoor = 0;
-    wow_terrain_shader.state.wmoAmbient = (VECTOR3){ 0.0f, 0.0f, 0.0f };
-    wow_terrain_shader.state.wmoLightAdd = (VECTOR3){ 0.0f, 0.0f, 0.0f };
+    wow_terrain_shader.state.wmoAmbient = (vector3_t){ 0.0f, 0.0f, 0.0f };
+    wow_terrain_shader.state.wmoLightAdd = (vector3_t){ 0.0f, 0.0f, 0.0f };
     wow_terrain_shader.state.wmoBlendMode = 0;
 }
 
 /* Group the small visible set by static M2 so repeated trees/props share material draws. */
 static bool Wow_QueueDoodadInstance(wowDoodadInstance_t *doodad) {
     wowDoodadModel_t *group = doodad ? doodad->group : NULL;
-    MATRIX4 *matrices;
+    matrix4_t *matrices;
     uint32_t capacity;
 
     if (!group || !group->can_instance) return false;
@@ -308,22 +308,22 @@ static bool Wow_QueueDoodadInstance(wowDoodadInstance_t *doodad) {
     return true;
 }
 
-typedef struct { rect_t dst, mask, uv; LPCTEXTURE tex; } wowMinimapDraw_t;
+typedef struct { rect_t dst, mask, uv; texture_t const * tex; } wowMinimapDraw_t;
 
 /* Encode mask-local position in vertex color so every authoritative tile shares one circular fragment mask. */
 static void Wow_DrawMinimapTile(wowMinimapDraw_t const *draw) {
-    VERTEX v[6] = { 0 };
-    VECTOR2 uv[6] = { {draw->uv.x,draw->uv.y+draw->uv.h}, {draw->uv.x,draw->uv.y},
+    vertex_t v[6] = { 0 };
+    vector2_t uv[6] = { {draw->uv.x,draw->uv.y+draw->uv.h}, {draw->uv.x,draw->uv.y},
         {draw->uv.x+draw->uv.w,draw->uv.y}, {draw->uv.x,draw->uv.y+draw->uv.h},
         {draw->uv.x+draw->uv.w,draw->uv.y}, {draw->uv.x+draw->uv.w,draw->uv.y+draw->uv.h} };
-    VECTOR2 pos[6] = {
+    vector2_t pos[6] = {
         {draw->dst.x,draw->dst.y}, {draw->dst.x+draw->dst.w,draw->dst.y},
         {draw->dst.x+draw->dst.w,draw->dst.y+draw->dst.h}, {draw->dst.x,draw->dst.y},
         {draw->dst.x+draw->dst.w,draw->dst.y+draw->dst.h}, {draw->dst.x,draw->dst.y+draw->dst.h},
     };
     FOR_LOOP(i, 6) {
-        v[i].position = (VECTOR3){pos[i].x,pos[i].y,0}; v[i].texcoord = uv[i];
-        v[i].color = MAKE(COLOR32, (uint8_t)(255.0f*(pos[i].x-draw->mask.x)/draw->mask.w),
+        v[i].position = (vector3_t){pos[i].x,pos[i].y,0}; v[i].texcoord = uv[i];
+        v[i].color = MAKE(color32_t, (uint8_t)(255.0f*(pos[i].x-draw->mask.x)/draw->mask.w),
             (uint8_t)(255.0f*(pos[i].y-draw->mask.y)/draw->mask.h), 255, 255);
     }
     R_DrawImageBatch(draw->tex, SHADER_MINIMAP, BLEND_MODE_BLEND, 0, 0, false, NULL, v, 6, false);
@@ -331,7 +331,7 @@ static void Wow_DrawMinimapTile(wowMinimapDraw_t const *draw) {
 
 /* Blizzard ships an authoritative 64x64 tile atlas; crop its local 256px tiles around the camera. */
 void Wow_DrawMinimap(rect_t const * screen) {
-    VECTOR3 cam = tr.viewDef.camerastate[0].origin;
+    vector3_t cam = tr.viewDef.camerastate[0].origin;
     float r = WOW_MINIMAP_WORLD_RADIUS, x0 = cam.x - r, x1 = cam.x + r, y0 = cam.y - r, y1 = cam.y + r;
     int center_x = Wow_TileIndex(cam.y), center_y = Wow_TileIndex(cam.x);
 
@@ -365,7 +365,7 @@ void Wow_DrawMinimap(rect_t const * screen) {
 }
 
 void Wow_DrawWorld(void) {
-    WOWDRAWSTATS stats = { .collect = R_CvarEnabled("r_stats", "0") };
+    wowDrawStats_t stats = { .collect = R_CvarEnabled("r_stats", "0") };
     uint32_t doodad_bucket_count = 0;
     uint32_t doodad_candidates = 0;
     uint32_t drawn_doodads = 0;
@@ -402,7 +402,7 @@ void Wow_DrawWorld(void) {
     if (R_CvarEnabled("r_grass", "1")) Wow_DrawGrass();
 
     if (R_CvarEnabled("r_doodads", "1")) {
-        VECTOR3 camera_origin = tr.viewDef.camerastate[0].origin;
+        vector3_t camera_origin = tr.viewDef.camerastate[0].origin;
         int center_x = Wow_DoodadBucketIndex(camera_origin.x);
         int center_y = Wow_DoodadBucketIndex(camera_origin.y);
         int radius = (int)ceilf(WOW_DOODAD_DRAW_DISTANCE / WOW_DOODAD_BUCKET_SIZE) + 1;

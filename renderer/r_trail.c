@@ -1,7 +1,7 @@
 #include "renderer/r_trail.h"
 #include <string.h>
 
-int R_TrailAdvance(trail_t *trail, VECTOR3 above, VECTOR3 below, COLOR32 color,
+int R_TrailAdvance(trail_t *trail, vector3_t above, vector3_t below, color32_t color,
                    float lifespan, float rate, float gravity, uint32_t now_ms, uint32_t delta_ms)
 {
     int write, alive, e;
@@ -47,9 +47,9 @@ int R_TrailAdvance(trail_t *trail, VECTOR3 above, VECTOR3 below, COLOR32 color,
     return alive;
 }
 
-static void R_TrailQuad(trailVert_t *out, VECTOR3 a, VECTOR3 b, VECTOR3 c, VECTOR3 d,
-                        VECTOR2 uv_a, VECTOR2 uv_b, VECTOR2 uv_c, VECTOR2 uv_d,
-                        COLOR32 ca, COLOR32 cb)
+static void R_TrailQuad(trailVert_t *out, vector3_t a, vector3_t b, vector3_t c, vector3_t d,
+                        vector2_t uv_a, vector2_t uv_b, vector2_t uv_c, vector2_t uv_d,
+                        color32_t ca, color32_t cb)
 {
     out[0] = (trailVert_t){ a, uv_a, ca }; out[1] = (trailVert_t){ b, uv_b, ca };
     out[2] = (trailVert_t){ c, uv_c, cb }; out[3] = (trailVert_t){ a, uv_a, ca };
@@ -76,10 +76,10 @@ uint32_t R_TrailStripVerts(trail_t const *trail, float lifespan, uint32_t column
         float t_old = MIN(1.0f, trail->edges[a].age / lifespan);
         float t_new = MIN(1.0f, trail->edges[b].age / lifespan);
         float u0 = cell_u + t_new / cols, u1 = cell_u + t_old / cols;
-        VECTOR2 uv_above0 = { u1, cell_v };
-        VECTOR2 uv_below0 = { u1, cell_v + 1.0f / rows_f };
-        VECTOR2 uv_below1 = { u0, cell_v + 1.0f / rows_f };
-        VECTOR2 uv_above1 = { u0, cell_v };
+        vector2_t uv_above0 = { u1, cell_v };
+        vector2_t uv_below0 = { u1, cell_v + 1.0f / rows_f };
+        vector2_t uv_below1 = { u0, cell_v + 1.0f / rows_f };
+        vector2_t uv_above1 = { u0, cell_v };
         R_TrailQuad(out + used, trail->edges[a].above, trail->edges[a].below,
                     trail->edges[b].below, trail->edges[b].above,
                     uv_above0, uv_below0, uv_below1, uv_above1,

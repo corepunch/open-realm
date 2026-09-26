@@ -5,13 +5,13 @@
 #include "../g_local.h"
 
 typedef struct GameSaveSplashDialog_s {
-    LPFRAMEDEF GameSaveSplashDialog;
-    LPFRAMEDEF GameSaveSplashBackdrop;
-    LPFRAMEDEF GameSaveSplashText;
+    frameDef_t * GameSaveSplashDialog;
+    frameDef_t * GameSaveSplashBackdrop;
+    frameDef_t * GameSaveSplashText;
 } GameSaveSplashDialog_t;
 
 
-static inline bool GameSaveSplashDialog_Bind(GameSaveSplashDialog_t *out, LPFRAMEDEF bind_root) {
+static inline bool GameSaveSplashDialog_Bind(GameSaveSplashDialog_t *out, frameDef_t * bind_root) {
     bool ok = true;
     if (!out) {
         return false;

@@ -1,6 +1,6 @@
 #include "../cmath3.h"
 
-QUATERNION Quaternion_slerp(LPCQUATERNION a, LPCQUATERNION b, float t) {
+quaternion_t Quaternion_slerp(quaternion_t const * a, quaternion_t const * b, float t) {
     float ax = a->x, ay = a->y, az = a->z, aw = a->w;
     float bx = b->x, by = b->y, bz = b->z, bw = b->w;
     float omega, cosom, sinom, scale0, scale1;
@@ -21,7 +21,7 @@ QUATERNION Quaternion_slerp(LPCQUATERNION a, LPCQUATERNION b, float t) {
         scale0 = 1.0f - t;
         scale1 = t;
     }
-    return (QUATERNION) {
+    return (quaternion_t) {
         .x = scale0 * ax + scale1 * bx,
         .y = scale0 * ay + scale1 * by,
         .z = scale0 * az + scale1 * bz,
@@ -29,22 +29,22 @@ QUATERNION Quaternion_slerp(LPCQUATERNION a, LPCQUATERNION b, float t) {
     };
 }
 
-QUATERNION Quaternion_sqlerp(LPCQUATERNION a, LPCQUATERNION b, LPCQUATERNION c, LPCQUATERNION d, float t) {
-    QUATERNION temp1 = Quaternion_slerp(a, d, t);
-    QUATERNION temp2 = Quaternion_slerp(b, c, t);
+quaternion_t Quaternion_sqlerp(quaternion_t const * a, quaternion_t const * b, quaternion_t const * c, quaternion_t const * d, float t) {
+    quaternion_t temp1 = Quaternion_slerp(a, d, t);
+    quaternion_t temp2 = Quaternion_slerp(b, c, t);
     return Quaternion_slerp(&temp1, &temp2, 2 * t * (1 - t));
 }
 
-float Quaternion_dotProduct(LPCQUATERNION left, LPCQUATERNION right) {
+float Quaternion_dotProduct(quaternion_t const * left, quaternion_t const * right) {
     return left->w * right->w + left->x * right->x + left->y * right->y + left->z * right->z;
 }
 
-float Quaternion_length(LPCQUATERNION param) {
+float Quaternion_length(quaternion_t const * param) {
     return sqrt(Quaternion_dotProduct(param, param));
 }
 
-QUATERNION Quaternion_unm(LPCQUATERNION param) {
-    return Quaternion_normalized(&(QUATERNION) {
+quaternion_t Quaternion_unm(quaternion_t const * param) {
+    return Quaternion_normalized(&(quaternion_t) {
         .x = -param->x,
         .y = -param->y,
         .z = -param->z,
@@ -52,8 +52,8 @@ QUATERNION Quaternion_unm(LPCQUATERNION param) {
     });
 }
 
-QUATERNION Quaternion_normalized(LPCQUATERNION param) {
-    QUATERNION r;
+quaternion_t Quaternion_normalized(quaternion_t const * param) {
+    quaternion_t r;
     float length = Quaternion_length(param);
     if (length < EPSILON)
         return *param;
@@ -64,8 +64,8 @@ QUATERNION Quaternion_normalized(LPCQUATERNION param) {
     return r;
 }
 
-QUATERNION Quaternion_fromMatrix(LPCMATRIX4 mat) {
-    QUATERNION r;
+quaternion_t Quaternion_fromMatrix(matrix4_t const * mat) {
+    quaternion_t r;
 
     // Algorithm in Ken Shoemake's article in 1987 SIGGRAPH course notes
     // article "Quaternion Calculus and Fast Animation".
@@ -103,17 +103,17 @@ QUATERNION Quaternion_fromMatrix(LPCMATRIX4 mat) {
     return Quaternion_normalized(&r);
 }
 
-QUATERNION Quaternion_fromEuler(LPCVECTOR3 euler, ROTATIONORDER order) {
-    MATRIX4 tmp;
+quaternion_t Quaternion_fromEuler(vector3_t const * euler, ROTATIONORDER order) {
+    matrix4_t tmp;
     Matrix4_identity(&tmp);
     Matrix4_rotate(&tmp, euler, order);
     return Quaternion_fromMatrix(&tmp);
 }
 
-QUATERNION Quaternion_fromOrientation(orientation_t const *angles) {
+quaternion_t Quaternion_fromOrientation(orientation_t const *angles) {
     float cy = cosf(angles->yaw * 0.5f), sy = sinf(angles->yaw * 0.5f);
     float cp = cosf(-angles->pitch * 0.5f), sp = sinf(-angles->pitch * 0.5f);
     float cr = cosf(angles->roll * 0.5f), sr = sinf(angles->roll * 0.5f);
-    return (QUATERNION){ sr*cp*cy - cr*sp*sy, cr*sp*cy + sr*cp*sy,
+    return (quaternion_t){ sr*cp*cy - cr*sp*sy, cr*sp*cy + sr*cp*sy,
         cr*cp*sy - sr*sp*cy, cr*cp*cy + sr*sp*sy };
 }

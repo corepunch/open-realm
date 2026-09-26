@@ -5,16 +5,16 @@
 #include "../g_local.h"
 
 typedef struct LoadingSlot_s {
-    LPFRAMEDEF LoadingPlayerSlot;
-    LPFRAMEDEF LoadingPlayerSlotReadyHighlight;
-    LPFRAMEDEF LoadingPlayerSlotBackdrop;
-    LPFRAMEDEF LoadingPlayerSlotLevel;
-    LPFRAMEDEF LoadingPlayerSlotName;
-    LPFRAMEDEF LoadingPlayerSlotRace;
+    frameDef_t * LoadingPlayerSlot;
+    frameDef_t * LoadingPlayerSlotReadyHighlight;
+    frameDef_t * LoadingPlayerSlotBackdrop;
+    frameDef_t * LoadingPlayerSlotLevel;
+    frameDef_t * LoadingPlayerSlotName;
+    frameDef_t * LoadingPlayerSlotRace;
 } LoadingSlot_t;
 
 
-static inline bool LoadingSlot_Bind(LoadingSlot_t *out, LPFRAMEDEF bind_root) {
+static inline bool LoadingSlot_Bind(LoadingSlot_t *out, frameDef_t * bind_root) {
     bool ok = true;
     if (!out) {
         return false;

@@ -6,12 +6,12 @@
 #define BZ_AMED MAKEFOURCC('A','m','e','d')
 #define BZ_AMTC MAKEFOURCC('A','m','t','c')
 
-static void cargo_unload_all(LPEDICT transport);
+static void cargo_unload_all(edict_t * transport);
 static umove_t cargo_move_unload = { "stand", cargo_unload_all, NULL, CAbilityCargoDrop };
 
 /* Cargo abilities are data-driven per holder. Do not cache one global
  * capacity: Acar/Abun/Aenc and custom aliases can coexist in one map. */
-static uint32_t cargo_actor_ability_alias(LPEDICT ent, uint32_t base_code) {
+static uint32_t cargo_actor_ability_alias(edict_t * ent, uint32_t base_code) {
     char alias[5] = {0};
 
     if (!ent) return 0;
@@ -32,7 +32,7 @@ static uint32_t cargo_actor_ability_alias(LPEDICT ent, uint32_t base_code) {
     return 0;
 }
 
-static uint32_t cargo_living_hold_alias(LPEDICT transport) {
+static uint32_t cargo_living_hold_alias(edict_t * transport) {
     static uint32_t const bases[] = {
         MAKEFOURCC('A','b','u','n'),
         MAKEFOURCC('A','c','a','r'),
@@ -46,13 +46,13 @@ static uint32_t cargo_living_hold_alias(LPEDICT transport) {
     return 0;
 }
 
-static uint32_t cargo_hold_alias(LPEDICT transport) {
+static uint32_t cargo_hold_alias(edict_t * transport) {
     uint32_t alias = cargo_living_hold_alias(transport);
     if (alias) return alias;
     return cargo_actor_ability_alias(transport, BZ_AMTC);
 }
 
-uint32_t S_CargoCapacity(LPEDICT transport) {
+uint32_t S_CargoCapacity(edict_t * transport) {
     uint32_t const alias = cargo_hold_alias(transport);
     float authored;
 
@@ -62,13 +62,13 @@ uint32_t S_CargoCapacity(LPEDICT transport) {
     return MIN((uint32_t)authored, (uint32_t)MAX_CARGO);
 }
 
-static bool cargo_has_capacity(LPEDICT transport, uint32_t needed) {
+static bool cargo_has_capacity(edict_t * transport, uint32_t needed) {
     uint32_t const capacity = S_CargoCapacity(transport);
     return capacity > 0 && transport->cargo.count + needed <= capacity &&
            transport->cargo.count + needed <= MAX_CARGO;
 }
 
-bool S_CargoIsBurrow(LPEDICT transport) {
+bool S_CargoIsBurrow(edict_t * transport) {
     return cargo_actor_ability_alias(transport, MAKEFOURCC('A','b','u','n')) != 0;
 }
 
@@ -77,19 +77,19 @@ BZ_ABILITY_PROC(CAbilityCargoHold) {
     return CAbilityPassive(ent, msg, call);
 }
 
-bool S_CargoIsCorpseHolder(LPEDICT transport) {
+bool S_CargoIsCorpseHolder(edict_t * transport) {
     return cargo_actor_ability_alias(transport, BZ_AMTC) != 0;
 }
 
-bool S_CorpseCargoIsStored(LPCEDICT unit) {
+bool S_CorpseCargoIsStored(edict_t const * unit) {
     return unit && (unit->aiflags & AI_CORPSE_IN_CARGO) != 0;
 }
 
 /* Stored corpse edicts keep their identity and decay state, but corpse-fed
  * abilities treat them as physically present at their current holder.  Do not
  * rely on the hidden edict's stale pre-load origin after the Wagon moves. */
-bool S_CorpseCargoPosition(LPCEDICT corpse, LPVECTOR2 out) {
-    LPEDICT transport;
+bool S_CorpseCargoPosition(edict_t const * corpse, vector2_t * out) {
+    edict_t * transport;
 
     if (!corpse || !out) return false;
     *out = corpse->s.origin2;
@@ -101,7 +101,7 @@ bool S_CorpseCargoPosition(LPCEDICT corpse, LPVECTOR2 out) {
 }
 
 /* Identify Entangled Mines so their cargo count can drive the authored model animation. */
-static bool cargo_is_entangled_mine(LPEDICT transport) {
+static bool cargo_is_entangled_mine(edict_t * transport) {
     return cargo_actor_ability_alias(transport, MAKEFOURCC('A','e','g','m')) != 0;
 }
 
@@ -112,7 +112,7 @@ static cstring_t cargo_count_animation_tag(uint32_t count) {
 }
 
 /* Replace the previous cargo-count animation tag after a Wisp enters or leaves. */
-static void cargo_update_entangled_animation(LPEDICT transport, uint32_t old_count) {
+static void cargo_update_entangled_animation(edict_t * transport, uint32_t old_count) {
     cstring_t old_tag, new_tag;
 
     if (!transport || !cargo_is_entangled_mine(transport)) return;
@@ -122,13 +122,13 @@ static void cargo_update_entangled_animation(LPEDICT transport, uint32_t old_cou
     if (new_tag) G_AddUnitAnimationProperties(transport, new_tag, true);
 }
 
-bool S_CargoAttacksEnabled(LPCEDICT ent) {
+bool S_CargoAttacksEnabled(edict_t const * ent) {
     if (!ent) return false;
-    if (!S_CargoIsBurrow((LPEDICT)ent)) return true;
+    if (!S_CargoIsBurrow((edict_t *)ent)) return true;
     return ent->cargo.count > 0;
 }
 
-static void cargo_update_burrow_attacks(LPEDICT transport) {
+static void cargo_update_burrow_attacks(edict_t * transport) {
     UnitWeapons_t const *weapons;
     float divisor;
 
@@ -141,7 +141,7 @@ static void cargo_update_burrow_attacks(LPEDICT transport) {
         transport->attack2.cooldown = weapons->attack2.cooldown / divisor;
 }
 
-void S_CargoInitUnit(LPEDICT unit) {
+void S_CargoInitUnit(edict_t * unit) {
     if (!unit) return;
     /* Empty Burrows retain authored weapon data for HUD/upgrades but combat
      * gates attacks through S_CargoAttacksEnabled(). */
@@ -150,7 +150,7 @@ void S_CargoInitUnit(LPEDICT unit) {
         cargo_update_entangled_animation(unit, 0);
 }
 
-static void cargo_add_unit(LPEDICT transport, LPEDICT unit) {
+static void cargo_add_unit(edict_t * transport, edict_t * unit) {
     uint32_t old_count;
 
     if (!transport || !unit || !cargo_has_capacity(transport, 1)) return;
@@ -174,8 +174,8 @@ static void cargo_add_unit(LPEDICT transport, LPEDICT unit) {
     G_InvalidateCommands(G_GetPlayerClientByNumber(transport->s.player));
 }
 
-static void cargo_place_unloaded_unit(LPEDICT transport, LPEDICT unit) {
-    VECTOR2 position;
+static void cargo_place_unloaded_unit(edict_t * transport, edict_t * unit) {
+    vector2_t position;
 
     if (!transport || !unit) return;
     if (!G_FindUnitUnstuckPosition(unit, &transport->s.origin2, &position))
@@ -185,8 +185,8 @@ static void cargo_place_unloaded_unit(LPEDICT transport, LPEDICT unit) {
     gi.LinkEntity(unit);
 }
 
-static LPEDICT cargo_drop_unit(LPEDICT transport, uint32_t index) {
-    LPEDICT unit;
+static edict_t * cargo_drop_unit(edict_t * transport, uint32_t index) {
+    edict_t * unit;
     uint32_t old_count;
 
     if (!transport || index >= transport->cargo.count) return NULL;
@@ -219,21 +219,21 @@ static LPEDICT cargo_drop_unit(LPEDICT transport, uint32_t index) {
     return unit;
 }
 
-LPEDICT S_CargoUnitAt(LPCEDICT transport, uint32_t index) {
+edict_t * S_CargoUnitAt(edict_t const * transport, uint32_t index) {
     if (!transport || index >= transport->cargo.count) return NULL;
     return transport->cargo.units[index];
 }
 
-bool S_CargoUnloadAt(LPEDICT transport, uint32_t index) {
+bool S_CargoUnloadAt(edict_t * transport, uint32_t index) {
     return cargo_drop_unit(transport, index) != NULL;
 }
 
-void cargo_drop_all(LPEDICT transport) {
+void cargo_drop_all(edict_t * transport) {
     while (transport && transport->cargo.count > 0)
         cargo_drop_unit(transport, transport->cargo.count - 1);
 }
 
-static uint32_t cargo_unload_interval_ms(LPEDICT transport) {
+static uint32_t cargo_unload_interval_ms(edict_t * transport) {
     uint32_t const alias = cargo_hold_alias(transport);
     abilityLevel_t const *level = alias ? G_AbilityLevel(alias, 1) : NULL;
     float const seconds = level ? MAX(0.0f, level->dur) : 0.0f;
@@ -247,7 +247,7 @@ static uint32_t cargo_unload_interval_ms(LPEDICT transport) {
 /* Unloading is the active order, so Stop/Move/death replace it and the
  * normal monster scheduler suspends it during pause/stun. An independent
  * thinker used to keep ejecting passengers after the order was cancelled. */
-static void cargo_unload_all(LPEDICT transport) {
+static void cargo_unload_all(edict_t * transport) {
     if (M_IsDead(transport)) return;
     if (transport->cargo.count == 0) { unit_stand(transport); return; }
     if (G_Time() < transport->freetime) return;
@@ -256,7 +256,7 @@ static void cargo_unload_all(LPEDICT transport) {
     else transport->freetime = G_Time() + cargo_unload_interval_ms(transport);
 }
 
-bool S_CargoBeginUnloadAll(LPEDICT transport) {
+bool S_CargoBeginUnloadAll(edict_t * transport) {
     if (!transport || !transport->inuse || !transport->cargo.count || M_IsDead(transport) ||
         transport->paused || transport->stunned || !cargo_living_hold_alias(transport)) return false;
     if (transport->currentmove == &cargo_move_unload) return true;
@@ -267,7 +267,7 @@ bool S_CargoBeginUnloadAll(LPEDICT transport) {
     return true;
 }
 
-LPEDICT S_CargoTransportForUnit(LPCEDICT unit) {
+edict_t * S_CargoTransportForUnit(edict_t const * unit) {
     if (!unit) return NULL;
     FILTER_EDICTS(transport, transport->inuse && transport->cargo.count > 0) {
         FOR_LOOP(i, transport->cargo.count) {
@@ -278,8 +278,8 @@ LPEDICT S_CargoTransportForUnit(LPCEDICT unit) {
 }
 
 /* Release a worker from its transport before the worker edict is removed or retasked. */
-void S_CargoReleaseUnit(LPEDICT unit) {
-    LPEDICT transport;
+void S_CargoReleaseUnit(edict_t * unit) {
+    edict_t * transport;
 
     if (!unit || !(transport = S_CargoTransportForUnit(unit))) return;
     FOR_LOOP(i, transport->cargo.count) {
@@ -292,7 +292,7 @@ void S_CargoReleaseUnit(LPEDICT unit) {
 
 /* ---- Load (Aloa): load a unit into a transport -------------------------- */
 
-static bool cargo_load_type_allowed(LPEDICT transport, LPEDICT target) {
+static bool cargo_load_type_allowed(edict_t * transport, edict_t * target) {
     uint32_t const load_alias = cargo_actor_ability_alias(transport, MAKEFOURCC('A','l','o','a'));
     uint32_t const battle_alias = cargo_actor_ability_alias(transport, MAKEFOURCC('A','b','t','l'));
     uint32_t allowed = load_alias ? G_AbilityLevel(load_alias, 1)->unitID : 0;
@@ -303,17 +303,17 @@ static bool cargo_load_type_allowed(LPEDICT transport, LPEDICT target) {
     return !allowed || target->class_id == allowed;
 }
 
-static bool cargo_load_target_allowed(LPEDICT transport, LPEDICT target) {
+static bool cargo_load_target_allowed(edict_t * transport, edict_t * target) {
     uint32_t const hold_alias = cargo_hold_alias(transport);
     return !hold_alias || S_SpellAllowsTarget(hold_alias, transport, target);
 }
 
-static float cargo_load_range(LPEDICT transport) {
+static float cargo_load_range(edict_t * transport) {
     uint32_t const hold_alias = cargo_hold_alias(transport);
     return hold_alias ? MAX(0.0f, G_AbilityLevel(hold_alias, 1)->range) : 0.0f;
 }
 
-static bool cargo_target_in_range(LPEDICT transport, LPEDICT target) {
+static bool cargo_target_in_range(edict_t * transport, edict_t * target) {
     float const range = cargo_load_range(transport);
     float footprint;
 
@@ -326,7 +326,7 @@ static bool cargo_target_in_range(LPEDICT transport, LPEDICT target) {
            range + transport->collision + target->collision;
 }
 
-static bool corpse_cargo_target_valid(LPEDICT transport, LPEDICT target) {
+static bool corpse_cargo_target_valid(edict_t * transport, edict_t * target) {
     uint32_t alias;
 
     if (!transport || !target || !S_CargoIsCorpseHolder(transport) ||
@@ -337,7 +337,7 @@ static bool corpse_cargo_target_valid(LPEDICT transport, LPEDICT target) {
     return alias && S_SpellAllowsCorpseTarget(alias, transport, target);
 }
 
-bool S_CargoTryLoad(LPEDICT transport, LPEDICT target) {
+bool S_CargoTryLoad(edict_t * transport, edict_t * target) {
     if (!transport || !target || target == transport || M_IsDead(transport) || M_IsDead(target)) return false;
     if (target->s.player != transport->s.player) return false;
     /* Amtc is the Meat Wagon corpse hold, not a normal transport hold.  Keep
@@ -352,7 +352,7 @@ bool S_CargoTryLoad(LPEDICT transport, LPEDICT target) {
     return S_CargoTransportForUnit(target) == transport;
 }
 
-bool S_CorpseCargoTryLoad(LPEDICT transport, LPEDICT target) {
+bool S_CorpseCargoTryLoad(edict_t * transport, edict_t * target) {
     umove_t *move;
     float wait;
 
@@ -366,8 +366,8 @@ bool S_CorpseCargoTryLoad(LPEDICT transport, LPEDICT target) {
     return S_CargoTransportForUnit(target) == transport;
 }
 
-static LPEDICT corpse_cargo_nearest(LPEDICT transport, float max_distance) {
-    LPEDICT nearest = NULL;
+static edict_t * corpse_cargo_nearest(edict_t * transport, float max_distance) {
+    edict_t * nearest = NULL;
     float best = FLT_MAX;
 
     if (!transport) return NULL;
@@ -379,16 +379,16 @@ static LPEDICT corpse_cargo_nearest(LPEDICT transport, float max_distance) {
     return nearest;
 }
 
-static void corpse_cargo_approach_cancel(LPEDICT thinker) {
-    LPEDICT transport = thinker ? thinker->owner : NULL;
+static void corpse_cargo_approach_cancel(edict_t * thinker) {
+    edict_t * transport = thinker ? thinker->owner : NULL;
     if (transport && transport->inuse && transport->goalentity == thinker->goalentity &&
         move_is_active_order_walk(transport)) unit_stand(transport);
     if (thinker) G_FreeEdict(thinker);
 }
 
-void corpse_cargo_approach_think(LPEDICT thinker) {
-    LPEDICT transport = thinker ? thinker->owner : NULL;
-    LPEDICT corpse = thinker ? thinker->goalentity : NULL;
+void corpse_cargo_approach_think(edict_t * thinker) {
+    edict_t * transport = thinker ? thinker->owner : NULL;
+    edict_t * corpse = thinker ? thinker->goalentity : NULL;
 
     if (!thinker || !transport || !transport->inuse || M_IsDead(transport) ||
         !corpse || !corpse->inuse || corpse->spawn_time != thinker->channel.target_spawn_time ||
@@ -412,8 +412,8 @@ void corpse_cargo_approach_think(LPEDICT thinker) {
     }
 }
 
-static bool corpse_cargo_start(LPEDICT transport, LPEDICT corpse, uint32_t code) {
-    LPEDICT thinker;
+static bool corpse_cargo_start(edict_t * transport, edict_t * corpse, uint32_t code) {
+    edict_t * thinker;
 
     if (!transport || !corpse || !corpse_cargo_target_valid(transport, corpse)) return false;
     if (cargo_target_in_range(transport, corpse)) return S_CorpseCargoTryLoad(transport, corpse);
@@ -429,8 +429,8 @@ static bool corpse_cargo_start(LPEDICT transport, LPEDICT corpse, uint32_t code)
     return true;
 }
 
-static bool corpse_cargo_command(LPEDICT clent) {
-    LPEDICT transport, corpse;
+static bool corpse_cargo_command(edict_t * clent) {
+    edict_t * transport, *corpse;
     uint32_t code;
 
     if (!clent || !clent->client || !(transport = G_GetMainSelectedUnit(clent->client)) ||
@@ -439,9 +439,9 @@ static bool corpse_cargo_command(LPEDICT clent) {
     return corpse_cargo_start(transport, corpse, code ? code : BZ_AMEL);
 }
 
-static bool corpse_cargo_autocast_acquire(LPEDICT transport, uint32_t code) {
+static bool corpse_cargo_autocast_acquire(edict_t * transport, uint32_t code) {
     float radius;
-    LPEDICT corpse;
+    edict_t * corpse;
 
     if (!transport || M_IsDead(transport) || transport->cargo.count >= S_CargoCapacity(transport)) return false;
     radius = G_AcquisitionRange(transport);
@@ -450,8 +450,8 @@ static bool corpse_cargo_autocast_acquire(LPEDICT transport, uint32_t code) {
     return corpse && corpse_cargo_start(transport, corpse, code);
 }
 
-static bool load_selecttarget(LPEDICT clent, LPEDICT target) {
-    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
+static bool load_selecttarget(edict_t * clent, edict_t * target) {
+    edict_t * caster = G_GetMainSelectedUnit(clent->client);
     if (clent->client->menu.ability_code == BZ_AMEL)
         return S_CorpseCargoTryLoad(caster, target);
     return S_CargoTryLoad(caster, target);
@@ -463,7 +463,7 @@ BZ_ABILITY_PROC(CAbilityCargoLoad) {
 
     switch (msg) {
     case A_COMMAND: {
-        LPEDICT clent = call && call->client ? call->client : ent;
+        edict_t * clent = call && call->client ? call->client : ent;
         if (corpse_load) {
             if (clent && clent->client) {
                 clent->client->menu.on_entity_selected = NULL;
@@ -489,11 +489,11 @@ BZ_ABILITY_PROC(CAbilityCargoLoad) {
 
 /* ---- Battle Stations (Abtl): call nearby allowed units into cargo -------- */
 
-static uint32_t battlestations_alias(LPEDICT transport) {
+static uint32_t battlestations_alias(edict_t * transport) {
     return cargo_actor_ability_alias(transport, MAKEFOURCC('A','b','t','l'));
 }
 
-static bool cargo_board_target_valid(LPEDICT unit, LPEDICT transport) {
+static bool cargo_board_target_valid(edict_t * unit, edict_t * transport) {
     if (!unit || !transport || unit == transport || M_IsDead(unit) || M_IsDead(transport)) return false;
     if (unit->paused || transport->paused || unit->s.player != transport->s.player) return false;
     if (!cargo_living_hold_alias(transport) || !cargo_has_capacity(transport, 1)) return false;
@@ -502,8 +502,8 @@ static bool cargo_board_target_valid(LPEDICT unit, LPEDICT transport) {
     return cargo_load_target_allowed(transport, unit);
 }
 
-static bool cargo_prepare_board_approach(LPEDICT unit, LPEDICT transport) {
-    VECTOR2 approach;
+static bool cargo_prepare_board_approach(edict_t * unit, edict_t * transport) {
+    vector2_t approach;
     float const interaction_range = unit->collision + cargo_load_range(transport);
 
     if (!unit || !transport) return false;
@@ -520,7 +520,7 @@ static bool cargo_prepare_board_approach(LPEDICT unit, LPEDICT transport) {
     return true;
 }
 
-static void cargo_board_cancel(LPEDICT unit) {
+static void cargo_board_cancel(edict_t * unit) {
     if (!unit) return;
     unit->goalentity = NULL;
     unit->secondarygoal = NULL;
@@ -528,8 +528,8 @@ static void cargo_board_cancel(LPEDICT unit) {
     unit_stand(unit);
 }
 
-static void ai_cargo_board_walk(LPEDICT unit) {
-    LPEDICT transport = unit ? unit->secondarygoal : NULL;
+static void ai_cargo_board_walk(edict_t * unit) {
+    edict_t * transport = unit ? unit->secondarygoal : NULL;
     float distance, step;
 
     if (!cargo_board_target_valid(unit, transport)) {
@@ -562,7 +562,7 @@ static void ai_cargo_board_walk(LPEDICT unit) {
 
 static umove_t battlestations_move_walk = { "walk", ai_cargo_board_walk, NULL, CAbilityBattlestations };
 
-bool S_CargoOrderBoard(LPEDICT unit, LPEDICT transport) {
+bool S_CargoOrderBoard(edict_t * unit, edict_t * transport) {
     if (!cargo_board_target_valid(unit, transport)) return false;
     if (cargo_target_in_range(transport, unit)) return S_CargoTryLoad(transport, unit);
     G_ClearUnitOrderQueue(unit);
@@ -581,7 +581,7 @@ static bool battlestations_busy_allowed(uint32_t alias) {
     return alias && G_AbilityLevel(alias, 1)->data[0].number != 0.0f;
 }
 
-static bool battlestations_candidate(LPEDICT transport, LPEDICT unit, uint32_t alias, uint32_t allowed_type, float area) {
+static bool battlestations_candidate(edict_t * transport, edict_t * unit, uint32_t alias, uint32_t allowed_type, float area) {
     if (!cargo_board_target_valid(unit, transport)) return false;
     if (allowed_type && unit->class_id != allowed_type) return false;
     if (!S_SpellAllowsTarget(alias, transport, unit)) return false;
@@ -589,7 +589,7 @@ static bool battlestations_candidate(LPEDICT transport, LPEDICT unit, uint32_t a
     return Vector2_distance(&transport->s.origin2, &unit->s.origin2) <= area;
 }
 
-static uint32_t battlestations_collect(LPEDICT transport, LPEDICT *out, uint32_t max_count) {
+static uint32_t battlestations_collect(edict_t * transport, edict_t * *out, uint32_t max_count) {
     uint32_t const alias = battlestations_alias(transport);
     uint32_t const allowed_type = alias ? G_AbilityLevel(alias, 1)->unitID : 0;
     float const area = alias ? MAX(0.0f, G_AbilityLevel(alias, 1)->area) : 0.0f;
@@ -620,8 +620,8 @@ static uint32_t battlestations_collect(LPEDICT transport, LPEDICT *out, uint32_t
 }
 
 BZ_COMMAND_PROC(AbilityBattlestations) {
-    LPEDICT transport = G_GetMainSelectedUnit(clent->client);
-    LPEDICT candidates[MAX_CARGO];
+    edict_t * transport = G_GetMainSelectedUnit(clent->client);
+    edict_t * candidates[MAX_CARGO];
     uint32_t capacity, free_slots, count;
 
     if (!transport || !S_CargoIsBurrow(transport)) return;
@@ -635,8 +635,8 @@ BZ_COMMAND_PROC(AbilityBattlestations) {
 
 /* ---- Drop (Adro): drop cargo at a point --------------------------------- */
 
-static bool drop_selectlocation(LPEDICT clent, LPCVECTOR2 point) {
-    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
+static bool drop_selectlocation(edict_t * clent, vector2_t const * point) {
+    edict_t * caster = G_GetMainSelectedUnit(clent->client);
     (void)point;
 
     if (!caster || caster->cargo.count == 0) return false;
@@ -650,7 +650,7 @@ static bool drop_selectlocation(LPEDICT clent, LPCVECTOR2 point) {
     return S_CargoBeginUnloadAll(caster);
 }
 
-static void drop_command(LPEDICT clent) {
+static void drop_command(edict_t * clent) {
     UI_AddCancelButton(clent);
     clent->client->menu.on_location_selected = drop_selectlocation;
 }
@@ -659,7 +659,7 @@ BZ_COMMAND_PROC(AbilityCargoDrop) { drop_command(clent); }
 
 /* ---- Drop Instant (Adri): unload every occupant immediately ------------- */
 BZ_COMMAND_PROC(AbilityCargoDropInstant) {
-    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
+    edict_t * caster = G_GetMainSelectedUnit(clent->client);
     if (!caster || caster->cargo.count == 0) return;
     /* Retire timed unloading before a new passenger can board this frame. */
     order_stop(caster);
@@ -668,7 +668,7 @@ BZ_COMMAND_PROC(AbilityCargoDropInstant) {
 }
 
 /* ---- Stand Down (Astd): stop combat, then unload all Burrow occupants --- */
-void S_CargoStandDown(LPEDICT caster) {
+void S_CargoStandDown(edict_t * caster) {
     if (!caster || !S_CargoIsBurrow(caster)) return;
 
     /* Stand Down is also the authoritative exit from the occupied Burrow
@@ -682,7 +682,7 @@ void S_CargoStandDown(LPEDICT caster) {
 }
 
 BZ_COMMAND_PROC(AbilityStandDown) {
-    LPEDICT caster = G_GetMainSelectedUnit(clent->client);
+    edict_t * caster = G_GetMainSelectedUnit(clent->client);
     if (!caster || !S_CargoIsBurrow(caster)) return;
     S_CargoStandDown(caster);
     Get_Commands_f(clent);

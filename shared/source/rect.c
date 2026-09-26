@@ -1,6 +1,6 @@
 #include "../cmath3.h"
 
-int Rect_contains(rect_t const * rect, LPCVECTOR2 point) {
+int Rect_contains(rect_t const * rect, vector2_t const * point) {
     if (rect->x > point->x) return 0;
     if (rect->y > point->y) return 0;
     if (rect->x + rect->w <= point->x) return 0;
@@ -29,8 +29,8 @@ rect_t Rect_inset(rect_t const * rect, float inset) {
     };
 }
 
-VECTOR2 Rect_center(rect_t const * rect) {
-    VECTOR2 const center = {
+vector2_t Rect_center(rect_t const * rect) {
+    vector2_t const center = {
         rect->x + rect->w * 0.5f,
         rect->y + rect->h * 0.5f,
     };

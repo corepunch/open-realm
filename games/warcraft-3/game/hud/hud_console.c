@@ -198,7 +198,7 @@ void UI_TestFormatUpkeepLegend(string_t out, uint32_t out_size, cstring_t info, 
 }
 #endif
 
-static void UI_SetResourceTooltip(LPFRAMEDEF frame, resourceTooltipText_t *storage,
+static void UI_SetResourceTooltip(frameDef_t * frame, resourceTooltipText_t *storage,
                                   cstring_t label_key, cstring_t label_fallback,
                                   cstring_t ubertip_key) {
     cstring_t label;
@@ -216,7 +216,7 @@ static void UI_SetResourceTooltip(LPFRAMEDEF frame, resourceTooltipText_t *stora
     frame->Ubertip = storage->ubertip[0] ? storage->ubertip : NULL;
 }
 
-static void UI_SetUpkeepTooltip(LPFRAMEDEF frame, resourceTooltipText_t *storage,
+static void UI_SetUpkeepTooltip(frameDef_t * frame, resourceTooltipText_t *storage,
                                 uint32_t tier, int32_t gold_rate) {
     cstring_t upkeep_label;
     cstring_t upkeep_prefix;
@@ -242,7 +242,7 @@ static void UI_SetUpkeepTooltip(LPFRAMEDEF frame, resourceTooltipText_t *storage
 static void UI_CollectConsoleWideChrome(void) {
     hud.console_wide_count = 0;
     FOR_LOOP(i, MAX_UI_CLASSES) {
-        LPFRAMEDEF it = frames + i;
+        frameDef_t * it = frames + i;
         if (!it->inuse || it->Parent != hud.console.ConsoleUI || it->Type != FT_TEXTURE) continue;
         if (!UI_IsWideChromeKey(UI_ImageKey(it->Texture.Image))) continue;
         if (hud.console_wide_count == HUD_CONSOLE_WIDE_MAX) {
@@ -288,7 +288,7 @@ void UI_LoadHudConsole(void) {
     hud.res.ResourceBarSupplyText->Stat = PLAYERSTATE_RESOURCE_FOOD_USED;
 }
 
-static void UI_WriteTimeOfDayIndicator(LPGAMECLIENT client) {
+static void UI_WriteTimeOfDayIndicator(gameClient_t * client) {
     uiFrame_t frame;
     uiFrame_t listener;
     cstring_t model;
@@ -335,7 +335,7 @@ static void UI_WriteTimeOfDayIndicator(LPGAMECLIENT client) {
 }
 
 /* Native attention art has no FDF frame; anchor its authored model to the real button. */
-static void UI_WriteQuestIndicator(LPGAMECLIENT client) {
+static void UI_WriteQuestIndicator(gameClient_t * client) {
     uint32_t parent = UI_GetWrittenFrameNumber(hud.upper.UpperButtonBarQuestsButton);
     cstring_t model;
     uiFrame_t frame = { .flags.type = FT_SPRITE, .color = COLOR32_WHITE, .text = "Stand" };
@@ -367,10 +367,10 @@ void UI_WriteMinimapFrame(void) {
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
-void UI_WriteConsoleBackdrop(LPGAMECLIENT client, int32_t food_used, int32_t food_cap) {
+void UI_WriteConsoleBackdrop(gameClient_t * client, int32_t food_used, int32_t food_cap) {
     uint32_t upkeep_tier;
     cstring_t upkeep_text;
-    COLOR32 upkeep_color;
+    color32_t upkeep_color;
     int32_t gold_rate;
 
     /* Keep symbolic DecorateFileNames keys in the payload; the local WC3 UI
@@ -382,7 +382,7 @@ void UI_WriteConsoleBackdrop(LPGAMECLIENT client, int32_t food_used, int32_t foo
     }
 
     if (hud.upper.UpperButtonBarFrame) {
-        LPFRAMEDEF buttons[] = {
+        frameDef_t * buttons[] = {
             hud.upper.UpperButtonBarQuestsButton,
             hud.upper.UpperButtonBarMenuButton,
             hud.upper.UpperButtonBarAlliesButton,
@@ -395,13 +395,13 @@ void UI_WriteConsoleBackdrop(LPGAMECLIENT client, int32_t food_used, int32_t foo
 
     upkeep_tier = G_GetPlayerUpkeepTier(client);
     upkeep_text = UI_UpkeepLabel(upkeep_tier);
-    upkeep_color = upkeep_tier > 1 ? MAKE(COLOR32, 255, 64, 64, 255)
-                 : upkeep_tier == 1 ? MAKE(COLOR32, 255, 200, 64, 255)
-                                    : MAKE(COLOR32, 96, 255, 96, 255);
+    upkeep_color = upkeep_tier > 1 ? MAKE(color32_t, 255, 64, 64, 255)
+                 : upkeep_tier == 1 ? MAKE(color32_t, 255, 200, 64, 255)
+                                    : MAKE(color32_t, 96, 255, 96, 255);
     UI_SetText(hud.res.ResourceBarUpkeepText, "%s", upkeep_text);
     hud.res.ResourceBarUpkeepText->Font.Color = upkeep_color;
     hud.res.ResourceBarSupplyText->Font.Color = food_used > food_cap
-        ? MAKE(COLOR32, 255, 64, 64, 255)
+        ? MAKE(color32_t, 255, 64, 64, 255)
         : COLOR32_WHITE;
 
     /* Resource-bar tooltip listeners follow these named value frames. Their

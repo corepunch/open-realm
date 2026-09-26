@@ -1,8 +1,8 @@
 #include "s_skills.h"
 
-static void ai_patrol_walk(LPEDICT ent) {
+static void ai_patrol_walk(edict_t * ent) {
     if (G_ShouldAcquireThisFrame(ent)) {
-        LPEDICT enemy = G_FindNearestEnemy(ent, G_AcquisitionRange(ent));
+        edict_t * enemy = G_FindNearestEnemy(ent, G_AcquisitionRange(ent));
         if (enemy) {
             order_attack(ent, enemy);
             return;
@@ -25,7 +25,7 @@ static void ai_patrol_walk(LPEDICT ent) {
 
 static umove_t patrol_move_walk = { "walk", ai_patrol_walk, NULL, CAbilityPatrol };
 
-void order_patrol_resume(LPEDICT self) {
+void order_patrol_resume(edict_t * self) {
     if (S_GoldMineWorkerIsInside(self))
         return;
     self->goalentity = self->movement.patrol_target;
@@ -33,7 +33,7 @@ void order_patrol_resume(LPEDICT self) {
     unit_setmove(self, &patrol_move_walk);
 }
 
-void order_patrol(LPEDICT self, LPEDICT b) {
+void order_patrol(edict_t * self, edict_t * b) {
     if (S_GoldMineWorkerIsInside(self))
         return;
     self->movement.attackmove_waypoint = NULL;
@@ -45,14 +45,14 @@ void order_patrol(LPEDICT self, LPEDICT b) {
     order_patrol_resume(self);
 }
 
-static bool patrol_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
+static bool patrol_selectlocation(edict_t * clent, vector2_t const * location) {
     bool any = false;
 
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
         if ((ent->aiflags & AI_IMMOBILE) || ent->data.UnitBalance->speed <= 0) {
             continue;
         }
-        VECTOR2 target = *location;
+        vector2_t target = *location;
         CM_ClosestPathablePointForRadiusFlags(location, ent->collision, M_UnitStaticPathingFlags(ent), &target);
         order_patrol(ent, Waypoint_add(&target));
         any = true;

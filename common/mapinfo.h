@@ -64,7 +64,7 @@ typedef struct mapPlayer_s {
     playerRace_t playerRace;
     uint32_t flags;
     string_t playerName;
-    VECTOR2 startingPosition;
+    vector2_t startingPosition;
     uint32_t allyLowPrioritiesFlags; // (bit "x"=1 -> set for player "x")
     uint32_t allyHighPrioritiesFlags; // (bit "x"=1 -> set for player "x")
     uint32_t enemyLowPrioritiesFlags; // 1.32+
@@ -177,7 +177,7 @@ typedef enum {
 } unitModificationType_t;
 
 typedef struct {
-    BOX2 bounds;
+    box2_t bounds;
     uint32_t weatherID;
 } mapWeatherRegion_t;
 
@@ -227,11 +227,11 @@ struct mapInfo_s {
     float fogStartZ; // TFT+
     float fogEndZ; // TFT+
     float fogDensity; // TFT+
-    COLOR32 fogColor; // TFT+
+    color32_t fogColor; // TFT+
     uint32_t weatherID; // TFT+
     string_t soundEnvironment; // TFT+
     uint8_t lightEnvironmentTileset; // TFT+
-    COLOR32 waterColor; // TFT+
+    color32_t waterColor; // TFT+
     uint32_t scriptType; // format 28+
     uint32_t supportedModes; // format 31+
     uint32_t gameDataVersion; // format 31+

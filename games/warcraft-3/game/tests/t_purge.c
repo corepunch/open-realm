@@ -8,10 +8,10 @@
 #define BZ_BPRG MAKEFOURCC('B', 'p', 'r', 'g') // rawcode; Purge slow/pause buff
 #define BZ_AUAN MAKEFOURCC('A', 'U', 'a', 'n') // rawcode; Animate Dead
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-void unit_stand(LPEDICT self);
+void unit_stand(edict_t * self);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
 
@@ -36,14 +36,14 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
 	slkTestData_t *rows, *old;
-	LPEDICT caster, enemy;
-} PURGEFIX;
+	edict_t * caster, *enemy;
+} purgeFix_t;
 
-static PURGEFIX purge_setup(cstring_t slk, uint32_t code) {
-	PURGEFIX fix;
+static purgeFix_t purge_setup(cstring_t slk, uint32_t code) {
+	purgeFix_t fix;
 	reset_entities(); setup_test_world(); level.time = 1000;
-	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	memset(level.alliances, 0, sizeof(level.alliances));
 	fix.rows = parse_slk_string(slk); fix.old = G_SetSLKRows("AbilityData", fix.rows);
 	fix.caster = alloc_test_unit(MAKEFOURCC('o','s','h','m'), 0, 0);
@@ -58,7 +58,7 @@ static PURGEFIX purge_setup(cstring_t slk, uint32_t code) {
 	return fix;
 }
 
-static void purge_done(PURGEFIX fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
+static void purge_done(purgeFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
 
 TEST(wc3_spell, purge_aliases_share_procedure) {
 	T_EQ(S_AbilityItem(BZ_APRG).ability->proc, CAbilityPurge);
@@ -78,14 +78,14 @@ TEST(wc3_spell, purge_aprg_slows_by_authored_dataa_without_immobilize) {
 		"C;Y2;X4;K\"air,ground,enemy\"\nC;Y2;X5;K\"75\"\nC;Y2;X6;K\"700\"\n"
 		"C;Y2;X7;K\"12\"\nC;Y2;X8;K\"4\"\nC;Y2;X9;K\"Bprg\"\n"
 		"C;Y2;X10;K\"0.5\"\nC;Y2;X11;K\"180\"\nC;Y2;X12;K\"0\"\nE\n";
-	PURGEFIX fix = purge_setup(slk, BZ_APRG);
-	LPEDICT wp;
+	purgeFix_t fix = purge_setup(slk, BZ_APRG);
+	edict_t * wp;
 
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APRG, fix.enemy));
 	T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPRG), 1);
 	T_FEQ(S_PurgeMoveReduction(fix.enemy), 0.5f, 0.001f);
 	T_ASSERT(!S_PurgeIsImmobilized(fix.enemy));
-	wp = Waypoint_add(&(VECTOR2){200, 0});
+	wp = Waypoint_add(&(vector2_t){200, 0});
 	order_move(fix.enemy, wp);
 	T_ASSERT(fix.enemy->goalentity == wp);
 	purge_done(fix);
@@ -93,14 +93,14 @@ TEST(wc3_spell, purge_aprg_slows_by_authored_dataa_without_immobilize) {
 
 /* Apg2 DataD immobilizes ordinary units; after pause, DataA slow remains until Dur. */
 TEST(wc3_spell, purge_apg2_immobilizes_for_datad_then_slows) {
-	PURGEFIX fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
-	LPEDICT wp;
+	purgeFix_t fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
+	edict_t * wp;
 
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APG2, fix.enemy));
 	T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPRG), 1);
 	T_ASSERT(S_PurgeIsImmobilized(fix.enemy));
 	T_FEQ(S_PurgeMoveReduction(fix.enemy), 1.0f, 0.001f);
-	wp = Waypoint_add(&(VECTOR2){200, 0});
+	wp = Waypoint_add(&(vector2_t){200, 0});
 	fix.enemy->goalentity = NULL;
 	order_move(fix.enemy, wp);
 	T_ASSERT(fix.enemy->goalentity != wp);
@@ -121,9 +121,9 @@ TEST(wc3_spell, purge_apg2_immobilizes_for_datad_then_slows) {
 /* Heroes use DataE pause length, not DataD. */
 TEST(wc3_spell, purge_apg2_hero_uses_datae_pause) {
 	static UnitBalance_t hero_bal = { .strength = 1 };
-	PURGEFIX fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
-	LPEDICT hero = alloc_test_unit(MAKEFOURCC('O','g','r','h'), 160, 0);
-	LPEDICT wp;
+	purgeFix_t fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
+	edict_t * hero = alloc_test_unit(MAKEFOURCC('O','g','r','h'), 160, 0);
+	edict_t * wp;
 
 	hero->s.player = 1; hero->svflags |= SVF_MONSTER; hero->targtype = TARG_GROUND;
 	hero->data.UnitBalance = &hero_bal;
@@ -133,7 +133,7 @@ TEST(wc3_spell, purge_apg2_hero_uses_datae_pause) {
 
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APG2, hero));
 	T_ASSERT(S_PurgeIsImmobilized(hero));
-	wp = Waypoint_add(&(VECTOR2){220, 0});
+	wp = Waypoint_add(&(vector2_t){220, 0});
 	order_move(hero, wp);
 	T_ASSERT(hero->goalentity != wp);
 
@@ -147,8 +147,8 @@ TEST(wc3_spell, purge_apg2_hero_uses_datae_pause) {
 
 /* Apg2 still deals authored DataC to summoned units (owner set). */
 TEST(wc3_spell, purge_apg2_damages_summoned_with_datac) {
-	PURGEFIX fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
-	LPEDICT summon = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 128, 0);
+	purgeFix_t fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
+	edict_t * summon = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 128, 0);
 	summon->s.player = 1; summon->svflags |= SVF_MONSTER; summon->targtype = TARG_GROUND;
 	summon->health.value = summon->health.max_value = 500;
 	summon->owner = fix.caster;
@@ -162,8 +162,8 @@ TEST(wc3_spell, purge_apg2_damages_summoned_with_datac) {
 /* Purge may still apply its authored slow/pause, but its summoned-unit damage
  * does not destroy an Animated Dead unit. */
 TEST(wc3_spell, purge_does_not_deal_summon_damage_to_animated_dead) {
-	PURGEFIX fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
-	LPEDICT summon = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 128, 0);
+	purgeFix_t fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
+	edict_t * summon = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 128, 0);
 	summon->s.player = 1; summon->svflags |= SVF_MONSTER; summon->targtype = TARG_GROUND;
 	summon->health.value = summon->health.max_value = 500;
 	summon->owner = fix.caster; summon->summon_ability = BZ_AUAN;
@@ -189,7 +189,7 @@ TEST(wc3_spell, purge_apg2_zero_dataa_is_full_move_reduction_after_pause) {
 		"C;Y2;X7;K\"12\"\nC;Y2;X8;K\"4\"\nC;Y2;X9;K\"Bprg\"\n"
 		"C;Y2;X10;K\"0\"\nC;Y2;X11;K\"180\"\nC;Y2;X12;K\"1\"\n"
 		"C;Y2;X13;K\"1\"\nC;Y2;X14;K\"0\"\nE\n";
-	PURGEFIX fix = purge_setup(slk, BZ_APG2);
+	purgeFix_t fix = purge_setup(slk, BZ_APG2);
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APG2, fix.enemy));
 	T_FEQ(S_PurgeMoveReduction(fix.enemy), 1.0f, 0.001f);
 	level.time += 1000;
@@ -212,7 +212,7 @@ TEST(wc3_spell, purge_gradual_recovery_weakens_after_pause) {
 		"C;Y2;X7;K\"10\"\nC;Y2;X8;K\"4\"\nC;Y2;X9;K\"Bprg\"\n"
 		"C;Y2;X10;K\"0.4\"\nC;Y2;X11;K\"180\"\nC;Y2;X12;K\"2\"\n"
 		"C;Y2;X13;K\"1\"\nC;Y2;X14;K\"0\"\nE\n";
-	PURGEFIX fix = purge_setup(slk, BZ_APG2);
+	purgeFix_t fix = purge_setup(slk, BZ_APG2);
 	float early, late;
 
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APG2, fix.enemy));

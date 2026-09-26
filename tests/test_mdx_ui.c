@@ -4,7 +4,7 @@
 
 struct render_globals tr;
 refImport_t ri;
-MATRIX4 node_matrices[MDX_MAX_NODES];
+matrix4_t node_matrices[MDX_MAX_NODES];
 static viewDef_t drawn;
 static handle_t calloc_test(long size) { return calloc(1, size); }
 
@@ -18,13 +18,13 @@ void R_RenderView(void) { drawn = tr.viewDef; R_UpdateParticles(); }
 
 mdlx_state_t mdlx;
 rect_t R_UISceneRect(void) { return (rect_t){0, 0, 0.8f, 0.6f}; }
-LPTEXTURE R_AllocateTexture(uint32_t w, uint32_t h) { (void)w; (void)h; return NULL; }
-void R_LoadTextureMipLevel(LPCTEXTURE tex, LPCTEXMIP mip) { (void)tex; (void)mip; }
-void R_LoadShaderState(LPCSHADERLOAD load) { (void)load; }
-void R_DeleteShader(LPSHADERPROG prog) { (void)prog; }
-void R_UploadShader(LPSHADERPROG prog, void const * state) { (void)prog; (void)state; }
-MODELPROG *R_ModelShader(void) { return NULL; }
-void R_ReleaseVertexArrayObject(LPBUFFER buffer) { (void)buffer; }
+texture_t * R_AllocateTexture(uint32_t w, uint32_t h) { (void)w; (void)h; return NULL; }
+void R_LoadTextureMipLevel(texture_t const * tex, texMip_t const * mip) { (void)tex; (void)mip; }
+void R_LoadShaderState(shaderLoad_t const * load) { (void)load; }
+void R_DeleteShader(shaderProg_t * prog) { (void)prog; }
+void R_UploadShader(shaderProg_t * prog, void const * state) { (void)prog; (void)state; }
+modelProg_t *R_ModelShader(void) { return NULL; }
+void R_ReleaseVertexArrayObject(buffer_t * buffer) { (void)buffer; }
 void R_SetAlphaKeyState(bool enabled) { (void)enabled; }
 void R_StatsDraw(GLenum mode, uint32_t count, uint32_t instances) { (void)mode; (void)count; (void)instances; }
 mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, cstring_t name) {

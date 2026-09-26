@@ -108,7 +108,7 @@ static int UIWow_LuaFrameSetWidth(lua_State *L) {
 /* Frame:SetPoint replaces the primary anchor, including runtime anchors authored by native Lua. */
 static int UIWow_LuaFrameSetPoint(lua_State *L) {
     int i = UIWow_FrameFromSelf(L), ri = -1;
-    WOWXMLPOINT in = { luaL_checkstring(L, 2), NULL, NULL, 0, 0 };
+    wowXmlPoint_t in = { luaL_checkstring(L, 2), NULL, NULL, 0, 0 };
     if (lua_istable(L, 3)) {
         lua_getfield(L, 3, "__ow3_index"); ri = (int)luaL_optinteger(L, -1, -1); lua_pop(L, 1);
         if (ri >= 0 && ri < wow_xml.count) in.rel = UIWow_ElemStr(&wow_xml.elems[ri], ELEM_NAME);
@@ -193,7 +193,7 @@ static int UIWow_LuaFrameGetVerticalScrollRange(lua_State *L) {
 }
 static int UIWow_LuaFrameSetVertexColor(lua_State *L) {
     int i = UIWow_FrameFromSelf(L); float r = (float)luaL_optnumber(L, 2, 1.0), g = (float)luaL_optnumber(L, 3, 1.0), b = (float)luaL_optnumber(L, 4, 1.0), a = (float)luaL_optnumber(L, 5, 1.0);
-    if (i >= 0) wow_xml.elems[i].colors[ELEM_COLOR_VERTEX] = MAKE(COLOR32, (uint8_t)(r * 255.0f), (uint8_t)(g * 255.0f), (uint8_t)(b * 255.0f), (uint8_t)(a * 255.0f));
+    if (i >= 0) wow_xml.elems[i].colors[ELEM_COLOR_VERTEX] = MAKE(color32_t, (uint8_t)(r * 255.0f), (uint8_t)(g * 255.0f), (uint8_t)(b * 255.0f), (uint8_t)(a * 255.0f));
     return 0;
 }
 static int UIWow_LuaFrameSetTexCoord(lua_State *L) {
@@ -235,12 +235,12 @@ static int UIWow_LuaFrameSetTexCoord(lua_State *L) {
 }
 static int UIWow_LuaFrameSetBackdropColor(lua_State *L) {
     int i = UIWow_FrameFromSelf(L); float r = (float)luaL_optnumber(L, 2, 0.09), g = (float)luaL_optnumber(L, 3, 0.09), b = (float)luaL_optnumber(L, 4, 0.09), a = (float)luaL_optnumber(L, 5, 0.5);
-    if (i >= 0) wow_xml.elems[i].colors[ELEM_COLOR_BACKDROP] = MAKE(COLOR32, (uint8_t)(r * 255.0f), (uint8_t)(g * 255.0f), (uint8_t)(b * 255.0f), (uint8_t)(a * 255.0f));
+    if (i >= 0) wow_xml.elems[i].colors[ELEM_COLOR_BACKDROP] = MAKE(color32_t, (uint8_t)(r * 255.0f), (uint8_t)(g * 255.0f), (uint8_t)(b * 255.0f), (uint8_t)(a * 255.0f));
     return 0;
 }
 static int UIWow_LuaFrameSetBackdropBorderColor(lua_State *L) {
     int i = UIWow_FrameFromSelf(L); float r = (float)luaL_optnumber(L, 2, 0.8), g = (float)luaL_optnumber(L, 3, 0.8), b = (float)luaL_optnumber(L, 4, 0.8), a = (float)luaL_optnumber(L, 5, 1.0);
-    if (i >= 0) wow_xml.elems[i].colors[ELEM_COLOR_BACKDROP_BORDER] = MAKE(COLOR32, (uint8_t)(r * 255.0f), (uint8_t)(g * 255.0f), (uint8_t)(b * 255.0f), (uint8_t)(a * 255.0f));
+    if (i >= 0) wow_xml.elems[i].colors[ELEM_COLOR_BACKDROP_BORDER] = MAKE(color32_t, (uint8_t)(r * 255.0f), (uint8_t)(g * 255.0f), (uint8_t)(b * 255.0f), (uint8_t)(a * 255.0f));
     return 0;
 }
 static int UIWow_LuaFrameSetFocus(lua_State *L) {
@@ -529,7 +529,7 @@ bool UIWow_XMLSetButtonChecked(cstring_t name, bool checked) {
 }
 
 /* Runtime FrameXML scripts use the same native point and positive-Y-up coordinate contract as XML anchors. */
-bool UIWow_XMLSetFramePoint(cstring_t name, LPCWOWXMLPOINT in) {
+bool UIWow_XMLSetFramePoint(cstring_t name, wowXmlPoint_t const * in) {
     int idx = UIWow_XmlFindByName(name); uiWowXmlElem_t *e;
     if (idx < 0 || !in || !in->point || !in->point[0]) return false;
     e = &wow_xml.elems[idx];
@@ -543,7 +543,7 @@ bool UIWow_XMLSetFramePoint(cstring_t name, LPCWOWXMLPOINT in) {
 
 /* Reproduce FrameXML's GetHeight + SetHeight sizing before the parent backdrop is drawn. */
 bool UIWow_XMLSizeFrameToText(cstring_t frame, cstring_t text, float padding) {
-    int fi = UIWow_XmlFindByName(frame), ti = UIWow_XmlFindByName(text); rect_t r; LPCFONT font; VECTOR2 sz;
+    int fi = UIWow_XmlFindByName(frame), ti = UIWow_XmlFindByName(text); rect_t r; font_t const * font; vector2_t sz;
     if (fi < 0 || ti < 0 || wow_xml.elems[ti].type != WOW_XML_FONTSTRING || !wow_ui.renderer || !wow_ui.renderer->GetTextSize)
         return false;
     r = UIWow_XmlComputeRect(ti); font = UIWow_LoadFont((uint32_t)wow_xml.elems[ti].font_size);
@@ -717,7 +717,7 @@ static void UIWow_XMLComputeScrollRanges(void) {
     }
 }
 
-static void UIWow_XMLDrawImage(LPTEXTURE tex, rect_t const * screen, rect_t const * uv, COLOR32 color, BLEND_MODE mode) {
+static void UIWow_XMLDrawImage(texture_t * tex, rect_t const * screen, rect_t const * uv, color32_t color, BLEND_MODE mode) {
     if (!wow_ui.renderer || !tex) return;
     if (wow_ui.renderer->DrawImageEx) {
         wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t, .texture = tex, .shader = SHADER_UI, .alphamode = mode, .screen = *screen, .uv = *uv, .color = color, .flags = s_has_scroll_clip ? DRAW_CLIP : 0, .clip = s_scroll_clip));
@@ -729,8 +729,8 @@ static void UIWow_XMLDrawImage(LPTEXTURE tex, rect_t const * screen, rect_t cons
 static void UIWow_XMLDrawBackdrop(uiWowXmlElem_t const *e, rect_t const * r) {
     cstring_t bg_path = e->texts[ELEM_BACKDROP_BG];
     cstring_t edge_path = e->texts[ELEM_BACKDROP_EDGE];
-    LPCTEXTURE bg_tex = NULL;
-    LPCTEXTURE edge_tex = NULL;
+    texture_t const * bg_tex = NULL;
+    texture_t const * edge_tex = NULL;
     drawBackdrop_t db;
 
     if (!wow_ui.renderer || !wow_ui.renderer->DrawBackdrop) return;
@@ -790,7 +790,7 @@ static cstring_t UIWow_XMLDisplayText(uiWowXmlElem_t const *e, string_t out, siz
 
 /* Return the live character actor for Blizzard's background model scene.
    Handles both char-create (customize) and char-select screens. */
-static LPMODEL UIWow_XMLCharCustomizeModel(int i) {
+static model_t * UIWow_XMLCharCustomizeModel(int i) {
     char path[MAX_PATHLEN];
     bool is_char_select = (i == wow_ui.char_select_frame_idx);
     bool is_char_customize = (i == wow_ui.char_customize_frame_idx);
@@ -825,7 +825,7 @@ static void UIWow_XMLWarnGeometry(uiWowXmlElem_t *e, rect_t const * r) {
 /* Draw one XML frame's own layer. whoa draws a frame's batches before recursing into child frames. */
 static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         uiWowXmlElem_t *e = &wow_xml.elems[i]; rect_t r; rect_t uv = MAKE(rect_t, 0, 0, 1, 1); char text[512];
-        COLOR32 text_color = e->colors[ELEM_COLOR_TEXT];
+        color32_t text_color = e->colors[ELEM_COLOR_TEXT];
         bool pressed = e->type == WOW_XML_BUTTON && wow_xml.pressed_button == i;
         bool hovered = e->type == WOW_XML_BUTTON && hovered_button == i;
         int draw_layer = e->type == WOW_XML_MODEL ? WOW_XML_LAYER_BACKGROUND : e->draw_layer;
@@ -927,7 +927,7 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         if ((file && file[0] && e->type == WOW_XML_TEXTURE) || (e->type == WOW_XML_BUTTON && ((normal_file && normal_file[0]) || (file && file[0])))) {
             cstring_t src = (e->type == WOW_XML_BUTTON && pressed && pushed_file && pushed_file[0]) ? pushed_file :
                          ((e->type == WOW_XML_BUTTON && normal_file && normal_file[0]) ? normal_file : file);
-            LPTEXTURE t = UIWow_LoadTexture(src);
+            texture_t * t = UIWow_LoadTexture(src);
             if (e->flags & EF_HAS_TEXCOORD) uv = e->texcoord;
             /* Scrollbar thumb: reposition ThumbTexture based on scroll_y / scroll_range. */
             if (e->type == WOW_XML_TEXTURE && e->parent >= 0 && e->parent < wow_xml.count) {
@@ -947,14 +947,14 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                 }
             }
             if (t) {
-                UIWow_XMLDrawImage(t, &r, &uv, MAKE(COLOR32, e->colors[ELEM_COLOR_VERTEX].r, e->colors[ELEM_COLOR_VERTEX].g, e->colors[ELEM_COLOR_VERTEX].b, (uint8_t)(e->colors[ELEM_COLOR_VERTEX].a * e->alpha)), BLEND_MODE_BLEND);
+                UIWow_XMLDrawImage(t, &r, &uv, MAKE(color32_t, e->colors[ELEM_COLOR_VERTEX].r, e->colors[ELEM_COLOR_VERTEX].g, e->colors[ELEM_COLOR_VERTEX].b, (uint8_t)(e->colors[ELEM_COLOR_VERTEX].a * e->alpha)), BLEND_MODE_BLEND);
             }
             if (e->type == WOW_XML_BUTTON && e->flags & EF_CHECKED && checked_file) {
-                LPTEXTURE ct = UIWow_LoadTexture(checked_file);
+                texture_t * ct = UIWow_LoadTexture(checked_file);
                 if (ct) UIWow_XMLDrawImage(ct, &r, &MAKE(rect_t,0,0,1,1), COLOR32_WHITE, BLEND_MODE_BLEND);
             }
             if (e->type == WOW_XML_BUTTON && hovered && highlight_file && highlight_file[0]) {
-                LPTEXTURE ht = UIWow_LoadTexture(highlight_file);
+                texture_t * ht = UIWow_LoadTexture(highlight_file);
                 rect_t huv = MAKE(rect_t, 0, 0, 1, 1);
                 if (e->flags & EF_HAS_HIGHLIGHT_TEXCOORD) huv = e->highlight_texcoord;
                 if (ht) UIWow_XMLDrawImage(ht, &r, &huv, COLOR32_WHITE, BLEND_MODE_ADD);
@@ -962,14 +962,14 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
         }
         if (((elem_text && elem_text[0]) || (e->type == WOW_XML_EDITBOX && wow_xml.focus == i)) &&
             (e->type == WOW_XML_FONTSTRING || e->type == WOW_XML_EDITBOX || e->type == WOW_XML_BUTTON)) {
-            LPCFONT f = UIWow_LoadFont((uint32_t)e->font_size);
+            font_t const * f = UIWow_LoadFont((uint32_t)e->font_size);
             /* FrameXML may leave either FontString axis to its renderer-measured natural size. */
             if (f && e->type == WOW_XML_FONTSTRING && (e->size.w == 0 || e->size.h == 0) && wow_ui.renderer->GetTextSize) {
                 cstring_t display = UIWow_XMLDisplayText(e, text, sizeof(text));
                 /* When width is unconstrained, measure at full virtual width to get the natural line width.
                    Passing r.w=0 would wrap every character at column 0 and freeze measured.w near zero. */
                 float measure_w = e->size.w > 0 ? r.w : 1.0f;
-                VECTOR2 sz = wow_ui.renderer->GetTextSize(&MAKE(drawText_t, .font = f, .text = display, .rect = r, .textWidth = measure_w, .lineHeight = 1.33f, .flags = (e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0));
+                vector2_t sz = wow_ui.renderer->GetTextSize(&MAKE(drawText_t, .font = f, .text = display, .rect = r, .textWidth = measure_w, .lineHeight = 1.33f, .flags = (e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0));
                 if (e->size.w == 0) e->measured.w = sz.x;
                 if (e->size.h == 0) e->measured.h = sz.y;
                 r = UIWow_XmlComputeRect(i);
@@ -979,7 +979,7 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
             rect_t tr = MAKE(rect_t, r.x + e->text_inset.w + e->text_off.x, r.y + e->text_off.y, r.w - e->text_inset.w, r.h - e->text_inset.h);
             cstring_t display = UIWow_XMLDisplayText(e, text, sizeof(text));
             if (f) {
-                drawText_t dt = MAKE(drawText_t, .font = f, .text = display, .rect = tr, .color = MAKE(COLOR32, text_color.r, text_color.g, text_color.b, (uint8_t)(text_color.a * e->alpha)), .textWidth = tr.w, .lineHeight = 1.33f, .flags = ((e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0) | (has_clip ? DRAW_CLIP : 0), .halign = e->type == WOW_XML_EDITBOX ? FONT_JUSTIFYLEFT : e->halign, .valign = e->valign, .clip = clip_rect);
+                drawText_t dt = MAKE(drawText_t, .font = f, .text = display, .rect = tr, .color = MAKE(color32_t, text_color.r, text_color.g, text_color.b, (uint8_t)(text_color.a * e->alpha)), .textWidth = tr.w, .lineHeight = 1.33f, .flags = ((e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0) | (has_clip ? DRAW_CLIP : 0), .halign = e->type == WOW_XML_EDITBOX ? FONT_JUSTIFYLEFT : e->halign, .valign = e->valign, .clip = clip_rect);
                 wow_ui.renderer->DrawText(&dt);
                 if (e->type == WOW_XML_EDITBOX && wow_xml.focus == i)
                     M_DrawTextInputCursor(wow_ui.renderer, &dt, display, wow_xml.text_input.cursor, text_color);
@@ -1061,7 +1061,7 @@ static int UIWow_XMLScrollBarParent(int idx) {
 
 
 bool UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
-    VECTOR2 mouse = UIWow_MouseFdf(x, y);
+    vector2_t mouse = UIWow_MouseFdf(x, y);
     float fdf_x = mouse.x, fdf_y = mouse.y;
     int wheel_y = event == MENU_MOUSE_SCROLL ? MENU_MOUSE_PARAM_Y(param) : 0;
     int hit;

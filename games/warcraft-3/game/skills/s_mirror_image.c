@@ -2,10 +2,10 @@
 
 #define ID_TIMED_LIFE "BTLF"
 
-static void mirror_image_spawn(LPEDICT caster, uint32_t index, uint32_t count, float duration) {
-    VECTOR2 loc;
+static void mirror_image_spawn(edict_t * caster, uint32_t index, uint32_t count, float duration) {
+    vector2_t loc;
     float angle;
-    LPEDICT image;
+    edict_t * image;
 
     angle = count ? (2.0f * (float)M_PI * (float)index) / (float)count : 0.0f;
     loc = caster->s.origin2;

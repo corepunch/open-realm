@@ -12,32 +12,32 @@ void Wow_DrawTerrainShadows(void);
 void Wow_DrawAlphaSurfaces(void);
 void Wow_DrawMinimap(rect_t const * screen);
 float Wow_GetHeightAtPoint(float x, float y);
-bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 output);
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t * output);
 float GetAccurateHeightAtPoint(float sx, float sy);
 
-static LPTEXTURE s_quest_active_icon;
+static texture_t * s_quest_active_icon;
 
 m2Model_t *R_LoadModelM2(cstring_t modelFilename, void *buffer, uint32_t size, bool *buffer_owned);
 void M2_Init(void);
-void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform);
-void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, uint32_t flags);
+void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, matrix4_t const * transform);
+void M2_RenderInstanced(m2Model_t const *model, instanceBuffer_t const * instances, uint32_t flags);
 bool M2_CanStaticInstance(m2Model_t const *model);
-bool M2_AttachmentMatrix(m2Model_t const *model, uint32_t attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
+bool M2_AttachmentMatrix(m2Model_t const *model, uint32_t attachment_id, matrix4_t const * model_matrix, matrix4_t * out);
 bool M2_EntityAttachmentPosition(m2Model_t const *model, renderEntity_t const *entity, uint32_t attachment_id,
-                                 LPCMATRIX4 model_matrix, LPVECTOR3 out);
-bool M2_PosedAttachmentPosition(m2Model_t const *model, uint32_t attachment_id, LPCMATRIX4 model_matrix, LPVECTOR3 out);
+                                 matrix4_t const * model_matrix, vector3_t * out);
+bool M2_PosedAttachmentPosition(m2Model_t const *model, uint32_t attachment_id, matrix4_t const * model_matrix, vector3_t * out);
 float M2_GroundOffset(m2Model_t const *model);
 float M2_HeadHeight(m2Model_t const *model);
 float M2_VisibleBottom(m2Model_t const *model);
-bool M2_CameraView(m2Model_t const *model, uint32_t camera_index, LPVECTOR3 eye, LPVECTOR3 target, float * fov_degrees, float * znear, float * zfar);
+bool M2_CameraView(m2Model_t const *model, uint32_t camera_index, vector3_t * eye, vector3_t * target, float * fov_degrees, float * znear, float * zfar);
 bool M2_IsCharacterModel(m2Model_t const *model);
 bool M2_SetEntitySequenceFrame(m2Model_t const *model, cstring_t anim, renderEntity_t *entity);
 void M2_Release(m2Model_t *model);
 void M2_Shutdown(void);
 
 typedef struct {
-    LPCMODEL model;
-    VECTOR3 origin, rotation, point;
+    model_t const * model;
+    vector3_t origin, rotation, point;
     uint32_t time, frame, oldframe, flags;
     float angle, scale;
     bool valid, found;
@@ -55,7 +55,7 @@ static bool R_WowOverheadCacheMatch(wowOverheadCache_t const *cache, renderEntit
 }
 
 /* Preserve the model-authored attachment result before another M2 draw overwrites the shared bone palette. */
-static void R_WowCacheOverhead(renderEntity_t const *entity, LPCMATRIX4 transform) {
+static void R_WowCacheOverhead(renderEntity_t const *entity, matrix4_t const * transform) {
     wowOverheadCache_t *cache;
     uint32_t attachment;
     if (entity->number >= MAX_GAME_ENTITIES) return;
@@ -86,7 +86,7 @@ static bool R_WowPathHasExtension(cstring_t path, cstring_t extension) {
 void R_LoadAssets(void) {
     /* WoW has no WC3 selection-circle BLPs; generate one ring and share it across the size slots until
      * distinct per-size variants exist. */
-    LPTEXTURE ring = R_MakeSelectionCircleTexture();
+    texture_t * ring = R_MakeSelectionCircleTexture();
     FOR_LOOP(i, NUM_SELECTION_CIRCLES)
         tr.texture[TEX_SELECTION_CIRCLE+i] = ring;
     s_quest_active_icon = R_LoadTexture(WOW_QUEST_ACTIVE_ICON);
@@ -116,10 +116,10 @@ void R_RegisterMap(cstring_t mapFileName) {
 }
 
 void R_SetupEnvironmentLighting(void) {
-    VECTOR3 dir;
-    ENVIRONLIGHT sun;
+    vector3_t dir;
+    environLight_t sun;
     Wow_SunDirection(Wow_DayFraction(), &dir);
-    sun = (ENVIRONLIGHT){
+    sun = (environLight_t){
         .dir = dir,
         .color = { WOW_LIGHT_DIFFUSE_R, WOW_LIGHT_DIFFUSE_G, WOW_LIGHT_DIFFUSE_B },
         .ambient = { WOW_LIGHT_AMBIENT_R, WOW_LIGHT_AMBIENT_G, WOW_LIGHT_AMBIENT_B },
@@ -155,15 +155,15 @@ float R_GetHeightAtPoint(float x, float y) {
 float R_GetCameraHeightAtPoint(float x, float y) { return R_GetHeightAtPoint(x, y); }
 bool R_CameraUsesTerrainHeight(void) { return false; }
 
-VECTOR2 R_WorldSize(void) {
-    return (VECTOR2){ 0 };
+vector2_t R_WorldSize(void) {
+    return (vector2_t){ 0 };
 }
 
-LPMODEL R_LoadModel(cstring_t modelFilename) {
+model_t * R_LoadModel(cstring_t modelFilename) {
     void *buffer = NULL;
     PATHSTR load_name;
     int fileSize = ri.FS_ReadFile(modelFilename, &buffer);
-    LPMODEL model;
+    model_t * model;
 
     snprintf(load_name, sizeof(load_name), "%s", modelFilename ? modelFilename : "");
     /* WoW only uses .m2; legacy data files (WMO MODN chunks, early ADTs) may
@@ -209,14 +209,14 @@ LPMODEL R_LoadModel(cstring_t modelFilename) {
     return model;
 }
 
-void R_ReleaseModel(LPMODEL model) {
+void R_ReleaseModel(model_t * model) {
     if (model->modeltype == ID_MD20) {
         M2_Release(model->m2);
     }
     ri.MemFree(model);
 }
 
-LPCMATRIX4 R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
+matrix4_t const * R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
     pose->angles = Wow_DoodadOrientation(entity->rotation);
     pose->angles.yaw += entity->angle;
     if (entity->model && entity->model->modeltype == ID_MD20 && (entity->flags & RF_GROUND_ANCHOR) &&
@@ -225,18 +225,18 @@ LPCMATRIX4 R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
     return &wow_model_basis;
 }
 
-bool R_GetEntityBounds(renderEntity_t const *entity, LPBOX3 bounds) {
+bool R_GetEntityBounds(renderEntity_t const *entity, box3_t * bounds) {
     (void)entity; (void)bounds;
     return false;
 }
 
 /* Build a stable top/front light for WoW UI model-camera previews. */
-static void R_WowEntityCameraLightMatrix(LPCVECTOR3 target, float radius, LPMATRIX4 output) {
-    MATRIX4 proj;
-    MATRIX4 view;
-    VECTOR3 light_dir = { -0.35f, -0.50f, 0.80f };
-    VECTOR3 view_dir;
-    VECTOR3 eye;
+static void R_WowEntityCameraLightMatrix(vector3_t const * target, float radius, matrix4_t * output) {
+    matrix4_t proj;
+    matrix4_t view;
+    vector3_t light_dir = { -0.35f, -0.50f, 0.80f };
+    vector3_t view_dir;
+    vector3_t eye;
     float distance = MAX(1000.0f, radius * 8.0f);
     float scale = MAX(64.0f, radius * 2.5f);
 
@@ -244,15 +244,15 @@ static void R_WowEntityCameraLightMatrix(LPCVECTOR3 target, float radius, LPMATR
     view_dir = Vector3_unm(&light_dir);
     eye = Vector3_mad(target, distance, &light_dir);
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0f, 3000.0f);
-    Matrix4_lookAt(&view, &eye, &view_dir, &(VECTOR3){ 0.0f, 0.0f, 1.0f });
+    Matrix4_lookAt(&view, &eye, &view_dir, &(vector3_t){ 0.0f, 0.0f, 1.0f });
     Matrix4_multiply(&proj, &view, output);
 }
 
 void R_UpdateEntityPresentation(renderEntity_t const *entity) { (void)entity; }
 
 void R_RenderModel(renderEntity_t const *entity) {
-    MATRIX4 transform;
-    MATRIX4 attached_transform;
+    matrix4_t transform;
+    matrix4_t attached_transform;
     renderEntity_t attached_entity;
     uint32_t attachment_id;
 
@@ -280,9 +280,9 @@ void R_RenderModel(renderEntity_t const *entity) {
         M2_RenderModel(&marker, marker.model->m2, &attached_transform);
     }
     if (s_quest_active_icon && (entity->flags & RF_HAS_QUEST)) {
-        VECTOR3 origin = entity->origin;
+        vector3_t origin = entity->origin;
         origin.z += (M2_GroundOffset(entity->model->m2) + M2_HeadHeight(entity->model->m2)) * entity->scale + 0.25f;
-        COLOR32 tint = (entity->flags & RF_QUEST_COMPLETE) ? MAKE(COLOR32, 255, 215, 0, 255) : COLOR32_WHITE;
+        color32_t tint = (entity->flags & RF_QUEST_COMPLETE) ? MAKE(color32_t, 255, 215, 0, 255) : COLOR32_WHITE;
         R_DrawBillboardSprite(s_quest_active_icon, &origin, 0.5f, tint);
     }
     attachment_id = (tr.viewDef.rdflags & RDF_USE_ENTITY_CAMERA) ? 0 : 1;
@@ -306,26 +306,26 @@ void R_RenderModel(renderEntity_t const *entity) {
     }
 }
 
-void R_RenderModelInstanced(LPCMODEL model, LPCINSTANCEBUFFER instances, uint32_t flags) {
+void R_RenderModelInstanced(model_t const * model, instanceBuffer_t const * instances, uint32_t flags) {
     if (!model || model->modeltype != ID_MD20) {
         return;
     }
     M2_RenderInstanced(model->m2, instances, flags);
 }
 
-bool R_ModelCanStaticInstance(LPCMODEL model) {
+bool R_ModelCanStaticInstance(model_t const * model) {
     return model && model->modeltype == ID_MD20 && M2_CanStaticInstance(model->m2);
 }
 
-bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, float * distance) {
-    VECTOR3 ab;
-    VECTOR3 ac;
-    VECTOR3 center;
+bool R_TraceModel(renderEntity_t const *entity, line3_t const * line, float * distance) {
+    vector3_t ab;
+    vector3_t ac;
+    vector3_t center;
     float radius;
     float denom;
     float t;
-    VECTOR3 closest;
-    VECTOR3 delta;
+    vector3_t closest;
+    vector3_t delta;
     float dist2;
 
     if (!entity || !entity->number || !entity->model) {
@@ -344,7 +344,7 @@ bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, float * distance)
     ac = Vector3_sub(&center, &line->a);
     t = Vector3_dot(&ac, &ab) / denom;
     t = MAX(0.0f, MIN(1.0f, t));
-    closest = (VECTOR3){
+    closest = (vector3_t){
         line->a.x + ab.x * t,
         line->a.y + ab.y * t,
         line->a.z + ab.z * t,
@@ -361,14 +361,14 @@ bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, float * distance)
 }
 
 #ifndef USE_SHADOWMAPS
-bool R_RenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
-    LPCTEXTURE shadow;
+bool R_RenderShadow(renderEntity_t const *entity, vector2_t const * origin) {
+    texture_t const * shadow;
     bool use_fast_blob;
     float shadow_z;
-    VECTOR2 mins;
-    VECTOR2 maxs;
-    BOX3 bounds;
-    COLOR32 shadowColor = {0, 0, 0, 128};
+    vector2_t mins;
+    vector2_t maxs;
+    box3_t bounds;
+    color32_t shadowColor = {0, 0, 0, 128};
 
     if (!entity || (entity->flags & RF_NO_SHADOW)) {
         return true;
@@ -400,7 +400,7 @@ bool R_RenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
     }
 
     if (use_fast_blob) {
-        BOX3 pre_bounds = {
+        box3_t pre_bounds = {
             .min = { mins.x, mins.y, entity->origin.z - 16.0f },
             .max = { maxs.x, maxs.y, entity->origin.z + 16.0f },
         };
@@ -408,7 +408,7 @@ bool R_RenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
         if (!Wow_ShadowBoundsVisible(&tr.viewDef.frustum, &pre_bounds, !(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL))) return true;
         shadow_z = R_GetHeightAtPoint(origin->x, origin->y) + WOW_SPLAT_Z_BIAS;
     }
-    bounds = (BOX3){
+    bounds = (box3_t){
         .min = { mins.x, mins.y, shadow_z - 16.0f },
         .max = { maxs.x, maxs.y, shadow_z + 16.0f },
     };
@@ -428,10 +428,10 @@ float R_SelectionRadius(renderEntity_t const *entity) {
 }
 
 /* The PlayerName attachment (mounted variant when riding) is the model-authored name-plate point. */
-bool R_EntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
-    static LPCMODEL last_missing;
+bool R_EntityOverheadPosition(renderEntity_t const *entity, vector3_t * out) {
+    static model_t const * last_missing;
     wowOverheadCache_t *cache;
-    MATRIX4 transform;
+    matrix4_t transform;
     uint32_t attachment;
     if (!entity || !out) return false;
     *out = entity->origin;
@@ -455,35 +455,35 @@ bool R_EntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
     out->z += (M2_GroundOffset(entity->model->m2) + M2_HeadHeight(entity->model->m2)) * entity->scale;
     return false;
 }
-bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, LPVECTOR3 out) {
+bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vector3_t * out) {
     (void)entity; (void)prefix; (void)out;
     return false;
 }
 
 
 float R_EntityHeight(renderEntity_t const *entity) {
-    VECTOR3 top;
+    vector3_t top;
     if (!entity) return 0.0f;
     R_EntityOverheadPosition(entity, &top);
     return top.z - entity->origin.z;
 }
 
-bool R_GetModelInfo(LPMODEL model, LPMODELINFO info) {
+bool R_GetModelInfo(model_t * model, modelInfo_t * info) {
     if (info) memset(info, 0, sizeof(*info));
     (void)model;
     return false;
 }
 
 bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
-    BOX3 const *bounds;
-    MATRIX4 transform;
-    VECTOR3 center;
-    VECTOR3 eye;
-    VECTOR3 target;
-    VECTOR3 dir;
-    VECTOR3 up;
-    VECTOR3 model_origin;
-    VECTOR3 model_z;
+    box3_t const *bounds;
+    matrix4_t transform;
+    vector3_t center;
+    vector3_t eye;
+    vector3_t target;
+    vector3_t dir;
+    vector3_t up;
+    vector3_t model_origin;
+    vector3_t model_z;
     float radius;
     float distance;
     float fov = 35.0f;
@@ -498,12 +498,12 @@ bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t
     bounds = &m2->bounds;
     R_GetEntityMatrix(entity, &transform);
 
-    center = (VECTOR3){
+    center = (vector3_t){
         (bounds->max.x + bounds->min.x) * 0.5f,
         (bounds->max.y + bounds->min.y) * 0.5f,
         (bounds->max.z + bounds->min.z) * 0.5f
     };
-    radius = Vector3_len(&(VECTOR3){
+    radius = Vector3_len(&(vector3_t){
         bounds->max.x - bounds->min.x,
         bounds->max.y - bounds->min.y,
         bounds->max.z - bounds->min.z
@@ -515,29 +515,29 @@ bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t
     if (!M2_CameraView(m2, 0, &eye, &target, &fov, &znear, &zfar)) {
         distance = radius / tanf((fov * (float)M_PI / 180.0f) * 0.5f);
         if (M2_IsCharacterModel(m2)) {
-            target = (VECTOR3){ center.x, center.y, center.z + radius * 0.28f };
-            eye = (VECTOR3){ target.x, target.y - distance * 0.52f, target.z + radius * 0.02f };
+            target = (vector3_t){ center.x, center.y, center.z + radius * 0.28f };
+            eye = (vector3_t){ target.x, target.y - distance * 0.52f, target.z + radius * 0.02f };
             znear = MAX(0.1f, distance * 0.02f);
         } else {
-            eye = (VECTOR3){ center.x, center.y - distance * 1.35f, center.z + radius * 0.25f };
+            eye = (vector3_t){ center.x, center.y - distance * 1.35f, center.z + radius * 0.25f };
             target = center;
         }
         zfar = MAX(zfar, distance + radius * 4.0f);
     }
     eye = Matrix4_multiply_vector3(&transform, &eye);
     target = Matrix4_multiply_vector3(&transform, &target);
-    model_origin = Matrix4_multiply_vector3(&transform, &(VECTOR3){0, 0, 0});
-    model_z = Matrix4_multiply_vector3(&transform, &(VECTOR3){0, 0, 1});
+    model_origin = Matrix4_multiply_vector3(&transform, &(vector3_t){0, 0, 0});
+    model_z = Matrix4_multiply_vector3(&transform, &(vector3_t){0, 0, 1});
     up = Vector3_sub(&model_z, &model_origin);
     if (Vector3_len(&up) <= 0.001f) {
-        up = (VECTOR3){ 0.0f, 0.0f, 1.0f };
+        up = (vector3_t){ 0.0f, 0.0f, 1.0f };
     }
     dir = Vector3_sub(&target, &eye);
     if (Vector3_len(&dir) <= 0.001f) {
-        dir = (VECTOR3){ 0.0f, 1.0f, 0.0f };
+        dir = (vector3_t){ 0.0f, 1.0f, 0.0f };
     }
 
-    MATRIX4 proj_matrix, view_matrix;
+    matrix4_t proj_matrix, view_matrix;
     Matrix4_perspective(&proj_matrix, fov, aspect, znear, zfar);
     Matrix4_lookAt(&view_matrix, &eye, &dir, &up);
     Matrix4_multiply(&proj_matrix, &view_matrix, &viewdef->viewProjectionMatrix);
@@ -546,7 +546,7 @@ bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t
     return true;
 }
 
-bool R_SetEntityAnimFrame(LPCMODEL model, cstring_t anim, renderEntity_t *entity) {
+bool R_SetEntityAnimFrame(model_t const * model, cstring_t anim, renderEntity_t *entity) {
     if (!model || model->modeltype != ID_MD20)
         return false;
     return M2_SetEntitySequenceFrame(model->m2, anim, entity);
@@ -557,7 +557,7 @@ void R_DrawSprite(drawSprite_t const *sprite) {
 }
 
 /* WoW context cursors are native SDL cursors owned by cl_input.c. */
-bool R_DrawCursor(float x, float y, COLOR32 tint) {
+bool R_DrawCursor(float x, float y, color32_t tint) {
     (void)x; (void)y; (void)tint;
     return false;
 }

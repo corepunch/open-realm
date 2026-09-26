@@ -24,14 +24,14 @@
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
 
-typedef struct { uint8_t b, g, r, a; } COLOR32;
+typedef struct { uint8_t b, g, r, a; } color32_t;
 typedef struct { float x, y, z; } wowVec3_t;
 
 typedef struct {
     uint8_t      type;       /* 0=OMNI 1=SPOT 2=DIRECT 3=AMBIENT */
     uint8_t      use_atten;
     uint8_t      pad[2];
-    COLOR32   color;      /* BGRA */
+    color32_t   color;      /* BGRA */
     wowVec3_t position;
     float     intensity;
     float     atten_start;
@@ -55,7 +55,7 @@ typedef struct {
     wowVec3_t position;
     float     quat[4];
     float     scale;
-    COLOR32   color;
+    color32_t   color;
 } wowWmoDoodadDef_t;  /* 40 bytes */
 
 typedef struct {
@@ -66,7 +66,7 @@ typedef struct {
 } wowWmoDoodadSet_t;  /* 32 bytes */
 
 /* 4×4 column-major float matrix (matches shared/types/matrix4.h) */
-typedef struct { float v[16]; } MATRIX4_TEST;
+typedef struct { float v[16]; } matrix4Test_t;
 
 /* =========================================================================
    A. Inline reference implementation of Wow_FixMocvAlpha
@@ -76,7 +76,7 @@ typedef struct { float v[16]; } MATRIX4_TEST;
 static void ref_fix_mocv(uint8_t *colors, uint32_t color_count,
                           wowWmoBatchDef_t const *batches, uint32_t batch_count,
                           uint32_t trans_batch_count,
-                          COLOR32 amb, uint32_t mohd_flags,
+                          color32_t amb, uint32_t mohd_flags,
                           bool exterior) {
     bool skip_base = (mohd_flags & 0x04) != 0;
     bool lighten   = (mohd_flags & 0x02) != 0;
@@ -126,7 +126,7 @@ static void ref_fix_mocv(uint8_t *colors, uint32_t color_count,
    B. Inline reference implementation of Wow_WmoDoodadLocalMatrix
    ======================================================================= */
 
-static void ref_doodad_local_matrix(wowWmoDoodadDef_t const *def, MATRIX4_TEST *m) {
+static void ref_doodad_local_matrix(wowWmoDoodadDef_t const *def, matrix4Test_t *m) {
     float qx = def->quat[0], qy = def->quat[1], qz = def->quat[2], qw = def->quat[3];
     float s = def->scale;
     memset(m->v, 0, sizeof(m->v));
@@ -158,7 +158,7 @@ TEST(wow_wmo_mocv, no_batches_all_exterior_bakes_alpha_ff) {
         255, 255, 255, 255,  /* BGRA vertex 2 */
           0,   0,   0,   0,  /* BGRA vertex 3 */
     };
-    COLOR32 amb = {64, 64, 64, 255};  /* .r=R .g=G .b=B */
+    color32_t amb = {64, 64, 64, 255};  /* .r=R .g=G .b=B */
     ref_fix_mocv(colors, 4, NULL, 0, 0, amb, 0, true /*exterior*/);
 
     /* All vertex alphas must be 0xFF */
@@ -170,7 +170,7 @@ TEST(wow_wmo_mocv, no_batches_all_exterior_bakes_alpha_ff) {
 
 TEST(wow_wmo_mocv, no_batches_interior_bakes_alpha_zero) {
     uint8_t colors[1 * 4] = { 128, 128, 128, 200 };
-    COLOR32 amb = {0, 0, 0, 255};
+    color32_t amb = {0, 0, 0, 255};
     ref_fix_mocv(colors, 1, NULL, 0, 0, amb, 0, false /*interior*/);
     T_EQ(colors[3], 0x00);
 }
@@ -184,7 +184,7 @@ TEST(wow_wmo_mocv, batch_a_ambient_subtracted) {
                  b' = (B - ambB) * (1 - 0) / 2 = (160-64)/2 = 48  */
     uint8_t colors[1 * 4] = { 160, 180, 200, 0 }; /* BGRA: B=160 G=180 R=200 A=0 */
     wowWmoBatchDef_t batch = { {0},{0}, 0, 3, 0, 0, 0, 0 };  /* last_vertex = 0 */
-    COLOR32 amb = {64, 64, 64, 255}; /* .r=R .g=G .b=B */
+    color32_t amb = {64, 64, 64, 255}; /* .r=R .g=G .b=B */
     ref_fix_mocv(colors, 1, &batch, 1, 1 /*trans_batch_count=1 → split at vertex 1*/,
                  amb, 0, false);
     T_EQ(colors[2], 68); /* R channel at byte +2 */
@@ -198,7 +198,7 @@ TEST(wow_wmo_mocv, batch_a_clamps_to_zero_when_below_ambient) {
     /* R=10 < ambR=64 → clamped to 0 */
     uint8_t colors[1 * 4] = { 10, 10, 10, 0 }; /* BGRA: B=10 G=10 R=10 A=0 */
     wowWmoBatchDef_t batch = { {0},{0}, 0, 3, 0, 0, 0, 0 };
-    COLOR32 amb = {64, 64, 64, 255};
+    color32_t amb = {64, 64, 64, 255};
     ref_fix_mocv(colors, 1, &batch, 1, 1, amb, 0, false);
     T_EQ(colors[2], 0); T_EQ(colors[1], 0); T_EQ(colors[0], 0);
 }
@@ -206,7 +206,7 @@ TEST(wow_wmo_mocv, batch_a_clamps_to_zero_when_below_ambient) {
 TEST(wow_wmo_mocv, skip_base_color_flag_zeroes_ambient) {
     /* mohd_flags & 0x04 → ambR/G/B = 0 */
     uint8_t colors[1 * 4] = { 160, 180, 200, 0 };
-    COLOR32 amb = {64, 64, 64, 255};
+    color32_t amb = {64, 64, 64, 255};
     ref_fix_mocv(colors, 1, NULL, 0, 0, amb, 0x04 /*skip_base*/, true);
     /* All batch-B/C: r' = (r * 0/64 + r - 0) / 2 = r/2 = 100
        b=160 → b'= (160*0+160-0)/2 = 80
@@ -224,7 +224,7 @@ TEST(wow_wmo_mocv, lighten_flag_only_sets_ext_blend_alpha) {
         200, 210, 220, 128,  /* batch-B/C vertex */
     };
     wowWmoBatchDef_t batch = { {0},{0}, 0, 3, 0, 0, 0, 0 };
-    COLOR32 amb = {64, 64, 64, 255};
+    color32_t amb = {64, 64, 64, 255};
     /* trans_batch_count=1 → begin_second = last_vertex(0)+1 = 1 */
     ref_fix_mocv(colors, 2, &batch, 1, 1, amb, 0x02 /*lighten*/, true);
     /* Vertex 0 (batch-A, i < begin_second=1): lighten path does NOT touch i < begin_second,
@@ -243,7 +243,7 @@ TEST(wow_wmo_mocv, exterior_batch_bc_does_not_subtract_indoor_ambient) {
          a_float = 128/255 ≈ 0.502
          r' = (200*0.502/64 + 200) / 2 = (1.569 + 200) / 2 = 100.78 → 100 */
     uint8_t colors[1 * 4] = { 0, 0, 200, 128 }; /* BGRA: R at [2]=200, A at [3]=128 */
-    COLOR32 amb = {0, 0, 50, 255}; /* .b=0 .g=0 .r=50 .a=255 → ambR=50 */
+    color32_t amb = {0, 0, 50, 255}; /* .b=0 .g=0 .r=50 .a=255 → ambR=50 */
     ref_fix_mocv(colors, 1, NULL, 0, 0, amb, 0, true);
     T_EQ(colors[2], 100);
     T_EQ(colors[3], 0xFF); /* exterior */
@@ -251,7 +251,7 @@ TEST(wow_wmo_mocv, exterior_batch_bc_does_not_subtract_indoor_ambient) {
 
 TEST(wow_wmo_mocv, all_zero_input_remains_zero) {
     uint8_t colors[1 * 4] = {0, 0, 0, 0};
-    COLOR32 amb = {0, 0, 0, 0};
+    color32_t amb = {0, 0, 0, 0};
     ref_fix_mocv(colors, 1, NULL, 0, 0, amb, 0, true);
     T_EQ(colors[0], 0); T_EQ(colors[1], 0); T_EQ(colors[2], 0);
     T_EQ(colors[3], 0xFF);
@@ -259,7 +259,7 @@ TEST(wow_wmo_mocv, all_zero_input_remains_zero) {
 
 TEST(wow_wmo_mocv, zero_color_count_is_no_op) {
     uint8_t dummy[4] = {10, 20, 30, 40};
-    COLOR32 amb = {0, 0, 0, 0};
+    color32_t amb = {0, 0, 0, 0};
     ref_fix_mocv(dummy, 0, NULL, 0, 0, amb, 0, true);
     T_EQ(dummy[0], 10); T_EQ(dummy[1], 20); T_EQ(dummy[2], 30); T_EQ(dummy[3], 40);
 }
@@ -272,7 +272,7 @@ static int feq(float a, float b) { return fabsf(a - b) < 1e-5f; }
 
 TEST(wow_wmo_doodad_matrix, identity_quat_scale_one_gives_identity_rotation) {
     wowWmoDoodadDef_t def = {0, {0,0,0}, {0,0,0,1}, 1.0f, {0,0,0,0}};
-    MATRIX4_TEST m;
+    matrix4Test_t m;
     ref_doodad_local_matrix(&def, &m);
     /* Rotation columns should be identity */
     T_ASSERT(feq(m.v[0], 1.0f)); T_ASSERT(feq(m.v[5], 1.0f)); T_ASSERT(feq(m.v[10], 1.0f));
@@ -288,7 +288,7 @@ TEST(wow_wmo_doodad_matrix, identity_quat_scale_one_gives_identity_rotation) {
 
 TEST(wow_wmo_doodad_matrix, position_stored_in_translation_column) {
     wowWmoDoodadDef_t def = {0, {3.5f, -2.0f, 7.0f}, {0,0,0,1}, 1.0f, {0,0,0,0}};
-    MATRIX4_TEST m;
+    matrix4Test_t m;
     ref_doodad_local_matrix(&def, &m);
     T_ASSERT(feq(m.v[12], 3.5f));
     T_ASSERT(feq(m.v[13], -2.0f));
@@ -298,7 +298,7 @@ TEST(wow_wmo_doodad_matrix, position_stored_in_translation_column) {
 
 TEST(wow_wmo_doodad_matrix, scale_multiplies_rotation_columns) {
     wowWmoDoodadDef_t def = {0, {0,0,0}, {0,0,0,1}, 3.0f, {0,0,0,0}};
-    MATRIX4_TEST m;
+    matrix4Test_t m;
     ref_doodad_local_matrix(&def, &m);
     T_ASSERT(feq(m.v[0], 3.0f)); /* scale * 1 */
     T_ASSERT(feq(m.v[5], 3.0f));
@@ -307,7 +307,7 @@ TEST(wow_wmo_doodad_matrix, scale_multiplies_rotation_columns) {
 
 TEST(wow_wmo_doodad_matrix, zero_scale_collapses_matrix) {
     wowWmoDoodadDef_t def = {0, {1,2,3}, {0,0,0,1}, 0.0f, {0,0,0,0}};
-    MATRIX4_TEST m;
+    matrix4Test_t m;
     ref_doodad_local_matrix(&def, &m);
     T_ASSERT(feq(m.v[0], 0.0f));
     T_ASSERT(feq(m.v[5], 0.0f));
@@ -321,7 +321,7 @@ TEST(wow_wmo_doodad_matrix, 90deg_yaw_around_Z_axis) {
     /* Quaternion for 90° around Z: (0, 0, sin(45°), cos(45°)) */
     float s = sqrtf(0.5f);
     wowWmoDoodadDef_t def = {0, {0,0,0}, {0,0,s,s}, 1.0f, {0,0,0,0}};
-    MATRIX4_TEST m;
+    matrix4Test_t m;
     ref_doodad_local_matrix(&def, &m);
     /* col0 should map to (0,1,0): rotation of X-axis by 90° around Z gives Y */
     T_ASSERT(feq(m.v[0],  0.0f)); /* Rxx */
@@ -340,7 +340,7 @@ TEST(wow_wmo_doodad_matrix, 90deg_yaw_around_Z_axis) {
 TEST(wow_wmo_doodad_matrix, 180deg_yaw_around_Y_axis) {
     /* Quaternion for 180° around Y: (0, 1, 0, 0) (sin(90°)=1, cos(90°)=0) */
     wowWmoDoodadDef_t def = {0, {0,0,0}, {0,1,0,0}, 1.0f, {0,0,0,0}};
-    MATRIX4_TEST m;
+    matrix4Test_t m;
     ref_doodad_local_matrix(&def, &m);
     /* X → -X, Y → Y, Z → -Z */
     T_ASSERT(feq(m.v[0], -1.0f)); /* Rxx = 1 - 2(0+0) ... */
@@ -352,7 +352,7 @@ TEST(wow_wmo_doodad_matrix, 180deg_yaw_around_Y_axis) {
 TEST(wow_wmo_doodad_matrix, scale_combined_with_rotation) {
     float s = sqrtf(0.5f);
     wowWmoDoodadDef_t def = {0, {0,0,0}, {0,0,s,s}, 2.0f, {0,0,0,0}};
-    MATRIX4_TEST m;
+    matrix4Test_t m;
     ref_doodad_local_matrix(&def, &m);
     /* scale=2 × 90° yaw-Z: col0 = (0, 2, 0), col1 = (-2, 0, 0) */
     T_ASSERT(feq(m.v[0],  0.0f));

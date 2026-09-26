@@ -1,11 +1,11 @@
 #include "s_skills.h"
 
-static void ai_holdpos_stand(LPEDICT self) {
+static void ai_holdpos_stand(edict_t * self) {
     if (!G_ShouldAcquireThisFrame(self))
         return;
     /* Hold Position still detects hostile units at the data-defined acquisition
      * radius; the order controls the post-acquisition chase, not perception. */
-    LPEDICT enemy = G_FindNearestEnemy(self, G_AcquisitionRange(self));
+    edict_t * enemy = G_FindNearestEnemy(self, G_AcquisitionRange(self));
     if (enemy) {
         order_attack(self, enemy);
     }
@@ -14,7 +14,7 @@ static void ai_holdpos_stand(LPEDICT self) {
 umove_t holdpos_move_stand = { "stand", ai_holdpos_stand, unit_stand };
 umove_t holdpos_move_stand_ready = { "stand ready", ai_holdpos_stand, unit_stand };
 
-bool S_HoldPosition(LPEDICT unit) {
+bool S_HoldPosition(edict_t * unit) {
     if (!unit || M_IsDead(unit) || S_GoldMineWorkerIsInside(unit))
         return false;
     G_ClearUnitOrderQueue(unit);

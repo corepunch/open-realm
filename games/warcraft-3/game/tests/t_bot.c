@@ -5,7 +5,7 @@
 #include "../skills/s_skills.h"
 #include "shared/test.h"
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 bool run_test_jass(cstring_t src);
 void reset_entities(void);
 void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
@@ -29,8 +29,8 @@ TEST(wc3_bot, display_text_formats_only_authoritative_integer_templates) {
     T_STREQ(small, "1234567");
 }
 
-static LPEDICT make_bot_harvest_unit(uint32_t class_id, float x, float y, uint32_t player, UnitAbilities_t const *abilities) {
-    LPEDICT unit = alloc_test_unit(class_id, x, y);
+static edict_t * make_bot_harvest_unit(uint32_t class_id, float x, float y, uint32_t player, UnitAbilities_t const *abilities) {
+    edict_t * unit = alloc_test_unit(class_id, x, y);
     unit->s.player = player; unit->data.UnitAbilities = abilities;
     unit->health.value = unit->health.max_value = 1000; unit->stand = unit_stand;
     unit->attack1.type = ATK_NORMAL;
@@ -40,7 +40,7 @@ static LPEDICT make_bot_harvest_unit(uint32_t class_id, float x, float y, uint32
 }
 
 TEST(wc3_bot, binds_player_and_pauses_sleeping_script) {
-    LPPLAYER player = &game.clients[2].ps;
+    player_t * player = &game.clients[2].ps;
 
     T_ASSERT(G_BotStart(player, "test_player.ai", BOT_CAMPAIGN));
     T_NOT_NULL(level.bots[2].vm);
@@ -78,7 +78,7 @@ TEST(wc3_bot, roots_are_independent_and_stop_individually) {
 }
 
 TEST(wc3_bot, replacement_and_missing_script_are_bounded) {
-    LPPLAYER player = &game.clients[0].ps;
+    player_t * player = &game.clients[0].ps;
 
     T_ASSERT(G_BotStart(player, "test_idle.ai", BOT_CAMPAIGN));
     T_ASSERT(G_BotStart(player, "Scripts\\test_idle.ai", BOT_MELEE));
@@ -112,14 +112,14 @@ TEST(wc3_bot, replacement_requested_inside_ai_is_deferred) {
 }
 
 TEST(wc3_bot, query_natives_read_authoritative_player_state) {
-    LPEDICT done = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    LPEDICT building = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
-    LPEDICT training = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
-    LPEDICT dead = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 0);
-    LPEDICT other = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 0);
-    LPEDICT hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 128, 2, &bot_hall_abilities);
-    LPEDICT mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 256, 128, MAX_PLAYERS, &bot_mine_abilities);
-    LPEDICT builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 128);
+    edict_t * done = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    edict_t * building = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
+    edict_t * training = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    edict_t * dead = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 0);
+    edict_t * other = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 128, 0);
+    edict_t * hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 128, 2, &bot_hall_abilities);
+    edict_t * mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 256, 128, MAX_PLAYERS, &bot_mine_abilities);
+    edict_t * builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 128);
 
     done->s.player = building->s.player = training->s.player = dead->s.player = 2;
     other->s.player = 1;
@@ -139,12 +139,12 @@ TEST(wc3_bot, query_natives_read_authoritative_player_state) {
 }
 
 TEST(wc3_bot, mines_belong_to_the_nearest_owned_town) {
-    LPPLAYER player = &game.clients[2].ps;
+    player_t * player = &game.clients[2].ps;
     reset_entities();
-    LPEDICT hall0 = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
-    LPEDICT hall1 = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 1000, 0, 2, &bot_hall_abilities);
-    LPEDICT mine0 = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 100, 0, MAX_PLAYERS, &bot_mine_abilities);
-    LPEDICT mine1 = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 900, 0, MAX_PLAYERS, &bot_mine_abilities);
+    edict_t * hall0 = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    edict_t * hall1 = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 1000, 0, 2, &bot_hall_abilities);
+    edict_t * mine0 = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 100, 0, MAX_PLAYERS, &bot_mine_abilities);
+    edict_t * mine1 = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 900, 0, MAX_PLAYERS, &bot_mine_abilities);
     mine0->resources = 1000; mine1->resources = 2000;
 
     T_EQ(G_BotTown(player, 0), hall0); T_EQ(G_BotTown(player, 1), hall1);
@@ -156,8 +156,8 @@ TEST(wc3_bot, mines_belong_to_the_nearest_owned_town) {
 }
 
 TEST(wc3_bot, produce_queues_trainable_units_and_rejects_unknown_types) {
-    LPPLAYER player = &game.clients[2].ps;
-    LPEDICT producer;
+    player_t * player = &game.clients[2].ps;
+    edict_t * producer;
     UnitProfile_t profile = { .trains = "hfoo" };
     reset_entities();
     producer = make_bot_harvest_unit(MAKEFOURCC('h','b','a','r'), 0, 0, 2, NULL);
@@ -176,7 +176,7 @@ TEST(wc3_bot, produce_queues_trainable_units_and_rejects_unknown_types) {
 TEST(wc3_bot, build_site_requires_direct_static_route) {
     uint8_t cells[100] = {0};
     edict_t worker = { .collision = 0.0f, .s.origin2 = { 1.0f, 5.0f } };
-    VECTOR2 same_side = { 4.0f, 5.0f }, across_wall = { 8.0f, 5.0f };
+    vector2_t same_side = { 4.0f, 5.0f }, across_wall = { 8.0f, 5.0f };
     FOR_LOOP(y, 10) cells[5 + y * 10] = 2;
     setup_test_pathmap(10, 10, cells);
     T_ASSERT(G_BotBuildSiteReachable(&worker, &same_side));
@@ -186,7 +186,7 @@ TEST(wc3_bot, build_site_requires_direct_static_route) {
 }
 
 TEST(wc3_bot, unit_alive_rejects_null_dead_and_removed_handles) {
-    LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t * unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     unit->health.value = 100;
     T_ASSERT(G_BotUnitAlive(unit));
     unit->health.value = 0;
@@ -250,11 +250,11 @@ TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
     static umove_t lumber_move = { "attack", NULL, NULL, CAbilityHarvest };
     static umove_t gold_move = { "attack", NULL, NULL, CAbilityGoldMine };
     static umove_t attack_move = { "attack", NULL, NULL, CAbilityAttack };
-    LPEDICT lumber = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    LPEDICT gold = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
-    LPEDICT other = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
-    LPEDICT fighter = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 0);
-    LPEDICT mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 128, 0);
+    edict_t * lumber = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
+    edict_t * gold = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32, 0);
+    edict_t * other = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64, 0);
+    edict_t * fighter = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 0);
+    edict_t * mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 128, 0);
 
     lumber->s.player = gold->s.player = fighter->s.player = 2; other->s.player = 1;
     lumber->stand = gold->stand = other->stand = fighter->stand = unit_stand;
@@ -281,13 +281,13 @@ TEST(wc3_bot, stop_gathering_stops_only_owned_harvesters_and_releases_mines) {
 TEST(wc3_bot, harvest_gold_assigns_nearest_owned_workers_up_to_quota) {
     bot_t *bot = level.bots + 2;
     reset_entities();
-    LPEDICT hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
-    LPEDICT trainee = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 8, 0, 2, &bot_harvester_abilities);
-    LPEDICT builder = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 16, 0, 2, &bot_harvester_abilities);
-    LPEDICT near = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 32, 0, 2, &bot_harvester_abilities);
-    LPEDICT far = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 96, 0, 2, &bot_harvester_abilities);
-    LPEDICT other = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 16, 0, 1, &bot_harvester_abilities);
-    LPEDICT mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 256, 0, MAX_PLAYERS, &bot_mine_abilities);
+    edict_t * hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    edict_t * trainee = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 8, 0, 2, &bot_harvester_abilities);
+    edict_t * builder = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 16, 0, 2, &bot_harvester_abilities);
+    edict_t * near = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 32, 0, 2, &bot_harvester_abilities);
+    edict_t * far = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 96, 0, 2, &bot_harvester_abilities);
+    edict_t * other = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 16, 0, 1, &bot_harvester_abilities);
+    edict_t * mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 256, 0, MAX_PLAYERS, &bot_mine_abilities);
     mine->resources = 1000; trainee->training = true; trainee->s.renderfx |= RF_HIDDEN;
     builder->build_project = MAKEFOURCC('h','b','a','r');
 
@@ -304,10 +304,10 @@ TEST(wc3_bot, harvest_pass_reserves_workers_across_gold_and_wood_then_clears) {
     bot_t *bot = level.bots + 2;
     reset_entities();
     make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
-    LPEDICT first = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 32, 0, 2, &bot_harvester_abilities);
-    LPEDICT second = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 64, 0, 2, &bot_harvester_abilities);
-    LPEDICT mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 256, 0, MAX_PLAYERS, &bot_mine_abilities);
-    LPEDICT tree = make_bot_harvest_unit(MAKEFOURCC('L','T','l','t'), 0, 256, MAX_PLAYERS, NULL);
+    edict_t * first = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 32, 0, 2, &bot_harvester_abilities);
+    edict_t * second = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 64, 0, 2, &bot_harvester_abilities);
+    edict_t * mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 256, 0, MAX_PLAYERS, &bot_mine_abilities);
+    edict_t * tree = make_bot_harvest_unit(MAKEFOURCC('L','T','l','t'), 0, 256, MAX_PLAYERS, NULL);
     mine->resources = 1000; tree->targtype = TARG_TREE;
     first->currentmove = &gold_move; first->goalentity = mine;
 
@@ -325,9 +325,9 @@ TEST(wc3_bot, harvest_pass_reserves_workers_across_gold_and_wood_then_clears) {
 TEST(wc3_bot, harvest_returns_carried_resources_before_collecting) {
     bot_t *bot = level.bots + 2;
     reset_entities();
-    LPEDICT hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
-    LPEDICT worker = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 64, 0, 2, &bot_harvester_abilities);
-    LPEDICT mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 256, 0, MAX_PLAYERS, &bot_mine_abilities);
+    edict_t * hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    edict_t * worker = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 64, 0, 2, &bot_harvester_abilities);
+    edict_t * mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 256, 0, MAX_PLAYERS, &bot_mine_abilities);
     mine->resources = 1000; worker->harvested_lumber = 5;
 
     G_BotClearHarvest(&game.clients[2].ps);
@@ -342,8 +342,8 @@ TEST(wc3_bot, harvest_natives_execute_through_player_bot_vm) {
     make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
     make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 32, 0, 2, &bot_harvester_abilities);
     make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 64, 0, 2, &bot_harvester_abilities);
-    LPEDICT mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 256, 0, MAX_PLAYERS, &bot_mine_abilities);
-    LPEDICT tree = make_bot_harvest_unit(MAKEFOURCC('L','T','l','t'), 0, 256, MAX_PLAYERS, NULL);
+    edict_t * mine = make_bot_harvest_unit(MAKEFOURCC('n','g','o','l'), 256, 0, MAX_PLAYERS, &bot_mine_abilities);
+    edict_t * tree = make_bot_harvest_unit(MAKEFOURCC('L','T','l','t'), 0, 256, MAX_PLAYERS, NULL);
     mine->resources = 1000; tree->targtype = TARG_TREE;
 
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_harvest.ai", BOT_CAMPAIGN));
@@ -378,24 +378,24 @@ TEST(wc3_bot, create_captains_resets_both_bot_owned_captains) {
 
 TEST(wc3_bot, ignored_units_counts_only_live_owned_captain_members) {
     bot_t *bot = level.bots + 2;
-    LPEDICT attack = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    LPEDICT defense = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
-    LPEDICT dead = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
-    LPEDICT removed = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 0);
-    LPEDICT wrong_type = alloc_test_unit(MAKEFOURCC('h','r','i','f'), 128, 0);
-    LPEDICT wrong_owner = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 160, 0);
+    edict_t * attack = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    edict_t * defense = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
+    edict_t * dead = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    edict_t * removed = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96, 0);
+    edict_t * wrong_type = alloc_test_unit(MAKEFOURCC('h','r','i','f'), 128, 0);
+    edict_t * wrong_owner = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 160, 0);
 
     attack->s.player = defense->s.player = dead->s.player = removed->s.player = wrong_type->s.player = 2;
     wrong_owner->s.player = 1;
     attack->health.value = defense->health.value = removed->health.value = wrong_type->health.value = 100;
     wrong_owner->health.value = 100; dead->health.value = 0; removed->inuse = false;
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_ignored_units.ai", BOT_CAMPAIGN));
-    bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(3 * sizeof(LPEDICT));
+    bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(3 * sizeof(edict_t *));
     ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 3;
     bot->captains[BOT_CAPTAIN_ATTACK].units[0] = attack;
     bot->captains[BOT_CAPTAIN_ATTACK].units[1] = dead;
     bot->captains[BOT_CAPTAIN_ATTACK].units[2] = wrong_type;
-    bot->captains[BOT_CAPTAIN_DEFENSE].units = gi.MemAlloc(3 * sizeof(LPEDICT));
+    bot->captains[BOT_CAPTAIN_DEFENSE].units = gi.MemAlloc(3 * sizeof(edict_t *));
     ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units) = 3;
     bot->captains[BOT_CAPTAIN_DEFENSE].units[0] = defense;
     bot->captains[BOT_CAPTAIN_DEFENSE].units[1] = removed;
@@ -411,13 +411,13 @@ TEST(wc3_bot, ignored_units_counts_only_live_owned_captain_members) {
 
 TEST(wc3_bot, captain_in_combat_selects_roster_and_clears_stale_targets) {
     bot_t *bot = level.bots + 2;
-    LPEDICT attack = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
-    LPEDICT defense = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
-    LPEDICT enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
+    edict_t * attack = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
+    edict_t * defense = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
+    edict_t * enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
     attack->health.value = defense->health.value = enemy->health.value = 100;
     attack->s.player = defense->s.player = 2; enemy->s.player = 1;
-    bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(sizeof(LPEDICT));
-    bot->captains[BOT_CAPTAIN_DEFENSE].units = gi.MemAlloc(sizeof(LPEDICT));
+    bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(sizeof(edict_t *));
+    bot->captains[BOT_CAPTAIN_DEFENSE].units = gi.MemAlloc(sizeof(edict_t *));
     ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 1;
     ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units) = 1;
     bot->captains[BOT_CAPTAIN_ATTACK].units[0] = attack;
@@ -433,8 +433,8 @@ TEST(wc3_bot, captain_in_combat_selects_roster_and_clears_stale_targets) {
 TEST(wc3_bot, add_defenders_fills_idempotently_from_completed_owned_units) {
     bot_t *bot = level.bots + 2;
     uint32_t type = MAKEFOURCC('h','f','o','o');
-    LPEDICT first = alloc_test_unit(type, 0, 0), second = alloc_test_unit(type, 32, 0);
-    LPEDICT training = alloc_test_unit(type, 64, 0), other = alloc_test_unit(type, 96, 0);
+    edict_t * first = alloc_test_unit(type, 0, 0), *second = alloc_test_unit(type, 32, 0);
+    edict_t * training = alloc_test_unit(type, 64, 0), *other = alloc_test_unit(type, 96, 0);
     first->s.player = second->s.player = training->s.player = 2; other->s.player = 1;
     first->health.value = second->health.value = training->health.value = other->health.value = 100;
     training->training = true;
@@ -453,10 +453,10 @@ TEST(wc3_bot, add_defenders_fills_idempotently_from_completed_owned_units) {
 TEST(wc3_bot, assault_init_resets_attack_only_and_fill_tracks_desired_roster) {
     bot_t *bot = level.bots + 2;
     uint32_t type = MAKEFOURCC('h','f','o','o');
-    LPEDICT first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
-    LPEDICT second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
-    LPEDICT building = make_bot_harvest_unit(type, 64, 0, 2, NULL);
-    LPEDICT enemy = make_bot_harvest_unit(type, 96, 0, 1, NULL);
+    edict_t * first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
+    edict_t * second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
+    edict_t * building = make_bot_harvest_unit(type, 64, 0, 2, NULL);
+    edict_t * enemy = make_bot_harvest_unit(type, 96, 0, 1, NULL);
     building->construction.active = true;
 
     G_BotCreateCaptains(&game.clients[2].ps);
@@ -476,16 +476,16 @@ TEST(wc3_bot, assault_init_resets_attack_only_and_fill_tracks_desired_roster) {
 
 TEST(wc3_bot, suicide_player_launches_full_and_timeout_partial_assaults_at_target_player) {
     bot_t *bot = level.bots + 2;
-    LPMAPINFO mapinfo = (LPMAPINFO)level.mapinfo;
+    mapInfo_t * mapinfo = (mapInfo_t *)level.mapinfo;
     uint32_t type = MAKEFOURCC('h','f','o','o');
-    LPEDICT first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
-    LPEDICT second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
-    LPEDICT enemy = make_bot_harvest_unit(type, 256, 128, 1, NULL);
-    LPPLAYER target = &game.clients[1].ps;
+    edict_t * first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
+    edict_t * second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
+    edict_t * enemy = make_bot_harvest_unit(type, 256, 128, 1, NULL);
+    player_t * target = &game.clients[1].ps;
 
     enemy->svflags |= SVF_MONSTER;
     mapinfo->players[1].used = true;
-    mapinfo->players[1].startingPosition = MAKE(VECTOR2, 256, 128);
+    mapinfo->players[1].startingPosition = MAKE(vector2_t, 256, 128);
     bot->player = &game.clients[2].ps;
     G_BotSetStagePoint(&game.clients[2].ps, 256, 128);
     G_BotCreateCaptains(&game.clients[2].ps);
@@ -510,13 +510,13 @@ TEST(wc3_bot, suicide_player_launches_full_and_timeout_partial_assaults_at_targe
 
 TEST(wc3_bot, suicide_player_native_runs_in_player_bound_ai_vm) {
     bot_t *bot = level.bots + 2;
-    LPMAPINFO mapinfo = (LPMAPINFO)level.mapinfo;
-    LPEDICT unit = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 0, 0, 2, NULL);
-    LPEDICT enemy = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 256, 128, 1, NULL);
+    mapInfo_t * mapinfo = (mapInfo_t *)level.mapinfo;
+    edict_t * unit = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 0, 0, 2, NULL);
+    edict_t * enemy = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 256, 128, 1, NULL);
 
     enemy->svflags |= SVF_MONSTER;
     mapinfo->players[1].used = true;
-    mapinfo->players[1].startingPosition = MAKE(VECTOR2, 256, 128);
+    mapinfo->players[1].startingPosition = MAKE(vector2_t, 256, 128);
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_suicide_player.ai", BOT_CAMPAIGN));
     G_BotCreateCaptains(&game.clients[2].ps);
     G_BotInitAssault(&game.clients[2].ps);
@@ -532,8 +532,8 @@ TEST(wc3_bot, suicide_player_native_runs_in_player_bound_ai_vm) {
 TEST(wc3_bot, captain_size_empty_and_full_count_only_live_assault_members) {
     bot_t *bot = level.bots + 2;
     uint32_t type = MAKEFOURCC('h','f','o','o');
-    LPEDICT first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
-    LPEDICT second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
+    edict_t * first = make_bot_harvest_unit(type, 0, 0, 2, NULL);
+    edict_t * second = make_bot_harvest_unit(type, 32, 0, 2, NULL);
 
     G_BotCreateCaptains(&game.clients[2].ps);
     T_EQ(G_BotCaptainGroupSize(&game.clients[2].ps), 0);
@@ -555,14 +555,14 @@ TEST(wc3_bot, captain_readiness_uses_lower_hero_and_unit_aggregate) {
     static UnitBalance_t hero_balance = { .strength = 1 };
     static UnitBalance_t unit_balance = {0};
     bot_t *bot = level.bots + 2;
-    LPEDICT hero = make_bot_harvest_unit(MAKEFOURCC('H','p','a','l'), 0, 0, 2, NULL);
-    LPEDICT first = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 32, 0, 2, NULL);
-    LPEDICT second = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64, 0, 2, NULL);
+    edict_t * hero = make_bot_harvest_unit(MAKEFOURCC('H','p','a','l'), 0, 0, 2, NULL);
+    edict_t * first = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 32, 0, 2, NULL);
+    edict_t * second = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 64, 0, 2, NULL);
     hero->data.UnitBalance = &hero_balance; first->data.UnitBalance = second->data.UnitBalance = &unit_balance;
     hero->health.value = 333; hero->health.max_value = 1000;
     first->health.value = 100; first->health.max_value = 100;
     second->health.value = 50; second->health.max_value = 100;
-    bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(3 * sizeof(LPEDICT));
+    bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(3 * sizeof(edict_t *));
     ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 3;
     bot->captains[BOT_CAPTAIN_ATTACK].units[0] = hero;
     bot->captains[BOT_CAPTAIN_ATTACK].units[1] = first;
@@ -578,11 +578,11 @@ TEST(wc3_bot, captain_readiness_uses_lower_hero_and_unit_aggregate) {
 TEST(wc3_bot, captain_readiness_treats_empty_and_zero_mana_categories_as_full) {
     static UnitBalance_t unit_balance = {0};
     bot_t *bot = level.bots + 2;
-    LPEDICT unit = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 0, 0, 2, NULL);
+    edict_t * unit = make_bot_harvest_unit(MAKEFOURCC('h','f','o','o'), 0, 0, 2, NULL);
     unit->data.UnitBalance = &unit_balance;
     T_EQ(G_BotCaptainReadiness(&game.clients[2].ps, false), 100);
     T_EQ(G_BotCaptainReadiness(&game.clients[2].ps, true), 100);
-    bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(sizeof(LPEDICT));
+    bot->captains[BOT_CAPTAIN_ATTACK].units = gi.MemAlloc(sizeof(edict_t *));
     ARRAY_COUNT(bot->captains[BOT_CAPTAIN_ATTACK].units) = 1;
     bot->captains[BOT_CAPTAIN_ATTACK].units[0] = unit;
     unit->mana.value = unit->mana.max_value = 0;
@@ -595,11 +595,11 @@ TEST(wc3_bot, captain_readiness_treats_empty_and_zero_mana_categories_as_full) {
 TEST(wc3_bot, guard_posts_fill_typed_units_without_stealing_captain_members) {
     bot_t *bot = level.bots + 2;
     uint32_t type = MAKEFOURCC('h','f','o','o');
-    LPEDICT captain = alloc_test_unit(type, 0, 0), first = alloc_test_unit(type, 32, 0);
-    LPEDICT second = alloc_test_unit(type, 64, 0), other = alloc_test_unit(type, 96, 0);
+    edict_t * captain = alloc_test_unit(type, 0, 0), *first = alloc_test_unit(type, 32, 0);
+    edict_t * second = alloc_test_unit(type, 64, 0), *other = alloc_test_unit(type, 96, 0);
     captain->s.player = first->s.player = second->s.player = 2; other->s.player = 1;
     captain->health.value = first->health.value = second->health.value = other->health.value = 100;
-    bot->captains[BOT_CAPTAIN_DEFENSE].units = gi.MemAlloc(sizeof(LPEDICT));
+    bot->captains[BOT_CAPTAIN_DEFENSE].units = gi.MemAlloc(sizeof(edict_t *));
     ARRAY_COUNT(bot->captains[BOT_CAPTAIN_DEFENSE].units) = 1;
     bot->captains[BOT_CAPTAIN_DEFENSE].units[0] = captain;
 
@@ -615,7 +615,7 @@ TEST(wc3_bot, guard_posts_fill_typed_units_without_stealing_captain_members) {
 TEST(wc3_bot, guard_posts_replace_dead_members_and_leave_missing_types_empty) {
     bot_t *bot = level.bots + 2;
     uint32_t type = MAKEFOURCC('h','f','o','o');
-    LPEDICT dead = alloc_test_unit(type, 0, 0), replacement = alloc_test_unit(type, 32, 0);
+    edict_t * dead = alloc_test_unit(type, 0, 0), *replacement = alloc_test_unit(type, 32, 0);
     dead->s.player = replacement->s.player = 2; dead->health.value = replacement->health.value = 100;
     G_BotAddGuardPost(&game.clients[2].ps, type, 100, 200);
     G_BotAddGuardPost(&game.clients[2].ps, MAKEFOURCC('h','r','i','f'), 300, 400);
@@ -629,8 +629,8 @@ TEST(wc3_bot, guard_posts_replace_dead_members_and_leave_missing_types_empty) {
 TEST(wc3_bot, return_guard_posts_moves_idle_units_but_preserves_combat) {
     bot_t *bot = level.bots + 2;
     uint32_t type = MAKEFOURCC('h','f','o','o');
-    LPEDICT idle = alloc_test_unit(type, 0, 0), fighting = alloc_test_unit(type, 0, 32);
-    LPEDICT enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
+    edict_t * idle = alloc_test_unit(type, 0, 0), *fighting = alloc_test_unit(type, 0, 32);
+    edict_t * enemy = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 64, 0);
     idle->s.player = fighting->s.player = 2; enemy->s.player = 1;
     idle->health.value = fighting->health.value = enemy->health.value = 100;
     idle->stand = fighting->stand = unit_stand; fighting->combatentity = enemy;

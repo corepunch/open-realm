@@ -12,7 +12,7 @@ float Wow_DayFraction(void) {
    Light*.dbc, so the authored sun path is unavailable; this is WoWee's
    time-of-day directionalDir negated and Y-up→Z-up swapped to engine axes.
    day_frac 0=midnight, 0.25=dawn(sun in -X), 0.5=noon(overhead), 0.75=dusk. */
-void Wow_SunDirection(float day_frac, LPVECTOR3 out) {
+void Wow_SunDirection(float day_frac, vector3_t * out) {
     float a = day_frac * 6.283185307f; /* 2π over the day cycle */
     out->x = -0.6f * sinf(a);
     out->y = -0.6f * cosf(a);
@@ -21,8 +21,8 @@ void Wow_SunDirection(float day_frac, LPVECTOR3 out) {
 }
 
 bool Wow_EntityInView(renderEntity_t const *entity) {
-    VECTOR3 camera_origin;
-    VECTOR3 delta;
+    vector3_t camera_origin;
+    vector3_t delta;
     float radius;
 
     if (!entity) {
@@ -36,13 +36,13 @@ bool Wow_EntityInView(renderEntity_t const *entity) {
     }
 
     radius = MAX(entity->radius * MAX(entity->scale, 1.0f), 16.0f);
-    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){ .center = entity->origin, .radius = radius, });
+    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(sphere3_t){ .center = entity->origin, .radius = radius, });
 }
 
 bool Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk) {
-    VECTOR3 camera_origin;
-    VECTOR3 center;
-    VECTOR3 extents;
+    vector3_t camera_origin;
+    vector3_t center;
+    vector3_t extents;
     float dx = 0.0f;
     float dy = 0.0f;
     float max_distance_sq;
@@ -69,37 +69,37 @@ bool Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk) {
         return false;
     }
 
-    center = (VECTOR3){
+    center = (vector3_t){
         (chunk->bounds.min.x + chunk->bounds.max.x) * 0.5f,
         (chunk->bounds.min.y + chunk->bounds.max.y) * 0.5f,
         (chunk->bounds.min.z + chunk->bounds.max.z) * 0.5f,
     };
-    extents = (VECTOR3){
+    extents = (vector3_t){
         chunk->bounds.max.x - center.x,
         chunk->bounds.max.y - center.y,
         chunk->bounds.max.z - center.z,
     };
     radius = MAX(Vector3_len(&extents), WOW_ADT_CHUNK_SIZE);
-    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){ .center = center, .radius = radius, });
+    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(sphere3_t){ .center = center, .radius = radius, });
 }
 
-bool Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix) {
-    VECTOR3 center;
-    VECTOR3 extents;
-    VECTOR3 world_center;
-    VECTOR3 delta;
+bool Wow_WmoGroupInView(wowWmoGroup_t const *group, matrix4_t const * matrix) {
+    vector3_t center;
+    vector3_t extents;
+    vector3_t world_center;
+    vector3_t delta;
     float radius;
 
     if (!group || !matrix || !group->has_bounds) {
         return true;
     }
 
-    center = (VECTOR3){
+    center = (vector3_t){
         (group->bounds.min.x + group->bounds.max.x) * 0.5f,
         (group->bounds.min.y + group->bounds.max.y) * 0.5f,
         (group->bounds.min.z + group->bounds.max.z) * 0.5f,
     };
-    extents = (VECTOR3){
+    extents = (vector3_t){
         group->bounds.max.x - center.x,
         group->bounds.max.y - center.y,
         group->bounds.max.z - center.z,
@@ -111,17 +111,17 @@ bool Wow_WmoGroupInView(wowWmoGroup_t const *group, LPCMATRIX4 matrix) {
     delta = Vector3_sub(&world_center, &tr.viewDef.camerastate[0].origin);
     if (Vector3_len(&delta) - radius > tr.viewDef.fogEnd) return false;
 
-    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(SPHERE3){ .center = world_center, .radius = MAX(radius, 16.0f), });
+    return Frustum_ContainsSphere(&tr.viewDef.frustum, &(sphere3_t){ .center = world_center, .radius = MAX(radius, 16.0f), });
 }
 
 /* Returns true if the world-space point lies within any interior group's AABB (in world space).
    Each group's local AABB is conservatively transformed to world space by expanding over all 8
    corners; this is correct for axis-aligned groups and conservative for rotated ones. */
-bool Wow_WmoContainsPoint(wowWmoModel_t const *model, LPCMATRIX4 matrix, VECTOR3 point) {
+bool Wow_WmoContainsPoint(wowWmoModel_t const *model, matrix4_t const * matrix, vector3_t point) {
     if (!model || !matrix || !model->portals) return false;
     FOR_LOOP(i, model->num_groups) {
         wowWmoGroup_t const *group = &model->groups[i];
-        BOX3 world;
+        box3_t world;
         float cx[2], cy[2], cz[2];
         if (!group->has_bounds) continue;
         /* Only interior groups contribute to containment */
@@ -131,8 +131,8 @@ bool Wow_WmoContainsPoint(wowWmoModel_t const *model, LPCMATRIX4 matrix, VECTOR3
         cy[0] = group->bounds.min.y; cy[1] = group->bounds.max.y;
         cz[0] = group->bounds.min.z; cz[1] = group->bounds.max.z;
         FOR_LOOP(ix, 2) FOR_LOOP(iy, 2) FOR_LOOP(iz, 2) {
-            VECTOR3 corner = { cx[ix], cy[iy], cz[iz] };
-            VECTOR3 w = Matrix4_multiply_vector3(matrix, &corner);
+            vector3_t corner = { cx[ix], cy[iy], cz[iz] };
+            vector3_t w = Matrix4_multiply_vector3(matrix, &corner);
             Wow_AddBoundsPoint(&world, &w);
         }
         if (point.x < world.min.x || point.x > world.max.x ||
@@ -144,7 +144,7 @@ bool Wow_WmoContainsPoint(wowWmoModel_t const *model, LPCMATRIX4 matrix, VECTOR3
     return false;
 }
 
-void Wow_BindWorldTexture(LPCTEXTURE texture, uint32_t unit, LPCTEXTURE bound[5], uint32_t * binds) {
+void Wow_BindWorldTexture(texture_t const * texture, uint32_t unit, texture_t const * bound[5], uint32_t * binds) {
     texture = texture ? texture : tr.texture[TEX_WHITE];
     if (unit >= 5 || bound[unit] == texture) {
         return;

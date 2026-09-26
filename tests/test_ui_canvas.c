@@ -20,7 +20,7 @@ TEST(ui_canvas, resolver_matrix_covers_stretch_expand_and_centered_policies) {
         { {1280,0}, UI_CANVAS_EXPAND, 0.8f, 0, 0.8f, UI_CANVAS_STANDARD },
     };
     FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
-        UICANVAS canvas = UI_ResolveCanvas(cases[i].window, cases[i].policy);
+        uiCanvas_t canvas = UI_ResolveCanvas(cases[i].window, cases[i].policy);
         T_FEQ(canvas.scene.x, 0, 0.0001f); T_FEQ(canvas.scene.y, 0, 0.0001f);
         T_FEQ(canvas.scene.w, cases[i].width, 0.0001f); T_FEQ(canvas.scene.h, 0.6f, 0.0001f);
         T_FEQ(canvas.root.x, cases[i].root_x, 0.0001f); T_FEQ(canvas.root.y, 0, 0.0001f);

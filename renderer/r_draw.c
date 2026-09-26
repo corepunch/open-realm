@@ -21,10 +21,10 @@ void R_SetUIScene(rect_t const * scene) {
 
 /* Share glyph batching internally; only scaled characters need a renderer export. */
 static void r_draw_string_scaled(float x, float y, cstring_t text, float scale) {
-    VERTEX simp[6 * 128];
+    vertex_t simp[6 * 128];
     uint32_t count = 0;
     size2_t window = R_GetWindowSize();
-    MATRIX4 ui_matrix;
+    matrix4_t ui_matrix;
     float char_width;
     float char_height;
 
@@ -73,9 +73,9 @@ void R_DrawChar(int x, int y, int c) {
     R_DrawCharScaled((float)x, (float)y, c, 1.0f);
 }
 
-void R_DrawFill(rect_t const * rect, COLOR32 color) {
-    VERTEX simp[6];
-    MATRIX4 ui_matrix;
+void R_DrawFill(rect_t const * rect, color32_t color) {
+    vertex_t simp[6];
+    matrix4_t ui_matrix;
     size2_t window = R_GetWindowSize();
 
     if (!rect || rect->w <= 0.0f || rect->h <= 0.0f || !color.a) {
@@ -144,14 +144,14 @@ static void R_ResetUIScissor(void) {
     R_Call(glScissor, 0, 0, tr.drawableSize.width, tr.drawableSize.height);
 }
 
-void R_DrawImageBatch(LPCTEXTURE texture,
+void R_DrawImageBatch(texture_t const * texture,
                       SHADERTYPE shaderType,
                       BLEND_MODE alphamode,
                       float uActiveGlow,
                       float uRadialShade,
                       bool hasClip,
                       rect_t const * clip,
-                      LPCVERTEX vertices,
+                      vertex_t const * vertices,
                       uint32_t num_vertices,
                       bool repeat)
 {
@@ -159,9 +159,9 @@ void R_DrawImageBatch(LPCTEXTURE texture,
         return;
     }
 
-    SPRITEPROG *shader = R_SpriteShader(shaderType);
+    spriteProg_t *shader = R_SpriteShader(shaderType);
     
-    MATRIX4 ui_matrix, model_matrix;
+    matrix4_t ui_matrix, model_matrix;
     rect_t const scene = R_UISceneRect();
     Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y + scene.h, scene.y, 0.0f, 100.0f);
     Matrix4_identity(&model_matrix);
@@ -174,7 +174,7 @@ void R_DrawImageBatch(LPCTEXTURE texture,
     shader->state.radialShade = uRadialShade;
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * num_vertices, vertices, GL_DYNAMIC_DRAW);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertex_t) * num_vertices, vertices, GL_DYNAMIC_DRAW);
     R_Call(glDisable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_FALSE);
     R_Call(glEnable, GL_BLEND);
@@ -208,8 +208,8 @@ void R_DrawImageBatch(LPCTEXTURE texture,
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
-    VERTEX simp[6];
+void R_DrawImageEx(drawImage_t const * drawImage) {
+    vertex_t simp[6];
     R_AddQuad(simp, &drawImage->screen, &drawImage->uv, drawImage->color, 0);
 
     if (drawImage->angle) {
@@ -239,7 +239,7 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
                      drawImage->uv.w > 1 || drawImage->uv.h > 1);
 }
 
-void R_DrawImage(LPCTEXTURE texture, rect_t const * screen, rect_t const * uv, COLOR32 color) {
+void R_DrawImage(texture_t const * texture, rect_t const * screen, rect_t const * uv, color32_t color) {
     R_DrawImageEx(&MAKE(drawImage_t,
                         .texture = texture,
                         .screen = *screen,
@@ -261,7 +261,7 @@ static void R_DisableCinematicPBO(void) {
 }
 
 /* Map a pixel-unpack buffer so video uploads do not make the driver copy client memory synchronously. */
-static bool R_MapCinematicFrame(LPCDRAWCINEMATICFRAME frame) {
+static bool R_MapCinematicFrame(drawCinematicFrame_t const * frame) {
     uint32_t size = frame->width * frame->height * 4;
     void *mapped;
     GLboolean unmapped;
@@ -312,7 +312,7 @@ static bool R_MapCinematicFrame(LPCDRAWCINEMATICFRAME frame) {
 }
 
 /* Upload and draw one decoded cinematic frame while keeping the video texture renderer-owned. */
-void R_DrawCinematicFrame(LPCDRAWCINEMATICFRAME frame) {
+void R_DrawCinematicFrame(drawCinematicFrame_t const * frame) {
     if (!frame) {
         SAFE_DELETE(tr.cinematic, R_ReleaseTexture);
         R_ReleaseCinematicPBO();
@@ -325,7 +325,7 @@ void R_DrawCinematicFrame(LPCDRAWCINEMATICFRAME frame) {
         SAFE_DELETE(tr.cinematic, R_ReleaseTexture);
         tr.cinematic = R_AllocateTexture(frame->width, frame->height);
         if (!tr.cinematic) return;
-        R_LoadTextureMipLevel(tr.cinematic, &(TEXMIP){ frame->pixels, frame->width, frame->height, 0, PIXEL_RGBA });
+        R_LoadTextureMipLevel(tr.cinematic, &(texMip_t){ frame->pixels, frame->width, frame->height, 0, PIXEL_RGBA });
     } else {
         R_Call(glBindTexture, GL_TEXTURE_2D, tr.cinematic->texid);
         if (!R_MapCinematicFrame(frame))
@@ -334,8 +334,8 @@ void R_DrawCinematicFrame(LPCDRAWCINEMATICFRAME frame) {
     R_DrawImage(tr.cinematic, &frame->screen, &(rect_t){0, 0, 1, 1}, COLOR32_WHITE);
 }
 
-static bool R_MinimapPointForWorld(LPCVECTOR3 world, rect_t const * screen, LPVECTOR2 out) {
-    VECTOR2 map_size;
+static bool R_MinimapPointForWorld(vector3_t const * world, rect_t const * screen, vector2_t * out) {
+    vector2_t map_size;
     float nx;
     float ny;
 
@@ -358,10 +358,10 @@ static bool R_MinimapPointForWorld(LPCVECTOR3 world, rect_t const * screen, LPVE
     return true;
 }
 
-static bool R_TraceViewportCornerToMinimap(float x, float y, rect_t const * screen, LPVECTOR2 out, LPVECTOR3 world_out) {
-    VECTOR3 world;
-    LINE3 line;
-    PLANE3 ground = {
+static bool R_TraceViewportCornerToMinimap(float x, float y, rect_t const * screen, vector2_t * out, vector3_t * world_out) {
+    vector3_t world;
+    line3_t line;
+    plane3_t ground = {
         .normal = { 0.0f, 0.0f, 1.0f },
         .distance = 0.0f,
     };
@@ -376,8 +376,8 @@ static bool R_TraceViewportCornerToMinimap(float x, float y, rect_t const * scre
     return R_MinimapPointForWorld(&world, screen, out);
 }
 
-static void R_DrawUILineStrip(VERTEX const *vertices, uint32_t count) {
-    MATRIX4 ui_matrix, model_matrix;
+static void R_DrawUILineStrip(vertex_t const *vertices, uint32_t count) {
+    matrix4_t ui_matrix, model_matrix;
     rect_t const scene = R_UISceneRect();
 
     Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y + scene.h, scene.y, 0.0f, 100.0f);
@@ -392,7 +392,7 @@ static void R_DrawUILineStrip(VERTEX const *vertices, uint32_t count) {
     R_BindTexture(tr.texture[TEX_WHITE], 0);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, tr.buffer[RBUF_TEMP1]->vbo);
-    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(VERTEX) * count, vertices, GL_DYNAMIC_DRAW);
+    R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(vertex_t) * count, vertices, GL_DYNAMIC_DRAW);
     R_StatsDraw(GL_LINE_STRIP, count, 1);
     R_ApplyShader(&tr.shader_ui);
     R_Call(glDrawArrays, GL_LINE_STRIP, 0, count);
@@ -405,9 +405,9 @@ void R_DrawMinimapCameraRect(rect_t const * screen) {
     float right = (tr.viewDef.viewport.x + tr.viewDef.viewport.w) * window.width;
     float top = (1.0f - (tr.viewDef.viewport.y + tr.viewDef.viewport.h)) * window.height;
     float bottom = (1.0f - tr.viewDef.viewport.y) * window.height;
-    VECTOR2 corners[4];
-    VERTEX vertices[5];
-    COLOR32 color = MAKE(COLOR32, 255, 255, 255, 220);
+    vector2_t corners[4];
+    vertex_t vertices[5];
+    color32_t color = MAKE(color32_t, 255, 255, 255, 220);
     rect_t uv = { 0, 0, 1, 1 };
 
     if (!tr.world || !screen ||
@@ -417,7 +417,7 @@ void R_DrawMinimapCameraRect(rect_t const * screen) {
         return;
     }
 
-    VECTOR3 worlds[4];
+    vector3_t worlds[4];
     if (!R_TraceViewportCornerToMinimap(left, top, screen, &corners[0], &worlds[0]) ||
         !R_TraceViewportCornerToMinimap(right, top, screen, &corners[1], &worlds[1]) ||
         !R_TraceViewportCornerToMinimap(right, bottom, screen, &corners[2], &worlds[2]) ||
@@ -426,8 +426,8 @@ void R_DrawMinimapCameraRect(rect_t const * screen) {
     }
 
     FOR_LOOP(i, 5) {
-        VECTOR2 const *corner = &corners[i % 4];
-        vertices[i] = (VERTEX){
+        vector2_t const *corner = &corners[i % 4];
+        vertices[i] = (vertex_t){
             .position = { corner->x, corner->y, 0 },
             .texcoord = { uv.x, uv.y },
             .color = color,
@@ -436,34 +436,34 @@ void R_DrawMinimapCameraRect(rect_t const * screen) {
     R_DrawUILineStrip(vertices, 5);
 }
 
-void R_DrawMinimapBorder(rect_t const * screen, COLOR32 color) {
-    VERTEX vertices[5];
+void R_DrawMinimapBorder(rect_t const * screen, color32_t color) {
+    vertex_t vertices[5];
 
     if (!screen || screen->w <= 0.0f || screen->h <= 0.0f) return;
-    vertices[0] = (VERTEX){ .position = { screen->x, screen->y, 0 }, .color = color };
-    vertices[1] = (VERTEX){ .position = { screen->x + screen->w, screen->y, 0 }, .color = color };
-    vertices[2] = (VERTEX){ .position = { screen->x + screen->w, screen->y + screen->h, 0 }, .color = color };
-    vertices[3] = (VERTEX){ .position = { screen->x, screen->y + screen->h, 0 }, .color = color };
+    vertices[0] = (vertex_t){ .position = { screen->x, screen->y, 0 }, .color = color };
+    vertices[1] = (vertex_t){ .position = { screen->x + screen->w, screen->y, 0 }, .color = color };
+    vertices[2] = (vertex_t){ .position = { screen->x + screen->w, screen->y + screen->h, 0 }, .color = color };
+    vertices[3] = (vertex_t){ .position = { screen->x, screen->y + screen->h, 0 }, .color = color };
     vertices[4] = vertices[0];
     R_DrawUILineStrip(vertices, 5);
 }
 
-bool R_WorldToMinimap(LPCVECTOR2 world, LPVECTOR2 outScreen) {
-    VECTOR3 point;
+bool R_WorldToMinimap(vector2_t const * world, vector2_t * outScreen) {
+    vector3_t point;
 
     if (!tr.hasMinimap || !tr.world || !world || !outScreen) {
         return false;
     }
-    point = (VECTOR3){ world->x, world->y, 0.0f };
+    point = (vector3_t){ world->x, world->y, 0.0f };
     return R_MinimapPointForWorld(&point, &tr.minimapRect, outScreen);
 }
 
 /* Inverse of R_MinimapPointForWorld: map a window-pixel click over the minimap
  * to a world position, so a minimap click can recenter the camera. */
-bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld) {
+bool R_TraceMinimap(float x, float y, vector2_t * outWorld) {
     size2_t window;
     rect_t scene;
-    VECTOR2 map_size;
+    vector2_t map_size;
     float ux, uy, nx, ny;
 
     if (!tr.hasMinimap || !tr.world || !outWorld) {
@@ -504,19 +504,19 @@ void R_DrawMinimapScene(rect_t const * screen, cstring_t map) {
     R_DrawMinimap(screen, map);
 }
 
-void R_DrawPic(LPCTEXTURE texture, float x, float y) {
+void R_DrawPic(texture_t const * texture, float x, float y) {
     rect_t screen = { x, y, texture->width / 2000.0, texture->height / 2000.0};
     R_DrawImage(texture, &screen, NULL, COLOR32_WHITE);
 }
 
-void R_DrawLoadingIndicator(rect_t const * rect, uint32_t time, COLOR32 color) {
+void R_DrawLoadingIndicator(rect_t const * rect, uint32_t time, color32_t color) {
     float const cx = rect->x + rect->w * 0.5f;
     float const cy = rect->y + rect->h * 0.5f;
     float const size = MAX(MIN(rect->w, rect->h) * 0.11f, 0.006f);
     rect_t const screen = { cx - size * 0.5f, cy - size * 0.5f, size, size };
 
     if (!color.a) {
-        color = MAKE(COLOR32, 235, 220, 180, 255);
+        color = MAKE(color32_t, 235, 220, 180, 255);
     }
 
     R_DrawImageEx(&MAKE(drawImage_t,
@@ -528,11 +528,11 @@ void R_DrawLoadingIndicator(rect_t const * rect, uint32_t time, COLOR32 color) {
                         .angle = -360.0f * (float)(time % 900) / 900.0f));
 }
 
-void R_DrawWireRect(rect_t const * rect, COLOR32 color) {
-    static VERTEX simp[5];
+void R_DrawWireRect(rect_t const * rect, color32_t color) {
+    static vertex_t simp[5];
     R_AddStrip(simp, rect, color);
 
-    MATRIX4 ui_matrix;
+    matrix4_t ui_matrix;
     size2_t const window = R_GetWindowSize();
     Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
 
@@ -551,20 +551,20 @@ void R_DrawWireRect(rect_t const * rect, COLOR32 color) {
     R_Call(glDrawArrays, GL_LINE_STRIP, 0, sizeof(simp) / sizeof(*simp));
 }
 
-void R_DrawSelectionRect(rect_t const * rect, COLOR32 color) {
+void R_DrawSelectionRect(rect_t const * rect, color32_t color) {
     /* Selection is a world overlay even though the marquee is drawn in window coordinates. */
     R_SetupScissor(&tr.viewDef.scissor);
     R_DrawWireRect(rect, color);
     R_SetupScissor(&(rect_t){0, 0, 1, 1});
 }
 
-void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix, COLOR32 color) {
+void R_DrawBoundingBox(box3_t const * box, matrix4_t const * modelMatrix, matrix4_t const * vpMatrix, color32_t color) {
     static const int edges[12][2] = {
         {0,1},{1,2},{2,3},{3,0},
         {4,5},{5,6},{6,7},{7,4},
         {0,4},{1,5},{2,6},{3,7},
     };
-    VECTOR3 corners[8] = {
+    vector3_t corners[8] = {
         { box->min.x, box->min.y, box->min.z },
         { box->max.x, box->min.y, box->min.z },
         { box->max.x, box->max.y, box->min.z },
@@ -574,7 +574,7 @@ void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix,
         { box->max.x, box->max.y, box->max.z },
         { box->min.x, box->max.y, box->max.z },
     };
-    VERTEX simp[24] = { 0 };
+    vertex_t simp[24] = { 0 };
     for (int i = 0; i < 12; i++) {
         simp[i * 2 + 0].position = corners[edges[i][0]];
         simp[i * 2 + 0].color = color;

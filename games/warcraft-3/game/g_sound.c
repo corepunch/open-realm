@@ -64,7 +64,7 @@ void G_JassSoundRuntimeInit(handle_t handle) {
     gsound_t *state = handle;
     if (!state) return;
     state->volume = 1.0f;
-    state->position = (VECTOR3){ 0 };
+    state->position = (vector3_t){ 0 };
     state->attached_entity = -1;
     state->attached_spawn_time = 0;
     state->has_position = false;
@@ -75,7 +75,7 @@ void G_JassSoundSetVolume(handle_t handle, float volume) {
     if (state) state->volume = MAX(0.0f, MIN(volume, 1.0f));
 }
 
-void G_JassSoundSetPosition(handle_t handle, LPCVECTOR3 position) {
+void G_JassSoundSetPosition(handle_t handle, vector3_t const * position) {
     gsound_t *state = handle;
     if (!state || !position) return;
     state->position = *position;
@@ -84,7 +84,7 @@ void G_JassSoundSetPosition(handle_t handle, LPCVECTOR3 position) {
     state->has_position = true;
 }
 
-void G_JassSoundAttach(handle_t handle, LPEDICT unit) {
+void G_JassSoundAttach(handle_t handle, edict_t * unit) {
     gsound_t *state = handle;
     if (!state) return;
     state->attached_entity = unit ? (int32_t)unit->s.number : -1;
@@ -100,7 +100,7 @@ void G_JassSoundPlayback(handle_t handle, jassSoundPlayback_t *playback) {
     if (!state) return;
     playback->volume = state->volume;
     if (state->attached_entity >= 0 && (uint32_t)state->attached_entity < globals.num_edicts) {
-        LPEDICT unit = globals.edicts + state->attached_entity;
+        edict_t * unit = globals.edicts + state->attached_entity;
         if (unit->inuse && unit->spawn_time == state->attached_spawn_time) {
             playback->origin = unit->s.origin;
             playback->emitter = unit;
@@ -189,7 +189,7 @@ soundPolicy_t const *G_SoundIndexPolicy(int index) {
     return index > 0 && index < MAX_SOUNDS && sound_index_policy[index].max_total ? &sound_index_policy[index] : NULL;
 }
 
-void G_PlaySound(LPCVECTOR3 origin, LPEDICT ent, int channel, int index, float volume, float attenuation, float timeofs) {
+void G_PlaySound(vector3_t const * origin, edict_t * ent, int channel, int index, float volume, float attenuation, float timeofs) {
     soundPolicy_t const *registered = G_SoundIndexPolicy(index);
     uint32_t request = ent && ent->sound.pending == index && (channel & CHAN_OWNER) ? G_UnitResponseRequest(ent, index) : 0;
     if (registered || request) {
@@ -279,7 +279,7 @@ static int G_SoundLabelIndex(cstring_t alias) {
     return row ? G_RegisterSoundRowVariant(row, 0) : 0;
 }
 
-void G_SetConstructionLoopSound(LPEDICT building, bool active) {
+void G_SetConstructionLoopSound(edict_t * building, bool active) {
     UnitProfile_t const *profile;
     cstring_t alias;
     int sound;
@@ -355,19 +355,19 @@ int G_AbilityEffectSoundIndex(uint32_t ability_id, bool looped) {
     return alias ? G_RegisterAbilitySoundRow(G_AbilitySound(alias)) : 0;
 }
 
-void G_PlayAbilityEffectSound(uint32_t ability_id, LPCVECTOR2 point) {
+void G_PlayAbilityEffectSound(uint32_t ability_id, vector2_t const * point) {
     cstring_t alias = G_AbilitySoundAlias(ability_id, false);
     UnitAckSounds_t const *row = alias ? G_AbilitySound(alias) : NULL;
     int sound = row ? G_RegisterAbilitySoundRow(row) : 0;
     if (sound && point) {
-        VECTOR3 origin = { point->x, point->y, CM_GetHeightAtPoint(point->x, point->y) };
+        vector3_t origin = { point->x, point->y, CM_GetHeightAtPoint(point->x, point->y) };
         float volume = MAX(0.0f, MIN(1.0f, row->Volume / 127.0f));
         G_PlaySound(&origin, NULL, CHAN_RELIABLE, sound, volume, 1.0f, 0.0f);
     }
 }
 
 
-static cstring_t G_ArmorSoundSuffix(LPCEDICT target) {
+static cstring_t G_ArmorSoundSuffix(edict_t const * target) {
     int32_t armor;
 
     if (!target) return NULL;
@@ -384,7 +384,7 @@ static cstring_t G_ArmorSoundSuffix(LPCEDICT target) {
     }
 }
 
-void G_PlayCombatImpactSound(LPEDICT attacker, LPEDICT target) {
+void G_PlayCombatImpactSound(edict_t * attacker, edict_t * target) {
     UnitAckSounds_t const *row;
     cstring_t weapon, armor;
     char key[128];
@@ -403,7 +403,7 @@ void G_PlayCombatImpactSound(LPEDICT attacker, LPEDICT target) {
     G_PlaySound(NULL, target, CHAN_WEAPON, sound, volume, 1.0f, 0.0f);
 }
 
-void G_PlayUISoundForPlayer(LPEDICT clent, cstring_t alias) {
+void G_PlayUISoundForPlayer(edict_t * clent, cstring_t alias) {
     int sound;
 
     /* UI sounds use the reliable owner-only sound packet and remain non-positional. */
@@ -426,8 +426,8 @@ static cstring_t G_CommandErrorKeyForText(cstring_t text) {
     return NULL;
 }
 
-static void G_PlayCommandErrorSound(LPEDICT clent, cstring_t error_key) {
-    LPGAMECLIENT client;
+static void G_PlayCommandErrorSound(edict_t * clent, cstring_t error_key) {
+    gameClient_t * client;
     cstring_t alias;
     char skin_key[128];
 
@@ -443,7 +443,7 @@ static void G_PlayCommandErrorSound(LPEDICT clent, cstring_t error_key) {
  * entries (notably Nofood) store Human, Orc, Undead, Night Elf variants as a
  * comma-separated value. Keep simulation callers on the external error key so
  * text and the matching <Key>Sound skin lookup cannot drift apart. */
-static uint32_t G_CommandErrorRaceIndex(LPCGAMECLIENT client) {
+static uint32_t G_CommandErrorRaceIndex(gameClient_t const * client) {
     if (!client) return 0;
     switch (client->ps.race) {
     case kPlayerRaceHuman: return 0;
@@ -454,7 +454,7 @@ static uint32_t G_CommandErrorRaceIndex(LPCGAMECLIENT client) {
     }
 }
 
-static cstring_t G_CommandErrorString(LPCGAMECLIENT client, cstring_t error_key) {
+static cstring_t G_CommandErrorString(gameClient_t const * client, cstring_t error_key) {
     static char selected[4][MAX_GAMECACHE_STRING];
     static uint32_t cursor;
     char *out = selected[cursor++ & 3];
@@ -486,18 +486,18 @@ static cstring_t G_CommandErrorString(LPCGAMECLIENT client, cstring_t error_key)
     return NULL;
 }
 
-void G_ShowCommandErrorKey(LPEDICT clent, cstring_t error_key, cstring_t fallback) {
+void G_ShowCommandErrorKey(edict_t * clent, cstring_t error_key, cstring_t fallback) {
     cstring_t text;
 
     if (!clent || !clent->client || !error_key || !error_key[0]) return;
     text = G_CommandErrorString(clent->client, error_key);
     if (!text || !text[0]) text = fallback;
     if (text && text[0])
-        UI_ShowTransientText(clent, &MAKE(VECTOR2, 0, 0), text, 2.0f);
+        UI_ShowTransientText(clent, &MAKE(vector2_t, 0, 0), text, 2.0f);
     G_PlayCommandErrorSound(clent, error_key);
 }
 
-void G_ShowCommandErrorText(LPEDICT clent, cstring_t text) {
+void G_ShowCommandErrorText(edict_t * clent, cstring_t text) {
     cstring_t key;
 
     if (!clent || !text || !text[0]) return;
@@ -506,16 +506,16 @@ void G_ShowCommandErrorText(LPEDICT clent, cstring_t text) {
         G_ShowCommandErrorKey(clent, key, text);
         return;
     }
-    UI_ShowTransientText(clent, &MAKE(VECTOR2, 0, 0), text, 2.0f);
+    UI_ShowTransientText(clent, &MAKE(vector2_t, 0, 0), text, 2.0f);
     G_PlayUISoundForPlayer(clent, "InterfaceError");
 }
 
-void G_QueueReadySound(LPEDICT ent) {
+void G_QueueReadySound(edict_t * ent) {
     if (!ent || !ent->sound.num_ready) return;
     ent->sound.owner_pending = ent->sound.ready[rand() % ent->sound.num_ready];
 }
 
-void G_QueueOwnerSoundAlias(LPEDICT ent, cstring_t alias) {
+void G_QueueOwnerSoundAlias(edict_t * ent, cstring_t alias) {
     int sound;
 
     if (!ent || ent->s.player >= MAX_PLAYERS || !alias || !alias[0]) return;
@@ -523,8 +523,8 @@ void G_QueueOwnerSoundAlias(LPEDICT ent, cstring_t alias) {
     if (sound) ent->sound.owner_pending = sound;
 }
 
-void G_QueueOwnerUISound(LPEDICT ent, cstring_t skin_key) {
-    LPGAMECLIENT client;
+void G_QueueOwnerUISound(edict_t * ent, cstring_t skin_key) {
+    gameClient_t * client;
     cstring_t alias;
 
     if (!ent || !skin_key || ent->s.player >= MAX_PLAYERS) return;

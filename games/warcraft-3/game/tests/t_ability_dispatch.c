@@ -3,7 +3,7 @@
 #include "../g_local.h"
 #include "../game/skills/s_skills.h"
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *slk_text);
@@ -25,8 +25,8 @@ TEST(wc3_ability_dispatch, autocast_keeps_authored_alias) {
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     reset_entities();
     setup_test_world();
-    LPEDICT caster = alloc_test_unit(MAKEFOURCC('h','p','r','i'), 0, 0);
-    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
+    edict_t * caster = alloc_test_unit(MAKEFOURCC('h','p','r','i'), 0, 0);
+    edict_t * target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50, 0);
     caster->data.UnitAbilities = &list;
     caster->mana.value = caster->mana.max_value = 200;
     caster->s.player = target->s.player = 0;
@@ -73,7 +73,7 @@ TEST(wc3_ability_dispatch, autocast_boolean_messages_switch_and_remove) {
         MAKEFOURCC('A','s','l','o'), MAKEFOURCC('A','s','p','s'),
         MAKEFOURCC('A','r','e','p'), MAKEFOURCC('A','r','e','n') };
     reset_entities(); setup_test_world();
-    LPEDICT caster = alloc_test_unit(MAKEFOURCC('h','p','r','i'), 0, 0);
+    edict_t * caster = alloc_test_unit(MAKEFOURCC('h','p','r','i'), 0, 0);
     UnitAbilities_t list = { .abilList = "" };
     caster->data.UnitAbilities = &list;
     FOR_LOOP(i, sizeof(codes) / sizeof(codes[0])) {
@@ -105,10 +105,10 @@ TEST(wc3_ability_dispatch, shackles_locks_target_until_its_channel_ends) {
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     UnitAbilities_t list = { .abilList = "Amls" };
     reset_entities(); setup_test_world(); level.time = 1000;
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
-    LPEDICT caster = alloc_test_unit(MAKEFOURCC('h','p','r','i'), 0, 0);
-    LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0), first = NULL, second = NULL;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    edict_t * caster = alloc_test_unit(MAKEFOURCC('h','p','r','i'), 0, 0);
+    edict_t * target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0), *first = NULL, *second = NULL;
     caster->data.UnitAbilities = &list; caster->s.player = 0; target->s.player = 1;
     caster->svflags |= SVF_MONSTER;
     target->svflags |= SVF_MONSTER; target->targtype = TARG_AIR;

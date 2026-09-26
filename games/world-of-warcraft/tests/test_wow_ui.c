@@ -29,9 +29,9 @@ struct font {
 
 
 static handle_t test_archive;
-static PLAYER test_ps;
+static player_t test_ps;
 static refExport_t test_renderer;
-static LPCTEXTURE test_textures[MAX_IMAGES];
+static texture_t const * test_textures[MAX_IMAGES];
 static uint32_t next_texture_id;
 static uint32_t loaded_textures;
 static uint32_t missing_textures;
@@ -103,7 +103,7 @@ static void test_printf(cstring_t fmt, ...) {
     (void)fmt;
 }
 
-static void test_read_texture_size(cstring_t name, LPTEXTURE texture) {
+static void test_read_texture_size(cstring_t name, texture_t * texture) {
     void *buf = NULL;
     int size = test_fs_read_file(name, &buf);
 
@@ -118,8 +118,8 @@ static void test_read_texture_size(cstring_t name, LPTEXTURE texture) {
     test_fs_free_file(buf);
 }
 
-static LPTEXTURE test_load_texture(cstring_t name) {
-    LPTEXTURE texture = calloc(1, sizeof(*texture));
+static texture_t * test_load_texture(cstring_t name) {
+    texture_t * texture = calloc(1, sizeof(*texture));
 
     T_NOT_NULL(texture);
     if (!texture) {
@@ -135,8 +135,8 @@ static LPTEXTURE test_load_texture(cstring_t name) {
     return texture;
 }
 
-static LPFONT test_load_font(cstring_t name, uint32_t size) {
-    LPFONT font = calloc(1, sizeof(*font));
+static font_t * test_load_font(cstring_t name, uint32_t size) {
+    font_t * font = calloc(1, sizeof(*font));
 
     T_NOT_NULL(font);
     if (!font) {
@@ -147,17 +147,17 @@ static LPFONT test_load_font(cstring_t name, uint32_t size) {
     return font;
 }
 
-static void test_release_texture(LPTEXTURE texture) {
+static void test_release_texture(texture_t * texture) {
     free(texture);
 }
 
-static size2_t test_get_texture_size(LPCTEXTURE texture) {
+static size2_t test_get_texture_size(texture_t const * texture) {
     size2_t s = {0, 0};
     if (texture) { s.width = texture->width; s.height = texture->height; }
     return s;
 }
 
-static void test_draw_image(LPCTEXTURE texture, rect_t const * screen, rect_t const * uv, COLOR32 color) {
+static void test_draw_image(texture_t const * texture, rect_t const * screen, rect_t const * uv, color32_t color) {
     (void)uv;
     (void)color;
     if (!texture) {
@@ -177,13 +177,13 @@ static void test_draw_image(LPCTEXTURE texture, rect_t const * screen, rect_t co
     }
 }
 
-static void test_draw_image_ex(LPCDRAWIMAGE image) {
+static void test_draw_image_ex(drawImage_t const * image) {
     if (image) {
         test_draw_image(image->texture, &image->screen, &image->uv, image->color);
     }
 }
 
-static void test_draw_fill(rect_t const * rect, COLOR32 color) {
+static void test_draw_fill(rect_t const * rect, color32_t color) {
     (void)rect;
     (void)color;
     draw_fill_count++;
@@ -195,26 +195,26 @@ static void test_draw_minimap(rect_t const * rect, cstring_t map) {
     draw_minimap_count++;
 }
 
-static VECTOR2 test_get_text_size(LPCDRAWTEXT drawText) {
+static vector2_t test_get_text_size(drawText_t const * drawText) {
     float w = drawText && drawText->text ? (float)strlen(drawText->text) * 0.01f : 0.0f;
     float h = drawText && drawText->font ? drawText->font->size / 1000.0f : 0.012f;
-    return MAKE(VECTOR2, w, h);
+    return MAKE(vector2_t, w, h);
 }
 
-static void test_draw_text(LPCDRAWTEXT drawText) {
+static void test_draw_text(drawText_t const * drawText) {
     draw_text_count++;
     snprintf(last_draw_text, sizeof(last_draw_text), "%s", drawText && drawText->text ? drawText->text : "");
     if (drawText && drawText->text && !strcmp(drawText->text, "|"))
         draw_cursor_count++;
 }
 
-static LPCTEXTURE test_get_texture(uint32_t index) {
+static texture_t const * test_get_texture(uint32_t index) {
     return index < MAX_IMAGES ? test_textures[index] : NULL;
 }
 
 static int test_image_index(cstring_t imageName) {
     FOR_LOOP(i, MAX_IMAGES) {
-        LPCTEXTURE texture = test_textures[i];
+        texture_t const * texture = test_textures[i];
 
         if (texture && !strcmp(texture->name, imageName)) {
             return (int)i;
@@ -229,13 +229,13 @@ static int test_image_index(cstring_t imageName) {
     return 0;
 }
 
-static LPCPLAYER test_get_player_state(void) {
+static player_t const * test_get_player_state(void) {
     return &test_ps;
 }
 
 
 
-static LPRENDERER test_get_renderer(void) {
+static refExport_t * test_get_renderer(void) {
     return &test_renderer;
 }
 
@@ -341,7 +341,7 @@ TEST(wow_ui, wow_lua_ui_draws_from_generated_mpq) {
     menu.Shutdown();
     FOR_LOOP(i, MAX_IMAGES) {
         if (test_textures[i]) {
-            test_release_texture((LPTEXTURE)test_textures[i]);
+            test_release_texture((texture_t *)test_textures[i]);
             test_textures[i] = NULL;
         }
     }

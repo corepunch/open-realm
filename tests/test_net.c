@@ -39,19 +39,19 @@ void test_client_stubs_init(void);
 void test_client_stubs_set_window_size(uint32_t width, uint32_t height);
 void test_client_stubs_set_canvas_policy(UICANVASPOLICY policy);
 void test_client_stubs_set_cvar(cstring_t name, cstring_t value);
-void test_client_stubs_set_world_bounds(BOX2 bounds);
+void test_client_stubs_set_world_bounds(box2_t bounds);
 void test_client_stubs_set_existing_file(cstring_t path);
-void CL_ParseLayout(LPSIZEBUF msg);
-void CL_ParseFrame(LPSIZEBUF msg);
-void SCR_LayoutDrawScrollBar(LPCUIFRAME frame, rect_t const * screen);
-void SCR_LayoutDrawStatusbar(LPCUIFRAME frame, rect_t const * screen);
-void SCR_LayoutDrawSegmentedStatusbar(LPCUIFRAME frame, rect_t const * screen);
-void SCR_LayoutDrawTexture(LPCUIFRAME frame, rect_t const * screen);
-void SCR_LayoutDrawTextArea(LPCUIFRAME frame, rect_t const * screen);
-void SCR_LayoutDrawListBox(LPCUIFRAME frame, rect_t const * screen);
-void SCR_LayoutDrawSprite(LPCUIFRAME frame, rect_t const * screen);
+void CL_ParseLayout(sizeBuf_t * msg);
+void CL_ParseFrame(sizeBuf_t * msg);
+void SCR_LayoutDrawScrollBar(uiFrame_t const * frame, rect_t const * screen);
+void SCR_LayoutDrawStatusbar(uiFrame_t const * frame, rect_t const * screen);
+void SCR_LayoutDrawSegmentedStatusbar(uiFrame_t const * frame, rect_t const * screen);
+void SCR_LayoutDrawTexture(uiFrame_t const * frame, rect_t const * screen);
+void SCR_LayoutDrawTextArea(uiFrame_t const * frame, rect_t const * screen);
+void SCR_LayoutDrawListBox(uiFrame_t const * frame, rect_t const * screen);
+void SCR_LayoutDrawSprite(uiFrame_t const * frame, rect_t const * screen);
 void SCR_LayoutDrawOverlay(handle_t layout);
-void SCR_LayoutDrawLoadingBar(LPCUIFRAME frame, rect_t const * screen);
+void SCR_LayoutDrawLoadingBar(uiFrame_t const * frame, rect_t const * screen);
 void SCR_LayoutClampSelectionRect(rect_t * rect);
 bool SCR_LayoutModalActive(void);
 void SCR_UpdateScreen(uint32_t msec);
@@ -59,14 +59,14 @@ extern bool scr_initialized;
 void test_client_stubs_clear_cvars(void);
 extern uint32_t test_fow_upload_calls;
 extern uint32_t test_cursor_draw_calls;
-extern COLOR32 test_cursor_tint;
+extern color32_t test_cursor_tint;
 extern char test_forwarded_command[128];
 extern char test_menu_action[32];
 extern char test_menu_action_arg[128];
 extern char test_console_message[MAX_CONSOLE_MESSAGE_LEN];
 
 static rect_t test_scroll_rects[3], test_scroll_uvs[3];
-static LPCTEXTURE test_scroll_tex[3];
+static texture_t const * test_scroll_tex[3];
 static uint32_t test_scroll_draws;
 static drawText_t test_textarea_draw;
 static uint32_t test_textarea_draws;
@@ -74,32 +74,32 @@ static drawText_t test_listbox_draw[8];
 static uint32_t test_listbox_draws;
 static uint32_t test_begin_frames, test_end_frames;
 static uint32_t test_model_loads, test_model_releases, test_tex_loads, test_tex_releases;
-static VECTOR3 test_overhead_point;
+static vector3_t test_overhead_point;
 static rect_t test_status_rect;
 static uint32_t test_status_draws;
-static LPCTEXTURE test_status_textures[16];
-static COLOR32 test_status_colors[16];
+static texture_t const * test_status_textures[16];
+static color32_t test_status_colors[16];
 static rect_t test_fade_rect;
-static COLOR32 test_fade_color;
+static color32_t test_fade_color;
 static uint32_t test_fade_draws;
 static PATHSTR test_model_load_paths[4];
 static char test_sprite_anim[96];
 static uint32_t test_sprite_draws;
 
-static LPMODEL capture_load_model(cstring_t filename) {
+static model_t * capture_load_model(cstring_t filename) {
     uint32_t slot = test_model_loads;
     if (slot < sizeof(test_model_load_paths) / sizeof(test_model_load_paths[0]))
         snprintf(test_model_load_paths[slot], sizeof(test_model_load_paths[slot]), "%s", filename ? filename : "");
     test_model_loads++;
-    return (LPMODEL)(uintptr_t)(0x1000u + test_model_loads);
+    return (model_t *)(uintptr_t)(0x1000u + test_model_loads);
 }
 
-static void capture_release_model(LPMODEL model) {
+static void capture_release_model(model_t * model) {
     (void)model;
     test_model_releases++;
 }
 
-static void capture_scroll_image(LPCTEXTURE texture, rect_t const * screen, rect_t const * uv, COLOR32 color) {
+static void capture_scroll_image(texture_t const * texture, rect_t const * screen, rect_t const * uv, color32_t color) {
     (void)color;
     if (test_scroll_draws >= 3) return;
     test_scroll_tex[test_scroll_draws] = texture;
@@ -107,22 +107,22 @@ static void capture_scroll_image(LPCTEXTURE texture, rect_t const * screen, rect
     test_scroll_uvs[test_scroll_draws++] = *uv;
 }
 
-static void capture_textarea(LPCDRAWTEXT text) { test_textarea_draw = *text; test_textarea_draws++; }
-static void capture_listbox_text(LPCDRAWTEXT text) {
+static void capture_textarea(drawText_t const * text) { test_textarea_draw = *text; test_textarea_draws++; }
+static void capture_listbox_text(drawText_t const * text) {
     if (test_listbox_draws < sizeof(test_listbox_draw) / sizeof(test_listbox_draw[0]))
         test_listbox_draw[test_listbox_draws] = *text;
     test_listbox_draws++;
 }
-static VECTOR2 tall_textarea_size(LPCDRAWTEXT text) {
+static vector2_t tall_textarea_size(drawText_t const * text) {
     (void)text;
-    return MAKE(VECTOR2, 0.2f, 0.8f);
+    return MAKE(vector2_t, 0.2f, 0.8f);
 }
 static void capture_begin_frame(void) { test_begin_frames++; }
 static void capture_end_frame(void) { test_end_frames++; }
-static bool capture_overhead_point(renderEntity_t const *entity, LPVECTOR3 out) {
+static bool capture_overhead_point(renderEntity_t const *entity, vector3_t * out) {
     (void)entity; *out = test_overhead_point; return true;
 }
-static void capture_status_image(LPCTEXTURE texture, rect_t const * screen, rect_t const * uv, COLOR32 color) {
+static void capture_status_image(texture_t const * texture, rect_t const * screen, rect_t const * uv, color32_t color) {
     (void)uv; test_status_rect = *screen;
     if (test_status_draws < sizeof(test_status_textures) / sizeof(test_status_textures[0])) {
         test_status_textures[test_status_draws] = texture;
@@ -130,13 +130,13 @@ static void capture_status_image(LPCTEXTURE texture, rect_t const * screen, rect
     }
     test_status_draws++;
 }
-static void capture_fade_image(LPCTEXTURE texture, rect_t const * screen, rect_t const * uv, COLOR32 color) {
+static void capture_fade_image(texture_t const * texture, rect_t const * screen, rect_t const * uv, color32_t color) {
     (void)texture; (void)uv; test_fade_rect = *screen; test_fade_color = color; test_fade_draws++;
 }
-static LPTEXTURE capture_load_texture(cstring_t name) {
-    (void)name; test_tex_loads++; return (LPTEXTURE)(uintptr_t)test_tex_loads;
+static texture_t * capture_load_texture(cstring_t name) {
+    (void)name; test_tex_loads++; return (texture_t *)(uintptr_t)test_tex_loads;
 }
-static void capture_release_texture(LPTEXTURE texture) { (void)texture; test_tex_releases++; }
+static void capture_release_texture(texture_t * texture) { (void)texture; test_tex_releases++; }
 static void capture_sprite(drawSprite_t const *sprite) {
     cstring_t anim = sprite->anim;
     test_sprite_draws++;
@@ -249,7 +249,7 @@ TEST(client_layout, world_hover_root_projects_model_top_into_ui_canvas) {
     cl.viewDef.entities = &render; cl.viewDef.num_entities = 1;
     cl.viewDef.viewport = cl.viewDef.scissor = MAKE(rect_t, 0, 0.22f, 1, 0.76f);
     Matrix4_identity(&cl.viewDef.viewProjectionMatrix);
-    test_overhead_point = MAKE(VECTOR3, 0, 0, 0);
+    test_overhead_point = MAKE(vector3_t, 0, 0, 0);
     re.GetEntityOverheadPosition = capture_overhead_point;
 
     T_ASSERT(SCR_LayoutWorldHoverRoot(&root));
@@ -332,7 +332,7 @@ TEST(client_layout, hover_mana_backdrop_draws_at_empty_pool) {
         .model = 1, .flags = EF_HOVER_MANA, .name = 1,
         .stats = { [ENT_HEALTH] = 255, [ENT_MANA] = 0 },
     };
-    cl.pics[1] = (LPTEXTURE)(uintptr_t)1; test_status_draws = 0; re.DrawImage = capture_status_image;
+    cl.pics[1] = (texture_t *)(uintptr_t)1; test_status_draws = 0; re.DrawImage = capture_status_image;
     SCR_LayoutDrawTexture(&frame, &screen);
     T_EQ(test_status_draws, 1);
     frame.stat = UI_STAT_CONTEXT_HEALTH;
@@ -351,7 +351,7 @@ TEST(client_layout, world_hover_root_rejects_point_outside_world_scissor) {
     cl.viewDef.entities = &render; cl.viewDef.num_entities = 1;
     cl.viewDef.viewport = cl.viewDef.scissor = MAKE(rect_t, 0, 0.22f, 1, 0.76f);
     Matrix4_identity(&cl.viewDef.viewProjectionMatrix);
-    test_overhead_point = MAKE(VECTOR3, 0, 2, 0);
+    test_overhead_point = MAKE(vector3_t, 0, 2, 0);
     re.GetEntityOverheadPosition = capture_overhead_point;
     T_ASSERT(!SCR_LayoutWorldHoverRoot(&root));
 }
@@ -364,7 +364,7 @@ TEST(client_layout, context_statusbar_uses_hover_snapshot_fraction) {
     cl.ents[7].current = (entityState_t){
         .model = 1, .flags = EF_HOVER_HEALTH, .stats = { [ENT_HEALTH] = 128 },
     };
-    cl.pics[1] = (LPTEXTURE)(uintptr_t)1; test_status_draws = 0; re.DrawImage = capture_status_image;
+    cl.pics[1] = (texture_t *)(uintptr_t)1; test_status_draws = 0; re.DrawImage = capture_status_image;
     SCR_LayoutDrawStatusbar(&frame, &screen);
     T_EQ(test_status_draws, 1); T_FEQ(test_status_rect.w, screen.w * 128.0f / 255.0f, 0.0001f);
 }
@@ -378,7 +378,7 @@ TEST(client_layout, segmented_statusbar_draws_filled_and_empty_slots_to_capacity
         .model = 1, .flags = EF_HOVER_HEALTH,
         .stats = { [ENT_HEALTH] = 255, [ENT_CARGO] = EntityCargoPack(3, 8) },
     };
-    cl.pics[1] = (LPTEXTURE)(uintptr_t)1; cl.pics[2] = (LPTEXTURE)(uintptr_t)2;
+    cl.pics[1] = (texture_t *)(uintptr_t)1; cl.pics[2] = (texture_t *)(uintptr_t)2;
     test_status_draws = 0; re.DrawImage = capture_status_image;
     SCR_LayoutDrawSegmentedStatusbar(&frame, &screen);
     T_EQ(test_status_draws, 8);
@@ -406,7 +406,7 @@ TEST(client_layout, segmented_statusbar_keeps_empty_capacity_slots_visible) {
         .model = 1, .flags = EF_HOVER_HEALTH,
         .stats = { [ENT_HEALTH] = 255, [ENT_CARGO] = EntityCargoPack(0, 8) },
     };
-    cl.pics[1] = (LPTEXTURE)(uintptr_t)1; cl.pics[2] = (LPTEXTURE)(uintptr_t)2;
+    cl.pics[1] = (texture_t *)(uintptr_t)1; cl.pics[2] = (texture_t *)(uintptr_t)2;
     test_status_draws = 0; re.DrawImage = capture_status_image;
     SCR_LayoutDrawSegmentedStatusbar(&frame, &screen);
     T_EQ(test_status_draws, 8);
@@ -546,7 +546,7 @@ TEST(client_layout, context_visibility_and_empty_slot_art_survive_wire_draw_disp
           .tex = { .index = 1, .index2 = 2 }, .size = { .width = 0.04f, .height = 0.004f } },
     };
     test_client_stubs_init(); cl.hover_entity = 7;
-    cl.pics[1] = (LPTEXTURE)(uintptr_t)1; cl.pics[2] = (LPTEXTURE)(uintptr_t)2;
+    cl.pics[1] = (texture_t *)(uintptr_t)1; cl.pics[2] = (texture_t *)(uintptr_t)2;
     re.DrawImage = capture_status_image;
     MSG_WriteByte(&msg, LAYER_WORLD_HOVER);
     FOR_LOOP(i, sizeof(frames) / sizeof(frames[0])) {
@@ -710,7 +710,7 @@ TEST(net, layout_scrollbar_draws_cropped_texture_parts_top_to_bottom) {
     test_client_stubs_init(); test_scroll_draws = 0; re.DrawImage = capture_scroll_image;
     FOR_LOOP(i, 3) {
         scroll.image[i] = i + 1;
-        cl.pics[i + 1] = (LPTEXTURE)(uintptr_t)(i + 1);
+        cl.pics[i + 1] = (texture_t *)(uintptr_t)(i + 1);
     }
     scroll.texcoord[0] = scroll.texcoord[2] = 63;
     scroll.texcoord[1] = scroll.texcoord[3] = 191;
@@ -1079,8 +1079,8 @@ TEST(net, msg_readbyte_past_end_returns_zero) {
 TEST(net, msg_writepos_readpos_roundtrip) {
     uint8_t buf[32];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    VECTOR3 out = {0};
-    VECTOR3 in  = {128.0f, -64.0f, 32.0f};
+    vector3_t out = {0};
+    vector3_t in  = {128.0f, -64.0f, 32.0f};
     MSG_WritePos(&sb, &in);
     sb.readcount = 0;
     MSG_ReadPos(&sb, &out);
@@ -1092,8 +1092,8 @@ TEST(net, msg_writepos_readpos_roundtrip) {
 TEST(net, msg_writedir_readdir_roundtrip) {
     uint8_t buf[32];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    VECTOR3 dir = {0.707f, 0.0f, -0.707f};
-    VECTOR3 out = {0};
+    vector3_t dir = {0.707f, 0.0f, -0.707f};
+    vector3_t out = {0};
     MSG_WriteDir(&sb, &dir);
     sb.readcount = 0;
     MSG_ReadDir(&sb, &out);
@@ -1181,12 +1181,12 @@ TEST(net, ui_window_frame_delta_preserves_text_offsets) {
     T_EQ(out.flags.type, FT_SIMPLEFRAME);
 }
 
-static VECTOR2 text_length_mock_size(LPCDRAWTEXT text);
+static vector2_t text_length_mock_size(drawText_t const * text);
 
 static uint32_t test_scoped_hud_text_draws;
 static uint32_t test_scoped_edit_text_draws;
 
-static void capture_layout_scoped_text(LPCDRAWTEXT text) {
+static void capture_layout_scoped_text(drawText_t const * text) {
     if (!text || !text->text) return;
     if (!strcmp(text->text, "HUD frame")) test_scoped_hud_text_draws++;
     if (!strcmp(text->text, "save-name")) test_scoped_edit_text_draws++;
@@ -1575,11 +1575,11 @@ TEST(net, ui_frame_delta_preserves_timed_status_binding) {
     T_EQ(out.stat, UI_STAT_SELECTION_TIMED_STATUS);
 }
 
-static VECTOR2 text_length_mock_size(LPCDRAWTEXT text) {
+static vector2_t text_length_mock_size(drawText_t const * text) {
     if (text && text->text && !strcmp(text->text, " ")) {
-        return MAKE(VECTOR2, 0.006f, 0.012f);
+        return MAKE(vector2_t, 0.006f, 0.012f);
     }
-    return MAKE(VECTOR2, 0.018f, 0.012f);
+    return MAKE(vector2_t, 0.018f, 0.012f);
 }
 
 TEST(net, cinematic_fade_covers_widescreen_canvas) {
@@ -2040,15 +2040,15 @@ TEST(net, terrain_mask_corner_and_tile_mask) {
 }
 
 TEST(net, terrain_mask_cell_lookup_agrees_at_edges) {
-    VECTOR2 origin = { 0.0f, 0.0f };
+    vector2_t origin = { 0.0f, 0.0f };
     uint32_t x = 99, y = 99;
-    T_ASSERT(TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(VECTOR2){ 0.0f, 0.0f }, &x, &y));
+    T_ASSERT(TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(vector2_t){ 0.0f, 0.0f }, &x, &y));
     T_EQ(x, 0); T_EQ(y, 0);
-    T_ASSERT(TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(VECTOR2){ 255.9f, 255.9f }, &x, &y));
+    T_ASSERT(TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(vector2_t){ 255.9f, 255.9f }, &x, &y));
     T_EQ(x, 7); T_EQ(y, 7);
-    T_ASSERT(!TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(VECTOR2){ 256.0f, 0.0f }, &x, &y));
-    T_ASSERT(!TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(VECTOR2){ -0.1f, 0.0f }, &x, &y));
-    T_ASSERT(!TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(VECTOR2){ 0.0f, 256.0f }, &x, &y));
+    T_ASSERT(!TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(vector2_t){ 256.0f, 0.0f }, &x, &y));
+    T_ASSERT(!TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(vector2_t){ -0.1f, 0.0f }, &x, &y));
+    T_ASSERT(!TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(vector2_t){ 0.0f, 256.0f }, &x, &y));
 }
 
 static void write_fow_message(sizeBuf_t *sb,
@@ -2130,8 +2130,8 @@ TEST(net, late_model_configstring_refreshes_world_and_portrait_models_together) 
     re.LoadModel = capture_load_model;
     re.ReleaseModel = capture_release_model;
     cl.refresh_prepped = true;
-    cl.models[model] = (LPMODEL)(uintptr_t)0x2001u;
-    cl.portraits[model] = (LPMODEL)(uintptr_t)0x2002u;
+    cl.models[model] = (model_t *)(uintptr_t)0x2001u;
+    cl.portraits[model] = (model_t *)(uintptr_t)0x2002u;
     test_client_stubs_set_existing_file(portrait);
 
     MSG_WriteByte(&sb, svc_configstring);
@@ -2168,7 +2168,7 @@ TEST(net, packed_entity_names_survive_configstring_transport) {
 TEST(net, model_configstring_skips_identical_reload) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    LPMODEL first;
+    model_t * first;
 
     test_client_stubs_init();
     test_model_loads = test_model_releases = 0;
@@ -2207,7 +2207,7 @@ TEST(net, model_configstring_skips_identical_reload) {
 TEST(net, image_configstring_skips_identical_reload) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    LPCTEXTURE first;
+    texture_t const * first;
 
     test_client_stubs_init();
     test_tex_loads = test_tex_releases = 0;
@@ -2243,7 +2243,7 @@ TEST(client_layout, sprite_numeric_stat_drives_normalized_animation_phase) {
     float ratio = -1.0f;
 
     test_client_stubs_init();
-    cl.models[1] = (LPMODEL)(uintptr_t)1;
+    cl.models[1] = (model_t *)(uintptr_t)1;
     cl.playerstate.stats[phase_stat] = 32768;
     test_sprite_anim[0] = '\0'; test_sprite_draws = 0; re.DrawSprite = capture_sprite;
 
@@ -2261,8 +2261,8 @@ TEST(client_layout, loading_sprite_uses_client_progress_and_model_namespace) {
     float ratio;
 
     test_client_stubs_init();
-    cl.models[1] = (LPMODEL)(uintptr_t)1;
-    cl.pics[1] = (LPTEXTURE)(uintptr_t)2;
+    cl.models[1] = (model_t *)(uintptr_t)1;
+    cl.pics[1] = (texture_t *)(uintptr_t)2;
     re.DrawSprite = capture_sprite;
     FOR_LOOP(i, 3) {
         cl.loading_progress = i * 0.5f;
@@ -2283,8 +2283,8 @@ TEST(client_layout, loading_image_uses_texture_namespace) {
     rect_t screen = MAKE(rect_t, 0, 0, 0.4f, 0.1f);
 
     test_client_stubs_init();
-    cl.models[1] = (LPMODEL)(uintptr_t)1;
-    cl.pics[1] = (LPTEXTURE)(uintptr_t)2;
+    cl.models[1] = (model_t *)(uintptr_t)1;
+    cl.pics[1] = (texture_t *)(uintptr_t)2;
     cl.loading_progress = 0.25f;
     test_scroll_draws = 0; re.DrawImage = capture_scroll_image;
     SCR_LayoutDrawLoadingBar(&frame, &screen);
@@ -2306,7 +2306,7 @@ TEST(client_layout, sprite_sequence_can_be_selected_by_second_stat) {
 
     frame.flagsvalue |= UIFLAG_SPRITE_STAT_SEQUENCE;
     test_client_stubs_init();
-    cl.models[1] = (LPMODEL)(uintptr_t)1;
+    cl.models[1] = (model_t *)(uintptr_t)1;
     cl.playerstate.stats[UI_PLAYERSTAT_ENV_PHASE] = 32768;
     cl.playerstate.stats[UI_PLAYERSTAT_ENV_VARIANT] = 1;
     test_sprite_anim[0] = '\0'; test_sprite_draws = 0; re.DrawSprite = capture_sprite;
@@ -2320,7 +2320,7 @@ TEST(client_layout, sprite_sequence_can_be_selected_by_second_stat) {
 TEST(net, environment_variant_stat_roundtrips) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    PLAYER from = { 0 }, to = { 0 }, out = { 0 };
+    player_t from = { 0 }, to = { 0 }, out = { 0 };
     uint32_t bits;
     int number;
 
@@ -2338,7 +2338,7 @@ TEST(net, environment_variant_stat_roundtrips) {
 TEST(net, game_presentation_variant_stat_roundtrips) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    PLAYER from = { 0 }, to = { 0 }, out = { 0 };
+    player_t from = { 0 }, to = { 0 }, out = { 0 };
     uint32_t bits;
     int number;
 
@@ -2357,7 +2357,7 @@ TEST(net, playerstat_pair_after_gameplay_states_roundtrips) {
     uint32_t const stat = PLAYERSTATE_LUMBER_GATHERED + 1;
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    PLAYER from = { 0 }, to = { 0 }, out = { 0 };
+    player_t from = { 0 }, to = { 0 }, out = { 0 };
     uint32_t bits;
     int number;
 
@@ -2375,14 +2375,14 @@ TEST(net, playerstat_pair_after_gameplay_states_roundtrips) {
 TEST(net, playerinfo_game_state_preserves_open_menu_input) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    PLAYER from = { 0 };
-    PLAYER to = { 0 };
+    player_t from = { 0 };
+    player_t to = { 0 };
 
     test_client_stubs_init();
     cls.key_dest = key_menu;
     cls.netchan.remote_address.type = NA_IP;
     to.number = 1;
-    to.vieworigin = (VECTOR3){ 128.0f, 256.0f, 0 };
+    to.vieworigin = (vector3_t){ 128.0f, 256.0f, 0 };
     to.fov = 50;
     to.distance = 1650;
     to.znear = 100.0f;
@@ -2407,9 +2407,9 @@ TEST(net, playerinfo_game_state_preserves_open_menu_input) {
 TEST(net, live_selection_stats_roundtrip_and_format) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    PLAYER from = { 0 };
-    PLAYER to = { 0 };
-    PLAYER out = { 0 };
+    player_t from = { 0 };
+    player_t to = { 0 };
+    player_t out = { 0 };
     uiFrame_t health = { .stat = UI_STAT_SELECTION_HEALTH_TEXT };
     uiFrame_t mana = { .stat = UI_STAT_SELECTION_MANA_TEXT };
     uint32_t bits;
@@ -2446,17 +2446,17 @@ TEST(net, live_selection_stats_roundtrip_and_format) {
 TEST(net, cinematic_cleanup_restores_camera_and_ui_samples) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    PLAYER from = {0}, to = { .number = 1, .client_ui_state = CLIENT_UI_CINEMATIC, .fov = 35, .distance = 900, .znear = 55.0f, .zfar = 6500.0f };
+    player_t from = {0}, to = { .number = 1, .client_ui_state = CLIENT_UI_CINEMATIC, .fov = 35, .distance = 900, .znear = 55.0f, .zfar = 6500.0f };
 
     test_client_stubs_init();
-    to.viewangles = (VECTOR3){300, 0, 120};
+    to.viewangles = (vector3_t){300, 0, 120};
     to.uiflags = ~(1u << LAYER_CINEMATIC);
     MSG_WriteByte(&sb, svc_playerinfo); MSG_WriteDeltaPlayerState(&sb, &from, &to);
     CL_ParseServerMessage(&sb);
     T_EQ(cl.playerstate.client_ui_state, CLIENT_UI_CINEMATIC);
     from = to;
     to.client_ui_state = CLIENT_UI_GAME; to.uiflags = 1u << LAYER_CINEMATIC;
-    to.viewangles = (VECTOR3){326, 0, 0}; to.vieworigin = (VECTOR3){128, 256, 0}; to.fov = 50; to.distance = 1650;
+    to.viewangles = (vector3_t){326, 0, 0}; to.vieworigin = (vector3_t){128, 256, 0}; to.fov = 50; to.distance = 1650;
     to.znear = 100.0f; to.zfar = 5000.0f;
     SZ_Clear(&sb); sb.readcount = 0;
     MSG_WriteByte(&sb, svc_playerinfo); MSG_WriteDeltaPlayerState(&sb, &from, &to);
@@ -2475,9 +2475,9 @@ TEST(net, cinematic_cleanup_restores_camera_and_ui_samples) {
 TEST(net, playerstate_identity_bytes_roundtrip) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    PLAYER from = { 0 };
-    PLAYER to = { 0 };
-    PLAYER out = { 0 };
+    player_t from = { 0 };
+    player_t to = { 0 };
+    player_t out = { 0 };
     uint32_t bits;
     int number;
 
@@ -2501,14 +2501,14 @@ TEST(net, playerstate_identity_bytes_roundtrip) {
 }
 
 TEST(net, camera_clamp_uses_world_bounds) {
-    VECTOR2 clamped;
+    vector2_t clamped;
 
     test_client_stubs_init();
-    test_client_stubs_set_world_bounds((BOX2){
+    test_client_stubs_set_world_bounds((box2_t){
         .min = { -4096.0f, -3072.0f },
         .max = { 4096.0f, 3072.0f },
     });
-    clamped = CL_ClampCameraPosition((VECTOR2){ 5000.0f, -4000.0f });
+    clamped = CL_ClampCameraPosition((vector2_t){ 5000.0f, -4000.0f });
     T_FEQ(clamped.x, 4096.0f, 0.001f);
     T_FEQ(clamped.y, -3072.0f, 0.001f);
 }
@@ -2516,15 +2516,15 @@ TEST(net, camera_clamp_uses_world_bounds) {
 TEST(net, playerstate_camera_render_fields_roundtrip) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    PLAYER from = { 0 };
-    PLAYER to = { 0 };
-    PLAYER out = { 0 };
+    player_t from = { 0 };
+    player_t to = { 0 };
+    player_t out = { 0 };
     uint32_t bits;
     int number;
 
     to.number = 4;
     to.vieworigin.z = 275.0f;
-    to.viewangles = (VECTOR3){ 12.5f, 45.0f, 90.0f };
+    to.viewangles = (vector3_t){ 12.5f, 45.0f, 90.0f };
     to.znear = 75.0f;
     to.zfar = 6500.0f;
     /* texts[1] is the final player-state text field; the player mask remains 32 bits. */
@@ -2549,8 +2549,8 @@ TEST(net, playerstate_camera_render_fields_roundtrip) {
 TEST(net, playerinfo_copies_server_clip_planes) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    PLAYER from = { 0 };
-    PLAYER to = { 0 };
+    player_t from = { 0 };
+    player_t to = { 0 };
 
     test_client_stubs_init();
     cl.viewDef.camerastate[0].znear = 100.0f;
@@ -2577,21 +2577,21 @@ static float test_camera_height(float x, float y) { (void)y; return x; }
 /* Repeated prediction and pending/acknowledged packets must retain each sample's authored height offset. */
 TEST(net, camera_prediction_preserves_terrain_offsets) {
     uint8_t buf[256];
-    PLAYER from = { 0 }, to = { .number = 1, .client_ui_state = CLIENT_UI_GAME, .vieworigin = { 50, 0, 90 } };
+    player_t from = { 0 }, to = { .number = 1, .client_ui_state = CLIENT_UI_GAME, .vieworigin = { 50, 0, 90 } };
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     test_client_stubs_init();
     re.CameraUsesTerrainHeight = test_camera_terrain; re.GetHeightAtPoint = test_camera_height;
-    test_client_stubs_set_world_bounds((BOX2){ .min = { -1000, -1000 }, .max = { 1000, 1000 } });
-    cl.viewDef.camerastate[0].origin = (VECTOR3){ 0, 0, 20 };
-    cl.viewDef.camerastate[1].origin = (VECTOR3){ 10, 0, 40 };
-    CL_PredictCameraPosition((VECTOR2){ 100, 0 });
+    test_client_stubs_set_world_bounds((box2_t){ .min = { -1000, -1000 }, .max = { 1000, 1000 } });
+    cl.viewDef.camerastate[0].origin = (vector3_t){ 0, 0, 20 };
+    cl.viewDef.camerastate[1].origin = (vector3_t){ 10, 0, 40 };
+    CL_PredictCameraPosition((vector2_t){ 100, 0 });
     T_FEQ(cl.viewDef.camerastate[0].origin.z, 120, 0.001f);
     T_FEQ(cl.viewDef.camerastate[1].origin.z, 130, 0.001f);
-    CL_PredictCameraPosition((VECTOR2){ 200, 0 });
+    CL_PredictCameraPosition((vector2_t){ 200, 0 });
     T_FEQ(cl.viewDef.camerastate[0].origin.z, 220, 0.001f);
     T_FEQ(cl.viewDef.camerastate[1].origin.z, 230, 0.001f);
     cl.camera_prediction.active = true;
-    cl.camera_prediction.origin = (VECTOR2){ 200, 0 };
+    cl.camera_prediction.origin = (vector2_t){ 200, 0 };
     MSG_WriteByte(&sb, svc_playerinfo); MSG_WriteDeltaPlayerState(&sb, &from, &to);
     CL_ParseServerMessage(&sb);
     T_ASSERT(cl.camera_prediction.active);
@@ -2599,7 +2599,7 @@ TEST(net, camera_prediction_preserves_terrain_offsets) {
     T_FEQ(cl.viewDef.camerastate[0].origin.x, 200, 0.001f);
     T_FEQ(cl.viewDef.camerastate[0].origin.z, 240, 0.001f);
     T_FEQ(cl.viewDef.camerastate[1].origin.z, 220, 0.001f);
-    from = to; to.vieworigin = (VECTOR3){ 200, 0, 240 };
+    from = to; to.vieworigin = (vector3_t){ 200, 0, 240 };
     sb = make_msg_buf(buf, sizeof(buf));
     MSG_WriteByte(&sb, svc_playerinfo); MSG_WriteDeltaPlayerState(&sb, &from, &to);
     CL_ParseServerMessage(&sb);
@@ -2607,7 +2607,7 @@ TEST(net, camera_prediction_preserves_terrain_offsets) {
     FOR_LOOP(i, 2) T_FEQ(cl.viewDef.camerastate[i].origin.z, 240, 0.001f);
     test_client_stubs_init();
     cl.viewDef.camerastate[0].origin.z = 25;
-    CL_PredictCameraPosition((VECTOR2){ 200, 0 });
+    CL_PredictCameraPosition((vector2_t){ 200, 0 });
     T_FEQ(cl.viewDef.camerastate[0].origin.x, 200, 0.001f);
     T_FEQ(cl.viewDef.camerastate[0].origin.z, 25, 0.001f);
 }
@@ -2615,13 +2615,13 @@ TEST(net, camera_prediction_preserves_terrain_offsets) {
 TEST(net, camera_prediction_reconciles_to_server_clamped_bound) {
     uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    PLAYER from = { 0 };
-    PLAYER to = { 0 };
+    player_t from = { 0 };
+    player_t to = { 0 };
 
     test_client_stubs_init();
     to.number = 1;
-    to.vieworigin = (VECTOR3){ 100.0f, -50.0f, 0 };
-    test_client_stubs_set_world_bounds((BOX2){
+    to.vieworigin = (vector3_t){ 100.0f, -50.0f, 0 };
+    test_client_stubs_set_world_bounds((box2_t){
         .min = { -100.0f, -50.0f },
         .max = { 100.0f, 50.0f },
     });
@@ -2631,7 +2631,7 @@ TEST(net, camera_prediction_reconciles_to_server_clamped_bound) {
     to.zfar = 5000.0f;
     to.client_ui_state = CLIENT_UI_GAME;
     cl.camera_prediction.active = true;
-    cl.camera_prediction.origin = (VECTOR2){ 500.0f, -500.0f };
+    cl.camera_prediction.origin = (vector2_t){ 500.0f, -500.0f };
 
     MSG_WriteByte(&sb, svc_playerinfo);
     MSG_WriteDeltaPlayerState(&sb, &from, &to);
@@ -3433,7 +3433,7 @@ TEST(client_screen, multiselect_left_click_is_consumed_and_sends_focus) {
     SZ_Init(&cls.netchan.message, message_buf, sizeof(message_buf));
 
     memset(multiselect_buf, 0, sizeof(multiselect_buf));
-    multi->offset = MAKE(VECTOR2, 0.031f, 0.050f);
+    multi->offset = MAKE(vector2_t, 0.031f, 0.050f);
     multi->numcolumns = 6;
     multi->numitems = 1;
     multi->items[0].entity = 77;
@@ -3750,7 +3750,7 @@ TEST(net, active_entity_list_frame_copy_and_map_reset) {
 TEST(net, lightning_datagram_round_trip_and_clear) {
     uint8_t buf[1024];
     sizeBuf_t sb;
-    LIGHTNINGEFFECT bolt = MAKE(LIGHTNINGEFFECT,
+    lightningEffect_t bolt = MAKE(lightningEffect_t,
         .handle = 7, .effect_id = MAKEFOURCC('C', 'L', 'P', 'B'),
         .source = { 1.0f, 2.0f, 3.0f }, .target = { 4.0f, 5.0f, 6.0f },
         .color = COLOR32_WHITE, .start_time = 100, .end_time = 2000);
@@ -3886,7 +3886,7 @@ TEST(net, order_marker_configstring_precache_replace_and_clear) {
 TEST(net, typed_controller_input_roundtrip_and_validation) {
     uint8_t data[128];
     sizeBuf_t msg;
-    INPUTCMD out, cmds[] = {
+    inputCmd_t out, cmds[] = {
         { .action = BZ_INPUT_FOCUS, .focus = {12.5f, -34.25f} },
         { .action = BZ_INPUT_VIEW, .view = {{18, 0, -90}, 8.5f} },
         { .action = BZ_INPUT_MOVE, .move = {BZ_MOVE_FORWARD | BZ_MOVE_LEFT, 16} },
@@ -3926,13 +3926,13 @@ TEST(net, typed_controller_input_roundtrip_and_validation) {
 TEST(net, orbit_prediction_expires_and_yields_to_scripted_camera) {
     uint8_t data[256];
     sizeBuf_t msg = make_msg_buf(data, sizeof(data));
-    PLAYER from = {0}, to = { .number = 1, .client_ui_state = CLIENT_UI_GAME, .viewangles = {18, 0, 0},
+    player_t from = {0}, to = { .number = 1, .client_ui_state = CLIENT_UI_GAME, .viewangles = {18, 0, 0},
         .vieworigin = {10, 20, 40}, .distance = 8, .fov = 45, .znear = 0.1f, .zfar = 1000 };
     test_client_stubs_init();
     cl.time = 100;
     cl.camera_prediction.view = true;
     cl.camera_prediction.view_ms = cl.time;
-    cl.camera_prediction.angles = (VECTOR3){25, 0, 90};
+    cl.camera_prediction.angles = (vector3_t){25, 0, 90};
     cl.camera_prediction.distance = 12;
     MSG_WriteByte(&msg, svc_playerinfo); MSG_WriteDeltaPlayerState(&msg, &from, &to);
     CL_ParseServerMessage(&msg);
@@ -3962,8 +3962,8 @@ static void capture_asset_scope(cstring_t scope) { T_STREQ(scope, "Test.w3m"); }
 TEST(net, loading_batch_registers_media_before_full_precache) {
     uint8_t buf[1024];
     sizeBuf_t msg = make_msg_buf(buf, sizeof(buf));
-    UIFRAME frame = { .number = 1, .flags.type = FT_TEXTURE, .tex.index = 1 };
-    UIFRAME empty = { 0 };
+    uiFrame_t frame = { .number = 1, .flags.type = FT_TEXTURE, .tex.index = 1 };
+    uiFrame_t empty = { 0 };
     bool old_init = scr_initialized;
     test_client_stubs_init(); scr_initialized = false;
     SZ_Init(&cls.netchan.message, cls.netchan.message_buf, sizeof(cls.netchan.message_buf));
@@ -4085,7 +4085,7 @@ static int sprite_order[3], sprite_order_count;
 static void capture_sprite_order(drawSprite_t const *sprite) {
     if (sprite_order_count < 3) sprite_order[sprite_order_count++] = atoi(sprite->anim + 1);
 }
-static void capture_image_order(LPCTEXTURE tex, rect_t const * rect, rect_t const * uv, COLOR32 color) {
+static void capture_image_order(texture_t const * tex, rect_t const * rect, rect_t const * uv, color32_t color) {
     (void)tex; (void)rect; (void)uv; (void)color;
     if (sprite_order_count < 3) sprite_order[sprite_order_count++] = 2;
 }
@@ -4117,7 +4117,7 @@ TEST(client_layout, sprite_overlay_draws_after_button_artwork) {
 TEST(net, sprite_overlay_survives_layout_delta) {
     uint8_t data[256];
     sizeBuf_t msg = make_msg_buf(data, sizeof(data));
-    UIFRAME empty = {0}, input = { .number = 1, .flags.type = FT_SPRITE }, output = {0};
+    uiFrame_t empty = {0}, input = { .number = 1, .flags.type = FT_SPRITE }, output = {0};
     uint32_t bits;
     input.flagsvalue |= UIFLAG_SPRITE_OVERLAY;
     MSG_WriteDeltaUIFrame(&msg, &empty, &input, true);
@@ -4129,7 +4129,7 @@ TEST(net, sprite_overlay_survives_layout_delta) {
 TEST(net, loading_minimap_dispatches_static_map_after_delta_decode) {
     uint8_t data[256];
     sizeBuf_t msg = make_msg_buf(data, sizeof(data));
-    UIFRAME empty = {0}, input = { .number = 1, .flags.type = FT_MINIMAP,
+    uiFrame_t empty = {0}, input = { .number = 1, .flags.type = FT_MINIMAP,
         .text = "Maps\\FrozenThrone\\(2)BanditRidge.w3x" }, output = {0};
     uint32_t bits;
     test_client_stubs_init();

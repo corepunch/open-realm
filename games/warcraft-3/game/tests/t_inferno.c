@@ -14,7 +14,7 @@
 #define BZ_HERO 1.5f // fixture HeroDur; hero stun seconds (not stock 2)
 #define BZ_AREA 200.0f // fixture Area; blast radius (not stock 250)
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -42,25 +42,25 @@ static char const inferno_slk[] =
 
 typedef struct {
     slkTestData_t *rows, *old;
-    LPEDICT caster, enemy, far, hero;
+    edict_t * caster, *enemy, *far, *hero;
     UnitBalance_t unit_bal, hero_bal;
-    VECTOR2 point;
-} INFIX;
+    vector2_t point;
+} inFix_t;
 
-static uint32_t stun_ms(LPCEDICT unit) {
+static uint32_t stun_ms(edict_t const * unit) {
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSTU)
             return unit->abilstatus[i].duration_ms;
     return 0;
 }
 
-static LPEDICT inferno_thinker(LPEDICT caster) {
+static edict_t * inferno_thinker(edict_t * caster) {
     FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->think == inferno_think)
         return ent;
     return NULL;
 }
 
-static LPEDICT inferno_summon(LPEDICT caster) {
+static edict_t * inferno_summon(edict_t * caster) {
     FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->class_id == BZ_HFOO)
         return ent;
     return NULL;
@@ -68,10 +68,10 @@ static LPEDICT inferno_summon(LPEDICT caster) {
 
 /* Fill the caller's INFIX. Returning a copy would dangle UnitBalance pointers
  * (&local.unit_bal) after return; Linux then misreads G_UnitIsHero (HeroDur vs Dur). */
-static void inferno_setup(INFIX *fix, uint32_t code) {
+static void inferno_setup(inFix_t *fix, uint32_t code) {
     reset_entities(); setup_test_world(); level.time = 1000;
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
     fix->rows = parse_slk_string(inferno_slk); fix->old = G_SetSLKRows("AbilityData", fix->rows);
     fix->unit_bal = MAKE(UnitBalance_t, .maxHealth = 500);
@@ -96,7 +96,7 @@ static void inferno_setup(INFIX *fix, uint32_t code) {
     fix->point = fix->enemy->s.origin2;
 }
 
-static void inferno_done(INFIX fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
+static void inferno_done(inFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
 
 TEST(wc3_spell, inferno_procedure_and_flags) {
     abilityitem_t item = S_AbilityItem(BZ_ANIN);
@@ -109,7 +109,7 @@ TEST(wc3_spell, inferno_procedure_and_flags) {
 
 /* DataC delays blast: no damage/stun/summon until the authored delay elapses. */
 TEST(wc3_spell, inferno_impact_after_authored_delay) {
-    INFIX fix; inferno_setup(&fix, BZ_ANIN);
+    inFix_t fix; inferno_setup(&fix, BZ_ANIN);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANIN, &fix.point));
     T_EQ(fix.caster->channel.code, 0);
     T_FEQ(fix.enemy->health.value, 500, 0.001f);
@@ -133,7 +133,7 @@ TEST(wc3_spell, inferno_impact_after_authored_delay) {
 }
 
 TEST(wc3_spell, inferno_out_of_area_untouched) {
-    INFIX fix; inferno_setup(&fix, BZ_ANIN);
+    inFix_t fix; inferno_setup(&fix, BZ_ANIN);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANIN, &fix.point));
     level.time += (uint32_t)(BZ_DELAY * 1000.0f); G_RunEntities();
     T_FEQ(fix.far->health.value, 500, 0.001f);
@@ -142,8 +142,8 @@ TEST(wc3_spell, inferno_out_of_area_untouched) {
 }
 
 TEST(wc3_spell, inferno_summon_uses_datab_life) {
-    INFIX fix; inferno_setup(&fix, BZ_ANIN);
-    LPEDICT summon;
+    inFix_t fix; inferno_setup(&fix, BZ_ANIN);
+    edict_t * summon;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANIN, &fix.point));
     level.time += (uint32_t)(BZ_DELAY * 1000.0f); G_RunEntities();
     summon = inferno_summon(fix.caster);
@@ -158,8 +158,8 @@ TEST(wc3_spell, inferno_summon_uses_datab_life) {
 }
 
 TEST(wc3_spell, inferno_stun_uses_herodur_for_heroes) {
-    INFIX fix; inferno_setup(&fix, BZ_ANIN);
-    VECTOR2 point = fix.hero->s.origin2;
+    inFix_t fix; inferno_setup(&fix, BZ_ANIN);
+    vector2_t point = fix.hero->s.origin2;
     T_ASSERT(G_UnitIsHero(fix.hero));
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANIN, &point));
     level.time += (uint32_t)(BZ_DELAY * 1000.0f); G_RunEntities();
@@ -171,7 +171,7 @@ TEST(wc3_spell, inferno_stun_uses_herodur_for_heroes) {
 
 /* Rain of Chaos DataA still resolves the Inferno row for the landing blast+summon. */
 TEST(wc3_spell, inferno_rain_of_chaos_lands_via_inferno_row) {
-    INFIX fix; inferno_setup(&fix, BZ_ANRC);
+    inFix_t fix; inferno_setup(&fix, BZ_ANRC);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANRC, &fix.point));
     T_EQ(fix.caster->channel.code, 0);
     /* Fixture DataC=0.5 so the RoC landing schedules Inferno delay before summon. */

@@ -15,8 +15,8 @@ from rename_ability_callbacks import rename_callbacks
 
 SOURCE = '''// holy_validate must stay in this comment.
 static const char *label = "holy_execute";
-static BOOL holy_validate(LPEDICT ent, spellTarget_t st) { return true; }
-static void holy_execute(LPEDICT ent, spellTarget_t st, ability_t const *ability) {}
+static bool holy_validate(edict_t * ent, spellTarget_t st) { return true; }
+static void holy_execute(edict_t * ent, spellTarget_t st, ability_t const *ability) {}
 ability_t CAbilityHolyBolt = {
     .validate = holy_validate,
     .execute = holy_execute,
@@ -27,7 +27,7 @@ ability_t CAbilityHolyBolt = {
 class RenameCallbacksTest(unittest.TestCase):
     def test_callback_tokens_and_repeat(self):
         result = rename_callbacks(SOURCE, "CAbilityHolyBolt")
-        self.assertIn("static BOOL CAbilityHolyBolt_Validate(", result)
+        self.assertIn("static bool CAbilityHolyBolt_Validate(", result)
         self.assertIn(".execute = CAbilityHolyBolt_Execute", result)
         self.assertIn('// holy_validate must stay in this comment.', result)
         self.assertIn('"holy_execute"', result)

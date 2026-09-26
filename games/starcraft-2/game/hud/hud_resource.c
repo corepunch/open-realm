@@ -45,7 +45,7 @@ static void write_one(sc2BaseFrame_t *f) {
     if (f && !(f->ui_flags & SC2_UIFLAG_HIDDEN)) SC2_HUD_WriteFrame(f);
 }
 
-void SC2_HUD_WriteResourcePanel(LPEDICT ent) {
+void SC2_HUD_WriteResourcePanel(edict_t * ent) {
     uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_HUD_EnsureLayout(&count);
     if (!frames) return;

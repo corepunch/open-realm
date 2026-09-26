@@ -80,15 +80,15 @@ static inline uint64_t R_PrimitiveTriangles(GLenum mode, uint32_t count, uint32_
 }
 
 
-KNOWN_AS(render_buffer, BUFFER);
-KNOWN_AS(render_target, RENDERTARGET);
-KNOWN_AS(vertex, VERTEX);
+KNOWN_AS(render_buffer, buffer_t);
+KNOWN_AS(render_target, rendertarget_t);
+KNOWN_AS(vertex, vertex_t);
 
 typedef struct vertex {
-    VECTOR3 position;
-    VECTOR2 texcoord;
-    VECTOR3 normal;
-    COLOR32 color;
+    vector3_t position;
+    vector2_t texcoord;
+    vector3_t normal;
+    color32_t color;
     uint8_t skin[MAX_SKIN_BONES];
     uint8_t boneWeight[MAX_SKIN_BONES];
 } vertex_t;
@@ -97,7 +97,7 @@ struct texture {
     uint32_t texid;
     uint32_t width;
     uint32_t height;
-    LPTEXTURE next;
+    texture_t * next;
 };
 
 struct render_buffer {
@@ -106,20 +106,20 @@ struct render_buffer {
     uint32_t ibo;
 };
 
-typedef struct DRAWELEMENTS { uint32_t count, offset; } DRAWELEMENTS, *LPDRAWELEMENTS;
-typedef DRAWELEMENTS const *LPCDRAWELEMENTS;
-typedef struct DRAWRANGE { uint32_t first, count; } DRAWRANGE, *LPDRAWRANGE;
-typedef DRAWRANGE const *LPCDRAWRANGE;
+typedef struct drawElements_s { uint32_t count, offset; } drawElements_t;
 
-typedef struct INSTANCEBUFFER {
+typedef struct drawRange_s { uint32_t first, count; } drawRange_t;
+
+
+typedef struct instanceBuffer_s {
     uint32_t vbo;
     uint32_t count;
     uint32_t capacity;
-} INSTANCEBUFFER;
-typedef struct INSTANCEBUFFER *LPINSTANCEBUFFER;
-typedef const struct INSTANCEBUFFER *LPCINSTANCEBUFFER;
+} instanceBuffer_t;
 
-static inline size_t R_InstanceBufferBytes(uint32_t count) { return (size_t)count * sizeof(MATRIX4); }
+
+
+static inline size_t R_InstanceBufferBytes(uint32_t count) { return (size_t)count * sizeof(matrix4_t); }
 static inline uint32_t R_InstanceBufferCapacity(uint32_t capacity, uint32_t count) {
     if (capacity >= count) return capacity;
     for (capacity = capacity ? capacity : 16; capacity < count; capacity *= 2) {}
@@ -137,56 +137,56 @@ static inline void R_SwapRedBlue(uint8_t *pixels, uint32_t count, uint32_t strid
 /* Typed shader values are separate from the program-owned GL locations. */
 
 /* Simple sprite/UI shaders: position+texcoord+color vertex, unlit fragment. */
-typedef struct SPRITESTATE {
-    MATRIX4 viewProjection;
-    MATRIX4 model;
+typedef struct spritestate_s {
+    matrix4_t viewProjection;
+    matrix4_t model;
     int texture;
     float activeGlow;
     float radialShade;
     bool fogEnable;
-    VECTOR3 fogColor;
-    VECTOR2 fogParams;
-} SPRITESTATE;
-typedef struct SPRITESTATE *LPSPRITESTATE;
-typedef const struct SPRITESTATE *LPCSPRITESTATE;
-typedef struct SPRITEPROG {
-    SHADERPROG prog;
-    SPRITESTATE state;
-} SPRITEPROG;
-typedef struct SPRITEPROG *LPSPRITEPROG;
-typedef const struct SPRITEPROG *LPCSPRITEPROG;
+    vector3_t fogColor;
+    vector2_t fogParams;
+} spriteState_t;
+
+
+typedef struct spriteprog_s {
+    shaderProg_t prog;
+    spriteState_t state;
+} spriteProg_t;
+
+
 
 /* Ground/world shader with per-vertex lighting + texture/fog-of-war matrices.
    progid/viewProjection/model share the SPRITEPROG prefix layout so the
    splat path can address either type through splat_shader_t. */
-typedef struct DEFAULTSTATE {
-    MATRIX4 viewProjection;
-    MATRIX4 model;
-    MATRIX4 textureMatrix;
-    MATRIX4 lightMatrix;
-    MATRIX3 normalMatrix;
+typedef struct defaultState_s {
+    matrix4_t viewProjection;
+    matrix4_t model;
+    matrix4_t textureMatrix;
+    matrix4_t lightMatrix;
+    matrix3_t normalMatrix;
     int lightCount;
-    MATRIX4 lights[BZ_MODEL_LIGHT_MAX];
+    matrix4_t lights[BZ_MODEL_LIGHT_MAX];
     int texture;
     int shadowmap;
     int fogOfWar;
     bool fogEnable;
-    VECTOR3 fogColor;
-    VECTOR2 fogParams;
-} DEFAULTSTATE;
-typedef struct DEFAULTSTATE *LPDEFAULTSTATE;
-typedef const struct DEFAULTSTATE *LPCDEFAULTSTATE;
-typedef struct DEFAULTPROG {
-    SHADERPROG prog;
-    DEFAULTSTATE state;
-} DEFAULTPROG;
-typedef struct DEFAULTPROG *LPDEFAULTPROG;
-typedef const struct DEFAULTPROG *LPCDEFAULTPROG;
+    vector3_t fogColor;
+    vector2_t fogParams;
+} defaultState_t;
+
+
+typedef struct defaultProg_s {
+    shaderProg_t prog;
+    defaultState_t state;
+} defaultProg_t;
+
+
 
 /* Minimal common view for the splat/decals path: the three uniforms it uploads. */
 typedef struct {
-    SHADERPROG prog;
-    struct { MATRIX4 viewProjection, model; } state;
+    shaderProg_t prog;
+    struct { matrix4_t viewProjection, model; } state;
 } splat_shader_t;
 
 /* SPRITEPROG and DEFAULTPROG share a progid/viewProjection/model prefix,
@@ -194,39 +194,39 @@ typedef struct {
 #define R_SPLAT_SHADER(P) ((splat_shader_t *)(P))
 
 /* Shared skinned-model shader (MDX/M2/M3): bone palette + 8 packed lights. */
-typedef struct MODELSTATE {
-    MATRIX4 bones[BZ_BONE_PALETTE_MAX];
+typedef struct modelState_s {
+    matrix4_t bones[BZ_BONE_PALETTE_MAX];
     uint32_t boneCount;
-    MATRIX4 viewProjection;
-    MATRIX4 lightMatrix;
-    MATRIX4 textureMatrix;
+    matrix4_t viewProjection;
+    matrix4_t lightMatrix;
+    matrix4_t textureMatrix;
     int lightCount;
     float firstBoneLookupIndex;
-    MATRIX4 lights[BZ_MODEL_LIGHT_MAX];
-    MATRIX4 grassParams;
-    MATRIX4 model;
-    MATRIX3 normalMatrix;
+    matrix4_t lights[BZ_MODEL_LIGHT_MAX];
+    matrix4_t grassParams;
+    matrix4_t model;
+    matrix3_t normalMatrix;
     int texture;
     int shadowmap;
     int fogOfWar;
     float layerAlpha;
-    VECTOR4 geosetColor;
-    MATRIX3 uvMatrix;
+    vector4_t geosetColor;
+    matrix3_t uvMatrix;
     bool alphaKey;
     float alphaCutoff;
     bool unshaded;
     bool fogEnable;
-    VECTOR3 fogColor;
-    VECTOR2 fogParams;
-} MODELSTATE;
-typedef struct MODELSTATE *LPMODELSTATE;
-typedef const struct MODELSTATE *LPCMODELSTATE;
-typedef struct MODELPROG {
-    SHADERPROG prog;
-    MODELSTATE state;
-} MODELPROG;
-typedef struct MODELPROG *LPMODELPROG;
-typedef const struct MODELPROG *LPCMODELPROG;
+    vector3_t fogColor;
+    vector2_t fogParams;
+} modelState_t;
+
+
+typedef struct modelProg_s {
+    shaderProg_t prog;
+    modelState_t state;
+} modelProg_t;
+
+
 
 struct render_target {
     uint32_t buffer;
@@ -286,26 +286,26 @@ enum {
 struct render_globals {
     viewDef_t viewDef;
     render_phase_t render_phase;    /* current whole-scene pass (solid / shadow-map / alpha); read by game renderers */
-    LPCWAR3MAP world;
-    LPTEXTURE texture[TEX_COUNT];
-    SPRITEPROG  shader_ui;
-    SPRITEPROG  shader_splat;
-    SPRITEPROG  shader_shadowSplat;
-    SPRITEPROG  shader_commandButton;
-    SPRITEPROG  shader_minimap;
-    SPRITEPROG  shader_minimapFog;
-    SPRITEPROG  shader_unlit;
-    DEFAULTPROG shader_default;
-    LPBUFFER buffer[RBUF_COUNT];
-    LPMODEL model[MODEL_COUNT];
-    LPRENDERTARGET rt[RT_COUNT];
+    war3map_t const * world;
+    texture_t * texture[TEX_COUNT];
+    spriteProg_t  shader_ui;
+    spriteProg_t  shader_splat;
+    spriteProg_t  shader_shadowSplat;
+    spriteProg_t  shader_commandButton;
+    spriteProg_t  shader_minimap;
+    spriteProg_t  shader_minimapFog;
+    spriteProg_t  shader_unlit;
+    defaultProg_t shader_default;
+    buffer_t * buffer[RBUF_COUNT];
+    model_t * model[MODEL_COUNT];
+    rendertarget_t * rt[RT_COUNT];
     size2_t drawableSize;
     rect_t uiScene;       /* client-resolved UI scene (re.SetUIScene); R_UISceneRect projects it onto the drawable */
     int msaa_samples;
-    LPTEXTURE minimap;
+    texture_t * minimap;
     rect_t minimapRect;   /* UI-space world-content rect used for minimap projection */
     bool hasMinimap;
-    LPTEXTURE cinematic;
+    texture_t * cinematic;
     GLuint cinematic_pbo;
     uint32_t cinematic_pbo_size;
     bool cinematic_pbo_warned;
@@ -314,66 +314,66 @@ struct render_globals {
 
 void R_RegisterMap(cstring_t mapFileName);
 int R_RegisterTextureFile(cstring_t textureFileName);
-LPTEXTURE R_LoadTexture(cstring_t textureFileName);
-LPTEXTURE R_LoadTextureStreamed(cstring_t textureFileName);
+texture_t * R_LoadTexture(cstring_t textureFileName);
+texture_t * R_LoadTextureStreamed(cstring_t textureFileName);
 void R_AdvanceTextureGeneration(void);
 void R_ReclaimStreamedTextures(uint32_t keep_recent);
 int R_ReadTextureFile(cstring_t name, string_t path, void **buffer);
-LPTEXTURE R_FindLoadedTexture(cstring_t name);
-void R_CacheLoadedTexture(cstring_t name, LPTEXTURE texture);
-void R_ReleaseTexture(LPTEXTURE texture);
+texture_t * R_FindLoadedTexture(cstring_t name);
+void R_CacheLoadedTexture(cstring_t name, texture_t * texture);
+void R_ReleaseTexture(texture_t * texture);
 void R_ShutdownTextureCache(void);
 void R_DrawWorld(void);
 void R_DrawSky(void);
 void R_DrawDecals(void);
 void R_DrawAlphaSurfaces(void);
 void R_RenderFrame(viewDef_t const *viewDef);
-LPTEXTURE R_AllocateTexture(uint32_t width, uint32_t height);
-void R_DrawCinematicFrame(LPCDRAWCINEMATICFRAME frame);
-LPTEXTURE R_MakeSysFontTexture(void);
-LPTEXTURE R_MakeLoadingIndicatorTexture(void);
-LPTEXTURE R_MakeSelectionCircleTexture(void);
+texture_t * R_AllocateTexture(uint32_t width, uint32_t height);
+void R_DrawCinematicFrame(drawCinematicFrame_t const * frame);
+texture_t * R_MakeSysFontTexture(void);
+texture_t * R_MakeLoadingIndicatorTexture(void);
+texture_t * R_MakeSelectionCircleTexture(void);
 bool R_IsTexturePCX(handle_t data, uint32_t filesize);
-LPTEXTURE R_LoadTexturePCX(handle_t data, uint32_t filesize);
+texture_t * R_LoadTexturePCX(handle_t data, uint32_t filesize);
 #define BZ_GL_BGRA 0x80e1 // GL enum; shared desktop/EXT/APPLE token absent from core GLES headers; BGRA byte uploads
 typedef enum { PIXEL_RGBA, PIXEL_BGRA } PIXELFORMAT;
 typedef struct {
     void const * pixels;
     uint32_t width, height, level;
     PIXELFORMAT format;
-} TEXMIP;
-typedef TEXMIP *LPTEXMIP;
-typedef TEXMIP const *LPCTEXMIP;
+} texMip_t;
+
+
 void R_InitTextureFormats(void);
-void R_LoadTextureMipLevel(LPCTEXTURE texture, LPCTEXMIP mip);
-void R_BindTexture(LPCTEXTURE texture, uint32_t unit);
-void R_SetTextureWrap(LPCTEXTURE texture, bool wrapS, bool wrapT);
+void R_LoadTextureMipLevel(texture_t const * texture, texMip_t const * mip);
+void R_BindTexture(texture_t const * texture, uint32_t unit);
+void R_SetTextureWrap(texture_t const * texture, bool wrapS, bool wrapT);
 void R_DrawEntity(renderEntity_t const *edict, bool shad);
 void R_DrawSplatRects(void);
 void R_DrawTerrainShadows(void);
-bool MDLX_TraceModel(renderEntity_t const *edict, LPCLINE3 line, LPVECTOR3 intersection);
-void R_ReleaseVertexArrayObject(LPBUFFER buffer);
-LPCTEXTURE R_FindTextureByID(uint32_t textureID);
+bool MDLX_TraceModel(renderEntity_t const *edict, line3_t const * line, vector3_t * intersection);
+void R_ReleaseVertexArrayObject(buffer_t * buffer);
+texture_t const * R_FindTextureByID(uint32_t textureID);
 void R_DrawSprite(drawSprite_t const *sprite);
-bool R_SetEntityAnimFrame(LPCMODEL model, cstring_t anim, renderEntity_t *entity);
-void R_RenderSplat(LPCVECTOR2 position, float radius, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color);
-void R_DrawBackdrop(LPCDRAWBACKDROP drawBackdrop);
-void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color);
-void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, float z, LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color);
+bool R_SetEntityAnimFrame(model_t const * model, cstring_t anim, renderEntity_t *entity);
+void R_RenderSplat(vector2_t const * position, float radius, texture_t const * texture, splat_shader_t *shader, color32_t color);
+void R_DrawBackdrop(drawBackdrop_t const * drawBackdrop);
+void R_RenderRectSplat(vector2_t const * mins, vector2_t const * maxs, texture_t const * texture, splat_shader_t *shader, color32_t color);
+void R_RenderFlatRectSplat(vector2_t const * mins, vector2_t const * maxs, float z, texture_t const * texture, splat_shader_t *shader, color32_t color);
 /* Batched splat rendering: accumulate many ground decals (unit shadows) into one
  * vertex-buffer upload + draw per contiguous texture run (plus capacity flushes),
  * instead of one upload + draw per splat. */
 void R_BeginSplatBatch(splat_shader_t *shader);
-void R_AddRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, COLOR32 color);
+void R_AddRectSplat(vector2_t const * mins, vector2_t const * maxs, texture_t const * texture, color32_t color);
 void R_EndSplatBatch(void);
 
 // r_shader.c
-MODELPROG *R_ModelShader(void);
-MODELPROG *R_ModelShaderInstanced(void);
+modelProg_t *R_ModelShader(void);
+modelProg_t *R_ModelShaderInstanced(void);
 void R_ShutdownModelShader(void);
 void R_LoadBuiltinShaders(void);
 void R_ShutdownBuiltinShaders(void);
-SPRITEPROG *R_SpriteShader(SHADERTYPE type);
+spriteProg_t *R_SpriteShader(SHADERTYPE type);
 
 // r_main.c
 #ifdef USE_SHADOWMAPS
@@ -390,21 +390,21 @@ uint32_t R_GetFrameDrawCalls(void);
 
 // r_ents.c
 bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, uint32_t * number);
-bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);
-bool R_TraceCameraPlane(viewDef_t const *viewdef, float x, float y, LPVECTOR3 point);
-void R_GetEntityMatrix(renderEntity_t const *entity, LPMATRIX4 matrix);
-void R_GetAttachmentMatrix(renderEntity_t const *entity, LPCMATRIX4 socket, LPMATRIX4 matrix);
-LINE3 R_LineForScreenPoint(viewDef_t const *viewdef, float x, float y);
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t * point);
+bool R_TraceCameraPlane(viewDef_t const *viewdef, float x, float y, vector3_t * point);
+void R_GetEntityMatrix(renderEntity_t const *entity, matrix4_t * matrix);
+void R_GetAttachmentMatrix(renderEntity_t const *entity, matrix4_t const * socket, matrix4_t * matrix);
+line3_t R_LineForScreenPoint(viewDef_t const *viewdef, float x, float y);
 uint32_t R_EntitiesInRect(viewDef_t const *viewdef, rect_t const * rect, uint32_t max, uint32_t * array);
 void R_DrawEntities(void);
 float R_GetHeightAtPoint(float x, float y);
 
 // r_model.c
 /* Canonical game renderer hooks are declared here so unity-ordered game sources can call them directly. */
-LPMODEL R_LoadModel(cstring_t modelFilename);
-void R_ReleaseModel(LPMODEL model);
-LPMODEL R_LoadRegisteredModel(cstring_t modelFilename);
-void R_ReleaseRegisteredModel(LPMODEL model);
+model_t * R_LoadModel(cstring_t modelFilename);
+void R_ReleaseModel(model_t * model);
+model_t * R_LoadRegisteredModel(cstring_t modelFilename);
+void R_ReleaseRegisteredModel(model_t * model);
 void R_RegisterMapAssets(cstring_t mapFileName);
 bool R_MapAssetCandidate(cstring_t asset, string_t candidate, uint32_t candidate_size);
 void R_SetMapAssetScope(cstring_t scope);
@@ -412,64 +412,64 @@ void R_ShutdownModels(void);
 
 size2_t R_GetWindowSize(void);
 void R_SetWindowSize(uint32_t width, uint32_t height);
-size2_t R_GetTextureSize(LPCTEXTURE texture);
+size2_t R_GetTextureSize(texture_t const * texture);
 
 // r_buffer.c
-VERTEX *R_AddQuad(VERTEX *buffer, rect_t const * screen, rect_t const * uv, COLOR32 color, float z);
-VERTEX *R_AddStrip(VERTEX *buffer, rect_t const * screen, COLOR32 color);
-VERTEX *R_AddWireBox(VERTEX *buffer, LPCBOX3 box, COLOR32 color);
-LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, uint32_t size);
-LPBUFFER R_MakeIndexedVertexArrayObject(LPCVERTEX vertices, uint32_t num_vertices, uint32_t const *indices, uint32_t num_indices);
-void R_DrawBuffer(LPCBUFFER buffer, uint32_t num_vertices);
-void R_DrawBufferRange(LPCBUFFER buffer, LPCDRAWRANGE draw);
-void R_DrawIndexedBuffer16(LPCBUFFER buffer, LPCDRAWELEMENTS draw);
-void R_DrawIndexedBuffer32(LPCBUFFER buffer, LPCDRAWELEMENTS draw);
-void R_DrawBufferCopies(LPCBUFFER buffer, uint32_t num_vertices, uint32_t num_instances);
-void R_DrawIndexedBuffer(LPCBUFFER buffer, uint32_t num_indices);
-bool R_MakeInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, uint32_t count);
-bool R_UpdateInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, uint32_t count);
-void R_ReleaseInstanceBuffer(LPINSTANCEBUFFER buffer);
-void R_DrawBufferInstanced(LPCBUFFER buffer, uint32_t num_vertices, LPCINSTANCEBUFFER instances);
-void R_DrawBufferRangeInstanced(LPCBUFFER buffer, LPCDRAWRANGE draw, LPCINSTANCEBUFFER instances);
-void R_DrawIndexedBuffer16Instanced(LPCBUFFER buffer, LPCDRAWELEMENTS draw, LPCINSTANCEBUFFER instances);
-void R_DrawIndexedBuffer32Instanced(LPCBUFFER buffer, LPCDRAWELEMENTS draw, LPCINSTANCEBUFFER instances);
+vertex_t *R_AddQuad(vertex_t *buffer, rect_t const * screen, rect_t const * uv, color32_t color, float z);
+vertex_t *R_AddStrip(vertex_t *buffer, rect_t const * screen, color32_t color);
+vertex_t *R_AddWireBox(vertex_t *buffer, box3_t const * box, color32_t color);
+buffer_t * R_MakeVertexArrayObject(vertex_t const * vertices, uint32_t size);
+buffer_t * R_MakeIndexedVertexArrayObject(vertex_t const * vertices, uint32_t num_vertices, uint32_t const *indices, uint32_t num_indices);
+void R_DrawBuffer(buffer_t const * buffer, uint32_t num_vertices);
+void R_DrawBufferRange(buffer_t const * buffer, drawRange_t const * draw);
+void R_DrawIndexedBuffer16(buffer_t const * buffer, drawElements_t const * draw);
+void R_DrawIndexedBuffer32(buffer_t const * buffer, drawElements_t const * draw);
+void R_DrawBufferCopies(buffer_t const * buffer, uint32_t num_vertices, uint32_t num_instances);
+void R_DrawIndexedBuffer(buffer_t const * buffer, uint32_t num_indices);
+bool R_MakeInstanceBuffer(instanceBuffer_t * buffer, matrix4_t const * matrices, uint32_t count);
+bool R_UpdateInstanceBuffer(instanceBuffer_t * buffer, matrix4_t const * matrices, uint32_t count);
+void R_ReleaseInstanceBuffer(instanceBuffer_t * buffer);
+void R_DrawBufferInstanced(buffer_t const * buffer, uint32_t num_vertices, instanceBuffer_t const * instances);
+void R_DrawBufferRangeInstanced(buffer_t const * buffer, drawRange_t const * draw, instanceBuffer_t const * instances);
+void R_DrawIndexedBuffer16Instanced(buffer_t const * buffer, drawElements_t const * draw, instanceBuffer_t const * instances);
+void R_DrawIndexedBuffer32Instanced(buffer_t const * buffer, drawElements_t const * draw, instanceBuffer_t const * instances);
 void R_ShutdownDrawBufferInstanced(void);
 
 // r_draw.c
 void R_DrawChar(int x, int y, int c);
 void R_DrawCharScaled(float x, float y, int c, float scale);
-void R_DrawFill(rect_t const * rect, COLOR32 color);
-void R_DrawImage(LPCTEXTURE texture, rect_t const * screen, rect_t const * uv, COLOR32 color);
-void R_DrawImageEx(LPCDRAWIMAGE drawImage);
-void R_DrawImageBatch(LPCTEXTURE texture, SHADERTYPE shaderType, BLEND_MODE alphamode, float uActiveGlow, float uRadialShade, bool hasClip, rect_t const * clip, LPCVERTEX vertices, uint32_t num_vertices, bool repeat);
+void R_DrawFill(rect_t const * rect, color32_t color);
+void R_DrawImage(texture_t const * texture, rect_t const * screen, rect_t const * uv, color32_t color);
+void R_DrawImageEx(drawImage_t const * drawImage);
+void R_DrawImageBatch(texture_t const * texture, SHADERTYPE shaderType, BLEND_MODE alphamode, float uActiveGlow, float uRadialShade, bool hasClip, rect_t const * clip, vertex_t const * vertices, uint32_t num_vertices, bool repeat);
 void R_DrawMinimapScene(rect_t const * screen, cstring_t map);
-bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld);
-bool R_WorldToMinimap(LPCVECTOR2 world, LPVECTOR2 outScreen);
+bool R_TraceMinimap(float x, float y, vector2_t * outWorld);
+bool R_WorldToMinimap(vector2_t const * world, vector2_t * outScreen);
 void R_DrawMinimapCameraRect(rect_t const * screen);
-void R_DrawMinimapBorder(rect_t const * screen, COLOR32 color);
-void R_DrawLoadingIndicator(rect_t const * rect, uint32_t time, COLOR32 color);
-void R_DrawPic(LPCTEXTURE texture, float x, float y);
-void R_DrawSelectionRect(rect_t const * rect, COLOR32 color);
-void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix, COLOR32 color);
-void R_DrawWireRect(rect_t const * rect, COLOR32 color);
-bool R_GetModelInfo(LPMODEL model, LPMODELINFO info);
-bool R_GetEntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out);
-bool R_GetEntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, LPVECTOR3 out);
+void R_DrawMinimapBorder(rect_t const * screen, color32_t color);
+void R_DrawLoadingIndicator(rect_t const * rect, uint32_t time, color32_t color);
+void R_DrawPic(texture_t const * texture, float x, float y);
+void R_DrawSelectionRect(rect_t const * rect, color32_t color);
+void R_DrawBoundingBox(box3_t const * box, matrix4_t const * modelMatrix, matrix4_t const * vpMatrix, color32_t color);
+void R_DrawWireRect(rect_t const * rect, color32_t color);
+bool R_GetModelInfo(model_t * model, modelInfo_t * info);
+bool R_GetEntityOverheadPosition(renderEntity_t const *entity, vector3_t * out);
+bool R_GetEntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vector3_t * out);
 rect_t R_UISceneRect(void);
 void R_SetUIScene(rect_t const * scene);
 
 // r_font.c
-LPFONT R_LoadFont(cstring_t filename, uint32_t size);
+font_t * R_LoadFont(cstring_t filename, uint32_t size);
 void R_ShutdownFonts(void);
-VECTOR2 R_GetTextSize(LPCDRAWTEXT drawText);
-void R_DrawText(LPCDRAWTEXT drawText);
+vector2_t R_GetTextSize(drawText_t const * drawText);
+void R_DrawText(drawText_t const * drawText);
 void R_DrawString(int x, int y, cstring_t text);
 /* One thousandth of a pixel in normalized UI space is exact enough for glyph-fit decisions. */
 static inline bool R_TextFitsWidth(float remaining) { return remaining >= -0.000001f; }
 
 // r_image.c
-LPRENDERTARGET R_AllocateRenderTexture(GLsizei width, GLsizei height, GLenum format, GLenum type, GLenum attachment);
-void R_ReleaseRenderTexture(LPRENDERTARGET rt);
+rendertarget_t * R_AllocateRenderTexture(GLsizei width, GLsizei height, GLenum format, GLenum type, GLenum attachment);
+void R_ReleaseRenderTexture(rendertarget_t * rt);
 
 // r_fogofwar.c
 void R_InitFogOfWar(uint32_t width, uint32_t height);
@@ -492,15 +492,15 @@ void R_InitParticles(void);
 void R_ShutdownParticles(void);
 void R_DrawParticles(void);
 cparticle_t *R_SpawnParticle(void);
-void R_DrawBillboardSprite(LPCTEXTURE texture, LPCVECTOR3 origin, float size, COLOR32 color);
+void R_DrawBillboardSprite(texture_t const * texture, vector3_t const * origin, float size, color32_t color);
 typedef struct {
-    LPCTEXTURE texture;
-    LPCVECTOR3 points;
+    texture_t const * texture;
+    vector3_t const * points;
     uint32_t point_count;
     float width;
     float texcoord_scale;
     float texcoord_phase;
-    COLOR32 color;
+    color32_t color;
     BLEND_MODE blend_mode;
     bool depth_test;
 } ribbonDraw_t;

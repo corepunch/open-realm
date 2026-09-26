@@ -57,7 +57,7 @@ static void Tool_DrawString(refExport_t const *re, cstring_t string, int x, int 
 
 static void PrintLayer(cstring_t label, m3Layer_t const *layer, uint32_t count) {
     FOR_LOOP(i, count) {
-        COLOR32 color = layer[i].color.initValue;
+        color32_t color = layer[i].color.initValue;
         fprintf(stderr,
                 "    %s[%u]: flags=0x%08x uv=%u color=(%u %u %u %u) bright=%.3f mid=%.3f tex=%s\n",
                 label,
@@ -74,15 +74,15 @@ static void PrintLayer(cstring_t label, m3Layer_t const *layer, uint32_t count) 
     }
 }
 
-static BOX3 M3PreviewBounds(m3Model_t const *m3) {
-    BOX3 bounds = { 0 };
+static box3_t M3PreviewBounds(m3Model_t const *m3) {
+    box3_t bounds = { 0 };
     bool has_bounds = false;
 
     if (!m3) {
         return bounds;
     }
     FOR_LOOP(i, m3->verticesNum) {
-        VECTOR3 const *v = &m3->vertices[i].pos;
+        vector3_t const *v = &m3->vertices[i].pos;
         if (!isfinite(v->x) || !isfinite(v->y) || !isfinite(v->z)) {
             continue;
         }
@@ -106,9 +106,9 @@ static BOX3 M3PreviewBounds(m3Model_t const *m3) {
     return bounds;
 }
 
-static void PrintModelInfo(LPCMODEL model) {
+static void PrintModelInfo(model_t const * model) {
     m3Model_t const *m3 = model ? model->m3 : NULL;
-    BOX3 bounds = M3PreviewBounds(m3);
+    box3_t bounds = M3PreviewBounds(m3);
     float width = fabsf(bounds.max.x - bounds.min.x);
     float depth = fabsf(bounds.max.y - bounds.min.y);
     float height = fabsf(bounds.max.z - bounds.min.z);
@@ -239,21 +239,21 @@ static void PrintModelInfo(LPCMODEL model) {
     }
 }
 
-static void RenderFrame(refExport_t const *re, LPCMODEL model, LPCBOX3 bounds, uint32_t now) {
+static void RenderFrame(refExport_t const *re, model_t const * model, box3_t const * bounds, uint32_t now) {
     viewDef_t viewdef = { 0 };
     renderEntity_t entity = { 0 };
-    VECTOR3 center = Box3_Center(bounds);
+    vector3_t center = Box3_Center(bounds);
     float width = fabsf(bounds->max.x - bounds->min.x);
     float depth = fabsf(bounds->max.y - bounds->min.y);
     float height = fabsf(bounds->max.z - bounds->min.z);
     float radius = MAX(1.0f, MAX(width, MAX(depth, height)));
     size2_t window = re->GetWindowSize();
     float aspect = window.height ? (float)window.width / (float)window.height : 1.0f;
-    MATRIX4 entity_matrix;
+    matrix4_t entity_matrix;
 
     entity.model = model;
     entity.scale = 1.0f;
-    entity.origin = (VECTOR3){ -center.x, -center.y, -center.z };
+    entity.origin = (vector3_t){ -center.x, -center.y, -center.z };
     entity.frame = now;
     entity.oldframe = now;
 
@@ -267,13 +267,13 @@ static void RenderFrame(refExport_t const *re, LPCMODEL model, LPCBOX3 bounds, u
     viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_NOFOGMASK;
     Matrix4_identity(&viewdef.textureMatrix);
     Viewer_OrbitBuildCamera(&g_orbit, aspect, 35.0f, 0.1f, MAX(100.0f, g_orbit.distance + radius * 8.0f), &viewdef.viewProjectionMatrix);
-    Viewer_OrbitBuildLight(&g_orbit, &(VECTOR3){ 0.0f, 0.0f, 0.0f }, MAX(32.0f, radius * 2.0f), &viewdef.lightMatrix);
+    Viewer_OrbitBuildLight(&g_orbit, &(vector3_t){ 0.0f, 0.0f, 0.0f }, MAX(32.0f, radius * 2.0f), &viewdef.lightMatrix);
 
     re->BeginFrame();
     re->RenderFrame(&viewdef);
     Matrix4_identity(&entity_matrix);
     Matrix4_translate(&entity_matrix, &entity.origin);
-    re->DrawBoundingBox(bounds, &entity_matrix, &viewdef.viewProjectionMatrix, (COLOR32){ 0, 255, 128, 180 });
+    re->DrawBoundingBox(bounds, &entity_matrix, &viewdef.viewProjectionMatrix, (color32_t){ 0, 255, 128, 180 });
     Tool_DrawString(re, "m3tool: M3 viewer", 10, 10);
     Tool_DrawString(re, g_model_path, 10, 28);
     re->EndFrame();
@@ -281,8 +281,8 @@ static void RenderFrame(refExport_t const *re, LPCMODEL model, LPCBOX3 bounds, u
 
 int main(int argc, char **argv) {
     refExport_t re;
-    LPMODEL model;
-    BOX3 bounds;
+    model_t * model;
+    box3_t bounds;
     float width, depth, height, extent;
     bool running = true;
 
@@ -340,7 +340,7 @@ int main(int argc, char **argv) {
     depth = fabsf(bounds.max.y - bounds.min.y);
     height = fabsf(bounds.max.z - bounds.min.z);
     extent = MAX(1.0f, MAX(width, MAX(depth, height)));
-    Viewer_OrbitInit(&g_orbit, (VECTOR3){ 0, 0, 0 }, extent * 2.5f, -45.0f, 20.0f);
+    Viewer_OrbitInit(&g_orbit, (vector3_t){ 0, 0, 0 }, extent * 2.5f, -45.0f, 20.0f);
     g_orbit.reverse_drag = true;
 
     while (running) {

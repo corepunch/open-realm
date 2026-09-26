@@ -1,13 +1,13 @@
 #include "g_local.h"
 #include "games/warcraft-3/common/weather.h"
 
-static bool G_WeatherValid(LPCGWEATHER effect) {
+static bool G_WeatherValid(gweather_t const * effect) {
     return effect && effect >= level.weather_effects &&
            effect < level.weather_effects + MAX_WEATHER_EFFECTS && effect->inuse;
 }
 
-LPGWEATHER G_WeatherAdd(LPCBOX2 bounds, uint32_t effect_id, bool enabled) {
-    LPGWEATHER effect = NULL;
+gweather_t * G_WeatherAdd(box2_t const * bounds, uint32_t effect_id, bool enabled) {
+    gweather_t * effect = NULL;
 
     if (!bounds || !effect_id) return NULL;
     FOR_LOOP(i, MAX_WEATHER_EFFECTS) {
@@ -27,24 +27,24 @@ LPGWEATHER G_WeatherAdd(LPCBOX2 bounds, uint32_t effect_id, bool enabled) {
     return effect;
 }
 
-void G_WeatherEnable(LPGWEATHER effect, bool enabled) {
+void G_WeatherEnable(gweather_t * effect, bool enabled) {
     if (!G_WeatherValid(effect)) return;
     enabled = !!enabled;
     if (effect->enabled == enabled) return;
     effect->enabled = enabled;
 }
 
-void G_WeatherRemove(LPGWEATHER effect) {
+void G_WeatherRemove(gweather_t * effect) {
     if (!G_WeatherValid(effect)) return;
     memset(effect, 0, sizeof(*effect));
 }
 
 void G_WeatherInitMap(void) {
-    LPCMAPINFO mapinfo = level.mapinfo;
+    mapInfo_t const * mapinfo = level.mapinfo;
 
     if (!mapinfo) return;
     if (mapinfo->weatherID) {
-        BOX2 bounds = CM_GetWorldBounds();
+        box2_t bounds = CM_GetWorldBounds();
         G_WeatherAdd(&bounds, mapinfo->weatherID, true);
     }
     FOR_LOOP(i, mapinfo->num_weatherRegions) {
@@ -54,7 +54,7 @@ void G_WeatherInitMap(void) {
 }
 
 /* Filter vertex colours by unit visibility while allowing unresolved presentation models. */
-static bool G_ClientReceivesVertexColor(LPEDICT client_ent, LPCEDICT unit) {
+static bool G_ClientReceivesVertexColor(edict_t * client_ent, edict_t const * unit) {
     uint32_t player;
     /* Vertex colour is authoritative unit state; publish it before model resolution too,
      * because the client may receive the tint before the unit's presentation model. */
@@ -65,9 +65,9 @@ static bool G_ClientReceivesVertexColor(LPEDICT client_ent, LPCEDICT unit) {
 }
 
 /* Serialize authoritative weather and vertex-colour state so dropped frames converge without widening entityState_t. */
-uint32_t G_WriteClientDatagram(LPEDICT ent, uint8_t * data, uint32_t size) {
+uint32_t G_WriteClientDatagram(edict_t * ent, uint8_t * data, uint32_t size) {
     uint32_t weather_count = 0, lightning_count = 0, tint_count = 0, terrain_mask_size = 0;
-    uint32_t const tint_wire_size = sizeof(uint16_t) + sizeof(COLOR32);
+    uint32_t const tint_wire_size = sizeof(uint16_t) + sizeof(color32_t);
     uint32_t const lightning_header_size = sizeof(uint16_t);
     uint32_t base, lightning_need, mask_min, tint_need;
     uint8_t *out = data;
@@ -78,7 +78,7 @@ uint32_t G_WriteClientDatagram(LPEDICT ent, uint8_t * data, uint32_t size) {
     if (!data || size < sizeof(wire_count)) return 0;
     FOR_LOOP(i, MAX_WEATHER_EFFECTS) if (level.weather_effects[i].inuse) weather_count++;
     FOR_LOOP(i, MAX_LIGHTNING_EFFECTS) {
-        LPGLIGHTNING effect = level.lightning_effects + i;
+        gLightning_t * effect = level.lightning_effects + i;
         if (!effect->inuse) continue;
         G_LightningUpdateAttached(effect);
         if (effect->state.end_time && now >= effect->state.end_time) {
@@ -89,7 +89,7 @@ uint32_t G_WriteClientDatagram(LPEDICT ent, uint8_t * data, uint32_t size) {
     }
     FOR_LOOP(i, globals.num_edicts) if (G_ClientReceivesVertexColor(ent, &g_edicts[i])) tint_count++;
     base = sizeof(wire_count) + weather_count * sizeof(wc3WeatherEffect_t);
-    lightning_need = lightning_header_size + lightning_count * sizeof(LIGHTNINGEFFECT);
+    lightning_need = lightning_header_size + lightning_count * sizeof(lightningEffect_t);
     mask_min = 0;
     if (G_BlightDatagramPending(ent) && level.blight.width)
         mask_min = sizeof(terrainMaskChunk_t) + (level.blight.width + 7) / 8;
@@ -109,7 +109,7 @@ uint32_t G_WriteClientDatagram(LPEDICT ent, uint8_t * data, uint32_t size) {
     memcpy(out, &wire_count, sizeof(wire_count));
     out += sizeof(wire_count);
     FOR_LOOP(i, MAX_WEATHER_EFFECTS) {
-        LPCGWEATHER effect = level.weather_effects + i;
+        gweather_t const * effect = level.weather_effects + i;
         wc3WeatherEffect_t state;
         if (!effect->inuse) continue;
         state = (wc3WeatherEffect_t){ .handle = effect->handle_id, .effect_id = effect->effect_id,
@@ -123,7 +123,7 @@ uint32_t G_WriteClientDatagram(LPEDICT ent, uint8_t * data, uint32_t size) {
         memcpy(out, &wire_lightning_count, sizeof(wire_lightning_count));
         out += sizeof(wire_lightning_count);
         FOR_LOOP(i, MAX_LIGHTNING_EFFECTS) {
-            LPCGLIGHTNING effect = level.lightning_effects + i;
+            gLightning_t const * effect = level.lightning_effects + i;
             if (!effect->inuse) continue;
             memcpy(out, &effect->state, sizeof(effect->state));
             out += sizeof(effect->state);
@@ -134,7 +134,7 @@ uint32_t G_WriteClientDatagram(LPEDICT ent, uint8_t * data, uint32_t size) {
         memcpy(out, &wire_tint_count, sizeof(wire_tint_count));
         out += sizeof(wire_tint_count);
         FOR_LOOP(i, globals.num_edicts) {
-            LPEDICT unit = &g_edicts[i];
+            edict_t * unit = &g_edicts[i];
             uint16_t number;
             if (!G_ClientReceivesVertexColor(ent, unit)) continue;
             number = (uint16_t)unit->s.number;

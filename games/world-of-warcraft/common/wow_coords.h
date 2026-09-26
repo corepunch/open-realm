@@ -7,55 +7,55 @@
 #define WOW_ADT_TILES 64
 
 typedef struct {
-    VECTOR3 pos, rot; /* Raw MODF placement coordinates and degrees, Y-up. */
+    vector3_t pos, rot; /* Raw MODF placement coordinates and degrees, Y-up. */
     uint16_t scale;      /* MODF fixed point: 1024 = unity, zero = unspecified/unity. */
-} WOWPLACEMENT;
-typedef WOWPLACEMENT *LPWOWPLACEMENT;
-typedef WOWPLACEMENT const *LPCWOWPLACEMENT;
+} wowPlacement_t;
+
+
 
 /* Native M2/WMO model space is already +X-forward, +Z-up. */
-static MATRIX4 const wow_model_basis = { .v = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1} };
+static matrix4_t const wow_model_basis = { .v = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1} };
 
-static VECTOR3 Wow_ObjectPosition(float x, float y, float z) {
-    return (VECTOR3){ WOW_ADT_TILES * 0.5f * WOW_ADT_SIZE - z, WOW_ADT_TILES * 0.5f * WOW_ADT_SIZE - x, y };
+static vector3_t Wow_ObjectPosition(float x, float y, float z) {
+    return (vector3_t){ WOW_ADT_TILES * 0.5f * WOW_ADT_SIZE - z, WOW_ADT_TILES * 0.5f * WOW_ADT_SIZE - x, y };
 }
 
 /* MDDF stores degrees in placement axes; these are not named actor Euler axes. */
-static orientation_t Wow_DoodadOrientation(VECTOR3 raw) {
+static orientation_t Wow_DoodadOrientation(vector3_t raw) {
     return (orientation_t){ .yaw = DEG2RAD(raw.y), .pitch = -DEG2RAD(raw.x), .roll = DEG2RAD(raw.z) };
 }
 
-static VECTOR3 Wow_TerrainOffset(float row, float col, float height) { return (VECTOR3){ -row, -col, height }; }
-static VECTOR3 Wow_TerrainNormal(VECTOR3 local) { return (VECTOR3){ -local.y, -local.x, local.z }; }
+static vector3_t Wow_TerrainOffset(float row, float col, float height) { return (vector3_t){ -row, -col, height }; }
+static vector3_t Wow_TerrainNormal(vector3_t local) { return (vector3_t){ -local.y, -local.x, local.z }; }
 static int Wow_TileIndex(float coord) { return (int)floorf(32.0f - coord / WOW_ADT_SIZE); }
 
 /* WMO/M2 vertices stay in native Z-up model space. Convert only their ADT placement, once,
  * identically for collision and rendering. B*Ry(y-270)*Rz(-x)*Rx(z-90) = Rz(y+180)*Ry(x)*Rx(z). */
-static void Wow_PlacementMatrix(LPCWOWPLACEMENT def, LPMATRIX4 matrix) {
-    VECTOR3 pos = Wow_ObjectPosition(def->pos.x, def->pos.y, def->pos.z);
+static void Wow_PlacementMatrix(wowPlacement_t const * def, matrix4_t * matrix) {
+    vector3_t pos = Wow_ObjectPosition(def->pos.x, def->pos.y, def->pos.z);
     float scale = def->scale ? def->scale / 1024.0f : 1.0f;
     orientation_t angles = Wow_DoodadOrientation(def->rot);
     angles.yaw += (float)M_PI;
-    QUATERNION rotation = Quaternion_fromOrientation(&angles);
+    quaternion_t rotation = Quaternion_fromOrientation(&angles);
     Matrix4_from_rotation_translation_scale_origin(matrix, &rotation, &pos,
-        &MAKE(VECTOR3, scale, scale, scale), &MAKE(VECTOR3, 0, 0, 0));
+        &MAKE(vector3_t, scale, scale, scale), &MAKE(vector3_t, 0, 0, 0));
 }
 
 /* WoW uses downward pitch from the horizon and heading from +X. The orbit view uses tilt
  * from -Z and inverse heading from +Y; copying native angles made the camera overhead/sideways. */
-static VECTOR3 Wow_EulerFromCamera(float pitch, float yaw) {
-    return (VECTOR3){ pitch - 90.0f, 0.0f, 90.0f - yaw };
+static vector3_t Wow_EulerFromCamera(float pitch, float yaw) {
+    return (vector3_t){ pitch - 90.0f, 0.0f, 90.0f - yaw };
 }
 
 /* Native {downward pitch, heading, roll}; keep movement heading out of view-matrix coordinates. */
-static VECTOR3 Wow_CameraFromEuler(LPCVECTOR3 euler) {
-    return (VECTOR3){ euler->x + 90.0f, 90.0f - euler->z, euler->y };
+static vector3_t Wow_CameraFromEuler(vector3_t const * euler) {
+    return (vector3_t){ euler->x + 90.0f, 90.0f - euler->z, euler->y };
 }
 
 /* Native camera angles are {downward pitch, heading, roll} in degrees, Z-up. */
-static VECTOR3 Wow_ViewForward(LPCVECTOR3 angles) {
+static vector3_t Wow_ViewForward(vector3_t const * angles) {
     float yaw = (float)DEG2RAD(angles->y), pitch = (float)DEG2RAD(angles->x);
-    return (VECTOR3){ cosf(pitch) * cosf(yaw), cosf(pitch) * sinf(yaw), -sinf(pitch) };
+    return (vector3_t){ cosf(pitch) * cosf(yaw), cosf(pitch) * sinf(yaw), -sinf(pitch) };
 }
 
 #endif

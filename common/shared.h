@@ -71,8 +71,8 @@ static inline size_t bz_strlcat(char *destination, const char *source, size_t si
 
 #define MAKE(TYPE,...)(TYPE){__VA_ARGS__}
 
-#define COLOR32_WHITE MAKE(COLOR32,255,255,255,255)
-#define COLOR32_BLACK MAKE(COLOR32,0,0,0,255)
+#define COLOR32_WHITE MAKE(color32_t,255,255,255,255)
+#define COLOR32_BLACK MAKE(color32_t,0,0,0,255)
 
 /* Descriptor grammars share conversion contracts; source readers still own byte/text decoding. */
 typedef enum {
@@ -87,10 +87,7 @@ typedef enum {
         BZ_FIELD_FOURCC,  /* 4-char text → uint32_t via memcpy (same as MAKEFOURCC on LE) */
 } bzFieldType_t;
 
-#define KNOWN_AS(STRUCT, TYPE) \
-typedef struct STRUCT TYPE; \
-typedef struct STRUCT *LP##TYPE; \
-typedef struct STRUCT const *LPC##TYPE;
+#define KNOWN_AS(STRUCT, TYPE) typedef struct STRUCT TYPE;
 
 #define FOR_LOOP(property, max) \
 for (uint32_t property = 0, end = max; property < end; ++property)
@@ -158,7 +155,7 @@ for (TYPE *it = LIST; it;) { \
 }
 
 #define PARSE_LIST(LIST, ITEM, PARSEFUNC) \
-PARSER parser = { .buffer = LIST, .delimiters = "" }; \
+wordExtractor_t parser = { .buffer = LIST, .delimiters = "" }; \
 for (cstring_t ITEM = PARSEFUNC(&parser); ITEM; ITEM = PARSEFUNC(&parser))
 
 #define TRACE_CALL(FUNC, ...) FUNC(__VA_ARGS__)
@@ -322,21 +319,21 @@ typedef struct color { float r, g, b, a; } color_t;
 typedef struct color32 { uint8_t r, g, b, a; } color32_t;
 typedef struct bounds { float min, max; } bounds_t;
 typedef struct edges { float left, top, right, bottom; } edges_t;
-typedef struct transform2 { VECTOR2 translation, scale; float rotation; } transform2_t;
-typedef struct transform3 { VECTOR3 translation, rotation, scale; } transform3_t;
+typedef struct transform2 { vector2_t translation, scale; float rotation; } transform2_t;
+typedef struct transform3 { vector3_t translation, rotation, scale; } transform3_t;
 typedef char UINAME[80];
 
-KNOWN_AS(SheetLayout, SHEETLAYOUT);
-KNOWN_AS(SheetCell, SHEET);
-KNOWN_AS(Doodad, DOODAD);
-KNOWN_AS(vector3, VECTOR3);
-KNOWN_AS(color32, COLOR32);
-KNOWN_AS(animation_s, ANIMATION);
-KNOWN_AS(uiFrame_s, UIFRAME);
-KNOWN_AS(entityState_s, ENTITYSTATE);
-KNOWN_AS(mapInfo_s, MAPINFO);
-KNOWN_AS(mapPlayer_s, MAPPLAYER);
-KNOWN_AS(playerState_s, PLAYER);
+KNOWN_AS(SheetLayout, sheetLayout_t);
+KNOWN_AS(SheetCell, sheet_t);
+KNOWN_AS(Doodad, doodad_t);
+KNOWN_AS(vector3, vector3_t);
+KNOWN_AS(color32, color32_t);
+KNOWN_AS(animation_s, animation_t);
+KNOWN_AS(uiFrame_s, uiFrame_t);
+KNOWN_AS(entityState_s, entityState_t);
+KNOWN_AS(mapInfo_s, mapInfo_t);
+KNOWN_AS(mapPlayer_s, mapPlayer_t);
+KNOWN_AS(playerState_s, player_t);
 
 typedef enum {
     NO_BOM,
@@ -575,14 +572,14 @@ typedef struct {
 } svQuestEntry_t;
 
 /* Evaluated scene light. type matches RMODELLIGHTTYPE; 0 is omni, so presence is `valid`. */
-typedef struct ENVIRONLIGHT {
-    VECTOR3 dir, color, ambient;
+typedef struct environlight_s {
+    vector3_t dir, color, ambient;
     float intensity, ambient_intensity;
     uint32_t type;
     bool valid;
-} ENVIRONLIGHT;
-typedef struct ENVIRONLIGHT *LPENVIRONLIGHT;
-typedef const struct ENVIRONLIGHT *LPCENVIRONLIGHT;
+} environLight_t;
+
+
 
 _Static_assert(UI_PLAYERSTAT_ENV_PHASE != UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR,
                "env phase and cinematic portrait color must occupy distinct stats[] slots");
@@ -601,21 +598,21 @@ enum {
     BZ_MOVE_LEFT = 1 << 2,
     BZ_MOVE_RIGHT = 1 << 3,
 };
-typedef struct INPUTCMD {
+typedef struct inputCmd_s {
     INPUTACTION action;
     union {
-        VECTOR2 focus;
-        struct { VECTOR3 angles; float distance; } view;
+        vector2_t focus;
+        struct { vector3_t angles; float distance; } view;
         struct { uint32_t buttons, msec; } move;
     };
-} INPUTCMD;
-typedef INPUTCMD *LPINPUTCMD;
-typedef INPUTCMD const *LPCINPUTCMD;
+} inputCmd_t;
+
+
 
 struct playerState_s {
     uint32_t number;                   // client slot index
-    VECTOR3 viewangles;             // Euler degrees, ROTATE_ZYX {pitch, roll, yaw}; client converts to quat and slerps
-    VECTOR3 vieworigin;             // server-authored camera look-at in world space (XY focus + composed Z)
+    vector3_t viewangles;             // Euler degrees, ROTATE_ZYX {pitch, roll, yaw}; client converts to quat and slerps
+    vector3_t vieworigin;             // server-authored camera look-at in world space (XY focus + composed Z)
     float distance;                 // camera distance from vieworigin for orbit/isometric view
     float znear;                    // near clip; required camera sample, copied like fov
     float zfar;                     // far clip; required camera sample, copied like fov
@@ -634,10 +631,10 @@ struct playerState_s {
     cstring_t texts[PLAYERTEXT_COUNT]; // named player text channels used by server-authored UI
 };
 
-_Static_assert(offsetof(PLAYER, cinematic_portrait) % 4 == 0, "NFT_LONG identity pack requires 4-byte alignment");
-_Static_assert(offsetof(PLAYER, team) == offsetof(PLAYER, cinematic_portrait) + 1, "team must follow cinematic_portrait");
-_Static_assert(offsetof(PLAYER, color) == offsetof(PLAYER, cinematic_portrait) + 2, "color must follow team");
-_Static_assert(offsetof(PLAYER, race) == offsetof(PLAYER, cinematic_portrait) + 3, "race must follow color");
+_Static_assert(offsetof(player_t, cinematic_portrait) % 4 == 0, "NFT_LONG identity pack requires 4-byte alignment");
+_Static_assert(offsetof(player_t, team) == offsetof(player_t, cinematic_portrait) + 1, "team must follow cinematic_portrait");
+_Static_assert(offsetof(player_t, color) == offsetof(player_t, cinematic_portrait) + 2, "color must follow team");
+_Static_assert(offsetof(player_t, race) == offsetof(player_t, cinematic_portrait) + 3, "race must follow color");
 _Static_assert(MAX_PLAYERS <= 256, "playerState_t.team is uint8_t");
 
 /* One-shot events embedded in entityState_t.event.
@@ -691,12 +688,12 @@ typedef struct entityState_s {
     uint32_t number; // edict index
     uint32_t class_id;
     union {
-        VECTOR3 origin;
-        struct { VECTOR2 origin2; float z; };
+        vector3_t origin;
+        struct { vector2_t origin2; float z; };
     };
     float angle; /* Canonical actor heading, radians. */
 #ifdef WOW
-    VECTOR3 rotation; /* Raw placement Euler degrees; preserve the wire layout and decode in the game pose hook. */
+    vector3_t rotation; /* Raw placement Euler degrees; preserve the wire layout and decode in the game pose hook. */
 #endif
     float scale;
     float radius;
@@ -865,8 +862,8 @@ typedef struct animation_s {
     float rarity;
     uint32_t syncpoint;
     float radius;
-    VECTOR3 min;
-    VECTOR3 max;
+    vector3_t min;
+    vector3_t max;
     uint32_t damage_point;
 } animation_t;
 
@@ -895,9 +892,9 @@ typedef struct {
     size2_t window;        // logical window size the canvas was resolved from
     UICANVASPOLICY policy; // resolved once per mounted data by the game's client hook
     UICANVASCLASS chrome;  // presentation class reported to the game through the ui_canvas client command
-} UICANVAS;
-typedef UICANVAS *LPUICANVAS;
-typedef UICANVAS const *LPCUICANVAS;
+} uiCanvas_t;
+
+
 
 typedef enum {
     TE_GUNSHOT,
@@ -1019,13 +1016,13 @@ typedef uiFramePoint_t uiFramePoints_t[FPP_COUNT];
 
 /* Model-frame payload: camera and placement authored by the game's layout, not network entity state. */
 typedef enum { UI_MODEL_PERSPECTIVE, UI_MODEL_ORTHOGRAPHIC } UIMODELPROJECTION;
-typedef struct UIMODEL {
-    VECTOR3 eye, target, pos, scale;
+typedef struct uimodel_s {
+    vector3_t eye, target, pos, scale;
     float fov, znear, zfar, aspect;
     UIMODELPROJECTION projection;
-} UIMODEL;
-typedef struct UIMODEL *LPUIMODEL;
-typedef const struct UIMODEL *LPCUIMODEL;
+} uiModel_t;
+
+
 
 typedef struct {
     uint32_t radialStartTime; /* absolute server/client clock milliseconds */
@@ -1035,7 +1032,7 @@ typedef struct {
 typedef struct uiFrame_s {
     uint32_t number;
     uint32_t parent;
-    COLOR32 color;
+    color32_t color;
     struct { uiFramePoints_t x, y; } points;
     struct { float width, height; } size;
     struct {
@@ -1102,7 +1099,7 @@ typedef struct {
     RESOURCE hp_bar;
     RESOURCE mana_bar;
     RESOURCE focus_highlight;
-    VECTOR2 offset;
+    vector2_t offset;
     uint16_t numcolumns;
     uint16_t numitems;
     uiMultiselectItem_t items[];
@@ -1130,7 +1127,7 @@ typedef struct {
     RESOURCE texture;
     RESOURCE font;
     uint8_t texcoord[4];
-    COLOR32 fontcolor;
+    color32_t fontcolor;
 } uiSimpleButtonState_t;
 
 typedef struct {
@@ -1156,7 +1153,7 @@ typedef struct {
  * When present, SCR_LayoutDrawTexture uses these values instead of tex.coord. */
 typedef struct {
     float l, r, t, b;   /* UV as float [0,1]; l>r or t>b = flipped axis */
-    COLOR32 color;
+    color32_t color;
     BLEND_MODE alphamode;
 } uiTextureUV_t;
 
@@ -1164,8 +1161,8 @@ typedef struct {
     uiBackdrop_t background;
     RESOURCE font;
     float borderSize;
-    COLOR32 textColor;
-    COLOR32 cursorColor;
+    color32_t textColor;
+    color32_t cursorColor;
     uint32_t maxChars;
     UINAME id;
 } uiEditBox_t;
@@ -1213,7 +1210,7 @@ typedef struct {
     uiBackdrop_t disabled;
     uiBackdrop_t disabledPushed;
     uiHighlight_t highlight;
-    VECTOR2 pushedTextOffset;
+    vector2_t pushedTextOffset;
 } uiGlueTextButton_t;
 
 typedef struct {
@@ -1276,15 +1273,15 @@ typedef struct {
 typedef struct {
     uint16_t width;
     uint16_t height;
-    COLOR32 map[];
+    color32_t map[];
 } pathTex_t;
 
 struct Doodad {
     uint32_t doodID;
     uint32_t variation;
-    VECTOR3 position;
+    vector3_t position;
     float angle;
-    VECTOR3 scale;
+    vector3_t scale;
     uint8_t flags;
     uint32_t player;
     uint8_t treeLife; // integer stored in %, 100% is 0x64, 170% is 0xAA for example
@@ -1318,11 +1315,11 @@ struct Doodad {
 typedef struct particle_s {
     struct particle_s *next;
     struct texture const *texture;
-    VECTOR3 org;
-    VECTOR3 vel;
-    VECTOR3 accel;
-    VECTOR3 tail;       /* optional world-space trail vector; zero keeps billboard behavior */
-    COLOR32 color[3];
+    vector3_t org;
+    vector3_t vel;
+    vector3_t accel;
+    vector3_t tail;       /* optional world-space trail vector; zero keeps billboard behavior */
+    color32_t color[3];
     uint8_t size[3];
     uint8_t midtime;
     uint8_t columns;

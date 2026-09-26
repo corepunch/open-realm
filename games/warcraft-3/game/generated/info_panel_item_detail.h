@@ -5,13 +5,13 @@
 #include "../g_local.h"
 
 typedef struct InfoPanelItemDetail_s {
-    LPFRAMEDEF InfoPanelItemDetail;
-    LPFRAMEDEF ItemNameValue;
-    LPFRAMEDEF ItemDescriptionValue;
+    frameDef_t * InfoPanelItemDetail;
+    frameDef_t * ItemNameValue;
+    frameDef_t * ItemDescriptionValue;
 } InfoPanelItemDetail_t;
 
 
-static inline bool InfoPanelItemDetail_Bind(InfoPanelItemDetail_t *out, LPFRAMEDEF bind_root) {
+static inline bool InfoPanelItemDetail_Bind(InfoPanelItemDetail_t *out, frameDef_t * bind_root) {
     bool ok = true;
     if (!out) {
         return false;

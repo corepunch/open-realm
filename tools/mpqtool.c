@@ -311,7 +311,7 @@ static int cmd_cat(handle_t archive, const char *file_path) {
 }
 
 static int cmd_info(handle_t archive, const char *file_path) {
-    SFILE_FIND_DATA fd;
+    sfileFindData_t fd;
     handle_t hfind;
 
     hfind = SFileFindFirstFile(archive, file_path, &fd, NULL);
@@ -355,7 +355,7 @@ static bool is_binary_ext(const char *filename) {
 }
 
 static int cmd_grep(handle_t archive, const char *pattern, const char *path_prefix) {
-    SFILE_FIND_DATA fd;
+    sfileFindData_t fd;
     handle_t hfind;
     char prefix[512] = {0};
     size_t prefix_len = 0;
@@ -431,7 +431,7 @@ static int cmd_grep(handle_t archive, const char *pattern, const char *path_pref
 }
 
 static int cmd_ls(handle_t archive, const char *path) {
-    SFILE_FIND_DATA fd;
+    sfileFindData_t fd;
     handle_t hfind;
     char prefix[512];
     size_t prefix_len;
@@ -977,7 +977,7 @@ static void data_close_archives(void) {
 /* grep one archive, tagging each match with the archive path. */
 static int grep_one_archive(handle_t archive, const char *archive_label,
                              const char *pattern, const char *path_prefix) {
-    SFILE_FIND_DATA fd;
+    sfileFindData_t fd;
     handle_t hfind;
     char prefix[512] = {0};
     size_t prefix_len = 0;

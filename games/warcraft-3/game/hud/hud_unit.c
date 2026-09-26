@@ -6,7 +6,7 @@
 #include "hud_utils.h"
 
 typedef struct {
-    LPEDICT ent;
+    edict_t * ent;
     uint32_t code;
     uint32_t level;
     gameCommandButton_t *button;
@@ -45,7 +45,7 @@ cstring_t GetBuildCommand(unitRace_t race) {
     }
 }
 
-static cstring_t G_CommandArtCode(LPEDICT ent, cstring_t code) {
+static cstring_t G_CommandArtCode(edict_t * ent, cstring_t code) {
     if (!strcmp(code, STR_CmdBuild)) {
         return GetBuildCommand(WC3_RaceFromString(ent->data.UnitData->race));
     }
@@ -156,7 +156,7 @@ static cstring_t G_UIArtPath(cstring_t art) {
     return Theme_String(art, art);
 }
 
-static bool G_BuildCommandButtonState(LPEDICT ent, cstring_t code, bool research, uint32_t level, int toggle_state, gameCommandButton_t *button) {
+static bool G_BuildCommandButtonState(edict_t * ent, cstring_t code, bool research, uint32_t level, int toggle_state, gameCommandButton_t *button) {
     char command_code[256];
     char art_level[256];
     cstring_t base_code;
@@ -249,11 +249,11 @@ static bool G_BuildCommandButtonState(LPEDICT ent, cstring_t code, bool research
     return true;
 }
 
-bool G_BuildCommandButton(LPEDICT ent, cstring_t code, bool research, uint32_t level, gameCommandButton_t *button) {
+bool G_BuildCommandButton(edict_t * ent, cstring_t code, bool research, uint32_t level, gameCommandButton_t *button) {
     return G_BuildCommandButtonState(ent, code, research, level, -1, button);
 }
 
-static void G_AddCommandButton(LPEDICT ent,
+static void G_AddCommandButton(edict_t * ent,
                                gameCommandButton_t *buttons,
                                uint8_t max_buttons,
                                uint8_t *count,
@@ -287,7 +287,7 @@ static bool G_HasCommandRawcode(gameCommandButton_t const *buttons, uint8_t coun
     return false;
 }
 
-static void G_AddAbilityCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, uint8_t max_buttons,
+static void G_AddAbilityCommandButtons(edict_t * ent, gameCommandButton_t *buttons, uint8_t max_buttons,
                                        uint8_t *count, cstring_t code) {
     ability_t const *ability = FindAbilityForCommand(code);
     uint8_t idx;
@@ -333,7 +333,7 @@ static void G_DisableCommandButton(gameCommandButton_t *button, cstring_t reason
              "%s|cffffcc00%s|r", used ? "|n" : "", reason);
 }
 
-static bool G_BuildHeroReviveButton(LPEDICT altar, LPEDICT hero, uint8_t slot,
+static bool G_BuildHeroReviveButton(edict_t * altar, edict_t * hero, uint8_t slot,
                                     gameCommandButton_t *button) {
     char command[32];
     char fallback[128];
@@ -367,7 +367,7 @@ static bool G_BuildHeroReviveButton(LPEDICT altar, LPEDICT hero, uint8_t slot,
     return true;
 }
 
-uint8_t G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, uint8_t max_buttons) {
+uint8_t G_GetCommandButtons(edict_t * ent, gameCommandButton_t *buttons, uint8_t max_buttons) {
     uint8_t count = 0;
     UnitBalance_t const *b;
     UnitWeapons_t const *w;
@@ -473,7 +473,7 @@ uint8_t G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, uint8_t m
     }
     if (G_UnitProfile(ent->class_id)->upgrade) {
         PARSE_LIST(G_UnitProfile(ent->class_id)->upgrade, upgrade_to, parse_segment) {
-            LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player);
+            gameClient_t * client = G_GetPlayerClientByNumber(ent->s.player);
             uint32_t unit_id = 0;
             buildCommandState_t state;
             buildingUpgradeCommandParams_t params;
@@ -497,7 +497,7 @@ uint8_t G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, uint8_t m
     }
     if (G_UnitProfile(ent->class_id)->trains) {
         PARSE_LIST(G_UnitProfile(ent->class_id)->trains, unit, parse_segment) {
-            LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player);
+            gameClient_t * client = G_GetPlayerClientByNumber(ent->s.player);
             uint32_t unit_id = 0;
             buildCommandState_t state;
             char reason[128];
@@ -516,7 +516,7 @@ uint8_t G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, uint8_t m
     }
     if (G_UnitProfile(ent->class_id)->researches) {
         PARSE_LIST(G_UnitProfile(ent->class_id)->researches, upgrade, parse_segment) {
-            LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player);
+            gameClient_t * client = G_GetPlayerClientByNumber(ent->s.player);
             uint32_t upgrade_id = 0;
             int32_t next_level = 0;
             buildCommandState_t state;
@@ -550,7 +550,7 @@ uint8_t G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, uint8_t m
     return count;
 }
 
-bool G_BuildInventoryItem(LPEDICT ent, LPEDICT item, uint8_t slot, gameInventoryItem_t *out) {
+bool G_BuildInventoryItem(edict_t * ent, edict_t * item, uint8_t slot, gameInventoryItem_t *out) {
     cstring_t item_name;
     cstring_t art;
 
@@ -575,7 +575,7 @@ bool G_BuildInventoryItem(LPEDICT ent, LPEDICT item, uint8_t slot, gameInventory
     return true;
 }
 
-uint8_t G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, uint8_t max_items) {
+uint8_t G_GetInventory(edict_t * ent, gameInventoryItem_t *items, uint8_t max_items) {
     uint8_t count = 0;
     uint32_t capacity;
 
@@ -589,7 +589,7 @@ uint8_t G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, uint8_t max_item
     return count;
 }
 
-uint8_t G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, uint8_t max_queue) {
+uint8_t G_GetBuildQueue(edict_t * ent, gameQueueItem_t *queue, uint8_t max_queue) {
     uint8_t count = 0;
     uint32_t cursor = G_Time();
     bool food_blocked = false;
@@ -620,7 +620,7 @@ uint8_t G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, uint8_t max_queue) 
         return 1;
     }
 
-    for (LPEDICT build = ent->build; build && count < max_queue;
+    for (edict_t * build = ent->build; build && count < max_queue;
          build = build->revival.reviving ? build->revival.queue_next : build->build) {
         uint32_t duration;
         float progress = 0;

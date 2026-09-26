@@ -9,7 +9,7 @@
 #define BZ_HPEA MAKEFOURCC('h', 'p', 'e', 'a') // unit; fixture archer/companion (non-stock earc)
 #define BZ_OGRU MAKEFOURCC('o', 'g', 'r', 'u') // unit; fixture rider (non-stock ehpr)
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -40,13 +40,13 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
 	slkTestData_t *rows, *old;
-	LPEDICT caster, partner, enemy, wrong;
-} COUPLEFIX;
+	edict_t * caster, *partner, *enemy, *wrong;
+} coupleFix_t;
 
-static void couple_setup(COUPLEFIX *fix, cstring_t slk, uint32_t code, uint32_t caster_id, uint32_t partner_id) {
+static void couple_setup(coupleFix_t *fix, cstring_t slk, uint32_t code, uint32_t caster_id, uint32_t partner_id) {
 	reset_entities(); setup_test_world(); level.time = 1000;
-	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	memset(level.alliances, 0, sizeof(level.alliances));
 	fix->rows = parse_slk_string(slk); fix->old = G_SetSLKRows("AbilityData", fix->rows);
 	fix->caster = alloc_test_unit(caster_id, 0, 0);
@@ -66,7 +66,7 @@ static void couple_setup(COUPLEFIX *fix, cstring_t slk, uint32_t code, uint32_t 
 	fix->wrong->health.value = fix->wrong->health.max_value = 400;
 }
 
-static void couple_done(COUPLEFIX *fix) {
+static void couple_done(coupleFix_t *fix) {
 	G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows);
 }
 
@@ -87,7 +87,7 @@ TEST(wc3_spell, hippogryph_couple_procedures_registered) {
 }
 
 TEST(wc3_spell, hippogryph_couple_reads_authored_partner_and_rider) {
-	COUPLEFIX fix;
+	coupleFix_t fix;
 	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOA, BZ_HPEA, BZ_HFOO);
 	T_EQ((int)S_SpellDataId(BZ_ACOA, 1, 1), (int)BZ_HFOO);
 	T_EQ((int)S_SpellUnitId(BZ_ACOA, 1), (int)BZ_OGRU);
@@ -98,8 +98,8 @@ TEST(wc3_spell, hippogryph_couple_reads_authored_partner_and_rider) {
 
 /* Acoa consumes caster+partner and spawns authored UnitID rider. */
 TEST(wc3_spell, hippogryph_couple_acoa_mounts_into_rider) {
-	COUPLEFIX fix;
-	LPEDICT rider;
+	coupleFix_t fix;
+	edict_t * rider;
 	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOA, BZ_HPEA, BZ_HFOO);
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACOA, fix.partner));
 	/* Execute frees both inputs; spent Cost is observed only on reject paths. */
@@ -115,8 +115,8 @@ TEST(wc3_spell, hippogryph_couple_acoa_mounts_into_rider) {
 
 /* Acoh is the inverse target (hippo casts on archer) with the same merge. */
 TEST(wc3_spell, hippogryph_couple_acoh_picks_up_into_rider) {
-	COUPLEFIX fix;
-	LPEDICT rider = NULL;
+	coupleFix_t fix;
+	edict_t * rider = NULL;
 	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOH, BZ_HFOO, BZ_HPEA);
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACOH, fix.partner));
 	T_ASSERT(!fix.caster->inuse);
@@ -129,7 +129,7 @@ TEST(wc3_spell, hippogryph_couple_acoh_picks_up_into_rider) {
 }
 
 TEST(wc3_spell, hippogryph_couple_rejects_invalid_targets_without_mana_spend) {
-	COUPLEFIX fix;
+	coupleFix_t fix;
 	float mana;
 	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOA, BZ_HPEA, BZ_HFOO);
 	mana = fix.caster->mana.value;
@@ -146,7 +146,7 @@ TEST(wc3_spell, hippogryph_couple_rejects_invalid_targets_without_mana_spend) {
 
 /* Adec splits the rider into authored DataA/DataB companions. */
 TEST(wc3_spell, hippogryph_couple_adec_dismounts_into_companions) {
-	COUPLEFIX fix;
+	coupleFix_t fix;
 	uint32_t before_a, before_b;
 	couple_setup(&fix, COUPLE_DISMOUNT_SLK, BZ_ADEC, BZ_OGRU, BZ_HFOO);
 	T_EQ((int)S_SpellDataId(BZ_ADEC, 1, 1), (int)BZ_HPEA);

@@ -37,12 +37,12 @@ struct level_locals level;
 struct edict_s *g_edicts;
 static bool entity_is_pathing_ignored(edict_t const *ent);
 
-extern JASSMODULE jass_funcs[];
+extern jassModule_t jass_funcs[];
 
 static void G_StartScripts(void);
 static void G_CheckTimeOfDayEvents(float before, float after);
 static void InitConstants(void);
-static void G_ApplyMapGameDataSet(LPCMAPINFO mapinfo);
+static void G_ApplyMapGameDataSet(mapInfo_t const * mapinfo);
 
 #define WC3_CHEAT_STARTING_RESOURCE_BONUS 5000 /* gold/lumber units added once when map gameplay becomes controllable */
 static cstring_t wc3_campaign_paths[] = {
@@ -101,7 +101,7 @@ void G_ApplyStartingResourceCheat(void) {
     }
 
     FOR_LOOP(i, game.max_clients) {
-        LPGAMECLIENT client = game.clients + i;
+        gameClient_t * client = game.clients + i;
         uint32_t const bit = 1u << i;
         int32_t gold, lumber;
         uint16_t old_gold, old_lumber;
@@ -133,7 +133,7 @@ static float G_GetCanonicalTimeOfDay(void) {
 }
 
 float G_GetTimeOfDay(void) {
-    FALSE_TIMEOFDAY const *false_time = &level.timeofday.false_time;
+    falseTimeofday_t const *false_time = &level.timeofday.false_time;
 
     if (false_time->active && false_time->initialized)
         return (float)false_time->hour + (float)false_time->minute / 60.0f;
@@ -150,7 +150,7 @@ void G_SuspendTimeOfDay(bool suspended) {
 }
 
 static void G_SetFalseTimeOfDayValue(float value) {
-    FALSE_TIMEOFDAY *false_time = &level.timeofday.false_time;
+    falseTimeofday_t *false_time = &level.timeofday.false_time;
     int32_t const hour = (int32_t)value;
 
     false_time->hour = hour;
@@ -159,10 +159,10 @@ static void G_SetFalseTimeOfDayValue(float value) {
 
 void G_SetFalseTimeOfDay(int32_t hour, int32_t minute, float duration) {
     float const before = G_GetTimeOfDay();
-    FALSE_TIMEOFDAY *false_time = &level.timeofday.false_time;
+    falseTimeofday_t *false_time = &level.timeofday.false_time;
     float const step = (float)FRAMETIME / 1000.0f;
 
-    *false_time = (FALSE_TIMEOFDAY){
+    *false_time = (falseTimeofday_t){
         .hour = hour,
         .minute = minute,
         .ticks_remaining = step > 0.0f ? (int32_t)(duration / step) : 0,
@@ -177,7 +177,7 @@ void G_SetFalseTimeOfDay(int32_t hour, int32_t minute, float duration) {
 }
 
 bool G_IsFalseTimeOfDay(void) {
-    FALSE_TIMEOFDAY const *false_time = &level.timeofday.false_time;
+    falseTimeofday_t const *false_time = &level.timeofday.false_time;
     return false_time->active && false_time->initialized;
 }
 
@@ -225,7 +225,7 @@ void G_UpdateTimeOfDay(void) {
 
     before = G_GetTimeOfDay();
     if (level.timeofday.false_time.active) {
-        FALSE_TIMEOFDAY *false_time = &level.timeofday.false_time;
+        falseTimeofday_t *false_time = &level.timeofday.false_time;
 
         if (level.timeofday.pending_valid) {
             G_SetFalseTimeOfDayValue(level.timeofday.pending);
@@ -263,7 +263,7 @@ static bool G_LoadMap(cstring_t mapFilename) {
      * levels can make a new index resolve to the previous map's filename. */
     G_FreeModels();
     G_ResetDeferredFrees();
-    gi.ApplyLobbySettings((LPMAPINFO)CM_GetMapInfo());
+    gi.ApplyLobbySettings((mapInfo_t *)CM_GetMapInfo());
     gi.ClearWorld();
     /* Old edicts can retain pointers into typed rows, so clear the world and
      * HUD before swapping the map-selected object-data overlay. */
@@ -418,7 +418,7 @@ static void InitConstants(void) {
  * Example:
  *   openwarcraft3 -data <dir> +set jass_test games/warcraft-3/tests/fixtures/test_jass_assertions.j
  * ------------------------------------------------------------------------- */
-static void G_ApplyMapGameDataSet(LPCMAPINFO mapinfo) {
+static void G_ApplyMapGameDataSet(mapInfo_t const * mapinfo) {
     char prefix[sizeof(game.data_prefix)];
     uint32_t game_version = atoi(gi.CvarString("fs_expansion", "0")) != 0 ? 1u : 0u;
     wc3MapGameDataPrefixParams_t params = {
@@ -451,7 +451,7 @@ static void G_RunJassTests(cstring_t script, cstring_t entry) {
     }
     fprintf(stderr, "JASS test mode: script=%s entry=%s\n", script, entry);
 
-    jass_sethost(&MAKE(JASSHOST,
+    jass_sethost(&MAKE(jassHost_t,
         .MemAlloc           = gi.MemAlloc,
         .MemFree            = gi.MemFree,
         .GetTime            = gi.GetTime,
@@ -461,7 +461,7 @@ static void G_RunJassTests(cstring_t script, cstring_t entry) {
         .TimerCoroutineValid = G_TimerCoroutineValid,
     ));
 
-    LPJASS j = jass_newstate();
+    jass_t * j = jass_newstate();
     if (!jass_dofile(j, script)) {
         fprintf(stderr, "JASS test error: could not load '%s'\n", script);
         jass_close(j);
@@ -506,7 +506,7 @@ static void G_InitGame(void) {
     }
 
     game.max_clients = globals.max_clients;
-    game.clients = gi.MemAlloc(game.max_clients * sizeof(GAMECLIENT));
+    game.clients = gi.MemAlloc(game.max_clients * sizeof(gameClient_t));
     game.data_prefix[0] = '\0';
     Stb_IniCacheLoad(&game.config.theme, "UI\\war3skins.txt");
     InitConstants();
@@ -569,20 +569,20 @@ bool G_SkipCutscene(void) {
     return value && *value && strcmp(value, "0");
 }
 
-VECTOR3 G_MakeServerOrigin(float x, float y, float z_offset) {
-    return (VECTOR3){ x, y, CM_GetHeightAtPoint(x, y) + CM_GetCameraHeightOffset() + z_offset };
+vector3_t G_MakeServerOrigin(float x, float y, float z_offset) {
+    return (vector3_t){ x, y, CM_GetHeightAtPoint(x, y) + CM_GetCameraHeightOffset() + z_offset };
 }
 
 /* Compose an exact server camera sample; the client replaces only its terrain base with the blurred render sample. */
-static VECTOR3 G_MakeCameraOrigin(LPGAMECLIENT client, float x, float y, float z_offset) {
+static vector3_t G_MakeCameraOrigin(gameClient_t * client, float x, float y, float z_offset) {
     float const base = CM_GetHeightAtPoint(x, y) + CM_GetCameraHeightOffset();
     client->camera.target_height = base;
-    return (VECTOR3){ x, y, base + z_offset };
+    return (vector3_t){ x, y, base + z_offset };
 }
 
-VECTOR2 G_ClampCameraPosition(LPGAMECLIENT client, LPCVECTOR2 position) {
-    VECTOR2 clamped = position ? *position : (VECTOR2){ 0, 0 };
-    BOX2 bounds = level.camera_bounds;
+vector2_t G_ClampCameraPosition(gameClient_t * client, vector2_t const * position) {
+    vector2_t clamped = position ? *position : (vector2_t){ 0, 0 };
+    box2_t bounds = level.camera_bounds;
 
     (void)client;
     if (!position) return clamped;
@@ -593,11 +593,11 @@ VECTOR2 G_ClampCameraPosition(LPGAMECLIENT client, LPCVECTOR2 position) {
     return clamped;
 }
 
-static void G_ReclampClientCamera(LPGAMECLIENT client) {
-    VECTOR2 position;
+static void G_ReclampClientCamera(gameClient_t * client) {
+    vector2_t position;
 
     if (!client) return;
-    position = (VECTOR2){ client->ps.vieworigin.x, client->ps.vieworigin.y };
+    position = (vector2_t){ client->ps.vieworigin.x, client->ps.vieworigin.y };
     position = G_ClampCameraPosition(client, &position);
     client->ps.vieworigin = G_MakeCameraOrigin(client, position.x, position.y, client->camera.state.z_offset);
     position = G_ClampCameraPosition(client, &client->camera.old_state.position);
@@ -608,7 +608,7 @@ static void G_ReclampClientCamera(LPGAMECLIENT client) {
 
 void G_SetCameraBounds(float const bounds[8]) {
     if (!bounds) return;
-    level.camera_bounds = MAKE(BOX2,
+    level.camera_bounds = MAKE(box2_t,
         .min = {
             MIN(MIN(bounds[0], bounds[2]), MIN(bounds[4], bounds[6])),
             MIN(MIN(bounds[1], bounds[3]), MIN(bounds[5], bounds[7])),
@@ -621,19 +621,19 @@ void G_SetCameraBounds(float const bounds[8]) {
         G_ReclampClientCamera(game.clients + i);
 }
 
-void G_ClearCameraTarget(LPGAMECLIENT client, cstring_t func) {
+void G_ClearCameraTarget(gameClient_t * client, cstring_t func) {
     (void)func;
     if (!client || !client->camera.target_controller) {
         return;
     }
     client->camera.target_controller = NULL;
-    client->camera.target_offset = (VECTOR2){ 0, 0 };
+    client->camera.target_offset = (vector2_t){ 0, 0 };
     client->camera.target_inherit_orientation = false;
 }
 
-static void G_UpdateCameraTarget(LPGAMECLIENT client) {
-    LPEDICT target = client->camera.target_controller;
-    VECTOR2 position;
+static void G_UpdateCameraTarget(gameClient_t * client) {
+    edict_t * target = client->camera.target_controller;
+    vector2_t position;
 
     if (!target) {
         return;
@@ -679,8 +679,8 @@ static void G_CameraTraceFrame(void) { }
 #endif
 
 /* The player controller has no model; its focus and orbit still belong to the game. */
-static void G_ClientInput(LPEDICT ent, LPCINPUTCMD cmd) {
-    LPGAMECLIENT client = ent->client;
+static void G_ClientInput(edict_t * ent, inputCmd_t const * cmd) {
+    gameClient_t * client = ent->client;
     if (client->no_control) return;
     if (cmd->action == BZ_INPUT_MOVE && (!cmd->move.buttons || !cmd->move.msec)) return;
     if (cmd->action == BZ_INPUT_VIEW) {
@@ -689,7 +689,7 @@ static void G_ClientInput(LPEDICT ent, LPCINPUTCMD cmd) {
         client->camera.old_state = client->camera.state;
         client->camera.start_time = client->camera.end_time = G_Time();
     } else {
-        VECTOR2 pos = cmd->action == BZ_INPUT_FOCUS ? cmd->focus
+        vector2_t pos = cmd->action == BZ_INPUT_FOCUS ? cmd->focus
             : input_move_focus(cmd, &client->ps, atof(gi.CvarString("cl_camera_scroll_speed", "1400")));
         G_ClientSetCameraPosition(ent, &pos);
     }
@@ -699,20 +699,20 @@ static void G_RunClients(void) {
     float cinefade = G_Cinefade();
     G_UpdateUnitResponsePresentation();
     FOR_LOOP(i, game.max_clients) {
-        LPGAMECLIENT client = game.clients+i;
-        LPEDICT client_ent = G_GetPlayerEntityByNumber(client->ps.number);
+        gameClient_t * client = game.clients+i;
+        edict_t * client_ent = G_GetPlayerEntityByNumber(client->ps.number);
         uint32_t duration;
         G_UpdateCameraTarget(client);
         duration = client->camera.end_time - client->camera.start_time;
         if (G_Time() < client->camera.end_time && duration > 0) {
             float k = (G_Time() - client->camera.start_time) / (float)duration;
-            LPCCAMERASETUP a = &client->camera.old_state;
-            LPCCAMERASETUP b = &client->camera.state;
-            VECTOR2 p = Vector2_lerp(&a->position, &b->position, k);
+            camerasetup_t const * a = &client->camera.old_state;
+            camerasetup_t const * b = &client->camera.state;
+            vector2_t p = Vector2_lerp(&a->position, &b->position, k);
             client->ps.vieworigin = G_MakeCameraOrigin(client, p.x, p.y, LerpNumber(a->z_offset, b->z_offset, k));
             /* JASS interpolates camera fields independently. Angle fields use
              * the game's periodic-degree rule; WC3 takes the shortest arc. */
-            client->ps.viewangles = (VECTOR3){
+            client->ps.viewangles = (vector3_t){
                 CL_GameLerpDegrees(a->viewangles.x, b->viewangles.x, k),
                 CL_GameLerpDegrees(a->viewangles.y, b->viewangles.y, k),
                 CL_GameLerpDegrees(a->viewangles.z, b->viewangles.z, k),
@@ -761,13 +761,13 @@ static void G_RunClients(void) {
     G_CameraTraceFrame();
 }
 
-void G_InvalidateCommands(LPGAMECLIENT client) {
+void G_InvalidateCommands(gameClient_t * client) {
     if (!client) return;
     client->commands_dirty = true;
     /* Shared-control viewers render the owner's production state. Keep their
      * cards live when the owner changes tech, queue, food, or resources. */
     FOR_LOOP(i, game.max_clients) {
-        LPGAMECLIENT viewer = game.clients + i;
+        gameClient_t * viewer = game.clients + i;
         if (!viewer->connected || viewer == client) continue;
         FOR_CONTROLLABLE_SELECTED_UNITS(viewer, ent) {
             if (ent->s.player == client->ps.number) {
@@ -780,8 +780,8 @@ void G_InvalidateCommands(LPGAMECLIENT client) {
 
 static void G_UpdateClientCommandCards(void) {
     FOR_LOOP(i, game.max_clients) {
-        LPGAMECLIENT client = game.clients + i;
-        LPEDICT clent;
+        gameClient_t * client = game.clients + i;
+        edict_t * clent;
 
         if (!client->connected || !client->commands_dirty) continue;
         if (client->menu.on_entity_selected || client->menu.on_location_selected) continue;
@@ -821,7 +821,7 @@ bool G_IsSinglePlayer(void) {
 
     if (!level.mapinfo) return true;
     FOR_LOOP(i, MAX_PLAYERS) {
-        LPCMAPPLAYER player = level.mapinfo->players + i;
+        mapPlayer_t const * player = level.mapinfo->players + i;
         if (player->used && player->playerType == kPlayerTypeHuman) humans++;
     }
     return humans <= 1;
@@ -976,9 +976,9 @@ static cstring_t G_GetThemeValue(cstring_t filename) {
     return skinned ? skinned : filename;
 }
 
-LPEDICT G_GetPlayerEntityByNumber(uint32_t number) {
+edict_t * G_GetPlayerEntityByNumber(uint32_t number) {
     FOR_LOOP(i, globals.num_edicts) {
-        LPEDICT ent = g_edicts+i;
+        edict_t * ent = g_edicts+i;
         if (ent->client && ent->client->ps.number == number) {
             return ent;
         }
@@ -986,9 +986,9 @@ LPEDICT G_GetPlayerEntityByNumber(uint32_t number) {
     return NULL;
 }
 
-LPGAMECLIENT G_GetPlayerClientByNumber(uint32_t number) {
+gameClient_t * G_GetPlayerClientByNumber(uint32_t number) {
     FOR_LOOP(i, game.max_clients) {
-        LPGAMECLIENT cl = game.clients+i;
+        gameClient_t * cl = game.clients+i;
         if (cl->ps.number == number) {
             return cl;
         }
@@ -997,7 +997,7 @@ LPGAMECLIENT G_GetPlayerClientByNumber(uint32_t number) {
 //    return NULL;
 }
 
-LPPLAYER G_GetPlayerByNumber(uint32_t number) {
+player_t * G_GetPlayerByNumber(uint32_t number) {
     FOR_LOOP(i, game.max_clients) {
         if (game.clients[i].ps.number == number) {
             return &game.clients[i].ps;
@@ -1007,7 +1007,7 @@ LPPLAYER G_GetPlayerByNumber(uint32_t number) {
 //    return NULL;
 }
 
-GAMEEVENT *G_PublishEventWithValue(LPEDICT edict, EVENTTYPE type, LPEDICT source, int32_t value) {
+gameEvent_t *G_PublishEventWithValue(edict_t * edict, EVENTTYPE type, edict_t * source, int32_t value) {
     uint32_t index;
     if (level.events.write - level.events.read >= MAX_EVENT_QUEUE) {
         fprintf(stderr, "WC3 event queue overflow: dropping type=%u read=%u write=%u capacity=%u\n",
@@ -1016,7 +1016,7 @@ GAMEEVENT *G_PublishEventWithValue(LPEDICT edict, EVENTTYPE type, LPEDICT source
         return NULL;
     }
     index = level.events.write++;
-    GAMEEVENT *evt = &level.events.queue[index % MAX_EVENT_QUEUE];
+    gameEvent_t *evt = &level.events.queue[index % MAX_EVENT_QUEUE];
 
     memset(evt, 0, sizeof(*evt));
     evt->type = type;
@@ -1038,8 +1038,8 @@ GAMEEVENT *G_PublishEventWithValue(LPEDICT edict, EVENTTYPE type, LPEDICT source
     return evt;
 }
 
-GAMEEVENT *G_PublishEventWithPoint(gameEventPointParams_t const *params) {
-    GAMEEVENT *evt;
+gameEvent_t *G_PublishEventWithPoint(gameEventPointParams_t const *params) {
+    gameEvent_t *evt;
     if (!params) return NULL;
     evt = G_PublishEventWithValue(params->edict, params->type, params->source, params->value);
     if (evt && params->point) {
@@ -1049,20 +1049,20 @@ GAMEEVENT *G_PublishEventWithPoint(gameEventPointParams_t const *params) {
     return evt;
 }
 
-GAMEEVENT *G_PublishEventWithSource(LPEDICT edict, EVENTTYPE type, LPEDICT source) {
+gameEvent_t *G_PublishEventWithSource(edict_t * edict, EVENTTYPE type, edict_t * source) {
     return G_PublishEventWithValue(edict, type, source, 0);
 }
 
-GAMEEVENT *G_PublishEvent(LPEDICT edict, EVENTTYPE type) {
+gameEvent_t *G_PublishEvent(edict_t * edict, EVENTTYPE type) {
     return G_PublishEventWithValue(edict, type, NULL, 0);
 }
 
-void G_PublishEventResponse(LPEDICT edict, EVENTTYPE type, LPEVENT response_to) {
-    GAMEEVENT *event = G_PublishEvent(edict, type);
+void G_PublishEventResponse(edict_t * edict, EVENTTYPE type, event_t * response_to) {
+    gameEvent_t *event = G_PublishEvent(edict, type);
     if (event) event->responseTo = response_to;
 }
 
-void G_PublishSummonEvents(LPEDICT summoner, LPEDICT summoned) {
+void G_PublishSummonEvents(edict_t * summoner, edict_t * summoned) {
     if (!summoner || !summoned) return;
     G_PublishEventWithSource(summoner, EVENT_PLAYER_UNIT_SUMMON, summoned);
     G_PublishEventWithSource(summoner, EVENT_UNIT_SUMMON, summoned);
@@ -1072,7 +1072,7 @@ void G_PublishSummonEvents(LPEDICT summoner, LPEDICT summoned) {
  * events. The value carries the previous owner + 1 so GetChangingUnitPrevOwner
  * can resolve it from trigger context while zero keeps meaning "no change
  * context" for callbacks (death, research, spell) that share the trigger. */
-void G_PublishChangeOwnerEvents(LPEDICT unit, uint32_t old_player) {
+void G_PublishChangeOwnerEvents(edict_t * unit, uint32_t old_player) {
     int32_t value;
     if (!unit || old_player > MAX_PLAYERS) return;
     value = (int32_t)old_player + 1;
@@ -1084,7 +1084,7 @@ void G_PublishChangeOwnerEvents(LPEDICT unit, uint32_t old_player) {
  * engine flow into Warcraft/JASS events or retaining entity pointers. */
 bool G_SubscribeMessage(gameMsgFn fn, void *ctx) {
     FOR_LOOP(i, MAX_MESSAGE_SUBSCRIBERS) {
-        GAMEMSGSUB *sub = &level.messages.subs[i];
+        gameMsgSub_t *sub = &level.messages.subs[i];
         if (sub->fn == fn && sub->ctx == ctx)
             return true;
         if (!sub->fn) {
@@ -1100,7 +1100,7 @@ bool G_SubscribeMessage(gameMsgFn fn, void *ctx) {
  * call a callback whose capture storage has left scope. */
 void G_UnsubscribeMessage(gameMsgFn fn, void *ctx) {
     FOR_LOOP(i, MAX_MESSAGE_SUBSCRIBERS) {
-        GAMEMSGSUB *sub = &level.messages.subs[i];
+        gameMsgSub_t *sub = &level.messages.subs[i];
         if (sub->fn == fn && sub->ctx == ctx) {
             memset(sub, 0, sizeof(*sub));
             return;
@@ -1110,17 +1110,17 @@ void G_UnsubscribeMessage(gameMsgFn fn, void *ctx) {
 
 /* Synchronous delivery preserves the exact transition order and copies stable
  * entity numbers, so subscribers never depend on edict lifetime. */
-void G_PublishMessage(LPEDICT actor, GAMEMSGTYPE type, LPEDICT target) {
-    GAMEMSG msg = { type, actor->s.number, target->s.number };
+void G_PublishMessage(edict_t * actor, GAMEMSGTYPE type, edict_t * target) {
+    gameMsg_t msg = { type, actor->s.number, target->s.number };
     FOR_LOOP(i, MAX_MESSAGE_SUBSCRIBERS) {
-        GAMEMSGSUB const *sub = &level.messages.subs[i];
+        gameMsgSub_t const *sub = &level.messages.subs[i];
         if (sub->fn)
             sub->fn(&msg, sub->ctx);
     }
 }
 
 /* Loading metadata resolves WTS before the gameplay level exists; gameplay uses the same lookup. */
-cstring_t G_MapString(LPCMAPINFO info, cstring_t name) {
+cstring_t G_MapString(mapInfo_t const * info, cstring_t name) {
     unsigned int string_id;
     char trailing;
 
@@ -1155,7 +1155,7 @@ static void G_RefreshQuestPause(void) {
     bool modal_open = false;
 
     FOR_LOOP(i, game.max_clients) {
-        LPGAMECLIENT client = game.clients + i;
+        gameClient_t * client = game.clients + i;
         if (!client->connected) continue;
         connected++;
         if (client->modal_flags) modal_open = true;
@@ -1174,7 +1174,7 @@ void G_SetScriptPaused(bool paused) {
     G_RefreshPauseState();
 }
 
-void G_SetClientModal(LPEDICT player, uint32_t modal, bool open) {
+void G_SetClientModal(edict_t * player, uint32_t modal, bool open) {
     if (!player || !player->client || !modal) return;
     if (open) player->client->modal_flags |= modal;
     else player->client->modal_flags &= ~modal;
@@ -1182,7 +1182,7 @@ void G_SetClientModal(LPEDICT player, uint32_t modal, bool open) {
 }
 
 /* Track Quest ownership per connected client before recomputing global policy. */
-void G_SetQuestDialogOpen(LPEDICT player, bool open) {
+void G_SetQuestDialogOpen(edict_t * player, bool open) {
     if (!player || !player->client || !player->client->connected) return;
     player->client->quest_dialog_open = !!open;
     if (open) player->client->modal_flags |= WC3_MODAL_QUEST;
@@ -1191,7 +1191,7 @@ void G_SetQuestDialogOpen(LPEDICT player, bool open) {
 }
 
 /* Disconnect clears modal ownership so an abandoned dialog cannot hold pause. */
-void G_SetClientConnected(LPEDICT player, bool connected) {
+void G_SetClientConnected(edict_t * player, bool connected) {
     if (!player || !player->client) return;
     player->client->connected = connected;
     if (!connected) player->client->quest_dialog_open = false, player->client->modal_flags = 0;
@@ -1200,7 +1200,7 @@ void G_SetClientConnected(LPEDICT player, bool connected) {
 
 /* Client slots and free edicts have zero-initialized player ownership but no
  * unit row.  Only live, metadata-bound units contribute authored food values. */
-void G_AccumulatePlayerFood(LPGAMECLIENT client) {
+void G_AccumulatePlayerFood(gameClient_t * client) {
     FILTER_EDICTS(ent, ent->inuse && ent->data.UnitBalance && client->ps.number == ent->s.player) {
         if (ent->svflags & SVF_DEADMONSTER || ent->training) continue;
         G_SetUnitFoodUsed(ent, ent->data.UnitBalance->foodUsed);
@@ -1210,7 +1210,7 @@ void G_AccumulatePlayerFood(LPGAMECLIENT client) {
 }
 
 /* Preserve valid map/save-authored modes while keeping corrupt connection state out of the network contract. */
-void G_InitClientUIState(LPGAMECLIENT client) {
+void G_InitClientUIState(gameClient_t * client) {
     if (client && client->ps.client_ui_state > CLIENT_UI_CINEMATIC)
         client->ps.client_ui_state = CLIENT_UI_GAME;
 }
@@ -1218,8 +1218,8 @@ void G_InitClientUIState(LPGAMECLIENT client) {
 /* Called when a client finishes the connection handshake and is ready to play.
  * The in-game HUD is server-authored through svc_layout; this binds the game
  * client and initializes gameplay state when a map is loaded. */
-static void G_ClientBegin(LPEDICT edict) {
-    LPGAMECLIENT client = edict->client ? edict->client : game.clients;
+static void G_ClientBegin(edict_t * edict) {
+    gameClient_t * client = edict->client ? edict->client : game.clients;
     if (!edict->client) {
         edict->client = client;
     }
@@ -1228,7 +1228,7 @@ static void G_ClientBegin(LPEDICT edict) {
     G_InitClientUIState(client);
     G_MusicSyncClient(client);
     if (!client->mapplayer) {
-        client->ps.vieworigin = (VECTOR3){ 0, 0, 0 };
+        client->ps.vieworigin = (vector3_t){ 0, 0, 0 };
     }
     fprintf(stderr,
             "G_ClientBegin: edict=%u player=%u team=%u race=%u color=%u start_location=%ld origin=(%.1f %.1f) name=\"%s\"\n",
@@ -1266,8 +1266,8 @@ static void G_ClientBegin(LPEDICT edict) {
 
 #ifdef BZ_TESTS
     if (atoi(gi.CvarString("wc3_quest_layout_test", "0"))) {
-        LPQUEST q = G_MakeQuest();
-        LPQUESTITEM it;
+        quest_t * q = G_MakeQuest();
+        questItem_t * it;
         q->title = strdup("Establish Base");
         q->description = strdup(
             "To ensure that the Orc threat is dealt with effectively, you must establish a base "
@@ -1289,7 +1289,7 @@ static void G_ClientBegin(LPEDICT edict) {
 /* Send this before begin; it presents server-authored map data while the client registers media. */
 /* Publish only loading media before synchronous world/entity loading can block presentation. */
 static bool G_PrepareMap(cstring_t filename) {
-    MAPINFO info;
+    mapInfo_t info;
     if (!CM_ReadMapInfo(filename, &info)) return false;
     UI_ResetHud();
     UI_LoadHudLoading();
@@ -1331,8 +1331,8 @@ static uint16_t G_UnitNameConfigstring(cstring_t name) {
  * Zero means absent on the wire, so present resource values are offset by one.
  * Ordinary Agld mines own the reservoir directly; racial mine overlays expose
  * the live reservoir of their still-bound hidden parent. */
-static uint32_t G_HoverResourceValue(LPCEDICT ent) {
-    LPCEDICT parent;
+static uint32_t G_HoverResourceValue(edict_t const * ent) {
+    edict_t const * parent;
     uint32_t value;
 
     if (!ent) return 0;
@@ -1352,7 +1352,7 @@ static uint32_t G_HoverResourceValue(LPCEDICT ent) {
  * object-editor suppression flags. The distinct uhhm/uhom fields are kept
  * independent: hiding only the Hero icon falls through to the ordinary path,
  * while uhom can suppress that fallback. */
-static wc3MinimapContact_t G_MinimapMarkerForEntity(LPCEDICT ent, LPCENTITYSTATE state) {
+static wc3MinimapContact_t G_MinimapMarkerForEntity(edict_t const * ent, entityState_t const * state) {
     UnitUI_t const *ui;
 
     if (!ent || !state || !(ent->svflags & SVF_MONSTER) ||
@@ -1386,7 +1386,7 @@ static wc3MinimapContact_t G_MinimapMarkerForEntity(LPCEDICT ent, LPCENTITYSTATE
     return WC3_MINIMAP_CONTACT_UNIT;
 }
 
-static bool G_IsSnapshotPriorityEntity(uint32_t player, LPCEDICT ent) {
+static bool G_IsSnapshotPriorityEntity(uint32_t player, edict_t const * ent) {
     entityState_t state;
     if (!ent) return false;
     state = ent->s;
@@ -1398,7 +1398,7 @@ static bool G_IsSnapshotPriorityEntity(uint32_t player, LPCEDICT ent) {
 
 /* Selection voices are local feedback; suppress them in snapshots for clients
  * that did not select this entity while leaving world sounds unchanged. */
-static void G_CustomizeEntity(uint32_t player, LPCEDICT ent, LPENTITYSTATE state) {
+static void G_CustomizeEntity(uint32_t player, edict_t const * ent, entityState_t * state) {
     /* RF_HIDDEN also represents cargo/mines/revival placeholders. Only known
      * gameplay invisibility may be cleared in a client snapshot. Owners/shared
      * viewers see their invisible units; hostile viewers need true sight. */
@@ -1429,7 +1429,7 @@ static void G_CustomizeEntity(uint32_t player, LPCEDICT ent, LPENTITYSTATE state
         }
     }
     if (hoverable) {
-        uint32_t const cargo_capacity = S_CargoCapacity((LPEDICT)ent);
+        uint32_t const cargo_capacity = S_CargoCapacity((edict_t *)ent);
         if (cargo_capacity > 0)
             state->stats[ENT_CARGO] = EntityCargoPack(ent->cargo.count, cargo_capacity);
         /* The client has no MAPINFO WTS table; the old path published raw TRIGSTR_* tokens in CS_GENERAL. */
@@ -1447,7 +1447,7 @@ static void G_CustomizeEntity(uint32_t player, LPCEDICT ent, LPENTITYSTATE state
  * exclusively through the returned function pointers. */
 struct game_export *GetGameAPI(struct game_import *import) {
     gi = *import;
-    FS_SetSheetHost(&MAKE(SHEETHOST,
+    FS_SetSheetHost(&MAKE(sheetHost_t,
         .ReadFile = G_ReadGameDataFile,
         .FreeFile = (void (*)(handle_t))gi.MemFree,
         .MemAlloc = gi.MemAlloc,

@@ -39,17 +39,17 @@ typedef struct lan_join_state_s {
     uiMapListState_t games;
     uiMapListState_t maps;
     bool ready;
-    LPFRAMEDEF root;
-    LPFRAMEDEF join_button;
-    LPFRAMEDEF play_button;
+    frameDef_t * root;
+    frameDef_t * join_button;
+    frameDef_t * play_button;
     MapListBox_t map_list_template;
     MapListBox_t game_list_box;
     MapListBox_t create_map_list_box;
     MapInfoPane_t map_info_template;
     MapInfoPane_t game_map_info_pane;
     MapInfoPane_t create_map_info_pane;
-    LPFRAMEDEF game_speed_slider;
-    LPFRAMEDEF game_speed_value;
+    frameDef_t * game_speed_slider;
+    frameDef_t * game_speed_value;
 } lan_join_state_t;
 
 static cstring_t const lan_left[] = {
@@ -103,7 +103,7 @@ static bool LAN_IsCampaignMap(cstring_t path) {
 }
 
 static void LAN_SetMapDisplayName(uiMapListItem_t *item,
-                                  LPCMAPINFO info)
+                                  mapInfo_t const * info)
 {
     char name[128];
     char description[128];
@@ -142,7 +142,7 @@ static void LAN_SetMapDisplayName(uiMapListItem_t *item,
     }
 }
 
-static uint32_t LAN_CountMapPlayers(LPCMAPINFO info) {
+static uint32_t LAN_CountMapPlayers(mapInfo_t const * info) {
     uint32_t count = 0;
 
     FOR_LOOP(i, MAX_PLAYERS) {
@@ -154,7 +154,7 @@ static uint32_t LAN_CountMapPlayers(LPCMAPINFO info) {
 }
 
 static bool LAN_ParseMapInfo(uiMapListItem_t *item) {
-    MAPINFO info;
+    mapInfo_t info;
     cstring_t tileset;
 
     if (!item) {
@@ -251,7 +251,7 @@ static void LAN_LoadMaps(void) {
     mi.Printf("LAN_LoadMaps: %d maps\n", (int)lan.maps.count);
 }
 
-static void LAN_SetTextIfPresent(LPFRAMEDEF frame, cstring_t format, ...) {
+static void LAN_SetTextIfPresent(frameDef_t * frame, cstring_t format, ...) {
     va_list argptr;
     char text[1024];
 
@@ -335,8 +335,8 @@ static void LAN_UpdateGameSpeed(void) {
     LAN_SetTextIfPresent(lan.game_speed_value, "%s", LAN_GameSpeedText());
 }
 
-static void LAN_BindMapInfoPane(LPFRAMEDEF container, MapInfoPane_t *pane) {
-    LPFRAMEDEF root;
+static void LAN_BindMapInfoPane(frameDef_t * container, MapInfoPane_t *pane) {
+    frameDef_t * root;
 
     if (!pane || pane->MapInfoPane || !container) {
         return;
@@ -356,12 +356,12 @@ static void LAN_BindMapInfoPane(LPFRAMEDEF container, MapInfoPane_t *pane) {
     UI_LayoutMapInfoPane(pane->MapInfoPane);
 }
 
-static void LAN_CreateMapListFrame(LPFRAMEDEF container,
-                                   LPFRAMEDEF label,
+static void LAN_CreateMapListFrame(frameDef_t * container,
+                                   frameDef_t * label,
                                    MapListBox_t *list_box,
                                    uiMapListState_t *state,
                                    uint32_t visible_rows) {
-    LPFRAMEDEF root;
+    frameDef_t * root;
 
     if (!list_box || !state || list_box->MapListBox || !container) {
         return;

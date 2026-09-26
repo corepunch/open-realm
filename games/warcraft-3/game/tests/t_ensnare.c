@@ -8,7 +8,7 @@
 #define BZ_BENA MAKEFOURCC('B', 'e', 'n', 'a') // rawcode; TFT EnsnareAir buff
 #define BZ_BENG MAKEFOURCC('B', 'e', 'n', 'g') // rawcode; TFT EnsnareGround buff
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -54,15 +54,15 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
     slkTestData_t *rows, *old;
-    LPEDICT caster, ground, flyer;
+    edict_t * caster, *ground, *flyer;
     UnitData_t flyer_data;
-} ENSFIX;
+} ensFix_t;
 
 /* Fill the caller's ENSFIX. Edicts point at fix->flyer_data; a returned copy would dangle. */
-static void ens_setup(ENSFIX *fix, cstring_t slk) {
+static void ens_setup(ensFix_t *fix, cstring_t slk) {
     reset_entities(); setup_test_world(); level.time = 1000;
-    ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-    ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+    ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
     fix->rows = parse_slk_string(slk); fix->old = G_SetSLKRows("AbilityData", fix->rows);
     fix->caster = alloc_test_unit(MAKEFOURCC('o','r','a','i'), 0, 0);
@@ -87,7 +87,7 @@ static void ens_setup(ENSFIX *fix, cstring_t slk) {
     fix->flyer->stand = unit_stand; unit_stand(fix->flyer);
 }
 
-static void ens_done(ENSFIX fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
+static void ens_done(ensFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
 
 TEST(wc3_spell, ensnare_aliases_share_procedure) {
     T_EQ(S_AbilityItem(BZ_AENS).ability->proc, CAbilityEnsnare);
@@ -96,8 +96,8 @@ TEST(wc3_spell, ensnare_aliases_share_procedure) {
 
 /* Ground Bens keeps the order_move early-return lock used with BEer. */
 TEST(wc3_spell, ensnare_ground_bens_blocks_move) {
-    ENSFIX fix; ens_setup(&fix, ENS_BENS_SLK);
-    LPEDICT wp;
+    ensFix_t fix; ens_setup(&fix, ENS_BENS_SLK);
+    edict_t * wp;
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.ground));
     T_EQ(G_UnitStatusLevel(fix.ground, BZ_BENS), 1);
@@ -105,7 +105,7 @@ TEST(wc3_spell, ensnare_ground_bens_blocks_move) {
     T_ASSERT(!(fix.ground->aiflags & AI_FLYING));
     T_FEQ(fix.ground->unitinfo.FlyHeight, 0, 0.001f);
 
-    wp = Waypoint_add(&(VECTOR2){200, 0});
+    wp = Waypoint_add(&(vector2_t){200, 0});
     fix.ground->goalentity = NULL;
     order_move(fix.ground, wp);
     T_ASSERT(fix.ground->goalentity != wp);
@@ -114,8 +114,8 @@ TEST(wc3_spell, ensnare_ground_bens_blocks_move) {
 
 /* Flying targets take Bena, lose AI_FLYING, and land on the support surface. */
 TEST(wc3_spell, ensnare_flyer_lands_and_locks) {
-    ENSFIX fix; ens_setup(&fix, ENS_SLK);
-    LPEDICT wp;
+    ensFix_t fix; ens_setup(&fix, ENS_SLK);
+    edict_t * wp;
 
     T_ASSERT(fix.flyer->aiflags & AI_FLYING);
     T_FEQ(fix.flyer->unitinfo.FlyHeight, 180, 0.001f);
@@ -127,7 +127,7 @@ TEST(wc3_spell, ensnare_flyer_lands_and_locks) {
     T_FEQ(fix.flyer->unitinfo.FlyHeight, 0, 0.001f);
     T_ASSERT(fix.flyer->s.origin.z < 179.0f);
 
-    wp = Waypoint_add(&(VECTOR2){240, 0});
+    wp = Waypoint_add(&(vector2_t){240, 0});
     fix.flyer->goalentity = NULL;
     order_move(fix.flyer, wp);
     T_ASSERT(fix.flyer->goalentity != wp);
@@ -136,7 +136,7 @@ TEST(wc3_spell, ensnare_flyer_lands_and_locks) {
 
 /* Ground TFT targets take Beng and are never given AI_FLYING. */
 TEST(wc3_spell, ensnare_ground_gets_beng_not_flying) {
-    ENSFIX fix; ens_setup(&fix, ENS_SLK);
+    ensFix_t fix; ens_setup(&fix, ENS_SLK);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.ground));
     T_EQ(G_UnitStatusLevel(fix.ground, BZ_BENG), 1);
     T_EQ(G_UnitStatusLevel(fix.ground, BZ_BENA), 0);
@@ -147,8 +147,8 @@ TEST(wc3_spell, ensnare_ground_gets_beng_not_flying) {
 
 /* Expiry restores authored flyer flags and moveHeight through status refresh. */
 TEST(wc3_spell, ensnare_expiry_restores_flyer) {
-    ENSFIX fix; ens_setup(&fix, ENS_SLK);
-    LPEDICT wp;
+    ensFix_t fix; ens_setup(&fix, ENS_SLK);
+    edict_t * wp;
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
     T_ASSERT(!(fix.flyer->aiflags & AI_FLYING));
@@ -159,7 +159,7 @@ TEST(wc3_spell, ensnare_expiry_restores_flyer) {
     T_ASSERT(fix.flyer->aiflags & AI_FLYING);
     T_FEQ(fix.flyer->unitinfo.FlyHeight, 180, 0.001f);
 
-    wp = Waypoint_add(&(VECTOR2){280, 0});
+    wp = Waypoint_add(&(vector2_t){280, 0});
     order_move(fix.flyer, wp);
     T_ASSERT(fix.flyer->goalentity == wp);
     ens_done(fix);
@@ -175,15 +175,15 @@ TEST(wc3_spell, ensnare_roc_empty_buffid_and_recast) {
         "C;Y2;X1;K\"Aens\"\nC;Y2;X2;K\"Aens\"\nC;Y2;X3;K\"1\"\n"
         "C;Y2;X4;K\"ground,air,enemy,neutral\"\nC;Y2;X5;K\"17\"\nC;Y2;X6;K\"500\"\n"
         "C;Y2;X7;K\"7\"\nC;Y2;X8;K\"3\"\nE\n";
-    ENSFIX fix; ens_setup(&fix, slk);
-    LPEDICT wp;
+    ensFix_t fix; ens_setup(&fix, slk);
+    edict_t * wp;
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.ground));
     T_EQ(G_UnitStatusLevel(fix.ground, BZ_BENS), 1);
     fix.caster->mana.value = 100;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.ground));
     T_EQ(G_UnitStatusLevel(fix.ground, BZ_BENS), 1);
-    wp = Waypoint_add(&(VECTOR2){300, 0});
+    wp = Waypoint_add(&(vector2_t){300, 0});
     order_move(fix.ground, wp);
     T_ASSERT(fix.ground->goalentity != wp);
     ens_done(fix);
@@ -191,7 +191,7 @@ TEST(wc3_spell, ensnare_roc_empty_buffid_and_recast) {
 
 /* DataA/B lower FlyHeight over time; AI_FLYING clears immediately; DataC sets melee range. */
 TEST(wc3_spell, ensnare_flyer_gradual_land_uses_dataa_datab) {
-    ENSFIX fix; ens_setup(&fix, ENS_GRADUAL_SLK);
+    ensFix_t fix; ens_setup(&fix, ENS_GRADUAL_SLK);
     float mid;
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
@@ -211,7 +211,7 @@ TEST(wc3_spell, ensnare_flyer_gradual_land_uses_dataa_datab) {
 
 /* After gradual land, expiry rises over DataA instead of snapping moveHeight. */
 TEST(wc3_spell, ensnare_gradual_restore_after_expiry) {
-    ENSFIX fix; ens_setup(&fix, ENS_GRADUAL_SLK);
+    ensFix_t fix; ens_setup(&fix, ENS_GRADUAL_SLK);
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
     level.time += 2000; S_RunAbilityUpdates(fix.flyer);
@@ -233,7 +233,7 @@ TEST(wc3_spell, ensnare_gradual_restore_after_expiry) {
 /* Dispel mid-land goes through the same expirstatus funnel: rise starts and
  * flight restores instead of snapping. */
 TEST(wc3_spell, ensnare_dispel_mid_land_starts_rise) {
-    ENSFIX fix; ens_setup(&fix, ENS_GRADUAL_SLK);
+    ensFix_t fix; ens_setup(&fix, ENS_GRADUAL_SLK);
     heroabilitystatus_t *slot = NULL;
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
@@ -257,7 +257,7 @@ TEST(wc3_spell, ensnare_dispel_mid_land_starts_rise) {
 
 /* A second remaining bind keeps the lock when the first expires. */
 TEST(wc3_spell, ensnare_second_bind_keeps_lock_after_first_expires) {
-    ENSFIX fix; ens_setup(&fix, ENS_SLK);
+    ensFix_t fix; ens_setup(&fix, ENS_SLK);
     heroabilitystatus_t *slot = NULL;
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
@@ -277,13 +277,13 @@ TEST(wc3_spell, ensnare_second_bind_keeps_lock_after_first_expires) {
 
 /* Expiry restores ordinary attack and movement orders, not just status slots. */
 TEST(wc3_spell, ensnare_expiry_restores_attack_and_move_orders) {
-    ENSFIX fix; ens_setup(&fix, ENS_SLK);
-    LPEDICT wp, victim;
+    ensFix_t fix; ens_setup(&fix, ENS_SLK);
+    edict_t * wp, *victim;
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
     level.time += 7000; unit_updatestatuses(fix.flyer);
     T_ASSERT(!S_UnitIsEnsnared(fix.flyer));
-    wp = Waypoint_add(&(VECTOR2){280, 0});
+    wp = Waypoint_add(&(vector2_t){280, 0});
     fix.flyer->goalentity = NULL;
     order_move(fix.flyer, wp);
     T_ASSERT(fix.flyer->goalentity == wp);
@@ -299,7 +299,7 @@ TEST(wc3_spell, ensnare_expiry_restores_attack_and_move_orders) {
 
 /* An unrelated status expiring on a flyer never touches flight state. */
 TEST(wc3_spell, ensnare_unrelated_flight_state_untouched) {
-    ENSFIX fix; ens_setup(&fix, ENS_SLK);
+    ensFix_t fix; ens_setup(&fix, ENS_SLK);
 
     level.time = 1000;
     unit_addtimedstatus(fix.flyer, "Bstu", 1, 0.05f);
@@ -315,7 +315,7 @@ TEST(wc3_spell, ensnare_unrelated_flight_state_untouched) {
 /* Save/load mid-land resumes the descent after load. */
 TEST(wc3_save, ensnare_land_round_trips) {
     cstring_t filename = "/tmp/openwarcraft3-ensnare-land.bin";
-    ENSFIX fix; ens_setup(&fix, ENS_GRADUAL_SLK);
+    ensFix_t fix; ens_setup(&fix, ENS_GRADUAL_SLK);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
     level.time += 1000; S_RunAbilityUpdates(fix.flyer);
     T_ASSERT(fix.flyer->unitinfo.FlyHeight > 1.0f && fix.flyer->unitinfo.FlyHeight < 159.0f);
@@ -332,7 +332,7 @@ TEST(wc3_save, ensnare_land_round_trips) {
 /* Save/load mid-rise resumes the ascent after load. */
 TEST(wc3_save, ensnare_rise_round_trips) {
     cstring_t filename = "/tmp/openwarcraft3-ensnare-rise.bin";
-    ENSFIX fix; ens_setup(&fix, ENS_GRADUAL_SLK);
+    ensFix_t fix; ens_setup(&fix, ENS_GRADUAL_SLK);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
     level.time += 2000; S_RunAbilityUpdates(fix.flyer);
     level.time += 5000; unit_updatestatuses(fix.flyer);

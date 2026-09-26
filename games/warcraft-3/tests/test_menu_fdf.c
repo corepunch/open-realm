@@ -38,18 +38,18 @@ static uint32_t captured_birth_sprites;
 static uint32_t captured_death_sprites;
 static uint32_t captured_glue_changes;
 static uintptr_t fake_texture_id;
-static LPTEXTURE hover_texture;
+static texture_t * hover_texture;
 static uint32_t captured_hover_draws;
 static rect_t captured_text_rects[8], popup_row_rect;
 static cstring_t popup_row_text;
-static VECTOR2 fake_text_size;
+static vector2_t fake_text_size;
 static handle_t test_mpq_archive;
 static bool hide_expansion_campaign_file;
 static bool test_fs_expansion;
 static int test_vid_native = -1;
 static cstring_t test_campaign_visibility;
 static PATHSTR test_campaign_progress_path = "campaign-progress-menu-test.orcp";
-static VECTOR2 test_mouse_pos;
+static vector2_t test_mouse_pos;
 static cstring_t test_map = "";
 static uint32_t map_reads, texture_releases;
 static char forwarded_command[1024];
@@ -105,9 +105,9 @@ static int require_not_null(const void *ptr) {
 
 TEST(menu_fdf, minimap_content_rect_preserves_rectangular_map_aspect) {
     rect_t frame = { 10.0f, 20.0f, 100.0f, 100.0f };
-    VECTOR2 wide = { 200.0f, 100.0f };
-    VECTOR2 tall = { 100.0f, 200.0f };
-    VECTOR2 invalid = { 0.0f, 100.0f };
+    vector2_t wide = { 200.0f, 100.0f };
+    vector2_t tall = { 100.0f, 200.0f };
+    vector2_t invalid = { 0.0f, 100.0f };
     rect_t content;
 
     content = WC3_MinimapContentRect(&frame, &wide);
@@ -192,8 +192,8 @@ static int test_image_index(cstring_t name) {
     return (name && *name) ? 456 : 0;
 } */
 
-static LPTEXTURE test_load_texture(cstring_t name) {
-    LPTEXTURE texture = (LPTEXTURE)(uintptr_t)(++fake_texture_id);
+static texture_t * test_load_texture(cstring_t name) {
+    texture_t * texture = (texture_t *)(uintptr_t)(++fake_texture_id);
 
     captured_image_path = name;
     if (name && strstr(name, "Hover.blp")) {
@@ -202,18 +202,18 @@ static LPTEXTURE test_load_texture(cstring_t name) {
     return texture;
 }
 
-static LPMODEL test_load_model(cstring_t name) {
+static model_t * test_load_model(cstring_t name) {
     captured_model_path = name;
-    return (LPMODEL)1;
+    return (model_t *)1;
 }
 
-static LPFONT test_load_font(cstring_t name, uint32_t size) {
+static font_t * test_load_font(cstring_t name, uint32_t size) {
     (void)name;
     (void)size;
-    return (LPFONT)1;
+    return (font_t *)1;
 }
 
-static VECTOR2 test_get_text_size(LPCDRAWTEXT draw_text) {
+static vector2_t test_get_text_size(drawText_t const * draw_text) {
     (void)draw_text;
     return fake_text_size;
 }
@@ -223,7 +223,7 @@ static VECTOR2 test_get_text_size(LPCDRAWTEXT draw_text) {
     return test_mouse_pos;
 } */
 
-static void test_draw_text(LPCDRAWTEXT draw_text) {
+static void test_draw_text(drawText_t const * draw_text) {
     if (draw_text && popup_row_text == draw_text->text) popup_row_rect = draw_text->rect;
     if (captured_text_draws < sizeof(captured_text_rects) / sizeof(captured_text_rects[0]) &&
         draw_text) {
@@ -232,7 +232,7 @@ static void test_draw_text(LPCDRAWTEXT draw_text) {
     captured_text_draws++;
 }
 
-static void test_draw_image_ex(LPCDRAWIMAGE draw_image) {
+static void test_draw_image_ex(drawImage_t const * draw_image) {
     captured_draw_calls++;
     if (draw_image && draw_image->texture == hover_texture) {
         captured_hover_draws++;
@@ -267,7 +267,7 @@ static void test_draw_sprite(drawSprite_t const *sprite) {
 
 static void test_glue_changed(void) { captured_glue_changes++; }
 
-static void test_draw_backdrop(LPCDRAWBACKDROP draw_backdrop) {
+static void test_draw_backdrop(drawBackdrop_t const * draw_backdrop) {
     (void)draw_backdrop;
     captured_draw_calls++;
 }
@@ -279,14 +279,14 @@ static size2_t test_get_window_size(void) {
 /* Stands in for the client canvas push: the renderer scene the glue anchors to follows window and policy. */
 static rect_t test_get_scene_rect(void) { return UI_ResolveCanvas(test_window_size, test_canvas_policy).scene; }
 
-static void test_release_texture(LPTEXTURE texture) { (void)texture; texture_releases++; }
-static void test_release_model(LPMODEL model) { (void)model; }
-static bool test_entity_anim(LPCMODEL model, cstring_t anim, renderEntity_t *entity) {
+static void test_release_texture(texture_t * texture) { (void)texture; texture_releases++; }
+static void test_release_model(model_t * model) { (void)model; }
+static bool test_entity_anim(model_t const * model, cstring_t anim, renderEntity_t *entity) {
     (void)model; (void)anim; (void)entity;
     return true;
 }
 static void test_render_frame(viewDef_t const *view) { (void)view; }
-static LPRENDERER test_get_renderer(void) {
+static refExport_t * test_get_renderer(void) {
     static refExport_t renderer = {
         .LoadTexture = test_load_texture,
         .ReleaseTexture = test_release_texture,
@@ -414,8 +414,8 @@ static void reset_ui_state(void) {
     hover_texture = NULL;
     captured_hover_draws = 0;
     memset(captured_text_rects, 0, sizeof(captured_text_rects));
-    fake_text_size = MAKE(VECTOR2, 0.050f, 0.016f);
-    test_mouse_pos = MAKE(VECTOR2, 0, 0);
+    fake_text_size = MAKE(vector2_t, 0.050f, 0.016f);
+    test_mouse_pos = MAKE(vector2_t, 0, 0);
     UI_ClearEditFocus();
     mi.MemAlloc = test_ui_mem_alloc;
     mi.MemFree = test_ui_mem_free;
@@ -429,7 +429,7 @@ static void reset_ui_state(void) {
 }
 
 TEST(menu_fdf, parse_single_frame_definition) {
-    LPFRAMEDEF root;
+    frameDef_t * root;
 
     reset_ui_state();
     parse_fdf("single.fdf",
@@ -444,17 +444,17 @@ TEST(menu_fdf, parse_single_frame_definition) {
 }
 
 TEST(menu_fdf, compact_pool_preserves_capacity_and_reports_exhaustion) {
-    LPFRAMEDEF last = NULL;
+    frameDef_t * last = NULL;
     reset_ui_state();
     FOR_LOOP(i, MAX_UI_CLASSES - 1) last = UI_Spawn(FT_FRAME, NULL);
     T_NOT_NULL(last); T_ASSERT(last == &frames[MAX_UI_CLASSES - 1]);
     T_NULL(UI_Spawn(FT_FRAME, NULL));
-    T_ASSERT(sizeof(FRAMEPOINT) <= sizeof(void *) + 8);
+    T_ASSERT(sizeof(framePoint_t) <= sizeof(void *) + 8);
 }
 
 TEST(menu_fdf, parse_nested_parent_child_relationship) {
-    LPFRAMEDEF root;
-    LPFRAMEDEF child;
+    frameDef_t * root;
+    frameDef_t * child;
 
     reset_ui_state();
     parse_fdf("nested.fdf",
@@ -472,8 +472,8 @@ TEST(menu_fdf, parse_nested_parent_child_relationship) {
 }
 
 TEST(menu_fdf, inherits_copies_compatible_type_fields) {
-    LPFRAMEDEF base;
-    LPFRAMEDEF derived;
+    frameDef_t * base;
+    frameDef_t * derived;
 
     reset_ui_state();
     parse_fdf("inherits_ok.fdf",
@@ -492,8 +492,8 @@ TEST(menu_fdf, inherits_copies_compatible_type_fields) {
 }
 
 TEST(menu_fdf, inherits_rejects_incompatible_type) {
-    LPFRAMEDEF base_text;
-    LPFRAMEDEF derived_frame;
+    frameDef_t * base_text;
+    frameDef_t * derived_frame;
 
     reset_ui_state();
     parse_fdf("inherits_bad.fdf",
@@ -512,8 +512,8 @@ TEST(menu_fdf, inherits_rejects_incompatible_type) {
 }
 
 TEST(menu_fdf, setpoint_top_left_sets_top_y_anchor) {
-    LPFRAMEDEF root;
-    LPFRAMEDEF child;
+    frameDef_t * root;
+    frameDef_t * child;
 
     reset_ui_state();
     parse_fdf("setpoint_tl.fdf",
@@ -540,7 +540,7 @@ TEST(menu_fdf, setpoint_top_left_sets_top_y_anchor) {
 }
 
 TEST(menu_fdf, setallpoints_sets_min_and_max) {
-    LPFRAMEDEF child;
+    frameDef_t * child;
 
     reset_ui_state();
     parse_fdf("setall.fdf",
@@ -558,7 +558,7 @@ TEST(menu_fdf, setallpoints_sets_min_and_max) {
 }
 
 TEST(menu_fdf, anchor_translates_to_setpoint_state) {
-    LPFRAMEDEF frame;
+    frameDef_t * frame;
 
     reset_ui_state();
     parse_fdf("anchor.fdf",
@@ -573,7 +573,7 @@ TEST(menu_fdf, anchor_translates_to_setpoint_state) {
 }
 
 TEST(menu_fdf, backdrop_flags_and_insets_are_parsed) {
-    LPFRAMEDEF frame;
+    frameDef_t * frame;
 
     reset_ui_state();
     parse_fdf("backdrop_flags.fdf",
@@ -596,7 +596,7 @@ TEST(menu_fdf, backdrop_flags_and_insets_are_parsed) {
 }
 
 TEST(menu_fdf, vector_parser_accepts_f_suffixes) {
-    LPFRAMEDEF frame;
+    frameDef_t * frame;
 
     reset_ui_state();
     parse_fdf("vector_f_suffix.fdf",
@@ -613,14 +613,14 @@ TEST(menu_fdf, vector_parser_accepts_f_suffixes) {
 TEST(menu_fdf, chat_display_tokens_map_to_text_area) {
     reset_ui_state();
     parse_fdf("chat_display.fdf", "Frame \"CHATDISPLAY\" \"Chat\" { ChatDisplayLineHeight 0.012, ChatDisplayBorderSize 0.034, }");
-    LPFRAMEDEF frame = UI_FindFrame("Chat");
+    frameDef_t * frame = UI_FindFrame("Chat");
     if (!require_not_null(frame)) return;
     T_FEQ(frame->TextArea.LineHeight, 0.012f, 0.01f);
     T_FEQ(frame->TextArea.Inset, 0.034f, 0.01f);
 }
 
 TEST(menu_fdf, comments_are_ignored_inside_frame_bodies) {
-    LPFRAMEDEF frame;
+    frameDef_t * frame;
 
     reset_ui_state();
     parse_fdf("comments_in_body.fdf",
@@ -643,8 +643,8 @@ TEST(menu_fdf, comments_are_ignored_inside_frame_bodies) {
 }
 
 TEST(menu_fdf, comments_are_ignored_between_setpoint_arguments) {
-    LPFRAMEDEF root;
-    LPFRAMEDEF child;
+    frameDef_t * root;
+    frameDef_t * child;
 
     reset_ui_state();
     parse_fdf("comments_in_args.fdf",
@@ -678,8 +678,8 @@ TEST(menu_fdf, comments_are_ignored_between_setpoint_arguments) {
 }
 
 TEST(menu_fdf, comment_markers_inside_quoted_strings_are_preserved) {
-    LPFRAMEDEF text;
-    LPFRAMEDEF more_text;
+    frameDef_t * text;
+    frameDef_t * more_text;
 
     reset_ui_state();
     parse_fdf("quoted_comment_markers.fdf",
@@ -726,8 +726,8 @@ TEST(menu_fdf, global_stringlist_keys_resolve_and_clear_with_templates) {
 }
 
 TEST(menu_fdf, split_infopanel_stringlists_resolve_before_frame_parse) {
-    LPFRAMEDEF damage;
-    LPFRAMEDEF strength;
+    frameDef_t * damage;
+    frameDef_t * strength;
 
     reset_ui_state();
     parse_fdf("GlobalStrings.fdf",
@@ -755,9 +755,9 @@ TEST(menu_fdf, split_infopanel_stringlists_resolve_before_frame_parse) {
 }
 
 TEST(menu_fdf, shipped_style_disabled_properties_do_not_escape_comments) {
-    LPFRAMEDEF root;
-    LPFRAMEDEF icon;
-    LPFRAMEDEF text;
+    frameDef_t * root;
+    frameDef_t * icon;
+    frameDef_t * text;
 
     reset_ui_state();
     parse_fdf("resourcebar_comments.fdf",
@@ -801,7 +801,7 @@ TEST(menu_fdf, shipped_style_disabled_properties_do_not_escape_comments) {
 }
 
 TEST(menu_fdf, backdrop_background_adds_blp_extension) {
-    LPFRAMEDEF frame;
+    frameDef_t * frame;
 
     reset_ui_state();
     parse_fdf("backdrop_bg_path.fdf",
@@ -821,7 +821,7 @@ TEST(menu_fdf, backdrop_background_adds_blp_extension) {
 }
 
 TEST(menu_fdf, background_art_uses_model_index) {
-    LPFRAMEDEF sprite;
+    frameDef_t * sprite;
 
     reset_ui_state();
     parse_fdf("sprite_path.fdf",
@@ -838,12 +838,12 @@ TEST(menu_fdf, background_art_uses_model_index) {
 }
 
 TEST(menu_fdf, collect_frame_tree_preorder_matches_writer_traversal) {
-    LPCFRAMEDEF out[8];
+    frameDef_t const * out[8];
     uint32_t count;
-    LPFRAMEDEF root;
-    LPFRAMEDEF child_a;
-    LPFRAMEDEF child_b;
-    LPFRAMEDEF grand;
+    frameDef_t * root;
+    frameDef_t * child_a;
+    frameDef_t * child_b;
+    frameDef_t * grand;
 
     reset_ui_state();
     parse_fdf("collect_tree.fdf",
@@ -874,11 +874,11 @@ TEST(menu_fdf, collect_frame_tree_preorder_matches_writer_traversal) {
 }
 
 TEST(menu_fdf, collect_frame_tree_skips_hidden_children) {
-    LPCFRAMEDEF out[4];
+    frameDef_t const * out[4];
     uint32_t count;
-    LPFRAMEDEF root;
-    LPFRAMEDEF visible;
-    LPFRAMEDEF hidden;
+    frameDef_t * root;
+    frameDef_t * visible;
+    frameDef_t * hidden;
 
     reset_ui_state();
     parse_fdf("collect_hidden.fdf",
@@ -905,10 +905,10 @@ TEST(menu_fdf, collect_frame_tree_skips_hidden_children) {
 }
 
 TEST(menu_fdf, collect_frame_tree_skips_button_control_art) {
-    LPCFRAMEDEF out[4];
+    frameDef_t const * out[4];
     uint32_t count;
-    LPFRAMEDEF button;
-    LPFRAMEDEF text;
+    frameDef_t * button;
+    frameDef_t * text;
 
     reset_ui_state();
     parse_fdf("collect_button_art.fdf",
@@ -938,9 +938,9 @@ TEST(menu_fdf, collect_frame_tree_skips_button_control_art) {
 }
 
 TEST(menu_fdf, collect_frame_tree_skips_editbox_text_frame) {
-    LPCFRAMEDEF out[4];
+    frameDef_t const * out[4];
     uint32_t count;
-    LPFRAMEDEF editbox;
+    frameDef_t * editbox;
 
     reset_ui_state();
     parse_fdf("collect_editbox_text.fdf",
@@ -960,9 +960,9 @@ TEST(menu_fdf, collect_frame_tree_skips_editbox_text_frame) {
 }
 
 TEST(menu_fdf, collect_frame_tree_returns_total_when_truncated) {
-    LPCFRAMEDEF out[2];
+    frameDef_t const * out[2];
     uint32_t count;
-    LPFRAMEDEF root;
+    frameDef_t * root;
 
     reset_ui_state();
     parse_fdf("collect_truncated.fdf",
@@ -984,8 +984,8 @@ TEST(menu_fdf, collect_frame_tree_returns_total_when_truncated) {
 }
 
 TEST(menu_fdf, find_child_frame_descends_recursively) {
-    LPFRAMEDEF root;
-    LPFRAMEDEF found;
+    frameDef_t * root;
+    frameDef_t * found;
 
     reset_ui_state();
     parse_fdf("find_child.fdf",
@@ -1004,8 +1004,8 @@ TEST(menu_fdf, find_child_frame_descends_recursively) {
 }
 
 TEST(menu_fdf, find_child_frame_type_descends_through_control_wrapper) {
-    LPFRAMEDEF root;
-    LPFRAMEDEF found;
+    frameDef_t * root;
+    frameDef_t * found;
 
     reset_ui_state();
     parse_fdf("find_child_type.fdf",
@@ -1065,7 +1065,7 @@ TEST(menu_fdf, programmatic_setallpoints_sets_both_axes) {
 /* --- SetPoint: coverage for each FRAMEPOINT position --- */
 
 TEST(menu_fdf, setpoint_top_maps_mid_x_max_y) {
-    LPFRAMEDEF child;
+    frameDef_t * child;
 
     reset_ui_state();
     parse_fdf("setpoint_top.fdf",
@@ -1088,7 +1088,7 @@ TEST(menu_fdf, setpoint_top_maps_mid_x_max_y) {
 }
 
 TEST(menu_fdf, setpoint_topright_maps_max_x_max_y) {
-    LPFRAMEDEF child;
+    frameDef_t * child;
 
     reset_ui_state();
     parse_fdf("setpoint_topright.fdf",
@@ -1111,7 +1111,7 @@ TEST(menu_fdf, setpoint_topright_maps_max_x_max_y) {
 }
 
 TEST(menu_fdf, setpoint_left_maps_min_x_mid_y) {
-    LPFRAMEDEF child;
+    frameDef_t * child;
 
     reset_ui_state();
     parse_fdf("setpoint_left.fdf",
@@ -1134,7 +1134,7 @@ TEST(menu_fdf, setpoint_left_maps_min_x_mid_y) {
 }
 
 TEST(menu_fdf, setpoint_center_maps_mid_x_mid_y) {
-    LPFRAMEDEF child;
+    frameDef_t * child;
 
     reset_ui_state();
     parse_fdf("setpoint_center.fdf",
@@ -1157,7 +1157,7 @@ TEST(menu_fdf, setpoint_center_maps_mid_x_mid_y) {
 }
 
 TEST(menu_fdf, setpoint_right_maps_max_x_mid_y) {
-    LPFRAMEDEF child;
+    frameDef_t * child;
 
     reset_ui_state();
     parse_fdf("setpoint_right.fdf",
@@ -1180,7 +1180,7 @@ TEST(menu_fdf, setpoint_right_maps_max_x_mid_y) {
 }
 
 TEST(menu_fdf, setpoint_bottomleft_maps_min_x_min_y) {
-    LPFRAMEDEF child;
+    frameDef_t * child;
 
     reset_ui_state();
     parse_fdf("setpoint_bottomleft.fdf",
@@ -1203,7 +1203,7 @@ TEST(menu_fdf, setpoint_bottomleft_maps_min_x_min_y) {
 }
 
 TEST(menu_fdf, setpoint_bottom_maps_mid_x_min_y) {
-    LPFRAMEDEF child;
+    frameDef_t * child;
 
     reset_ui_state();
     parse_fdf("setpoint_bottom.fdf",
@@ -1226,7 +1226,7 @@ TEST(menu_fdf, setpoint_bottom_maps_mid_x_min_y) {
 }
 
 TEST(menu_fdf, setpoint_bottomright_maps_max_x_min_y) {
-    LPFRAMEDEF child;
+    frameDef_t * child;
 
     reset_ui_state();
     parse_fdf("setpoint_bottomright.fdf",
@@ -1324,7 +1324,7 @@ TEST(menu_fdf, setallpoints_zero_offsets_and_target_positions) {
 }
 
 TEST(menu_fdf, setallpoints_with_relative_frame_propagates_to_both_anchors) {
-    LPFRAMEDEF child;
+    frameDef_t * child;
 
     reset_ui_state();
     parse_fdf("setallpoints_rel.fdf",
@@ -1346,7 +1346,7 @@ TEST(menu_fdf, setallpoints_with_relative_frame_propagates_to_both_anchors) {
 }
 
 TEST(menu_fdf, text_uses_key_when_no_stringlist_entry_exists) {
-    LPFRAMEDEF text;
+    frameDef_t * text;
 
     reset_ui_state();
     parse_fdf("text_key_passthrough.fdf",
@@ -1360,7 +1360,7 @@ TEST(menu_fdf, text_uses_key_when_no_stringlist_entry_exists) {
 }
 
 TEST(menu_fdf, long_stringlist_text_uses_dynamic_storage) {
-    LPFRAMEDEF text;
+    frameDef_t * text;
 
     reset_ui_state();
     parse_fdf("long_text.fdf",
@@ -1381,7 +1381,7 @@ TEST(menu_fdf, long_stringlist_text_uses_dynamic_storage) {
 }
 
 TEST(menu_fdf, duplicate_name_prefers_first_template) {
-    LPFRAMEDEF found;
+    frameDef_t * found;
 
     reset_ui_state();
     parse_fdf("dup_name.fdf",
@@ -1394,7 +1394,7 @@ TEST(menu_fdf, duplicate_name_prefers_first_template) {
 }
 
 TEST(menu_fdf, unknown_token_does_not_crash_existing_definitions) {
-    LPFRAMEDEF good;
+    frameDef_t * good;
 
     reset_ui_state();
     parse_fdf("unknown_token.fdf",
@@ -1407,10 +1407,10 @@ TEST(menu_fdf, unknown_token_does_not_crash_existing_definitions) {
 }
 
 TEST(menu_fdf, single_line_text_auto_height_uses_fdf_font_size) {
-    LPFRAMEDEF root;
+    frameDef_t * root;
 
     reset_ui_state();
-    fake_text_size = MAKE(VECTOR2, 0.050f, 0.016f);
+    fake_text_size = MAKE(vector2_t, 0.050f, 0.016f);
     parse_fdf("text-height.fdf",
               "Frame \"FRAME\" \"Root\" {"
               " Width 0.8, Height 0.6,"
@@ -1439,8 +1439,8 @@ TEST(menu_fdf, single_line_text_auto_height_uses_fdf_font_size) {
 
 TEST(menu_fdf, gameplay_ignores_stale_glue_hit_test_cache) {
     menuImport_t saved = mi;
-    LPFRAMEDEF root;
-    LPFRAMEDEF button;
+    frameDef_t * root;
+    frameDef_t * button;
 
     reset_ui_state();
     mi.FS_ReadFile = test_missing_fs_read;
@@ -1485,8 +1485,8 @@ TEST(menu_fdf, gameplay_ignores_stale_glue_hit_test_cache) {
 }
 
 TEST(menu_fdf, glue_checkbox_toggles_and_draws_check_highlight) {
-    LPFRAMEDEF root;
-    LPFRAMEDEF checkbox;
+    frameDef_t * root;
+    frameDef_t * checkbox;
 
     reset_ui_state();
     parse_fdf("checkbox.fdf",
@@ -1534,8 +1534,8 @@ TEST(menu_fdf, glue_checkbox_toggles_and_draws_check_highlight) {
 }
 
 TEST(menu_fdf, control_map_list_receives_mouse_clicks) {
-    LPFRAMEDEF root;
-    LPFRAMEDEF list;
+    frameDef_t * root;
+    frameDef_t * list;
     uiMapListState_t state = {0};
 
     reset_ui_state();
@@ -1570,8 +1570,8 @@ TEST(menu_fdf, control_map_list_receives_mouse_clicks) {
 }
 
 TEST(menu_fdf, popup_menu_hover_sets_flag_on_middle_row) {
-    LPFRAMEDEF root;
-    LPFRAMEDEF popup;
+    frameDef_t * root;
+    frameDef_t * popup;
 
     reset_ui_state();
     parse_fdf("popup_hover.fdf",
@@ -1606,7 +1606,7 @@ TEST(menu_fdf, popup_menu_hover_sets_flag_on_middle_row) {
 }
 
 TEST(menu_fdf, button1_dropdown_backdrop_gets_hover_highlight) {
-    LPFRAMEDEF root;
+    frameDef_t * root;
 
     reset_ui_state();
     parse_fdf("dropdown_hover.fdf",
@@ -1644,7 +1644,7 @@ TEST(menu_fdf, button1_dropdown_backdrop_gets_hover_highlight) {
 }
 
 TEST(menu_fdf, backdrop_edge_without_corner_size_logs_error) {
-    LPFRAMEDEF root;
+    frameDef_t * root;
 
     reset_ui_state();
     parse_fdf("bad_backdrop.fdf",
@@ -1666,8 +1666,8 @@ TEST(menu_fdf, backdrop_edge_without_corner_size_logs_error) {
 }
 
 TEST(menu_fdf, editbox_without_text_frame_click_focus_accepts_text_input) {
-    LPFRAMEDEF root;
-    LPFRAMEDEF editbox;
+    frameDef_t * root;
+    frameDef_t * editbox;
 
     reset_ui_state();
     parse_fdf("editbox_input.fdf",
@@ -1730,9 +1730,9 @@ TEST(menu_fdf, options_resolution_popup_appends_and_selects_native_mode) {
         "UI\\FrameDef\\Glue\\OptionsMenu.fdf",
     };
     menuImport_t saved = mi;
-    LPFRAMEDEF popup;
-    LPFRAMEDEF title;
-    LPFRAMEDEF menu;
+    frameDef_t * popup;
+    frameDef_t * title;
+    frameDef_t * menu;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
     memset(&mi, 0, sizeof(mi));
@@ -1758,7 +1758,7 @@ TEST(menu_fdf, options_resolution_popup_appends_and_selects_native_mode) {
     }
     title = UI_FindChildFrame(popup, popup->Popup.TitleFrame);
     if (title) {
-        LPFRAMEDEF text = UI_FindChildFrame(title, "StandardPopupMenuTitleTextTemplate");
+        frameDef_t * text = UI_FindChildFrame(title, "StandardPopupMenuTitleTextTemplate");
         if (text) title = text;
     }
 
@@ -1779,8 +1779,8 @@ TEST(menu_fdf, options_music_controls_update_archived_music_cvars) {
         "UI\\FrameDef\\Glue\\OptionsMenu.fdf",
     };
     menuImport_t saved = mi;
-    LPFRAMEDEF checkbox;
-    LPFRAMEDEF slider;
+    frameDef_t * checkbox;
+    frameDef_t * slider;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
     memset(&mi, 0, sizeof(mi));
@@ -1829,8 +1829,8 @@ TEST(menu_fdf, options_game_port_enter_applies_and_blurs) {
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
         "UI\\FrameDef\\Glue\\OptionsMenu.fdf",
     };
-    LPFRAMEDEF root;
-    LPFRAMEDEF editbox;
+    frameDef_t * root;
+    frameDef_t * editbox;
     menuImport_t saved = mi;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
@@ -1884,10 +1884,10 @@ TEST(menu_fdf, esc_menu_confirm_quit_panel_is_available) {
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\UI\\EscMenuMainPanel.fdf",
     };
-    LPFRAMEDEF panel;
-    LPFRAMEDEF quit_button;
-    LPFRAMEDEF cancel_button;
-    LPFRAMEDEF message;
+    frameDef_t * panel;
+    frameDef_t * quit_button;
+    frameDef_t * cancel_button;
+    frameDef_t * message;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
 
@@ -1912,7 +1912,7 @@ TEST(menu_fdf, dialog_war3_supports_configurable_button_modes) {
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
         "UI\\FrameDef\\Glue\\DialogWar3.fdf",
     };
-    LPFRAMEDEF root;
+    frameDef_t * root;
     uiDialogWar3_t dialog;
     uiDialogWar3Init_t init = {
         .modal_name = "TestDialogModal",
@@ -1965,7 +1965,7 @@ static cstring_t const authored_dialog_files[] = {
 };
 
 TEST(menu_fdf, dialog_supports_battlenet_template) {
-    LPFRAMEDEF root;
+    frameDef_t * root;
     uiDialogWar3_t dialog;
     uiDialogWar3Init_t init = {
         .modal_name = "TestBattleNetDialogModal",
@@ -2009,7 +2009,7 @@ TEST(menu_fdf, dialog_supports_battlenet_template) {
 }
 
 TEST(menu_fdf, dialog_supports_standard_authored_template) {
-    LPFRAMEDEF root;
+    frameDef_t * root;
     uiDialogWar3_t dialog;
     uiDialogWar3Init_t init = {
         .modal_name = "TestStandardDialogModal",
@@ -2034,7 +2034,7 @@ TEST(menu_fdf, dialog_supports_standard_authored_template) {
 }
 
 TEST(menu_fdf, dialog_preserves_script_text_and_authors_button) {
-    LPFRAMEDEF root;
+    frameDef_t * root;
     uiDialogWar3_t dialog;
     uiDialogWar3Init_t init = {
         .modal_name = "TestScriptDialogModal",
@@ -2067,18 +2067,18 @@ TEST(menu_fdf, main_menu_quit_dialog_commands_quit) {
         "UI\\FrameDef\\Glue\\MainMenu.fdf",
         "UI\\FrameDef\\Glue\\DialogWar3.fdf",
     };
-    LPFRAMEDEF global_exit_button;
-    LPFRAMEDEF exit_button;
-    LPFRAMEDEF logo;
-    LPFRAMEDEF modal;
-    LPFRAMEDEF dialog;
-    LPFRAMEDEF message;
-    LPFRAMEDEF icon;
-    LPFRAMEDEF ok_backdrop;
-    LPFRAMEDEF no_backdrop;
-    LPFRAMEDEF yes_backdrop;
-    LPFRAMEDEF no_button;
-    LPFRAMEDEF yes_button;
+    frameDef_t * global_exit_button;
+    frameDef_t * exit_button;
+    frameDef_t * logo;
+    frameDef_t * modal;
+    frameDef_t * dialog;
+    frameDef_t * message;
+    frameDef_t * icon;
+    frameDef_t * ok_backdrop;
+    frameDef_t * no_backdrop;
+    frameDef_t * yes_backdrop;
+    frameDef_t * no_button;
+    frameDef_t * yes_button;
     menuImport_t saved = mi;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
@@ -2250,13 +2250,13 @@ TEST(menu_fdf, glue_sprite_layers_follow_widescreen_edges) {
     captured_realm_panel_sprites = 0;
     memset(captured_sprite_x, 0, sizeof(captured_sprite_x));
 
-    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_MAIN_MENU }, NULL, NULL);
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_MAIN_MENU }, NULL, NULL);
     /* Classic archives stretch the authored scene: both sprite layers stay at their 4:3 origins. */
     UI_DrawGlueScene();
     T_EQ(captured_sprite_calls, 2);
     T_FEQ(captured_sprite_x[0], 0.0f, 0.0001f);
     T_FEQ(captured_sprite_x[1], 0.0f, 0.0001f);
-    UI_DrawFrames((LPCFRAMEDEF[]){ UI_FindFrame("MainMenuFrame") }, 1);
+    UI_DrawFrames((frameDef_t const *[]){ UI_FindFrame("MainMenuFrame") }, 1);
     T_FEQ(UI_GetSceneRect().x, 0.0f, 0.0001f);
     T_FEQ(UI_GetSceneRect().w, 0.8f, 0.0001f);
     centered = UI_GetCenteredSceneRect();
@@ -2269,7 +2269,7 @@ TEST(menu_fdf, glue_sprite_layers_follow_widescreen_edges) {
     T_EQ(captured_sprite_calls, 2);
     T_FEQ(captured_sprite_x[0], 0.0f, 0.0001f);
     T_FEQ(captured_sprite_x[1], 0.266666f, 0.0001f);
-    UI_DrawFrames((LPCFRAMEDEF[]){ UI_FindFrame("MainMenuFrame") }, 1);
+    UI_DrawFrames((frameDef_t const *[]){ UI_FindFrame("MainMenuFrame") }, 1);
     T_FEQ(UI_GetSceneRect().x, 0.0f, 0.0001f);
     T_FEQ(UI_GetSceneRect().w, 1.066666f, 0.0001f);
     centered = UI_GetCenteredSceneRect();
@@ -2289,7 +2289,7 @@ TEST(menu_fdf, initial_glue_panel_finishes_birth_before_opening_screen) {
     mi.GetRenderer = test_get_renderer;
     UI_ResetGlueSceneModels();
 
-    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_MAIN_MENU }, NULL, test_glue_changed);
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_MAIN_MENU }, NULL, test_glue_changed);
     UI_DrawGlueScene();
     T_EQ(captured_birth_sprites, 2);
     T_EQ(captured_death_sprites, 0);
@@ -2310,8 +2310,8 @@ TEST(menu_fdf, options_glue_panel_tab_state_during_birth_and_idle) {
     UI_ResetGlueSceneModels();
 
     /* Navigate to Options panel, activating tab 1 (the "alternate" state). */
-    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_MAIN_MENU }, NULL, NULL);
-    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_OPTIONS, .tab = 1 }, NULL, NULL);
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_MAIN_MENU }, NULL, NULL);
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_OPTIONS, .tab = 1 }, NULL, NULL);
 
     /* The left enters its alternate pose while the right enters the base panel. */
     UI_DrawGlueScene();
@@ -2332,7 +2332,7 @@ TEST(menu_fdf, options_glue_panel_tab_state_during_birth_and_idle) {
     T_ASSERT(!UI_GlueIsTransitioning());
 
     /* Leave the alternate left pose through its authored Morph Alternate. */
-    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_MAIN_MENU }, NULL, NULL);
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_MAIN_MENU }, NULL, NULL);
     captured_sprite_calls = 0;
     UI_DrawGlueScene();
     T_STREQ(captured_sprite_anim[0], "Options Morph Alternate@0.0000");
@@ -2351,12 +2351,12 @@ TEST(menu_fdf, tab_morph_plays_when_switching_tabs_at_idle) {
     UI_ResetGlueSceneModels();
 
     /* Arrive at SinglePlayer panel with default tab, then wait for IDLE. */
-    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_SINGLE_PLAYER }, NULL, NULL);
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_SINGLE_PLAYER }, NULL, NULL);
     M_SetActive(true);
     M_Refresh(M_Time() + 1000);  /* let Birth finish */
 
     /* Switch to tab 1 (SinglePlayerSkirmish) while IDLE. */
-    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 }, NULL, NULL);
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 }, NULL, NULL);
     captured_sprite_calls = 0;
     UI_DrawGlueScene();
     /* Left plays SinglePlayerSkirmish Morph, right stays at SinglePlayer Stand. */
@@ -2371,7 +2371,7 @@ TEST(menu_fdf, tab_morph_plays_when_switching_tabs_at_idle) {
     T_STREQ(captured_sprite_anim[1], "SinglePlayer Stand");
 
     /* Switch back to tab 0. */
-    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_SINGLE_PLAYER }, NULL, NULL);
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_SINGLE_PLAYER }, NULL, NULL);
     captured_sprite_calls = 0;
     UI_DrawGlueScene();
     /* Left plays SinglePlayerSkirmish Morph Alternate (667 ms), right stays at Stand. */
@@ -2407,7 +2407,7 @@ TEST(menu_fdf, console_queue_defers_clicks_and_separates_commands) {
     test_glue_setup();
     Cmd_ExecuteString("menu_main");
     test_glue_tick(1000);
-    LPFRAMEDEF button = UI_FindFrame("OptionsButton");
+    frameDef_t * button = UI_FindFrame("OptionsButton");
     T_NOT_NULL(button);
     mi.Cmd_ExecuteText = Cbuf_AddText;
     mi.Cvar_Set = test_cvar_set;
@@ -2435,7 +2435,7 @@ TEST(menu_fdf, text_input_respects_menu_activity_and_transition_lock) {
     test_glue_setup();
     Cmd_ExecuteString("menu_video");
     test_glue_tick(1000);
-    LPFRAMEDEF edit = UI_FindFrame("GamePortEditBox");
+    frameDef_t * edit = UI_FindFrame("GamePortEditBox");
     T_NOT_NULL(edit);
     UI_SetEditValue(edit, "1234");
     UI_EditboxFocusOnHit(edit);
@@ -2547,8 +2547,8 @@ TEST(menu_fdf, glue_options_tabs_keep_right_controls_and_defer_left_content) {
     test_glue_setup();
     Cmd_ExecuteString("menu_options");
     test_glue_tick(1000);
-    LPFRAMEDEF old = UI_FindFrame("GameplayPanel"), next = UI_FindFrame("VideoPanel");
-    LPFRAMEDEF button = UI_FindFrame("VideoButton"), edit = UI_FindFrame("GamePortEditBox");
+    frameDef_t * old = UI_FindFrame("GameplayPanel"), *next = UI_FindFrame("VideoPanel");
+    frameDef_t * button = UI_FindFrame("VideoButton"), *edit = UI_FindFrame("GamePortEditBox");
     T_NOT_NULL(old); T_NOT_NULL(next); T_NOT_NULL(button); T_NOT_NULL(edit);
     T_ASSERT(!old->hidden && next->hidden);
     T_FEQ(UI_ScreenFrameOffset(old), 0, 0.00001f);
@@ -2650,7 +2650,7 @@ TEST(menu_fdf, glue_motion_translates_draw_rects_without_changing_anchors) {
         "   SetPoint TOPLEFT, \"MovingLabel\", BOTTOMLEFT, 0, -0.01,"
         "   FrameFont \"MasterFont\", 0.013, \"\", Text \"Sibling\", }"
         " } }");
-    LPFRAMEDEF root = UI_FindFrame("MotionRoot");
+    frameDef_t * root = UI_FindFrame("MotionRoot");
     T_NOT_NULL(root);
     Cmd_ExecuteString("menu_video");
     test_glue_tick(400);
@@ -2726,7 +2726,7 @@ TEST(menu_fdf, glue_create_destination_and_live_lan_mode_changes) {
 
 TEST(menu_fdf, glue_morph_requests_queue_without_restarting) {
     menuImport_t saved = mi;
-    GLUEDEST base = { .panel = UI_GLUE_SINGLE_PLAYER }, tab = { .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 };
+    glueDest_t base = { .panel = UI_GLUE_SINGLE_PLAYER }, tab = { .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 };
     test_glue_setup();
     UI_GotoGluePanel(base, NULL, NULL);
     test_glue_tick(1000);
@@ -2745,7 +2745,7 @@ TEST(menu_fdf, glue_morph_requests_queue_without_restarting) {
 
     UI_GotoGluePanel(tab, NULL, NULL);
     test_glue_tick(500);
-    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_OPTIONS, .tab = 1 }, NULL, NULL);
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_OPTIONS, .tab = 1 }, NULL, NULL);
     test_glue_tick(500); // Finish the in-flight skirmish Morph before leaving.
     test_glue_tick(667);
     test_glue_tick(1000);
@@ -2775,9 +2775,9 @@ TEST(menu_fdf, glue_startup_screen_override_completes_birth) {
 TEST(menu_fdf, glue_nondefault_tabs_exit_before_entering_next) {
     menuImport_t saved = mi;
     test_glue_setup();
-    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_BATTLENET_CUSTOM, .tab = 1 }, NULL, NULL);
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_BATTLENET_CUSTOM, .tab = 1 }, NULL, NULL);
     test_glue_tick(1000);
-    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_BATTLENET_CUSTOM, .tab = 2 }, NULL, NULL);
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_BATTLENET_CUSTOM, .tab = 2 }, NULL, NULL);
     test_glue_tick(0);
     T_STREQ(captured_sprite_anim[0], "BattlenetCustomCreate Death@0.0000");
     test_glue_tick(667);
@@ -2791,13 +2791,13 @@ TEST(menu_fdf, glue_nondefault_tabs_exit_before_entering_next) {
 TEST(menu_fdf, glue_retarget_and_close_deliver_only_latest_completion) {
     menuImport_t saved = mi;
     test_glue_setup();
-    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_MAIN_MENU }, NULL, test_glue_changed);
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_MAIN_MENU }, NULL, test_glue_changed);
     test_glue_tick(500);
-    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_OPTIONS, .tab = 1 }, NULL, test_glue_changed);
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_OPTIONS, .tab = 1 }, NULL, test_glue_changed);
     test_glue_tick(1000);
     T_EQ(captured_glue_changes, 1);
     T_STREQ(captured_sprite_anim[0], "Options Stand Alternate");
-    UI_GotoGluePanel((GLUEDEST){ .panel = UI_GLUE_MAIN_MENU }, test_glue_changed, test_glue_changed);
+    UI_GotoGluePanel((glueDest_t){ .panel = UI_GLUE_MAIN_MENU }, test_glue_changed, test_glue_changed);
     test_glue_tick(300);
     UI_CloseGluePanel(test_glue_changed);
     test_glue_tick(367);
@@ -2834,7 +2834,7 @@ static void test_glue_sequence_exists(cstring_t anim) {
 
 TEST(menu_fdf, glue_all_tab_sequences_exist_in_authored_model) {
     menuImport_t saved = mi;
-    const GLUEDEST tabs[] = {
+    const glueDest_t tabs[] = {
         { .panel = UI_GLUE_SINGLE_PLAYER, .tab = 1 },
         { .panel = UI_GLUE_OPTIONS, .tab = 1 },
         { .panel = UI_GLUE_MULTIPLAYER_PRE_GAME_CHAT, .tab = 1 },
@@ -2843,7 +2843,7 @@ TEST(menu_fdf, glue_all_tab_sequences_exist_in_authored_model) {
     };
     test_glue_setup();
     FOR_LOOP(i, sizeof(tabs) / sizeof(tabs[0])) {
-        GLUEDEST base = { .panel = tabs[i].panel };
+        glueDest_t base = { .panel = tabs[i].panel };
         UI_ResetGlueSceneModels();
         UI_GotoGluePanel(base, NULL, NULL);
         test_glue_tick(1000);
@@ -2869,8 +2869,8 @@ TEST(menu_fdf, main_menu_edition_button_defers_restart_after_death_frame) {
         "UI\\FrameDef\\Glue\\MainMenu.fdf",
     };
     menuImport_t saved = mi;
-    LPFRAMEDEF root;
-    LPFRAMEDEF edition;
+    frameDef_t * root;
+    frameDef_t * edition;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
     memset(&mi, 0, sizeof(mi));
@@ -2931,7 +2931,7 @@ TEST(menu_fdf, main_menu_edition_button_rolls_back_when_tft_data_is_missing) {
         "UI\\FrameDef\\Glue\\MainMenu.fdf",
     };
     menuImport_t saved = mi;
-    LPFRAMEDEF root;
+    frameDef_t * root;
 
     load_ui_files(files, sizeof(files) / sizeof(files[0]));
     memset(&mi, 0, sizeof(mi));
@@ -2983,19 +2983,19 @@ static void test_single_player_campaign_profile(bool tft) {
         "UI\\FrameDef\\Glue\\MapListBox.fdf",
     };
     menuImport_t saved = mi;
-    LPFRAMEDEF root;
-    LPFRAMEDEF campaign_button;
-    LPFRAMEDEF skirmish_button;
-    LPFRAMEDEF cancel_button;
-    LPFRAMEDEF back_button;
-    LPFRAMEDEF campaign_select_frame;
-    LPFRAMEDEF mission_select_frame;
-    LPFRAMEDEF mission_name;
-    LPFRAMEDEF mission_name_header;
-    LPFRAMEDEF mission_list_box;
-    LPFRAMEDEF difficulty_title;
-    LPFRAMEDEF campaign_list_box;
-    LPFRAMEDEF human_button;
+    frameDef_t * root;
+    frameDef_t * campaign_button;
+    frameDef_t * skirmish_button;
+    frameDef_t * cancel_button;
+    frameDef_t * back_button;
+    frameDef_t * campaign_select_frame;
+    frameDef_t * mission_select_frame;
+    frameDef_t * mission_name;
+    frameDef_t * mission_name_header;
+    frameDef_t * mission_list_box;
+    frameDef_t * difficulty_title;
+    frameDef_t * campaign_list_box;
+    frameDef_t * human_button;
 
     hide_expansion_campaign_file = false;
     test_fs_expansion = tft;
@@ -3266,7 +3266,7 @@ static void utf16le_fs_free(void *buf) { free(buf); }
 
 TEST(menu_fdf, utf16le_fdf_is_parsed_correctly) {
     menuImport_t saved = mi;
-    LPFRAMEDEF frame;
+    frameDef_t * frame;
 
     reset_ui_state();
     UI_ClearTemplates();
@@ -3305,7 +3305,7 @@ TEST(menu_fdf, unused_template_texture_stays_unloaded) {
     parse_fdf("template_art.fdf",
               "Frame \"BACKDROP\" \"Template\" { BackdropBackground \"Unused.blp\", }"
               "Frame \"BACKDROP\" \"Panel\" INHERITS \"Template\" { BackdropBackground \"Used.blp\", }");
-    LPFRAMEDEF panel = UI_FindFrame("Panel");
+    frameDef_t * panel = UI_FindFrame("Panel");
     if (!require_not_null(panel)) return;
     T_EQ(fake_texture_id, 0);
     T_NOT_NULL(UI_GetTexture(panel->Backdrop.Background));
@@ -3419,16 +3419,16 @@ TEST(menu_fdf, map_preview_fits_compact_and_full_panes) {
     menuImport_t saved = mi;
     test_glue_setup();
     T_ASSERT(UI_EnsureFDF("UI\\FrameDef\\Glue\\MapInfoPane.fdf"));
-    LPFRAMEDEF source = UI_FindFrame("MapInfoPane");
+    frameDef_t * source = UI_FindFrame("MapInfoPane");
     T_NOT_NULL(source);
     float heights[] = { 0.223125f, 0.36f };
     FOR_LOOP(i, 2) {
-        LPFRAMEDEF root = UI_CloneFrameTree(source, NULL);
+        frameDef_t * root = UI_CloneFrameTree(source, NULL);
         UI_SetSize(root, 0.271875f, heights[i]);
         UI_LayoutMapInfoPane(root);
-        LPFRAMEDEF preview = UI_FindChildFrame(root, "MinimapImage");
-        LPFRAMEDEF border = UI_FindChildFrame(root, "MinimapImageBackdrop");
-        LPFRAMEDEF label = UI_FindChildFrame(root, "SuggestedPlayersLabel");
+        frameDef_t * preview = UI_FindChildFrame(root, "MinimapImage");
+        frameDef_t * border = UI_FindChildFrame(root, "MinimapImageBackdrop");
+        frameDef_t * label = UI_FindChildFrame(root, "SuggestedPlayersLabel");
         float bottom = -preview->Points.y[FPP_MIN].offset + (preview->Height + border->Height) * 0.5f;
         T_ASSERT(bottom <= -label->Points.y[FPP_MIN].offset);
         T_FEQ(preview->Width / preview->Height, 1.0f, 0.0001f);
@@ -3490,7 +3490,7 @@ TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
         if (i == 3) T_EQ(color, 1);
     }
     Cmd_ExecuteString("menu_game_setup_chat 1 \"hello  team\"");
-    LPFRAMEDEF chat = UI_FindFrame("GameSetupChatText");
+    frameDef_t * chat = UI_FindFrame("GameSetupChatText");
     T_NOT_NULL(chat);
     T_ASSERT(strstr(chat->Text, "|cffffffffhello  team|r") != NULL);
     Cmd_ExecuteString("menu_game_setup_chat hello everyone");
@@ -3530,11 +3530,11 @@ TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
     FOR_LOOP(edition, 2) {
         test_fs_expansion = edition;
         GameSetup_UpdateLobbySetup(&state);
-        LPFRAMEDEF row = UI_FindFrame("CreateGamePlayerSlot1");
+        frameDef_t * row = UI_FindFrame("CreateGamePlayerSlot1");
         T_NOT_NULL(row);
         FOR_LOOP(i, sizeof(picks) / sizeof(picks[0])) {
-            LPFRAMEDEF popup = UI_FindChildFrame(row, picks[i].popup);
-            LPFRAMEDEF menu = UI_FindChildFrame(popup, picks[i].menu);
+            frameDef_t * popup = UI_FindChildFrame(row, picks[i].popup);
+            frameDef_t * menu = UI_FindChildFrame(popup, picks[i].menu);
             T_NOT_NULL(popup);
             T_NOT_NULL(menu);
             UI_TogglePopup(popup);

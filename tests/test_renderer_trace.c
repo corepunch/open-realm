@@ -8,16 +8,16 @@ static float camera_step(void const * data, uint32_t x, uint32_t y) { (void)data
 static handle_t camera_alloc(long size) { return calloc(1, (size_t)size); }
 
 size2_t R_GetWindowSize(void) { return (size2_t){ 1024, 768 }; }
-bool R_TraceModel(renderEntity_t const *ent, LPCLINE3 line, float * distance) {
+bool R_TraceModel(renderEntity_t const *ent, line3_t const * line, float * distance) {
     (void)ent; (void)line; (void)distance; return false;
 }
 
 /* Exact snapshot terrain can change while the rendered target stays above a narrow depression. */
 TEST(renderer_view, pan_plane_uses_rendered_target) {
     viewDef_t view = { .viewport = { 0, 0.22f, 1, 0.76f }, .target = { 0, 0, 10 } };
-    MATRIX4 proj, camera;
-    VECTOR3 point, eye = { 0, -10, 20 }, dir = { 0, 10, -10 };
-    Matrix4_lookAt(&camera, &eye, &dir, &(VECTOR3){ 0, 0, 1 });
+    matrix4_t proj, camera;
+    vector3_t point, eye = { 0, -10, 20 }, dir = { 0, 10, -10 };
+    Matrix4_lookAt(&camera, &eye, &dir, &(vector3_t){ 0, 0, 1 });
     Matrix4_perspective(&proj, 60, 4.0f / 3.0f, 1, 1000);
     Matrix4_multiply(&proj, &camera, &view.viewProjectionMatrix);
     FOR_LOOP(i, 3) {

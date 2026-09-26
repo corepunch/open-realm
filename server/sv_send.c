@@ -9,7 +9,7 @@ static void SV_DebugLayoutMessage(sizeBuf_t const *source) {
     if (MSG_ReadByte(&msg) != svc_layout) return;
     uint32_t layer = MSG_ReadByte(&msg);
     while (msg.readcount + sizeof(uint32_t) + sizeof(uint16_t) <= msg.cursize) {
-        UIFRAME frame = { 0 };
+        uiFrame_t frame = { 0 };
         uint32_t bits, number = MSG_ReadEntityBits(&msg, &bits);
         if (!number && !bits) break;
         MSG_ReadDeltaUIFrame(&msg, &frame, number, bits);
@@ -26,7 +26,7 @@ static void SV_DebugLayoutMessage(sizeBuf_t const *source) {
             (unsigned)textured, (unsigned)stats);
 }
 
-void PF_Unicast(LPEDICT ent) {
+void PF_Unicast(edict_t * ent) {
     if (Cvar_Integer("sv_debug_layout", 0)) SV_DebugLayoutMessage(&sv.multicast);
     if (!ent) {
         SZ_Clear(&sv.multicast);
@@ -34,7 +34,7 @@ void PF_Unicast(LPEDICT ent) {
     }
     /* Only the exact spawned client edict may receive this message. The old
      * sole-client fallback routed AI/player-slot UI clears to the human client. */
-    LPCLIENT client = SV_ClientForEdictRecipient(ent);
+    client_t * client = SV_ClientForEdictRecipient(ent);
     if (!client) {
         fprintf(stderr, "PF_Unicast: recipient unavailable payload=%u\n", (unsigned)sv.multicast.cursize);
         SZ_Clear(&sv.multicast);
@@ -49,15 +49,15 @@ void PF_Unicast(LPEDICT ent) {
     Netchan_Transmit(NS_SERVER, &client->netchan);
 }
 
-void SV_WritePayload(LPSIZEBUF msg, uint8_t opcode, sizeBuf_t const *payload) {
+void SV_WritePayload(sizeBuf_t * msg, uint8_t opcode, sizeBuf_t const *payload) {
     if (!msg || !payload) return;
     MSG_WriteByte(msg, opcode);
     SZ_Write(msg, payload->data, payload->cursize);
 }
 
-void SV_Multicast(LPCVECTOR3 origin, multicast_t to) {
+void SV_Multicast(vector3_t const * origin, multicast_t to) {
     FOR_LOOP(i, svs.num_clients) {
-        LPCLIENT client = &svs.clients[i];
+        client_t * client = &svs.clients[i];
         SZ_Write(&client->netchan.message, sv.multicast.data, sv.multicast.cursize);
     }
     SZ_Clear(&sv.multicast);
@@ -68,24 +68,24 @@ void SV_Multicast(LPCVECTOR3 origin, multicast_t to) {
  * player number is identical to the engine connection slot.  UI/game APIs
  * often pass the connected client's own edict as the recipient; gameplay
  * sounds instead pass a world entity and use its player ownership. */
-LPCLIENT SV_ClientForEdictRecipient(LPEDICT ent) {
+client_t * SV_ClientForEdictRecipient(edict_t * ent) {
     if (!ent) return NULL;
 
     FOR_LOOP(i, svs.num_clients) {
-        LPCLIENT client = &svs.clients[i];
+        client_t * client = &svs.clients[i];
         if (client->state == cs_spawned && client->edict == ent)
             return client;
     }
     return NULL;
 }
 
-LPCLIENT SV_ClientForEntityRecipient(LPEDICT ent) {
-    LPCLIENT client = SV_ClientForEdictRecipient(ent);
+client_t * SV_ClientForEntityRecipient(edict_t * ent) {
+    client_t * client = SV_ClientForEdictRecipient(ent);
 
     if (client) return client;
     if (!ent) return NULL;
     FOR_LOOP(i, svs.num_clients) {
-        LPCLIENT client = &svs.clients[i];
+        client_t * client = &svs.clients[i];
         /* The game may remap campaign players after lobby assignment. Use the
          * same published player identity as snapshots, not the lobby slot. */
         if (client->state == cs_spawned && client->edict && client->edict->client &&
@@ -97,11 +97,11 @@ LPCLIENT SV_ClientForEntityRecipient(LPEDICT ent) {
 
 /* Encode one Quake 2-compatible sound event and deliver it to the selected
  * recipients.  CHAN_OWNER is a delivery policy and never crosses the wire. */
-void SV_StartSoundPolicy(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, float volume,
+void SV_StartSoundPolicy(vector3_t const * origin, edict_t * ent, int channel, int sound_index, float volume,
                    float attenuation, float timeofs, soundPolicy_t const *policy) {
     uint32_t flags = 0, ent_num = 0;
-    VECTOR3 ent_origin;
-    LPCVECTOR3 pos = origin;
+    vector3_t ent_origin;
+    vector3_t const * pos = origin;
     bool owner_only = channel & CHAN_OWNER;
     bool reliable = channel & CHAN_RELIABLE;
     uint8_t *data;
@@ -148,7 +148,7 @@ void SV_StartSoundPolicy(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_
 
     data = sv.multicast.data;
     if (owner_only) {
-        LPCLIENT target = SV_ClientForEntityRecipient(ent);
+        client_t * target = SV_ClientForEntityRecipient(ent);
         if (!target) {
             fprintf(stderr, "SV_StartSound: recipient unavailable for player=%u sound=%d\n",
                     ent ? (unsigned)ent->s.player : 0u, sound_index);
@@ -166,7 +166,7 @@ void SV_StartSoundPolicy(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_
     SZ_Clear(&sv.multicast);
 }
 
-void SV_StartSound(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, float volume,
+void SV_StartSound(vector3_t const * origin, edict_t * ent, int channel, int sound_index, float volume,
                    float attenuation, float timeofs) {
     SV_StartSoundPolicy(origin, ent, channel, sound_index, volume, attenuation, timeofs, NULL);
 }

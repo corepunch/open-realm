@@ -118,7 +118,7 @@ static void UIWow_ResolveTexturePath(cstring_t in, string_t out, size_t out_size
     }
 }
 
-LPTEXTURE UIWow_LoadTexture(cstring_t name) {
+texture_t * UIWow_LoadTexture(cstring_t name) {
     int empty_slot = -1;
     PATHSTR resolved;
 
@@ -170,7 +170,7 @@ LPTEXTURE UIWow_LoadTexture(cstring_t name) {
     }
 }
 
-LPCFONT UIWow_LoadFont(uint32_t size) {
+font_t const * UIWow_LoadFont(uint32_t size) {
     UIWow_EnsureRenderer();
     if (!wow_ui.renderer) {
         return NULL;
@@ -191,7 +191,7 @@ LPCFONT UIWow_LoadFont(uint32_t size) {
         }
     }
     {
-        LPCFONT font = wow_ui.renderer->LoadFont("Fonts\\FRIZQT__.TTF", size);
+        font_t const * font = wow_ui.renderer->LoadFont("Fonts\\FRIZQT__.TTF", size);
         if (!font) {
             UIWow_Printf("UIWow: renderer failed to load font '%s' size=%u\n", "Fonts\\FRIZQT__.TTF", size);
         }
@@ -279,7 +279,7 @@ static void UIWow_RecreateLuaStateForMenu(cstring_t menu_name) {
  * in normalized [0,1] space (R_UISceneRect → UI_BASE_WIDTH/HEIGHT = 1), so
  * mouse pixels divide by the current window size. The old fixed 1024x768
  * baseline left clicks landing wrong at any other resolution. */
-VECTOR2 UIWow_MouseFdf(int x, int y) {
+vector2_t UIWow_MouseFdf(int x, int y) {
     size2_t window = { 1024, 768 };
     if (wow_ui.renderer && wow_ui.renderer->GetWindowSize) {
         window = wow_ui.renderer->GetWindowSize();
@@ -287,12 +287,12 @@ VECTOR2 UIWow_MouseFdf(int x, int y) {
     if (window.width == 0 || window.height == 0) {
         window = (size2_t){ 1024, 768 };
     }
-    return MAKE(VECTOR2, x / (float)window.width, y / (float)window.height);
+    return MAKE(vector2_t, x / (float)window.width, y / (float)window.height);
 }
 
 /* Forward mouse motion to Lua when XML does not own the hovered frame. */
 static void UIWow_LuaMouseMove(int x, int y) {
-    VECTOR2 mouse_pos = UIWow_MouseFdf(x, y);
+    vector2_t mouse_pos = UIWow_MouseFdf(x, y);
     if (!wow_ui.lua) {
         UIWow_WarnOnce(WOW_UI_WARN_NO_LUA_STATE, "UIWow: Lua state is not initialized; mouse hover ignored\n");
         return;
@@ -339,7 +339,7 @@ static void UIWow_TextInput(cstring_t text) {
 }
 
 static bool UIWow_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
-    VECTOR2 mouse_pos;
+    vector2_t mouse_pos;
     if (UIWow_XMLMouseEvent(event, x, y, param)) {
         return true;
     }

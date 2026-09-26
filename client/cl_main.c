@@ -96,7 +96,7 @@ void CL_ClearState(void) {
     }
     FOR_LOOP(image, MAX_IMAGES) {
         if (cl.pics[image]) {
-            re.ReleaseTexture((LPTEXTURE)cl.pics[image]);
+            re.ReleaseTexture((texture_t *)cl.pics[image]);
             cl.pics[image] = NULL;
         }
     }
@@ -126,7 +126,7 @@ static void CL_LANRefreshServers(void);
 static uint32_t CL_LANNumServers(void);
 static bool CL_LANServer(uint32_t index, menuLanGame_t *out);
 static void CL_LANConnectServer(uint32_t index);
-static LPRENDERER CL_UIGetRenderer(void);
+static refExport_t * CL_UIGetRenderer(void);
 
 static void CL_SuspendMenu(void) {
     if (cl_menu_life != CL_MENU_READY) return;
@@ -288,7 +288,7 @@ static int CL_UI_GetFileList(cstring_t path, cstring_t extension, char *listbuf,
     enum { MAX_UI_FILELIST = 1024 };
     PATHSTR files[MAX_UI_FILELIST];
     char mask[MAX_PATHLEN * 2];
-    SFILE_FIND_DATA find;
+    sfileFindData_t find;
     handle_t handle;
     int count = 0;
     int used = 0;
@@ -352,7 +352,7 @@ static void CL_UIServerCommand(cstring_t text) {
 }
 
 /* Renderer access callback for UI rendering */
-static LPRENDERER CL_UIGetRenderer(void) {
+static refExport_t * CL_UIGetRenderer(void) {
     return &re;
 }
 
@@ -565,10 +565,10 @@ void CL_UIMenuCommand(cstring_t command) {
     CL_MenuCommand(command);
 }
 
-static VIDEOMODE CL_VideoMode(void) { return *video_mode_get(Cvar_Integer("vid_mode", BZ_VIDEO_MODE_DEFAULT)); }
+static videoMode_t CL_VideoMode(void) { return *video_mode_get(Cvar_Integer("vid_mode", BZ_VIDEO_MODE_DEFAULT)); }
 
 static void CL_VideoApply_f(void) {
-    VIDEOMODE mode = CL_VideoMode();
+    videoMode_t mode = CL_VideoMode();
 
     if (re.SetWindowSize) {
         re.SetWindowSize(mode.width, mode.height);
@@ -878,13 +878,13 @@ TEST(client_session, menu_rebuild_clears_world_scope_before_returning_to_menu) {
 #endif
 
 
-static void CL_RendererPlaySoundAt(cstring_t path, LPCVECTOR3 origin, float volume) {
+static void CL_RendererPlaySoundAt(cstring_t path, vector3_t const * origin, float volume) {
     if (!origin) return;
     S_PlaySoundPacket(path, origin, true, CHAN_AUTO, volume, 1.0f, 0.0f);
 }
 
 void CL_Init(void) {
-    VIDEOMODE mode;
+    videoMode_t mode;
 
     CON_printf("OpenWarcraft3 v0.1");
     fprintf(stderr, "Console initialized.\n");
@@ -967,7 +967,7 @@ void CL_Init(void) {
     CL_MenuCommand(Cvar_String("cl_start_menu", "menu_main"));
 }
 
-void CL_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
+void CL_ConnectionlessPacket(const netadr_t *from, sizeBuf_t * msg) {
     char payload[1024] = { 0 };
     char command[256] = { 0 };
     char *info;
@@ -1037,7 +1037,7 @@ TEST(client_session, connection_reply_requires_matching_protocol) {
 }
 #endif
 
-static void CL_ReadPacketMessage(const netadr_t *from, LPSIZEBUF msg, int length) {
+static void CL_ReadPacketMessage(const netadr_t *from, sizeBuf_t * msg, int length) {
     cl_last_packet_time = cl_realtime;
     if (length >= 4) {
         int hdr;

@@ -12,7 +12,7 @@
 
 typedef struct uiScreen_s {
     cstring_t name;
-    GLUEDEST glue;
+    glueDest_t glue;
     cstring_t const *left; // Native FDF subtree names; remaining frames belong to the right side.
     bool (*load)(void);
     void (*init)(void);

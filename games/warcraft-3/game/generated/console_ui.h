@@ -5,11 +5,11 @@
 #include "../g_local.h"
 
 typedef struct ConsoleUI_s {
-    LPFRAMEDEF ConsoleUI;
+    frameDef_t * ConsoleUI;
 } ConsoleUI_t;
 
 
-static inline bool ConsoleUI_Bind(ConsoleUI_t *out, LPFRAMEDEF bind_root) {
+static inline bool ConsoleUI_Bind(ConsoleUI_t *out, frameDef_t * bind_root) {
     bool ok = true;
     if (!out) {
         return false;

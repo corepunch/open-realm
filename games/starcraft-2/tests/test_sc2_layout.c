@@ -450,7 +450,7 @@ TEST(sc2_layout, model_camera_payload) {
     T_ASSERT(SC2_LayoutFlatten("ConsoleModelBase"));
     sc2Frame_t *base = SC2_LayoutFindTemplate("ConsoleModelBase");
     T_NOT_NULL(base); T_NOT_NULL(base->resolved_frame);
-    UIMODEL model = base->resolved_frame->model;
+    uiModel_t model = base->resolved_frame->model;
     T_EQ(base->resolved_frame->model_flags, BZ_SC2_MODEL_FIELDS);
     T_FEQ(model.pos.x, -1, .0001f); T_FEQ(model.pos.y, -1, .0001f);
     T_FEQ(model.eye.y, -5, .0001f); T_FEQ(model.scale.z, 1, .0001f);
@@ -469,21 +469,21 @@ TEST(sc2_layout, model_camera_payload) {
 
 /* Widening a viewport expands horizontal space, retaining authored size and bottom/side anchors. */
 TEST(sc2_layout, model_camera_widescreen) {
-    UIMODEL model = { .eye = {0,-5,0}, .pos = {-1,-1,0}, .scale = {1,1,1},
+    uiModel_t model = { .eye = {0,-5,0}, .pos = {-1,-1,0}, .scale = {1,1,1},
         .fov = 90, .znear = 1, .zfar = 1000, .aspect = 4.0f / 3, .projection = UI_MODEL_ORTHOGRAPHIC };
-    MATRIX4 narrow, wide;
+    matrix4_t narrow, wide;
     M_ModelMatrix(&model, 4.0f / 3, &narrow); M_ModelMatrix(&model, 16.0f / 9, &wide);
-    VECTOR3 a = Matrix4_multiply_vector3(&narrow, &(VECTOR3){0,0,0});
-    VECTOR3 b = Matrix4_multiply_vector3(&wide, &(VECTOR3){0,0,0});
+    vector3_t a = Matrix4_multiply_vector3(&narrow, &(vector3_t){0,0,0});
+    vector3_t b = Matrix4_multiply_vector3(&wide, &(vector3_t){0,0,0});
     T_FEQ(a.x, -1, .0001f); T_FEQ(b.x, a.x, .0001f); T_FEQ(a.y, -1, .0001f);
     T_FEQ(b.y, a.y, .0001f);
-    a = Matrix4_multiply_vector3(&narrow, &(VECTOR3){.5f,0,.25f});
-    b = Matrix4_multiply_vector3(&wide, &(VECTOR3){.5f,0,.25f});
+    a = Matrix4_multiply_vector3(&narrow, &(vector3_t){.5f,0,.25f});
+    b = Matrix4_multiply_vector3(&wide, &(vector3_t){.5f,0,.25f});
     T_FEQ(b.y, a.y, .0001f); T_FEQ((b.x + 1) * (16.0f/9), (a.x + 1) * (4.0f/3), .0001f);
     model.pos.x = 1; M_ModelMatrix(&model, 16.0f/9, &wide);
-    b = Matrix4_multiply_vector3(&wide, &(VECTOR3){0,0,0}); T_FEQ(b.x, 1, .0001f);
-    model.projection = UI_MODEL_PERSPECTIVE; model.pos = (VECTOR3){0};
+    b = Matrix4_multiply_vector3(&wide, &(vector3_t){0,0,0}); T_FEQ(b.x, 1, .0001f);
+    model.projection = UI_MODEL_PERSPECTIVE; model.pos = (vector3_t){0};
     M_ModelMatrix(&model, 16.0f/9, &wide);
-    b = Matrix4_multiply_vector3(&wide, &(VECTOR3){0,0,0});
+    b = Matrix4_multiply_vector3(&wide, &(vector3_t){0,0,0});
     T_FEQ(b.x, 0, .0001f); T_FEQ(b.y, 0, .0001f); T_ASSERT(b.z > -1 && b.z < 1);
 }

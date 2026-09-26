@@ -5,26 +5,26 @@
 #include "../g_local.h"
 
 typedef struct AllianceDialog_s {
-    LPFRAMEDEF AllianceDialog;
-    LPFRAMEDEF AllianceBackdrop;
-    LPFRAMEDEF AllianceTitle;
-    LPFRAMEDEF ResourceTradingTitle;
-    LPFRAMEDEF PlayersHeader;
-    LPFRAMEDEF AllyHeader;
-    LPFRAMEDEF VisionHeader;
-    LPFRAMEDEF UnitsHeader;
-    LPFRAMEDEF GoldHeader;
-    LPFRAMEDEF LumberHeader;
-    LPFRAMEDEF AllianceAcceptButton;
-    LPFRAMEDEF AllianceAcceptButtonText;
-    LPFRAMEDEF AllianceCancelButton;
-    LPFRAMEDEF AllianceCancelButtonText;
-    LPFRAMEDEF AlliedVictoryCheckBox;
-    LPFRAMEDEF AlliedVictoryLabel;
+    frameDef_t * AllianceDialog;
+    frameDef_t * AllianceBackdrop;
+    frameDef_t * AllianceTitle;
+    frameDef_t * ResourceTradingTitle;
+    frameDef_t * PlayersHeader;
+    frameDef_t * AllyHeader;
+    frameDef_t * VisionHeader;
+    frameDef_t * UnitsHeader;
+    frameDef_t * GoldHeader;
+    frameDef_t * LumberHeader;
+    frameDef_t * AllianceAcceptButton;
+    frameDef_t * AllianceAcceptButtonText;
+    frameDef_t * AllianceCancelButton;
+    frameDef_t * AllianceCancelButtonText;
+    frameDef_t * AlliedVictoryCheckBox;
+    frameDef_t * AlliedVictoryLabel;
 } AllianceDialog_t;
 
 
-static inline bool AllianceDialog_Bind(AllianceDialog_t *out, LPFRAMEDEF bind_root) {
+static inline bool AllianceDialog_Bind(AllianceDialog_t *out, frameDef_t * bind_root) {
     bool ok = true;
     if (!out) {
         return false;

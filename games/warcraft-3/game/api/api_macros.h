@@ -52,7 +52,7 @@ typedef const char *jassdef_string;
 
 #define JASS_API(NAME, ...) \
 void NAME##_native(MAP_LIST(JASS_ARG, __VA_ARGS__)); \
-uint32_t NAME(LPJASS j) { \
+uint32_t NAME(jass_t * j) { \
     uint32_t __arg = 0; \
     MAP(JASS_STACK, __VA_ARGS__); \
     NAME##_native(MAP_LIST(JASS_VALUE, __VA_ARGS__)); \

@@ -8,12 +8,12 @@ typedef enum {
     BACKDROPINSET_LEFT,
 } BACKDROPINSET;
 
-static bool UI_BackdropHasArt(LPCFRAMEDEF frame) {
+static bool UI_BackdropHasArt(frameDef_t const * frame) {
     return frame && (frame->Backdrop.Background || frame->Backdrop.EdgeFile);
 }
 
-static void UI_DrawBackdropWithColor(LPCFRAMEDEF frame, rect_t const * rect, COLOR32 color) {
-    LPRENDERER renderer = mi.GetRenderer();
+static void UI_DrawBackdropWithColor(frameDef_t const * frame, rect_t const * rect, color32_t color) {
+    refExport_t * renderer = mi.GetRenderer();
 
     if (!UI_BackdropHasArt(frame) || !renderer || !renderer->DrawBackdrop) {
         return;
@@ -38,7 +38,7 @@ static void UI_DrawBackdropWithColor(LPCFRAMEDEF frame, rect_t const * rect, COL
                                         | (frame->Backdrop.Mirrored ? DRAW_MIRRORED : 0)));
 }
 
-static void UI_DrawBackdrop(LPCFRAMEDEF frame, rect_t const * rect) {
+static void UI_DrawBackdrop(frameDef_t const * frame, rect_t const * rect) {
     UI_DrawBackdropWithColor(frame, rect, frame->Color);
 }
 

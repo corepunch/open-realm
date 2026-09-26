@@ -6,7 +6,7 @@
 /* Bounded nearest-N insertion over the full eligible population. Only
  * strictly-closer candidates displace the retained farthest, so equal
  * distances keep edict order (deterministic tie-break). */
-static uint32_t spirit_link_nearest_insert(LPEDICT *cands, float *dists, uint32_t n, uint32_t maxn, LPEDICT target, float dist) {
+static uint32_t spirit_link_nearest_insert(edict_t * *cands, float *dists, uint32_t n, uint32_t maxn, edict_t * target, float dist) {
 	uint32_t far = 0;
 	FOR_LOOP(i, n) if (dists[i] > dists[far]) far = i;
 	if (n < maxn) { cands[n] = target; dists[n] = dist; return n + 1; }
@@ -14,7 +14,7 @@ static uint32_t spirit_link_nearest_insert(LPEDICT *cands, float *dists, uint32_
 	return n;
 }
 
-static void spirit_link_store_code(LPEDICT unit, uint32_t buff, uint32_t code) {
+static void spirit_link_store_code(edict_t * unit, uint32_t buff, uint32_t code) {
 	FOR_LOOP(i, MAX_UNIT_STATUSES)
 		if (unit->abilstatus[i].level && unit->abilstatus[i].code == buff) {
 			unit->abilstatus[i].data = code; break;
@@ -24,12 +24,12 @@ static void spirit_link_store_code(LPEDICT unit, uint32_t buff, uint32_t code) {
 /* Apply Bspl to up to DataB nearest valid units in Area of the click target.
  * The click target is kept first when valid; remaining slots go to the
  * nearest others. Equal distances keep edict order. */
-static void spirit_link_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static void spirit_link_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
 	uint32_t level, buff, maxn, n = 0, j, rest, restmax;
 	bool clicked;
 	float area, dur, dist;
 	cstring_t buffstr;
-	LPEDICT cands[SPL_MAX_CANDS];
+	edict_t * cands[SPL_MAX_CANDS];
 	float dists[SPL_MAX_CANDS];
 	if (!st.entity || !spell) return;
 	level = S_SpellLevel(caster, spell->code);
@@ -55,7 +55,7 @@ static void spirit_link_execute(LPEDICT caster, spellTarget_t st, abilityitem_t 
 	}
 	FOR_LOOP(i, n) for (j = i + 1; j < n; j++)
 		if (dists[j] < dists[i]) {
-			float td = dists[i]; LPEDICT te = cands[i];
+			float td = dists[i]; edict_t * te = cands[i];
 			dists[i] = dists[j]; cands[i] = cands[j]; dists[j] = td; cands[j] = te;
 		}
 	if (n > maxn) n = maxn;
@@ -68,7 +68,7 @@ static void spirit_link_execute(LPEDICT caster, spellTarget_t st, abilityitem_t 
 
 BZ_SIMPLE_SPELL_PROC(AbilitySpiritLink) { spirit_link_execute(caster, st, spell); }
 
-static heroabilitystatus_t *spirit_link_slot(LPEDICT unit) {
+static heroabilitystatus_t *spirit_link_slot(edict_t * unit) {
 	if (!unit) return NULL;
 	FOR_LOOP(i, MAX_UNIT_STATUSES)
 		if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSPL &&
@@ -77,14 +77,14 @@ static heroabilitystatus_t *spirit_link_slot(LPEDICT unit) {
 	return NULL;
 }
 
-static void spirit_link_strip(LPEDICT unit) {
+static void spirit_link_strip(edict_t * unit) {
 	FOR_LOOP(i, MAX_UNIT_STATUSES)
 		if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSPL)
 			memset(unit->abilstatus + i, 0, sizeof(unit->abilstatus[i]));
 }
 
 /* Flat redirected share: never fatal — clamp to 1 HP and clear Bspl. */
-static void spirit_link_apply_share(LPEDICT unit, int amount) {
+static void spirit_link_apply_share(edict_t * unit, int amount) {
 	if (!unit || amount <= 0 || M_IsDead(unit)) return;
 	if (unit->health.value <= (float)amount) {
 		G_SetHealth(unit, 1); spirit_link_strip(unit); return;
@@ -95,13 +95,13 @@ static void spirit_link_apply_share(LPEDICT unit, int amount) {
 /* Split DataA of post-mitigation damage across living allied Bspl holders; return primary take.
  * The 64-entry scratch cannot truncate real groups: selection above caps each
  * cast at authored DataB targets, far below this bound. */
-int S_SpiritLinkRedirect(LPEDICT target, LPEDICT attacker, int damage) {
+int S_SpiritLinkRedirect(edict_t * target, edict_t * attacker, int damage) {
 	static bool redirecting;
 	heroabilitystatus_t *slot;
 	uint32_t code, level, n = 0;
 	float ratio;
 	int shared, kept, portion;
-	LPEDICT linked[SPL_MAX_CANDS];
+	edict_t * linked[SPL_MAX_CANDS];
 	(void)attacker;
 	if (redirecting || !target || damage <= 0) return damage;
 	slot = spirit_link_slot(target);

@@ -3,28 +3,28 @@
 
 struct vector3 { float x, y, z; };
 
-typedef struct vector3 VECTOR3;
-typedef struct vector3 *LPVECTOR3;
-typedef struct vector3 const *LPCVECTOR3;
+typedef struct vector3 vector3_t;
 
-float Vector3_dot(LPCVECTOR3 a, LPCVECTOR3 b);
-float Vector3_lengthsq(LPCVECTOR3 vec);
-float Vector3_len(LPCVECTOR3 vec);
-float Vector3_distance(LPCVECTOR3 a, LPCVECTOR3 b);
-VECTOR3 Vector3_bezier(LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c, LPCVECTOR3 d, float t);
-VECTOR3 Vector3_hermite(LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c, LPCVECTOR3 d, float t);
-VECTOR3 Vector3_lerp(LPCVECTOR3 a, LPCVECTOR3 b, float t);
-VECTOR3 Vector3_cross(LPCVECTOR3 a, LPCVECTOR3 b);
-VECTOR3 Vector3_sub(LPCVECTOR3 a, LPCVECTOR3 b);
-VECTOR3 Vector3_add(LPCVECTOR3 a, LPCVECTOR3 b);
-VECTOR3 Vector3_mad(LPCVECTOR3 v, float s, LPCVECTOR3 b);
-VECTOR3 Vector3_mul(LPCVECTOR3 a, LPCVECTOR3 b);
-VECTOR3 Vector3_scale(LPCVECTOR3 v, float s);
-VECTOR3 Vector3_rotateAroundAxis(LPCVECTOR3 v, LPCVECTOR3 axis, float radians);
-void Vector3_normalize(LPVECTOR3 v);
-void Vector3_set(LPVECTOR3 v, float x, float y, float z);
-void Vector3_clear(LPVECTOR3 v);
-VECTOR3 Vector3_unm(VECTOR3 const* v);
-VECTOR3 Vector3_clamp01(LPCVECTOR3 v);
+
+
+float Vector3_dot(vector3_t const * a, vector3_t const * b);
+float Vector3_lengthsq(vector3_t const * vec);
+float Vector3_len(vector3_t const * vec);
+float Vector3_distance(vector3_t const * a, vector3_t const * b);
+vector3_t Vector3_bezier(vector3_t const * a, vector3_t const * b, vector3_t const * c, vector3_t const * d, float t);
+vector3_t Vector3_hermite(vector3_t const * a, vector3_t const * b, vector3_t const * c, vector3_t const * d, float t);
+vector3_t Vector3_lerp(vector3_t const * a, vector3_t const * b, float t);
+vector3_t Vector3_cross(vector3_t const * a, vector3_t const * b);
+vector3_t Vector3_sub(vector3_t const * a, vector3_t const * b);
+vector3_t Vector3_add(vector3_t const * a, vector3_t const * b);
+vector3_t Vector3_mad(vector3_t const * v, float s, vector3_t const * b);
+vector3_t Vector3_mul(vector3_t const * a, vector3_t const * b);
+vector3_t Vector3_scale(vector3_t const * v, float s);
+vector3_t Vector3_rotateAroundAxis(vector3_t const * v, vector3_t const * axis, float radians);
+void Vector3_normalize(vector3_t * v);
+void Vector3_set(vector3_t * v, float x, float y, float z);
+void Vector3_clear(vector3_t * v);
+vector3_t Vector3_unm(vector3_t const* v);
+vector3_t Vector3_clamp01(vector3_t const * v);
 
 #endif

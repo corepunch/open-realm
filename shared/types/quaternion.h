@@ -16,19 +16,20 @@ typedef struct { float yaw, pitch, roll; } orientation_t;
 
 struct quaternion { float x, y, z, w; };
 
-typedef struct quaternion QUATERNION;
-typedef struct quaternion *LPQUATERNION;
-typedef struct quaternion const *LPCQUATERNION;
+typedef struct quaternion quaternion_t;
+typedef struct matrix4 matrix4_t;
 
-float Quaternion_dotProduct(LPCQUATERNION left, LPCQUATERNION right);
-float Quaternion_length(LPCQUATERNION param);
 
-QUATERNION Quaternion_fromOrientation(orientation_t const *angles);
-QUATERNION Quaternion_fromEuler(LPCVECTOR3 euler, ROTATIONORDER order);
-QUATERNION Quaternion_unm(LPCQUATERNION param);
-QUATERNION Quaternion_normalized(LPCQUATERNION param);
-QUATERNION Quaternion_fromMatrix(LPCMATRIX4 mat);
-QUATERNION Quaternion_slerp(LPCQUATERNION p, LPCQUATERNION q, float t);
-QUATERNION Quaternion_sqlerp(LPCQUATERNION a, LPCQUATERNION b, LPCQUATERNION c, LPCQUATERNION d, float t);
+
+float Quaternion_dotProduct(quaternion_t const * left, quaternion_t const * right);
+float Quaternion_length(quaternion_t const * param);
+
+quaternion_t Quaternion_fromOrientation(orientation_t const *angles);
+quaternion_t Quaternion_fromEuler(vector3_t const * euler, ROTATIONORDER order);
+quaternion_t Quaternion_unm(quaternion_t const * param);
+quaternion_t Quaternion_normalized(quaternion_t const * param);
+quaternion_t Quaternion_fromMatrix(matrix4_t const * mat);
+quaternion_t Quaternion_slerp(quaternion_t const * p, quaternion_t const * q, float t);
+quaternion_t Quaternion_sqlerp(quaternion_t const * a, quaternion_t const * b, quaternion_t const * c, quaternion_t const * d, float t);
 
 #endif

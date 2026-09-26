@@ -11,7 +11,7 @@ static uint32_t fnv1a32(cstring_t str) {
     return hash;
 }
 
-static void ConvertMD34AnimationName(LPANIMATION seq) {
+static void ConvertMD34AnimationName(animation_t * seq) {
     char buffer[80];
     memset(buffer, 0, sizeof(buffer));
     strncpy(buffer, seq->name, sizeof(buffer) - 1);
@@ -58,7 +58,7 @@ struct md34Sequence {
     uint32_t frequency;
     int32_t unk[3];
     int32_t unk2;
-    struct { VECTOR3 min; VECTOR3 max; float radius; } boundingSphere;
+    struct { vector3_t min; vector3_t max; float radius; } boundingSphere;
     int32_t d5[3];
 };
 
@@ -69,7 +69,7 @@ static uint8_t const *ModelDataAt(uint8_t const *data, uint32_t data_size, uint3
 }
 
 static int compare_animation_name(const void *a, const void *b) {
-    return strcmp(((LPCANIMATION)a)->name, ((LPCANIMATION)b)->name);
+    return strcmp(((animation_t const *)a)->name, ((animation_t const *)b)->name);
 }
 
 static animation_t *LoadModelMD34(uint8_t const *data, uint32_t data_size, uint32_t *out_count) {
@@ -107,7 +107,7 @@ static animation_t *LoadModelMD34(uint8_t const *data, uint32_t data_size, uint3
             char const *name = src->name.ref < hdr->nRefs
                 ? (char const *)ModelDataAt(data, data_size, ent[src->name.ref].offset, src->name.nEntries)
                 : NULL;
-            LPANIMATION dest = animations + j;
+            animation_t * dest = animations + j;
             if (name) {
                 uint32_t name_len = MIN(src->name.nEntries, sizeof(dest->name) - 1);
                 memcpy(dest->name, name, name_len);
@@ -204,7 +204,7 @@ static g_cmodel_t *GetModel(uint32_t modelindex) {
     return entry->animations ? entry : NULL;
 }
 
-LPCANIMATION G_GetAnimation(uint32_t modelindex, cstring_t animname) {
+animation_t const * G_GetAnimation(uint32_t modelindex, cstring_t animname) {
     g_cmodel_t *model = GetModel(modelindex);
     if (!model)
         return NULL;

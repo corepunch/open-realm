@@ -28,7 +28,7 @@ TEST(renderer_view, shadow_fog_follows_each_view) {
     renderEntity_t ent = {0};
     viewDef_t view = { .time = 1, .fogEnable = true, .fogStart = 800, .fogEnd = 3500,
         .fogColor = {0.2f, 0.3f, 0.4f}, .entities = &ent, .num_entities = 1 };
-    LPCSPRITESTATE fog = &tr.shader_shadowSplat.state;
+    spriteState_t const * fog = &tr.shader_shadowSplat.state;
     FOR_LOOP(i, 2) {
         view.rdflags = i ? RDF_USE_ENTITY_CAMERA : 0;
         view.fogEnable = true;
@@ -47,7 +47,7 @@ TEST(renderer_view, shadow_fog_follows_each_view) {
         R_RenderFrame(&view);
         T_ASSERT(!fog->fogEnable);
         view.fogStart = 2200; view.fogEnd = 6000;
-        view.fogColor = (VECTOR3){0.4f, 0.5f, 0.6f};
+        view.fogColor = (vector3_t){0.4f, 0.5f, 0.6f};
     }
 }
 

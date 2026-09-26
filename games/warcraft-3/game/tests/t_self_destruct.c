@@ -10,7 +10,7 @@
 #define BZ_ANSY MAKEFOURCC('A', 'N', 's', 'y') // rawcode; Pocket Factory
 #define BZ_OGRU MAKEFOURCC('o', 'g', 'r', 'u') // unitCode; fixture Clockwerk
 
-LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -18,8 +18,8 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
 	slkTestData_t *rows, *old;
-	LPEDICT goblin, near_enemy, far_enemy;
-} SDFIX;
+	edict_t * goblin, *near_enemy, *far_enemy;
+} sdFix_t;
 
 /* Non-stock DataA/B/C/D/E/F prove death blast reads abilityitem_t.code, not hardcoded Clockwerk values. */
 static char const sd_slk[] =
@@ -45,11 +45,11 @@ static char const sd_slk[] =
 	"C;Y4;X9;K\"3\"\nC;Y4;X10;K\"0\"\nC;Y4;X11;K\"0.1\"\nC;Y4;X12;K\"0.1\"\n"
 	"C;Y4;X13;K\"0\"\nC;Y4;X14;K\"0\"\nE\n";
 
-static SDFIX sd_setup(uint32_t code) {
-	SDFIX fix;
+static sdFix_t sd_setup(uint32_t code) {
+	sdFix_t fix;
 	reset_entities(); setup_test_world(); level.time = 1000;
-	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	memset(level.alliances, 0, sizeof(level.alliances));
 	fix.rows = parse_slk_string(sd_slk); fix.old = G_SetSLKRows("AbilityData", fix.rows);
 	fix.goblin = alloc_test_unit(MAKEFOURCC('n', 'c', 'g', 'b'), 0, 0);
@@ -67,7 +67,7 @@ static SDFIX sd_setup(uint32_t code) {
 	return fix;
 }
 
-static void sd_done(SDFIX fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
+static void sd_done(sdFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
 
 TEST(wc3_spell, self_destruct_aliases_share_procedure) {
 	T_EQ(S_AbilityItem(BZ_ASDG).ability->proc, CAbilitySelfDestruct);
@@ -78,7 +78,7 @@ TEST(wc3_spell, self_destruct_aliases_share_procedure) {
 
 /* Death of a unit that has Asdg deals authored full-radius DataB; units outside DataC are untouched. */
 TEST(wc3_spell, self_destruct_death_deals_authored_area_damage) {
-	SDFIX fix = sd_setup(BZ_ASDG);
+	sdFix_t fix = sd_setup(BZ_ASDG);
 	unit_die(fix.goblin, NULL);
 	T_ASSERT(M_IsDead(fix.goblin));
 	T_FEQ(fix.near_enemy->health.value, 460, 0.001f);
@@ -88,7 +88,7 @@ TEST(wc3_spell, self_destruct_death_deals_authored_area_damage) {
 
 /* Asd2 shares the procedure but reads its own DataB through abilityitem_t.code. */
 TEST(wc3_spell, self_destruct_asd2_uses_alias_datab) {
-	SDFIX fix = sd_setup(BZ_ASD2);
+	sdFix_t fix = sd_setup(BZ_ASD2);
 	unit_die(fix.goblin, NULL);
 	T_FEQ(fix.near_enemy->health.value, 445, 0.001f);
 	T_FEQ(fix.far_enemy->health.value, 500, 0.001f);
@@ -97,7 +97,7 @@ TEST(wc3_spell, self_destruct_asd2_uses_alias_datab) {
 
 /* Partial ring uses DataD when distance is between DataA and DataC. */
 TEST(wc3_spell, self_destruct_partial_radius_uses_datad) {
-	SDFIX fix = sd_setup(BZ_ASDG);
+	sdFix_t fix = sd_setup(BZ_ASDG);
 	fix.near_enemy->s.origin2.x = 100; fix.near_enemy->s.origin.x = 100;
 	unit_die(fix.goblin, NULL);
 	T_FEQ(fix.near_enemy->health.value, 485, 0.001f);
@@ -106,7 +106,7 @@ TEST(wc3_spell, self_destruct_partial_radius_uses_datad) {
 
 /* Asds with DataF=0 must not detonate on death (Goblin Sapper contract). */
 TEST(wc3_spell, self_destruct_asds_without_dataf_does_not_explode_on_death) {
-	SDFIX fix = sd_setup(BZ_ASDS);
+	sdFix_t fix = sd_setup(BZ_ASDS);
 	unit_die(fix.goblin, NULL);
 	T_FEQ(fix.near_enemy->health.value, 500, 0.001f);
 	sd_done(fix);
@@ -114,8 +114,8 @@ TEST(wc3_spell, self_destruct_asds_without_dataf_does_not_explode_on_death) {
 
 /* Kaboom click is a point-target cast: authored DataB blast + caster death, even with DataF=0. */
 TEST(wc3_spell, self_destruct_asds_click_detonates_and_kills_caster) {
-	SDFIX fix = sd_setup(BZ_ASDS);
-	VECTOR2 point = { 0, 0 };
+	sdFix_t fix = sd_setup(BZ_ASDS);
+	vector2_t point = { 0, 0 };
 	ability_t const *abil = S_AbilityItem(BZ_ASDS).ability;
 	T_NOT_NULL(abil);
 	T_ASSERT(abil->flags & AB_SPELL);
@@ -130,7 +130,7 @@ TEST(wc3_spell, self_destruct_asds_click_detonates_and_kills_caster) {
 
 /* Right-click autocast toggles on the Asds row; Clockwerk classname rows stay passive. */
 TEST(wc3_spell, self_destruct_asds_autocast_toggle) {
-	SDFIX fix = sd_setup(BZ_ASDS);
+	sdFix_t fix = sd_setup(BZ_ASDS);
 	ability_t const *asdg = FindAbilityByClassname("Asdg");
 	T_ASSERT(G_SetUnitAutocast(fix.goblin, BZ_ASDS, true));
 	T_ASSERT(G_UnitAutocastIsOn(fix.goblin, BZ_ASDS));
@@ -145,7 +145,7 @@ TEST(wc3_spell, self_destruct_asds_autocast_toggle) {
 
 /* BTLF expiry that kills the goblin still detonates when DataF is set. */
 TEST(wc3_spell, self_destruct_btlf_expiry_detonates) {
-	SDFIX fix = sd_setup(BZ_ASDG);
+	sdFix_t fix = sd_setup(BZ_ASDG);
 	unit_addtimedstatus(fix.goblin, "BTLF", 1, 2.0f);
 	T_EQ(G_UnitStatusLevel(fix.goblin, BZ_BTLF), 1);
 	level.time += 1999; unit_updatestatuses(fix.goblin);
@@ -174,11 +174,11 @@ TEST(wc3_spell, self_destruct_pocket_factory_goblin_btlf_detonates) {
 		"C;Y3;X9;K\"0.1\"\nC;Y3;X10;K\"80\"\nC;Y3;X11;K\"40\"\nC;Y3;X12;K\"160\"\n"
 		"C;Y3;X13;K\"15\"\nC;Y3;X14;K\"1\"\nC;Y3;X15;K\"1\"\nC;Y3;X16;K\"\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(both), *old;
-	LPEDICT caster, goblin = NULL, enemy;
-	VECTOR2 point = { 128, 128 };
+	edict_t * caster, *goblin = NULL, *enemy;
+	vector2_t point = { 128, 128 };
 	reset_entities(); setup_test_world(); level.time = 1000;
-	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
-	((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
+	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
 	memset(level.alliances, 0, sizeof(level.alliances));
 	old = G_SetSLKRows("AbilityData", rows);
 	caster = alloc_test_unit(MAKEFOURCC('N', 't', 'i', 'n'), 0, 0);

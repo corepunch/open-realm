@@ -4,7 +4,7 @@
 #define UI_POPUP_MAX_VISIBLE_ROWS 8
 #define UI_POPUP_BOTTOM_PADDING_PIXELS 4.0f
 
-static LPCFRAMEDEF active_popup_scroll_menu = NULL;
+static frameDef_t const * active_popup_scroll_menu = NULL;
 static uint32_t active_popup_scroll = 0;
 
 static bool UI_IsPopupFrameType(FRAMETYPE type) {
@@ -17,30 +17,30 @@ static void UI_ResetPopupScroll(void) {
     active_popup_hover_item = -1;
 }
 
-static COLOR32 UI_PopupHoverBackgroundColor(COLOR32 color) {
+static color32_t UI_PopupHoverBackgroundColor(color32_t color) {
     color.a = (uint8_t)((uint32_t)color.a / 10u);
     return color;
 }
 
-static LPFRAMEDEF UI_PopupMenuFrame(LPCFRAMEDEF popup) {
-    LPFRAMEDEF menu;
+static frameDef_t * UI_PopupMenuFrame(frameDef_t const * popup) {
+    frameDef_t * menu;
 
     if (!popup || !popup->Popup.MenuFrame[0]) {
         return NULL;
     }
-    menu = UI_FindChildFrame((LPFRAMEDEF)popup, popup->Popup.MenuFrame);
+    menu = UI_FindChildFrame((frameDef_t *)popup, popup->Popup.MenuFrame);
     if (!menu) {
         menu = UI_FindFrameNear(popup, popup->Popup.MenuFrame);
     }
     return menu;
 }
 
-static bool UI_IsActivePopupMenu(LPCFRAMEDEF frame) {
+static bool UI_IsActivePopupMenu(frameDef_t const * frame) {
     return frame && active_popup && frame == UI_PopupMenuFrame(active_popup);
 }
 
-static bool UI_PointerBlockedByPopup(LPCFRAMEDEF frame) {
-    LPFRAMEDEF menu;
+static bool UI_PointerBlockedByPopup(frameDef_t const * frame) {
+    frameDef_t * menu;
 
     if (UI_PointerBlockedByModal(frame)) {
         return true;
@@ -55,14 +55,14 @@ static bool UI_PointerBlockedByPopup(LPCFRAMEDEF frame) {
     return !UI_FrameWithinRoot(menu, frame);
 }
 
-static LPFRAMEDEF UI_PopupTitleTextFrame(LPCFRAMEDEF popup) {
-    LPFRAMEDEF title;
-    LPFRAMEDEF text;
+static frameDef_t * UI_PopupTitleTextFrame(frameDef_t const * popup) {
+    frameDef_t * title;
+    frameDef_t * text;
 
     if (!popup) {
         return NULL;
     }
-    title = UI_FindChildFrame((LPFRAMEDEF)popup, popup->Popup.TitleFrame);
+    title = UI_FindChildFrame((frameDef_t *)popup, popup->Popup.TitleFrame);
     text = title && title->Text ? UI_FindChildFrame(title, title->Text) : NULL;
     if (!text) {
         text = title ? UI_FindChildFrame(title, "StandardPopupMenuTitleTextTemplate") : NULL;
@@ -77,7 +77,7 @@ static LPFRAMEDEF UI_PopupTitleTextFrame(LPCFRAMEDEF popup) {
 }
 
 static float UI_PopupBottomPadding(void) {
-    LPRENDERER renderer = mi.GetRenderer();
+    refExport_t * renderer = mi.GetRenderer();
     rect_t scene = UI_GetSceneRect();
     size2_t window;
 
@@ -91,7 +91,7 @@ static float UI_PopupBottomPadding(void) {
     return scene.h * UI_POPUP_BOTTOM_PADDING_PIXELS / (float)window.height;
 }
 
-static float UI_PopupMenuMaxHeight(LPCFRAMEDEF popup, LPCFRAMEDEF menu, float row_height, float border) {
+static float UI_PopupMenuMaxHeight(frameDef_t const * popup, frameDef_t const * menu, float row_height, float border) {
     rect_t const * popup_rect;
     rect_t scene;
     float menu_top;
@@ -116,10 +116,10 @@ static float UI_PopupMenuMaxHeight(LPCFRAMEDEF popup, LPCFRAMEDEF menu, float ro
     return MIN(full_height, MIN(max_height, available_height));
 }
 
-static void UI_PositionPopupParts(LPFRAMEDEF popup) {
-    LPFRAMEDEF title;
-    LPFRAMEDEF arrow;
-    LPFRAMEDEF menu;
+static void UI_PositionPopupParts(frameDef_t * popup) {
+    frameDef_t * title;
+    frameDef_t * arrow;
+    frameDef_t * menu;
     float inset;
     float arrow_width;
     float title_width;
@@ -140,7 +140,7 @@ static void UI_PositionPopupParts(LPFRAMEDEF popup) {
         UI_SetPoint(title, FRAMEPOINT_LEFT, popup, FRAMEPOINT_LEFT, inset, 0.0f);
     }
     if (title) {
-        LPFRAMEDEF title_text = UI_PopupTitleTextFrame(popup);
+        frameDef_t * title_text = UI_PopupTitleTextFrame(popup);
         if (title_text) {
             title_text->Font.Justification.Horizontal = FONT_JUSTIFYLEFT;
             title_text->Font.Justification.Offset.x = 0.0f;
@@ -162,15 +162,15 @@ static void UI_PositionPopupParts(LPFRAMEDEF popup) {
     }
 }
 
-static void UI_UpdatePopupVisibility(LPCFRAMEDEF const *draw_order, uint32_t count) {
+static void UI_UpdatePopupVisibility(frameDef_t const * const *draw_order, uint32_t count) {
     FOR_LOOP(i, count) {
-        LPFRAMEDEF frame = (LPFRAMEDEF)draw_order[i];
+        frameDef_t * frame = (frameDef_t *)draw_order[i];
 
         if (!UI_IsPopupFrameType(frame->Type)) {
             continue;
         }
 
-        LPFRAMEDEF menu = UI_PopupMenuFrame(frame);
+        frameDef_t * menu = UI_PopupMenuFrame(frame);
         UI_PositionPopupParts(frame);
         if (menu) {
             UI_SetHidden(menu, active_popup != frame);
@@ -178,17 +178,17 @@ static void UI_UpdatePopupVisibility(LPCFRAMEDEF const *draw_order, uint32_t cou
     }
 }
 
-static void UI_DrawMenu(LPCFRAMEDEF frame, rect_t const * rect) {
-    LPRENDERER renderer = mi.GetRenderer();
-    LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
-    LPCFONT font;
+static void UI_DrawMenu(frameDef_t const * frame, rect_t const * rect) {
+    refExport_t * renderer = mi.GetRenderer();
+    frameDef_t const * backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
+    font_t const * font;
     float const border = frame->Menu.Border > 0.0f ? frame->Menu.Border : 0.006f;
     float const row_height = frame->Menu.Item.Height > 0.0f ? frame->Menu.Item.Height : 0.014f;
     float const content_height = MAX(0.0f, rect->h - border * 2.0f);
-    COLOR32 const highlight_color = frame->Menu.TextHighlightColor.a
+    color32_t const highlight_color = frame->Menu.TextHighlightColor.a
         ? frame->Menu.TextHighlightColor
         : Theme_ListBoxSelectedTextColor();
-    COLOR32 const text_color = frame->Font.Color.a ? frame->Font.Color : COLOR32_WHITE;
+    color32_t const text_color = frame->Font.Color.a ? frame->Font.Color : COLOR32_WHITE;
     uint32_t visible_rows;
     uint32_t max_scroll;
     rect_t clip;
@@ -283,7 +283,7 @@ static void UI_DrawMenu(LPCFRAMEDEF frame, rect_t const * rect) {
                                     .alphamode = BLEND_MODE_BLEND,
                                     .screen = track,
                                     .uv = MAKE(rect_t, 0, 0, 1, 1),
-                                     .color = MAKE(COLOR32, 0, 0, 0, 96),
+                                     .color = MAKE(color32_t, 0, 0, 0, 96),
                                      .flags = DRAW_CLIP,
                                     .clip = clip));
         renderer->DrawImageEx(&MAKE(drawImage_t,

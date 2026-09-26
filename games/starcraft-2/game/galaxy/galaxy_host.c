@@ -141,7 +141,7 @@ void galaxy_reset(void) {
     galaxy_loaded_reset();
 }
 
-void galaxy_fire_mapinit(LPJASS j) {
+void galaxy_fire_mapinit(jass_t * j) {
     fprintf(stderr, "galaxy_fire_mapinit: %u triggers registered, firing MapInit\n", sc2_trig_n);
     for (uint32_t i = 0; i < sc2_trig_n; i++) {
         if (sc2_trigs[i].mapinit && sc2_trigs[i].func) {
@@ -152,7 +152,7 @@ void galaxy_fire_mapinit(LPJASS j) {
     jass_runevents(j);
 }
 
-LPJASS galaxy_open(handle_t (*readfile)(cstring_t, uint32_t *),
+jass_t * galaxy_open(handle_t (*readfile)(cstring_t, uint32_t *),
                    uint32_t  (*gettime)(void),
                    handle_t (*memalloc)(long),
                    void   (*memfree)(handle_t)) {
@@ -160,14 +160,14 @@ LPJASS galaxy_open(handle_t (*readfile)(cstring_t, uint32_t *),
     sc2_orig_readfile = readfile;
     sc2_memalloc      = memalloc;
     sc2_memfree       = memfree;
-    jass_sethost(&(JASSHOST){
+    jass_sethost(&(jassHost_t){
         .MemAlloc       = memalloc,
         .MemFree        = memfree,
         .GetTime        = gettime,
         .ReadFile       = sc2_galaxy_readfile,
         .galaxy_natives = galaxy_get_natives(),
     });
-    LPJASS vm = jass_newstate();
+    jass_t * vm = jass_newstate();
     /* Load MapScript.galaxy only — it includes NativeLib/LibertyLib/CampaignLib
      * via its own `include` directives, each parsed exactly once.  Pre-loading
      * them separately causes each to be re-parsed 4–7 times via nested includes,
@@ -183,7 +183,7 @@ LPJASS galaxy_open(handle_t (*readfile)(cstring_t, uint32_t *),
     return vm;
 }
 
-void galaxy_close(LPJASS vm) {
+void galaxy_close(jass_t * vm) {
     if (vm) {
         for (uint32_t i = 0; i < jass_missingcount(vm); i++)
             fprintf(stderr, "galaxy: missing function: %s\n", jass_missingname(vm, i));
@@ -192,7 +192,7 @@ void galaxy_close(LPJASS vm) {
     galaxy_reset();
 }
 
-void galaxy_start(LPJASS vm) {
+void galaxy_start(jass_t * vm) {
     /* TODO: InitLibs reaches unimplemented dialog/purchase event producers. Keep this gap explicit until wired. */
     fprintf(stderr, "galaxy_start: warning: InitLibs is not yet supported (library event bindings incomplete)\n");
     static cstring_t const entry[] = { "InitGlobals", "InitTriggers" };
@@ -208,7 +208,7 @@ void galaxy_start(LPJASS vm) {
     fprintf(stderr, "galaxy_start: done, %u triggers registered\n", sc2_trig_n);
 }
 
-void galaxy_tick(LPJASS vm) {
+void galaxy_tick(jass_t * vm) {
     sc2_run_unit_orders();
     jass_runevents(vm);
     if (jass_rterror_pending(vm)) {
@@ -220,7 +220,7 @@ void galaxy_tick(LPJASS vm) {
 /* -------------------------------------------------------------------------
  * Native table
  * ------------------------------------------------------------------------- */
-static JASSMODULE sc2_galaxy_natives[] = {
+static jassModule_t sc2_galaxy_natives[] = {
     { "ACos",                                sc2_ACos },
     { "ASin",                                sc2_ASin },
     { "ATan",                                sc2_ATan },
@@ -645,4 +645,4 @@ static JASSMODULE sc2_galaxy_natives[] = {
     { NULL, NULL },
 };
 
-LPCJASSMODULE galaxy_get_natives(void) { return sc2_galaxy_natives; }
+jassModule_t const * galaxy_get_natives(void) { return sc2_galaxy_natives; }

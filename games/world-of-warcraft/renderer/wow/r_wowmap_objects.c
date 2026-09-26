@@ -1,6 +1,6 @@
 #include "r_wowmap.h"
 
-LPMODEL Wow_LoadDoodadModel(cstring_t path) {
+model_t * Wow_LoadDoodadModel(cstring_t path) {
     wowDoodadModel_t *entry, *prev = NULL;
 
     if (!path || !*path) return NULL;
@@ -59,7 +59,7 @@ void Wow_BucketDoodadInstance(wowDoodadInstance_t *instance) {
 
 void Wow_AddDoodadInstance(cstring_t model_path, wowDoodadDef_t const *def) {
     wowDoodadInstance_t *instance;
-    LPMODEL model;
+    model_t * model;
 
     if (!model_path || !*model_path || !def) {
         wow_world.num_missing_doodad_models++;
@@ -95,7 +95,7 @@ void Wow_AddDoodadInstance(cstring_t model_path, wowDoodadDef_t const *def) {
     instance = ri.MemAlloc(sizeof(*instance));
     memset(instance, 0, sizeof(*instance));
     instance->entity.origin = Wow_ObjectPoint(def->position);
-    instance->entity.rotation = (VECTOR3){ def->rotation.x, def->rotation.y, def->rotation.z };
+    instance->entity.rotation = (vector3_t){ def->rotation.x, def->rotation.y, def->rotation.z };
     instance->entity.scale = def->scale / 1024.0f;
     instance->entity.model = model;
     instance->entity.radius = 32.0f;
@@ -109,9 +109,9 @@ void Wow_AddDoodadInstance(cstring_t model_path, wowDoodadDef_t const *def) {
 }
 
 /* Ground-effect M2s already contain the authoritative geometry and material paths from the MPQ. */
-void Wow_AddGroundEffectInstance(cstring_t model_path, VECTOR3 origin, float angle) {
+void Wow_AddGroundEffectInstance(cstring_t model_path, vector3_t origin, float angle) {
     wowDoodadInstance_t *instance;
-    LPMODEL model;
+    model_t * model;
 
     model = Wow_LoadDoodadModel(model_path);
     if (!model) {
@@ -130,12 +130,12 @@ void Wow_AddGroundEffectInstance(cstring_t model_path, VECTOR3 origin, float ang
     wow_world.num_ground_effects++;
 }
 
-void Wow_AddMarker(VERTEX *vertices, uint32_t * index, VECTOR3 p, float size, COLOR32 color) {
-    VECTOR3 a = { p.x - size, p.y - size, p.z };
-    VECTOR3 b = { p.x + size, p.y - size, p.z };
-    VECTOR3 c = { p.x + size, p.y + size, p.z };
-    VECTOR3 d = { p.x - size, p.y + size, p.z };
-    VECTOR3 top = { p.x, p.y, p.z + size * 3.0f };
+void Wow_AddMarker(vertex_t *vertices, uint32_t * index, vector3_t p, float size, color32_t color) {
+    vector3_t a = { p.x - size, p.y - size, p.z };
+    vector3_t b = { p.x + size, p.y - size, p.z };
+    vector3_t c = { p.x + size, p.y + size, p.z };
+    vector3_t d = { p.x - size, p.y + size, p.z };
+    vector3_t top = { p.x, p.y, p.z + size * 3.0f };
     vertices[(*index)++] = Wow_Vertex(a.x, a.y, a.z, 0, 0, color);
     vertices[(*index)++] = Wow_Vertex(b.x, b.y, b.z, 1, 0, color);
     vertices[(*index)++] = Wow_Vertex(top.x, top.y, top.z, 0.5f, 1, color);
@@ -150,7 +150,7 @@ void Wow_AddMarker(VERTEX *vertices, uint32_t * index, VECTOR3 p, float size, CO
     vertices[(*index)++] = Wow_Vertex(top.x, top.y, top.z, 0.5f, 1, color);
 }
 
-VERTEX *Wow_AppendMarkers(VERTEX *old_vertices,
+vertex_t *Wow_AppendMarkers(vertex_t *old_vertices,
                                  uint32_t * old_count,
                                  uint8_t const *chunk,
                                  uint32_t size,
@@ -162,15 +162,15 @@ VERTEX *Wow_AppendMarkers(VERTEX *old_vertices,
     uint32_t record_size = wmo ? sizeof(wowMapObjDef_t) : sizeof(wowDoodadDef_t);
     uint32_t count = size / record_size;
     uint32_t new_count = *old_count + count * 12;
-    VERTEX *vertices = ri.MemAlloc(sizeof(VERTEX) * MAX(new_count, 1));
+    vertex_t *vertices = ri.MemAlloc(sizeof(vertex_t) * MAX(new_count, 1));
 
     if (*old_count && old_vertices) {
-        memcpy(vertices, old_vertices, sizeof(VERTEX) * *old_count);
+        memcpy(vertices, old_vertices, sizeof(vertex_t) * *old_count);
         ri.MemFree(old_vertices);
     }
 
     FOR_LOOP(i, count) {
-        VECTOR3 p;
+        vector3_t p;
         if (wmo) {
             wowMapObjDef_t const *def = (wowMapObjDef_t const *)(chunk + i * record_size);
             p = Wow_ObjectPoint(def->position);
@@ -202,16 +202,16 @@ VERTEX *Wow_AppendMarkers(VERTEX *old_vertices,
     return vertices;
 }
 
-VERTEX *Wow_AppendDoodadErrorMarkers(VERTEX *old_vertices,
+vertex_t *Wow_AppendDoodadErrorMarkers(vertex_t *old_vertices,
                                             uint32_t * old_count,
                                             uint8_t const *chunk,
                                             uint32_t size) {
     uint32_t count = size / sizeof(wowDoodadDef_t);
     uint32_t new_count = *old_count + count * 12;
-    VERTEX *vertices = ri.MemAlloc(sizeof(VERTEX) * MAX(new_count, 1));
+    vertex_t *vertices = ri.MemAlloc(sizeof(vertex_t) * MAX(new_count, 1));
 
     if (*old_count && old_vertices) {
-        memcpy(vertices, old_vertices, sizeof(VERTEX) * *old_count);
+        memcpy(vertices, old_vertices, sizeof(vertex_t) * *old_count);
         ri.MemFree(old_vertices);
     }
 

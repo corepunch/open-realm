@@ -59,11 +59,11 @@ static void *gal_read_file(const char *path, unsigned int *out_size) {
 
 /* Native stubs for the test host.  TestFail wires Galaxy assertions into
  * jass_rterror so T_ASSERT(!jass_rterror_pending(j)) detects failures. */
-static unsigned int gal_stub(LPJASS j)    { return jass_pushnull(j); }
-static unsigned int gal_void(LPJASS j)    { (void)j; return 0; }
-static unsigned int gal_true(LPJASS j) { return jass_pushboolean(j, 1); }
-static unsigned int gal_false_ret(LPJASS j) { return jass_pushboolean(j, 0); }
-static unsigned int gal_zero(LPJASS j)    { return jass_pushinteger(j, 0); }
+static unsigned int gal_stub(jass_t * j)    { return jass_pushnull(j); }
+static unsigned int gal_void(jass_t * j)    { (void)j; return 0; }
+static unsigned int gal_true(jass_t * j) { return jass_pushboolean(j, 1); }
+static unsigned int gal_false_ret(jass_t * j) { return jass_pushboolean(j, 0); }
+static unsigned int gal_zero(jass_t * j)    { return jass_pushinteger(j, 0); }
 static float gal_sound_length(cstring_t id, int asset) {
     return !strcmp(id, "IntroLine") && asset == 2 ? 2.5f : 0.0f;
 }
@@ -72,7 +72,7 @@ static void gal_actor_destroy(unsigned id) { gal_actor_destroyed++; gal_actor_la
 static bool gal_unit_moving;
 static int32_t gal_move_count;
 static float gal_move_x;
-static LPCJASSFUNC gal_saved_code;
+static jassFunc_t const * gal_saved_code;
 static uint32_t gal_code_calls;
 static void *gal_unit_create(cstring_t type, int player, float x, float y, float angle) {
     (void)type; (void)player; (void)x; (void)y; (void)angle;
@@ -98,17 +98,17 @@ static void gal_unit_move(void *ent, float x, float y) {
 }
 static bool gal_is_moving(void *ent) { (void)ent; return gal_unit_moving; }
 
-static uint32_t gal_save_code(LPJASS j) { gal_saved_code = jass_checkcode(j, 1); return 0; }
-static uint32_t gal_call_saved(LPJASS j) { jass_pushfunction(j, gal_saved_code); return jass_call(j, 0); }
-static uint32_t gal_code_callback(LPJASS j) { (void)j; gal_code_calls++; return 0; }
+static uint32_t gal_save_code(jass_t * j) { gal_saved_code = jass_checkcode(j, 1); return 0; }
+static uint32_t gal_call_saved(jass_t * j) { jass_pushfunction(j, gal_saved_code); return jass_call(j, 0); }
+static uint32_t gal_code_callback(jass_t * j) { (void)j; gal_code_calls++; return 0; }
 
-static unsigned int gal_TestFail(LPJASS j) {
+static unsigned int gal_TestFail(jass_t * j) {
     cstring_t msg = jass_checkstring(j, 1);
     jass_rterror(j, msg ? msg : "TestFail");
     return 0;
 }
 
-static JASSMODULE gal_test_natives[] = {
+static jassModule_t gal_test_natives[] = {
     { "TestFail", gal_TestFail },
     { "NoValue", gal_void },
     { "SaveCode", gal_save_code },
@@ -229,7 +229,7 @@ static JASSMODULE gal_test_natives[] = {
     { NULL, NULL },
 };
 
-static JASSMODULE gal_assert_natives[] = {
+static jassModule_t gal_assert_natives[] = {
     { "TestFail", gal_TestFail },
     { "NoValue", gal_void },
     { NULL, NULL },
@@ -240,12 +240,12 @@ static JASSMODULE gal_assert_natives[] = {
  * ========================================================================= */
 
 typedef struct {
-    LPJASS j;
+    jass_t * j;
     char   errmsg[256];
 } gal_state_t;
 
 static gal_state_t gal_new(void) {
-    jass_sethost(&MAKE(JASSHOST,
+    jass_sethost(&MAKE(jassHost_t,
         .MemAlloc         = gal_alloc,
         .MemFree          = gal_free,
         .ReadFile         = gal_read_file,
@@ -827,7 +827,7 @@ TEST(galaxy, vm_const_locals) {
 /* The real native takes one integer, including when nested in campaign text concatenation. */
 TEST(galaxy, vm_format_number) {
     gal_state_t s = gal_new();
-    jass_sethost(&MAKE(JASSHOST, .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+    jass_sethost(&MAKE(jassHost_t, .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
         .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
     T_ASSERT(gal_run(&s,
         "native void TestFail(string msg); native text FormatNumber(int number);\n"
@@ -843,7 +843,7 @@ TEST(galaxy, vm_format_number) {
 /* Match the authored animation call, finite replacement limits, and both case modes. */
 TEST(galaxy, vm_replace_word) {
     gal_state_t s = gal_new();
-    jass_sethost(&MAKE(JASSHOST, .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+    jass_sethost(&MAKE(jassHost_t, .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
         .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
     T_ASSERT(gal_run(&s,
         "native void TestFail(string msg);\n"
@@ -863,7 +863,7 @@ TEST(galaxy, vm_replace_word) {
 /* CinematicFade's color uses fixed percentages, while Color supplies opaque alpha. */
 TEST(galaxy, vm_color_percentages) {
     gal_state_t s = gal_new();
-    jass_sethost(&MAKE(JASSHOST, .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+    jass_sethost(&MAKE(jassHost_t, .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
         .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
     T_ASSERT(gal_parse(&s,
         "native color Color(fixed r, fixed g, fixed b);\n"
@@ -1024,7 +1024,7 @@ TEST(galaxy, vm_unknown_global_initializer_is_protected) {
 TEST(galaxy, vm_objective_lifecycle) {
     gal_state_t s = gal_new();
     galaxy_reset();
-    jass_sethost(&MAKE(JASSHOST, .MemAlloc = gal_alloc, .MemFree = gal_free, .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
+    jass_sethost(&MAKE(jassHost_t, .MemAlloc = gal_alloc, .MemFree = gal_free, .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
     T_ASSERT(gal_run(&s,
         "native void TestFail(string msg);"
         "void main() {"
@@ -1049,7 +1049,7 @@ TEST(galaxy, cargo_inherits_transport_owner) {
     galaxy_reset(); gal_units = 0;
     sc2_galaxy_on_unit_create = gal_owned_create;
     sc2_galaxy_unit_owner = gal_unit_owner;
-    jass_sethost(&MAKE(JASSHOST, .MemAlloc = gal_alloc, .MemFree = gal_free, .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
+    jass_sethost(&MAKE(jassHost_t, .MemAlloc = gal_alloc, .MemFree = gal_free, .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
     T_ASSERT(gal_run(&s,
         "native void TestFail(string msg); void main() {"
         "UnitCreate(1, \"Dropship\", 0, 4, Point(0.0, 0.0), 0.0);"
@@ -1069,7 +1069,7 @@ TEST(galaxy, vm_actor_scope_first) {
     gal_actor_destroyed = gal_actor_last = 0;
     sc2_galaxy_on_actor_destroy = gal_actor_destroy;
     sc2_galaxy_on_unit_create = gal_unit_create;
-    jass_sethost(&MAKE(JASSHOST, .MemAlloc = gal_alloc, .MemFree = gal_free, .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
+    jass_sethost(&MAKE(jassHost_t, .MemAlloc = gal_alloc, .MemFree = gal_free, .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
     T_ASSERT(gal_run(&s,
         "native void TestFail(string msg);"
         "native actorscope ActorScopeFromUnit(unit u);"
@@ -1110,7 +1110,7 @@ TEST(galaxy, vm_bad_native_argument_is_protected) {
 
 TEST(galaxy, vm_string_word) {
     gal_state_t s = gal_new();
-    jass_sethost(&MAKE(JASSHOST,
+    jass_sethost(&MAKE(jassHost_t,
         .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
         .natives = gal_test_natives, .galaxy_natives = galaxy_get_natives(),
     ));
@@ -1126,7 +1126,7 @@ TEST(galaxy, vm_string_word) {
 
 TEST(galaxy, vm_string_word_loop_terminates) {
     gal_state_t s = gal_new();
-    jass_sethost(&MAKE(JASSHOST,
+    jass_sethost(&MAKE(jassHost_t,
         .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
         .natives = gal_test_natives, .galaxy_natives = galaxy_get_natives(),
     ));
@@ -1152,7 +1152,7 @@ TEST(galaxy, vm_string_word_loop_terminates) {
 TEST(galaxy, vm_sound_link_length) {
     gal_state_t s = gal_new();
     sc2_galaxy_sound_length = gal_sound_length;
-    jass_sethost(&MAKE(JASSHOST,
+    jass_sethost(&MAKE(jassHost_t,
         .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
         .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives(),
     ));
@@ -1174,7 +1174,7 @@ TEST(galaxy, vm_unit_order_append_waits_for_idle) {
     sc2_galaxy_on_unit_create = gal_unit_create;
     sc2_galaxy_unit_move = gal_unit_move;
     sc2_galaxy_unit_is_moving = gal_is_moving;
-    jass_sethost(&MAKE(JASSHOST,
+    jass_sethost(&MAKE(jassHost_t,
         .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
         .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives(),
     ));
@@ -1214,7 +1214,7 @@ TEST(galaxy, vm_coroutine_void_argument) {
 TEST(galaxy, vm_coroutine_executes_dynamic_trigger) {
     gal_state_t s = gal_new();
     galaxy_reset();
-    jass_sethost(&MAKE(JASSHOST,
+    jass_sethost(&MAKE(jassHost_t,
         .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
         .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives(),
     ));
@@ -1244,7 +1244,7 @@ TEST(galaxy, vm_coroutine_executes_dynamic_trigger) {
 TEST(galaxy, vm_trigger_fires_multiple_times) {
     gal_state_t s = gal_new();
     galaxy_reset();
-    jass_sethost(&MAKE(JASSHOST,
+    jass_sethost(&MAKE(jassHost_t,
         .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
         .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives(),
     ));
@@ -1311,13 +1311,13 @@ static void *gal_include_read_file(const char *path, unsigned int *out_size) {
 }
 
 TEST(galaxy, include_loads_sub_file) {
-    jass_sethost(&MAKE(JASSHOST,
+    jass_sethost(&MAKE(jassHost_t,
         .MemAlloc       = gal_alloc,
         .MemFree        = gal_free,
         .ReadFile       = gal_include_read_file,
         .galaxy_natives = gal_test_natives,
     ));
-    LPJASS j = jass_newstate();
+    jass_t * j = jass_newstate();
 
     static const char src[] =
         "include \"sub\"\n"
@@ -1340,13 +1340,13 @@ TEST(galaxy, include_loads_sub_file) {
 }
 
 TEST(galaxy, include_sub_function_callable) {
-    jass_sethost(&MAKE(JASSHOST,
+    jass_sethost(&MAKE(jassHost_t,
         .MemAlloc       = gal_alloc,
         .MemFree        = gal_free,
         .ReadFile       = gal_include_read_file,
         .galaxy_natives = gal_test_natives,
     ));
-    LPJASS j = jass_newstate();
+    jass_t * j = jass_newstate();
 
     static const char src[] =
         "include \"sub\"\n"
@@ -1385,13 +1385,13 @@ TEST(galaxy, dofile_autodetects_galaxy_extension) {
     fwrite(src, 1, strlen(src), f);
     fclose(f);
 
-    jass_sethost(&MAKE(JASSHOST,
+    jass_sethost(&MAKE(jassHost_t,
         .MemAlloc       = gal_alloc,
         .MemFree        = gal_free,
         .ReadFile       = gal_read_file,
         .galaxy_natives = gal_test_natives,
     ));
-    LPJASS j = jass_newstate();
+    jass_t * j = jass_newstate();
     jass_dofile(j, path);
     jass_callbyname(j, "probe", false);
     jass_runevents(j);
@@ -1415,7 +1415,7 @@ static int gal_file_exists(const char *path) {
 
 static int gal_load_errors = 0;
 
-static void gal_load(LPJASS j, const char *path) {
+static void gal_load(jass_t * j, const char *path) {
     jass_rterror_clear(j);
     bool ok = jass_dofile_ex(j, path, JASS_MODE_GALAXY);
     if (!ok || jass_rterror_pending(j)) {
@@ -1474,7 +1474,7 @@ TEST(galaxy, create_and_set_facing_share_radian_host_contract) {
     gal_created_angle = gal_facing_angle = 0;
     sc2_galaxy_on_unit_create = gal_facing_create;
     sc2_galaxy_unit_set_position = gal_set_facing;
-    jass_sethost(&MAKE(JASSHOST, .MemAlloc = gal_alloc, .MemFree = gal_free, .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
+    jass_sethost(&MAKE(jassHost_t, .MemAlloc = gal_alloc, .MemFree = gal_free, .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
     T_ASSERT(gal_run(&s,
         "void main() { UnitCreate(1, \"Marine\", 0, 1, Point(3.0, 5.0), 90.0);"
         "UnitSetFacing(UnitLastCreated(), 90.0, 0.0); }"));

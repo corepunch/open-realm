@@ -7,20 +7,20 @@ static uint32_t sc2_test_count, sc2_test_time;
 static void sc2_test_write(pfWriteType_t type, void const *value) {
     if (type == PF_BYTE || type == PF_LONG) sc2_test_wire[sc2_test_count++] = *(int32_t const *)value;
 }
-static void sc2_test_unicast(LPEDICT ent) { (void)ent; }
-static void sc2_test_link(LPEDICT ent) { (void)ent; }
+static void sc2_test_unicast(edict_t * ent) { (void)ent; }
+static void sc2_test_link(edict_t * ent) { (void)ent; }
 static uint32_t sc2_test_clock(void) { return sc2_test_time; }
 
 /* Compare the renderer's native model front with a completed authoritative move step. */
-static void sc2_test_model_follows_step(LPCEDICT ent, VECTOR2 previous) {
+static void sc2_test_model_follows_step(edict_t const * ent, vector2_t previous) {
     entityState_t state = ent->s;
     model_t model = { .modeltype = ID_43DM };
     renderEntity_t render = { .model = &model, .origin = state.origin, .angle = state.angle, .scale = 1 };
-    MATRIX4 matrix;
+    matrix4_t matrix;
     R_GetEntityMatrix(&render, &matrix);
-    VECTOR3 front = Matrix4_multiply_vector3(&matrix, &MAKE(VECTOR3, 0, -1, 0));
-    VECTOR2 forward = { front.x - state.origin.x, front.y - state.origin.y };
-    VECTOR2 step = Vector2_sub(&ent->s.origin2, &previous);
+    vector3_t front = Matrix4_multiply_vector3(&matrix, &MAKE(vector3_t, 0, -1, 0));
+    vector2_t forward = { front.x - state.origin.x, front.y - state.origin.y };
+    vector2_t step = Vector2_sub(&ent->s.origin2, &previous);
     Vector2_normalize(&step); Vector2_normalize(&forward);
     T_ASSERT(forward.x * step.x + forward.y * step.y > 0.9999f);
 }
@@ -76,7 +76,7 @@ TEST(sc2_control, shared_router_detours_and_arrives) {
     sc2Map_t *map = SC2_MapCurrent();
     sc2MapInfo_t info = map->MapInfo;
     float cell = map->cell_size;
-    VECTOR2 origin = map->origin;
+    vector2_t origin = map->origin;
     uint8_t cells[32 * 32] = { 0 };
     animation_t anims[] = { { .name = "Stand", .interval = {0, 1000} }, { .name = "Walk", .interval = {1000, 2000} } };
     g_cmodel_t model = g_models[1];
@@ -84,14 +84,14 @@ TEST(sc2_control, shared_router_detours_and_arrives) {
     gi.LinkEntity = sc2_test_link; gi.GetTime = sc2_test_clock;
     memset(sc2_edicts, 0, sizeof(sc2_edicts)); memset(sc2_move, 0, sizeof(sc2_move));
     globals.num_edicts = 2;
-    map->MapInfo.width = map->MapInfo.height = 32; map->cell_size = 1; map->origin = (VECTOR2){0};
+    map->MapInfo.width = map->MapInfo.height = 32; map->cell_size = 1; map->origin = (vector2_t){0};
     FOR_LOOP(y, 20) cells[y * 32 + 16] = 2;
     CM_SetupPathMap(32, 32, cells);
-    LPEDICT ent = &sc2_edicts[1];
+    edict_t * ent = &sc2_edicts[1];
     *ent = (edict_t){ .inuse = true, .svflags = SVF_MONSTER, .collision = 0.375f,
         .s = { .number = 1, .model = 1, .origin = {8.25f, 10.25f, 0} } };
     sc2_move[1].mobile = true;
-    VECTOR2 target = {24.375f, 10.625f};
+    vector2_t target = {24.375f, 10.625f};
     SC2_OrderMove(ent, &target);
     T_FEQ(sc2_move[1].target.x, target.x, 0.00001f);
     T_ASSERT(!CM_LineIsWalkableForRadius(&ent->s.origin2, &target, ent->collision));
@@ -99,7 +99,7 @@ TEST(sc2_control, shared_router_detours_and_arrives) {
     T_ASSERT(sc2_move[1].path.valid); /* WC3's immediate A* handles a pending field. */
     bool detour = false;
     for (int i = 0; i < 300 && sc2_move[1].moving; i++) {
-        VECTOR2 prev = ent->s.origin2;
+        vector2_t prev = ent->s.origin2;
         CM_ProcessPathJobs(BZ_PATH_WORK_BUDGET);
         SC2_RunUnit(ent);
         T_ASSERT(CM_LineIsWalkableForRadius(&prev, &ent->s.origin2, ent->collision));
@@ -123,7 +123,7 @@ TEST(sc2_control, cutscene_flight_preserves_positions) {
     gi.LinkEntity = sc2_test_link; gi.GetTime = sc2_test_clock;
     memset(sc2_edicts, 0, sizeof(sc2_edicts)); memset(sc2_move, 0, sizeof(sc2_move));
     globals.num_edicts = 2;
-    LPEDICT ent = &sc2_edicts[1];
+    edict_t * ent = &sc2_edicts[1];
     *ent = (edict_t){ .inuse = true, .s = { .number = 1, .model = 1, .radius = 0.375f } };
     sc2_move[1].mobile = sc2_move[1].flying = true; sc2_move[1].height = 4.375f;
     SC2_GalaxyUnitSetPosition(ent, 8.25f, 10.125f, 0);
@@ -147,14 +147,14 @@ TEST(sc2_control, cardinal_move_orders_face_displacement) {
     FOR_LOOP(i, 4) {
         memset(sc2_edicts, 0, sizeof(sc2_edicts)); memset(sc2_move, 0, sizeof(sc2_move));
         globals.num_edicts = 2; sc2_edicts[0].client = &sc2_clients[0]; sc2_clients[0].ps.number = 1;
-        LPEDICT ent = &sc2_edicts[1];
+        edict_t * ent = &sc2_edicts[1];
         *ent = (edict_t){ .inuse = true, .s = { .number = 1, .model = 1, .scale = 1, .player = 1, .origin = {8, 8, 0} } };
         sc2_move[1].mobile = true;
         sc2_test_count = 0;
         SC2_ClientCommand(sc2_edicts, 2, (cstring_t[]){"select", "1"});
         cstring_t points[][2] = { {"20", "8"}, {"8", "20"}, {"0", "8"}, {"8", "0"} };
         SC2_ClientCommand(sc2_edicts, 3, (cstring_t[]){"smartpoint", points[i][0], points[i][1]});
-        VECTOR2 previous = ent->s.origin2;
+        vector2_t previous = ent->s.origin2;
         SC2_RunUnit(ent);
         T_ASSERT(sc2_move[1].moving);
         sc2_test_model_follows_step(ent, previous);

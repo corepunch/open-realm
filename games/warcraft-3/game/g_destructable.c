@@ -4,7 +4,7 @@
 #define NO_RANDOM_ITEM_TABLE ((uint32_t)-1) // table index; war3map.doo sentinel meaning no random-item table
 #define RANDOM_ITEM_PREFIX_MASK 0x00ffffff // bits; compare the YYI prefix while ignoring its encoded selector byte
 
-static void G_ApplyDestructableAlivePathing(LPEDICT ent) {
+static void G_ApplyDestructableAlivePathing(edict_t * ent) {
     ent->pathtex = ent->destructable.placement_solid
         ? ent->destructable.alive_pathtex
         : NULL;
@@ -20,7 +20,7 @@ static void G_ApplyDestructableAlivePathing(LPEDICT ent) {
         ent->s.flags &= ~EF_GROUND_SURFACE;
 }
 
-static void G_ApplyDestructableDeathPathing(LPEDICT ent) {
+static void G_ApplyDestructableDeathPathing(edict_t * ent) {
     ent->pathtex = ent->destructable.placement_solid
         ? ent->destructable.death_pathtex
         : NULL;
@@ -34,7 +34,7 @@ static void G_ApplyDestructableDeathPathing(LPEDICT ent) {
  * Activate a preplaced war3map.doo placeholder when generated war3map.j
  * creates the corresponding destructable through CreateDestructable().
  */
-void G_ActivateScriptedDestructable(LPEDICT ent,
+void G_ActivateScriptedDestructable(edict_t * ent,
                                     float x,
                                     float y,
                                     float z,
@@ -77,7 +77,7 @@ void G_ActivateScriptedDestructable(LPEDICT ent,
     gi.LinkEntity(ent);
 }
 
-bool G_IsDestructable(LPCEDICT ent) {
+bool G_IsDestructable(edict_t const * ent) {
     if (!ent || !ent->inuse || !ent->class_id) {
         return false;
     }
@@ -93,21 +93,21 @@ bool G_IsDestructable(LPCEDICT ent) {
     return level.mapinfo && ent->data.DestructableData && ent->data.DestructableData->file != NULL;
 }
 
-bool G_DestructableIsAttackable(LPCEDICT ent) {
+bool G_DestructableIsAttackable(edict_t const * ent) {
     return G_IsDestructable(ent) && !ent->destructable.dead &&
         ent->health.value > 0.0f && ent->targtype != TARG_NONE &&
         !(ent->s.renderfx & RF_HIDDEN) &&
         !(ent->s.flags & EF_NOT_SELECTABLE);
 }
 
-bool G_DestructableIsWalkable(LPCEDICT ent) {
+bool G_DestructableIsWalkable(edict_t const * ent) {
     return G_IsDestructable(ent) && ent->data.DestructableData->walkable &&
         ent->destructable.placement_solid && !ent->destructable.dead;
 }
 
 /* Warcraft target flags are shared with ordinary unit weapon targeting;
  * G_TargetFlagForType() owns the TARGTYPE -> common.j bit conversion. */
-bool G_DestructableCanBeAttackedBy(LPCEDICT attacker, LPCEDICT target) {
+bool G_DestructableCanBeAttackedBy(edict_t const * attacker, edict_t const * target) {
     uint32_t flag;
 
     if (!attacker || !G_DestructableIsAttackable(target) ||
@@ -125,7 +125,7 @@ bool G_DestructableCanBeAttackedBy(LPCEDICT attacker, LPCEDICT target) {
                     (attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) && (attacker->attack2.targetsAllowed & flag)));
 }
 
-bool G_DestructableAcceptsSmartAttack(LPCEDICT attacker, LPCEDICT target) {
+bool G_DestructableAcceptsSmartAttack(edict_t const * attacker, edict_t const * target) {
     /* Retail Smart/right-click treats attackable walls like gates as attack
      * targets. Bridges retain walk-to behavior unless explicitly attackable. */
     return G_DestructableCanBeAttackedBy(attacker, target) &&
@@ -217,7 +217,7 @@ static void G_QueueDestructableDrop(uint32_t item_id,
 /* Spawn each selected inline or map-table drop as a normal neutral-passive
  * world item.
  * Marking first makes the operation safe against callbacks or repeated kills. */
-void G_SpawnDestructableLoot(LPEDICT ent) {
+void G_SpawnDestructableLoot(edict_t * ent) {
     mapRandomItemTable_t const *table;
     uint32_t *selected;
     uint32_t selected_count = 0;
@@ -259,23 +259,23 @@ void G_SpawnDestructableLoot(LPEDICT ent) {
     FOR_LOOP(i, selected_count) {
         float angle = selected_count > 1 ? 2.0f * M_PI * (float)i / (float)selected_count : 0.0f;
         float radius = selected_count > 1 ? DESTRUCTABLE_DROP_RADIUS : 0.0f;
-        VECTOR2 point = {
+        vector2_t point = {
             ent->s.origin.x + cosf(angle) * radius,
             ent->s.origin.y + sinf(angle) * radius,
         };
 
-        LPEDICT item = SP_SpawnAtLocation(selected[i], PLAYER_NEUTRAL_PASSIVE, &point);
+        edict_t * item = SP_SpawnAtLocation(selected[i], PLAYER_NEUTRAL_PASSIVE, &point);
 
         if (!item) fprintf(stderr, "G_SpawnDestructableLoot: failed to spawn item 0x%08x\n", selected[i]);
     }
     gi.MemFree(selected);
 }
 
-static bool G_EnterDestructableDeathState(LPEDICT ent,
-                                          LPEDICT killer,
+static bool G_EnterDestructableDeathState(edict_t * ent,
+                                          edict_t * killer,
                                           bool publish_event,
                                           bool rebuild_pathing) {
-    void (*callback)(LPEDICT, LPEDICT);
+    void (*callback)(edict_t *, edict_t *);
 
     if (!G_IsDestructable(ent) || ent->destructable.dead) return false;
 
@@ -314,7 +314,7 @@ static bool G_EnterDestructableDeathState(LPEDICT ent,
     return true;
 }
 
-void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement) {
+void G_InitializeDestructablePlacement(edict_t * ent, doodad_t const * placement) {
     float life_fraction;
     bool visible;
 
@@ -352,15 +352,15 @@ void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement) {
     }
 }
 
-bool G_KillDestructable(LPEDICT ent, LPEDICT killer) {
+bool G_KillDestructable(edict_t * ent, edict_t * killer) {
     return G_EnterDestructableDeathState(ent, killer, true, true);
 }
 
-bool G_SetDestructableDeadState(LPEDICT ent, bool process_death) {
+bool G_SetDestructableDeadState(edict_t * ent, bool process_death) {
     return G_EnterDestructableDeathState(ent, NULL, process_death, true);
 }
 
-bool G_RemoveDestructable(LPEDICT ent) {
+bool G_RemoveDestructable(edict_t * ent) {
     if (!G_IsDestructable(ent)) {
         return false;
     }
@@ -370,7 +370,7 @@ bool G_RemoveDestructable(LPEDICT ent) {
     return true;
 }
 
-bool G_RestoreDestructable(LPEDICT ent, float life, bool birth) {
+bool G_RestoreDestructable(edict_t * ent, float life, bool birth) {
     float restored_life;
 
     if (!G_IsDestructable(ent)) {
@@ -403,7 +403,7 @@ bool G_RestoreDestructable(LPEDICT ent, float life, bool birth) {
     return true;
 }
 
-bool G_SetDestructableLife(LPEDICT ent, float life) {
+bool G_SetDestructableLife(edict_t * ent, float life) {
     if (!G_IsDestructable(ent)) {
         return false;
     }
@@ -421,7 +421,7 @@ bool G_SetDestructableLife(LPEDICT ent, float life) {
     return true;
 }
 
-bool G_DestructableApplyDamage(LPEDICT ent, LPEDICT attacker, float damage) {
+bool G_DestructableApplyDamage(edict_t * ent, edict_t * attacker, float damage) {
     if (!G_IsDestructable(ent) || ent->destructable.dead || ent->invulnerable || damage <= 0.0f) return false;
 
     if (damage >= ent->health.value) {
