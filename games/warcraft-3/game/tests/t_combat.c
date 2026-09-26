@@ -355,6 +355,46 @@ TEST(wc3_combat, automatic_acquisition_ignores_invulnerable_units) {
     T_ASSERT(G_FindNearestEnemy(attacker, 128.0f) == target);
 }
 
+TEST(wc3_combat, hidden_owner_transferred_unit_cannot_be_acquired_or_attacked) {
+    LPEDICT cairne, tauren;
+    LPMAPINFO mapinfo;
+
+    setup_test_world(); reset_entities();
+    mapinfo = (LPMAPINFO)level.mapinfo;
+    mapinfo->players[0].playerType = kPlayerTypeHuman;
+    mapinfo->players[4].playerType = kPlayerTypeComputer;
+    mapinfo->players[5].playerType = kPlayerTypeComputer;
+    cairne = make_combat_unit(MAKEFOURCC('O','c','b','h'), 1200.0f, 0.0f, 0.0f);
+    tauren = make_combat_unit(MAKEFOURCC('o','t','a','u'), 700.0f, 48.0f, 0.0f);
+    cairne->s.player = 4; tauren->s.player = 0;
+    cairne->targtype = tauren->targtype = TARG_GROUND;
+    tauren->attack1.type = ATK_NORMAL;
+    tauren->attack1.cooldown = 1.5f;
+    tauren->attack1.damageBase = 25;
+    tauren->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    gi.LinkEntity(cairne); gi.LinkEntity(tauren);
+
+    T_ASSERT(G_FindNearestEnemy(tauren, 128.0f) == cairne);
+    T_ASSERT(S_OrderAttack(tauren, cairne));
+    attack_melee(tauren);
+    tauren->wait = 0.0f;
+    cairne->s.renderfx |= RF_HIDDEN;
+    cairne->s.player = 5;
+    tauren->currentmove->think(tauren);
+
+    T_FEQ(cairne->health.value, 1200.0f, 0.01f);
+    T_NULL(tauren->goalentity);
+    T_NULL(G_FindNearestEnemy(tauren, 128.0f));
+    T_ASSERT(!S_AttackCanTarget(tauren, cairne));
+    T_ASSERT(!S_OrderAttack(tauren, cairne));
+    T_NULL(tauren->goalentity);
+
+    cairne->s.renderfx &= ~RF_HIDDEN;
+    T_ASSERT(G_FindNearestEnemy(tauren, 128.0f) == cairne);
+    T_ASSERT(S_OrderAttack(tauren, cairne));
+    T_ASSERT(tauren->goalentity == cairne);
+}
+
 TEST(wc3_combat, attack_target_mask_rejects_air_until_air_is_allowed) {
     edict_t *attacker, *target;
 
