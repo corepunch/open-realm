@@ -88,6 +88,11 @@ static uint32_t sc2_RegionAddRegion(jass_t *j) {
 }
 static uint32_t sc2_RegionContainsPoint(jass_t *j) { return jass_pushboolean(j,sc2_region_has_point(sc2_region(j,1),*sc2_point(j,2))); }
 static uint32_t sc2_region_bound_result(jass_t *j, int which) {
+    /* RegionFromId is still null. A script error here aborts InitTriggers before the intro. */
+    if (!jass_checkhandle(j, 1, "region")) {
+        fprintf(stderr, "SC2 galaxy: region bound skipped, region handle is null\n");
+        return jass_pushnullhandle(j, "point");
+    }
     sc2Region_t *r = sc2_region(j,1); sc2GPoint_t lo={0},hi={0},p=sc2_region_offset(r);
     if (!sc2_region_bounds(r->root,&lo,&hi)) return jass_pushnullhandle(j,"point");
     p.x += which == 0 ? lo.x : which == 1 ? hi.x : (lo.x+hi.x)*0.5f;

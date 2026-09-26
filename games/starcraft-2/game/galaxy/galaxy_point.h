@@ -17,6 +17,13 @@ static sc2GPoint_t *sc2_point(jass_t *j, int arg) {
 static uint32_t sc2_point_result(jass_t *j, sc2GPoint_t p) {
     return jass_pushlighthandle(j,(handle_t)(uintptr_t)sc2_point_new(j,p),"point");
 }
+static uint32_t sc2_ev_point_result(jass_t *j) {
+    sc2evresp_t const *e = sc2_ev_now();
+    return e && e->has_point ? sc2_point_result(j, (sc2GPoint_t){ e->x, e->y, e->z, 0 }) : jass_pushnullhandle(j, "point");
+}
+static uint32_t sc2_EventUnitDamageSourcePoint(jass_t *j) { return sc2_ev_point_result(j); }
+static uint32_t sc2_EventUnitTargetPoint(jass_t *j) { return sc2_ev_point_result(j); }
+static uint32_t sc2_EventUnitInventoryItemTargetPoint(jass_t *j) { return sc2_ev_point_result(j); }
 static bool sc2_unit_location_handle(int32_t h, sc2GPoint_t *p);
 
 /* PointFromId: look up map point object by ID, return typed handle. */

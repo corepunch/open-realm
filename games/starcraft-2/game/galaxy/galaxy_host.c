@@ -93,8 +93,8 @@ void (*sc2_galaxy_on_actor_destroy)(unsigned actor_id);
  * Domain modules — each brings its own state, helpers, and native functions.
  * ------------------------------------------------------------------------- */
 #include "galaxy_collection.h"
-#include "galaxy_player.h"
 #include "galaxy_trigger.h"
+#include "galaxy_player.h"
 #include "galaxy_point.h"
 #include "galaxy_catalog.h"
 #include "galaxy_unit.h"
@@ -150,6 +150,13 @@ void galaxy_reset(void) {
     sc2_gactor_n = 0;
     sc2_last_actor_handle = 0;
     sc2_scope_n = sc2_scope_last = 0;
+    memset(sc2_evregs, 0, sizeof(sc2_evregs));
+    memset(sc2_timers, 0, sizeof(sc2_timers));
+    memset(sc2_clock_ms, 0, sizeof(sc2_clock_ms));
+    memset(sc2_ux, 0, sizeof(sc2_ux));
+    memset(sc2_uy, 0, sizeof(sc2_uy));
+    memset(sc2_uxy_set, 0, sizeof(sc2_uxy_set));
+    sc2_evdepth = 0; sc2_trig_current = 0; sc2_ai_paused = false; sc2_timer_last = 0; sc2_ev_matched[0] = 0;
     memset(sc2_scopes, 0, sizeof(sc2_scopes));
     memset(sc2_unit_scope, 0, sizeof(sc2_unit_scope));
     memset(sc2_int_loops, 0, sizeof(sc2_int_loops));
@@ -209,8 +216,8 @@ void galaxy_close(jass_t *vm) {
 }
 
 void galaxy_start(jass_t *vm) {
-    /* TODO: InitLibs reaches unimplemented dialog/purchase event producers. Keep this gap explicit until wired. */
-    fprintf(stderr, "galaxy_start: warning: InitLibs is not yet supported (library event bindings incomplete)\n");
+    /* Dialog and purchase callbacks are registered. Their UI producers, and the rest of InitLibs, are not wired. */
+    fprintf(stderr, "galaxy_start: warning: InitLibs is not yet supported (event producers incomplete)\n");
     static cstring_t const entry[] = { "InitGlobals", "InitTriggers" };
     for (uint32_t i = 0; i < sizeof(entry) / sizeof(*entry); i++) {
         fprintf(stderr, "galaxy_start: calling %s\n", entry[i]);
@@ -225,7 +232,9 @@ void galaxy_start(jass_t *vm) {
 }
 
 void galaxy_tick(jass_t *vm) {
-    sc2_run_unit_orders();
+    sc2_ev_tick(vm);
+    sc2_run_unit_orders(vm);
+    sc2_ev_spatial_tick(vm);
     jass_runevents(vm);
     if (jass_rterror_pending(vm)) {
         fprintf(stderr, "galaxy: runtime error: %s\n", jass_rterror_message(vm));
@@ -353,9 +362,56 @@ static jassModule_t sc2_galaxy_natives[] = {
     { "DifficultyName",                      sc2_DifficultyName },
     { "DifficultyNameCampaign",              sc2_DifficultyNameCampaign },
     { "DistanceBetweenPoints",               sc2_DistanceBetweenPoints },
+    { "EventButtonPressed",                  sc2_EventButtonPressed },
+    { "EventChatMessage",                    sc2_EventChatMessage },
+    { "EventCheatUsed",                      sc2_EventCheatUsed },
+    { "EventCustomDialogResult",             sc2_EventCustomDialogResult },
+    { "EventDialogControl",                  sc2_EventDialogControl },
+    { "EventDialogControlEventType",         sc2_EventDialogControlEventType },
+    { "EventGameMenuItemSelected",           sc2_EventGameMenuItemSelected },
+    { "EventKeyAlt",                         sc2_EventKeyAlt },
+    { "EventKeyControl",                     sc2_EventKeyControl },
+    { "EventKeyPressed",                     sc2_EventKeyPressed },
+    { "EventKeyShift",                       sc2_EventKeyShift },
+    { "EventMouseClickedButton",             sc2_EventMouseClickedButton },
+    { "EventMouseClickedPosXUI",             sc2_EventMouseClickedPosXUI },
+    { "EventMouseClickedPosXWorld",          sc2_EventMouseClickedPosXWorld },
+    { "EventMouseClickedPosYUI",             sc2_EventMouseClickedPosYUI },
+    { "EventMouseClickedPosYWorld",          sc2_EventMouseClickedPosYWorld },
+    { "EventMouseClickedPosZWorld",          sc2_EventMouseClickedPosZWorld },
+    { "EventPlayer",                         sc2_EventPlayer },
+    { "EventPlayerProperty",                 sc2_EventPlayerProperty },
+    { "EventPurchaseMade",                   sc2_EventPurchaseMade },
+    { "EventTimer",                          sc2_EventTimer },
     { "EventUnit",                           sc2_EventUnit },
+    { "EventUnitAbility",                    sc2_EventUnitAbility },
+    { "EventUnitAbilityStage",               sc2_EventUnitAbilityStage },
+    { "EventUnitAttributePoints",            sc2_EventUnitAttributePoints },
+    { "EventUnitBehavior",                   sc2_EventUnitBehavior },
     { "EventUnitCargo",                      sc2_EventUnitCargo },
+    { "EventUnitCreatedAbil",                sc2_EventUnitCreatedAbil },
+    { "EventUnitCreatedBehavior",            sc2_EventUnitCreatedBehavior },
+    { "EventUnitCreatedUnit",                sc2_EventUnitCreatedUnit },
+    { "EventUnitDamageAmount",               sc2_EventUnitDamageAmount },
+    { "EventUnitDamageDeathCheck",           sc2_EventUnitDamageDeathCheck },
+    { "EventUnitDamageEffect",               sc2_EventUnitDamageEffect },
+    { "EventUnitDamageSourcePlayer",         sc2_EventUnitDamageSourcePlayer },
+    { "EventUnitDamageSourcePoint",          sc2_EventUnitDamageSourcePoint },
+    { "EventUnitDamageSourceUnit",           sc2_EventUnitDamageSourceUnit },
+    { "EventUnitInventoryItem",              sc2_EventUnitInventoryItem },
+    { "EventUnitInventoryItemContainer",     sc2_EventUnitInventoryItemContainer },
+    { "EventUnitInventoryItemSlot",          sc2_EventUnitInventoryItemSlot },
+    { "EventUnitInventoryItemTargetPoint",   sc2_EventUnitInventoryItemTargetPoint },
+    { "EventUnitInventoryItemTargetUnit",    sc2_EventUnitInventoryItemTargetUnit },
+    { "EventUnitOrder",                      sc2_EventUnitOrder },
+    { "EventUnitPowerupUnit",                sc2_EventUnitPowerupUnit },
+    { "EventUnitProgressObjectType",         sc2_EventUnitProgressObjectType },
+    { "EventUnitProgressUnit",               sc2_EventUnitProgressUnit },
+    { "EventUnitRegion",                     sc2_EventUnitRegion },
     { "EventUnitTarget",                     sc2_EventUnitTarget },
+    { "EventUnitTargetPoint",                sc2_EventUnitTargetPoint },
+    { "EventUnitTargetUnit",                 sc2_EventUnitTargetUnit },
+    { "EventUnitXPDelta",                    sc2_EventUnitXPDelta },
     { "FixedToInt",                          sc2_FixedToInt },
     { "FixedToString",                       sc2_FixedToString },
     { "FormatNumber",                        sc2_FormatNumber },
@@ -532,7 +588,10 @@ static jassModule_t sc2_galaxy_natives[] = {
     { "TechTreeUpgradeAddLevel",             sc2_TechTreeUpgradeAddLevel },
     { "TechTreeUpgradeCount",                sc2_TechTreeUpgradeCount },
     { "TextCase",                            sc2_TextCase },
+    { "TimerCreate",                         sc2_TimerCreate },
+    { "TimerLastStarted",                    sc2_TimerLastStarted },
     { "TimerPause",                          sc2_TimerPause },
+    { "TimerStart",                          sc2_TimerStart },
     { "TransmissionClear",                   sc2_TransmissionClear },
     { "TransmissionClearAll",                sc2_TransmissionClearAll },
     { "TransmissionLastSent",                sc2_TransmissionLastSent },
@@ -542,22 +601,59 @@ static jassModule_t sc2_galaxy_natives[] = {
     { "TransmissionSetOption",               sc2_TransmissionSetOption },
     { "TransmissionSourceFromUnit",          sc2_TransmissionSourceFromUnit },
     { "TransmissionWait",                    sc2_TransmissionWait },
+    { "TriggerAddEventAbortMission",         sc2_TriggerAddEventAbortMission },
+    { "TriggerAddEventButtonPressed",        sc2_TriggerAddEventButtonPressed },
+    { "TriggerAddEventChatMessage",          sc2_TriggerAddEventChatMessage },
+    { "TriggerAddEventCheatUsed",            sc2_TriggerAddEventCheatUsed },
+    { "TriggerAddEventCustomDialogDismissed", sc2_TriggerAddEventCustomDialogDismissed },
+    { "TriggerAddEventDialogControl",        sc2_TriggerAddEventDialogControl },
+    { "TriggerAddEventGameCreditsFinished",  sc2_TriggerAddEventGameCreditsFinished },
+    { "TriggerAddEventGameMenuItemSelected", sc2_TriggerAddEventGameMenuItemSelected },
+    { "TriggerAddEventKeyPressed",           sc2_TriggerAddEventKeyPressed },
     { "TriggerAddEventMapInit",              sc2_TriggerAddEventMapInit },
+    { "TriggerAddEventMouseClicked",         sc2_TriggerAddEventMouseClicked },
     { "TriggerAddEventPlayerAIWave",         sc2_TriggerAddEventPlayerAIWave },
     { "TriggerAddEventPlayerAllianceChange", sc2_TriggerAddEventPlayerAllianceChange },
     { "TriggerAddEventPlayerLeft",           sc2_TriggerAddEventPlayerLeft },
     { "TriggerAddEventPlayerPropChange",     sc2_TriggerAddEventPlayerPropChange },
+    { "TriggerAddEventPurchaseExit",         sc2_TriggerAddEventPurchaseExit },
+    { "TriggerAddEventPurchaseMade",         sc2_TriggerAddEventPurchaseMade },
+    { "TriggerAddEventSaveGame",             sc2_TriggerAddEventSaveGame },
+    { "TriggerAddEventSaveGameDone",         sc2_TriggerAddEventSaveGameDone },
+    { "TriggerAddEventSelectedPurchaseCategoryChanged", sc2_TriggerAddEventSelectedPurchaseCategoryChanged },
+    { "TriggerAddEventSelectedPurchaseItemChanged", sc2_TriggerAddEventSelectedPurchaseItemChanged },
     { "TriggerAddEventTimeElapsed",          sc2_TriggerAddEventTimeElapsed },
     { "TriggerAddEventTimePeriodic",         sc2_TriggerAddEventTimePeriodic },
     { "TriggerAddEventTimer",                sc2_TriggerAddEventTimer },
+    { "TriggerAddEventUnitAbility",          sc2_TriggerAddEventUnitAbility },
+    { "TriggerAddEventUnitAcquiredTarget",   sc2_TriggerAddEventUnitAcquiredTarget },
+    { "TriggerAddEventUnitArmMagazineProgress", sc2_TriggerAddEventUnitArmMagazineProgress },
     { "TriggerAddEventUnitAttacked",         sc2_TriggerAddEventUnitAttacked },
+    { "TriggerAddEventUnitAttributeChange",  sc2_TriggerAddEventUnitAttributeChange },
+    { "TriggerAddEventUnitBecomesIdle",      sc2_TriggerAddEventUnitBecomesIdle },
     { "TriggerAddEventUnitCargo",            sc2_TriggerAddEventUnitCargo },
+    { "TriggerAddEventUnitClick",            sc2_TriggerAddEventUnitClick },
+    { "TriggerAddEventUnitConstructProgress", sc2_TriggerAddEventUnitConstructProgress },
+    { "TriggerAddEventUnitCreated",          sc2_TriggerAddEventUnitCreated },
     { "TriggerAddEventUnitDamaged",          sc2_TriggerAddEventUnitDamaged },
     { "TriggerAddEventUnitDied",             sc2_TriggerAddEventUnitDied },
+    { "TriggerAddEventUnitGainExperience",   sc2_TriggerAddEventUnitGainExperience },
+    { "TriggerAddEventUnitGainLevel",        sc2_TriggerAddEventUnitGainLevel },
+    { "TriggerAddEventUnitHighlight",        sc2_TriggerAddEventUnitHighlight },
+    { "TriggerAddEventUnitInventoryChange",  sc2_TriggerAddEventUnitInventoryChange },
     { "TriggerAddEventUnitOrder",            sc2_TriggerAddEventUnitOrder },
+    { "TriggerAddEventUnitPowerup",          sc2_TriggerAddEventUnitPowerup },
+    { "TriggerAddEventUnitProperty",         sc2_TriggerAddEventUnitProperty },
     { "TriggerAddEventUnitRange",            sc2_TriggerAddEventUnitRange },
     { "TriggerAddEventUnitRangePoint",       sc2_TriggerAddEventUnitRangePoint },
     { "TriggerAddEventUnitRegion",           sc2_TriggerAddEventUnitRegion },
+    { "TriggerAddEventUnitRemoved",          sc2_TriggerAddEventUnitRemoved },
+    { "TriggerAddEventUnitResearchProgress", sc2_TriggerAddEventUnitResearchProgress },
+    { "TriggerAddEventUnitRevive",           sc2_TriggerAddEventUnitRevive },
+    { "TriggerAddEventUnitSelected",         sc2_TriggerAddEventUnitSelected },
+    { "TriggerAddEventUnitSpecializeProgress", sc2_TriggerAddEventUnitSpecializeProgress },
+    { "TriggerAddEventUnitStartedAttack",    sc2_TriggerAddEventUnitStartedAttack },
+    { "TriggerAddEventUnitTrainProgress",    sc2_TriggerAddEventUnitTrainProgress },
     { "TriggerDebugOutput",                  sc2_TriggerDebugOutput },
     { "TriggerCreate",                       sc2_TriggerCreate },
     { "TriggerEnable",                       sc2_TriggerEnable },

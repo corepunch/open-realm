@@ -22,8 +22,11 @@ static uint32_t sc2_PlayerGetAlliance(jass_t *j) {
 }
 static uint32_t sc2_PlayerSetAlliance(jass_t *j) {
     int p = sc2_player_index(j,1), a = sc2_checked_index(j,2,16), other = sc2_player_index(j,3);
-    if (jass_checkboolean(j,4)) sc2_players[p].alliances[other] |= 1u << a;
-    else sc2_players[p].alliances[other] &= ~(1u << a);
+    uint32_t bit = 1u << a;
+    bool on = jass_checkboolean(j,4), was = (sc2_players[p].alliances[other] & bit) != 0;
+    if (on) sc2_players[p].alliances[other] |= bit; else sc2_players[p].alliances[other] &= ~bit;
+    if (on != was)
+        sc2_ev_emit(j, (sc2evresp_t){ .type = SC2_EV_ALLIANCE, .player = p, .ival = a, .ival2 = other });
     return 0;
 }
 static uint32_t sc2_PlayerDifficulty(jass_t *j) { return jass_pushinteger(j, sc2_players[sc2_player_index(j,1)].difficulty); }
@@ -33,7 +36,10 @@ static uint32_t sc2_player_modify(jass_t *j, bool integral) {
     int p = sc2_player_index(j,1), prop = sc2_checked_index(j,2,16), op = sc2_checked_index(j,3,3);
     float v = integral ? jass_checkinteger(j,4) : jass_checknumber(j,4);
     float *value = &sc2_players[p].properties[prop];
+    float old = *value;
     *value = op == 0 ? v : *value + (op == 1 ? v : -v);
+    if (*value != old)
+        sc2_ev_emit(j, (sc2evresp_t){ .type = SC2_EV_PLAYER_PROP, .player = p, .ival = prop, .amount = *value });
     return 0;
 }
 static uint32_t sc2_PlayerModifyPropertyInt(jass_t *j) { return sc2_player_modify(j,true); }

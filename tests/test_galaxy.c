@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <math.h>
 
 #ifdef BZ_TESTS
 
@@ -1484,6 +1485,409 @@ TEST(galaxy, create_and_set_facing_share_radian_host_contract) {
     galaxy_reset(); gal_destroy(&s);
 }
 
+
+typedef struct { sc2UnitState_t state; float x, y, facing; int owner; } gal_ent_t;
+static gal_ent_t gal_ents[8];
+static int gal_ent_n;
+static bool gal_moving;
+static void gal_ent_reset(void) { memset(gal_ents, 0, sizeof(gal_ents)); gal_ent_n = 0; gal_moving = false; }
+static void *gal_ent_create(cstring_t type, int player, float x, float y, float angle) {
+    gal_ent_t *e;
+    (void)type;
+    if (gal_ent_n >= 8) return NULL;
+    e = &gal_ents[gal_ent_n++];
+    memset(e, 0, sizeof(*e));
+    e->state.vitals[0].value = e->state.vitals[0].max_value = 100;
+    e->x = x; e->y = y; e->facing = angle; e->owner = player;
+    return e;
+}
+static sc2UnitState_t *gal_ent_state(void *ent) { return &((gal_ent_t *)ent)->state; }
+static bool gal_ent_loc(void *ent, float *x, float *y, float *z, float *facing) {
+    gal_ent_t *e = ent; *x = e->x; *y = e->y; *z = 0; *facing = e->facing; return true;
+}
+static void gal_ent_setpos(void *ent, float x, float y, float facing) {
+    gal_ent_t *e = ent;
+    if (isfinite(x)) { e->x = x; e->y = y; }
+    if (isfinite(facing)) e->facing = facing;
+}
+static int gal_ent_owner(void *ent) { return ((gal_ent_t *)ent)->owner; }
+static bool gal_ent_alive(void *ent) { return ((gal_ent_t *)ent)->state.vitals[0].value > 0; }
+static void gal_ent_changed(void *ent) { (void)ent; }
+static void gal_ent_remove(void *ent) { (void)ent; }
+static void gal_ent_ordermove(void *ent, float x, float y) { (void)ent; (void)x; (void)y; gal_moving = true; }
+static bool gal_ent_moving(void *ent) { (void)ent; return gal_moving; }
+static void gal_ent_bind(void) {
+    sc2_galaxy_on_unit_create = gal_ent_create; sc2_galaxy_unit_state = gal_ent_state;
+    sc2_galaxy_unit_location = gal_ent_loc; sc2_galaxy_unit_set_position = gal_ent_setpos;
+    sc2_galaxy_unit_owner = gal_ent_owner; sc2_galaxy_unit_is_alive = gal_ent_alive;
+    sc2_galaxy_unit_changed = gal_ent_changed; sc2_galaxy_unit_remove = gal_ent_remove;
+    sc2_galaxy_unit_move = gal_ent_ordermove; sc2_galaxy_unit_is_moving = gal_ent_moving;
+}
+static void gal_ent_unbind(void) {
+    sc2_galaxy_on_unit_create = NULL; sc2_galaxy_unit_state = NULL; sc2_galaxy_unit_location = NULL;
+    sc2_galaxy_unit_set_position = NULL; sc2_galaxy_unit_owner = NULL; sc2_galaxy_unit_is_alive = NULL;
+    sc2_galaxy_unit_changed = NULL; sc2_galaxy_unit_remove = NULL;
+    sc2_galaxy_unit_move = NULL; sc2_galaxy_unit_is_moving = NULL;
+}
+static void gal_use_natives(void) {
+    jass_sethost(&MAKE(jassHost_t, .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
+        .natives = gal_assert_natives, .galaxy_natives = galaxy_get_natives()));
+}
+
+/* A null region used to raise a script error and stop InitTriggers before the intro orders. */
+TEST(galaxy, vm_event_null_region_does_not_abort) {
+    gal_state_t s = gal_new();
+    galaxy_reset(); gal_ent_reset(); gal_ent_bind(); gal_use_natives();
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "native trigger TriggerCreate(string name);\n"
+        "native void TriggerAddEventUnitRegion(trigger t, unitref u, region r, bool state);\n"
+        "native void TriggerAddEventUnitRangePoint(trigger t, unitref u, point p, fixed distance, bool state);\n"
+        "native point RegionGetCenter(region r);\n"
+        "native void TimerPause(timer t, bool pause);\n"
+        "native void TriggerAddEventUnitDied(trigger t, unitref u);\n"
+        "native unit UnitCreate(int count, string type, int flags, int player, point where, fixed angle);\n"
+        "native point Point(fixed x, fixed y);\n"
+        "native void UnitKill(unit u);\n"
+        "native unit EventUnit();\n"
+        "int gv_dead = 0;\n"
+        "bool on_die(bool testConds, bool runActions) {\n"
+        "    if (testConds) { return false; }\n"
+        "    gv_dead = gv_dead + 1; return true; }\n"
+        "bool on_die_real(bool testConds, bool runActions) { gv_dead = gv_dead + 1; return true; }\n"
+        "void main() {\n"
+        "    TriggerAddEventUnitRegion(TriggerCreate(\"on_die\"), null, null, true);\n"
+        "    TriggerAddEventUnitRangePoint(TriggerCreate(\"on_die\"), null, null, 1.0, true);\n"
+        "    TriggerAddEventUnitRangePoint(TriggerCreate(\"on_die\"), null, RegionGetCenter(null), 1.0, true);\n"
+        "    TimerPause(null, true);\n"
+        "    unit u = UnitCreate(1, \"Marine\", 0, 1, Point(0.0, 0.0), 0.0);\n"
+        "    TriggerAddEventUnitDied(TriggerCreate(\"on_die_real\"), null);\n"
+        "    UnitKill(u);\n"
+        "    if (gv_dead != 1 || EventUnit() != null) { TestFail(\"later death callback\"); }\n"
+        "}"));
+    gal_ent_unbind(); galaxy_reset(); gal_destroy(&s);
+}
+
+/* gt_UnitMovementCheck registers a null abilcmd. That null is a handle, and checkinteger used to abort InitTriggers. */
+TEST(galaxy, vm_event_null_abilcmd_matches_any_order) {
+    gal_state_t s = gal_new();
+    galaxy_reset(); gal_ent_reset(); gal_ent_bind(); gal_use_natives();
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "native trigger TriggerCreate(string name);\n"
+        "native unit UnitCreate(int count, string type, int flags, int player, point where, fixed angle);\n"
+        "native point Point(fixed x, fixed y);\n"
+        "native abilcmd AbilityCommand(string name, int index);\n"
+        "native order Order(abilcmd command);\n"
+        "native order OrderTargetingPoint(abilcmd command, point target);\n"
+        "native bool UnitIssueOrder(unit value, order valueOrder, int queue);\n"
+        "native int ConversationDataStateGetValue(string state);\n"
+        "native void PlayerModifyPropertyInt(int player, int prop, int oper, int val);\n"
+        "native void TriggerAddEventUnitOrder(trigger t, unitref u, abilcmd a);\n"
+        "native void TriggerAddEventUnitAbility(trigger t, unitref u, abilcmd a, int stage, bool includeShared);\n"
+        "int gv_any = 0; int gv_stop = 0;\n"
+        "bool on_any(bool testConds, bool runActions) { gv_any = gv_any + 1; return true; }\n"
+        "bool on_stop(bool testConds, bool runActions) { gv_stop = gv_stop + 1; return true; }\n"
+        "void main() {\n"
+        "    unit mover = UnitCreate(1, \"Marine\", 0, 1, Point(0.0, 0.0), 0.0);\n"
+        "    if (Order(null) == null) { TestFail(\"null order\"); }\n"
+        "    PlayerModifyPropertyInt(1, 7, 0, ConversationDataStateGetValue(\"Credits\"));\n"
+        "    TriggerAddEventUnitOrder(TriggerCreate(\"on_any\"), null, null);\n"
+        "    TriggerAddEventUnitOrder(TriggerCreate(\"on_stop\"), null, AbilityCommand(\"stop\", 0));\n"
+        "    TriggerAddEventUnitAbility(TriggerCreate(\"on_stop\"), null, null, -1, false);\n"
+        "    UnitIssueOrder(mover, OrderTargetingPoint(AbilityCommand(\"move\", 0), Point(1.0, 0.0)), 0);\n"
+        "    if (gv_any != 1 || gv_stop != 0) { TestFail(\"null abilcmd filter\"); }\n"
+        "}"));
+    gal_ent_unbind(); galaxy_reset(); gal_destroy(&s);
+}
+
+/* Targetable and tooltipable are writable natives.galaxy states. Rejecting them aborted map init. */
+TEST(galaxy, vm_unit_state_writable_flags) {
+    gal_state_t s = gal_new();
+    galaxy_reset(); gal_ent_reset(); gal_ent_bind(); gal_use_natives();
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "native unit UnitCreate(int count, string type, int flags, int player, point where, fixed angle);\n"
+        "native point Point(fixed x, fixed y);\n"
+        "native void UnitSetState(unit u, int state, bool value);\n"
+        "native bool UnitTestState(unit u, int state);\n"
+        "void main() {\n"
+        "    unit u = UnitCreate(1, \"Marine\", 0, 1, Point(0.0, 0.0), 0.0);\n"
+        "    UnitSetState(u, 18, false);\n"
+        "    UnitSetState(u, 20, true);\n"
+        "    if (UnitTestState(u, 18) || !UnitTestState(u, 20)) { TestFail(\"writable state\"); }\n"
+        "}"));
+    gal_ent_unbind(); galaxy_reset(); gal_destroy(&s);
+}
+
+/* Death, property, create, and cargo callbacks fill the response the way GetTriggerUnit reads jass context. */
+TEST(galaxy, vm_event_unit_response) {
+    gal_state_t s = gal_new();
+    galaxy_reset(); gal_ent_reset(); gal_ent_bind(); gal_use_natives();
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "native trigger TriggerCreate(string name);\n"
+        "native void TriggerAddEventUnitCreated(trigger t, unitref u, string abil, string behavior);\n"
+        "native void TriggerAddEventUnitDied(trigger t, unitref u);\n"
+        "native void TriggerAddEventUnitRemoved(trigger t, unitref u);\n"
+        "native void TriggerAddEventUnitRevive(trigger t, unitref u);\n"
+        "native void TriggerAddEventUnitProperty(trigger t, unitref u, int prop);\n"
+        "native void TriggerAddEventUnitCargo(trigger t, unitref u, bool state);\n"
+        "native void TriggerEnable(trigger t, bool enable);\n"
+        "native trigger TriggerGetCurrent();\n"
+        "native int TriggerGetExecCount(trigger t);\n"
+        "native unit EventUnit();\n"
+        "native unit EventUnitCreatedUnit();\n"
+        "native unit EventUnitCargo();\n"
+        "native unit UnitCreate(int count, string type, int flags, int player, point where, fixed angle);\n"
+        "native unit UnitLastCreated();\n"
+        "native point Point(fixed x, fixed y);\n"
+        "native unitref UnitRefFromUnit(unit u);\n"
+        "native void UnitKill(unit u);\n"
+        "native void UnitRevive(unit u);\n"
+        "native void UnitRemove(unit u);\n"
+        "native void UnitSetPropertyFixed(unit u, int prop, fixed value);\n"
+        "native unit UnitCargoCreate(unit transport, string type, int count);\n"
+        "native unit UnitCargoLastCreated();\n"
+        "int gv_created = 0; int gv_decoy = 0; int gv_any = 0; int gv_specific = 0; int gv_bad = 0;\n"
+        "int gv_prop = 0; int gv_removed = 0; int gv_revive = 0; int gv_cargo = 0; int gv_unload = 0;\n"
+        "trigger gv_ta = null; trigger gv_tany = null;\n"
+        "unit gv_a = null; unit gv_b = null; unit gv_c = null; unit gv_ship = null;\n"
+        "bool on_create(bool testConds, bool runActions) {\n"
+        "    gv_created = gv_created + 1;\n"
+        "    if (EventUnit() == null || EventUnitCreatedUnit() != EventUnit()) { gv_bad = 1; }\n"
+        "    return true; }\n"
+        "bool on_decoy(bool testConds, bool runActions) { gv_decoy = gv_decoy + 1; return true; }\n"
+        "bool on_any(bool testConds, bool runActions) {\n"
+        "    gv_any = gv_any + 1; if (TriggerGetCurrent() != gv_tany) { gv_bad = 2; } return true; }\n"
+        "bool on_a(bool testConds, bool runActions) {\n"
+        "    gv_specific = gv_specific + 1;\n"
+        "    if (TriggerGetCurrent() != gv_ta || EventUnit() != gv_a) { gv_bad = 3; }\n"
+        "    UnitKill(gv_b);\n"
+        "    if (EventUnit() != gv_a || TriggerGetCurrent() != gv_ta) { gv_bad = 4; }\n"
+        "    return true; }\n"
+        "bool on_prop(bool testConds, bool runActions) {\n"
+        "    gv_prop = gv_prop + 1; if (EventUnit() != gv_a) { gv_bad = 5; } return true; }\n"
+        "bool on_remove(bool testConds, bool runActions) {\n"
+        "    gv_removed = gv_removed + 1; if (EventUnit() != gv_c) { gv_bad = 6; } return true; }\n"
+        "bool on_revive(bool testConds, bool runActions) {\n"
+        "    gv_revive = gv_revive + 1; if (EventUnit() != gv_a) { gv_bad = 7; } return true; }\n"
+        "bool on_load(bool testConds, bool runActions) {\n"
+        "    gv_cargo = gv_cargo + 1;\n"
+        "    if (EventUnit() != gv_ship || EventUnitCargo() != UnitCargoLastCreated()) { gv_bad = 8; }\n"
+        "    return true; }\n"
+        "bool on_unload(bool testConds, bool runActions) { gv_unload = gv_unload + 1; return true; }\n"
+        "void main() {\n"
+        "    TriggerAddEventUnitCreated(TriggerCreate(\"on_create\"), null, \"\", \"\");\n"
+        "    TriggerAddEventUnitCreated(TriggerCreate(\"on_decoy\"), null, \"Nope\", \"\");\n"
+        "    gv_ship = UnitCreate(1, \"Dropship\", 0, 1, Point(0.0, 0.0), 0.0);\n"
+        "    gv_a = UnitCreate(1, \"Marine\", 0, 1, Point(1.0, 0.0), 0.0);\n"
+        "    gv_b = UnitCreate(1, \"Marine\", 0, 1, Point(2.0, 0.0), 0.0);\n"
+        "    gv_c = UnitCreate(1, \"Marine\", 0, 1, Point(3.0, 0.0), 0.0);\n"
+        "    if (gv_created != 4 || gv_decoy != 0) { TestFail(\"create filter\"); }\n"
+        "    gv_ta = TriggerCreate(\"on_a\"); gv_tany = TriggerCreate(\"on_any\");\n"
+        "    TriggerAddEventUnitDied(gv_ta, UnitRefFromUnit(gv_a));\n"
+        "    TriggerAddEventUnitDied(gv_tany, null);\n"
+        "    TriggerAddEventUnitProperty(TriggerCreate(\"on_prop\"), UnitRefFromUnit(gv_a), 0);\n"
+        "    TriggerAddEventUnitRemoved(TriggerCreate(\"on_remove\"), UnitRefFromUnit(gv_c));\n"
+        "    TriggerAddEventUnitRevive(TriggerCreate(\"on_revive\"), UnitRefFromUnit(gv_a));\n"
+        "    TriggerAddEventUnitCargo(TriggerCreate(\"on_load\"), UnitRefFromUnit(gv_ship), true);\n"
+        "    TriggerAddEventUnitCargo(TriggerCreate(\"on_unload\"), UnitRefFromUnit(gv_ship), false);\n"
+        "    UnitSetPropertyFixed(gv_a, 0, 40.0);\n"
+        "    UnitSetPropertyFixed(gv_a, 0, 40.0);\n"
+        "    UnitSetPropertyFixed(gv_a, 14, 3.0);\n"
+        "    if (gv_prop != 1) { TestFail(\"property filter\"); }\n"
+        "    UnitKill(gv_a);\n"
+        "    if (gv_specific != 1 || gv_any != 2 || gv_prop != 2 || gv_bad != 0) { TestFail(\"death response\"); }\n"
+        "    if (TriggerGetExecCount(gv_ta) != 1 || TriggerGetExecCount(gv_tany) != 2) { TestFail(\"exec count\"); }\n"
+        "    TriggerEnable(gv_tany, false);\n"
+        "    UnitKill(gv_c);\n"
+        "    if (gv_any != 2) { TestFail(\"disabled trigger fired\"); }\n"
+        "    TriggerEnable(gv_tany, true);\n"
+        "    UnitRevive(gv_a);\n"
+        "    if (gv_revive != 1 || gv_prop != 3) { TestFail(\"revive\"); }\n"
+        "    UnitRemove(gv_c);\n"
+        "    if (gv_removed != 1) { TestFail(\"remove\"); }\n"
+        "    UnitCargoCreate(gv_ship, \"Marine\", 1);\n"
+        "    if (gv_created != 5 || gv_cargo != 1 || gv_unload != 0 || gv_bad != 0) { TestFail(\"cargo\"); }\n"
+        "}"));
+    gal_ent_unbind(); galaxy_reset(); gal_destroy(&s);
+}
+
+/* Position crossings and issued orders publish the same response fields WC3 stores on the event. */
+TEST(galaxy, vm_event_spatial_and_order) {
+    gal_state_t s = gal_new();
+    galaxy_reset(); gal_ent_reset(); gal_ent_bind(); gal_use_natives();
+    T_ASSERT(gal_parse(&s,
+        "native void TestFail(string msg);\n"
+        "native trigger TriggerCreate(string name);\n"
+        "native unit UnitCreate(int count, string type, int flags, int player, point where, fixed angle);\n"
+        "native point Point(fixed x, fixed y);\n"
+        "native unitref UnitRefFromUnit(unit u);\n"
+        "native region RegionRect(fixed minx, fixed miny, fixed maxx, fixed maxy);\n"
+        "native void TriggerAddEventUnitRegion(trigger t, unitref u, region r, bool state);\n"
+        "native void TriggerAddEventUnitRange(trigger t, unitref u, unit fromUnit, fixed range, bool state);\n"
+        "native void TriggerAddEventUnitRangePoint(trigger t, unitref u, point p, fixed distance, bool state);\n"
+        "native void UnitSetPosition(unit u, point p);\n"
+        "native region EventUnitRegion();\n"
+        "native unit EventUnit();\n"
+        "native unit EventUnitTarget();\n"
+        "native order EventUnitOrder();\n"
+        "native void TriggerAddEventUnitOrder(trigger t, unitref u, abilcmd a);\n"
+        "native void TriggerAddEventUnitBecomesIdle(trigger t, unitref u, bool idle);\n"
+        "native abilcmd AbilityCommand(string name, int index);\n"
+        "native order OrderTargetingPoint(abilcmd command, point target);\n"
+        "native bool UnitIssueOrder(unit value, order valueOrder, int queue);\n"
+        "int gv_enter = 0; int gv_leave = 0; int gv_near = 0; int gv_far = 0; int gv_point = 0;\n"
+        "int gv_bad = 0; int gv_orders = 0; int gv_stop = 0; int gv_idle = 0; int gv_busy = 0;\n"
+        "region gv_hit = null; unit gv_tgt = null;\n"
+        "bool on_enter(bool testConds, bool runActions) {\n"
+        "    gv_enter = gv_enter + 1; gv_hit = EventUnitRegion(); if (EventUnit() == null) { gv_bad = 1; } return true; }\n"
+        "bool on_leave(bool testConds, bool runActions) { gv_leave = gv_leave + 1; return true; }\n"
+        "bool on_near(bool testConds, bool runActions) { gv_near = gv_near + 1; gv_tgt = EventUnitTarget(); return true; }\n"
+        "bool on_far(bool testConds, bool runActions) { gv_far = gv_far + 1; return true; }\n"
+        "bool on_point(bool testConds, bool runActions) { gv_point = gv_point + 1; return true; }\n"
+        "bool on_order(bool testConds, bool runActions) {\n"
+        "    gv_orders = gv_orders + 1; if (EventUnitOrder() == null || EventUnit() == null) { gv_bad = 2; } return true; }\n"
+        "bool on_stop(bool testConds, bool runActions) { gv_stop = gv_stop + 1; return true; }\n"
+        "bool on_idle(bool testConds, bool runActions) { gv_idle = gv_idle + 1; return true; }\n"
+        "bool on_busy(bool testConds, bool runActions) { gv_busy = gv_busy + 1; return true; }\n"
+        "void main() {\n"
+        "    unit mover = UnitCreate(1, \"Marine\", 0, 1, Point(30.0, 30.0), 0.0);\n"
+        "    unit anchor = UnitCreate(1, \"Marine\", 0, 1, Point(0.0, 0.0), 0.0);\n"
+        "    region area = RegionRect(0.0, 0.0, 10.0, 10.0);\n"
+        "    point origin = Point(0.0, 0.0);\n"
+        "    TriggerAddEventUnitRegion(TriggerCreate(\"on_enter\"), UnitRefFromUnit(mover), area, true);\n"
+        "    TriggerAddEventUnitRegion(TriggerCreate(\"on_leave\"), UnitRefFromUnit(mover), area, false);\n"
+        "    TriggerAddEventUnitRange(TriggerCreate(\"on_near\"), UnitRefFromUnit(mover), anchor, 5.0, true);\n"
+        "    TriggerAddEventUnitRange(TriggerCreate(\"on_far\"), UnitRefFromUnit(mover), anchor, 5.0, false);\n"
+        "    TriggerAddEventUnitRangePoint(TriggerCreate(\"on_point\"), UnitRefFromUnit(mover), origin, 5.0, true);\n"
+        "    TriggerAddEventUnitOrder(TriggerCreate(\"on_order\"), UnitRefFromUnit(mover), 0);\n"
+        "    TriggerAddEventUnitOrder(TriggerCreate(\"on_stop\"), UnitRefFromUnit(mover), AbilityCommand(\"stop\", 0));\n"
+        "    TriggerAddEventUnitBecomesIdle(TriggerCreate(\"on_idle\"), UnitRefFromUnit(mover), true);\n"
+        "    TriggerAddEventUnitBecomesIdle(TriggerCreate(\"on_busy\"), UnitRefFromUnit(mover), false);\n"
+        "    UnitSetPosition(mover, Point(5.0, 5.0));\n"
+        "    if (gv_enter != 1 || gv_hit != area || gv_leave != 0) { TestFail(\"enter\"); }\n"
+        "    UnitSetPosition(mover, Point(6.0, 5.0));\n"
+        "    if (gv_enter != 1) { TestFail(\"stay inside\"); }\n"
+        "    UnitSetPosition(mover, Point(4.0, 0.0));\n"
+        "    if (gv_near != 1 || gv_point != 1 || gv_tgt != anchor || gv_far != 0) { TestFail(\"range enter\"); }\n"
+        "    UnitSetPosition(mover, Point(40.0, 40.0));\n"
+        "    if (gv_leave != 1 || gv_far != 1 || gv_near != 1 || gv_point != 1) { TestFail(\"range leave\"); }\n"
+        "    UnitIssueOrder(mover, OrderTargetingPoint(AbilityCommand(\"move\", 0), Point(1.0, 0.0)), 0);\n"
+        "    if (gv_orders != 1 || gv_busy != 1 || gv_idle != 0 || gv_stop != 0 || gv_bad != 0) { TestFail(\"order\"); }\n"
+        "}\n"
+        "void check() { if (gv_idle != 1 || gv_busy != 1 || gv_bad != 0) { TestFail(\"idle\"); } }\n"));
+    jass_callbyname(s.j, "main", false);
+    jass_runevents(s.j);
+    if (jass_rterror_pending(s.j)) fprintf(stderr, "spatial: %s\n", jass_rterror_message(s.j));
+    T_ASSERT(!jass_rterror_pending(s.j));
+    galaxy_tick(s.j);
+    gal_moving = false;
+    galaxy_tick(s.j);
+    jass_callbyname(s.j, "check", false);
+    if (jass_rterror_pending(s.j)) fprintf(stderr, "idle: %s\n", jass_rterror_message(s.j));
+    T_ASSERT(!jass_rterror_pending(s.j));
+    gal_ent_unbind(); galaxy_reset(); gal_destroy(&s);
+}
+
+/* Time, timer, and player callbacks advance through galaxy_tick, the same scheduler entry as the server frame. */
+TEST(galaxy, vm_event_time_and_player) {
+    gal_state_t s = gal_new();
+    int i;
+    galaxy_reset(); gal_use_natives();
+    T_ASSERT(gal_parse(&s,
+        "native void TestFail(string msg);\n"
+        "native trigger TriggerCreate(string name);\n"
+        "native void TriggerAddEventTimePeriodic(trigger t, fixed interval, int timeType);\n"
+        "native void TriggerAddEventTimeElapsed(trigger t, fixed time, int timeType);\n"
+        "native timer TimerCreate();\n"
+        "native void TimerStart(timer t, fixed duration, bool periodic, int timeType);\n"
+        "native timer TimerLastStarted();\n"
+        "native void TriggerAddEventTimer(trigger t, timer which);\n"
+        "native timer EventTimer();\n"
+        "native void AITimePause(bool pause);\n"
+        "native void PlayerModifyPropertyInt(int player, int prop, int op, int value);\n"
+        "native void PlayerSetAlliance(int source, int alliance, int other, bool ally);\n"
+        "native void TriggerAddEventPlayerPropChange(trigger t, int player, int prop);\n"
+        "native void TriggerAddEventPlayerAllianceChange(trigger t, int player);\n"
+        "native int EventPlayer();\n"
+        "native int EventPlayerProperty();\n"
+        "native void TriggerAddEventDialogControl(trigger t, int player, int control, int eventType);\n"
+        "native void TriggerAddEventChatMessage(trigger t, int player, string text, bool exact);\n"
+        "native void TriggerAddEventKeyPressed(trigger t, int player, int key, bool down, int s, int c, int a);\n"
+        "native void TriggerAddEventUnitDamaged(trigger t, unitref u, int damageType, int fatal, string effect);\n"
+        "int gv_per = 0; int gv_once = 0; int gv_ai = 0; int gv_tm = 0; int gv_tmp = 0;\n"
+        "int gv_prop = 0; int gv_any = 0; int gv_other = 0; int gv_ally = 0; int gv_bad = 0;\n"
+        "timer gv_timer = null;\n"
+        "bool on_per(bool testConds, bool runActions) { gv_per = gv_per + 1; return true; }\n"
+        "bool on_once(bool testConds, bool runActions) { gv_once = gv_once + 1; return true; }\n"
+        "bool on_ai(bool testConds, bool runActions) { gv_ai = gv_ai + 1; return true; }\n"
+        "bool on_tm(bool testConds, bool runActions) {\n"
+        "    gv_tm = gv_tm + 1; if (EventTimer() != gv_timer) { gv_bad = 1; } return true; }\n"
+        "bool on_tmp(bool testConds, bool runActions) { gv_tmp = gv_tmp + 1; return true; }\n"
+        "bool on_prop(bool testConds, bool runActions) {\n"
+        "    gv_prop = gv_prop + 1;\n"
+        "    if (EventPlayer() != 2 || EventPlayerProperty() != 1) { gv_bad = 2; }\n"
+        "    return true; }\n"
+        "bool on_any(bool testConds, bool runActions) { gv_any = gv_any + 1; return true; }\n"
+        "bool on_other(bool testConds, bool runActions) { gv_other = gv_other + 1; return true; }\n"
+        "bool on_ally(bool testConds, bool runActions) {\n"
+        "    gv_ally = gv_ally + 1; if (EventPlayer() != 1) { gv_bad = 3; } return true; }\n"
+        "bool on_dlg(bool testConds, bool runActions) { gv_bad = 4; return true; }\n"
+        "bool on_chat(bool testConds, bool runActions) { gv_bad = 5; return true; }\n"
+        "bool on_key(bool testConds, bool runActions) { gv_bad = 6; return true; }\n"
+        "bool on_dmg(bool testConds, bool runActions) { gv_bad = 7; return true; }\n"
+        "void main() {\n"
+        "    timer periodic;\n"
+        "    TriggerAddEventTimePeriodic(TriggerCreate(\"on_per\"), 0.2, 0);\n"
+        "    TriggerAddEventTimeElapsed(TriggerCreate(\"on_once\"), 0.3, 0);\n"
+        "    TriggerAddEventTimePeriodic(TriggerCreate(\"on_ai\"), 0.2, 2);\n"
+        "    gv_timer = TimerCreate();\n"
+        "    TimerStart(gv_timer, 0.2, false, 0);\n"
+        "    if (TimerLastStarted() != gv_timer) { TestFail(\"last timer\"); }\n"
+        "    TriggerAddEventTimer(TriggerCreate(\"on_tm\"), gv_timer);\n"
+        "    periodic = TimerCreate();\n"
+        "    TimerStart(periodic, 0.2, true, 0);\n"
+        "    TriggerAddEventTimer(TriggerCreate(\"on_tmp\"), periodic);\n"
+        "    TriggerAddEventPlayerPropChange(TriggerCreate(\"on_prop\"), 2, 1);\n"
+        "    TriggerAddEventPlayerPropChange(TriggerCreate(\"on_any\"), -1, 1);\n"
+        "    TriggerAddEventPlayerPropChange(TriggerCreate(\"on_other\"), 2, 4);\n"
+        "    TriggerAddEventPlayerAllianceChange(TriggerCreate(\"on_ally\"), 1);\n"
+        "    TriggerAddEventDialogControl(TriggerCreate(\"on_dlg\"), -1, -1, -1);\n"
+        "    TriggerAddEventChatMessage(TriggerCreate(\"on_chat\"), -1, \"gg\", false);\n"
+        "    TriggerAddEventKeyPressed(TriggerCreate(\"on_key\"), -1, 65, true, 0, 0, 0);\n"
+        "    TriggerAddEventUnitDamaged(TriggerCreate(\"on_dmg\"), null, -1, 0, \"\");\n"
+        "    PlayerModifyPropertyInt(2, 1, 0, 9);\n"
+        "    PlayerModifyPropertyInt(2, 1, 0, 9);\n"
+        "    PlayerModifyPropertyInt(3, 1, 0, 4);\n"
+        "    PlayerSetAlliance(1, 0, 2, true);\n"
+        "    PlayerSetAlliance(1, 0, 2, true);\n"
+        "    if (gv_prop != 1 || gv_any != 2 || gv_other != 0 || gv_ally != 1 || gv_bad != 0) { TestFail(\"player\"); }\n"
+        "    AITimePause(true);\n"
+        "}\n"
+        "void check() {\n"
+        "    if (gv_bad != 0) { TestFail(\"filtered callback fired\"); }\n"
+        "    if (gv_per != 2 || gv_once != 1 || gv_ai != 0 || gv_tm != 1 || gv_tmp != 2) { TestFail(\"clock\"); }\n"
+        "}\n"
+        "void resume() { AITimePause(false); }\n"
+        "void check2() {\n"
+        "    if (gv_per != 3 || gv_once != 1 || gv_ai != 1 || gv_tm != 1 || gv_tmp != 3) { TestFail(\"resume\"); }\n"
+        "}\n"));
+    jass_callbyname(s.j, "main", false);
+    if (jass_rterror_pending(s.j)) fprintf(stderr, "player events: %s\n", jass_rterror_message(s.j));
+    T_ASSERT(!jass_rterror_pending(s.j));
+    for (i = 0; i < 4; i++) galaxy_tick(s.j);
+    jass_callbyname(s.j, "check", false);
+    if (jass_rterror_pending(s.j)) fprintf(stderr, "clock: %s\n", jass_rterror_message(s.j));
+    T_ASSERT(!jass_rterror_pending(s.j));
+    jass_callbyname(s.j, "resume", false);
+    galaxy_tick(s.j); galaxy_tick(s.j);
+    jass_callbyname(s.j, "check2", false);
+    if (jass_rterror_pending(s.j)) fprintf(stderr, "resume: %s\n", jass_rterror_message(s.j));
+    T_ASSERT(!jass_rterror_pending(s.j));
+    galaxy_reset(); gal_destroy(&s);
+}
 
 #include "test_galaxy_foundations.h"
 

@@ -13,6 +13,38 @@ The SC2 game module owns Galaxy lifecycle through `games/starcraft-2/game/galaxy
 
 Trigger functions use the Galaxy signature `bool function(bool testConds, bool runActions)`. The host compiles a no-argument wrapper before starting a coroutine. Dynamically compiled wrappers belong to the root VM. `TriggerExecute(..., waitDone=true)` pushes that wrapper onto the active coroutine; a child `Wait` therefore preserves the child frame and resumes the parent only after the child returns. Calling the wrapper through the synchronous expression evaluator loses the yielded child frame and advances the parent to the next trigger prematurely.
 
+## Event Callbacks
+
+Galaxy event callbacks follow the Warcraft III split. `gevent_s` is the registration; `gameEvent_t` fields copied into `jass_context` are what `GetTriggerUnit`, `GetEventDamage`, and `GetTriggeringRegion` read. Galaxy keeps the same two records in `galaxy_trigger.h`:
+
+| WC3 | Galaxy | Read by |
+|---|---|---|
+| `gevent_s` subject, trigger, region, range, limit | `sc2evreg_t` | `TriggerAddEvent*` |
+| `gameEvent_t.edict` / context unit | `sc2evresp_t.unit` | `EventUnit` |
+| context source | `source`, `target`, `cargo` | `EventUnitDamageSourceUnit`, `EventUnitTarget`, `EventUnitCargo` |
+| `eventValue` | `amount` when `dmg` is set, else `ival` | `EventUnitDamageAmount`, `EventPlayerProperty`, stage and id readers |
+| context point | `x,y,z` with `has_point` | `EventUnitTargetPoint`, `EventUnitDamageSourcePoint` |
+| context region / timer | `region`, `timer` | `EventUnitRegion`, `EventTimer` |
+| context player | `player` | `EventPlayer` |
+
+A null `unitref` matches every unit. Player `-1` is `c_playerAny`. Nested publishes push the response and restore the outer `Event*` values and `TriggerGetCurrent` when the inner callback returns. Disabled triggers do not run. `TriggerGetExecCount` counts fires.
+
+`galaxy_tick` is the scheduler. Each call advances the game and real clocks by one server frame (`FRAMETIME`, 100 ms). `AITimePause` freezes only the AI clock. Elapsed, periodic, and timer callbacks fire from that tick. Game speed does not scale the clocks yet; both game and real time step with the server frame.
+
+These producers fill a response and run matching callbacks:
+
+- `UnitCreate` / `UnitCargoCreate` create; cargo load and dropship unload are cargo events
+- `UnitKill` / `UnitRevive` change life, then publish death or revival
+- `UnitRemove`, `UnitSetProperty*`, `UnitIssueOrder`, idle when the order queue drains
+- `UnitSetPosition` and the per-tick position sample publish region and range crossings
+- `PlayerModifyProperty*` and `PlayerSetAlliance` publish on an actual change
+
+Attack, damage, experience, inventory, selection, ability, progress, chat, dialog, purchase, and key/mouse callbacks store their filters. Nothing in the server publishes them yet, so those `Event*` readers stay empty until a combat or UI path calls `sc2_ev_emit`. `InitLibs` stays off for that reason. A `Wait` inside an event callback does not keep `Event*` data after the yield: the response stack is not copied into the shared coroutine.
+
+`RegionFromId` still returns null. `TriggerAddEventUnitRegion` and `TriggerAddEventUnitRangePoint` log that gap and return without a script error. A script error there aborts `InitTriggers` before `gt_IntroQ_Init`, so the TRaynor01 dropship orders are never registered. A null `abilcmd` is the any-order filter (`gt_UnitMovementCheck` passes `null` as its third registration). The VM stores that literal as a null handle, so order construction and event registration read it as command 0 instead of requiring an integer. `RegionGetCenter` on that unresolved region returns a null point for the same reason. `ConversationDataStateGetValue` returns an integer; a null handle there makes `PlayerModifyPropertyInt` abort `gt_Initialization_Func` before `TriggerExecute(gt_IntroQ)`. Unstored conversation state reads as 0. `UnitSetState` stores every writable `c_unitState*` index from `natives.galaxy` (including targetable 18 and tooltipable 20). Read-only indexes still raise a script error. Rejecting targetable aborted `gt_Init03Units_Func` before the intro. `TimerPause` on a null timer returns without a script error. `InitLibs` never creates `libNtve_gv__GameTimer`, and cinematic mode pauses that slot. Event dispatch calls the trigger with `testConds=true`, so `gt_IntroCargoUnload` can reject cargo that is not in `gv_introUnitCargoStart`.
+
+Console chrome is not a Galaxy animation. `SC2_HUD_BuildFrameForWrite` names the `Birth` sequence and `R_SetEntityAnimFrame` samples its last frame. Resource icons and the minimap are separate layout frames. `UISetFrameVisible` is still a no-op, so the map script does not hide those models.
+
 ## VM Lookup
 
 Root globals and functions retain their canonical linked lists for ownership and declaration order, plus root-owned 4096-bucket indexes for lookup. Bucket entries use dedicated `hash_next` links. Local variables remain short linked lists.
@@ -120,9 +152,7 @@ Tests also exposed two independent issues: `IntToText` returned an integer place
 opaque handles dereferenced a missing JASS type declaration in `var_eq`.
 
 Skipping `InitGlobals` left `gv_p1_USER` at zero instead of its authored value 1 and left objective counters unset. The current startup
-restores map globals before trigger registration. Attempting the complete authored `InitMap` stopped at
-`TriggerAddEventDialogControl` in `libNtve_InitLib`. The native event dispatcher must be completed before restoring `InitLibs`;
-logging a warning and adding another no-op binding would not implement that initialization contract.
+restores map globals before trigger registration. Attempting the complete authored `InitMap` stopped at `TriggerAddEventDialogControl` in `libNtve_InitLib`. Dialog, purchase, chat, and key callbacks now store their filters. `InitLibs` stays unwired until a UI path publishes those events and the library's other missing natives are real. A no-op binding is not that contract. See [Event callbacks](#event-callbacks).
 
 The authored startup is `InitMap` → `InitLibs` → `InitGlobals` → `InitTriggers`. Current startup only performs the last two.
 `InitGlobals` restoring the script's player number does not fix the separate client/lobby/native-owner mapping described in the

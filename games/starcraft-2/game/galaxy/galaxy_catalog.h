@@ -42,11 +42,11 @@ static sc2GOrder_t *sc2_order(jass_t *j) {
 }
 static uint32_t sc2_Order(jass_t *j) {
     if (sc2_gorder_n==MAX_GALAXY_ORDERS) { jass_rterror(j,"Galaxy order table full"); return 0; }
-    int32_t h=sc2_gorder_n++; sc2_gorders[h]=(sc2GOrder_t){ .abilcmd_h=jass_checkinteger(j,1), .player=-1 };
+    int32_t h=sc2_gorder_n++; sc2_gorders[h]=(sc2GOrder_t){ .abilcmd_h=sc2_ev_abil(j,1), .player=-1 };
     return jass_pushlighthandle(j,(handle_t)(uintptr_t)h,"order");
 }
 static uint32_t sc2_OrderTargetingPoint(jass_t *j) {
-    int32_t abilcmd_h = jass_checkinteger(j, 1);
+    int32_t abilcmd_h = sc2_ev_abil(j, 1);
     int32_t pt_h      = (int32_t)(uintptr_t)jass_checkhandle(j, 2, "point");
     if (sc2_gorder_n < MAX_GALAXY_ORDERS) {
         int32_t h = sc2_gorder_n++;
@@ -57,7 +57,7 @@ static uint32_t sc2_OrderTargetingPoint(jass_t *j) {
     return jass_pushnullhandle(j, "order");
 }
 static uint32_t sc2_OrderTargetingUnit(jass_t *j) {
-    int32_t abilcmd_h = jass_checkinteger(j, 1);
+    int32_t abilcmd_h = sc2_ev_abil(j, 1);
     int32_t unit_h    = (int32_t)(uintptr_t)jass_checkhandle(j, 2, "unit");
     if (sc2_gorder_n < MAX_GALAXY_ORDERS) {
         int32_t h = sc2_gorder_n++;
@@ -68,7 +68,7 @@ static uint32_t sc2_OrderTargetingUnit(jass_t *j) {
 }
 static uint32_t sc2_OrderSetPlayer(jass_t *j) { sc2_order(j)->player=sc2_player_index(j,2); return 0; }
 static uint32_t sc2_OrderGetPlayer(jass_t *j) { return jass_pushinteger(j,sc2_order(j)->player); }
-static uint32_t sc2_OrderSetAbilityCommand(jass_t *j) { sc2_order(j)->abilcmd_h=jass_checkinteger(j,2); return 0; }
+static uint32_t sc2_OrderSetAbilityCommand(jass_t *j) { sc2_order(j)->abilcmd_h=sc2_ev_abil(j,2); return 0; }
 static uint32_t sc2_OrderGetAbilityCommand(jass_t *j) { return jass_pushinteger(j,sc2_order(j)->abilcmd_h); }
 static uint32_t sc2_OrderGetTargetType(jass_t *j) { return jass_pushinteger(j,sc2_order(j)->target_type); }
 static uint32_t sc2_OrderSetTargetPoint(jass_t *j) {

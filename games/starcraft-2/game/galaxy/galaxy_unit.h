@@ -13,6 +13,13 @@
 void *sc2_gunits[MAX_GALAXY_UNITS];
 uint32_t sc2_gunit_n;
 int32_t  sc2_last_unit_handle;
+static float sc2_ux[MAX_GALAXY_UNITS], sc2_uy[MAX_GALAXY_UNITS];
+static uint8_t sc2_uxy_set[MAX_GALAXY_UNITS];
+static void sc2_ev_spatial(jass_t *j, int32_t unit, float ox, float oy, float nx, float ny);
+static void sc2_ev_note_xy(int32_t h, float x, float y) {
+    if (h <= 0 || h > MAX_GALAXY_UNITS) return;
+    sc2_ux[h - 1] = x; sc2_uy[h - 1] = y; sc2_uxy_set[h - 1] = 1;
+}
 
 typedef struct { char ability[64]; float x, y; bool started; } sc2GUnitOrder_t;
 static int32_t sc2_gcargo[MAX_GALAXY_UNITS][MAX_CARGO_PER_UNIT];
@@ -51,7 +58,12 @@ static uint32_t sc2_UnitCreate(jass_t *j) {
             fprintf(stderr, "sc2_UnitCreate: on_unit_create returned NULL for type '%s' (%ld/%ld) — unit will be invisible\n",
                     type ? type : "(null)", (long)(i + 1), (long)count);
         handle = sc2_unit_register(j,ent);
-        if (handle) sc2_group_append(j,&sc2_unit_groups[sc2_last_unit_group],handle);
+        if (handle) {
+            sc2_group_append(j,&sc2_unit_groups[sc2_last_unit_group],handle);
+            sc2_ev_note_xy(handle, x, y);
+            /* Creation is its own event; EventUnit and EventUnitCreatedUnit are the new unit. */
+            sc2_ev_emit(j, (sc2evresp_t){ .type = SC2_EV_CREATED, .unit = handle, .created = handle, .player = player });
+        }
         sc2_last_unit_handle = handle;
     }
     return handle ? jass_pushlighthandle(j, (handle_t)(uintptr_t)handle, "unit")
@@ -86,7 +98,13 @@ static uint32_t sc2_UnitSetOwner(jass_t *j) {
 static uint32_t sc2_unit_life(jass_t *j, bool revive) {
     int32_t h = (int32_t)(uintptr_t)jass_checkhandle(j,1,"unit"); void *ent = sc2_ent_from_handle(j,1);
     sc2UnitState_t *u = sc2_unit_data(j,ent);
-    if (u) { SC2_UnitSetProperty(u,0,revive ? u->vitals[0].max_value : 0); sc2_uorder_n[h-1]=0; sc2_unit_changed(j,ent); }
+    float old = u ? SC2_UnitProperty(u, 0) : 0;
+    if (!u) return 0;
+    SC2_UnitSetProperty(u, 0, revive ? u->vitals[0].max_value : 0); sc2_uorder_n[h-1]=0; sc2_unit_changed(j,ent);
+    /* Life is a property event, then death or revival is its own event so each callback sees its response. */
+    if (SC2_UnitProperty(u, 0) != old)
+        sc2_ev_emit(j, (sc2evresp_t){ .type = SC2_EV_PROP, .unit = h, .player = sc2_ev_owner(h), .ival = 0 });
+    sc2_ev_emit(j, (sc2evresp_t){ .type = revive ? SC2_EV_REVIVE : SC2_EV_DIED, .unit = h, .player = sc2_ev_owner(h) });
     return 0;
 }
 static uint32_t sc2_UnitKill(jass_t *j) { return sc2_unit_life(j,false); }
@@ -94,6 +112,7 @@ static uint32_t sc2_UnitRevive(jass_t *j) { return sc2_unit_life(j,true); }
 static uint32_t sc2_UnitRemove(jass_t *j) {
     int32_t h = (int32_t)(uintptr_t)jass_checkhandle(j,1,"unit"); void *ent = sc2_ent_from_handle(j,1);
     if (!ent) return 0;
+    sc2_ev_emit(j, (sc2evresp_t){ .type = SC2_EV_REMOVED, .unit = h, .player = sc2_ev_owner(h) });
     if (!sc2_galaxy_unit_remove) { jass_rterror(j,"Galaxy removal callback unavailable"); return 0; }
     sc2_galaxy_unit_remove(ent); sc2_gunits[h-1]=NULL; sc2_uorder_n[h-1]=0;
     for (int i=1;i<sc2_unit_group_n;i++) sc2_group_remove(&sc2_unit_groups[i],h);
@@ -124,10 +143,15 @@ static uint32_t sc2_UnitFromId(jass_t *j) {
     return jass_pushlighthandle(j,(handle_t)(uintptr_t)h,"unit");
 }
 static uint32_t sc2_unit_set_property(jass_t *j, bool integral) {
+    int32_t h=(int32_t)(uintptr_t)jass_checkhandle(j,1,"unit");
     void *ent=sc2_ent_from_handle(j,1); sc2UnitState_t *u=sc2_unit_data(j,ent);
     int prop=sc2_checked_index(j,2,24); float value=integral ? jass_checkinteger(j,3) : jass_checknumber(j,3);
+    float old=u ? SC2_UnitProperty(u,prop) : 0;
     if (u && !SC2_UnitSetProperty(u,prop,value)) { jass_rterror(j,"Unit property is read-only or value is nonfinite"); return 0; }
-    if (u) sc2_unit_changed(j,ent); return 0;
+    if (u) sc2_unit_changed(j,ent);
+    if (u && SC2_UnitProperty(u,prop) != old)
+        sc2_ev_emit(j,(sc2evresp_t){ .type=SC2_EV_PROP, .unit=h, .player=sc2_ev_owner(h), .ival=prop });
+    return 0;
 }
 static uint32_t sc2_UnitSetPropertyFixed(jass_t *j) { return sc2_unit_set_property(j,false); }
 static uint32_t sc2_UnitSetPropertyInt(jass_t *j) { return sc2_unit_set_property(j,true); }
@@ -149,9 +173,10 @@ static uint32_t sc2_UnitGetCustomValue(jass_t *j) {
 static uint32_t sc2_UnitSetState(jass_t *j) {
     void *ent=sc2_ent_from_handle(j,1); sc2UnitState_t *u=sc2_unit_data(j,ent);
     int state=sc2_checked_index(j,2,29); bool value=jass_checkboolean(j,3);
-    switch (state) {
-    case 8: case 9: case 10: case 17: case 24: case 25: break;
-    default: jass_rterror(j,"Unit state is read-only or its behavior is not implemented"); return 0;
+    /* Writable indexes from natives.galaxy. Read-only 0-7, 13-15, 22-23, and 28 still abort.
+     * Targetable (18) and tooltipable (20) are stored flags; rejecting them aborted map init. */
+    if (!((1u << state) & 0x0F3F1F00u)) {
+        jass_rterror(j,"Unit state is read-only or its behavior is not implemented"); return 0;
     }
     if (u) { if (value) u->states |= 1u<<state; else u->states &= ~(1u<<state); sc2_unit_changed(j,ent); }
     return 0;
@@ -173,10 +198,20 @@ static uint32_t sc2_UnitPauseAll(jass_t *j) {
 }
 
 static uint32_t sc2_UnitSetPosition(jass_t *j) {
+    int32_t h = (int32_t)(uintptr_t)jass_checkhandle(j, 1, "unit");
     void *ent = sc2_ent_from_handle(j, 1);
     int32_t pt_h = (int32_t)(uintptr_t)jass_checkhandle(j, 2, "point");
+    float ox = 0, oy = 0, nx, ny;
+    bool had = h > 0 && h <= MAX_GALAXY_UNITS && sc2_uxy_set[h - 1];
+    sc2GPoint_t loc;
+    if (had) { ox = sc2_ux[h - 1]; oy = sc2_uy[h - 1]; }
     if (ent && sc2_galaxy_unit_set_position && pt_h > 0 && pt_h < sc2_gpoint_n)
         sc2_galaxy_unit_set_position(ent, sc2_gpoints[pt_h].x, sc2_gpoints[pt_h].y, NAN);
+    if (sc2_unit_location_handle(h, &loc)) { nx = loc.x; ny = loc.y; }
+    else if (pt_h > 0 && pt_h < sc2_gpoint_n) { nx = sc2_gpoints[pt_h].x; ny = sc2_gpoints[pt_h].y; }
+    else return jass_pushnull(j);
+    if (had && (nx != ox || ny != oy)) sc2_ev_spatial(j, h, ox, oy, nx, ny);
+    sc2_ev_note_xy(h, nx, ny);
     return jass_pushnull(j);
 }
 
@@ -230,6 +265,7 @@ static bool sc2_issue_unit_order(jass_t *j,int32_t unit_h,int32_t order_h,int32_
         fprintf(stderr,"SC2 UnitIssueOrder: ability '%s' is not implemented\n",ability); return false;
     }
     if (ord->target_type==0) { fprintf(stderr,"SC2 UnitIssueOrder: movement needs a target\n"); return false; }
+    bool was_idle = sc2_uorder_n[unit_h - 1] == 0;
     if (queue == 0) sc2_uorder_n[unit_h - 1] = 0;
     int32_t *count = &sc2_uorder_n[unit_h - 1];
     if (*count >= MAX_UNIT_ORDERS) {
@@ -245,6 +281,12 @@ static bool sc2_issue_unit_order(jass_t *j,int32_t unit_h,int32_t order_h,int32_
     fprintf(stderr, "UnitIssueOrder: unit=%ld ability=%s target=(%.1f,%.1f) queue=%ld depth=%ld\n",
             (long)unit_h, ability, tx, ty, (long)queue, (long)*count);
 #endif
+    if (was_idle)
+        sc2_ev_emit(j, (sc2evresp_t){ .type = SC2_EV_IDLE, .unit = unit_h, .player = sc2_ev_owner(unit_h), .ival = 0 });
+    sc2evresp_t ev = { .type = SC2_EV_ORDER, .unit = unit_h, .player = sc2_ev_owner(unit_h), .order = order_h,
+        .abil = ac_h, .target = ord->target_type == 2 ? ord->unit_h : 0 };
+    if (ord->target_type == 1 && pt_h > 0) { ev.x = tx; ev.y = ty; ev.has_point = true; }
+    sc2_ev_emit(j, ev);
     return true;
 }
 static uint32_t sc2_UnitIssueOrder(jass_t *j) {
@@ -277,6 +319,9 @@ static uint32_t sc2_UnitCargoCreate(jass_t *j) {
         sc2_gunits[handle - 1] = ent;
         sc2_last_cargo_handle  = handle;
         sc2_last_unit_handle   = handle;
+        sc2_ev_note_xy(handle, 0, 0);
+        sc2_ev_emit(j, (sc2evresp_t){ .type = SC2_EV_CREATED, .unit = handle, .created = handle, .player = player });
+        sc2_ev_emit(j, (sc2evresp_t){ .type = SC2_EV_CARGO, .unit = t_h, .cargo = handle, .player = player, .ival = 1 });
         if (t_h > 0 && t_h <= MAX_GALAXY_UNITS) {
             int32_t ci = sc2_gcargo_n[t_h - 1];
             if (ci < MAX_CARGO_PER_UNIT)
@@ -319,10 +364,6 @@ static uint32_t sc2_UnitGetAttachmentPoint(jass_t *j)   { return jass_pushintege
 static uint32_t sc2_UnitSetTeamColorIndex(jass_t *j)    { (void)j; return jass_pushnull(j); }
 static uint32_t sc2_UnitLoadModel(jass_t *j)            { (void)j; return jass_pushnull(j); }
 static uint32_t sc2_UnitUnloadModel(jass_t *j)          { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_EventUnit(jass_t *j)       { return jass_pushnullhandle(j, "unit"); }
-static uint32_t sc2_EventUnitCargo(jass_t *j)  { return jass_pushnullhandle(j, "unit"); }
-static uint32_t sc2_EventUnitTarget(jass_t *j) { return jass_pushnullhandle(j, "unit"); }
-
 #include "galaxy_unitgroup.h"
 static uint32_t sc2_UnitGroupWaitUntilIdle(jass_t *j)    { (void)j; return jass_pushnull(j); }
 static uint32_t sc2_UnitInventoryGroup(jass_t *j)        { return jass_pushnullhandle(j, "unitgroup"); }
@@ -362,13 +403,14 @@ static void sc2_pop_unit_order(int32_t unit_h) {
 }
 
 /* Galaxy append orders begin only after the active movement reports completion. */
-static void sc2_run_unit_orders(void) {
+static void sc2_run_unit_orders(jass_t *j) {
     for (int32_t unit_h = 1; unit_h <= (int32_t)sc2_gunit_n; unit_h++) {
         int32_t *count = &sc2_uorder_n[unit_h - 1];
         void *ent = sc2_gunits[unit_h - 1];
         sc2UnitState_t *state=ent && sc2_galaxy_unit_state ? sc2_galaxy_unit_state(ent) : NULL;
         if (!ent) { *count=0; continue; }
         if (state && (!SC2_UnitAlive(state) || (state->states & (1u<<SC2_UNIT_PAUSED)))) continue;
+        bool finished = false;
         while (*count > 0) {
             sc2GUnitOrder_t *ord = &sc2_uorders[unit_h - 1][0];
             if (!strcmp(ord->ability, "move")) {
@@ -379,6 +421,7 @@ static void sc2_run_unit_orders(void) {
                 }
                 if (ent && sc2_galaxy_unit_is_moving && sc2_galaxy_unit_is_moving(ent)) break;
                 sc2_pop_unit_order(unit_h);
+                finished = *count == 0;
                 continue;
             }
             if (!strcmp(ord->ability, "SpecOpsDropshipTransport")) {
@@ -390,6 +433,8 @@ static void sc2_run_unit_orders(void) {
                     float y = ord->y + (0.75f + (float)(i / 3) * SC2_CARGO_DROP_SPACING);
                     if (cargo && sc2_galaxy_unit_set_position)
                         sc2_galaxy_unit_set_position(cargo, x, y, 0.0f);
+                    sc2_ev_emit(j, (sc2evresp_t){ .type = SC2_EV_CARGO, .unit = unit_h, .cargo = cargo_h,
+                        .player = sc2_ev_owner(unit_h), .ival = 0 });
                 }
 #ifdef SC2_DEBUG_CUTSCENE
                 fprintf(stderr, "UnitIssueOrder: unloaded %ld cargo units at (%.1f,%.1f)\n",
@@ -398,6 +443,76 @@ static void sc2_run_unit_orders(void) {
                 sc2_gcargo_n[unit_h - 1] = 0;
             }
             sc2_pop_unit_order(unit_h);
+            finished = *count == 0;
         }
+        if (finished)
+            sc2_ev_emit(j, (sc2evresp_t){ .type = SC2_EV_IDLE, .unit = unit_h, .player = sc2_ev_owner(unit_h), .ival = 1 });
+    }
+}
+
+/* Region and range callbacks see a crossing the way WC3 compares old_origin with origin2.
+ * The other endpoint is its current stored position, so one mover is the supported transition. */
+static int sc2_ev_cross(float od, float nd, float range) {
+    if (od > range && nd <= range) return 1;
+    return (od <= range && nd > range) ? 0 : -1;
+}
+static void sc2_ev_spatial(jass_t *j, int32_t unit, float ox, float oy, float nx, float ny) {
+    int32_t player = sc2_ev_owner(unit);
+    for (uint32_t i = 0; i < MAX_SC2_EVENTS; i++) {
+        sc2evreg_t *r = &sc2_evregs[i];
+        bool enter, want;
+        if (!r->inuse) continue;
+        want = (r->flags & SC2_EF_STATE) != 0;
+        if (r->type == SC2_EV_REGION) {
+            bool old_in, now_in;
+            if (r->unit && r->unit != unit) continue;
+            if (r->other <= 0 || r->other >= sc2_region_n) continue;
+            old_in = sc2_region_has_point(&sc2_regions[r->other], (sc2GPoint_t){ ox, oy, 0, 0 });
+            now_in = sc2_region_has_point(&sc2_regions[r->other], (sc2GPoint_t){ nx, ny, 0, 0 });
+            if (old_in == now_in) continue;
+            enter = !old_in && now_in;
+            if (want != enter) continue;
+            sc2_ev_fire_reg(j, r, (sc2evresp_t){ .unit = unit, .player = player, .region = r->other, .ival = enter });
+        } else if (r->type == SC2_EV_RANGE_PT) {
+            float ax, ay, od, nd;
+            if (r->unit && r->unit != unit) continue;
+            if (r->other <= 0 || r->other >= sc2_gpoint_n) continue;
+            ax = sc2_gpoints[r->other].x; ay = sc2_gpoints[r->other].y;
+            od = hypotf(ox - ax, oy - ay); nd = hypotf(nx - ax, ny - ay);
+            int cross = sc2_ev_cross(od, nd, r->fval);
+            enter = cross == 1;
+            if (cross < 0 || want != enter) continue;
+            sc2_ev_fire_reg(j, r, (sc2evresp_t){ .unit = unit, .player = player, .ival = enter, .x = ax, .y = ay, .has_point = true });
+        } else if (r->type == SC2_EV_RANGE) {
+            bool anchor_moved = r->other == unit && r->unit && r->unit != unit;
+            int32_t subject = anchor_moved ? r->unit : unit, anchor = anchor_moved ? unit : r->other;
+            float od, nd;
+            sc2GPoint_t p;
+            if (!r->unit && r->other == unit) continue;
+            if (r->unit && r->unit != unit && !anchor_moved) continue;
+            if (anchor_moved) {
+                if (!sc2_uxy_set[subject - 1]) continue;
+                od = hypotf(sc2_ux[subject - 1] - ox, sc2_uy[subject - 1] - oy);
+                nd = hypotf(sc2_ux[subject - 1] - nx, sc2_uy[subject - 1] - ny);
+            } else {
+                if (!sc2_unit_location_handle(anchor, &p)) continue;
+                od = hypotf(ox - p.x, oy - p.y); nd = hypotf(nx - p.x, ny - p.y);
+            }
+            int cross = sc2_ev_cross(od, nd, r->fval);
+            enter = cross == 1;
+            if (cross < 0 || want != enter) continue;
+            sc2_ev_fire_reg(j, r, (sc2evresp_t){
+                .unit = subject, .player = sc2_ev_owner(subject), .target = anchor, .ival = enter });
+        }
+    }
+}
+static void sc2_ev_spatial_tick(jass_t *j) {
+    for (int32_t h = 1; h <= (int32_t)sc2_gunit_n; h++) {
+        sc2GPoint_t p;
+        if (!sc2_gunits[h - 1] || !sc2_unit_location_handle(h, &p)) continue;
+        if (!sc2_uxy_set[h - 1]) { sc2_ev_note_xy(h, p.x, p.y); continue; }
+        if (p.x == sc2_ux[h - 1] && p.y == sc2_uy[h - 1]) continue;
+        sc2_ev_spatial(j, h, sc2_ux[h - 1], sc2_uy[h - 1], p.x, p.y);
+        sc2_ev_note_xy(h, p.x, p.y);
     }
 }

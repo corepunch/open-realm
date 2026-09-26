@@ -148,7 +148,8 @@ static uint32_t sc2_ConversationDataResetStateValues(jass_t *j) { (void)j; retur
 static uint32_t sc2_ConversationDataSaveNodeState(jass_t *j)    { (void)j; return jass_pushnull(j); }
 static uint32_t sc2_ConversationDataSaveStateValues(jass_t *j)  { (void)j; return jass_pushnull(j); }
 static uint32_t sc2_ConversationDataStateFixedValue(jass_t *j)  { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_ConversationDataStateGetValue(jass_t *j)    { (void)j; return jass_pushnull(j); }
+/* Returns int. A null handle makes PlayerModifyPropertyInt abort map init before the intro. */
+static uint32_t sc2_ConversationDataStateGetValue(jass_t *j)    { (void)j; return jass_pushinteger(j, 0); }
 static uint32_t sc2_ConversationDataStateIndex(jass_t *j)       { (void)j; return jass_pushinteger(j, 0); }
 static uint32_t sc2_ConversationDataStateIndexCount(jass_t *j)  { (void)j; return jass_pushinteger(j, 0); }
 /* Presentation fields come from the layered ConversationState catalog, retained by the game module. */
@@ -167,4 +168,4 @@ static uint32_t sc2_ConversationDataStateText(jass_t *j) {
     return sc2_conversation_field(j, field);
 }
 
-static uint32_t sc2_TimerPause(jass_t *j)                    { (void)j; return jass_pushnull(j); }
+
