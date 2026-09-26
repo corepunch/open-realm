@@ -657,7 +657,7 @@ animation_t const *Wow_SetEntityAnimation(edict_t *ent, cstring_t animation_name
     return local->animation;
 }
 
-bool Wow_SetEntityMoveFirstAnimation(edict_t *ent, wowmove_t *move, cstring_t const *animation_names) {
+bool Wow_SetEntityMoveFirstAnimation(edict_t *ent, wowMove_t *move, cstring_t const *animation_names) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
 
     if (!ent || !local || !move) {
@@ -676,7 +676,7 @@ bool Wow_SetEntityMoveFirstAnimation(edict_t *ent, wowmove_t *move, cstring_t co
     return false;
 }
 
-bool Wow_SetEntityMove(edict_t *ent, wowmove_t *move) {
+bool Wow_SetEntityMove(edict_t *ent, wowMove_t *move) {
     cstring_t names[2];
 
     if (!move || !move->animation) {

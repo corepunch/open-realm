@@ -71,7 +71,7 @@ The registry lives in `libshared` so game-module constructors register into the 
 Available assertions: `T_ASSERT(cond)`, `T_EQ(a,b)`, `T_NE(a,b)`, `T_FEQ(a,b,eps)`, `T_STREQ(a,b)`, `T_NULL(p)`, `T_NOT_NULL(p)`.
 
 Warcraft III tests share `alloc_test_unit()` from `games/warcraft-3/game/tests/t_utils.c`. For IDs backed by a real `UnitBalance` row, the helper initializes current/max health to the authored `maxHealth`, matching the live-unit contract of `SP_SpawnUnit`. Tests that need a dead unit must set `health.value = 0` explicitly; otherwise selection and order validation will correctly reject the fixture through `M_IsDead()`.
-`setup_test_world()` installs a mutable synthetic `MAPINFO`, but production exposes it through `level.mapinfo` as `LPCMAPINFO`. Tests that need to configure synthetic player-slot metadata must cast that fixture view back to `LPMAPINFO` (for example `((LPMAPINFO)level.mapinfo)->players[1].playerType = ...`) rather than assigning through the const production pointer.
+`setup_test_world()` installs a mutable synthetic `mapInfo_t`, but production exposes it through `level.mapinfo` as `mapInfo_t const *`. Tests that need to configure synthetic player-slot metadata must cast that fixture view back to `mapInfo_t *` (for example `((mapInfo_t *)level.mapinfo)->players[1].playerType = ...`) rather than assigning through the const production pointer.
 
 Assertion failures always include `__FILE__` and `__LINE__`. Under GitHub Actions, the runner also emits a workflow error annotation so failures are clickable at the originating source line.
 
@@ -90,10 +90,10 @@ Write a round-trip test whenever you add a new field, flag, or packed value to c
 
 ```c
 TEST(wow_appearance, entity_delta_preserves_my_flag) {
-    BYTE buf[256];
+    uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     entityState_t from = { 0 }, to = { .number = 9, .model = 3, .flags = EF_MY_FLAG }, out = { 0 };
-    DWORD bits = 0;
+    uint32_t bits = 0;
     int number;
 
     MSG_WriteDeltaEntity(&sb, &from, &to, true);
@@ -122,7 +122,7 @@ Test that function by driving game state, calling it with a copied `entityState_
 TEST(wow_game, my_feature_sets_correct_flags) {
     struct game_export *game = init_game();
     entityState_t state;
-    LPEDICT npc = /* find or spawn the entity */;
+    edict_t *npc = /* find or spawn the entity */;
 
     /* Drive the entity into the desired server state here */
 

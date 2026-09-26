@@ -489,7 +489,7 @@ TEST(client_layout, world_hover_context_rows_compact_through_relative_anchor_cha
     uint8_t buf[512];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     uiFrame_t empty = {0}, cargo = {0}, mana = {0}, health = {0};
-    rect_t const *cargo_rect, mana_rect, health_rect;
+    rect_t const *cargo_rect, *mana_rect, *health_rect;
 
     cargo.number = 1; cargo.flags.type = FT_SEGMENTED_STATUSBAR; cargo.stat = ENT_CARGO;
     cargo.size.width = 0.043f; cargo.size.height = 0.004f;
@@ -1724,7 +1724,7 @@ TEST(net, layout_authored_height_with_top_bottom_anchors_keeps_bottom_edge) {
     uint8_t buf[512];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     uiFrame_t empty = {0}, parent = {0}, child = {0};
-    rect_t const *parent_rect, child_rect;
+    rect_t const *parent_rect, *child_rect;
 
     parent.number = 1;
     parent.flags.type = FT_SIMPLEFRAME;

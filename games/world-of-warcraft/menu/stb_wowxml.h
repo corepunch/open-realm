@@ -643,10 +643,10 @@ void UIWow_XMLSetShown(int idx, bool shown) {
 
 /* ---- XML attribute readers ---- */
 
-static void UIWow_XmlReadSize(uiWowXmlElem_t *e, xmlNodePtr node) {
-    for (xmlNodePtr c = node->children; c; c = c->next) {
+static void UIWow_XmlReadSize(uiWowXmlElem_t *e, xmlNode *node) {
+    for (xmlNode *c = node->children; c; c = c->next) {
         if (c->type != XML_ELEMENT_NODE || xmlStrcasecmp(c->name, BAD_CAST "Size")) continue;
-        for (xmlNodePtr d = c->children; d; d = d->next) {
+        for (xmlNode *d = c->children; d; d = d->next) {
             if (d->type != XML_ELEMENT_NODE || xmlStrcasecmp(d->name, BAD_CAST "AbsDimension")) continue;
             xmlChar *x = xmlGetProp(d, BAD_CAST "x"), *y = xmlGetProp(d, BAD_CAST "y");
             e->size.w = UIWow_XmlX(UIWow_XmlFloat(x, 0.0f));
@@ -671,22 +671,22 @@ static void UIWow_XmlResolveRelativeTo(uiWowXmlElem_t *e, cstring_t raw, cstring
         e->relative_to = UIWow_XmlFindByName(e->texts[ELEM_RELATIVE_NAME]);
 }
 
-static void UIWow_XmlReadAnchor(uiWowXmlElem_t *e, xmlNodePtr node) {
+static void UIWow_XmlReadAnchor(uiWowXmlElem_t *e, xmlNode *node) {
     cstring_t parent_name = (e->parent >= 0 && e->parent < wow_xml.count)
                          ? wow_xml.elems[e->parent].texts[ELEM_NAME] : NULL;
     int anchor_index = 0;
-    for (xmlNodePtr c = node->children; c; c = c->next) {
+    for (xmlNode *c = node->children; c; c = c->next) {
         if (c->type != XML_ELEMENT_NODE || xmlStrcasecmp(c->name, BAD_CAST "Anchors")) continue;
-        for (xmlNodePtr a = c->children; a; a = a->next) {
+        for (xmlNode *a = c->children; a; a = a->next) {
             xmlChar *point, *relative, *relative_to;
             fpoint_t off = {0, 0};
             if (a->type != XML_ELEMENT_NODE || xmlStrcasecmp(a->name, BAD_CAST "Anchor")) continue;
             point = xmlGetProp(a, BAD_CAST "point");
             relative = xmlGetProp(a, BAD_CAST "relativePoint");
             relative_to = xmlGetProp(a, BAD_CAST "relativeTo");
-            for (xmlNodePtr o = a->children; o; o = o->next) {
+            for (xmlNode *o = a->children; o; o = o->next) {
                 if (o->type != XML_ELEMENT_NODE || xmlStrcasecmp(o->name, BAD_CAST "Offset")) continue;
-                for (xmlNodePtr abs = o->children; abs; abs = abs->next) {
+                for (xmlNode *abs = o->children; abs; abs = abs->next) {
                     xmlChar *x, *y;
                     if (abs->type != XML_ELEMENT_NODE || xmlStrcasecmp(abs->name, BAD_CAST "AbsDimension")) continue;
                     x = xmlGetProp(abs, BAD_CAST "x"); y = xmlGetProp(abs, BAD_CAST "y");
@@ -723,8 +723,8 @@ static void UIWow_XmlReadAnchor(uiWowXmlElem_t *e, xmlNodePtr node) {
     }
 }
 
-static void UIWow_XmlReadBackdrop(uiWowXmlElem_t *e, xmlNodePtr node) {
-    for (xmlNodePtr c = node->children; c; c = c->next) {
+static void UIWow_XmlReadBackdrop(uiWowXmlElem_t *e, xmlNode *node) {
+    for (xmlNode *c = node->children; c; c = c->next) {
         xmlChar *bg, *edge, *tile;
         if (c->type != XML_ELEMENT_NODE || xmlStrcasecmp(c->name, BAD_CAST "Backdrop")) continue;
         bg = xmlGetProp(c, BAD_CAST "bgFile"); edge = xmlGetProp(c, BAD_CAST "edgeFile"); tile = xmlGetProp(c, BAD_CAST "tile");
@@ -732,22 +732,22 @@ static void UIWow_XmlReadBackdrop(uiWowXmlElem_t *e, xmlNodePtr node) {
         if (edge && *edge) UIWow_ElemSetStr(e, ELEM_BACKDROP_EDGE, (char const *)edge);
         if (tile && *tile && !strcasecmp((char const *)tile, "true")) e->flags |= EF_BACKDROP_TILE;
         SAFE_DELETE(bg, xmlFree); SAFE_DELETE(edge, xmlFree); SAFE_DELETE(tile, xmlFree);
-        for (xmlNodePtr d = c->children; d; d = d->next) {
+        for (xmlNode *d = c->children; d; d = d->next) {
             if (d->type != XML_ELEMENT_NODE) continue;
             if (!xmlStrcasecmp(d->name, BAD_CAST "EdgeSize")) {
-                for (xmlNodePtr v = d->children; v; v = v->next) {
+                for (xmlNode *v = d->children; v; v = v->next) {
                     if (v->type != XML_ELEMENT_NODE || xmlStrcasecmp(v->name, BAD_CAST "AbsValue")) continue;
                     xmlChar *val = xmlGetProp(v, BAD_CAST "val"); float px = UIWow_XmlFloat(val, 16.0f);
                     e->edge.w = UIWow_XmlX(px); e->edge.h = UIWow_XmlY(px); SAFE_DELETE(val, xmlFree);
                 }
             } else if (!xmlStrcasecmp(d->name, BAD_CAST "TileSize")) {
-                for (xmlNodePtr v = d->children; v; v = v->next) {
+                for (xmlNode *v = d->children; v; v = v->next) {
                     if (v->type != XML_ELEMENT_NODE || xmlStrcasecmp(v->name, BAD_CAST "AbsValue")) continue;
                     xmlChar *val = xmlGetProp(v, BAD_CAST "val"); float px = UIWow_XmlFloat(val, 16.0f);
                     e->tile.w = UIWow_XmlX(px); e->tile.h = UIWow_XmlY(px); SAFE_DELETE(val, xmlFree);
                 }
             } else if (!xmlStrcasecmp(d->name, BAD_CAST "BackgroundInsets")) {
-                for (xmlNodePtr v = d->children; v; v = v->next) {
+                for (xmlNode *v = d->children; v; v = v->next) {
                     if (v->type != XML_ELEMENT_NODE || xmlStrcasecmp(v->name, BAD_CAST "AbsInset")) continue;
                     static const struct { cstring_t attr; int idx; bool is_y; } insets[] = {
                         { "left",   WOW_XML_BACKDROP_LEFT,   false },
@@ -768,8 +768,8 @@ static void UIWow_XmlReadBackdrop(uiWowXmlElem_t *e, xmlNodePtr node) {
     }
 }
 
-static void UIWow_XmlReadTexCoords(uiWowXmlElem_t *e, xmlNodePtr node) {
-    for (xmlNodePtr c = node->children; c; c = c->next) {
+static void UIWow_XmlReadTexCoords(uiWowXmlElem_t *e, xmlNode *node) {
+    for (xmlNode *c = node->children; c; c = c->next) {
         xmlChar *l, *r, *t, *b;
         if (c->type != XML_ELEMENT_NODE || xmlStrcasecmp(c->name, BAD_CAST "TexCoords")) continue;
         l = xmlGetProp(c, BAD_CAST "left"); r = xmlGetProp(c, BAD_CAST "right");
@@ -783,11 +783,11 @@ static void UIWow_XmlReadTexCoords(uiWowXmlElem_t *e, xmlNodePtr node) {
     }
 }
 
-static void UIWow_XmlReadFont(uiWowXmlElem_t *e, xmlNodePtr node) {
-    for (xmlNodePtr c = node->children; c; c = c->next) {
+static void UIWow_XmlReadFont(uiWowXmlElem_t *e, xmlNode *node) {
+    for (xmlNode *c = node->children; c; c = c->next) {
         if (c->type != XML_ELEMENT_NODE) continue;
         if (!xmlStrcasecmp(c->name, BAD_CAST "FontHeight")) {
-            for (xmlNodePtr v = c->children; v; v = v->next) {
+            for (xmlNode *v = c->children; v; v = v->next) {
                 if (v->type != XML_ELEMENT_NODE || xmlStrcasecmp(v->name, BAD_CAST "AbsValue")) continue;
                 xmlChar *val = xmlGetProp(v, BAD_CAST "val"); e->font_size = UIWow_XmlFloat(val, e->font_size); SAFE_DELETE(val, xmlFree);
             }
@@ -802,17 +802,17 @@ static void UIWow_XmlReadFont(uiWowXmlElem_t *e, xmlNodePtr node) {
     }
 }
 
-static void UIWow_XmlReadJustify(uiWowXmlElem_t *e, xmlNodePtr node) {
+static void UIWow_XmlReadJustify(uiWowXmlElem_t *e, xmlNode *node) {
     xmlChar *h = xmlGetProp(node, BAD_CAST "justifyH"), *v = xmlGetProp(node, BAD_CAST "justifyV");
     if (h && *h) { e->halign = UIWow_XmlHAlign((char const *)h, e->halign); e->flags |= EF_HAS_HALIGN; }
     if (v && *v) { e->valign = UIWow_XmlVAlign((char const *)v, e->valign); e->flags |= EF_HAS_VALIGN; }
     SAFE_DELETE(h, xmlFree); SAFE_DELETE(v, xmlFree);
 }
 
-static void UIWow_XmlReadTextInsets(uiWowXmlElem_t *e, xmlNodePtr node) {
-    for (xmlNodePtr c = node->children; c; c = c->next) {
+static void UIWow_XmlReadTextInsets(uiWowXmlElem_t *e, xmlNode *node) {
+    for (xmlNode *c = node->children; c; c = c->next) {
         if (c->type != XML_ELEMENT_NODE || xmlStrcasecmp(c->name, BAD_CAST "TextInsets")) continue;
-        for (xmlNodePtr a = c->children; a; a = a->next) {
+        for (xmlNode *a = c->children; a; a = a->next) {
             if (a->type != XML_ELEMENT_NODE || xmlStrcasecmp(a->name, BAD_CAST "AbsInset")) continue;
             xmlChar *left = xmlGetProp(a, BAD_CAST "left"), *bottom = xmlGetProp(a, BAD_CAST "bottom");
             e->text_inset.w = UIWow_XmlFloat(left, e->text_inset.w) / 1024.0f;
@@ -822,7 +822,7 @@ static void UIWow_XmlReadTextInsets(uiWowXmlElem_t *e, xmlNodePtr node) {
     }
 }
 
-static void UIWow_XmlReadButtonPart(uiWowXmlElem_t *e, xmlNodePtr child) {
+static void UIWow_XmlReadButtonPart(uiWowXmlElem_t *e, xmlNode *child) {
     xmlChar *file = xmlGetProp(child, BAD_CAST "file"), *inherits = xmlGetProp(child, BAD_CAST "inherits");
     xmlChar *name = xmlGetProp(child, BAD_CAST "name");
     uiWowXmlElem_t temp; memset(&temp, 0, sizeof(temp)); temp.texcoord = MAKE(rect_t, 0, 0, 1, 1);
@@ -851,8 +851,8 @@ static void UIWow_XmlReadButtonPart(uiWowXmlElem_t *e, xmlNodePtr child) {
     UIWow_ElemFreeStrings(&temp);
 }
 
-static void UIWow_XmlReadButton(uiWowXmlElem_t *e, xmlNodePtr node) {
-    for (xmlNodePtr c = node->children; c; c = c->next) {
+static void UIWow_XmlReadButton(uiWowXmlElem_t *e, xmlNode *node) {
+    for (xmlNode *c = node->children; c; c = c->next) {
         if (c->type != XML_ELEMENT_NODE) continue;
         bool is_button_part = false;
         for (int i = 0; uiwow_button_part_tags[i].tag; i++) {
@@ -888,10 +888,10 @@ static void UIWow_XmlReadButton(uiWowXmlElem_t *e, xmlNodePtr node) {
     }
 }
 
-static void UIWow_XmlReadScripts(uiWowXmlElem_t *e, xmlNodePtr node) {
-    for (xmlNodePtr c = node->children; c; c = c->next) {
+static void UIWow_XmlReadScripts(uiWowXmlElem_t *e, xmlNode *node) {
+    for (xmlNode *c = node->children; c; c = c->next) {
         if (c->type != XML_ELEMENT_NODE || xmlStrcasecmp(c->name, BAD_CAST "Scripts")) continue;
-        for (xmlNodePtr s = c->children; s; s = s->next) {
+        for (xmlNode *s = c->children; s; s = s->next) {
             if (s->type != XML_ELEMENT_NODE) continue;
             for (int i = 0; uiwow_script_tags[i].name; i++) {
                 if (!xmlStrcasecmp(s->name, BAD_CAST uiwow_script_tags[i].name)) {
@@ -907,7 +907,7 @@ static void UIWow_XmlReadScripts(uiWowXmlElem_t *e, xmlNodePtr node) {
     }
 }
 
-static void UIWow_XmlReadShared(uiWowXmlElem_t *e, xmlNodePtr node) {
+static void UIWow_XmlReadShared(uiWowXmlElem_t *e, xmlNode *node) {
     for (int i = 0; uiwow_shared_attrs[i].name; i++) {
         xmlChar *val = xmlGetProp(node, BAD_CAST uiwow_shared_attrs[i].name);
         if (!val) continue;
@@ -936,26 +936,26 @@ static void UIWow_XmlReadShared(uiWowXmlElem_t *e, xmlNodePtr node) {
 }
 
 /* ---- Node parser (forward declarations for mutual recursion) ---- */
-static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer);
+static void UIWow_XmlParseNode(xmlNode *node, int parent, int draw_layer);
 
-static void UIWow_XmlParseLayer(xmlNodePtr node, int parent) {
+static void UIWow_XmlParseLayer(xmlNode *node, int parent) {
     xmlChar *level = xmlGetProp(node, BAD_CAST "level");
     int layer = UIWow_XmlLayer((char const *)level);
     SAFE_DELETE(level, xmlFree);
-    for (xmlNodePtr c = node->children; c; c = c->next) UIWow_XmlParseNode(c, parent, layer);
+    for (xmlNode *c = node->children; c; c = c->next) UIWow_XmlParseNode(c, parent, layer);
 }
 
-static void UIWow_XmlParseChildren(xmlNodePtr node, int parent) {
-    for (xmlNodePtr c = node->children; c; c = c->next) {
+static void UIWow_XmlParseChildren(xmlNode *node, int parent) {
+    for (xmlNode *c = node->children; c; c = c->next) {
         if (c->type != XML_ELEMENT_NODE) continue;
         if (!xmlStrcasecmp(c->name, BAD_CAST "Layers")) {
-            for (xmlNodePtr l = c->children; l; l = l->next)
+            for (xmlNode *l = c->children; l; l = l->next)
                 if (l->type == XML_ELEMENT_NODE && !xmlStrcasecmp(l->name, BAD_CAST "Layer"))
                     UIWow_XmlParseLayer(l, parent);
             continue;
         }
         if (!xmlStrcasecmp(c->name, BAD_CAST "Frames") || !xmlStrcasecmp(c->name, BAD_CAST "ScrollChild")) {
-            for (xmlNodePtr f = c->children; f; f = f->next) UIWow_XmlParseNode(f, parent, WOW_XML_LAYER_ARTWORK);
+            for (xmlNode *f = c->children; f; f = f->next) UIWow_XmlParseNode(f, parent, WOW_XML_LAYER_ARTWORK);
             continue;
         }
         if (!xmlStrcasecmp(c->name, BAD_CAST "ThumbTexture")) {
@@ -1031,7 +1031,7 @@ static void UIWow_XmlCloneTemplateChildren(cstring_t inherits, int dst, cstring_
     }
 }
 
-static void UIWow_XmlParseNode(xmlNodePtr node, int parent, int draw_layer) {
+static void UIWow_XmlParseNode(xmlNode *node, int parent, int draw_layer) {
     uiWowXmlType_t type = WOW_XML_FRAME;
     uint32_t node_flags = 0;
     bool recognized = false;
@@ -1116,9 +1116,9 @@ bool UIWow_XMLProcessFile(cstring_t path, int depth) {
     return UIWow_XMLProcessXml(path, depth);
 }
 
-static void UIWow_XMLProcessTopLevel(cstring_t path, xmlNodePtr root, int depth) {
+static void UIWow_XMLProcessTopLevel(cstring_t path, xmlNode *root, int depth) {
     snprintf(s_current_xml_path, sizeof(s_current_xml_path), "%s", path ? path : "");
-    for (xmlNodePtr n = root->children; n; n = n->next) {
+    for (xmlNode *n = root->children; n; n = n->next) {
         if (n->type != XML_ELEMENT_NODE || !n->name) continue;
         if (!xmlStrcasecmp(n->name, BAD_CAST "Include")) {
             xmlChar *f = xmlGetProp(n, BAD_CAST "file"); char resolved[PATH_MAX];
@@ -1149,7 +1149,7 @@ static void UIWow_XMLProcessTopLevel(cstring_t path, xmlNodePtr root, int depth)
 }
 
 static bool UIWow_XMLProcessXml(cstring_t path, int depth) {
-    void *buf = NULL; int size; xmlDocPtr doc; xmlNodePtr root;
+    void *buf = NULL; int size; xmlDoc *doc; xmlNode *root;
     if (depth > 32) { UI_XmlPrintf("UIWow: XML include recursion too deep at %s\n", path); return false; }
     size = UI_XmlFsReadFile(path, &buf);
     if (size <= 0 || !buf) { UI_XmlFsFreeFile(buf); UI_XmlPrintf("UIWow: missing XML %s\n", path); return false; }
@@ -1173,7 +1173,7 @@ void UIWow_XMLFreeElems(void) {
 bool UIWow_XMLLoadFile(cstring_t path) { return UIWow_XMLProcessXml(path, 0); }
 
 bool UIWow_XMLLoadBuffer(cstring_t buf, int size, cstring_t debug_name) {
-    xmlDocPtr doc; xmlNodePtr root;
+    xmlDoc *doc; xmlNode *root;
     if (!buf || size <= 0) return false;
     doc = xmlReadMemory(buf, size, debug_name ? debug_name : "buffer", NULL,
                         XML_PARSE_NONET | XML_PARSE_NOBLANKS | XML_PARSE_NOERROR | XML_PARSE_NOWARNING);

@@ -11,12 +11,10 @@
 #endif
 #ifdef __APPLE__
 /* Forward-declare the Objective-C runtime calls we need without pulling in
- * <objc/objc.h>, which redefines bool and conflicts with our project typedef. */
-typedef void *MacId;
-typedef void *MacSel;
-extern MacId  objc_getClass(char const *name);
-extern MacSel sel_registerName(char const *str);
-extern MacId  objc_msgSend(MacId, MacSel, ...);
+ * <objc/objc.h>. */
+extern void *objc_getClass(char const *name);
+extern void *sel_registerName(char const *str);
+extern void *objc_msgSend(void *, void *, ...);
 #endif
 #ifndef __APPLE__
 #include <SDL2/SDL_opengl.h>
@@ -645,10 +643,10 @@ void R_InitRenderer(uint32_t width, uint32_t height) {
      * to Prohibited first so the app never appears in the Dock or takes focus.
      * NSApplicationActivationPolicyProhibited = 2. */
     if (atoi(ri.CvarString("vid_hidden", "0"))) {
-        MacId ns_app = ((MacId(*)(MacId, MacSel))objc_msgSend)(
+        void *ns_app = ((void *(*)(void *, void *))objc_msgSend)(
             objc_getClass("NSApplication"),
             sel_registerName("sharedApplication"));
-        ((int(*)(MacId, MacSel, long))objc_msgSend)(
+        ((int(*)(void *, void *, long))objc_msgSend)(
             ns_app,
             sel_registerName("setActivationPolicy:"),
             2L /* NSApplicationActivationPolicyProhibited */);

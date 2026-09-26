@@ -115,10 +115,10 @@ All communication uses discrete message opcodes defined in [common/common.h](com
 |---|---|---|
 | `svc_frame` | Server frame number, delta frame, `playerState_t` | Per-tick simulation timing, player stats (HP, mana, gold, target, `uiflags`, `client_ui_state`). |
 | `svc_packetentities` | Delta-compressed `entityState_t[]` | Visible entity snapshot (positions, rotations, models, animations, effects). |
-| `svc_layout` | `BYTE layer`, `uiFrame_t[]`, optional compact payloads | Server-authored UI frame tree for a specific HUD layer. |
+| `svc_layout` | `uint8_t layer`, `uiFrame_t[]`, optional compact payloads | Server-authored UI frame tree for a specific HUD layer. |
 | `svc_unit_ui` | `num_units`, entity IDs, buttons, inventory, queues | RTS / WoW unit abilities, quick-bar inventory items, and construction queue state. |
-| `svc_configstring` | `SHORT index`, string or fixed binary statusbar slot | Media registry and map metadata. |
-| `svc_loading_screen` | `LONG total`, `LONG offset`, `LONG size`, compressed bytes | Chunked loading frame tree, sent after its media; complete receipt presents the screen. |
+| `svc_configstring` | 16-bit index, string or fixed binary statusbar slot | Media registry and map metadata. |
+| `svc_loading_screen` | 32-bit total, offset, and size, then compressed bytes | Chunked loading frame tree, sent after its media; complete receipt presents the screen. |
 | `svc_serverdata` | Protocol version, map name, player slot | Initial connection handshake and map setup. |
 | `svc_spawnbaseline` | `entityState_t` | Baseline delta state for newly spawned entity numbers. |
 | `svc_stufftext` | `STRING command` | Server-instructed client command execution. |

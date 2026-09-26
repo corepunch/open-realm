@@ -97,7 +97,7 @@ static bool path_eq(cstring_t a, cstring_t b) {
 static handle_t make_map_dbc(uint32_t *size_out) {
     uint32_t size;
     uint8_t *data = alloc_dbc(1, 5, 64, &size);
-    uint8_t *record = data + 20, strings = record + 5 * sizeof(uint32_t);
+    uint8_t *record = data + 20, *strings = record + 5 * sizeof(uint32_t);
     uint32_t cursor = 1;
     putfield(record, 0, 1);
     putfield(record, 1, add_string(strings, &cursor, "Azeroth"));
@@ -109,7 +109,7 @@ static handle_t make_map_dbc(uint32_t *size_out) {
 static handle_t make_world_safe_locs_dbc(uint32_t *size_out) {
     uint32_t size;
     uint8_t *data = alloc_dbc(1, 6, 64, &size);
-    uint8_t *record = data + 20, strings = record + 6 * sizeof(uint32_t);
+    uint8_t *record = data + 20, *strings = record + 6 * sizeof(uint32_t);
     uint32_t cursor = 1;
     putfield(record, 0, 100);
     putfield(record, 1, 1);
@@ -136,7 +136,7 @@ static handle_t make_creature_display_info_dbc(uint32_t *size_out) {
 static handle_t make_creature_model_data_dbc(uint32_t *size_out) {
     uint32_t size;
     uint8_t *data = alloc_dbc(4, 15, 160, &size);
-    uint8_t *records = data + 20, strings = records + 4 * 15 * sizeof(uint32_t);
+    uint8_t *records = data + 20, *strings = records + 4 * 15 * sizeof(uint32_t);
     uint32_t cursor = 1;
     FOR_LOOP(i, 4) {
         char name[64];
@@ -492,7 +492,7 @@ TEST(wow_entities, edict_limit_reached_returns_null) {
 TEST(wow_entities, stb_dbc_parses_header_and_fields) {
     uint32_t size;
     uint8_t *data = alloc_dbc(2, 4, 128, &size);
-    uint8_t *r0 = data + 20, r1 = r0 + 4 * sizeof(uint32_t);
+    uint8_t *r0 = data + 20, *r1 = r0 + 4 * sizeof(uint32_t);
     uint8_t *strings = r1 + 4 * sizeof(uint32_t);
     uint32_t cursor = 1;
     stbDbc_t h;

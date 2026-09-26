@@ -82,12 +82,12 @@ POSITIVE_FIXTURES = (
     "+float MineralsCarried = 0;\n",
 )
 NEGATIVE_FIXTURES = (
-    "+void R_LoadTerrainTexture(BYTE tileset);\n",
-    "+BYTE blight:1;\n",
+    "+void R_LoadTerrainTexture(uint8_t tileset);\n",
+    "+uint8_t blight:1;\n",
     "+vert->blight = (flags & 0x20) != 0;\n",
     "+int marigold_count = 0;\n",
-    "+void R_LoadBlightTexture(BYTE tileset);\n",
-    "+LPCTEXTURE R_BlightTexture(void);\n",
+    "+void R_LoadBlightTexture(uint8_t tileset);\n",
+    "+texture_t const *R_BlightTexture(void);\n",
 )
 
 

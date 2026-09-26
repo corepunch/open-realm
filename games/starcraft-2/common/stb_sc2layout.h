@@ -1278,7 +1278,7 @@ bool SC2_LayoutParseFile(cstring_t filename) {
         return false;
     }
 
-    xmlDocPtr doc = xmlParseMemory(buf, len);
+    xmlDoc *doc = xmlParseMemory(buf, len);
     sc2_layout_import.FS_FreeFile(buf);
     if (!doc) {
         fprintf(stderr, "SC2_Layout: failed to parse '%s'\n", filename);
