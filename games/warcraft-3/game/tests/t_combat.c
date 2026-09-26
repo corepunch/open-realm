@@ -356,11 +356,11 @@ TEST(wc3_combat, automatic_acquisition_ignores_invulnerable_units) {
 }
 
 TEST(wc3_combat, hidden_owner_transferred_unit_cannot_be_acquired_or_attacked) {
-    LPEDICT cairne, tauren;
-    LPMAPINFO mapinfo;
+    edict_t *cairne, *tauren;
+    mapInfo_t *mapinfo;
 
     setup_test_world(); reset_entities();
-    mapinfo = (LPMAPINFO)level.mapinfo;
+    mapinfo = (mapInfo_t *)level.mapinfo;
     mapinfo->players[0].playerType = kPlayerTypeHuman;
     mapinfo->players[4].playerType = kPlayerTypeComputer;
     mapinfo->players[5].playerType = kPlayerTypeComputer;
