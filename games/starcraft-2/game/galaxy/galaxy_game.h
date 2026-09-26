@@ -39,7 +39,9 @@ static uint32_t sc2_GameSetLighting(jass_t *j)    { (void)j; return jass_pushnul
 static uint32_t sc2_DifficultyEnabled(jass_t *j)  { return jass_pushboolean(j, false); }
 static uint32_t sc2_DifficultyName(jass_t *j)     { return jass_pushstring(j, ""); }
 static uint32_t sc2_DifficultyNameCampaign(jass_t *j) { return jass_pushstring(j, ""); }
-static uint32_t sc2_AITimePause(jass_t *j)        { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_AITimePause(jass_t *j) {
+    sc2_ai_paused = jass_checkboolean(j, 1); return 0;
+}
 static uint32_t sc2_AIDisableAllScouting(jass_t *j)          { (void)j; return jass_pushnull(j); }
 static uint32_t sc2_CampaignMode(jass_t *j)                  { (void)j; return jass_pushnull(j); }
 static uint32_t sc2_DataTableSetString(jass_t *j)            { (void)j; return jass_pushnull(j); }

@@ -5,6 +5,8 @@ This is the Markdown companion to [the JSON inventory](galaxy-native-coverage.js
 candidates**. See [Galaxy scripting](galaxy-scripting.md) for protected errors and runtime evidence, and
 [presentation state](galaxy-presentation.md) for the implemented objective/actor/catalog subset.
 
+The September counts predate the event-callback work. Unit, time, timer, player, dialog, chat, purchase, and input `TriggerAddEvent*` / `Event*` natives now keep registrations and a response record. The live contract, including which producers actually fire, is [Event callbacks](galaxy-scripting.md#event-callbacks). Do not treat a "Placeholder candidate" or "Missing" row for those names as the current binding.
+
 ## What the Counts Mean
 
 - **Missing**: a call reachable from the audit roots has neither a loaded script-function body nor a name in the SC2 host binding table.
@@ -44,7 +46,7 @@ This is an architectural recommendation based on the observed dependencies, not 
 | Order | Subsystem | Contract/evidence to establish |
 |---|---|---|
 | 1 | Trigger identity and execution state | Implement current/enabled/stop/count semantics across nested and yielded callbacks; objective-create triggers disable themselves through `TriggerGetCurrent` |
-| 2 | Event registration and dispatch | Retain authored filters and push server events into the appropriate callbacks; `InitLibs` currently stops at dialog-control registration |
+| 2 | Event registration and dispatch | Unit, time, player, and order callbacks retain filters and publish from the server; dialog and purchase filters are stored, and their UI producers are still missing, so `InitLibs` stays off |
 | 3 | Map-unit identity and unit groups | Resolve `UnitFromId` from placed-object IDs and live edicts; preserve group membership and iteration for mission conditions |
 | 4 | Player ownership and world state | Reconcile script/lobby/client numbering; implement ownership, state queries, and orders against server data rather than constant returns |
 | 5 | Combat and mission progress | Generate damage/death/range/region/order events and let authored callbacks update objectives and victory/defeat |
