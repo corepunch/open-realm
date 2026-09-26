@@ -192,6 +192,25 @@ static void Sys_ShowStartupError(cstring_t message) {
 }
 #endif
 
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
+/* iPad sandbox: the Files-visible Documents directory is both the data import
+ * drop point (copy War3.mpq et al via Files/AirDrop) and, lacking XDG, the
+ * writable home. $HOME is the sandbox root, so Documents is $HOME/Documents. */
+static bool Sys_iOSDocumentsDir(string_t out, size_t out_size) {
+#if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+    cstring_t home = getenv("HOME");
+    if (!home || !*home) return false;
+    snprintf(out, out_size, "%s/Documents", home);
+    return true;
+#else
+    (void)out; (void)out_size;
+    return false;
+#endif
+}
+
 /* Anchor the read-only share/ tree at the executable's location so the binary
  * finds its configs regardless of the working directory. Probes three layouts:
  * flat portable (share/ beside the exe), the FHS build tree (share/ beside
@@ -215,6 +234,12 @@ static void Sys_ResolveShareDirectory(void) {
 static void Sys_ResolveHomeDirectory(void) {
     PATHSTR dir;
 
+#if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+    if (Sys_iOSDocumentsDir(dir, sizeof(dir))) {
+        FS_SetHomeDirectory(dir);
+        return;
+    }
+#endif
 #ifdef _WIN32
     cstring_t home = getenv("APPDATA");
     if (!home || !*home) {
@@ -315,6 +340,16 @@ int main(int argc, string_t argv[]) {
     Com_Init(argc, (cstring_t *)argv);
 
     cstring_t data_dir = Cvar_String("data", "");
+#if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR)
+    /* iOS has no command line: default to the Files-visible Documents folder
+     * so a user-supplied War3.mpq Tree (Files/AirDrop/USB) just works. */
+    PATHSTR ios_data_dir = { 0 };
+    if ((!data_dir || !*data_dir) && Sys_iOSDocumentsDir(ios_data_dir, sizeof(ios_data_dir))) {
+        Cvar_Set("data", ios_data_dir);
+        data_dir = Cvar_String("data", "");
+        fprintf(stderr, "iOS data directory: %s\n", data_dir);
+    }
+#endif
 #ifdef _WIN32
     if ((!data_dir || !*data_dir) &&
         Sys_DiscoverWarcraftDataDirectory(discovered_data_dir,

@@ -376,6 +376,7 @@ void R_ShutdownBuiltinShaders(void);
 spriteProg_t *R_SpriteShader(SHADERTYPE type);
 
 // r_main.c
+void R_BindDefaultFramebuffer(void);
 #ifdef USE_SHADOWMAPS
 void R_RenderShadowMap(void);
 #endif

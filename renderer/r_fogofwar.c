@@ -376,7 +376,7 @@ void R_RenderFogOfWar(void) {
     R_Call(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // revert changes
-    R_Call(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+    R_BindDefaultFramebuffer();
 }
 
 buffer_t *R_MakeCastersVertexArrayObject(void) {
