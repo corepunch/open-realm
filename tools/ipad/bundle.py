@@ -60,17 +60,16 @@ def main():
     if wc3_share.is_dir():
         shutil.copytree(wc3_share, target / 'share/warcraft-3', dirs_exist_ok=True)
     shutil.copy2(args.binary, target / 'warcraft3')
+    # Single-size "universal" app icon: actool derives every iPad size from
+    # the 1024x1024 source.
     catalog = target.parent / 'AppIcon.xcassets'
+    if catalog.exists():
+        shutil.rmtree(catalog)
     appicons = catalog / 'AppIcon.appiconset'
-    appicons.mkdir(parents=True, exist_ok=True)
-    images = []
-    for size, scale in ((20, 1), (20, 2), (29, 1), (29, 2), (40, 1), (40, 2), (76, 1), (76, 2), (83.5, 2), (1024, 1)):
-        pixels = int(size * scale)
-        filename = f'icon-{pixels}.png'
-        output = appicons / filename
-        if not output.exists() or output.stat().st_mtime < icon.stat().st_mtime:
-            subprocess.run(['sips', '-z', str(pixels), str(pixels), str(icon), '--out', str(output)], check=True, stdout=subprocess.DEVNULL)
-        images.append({'idiom': 'ios-marketing' if size == 1024 else 'ipad', 'size': f'{size}x{size}', 'scale': f'{scale}x', 'filename': filename})
+    appicons.mkdir(parents=True)
+    subprocess.run(['sips', '-s', 'format', 'png', '-z', '1024', '1024', str(icon), '--out', str(appicons / 'icon-1024.png')],
+                   check=True, stdout=subprocess.DEVNULL)
+    images = [{'idiom': 'universal', 'platform': 'ios', 'size': '1024x1024', 'filename': 'icon-1024.png'}]
     (appicons / 'Contents.json').write_text(json.dumps({'images': images, 'info': {'version': 1, 'author': 'OpenWarcraft3'}}, indent=2))
     partial = target.parent / 'icon-info.plist'
     subprocess.run(['xcrun', '--sdk', args.sdk, 'actool', str(catalog), '--compile', str(target), '--output-partial-info-plist', str(partial), '--app-icon', 'AppIcon', '--target-device', 'ipad', '--minimum-deployment-target', args.minimum, '--platform', args.sdk, '--output-format', 'human-readable-text'], check=True)
