@@ -15,7 +15,7 @@
 #define BLIGHT_LOG(...) ((void)0)
 #endif
 
-static inline BOOL WC3_ParseBlightTilesetLine(LPCSTR line, char *key_out, LPSTR path_out) {
+static inline bool WC3_ParseBlightTilesetLine(cstring_t line, char *key_out, string_t path_out) {
     char key = 0;
     if (!line || !key_out || !path_out) return false;
     /* 255 is MAX_PATHLEN-1; keeps WorldEditData values inside a PATHSTR. */

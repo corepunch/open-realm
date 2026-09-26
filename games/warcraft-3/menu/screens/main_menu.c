@@ -20,7 +20,7 @@
 #include "../generated/main_menu.h"
 
 /* Generated FDF frame references */
-static LPCSTR const main_lft[] = {
+static cstring_t const main_lft[] = {
     "WarCraftIIILogo",
     "RealmSelect",
     NULL,
@@ -32,7 +32,7 @@ static uiDialogWar3_t quit_dialog;
 /* State */
 static LPFRAMEDEF edition_button;
 
-static BOOL MainMenu_LoadScreen(void) {
+static bool MainMenu_LoadScreen(void) {
     return MainMenu_Load(&main_menu);
 }
 
@@ -70,7 +70,7 @@ static void MainMenu_InitFrames(void) {
         UI_SetHidden(main_menu.ControlLayer, false);
     }
     if (main_menu.WarCraftIIILogo) {
-        DWORD logo_model = UI_LoadModel("MainMenuLogo", true);
+        uint32_t logo_model = UI_LoadModel("MainMenuLogo", true);
         if (logo_model) {
             main_menu.WarCraftIIILogo->Portrait.model = logo_model;
         }
@@ -114,8 +114,8 @@ static void MainMenu_Shutdown(void) {
     edition_button = NULL;
 }
 
-static void MainMenu_ApplyEdition(BOOL expansion) {
-    HANDLE data = NULL;
+static void MainMenu_ApplyEdition(bool expansion) {
+    handle_t data = NULL;
     int size;
 
     mi.Cvar_Set("fs_expansion", expansion ? "1" : "0");
@@ -131,7 +131,7 @@ static void MainMenu_ApplyEdition(BOOL expansion) {
 
 /* Restart only after both authored Death layers have reached their final pose. */
 static void MainMenu_FinishEditionSwitch(void) {
-    LPCSTR expansion = mi.Cvar_String("fs_expansion", "0");
+    cstring_t expansion = mi.Cvar_String("fs_expansion", "0");
 
     MainMenu_ApplyEdition(!(expansion && atoi(expansion) != 0));
     mi.Cmd_ExecuteText("menu_restart\n");
@@ -143,7 +143,7 @@ static void MainMenu_Refresh(int msec) {
 
 static void MainMenu_Draw(void) {
     LPCFRAMEDEF roots[2];
-    DWORD num_roots = 0;
+    uint32_t num_roots = 0;
 
 
     if (main_menu.MainMenuFrame) {
@@ -157,7 +157,7 @@ static void MainMenu_Draw(void) {
     }
 }
 
-static void MainMenu_KeyEvent(int key, BOOL down) {
+static void MainMenu_KeyEvent(int key, bool down) {
     /* Handle key presses */
     (void)key;
     (void)down;

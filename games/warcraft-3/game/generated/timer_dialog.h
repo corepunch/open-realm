@@ -12,8 +12,8 @@ typedef struct TimerDialog_s {
 } TimerDialog_t;
 
 
-static inline BOOL TimerDialog_Bind(TimerDialog_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool TimerDialog_Bind(TimerDialog_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -29,7 +29,7 @@ static inline BOOL TimerDialog_Bind(TimerDialog_t *out, LPFRAMEDEF bind_root) {
     return ok;
 }
 
-static inline BOOL TimerDialog_Load(TimerDialog_t *out) {
+static inline bool TimerDialog_Load(TimerDialog_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\TimerDialog.fdf") &&
            TimerDialog_Bind(out, UI_FindFrame("TimerDialog"));

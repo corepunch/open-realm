@@ -37,10 +37,10 @@ enum {
 };
 
 struct token {
-    LPSTR primary;
-    LPSTR secondary;
+    string_t primary;
+    string_t secondary;
     TOKENTYPE type;
-    DWORD flags;
+    uint32_t flags;
     LPTOKEN init;
     LPTOKEN body;
     LPTOKEN next;

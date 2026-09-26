@@ -13,29 +13,24 @@
 #include "test.h"
 
 #include <math.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
 /* =========================================================================
-   Minimal type aliases matching the production code (WinAPI / BZ style)
+   Minimal production-compatible types
    ======================================================================= */
 
-typedef uint8_t  BYTE;
-typedef uint16_t WORD;
-typedef uint32_t DWORD;
-typedef int      BOOL;
-#define true  1
-#define false 0
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #define MIN(a,b) ((a)<(b)?(a):(b))
 
-typedef struct { BYTE b, g, r, a; } COLOR32;
+typedef struct { uint8_t b, g, r, a; } COLOR32;
 typedef struct { float x, y, z; } wowVec3_t;
 
 typedef struct {
-    BYTE      type;       /* 0=OMNI 1=SPOT 2=DIRECT 3=AMBIENT */
-    BYTE      use_atten;
-    BYTE      pad[2];
+    uint8_t      type;       /* 0=OMNI 1=SPOT 2=DIRECT 3=AMBIENT */
+    uint8_t      use_atten;
+    uint8_t      pad[2];
     COLOR32   color;      /* BGRA */
     wowVec3_t position;
     float     intensity;
@@ -51,12 +46,12 @@ typedef struct {
     uint16_t num_indices;
     uint16_t first_vertex;
     uint16_t last_vertex;
-    BYTE     flags;
-    BYTE     material_id;
+    uint8_t     flags;
+    uint8_t     material_id;
 } wowWmoBatchDef_t;  /* 16 bytes in-memory */
 
 typedef struct {
-    DWORD     name_flags;
+    uint32_t     name_flags;
     wowVec3_t position;
     float     quat[4];
     float     scale;
@@ -65,9 +60,9 @@ typedef struct {
 
 typedef struct {
     char  name[20];
-    DWORD start;
-    DWORD count;
-    DWORD pad;
+    uint32_t start;
+    uint32_t count;
+    uint32_t pad;
 } wowWmoDoodadSet_t;  /* 32 bytes */
 
 /* 4×4 column-major float matrix (matches shared/types/matrix4.h) */
@@ -78,51 +73,51 @@ typedef struct { float v[16]; } MATRIX4_TEST;
    (exact translation of the production algorithm, verified here)
    ======================================================================= */
 
-static void ref_fix_mocv(BYTE *colors, DWORD color_count,
-                          wowWmoBatchDef_t const *batches, DWORD batch_count,
-                          DWORD trans_batch_count,
-                          COLOR32 amb, DWORD mohd_flags,
-                          BOOL exterior) {
-    BOOL skip_base = (mohd_flags & 0x04) != 0;
-    BOOL lighten   = (mohd_flags & 0x02) != 0;
-    BYTE ambR = skip_base || exterior ? 0 : amb.r;
-    BYTE ambG = skip_base || exterior ? 0 : amb.g;
-    BYTE ambB = skip_base || exterior ? 0 : amb.b;
+static void ref_fix_mocv(uint8_t *colors, uint32_t color_count,
+                          wowWmoBatchDef_t const *batches, uint32_t batch_count,
+                          uint32_t trans_batch_count,
+                          COLOR32 amb, uint32_t mohd_flags,
+                          bool exterior) {
+    bool skip_base = (mohd_flags & 0x04) != 0;
+    bool lighten   = (mohd_flags & 0x02) != 0;
+    uint8_t ambR = skip_base || exterior ? 0 : amb.r;
+    uint8_t ambG = skip_base || exterior ? 0 : amb.g;
+    uint8_t ambB = skip_base || exterior ? 0 : amb.b;
     int begin_second = 0;
-    DWORD i;
+    uint32_t i;
 
     if (trans_batch_count > 0 && batch_count > 0) {
-        DWORD last_a = trans_batch_count - 1 < batch_count
+        uint32_t last_a = trans_batch_count - 1 < batch_count
                        ? trans_batch_count - 1 : batch_count - 1;
         begin_second = (int)batches[last_a].last_vertex + 1;
     }
 
     if (lighten) {
-        for (i = (DWORD)begin_second; i < color_count; i++)
+        for (i = (uint32_t)begin_second; i < color_count; i++)
             colors[i * 4 + 3] = exterior ? 0xFF : 0x00;
         return;
     }
 
     /* Batch-A */
-    for (i = 0; i < (DWORD)begin_second && i < color_count; i++) {
+    for (i = 0; i < (uint32_t)begin_second && i < color_count; i++) {
         float a = colors[i * 4 + 3] / 255.f;
         int r = (int)colors[i * 4 + 2];
         int g = (int)colors[i * 4 + 1];
         int b = (int)colors[i * 4 + 0];
-        colors[i * 4 + 2] = (BYTE)MAX(0, (int)((r - ambR) * (1.f - a) / 2.f));
-        colors[i * 4 + 1] = (BYTE)MAX(0, (int)((g - ambG) * (1.f - a) / 2.f));
-        colors[i * 4 + 0] = (BYTE)MAX(0, (int)((b - ambB) * (1.f - a) / 2.f));
+        colors[i * 4 + 2] = (uint8_t)MAX(0, (int)((r - ambR) * (1.f - a) / 2.f));
+        colors[i * 4 + 1] = (uint8_t)MAX(0, (int)((g - ambG) * (1.f - a) / 2.f));
+        colors[i * 4 + 0] = (uint8_t)MAX(0, (int)((b - ambB) * (1.f - a) / 2.f));
     }
 
     /* Batch-B/C */
-    for (i = (DWORD)begin_second; i < color_count; i++) {
+    for (i = (uint32_t)begin_second; i < color_count; i++) {
         float a = colors[i * 4 + 3] / 255.f;
         int r = (int)colors[i * 4 + 2];
         int g = (int)colors[i * 4 + 1];
         int b = (int)colors[i * 4 + 0];
-        colors[i * 4 + 2] = (BYTE)MIN(255, MAX(0, (int)((r * a / 64.f + r - ambR) / 2.f)));
-        colors[i * 4 + 1] = (BYTE)MIN(255, MAX(0, (int)((g * a / 64.f + g - ambG) / 2.f)));
-        colors[i * 4 + 0] = (BYTE)MIN(255, MAX(0, (int)((b * a / 64.f + b - ambB) / 2.f)));
+        colors[i * 4 + 2] = (uint8_t)MIN(255, MAX(0, (int)((r * a / 64.f + r - ambR) / 2.f)));
+        colors[i * 4 + 1] = (uint8_t)MIN(255, MAX(0, (int)((g * a / 64.f + g - ambG) / 2.f)));
+        colors[i * 4 + 0] = (uint8_t)MIN(255, MAX(0, (int)((b * a / 64.f + b - ambB) / 2.f)));
         colors[i * 4 + 3] = exterior ? 0xFF : 0x00;
     }
 }
@@ -157,7 +152,7 @@ static void ref_doodad_local_matrix(wowWmoDoodadDef_t const *def, MATRIX4_TEST *
 TEST(wow_wmo_mocv, no_batches_all_exterior_bakes_alpha_ff) {
     /* No batches → begin_second = 0 → all vertices go through batch-B/C path.
        Exterior → alpha channel baked to 0xFF. */
-    BYTE colors[4 * 4] = {
+    uint8_t colors[4 * 4] = {
         200, 180, 160, 128,  /* BGRA vertex 0 */
         100, 100, 100, 200,  /* BGRA vertex 1 */
         255, 255, 255, 255,  /* BGRA vertex 2 */
@@ -174,7 +169,7 @@ TEST(wow_wmo_mocv, no_batches_all_exterior_bakes_alpha_ff) {
 }
 
 TEST(wow_wmo_mocv, no_batches_interior_bakes_alpha_zero) {
-    BYTE colors[1 * 4] = { 128, 128, 128, 200 };
+    uint8_t colors[1 * 4] = { 128, 128, 128, 200 };
     COLOR32 amb = {0, 0, 0, 255};
     ref_fix_mocv(colors, 1, NULL, 0, 0, amb, 0, false /*interior*/);
     T_EQ(colors[3], 0x00);
@@ -187,7 +182,7 @@ TEST(wow_wmo_mocv, batch_a_ambient_subtracted) {
        Expected: r' = (R - ambR) * (1 - 0) / 2 = (200-64)/2 = 68
                  g' = (G - ambG) * (1 - 0) / 2 = (180-64)/2 = 58
                  b' = (B - ambB) * (1 - 0) / 2 = (160-64)/2 = 48  */
-    BYTE colors[1 * 4] = { 160, 180, 200, 0 }; /* BGRA: B=160 G=180 R=200 A=0 */
+    uint8_t colors[1 * 4] = { 160, 180, 200, 0 }; /* BGRA: B=160 G=180 R=200 A=0 */
     wowWmoBatchDef_t batch = { {0},{0}, 0, 3, 0, 0, 0, 0 };  /* last_vertex = 0 */
     COLOR32 amb = {64, 64, 64, 255}; /* .r=R .g=G .b=B */
     ref_fix_mocv(colors, 1, &batch, 1, 1 /*trans_batch_count=1 → split at vertex 1*/,
@@ -201,7 +196,7 @@ TEST(wow_wmo_mocv, batch_a_ambient_subtracted) {
 
 TEST(wow_wmo_mocv, batch_a_clamps_to_zero_when_below_ambient) {
     /* R=10 < ambR=64 → clamped to 0 */
-    BYTE colors[1 * 4] = { 10, 10, 10, 0 }; /* BGRA: B=10 G=10 R=10 A=0 */
+    uint8_t colors[1 * 4] = { 10, 10, 10, 0 }; /* BGRA: B=10 G=10 R=10 A=0 */
     wowWmoBatchDef_t batch = { {0},{0}, 0, 3, 0, 0, 0, 0 };
     COLOR32 amb = {64, 64, 64, 255};
     ref_fix_mocv(colors, 1, &batch, 1, 1, amb, 0, false);
@@ -210,7 +205,7 @@ TEST(wow_wmo_mocv, batch_a_clamps_to_zero_when_below_ambient) {
 
 TEST(wow_wmo_mocv, skip_base_color_flag_zeroes_ambient) {
     /* mohd_flags & 0x04 → ambR/G/B = 0 */
-    BYTE colors[1 * 4] = { 160, 180, 200, 0 };
+    uint8_t colors[1 * 4] = { 160, 180, 200, 0 };
     COLOR32 amb = {64, 64, 64, 255};
     ref_fix_mocv(colors, 1, NULL, 0, 0, amb, 0x04 /*skip_base*/, true);
     /* All batch-B/C: r' = (r * 0/64 + r - 0) / 2 = r/2 = 100
@@ -224,7 +219,7 @@ TEST(wow_wmo_mocv, skip_base_color_flag_zeroes_ambient) {
 
 TEST(wow_wmo_mocv, lighten_flag_only_sets_ext_blend_alpha) {
     /* mohd_flags & 0x02 → only bake alpha, leave RGB alone */
-    BYTE colors[2 * 4] = {
+    uint8_t colors[2 * 4] = {
         100, 110, 120, 200,  /* batch-A vertex (begin_second > 0 with a batch) */
         200, 210, 220, 128,  /* batch-B/C vertex */
     };
@@ -247,7 +242,7 @@ TEST(wow_wmo_mocv, exterior_batch_bc_does_not_subtract_indoor_ambient) {
        R=200, a_byte=128, exterior forces ambR=0:
          a_float = 128/255 ≈ 0.502
          r' = (200*0.502/64 + 200) / 2 = (1.569 + 200) / 2 = 100.78 → 100 */
-    BYTE colors[1 * 4] = { 0, 0, 200, 128 }; /* BGRA: R at [2]=200, A at [3]=128 */
+    uint8_t colors[1 * 4] = { 0, 0, 200, 128 }; /* BGRA: R at [2]=200, A at [3]=128 */
     COLOR32 amb = {0, 0, 50, 255}; /* .b=0 .g=0 .r=50 .a=255 → ambR=50 */
     ref_fix_mocv(colors, 1, NULL, 0, 0, amb, 0, true);
     T_EQ(colors[2], 100);
@@ -255,7 +250,7 @@ TEST(wow_wmo_mocv, exterior_batch_bc_does_not_subtract_indoor_ambient) {
 }
 
 TEST(wow_wmo_mocv, all_zero_input_remains_zero) {
-    BYTE colors[1 * 4] = {0, 0, 0, 0};
+    uint8_t colors[1 * 4] = {0, 0, 0, 0};
     COLOR32 amb = {0, 0, 0, 0};
     ref_fix_mocv(colors, 1, NULL, 0, 0, amb, 0, true);
     T_EQ(colors[0], 0); T_EQ(colors[1], 0); T_EQ(colors[2], 0);
@@ -263,7 +258,7 @@ TEST(wow_wmo_mocv, all_zero_input_remains_zero) {
 }
 
 TEST(wow_wmo_mocv, zero_color_count_is_no_op) {
-    BYTE dummy[4] = {10, 20, 30, 40};
+    uint8_t dummy[4] = {10, 20, 30, 40};
     COLOR32 amb = {0, 0, 0, 0};
     ref_fix_mocv(dummy, 0, NULL, 0, 0, amb, 0, true);
     T_EQ(dummy[0], 10); T_EQ(dummy[1], 20); T_EQ(dummy[2], 30); T_EQ(dummy[3], 40);
@@ -382,17 +377,17 @@ TEST(wow_wmo_structs, wowWmoDoodadDef_t_is_40_bytes) {
 TEST(wow_wmo_structs, wowWmoDoodadSet_t_field_offsets) {
     wowWmoDoodadSet_t s;
     /* name[20] at offset 0, start at 20, count at 24, pad at 28 */
-    T_EQ((int)((BYTE*)&s.start - (BYTE*)&s), 20);
-    T_EQ((int)((BYTE*)&s.count - (BYTE*)&s), 24);
-    T_EQ((int)((BYTE*)&s.pad   - (BYTE*)&s), 28);
+    T_EQ((int)((uint8_t*)&s.start - (uint8_t*)&s), 20);
+    T_EQ((int)((uint8_t*)&s.count - (uint8_t*)&s), 24);
+    T_EQ((int)((uint8_t*)&s.pad   - (uint8_t*)&s), 28);
 }
 
 TEST(wow_wmo_structs, wowWmoDoodadDef_t_field_offsets) {
     wowWmoDoodadDef_t d;
-    T_EQ((int)((BYTE*)&d.position - (BYTE*)&d),  4);  /* after name_flags DWORD */
-    T_EQ((int)((BYTE*)&d.quat     - (BYTE*)&d), 16);  /* 4 + 12 */
-    T_EQ((int)((BYTE*)&d.scale    - (BYTE*)&d), 32);  /* 4 + 12 + 16 */
-    T_EQ((int)((BYTE*)&d.color    - (BYTE*)&d), 36);  /* 4 + 12 + 16 + 4 */
+    T_EQ((int)((uint8_t*)&d.position - (uint8_t*)&d),  4);  /* after name_flags uint32_t */
+    T_EQ((int)((uint8_t*)&d.quat     - (uint8_t*)&d), 16);  /* 4 + 12 */
+    T_EQ((int)((uint8_t*)&d.scale    - (uint8_t*)&d), 32);  /* 4 + 12 + 16 */
+    T_EQ((int)((uint8_t*)&d.color    - (uint8_t*)&d), 36);  /* 4 + 12 + 16 + 4 */
 }
 
 /* =========================================================================
@@ -408,16 +403,16 @@ TEST(wow_wmo_mohd, bgra_file_order_decodes_to_correct_rgb) {
          model->amb_color.g = chunk[0x1D];  (G byte)
          model->amb_color.b = chunk[0x1C];  (B byte)
     */
-    BYTE chunk[0x32];
+    uint8_t chunk[0x32];
     memset(chunk, 0, sizeof(chunk));
     chunk[0x1C] = 0xBB; /* B */
     chunk[0x1D] = 0x77; /* G */
     chunk[0x1E] = 0xAA; /* R */
     chunk[0x1F] = 0xFF; /* A */
 
-    BYTE r = chunk[0x1E];
-    BYTE g = chunk[0x1D];
-    BYTE b = chunk[0x1C];
+    uint8_t r = chunk[0x1E];
+    uint8_t g = chunk[0x1D];
+    uint8_t b = chunk[0x1C];
 
     T_EQ(r, 0xAA);
     T_EQ(g, 0x77);
@@ -425,22 +420,22 @@ TEST(wow_wmo_mohd, bgra_file_order_decodes_to_correct_rgb) {
 }
 
 TEST(wow_wmo_mohd, flags_read_as_word_at_0x30) {
-    BYTE chunk[0x32];
+    uint8_t chunk[0x32];
     memset(chunk, 0, sizeof(chunk));
-    /* flags WORD at +0x30, little-endian */
+    /* flags uint16_t at +0x30, little-endian */
     chunk[0x30] = 0x06; /* bits 1+2 set */
     chunk[0x31] = 0x00;
-    WORD flags;
+    uint16_t flags;
     memcpy(&flags, chunk + 0x30, 2);
     T_EQ(flags & 0x02, 0x02); /* lighten_interiors */
     T_EQ(flags & 0x04, 0x04); /* skip_base_color */
 }
 
 TEST(wow_wmo_mohd, nlights_read_at_0x0c) {
-    BYTE chunk[0x10];
+    uint8_t chunk[0x10];
     memset(chunk, 0, sizeof(chunk));
     chunk[0x0C] = 7; /* nLights = 7 */
-    DWORD n;
+    uint32_t n;
     memcpy(&n, chunk + 0x0C, 4);
     T_EQ((int)n, 7);
 }
@@ -451,7 +446,7 @@ TEST(wow_wmo_mohd, nlights_read_at_0x0c) {
 
 TEST(wow_wmo_doodad_sets, mods_chunk_start_and_count_fields) {
     /* Build a 32-byte MODS record with known start=5 count=3 */
-    BYTE buf[32];
+    uint8_t buf[32];
     memset(buf, 0, sizeof(buf));
     /* name[20] = zeros (already set) */
     uint32_t start = 5, count = 3;
@@ -470,14 +465,14 @@ TEST(wow_wmo_doodad_sets, modd_name_offset_masked_from_name_flags) {
     uint32_t inst_flags = 0x04; /* some flag bits in upper byte */
     uint32_t name_flags = offset | (inst_flags << 24);
 
-    DWORD extracted_offset = name_flags & 0x00FFFFFF;
+    uint32_t extracted_offset = name_flags & 0x00FFFFFF;
     T_EQ((int)extracted_offset, 0x001234);
     T_EQ((int)(name_flags >> 24), (int)inst_flags);
 }
 
 TEST(wow_wmo_doodad_sets, modd_position_at_byte_4) {
-    /* position is at byte 4 (after name_flags DWORD) */
-    BYTE buf[40];
+    /* position is at byte 4 (after name_flags uint32_t) */
+    uint8_t buf[40];
     memset(buf, 0, sizeof(buf));
     float px = 12.5f, py = -3.0f, pz = 7.25f;
     memcpy(buf + 4,  &px, 4);
@@ -492,7 +487,7 @@ TEST(wow_wmo_doodad_sets, modd_position_at_byte_4) {
 }
 
 TEST(wow_wmo_doodad_sets, modd_quat_and_scale_at_correct_offsets) {
-    BYTE buf[40];
+    uint8_t buf[40];
     memset(buf, 0, sizeof(buf));
     float q[4] = {0.1f, 0.2f, 0.3f, 0.9f};
     float sc = 2.5f;
@@ -520,8 +515,8 @@ TEST(wow_wmo_doodad_sets, modn_blob_offset_lookup) {
     T_EQ((int)strlen(a), 19);
 
     /* A doodad with name_offset = 20 should resolve to "path/to/model_b.mdx" */
-    DWORD name_flags = 20; /* offset 20, flags = 0 */
-    DWORD extracted = name_flags & 0x00FFFFFF;
+    uint32_t name_flags = 20; /* offset 20, flags = 0 */
+    uint32_t extracted = name_flags & 0x00FFFFFF;
     T_EQ((int)extracted, 20);
     T_STREQ(blob + extracted, "path/to/model_b.mdx");
 }
@@ -532,7 +527,7 @@ TEST(wow_wmo_doodad_sets, modn_blob_offset_lookup) {
 
 TEST(wow_wmo_mogp, indoor_flag_at_byte_8) {
     /* mogpFlags at +0x08; bit 0x2000 = indoor */
-    BYTE chunk[0x44];
+    uint8_t chunk[0x44];
     memset(chunk, 0, sizeof(chunk));
     uint32_t flags = 0x2000;
     memcpy(chunk + 8, &flags, 4);
@@ -542,7 +537,7 @@ TEST(wow_wmo_mogp, indoor_flag_at_byte_8) {
 }
 
 TEST(wow_wmo_mogp, trans_batch_count_at_0x30) {
-    BYTE chunk[0x44];
+    uint8_t chunk[0x44];
     memset(chunk, 0, sizeof(chunk));
     uint16_t tbc = 3;
     memcpy(chunk + 0x30, &tbc, 2);
@@ -552,7 +547,7 @@ TEST(wow_wmo_mogp, trans_batch_count_at_0x30) {
 }
 
 TEST(wow_wmo_mogp, replacement_color_at_0x38) {
-    BYTE chunk[0x44];
+    uint8_t chunk[0x44];
     memset(chunk, 0, sizeof(chunk));
     uint32_t col = 0xFF804020; /* BGRA */
     memcpy(chunk + 0x38, &col, 4);
@@ -574,19 +569,19 @@ TEST(wow_wmo_molt, light_struct_is_48_bytes) {
 
 TEST(wow_wmo_molt, field_offsets) {
     wowWmoLight_t lt;
-    T_EQ((int)((BYTE*)&lt.use_atten - (BYTE*)&lt), 1);
-    T_EQ((int)((BYTE*)&lt.pad      - (BYTE*)&lt), 2);
-    T_EQ((int)((BYTE*)&lt.color    - (BYTE*)&lt), 4);   /* after type+use_atten+pad[2] */
-    T_EQ((int)((BYTE*)&lt.position - (BYTE*)&lt), 8);   /* after color (4 bytes) */
-    T_EQ((int)((BYTE*)&lt.intensity   - (BYTE*)&lt), 20); /* after position (12 bytes) */
-    T_EQ((int)((BYTE*)&lt.atten_start - (BYTE*)&lt), 24);
-    T_EQ((int)((BYTE*)&lt.atten_end   - (BYTE*)&lt), 28);
-    T_EQ((int)((BYTE*)&lt.unk - (BYTE*)&lt), 32); /* unk[4] = 16 bytes → struct ends at 48 */
+    T_EQ((int)((uint8_t*)&lt.use_atten - (uint8_t*)&lt), 1);
+    T_EQ((int)((uint8_t*)&lt.pad      - (uint8_t*)&lt), 2);
+    T_EQ((int)((uint8_t*)&lt.color    - (uint8_t*)&lt), 4);   /* after type+use_atten+pad[2] */
+    T_EQ((int)((uint8_t*)&lt.position - (uint8_t*)&lt), 8);   /* after color (4 bytes) */
+    T_EQ((int)((uint8_t*)&lt.intensity   - (uint8_t*)&lt), 20); /* after position (12 bytes) */
+    T_EQ((int)((uint8_t*)&lt.atten_start - (uint8_t*)&lt), 24);
+    T_EQ((int)((uint8_t*)&lt.atten_end   - (uint8_t*)&lt), 28);
+    T_EQ((int)((uint8_t*)&lt.unk - (uint8_t*)&lt), 32); /* unk[4] = 16 bytes → struct ends at 48 */
 }
 
 TEST(wow_wmo_molt, binary_parse_color_bgra) {
     /* MOLT color in file is BGRA. Verify parsing a known buffer gives correct fields. */
-    BYTE buf[48];
+    uint8_t buf[48];
     memset(buf, 0, sizeof(buf));
     buf[0] = 2;    /* type = DIRECT */
     buf[1] = 1;    /* use_atten */
@@ -604,7 +599,7 @@ TEST(wow_wmo_molt, binary_parse_color_bgra) {
 }
 
 TEST(wow_wmo_molt, intensity_and_atten_fields) {
-    BYTE buf[48];
+    uint8_t buf[48];
     memset(buf, 0, sizeof(buf));
     float inten = 1.25f, as = 10.0f, ae = 50.0f;
     memcpy(buf + 20, &inten, 4);
@@ -626,20 +621,20 @@ TEST(wow_wmo_molt_flag, flag_04_in_upper_byte_triggers_molt) {
     /* name_flags: bits 0-23 = name offset, bits 24-31 = instance flags */
     uint32_t name_flags = (0x04u << 24) | 0x001234u; /* inst_flag=0x04, offset=0x1234 */
 
-    BYTE inst_flags = (BYTE)(name_flags >> 24);
+    uint8_t inst_flags = (uint8_t)(name_flags >> 24);
     T_EQ((int)(inst_flags & 0x04), 0x04);
     T_EQ((int)(name_flags & 0x00FFFFFF), 0x1234);
 }
 
 TEST(wow_wmo_molt_flag, flag_00_does_not_trigger_molt) {
     uint32_t name_flags = 0x00001234u; /* inst_flag=0, offset=0x1234 */
-    BYTE inst_flags = (BYTE)(name_flags >> 24);
+    uint8_t inst_flags = (uint8_t)(name_flags >> 24);
     T_EQ((int)(inst_flags & 0x04), 0x00);
 }
 
 TEST(wow_wmo_molt_flag, molt_index_in_color_alpha) {
     /* color.a carries the MOLT light index when flag 0x04 is set */
-    BYTE buf[40];
+    uint8_t buf[40];
     memset(buf, 0, sizeof(buf));
     buf[39] = 7; /* color.a = MOLT index 7 */
 
@@ -651,24 +646,24 @@ TEST(wow_wmo_molt_flag, molt_index_in_color_alpha) {
 TEST(wow_wmo_molt_flag, num_lights_bounds_check) {
     /* Only skip doodad when inst_flag 0x04 is set AND color_a < num_lights_parsed */
     uint32_t nf = 0x04000000u; /* flags=0x04, name_offset=0 */
-    BYTE inst_flags = (BYTE)(nf >> 24);
-    BYTE color_a = 5;
+    uint8_t inst_flags = (uint8_t)(nf >> 24);
+    uint8_t color_a = 5;
 
     /* color_a=5 < num_lights=10 → MOLT applies → should skip */
-    DWORD num_lights_parsed = 10;
-    BOOL should_skip = ((inst_flags & 0x04) != 0) && (color_a < (BYTE)num_lights_parsed);
+    uint32_t num_lights_parsed = 10;
+    bool should_skip = ((inst_flags & 0x04) != 0) && (color_a < (uint8_t)num_lights_parsed);
     T_ASSERT(should_skip);
 
     /* color_a=5 >= num_lights=4 → out of range → don't skip */
     num_lights_parsed = 4;
-    should_skip = ((inst_flags & 0x04) != 0) && (color_a < (BYTE)num_lights_parsed);
+    should_skip = ((inst_flags & 0x04) != 0) && (color_a < (uint8_t)num_lights_parsed);
     T_ASSERT(!should_skip);
 
     /* inst_flags = 0x00 → no MOLT regardless of bounds */
     nf = 0x00001234u;
-    inst_flags = (BYTE)(nf >> 24);
+    inst_flags = (uint8_t)(nf >> 24);
     num_lights_parsed = 10;
-    should_skip = ((inst_flags & 0x04) != 0) && (color_a < (BYTE)num_lights_parsed);
+    should_skip = ((inst_flags & 0x04) != 0) && (color_a < (uint8_t)num_lights_parsed);
     T_ASSERT(!should_skip);
 }
 
@@ -680,7 +675,7 @@ TEST(wow_wmo_group_amb, nonzero_replacement_color_decoded_as_bgra) {
     /* replacement_for_header_color at +0x38 in MOGP header.
        Byte layout in file: [0x38]=B [0x39]=G [0x3A]=R [0x3B]=A
        Production code: group_amb.b = chunk[0x38], .g = [0x39], .r = [0x3A] */
-    BYTE chunk[0x44];
+    uint8_t chunk[0x44];
     memset(chunk, 0, sizeof(chunk));
     chunk[0x38] = 0x10; /* B */
     chunk[0x39] = 0x20; /* G */
@@ -691,16 +686,16 @@ TEST(wow_wmo_group_amb, nonzero_replacement_color_decoded_as_bgra) {
     uint32_t replacement; memcpy(&replacement, chunk + 0x38, 4);
     T_ASSERT(replacement != 0); /* non-zero → has_group_amb = true */
 
-    BYTE b = chunk[0x38];
-    BYTE g = chunk[0x39];
-    BYTE r = chunk[0x3A];
+    uint8_t b = chunk[0x38];
+    uint8_t g = chunk[0x39];
+    uint8_t r = chunk[0x3A];
     T_EQ((int)b, 0x10);
     T_EQ((int)g, 0x20);
     T_EQ((int)r, 0x30);
 }
 
 TEST(wow_wmo_group_amb, zero_replacement_color_means_no_override) {
-    BYTE chunk[0x44];
+    uint8_t chunk[0x44];
     memset(chunk, 0, sizeof(chunk));
     /* All zeros at +0x38 → should NOT set has_group_amb */
     uint32_t replacement; memcpy(&replacement, chunk + 0x38, 4);
@@ -712,8 +707,8 @@ TEST(wow_wmo_group_amb, zero_replacement_color_means_no_override) {
    ======================================================================= */
 
 TEST(wow_wmo_blend, momt_blend_mode_at_offset_2) {
-    /* MOMT record is 64 bytes; blendMode is a WORD at +0x02 */
-    BYTE mat[64];
+    /* MOMT record is 64 bytes; blendMode is a uint16_t at +0x02 */
+    uint8_t mat[64];
     memset(mat, 0, sizeof(mat));
     uint16_t bm = 2; /* Alpha blend */
     memcpy(mat + 2, &bm, 2);
@@ -724,20 +719,20 @@ TEST(wow_wmo_blend, momt_blend_mode_at_offset_2) {
 
 TEST(wow_wmo_blend, blend_mode_0_is_opaque) {
     uint16_t bm = 0;
-    BOOL transparent = (bm >= 2);
+    bool transparent = (bm >= 2);
     T_ASSERT(!transparent);
 }
 
 TEST(wow_wmo_blend, blend_mode_1_is_alpha_key_not_transparent) {
     /* blendMode=1 (AlphaKey) uses discard but no GL_BLEND → not transparent */
     uint16_t bm = 1;
-    BOOL transparent = (bm >= 2);
+    bool transparent = (bm >= 2);
     T_ASSERT(!transparent);
 }
 
 TEST(wow_wmo_blend, blend_mode_2_is_transparent) {
     uint16_t bm = 2;
-    BOOL transparent = (bm >= 2);
+    bool transparent = (bm >= 2);
     T_ASSERT(transparent);
 }
 
@@ -749,7 +744,7 @@ TEST(wow_wmo_blend, blend_mode_3_and_4_are_transparent) {
 TEST(wow_wmo_blend, blend_mode_clamped_to_4) {
     /* Values above 4 clamped to 0 (Opaque) by production code */
     uint16_t raw = 99;
-    BYTE clamped = (BYTE)(raw > 4 ? 0 : raw);
+    uint8_t clamped = (uint8_t)(raw > 4 ? 0 : raw);
     T_EQ((int)clamped, 0);
 }
 
@@ -765,7 +760,7 @@ TEST(wow_wmo_blend, alpha_key_discard_threshold) {
 
 TEST(wow_wmo_blend, momt_texture_offset_at_0x0c) {
     /* Verify texture offset is also at +0x0C in the same 64-byte record */
-    BYTE mat[64];
+    uint8_t mat[64];
     memset(mat, 0, sizeof(mat));
     uint32_t tex_off = 0x100;
     memcpy(mat + 0x0c, &tex_off, 4);
@@ -776,7 +771,7 @@ TEST(wow_wmo_blend, momt_texture_offset_at_0x0c) {
 
 TEST(wow_wmo_blend, blend_mode_independent_of_texture_offset) {
     /* blend at +0x02 and texture at +0x0C are independent fields */
-    BYTE mat[64];
+    uint8_t mat[64];
     memset(mat, 0, sizeof(mat));
     uint16_t bm = 4;
     uint32_t tex = 0x200;
@@ -793,8 +788,8 @@ TEST(wow_wmo_blend, blend_mode_independent_of_texture_offset) {
 
 TEST(wow_wmo_global, mphd_global_wmo_bit_is_0x01) {
     /* MPHD flags: bit 0x01 = global WMO map (no ADT tiles, WMO at WDT level) */
-    DWORD flags_global = 0x01;
-    DWORD flags_normal = 0x04; /* big-alpha only */
+    uint32_t flags_global = 0x01;
+    uint32_t flags_normal = 0x04; /* big-alpha only */
     T_ASSERT((flags_global & 0x01) != 0);
     T_ASSERT((flags_normal & 0x01) == 0);
 }
@@ -802,11 +797,11 @@ TEST(wow_wmo_global, mphd_global_wmo_bit_is_0x01) {
 TEST(wow_wmo_global, terrain_suppressed_when_bit_01_set) {
     /* Simulate the draw_terrain flag logic:
        draw_terrain = r_terrain_enabled && !(wdt_flags & 0x01) */
-    BOOL r_terrain_cvar = true;
-    DWORD wdt_flags_normal = 0x00;
-    DWORD wdt_flags_global = 0x01;
-    BOOL dt_normal = r_terrain_cvar && !(wdt_flags_normal & 0x01);
-    BOOL dt_global = r_terrain_cvar && !(wdt_flags_global & 0x01);
+    bool r_terrain_cvar = true;
+    uint32_t wdt_flags_normal = 0x00;
+    uint32_t wdt_flags_global = 0x01;
+    bool dt_normal = r_terrain_cvar && !(wdt_flags_normal & 0x01);
+    bool dt_global = r_terrain_cvar && !(wdt_flags_global & 0x01);
     T_ASSERT(dt_normal);   /* regular map: terrain draws */
     T_ASSERT(!dt_global);  /* global-WMO map: terrain suppressed */
 }
@@ -815,16 +810,16 @@ TEST(wow_wmo_global, modf_record_size_matches_wowMapObjDef) {
     /* wowMapObjDef_t must be exactly 64 bytes for correct WDT MODF parsing */
     /* nameId(4) + uniqueId(4) + position(12) + rotation(12) + extents(24) +
        flags(2) + doodad_set(2) + name_set(2) + unk(2) = 64 bytes */
-    DWORD expected_size =
-        sizeof(DWORD) +   /* name_id */
-        sizeof(DWORD) +   /* unique_id */
+    uint32_t expected_size =
+        sizeof(uint32_t) +   /* name_id */
+        sizeof(uint32_t) +   /* unique_id */
         3 * sizeof(float) + /* position */
         3 * sizeof(float) + /* rotation */
         2 * 3 * sizeof(float) + /* extents (min+max) */
-        sizeof(WORD) +    /* flags */
-        sizeof(WORD) +    /* doodad_set */
-        sizeof(WORD) +    /* name_set */
-        sizeof(WORD);     /* unk */
+        sizeof(uint16_t) +    /* flags */
+        sizeof(uint16_t) +    /* doodad_set */
+        sizeof(uint16_t) +    /* name_set */
+        sizeof(uint16_t);     /* unk */
     T_EQ((int)expected_size, 64);
 }
 
@@ -832,12 +827,12 @@ TEST(wow_wmo_global, mwmo_name_blob_null_terminated_strings) {
     /* MWMO / OMWM chunk is a null-terminated string block.
        Multiple paths packed: "path/a.wmo\0path/b.wmo\0" */
     const char blob[] = "World/wmo/Test.wmo\0World/wmo/Other.wmo\0";
-    DWORD blob_size = (DWORD)(sizeof(blob) - 1);
+    uint32_t blob_size = (uint32_t)(sizeof(blob) - 1);
 
     /* First string at offset 0 */
     const char *first = blob + 0;
     /* Second string at offset strlen(first)+1 */
-    DWORD second_off = (DWORD)(strlen(first) + 1);
+    uint32_t second_off = (uint32_t)(strlen(first) + 1);
     const char *second = blob + second_off;
 
     T_STREQ(first,  "World/wmo/Test.wmo");
@@ -846,9 +841,9 @@ TEST(wow_wmo_global, mwmo_name_blob_null_terminated_strings) {
 }
 
 TEST(wow_wmo_global, mwid_offset_array_indexes_mwmo_blob) {
-    /* MWID / DIWM: array of DWORD offsets into the MWMO blob */
+    /* MWID / DIWM: array of uint32_t offsets into the MWMO blob */
     const char mwmo[] = "path/a.wmo\0path/b.wmo\0";
-    DWORD offsets[2] = { 0, 11 }; /* 0 and strlen("path/a.wmo")+1 */
+    uint32_t offsets[2] = { 0, 11 }; /* 0 and strlen("path/a.wmo")+1 */
 
     const char *a = mwmo + offsets[0];
     const char *b = mwmo + offsets[1];
@@ -859,24 +854,24 @@ TEST(wow_wmo_global, mwid_offset_array_indexes_mwmo_blob) {
 TEST(wow_wmo_global, name_id_in_modf_is_index_into_mwid) {
     /* MODF entry name_id is an index into the MWID offset array.
        Production: Wow_StringRefFromOffsets(name_blob, size, offsets, count, name_id) */
-    DWORD offsets[2] = { 0, 11 };
+    uint32_t offsets[2] = { 0, 11 };
     const char mwmo[] = "WorldA.wmo\0WorldB.wmo\0";
-    DWORD name_id = 1;
+    uint32_t name_id = 1;
 
     /* Direct lookup to simulate Wow_StringRefFromOffsets */
-    DWORD name_offset = offsets[name_id];
+    uint32_t name_offset = offsets[name_id];
     const char *path = mwmo + name_offset;
     T_STREQ(path, "WorldB.wmo");
 }
 
 /* MODR references, not root MODD order, decide which embedded doodads follow a visible group. */
-static DWORD ref_visible_modr(BYTE const visible[2], WORD const refs[2][3], BYTE seen[6], WORD out[6]) {
-    DWORD count = 0;
+static uint32_t ref_visible_modr(uint8_t const visible[2], uint16_t const refs[2][3], uint8_t seen[6], uint16_t out[6]) {
+    uint32_t count = 0;
     memset(seen, 0, 6);
-    for (DWORD group = 0; group < 2; group++) {
+    for (uint32_t group = 0; group < 2; group++) {
         if (!visible[group]) continue;
-        for (DWORD i = 0; i < 3; i++) {
-            WORD ref = refs[group][i];
+        for (uint32_t i = 0; i < 3; i++) {
+            uint16_t ref = refs[group][i];
             if (ref >= 6 || seen[ref]) continue;
             seen[ref] = 1; out[count++] = ref;
         }
@@ -885,9 +880,9 @@ static DWORD ref_visible_modr(BYTE const visible[2], WORD const refs[2][3], BYTE
 }
 
 TEST(wow_wmo_doodad_visibility, queues_visible_modr_groups_and_deduplicates_shared_refs) {
-    WORD refs[2][3] = { { 0, 1, 2 }, { 2, 3, 4 } }, out[6] = { 0 };
-    BYTE seen[6], visible[2] = { 0, 1 };
-    DWORD count = ref_visible_modr(visible, refs, seen, out);
+    uint16_t refs[2][3] = { { 0, 1, 2 }, { 2, 3, 4 } }, out[6] = { 0 };
+    uint8_t seen[6], visible[2] = { 0, 1 };
+    uint32_t count = ref_visible_modr(visible, refs, seen, out);
     T_EQ((int)count, 3); T_EQ((int)out[0], 2); T_EQ((int)out[1], 3); T_EQ((int)out[2], 4);
     visible[0] = 1;
     count = ref_visible_modr(visible, refs, seen, out);
@@ -895,8 +890,8 @@ TEST(wow_wmo_doodad_visibility, queues_visible_modr_groups_and_deduplicates_shar
 }
 
 TEST(wow_wmo_doodad_visibility, invisible_parent_queues_no_group_owned_doodads) {
-    WORD refs[2][3] = { { 0, 1, 2 }, { 3, 4, 5 } }, out[6] = { 0 };
-    BYTE seen[6], visible[2] = { 0, 0 };
+    uint16_t refs[2][3] = { { 0, 1, 2 }, { 3, 4, 5 } }, out[6] = { 0 };
+    uint8_t seen[6], visible[2] = { 0, 0 };
     T_EQ((int)ref_visible_modr(visible, refs, seen, out), 0);
 }
 
@@ -928,14 +923,14 @@ TEST(wow_wmo_portal, portal_ref_struct_is_8_bytes) {
 
 TEST(wow_wmo_portal, portal_ref_field_offsets) {
     test_WmoPortalRef_t r;
-    T_EQ((int)((BYTE*)&r.group_index - (BYTE*)&r), 2);
-    T_EQ((int)((BYTE*)&r.side       - (BYTE*)&r), 4);
-    T_EQ((int)((BYTE*)&r.pad        - (BYTE*)&r), 6);
+    T_EQ((int)((uint8_t*)&r.group_index - (uint8_t*)&r), 2);
+    T_EQ((int)((uint8_t*)&r.side       - (uint8_t*)&r), 4);
+    T_EQ((int)((uint8_t*)&r.pad        - (uint8_t*)&r), 6);
 }
 
 TEST(wow_wmo_portal, mopt_binary_parse) {
     /* Minimal MOPT record: startVertex=0, count=4, plane=(0,0,1,-5) */
-    BYTE buf[sizeof(test_WmoPortal_t)];
+    uint8_t buf[sizeof(test_WmoPortal_t)];
     memset(buf, 0, sizeof(buf));
     uint16_t sv = 0, cnt = 4;
     float nx = 0.0f, ny = 0.0f, nz = 1.0f, d = -5.0f;
@@ -984,8 +979,8 @@ TEST(wow_wmo_portal, mopr_side_values) {
 
 TEST(wow_wmo_portal, mopr_chunk_count) {
     /* Chunk count = chunk_size / 8 */
-    DWORD chunk_size = 3 * 8; /* 3 portal ref records */
-    DWORD count = chunk_size / (DWORD)sizeof(test_WmoPortalRef_t);
+    uint32_t chunk_size = 3 * 8; /* 3 portal ref records */
+    uint32_t count = chunk_size / (uint32_t)sizeof(test_WmoPortalRef_t);
     T_EQ((int)count, 3);
 }
 
@@ -994,7 +989,7 @@ TEST(wow_wmo_portal, containment_point_inside_aabb) {
     float min_x = 0.0f, min_y = 0.0f, min_z = 0.0f;
     float max_x = 10.0f, max_y = 10.0f, max_z = 10.0f;
     float px = 5.0f, py = 5.0f, pz = 5.0f;
-    BOOL inside = (px >= min_x && px <= max_x &&
+    bool inside = (px >= min_x && px <= max_x &&
                    py >= min_y && py <= max_y &&
                    pz >= min_z && pz <= max_z);
     T_ASSERT(inside);
@@ -1004,7 +999,7 @@ TEST(wow_wmo_portal, containment_point_outside_aabb) {
     float min_x = 0.0f, min_y = 0.0f, min_z = 0.0f;
     float max_x = 10.0f, max_y = 10.0f, max_z = 10.0f;
     float px = 15.0f, py = 5.0f, pz = 5.0f; /* outside on x */
-    BOOL inside = (px >= min_x && px <= max_x &&
+    bool inside = (px >= min_x && px <= max_x &&
                    py >= min_y && py <= max_y &&
                    pz >= min_z && pz <= max_z);
     T_ASSERT(!inside);
@@ -1013,27 +1008,27 @@ TEST(wow_wmo_portal, containment_point_outside_aabb) {
 TEST(wow_wmo_portal, containment_point_on_boundary) {
     float min_x = 0.0f, max_x = 10.0f;
     float px_on = 10.0f; /* exactly on max boundary */
-    BOOL on_boundary = (px_on >= min_x && px_on <= max_x);
+    bool on_boundary = (px_on >= min_x && px_on <= max_x);
     T_ASSERT(on_boundary); /* boundary counts as inside */
 }
 
 TEST(wow_wmo_portal, portal_group_skips_exterior_when_cam_inside) {
     /* Simulate the batch culling logic: if cam_inside && !batch->indoor → skip */
-    BOOL cam_inside = true;
-    BOOL batch_indoor_false = false;
-    BOOL batch_indoor_true  = true;
+    bool cam_inside = true;
+    bool batch_indoor_false = false;
+    bool batch_indoor_true  = true;
 
-    BOOL skip_exterior = cam_inside && !batch_indoor_false;
-    BOOL skip_interior = cam_inside && !batch_indoor_true;
+    bool skip_exterior = cam_inside && !batch_indoor_false;
+    bool skip_interior = cam_inside && !batch_indoor_true;
     T_ASSERT(skip_exterior);  /* exterior batch skipped when inside */
     T_ASSERT(!skip_interior); /* interior batch drawn even when inside */
 }
 
 TEST(wow_wmo_portal, no_portals_no_containment_culling) {
     /* If the model has no portal data, cam_inside should always be false */
-    DWORD num_portals = 0;
+    uint32_t num_portals = 0;
     /* Production: if (!model || !matrix || !model->portals) return false; */
-    BOOL has_portals = num_portals > 0;
+    bool has_portals = num_portals > 0;
     T_ASSERT(!has_portals); /* no portals → cam_inside=false → no culling */
 }
 
@@ -1042,11 +1037,11 @@ TEST(wow_wmo_portal, no_portals_no_containment_culling) {
    Reference mirrors the updated Wow_WmoMaterialSlot using void* for texture.
    ======================================================================= */
 
-static DWORD ref_wmo_material_slot(DWORD material_id, void * const *materials,
-                                    BYTE const *blend_modes, DWORD count) {
+static uint32_t ref_wmo_material_slot(uint32_t material_id, void * const *materials,
+                                    uint8_t const *blend_modes, uint32_t count) {
     void *texture = material_id < count ? materials[material_id] : (void *)0;
-    BYTE blend = (blend_modes && material_id < count) ? blend_modes[material_id] : 0;
-    DWORD i;
+    uint8_t blend = (blend_modes && material_id < count) ? blend_modes[material_id] : 0;
+    uint32_t i;
     for (i = 0; i < count; i++)
         if (materials[i] == texture && (!blend_modes || blend_modes[i] == blend)) return i;
     return count;
@@ -1058,7 +1053,7 @@ TEST(wow_wmo_mat_slot, same_texture_same_blend_deduplicates_to_first_slot) {
     void *tex_a = (void *)0x1000;
     void *tex_b = (void *)0x2000;
     void * const mats[3] = { tex_a, tex_b, tex_a };
-    BYTE blends[3] = { 0, 0, 0 };
+    uint8_t blends[3] = { 0, 0, 0 };
     T_EQ((int)ref_wmo_material_slot(0, mats, blends, 3), 0);
     T_EQ((int)ref_wmo_material_slot(1, mats, blends, 3), 1);
     T_EQ((int)ref_wmo_material_slot(2, mats, blends, 3), 0); /* deduplicates */
@@ -1070,7 +1065,7 @@ TEST(wow_wmo_mat_slot, same_texture_different_blend_stays_in_own_slot) {
     void *tex_a = (void *)0x1000;
     void *tex_b = (void *)0x2000;
     void * const mats[3] = { tex_a, tex_b, tex_a };
-    BYTE blends[3] = { 0, 0, 2 }; /* mat 0=Opaque, mat 2=Alpha blend */
+    uint8_t blends[3] = { 0, 0, 2 }; /* mat 0=Opaque, mat 2=Alpha blend */
     T_EQ((int)ref_wmo_material_slot(0, mats, blends, 3), 0);
     T_EQ((int)ref_wmo_material_slot(2, mats, blends, 3), 2); /* not deduped */
 }
@@ -1078,7 +1073,7 @@ TEST(wow_wmo_mat_slot, same_texture_different_blend_stays_in_own_slot) {
 TEST(wow_wmo_mat_slot, out_of_range_material_id_returns_count) {
     void *tex_a = (void *)0x1000;
     void * const mats[1] = { tex_a };
-    BYTE blends[1] = { 0 };
+    uint8_t blends[1] = { 0 };
     T_EQ((int)ref_wmo_material_slot(99, mats, blends, 1), 1); /* fallback slot */
 }
 
@@ -1088,10 +1083,10 @@ TEST(wow_wmo_mat_slot, out_of_range_material_id_returns_count) {
    needing a matrix implementation in the test.
    ======================================================================= */
 
-static void ref_molt_contribution(wowWmoLight_t const *lights, DWORD num_lights,
+static void ref_molt_contribution(wowWmoLight_t const *lights, uint32_t num_lights,
                                    wowVec3_t const *world_positions,
                                    wowVec3_t ref_pos, wowVec3_t *out) {
-    DWORD i;
+    uint32_t i;
     out->x = out->y = out->z = 0.0f;
     if (!lights || !num_lights) return;
     for (i = 0; i < num_lights; i++) {

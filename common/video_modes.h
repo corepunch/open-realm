@@ -6,7 +6,7 @@
 #define BZ_VIDEO_MODE_DEFAULT 0 // resolution index; 640x480 fits the lowest supported display class
 
 typedef struct VIDEOMODE {
-    DWORD width, height;
+    uint32_t width, height;
 } VIDEOMODE;
 typedef struct VIDEOMODE *LPVIDEOMODE;
 typedef const struct VIDEOMODE *LPCVIDEOMODE;
@@ -17,7 +17,7 @@ static VIDEOMODE const video_modes[] = {
     { 1920, 1080 }, { 1920, 1200 }, { 2560, 1440 }, { 1280, 800 },
 };
 
-static inline DWORD video_mode_count(void) { return sizeof(video_modes) / sizeof(*video_modes); }
+static inline uint32_t video_mode_count(void) { return sizeof(video_modes) / sizeof(*video_modes); }
 static inline LPCVIDEOMODE video_mode_get(int mode) {
     return mode >= 0 && mode < (int)video_mode_count() ? video_modes + mode : video_modes + BZ_VIDEO_MODE_DEFAULT;
 }

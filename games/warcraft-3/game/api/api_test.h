@@ -8,16 +8,16 @@
  * setjmp/longjmp.  They are the JASS equivalent of Lua's error().
  */
 
-DWORD BJassError(LPJASS j) {
-    LPCSTR msg = jass_checkstring(j, 1);
+uint32_t BJassError(LPJASS j) {
+    cstring_t msg = jass_checkstring(j, 1);
     jass_rterror(j, msg);
     return 0;
 }
 
-DWORD BJassAssert(LPJASS j) {
-    BOOL cond = jass_checkboolean(j, 1);
+uint32_t BJassAssert(LPJASS j) {
+    bool cond = jass_checkboolean(j, 1);
     if (!cond) {
-        LPCSTR msg = jass_checkstring(j, 2);
+        cstring_t msg = jass_checkstring(j, 2);
         char buf[640];
         snprintf(buf, sizeof(buf), "assertion failed: %s", msg ? msg : "(no message)");
         jass_rterror(j, buf);

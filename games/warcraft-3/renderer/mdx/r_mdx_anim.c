@@ -6,16 +6,16 @@
 mdlx_state_t mdlx;
 
 /* Forward declarations for functions defined in r_mdx_interpolation.c */
-DWORD GetModelKeyTrackDataTypeSize(MODELKEYTRACKDATATYPE dataType);
-DWORD GetModelKeyTrackTypeSize(MODELKEYTRACKTYPE keyTrackType);
-DWORD GetModelKeyFrameSize(MODELKEYTRACKDATATYPE dataType, MODELKEYTRACKTYPE keyTrackType);
-void R_GetKeyframeValue(mdxKeyFrame_t const *left, mdxKeyFrame_t const *right, mdxKeyTrack_t const *keytrack, DWORD time, HANDLE out);
-void R_EvalKeyframeValue(void const *left, void const *right, float t, MODELKEYTRACKDATATYPE datatype, MODELKEYTRACKTYPE linetype, HANDLE out);
+uint32_t GetModelKeyTrackDataTypeSize(MODELKEYTRACKDATATYPE dataType);
+uint32_t GetModelKeyTrackTypeSize(MODELKEYTRACKTYPE keyTrackType);
+uint32_t GetModelKeyFrameSize(MODELKEYTRACKDATATYPE dataType, MODELKEYTRACKTYPE keyTrackType);
+void R_GetKeyframeValue(mdxKeyFrame_t const *left, mdxKeyFrame_t const *right, mdxKeyTrack_t const *keytrack, uint32_t time, handle_t out);
+void R_EvalKeyframeValue(void const *left, void const *right, float t, MODELKEYTRACKDATATYPE datatype, MODELKEYTRACKTYPE linetype, handle_t out);
 
 static MATRIX4 local_matrices[MDX_MAX_NODES];
 MATRIX4 node_matrices[MDX_MAX_NODES];
 
-mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, DWORD time) {
+mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, uint32_t time) {
     FOR_LOOP(seqIndex, model->num_sequences) {
         mdxSequence_t const *seq = &model->sequences[seqIndex];
         if (seq->interval[0] <= time && seq->interval[1] > time) {
@@ -25,15 +25,15 @@ mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, DWORD time) {
     return NULL;
 }
 
-BOOL MDLX_EventKeyCrossed(mdxModel_t const *model, mdxEvent_t const *event, DWORD key,
-                          DWORD previous_frame, DWORD current_frame,
-                          DWORD previous_time, DWORD current_time) {
+bool MDLX_EventKeyCrossed(mdxModel_t const *model, mdxEvent_t const *event, uint32_t key,
+                          uint32_t previous_frame, uint32_t current_frame,
+                          uint32_t previous_time, uint32_t current_time) {
     mdxSequence_t const *previous_seq, *current_seq;
 
     if (!model || !event) return false;
-    if (event->globalSeqId != (DWORD)-1) {
-        DWORD duration, previous, current;
-        if (event->globalSeqId >= (DWORD)model->num_globalSequences || !model->globalSequences) return false;
+    if (event->globalSeqId != (uint32_t)-1) {
+        uint32_t duration, previous, current;
+        if (event->globalSeqId >= (uint32_t)model->num_globalSequences || !model->globalSequences) return false;
         duration = model->globalSequences[event->globalSeqId].value;
         if (!duration) return false;
         if (current_time >= previous_time && current_time - previous_time >= duration) return true;
@@ -51,33 +51,33 @@ BOOL MDLX_EventKeyCrossed(mdxModel_t const *model, mdxEvent_t const *event, DWOR
     return key > previous_frame || key <= current_frame;
 }
 
-static mdxKeyFrame_t *R_KeyFrameAt(mdxKeyTrack_t const *track, DWORD stride, DWORD index) {
-    return (mdxKeyFrame_t *)((LPSTR)track->values + stride * index);
+static mdxKeyFrame_t *R_KeyFrameAt(mdxKeyTrack_t const *track, uint32_t stride, uint32_t index) {
+    return (mdxKeyFrame_t *)((string_t)track->values + stride * index);
 }
 
 /* MDX key times are authored in ascending order; binary bounds avoid rescanning every track for every model instance. */
-static DWORD R_KeyFrameBound(mdxKeyTrack_t const *track, DWORD stride, DWORD time, BOOL upper) {
-    DWORD lo = 0, hi = track->keyframeCount;
+static uint32_t R_KeyFrameBound(mdxKeyTrack_t const *track, uint32_t stride, uint32_t time, bool upper) {
+    uint32_t lo = 0, hi = track->keyframeCount;
     while (lo < hi) {
-        DWORD mid = lo + (hi - lo) / 2;
-        DWORD keytime = R_KeyFrameAt(track, stride, mid)->time;
+        uint32_t mid = lo + (hi - lo) / 2;
+        uint32_t keytime = R_KeyFrameAt(track, stride, mid)->time;
         if (keytime < time || (upper && keytime == time)) lo = mid + 1;
         else hi = mid;
     }
     return lo;
 }
 
-void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, DWORD time, HANDLE output) {
-    DWORD interval[2] = { 0, 0 };
-    DWORD stride;
+void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, uint32_t time, handle_t output) {
+    uint32_t interval[2] = { 0, 0 };
+    uint32_t stride;
 
     if (!model || !keytrack || !output || !keytrack->keyframeCount)
         return;
     stride = GetModelKeyFrameSize(keytrack->datatype, keytrack->linetype);
-    if (keytrack->globalSeqId != (DWORD)-1) {
+    if (keytrack->globalSeqId != (uint32_t)-1) {
         mdxKeyFrame_t *first_authored;
 
-        if (keytrack->globalSeqId >= (DWORD)model->num_globalSequences || !model->globalSequences)
+        if (keytrack->globalSeqId >= (uint32_t)model->num_globalSequences || !model->globalSequences)
             return;
         interval[0] = 0;
         interval[1] = model->globalSequences[keytrack->globalSeqId].value;
@@ -87,7 +87,7 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
          * Stock DNC models use this odd contract for their light-node rotation:
          * a zero-duration global sequence points at a later quaternion key. */
         first_authored = R_KeyFrameAt(keytrack, stride, 0);
-        if (first_authored->time >= 0 && (DWORD)first_authored->time > interval[1]) {
+        if (first_authored->time >= 0 && (uint32_t)first_authored->time > interval[1]) {
             memcpy(output, first_authored->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
             return;
         }
@@ -96,8 +96,8 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
            which loops within the selected sequence. This preserves their full
            range while keeping fixed-time renderer captures deterministic. */
         {
-            DWORD gs_len = interval[1] + 1;
-            DWORD global_time = tr.viewDef.time ? tr.viewDef.time : SDL_GetTicks();
+            uint32_t gs_len = interval[1] + 1;
+            uint32_t global_time = tr.viewDef.time ? tr.viewDef.time : SDL_GetTicks();
             time = gs_len > 0 ? (global_time % gs_len) : 0;
         }
     } else {
@@ -107,24 +107,24 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
         interval[0] = seq->interval[0];
         interval[1] = seq->interval[1];
     }
-    DWORD first_index = R_KeyFrameBound(keytrack, stride, interval[0], false);
-    DWORD end_index = R_KeyFrameBound(keytrack, stride, interval[1], true);
+    uint32_t first_index = R_KeyFrameBound(keytrack, stride, interval[0], false);
+    uint32_t end_index = R_KeyFrameBound(keytrack, stride, interval[1], true);
     if (first_index >= end_index)
         return;
     mdxKeyFrame_t *first = R_KeyFrameAt(keytrack, stride, first_index);
     mdxKeyFrame_t *last = R_KeyFrameAt(keytrack, stride, end_index - 1);
     if (time >= last->time) {
         /* The interval tail blends back to its first key; keys outside this sequence never participate. */
-        DWORD span = (interval[1] - last->time) + (first->time - interval[0]);
+        uint32_t span = (interval[1] - last->time) + (first->time - interval[0]);
         if (first != last && span && time < interval[1]) {
-            FLOAT t = (FLOAT)(time - last->time) / (FLOAT)span;
+            float t = (float)(time - last->time) / (float)span;
             R_EvalKeyframeValue(last->data, first->data, t, keytrack->datatype, keytrack->linetype, output);
         } else {
             memcpy(output, last->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
         }
         return;
     }
-    DWORD right_index = R_KeyFrameBound(keytrack, stride, time, false);
+    uint32_t right_index = R_KeyFrameBound(keytrack, stride, time, false);
     mdxKeyFrame_t *right = R_KeyFrameAt(keytrack, stride, right_index);
     if (right_index == first_index || right->time == time)
         memcpy(output, right->data, GetModelKeyTrackDataTypeSize(keytrack->datatype));
@@ -138,10 +138,10 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
  * or without native BGRA texture-upload support. */
 void MDLX_GetAnimatedColorTrackValue(mdxModel_t const *model,
                                      mdxKeyTrack_t const *keytrack,
-                                     DWORD time,
+                                     uint32_t time,
                                      LPVECTOR3 output)
 {
-    FLOAT red;
+    float red;
 
     if (!model || !keytrack || !output) return;
     MDLX_GetModelKeytrackValue(model, keytrack, time, output);
@@ -162,13 +162,13 @@ void MDLX_GetGeosetAnimationStaticColor(mdxGeosetAnim_t const *geosetAnim,
     output->z = geosetAnim->staticColor.x;
 }
 
-static void R_CalculateNodeMatrix(mdxModel_t const *model, mdxNode_t *node, DWORD frame1, DWORD frame0, LPMATRIX4 matrix) {
+static void R_CalculateNodeMatrix(mdxModel_t const *model, mdxNode_t *node, uint32_t frame1, uint32_t frame0, LPMATRIX4 matrix) {
     VECTOR3 vTranslation = { 0, 0, 0 };
     QUATERNION vRotation = { 0, 0, 0, 1 };
     VECTOR3 vScale = { 1, 1, 1 };
     VECTOR3 zero_pivot = { 0, 0, 0 };
     LPCVECTOR3 pivot = &zero_pivot;
-    if (node->node_id < (DWORD)model->num_pivots) {
+    if (node->node_id < (uint32_t)model->num_pivots) {
         pivot = (VECTOR3 const *)&model->pivots[node->node_id];
     }
     if (frame0 != frame1) {
@@ -231,7 +231,7 @@ LPCMATRIX4 R_GetNodeGlobalMatrix(mdxModel_t const *model, LPCMATRIX4 model_matri
         if (node->flags & MDLXNODE_Billboarded) {
             MATRIX4 tmp1, tmp2;
             VECTOR3 pivot = { 0, 0, 0 };
-            if (node->node_id < (DWORD)model->num_pivots) {
+            if (node->node_id < (uint32_t)model->num_pivots) {
                 pivot = *(LPCVECTOR3)(&model->pivots[node->node_id]);
             }
             VECTOR3 tmppvt = Matrix4_multiply_vector3(global_matrix, &pivot);
@@ -261,14 +261,14 @@ LPCMATRIX4 R_GetNodeGlobalMatrix(mdxModel_t const *model, LPCMATRIX4 model_matri
     return global_matrix;
 }
 
-void AddSkin(LPVECTOR3 pos, LPCMATRIX4 mat, LPCVECTOR3 org, FLOAT weight) {
+void AddSkin(LPVECTOR3 pos, LPCMATRIX4 mat, LPCVECTOR3 org, float weight) {
     if (weight == 0) return;
     VECTOR3 val = Matrix4_multiply_vector3(mat, org);
     val = Vector3_scale(&val, weight);
     *pos = Vector3_add(pos, &val);
 }
 
-void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matrix, DWORD frame1, DWORD frame0) {
+void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matrix, uint32_t frame1, uint32_t frame0) {
     /* Only the nodes this model actually has need their global matrices
      * recomputed.  The old path memset the full 64KB node_matrices array and
      * scanned all MDX_MAX_NODES slots twice; models have tens of nodes, so the
@@ -285,10 +285,10 @@ void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matrix, DWO
 /* Resolve authored attachment pivots from the same interpolated node pose used
  * for geometry. Callers can filter by a name prefix (for example "Sprite ")
  * without depending on list order in the MDX file. */
-DWORD MDLX_CollectAttachmentPositions(mdxModel_t const *model, LPCMATRIX4 model_matrix,
-                                      DWORD frame, DWORD oldframe, LPCSTR prefix,
-                                      mdxAttachmentPosition_t *positions, DWORD max_positions) {
-    DWORD count = 0;
+uint32_t MDLX_CollectAttachmentPositions(mdxModel_t const *model, LPCMATRIX4 model_matrix,
+                                      uint32_t frame, uint32_t oldframe, cstring_t prefix,
+                                      mdxAttachmentPosition_t *positions, uint32_t max_positions) {
+    uint32_t count = 0;
     size_t const prefix_len = prefix ? strlen(prefix) : 0;
 
     if (!model || !model_matrix || !positions || !max_positions) {
@@ -311,7 +311,7 @@ DWORD MDLX_CollectAttachmentPositions(mdxModel_t const *model, LPCMATRIX4 model_
                 continue;
             }
         }
-        if (node->node_id < (DWORD)model->num_pivots) {
+        if (node->node_id < (uint32_t)model->num_pivots) {
             pivot = model->pivots[node->node_id];
         }
         local = pivot;

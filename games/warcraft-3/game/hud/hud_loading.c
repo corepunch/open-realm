@@ -4,7 +4,7 @@
 
 /* WC3 has twelve playable slots; engine MAX_CLIENTS exceeds the W3I player array. */
 static LoadingSlot_t loadslot[PLAYER_NEUTRAL_AGGRESSIVE];
-static LPCSTR const loadrace[] = { "RANDOM", "HUMAN", "ORC", "UNDEAD", "NIGHT_ELF" };
+static cstring_t const loadrace[] = { "RANDOM", "HUMAN", "ORC", "UNDEAD", "NIGHT_ELF" };
 
 /* The native zero-size loading bar gets its geometry from its MDX, not a portrait viewport. */
 void UI_LoadHudLoading(void) {
@@ -29,16 +29,16 @@ void UI_LoadHudLoading(void) {
     }
 }
 
-static LPCSTR loading_text(LPCMAPINFO info, LPCSTR text) { return text && *text ? G_MapString(info, text) : " "; }
+static cstring_t loading_text(LPCMAPINFO info, cstring_t text) { return text && *text ? G_MapString(info, text) : " "; }
 
 /* Repeat native rows using their authored stride; only participating lobby slots enter this list. */
 static void loading_players(LPCMAPINFO info) {
     LPFRAMEDEF pane = hud.loading.LoadingMeleePlayerContainer;
-    DWORD count = 0;
+    uint32_t count = 0;
     FOR_LOOP(i, PLAYER_NEUTRAL_AGGRESSIVE)
         if (info->players[i].used && (info->players[i].playerType == kPlayerTypeHuman ||
             info->players[i].playerType == kPlayerTypeComputer)) count++;
-    DWORD rows = (count + 1) / 2, n = 0;
+    uint32_t rows = (count + 1) / 2, n = 0;
     FOR_LOOP(i, PLAYER_NEUTRAL_AGGRESSIVE) UI_SetHidden(loadslot[i].LoadingPlayerSlot, true);
     FOR_LOOP(i, PLAYER_NEUTRAL_AGGRESSIVE) {
         LPCMAPPLAYER player = &info->players[i];
@@ -56,10 +56,10 @@ static void loading_players(LPCMAPINFO info) {
 
 /* Resolve W3I presentation before the server publishes the loading-only media table. */
 void UI_WriteLoadingLayout(LPEDICT ent, LPCMAPINFO info) {
-    LPCSTR title = info && info->loadingScreenTitle && *info->loadingScreenTitle ? info->loadingScreenTitle :
+    cstring_t title = info && info->loadingScreenTitle && *info->loadingScreenTitle ? info->loadingScreenTitle :
                    info ? info->mapName : NULL;
-    DWORD model = 0, seq = 0;
-    BOOL melee = info && info->campaignBackgroundNumber == (DWORD)-1 &&
+    uint32_t model = 0, seq = 0;
+    bool melee = info && info->campaignBackgroundNumber == (uint32_t)-1 &&
                  (!info->loadingScreenModel || !*info->loadingScreenModel);
 
     if (!hud.loading.Loading) return;
@@ -85,13 +85,13 @@ void UI_WriteLoadingLayout(LPEDICT ent, LPCMAPINFO info) {
     /* Loading.fdf authors screen-space sprites; portrait conversion discarded their native geometry. */
     if (info && info->loadingScreenModel && *info->loadingScreenModel) {
         model = UI_LoadModel(info->loadingScreenModel, false);
-    } else if (info && info->campaignBackgroundNumber != (DWORD)-1) {
+    } else if (info && info->campaignBackgroundNumber != (uint32_t)-1) {
         stbIniCache_t data = { 0 };
         PATHSTR path;
         char key[16];
         Stb_IniCacheLoad(&data, "UI\\WorldEditData.txt");
         snprintf(key, sizeof(key), "%02u", (unsigned)info->campaignBackgroundNumber);
-        LPCSTR row = Stb_IniCacheFind(&data, "LoadingScreens", key);
+        cstring_t row = Stb_IniCacheFind(&data, "LoadingScreens", key);
         if (UI_ParseLoadingRow(row, &seq, path)) model = UI_LoadModel(path, false);
         else fprintf(stderr, "UI_WriteLoadingLayout: invalid LoadingScreens[%s]: %s\n", key, row ? row : "(missing)");
         Stb_IniCacheFree(&data);

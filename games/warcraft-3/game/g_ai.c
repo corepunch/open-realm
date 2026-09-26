@@ -1,14 +1,14 @@
 #include "g_local.h"
 #include "skills/s_skills.h"
 
-void unit_setanimation(LPEDICT self, LPCSTR anim) {
+void unit_setanimation(LPEDICT self, cstring_t anim) {
     /* Walk is requested every movement tick. Keep the selected numbered walk
      * sequence until a move transition selects a fresh animation. */
     if (self && anim && !strcmp(anim, "walk") && G_AnimationHasPrimary(self->animation, "walk")) return;
     G_SetUnitAnimation(self, anim);
 }
 
-static BOOL unit_is_active_repair_move(LPEDICT self) {
+static bool unit_is_active_repair_move(LPEDICT self) {
     char rawcode[5];
     ability_t const *handler;
 
@@ -20,7 +20,7 @@ static BOOL unit_is_active_repair_move(LPEDICT self) {
 }
 
 void unit_setmove(LPEDICT self, umove_t *move) {
-    BOOL was_idle = G_UnitIsIdleWorker(self);
+    bool was_idle = G_UnitIsIdleWorker(self);
 
     if (self->currentmove != move) move_cancel_displacement(self);
     self->animation_override = false;
@@ -59,7 +59,7 @@ void unit_setmove(LPEDICT self, umove_t *move) {
                 (long)(self - g_edicts),
                 self->currentmove->animation ? self->currentmove->animation : "<none>",
                 move->animation ? move->animation : "<none>",
-                self->build_project ? (LPCSTR)&self->build_project : "----",
+                self->build_project ? (cstring_t)&self->build_project : "----",
                 self->goalentity ? (long)(self->goalentity - g_edicts) : -1L,
                 self->build_preview ? (long)(self->build_preview - g_edicts) : -1L,
                 self->s.origin2.x, self->s.origin2.y);
@@ -106,9 +106,9 @@ void order_attack(LPEDICT self, LPEDICT target);
 static LPEDICT ai_current_entity = NULL;
 static LPEDICT sight_entities[MAX_SIGHT_ENTITIES];
 
-static BOOL unit_has_attack(LPCEDICT self);
+static bool unit_has_attack(LPCEDICT self);
 
-static BOOL filter_sight(LPCEDICT ent) {
+static bool filter_sight(LPCEDICT ent) {
     if (!(ent->svflags & SVF_MONSTER) || !ai_current_entity ||
         ai_current_entity->s.player >= MAX_PLAYERS || ent->s.player >= MAX_PLAYERS ||
         ent->s.player == ai_current_entity->s.player)
@@ -144,7 +144,7 @@ static BOOL filter_sight(LPCEDICT ent) {
 }
 
 /* Does this unit have an attack to acquire targets with? */
-static BOOL unit_has_attack(LPCEDICT self) {
+static bool unit_has_attack(LPCEDICT self) {
     return S_CargoAttacksEnabled(self) &&
            ((S_UnitAttackSlotEnabled(self, 0) && self->attack1.cooldown > 0.0f && (self->attack1.damageBase > 0 || self->attack1.numberOfDice > 0)) ||
             (S_UnitAttackSlotEnabled(self, 1) && self->attack2.cooldown > 0.0f && (self->attack2.damageBase > 0 || self->attack2.numberOfDice > 0)));
@@ -154,28 +154,28 @@ static BOOL unit_has_attack(LPCEDICT self) {
  * staggered by entity index, instead of every sim tick. */
 #define AI_ACQUIRE_INTERVAL 300 /* ms */
 
-BOOL G_ShouldAcquireThisFrame(LPCEDICT self) {
-    DWORD const stagger = (DWORD)(self - g_edicts) % AI_ACQUIRE_INTERVAL;
-    return ((level.time + stagger) % AI_ACQUIRE_INTERVAL) < (DWORD)FRAMETIME;
+bool G_ShouldAcquireThisFrame(LPCEDICT self) {
+    uint32_t const stagger = (uint32_t)(self - g_edicts) % AI_ACQUIRE_INTERVAL;
+    return ((level.time + stagger) % AI_ACQUIRE_INTERVAL) < (uint32_t)FRAMETIME;
 }
 
 /* Return the spawn-cached range; repeated SLK walks dominated large acquisition scans. */
-FLOAT G_AcquisitionRange(LPCEDICT self) {
+float G_AcquisitionRange(LPCEDICT self) {
     return self->runtime.acquisition_range;
 }
 
-LPEDICT G_FindNearestEnemy(LPEDICT self, FLOAT radius) {
+LPEDICT G_FindNearestEnemy(LPEDICT self, float radius) {
     ai_current_entity = self;
     BOX2 const sightbox = {
         { self->s.origin2.x - radius, self->s.origin2.y - radius },
         { self->s.origin2.x + radius, self->s.origin2.y + radius },
     };
-    DWORD numents = gi.BoxEdicts(&sightbox, sight_entities, MAX_SIGHT_ENTITIES, filter_sight);
+    uint32_t numents = gi.BoxEdicts(&sightbox, sight_entities, MAX_SIGHT_ENTITIES, filter_sight);
     LPEDICT best = NULL;
-    FLOAT best_dist = radius;
+    float best_dist = radius;
     FOR_LOOP(i, numents) {
         LPEDICT ent = sight_entities[i];
-        FLOAT const d = Vector2_distance(&ent->s.origin2, &self->s.origin2);
+        float const d = Vector2_distance(&ent->s.origin2, &self->s.origin2);
         if (d < best_dist) {
             best_dist = d;
             best = ent;

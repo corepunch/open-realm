@@ -9,8 +9,8 @@ typedef struct ConsoleUI_s {
 } ConsoleUI_t;
 
 
-static inline BOOL ConsoleUI_Bind(ConsoleUI_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool ConsoleUI_Bind(ConsoleUI_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -23,7 +23,7 @@ static inline BOOL ConsoleUI_Bind(ConsoleUI_t *out, LPFRAMEDEF bind_root) {
     return ok;
 }
 
-static inline BOOL ConsoleUI_Load(ConsoleUI_t *out) {
+static inline bool ConsoleUI_Load(ConsoleUI_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\ConsoleUI.fdf") &&
            ConsoleUI_Bind(out, UI_FindFrame("ConsoleUI"));

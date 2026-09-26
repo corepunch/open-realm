@@ -1,8 +1,8 @@
 #include "r_wowmap.h"
 
-void Wow_RegisterMap(LPCSTR mapFileName) {
+void Wow_RegisterMap(cstring_t mapFileName) {
     PATHSTR path;
-    LPBYTE data = NULL;
+    uint8_t * data = NULL;
     int size;
 
     fprintf(stderr, "[MAP_REGISTER] Starting: %s\n", mapFileName);
@@ -27,7 +27,7 @@ void Wow_RegisterMap(LPCSTR mapFileName) {
         return;
     }
 
-    if (!Wow_LoadWdtTiles(data, (DWORD)size)) {
+    if (!Wow_LoadWdtTiles(data, (uint32_t)size)) {
         fprintf(stderr, "R_RegisterMap: failed to parse WoW WDT tiles %s\n", path);
         ri.FS_FreeFile(data);
         return;
@@ -38,16 +38,16 @@ void Wow_RegisterMap(LPCSTR mapFileName) {
 }
 
 typedef struct {
-    DWORD considered, chunks, vertices, wmo_groups, wmo_batches, wmo_instances, wmo_models, wmo_textures, wmo_batched;
-    LPCVOID model_hash[128], texture_hash[1024];
-    BOOL collect;
+    uint32_t considered, chunks, vertices, wmo_groups, wmo_batches, wmo_instances, wmo_models, wmo_textures, wmo_batched;
+    void const *model_hash[128], *texture_hash[1024];
+    bool collect;
 } WOWDRAWSTATS;
 
 /* Pointer hash counts visible model/material diversity without quadratic profiling overhead. */
-static BOOL Wow_StatPointer(LPCVOID ptr, LPCVOID *table, DWORD size) {
-    DWORD slot = ((uintptr_t)ptr >> 4) & (size - 1);
+static bool Wow_StatPointer(void const * ptr, void const * *table, uint32_t size) {
+    uint32_t slot = ((uintptr_t)ptr >> 4) & (size - 1);
     FOR_LOOP(i, size) {
-        DWORD at = (slot + i) & (size - 1);
+        uint32_t at = (slot + i) & (size - 1);
         if (table[at] == ptr) return false;
         if (!table[at]) { table[at] = ptr; return true; }
     }
@@ -56,7 +56,7 @@ static BOOL Wow_StatPointer(LPCVOID ptr, LPCVOID *table, DWORD size) {
 
 /* This 1.5 archive predates Light*.dbc, so expose and log the outdoor fallback instead of hiding guessed data. */
 static void Wow_SetupFog(void) {
-    static BOOL logged;
+    static bool logged;
     float start = atof(ri.CvarString("r_fog_start", WOW_WORLD_FOG_START_STRING));
     float end = atof(ri.CvarString("r_fog_end", WOW_WORLD_FOG_END_STRING));
     if (start < 0.0f) start = 0.0f;
@@ -84,10 +84,10 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
     MATRIX3 normal_matrix;
     wowAdtChunk_t *chunk;
     LPCTEXTURE bound_textures[5] = { NULL, NULL, NULL, NULL, NULL };
-    DWORD texture_binds = 0;
+    uint32_t texture_binds = 0;
     int bound_indoor = 0;
-    BOOL draw_terrain = R_CvarEnabled("r_terrain", "1") && !(wow_world.wdt_flags & 0x01);
-    BOOL draw_wmos = R_CvarEnabled("r_wmos", "1");
+    bool draw_terrain = R_CvarEnabled("r_terrain", "1") && !(wow_world.wdt_flags & 0x01);
+    bool draw_wmos = R_CvarEnabled("r_wmos", "1");
 
     if (!draw_terrain && !draw_wmos) return;
 
@@ -151,7 +151,7 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
     {
         /* Per-WMO pre-computed data. WMOs are static so this is stable across passes. */
         enum { WMO_CACHE_MAX = 256 };
-        struct { DWORD vis; uint64_t vis_bits; BOOL inside, model_batch, has_trans; MATRIX3 nm; VECTOR3 molt; } wmo_cache[WMO_CACHE_MAX];
+        struct { uint32_t vis; uint64_t vis_bits; bool inside, model_batch, has_trans; MATRIX3 nm; VECTOR3 molt; } wmo_cache[WMO_CACHE_MAX];
         wowWmoInstance_t *wmo_ptrs[WMO_CACHE_MAX];
         int wmo_n = 0;
         VECTOR3 cam = tr.viewDef.camerastate[0].origin;
@@ -160,7 +160,7 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
             if (wmo->visible_groups) memset(wmo->visible_groups, 0, wmo->model->num_groups);
         }
         for (wowWmoInstance_t *wmo = draw_wmos ? wow_world.wmos : NULL; wmo && wmo_n < WMO_CACHE_MAX; wmo = wmo->next) {
-            DWORD vis = 0; uint64_t vis_bits = 0; BOOL mi, has_trans = false;
+            uint32_t vis = 0; uint64_t vis_bits = 0; bool mi, has_trans = false;
             if (!wmo->model || !wmo->model->groups) { wmo_ptrs[wmo_n++] = NULL; continue; }
             /* Cheap whole-WMO distance reject before iterating all groups. */
             if (wmo->model->has_bounds) {
@@ -209,8 +209,8 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
             }
             for (int wi = 0; wi < wmo_n; wi++) {
                 wowWmoInstance_t *wmo = wmo_ptrs[wi];
-                BOOL model_batch;
-                BOOL cam_inside;
+                bool model_batch;
+                bool cam_inside;
                 if (!wmo) continue;
                 /* Skip pass 1 for WMOs that have no transparent batches — avoids uniform
                  * uploads and batch iteration when there is nothing to draw. */
@@ -288,10 +288,10 @@ static void Wow_DrawTerrainAndWmos(WOWDRAWSTATS *stats) {
 }
 
 /* Group the small visible set by static M2 so repeated trees/props share material draws. */
-static BOOL Wow_QueueDoodadInstance(wowDoodadInstance_t *doodad) {
+static bool Wow_QueueDoodadInstance(wowDoodadInstance_t *doodad) {
     wowDoodadModel_t *group = doodad ? doodad->group : NULL;
     MATRIX4 *matrices;
-    DWORD capacity;
+    uint32_t capacity;
 
     if (!group || !group->can_instance) return false;
     if (group->count == group->capacity) {
@@ -308,7 +308,7 @@ static BOOL Wow_QueueDoodadInstance(wowDoodadInstance_t *doodad) {
     return true;
 }
 
-typedef struct { RECT dst, mask, uv; LPCTEXTURE tex; } wowMinimapDraw_t;
+typedef struct { rect_t dst, mask, uv; LPCTEXTURE tex; } wowMinimapDraw_t;
 
 /* Encode mask-local position in vertex color so every authoritative tile shares one circular fragment mask. */
 static void Wow_DrawMinimapTile(wowMinimapDraw_t const *draw) {
@@ -323,14 +323,14 @@ static void Wow_DrawMinimapTile(wowMinimapDraw_t const *draw) {
     };
     FOR_LOOP(i, 6) {
         v[i].position = (VECTOR3){pos[i].x,pos[i].y,0}; v[i].texcoord = uv[i];
-        v[i].color = MAKE(COLOR32, (BYTE)(255.0f*(pos[i].x-draw->mask.x)/draw->mask.w),
-            (BYTE)(255.0f*(pos[i].y-draw->mask.y)/draw->mask.h), 255, 255);
+        v[i].color = MAKE(COLOR32, (uint8_t)(255.0f*(pos[i].x-draw->mask.x)/draw->mask.w),
+            (uint8_t)(255.0f*(pos[i].y-draw->mask.y)/draw->mask.h), 255, 255);
     }
     R_DrawImageBatch(draw->tex, SHADER_MINIMAP, BLEND_MODE_BLEND, 0, 0, false, NULL, v, 6, false);
 }
 
 /* Blizzard ships an authoritative 64x64 tile atlas; crop its local 256px tiles around the camera. */
-void Wow_DrawMinimap(LPCRECT screen) {
+void Wow_DrawMinimap(rect_t const * screen) {
     VECTOR3 cam = tr.viewDef.camerastate[0].origin;
     float r = WOW_MINIMAP_WORLD_RADIUS, x0 = cam.x - r, x1 = cam.x + r, y0 = cam.y - r, y1 = cam.y + r;
     int center_x = Wow_TileIndex(cam.y), center_y = Wow_TileIndex(cam.x);
@@ -341,7 +341,7 @@ void Wow_DrawMinimap(LPCRECT screen) {
             float wx0 = (31 - ty) * WOW_ADT_SIZE, wx1 = (32 - ty) * WOW_ADT_SIZE;
             float wy0 = (31 - tx) * WOW_ADT_SIZE, wy1 = (32 - tx) * WOW_ADT_SIZE;
             float ix0 = MAX(x0, wx0), ix1 = MIN(x1, wx1), iy0 = MAX(y0, wy0), iy1 = MIN(y1, wy1);
-            PATHSTR path; LPCSTR hash; RECT dst;
+            PATHSTR path; cstring_t hash; rect_t dst;
             if (tx < 0 || tx >= WOW_WDT_TILES || ty < 0 || ty >= WOW_WDT_TILES || ix0 >= ix1 || iy0 >= iy1) continue;
             hash = wow_world.minimap_hash[tx][ty];
             if (!*hash) {
@@ -355,7 +355,7 @@ void Wow_DrawMinimap(LPCRECT screen) {
                 snprintf(path, sizeof(path), "Textures/Minimap/%s.blp", hash);
                 wow_world.minimap_tiles[tx][ty] = Wow_LoadTexture(path, false);
             }
-            dst = (RECT){ screen->x + (ix0-x0)/(2*r)*screen->w, screen->y + (y1-iy1)/(2*r)*screen->h,
+            dst = (rect_t){ screen->x + (ix0-x0)/(2*r)*screen->w, screen->y + (y1-iy1)/(2*r)*screen->h,
                           (ix1-ix0)/(2*r)*screen->w, (iy1-iy0)/(2*r)*screen->h };
             Wow_DrawMinimapTile(&(wowMinimapDraw_t){ .dst = dst, .mask = *screen, .tex = wow_world.minimap_tiles[tx][ty],
                 .uv = { (wy1-iy1)/WOW_ADT_SIZE, (wx1-ix1)/WOW_ADT_SIZE,
@@ -366,10 +366,10 @@ void Wow_DrawMinimap(LPCRECT screen) {
 
 void Wow_DrawWorld(void) {
     WOWDRAWSTATS stats = { .collect = R_CvarEnabled("r_stats", "0") };
-    DWORD doodad_bucket_count = 0;
-    DWORD doodad_candidates = 0;
-    DWORD drawn_doodads = 0;
-    DWORD doodad_draws = 0, instanced_doodads = 0, fallback_doodads = 0, instanced_models = 0;
+    uint32_t doodad_bucket_count = 0;
+    uint32_t doodad_candidates = 0;
+    uint32_t drawn_doodads = 0;
+    uint32_t doodad_draws = 0, instanced_doodads = 0, fallback_doodads = 0, instanced_models = 0;
 
     if (tr.viewDef.rdflags & RDF_NOWORLDMODEL) {
         return;
@@ -379,7 +379,7 @@ void Wow_DrawWorld(void) {
     Wow_LoadCameraAdts();
 
     if (!wow_world.chunks) {
-        static BOOL logged_no_chunks = false;
+        static bool logged_no_chunks = false;
         if (!logged_no_chunks) {
             fprintf(stderr, "R_DrawWorld: WoW world has no loaded terrain chunks\n");
             logged_no_chunks = true;
@@ -389,7 +389,7 @@ void Wow_DrawWorld(void) {
 
     Wow_InitTerrainShader();
     if (!wow_terrain_shader.prog.progid) {
-        static BOOL logged_no_shader = false;
+        static bool logged_no_shader = false;
         if (!logged_no_shader) {
             fprintf(stderr, "R_DrawWorld: WoW terrain shader failed to initialize\n");
             logged_no_shader = true;
@@ -411,7 +411,7 @@ void Wow_DrawWorld(void) {
         int min_y = MAX(0, center_y - radius);
         int max_y = MIN(WOW_DOODAD_BUCKETS - 1, center_y + radius);
 
-        DWORD draw_start = R_GetFrameDrawCalls();
+        uint32_t draw_start = R_GetFrameDrawCalls();
         for (wowDoodadModel_t *group = wow_world.doodad_models; group; group = group->next) group->count = 0;
         for (int bucket_y = min_y; bucket_y <= max_y; bucket_y++) {
             for (int bucket_x = min_x; bucket_x <= max_x; bucket_x++) {
@@ -467,7 +467,7 @@ void Wow_DrawWorld(void) {
         }
     }
     if (R_CvarEnabled("r_stats", "0")) {
-        static DWORD last_stats;
+        static uint32_t last_stats;
         if (tr.viewDef.time - last_stats >= 1000) {
             last_stats = tr.viewDef.time;
             fprintf(stderr, "[WOW_STATS] terrain=%u/%u vertices=%u wmo=%u instances/%u models groups=%u draws=%u textures=%u model_batched=%u doodads=%u/%u draws=%u instanced=%u/%u fallback=%u\n",

@@ -1,23 +1,23 @@
 #include "g_local.h"
 
-static LONG hashtable_index(LPCHASHTABLE table) {
+static int32_t hashtable_index(LPCHASHTABLE table) {
     uintptr_t ptr = (uintptr_t)table, base = (uintptr_t)level.hashtables;
     size_t span = sizeof(level.hashtables);
     if (!table || ptr < base || ptr >= base + span ||
         (ptr - base) % sizeof(*table) != 0 || !table->inuse) return -1;
-    return (LONG)((ptr - base) / sizeof(*table));
+    return (int32_t)((ptr - base) / sizeof(*table));
 }
 
-BOOL G_HashtableIndex(LPCHASHTABLE table, DWORD *index) {
-    LONG id = hashtable_index(table);
+bool G_HashtableIndex(LPCHASHTABLE table, uint32_t *index) {
+    int32_t id = hashtable_index(table);
     if (id < 0) return false;
-    if (index) *index = (DWORD)id;
+    if (index) *index = (uint32_t)id;
     return true;
 }
 
-BOOL G_HashtableReserve(LPHASHTABLE table, DWORD need) {
+bool G_HashtableReserve(LPHASHTABLE table, uint32_t need) {
     hashtableEntry_t *next;
-    DWORD cap;
+    uint32_t cap;
     if (!table || !table->inuse) return false;
     if (need <= table->capacity) return true;
     if (need > MAX_HASHTABLE_ENTRIES) {

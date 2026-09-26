@@ -4,11 +4,11 @@
 
 TEST(wc3_smoke, compress_stat_roundtrip) {
     edictStat_s s = {500.0f, 750.0f};
-    BYTE c = compress_stat(&s);
+    uint8_t c = compress_stat(&s);
     T_ASSERT(c > 0);
 
     edictStat_s s2 = {1.0f, 100.0f};
-    BYTE c2 = compress_stat(&s2);
+    uint8_t c2 = compress_stat(&s2);
     T_ASSERT(c2 > 0);
     T_NE(c, c2);
 }

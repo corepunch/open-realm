@@ -3,14 +3,14 @@
 
 #include <string.h>
 
-DWORD CL_ControlGroupAppendUnique(DWORD *group, DWORD count, DWORD capacity,
-                                  DWORD const *ids, DWORD num_ids) {
+uint32_t CL_ControlGroupAppendUnique(uint32_t *group, uint32_t count, uint32_t capacity,
+                                  uint32_t const *ids, uint32_t num_ids) {
     if (!group || capacity == 0) return 0;
     if (count > capacity) count = capacity;
     if (!ids) return count;
 
     FOR_LOOP(i, num_ids) {
-        BOOL duplicate = false;
+        bool duplicate = false;
         FOR_LOOP(j, count) {
             if (group[j] == ids[i]) {
                 duplicate = true;

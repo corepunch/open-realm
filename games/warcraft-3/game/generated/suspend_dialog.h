@@ -14,8 +14,8 @@ typedef struct SuspendDialog_s {
 } SuspendDialog_t;
 
 
-static inline BOOL SuspendDialog_Bind(SuspendDialog_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool SuspendDialog_Bind(SuspendDialog_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -33,7 +33,7 @@ static inline BOOL SuspendDialog_Bind(SuspendDialog_t *out, LPFRAMEDEF bind_root
     return ok;
 }
 
-static inline BOOL SuspendDialog_Load(SuspendDialog_t *out) {
+static inline bool SuspendDialog_Load(SuspendDialog_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\SuspendDialog.fdf") &&
            SuspendDialog_Bind(out, UI_FindFrame("SuspendDialog"));

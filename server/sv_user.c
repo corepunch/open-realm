@@ -1,12 +1,12 @@
 #include "server.h"
 #include <stdlib.h>
 
-static DWORD SV_ClientPlayerNumber(LPCLIENT cl) {
+static uint32_t SV_ClientPlayerNumber(LPCLIENT cl) {
     return cl->playernum < MAX_PLAYERS ? cl->playernum : 0;
 }
 
 /* Continuation indexes come from the peer; reject malformed requests before indexing server tables. */
-static int SV_SignonStart(int argc, LPCSTR *argv, DWORD count) {
+static int SV_SignonStart(int argc, cstring_t *argv, uint32_t count) {
     if (argc == 1) return 0;
     char *end;
     long start = argc == 2 ? strtol(argv[1], &end, 10) : -1;
@@ -18,9 +18,9 @@ static int SV_SignonStart(int argc, LPCSTR *argv, DWORD count) {
 }
 
 /* Q2-style request pacing bounds UDP packets and avoids flooding the receiver during registration. */
-void SV_Configstrings_f(LPCLIENT cl, int argc, LPCSTR *argv) {
+void SV_Configstrings_f(LPCLIENT cl, int argc, cstring_t *argv) {
     int start = SV_SignonStart(argc, argv, MAX_CONFIGSTRINGS);
-    DWORD limit = SV_SignonLimit(&cl->netchan);
+    uint32_t limit = SV_SignonLimit(&cl->netchan);
     if (cl->state != cs_connected || start < 0) return;
     if (!cl->edict) cl->edict = EDICT_NUM(SV_ClientPlayerNumber(cl));
     for (; start < MAX_CONFIGSTRINGS; start++) {
@@ -38,10 +38,10 @@ void SV_Configstrings_f(LPCLIENT cl, int argc, LPCSTR *argv) {
 }
 
 /* Baselines share the configstring continuation contract, so begin cannot overtake later entity pages. */
-void SV_Baselines_f(LPCLIENT cl, int argc, LPCSTR *argv) {
+void SV_Baselines_f(LPCLIENT cl, int argc, cstring_t *argv) {
     entityState_t empty = { 0 };
     int start = SV_SignonStart(argc, argv, ge->num_edicts);
-    DWORD limit = SV_SignonLimit(&cl->netchan);
+    uint32_t limit = SV_SignonLimit(&cl->netchan);
     if (cl->state != cs_connected || start < 0) return;
     for (; start < ge->num_edicts; start++) {
         edict_t *ent = EDICT_NUM(start);
@@ -58,8 +58,8 @@ void SV_Baselines_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
-void SV_Begin_f(LPCLIENT cl, int argc, LPCSTR *argv) {
-    DWORD playernum;
+void SV_Begin_f(LPCLIENT cl, int argc, cstring_t *argv) {
+    uint32_t playernum;
 
     (void)argc;
     (void)argv;
@@ -73,12 +73,12 @@ void SV_Begin_f(LPCLIENT cl, int argc, LPCSTR *argv) {
                 (unsigned)playernum);
     }
     cl->state = cs_spawned;
-    cl->lastframe = (DWORD)-1;
+    cl->lastframe = (uint32_t)-1;
     ge->ClientBegin(cl->edict);
 }
 
-void SV_PlayerInfo_f(LPCLIENT cl, int argc, LPCSTR *argv) {
-    DWORD playernum;
+void SV_PlayerInfo_f(LPCLIENT cl, int argc, cstring_t *argv) {
+    uint32_t playernum;
 
     (void)argc;
     (void)argv;
@@ -88,7 +88,7 @@ void SV_PlayerInfo_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     cl->edict = EDICT_NUM(playernum);
 }
 
-void SV_New_f(LPCLIENT cl, int argc, LPCSTR *argv) {
+void SV_New_f(LPCLIENT cl, int argc, cstring_t *argv) {
     (void)argc;
     (void)argv;
 
@@ -103,14 +103,14 @@ void SV_New_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     Netchan_Transmit(NS_SERVER, &cl->netchan);
 }
 
-static DWORD SV_ClientIndex(LPCLIENT client) {
+static uint32_t SV_ClientIndex(LPCLIENT client) {
     if (!client || client < svs.clients || client >= svs.clients + MAX_CLIENTS) {
         return 0;
     }
-    return (DWORD)(client - svs.clients);
+    return (uint32_t)(client - svs.clients);
 }
 
-static void SV_LobbySayClient_f(LPCLIENT cl, int argc, LPCSTR *argv) {
+static void SV_LobbySayClient_f(LPCLIENT cl, int argc, cstring_t *argv) {
     char text[256];
     size_t used = 0;
     char sender[32];
@@ -120,7 +120,7 @@ static void SV_LobbySayClient_f(LPCLIENT cl, int argc, LPCSTR *argv) {
     }
     text[0] = '\0';
     for (int i = 1; i < argc; i++) {
-        LPCSTR value = argv[i] ? argv[i] : "";
+        cstring_t value = argv[i] ? argv[i] : "";
         size_t len = strlen(value);
 
         if (used && used + 1 < sizeof(text)) {
@@ -139,8 +139,8 @@ static void SV_LobbySayClient_f(LPCLIENT cl, int argc, LPCSTR *argv) {
 }
 
 typedef struct {
-    LPCSTR name;
-    void (*func)(LPCLIENT client, int argc, LPCSTR *argv);
+    cstring_t name;
+    void (*func)(LPCLIENT client, int argc, cstring_t *argv);
 } ucmd_t;
 
 ucmd_t ucmds[] = {
@@ -156,13 +156,13 @@ ucmd_t ucmds[] = {
 void SV_ExecuteUserCommand(LPSIZEBUF msg, LPCLIENT client) {
     typedef char cmdarg_t[CMDARG_LEN];
     static cmdarg_t args[MAX_CMDARGS];
-    static LPCSTR argv[MAX_CMDARGS];
-    DWORD argc = 0;
-    LPCSTR command = MSG_ReadString2(msg);
+    static cstring_t argv[MAX_CMDARGS];
+    uint32_t argc = 0;
+    cstring_t command = MSG_ReadString2(msg);
     parser_t p = { 0 };
     p.tok = p.token;
     p.str = command;
-    for (LPCSTR tok = ParserGetToken(&p); tok && argc < MAX_CMDARGS; tok = ParserGetToken(&p)) {
+    for (cstring_t tok = ParserGetToken(&p); tok && argc < MAX_CMDARGS; tok = ParserGetToken(&p)) {
         strlcpy(args[argc], tok, sizeof(args[argc]));
         argv[argc] = args[argc];
         argc++;

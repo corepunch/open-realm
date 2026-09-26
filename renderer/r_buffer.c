@@ -17,7 +17,7 @@ struct vshort {
     } \
     return buffer + sizeof(data) / sizeof(*data);
 
-VERTEX *R_AddQuad(VERTEX *buffer, LPCRECT screen, LPCRECT uv, COLOR32 color, float z) {
+VERTEX *R_AddQuad(VERTEX *buffer, rect_t const * screen, rect_t const * uv, COLOR32 color, float z) {
     struct vshort const data[] = {
         { screen->x, screen->y, z, uv->x, uv->y, color },
         { screen->x+screen->w, screen->y, z, uv->x+uv->w, uv->y, color },
@@ -29,7 +29,7 @@ VERTEX *R_AddQuad(VERTEX *buffer, LPCRECT screen, LPCRECT uv, COLOR32 color, flo
     WRITE_VERTICES(buffer, data);
 }
 
-VERTEX *R_AddStrip(VERTEX *buffer, LPCRECT screen, COLOR32 color) {
+VERTEX *R_AddStrip(VERTEX *buffer, rect_t const * screen, COLOR32 color) {
     struct vshort const data[] = {
         { screen->x, screen->y, 0, 0, 0, color },
         { screen->x+screen->w, screen->y, 0, 0, 0, color },
@@ -64,7 +64,7 @@ VERTEX *R_AddWireBox(VERTEX *buffer, LPCBOX3 box, COLOR32 color) {
     WRITE_VERTICES(buffer, data);
 }
 
-LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size) {
+LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, uint32_t size) {
     LPBUFFER buf = ri.MemAlloc(sizeof(BUFFER));
 
     memset(buf, 0, sizeof(*buf));
@@ -96,7 +96,7 @@ LPBUFFER R_MakeVertexArrayObject(LPCVERTEX vertices, DWORD size) {
     return buf;
 }
 
-LPBUFFER R_MakeIndexedVertexArrayObject(LPCVERTEX vertices, DWORD num_vertices, DWORD const *indices, DWORD num_indices) {
+LPBUFFER R_MakeIndexedVertexArrayObject(LPCVERTEX vertices, uint32_t num_vertices, uint32_t const *indices, uint32_t num_indices) {
     LPBUFFER buf = R_MakeVertexArrayObject(vertices, num_vertices);
 
     R_Call(glBindVertexArray, buf->vao);
@@ -109,7 +109,7 @@ LPBUFFER R_MakeIndexedVertexArrayObject(LPCVERTEX vertices, DWORD num_vertices, 
 /* Static instance transforms are immutable until their ADT window is replaced. */
 static GLuint r_instanced_vao = 0;
 
-BOOL R_MakeInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, DWORD count) {
+bool R_MakeInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, uint32_t count) {
     if (!buffer || !matrices || !count) return false;
     memset(buffer, 0, sizeof(*buffer));
     R_Call(glGenBuffers, 1, &buffer->vbo);
@@ -121,8 +121,8 @@ BOOL R_MakeInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, DWORD co
 }
 
 /* Visible static doodads regroup by model each frame; retain their VBO allocation across frames. */
-BOOL R_UpdateInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, DWORD count) {
-    DWORD capacity;
+bool R_UpdateInstanceBuffer(LPINSTANCEBUFFER buffer, LPCMATRIX4 matrices, uint32_t count) {
+    uint32_t capacity;
 
     if (!buffer || !matrices || !count) return false;
     if (!buffer->vbo) R_Call(glGenBuffers, 1, &buffer->vbo);
@@ -145,7 +145,7 @@ void R_ReleaseInstanceBuffer(LPINSTANCEBUFFER buffer) {
 }
 
 /* Both array and indexed draws share one transient VAO for their persistent instance stream. */
-static BOOL R_BindInstancedBuffer(LPCBUFFER buffer, LPCINSTANCEBUFFER instances) {
+static bool R_BindInstancedBuffer(LPCBUFFER buffer, LPCINSTANCEBUFFER instances) {
     if (!buffer || !instances || !instances->vbo || !instances->count) return false;
     if (!r_instanced_vao) R_Call(glGenVertexArrays, 1, &r_instanced_vao);
     R_Call(glBindVertexArray, r_instanced_vao);
@@ -184,7 +184,7 @@ void R_DrawBufferRange(LPCBUFFER buffer, LPCDRAWRANGE draw) {
 }
 
 /* Rebind one model batch and its persistent instance stream to the shared VAO. */
-void R_DrawBufferInstanced(LPCBUFFER buffer, DWORD num_vertices, LPCINSTANCEBUFFER instances) {
+void R_DrawBufferInstanced(LPCBUFFER buffer, uint32_t num_vertices, LPCINSTANCEBUFFER instances) {
     if (!num_vertices || !R_BindInstancedBuffer(buffer, instances)) return;
     R_StatsDraw(GL_TRIANGLES, num_vertices, instances->count);
     R_Call(glDrawArraysInstanced, GL_TRIANGLES, 0, num_vertices, instances->count);

@@ -25,19 +25,19 @@
 #define TEST_SC2_ZERO_TERRAIN_DIMENSIONS  1
 #define TEST_SC2_HUGE_TERRAIN_DIMENSIONS  2
 
-static BOOL sc2_tests_initialized;
-static DWORD short_terrain_dimensions;
+static bool sc2_tests_initialized;
+static uint32_t short_terrain_dimensions;
 
-static FLOAT test_grid_height(LPCVOID data, DWORD x, DWORD y) {
-    LPCFLOAT heights = data;
+static float test_grid_height(void const * data, uint32_t x, uint32_t y) {
+    float const * heights = data;
 
     return heights[x + y * 3];
 }
 
 /* Grid derivatives stay smooth regardless of render-cell triangulation or omitted cliff cells. */
 TEST(sc2_map, shared_grid_normals) {
-    FLOAT flat[9] = {0};
-    FLOAT slope[9] = {0,1,2, 0,1,2, 0,1,2};
+    float flat[9] = {0};
+    float slope[9] = {0,1,2, 0,1,2, 0,1,2};
     TERRAINNORMALS grid = { flat, test_grid_height, 3, 3, 1.0f };
     VECTOR3 normal = R_TerrainGridNormal(&grid, 1, 1);
 
@@ -48,10 +48,10 @@ TEST(sc2_map, shared_grid_normals) {
 
 /* Camera-only spatial filtering suppresses narrow depressions without changing exact terrain queries. */
 TEST(sc2_map, camera_height_blurs_narrow_depressions) {
-    DWORD const side = 17, count = side * side;
+    uint32_t const side = 17, count = side * side;
     sc2MapHeightMap_t *layer = MemAlloc(sizeof(*layer) + count * sizeof(*layer->data));
     sc2Map_t map = { .MapInfo = { .width = 16, .height = 16 }, .cell_size = 1.0f, .t3HeightMap = layer };
-    DWORD i;
+    uint32_t i;
 
     memset(layer, 0, sizeof(*layer) + count * sizeof(*layer->data));
     layer->width = side; layer->height = side;
@@ -69,7 +69,7 @@ TEST(sc2_map, flying_unit_height_is_terrain_relative) {
 }
 
 TEST(sc2_map, ramp_join_matches_ground_triangles) {
-    FLOAT height[] = { 0, 0, 0, 4 };
+    float height[] = { 0, 0, 0, 4 };
     /* A diagonal cliff lip at the cell center lies on the emitted 00--11 edge. */
     T_FEQ(r_sc2_ground_triangle_height(height, (VECTOR2){0.5f,0.5f}), 2, 0.0001f);
     T_FEQ(r_sc2_ground_triangle_height(height, (VECTOR2){0.75f,0.5f}), 2, 0.0001f);
@@ -78,7 +78,7 @@ TEST(sc2_map, ramp_join_matches_ground_triangles) {
 
 TEST(sc2_map, ramp_footprints_select_authored_straight_and_diagonal_meshes) {
     /* TRaynor01's actual ramp boxes, with only their four outside tier samples needed here. */
-    sc2MapSyncCliffLevel_t *grid = calloc(1, sizeof(*grid) + 136*160*sizeof(USHORT));
+    sc2MapSyncCliffLevel_t *grid = calloc(1, sizeof(*grid) + 136*160*sizeof(uint16_t));
     grid->width = 136; grid->height = 160;
     FOR_LOOP(i, 136*160) grid->data[i] = 64;
     sc2Map_t map = { .t3SyncCliffLevel = grid };
@@ -125,7 +125,7 @@ TEST(sc2_map, cliff_weld_requires_matching_height_and_normal_hemisphere) {
 }
 
 TEST(sc2_map, m3_division_faces_pack_into_model_ranges) {
-    USHORT a[] = {0,1,2}, b[] = {2,3,0}, indices[6];
+    uint16_t a[] = {0,1,2}, b[] = {2,3,0}, indices[6];
     m3Divisions_t divisions[2] = {{.facesNum=3,.faces=a}, {.facesNum=3,.faces=b}};
     T_EQ((int)m3_pack_division_faces(divisions, 2, indices), 6);
     T_EQ((int)divisions[0].indexofs, 0); T_EQ((int)divisions[1].indexofs, 6);
@@ -164,7 +164,7 @@ TEST(sc2_map, hard_tile_surface_matches_terrain_below_selection) {
         {.position={1,1,2.5f}, .normal={0,0,1}} }, road[3], out[18];
     memcpy(road, ground, sizeof(road));
     FOR_LOOP(i, 3) road[i].position.z = 3;
-    DWORD n = r_sc2_clip_road(road, ground, out);
+    uint32_t n = r_sc2_clip_road(road, ground, out);
     T_EQ(n, 3);
     FOR_LOOP(i, n) T_FEQ(out[i].position.z, 2.5f, .0001f);
     FOR_LOOP(i, 3) ground[i].position.z = 3.08f;
@@ -182,12 +182,12 @@ TEST(sc2_map, hard_tile_clips_at_terrain_diagonal) {
     VERTEX corners[] = {
         {.position={0,0,0}, .normal={0,0,1}}, {.position={1,0,0}, .normal={0,0,1}},
         {.position={1,1,4}, .normal={0,0,1}}, {.position={0,1,0}, .normal={0,0,1}} };
-    FLOAT area = 0;
+    float area = 0;
     FOR_LOOP(tri, 2) {
         VERTEX ground[] = { corners[0], corners[tri+1], corners[tri+2] }, out[18];
-        DWORD n = r_sc2_clip_road(road, ground, out);
+        uint32_t n = r_sc2_clip_road(road, ground, out);
         T_EQ(n, r_sc2_clip_road(road, ground, NULL)); T_ASSERT(n >= 3);
-        for (DWORD i = 0; i < n; i += 3) {
+        for (uint32_t i = 0; i < n; i += 3) {
             VECTOR3 center = {0};
             area += fabsf(r_sc2_road_side(out[i].position, out[i+1].position, out[i+2].position)) * .5f;
             FOR_LOOP(j, 3) {
@@ -215,10 +215,10 @@ TEST(sc2_map, road_covers_cliff_top_at_bridge_approach) {
         {.position={2,2,7.8f}, .normal={0,0,1}},
         {.position={2,0,8}, .normal={0,0,1}},
         {.position={0,0,8}, .normal={0,0,1}} }, out[18];
-    DWORD n = r_sc2_clip_road(road, cliff, out);
+    uint32_t n = r_sc2_clip_road(road, cliff, out);
     T_EQ(n, 3);
-    FLOAT area = 0;
-    for (DWORD i = 0; i < n; i += 3)
+    float area = 0;
+    for (uint32_t i = 0; i < n; i += 3)
         area += fabsf(r_sc2_road_side(out[i].position, out[i+1].position, out[i+2].position)) * .5f;
     T_FEQ(area, 2, .0001f);
 }
@@ -228,10 +228,10 @@ TEST(sc2_map, road_cliff_depth_clips_canyon_wall) {
         {.position={0,0,8}}, {.position={2,0,8}}, {.position={2,2,8}} }, .depth = .6f };
     VERTEX cliff[] = {
         {.position={0,0,8}}, {.position={2,0,8}}, {.position={2,2,6}} }, out[54];
-    DWORD n = r_sc2_clip_road_cliff(&road, cliff, out);
+    uint32_t n = r_sc2_clip_road_cliff(&road, cliff, out);
     T_ASSERT(n >= 3); T_EQ(n, r_sc2_clip_road_cliff(&road, cliff, NULL));
-    FLOAT area = 0;
-    for (DWORD i = 0; i < n; i += 3)
+    float area = 0;
+    for (uint32_t i = 0; i < n; i += 3)
         area += fabsf(r_sc2_road_side(out[i].position, out[i+1].position, out[i+2].position)) * .5f;
     /* Only the top 0.6 of the two-unit slope receives the road, with no whole-triangle holes. */
     T_FEQ(area, 1.02f, .0001f);
@@ -247,7 +247,7 @@ TEST(sc2_map, road_cliff_depth_clips_canyon_wall) {
     T_EQ(r_sc2_clip_road_cliff(&road, cliff, out), 0);
 }
 
-static DWORD listed_count;
+static uint32_t listed_count;
 static PATHSTR listed_map;
 
 void Key_Init(void) {
@@ -257,32 +257,32 @@ void Key_WriteBindings(FILE *file) {
     (void)file;
 }
 
-void Cmd_ForwardToServer(LPCSTR text) {
+void Cmd_ForwardToServer(cstring_t text) {
     (void)text;
 }
 
 void CL_SetGameplayBindings(void) {
 }
 
-void CL_Connect(LPCSTR host, unsigned short port) { (void)host; (void)port; }
+void CL_Connect(cstring_t host, unsigned short port) { (void)host; (void)port; }
 
-void CL_BeginLoadingMap(LPCSTR mapName) {
+void CL_BeginLoadingMap(cstring_t mapName) {
     (void)mapName;
 }
 
 void CL_Shutdown(void) {
 }
 
-void SV_Map(LPCSTR pFilename) {
+void SV_Map(cstring_t pFilename) {
     (void)pFilename;
 }
 
-BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size) {
+bool SV_GetSaveMap(cstring_t name, string_t map, uint32_t map_size) {
     (void)name; (void)map; (void)map_size;
     return false;
 }
 
-BOOL SV_LoadGame(LPCSTR name, LPCSTR map) {
+bool SV_LoadGame(cstring_t name, cstring_t map) {
     (void)name; (void)map;
     return false;
 }
@@ -293,7 +293,7 @@ void SV_Shutdown(void) {
 void Sys_Quit(void) {
 }
 
-void PF_Sleep(DWORD msec) {
+void PF_Sleep(uint32_t msec) {
     (void)msec;
 }
 
@@ -302,7 +302,7 @@ static void setup_sc2_tests(void) {
         return;
     }
 
-    LPCSTR argv[] = { "test_sc2", "-config", "" };
+    cstring_t argv[] = { "test_sc2", "-config", "" };
     Com_Init(3, argv);
     T_ASSERT(FS_AddArchive(TEST_SC2_MPQ) != NULL);
     sc2_tests_initialized = true;
@@ -317,10 +317,10 @@ static void use_sc2_fs_host(void) {
     });
 }
 
-static HANDLE read_test_disk_path(LPCSTR filename, LPDWORD size) {
+static handle_t read_test_disk_path(cstring_t filename, uint32_t * size) {
     FILE *file;
     long file_size;
-    LPBYTE data;
+    uint8_t * data;
     struct stat st;
 
     if (size) *size = 0;
@@ -346,20 +346,20 @@ static HANDLE read_test_disk_path(LPCSTR filename, LPDWORD size) {
         return NULL;
     }
     fclose(file);
-    if (size) *size = (DWORD)file_size;
+    if (size) *size = (uint32_t)file_size;
     return data;
 }
 
-static void normalize_disk_path(LPSTR path) {
+static void normalize_disk_path(string_t path) {
     if (!path) return;
-    for (LPSTR p = path; *p; p++) {
+    for (string_t p = path; *p; p++) {
         if (*p == '\\') *p = '/';
     }
 }
 
-static HANDLE read_test_disk_file(LPCSTR filename, LPDWORD size) {
+static handle_t read_test_disk_file(cstring_t filename, uint32_t * size) {
     char path[MAX_PATHLEN * 2];
-    HANDLE data;
+    handle_t data;
 
     data = read_test_disk_path(filename, size);
     if (data)
@@ -385,8 +385,8 @@ static void use_sc2_disk_host(void) {
     });
 }
 
-static BOOL test_path_leaf_is(LPCSTR filename, LPCSTR leaf) {
-    LPCSTR base;
+static bool test_path_leaf_is(cstring_t filename, cstring_t leaf) {
+    cstring_t base;
 
     if (!filename || !leaf)
         return false;
@@ -397,7 +397,7 @@ static BOOL test_path_leaf_is(LPCSTR filename, LPCSTR leaf) {
     return !strcmp(base, leaf);
 }
 
-static HANDLE read_test_no_manifest_file(LPCSTR filename, LPDWORD size) {
+static handle_t read_test_no_manifest_file(cstring_t filename, uint32_t * size) {
     if (test_path_leaf_is(filename, "GameData.xml")) {
         if (size) *size = 0;
         return NULL;
@@ -414,7 +414,7 @@ static void use_sc2_no_manifest_disk_host(void) {
     });
 }
 
-static DWORD short_terrain_width(DWORD width) {
+static uint32_t short_terrain_width(uint32_t width) {
     if (short_terrain_dimensions == TEST_SC2_ZERO_TERRAIN_DIMENSIONS)
         return 0;
     if (short_terrain_dimensions == TEST_SC2_HUGE_TERRAIN_DIMENSIONS)
@@ -422,7 +422,7 @@ static DWORD short_terrain_width(DWORD width) {
     return width;
 }
 
-static DWORD short_terrain_height(DWORD height) {
+static uint32_t short_terrain_height(uint32_t height) {
     if (short_terrain_dimensions == TEST_SC2_ZERO_TERRAIN_DIMENSIONS)
         return 0;
     if (short_terrain_dimensions == TEST_SC2_HUGE_TERRAIN_DIMENSIONS)
@@ -430,7 +430,7 @@ static DWORD short_terrain_height(DWORD height) {
     return height;
 }
 
-static HANDLE make_short_height_map(LPDWORD size) {
+static handle_t make_short_height_map(uint32_t * size) {
     sc2MapHeightMap_t *layer = MemAlloc(sizeof(*layer));
 
     if (!layer)
@@ -443,7 +443,7 @@ static HANDLE make_short_height_map(LPDWORD size) {
     return layer;
 }
 
-static HANDLE make_short_sync_height_map(LPDWORD size) {
+static handle_t make_short_sync_height_map(uint32_t * size) {
     sc2MapSyncHeightMap_t *layer = MemAlloc(sizeof(*layer));
 
     if (!layer)
@@ -456,7 +456,7 @@ static HANDLE make_short_sync_height_map(LPDWORD size) {
     return layer;
 }
 
-static HANDLE make_short_cell_flags(LPDWORD size) {
+static handle_t make_short_cell_flags(uint32_t * size) {
     sc2MapCellFlags_t *layer = MemAlloc(sizeof(*layer));
 
     if (!layer)
@@ -469,7 +469,7 @@ static HANDLE make_short_cell_flags(LPDWORD size) {
     return layer;
 }
 
-static HANDLE make_short_sync_cliff_level(LPDWORD size) {
+static handle_t make_short_sync_cliff_level(uint32_t * size) {
     sc2MapSyncCliffLevel_t *layer = MemAlloc(sizeof(*layer));
 
     if (!layer)
@@ -482,7 +482,7 @@ static HANDLE make_short_sync_cliff_level(LPDWORD size) {
     return layer;
 }
 
-static HANDLE make_short_texture_masks(LPDWORD size) {
+static handle_t make_short_texture_masks(uint32_t * size) {
     sc2MapTextureMasks_t *layer = MemAlloc(sizeof(*layer));
 
     if (!layer)
@@ -495,8 +495,8 @@ static HANDLE make_short_texture_masks(LPDWORD size) {
     return layer;
 }
 
-static HANDLE make_short_hard_tiles(LPDWORD size) {
-    BYTE *layer = MemAlloc(32);
+static handle_t make_short_hard_tiles(uint32_t * size) {
+    uint8_t *layer = MemAlloc(32);
 
     if (!layer) return NULL;
     memset(layer, 0, 32); memcpy(layer, "HRDT", 4);
@@ -505,7 +505,7 @@ static HANDLE make_short_hard_tiles(LPDWORD size) {
     return layer;
 }
 
-static HANDLE read_test_short_terrain_file(LPCSTR filename, LPDWORD size) {
+static handle_t read_test_short_terrain_file(cstring_t filename, uint32_t * size) {
     if (size) *size = 0;
     if (test_path_leaf_is(filename, "t3HeightMap"))
         return make_short_height_map(size);
@@ -522,7 +522,7 @@ static HANDLE read_test_short_terrain_file(LPCSTR filename, LPDWORD size) {
     return read_test_disk_file(filename, size);
 }
 
-static void use_sc2_short_terrain_host(DWORD dimensions) {
+static void use_sc2_short_terrain_host(uint32_t dimensions) {
     short_terrain_dimensions = dimensions;
     SC2_MapSetHost(&(sc2MapHost_t){
         .read_file = read_test_short_terrain_file,
@@ -532,7 +532,7 @@ static void use_sc2_short_terrain_host(DWORD dimensions) {
     });
 }
 
-static void collect_map(LPCSTR path, void *userData) {
+static void collect_map(cstring_t path, void *userData) {
     (void)userData;
     listed_count++;
     if (path && !strcmp(path, "Maps\\Test\\Tiny.SC2Map")) {
@@ -618,7 +618,7 @@ TEST(sc2_map, camera_pitch_converts_to_orbit_euler) {
 /* The retail bridge view is from negative Y at yaw 180; test the actual quaternion/view path. */
 TEST(sc2_map, camera_eye_side_and_upright_basis) {
     FOR_LOOP(i, 5) {
-        FLOAT yaw = i * 90.0f, pitch = 56.0f;
+        float yaw = i * 90.0f, pitch = 56.0f;
         VECTOR3 angles = SC2_EulerFromCamera(pitch, yaw);
         QUATERNION quat = Quaternion_fromEuler(&angles, ROTATE_ZYX);
         MATRIX4 view, inv;
@@ -1062,16 +1062,16 @@ TEST(sc2_map, catalog_root_lighting_and_model_variations) {
 /* Exercise production pass submission with GL calls captured, rather than judging shadowed pixels. */
 static struct {
     render_phase_t render_phase;
-    BOOL offset;
-    FLOAT factor, units;
-    DWORD calls, draws;
+    bool offset;
+    float factor, units;
+    uint32_t calls, draws;
 } road_pass;
 static void road_enable(GLenum cap) { T_EQ(cap, GL_POLYGON_OFFSET_FILL); road_pass.offset = true; road_pass.calls++; }
 static void road_disable(GLenum cap) { T_EQ(cap, GL_POLYGON_OFFSET_FILL); road_pass.offset = false; road_pass.calls++; }
 static void road_offset(GLfloat factor, GLfloat units) {
     road_pass.factor = factor; road_pass.units = units; road_pass.calls++;
 }
-static void road_draw(renderEntity_t const *entity, m3Model_t const *model, LPCBUFFER buffer, DWORD vertices, DWORD indices) {
+static void road_draw(renderEntity_t const *entity, m3Model_t const *model, LPCBUFFER buffer, uint32_t vertices, uint32_t indices) {
     T_ASSERT(entity->model->m3 == model); T_NOT_NULL(buffer); T_EQ(vertices, 3); T_EQ(indices, 3);
     T_ASSERT(road_pass.offset); T_ASSERT(road_pass.factor < -1); T_ASSERT(road_pass.units < -1);
     road_pass.draws++;

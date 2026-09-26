@@ -1,7 +1,7 @@
 #include "g_local.h"
 
 #define DESTRUCTABLE_DROP_RADIUS 32.0f // world units; separates multiple drops around one destroyed object
-#define NO_RANDOM_ITEM_TABLE ((DWORD)-1) // table index; war3map.doo sentinel meaning no random-item table
+#define NO_RANDOM_ITEM_TABLE ((uint32_t)-1) // table index; war3map.doo sentinel meaning no random-item table
 #define RANDOM_ITEM_PREFIX_MASK 0x00ffffff // bits; compare the YYI prefix while ignoring its encoded selector byte
 
 static void G_ApplyDestructableAlivePathing(LPEDICT ent) {
@@ -35,12 +35,12 @@ static void G_ApplyDestructableDeathPathing(LPEDICT ent) {
  * creates the corresponding destructable through CreateDestructable().
  */
 void G_ActivateScriptedDestructable(LPEDICT ent,
-                                    FLOAT x,
-                                    FLOAT y,
-                                    FLOAT z,
-                                    FLOAT facing,
-                                    FLOAT scale,
-                                    DWORD variation) {
+                                    float x,
+                                    float y,
+                                    float z,
+                                    float facing,
+                                    float scale,
+                                    uint32_t variation) {
     if (!ent || !G_IsDestructable(ent)) {
         return;
     }
@@ -77,7 +77,7 @@ void G_ActivateScriptedDestructable(LPEDICT ent,
     gi.LinkEntity(ent);
 }
 
-BOOL G_IsDestructable(LPCEDICT ent) {
+bool G_IsDestructable(LPCEDICT ent) {
     if (!ent || !ent->inuse || !ent->class_id) {
         return false;
     }
@@ -93,22 +93,22 @@ BOOL G_IsDestructable(LPCEDICT ent) {
     return level.mapinfo && ent->data.DestructableData && ent->data.DestructableData->file != NULL;
 }
 
-BOOL G_DestructableIsAttackable(LPCEDICT ent) {
+bool G_DestructableIsAttackable(LPCEDICT ent) {
     return G_IsDestructable(ent) && !ent->destructable.dead &&
         ent->health.value > 0.0f && ent->targtype != TARG_NONE &&
         !(ent->s.renderfx & RF_HIDDEN) &&
         !(ent->s.flags & EF_NOT_SELECTABLE);
 }
 
-BOOL G_DestructableIsWalkable(LPCEDICT ent) {
+bool G_DestructableIsWalkable(LPCEDICT ent) {
     return G_IsDestructable(ent) && ent->data.DestructableData->walkable &&
         ent->destructable.placement_solid && !ent->destructable.dead;
 }
 
 /* Warcraft target flags are shared with ordinary unit weapon targeting;
  * G_TargetFlagForType() owns the TARGTYPE -> common.j bit conversion. */
-BOOL G_DestructableCanBeAttackedBy(LPCEDICT attacker, LPCEDICT target) {
-    DWORD flag;
+bool G_DestructableCanBeAttackedBy(LPCEDICT attacker, LPCEDICT target) {
+    uint32_t flag;
 
     if (!attacker || !G_DestructableIsAttackable(target) ||
         (attacker->attack1.type == ATK_NONE && attacker->attack2.type == ATK_NONE)) {
@@ -125,7 +125,7 @@ BOOL G_DestructableCanBeAttackedBy(LPCEDICT attacker, LPCEDICT target) {
                     (attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) && (attacker->attack2.targetsAllowed & flag)));
 }
 
-BOOL G_DestructableAcceptsSmartAttack(LPCEDICT attacker, LPCEDICT target) {
+bool G_DestructableAcceptsSmartAttack(LPCEDICT attacker, LPCEDICT target) {
     /* Retail Smart/right-click treats attackable walls like gates as attack
      * targets. Bridges retain walk-to behavior unless explicitly attackable. */
     return G_DestructableCanBeAttackedBy(attacker, target) &&
@@ -134,19 +134,19 @@ BOOL G_DestructableAcceptsSmartAttack(LPCEDICT attacker, LPCEDICT target) {
 
 /* Resolve one 0..99 roll against cumulative percentages. Any unused remainder
  * intentionally represents no item, matching the map editor's item-set data. */
-DWORD G_SelectDropItem(droppableItem_t const *entries, DWORD count, DWORD roll) {
-    DWORD threshold = 0;
+uint32_t G_SelectDropItem(droppableItem_t const *entries, uint32_t count, uint32_t roll) {
+    uint32_t threshold = 0;
 
     if (!entries || roll >= 100) {
         return 0;
     }
     FOR_LOOP(i, count) {
-        LONG chance = entries[i].chanceToDrop;
+        int32_t chance = entries[i].chanceToDrop;
 
         if (chance <= 0) {
             continue;
         }
-        threshold += MIN((DWORD)chance, 100 - threshold);
+        threshold += MIN((uint32_t)chance, 100 - threshold);
         if (roll < threshold) {
             return entries[i].itemID;
         }
@@ -157,14 +157,14 @@ DWORD G_SelectDropItem(droppableItem_t const *entries, DWORD count, DWORD roll) 
     return 0;
 }
 
-DWORD G_SelectRandomTableItem(mapRandomItem_t const *entries, DWORD count, DWORD roll) {
-    DWORD threshold = 0;
+uint32_t G_SelectRandomTableItem(mapRandomItem_t const *entries, uint32_t count, uint32_t roll) {
+    uint32_t threshold = 0;
 
     if (!entries || roll >= 100) {
         return 0;
     }
     FOR_LOOP(i, count) {
-        DWORD chance = entries[i].chance;
+        uint32_t chance = entries[i].chance;
 
         threshold += MIN(chance, 100 - threshold);
         if (roll < threshold) {
@@ -177,7 +177,7 @@ DWORD G_SelectRandomTableItem(mapRandomItem_t const *entries, DWORD count, DWORD
     return 0;
 }
 
-mapRandomItemTable_t const *G_FindRandomItemTable(DWORD table_number) {
+mapRandomItemTable_t const *G_FindRandomItemTable(uint32_t table_number) {
     if (!level.mapinfo || !level.mapinfo->randomItems ||
         table_number == NO_RANDOM_ITEM_TABLE) {
         return NULL;
@@ -190,14 +190,14 @@ mapRandomItemTable_t const *G_FindRandomItemTable(DWORD table_number) {
     return NULL;
 }
 
-static BOOL G_IsEncodedRandomItem(DWORD item_id) {
+static bool G_IsEncodedRandomItem(uint32_t item_id) {
     return (item_id & RANDOM_ITEM_PREFIX_MASK) == (MAKEFOURCC('Y', 'Y', 'I', 0) & RANDOM_ITEM_PREFIX_MASK);
 }
 
-static void G_QueueDestructableDrop(DWORD item_id,
-                                    DWORD *selected,
-                                    DWORD *selected_count) {
-    LPCSTR item_file;
+static void G_QueueDestructableDrop(uint32_t item_id,
+                                    uint32_t *selected,
+                                    uint32_t *selected_count) {
+    cstring_t item_file;
 
     if (!item_id) return;
     if (G_IsEncodedRandomItem(item_id)) {
@@ -219,9 +219,9 @@ static void G_QueueDestructableDrop(DWORD item_id,
  * Marking first makes the operation safe against callbacks or repeated kills. */
 void G_SpawnDestructableLoot(LPEDICT ent) {
     mapRandomItemTable_t const *table;
-    DWORD *selected;
-    DWORD selected_count = 0;
-    DWORD max_selected;
+    uint32_t *selected;
+    uint32_t selected_count = 0;
+    uint32_t max_selected;
 
     if (!ent || !G_IsDestructable(ent) || !ent->destructable.dead || ent->destructable.loot_processed) return;
     ent->destructable.loot_processed = true;
@@ -237,28 +237,28 @@ void G_SpawnDestructableLoot(LPEDICT ent) {
     selected = gi.MemAlloc(sizeof(*selected) * max_selected);
     FOR_LOOP(i, ARRAY_COUNT(ent->destructable.drop_sets)) {
         droppableItemSet_t const *set = ent->destructable.drop_sets + i;
-        DWORD item_id, roll;
+        uint32_t item_id, roll;
 
         if (!set->droppableItems || set->num_droppableItems <= 0) continue;
-        roll = (DWORD)(rand() % 100);
-        item_id = G_SelectDropItem(set->droppableItems, (DWORD)set->num_droppableItems, roll);
+        roll = (uint32_t)(rand() % 100);
+        item_id = G_SelectDropItem(set->droppableItems, (uint32_t)set->num_droppableItems, roll);
         G_QueueDestructableDrop(item_id, selected, &selected_count);
     }
     if (table && table->sets) {
         FOR_LOOP(i, table->num_sets) {
             mapRandomItemSet_t const *set = &table->sets[i];
-            DWORD item_id, roll;
+            uint32_t item_id, roll;
 
             if (!set->items || !set->num_items) continue;
-            roll = (DWORD)(rand() % 100);
+            roll = (uint32_t)(rand() % 100);
             item_id = G_SelectRandomTableItem(set->items, set->num_items, roll);
             G_QueueDestructableDrop(item_id, selected, &selected_count);
         }
     }
 
     FOR_LOOP(i, selected_count) {
-        FLOAT angle = selected_count > 1 ? 2.0f * M_PI * (FLOAT)i / (FLOAT)selected_count : 0.0f;
-        FLOAT radius = selected_count > 1 ? DESTRUCTABLE_DROP_RADIUS : 0.0f;
+        float angle = selected_count > 1 ? 2.0f * M_PI * (float)i / (float)selected_count : 0.0f;
+        float radius = selected_count > 1 ? DESTRUCTABLE_DROP_RADIUS : 0.0f;
         VECTOR2 point = {
             ent->s.origin.x + cosf(angle) * radius,
             ent->s.origin.y + sinf(angle) * radius,
@@ -271,10 +271,10 @@ void G_SpawnDestructableLoot(LPEDICT ent) {
     gi.MemFree(selected);
 }
 
-static BOOL G_EnterDestructableDeathState(LPEDICT ent,
+static bool G_EnterDestructableDeathState(LPEDICT ent,
                                           LPEDICT killer,
-                                          BOOL publish_event,
-                                          BOOL rebuild_pathing) {
+                                          bool publish_event,
+                                          bool rebuild_pathing) {
     void (*callback)(LPEDICT, LPEDICT);
 
     if (!G_IsDestructable(ent) || ent->destructable.dead) return false;
@@ -315,8 +315,8 @@ static BOOL G_EnterDestructableDeathState(LPEDICT ent,
 }
 
 void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement) {
-    FLOAT life_fraction;
-    BOOL visible;
+    float life_fraction;
+    bool visible;
 
     if (!ent || !placement || !ent->destructable.initialized) {
         return;
@@ -345,22 +345,22 @@ void G_InitializeDestructablePlacement(LPEDICT ent, LPCDOODAD placement) {
     ent->s.renderfx &= ~RF_NO_SHADOW;
     G_ApplyDestructableAlivePathing(ent);
 
-    life_fraction = (FLOAT)placement->treeLife / 100.0f;
+    life_fraction = (float)placement->treeLife / 100.0f;
     ent->health.value = MAX(0.0f, ent->health.max_value * life_fraction);
     if (ent->health.value <= 0.0f) {
         G_EnterDestructableDeathState(ent, NULL, false, false);
     }
 }
 
-BOOL G_KillDestructable(LPEDICT ent, LPEDICT killer) {
+bool G_KillDestructable(LPEDICT ent, LPEDICT killer) {
     return G_EnterDestructableDeathState(ent, killer, true, true);
 }
 
-BOOL G_SetDestructableDeadState(LPEDICT ent, BOOL process_death) {
+bool G_SetDestructableDeadState(LPEDICT ent, bool process_death) {
     return G_EnterDestructableDeathState(ent, NULL, process_death, true);
 }
 
-BOOL G_RemoveDestructable(LPEDICT ent) {
+bool G_RemoveDestructable(LPEDICT ent) {
     if (!G_IsDestructable(ent)) {
         return false;
     }
@@ -370,8 +370,8 @@ BOOL G_RemoveDestructable(LPEDICT ent) {
     return true;
 }
 
-BOOL G_RestoreDestructable(LPEDICT ent, FLOAT life, BOOL birth) {
-    FLOAT restored_life;
+bool G_RestoreDestructable(LPEDICT ent, float life, bool birth) {
+    float restored_life;
 
     if (!G_IsDestructable(ent)) {
         return false;
@@ -403,7 +403,7 @@ BOOL G_RestoreDestructable(LPEDICT ent, FLOAT life, BOOL birth) {
     return true;
 }
 
-BOOL G_SetDestructableLife(LPEDICT ent, FLOAT life) {
+bool G_SetDestructableLife(LPEDICT ent, float life) {
     if (!G_IsDestructable(ent)) {
         return false;
     }
@@ -421,7 +421,7 @@ BOOL G_SetDestructableLife(LPEDICT ent, FLOAT life) {
     return true;
 }
 
-BOOL G_DestructableApplyDamage(LPEDICT ent, LPEDICT attacker, FLOAT damage) {
+bool G_DestructableApplyDamage(LPEDICT ent, LPEDICT attacker, float damage) {
     if (!G_IsDestructable(ent) || ent->destructable.dead || ent->invulnerable || damage <= 0.0f) return false;
 
     if (damage >= ent->health.value) {

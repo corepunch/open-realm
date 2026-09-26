@@ -1,18 +1,18 @@
 #define IS_UNIT(ent) (ent->svflags & SVF_MONSTER)
 
-BOOL group_add_entity(ggroup_t *group, LPEDICT ent) {
+bool group_add_entity(ggroup_t *group, LPEDICT ent) {
     if (!G_JassGroupValid(group) || !ent || group->num_units >= MAX_GROUP_SIZE) return false;
     FOR_LOOP(i, group->num_units) if (group->units[i] == ent) return false;
     group->units[group->num_units++] = ent;
     return true;
 }
 
-DWORD CreateGroup(LPJASS j) {
+uint32_t CreateGroup(LPJASS j) {
     char chain[256] = {0};
-    LPCSTR creator = NULL;
-    LONG trigger_ordinal = -1;
+    cstring_t creator = NULL;
+    int32_t trigger_ordinal = -1;
     ggroup_t *group;
-    BOOL const debug = G_JassGroupDebugEnabled();
+    bool const debug = G_JassGroupDebugEnabled();
 
     if (debug) {
         LPCJASSCONTEXT context = jass_getcontext(j);
@@ -20,7 +20,7 @@ DWORD CreateGroup(LPJASS j) {
         jass_formatcallchain(j, chain, sizeof(chain));
         if (context && context->trigger && context->trigger >= level.triggers &&
             context->trigger < level.triggers + level.num_triggers) {
-            trigger_ordinal = (LONG)(context->trigger - level.triggers);
+            trigger_ordinal = (int32_t)(context->trigger - level.triggers);
         }
     }
     group = G_AllocJassGroup();
@@ -32,17 +32,17 @@ DWORD CreateGroup(LPJASS j) {
     if (debug) G_SetJassGroupDebugContext(group, creator, chain, trigger_ordinal);
     return jass_pushlighthandle(j, group, "group");
 }
-DWORD DestroyGroup(LPJASS j) {
+uint32_t DestroyGroup(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     G_FreeJassGroup(whichGroup);
     return 0;
 }
-DWORD GroupAddUnit(LPJASS j) {
+uint32_t GroupAddUnit(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     LPEDICT whichUnit = jass_checkhandle(j, 2, "unit");
     return jass_pushboolean(j, group_add_entity(whichGroup, whichUnit));
 }
-DWORD GroupRemoveUnit(LPJASS j) {
+uint32_t GroupRemoveUnit(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     LPEDICT whichUnit = jass_checkhandle(j, 2, "unit");
     if (!G_JassGroupValid(whichGroup) || !whichUnit) {
@@ -50,7 +50,7 @@ DWORD GroupRemoveUnit(LPJASS j) {
     }
     FOR_LOOP(i, whichGroup->num_units) {
         if (whichGroup->units[i] == whichUnit) {
-            for (DWORD j = i; j < whichGroup->num_units - 1; j++) {
+            for (uint32_t j = i; j < whichGroup->num_units - 1; j++) {
                 whichGroup->units[j] = whichGroup->units[j + 1];
             }
             whichGroup->num_units--;
@@ -59,7 +59,7 @@ DWORD GroupRemoveUnit(LPJASS j) {
     }
     return jass_pushboolean(j, false);
 }
-DWORD GroupClear(LPJASS j) {
+uint32_t GroupClear(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     if (G_JassGroupValid(whichGroup)) whichGroup->num_units = 0;
     return 0;
@@ -67,13 +67,13 @@ DWORD GroupClear(LPJASS j) {
 /* Enumeration filters run with each candidate bound as GetFilterUnit(). Apply
  * counted limits after the filter accepts a unit, and restore context so nested
  * group callbacks do not leak their candidate. */
-DWORD GroupEnumUnitsOfType(LPJASS j) {
+uint32_t GroupEnumUnitsOfType(LPJASS j) {
     //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //LPCSTR unitname = jass_checkstring(j, 2);
-    //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
+    //cstring_t unitname = jass_checkstring(j, 2);
+    //handle_t filter = jass_checkhandle(j, 3, "boolexpr");
     return 0;
 }
-DWORD GroupEnumUnitsOfPlayer(LPJASS j) {
+uint32_t GroupEnumUnitsOfPlayer(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     LPCJASSFUNC filter = jass_checkhandle(j, 3, "boolexpr");
@@ -89,14 +89,14 @@ DWORD GroupEnumUnitsOfPlayer(LPJASS j) {
     }
     return 0;
 }
-DWORD GroupEnumUnitsOfTypeCounted(LPJASS j) {
+uint32_t GroupEnumUnitsOfTypeCounted(LPJASS j) {
     //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //LPCSTR unitname = jass_checkstring(j, 2);
-    //HANDLE filter = jass_checkhandle(j, 3, "boolexpr");
-    //LONG countLimit = jass_checkinteger(j, 4);
+    //cstring_t unitname = jass_checkstring(j, 2);
+    //handle_t filter = jass_checkhandle(j, 3, "boolexpr");
+    //int32_t countLimit = jass_checkinteger(j, 4);
     return 0;
 }
-DWORD GroupEnumUnitsInRect(LPJASS j) {
+uint32_t GroupEnumUnitsInRect(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     LPBOX2 r = jass_checkhandle(j, 2, "rect");
     /* boolexpr filter (e.g. GetUnitsInRectOfPlayer's owner==player test):
@@ -116,11 +116,11 @@ DWORD GroupEnumUnitsInRect(LPJASS j) {
     return 0;
 }
 
-DWORD GroupEnumUnitsInRectCounted(LPJASS j) {
+uint32_t GroupEnumUnitsInRectCounted(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     LPCBOX2 r = jass_checkhandle(j, 2, "rect");
     LPCJASSFUNC filter = jass_checkhandle(j, 3, "boolexpr");
-    LONG countLimit = jass_checkinteger(j, 4);
+    int32_t countLimit = jass_checkinteger(j, 4);
     if (!G_JassGroupValid(whichGroup) || !r) {
         return 0;
     }
@@ -134,11 +134,11 @@ DWORD GroupEnumUnitsInRectCounted(LPJASS j) {
     }
     return 0;
 }
-DWORD GroupEnumUnitsInRange(LPJASS j) {
+uint32_t GroupEnumUnitsInRange(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    FLOAT x = jass_checknumber(j, 2);
-    FLOAT y = jass_checknumber(j, 3);
-    FLOAT radius = jass_checknumber(j, 4);
+    float x = jass_checknumber(j, 2);
+    float y = jass_checknumber(j, 3);
+    float radius = jass_checknumber(j, 4);
     LPCJASSFUNC filter = jass_checkhandle(j, 5, "boolexpr");
     if (!G_JassGroupValid(whichGroup)) {
         return 0;
@@ -153,10 +153,10 @@ DWORD GroupEnumUnitsInRange(LPJASS j) {
     }
     return 0;
 }
-DWORD GroupEnumUnitsInRangeOfLoc(LPJASS j) {
+uint32_t GroupEnumUnitsInRangeOfLoc(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 2, "location");
-    FLOAT radius = jass_checknumber(j, 3);
+    float radius = jass_checknumber(j, 3);
     LPCJASSFUNC filter = jass_checkhandle(j, 4, "boolexpr");
     if (!G_JassGroupValid(whichGroup) || !whichLocation) {
         return 0;
@@ -170,13 +170,13 @@ DWORD GroupEnumUnitsInRangeOfLoc(LPJASS j) {
     }
     return 0;
 }
-DWORD GroupEnumUnitsInRangeCounted(LPJASS j) {
+uint32_t GroupEnumUnitsInRangeCounted(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    FLOAT x = jass_checknumber(j, 2);
-    FLOAT y = jass_checknumber(j, 3);
-    FLOAT radius = jass_checknumber(j, 4);
+    float x = jass_checknumber(j, 2);
+    float y = jass_checknumber(j, 3);
+    float radius = jass_checknumber(j, 4);
     LPCJASSFUNC filter = jass_checkhandle(j, 5, "boolexpr");
-    LONG countLimit = jass_checkinteger(j, 6);
+    int32_t countLimit = jass_checkinteger(j, 6);
     if (!G_JassGroupValid(whichGroup)) {
         return 0;
     }
@@ -191,12 +191,12 @@ DWORD GroupEnumUnitsInRangeCounted(LPJASS j) {
     }
     return 0;
 }
-DWORD GroupEnumUnitsInRangeOfLocCounted(LPJASS j) {
+uint32_t GroupEnumUnitsInRangeOfLocCounted(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 2, "location");
-    FLOAT radius = jass_checknumber(j, 3);
+    float radius = jass_checknumber(j, 3);
     LPCJASSFUNC filter = jass_checkhandle(j, 4, "boolexpr");
-    LONG countLimit = jass_checkinteger(j, 5);
+    int32_t countLimit = jass_checkinteger(j, 5);
     if (!G_JassGroupValid(whichGroup) || !whichLocation) {
         return 0;
     }
@@ -211,7 +211,7 @@ DWORD GroupEnumUnitsInRangeOfLocCounted(LPJASS j) {
     }
     return 0;
 }
-DWORD GroupEnumUnitsSelected(LPJASS j) {
+uint32_t GroupEnumUnitsSelected(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     LPCJASSFUNC filter = jass_checkhandle(j, 3, "boolexpr");
@@ -224,11 +224,11 @@ DWORD GroupEnumUnitsSelected(LPJASS j) {
     }
     return 0;
 }
-DWORD GroupImmediateOrder(LPJASS j) {
+uint32_t GroupImmediateOrder(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    LPCSTR order = jass_checkstring(j, 2);
+    cstring_t order = jass_checkstring(j, 2);
     if (!G_JassGroupValid(whichGroup)) return jass_pushboolean(j, 0);
-    BOOL any = false;
+    bool any = false;
     FOR_LOOP(i, whichGroup->num_units) {
         if (unit_issueimmediateorder(whichGroup->units[i], order)) any = true;
     }
@@ -237,64 +237,64 @@ DWORD GroupImmediateOrder(LPJASS j) {
 /* By-id orders resolve through the same order table and gameplay dispatch as
  * their string counterparts; the return value is the aggregate acceptance
  * result, not a placeholder success flag. */
-DWORD GroupImmediateOrderById(LPJASS j) {
+uint32_t GroupImmediateOrderById(LPJASS j) {
     //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //LONG order = jass_checkinteger(j, 2);
+    //int32_t order = jass_checkinteger(j, 2);
     return jass_pushboolean(j, 0);
 }
-DWORD GroupPointOrder(LPJASS j) {
+uint32_t GroupPointOrder(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    LPCSTR order = jass_checkstring(j, 2);
+    cstring_t order = jass_checkstring(j, 2);
     VECTOR2 dest = MAKE(VECTOR2, jass_checknumber(j, 3), jass_checknumber(j, 4));
     if (!G_JassGroupValid(whichGroup)) return jass_pushboolean(j, 0);
-    BOOL any = false;
+    bool any = false;
     FOR_LOOP(i, whichGroup->num_units) {
         if (unit_issueorder(whichGroup->units[i], order, &dest)) any = true;
     }
     return jass_pushboolean(j, any);
 }
-DWORD GroupPointOrderLoc(LPJASS j) {
+uint32_t GroupPointOrderLoc(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    LPCSTR order = jass_checkstring(j, 2);
+    cstring_t order = jass_checkstring(j, 2);
     LPCVECTOR2 dest = jass_checkhandle(j, 3, "location");
     if (!G_JassGroupValid(whichGroup) || !dest) return jass_pushboolean(j, 0);
-    BOOL any = false;
+    bool any = false;
     FOR_LOOP(i, whichGroup->num_units) {
         if (unit_issueorder(whichGroup->units[i], order, dest)) any = true;
     }
     return jass_pushboolean(j, any);
 }
-DWORD GroupPointOrderById(LPJASS j) {
+uint32_t GroupPointOrderById(LPJASS j) {
     //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //LONG order = jass_checkinteger(j, 2);
-    //FLOAT x = jass_checknumber(j, 3);
-    //FLOAT y = jass_checknumber(j, 4);
+    //int32_t order = jass_checkinteger(j, 2);
+    //float x = jass_checknumber(j, 3);
+    //float y = jass_checknumber(j, 4);
     return jass_pushboolean(j, 0);
 }
-DWORD GroupPointOrderByIdLoc(LPJASS j) {
+uint32_t GroupPointOrderByIdLoc(LPJASS j) {
     //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //LONG order = jass_checkinteger(j, 2);
-    //HANDLE whichLocation = jass_checkhandle(j, 3, "location");
+    //int32_t order = jass_checkinteger(j, 2);
+    //handle_t whichLocation = jass_checkhandle(j, 3, "location");
     return jass_pushboolean(j, 0);
 }
-DWORD GroupTargetOrder(LPJASS j) {
+uint32_t GroupTargetOrder(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    LPCSTR order = jass_checkstring(j, 2);
+    cstring_t order = jass_checkstring(j, 2);
     LPEDICT targetWidget = jass_checkhandle(j, 3, "widget");
     if (!G_JassGroupValid(whichGroup)) return jass_pushboolean(j, 0);
-    BOOL any = false;
+    bool any = false;
     FOR_LOOP(i, whichGroup->num_units) {
         if (unit_issuetargetorder(whichGroup->units[i], order, targetWidget)) any = true;
     }
     return jass_pushboolean(j, any);
 }
-DWORD GroupTargetOrderById(LPJASS j) {
+uint32_t GroupTargetOrderById(LPJASS j) {
     //ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    //LONG order = jass_checkinteger(j, 2);
-    //HANDLE targetWidget = jass_checkhandle(j, 3, "widget");
+    //int32_t order = jass_checkinteger(j, 2);
+    //handle_t targetWidget = jass_checkhandle(j, 3, "widget");
     return jass_pushboolean(j, 0);
 }
-DWORD ForGroup(LPJASS j) {
+uint32_t ForGroup(LPJASS j) {
     extern LPEDICT currentunit;
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     LPCJASSFUNC callback = jass_checkcode(j, 2);
@@ -310,7 +310,7 @@ DWORD ForGroup(LPJASS j) {
     currentunit = previous;
     return 0;
 }
-DWORD FirstOfGroup(LPJASS j) {
+uint32_t FirstOfGroup(LPJASS j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     if (G_JassGroupValid(whichGroup) && whichGroup->num_units > 0) {
         return jass_pushlighthandle(j, whichGroup->units[0], "unit");

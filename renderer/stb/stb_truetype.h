@@ -1065,7 +1065,7 @@ enum { // encodingID for STBTT_PLATFORM_ID_MAC; same as Script Manager codes
    STBTT_MAC_EID_KOREAN       =3,   STBTT_MAC_EID_RUSSIAN      =7
 };
 
-enum { // languageID for STBTT_PLATFORM_ID_MICROSOFT; same as LCID...
+enum { // languageID for STBTT_PLATFORM_ID_MICROSOFT; same as uint32_t...
        // problematic because there are e.g. 16 english LCIDs and 16 arabic LCIDs
    STBTT_MS_LANG_ENGLISH     =0x0409,   STBTT_MS_LANG_ITALIAN     =0x0410,
    STBTT_MS_LANG_CHINESE     =0x0804,   STBTT_MS_LANG_JAPANESE    =0x0411,

@@ -24,8 +24,8 @@ typedef struct GameChatroom_s {
 } GameChatroom_t;
 
 
-static inline BOOL GameChatroom_Bind(GameChatroom_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool GameChatroom_Bind(GameChatroom_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -53,7 +53,7 @@ static inline BOOL GameChatroom_Bind(GameChatroom_t *out, LPFRAMEDEF bind_root) 
     return ok;
 }
 
-static inline BOOL GameChatroom_Load(GameChatroom_t *out) {
+static inline bool GameChatroom_Load(GameChatroom_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
            UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") &&

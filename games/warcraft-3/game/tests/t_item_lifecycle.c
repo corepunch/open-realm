@@ -3,7 +3,7 @@
 #include "../g_local.h"
 #include "../skills/s_skills.h"
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
@@ -62,8 +62,8 @@ TEST(wc3_item_lifecycle, passive_item_alias_applies_authored_attack_bonus) {
         "C;Y2;X1;K\"ratf\"\nC;Y2;X2;K\"AItg\"\n"
         "C;Y3;X1;K\"rde2\"\nC;Y3;X2;K\"AIt6\"\n"
         "C;Y4;X1;K\"spro\"\nC;Y4;X2;K\"AId1\"\nE\n";
-    LPCSTR path = "/tmp/openwarcraft3-item-alias-save.bin";
-    DWORD codes[] = { MAKEFOURCC('r','a','t','f'), MAKEFOURCC('r','d','e','2'), MAKEFOURCC('s','p','r','o') };
+    cstring_t path = "/tmp/openwarcraft3-item-alias-save.bin";
+    uint32_t codes[] = { MAKEFOURCC('r','a','t','f'), MAKEFOURCC('r','d','e','2'), MAKEFOURCC('s','p','r','o') };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     slkTestData_t *idata = parse_slk_string(items), *olditem = G_SetSLKRows("ItemData", idata);
     setup_test_world();
@@ -80,7 +80,7 @@ TEST(wc3_item_lifecycle, passive_item_alias_applies_authored_attack_bonus) {
     T_FEQ(unit->attack1.temporaryDamageBonus, 7, 0.001f);
     T_FEQ(unit->attack2.temporaryDamageBonus, 7, 0.001f);
     T_FEQ(unit->temporary_armor_bonus, 1, 0.001f);
-    DWORD index = unit->s.number;
+    uint32_t index = unit->s.number;
     T_ASSERT(WriteGame(path));
     T_ASSERT(ReadGame(path));
     unit = g_edicts + index;
@@ -177,7 +177,7 @@ TEST(wc3_item_lifecycle, max_resource_item_bonuses_survive_hero_recompute) {
     unit->mana.max_value = balance.maxMana;
     unit->mana.value = balance.maxMana;
     {
-        DWORD codes[] = { MAKEFOURCC('A','I','m','l'), MAKEFOURCC('A','I','m','m') };
+        uint32_t codes[] = { MAKEFOURCC('A','I','m','l'), MAKEFOURCC('A','I','m','m') };
         abilityitem_t items[2] = { S_AbilityItem(codes[0]), S_AbilityItem(codes[1]) };
         abilityCall_t calls[2] = { { .item = &items[0] }, { .item = &items[1] } };
         FOR_LOOP(i, 2) T_ASSERT(S_AbilityMessage(unit, A_ITEM_ADD, calls + i));
@@ -209,7 +209,7 @@ TEST(wc3_item_lifecycle, strength_tome_modifies_strength) {
         "C;Y5;X1;K\"AIs1\"\nC;Y5;X2;K\"AIab\"\nC;Y5;X5;K\"1\"\n"
         "C;Y6;X1;K\"AIa1\"\nC;Y6;X2;K\"AIab\"\nC;Y6;X3;K\"1\"\n"
         "C;Y7;X1;K\"AIi1\"\nC;Y7;X2;K\"AIab\"\nC;Y7;X4;K\"1\"\nE\n";
-    DWORD codes[][2] = {
+    uint32_t codes[][2] = {
         { MAKEFOURCC('A','I','s','m'), MAKEFOURCC('A','I','s','1') },
         { MAKEFOURCC('A','I','a','m'), MAKEFOURCC('A','I','a','1') },
         { MAKEFOURCC('A','I','i','m'), MAKEFOURCC('A','I','i','1') },
@@ -257,7 +257,7 @@ TEST(wc3_item_lifecycle, orb_pickup_applies_authored_bonus_damage) {
         "C;Y1;X1;K\"itemID\"\nC;Y1;X2;K\"abilList\"\n"
         "C;Y2;X1;K\"orbf\"\nC;Y2;X2;K\"AIfb\"\n"
         "C;Y3;X1;K\"orbr\"\nC;Y3;X2;K\"AIob\"\nE\n";
-    DWORD codes[] = { MAKEFOURCC('o','r','b','f'), MAKEFOURCC('o','r','b','r') };
+    uint32_t codes[] = { MAKEFOURCC('o','r','b','f'), MAKEFOURCC('o','r','b','r') };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     slkTestData_t *idata = parse_slk_string(items), *olditem = G_SetSLKRows("ItemData", idata);
     setup_test_world();

@@ -23,8 +23,8 @@ typedef struct QuestDialog_s {
 } QuestDialog_t;
 
 
-static inline BOOL QuestDialog_Bind(QuestDialog_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool QuestDialog_Bind(QuestDialog_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -51,7 +51,7 @@ static inline BOOL QuestDialog_Bind(QuestDialog_t *out, LPFRAMEDEF bind_root) {
     return ok;
 }
 
-static inline BOOL QuestDialog_Load(QuestDialog_t *out) {
+static inline bool QuestDialog_Load(QuestDialog_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\QuestDialog.fdf") &&
            QuestDialog_Bind(out, UI_FindFrame("QuestDialog"));

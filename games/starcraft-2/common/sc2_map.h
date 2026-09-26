@@ -6,8 +6,8 @@
 #include <stdio.h>
 #include <math.h>
 
-static inline FLOAT SC2_LerpDegrees(FLOAT a, FLOAT b, FLOAT k) {
-    FLOAT delta = fmodf(b - a + 540.0f, 360.0f) - 180.0f;
+static inline float SC2_LerpDegrees(float a, float b, float k) {
+    float delta = fmodf(b - a + 540.0f, 360.0f) - 180.0f;
     return a + delta * k;
 }
 
@@ -41,18 +41,18 @@ typedef enum {
 
 typedef struct {
     VECTOR3         target;
-    FLOAT           distance;
-    FLOAT           pitch;
-    FLOAT           yaw;
-    FLOAT           fov;
-    FLOAT           znear;
-    FLOAT           zfar;
-    FLOAT           height_offset;
+    float           distance;
+    float           pitch;
+    float           yaw;
+    float           fov;
+    float           znear;
+    float           zfar;
+    float           height_offset;
 } sc2MapCamera_t;
 
 typedef struct {
     sc2ObjectType_t type;
-    DWORD           id;
+    uint32_t           id;
     char            name[64];
     char            model[256];
     char            footprint[64];
@@ -63,51 +63,51 @@ typedef struct {
     char            attach_id[64];
     char            object_type[64];
     VECTOR3         position;
-    FLOAT           angle;
-    FLOAT           scale;
-    FLOAT           radius;
-    FLOAT           footprint_width;
-    FLOAT           footprint_height;
-    FLOAT           footprint_radius;
-    FLOAT           move_height;
-    FLOAT           pathing_soft_radius;
-    FLOAT           pathing_hard_radius;
-    DWORD           variation;
-    DWORD           player;
-    DWORD           section;
-    DWORD           resources;
-    DWORD           object_id;
-    DWORD           flags;
-    DWORD           unit_flags;
+    float           angle;
+    float           scale;
+    float           radius;
+    float           footprint_width;
+    float           footprint_height;
+    float           footprint_radius;
+    float           move_height;
+    float           pathing_soft_radius;
+    float           pathing_hard_radius;
+    uint32_t           variation;
+    uint32_t           player;
+    uint32_t           section;
+    uint32_t           resources;
+    uint32_t           object_id;
+    uint32_t           flags;
+    uint32_t           unit_flags;
     COLOR32         color;
     COLOR32         tint_color;
     sc2MapCamera_t  camera;
 } sc2MapObject_t;
 
-static inline FLOAT sc2_unit_world_height(FLOAT terrain, FLOAT height, BOOL flying) {
+static inline float sc2_unit_world_height(float terrain, float height, bool flying) {
     return terrain + (flying ? height : 0.0f);
 }
 
 typedef struct {
-    BOOL            enabled;
+    bool            enabled;
     VECTOR3         color;
-    FLOAT           color_multiplier;
-    FLOAT           spec_color_multiplier;
+    float           color_multiplier;
+    float           spec_color_multiplier;
     VECTOR3         direction;
 } sc2DirectionalLight_t;
 
 typedef struct {
-    BOOL            enabled;
-    DWORD           colorize;
+    bool            enabled;
+    uint32_t           colorize;
     char            id[64];
     VECTOR3         ambient_color;
-    FLOAT           colorization_blend;
+    float           colorization_blend;
     sc2DirectionalLight_t directional[SC2_MAX_DIRECTIONAL_LIGHTS];
 } sc2MapLighting_t;
 
 /* Colorized SC2 lights use the authored blend as ambient strength; ordinary lights use their ambient directly. */
 static VECTOR3 sc2_light_ambient(sc2MapLighting_t const *light) {
-    FLOAT scale = light && light->colorize ? light->colorization_blend : 1.0f;
+    float scale = light && light->colorize ? light->colorization_blend : 1.0f;
     return light ? Vector3_scale(&light->ambient_color, scale) : (VECTOR3){ 0.35f, 0.35f, 0.40f };
 }
 
@@ -122,98 +122,98 @@ typedef struct {
 } sc2CliffSet_t;
 
 typedef struct {
-    DWORD          index;
-    DWORD          flags;
-    DWORD          cliff_set;
-    DWORD          variant;
+    uint32_t          index;
+    uint32_t          flags;
+    uint32_t          cliff_set;
+    uint32_t          variant;
 } sc2CliffCell_t;
 
 /* t3Terrain rampList boxes use orthonormal up/right axes and half extents in height-grid units. */
 typedef struct SC2RAMPBOX {
     VECTOR2 up, right, center;
-    FLOAT width, height;
+    float width, height;
 } SC2RAMPBOX;
 
 typedef struct SC2RAMP {
-    DWORD dir, hi, lo, cid;
+    uint32_t dir, hi, lo, cid;
     SC2RAMPBOX edge[4], base, mid;
-    DWORD variant[4];
+    uint32_t variant[4];
 } SC2RAMP;
 
 typedef struct {
     ARRAY(SC2RAMP, ramps);
     char           tile_set[64];
-    DWORD          num_terrain_textures;
+    uint32_t          num_terrain_textures;
     sc2TerrainTexture_t terrain_textures[SC2_MAX_TERRAIN_TEXTURES];
-    DWORD          num_cliff_sets;
+    uint32_t          num_cliff_sets;
     sc2CliffSet_t cliff_sets[SC2_MAX_CLIFF_SETS];
-    DWORD          num_cliff_cells;
+    uint32_t          num_cliff_cells;
     sc2CliffCell_t cliff_cells[SC2_MAX_CLIFF_CELLS];
-    FLOAT          height_quantize_bias;
-    FLOAT          height_quantize_scale;
-    FLOAT          standard_height;
-    BOOL           fog_enabled;
-    FLOAT          fog_density;
-    FLOAT          fog_falloff;
-    FLOAT          fog_start_height;
+    float          height_quantize_bias;
+    float          height_quantize_scale;
+    float          standard_height;
+    bool           fog_enabled;
+    float          fog_density;
+    float          fog_falloff;
+    float          fog_start_height;
     COLOR32        fog_color;
 } sc2MapTerrain_t;
 
 typedef struct {
-    USHORT         adjustment;
-    USHORT         height;
-    USHORT         extra;
+    uint16_t         adjustment;
+    uint16_t         height;
+    uint16_t         extra;
 } sc2MapHeightSample_t;
 
 typedef struct {
-    DWORD          fourcc;
-    DWORD          version;
-    DWORD          width;
-    DWORD          height;
-    BYTE           padding[16];
+    uint32_t          fourcc;
+    uint32_t          version;
+    uint32_t          width;
+    uint32_t          height;
+    uint8_t           padding[16];
     sc2MapHeightSample_t data[];
 } sc2MapHeightMap_t;
 
 typedef struct {
-    SHORT          height;
-    USHORT         mask;
+    int16_t          height;
+    uint16_t         mask;
 } sc2MapSyncHeightSample_t;
 
 typedef struct {
-    DWORD          fourcc;
-    DWORD          version;
-    DWORD          width;
-    DWORD          height;
-    BYTE           padding[48];
+    uint32_t          fourcc;
+    uint32_t          version;
+    uint32_t          width;
+    uint32_t          height;
+    uint8_t           padding[48];
     sc2MapSyncHeightSample_t data[];
 } sc2MapSyncHeightMap_t;
 
 typedef struct {
-    DWORD          fourcc;
-    DWORD          version;
-    DWORD          zero[4];
-    DWORD          width;
-    DWORD          height;
-    BYTE           data[];
+    uint32_t          fourcc;
+    uint32_t          version;
+    uint32_t          zero[4];
+    uint32_t          width;
+    uint32_t          height;
+    uint8_t           data[];
 } sc2MapCellFlags_t;
 
 typedef struct {
-    DWORD          fourcc;
-    DWORD          version;
-    DWORD          width;
-    DWORD          height;
-    DWORD          zero[4];
-    USHORT         data[];
+    uint32_t          fourcc;
+    uint32_t          version;
+    uint32_t          width;
+    uint32_t          height;
+    uint32_t          zero[4];
+    uint16_t         data[];
 } sc2MapSyncCliffLevel_t;
 
 typedef struct {
-    DWORD          fourcc;
-    DWORD          version;
-    DWORD          unknown;
-    DWORD          width;
-    DWORD          height;
-    DWORD          zero[11];
-    BYTE           data[];
+    uint32_t          fourcc;
+    uint32_t          version;
+    uint32_t          unknown;
+    uint32_t          width;
+    uint32_t          height;
+    uint32_t          zero[11];
+    uint8_t           data[];
 } sc2MapTextureMasks_t;
 
 typedef struct {
@@ -224,36 +224,36 @@ typedef struct {
     VECTOR3         start;
     VECTOR3         end;
     VECTOR2         scale;
-    USHORT          flags;
+    uint16_t          flags;
 } sc2MapHardTile_t;
 
 typedef struct {
-    DWORD          fourcc;
-    DWORD          version;
-    DWORD          unknown0;
-    DWORD          unknown1;
-    DWORD          width;
-    DWORD          height;
-    BYTE           data[SC2_MAPINFO_DATA_SIZE];
+    uint32_t          fourcc;
+    uint32_t          version;
+    uint32_t          unknown0;
+    uint32_t          unknown1;
+    uint32_t          width;
+    uint32_t          height;
+    uint8_t           data[SC2_MAPINFO_DATA_SIZE];
 } sc2MapInfo_t;
 
 typedef struct {
-    DWORD          units;
-    DWORD          actors;
-    DWORD          models;
-    DWORD          footprints;
-    DWORD          unresolved_models;
+    uint32_t          units;
+    uint32_t          actors;
+    uint32_t          models;
+    uint32_t          footprints;
+    uint32_t          unresolved_models;
 } sc2CatalogStats_t;
 
 typedef struct {
     char           map_name[128];
     VECTOR2        origin;
-    FLOAT          cell_size;
-    DWORD          num_objects;
+    float          cell_size;
+    uint32_t          num_objects;
     sc2MapObject_t objects[SC2_MAX_MAP_OBJECTS];
     sc2MapTerrain_t t3Terrain;
     sc2MapTextureMasks_t *t3TextureMasks;
-    DWORD          t3TextureMasksSize;
+    uint32_t          t3TextureMasksSize;
     ARRAY(sc2MapHardTile_t, hard_tiles);
     sc2MapCellFlags_t *t3CellFlags;
     sc2MapSyncCliffLevel_t *t3SyncCliffLevel;
@@ -265,31 +265,31 @@ typedef struct {
 } sc2Map_t;
 
 typedef struct {
-    DWORD          x0;
-    DWORD          y0;
-    DWORD          x1;
-    DWORD          y1;
-    FLOAT          tx;
-    FLOAT          ty;
+    uint32_t          x0;
+    uint32_t          y0;
+    uint32_t          x1;
+    uint32_t          y1;
+    float          tx;
+    float          ty;
 } sc2MapHeightPoint_t;
 
-static inline DWORD sc2_map_cell_width(sc2Map_t const *map) {
+static inline uint32_t sc2_map_cell_width(sc2Map_t const *map) {
     return map ? map->MapInfo.width : 0;
 }
 
-static inline DWORD sc2_map_cell_height(sc2Map_t const *map) {
+static inline uint32_t sc2_map_cell_height(sc2Map_t const *map) {
     return map ? map->MapInfo.height : 0;
 }
 
-static inline FLOAT sc2_map_height_scale(sc2Map_t const *map) {
+static inline float sc2_map_height_scale(sc2Map_t const *map) {
     return map && map->t3Terrain.height_quantize_scale ? map->t3Terrain.height_quantize_scale : 1.0f;
 }
 
-static inline FLOAT sc2_map_height_offset(sc2Map_t const *map) {
+static inline float sc2_map_height_offset(sc2Map_t const *map) {
     return map ? map->t3Terrain.height_quantize_bias + map->t3Terrain.standard_height + 1.0f : 1.0f;
 }
 
-static inline FLOAT sc2_map_height_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
+static inline float sc2_map_height_at_grid(sc2Map_t const *map, uint32_t x, uint32_t y) {
     sc2MapHeightSample_t const *sample;
 
     if (!map || !map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height)
@@ -297,10 +297,10 @@ static inline FLOAT sc2_map_height_at_grid(sc2Map_t const *map, DWORD x, DWORD y
     x = MIN(map->t3HeightMap->width - 1, x);
     y = MIN(map->t3HeightMap->height - 1, y);
     sample = &map->t3HeightMap->data[x + y * map->t3HeightMap->width];
-    return ((FLOAT)sample->height + (FLOAT)sample->adjustment) * sc2_map_height_scale(map) - sc2_map_height_offset(map);
+    return ((float)sample->height + (float)sample->adjustment) * sc2_map_height_scale(map) - sc2_map_height_offset(map);
 }
 
-static inline FLOAT sc2_map_height_adjust_at_grid(sc2Map_t const *map, DWORD x, DWORD y) {
+static inline float sc2_map_height_adjust_at_grid(sc2Map_t const *map, uint32_t x, uint32_t y) {
     sc2MapHeightSample_t const *sample;
 
     if (!map || !map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height)
@@ -308,35 +308,35 @@ static inline FLOAT sc2_map_height_adjust_at_grid(sc2Map_t const *map, DWORD x, 
     x = MIN(map->t3HeightMap->width - 1, x);
     y = MIN(map->t3HeightMap->height - 1, y);
     sample = &map->t3HeightMap->data[x + y * map->t3HeightMap->width];
-    return (FLOAT)sample->adjustment * sc2_map_height_scale(map);
+    return (float)sample->adjustment * sc2_map_height_scale(map);
 }
 
-static inline BOOL sc2_map_height_point(sc2Map_t const *map, FLOAT x, FLOAT y, sc2MapHeightPoint_t *point) {
-    FLOAT fx, fy;
+static inline bool sc2_map_height_point(sc2Map_t const *map, float x, float y, sc2MapHeightPoint_t *point) {
+    float fx, fy;
 
     if (!point || !map || !map->t3HeightMap || !map->t3HeightMap->width || !map->t3HeightMap->height)
         return false;
     memset(point, 0, sizeof(*point));
     fx = (x - map->origin.x) / (map->cell_size ? map->cell_size : 1.0f);
     fy = (y - map->origin.y) / (map->cell_size ? map->cell_size : 1.0f);
-    fx = MIN(MAX(fx, 0.0f), (FLOAT)(sc2_map_cell_width(map) ? sc2_map_cell_width(map) : map->t3HeightMap->width - 1));
-    fy = MIN(MAX(fy, 0.0f), (FLOAT)(sc2_map_cell_height(map) ? sc2_map_cell_height(map) : map->t3HeightMap->height - 1));
-    point->x0 = (DWORD)floorf(fx);
-    point->y0 = (DWORD)floorf(fy);
+    fx = MIN(MAX(fx, 0.0f), (float)(sc2_map_cell_width(map) ? sc2_map_cell_width(map) : map->t3HeightMap->width - 1));
+    fy = MIN(MAX(fy, 0.0f), (float)(sc2_map_cell_height(map) ? sc2_map_cell_height(map) : map->t3HeightMap->height - 1));
+    point->x0 = (uint32_t)floorf(fx);
+    point->y0 = (uint32_t)floorf(fy);
     point->x1 = point->x0 + 1;
     point->y1 = point->y0 + 1;
-    point->tx = fx - (FLOAT)point->x0;
-    point->ty = fy - (FLOAT)point->y0;
+    point->tx = fx - (float)point->x0;
+    point->ty = fy - (float)point->y0;
     return true;
 }
 
-static inline FLOAT sc2_map_height_lerp(FLOAT h00, FLOAT h10, FLOAT h01, FLOAT h11, FLOAT tx, FLOAT ty) {
-    FLOAT h0 = h00 + (h10 - h00) * tx;
-    FLOAT h1 = h01 + (h11 - h01) * tx;
+static inline float sc2_map_height_lerp(float h00, float h10, float h01, float h11, float tx, float ty) {
+    float h0 = h00 + (h10 - h00) * tx;
+    float h1 = h01 + (h11 - h01) * tx;
     return h0 + (h1 - h0) * ty;
 }
 
-static inline FLOAT sc2_map_height_at_point(sc2Map_t const *map, FLOAT x, FLOAT y) {
+static inline float sc2_map_height_at_point(sc2Map_t const *map, float x, float y) {
     sc2MapHeightPoint_t p;
 
     if (!sc2_map_height_point(map, x, y, &p))
@@ -350,8 +350,8 @@ static inline FLOAT sc2_map_height_at_point(sc2Map_t const *map, FLOAT x, FLOAT 
 }
 
 /* Air movers and cameras follow broad terrain elevation without dipping into narrow depressions. */
-static inline FLOAT sc2_map_broad_height_at_point(sc2Map_t const *map, FLOAT x, FLOAT y) {
-    FLOAT sum = 0.0f, step = SC2_BROAD_HEIGHT_RADIUS * 2.0f / (BZ_BROAD_HEIGHT_SAMPLES - 1);
+static inline float sc2_map_broad_height_at_point(sc2Map_t const *map, float x, float y) {
+    float sum = 0.0f, step = SC2_BROAD_HEIGHT_RADIUS * 2.0f / (BZ_BROAD_HEIGHT_SAMPLES - 1);
     int ix, iy;
 
     for (iy = 0; iy < BZ_BROAD_HEIGHT_SAMPLES; iy++)
@@ -361,7 +361,7 @@ static inline FLOAT sc2_map_broad_height_at_point(sc2Map_t const *map, FLOAT x, 
     return sum / (BZ_BROAD_HEIGHT_SAMPLES * BZ_BROAD_HEIGHT_SAMPLES);
 }
 
-static inline FLOAT sc2_map_height_adjust_at_point(sc2Map_t const *map, FLOAT x, FLOAT y) {
+static inline float sc2_map_height_adjust_at_point(sc2Map_t const *map, float x, float y) {
     sc2MapHeightPoint_t p;
 
     if (!sc2_map_height_point(map, x, y, &p))
@@ -375,30 +375,30 @@ static inline FLOAT sc2_map_height_adjust_at_point(sc2Map_t const *map, FLOAT x,
 }
 
 typedef struct {
-    HANDLE (*read_file)(LPCSTR filename, LPDWORD size);
-    void   (*free_file)(HANDLE file);
-    HANDLE (*mem_alloc)(long size);
-    void   (*mem_free)(HANDLE mem);
-    LPCSTR (*cvar_string)(LPCSTR name, LPCSTR fallback);
+    handle_t (*read_file)(cstring_t filename, uint32_t * size);
+    void   (*free_file)(handle_t file);
+    handle_t (*mem_alloc)(long size);
+    void   (*mem_free)(handle_t mem);
+    cstring_t (*cvar_string)(cstring_t name, cstring_t fallback);
 } sc2MapHost_t;
 
 void          SC2_MapSetHost(sc2MapHost_t const *host);
-BOOL          SC2_MapLoad(LPCSTR mapFilename);
+bool          SC2_MapLoad(cstring_t mapFilename);
 void          SC2_MapShutdown(void);
 sc2Map_t     *SC2_MapCurrent(void);
-LPCSTR        SC2_MapResolveUnitModel(LPCSTR unit_type);
-BOOL          SC2_MapResolveUnit(LPCSTR unit_type, sc2MapObject_t *object);
-LPCSTR        SC2_MapResolveSound(LPCSTR sound_id, int asset);
-FLOAT         SC2_MapSoundLength(LPCSTR sound_id, int asset);
-LPCSTR        SC2_MapConversationField(LPCSTR key, LPCSTR field);
+cstring_t        SC2_MapResolveUnitModel(cstring_t unit_type);
+bool          SC2_MapResolveUnit(cstring_t unit_type, sc2MapObject_t *object);
+cstring_t        SC2_MapResolveSound(cstring_t sound_id, int asset);
+float         SC2_MapSoundLength(cstring_t sound_id, int asset);
+cstring_t        SC2_MapConversationField(cstring_t key, cstring_t field);
 
-FLOAT         SC2_MapHeightAtPoint(FLOAT x, FLOAT y);
-FLOAT         SC2_MapAirHeightAtPoint(FLOAT x, FLOAT y);
+float         SC2_MapHeightAtPoint(float x, float y);
+float         SC2_MapAirHeightAtPoint(float x, float y);
 BOX2          SC2_MapBounds(void);
-VECTOR2       SC2_MapNormalizedPosition(FLOAT x, FLOAT y);
-VECTOR2       SC2_MapDenormalizedPosition(FLOAT x, FLOAT y);
-DWORD         SC2_MapObjectClassId(sc2MapObject_t const *object);
-BOOL          SC2_MapDefaultCamera(sc2MapCamera_t *camera);
-void          SC2_MapDump(FILE *out, LPCSTR filename);
+VECTOR2       SC2_MapNormalizedPosition(float x, float y);
+VECTOR2       SC2_MapDenormalizedPosition(float x, float y);
+uint32_t         SC2_MapObjectClassId(sc2MapObject_t const *object);
+bool          SC2_MapDefaultCamera(sc2MapCamera_t *camera);
+void          SC2_MapDump(FILE *out, cstring_t filename);
 
 #endif

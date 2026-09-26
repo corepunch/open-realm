@@ -18,8 +18,8 @@ static bool begin_sent = false;
 
 /* Optional CS_MODELS indices become handles here. Games that do not publish
  * CS_TERRAIN_LIGHT_MODEL / CS_ENTITY_LIGHT_MODEL leave the slots empty. */
-static LPCMODEL V_ConfigLightModel(DWORD configstring) {
-    LPCSTR value;
+static LPCMODEL V_ConfigLightModel(uint32_t configstring) {
+    cstring_t value;
     char *end = NULL;
     unsigned long index;
 
@@ -42,11 +42,11 @@ static LPCMODEL V_ConfigSkyModel(void) {
 /* CS_SCENE_FOG is a generic server-authored distance-fog contract. Games may
  * leave the slot empty. Positive styles share the renderer's linear start/end
  * path until a producer proves and exposes additional equations. */
-static void V_UpdateSceneFog(viewDef_t *view, BOOL world) {
-    static BOOL invalid_logged;
+static void V_UpdateSceneFog(viewDef_t *view, bool world) {
+    static bool invalid_logged;
     int style = 0;
-    FLOAT start = 0.0f, end = 0.0f, density = 0.0f;
-    FLOAT red = 0.0f, green = 0.0f, blue = 0.0f;
+    float start = 0.0f, end = 0.0f, density = 0.0f;
+    float red = 0.0f, green = 0.0f, blue = 0.0f;
 
     if (!view) return;
     view->fogEnable = false;
@@ -75,7 +75,7 @@ static void V_UpdateSceneFog(viewDef_t *view, BOOL world) {
 /* Client copies sampling inputs and the day-phase stat. The game renderer
  * evaluates those into viewDef.terrainLight / entityLight; this path must
  * not include a game header or compile-guard the clock slot. */
-static void V_UpdateEnvironmentLighting(viewDef_t *view, BOOL world) {
+static void V_UpdateEnvironmentLighting(viewDef_t *view, bool world) {
     if (!view) return;
     view->terrainLight = (ENVIRONLIGHT){0};
     view->entityLight = (ENVIRONLIGHT){0};
@@ -91,7 +91,7 @@ static void V_UpdateEnvironmentLighting(viewDef_t *view, BOOL world) {
     view->entityLightModel = V_ConfigLightModel(CS_ENTITY_LIGHT_MODEL);
     view->skyModel = V_ConfigSkyModel();
     view->environmentPhase =
-        (FLOAT)cl.playerstate.stats[UI_PLAYERSTAT_ENV_PHASE] / (FLOAT)USHRT_MAX;
+        (float)cl.playerstate.stats[UI_PLAYERSTAT_ENV_PHASE] / (float)USHRT_MAX;
 }
 
 VECTOR3 lightAngles = {-40,0,60};
@@ -104,7 +104,7 @@ void CL_RestartRefresh(void) {
     cl.refresh_prepped = false;
 }
 
-static void CL_LoadingStage(FLOAT progress) {
+static void CL_LoadingStage(float progress) {
     /* CL_PrepRefresh may still be entered after the first active frame.
      * Progress is loading-screen presentation state, so ignore later passes. */
     if (cl.playerstate.client_ui_state != CLIENT_UI_LOADING) return;
@@ -127,7 +127,7 @@ static void CL_SendBegin(void) {
     MSG_WriteString(&cls.netchan.message, "begin");
 }
 
-static void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, FLOAT distance, LPMATRIX4 output) {
+static void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output) {
     VECTOR3 const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
     Matrix4_translate(output, &(VECTOR3){0, 0, -distance});
@@ -135,7 +135,7 @@ static void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, FLOAT d
     Matrix4_translate(output, &vieworg);
 }
 
-void Matrix4_fromViewQuat(LPCVECTOR3 target, LPCQUATERNION quat, FLOAT distance, LPMATRIX4 output) {
+void Matrix4_fromViewQuat(LPCVECTOR3 target, LPCQUATERNION quat, float distance, LPMATRIX4 output) {
     VECTOR3 const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
     Matrix4_translate(output, &(VECTOR3){0, 0, -distance});
@@ -143,7 +143,7 @@ void Matrix4_fromViewQuat(LPCVECTOR3 target, LPCQUATERNION quat, FLOAT distance,
     Matrix4_translate(output, &vieworg);
 }
 
-static void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, FLOAT scale, LPMATRIX4 output) {
+static void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, float scale, LPMATRIX4 output) {
     MATRIX4 proj, view, tmp1, tmp2;
     VECTOR3 const target = cl.viewDef.target;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0, 3000.0);
@@ -160,7 +160,7 @@ static void Matrix4_getPreviewCameraMatrix(LPCVECTOR3 target, LPMATRIX4 output) 
     size2_t windowSize = re.GetWindowSize();
     VECTOR3 eye = { 520.0f, -420.0f, 220.0f };
     VECTOR3 dir = Vector3_sub(target, &eye);
-    FLOAT aspect = (FLOAT)windowSize.width / (FLOAT)windowSize.height;
+    float aspect = (float)windowSize.width / (float)windowSize.height;
 
     Matrix4_perspective(&proj, 35.0f, aspect, 10.0f, 4000.0f);
     Matrix4_lookAt(&view, &eye, &dir, &(VECTOR3){0, 0, 1});
@@ -185,8 +185,8 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     viewCamera_t *b = cl.viewDef.camerastate+0;
     VECTOR3 origin = Vector3_lerp(&a->origin, &b->origin, cl.viewDef.lerpfrac);
     if (re.CameraUsesTerrainHeight()) {
-        FLOAT az = a->origin.z - re.GetHeightAtPoint(a->origin.x, a->origin.y);
-        FLOAT bz = b->origin.z - re.GetHeightAtPoint(b->origin.x, b->origin.y);
+        float az = a->origin.z - re.GetHeightAtPoint(a->origin.x, a->origin.y);
+        float bz = b->origin.z - re.GetHeightAtPoint(b->origin.x, b->origin.y);
         /* Only the authored offsets interpolate; the terrain base follows the current rendered XY. */
         origin.z = re.GetCameraHeightAtPoint(origin.x, origin.y) + LerpNumber(az, bz, cl.viewDef.lerpfrac);
     }
@@ -194,15 +194,15 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     QUATERNION qa = Quaternion_fromEuler(&a->viewangles, ROTATE_ZYX);
     QUATERNION qb = Quaternion_fromEuler(&b->viewangles, ROTATE_ZYX);
     QUATERNION quat = Quaternion_slerp(&qa, &qb, cl.viewDef.lerpfrac);
-    FLOAT distance = LerpNumber(a->distance, b->distance, cl.viewDef.lerpfrac);
-    FLOAT fov = LerpNumber(a->fov, b->fov, cl.viewDef.lerpfrac);
-    FLOAT viewport_width = cl.viewDef.viewport.w * windowSize.width;
-    FLOAT viewport_height = cl.viewDef.viewport.h * windowSize.height;
-    FLOAT aspect = viewport_height > 0.0f
+    float distance = LerpNumber(a->distance, b->distance, cl.viewDef.lerpfrac);
+    float fov = LerpNumber(a->fov, b->fov, cl.viewDef.lerpfrac);
+    float viewport_width = cl.viewDef.viewport.w * windowSize.width;
+    float viewport_height = cl.viewDef.viewport.h * windowSize.height;
+    float aspect = viewport_height > 0.0f
         ? viewport_width / viewport_height
-        : (FLOAT)windowSize.width / (FLOAT)windowSize.height;
-    FLOAT znear = LerpNumber(a->znear, b->znear, cl.viewDef.lerpfrac);
-    FLOAT zfar = LerpNumber(a->zfar, b->zfar, cl.viewDef.lerpfrac);
+        : (float)windowSize.width / (float)windowSize.height;
+    float znear = LerpNumber(a->znear, b->znear, cl.viewDef.lerpfrac);
+    float zfar = LerpNumber(a->zfar, b->zfar, cl.viewDef.lerpfrac);
     
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_fromViewQuat(&origin, &quat, distance, &view);
@@ -216,12 +216,12 @@ void Matrix4_getCameraMatrix(LPMATRIX4 output) {
     Matrix4_multiply(&proj, &view, output);
 }
 
-FLOAT LerpRotation(FLOAT a, FLOAT b, FLOAT t) {
+float LerpRotation(float a, float b, float t) {
     if (b < 0) {
         b = b + 2 * M_PI;
     }
-    FLOAT apos = a + 2 * M_PI;
-    FLOAT aneg = a - 2 * M_PI;
+    float apos = a + 2 * M_PI;
+    float aneg = a - 2 * M_PI;
     if (fabs(a - b) < fabs(apos - b) && fabs(a - b) < fabs(aneg - b)) {
         return LerpNumber(a, b, t);
     } else if (fabs(apos - b) < fabs(aneg - b)) {
@@ -236,7 +236,7 @@ static void V_AddClientEntity(centity_t const *ent) {
     if (view_state.num_entities >= MAX_CLIENT_ENTITIES) {
         return;
     }
-    /* model is a USHORT and MAX_MODELS bounds the configstring lookup. */
+    /* model is a uint16_t and MAX_MODELS bounds the configstring lookup. */
     re.origin = Vector3_lerp(&ent->prev.origin, &ent->current.origin, cl.viewDef.lerpfrac);
     re.angle = LerpRotation(ent->prev.angle, ent->current.angle, cl.viewDef.lerpfrac);
 #ifdef WOW
@@ -255,12 +255,12 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.model = cl.models[ent->current.model];
     re.skin = cl.pics[ent->current.image];
     if (ent->current.name) {
-        DWORD i = ent->current.name - 1;
-        LPCSTR cs = cl.configstrings[CS_GENERAL + (i >> 4)];
+        uint32_t i = ent->current.name - 1;
+        cstring_t cs = cl.configstrings[CS_GENERAL + (i >> 4)];
         re.name = cs ? cs + (i & 0xF) * ENT_NAME_SLOT_SIZE : NULL;
     }
     {
-        DWORD const encoded_color =
+        uint32_t const encoded_color =
             (ent->current.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT;
         re.team = encoded_color ? encoded_color - 1 : ent->current.player;
     }
@@ -298,14 +298,14 @@ static void V_AddClientEntity(centity_t const *ent) {
     re.splatsize = ent->current.splat >> 16;
 #ifndef USE_SHADOWMAPS
     re.shadow = cl.pics[ent->current.shadow];
-    re.shadow_rect = MAKE(RECT,
-                          ShadowUnpackRectComponent((BYTE)(ent->current.shadow_rect & 0xff)),
-                          ShadowUnpackRectComponent((BYTE)((ent->current.shadow_rect >> 8) & 0xff)),
-                          ShadowUnpackRectComponent((BYTE)((ent->current.shadow_rect >> 16) & 0xff)),
-                          ShadowUnpackRectComponent((BYTE)((ent->current.shadow_rect >> 24) & 0xff)));
+    re.shadow_rect = MAKE(rect_t,
+                          ShadowUnpackRectComponent((uint8_t)(ent->current.shadow_rect & 0xff)),
+                          ShadowUnpackRectComponent((uint8_t)((ent->current.shadow_rect >> 8) & 0xff)),
+                          ShadowUnpackRectComponent((uint8_t)((ent->current.shadow_rect >> 16) & 0xff)),
+                          ShadowUnpackRectComponent((uint8_t)((ent->current.shadow_rect >> 24) & 0xff)));
 #endif
 #ifdef WOW
-    /* model2 is a USHORT; validate it against the negotiated model pool. */
+    /* model2 is a uint16_t; validate it against the negotiated model pool. */
     if (ent->current.model2 > 0 && (ent->current.renderfx & RF_ATTACH_OVERHEAD))
         re.overhead_model = cl.models[ent->current.model2];
     else if (ent->current.model2 > 0)
@@ -322,7 +322,7 @@ static void V_AddClientEntity(centity_t const *ent) {
         if (view_state.num_entities >= MAX_CLIENT_ENTITIES) {
             return;
         }
-        /* model2 is a USHORT and MAX_MODELS bounds the configstring lookup. */
+        /* model2 is a uint16_t and MAX_MODELS bounds the configstring lookup. */
         re.model = cl.models[ent->current.model2];
         re.skin = 0;
         re.frame = 0;
@@ -350,27 +350,27 @@ static void V_ClearScene(void) {
     cl.viewDef.num_splat_rects = 0;
 }
 
-static BOOL CL_CircleOverlapsSplatRect(LPCENTITYSTATE state, renderSplatRect_t const *rect) {
-    FLOAT const x = MAX(rect->mins.x, MIN(rect->maxs.x, state->origin.x));
-    FLOAT const y = MAX(rect->mins.y, MIN(rect->maxs.y, state->origin.y));
-    FLOAT const dx = x - state->origin.x;
-    FLOAT const dy = y - state->origin.y;
+static bool CL_CircleOverlapsSplatRect(LPCENTITYSTATE state, renderSplatRect_t const *rect) {
+    float const x = MAX(rect->mins.x, MIN(rect->maxs.x, state->origin.x));
+    float const y = MAX(rect->mins.y, MIN(rect->maxs.y, state->origin.y));
+    float const dx = x - state->origin.x;
+    float const dy = y - state->origin.y;
     return dx * dx + dy * dy < state->collision * state->collision;
 }
 
 static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
-    DWORD const width = cl.cursorEntity->pathing_width;
-    DWORD const height = cl.cursorEntity->pathing_height;
-    DWORD const preview = cl.cursorEntity->pathing_preview;
-    BYTE const prevented = EntityPathingPreviewPrevented(preview);
-    BYTE const required = EntityPathingPreviewRequired(preview);
-    USHORT const ignore_entity = EntityPathingPreviewIgnore(preview);
-    FLOAT const cell_size = 32.0f;
-    FLOAT const half_width = width * cell_size * 0.5f;
-    FLOAT const half_height = height * cell_size * 0.5f;
-    DWORD const first_rect = view_state.num_splat_rects;
-    DWORD const remaining = MAX_RENDER_SPLAT_RECTS - first_rect;
-    BOOL const mine_blocked = CL_GameBuildCursorBlocked(origin);
+    uint32_t const width = cl.cursorEntity->pathing_width;
+    uint32_t const height = cl.cursorEntity->pathing_height;
+    uint32_t const preview = cl.cursorEntity->pathing_preview;
+    uint8_t const prevented = EntityPathingPreviewPrevented(preview);
+    uint8_t const required = EntityPathingPreviewRequired(preview);
+    uint16_t const ignore_entity = EntityPathingPreviewIgnore(preview);
+    float const cell_size = 32.0f;
+    float const half_width = width * cell_size * 0.5f;
+    float const half_height = height * cell_size * 0.5f;
+    uint32_t const first_rect = view_state.num_splat_rects;
+    uint32_t const remaining = MAX_RENDER_SPLAT_RECTS - first_rect;
+    bool const mine_blocked = CL_GameBuildCursorBlocked(origin);
 
     /* Zero preview flags deliberately suppress build-on-target structures until
      * the client receives enough parent-target data to colour them truthfully. */
@@ -383,8 +383,8 @@ static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
         FOR_LOOP(y, height) {
             renderSplatRect_t rect;
             VECTOR2 sample;
-            BYTE pathing = 0;
-            BOOL blocked;
+            uint8_t pathing = 0;
+            bool blocked;
 
             rect.mins.x = origin->x - half_width + x * cell_size;
             rect.mins.y = origin->y - half_height + y * cell_size;
@@ -411,9 +411,9 @@ static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
      * the server's circle-vs-footprint rule without doing entities*cells work
      * for every preview frame on low-end clients. */
     FOR_LOOP(i, cl.num_active) {
-        DWORD const number = cl.active_entities[i];
+        uint32_t const number = cl.active_entities[i];
         entityState_t const *state;
-        LONG x0, y0, x1, y1;
+        int32_t x0, y0, x1, y1;
 
         if (!number || number >= MAX_CLIENT_ENTITIES ||
             number == ignore_entity) {
@@ -423,17 +423,17 @@ static void CL_AddBuildingPlacementGrid(LPCVECTOR3 origin) {
         if (state->collision <= 0.0f || (state->flags & EF_NOT_SELECTABLE)) {
             continue;
         }
-        x0 = (LONG)floorf((state->origin.x - state->collision - (origin->x - half_width)) / cell_size);
-        y0 = (LONG)floorf((state->origin.y - state->collision - (origin->y - half_height)) / cell_size);
-        x1 = (LONG)floorf((state->origin.x + state->collision - (origin->x - half_width)) / cell_size);
-        y1 = (LONG)floorf((state->origin.y + state->collision - (origin->y - half_height)) / cell_size);
+        x0 = (int32_t)floorf((state->origin.x - state->collision - (origin->x - half_width)) / cell_size);
+        y0 = (int32_t)floorf((state->origin.y - state->collision - (origin->y - half_height)) / cell_size);
+        x1 = (int32_t)floorf((state->origin.x + state->collision - (origin->x - half_width)) / cell_size);
+        y1 = (int32_t)floorf((state->origin.y + state->collision - (origin->y - half_height)) / cell_size);
         x0 = MAX(0, x0); y0 = MAX(0, y0);
-        x1 = MIN((LONG)width - 1, x1); y1 = MIN((LONG)height - 1, y1);
+        x1 = MIN((int32_t)width - 1, x1); y1 = MIN((int32_t)height - 1, y1);
         if (x0 > x1 || y0 > y1) continue;
 
-        for (LONG x = x0; x <= x1; x++) {
-            for (LONG y = y0; y <= y1; y++) {
-                renderSplatRect_t *rect = &view_state.splat_rects[first_rect + (DWORD)x * height + (DWORD)y];
+        for (int32_t x = x0; x <= x1; x++) {
+            for (int32_t y = y0; y <= y1; y++) {
+                renderSplatRect_t *rect = &view_state.splat_rects[first_rect + (uint32_t)x * height + (uint32_t)y];
                 if (CL_CircleOverlapsSplatRect(state, rect)) {
                     rect->color = (COLOR32){ 255, 0, 0, 166 };
                 }
@@ -458,8 +458,8 @@ static void CL_AddBuilding(void) {
     }
 
     if (cl.cursorEntity->pathing_width && cl.cursorEntity->pathing_height) {
-        DWORD const path_width = cl.cursorEntity->pathing_width;
-        DWORD const path_height = cl.cursorEntity->pathing_height;
+        uint32_t const path_width = cl.cursorEntity->pathing_width;
+        uint32_t const path_height = cl.cursorEntity->pathing_height;
         ent.origin.x = floorf(ent.origin.x / 64.0f) * 64.0f;
         ent.origin.y = floorf(ent.origin.y / 64.0f) * 64.0f;
         if (((path_width / 2) & 1) != 0) ent.origin.x += 32.0f;
@@ -472,7 +472,7 @@ static void CL_AddBuilding(void) {
     ent.scale = cl.cursorEntity->scale;
     ent.angle = cl.cursorEntity->angle;
     {
-        DWORD const encoded_color =
+        uint32_t const encoded_color =
             (cl.cursorEntity->effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT;
         ent.team = encoded_color ? encoded_color - 1u : cl.cursorEntity->player;
     }
@@ -553,7 +553,7 @@ void CL_PrepRefresh(void) {
     }
     CL_LoadingStage(0.40f);
 
-    BOOL register_sounds = !cl.refresh_prepped;
+    bool register_sounds = !cl.refresh_prepped;
     if (register_sounds) S_BeginRegistration();
 
 #ifdef SC2
@@ -577,7 +577,7 @@ void CL_PrepRefresh(void) {
     }
 #endif
 
-    for (DWORD i = 1; i < MAX_MODELS; i++) {
+    for (uint32_t i = 1; i < MAX_MODELS; i++) {
         if (!*cl.configstrings[CS_MODELS + i])
             continue;
         CL_RegisterConfigString(CS_MODELS + i);
@@ -585,7 +585,7 @@ void CL_PrepRefresh(void) {
     CL_RegisterConfigString(CS_ORDER_MARKER);
     CL_LoadingStage(0.60f);
 
-    for (DWORD i = 1; i < MAX_IMAGES; i++) {
+    for (uint32_t i = 1; i < MAX_IMAGES; i++) {
         if (!*cl.configstrings[CS_IMAGES + i])
             continue;
         CL_RegisterConfigString(CS_IMAGES + i);
@@ -593,11 +593,11 @@ void CL_PrepRefresh(void) {
     CL_LoadingStage(0.75f);
 
     if (register_sounds)
-        for (DWORD i = 1; i < MAX_SOUNDS; i++)
+        for (uint32_t i = 1; i < MAX_SOUNDS; i++)
             if (*cl.configstrings[CS_SOUNDS + i]) S_RegisterSound(cl.configstrings[CS_SOUNDS + i]);
     CL_LoadingStage(0.87f);
 
-    for (DWORD i = 1; i < MAX_FONTSTYLES; i++) {
+    for (uint32_t i = 1; i < MAX_FONTSTYLES; i++) {
         if (!*cl.configstrings[CS_FONTS + i])
             continue;
         CL_RegisterConfigString(CS_FONTS + i);
@@ -618,8 +618,8 @@ void CL_PrepRefresh(void) {
 }
 
 void V_RenderView(void) {
-    static DWORD lastTime = 0;
-    BOOL rebuild;
+    static uint32_t lastTime = 0;
+    bool rebuild;
     cl.viewDef.weather_effects = cl.weather_effects;
     cl.viewDef.num_weather_effects = cl.num_weather_effects;
     cl.viewDef.fow_width = cl.fow.width;
@@ -629,11 +629,11 @@ void V_RenderView(void) {
     cl.viewDef.terrain_mask = cl.terrain_mask;
     if (!world_loaded || cls.state != ca_active) {
         VECTOR3 target = { 0, 0, 90 };
-        DWORD const elapsed = lastTime && cl.time >= lastTime ? cl.time - lastTime : 0;
+        uint32_t const elapsed = lastTime && cl.time >= lastTime ? cl.time - lastTime : 0;
 
         cl.viewDef.target = target;
-        cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
-        cl.viewDef.scissor = (RECT) { 0, 0, 1, 1 };
+        cl.viewDef.viewport = (rect_t) { 0, 0, 1, 1 };
+        cl.viewDef.scissor = (rect_t) { 0, 0, 1, 1 };
         cl.viewDef.time = cl.time;
         cl.viewDef.deltaTime = elapsed;
         cl.viewDef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG;
@@ -656,16 +656,16 @@ void V_RenderView(void) {
     /* Local presentation state can change while simulation snapshots are paused. */
     cl.viewDef.game_variant = cl.playerstate.stats[UI_PLAYERSTAT_GAME_VARIANT];
     if (rebuild) {
-        cl.viewDef.lerpfrac = (FLOAT)(cl.time - cl.frame.servertime) / FRAMETIME;
+        cl.viewDef.lerpfrac = (float)(cl.time - cl.frame.servertime) / FRAMETIME;
         cl.viewDef.lerpfrac = MAX(0.0f, MIN(1.0f, cl.viewDef.lerpfrac));
 #if defined(WOW) || defined(SC2)
-        cl.viewDef.viewport = (RECT) { 0, 0, 1, 1 };
+        cl.viewDef.viewport = (rect_t) { 0, 0, 1, 1 };
         cl.viewDef.scissor = cl.viewDef.viewport;
 #else
         /* Warcraft III's 3D world occupies the area above the command console.
          * Use that rectangle as the real projection viewport rather than drawing a
          * full-window camera and merely clipping it afterwards. */
-        cl.viewDef.viewport = (RECT) { 0, 0.22, 1, 0.76 };
+        cl.viewDef.viewport = (rect_t) { 0, 0.22, 1, 0.76 };
         cl.viewDef.scissor = cl.viewDef.viewport;
 #endif
         cl.viewDef.rdflags = cl.playerstate.rdflags;
@@ -708,7 +708,7 @@ void V_AddEntity(renderEntity_t *ent) {
     view_state.entities[view_state.num_entities++] = *ent;
 }
 
-BOOL V_FindEntity(DWORD number, renderEntity_t *out) {
+bool V_FindEntity(uint32_t number, renderEntity_t *out) {
     if (!number || !out) return false;
     FOR_LOOP(i, view_state.num_entities) {
         if (view_state.entities[i].number != number) continue;
@@ -732,10 +732,10 @@ void V_Shutdown(void) {
 #include "shared/test.h"
 
 static size2_t v_test_window(void) { return (size2_t){ 1024, 768 }; }
-static BOOL v_test_terrain(void) { return true; }
-static BOOL v_test_absolute(void) { return false; }
-static FLOAT v_test_exact(FLOAT x, FLOAT y) { (void)y; return x; }
-static FLOAT v_test_blurred(FLOAT x, FLOAT y) { (void)x; (void)y; return 50.0f; }
+static bool v_test_terrain(void) { return true; }
+static bool v_test_absolute(void) { return false; }
+static float v_test_exact(float x, float y) { (void)y; return x; }
+static float v_test_blurred(float x, float y) { (void)x; (void)y; return 50.0f; }
 
 TEST(client_entities, omitted_scale_defaults_to_one_in_render_path) {
     MODEL model = { 0 };
@@ -744,7 +744,7 @@ TEST(client_entities, omitted_scale_defaults_to_one_in_render_path) {
     renderEntity_t saved_entity;
     LPMODEL saved_model = cl.models[1];
     int const saved_count = view_state.num_entities;
-    BOOL const had_entity = saved_count > 0;
+    bool const had_entity = saved_count > 0;
 
     if (had_entity) saved_entity = view_state.entities[0];
     cl.models[1] = &model;
@@ -773,7 +773,7 @@ TEST(client_entities, omitted_scale_defaults_to_one_in_render_path) {
 }
 
 /* Recover camera Z from the actual projection with a zero-angle, zero-distance test camera. */
-static FLOAT v_test_camera_z(void) {
+static float v_test_camera_z(void) {
     MATRIX4 inv;
     Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
     Matrix4_inverse(&cl.viewDef.viewProjectionMatrix, &inv);
@@ -784,7 +784,7 @@ static FLOAT v_test_camera_z(void) {
 TEST(client_camera, rendered_eye_tracks_orbit_distance) {
     viewDef_t saved = cl.viewDef;
     refExport_t api = re;
-    BOOL loaded = world_loaded;
+    bool loaded = world_loaded;
     re.GetWindowSize = v_test_window; re.CameraUsesTerrainHeight = v_test_absolute;
     world_loaded = true;
     cl.viewDef = (viewDef_t){ .viewport = { 0, 0, 1, 1 } };
@@ -813,7 +813,7 @@ TEST(client_environment, no_world_clears_sky_model) {
 TEST(client_camera, terrain_offsets_interpolate) {
     viewDef_t saved = cl.viewDef;
     refExport_t api = re;
-    BOOL loaded = world_loaded;
+    bool loaded = world_loaded;
     re.GetWindowSize = v_test_window; re.CameraUsesTerrainHeight = v_test_terrain;
     re.GetHeightAtPoint = v_test_exact; re.GetCameraHeightAtPoint = v_test_blurred;
     world_loaded = true;

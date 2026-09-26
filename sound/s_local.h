@@ -25,14 +25,14 @@ typedef enum {
 
 typedef struct {
     short *data;
-    DWORD capacity; /* stereo frames */
-    DWORD read_pos;
-    DWORD write_pos;
-    DWORD count;
+    uint32_t capacity; /* stereo frames */
+    uint32_t read_pos;
+    uint32_t write_pos;
+    uint32_t count;
     uint64_t played_frames; /* frames consumed by the device since S_StreamStart */
-    FLOAT volume;
-    BOOL active;
-    BOOL paused;
+    float volume;
+    bool active;
+    bool paused;
 } sStreamState_t;
 
 /* Decoded PCM cache entry — always S16, 44100 Hz, mono (mirrors Q2 sfxcache_t).
@@ -49,37 +49,37 @@ typedef struct {
     sfxcache_t  *cache;
     int          registration_sequence;
     int          load_attempt_sequence;
-    BOOL         load_attempted;
+    bool         load_attempted;
 } sfx_t;
 
 /* DBC kit entry — cache pointer added so the decoded PCM lives on the handle. */
 typedef struct {
-    DWORD        id;
-    DWORD        type;
-    LPCSTR       name;
-    LPCSTR       files[SENTRY_MAX_FILES];
-    DWORD        freq[SENTRY_MAX_FILES];
-    LPCSTR       directoryBase;
+    uint32_t        id;
+    uint32_t        type;
+    cstring_t       name;
+    cstring_t       files[SENTRY_MAX_FILES];
+    uint32_t        freq[SENTRY_MAX_FILES];
+    cstring_t       directoryBase;
     float        volume;
-    DWORD        flags;
+    uint32_t        flags;
     sfxcache_t  *cache;
     int          registration_sequence;
     int          load_attempt_sequence;
-    BOOL         load_attempted;
+    bool         load_attempted;
 } sSoundKit_t;
 
 typedef struct sHashNode_s {
-    DWORD kit_id;
+    uint32_t kit_id;
     struct sHashNode_s *next;
 } sHashNode_t;
 
 typedef struct {
     /* DBC kit table */
     sSoundKit_t  kits[S_MAX_KITS];
-    DWORD        kit_count;
+    uint32_t        kit_count;
     sHashNode_t *hash_buckets[S_HASH_BUCKETS];
     sHashNode_t  hash_pool[S_MAX_KITS];
-    DWORD        hash_pool_used;
+    uint32_t        hash_pool_used;
 
     /* Path-keyed sfx table (mirrors Q2 known_sfx[]) */
     sfx_t        known_sfx[S_MAX_SFX];
@@ -102,22 +102,22 @@ typedef struct {
         float       leftvol;
         float       rightvol;
         VECTOR2     origin;
-        FLOAT       attenuation;
+        float       attenuation;
         int         channel;
         unsigned    priority;
         soundPolicy_t policy;
         uint64_t serial;
-        DWORD started;
+        uint32_t started;
         int         delay;
-        DWORD       entity;
-        DWORD       loop_generation;
-        BOOL        looping;
-        BOOL        is_positional;
-        BOOL        active, notified_start;
+        uint32_t       entity;
+        uint32_t       loop_generation;
+        bool        looping;
+        bool        is_positional;
+        bool        active, notified_start;
     } channels[S_MAX_CHANNELS];
-    DWORD loop_generation;
+    uint32_t loop_generation;
     uint64_t sound_serial;
-    struct { DWORD end; BOOL active; } user_cooldown[MAX_GAME_ENTITIES];
+    struct { uint32_t end; bool active; } user_cooldown[MAX_GAME_ENTITIES];
 
     /* Client-owned long-form PCM streams: stereo S16 at the mixer rate.
      * Keep movie and music lifetime independent so one presentation source
@@ -125,38 +125,38 @@ typedef struct {
     sStreamState_t streams[S_STREAM_COUNT];
 
     SDL_AudioDeviceID device;
-    BOOL              initialized;
-    BYTE             *dbc_data;
+    bool              initialized;
+    uint8_t             *dbc_data;
 } sState_t;
 
 extern sState_t s;
 
 /* s_sound.c */
-sfxcache_t *s_mp3_decode(BYTE const *data, DWORD size);
+sfxcache_t *s_mp3_decode(uint8_t const *data, uint32_t size);
 void S_LoadSoundEntries(void);
 void S_BeginRegistration(void);
 void S_EndRegistration(void);
-void S_RegisterSound(LPCSTR path);
-void S_PlaySoundFile(LPCSTR path);
-void S_PlaySoundAt(LPCSTR path, LPCVECTOR2 origin);
-void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int channel, FLOAT volume, FLOAT attenuation,
-                       FLOAT timeofs);
-BOOL S_PollSoundEvent(soundEvent_t *event);
+void S_RegisterSound(cstring_t path);
+void S_PlaySoundFile(cstring_t path);
+void S_PlaySoundAt(cstring_t path, LPCVECTOR2 origin);
+void S_PlaySoundPacket(cstring_t path, LPCVECTOR3 origin, bool positioned, int channel, float volume, float attenuation,
+                       float timeofs);
+bool S_PollSoundEvent(soundEvent_t *event);
 void S_ClearSoundEvents(void);
-BOOL S_PlaySoundPolicy(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int channel, FLOAT volume, FLOAT attenuation, FLOAT timeofs, soundPolicy_t const *policy);
+bool S_PlaySoundPolicy(cstring_t path, LPCVECTOR3 origin, bool positioned, int channel, float volume, float attenuation, float timeofs, soundPolicy_t const *policy);
 #ifdef BZ_TESTS
-void S_TestMix(SHORT *out, DWORD frames);
+void S_TestMix(int16_t *out, uint32_t frames);
 #endif
 void S_BeginLoopingSounds(void);
-void S_UpdateLoopingSound(DWORD entity, LPCSTR path, LPCVECTOR2 origin, FLOAT volume, FLOAT attenuation);
+void S_UpdateLoopingSound(uint32_t entity, cstring_t path, LPCVECTOR2 origin, float volume, float attenuation);
 void S_EndLoopingSounds(void);
 void S_SetListener(LPCVECTOR2 origin, LPCVECTOR2 right);
 void S_StreamStart(sStreamId_t stream);
-DWORD S_StreamSamples(sStreamId_t stream, SHORT const *samples, DWORD frames);
-DWORD S_StreamBufferedFrames(sStreamId_t stream);
+uint32_t S_StreamSamples(sStreamId_t stream, int16_t const *samples, uint32_t frames);
+uint32_t S_StreamBufferedFrames(sStreamId_t stream);
 uint64_t S_StreamPlayedFrames(sStreamId_t stream);
-void S_StreamSetVolume(sStreamId_t stream, FLOAT volume);
-void S_StreamSetPaused(sStreamId_t stream, BOOL paused);
+void S_StreamSetVolume(sStreamId_t stream, float volume);
+void S_StreamSetPaused(sStreamId_t stream, bool paused);
 void S_StreamStop(sStreamId_t stream);
 
 #endif

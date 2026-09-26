@@ -19,11 +19,11 @@ typedef enum {
 
 typedef struct {
     char text[MENU_SAVE_LIST_TEXT];
-    DWORD used;
+    uint32_t used;
 } menuSaveRows_t;
 
 static int MenuSaveDebugLevel(void) {
-    LPCSTR value = gi.CvarString("wc3_save_menu_debug", "0");
+    cstring_t value = gi.CvarString("wc3_save_menu_debug", "0");
     return value ? atoi(value) : 0;
 }
 
@@ -40,7 +40,7 @@ static LPFRAMEDEF MenuSaveListBox(void) {
     return hud.save_list.inuse && hud.save_list.Parent == hud.save_list_art.MapListBox ? &hud.save_list : NULL;
 }
 
-static void MenuDefaultSaveName(LPSTR out, DWORD out_size) {
+static void MenuDefaultSaveName(string_t out, uint32_t out_size) {
     time_t now;
     struct tm const *local;
 
@@ -53,7 +53,7 @@ static void MenuDefaultSaveName(LPSTR out, DWORD out_size) {
     snprintf(out, out_size, "Save Game");
 }
 
-static BOOL MenuSavePanelReady(void) {
+static bool MenuSavePanelReady(void) {
     return hud.save_menu.EscMenuSaveGamePanel && hud.save_menu.EscMenuSaveLoadContainer && MenuSaveListBox() &&
            hud.save_list_art.MapListBoxBackdrop && hud.save_list_art.MapListScrollBar &&
            hud.save_menu.SaveOnly && hud.save_menu.LoadOnly &&
@@ -62,38 +62,38 @@ static BOOL MenuSavePanelReady(void) {
            hud.save_menu.LoadGameLoadButton && hud.save_menu.LoadGameCancelButton;
 }
 
-static BOOL MenuSaveNameSafe(LPCSTR name) {
-    DWORD len;
+static bool MenuSaveNameSafe(cstring_t name) {
+    uint32_t len;
 
     if (!name || !*name) return false;
-    len = (DWORD)strlen(name);
+    len = (uint32_t)strlen(name);
     if (len >= CMDARG_LEN || !strcmp(name, ".") || !strcmp(name, "..") ||
         name[len - 1] == '.') return false;
-    for (DWORD i = 0; name[i]; i++) {
+    for (uint32_t i = 0; name[i]; i++) {
         unsigned char ch = (unsigned char)name[i];
         if (ch < 0x20 || strchr("\\/:*?\"<>|\t\r\n", ch)) return false;
     }
     return true;
 }
 
-static BOOL MenuAppendSaveRow(menuSaveRows_t *rows, LPCSTR display, LPCSTR value) {
+static bool MenuAppendSaveRow(menuSaveRows_t *rows, cstring_t display, cstring_t value) {
     int written;
 
     if (!rows || !display || !value || rows->used >= sizeof(rows->text)) return false;
     written = snprintf(rows->text + rows->used, sizeof(rows->text) - rows->used,
                        "%s%s\t%s", rows->used ? "\n" : "", display, value);
-    if (written < 0 || (DWORD)written >= sizeof(rows->text) - rows->used) return false;
-    rows->used += (DWORD)written;
+    if (written < 0 || (uint32_t)written >= sizeof(rows->text) - rows->used) return false;
+    rows->used += (uint32_t)written;
     return true;
 }
 
 /* Build the authored LISTBOX payload as `display\thidden-value` rows. The
  * hidden basename is submitted by the transient-window placeholder expander.
  * Only saves whose headers still resolve to a map are exposed to Load. */
-static DWORD MenuBuildSaveList(void) {
+static uint32_t MenuBuildSaveList(void) {
     char names[MENU_SAVE_ENUM_TEXT] = { 0 };
     menuSaveRows_t rows = { 0 };
-    DWORD count = 0;
+    uint32_t count = 0;
     LPFRAMEDEF list = MenuSaveListBox();
 
     if (!MenuSavePanelReady() || !list) {
@@ -105,10 +105,10 @@ static DWORD MenuBuildSaveList(void) {
     gi.ListSaves(names, sizeof(names));
     if (MenuSaveDebugLevel())
         fprintf(stderr, "WC3_SAVE_MENU enumerate begin list=%s\n", list->Name);
-    for (LPCSTR name = names; *name; name += strlen(name) + 1) {
+    for (cstring_t name = names; *name; name += strlen(name) + 1) {
         PATHSTR path = { 0 };
         PATHSTR map = { 0 };
-        LPCSTR display;
+        cstring_t display;
 
         if (!MenuSaveNameSafe(name)) {
             if (MenuSaveDebugLevel())
@@ -151,7 +151,7 @@ static DWORD MenuBuildSaveList(void) {
     return count;
 }
 
-static void MenuSetButton(LPFRAMEDEF button, BOOL enabled, LPCSTR command) {
+static void MenuSetButton(LPFRAMEDEF button, bool enabled, cstring_t command) {
     if (!button) return;
     UI_SetEnabled(button, enabled);
     if (enabled && command) UI_SetOnClick(button, "%s", command);
@@ -162,22 +162,22 @@ static void MenuSetButton(LPFRAMEDEF button, BOOL enabled, LPCSTR command) {
  * control and save-header parser. A save directory entry is enough to offer
  * the Load panel; that panel performs the stricter readable-save filtering
  * before enabling its Load action. */
-static BOOL MenuAnySaveExists(void) {
+static bool MenuAnySaveExists(void) {
     char names[MENU_SAVE_ENUM_TEXT] = { 0 };
 
     gi.ListSaves(names, sizeof(names));
-    for (LPCSTR name = names; *name; name += strlen(name) + 1) {
+    for (cstring_t name = names; *name; name += strlen(name) + 1) {
         if (MenuSaveNameSafe(name)) return true;
     }
     return false;
 }
 
 static void MenuConfigureMainSaveLoad(void) {
-    BOOL available = MenuSavePanelReady() && G_IsSinglePlayer();
+    bool available = MenuSavePanelReady() && G_IsSinglePlayer();
 
     MenuSetButton(hud.menu.SaveGameButton, available, "menu_save_game");
     {
-        BOOL any_save = MenuAnySaveExists();
+        bool any_save = MenuAnySaveExists();
         MenuSetButton(hud.menu.LoadGameButton,
                       available && any_save,
                       "menu_load_game");
@@ -323,10 +323,10 @@ static void MenuWrite(LPEDICT ent, menuPanel_t panel) {
 }
 
 static void MenuSelectSavePanel(menuSavePanel_t panel) {
-    BOOL saving = panel == MENU_SAVE_PANEL_SAVE;
+    bool saving = panel == MENU_SAVE_PANEL_SAVE;
     LPFRAMEDEF list = MenuSaveListBox();
-    DWORD saves = MenuBuildSaveList();
-    BOOL can_load = G_IsSinglePlayer() && list && saves > 0;
+    uint32_t saves = MenuBuildSaveList();
+    bool can_load = G_IsSinglePlayer() && list && saves > 0;
     LPFRAMEDEF root = hud.save_menu.EscMenuSaveGamePanel;
     char load_command[128] = { 0 };
     char default_name[CMDARG_LEN] = { 0 };

@@ -4,11 +4,11 @@
 #include "renderer/r_camera_height.h"
 
 refImport_t ri;
-static FLOAT camera_step(LPCVOID data, DWORD x, DWORD y) { (void)data; (void)y; return x < 24 ? 0 : 10; }
-static HANDLE camera_alloc(long size) { return calloc(1, (size_t)size); }
+static float camera_step(void const * data, uint32_t x, uint32_t y) { (void)data; (void)y; return x < 24 ? 0 : 10; }
+static handle_t camera_alloc(long size) { return calloc(1, (size_t)size); }
 
 size2_t R_GetWindowSize(void) { return (size2_t){ 1024, 768 }; }
-bool R_TraceModel(renderEntity_t const *ent, LPCLINE3 line, LPFLOAT distance) {
+bool R_TraceModel(renderEntity_t const *ent, LPCLINE3 line, float * distance) {
     (void)ent; (void)line; (void)distance; return false;
 }
 
@@ -39,10 +39,10 @@ TEST(renderer_view, camera_height_dense_blur) {
     ri.MemAlloc = camera_alloc; ri.MemFree = free;
     R_BuildCameraHeightMap(&(cameraHeightBuild_t){ .map = &map, .width = 49, .height_count = 3,
         .radius = 8, .samples = 17, .origin = {10, 20}, .cell_size = 2, .get_height = camera_step });
-    FLOAT prev = R_SampleCameraHeightMap(&map, 40, 22);
+    float prev = R_SampleCameraHeightMap(&map, 40, 22);
     T_FEQ(prev, 0, 0.0001f);
-    for (FLOAT x = 40.5f; x <= 74; x += 0.5f) {
-        FLOAT cur = R_SampleCameraHeightMap(&map, x, 22);
+    for (float x = 40.5f; x <= 74; x += 0.5f) {
+        float cur = R_SampleCameraHeightMap(&map, x, 22);
         T_FEQ(cur - prev, 10.0f / (17 * 4), 0.0001f);
         prev = cur;
     }

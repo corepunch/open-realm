@@ -8,7 +8,7 @@
 #define BZ_BENA MAKEFOURCC('B', 'e', 'n', 'a') // rawcode; TFT EnsnareAir buff
 #define BZ_BENG MAKEFOURCC('B', 'e', 'n', 'g') // rawcode; TFT EnsnareGround buff
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -59,7 +59,7 @@ typedef struct {
 } ENSFIX;
 
 /* Fill the caller's ENSFIX. Edicts point at fix->flyer_data; a returned copy would dangle. */
-static void ens_setup(ENSFIX *fix, LPCSTR slk) {
+static void ens_setup(ENSFIX *fix, cstring_t slk) {
     reset_entities(); setup_test_world(); level.time = 1000;
     ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
@@ -192,7 +192,7 @@ TEST(wc3_spell, ensnare_roc_empty_buffid_and_recast) {
 /* DataA/B lower FlyHeight over time; AI_FLYING clears immediately; DataC sets melee range. */
 TEST(wc3_spell, ensnare_flyer_gradual_land_uses_dataa_datab) {
     ENSFIX fix; ens_setup(&fix, ENS_GRADUAL_SLK);
-    FLOAT mid;
+    float mid;
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
     T_ASSERT(S_UnitIsEnsnared(fix.flyer));
@@ -314,7 +314,7 @@ TEST(wc3_spell, ensnare_unrelated_flight_state_untouched) {
 
 /* Save/load mid-land resumes the descent after load. */
 TEST(wc3_save, ensnare_land_round_trips) {
-    LPCSTR filename = "/tmp/openwarcraft3-ensnare-land.bin";
+    cstring_t filename = "/tmp/openwarcraft3-ensnare-land.bin";
     ENSFIX fix; ens_setup(&fix, ENS_GRADUAL_SLK);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
     level.time += 1000; S_RunAbilityUpdates(fix.flyer);
@@ -331,7 +331,7 @@ TEST(wc3_save, ensnare_land_round_trips) {
 
 /* Save/load mid-rise resumes the ascent after load. */
 TEST(wc3_save, ensnare_rise_round_trips) {
-    LPCSTR filename = "/tmp/openwarcraft3-ensnare-rise.bin";
+    cstring_t filename = "/tmp/openwarcraft3-ensnare-rise.bin";
     ENSFIX fix; ens_setup(&fix, ENS_GRADUAL_SLK);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
     level.time += 2000; S_RunAbilityUpdates(fix.flyer);

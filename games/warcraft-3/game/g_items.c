@@ -3,8 +3,8 @@
 
 /* Keep the native itemtype mapping in one table shared by GetItemType and the
  * random-item selectors. */
-DWORD G_ItemTypeFromClass(LPCSTR cls) {
-    static struct { LPCSTR name; DWORD type; } const types[] = {
+uint32_t G_ItemTypeFromClass(cstring_t cls) {
+    static struct { cstring_t name; uint32_t type; } const types[] = {
         { "Permanent", 0 }, { "Charged", 1 }, { "PowerUp", 2 }, { "Artifact", 3 },
         { "Purchasable", 4 }, { "Campaign", 5 }, { "Miscellaneous", 6 },
     };
@@ -12,13 +12,13 @@ DWORD G_ItemTypeFromClass(LPCSTR cls) {
     return 7; /* ITEM_TYPE_UNKNOWN */
 }
 
-static FLOAT G_MiscVectorValue(LPCSTR name, DWORD index) {
-    LPCSTR value = Stb_IniCacheFind(&game.config.misc, "Misc", name);
+static float G_MiscVectorValue(cstring_t name, uint32_t index) {
+    cstring_t value = Stb_IniCacheFind(&game.config.misc, "Misc", name);
     if (!value) {
         return 0;
     }
 
-    for (DWORD i = 0; i < index; i++) {
+    for (uint32_t i = 0; i < index; i++) {
         value = strchr(value, ',');
         if (!value) {
             return 0;
@@ -59,8 +59,8 @@ static void G_ShowInventoryFull(LPEDICT unit) {
     }
 }
 
-LPCSTR G_ItemAbilityList(LPCEDICT item) {
-    LPCSTR abilities;
+cstring_t G_ItemAbilityList(LPCEDICT item) {
+    cstring_t abilities;
 
     if (!item || !item->class_id) return NULL;
 
@@ -78,8 +78,8 @@ LPCSTR G_ItemAbilityList(LPCEDICT item) {
 
 /* ItemData stores passive effects as an ability list; the item rawcode itself
  * is not an ability code. */
-static void G_ApplyItemStats(LPEDICT unit, LPCEDICT item, BOOL apply) {
-    LPCSTR abilities;
+static void G_ApplyItemStats(LPEDICT unit, LPCEDICT item, bool apply) {
+    cstring_t abilities;
 
     /* Item-use permission gates gaining passive item effects, but removal must
      * always reverse effects that were already applied. The permission can
@@ -97,8 +97,8 @@ static void G_ApplyItemStats(LPEDICT unit, LPCEDICT item, BOOL apply) {
 
 void SP_SpawnItem(LPEDICT self) {
     PATHSTR model_filename;
-    LPCSTR model;
-    FLOAT scale;
+    cstring_t model;
+    float scale;
 
     if (!self || !(model = self->data.ItemData->file)) {
         return;
@@ -124,10 +124,10 @@ void SP_SpawnItem(LPEDICT self) {
     self->item.inventory_slot = -1;
     self->item.in_world = true;
     self->item.drop_id = 0;
-    self->item.charges = (DWORD)MAX(0, (LONG)(G_ItemData(self->class_id) ? G_ItemData(self->class_id)->uses : 0));
+    self->item.charges = (uint32_t)MAX(0, (int32_t)(G_ItemData(self->class_id) ? G_ItemData(self->class_id)->uses : 0));
 }
 
-BOOL G_IsItem(LPCEDICT item) {
+bool G_IsItem(LPCEDICT item) {
     if (!item || !item->inuse || !item->class_id) {
         return false;
     }
@@ -142,7 +142,7 @@ BOOL G_IsItem(LPCEDICT item) {
  * GetEnumItem native inside the enum action (mirrors currentdestructable). */
 LPEDICT currentenumitem = NULL;
 
-static DWORD G_InventoryRequiredUpgrade(DWORD ability_id) {
+static uint32_t G_InventoryRequiredUpgrade(uint32_t ability_id) {
     /* Stock unit-inventory abilities are present on the unit before the race
      * Backpack upgrade is researched. UpgradeData effects are not normalized
      * yet, so keep this small stock dependency table explicit until that data
@@ -158,9 +158,9 @@ static DWORD G_InventoryRequiredUpgrade(DWORD ability_id) {
     }
 }
 
-static BOOL G_InventoryAbilityAvailable(LPCEDICT unit, LPCSTR ability) {
-    DWORD ability_id;
-    DWORD required_upgrade;
+static bool G_InventoryAbilityAvailable(LPCEDICT unit, cstring_t ability) {
+    uint32_t ability_id;
+    uint32_t required_upgrade;
     LPGAMECLIENT owner;
 
     if (!unit || !ability || strlen(ability) != 4) return false;
@@ -176,21 +176,21 @@ static BOOL G_InventoryAbilityAvailable(LPCEDICT unit, LPCSTR ability) {
 /* Classic ROC has a built-in six-slot hero inventory and no AInv data row.
  * AIab/AIa6 are attribute bonuses, never inventory aliases. An authored AInv
  * row (including zero capacity) remains authoritative when present. */
-static BOOL G_UsesClassicHeroInventory(LPCEDICT unit, LPCSTR ability) {
+static bool G_UsesClassicHeroInventory(LPCEDICT unit, cstring_t ability) {
     return !strcmp(ability, "AInv") && G_IsReignOfChaosMap(level.mapinfo) &&
         G_UnitIsHero(unit) && !G_AbilityDataName(ability)->id;
 }
 
-static BOOL G_InventoryAbilityFlag(LPCEDICT unit, DWORD data_index, BOOL roc_hero_default) {
-    LPCSTR abilities = NULL;
-    BOOL has_inventory_ability = false;
+static bool G_InventoryAbilityFlag(LPCEDICT unit, uint32_t data_index, bool roc_hero_default) {
+    cstring_t abilities = NULL;
+    bool has_inventory_ability = false;
 
     if (!unit || !unit->inuse) return false;
     if (unit->data.UnitAbilities) abilities = unit->data.UnitAbilities->abilList;
     if (abilities) {
         PARSE_LIST(abilities, abil, parse_segment) {
             abilityLevel_t const *ability_level;
-            DWORD const code = G_AbilityCodeName(abil);
+            uint32_t const code = G_AbilityCodeName(abil);
 
             if (code != MAKEFOURCC('A','I','n','v')) continue;
             has_inventory_ability = true;
@@ -211,54 +211,54 @@ static BOOL G_InventoryAbilityFlag(LPCEDICT unit, DWORD data_index, BOOL roc_her
     return false;
 }
 
-BOOL G_InventoryCanUseItems(LPCEDICT unit) {
+bool G_InventoryCanUseItems(LPCEDICT unit) {
     /* inv3 / DataC: heroes may use/equip item abilities; Backpack carriers
      * such as Aihn have this disabled and therefore only transport items. */
     return G_InventoryAbilityFlag(unit, 2, true);
 }
 
-BOOL G_InventoryCanGetItems(LPCEDICT unit) {
+bool G_InventoryCanGetItems(LPCEDICT unit) {
     /* inv4 / DataD gates player-issued pickup orders. Scripted/native item
      * insertion deliberately uses G_PickupItem/G_AddItemToSlot directly,
      * matching Warsmash's giveItem path which bypasses canGetItems. */
     return G_InventoryAbilityFlag(unit, 3, true);
 }
 
-BOOL G_InventoryCanDropItems(LPCEDICT unit) {
+bool G_InventoryCanDropItems(LPCEDICT unit) {
     /* inv5 / DataE gates player-issued drop/handoff orders. Direct native
      * removal remains available through G_DropItem/G_DropItemAt. */
     return G_InventoryAbilityFlag(unit, 4, true);
 }
 
-static BOOL G_InventoryDropsItemsOnDeath(LPCEDICT unit) {
+static bool G_InventoryDropsItemsOnDeath(LPCEDICT unit) {
     /* inv2 / DataB: ordinary Backpack carriers drop their contents, while the
      * stock hero inventory retains items across death/revival. */
     return G_InventoryAbilityFlag(unit, 1, false);
 }
 
-static DWORD G_InventoryAbilityCapacity(LPCEDICT unit, LPCSTR ability) {
-    LONG capacity;
+static uint32_t G_InventoryAbilityCapacity(LPCEDICT unit, cstring_t ability) {
+    int32_t capacity;
 
     if (!unit || !ability || strlen(ability) != 4) return 0;
-    capacity = (LONG)AB_Data(ability, 1, 1); /* inv1 / Item Capacity */
+    capacity = (int32_t)AB_Data(ability, 1, 1); /* inv1 / Item Capacity */
     if (G_UsesClassicHeroInventory(unit, ability)) return MAX_INVENTORY;
     if (capacity < 0 || !G_AbilityDataName(ability)->id) {
         fprintf(stderr, "G_InventoryCapacity: %.4s inventory ability %.4s has invalid inv1=%ld\n",
                 (char *)&unit->class_id, ability, (long)capacity);
         return 0;
     }
-    return (DWORD)MIN(capacity, MAX_INVENTORY);
+    return (uint32_t)MIN(capacity, MAX_INVENTORY);
 }
 
-DWORD G_InventoryCapacity(LPCEDICT unit) {
-    LPCSTR abilities = NULL;
-    BOOL has_inventory_ability = false;
+uint32_t G_InventoryCapacity(LPCEDICT unit) {
+    cstring_t abilities = NULL;
+    bool has_inventory_ability = false;
 
     if (!unit || !unit->inuse) return 0;
     if (unit->data.UnitAbilities) abilities = unit->data.UnitAbilities->abilList;
     if (abilities) {
         PARSE_LIST(abilities, abil, parse_segment) {
-            DWORD const code = G_AbilityCodeName(abil);
+            uint32_t const code = G_AbilityCodeName(abil);
             if (code != MAKEFOURCC('A','I','n','v')) continue;
             has_inventory_ability = true;
             if (!G_InventoryAbilityAvailable(unit, abil)) continue;
@@ -274,15 +274,15 @@ DWORD G_InventoryCapacity(LPCEDICT unit) {
     return 0;
 }
 
-BOOL G_UnitHasInventory(LPEDICT unit) {
+bool G_UnitHasInventory(LPEDICT unit) {
     return G_InventoryCapacity(unit) > 0;
 }
 
-DWORD G_ItemCharges(LPCEDICT item) {
+uint32_t G_ItemCharges(LPCEDICT item) {
     return G_IsItem(item) ? item->item.charges : 0;
 }
 
-void G_SetItemCharges(LPEDICT item, DWORD charges) {
+void G_SetItemCharges(LPEDICT item, uint32_t charges) {
     if (!G_IsItem(item) || item->item.charges == charges) return;
     item->item.charges = charges;
     if (item->item.carrier) G_RefreshInventoryUI(item->item.carrier);
@@ -303,14 +303,14 @@ void G_ConsumeItemCharge(LPEDICT item) {
     G_SetItemCharges(item, item->item.charges - 1);
 }
 
-LONG G_FindFreeInventorySlot(LPCEDICT unit) {
-    DWORD capacity = G_InventoryCapacity(unit);
+int32_t G_FindFreeInventorySlot(LPCEDICT unit) {
+    uint32_t capacity = G_InventoryCapacity(unit);
 
-    FOR_LOOP(i, capacity) if (!unit->inventory[i]) return (LONG)i;
+    FOR_LOOP(i, capacity) if (!unit->inventory[i]) return (int32_t)i;
     return -1;
 }
 
-BOOL G_CanPickupItem(LPEDICT unit, LPEDICT item) {
+bool G_CanPickupItem(LPEDICT unit, LPEDICT item) {
     if (!G_UnitHasInventory(unit) || M_IsDead(unit) || !G_IsItem(item)) {
         return false;
     }
@@ -318,7 +318,7 @@ BOOL G_CanPickupItem(LPEDICT unit, LPEDICT item) {
            !(item->s.renderfx & RF_HIDDEN) && !(item->svflags & SVF_NOCLIENT);
 }
 
-BOOL G_AddItemToSlotInternal(LPEDICT unit, LPEDICT item, DWORD slot, BOOL publish_event) {
+bool G_AddItemToSlotInternal(LPEDICT unit, LPEDICT item, uint32_t slot, bool publish_event) {
     if (slot >= G_InventoryCapacity(unit) || !G_CanPickupItem(unit, item) || unit->inventory[slot]) {
         return false;
     }
@@ -328,7 +328,7 @@ BOOL G_AddItemToSlotInternal(LPEDICT unit, LPEDICT item, DWORD slot, BOOL publis
     item->svflags |= SVF_NOCLIENT;
     item->item.in_world = false;
     item->item.carrier = unit;
-    item->item.inventory_slot = (LONG)slot;
+    item->item.inventory_slot = (int32_t)slot;
     unit->inventory[slot] = item;
     G_ApplyItemStats(unit, item, true);
     G_RefreshInventoryUI(unit);
@@ -339,18 +339,18 @@ BOOL G_AddItemToSlotInternal(LPEDICT unit, LPEDICT item, DWORD slot, BOOL publis
     return true;
 }
 
-BOOL G_AddItemToSlot(LPEDICT unit, LPEDICT item, DWORD slot) {
+bool G_AddItemToSlot(LPEDICT unit, LPEDICT item, uint32_t slot) {
     return G_AddItemToSlotInternal(unit, item, slot, true);
 }
 
-BOOL G_PickupItem(LPEDICT unit, LPEDICT item) {
-    LONG slot = G_FindFreeInventorySlot(unit);
-    BOOL added;
+bool G_PickupItem(LPEDICT unit, LPEDICT item) {
+    int32_t slot = G_FindFreeInventorySlot(unit);
+    bool added;
 
     if (slot < 0) {
         return false;
     }
-    added = G_AddItemToSlot(unit, item, (DWORD)slot);
+    added = G_AddItemToSlot(unit, item, (uint32_t)slot);
     if (added) G_QueueOwnerSoundAlias(unit, "ItemGet");
     return added;
 }
@@ -366,8 +366,8 @@ static void G_StopPickupOrder(LPEDICT unit) {
 
 static void G_PickupItemThink(LPEDICT unit) {
     LPEDICT item = unit->goalentity;
-    FLOAT distance;
-    FLOAT move_distance;
+    float distance;
+    float move_distance;
 
     if (!G_CanPickupItem(unit, item)) {
         G_StopPickupOrder(unit);
@@ -399,7 +399,7 @@ static void G_PickupItemThink(LPEDICT unit) {
 
 static umove_t item_move_pickup = { "walk", G_PickupItemThink, NULL, CAbilityInventory };
 
-BOOL G_OrderPickupItem(LPEDICT unit, LPEDICT item) {
+bool G_OrderPickupItem(LPEDICT unit, LPEDICT item) {
     if (!G_InventoryCanGetItems(unit) || !G_CanPickupItem(unit, item) ||
         (unit->aiflags & AI_IMMOBILE)) {
         return false;
@@ -415,15 +415,15 @@ BOOL G_OrderPickupItem(LPEDICT unit, LPEDICT item) {
     return true;
 }
 
-static BOOL G_DropItemAtInternal(LPEDICT unit, DWORD slot, LPCVECTOR2 position, BOOL play_sound) {
+static bool G_DropItemAtInternal(LPEDICT unit, uint32_t slot, LPCVECTOR2 position, bool play_sound) {
     LPEDICT item;
     VECTOR2 drop_position;
 
-    if (!unit || !position || slot >= (DWORD)G_InventoryCapacity(unit)) {
+    if (!unit || !position || slot >= (uint32_t)G_InventoryCapacity(unit)) {
         return false;
     }
     item = unit->inventory[slot];
-    if (!G_IsItem(item) || item->item.carrier != unit || item->item.inventory_slot != (LONG)slot ||
+    if (!G_IsItem(item) || item->item.carrier != unit || item->item.inventory_slot != (int32_t)slot ||
         item->item.in_world) {
         return false;
     }
@@ -452,11 +452,11 @@ static BOOL G_DropItemAtInternal(LPEDICT unit, DWORD slot, LPCVECTOR2 position, 
     return true;
 }
 
-BOOL G_DropItemAt(LPEDICT unit, DWORD slot, LPCVECTOR2 position) {
+bool G_DropItemAt(LPEDICT unit, uint32_t slot, LPCVECTOR2 position) {
     return G_DropItemAtInternal(unit, slot, position, true);
 }
 
-BOOL G_DropItem(LPEDICT unit, DWORD slot) {
+bool G_DropItem(LPEDICT unit, uint32_t slot) {
     if (!unit) {
         return false;
     }
@@ -464,7 +464,7 @@ BOOL G_DropItem(LPEDICT unit, DWORD slot) {
 }
 
 void G_DropInventoryOnDeath(LPEDICT unit) {
-    DWORD capacity;
+    uint32_t capacity;
 
     if (!unit || !G_InventoryDropsItemsOnDeath(unit)) return;
     capacity = G_InventoryCapacity(unit);
@@ -485,9 +485,9 @@ static void G_StopDropItemOrder(LPEDICT unit) {
 static void G_DropItemThink(LPEDICT unit) {
     LPEDICT item = unit ? unit->item_drop : NULL;
     LPEDICT destination = unit ? unit->goalentity : NULL;
-    FLOAT distance;
-    FLOAT move_distance;
-    LONG slot;
+    float distance;
+    float move_distance;
+    int32_t slot;
 
     if (!unit || !destination || !G_IsItem(item) || item->item.carrier != unit || item->item.in_world) {
         G_StopDropItemOrder(unit);
@@ -502,7 +502,7 @@ static void G_DropItemThink(LPEDICT unit) {
     distance = M_DistanceToGoal(unit);
     if (distance <= ITEM_DROP_RANGE) {
         VECTOR2 const position = destination->s.origin2;
-        G_DropItemAt(unit, (DWORD)slot, &position);
+        G_DropItemAt(unit, (uint32_t)slot, &position);
         G_StopDropItemOrder(unit);
         return;
     }
@@ -520,7 +520,7 @@ static umove_t item_move_drop = {
     .animation = "walk", .think = G_DropItemThink, .endfunc = NULL, .proc = CAbilityInventory
 };
 
-BOOL G_OrderDropItemAt(LPEDICT unit, LPEDICT item, LPCVECTOR2 position) {
+bool G_OrderDropItemAt(LPEDICT unit, LPEDICT item, LPCVECTOR2 position) {
     if (!unit || !item || !position || !G_InventoryCanDropItems(unit) ||
         (unit->aiflags & AI_IMMOBILE) ||
         !G_IsItem(item) || item->item.carrier != unit || item->item.in_world ||
@@ -540,7 +540,7 @@ BOOL G_OrderDropItemAt(LPEDICT unit, LPEDICT item, LPCVECTOR2 position) {
 
 void G_RemoveItem(LPEDICT item) {
     LPEDICT carrier;
-    LONG slot;
+    int32_t slot;
 
     if (!item || !item->inuse) {
         return;
@@ -552,7 +552,7 @@ void G_RemoveItem(LPEDICT item) {
             slot = -1;
             FOR_LOOP(i, MAX_INVENTORY) {
                 if (carrier->inventory[i] == item) {
-                    slot = (LONG)i;
+                    slot = (int32_t)i;
                     break;
                 }
             }
@@ -570,10 +570,10 @@ void G_RemoveItem(LPEDICT item) {
 }
 
 /* Use an item in inventory by slot index. Calls the item's ability cmd handler. */
-void G_UseItem(LPEDICT unit, DWORD slot) {
+void G_UseItem(LPEDICT unit, uint32_t slot) {
     LPEDICT item;
     LPEDICT clent;
-    LPCSTR abilities;
+    cstring_t abilities;
 
     if (!unit || !G_InventoryCanUseItems(unit) ||
         slot >= G_InventoryCapacity(unit) || unit->s.player >= MAX_PLAYERS) {
@@ -593,10 +593,10 @@ void G_UseItem(LPEDICT unit, DWORD slot) {
         ability_t const *ability = FindAbilityForCommand(ability_name);
         abilityitem_t ability_item = MAKE(abilityitem_t, .code = FS_SLKKey(ability_name), .ability = ability);
         abilityCall_t call = MAKE(abilityCall_t, .item = &ability_item, .client = clent);
-        BOOL succeeded = false;
+        bool succeeded = false;
 
         if (!ability) continue;
-        clent->client->menu.ability_code = *((DWORD const *)ability_name);
+        clent->client->menu.ability_code = *((uint32_t const *)ability_name);
         if (ability->flags & AB_ITEM) {
             succeeded = S_AbilityMessage(clent, A_ITEM_USE, &call);
         } else if (S_AbilityHasCommand(ability)) {

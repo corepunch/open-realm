@@ -12,7 +12,7 @@ void SV_ParseCameraPosition(LPSIZEBUF msg, LPCLIENT client) {
 }
 
 void SV_ParseClientMessage(LPSIZEBUF msg, LPCLIENT client) {
-    BYTE pack_id = 0;
+    uint8_t pack_id = 0;
     while (MSG_Read(msg, &pack_id, 1)) {
         switch (pack_id) {
             case clc_input: {

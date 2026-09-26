@@ -26,8 +26,8 @@ static void unsummon_end_effect(LPEDICT thinker) {
     }
 }
 
-static BOOL unsummon_in_range(LPEDICT worker, LPEDICT building) {
-    FLOAT footprint;
+static bool unsummon_in_range(LPEDICT worker, LPEDICT building) {
+    float footprint;
 
     if (!worker || !building) return false;
     footprint = CM_DistanceToPathingFootprint(building, &worker->s.origin2);
@@ -36,10 +36,10 @@ static BOOL unsummon_in_range(LPEDICT worker, LPEDICT building) {
         worker->collision + building->collision;
 }
 
-static BOOL unsummon_prepare_approach(LPEDICT worker, LPEDICT building) {
+static bool unsummon_prepare_approach(LPEDICT worker, LPEDICT building) {
     VECTOR2 approach;
-    FLOAT footprint;
-    FLOAT const route_band = worker ?
+    float footprint;
+    float const route_band = worker ?
         worker->collision + CM_PathCellWorldSize() * 1.41421356237f : 0.0f;
 
     if (!worker || !building) return false;
@@ -70,14 +70,14 @@ static BOOL unsummon_prepare_approach(LPEDICT worker, LPEDICT building) {
     return false;
 }
 
-static BOOL unsummon_target_valid(LPEDICT worker, LPEDICT building) {
+static bool unsummon_target_valid(LPEDICT worker, LPEDICT building) {
     return worker && building && building->inuse &&
         building->spawn_time == worker->unsummon.target_spawn_time &&
         S_SpellIsAliveTarget(building) && building->s.player == worker->s.player &&
         G_UnitIsBuilding(building->class_id);
 }
 
-static BOOL unsummon_thinker_target_valid(LPEDICT thinker, LPEDICT building) {
+static bool unsummon_thinker_target_valid(LPEDICT thinker, LPEDICT building) {
     return thinker && building && building->inuse &&
         building->spawn_time == thinker->channel.target_spawn_time &&
         S_SpellIsAliveTarget(building) && building->s.player == thinker->s.player &&
@@ -99,7 +99,7 @@ static umove_t unsummon_move_walk = { "walk", ai_unsummon_walk, NULL, CAbilityUn
 static umove_t unsummon_move_channel = { "stand channel", ai_idle, NULL, CAbilityUnsummon };
 
 /* Owned living structure only; S_SpellAllowsTarget ignores structure/player tokens. */
-static BOOL unsummon_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool unsummon_validate(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     LPEDICT building = st.entity;
     (void)spell;
     if (!caster || !building || !S_SpellIsAliveTarget(building) ||
@@ -115,11 +115,11 @@ static BOOL unsummon_validate(LPEDICT caster, spellTarget_t st, abilityitem_t co
     return true;
 }
 
-static void unsummon_credit(LPEDICT thinker, LPEDICT building, FLOAT removed_health) {
+static void unsummon_credit(LPEDICT thinker, LPEDICT building, float removed_health) {
     UnitBalance_t const *bal;
     LPGAMECLIENT client;
-    FLOAT rate, fraction;
-    LONG gold_total, lumber_total, gold, lumber;
+    float rate, fraction;
+    int32_t gold_total, lumber_total, gold, lumber;
 
     if (!thinker || !building || removed_health <= 0.0f || building->health.max_value <= 0.0f) return;
     bal = building->data.UnitBalance;
@@ -133,8 +133,8 @@ static void unsummon_credit(LPEDICT thinker, LPEDICT building, FLOAT removed_hea
     thinker->unsummon.removed_health += removed_health;
     rate = MAX(0.0f, S_SpellData(thinker->class_id, thinker->resources, 1));
     fraction = MIN(1.0f, thinker->unsummon.removed_health / building->health.max_value);
-    gold_total = (LONG)floorf(MAX(0, bal->goldCost) * rate * fraction + 0.0001f);
-    lumber_total = (LONG)floorf(MAX(0, bal->lumberCost) * rate * fraction + 0.0001f);
+    gold_total = (int32_t)floorf(MAX(0, bal->goldCost) * rate * fraction + 0.0001f);
+    lumber_total = (int32_t)floorf(MAX(0, bal->lumberCost) * rate * fraction + 0.0001f);
     gold = MAX(0, gold_total - thinker->unsummon.gold_paid);
     lumber = MAX(0, lumber_total - thinker->unsummon.lumber_paid);
     thinker->unsummon.gold_paid = gold_total;
@@ -143,11 +143,11 @@ static void unsummon_credit(LPEDICT thinker, LPEDICT building, FLOAT removed_hea
 
     client = G_GetPlayerClientByNumber(building->s.player);
     if (client && client->ps.number == building->s.player) {
-        LONG value;
-        value = (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] + gold;
-        client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (USHORT)MIN(value, USHRT_MAX);
-        value = (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] + lumber;
-        client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (USHORT)MIN(value, USHRT_MAX);
+        int32_t value;
+        value = (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] + gold;
+        client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = (uint16_t)MIN(value, USHRT_MAX);
+        value = (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] + lumber;
+        client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = (uint16_t)MIN(value, USHRT_MAX);
         G_RefreshResourceBar(G_GetPlayerEntityByNumber(building->s.player));
     }
 }
@@ -155,7 +155,7 @@ static void unsummon_credit(LPEDICT thinker, LPEDICT building, FLOAT removed_hea
 void unsummon_think(LPEDICT thinker) {
     LPEDICT caster = thinker ? thinker->owner : NULL;
     LPEDICT building = thinker ? thinker->unsummon.target : NULL;
-    FLOAT damage, removed;
+    float damage, removed;
 
     if (!thinker) return;
     if (thinker->unsummon.approaching) return;
@@ -167,7 +167,7 @@ void unsummon_think(LPEDICT thinker) {
         return;
     }
 
-    damage = MAX(0.0f, S_SpellData(thinker->class_id, thinker->resources, 2)) * ((FLOAT)FRAMETIME / 1000.0f);
+    damage = MAX(0.0f, S_SpellData(thinker->class_id, thinker->resources, 2)) * ((float)FRAMETIME / 1000.0f);
     if (damage <= 0.0f) {
         unsummon_remove_status(building);
         unsummon_end_effect(thinker);
@@ -208,8 +208,8 @@ static void unsummon_start(LPEDICT worker, LPEDICT thinker) {
 
 static void ai_unsummon_walk(LPEDICT worker) {
     LPEDICT building = worker ? worker->unsummon.target : NULL;
-    FLOAT distance, footprint, step;
-    BOOL in_range, ready, blocked;
+    float distance, footprint, step;
+    bool in_range, ready, blocked;
     LPEDICT thinker = NULL;
 
     if (!worker || !worker->unsummon.approaching || !unsummon_target_valid(worker, building)) {
@@ -252,7 +252,7 @@ static void ai_unsummon_walk(LPEDICT worker) {
 
 static void unsummon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
     LPEDICT thinker;
-    DWORD level;
+    uint32_t level;
 
     if (!unsummon_validate(caster, st, spell)) return;
     level = S_SpellLevel(caster, spell->code);
@@ -287,9 +287,9 @@ static void unsummon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t con
     }
 }
 
-static void unsummon_cancel_owned(LPEDICT caster, DWORD code) {
+static void unsummon_cancel_owned(LPEDICT caster, uint32_t code) {
     if (!caster || !code) return;
-    for (DWORD i = 1; i < globals.num_edicts; i++) {
+    for (uint32_t i = 1; i < globals.num_edicts; i++) {
         LPEDICT thinker = g_edicts + i;
         if (!thinker->inuse || thinker->think != unsummon_think || thinker->owner != caster ||
             thinker->class_id != code) continue;

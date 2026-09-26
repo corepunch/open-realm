@@ -19,8 +19,8 @@ typedef struct AllianceSlot_s {
 } AllianceSlot_t;
 
 
-static inline BOOL AllianceSlot_Bind(AllianceSlot_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool AllianceSlot_Bind(AllianceSlot_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -43,7 +43,7 @@ static inline BOOL AllianceSlot_Bind(AllianceSlot_t *out, LPFRAMEDEF bind_root) 
     return ok;
 }
 
-static inline BOOL AllianceSlot_Load(AllianceSlot_t *out) {
+static inline bool AllianceSlot_Load(AllianceSlot_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\AllianceSlot.fdf") &&
            AllianceSlot_Bind(out, UI_FindFrame("AllianceSlot"));

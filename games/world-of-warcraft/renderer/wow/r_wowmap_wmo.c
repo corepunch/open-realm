@@ -4,51 +4,51 @@
 typedef struct {
     VERTEX *vertices;
     LPTEXTURE texture;
-    DWORD count, capacity;
+    uint32_t count, capacity;
 } WOWWMOBUILD;
 
 typedef struct {
     LPTEXTURE const *materials;
-    BYTE const *mat_blend_modes;  /* blend_modes[material_id], 0-4, size=material_count */
+    uint8_t const *mat_blend_modes;  /* blend_modes[material_id], 0-4, size=material_count */
     WOWWMOBUILD *builds;
-    DWORD material_count, slot_count, build_count;
+    uint32_t material_count, slot_count, build_count;
 } WOWWMOLOAD;
 
 /* Parsed MOGP subchunk payloads: each field is a pointer into the resident group
    file image paired with its element count, filled by Wow_ParseGroupSubchunk. */
 typedef struct {
     ARRAY(wowWmoPoly_t const, mopy);
-    ARRAY(WORD const, indices);
+    ARRAY(uint16_t const, indices);
     ARRAY(wowVec3_t const, vertices);
     ARRAY(wowVec3_t const, normals);
-    ARRAY(BYTE const, colors);
+    ARRAY(uint8_t const, colors);
     ARRAY(wowVec2_t const, uvs);
     ARRAY(wowWmoBatchDef_t const, batches);
-    ARRAY(WORD const, doodad_refs);
+    ARRAY(uint16_t const, doodad_refs);
 } wowWmoGroupChunks_t;
 
 /* Reversed MOGP subchunk tag -> (ptr field, count field, element size) it fills. */
-static const struct { DWORD tag; size_t ptr_off, count_off, elem_size; } kGroupSubchunks[] = {
+static const struct { uint32_t tag; size_t ptr_off, count_off, elem_size; } kGroupSubchunks[] = {
     { ID_YPOM, offsetof(wowWmoGroupChunks_t, mopy),     offsetof(wowWmoGroupChunks_t, mopy_count),     sizeof(wowWmoPoly_t) },
-    { ID_IVOM, offsetof(wowWmoGroupChunks_t, indices),   offsetof(wowWmoGroupChunks_t, indices_count),  sizeof(WORD) },
+    { ID_IVOM, offsetof(wowWmoGroupChunks_t, indices),   offsetof(wowWmoGroupChunks_t, indices_count),  sizeof(uint16_t) },
     { ID_TVOM, offsetof(wowWmoGroupChunks_t, vertices),  offsetof(wowWmoGroupChunks_t, vertices_count), sizeof(wowVec3_t) },
     { ID_RNOM, offsetof(wowWmoGroupChunks_t, normals),   offsetof(wowWmoGroupChunks_t, normals_count),  sizeof(wowVec3_t) },
     { ID_VTOM, offsetof(wowWmoGroupChunks_t, uvs),       offsetof(wowWmoGroupChunks_t, uvs_count),      sizeof(wowVec2_t) },
     { ID_ABOM, offsetof(wowWmoGroupChunks_t, batches),   offsetof(wowWmoGroupChunks_t, batches_count),  sizeof(wowWmoBatchDef_t) },
     { ID_VCOM, offsetof(wowWmoGroupChunks_t, colors),    offsetof(wowWmoGroupChunks_t, colors_count),   sizeof(COLOR32) },
-    { ID_RDOM, offsetof(wowWmoGroupChunks_t, doodad_refs), offsetof(wowWmoGroupChunks_t, doodad_refs_count), sizeof(WORD) },
+    { ID_RDOM, offsetof(wowWmoGroupChunks_t, doodad_refs), offsetof(wowWmoGroupChunks_t, doodad_refs_count), sizeof(uint16_t) },
 };
 
 /* Fill a { pointer, count } pair at the given struct offsets from a raw subchunk.
    Used by both the group-subchunk and root-chunk schema tables. */
-static void Wow_FillRef(void *base, BYTE const *chunk, DWORD chunk_size,
+static void Wow_FillRef(void *base, uint8_t const *chunk, uint32_t chunk_size,
                         size_t ptr_off, size_t count_off, size_t elem_size) {
-    *(BYTE const **)((BYTE *)base + ptr_off) = chunk;
-    *(DWORD *)((BYTE *)base + count_off) = (DWORD)(chunk_size / elem_size);
+    *(uint8_t const **)((uint8_t *)base + ptr_off) = chunk;
+    *(uint32_t *)((uint8_t *)base + count_off) = (uint32_t)(chunk_size / elem_size);
 }
 
-static void Wow_ParseGroupSubchunk(wowWmoGroupChunks_t *chunks, BYTE const *subtag, BYTE const *subchunk, DWORD sub_size) {
-    DWORD tag = *(DWORD const *)subtag;
+static void Wow_ParseGroupSubchunk(wowWmoGroupChunks_t *chunks, uint8_t const *subtag, uint8_t const *subchunk, uint32_t sub_size) {
+    uint32_t tag = *(uint32_t const *)subtag;
     FOR_LOOP(i, sizeof(kGroupSubchunks) / sizeof(*kGroupSubchunks))
         if (tag == kGroupSubchunks[i].tag) {
             Wow_FillRef(chunks, subchunk, sub_size, kGroupSubchunks[i].ptr_off, kGroupSubchunks[i].count_off, kGroupSubchunks[i].elem_size);
@@ -57,25 +57,25 @@ static void Wow_ParseGroupSubchunk(wowWmoGroupChunks_t *chunks, BYTE const *subt
 }
 
 /* Per-triangle MOPY material id for the batch-less MOVI path (index_pos is a MOVI index). */
-static DWORD Wow_WmoTriMaterialId(DWORD index_pos, wowWmoGroupChunks_t const *chunks) {
-    DWORD poly_index = index_pos / 3;
+static uint32_t Wow_WmoTriMaterialId(uint32_t index_pos, wowWmoGroupChunks_t const *chunks) {
+    uint32_t poly_index = index_pos / 3;
     return (chunks->mopy && poly_index < ARRAY_COUNT(chunks->mopy)) ? chunks->mopy[poly_index].material_id : 0;
 }
 
 /* Parsed root-WMO chunk payloads: MOTX/MOMT are pointers into the resident file. */
 typedef struct {
-    LPCSTR texture_blob;        DWORD texture_blob_size;
-    BYTE const *materials_blob; DWORD material_count;
+    cstring_t texture_blob;        uint32_t texture_blob_size;
+    uint8_t const *materials_blob; uint32_t material_count;
 } wowWmoRootChunks_t;
 
 /* Reversed root chunk tag -> (ptr field, count field, element size); elem_size 1 = raw bytes. */
-static const struct { DWORD tag; size_t ptr_off, count_off, elem_size; } kRootRefs[] = {
+static const struct { uint32_t tag; size_t ptr_off, count_off, elem_size; } kRootRefs[] = {
     { ID_XTOM, offsetof(wowWmoRootChunks_t, texture_blob),   offsetof(wowWmoRootChunks_t, texture_blob_size), 1 },
     { ID_TMOM, offsetof(wowWmoRootChunks_t, materials_blob), offsetof(wowWmoRootChunks_t, material_count),    64 },
 };
 
 /* Reversed root chunk tag -> (count field, array field, element size) memcpy'd into a fresh model array. */
-static const struct { DWORD tag; size_t count_off, ptr_off, elem_size; } kRootArrays[] = {
+static const struct { uint32_t tag; size_t count_off, ptr_off, elem_size; } kRootArrays[] = {
     { ID_SDOM, offsetof(wowWmoModel_t, num_doodad_sets),     offsetof(wowWmoModel_t, doodad_sets),     sizeof(wowWmoDoodadSet_t) },
     { ID_DDOM, offsetof(wowWmoModel_t, num_doodad_defs),     offsetof(wowWmoModel_t, doodad_defs),     sizeof(wowWmoDoodadDef_t) },
     { ID_TLOM, offsetof(wowWmoModel_t, num_lights_parsed),   offsetof(wowWmoModel_t, lights),          sizeof(wowWmoLight_t) },
@@ -84,17 +84,17 @@ static const struct { DWORD tag; size_t count_off, ptr_off, elem_size; } kRootAr
     { ID_RPOM, offsetof(wowWmoModel_t, num_portal_refs),     offsetof(wowWmoModel_t, portal_refs),     sizeof(wowWmoPortalRef_t) },
 };
 
-static void Wow_AllocWmoArray(wowWmoModel_t *model, BYTE const *chunk, DWORD chunk_size,
+static void Wow_AllocWmoArray(wowWmoModel_t *model, uint8_t const *chunk, uint32_t chunk_size,
                               size_t count_off, size_t ptr_off, size_t elem_size) {
-    DWORD *count = (DWORD *)((BYTE *)model + count_off);
-    void **ptr = (void **)((BYTE *)model + ptr_off);
-    *count = (DWORD)(chunk_size / elem_size);
+    uint32_t *count = (uint32_t *)((uint8_t *)model + count_off);
+    void **ptr = (void **)((uint8_t *)model + ptr_off);
+    *count = (uint32_t)(chunk_size / elem_size);
     *ptr = ri.MemAlloc(*count * elem_size);
     if (*ptr) memcpy(*ptr, chunk, *count * elem_size);
 }
 
 /* Root chunks with bespoke logic (scalar headers / owned blobs) map to these. */
-static void Wow_LoadMohd(wowWmoModel_t *model, BYTE const *chunk, DWORD chunk_size) {
+static void Wow_LoadMohd(wowWmoModel_t *model, uint8_t const *chunk, uint32_t chunk_size) {
     if (chunk_size < 8) return;
     model->num_groups = Wow_Read32(chunk + 4);
     if (chunk_size >= 0x10) model->n_lights = Wow_Read32(chunk + 0x0C);
@@ -123,7 +123,7 @@ static void Wow_LoadMohd(wowWmoModel_t *model, BYTE const *chunk, DWORD chunk_si
     if (chunk_size >= 0x3E) model->mohd_flags = Wow_Read16(chunk + 0x3C);
 }
 
-static void Wow_LoadModn(wowWmoModel_t *model, BYTE const *chunk, DWORD chunk_size) {
+static void Wow_LoadModn(wowWmoModel_t *model, uint8_t const *chunk, uint32_t chunk_size) {
     if (!chunk_size) return;
     /* MODN: null-terminated doodad model filename blob */
     model->doodad_name_blob = ri.MemAlloc(chunk_size + 1);
@@ -134,14 +134,14 @@ static void Wow_LoadModn(wowWmoModel_t *model, BYTE const *chunk, DWORD chunk_si
     }
 }
 
-static const struct { DWORD tag; void (*load)(wowWmoModel_t *, BYTE const *, DWORD); } kRootLoaders[] = {
+static const struct { uint32_t tag; void (*load)(wowWmoModel_t *, uint8_t const *, uint32_t); } kRootLoaders[] = {
     { ID_DHOM, Wow_LoadMohd },
     { ID_NDOM, Wow_LoadModn },
 };
 
 /* Dispatch a root chunk: bespoke loaders first, then the pointer+count and array tables. */
 static void Wow_ParseRootChunk(wowWmoModel_t *model, wowWmoRootChunks_t *chunks,
-                               DWORD tag, BYTE const *chunk, DWORD chunk_size) {
+                               uint32_t tag, uint8_t const *chunk, uint32_t chunk_size) {
     FOR_LOOP(i, sizeof(kRootLoaders) / sizeof(*kRootLoaders))
         if (tag == kRootLoaders[i].tag) { kRootLoaders[i].load(model, chunk, chunk_size); return; }
     FOR_LOOP(i, sizeof(kRootRefs) / sizeof(*kRootRefs))
@@ -150,18 +150,18 @@ static void Wow_ParseRootChunk(wowWmoModel_t *model, wowWmoRootChunks_t *chunks,
         if (tag == kRootArrays[i].tag) { Wow_AllocWmoArray(model, chunk, chunk_size, kRootArrays[i].count_off, kRootArrays[i].ptr_off, kRootArrays[i].elem_size); return; }
 }
 
-static DWORD Wow_WmoMaterialSlot(DWORD material_id, LPTEXTURE const *materials,
-                                   BYTE const *blend_modes, DWORD count) {
+static uint32_t Wow_WmoMaterialSlot(uint32_t material_id, LPTEXTURE const *materials,
+                                   uint8_t const *blend_modes, uint32_t count) {
     LPTEXTURE texture = material_id < count ? materials[material_id] : tr.texture[TEX_WHITE];
-    BYTE blend = (blend_modes && material_id < count) ? blend_modes[material_id] : 0;
+    uint8_t blend = (blend_modes && material_id < count) ? blend_modes[material_id] : 0;
     FOR_LOOP(i, count)
         if (materials[i] == texture && (!blend_modes || blend_modes[i] == blend)) return i;
     return count;
 }
 
-static BOOL Wow_WmoBuildAppend(WOWWMOBUILD *build, VERTEX vertex) {
+static bool Wow_WmoBuildAppend(WOWWMOBUILD *build, VERTEX vertex) {
     if (build->count == build->capacity) {
-        DWORD capacity = build->capacity ? build->capacity * 2 : 256;
+        uint32_t capacity = build->capacity ? build->capacity * 2 : 256;
         VERTEX *vertices = ri.MemAlloc(capacity * sizeof(*vertices));
         if (!vertices) return false;
         if (build->vertices) {
@@ -174,7 +174,7 @@ static BOOL Wow_WmoBuildAppend(WOWWMOBUILD *build, VERTEX vertex) {
     return true;
 }
 
-static void Wow_WmoBuildFree(WOWWMOBUILD *builds, DWORD count) {
+static void Wow_WmoBuildFree(WOWWMOBUILD *builds, uint32_t count) {
     if (!builds) return;
     FOR_LOOP(i, count)
         if (builds[i].vertices) ri.MemFree(builds[i].vertices);
@@ -192,7 +192,7 @@ void Wow_InstanceMatrix(wowMapObjDef_t const *def, LPMATRIX4 matrix) {
     Wow_PlacementMatrix(&place, matrix);
 }
 
-void Wow_GroupPath(LPCSTR root_path, DWORD group_index, LPSTR out, DWORD out_size) {
+void Wow_GroupPath(cstring_t root_path, uint32_t group_index, string_t out, uint32_t out_size) {
     size_t len = strlen(root_path);
     if (len > 4 && Wow_PathHasExtension(root_path, ".wmo")) {
         snprintf(out, out_size, "%.*s_%03u.wmo", (int)(len - 4), root_path, (unsigned)group_index);
@@ -201,7 +201,7 @@ void Wow_GroupPath(LPCSTR root_path, DWORD group_index, LPSTR out, DWORD out_siz
     }
 }
 
-LPCSTR Wow_StringAt(LPCSTR blob, DWORD blob_size, DWORD offset) {
+cstring_t Wow_StringAt(cstring_t blob, uint32_t blob_size, uint32_t offset) {
     if (!blob || offset >= blob_size) {
         return NULL;
     }
@@ -213,31 +213,31 @@ LPCSTR Wow_StringAt(LPCSTR blob, DWORD blob_size, DWORD offset) {
 
 /* MOCV fixup: pre-subtract ambient and bake interior/exterior flag into alpha.
    Algorithm from WebWowViewerCpp (deamon87) and Noggit3 (wowdev). */
-void Wow_FixMocvAlpha(BYTE *colors, DWORD color_count,
-                              wowWmoBatchDef_t const *batches, DWORD batch_count,
-                              DWORD trans_batch_count,
-                              COLOR32 amb, DWORD mohd_flags,
-                              BOOL exterior) {
-    BOOL skip_base = (mohd_flags & 0x04) != 0;
-    BOOL lighten   = (mohd_flags & 0x02) != 0;
+void Wow_FixMocvAlpha(uint8_t *colors, uint32_t color_count,
+                              wowWmoBatchDef_t const *batches, uint32_t batch_count,
+                              uint32_t trans_batch_count,
+                              COLOR32 amb, uint32_t mohd_flags,
+                              bool exterior) {
+    bool skip_base = (mohd_flags & 0x04) != 0;
+    bool lighten   = (mohd_flags & 0x02) != 0;
     /* MOCV is BGRA; keep ambient in that same B,G,R channel order for the loop. */
-    BYTE amb_c[3] = { skip_base ? 0 : amb.b, skip_base ? 0 : amb.g, skip_base ? 0 : amb.r };
+    uint8_t amb_c[3] = { skip_base ? 0 : amb.b, skip_base ? 0 : amb.g, skip_base ? 0 : amb.r };
     int begin_second = 0;
-    DWORD i;
+    uint32_t i;
 
     if (trans_batch_count > 0 && batch_count > 0) {
-        DWORD last_a = trans_batch_count - 1 < batch_count ? trans_batch_count - 1 : batch_count - 1;
+        uint32_t last_a = trans_batch_count - 1 < batch_count ? trans_batch_count - 1 : batch_count - 1;
         begin_second = (int)batches[last_a].last_vertex + 1;
     }
 
     if (lighten) {
-        for (i = (DWORD)begin_second; i < color_count; i++)
+        for (i = (uint32_t)begin_second; i < color_count; i++)
             colors[i * 4 + 3] = exterior ? 0xFF : 0x00;
         return;
     }
 
     /* Batch-A (transparent) vertices: pre-multiply rgb by (1 - alpha), subtract ambient */
-    for (i = 0; i < (DWORD)begin_second && i < color_count; i++) {
+    for (i = 0; i < (uint32_t)begin_second && i < color_count; i++) {
         float a = colors[i * 4 + 3] / 255.f;
         FOR_LOOP(c, 3) colors[i * 4 + c] = BZ_CLAMP_U8((colors[i * 4 + c] - amb_c[c]) * (1.f - a) / 2.f);
         /* alpha left as authored for batch-A */
@@ -245,7 +245,7 @@ void Wow_FixMocvAlpha(BYTE *colors, DWORD color_count,
 
     /* Batch-B/C vertices: additive ambient fixup + bake interior/exterior into alpha.
        Shader multiplies by 2 to cancel the /2 here. */
-    for (i = (DWORD)begin_second; i < color_count; i++) {
+    for (i = (uint32_t)begin_second; i < color_count; i++) {
         float a = colors[i * 4 + 3] / 255.f;
         FOR_LOOP(c, 3) {
             int v = colors[i * 4 + c];
@@ -255,21 +255,21 @@ void Wow_FixMocvAlpha(BYTE *colors, DWORD color_count,
     }
 }
 
-static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD *load) {
+static bool Wow_LoadWmoGroup(wowWmoModel_t *model, uint32_t group_index, WOWWMOLOAD *load) {
     PATHSTR group_path;
-    LPBYTE data = NULL;
+    uint8_t * data = NULL;
     int size;
-    DWORD offset = 0;
+    uint32_t offset = 0;
     wowWmoGroupChunks_t chunks = { 0 };
-    BYTE *colors_copy = NULL;
-    DWORD *material_ids = NULL;
-    WORD trans_batch_count = 0;
+    uint8_t *colors_copy = NULL;
+    uint32_t *material_ids = NULL;
+    uint16_t trans_batch_count = 0;
     BOX3 group_bounds = Wow_EmptyBounds();
-    BOOL group_has_bounds = false;
-    BOOL indoor = false;
+    bool group_has_bounds = false;
+    bool indoor = false;
     WOWWMOBUILD *builds = NULL;
-    DWORD build_count = load->build_count;
-    BOOL ok = false;
+    uint32_t build_count = load->build_count;
+    bool ok = false;
 
     Wow_GroupPath(model->path, group_index, group_path, sizeof(group_path));
     size = ri.FS_ReadFile(group_path, (void **)&data);
@@ -278,17 +278,17 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
         return false;
     }
 
-    while (offset + 8 <= (DWORD)size) {
-        BYTE const *tag = data + offset;
-        DWORD chunk_size = Wow_Read32(data + offset + 4);
-        BYTE const *chunk = data + offset + 8;
+    while (offset + 8 <= (uint32_t)size) {
+        uint8_t const *tag = data + offset;
+        uint32_t chunk_size = Wow_Read32(data + offset + 4);
+        uint8_t const *chunk = data + offset + 8;
         offset += 8;
-        if (offset + chunk_size > (DWORD)size) {
+        if (offset + chunk_size > (uint32_t)size) {
             break;
         }
 
-        if (*(DWORD const *)tag == ID_PGOM) {
-            DWORD sub = 0x44;
+        if (*(uint32_t const *)tag == ID_PGOM) {
+            uint32_t sub = 0x44;
             if (chunk_size < sub) {
                 break;
             }
@@ -306,9 +306,9 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
                 model->groups[group_index].has_group_amb = true;
             }
             while (sub + 8 <= chunk_size) {
-                BYTE const *subtag = chunk + sub;
-                DWORD sub_size = Wow_Read32(chunk + sub + 4);
-                BYTE const *subchunk = chunk + sub + 8;
+                uint8_t const *subtag = chunk + sub;
+                uint32_t sub_size = Wow_Read32(chunk + sub + 4);
+                uint8_t const *subchunk = chunk + sub + 8;
                 sub += 8;
                 if (sub + sub_size > chunk_size) {
                     break;
@@ -360,9 +360,9 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
     FOR_LOOP(i, build_count) builds[i].texture = i % load->slot_count < load->material_count ? load->materials[i % load->slot_count] : tr.texture[TEX_WHITE];
 
     FOR_LOOP(i, ARRAY_COUNT(chunks.indices)) {
-        WORD vertex_index = chunks.indices[i];
-        DWORD material_id;
-        DWORD slot;
+        uint16_t vertex_index = chunks.indices[i];
+        uint32_t material_id;
+        uint32_t slot;
         WOWWMOBUILD *build;
         wowVec3_t p;
         wowVec2_t uv = { 0.0f, 0.0f };
@@ -394,8 +394,8 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
     FOR_LOOP(i, build_count) {
         WOWWMOBUILD *build = &builds[i];
         if (build->count) {
-            DWORD slot_index = (DWORD)i % load->slot_count;
-            BYTE blend_mode = (load->mat_blend_modes && slot_index < load->material_count)
+            uint32_t slot_index = (uint32_t)i % load->slot_count;
+            uint8_t blend_mode = (load->mat_blend_modes && slot_index < load->material_count)
                               ? load->mat_blend_modes[slot_index] : 0;
             wowWmoBatch_t *out_batch = ri.MemAlloc(sizeof(*out_batch));
             memset(out_batch, 0, sizeof(*out_batch));
@@ -419,7 +419,7 @@ static BOOL Wow_LoadWmoGroup(wowWmoModel_t *model, DWORD group_index, WOWWMOLOAD
         if (!group->doodad_refs) { fprintf(stderr, "WoW WMO: failed to retain MODR for %s\n", group_path); goto cleanup; }
         memcpy(group->doodad_refs, chunks.doodad_refs, ARRAY_COUNT(chunks.doodad_refs) * sizeof(*group->doodad_refs));
         ARRAY_COUNT(group->doodad_refs) = ARRAY_COUNT(chunks.doodad_refs);
-        FOR_EACH_ARRAY(WORD, ref, group->doodad_refs)
+        FOR_EACH_ARRAY(uint16_t, ref, group->doodad_refs)
             if (*ref < model->num_doodad_defs) model->doodad_referenced[*ref] = 1;
     }
     ok = true;
@@ -432,15 +432,15 @@ cleanup:
     return ok;
 }
 
-BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
-    LPBYTE data = NULL;
+bool Wow_LoadWmoModel(wowWmoModel_t *model) {
+    uint8_t * data = NULL;
     int size;
-    DWORD offset = 0;
+    uint32_t offset = 0;
     wowWmoRootChunks_t chunks = { 0 };
     LPTEXTURE *materials = NULL;
-    BYTE *mat_blend_modes = NULL;
+    uint8_t *mat_blend_modes = NULL;
     WOWWMOLOAD load = { 0 };
-    BOOL ok = false;
+    bool ok = false;
 
     size = ri.FS_ReadFile(model->path, (void **)&data);
     if (size <= 0 || !data) {
@@ -448,13 +448,13 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
         return false;
     }
 
-    while (offset + 8 <= (DWORD)size) {
-        BYTE const *tag = data + offset;
-        DWORD chunk_size = Wow_Read32(data + offset + 4);
-        BYTE const *chunk = data + offset + 8;
+    while (offset + 8 <= (uint32_t)size) {
+        uint8_t const *tag = data + offset;
+        uint32_t chunk_size = Wow_Read32(data + offset + 4);
+        uint8_t const *chunk = data + offset + 8;
         offset += 8;
-        if (offset + chunk_size > (DWORD)size) break;
-        Wow_ParseRootChunk(model, &chunks, *(DWORD const *)tag, chunk, chunk_size);
+        if (offset + chunk_size > (uint32_t)size) break;
+        Wow_ParseRootChunk(model, &chunks, *(uint32_t const *)tag, chunk, chunk_size);
         offset += chunk_size;
     }
 
@@ -469,11 +469,11 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
         memset(materials, 0, sizeof(*materials) * chunks.material_count);
         memset(mat_blend_modes, 0, chunks.material_count);
         FOR_LOOP(i, chunks.material_count) {
-            DWORD texture_offset = Wow_Read32(chunks.materials_blob + i * 64 + 0x0c);
-            WORD blend = Wow_Read16(chunks.materials_blob + i * 64 + 0x02);
-            LPCSTR texture_path = Wow_StringAt(chunks.texture_blob, chunks.texture_blob_size, texture_offset);
+            uint32_t texture_offset = Wow_Read32(chunks.materials_blob + i * 64 + 0x0c);
+            uint16_t blend = Wow_Read16(chunks.materials_blob + i * 64 + 0x02);
+            cstring_t texture_path = Wow_StringAt(chunks.texture_blob, chunks.texture_blob_size, texture_offset);
             materials[i] = texture_path ? Wow_LoadTexture(texture_path, true) : tr.texture[TEX_WHITE];
-            mat_blend_modes[i] = (BYTE)(blend > 4 ? 0 : blend);
+            mat_blend_modes[i] = (uint8_t)(blend > 4 ? 0 : blend);
         }
     }
 
@@ -501,8 +501,8 @@ BOOL Wow_LoadWmoModel(wowWmoModel_t *model) {
     FOR_LOOP(i, load.build_count) {
         WOWWMOBUILD *build = &load.builds[i];
         if (build->count) {
-            DWORD slot_index = (DWORD)i % load.slot_count;
-            BYTE blend_mode = (load.mat_blend_modes && slot_index < load.material_count)
+            uint32_t slot_index = (uint32_t)i % load.slot_count;
+            uint8_t blend_mode = (load.mat_blend_modes && slot_index < load.material_count)
                               ? load.mat_blend_modes[slot_index] : 0;
             wowWmoBatch_t *batch = ri.MemAlloc(sizeof(*batch));
             memset(batch, 0, sizeof(*batch));
@@ -526,7 +526,7 @@ cleanup:
     return ok;
 }
 
-wowWmoModel_t *Wow_GetWmoModel(LPCSTR path) {
+wowWmoModel_t *Wow_GetWmoModel(cstring_t path) {
     wowWmoModel_t *model;
 
     if (!path || !*path) {
@@ -551,7 +551,7 @@ wowWmoModel_t *Wow_GetWmoModel(LPCSTR path) {
     return model;
 }
 
-void Wow_AddWmoInstance(LPCSTR path, wowMapObjDef_t const *def) {
+void Wow_AddWmoInstance(cstring_t path, wowMapObjDef_t const *def) {
     wowWmoModel_t *model;
     wowWmoInstance_t *instance;
 
@@ -563,8 +563,8 @@ void Wow_AddWmoInstance(LPCSTR path, wowMapObjDef_t const *def) {
         FOR_LOOP(i, wow_world.num_placed_wmo_ids)
             if (wow_world.placed_wmo_ids[i] == def->unique_id) return;
         if (wow_world.num_placed_wmo_ids == wow_world.cap_placed_wmo_ids) {
-            DWORD cap = wow_world.cap_placed_wmo_ids ? wow_world.cap_placed_wmo_ids * 2 : 64;
-            DWORD *arr = ri.MemAlloc(cap * sizeof(*arr));
+            uint32_t cap = wow_world.cap_placed_wmo_ids ? wow_world.cap_placed_wmo_ids * 2 : 64;
+            uint32_t *arr = ri.MemAlloc(cap * sizeof(*arr));
             if (arr) {
                 if (wow_world.placed_wmo_ids)
                     memcpy(arr, wow_world.placed_wmo_ids, wow_world.num_placed_wmo_ids * sizeof(*arr));
@@ -603,7 +603,7 @@ void Wow_AddWmoInstance(LPCSTR path, wowMapObjDef_t const *def) {
    The result is clamped to [0,1] per channel to prevent over-brightening. */
 void Wow_ComputeMoltContribution(wowWmoModel_t const *model, LPCMATRIX4 matrix,
                                   VECTOR3 ref_pos, VECTOR3 *out) {
-    DWORD i;
+    uint32_t i;
     out->x = out->y = out->z = 0.0f;
     if (!model->lights || !model->num_lights_parsed) return;
     for (i = 0; i < model->num_lights_parsed; i++) {
@@ -643,19 +643,19 @@ void Wow_WmoDoodadLocalMatrix(wowWmoDoodadDef_t const *def, LPMATRIX4 m) {
 }
 
 /* Append one MODD after its authoritative MODR group has passed visibility. */
-static void Wow_QueueWmoDoodad(wowWmoInstance_t const *wmo, DWORD idx) {
+static void Wow_QueueWmoDoodad(wowWmoInstance_t const *wmo, uint32_t idx) {
     wowWmoModel_t *model = wmo->model;
     wowWmoDoodadDef_t const *def = &model->doodad_defs[idx];
     wowDoodadModel_t *group;
     MATRIX4 local, world;
-    BYTE inst_flags = (BYTE)(def->name_flags >> 24);
+    uint8_t inst_flags = (uint8_t)(def->name_flags >> 24);
     if ((inst_flags & 0x04) && def->color.a < model->num_lights_parsed) return;
     group = model->def_groups[idx];
     if (!group) return;
     Wow_WmoDoodadLocalMatrix(def, &local);
     Matrix4_multiply(&wmo->matrix, &local, &world);
     if (group->wmo_count == group->wmo_capacity) {
-        DWORD capacity = group->wmo_capacity ? group->wmo_capacity * 2 : 16;
+        uint32_t capacity = group->wmo_capacity ? group->wmo_capacity * 2 : 16;
         MATRIX4 *matrices = ri.MemAlloc(capacity * sizeof(*matrices));
         if (!matrices) return;
         if (group->wmo_matrices) {
@@ -683,8 +683,8 @@ void Wow_QueueWmoDoodads(wowWmoInstance_t const *wmo) {
         if (!model->def_groups) return;
         FOR_LOOP(di, model->num_doodad_defs) {
             wowWmoDoodadDef_t const *d = &model->doodad_defs[di];
-            DWORD name_off = d->name_flags & 0x00FFFFFF;
-            LPCSTR path = Wow_StringAt(model->doodad_name_blob, model->doodad_name_blob_size, name_off);
+            uint32_t name_off = d->name_flags & 0x00FFFFFF;
+            cstring_t path = Wow_StringAt(model->doodad_name_blob, model->doodad_name_blob_size, name_off);
             LPMODEL m; wowDoodadModel_t *g;
             if (!path || !*path) { model->def_groups[di] = NULL; continue; }
             m = Wow_LoadDoodadModel(path);
@@ -700,15 +700,15 @@ void Wow_QueueWmoDoodads(wowWmoInstance_t const *wmo) {
     FOR_LOOP(gi, model->num_groups) {
         wowWmoGroup_t const *group = &model->groups[gi];
         if (!wmo->visible_groups[gi]) continue;
-        FOR_EACH_ARRAY(WORD, ref, group->doodad_refs) {
-            DWORD idx = *ref;
+        FOR_EACH_ARRAY(uint16_t, ref, group->doodad_refs) {
+            uint32_t idx = *ref;
             if (idx < ds->start || idx >= ds->start + ds->count || idx >= model->num_doodad_defs || wmo->doodad_seen[idx]) continue;
             wmo->doodad_seen[idx] = 1; Wow_QueueWmoDoodad(wmo, idx);
         }
     }
     /* Some root WMOs genuinely omit MODR ownership; keep those scoped to their visible parent instead of the whole map. */
     FOR_LOOP(i, ds->count) {
-        DWORD idx = ds->start + i;
+        uint32_t idx = ds->start + i;
         if (idx < model->num_doodad_defs && !model->doodad_referenced[idx]) Wow_QueueWmoDoodad(wmo, idx);
     }
 }

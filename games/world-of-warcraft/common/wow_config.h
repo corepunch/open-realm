@@ -7,11 +7,11 @@
 #define WOW_CS_MAPINFO (CS_MINIMAP + 1) // configstring slot; carries WoW loading title and preview using info-key encoding
 
 /* Read one value from the Quake-style key/value configstring used by WoW player and map setup. */
-static LPCSTR Wow_InfoValueForKey(LPCSTR str, LPCSTR key, LPCSTR fallback) {
+static cstring_t Wow_InfoValueForKey(cstring_t str, cstring_t key, cstring_t fallback) {
     static char value[2][MAX_PATHLEN];
     static int value_index;
     char pkey[64], *out;
-    LPCSTR s = str;
+    cstring_t s = str;
 
     if (!s || !key || !*key) return fallback;
     value_index ^= 1;

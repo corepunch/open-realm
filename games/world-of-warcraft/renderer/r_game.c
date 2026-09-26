@@ -6,47 +6,47 @@
 #include "wow/r_wowmap.h"
 #include "m2/r_m2_format.h"
 
-void Wow_RegisterMap(LPCSTR mapFileName);
+void Wow_RegisterMap(cstring_t mapFileName);
 void Wow_DrawWorld(void);
 void Wow_DrawTerrainShadows(void);
 void Wow_DrawAlphaSurfaces(void);
-void Wow_DrawMinimap(LPCRECT screen);
-FLOAT Wow_GetHeightAtPoint(FLOAT x, FLOAT y);
-bool R_TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 output);
+void Wow_DrawMinimap(rect_t const * screen);
+float Wow_GetHeightAtPoint(float x, float y);
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 output);
 float GetAccurateHeightAtPoint(float sx, float sy);
 
 static LPTEXTURE s_quest_active_icon;
 
-m2Model_t *R_LoadModelM2(LPCSTR modelFilename, void *buffer, DWORD size, BOOL *buffer_owned);
+m2Model_t *R_LoadModelM2(cstring_t modelFilename, void *buffer, uint32_t size, bool *buffer_owned);
 void M2_Init(void);
 void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, LPCMATRIX4 transform);
-void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, DWORD flags);
-BOOL M2_CanStaticInstance(m2Model_t const *model);
-BOOL M2_AttachmentMatrix(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
-BOOL M2_EntityAttachmentPosition(m2Model_t const *model, renderEntity_t const *entity, DWORD attachment_id,
+void M2_RenderInstanced(m2Model_t const *model, LPCINSTANCEBUFFER instances, uint32_t flags);
+bool M2_CanStaticInstance(m2Model_t const *model);
+bool M2_AttachmentMatrix(m2Model_t const *model, uint32_t attachment_id, LPCMATRIX4 model_matrix, LPMATRIX4 out);
+bool M2_EntityAttachmentPosition(m2Model_t const *model, renderEntity_t const *entity, uint32_t attachment_id,
                                  LPCMATRIX4 model_matrix, LPVECTOR3 out);
-BOOL M2_PosedAttachmentPosition(m2Model_t const *model, DWORD attachment_id, LPCMATRIX4 model_matrix, LPVECTOR3 out);
-FLOAT M2_GroundOffset(m2Model_t const *model);
-FLOAT M2_HeadHeight(m2Model_t const *model);
-FLOAT M2_VisibleBottom(m2Model_t const *model);
-BOOL M2_CameraView(m2Model_t const *model, DWORD camera_index, LPVECTOR3 eye, LPVECTOR3 target, LPFLOAT fov_degrees, LPFLOAT znear, LPFLOAT zfar);
-BOOL M2_IsCharacterModel(m2Model_t const *model);
-BOOL M2_SetEntitySequenceFrame(m2Model_t const *model, LPCSTR anim, renderEntity_t *entity);
+bool M2_PosedAttachmentPosition(m2Model_t const *model, uint32_t attachment_id, LPCMATRIX4 model_matrix, LPVECTOR3 out);
+float M2_GroundOffset(m2Model_t const *model);
+float M2_HeadHeight(m2Model_t const *model);
+float M2_VisibleBottom(m2Model_t const *model);
+bool M2_CameraView(m2Model_t const *model, uint32_t camera_index, LPVECTOR3 eye, LPVECTOR3 target, float * fov_degrees, float * znear, float * zfar);
+bool M2_IsCharacterModel(m2Model_t const *model);
+bool M2_SetEntitySequenceFrame(m2Model_t const *model, cstring_t anim, renderEntity_t *entity);
 void M2_Release(m2Model_t *model);
 void M2_Shutdown(void);
 
 typedef struct {
     LPCMODEL model;
     VECTOR3 origin, rotation, point;
-    DWORD time, frame, oldframe, flags;
-    FLOAT angle, scale;
-    BOOL valid, found;
+    uint32_t time, frame, oldframe, flags;
+    float angle, scale;
+    bool valid, found;
 } wowOverheadCache_t;
 
 static wowOverheadCache_t s_overhead[MAX_GAME_ENTITIES];
 
 /* Entity transforms can change without server time advancing, so every pose input participates in the cache key. */
-static BOOL R_WowOverheadCacheMatch(wowOverheadCache_t const *cache, renderEntity_t const *entity) {
+static bool R_WowOverheadCacheMatch(wowOverheadCache_t const *cache, renderEntity_t const *entity) {
     return cache->valid && cache->model == entity->model && cache->time == tr.viewDef.time &&
            cache->frame == entity->frame && cache->oldframe == entity->oldframe && cache->flags == entity->flags &&
            cache->angle == entity->angle && cache->scale == entity->scale &&
@@ -57,7 +57,7 @@ static BOOL R_WowOverheadCacheMatch(wowOverheadCache_t const *cache, renderEntit
 /* Preserve the model-authored attachment result before another M2 draw overwrites the shared bone palette. */
 static void R_WowCacheOverhead(renderEntity_t const *entity, LPCMATRIX4 transform) {
     wowOverheadCache_t *cache;
-    DWORD attachment;
+    uint32_t attachment;
     if (entity->number >= MAX_GAME_ENTITIES) return;
     cache = &s_overhead[entity->number];
     attachment = (entity->flags & RF_MOUNTED) ? M2_ATTACH_PLAYER_NAME_MOUNTED : M2_ATTACH_PLAYER_NAME;
@@ -68,7 +68,7 @@ static void R_WowCacheOverhead(renderEntity_t const *entity, LPCMATRIX4 transfor
     cache->valid = true;
 }
 
-static BOOL R_WowPathHasExtension(LPCSTR path, LPCSTR extension) {
+static bool R_WowPathHasExtension(cstring_t path, cstring_t extension) {
     size_t pathLen;
     size_t extLen;
 
@@ -105,13 +105,13 @@ void R_SetupTextureMatrix(void) {
     Matrix4_identity(&tr.viewDef.textureMatrix);
 }
 
-void R_DrawMinimap(LPCRECT screen, LPCSTR map) {
+void R_DrawMinimap(rect_t const * screen, cstring_t map) {
     if (map) { fprintf(stderr, "R_DrawMinimap: static preview unsupported for %s\n", map); return; }
     Wow_DrawMinimap(screen);
 }
 
 
-void R_RegisterMap(LPCSTR mapFileName) {
+void R_RegisterMap(cstring_t mapFileName) {
     Wow_RegisterMap(mapFileName);
 }
 
@@ -148,18 +148,18 @@ void R_DrawAlphaSurfaces(void) {
     Wow_DrawAlphaSurfaces();
 }
 
-FLOAT R_GetHeightAtPoint(FLOAT x, FLOAT y) {
+float R_GetHeightAtPoint(float x, float y) {
     return Wow_GetHeightAtPoint(x, y);
 }
 
-FLOAT R_GetCameraHeightAtPoint(FLOAT x, FLOAT y) { return R_GetHeightAtPoint(x, y); }
-BOOL R_CameraUsesTerrainHeight(void) { return false; }
+float R_GetCameraHeightAtPoint(float x, float y) { return R_GetHeightAtPoint(x, y); }
+bool R_CameraUsesTerrainHeight(void) { return false; }
 
 VECTOR2 R_WorldSize(void) {
     return (VECTOR2){ 0 };
 }
 
-LPMODEL R_LoadModel(LPCSTR modelFilename) {
+LPMODEL R_LoadModel(cstring_t modelFilename) {
     void *buffer = NULL;
     PATHSTR load_name;
     int fileSize = ri.FS_ReadFile(modelFilename, &buffer);
@@ -171,7 +171,7 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
      * read failed and the path isn't already .m2, strip the extension and retry. */
     if ((fileSize < 0 || !buffer) && !R_WowPathHasExtension(modelFilename, ".m2")) {
         PATHSTR tempFileName = { 0 };
-        LPCSTR dot = strrchr(modelFilename, '.');
+        cstring_t dot = strrchr(modelFilename, '.');
         size_t stemLen = dot ? (size_t)(dot - modelFilename) : strlen(modelFilename);
 
         if (stemLen > sizeof(tempFileName) - 4) {
@@ -191,14 +191,14 @@ LPMODEL R_LoadModel(LPCSTR modelFilename) {
         model->modeltype = ID_MD20;
         return model;
     }
-    if (*(DWORD *)buffer != ID_MD20 && *(DWORD *)buffer != ID_MD21 && *(DWORD *)buffer != ID_12DM) {
-        fprintf(stderr, "Unknown model format %.4s in file %s\n", (LPSTR)buffer, modelFilename);
+    if (*(uint32_t *)buffer != ID_MD20 && *(uint32_t *)buffer != ID_MD21 && *(uint32_t *)buffer != ID_12DM) {
+        fprintf(stderr, "Unknown model format %.4s in file %s\n", (string_t)buffer, modelFilename);
         ri.FS_FreeFile(buffer);
         return NULL;
     }
 
     model = ri.MemAlloc(sizeof(model_t));
-    BOOL buffer_owned = false;
+    bool buffer_owned = false;
     model->m2 = R_LoadModelM2(load_name, buffer, fileSize, &buffer_owned);
     model->modeltype = ID_MD20;
     if (!model->m2) {
@@ -231,14 +231,14 @@ bool R_GetEntityBounds(renderEntity_t const *entity, LPBOX3 bounds) {
 }
 
 /* Build a stable top/front light for WoW UI model-camera previews. */
-static void R_WowEntityCameraLightMatrix(LPCVECTOR3 target, FLOAT radius, LPMATRIX4 output) {
+static void R_WowEntityCameraLightMatrix(LPCVECTOR3 target, float radius, LPMATRIX4 output) {
     MATRIX4 proj;
     MATRIX4 view;
     VECTOR3 light_dir = { -0.35f, -0.50f, 0.80f };
     VECTOR3 view_dir;
     VECTOR3 eye;
-    FLOAT distance = MAX(1000.0f, radius * 8.0f);
-    FLOAT scale = MAX(64.0f, radius * 2.5f);
+    float distance = MAX(1000.0f, radius * 8.0f);
+    float scale = MAX(64.0f, radius * 2.5f);
 
     Vector3_normalize(&light_dir);
     view_dir = Vector3_unm(&light_dir);
@@ -254,7 +254,7 @@ void R_RenderModel(renderEntity_t const *entity) {
     MATRIX4 transform;
     MATRIX4 attached_transform;
     renderEntity_t attached_entity;
-    DWORD attachment_id;
+    uint32_t attachment_id;
 
     if (!entity || !entity->model || entity->model->modeltype != ID_MD20) {
         return;
@@ -306,7 +306,7 @@ void R_RenderModel(renderEntity_t const *entity) {
     }
 }
 
-void R_RenderModelInstanced(LPCMODEL model, LPCINSTANCEBUFFER instances, DWORD flags) {
+void R_RenderModelInstanced(LPCMODEL model, LPCINSTANCEBUFFER instances, uint32_t flags) {
     if (!model || model->modeltype != ID_MD20) {
         return;
     }
@@ -317,16 +317,16 @@ bool R_ModelCanStaticInstance(LPCMODEL model) {
     return model && model->modeltype == ID_MD20 && M2_CanStaticInstance(model->m2);
 }
 
-bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance) {
+bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, float * distance) {
     VECTOR3 ab;
     VECTOR3 ac;
     VECTOR3 center;
-    FLOAT radius;
-    FLOAT denom;
-    FLOAT t;
+    float radius;
+    float denom;
+    float t;
     VECTOR3 closest;
     VECTOR3 delta;
-    FLOAT dist2;
+    float dist2;
 
     if (!entity || !entity->number || !entity->model) {
         return false;
@@ -363,7 +363,7 @@ bool R_TraceModel(renderEntity_t const *entity, LPCLINE3 line, LPFLOAT distance)
 #ifndef USE_SHADOWMAPS
 bool R_RenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
     LPCTEXTURE shadow;
-    BOOL use_fast_blob;
+    bool use_fast_blob;
     float shadow_z;
     VECTOR2 mins;
     VECTOR2 maxs;
@@ -422,17 +422,17 @@ bool R_RenderShadow(renderEntity_t const *entity, LPCVECTOR2 origin) {
 }
 #endif
 
-FLOAT R_SelectionRadius(renderEntity_t const *entity) {
+float R_SelectionRadius(renderEntity_t const *entity) {
     /* Fractional WoW collision radii need a minimum visual footprint around the model. */
     return MAX(entity->radius * MAX(entity->scale, 1.0f), 1.0f);
 }
 
 /* The PlayerName attachment (mounted variant when riding) is the model-authored name-plate point. */
-BOOL R_EntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
+bool R_EntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
     static LPCMODEL last_missing;
     wowOverheadCache_t *cache;
     MATRIX4 transform;
-    DWORD attachment;
+    uint32_t attachment;
     if (!entity || !out) return false;
     *out = entity->origin;
     if (!entity->model || entity->model->modeltype != ID_MD20) {
@@ -455,13 +455,13 @@ BOOL R_EntityOverheadPosition(renderEntity_t const *entity, LPVECTOR3 out) {
     out->z += (M2_GroundOffset(entity->model->m2) + M2_HeadHeight(entity->model->m2)) * entity->scale;
     return false;
 }
-BOOL R_EntityAttachmentPosition(renderEntity_t const *entity, LPCSTR prefix, LPVECTOR3 out) {
+bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, LPVECTOR3 out) {
     (void)entity; (void)prefix; (void)out;
     return false;
 }
 
 
-FLOAT R_EntityHeight(renderEntity_t const *entity) {
+float R_EntityHeight(renderEntity_t const *entity) {
     VECTOR3 top;
     if (!entity) return 0.0f;
     R_EntityOverheadPosition(entity, &top);
@@ -513,7 +513,7 @@ bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t
     }
 
     if (!M2_CameraView(m2, 0, &eye, &target, &fov, &znear, &zfar)) {
-        distance = radius / tanf((fov * (FLOAT)M_PI / 180.0f) * 0.5f);
+        distance = radius / tanf((fov * (float)M_PI / 180.0f) * 0.5f);
         if (M2_IsCharacterModel(m2)) {
             target = (VECTOR3){ center.x, center.y, center.z + radius * 0.28f };
             eye = (VECTOR3){ target.x, target.y - distance * 0.52f, target.z + radius * 0.02f };
@@ -546,7 +546,7 @@ bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t
     return true;
 }
 
-bool R_SetEntityAnimFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+bool R_SetEntityAnimFrame(LPCMODEL model, cstring_t anim, renderEntity_t *entity) {
     if (!model || model->modeltype != ID_MD20)
         return false;
     return M2_SetEntitySequenceFrame(model->m2, anim, entity);

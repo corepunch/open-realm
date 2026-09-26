@@ -10,8 +10,8 @@
 #include "keys.h"
 
 typedef struct {
-    LPCSTR name;
-    DWORD keynum;
+    cstring_t name;
+    uint32_t keynum;
 } keyname_t;
 
 static keyname_t const key_names[] = {
@@ -37,8 +37,8 @@ static keyname_t const key_names[] = {
 
 /* Stroke order is ctrl, alt, shift — same as lite's keymap.modkeys. */
 static struct {
-    LPCSTR name;
-    DWORD bit;
+    cstring_t name;
+    uint32_t bit;
     int rank;
 } const key_mod_names[] = {
     { "CTRL", KEY_MOD_CTRL, 0 },
@@ -50,7 +50,7 @@ static struct {
 
 /* Map one bind token (F1, MOUSE1, a) to a key code. Letters fold to lowercase
  * because SDL keydown events report SDLK_a even when Shift is held. */
-static keyCode_t Key_TokenToKeynum(LPCSTR tok) {
+static keyCode_t Key_TokenToKeynum(cstring_t tok) {
     unsigned char ch;
 
     if (!tok || !*tok) return 0;
@@ -67,21 +67,21 @@ static keyCode_t Key_TokenToKeynum(LPCSTR tok) {
 
 /* Parse "CTRL+SHIFT+1" / "ALT+MOUSE1". Modifiers must appear in ctrl, alt, shift
  * order (lite keymap). The last non-modifier token is the key. */
-static BOOL Key_ParseName(LPCSTR str, keyCode_t *key, DWORD *mods) {
+static bool Key_ParseName(cstring_t str, keyCode_t *key, uint32_t *mods) {
     char buf[64];
     char *p, *next;
-    DWORD m = 0;
-    LPCSTR keytok = NULL;
+    uint32_t m = 0;
+    cstring_t keytok = NULL;
     int last_rank = -1;
 
     if (!str || !*str || !key || !mods) return false;
     snprintf(buf, sizeof(buf), "%s", str);
     for (p = buf; p; p = next) {
-        BOOL ismod = false;
+        bool ismod = false;
         next = strchr(p, '+');
         if (next) *next++ = 0;
         if (!*p) return false;
-        for (DWORD i = 0; key_mod_names[i].name; i++) {
+        for (uint32_t i = 0; key_mod_names[i].name; i++) {
             if (!strcasecmp(p, key_mod_names[i].name)) {
                 if (key_mod_names[i].rank <= last_rank) return false;
                 last_rank = key_mod_names[i].rank;
@@ -101,9 +101,9 @@ static BOOL Key_ParseName(LPCSTR str, keyCode_t *key, DWORD *mods) {
 }
 
 /* Canonical stroke: ctrl, alt, shift, then the key. */
-static void Key_FormatName(keyCode_t key, DWORD mods, LPSTR dst, DWORD dst_size) {
+static void Key_FormatName(keyCode_t key, uint32_t mods, string_t dst, uint32_t dst_size) {
     char tiny[2] = { 0 };
-    LPCSTR name = NULL;
+    cstring_t name = NULL;
 
     for (keyname_t const *kn = key_names; kn->name; kn++) {
         if (kn->keynum == key) {

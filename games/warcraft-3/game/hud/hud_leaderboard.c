@@ -9,22 +9,22 @@
 #define BZ_WC3_LEADERBOARD_COLUMN_GAP     "    " // spaces; separates measured label and value columns
 
 typedef struct {
-    DWORD parent;
-    FLOAT y;
-    FLOAT h;
-    LPCSTR text;
+    uint32_t parent;
+    float y;
+    float h;
+    cstring_t text;
     COLOR32 color;
     uiFontJustificationH_t align;
-    BOOL right_anchored;
+    bool right_anchored;
 } leaderboardTextParams_t;
 
 static char leaderboard_measure_text[(MAX_TRIGSTR_LENGTH + 48) * (MAX_LEADERBOARD_ITEMS + 1)];
 
 static void LeaderboardItemText(LPCLEADERBOARD board, struct gleaderboarditem_s const *item,
-                                LPSTR out, size_t out_size) {
-    LPPLAYER player = item->player >= 0 ? G_GetPlayerByNumber((DWORD)item->player) : NULL;
-    LPCSTR name = board->show_names && player && player->name ? player->name : "";
-    LPCSTR label = item->show_label ? item->label : "";
+                                string_t out, size_t out_size) {
+    LPPLAYER player = item->player >= 0 ? G_GetPlayerByNumber((uint32_t)item->player) : NULL;
+    cstring_t name = board->show_names && player && player->name ? player->name : "";
+    cstring_t label = item->show_label ? item->label : "";
     if (*name && *label) snprintf(out, out_size, "%s - %s", name, label);
     else snprintf(out, out_size, "%s%s", name, label);
 }
@@ -59,7 +59,7 @@ static void ResetFramePoints(LPFRAMEDEF frame) {
     frame->AnyPointsSet = false;
 }
 
-static void LeaderboardAppendMeasureLine(LPSTR out, size_t out_size, LPCSTR left, LPCSTR right) {
+static void LeaderboardAppendMeasureLine(string_t out, size_t out_size, cstring_t left, cstring_t right) {
     size_t used;
 
     if (!out || out_size == 0) return;
@@ -110,9 +110,9 @@ void UI_LoadHudLeaderboards(void) {
 void UI_WriteLeaderboard(LPEDICT ent) {
     LPLEADERBOARD board;
     LPFRAMEDEF root, backdrop, title, container;
-    FLOAT row_height, title_height, total_height, list_top, top_y;
-    BOOL has_title;
-    DWORD player, rows, visible_rows, parent, measure_font;
+    float row_height, title_height, total_height, list_top, top_y;
+    bool has_title;
+    uint32_t player, rows, visible_rows, parent, measure_font;
     uiSizeToTextParams_t size_params;
 
     if (!ent || !ent->client) return;
@@ -145,8 +145,8 @@ void UI_WriteLeaderboard(LPEDICT ent) {
                 player, (void *)board, board->item_count, board->label, board->displayed_clients);
 #endif
 
-    rows = board->size_by_item_count >= 0 ? (DWORD)board->size_by_item_count : board->item_count;
-    rows = MAX(1u, MIN(rows, (DWORD)MAX_LEADERBOARD_ITEMS));
+    rows = board->size_by_item_count >= 0 ? (uint32_t)board->size_by_item_count : board->item_count;
+    rows = MAX(1u, MIN(rows, (uint32_t)MAX_LEADERBOARD_ITEMS));
     visible_rows = board->item_count ? MAX(1u, MIN(board->item_count, rows)) : 0;
     has_title = board->show_label && board->label[0];
 
@@ -227,7 +227,7 @@ void UI_WriteLeaderboard(LPEDICT ent) {
         COLOR32 value_color = item->value_color_set ? item->value_color :
             (board->value_color_set ? board->value_color : hud.leaderboard_default_item_color);
         leaderboardTextParams_t label_params = {
-            .parent = parent, .y = (FLOAT)i * row_height, .h = row_height,
+            .parent = parent, .y = (float)i * row_height, .h = row_height,
             .text = NULL, .color = label_color,
             .align = FONT_JUSTIFYLEFT, .right_anchored = false,
         };

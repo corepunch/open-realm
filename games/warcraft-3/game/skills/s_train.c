@@ -11,11 +11,11 @@ static void RefreshTrainingQueue(LPEDICT producer) {
     if (clent) Get_Portrait_f(clent);
 }
 
-static BOOL ReserveTrainingFood(LPEDICT producer, LPEDICT unit) {
+static bool ReserveTrainingFood(LPEDICT producer, LPEDICT unit) {
     LPGAMECLIENT client;
     LPEDICT clent;
-    LONG cost;
-    BOOL was_waiting;
+    int32_t cost;
+    bool was_waiting;
 
     if (!unit || !unit->data.UnitBalance) return false;
     /* Warsmash sacrifice queues do not reserve additional food while the
@@ -71,46 +71,46 @@ static intptr_t SacrificeQueueMessage(LPEDICT producer, LPEDICT item, abilityMsg
 static void RefundTrainingCost(LPEDICT item) {
     LPPLAYER player;
     UnitBalance_t const *balance;
-    LONG gold, lumber;
+    int32_t gold, lumber;
 
     if (!item || !item->data.UnitBalance) return;
     player = G_GetPlayerByNumber(item->s.player);
     if (!player) return;
     balance = item->data.UnitBalance;
-    gold = (LONG)player->stats[PLAYERSTATE_RESOURCE_GOLD] + MAX(0, balance->goldCost);
-    lumber = (LONG)player->stats[PLAYERSTATE_RESOURCE_LUMBER] + MAX(0, balance->lumberCost);
-    player->stats[PLAYERSTATE_RESOURCE_GOLD] = (USHORT)MIN(gold, USHRT_MAX);
-    player->stats[PLAYERSTATE_RESOURCE_LUMBER] = (USHORT)MIN(lumber, USHRT_MAX);
+    gold = (int32_t)player->stats[PLAYERSTATE_RESOURCE_GOLD] + MAX(0, balance->goldCost);
+    lumber = (int32_t)player->stats[PLAYERSTATE_RESOURCE_LUMBER] + MAX(0, balance->lumberCost);
+    player->stats[PLAYERSTATE_RESOURCE_GOLD] = (uint16_t)MIN(gold, USHRT_MAX);
+    player->stats[PLAYERSTATE_RESOURCE_LUMBER] = (uint16_t)MIN(lumber, USHRT_MAX);
 }
 
 
 static void RefundResearchCost(LPEDICT item) {
     LPPLAYER player;
-    LONG gold, lumber;
+    int32_t gold, lumber;
 
     if (!item || !item->research.upgrade) return;
     player = G_GetPlayerByNumber(item->s.player);
     if (!player) return;
-    gold = (LONG)player->stats[PLAYERSTATE_RESOURCE_GOLD] + MAX(0, item->research.gold);
-    lumber = (LONG)player->stats[PLAYERSTATE_RESOURCE_LUMBER] + MAX(0, item->research.lumber);
-    player->stats[PLAYERSTATE_RESOURCE_GOLD] = (USHORT)MIN(gold, USHRT_MAX);
-    player->stats[PLAYERSTATE_RESOURCE_LUMBER] = (USHORT)MIN(lumber, USHRT_MAX);
+    gold = (int32_t)player->stats[PLAYERSTATE_RESOURCE_GOLD] + MAX(0, item->research.gold);
+    lumber = (int32_t)player->stats[PLAYERSTATE_RESOURCE_LUMBER] + MAX(0, item->research.lumber);
+    player->stats[PLAYERSTATE_RESOURCE_GOLD] = (uint16_t)MIN(gold, USHRT_MAX);
+    player->stats[PLAYERSTATE_RESOURCE_LUMBER] = (uint16_t)MIN(lumber, USHRT_MAX);
 }
 
-static void ShowResearchComplete(LPEDICT producer, DWORD upgrade_id, LONG level_value) {
+static void ShowResearchComplete(LPEDICT producer, uint32_t upgrade_id, int32_t level_value) {
     LPGAMECLIENT client;
     LPEDICT clent;
     gameCommandButton_t button;
     char text[512];
-    LPCSTR completed;
-    LPCSTR sound;
+    cstring_t completed;
+    cstring_t sound;
 
     if (!producer) return;
     client = G_GetPlayerClientByNumber(producer->s.player);
     clent = G_GetPlayerEntityByNumber(producer->s.player);
     if (!client || !clent || !client->connected || client->ps.number != producer->s.player) return;
 
-    if (G_BuildCommandButton(producer, GetClassName(upgrade_id), true, (DWORD)level_value, &button)) {
+    if (G_BuildCommandButton(producer, GetClassName(upgrade_id), true, (uint32_t)level_value, &button)) {
         completed = UI_GetString("COLON_COMPLETED");
         snprintf(text, sizeof(text), "%s%s",
                  completed && strcmp(completed, "COLON_COMPLETED") ? completed : "Completed: ",
@@ -122,7 +122,7 @@ static void ShowResearchComplete(LPEDICT producer, DWORD upgrade_id, LONG level_
     G_SendOwnerMinimapAlert(producer);
 }
 
-static BOOL CancelTrainingQueueItem(LPEDICT producer, DWORD index, BOOL refund, BOOL activate_next) {
+static bool CancelTrainingQueueItem(LPEDICT producer, uint32_t index, bool refund, bool activate_next) {
     LPEDICT prev = NULL;
     LPEDICT item;
     LPEDICT next;
@@ -130,7 +130,7 @@ static BOOL CancelTrainingQueueItem(LPEDICT producer, DWORD index, BOOL refund, 
 
     if (!producer) return false;
     item = producer->build;
-    for (DWORD i = 0; item && i < index; i++) {
+    for (uint32_t i = 0; item && i < index; i++) {
         prev = item;
         item = ProductionNext(item);
     }
@@ -150,14 +150,14 @@ static BOOL CancelTrainingQueueItem(LPEDICT producer, DWORD index, BOOL refund, 
         if (refund) RefundTrainingCost(item);
         G_ClearUnitFood(item);
     } else if (item->research.upgrade) {
-        DWORD const upgrade_id = item->research.upgrade;
+        uint32_t const upgrade_id = item->research.upgrade;
         if (refund) RefundResearchCost(item);
         G_AddPlayerTechInProgress(G_GetPlayerClientByNumber(item->s.player),
                                   upgrade_id, -1);
         /* The queue entity is freed immediately below, so carry the researched
          * rawcode as scalar event context instead of retaining its edict. */
-        G_PublishEventWithValue(producer, EVENT_PLAYER_UNIT_RESEARCH_CANCEL, NULL, (LONG)upgrade_id);
-        G_PublishEventWithValue(producer, EVENT_UNIT_RESEARCH_CANCEL, NULL, (LONG)upgrade_id);
+        G_PublishEventWithValue(producer, EVENT_PLAYER_UNIT_RESEARCH_CANCEL, NULL, (int32_t)upgrade_id);
+        G_PublishEventWithValue(producer, EVENT_UNIT_RESEARCH_CANCEL, NULL, (int32_t)upgrade_id);
     } else {
         /* Publish while the cancelled queue entity still carries its unit and
          * owner metadata; clearing it first made train-cancel triggers impossible. */
@@ -182,35 +182,35 @@ static BOOL CancelTrainingQueueItem(LPEDICT producer, DWORD index, BOOL refund, 
     return true;
 }
 
-BOOL G_CancelTrainingQueueItem(LPEDICT producer, DWORD index, BOOL refund) {
+bool G_CancelTrainingQueueItem(LPEDICT producer, uint32_t index, bool refund) {
     return CancelTrainingQueueItem(producer, index, refund, true);
 }
 
-void G_CancelTrainingQueue(LPEDICT producer, BOOL refund) {
+void G_CancelTrainingQueue(LPEDICT producer, bool refund) {
     if (!producer || !producer->build || !producer->build->training) return;
     while (producer->build && producer->build->training) {
         if (!CancelTrainingQueueItem(producer, 0, refund, false)) break;
     }
 }
 
-static BOOL HeroReviveMisc(LPCSTR key, FLOAT *out) {
-    LPCSTR value;
+static bool HeroReviveMisc(cstring_t key, float *out) {
+    cstring_t value;
     if (!key || !out) return false;
     value = Stb_IniCacheFind(&game.config.misc, "Misc", key);
     if (!value || !*value) {
         fprintf(stderr, "Hero revival: missing Misc.%s\n", key);
         return false;
     }
-    *out = (FLOAT)atof(value);
+    *out = (float)atof(value);
     return true;
 }
 
-BOOL G_UnitCanReviveHeroes(LPCEDICT altar) {
-    LPCSTR revive = altar && altar->data.UnitProfile ? altar->data.UnitProfile->revive : NULL;
+bool G_UnitCanReviveHeroes(LPCEDICT altar) {
+    cstring_t revive = altar && altar->data.UnitProfile ? altar->data.UnitProfile->revive : NULL;
     return revive && *revive && atoi(revive) != 0;
 }
 
-BOOL G_HeroCanBeRevivedAt(LPCEDICT altar, LPCEDICT hero) {
+bool G_HeroCanBeRevivedAt(LPCEDICT altar, LPCEDICT hero) {
     return altar && hero && altar->inuse && hero->inuse &&
         !(altar->svflags & SVF_DEADMONSTER) && G_UnitCanReviveHeroes(altar) &&
         altar->s.player == hero->s.player && hero->data.UnitBalance &&
@@ -218,10 +218,10 @@ BOOL G_HeroCanBeRevivedAt(LPCEDICT altar, LPCEDICT hero) {
         hero->revival.awaiting && !hero->revival.reviving;
 }
 
-static BOOL HeroReviveValues(LPCEDICT hero, DWORD *gold, DWORD *lumber, FLOAT *seconds) {
-    FLOAT goldBase, goldLevel, lumberBase, lumberLevel, maxFactor;
-    FLOAT timeFactor, maxTimeFactor, factor;
-    DWORD level;
+static bool HeroReviveValues(LPCEDICT hero, uint32_t *gold, uint32_t *lumber, float *seconds) {
+    float goldBase, goldLevel, lumberBase, lumberLevel, maxFactor;
+    float timeFactor, maxTimeFactor, factor;
+    uint32_t level;
     if (!hero || !hero->data.UnitBalance || !G_UnitIsHero(hero)) return false;
     if (!HeroReviveMisc("ReviveBaseFactor", &goldBase) ||
         !HeroReviveMisc("ReviveLevelFactor", &goldLevel) ||
@@ -232,43 +232,43 @@ static BOOL HeroReviveValues(LPCEDICT hero, DWORD *gold, DWORD *lumber, FLOAT *s
         !HeroReviveMisc("ReviveMaxTimeFactor", &maxTimeFactor)) return false;
 
     level = MAX(1, hero->hero.level);
-    factor = goldBase + goldLevel * (FLOAT)(level - 1);
+    factor = goldBase + goldLevel * (float)(level - 1);
     if (maxFactor > 0.0f) factor = MIN(factor, maxFactor);
-    if (gold) *gold = (DWORD)MAX(0.0f, (FLOAT)MAX(0, hero->data.UnitBalance->goldCost) * factor);
+    if (gold) *gold = (uint32_t)MAX(0.0f, (float)MAX(0, hero->data.UnitBalance->goldCost) * factor);
 
-    factor = lumberBase + lumberLevel * (FLOAT)(level - 1);
+    factor = lumberBase + lumberLevel * (float)(level - 1);
     if (maxFactor > 0.0f) factor = MIN(factor, maxFactor);
-    if (lumber) *lumber = (DWORD)MAX(0.0f, (FLOAT)MAX(0, hero->data.UnitBalance->lumberCost) * factor);
+    if (lumber) *lumber = (uint32_t)MAX(0.0f, (float)MAX(0, hero->data.UnitBalance->lumberCost) * factor);
 
-    factor = (FLOAT)MAX(0, hero->data.UnitBalance->buildTime) * (FLOAT)level * timeFactor;
+    factor = (float)MAX(0, hero->data.UnitBalance->buildTime) * (float)level * timeFactor;
     if (maxTimeFactor > 0.0f) {
-        FLOAT const maximum = (FLOAT)MAX(0, hero->data.UnitBalance->buildTime) * maxTimeFactor;
+        float const maximum = (float)MAX(0, hero->data.UnitBalance->buildTime) * maxTimeFactor;
         factor = MIN(factor, maximum);
     }
     if (seconds) *seconds = MAX(0.0f, factor);
     return true;
 }
 
-DWORD G_HeroReviveGoldCost(LPCEDICT hero) {
-    DWORD value = 0;
+uint32_t G_HeroReviveGoldCost(LPCEDICT hero) {
+    uint32_t value = 0;
     HeroReviveValues(hero, &value, NULL, NULL);
     return value;
 }
 
-DWORD G_HeroReviveLumberCost(LPCEDICT hero) {
-    DWORD value = 0;
+uint32_t G_HeroReviveLumberCost(LPCEDICT hero) {
+    uint32_t value = 0;
     HeroReviveValues(hero, NULL, &value, NULL);
     return value;
 }
 
-FLOAT G_HeroReviveTime(LPCEDICT hero) {
-    FLOAT value = 0.0f;
+float G_HeroReviveTime(LPCEDICT hero) {
+    float value = 0.0f;
     HeroReviveValues(hero, NULL, NULL, &value);
     return value;
 }
 
-static DWORD ProductionQueueCount(LPEDICT producer) {
-    DWORD count = 0;
+static uint32_t ProductionQueueCount(LPEDICT producer) {
+    uint32_t count = 0;
     for (LPEDICT item = producer ? producer->build : NULL; item && count < MAX_BUILD_QUEUE; item = ProductionNext(item)) {
         count++;
         if (ProductionNext(item) == item) break;
@@ -299,9 +299,9 @@ static void RefundHeroRevive(LPEDICT altar, LPEDICT hero) {
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] += MAX(0, hero->revival.lumber);
 }
 
-static BOOL ShowTrainedUnit(LPEDICT townhall, LPEDICT unit) {
+static bool ShowTrainedUnit(LPEDICT townhall, LPEDICT unit) {
     VECTOR2 origin;
-    FLOAT angle;
+    float angle;
 
     if (!SP_FindUnitExitPosition(townhall, unit, &origin, &angle)) {
         return false;
@@ -319,9 +319,9 @@ static BOOL ShowTrainedUnit(LPEDICT townhall, LPEDICT unit) {
     return true;
 }
 
-static BOOL CompleteHeroRevive(LPEDICT altar, LPEDICT hero) {
+static bool CompleteHeroRevive(LPEDICT altar, LPEDICT hero) {
     VECTOR2 origin;
-    FLOAT angle;
+    float angle;
     LPEDICT next;
 
     if (!altar || !hero || !hero->inuse || !hero->revival.reviving ||
@@ -344,11 +344,11 @@ static BOOL CompleteHeroRevive(LPEDICT altar, LPEDICT hero) {
     return true;
 }
 
-static BOOL CompleteResearch(LPEDICT producer, LPEDICT item) {
+static bool CompleteResearch(LPEDICT producer, LPEDICT item) {
     LPGAMECLIENT client;
     LPEDICT next;
-    DWORD upgrade_id;
-    LONG level_value;
+    uint32_t upgrade_id;
+    int32_t level_value;
 
     if (!producer || !item || !item->research.upgrade) return false;
     client = G_GetPlayerClientByNumber(item->s.player);
@@ -361,8 +361,8 @@ static BOOL CompleteResearch(LPEDICT producer, LPEDICT item) {
     item->build = NULL;
     G_AddPlayerTechInProgress(client, upgrade_id, -1);
     G_SetPlayerTechResearched(client, upgrade_id, level_value);
-    G_PublishEventWithValue(producer, EVENT_PLAYER_UNIT_RESEARCH_FINISH, NULL, (LONG)upgrade_id);
-    G_PublishEventWithValue(producer, EVENT_UNIT_RESEARCH_FINISH, NULL, (LONG)upgrade_id);
+    G_PublishEventWithValue(producer, EVENT_PLAYER_UNIT_RESEARCH_FINISH, NULL, (int32_t)upgrade_id);
+    G_PublishEventWithValue(producer, EVENT_UNIT_RESEARCH_FINISH, NULL, (int32_t)upgrade_id);
     ShowResearchComplete(producer, upgrade_id, level_value);
     G_FreeEdict(item);
 
@@ -383,7 +383,7 @@ void ai_train_build(LPEDICT ent) {
     }
     if (ent->build->revival.reviving) {
         LPEDICT hero = ent->build;
-        FLOAT required;
+        float required;
 
         if (!hero->inuse || !hero->revival.awaiting ||
             !(hero->svflags & SVF_DEADMONSTER)) {
@@ -392,7 +392,7 @@ void ai_train_build(LPEDICT ent) {
         }
         required = G_HeroReviveTime(hero);
         if (required <= 0.0f) return;
-        hero->revival.progress += (FLOAT)FRAMETIME / 1000.0f;
+        hero->revival.progress += (float)FRAMETIME / 1000.0f;
         if (hero->revival.progress >= required) CompleteHeroRevive(ent, hero);
         return;
     }
@@ -404,7 +404,7 @@ void ai_train_build(LPEDICT ent) {
             CompleteResearch(ent, research);
             return;
         }
-        research->research.progress += (FLOAT)FRAMETIME / 1000.0f;
+        research->research.progress += (float)FRAMETIME / 1000.0f;
         if (research->research.progress >= research->research.duration) {
             CompleteResearch(ent, research);
         }
@@ -419,8 +419,8 @@ void ai_train_build(LPEDICT ent) {
     }
     if (!ReserveTrainingFood(ent, ent->build)) return;
     {
-        FLOAT const duration = MAX(1.0f, (FLOAT)ent->build->data.UnitBalance->buildTime * 1000.0f);
-        FLOAT const k = (FLOAT)FRAMETIME / duration;
+        float const duration = MAX(1.0f, (float)ent->build->data.UnitBalance->buildTime * 1000.0f);
+        float const k = (float)FRAMETIME / duration;
         edictStat_s *hp = &ent->build->health;
         if (G_PlayerInstantBuild(ent->s.player)) hp->value = hp->max_value;
         else hp->value += hp->max_value * k;
@@ -448,7 +448,7 @@ void ai_train_build(LPEDICT ent) {
             G_ApplyRallyOrder(ent, completed);
 #ifdef WC3_DEBUG_AI
             fprintf(stderr, "WC3_DEBUG_AI training complete producer=%ld unit=%ld id=%.4s player=%u\n",
-                (long)(ent - g_edicts), (long)(completed - g_edicts), (LPCSTR)&completed->class_id, completed->s.player);
+                (long)(ent - g_edicts), (long)(completed - g_edicts), (cstring_t)&completed->class_id, completed->s.player);
 #endif
             if (!ent->build) {
                 ent->stand(ent);
@@ -482,10 +482,10 @@ void unit_add_build_queue(LPEDICT self, LPEDICT item) {
     }
 }
 
-BOOL G_QueueHeroRevive(LPEDICT altar, LPEDICT hero) {
+bool G_QueueHeroRevive(LPEDICT altar, LPEDICT hero) {
     LPGAMECLIENT client;
-    DWORD gold, lumber;
-    FLOAT seconds;
+    uint32_t gold, lumber;
+    float seconds;
 
     if (!G_HeroCanBeRevivedAt(altar, hero) || ProductionQueueCount(altar) >= MAX_BUILD_QUEUE) return false;
     client = G_GetPlayerClientByNumber(altar->s.player);
@@ -498,8 +498,8 @@ BOOL G_QueueHeroRevive(LPEDICT altar, LPEDICT hero) {
     hero->revival.producer = altar;
     hero->revival.queue_next = NULL;
     hero->revival.player = altar->s.player;
-    hero->revival.gold = (LONG)gold;
-    hero->revival.lumber = (LONG)lumber;
+    hero->revival.gold = (int32_t)gold;
+    hero->revival.lumber = (int32_t)lumber;
     hero->revival.progress = 0.0f;
     unit_add_build_queue(altar, hero);
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] -= gold;
@@ -511,7 +511,7 @@ BOOL G_QueueHeroRevive(LPEDICT altar, LPEDICT hero) {
     return true;
 }
 
-BOOL G_CancelHeroRevive(LPEDICT altar, LPEDICT hero) {
+bool G_CancelHeroRevive(LPEDICT altar, LPEDICT hero) {
     LPEDICT prev = NULL;
     LPEDICT item;
     LPEDICT next;
@@ -542,7 +542,7 @@ void G_CancelHeroRevives(LPEDICT altar) {
     LPEDICT visited[MAX_BUILD_QUEUE];
     LPEDICT item;
     LPEDICT next;
-    DWORD visited_count = 0;
+    uint32_t visited_count = 0;
 
     /* This cleanup is also called for ordinary units on death/removal. Their
      * build pointer can name a construction target, whose self-link is not a
@@ -550,7 +550,7 @@ void G_CancelHeroRevives(LPEDICT altar) {
     if (!altar || !G_UnitCanReviveHeroes(altar) || altar->construction.active || altar->build == altar) return;
     item = altar->build;
     while (item) {
-        for (DWORD i = 0; i < visited_count; i++) {
+        for (uint32_t i = 0; i < visited_count; i++) {
             if (visited[i] == item) {
                 fprintf(stderr, "WC3: cyclic Hero-revive queue at producer %ld (item %ld)\n",
                         (long)(altar - g_edicts), (long)(item - g_edicts));
@@ -569,8 +569,8 @@ void G_CancelHeroRevives(LPEDICT altar) {
     }
 }
 
-void unit_build(LPEDICT self, DWORD class_id) {
-    BOOL was_empty;
+void unit_build(LPEDICT self, uint32_t class_id) {
+    bool was_empty;
     LPEDICT ent;
 
     was_empty = self->build == NULL;
@@ -596,14 +596,14 @@ void unit_build(LPEDICT self, DWORD class_id) {
     unit_setmove(self, &train_move_train);
 }
 
-BOOL G_QueueResearch(LPEDICT producer, DWORD upgrade_id) {
+bool G_QueueResearch(LPEDICT producer, uint32_t upgrade_id) {
     LPGAMECLIENT client;
     LPEDICT clent;
     LPEDICT item;
     buildCommandState_t state;
-    LONG level_value = 0;
-    LONG gold, lumber;
-    FLOAT duration;
+    int32_t level_value = 0;
+    int32_t gold, lumber;
+    float duration;
     char reason[128];
 
     if (!producer || !upgrade_id || ProductionQueueCount(producer) >= MAX_BUILD_QUEUE) return false;
@@ -619,8 +619,8 @@ BOOL G_QueueResearch(LPEDICT producer, DWORD upgrade_id) {
     gold = G_UpgradeGoldCost(upgrade_id, level_value);
     lumber = G_UpgradeLumberCost(upgrade_id, level_value);
     duration = G_UpgradeResearchTime(upgrade_id, level_value);
-    if (gold > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] ||
-        lumber > (LONG)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) return false;
+    if (gold > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] ||
+        lumber > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) return false;
 
     item = G_Spawn();
     if (!item) return false;
@@ -645,8 +645,8 @@ BOOL G_QueueResearch(LPEDICT producer, DWORD upgrade_id) {
     /* Warcraft research callbacks identify the producer through
      * GetResearchingUnit() and the upgrade through GetResearched().  Publish
      * at command acceptance, matching the existing TRAIN_START queue contract. */
-    G_PublishEventWithValue(producer, EVENT_PLAYER_UNIT_RESEARCH_START, NULL, (LONG)upgrade_id);
-    G_PublishEventWithValue(producer, EVENT_UNIT_RESEARCH_START, NULL, (LONG)upgrade_id);
+    G_PublishEventWithValue(producer, EVENT_PLAYER_UNIT_RESEARCH_START, NULL, (int32_t)upgrade_id);
+    G_PublishEventWithValue(producer, EVENT_UNIT_RESEARCH_START, NULL, (int32_t)upgrade_id);
     unit_setmove(producer, &train_move_train);
     if (clent && client->connected) {
         G_RefreshResourceBar(clent);
@@ -656,7 +656,7 @@ BOOL G_QueueResearch(LPEDICT producer, DWORD upgrade_id) {
     return true;
 }
 
-BOOL SP_TrainUnit(LPEDICT townhall, DWORD class_id) {
+bool SP_TrainUnit(LPEDICT townhall, uint32_t class_id) {
     LPGAMECLIENT client;
     LPEDICT clent;
     LPPLAYER player;

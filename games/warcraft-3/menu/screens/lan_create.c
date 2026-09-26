@@ -19,7 +19,7 @@ static void LANCreate_Refresh(int msec) {
 static void LANCreate_Draw(void) {
 }
 
-static void LANCreate_KeyEvent(int key, BOOL down) {
+static void LANCreate_KeyEvent(int key, bool down) {
     (void)key;
     (void)down;
 }

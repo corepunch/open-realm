@@ -14,9 +14,9 @@ void UI_LoadHudLog(void) {
     UI_SetOnClick(hud.log.LogOkButton, UI_WINDOW_CLOSE_NOTIFY_ACTION);
 }
 
-void UI_MessageLogAppend(LPEDICT ent, LPCSTR text) {
+void UI_MessageLogAppend(LPEDICT ent, cstring_t text) {
     LPGAMECLIENT client;
-    DWORD index;
+    uint32_t index;
 
     if (!ent || !(client = ent->client) || !text || !*text) return;
 
@@ -30,15 +30,15 @@ void UI_MessageLogAppend(LPEDICT ent, LPCSTR text) {
     snprintf(client->message_log.entries[index], WC3_MESSAGE_LOG_ENTRY_SIZE, "%s", text);
 }
 
-static LPCSTR MessageLogText(LPGAMECLIENT client) {
+static cstring_t MessageLogText(LPGAMECLIENT client) {
     size_t used = 0;
 
     hud.log_text[0] = '\0';
     if (!client) return hud.log_text;
 
-    for (DWORD i = 0; i < client->message_log.count; i++) {
-        DWORD index = (client->message_log.first + i) % WC3_MESSAGE_LOG_MAX_ENTRIES;
-        LPCSTR separator = i ? "|n|n" : "";
+    for (uint32_t i = 0; i < client->message_log.count; i++) {
+        uint32_t index = (client->message_log.first + i) % WC3_MESSAGE_LOG_MAX_ENTRIES;
+        cstring_t separator = i ? "|n|n" : "";
         int written = snprintf(hud.log_text + used, sizeof(hud.log_text) - used,
                                "%s%s", separator, client->message_log.entries[index]);
         if (written < 0) break;

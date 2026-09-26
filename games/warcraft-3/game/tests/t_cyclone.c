@@ -14,7 +14,7 @@
 #define BZ_BSLO MAKEFOURCC('B', 's', 'l', 'o') // rawcode; Slow probe buff
 #define BZ_BPRG MAKEFOURCC('B', 'p', 'r', 'g') // rawcode; Purge slow buff
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -37,7 +37,7 @@ typedef struct {
     LPEDICT caster, ally, enemy, mech;
 } CYCFIX;
 
-static CYCFIX cyc_setup(LPCSTR slk, DWORD code) {
+static CYCFIX cyc_setup(cstring_t slk, uint32_t code) {
     CYCFIX fix;
     reset_entities(); setup_test_world(); level.time = 1000;
     ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;

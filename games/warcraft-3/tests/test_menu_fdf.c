@@ -23,57 +23,57 @@ static char captured_movie_path[MAX_PATHLEN];
 static char captured_cvar_name[64];
 static char captured_cvar_value[64];
 static char captured_printf[512];
-static DWORD captured_draw_calls;
-static DWORD captured_dim_draws;
-static DWORD captured_dim_draw_index;
-static DWORD captured_text_draws;
-static DWORD captured_stand_sprites;
-static DWORD captured_realm_panel_sprites;
-static DWORD captured_sprite_calls;
-static FLOAT captured_sprite_x[2];
+static uint32_t captured_draw_calls;
+static uint32_t captured_dim_draws;
+static uint32_t captured_dim_draw_index;
+static uint32_t captured_text_draws;
+static uint32_t captured_stand_sprites;
+static uint32_t captured_realm_panel_sprites;
+static uint32_t captured_sprite_calls;
+static float captured_sprite_x[2];
 static PATHSTR captured_sprite_anim[2];
 static size2_t test_window_size = { 1000, 750 };
 static UICANVASPOLICY test_canvas_policy = UI_CANVAS_STRETCH;
-static DWORD captured_birth_sprites;
-static DWORD captured_death_sprites;
-static DWORD captured_glue_changes;
+static uint32_t captured_birth_sprites;
+static uint32_t captured_death_sprites;
+static uint32_t captured_glue_changes;
 static uintptr_t fake_texture_id;
 static LPTEXTURE hover_texture;
-static DWORD captured_hover_draws;
-static RECT captured_text_rects[8], popup_row_rect;
-static LPCSTR popup_row_text;
+static uint32_t captured_hover_draws;
+static rect_t captured_text_rects[8], popup_row_rect;
+static cstring_t popup_row_text;
 static VECTOR2 fake_text_size;
-static HANDLE test_mpq_archive;
-static BOOL hide_expansion_campaign_file;
-static BOOL test_fs_expansion;
+static handle_t test_mpq_archive;
+static bool hide_expansion_campaign_file;
+static bool test_fs_expansion;
 static int test_vid_native = -1;
-static LPCSTR test_campaign_visibility;
+static cstring_t test_campaign_visibility;
 static PATHSTR test_campaign_progress_path = "campaign-progress-menu-test.orcp";
 static VECTOR2 test_mouse_pos;
-static LPCSTR test_map = "";
-static DWORD map_reads, texture_releases;
+static cstring_t test_map = "";
+static uint32_t map_reads, texture_releases;
 static char forwarded_command[1024];
 
-static void test_play_music(LPCSTR playlist) { (void)playlist; }
+static void test_play_music(cstring_t playlist) { (void)playlist; }
 static void test_stop_music(void) {}
 
 /* Host boundaries only: tests link the real command buffer, tokenizer, registration, and cvars. */
 void Key_Init(void) {}
 void Key_WriteBindings(FILE *file) { (void)file; }
-void Cmd_ForwardToServer(LPCSTR text) { snprintf(forwarded_command, sizeof(forwarded_command), "%s", text); }
+void Cmd_ForwardToServer(cstring_t text) { snprintf(forwarded_command, sizeof(forwarded_command), "%s", text); }
 void CL_SetGameplayBindings(void) {}
-void CL_Connect(LPCSTR host, unsigned short port) { (void)host; (void)port; }
-void CL_BeginLoadingMap(LPCSTR map) { (void)map; Cbuf_AddText("menu_ingame\n"); }
+void CL_Connect(cstring_t host, unsigned short port) { (void)host; (void)port; }
+void CL_BeginLoadingMap(cstring_t map) { (void)map; Cbuf_AddText("menu_ingame\n"); }
 void CL_Shutdown(void) {}
-void SV_Map(LPCSTR path) { (void)path; }
-BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD size) { (void)name; (void)map; (void)size; return false; }
-BOOL SV_LoadGame(LPCSTR name, LPCSTR map) { (void)name; (void)map; return false; }
+void SV_Map(cstring_t path) { (void)path; }
+bool SV_GetSaveMap(cstring_t name, string_t map, uint32_t size) { (void)name; (void)map; (void)size; return false; }
+bool SV_LoadGame(cstring_t name, cstring_t map) { (void)name; (void)map; return false; }
 void SV_Shutdown(void) {}
 void Sys_Quit(void) {}
-void PF_Sleep(DWORD msec) { (void)msec; }
+void PF_Sleep(uint32_t msec) { (void)msec; }
 
 static void test_command_imports(void) {
-    static BOOL ready;
+    static bool ready;
     if (!ready) { Cbuf_Init(); Cvar_Init(); ready = true; }
     mi.Cmd_AddCommand = Cmd_AddCommand;
     mi.Cmd_Argc = Cmd_Argc;
@@ -83,7 +83,7 @@ static void test_command_imports(void) {
     mi.StopMusic = test_stop_music;
 }
 
-static int fake_image_index(LPCSTR name) {
+static int fake_image_index(cstring_t name) {
     captured_model_path = name;
     return (name && *name) ? 456 : 0;
 }
@@ -104,11 +104,11 @@ static int require_not_null(const void *ptr) {
 }
 
 TEST(menu_fdf, minimap_content_rect_preserves_rectangular_map_aspect) {
-    RECT frame = { 10.0f, 20.0f, 100.0f, 100.0f };
+    rect_t frame = { 10.0f, 20.0f, 100.0f, 100.0f };
     VECTOR2 wide = { 200.0f, 100.0f };
     VECTOR2 tall = { 100.0f, 200.0f };
     VECTOR2 invalid = { 0.0f, 100.0f };
-    RECT content;
+    rect_t content;
 
     content = WC3_MinimapContentRect(&frame, &wide);
     T_FEQ(content.x, 10.0f, 0.001f);
@@ -129,10 +129,10 @@ TEST(menu_fdf, minimap_content_rect_preserves_rectangular_map_aspect) {
     T_FEQ(content.h, frame.h, 0.001f);
 }
 
-static int test_fs_read_file(LPCSTR file_name, void **buf) {
-    HANDLE file;
-    DWORD size;
-    DWORD read;
+static int test_fs_read_file(cstring_t file_name, void **buf) {
+    handle_t file;
+    uint32_t size;
+    uint32_t read;
     void *data;
 
     if (!buf) {
@@ -173,7 +173,7 @@ static int test_fs_read_file(LPCSTR file_name, void **buf) {
     return (int)size;
 }
 
-static int test_missing_fs_read(LPCSTR file_name, void **buf) {
+static int test_missing_fs_read(cstring_t file_name, void **buf) {
     (void)file_name;
     if (buf) *buf = NULL;
     return -1;
@@ -183,16 +183,16 @@ static void test_fs_free_file(void *buf) {
     free(buf);
 }
 
-static int test_image_index(LPCSTR name) {
+static int test_image_index(cstring_t name) {
     return (name && *name) ? 123 : 0;
 }
 
 /* Commented out — currently unused by any test stub. */
-/* static int test_model_index(LPCSTR name) {
+/* static int test_model_index(cstring_t name) {
     return (name && *name) ? 456 : 0;
 } */
 
-static LPTEXTURE test_load_texture(LPCSTR name) {
+static LPTEXTURE test_load_texture(cstring_t name) {
     LPTEXTURE texture = (LPTEXTURE)(uintptr_t)(++fake_texture_id);
 
     captured_image_path = name;
@@ -202,12 +202,12 @@ static LPTEXTURE test_load_texture(LPCSTR name) {
     return texture;
 }
 
-static LPMODEL test_load_model(LPCSTR name) {
+static LPMODEL test_load_model(cstring_t name) {
     captured_model_path = name;
     return (LPMODEL)1;
 }
 
-static LPFONT test_load_font(LPCSTR name, DWORD size) {
+static LPFONT test_load_font(cstring_t name, uint32_t size) {
     (void)name;
     (void)size;
     return (LPFONT)1;
@@ -248,8 +248,8 @@ static void test_draw_image_ex(LPCDRAWIMAGE draw_image) {
 }
 
 static void test_draw_sprite(drawSprite_t const *sprite) {
-    LPCSTR anim = sprite->anim;
-    FLOAT x = sprite->x;
+    cstring_t anim = sprite->anim;
+    float x = sprite->x;
     if (captured_sprite_calls < 2) {
         captured_sprite_x[captured_sprite_calls] = x;
         snprintf(captured_sprite_anim[captured_sprite_calls], sizeof(captured_sprite_anim[0]), "%s", anim ? anim : "");
@@ -277,11 +277,11 @@ static size2_t test_get_window_size(void) {
 }
 
 /* Stands in for the client canvas push: the renderer scene the glue anchors to follows window and policy. */
-static RECT test_get_scene_rect(void) { return UI_ResolveCanvas(test_window_size, test_canvas_policy).scene; }
+static rect_t test_get_scene_rect(void) { return UI_ResolveCanvas(test_window_size, test_canvas_policy).scene; }
 
 static void test_release_texture(LPTEXTURE texture) { (void)texture; texture_releases++; }
 static void test_release_model(LPMODEL model) { (void)model; }
-static bool test_entity_anim(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+static bool test_entity_anim(LPCMODEL model, cstring_t anim, renderEntity_t *entity) {
     (void)model; (void)anim; (void)entity;
     return true;
 }
@@ -306,22 +306,22 @@ static LPRENDERER test_get_renderer(void) {
     return &renderer;
 }
 
-static int test_font_index(LPCSTR name, DWORD size) {
+static int test_font_index(cstring_t name, uint32_t size) {
     (void)name;
     (void)size;
     return 1;
 }
 
-static HANDLE test_ui_mem_alloc(long size) {
+static handle_t test_ui_mem_alloc(long size) {
     void *ptr = calloc(1u, (size_t)size);
     return ptr;
 }
 
-static void test_ui_mem_free(HANDLE ptr) {
+static void test_ui_mem_free(handle_t ptr) {
     free(ptr);
 }
 
-static void test_ui_printf(LPCSTR fmt, ...) {
+static void test_ui_printf(cstring_t fmt, ...) {
     va_list argptr;
 
     va_start(argptr, fmt);
@@ -329,17 +329,17 @@ static void test_ui_printf(LPCSTR fmt, ...) {
     va_end(argptr);
 }
 
-static void test_cmd_execute_text(LPCSTR text) {
+static void test_cmd_execute_text(cstring_t text) {
     if (text && !strcmp(text, "\n")) return;
     snprintf(captured_command, sizeof(captured_command), "%s", text ? text : "");
 }
 
-static BOOL test_play_movie(LPCSTR path) {
+static bool test_play_movie(cstring_t path) {
     snprintf(captured_movie_path, sizeof(captured_movie_path), "%s", path ? path : "");
     return true;
 }
 
-static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
+static cstring_t test_cvar_string(cstring_t name, cstring_t fallback) {
     if (!strcmp(name, "map")) return test_map;
     if (name && !strcmp(name, "fs_expansion")) {
         return test_fs_expansion ? "1" : "0";
@@ -356,19 +356,19 @@ static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
     return fallback;
 }
 
-static void test_cvar_set(LPCSTR name, LPCSTR value) {
+static void test_cvar_set(cstring_t name, cstring_t value) {
     snprintf(captured_cvar_name, sizeof(captured_cvar_name), "%s", name ? name : "");
     snprintf(captured_cvar_value, sizeof(captured_cvar_value), "%s", value ? value : "");
     if (name && !strcmp(name, "fs_expansion")) test_fs_expansion = value && atoi(value) != 0;
 }
 
-static void test_user_path(LPCSTR rel, LPSTR out, DWORD out_size) {
+static void test_user_path(cstring_t rel, string_t out, uint32_t out_size) {
     (void)rel;
     if (!out || !out_size) return;
     snprintf(out, out_size, "%s", test_campaign_progress_path);
 }
 
-static void load_ui_files(LPCSTR const *file_names, size_t count) {
+static void load_ui_files(cstring_t const *file_names, size_t count) {
     menuImport_t saved = mi;
 
     UI_ClearTemplates();
@@ -839,7 +839,7 @@ TEST(menu_fdf, background_art_uses_model_index) {
 
 TEST(menu_fdf, collect_frame_tree_preorder_matches_writer_traversal) {
     LPCFRAMEDEF out[8];
-    DWORD count;
+    uint32_t count;
     LPFRAMEDEF root;
     LPFRAMEDEF child_a;
     LPFRAMEDEF child_b;
@@ -875,7 +875,7 @@ TEST(menu_fdf, collect_frame_tree_preorder_matches_writer_traversal) {
 
 TEST(menu_fdf, collect_frame_tree_skips_hidden_children) {
     LPCFRAMEDEF out[4];
-    DWORD count;
+    uint32_t count;
     LPFRAMEDEF root;
     LPFRAMEDEF visible;
     LPFRAMEDEF hidden;
@@ -906,7 +906,7 @@ TEST(menu_fdf, collect_frame_tree_skips_hidden_children) {
 
 TEST(menu_fdf, collect_frame_tree_skips_button_control_art) {
     LPCFRAMEDEF out[4];
-    DWORD count;
+    uint32_t count;
     LPFRAMEDEF button;
     LPFRAMEDEF text;
 
@@ -939,7 +939,7 @@ TEST(menu_fdf, collect_frame_tree_skips_button_control_art) {
 
 TEST(menu_fdf, collect_frame_tree_skips_editbox_text_frame) {
     LPCFRAMEDEF out[4];
-    DWORD count;
+    uint32_t count;
     LPFRAMEDEF editbox;
 
     reset_ui_state();
@@ -961,7 +961,7 @@ TEST(menu_fdf, collect_frame_tree_skips_editbox_text_frame) {
 
 TEST(menu_fdf, collect_frame_tree_returns_total_when_truncated) {
     LPCFRAMEDEF out[2];
-    DWORD count;
+    uint32_t count;
     LPFRAMEDEF root;
 
     reset_ui_state();
@@ -1595,8 +1595,8 @@ TEST(menu_fdf, popup_menu_hover_sets_flag_on_middle_row) {
     /* The popup is at (0.1, 0.1) with size (0.18, 0.025) in FDF coords.
      * Window is 1000x750, scene is (0,0,0.8,0.6).
      * pixel = fdf * (1000/0.8, 750/0.6). */
-    FLOAT mid_x = 0.1f + 0.18f * 0.5f;  /* 0.19 */
-    FLOAT mid_y = 0.1f + 0.025f * 0.5f; /* 0.1125 */
+    float mid_x = 0.1f + 0.18f * 0.5f;  /* 0.19 */
+    float mid_y = 0.1f + 0.025f * 0.5f; /* 0.1125 */
     int px = (int)(mid_x / 0.8f * 1000.0f);
     int py = (int)(mid_y / 0.6f * 750.0f);
 
@@ -1724,7 +1724,7 @@ TEST(menu_fdf, options_video_mode_command_selects_fixed_or_native_mode) {
 }
 
 TEST(menu_fdf, options_resolution_popup_appends_and_selects_native_mode) {
-    LPCSTR files[] = {
+    cstring_t files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
         "UI\\FrameDef\\Glue\\OptionsMenu.fdf",
@@ -1773,7 +1773,7 @@ TEST(menu_fdf, options_resolution_popup_appends_and_selects_native_mode) {
 }
 
 TEST(menu_fdf, options_music_controls_update_archived_music_cvars) {
-    LPCSTR files[] = {
+    cstring_t files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
         "UI\\FrameDef\\Glue\\OptionsMenu.fdf",
@@ -1824,7 +1824,7 @@ TEST(menu_fdf, options_music_controls_update_archived_music_cvars) {
 }
 
 TEST(menu_fdf, options_game_port_enter_applies_and_blurs) {
-    LPCSTR files[] = {
+    cstring_t files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
         "UI\\FrameDef\\Glue\\OptionsMenu.fdf",
@@ -1880,7 +1880,7 @@ TEST(menu_fdf, options_game_port_enter_applies_and_blurs) {
 }
 
 TEST(menu_fdf, esc_menu_confirm_quit_panel_is_available) {
-    LPCSTR files[] = {
+    cstring_t files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\UI\\EscMenuMainPanel.fdf",
     };
@@ -1907,7 +1907,7 @@ TEST(menu_fdf, esc_menu_confirm_quit_panel_is_available) {
 }
 
 TEST(menu_fdf, dialog_war3_supports_configurable_button_modes) {
-    LPCSTR files[] = {
+    cstring_t files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
         "UI\\FrameDef\\Glue\\DialogWar3.fdf",
@@ -1954,7 +1954,7 @@ TEST(menu_fdf, dialog_war3_supports_configurable_button_modes) {
     T_ASSERT(!UI_DialogWar3Visible(&dialog));
 }
 
-static LPCSTR const authored_dialog_files[] = {
+static cstring_t const authored_dialog_files[] = {
     "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
     /* DialogWar3.fdf must be pre-loaded: UI_DialogWar3EnsureTemplate("BattleNetDialogTemplate")
      * calls UI_EnsureFDF for it; without a prior load the deferred UI_EnsureFDF call hits a null
@@ -2059,7 +2059,7 @@ TEST(menu_fdf, dialog_preserves_script_text_and_authors_button) {
 }
 
 TEST(menu_fdf, main_menu_quit_dialog_commands_quit) {
-    LPCSTR files[] = {
+    cstring_t files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\UI\\EscMenuTemplates.fdf",
         "UI\\FrameDef\\UI\\EscMenuMainPanel.fdf",
@@ -2187,7 +2187,7 @@ TEST(menu_fdf, main_menu_quit_dialog_commands_quit) {
 }
 
 TEST(menu_fdf, main_menu_realm_select_uses_realm_panel_anim) {
-    LPCSTR files[] = {
+    cstring_t files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\UI\\EscMenuTemplates.fdf",
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
@@ -2230,10 +2230,10 @@ TEST(menu_fdf, main_menu_realm_select_uses_realm_panel_anim) {
 
 TEST(menu_fdf, glue_sprite_layers_follow_widescreen_edges) {
     menuImport_t saved = mi;
-    RECT centered;
+    rect_t centered;
 
     reset_ui_state();
-    load_ui_files((LPCSTR[]){
+    load_ui_files((cstring_t[]){
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
         "UI\\FrameDef\\Glue\\MainMenu.fdf",
@@ -2396,7 +2396,7 @@ static void test_glue_setup(void) {
     UI_ResetGlueSceneModels();
 }
 
-static void test_glue_tick(DWORD msec) {
+static void test_glue_tick(uint32_t msec) {
     captured_sprite_calls = 0;
     M_Refresh(M_Time() + msec);
 }
@@ -2486,7 +2486,7 @@ TEST(menu_fdf, console_screen_commands_and_campaign_shortcuts) {
     menuImport_t saved = mi;
     test_glue_setup();
     mi.Cvar_Set = test_cvar_set;
-    const struct { LPCSTR cmd; uiScreen_t *screen; } cases[] = {
+    const struct { cstring_t cmd; uiScreen_t *screen; } cases[] = {
         { "menu_main", &mainMenuScreen },
         { "menu_quit", &mainMenuScreen },
         { "menu_disconnected", &mainMenuScreen },
@@ -2522,7 +2522,7 @@ TEST(menu_fdf, console_screen_commands_and_campaign_shortcuts) {
     test_glue_tick(1000);
     Cmd_ExecuteString("menu_single_player_campaign");
     test_glue_tick(667);
-    const struct { LPCSTR cmd, title; } races[] = {
+    const struct { cstring_t cmd, title; } races[] = {
         { "menu_single_player_campaign_human", "The Scourge of Lordaeron" },
         { "menu_single_player_campaign_undead", "Path of the Damned" },
         { "menu_single_player_campaign_orc", "The Invasion of Kalimdor" },
@@ -2657,12 +2657,12 @@ TEST(menu_fdf, glue_motion_translates_draw_rects_without_changing_anchors) {
     captured_text_draws = 0;
     UI_DrawFrame(root);
     T_EQ(captured_text_draws, 3);
-    FLOAT offset = UI_GlueSideOffset(UI_GLUE_LEFT);
+    float offset = UI_GlueSideOffset(UI_GLUE_LEFT);
     T_ASSERT(offset < -0.07f);
     T_FEQ(captured_text_rects[0].y, 0.4f, 0.00001f);
     T_FEQ(captured_text_rects[1].y, 0.4f + offset, 0.00001f);
     T_FEQ(captured_text_rects[2].y, 0.43f + offset, 0.00001f);
-    RECT scene = {0, 0, .8f, .6f};
+    rect_t scene = {0, 0, .8f, .6f};
     captured_text_draws = 0;
     UI_DrawFrameInScene(root, &scene);
     T_FEQ(captured_text_rects[1].y, 0.4f, 0.00001f);
@@ -2809,21 +2809,21 @@ TEST(menu_fdf, glue_retarget_and_close_deliver_only_latest_completion) {
 }
 
 /* The fixture contains only the original MDLX SEQS chunk, not rendering data. */
-static void test_glue_sequence_exists(LPCSTR anim) {
+static void test_glue_sequence_exists(cstring_t anim) {
     void *data = NULL;
     int size = test_fs_read_file("UI\\Glues\\SpriteLayers\\TopLeftPanel.mdx", &data);
     char name[80];
-    BOOL found = false;
+    bool found = false;
     snprintf(name, sizeof(name), "%s", anim);
     char *ratio = strchr(name, '@');
     if (ratio) *ratio = 0;
     T_ASSERT(size >= 12);
     if (size >= 12) {
-        const DWORD *head = data;
+        const uint32_t *head = data;
         T_EQ(head[0], MAKEFOURCC('M', 'D', 'L', 'X'));
         T_EQ(head[1], MAKEFOURCC('S', 'E', 'Q', 'S'));
         T_EQ(head[2], size - 12);
-        const mdxSequence_t *seqs = (const mdxSequence_t *)((const BYTE *)data + 12);
+        const mdxSequence_t *seqs = (const mdxSequence_t *)((const uint8_t *)data + 12);
         FOR_LOOP(i, head[2] / sizeof(*seqs))
             if (!strcmp(name, seqs[i].name)) found = true;
     }
@@ -2861,7 +2861,7 @@ TEST(menu_fdf, glue_all_tab_sequences_exist_in_authored_model) {
 }
 
 TEST(menu_fdf, main_menu_edition_button_defers_restart_after_death_frame) {
-    LPCSTR files[] = {
+    cstring_t files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\UI\\EscMenuTemplates.fdf",
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
@@ -2923,7 +2923,7 @@ TEST(menu_fdf, main_menu_edition_button_defers_restart_after_death_frame) {
 }
 
 TEST(menu_fdf, main_menu_edition_button_rolls_back_when_tft_data_is_missing) {
-    LPCSTR files[] = {
+    cstring_t files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\UI\\EscMenuTemplates.fdf",
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
@@ -2974,8 +2974,8 @@ TEST(menu_fdf, main_menu_edition_button_rolls_back_when_tft_data_is_missing) {
     mi = saved;
 }
 
-static void test_single_player_campaign_profile(BOOL tft) {
-    LPCSTR files[] = {
+static void test_single_player_campaign_profile(bool tft) {
+    cstring_t files[] = {
         "UI\\FrameDef\\GlobalStrings.fdf",
         "UI\\FrameDef\\Glue\\StandardTemplates.fdf",
         "UI\\FrameDef\\Glue\\SinglePlayerMenu.fdf",
@@ -3161,7 +3161,7 @@ static void test_single_player_campaign_profile(BOOL tft) {
 
     {
         wc3CampaignProgress_t progress;
-        DWORD const edition = tft ? WC3_CAMPAIGN_EDITION_TFT : WC3_CAMPAIGN_EDITION_ROC;
+        uint32_t const edition = tft ? WC3_CAMPAIGN_EDITION_TFT : WC3_CAMPAIGN_EDITION_ROC;
         wc3CampaignProgressKey_t const undead = MAKE(wc3CampaignProgressKey_t,
                                                       .edition = edition,
                                                       .campaign = 2);
@@ -3243,7 +3243,7 @@ TEST(menu_fdf, single_player_screen_loads_tft_campaigns) {
 }
 
 static const char *utf16le_src_ascii;
-static int utf16le_fs_read(LPCSTR file_name, void **buf) {
+static int utf16le_fs_read(cstring_t file_name, void **buf) {
     const char *src = utf16le_src_ascii;
     size_t len = strlen(src);
     /* Encode as UTF-16 LE: BOM (FF FE) then each ASCII char as two bytes. */
@@ -3317,13 +3317,13 @@ TEST(menu_fdf, unused_template_texture_stays_unloaded) {
     T_NULL(UI_GetTexture(0)); T_NULL(UI_GetTexture(1024)); T_NULL(UI_GetTexture(50));
 }
 
-static int test_theme_read(LPCSTR name, void **buf) {
-    LPCSTR text = "[Default]\nBackground=Default.blp\n[Human]\nBackground=Human.blp\nConsoleTexture05=Custom05.blp\n";
+static int test_theme_read(cstring_t name, void **buf) {
+    cstring_t text = "[Default]\nBackground=Default.blp\n[Human]\nBackground=Human.blp\nConsoleTexture05=Custom05.blp\n";
     (void)name; *buf = strdup(text); return (int)strlen(text);
 }
 
-static int test_versioned_theme_read(LPCSTR name, void **buf) {
-    LPCSTR text =
+static int test_versioned_theme_read(cstring_t name, void **buf) {
+    cstring_t text =
         "[Default]\n"
         "GlueSpriteLayerBackground_V0=RocBackground.mdl\n"
         "GlueSpriteLayerBackground_V1=TftBackground.mdl\n"
@@ -3388,7 +3388,7 @@ TEST(menu_fdf, deferred_texture_cache_uses_menu_theme) {
     reset_ui_state();
     mi.FS_ReadFile = test_theme_read; mi.FS_FreeFile = test_fs_free_file;
     UI_LoadTheme("UI\\war3skins.txt");
-    DWORD index = UI_LoadTexture("Background", true);
+    uint32_t index = UI_LoadTexture("Background", true);
     T_EQ(UI_LoadTexture("Background", true), index);
     T_EQ(fake_texture_id, 0);
     T_NOT_NULL(UI_GetTexture(index));
@@ -3399,16 +3399,16 @@ TEST(menu_fdf, deferred_texture_cache_uses_menu_theme) {
     UI_ClearTheme(); mi = saved;
 }
 
-static DWORD menu_test_refreshes, menu_test_connected;
+static uint32_t menu_test_refreshes, menu_test_connected;
 static void test_lan_refresh(void) { menu_test_refreshes++; }
-static DWORD test_lan_count(void) { return 1; }
-static void test_lan_connect(DWORD index) { menu_test_connected = index; }
-static BOOL test_lan_server(DWORD index, menuLanGame_t *out) {
+static uint32_t test_lan_count(void) { return 1; }
+static void test_lan_connect(uint32_t index) { menu_test_connected = index; }
+static bool test_lan_server(uint32_t index, menuLanGame_t *out) {
     *out = (menuLanGame_t){ .hostname = "Fixture game", .mapname = "Maps\\Melee\\TwinRivers.w3m", .maxPlayers = 2 };
     return index == 0;
 }
-static int test_menu_map_list(LPCSTR path, LPCSTR ext, LPSTR out, int size) {
-    LPCSTR map = !strcmp(ext, ".w3m") ? "Maps\\Melee\\TwinRivers.w3m" : "Maps\\FrozenThrone\\TwinRivers.w3x";
+static int test_menu_map_list(cstring_t path, cstring_t ext, string_t out, int size) {
+    cstring_t map = !strcmp(ext, ".w3m") ? "Maps\\Melee\\TwinRivers.w3m" : "Maps\\FrozenThrone\\TwinRivers.w3x";
     (void)path;
     snprintf(out, size, "%s", map);
     return 1;
@@ -3421,7 +3421,7 @@ TEST(menu_fdf, map_preview_fits_compact_and_full_panes) {
     T_ASSERT(UI_EnsureFDF("UI\\FrameDef\\Glue\\MapInfoPane.fdf"));
     LPFRAMEDEF source = UI_FindFrame("MapInfoPane");
     T_NOT_NULL(source);
-    FLOAT heights[] = { 0.223125f, 0.36f };
+    float heights[] = { 0.223125f, 0.36f };
     FOR_LOOP(i, 2) {
         LPFRAMEDEF root = UI_CloneFrameTree(source, NULL);
         UI_SetSize(root, 0.271875f, heights[i]);
@@ -3429,10 +3429,10 @@ TEST(menu_fdf, map_preview_fits_compact_and_full_panes) {
         LPFRAMEDEF preview = UI_FindChildFrame(root, "MinimapImage");
         LPFRAMEDEF border = UI_FindChildFrame(root, "MinimapImageBackdrop");
         LPFRAMEDEF label = UI_FindChildFrame(root, "SuggestedPlayersLabel");
-        FLOAT bottom = -preview->Points.y[FPP_MIN].offset + (preview->Height + border->Height) * 0.5f;
+        float bottom = -preview->Points.y[FPP_MIN].offset + (preview->Height + border->Height) * 0.5f;
         T_ASSERT(bottom <= -label->Points.y[FPP_MIN].offset);
         T_FEQ(preview->Width / preview->Height, 1.0f, 0.0001f);
-        FLOAT width = preview->Width;
+        float width = preview->Width;
         UI_LayoutMapInfoPane(root);
         T_FEQ(preview->Width, width, 0.0001f);
         if (i == 1) T_FEQ(preview->Width, UI_FindChildFrame(source, "MinimapImage")->Width, 0.0001f);
@@ -3518,7 +3518,7 @@ TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
     state.slots[1].map_player = 1;
     state.slots[1].team = 1;
     state.slots[1].color = 1;
-    struct { LPCSTR popup, menu; DWORD value; } const picks[] = {
+    struct { cstring_t popup, menu; uint32_t value; } const picks[] = {
         { "NameMenu", "NamePopupMenuMenu", LOBBY_SLOT_COMPUTER },
         { "NameMenu", "NamePopupMenuMenu", LOBBY_SLOT_CLOSED },
         { "NameMenu", "NamePopupMenuMenu", LOBBY_SLOT_OPEN },
@@ -3539,7 +3539,7 @@ TEST(menu_fdf, console_lan_and_lobby_commands_deliver_arguments) {
             T_NOT_NULL(menu);
             UI_TogglePopup(popup);
             popup_row_text = menu->Menu.Items[picks[i].value].text;
-            popup_row_rect = (RECT){0};
+            popup_row_rect = (rect_t){0};
             UI_DrawFrame(UI_FindFrame("GameChatroom"));
             T_ASSERT(popup_row_rect.h > 0);
             captured_command[0] = 0;

@@ -1,7 +1,7 @@
 #ifndef UI_CONTROL_BUTTON_H
 #define UI_CONTROL_BUTTON_H
 
-static BOOL UI_ButtonIsPopupArrow(LPCFRAMEDEF frame) {
+static bool UI_ButtonIsPopupArrow(LPCFRAMEDEF frame) {
     LPCFRAMEDEF parent = frame ? frame->Parent : NULL;
 
     return frame &&
@@ -11,17 +11,17 @@ static BOOL UI_ButtonIsPopupArrow(LPCFRAMEDEF frame) {
            !strcmp(frame->Name, parent->Popup.ArrowFrame);
 }
 
-static BOOL UI_ButtonBackdropNameContains(LPCFRAMEDEF frame, LPCSTR text) {
+static bool UI_ButtonBackdropNameContains(LPCFRAMEDEF frame, cstring_t text) {
     return frame &&
            frame->Control.Backdrop.Normal[0] &&
            text &&
            strstr(frame->Control.Backdrop.Normal, text);
 }
 
-static BOOL UI_ButtonBackdropTextureContains(LPCFRAMEDEF frame, LPCSTR text) {
+static bool UI_ButtonBackdropTextureContains(LPCFRAMEDEF frame, cstring_t text) {
     LPCFRAMEDEF backdrop;
-    LPCSTR background;
-    LPCSTR edge;
+    cstring_t background;
+    cstring_t edge;
 
     if (!frame || !frame->Control.Backdrop.Normal[0] || !text) {
         return false;
@@ -36,7 +36,7 @@ static BOOL UI_ButtonBackdropTextureContains(LPCFRAMEDEF frame, LPCSTR text) {
            (edge && strstr(edge, text));
 }
 
-static LPCSTR UI_ButtonPopupPushedBackdropName(LPCFRAMEDEF frame) {
+static cstring_t UI_ButtonPopupPushedBackdropName(LPCFRAMEDEF frame) {
     if (!frame || !UI_IsPopupFrameType(frame->Type)) {
         return NULL;
     }
@@ -55,7 +55,7 @@ static LPCSTR UI_ButtonPopupPushedBackdropName(LPCFRAMEDEF frame) {
     return NULL;
 }
 
-static LPCSTR UI_ButtonFallbackMouseOverHighlightName(LPCFRAMEDEF frame) {
+static cstring_t UI_ButtonFallbackMouseOverHighlightName(LPCFRAMEDEF frame) {
     if (!frame) {
         return NULL;
     }
@@ -101,7 +101,7 @@ static VECTOR2 UI_ButtonPushedTextOffset(LPCFRAMEDEF frame) {
     return MAKE(VECTOR2, 0.0f, 0.0f);
 }
 
-static BOOL UI_ButtonEnabled(LPCFRAMEDEF frame) {
+static bool UI_ButtonEnabled(LPCFRAMEDEF frame) {
     return frame &&
            !(frame->ui_flags & UIFLAG_DISABLED) &&
            (frame->OnClick[0] ||
@@ -110,16 +110,16 @@ static BOOL UI_ButtonEnabled(LPCFRAMEDEF frame) {
             UI_ButtonIsPopupArrow(frame));
 }
 
-static BOOL UI_ButtonIsPushed(LPCFRAMEDEF frame, LPCRECT rect) {
+static bool UI_ButtonIsPushed(LPCFRAMEDEF frame, rect_t const * rect) {
     (void)rect;
     return UI_ButtonEnabled(frame) && (frame->ui_flags & UIFLAG_PRESSED);
 }
 
-static void UI_DrawButtonText(LPCFRAMEDEF frame, LPCRECT rect) {
+static void UI_DrawButtonText(LPCFRAMEDEF frame, rect_t const * rect) {
     LPFRAMEDEF text_frame = NULL;
-    RECT text_rect = *rect;
+    rect_t text_rect = *rect;
     COLOR32 original_color;
-    BOOL use_disabled_color;
+    bool use_disabled_color;
 
     if (frame->Text && *frame->Text) {
         text_frame = UI_FindChildFrame((LPFRAMEDEF)frame, frame->Text);
@@ -156,9 +156,9 @@ static void UI_DrawButtonText(LPCFRAMEDEF frame, LPCRECT rect) {
     text_frame->Font.Color = original_color;
 }
 
-static LPCFRAMEDEF UI_ButtonBackdrop(LPCFRAMEDEF frame, LPCRECT rect) {
-    LPCSTR backdrop_name = frame->Control.Backdrop.Normal;
-    BOOL const pushed = UI_ButtonIsPushed(frame, rect);
+static LPCFRAMEDEF UI_ButtonBackdrop(LPCFRAMEDEF frame, rect_t const * rect) {
+    cstring_t backdrop_name = frame->Control.Backdrop.Normal;
+    bool const pushed = UI_ButtonIsPushed(frame, rect);
 
     if (!UI_ButtonEnabled(frame)) {
         backdrop_name = pushed && frame->Control.Backdrop.DisabledPushed[0]
@@ -178,7 +178,7 @@ static LPCFRAMEDEF UI_ButtonBackdrop(LPCFRAMEDEF frame, LPCRECT rect) {
 }
 
 static LPCFRAMEDEF UI_ButtonMouseOverHighlight(LPCFRAMEDEF frame) {
-    LPCSTR highlight_name;
+    cstring_t highlight_name;
 
     if (!frame) {
         return NULL;

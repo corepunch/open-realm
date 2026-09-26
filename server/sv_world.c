@@ -3,25 +3,25 @@
 #define AREA_DEPTH 6
 #define AREA_NODES 128
 
-#define STRUCT_FROM_LINK(l,t,m) ((t *)((BYTE *)l - (long long)&(((t *)0)->m)))
+#define STRUCT_FROM_LINK(l,t,m) ((t *)((uint8_t *)l - (long long)&(((t *)0)->m)))
 #define EDICT_FROM_AREA(l) STRUCT_FROM_LINK(l,EDICT,area)
-#define GET_AXIS(vec, axis) (*((LPCFLOAT)(vec)+axis))
-#define SET_AXIS(vec, axis, value) (*((LPFLOAT)(vec)+axis))=value
+#define GET_AXIS(vec, axis) (*((float const *)(vec)+axis))
+#define SET_AXIS(vec, axis, value) (*((float *)(vec)+axis))=value
 
 KNOWN_AS(areanode_s, AREANODE);
 
 struct areanode_s {
-    DWORD axis;  // -1 = leaf node
-    DWORD depth; // for debug
+    uint32_t axis;  // -1 = leaf node
+    uint32_t depth; // for debug
     BOX2 bounds;
-    FLOAT dist;
+    float dist;
     struct areanode_s *children[2];
 //    link_t trigger_edicts;
     LINK solid_edicts;
 };
 
 static AREANODE sv_areanodes[AREA_NODES];
-static DWORD sv_numareanodes;
+static uint32_t sv_numareanodes;
 
 void ClearLink (LPLINK l) {
     l->prev = l->next = l;
@@ -39,7 +39,7 @@ void InsertLinkBefore (LPLINK l, LPLINK before) {
     l->next->prev = l;
 }
 
-LPAREANODE SV_CreateAreaNode(DWORD depth, LPCVECTOR2 mins, LPCVECTOR2 maxs) {
+LPAREANODE SV_CreateAreaNode(uint32_t depth, LPCVECTOR2 mins, LPCVECTOR2 maxs) {
     LPAREANODE anode = &sv_areanodes[sv_numareanodes++];
     VECTOR2 size = Vector2_sub(maxs, mins);
     VECTOR2 mins1 = *mins, mins2 = *mins, maxs1 = *maxs, maxs2 = *maxs;
@@ -120,9 +120,9 @@ void SV_LinkEntity(LPEDICT ent) {
 typedef struct {
     BOX2 bounds;
     LPEDICT *list;
-    DWORD maxcount;
-    DWORD count;
-    BOOL (*pred)(LPCEDICT);
+    uint32_t maxcount;
+    uint32_t count;
+    bool (*pred)(LPCEDICT);
 } areaworker_t;
 
 void SV_AreaEdicts_r(LPCAREANODE node, areaworker_t *worker) {
@@ -158,7 +158,7 @@ void SV_AreaEdicts_r(LPCAREANODE node, areaworker_t *worker) {
         SV_AreaEdicts_r(node->children[1], worker);
 }
 
-DWORD SV_AreaEdicts(LPCBOX2 area, LPEDICT *list, DWORD maxcount, BOOL (*pred)(LPCEDICT)) {
+uint32_t SV_AreaEdicts(LPCBOX2 area, LPEDICT *list, uint32_t maxcount, bool (*pred)(LPCEDICT)) {
     areaworker_t w = {
         .bounds = *area,
         .list = list,

@@ -13,10 +13,10 @@
 #include <time.h>
 
 /* UI adapts mi.* onto stb_dbc.h's shared cache I/O table. */
-static void *UI_DbcRead(LPCSTR filename, DWORD *size) {
+static void *UI_DbcRead(cstring_t filename, uint32_t *size) {
     void *data = NULL;
     int s = mi.FS_ReadFile ? mi.FS_ReadFile(filename, &data) : -1;
-    if (size) *size = (DWORD)(s > 0 ? s : 0);
+    if (size) *size = (uint32_t)(s > 0 ? s : 0);
     return s > 0 ? data : NULL;
 }
 static void UI_DbcFreeFile(void *p) { mi.FS_FreeFile(p); }
@@ -29,14 +29,14 @@ static stbDbcIO_t const ui_dbc_io = { UI_DbcRead, UI_DbcFreeFile, UI_DbcAlloc, U
  * ---------------------------------------------------------------------- */
 
 typedef struct {
-    DWORD id, flags, faction_id, male_id, female_id;
-    LPCSTR client_file, name, hair_custom, facial_custom[2];
+    uint32_t id, flags, faction_id, male_id, female_id;
+    cstring_t client_file, name, hair_custom, facial_custom[2];
 } wowRaceRec_t;
 
-typedef struct { DWORD id; LPCSTR name, filename; } wowClassRec_t;
-typedef struct { BYTE race_id, class_id; } wowCharBaseInfoRec_t;
-typedef struct { DWORD id, faction, flags, faction_group; } wowFactionTemplateRec_t;
-typedef struct { DWORD id, mask_id; LPCSTR internal_name, name; } wowFactionGroupRec_t;
+typedef struct { uint32_t id; cstring_t name, filename; } wowClassRec_t;
+typedef struct { uint8_t race_id, class_id; } wowCharBaseInfoRec_t;
+typedef struct { uint32_t id, faction, flags, faction_group; } wowFactionTemplateRec_t;
+typedef struct { uint32_t id, mask_id; cstring_t internal_name, name; } wowFactionGroupRec_t;
 
 /* Column→field schemas. The DBC stays a table of columns; the struct matches the
  * consumed subset of a row, and Stb_DbcParseRows fills it index by index. */
@@ -96,12 +96,12 @@ static struct {
     int                     num_ftpl;
     wowFactionGroupRec_t    fgrp[WOW_MAX_FACTION_GRP];
     int                     num_fgrp;
-    BOOL loaded;
+    bool loaded;
     /* character creation selection state */
     int   sel_race;   /* 0-based playable index */
     int   sel_sex;    /* 1 = male, 2 = female (Lua convention) */
     int   sel_class;  /* class ID */
-    BYTE  skin, face, hair_style, hair_color, facial_hair;
+    uint8_t  skin, face, hair_style, hair_color, facial_hair;
     float facing;
     /* playable race list: indices into races[] in Alliance-first order */
     int   playable[WOW_MAX_DBC_RACES];
@@ -121,7 +121,7 @@ static void *base_info_buf; /* CharBaseInfo 2-byte records keep no string pointe
 /* Build the writable saved-characters path: ~/.<game>/characters.xml, falling
  * back to <base>/<game>/characters.xml when $HOME is unavailable. */
 static void CharList_Path(char *out, int sz) {
-    LPCSTR home = mi.Cvar_String("fs_homepath", "");
+    cstring_t home = mi.Cvar_String("fs_homepath", "");
 
     if (home && *home) {
         snprintf(out, sz, "%s/characters.xml", home);
@@ -132,29 +132,29 @@ static void CharList_Path(char *out, int sz) {
 
 typedef struct {
     char  name[64];
-    DWORD race_id;
-    DWORD sex_id;
-    DWORD class_id;
-    DWORD appearance;
+    uint32_t race_id;
+    uint32_t sex_id;
+    uint32_t class_id;
+    uint32_t appearance;
 } wowCharEntry_t;
 
 static struct {
     wowCharEntry_t entries[WOW_MAX_CHARACTERS];
     int            count;
-    BOOL           loaded;
+    bool           loaded;
 } wow_charlist;
 
 /* Trim leading whitespace from s, return pointer past it. */
-static LPCSTR CharList_TrimLeft(LPCSTR s) {
+static cstring_t CharList_TrimLeft(cstring_t s) {
     while (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n') s++;
     return s;
 }
 
 /* Find attr="value" in a tag string, copy value into buf (max len).
    Returns true on success. */
-static BOOL CharList_XmlAttr(LPCSTR tag, LPCSTR attr, char *buf, int len) {
+static bool CharList_XmlAttr(cstring_t tag, cstring_t attr, char *buf, int len) {
     char needle[64];
-    LPCSTR p;
+    cstring_t p;
     char q;
 
     snprintf(needle, sizeof(needle), "%s=", attr);
@@ -174,7 +174,7 @@ static BOOL CharList_XmlAttr(LPCSTR tag, LPCSTR attr, char *buf, int len) {
 static void CharList_Load(void) {
     void *buf = NULL;
     int   size;
-    LPCSTR p;
+    cstring_t p;
 
     wow_charlist.count  = 0;
     wow_charlist.loaded = true;
@@ -185,7 +185,7 @@ static void CharList_Load(void) {
     size = mi.FS_ReadFile(path, &buf);
     if (size <= 0 || !buf) { SAFE_DELETE(buf, mi.FS_FreeFile); return; }
 
-    p = (LPCSTR)buf;
+    p = (cstring_t)buf;
     while (*p && wow_charlist.count < WOW_MAX_CHARACTERS) {
         p = CharList_TrimLeft(p);
         if (*p != '<') { p++; continue; }
@@ -196,7 +196,7 @@ static void CharList_Load(void) {
             continue;
         }
         /* find end of tag */
-        LPCSTR tag_end = strchr(p, '>');
+        cstring_t tag_end = strchr(p, '>');
         if (!tag_end) break;
         int tag_len = (int)(tag_end - p);
         char tag[512];
@@ -207,10 +207,10 @@ static void CharList_Load(void) {
         wowCharEntry_t *e = &wow_charlist.entries[wow_charlist.count];
         char tmp[32];
         if (!CharList_XmlAttr(tag, "name", e->name, sizeof(e->name))) { p = tag_end + 1; continue; }
-        e->race_id    = CharList_XmlAttr(tag, "race",       tmp, sizeof(tmp)) ? (DWORD)atoi(tmp) : 1;
-        e->sex_id     = CharList_XmlAttr(tag, "sex",        tmp, sizeof(tmp)) ? (DWORD)atoi(tmp) : 1;
-        e->class_id   = CharList_XmlAttr(tag, "class",      tmp, sizeof(tmp)) ? (DWORD)atoi(tmp) : 1;
-        e->appearance = CharList_XmlAttr(tag, "appearance", tmp, sizeof(tmp)) ? (DWORD)atoi(tmp) : 0;
+        e->race_id    = CharList_XmlAttr(tag, "race",       tmp, sizeof(tmp)) ? (uint32_t)atoi(tmp) : 1;
+        e->sex_id     = CharList_XmlAttr(tag, "sex",        tmp, sizeof(tmp)) ? (uint32_t)atoi(tmp) : 1;
+        e->class_id   = CharList_XmlAttr(tag, "class",      tmp, sizeof(tmp)) ? (uint32_t)atoi(tmp) : 1;
+        e->appearance = CharList_XmlAttr(tag, "appearance", tmp, sizeof(tmp)) ? (uint32_t)atoi(tmp) : 0;
         wow_charlist.count++;
         p = tag_end + 1;
     }
@@ -247,7 +247,7 @@ static void UIWow_LoadCharCreateDbc(void) {
     /* ChrRaces (29-field 1.x) */
     if (Stb_DbcCacheLoad(&races_dbc, "DBFilesClient\\ChrRaces.dbc", &ui_dbc_io) &&
         Stb_DbcCacheDecode(&races_dbc, race_schema, sizeof(race_schema) / sizeof(race_schema[0]), sizeof(wowRaceRec_t), &ui_dbc_io)) {
-        DWORD count = MIN(races_dbc.records, WOW_MAX_DBC_RACES);
+        uint32_t count = MIN(races_dbc.records, WOW_MAX_DBC_RACES);
         Stb_DbcNormalizeStrings(races_dbc.rows, count, sizeof(wowRaceRec_t), race_schema, sizeof(race_schema) / sizeof(race_schema[0]));
         wowRaceRec_t const *rows = races_dbc.rows;
         FOR_LOOP(i, count) {
@@ -260,7 +260,7 @@ static void UIWow_LoadCharCreateDbc(void) {
     /* ChrClasses (16-field 1.x): 0=id, 5=name(str), 14=filename(str) */
     if (Stb_DbcCacheLoad(&classes_dbc, "DBFilesClient\\ChrClasses.dbc", &ui_dbc_io) &&
         Stb_DbcCacheDecode(&classes_dbc, class_schema, sizeof(class_schema) / sizeof(class_schema[0]), sizeof(wowClassRec_t), &ui_dbc_io)) {
-        DWORD count = MIN(classes_dbc.records, WOW_MAX_DBC_CLASSES);
+        uint32_t count = MIN(classes_dbc.records, WOW_MAX_DBC_CLASSES);
         Stb_DbcNormalizeStrings(classes_dbc.rows, count, sizeof(wowClassRec_t), class_schema, sizeof(class_schema) / sizeof(class_schema[0]));
         memcpy(wow_charcreate.classes, classes_dbc.rows, count * sizeof(wow_charcreate.classes[0]));
         wow_charcreate.num_classes = (int)count;
@@ -273,8 +273,8 @@ static void UIWow_LoadCharCreateDbc(void) {
         void *data = NULL;
         if (mi.FS_ReadFile) size = mi.FS_ReadFile("DBFilesClient\\CharBaseInfo.dbc", &data);
         if (data && size >= 20) {
-            BYTE const *rb = (BYTE const *)data + 20;
-            DWORD count = MIN(Stb_DbcRead32((BYTE const *)data + 4), WOW_MAX_CHAR_BASE);
+            uint8_t const *rb = (uint8_t const *)data + 20;
+            uint32_t count = MIN(Stb_DbcRead32((uint8_t const *)data + 4), WOW_MAX_CHAR_BASE);
             base_info_buf = data;
             FOR_LOOP(i, count) {
                 wow_charcreate.base_info[wow_charcreate.num_base_info].race_id  = rb[i * 2];
@@ -289,7 +289,7 @@ static void UIWow_LoadCharCreateDbc(void) {
     /* FactionTemplate: 0=id, 1=faction, 2=flags, 3=factionGroup */
     if (Stb_DbcCacheLoad(&ftpl_dbc, "DBFilesClient\\FactionTemplate.dbc", &ui_dbc_io) &&
         Stb_DbcCacheDecode(&ftpl_dbc, faction_tpl_schema, sizeof(faction_tpl_schema) / sizeof(faction_tpl_schema[0]), sizeof(wowFactionTemplateRec_t), &ui_dbc_io)) {
-        DWORD count = MIN(ftpl_dbc.records, WOW_MAX_FACTION_TPL);
+        uint32_t count = MIN(ftpl_dbc.records, WOW_MAX_FACTION_TPL);
         memcpy(wow_charcreate.ftpl, ftpl_dbc.rows, count * sizeof(wow_charcreate.ftpl[0]));
         wow_charcreate.num_ftpl = (int)count;
     }
@@ -297,14 +297,14 @@ static void UIWow_LoadCharCreateDbc(void) {
     /* FactionGroup: 0=id, 1=maskID, 2=internalName(str), 3=name(str) */
     if (Stb_DbcCacheLoad(&fgrp_dbc, "DBFilesClient\\FactionGroup.dbc", &ui_dbc_io) &&
         Stb_DbcCacheDecode(&fgrp_dbc, faction_grp_schema, sizeof(faction_grp_schema) / sizeof(faction_grp_schema[0]), sizeof(wowFactionGroupRec_t), &ui_dbc_io)) {
-        DWORD count = MIN(fgrp_dbc.records, WOW_MAX_FACTION_GRP);
+        uint32_t count = MIN(fgrp_dbc.records, WOW_MAX_FACTION_GRP);
         Stb_DbcNormalizeStrings(fgrp_dbc.rows, count, sizeof(wowFactionGroupRec_t), faction_grp_schema, sizeof(faction_grp_schema) / sizeof(faction_grp_schema[0]));
         memcpy(wow_charcreate.fgrp, fgrp_dbc.rows, count * sizeof(wow_charcreate.fgrp[0]));
         wow_charcreate.num_fgrp = (int)count;
     }
 
     /* Build playable race list: Alliance first, then Horde */
-    static LPCSTR const sides[] = { "Alliance", "Horde" };
+    static cstring_t const sides[] = { "Alliance", "Horde" };
     FOR_LOOP(side, 2) {
         FOR_LOOP(ri, wow_charcreate.num_races) {
             wowRaceRec_t const *race = &wow_charcreate.races[ri];
@@ -335,14 +335,14 @@ static void UIWow_LoadCharCreateDbc(void) {
  * Internal helpers
  * ---------------------------------------------------------------------- */
 
-static LPCSTR UIWow_FactionNameForRace(int race_idx_1based, LPCSTR *internal_out) {
+static cstring_t UIWow_FactionNameForRace(int race_idx_1based, cstring_t *internal_out) {
     UIWow_LoadCharCreateDbc();
     int pi = race_idx_1based - 1;
     if (pi < 0 || pi >= wow_charcreate.num_playable) return NULL;
     wowRaceRec_t const *race = &wow_charcreate.races[wow_charcreate.playable[pi]];
     FOR_LOOP(fi, wow_charcreate.num_ftpl) {
         if (wow_charcreate.ftpl[fi].id != race->faction_id) continue;
-        DWORD fg = wow_charcreate.ftpl[fi].faction_group;
+        uint32_t fg = wow_charcreate.ftpl[fi].faction_group;
         FOR_LOOP(gi, wow_charcreate.num_fgrp) {
             wowFactionGroupRec_t const *grp = &wow_charcreate.fgrp[gi];
             if (grp->mask_id && ((1u << grp->mask_id) & fg)) {
@@ -394,7 +394,7 @@ int UIWow_LuaGetAvailableRaces(lua_State *L) {
     }
     FOR_LOOP(i, wow_charcreate.num_playable) {
         wowRaceRec_t const *r = &wow_charcreate.races[wow_charcreate.playable[i]];
-        LPCSTR name = r->name;
+        cstring_t name = r->name;
         lua_pushstring(L, name[0] ? name : r->client_file);
         lua_pushstring(L, r->client_file);
     }
@@ -444,8 +444,8 @@ int UIWow_LuaGetClassesForRace(lua_State *L) {
 
 int UIWow_LuaGetFactionForRace(lua_State *L) {
     UIWow_LoadCharCreateDbc();
-    LPCSTR internal = NULL;
-    LPCSTR name = UIWow_FactionNameForRace(wow_charcreate.sel_race + 1, &internal);
+    cstring_t internal = NULL;
+    cstring_t name = UIWow_FactionNameForRace(wow_charcreate.sel_race + 1, &internal);
     if (!wow_charcreate.num_playable) {
         lua_pushstring(L, BZ_WOW_CHARCREATE_FALLBACK_FACTION);
         lua_pushstring(L, BZ_WOW_CHARCREATE_FALLBACK_FACTION);
@@ -467,7 +467,7 @@ int UIWow_LuaGetNameForRace(lua_State *L) {
     }
     if (pi < 0 || pi >= wow_charcreate.num_playable) { lua_pushstring(L, ""); lua_pushstring(L, ""); return 2; }
     wowRaceRec_t const *r = &wow_charcreate.races[wow_charcreate.playable[pi]];
-    LPCSTR name = r->name;
+    cstring_t name = r->name;
     lua_pushstring(L, name[0] ? name : r->client_file);
     lua_pushstring(L, r->client_file);
     return 2;
@@ -505,7 +505,7 @@ int UIWow_LuaGetSelectedClass(lua_State *L) {
     return 6;
 }
 
-BOOL UIWow_SetSelectedRace(int race_index) {
+bool UIWow_SetSelectedRace(int race_index) {
     UIWow_LoadCharCreateDbc();
     int v = race_index - 1;
 
@@ -521,7 +521,7 @@ int UIWow_LuaSetSelectedRace(lua_State *L) {
     return 0;
 }
 
-BOOL UIWow_SetSelectedSex(int sex) {
+bool UIWow_SetSelectedSex(int sex) {
     UIWow_LoadCharCreateDbc();
     if ((sex != 1 && sex != 2) || sex == wow_charcreate.sel_sex)
         return false;
@@ -534,7 +534,7 @@ int UIWow_LuaSetSelectedSex(lua_State *L) {
     return 0;
 }
 
-BOOL UIWow_SetSelectedClass(int class_index) {
+bool UIWow_SetSelectedClass(int class_index) {
     UIWow_LoadCharCreateDbc();
     wowClassRec_t const *c = UIWow_ClassForRaceButton(class_index);
     if (!c && class_index >= 1 && class_index <= wow_charcreate.num_classes)
@@ -569,7 +569,7 @@ int UIWow_LuaIsRaceClassValid(lua_State *L) {
 int UIWow_LuaGetHairCustomization(lua_State *L) {
     UIWow_LoadCharCreateDbc();
     int pi = wow_charcreate.sel_race;
-    LPCSTR s = (pi >= 0 && pi < wow_charcreate.num_playable)
+    cstring_t s = (pi >= 0 && pi < wow_charcreate.num_playable)
         ? wow_charcreate.races[wow_charcreate.playable[pi]].hair_custom : "";
     lua_pushstring(L, (s && s[0]) ? s : "NORMAL");
     return 1;
@@ -579,7 +579,7 @@ int UIWow_LuaGetFacialHairCustomization(lua_State *L) {
     UIWow_LoadCharCreateDbc();
     int pi = wow_charcreate.sel_race;
     int sex = (wow_charcreate.sel_sex == 1) ? 0 : 1;
-    LPCSTR s = (pi >= 0 && pi < wow_charcreate.num_playable)
+    cstring_t s = (pi >= 0 && pi < wow_charcreate.num_playable)
         ? wow_charcreate.races[wow_charcreate.playable[pi]].facial_custom[sex] : "";
     lua_pushstring(L, (s && s[0]) ? s : "NORMAL");
     return 1;
@@ -598,33 +598,33 @@ int UIWow_LuaSetCharacterCreateFacing(lua_State *L) {
 }
 
 /* Format the selected race/gender character M2 used by the glue create scene. */
-void UIWow_GetCharacterCreateModelPath(LPSTR out, size_t out_size) {
-    LPCSTR race = BZ_WOW_CHARCREATE_FALLBACK_RACE_NAME;
-    LPCSTR gender = wow_charcreate.sel_sex == 2 ? "Female" : "Male";
+void UIWow_GetCharacterCreateModelPath(string_t out, size_t out_size) {
+    cstring_t race = BZ_WOW_CHARCREATE_FALLBACK_RACE_NAME;
+    cstring_t gender = wow_charcreate.sel_sex == 2 ? "Female" : "Male";
 
     if (!out || out_size == 0) return;
     UIWow_LoadCharCreateDbc();
     if (wow_charcreate.sel_race >= 0 && wow_charcreate.sel_race < wow_charcreate.num_playable) {
-        LPCSTR client_file = wow_charcreate.races[wow_charcreate.playable[wow_charcreate.sel_race]].client_file;
+        cstring_t client_file = wow_charcreate.races[wow_charcreate.playable[wow_charcreate.sel_race]].client_file;
         if (client_file && client_file[0]) race = client_file;
     }
     snprintf(out, out_size, "Character\\%s\\%s\\%s%s.m2", race, gender, race, gender);
 }
 
-DWORD UIWow_GetCharacterCreateAppearance(void) {
+uint32_t UIWow_GetCharacterCreateAppearance(void) {
     UIWow_LoadCharCreateDbc();
-    return Wow_PackAppearance(wow_charcreate.skin, wow_charcreate.face, wow_charcreate.hair_style, wow_charcreate.hair_color, wow_charcreate.facial_hair, (BYTE)wow_charcreate.sel_class, 0);
+    return Wow_PackAppearance(wow_charcreate.skin, wow_charcreate.face, wow_charcreate.hair_style, wow_charcreate.hair_color, wow_charcreate.facial_hair, (uint8_t)wow_charcreate.sel_class, 0);
 }
 
-FLOAT UIWow_GetCharacterCreateFacing(void) {
+float UIWow_GetCharacterCreateFacing(void) {
     UIWow_LoadCharCreateDbc();
     return wow_charcreate.facing;
 }
 
 /* Format the character M2 path from a saved character entry (char-select screen). */
-void UIWow_GetCharacterSelectModelPath(LPSTR out, size_t out_size) {
-    LPCSTR race = BZ_WOW_CHARCREATE_FALLBACK_RACE_NAME;
-    LPCSTR gender = "Male";
+void UIWow_GetCharacterSelectModelPath(string_t out, size_t out_size) {
+    cstring_t race = BZ_WOW_CHARCREATE_FALLBACK_RACE_NAME;
+    cstring_t gender = "Male";
     wowCharEntry_t const *e;
 
     if (!out || out_size == 0) return;
@@ -647,7 +647,7 @@ void UIWow_GetCharacterSelectModelPath(LPSTR out, size_t out_size) {
 }
 
 /* Return packed appearance from a saved character entry (char-select screen). */
-DWORD UIWow_GetCharacterSelectAppearance(void) {
+uint32_t UIWow_GetCharacterSelectAppearance(void) {
     if (!wow_charlist.loaded) CharList_Load();
     if (wow_ui.selected_char_idx >= 0 && wow_ui.selected_char_idx < wow_charlist.count)
         return wow_charlist.entries[wow_ui.selected_char_idx].appearance;
@@ -659,8 +659,8 @@ DWORD UIWow_GetCharacterSelectAppearance(void) {
    store in CS_PLAYERSKINS + client number.  Format: \race\Human\sex\Male\class\1\appearance\12345 */
 void UIWow_SetSelectedCharCvars(void) {
     wowCharEntry_t const *e;
-    LPCSTR race = "Orc";
-    LPCSTR sex = "Male";
+    cstring_t race = "Orc";
+    cstring_t sex = "Male";
     char userinfo[MAX_PATHLEN];
 
     if (!wow_charlist.loaded) CharList_Load();
@@ -692,7 +692,7 @@ int UIWow_LuaResetCharCustomize(lua_State *L) {
 }
 
 int UIWow_LuaCycleCharCustomization(lua_State *L) {
-    BYTE *field = NULL;
+    uint8_t *field = NULL;
     int id = (int)luaL_checknumber(L, 1), delta = (int)luaL_checknumber(L, 2);
 
     UIWow_LoadCharCreateDbc();
@@ -704,7 +704,7 @@ int UIWow_LuaCycleCharCustomization(lua_State *L) {
         case 5: field = &wow_charcreate.facial_hair; break;
         default: return 0;
     }
-    *field = (BYTE)((*field + (delta < 0 ? 4 : 1)) % 5);
+    *field = (uint8_t)((*field + (delta < 0 ? 4 : 1)) % 5);
     return 0;
 }
 
@@ -741,7 +741,7 @@ int UIWow_LuaGetRandomName(lua_State *L) {
 }
 
 int UIWow_LuaCreateCharacter(lua_State *L) {
-    LPCSTR name = luaL_checkstring(L, 1);
+    cstring_t name = luaL_checkstring(L, 1);
     wowCharEntry_t *e;
     int pi, race_id, sex_id;
     char generated[64];
@@ -772,9 +772,9 @@ int UIWow_LuaCreateCharacter(lua_State *L) {
 
     e = &wow_charlist.entries[wow_charlist.count++];
     snprintf(e->name, sizeof(e->name), "%s", name);
-    e->race_id    = (DWORD)race_id;
-    e->sex_id     = (DWORD)sex_id;
-    e->class_id   = (DWORD)wow_charcreate.sel_class;
+    e->race_id    = (uint32_t)race_id;
+    e->sex_id     = (uint32_t)sex_id;
+    e->class_id   = (uint32_t)wow_charcreate.sel_class;
     e->appearance = UIWow_GetCharacterCreateAppearance();
 
     CharList_Save();
@@ -794,7 +794,7 @@ int UIWow_LuaCreateCharacter(lua_State *L) {
 }
 
 int UIWow_LuaCharacterCreateResult(lua_State *L) {
-    LPCSTR result = luaL_checkstring(L, 1);
+    cstring_t result = luaL_checkstring(L, 1);
     lua_getglobal(L, "SetGlueScreen");
     if (lua_isfunction(L, -1)) {
         lua_pushstring(L, (result && strcmp(result, "OKAY") == 0) ? "charselect" : "charcreate");
@@ -818,7 +818,7 @@ int UIWow_LuaGetCharacterInfo(lua_State *L) {
     wowCharEntry_t const *e;
     wowClassRec_t const *cls;
     wowRaceRec_t const *race = NULL;
-    LPCSTR race_name = "", race_file = "", class_name = "";
+    cstring_t race_name = "", race_file = "", class_name = "";
 
     UIWow_LoadCharCreateDbc();
     if (!wow_charlist.loaded)

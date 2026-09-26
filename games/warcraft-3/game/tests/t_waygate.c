@@ -4,12 +4,12 @@
 
 #define BZ_TEST_WARP MAKEFOURCC('Z','w','r','p')
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
-BOOL run_test_jass(LPCSTR src);
+bool run_test_jass(cstring_t src);
 
 /* Deliberately non-stock rectangle values prove that Wrp1/Wrp2
  * (AbilityData DataA/DataB) are consumed instead of a hard-coded radius.
@@ -30,7 +30,7 @@ typedef struct {
     LPEDICT unit;
 } WAYFIX;
 
-static WAYFIX waygate_setup(FLOAT unit_x, FLOAT unit_y) {
+static WAYFIX waygate_setup(float unit_x, float unit_y) {
     WAYFIX fix = {0};
     VECTOR2 destination = { 400.0f, 320.0f };
 
@@ -95,7 +95,7 @@ TEST(wc3_waygate, smart_use_reads_rectangular_authored_data_and_teleports) {
 }
 
 TEST(wc3_waygate, blocked_destination_cancels_without_raw_position_fallback) {
-    BYTE blocked[64 * 64];
+    uint8_t blocked[64 * 64];
     WAYFIX fix = waygate_setup(70.0f, 0.0f);
     VECTOR2 before = fix.unit->s.origin2;
 
@@ -267,11 +267,11 @@ TEST(wc3_waygate, jass_natives_preserve_destination_and_boolean_activation) {
 }
 
 TEST(wc3_save, waygate_state_and_inflight_approach_round_trip) {
-    LPCSTR filename = "/tmp/openwarcraft3-wc3-waygate-save.bin";
+    cstring_t filename = "/tmp/openwarcraft3-wc3-waygate-save.bin";
     WAYFIX fix = waygate_setup(300.0f, 0.0f);
-    DWORD const gate_number = fix.gate->s.number;
-    DWORD const unit_number = fix.unit->s.number;
-    DWORD goal_number;
+    uint32_t const gate_number = fix.gate->s.number;
+    uint32_t const unit_number = fix.unit->s.number;
+    uint32_t goal_number;
 
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
     T_NOT_NULL(fix.unit->movement.waygate_goal);
@@ -301,7 +301,7 @@ TEST(wc3_save, waygate_state_and_inflight_approach_round_trip) {
 }
 
 TEST(wc3_save, rejects_invalid_waygate_entity_references) {
-    LPCSTR filename = "/tmp/openwarcraft3-wc3-waygate-invalid-reference.bin";
+    cstring_t filename = "/tmp/openwarcraft3-wc3-waygate-invalid-reference.bin";
     WAYFIX fix = waygate_setup(300.0f, 0.0f);
     LPEDICT target, goal;
 

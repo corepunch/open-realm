@@ -19,10 +19,10 @@ static struct {
     size2_t stable;        // window size seen at the last frame boundary; a difference restarts the settle timer
     UICANVASCLASS settled; // class committed after the window settled; what the server should author for
     UICANVASCLASS sent;    // class last written to the current connection; UI_CANVAS_CLASS_COUNT before begin
-    DWORD changed;         // frame time at which the current window size was first observed; settle timer origin
+    uint32_t changed;         // frame time at which the current window size was first observed; settle timer origin
 } canvas;
 
-static LPCSTR const canvas_policy_names[] = { "stretch", "expand", "expand-center" };
+static cstring_t const canvas_policy_names[] = { "stretch", "expand", "expand-center" };
 
 static void CL_CanvasPush(void) { re.SetUIScene(&canvas.live.scene); }
 
@@ -64,7 +64,7 @@ void CL_CanvasWindowChanged(void) { CL_CanvasResolve(re.GetWindowSize()); }
  * it authored for.  The timer starts at the first frame boundary that observes a new size, so a size that
  * flips and flips back inside one poll pass never restarts it.  Cmd_ForwardToServer rejects pre-active
  * states, so the commit waits for ca_active; the begin handshake commits through CL_CanvasWriteChrome. */
-void CL_CanvasFrame(DWORD now) {
+void CL_CanvasFrame(uint32_t now) {
     char command[32];
     CL_CanvasResolve(re.GetWindowSize());
     if (canvas.live.window.width != canvas.stable.width || canvas.live.window.height != canvas.stable.height) {

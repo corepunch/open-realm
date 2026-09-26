@@ -1,7 +1,7 @@
 #include "server.h"
 
 /* Send one reliable transient attention marker without adding snapshot or save state. */
-void SV_MinimapPing(LPEDICT ent, LPCVECTOR2 position, FLOAT duration, COLOR32 color, DWORD flags) {
+void SV_MinimapPing(LPEDICT ent, LPCVECTOR2 position, float duration, COLOR32 color, uint32_t flags) {
     LPCLIENT client = NULL;
 
     if (!ent || !position || !isfinite(position->x) || !isfinite(position->y) || !isfinite(duration) ||

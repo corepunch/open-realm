@@ -22,12 +22,12 @@ extern sc2LayoutImport_t sc2_layout_import;
 #define TEST_SC2_MPQ "build/tests/test-sc2.SC2Maps"
 #endif
 
-static BOOL sc2_consoleui_tests_initialized;
+static bool sc2_consoleui_tests_initialized;
 
 static void setup_sc2_consoleui_tests(void) {
     if (sc2_consoleui_tests_initialized) return;
 
-    LPCSTR argv[] = { "test_sc2_consoleui", "-config", "" };
+    cstring_t argv[] = { "test_sc2_consoleui", "-config", "" };
     Com_Init(3, argv);
     T_ASSERT(FS_AddArchive(TEST_SC2_MPQ) != NULL);
 
@@ -39,8 +39,8 @@ static void setup_sc2_consoleui_tests(void) {
 }
 
 /* Helper: find a frame in the flat array by name */
-static sc2BaseFrame_t *find_frame(sc2BaseFrame_t *frames, DWORD count, LPCSTR name) {
-    for (DWORD i = 0; i < count; i++) {
+static sc2BaseFrame_t *find_frame(sc2BaseFrame_t *frames, uint32_t count, cstring_t name) {
+    for (uint32_t i = 0; i < count; i++) {
         for (int j = 0; j < SC2_LayoutNumTemplates(); j++) {
             sc2Frame_t *tmpl = SC2_LayoutGetTemplate(j);
             if (tmpl && tmpl->resolved_frame == &frames[i] && !strcasecmp(tmpl->name, name))
@@ -51,7 +51,7 @@ static sc2BaseFrame_t *find_frame(sc2BaseFrame_t *frames, DWORD count, LPCSTR na
 }
 
 /* Helper: find template by name (wraps internal lookup) */
-static sc2Frame_t *find_template(LPCSTR name) {
+static sc2Frame_t *find_template(cstring_t name) {
     return SC2_LayoutFindTemplate(name);
 }
 
@@ -66,17 +66,17 @@ TEST(sc2_consoleui, adapter_constant_hash_stripping) {
     T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestAdapter.SC2Layout"));
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
 
-    LPCSTR margin = SC2_LayoutResolveConstant("##HUDMargin");
+    cstring_t margin = SC2_LayoutResolveConstant("##HUDMargin");
     T_NOT_NULL(margin);
     T_STREQ(margin, "8");
 
-    LPCSTR width = SC2_LayoutResolveConstant("##PanelWidth");
+    cstring_t width = SC2_LayoutResolveConstant("##PanelWidth");
     T_NOT_NULL(width);
     T_STREQ(width, "200");
 
     /* Also verify the old TestConstants fixture still works */
     T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestConstants.SC2Layout"));
-    LPCSTR red = SC2_LayoutResolveConstant("##TestColorRed");
+    cstring_t red = SC2_LayoutResolveConstant("##TestColorRed");
     T_NOT_NULL(red);
     T_STREQ(red, "255,0,0");
 
@@ -95,7 +95,7 @@ TEST(sc2_consoleui, adapter_constant_offset_resolves) {
 
     /* ResourcePanel's Left anchor has offset="#HUDMargin" which should resolve to 8 */
     T_ASSERT(panel->num_anchors > 0);
-    BOOL found_left = false;
+    bool found_left = false;
     for (int i = 0; i < panel->num_anchors; i++) {
         if (panel->anchors[i].side == SC2_SIDE_LEFT) {
             T_EQ(panel->anchors[i].offset, 8);
@@ -161,7 +161,7 @@ TEST(sc2_consoleui, adapter_single_anchor_left_min) {
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
 
-    DWORD count = 0;
+    uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
     T_ASSERT(count > 0);
 
@@ -181,7 +181,7 @@ TEST(sc2_consoleui, adapter_single_anchor_top_min) {
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
 
-    DWORD count = 0;
+    uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
 
     /* MineralIcon has Top+Min anchor */
@@ -199,7 +199,7 @@ TEST(sc2_consoleui, adapter_dual_anchor_stretch) {
     T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestAdapter.SC2Layout"));
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
 
-    DWORD count = 0;
+    uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
 
     /* ResourcePanel has Top+Max and Bottom+Max → y-axis dual anchor */
@@ -217,7 +217,7 @@ TEST(sc2_consoleui, adapter_mid_anchor) {
     T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestAdapter.SC2Layout"));
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
 
-    DWORD count = 0;
+    uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
 
     /* CenterAlert has Left+Mid and Top+Mid.
@@ -239,7 +239,7 @@ TEST(sc2_consoleui, adapter_cross_frame_relative) {
     T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestAdapter.SC2Layout"));
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
 
-    DWORD count = 0;
+    uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
 
     /* Cmd02's Left anchor references $parent/Cmd01 */
@@ -265,7 +265,7 @@ TEST(sc2_consoleui, adapter_flatten_frame_count) {
     T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestAdapter.SC2Layout"));
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
 
-    DWORD count = 0;
+    uint32_t count = 0;
     SC2_LayoutGetFrames(&count);
 
     /* ConsoleUI root + ResourcePanel + MineralIcon + MineralCount +
@@ -282,7 +282,7 @@ TEST(sc2_consoleui, adapter_flatten_types_mapped) {
     T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestAdapter.SC2Layout"));
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
 
-    DWORD count = 0;
+    uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
 
     /* ConsoleUI (GameUI) → FT_FRAME */
@@ -322,7 +322,7 @@ TEST(sc2_consoleui, adapter_flatten_hidden_flags) {
     T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestAdapter.SC2Layout"));
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
 
-    DWORD count = 0;
+    uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
 
     /* HiddenPanel should be hidden */
@@ -349,7 +349,7 @@ TEST(sc2_consoleui, adapter_flatten_color_alpha) {
     T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestAdapter.SC2Layout"));
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
 
-    DWORD count = 0;
+    uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
 
     /* ResourcePanel has Color val="255,255,255,200" */
@@ -381,13 +381,13 @@ TEST(sc2_consoleui, adapter_root_parent_is_scene) {
     T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestAdapter.SC2Layout"));
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
 
-    DWORD count = 0;
+    uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
 
     /* ConsoleUI root has Anchor relative="$parent" → parent_index == -1 */
     sc2BaseFrame_t *root = find_frame(frames, count, "ConsoleUI");
     T_NOT_NULL(root);
-    T_EQ(root->parent_index, (DWORD)-1);
+    T_EQ(root->parent_index, (uint32_t)-1);
 
     SC2_LayoutShutdown();
 }
@@ -398,7 +398,7 @@ TEST(sc2_consoleui, adapter_cross_frame_relative_index) {
     T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestAdapter.SC2Layout"));
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
 
-    DWORD count = 0;
+    uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
 
     /* Cmd03 references $parent/Cmd02 — relative should be Cmd02's index */
@@ -426,7 +426,7 @@ TEST(sc2_consoleui, adapter_hidden_flagged_for_skip) {
     T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestAdapter.SC2Layout"));
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
 
-    DWORD count = 0;
+    uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
 
     /* HiddenPanel and CenterAlert should have SC2_UIFLAG_HIDDEN set */
@@ -452,7 +452,7 @@ TEST(sc2_consoleui, adapter_sc2_type_preserved) {
     T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestAdapter.SC2Layout"));
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
 
-    DWORD count = 0;
+    uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
 
     sc2BaseFrame_t *label = find_frame(frames, count, "MineralCount");
@@ -468,7 +468,7 @@ TEST(sc2_consoleui, adapter_sc2_type_preserved) {
     SC2_LayoutShutdown();
 }
 
-static int test_stub_font_index(LPCSTR name, DWORD size) {
+static int test_stub_font_index(cstring_t name, uint32_t size) {
     (void)name; (void)size;
     return 7; /* sentinel: any non-zero value */
 }
@@ -482,7 +482,7 @@ TEST(sc2_consoleui, adapter_label_font_set_when_fontindex_wired) {
     T_ASSERT(SC2_LayoutParseFile("UI/Layout/TestAdapter.SC2Layout"));
     T_ASSERT(SC2_LayoutFlatten("ConsoleUI"));
 
-    DWORD count = 0;
+    uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_LayoutGetFrames(&count);
     sc2BaseFrame_t *label = find_frame(frames, count, "MineralCount");
     T_NOT_NULL(label);

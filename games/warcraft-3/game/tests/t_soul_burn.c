@@ -8,7 +8,7 @@
 #define BZ_AHTB MAKEFOURCC('A', 'H', 't', 'b') // rawcode; Storm Bolt unit-target probe
 #define BZ_ATAU MAKEFOURCC('A', 't', 'a', 'u') // rawcode; Taunt no-target probe
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);

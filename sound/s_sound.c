@@ -34,7 +34,7 @@ static void S_ReserveSoundEvents(void) {
     SDL_UnlockAudioDevice(s.device);
 }
 
-static void S_SoundEvent(soundPolicy_t const *policy, DWORD event) {
+static void S_SoundEvent(soundPolicy_t const *policy, uint32_t event) {
     if (!policy || !policy->request) return;
     if (sound_event_count == sound_event_capacity) {
         fprintf(stderr, "S_SoundEvent: missing notification reservation\n"); abort();
@@ -42,9 +42,9 @@ static void S_SoundEvent(soundPolicy_t const *policy, DWORD event) {
     sound_events[sound_event_count++] = (soundEvent_t){policy->user, policy->request, event};
 }
 
-BOOL S_PollSoundEvent(soundEvent_t *event) {
+bool S_PollSoundEvent(soundEvent_t *event) {
     SDL_LockAudioDevice(s.device);
-    BOOL found = sound_event_read < sound_event_count;
+    bool found = sound_event_read < sound_event_count;
     if (found) *event = sound_events[sound_event_read++];
     if (sound_event_read == sound_event_count) sound_event_read = sound_event_count = 0;
     SDL_UnlockAudioDevice(s.device);
@@ -70,10 +70,10 @@ typedef struct {
     int dataofs;
 } wavinfo_t;
 
-static BYTE *data_p;
-static BYTE *iff_end;
-static BYTE *last_chunk;
-static BYTE *iff_data;
+static uint8_t *data_p;
+static uint8_t *iff_end;
+static uint8_t *last_chunk;
+static uint8_t *iff_data;
 static int   iff_chunk_len;
 
 static short GetLittleShort(void) {
@@ -106,7 +106,7 @@ static void FindChunk(const char *name) {
     FindNextChunk(name);
 }
 
-static wavinfo_t GetWavinfo(const char *name, BYTE *wav, int wavlength) {
+static wavinfo_t GetWavinfo(const char *name, uint8_t *wav, int wavlength) {
     wavinfo_t info;
     memset(&info, 0, sizeof(info));
     if (!wav) return info;
@@ -165,14 +165,14 @@ static wavinfo_t GetWavinfo(const char *name, BYTE *wav, int wavlength) {
  * Resample + allocate sfxcache_t (mirrors Q2 ResampleSfx, always → S16/44100/mono)
  * ========================================================================= */
 
-static BOOL s_is_mp3_path(LPCSTR path) {
-    LPCSTR extension = path ? strrchr(path, '.') : NULL;
+static bool s_is_mp3_path(cstring_t path) {
+    cstring_t extension = path ? strrchr(path, '.') : NULL;
     return extension && !strcasecmp(extension, ".mp3");
 }
 
 static sfxcache_t *S_ResampleLoad(const char *path) {
-    DWORD file_size = 0;
-    BYTE *file_data = FS_ReadFile(path, &file_size);
+    uint32_t file_size = 0;
+    uint8_t *file_data = FS_ReadFile(path, &file_size);
     if (!file_data || !file_size) {
         fprintf(stderr, "[sound] %s: failed to read audio file\n", path);
         FS_FreeFile(file_data);
@@ -180,7 +180,7 @@ static sfxcache_t *S_ResampleLoad(const char *path) {
     }
 
     if (file_size < 12 || strncmp((char *)file_data, "RIFF", 4) || strncmp((char *)file_data + 8, "WAVE", 4)) {
-        BOOL is_mp3 = s_is_mp3_path(path);
+        bool is_mp3 = s_is_mp3_path(path);
         sfxcache_t *sc = is_mp3 ? s_mp3_decode(file_data, file_size) : NULL;
         if (!sc) fprintf(stderr, "[sound] %s: %s\n", path,
                          is_mp3 ? "MP3 decode failed" : "unsupported audio format (expected WAV or MP3)");
@@ -209,7 +209,7 @@ static sfxcache_t *S_ResampleLoad(const char *path) {
     sc->length    = outcount;
     sc->loopstart = (info.loopstart != -1) ? (int)((float)info.loopstart / stepscale) : -1;
 
-    BYTE *src      = file_data + info.dataofs;
+    uint8_t *src      = file_data + info.dataofs;
     int   fracstep = (int)(stepscale * 256.0f);
     int   samplefrac = 0;
     for (int i = 0; i < outcount; i++) {
@@ -217,7 +217,7 @@ static sfxcache_t *S_ResampleLoad(const char *path) {
         samplefrac += fracstep;
         int sample = 0;
         for (int channel = 0; channel < info.channels; channel++) {
-            BYTE *pcm = src + (srcsample * info.channels + channel) * info.width;
+            uint8_t *pcm = src + (srcsample * info.channels + channel) * info.width;
             sample += info.width == 2 ? (short)(pcm[0] | (pcm[1] << 8))
                                       : ((int)pcm[0] - 128) << 8;
         }
@@ -232,23 +232,23 @@ static sfxcache_t *S_ResampleLoad(const char *path) {
  * Name hash (for DBC kit lookup by name)
  * ========================================================================= */
 
-static DWORD S_HashString(LPCSTR str) {
-    DWORD hash = 5381;
+static uint32_t S_HashString(cstring_t str) {
+    uint32_t hash = 5381;
     for (; *str; str++) hash = ((hash << 5) + hash) + (unsigned char)*str;
     return hash & (S_HASH_BUCKETS - 1);
 }
 
-static sHashNode_t *S_FindByName(LPCSTR name) {
-    DWORD bucket = S_HashString(name);
+static sHashNode_t *S_FindByName(cstring_t name) {
+    uint32_t bucket = S_HashString(name);
     for (sHashNode_t *n = s.hash_buckets[bucket]; n; n = n->next)
         if (n->kit_id && s.kits[n->kit_id].name && !strcasecmp(s.kits[n->kit_id].name, name))
             return n;
     return NULL;
 }
 
-static void S_InsertHash(DWORD kit_id, LPCSTR name) {
+static void S_InsertHash(uint32_t kit_id, cstring_t name) {
     if (!name || !*name) return;
-    DWORD bucket = S_HashString(name);
+    uint32_t bucket = S_HashString(name);
     sHashNode_t *n = &s.hash_pool[s.hash_pool_used++];
     n->kit_id = kit_id;
     n->next   = s.hash_buckets[bucket];
@@ -264,7 +264,7 @@ static sfxcache_t *S_LoadKit(sSoundKit_t *k) {
     if (!k || k->id == 0 || !k->files[0] || !*k->files[0]) return NULL;
     if (k->cache) return k->cache;
     if (k->load_attempted && k->load_attempt_sequence == s.registration_sequence) return NULL;
-    k->load_attempted = TRUE;
+    k->load_attempted = true;
     k->load_attempt_sequence = s.registration_sequence;
 
     char path[512];
@@ -282,14 +282,14 @@ static sfxcache_t *S_LoadSfx(sfx_t *sfx) {
     if (!sfx || !sfx->path[0]) return NULL;
     if (sfx->cache) return sfx->cache;
     if (sfx->load_attempted && sfx->load_attempt_sequence == s.registration_sequence) return NULL;
-    sfx->load_attempted = TRUE;
+    sfx->load_attempted = true;
     sfx->load_attempt_sequence = s.registration_sequence;
     sfx->cache = S_ResampleLoad(sfx->path);
     return sfx->cache;
 }
 
 /* Find or create a path-keyed sfx handle (mirrors Q2 S_FindName). */
-static sfx_t *S_FindSfx(LPCSTR path, BOOL create) {
+static sfx_t *S_FindSfx(cstring_t path, bool create) {
     for (int i = 0; i < s.num_sfx; i++)
         if (!strcasecmp(s.known_sfx[i].path, path))
             return &s.known_sfx[i];
@@ -311,33 +311,33 @@ static sfx_t *S_FindSfx(LPCSTR path, BOOL create) {
 
 void S_LoadSoundEntries(void) {
     stbDbc_t h;
-    DWORD size = 0;
-    BYTE *data = FS_ReadFile("DBFilesClient\\SoundEntries.dbc", &size);
-    if (!Stb_DbcValid(data, (DWORD)size, &h) ||
+    uint32_t size = 0;
+    uint8_t *data = FS_ReadFile("DBFilesClient\\SoundEntries.dbc", &size);
+    if (!Stb_DbcValid(data, (uint32_t)size, &h) ||
         h.fields != SENTRY_FIELDS || h.record_size != SENTRY_RECORD_SIZE) {
         FS_FreeFile(data);
         return;
     }
-    BYTE *records = data + 20;
-    BYTE *strings = records + h.records * h.record_size;
+    uint8_t *records = data + 20;
+    uint8_t *strings = records + h.records * h.record_size;
 
-    for (DWORD i = 0; i < h.records && i < S_MAX_KITS; i++) {
-        BYTE *rec = records + i * h.record_size;
-        DWORD id = Stb_DbcField(&h, rec, 0);
+    for (uint32_t i = 0; i < h.records && i < S_MAX_KITS; i++) {
+        uint8_t *rec = records + i * h.record_size;
+        uint32_t id = Stb_DbcField(&h, rec, 0);
         if (id == 0 || id >= S_MAX_KITS) continue;
         sSoundKit_t *k = &s.kits[id];
         k->id   = id;
         k->type = Stb_DbcField(&h, rec, 1);
         k->name = Stb_DbcString(strings, h.string_size, Stb_DbcField(&h, rec, 2));
-        for (DWORD j = 0; j < SENTRY_MAX_FILES; j++)
+        for (uint32_t j = 0; j < SENTRY_MAX_FILES; j++)
             k->files[j] = Stb_DbcString(strings, h.string_size, Stb_DbcField(&h, rec, 3 + j));
-        for (DWORD j = 0; j < SENTRY_MAX_FILES; j++)
+        for (uint32_t j = 0; j < SENTRY_MAX_FILES; j++)
             k->freq[j] = Stb_DbcField(&h, rec, 13 + j);
         k->directoryBase = Stb_DbcString(strings, h.string_size, Stb_DbcField(&h, rec, 23));
-        k->volume = Stb_DbcReadFloat(rec + 24 * sizeof(DWORD));
+        k->volume = Stb_DbcReadFloat(rec + 24 * sizeof(uint32_t));
         k->flags  = Stb_DbcField(&h, rec, 25);
         k->cache  = NULL;
-        k->load_attempted = FALSE;
+        k->load_attempted = false;
         k->registration_sequence = s.registration_sequence;
         if (k->id >= s.kit_count) s.kit_count = k->id + 1;
         S_InsertHash(id, k->name);
@@ -372,7 +372,7 @@ void S_EndRegistration(void) {
     s.num_sfx = dst;
 
     /* Free kit caches not touched this sequence */
-    for (DWORD i = 1; i < s.kit_count; i++) {
+    for (uint32_t i = 1; i < s.kit_count; i++) {
         sSoundKit_t *k = &s.kits[i];
         if (k->id != i) continue;
         if (k->registration_sequence != s.registration_sequence && k->cache) {
@@ -441,10 +441,10 @@ static void S_EndChannel(int ch) {
     soundPolicy_t const *p = &s.channels[ch].policy;
     if (s.channels[ch].active && p->cooldown_ms && p->user < MAX_GAME_ENTITIES) {
         s.user_cooldown[p->user].end = SDL_GetTicks() + p->cooldown_ms;
-        s.user_cooldown[p->user].active = TRUE;
+        s.user_cooldown[p->user].active = true;
     }
     if (s.channels[ch].active) S_SoundEvent(p, SOUND_ENDED);
-    s.channels[ch].active = FALSE;
+    s.channels[ch].active = false;
 }
 
 static void SDLCALL S_MixAudio(void *userdata, Uint8 *stream, int len) {
@@ -456,9 +456,9 @@ static void SDLCALL S_MixAudio(void *userdata, Uint8 *stream, int len) {
     FOR_LOOP(stream_id, S_STREAM_COUNT) {
         sStreamState_t *stream_state = &s.streams[stream_id];
         if (!stream_state->active || stream_state->paused || !stream_state->data) continue;
-        DWORD take = MIN((DWORD)frames, stream_state->count);
-        for (DWORD i = 0; i < take; i++) {
-            DWORD frame = stream_state->read_pos;
+        uint32_t take = MIN((uint32_t)frames, stream_state->count);
+        for (uint32_t i = 0; i < take; i++) {
+            uint32_t frame = stream_state->read_pos;
             int l = (int)out[i * 2] + (int)(stream_state->data[frame * 2] * stream_state->volume);
             int r = (int)out[i * 2 + 1] + (int)(stream_state->data[frame * 2 + 1] * stream_state->volume);
             if (l > 32767) l = 32767; else if (l < -32768) l = -32768;
@@ -483,7 +483,7 @@ static void SDLCALL S_MixAudio(void *userdata, Uint8 *stream, int len) {
         if (skip == frames) continue;
         if (!s.channels[ch].notified_start) {
             S_SoundEvent(&s.channels[ch].policy, SOUND_STARTED);
-            s.channels[ch].notified_start = TRUE;
+            s.channels[ch].notified_start = true;
         }
 
         for (int i = skip; i < frames; i++) {
@@ -509,18 +509,18 @@ static void SDLCALL S_MixAudio(void *userdata, Uint8 *stream, int len) {
 }
 
 #ifdef BZ_TESTS
-void S_TestMix(SHORT *out, DWORD frames) { S_MixAudio(NULL, (Uint8 *)out, frames * 2 * sizeof(SHORT)); }
+void S_TestMix(int16_t *out, uint32_t frames) { S_MixAudio(NULL, (Uint8 *)out, frames * 2 * sizeof(int16_t)); }
 #endif
 
 /* =========================================================================
  * Init / Shutdown
  * ========================================================================= */
 
-BOOL S_Init(void) {
+bool S_Init(void) {
     memset(&s, 0, sizeof(s));
     if (SDL_Init(SDL_INIT_AUDIO) != 0) {
         fprintf(stderr, "[sound] SDL_Init: %s\n", SDL_GetError());
-        return FALSE;
+        return false;
     }
     SDL_AudioSpec want = {0}, have = {0};
     want.freq     = 44100;
@@ -531,12 +531,12 @@ BOOL S_Init(void) {
     s.device = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
     if (s.device == 0) {
         fprintf(stderr, "[sound] SDL_OpenAudioDevice: %s\n", SDL_GetError());
-        return FALSE;
+        return false;
     }
     SDL_PauseAudioDevice(s.device, 0);
     S_LoadSoundEntries();
-    s.initialized = TRUE;
-    return TRUE;
+    s.initialized = true;
+    return true;
 }
 
 void S_Shutdown(void) {
@@ -545,7 +545,7 @@ void S_Shutdown(void) {
     SDL_CloseAudioDevice(s.device);
     for (int i = 0; i < s.num_sfx; i++)
         free(s.known_sfx[i].cache);
-    for (DWORD i = 1; i < s.kit_count; i++)
+    for (uint32_t i = 1; i < s.kit_count; i++)
         if (s.kits[i].id == i) free(s.kits[i].cache);
     FS_FreeFile(s.dbc_data);
     FOR_LOOP(stream_id, S_STREAM_COUNT) free(s.streams[stream_id].data);
@@ -615,16 +615,16 @@ static int S_AdmitSound(sfxcache_t *sc, soundPolicy_t const *p) {
     return free_slot;
 }
 
-static BOOL S_StartSound(sfxcache_t *sc, float volume, LPCVECTOR2 origin, BOOL is_positional, int channel,
-                         FLOAT attenuation, FLOAT timeofs, soundPolicy_t const *policy) {
+static bool S_StartSound(sfxcache_t *sc, float volume, LPCVECTOR2 origin, bool is_positional, int channel,
+                         float attenuation, float timeofs, soundPolicy_t const *policy) {
     int selected = -1;
     unsigned priority = policy ? policy->priority : SOUND_PRIORITY(channel);
-    if (!sc) return FALSE;
+    if (!sc) return false;
     SDL_LockAudioDevice(s.device);
     if (policy && policy->cooldown_ms && s.user_cooldown[policy->user].active &&
         (int32_t)(s.user_cooldown[policy->user].end - SDL_GetTicks()) > 0) {
         SDL_UnlockAudioDevice(s.device);
-        return FALSE;
+        return false;
     }
     if (policy) selected = S_AdmitSound(sc, policy);
     else for (int ch = 0; ch < S_MAX_CHANNELS; ch++) {
@@ -651,67 +651,67 @@ static BOOL S_StartSound(sfxcache_t *sc, float volume, LPCVECTOR2 origin, BOOL i
         s.channels[ch].delay        = (int)(timeofs * 44100.0f);
         s.channels[ch].entity       = 0;
         s.channels[ch].loop_generation = 0;
-        s.channels[ch].looping      = FALSE;
+        s.channels[ch].looping      = false;
         s.channels[ch].is_positional = is_positional;
-        s.channels[ch].active       = TRUE;
+        s.channels[ch].active       = true;
         S_SoundEvent(policy, SOUND_ACCEPTED);
         SDL_UnlockAudioDevice(s.device);
-        return TRUE;
+        return true;
     }
     SDL_UnlockAudioDevice(s.device);
-    return FALSE;
+    return false;
 }
 
 /* =========================================================================
  * Public API
  * ========================================================================= */
 
-void S_PlaySound(DWORD kit_id) {
+void S_PlaySound(uint32_t kit_id) {
     if (!s.initialized || kit_id == 0 || kit_id >= S_MAX_KITS) return;
     sSoundKit_t *k = &s.kits[kit_id];
     if (k->id != kit_id) return;
     k->registration_sequence = s.registration_sequence;
-    S_StartSound(S_LoadKit(k), k->volume > 0.0f ? k->volume : 1.0f, NULL, FALSE, 0, DEFAULT_SOUND_PACKET_ATTENUATION, 0, NULL);
+    S_StartSound(S_LoadKit(k), k->volume > 0.0f ? k->volume : 1.0f, NULL, false, 0, DEFAULT_SOUND_PACKET_ATTENUATION, 0, NULL);
 }
 
-void S_PlaySoundByName(LPCSTR name) {
+void S_PlaySoundByName(cstring_t name) {
     if (!s.initialized || !name || !*name) return;
     sHashNode_t *n = S_FindByName(name);
     if (n) S_PlaySound(n->kit_id);
 }
 
 /* Preload a server-configstring sound so playback never blocks on archive I/O. */
-void S_RegisterSound(LPCSTR path) {
+void S_RegisterSound(cstring_t path) {
     if (!s.initialized || !path || !*path) return;
-    sfx_t *sfx = S_FindSfx(path, TRUE);
+    sfx_t *sfx = S_FindSfx(path, true);
     if (!sfx) return;
     sfx->registration_sequence = s.registration_sequence;
     S_LoadSfx(sfx);
 }
 
 /* Play a sound by raw MPQ-relative path — non-positional (voice, UI, JASS). */
-void S_PlaySoundFile(LPCSTR path) {
+void S_PlaySoundFile(cstring_t path) {
     if (!s.initialized || !path || !*path) return;
-    sfx_t *sfx = S_FindSfx(path, TRUE);
+    sfx_t *sfx = S_FindSfx(path, true);
     if (!sfx) return;
     sfx->registration_sequence = s.registration_sequence;
-    S_StartSound(S_LoadSfx(sfx), 1.0f, NULL, FALSE, 0, DEFAULT_SOUND_PACKET_ATTENUATION, 0, NULL);
+    S_StartSound(S_LoadSfx(sfx), 1.0f, NULL, false, 0, DEFAULT_SOUND_PACKET_ATTENUATION, 0, NULL);
 }
 
 /* Play a positional sound at a 2D world origin (distance attenuation + stereo pan). */
-void S_PlaySoundAt(LPCSTR path, LPCVECTOR2 origin) {
+void S_PlaySoundAt(cstring_t path, LPCVECTOR2 origin) {
     if (!s.initialized || !path || !*path) return;
-    sfx_t *sfx = S_FindSfx(path, TRUE);
+    sfx_t *sfx = S_FindSfx(path, true);
     if (!sfx) return;
     sfx->registration_sequence = s.registration_sequence;
-    S_StartSound(S_LoadSfx(sfx), 1.0f, origin, TRUE, 0, DEFAULT_SOUND_PACKET_ATTENUATION, 0, NULL);
+    S_StartSound(S_LoadSfx(sfx), 1.0f, origin, true, 0, DEFAULT_SOUND_PACKET_ATTENUATION, 0, NULL);
 }
 
-void S_PlaySoundPacket(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int channel, FLOAT volume,
-                       FLOAT attenuation, FLOAT timeofs) {
+void S_PlaySoundPacket(cstring_t path, LPCVECTOR3 origin, bool positioned, int channel, float volume,
+                       float attenuation, float timeofs) {
     sfx_t *sfx;
     if (!s.initialized || !path || !*path) return;
-    sfx = S_FindSfx(path, TRUE);
+    sfx = S_FindSfx(path, true);
     if (!sfx) return;
     sfx->registration_sequence = s.registration_sequence;
     S_StartSound(S_LoadSfx(sfx), volume, positioned ? &(VECTOR2){ origin->x, origin->y } : NULL, positioned,
@@ -723,13 +723,13 @@ void S_BeginLoopingSounds(void) {
     if (++s.loop_generation == 0) ++s.loop_generation;
 }
 
-void S_UpdateLoopingSound(DWORD entity, LPCSTR path, LPCVECTOR2 origin, FLOAT volume, FLOAT attenuation) {
+void S_UpdateLoopingSound(uint32_t entity, cstring_t path, LPCVECTOR2 origin, float volume, float attenuation) {
     sfx_t *sfx;
     sfxcache_t *sc;
     int free_channel = -1;
 
     if (!s.initialized || !entity || !path || !*path) return;
-    sfx = S_FindSfx(path, TRUE);
+    sfx = S_FindSfx(path, true);
     if (!sfx) return;
     sfx->registration_sequence = s.registration_sequence;
     sc = S_LoadSfx(sfx);
@@ -762,9 +762,9 @@ void S_UpdateLoopingSound(DWORD entity, LPCSTR path, LPCVECTOR2 origin, FLOAT vo
         s.channels[ch].attenuation = attenuation;
         s.channels[ch].entity = entity;
         s.channels[ch].loop_generation = s.loop_generation;
-        s.channels[ch].looping = TRUE;
+        s.channels[ch].looping = true;
         s.channels[ch].is_positional = origin != NULL;
-        s.channels[ch].active = TRUE;
+        s.channels[ch].active = true;
     }
     SDL_UnlockAudioDevice(s.device);
 }
@@ -781,8 +781,8 @@ void S_EndLoopingSounds(void) {
 }
 
 /* Client-owned long-form PCM streams (movie/music), stereo S16 at 44.1 kHz. */
-static BOOL S_ValidStream(sStreamId_t stream) {
-    return (DWORD)stream < (DWORD)S_STREAM_COUNT;
+static bool S_ValidStream(sStreamId_t stream) {
+    return (uint32_t)stream < (uint32_t)S_STREAM_COUNT;
 }
 
 void S_StreamStart(sStreamId_t stream) {
@@ -800,14 +800,14 @@ void S_StreamStart(sStreamId_t stream) {
     SDL_UnlockAudioDevice(s.device);
 }
 
-DWORD S_StreamSamples(sStreamId_t stream, SHORT const *samples, DWORD frames) {
-    DWORD written = 0;
+uint32_t S_StreamSamples(sStreamId_t stream, int16_t const *samples, uint32_t frames) {
+    uint32_t written = 0;
 
     if (!s.initialized || !S_ValidStream(stream) || !samples || !frames ||
         !s.streams[stream].active || !s.streams[stream].data) return 0;
     SDL_LockAudioDevice(s.device);
     while (written < frames && s.streams[stream].count < s.streams[stream].capacity) {
-        DWORD dst = s.streams[stream].write_pos;
+        uint32_t dst = s.streams[stream].write_pos;
         s.streams[stream].data[dst * 2] = samples[written * 2];
         s.streams[stream].data[dst * 2 + 1] = samples[written * 2 + 1];
         s.streams[stream].write_pos = (s.streams[stream].write_pos + 1) % s.streams[stream].capacity;
@@ -818,8 +818,8 @@ DWORD S_StreamSamples(sStreamId_t stream, SHORT const *samples, DWORD frames) {
     return written;
 }
 
-DWORD S_StreamBufferedFrames(sStreamId_t stream) {
-    DWORD count = 0;
+uint32_t S_StreamBufferedFrames(sStreamId_t stream) {
+    uint32_t count = 0;
     if (!s.initialized || !S_ValidStream(stream) || !s.streams[stream].active) return 0;
     SDL_LockAudioDevice(s.device);
     count = s.streams[stream].count;
@@ -836,14 +836,14 @@ uint64_t S_StreamPlayedFrames(sStreamId_t stream) {
     return frames;
 }
 
-void S_StreamSetVolume(sStreamId_t stream, FLOAT volume) {
+void S_StreamSetVolume(sStreamId_t stream, float volume) {
     if (!s.initialized || !S_ValidStream(stream)) return;
     SDL_LockAudioDevice(s.device);
     s.streams[stream].volume = MAX(0.0f, MIN(volume, 1.0f));
     SDL_UnlockAudioDevice(s.device);
 }
 
-void S_StreamSetPaused(sStreamId_t stream, BOOL paused) {
+void S_StreamSetPaused(sStreamId_t stream, bool paused) {
     if (!s.initialized || !S_ValidStream(stream)) return;
     SDL_LockAudioDevice(s.device);
     s.streams[stream].paused = paused;
@@ -866,8 +866,8 @@ void S_SetListener(LPCVECTOR2 origin, LPCVECTOR2 right) {
 }
 
 
-BOOL S_PlaySoundPolicy(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int channel, FLOAT volume,
-                       FLOAT attenuation, FLOAT timeofs, soundPolicy_t const *policy) {
+bool S_PlaySoundPolicy(cstring_t path, LPCVECTOR3 origin, bool positioned, int channel, float volume,
+                       float attenuation, float timeofs, soundPolicy_t const *policy) {
     sfx_t *sfx;
     if (policy && policy->request) S_ReserveSoundEvents();
     if (!s.initialized) goto rejected;
@@ -880,13 +880,13 @@ BOOL S_PlaySoundPolicy(LPCSTR path, LPCVECTOR3 origin, BOOL positioned, int chan
         fprintf(stderr, "S_PlaySoundPolicy: invalid admission limits for %s\n", path);
         goto rejected;
     }
-    if (!(sfx = S_FindSfx(path, TRUE))) goto rejected;
+    if (!(sfx = S_FindSfx(path, true))) goto rejected;
     sfx->registration_sequence = s.registration_sequence;
     if (S_StartSound(S_LoadSfx(sfx), volume, positioned ? &(VECTOR2){ origin->x, origin->y } : NULL,
-                     positioned, channel, attenuation, timeofs, policy)) return TRUE;
+                     positioned, channel, attenuation, timeofs, policy)) return true;
 rejected:
     SDL_LockAudioDevice(s.device);
     S_SoundEvent(policy, SOUND_REJECTED);
     SDL_UnlockAudioDevice(s.device);
-    return FALSE;
+    return false;
 }

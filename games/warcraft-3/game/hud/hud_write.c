@@ -10,13 +10,13 @@
 #include "hud_local.h"
 #include "hud_utils.h"
 
-DWORD ui_next_frame_number;
+uint32_t ui_next_frame_number;
 LPGAMECLIENT ui_current_client;
-static BYTE ui_window_text[MAX_MSGLEN];
-static DWORD ui_window_text_size;
-BOOL ui_window_writing;
+static uint8_t ui_window_text[MAX_MSGLEN];
+static uint32_t ui_window_text_size;
+bool ui_window_writing;
 
-LPCSTR UI_LevelStringSafe(LPCSTR text) {
+cstring_t UI_LevelStringSafe(cstring_t text) {
     if (!text || !*text) {
         return " ";
     }
@@ -34,21 +34,21 @@ void UI_CenterFrame(LPFRAMEDEF frame) {
     UI_SetPoint(frame, FRAMEPOINT_CENTER, NULL, FRAMEPOINT_CENTER, 0.0f, 0.0f);
 }
 
-void UI_SetFramePoint(uiFramePoint_t *point, uiFramePointPos_t target, DWORD relative, FLOAT offset, BOOL y_axis) {
+void UI_SetFramePoint(uiFramePoint_t *point, uiFramePointPos_t target, uint32_t relative, float offset, bool y_axis) {
     point->used = 1;
     point->targetPos = target;
-    point->relativeTo = (BYTE)relative;
-    point->offset = (SHORT)((y_axis ? -offset : offset) * UI_FRAMEPOINT_SCALE);
+    point->relativeTo = (uint8_t)relative;
+    point->offset = (int16_t)((y_axis ? -offset : offset) * UI_FRAMEPOINT_SCALE);
 }
 
-void UI_SetFrameRect(LPUIFRAME frame, FLOAT x, FLOAT y, FLOAT w, FLOAT h) {
+void UI_SetFrameRect(LPUIFRAME frame, float x, float y, float w, float h) {
     UI_SetFramePoint(&frame->points.x[FPP_MIN], FPP_MIN, 0, x, false);
     UI_SetFramePoint(&frame->points.y[FPP_MIN], FPP_MIN, 0, y, true);
     frame->size.width = w;
     frame->size.height = h;
 }
 
-void UI_WriteProxyFrame(LPUIFRAME frame, HANDLE data, DWORD data_size) {
+void UI_WriteProxyFrame(LPUIFRAME frame, handle_t data, uint32_t data_size) {
     frame->number = ui_next_frame_number++;
     frame->color = frame->color.a ? frame->color : COLOR32_WHITE;
     if (!frame->tex.coord[1] && !frame->tex.coord[3]) {
@@ -60,19 +60,19 @@ void UI_WriteProxyFrame(LPUIFRAME frame, HANDLE data, DWORD data_size) {
     gi.Write(ui_window_writing ? PF_UIWINDOWFRAME : PF_UIFRAME, frame);
 }
 
-void UI_WriteProxyFrameToParent(LPUIFRAME frame, HANDLE data, DWORD data_size, DWORD parent) {
+void UI_WriteProxyFrameToParent(LPUIFRAME frame, handle_t data, uint32_t data_size, uint32_t parent) {
     frame->parent = parent;
     UI_WriteProxyFrame(frame, data, data_size);
 }
 
-void UI_SetFramePointRelative(uiFramePoint_t *point, uiFramePointPos_t target, DWORD relative, FLOAT offset, BOOL y_axis) {
+void UI_SetFramePointRelative(uiFramePoint_t *point, uiFramePointPos_t target, uint32_t relative, float offset, bool y_axis) {
     point->used = 1;
     point->targetPos = target;
-    point->relativeTo = (BYTE)relative;
-    point->offset = (SHORT)((y_axis ? -offset : offset) * UI_FRAMEPOINT_SCALE);
+    point->relativeTo = (uint8_t)relative;
+    point->offset = (int16_t)((y_axis ? -offset : offset) * UI_FRAMEPOINT_SCALE);
 }
 
-void UI_WriteTextFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, COLOR32 color,
+void UI_WriteTextFrame(float x, float y, float w, float h, cstring_t text, COLOR32 color,
                        uiFontJustificationH_t align) {
     uiFrame_t frame;
     uiLabel_t label;
@@ -89,7 +89,7 @@ void UI_WriteTextFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, COLOR32 
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
-void UI_WriteTextureFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR art) {
+void UI_WriteTextureFrame(float x, float y, float w, float h, cstring_t art) {
     uiFrame_t frame;
 
     if (!art || !*art) {
@@ -103,8 +103,8 @@ void UI_WriteTextureFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR art) {
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
-void UI_WriteTextFrameSized(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, COLOR32 color,
-                            uiFontJustificationH_t align, DWORD font_size) {
+void UI_WriteTextFrameSized(float x, float y, float w, float h, cstring_t text, COLOR32 color,
+                            uiFontJustificationH_t align, uint32_t font_size) {
     uiFrame_t frame;
     uiLabel_t label;
 
@@ -120,8 +120,8 @@ void UI_WriteTextFrameSized(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, COL
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
-void UI_WriteCommandTextFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, LPCSTR command,
-                              COLOR32 color, uiFontJustificationH_t align, DWORD font_size) {
+void UI_WriteCommandTextFrame(float x, float y, float w, float h, cstring_t text, cstring_t command,
+                              COLOR32 color, uiFontJustificationH_t align, uint32_t font_size) {
     uiFrame_t frame;
     uiLabel_t label;
 
@@ -138,7 +138,7 @@ void UI_WriteCommandTextFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, L
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
-void UI_WriteBackdropFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR background, LPCSTR edge) {
+void UI_WriteBackdropFrame(float x, float y, float w, float h, cstring_t background, cstring_t edge) {
     uiFrame_t frame;
     uiBackdrop_t backdrop;
 
@@ -161,8 +161,8 @@ void UI_WriteBackdropFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR background
     UI_WriteProxyFrame(&frame, &backdrop, sizeof(backdrop));
 }
 
-void UI_WriteTextAreaFrame(FLOAT x, FLOAT y, FLOAT w, FLOAT h, LPCSTR text, COLOR32 color,
-                           DWORD font_size, FLOAT inset) {
+void UI_WriteTextAreaFrame(float x, float y, float w, float h, cstring_t text, COLOR32 color,
+                           uint32_t font_size, float inset) {
     uiFrame_t frame;
     uiTextArea_t textarea;
 
@@ -203,27 +203,27 @@ void UI_WriteTooltipFrame(void) {
     UI_WriteProxyFrame(&frame, &tooltip, sizeof(tooltip));
 }
 
-void UI_AppendMessageText(LPSTR out, DWORD out_size, LPCSTR text) {
+void UI_AppendMessageText(string_t out, uint32_t out_size, cstring_t text) {
     if (!out || out_size == 0 || !text) {
         return;
     }
     strncat(out, text, out_size - strlen(out) - 1);
 }
 
-LPCSTR UI_FormatMessageText(LPCSTR text) {
+cstring_t UI_FormatMessageText(cstring_t text) {
     static char buffers[4][1024];
-    static DWORD cursor;
+    static uint32_t cursor;
     char temp[1024];
-    LPSTR out = buffers[cursor++ & 3];
-    LPCSTR source = text && *text ? text : " ";
-    BOOL quest_message = strstr(source, "MAIN QUEST") || strstr(source, "OPTIONAL QUEST");
-    BOOL inserted_heading_break = false;
-    LPCSTR heading = quest_message ? strstr(source, "QUEST") : NULL;
+    string_t out = buffers[cursor++ & 3];
+    cstring_t source = text && *text ? text : " ";
+    bool quest_message = strstr(source, "MAIN QUEST") || strstr(source, "OPTIONAL QUEST");
+    bool inserted_heading_break = false;
+    cstring_t heading = quest_message ? strstr(source, "QUEST") : NULL;
 
     temp[0] = '\0';
     out[0] = '\0';
 
-    for (LPCSTR p = source; *p && strlen(temp) < sizeof(temp) - 1;) {
+    for (cstring_t p = source; *p && strlen(temp) < sizeof(temp) - 1;) {
         if (quest_message && p[0] == ' ' && p[1] == '-' && p[2] == ' ') {
             UI_AppendMessageText(temp, sizeof(temp), "|n- ");
             p += 3;
@@ -235,7 +235,7 @@ LPCSTR UI_FormatMessageText(LPCSTR text) {
 
     source = temp;
     heading = quest_message ? strstr(source, "QUEST") : NULL;
-    for (LPCSTR p = source; *p && strlen(out) < sizeof(buffers[0]) - 1;) {
+    for (cstring_t p = source; *p && strlen(out) < sizeof(buffers[0]) - 1;) {
         if (quest_message && !inserted_heading_break && heading &&
             (p == heading + 5 || (!strncmp(p, "|r", 2) && p > heading))) {
             if (!strncmp(p, "|r", 2)) {
@@ -260,15 +260,15 @@ LPCSTR UI_FormatMessageText(LPCSTR text) {
 /* Widescreen console tiles are written for wide clients only (docs/architecture/ui-canvas.md).  Registering
  * their keys while ConsoleUI.fdf is parsed would put the art in CS_IMAGES for every session, so these keys
  * get a deferred handle instead and reach gi.ImageIndex the first time a wide client's console is written. */
-static LPCSTR const hud_wide_chrome_keys[] = { "ConsoleTexture05", "ConsoleTexture06" };
+static cstring_t const hud_wide_chrome_keys[] = { "ConsoleTexture05", "ConsoleTexture06" };
 
-BOOL UI_IsWideChromeKey(LPCSTR key) {
+bool UI_IsWideChromeKey(cstring_t key) {
     FOR_LOOP(i, sizeof(hud_wide_chrome_keys) / sizeof(hud_wide_chrome_keys[0]))
         if (key && !strcmp(key, hud_wide_chrome_keys[i])) return true;
     return false;
 }
 
-static DWORD UI_DeferredImage(LPCSTR key) {
+static uint32_t UI_DeferredImage(cstring_t key) {
     FOR_LOOP(i, HUD_DEFERRED_IMAGES) {
         if (!hud.deferred_key[i][0]) snprintf(hud.deferred_key[i], sizeof(hud.deferred_key[i]), "%s", key);
         if (!strcmp(hud.deferred_key[i], key)) return HUD_DEFERRED_IMAGE_BASE + i;
@@ -278,13 +278,13 @@ static DWORD UI_DeferredImage(LPCSTR key) {
 }
 
 /* Symbolic key (or concrete path) behind a FRAMEDEF image handle, deferred or already registered. */
-LPCSTR UI_ImageKey(DWORD image) {
+cstring_t UI_ImageKey(uint32_t image) {
     if (image >= HUD_DEFERRED_IMAGE_BASE && image < HUD_DEFERRED_IMAGE_BASE + HUD_DEFERRED_IMAGES)
         return hud.deferred_key[image - HUD_DEFERRED_IMAGE_BASE];
     return image && image < MAX_IMAGES ? hud.image_key[image] : "";
 }
 
-static void UI_RememberImage(DWORD index, LPCSTR key, LPCSTR resolved, BOOL decorate) {
+static void UI_RememberImage(uint32_t index, cstring_t key, cstring_t resolved, bool decorate) {
     if (!index || index >= MAX_IMAGES) return;
     /* After SV_Map reuses CS_IMAGES slots, a stale FRAMEDEF still holds the old
      * index. Keep the original name until memset(&hud); overwriting it with the
@@ -306,8 +306,8 @@ BZ_HOST_HIDDEN void UI_ClearTextures(void) {
     memset(hud.font_spec, 0, sizeof(hud.font_spec));
 }
 
-BZ_HOST_HIDDEN DWORD UI_FdfFontIndex(LPCSTR name, DWORD size) {
-    DWORD index;
+BZ_HOST_HIDDEN uint32_t UI_FdfFontIndex(cstring_t name, uint32_t size) {
+    uint32_t index;
     if (!name || !*name || !gi.FontIndex) return 0;
     index = gi.FontIndex(name, size);
     if (index && index < MAX_FONTSTYLES)
@@ -315,10 +315,10 @@ BZ_HOST_HIDDEN DWORD UI_FdfFontIndex(LPCSTR name, DWORD size) {
     return index;
 }
 
-DWORD UI_LiveFont(DWORD font) {
+uint32_t UI_LiveFont(uint32_t font) {
     PATHSTR spec, name;
-    LPCSTR comma;
-    DWORD size;
+    cstring_t comma;
+    uint32_t size;
 
     if (!font) return 0;
     if (font >= MAX_FONTSTYLES || !hud.font_spec[font][0] || !gi.FontIndex) return font;
@@ -327,17 +327,17 @@ DWORD UI_LiveFont(DWORD font) {
     if (!comma) return gi.FontIndex(spec, HUD_FONT_SIZE);
     memcpy(name, spec, (size_t)(comma - spec));
     name[comma - spec] = '\0';
-    size = (DWORD)atoi(comma + 1);
+    size = (uint32_t)atoi(comma + 1);
     font = gi.FontIndex(name, size ? size : HUD_FONT_SIZE);
     if (font && font < MAX_FONTSTYLES)
         snprintf(hud.font_spec[font], sizeof(hud.font_spec[font]), "%s", spec);
     return font;
 }
 
-DWORD UI_LiveImage(DWORD image) {
-    LPCSTR key = NULL, name = NULL, path;
-    BOOL decorate = false;
-    DWORD live;
+uint32_t UI_LiveImage(uint32_t image) {
+    cstring_t key = NULL, name = NULL, path;
+    bool decorate = false;
+    uint32_t live;
 
     if (!image) return 0;
     if (image >= HUD_DEFERRED_IMAGE_BASE) {
@@ -370,20 +370,20 @@ DWORD UI_LiveImage(DWORD image) {
     return live;
 }
 
-BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR path, BOOL decorate) {
-    DWORD index;
+BZ_HOST_HIDDEN uint32_t UI_LoadTexture(cstring_t path, bool decorate) {
+    uint32_t index;
 
     if (!path || !*path) return 0;
     if (UI_IsWideChromeKey(path) && (index = UI_DeferredImage(path))) return index;
 
-    LPCSTR resolved = UI_ThemeImagePath(path);
+    cstring_t resolved = UI_ThemeImagePath(path);
     index = gi.ImageIndex(resolved);
     UI_RememberImage(index, path, resolved, decorate);
     return index;
 }
 
-BZ_HOST_HIDDEN LPCSTR Theme_String(LPCSTR key, LPCSTR def) {
-    LPCSTR value = NULL;
+BZ_HOST_HIDDEN cstring_t Theme_String(cstring_t key, cstring_t def) {
+    cstring_t value = NULL;
     if (key && !strstr(key, "\\")) {
         if (game.config.map_skin.source)
             value = Stb_IniCacheFind(&game.config.map_skin, "CustomSkin", key);
@@ -394,7 +394,7 @@ BZ_HOST_HIDDEN LPCSTR Theme_String(LPCSTR key, LPCSTR def) {
 }
 
 /* war3skins uses the console race category rather than the selected unit race. */
-static LPCSTR Theme_PlayerRaceCategory(DWORD race) {
+static cstring_t Theme_PlayerRaceCategory(uint32_t race) {
     switch (race) {
         case kPlayerRaceHuman: return "Human";
         case kPlayerRaceOrc: return "Orc";
@@ -404,16 +404,16 @@ static LPCSTR Theme_PlayerRaceCategory(DWORD race) {
     }
 }
 
-static DWORD Theme_GameVersion(void) {
-    LPCSTR expansion = gi.CvarString ? gi.CvarString("fs_expansion", "0") : "0";
+static uint32_t Theme_GameVersion(void) {
+    cstring_t expansion = gi.CvarString ? gi.CvarString("fs_expansion", "0") : "0";
     return expansion && atoi(expansion) != 0 ? 1 : 0;
 }
 
 /* Resolve a local player's race skin first, then the shared Default section.
  * Warcraft skin data also carries versioned aliases (for example Music_V1),
  * so fall back to the mounted game edition when the unversioned key is absent. */
-LPCSTR Theme_PlayerString(LPGAMECLIENT client, LPCSTR key, LPCSTR def) {
-    LPCSTR category, value;
+cstring_t Theme_PlayerString(LPGAMECLIENT client, cstring_t key, cstring_t def) {
+    cstring_t category, value;
     char versioned[128];
 
     if (!key || strstr(key, "\\")) return def;
@@ -441,9 +441,9 @@ LPCSTR Theme_PlayerString(LPGAMECLIENT client, LPCSTR key, LPCSTR def) {
 
 /* Some editions omit one widescreen extension key but provide its paired 05/06 texture.
  * Retain that established file-family rule here, alongside the authoritative skin lookup. */
-LPCSTR UI_ThemeImagePath(LPCSTR key) {
+cstring_t UI_ThemeImagePath(cstring_t key) {
     static PATHSTR path;
-    LPCSTR value, sibling;
+    cstring_t value, sibling;
     char digit = 0, *end, *dot;
     if (!key || !*key || strchr(key, '\\') || strchr(key, '/')) return UI_ResolveTextureAlias(key ? key : "");
     value = Theme_PlayerString(ui_current_client, key, NULL);
@@ -467,27 +467,27 @@ LPCSTR UI_ThemeImagePath(LPCSTR key) {
     return value;
 }
 
-BZ_HOST_HIDDEN FLOAT Theme_Float(LPCSTR key, LPCSTR def) {
+BZ_HOST_HIDDEN float Theme_Float(cstring_t key, cstring_t def) {
     (void)key;
     return def ? atof(def) : 0.0f;
 }
 
-void UI_WriteStart(DWORD layer) {
+void UI_WriteStart(uint32_t layer) {
     UI_ResetFrameWriteList();
-    gi.Write(PF_BYTE, &(LONG){svc_layout});
-    gi.Write(PF_BYTE, &(LONG){layer});
+    gi.Write(PF_BYTE, &(int32_t){svc_layout});
+    gi.Write(PF_BYTE, &(int32_t){layer});
     ui_next_frame_number = 1;
 }
 
 void UI_WriteEnd(LPEDICT ent) {
-    gi.Write(PF_LONG, &(LONG){0});   /* bits=0 */
-    gi.Write(PF_SHORT, &(LONG){0});  /* number=0  — MSG_ReadEntityBits reads LONG+SHORT */
+    gi.Write(PF_LONG, &(int32_t){0});   /* bits=0 */
+    gi.Write(PF_SHORT, &(int32_t){0});  /* number=0  — MSG_ReadEntityBits reads int32_t+int16_t */
     /* A NULL recipient leaves the initial loading layout for the server signon buffer. */
     if (ent) gi.unicast(ent);
 }
 
-DWORD UI_WindowTextOffset(LPCSTR text) {
-    DWORD offset, size;
+uint32_t UI_WindowTextOffset(cstring_t text) {
+    uint32_t offset, size;
 
     if (!text || !*text) return 0;
     size = strlen(text) + 1;
@@ -506,8 +506,8 @@ void UI_WriteWindowStart(uiWindowDef_t const *def) {
     UI_ResetFrameWriteList();
     ui_window_writing = true;
     ui_window_text[0] = '\0'; ui_window_text_size = 1;
-    gi.Write(PF_BYTE, &(LONG){svc_window});
-    gi.Write(PF_BYTE, &(LONG){UI_WINDOW_OPEN});
+    gi.Write(PF_BYTE, &(int32_t){svc_window});
+    gi.Write(PF_BYTE, &(int32_t){UI_WINDOW_OPEN});
     gi.Write(PF_LONG, &def->id); gi.Write(PF_LONG, &def->class_id); gi.Write(PF_LONG, &def->flags);
     ui_next_frame_number = 1;
 }
@@ -515,7 +515,7 @@ void UI_WriteWindowStart(uiWindowDef_t const *def) {
 void UI_WriteWindowEnd(LPEDICT ent) {
     pfWriteData_t text = { .data = ui_window_text, .size = ui_window_text_size };
     ui_window_writing = false;
-    gi.Write(PF_LONG, &(LONG){0}); gi.Write(PF_SHORT, &(LONG){0});
+    gi.Write(PF_LONG, &(int32_t){0}); gi.Write(PF_SHORT, &(int32_t){0});
     gi.Write(PF_LONG, &ui_window_text_size); gi.Write(PF_DATA, &text);
     gi.unicast(ent);
 }

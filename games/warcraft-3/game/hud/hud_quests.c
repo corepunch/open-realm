@@ -21,17 +21,17 @@ void UI_LoadHudQuests(void) {
 }
 
 
-static BOOL QuestDebugEnabled(void) {
+static bool QuestDebugEnabled(void) {
     return atoi(gi.CvarString("wc3_quest_debug", "0")) != 0;
 }
 
-static void QuestDebugQuoted(LPSTR out, DWORD out_size, LPCSTR text) {
-    DWORD used = 0;
+static void QuestDebugQuoted(string_t out, uint32_t out_size, cstring_t text) {
+    uint32_t used = 0;
 
     if (!out || !out_size) return;
     if (!text) text = "";
     for (; *text && used + 1 < out_size; text++) {
-        LPCSTR escaped = NULL;
+        cstring_t escaped = NULL;
         switch (*text) {
             case '\n': escaped = "\\n"; break;
             case '\r': escaped = "\\r"; break;
@@ -49,7 +49,7 @@ static void QuestDebugQuoted(LPSTR out, DWORD out_size, LPCSTR text) {
     out[used] = '\0';
 }
 
-static void QuestDebugText(DWORD quest_index, LPCSTR field, LPCSTR raw, LPCSTR resolved) {
+static void QuestDebugText(uint32_t quest_index, cstring_t field, cstring_t raw, cstring_t resolved) {
     char raw_text[768], resolved_text[768];
 
     if (!QuestDebugEnabled()) return;
@@ -61,11 +61,11 @@ static void QuestDebugText(DWORD quest_index, LPCSTR field, LPCSTR raw, LPCSTR r
 
 /* Retail lists enabled undiscovered quests as placeholders but only lets the
  * player open discovered quests. */
-static BOOL QuestIsListVisible(LPCQUEST quest) {
+static bool QuestIsListVisible(LPCQUEST quest) {
     return quest && quest->enabled;
 }
 
-static BOOL QuestIsVisibleMember(LPCQUEST quest) {
+static bool QuestIsVisibleMember(LPCQUEST quest) {
     if (!quest) return false;
     FOR_EACH_QUEST(q) {
         if (q == quest) return QuestIsVisible(q);
@@ -73,8 +73,8 @@ static BOOL QuestIsVisibleMember(LPCQUEST quest) {
     return false;
 }
 
-DWORD UI_QuestIndex(LPCQUEST quest) {
-    DWORD index = 0;
+uint32_t UI_QuestIndex(LPCQUEST quest) {
+    uint32_t index = 0;
     FOR_EACH_QUEST(q) {
         if (q == quest) return index;
         index++;
@@ -83,7 +83,7 @@ DWORD UI_QuestIndex(LPCQUEST quest) {
 }
 
 
-static void ResetRowsForParent(LPFRAMEDEF *rows, DWORD *count, LPFRAMEDEF parent) {
+static void ResetRowsForParent(LPFRAMEDEF *rows, uint32_t *count, LPFRAMEDEF parent) {
     if (!rows || !count || !*count) return;
     if (!rows[0] || !rows[0]->inuse || rows[0]->Parent != parent) {
         memset(rows, 0, sizeof(LPFRAMEDEF) * MAX_UI_CLASSES);
@@ -91,7 +91,7 @@ static void ResetRowsForParent(LPFRAMEDEF *rows, DWORD *count, LPFRAMEDEF parent
     }
 }
 
-static LPFRAMEDEF QuestRowAt(LPFRAMEDEF *rows, DWORD *count, LPFRAMEDEF container, DWORD row,
+static LPFRAMEDEF QuestRowAt(LPFRAMEDEF *rows, uint32_t *count, LPFRAMEDEF container, uint32_t row,
                              LPCFRAMEDEF row_template) {
     LPFRAMEDEF frame;
 
@@ -102,7 +102,7 @@ static LPFRAMEDEF QuestRowAt(LPFRAMEDEF *rows, DWORD *count, LPFRAMEDEF containe
         rows[row] = frame;
     } else {
         UI_SetPoint(frame, FRAMEPOINT_TOPLEFT, container, FRAMEPOINT_TOPLEFT,
-                    0.0f, -(FLOAT)row * frame->Height);
+                    0.0f, -(float)row * frame->Height);
     }
     if (!frame) return NULL;
     /* QuestListItemButton is anchored to the row's trailing edge; give the
@@ -113,16 +113,16 @@ static LPFRAMEDEF QuestRowAt(LPFRAMEDEF *rows, DWORD *count, LPFRAMEDEF containe
     return frame;
 }
 
-static void HideUnusedRows(LPFRAMEDEF *rows, DWORD count, DWORD used) {
-    for (DWORD i = used; i < count; i++) {
+static void HideUnusedRows(LPFRAMEDEF *rows, uint32_t count, uint32_t used) {
+    for (uint32_t i = used; i < count; i++) {
         if (rows[i] && rows[i]->inuse) UI_SetHidden(rows[i], true);
     }
 }
 
-static void PopulateQuestList(LPFRAMEDEF container, BOOL required, LPCQUEST selected) {
+static void PopulateQuestList(LPFRAMEDEF container, bool required, LPCQUEST selected) {
     LPFRAMEDEF *rows = required ? hud.required_rows : hud.optional_rows;
-    DWORD *row_count = required ? &hud.required_row_count : &hud.optional_row_count;
-    DWORD row = 0;
+    uint32_t *row_count = required ? &hud.required_row_count : &hud.optional_row_count;
+    uint32_t row = 0;
 
     if (!container) return;
     ResetRowsForParent(rows, row_count, container);
@@ -131,9 +131,9 @@ static void PopulateQuestList(LPFRAMEDEF container, BOOL required, LPCQUEST sele
         char command[64];
         LPFRAMEDEF row_frame, button, title, icon_container;
         LPFRAMEDEF selected_highlight, completed_highlight, failed_highlight, complete;
-        LPCSTR title_text, icon_path;
-        DWORD quest_index;
-        BOOL authored_selection;
+        cstring_t title_text, icon_path;
+        uint32_t quest_index;
+        bool authored_selection;
 
         if (!QuestIsListVisible(quest) || quest->required != required) continue;
 
@@ -211,7 +211,7 @@ static void PopulateQuestList(LPFRAMEDEF container, BOOL required, LPCQUEST sele
 }
 
 static void PopulateQuestItems(LPFRAMEDEF container, LPCQUEST quest) {
-    DWORD row = 0;
+    uint32_t row = 0;
 
     if (!container || !quest) return;
     ResetRowsForParent(hud.quest_item_rows, &hud.quest_item_row_count, container);
@@ -247,7 +247,7 @@ static void PopulateQuestItems(LPFRAMEDEF container, LPCQUEST quest) {
 }
 
 void UI_ShowQuest(LPEDICT ent, LPCQUEST quest) {
-    LPCSTR title, description, subtitle;
+    cstring_t title, description, subtitle;
 
     if (!ent || !ent->client || !QuestIsVisibleMember(quest)) return;
     UI_SetCurrentClient(ent->client);

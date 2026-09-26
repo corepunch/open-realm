@@ -1,8 +1,8 @@
 #include "s_skills.h"
 
 /* Splash/secondary hits: air enemy or neutral, not the primary, not the caster. */
-static BOOL unstable_concoction_splash_allows(DWORD code, LPEDICT caster, LPEDICT primary, LPEDICT target) {
-	LPCSTR targets;
+static bool unstable_concoction_splash_allows(uint32_t code, LPEDICT caster, LPEDICT primary, LPEDICT target) {
+	cstring_t targets;
 	if (!caster || !S_SpellIsAliveTarget(target) || target == caster || target == primary ||
 		S_UnitIsCycloned(target) || target->targtype != TARG_AIR)
 		return false;
@@ -15,11 +15,11 @@ static BOOL unstable_concoction_splash_allows(DWORD code, LPEDICT caster, LPEDIC
 	return false;
 }
 
-static void unstable_concoction_explode(LPEDICT caster, LPEDICT primary, DWORD code) {
-	DWORD level = MAX(1u, G_UnitAbilityLevel(caster, code));
-	FLOAT full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
-	FLOAT part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
-	FLOAT max_d = S_SpellData(code, level, 5), splash_spent = 0.0f;
+static void unstable_concoction_explode(LPEDICT caster, LPEDICT primary, uint32_t code) {
+	uint32_t level = MAX(1u, G_UnitAbilityLevel(caster, code));
+	float full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
+	float part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
+	float max_d = S_SpellData(code, level, 5), splash_spent = 0.0f;
 	VECTOR2 origin;
 
 	if (!primary || (full_d <= 0.0f && part_d <= 0.0f)) return;
@@ -27,7 +27,7 @@ static void unstable_concoction_explode(LPEDICT caster, LPEDICT primary, DWORD c
 	if (part_r < full_r) part_r = full_r;
 	T_Damage(primary, caster, (int)full_d);
 	FILTER_EDICTS(target, unstable_concoction_splash_allows(code, caster, primary, target)) {
-		FLOAT dist = Vector2_distance(&target->s.origin2, &origin), damage;
+		float dist = Vector2_distance(&target->s.origin2, &origin), damage;
 		if (dist > part_r) continue;
 		damage = (full_r > 0.0f && dist <= full_r) ? full_d : part_d;
 		if (damage <= 0.0f) continue;
@@ -50,7 +50,7 @@ static void unstable_concoction_kill_caster(LPEDICT caster) {
  * DataA full secondary ring; DataE splash cap; DataF charge movespeed not applied on instant execute.
  */
 BZ_SIMPLE_SPELL_PROC(AbilityUnstableConcoction) {
-	DWORD code;
+	uint32_t code;
 	if (!caster || !spell || !st.entity) return;
 	code = spell->code;
 	unstable_concoction_explode(caster, st.entity, code);

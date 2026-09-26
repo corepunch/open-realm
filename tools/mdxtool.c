@@ -16,7 +16,7 @@
 #define PATHSTR char[512]
 #endif
 
-extern void ReadNode(LPSIZEBUF buffer, mdxNode_t *node, DWORD size);
+extern void ReadNode(LPSIZEBUF buffer, mdxNode_t *node, uint32_t size);
 extern void R_ReleaseModelNode(mdxNode_t *node);
 
 #define BZ_MDX_MOTION_STEPS 50 // intervals; 2% spacing captures panel overshoot; used for diagnostic motion sampling.
@@ -34,25 +34,25 @@ static bool g_run_once = false;
 static const char *g_output_path = NULL;
 static long g_fixed_time = -1;   /* logical ms; -1 => wall clock (SDL_GetTicks) */
 static long g_seed = -1;         /* srand seed for particle RNG; -1 => unseeded */
-static HANDLE archives[64] = { 0 };
+static handle_t archives[64] = { 0 };
 static viewer_orbit_t orbit;
 static VECTOR3 g_model_center = { 0, 0, 0 };
 static float g_preview_scale = 1.0f;
 
 typedef struct {
-    DWORD num_sequences;
-    DWORD selected_sequence;
-    DWORD num_textures;
-    DWORD num_geosets;
-    DWORD num_lights;
-    DWORD num_emitters;
-    DWORD num_ribbons;
-    DWORD num_attachments;
-    DWORD num_helpers;
-    DWORD num_bones;
-    DWORD num_collision_shapes;
-    DWORD num_cameras;
-    DWORD num_pivots;
+    uint32_t num_sequences;
+    uint32_t selected_sequence;
+    uint32_t num_textures;
+    uint32_t num_geosets;
+    uint32_t num_lights;
+    uint32_t num_emitters;
+    uint32_t num_ribbons;
+    uint32_t num_attachments;
+    uint32_t num_helpers;
+    uint32_t num_bones;
+    uint32_t num_collision_shapes;
+    uint32_t num_cameras;
+    uint32_t num_pivots;
     float bounds_w;
     float bounds_d;
     float bounds_h;
@@ -70,10 +70,10 @@ static const float TEX_CELL_W = 0.062f;
 static const float TEX_CELL_H = 0.080f;
 static const float TEX_THUMB_W = 0.055f;
 static const float TEX_THUMB_H = 0.046f;
-static const DWORD TEX_COLS = 4;
+static const uint32_t TEX_COLS = 4;
 
 typedef struct {
-    DWORD count;
+    uint32_t count;
     char (*paths)[TEXTURE_PREVIEW_PATH_LENGTH];
     LPCTEXTURE *textures;
     size2_t *sizes;
@@ -83,12 +83,12 @@ static texture_preview_cache_t texture_previews = { 0 };
 
 static BOX3 GetPreviewBounds(mdxModel_t const *mdx);
 
-static void Tool_DrawString(refExport_t const *re, LPCSTR string, int x, int y) {
+static void Tool_DrawString(refExport_t const *re, cstring_t string, int x, int y) {
     if (!string) {
         return;
     }
-    for (DWORD i = 0; string[i]; i++) {
-        re->DrawChar(x + i * 8, y, (BYTE)string[i]);
+    for (uint32_t i = 0; string[i]; i++) {
+        re->DrawChar(x + i * 8, y, (uint8_t)string[i]);
     }
 }
 
@@ -134,7 +134,7 @@ static void usage(void) {
     "  --seed <n> seeds the particle RNG for reproducible output.\n");
 }
 
-static void errorf(LPCSTR fmt, ...) {
+static void errorf(cstring_t fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
@@ -143,26 +143,26 @@ static void errorf(LPCSTR fmt, ...) {
     exit(1);
 }
 
-HANDLE FS_OpenFile(LPCSTR fileName) {
+handle_t FS_OpenFile(cstring_t fileName) {
     return Viewer_OpenFile(archives, sizeof(archives) / sizeof(archives[0]), fileName);
 }
 
-void FS_CloseFile(HANDLE file) {
+void FS_CloseFile(handle_t file) {
     Viewer_CloseFile(file);
 }
 
-bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
+bool FS_ExtractFile(cstring_t toExtract, cstring_t extracted) {
     return Viewer_ExtractFile(archives, sizeof(archives) / sizeof(archives[0]), toExtract, extracted);
 }
 
-bool FS_FileExists(LPCSTR fileName) {
+bool FS_FileExists(cstring_t fileName) {
     return Viewer_FileExists(archives, sizeof(archives) / sizeof(archives[0]), fileName);
 }
 
-HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size);
+handle_t FS_ReadFile(cstring_t filename, uint32_t * size);
 
-HANDLE MemAlloc(long size) { return Viewer_MemAlloc(size); }
-void MemFree(HANDLE mem) { Viewer_MemFree(mem); }
+handle_t MemAlloc(long size) { return Viewer_MemAlloc(size); }
+void MemFree(handle_t mem) { Viewer_MemFree(mem); }
 
 void Sys_Quit(void) {
     exit(0);
@@ -309,8 +309,8 @@ static float FitPreviewDistance(mdxModel_t const *mdx, float aspect, float fov_d
     return distance * 1.05f;
 }
 
-static DWORD CountGeosets(mdxModel_t const *mdx) {
-    DWORD count = 0;
+static uint32_t CountGeosets(mdxModel_t const *mdx) {
+    uint32_t count = 0;
     FOR_EACH_LIST(mdxGeoset_t, geoset, mdx->geosets) {
         (void)geoset;
         count++;
@@ -318,8 +318,8 @@ static DWORD CountGeosets(mdxModel_t const *mdx) {
     return count;
 }
 
-static DWORD CountLights(mdxModel_t const *mdx) {
-    DWORD count = 0;
+static uint32_t CountLights(mdxModel_t const *mdx) {
+    uint32_t count = 0;
     FOR_EACH_LIST(mdxLight_t, light, mdx->lights) {
         (void)light;
         count++;
@@ -327,8 +327,8 @@ static DWORD CountLights(mdxModel_t const *mdx) {
     return count;
 }
 
-static DWORD CountEmitters(mdxModel_t const *mdx) {
-    DWORD count = 0;
+static uint32_t CountEmitters(mdxModel_t const *mdx) {
+    uint32_t count = 0;
     FOR_EACH_LIST(mdxParticleEmitter_t, emitter, mdx->emitters) {
         (void)emitter;
         count++;
@@ -336,8 +336,8 @@ static DWORD CountEmitters(mdxModel_t const *mdx) {
     return count;
 }
 
-static DWORD CountRibbons(mdxModel_t const *mdx) {
-    DWORD count = 0;
+static uint32_t CountRibbons(mdxModel_t const *mdx) {
+    uint32_t count = 0;
     FOR_EACH_LIST(mdxRibbonEmitter_t, ribbon, mdx->ribbons) {
         (void)ribbon;
         count++;
@@ -345,8 +345,8 @@ static DWORD CountRibbons(mdxModel_t const *mdx) {
     return count;
 }
 
-static DWORD CountAttachments(mdxModel_t const *mdx) {
-    DWORD count = 0;
+static uint32_t CountAttachments(mdxModel_t const *mdx) {
+    uint32_t count = 0;
     FOR_EACH_LIST(mdxAttachment_t, attachment, mdx->attachments) {
         (void)attachment;
         count++;
@@ -354,8 +354,8 @@ static DWORD CountAttachments(mdxModel_t const *mdx) {
     return count;
 }
 
-static DWORD CountHelpers(mdxModel_t const *mdx) {
-    DWORD count = 0;
+static uint32_t CountHelpers(mdxModel_t const *mdx) {
+    uint32_t count = 0;
     FOR_EACH_LIST(mdxHelper_t, helper, mdx->helpers) {
         (void)helper;
         count++;
@@ -363,8 +363,8 @@ static DWORD CountHelpers(mdxModel_t const *mdx) {
     return count;
 }
 
-static DWORD CountBones(mdxModel_t const *mdx) {
-    DWORD count = 0;
+static uint32_t CountBones(mdxModel_t const *mdx) {
+    uint32_t count = 0;
     FOR_EACH_LIST(mdxBone_t, bone, mdx->bones) {
         (void)bone;
         count++;
@@ -372,8 +372,8 @@ static DWORD CountBones(mdxModel_t const *mdx) {
     return count;
 }
 
-static DWORD CountCollisionShapes(mdxModel_t const *mdx) {
-    DWORD count = 0;
+static uint32_t CountCollisionShapes(mdxModel_t const *mdx) {
+    uint32_t count = 0;
     FOR_EACH_LIST(mdxCollisionShape_t, shape, mdx->collisionShapes) {
         (void)shape;
         count++;
@@ -381,8 +381,8 @@ static DWORD CountCollisionShapes(mdxModel_t const *mdx) {
     return count;
 }
 
-static DWORD CountCameras(mdxModel_t const *mdx) {
-    DWORD count = 0;
+static uint32_t CountCameras(mdxModel_t const *mdx) {
+    uint32_t count = 0;
     FOR_EACH_LIST(mdxCamera_t, camera, mdx->cameras) {
         (void)camera;
         count++;
@@ -390,26 +390,26 @@ static DWORD CountCameras(mdxModel_t const *mdx) {
     return count;
 }
 
-static DWORD CountVariableSizeEntries(LPBYTE data, DWORD size) {
-    DWORD count = 0;
-    DWORD offset = 0;
-    while (offset + sizeof(DWORD) <= size) {
-        DWORD entrySize = *(DWORD *)(data + offset);
-        if (entrySize == 0 || offset + sizeof(DWORD) + entrySize > size) {
+static uint32_t CountVariableSizeEntries(uint8_t * data, uint32_t size) {
+    uint32_t count = 0;
+    uint32_t offset = 0;
+    while (offset + sizeof(uint32_t) <= size) {
+        uint32_t entrySize = *(uint32_t *)(data + offset);
+        if (entrySize == 0 || offset + sizeof(uint32_t) + entrySize > size) {
             break;
         }
         count++;
-        offset += sizeof(DWORD) + entrySize;
+        offset += sizeof(uint32_t) + entrySize;
     }
     return count;
 }
 
-static DWORD CountInclusiveSizeEntries(LPBYTE data, DWORD size) {
-    DWORD count = 0;
-    DWORD offset = 0;
-    while (offset + sizeof(DWORD) <= size) {
-        DWORD entrySize = *(DWORD *)(data + offset);
-        if (entrySize < sizeof(DWORD) || offset + entrySize > size) {
+static uint32_t CountInclusiveSizeEntries(uint8_t * data, uint32_t size) {
+    uint32_t count = 0;
+    uint32_t offset = 0;
+    while (offset + sizeof(uint32_t) <= size) {
+        uint32_t entrySize = *(uint32_t *)(data + offset);
+        if (entrySize < sizeof(uint32_t) || offset + entrySize > size) {
             break;
         }
         count++;
@@ -439,7 +439,7 @@ static void CopySequenceName(mdxSequence_t const *seq, char *out, size_t outSize
     out[i] = '\0';
 }
 
-static bool StringEqualsNoCase(LPCSTR a, LPCSTR b) {
+static bool StringEqualsNoCase(cstring_t a, cstring_t b) {
     while (*a && *b) {
         if (tolower((unsigned char)*a) != tolower((unsigned char)*b)) {
             return false;
@@ -450,7 +450,7 @@ static bool StringEqualsNoCase(LPCSTR a, LPCSTR b) {
     return *a == '\0' && *b == '\0';
 }
 
-static bool StringContainsNoCase(LPCSTR haystack, LPCSTR needle) {
+static bool StringContainsNoCase(cstring_t haystack, cstring_t needle) {
     size_t nlen;
 
     if (!haystack || !needle) {
@@ -491,7 +491,7 @@ static int FindSequenceIndex(mdxModel_t const *mdx, mdxSequence_t const *seq) {
     return -1;
 }
 
-static mdxSequence_t const *FindSequenceByNameExact(mdxModel_t const *mdx, LPCSTR wanted) {
+static mdxSequence_t const *FindSequenceByNameExact(mdxModel_t const *mdx, cstring_t wanted) {
     char seqName[81];
 
     if (!mdx || !mdx->sequences || mdx->num_sequences <= 0 || !wanted) {
@@ -507,7 +507,7 @@ static mdxSequence_t const *FindSequenceByNameExact(mdxModel_t const *mdx, LPCST
     return NULL;
 }
 
-static mdxSequence_t const *FindSequenceByNameContains(mdxModel_t const *mdx, LPCSTR wanted) {
+static mdxSequence_t const *FindSequenceByNameContains(mdxModel_t const *mdx, cstring_t wanted) {
     char seqName[81];
 
     if (!mdx || !mdx->sequences || mdx->num_sequences <= 0 || !wanted) {
@@ -523,7 +523,7 @@ static mdxSequence_t const *FindSequenceByNameContains(mdxModel_t const *mdx, LP
     return NULL;
 }
 
-static mdxSequence_t const *FindSequenceByRequestedName(mdxModel_t const *mdx, LPCSTR wanted) {
+static mdxSequence_t const *FindSequenceByRequestedName(mdxModel_t const *mdx, cstring_t wanted) {
     mdxSequence_t const *seq;
 
     if (!mdx || !wanted || !*wanted) {
@@ -539,9 +539,9 @@ static mdxSequence_t const *FindSequenceByRequestedName(mdxModel_t const *mdx, L
 }
 
 /* Use the production MDX decoder/interpolator to inspect motion without a GL window. */
-static void dump_node_motion(LPBYTE data, DWORD size, mdxModel_t const *model) {
-    for (DWORD off = 0; off + 96 <= size;) {
-        DWORD len = *(DWORD *)(data + off);
+static void dump_node_motion(uint8_t * data, uint32_t size, mdxModel_t const *model) {
+    for (uint32_t off = 0; off + 96 <= size;) {
+        uint32_t len = *(uint32_t *)(data + off);
         if (len < 96 || len + 8 > size - off) {
             fprintf(stderr, "mdxtool: invalid bone size at %u\n", off);
             return;
@@ -555,10 +555,10 @@ static void dump_node_motion(LPBYTE data, DWORD size, mdxModel_t const *model) {
             if (g_requested_animation && strcmp(seq->name, g_requested_animation)) continue;
             if (!node.translation) continue;
             fprintf(stderr, "    %s:", seq->name);
-            for (DWORD step = 0; step <= BZ_MDX_MOTION_STEPS; step++) {
-                DWORD ms = (seq->interval[1] - seq->interval[0]) * step / BZ_MDX_MOTION_STEPS;
+            for (uint32_t step = 0; step <= BZ_MDX_MOTION_STEPS; step++) {
+                uint32_t ms = (seq->interval[1] - seq->interval[0]) * step / BZ_MDX_MOTION_STEPS;
                 VECTOR3 val = {0};
-                DWORD time = MIN(seq->interval[0] + ms, seq->interval[1] - 1);
+                uint32_t time = MIN(seq->interval[0] + ms, seq->interval[1] - 1);
                 tr.viewDef.time = time;
                 MDLX_GetModelKeytrackValue(model, node.translation, time, &val);
                 fprintf(stderr, " %u:%.6f,%.6f,%.6f", ms, val.x, val.y, val.z);
@@ -570,25 +570,25 @@ static void dump_node_motion(LPBYTE data, DWORD size, mdxModel_t const *model) {
     }
 }
 
-static bool DumpModelInfoNoWindow(LPCSTR modelPath) {
-    HANDLE file = FS_OpenFile(modelPath);
+static bool DumpModelInfoNoWindow(cstring_t modelPath) {
+    handle_t file = FS_OpenFile(modelPath);
     if (!file) {
         fprintf(stderr, "mdxtool: failed to open model %s\n", modelPath);
         return false;
     }
 
-    DWORD fileSize = SFileGetFileSize(file, NULL);
+    uint32_t fileSize = SFileGetFileSize(file, NULL);
     if (fileSize < 4) {
         FS_CloseFile(file);
         fprintf(stderr, "mdxtool: model too small %s\n", modelPath);
         return false;
     }
 
-    LPBYTE data = MemAlloc(fileSize);
+    uint8_t * data = MemAlloc(fileSize);
     SFileReadFile(file, data, fileSize, NULL, NULL);
     FS_CloseFile(file);
 
-    if (*(DWORD *)data != MAKEFOURCC('M', 'D', 'L', 'X')) {
+    if (*(uint32_t *)data != MAKEFOURCC('M', 'D', 'L', 'X')) {
         MemFree(data);
         fprintf(stderr, "mdxtool: unsupported model header for %s\n", modelPath);
         return false;
@@ -597,17 +597,17 @@ static bool DumpModelInfoNoWindow(LPCSTR modelPath) {
     fprintf(stderr, "mdxtool --info: model=%s size=%u bytes\n", modelPath, (unsigned)fileSize);
 
     mdxModel_t model = {0};
-    DWORD offset = 4;
+    uint32_t offset = 4;
     while (offset + 8 <= fileSize) {
-        DWORD chunkId = *(DWORD *)(data + offset + 0);
-        DWORD chunkSize = *(DWORD *)(data + offset + 4);
+        uint32_t chunkId = *(uint32_t *)(data + offset + 0);
+        uint32_t chunkSize = *(uint32_t *)(data + offset + 4);
         offset += 8;
         if (offset + chunkSize > fileSize) {
             fprintf(stderr, "mdxtool --info: invalid chunk size at offset=%u\n", (unsigned)offset);
             break;
         }
 
-        LPBYTE chunk = data + offset;
+        uint8_t * chunk = data + offset;
         switch (chunkId) {
             case MAKEFOURCC('M', 'O', 'D', 'L'):
                 if (chunkSize >= sizeof(mdxInfo_t)) {
@@ -621,7 +621,7 @@ static bool DumpModelInfoNoWindow(LPCSTR modelPath) {
                 break;
             case MAKEFOURCC('S', 'E', 'Q', 'S'):
             {
-                DWORD seqCount = chunkSize / sizeof(mdxSequence_t);
+                uint32_t seqCount = chunkSize / sizeof(mdxSequence_t);
                 mdxSequence_t const *seqs = (mdxSequence_t const *)chunk;
                 model.sequences = (mdxSequence_t *)chunk;
                 model.num_sequences = seqCount;
@@ -695,7 +695,7 @@ static bool DumpModelInfoNoWindow(LPCSTR modelPath) {
 static void BuildTexturePreviewCache(refExport_t const *re, LPMODEL model) {
     FreeTexturePreviewCache();
     MODELINFO modelInfo = { 0 };
-    DWORD textureCount = 0;
+    uint32_t textureCount = 0;
     if (re->GetModelInfo && re->GetModelInfo(model, &modelInfo)) {
         textureCount = modelInfo.textureCount;
     }
@@ -712,8 +712,8 @@ static void BuildTexturePreviewCache(refExport_t const *re, LPMODEL model) {
         return;
     }
 
-    for (DWORD i = 0; i < textureCount; i++) {
-        LPCSTR texturePath = modelInfo.texturePaths[i];
+    for (uint32_t i = 0; i < textureCount; i++) {
+        cstring_t texturePath = modelInfo.texturePaths[i];
         if (!texturePath || !*texturePath) {
             continue;
         }
@@ -739,14 +739,14 @@ static void DrawTexturePreviews(refExport_t const *re) {
     }
 
     size2_t window = re->GetWindowSize();
-    for (DWORD i = 0; i < texture_previews.count; i++) {
+    for (uint32_t i = 0; i < texture_previews.count; i++) {
         LPCTEXTURE texture = texture_previews.textures[i];
         if (!texture) {
             continue;
         }
 
-        DWORD col = i % TEX_COLS;
-        DWORD row = i / TEX_COLS;
+        uint32_t col = i % TEX_COLS;
+        uint32_t row = i / TEX_COLS;
         float cellX = TEX_PANEL_X + (float)col * TEX_CELL_W;
         float cellY = TEX_PANEL_Y + (float)row * TEX_CELL_H;
         size2_t texSize = texture_previews.sizes[i];
@@ -769,15 +769,15 @@ static void DrawTexturePreviews(refExport_t const *re) {
 
         float drawX = cellX + (TEX_THUMB_W - drawW) * 0.5f;
         float drawY = cellY + (TEX_THUMB_H - drawH) * 0.5f;
-        RECT screen = { drawX, drawY, drawW, drawH };
-        RECT uv = { 0, 0, 1, 1 };
+        rect_t screen = { drawX, drawY, drawW, drawH };
+        rect_t uv = { 0, 0, 1, 1 };
 
         re->DrawImage(texture, &screen, &uv, COLOR32_WHITE);
 
         char line[512];
         snprintf(line, sizeof(line), "%s", Tool_PathBasename(texture_previews.paths[i]));
-        DWORD textX = (DWORD)((drawX / 0.8f) * window.width);
-        DWORD textY = (DWORD)(((drawY + drawH + 0.005f) / 0.6f) * window.height);
+        uint32_t textX = (uint32_t)((drawX / 0.8f) * window.width);
+        uint32_t textY = (uint32_t)(((drawY + drawH + 0.005f) / 0.6f) * window.height);
         Tool_DrawString(re, line, textX, textY);
     }
 }
@@ -853,7 +853,7 @@ static mdxSequence_t const *PickSequence(mdxModel_t const *mdx) {
     return mdx->sequences;
 }
 
-static void DumpLoadedModel(mdxModel_t const *mdx, DWORD sample_frame) {
+static void DumpLoadedModel(mdxModel_t const *mdx, uint32_t sample_frame) {
     int materialIndex = 0;
 
     if (!mdx) {
@@ -890,7 +890,7 @@ static void DumpLoadedModel(mdxModel_t const *mdx, DWORD sample_frame) {
 
     FOR_EACH_LIST(mdxLight_t, light, mdx->lights) {
         VECTOR3 pivot = { 0, 0, 0 };
-        if (light->node.node_id < (DWORD)mdx->num_pivots) {
+        if (light->node.node_id < (uint32_t)mdx->num_pivots) {
             pivot = mdx->pivots[light->node.node_id];
         }
         fprintf(stderr,
@@ -1033,10 +1033,10 @@ static void DumpLoadedModel(mdxModel_t const *mdx, DWORD sample_frame) {
 
 static void DumpFrameCoverage(refExport_t const *re) {
     size2_t window = re->GetWindowSize();
-    DWORD width = window.width;
-    DWORD height = window.height;
-    BYTE *pixels;
-    DWORD lit = 0;
+    uint32_t width = window.width;
+    uint32_t height = window.height;
+    uint8_t *pixels;
+    uint32_t lit = 0;
     int min_x = (int)width;
     int min_y = (int)height;
     int max_x = -1;
@@ -1056,7 +1056,7 @@ static void DumpFrameCoverage(refExport_t const *re) {
     R_Call(glReadPixels, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
     FOR_LOOP(y, height) {
         FOR_LOOP(x, width) {
-            BYTE const *pixel = pixels + ((y * width + x) * 4);
+            uint8_t const *pixel = pixels + ((y * width + x) * 4);
             if (pixel[0] <= 8 && pixel[1] <= 8 && pixel[2] <= 8 && pixel[3] <= 8) {
                 continue;
             }
@@ -1087,9 +1087,9 @@ static void DumpFrameCoverage(refExport_t const *re) {
  * rows bottom-up, so flip on write.  Used for deterministic golden images. */
 static bool SaveFramePNG(refExport_t const *re, const char *path) {
     size2_t window = re->GetWindowSize();
-    DWORD width = window.width;
-    DWORD height = window.height;
-    BYTE *pixels;
+    uint32_t width = window.width;
+    uint32_t height = window.height;
+    uint8_t *pixels;
     int ok;
 
     if (!width || !height) {
@@ -1113,7 +1113,7 @@ static bool SaveFramePNG(refExport_t const *re, const char *path) {
     return true;
 }
 
-static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bool useModelCamera) {
+static void RenderModelFrame(refExport_t const *re, LPMODEL model, uint32_t now, bool useModelCamera) {
     viewDef_t viewdef = { 0 };
     renderEntity_t entity = { 0 };
     mdxModel_t const *mdx = model->mdx;
@@ -1136,7 +1136,7 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
     entity.origin = (VECTOR3){ 0, 0, 0 };
 
     if (seq && seq->interval[1] > seq->interval[0]) {
-        DWORD duration = seq->interval[1] - seq->interval[0];
+        uint32_t duration = seq->interval[1] - seq->interval[0];
         entity.frame = seq->interval[0] + now % duration;
         entity.oldframe = entity.frame;
     }
@@ -1182,8 +1182,8 @@ static void RenderModelFrame(refExport_t const *re, LPMODEL model, DWORD now, bo
         }, &target, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
     }
 
-    viewdef.viewport = (RECT){ 0, 0, 1, 1 };
-    viewdef.scissor = (RECT){ 0, 0, 1, 1 };
+    viewdef.viewport = (rect_t){ 0, 0, 1, 1 };
+    viewdef.scissor = (rect_t){ 0, 0, 1, 1 };
     viewdef.time = now;
     viewdef.deltaTime = 16;
     viewdef.lerpfrac = 0.0f;
@@ -1439,7 +1439,7 @@ int main(int argc, char **argv) {
     {
         mdxSequence_t const *seq = PickSequence(model->mdx);
         int seq_index = FindSequenceIndex(model->mdx, seq);
-        g_overlay.selected_sequence = seq_index >= 0 ? (DWORD)seq_index : 0;
+        g_overlay.selected_sequence = seq_index >= 0 ? (uint32_t)seq_index : 0;
         CopySequenceName(seq, g_overlay.selected_sequence_name, sizeof(g_overlay.selected_sequence_name));
     }
 
@@ -1506,7 +1506,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "  cameras: %u\n", g_overlay.num_cameras);
         fprintf(stderr, "  pivots: %u\n", g_overlay.num_pivots);
         mdxSequence_t const *seq = PickSequence(model->mdx);
-        DWORD sample_frame = 0;
+        uint32_t sample_frame = 0;
         if (seq && seq->interval[1] > seq->interval[0]) {
             sample_frame = seq->interval[0] + ((seq->interval[1] - seq->interval[0]) / 2);
         }
@@ -1529,7 +1529,7 @@ int main(int argc, char **argv) {
             }
         }
 
-        DWORD now = (g_fixed_time >= 0) ? (DWORD)g_fixed_time : SDL_GetTicks();
+        uint32_t now = (g_fixed_time >= 0) ? (uint32_t)g_fixed_time : SDL_GetTicks();
         if (g_seed >= 0) {
             srand((unsigned)g_seed); /* deterministic particle RNG for golden renders */
         }

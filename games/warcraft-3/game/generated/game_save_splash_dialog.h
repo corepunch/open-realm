@@ -11,8 +11,8 @@ typedef struct GameSaveSplashDialog_s {
 } GameSaveSplashDialog_t;
 
 
-static inline BOOL GameSaveSplashDialog_Bind(GameSaveSplashDialog_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool GameSaveSplashDialog_Bind(GameSaveSplashDialog_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -27,7 +27,7 @@ static inline BOOL GameSaveSplashDialog_Bind(GameSaveSplashDialog_t *out, LPFRAM
     return ok;
 }
 
-static inline BOOL GameSaveSplashDialog_Load(GameSaveSplashDialog_t *out) {
+static inline bool GameSaveSplashDialog_Load(GameSaveSplashDialog_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\GameSaveSplashDialog.fdf") &&
            GameSaveSplashDialog_Bind(out, UI_FindFrame("GameSaveSplashDialog"));

@@ -37,68 +37,68 @@ typedef enum {
 
 typedef struct {
     void const *data;
-    DWORD size;
+    uint32_t size;
 } pfWriteData_t;
 
 struct game_import {
-    HANDLE (*MemAlloc)(long size);
-    void (*MemFree)(HANDLE);
-    int (*ModelIndex)(LPCSTR modelName);
-    int (*SoundIndex)(LPCSTR soundName);
-    int (*SoundIndexAlias)(LPCSTR soundName, LPCSTR alias);
-    void (*Sound)(LPEDICT ent, int channel, int sound_index, FLOAT volume, FLOAT attenuation, FLOAT timeofs);
-    void (*PositionedSound)(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, FLOAT volume,
-                            FLOAT attenuation, FLOAT timeofs);
-    void (*SoundPolicy)(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, FLOAT volume,
-                         FLOAT attenuation, FLOAT timeofs, soundPolicy_t const *policy);
-    void (*MinimapPing)(LPEDICT ent, LPCVECTOR2 position, FLOAT duration, COLOR32 color, DWORD flags);
-    int (*ImageIndex)(LPCSTR imageName);
-    int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
+    handle_t (*MemAlloc)(long size);
+    void (*MemFree)(handle_t);
+    int (*ModelIndex)(cstring_t modelName);
+    int (*SoundIndex)(cstring_t soundName);
+    int (*SoundIndexAlias)(cstring_t soundName, cstring_t alias);
+    void (*Sound)(LPEDICT ent, int channel, int sound_index, float volume, float attenuation, float timeofs);
+    void (*PositionedSound)(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, float volume,
+                            float attenuation, float timeofs);
+    void (*SoundPolicy)(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, float volume,
+                         float attenuation, float timeofs, soundPolicy_t const *policy);
+    void (*MinimapPing)(LPEDICT ent, LPCVECTOR2 position, float duration, COLOR32 color, uint32_t flags);
+    int (*ImageIndex)(cstring_t imageName);
+    int (*FontIndex)(cstring_t fontName, uint32_t fontSize);
     void (*LinkEntity)(LPEDICT ent);
     void (*UnlinkEntity)(LPEDICT ent);
-    DWORD (*BoxEdicts)(LPCBOX2 area, LPEDICT *list, DWORD maxcount, BOOL (*pred)(LPCEDICT));
-    void (*MenuAction)(LPCSTR action, LPCSTR arg);
+    uint32_t (*BoxEdicts)(LPCBOX2 area, LPEDICT *list, uint32_t maxcount, bool (*pred)(LPCEDICT));
+    void (*MenuAction)(cstring_t action, cstring_t arg);
     /* Queue a client-side movie to interpose the next deferred session action. */
-    void (*QueueMovie)(LPCSTR path);
+    void (*QueueMovie)(cstring_t path);
     void (*ClearWorld)(void);
     /* Keep the native window responsive during synchronous map loading without
      * advancing commands, client simulation, or server simulation. */
     void (*LoadingFrame)(void);
-    HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
+    handle_t (*ReadFile)(cstring_t filename, uint32_t * size);
     /* Calls callback for every archive copy of filename, lowest priority first.
      * Useful for merging layered data files (e.g. GameData/Assets.txt). */
-    void (*ReadFileAll)(LPCSTR filename, void (*callback)(HANDLE buf, DWORD size, void *ud), void *ud);
+    void (*ReadFileAll)(cstring_t filename, void (*callback)(handle_t buf, uint32_t size, void *ud), void *ud);
     /* Mount/clear the highest-priority FS archive (current map MPQ). NULL clears. */
-    void (*SetPriorityArchive)(HANDLE archive);
-    DWORD (*GetTime)(void);
+    void (*SetPriorityArchive)(handle_t archive);
+    uint32_t (*GetTime)(void);
     /* Rewind/advance the simulation clock only. sv.framenum indexes the snapshot delta
      * ring and is process state, so a loaded game must not move it. */
-    void (*SetGameTime)(DWORD time);
+    void (*SetGameTime)(uint32_t time);
     /* Freeze only authoritative simulation advancement. The server keeps
      * packet processing and client transport alive while paused. */
-    void (*SetPaused)(BOOL paused);
+    void (*SetPaused)(bool paused);
     void (*multicast)(LPCVECTOR3 origin, multicast_t to);
     void (*unicast)(edict_t *ent);
     void (*Write)(pfWriteType_t type, void const *value);
 
-    void (*configstring)(DWORD index, LPCSTR string);
-    void (*confignstring)(DWORD index, LPCSTR string, DWORD len);
-    LPCSTR (*GetConfigstring)(DWORD index);
-    void (*error)(LPCSTR fmt, ...);
+    void (*configstring)(uint32_t index, cstring_t string);
+    void (*confignstring)(uint32_t index, cstring_t string, uint32_t len);
+    cstring_t (*GetConfigstring)(uint32_t index);
+    void (*error)(cstring_t fmt, ...);
     void (*ApplyLobbySettings)(LPMAPINFO info);
 
     /* Cvar access — allows the game library to read command-line/config values
      * without linking directly against common.  Returns fallback if not set. */
-    LPCSTR (*CvarString)(LPCSTR name, LPCSTR fallback);
+    cstring_t (*CvarString)(cstring_t name, cstring_t fallback);
 
     /* Resolve writable per-game config/state without linking game modules against engine common. */
-    void (*UserPath)(LPCSTR rel, LPSTR out, DWORD out_size);
+    void (*UserPath)(cstring_t rel, string_t out, uint32_t out_size);
     /* Resolve save files under the platform's per-user data directory. */
-    void (*SavePath)(LPCSTR rel, LPSTR out, DWORD out_size);
+    void (*SavePath)(cstring_t rel, string_t out, uint32_t out_size);
     /* Enumerate save basenames as a double-NUL-terminated list. */
-    DWORD (*ListSaves)(LPSTR out, DWORD out_size);
+    uint32_t (*ListSaves)(string_t out, uint32_t out_size);
     /* Delete one save basename from the writable save directory. */
-    BOOL (*DeleteSave)(LPCSTR rel);
+    bool (*DeleteSave)(cstring_t rel);
 };
 
 struct client;
@@ -110,58 +110,58 @@ typedef struct {
     char ubertip[512];
     char command[256];
     char hotkey;
-    BYTE x;
-    BYTE y;
-    BYTE research;
-    BYTE building_upgrade; /* unit-type morph command; uses target unit data/costs */
-    DWORD level; /* authored research level used for owner-specific tooltip costs */
-    BYTE active;
-    BYTE disabled;
-    DWORD number; /* optional command-button numeric overlay; 0 hides it */
-    FLOAT cooldown; /* fraction of the ability's cooldown still remaining (0=ready, 1=just used) */
-    FLOAT manacost; /* mana cost to cast this ability at its current level (0 if not a spell) */
+    uint8_t x;
+    uint8_t y;
+    uint8_t research;
+    uint8_t building_upgrade; /* unit-type morph command; uses target unit data/costs */
+    uint32_t level; /* authored research level used for owner-specific tooltip costs */
+    uint8_t active;
+    uint8_t disabled;
+    uint32_t number; /* optional command-button numeric overlay; 0 hides it */
+    float cooldown; /* fraction of the ability's cooldown still remaining (0=ready, 1=just used) */
+    float manacost; /* mana cost to cast this ability at its current level (0 if not a spell) */
     char alternate[256]; /* optional secondary command, normally activated by right click */
-    BYTE alternate_active; /* presentation state for the secondary command */
-    DWORD cooldown_start_time; /* authoritative server milliseconds; zero when ready */
-    DWORD cooldown_end_time;   /* authoritative server milliseconds; zero when ready */
+    uint8_t alternate_active; /* presentation state for the secondary command */
+    uint32_t cooldown_start_time; /* authoritative server milliseconds; zero when ready */
+    uint32_t cooldown_end_time;   /* authoritative server milliseconds; zero when ready */
 } gameCommandButton_t;
 
 typedef struct {
     char art[256];
     char tooltip[256];
     char ubertip[512];
-    BYTE slot;
-    DWORD charges;
+    uint8_t slot;
+    uint32_t charges;
 } gameInventoryItem_t;
 
 typedef struct {
     char art[256];
-    DWORD starttime;
-    DWORD endtime;
+    uint32_t starttime;
+    uint32_t endtime;
 } gameQueueItem_t;
 
 struct game_export {
     void (*Init)(void);
     void (*Shutdown)(void);
     void (*RunFrame)(void);
-    LPCSTR (*GetThemeValue)(LPCSTR filename);
-    void (*ClientCommand)(LPEDICT ent, DWORD argc, LPCSTR argv[]);
+    cstring_t (*GetThemeValue)(cstring_t filename);
+    void (*ClientCommand)(LPEDICT ent, uint32_t argc, cstring_t argv[]);
     void (*ClientInput)(LPEDICT ent, LPCINPUTCMD cmd);
     /* Read destination metadata and write the loading layout into the multicast buffer, before LoadMap. */
-    bool (*PrepareMap)(LPCSTR mapFilename);
+    bool (*PrepareMap)(cstring_t mapFilename);
     void (*ClientBegin)(LPEDICT ent);
-    BOOL (*CanSeeEntity)(DWORD player, LPCEDICT ent);
+    bool (*CanSeeEntity)(uint32_t player, LPCEDICT ent);
     /* Cheap predicate, called for each visible candidate to preserve it under saturation. */
-    BOOL (*IsSnapshotPriorityEntity)(DWORD player, LPCEDICT ent);
-    void (*CustomizeEntity)(DWORD player, LPCEDICT ent, LPENTITYSTATE state);
-    DWORD (*WriteClientDatagram)(LPEDICT ent, LPBYTE data, DWORD size);
-    DWORD (*PlayerCreateMap)(void);
-    bool (*LoadMap)(LPCSTR mapFilename);
-    BOOL (*SaveGame)(LPCSTR filename);
-    BOOL (*LoadGame)(LPCSTR filename);
-    BOOL (*GetSaveMap)(LPCSTR filename, LPSTR map, DWORD map_size);
+    bool (*IsSnapshotPriorityEntity)(uint32_t player, LPCEDICT ent);
+    void (*CustomizeEntity)(uint32_t player, LPCEDICT ent, LPENTITYSTATE state);
+    uint32_t (*WriteClientDatagram)(LPEDICT ent, uint8_t * data, uint32_t size);
+    uint32_t (*PlayerCreateMap)(void);
+    bool (*LoadMap)(cstring_t mapFilename);
+    bool (*SaveGame)(cstring_t filename);
+    bool (*LoadGame)(cstring_t filename);
+    bool (*GetSaveMap)(cstring_t filename, string_t map, uint32_t map_size);
     BOX2 (*GetWorldBounds)(void);
-    BOOL (*PathingEntityIsIgnored)(LPCEDICT ent);
+    bool (*PathingEntityIsIgnored)(LPCEDICT ent);
     
     edict_t *edicts;
     int num_edicts;
@@ -173,8 +173,8 @@ struct game_export {
 struct game_export *GetGameAPI(struct game_import *game_import);
 
 /* Invisible controllers use the same movement axes as actors, with a game-owned focus speed. */
-static inline VECTOR2 input_move_focus(LPCINPUTCMD cmd, LPCPLAYER ps, FLOAT speed) {
-    DWORD bits = cmd->move.buttons;
+static inline VECTOR2 input_move_focus(LPCINPUTCMD cmd, LPCPLAYER ps, float speed) {
+    uint32_t bits = cmd->move.buttons;
     VECTOR3 dir = { !!(bits & BZ_MOVE_FORWARD) - !!(bits & BZ_MOVE_BACK),
         !!(bits & BZ_MOVE_LEFT) - !!(bits & BZ_MOVE_RIGHT), 0 };
     dir = Vector3_rotateAroundAxis(&dir, &(VECTOR3){0, 0, 1}, DEG2RAD(ps->viewangles.z));

@@ -16,13 +16,13 @@ sc2Level_t sc2_level;
 
 struct game_import gi;
 struct game_export globals;
-static BOOL entity_is_pathing_ignored(edict_t const *ent);
+static bool entity_is_pathing_ignored(edict_t const *ent);
 
-static DWORD G_WriteClientDatagram(LPEDICT ent, LPBYTE data, DWORD size) {
+static uint32_t G_WriteClientDatagram(LPEDICT ent, uint8_t * data, uint32_t size) {
     (void)ent;
-    if (size < sizeof(USHORT)) return 0;
-    memset(data, 0, sizeof(USHORT));
-    return sizeof(USHORT);
+    if (size < sizeof(uint16_t)) return 0;
+    memset(data, 0, sizeof(uint16_t));
+    return sizeof(uint16_t);
 }
 
 static edict_t sc2_edicts[SC2_MAX_EDICTS];
@@ -30,19 +30,19 @@ static struct client_s sc2_clients[SC2_MAX_CLIENTS];
 static edict_t sc2_waypoints[SC2_MAX_EDICTS];
 
 typedef struct {
-    BOOL moving;
-    BOOL mobile;
-    BOOL flying;
+    bool moving;
+    bool mobile;
+    bool flying;
     VECTOR2 target;
     ROUTEPATH path;
-    FLOAT speed, height;
+    float speed, height;
     LPCANIMATION anim;
-    DWORD animtime;
+    uint32_t animtime;
 } sc2MoveState_t;
 
 static sc2MoveState_t sc2_move[SC2_MAX_EDICTS];
 
-static BOOL SC2_ObjectIsMobile(sc2MapObject_t const *object) {
+static bool SC2_ObjectIsMobile(sc2MapObject_t const *object) {
     if (!object || object->type != SC2_OBJECT_UNIT) {
         return false;
     }
@@ -59,8 +59,8 @@ static BOOL SC2_ObjectIsMobile(sc2MapObject_t const *object) {
     return true;
 }
 
-static FLOAT SC2_ObjectSpawnZ(sc2MapObject_t const *object, BOOL flying) {
-    FLOAT terrain;
+static float SC2_ObjectSpawnZ(sc2MapObject_t const *object, bool flying) {
+    float terrain;
 
     if (!object) {
         return 0.0f;
@@ -73,7 +73,7 @@ static FLOAT SC2_ObjectSpawnZ(sc2MapObject_t const *object, BOOL flying) {
     return terrain + object->position.z + (flying ? object->move_height : 0.0f);
 }
 
-static FLOAT SC2_ObjectRadius(sc2MapObject_t const *object) {
+static float SC2_ObjectRadius(sc2MapObject_t const *object) {
     if (!object) {
         return 0.0f;
     }
@@ -83,7 +83,7 @@ static FLOAT SC2_ObjectRadius(sc2MapObject_t const *object) {
     return object->type == SC2_OBJECT_UNIT ? 1.0f : 0.5f;
 }
 
-static FLOAT SC2_ObjectCollisionRadius(sc2MapObject_t const *object, FLOAT radius) {
+static float SC2_ObjectCollisionRadius(sc2MapObject_t const *object, float radius) {
     if (!object) {
         return radius;
     }
@@ -93,17 +93,17 @@ static FLOAT SC2_ObjectCollisionRadius(sc2MapObject_t const *object, FLOAT radiu
     return radius;
 }
 
-static DWORD SC2_EdictNumber(LPCEDICT ent) {
+static uint32_t SC2_EdictNumber(LPCEDICT ent) {
     if (!ent || ent < sc2_edicts || ent >= sc2_edicts + SC2_MAX_EDICTS) {
         return SC2_MAX_EDICTS;
     }
-    return (DWORD)(ent - sc2_edicts);
+    return (uint32_t)(ent - sc2_edicts);
 }
 
 /* Flying movers retain their catalog-authored clearance while crossing terrain tiers. */
 static void SC2_LinkUnit(LPEDICT ent) {
-    DWORD number = SC2_EdictNumber(ent);
-    FLOAT terrain = sc2_move[number].flying ? SC2_MapAirHeightAtPoint(ent->s.origin2.x, ent->s.origin2.y) :
+    uint32_t number = SC2_EdictNumber(ent);
+    float terrain = sc2_move[number].flying ? SC2_MapAirHeightAtPoint(ent->s.origin2.x, ent->s.origin2.y) :
                                               SC2_MapHeightAtPoint(ent->s.origin2.x, ent->s.origin2.y);
 
     ent->s.origin.x = ent->s.origin2.x;
@@ -112,12 +112,12 @@ static void SC2_LinkUnit(LPEDICT ent) {
     gi.LinkEntity(ent);
 }
 
-static DWORD SC2_ClientPlayer(LPCEDICT ent) {
+static uint32_t SC2_ClientPlayer(LPCEDICT ent) {
     return ent && ent->client ? ent->client->ps.number : 1;
 }
 
-static BOOL SC2_IsSelectable(LPCEDICT ent, DWORD player) {
-    DWORD number = SC2_EdictNumber(ent);
+static bool SC2_IsSelectable(LPCEDICT ent, uint32_t player) {
+    uint32_t number = SC2_EdictNumber(ent);
 
     return number < SC2_MAX_EDICTS &&
         ent->inuse &&
@@ -127,26 +127,26 @@ static BOOL SC2_IsSelectable(LPCEDICT ent, DWORD player) {
 }
 
 /* Selection replaces membership, including empty/invalid requests, then reconciles the client cache. */
-static void SC2_Select(LPEDICT clent, DWORD argc, LPCSTR argv[]) {
-    DWORD player = SC2_ClientPlayer(clent), count = 0;
-    DWORD ids[MAX_SELECTED_ENTITIES];
+static void SC2_Select(LPEDICT clent, uint32_t argc, cstring_t argv[]) {
+    uint32_t player = SC2_ClientPlayer(clent), count = 0;
+    uint32_t ids[MAX_SELECTED_ENTITIES];
 
     FOR_LOOP(i, globals.num_edicts) sc2_edicts[i].selected &= ~(1 << player);
-    for (DWORD i = 1; i < argc && count < MAX_SELECTED_ENTITIES; i++) {
-        DWORD num = (DWORD)atoi(argv[i]);
-        if (num >= (DWORD)globals.num_edicts || !SC2_IsSelectable(&sc2_edicts[num], player)) continue;
+    for (uint32_t i = 1; i < argc && count < MAX_SELECTED_ENTITIES; i++) {
+        uint32_t num = (uint32_t)atoi(argv[i]);
+        if (num >= (uint32_t)globals.num_edicts || !SC2_IsSelectable(&sc2_edicts[num], player)) continue;
         if (sc2_edicts[num].selected & (1 << player)) continue;
         sc2_edicts[num].selected |= 1 << player;
         ids[count++] = num;
     }
-    gi.Write(PF_BYTE, &(LONG){svc_set_selection});
-    gi.Write(PF_BYTE, &(LONG){count});
-    FOR_LOOP(i, count) gi.Write(PF_LONG, &(LONG){ids[i]});
+    gi.Write(PF_BYTE, &(int32_t){svc_set_selection});
+    gi.Write(PF_BYTE, &(int32_t){count});
+    FOR_LOOP(i, count) gi.Write(PF_LONG, &(int32_t){ids[i]});
     gi.unicast(clent);
 }
 
 /* Snapshot frames address the M3 sequence timeline, not the server's absolute clock. */
-static void SC2_UnitAnimation(LPEDICT ent, LPCSTR name) {
+static void SC2_UnitAnimation(LPEDICT ent, cstring_t name) {
     sc2MoveState_t *move = &sc2_move[SC2_EdictNumber(ent)];
     move->anim = G_GetAnimation(ent->s.model, name);
     move->animtime = gi.GetTime();
@@ -158,7 +158,7 @@ static void SC2_UnitAnimation(LPEDICT ent, LPCSTR name) {
 }
 
 static void SC2_StopUnit(LPEDICT ent) {
-    DWORD number = SC2_EdictNumber(ent);
+    uint32_t number = SC2_EdictNumber(ent);
     if (number >= SC2_MAX_EDICTS) {
         return;
     }
@@ -168,7 +168,7 @@ static void SC2_StopUnit(LPEDICT ent) {
 }
 
 static void SC2_OrderMove(LPEDICT ent, LPCVECTOR2 target) {
-    DWORD number = SC2_EdictNumber(ent);
+    uint32_t number = SC2_EdictNumber(ent);
     VECTOR2 pathable = *target;
 
     if (number >= SC2_MAX_EDICTS || !sc2_move[number].mobile) {
@@ -186,8 +186,8 @@ static void SC2_OrderMove(LPEDICT ent, LPCVECTOR2 target) {
 }
 
 static void SC2_MoveSelected(LPEDICT clent, LPCVECTOR2 target) {
-    DWORD player = SC2_ClientPlayer(clent);
-    BOOL issued = false;
+    uint32_t player = SC2_ClientPlayer(clent);
+    bool issued = false;
 
     FOR_LOOP(i, globals.num_edicts) {
         LPEDICT ent = &sc2_edicts[i];
@@ -200,30 +200,30 @@ static void SC2_MoveSelected(LPEDICT clent, LPCVECTOR2 target) {
     if (!issued) {
         return;
     }
-    gi.Write(PF_BYTE, &(LONG){svc_temp_entity});
-    gi.Write(PF_BYTE, &(LONG){TE_MOVE_CONFIRMATION});
+    gi.Write(PF_BYTE, &(int32_t){svc_temp_entity});
+    gi.Write(PF_BYTE, &(int32_t){TE_MOVE_CONFIRMATION});
     gi.Write(PF_POSITION, &(VECTOR3){target->x, target->y, 0});
     gi.unicast(clent);
 }
 
-static void SC2_MoveToTargetEntity(LPEDICT clent, DWORD target_number) {
-    if (target_number >= (DWORD)globals.num_edicts || !sc2_edicts[target_number].inuse) {
+static void SC2_MoveToTargetEntity(LPEDICT clent, uint32_t target_number) {
+    if (target_number >= (uint32_t)globals.num_edicts || !sc2_edicts[target_number].inuse) {
         return;
     }
     SC2_MoveSelected(clent, &sc2_edicts[target_number].s.origin2);
 }
 
 /* Use WC3's swept static-path check for both steering candidates and committed steps. */
-static BOOL SC2_MoveIsValid(LPEDICT ent, LPCVECTOR2 point) {
+static bool SC2_MoveIsValid(LPEDICT ent, LPCVECTOR2 point) {
     return sc2_move[SC2_EdictNumber(ent)].flying || CM_LineIsWalkableForRadius(&ent->s.origin2, point, ent->collision);
 }
 
 static void SC2_RunUnit(LPEDICT ent) {
-    DWORD number = SC2_EdictNumber(ent);
+    uint32_t number = SC2_EdictNumber(ent);
     VECTOR2 to_goal;
     VECTOR2 dir;
-    FLOAT dist;
-    FLOAT step;
+    float dist;
+    float step;
 
     if (number >= SC2_MAX_EDICTS || !sc2_move[number].moving) {
         return;
@@ -243,7 +243,7 @@ static void SC2_RunUnit(LPEDICT ent) {
         sc2_move[number].path.valid = false;
         dir = to_goal;
     } else {
-        DWORD flow = CM_RequestHeatmapForRadius(&sc2_waypoints[number], ent->collision);
+        uint32_t flow = CM_RequestHeatmapForRadius(&sc2_waypoints[number], ent->collision);
         if (!flow) {
             pathAccelParams_t params = { &ent->s.origin2, &sc2_move[number].target, ent->collision, 0 };
             if (!CM_AccelerateRoute(&sc2_move[number].path, &params, &dir)) return;
@@ -275,11 +275,11 @@ static void SC2_RunUnit(LPEDICT ent) {
     SC2_LinkUnit(ent);
 }
 
-static BOOL sc2_collision_filter(LPCEDICT ent) {
+static bool sc2_collision_filter(LPCEDICT ent) {
     return ent && ent->inuse && ent->s.model && ent->collision > 0;
 }
 
-static void SC2_PushEntity(LPEDICT ent, FLOAT distance, LPCVECTOR2 dir) {
+static void SC2_PushEntity(LPEDICT ent, float distance, LPCVECTOR2 dir) {
     VECTOR2 next = Vector2_mad(&ent->s.origin2, distance, dir);
     if (!CM_LineIsWalkableForRadius(&ent->s.origin2, &next, ent->collision)) return;
     ent->s.origin2 = next;
@@ -294,12 +294,12 @@ static void SC2_SolveCollisions(void) {
         if (!sc2_move[i].mobile || sc2_move[i].flying || !a->inuse || a->collision <= 0) {
             continue;
         }
-        DWORD num = gi.BoxEdicts(&a->bounds, colliders, SC2_MAX_COLLIDERS, sc2_collision_filter);
+        uint32_t num = gi.BoxEdicts(&a->bounds, colliders, SC2_MAX_COLLIDERS, sc2_collision_filter);
         FOR_LOOP(j, num) {
             LPEDICT b = colliders[j];
-            DWORD bnum = SC2_EdictNumber(b);
-            FLOAT radius;
-            FLOAT distance;
+            uint32_t bnum = SC2_EdictNumber(b);
+            float radius;
+            float distance;
             VECTOR2 d;
 
             if (b == a) {
@@ -337,7 +337,7 @@ static VECTOR3 SC2_CameraAnglesFromPlayer(LPCPLAYER ps) {
     return SC2_CameraFromEuler(&ps->viewangles, ps->vieworigin.z - SC2_MapHeightAtPoint(ps->vieworigin.x, ps->vieworigin.y));
 }
 
-static void SC2_WriteCamera(LPCVECTOR2 origin, LPCVECTOR3 angles, FLOAT distance, FLOAT fov) {
+static void SC2_WriteCamera(LPCVECTOR2 origin, LPCVECTOR3 angles, float distance, float fov) {
     gameCamera_t defaults;
 
     CL_GameDefaultCamera(&defaults);
@@ -353,24 +353,24 @@ static void SC2_WriteCamera(LPCVECTOR2 origin, LPCVECTOR3 angles, FLOAT distance
     }
 }
 
-static FLOAT SC2_CameraEyeZ(LPCSC2CAMERA camera) {
+static float SC2_CameraEyeZ(LPCSC2CAMERA camera) {
     return CM_GetHeightAtPoint(camera->origin.x, camera->origin.y) + camera->angles.z +
-           sinf((FLOAT)DEG2RAD(camera->angles.x)) * camera->distance;
+           sinf((float)DEG2RAD(camera->angles.x)) * camera->distance;
 }
 
 /* CameraApplyInfo durations author server snapshots; clients only smooth between those samples. */
 static void SC2_UpdateCamera(void) {
-    DWORD now = gi.GetTime();
-    DWORD duration = sc2_level.camera.end_time - sc2_level.camera.start_time;
+    uint32_t now = gi.GetTime();
+    uint32_t duration = sc2_level.camera.end_time - sc2_level.camera.start_time;
     LPSC2CAMERA a = &sc2_level.camera.old, b = &sc2_level.camera.state;
     SC2CAMERA cur;
-    FLOAT k;
+    float k;
 
     if (!duration || now >= sc2_level.camera.end_time) {
         SC2_WriteCamera(&b->origin, &b->angles, b->distance, b->fov);
         if (duration && sc2_level.camera.log_stage < 2) {
 #ifdef SC2_DEBUG_CUTSCENE
-            FLOAT ground = CM_GetHeightAtPoint(b->origin.x, b->origin.y), eye_z = SC2_CameraEyeZ(b);
+            float ground = CM_GetHeightAtPoint(b->origin.x, b->origin.y), eye_z = SC2_CameraEyeZ(b);
             fprintf(stderr, "SC2 camera move: end t=1.00 target=(%.2f %.2f) terrain=%.2f eye_z=%.2f clearance=%.2f pitch=%.2f yaw=%.2f dist=%.2f\n",
                 b->origin.x, b->origin.y, ground, eye_z, eye_z - ground, b->angles.x, b->angles.y, b->distance);
 #endif
@@ -378,7 +378,7 @@ static void SC2_UpdateCamera(void) {
         }
         return;
     }
-    k = (now - sc2_level.camera.start_time) / (FLOAT)duration;
+    k = (now - sc2_level.camera.start_time) / (float)duration;
     cur.origin = Vector2_lerp(&a->origin, &b->origin, k);
     cur.angles = (VECTOR3){ LerpNumber(a->angles.x, b->angles.x, k), SC2_LerpDegrees(a->angles.y, b->angles.y, k),
                             LerpNumber(a->angles.z, b->angles.z, k) };
@@ -387,7 +387,7 @@ static void SC2_UpdateCamera(void) {
     SC2_WriteCamera(&cur.origin, &cur.angles, cur.distance, cur.fov);
     if (k >= 0.5f && !sc2_level.camera.log_stage) {
 #ifdef SC2_DEBUG_CUTSCENE
-        FLOAT ground = CM_GetHeightAtPoint(cur.origin.x, cur.origin.y), eye_z = SC2_CameraEyeZ(&cur);
+        float ground = CM_GetHeightAtPoint(cur.origin.x, cur.origin.y), eye_z = SC2_CameraEyeZ(&cur);
         fprintf(stderr, "SC2 camera move: mid t=%.2f target=(%.2f %.2f) terrain=%.2f eye_z=%.2f clearance=%.2f pitch=%.2f yaw=%.2f dist=%.2f\n",
             k, cur.origin.x, cur.origin.y, ground, eye_z, eye_z - ground, cur.angles.x, cur.angles.y, cur.distance);
 #endif
@@ -405,13 +405,13 @@ static void SC2_GalaxySetCamera(float target_x, float target_y,
         sc2_clients[0].ps.distance, sc2_clients[0].ps.fov };
     sc2_level.camera.state = (SC2CAMERA){ { target_x, target_y }, { pitch, yaw, height_offset }, dist, fov };
     sc2_level.camera.start_time = gi.GetTime();
-    sc2_level.camera.end_time = sc2_level.camera.start_time + (DWORD)(MAX(0.0f, duration) * 1000.0f);
+    sc2_level.camera.end_time = sc2_level.camera.start_time + (uint32_t)(MAX(0.0f, duration) * 1000.0f);
     sc2_level.camera.log_stage = duration > 0.0f ? 0 : 2;
     SC2_UpdateCamera();
 #ifdef SC2_DEBUG_CUTSCENE
     if (duration > 0.0f) {
-        FLOAT ground = CM_GetHeightAtPoint(sc2_level.camera.old.origin.x, sc2_level.camera.old.origin.y);
-        FLOAT eye_z = SC2_CameraEyeZ(&sc2_level.camera.old);
+        float ground = CM_GetHeightAtPoint(sc2_level.camera.old.origin.x, sc2_level.camera.old.origin.y);
+        float eye_z = SC2_CameraEyeZ(&sc2_level.camera.old);
         fprintf(stderr, "SC2 camera move: start t=0.00 target=(%.2f %.2f) terrain=%.2f eye_z=%.2f clearance=%.2f -> target=(%.2f %.2f) duration=%.2f\n",
                 sc2_level.camera.old.origin.x, sc2_level.camera.old.origin.y, ground, eye_z,
             eye_z - ground, target_x, target_y, duration);
@@ -421,7 +421,7 @@ static void SC2_GalaxySetCamera(float target_x, float target_y,
 #endif
 }
 
-static void SC2_GalaxyCinematicMode(BOOL enable, float duration) {
+static void SC2_GalaxyCinematicMode(bool enable, float duration) {
     (void)duration;
     sc2_level.cinematic = enable;
     FOR_LOOP(i, SC2_MAX_CLIENTS)
@@ -436,7 +436,7 @@ static void SC2_GalaxyCinematicFade(float alpha, float duration) {
 }
 
 /* Camera lookup: find SC2_OBJECT_CAMERA in the loaded map by integer ID. */
-static BOOL SC2_GalaxyGetCameraById(DWORD map_id,
+static bool SC2_GalaxyGetCameraById(uint32_t map_id,
     float *tx, float *ty, float *tz,
     float *pitch, float *yaw, float *dist, float *fov, float *height_offset) {
     sc2Map_t const *map = SC2_MapCurrent();
@@ -458,7 +458,7 @@ static BOOL SC2_GalaxyGetCameraById(DWORD map_id,
 }
 
 /* Point lookup: find SC2_OBJECT_POINT in the loaded map by integer ID. */
-static BOOL SC2_GalaxyGetPointById(DWORD map_id, float *x, float *y) {
+static bool SC2_GalaxyGetPointById(uint32_t map_id, float *x, float *y) {
     sc2Map_t const *map = SC2_MapCurrent();
     if (!map) return false;
     FOR_LOOP(i, map->num_objects) {
@@ -475,9 +475,9 @@ static BOOL SC2_GalaxyGetPointById(DWORD map_id, float *x, float *y) {
 /* Unit model lookup: prefer an already-resolved M3 path from an existing map
  * object with a matching type_name, then fall back to the persistent unit
  * catalog for units created purely at runtime (e.g. cinematic UnitCreate). */
-static const char *SC2_GalaxyGetUnitModel(LPCSTR unit_type) {
+static const char *SC2_GalaxyGetUnitModel(cstring_t unit_type) {
     sc2Map_t const *map = SC2_MapCurrent();
-    LPCSTR catalog_model;
+    cstring_t catalog_model;
     if (!unit_type || !*unit_type) return "";
     if (map) {
         FOR_LOOP(i, map->num_objects) {
@@ -511,7 +511,7 @@ static void SC2_GalaxyUnitSetPosition(void *ent_ptr, float x, float y, float fac
 
 static int SC2_GalaxyUnitOwner(void *ptr) { return ((LPCEDICT)ptr)->s.player; }
 
-static BOOL SC2_GalaxyUnitIsAlive(void *ent_ptr) {
+static bool SC2_GalaxyUnitIsAlive(void *ent_ptr) {
     LPEDICT ent = (LPEDICT)ent_ptr;
     return ent && ent->inuse;
 }
@@ -526,14 +526,14 @@ static void SC2_GalaxyUnitMove(void *ent_ptr, float x, float y) {
     SC2_OrderMove((LPEDICT)ent_ptr, &(VECTOR2){ x, y });
 }
 
-static BOOL SC2_GalaxyUnitIsMoving(void *ent_ptr) {
+static bool SC2_GalaxyUnitIsMoving(void *ent_ptr) {
     LPEDICT ent = (LPEDICT)ent_ptr;
-    DWORD number = ent ? SC2_EdictNumber(ent) : SC2_MAX_EDICTS;
+    uint32_t number = ent ? SC2_EdictNumber(ent) : SC2_MAX_EDICTS;
     return number < SC2_MAX_EDICTS && sc2_move[number].moving;
 }
 
-static void SC2_GalaxyPlaySound(LPCSTR sound_id, int asset) {
-    LPCSTR path = SC2_MapResolveSound(sound_id, asset);
+static void SC2_GalaxyPlaySound(cstring_t sound_id, int asset) {
+    cstring_t path = SC2_MapResolveSound(sound_id, asset);
     if (!path || !*path) return;
     sc2_edicts[0].s.sound = gi.SoundIndex(path);
     sc2_edicts[0].s.event = EV_MOVE;
@@ -541,9 +541,9 @@ static void SC2_GalaxyPlaySound(LPCSTR sound_id, int asset) {
 }
 
 /* Galaxy-created units use the same catalog-derived render and movement state as map units. */
-static void *SC2_GalaxyCreateUnit(LPCSTR unit_type, int player, float x, float y, float angle) {
+static void *SC2_GalaxyCreateUnit(cstring_t unit_type, int player, float x, float y, float angle) {
     sc2MapObject_t object;
-    LPCSTR model;
+    cstring_t model;
     if (!SC2_MapResolveUnit(unit_type, &object)) {
         fprintf(stderr, "SC2_GalaxyCreateUnit: no catalog unit '%s'\n", unit_type ? unit_type : "(null)");
         return NULL;
@@ -558,13 +558,13 @@ static void *SC2_GalaxyCreateUnit(LPCSTR unit_type, int player, float x, float y
     LPEDICT ent = &sc2_edicts[globals.num_edicts++];
     memset(ent, 0, sizeof(*ent));
     ent->inuse = true;
-    ent->s.number = (DWORD)(ent - sc2_edicts);
+    ent->s.number = (uint32_t)(ent - sc2_edicts);
     ent->s.origin.x = x;
     ent->s.origin.y = y;
     ent->s.origin2 = (VECTOR2){ x, y };
     ent->s.angle = angle;
     ent->s.scale = 1.0f;
-    ent->s.player = (DWORD)player;
+    ent->s.player = (uint32_t)player;
         ent->s.model = G_RegisterModel(model);
         ent->s.radius = SC2_ObjectRadius(&object);
         ent->collision = SC2_ObjectCollisionRadius(&object, ent->s.radius);
@@ -648,7 +648,7 @@ static void SC2_Shutdown(void) {
 
 static void SC2_SpawnEntities(void);
 
-static bool SC2_LoadMap(LPCSTR mapFilename) {
+static bool SC2_LoadMap(cstring_t mapFilename) {
     if (!CM_LoadMap(mapFilename, gi.LoadingFrame)) {
         return false;
     }
@@ -686,7 +686,7 @@ static void SC2_SpawnEntities(void) {
     FOR_LOOP(i, map->num_objects) {
         sc2MapObject_t const *object = &map->objects[i];
         LPEDICT ent;
-        DWORD number;
+        uint32_t number;
 
         if (!object->model[0]) {
             continue;
@@ -703,7 +703,7 @@ static void SC2_SpawnEntities(void) {
         ent = &sc2_edicts[globals.num_edicts++];
         memset(ent, 0, sizeof(*ent));
         ent->inuse = true;
-        ent->s.number = (DWORD)(ent - sc2_edicts);
+        ent->s.number = (uint32_t)(ent - sc2_edicts);
         ent->s.class_id = SC2_MapObjectClassId(object);
         ent->s.origin = object->position;
         ent->s.angle = SC2_PlacementHeading(object->angle);
@@ -715,7 +715,7 @@ static void SC2_SpawnEntities(void) {
         if (SC2_ObjectIsMobile(object)) {
             ent->svflags |= SVF_MONSTER;
         }
-        number = (DWORD)(ent - sc2_edicts);
+        number = (uint32_t)(ent - sc2_edicts);
         sc2_move[number].mobile = (ent->svflags & SVF_MONSTER) != 0;
         sc2_move[number].flying = !strcasecmp(object->mover, "Fly");
         sc2_move[number].speed = SC2_MOVE_SPEED;
@@ -738,7 +738,7 @@ static void SC2_RunFrame(void) {
 
 #ifdef SC2_DEBUG_CUTSCENE
     {
-        static DWORD trace_frame;
+        static uint32_t trace_frame;
         LPEDICT dropship = sc2_gunit_n ? (LPEDICT)sc2_gunits[0] : NULL;
         trace_frame++;
         if (trace_frame % 5 == 0) {
@@ -748,7 +748,7 @@ static void SC2_RunFrame(void) {
                     cam.x, cam.z, (double)sc2_clients[0].ps.distance,
                     sc2_clients[0].ps.vieworigin.z - SC2_MapHeightAtPoint(sc2_clients[0].ps.vieworigin.x, sc2_clients[0].ps.vieworigin.y));
             if (dropship) {
-                DWORD number = SC2_EdictNumber(dropship);
+                uint32_t number = SC2_EdictNumber(dropship);
                 fprintf(stderr, " dropship=(%.2f,%.2f,%.2f) moving=%d target=(%.2f,%.2f) flying=%d height=%.2f",
                         dropship->s.origin.x, dropship->s.origin.y, dropship->s.origin.z,
                         sc2_move[number].moving, sc2_move[number].target.x, sc2_move[number].target.y,
@@ -771,7 +771,7 @@ static void SC2_RunFrame(void) {
 }
 
 static void SC2_ClientBegin(LPEDICT ent) {
-    DWORD number = SC2_EdictNumber(ent);
+    uint32_t number = SC2_EdictNumber(ent);
 
     if (number >= SC2_MAX_CLIENTS) {
         number = 0;
@@ -781,10 +781,10 @@ static void SC2_ClientBegin(LPEDICT ent) {
     ent->client->ps.client_ui_state = CLIENT_UI_GAME;
 
     /* Preserve the session player (also used by Galaxy PlayerGroupPlayer); army size picked the enemy in TRaynor01. */
-    DWORD client_player = SC2_ClientPlayer(ent);
+    uint32_t client_player = SC2_ClientPlayer(ent);
 
     /* Pre-select the first selectable unit so InfoPanel shows unit info. */
-    for (DWORD i = SC2_MAX_CLIENTS; i < (DWORD)globals.num_edicts; i++) {
+    for (uint32_t i = SC2_MAX_CLIENTS; i < (uint32_t)globals.num_edicts; i++) {
         LPEDICT u = &sc2_edicts[i];
         if (!SC2_IsSelectable(u, client_player)) continue;
         u->selected |= 1 << client_player;
@@ -805,7 +805,7 @@ static void SC2_ClientBegin(LPEDICT ent) {
     }
 }
 
-static bool SC2_PrepareMap(LPCSTR filename) {
+static bool SC2_PrepareMap(cstring_t filename) {
     uiFrame_t frame = { .number = 1, .size = { 1024.0f, 64.0f }, .color = COLOR32_WHITE,
                         .flags.type = FT_STRING, .text = "Loading..." };
     uiLabel_t label = { .font = gi.FontIndex("Assets\\Fonts\\Standard.ttf", 18),
@@ -819,7 +819,7 @@ static bool SC2_PrepareMap(LPCSTR filename) {
     return true;
 }
 
-static void SC2_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
+static void SC2_ClientCommand(LPEDICT ent, uint32_t argc, cstring_t argv[]) {
     VECTOR2 loc;
 
     if (!ent || argc == 0 || !argv || !argv[0]) {
@@ -842,7 +842,7 @@ static void SC2_ClientCommand(LPEDICT ent, DWORD argc, LPCSTR argv[]) {
         if (argc < 2) {
             return;
         }
-        SC2_MoveToTargetEntity(ent, (DWORD)atoi(argv[1]));
+        SC2_MoveToTargetEntity(ent, (uint32_t)atoi(argv[1]));
     }
 }
 
@@ -863,18 +863,18 @@ static void SC2_ClientInput(LPEDICT ent, LPCINPUTCMD cmd) {
     SC2_UpdateCamera();
 }
 
-static BOOL SC2_CanSeeEntity(DWORD player, LPCEDICT ent) {
+static bool SC2_CanSeeEntity(uint32_t player, LPCEDICT ent) {
     (void)player;
     (void)ent;
     return true;
 }
 
 /* Exclude scenery and foreign units from both click and rectangle picking before they fill the client list. */
-static void SC2_CustomizeEntity(DWORD player, LPCEDICT ent, LPENTITYSTATE state) {
+static void SC2_CustomizeEntity(uint32_t player, LPCEDICT ent, LPENTITYSTATE state) {
     if (!SC2_IsSelectable(ent, player)) state->flags |= EF_NOT_SELECTABLE;
 }
 
-static LPCSTR SC2_GetThemeValue(LPCSTR filename) {
+static cstring_t SC2_GetThemeValue(cstring_t filename) {
     return filename ? filename : "";
 }
 

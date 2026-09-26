@@ -4,22 +4,22 @@
 #include <float.h>
 #include <math.h>
 
-typedef void (*cmW3Read_t)(HANDLE archive);
+typedef void (*cmW3Read_t)(handle_t archive);
 
-void CM_ReadPathMap(HANDLE archive);
-static void CM_ReadDoodads(HANDLE archive);
-static void CM_ReadUnitDoodads(HANDLE archive);
-static void CM_ReadHeightmap(HANDLE archive);
-static void CM_ReadInfo(HANDLE archive);
-static void CM_ReadWeather(HANDLE archive);
-void CM_ReadUnits(HANDLE archive);
-void CM_ReadItems(HANDLE archive);
-void CM_ReadAbilities(HANDLE archive);
-void CM_ReadStrings(HANDLE archive);
-void CM_ReadMapScript(HANDLE archive);
+void CM_ReadPathMap(handle_t archive);
+static void CM_ReadDoodads(handle_t archive);
+static void CM_ReadUnitDoodads(handle_t archive);
+static void CM_ReadHeightmap(handle_t archive);
+static void CM_ReadInfo(handle_t archive);
+static void CM_ReadWeather(handle_t archive);
+void CM_ReadUnits(handle_t archive);
+void CM_ReadItems(handle_t archive);
+void CM_ReadAbilities(handle_t archive);
+void CM_ReadStrings(handle_t archive);
+void CM_ReadMapScript(handle_t archive);
 
-static HANDLE cm_w3_map_archive;
-static HANDLE cm_w3_map_data;
+static handle_t cm_w3_map_archive;
+static handle_t cm_w3_map_data;
 
 static cmW3Read_t const cm_w3_readers[] = {
     CM_ReadPathMap,
@@ -40,12 +40,12 @@ static cmW3Read_t const cm_w3_readers[] = {
 
 /* The engine needs terrain pathing for placement previews, without game-owned routing jobs or imports. */
 static struct {
-    DWORD width, height;
-    BYTE *cells;
+    uint32_t width, height;
+    uint8_t *cells;
 } cl_path;
 
 /* Keep only client terrain cells; routing work buffers belong to the game module. */
-void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
+void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
     SAFE_DELETE(cl_path.cells, MemFree);
     cl_path.width = width; cl_path.height = height;
     if (!width || !height) return;
@@ -55,7 +55,7 @@ void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells) {
 }
 
 /* Client collision circles add live blockers; this lookup supplies the map's authored terrain flags. */
-BOOL CM_GetPathingFlagsAt(LPCVECTOR2 pos, LPBYTE flags) {
+bool CM_GetPathingFlagsAt(LPCVECTOR2 pos, uint8_t * flags) {
     if (flags) *flags = 0;
     if (!pos || !flags || !cl_path.cells) return false;
     VECTOR2 n = CM_GetNormalizedMapPosition(pos->x, pos->y);
@@ -67,15 +67,15 @@ BOOL CM_GetPathingFlagsAt(LPCVECTOR2 pos, LPBYTE flags) {
 
 #define WC3_GOLD_MINE_MIN_DISTANCE 512.0f
 
-LPCSTR CL_GameOrderQueueReleaseCommand(void) { return "orderqueuerelease"; }
+cstring_t CL_GameOrderQueueReleaseCommand(void) { return "orderqueuerelease"; }
 
-BOOL CL_GameBuildCursorBlocked(LPCVECTOR3 origin) {
-    FLOAT const min_dist_sq = WC3_GOLD_MINE_MIN_DISTANCE * WC3_GOLD_MINE_MIN_DISTANCE;
+bool CL_GameBuildCursorBlocked(LPCVECTOR3 origin) {
+    float const min_dist_sq = WC3_GOLD_MINE_MIN_DISTANCE * WC3_GOLD_MINE_MIN_DISTANCE;
     if (!origin || !cl.cursorEntity || !(cl.cursorEntity->flags & EF_RESOURCE_RETURN)) return false;
     FOR_LOOP(i, cl.num_active) {
-        DWORD const number = cl.active_entities[i];
+        uint32_t const number = cl.active_entities[i];
         entityState_t const *state;
-        FLOAT dx, dy;
+        float dx, dy;
         if (!number || number >= MAX_CLIENT_ENTITIES) continue;
         state = &cl.ents[number].current;
         if (!(state->flags & EF_RESOURCE_SOURCE) || (state->flags & EF_NOT_SELECTABLE)) continue;
@@ -86,8 +86,8 @@ BOOL CL_GameBuildCursorBlocked(LPCVECTOR3 origin) {
     return false;
 }
 
-void CL_GameModifyBuildPathing(LPCVECTOR2 point, LPBYTE flags) {
-    DWORD x, y;
+void CL_GameModifyBuildPathing(LPCVECTOR2 point, uint8_t * flags) {
+    uint32_t x, y;
 
     if (!point || !flags || !cl.terrain_mask.cells) return;
     if (!TerrainMask_CellForPoint(cl.terrain_mask.origin, cl.terrain_mask.cell_size, cl.terrain_mask.width, cl.terrain_mask.height, point, &x, &y)) {
@@ -98,16 +98,16 @@ void CL_GameModifyBuildPathing(LPCVECTOR2 point, LPBYTE flags) {
     else *flags &= ~WC3_PATH_BLIGHTED;
 }
 
-BOOL CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection) {
-    DWORD count = 0;
-    DWORD class_id;
+bool CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection) {
+    uint32_t count = 0;
+    uint32_t class_id;
 
     if (!selection || !Cvar_Integer("cl_same_type_select", 0) || !selection->command ||
         selection->command_size < 2) return false;
     class_id = cl.ents[selection->anchor].current.class_id;
     snprintf(selection->command, selection->command_size, "select %u sametype", selection->anchor);
     FOR_LOOP(i, selection->visible_count) {
-        DWORD const number = selection->visible[i];
+        uint32_t const number = selection->visible[i];
         size_t used;
         if (!number || number == selection->anchor || number >= MAX_CLIENT_ENTITIES ||
             cl.ents[number].current.class_id != class_id || count >= MIN(selection->limit, 61)) continue;
@@ -120,7 +120,7 @@ BOOL CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection) {
 }
 #endif
 
-BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
+bool CL_GameDefaultCamera(gameCamera_t *camera) {
     if (!camera) return false;
     *camera = (gameCamera_t){
         .distance = WC3_CAMERA_DEFAULT_DISTANCE,
@@ -133,13 +133,13 @@ BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
     return true;
 }
 
-BOOL CL_GameCameraUsesWorldUp(void) { return true; }
+bool CL_GameCameraUsesWorldUp(void) { return true; }
 
 /* Retail 1.30+ ConsoleUI.fdf authors ConsoleTexture05/06 tiles beside the 4:3 root, so the canvas widens
  * and centers the HUD; classic archives author none, so the scene stretches like classic retail. */
 UICANVASPOLICY CL_GameCanvasPolicy(void) {
-    DWORD size = 0;
-    LPSTR text = FS_ReadFile("UI\\FrameDef\\UI\\ConsoleUI.fdf", &size);
+    uint32_t size = 0;
+    string_t text = FS_ReadFile("UI\\FrameDef\\UI\\ConsoleUI.fdf", &size);
     UICANVASPOLICY policy = UI_CANVAS_POLICY;
     if (!text) {
         fprintf(stderr, "WC3: ConsoleUI.fdf unavailable; keeping the classic stretched canvas\n");
@@ -149,21 +149,21 @@ UICANVASPOLICY CL_GameCanvasPolicy(void) {
     FS_FreeFile(text);
     return policy;
 }
-FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) {
-    FLOAT delta = fmodf(b - a, 360.0f);
+float CL_GameLerpDegrees(float a, float b, float fraction) {
+    float delta = fmodf(b - a, 360.0f);
     if (delta > 180.0f)
         delta -= 360.0f;
     else if (delta < -180.0f)
         delta += 360.0f;
     return a + delta * fraction;
 }
-FLOAT CM_GetCameraHeightOffset(void) {
+float CM_GetCameraHeightOffset(void) {
     return -48.0f; // world units; retail target reference is 48 below sampled terrain
 }
 
 #ifdef BZ_TESTS
 static BOX2 test_world_bounds;
-static BOOL test_world_bounds_set;
+static bool test_world_bounds_set;
 
 void CM_SetupTestWorldBounds(LPCBOX2 bounds) {
 	test_world_bounds_set = bounds != NULL;
@@ -171,19 +171,19 @@ void CM_SetupTestWorldBounds(LPCBOX2 bounds) {
 }
 #endif
 
-static LPCWAR3MAPVERTEX CM_GetWar3MapVertex(DWORD x, DWORD y) {
+static LPCWAR3MAPVERTEX CM_GetWar3MapVertex(uint32_t x, uint32_t y) {
 	if (!world.map || !world.map->vertices) return NULL;
 	int const index = x + y * world.map->width;
 	char const *ptr = ((char const *)world.map->vertices) + index * sizeof(WAR3MAPVERTEX);
 	return (LPCWAR3MAPVERTEX)ptr;
 }
 
-static FLOAT CM_GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert) {
+static float CM_GetWar3MapVertexHeight(LPCWAR3MAPVERTEX vert) {
 	if (!vert) return 0;
 	return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILE_SIZE - HEIGHT_COR;
 }
 
-static FLOAT CM_GetWar3MapVertexWaterHeight(LPCWAR3MAPVERTEX vert) {
+static float CM_GetWar3MapVertexWaterHeight(LPCWAR3MAPVERTEX vert) {
     if (!vert) return -FLT_MAX;
     return DECODE_HEIGHT(vert->waterlevel) - WATER_HEIGHT_COR;
 }
@@ -191,17 +191,17 @@ static FLOAT CM_GetWar3MapVertexWaterHeight(LPCWAR3MAPVERTEX vert) {
 /* war3map.w3r v5 stores editor regions.  Weather is one field on each region;
  * keep only the bounds + weather rawcode in collision-model state because the
  * remaining name/sound/color metadata belongs to other presentation systems. */
-static BOOL CM_W3SkipCString(HANDLE file) {
-    BYTE ch = 0;
+static bool CM_W3SkipCString(handle_t file) {
+    uint8_t ch = 0;
     do {
         if (!SFileReadFile(file, &ch, sizeof(ch), NULL, NULL)) return false;
     } while (ch != 0);
     return true;
 }
 
-static BOOL CM_W3ReadWeatherRegions(HANDLE archive) {
-    HANDLE file;
-    DWORD version = 0, count = 0, stored = 0;
+static bool CM_W3ReadWeatherRegions(handle_t archive) {
+    handle_t file;
+    uint32_t version = 0, count = 0, stored = 0;
     mapWeatherRegion_t *regions = NULL;
 
     if (!archive || !SFileOpenFileEx(archive, "war3map.w3r", SFILE_OPEN_FROM_MPQ, &file)) return true;
@@ -217,9 +217,9 @@ static BOOL CM_W3ReadWeatherRegions(HANDLE archive) {
     /* The smallest v5 record is 30 bytes (two empty C strings); reject corrupt
      * counts before allocating from map-controlled input. */
     {
-        DWORD pos = SFileSetFilePointer(file, 0, 0, FILE_CURRENT);
-        DWORD size = SFileGetFileSize(file, NULL);
-        DWORD remaining = pos < size ? size - pos : 0;
+        uint32_t pos = SFileSetFilePointer(file, 0, 0, FILE_CURRENT);
+        uint32_t size = SFileGetFileSize(file, NULL);
+        uint32_t remaining = pos < size ? size - pos : 0;
         if (count > remaining / 30u) {
             SFileCloseFile(file);
             return false;
@@ -235,13 +235,13 @@ static BOOL CM_W3ReadWeatherRegions(HANDLE archive) {
     }
     FOR_LOOP(i, count) {
         BOX2 bounds;
-        DWORD region_id, weather_id;
-        BYTE color[4];
+        uint32_t region_id, weather_id;
+        uint8_t color[4];
 
-        if (!SFileReadFile(file, &bounds.min.x, sizeof(FLOAT), NULL, NULL) ||
-            !SFileReadFile(file, &bounds.min.y, sizeof(FLOAT), NULL, NULL) ||
-            !SFileReadFile(file, &bounds.max.x, sizeof(FLOAT), NULL, NULL) ||
-            !SFileReadFile(file, &bounds.max.y, sizeof(FLOAT), NULL, NULL) ||
+        if (!SFileReadFile(file, &bounds.min.x, sizeof(float), NULL, NULL) ||
+            !SFileReadFile(file, &bounds.min.y, sizeof(float), NULL, NULL) ||
+            !SFileReadFile(file, &bounds.max.x, sizeof(float), NULL, NULL) ||
+            !SFileReadFile(file, &bounds.max.y, sizeof(float), NULL, NULL) ||
             !CM_W3SkipCString(file) ||
             !SFileReadFile(file, &region_id, sizeof(region_id), NULL, NULL) ||
             !SFileReadFile(file, &weather_id, sizeof(weather_id), NULL, NULL) ||
@@ -265,9 +265,9 @@ static BOOL CM_W3ReadWeatherRegions(HANDLE archive) {
     return true;
 }
 
-static void CM_ReadWeather(HANDLE archive) { CM_W3ReadWeatherRegions(archive); }
+static void CM_ReadWeather(handle_t archive) { CM_W3ReadWeatherRegions(archive); }
 
-static void CM_W3FreeUnitOverrides(DWORD count, unitData_t **units_ptr) {
+static void CM_W3FreeUnitOverrides(uint32_t count, unitData_t **units_ptr) {
     unitData_t *units = units_ptr ? *units_ptr : NULL;
 
     if (!units) return;
@@ -280,7 +280,7 @@ static void CM_W3FreeUnitOverrides(DWORD count, unitData_t **units_ptr) {
     *units_ptr = NULL;
 }
 
-static void CM_W3FreeDroppedItemSets(DWORD num_sets, droppableItemSet_t *sets) {
+static void CM_W3FreeDroppedItemSets(uint32_t num_sets, droppableItemSet_t *sets) {
     if (!sets) return;
     FOR_LOOP(i, num_sets)
         SAFE_DELETE(sets[i].droppableItems, MemFree);
@@ -329,8 +329,8 @@ static void CM_W3ClearMapData(void) {
     memset(&world, 0, sizeof(world));
 }
 
-bool CM_LoadMapFormat(LPCSTR mapFilename, cmLoadYield_t yield) {
-    DWORD mapSize = 0;
+bool CM_LoadMapFormat(cstring_t mapFilename, cmLoadYield_t yield) {
+    uint32_t mapSize = 0;
 
     CM_W3ClearMapData();
     cm_w3_map_data = FS_ReadFile(mapFilename, &mapSize);
@@ -354,64 +354,64 @@ bool CM_LoadMapFormat(LPCSTR mapFilename, cmLoadYield_t yield) {
     return true;
 }
 
-FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy) {
+float CM_GetHeightAtPoint(float sx, float sy) {
 	if (!world.map || !world.map->vertices) return 0;
-	FLOAT x = (sx - world.map->center.x) / TILE_SIZE;
-    FLOAT y = (sy - world.map->center.y) / TILE_SIZE;
-    FLOAT fx = floorf(x);
-    FLOAT fy = floorf(y);
+	float x = (sx - world.map->center.x) / TILE_SIZE;
+    float y = (sy - world.map->center.y) / TILE_SIZE;
+    float fx = floorf(x);
+    float fy = floorf(y);
     LPCWAR3MAPVERTEX va = CM_GetWar3MapVertex(fx, fy);
     LPCWAR3MAPVERTEX vb = CM_GetWar3MapVertex(fx + 1, fy);
     LPCWAR3MAPVERTEX vc = CM_GetWar3MapVertex(fx, fy + 1);
     LPCWAR3MAPVERTEX vd = CM_GetWar3MapVertex(fx + 1, fy + 1);
-    FLOAT a = CM_GetWar3MapVertexHeight(va);
-    FLOAT b = CM_GetWar3MapVertexHeight(vb);
-    FLOAT c = CM_GetWar3MapVertexHeight(vc);
-    FLOAT d = CM_GetWar3MapVertexHeight(vd);
-    FLOAT ab = LerpNumber(a, b, x - fx);
-    FLOAT cd = LerpNumber(c, d, x - fx);
+    float a = CM_GetWar3MapVertexHeight(va);
+    float b = CM_GetWar3MapVertexHeight(vb);
+    float c = CM_GetWar3MapVertexHeight(vc);
+    float d = CM_GetWar3MapVertexHeight(vd);
+    float ab = LerpNumber(a, b, x - fx);
+    float cd = LerpNumber(c, d, x - fx);
     return LerpNumber(ab, cd, y - fy);
 }
 
-FLOAT CM_GetWaterHeightAtPoint(FLOAT sx, FLOAT sy) {
+float CM_GetWaterHeightAtPoint(float sx, float sy) {
     if (!world.map || !world.map->vertices) return -FLT_MAX;
-    FLOAT x = (sx - world.map->center.x) / TILE_SIZE;
-    FLOAT y = (sy - world.map->center.y) / TILE_SIZE;
-    FLOAT fx = floorf(x);
-    FLOAT fy = floorf(y);
-    FLOAT a = CM_GetWar3MapVertexWaterHeight(CM_GetWar3MapVertex(fx, fy));
-    FLOAT b = CM_GetWar3MapVertexWaterHeight(CM_GetWar3MapVertex(fx + 1, fy));
-    FLOAT c = CM_GetWar3MapVertexWaterHeight(CM_GetWar3MapVertex(fx, fy + 1));
-    FLOAT d = CM_GetWar3MapVertexWaterHeight(CM_GetWar3MapVertex(fx + 1, fy + 1));
-    FLOAT ab = LerpNumber(a, b, x - fx);
-    FLOAT cd = LerpNumber(c, d, x - fx);
+    float x = (sx - world.map->center.x) / TILE_SIZE;
+    float y = (sy - world.map->center.y) / TILE_SIZE;
+    float fx = floorf(x);
+    float fy = floorf(y);
+    float a = CM_GetWar3MapVertexWaterHeight(CM_GetWar3MapVertex(fx, fy));
+    float b = CM_GetWar3MapVertexWaterHeight(CM_GetWar3MapVertex(fx + 1, fy));
+    float c = CM_GetWar3MapVertexWaterHeight(CM_GetWar3MapVertex(fx, fy + 1));
+    float d = CM_GetWar3MapVertexWaterHeight(CM_GetWar3MapVertex(fx + 1, fy + 1));
+    float ab = LerpNumber(a, b, x - fx);
+    float cd = LerpNumber(c, d, x - fx);
     return LerpNumber(ab, cd, y - fy);
 }
 
-VECTOR2 CM_GetNormalizedMapPosition(FLOAT x, FLOAT y) {
+VECTOR2 CM_GetNormalizedMapPosition(float x, float y) {
 #ifdef BZ_TESTS
 	if (test_world_bounds_set) {
-		FLOAT width = test_world_bounds.max.x - test_world_bounds.min.x;
-		FLOAT height = test_world_bounds.max.y - test_world_bounds.min.y;
+		float width = test_world_bounds.max.x - test_world_bounds.min.x;
+		float height = test_world_bounds.max.y - test_world_bounds.min.y;
 		return (VECTOR2){ width ? (x - test_world_bounds.min.x) / width : 0,
 		                  height ? (y - test_world_bounds.min.y) / height : 0 };
 	}
 #endif
 	if (!world.map) return (VECTOR2){0, 0};
-	FLOAT _x = (x - world.map->center.x) / ((world.map->width - 1) * TILE_SIZE);
-	FLOAT _y = (y - world.map->center.y) / ((world.map->height - 1) * TILE_SIZE);
+	float _x = (x - world.map->center.x) / ((world.map->width - 1) * TILE_SIZE);
+	float _y = (y - world.map->center.y) / ((world.map->height - 1) * TILE_SIZE);
 	return (VECTOR2){ _x, _y };
 }
 
-VECTOR2 CM_GetDenormalizedMapPosition(FLOAT x, FLOAT y) {
+VECTOR2 CM_GetDenormalizedMapPosition(float x, float y) {
 #ifdef BZ_TESTS
 	if (test_world_bounds_set)
 		return (VECTOR2){ x * (test_world_bounds.max.x - test_world_bounds.min.x) + test_world_bounds.min.x,
 		                  y * (test_world_bounds.max.y - test_world_bounds.min.y) + test_world_bounds.min.y };
 #endif
 	if (!world.map) return (VECTOR2){0, 0};
-	FLOAT _x = x * (world.map->width - 1) * TILE_SIZE + world.map->center.x;
-	FLOAT _y = y * (world.map->height - 1) * TILE_SIZE + world.map->center.y;
+	float _x = x * (world.map->width - 1) * TILE_SIZE + world.map->center.x;
+	float _y = y * (world.map->height - 1) * TILE_SIZE + world.map->center.y;
 	return (VECTOR2){ _x, _y };
 }
 
@@ -429,11 +429,11 @@ BOX2 CM_GetWorldBounds(void) {
 
 #ifndef TOOL_COMMON_NO_MPQ
 /* Both worlds read the same WPM bytes; each module owns its path-data consumer. */
-void CM_ReadPathMap(HANDLE archive) {
-    HANDLE file;
-    DWORD header, version;
-    DWORD width, height;
-    LPBYTE cells;
+void CM_ReadPathMap(handle_t archive) {
+    handle_t file;
+    uint32_t header, version;
+    uint32_t width, height;
+    uint8_t * cells;
     if (!SFileOpenFileEx(archive, "war3map.wpm", SFILE_OPEN_FROM_MPQ, &file)) {
         CM_SetupPathMap(world.map ? world.map->width : 0, world.map ? world.map->height : 0, NULL);
         return;
@@ -460,7 +460,7 @@ void CM_ReadPathMap(HANDLE archive) {
 
 /* Client path queries must use their own cells and replace them cleanly between maps. */
 TEST(client_world, terrain_path_flags_survive_load_replace_and_clear) {
-    BYTE cells[] = { 2, 4, 8, 16 }, flags = 0;
+    uint8_t cells[] = { 2, 4, 8, 16 }, flags = 0;
     CM_SetupTestWorldBounds(&(BOX2){ .min = { 0, 0 }, .max = { 64, 64 } });
     CM_SetupPathMap(2, 2, cells);
     T_ASSERT(CM_GetPathingFlagsAt(&(VECTOR2){ 48, 16 }, &flags)); T_EQ(flags, 4);

@@ -50,13 +50,13 @@ typedef struct {
 } uiWowTexture_t;
 
 typedef struct {
-    DWORD size;
+    uint32_t size;
     LPCFONT font;
 } uiWowFont_t;
 
 typedef struct WOWXMLPOINT {
-    LPCSTR point, rel, rel_point;
-    FLOAT x, y;
+    cstring_t point, rel, rel_point;
+    float x, y;
 } WOWXMLPOINT;
 typedef struct WOWXMLPOINT *LPWOWXMLPOINT;
 typedef const struct WOWXMLPOINT *LPCWOWXMLPOINT;
@@ -64,9 +64,9 @@ typedef const struct WOWXMLPOINT *LPCWOWXMLPOINT;
 typedef struct {
     LPRENDERER renderer;
     lua_State *lua;
-    DWORD warn_once_mask;
+    uint32_t warn_once_mask;
     uiWowTexture_t tex_cache[WOW_UI_MAX_TEXTURES];
-    DWORD texture_recycle_index;
+    uint32_t texture_recycle_index;
     uiWowFont_t font_cache[WOW_UI_MAX_FONTS];
     LPTEXTURE textures[WOW_UI_TEX_COUNT];
     PATHSTR active_map;
@@ -77,7 +77,7 @@ typedef struct {
     int selected_char_idx;    /* 0-based index into wow_charlist for char-select screen */
     LPMODEL char_customize_model;
     PATHSTR char_customize_model_path;
-    DWORD time;
+    uint32_t time;
 } uiWowState_t;
 
 extern menuImport_t mi;
@@ -86,11 +86,11 @@ extern uiWowState_t wow_ui;
 /* menu_lua.c */
 void UIWow_InitLua(void);
 void UIWow_ShutdownLua(void);
-BOOL UIWow_LuaPCall(int nargs);
+bool UIWow_LuaPCall(int nargs);
 void UIWow_CallLuaDraw(void);
-void UIWow_CallLuaUpdate(DWORD msec);
-BOOL UIWow_RunLuaString(LPCSTR name, LPCSTR script);
-BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing);
+void UIWow_CallLuaUpdate(uint32_t msec);
+bool UIWow_RunLuaString(cstring_t name, cstring_t script);
+bool UIWow_LoadLuaFile(cstring_t path, bool noisy_missing);
 
 /* stb_wowxml.h provides uiWowXmlType_t, wowXmlRuntime_t, and the parser API. */
 #include "stb_wowxml.h"
@@ -98,47 +98,47 @@ BOOL UIWow_LoadLuaFile(LPCSTR path, BOOL noisy_missing);
 /* ui_xml.c */
 void UIWow_XMLInitRuntime(void);
 void UIWow_XMLShutdownRuntime(void);
-BOOL UIWow_XMLLoadGlueFromToc(LPCSTR toc_path);
-BOOL UIWow_XMLLoadFile(LPCSTR path);
-BOOL UIWow_XMLLoadBuffer(LPCSTR buf, int size, LPCSTR debug_name);
-void UIWow_XMLSetFrameVisible(LPCSTR name, BOOL visible);
-BOOL UIWow_XMLSetFrameText(LPCSTR name, LPCSTR text);
-BOOL UIWow_XMLSetButtonPressed(LPCSTR name, BOOL pressed);
-BOOL UIWow_XMLSetButtonChecked(LPCSTR name, BOOL checked);
-BOOL UIWow_XMLSetFramePoint(LPCSTR name, LPCWOWXMLPOINT point);
-BOOL UIWow_XMLSizeFrameToText(LPCSTR frame, LPCSTR text, FLOAT padding);
-BOOL UIWow_XMLDrawFrame(LPCSTR name);
+bool UIWow_XMLLoadGlueFromToc(cstring_t toc_path);
+bool UIWow_XMLLoadFile(cstring_t path);
+bool UIWow_XMLLoadBuffer(cstring_t buf, int size, cstring_t debug_name);
+void UIWow_XMLSetFrameVisible(cstring_t name, bool visible);
+bool UIWow_XMLSetFrameText(cstring_t name, cstring_t text);
+bool UIWow_XMLSetButtonPressed(cstring_t name, bool pressed);
+bool UIWow_XMLSetButtonChecked(cstring_t name, bool checked);
+bool UIWow_XMLSetFramePoint(cstring_t name, LPCWOWXMLPOINT point);
+bool UIWow_XMLSizeFrameToText(cstring_t frame, cstring_t text, float padding);
+bool UIWow_XMLDrawFrame(cstring_t name);
 void UIWow_XMLClearFrames(void);
-LPCSTR UIWow_XMLHitButton(FLOAT nx, FLOAT ny);
+cstring_t UIWow_XMLHitButton(float nx, float ny);
 void UIWow_XMLDraw(void);
-int  UIWow_XmlFindByNamePub(LPCSTR name);
-void UIWow_XmlComputeRectPub(int idx, FLOAT *x, FLOAT *y, FLOAT *w, FLOAT *h);
+int  UIWow_XmlFindByNamePub(cstring_t name);
+void UIWow_XmlComputeRectPub(int idx, float *x, float *y, float *w, float *h);
 int    UIWow_XmlElemCount(void);
 int    UIWow_XmlElemType(int idx);
-LPCSTR UIWow_XmlElemName(int idx);
-LPCSTR UIWow_XmlElemText(int idx);
-LPCSTR UIWow_XmlElemOnClick(int idx);
-LPCSTR UIWow_XmlElemPoint(int idx);
+cstring_t UIWow_XmlElemName(int idx);
+cstring_t UIWow_XmlElemText(int idx);
+cstring_t UIWow_XmlElemOnClick(int idx);
+cstring_t UIWow_XmlElemPoint(int idx);
 int    UIWow_XmlElemHidden(int idx);
-LPCSTR UIWow_XmlElemParent(int idx);
-void UIWow_XMLSetFrameModel(int idx, LPCSTR model_path);
+cstring_t UIWow_XmlElemParent(int idx);
+void UIWow_XMLSetFrameModel(int idx, cstring_t model_path);
 void UIWow_XMLInvalidateCharCustomizeModel(void);
-void UIWow_XmlSetFrameModel(int idx, LPCSTR model_path);
+void UIWow_XmlSetFrameModel(int idx, cstring_t model_path);
 
 /* menu_loading.c */
-void UIWow_DrawLoadingScreenC(LPCSTR map, LPCSTR status, FLOAT progress);
+void UIWow_DrawLoadingScreenC(cstring_t map, cstring_t status, float progress);
 
 /* Shared helpers (defined in menu_main.c) */
 void UIWow_EnsureRenderer(void);
-void UIWow_Printf(LPCSTR fmt, ...);
-void UIWow_WarnOnce(DWORD flag, LPCSTR fmt, ...);
+void UIWow_Printf(cstring_t fmt, ...);
+void UIWow_WarnOnce(uint32_t flag, cstring_t fmt, ...);
 VECTOR2 UIWow_MouseFdf(int x, int y);
-LPTEXTURE UIWow_LoadTexture(LPCSTR name);
-LPCFONT UIWow_LoadFont(DWORD size);
+LPTEXTURE UIWow_LoadTexture(cstring_t name);
+LPCFONT UIWow_LoadFont(uint32_t size);
 
 /* XML runtime input hooks. */
-BOOL UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param);
-BOOL UIWow_XMLTextInput(LPCSTR text);
-BOOL UIWow_XMLKeyEvent(int key, BOOL down, DWORD time);
+bool UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param);
+bool UIWow_XMLTextInput(cstring_t text);
+bool UIWow_XMLKeyEvent(int key, bool down, uint32_t time);
 
 #endif /* wow_menu_local_h */

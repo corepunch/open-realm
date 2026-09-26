@@ -531,7 +531,7 @@ const shader_desc_t sd_model = {
    built-in program.  Extra per-variant defines (e.g. BZ_USE_INSTANCING) are
    added by the callers. */
 static char shader_defines_buf[256];
-static LPCSTR R_ShaderDefines(BOOL instancing) {
+static cstring_t R_ShaderDefines(bool instancing) {
     int n = 0;
     /* Each variant owns its defines; the old retained instancing after the grass program compiled first. */
     shader_defines_buf[0] = '\0';
@@ -552,7 +552,7 @@ static LPCSTR R_ShaderDefines(BOOL instancing) {
 
 /* A compiled shader can still exceed resources at link time. Never draw with a failed program.
    ri.error only prints in the client, so termination must not rely on that callback. */
-static void R_CheckShader(GLuint obj, GLenum check, LPCSTR label) {
+static void R_CheckShader(GLuint obj, GLenum check, cstring_t label) {
     GLint ok = GL_FALSE, size = 0;
     if (check == GL_LINK_STATUS) glGetProgramiv(obj, check, &ok);
     else glGetShaderiv(obj, check, &ok);
@@ -670,12 +670,12 @@ static void R_SetShaderSourceFromDesc(GLuint stage, const shader_desc_t *desc,
 
 /* Return exact CPU storage consumed by one value so cached comparisons never include struct padding. */
 static size_t R_UniformTypeSize(uniformType_t type) {
-    static BYTE const widths[UT_COUNT] = { 1, 2, 3, 4, 4, 1, 2, 1, 9, 9, 16, 1, 1, 1 };
+    static uint8_t const widths[UT_COUNT] = { 1, 2, 3, 4, 4, 1, 2, 1, 9, 9, 16, 1, 1, 1 };
     if (type >= UT_COUNT) return 0;
     if (type == UT_BOOL) return sizeof(bool);
     if (type >= UT_INT && type <= UT_INT_VEC2) return widths[type] * sizeof(int);
     if (type >= UT_SAMPLER_2D) return sizeof(int);
-    return widths[type] * sizeof(FLOAT);
+    return widths[type] * sizeof(float);
 }
 
 static GLuint shader_bound;
@@ -683,7 +683,7 @@ static GLuint shader_bound;
 /* Descriptor compilation and lookup never overwrite caller-owned non-sampler values. */
 void R_LoadShaderState(LPCSHADERLOAD load) {
     LPCSHADERDESC desc = load->desc;
-    LPCSTR defines = load->defines;
+    cstring_t defines = load->defines;
     LPSHADERPROG prog = load->prog;
     void *state = load->state;
     GLuint vs = R_Call(glCreateShader, GL_VERTEX_SHADER);
@@ -735,7 +735,7 @@ void R_DeleteShader(LPSHADERPROG prog) {
 }
 
 /* One typed state submission owns all uniforms; exact per-program caching avoids redundant driver calls. */
-void R_UploadShader(LPSHADERPROG prog, LPCVOID state) {
+void R_UploadShader(LPSHADERPROG prog, void const * state) {
     if (shader_bound != prog->progid) {
         R_Call(glUseProgram, prog->progid);
         shader_bound = prog->progid;
@@ -744,7 +744,7 @@ void R_UploadShader(LPSHADERPROG prog, LPCVOID state) {
         const shaderUniform_t *u = &prog->desc->Uniforms[i];
         const void *data = (const char *)state + u->offset;
         GLint loc = prog->locs[i];
-        GLsizei count = u->counted ? *(DWORD const *)((char const *)state + u->count_offset) :
+        GLsizei count = u->counted ? *(uint32_t const *)((char const *)state + u->count_offset) :
                                      (u->count ? u->count : 1);
         size_t bytes = R_UniformTypeSize(u->type) * count;
         if (loc < 0) continue; /* Linked shader optimised this declared input away. */
@@ -779,10 +779,10 @@ void R_UploadShader(LPSHADERPROG prog, LPCVOID state) {
 
 static MODELPROG model_shader;
 static MODELPROG instanced_shader;
-static BOOL model_shader_loaded;
-static BOOL instanced_shader_loaded;
+static bool model_shader_loaded;
+static bool instanced_shader_loaded;
 
-static void R_LoadModelShader(MODELPROG *out, BOOL instancing) {
+static void R_LoadModelShader(MODELPROG *out, bool instancing) {
     memset(out, 0, sizeof(*out));
     R_LoadShader(&sd_model, R_ShaderDefines(instancing), out);
 

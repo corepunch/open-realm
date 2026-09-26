@@ -6,67 +6,67 @@
 #define MAX_CARGO_PER_UNIT 16
 /* Bit flag ORed into a unitgroup handle to mark it as a cargo-group reference.
  * The lower bits encode the transport unit handle (max 256, well below 0x40000000). */
-#define CARGO_GROUP_FLAG   ((LONG)0x40000000)
+#define CARGO_GROUP_FLAG   ((int32_t)0x40000000)
 #define MAX_UNIT_ORDERS    8   /* enough for generated cutscene queues */
 #define SC2_CARGO_DROP_SPACING 1.1f  /* map units; separates the two-row cinematic unload formation */
 
 void *sc2_gunits[MAX_GALAXY_UNITS];
-DWORD sc2_gunit_n;
-LONG  sc2_last_unit_handle;
+uint32_t sc2_gunit_n;
+int32_t  sc2_last_unit_handle;
 
-typedef struct { char ability[64]; FLOAT x, y; BOOL started; } sc2GUnitOrder_t;
-static LONG sc2_gcargo[MAX_GALAXY_UNITS][MAX_CARGO_PER_UNIT];
-static LONG sc2_gcargo_n[MAX_GALAXY_UNITS];
-static LONG sc2_last_cargo_handle;
+typedef struct { char ability[64]; float x, y; bool started; } sc2GUnitOrder_t;
+static int32_t sc2_gcargo[MAX_GALAXY_UNITS][MAX_CARGO_PER_UNIT];
+static int32_t sc2_gcargo_n[MAX_GALAXY_UNITS];
+static int32_t sc2_last_cargo_handle;
 static sc2GUnitOrder_t sc2_uorders[MAX_GALAXY_UNITS][MAX_UNIT_ORDERS];
-static LONG sc2_uorder_n[MAX_GALAXY_UNITS];
+static int32_t sc2_uorder_n[MAX_GALAXY_UNITS];
 
 /* UnitCreate: resolve unit model from catalog, spawn at point position. */
-static DWORD sc2_UnitCreate(LPJASS j) {
-    LONG   count  = jass_checkinteger(j, 1);
-    LPCSTR type   = jass_checkstring(j, 2);
-    LONG   player = jass_checkinteger(j, 4);
-    LONG   pt_h   = (LONG)(uintptr_t)jass_checkhandle(j, 5, "point");
-    FLOAT  angle  = SC2_FacingRadians(jass_checknumber(j, 6));
-    FLOAT  x = 0.0f, y = 0.0f;
+static uint32_t sc2_UnitCreate(LPJASS j) {
+    int32_t   count  = jass_checkinteger(j, 1);
+    cstring_t type   = jass_checkstring(j, 2);
+    int32_t   player = jass_checkinteger(j, 4);
+    int32_t   pt_h   = (int32_t)(uintptr_t)jass_checkhandle(j, 5, "point");
+    float  angle  = SC2_FacingRadians(jass_checknumber(j, 6));
+    float  x = 0.0f, y = 0.0f;
     if (pt_h > 0 && pt_h < sc2_gpoint_n) { x = sc2_gpoints[pt_h].x; y = sc2_gpoints[pt_h].y; }
-    LONG handle = 0;
-    for (LONG i = 0; i < count && sc2_gunit_n < MAX_GALAXY_UNITS; i++) {
+    int32_t handle = 0;
+    for (int32_t i = 0; i < count && sc2_gunit_n < MAX_GALAXY_UNITS; i++) {
         void *ent = sc2_galaxy_on_unit_create ?
             sc2_galaxy_on_unit_create(type ? type : "", (int)player, x, y, angle) : NULL;
         if (!ent)
             fprintf(stderr, "sc2_UnitCreate: on_unit_create returned NULL for type '%s' (%ld/%ld) — unit will be invisible\n",
                     type ? type : "(null)", (long)(i + 1), (long)count);
-        handle = (LONG)(++sc2_gunit_n);
+        handle = (int32_t)(++sc2_gunit_n);
         sc2_gunits[handle - 1] = ent;
         sc2_last_unit_handle = handle;
     }
-    return handle ? jass_pushlighthandle(j, (HANDLE)(uintptr_t)handle, "unit")
+    return handle ? jass_pushlighthandle(j, (handle_t)(uintptr_t)handle, "unit")
                   : jass_pushnullhandle(j, "unit");
 }
 
-static DWORD sc2_UnitLastCreated(LPJASS j) {
+static uint32_t sc2_UnitLastCreated(LPJASS j) {
     return sc2_last_unit_handle ?
-        jass_pushlighthandle(j, (HANDLE)(uintptr_t)sc2_last_unit_handle, "unit") :
+        jass_pushlighthandle(j, (handle_t)(uintptr_t)sc2_last_unit_handle, "unit") :
         jass_pushnullhandle(j, "unit");
 }
-static DWORD sc2_UnitLastCreatedGroup(LPJASS j)     { return jass_pushnullhandle(j, "unitgroup"); }
+static uint32_t sc2_UnitLastCreatedGroup(LPJASS j)     { return jass_pushnullhandle(j, "unitgroup"); }
 static void *sc2_ent_from_handle(LPJASS j, int idx) {
-    LONG h = (LONG)(uintptr_t)jass_checkhandle(j, idx, "unit");
-    return (h > 0 && h <= (LONG)sc2_gunit_n) ? sc2_gunits[h - 1] : NULL;
+    int32_t h = (int32_t)(uintptr_t)jass_checkhandle(j, idx, "unit");
+    return (h > 0 && h <= (int32_t)sc2_gunit_n) ? sc2_gunits[h - 1] : NULL;
 }
 
-static DWORD sc2_UnitSetPosition(LPJASS j) {
+static uint32_t sc2_UnitSetPosition(LPJASS j) {
     void *ent = sc2_ent_from_handle(j, 1);
-    LONG pt_h = (LONG)(uintptr_t)jass_checkhandle(j, 2, "point");
+    int32_t pt_h = (int32_t)(uintptr_t)jass_checkhandle(j, 2, "point");
     if (ent && sc2_galaxy_unit_set_position && pt_h > 0 && pt_h < sc2_gpoint_n)
         sc2_galaxy_unit_set_position(ent, sc2_gpoints[pt_h].x, sc2_gpoints[pt_h].y, 0.0f);
     return jass_pushnull(j);
 }
 
-static DWORD sc2_UnitSetFacing(LPJASS j) {
+static uint32_t sc2_UnitSetFacing(LPJASS j) {
     void *ent = sc2_ent_from_handle(j, 1);
-    FLOAT ang = jass_checknumber(j, 2);
+    float ang = jass_checknumber(j, 2);
     if (ent && sc2_galaxy_unit_set_position) {
         /* Re-use set_position with NaN for x/y to indicate facing-only update.
          * g_sc2.c checks for this sentinel and only updates the angle. */
@@ -75,45 +75,45 @@ static DWORD sc2_UnitSetFacing(LPJASS j) {
     return jass_pushnull(j);
 }
 
-static DWORD sc2_UnitSetOwner(LPJASS j)             { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitGetOwner(LPJASS j) {
+static uint32_t sc2_UnitSetOwner(LPJASS j)             { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitGetOwner(LPJASS j) {
     void *ent = sc2_ent_from_handle(j, 1);
     return jass_pushinteger(j, ent && sc2_galaxy_unit_owner ? sc2_galaxy_unit_owner(ent) : 0);
 }
-static DWORD sc2_UnitSetHeight(LPJASS j)            { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitSetScale(LPJASS j)             { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitSetState(LPJASS j)             { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitSetCursor(LPJASS j)            { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitTestState(LPJASS j)            { return jass_pushboolean(j, false); }
-static DWORD sc2_UnitIsAlive(LPJASS j) {
+static uint32_t sc2_UnitSetHeight(LPJASS j)            { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitSetScale(LPJASS j)             { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitSetState(LPJASS j)             { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitSetCursor(LPJASS j)            { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitTestState(LPJASS j)            { return jass_pushboolean(j, false); }
+static uint32_t sc2_UnitIsAlive(LPJASS j) {
     void *ent = sc2_ent_from_handle(j, 1);
     return jass_pushboolean(j, ent && (!sc2_galaxy_unit_is_alive || sc2_galaxy_unit_is_alive(ent)));
 }
-static DWORD sc2_UnitIsValid(LPJASS j) {
+static uint32_t sc2_UnitIsValid(LPJASS j) {
     void *ent = sc2_ent_from_handle(j, 1);
     return jass_pushboolean(j, ent != NULL);
 }
-static DWORD sc2_UnitKill(LPJASS j)                 { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitRemove(LPJASS j)               { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitRevive(LPJASS j)               { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitWaitUntilIdle(LPJASS j)        { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitIssueOrder(LPJASS j) {
-    LONG unit_h  = (LONG)(uintptr_t)jass_checkhandle(j, 1, "unit");
-    LONG order_h = (LONG)(uintptr_t)jass_checkhandle(j, 2, "order");
-    LONG queue   = jass_checkinteger(j, 3);
+static uint32_t sc2_UnitKill(LPJASS j)                 { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitRemove(LPJASS j)               { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitRevive(LPJASS j)               { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitWaitUntilIdle(LPJASS j)        { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitIssueOrder(LPJASS j) {
+    int32_t unit_h  = (int32_t)(uintptr_t)jass_checkhandle(j, 1, "unit");
+    int32_t order_h = (int32_t)(uintptr_t)jass_checkhandle(j, 2, "order");
+    int32_t queue   = jass_checkinteger(j, 3);
     if (order_h <= 0 || order_h >= sc2_gorder_n)
         return jass_pushboolean(j, false);
     sc2GOrder_t *ord = &sc2_gorders[order_h];
-    LONG  ac_h = ord->abilcmd_h;
-    LONG  pt_h = ord->pt_h;
-    FLOAT tx   = (pt_h > 0 && pt_h < sc2_gpoint_n) ? sc2_gpoints[pt_h].x : 0.0f;
-    FLOAT ty   = (pt_h > 0 && pt_h < sc2_gpoint_n) ? sc2_gpoints[pt_h].y : 0.0f;
+    int32_t  ac_h = ord->abilcmd_h;
+    int32_t  pt_h = ord->pt_h;
+    float tx   = (pt_h > 0 && pt_h < sc2_gpoint_n) ? sc2_gpoints[pt_h].x : 0.0f;
+    float ty   = (pt_h > 0 && pt_h < sc2_gpoint_n) ? sc2_gpoints[pt_h].y : 0.0f;
     const char *ability = (ac_h > 0 && ac_h < sc2_gabilcmd_n)
                           ? sc2_gabilcmds[ac_h].ability : "move";
-    if (unit_h <= 0 || unit_h > (LONG)sc2_gunit_n || (queue != 0 && queue != 1))
+    if (unit_h <= 0 || unit_h > (int32_t)sc2_gunit_n || (queue != 0 && queue != 1))
         return jass_pushboolean(j, false);
     if (queue == 0) sc2_uorder_n[unit_h - 1] = 0;
-    LONG *count = &sc2_uorder_n[unit_h - 1];
+    int32_t *count = &sc2_uorder_n[unit_h - 1];
     if (*count >= MAX_UNIT_ORDERS) {
         fprintf(stderr, "UnitIssueOrder: queue full for unit %ld\n", (long)unit_h);
         return jass_pushboolean(j, false);
@@ -129,21 +129,21 @@ static DWORD sc2_UnitIssueOrder(LPJASS j) {
 #endif
     return jass_pushboolean(j, true);
 }
-static DWORD sc2_UnitPauseAll(LPJASS j)             { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitGetFacing(LPJASS j)            { return jass_pushnumber(j, 0.0f); }
-static DWORD sc2_UnitGetHeight(LPJASS j)            { return jass_pushnumber(j, 0.0f); }
-static DWORD sc2_UnitGetPosition(LPJASS j) {
+static uint32_t sc2_UnitPauseAll(LPJASS j)             { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitGetFacing(LPJASS j)            { return jass_pushnumber(j, 0.0f); }
+static uint32_t sc2_UnitGetHeight(LPJASS j)            { return jass_pushnumber(j, 0.0f); }
+static uint32_t sc2_UnitGetPosition(LPJASS j) {
     return jass_pushnullhandle(j, "point");  /* TODO: extract ent position */
 }
-static DWORD sc2_UnitGetType(LPJASS j)   { (void)jass_checkhandle(j, 1, "unit"); return jass_pushstring(j, ""); }
-static DWORD sc2_UnitFromId(LPJASS j)    { return jass_pushnullhandle(j, "unit"); }
-static DWORD sc2_UnitBehaviorAdd(LPJASS j)          { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitBehaviorRemove(LPJASS j)       { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitCargoCreate(LPJASS j) {
-    LONG   t_h  = (LONG)(uintptr_t)jass_checkhandle(j, 1, "unit");
-    LPCSTR type = jass_checkstring(j, 2);
-    LONG   cnt  = jass_checkinteger(j, 3);
-    void *transport = t_h > 0 && t_h <= (LONG)sc2_gunit_n ? sc2_gunits[t_h - 1] : NULL;
+static uint32_t sc2_UnitGetType(LPJASS j)   { (void)jass_checkhandle(j, 1, "unit"); return jass_pushstring(j, ""); }
+static uint32_t sc2_UnitFromId(LPJASS j)    { return jass_pushnullhandle(j, "unit"); }
+static uint32_t sc2_UnitBehaviorAdd(LPJASS j)          { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitBehaviorRemove(LPJASS j)       { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitCargoCreate(LPJASS j) {
+    int32_t   t_h  = (int32_t)(uintptr_t)jass_checkhandle(j, 1, "unit");
+    cstring_t type = jass_checkstring(j, 2);
+    int32_t   cnt  = jass_checkinteger(j, 3);
+    void *transport = t_h > 0 && t_h <= (int32_t)sc2_gunit_n ? sc2_gunits[t_h - 1] : NULL;
     if (!transport || !sc2_galaxy_unit_owner) {
         fprintf(stderr, "UnitCargoCreate: transport %ld or owner callback unavailable\n", (long)t_h);
         return jass_pushnullhandle(j, "unit");
@@ -151,188 +151,188 @@ static DWORD sc2_UnitCargoCreate(LPJASS j) {
     /* Cargo inherits its transport's owner; neutral cargo could never receive the user's orders. */
     int player = sc2_galaxy_unit_owner(transport);
     if (cnt < 1) cnt = 1;
-    LONG handle  = 0;
-    for (LONG i = 0; i < cnt && sc2_gunit_n < MAX_GALAXY_UNITS; i++) {
+    int32_t handle  = 0;
+    for (int32_t i = 0; i < cnt && sc2_gunit_n < MAX_GALAXY_UNITS; i++) {
         void *ent = sc2_galaxy_on_unit_create ?
             sc2_galaxy_on_unit_create(type ? type : "", player, 0.0f, 0.0f, 0.0f) : NULL;
         if (!ent)
             fprintf(stderr, "sc2_UnitCargoCreate: on_unit_create returned NULL for type '%s' (%ld/%ld) — cargo unit will be invisible\n",
                     type ? type : "(null)", (long)(i + 1), (long)cnt);
-        handle = (LONG)(++sc2_gunit_n);
+        handle = (int32_t)(++sc2_gunit_n);
         sc2_gunits[handle - 1] = ent;
         sc2_last_cargo_handle  = handle;
         sc2_last_unit_handle   = handle;
         if (t_h > 0 && t_h <= MAX_GALAXY_UNITS) {
-            LONG ci = sc2_gcargo_n[t_h - 1];
+            int32_t ci = sc2_gcargo_n[t_h - 1];
             if (ci < MAX_CARGO_PER_UNIT)
                 sc2_gcargo[t_h - 1][sc2_gcargo_n[t_h - 1]++] = handle;
         }
     }
     fprintf(stderr, "UnitCargoCreate: transport=%ld type=%s count=%ld\n",
             (long)t_h, type ? type : "(null)", (long)cnt);
-    return handle ? jass_pushlighthandle(j, (HANDLE)(uintptr_t)handle, "unit")
+    return handle ? jass_pushlighthandle(j, (handle_t)(uintptr_t)handle, "unit")
                   : jass_pushnullhandle(j, "unit");
 }
-static DWORD sc2_UnitCargoLastCreated(LPJASS j) {
+static uint32_t sc2_UnitCargoLastCreated(LPJASS j) {
     return sc2_last_cargo_handle ?
-        jass_pushlighthandle(j, (HANDLE)(uintptr_t)sc2_last_cargo_handle, "unit") :
+        jass_pushlighthandle(j, (handle_t)(uintptr_t)sc2_last_cargo_handle, "unit") :
         jass_pushnullhandle(j, "unit");
 }
-static DWORD sc2_UnitCargoGroup(LPJASS j) {
-    LONG h = (LONG)(uintptr_t)jass_checkhandle(j, 1, "unit");
-    if (h > 0 && h <= (LONG)sc2_gunit_n)
+static uint32_t sc2_UnitCargoGroup(LPJASS j) {
+    int32_t h = (int32_t)(uintptr_t)jass_checkhandle(j, 1, "unit");
+    if (h > 0 && h <= (int32_t)sc2_gunit_n)
         return jass_pushlighthandle(j,
-            (HANDLE)(uintptr_t)(CARGO_GROUP_FLAG | h), "unitgroup");
+            (handle_t)(uintptr_t)(CARGO_GROUP_FLAG | h), "unitgroup");
     return jass_pushnullhandle(j, "unitgroup");
 }
-static DWORD sc2_UnitCargoLastCreatedGroup(LPJASS j){ return jass_pushnullhandle(j, "unitgroup"); }
-static DWORD sc2_UnitClearSelection(LPJASS j)       { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitCargoLastCreatedGroup(LPJASS j){ return jass_pushnullhandle(j, "unitgroup"); }
+static uint32_t sc2_UnitClearSelection(LPJASS j)       { (void)j; return jass_pushnull(j); }
 /* UnitRef wraps a unit handle into a unitref (same pointer, different type name). */
-static DWORD sc2_UnitRefFromUnit(LPJASS j) {
-    HANDLE h = jass_checkhandle(j, 1, "unit");
+static uint32_t sc2_UnitRefFromUnit(LPJASS j) {
+    handle_t h = jass_checkhandle(j, 1, "unit");
     return h ? jass_pushlighthandle(j, h, "unitref") : jass_pushnullhandle(j, "unitref");
 }
-static DWORD sc2_UnitRefFromVariable(LPJASS j)  { return jass_pushnullhandle(j, "unitref"); }
-static DWORD sc2_UnitRefToUnit(LPJASS j) {
-    HANDLE h = jass_checkhandle(j, 1, "unitref");
+static uint32_t sc2_UnitRefFromVariable(LPJASS j)  { return jass_pushnullhandle(j, "unitref"); }
+static uint32_t sc2_UnitRefToUnit(LPJASS j) {
+    handle_t h = jass_checkhandle(j, 1, "unitref");
     return h ? jass_pushlighthandle(j, h, "unit") : jass_pushnullhandle(j, "unit");
 }
-static DWORD sc2_UnitSetInfoText(LPJASS j)          { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitClearInfoText(LPJASS j)        { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitForceStatusBar(LPJASS j)       { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitGetAttachmentPoint(LPJASS j)   { return jass_pushinteger(j, 0); }
-static DWORD sc2_UnitSetTeamColorIndex(LPJASS j)    { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitLoadModel(LPJASS j)            { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitUnloadModel(LPJASS j)          { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitSetPropertyFixed(LPJASS j)     { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitGetPropertyFixed(LPJASS j)     { return jass_pushnumber(j, 0.0f); }
-static DWORD sc2_EventUnit(LPJASS j)       { return jass_pushnullhandle(j, "unit"); }
-static DWORD sc2_EventUnitCargo(LPJASS j)  { return jass_pushnullhandle(j, "unit"); }
-static DWORD sc2_EventUnitTarget(LPJASS j) { return jass_pushnullhandle(j, "unit"); }
+static uint32_t sc2_UnitSetInfoText(LPJASS j)          { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitClearInfoText(LPJASS j)        { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitForceStatusBar(LPJASS j)       { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitGetAttachmentPoint(LPJASS j)   { return jass_pushinteger(j, 0); }
+static uint32_t sc2_UnitSetTeamColorIndex(LPJASS j)    { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitLoadModel(LPJASS j)            { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitUnloadModel(LPJASS j)          { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitSetPropertyFixed(LPJASS j)     { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitGetPropertyFixed(LPJASS j)     { return jass_pushnumber(j, 0.0f); }
+static uint32_t sc2_EventUnit(LPJASS j)       { return jass_pushnullhandle(j, "unit"); }
+static uint32_t sc2_EventUnitCargo(LPJASS j)  { return jass_pushnullhandle(j, "unit"); }
+static uint32_t sc2_EventUnitTarget(LPJASS j) { return jass_pushnullhandle(j, "unit"); }
 
 /* UnitGroup */
-static DWORD sc2_UnitGroupEmpty(LPJASS j)            { return jass_pushnullhandle(j, "unitgroup"); }
-static DWORD sc2_UnitGroupAdd(LPJASS j)              { return jass_checkhandle(j, 1, "unitgroup") ? jass_pushlighthandle(j, jass_checkhandle(j, 1, "unitgroup"), "unitgroup") : jass_pushnullhandle(j, "unitgroup"); }
-static DWORD sc2_UnitGroupCount(LPJASS j) {
-    LONG h    = (LONG)(uintptr_t)jass_checkhandle(j, 1, "unitgroup");
-    LONG mode = jass_checkinteger(j, 2); (void)mode;
+static uint32_t sc2_UnitGroupEmpty(LPJASS j)            { return jass_pushnullhandle(j, "unitgroup"); }
+static uint32_t sc2_UnitGroupAdd(LPJASS j)              { return jass_checkhandle(j, 1, "unitgroup") ? jass_pushlighthandle(j, jass_checkhandle(j, 1, "unitgroup"), "unitgroup") : jass_pushnullhandle(j, "unitgroup"); }
+static uint32_t sc2_UnitGroupCount(LPJASS j) {
+    int32_t h    = (int32_t)(uintptr_t)jass_checkhandle(j, 1, "unitgroup");
+    int32_t mode = jass_checkinteger(j, 2); (void)mode;
     if (h & CARGO_GROUP_FLAG) {
-        LONG t = h & ~CARGO_GROUP_FLAG;
-        if (t > 0 && t <= (LONG)sc2_gunit_n)
+        int32_t t = h & ~CARGO_GROUP_FLAG;
+        if (t > 0 && t <= (int32_t)sc2_gunit_n)
             return jass_pushinteger(j, sc2_gcargo_n[t - 1]);
     }
     return jass_pushinteger(j, 0);
 }
-static DWORD sc2_UnitGroupHasUnit(LPJASS j)          { return jass_pushboolean(j, false); }
-static DWORD sc2_UnitGroupWaitUntilIdle(LPJASS j)    { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitInventoryGroup(LPJASS j)        { return jass_pushnullhandle(j, "unitgroup"); }
-static DWORD sc2_UnitTechTreeBehaviorCount(LPJASS j) { return jass_pushinteger(j, 0); }
-static DWORD sc2_UnitTechTreeUnitCount(LPJASS j)     { return jass_pushinteger(j, 0); }
-static DWORD sc2_UnitTechTreeUpgradeCount(LPJASS j)  { return jass_pushinteger(j, 0); }
+static uint32_t sc2_UnitGroupHasUnit(LPJASS j)          { return jass_pushboolean(j, false); }
+static uint32_t sc2_UnitGroupWaitUntilIdle(LPJASS j)    { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitInventoryGroup(LPJASS j)        { return jass_pushnullhandle(j, "unitgroup"); }
+static uint32_t sc2_UnitTechTreeBehaviorCount(LPJASS j) { return jass_pushinteger(j, 0); }
+static uint32_t sc2_UnitTechTreeUnitCount(LPJASS j)     { return jass_pushinteger(j, 0); }
+static uint32_t sc2_UnitTechTreeUpgradeCount(LPJASS j)  { return jass_pushinteger(j, 0); }
 /* UnitGroupUnit(group, index): 1-based index; supports cargo groups. */
-static DWORD sc2_UnitGroupUnit(LPJASS j) {
-    LONG h   = (LONG)(uintptr_t)jass_checkhandle(j, 1, "unitgroup");
-    LONG idx = jass_checkinteger(j, 2) - 1;  /* 1-based → 0-based */
+static uint32_t sc2_UnitGroupUnit(LPJASS j) {
+    int32_t h   = (int32_t)(uintptr_t)jass_checkhandle(j, 1, "unitgroup");
+    int32_t idx = jass_checkinteger(j, 2) - 1;  /* 1-based → 0-based */
     if (h & CARGO_GROUP_FLAG) {
-        LONG t = h & ~CARGO_GROUP_FLAG;
-        if (t > 0 && t <= (LONG)sc2_gunit_n && idx >= 0 && idx < sc2_gcargo_n[t - 1]) {
-            LONG cargo_h = sc2_gcargo[t - 1][idx];
-            return jass_pushlighthandle(j, (HANDLE)(uintptr_t)cargo_h, "unit");
+        int32_t t = h & ~CARGO_GROUP_FLAG;
+        if (t > 0 && t <= (int32_t)sc2_gunit_n && idx >= 0 && idx < sc2_gcargo_n[t - 1]) {
+            int32_t cargo_h = sc2_gcargo[t - 1][idx];
+            return jass_pushlighthandle(j, (handle_t)(uintptr_t)cargo_h, "unit");
         }
     }
     return jass_pushnullhandle(j, "unit");
 }
-static DWORD sc2_UnitGroupIssueOrder(LPJASS j)       { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitGroupIdle(LPJASS j)             { return jass_pushboolean(j, false); }
-static DWORD sc2_UnitGroupFilter(LPJASS j)           { return jass_pushinteger(j, 0); }
-static DWORD sc2_UnitGroupClear(LPJASS j)            { return jass_pushnullhandle(j, "unitgroup"); }
-static DWORD sc2_UnitGroupCopy(LPJASS j)             { return jass_pushnullhandle(j, "unitgroup"); }
-static DWORD sc2_UnitGroupRemove(LPJASS j)           { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitGroupAlliance(LPJASS j)         { return jass_pushnullhandle(j, "unitgroup"); }
-static DWORD sc2_UnitGroupFilterAlliance(LPJASS j)   { return jass_pushnullhandle(j, "unitgroup"); }
-static DWORD sc2_UnitGroupFilterPlayer(LPJASS j)     { return jass_pushnullhandle(j, "unitgroup"); }
-static DWORD sc2_UnitGroupFilterPlane(LPJASS j)      { return jass_pushnullhandle(j, "unitgroup"); }
-static DWORD sc2_UnitGroupFilterRegion(LPJASS j)     { return jass_pushnullhandle(j, "unitgroup"); }
-static DWORD sc2_UnitGroupFilterThreat(LPJASS j)     { return jass_pushnullhandle(j, "unitgroup"); }
-static DWORD sc2_UnitGroupFromId(LPJASS j)           { return jass_pushnullhandle(j, "unitgroup"); }
+static uint32_t sc2_UnitGroupIssueOrder(LPJASS j)       { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitGroupIdle(LPJASS j)             { return jass_pushboolean(j, false); }
+static uint32_t sc2_UnitGroupFilter(LPJASS j)           { return jass_pushinteger(j, 0); }
+static uint32_t sc2_UnitGroupClear(LPJASS j)            { return jass_pushnullhandle(j, "unitgroup"); }
+static uint32_t sc2_UnitGroupCopy(LPJASS j)             { return jass_pushnullhandle(j, "unitgroup"); }
+static uint32_t sc2_UnitGroupRemove(LPJASS j)           { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitGroupAlliance(LPJASS j)         { return jass_pushnullhandle(j, "unitgroup"); }
+static uint32_t sc2_UnitGroupFilterAlliance(LPJASS j)   { return jass_pushnullhandle(j, "unitgroup"); }
+static uint32_t sc2_UnitGroupFilterPlayer(LPJASS j)     { return jass_pushnullhandle(j, "unitgroup"); }
+static uint32_t sc2_UnitGroupFilterPlane(LPJASS j)      { return jass_pushnullhandle(j, "unitgroup"); }
+static uint32_t sc2_UnitGroupFilterRegion(LPJASS j)     { return jass_pushnullhandle(j, "unitgroup"); }
+static uint32_t sc2_UnitGroupFilterThreat(LPJASS j)     { return jass_pushnullhandle(j, "unitgroup"); }
+static uint32_t sc2_UnitGroupFromId(LPJASS j)           { return jass_pushnullhandle(j, "unitgroup"); }
 
 /* UnitGroupLoop: tracks a single active group iteration (single-coroutine). */
-typedef struct { LONG group_h; LONG cur; BOOL active; } SC2GroupLoop;
+typedef struct { int32_t group_h; int32_t cur; bool active; } SC2GroupLoop;
 static SC2GroupLoop sc2_group_loop;
 
-static LONG sc2_group_size(LONG h) {
+static int32_t sc2_group_size(int32_t h) {
     if (h & CARGO_GROUP_FLAG) {
-        LONG t = h & ~CARGO_GROUP_FLAG;
-        if (t > 0 && t <= (LONG)sc2_gunit_n) return sc2_gcargo_n[t - 1];
+        int32_t t = h & ~CARGO_GROUP_FLAG;
+        if (t > 0 && t <= (int32_t)sc2_gunit_n) return sc2_gcargo_n[t - 1];
     }
     return 0;
 }
-static LONG sc2_group_nth(LONG h, LONG idx) {
+static int32_t sc2_group_nth(int32_t h, int32_t idx) {
     if (h & CARGO_GROUP_FLAG) {
-        LONG t = h & ~CARGO_GROUP_FLAG;
-        if (t > 0 && t <= (LONG)sc2_gunit_n && idx >= 0 && idx < sc2_gcargo_n[t - 1])
+        int32_t t = h & ~CARGO_GROUP_FLAG;
+        if (t > 0 && t <= (int32_t)sc2_gunit_n && idx >= 0 && idx < sc2_gcargo_n[t - 1])
             return sc2_gcargo[t - 1][idx];
     }
     return 0;
 }
 
-static DWORD sc2_UnitGroupLoopBegin(LPJASS j) {
-    LONG h = (LONG)(uintptr_t)jass_checkhandle(j, 1, "unitgroup");
+static uint32_t sc2_UnitGroupLoopBegin(LPJASS j) {
+    int32_t h = (int32_t)(uintptr_t)jass_checkhandle(j, 1, "unitgroup");
     sc2_group_loop = (SC2GroupLoop){ h, 0, true };
     return jass_pushnull(j);
 }
-static DWORD sc2_UnitGroupLoopDone(LPJASS j) {
+static uint32_t sc2_UnitGroupLoopDone(LPJASS j) {
     (void)j;
     if (!sc2_group_loop.active) return jass_pushboolean(j, true);
     return jass_pushboolean(j, sc2_group_loop.cur >= sc2_group_size(sc2_group_loop.group_h));
 }
-static DWORD sc2_UnitGroupLoopCurrent(LPJASS j) {
+static uint32_t sc2_UnitGroupLoopCurrent(LPJASS j) {
     (void)j;
     if (!sc2_group_loop.active) return jass_pushnullhandle(j, "unit");
-    LONG h = sc2_group_nth(sc2_group_loop.group_h, sc2_group_loop.cur);
-    return h ? jass_pushlighthandle(j, (HANDLE)(uintptr_t)h, "unit")
+    int32_t h = sc2_group_nth(sc2_group_loop.group_h, sc2_group_loop.cur);
+    return h ? jass_pushlighthandle(j, (handle_t)(uintptr_t)h, "unit")
              : jass_pushnullhandle(j, "unit");
 }
-static DWORD sc2_UnitGroupLoopStep(LPJASS j) {
+static uint32_t sc2_UnitGroupLoopStep(LPJASS j) {
     (void)j;
     if (sc2_group_loop.active) sc2_group_loop.cur++;
     return jass_pushnull(j);
 }
-static DWORD sc2_UnitGroupLoopEnd(LPJASS j) {
+static uint32_t sc2_UnitGroupLoopEnd(LPJASS j) {
     (void)j;
     sc2_group_loop.active = false;
     return jass_pushnull(j);
 }
-static DWORD sc2_UnitGroupNearestUnit(LPJASS j)      { return jass_pushnullhandle(j, "unit"); }
-static DWORD sc2_UnitGroupRandomUnit(LPJASS j)       { return jass_pushnullhandle(j, "unit"); }
-static DWORD sc2_UnitGroupTestPlane(LPJASS j)        { return jass_pushboolean(j, false); }
-static DWORD sc2_UnitFilter(LPJASS j)                { return jass_pushnullhandle(j, "unitfilter"); }
-static DWORD sc2_UnitFilterMatch(LPJASS j)           { return jass_pushboolean(j, false); }
-static DWORD sc2_UnitFilterSetState(LPJASS j)        { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitFilterStr(LPJASS j)             { return jass_pushnullhandle(j, "unitfilter"); }
-static DWORD sc2_UnitGroup(LPJASS j)                 { return jass_pushnullhandle(j, "unitgroup"); }
+static uint32_t sc2_UnitGroupNearestUnit(LPJASS j)      { return jass_pushnullhandle(j, "unit"); }
+static uint32_t sc2_UnitGroupRandomUnit(LPJASS j)       { return jass_pushnullhandle(j, "unit"); }
+static uint32_t sc2_UnitGroupTestPlane(LPJASS j)        { return jass_pushboolean(j, false); }
+static uint32_t sc2_UnitFilter(LPJASS j)                { return jass_pushnullhandle(j, "unitfilter"); }
+static uint32_t sc2_UnitFilterMatch(LPJASS j)           { return jass_pushboolean(j, false); }
+static uint32_t sc2_UnitFilterSetState(LPJASS j)        { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitFilterStr(LPJASS j)             { return jass_pushnullhandle(j, "unitfilter"); }
+static uint32_t sc2_UnitGroup(LPJASS j)                 { return jass_pushnullhandle(j, "unitgroup"); }
 
 /* UnitType */
-static DWORD sc2_UnitTypeFromString(LPJASS j)          { return jass_pushstring(j, ""); }
-static DWORD sc2_UnitTypeGetCost(LPJASS j)             { return jass_pushinteger(j, 0); }
-static DWORD sc2_UnitTypeGetName(LPJASS j)             { return jass_pushstring(j, ""); }
-static DWORD sc2_UnitTypeGetProperty(LPJASS j)         { return jass_pushinteger(j, 0); }
-static DWORD sc2_UnitTypeIsAffectedByUpgrade(LPJASS j) { return jass_pushboolean(j, false); }
-static DWORD sc2_UnitTypeTestAttribute(LPJASS j)       { return jass_pushboolean(j, false); }
-static DWORD sc2_UnitTypeTestFlag(LPJASS j)            { return jass_pushboolean(j, false); }
-static DWORD sc2_UnitTypeAnimationLoad(LPJASS j)       { (void)j; return jass_pushnull(j); }
-static DWORD sc2_UnitTypeAnimationUnload(LPJASS j)     { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitTypeFromString(LPJASS j)          { return jass_pushstring(j, ""); }
+static uint32_t sc2_UnitTypeGetCost(LPJASS j)             { return jass_pushinteger(j, 0); }
+static uint32_t sc2_UnitTypeGetName(LPJASS j)             { return jass_pushstring(j, ""); }
+static uint32_t sc2_UnitTypeGetProperty(LPJASS j)         { return jass_pushinteger(j, 0); }
+static uint32_t sc2_UnitTypeIsAffectedByUpgrade(LPJASS j) { return jass_pushboolean(j, false); }
+static uint32_t sc2_UnitTypeTestAttribute(LPJASS j)       { return jass_pushboolean(j, false); }
+static uint32_t sc2_UnitTypeTestFlag(LPJASS j)            { return jass_pushboolean(j, false); }
+static uint32_t sc2_UnitTypeAnimationLoad(LPJASS j)       { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_UnitTypeAnimationUnload(LPJASS j)     { (void)j; return jass_pushnull(j); }
 
-static void sc2_pop_unit_order(LONG unit_h) {
-    LONG *count = &sc2_uorder_n[unit_h - 1];
+static void sc2_pop_unit_order(int32_t unit_h) {
+    int32_t *count = &sc2_uorder_n[unit_h - 1];
     if (--*count > 0)
         memmove(&sc2_uorders[unit_h - 1][0], &sc2_uorders[unit_h - 1][1], sizeof(sc2GUnitOrder_t) * *count);
 }
 
 /* Galaxy append orders begin only after the active movement reports completion. */
 static void sc2_run_unit_orders(void) {
-    for (LONG unit_h = 1; unit_h <= (LONG)sc2_gunit_n; unit_h++) {
-        LONG *count = &sc2_uorder_n[unit_h - 1];
+    for (int32_t unit_h = 1; unit_h <= (int32_t)sc2_gunit_n; unit_h++) {
+        int32_t *count = &sc2_uorder_n[unit_h - 1];
         void *ent = sc2_gunits[unit_h - 1];
         while (*count > 0) {
             sc2GUnitOrder_t *ord = &sc2_uorders[unit_h - 1][0];
@@ -347,12 +347,12 @@ static void sc2_run_unit_orders(void) {
                 continue;
             }
             if (!strcmp(ord->ability, "SpecOpsDropshipTransport")) {
-                LONG cargo_n = sc2_gcargo_n[unit_h - 1];
-                for (LONG i = 0; i < cargo_n; i++) {
-                    LONG cargo_h = sc2_gcargo[unit_h - 1][i];
-                    void *cargo = (cargo_h > 0 && cargo_h <= (LONG)sc2_gunit_n) ? sc2_gunits[cargo_h - 1] : NULL;
-                    FLOAT x = ord->x + ((FLOAT)(i % 3) - 1.0f) * SC2_CARGO_DROP_SPACING;
-                    FLOAT y = ord->y + (0.75f + (FLOAT)(i / 3) * SC2_CARGO_DROP_SPACING);
+                int32_t cargo_n = sc2_gcargo_n[unit_h - 1];
+                for (int32_t i = 0; i < cargo_n; i++) {
+                    int32_t cargo_h = sc2_gcargo[unit_h - 1][i];
+                    void *cargo = (cargo_h > 0 && cargo_h <= (int32_t)sc2_gunit_n) ? sc2_gunits[cargo_h - 1] : NULL;
+                    float x = ord->x + ((float)(i % 3) - 1.0f) * SC2_CARGO_DROP_SPACING;
+                    float y = ord->y + (0.75f + (float)(i / 3) * SC2_CARGO_DROP_SPACING);
                     if (cargo && sc2_galaxy_unit_set_position)
                         sc2_galaxy_unit_set_position(cargo, x, y, 0.0f);
                 }

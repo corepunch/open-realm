@@ -2,9 +2,9 @@
 #include <ctype.h>
 
 /* Asset references may retain a .tga source name after conversion to BLP; actual TGA files take precedence. */
-int R_ReadTextureFile(LPCSTR name, LPSTR path, void **buffer) {
-    static LPCSTR const exact[] = { ".blp", ".dds", ".pcx" };
-    LPCSTR ext = strrchr(name, '.');
+int R_ReadTextureFile(cstring_t name, string_t path, void **buffer) {
+    static cstring_t const exact[] = { ".blp", ".dds", ".pcx" };
+    cstring_t ext = strrchr(name, '.');
     snprintf(path, sizeof(PATHSTR), "%s", name);
     int size = ri.FS_ReadFile(path, buffer);
     if (size >= 0 && *buffer) return size;
@@ -22,7 +22,7 @@ static GLenum r_bgra_internal;
 
 /* Source bytes determine channel order; context capabilities only determine whether conversion is necessary. */
 void R_InitTextureFormats(void) {
-    if (strncmp((LPCSTR)glGetString(GL_VERSION), "OpenGL ES", 9))
+    if (strncmp((cstring_t)glGetString(GL_VERSION), "OpenGL ES", 9))
         r_bgra_internal = GL_RGBA;
     else if (SDL_GL_ExtensionSupported("GL_EXT_texture_format_BGRA8888"))
         r_bgra_internal = BZ_GL_BGRA;
@@ -40,10 +40,10 @@ void R_InitTextureFormats(void) {
 typedef struct rImageCacheEntry_s {
     char *name;
     LPTEXTURE texture;
-    BOOL owns_texture;
-    BOOL streamed;              /* eligible for generation reclaim (streaming world texture) */
-    BOOL pinned;               /* a non-streaming consumer depends on it; never reclaim */
-    DWORD generation;          /* last streaming generation that referenced this texture */
+    bool owns_texture;
+    bool streamed;              /* eligible for generation reclaim (streaming world texture) */
+    bool pinned;               /* a non-streaming consumer depends on it; never reclaim */
+    uint32_t generation;          /* last streaming generation that referenced this texture */
     struct rImageCacheEntry_s *next;
     struct rImageCacheEntry_s *hash_next;
 } rImageCacheEntry_t;
@@ -56,8 +56,8 @@ static rImageCacheEntry_t *r_image_hash[BZ_IMAGE_CACHE_BUCKETS];
    textures left stale are reclaimed.  r_load_streamed gates whether a load marks
    its entry streamable; a texture also used by any non-streaming consumer is
    pinned so it is never reclaimed out from under that consumer. */
-static BOOL r_load_streamed;
-static DWORD r_stream_generation;
+static bool r_load_streamed;
+static uint32_t r_stream_generation;
 
 /* Aliases share one texture allocation, so lifetime state belongs to the cache entry that owns it. */
 static rImageCacheEntry_t *R_TextureOwner(rImageCacheEntry_t *entry) {
@@ -79,15 +79,15 @@ static void R_MarkEntryUse(rImageCacheEntry_t *entry) {
 }
 
 /* Texture paths are case-insensitive inside MPQs, so the registry hash must use the same contract as lookup. */
-static DWORD R_TextureNameHash(LPCSTR name) {
-    DWORD hash = BZ_IMAGE_HASH_INIT;
-    for (; name && *name; name++) hash = (hash ^ (BYTE)tolower((unsigned char)*name)) * BZ_IMAGE_HASH_PRIME;
+static uint32_t R_TextureNameHash(cstring_t name) {
+    uint32_t hash = BZ_IMAGE_HASH_INIT;
+    for (; name && *name; name++) hash = (hash ^ (uint8_t)tolower((unsigned char)*name)) * BZ_IMAGE_HASH_PRIME;
     return hash;
 }
 
-LPTEXTURE R_FindLoadedTexture(LPCSTR name) {
+LPTEXTURE R_FindLoadedTexture(cstring_t name) {
     rImageCacheEntry_t *entry;
-    DWORD hash;
+    uint32_t hash;
 
     if (!name || !*name) return NULL;
     hash = R_TextureNameHash(name) % BZ_IMAGE_CACHE_BUCKETS;
@@ -96,9 +96,9 @@ LPTEXTURE R_FindLoadedTexture(LPCSTR name) {
     return NULL;
 }
 
-void R_CacheLoadedTexture(LPCSTR name, LPTEXTURE texture) {
+void R_CacheLoadedTexture(cstring_t name, LPTEXTURE texture) {
     rImageCacheEntry_t *entry, *known;
-    DWORD hash;
+    uint32_t hash;
 
     if (!name || !*name || !texture || R_FindLoadedTexture(name)) return;
     hash = R_TextureNameHash(name) % BZ_IMAGE_CACHE_BUCKETS;
@@ -138,7 +138,7 @@ void R_ShutdownTextureCache(void) {
 
 /* Streaming world loads route through here so their cache entries are stamped
    with the current generation and become eligible for reclaim. */
-LPTEXTURE R_LoadTextureStreamed(LPCSTR name) {
+LPTEXTURE R_LoadTextureStreamed(cstring_t name) {
     LPTEXTURE texture;
     r_load_streamed = true;
     texture = R_LoadTexture(name);
@@ -164,7 +164,7 @@ static void R_UnlinkTextureFromIndex(LPTEXTURE texture) {
 /* Remove one path entry from both cache indexes without touching its shared texture allocation. */
 static void R_FreeCacheEntry(rImageCacheEntry_t **link) {
     rImageCacheEntry_t *entry = *link;
-    DWORD hash = R_TextureNameHash(entry->name) % BZ_IMAGE_CACHE_BUCKETS;
+    uint32_t hash = R_TextureNameHash(entry->name) % BZ_IMAGE_CACHE_BUCKETS;
     rImageCacheEntry_t **hp = &r_image_hash[hash];
 
     while (*hp && *hp != entry) hp = &(*hp)->hash_next;
@@ -178,9 +178,9 @@ static void R_FreeCacheEntry(rImageCacheEntry_t **link) {
    Non-streamed / pinned / built-in textures are never touched.  World geometry is
    rebuilt on every window slide, so any live reference re-stamps its texture the
    same generation — a stale stamp means nothing resident still uses it. */
-void R_ReclaimStreamedTextures(DWORD keep_recent) {
+void R_ReclaimStreamedTextures(uint32_t keep_recent) {
     rImageCacheEntry_t **pp = &r_image_cache;
-    DWORD freed = 0;
+    uint32_t freed = 0;
     while (*pp) {
         rImageCacheEntry_t *entry = *pp;
         if (entry->streamed && !entry->pinned && entry->owns_texture &&
@@ -217,7 +217,7 @@ int R_RegisterTextureFile(char const *textureFileName) {
     }
 }
 
-struct texture const* R_FindTextureByID(DWORD textureID) {
+struct texture const* R_FindTextureByID(uint32_t textureID) {
     for (LPCTEXTURE tex = g_textures; tex; tex = tex->next) {
         if (tex->texid == textureID)
             return tex;
@@ -225,7 +225,7 @@ struct texture const* R_FindTextureByID(DWORD textureID) {
     return NULL;
 }
 
-void R_BindTexture(LPCTEXTURE texture, DWORD unit) {
+void R_BindTexture(LPCTEXTURE texture, uint32_t unit) {
     R_Call(glActiveTexture, GL_TEXTURE0 + unit);
     R_Call(glBindTexture, GL_TEXTURE_2D, texture ? texture->texid : tr.texture[TEX_WHITE]->texid);
 }
@@ -239,7 +239,7 @@ void R_SetTextureWrap(LPCTEXTURE texture, bool wrapS, bool wrapT) {
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrapT ? GL_REPEAT : GL_CLAMP_TO_EDGE);
 }
 
-LPTEXTURE R_AllocateTexture(DWORD width, DWORD height) {
+LPTEXTURE R_AllocateTexture(uint32_t width, uint32_t height) {
     LPTEXTURE texture = ri.MemAlloc(sizeof(TEXTURE));
     R_Call(glGenTextures, 1, &texture->texid);
     R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
@@ -270,7 +270,7 @@ void R_ReleaseTexture(LPTEXTURE texture) {
 /* The format describes the supplied bytes, never the host OS; unsupported BGRA preserves the caller's buffer. */
 void R_LoadTextureMipLevel(LPCTEXTURE texture, LPCTEXMIP mip) {
     GLenum format = GL_RGBA, internal = GL_RGBA;
-    BYTE *rgba = NULL;
+    uint8_t *rgba = NULL;
     if (!mip->width || !mip->height)
         return;
     if (mip->format == PIXEL_BGRA) {

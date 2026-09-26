@@ -1,10 +1,10 @@
 extern LPPLAYER currentplayer;
 
-static DWORD const order_ugol = BZ_WC3_UNIT_HAUNTED_GOLD_MINE;
-static DWORD const unit_ngol = BZ_WC3_UNIT_GOLD_MINE;
+static uint32_t const order_ugol = BZ_WC3_UNIT_HAUNTED_GOLD_MINE;
+static uint32_t const unit_ngol = BZ_WC3_UNIT_GOLD_MINE;
 
 #define UNIT_TYPED_ACCESS(NAME, FIELD, TYPE) \
-DWORD SetUnit##NAME(LPJASS j) {  \
+uint32_t SetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
     if (whichUnit) { \
         memcpy(&whichUnit->FIELD, jass_checkhandle(j, 2, #TYPE), sizeof(whichUnit->FIELD)); \
@@ -13,13 +13,13 @@ DWORD SetUnit##NAME(LPJASS j) {  \
     } \
     return 0; \
 }  \
-DWORD GetUnit##NAME(LPJASS j) {  \
+uint32_t GetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
     return whichUnit ? jass_pushlighthandle(j, &whichUnit->FIELD, #TYPE) : jass_pushnullhandle(j, #TYPE); \
 }
 
 #define UNIT_ACCESS(NAME, FIELD) \
-DWORD SetUnit##NAME(LPJASS j) {  \
+uint32_t SetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
     if (whichUnit) { \
         whichUnit->FIELD = jass_checknumber(j, 2); \
@@ -27,7 +27,7 @@ DWORD SetUnit##NAME(LPJASS j) {  \
     } \
     return 0; \
 }  \
-DWORD GetUnit##NAME(LPJASS j) {  \
+uint32_t GetUnit##NAME(LPJASS j) {  \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");  \
     return jass_pushnumber(j, whichUnit ? whichUnit->FIELD : 0); \
 }
@@ -35,7 +35,7 @@ DWORD GetUnit##NAME(LPJASS j) {  \
 #define UNITINFO_ACCESS(FIELD) UNIT_ACCESS(FIELD, unitinfo.FIELD)
 
 #define UNIT_POSITION_ACCESS(NAME, FIELD) \
-DWORD SetUnit##NAME(LPJASS j) { \
+uint32_t SetUnit##NAME(LPJASS j) { \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit"); \
     if (whichUnit) { \
         VECTOR2 old_position = whichUnit->s.origin2; \
@@ -46,7 +46,7 @@ DWORD SetUnit##NAME(LPJASS j) { \
     } \
     return 0; \
 } \
-DWORD GetUnit##NAME(LPJASS j) { \
+uint32_t GetUnit##NAME(LPJASS j) { \
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit"); \
     return jass_pushnumber(j, whichUnit ? whichUnit->FIELD : 0); \
 }
@@ -55,7 +55,7 @@ UNIT_POSITION_ACCESS(X, s.origin.x);
 UNIT_POSITION_ACCESS(Y, s.origin.y);
 #undef UNIT_POSITION_ACCESS
 
-DWORD SetUnitPositionLoc(LPJASS j) {
+uint32_t SetUnitPositionLoc(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 2, "location");
     VECTOR2 position;
@@ -71,15 +71,15 @@ DWORD SetUnitPositionLoc(LPJASS j) {
     }
     return 0;
 }
-DWORD GetUnitPositionLoc(LPJASS j) {
+uint32_t GetUnitPositionLoc(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return whichUnit ? jass_pushlighthandle(j, &whichUnit->s.origin2, "location") : jass_pushnullhandle(j, "location");
 }
 UNITINFO_ACCESS(MoveSpeed);
 
-DWORD SetUnitFlyHeight(LPJASS j) {
+uint32_t SetUnitFlyHeight(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    FLOAT const newHeight = jass_checknumber(j, 2);
+    float const newHeight = jass_checknumber(j, 2);
     (void)jass_checknumber(j, 3); /* Warsmash currently ignores rate too. */
     if (whichUnit) {
         whichUnit->unitinfo.FlyHeight = newHeight;
@@ -90,7 +90,7 @@ DWORD SetUnitFlyHeight(LPJASS j) {
     return 0;
 }
 
-DWORD GetUnitFlyHeight(LPJASS j) {
+uint32_t GetUnitFlyHeight(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.FlyHeight : 0);
 }
@@ -98,32 +98,32 @@ UNITINFO_ACCESS(TurnSpeed);
 UNITINFO_ACCESS(PropWindow);
 UNITINFO_ACCESS(AcquireRange);
 
-DWORD GetUnitFacing(LPJASS j) {
+uint32_t GetUnitFacing(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     if (!whichUnit) {
         return jass_pushnumber(j, 0);
     }
-    FLOAT facingAngle = whichUnit->s.angle;
+    float facingAngle = whichUnit->s.angle;
     jass_pushnumber(j, RAD2DEG(facingAngle));
     return 1;
 }
 
-DWORD SetUnitFacing(LPJASS j) {
+uint32_t SetUnitFacing(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    FLOAT facingAngle = jass_checknumber(j, 2);
+    float facingAngle = jass_checknumber(j, 2);
     if (whichUnit) whichUnit->s.angle = DEG2RAD(facingAngle);
     return 0;
 }
 
-DWORD SetUnitFacingTimed(LPJASS j) {
+uint32_t SetUnitFacingTimed(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    FLOAT facingAngle = jass_checknumber(j, 2);
-//    FLOAT duration = jass_checknumber(j, 3);
+    float facingAngle = jass_checknumber(j, 2);
+//    float duration = jass_checknumber(j, 3);
     if (whichUnit) whichUnit->s.angle = DEG2RAD(facingAngle);
     return 0;
 }
 
-DWORD KillUnit(LPJASS j) {
+uint32_t KillUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     /* KillUnit is a death transition, not a raw life write; unit_die owns the death animation, events, and cleanup. */
     if (whichUnit && whichUnit->inuse && !(whichUnit->svflags & SVF_DEADMONSTER)) {
@@ -131,7 +131,7 @@ DWORD KillUnit(LPJASS j) {
     }
     return 0;
 }
-DWORD RemoveUnit(LPJASS j) {
+uint32_t RemoveUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     if (whichUnit) {
         LPGAMECLIENT owner = G_GetPlayerClientByNumber(whichUnit->s.player);
@@ -140,11 +140,11 @@ DWORD RemoveUnit(LPJASS j) {
     }
     return 0;
 }
-DWORD ShowUnit(LPJASS j) {
+uint32_t ShowUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    BOOL show = jass_checkboolean(j, 2);
-    BOOL was_hidden;
-    BOOL is_hidden;
+    bool show = jass_checkboolean(j, 2);
+    bool was_hidden;
+    bool is_hidden;
     if (!whichUnit) {
         return 0;
     }
@@ -170,7 +170,7 @@ JASS_API(SetUnitState,
 (UNITSTATE, whichUnitState, "unitstate"),
 (number, newVal))
 {
-    BOOL was_dead;
+    bool was_dead;
     if (!whichUnit || !whichUnitState) {
         return;
     }
@@ -179,20 +179,20 @@ JASS_API(SetUnitState,
     else (&whichUnit->health.value)[*whichUnitState] = newVal;
     if ((whichUnit->s.flags & EF_FOW_BLOCKER) && was_dead != M_IsDead(whichUnit)) G_FowMarkBlockersDirty();
 }
-//DWORD SetUnitState(LPJASS j) {
+//uint32_t SetUnitState(LPJASS j) {
 //    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
 //    UNITSTATE *whichUnitState = jass_checkhandle(j, 2, "unitstate");
-//    FLOAT newVal = jass_checknumber(j, 3);
+//    float newVal = jass_checknumber(j, 3);
 //    (&whichUnit->health.value)[*whichUnitState] = newVal;
 //    return 0;
 //}
-DWORD GetUnitState(LPJASS j) {
+uint32_t GetUnitState(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     UNITSTATE *whichUnitState = jass_checkhandle(j, 2, "unitstate");
-    FLOAT value = whichUnit && whichUnitState ? (&whichUnit->health.value)[*whichUnitState] : 0;
+    float value = whichUnit && whichUnitState ? (&whichUnit->health.value)[*whichUnitState] : 0;
     return jass_pushnumber(j, value);
 }
-DWORD SetUnitPosition(LPJASS j) {
+uint32_t SetUnitPosition(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     VECTOR2 requested = MAKE(VECTOR2, jass_checknumber(j, 2), jass_checknumber(j, 3));
     VECTOR2 position;
@@ -208,30 +208,30 @@ DWORD SetUnitPosition(LPJASS j) {
     }
     return 0;
 }
-DWORD GetUnitDefaultAcquireRange(LPJASS j) {
+uint32_t GetUnitDefaultAcquireRange(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.AcquireRange : 0);
 }
-DWORD GetUnitDefaultTurnSpeed(LPJASS j) {
+uint32_t GetUnitDefaultTurnSpeed(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.TurnSpeed : 0);
 }
-DWORD GetUnitDefaultPropWindow(LPJASS j) {
+uint32_t GetUnitDefaultPropWindow(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.PropWindow : 0);
 }
-DWORD GetUnitDefaultFlyHeight(LPJASS j) {
+uint32_t GetUnitDefaultFlyHeight(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushnumber(j, whichUnit && whichUnit->data.UnitData
         ? whichUnit->data.UnitData->moveHeight : 0);
 }
-DWORD SetUnitOwner(LPJASS j) {
+uint32_t SetUnitOwner(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPCPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
-    BOOL change_color = jass_checkboolean(j, 3);
+    bool change_color = jass_checkboolean(j, 3);
     if (whichUnit && whichPlayer) {
-        DWORD const previous_player = whichUnit->s.player;
-        DWORD const previous_color = G_GetUnitTeamColor(whichUnit);
+        uint32_t const previous_player = whichUnit->s.player;
+        uint32_t const previous_color = G_GetUnitTeamColor(whichUnit);
         G_SetUnitPlayer(whichUnit, PLAYER_NUM(whichPlayer));
         if (change_color) {
             G_ClearUnitColorOverride(whichUnit);
@@ -242,15 +242,15 @@ DWORD SetUnitOwner(LPJASS j) {
     }
     return 0;
 }
-DWORD SetUnitColor(LPJASS j) {
+uint32_t SetUnitColor(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    DWORD *pColor = jass_checkhandle(j, 2, "playercolor");
+    uint32_t *pColor = jass_checkhandle(j, 2, "playercolor");
     if (whichUnit && pColor) G_SetUnitColorOverride(whichUnit, *pColor);
     return 0;
 }
-DWORD SetUnitScale(LPJASS j) {
+uint32_t SetUnitScale(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    FLOAT scaleX = jass_checknumber(j, 2);
+    float scaleX = jass_checknumber(j, 2);
     (void)jass_checknumber(j, 3);
     (void)jass_checknumber(j, 4);
     if (whichUnit) {
@@ -260,25 +260,25 @@ DWORD SetUnitScale(LPJASS j) {
     }
     return 0;
 }
-DWORD SetUnitTimeScale(LPJASS j) {
+uint32_t SetUnitTimeScale(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    FLOAT timeScale = jass_checknumber(j, 2);
+    float timeScale = jass_checknumber(j, 2);
 
     if (whichUnit) whichUnit->animation_speed = MAX(0.0f, timeScale);
     return 0;
 }
-DWORD SetUnitBlendTime(LPJASS j) {
+uint32_t SetUnitBlendTime(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //FLOAT blendTime = jass_checknumber(j, 2);
+    //float blendTime = jass_checknumber(j, 2);
     return 0;
 }
 /* Store the clamped persistent RGBA override consumed by the WC3 presentation datagram. */
-DWORD SetUnitVertexColor(LPJASS j) {
+uint32_t SetUnitVertexColor(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LONG red = jass_checkinteger(j, 2);
-    LONG green = jass_checkinteger(j, 3);
-    LONG blue = jass_checkinteger(j, 4);
-    LONG alpha = jass_checkinteger(j, 5);
+    int32_t red = jass_checkinteger(j, 2);
+    int32_t green = jass_checkinteger(j, 3);
+    int32_t blue = jass_checkinteger(j, 4);
+    int32_t alpha = jass_checkinteger(j, 5);
     if (whichUnit) {
         whichUnit->vertex_color = MAKE(COLOR32,
             BZ_CLAMP_U8(red), BZ_CLAMP_U8(green), BZ_CLAMP_U8(blue), BZ_CLAMP_U8(alpha));
@@ -287,40 +287,40 @@ DWORD SetUnitVertexColor(LPJASS j) {
     }
     return 0;
 }
-DWORD SetUnitUserData(LPJASS j) {
+uint32_t SetUnitUserData(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     if (whichUnit) whichUnit->user_data = jass_checkinteger(j, 2);
     return 0;
 }
-DWORD GetUnitUserData(LPJASS j) {
+uint32_t GetUnitUserData(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushinteger(j, whichUnit ? whichUnit->user_data : 0);
 }
-DWORD UnitSetUsesAltIcon(LPJASS j) {
+uint32_t UnitSetUsesAltIcon(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     if (whichUnit) whichUnit->uses_alt_icon = jass_checkboolean(j, 2);
     return 0;
 }
-DWORD QueueUnitAnimation(LPJASS j) {
+uint32_t QueueUnitAnimation(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LPCSTR whichAnimation = jass_checkstring(j, 2);
+    //cstring_t whichAnimation = jass_checkstring(j, 2);
     return 0;
 }
-DWORD SetUnitAnimation(LPJASS j) {
+uint32_t SetUnitAnimation(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LPCSTR whichAnimation = jass_checkstring(j, 2);
+    cstring_t whichAnimation = jass_checkstring(j, 2);
     if (whichUnit) G_SetUnitAnimation(whichUnit, whichAnimation);
     return 0;
 }
-DWORD SetUnitAnimationByIndex(LPJASS j) {
+uint32_t SetUnitAnimationByIndex(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LONG whichAnimation = jass_checkinteger(j, 2);
+    //int32_t whichAnimation = jass_checkinteger(j, 2);
     return 0;
 }
-DWORD SetUnitAnimationWithRarity(LPJASS j) {
+uint32_t SetUnitAnimationWithRarity(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LPCSTR whichAnimation = jass_checkstring(j, 2);
-    DWORD *rarity = jass_checkhandle(j, 3, "raritycontrol");
+    cstring_t whichAnimation = jass_checkstring(j, 2);
+    uint32_t *rarity = jass_checkhandle(j, 3, "raritycontrol");
     LPCANIMATION animation;
 
     if (whichUnit && whichAnimation) {
@@ -334,10 +334,10 @@ DWORD SetUnitAnimationWithRarity(LPJASS j) {
     }
     return 0;
 }
-DWORD AddUnitAnimationProperties(LPJASS j) {
+uint32_t AddUnitAnimationProperties(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LPCSTR animProperties = jass_checkstring(j, 2);
-    BOOL add = jass_checkboolean(j, 3);
+    cstring_t animProperties = jass_checkstring(j, 2);
+    bool add = jass_checkboolean(j, 3);
     if (whichUnit) G_AddUnitAnimationProperties(whichUnit, animProperties, add);
     return 0;
 }
@@ -351,194 +351,194 @@ DWORD AddUnitAnimationProperties(LPJASS j) {
 //(number, offsetZ))
 //{
 //}
-DWORD SetUnitLookAt(LPJASS j) {
+uint32_t SetUnitLookAt(LPJASS j) {
 //    LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-//    LPCSTR whichBone = jass_checkstring(j, 2);
-//    HANDLE lookAtTarget = jass_checkhandle(j, 3, "unit");
-//    FLOAT offsetX = jass_checknumber(j, 4);
-//    FLOAT offsetY = jass_checknumber(j, 5);
-//    FLOAT offsetZ = jass_checknumber(j, 6);
+//    cstring_t whichBone = jass_checkstring(j, 2);
+//    handle_t lookAtTarget = jass_checkhandle(j, 3, "unit");
+//    float offsetX = jass_checknumber(j, 4);
+//    float offsetY = jass_checknumber(j, 5);
+//    float offsetZ = jass_checknumber(j, 6);
     return 0;
 }
-DWORD ResetUnitLookAt(LPJASS j) {
+uint32_t ResetUnitLookAt(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return 0;
 }
-DWORD SetUnitRescuable(LPJASS j) {
+uint32_t SetUnitRescuable(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE byWhichPlayer = jass_checkhandle(j, 2, "player");
-    //BOOL flag = jass_checkboolean(j, 3);
+    //handle_t byWhichPlayer = jass_checkhandle(j, 2, "player");
+    //bool flag = jass_checkboolean(j, 3);
     return 0;
 }
-DWORD SetUnitRescueRange(LPJASS j) {
+uint32_t SetUnitRescueRange(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //FLOAT range = jass_checknumber(j, 2);
+    //float range = jass_checknumber(j, 2);
     return 0;
 }
-DWORD SetHeroStr(LPJASS j) {
+uint32_t SetHeroStr(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    LONG newStr = jass_checkinteger(j, 2);
-//    BOOL permanent = jass_checkboolean(j, 3);
-    if (whichHero) { whichHero->hero.str = (DWORD)MAX(0, newStr); G_RecomputeHeroStats(whichHero); }
+    int32_t newStr = jass_checkinteger(j, 2);
+//    bool permanent = jass_checkboolean(j, 3);
+    if (whichHero) { whichHero->hero.str = (uint32_t)MAX(0, newStr); G_RecomputeHeroStats(whichHero); }
     return 0;
 }
-DWORD SetHeroAgi(LPJASS j) {
+uint32_t SetHeroAgi(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    LONG newAgi = jass_checkinteger(j, 2);
-//    BOOL permanent = jass_checkboolean(j, 3);
-    if (whichHero) { whichHero->hero.agi = (DWORD)MAX(0, newAgi); G_RecomputeHeroStats(whichHero); }
+    int32_t newAgi = jass_checkinteger(j, 2);
+//    bool permanent = jass_checkboolean(j, 3);
+    if (whichHero) { whichHero->hero.agi = (uint32_t)MAX(0, newAgi); G_RecomputeHeroStats(whichHero); }
     return 0;
 }
-DWORD SetHeroInt(LPJASS j) {
+uint32_t SetHeroInt(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    LONG newInt = jass_checkinteger(j, 2);
-//    BOOL permanent = jass_checkboolean(j, 3);
-    if (whichHero) { whichHero->hero.intel = (DWORD)MAX(0, newInt); G_RecomputeHeroStats(whichHero); }
+    int32_t newInt = jass_checkinteger(j, 2);
+//    bool permanent = jass_checkboolean(j, 3);
+    if (whichHero) { whichHero->hero.intel = (uint32_t)MAX(0, newInt); G_RecomputeHeroStats(whichHero); }
     return 0;
 }
-DWORD GetHeroXP(LPJASS j) {
+uint32_t GetHeroXP(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    return jass_pushinteger(j, whichHero ? (LONG)whichHero->hero.xp : 0);
+    return jass_pushinteger(j, whichHero ? (int32_t)whichHero->hero.xp : 0);
 }
-DWORD SetHeroXP(LPJASS j) {
+uint32_t SetHeroXP(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    LONG newXpVal = jass_checkinteger(j, 2);
-//    BOOL showEyeCandy = jass_checkboolean(j, 3);
+    int32_t newXpVal = jass_checkinteger(j, 2);
+//    bool showEyeCandy = jass_checkboolean(j, 3);
     if (whichHero && !whichHero->hero.suspend_xp) {
-        G_HeroSetXP(whichHero, (DWORD)MAX(0, newXpVal));
+        G_HeroSetXP(whichHero, (uint32_t)MAX(0, newXpVal));
     }
     return 0;
 }
-DWORD GetHeroSkillPoints(LPJASS j) {
+uint32_t GetHeroSkillPoints(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    LONG const points = whichHero && whichHero->data.UnitBalance && G_UnitIsHero(whichHero)
-        ? (LONG)whichHero->hero.skillpoints : 0;
+    int32_t const points = whichHero && whichHero->data.UnitBalance && G_UnitIsHero(whichHero)
+        ? (int32_t)whichHero->hero.skillpoints : 0;
     return jass_pushinteger(j, points);
 }
-DWORD UnitModifySkillPoints(LPJASS j) {
+uint32_t UnitModifySkillPoints(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    LONG const delta = jass_checkinteger(j, 2);
-    BOOL const result = G_HeroModifySkillPoints(whichHero, delta);
+    int32_t const delta = jass_checkinteger(j, 2);
+    bool const result = G_HeroModifySkillPoints(whichHero, delta);
     return jass_pushboolean(j, result);
 }
-DWORD AddHeroXP(LPJASS j) {
+uint32_t AddHeroXP(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    LONG xpToAdd = jass_checkinteger(j, 2);
-//    BOOL showEyeCandy = jass_checkboolean(j, 3);
+    int32_t xpToAdd = jass_checkinteger(j, 2);
+//    bool showEyeCandy = jass_checkboolean(j, 3);
     if (whichHero && !whichHero->hero.suspend_xp && xpToAdd > 0) {
-        DWORD add = (DWORD)xpToAdd;
-        DWORD cur = whichHero->hero.xp;
+        uint32_t add = (uint32_t)xpToAdd;
+        uint32_t cur = whichHero->hero.xp;
         /* Cap at INT32_MAX so GetHeroXP (signed return) never reads negative. */
-        DWORD sum = cur + add;
-        G_HeroSetXP(whichHero, (sum < cur || sum > (DWORD)INT32_MAX) ? (DWORD)INT32_MAX : sum);
+        uint32_t sum = cur + add;
+        G_HeroSetXP(whichHero, (sum < cur || sum > (uint32_t)INT32_MAX) ? (uint32_t)INT32_MAX : sum);
     }
     return 0;
 }
-DWORD SetHeroLevel(LPJASS j) {
+uint32_t SetHeroLevel(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    LONG level = jass_checkinteger(j, 2);
-//    BOOL showEyeCandy = jass_checkboolean(j, 3);
-    if (whichHero && level > (LONG)whichHero->hero.level) {
+    int32_t level = jass_checkinteger(j, 2);
+//    bool showEyeCandy = jass_checkboolean(j, 3);
+    if (whichHero && level > (int32_t)whichHero->hero.level) {
         /* WC3 SetHeroLevel raises the level by granting enough XP to reach it
          * (level only increases). Route through the XP transition so skill
          * points and both Hero-level event families per crossed level stay
          * identical to ordinary XP gains. */
-        DWORD const target = MIN((DWORD)level, G_MaxHeroLevel());
-        DWORD const need = G_HeroXPForLevel(target);
+        uint32_t const target = MIN((uint32_t)level, G_MaxHeroLevel());
+        uint32_t const need = G_HeroXPForLevel(target);
         G_HeroSetXP(whichHero, MAX(whichHero->hero.xp, need));
     }
     return 0;
 }
-DWORD GetHeroLevel(LPJASS j) {
+uint32_t GetHeroLevel(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
     return jass_pushinteger(j, whichHero ? whichHero->hero.level : 0);
 }
-DWORD SuspendHeroXP(LPJASS j) {
+uint32_t SuspendHeroXP(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    BOOL flag = jass_checkboolean(j, 2);
+    bool flag = jass_checkboolean(j, 2);
     if (whichHero) whichHero->hero.suspend_xp = flag;
     return 0;
 }
-DWORD IsSuspendedXP(LPJASS j) {
+uint32_t IsSuspendedXP(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
     return jass_pushboolean(j, whichHero && whichHero->hero.suspend_xp);
 }
-DWORD SelectHeroSkill(LPJASS j) {
+uint32_t SelectHeroSkill(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    LONG abilcode = jass_checkinteger(j, 2);
+    int32_t abilcode = jass_checkinteger(j, 2);
     if (whichHero) {
-        G_HeroLearnSkill(whichHero, (DWORD)abilcode);
+        G_HeroLearnSkill(whichHero, (uint32_t)abilcode);
     }
     return 0;
 }
-DWORD GetUnitAbilityLevel(LPJASS j) {
+uint32_t GetUnitAbilityLevel(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LONG abilcode = jass_checkinteger(j, 2);
-    return jass_pushinteger(j, whichUnit ? (LONG)G_UnitAbilityLevel(whichUnit, (DWORD)abilcode) : 0);
+    int32_t abilcode = jass_checkinteger(j, 2);
+    return jass_pushinteger(j, whichUnit ? (int32_t)G_UnitAbilityLevel(whichUnit, (uint32_t)abilcode) : 0);
 }
-DWORD SetUnitAbilityLevel(LPJASS j) {
+uint32_t SetUnitAbilityLevel(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LONG abilcode = jass_checkinteger(j, 2);
-    LONG level = jass_checkinteger(j, 3);
-    return jass_pushinteger(j, whichUnit ? (LONG)G_UnitSetAbilityLevel(whichUnit, (DWORD)abilcode, level) : 0);
+    int32_t abilcode = jass_checkinteger(j, 2);
+    int32_t level = jass_checkinteger(j, 3);
+    return jass_pushinteger(j, whichUnit ? (int32_t)G_UnitSetAbilityLevel(whichUnit, (uint32_t)abilcode, level) : 0);
 }
-DWORD IncUnitAbilityLevel(LPJASS j) {
+uint32_t IncUnitAbilityLevel(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LONG abilcode = jass_checkinteger(j, 2);
-    DWORD cur;
+    int32_t abilcode = jass_checkinteger(j, 2);
+    uint32_t cur;
     if (!whichUnit) return jass_pushinteger(j, 0);
-    cur = G_UnitAbilityLevel(whichUnit, (DWORD)abilcode);
+    cur = G_UnitAbilityLevel(whichUnit, (uint32_t)abilcode);
     if (!cur) return jass_pushinteger(j, 0);
-    return jass_pushinteger(j, (LONG)G_UnitSetAbilityLevel(whichUnit, (DWORD)abilcode, (LONG)cur + 1));
+    return jass_pushinteger(j, (int32_t)G_UnitSetAbilityLevel(whichUnit, (uint32_t)abilcode, (int32_t)cur + 1));
 }
-DWORD GetHeroStr(LPJASS j) {
+uint32_t GetHeroStr(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    BOOL includeBonuses = jass_checkboolean(j, 2);
+    bool includeBonuses = jass_checkboolean(j, 2);
     (void)includeBonuses; /* TODO: attribute bonuses from items/auras are not tracked separately yet. */
-    return jass_pushinteger(j, whichHero ? (LONG)whichHero->hero.str : 0);
+    return jass_pushinteger(j, whichHero ? (int32_t)whichHero->hero.str : 0);
 }
-DWORD GetHeroAgi(LPJASS j) {
+uint32_t GetHeroAgi(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    BOOL includeBonuses = jass_checkboolean(j, 2);
+    bool includeBonuses = jass_checkboolean(j, 2);
     (void)includeBonuses;
-    return jass_pushinteger(j, whichHero ? (LONG)whichHero->hero.agi : 0);
+    return jass_pushinteger(j, whichHero ? (int32_t)whichHero->hero.agi : 0);
 }
-DWORD GetHeroInt(LPJASS j) {
+uint32_t GetHeroInt(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    BOOL includeBonuses = jass_checkboolean(j, 2);
+    bool includeBonuses = jass_checkboolean(j, 2);
     (void)includeBonuses;
-    return jass_pushinteger(j, whichHero ? (LONG)whichHero->hero.intel : 0);
+    return jass_pushinteger(j, whichHero ? (int32_t)whichHero->hero.intel : 0);
 }
-DWORD GetUnitLevel(LPJASS j) {
+uint32_t GetUnitLevel(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     if (!whichUnit) return jass_pushinteger(j, 0);
-    if (G_UnitIsHero(whichUnit)) return jass_pushinteger(j, (LONG)whichUnit->hero.level);
+    if (G_UnitIsHero(whichUnit)) return jass_pushinteger(j, (int32_t)whichUnit->hero.level);
     return jass_pushinteger(j, whichUnit->data.UnitBalance ? whichUnit->data.UnitBalance->level : 0);
 }
-DWORD GetUnitCurrentOrder(LPJASS j) {
+uint32_t GetUnitCurrentOrder(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushinteger(j, whichUnit ? (LONG)G_GetIssuedOrderId(whichUnit) : 0);
+    return jass_pushinteger(j, whichUnit ? (int32_t)G_GetIssuedOrderId(whichUnit) : 0);
 }
-DWORD UnitInventorySize(LPJASS j) {
+uint32_t UnitInventorySize(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushinteger(j, whichUnit ? (LONG)G_InventoryCapacity(whichUnit) : 0);
+    return jass_pushinteger(j, whichUnit ? (int32_t)G_InventoryCapacity(whichUnit) : 0);
 }
-DWORD UnitDropItemPoint(LPJASS j) {
+uint32_t UnitDropItemPoint(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPEDICT whichItem = jass_checkhandle(j, 2, "item");
-    FLOAT x = jass_checknumber(j, 3);
-    FLOAT y = jass_checknumber(j, 4);
-    LONG slot;
+    float x = jass_checknumber(j, 3);
+    float y = jass_checknumber(j, 4);
+    int32_t slot;
     if (!whichUnit || !whichItem || whichItem->item.carrier != whichUnit)
         return jass_pushboolean(j, 0);
     slot = whichItem->item.inventory_slot;
     if (slot < 0) return jass_pushboolean(j, 0);
-    return jass_pushboolean(j, G_DropItemAt(whichUnit, (DWORD)slot, &MAKE(VECTOR2, x, y)));
+    return jass_pushboolean(j, G_DropItemAt(whichUnit, (uint32_t)slot, &MAKE(VECTOR2, x, y)));
 }
-DWORD UnitDamageTarget(LPJASS j) {
+uint32_t UnitDamageTarget(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPEDICT target = jass_checkhandle(j, 2, "widget");
-    FLOAT amount = jass_checknumber(j, 3);
+    float amount = jass_checknumber(j, 3);
     /* attack/ranged/attackType/damageType/weaponType are accepted but not yet modeled. */
     (void)jass_checkboolean(j, 4);
     (void)jass_checkboolean(j, 5);
@@ -550,24 +550,24 @@ DWORD UnitDamageTarget(LPJASS j) {
     T_Damage(target, whichUnit, (int)amount);
     return jass_pushboolean(j, 1);
 }
-DWORD UnitAddType(LPJASS j) {
+uint32_t UnitAddType(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LPDWORD whichUnitType = jass_checkhandle(j, 2, "unittype");
+    uint32_t * whichUnitType = jass_checkhandle(j, 2, "unittype");
     if (!whichUnit || !whichUnitType || *whichUnitType >= 32) return jass_pushboolean(j, 0);
     whichUnit->script_unit_types |= (1u << *whichUnitType);
     return jass_pushboolean(j, 1);
 }
-DWORD UnitRemoveType(LPJASS j) {
+uint32_t UnitRemoveType(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LPDWORD whichUnitType = jass_checkhandle(j, 2, "unittype");
+    uint32_t * whichUnitType = jass_checkhandle(j, 2, "unittype");
     if (!whichUnit || !whichUnitType || *whichUnitType >= 32) return jass_pushboolean(j, 0);
     whichUnit->script_unit_types &= ~(1u << *whichUnitType);
     return jass_pushboolean(j, 1);
 }
-DWORD UnitCountBuffsEx(LPJASS j) {
+uint32_t UnitCountBuffsEx(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    BOOL timedLife;
-    LONG count = 0;
+    bool timedLife;
+    int32_t count = 0;
     /* TODO: positive/negative/magic/physical/aura/autoDispel filters need buff-type metadata. */
     (void)jass_checkboolean(j, 2); (void)jass_checkboolean(j, 3);
     (void)jass_checkboolean(j, 4); (void)jass_checkboolean(j, 5);
@@ -582,10 +582,10 @@ DWORD UnitCountBuffsEx(LPJASS j) {
     }
     return jass_pushinteger(j, count);
 }
-DWORD UnitPauseTimedLife(LPJASS j) {
+uint32_t UnitPauseTimedLife(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    BOOL flag = jass_checkboolean(j, 2);
-    DWORD now;
+    bool flag = jass_checkboolean(j, 2);
+    uint32_t now;
     if (!whichUnit || whichUnit->timed_life_paused == flag) return 0;
     now = G_Time();
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
@@ -602,94 +602,94 @@ DWORD UnitPauseTimedLife(LPJASS j) {
     whichUnit->timed_life_paused = flag;
     return 0;
 }
-DWORD UnitResetCooldown(LPJASS j) {
+uint32_t UnitResetCooldown(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     S_SpellResetCooldowns(whichUnit);
     return 0;
 }
 
-DWORD BlzGetUnitAbilityCooldownRemaining(LPJASS j) {
+uint32_t BlzGetUnitAbilityCooldownRemaining(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    DWORD const abilityId = (DWORD)jass_checkinteger(j, 2);
+    uint32_t const abilityId = (uint32_t)jass_checkinteger(j, 2);
     return jass_pushnumber(j, S_SpellCooldownRemaining(whichUnit, abilityId));
 }
 
-DWORD BlzEndUnitAbilityCooldown(LPJASS j) {
+uint32_t BlzEndUnitAbilityCooldown(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    DWORD const abilityId = (DWORD)jass_checkinteger(j, 2);
+    uint32_t const abilityId = (uint32_t)jass_checkinteger(j, 2);
     S_SpellEndCooldown(whichUnit, abilityId);
     return 0;
 }
 
-DWORD BlzStartUnitAbilityCooldown(LPJASS j) {
+uint32_t BlzStartUnitAbilityCooldown(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    DWORD const abilityId = (DWORD)jass_checkinteger(j, 2);
-    FLOAT const cooldown = jass_checknumber(j, 3);
+    uint32_t const abilityId = (uint32_t)jass_checkinteger(j, 2);
+    float const cooldown = jass_checknumber(j, 3);
     S_SpellStartCooldownDuration(whichUnit, abilityId, cooldown);
     return 0;
 }
 
-DWORD ReviveHero(LPJASS j) {
+uint32_t ReviveHero(LPJASS j) {
     LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    FLOAT x = jass_checknumber(j, 2);
-    FLOAT y = jass_checknumber(j, 3);
-    //BOOL doEyecandy = jass_checkboolean(j, 4);
+    float x = jass_checknumber(j, 2);
+    float y = jass_checknumber(j, 3);
+    //bool doEyecandy = jass_checkboolean(j, 4);
     if (whichHero) {
         G_ReviveHero(whichHero, x, y);
         return jass_pushboolean(j, 1);
     }
     return jass_pushboolean(j, 0);
 }
-DWORD ReviveHeroLoc(LPJASS j) {
+uint32_t ReviveHeroLoc(LPJASS j) {
     //LPEDICT whichHero = jass_checkhandle(j, 1, "unit");
-    //HANDLE loc = jass_checkhandle(j, 2, "location");
-    //BOOL doEyecandy = jass_checkboolean(j, 3);
+    //handle_t loc = jass_checkhandle(j, 2, "location");
+    //bool doEyecandy = jass_checkboolean(j, 3);
     return jass_pushboolean(j, 0);
 }
-DWORD SetUnitExploded(LPJASS j) {
+uint32_t SetUnitExploded(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //BOOL exploded = jass_checkboolean(j, 2);
+    //bool exploded = jass_checkboolean(j, 2);
     return 0;
 }
-DWORD SetUnitInvulnerable(LPJASS j) {
+uint32_t SetUnitInvulnerable(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    BOOL flag = jass_checkboolean(j, 2);
+    bool flag = jass_checkboolean(j, 2);
     if (whichUnit) whichUnit->invulnerable = flag;
     return 0;
 }
-DWORD PauseUnit(LPJASS j) {
+uint32_t PauseUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    BOOL flag = jass_checkboolean(j, 2);
+    bool flag = jass_checkboolean(j, 2);
     if (whichUnit) whichUnit->paused = flag;
     return 0;
 }
-DWORD IsUnitPaused(LPJASS j) {
+uint32_t IsUnitPaused(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushboolean(j, whichUnit && whichUnit->paused);
 }
-DWORD SetUnitPathing(LPJASS j) {
+uint32_t SetUnitPathing(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    BOOL flag = jass_checkboolean(j, 2);
+    bool flag = jass_checkboolean(j, 2);
     if (whichUnit) whichUnit->no_pathing = !flag;
     return 0;
 }
-DWORD GetUnitPointValue(LPJASS j) {
+uint32_t GetUnitPointValue(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushinteger(j, 0);
 }
-DWORD GetUnitPointValueByType(LPJASS j) {
-    //LONG unitType = jass_checkinteger(j, 1);
+uint32_t GetUnitPointValueByType(LPJASS j) {
+    //int32_t unitType = jass_checkinteger(j, 1);
     return jass_pushinteger(j, 0);
 }
-DWORD UnitAddItem(LPJASS j) {
+uint32_t UnitAddItem(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPEDICT whichItem = jass_checkhandle(j, 2, "item");
     if (!whichUnit || !whichItem) return jass_pushboolean(j, false);
     return jass_pushboolean(j, G_PickupItem(whichUnit, whichItem));
 }
-DWORD UnitAddItemById(LPJASS j) {
+uint32_t UnitAddItemById(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LONG itemId = jass_checkinteger(j, 2);
+    int32_t itemId = jass_checkinteger(j, 2);
     if (!whichUnit) return jass_pushnullhandle(j, "item");
     LPEDICT item = SP_SpawnAtLocation(itemId, whichUnit->s.player, &whichUnit->s.origin2);
     if (item && G_PickupItem(whichUnit, item)) {
@@ -699,22 +699,22 @@ DWORD UnitAddItemById(LPJASS j) {
         return jass_pushnullhandle(j, "item");
     }
 }
-DWORD UnitAddItemToSlotById(LPJASS j) {
+uint32_t UnitAddItemToSlotById(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LONG itemId = jass_checkinteger(j, 2);
-    LONG itemSlot = jass_checkinteger(j, 3);
-    if (!whichUnit || itemSlot < 0 || (DWORD)itemSlot >= G_InventoryCapacity(whichUnit)) {
+    int32_t itemId = jass_checkinteger(j, 2);
+    int32_t itemSlot = jass_checkinteger(j, 3);
+    if (!whichUnit || itemSlot < 0 || (uint32_t)itemSlot >= G_InventoryCapacity(whichUnit)) {
         return jass_pushboolean(j, false);
     }
     LPEDICT item = SP_SpawnAtLocation(itemId, whichUnit->s.player, &whichUnit->s.origin2);
-    if (item && G_AddItemToSlot(whichUnit, item, (DWORD)itemSlot)) {
+    if (item && G_AddItemToSlot(whichUnit, item, (uint32_t)itemSlot)) {
         return jass_pushboolean(j, true);
     } else {
         if (item) G_RemoveItem(item);
         return jass_pushboolean(j, false);
     }
 }
-DWORD UnitRemoveItem(LPJASS j) {
+uint32_t UnitRemoveItem(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPEDICT whichItem = jass_checkhandle(j, 2, "item");
     if (!whichUnit || !whichItem) {
@@ -728,20 +728,20 @@ DWORD UnitRemoveItem(LPJASS j) {
     }
     return 0;
 }
-DWORD UnitRemoveItemFromSlot(LPJASS j) {
+uint32_t UnitRemoveItemFromSlot(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LONG itemSlot = jass_checkinteger(j, 2);
-    if (!whichUnit || itemSlot < 0 || (DWORD)itemSlot >= G_InventoryCapacity(whichUnit)) {
+    int32_t itemSlot = jass_checkinteger(j, 2);
+    if (!whichUnit || itemSlot < 0 || (uint32_t)itemSlot >= G_InventoryCapacity(whichUnit)) {
         return jass_pushnullhandle(j, "item");
     }
     LPEDICT item = whichUnit->inventory[itemSlot];
     if (!item) return jass_pushnullhandle(j, "item");
-    if (!G_DropItem(whichUnit, (DWORD)itemSlot)) {
+    if (!G_DropItem(whichUnit, (uint32_t)itemSlot)) {
         return jass_pushnullhandle(j, "item");
     }
     return jass_pushlighthandle(j, item, "item");
 }
-DWORD UnitHasItem(LPJASS j) {
+uint32_t UnitHasItem(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPEDICT whichItem = jass_checkhandle(j, 2, "item");
     if (!whichUnit || !whichItem) return jass_pushboolean(j, 0);
@@ -750,35 +750,35 @@ DWORD UnitHasItem(LPJASS j) {
     }
     return jass_pushboolean(j, 0);
 }
-DWORD UnitItemInSlot(LPJASS j) {
+uint32_t UnitItemInSlot(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LONG itemSlot = jass_checkinteger(j, 2);
-    if (!whichUnit || itemSlot < 0 || (DWORD)itemSlot >= G_InventoryCapacity(whichUnit)) {
+    int32_t itemSlot = jass_checkinteger(j, 2);
+    if (!whichUnit || itemSlot < 0 || (uint32_t)itemSlot >= G_InventoryCapacity(whichUnit)) {
         return jass_pushnullhandle(j, "item");
     }
     LPEDICT item = whichUnit->inventory[itemSlot];
     if (!item) return jass_pushnullhandle(j, "item");
     return jass_pushlighthandle(j, item, "item");
 }
-DWORD UnitUseItem(LPJASS j) {
+uint32_t UnitUseItem(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichItem = jass_checkhandle(j, 2, "item");
+    //handle_t whichItem = jass_checkhandle(j, 2, "item");
     return jass_pushboolean(j, 0);
 }
-DWORD UnitUseItemPoint(LPJASS j) {
+uint32_t UnitUseItemPoint(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichItem = jass_checkhandle(j, 2, "item");
-    //FLOAT x = jass_checknumber(j, 3);
-    //FLOAT y = jass_checknumber(j, 4);
+    //handle_t whichItem = jass_checkhandle(j, 2, "item");
+    //float x = jass_checknumber(j, 3);
+    //float y = jass_checknumber(j, 4);
     return jass_pushboolean(j, 0);
 }
-DWORD UnitUseItemTarget(LPJASS j) {
+uint32_t UnitUseItemTarget(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichItem = jass_checkhandle(j, 2, "item");
-    //HANDLE target = jass_checkhandle(j, 3, "widget");
+    //handle_t whichItem = jass_checkhandle(j, 2, "item");
+    //handle_t target = jass_checkhandle(j, 3, "widget");
     return jass_pushboolean(j, 0);
 }
-DWORD GetUnitRallyPoint(LPJASS j) {
+uint32_t GetUnitRallyPoint(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     API_ALLOC(VECTOR2, location);
     if (whichUnit) {
@@ -786,7 +786,7 @@ DWORD GetUnitRallyPoint(LPJASS j) {
     }
     return 1;
 }
-DWORD GetUnitRallyUnit(LPJASS j) {
+uint32_t GetUnitRallyUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPEDICT target = NULL;
     rallyTargetType_t type;
@@ -799,7 +799,7 @@ DWORD GetUnitRallyUnit(LPJASS j) {
     }
     return jass_pushnullhandle(j, "unit");
 }
-DWORD GetUnitRallyDestructable(LPJASS j) {
+uint32_t GetUnitRallyDestructable(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPEDICT target = NULL;
     rallyTargetType_t type;
@@ -811,7 +811,7 @@ DWORD GetUnitRallyDestructable(LPJASS j) {
     }
     return jass_pushnullhandle(j, "destructable");
 }
-DWORD GetUnitLoc(LPJASS j) {
+uint32_t GetUnitLoc(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     API_ALLOC(VECTOR2, location);
     if (whichUnit) {
@@ -819,42 +819,42 @@ DWORD GetUnitLoc(LPJASS j) {
     }
     return 1;
 }
-DWORD GetUnitDefaultMoveSpeed(LPJASS j) {
+uint32_t GetUnitDefaultMoveSpeed(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.MoveSpeed : 0);
 }
-DWORD GetOwningPlayer(LPJASS j) {
+uint32_t GetOwningPlayer(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     if (!whichUnit) {
         return jass_pushnullhandle(j, "player");
     }
     return jass_pushlighthandle(j, G_GetPlayerByNumber(whichUnit->s.player), "player");
 }
-DWORD GetUnitTypeId(LPJASS j) {
+uint32_t GetUnitTypeId(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushinteger(j, whichUnit ? (LONG)whichUnit->class_id : 0);
+    return jass_pushinteger(j, whichUnit ? (int32_t)whichUnit->class_id : 0);
 }
-static DWORD JassPushRaceHandle(LPJASS j, LONG value);
-DWORD GetUnitRace(LPJASS j) {
+static uint32_t JassPushRaceHandle(LPJASS j, int32_t value);
+uint32_t GetUnitRace(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LONG race = whichUnit && whichUnit->data.UnitData
+    int32_t race = whichUnit && whichUnit->data.UnitData
         ? WC3_JassRaceFromString(whichUnit->data.UnitData->race) : 0;
     return JassPushRaceHandle(j, race);
 }
-DWORD GetUnitName(LPJASS j) {
+uint32_t GetUnitName(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LPCSTR name = whichUnit ? G_UnitName(whichUnit->class_id) : NULL;
+    cstring_t name = whichUnit ? G_UnitName(whichUnit->class_id) : NULL;
     return jass_pushstring(j, name ? name : "");
 }
-DWORD GetUnitFoodUsed(LPJASS j) {
+uint32_t GetUnitFoodUsed(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushinteger(j, whichUnit ? whichUnit->data.UnitBalance->foodUsed : 0);
 }
-DWORD GetUnitFoodMade(LPJASS j) {
+uint32_t GetUnitFoodMade(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushinteger(j, whichUnit ? whichUnit->data.UnitBalance->foodMade : 0);
 }
-DWORD IsUnitInGroup(LPJASS j) {
+uint32_t IsUnitInGroup(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     ggroup_t *whichGroup = jass_checkhandle(j, 2, "group");
     if (!whichUnit || !whichGroup) return jass_pushboolean(j, 0);
@@ -863,71 +863,71 @@ DWORD IsUnitInGroup(LPJASS j) {
     }
     return jass_pushboolean(j, 0);
 }
-DWORD IsUnitInForce(LPJASS j) {
+uint32_t IsUnitInForce(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LPDWORD whichForce = jass_checkhandle(j, 2, "force");
+    uint32_t * whichForce = jass_checkhandle(j, 2, "force");
     if (!whichUnit || !whichForce) return jass_pushboolean(j, 0);
     return jass_pushboolean(j, (*whichForce) & (1 << whichUnit->s.player));
 }
-DWORD IsUnitOwnedByPlayer(LPJASS j) {
+uint32_t IsUnitOwnedByPlayer(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     if (!whichUnit || !whichPlayer) return jass_pushboolean(j, 0);
     return jass_pushboolean(j, whichUnit->s.player == PLAYER_NUM(whichPlayer));
 }
-DWORD IsUnitAlly(LPJASS j) {
+uint32_t IsUnitAlly(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     if (!whichUnit || !whichPlayer) return jass_pushboolean(j, 0);
     return jass_pushboolean(j,
         G_PlayerTreatsPlayerAsAlly(PLAYER_NUM(whichPlayer), whichUnit->s.player));
 }
-DWORD IsUnitEnemy(LPJASS j) {
+uint32_t IsUnitEnemy(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     if (!whichUnit || !whichPlayer) return jass_pushboolean(j, 0);
     return jass_pushboolean(j,
         !G_PlayerTreatsPlayerAsAlly(PLAYER_NUM(whichPlayer), whichUnit->s.player));
 }
-DWORD IsUnitVisible(LPJASS j) {
+uint32_t IsUnitVisible(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
+    //handle_t whichPlayer = jass_checkhandle(j, 2, "player");
     return jass_pushboolean(j, 0);
 }
-DWORD IsUnitDetected(LPJASS j) {
+uint32_t IsUnitDetected(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
+    //handle_t whichPlayer = jass_checkhandle(j, 2, "player");
     return jass_pushboolean(j, 0);
 }
-DWORD IsUnitInvisible(LPJASS j) {
+uint32_t IsUnitInvisible(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
+    //handle_t whichPlayer = jass_checkhandle(j, 2, "player");
     return jass_pushboolean(j, 0);
 }
-DWORD IsUnitFogged(LPJASS j) {
+uint32_t IsUnitFogged(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
+    //handle_t whichPlayer = jass_checkhandle(j, 2, "player");
     return jass_pushboolean(j, 0);
 }
-DWORD IsUnitMasked(LPJASS j) {
+uint32_t IsUnitMasked(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
+    //handle_t whichPlayer = jass_checkhandle(j, 2, "player");
     return jass_pushboolean(j, 0);
 }
-DWORD IsUnitSelected(LPJASS j) {
+uint32_t IsUnitSelected(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
     if (!whichUnit || !whichPlayer) return jass_pushboolean(j, 0);
     return jass_pushboolean(j, (whichUnit->selected >> PLAYER_NUM(whichPlayer)) & 1);
 }
-DWORD IsUnitRace(LPJASS j) {
+uint32_t IsUnitRace(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichRace = jass_checkhandle(j, 2, "race");
+    //handle_t whichRace = jass_checkhandle(j, 2, "race");
     return jass_pushboolean(j, 0);
 }
-DWORD IsUnitType(LPJASS j) {
+uint32_t IsUnitType(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LPDWORD whichUnitType = jass_checkhandle(j, 2, "unittype");
+    uint32_t * whichUnitType = jass_checkhandle(j, 2, "unittype");
     if (!whichUnit || !whichUnitType) return jass_pushboolean(j, 0);
     if (*whichUnitType < 32 && (whichUnit->script_unit_types & (1u << *whichUnitType)))
         return jass_pushboolean(j, 1);
@@ -952,157 +952,157 @@ DWORD IsUnitType(LPJASS j) {
             WC3_RaceFromString(whichUnit->data.UnitData->race) == RACE_UNDEAD);
     return jass_pushboolean(j, 0);
 }
-DWORD IsUnit(LPJASS j) {
+uint32_t IsUnit(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPEDICT whichSpecifiedUnit = jass_checkhandle(j, 2, "unit");
     return jass_pushboolean(j, whichUnit != NULL && whichUnit == whichSpecifiedUnit);
 }
-DWORD IsUnitInRange(LPJASS j) {
+uint32_t IsUnitInRange(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPEDICT otherUnit = jass_checkhandle(j, 2, "unit");
-    FLOAT distance = jass_checknumber(j, 3);
+    float distance = jass_checknumber(j, 3);
     if (!whichUnit || !otherUnit) return jass_pushboolean(j, 0);
     return jass_pushboolean(j, Vector2_distance(&whichUnit->s.origin2, &otherUnit->s.origin2) <= distance);
 }
-DWORD IsUnitInRangeXY(LPJASS j) {
+uint32_t IsUnitInRangeXY(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    FLOAT x = jass_checknumber(j, 2);
-    FLOAT y = jass_checknumber(j, 3);
-    FLOAT distance = jass_checknumber(j, 4);
+    float x = jass_checknumber(j, 2);
+    float y = jass_checknumber(j, 3);
+    float distance = jass_checknumber(j, 4);
     if (!whichUnit) return jass_pushboolean(j, 0);
     return jass_pushboolean(j, Vector2_distance(&whichUnit->s.origin2, &MAKE(VECTOR2, x, y)) <= distance);
 }
-DWORD IsUnitInRangeLoc(LPJASS j) {
+uint32_t IsUnitInRangeLoc(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 2, "location");
-    FLOAT distance = jass_checknumber(j, 3);
+    float distance = jass_checknumber(j, 3);
     if (!whichUnit || !whichLocation) return jass_pushboolean(j, 0);
     return jass_pushboolean(j, Vector2_distance(&whichUnit->s.origin2, whichLocation) <= distance);
 }
-DWORD IsUnitHidden(LPJASS j) {
+uint32_t IsUnitHidden(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushboolean(j, whichUnit && (whichUnit->s.renderfx & RF_HIDDEN));
 }
-DWORD IsUnitIllusion(LPJASS j) {
+uint32_t IsUnitIllusion(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushboolean(j, whichUnit && (whichUnit->aiflags & AI_ILLUSION));
 }
-DWORD IsUnitInTransport(LPJASS j) {
+uint32_t IsUnitInTransport(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     LPEDICT whichTransport = jass_checkhandle(j, 2, "unit");
     return jass_pushboolean(j, whichUnit && whichTransport &&
                               S_CargoTransportForUnit(whichUnit) == whichTransport);
 }
-DWORD IsUnitLoaded(LPJASS j) {
+uint32_t IsUnitLoaded(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushboolean(j, whichUnit && S_CargoTransportForUnit(whichUnit) != NULL);
 }
-DWORD IsHeroUnitId(LPJASS j) {
-    //LONG unitId = jass_checkinteger(j, 1);
+uint32_t IsHeroUnitId(LPJASS j) {
+    //int32_t unitId = jass_checkinteger(j, 1);
     return jass_pushboolean(j, 0);
 }
-DWORD UnitShareVision(LPJASS j) {
+uint32_t UnitShareVision(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //HANDLE whichPlayer = jass_checkhandle(j, 2, "player");
-    //BOOL share = jass_checkboolean(j, 3);
+    //handle_t whichPlayer = jass_checkhandle(j, 2, "player");
+    //bool share = jass_checkboolean(j, 3);
     return 0;
 }
-DWORD UnitSuspendDecay(LPJASS j) {
+uint32_t UnitSuspendDecay(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //BOOL suspend = jass_checkboolean(j, 2);
+    //bool suspend = jass_checkboolean(j, 2);
     return 0;
 }
-DWORD UnitAddAbility(LPJASS j) {
+uint32_t UnitAddAbility(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    DWORD abilityId = jass_checkinteger(j, 2);
+    uint32_t abilityId = jass_checkinteger(j, 2);
     return jass_pushboolean(j, G_ActorAddSkill(whichUnit, abilityId));
 }
-DWORD UnitRemoveAbility(LPJASS j) {
+uint32_t UnitRemoveAbility(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    DWORD abilityId = jass_checkinteger(j, 2);
+    uint32_t abilityId = jass_checkinteger(j, 2);
     return jass_pushboolean(j, G_ActorRemoveSkill(whichUnit, abilityId));
 }
-DWORD UnitMakeAbilityPermanent(LPJASS j) {
+uint32_t UnitMakeAbilityPermanent(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    BOOL permanent = jass_checkboolean(j, 2);
-    DWORD abilityId = jass_checkinteger(j, 3);
+    bool permanent = jass_checkboolean(j, 2);
+    uint32_t abilityId = jass_checkinteger(j, 3);
     return jass_pushboolean(j, G_ActorSetSkillPermanent(whichUnit, abilityId, permanent));
 }
-DWORD UnitRemoveBuffs(LPJASS j) {
+uint32_t UnitRemoveBuffs(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //BOOL removePositive = jass_checkboolean(j, 2);
-    //BOOL removeNegative = jass_checkboolean(j, 3);
+    //bool removePositive = jass_checkboolean(j, 2);
+    //bool removeNegative = jass_checkboolean(j, 3);
     return 0;
 }
-DWORD UnitRemoveBuffsEx(LPJASS j) {
+uint32_t UnitRemoveBuffsEx(LPJASS j) {
     /* TODO: ability-owned dispel filtering is not represented yet. */
     (void)j;
     return 0;
 }
-DWORD UnitAddSleep(LPJASS j) {
+uint32_t UnitAddSleep(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    BOOL add = jass_checkboolean(j, 2);
+    bool add = jass_checkboolean(j, 2);
     G_UnitSetCanSleep(whichUnit, add);
     return 0;
 }
-DWORD UnitCanSleep(LPJASS j) {
+uint32_t UnitCanSleep(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushboolean(j, G_UnitCanSleep(whichUnit));
 }
-DWORD UnitAddSleepPerm(LPJASS j) {
+uint32_t UnitAddSleepPerm(LPJASS j) {
     /* Sleep Always (Asla) has separate ability-owned semantics (including its
      * Sleep Once/Allow On Any Player Slot data). Keep this native conservative
      * until that ability is represented instead of aliasing it to night sleep. */
     (void)j;
     return 0;
 }
-DWORD UnitCanSleepPerm(LPJASS j) {
+uint32_t UnitCanSleepPerm(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushboolean(j, whichUnit && G_ActorHasSkill(whichUnit, "Asla"));
 }
-DWORD UnitIsSleeping(LPJASS j) {
+uint32_t UnitIsSleeping(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushboolean(j, G_UnitIsSleeping(whichUnit));
 }
-DWORD UnitWakeUp(LPJASS j) {
+uint32_t UnitWakeUp(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     G_UnitWakeUp(whichUnit);
     return 0;
 }
-DWORD UnitApplyTimedLife(LPJASS j) {
+uint32_t UnitApplyTimedLife(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LONG buffId = jass_checkinteger(j, 2);
-    //FLOAT duration = jass_checknumber(j, 3);
+    //int32_t buffId = jass_checkinteger(j, 2);
+    //float duration = jass_checknumber(j, 3);
     return 0;
 }
-DWORD IssueImmediateOrder(LPJASS j) {
+uint32_t IssueImmediateOrder(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LPCSTR order = jass_checkstring(j, 2);
+    cstring_t order = jass_checkstring(j, 2);
     return jass_pushboolean(j, unit_issueimmediateorder(whichUnit, order));
 }
-DWORD IssueImmediateOrderById(LPJASS j) {
+uint32_t IssueImmediateOrderById(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    DWORD order = (DWORD)jass_checkinteger(j, 2);
+    uint32_t order = (uint32_t)jass_checkinteger(j, 2);
     return jass_pushboolean(j, unit_issueimmediateorder(whichUnit, G_OrderId2String(order)));
 }
-DWORD IssuePointOrder(LPJASS j) {
+uint32_t IssuePointOrder(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LPCSTR order = jass_checkstring(j, 2);
-    FLOAT x = jass_checknumber(j, 3);
-    FLOAT y = jass_checknumber(j, 4);
-    BOOL ret = unit_issueorder(whichUnit, order, &MAKE(VECTOR2, x, y));
+    cstring_t order = jass_checkstring(j, 2);
+    float x = jass_checknumber(j, 3);
+    float y = jass_checknumber(j, 4);
+    bool ret = unit_issueorder(whichUnit, order, &MAKE(VECTOR2, x, y));
     return jass_pushboolean(j, ret);
 }
-DWORD IssuePointOrderLoc(LPJASS j) {
+uint32_t IssuePointOrderLoc(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LPCSTR order = jass_checkstring(j, 2);
+    cstring_t order = jass_checkstring(j, 2);
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 3, "location");
-    BOOL ret = unit_issueorder(whichUnit, order, whichLocation);
+    bool ret = unit_issueorder(whichUnit, order, whichLocation);
     return jass_pushboolean(j, ret);
 }
-DWORD IssuePointOrderById(LPJASS j) {
+uint32_t IssuePointOrderById(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    DWORD order = (DWORD)jass_checkinteger(j, 2);
+    uint32_t order = (uint32_t)jass_checkinteger(j, 2);
     VECTOR2 point = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
 
     /* Building rawcodes are valid point-order ids, but they are not entries in
@@ -1112,27 +1112,27 @@ DWORD IssuePointOrderById(LPJASS j) {
         return jass_pushboolean(j, G_IssueBuildOrder(whichUnit, order, &point));
     return jass_pushboolean(j, unit_issueorder(whichUnit, G_OrderId2String(order), &point));
 }
-DWORD IssuePointOrderByIdLoc(LPJASS j) {
+uint32_t IssuePointOrderByIdLoc(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    DWORD order = (DWORD)jass_checkinteger(j, 2);
+    uint32_t order = (uint32_t)jass_checkinteger(j, 2);
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 3, "location");
 
     if (G_UnitIsBuilding(order))
         return jass_pushboolean(j, G_IssueBuildOrder(whichUnit, order, whichLocation));
     return jass_pushboolean(j, unit_issueorder(whichUnit, G_OrderId2String(order), whichLocation));
 }
-DWORD IssueTargetOrder(LPJASS j) {
+uint32_t IssueTargetOrder(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LPCSTR order = jass_checkstring(j, 2);
+    cstring_t order = jass_checkstring(j, 2);
     LPEDICT targetWidget = jass_checkhandle(j, 3, "widget");
     return jass_pushboolean(j, unit_issuetargetorder(whichUnit, order, targetWidget));
 }
-DWORD IssueTargetOrderById(LPJASS j) {
+uint32_t IssueTargetOrderById(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    DWORD order = (DWORD)jass_checkinteger(j, 2);
+    uint32_t order = (uint32_t)jass_checkinteger(j, 2);
     LPEDICT targetWidget = jass_checkhandle(j, 3, "widget");
-    LPCSTR order_name = G_OrderId2String(order);
-    BOOL accepted;
+    cstring_t order_name = G_OrderId2String(order);
+    bool accepted;
 
     /* Blizzard.j routes IssueBuildOrderByIdLocBJ('ugol') through this target
      * native after finding the neutral ngol. Translate that retail-specific
@@ -1148,148 +1148,148 @@ DWORD IssueTargetOrderById(LPJASS j) {
      * ordinary order ids and must not be interpreted as unit rawcodes. */
     return jass_pushboolean(j, accepted);
 }
-DWORD IssueInstantTargetOrder(LPJASS j) {
+uint32_t IssueInstantTargetOrder(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LPCSTR order = jass_checkstring(j, 2);
-    //HANDLE targetWidget = jass_checkhandle(j, 3, "widget");
-    //HANDLE instantTargetWidget = jass_checkhandle(j, 4, "widget");
+    //cstring_t order = jass_checkstring(j, 2);
+    //handle_t targetWidget = jass_checkhandle(j, 3, "widget");
+    //handle_t instantTargetWidget = jass_checkhandle(j, 4, "widget");
     return jass_pushboolean(j, 0);
 }
-DWORD IssueInstantTargetOrderById(LPJASS j) {
+uint32_t IssueInstantTargetOrderById(LPJASS j) {
     //LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    //LONG order = jass_checkinteger(j, 2);
-    //HANDLE targetWidget = jass_checkhandle(j, 3, "widget");
-    //HANDLE instantTargetWidget = jass_checkhandle(j, 4, "widget");
+    //int32_t order = jass_checkinteger(j, 2);
+    //handle_t targetWidget = jass_checkhandle(j, 3, "widget");
+    //handle_t instantTargetWidget = jass_checkhandle(j, 4, "widget");
     return jass_pushboolean(j, 0);
 }
-DWORD IssueBuildOrder(LPJASS j) {
+uint32_t IssueBuildOrder(LPJASS j) {
     return jass_pushboolean(j, 0);
 }
-DWORD IssueBuildOrderById(LPJASS j) {
+uint32_t IssueBuildOrderById(LPJASS j) {
     LPEDICT whichPeon = jass_checkhandle(j, 1, "unit");
-    DWORD unitId = (DWORD)jass_checkinteger(j, 2);
+    uint32_t unitId = (uint32_t)jass_checkinteger(j, 2);
     VECTOR2 point = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
-    BOOL accepted;
+    bool accepted;
 
     accepted = G_IssueBuildOrder(whichPeon, unitId, &point);
     return jass_pushboolean(j, accepted);
 }
-DWORD SetResourceAmount(LPJASS j) {
+uint32_t SetResourceAmount(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LONG amount = jass_checkinteger(j, 2);
+    int32_t amount = jass_checkinteger(j, 2);
     if (whichUnit) S_GoldMineSetResourceAmount(whichUnit, MAX(0, amount));
     return 0;
 }
-DWORD AddResourceAmount(LPJASS j) {
+uint32_t AddResourceAmount(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LONG amount = jass_checkinteger(j, 2);
+    int32_t amount = jass_checkinteger(j, 2);
     if (whichUnit) whichUnit->resources += amount;
     return 0;
 }
-DWORD GetResourceAmount(LPJASS j) {
+uint32_t GetResourceAmount(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
     return jass_pushinteger(j, whichUnit ? whichUnit->resources : 0);
 }
-DWORD WaygateGetDestinationX(LPJASS j) {
+uint32_t WaygateGetDestinationX(LPJASS j) {
     LPEDICT waygate = jass_checkhandle(j, 1, "unit");
     VECTOR2 destination = {0};
     S_WaygateGetDestination(waygate, &destination);
     return jass_pushnumber(j, destination.x);
 }
-DWORD WaygateGetDestinationY(LPJASS j) {
+uint32_t WaygateGetDestinationY(LPJASS j) {
     LPEDICT waygate = jass_checkhandle(j, 1, "unit");
     VECTOR2 destination = {0};
     S_WaygateGetDestination(waygate, &destination);
     return jass_pushnumber(j, destination.y);
 }
-DWORD WaygateSetDestination(LPJASS j) {
+uint32_t WaygateSetDestination(LPJASS j) {
     LPEDICT waygate = jass_checkhandle(j, 1, "unit");
     VECTOR2 destination = { jass_checknumber(j, 2), jass_checknumber(j, 3) };
     S_WaygateSetDestination(waygate, &destination);
     return 0;
 }
-DWORD WaygateActivate(LPJASS j) {
+uint32_t WaygateActivate(LPJASS j) {
     LPEDICT waygate = jass_checkhandle(j, 1, "unit");
-    BOOL activate = jass_checkboolean(j, 2);
+    bool activate = jass_checkboolean(j, 2);
     S_WaygateSetActive(waygate, activate);
     return 0;
 }
-DWORD WaygateIsActive(LPJASS j) {
+uint32_t WaygateIsActive(LPJASS j) {
     LPEDICT waygate = jass_checkhandle(j, 1, "unit");
     return jass_pushboolean(j, S_WaygateIsActive(waygate));
 }
-DWORD UnitAddIndicator(LPJASS j) {
+uint32_t UnitAddIndicator(LPJASS j) {
     LPEDICT whichUnit = jass_checkhandle(j, 1, "unit");
-    LONG red = jass_checkinteger(j, 2);
-    LONG green = jass_checkinteger(j, 3);
-    LONG blue = jass_checkinteger(j, 4);
-    LONG alpha = jass_checkinteger(j, 5);
+    int32_t red = jass_checkinteger(j, 2);
+    int32_t green = jass_checkinteger(j, 3);
+    int32_t blue = jass_checkinteger(j, 4);
+    int32_t alpha = jass_checkinteger(j, 5);
     COLOR32 color = MAKE(COLOR32,
-        (BYTE)MAX(0, MIN(255, red)),
-        (BYTE)MAX(0, MIN(255, green)),
-        (BYTE)MAX(0, MIN(255, blue)),
-        (BYTE)MAX(0, MIN(255, alpha)));
+        (uint8_t)MAX(0, MIN(255, red)),
+        (uint8_t)MAX(0, MIN(255, green)),
+        (uint8_t)MAX(0, MIN(255, blue)),
+        (uint8_t)MAX(0, MIN(255, alpha)));
 
     G_SendWidgetIndicator(whichUnit, color, currentplayer);
     return 0;
 }
-DWORD RemoveGuardPosition(LPJASS j) {
-    //HANDLE hUnit = jass_checkhandle(j, 1, "unit");
+uint32_t RemoveGuardPosition(LPJASS j) {
+    //handle_t hUnit = jass_checkhandle(j, 1, "unit");
     return 0;
 }
-DWORD RecycleGuardPosition(LPJASS j) {
-    //HANDLE hUnit = jass_checkhandle(j, 1, "unit");
+uint32_t RecycleGuardPosition(LPJASS j) {
+    //handle_t hUnit = jass_checkhandle(j, 1, "unit");
     return 0;
 }
-DWORD CreateUnit(LPJASS j) {
+uint32_t CreateUnit(LPJASS j) {
     LPPLAYER player = jass_checkhandle(j, 1, "player");
-    DWORD unitid = jass_checkinteger(j, 2);
+    uint32_t unitid = jass_checkinteger(j, 2);
     VECTOR2 location = MAKE(VECTOR2, jass_checknumber(j, 3), jass_checknumber(j, 4));
-    FLOAT facing = jass_checknumber(j, 5);
+    float facing = jass_checknumber(j, 5);
     if (!player) {
         return jass_pushnullhandle(j, "unit");
     }
     LPEDICT unit = unit_create(PLAYER_NUM(player), unitid, &location, facing);
     return jass_pushlighthandle(j, unit, "unit");
 }
-DWORD CreateUnitByName(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
-    //LPCSTR unitname = jass_checkstring(j, 2);
-    //FLOAT x = jass_checknumber(j, 3);
-    //FLOAT y = jass_checknumber(j, 4);
-    //FLOAT face = jass_checknumber(j, 5);
+uint32_t CreateUnitByName(LPJASS j) {
+    //handle_t whichPlayer = jass_checkhandle(j, 1, "player");
+    //cstring_t unitname = jass_checkstring(j, 2);
+    //float x = jass_checknumber(j, 3);
+    //float y = jass_checknumber(j, 4);
+    //float face = jass_checknumber(j, 5);
     return jass_pushnullhandle(j, "unit");
 }
-DWORD CreateUnitAtLoc(LPJASS j) {
+uint32_t CreateUnitAtLoc(LPJASS j) {
     LPPLAYER player = jass_checkhandle(j, 1, "player");
-    DWORD unitid = jass_checkinteger(j, 2);
+    uint32_t unitid = jass_checkinteger(j, 2);
     LPCVECTOR2 location = jass_checkhandle(j, 3, "location");
-    FLOAT facing = jass_checknumber(j, 4);
+    float facing = jass_checknumber(j, 4);
     if (!player || !location) {
         return jass_pushnullhandle(j, "unit");
     }
     LPEDICT unit = unit_create(PLAYER_NUM(player), unitid, location, facing);
     return jass_pushlighthandle(j, unit, "unit");
 }
-DWORD CreateUnitAtLocByName(LPJASS j) {
-    //HANDLE id = jass_checkhandle(j, 1, "player");
-    //LPCSTR unitname = jass_checkstring(j, 2);
-    //HANDLE whichLocation = jass_checkhandle(j, 3, "location");
-    //FLOAT face = jass_checknumber(j, 4);
+uint32_t CreateUnitAtLocByName(LPJASS j) {
+    //handle_t id = jass_checkhandle(j, 1, "player");
+    //cstring_t unitname = jass_checkstring(j, 2);
+    //handle_t whichLocation = jass_checkhandle(j, 3, "location");
+    //float face = jass_checknumber(j, 4);
     return jass_pushnullhandle(j, "unit");
 }
-DWORD CreateCorpse(LPJASS j) {
-    //HANDLE whichPlayer = jass_checkhandle(j, 1, "player");
-    //LONG unitid = jass_checkinteger(j, 2);
-    //FLOAT x = jass_checknumber(j, 3);
-    //FLOAT y = jass_checknumber(j, 4);
-    //FLOAT face = jass_checknumber(j, 5);
+uint32_t CreateCorpse(LPJASS j) {
+    //handle_t whichPlayer = jass_checkhandle(j, 1, "player");
+    //int32_t unitid = jass_checkinteger(j, 2);
+    //float x = jass_checknumber(j, 3);
+    //float y = jass_checknumber(j, 4);
+    //float face = jass_checknumber(j, 5);
     return jass_pushnullhandle(j, "unit");
 }
-DWORD CreateBlightedGoldmine(LPJASS j) {
+uint32_t CreateBlightedGoldmine(LPJASS j) {
     LPPLAYER player = jass_checkhandle(j, 1, "player");
     VECTOR2 origin = MAKE(VECTOR2, jass_checknumber(j, 2), jass_checknumber(j, 3));
-    FLOAT facing = jass_checknumber(j, 4);
+    float facing = jass_checknumber(j, 4);
     LPEDICT mine;
 
     if (!player || !(mine = S_CreateBlightedGoldmine(PLAYER_NUM(player), &origin, facing)))

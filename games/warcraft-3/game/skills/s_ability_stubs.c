@@ -7,7 +7,7 @@
  */
 
 BZ_SIMPLE_SPELL_PROC(AbilityImmolation) {
-    DWORD code = spell->code;
+    uint32_t code = spell->code;
 
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         if (caster->abilstatus[i].level && caster->abilstatus[i].code == code) {
@@ -26,7 +26,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityImmolation) {
  */
 
 BZ_SIMPLE_SPELL_PROC(AbilityColdArrows) {
-    DWORD code = MAKEFOURCC('c', 'o', 'l', 'd');
+    uint32_t code = MAKEFOURCC('c', 'o', 'l', 'd');
 
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         if (caster->abilstatus[i].level && caster->abilstatus[i].code == code) {
@@ -42,10 +42,10 @@ BZ_SIMPLE_SPELL_PROC(AbilityColdArrows) {
  * Ubertip="Slams the ground, dealing <AOws,DataA1> damage to nearby enemy land units and stunning them for <AOws,Dur1> seconds."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityStomp) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    DWORD damage = (DWORD)S_SpellData(spell->code, level, 1);
-    FLOAT duration = S_SpellDuration(spell->code, level, false);
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    float radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    uint32_t damage = (uint32_t)S_SpellData(spell->code, level, 1);
+    float duration = S_SpellDuration(spell->code, level, false);
 
 #define WAR_STOMP_HITS(t) ((t)->inuse && (t) != caster && S_SpellIsAliveTarget(t) && \
                            S_SpellIsEnemy(caster, t) && (t)->targtype == TARG_GROUND && \
@@ -64,7 +64,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityStomp) {
  * Ubertip="Allows the Blademaster to become invisible and move faster until it attacks or uses an ability."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityWindWalk) {
-    DWORD level = S_SpellLevel(caster, spell->code);
+    uint32_t level = S_SpellLevel(caster, spell->code);
     caster->s.renderfx |= RF_HIDDEN;
     unit_addtimedstatus(caster, "BOwk", level, S_SpellDuration(spell->code, level, true));
 }
@@ -74,8 +74,8 @@ BZ_SIMPLE_SPELL_PROC(AbilityWindWalk) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityManaBurn) {
     LPEDICT target = st.entity;
-    DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT amount = MIN(target->mana.value, S_SpellData(spell->code, level, 1));
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    float amount = MIN(target->mana.value, S_SpellData(spell->code, level, 1));
 
     target->mana.value -= amount;
 }
@@ -86,11 +86,11 @@ BZ_SIMPLE_SPELL_PROC(AbilityManaBurn) {
  * life into caster mana, then uses the normal damage/death path to sacrifice it. */
 BZ_SIMPLE_SPELL_PROC(AbilityDarkRitual) {
     LPEDICT target = st.entity;
-    DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT mana = target->health.max_value * S_SpellData(spell->code, level, 1);
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    float mana = target->health.max_value * S_SpellData(spell->code, level, 1);
 
     caster->mana.value = MIN(caster->mana.max_value, caster->mana.value + mana);
-    T_Damage(target, caster, (DWORD)MAX(1.0f, target->health.value));
+    T_Damage(target, caster, (uint32_t)MAX(1.0f, target->health.value));
 }
 
 /* Name=Frost Armor
@@ -100,11 +100,11 @@ BZ_SIMPLE_SPELL_PROC(AbilityDarkRitual) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityFrostArmor) {
     LPEDICT target = st.entity;
-    DWORD level = S_SpellLevel(caster, spell->code);
-    LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
 
     if (!target || !buff || strlen(buff) < 4) {
-        fprintf(stderr, "WC3: %.4s has no authored BuffID\n", (LPCSTR)&spell->code);
+        fprintf(stderr, "WC3: %.4s has no authored BuffID\n", (cstring_t)&spell->code);
         return;
     }
     unit_addtimedstatus(target, buff, level, S_SpellData(spell->code, level, 1));
@@ -127,15 +127,15 @@ void divine_shield_think(LPEDICT ent) {
  * Ubertip="Makes the Paladin invulnerable to damage for <AHds,Dur1> seconds."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT duration = MAX(0.1f, S_SpellDuration(spell->code, level, true));
-    LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    float duration = MAX(0.1f, S_SpellDuration(spell->code, level, true));
+    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
     LPEDICT thinker = G_Spawn();
 
     if (!thinker) return;
     thinker->owner = caster;
     thinker->resources = caster->invulnerable;
-    thinker->spawn_time = G_Time() + (DWORD)(duration * 1000.0f);
+    thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
     caster->invulnerable = true;
     thinker->think = divine_shield_think;
     if (buff && strlen(buff) >= 4) unit_addtimedstatus(caster, buff, level, duration);
@@ -152,10 +152,10 @@ BZ_SIMPLE_SPELL_PROC(AbilityDivineShield) {
  * Ubertip="Roots a target enemy unit in place, preventing movement for <AEer,Dur1> seconds."
  */
 BZ_SIMPLE_SPELL_PROC(AbilityEntanglingRoots) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
     LPEDICT target = st.entity;
-    FLOAT duration;
+    float duration;
 
     if (!target || !buff || strlen(buff) < 4) {
         fprintf(stderr, "WC3: Entangling Roots has no authored BuffID\n");

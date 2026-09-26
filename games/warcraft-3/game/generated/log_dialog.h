@@ -16,8 +16,8 @@ typedef struct LogDialog_s {
 } LogDialog_t;
 
 
-static inline BOOL LogDialog_Bind(LogDialog_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool LogDialog_Bind(LogDialog_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -37,7 +37,7 @@ static inline BOOL LogDialog_Bind(LogDialog_t *out, LPFRAMEDEF bind_root) {
     return ok;
 }
 
-static inline BOOL LogDialog_Load(LogDialog_t *out) {
+static inline bool LogDialog_Load(LogDialog_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\LogDialog.fdf") &&
            LogDialog_Bind(out, UI_FindFrame("LogDialog"));

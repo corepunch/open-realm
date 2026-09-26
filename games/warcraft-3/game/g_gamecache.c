@@ -15,19 +15,19 @@ typedef enum {
 } gameCacheStorageMode_t;
 
 typedef struct {
-    BOOL inuse;
+    bool inuse;
     gameCache_t cache;
 } gameCacheMemorySlot_t;
 
 static gameCacheMemorySlot_t gamecache_memory[MAX_GAMECACHE_MEMORY_CACHES];
 
 typedef union {
-    FLOAT f;
-    DWORD u;
+    float f;
+    uint32_t u;
 } gameCacheFloatBits_t;
 
 static gameCacheStorageMode_t G_GameCacheStorageMode(void) {
-    LPCSTR mode = gi.CvarString("wc3_gamecache_mode", "disk");
+    cstring_t mode = gi.CvarString("wc3_gamecache_mode", "disk");
 
     if (!strcmp(mode, "disabled")) return GAMECACHE_STORAGE_DISABLED;
     if (!strcmp(mode, "memory")) return GAMECACHE_STORAGE_MEMORY;
@@ -38,7 +38,7 @@ static gameCacheStorageMode_t G_GameCacheStorageMode(void) {
     return GAMECACHE_STORAGE_DISK;
 }
 
-static gameCacheMemorySlot_t *G_GameCacheMemoryFind(LPCSTR campaign) {
+static gameCacheMemorySlot_t *G_GameCacheMemoryFind(cstring_t campaign) {
     if (!campaign || !*campaign) return NULL;
     FOR_LOOP(i, MAX_GAMECACHE_MEMORY_CACHES) {
         gameCacheMemorySlot_t *slot = gamecache_memory + i;
@@ -47,7 +47,7 @@ static gameCacheMemorySlot_t *G_GameCacheMemoryFind(LPCSTR campaign) {
     return NULL;
 }
 
-static BOOL G_GameCacheMemoryLoad(gameCache_t *cache) {
+static bool G_GameCacheMemoryLoad(gameCache_t *cache) {
     gameCacheMemorySlot_t *slot;
 
     if (!cache || !cache->campaign[0]) return false;
@@ -58,7 +58,7 @@ static BOOL G_GameCacheMemoryLoad(gameCache_t *cache) {
     return true;
 }
 
-static BOOL G_GameCacheMemorySave(gameCache_t const *cache) {
+static bool G_GameCacheMemorySave(gameCache_t const *cache) {
     gameCacheMemorySlot_t *slot;
 
     if (!cache || !cache->campaign[0]) return false;
@@ -82,7 +82,7 @@ static BOOL G_GameCacheMemorySave(gameCache_t const *cache) {
     return true;
 }
 
-static BOOL G_GameCacheKeyFits(LPCSTR value, size_t size, LPCSTR label) {
+static bool G_GameCacheKeyFits(cstring_t value, size_t size, cstring_t label) {
     if (!value) {
         fprintf(stderr, "Game cache: missing %s\n", label);
         return false;
@@ -95,8 +95,8 @@ static BOOL G_GameCacheKeyFits(LPCSTR value, size_t size, LPCSTR label) {
     return true;
 }
 
-static BOOL G_GameCachePath(LPCSTR campaign, LPSTR out, DWORD out_size) {
-    LPCSTR base;
+static bool G_GameCachePath(cstring_t campaign, string_t out, uint32_t out_size) {
+    cstring_t base;
     char safe[MAX_PATHLEN];
     char rel[MAX_PATHLEN];
     size_t len;
@@ -105,7 +105,7 @@ static BOOL G_GameCachePath(LPCSTR campaign, LPSTR out, DWORD out_size) {
         return false;
     }
     base = campaign;
-    for (LPCSTR p = campaign; *p; p++) {
+    for (cstring_t p = campaign; *p; p++) {
         if (*p == '/' || *p == '\\') {
             base = p + 1;
         }
@@ -132,81 +132,81 @@ static BOOL G_GameCachePath(LPCSTR campaign, LPSTR out, DWORD out_size) {
     return true;
 }
 
-static BOOL G_GameCacheWriteBytes(FILE *f, LPCVOID data, size_t size) {
+static bool G_GameCacheWriteBytes(FILE *f, void const * data, size_t size) {
     return size == 0 || fwrite(data, 1, size, f) == size;
 }
 
-static BOOL G_GameCacheReadBytes(FILE *f, void *data, size_t size) {
+static bool G_GameCacheReadBytes(FILE *f, void *data, size_t size) {
     return size == 0 || fread(data, 1, size, f) == size;
 }
 
-static BOOL G_GameCacheWriteU8(FILE *f, BYTE value) {
+static bool G_GameCacheWriteU8(FILE *f, uint8_t value) {
     return G_GameCacheWriteBytes(f, &value, 1);
 }
 
-static BOOL G_GameCacheReadU8(FILE *f, BYTE *value) {
+static bool G_GameCacheReadU8(FILE *f, uint8_t *value) {
     return G_GameCacheReadBytes(f, value, 1);
 }
 
-static BOOL G_GameCacheWriteU16(FILE *f, WORD value) {
-    BYTE bytes[2] = { (BYTE)(value & 0xff), (BYTE)((value >> 8) & 0xff) };
+static bool G_GameCacheWriteU16(FILE *f, uint16_t value) {
+    uint8_t bytes[2] = { (uint8_t)(value & 0xff), (uint8_t)((value >> 8) & 0xff) };
     return G_GameCacheWriteBytes(f, bytes, sizeof(bytes));
 }
 
-static BOOL G_GameCacheReadU16(FILE *f, WORD *value) {
-    BYTE bytes[2];
+static bool G_GameCacheReadU16(FILE *f, uint16_t *value) {
+    uint8_t bytes[2];
     if (!G_GameCacheReadBytes(f, bytes, sizeof(bytes))) return false;
-    *value = (WORD)(bytes[0] | ((WORD)bytes[1] << 8));
+    *value = (uint16_t)(bytes[0] | ((uint16_t)bytes[1] << 8));
     return true;
 }
 
-static BOOL G_GameCacheWriteU32(FILE *f, DWORD value) {
-    BYTE bytes[4] = {
-        (BYTE)(value & 0xff),
-        (BYTE)((value >> 8) & 0xff),
-        (BYTE)((value >> 16) & 0xff),
-        (BYTE)((value >> 24) & 0xff),
+static bool G_GameCacheWriteU32(FILE *f, uint32_t value) {
+    uint8_t bytes[4] = {
+        (uint8_t)(value & 0xff),
+        (uint8_t)((value >> 8) & 0xff),
+        (uint8_t)((value >> 16) & 0xff),
+        (uint8_t)((value >> 24) & 0xff),
     };
     return G_GameCacheWriteBytes(f, bytes, sizeof(bytes));
 }
 
-static BOOL G_GameCacheReadU32(FILE *f, LPDWORD value) {
-    BYTE bytes[4];
+static bool G_GameCacheReadU32(FILE *f, uint32_t * value) {
+    uint8_t bytes[4];
     if (!G_GameCacheReadBytes(f, bytes, sizeof(bytes))) return false;
-    *value = (DWORD)bytes[0] |
-             ((DWORD)bytes[1] << 8) |
-             ((DWORD)bytes[2] << 16) |
-             ((DWORD)bytes[3] << 24);
+    *value = (uint32_t)bytes[0] |
+             ((uint32_t)bytes[1] << 8) |
+             ((uint32_t)bytes[2] << 16) |
+             ((uint32_t)bytes[3] << 24);
     return true;
 }
 
-static BOOL G_GameCacheWriteFloat(FILE *f, FLOAT value) {
+static bool G_GameCacheWriteFloat(FILE *f, float value) {
     gameCacheFloatBits_t bits = { .f = value };
     return G_GameCacheWriteU32(f, bits.u);
 }
 
-static BOOL G_GameCacheReadFloat(FILE *f, FLOAT *value) {
+static bool G_GameCacheReadFloat(FILE *f, float *value) {
     gameCacheFloatBits_t bits;
     if (!G_GameCacheReadU32(f, &bits.u)) return false;
     *value = bits.f;
     return true;
 }
 
-static BOOL G_GameCacheWriteString(FILE *f, LPCSTR value) {
+static bool G_GameCacheWriteString(FILE *f, cstring_t value) {
     size_t len = value ? strlen(value) : 0;
     if (len > 0xffffu) return false;
-    return G_GameCacheWriteU16(f, (WORD)len) && G_GameCacheWriteBytes(f, value, len);
+    return G_GameCacheWriteU16(f, (uint16_t)len) && G_GameCacheWriteBytes(f, value, len);
 }
 
-static BOOL G_GameCacheReadString(FILE *f, LPSTR value, size_t capacity) {
-    WORD len;
+static bool G_GameCacheReadString(FILE *f, string_t value, size_t capacity) {
+    uint16_t len;
     if (!G_GameCacheReadU16(f, &len) || len >= capacity) return false;
     if (!G_GameCacheReadBytes(f, value, len)) return false;
     value[len] = '\0';
     return true;
 }
 
-static gameCacheEntry_t *G_GameCacheFind(gameCache_t *cache, LPCSTR mission, LPCSTR key,
+static gameCacheEntry_t *G_GameCacheFind(gameCache_t *cache, cstring_t mission, cstring_t key,
                                          gameCacheValueType_t type) {
     if (!cache || !mission || !key) return NULL;
     FOR_LOOP(i, cache->num_entries) {
@@ -218,12 +218,12 @@ static gameCacheEntry_t *G_GameCacheFind(gameCache_t *cache, LPCSTR mission, LPC
     return NULL;
 }
 
-static gameCacheEntry_t const *G_GameCacheFindConst(gameCache_t const *cache, LPCSTR mission, LPCSTR key,
+static gameCacheEntry_t const *G_GameCacheFindConst(gameCache_t const *cache, cstring_t mission, cstring_t key,
                                                     gameCacheValueType_t type) {
     return G_GameCacheFind((gameCache_t *)cache, mission, key, type);
 }
 
-static gameCacheEntry_t *G_GameCacheGetOrCreate(gameCache_t *cache, LPCSTR mission, LPCSTR key,
+static gameCacheEntry_t *G_GameCacheGetOrCreate(gameCache_t *cache, cstring_t mission, cstring_t key,
                                                 gameCacheValueType_t type) {
     gameCacheEntry_t *entry;
 
@@ -247,7 +247,7 @@ static gameCacheEntry_t *G_GameCacheGetOrCreate(gameCache_t *cache, LPCSTR missi
     return entry;
 }
 
-static BOOL G_GameCacheWriteUnit(FILE *f, gameCacheUnit_t const *unit) {
+static bool G_GameCacheWriteUnit(FILE *f, gameCacheUnit_t const *unit) {
     if (!G_GameCacheWriteU32(f, unit->class_id) ||
         !G_GameCacheWriteU32(f, unit->hero.level) ||
         !G_GameCacheWriteU32(f, unit->hero.str) ||
@@ -280,8 +280,8 @@ static BOOL G_GameCacheWriteUnit(FILE *f, gameCacheUnit_t const *unit) {
     return true;
 }
 
-static BOOL G_GameCacheReadUnit(FILE *f, gameCacheUnit_t *unit) {
-    DWORD suspend_xp;
+static bool G_GameCacheReadUnit(FILE *f, gameCacheUnit_t *unit) {
+    uint32_t suspend_xp;
 
     memset(unit, 0, sizeof(*unit));
     if (!G_GameCacheReadU32(f, &unit->class_id) ||
@@ -317,15 +317,15 @@ static BOOL G_GameCacheReadUnit(FILE *f, gameCacheUnit_t *unit) {
     return true;
 }
 
-static BOOL G_GameCacheWriteEntry(FILE *f, gameCacheEntry_t const *entry) {
-    if (!G_GameCacheWriteU8(f, (BYTE)entry->type) ||
+static bool G_GameCacheWriteEntry(FILE *f, gameCacheEntry_t const *entry) {
+    if (!G_GameCacheWriteU8(f, (uint8_t)entry->type) ||
         !G_GameCacheWriteString(f, entry->mission) ||
         !G_GameCacheWriteString(f, entry->key)) {
         return false;
     }
     switch (entry->type) {
     case GAMECACHE_INTEGER:
-        return G_GameCacheWriteU32(f, (DWORD)entry->value.integer);
+        return G_GameCacheWriteU32(f, (uint32_t)entry->value.integer);
     case GAMECACHE_REAL:
         return G_GameCacheWriteFloat(f, entry->value.real);
     case GAMECACHE_BOOLEAN:
@@ -339,9 +339,9 @@ static BOOL G_GameCacheWriteEntry(FILE *f, gameCacheEntry_t const *entry) {
     }
 }
 
-static BOOL G_GameCacheReadEntry(FILE *f, gameCacheEntry_t *entry) {
-    BYTE type;
-    DWORD value;
+static bool G_GameCacheReadEntry(FILE *f, gameCacheEntry_t *entry) {
+    uint8_t type;
+    uint32_t value;
 
     memset(entry, 0, sizeof(*entry));
     if (!G_GameCacheReadU8(f, &type) ||
@@ -354,7 +354,7 @@ static BOOL G_GameCacheReadEntry(FILE *f, gameCacheEntry_t *entry) {
     switch (entry->type) {
     case GAMECACHE_INTEGER:
         if (!G_GameCacheReadU32(f, &value)) return false;
-        entry->value.integer = (LONG)value;
+        entry->value.integer = (int32_t)value;
         return true;
     case GAMECACHE_REAL:
         return G_GameCacheReadFloat(f, &entry->value.real);
@@ -371,12 +371,12 @@ static BOOL G_GameCacheReadEntry(FILE *f, gameCacheEntry_t *entry) {
     }
 }
 
-static BOOL G_GameCacheLoadDisk(gameCache_t *cache) {
+static bool G_GameCacheLoadDisk(gameCache_t *cache) {
     PATHSTR path;
     FILE *f;
     char magic[sizeof(GAMECACHE_FILE_MAGIC) - 1];
-    DWORD version;
-    DWORD count;
+    uint32_t version;
+    uint32_t count;
 
     if (!G_GameCachePath(cache->campaign, path, sizeof(path))) return false;
     errno = 0;
@@ -413,7 +413,7 @@ static BOOL G_GameCacheLoadDisk(gameCache_t *cache) {
     return true;
 }
 
-void G_GameCacheInit(gameCache_t *cache, LPCSTR campaign) {
+void G_GameCacheInit(gameCache_t *cache, cstring_t campaign) {
     gameCacheStorageMode_t mode;
 
     if (!cache) return;
@@ -436,13 +436,13 @@ void G_GameCacheInit(gameCache_t *cache, LPCSTR campaign) {
     }
 }
 
-static BOOL G_GameCacheSaveDisk(gameCache_t *cache) {
+static bool G_GameCacheSaveDisk(gameCache_t *cache) {
     PATHSTR path;
     PATHSTR tmp;
     PATHSTR backup;
     FILE *f;
-    BOOL ok = true;
-    BOOL had_backup = false;
+    bool ok = true;
+    bool had_backup = false;
 
     if (!cache || !cache->campaign[0] || !G_GameCachePath(cache->campaign, path, sizeof(path))) {
         return false;
@@ -460,7 +460,7 @@ static BOOL G_GameCacheSaveDisk(gameCache_t *cache) {
     ok = G_GameCacheWriteBytes(f, GAMECACHE_FILE_MAGIC, sizeof(GAMECACHE_FILE_MAGIC) - 1) &&
          G_GameCacheWriteU32(f, GAMECACHE_FILE_VERSION) &&
          G_GameCacheWriteU32(f, cache->num_entries);
-    for (DWORD i = 0; ok && i < cache->num_entries; i++) {
+    for (uint32_t i = 0; ok && i < cache->num_entries; i++) {
         ok = G_GameCacheWriteEntry(f, cache->entries + i);
     }
     if (fclose(f) != 0) ok = false;
@@ -500,7 +500,7 @@ static BOOL G_GameCacheSaveDisk(gameCache_t *cache) {
     return true;
 }
 
-BOOL G_GameCacheSave(gameCache_t *cache) {
+bool G_GameCacheSave(gameCache_t *cache) {
     gameCacheStorageMode_t const mode = G_GameCacheStorageMode();
 
     if (mode == GAMECACHE_STORAGE_DISABLED) {
@@ -517,7 +517,7 @@ BOOL G_GameCacheSave(gameCache_t *cache) {
     return G_GameCacheMemorySave(cache);
 }
 
-static void G_GameCacheRemoveAt(gameCache_t *cache, DWORD index) {
+static void G_GameCacheRemoveAt(gameCache_t *cache, uint32_t index) {
     if (!cache || index >= cache->num_entries) return;
     if (index + 1 < cache->num_entries) {
         memmove(cache->entries + index, cache->entries + index + 1,
@@ -535,9 +535,9 @@ void G_GameCacheFlush(gameCache_t *cache) {
     cache->dirty = true;
 }
 
-void G_GameCacheFlushMission(gameCache_t *cache, LPCSTR mission) {
+void G_GameCacheFlushMission(gameCache_t *cache, cstring_t mission) {
     if (!cache || !mission) return;
-    for (DWORD i = 0; i < cache->num_entries;) {
+    for (uint32_t i = 0; i < cache->num_entries;) {
         if (!strcmp(cache->entries[i].mission, mission)) {
             G_GameCacheRemoveAt(cache, i);
         } else {
@@ -546,7 +546,7 @@ void G_GameCacheFlushMission(gameCache_t *cache, LPCSTR mission) {
     }
 }
 
-void G_GameCacheFlushEntry(gameCache_t *cache, LPCSTR mission, LPCSTR key, gameCacheValueType_t type) {
+void G_GameCacheFlushEntry(gameCache_t *cache, cstring_t mission, cstring_t key, gameCacheValueType_t type) {
     if (!cache || !mission || !key) return;
     FOR_LOOP(i, cache->num_entries) {
         gameCacheEntry_t const *entry = cache->entries + i;
@@ -557,7 +557,7 @@ void G_GameCacheFlushEntry(gameCache_t *cache, LPCSTR mission, LPCSTR key, gameC
     }
 }
 
-BOOL G_GameCacheStoreInteger(gameCache_t *cache, LPCSTR mission, LPCSTR key, LONG value) {
+bool G_GameCacheStoreInteger(gameCache_t *cache, cstring_t mission, cstring_t key, int32_t value) {
     gameCacheEntry_t *entry = G_GameCacheGetOrCreate(cache, mission, key, GAMECACHE_INTEGER);
     if (!entry) return false;
     entry->value.integer = value;
@@ -565,7 +565,7 @@ BOOL G_GameCacheStoreInteger(gameCache_t *cache, LPCSTR mission, LPCSTR key, LON
     return true;
 }
 
-BOOL G_GameCacheStoreReal(gameCache_t *cache, LPCSTR mission, LPCSTR key, FLOAT value) {
+bool G_GameCacheStoreReal(gameCache_t *cache, cstring_t mission, cstring_t key, float value) {
     gameCacheEntry_t *entry = G_GameCacheGetOrCreate(cache, mission, key, GAMECACHE_REAL);
     if (!entry) return false;
     entry->value.real = value;
@@ -573,7 +573,7 @@ BOOL G_GameCacheStoreReal(gameCache_t *cache, LPCSTR mission, LPCSTR key, FLOAT 
     return true;
 }
 
-BOOL G_GameCacheStoreBoolean(gameCache_t *cache, LPCSTR mission, LPCSTR key, BOOL value) {
+bool G_GameCacheStoreBoolean(gameCache_t *cache, cstring_t mission, cstring_t key, bool value) {
     gameCacheEntry_t *entry = G_GameCacheGetOrCreate(cache, mission, key, GAMECACHE_BOOLEAN);
     if (!entry) return false;
     entry->value.boolean = value;
@@ -581,7 +581,7 @@ BOOL G_GameCacheStoreBoolean(gameCache_t *cache, LPCSTR mission, LPCSTR key, BOO
     return true;
 }
 
-BOOL G_GameCacheStoreString(gameCache_t *cache, LPCSTR mission, LPCSTR key, LPCSTR value) {
+bool G_GameCacheStoreString(gameCache_t *cache, cstring_t mission, cstring_t key, cstring_t value) {
     gameCacheEntry_t *entry;
     if (!value || strlen(value) >= MAX_GAMECACHE_STRING) {
         fprintf(stderr, "Game cache '%s': stored string '%s/%s' is too long or null\n",
@@ -595,7 +595,7 @@ BOOL G_GameCacheStoreString(gameCache_t *cache, LPCSTR mission, LPCSTR key, LPCS
     return true;
 }
 
-BOOL G_GameCacheStoreUnit(gameCache_t *cache, LPCSTR mission, LPCSTR key, LPCEDICT unit) {
+bool G_GameCacheStoreUnit(gameCache_t *cache, cstring_t mission, cstring_t key, LPCEDICT unit) {
     gameCacheEntry_t *entry;
     gameCacheUnit_t *saved;
 
@@ -620,32 +620,32 @@ BOOL G_GameCacheStoreUnit(gameCache_t *cache, LPCSTR mission, LPCSTR key, LPCEDI
     return true;
 }
 
-BOOL G_GameCacheHave(gameCache_t const *cache, LPCSTR mission, LPCSTR key, gameCacheValueType_t type) {
+bool G_GameCacheHave(gameCache_t const *cache, cstring_t mission, cstring_t key, gameCacheValueType_t type) {
     return G_GameCacheFindConst(cache, mission, key, type) != NULL;
 }
 
-LONG G_GameCacheGetInteger(gameCache_t const *cache, LPCSTR mission, LPCSTR key) {
+int32_t G_GameCacheGetInteger(gameCache_t const *cache, cstring_t mission, cstring_t key) {
     gameCacheEntry_t const *entry = G_GameCacheFindConst(cache, mission, key, GAMECACHE_INTEGER);
     return entry ? entry->value.integer : 0;
 }
 
-FLOAT G_GameCacheGetReal(gameCache_t const *cache, LPCSTR mission, LPCSTR key) {
+float G_GameCacheGetReal(gameCache_t const *cache, cstring_t mission, cstring_t key) {
     gameCacheEntry_t const *entry = G_GameCacheFindConst(cache, mission, key, GAMECACHE_REAL);
     return entry ? entry->value.real : 0.0f;
 }
 
-BOOL G_GameCacheGetBoolean(gameCache_t const *cache, LPCSTR mission, LPCSTR key) {
+bool G_GameCacheGetBoolean(gameCache_t const *cache, cstring_t mission, cstring_t key) {
     gameCacheEntry_t const *entry = G_GameCacheFindConst(cache, mission, key, GAMECACHE_BOOLEAN);
     return entry ? entry->value.boolean : false;
 }
 
-LPCSTR G_GameCacheGetString(gameCache_t const *cache, LPCSTR mission, LPCSTR key) {
+cstring_t G_GameCacheGetString(gameCache_t const *cache, cstring_t mission, cstring_t key) {
     gameCacheEntry_t const *entry = G_GameCacheFindConst(cache, mission, key, GAMECACHE_STRING);
     return entry ? entry->value.string : "";
 }
 
-LPEDICT G_GameCacheRestoreUnit(gameCache_t const *cache, LPCSTR mission, LPCSTR key,
-                              DWORD player, LPCVECTOR2 location, FLOAT facing) {
+LPEDICT G_GameCacheRestoreUnit(gameCache_t const *cache, cstring_t mission, cstring_t key,
+                              uint32_t player, LPCVECTOR2 location, float facing) {
     gameCacheEntry_t const *entry = G_GameCacheFindConst(cache, mission, key, GAMECACHE_UNIT);
     gameCacheUnit_t const *saved;
     LPEDICT unit;
@@ -672,7 +672,7 @@ LPEDICT G_GameCacheRestoreUnit(gameCache_t const *cache, LPCSTR mission, LPCSTR 
     unit->mana = saved->mana;
     unit->unit_color = saved->unit_color;
     {
-        DWORD color;
+        uint32_t color;
         if (G_GetUnitColorOverride(unit, &color)) G_SetUnitTeamColor(unit, color);
         else G_InitializeUnitTeamColor(unit);
     }
@@ -684,14 +684,14 @@ LPEDICT G_GameCacheRestoreUnit(gameCache_t const *cache, LPCSTR mission, LPCSTR 
         item = SP_SpawnAtLocation(saved_item->item_id, player, &unit->s.origin2);
         if (!item) {
             fprintf(stderr, "Game cache '%s': failed to restore item %.4s in slot %u\n",
-                    cache->campaign, (LPCSTR)&saved_item->item_id, (unsigned)i);
+                    cache->campaign, (cstring_t)&saved_item->item_id, (unsigned)i);
             continue;
         }
         G_SetItemCharges(item, saved_item->charges);
         if (!G_AddItemToSlotInternal(unit, item, i, false)) {
             fprintf(stderr, "Game cache '%s': cannot restore item %.4s into slot %u of %.4s\n",
-                    cache->campaign, (LPCSTR)&saved_item->item_id, (unsigned)i,
-                    (LPCSTR)&saved->class_id);
+                    cache->campaign, (cstring_t)&saved_item->item_id, (unsigned)i,
+                    (cstring_t)&saved->class_id);
             G_RemoveItem(item);
         }
     }

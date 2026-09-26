@@ -1,7 +1,7 @@
 #include "s_skills.h"
 
 /* DataE leash: factory-owned Clockwerks beyond range are ordered back to the factory. */
-static void pocket_factory_leash(LPEDICT factory, DWORD clockwerk, FLOAT leash) {
+static void pocket_factory_leash(LPEDICT factory, uint32_t clockwerk, float leash) {
     if (!factory || leash <= 0.0f || !clockwerk) return;
     FILTER_EDICTS(goblin, goblin->inuse && goblin->owner == factory && goblin->class_id == clockwerk && !M_IsDead(goblin)) {
         LPEDICT goal;
@@ -35,10 +35,10 @@ void pocket_factory_think(LPEDICT thinker) {
  * The factory's Dur bounds both the summon and its scheduler.
  */
 BZ_SIMPLE_SPELL_PROC(AbilityPocketFactory) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    DWORD interval = (DWORD)(S_SpellData(spell->code, level, 1) * 1000.0f);
-    DWORD clockwerk = S_SpellDataId(spell->code, level, 2);
-    FLOAT duration = S_SpellDuration(spell->code, level, false);
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    uint32_t interval = (uint32_t)(S_SpellData(spell->code, level, 1) * 1000.0f);
+    uint32_t clockwerk = S_SpellDataId(spell->code, level, 2);
+    float duration = S_SpellDuration(spell->code, level, false);
     LPEDICT factory, thinker;
     if (!interval || !clockwerk || duration <= 0.0f) return;
     factory = S_SummonAt(caster, S_SpellUnitId(spell->code, level), &st.point, duration);
@@ -49,6 +49,6 @@ BZ_SIMPLE_SPELL_PROC(AbilityPocketFactory) {
     thinker->wait = S_SpellData(spell->code, level, 3);
     thinker->collision = S_SpellData(spell->code, level, 4);
     thinker->velocity = S_SpellData(spell->code, level, 5); /* DataE leash range */
-    thinker->freetime = G_Time() + interval; thinker->spawn_time = G_Time() + (DWORD)(duration * 1000.0f);
+    thinker->freetime = G_Time() + interval; thinker->spawn_time = G_Time() + (uint32_t)(duration * 1000.0f);
     thinker->think = pocket_factory_think;
 }

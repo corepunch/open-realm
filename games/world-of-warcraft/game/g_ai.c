@@ -28,15 +28,15 @@ void Wow_FaceTarget(LPEDICT ent, LPEDICT target) {
     if (Vector2_len(&delta) <= 0.001f) {
         return;
     }
-    local->yaw = (FLOAT)RAD2DEG(atan2f(delta.y, delta.x));
-    ent->s.angle = (FLOAT)DEG2RAD(local->yaw);
+    local->yaw = (float)RAD2DEG(atan2f(delta.y, delta.x));
+    ent->s.angle = (float)DEG2RAD(local->yaw);
 }
 
 static void Wow_AttackTimingFromAnimation(wowEntityLocal_t const *local,
-                                          DWORD *damage_point,
-                                          DWORD *backswing) {
-    DWORD dp = WOW_DEFAULT_ATTACK_DAMAGE_POINT;
-    DWORD bs = WOW_DEFAULT_ATTACK_BACKSWING;
+                                          uint32_t *damage_point,
+                                          uint32_t *backswing) {
+    uint32_t dp = WOW_DEFAULT_ATTACK_DAMAGE_POINT;
+    uint32_t bs = WOW_DEFAULT_ATTACK_BACKSWING;
 
     if (local) {
         if (local->attack_damage_point > 0) {
@@ -46,7 +46,7 @@ static void Wow_AttackTimingFromAnimation(wowEntityLocal_t const *local,
             bs = local->attack_backswing;
         }
         if (local->animation && local->attack_damage_point == 0 && local->attack_backswing == 0) {
-            DWORD duration = local->animation->interval[1] > local->animation->interval[0]
+            uint32_t duration = local->animation->interval[1] > local->animation->interval[0]
                 ? local->animation->interval[1] - local->animation->interval[0]
                 : 0;
             if (duration > 0) {
@@ -70,7 +70,7 @@ static void Wow_AttackTimingFromAnimation(wowEntityLocal_t const *local,
 }
 
 static void Wow_AdvanceDeathFrame(LPEDICT ent, wowEntityLocal_t *local) {
-    DWORD end_frame;
+    uint32_t end_frame;
 
     if (!ent || !local || !local->animation) {
         return;
@@ -81,16 +81,16 @@ static void Wow_AdvanceDeathFrame(LPEDICT ent, wowEntityLocal_t *local) {
         : local->animation->interval[0];
 
     if (ent->s.frame < end_frame) {
-        DWORD next_frame = ent->s.frame + FRAMETIME;
+        uint32_t next_frame = ent->s.frame + FRAMETIME;
         ent->s.frame = MIN(next_frame, end_frame);
     } else {
         ent->s.frame = end_frame;
     }
 }
 
-void Wow_ApplyDamage(LPEDICT target, LPEDICT attacker, DWORD damage) {
+void Wow_ApplyDamage(LPEDICT target, LPEDICT attacker, uint32_t damage) {
     wowEntityLocal_t *target_local;
-    DWORD actual;
+    uint32_t actual;
 
     if (!target || damage == 0) return;
     target_local = Wow_EntityLocal(target);
@@ -130,7 +130,7 @@ void Wow_ApplyDamage(LPEDICT target, LPEDICT attacker, DWORD damage) {
     }
 }
 
-BOOL Wow_EntityAffectingCombat(LPEDICT ent) {
+bool Wow_EntityAffectingCombat(LPEDICT ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     wowEntityLocal_t *target_local;
     LPEDICT target;
@@ -152,35 +152,35 @@ BOOL Wow_EntityAffectingCombat(LPEDICT ent) {
     return true;
 }
 
-BOOL Wow_SetStandMove(LPEDICT ent) {
+bool Wow_SetStandMove(LPEDICT ent) {
     return Wow_SetEntityMove(ent, &wow_move_stand);
 }
 
-BOOL Wow_SetRunMove(LPEDICT ent) {
+bool Wow_SetRunMove(LPEDICT ent) {
     return Wow_SetEntityMove(ent, &wow_move_run);
 }
 
-BOOL Wow_SetWalkMove(LPEDICT ent) {
+bool Wow_SetWalkMove(LPEDICT ent) {
     return Wow_SetEntityMove(ent, &wow_move_walk);
 }
 
 /* Preserve facing while selecting the M2 locomotion sequence that matches the input direction. */
-BOOL Wow_SetDirectionalMove(LPEDICT ent, DWORD flags) {
+bool Wow_SetDirectionalMove(LPEDICT ent, uint32_t flags) {
     if ((flags & WOW_MOVE_BACK) && !(flags & WOW_MOVE_FORWARD))
         return Wow_SetEntityMove(ent, &wow_move_back) || Wow_SetRunMove(ent);
     /* A/D are lateral movement; ShuffleLeft/Right are turn animations, not strafe animations. */
     return Wow_SetRunMove(ent);
 }
 
-BOOL Wow_SetCombatReadyAnimation(LPEDICT ent) {
-    static LPCSTR const weapon_ready_animations[] = {
+bool Wow_SetCombatReadyAnimation(LPEDICT ent) {
+    static cstring_t const weapon_ready_animations[] = {
         "Ready1H",
         "ReadyUnarmed",
         "Ready2H",
         "Ready2HL",
         NULL,
     };
-    static LPCSTR const unarmed_ready_animations[] = {
+    static cstring_t const unarmed_ready_animations[] = {
         "ReadyUnarmed",
         "Ready1H",
         "Ready2H",
@@ -206,8 +206,8 @@ void Wow_AIMove(LPEDICT ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     VECTOR2 target;
     VECTOR2 delta;
-    FLOAT len;
-    FLOAT step;
+    float len;
+    float step;
 
     if (!ent || !local) {
         return;
@@ -224,20 +224,20 @@ void Wow_AIMove(LPEDICT ent) {
     }
 
     /* Frostbolt slow: halve movement speed while the debuff is active. */
-    FLOAT effective_speed = local->slow_timer > 0 ? local->walk_speed * 0.5f : local->walk_speed;
-    step = MIN(effective_speed * ((FLOAT)FRAMETIME / 1000.0f), len);
+    float effective_speed = local->slow_timer > 0 ? local->walk_speed * 0.5f : local->walk_speed;
+    step = MIN(effective_speed * ((float)FRAMETIME / 1000.0f), len);
     ent->s.origin.x += delta.x * step / len;
     ent->s.origin.y += delta.y * step / len;
     /* Quake2 M_CheckGround: re-anchor Z to the nearest authored terrain or WMO floor. */
     ent->s.origin.z = Wow_FloorHeight(ent->s.origin.x, ent->s.origin.y, ent->s.origin.z);
     ent->s.origin2 = (VECTOR2){ ent->s.origin.x, ent->s.origin.y };
-    local->yaw = (FLOAT)RAD2DEG(atan2f(delta.y, delta.x));
-    ent->s.angle = (FLOAT)DEG2RAD(local->yaw);
+    local->yaw = (float)RAD2DEG(atan2f(delta.y, delta.x));
+    ent->s.angle = (float)DEG2RAD(local->yaw);
     Wow_SetWalkMove(ent);
 }
 
 void Wow_AIAttack(LPEDICT ent) {
-    static LPCSTR const attack_animations[] = {
+    static cstring_t const attack_animations[] = {
         "Attack1H",
         "AttackUnarmed",
         "Attack2H",
@@ -247,8 +247,8 @@ void Wow_AIAttack(LPEDICT ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     LPEDICT target;
 
-    DWORD damage_point;
-    DWORD backswing;
+    uint32_t damage_point;
+    uint32_t backswing;
 
     if (!ent || !local || local->dead) {
         return;
@@ -287,7 +287,7 @@ void Wow_AIAttack(LPEDICT ent) {
 }
 
 void Wow_AIPain(LPEDICT ent) {
-    static LPCSTR const pain_animations[] = {
+    static cstring_t const pain_animations[] = {
         "CombatWound",
         "StandWound",
         "Stun",
@@ -304,7 +304,7 @@ void Wow_AIPain(LPEDICT ent) {
 }
 
 void Wow_AIDie(LPEDICT ent, LPEDICT attacker) {
-    static LPCSTR const death_animations[] = {
+    static cstring_t const death_animations[] = {
         "Death",
         "Dead",
         NULL,
@@ -335,9 +335,9 @@ void Wow_AIDie(LPEDICT ent, LPEDICT attacker) {
     }
 }
 
-BOOL Wow_AIAdvanceLockedFrame(LPEDICT ent) {
+bool Wow_AIAdvanceLockedFrame(LPEDICT ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
-    BOOL finished;
+    bool finished;
 
     if (!ent || !local) {
         return false;
@@ -448,7 +448,7 @@ void Wow_AIRunFrame(LPEDICT ent) {
     }
 
     if (local->patrol_radius > 0.0f && local->walk_speed > 0.0f) {
-        local->patrol_phase += ((FLOAT)FRAMETIME / 1000.0f) * 0.6f;
+        local->patrol_phase += ((float)FRAMETIME / 1000.0f) * 0.6f;
         if (local->move) {
             local->move(ent);
         }

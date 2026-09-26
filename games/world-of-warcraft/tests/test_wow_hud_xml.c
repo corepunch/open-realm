@@ -14,26 +14,26 @@
 #define TEST_WOW_MPQ "build/tests/test-wow.mpq"
 #endif
 
-struct texture { DWORD texid; DWORD width; DWORD height; char name[256]; };
-struct font    { DWORD size; char name[256]; };
+struct texture { uint32_t texid; uint32_t width; uint32_t height; char name[256]; };
+struct font    { uint32_t size; char name[256]; };
 
-static HANDLE test_archive;
+static handle_t test_archive;
 static refExport_t test_renderer;
 static PLAYER test_ps;
 static LPCTEXTURE test_textures[MAX_IMAGES];
-static DWORD next_texture_id;
+static uint32_t next_texture_id;
 static int geometry_warnings;
 static drawText_t last_draw_text;
 static char last_draw_text_value[128];
 static char last_draw_image_name[256];
-static DWORD draw_text_calls;
+static uint32_t draw_text_calls;
 
-static LPCSTR test_get_configstring(DWORD index) {
+static cstring_t test_get_configstring(uint32_t index) {
     return index == WOW_CS_MAPINFO ? "\\title\\The Barrens\\preview\\normal.blp" : "";
 }
 
-static int test_fs_read_file(LPCSTR fileName, void **buf) {
-    HANDLE file; DWORD size, read = 0;
+static int test_fs_read_file(cstring_t fileName, void **buf) {
+    handle_t file; uint32_t size, read = 0;
     if (!buf) return -1; *buf = NULL;
     if (!test_archive ||
         !SFileOpenFileEx(test_archive, fileName, SFILE_OPEN_FROM_MPQ, &file)) return -1;
@@ -46,22 +46,22 @@ static int test_fs_read_file(LPCSTR fileName, void **buf) {
     return (int)size;
 }
 static void test_fs_free_file(void *buf) { free(buf); }
-static HANDLE test_mem_alloc(long sz) { return calloc(1, (size_t)sz); }
-static void   test_mem_free(HANDLE m) { free(m); }
-static void test_printf(LPCSTR fmt, ...) {
+static handle_t test_mem_alloc(long sz) { return calloc(1, (size_t)sz); }
+static void   test_mem_free(handle_t m) { free(m); }
+static void test_printf(cstring_t fmt, ...) {
     char msg[512]; va_list ap;
     va_start(ap, fmt); vsnprintf(msg, sizeof(msg), fmt, ap); va_end(ap);
     if (strstr(msg, "UIWow: unresolved FrameXML geometry")) geometry_warnings++;
 }
 
-static LPTEXTURE test_load_texture(LPCSTR name) {
+static LPTEXTURE test_load_texture(cstring_t name) {
     LPTEXTURE t = calloc(1, sizeof(*t));
     T_NOT_NULL(t);
     t->texid = ++next_texture_id;
     snprintf(t->name, sizeof(t->name), "%s", name ? name : "");
     return t;
 }
-static LPFONT test_load_font(LPCSTR name, DWORD sz) {
+static LPFONT test_load_font(cstring_t name, uint32_t sz) {
     LPFONT f = calloc(1, sizeof(*f));
     T_NOT_NULL(f);
     f->size = sz;
@@ -70,13 +70,13 @@ static LPFONT test_load_font(LPCSTR name, DWORD sz) {
 }
 static void     test_release_texture(LPTEXTURE t) { free(t); }
 static size2_t  test_get_texture_size(LPCTEXTURE t) { size2_t s = {0,0}; if(t){s.width=t->width;s.height=t->height;} return s; }
-static void     test_draw_image(LPCTEXTURE t, LPCRECT s, LPCRECT u, COLOR32 c) { (void)t;(void)s;(void)u;(void)c; }
+static void     test_draw_image(LPCTEXTURE t, rect_t const * s, rect_t const * u, COLOR32 c) { (void)t;(void)s;(void)u;(void)c; }
 static void test_draw_image_ex(LPCDRAWIMAGE i) {
     snprintf(last_draw_image_name, sizeof(last_draw_image_name), "%s", i && i->texture ? i->texture->name : "");
 }
-static void     test_draw_fill(LPCRECT r, COLOR32 c) { (void)r;(void)c; }
-static void     test_draw_minimap(LPCRECT r, LPCSTR map) { (void)r; (void)map; }
-static VECTOR2  test_get_text_size(LPCDRAWTEXT dt) { return MAKE(VECTOR2, dt&&dt->text?(FLOAT)strlen(dt->text)*0.01f:0.0f, 0.012f); }
+static void     test_draw_fill(rect_t const * r, COLOR32 c) { (void)r;(void)c; }
+static void     test_draw_minimap(rect_t const * r, cstring_t map) { (void)r; (void)map; }
+static VECTOR2  test_get_text_size(LPCDRAWTEXT dt) { return MAKE(VECTOR2, dt&&dt->text?(float)strlen(dt->text)*0.01f:0.0f, 0.012f); }
 static void test_draw_text(LPCDRAWTEXT dt) {
     draw_text_calls++;
     if (!dt) return;
@@ -84,9 +84,9 @@ static void test_draw_text(LPCDRAWTEXT dt) {
     snprintf(last_draw_text_value, sizeof(last_draw_text_value), "%s", dt->text ? dt->text : "");
     last_draw_text.text = last_draw_text_value;
 }
-static LPCTEXTURE test_get_texture(DWORD i) { return i < MAX_IMAGES ? test_textures[i] : NULL; }
-static int test_image_index(LPCSTR n) {
-    for (DWORD i = 1; i < MAX_IMAGES; i++) {
+static LPCTEXTURE test_get_texture(uint32_t i) { return i < MAX_IMAGES ? test_textures[i] : NULL; }
+static int test_image_index(cstring_t n) {
+    for (uint32_t i = 1; i < MAX_IMAGES; i++) {
         if (!test_textures[i]) { test_textures[i] = test_load_texture(n); return (int)i; }
     }
     return 0;
@@ -300,7 +300,7 @@ TEST(wow_hud_xml, frame_size_reflected_in_rect) {
         "  <Anchors><Anchor point=\"TOPLEFT\"/></Anchors>"
         "</Frame></Ui>";
     int idx;
-    FLOAT x, y, w, h;
+    float x, y, w, h;
 
     reset_state(); init_ui();
     UIWow_XMLClearFrames();
@@ -316,7 +316,7 @@ TEST(wow_hud_xml, frame_size_reflected_in_rect) {
 
 TEST(wow_hud_xml, unresolved_frame_has_no_invented_geometry) {
     static const char xml[] = "<Ui><Frame name=\"NoGeometry\"/></Ui>";
-    int idx; FLOAT x, y, w, h;
+    int idx; float x, y, w, h;
 
     reset_state(); init_ui(); UIWow_XMLClearFrames();
     T_ASSERT(UIWow_XMLLoadBuffer(xml, (int)(sizeof(xml)-1), "test"));
@@ -330,7 +330,7 @@ TEST(wow_hud_xml, unresolved_frame_has_no_invented_geometry) {
 
 TEST(wow_hud_xml, unauthored_fontstring_uses_natural_text_size) {
     static const char xml[] = "<Ui><FontString name=\"NaturalText\" text=\"Hello\"/></Ui>";
-    int idx; FLOAT x, y, w, h;
+    int idx; float x, y, w, h;
 
     reset_state(); init_ui(); UIWow_XMLClearFrames();
     T_ASSERT(UIWow_XMLLoadBuffer(xml, (int)(sizeof(xml)-1), "test"));
@@ -366,7 +366,7 @@ TEST(wow_hud_xml, welcome_frame_loads_from_mpq) {
 
     /* Size ≈ 388×175 / 1024×768 */
     {
-        FLOAT x, y, w, h;
+        float x, y, w, h;
         UIWow_XmlComputeRectPub(root_idx, &x, &y, &w, &h);
         T_ASSERT(w > 0.37f && w < 0.39f);
         T_ASSERT(h > 0.22f && h < 0.24f);

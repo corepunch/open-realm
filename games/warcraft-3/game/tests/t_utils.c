@@ -12,7 +12,7 @@
 
 extern JASSMODULE jass_funcs[];
 
-void test_sound_event(LPEDICT ent, DWORD request, DWORD event) {
+void test_sound_event(LPEDICT ent, uint32_t request, uint32_t event) {
     LPEDICT player = g_edicts;
     player->client = game.clients;
     player->client->connected = true;
@@ -21,11 +21,11 @@ void test_sound_event(LPEDICT ent, DWORD request, DWORD event) {
     snprintf(user, sizeof(user), "%u", ent->s.number);
     snprintf(token, sizeof(token), "%u", request);
     snprintf(kind, sizeof(kind), "%u", event);
-    LPCSTR args[] = {"sound_event", user, token, kind};
+    cstring_t args[] = {"sound_event", user, token, kind};
     G_ClientCommand(player, 4, args);
 }
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y) {
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y) {
     static UnitWeapons_t const test_weapons = { .attacksEnabled = 3 };
     LPEDICT ent = G_Spawn();
     ent->class_id = class_id;
@@ -51,7 +51,7 @@ LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y) {
 }
 
 void reset_entities(void) {
-    DWORD cap = globals.max_edicts;
+    uint32_t cap = globals.max_edicts;
     G_ResetDeferredFrees();
     G_ResetHeroPassiveCaches();
     G_ResetSelectionSoundState();
@@ -70,7 +70,7 @@ void reset_entities(void) {
 }
 
 /* CM_SetupTestPathmap is in routing.c, only compiled for test builds. */
-void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells);
+void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void CM_SetupTestWorldBounds(LPCBOX2 bounds);
 
 /*
@@ -79,18 +79,18 @@ void CM_SetupTestWorldBounds(LPCBOX2 bounds);
  * area queries, and fog-of-war code don't crash on NULL pointers.
  */
 #define TEST_PATHMAP_CELLS 64
-static BYTE test_pathmap_cells[TEST_PATHMAP_CELLS * TEST_PATHMAP_CELLS];
+static uint8_t test_pathmap_cells[TEST_PATHMAP_CELLS * TEST_PATHMAP_CELLS];
 static MAPINFO test_mapinfo;
 static WAR3MAP test_worldmap;
 static WAR3MAPVERTEX test_vertices[(TEST_PATHMAP_CELLS + 1) * (TEST_PATHMAP_CELLS + 1)];
 
-static DWORD test_get_time(void) { return level.time; }
-static void test_set_paused(BOOL paused) { (void)paused; }
+static uint32_t test_get_time(void) { return level.time; }
+static void test_set_paused(bool paused) { (void)paused; }
 
 /* Pathmap tests need an explicit world-space transform; production maps normally provide it via war3map.w3e. */
-void setup_test_pathmap(DWORD width, DWORD height, BYTE const *cells) {
+void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells) {
     CM_SetupTestPathmap(width, height, cells);
-    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {0, 0}, .max = {(FLOAT)width, (FLOAT)height}));
+    CM_SetupTestWorldBounds(&MAKE(BOX2, .min = {0, 0}, .max = {(float)width, (float)height}));
 }
 
 void setup_test_world(void) {
@@ -176,7 +176,7 @@ static void reset_test_state(void) {
     gi.ClearWorld();
 }
 
-static void ignore_jass_error(LPCSTR message) { (void)message; }
+static void ignore_jass_error(cstring_t message) { (void)message; }
 
 /*
  * run_test_jass — load a synthetic JASS map script and run its main().
@@ -190,10 +190,10 @@ static void ignore_jass_error(LPCSTR message) { (void)message; }
  * Returns true if no JASS runtime error occurred. The test host captures VM
  * errors so callers can distinguish expected failures from test failures.
  */
-static BOOL run_test_jass_impl(LPCSTR src, LPCSTR expected) {
+static bool run_test_jass_impl(cstring_t src, cstring_t expected) {
     /* jass_dobuffer mutates the string in-place; duplicate to avoid clobbering read-only literals. */
-    DWORD len = strlen(src);
-    LPSTR buf = gi.MemAlloc(len + 1);
+    uint32_t len = strlen(src);
+    string_t buf = gi.MemAlloc(len + 1);
     memcpy(buf, src, len + 1);
 
     if (level.vm) { jass_close(level.vm); level.vm = NULL; }
@@ -228,8 +228,8 @@ static BOOL run_test_jass_impl(LPCSTR src, LPCSTR expected) {
     return false;
 }
 
-BOOL run_test_jass(LPCSTR src) { return run_test_jass_impl(src, NULL); }
-BOOL run_test_jass_error(LPCSTR src, LPCSTR expected) { return run_test_jass_impl(src, expected); }
+bool run_test_jass(cstring_t src) { return run_test_jass_impl(src, NULL); }
+bool run_test_jass_error(cstring_t src, cstring_t expected) { return run_test_jass_impl(src, expected); }
 
 __attribute__((constructor)) static void register_test_reset(void) { Test_SetBeforeEach(reset_test_state); }
 

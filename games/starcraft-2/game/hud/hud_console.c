@@ -9,7 +9,7 @@
 #include "hud.h"
 
 void SC2_HUD_WriteConsolePanel(LPEDICT ent) {
-    DWORD count = 0;
+    uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_HUD_EnsureLayout(&count);
     if (!frames) return;
 

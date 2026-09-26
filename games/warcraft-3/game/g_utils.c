@@ -2,11 +2,11 @@
 
 typedef struct {
     LPEDICT ent;
-    DWORD spawn_time;
+    uint32_t spawn_time;
 } deferred_free_t;
 
 static deferred_free_t deferred_frees[MAX_ENTITIES];
-static DWORD deferred_free_count;
+static uint32_t deferred_free_count;
 
 /* Drop a queued removal when another lifecycle path frees the same edict first. */
 static void G_CancelDeferredFree(LPEDICT ent) {
@@ -18,7 +18,7 @@ static void G_CancelDeferredFree(LPEDICT ent) {
 }
 
 /* Identify hidden-but-live edicts whose JASS handles must already behave as null. */
-BOOL G_IsDeferredFree(LPCEDICT ent) {
+bool G_IsDeferredFree(LPCEDICT ent) {
     if (!ent) return false;
     FOR_LOOP(i, deferred_free_count)
         if (deferred_frees[i].ent == ent && deferred_frees[i].spawn_time == ent->spawn_time) return true;
@@ -30,16 +30,16 @@ static void G_RemoveEntityFromJassGroups(LPEDICT ent) {
     FOR_LOOP(i, level.num_groups) {
         ggroup_t *group = level.groups[i];
         if (!group->inuse) continue;
-        for (DWORD k = 0; k < group->num_units;) {
+        for (uint32_t k = 0; k < group->num_units;) {
             if (group->units[k] != ent) { k++; continue; }
-            for (DWORD n = k + 1; n < group->num_units; n++) group->units[n - 1] = group->units[n];
+            for (uint32_t n = k + 1; n < group->num_units; n++) group->units[n - 1] = group->units[n];
             group->num_units--;
         }
     }
 }
 
-void G_SetPlayerText(LPGAMECLIENT client, PLAYERTEXT index, LPCSTR text) {
-    DWORD cursor;
+void G_SetPlayerText(LPGAMECLIENT client, PLAYERTEXT index, cstring_t text) {
+    uint32_t cursor;
 
     if (!client || index >= PLAYERTEXT_COUNT) {
         return;
@@ -76,9 +76,9 @@ void G_FreeEdict(LPEDICT ent) {
     FOR_LOOP(i, level.num_groups) {
         ggroup_t *group = level.groups[i];
         if (!group->inuse) continue;
-        for (DWORD k = 0; k < group->num_units;) {
+        for (uint32_t k = 0; k < group->num_units;) {
             if (group->units[k] != ent) { k++; continue; }
-            for (DWORD n = k + 1; n < group->num_units; n++) group->units[n - 1] = group->units[n];
+            for (uint32_t n = k + 1; n < group->num_units; n++) group->units[n - 1] = group->units[n];
             group->num_units--;
         }
     }
@@ -154,7 +154,7 @@ void G_SetPlayerEventSubject(LPEVENT evt, LPEDICT subject) {
     evt->subject_spawn_tracked = false;
 }
 
-BOOL G_EventSubjectIsCurrent(LPEVENT evt) {
+bool G_EventSubjectIsCurrent(LPEVENT evt) {
     return !evt->subject || !evt->subject_spawn_tracked ||
         (evt->subject->inuse && evt->subject->spawn_time == evt->subject_spawn_time &&
          (G_IsDeathEvent(evt->type) || !G_IsDeferredFree(evt->subject)));
@@ -165,30 +165,30 @@ BOOL G_EventSubjectIsCurrent(LPEVENT evt) {
 
 typedef struct {
     char chain[JASS_GROUP_DEBUG_CHAIN_SIZE];
-    LONG trigger_ordinal;
-    DWORD allocations;
-    DWORD frees;
+    int32_t trigger_ordinal;
+    uint32_t allocations;
+    uint32_t frees;
 } jass_group_debug_stat_t;
 
 typedef struct {
-    LPCSTR creator;
+    cstring_t creator;
     char chain[JASS_GROUP_DEBUG_CHAIN_SIZE];
-    LONG trigger_ordinal;
+    int32_t trigger_ordinal;
 } jass_group_debug_slot_t;
 
 static jass_group_debug_slot_t *jass_group_debug_slots;
-static DWORD jass_group_debug_slot_capacity;
+static uint32_t jass_group_debug_slot_capacity;
 static jass_group_debug_stat_t jass_group_debug_stats[JASS_GROUP_DEBUG_MAX_STATS];
-static DWORD jass_group_debug_num_stats;
-static BOOL jass_group_debug_full_reported;
+static uint32_t jass_group_debug_num_stats;
+static bool jass_group_debug_full_reported;
 
-BOOL G_JassGroupDebugEnabled(void) {
+bool G_JassGroupDebugEnabled(void) {
     return gi.CvarString && atoi(gi.CvarString("wc3_group_debug", "0")) != 0;
 }
 
-static BOOL G_EnsureJassGroupDebugSlots(DWORD count) {
+static bool G_EnsureJassGroupDebugSlots(uint32_t count) {
     jass_group_debug_slot_t *slots;
-    DWORD capacity;
+    uint32_t capacity;
 
     if (count <= jass_group_debug_slot_capacity) return true;
     capacity = level.group_capacity > count ? level.group_capacity : count;
@@ -217,8 +217,8 @@ void G_ResetJassGroupDebug(void) {
     jass_group_debug_full_reported = false;
 }
 
-static jass_group_debug_stat_t *G_FindJassGroupDebugStat(LPCSTR chain, LONG trigger_ordinal, BOOL create) {
-    LPCSTR key = chain && *chain ? chain : "<unknown>";
+static jass_group_debug_stat_t *G_FindJassGroupDebugStat(cstring_t chain, int32_t trigger_ordinal, bool create) {
+    cstring_t key = chain && *chain ? chain : "<unknown>";
     FOR_LOOP(i, jass_group_debug_num_stats) {
         jass_group_debug_stat_t *stat = &jass_group_debug_stats[i];
         if (stat->trigger_ordinal == trigger_ordinal && !strcmp(stat->chain, key)) return stat;
@@ -230,8 +230,8 @@ static jass_group_debug_stat_t *G_FindJassGroupDebugStat(LPCSTR chain, LONG trig
     return stat;
 }
 
-BOOL G_JassGroupIndex(ggroup_t const *group, DWORD *index) {
-    DWORD id;
+bool G_JassGroupIndex(ggroup_t const *group, uint32_t *index) {
+    uint32_t id;
     if (!group || !level.groups) return false;
     id = group->handle_id;
     if (id >= level.num_groups || level.groups[id] != group) return false;
@@ -239,27 +239,27 @@ BOOL G_JassGroupIndex(ggroup_t const *group, DWORD *index) {
     return true;
 }
 
-ggroup_t *G_JassGroupByIndex(DWORD index) {
+ggroup_t *G_JassGroupByIndex(uint32_t index) {
     return index < level.num_groups && level.groups ? level.groups[index] : NULL;
 }
 
-BOOL G_JassGroupValid(ggroup_t const *group) {
+bool G_JassGroupValid(ggroup_t const *group) {
     return G_JassGroupIndex(group, NULL) && group->inuse;
 }
 
-BOOL G_QuestValid(QUEST const *quest) {
+bool G_QuestValid(QUEST const *quest) {
     return quest && quest >= level.quests && quest < level.quests + MAX_QUESTS && quest->inuse;
 }
 
-BOOL G_QuestItemValid(QUESTITEM const *item) {
+bool G_QuestItemValid(QUESTITEM const *item) {
     FOR_LOOP(i, MAX_QUESTS) if (level.quests[i].inuse && item >= level.quests[i].items &&
                                 item < level.quests[i].items + MAX_QUESTITEMS)
         return item->inuse;
     return false;
 }
 
-void G_SetJassGroupDebugContext(ggroup_t *group, LPCSTR creator, LPCSTR chain, LONG trigger_ordinal) {
-    DWORD index;
+void G_SetJassGroupDebugContext(ggroup_t *group, cstring_t creator, cstring_t chain, int32_t trigger_ordinal) {
+    uint32_t index;
     jass_group_debug_slot_t *slot;
     jass_group_debug_stat_t *stat;
     if (!G_JassGroupValid(group) || !G_JassGroupIndex(group, &index) ||
@@ -273,43 +273,43 @@ void G_SetJassGroupDebugContext(ggroup_t *group, LPCSTR creator, LPCSTR chain, L
     if (stat) stat->allocations++;
 }
 
-void G_SetJassGroupDebugCreator(ggroup_t *group, LPCSTR creator) {
+void G_SetJassGroupDebugCreator(ggroup_t *group, cstring_t creator) {
     G_SetJassGroupDebugContext(group, creator, creator, -1);
 }
 
-LPCSTR G_GetJassGroupDebugCreator(ggroup_t const *group) {
-    DWORD index;
+cstring_t G_GetJassGroupDebugCreator(ggroup_t const *group) {
+    uint32_t index;
     if (!G_JassGroupValid(group) || !G_JassGroupIndex(group, &index) ||
         index >= jass_group_debug_slot_capacity) return NULL;
     return jass_group_debug_slots[index].creator;
 }
 
-LPCSTR G_GetJassGroupDebugChain(ggroup_t const *group) {
-    DWORD index;
-    LPCSTR chain;
+cstring_t G_GetJassGroupDebugChain(ggroup_t const *group) {
+    uint32_t index;
+    cstring_t chain;
     if (!G_JassGroupValid(group) || !G_JassGroupIndex(group, &index) ||
         index >= jass_group_debug_slot_capacity) return NULL;
     chain = jass_group_debug_slots[index].chain;
     return *chain ? chain : NULL;
 }
 
-LONG G_GetJassGroupDebugTrigger(ggroup_t const *group) {
-    DWORD index;
+int32_t G_GetJassGroupDebugTrigger(ggroup_t const *group) {
+    uint32_t index;
     if (!G_JassGroupValid(group) || !G_JassGroupIndex(group, &index) ||
         index >= jass_group_debug_slot_capacity) return -1;
     return jass_group_debug_slots[index].trigger_ordinal;
 }
 
-void G_DumpJassGroupDebug(LPCSTR failing_creator, LPCSTR failing_chain, LONG failing_trigger) {
+void G_DumpJassGroupDebug(cstring_t failing_creator, cstring_t failing_chain, int32_t failing_trigger) {
     typedef struct {
         char chain[JASS_GROUP_DEBUG_CHAIN_SIZE];
-        LONG trigger_ordinal;
-        DWORD live;
+        int32_t trigger_ordinal;
+        uint32_t live;
     } group_chain_count_t;
     group_chain_count_t counts[JASS_GROUP_DEBUG_MAX_STATS] = {0};
-    DWORD num_counts = 0;
+    uint32_t num_counts = 0;
 #ifdef WC3_DEBUG_GROUPS
-    DWORD live = 0;
+    uint32_t live = 0;
 #endif
 
     if (!G_JassGroupDebugEnabled() || jass_group_debug_full_reported) return;
@@ -317,9 +317,9 @@ void G_DumpJassGroupDebug(LPCSTR failing_creator, LPCSTR failing_chain, LONG fai
 
     FOR_LOOP(i, level.num_groups) {
         ggroup_t const *group = level.groups[i];
-        LPCSTR chain = "<unknown>";
-        LONG trigger_ordinal = -1;
-        DWORD k;
+        cstring_t chain = "<unknown>";
+        int32_t trigger_ordinal = -1;
+        uint32_t k;
         if (!group || !group->inuse) continue;
     #ifdef WC3_DEBUG_GROUPS
         live++;
@@ -351,8 +351,8 @@ void G_DumpJassGroupDebug(LPCSTR failing_creator, LPCSTR failing_chain, LONG fai
             (unsigned)level.group_capacity, (unsigned)num_counts);
     FOR_LOOP(i, num_counts) {
         jass_group_debug_stat_t *stat = G_FindJassGroupDebugStat(counts[i].chain, counts[i].trigger_ordinal, false);
-        DWORD allocations = stat ? stat->allocations : counts[i].live;
-        DWORD frees = stat ? stat->frees : 0;
+        uint32_t allocations = stat ? stat->allocations : counts[i].live;
+        uint32_t frees = stat ? stat->frees : 0;
         fprintf(stderr,
                 "WC3_GROUP_DEBUG chain trigger=%ld live=%u allocated=%u freed=%u outstanding=%u path=\"%s\"\n",
                 (long)counts[i].trigger_ordinal, (unsigned)counts[i].live,
@@ -363,11 +363,11 @@ void G_DumpJassGroupDebug(LPCSTR failing_creator, LPCSTR failing_chain, LONG fai
 #endif
 }
 
-static BOOL G_GrowJassGroupRegistry(DWORD count) {
+static bool G_GrowJassGroupRegistry(uint32_t count) {
     ggroup_t **groups;
-    DWORD capacity;
+    uint32_t capacity;
 #ifdef WC3_DEBUG_GROUPS
-    DWORD const old_capacity = level.group_capacity;
+    uint32_t const old_capacity = level.group_capacity;
 #endif
 
     if (count <= level.group_capacity) return true;
@@ -396,7 +396,7 @@ static BOOL G_GrowJassGroupRegistry(DWORD count) {
     return true;
 }
 
-BOOL G_EnsureJassGroupSlots(DWORD count) {
+bool G_EnsureJassGroupSlots(uint32_t count) {
     if (!G_GrowJassGroupRegistry(count)) return false;
     while (level.num_groups < count) {
         ggroup_t *group = gi.MemAlloc(sizeof(*group));
@@ -411,10 +411,10 @@ BOOL G_EnsureJassGroupSlots(DWORD count) {
 ggroup_t *G_AllocJassGroup(void) {
     ggroup_t *group;
 
-    for (DWORD i = level.first_free_group; i < level.num_groups; i++) {
+    for (uint32_t i = level.first_free_group; i < level.num_groups; i++) {
         group = level.groups[i];
         if (group && !group->inuse) {
-            DWORD const handle_id = group->handle_id;
+            uint32_t const handle_id = group->handle_id;
             memset(group, 0, sizeof(*group));
             group->handle_id = handle_id;
             group->inuse = true;
@@ -439,7 +439,7 @@ ggroup_t *G_AllocJassGroup(void) {
 }
 
 void G_FreeJassGroup(ggroup_t *group) {
-    DWORD index;
+    uint32_t index;
     jass_group_debug_stat_t *stat = NULL;
     if (!G_JassGroupValid(group) || !G_JassGroupIndex(group, &index)) return;
     if (index < jass_group_debug_slot_capacity) {
@@ -472,36 +472,36 @@ void G_ClearRegionRegistry(void) {
     level.num_regions = 0;
 }
 
-LPREGION G_RegionFromHandle(HANDLE handle) {
-    DWORD slot, generation;
+LPREGION G_RegionFromHandle(handle_t handle) {
+    uint32_t slot, generation;
     LPREGION region;
     if (!G_RegionHandleParts(handle, &slot, &generation) || slot >= level.num_regions) return NULL;
     region = &level.regions[slot];
     return region->inuse && region->generation == generation ? region : NULL;
 }
 
-BOOL G_RegionHandleParts(HANDLE handle, DWORD *slot, DWORD *generation) {
+bool G_RegionHandleParts(handle_t handle, uint32_t *slot, uint32_t *generation) {
     uintptr_t token = (uintptr_t)handle;
-    DWORD const index = (DWORD)((token & (((uintptr_t)1 << REGION_TOKEN_SLOT_BITS) - 1)) >> 2);
+    uint32_t const index = (uint32_t)((token & (((uintptr_t)1 << REGION_TOKEN_SLOT_BITS) - 1)) >> 2);
     uintptr_t const gen = token >> REGION_TOKEN_SLOT_BITS;
     if ((token & 3) != 1 || index >= MAX_REGIONS || gen > REGION_HANDLE_GENERATION_MAX) return false;
     if (slot) *slot = index;
-    if (generation) *generation = (DWORD)gen;
+    if (generation) *generation = (uint32_t)gen;
     return true;
 }
 
-HANDLE G_RegionHandle(DWORD slot) {
+handle_t G_RegionHandle(uint32_t slot) {
     LPREGION region;
     if (slot >= level.num_regions || slot >= MAX_REGIONS) return NULL;
     region = &level.regions[slot];
     if (!region->inuse) return NULL;
-    return (HANDLE)((region->generation << REGION_TOKEN_SLOT_BITS) | ((uintptr_t)slot << 2) | 1);
+    return (handle_t)((region->generation << REGION_TOKEN_SLOT_BITS) | ((uintptr_t)slot << 2) | 1);
 }
 
-LPEVENT G_EventFromHandle(HANDLE handle) {
+LPEVENT G_EventFromHandle(handle_t handle) {
     uintptr_t token = (uintptr_t)handle, base = (uintptr_t)level.events.handlers;
     if ((token & 3) == 3) {
-        DWORD slot, generation;
+        uint32_t slot, generation;
         LPEVENT event;
         if (!G_EventHandleParts(handle, &slot, &generation)) return NULL;
         event = &level.events.handlers[slot];
@@ -516,22 +516,22 @@ LPEVENT G_EventFromHandle(HANDLE handle) {
     }
 }
 
-BOOL G_EventHandleParts(HANDLE handle, DWORD *slot, DWORD *generation) {
+bool G_EventHandleParts(handle_t handle, uint32_t *slot, uint32_t *generation) {
     uintptr_t token = (uintptr_t)handle;
-    DWORD const index = (DWORD)((token & (((uintptr_t)1 << EVENT_TOKEN_SLOT_BITS) - 1)) >> 2);
+    uint32_t const index = (uint32_t)((token & (((uintptr_t)1 << EVENT_TOKEN_SLOT_BITS) - 1)) >> 2);
     uintptr_t const gen = token >> EVENT_TOKEN_SLOT_BITS;
     if ((token & 3) != 3 || index >= MAX_EVENTS || gen > EVENT_HANDLE_GENERATION_MAX) return false;
     if (slot) *slot = index;
-    if (generation) *generation = (DWORD)gen;
+    if (generation) *generation = (uint32_t)gen;
     return true;
 }
 
-HANDLE G_EventHandle(LPEVENT event) {
-    DWORD slot;
+handle_t G_EventHandle(LPEVENT event) {
+    uint32_t slot;
     if (!event) return NULL;
     if (event->type != EVENT_GAME_ENTER_REGION && event->type != EVENT_GAME_LEAVE_REGION) return event;
-    slot = (DWORD)(event - level.events.handlers);
-    return (HANDLE)((event->handle_generation << EVENT_TOKEN_SLOT_BITS) | ((uintptr_t)slot << 2) | 3);
+    slot = (uint32_t)(event - level.events.handlers);
+    return (handle_t)((event->handle_generation << EVENT_TOKEN_SLOT_BITS) | ((uintptr_t)slot << 2) | 3);
 }
 
 LPTRIGGER G_AllocJassTrigger(void) {
@@ -540,7 +540,7 @@ LPTRIGGER G_AllocJassTrigger(void) {
     memset(trigger, 0, sizeof(*trigger)); return trigger;
 }
 
-BOOL G_RegionContains(LPCREGION region, LPCVECTOR2 point) {
+bool G_RegionContains(LPCREGION region, LPCVECTOR2 point) {
     FOR_LOOP(i, region->num_rects) {
         if (Box2_containsPoint(region->rects+i, point)) {
             return true;
@@ -580,7 +580,7 @@ void G_RemoveQuest(LPQUEST quest) {
 }
 
 void G_InitPlayerAlliances(LPCMAPINFO mapinfo) {
-    DWORD const passive = 1u << ALLIANCE_PASSIVE;
+    uint32_t const passive = 1u << ALLIANCE_PASSIVE;
 
     memset(level.alliances, 0, sizeof(level.alliances));
 
@@ -607,9 +607,9 @@ void G_InitPlayerAlliances(LPCMAPINFO mapinfo) {
     }
 }
 
-void G_SetPlayerAlliance(LPCPLAYER p1, LPCPLAYER p2, PLAYERALLIANCE type, BOOL value) {
-    DWORD const flag = 1u << type;
-    DWORD const before = level.alliances[p1->number][p2->number];
+void G_SetPlayerAlliance(LPCPLAYER p1, LPCPLAYER p2, PLAYERALLIANCE type, bool value) {
+    uint32_t const flag = 1u << type;
+    uint32_t const before = level.alliances[p1->number][p2->number];
 
     if (value) level.alliances[p1->number][p2->number] |= flag;
     else level.alliances[p1->number][p2->number] &= ~flag;
@@ -623,11 +623,11 @@ void G_SetPlayerAlliance(LPCPLAYER p1, LPCPLAYER p2, PLAYERALLIANCE type, BOOL v
     }
 }
 
-BOOL G_GetPlayerAlliance(LPCPLAYER p1, LPCPLAYER p2, PLAYERALLIANCE type) {
+bool G_GetPlayerAlliance(LPCPLAYER p1, LPCPLAYER p2, PLAYERALLIANCE type) {
     return level.alliances[p1->number][p2->number] & (1 << type);
 }
 
-BOOL G_PlayerTreatsPlayerAsAlly(DWORD source, DWORD other) {
+bool G_PlayerTreatsPlayerAsAlly(uint32_t source, uint32_t other) {
     if (source >= MAX_PLAYERS || other >= MAX_PLAYERS) return false;
     if (source == other) return true;
     return (level.alliances[source][other] & (1u << ALLIANCE_PASSIVE)) != 0;

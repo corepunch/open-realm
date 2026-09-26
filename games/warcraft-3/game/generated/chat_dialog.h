@@ -32,8 +32,8 @@ typedef struct ChatDialog_s {
 } ChatDialog_t;
 
 
-static inline BOOL ChatDialog_Bind(ChatDialog_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool ChatDialog_Bind(ChatDialog_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -69,7 +69,7 @@ static inline BOOL ChatDialog_Bind(ChatDialog_t *out, LPFRAMEDEF bind_root) {
     return ok;
 }
 
-static inline BOOL ChatDialog_Load(ChatDialog_t *out) {
+static inline bool ChatDialog_Load(ChatDialog_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\ChatDialog.fdf") &&
            ChatDialog_Bind(out, UI_FindFrame("ChatDialog"));

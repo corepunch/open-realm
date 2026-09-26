@@ -39,61 +39,61 @@ typedef struct {
     char address[64];
     char hostname[80];
     char mapname[80];
-    DWORD players;
-    DWORD maxPlayers;
-    DWORD speed;
-    DWORD slots;
+    uint32_t players;
+    uint32_t maxPlayers;
+    uint32_t speed;
+    uint32_t slots;
 } menuLanGame_t;
 
 /* Callbacks provided by the client to the menu library.
  * The UI imports file I/O, memory allocation, and command forwarding. */
 typedef struct {
     /* File system operations (archive-agnostic, Quake 3 pattern) */
-    int (*FS_ReadFile)(LPCSTR fileName, void **buf);  /* Returns file size, allocates buf */
+    int (*FS_ReadFile)(cstring_t fileName, void **buf);  /* Returns file size, allocates buf */
     void (*FS_FreeFile)(void *buf);
-    int (*FS_GetFileList)(LPCSTR path, LPCSTR extension, char *listbuf, int bufsize);
-    void (*FS_WriteFile)(LPCSTR path, const void *data, int size); /* Write to local disk */
-    void (*UserPath)(LPCSTR rel, LPSTR out, DWORD out_size); /* Resolve writable per-user game data */
+    int (*FS_GetFileList)(cstring_t path, cstring_t extension, char *listbuf, int bufsize);
+    void (*FS_WriteFile)(cstring_t path, const void *data, int size); /* Write to local disk */
+    void (*UserPath)(cstring_t rel, string_t out, uint32_t out_size); /* Resolve writable per-user game data */
     
     /* Memory allocation */
-    HANDLE (*MemAlloc)(long size);
-    void (*MemFree)(HANDLE);
+    handle_t (*MemAlloc)(long size);
+    void (*MemFree)(handle_t);
     
     /* Asset indexing (for textures, models, fonts) */
-    int (*ImageIndex)(LPCSTR imageName);
-    int (*ModelIndex)(LPCSTR modelName);     /* register model by name, return cl.models index */
-    int (*FontIndex)(LPCSTR fontName, DWORD fontSize);
+    int (*ImageIndex)(cstring_t imageName);
+    int (*ModelIndex)(cstring_t modelName);     /* register model by name, return cl.models index */
+    int (*FontIndex)(cstring_t fontName, uint32_t fontSize);
     
     /* Command execution (following Quake 3 pattern)
      * UI executes console commands; engine dispatcher handles routing */
-    void (*Cmd_AddCommand)(LPCSTR name, void (*function)(void));
+    void (*Cmd_AddCommand)(cstring_t name, void (*function)(void));
     int (*Cmd_Argc)(void);
-    LPCSTR (*Cmd_Argv)(int arg);
-    LPCSTR (*Cmd_ArgsFrom)(int arg);
-    void (*Cmd_ExecuteText)(LPCSTR text);
-    void (*ServerCommand)(LPCSTR text);
-    LPCSTR (*Cvar_String)(LPCSTR name, LPCSTR fallback);
-    void (*Cvar_Set)(LPCSTR name, LPCSTR value);
-    LPCSTR (*GetConfigString)(DWORD index);
+    cstring_t (*Cmd_Argv)(int arg);
+    cstring_t (*Cmd_ArgsFrom)(int arg);
+    void (*Cmd_ExecuteText)(cstring_t text);
+    void (*ServerCommand)(cstring_t text);
+    cstring_t (*Cvar_String)(cstring_t name, cstring_t fallback);
+    void (*Cvar_Set)(cstring_t name, cstring_t value);
+    cstring_t (*GetConfigString)(uint32_t index);
     void (*LAN_RefreshServers)(void);
-    DWORD (*LAN_NumServers)(void);
-    BOOL (*LAN_Server)(DWORD index, menuLanGame_t *out);
-    void (*LAN_ConnectServer)(DWORD index);
+    uint32_t (*LAN_NumServers)(void);
+    bool (*LAN_Server)(uint32_t index, menuLanGame_t *out);
+    void (*LAN_ConnectServer)(uint32_t index);
    
     /* Renderer access for frame drawing */
     LPRENDERER (*GetRenderer)(void);
     
     /* Output */
-    void (*Printf)(LPCSTR fmt, ...);
+    void (*Printf)(cstring_t fmt, ...);
 
     /* Sound */
-    void (*PlaySound)(DWORD kit_id);
-    void (*PlaySoundByName)(LPCSTR name);
-    void (*PlayMusic)(LPCSTR playlist);
+    void (*PlaySound)(uint32_t kit_id);
+    void (*PlaySoundByName)(cstring_t name);
+    void (*PlayMusic)(cstring_t playlist);
     void (*StopMusic)(void);
 
     /* Full-screen pre-rendered movie playback. Returns false when unsupported or unavailable. */
-    BOOL (*PlayMovie)(LPCSTR path);
+    bool (*PlayMovie)(cstring_t path);
 } menuImport_t;
 
 /* Function table exported by the menu library to the client. */
@@ -103,12 +103,12 @@ typedef struct {
     void (*Shutdown)(void);
     
     /* Main loop integration — called at draw time with current client time */
-    void (*Refresh)(DWORD time);
+    void (*Refresh)(uint32_t time);
     
     /* Input event handling */
-    void (*KeyEvent)(int key, BOOL down, DWORD time);
-    void (*TextInput)(LPCSTR text);
-    BOOL (*MouseEvent)(menuMouseEvent_t event, int x, int y, int32_t param);
+    void (*KeyEvent)(int key, bool down, uint32_t time);
+    void (*TextInput)(cstring_t text);
+    bool (*MouseEvent)(menuMouseEvent_t event, int x, int y, int32_t param);
     
     void (*UpdateLobbySetup)(lobbyState_t const *state);
 } menuExport_t;

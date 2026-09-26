@@ -2,10 +2,10 @@
 #include "keys_name.h"
 
 static UINAME keybindings[KEY_MOD_COUNT][MAX_KEYS];
-static BYTE key_down_mods[MAX_KEYS];
-static BYTE key_down_set[MAX_KEYS];
+static uint8_t key_down_mods[MAX_KEYS];
+static uint8_t key_down_set[MAX_KEYS];
 
-void Key_SetBinding(keyCode_t key, DWORD mods, LPCSTR binding) {
+void Key_SetBinding(keyCode_t key, uint32_t mods, cstring_t binding) {
     mods &= KEY_MOD_MASK;
     if (binding)
         snprintf(keybindings[mods][key], sizeof(keybindings[mods][key]), "%s", binding);
@@ -13,13 +13,13 @@ void Key_SetBinding(keyCode_t key, DWORD mods, LPCSTR binding) {
         memset(keybindings[mods][key], 0, sizeof(keybindings[mods][key]));
 }
 
-LPCSTR Key_GetBinding(keyCode_t key, DWORD mods) {
+cstring_t Key_GetBinding(keyCode_t key, uint32_t mods) {
     return keybindings[mods & KEY_MOD_MASK][key];
 }
 
-static LPCSTR Key_FindBinding(keyCode_t key, DWORD mods) {
-    DWORD const slot = mods & KEY_MOD_MASK;
-    LPCSTR kb = keybindings[slot][key];
+static cstring_t Key_FindBinding(keyCode_t key, uint32_t mods) {
+    uint32_t const slot = mods & KEY_MOD_MASK;
+    cstring_t kb = keybindings[slot][key];
 
     if (kb[0]) return kb;
 
@@ -36,12 +36,12 @@ static LPCSTR Key_FindBinding(keyCode_t key, DWORD mods) {
 }
 
 #ifdef BZ_TESTS
-LPCSTR Key_FindBindingForTest(keyCode_t key, DWORD mods) { return Key_FindBinding(key, mods); }
+cstring_t Key_FindBindingForTest(keyCode_t key, uint32_t mods) { return Key_FindBinding(key, mods); }
 #endif
 
 static void Key_Bind_f(void) {
     keyCode_t keynum;
-    DWORD mods;
+    uint32_t mods;
 
     if (Cmd_Argc() < 2) {
         fprintf(stderr, "bind <key> [command] : attach a command to a key\n");
@@ -60,7 +60,7 @@ static void Key_Bind_f(void) {
 
 static void Key_Unbind_f(void) {
     keyCode_t keynum;
-    DWORD mods;
+    uint32_t mods;
 
     if (Cmd_Argc() != 2) {
         fprintf(stderr, "unbind <key> : remove commands from a key\n");
@@ -80,13 +80,13 @@ static void Key_Unbindall_f(void) {
     }
 }
 
-static void Key_WriteBindName(FILE *file, keyCode_t key, DWORD mods, LPCSTR binding) {
+static void Key_WriteBindName(FILE *file, keyCode_t key, uint32_t mods, cstring_t binding) {
     char name[64];
 
     Key_FormatName(key, mods, name, sizeof(name));
     if (file) {
         fprintf(file, "bind %s \"", name);
-        for (LPCSTR p = binding; *p; p++) {
+        for (cstring_t p = binding; *p; p++) {
             if (*p == '"') fputc('\\', file);
             fputc(*p, file);
         }
@@ -122,8 +122,8 @@ void Key_Init(void) {
     Cmd_AddCommand("bindlist", Key_Bindlist_f);
 }
 
-void Key_Event(keyCode_t key, DWORD mods, bool down, DWORD time) {
-    LPCSTR kb;
+void Key_Event(keyCode_t key, uint32_t mods, bool down, uint32_t time) {
+    cstring_t kb;
     char cmd[1024];
 
     /* Full-screen movies own keyboard input. Escape skips; every other key is
@@ -140,7 +140,7 @@ void Key_Event(keyCode_t key, DWORD mods, bool down, DWORD time) {
     if (cls.key_dest == key_game && down && CL_WindowKeyEvent(key)) return;
 
     if (down) {
-        key_down_mods[key] = (BYTE)(mods & KEY_MOD_MASK);
+        key_down_mods[key] = (uint8_t)(mods & KEY_MOD_MASK);
         key_down_set[key] = 1;
     } else if (key_down_set[key]) {
         mods = key_down_mods[key];

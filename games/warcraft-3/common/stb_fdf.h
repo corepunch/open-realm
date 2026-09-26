@@ -99,16 +99,16 @@ typedef struct {
 
 typedef struct {
     LPCFRAMEDEF relativeTo;
-    FLOAT offset;
+    float offset;
     uiFramePointPos_t targetPos: 7;
-    DWORD used: 1;
+    uint32_t used: 1;
 } FRAMEPOINT;
 
 typedef FRAMEPOINT const *LPCFRAMEPOINT;
 
 typedef struct {
     UINAME text;
-    LONG value;
+    int32_t value;
 } uiMenuItem_t;
 
 typedef struct {
@@ -118,27 +118,27 @@ typedef struct {
     char suggestedPlayers[96];
     char mapSize[32];
     char tileset[64];
-    DWORD players;
-    DWORD flags;
+    uint32_t players;
+    uint32_t flags;
 } uiMapListItem_t;
 
 typedef struct {
     uiMapListItem_t items[UI_MAX_MAP_LIST_ITEMS];
-    DWORD count;
-    DWORD selected;
-    DWORD scroll;
-    FLOAT visualScroll;
+    uint32_t count;
+    uint32_t selected;
+    uint32_t scroll;
+    float visualScroll;
 } uiMapListState_t;
 
 typedef struct {
     uiMapListState_t *State;
-    DWORD VisibleRows;
-    FLOAT RowHeight;
-    FLOAT InsetX;
-    FLOAT InsetY;
+    uint32_t VisibleRows;
+    float RowHeight;
+    float InsetX;
+    float InsetY;
     UINAME SelectCommand;
     UINAME FontName;
-    FLOAT FontSize;
+    float FontSize;
     COLOR32 TextColor;
     COLOR32 SelectedTextColor;
 } uiMapListControl_t;
@@ -165,60 +165,60 @@ struct uiFrameDef_s {
     UINAME Name;
     UINAME TextStorage;
     UINAME OnClick;
-    LPCSTR Text, Tip, Ubertip;
-    FLOAT Width, Height;
+    cstring_t Text, Tip, Ubertip;
+    float Width, Height;
     COLOR32 Color;
     BLEND_MODE AlphaMode;
-    DWORD DecorateFileNames: 1;
-    DWORD inuse: 1;
-    DWORD AnyPointsSet: 1;
-    DWORD hidden: 1;
-    DWORD disabled: 1;
-    DWORD TextLength;
-    DWORD Stat;
-    LPSTR DynamicText;
-    DWORD DynamicTextCapacity;
+    uint32_t DecorateFileNames: 1;
+    uint32_t inuse: 1;
+    uint32_t AnyPointsSet: 1;
+    uint32_t hidden: 1;
+    uint32_t disabled: 1;
+    uint32_t TextLength;
+    uint32_t Stat;
+    string_t DynamicText;
+    uint32_t DynamicTextCapacity;
     struct {
         FRAMEPOINT x[FPP_COUNT];
         FRAMEPOINT y[FPP_COUNT];
     } Points;
     struct {
-        DWORD Image;
-        DWORD Image2;
+        uint32_t Image;
+        uint32_t Image2;
         BOX2 TexCoord;
     } Texture;
     struct {
-        DWORD Background;
-        DWORD CornerFlags;
-        FLOAT CornerSize;
-        FLOAT BackgroundSize;
-        FLOAT BackgroundInsets[4];
-        DWORD EdgeFile;
-        DWORD TileBackground: 1;
-        DWORD BlendAll: 1;
-        DWORD Mirrored: 1;
+        uint32_t Background;
+        uint32_t CornerFlags;
+        float CornerSize;
+        float BackgroundSize;
+        float BackgroundInsets[4];
+        uint32_t EdgeFile;
+        uint32_t TileBackground: 1;
+        uint32_t BlendAll: 1;
+        uint32_t Mirrored: 1;
     } Backdrop;
     UINAME DialogBackdropName;
     LPCFRAMEDEF DialogBackdrop;
     struct {
-        DWORD model;
+        uint32_t model;
     } Portrait;
     struct {
         UIFRAMEPOINT corner;
-        FLOAT x, y;
+        float x, y;
     } Anchor;
     struct {
         UIFRAMEPOINT type;
         LPCFRAMEDEF relativeTo;
         UIFRAMEPOINT target;
-        FLOAT x, y;
+        float x, y;
     } SetPoint;
     struct {
         UINAME Name;
         UINAME Unknown;
         UIFONTFLAGS FontFlags;
-        FLOAT Size;
-        DWORD Index;
+        float Size;
+        uint32_t Index;
         COLOR32 Color;
         COLOR32 HighlightColor;
         COLOR32 DisabledColor;
@@ -232,7 +232,7 @@ struct uiFrameDef_s {
     } Font;
     struct {
         HIGHLIGHTTYPE Type;
-        DWORD AlphaFile;
+        uint32_t AlphaFile;
         BLEND_MODE AlphaMode;
         COLOR32 Color;
     } Highlight;
@@ -247,7 +247,7 @@ struct uiFrameDef_s {
         BUTTONTEXT HighlightText;
     } Button;
     struct {
-        DWORD Style;
+        uint32_t Style;
         struct {
             UINAME Normal;
             UINAME Pushed;
@@ -258,43 +258,43 @@ struct uiFrameDef_s {
         } Backdrop;
         UINAME ShortcutKey;
         UINAME TabFocusNext;
-        BOOL TabFocusDefault;
+        bool TabFocusDefault;
     } Control;
     struct {
-        FLOAT InitialValue;
+        float InitialValue;
         LAYOUTDIRECTION Layout;
-        FLOAT MaxValue;
-        FLOAT MinValue;
-        FLOAT StepSize;
+        float MaxValue;
+        float MinValue;
+        float StepSize;
         UINAME ThumbButtonFrame;
         UINAME IncButtonFrame;
         UINAME DecButtonFrame;
     } Slider;
     struct {
-        FLOAT Border;
+        float Border;
         UINAME ScrollBar;
         UINAME FetchCommand;
         LPCFRAMEDEF EditTarget;
     } ListBox;
     uiMapListControl_t MapListControl;
     struct {
-        FLOAT Border;
+        float Border;
         struct {
             UINAME Text;
-            DWORD Value;
-            FLOAT Height;
+            uint32_t Value;
+            float Height;
         } Item;
-        DWORD ItemCount;
+        uint32_t ItemCount;
         uiMenuItem_t *Items; // lazily UI_FdfAlloc'd at UI_MAX_MENU_ITEMS on first UI_MenuAddItem; most frames never use Menu, so no fixed array here
         COLOR32 TextHighlightColor;
     } Menu;
     struct {
-        FLOAT BorderSize;
+        float BorderSize;
         COLOR32 CursorColor;
         COLOR32 HighlightColor;
-        DWORD MaxChars;
-        DWORD HighlightInitial: 1;
-        DWORD Focus: 1;
+        uint32_t MaxChars;
+        uint32_t HighlightInitial: 1;
+        uint32_t Focus: 1;
         UINAME Text;
         COLOR32 TextColor;
         UINAME TextFrame;
@@ -304,36 +304,36 @@ struct uiFrameDef_s {
         UINAME ArrowFrame;
         UINAME MenuFrame;
         UINAME TitleFrame;
-        FLOAT ButtonInset;
+        float ButtonInset;
     } Popup;
     struct {
-        FLOAT LineHeight;
-        FLOAT LineGap;
-        FLOAT Inset;
-        DWORD MaxLines;
+        float LineHeight;
+        float LineGap;
+        float Inset;
+        uint32_t MaxLines;
         UINAME ScrollBar;
     } TextArea;
     struct {
         UINAME CheckHighlight;
         UINAME DisabledCheckHighlight;
-        BOOL Checked;
+        bool Checked;
     } CheckBox;
     struct {
-        DWORD NumQueue;
+        uint32_t NumQueue;
         uiBuildQueueItem_t Queue[MAX_BUILD_QUEUE];
     } BuildQueue;
     struct {
-        DWORD HpBar;
-        DWORD ManaBar;
-        DWORD NumItems;
+        uint32_t HpBar;
+        uint32_t ManaBar;
+        uint32_t NumItems;
         uiMultiselectItem_t Items[MAX_SELECTED_ENTITIES];
     } Multiselect;
     /* Interaction state — updated by event handler, read by draw */
-    DWORD ui_flags;
+    uint32_t ui_flags;
     /* Per-type event handler: called from UI_MouseEventLocal */
-    void (*event_handler)(LPFRAMEDEF frame, menuMouseEvent_t event, FLOAT fdf_x, FLOAT fdf_y, int32_t param);
+    void (*event_handler)(LPFRAMEDEF frame, menuMouseEvent_t event, float fdf_x, float fdf_y, int32_t param);
     /* Per-type draw function: called from UI_DrawFrameOne */
-    void (*draw)(LPCFRAMEDEF frame, LPCRECT rect);
+    void (*draw)(LPCFRAMEDEF frame, rect_t const * rect);
 };
 #endif /* UIFRAMEDEF_S_DEFINED */
 
@@ -399,9 +399,9 @@ FRAMEDEF frames[MAX_UI_CLASSES] = { 0 };
 /* -------------------------------------------------------------------------- */
 /* FDF parser API                                                              */
 /* -------------------------------------------------------------------------- */
-BOOL UI_EnsureFDF(LPCSTR filename);
-void UI_ParseFDF(LPCSTR filename);
-void UI_ParseFDF_Buffer(LPCSTR filename, LPSTR buffer);
+bool UI_EnsureFDF(cstring_t filename);
+void UI_ParseFDF(cstring_t filename);
+void UI_ParseFDF_Buffer(cstring_t filename, string_t buffer);
 void UI_ClearTemplates(void);
 void UI_ClearTextures(void);
 
@@ -412,44 +412,44 @@ void UI_ClearTextures(void);
 /* -------------------------------------------------------------------------- */
 LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent);
 LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent);
-DWORD UI_FindFrameNumber(LPCSTR name);
-void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...);
-void UI_SetTextPointer(LPFRAMEDEF frame, LPCSTR text);
-void UI_SetTexture(LPFRAMEDEF frame, LPCSTR name, BOOL decorate);
-void UI_SetTexture2(LPFRAMEDEF frame, LPCSTR name, BOOL decorate);
-void UI_InheritFrom(LPFRAMEDEF frame, LPCSTR inheritName);
+uint32_t UI_FindFrameNumber(cstring_t name);
+void UI_SetText(LPFRAMEDEF frame, cstring_t format, ...);
+void UI_SetTextPointer(LPFRAMEDEF frame, cstring_t text);
+void UI_SetTexture(LPFRAMEDEF frame, cstring_t name, bool decorate);
+void UI_SetTexture2(LPFRAMEDEF frame, cstring_t name, bool decorate);
+void UI_InheritFrom(LPFRAMEDEF frame, cstring_t inheritName);
 
 /* -------------------------------------------------------------------------- */
 /* Asset loading (implemented by host module)                                  */
 /* -------------------------------------------------------------------------- */
-DWORD UI_LoadTexture(LPCSTR file, BOOL decorate);
-DWORD UI_LoadModel(LPCSTR file, BOOL decorate);
-LPCSTR UI_GetString(LPCSTR textID);
+uint32_t UI_LoadTexture(cstring_t file, bool decorate);
+uint32_t UI_LoadModel(cstring_t file, bool decorate);
+cstring_t UI_GetString(cstring_t textID);
 
 /* -------------------------------------------------------------------------- */
 /* FDF host services (implemented by host module — parser uses these)          */
 /* -------------------------------------------------------------------------- */
-HANDLE UI_FdfAlloc(long size);
-void UI_FdfFree(HANDLE ptr);
-DWORD UI_FdfFontIndex(LPCSTR name, DWORD size);
-int UI_FdfReadFile(LPCSTR name, HANDLE *out);
-void UI_FdfFreeFile(HANDLE buf);
+handle_t UI_FdfAlloc(long size);
+void UI_FdfFree(handle_t ptr);
+uint32_t UI_FdfFontIndex(cstring_t name, uint32_t size);
+int UI_FdfReadFile(cstring_t name, handle_t *out);
+void UI_FdfFreeFile(handle_t buf);
 
 /* -------------------------------------------------------------------------- */
 /* Theme functions (implemented by host module)                                */
 /* -------------------------------------------------------------------------- */
-LPCSTR Theme_String(LPCSTR key, LPCSTR fallback);
-FLOAT Theme_Float(LPCSTR key, LPCSTR fallback);
+cstring_t Theme_String(cstring_t key, cstring_t fallback);
+float Theme_Float(cstring_t key, cstring_t fallback);
 
 /* -------------------------------------------------------------------------- */
 /* Map list support                                                            */
 /* -------------------------------------------------------------------------- */
-void UI_BindMapList(LPFRAMEDEF frame, uiMapListState_t *state, LPCFRAMEDEF label, DWORD visible_rows, LPCSTR select_command);
+void UI_BindMapList(LPFRAMEDEF frame, uiMapListState_t *state, LPCFRAMEDEF label, uint32_t visible_rows, cstring_t select_command);
 
 /* -------------------------------------------------------------------------- */
 /* Layout serialization (implemented by host module — stubs in client UI)       */
 /* -------------------------------------------------------------------------- */
-void UI_WriteStart(DWORD layer);
+void UI_WriteStart(uint32_t layer);
 void UI_WriteFrame(LPCFRAMEDEF frame);
 void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent);
 /* UI_WriteLayout and UI_WriteWithTriggers use LPEDICT and are declared
@@ -462,11 +462,11 @@ void UI_WriteFrameWithChildren(LPCFRAMEDEF frame, LPCFRAMEDEF parent);
 #define WORD_EXTRACTOR_DEFINED
 KNOWN_AS(word_extractor, PARSER);
 struct word_extractor {
-    LPCSTR buffer;
-    LPCSTR start;
+    cstring_t buffer;
+    cstring_t start;
     const char *delimiters;
-    BOOL error;
-    BOOL eat_quotes;
+    bool error;
+    bool eat_quotes;
 };
 #endif
 
@@ -474,28 +474,28 @@ struct word_extractor {
 /* Pure frame helpers — extern declarations for non-implementation TUs          */
 /* -------------------------------------------------------------------------- */
 #ifndef STB_FDF_IMPLEMENTATION
-LPCSTR parse_token(LPPARSER p);
-LPCSTR parse_segment(LPPARSER p);
-LPCSTR parse_segment2(LPPARSER p);
-LPCSTR peek_token(LPPARSER p);
-BOOL eat_token(LPPARSER p, LPCSTR value);
+cstring_t parse_token(LPPARSER p);
+cstring_t parse_segment(LPPARSER p);
+cstring_t parse_segment2(LPPARSER p);
+cstring_t peek_token(LPPARSER p);
+bool eat_token(LPPARSER p, cstring_t value);
 void parser_error(LPPARSER parser);
-LPFRAMEDEF UI_FindFrame(LPCSTR name);
-LPFRAMEDEF UI_FindFrameByNumber(DWORD number);
-LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, LPCSTR name);
+LPFRAMEDEF UI_FindFrame(cstring_t name);
+LPFRAMEDEF UI_FindFrameByNumber(uint32_t number);
+LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, cstring_t name);
 LPFRAMEDEF UI_FindChildFrameType(LPFRAMEDEF frame, FRAMETYPE type);
-LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF anchor, LPCSTR name);
+LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF anchor, cstring_t name);
 void UI_InitFrame(LPFRAMEDEF frame, FRAMETYPE type);
-void UI_SetPoint(LPFRAMEDEF frame, UIFRAMEPOINT framePoint, LPCFRAMEDEF other, UIFRAMEPOINT otherPoint, FLOAT x, FLOAT y);
+void UI_SetPoint(LPFRAMEDEF frame, UIFRAMEPOINT framePoint, LPCFRAMEDEF other, UIFRAMEPOINT otherPoint, float x, float y);
 void UI_SetAllPoints(LPFRAMEDEF frame);
 void UI_SetParent(LPFRAMEDEF frame, LPCFRAMEDEF parent);
-void UI_SetSize(LPFRAMEDEF frame, FLOAT width, FLOAT height);
-void UI_SetEnabled(LPFRAMEDEF frame, BOOL enabled);
-void UI_SetHidden(LPFRAMEDEF frame, BOOL value);
-void UI_SetOnClick(LPFRAMEDEF frame, LPCSTR format, ...);
-DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max);
+void UI_SetSize(LPFRAMEDEF frame, float width, float height);
+void UI_SetEnabled(LPFRAMEDEF frame, bool enabled);
+void UI_SetHidden(LPFRAMEDEF frame, bool value);
+void UI_SetOnClick(LPFRAMEDEF frame, cstring_t format, ...);
+uint32_t UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, uint32_t max);
 void UI_MenuClearItems(LPFRAMEDEF frame);
-void UI_MenuAddItem(LPFRAMEDEF frame, LPCSTR text, LONG value);
+void UI_MenuAddItem(LPFRAMEDEF frame, cstring_t text, int32_t value);
 #endif /* !STB_FDF_IMPLEMENTATION */
 
 #ifdef STB_FDF_IMPLEMENTATION
@@ -532,16 +532,16 @@ static void parser_skip_ws(LPPARSER p) {
     }
 }
 
-static void parser_rtrim(LPSTR s) {
-    LPSTR end = s + strlen(s);
+static void parser_rtrim(string_t s) {
+    string_t end = s + strlen(s);
     while (end > s && isspace((unsigned char)end[-1])) *--end = '\0';
 }
 
-static inline LPCSTR parse_token(LPPARSER p) {
+static inline cstring_t parse_token(LPPARSER p) {
     static char word[PARSER_MAX_SEGMENT];
     parser_skip_ws(p);
     if (*p->buffer == '"') {
-        LPCSTR close = strchr(p->buffer + 1, '"');
+        cstring_t close = strchr(p->buffer + 1, '"');
         size_t len = close - p->buffer + 1;
         if (p->eat_quotes) { p->buffer++; len -= 2; }
         memcpy(word, p->buffer, len);
@@ -562,28 +562,28 @@ static inline LPCSTR parse_token(LPPARSER p) {
     }
 }
 
-static inline LPCSTR peek_token(LPPARSER p) {
+static inline cstring_t peek_token(LPPARSER p) {
     PARSER tmp = *p;
-    LPCSTR tok = parse_token(p);
+    cstring_t tok = parse_token(p);
     *p = tmp;
     return tok;
 }
 
-static inline BOOL eat_token(LPPARSER p, LPCSTR value) {
+static inline bool eat_token(LPPARSER p, cstring_t value) {
     if (!strcmp(peek_token(p), value)) { parse_token(p); return true; }
     return false;
 }
 
-static inline LPCSTR parse_segment(LPPARSER p) {
+static inline cstring_t parse_segment(LPPARSER p) {
     static char seg[PARSER_MAX_SEGMENT];
     memset(seg, 0, PARSER_MAX_SEGMENT);
     if (*p->buffer == '\0') return NULL;
     parser_skip_ws(p);
     if (*p->buffer == '\0') return NULL;
-    LPCSTR start = p->buffer;
+    cstring_t start = p->buffer;
     if (*p->buffer == '"') {
-        LPCSTR closing_quote;
-        LPCSTR comma;
+        cstring_t closing_quote;
+        cstring_t comma;
         size_t seglen;
 
         ++start;
@@ -615,10 +615,10 @@ static inline LPCSTR parse_segment(LPPARSER p) {
     return seg;
 }
 
-static inline LPCSTR parse_segment2(LPPARSER p) {
+static inline cstring_t parse_segment2(LPPARSER p) {
     static char seg[PARSER_MAX_SEGMENT];
-    LPSTR out = seg;
-    BOOL quoted = false, have = false;
+    string_t out = seg;
+    bool quoted = false, have = false;
     memset(seg, 0, PARSER_MAX_SEGMENT);
     if (*p->buffer == '\0') return NULL;
     parser_skip_ws(p);
@@ -649,10 +649,10 @@ static inline LPCSTR parse_segment2(LPPARSER p) {
 
 static inline void parser_error(LPPARSER parser) { parser->error = true; }
 
-static inline void *find_in_array(void const *array, long sizeofelem, LPCSTR name) {
-    LPSTR str = (LPSTR)array;
-    while (*(LPCSTR *)str) {
-        if (!strcmp(*(LPCSTR *)str, name)) return str;
+static inline void *find_in_array(void const *array, long sizeofelem, cstring_t name) {
+    string_t str = (string_t)array;
+    while (*(cstring_t *)str) {
+        if (!strcmp(*(cstring_t *)str, name)) return str;
         str += sizeofelem;
     }
     return NULL;
@@ -660,11 +660,11 @@ static inline void *find_in_array(void const *array, long sizeofelem, LPCSTR nam
 
 /* ---- Small pure helpers --------------------------------------------------- */
 
-static inline BOOL UI_FrameNameEquals(LPCFRAMEDEF frame, LPCSTR name) {
+static inline bool UI_FrameNameEquals(LPCFRAMEDEF frame, cstring_t name) {
     return frame && name && *name && !strcmp(frame->Name, name);
 }
 
-static inline BOOL UI_IsButtonFrameType(FRAMETYPE type) {
+static inline bool UI_IsButtonFrameType(FRAMETYPE type) {
     return type == FT_BUTTON ||
            type == FT_TEXTBUTTON ||
            type == FT_GLUETEXTBUTTON ||
@@ -673,19 +673,19 @@ static inline BOOL UI_IsButtonFrameType(FRAMETYPE type) {
            type == FT_SIMPLEBUTTON;
 }
 
-static inline BOOL UI_IsCheckBoxFrameType(FRAMETYPE type) {
+static inline bool UI_IsCheckBoxFrameType(FRAMETYPE type) {
     return type == FT_CHECKBOX ||
            type == FT_GLUECHECKBOX ||
            type == FT_SIMPLECHECKBOX;
 }
 
-static inline DWORD UI_DecodeFramePointY(DWORD framepoint) {
+static inline uint32_t UI_DecodeFramePointY(uint32_t framepoint) {
     return (framepoint >> 2) & 3;
 }
 
 /* ---- Frame lookup --------------------------------------------------------- */
 
-LPFRAMEDEF UI_FindFrame(LPCSTR name) {
+LPFRAMEDEF UI_FindFrame(cstring_t name) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
         if (!strcmp(frames[i].Name, name)) {
             return frames + i;
@@ -694,14 +694,14 @@ LPFRAMEDEF UI_FindFrame(LPCSTR name) {
     return NULL;
 }
 
-LPFRAMEDEF UI_FindFrameByNumber(DWORD number) {
+LPFRAMEDEF UI_FindFrameByNumber(uint32_t number) {
     if (number < MAX_UI_CLASSES && frames[number].inuse) {
         return &frames[number];
     }
     return NULL;
 }
 
-LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, LPCSTR name) {
+LPFRAMEDEF UI_FindChildFrame(LPFRAMEDEF frame, cstring_t name) {
     if (!strcmp(frame->Name, name))
         return frame;
     FOR_LOOP(i, MAX_UI_CLASSES) {
@@ -729,7 +729,7 @@ LPFRAMEDEF UI_FindChildFrameType(LPFRAMEDEF frame, FRAMETYPE type) {
     return NULL;
 }
 
-LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF anchor, LPCSTR name) {
+LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF anchor, cstring_t name) {
     if (!name || !*name) {
         return NULL;
     }
@@ -740,12 +740,12 @@ LPFRAMEDEF UI_FindFrameNear(LPCFRAMEDEF anchor, LPCSTR name) {
     if (child) {
         return child;
     }
-    DWORD const anchor_index = (DWORD)(anchor - frames);
-    DWORD best_distance = MAX_UI_CLASSES;
+    uint32_t const anchor_index = (uint32_t)(anchor - frames);
+    uint32_t best_distance = MAX_UI_CLASSES;
     LPFRAMEDEF best = NULL;
     FOR_LOOP(i, MAX_UI_CLASSES) {
         if (!strcmp(frames[i].Name, name)) {
-            DWORD const distance = i > anchor_index ? i - anchor_index : anchor_index - i;
+            uint32_t const distance = i > anchor_index ? i - anchor_index : anchor_index - i;
             if (!best || distance < best_distance) {
                 best = frames + i;
                 best_distance = distance;
@@ -787,7 +787,7 @@ static inline void UI_ApplyFramePoints(LPFRAMEDEF frame) {
         memset(&frame->Points, 0, sizeof(frame->Points));
         frame->AnyPointsSet = true;
     }
-    DWORD const x = frame->SetPoint.type & 3;
+    uint32_t const x = frame->SetPoint.type & 3;
     FRAMEPOINT *xp = frame->Points.x;
     if (x != FPP_MID || (!xp[FPP_MIN].used && !xp[FPP_MAX].used)) {
         xp[FPP_MID].used = false;
@@ -796,7 +796,7 @@ static inline void UI_ApplyFramePoints(LPFRAMEDEF frame) {
         xp[x].targetPos = frame->SetPoint.target & 3;
         xp[x].relativeTo = frame->SetPoint.relativeTo;
     }
-    DWORD y = UI_DecodeFramePointY(frame->SetPoint.type);
+    uint32_t y = UI_DecodeFramePointY(frame->SetPoint.type);
     FRAMEPOINT *yp = frame->Points.y;
     if (y != FPP_MID || (!yp[FPP_MIN].used && !yp[FPP_MAX].used)) {
         yp[FPP_MID].used = false;
@@ -817,7 +817,7 @@ void UI_SetPoint(LPFRAMEDEF frame,
                                UIFRAMEPOINT framePoint,
                                LPCFRAMEDEF other,
                                UIFRAMEPOINT otherPoint,
-                               FLOAT x, FLOAT y)
+                               float x, float y)
 {
     frame->SetPoint.type = framePoint;
     frame->SetPoint.relativeTo = other;
@@ -838,26 +838,26 @@ void UI_SetParent(LPFRAMEDEF frame, LPCFRAMEDEF parent) {
     frame->Parent = parent;
 }
 
-void UI_SetSize(LPFRAMEDEF frame, FLOAT width, FLOAT height) {
+void UI_SetSize(LPFRAMEDEF frame, float width, float height) {
     frame->Width = width;
     frame->Height = height;
 }
 
-void UI_SetEnabled(LPFRAMEDEF frame, BOOL enabled) {
+void UI_SetEnabled(LPFRAMEDEF frame, bool enabled) {
     if (!frame) return;
     frame->disabled = !enabled;
     if (frame->disabled) frame->ui_flags |= UIFLAG_DISABLED;
     else frame->ui_flags &= ~UIFLAG_DISABLED;
 }
 
-void UI_SetHidden(LPFRAMEDEF frame, BOOL value) {
+void UI_SetHidden(LPFRAMEDEF frame, bool value) {
     if (!frame) return;
     frame->hidden = value;
     if (frame->hidden) frame->ui_flags &= ~UIFLAG_VISIBLE;
     else frame->ui_flags |= UIFLAG_VISIBLE;
 }
 
-void UI_SetOnClick(LPFRAMEDEF frame, LPCSTR format, ...) {
+void UI_SetOnClick(LPFRAMEDEF frame, cstring_t format, ...) {
     va_list argptr;
     if (!frame || !format) return;
     va_start(argptr, format);
@@ -867,7 +867,7 @@ void UI_SetOnClick(LPFRAMEDEF frame, LPCSTR format, ...) {
 
 /* ---- Embedded control detection ------------------------------------------- */
 
-static inline BOOL UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
+static inline bool UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
     if (!parent || !child) return false;
     if (child->Type == FT_BACKDROP || child->Type == FT_TEXTURE) {
         if (UI_FrameNameEquals(child, parent->Control.Backdrop.Normal) ||
@@ -910,18 +910,18 @@ static inline BOOL UI_IsEmbeddedControlPart(LPCFRAMEDEF parent, LPCFRAMEDEF chil
 /* Server-authored control payloads fold state artwork into their typed parent
  * frame.  The text child of a GLUETEXTBUTTON remains a separately serialized
  * frame because the generic layout client draws that label independently. */
-static inline BOOL UI_IsEmbeddedControlArtPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
+static inline bool UI_IsEmbeddedControlArtPart(LPCFRAMEDEF parent, LPCFRAMEDEF child) {
     return child && child->Type != FT_TEXT && UI_IsEmbeddedControlPart(parent, child);
 }
 
 /* ---- Frame tree collection ------------------------------------------------ */
 
-DWORD UI_CollectFrameTreeRecursiveEx(LPCFRAMEDEF frame,
+uint32_t UI_CollectFrameTreeRecursiveEx(LPCFRAMEDEF frame,
                                                     LPCFRAMEDEF *out,
-                                                    DWORD max,
-                                                    BOOL include_embedded)
+                                                    uint32_t max,
+                                                    bool include_embedded)
 {
-    DWORD total = 0;
+    uint32_t total = 0;
     if (!frame) return 0;
     if (out && total < max) out[total] = frame;
     total++;
@@ -929,7 +929,7 @@ DWORD UI_CollectFrameTreeRecursiveEx(LPCFRAMEDEF frame,
         LPCFRAMEDEF child = frames + i;
         if (child->Parent == frame &&
             (include_embedded || (!child->hidden && !UI_IsEmbeddedControlPart(frame, child)))) {
-            DWORD emitted = UI_CollectFrameTreeRecursiveEx(child,
+            uint32_t emitted = UI_CollectFrameTreeRecursiveEx(child,
                                                            out ? out + total : NULL,
                                                            max > total ? max - total : 0,
                                                            include_embedded);
@@ -939,7 +939,7 @@ DWORD UI_CollectFrameTreeRecursiveEx(LPCFRAMEDEF frame,
     return total;
 }
 
-DWORD UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, DWORD max) {
+uint32_t UI_CollectFrameTree(LPCFRAMEDEF root, LPCFRAMEDEF *out, uint32_t max) {
     return UI_CollectFrameTreeRecursiveEx(root, out, max, false);
 }
 
@@ -952,7 +952,7 @@ void UI_MenuClearItems(LPFRAMEDEF frame) {
     frame->Menu.ItemCount = 0;
 }
 
-void UI_MenuAddItem(LPFRAMEDEF frame, LPCSTR text, LONG value) {
+void UI_MenuAddItem(LPFRAMEDEF frame, cstring_t text, int32_t value) {
     if (!frame || frame->Menu.ItemCount >= UI_MAX_MENU_ITEMS) return;
     if (!frame->Menu.Items) {
         frame->Menu.Items = UI_FdfAlloc((long)(sizeof(uiMenuItem_t) * UI_MAX_MENU_ITEMS));
@@ -963,7 +963,7 @@ void UI_MenuAddItem(LPFRAMEDEF frame, LPCSTR text, LONG value) {
     snprintf(item->text, sizeof(item->text), "%s", text ? text : "");
     item->value = value;
     snprintf(frame->Menu.Item.Text, sizeof(frame->Menu.Item.Text), "%s", item->text);
-    frame->Menu.Item.Value = (DWORD)value;
+    frame->Menu.Item.Value = (uint32_t)value;
 }
 
 
@@ -979,7 +979,7 @@ extern void UI_ClearTheme(void);
 
 #define FDF_F(x, type) { #x,((uint8_t *)&((FRAMEDEF *)0)->x - (uint8_t *)NULL), FDF_Parse##type }
 
-LPCSTR FrameType[] = {
+cstring_t FrameType[] = {
     "",
     "BACKDROP",
     "BUTTON",
@@ -1023,11 +1023,11 @@ LPCSTR FrameType[] = {
     "TOOLTIPTEXT",
     NULL
 };
-LPCSTR HighlightType[] = {
+cstring_t HighlightType[] = {
     "FILETEXTURE",
     NULL
 };
-LPCSTR AlphaMode[] = {
+cstring_t AlphaMode[] = {
     "NONE",
     "ALPHAKEY",
     "BLEND",
@@ -1036,19 +1036,19 @@ LPCSTR AlphaMode[] = {
     "MODULATE2X",
     NULL
 };
-LPCSTR FontJustificationH[] = {
+cstring_t FontJustificationH[] = {
     "JUSTIFYCENTER",
     "JUSTIFYLEFT",
     "JUSTIFYRIGHT",
     NULL
 };
-LPCSTR FontJustificationV[] = {
+cstring_t FontJustificationV[] = {
     "JUSTIFYMIDDLE",
     "JUSTIFYTOP",
     "JUSTIFYBOTTOM",
     NULL
 };
-LPCSTR FramePointType[] = {
+cstring_t FramePointType[] = {
     "TOPLEFT",
     "TOP",
     "TOPRIGHT",
@@ -1063,18 +1063,18 @@ LPCSTR FramePointType[] = {
     "<UNUSED>",
     NULL
 };
-LPCSTR FontFlags[] = {
+cstring_t FontFlags[] = {
     "FIXEDSIZE",
     "PASSWORDFIELD",
     NULL
 };
-LPCSTR ControlStyle[] = {
+cstring_t ControlStyle[] = {
     "AUTOTRACK",
     "HIGHLIGHTONFOCUS",
     "HIGHLIGHTONMOUSEOVER",
     NULL
 };
-LPCSTR CornerFlags[] = {
+cstring_t CornerFlags[] = {
     "UL",
     "T",
     "UR",
@@ -1088,17 +1088,17 @@ LPCSTR CornerFlags[] = {
 };
 
 static PATHSTR ui_loaded_fdfs[128] = { 0 };
-static DWORD ui_num_loaded_fdfs = 0;
+static uint32_t ui_num_loaded_fdfs = 0;
 
 void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame);
 static char *UI_Trim(char *text);
-static void UI_CopyDisplayString(char *out, size_t out_size, LPCSTR in);
-static void UI_SetFrameDisplayString(LPFRAMEDEF frame, LPCSTR text);
+static void UI_CopyDisplayString(char *out, size_t out_size, cstring_t in);
+static void UI_SetFrameDisplayString(LPFRAMEDEF frame, cstring_t text);
 static void UI_FixCopiedFrameTextPointer(LPFRAMEDEF frame, LPCFRAMEDEF source);
 static void UI_FreeFrameDynamicText(LPFRAMEDEF frame);
 static void UI_FreeFrameMenuItems(LPFRAMEDEF frame);
 static void UI_FixCopiedFrameMenuItems(LPFRAMEDEF frame, LPCFRAMEDEF source);
-static void UI_RemoveBom(LPSTR buffer);
+static void UI_RemoveBom(string_t buffer);
 static void UI_CloneTemplateChildren(LPCFRAMEDEF source, LPFRAMEDEF parent);
 static void UI_ClearStringList(void);
 
@@ -1131,23 +1131,23 @@ LPFRAMEDEF UI_Spawn(FRAMETYPE type, LPFRAMEDEF parent) {
 }
 
 typedef struct {
-    LPCSTR name;
-    DWORD fofs;
-    void (*func)(LPCSTR, LPFRAMEDEF frame, void *);
+    cstring_t name;
+    uint32_t fofs;
+    void (*func)(cstring_t, LPFRAMEDEF frame, void *);
 } fdf_parseArg_t;
 
 typedef struct {
-    LPCSTR name;
+    cstring_t name;
     fdf_parseArg_t args[16];
     void (*func)(LPPARSER , LPFRAMEDEF);
 } fdf_parseItem_t;
 
 typedef struct {
-    LPCSTR name;
+    cstring_t name;
     void (*func)(LPPARSER , LPFRAMEDEF);
 } fdf_parse_class_t;
 
-int FDF_ParseEnumString(LPCSTR token, LPCSTR const *values) {
+int FDF_ParseEnumString(cstring_t token, cstring_t const *values) {
     for (int i = 0; *values; i++, values++) {
         if (!strcmp(token, *values)) {
             return i;
@@ -1163,7 +1163,7 @@ static char *UI_Trim(char *text) {
     return text;
 }
 
-static void UI_RemoveBom(LPSTR buffer) {
+static void UI_RemoveBom(string_t buffer) {
     static unsigned char const utf8_bom[] = { 0xEF, 0xBB, 0xBF };
     size_t length;
 
@@ -1177,7 +1177,7 @@ static void UI_RemoveBom(LPSTR buffer) {
     }
 }
 
-static void UI_CopyDisplayString(char *out, size_t out_size, LPCSTR in) {
+static void UI_CopyDisplayString(char *out, size_t out_size, cstring_t in) {
     if (!out || out_size == 0) {
         return;
     }
@@ -1221,7 +1221,7 @@ static void UI_FixCopiedFrameMenuItems(LPFRAMEDEF frame, LPCFRAMEDEF source) {
     }
 }
 
-static void UI_SetFrameDisplayString(LPFRAMEDEF frame, LPCSTR text) {
+static void UI_SetFrameDisplayString(LPFRAMEDEF frame, cstring_t text) {
     size_t len;
 
     if (!frame) {
@@ -1246,7 +1246,7 @@ static void UI_SetFrameDisplayString(LPFRAMEDEF frame, LPCSTR text) {
     frame->DynamicText = UI_FdfAlloc((long)len + 1);
     if (frame->DynamicText) {
         memcpy(frame->DynamicText, text, len + 1);
-        frame->DynamicTextCapacity = (DWORD)(len + 1);
+        frame->DynamicTextCapacity = (uint32_t)(len + 1);
         frame->Text = frame->DynamicText;
     } else {
         UI_CopyDisplayString(frame->TextStorage, sizeof(frame->TextStorage), text);
@@ -1255,7 +1255,7 @@ static void UI_SetFrameDisplayString(LPFRAMEDEF frame, LPCSTR text) {
 }
 
 static void UI_FixCopiedFrameTextPointer(LPFRAMEDEF frame, LPCFRAMEDEF source) {
-    LPCSTR copied_text;
+    cstring_t copied_text;
 
     if (!frame || !source || !source->Text) {
         return;
@@ -1275,7 +1275,7 @@ static void UI_FixCopiedFrameTextPointer(LPFRAMEDEF frame, LPCFRAMEDEF source) {
 }
 
 #define FDF_MAKE_PARSER(TYPE) \
-void FDF_Parse##TYPE(LPCSTR token, LPFRAMEDEF frame, void *out)
+void FDF_Parse##TYPE(cstring_t token, LPFRAMEDEF frame, void *out)
 
 #define FDF_MAKE_PARSERCALL(TYPE) \
 void TYPE(LPPARSER parser, LPFRAMEDEF frame)
@@ -1285,22 +1285,22 @@ FDF_MAKE_PARSER(TYPE) { \
     UINAME fmt; \
     if (*token == '"') sscanf(token, UINAME_FMT, fmt); \
     else strcpy(fmt, token); \
-    *((DWORD *)out) = FDF_ParseEnumString(fmt, TYPE); \
+    *((uint32_t *)out) = FDF_ParseEnumString(fmt, TYPE); \
 }
 
 #define FDF_MAKE_FLAGSPARSER(TYPE) \
 FDF_MAKE_PARSER(TYPE) { \
     PATHSTR b; \
     sscanf(token, PATHSTR_FMT, b); \
-    for (LPSTR s = b; *s; s++) *s = *s == '|' ? ',' : *s; \
+    for (string_t s = b; *s; s++) *s = *s == '|' ? ',' : *s; \
     PARSE_LIST(b, flag, parse_segment) { \
-        *((DWORD *)out) |= 1 << FDF_ParseEnumString(flag, TYPE); \
+        *((uint32_t *)out) |= 1 << FDF_ParseEnumString(flag, TYPE); \
     } \
 }
 
-static void FDF_ParseFloatList(LPCSTR token, FLOAT *values, DWORD count) {
-    LPCSTR p = token;
-    for (DWORD i = 0; i < count; i++) {
+static void FDF_ParseFloatList(cstring_t token, float *values, uint32_t count) {
+    cstring_t p = token;
+    for (uint32_t i = 0; i < count; i++) {
         char *endptr = NULL;
         values[i] = strtof(p, &endptr);
         if (endptr == p) {
@@ -1313,18 +1313,18 @@ static void FDF_ParseFloatList(LPCSTR token, FLOAT *values, DWORD count) {
     }
 }
 
-FDF_MAKE_PARSER(Float) { *((FLOAT *)out) = (FLOAT)atof(token); }
-FDF_MAKE_PARSER(Integer) { *((LONG *)out) = atoi(token); }
+FDF_MAKE_PARSER(Float) { *((float *)out) = (float)atof(token); }
+FDF_MAKE_PARSER(Integer) { *((int32_t *)out) = atoi(token); }
 FDF_MAKE_PARSER(Vector2) { FDF_ParseFloatList(token, out, 2); }
 FDF_MAKE_PARSER(Vector3) { FDF_ParseFloatList(token, out, 3); }
 FDF_MAKE_PARSER(Vector4) { FDF_ParseFloatList(token, out, 4); }
 FDF_MAKE_PARSER(Color) {
-    FLOAT values[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    float values[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     FDF_ParseFloatList(token, values, 4);
-    ((COLOR32 *)out)->r = (BYTE)(values[0] * 0xff);
-    ((COLOR32 *)out)->g = (BYTE)(values[1] * 0xff);
-    ((COLOR32 *)out)->b = (BYTE)(values[2] * 0xff);
-    ((COLOR32 *)out)->a = (BYTE)(values[3] * 0xff);
+    ((COLOR32 *)out)->r = (uint8_t)(values[0] * 0xff);
+    ((COLOR32 *)out)->g = (uint8_t)(values[1] * 0xff);
+    ((COLOR32 *)out)->b = (uint8_t)(values[2] * 0xff);
+    ((COLOR32 *)out)->a = (uint8_t)(values[3] * 0xff);
 }
 FDF_MAKE_PARSER(FramePtr) {
     *(LPCFRAMEDEF *)out = NULL;
@@ -1340,7 +1340,7 @@ FDF_MAKE_PARSER(FramePtr) {
 }
 FDF_MAKE_PARSER(Name) {
     memset(out, 0, sizeof(UINAME));
-    sscanf(token, UINAME_FMT, (LPSTR)out);
+    sscanf(token, UINAME_FMT, (string_t)out);
 }
 FDF_MAKE_PARSER(ButtonText) {
     BUTTONTEXT *bt = out;
@@ -1350,7 +1350,7 @@ FDF_MAKE_PARSER(ButtonText) {
 FDF_MAKE_PARSER(Text) {
     UINAME key = { 0 };
     sscanf(token, UINAME_FMT, key);
-    LPCSTR str = UI_GetString(key);
+    cstring_t str = UI_GetString(key);
     if (frame && out == frame->TextStorage) {
         UI_SetFrameDisplayString(frame, str);
     } else {
@@ -1363,7 +1363,7 @@ FDF_MAKE_PARSER(Text) {
 typedef struct stringListItem_s {
     struct stringListItem_s *next;
     UINAME name;
-    LPSTR value;
+    string_t value;
 } stringListItem_t;
 
 stringListItem_t *strings = NULL;
@@ -1379,7 +1379,7 @@ static void UI_ClearStringList(void) {
     strings = NULL;
 }
 
-static void UI_AddStringListItem(LPCSTR name, LPCSTR token) {
+static void UI_AddStringListItem(cstring_t name, cstring_t token) {
     char value[1024];
     char *start;
     char *end;
@@ -1419,10 +1419,10 @@ FDF_MAKE_FLAGSPARSER(ControlStyle);
 
 FDF_MAKE_PARSER(TextureFile) {
     PATHSTR path = { 0 };
-    DWORD image = 0;
+    uint32_t image = 0;
     sscanf(token, PATHSTR_FMT, path);
     image = path[0] ? UI_LoadTexture(path, true) : 0;
-    *((DWORD *)out) = image;
+    *((uint32_t *)out) = image;
 #ifdef DIAG_OUTPUT
     if (path[0] && image == 0) {
         DIAGF("FDF_ParseTextureFile: frame=%s token=%s resolved image=0\n", frame->Name, path);
@@ -1432,13 +1432,13 @@ FDF_MAKE_PARSER(TextureFile) {
 
 FDF_MAKE_PARSER(ModelPath) {
     PATHSTR path = { 0 };
-    BOOL decorate = frame->DecorateFileNames | (frame->Parent ? frame->Parent->DecorateFileNames : false);
-    DWORD modelIndex = 0;
+    bool decorate = frame->DecorateFileNames | (frame->Parent ? frame->Parent->DecorateFileNames : false);
+    uint32_t modelIndex = 0;
     sscanf(token, PATHSTR_FMT, path);
     modelIndex = UI_LoadModel(path, decorate);
-    *((DWORD *)out) = modelIndex;
+    *((uint32_t *)out) = modelIndex;
 #ifdef DIAG_OUTPUT
-    LPCSTR model = decorate ? Theme_String(path, "Default") : path;
+    cstring_t model = decorate ? Theme_String(path, "Default") : path;
     if (decorate && path[0] && !strcmp(model, path)) {
         DIAGF("FDF_ParseModelPath: unresolved skin key frame=%s token=%s\n", frame->Name, path);
     }
@@ -1449,7 +1449,7 @@ FDF_MAKE_PARSER(ModelPath) {
 }
 
 FDF_MAKE_PARSERCALL(Font) {
-    LPCSTR file = Theme_String(frame->Font.Name, "Default");
+    cstring_t file = Theme_String(frame->Font.Name, "Default");
     frame->Font.Index = UI_FdfFontIndex(file, frame->Font.Size * 1000);
 }
 
@@ -1520,7 +1520,7 @@ FDF_MAKE_PARSERCALL(String) {
 }
 
 FDF_MAKE_PARSERCALL(Frame) {
-    LPCSTR stype = parse_token(parser);
+    cstring_t stype = parse_token(parser);
     FRAMETYPE type = (FRAMETYPE)FDF_ParseEnumString(stype, FrameType);
     LPFRAMEDEF current = UI_Spawn(type, frame);
     FDF_ParseFrame(parser, current);
@@ -1533,7 +1533,7 @@ FDF_MAKE_PARSERCALL(Frame) {
 }
 
 FDF_MAKE_PARSERCALL(IncludeFile) {
-    LPCSTR filename = parse_token(parser);
+    cstring_t filename = parse_token(parser);
     UI_ParseFDF(filename);
 }
 
@@ -1553,10 +1553,10 @@ FDF_MAKE_PARSERCALL(EditSetFocus) {
 }
 
 FDF_MAKE_PARSERCALL(MenuItem) {
-    LPCSTR text = parse_segment2(parser);
-    LPCSTR value = parse_segment2(parser);
+    cstring_t text = parse_segment2(parser);
+    cstring_t value = parse_segment2(parser);
     UINAME key = { 0 };
-    LONG item_value = 0;
+    int32_t item_value = 0;
 
     if (!frame || !text || !value) {
         return;
@@ -1690,7 +1690,7 @@ static fdf_parseItem_t items[] = {
 
 void parse_item(LPPARSER parser, LPFRAMEDEF frame, fdf_parseItem_t *item) {
     for (fdf_parseArg_t *arg = item->args; arg->name; arg++) {
-        LPCSTR token = parse_segment2(parser);
+        cstring_t token = parse_segment2(parser);
         arg->func(token, frame, (uint8_t *)frame + arg->fofs);
     }
     if (!item->args->name && item->func != MenuItem) {
@@ -1702,11 +1702,11 @@ void parse_item(LPPARSER parser, LPFRAMEDEF frame, fdf_parseItem_t *item) {
 }
 
 void parse_func(LPPARSER parser, LPFRAMEDEF frame) {
-    LPCSTR token = NULL;
+    cstring_t token = NULL;
     while ((token = parse_token(parser)) && *token && (*token != '}')) {
         if (frame->Type == FT_STRINGLIST) {
             UINAME name;
-            LPCSTR value;
+            cstring_t value;
 
             strlcpy(name, token, sizeof(name));
             value = parse_token(parser);
@@ -1735,7 +1735,7 @@ void parse_func(LPPARSER parser, LPFRAMEDEF frame) {
     }
 }
 
-LPFRAMEDEF FindFrameTemplate(LPCSTR str) {
+LPFRAMEDEF FindFrameTemplate(cstring_t str) {
     FOR_LOOP(i, MAX_UI_CLASSES) {
         LPFRAMEDEF tmp = frames+i;
         if (!strcmp(tmp->Name, str))
@@ -1744,7 +1744,7 @@ LPFRAMEDEF FindFrameTemplate(LPCSTR str) {
     return NULL;
 }
 
-static BOOL UI_FrameTypesCompatible(FRAMETYPE frameType, FRAMETYPE inheritType) {
+static bool UI_FrameTypesCompatible(FRAMETYPE frameType, FRAMETYPE inheritType) {
     if (frameType == inheritType) {
         return true;
     }
@@ -1762,7 +1762,7 @@ static BOOL UI_FrameTypesCompatible(FRAMETYPE frameType, FRAMETYPE inheritType) 
     }
 }
 
-void UI_InheritFrom(LPFRAMEDEF frame, LPCSTR inheritName) {
+void UI_InheritFrom(LPFRAMEDEF frame, cstring_t inheritName) {
     LPFRAMEDEF inherit = FindFrameTemplate(inheritName);
     if (inherit && UI_FrameTypesCompatible(frame->Type, inherit->Type)) {
         FRAMEDEF tmp;
@@ -1786,12 +1786,12 @@ void UI_InheritFrom(LPFRAMEDEF frame, LPCSTR inheritName) {
 }
 
 void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame) {
-    DWORD state = 0;
-    LPCSTR tok;
+    uint32_t state = 0;
+    cstring_t tok;
     while ((tok = parse_token(p)) && (*tok != '{')) {
         if (!strcmp(tok, "INHERITS")) {
-            LPCSTR inheritName = parse_token(p);
-            BOOL with_children = false;
+            cstring_t inheritName = parse_token(p);
+            bool with_children = false;
             if (!strcmp(inheritName, "WITHCHILDREN")) {
                 with_children = true;
                 inheritName = parse_token(p);
@@ -1815,7 +1815,7 @@ void FDF_ParseFrame(LPPARSER p, LPFRAMEDEF frame) {
 static LPCFRAMEDEF UI_RemapClonedFrame(LPCFRAMEDEF frame,
                                        LPCFRAMEDEF const *sources,
                                        LPFRAMEDEF const *copies,
-                                       DWORD count)
+                                       uint32_t count)
 {
     FOR_LOOP(i, count) {
         if (sources[i] == frame) {
@@ -1828,7 +1828,7 @@ static LPCFRAMEDEF UI_RemapClonedFrame(LPCFRAMEDEF frame,
 static void UI_RemapClonedPoint(FRAMEPOINT *point,
                                 LPCFRAMEDEF const *sources,
                                 LPFRAMEDEF const *copies,
-                                DWORD count)
+                                uint32_t count)
 {
     if (point && point->relativeTo) {
         point->relativeTo = UI_RemapClonedFrame(point->relativeTo, sources, copies, count);
@@ -1839,7 +1839,7 @@ static void UI_RemapClonedFramePointers(LPFRAMEDEF frame,
                                         LPFRAMEDEF parent,
                                         LPCFRAMEDEF const *sources,
                                         LPFRAMEDEF const *copies,
-                                        DWORD count)
+                                        uint32_t count)
 {
     frame->Parent = UI_RemapClonedFrame(frame->Parent, sources, copies, count);
     if (!frame->Parent && parent) {
@@ -1857,7 +1857,7 @@ LPFRAMEDEF UI_CloneFrameTree(LPCFRAMEDEF source, LPFRAMEDEF parent) {
     enum { MAX_CLONED_FRAMES = 128 };
     LPCFRAMEDEF sources[MAX_CLONED_FRAMES];
     LPFRAMEDEF copies[MAX_CLONED_FRAMES];
-    DWORD const count = source ? UI_CollectFrameTreeRecursiveEx(source, sources, MAX_CLONED_FRAMES, true) : 0;
+    uint32_t const count = source ? UI_CollectFrameTreeRecursiveEx(source, sources, MAX_CLONED_FRAMES, true) : 0;
 
     if (count == 0 || count > MAX_CLONED_FRAMES) {
         return NULL;
@@ -1893,7 +1893,7 @@ static void UI_CloneTemplateChildren(LPCFRAMEDEF source, LPFRAMEDEF parent) {
 }
 
 void FDF_ParseScene(LPPARSER parser) {
-    LPCSTR token = NULL;
+    cstring_t token = NULL;
     LPFRAMEDEF frame = NULL;
     while (*(token = parse_token(parser))) {
         for (fdf_parse_class_t *it = classes; it->name; it++) {
@@ -1912,8 +1912,8 @@ void FDF_ParseScene(LPPARSER parser) {
     }
 }
 
-void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer2) {
-    LPSTR buffer = buffer2;
+void UI_ParseFDF_Buffer(cstring_t fileName, string_t buffer2) {
+    string_t buffer = buffer2;
     UI_RemoveBom(buffer);
     PARSER parser = {
         .buffer = buffer,
@@ -1926,7 +1926,7 @@ void UI_ParseFDF_Buffer(LPCSTR fileName, LPSTR buffer2) {
     }
 }
 
-static BOOL UI_FDFLoaded(LPCSTR fileName) {
+static bool UI_FDFLoaded(cstring_t fileName) {
     if (!fileName || !*fileName) {
         return false;
     }
@@ -1938,7 +1938,7 @@ static BOOL UI_FDFLoaded(LPCSTR fileName) {
     return false;
 }
 
-static void UI_MarkFDFLoaded(LPCSTR fileName) {
+static void UI_MarkFDFLoaded(cstring_t fileName) {
     if (!fileName || !*fileName || UI_FDFLoaded(fileName)) {
         return;
     }
@@ -1952,9 +1952,9 @@ static void UI_MarkFDFLoaded(LPCSTR fileName) {
     ui_num_loaded_fdfs++;
 }
 
-BOOL UI_EnsureFDF(LPCSTR fileName) {
+bool UI_EnsureFDF(cstring_t fileName) {
     void *buffer = NULL;
-    BOOL loaded = false;
+    bool loaded = false;
 
     if (UI_FDFLoaded(fileName)) {
         return true;
@@ -1962,13 +1962,13 @@ BOOL UI_EnsureFDF(LPCSTR fileName) {
 
     int size = UI_FdfReadFile(fileName, &buffer);
     if (size >= 0 && buffer) {
-        const BYTE *raw = (const BYTE *)buffer;
-        BOOL utf16le = (size >= 2 && raw[0] == 0xFF && raw[1] == 0xFE);
-        DWORD text_size = utf16le ? (DWORD)(size / 2) : (DWORD)size;
-        LPSTR text = UI_FdfAlloc(text_size + 1);
+        const uint8_t *raw = (const uint8_t *)buffer;
+        bool utf16le = (size >= 2 && raw[0] == 0xFF && raw[1] == 0xFE);
+        uint32_t text_size = utf16le ? (uint32_t)(size / 2) : (uint32_t)size;
+        string_t text = UI_FdfAlloc(text_size + 1);
         if (text) {
             if (utf16le) {
-                DWORD out = 0;
+                uint32_t out = 0;
                 for (int i = 2; i + 1 < size; i += 2) {
                     text[out++] = (char)raw[i];
                 }
@@ -1987,11 +1987,11 @@ BOOL UI_EnsureFDF(LPCSTR fileName) {
     return loaded;
 }
 
-void UI_ParseFDF(LPCSTR fileName) {
+void UI_ParseFDF(cstring_t fileName) {
     UI_EnsureFDF(fileName);
 }
 
-void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...) {
+void UI_SetText(LPFRAMEDEF frame, cstring_t format, ...) {
     va_list argptr;
     static char text[1024];
     if (!frame || !format) {
@@ -2003,12 +2003,12 @@ void UI_SetText(LPFRAMEDEF frame, LPCSTR format, ...) {
     UI_SetFrameDisplayString(frame, UI_GetString(text));
 }
 
-void UI_SetTextPointer(LPFRAMEDEF frame, LPCSTR text) {
+void UI_SetTextPointer(LPFRAMEDEF frame, cstring_t text) {
     UI_FreeFrameDynamicText(frame);
     frame->Text = text;
 }
 
-LPCSTR UI_GetString(LPCSTR textID) {
+cstring_t UI_GetString(cstring_t textID) {
     FOR_EACH_LIST(stringListItem_t, it, strings) {
         if (!strcmp(textID, it->name)) {
             return it->value;
@@ -2017,11 +2017,11 @@ LPCSTR UI_GetString(LPCSTR textID) {
     return textID;
 }
 
-void UI_SetTexture(LPFRAMEDEF frame, LPCSTR name, BOOL decorate) {
+void UI_SetTexture(LPFRAMEDEF frame, cstring_t name, bool decorate) {
     frame->Texture.Image = UI_LoadTexture(name, decorate);
 }
 
-void UI_SetTexture2(LPFRAMEDEF frame, LPCSTR name, BOOL decorate) {
+void UI_SetTexture2(LPFRAMEDEF frame, cstring_t name, bool decorate) {
     frame->Texture.Image2 = UI_LoadTexture(name, decorate);
 }
 

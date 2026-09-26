@@ -4,10 +4,10 @@ menuImport_t mi;
 
 static void M_Init(void) {}
 static void M_Shutdown(void) {}
-static void M_Refresh(DWORD time) { (void)time; }
-static void M_KeyEvent(int key, BOOL down, DWORD time) { (void)key; (void)down; (void)time; }
-static void M_TextInput(LPCSTR text) { (void)text; }
-static BOOL M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) { (void)event; (void)x; (void)y; (void)param; return false; }
+static void M_Refresh(uint32_t time) { (void)time; }
+static void M_KeyEvent(int key, bool down, uint32_t time) { (void)key; (void)down; (void)time; }
+static void M_TextInput(cstring_t text) { (void)text; }
+static bool M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) { (void)event; (void)x; (void)y; (void)param; return false; }
 static void M_UpdateLobbySetup(lobbyState_t const *state) { (void)state; }
 
 menuExport_t M_GetAPI(menuImport_t import) {

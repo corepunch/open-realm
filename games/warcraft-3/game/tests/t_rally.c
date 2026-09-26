@@ -3,7 +3,7 @@
 #include "test.h"
 #include "../g_local.h"
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 extern void ai_train_build(LPEDICT ent);
@@ -20,7 +20,7 @@ static UnitProfile_t const rally_research_profile = {
     .researches = "Rhme",
 };
 
-static LPEDICT rally_unit(DWORD class_id, FLOAT x, FLOAT y) {
+static LPEDICT rally_unit(uint32_t class_id, float x, float y) {
     LPEDICT ent = alloc_test_unit(class_id, x, y);
     ent->svflags |= SVF_MONSTER;
     ent->health.value = ent->health.max_value = 100.0f;
@@ -66,13 +66,13 @@ TEST(wc3_rally, default_target_is_producer_itself) {
 
 TEST(wc3_rally, default_orc_barracks_rally_stops_trained_unit_outside_footprint) {
     enum { W = 8, H = 8 };
-    FLOAT const old_structure = game.constants.structureFollowRange;
+    float const old_structure = game.constants.structureFollowRange;
     size_t const pathtex_size = sizeof(pathTex_t) + W * H * sizeof(COLOR32);
     pathTex_t *pathtex;
     LPEDICT producer;
     LPEDICT trained;
     VECTOR2 exit;
-    FLOAT angle;
+    float angle;
 
     reset_entities();
     setup_test_world();

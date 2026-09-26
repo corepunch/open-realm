@@ -5,7 +5,7 @@
 
 /* WoW WMO/ADT/WDT chunk tags are stored reversed on disk: the canonical tag
  * "MOHD" appears as the bytes 'D','H','O','M'. Each ID_* below is named after
- * the on-disk (reversed) byte order so it can be compared DWORD-wise against a
+ * the on-disk (reversed) byte order so it can be compared uint32_t-wise against a
  * raw memcpy of the tag bytes; the trailing comment gives the canonical tag. */
 
 /* WMO */

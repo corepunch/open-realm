@@ -26,21 +26,21 @@
 #define CL_MOVIE_AUDIO_TARGET_FRAMES 44100
 
 typedef struct {
-    BYTE *rgba;
+    uint8_t *rgba;
     int64_t pts_ms;
 } clMovieVideoFrame_t;
 
 typedef struct {
-    BOOL active;
-    BOOL extracted;
-    BOOL music_suspended;
+    bool active;
+    bool extracted;
+    bool music_suspended;
     PATHSTR source_path;
     PATHSTR disk_path;
-    DWORD width;
-    DWORD height;
-    DWORD start_ticks;
-    BYTE *current_rgba;
-    BOOL current_valid;
+    uint32_t width;
+    uint32_t height;
+    uint32_t start_ticks;
+    uint8_t *current_rgba;
+    bool current_valid;
 #ifdef BZ_FFMPEG
     AVFormatContext *format;
     AVCodecContext *video_codec;
@@ -52,17 +52,17 @@ typedef struct {
     SwrContext *swr;
     int video_stream;
     int audio_stream;
-    BOOL demux_eof;
-    BOOL video_flushed;
-    BOOL audio_flushed;
+    bool demux_eof;
+    bool video_flushed;
+    bool audio_flushed;
     int64_t video_pts_origin;
     int64_t synthetic_video_pts;
     int64_t frame_duration_ms;
-    BYTE *audio_buffer;
+    uint8_t *audio_buffer;
     unsigned int audio_buffer_size;
     clMovieVideoFrame_t frames[CL_MOVIE_VIDEO_QUEUE];
-    DWORD frame_head;
-    DWORD frame_count;
+    uint32_t frame_head;
+    uint32_t frame_count;
 #endif
 } clMovieState_t;
 
@@ -98,7 +98,7 @@ static void CL_MovieClose(void) {
     memset(&cl_movie, 0, sizeof(cl_movie));
 }
 
-static BOOL CL_MovieResolveDiskPath(LPCSTR path) {
+static bool CL_MovieResolveDiskPath(cstring_t path) {
     if (FS_ResolveLoosePath(path, cl_movie.disk_path, sizeof(cl_movie.disk_path))) {
         return true;
     }
@@ -113,7 +113,7 @@ static BOOL CL_MovieResolveDiskPath(LPCSTR path) {
     return true;
 }
 
-static BOOL CL_MovieOpenCodec(int stream_index, AVCodecContext **out) {
+static bool CL_MovieOpenCodec(int stream_index, AVCodecContext **out) {
     AVStream *stream;
     AVCodec const *codec;
     AVCodecContext *ctx;
@@ -160,10 +160,10 @@ static int64_t CL_MovieVideoPtsMs(AVFrame const *frame) {
     return pts;
 }
 
-static BOOL CL_MovieEnsureVideoConversion(AVFrame const *frame) {
+static bool CL_MovieEnsureVideoConversion(AVFrame const *frame) {
     if (cl_movie.sws) return true;
-    cl_movie.width = (DWORD)frame->width;
-    cl_movie.height = (DWORD)frame->height;
+    cl_movie.width = (uint32_t)frame->width;
+    cl_movie.height = (uint32_t)frame->height;
     if (!cl_movie.width || !cl_movie.height) return false;
     cl_movie.sws = sws_getContext(frame->width, frame->height, (enum AVPixelFormat)frame->format,
                                   frame->width, frame->height, AV_PIX_FMT_RGBA,
@@ -178,9 +178,9 @@ static BOOL CL_MovieEnsureVideoConversion(AVFrame const *frame) {
     return true;
 }
 
-static BOOL CL_MovieQueueVideoFrame(AVFrame const *frame) {
-    DWORD index;
-    BYTE *dst_data[4] = {0};
+static bool CL_MovieQueueVideoFrame(AVFrame const *frame) {
+    uint32_t index;
+    uint8_t *dst_data[4] = {0};
     int dst_linesize[4] = {0};
 
     if (cl_movie.frame_count >= CL_MOVIE_VIDEO_QUEUE) return false;
@@ -200,7 +200,7 @@ static BOOL CL_MovieQueueVideoFrame(AVFrame const *frame) {
     return true;
 }
 
-static BOOL CL_MovieDrainVideo(void) {
+static bool CL_MovieDrainVideo(void) {
     int result;
 
     while (cl_movie.frame_count < CL_MOVIE_VIDEO_QUEUE) {
@@ -213,7 +213,7 @@ static BOOL CL_MovieDrainVideo(void) {
     return true;
 }
 
-static BOOL CL_MovieEnsureAudioConversion(AVFrame const *frame) {
+static bool CL_MovieEnsureAudioConversion(AVFrame const *frame) {
     AVChannelLayout output_layout = AV_CHANNEL_LAYOUT_STEREO;
     int result;
 
@@ -235,11 +235,11 @@ static BOOL CL_MovieEnsureAudioConversion(AVFrame const *frame) {
     return true;
 }
 
-static BOOL CL_MovieQueueAudioFrame(AVFrame const *frame) {
+static bool CL_MovieQueueAudioFrame(AVFrame const *frame) {
     int output_frames;
     int required_bytes;
     int converted;
-    BYTE *out;
+    uint8_t *out;
 
     if (!CL_MovieEnsureAudioConversion(frame)) return false;
     output_frames = (int)av_rescale_rnd(swr_get_delay(cl_movie.swr, frame->sample_rate) + frame->nb_samples,
@@ -257,11 +257,11 @@ static BOOL CL_MovieQueueAudioFrame(AVFrame const *frame) {
                             (uint8_t const **)frame->extended_data,
                             frame->nb_samples);
     if (converted < 0) return false;
-    S_StreamSamples(S_STREAM_MOVIE, (SHORT const *)cl_movie.audio_buffer, (DWORD)converted);
+    S_StreamSamples(S_STREAM_MOVIE, (int16_t const *)cl_movie.audio_buffer, (uint32_t)converted);
     return true;
 }
 
-static BOOL CL_MovieDrainAudio(void) {
+static bool CL_MovieDrainAudio(void) {
     int result;
 
     if (!cl_movie.audio_codec) return true;
@@ -275,7 +275,7 @@ static BOOL CL_MovieDrainAudio(void) {
     }
 }
 
-static BOOL CL_MovieFlushDecoders(void) {
+static bool CL_MovieFlushDecoders(void) {
     if (!cl_movie.video_flushed) {
         int result = avcodec_send_packet(cl_movie.video_codec, NULL);
         if (result >= 0 || result == AVERROR_EOF) cl_movie.video_flushed = true;
@@ -287,14 +287,14 @@ static BOOL CL_MovieFlushDecoders(void) {
     return CL_MovieDrainVideo() && CL_MovieDrainAudio();
 }
 
-static BOOL CL_MoviePump(void) {
+static bool CL_MoviePump(void) {
     int guard = 0;
 
     if (!CL_MovieDrainVideo() || !CL_MovieDrainAudio()) return false;
     while (!cl_movie.demux_eof && guard++ < 128) {
         int result;
-        BOOL video_ready = cl_movie.frame_count >= CL_MOVIE_VIDEO_QUEUE;
-        BOOL audio_ready = !cl_movie.audio_codec || S_StreamBufferedFrames(S_STREAM_MOVIE) >= CL_MOVIE_AUDIO_TARGET_FRAMES;
+        bool video_ready = cl_movie.frame_count >= CL_MOVIE_VIDEO_QUEUE;
+        bool audio_ready = !cl_movie.audio_codec || S_StreamBufferedFrames(S_STREAM_MOVIE) >= CL_MOVIE_AUDIO_TARGET_FRAMES;
 
         if (video_ready || (cl_movie.frame_count > 0 && audio_ready)) break;
         result = av_read_frame(cl_movie.format, cl_movie.packet);
@@ -321,11 +321,11 @@ static BOOL CL_MoviePump(void) {
 }
 
 static void CL_MoviePresentFrames(void) {
-    DWORD elapsed = SDL_GetTicks() - cl_movie.start_ticks;
+    uint32_t elapsed = SDL_GetTicks() - cl_movie.start_ticks;
 
     while (cl_movie.frame_count) {
         clMovieVideoFrame_t *frame = &cl_movie.frames[cl_movie.frame_head];
-        if ((DWORD)frame->pts_ms > elapsed && cl_movie.current_valid) break;
+        if ((uint32_t)frame->pts_ms > elapsed && cl_movie.current_valid) break;
         memcpy(cl_movie.current_rgba, frame->rgba, (size_t)cl_movie.width * cl_movie.height * 4);
         cl_movie.current_valid = true;
         cl_movie.frame_head = (cl_movie.frame_head + 1) % CL_MOVIE_VIDEO_QUEUE;
@@ -347,7 +347,7 @@ void CL_MovieShutdown(void) {
 #endif
 }
 
-BOOL CL_PlayMovie(LPCSTR path) {
+bool CL_PlayMovie(cstring_t path) {
 #ifndef BZ_FFMPEG
     (void)path;
     CON_printf("Movie playback is disabled in this build (rebuild with FFMPEG=1).");
@@ -412,7 +412,7 @@ BOOL CL_PlayMovie(LPCSTR path) {
 #endif
 }
 
-BOOL CL_MovieActive(void) {
+bool CL_MovieActive(void) {
     return cl_movie.active;
 }
 
@@ -433,10 +433,10 @@ void CL_MovieUpdate(void) {
 }
 
 void CL_MovieDraw(void) {
-    RECT scene;
-    RECT movie;
-    FLOAT scene_aspect;
-    FLOAT movie_aspect;
+    rect_t scene;
+    rect_t movie;
+    float scene_aspect;
+    float movie_aspect;
 
     if (!cl_movie.active) return;
     scene = re.GetUISceneRect();
@@ -445,8 +445,8 @@ void CL_MovieDraw(void) {
 
     size2_t window = re.GetWindowSize();
     if (!window.width || !window.height) return;
-    scene_aspect = (FLOAT)window.width / window.height;
-    movie_aspect = (FLOAT)cl_movie.width / (FLOAT)cl_movie.height;
+    scene_aspect = (float)window.width / window.height;
+    movie_aspect = (float)cl_movie.width / (float)cl_movie.height;
     movie = scene;
     if (movie_aspect > scene_aspect) {
         movie.h = scene.h * scene_aspect / movie_aspect;
@@ -462,7 +462,7 @@ void CL_MovieDraw(void) {
                                 .screen = movie));
 }
 
-BOOL CL_MovieKeyEvent(keyCode_t key, bool down) {
+bool CL_MovieKeyEvent(keyCode_t key, bool down) {
     if (!cl_movie.active) return false;
     if (down && key == K_ESCAPE) {
 #ifdef BZ_FFMPEG
@@ -476,7 +476,7 @@ BOOL CL_MovieKeyEvent(keyCode_t key, bool down) {
 
 void CL_Movie_f(void) {
     char path[MAX_PATHLEN];
-    LPCSTR arg;
+    cstring_t arg;
 
     if (Cmd_Argc() != 2) {
         CON_printf("usage: playmovie <name-or-path>");
@@ -493,11 +493,11 @@ void CL_Movie_f(void) {
 
 #ifdef BZ_TESTS
 #include "shared/test.h"
-static RECT movie_test_rect;
+static rect_t movie_test_rect;
 static size2_t movie_test_window;
-static RECT CL_MovieTestScene(void) { return MAKE(RECT, 0, 0, 0.8f, 0.6f); }
+static rect_t CL_MovieTestScene(void) { return MAKE(rect_t, 0, 0, 0.8f, 0.6f); }
 static size2_t CL_MovieTestWindow(void) { return movie_test_window; }
-static void CL_MovieTestFill(LPCRECT rect, COLOR32 color) { (void)rect; (void)color; }
+static void CL_MovieTestFill(rect_t const * rect, COLOR32 color) { (void)rect; (void)color; }
 static void CL_MovieTestFrame(drawCinematicFrame_t const *frame) { movie_test_rect = frame->screen; }
 TEST(client_movie, letterboxing_uses_physical_aspect_on_stretched_canvas) {
     refExport_t saved_re = re;
@@ -512,9 +512,9 @@ TEST(client_movie, letterboxing_uses_physical_aspect_on_stretched_canvas) {
         FOR_LOOP(m, sizeof(movies) / sizeof(movies[0])) {
             cl_movie.width = movies[m].width; cl_movie.height = movies[m].height;
             CL_MovieDraw();
-            FLOAT width = movie_test_rect.w / 0.8f * windows[w].width;
-            FLOAT height = movie_test_rect.h / 0.6f * windows[w].height;
-            T_FEQ(width / height, (FLOAT)movies[m].width / movies[m].height, 0.0001f);
+            float width = movie_test_rect.w / 0.8f * windows[w].width;
+            float height = movie_test_rect.h / 0.6f * windows[w].height;
+            T_FEQ(width / height, (float)movies[m].width / movies[m].height, 0.0001f);
             T_FEQ(movie_test_rect.x * 2 + movie_test_rect.w, 0.8f, 0.0001f);
             T_FEQ(movie_test_rect.y * 2 + movie_test_rect.h, 0.6f, 0.0001f);
             T_ASSERT(movie_test_rect.w <= 0.80001f && movie_test_rect.h <= 0.60001f);

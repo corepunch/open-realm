@@ -2,19 +2,19 @@
 #include "shared/test.h"
 #include "../skills/s_skills.h"
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void setup_test_world(void);
 void order_attack(LPEDICT self, LPEDICT target);
 void T_Damage(LPEDICT target, LPEDICT attacker, int damage);
 void SV_Physics_Toss(LPEDICT ent);
-void unit_build(LPEDICT self, DWORD class_id);
+void unit_build(LPEDICT self, uint32_t class_id);
 void attack_melee_cooldown(LPEDICT self);
 void ai_train_build(LPEDICT self);
 static slkTestData_t *building_install_repair_data(slkTestData_t **rows_out);
 static void building_restore_repair_data(slkTestData_t *old, slkTestData_t *rows);
 
 /* Keep production order, acquisition, and death entry points active in this review fixture. */
-static LPEDICT review_order_unit(FLOAT x, DWORD owner) {
+static LPEDICT review_order_unit(float x, uint32_t owner) {
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','f','o','o'), x, 0);
     ((LPMAPINFO)level.mapinfo)->players[owner].playerType = kPlayerTypeHuman;
     ent->s.player = owner;
@@ -39,7 +39,7 @@ TEST(wc3_order_lifecycle, hold_position_does_not_chase_acquired_enemy) {
     setup_test_world();
     LPEDICT unit = review_order_unit(0, 0), enemy = review_order_unit(300, 1);
     T_ASSERT(S_HoldPosition(unit));
-    level.time = 300 - (DWORD)(unit - g_edicts) % 300;
+    level.time = 300 - (uint32_t)(unit - g_edicts) % 300;
     unit->currentmove->think(unit);
     T_ASSERT(unit->goalentity == enemy);
     T_ASSERT(unit->movement.holding_position);
@@ -51,7 +51,7 @@ TEST(wc3_order_lifecycle, hold_attacks_in_range_then_stays_when_enemy_leaves) {
     setup_test_world();
     LPEDICT unit = review_order_unit(0, 0), enemy = review_order_unit(20, 1);
     T_ASSERT(S_HoldPosition(unit));
-    level.time = 300 - (DWORD)(unit - g_edicts) % 300;
+    level.time = 300 - (uint32_t)(unit - g_edicts) % 300;
     unit->currentmove->think(unit);
     unit->currentmove->think(unit);
     T_STREQ(unit->currentmove->animation, "attack");
@@ -143,7 +143,7 @@ TEST(wc3_order_lifecycle, animationless_melee_kill_preserves_resumed_follow) {
     LPEDICT unit = review_order_unit(0, 0), ally = review_order_unit(500, 0);
     LPEDICT enemy = review_order_unit(20, 1);
     T_ASSERT(unit_issuetargetorder(unit, "move", ally));
-    unit->attack1.damagePoint = (FLOAT)FRAMETIME / 1000.0f;
+    unit->attack1.damagePoint = (float)FRAMETIME / 1000.0f;
     G_SetHealth(enemy, 1);
     order_attack(unit, enemy);
     unit->currentmove->think(unit);
@@ -184,7 +184,7 @@ TEST(wc3_order_lifecycle, finishing_repair_preserves_production_queue) {
     T_FEQ(building->health.value, building->health.max_value, 0.0001f);
     T_ASSERT(building->build == queued);
     T_ASSERT(building->currentmove->proc == CAbilityTrain);
-    FLOAT progress = queued->health.value;
+    float progress = queued->health.value;
     ai_train_build(building);
     T_ASSERT(queued->health.value > progress);
 }

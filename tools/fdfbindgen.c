@@ -573,7 +573,7 @@ static void emit_bind_children(int node_index, const char *node_expr) {
 }
 
 static void emit_load_function(void) {
-    printf("static inline BOOL %s_Load(%s_t *out) {\n", prefix, prefix);
+    printf("static inline bool %s_Load(%s_t *out) {\n", prefix, prefix);
 
     if (selected_root_count == 1) {
         int root = selected_roots[0];
@@ -589,7 +589,7 @@ static void emit_load_function(void) {
         return;
     }
 
-    printf("    BOOL ok = true;\n");
+    printf("    bool ok = true;\n");
     printf("    LPFRAMEDEF bind_root;\n");
     printf("    if (!out) {\n");
     printf("        return false;\n");
@@ -622,8 +622,8 @@ static void emit_bind_at_function(void) {
     }
 
     root = selected_roots[0];
-    printf("\nstatic inline BOOL %s_Bind(%s_t *out, LPFRAMEDEF bind_root) {\n", prefix, prefix);
-    printf("    BOOL ok = true;\n");
+    printf("\nstatic inline bool %s_Bind(%s_t *out, LPFRAMEDEF bind_root) {\n", prefix, prefix);
+    printf("    bool ok = true;\n");
     printf("    if (!out) {\n");
     printf("        return false;\n");
     printf("    }\n");

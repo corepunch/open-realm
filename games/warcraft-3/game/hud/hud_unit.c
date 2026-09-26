@@ -7,8 +7,8 @@
 
 typedef struct {
     LPEDICT ent;
-    DWORD code;
-    DWORD level;
+    uint32_t code;
+    uint32_t level;
     gameCommandButton_t *button;
 } commandCooldownParams_t;
 
@@ -25,7 +25,7 @@ static void G_SetCommandCooldown(commandCooldownParams_t const *params) {
     }
 }
 
-static LPCSTR G_ResearchField(LPCSTR field, BOOL research) {
+static cstring_t G_ResearchField(cstring_t field, bool research) {
     static char buffer[64];
 
     if (!research) {
@@ -35,7 +35,7 @@ static LPCSTR G_ResearchField(LPCSTR field, BOOL research) {
     return buffer;
 }
 
-LPCSTR GetBuildCommand(unitRace_t race) {
+cstring_t GetBuildCommand(unitRace_t race) {
     switch (race) {
         case RACE_HUMAN: return STR_CmdBuildHuman;
         case RACE_ORC: return STR_CmdBuildOrc;
@@ -45,17 +45,17 @@ LPCSTR GetBuildCommand(unitRace_t race) {
     }
 }
 
-static LPCSTR G_CommandArtCode(LPEDICT ent, LPCSTR code) {
+static cstring_t G_CommandArtCode(LPEDICT ent, cstring_t code) {
     if (!strcmp(code, STR_CmdBuild)) {
         return GetBuildCommand(WC3_RaceFromString(ent->data.UnitData->race));
     }
     return code;
 }
 
-static LPCSTR G_RemoveQuotes(LPCSTR text) {
+static cstring_t G_RemoveQuotes(cstring_t text) {
     static char buffers[4][1024];
-    static DWORD cursor;
-    LPSTR out = buffers[cursor++ & 3];
+    static uint32_t cursor;
+    string_t out = buffers[cursor++ & 3];
     size_t len;
 
     out[0] = '\0';
@@ -71,24 +71,24 @@ static LPCSTR G_RemoveQuotes(LPCSTR text) {
     return out;
 }
 
-static LPCSTR G_AbilityString(LPCSTR classname, LPCSTR field) {
+static cstring_t G_AbilityString(cstring_t classname, cstring_t field) {
     return G_AbilityDataText(classname, field);
 }
 
-static LPCSTR G_ProcessTooltipString(LPCSTR input) {
+static cstring_t G_ProcessTooltipString(cstring_t input) {
     static char buffers[4][1024];
-    static DWORD cursor;
-    LPSTR out = buffers[cursor++ & 3];
+    static uint32_t cursor;
+    string_t out = buffers[cursor++ & 3];
 
     out[0] = '\0';
     if (!input) {
         return out;
     }
-    for (LPCSTR p = input; *p && strlen(out) < sizeof(buffers[0]) - 1; p++) {
+    for (cstring_t p = input; *p && strlen(out) < sizeof(buffers[0]) - 1; p++) {
         if (*p == '<') {
             char classname[16];
             char field[16];
-            LPCSTR replacement;
+            cstring_t replacement;
             int matched = sscanf(p, "<%15[^,],%15[^>]>", classname, field);
 
             if (matched == 2 && (replacement = G_AbilityString(classname, field))) {
@@ -102,7 +102,7 @@ static LPCSTR G_ProcessTooltipString(LPCSTR input) {
     return out;
 }
 
-static LPCSTR G_StringForLevel(LPCSTR text, DWORD level) {
+static cstring_t G_StringForLevel(cstring_t text, uint32_t level) {
     if (!text || level == 0) {
         return text;
     }
@@ -116,11 +116,11 @@ static LPCSTR G_StringForLevel(LPCSTR text, DWORD level) {
     return text;
 }
 
-static LPCSTR G_FormatTooltipLevel(LPCSTR input, DWORD level) {
+static cstring_t G_FormatTooltipLevel(cstring_t input, uint32_t level) {
     static char buffers[4][1024];
-    static DWORD cursor;
-    LPSTR out = buffers[cursor++ & 3];
-    LPSTR const out_end = out + sizeof(buffers[0]) - 1;
+    static uint32_t cursor;
+    string_t out = buffers[cursor++ & 3];
+    string_t const out_end = out + sizeof(buffers[0]) - 1;
 
     if (!input) {
         out[0] = '\0';
@@ -144,37 +144,37 @@ static LPCSTR G_FormatTooltipLevel(LPCSTR input, DWORD level) {
     return buffers[(cursor - 1) & 3];
 }
 
-static LPCSTR G_CleanTooltipString(LPCSTR text, DWORD level) {
+static cstring_t G_CleanTooltipString(cstring_t text, uint32_t level) {
     return G_RemoveQuotes(G_FormatTooltipLevel(
         G_ProcessTooltipString(G_StringForLevel(text, level)), level));
 }
 
-static LPCSTR G_UIArtPath(LPCSTR art) {
+static cstring_t G_UIArtPath(cstring_t art) {
     if (!art || !*art) {
         return art;
     }
     return Theme_String(art, art);
 }
 
-static BOOL G_BuildCommandButtonState(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, int toggle_state, gameCommandButton_t *button) {
+static bool G_BuildCommandButtonState(LPEDICT ent, cstring_t code, bool research, uint32_t level, int toggle_state, gameCommandButton_t *button) {
     char command_code[256];
     char art_level[256];
-    LPCSTR base_code;
-    LPCSTR art_code;
-    LPCSTR art;
-    LPCSTR art_path;
-    LPCSTR buttonpos;
-    LPCSTR tip;
-    LPCSTR ubertip;
-    LPCSTR hotkey;
+    cstring_t base_code;
+    cstring_t art_code;
+    cstring_t art;
+    cstring_t art_path;
+    cstring_t buttonpos;
+    cstring_t tip;
+    cstring_t ubertip;
+    cstring_t hotkey;
     ability_t const *ability;
     abilityitem_t item;
     abilityCall_t call;
-    DWORD ability_code = 0;
-    BOOL toggle_on = false;
-    BOOL upgrade_research = false;
-    DWORD x = UINT_MAX;
-    DWORD y = UINT_MAX;
+    uint32_t ability_code = 0;
+    bool toggle_on = false;
+    bool upgrade_research = false;
+    uint32_t x = UINT_MAX;
+    uint32_t y = UINT_MAX;
 
     if (!ent || !code || !*code || !button) {
         return false;
@@ -229,11 +229,11 @@ static BOOL G_BuildCommandButtonState(LPEDICT ent, LPCSTR code, BOOL research, D
     }
     hotkey = research ? G_StringForLevel(hotkey, level) : hotkey;
     button->hotkey = hotkey && *hotkey ? *hotkey : '\0';
-    button->x = x == UINT_MAX ? 255 : (BYTE)MIN(x, 3);
-    button->y = y == UINT_MAX ? 255 : (BYTE)MIN(y, 2);
+    button->x = x == UINT_MAX ? 255 : (uint8_t)MIN(x, 3);
+    button->y = y == UINT_MAX ? 255 : (uint8_t)MIN(y, 2);
     button->research = research ? 1 : 0;
     button->level = level;
-    button->active = (BYTE)GetAbilityIndex(ability ? ability->proc : NULL);
+    button->active = (uint8_t)GetAbilityIndex(ability ? ability->proc : NULL);
     if (ability_code) {
         button->manacost = S_SpellNumber(ability_code, ABILITY_NUMBER_COST, level);
     }
@@ -249,17 +249,17 @@ static BOOL G_BuildCommandButtonState(LPEDICT ent, LPCSTR code, BOOL research, D
     return true;
 }
 
-BOOL G_BuildCommandButton(LPEDICT ent, LPCSTR code, BOOL research, DWORD level, gameCommandButton_t *button) {
+bool G_BuildCommandButton(LPEDICT ent, cstring_t code, bool research, uint32_t level, gameCommandButton_t *button) {
     return G_BuildCommandButtonState(ent, code, research, level, -1, button);
 }
 
 static void G_AddCommandButton(LPEDICT ent,
                                gameCommandButton_t *buttons,
-                               BYTE max_buttons,
-                               BYTE *count,
-                               LPCSTR code,
-                               BOOL research,
-                               DWORD level) {
+                               uint8_t max_buttons,
+                               uint8_t *count,
+                               cstring_t code,
+                               bool research,
+                               uint32_t level) {
     if (!buttons || !count || *count >= max_buttons) {
         return;
     }
@@ -272,14 +272,14 @@ static void G_AddCommandButton(LPEDICT ent,
     }
 }
 
-static BOOL G_IsImplementedAbility(LPCSTR code) {
+static bool G_IsImplementedAbility(cstring_t code) {
     ability_t const *ability = FindAbilityForCommand(code);
     return S_AbilityHasCommand(ability);
 }
 
-static BOOL G_HasCommandRawcode(gameCommandButton_t const *buttons, BYTE count, DWORD code) {
+static bool G_HasCommandRawcode(gameCommandButton_t const *buttons, uint8_t count, uint32_t code) {
     FOR_LOOP(i, count) {
-        DWORD button_code = 0;
+        uint32_t button_code = 0;
         if (strlen(buttons[i].command) < 4) continue;
         memcpy(&button_code, buttons[i].command, sizeof(button_code));
         if (button_code == code) return true;
@@ -287,12 +287,12 @@ static BOOL G_HasCommandRawcode(gameCommandButton_t const *buttons, BYTE count, 
     return false;
 }
 
-static void G_AddAbilityCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons,
-                                       BYTE *count, LPCSTR code) {
+static void G_AddAbilityCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, uint8_t max_buttons,
+                                       uint8_t *count, cstring_t code) {
     ability_t const *ability = FindAbilityForCommand(code);
-    BYTE idx;
-    DWORD rawcode;
-    BOOL researched;
+    uint8_t idx;
+    uint32_t rawcode;
+    bool researched;
 
     if (!S_AbilityHasCommand(ability) || strlen(code) != 4 || *count >= max_buttons) return;
     memcpy(&rawcode, code, sizeof(rawcode));
@@ -322,7 +322,7 @@ static void G_AddAbilityCommandButtons(LPEDICT ent, gameCommandButton_t *buttons
     }
 }
 
-static void G_DisableCommandButton(gameCommandButton_t *button, LPCSTR reason) {
+static void G_DisableCommandButton(gameCommandButton_t *button, cstring_t reason) {
     size_t used;
 
     if (!button) return;
@@ -333,14 +333,14 @@ static void G_DisableCommandButton(gameCommandButton_t *button, LPCSTR reason) {
              "%s|cffffcc00%s|r", used ? "|n" : "", reason);
 }
 
-static BOOL G_BuildHeroReviveButton(LPEDICT altar, LPEDICT hero, BYTE slot,
+static bool G_BuildHeroReviveButton(LPEDICT altar, LPEDICT hero, uint8_t slot,
                                     gameCommandButton_t *button) {
     char command[32];
     char fallback[128];
-    LPCSTR code;
-    LPCSTR art;
-    LPCSTR tip;
-    LPCSTR ubertip;
+    cstring_t code;
+    cstring_t art;
+    cstring_t tip;
+    cstring_t ubertip;
 
     if (!G_HeroCanBeRevivedAt(altar, hero) || !button) return false;
     code = GetClassName(hero->class_id);
@@ -367,13 +367,13 @@ static BOOL G_BuildHeroReviveButton(LPEDICT altar, LPEDICT hero, BYTE slot,
     return true;
 }
 
-BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_buttons) {
-    BYTE count = 0;
+uint8_t G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, uint8_t max_buttons) {
+    uint8_t count = 0;
     UnitBalance_t const *b;
     UnitWeapons_t const *w;
     UnitAbilities_t const *a;
-    BOOL is_burrow;
-    BOOL burrow_occupied;
+    bool is_burrow;
+    bool burrow_occupied;
 
     if (!ent || !ent->class_id || !buttons) {
         return 0;
@@ -438,7 +438,7 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdBuild, false, 0);
     }
     if (a->heroAbilList) {
-        BYTE const idx = count;
+        uint8_t const idx = count;
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdSelectSkill, false, 0);
         if (count > idx) {
             buttons[idx].number = ent->hero.skillpoints;
@@ -455,7 +455,7 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     }
     FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
         char abil[5] = {0};
-        DWORD const code = ent->abilities.added[i];
+        uint32_t const code = ent->abilities.added[i];
         if (!code) continue;
         memcpy(abil, &code, 4);
         if (G_IsImplementedAbility(abil) && G_ActorHasSkill(ent, abil))
@@ -464,7 +464,7 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     FOR_LOOP(i, MAX_HERO_ABILITIES) {
         heroability_t const *ha = ent->heroabilities + i;
         if (ha->level > 0 && G_UnitAbilityResearchAvailable(ent, ha->code)) {
-            BYTE const idx = count;
+            uint8_t const idx = count;
             G_AddCommandButton(ent, buttons, max_buttons, &count, GetClassName(ha->code), false, ha->level);
             if (count > idx) {
                 G_SetCommandCooldown(&(commandCooldownParams_t){ .ent = ent, .code = ha->code, .level = ha->level, .button = &buttons[idx] });
@@ -474,11 +474,11 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     if (G_UnitProfile(ent->class_id)->upgrade) {
         PARSE_LIST(G_UnitProfile(ent->class_id)->upgrade, upgrade_to, parse_segment) {
             LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player);
-            DWORD unit_id = 0;
+            uint32_t unit_id = 0;
             buildCommandState_t state;
             buildingUpgradeCommandParams_t params;
             char reason[128];
-            BYTE idx;
+            uint8_t idx;
 
             if (strlen(upgrade_to) != 4 || !client || client->ps.number != ent->s.player) continue;
             memcpy(&unit_id, upgrade_to, sizeof(unit_id));
@@ -498,10 +498,10 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     if (G_UnitProfile(ent->class_id)->trains) {
         PARSE_LIST(G_UnitProfile(ent->class_id)->trains, unit, parse_segment) {
             LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player);
-            DWORD unit_id = 0;
+            uint32_t unit_id = 0;
             buildCommandState_t state;
             char reason[128];
-            BYTE idx;
+            uint8_t idx;
 
             if (strlen(unit) != 4 || !client || client->ps.number != ent->s.player) continue;
             memcpy(&unit_id, unit, sizeof(unit_id));
@@ -517,18 +517,18 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     if (G_UnitProfile(ent->class_id)->researches) {
         PARSE_LIST(G_UnitProfile(ent->class_id)->researches, upgrade, parse_segment) {
             LPGAMECLIENT client = G_GetPlayerClientByNumber(ent->s.player);
-            DWORD upgrade_id = 0;
-            LONG next_level = 0;
+            uint32_t upgrade_id = 0;
+            int32_t next_level = 0;
             buildCommandState_t state;
             char reason[128];
-            BYTE idx;
+            uint8_t idx;
 
             if (strlen(upgrade) != 4 || !client || client->ps.number != ent->s.player) continue;
             memcpy(&upgrade_id, upgrade, sizeof(upgrade_id));
             state = G_GetResearchCommandState(client, ent, upgrade_id, &next_level, reason, sizeof(reason));
             if (state == BUILD_COMMAND_ABSENT || state == BUILD_COMMAND_HIDDEN) continue;
             idx = count;
-            G_AddCommandButton(ent, buttons, max_buttons, &count, upgrade, true, (DWORD)next_level);
+            G_AddCommandButton(ent, buttons, max_buttons, &count, upgrade, true, (uint32_t)next_level);
             if (state == BUILD_COMMAND_DISABLED && count > idx) {
                 G_DisableCommandButton(&buttons[idx], reason);
             }
@@ -550,9 +550,9 @@ BYTE G_GetCommandButtons(LPEDICT ent, gameCommandButton_t *buttons, BYTE max_but
     return count;
 }
 
-BOOL G_BuildInventoryItem(LPEDICT ent, LPEDICT item, BYTE slot, gameInventoryItem_t *out) {
-    LPCSTR item_name;
-    LPCSTR art;
+bool G_BuildInventoryItem(LPEDICT ent, LPEDICT item, uint8_t slot, gameInventoryItem_t *out) {
+    cstring_t item_name;
+    cstring_t art;
 
     if (!ent || !out || slot >= G_InventoryCapacity(ent) || !G_IsItem(item) ||
         item->item.carrier != ent || item->item.inventory_slot != slot || item->item.in_world) return false;
@@ -575,24 +575,24 @@ BOOL G_BuildInventoryItem(LPEDICT ent, LPEDICT item, BYTE slot, gameInventoryIte
     return true;
 }
 
-BYTE G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, BYTE max_items) {
-    BYTE count = 0;
-    DWORD capacity;
+uint8_t G_GetInventory(LPEDICT ent, gameInventoryItem_t *items, uint8_t max_items) {
+    uint8_t count = 0;
+    uint32_t capacity;
 
     if (!ent || !items) return 0;
     memset(items, 0, sizeof(*items) * max_items);
     capacity = G_InventoryCapacity(ent);
     FOR_LOOP(slot, capacity) {
         if (count >= max_items) break;
-        if (G_BuildInventoryItem(ent, ent->inventory[slot], (BYTE)slot, &items[count])) count++;
+        if (G_BuildInventoryItem(ent, ent->inventory[slot], (uint8_t)slot, &items[count])) count++;
     }
     return count;
 }
 
-BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
-    BYTE count = 0;
-    DWORD cursor = G_Time();
-    BOOL food_blocked = false;
+uint8_t G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, uint8_t max_queue) {
+    uint8_t count = 0;
+    uint32_t cursor = G_Time();
+    bool food_blocked = false;
 
     if (!ent || !queue || max_queue == 0) {
         return 0;
@@ -604,10 +604,10 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
      * that state through the same queue payload used by training/research. */
     if (G_BuildingUpgradeActive(ent)) {
         gameCommandButton_t button;
-        DWORD const duration = (DWORD)(MAX(0.0f, ent->research.duration) * 1000.0f);
-        FLOAT progress = ent->research.duration > 0.0f
+        uint32_t const duration = (uint32_t)(MAX(0.0f, ent->research.duration) * 1000.0f);
+        float progress = ent->research.duration > 0.0f
             ? ent->research.progress / ent->research.duration : 1.0f;
-        DWORD const elapsed = (DWORD)((FLOAT)duration * MAX(0.0f, MIN(1.0f, progress)));
+        uint32_t const elapsed = (uint32_t)((float)duration * MAX(0.0f, MIN(1.0f, progress)));
 
         if (G_BuildCommandButton(ent, GetClassName(ent->research.upgrade), false, 0, &button)) {
             UI_CopyString(queue[0].art, sizeof(queue[0].art), button.art);
@@ -622,14 +622,14 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
 
     for (LPEDICT build = ent->build; build && count < max_queue;
          build = build->revival.reviving ? build->revival.queue_next : build->build) {
-        DWORD duration;
-        FLOAT progress = 0;
+        uint32_t duration;
+        float progress = 0;
 
         if (build->research.upgrade != 0) {
             gameCommandButton_t button;
-            duration = (DWORD)(MAX(0.0f, build->research.duration) * 1000.0f);
+            duration = (uint32_t)(MAX(0.0f, build->research.duration) * 1000.0f);
             if (G_BuildCommandButton(ent, GetClassName(build->research.upgrade), true,
-                                     (DWORD)build->research.level, &button)) {
+                                     (uint32_t)build->research.level, &button)) {
                 UI_CopyString(queue[count].art, sizeof(queue[count].art), button.art);
             }
             if (count == 0 && build->research.duration > 0.0f) {
@@ -637,14 +637,14 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
                 progress = MAX(0, MIN(progress, 1));
             }
         } else {
-            LPCSTR build_name = GetClassName(build->class_id);
+            cstring_t build_name = GetClassName(build->class_id);
             duration = build->revival.reviving
-                ? (DWORD)(G_HeroReviveTime(build) * 1000.0f)
-                : (build->data.UnitBalance ? (DWORD)MAX(0, build->data.UnitBalance->buildTime) * 1000 : 0);
+                ? (uint32_t)(G_HeroReviveTime(build) * 1000.0f)
+                : (build->data.UnitBalance ? (uint32_t)MAX(0, build->data.UnitBalance->buildTime) * 1000 : 0);
             if (count == 0) {
-                LONG cost = build->data.UnitBalance ? MAX(0, build->data.UnitBalance->foodUsed) : 0;
+                int32_t cost = build->data.UnitBalance ? MAX(0, build->data.UnitBalance->foodUsed) : 0;
                 if (build->revival.reviving && duration > 0) {
-                    progress = build->revival.progress / ((FLOAT)duration / 1000.0f);
+                    progress = build->revival.progress / ((float)duration / 1000.0f);
                     progress = MAX(0, MIN(progress, 1));
                 } else if (build->health.max_value > 0) {
                     progress = build->health.value / build->health.max_value;
@@ -662,7 +662,7 @@ BYTE G_GetBuildQueue(LPEDICT ent, gameQueueItem_t *queue, BYTE max_queue) {
             queue[count].starttime = 0;
             queue[count].endtime = 0;
         } else if (duration > 0) {
-            DWORD elapsed = (DWORD)(duration * progress);
+            uint32_t elapsed = (uint32_t)(duration * progress);
             queue[count].starttime = count == 0 && elapsed <= cursor ? cursor - elapsed : cursor;
             queue[count].endtime = queue[count].starttime + duration;
             cursor = queue[count].endtime;

@@ -20,17 +20,17 @@
 
 /* ---- AbilityData_t (mirrors g_unitrow.h — avoid circular game deps) ---- */
 typedef struct {
-    DWORD id, code, uberAlias;
-    LPCSTR comments, sort, race;
-    LONG version, levels, reqLevel, levelSkip, priority;
-    BOOL useInEditor, hero, item, checkDep, InBeta;
-    LPCSTR targs[4];
-    FLOAT cast[4], dur[4], heroDur[4], cool[4], cost[4], area[4], range[4];
-    FLOAT data[4][9];
-    DWORD dataId[4][9];
-    DWORD unitID[4];
-    LPCSTR buffID[4], efctID[4];
-    LPCSTR castCheck, durCheck, heroDurCheck, coolCheck, costCheck, areaCheck, rangeCheck;
+    uint32_t id, code, uberAlias;
+    cstring_t comments, sort, race;
+    int32_t version, levels, reqLevel, levelSkip, priority;
+    bool useInEditor, hero, item, checkDep, InBeta;
+    cstring_t targs[4];
+    float cast[4], dur[4], heroDur[4], cool[4], cost[4], area[4], range[4];
+    float data[4][9];
+    uint32_t dataId[4][9];
+    uint32_t unitID[4];
+    cstring_t buffID[4], efctID[4];
+    cstring_t castCheck, durCheck, heroDurCheck, coolCheck, costCheck, areaCheck, rangeCheck;
 } AbilityData_t;
 
 /* ---- DDX schema (mirrors g_metadata.c ability_schema) ---- */
@@ -112,7 +112,7 @@ static slkField_t const ability_schema[] = {
 #undef AB_F
 
 /* ---- Ability string files to load for Name/Ubertip lookups ---- */
-static LPCSTR const ability_string_files[] = {
+static cstring_t const ability_string_files[] = {
     "Units\\HumanAbilityStrings.txt",
     "Units\\OrcAbilityStrings.txt",
     "Units\\UndeadAbilityStrings.txt",
@@ -125,9 +125,9 @@ static LPCSTR const ability_string_files[] = {
 };
 
 typedef struct {
-    DWORD id, code;
-    LPCSTR comments, sort, race, buffArt, buffTip, buffUberTip;
-    LPCSTR targetArt, specialArt, effectArt, missileArt;
+    uint32_t id, code;
+    cstring_t comments, sort, race, buffArt, buffTip, buffUberTip;
+    cstring_t targetArt, specialArt, effectArt, missileArt;
 } AbilityBuffData_t;
 
 static slkField_t const ability_buff_schema[] = {
@@ -148,18 +148,18 @@ static slkField_t const ability_buff_schema[] = {
 
 #define MAX_AUDIT_MPQ 16 // paths; War3.mpq + War3x.mpq plus locals fit with margin
 static char archive_paths[MAX_AUDIT_MPQ][1024];
-static DWORD archive_n;
+static uint32_t archive_n;
 
-typedef struct { DWORD id; char cls[48]; char parent[8]; } classRow_t;
+typedef struct { uint32_t id; char cls[48]; char parent[8]; } classRow_t;
 static classRow_t classes[1200];
-static DWORD class_n;
+static uint32_t class_n;
 
 /* Helper: build a FOURCC key from a string literal at init time. */
-#define RK(s) ((DWORD)((unsigned char)(s)[0] | ((unsigned char)(s)[1] << 8) | \
+#define RK(s) ((uint32_t)((unsigned char)(s)[0] | ((unsigned char)(s)[1] << 8) | \
                         ((unsigned char)(s)[2] << 16) | ((unsigned char)(s)[3] << 24)))
 
 /* ---- Rawcodes with implemented handlers in s_skills.c abilitylist[] ---- */
-static DWORD const implemented_rawcodes[] = {
+static uint32_t const implemented_rawcodes[] = {
     /* Engine commands (string-keyed, skip in output) */
     /* Human */
     RK("AHhb"), RK("AHad"), RK("AHwe"), RK("AHbz"),
@@ -195,21 +195,21 @@ static DWORD const implemented_rawcodes[] = {
 };
 #define NUM_IMPLEMENTED (sizeof(implemented_rawcodes) / sizeof(implemented_rawcodes[0]))
 
-static bool is_implemented(DWORD key) {
+static bool is_implemented(uint32_t key) {
     for (size_t i = 0; i < NUM_IMPLEMENTED; i++)
         if (implemented_rawcodes[i] == key) return true;
     return false;
 }
 
 static char fourcc_buf[5];
-static LPCSTR fourcc(DWORD key) {
+static cstring_t fourcc(uint32_t key) {
     memcpy(fourcc_buf, &key, 4);
     fourcc_buf[4] = '\0';
     return fourcc_buf;
 }
 
 /* Strip leading/trailing quotes from a tooltip string. */
-static LPCSTR strip_quotes(LPCSTR s) {
+static cstring_t strip_quotes(cstring_t s) {
     if (!s) return NULL;
     while (*s == '"') s++;
     size_t len = strlen(s);
@@ -223,9 +223,9 @@ static LPCSTR strip_quotes(LPCSTR s) {
 }
 
 /* Extract first level from comma-separated tooltip. */
-static LPCSTR first_level_tip(LPCSTR s) {
+static cstring_t first_level_tip(cstring_t s) {
     if (!s) return NULL;
-    LPCSTR end = strchr(s, ',');
+    cstring_t end = strchr(s, ',');
     if (end) {
         static char buf[1024];
         size_t len = (size_t)(end - s);
@@ -244,8 +244,8 @@ static void add_archive_cb(const char *path, void *ud) {
 }
 
 /* War3x.mpq and Frozen Throne overlays replace ROC AbilityData rows; they must not load under -roc. */
-static BOOL is_tft_archive(LPCSTR path) {
-    LPCSTR p;
+static bool is_tft_archive(cstring_t path) {
+    cstring_t p;
     if (strstr(path, "Frozen")) return true;
     for (p = path; p[0] && p[1] && p[2] && p[3] && p[4]; p++)
         if ((p[0] == 'W' || p[0] == 'w') && (p[1] == 'a' || p[1] == 'A') && (p[2] == 'r' || p[2] == 'R') &&
@@ -260,7 +260,7 @@ static void load_classes(void) {
     if (!f) return;
     while (fgets(line, sizeof(line), f) && class_n < sizeof(classes) / sizeof(classes[0])) {
         char raw[8] = {0}, cls[48] = {0}, parent[8] = {0};
-        LPCSTR p;
+        cstring_t p;
         if (sscanf(line, "{ \"%4[^\"]\", \"%47[^\"]\"", raw, cls) != 2) continue;
         p = strstr(line, "parent=\"");
         if (p) sscanf(p + 8, "%7[^\"]", parent);
@@ -272,14 +272,14 @@ static void load_classes(void) {
     fclose(f);
 }
 
-static classRow_t const *find_class(DWORD id) {
+static classRow_t const *find_class(uint32_t id) {
     FOR_LOOP(i, class_n) if (classes[i].id == id) return classes + i;
     return NULL;
 }
 
-static DWORD open_archive_set(HANDLE *archives, BOOL tft) {
-    DWORD n = 0;
-    memset(archives, 0, sizeof(HANDLE) * 8);
+static uint32_t open_archive_set(handle_t *archives, bool tft) {
+    uint32_t n = 0;
+    memset(archives, 0, sizeof(handle_t) * 8);
     /* First-wins file search: expansion archives must precede ROC. */
     if (tft)
         FOR_LOOP(i, archive_n)
@@ -290,28 +290,28 @@ static DWORD open_archive_set(HANDLE *archives, BOOL tft) {
     return n;
 }
 
-static void print_fourcc(LPCSTR label, DWORD id) {
+static void print_fourcc(cstring_t label, uint32_t id) {
     if (!id) { printf("%s=", label); return; }
     printf("%s=%.4s", label, (char const *)&id);
 }
 
-static void print_ini_field(stbIniCache_t const *ini, LPCSTR section, LPCSTR key) {
-    LPCSTR value = Stb_IniCacheFind(ini, section, key);
+static void print_ini_field(stbIniCache_t const *ini, cstring_t section, cstring_t key) {
+    cstring_t value = Stb_IniCacheFind(ini, section, key);
     if (value && *value) printf("  %s=%s\n", key, strip_quotes(value));
 }
 
-static AbilityBuffData_t const *find_buff(AbilityBuffData_t const *rows, DWORD count, DWORD id) {
+static AbilityBuffData_t const *find_buff(AbilityBuffData_t const *rows, uint32_t count, uint32_t id) {
     FOR_LOOP(i, count) if (rows[i].id == id) return rows + i;
     return NULL;
 }
 
 /* BuffID is a comma list (Bams,Bam2); each token is its own strings/buff-data row. */
-static void dump_buff_tokens(LPCSTR list, AbilityBuffData_t const *buffs, DWORD buff_count, stbIniCache_t const *ini) {
+static void dump_buff_tokens(cstring_t list, AbilityBuffData_t const *buffs, uint32_t buff_count, stbIniCache_t const *ini) {
     if (!list || !*list) return;
     printf("buffs:\n");
     while (*list) {
         char token[8] = {0};
-        DWORD n = 0, id;
+        uint32_t n = 0, id;
         AbilityBuffData_t const *row;
         while (*list && *list != ',' && n < 4) token[n++] = *list++;
         if (*list == ',') list++;
@@ -332,9 +332,9 @@ static void dump_buff_tokens(LPCSTR list, AbilityBuffData_t const *buffs, DWORD 
     }
 }
 
-/* DataA–I are FLOAT in the schema and FOURCC in the same cells (unitCode/abilCode).
+/* DataA–I are float in the schema and FOURCC in the same cells (unitCode/abilCode).
  * SLK "-" sentinels are not codes. A leading letter means fourcc; "ncgb" must not become 0. */
-static BOOL data_slot_is_code(DWORD id, FLOAT number) {
+static bool data_slot_is_code(uint32_t id, float number) {
     unsigned char c;
     (void)number;
     if (!id) return false;
@@ -342,15 +342,15 @@ static BOOL data_slot_is_code(DWORD id, FLOAT number) {
     return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
 }
 
-static void dump_data_slot(AbilityData_t const *row, DWORD level, DWORD slot) {
+static void dump_data_slot(AbilityData_t const *row, uint32_t level, uint32_t slot) {
     if (data_slot_is_code(row->dataId[level][slot], row->data[level][slot]))
         printf("%.4s", (char const *)&row->dataId[level][slot]);
     else
         printf("%g", row->data[level][slot]);
 }
 
-static void dump_level(AbilityData_t const *row, DWORD level) {
-    static LPCSTR const data_name[] = { "DataA", "DataB", "DataC", "DataD", "DataE", "DataF", "DataG", "DataH", "DataI" };
+static void dump_level(AbilityData_t const *row, uint32_t level) {
+    static cstring_t const data_name[] = { "DataA", "DataB", "DataC", "DataD", "DataE", "DataF", "DataG", "DataH", "DataI" };
     printf("  L%u targs=%s cost=%g cool=%g rng=%g dur=%g heroDur=%g area=%g cast=%g\n",
            level + 1, row->targs[level] ? row->targs[level] : "", row->cost[level], row->cool[level],
            row->range[level], row->dur[level], row->heroDur[level], row->area[level], row->cast[level]);
@@ -371,8 +371,8 @@ static void dump_level(AbilityData_t const *row, DWORD level) {
     }
 }
 
-static void dump_row(AbilityData_t const *row, AbilityData_t const *rows, DWORD count,
-                     AbilityBuffData_t const *buffs, DWORD buff_count, stbIniCache_t const *ini) {
+static void dump_row(AbilityData_t const *row, AbilityData_t const *rows, uint32_t count,
+                     AbilityBuffData_t const *buffs, uint32_t buff_count, stbIniCache_t const *ini) {
     char id[5] = {0};
     classRow_t const *cls;
     memcpy(id, &row->id, 4);
@@ -412,11 +412,11 @@ static void dump_row(AbilityData_t const *row, AbilityData_t const *rows, DWORD 
     }
 }
 
-static int dump_raw(DWORD raw, BOOL tft, LPCSTR label) {
-    HANDLE archives[8] = {0};
+static int dump_raw(uint32_t raw, bool tft, cstring_t label) {
+    handle_t archives[8] = {0};
     AbilityData_t *rows = NULL;
     AbilityBuffData_t *buffs = NULL;
-    DWORD count, buff_count, n = open_archive_set(archives, tft);
+    uint32_t count, buff_count, n = open_archive_set(archives, tft);
     stbIniCache_t ini = {0};
     AbilityData_t const *hit = NULL;
     if (!n) { fprintf(stderr, "%s: no archives\n", label); return 1; }
@@ -443,11 +443,11 @@ static int dump_raw(DWORD raw, BOOL tft, LPCSTR label) {
 }
 
 int main(int argc, char **argv) {
-    HANDLE archives[8] = {0};
+    handle_t archives[8] = {0};
     size_t archive_count = 0;
-    LPCSTR data_dir = NULL;
+    cstring_t data_dir = NULL;
     bool tft = false, roc_only = false, dump_all = false, have_mpq = false;
-    DWORD raw = 0;
+    uint32_t raw = 0;
 
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-data") && i + 1 < argc) {
@@ -462,7 +462,7 @@ int main(int argc, char **argv) {
         } else if (!strcmp(argv[i], "-all")) {
             dump_all = true;
         } else if (!strcmp(argv[i], "-raw") && i + 1 < argc && strlen(argv[i + 1]) == 4) {
-            LPCSTR id = argv[++i];
+            cstring_t id = argv[++i];
             raw = RK(id);
         } else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
             fprintf(stderr, "Usage: %s [-data <dir>] [-mpq <file>] [-tft] [-roc] [-all] [-raw <id>]\n", argv[0]);
@@ -503,7 +503,7 @@ int main(int argc, char **argv) {
 
     /* Load AbilityData.slk. */
     AbilityData_t *rows = NULL;
-    DWORD count = Stb_SlkLoad("Units\\AbilityData.slk", ability_schema, (void **)&rows, sizeof(AbilityData_t));
+    uint32_t count = Stb_SlkLoad("Units\\AbilityData.slk", ability_schema, (void **)&rows, sizeof(AbilityData_t));
     if (!count || !rows) {
         fprintf(stderr, "Failed to load Units\\AbilityData.slk\n");
         return 1;
@@ -518,22 +518,22 @@ int main(int argc, char **argv) {
     FS_SLKBuildIndex(&idx, rows, count, sizeof(AbilityData_t));
 
     /* Collect unique rawcodes (AbilityData has alias rows that map to the same code). */
-    typedef struct { DWORD key; DWORD code; LPCSTR name; LPCSTR tip; LONG version; bool hero; bool item; LPCSTR sort; LPCSTR race; int levels; } abilityInfo_t;
+    typedef struct { uint32_t key; uint32_t code; cstring_t name; cstring_t tip; int32_t version; bool hero; bool item; cstring_t sort; cstring_t race; int levels; } abilityInfo_t;
     abilityInfo_t *abilities = NULL;
-    DWORD ability_count = 0;
-    DWORD ability_cap = 0;
+    uint32_t ability_count = 0;
+    uint32_t ability_cap = 0;
 
-    for (DWORD i = 0; i < count; i++) {
+    for (uint32_t i = 0; i < count; i++) {
         AbilityData_t *row = rows + i;
         if (!row->id) continue;
 
         /* Resolve the actual code via uberAlias if present. */
-        DWORD code = row->code ? row->code : row->id;
+        uint32_t code = row->code ? row->code : row->id;
         if (row->uberAlias) code = row->uberAlias;
 
         /* Skip if we already have this code. */
         bool dup = false;
-        for (DWORD j = 0; j < ability_count; j++) {
+        for (uint32_t j = 0; j < ability_count; j++) {
             if (abilities[j].code == code) { dup = true; break; }
         }
         if (dup) continue;
@@ -544,11 +544,11 @@ int main(int argc, char **argv) {
         /* Get name from INI strings. */
         char key5[5] = {0};
         memcpy(key5, &row->id, 4);
-        LPCSTR name = Stb_IniCacheFind(&ini, key5, "Name");
+        cstring_t name = Stb_IniCacheFind(&ini, key5, "Name");
         if (!name) name = row->comments;
-        LPCSTR tip = Stb_IniCacheFind(&ini, key5, "Tip");
-        LPCSTR ubertip = Stb_IniCacheFind(&ini, key5, "Ubertip");
-        LPCSTR display_tip = ubertip ? ubertip : tip;
+        cstring_t tip = Stb_IniCacheFind(&ini, key5, "Tip");
+        cstring_t ubertip = Stb_IniCacheFind(&ini, key5, "Ubertip");
+        cstring_t display_tip = ubertip ? ubertip : tip;
 
         /* Grow array. */
         if (ability_count >= ability_cap) {
@@ -564,7 +564,7 @@ int main(int argc, char **argv) {
     }
 
     /* Print results. */
-    DWORD missing = 0, implemented = 0;
+    uint32_t missing = 0, implemented = 0;
 
     if (dump_all) {
         printf("/* All %lu abilities from AbilityData.slk */\n", (unsigned long)ability_count);
@@ -574,7 +574,7 @@ int main(int argc, char **argv) {
         printf("/* Add these to abilitylist[] in s_skills.c with handler stubs. */\n\n");
     }
 
-    for (DWORD i = 0; i < ability_count; i++) {
+    for (uint32_t i = 0; i < ability_count; i++) {
         abilityInfo_t *a = &abilities[i];
         bool impl = is_implemented(a->code);
 
@@ -619,7 +619,7 @@ int main(int argc, char **argv) {
             (unsigned long)ability_count, (unsigned long)implemented, (unsigned long)missing);
 
     /* Cleanup. */
-    for (DWORD i = 0; i < ability_count; i++) free((void *)abilities[i].tip);
+    for (uint32_t i = 0; i < ability_count; i++) free((void *)abilities[i].tip);
     Stb_IniCacheFree(&ini);
     FS_SLKFreeIndex(&idx);
     FS_SLKFreeRows(ability_schema, rows, count, sizeof(AbilityData_t));

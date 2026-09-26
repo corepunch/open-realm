@@ -1,7 +1,7 @@
 #include "r_wowmap.h"
 
-LPTEXTURE Wow_CreateAlphaTexture(BYTE const alpha[4][WOW_ALPHA_TEXELS]) {
-    BYTE pixels[WOW_ALPHA_TEXELS * 4];
+LPTEXTURE Wow_CreateAlphaTexture(uint8_t const alpha[4][WOW_ALPHA_TEXELS]) {
+    uint8_t pixels[WOW_ALPHA_TEXELS * 4];
     LPTEXTURE texture = R_AllocateTexture(64, 64);
 
     FOR_LOOP(i, WOW_ALPHA_TEXELS) {
@@ -38,8 +38,8 @@ void Wow_EnsureAlphaAtlasTexture(void) {
     R_Call(glTexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 }
 
-void Wow_UploadAlphaAtlasChunk(DWORD index_x, DWORD index_y, BYTE const alpha[4][WOW_ALPHA_TEXELS]) {
-    BYTE pixels[WOW_ALPHA_TEXELS * 4];
+void Wow_UploadAlphaAtlasChunk(uint32_t index_x, uint32_t index_y, uint8_t const alpha[4][WOW_ALPHA_TEXELS]) {
+    uint8_t pixels[WOW_ALPHA_TEXELS * 4];
 
     if (index_x >= WOW_ALPHA_ATLAS_CHUNKS || index_y >= WOW_ALPHA_ATLAS_CHUNKS) {
         return;
@@ -58,8 +58,8 @@ void Wow_UploadAlphaAtlasChunk(DWORD index_x, DWORD index_y, BYTE const alpha[4]
 }
 
 
-DWORD Wow_PredictedLayer(WORD const pred_tex[8], DWORD layer_count, int x, int y) {
-    DWORD layer;
+uint32_t Wow_PredictedLayer(uint16_t const pred_tex[8], uint32_t layer_count, int x, int y) {
+    uint32_t layer;
 
     if (!pred_tex || layer_count <= 1) {
         return 0;
@@ -71,7 +71,7 @@ DWORD Wow_PredictedLayer(WORD const pred_tex[8], DWORD layer_count, int x, int y
     return layer;
 }
 
-DWORD Wow_AlphaSlotForTexture(DWORD unique_texture_ids[4], DWORD *unique_count, DWORD texture_id) {
+uint32_t Wow_AlphaSlotForTexture(uint32_t unique_texture_ids[4], uint32_t *unique_count, uint32_t texture_id) {
     FOR_LOOP(i, *unique_count) {
         if (unique_texture_ids[i] == texture_id) {
             return i;
@@ -84,20 +84,20 @@ DWORD Wow_AlphaSlotForTexture(DWORD unique_texture_ids[4], DWORD *unique_count, 
     return 0;
 }
 
-DWORD Wow_BuildUniqueTextureSlots(wowLayer_t const *layers,
-                                         DWORD layer_count,
-                                         DWORD slot_texture_ids[4]) {
-    DWORD unique_texture_ids[4] = { 0, 0, 0, 0 };
-    DWORD unique_count = 0;
+uint32_t Wow_BuildUniqueTextureSlots(wowLayer_t const *layers,
+                                         uint32_t layer_count,
+                                         uint32_t slot_texture_ids[4]) {
+    uint32_t unique_texture_ids[4] = { 0, 0, 0, 0 };
+    uint32_t unique_count = 0;
 
-    memset(slot_texture_ids, 0, sizeof(DWORD) * 4);
+    memset(slot_texture_ids, 0, sizeof(uint32_t) * 4);
     if (!layers || layer_count == 0) {
         return 0;
     }
 
     FOR_LOOP(layer_index, MIN(layer_count, 4)) {
-        DWORD texture_id = layers[layer_index].texture_id;
-        DWORD slot = Wow_AlphaSlotForTexture(unique_texture_ids, &unique_count, texture_id);
+        uint32_t texture_id = layers[layer_index].texture_id;
+        uint32_t slot = Wow_AlphaSlotForTexture(unique_texture_ids, &unique_count, texture_id);
         if (slot < 4) {
             slot_texture_ids[slot] = texture_id;
         }
@@ -106,13 +106,13 @@ DWORD Wow_BuildUniqueTextureSlots(wowLayer_t const *layers,
     return unique_count;
 }
 
-void Wow_DecodeAlphaLayer(BYTE const *src,
-                                 BYTE const *src_end,
-                                 DWORD flags,
-                                 DWORD mcnk_flags,
-                                 BOOL big_alpha,
-                                 BYTE out[WOW_ALPHA_TEXELS]) {
-    DWORD read_count = 0;
+void Wow_DecodeAlphaLayer(uint8_t const *src,
+                                 uint8_t const *src_end,
+                                 uint32_t flags,
+                                 uint32_t mcnk_flags,
+                                 bool big_alpha,
+                                 uint8_t out[WOW_ALPHA_TEXELS]) {
+    uint32_t read_count = 0;
 
     if (!src || src >= src_end) {
         return;
@@ -120,10 +120,10 @@ void Wow_DecodeAlphaLayer(BYTE const *src,
 
     if (flags & 0x200) {
         while (read_count < WOW_ALPHA_TEXELS && src < src_end) {
-            BYTE code = *src++;
-            DWORD count = code & 0x7f;
+            uint8_t code = *src++;
+            uint32_t count = code & 0x7f;
             if (code & 0x80) {
-                BYTE value;
+                uint8_t value;
                 if (src >= src_end) {
                     break;
                 }
@@ -142,30 +142,30 @@ void Wow_DecodeAlphaLayer(BYTE const *src,
             out[read_count++] = *src++;
         }
     } else {
-        BOOL do_not_fix_alpha_map = (mcnk_flags & 0x8000) != 0;
+        bool do_not_fix_alpha_map = (mcnk_flags & 0x8000) != 0;
         size_t nibble_count = (size_t)(src_end - src) * 2;
 
         if (do_not_fix_alpha_map) {
             while (read_count < WOW_ALPHA_TEXELS && src < src_end) {
-                BYTE value = *src++;
-                out[read_count++] = (BYTE)((value & 0x0f) * 17);
+                uint8_t value = *src++;
+                out[read_count++] = (uint8_t)((value & 0x0f) * 17);
                 if (read_count < WOW_ALPHA_TEXELS) {
-                    out[read_count++] = (BYTE)(((value >> 4) & 0x0f) * 17);
+                    out[read_count++] = (uint8_t)(((value >> 4) & 0x0f) * 17);
                 }
             }
         } else {
             FOR_LOOP(y, 63) {
                 FOR_LOOP(x, 63) {
                     size_t nibble_index = (size_t)y * 64 + x;
-                    BYTE packed;
-                    BYTE nibble;
+                    uint8_t packed;
+                    uint8_t nibble;
 
                     if (nibble_index >= nibble_count) {
                         continue;
                     }
                     packed = src[nibble_index >> 1];
                     nibble = (nibble_index & 1) ? ((packed >> 4) & 0x0f) : (packed & 0x0f);
-                    out[y * 64 + x] = (BYTE)(nibble * 17);
+                    out[y * 64 + x] = (uint8_t)(nibble * 17);
                 }
                 out[y * 64 + 63] = out[y * 64 + 62];
             }
@@ -176,27 +176,27 @@ void Wow_DecodeAlphaLayer(BYTE const *src,
     }
 }
 
-void Wow_DecodeAlphaMaps(BYTE const *mcal,
-                                DWORD mcal_size,
+void Wow_DecodeAlphaMaps(uint8_t const *mcal,
+                                uint32_t mcal_size,
                                 wowLayer_t const *layers,
-                                DWORD layer_count,
-                                DWORD mcnk_flags,
-                                BYTE alpha[4][WOW_ALPHA_TEXELS]) {
-    BOOL big_alpha = (wow_world.wdt_flags & (0x4 | 0x80)) != 0;
-    DWORD unique_texture_ids[4] = { 0, 0, 0, 0 };
-    DWORD unique_count = 0;
-    DWORD uncompressed_index = 0;
-    BOOL has_uncompressed = false;
-    memset(alpha, 0, sizeof(BYTE) * 4 * WOW_ALPHA_TEXELS);
+                                uint32_t layer_count,
+                                uint32_t mcnk_flags,
+                                uint8_t alpha[4][WOW_ALPHA_TEXELS]) {
+    bool big_alpha = (wow_world.wdt_flags & (0x4 | 0x80)) != 0;
+    uint32_t unique_texture_ids[4] = { 0, 0, 0, 0 };
+    uint32_t unique_count = 0;
+    uint32_t uncompressed_index = 0;
+    bool has_uncompressed = false;
+    memset(alpha, 0, sizeof(uint8_t) * 4 * WOW_ALPHA_TEXELS);
 
     if (!mcal || !layers || layer_count <= 1) {
         return;
     }
 
     FOR_LOOP(layer_index, MIN(layer_count, 4)) {
-        DWORD slot = Wow_AlphaSlotForTexture(unique_texture_ids, &unique_count, layers[layer_index].texture_id);
-        BYTE const *src;
-        DWORD offset;
+        uint32_t slot = Wow_AlphaSlotForTexture(unique_texture_ids, &unique_count, layers[layer_index].texture_id);
+        uint8_t const *src;
+        uint32_t offset;
 
         if (!(layers[layer_index].flags & 0x100)) {
             uncompressed_index = slot;
@@ -215,9 +215,9 @@ void Wow_DecodeAlphaMaps(BYTE const *mcal,
 
     if (has_uncompressed) {
         FOR_LOOP(i, WOW_ALPHA_TEXELS) {
-            BYTE value = 255;
+            uint8_t value = 255;
             FOR_LOOP(layer_index, 4) {
-                value = (BYTE)(value - alpha[layer_index][i]);
+                value = (uint8_t)(value - alpha[layer_index][i]);
             }
             alpha[uncompressed_index][i] = value;
         }
@@ -249,7 +249,7 @@ void Wow_EnsureHeightAtlas(void) {
 /* Upload one 17x9 height tile for MCNK at atlas position (ix, iy).
    Stores absolute world Z (base_z + relative MCVT height) so the vertex shader
    can use the sampled value directly without a per-chunk base-Z uniform. */
-void Wow_UploadHeightAtlasChunk(DWORD ix, DWORD iy, float base_z, float const heights[WOW_MCVT_COUNT]) {
+void Wow_UploadHeightAtlasChunk(uint32_t ix, uint32_t iy, float base_z, float const heights[WOW_MCVT_COUNT]) {
     float tile[WOW_HEIGHT_ATLAS_TILE_H][WOW_HEIGHT_ATLAS_TILE_W];
     int r, c;
 
@@ -273,12 +273,12 @@ void Wow_UploadHeightAtlasChunk(DWORD ix, DWORD iy, float base_z, float const he
 
 /* Allocate the RGBA8 grass-control texture (one texel per 8x8 MCNK cell). */
 void Wow_EnsureGrassCtrlTexture(void) {
-    BYTE *clear;
+    uint8_t *clear;
     if (wow_world.grass_ctrl) return;
     clear = ri.MemAlloc(WOW_GRASS_CTRL_SIZE * WOW_GRASS_CTRL_SIZE * 4);
     if (!clear) return;
     memset(clear, 0, WOW_GRASS_CTRL_SIZE * WOW_GRASS_CTRL_SIZE * 4);
-    for (DWORD i = 0; i < WOW_GRASS_CTRL_SIZE * WOW_GRASS_CTRL_SIZE; i++) clear[i * 4] = 255;
+    for (uint32_t i = 0; i < WOW_GRASS_CTRL_SIZE * WOW_GRASS_CTRL_SIZE; i++) clear[i * 4] = 255;
     wow_world.grass_ctrl = R_AllocateTexture(WOW_GRASS_CTRL_SIZE, WOW_GRASS_CTRL_SIZE);
     R_Call(glBindTexture, GL_TEXTURE_2D, wow_world.grass_ctrl->texid);
     R_Call(glTexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, WOW_GRASS_CTRL_SIZE, WOW_GRASS_CTRL_SIZE,

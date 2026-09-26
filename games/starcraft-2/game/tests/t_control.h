@@ -2,14 +2,14 @@
 #include "shared/test.h"
 #include "renderer/r_game.h"
 
-static LONG sc2_test_wire[80];
-static DWORD sc2_test_count, sc2_test_time;
+static int32_t sc2_test_wire[80];
+static uint32_t sc2_test_count, sc2_test_time;
 static void sc2_test_write(pfWriteType_t type, void const *value) {
-    if (type == PF_BYTE || type == PF_LONG) sc2_test_wire[sc2_test_count++] = *(LONG const *)value;
+    if (type == PF_BYTE || type == PF_LONG) sc2_test_wire[sc2_test_count++] = *(int32_t const *)value;
 }
 static void sc2_test_unicast(LPEDICT ent) { (void)ent; }
 static void sc2_test_link(LPEDICT ent) { (void)ent; }
-static DWORD sc2_test_clock(void) { return sc2_test_time; }
+static uint32_t sc2_test_clock(void) { return sc2_test_time; }
 
 /* Compare the renderer's native model front with a completed authoritative move step. */
 static void sc2_test_model_follows_step(LPCEDICT ent, VECTOR2 previous) {
@@ -37,19 +37,19 @@ TEST(sc2_control, selection_orders_and_clear) {
     memset(sc2_move, 0, sizeof(sc2_move));
     globals.num_edicts = 4;
     sc2_edicts[0].client = &sc2_clients[0]; sc2_clients[0].ps.number = 1;
-    for (DWORD i = 1; i < 4; i++) {
+    for (uint32_t i = 1; i < 4; i++) {
         sc2_edicts[i] = (edict_t){ .inuse = true, .s = { .number = i, .player = i == 3 ? 2 : 1, .model = 1 } };
         sc2_move[i].mobile = true;
     }
     sc2_test_count = 0;
-    SC2_ClientCommand(sc2_edicts, 5, (LPCSTR[]){"select", "1", "1", "3", "99999"});
+    SC2_ClientCommand(sc2_edicts, 5, (cstring_t[]){"select", "1", "1", "3", "99999"});
     T_EQ(sc2_edicts[1].selected, 2); T_EQ(sc2_edicts[3].selected, 0);
     T_EQ(sc2_test_wire[0], svc_set_selection); T_EQ(sc2_test_wire[1], 1); T_EQ(sc2_test_wire[2], 1);
     entityState_t state = sc2_edicts[1].s;
     SC2_CustomizeEntity(1, &sc2_edicts[1], &state); T_ASSERT(!(state.flags & EF_NOT_SELECTABLE));
     SC2_CustomizeEntity(2, &sc2_edicts[1], &state); T_ASSERT(state.flags & EF_NOT_SELECTABLE);
     sc2_test_count = 0;
-    SC2_ClientCommand(sc2_edicts, 3, (LPCSTR[]){"smartpoint", "2.5", "1.5"});
+    SC2_ClientCommand(sc2_edicts, 3, (cstring_t[]){"smartpoint", "2.5", "1.5"});
     T_ASSERT(sc2_move[1].moving); T_ASSERT(!sc2_move[3].moving);
     T_FEQ(sc2_move[1].target.x, 2.5f, 0.001f);
     SC2_RunUnit(&sc2_edicts[1]);
@@ -58,13 +58,13 @@ TEST(sc2_control, selection_orders_and_clear) {
     T_ASSERT(!sc2_move[1].moving); T_EQ(sc2_edicts[1].s.ability, 0);
     T_FEQ(sc2_edicts[1].s.origin2.x, 2.5f, 0.001f);
     sc2_test_count = 0;
-    SC2_ClientCommand(sc2_edicts, 2, (LPCSTR[]){"select", "2"});
+    SC2_ClientCommand(sc2_edicts, 2, (cstring_t[]){"select", "2"});
     T_EQ(sc2_edicts[1].selected, 0); T_EQ(sc2_edicts[2].selected, 2);
     sc2_test_count = 0;
-    SC2_ClientCommand(sc2_edicts, 2, (LPCSTR[]){"select", "0"});
+    SC2_ClientCommand(sc2_edicts, 2, (cstring_t[]){"select", "0"});
     T_EQ(sc2_edicts[2].selected, 0); T_EQ(sc2_test_wire[1], 0);
     sc2_test_count = 0;
-    SC2_ClientCommand(sc2_edicts, 3, (LPCSTR[]){"smartpoint", "10", "10"});
+    SC2_ClientCommand(sc2_edicts, 3, (cstring_t[]){"smartpoint", "10", "10"});
     T_ASSERT(!sc2_move[2].moving);
     g_models[1] = model;
     gi = saved;
@@ -75,9 +75,9 @@ TEST(sc2_control, shared_router_detours_and_arrives) {
     struct game_import saved = gi;
     sc2Map_t *map = SC2_MapCurrent();
     sc2MapInfo_t info = map->MapInfo;
-    FLOAT cell = map->cell_size;
+    float cell = map->cell_size;
     VECTOR2 origin = map->origin;
-    BYTE cells[32 * 32] = { 0 };
+    uint8_t cells[32 * 32] = { 0 };
     animation_t anims[] = { { .name = "Stand", .interval = {0, 1000} }, { .name = "Walk", .interval = {1000, 2000} } };
     g_cmodel_t model = g_models[1];
     g_models[1].animations = anims; g_models[1].num_animations = 2;
@@ -97,7 +97,7 @@ TEST(sc2_control, shared_router_detours_and_arrives) {
     T_ASSERT(!CM_LineIsWalkableForRadius(&ent->s.origin2, &target, ent->collision));
     SC2_RunUnit(ent);
     T_ASSERT(sc2_move[1].path.valid); /* WC3's immediate A* handles a pending field. */
-    BOOL detour = false;
+    bool detour = false;
     for (int i = 0; i < 300 && sc2_move[1].moving; i++) {
         VECTOR2 prev = ent->s.origin2;
         CM_ProcessPathJobs(BZ_PATH_WORK_BUDGET);
@@ -151,9 +151,9 @@ TEST(sc2_control, cardinal_move_orders_face_displacement) {
         *ent = (edict_t){ .inuse = true, .s = { .number = 1, .model = 1, .scale = 1, .player = 1, .origin = {8, 8, 0} } };
         sc2_move[1].mobile = true;
         sc2_test_count = 0;
-        SC2_ClientCommand(sc2_edicts, 2, (LPCSTR[]){"select", "1"});
-        LPCSTR points[][2] = { {"20", "8"}, {"8", "20"}, {"0", "8"}, {"8", "0"} };
-        SC2_ClientCommand(sc2_edicts, 3, (LPCSTR[]){"smartpoint", points[i][0], points[i][1]});
+        SC2_ClientCommand(sc2_edicts, 2, (cstring_t[]){"select", "1"});
+        cstring_t points[][2] = { {"20", "8"}, {"8", "20"}, {"0", "8"}, {"8", "0"} };
+        SC2_ClientCommand(sc2_edicts, 3, (cstring_t[]){"smartpoint", points[i][0], points[i][1]});
         VECTOR2 previous = ent->s.origin2;
         SC2_RunUnit(ent);
         T_ASSERT(sc2_move[1].moving);

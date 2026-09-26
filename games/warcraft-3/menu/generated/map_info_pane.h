@@ -23,8 +23,8 @@ typedef struct MapInfoPane_s {
 } MapInfoPane_t;
 
 
-static inline BOOL MapInfoPane_Bind(MapInfoPane_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool MapInfoPane_Bind(MapInfoPane_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -51,7 +51,7 @@ static inline BOOL MapInfoPane_Bind(MapInfoPane_t *out, LPFRAMEDEF bind_root) {
     return ok;
 }
 
-static inline BOOL MapInfoPane_Load(MapInfoPane_t *out) {
+static inline bool MapInfoPane_Load(MapInfoPane_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") &&
            UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") &&

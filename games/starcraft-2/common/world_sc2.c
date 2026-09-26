@@ -1,9 +1,9 @@
 #include "sc2_map.h"
 #include "common/ui_constants.h"
 
-DWORD SC2_MapObjectClassId(sc2MapObject_t const *object);
+uint32_t SC2_MapObjectClassId(sc2MapObject_t const *object);
 
-BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
+bool CL_GameDefaultCamera(gameCamera_t *camera) {
     sc2MapCamera_t source;
     if (!camera || !SC2_MapDefaultCamera(&source)) return false;
     VECTOR3 const euler = SC2_EulerFromCamera(source.pitch, source.yaw);
@@ -13,18 +13,18 @@ BOOL CL_GameDefaultCamera(gameCamera_t *camera) {
     return true;
 }
 
-BOOL CL_GameCameraUsesWorldUp(void) { return false; }
+bool CL_GameCameraUsesWorldUp(void) { return false; }
 UICANVASPOLICY CL_GameCanvasPolicy(void) { return UI_CANVAS_POLICY; }
-FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction) { return SC2_LerpDegrees(a, b, fraction); }
-LPCSTR CL_GameOrderQueueReleaseCommand(void) { return NULL; }
-BOOL CL_GameBuildCursorBlocked(LPCVECTOR3 origin) { (void)origin; return false; }
-void CL_GameModifyBuildPathing(LPCVECTOR2 point, LPBYTE flags) { (void)point; (void)flags; }
-BOOL CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection) {
+float CL_GameLerpDegrees(float a, float b, float fraction) { return SC2_LerpDegrees(a, b, fraction); }
+cstring_t CL_GameOrderQueueReleaseCommand(void) { return NULL; }
+bool CL_GameBuildCursorBlocked(LPCVECTOR3 origin) { (void)origin; return false; }
+void CL_GameModifyBuildPathing(LPCVECTOR2 point, uint8_t * flags) { (void)point; (void)flags; }
+bool CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection) {
     (void)selection;
     return false;
 }
 
-bool CM_LoadMapFormat(LPCSTR mapFilename, cmLoadYield_t yield) {
+bool CM_LoadMapFormat(cstring_t mapFilename, cmLoadYield_t yield) {
     memset(&world, 0, sizeof(world));
     SC2_MapSetHost(&(sc2MapHost_t){
         .read_file = FS_ReadFile,
@@ -38,8 +38,8 @@ bool CM_LoadMapFormat(LPCSTR mapFilename, cmLoadYield_t yield) {
     yield();
 
     sc2Map_t const *map = SC2_MapCurrent();
-    DWORD width = map->MapInfo.width;
-    DWORD height = map->MapInfo.height;
+    uint32_t width = map->MapInfo.width;
+    uint32_t height = map->MapInfo.height;
     world.map = MemAlloc(sizeof(WAR3MAP));
     memset(world.map, 0, sizeof(WAR3MAP));
     world.map->width = width + 1;
@@ -57,22 +57,22 @@ bool CM_LoadMapFormat(LPCSTR mapFilename, cmLoadYield_t yield) {
     return true;
 }
 
-FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy) {
+float CM_GetHeightAtPoint(float sx, float sy) {
     return SC2_MapHeightAtPoint(sx, sy);
 }
 
-FLOAT CM_GetCameraHeightOffset(void) {
+float CM_GetCameraHeightOffset(void) {
     sc2MapCamera_t camera;
 
     SC2_MapDefaultCamera(&camera);
     return camera.height_offset;
 }
 
-VECTOR2 CM_GetNormalizedMapPosition(FLOAT x, FLOAT y) {
+VECTOR2 CM_GetNormalizedMapPosition(float x, float y) {
     return SC2_MapNormalizedPosition(x, y);
 }
 
-VECTOR2 CM_GetDenormalizedMapPosition(FLOAT x, FLOAT y) {
+VECTOR2 CM_GetDenormalizedMapPosition(float x, float y) {
     return SC2_MapDenormalizedPosition(x, y);
 }
 

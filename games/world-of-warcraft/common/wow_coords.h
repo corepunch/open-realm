@@ -8,7 +8,7 @@
 
 typedef struct {
     VECTOR3 pos, rot; /* Raw MODF placement coordinates and degrees, Y-up. */
-    WORD scale;      /* MODF fixed point: 1024 = unity, zero = unspecified/unity. */
+    uint16_t scale;      /* MODF fixed point: 1024 = unity, zero = unspecified/unity. */
 } WOWPLACEMENT;
 typedef WOWPLACEMENT *LPWOWPLACEMENT;
 typedef WOWPLACEMENT const *LPCWOWPLACEMENT;
@@ -16,7 +16,7 @@ typedef WOWPLACEMENT const *LPCWOWPLACEMENT;
 /* Native M2/WMO model space is already +X-forward, +Z-up. */
 static MATRIX4 const wow_model_basis = { .v = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1} };
 
-static VECTOR3 Wow_ObjectPosition(FLOAT x, FLOAT y, FLOAT z) {
+static VECTOR3 Wow_ObjectPosition(float x, float y, float z) {
     return (VECTOR3){ WOW_ADT_TILES * 0.5f * WOW_ADT_SIZE - z, WOW_ADT_TILES * 0.5f * WOW_ADT_SIZE - x, y };
 }
 
@@ -25,17 +25,17 @@ static orientation_t Wow_DoodadOrientation(VECTOR3 raw) {
     return (orientation_t){ .yaw = DEG2RAD(raw.y), .pitch = -DEG2RAD(raw.x), .roll = DEG2RAD(raw.z) };
 }
 
-static VECTOR3 Wow_TerrainOffset(FLOAT row, FLOAT col, FLOAT height) { return (VECTOR3){ -row, -col, height }; }
+static VECTOR3 Wow_TerrainOffset(float row, float col, float height) { return (VECTOR3){ -row, -col, height }; }
 static VECTOR3 Wow_TerrainNormal(VECTOR3 local) { return (VECTOR3){ -local.y, -local.x, local.z }; }
-static int Wow_TileIndex(FLOAT coord) { return (int)floorf(32.0f - coord / WOW_ADT_SIZE); }
+static int Wow_TileIndex(float coord) { return (int)floorf(32.0f - coord / WOW_ADT_SIZE); }
 
 /* WMO/M2 vertices stay in native Z-up model space. Convert only their ADT placement, once,
  * identically for collision and rendering. B*Ry(y-270)*Rz(-x)*Rx(z-90) = Rz(y+180)*Ry(x)*Rx(z). */
 static void Wow_PlacementMatrix(LPCWOWPLACEMENT def, LPMATRIX4 matrix) {
     VECTOR3 pos = Wow_ObjectPosition(def->pos.x, def->pos.y, def->pos.z);
-    FLOAT scale = def->scale ? def->scale / 1024.0f : 1.0f;
+    float scale = def->scale ? def->scale / 1024.0f : 1.0f;
     orientation_t angles = Wow_DoodadOrientation(def->rot);
-    angles.yaw += (FLOAT)M_PI;
+    angles.yaw += (float)M_PI;
     QUATERNION rotation = Quaternion_fromOrientation(&angles);
     Matrix4_from_rotation_translation_scale_origin(matrix, &rotation, &pos,
         &MAKE(VECTOR3, scale, scale, scale), &MAKE(VECTOR3, 0, 0, 0));
@@ -43,7 +43,7 @@ static void Wow_PlacementMatrix(LPCWOWPLACEMENT def, LPMATRIX4 matrix) {
 
 /* WoW uses downward pitch from the horizon and heading from +X. The orbit view uses tilt
  * from -Z and inverse heading from +Y; copying native angles made the camera overhead/sideways. */
-static VECTOR3 Wow_EulerFromCamera(FLOAT pitch, FLOAT yaw) {
+static VECTOR3 Wow_EulerFromCamera(float pitch, float yaw) {
     return (VECTOR3){ pitch - 90.0f, 0.0f, 90.0f - yaw };
 }
 
@@ -54,7 +54,7 @@ static VECTOR3 Wow_CameraFromEuler(LPCVECTOR3 euler) {
 
 /* Native camera angles are {downward pitch, heading, roll} in degrees, Z-up. */
 static VECTOR3 Wow_ViewForward(LPCVECTOR3 angles) {
-    FLOAT yaw = (FLOAT)DEG2RAD(angles->y), pitch = (FLOAT)DEG2RAD(angles->x);
+    float yaw = (float)DEG2RAD(angles->y), pitch = (float)DEG2RAD(angles->x);
     return (VECTOR3){ cosf(pitch) * cosf(yaw), cosf(pitch) * sinf(yaw), -sinf(pitch) };
 }
 

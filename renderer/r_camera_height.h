@@ -4,23 +4,23 @@
 #include "r_local.h"
 
 typedef struct {
-    FLOAT *samples;
-    DWORD width, height;
+    float *samples;
+    uint32_t width, height;
     VECTOR2 origin;
-    FLOAT cell_size;
+    float cell_size;
 } cameraHeightMap_t;
 
 typedef struct {
     cameraHeightMap_t *map;
-    LPCVOID data;
-    DWORD width, height_count, radius, samples;
+    void const * data;
+    uint32_t width, height_count, radius, samples;
     VECTOR2 origin;
-    FLOAT cell_size;
-    FLOAT (*get_height)(LPCVOID data, DWORD x, DWORD y);
+    float cell_size;
+    float (*get_height)(void const * data, uint32_t x, uint32_t y);
 } cameraHeightBuild_t;
 
 void R_BuildCameraHeightMap(cameraHeightBuild_t const *params);
 void R_FreeCameraHeightMap(cameraHeightMap_t *map);
-FLOAT R_SampleCameraHeightMap(cameraHeightMap_t const *map, FLOAT x, FLOAT y);
+float R_SampleCameraHeightMap(cameraHeightMap_t const *map, float x, float y);
 
 #endif

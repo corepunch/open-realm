@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 #define SFILE_OPEN_FROM_MPQ 0
-#define SFILE_INVALID_POS ((DWORD)-1)
+#define SFILE_INVALID_POS ((uint32_t)-1)
 
 #ifndef MAX_PATH
 #define MAX_PATH 260
@@ -29,42 +29,42 @@ extern "C" {
 typedef struct {
     char cFileName[MAX_PATH];
     char *szPlainName;
-    DWORD dwHashIndex;
-    DWORD dwBlockIndex;
-    DWORD dwFileSize;
-    DWORD dwFileFlags;
-    DWORD dwCompSize;
-    DWORD dwFileTimeLo;
-    DWORD dwFileTimeHi;
-    LCID lcLocale;
+    uint32_t dwHashIndex;
+    uint32_t dwBlockIndex;
+    uint32_t dwFileSize;
+    uint32_t dwFileFlags;
+    uint32_t dwCompSize;
+    uint32_t dwFileTimeLo;
+    uint32_t dwFileTimeHi;
+    uint32_t lcLocale;
 } SFILE_FIND_DATA;
 
-BOOL SFileOpenArchive(LPCSTR filename, DWORD priority, DWORD flags, HANDLE *archive);
-BOOL SFileOpenArchiveFromMemory(const void *data, DWORD size, DWORD flags, HANDLE *archive);
-BOOL SFileCloseArchive(HANDLE archive);
+bool SFileOpenArchive(cstring_t filename, uint32_t priority, uint32_t flags, handle_t *archive);
+bool SFileOpenArchiveFromMemory(const void *data, uint32_t size, uint32_t flags, handle_t *archive);
+bool SFileCloseArchive(handle_t archive);
 
-BOOL SFileCreateArchive(LPCSTR filename, DWORD flags, DWORD maxFiles, HANDLE *archive);
-BOOL SFileAddFile(HANDLE archive, LPCSTR sourceFile, LPCSTR archivedName);
-BOOL SFileAddFileFromBuffer(HANDLE archive, LPCSTR archivedName, const void *data, DWORD size);
+bool SFileCreateArchive(cstring_t filename, uint32_t flags, uint32_t maxFiles, handle_t *archive);
+bool SFileAddFile(handle_t archive, cstring_t sourceFile, cstring_t archivedName);
+bool SFileAddFileFromBuffer(handle_t archive, cstring_t archivedName, const void *data, uint32_t size);
 
-BOOL SFileOpenFileEx(HANDLE archive, LPCSTR fileName, DWORD searchScope, HANDLE *file);
-BOOL SFileOpenFileFromArchiveMemory(BYTE *data, DWORD size, LPCSTR fileName, DWORD searchScope, HANDLE *file);
-BOOL SFileCloseFile(HANDLE file);
+bool SFileOpenFileEx(handle_t archive, cstring_t fileName, uint32_t searchScope, handle_t *file);
+bool SFileOpenFileFromArchiveMemory(uint8_t *data, uint32_t size, cstring_t fileName, uint32_t searchScope, handle_t *file);
+bool SFileCloseFile(handle_t file);
 
-BOOL SFileReadFile(HANDLE file, void *buffer, DWORD toRead, LPDWORD bytesRead, LPOVERLAPPED overlapped);
-DWORD SFileGetFileSize(HANDLE file, LPDWORD highSize);
-DWORD SFileSetFilePointer(HANDLE file, LONG distance, PLONG distanceHigh, DWORD moveMethod);
+bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t * bytesRead, void * overlapped);
+uint32_t SFileGetFileSize(handle_t file, uint32_t * highSize);
+uint32_t SFileSetFilePointer(handle_t file, int32_t distance, int32_t * distanceHigh, uint32_t moveMethod);
 
-BOOL SFileExtractFile(HANDLE archive, LPCSTR toExtract, LPCSTR extracted, DWORD flags);
+bool SFileExtractFile(handle_t archive, cstring_t toExtract, cstring_t extracted, uint32_t flags);
 
-HANDLE SFileFindFirstFile(HANDLE archive, LPCSTR mask, SFILE_FIND_DATA *findData, LPCSTR listFile);
-BOOL SFileFindNextFile(HANDLE find, SFILE_FIND_DATA *findData);
-BOOL SFileFindClose(HANDLE find);
+handle_t SFileFindFirstFile(handle_t archive, cstring_t mask, SFILE_FIND_DATA *findData, cstring_t listFile);
+bool SFileFindNextFile(handle_t find, SFILE_FIND_DATA *findData);
+bool SFileFindClose(handle_t find);
 
 #ifdef MPQ_TEST_API
-BOOL Mpq_TestDecompressSector(BYTE const *src, DWORD src_size, BYTE *dst, DWORD dst_size, DWORD *out_size);
-DWORD Mpq_TestHashString(const char *str, DWORD hash_type);
-BOOL Mpq_TestEncryptBlock(BYTE *data, DWORD size, DWORD seed);
+bool Mpq_TestDecompressSector(uint8_t const *src, uint32_t src_size, uint8_t *dst, uint32_t dst_size, uint32_t *out_size);
+uint32_t Mpq_TestHashString(const char *str, uint32_t hash_type);
+bool Mpq_TestEncryptBlock(uint8_t *data, uint32_t size, uint32_t seed);
 #endif
 
 #ifdef __cplusplus

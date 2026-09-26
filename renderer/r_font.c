@@ -22,16 +22,16 @@ typedef struct {
 typedef struct  font {
     struct font *next;
     char filename[MAX_PATHLEN];
-    DWORD requested_size;
+    uint32_t requested_size;
     void *data;
     stbtt_fontinfo stbfont;
     glyphSet_t *sets[MAX_GLYPHSET];
-    FLOAT size;
+    float size;
     int height;
 } font_t;
 
 static font_t *r_fonts;
-static DWORD r_num_fonts;
+static uint32_t r_num_fonts;
 
 static const char* utf8_to_codepoint(const char *p, unsigned *dst) {
     unsigned res, n;
@@ -56,7 +56,7 @@ static glyphSet_t* R_LoadGlyphSet(font_t *font, int idx) {
     int width = 128;
     int height = 128;
     uint8_t *fontimage;
-    FLOAT s;
+    float s;
     int res;
     
 retry:
@@ -78,7 +78,7 @@ retry:
     /* adjust glyph yoffsets and xadvance */
     int ascent, descent, linegap;
     stbtt_GetFontVMetrics(&font->stbfont, &ascent, &descent, &linegap);
-    FLOAT scale = stbtt_ScaleForMappingEmToPixels(&font->stbfont, font->size);
+    float scale = stbtt_ScaleForMappingEmToPixels(&font->stbfont, font->size);
     int scaled_ascent = ascent * scale + 0.5;
     for (int i = 0; i < 256; i++) {
         set->glyphs[i].yoff += scaled_ascent;
@@ -110,7 +110,7 @@ static glyphSet_t* R_GetGlyphSet(font_t *font, int codepoint) {
 }
 
 
-LPFONT R_LoadFont(LPCSTR filename, DWORD size) {
+LPFONT R_LoadFont(cstring_t filename, uint32_t size) {
     if (!filename || !*filename) {
         return NULL;
     }
@@ -145,7 +145,7 @@ LPFONT R_LoadFont(LPCSTR filename, DWORD size) {
     /* get height and scale */
     int ascent, descent, linegap;
     stbtt_GetFontVMetrics(&font->stbfont, &ascent, &descent, &linegap);
-    FLOAT scale = stbtt_ScaleForMappingEmToPixels(&font->stbfont, size);
+    float scale = stbtt_ScaleForMappingEmToPixels(&font->stbfont, size);
     font->height = (ascent - descent + linegap) * scale + 0.5;
     
     /* make tab and newline glyphs invisible */
@@ -191,9 +191,9 @@ void R_ShutdownFonts(void) {
     }
 }
 
-FLOAT R_GetFontWidth(LPFONT font, LPCSTR text) {
-    FLOAT x = 0;
-    LPCSTR p = text;
+float R_GetFontWidth(LPFONT font, cstring_t text) {
+    float x = 0;
+    cstring_t p = text;
     unsigned codepoint;
     while (*p) {
         p = utf8_to_codepoint(p, &codepoint);
@@ -205,12 +205,12 @@ FLOAT R_GetFontWidth(LPFONT font, LPCSTR text) {
 }
 
 
-FLOAT R_GetFontHeight(LPFONT font) {
+float R_GetFontHeight(LPFONT font) {
     return FONT_SCALE * INV_SCALE_Y(font->height);
 }
 
-BOOL will_word_fit(LPCSTR text, FLOAT width, LPCFONT font) {
-    LPCSTR p = text;
+bool will_word_fit(cstring_t text, float width, LPCFONT font) {
+    cstring_t p = text;
     for (; *p && !isspace(*p) && *p != '|';) {
         unsigned codepoint;
         p = utf8_to_codepoint(p, &codepoint);
@@ -246,8 +246,8 @@ static VECTOR2 get_position(LPCDRAWTEXT arg) {
     return pos;
 }
 
-static RECT get_uvrect(stbtt_bakedchar *g, FLOAT h, FLOAT w) {
-    RECT const uv_rect = {
+static rect_t get_uvrect(stbtt_bakedchar *g, float h, float w) {
+    rect_t const uv_rect = {
         .x = g->x0 / w,
         .y = g->y0 / h,
         .w = (g->x1 - g->x0) / w,
@@ -256,8 +256,8 @@ static RECT get_uvrect(stbtt_bakedchar *g, FLOAT h, FLOAT w) {
     return uv_rect;
 }
 
-static RECT get_screenrect(LPCVECTOR2 cursor, stbtt_bakedchar *g) {
-    RECT const screen = {
+static rect_t get_screenrect(LPCVECTOR2 cursor, stbtt_bakedchar *g) {
+    rect_t const screen = {
         .x = cursor->x + INV_SCALE_X(g->xoff),
         .y = cursor->y + INV_SCALE_Y(g->yoff),
         .w = INV_SCALE_X(g->x1 - g->x0),
@@ -268,7 +268,7 @@ static RECT get_screenrect(LPCVECTOR2 cursor, stbtt_bakedchar *g) {
 
 typedef struct {
     VERTEX vertices[TEXT_BATCH_VERTICES];
-    DWORD count;
+    uint32_t count;
     LPCTEXTURE texture;
 } textBatch_t;
 
@@ -293,8 +293,8 @@ static void flush_text_batch(textBatch_t *batch, LPCDRAWTEXT arg) {
 static void add_text_glyph(textBatch_t *batch,
                            LPCDRAWTEXT arg,
                            LPCTEXTURE texture,
-                           LPCRECT screen,
-                           LPCRECT uv,
+                           rect_t const * screen,
+                           rect_t const * uv,
                            COLOR32 color)
 {
     if (batch->texture != texture || batch->count + 6 > TEXT_BATCH_VERTICES) {
@@ -305,7 +305,7 @@ static void add_text_glyph(textBatch_t *batch,
     batch->count += 6;
 }
 
-static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
+static VECTOR2 process_text(LPCDRAWTEXT arg, bool draw) {
     if (!arg->font) {
         return MAKE(VECTOR2, 0, 0);
     }
@@ -313,13 +313,13 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
     COLOR32 color = arg->color;
     VECTOR2 cursor = pos;
     VECTOR2 linesize = MAKE(VECTOR2, 0.5f * arg->font->size / UI_FONT_COORD_SCALE, 0.5f * arg->font->size / UI_FONT_COORD_SCALE * UI_PIXEL_ASPECT);
-    FLOAT line_height = R_GetFontHeight((LPFONT)arg->font);
-    FLOAT line_advance = line_height * (arg->lineHeight > 0 ? arg->lineHeight : 1.0f);
-    FLOAT max_cursor_x = pos.x;
-    FLOAT min_cursor_y = pos.y;
-    FLOAT max_cursor_y = pos.y;
+    float line_height = R_GetFontHeight((LPFONT)arg->font);
+    float line_advance = line_height * (arg->lineHeight > 0 ? arg->lineHeight : 1.0f);
+    float max_cursor_x = pos.x;
+    float min_cursor_y = pos.y;
+    float max_cursor_y = pos.y;
     textBatch_t batch = { 0 };
-    for (LPCSTR p = arg->text; *p;) {
+    for (cstring_t p = arg->text; *p;) {
         if (*p == '\n') {
             cursor.x = pos.x;
             cursor.y += line_advance;
@@ -336,15 +336,15 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
             continue;
         }
         if (*p == '<') {
-            LPCSTR end = strchr(p + 1, '>');
-            DWORD icon = 0;
+            cstring_t end = strchr(p + 1, '>');
+            uint32_t icon = 0;
             if (!end) {
                 break;
             }
             if (end > p + 6) {
-                icon = (DWORD)atoi(p + 6);
+                icon = (uint32_t)atoi(p + 6);
             }
-            switch (*(DWORD*)(p+1)) {
+            switch (*(uint32_t*)(p+1)) {
                 case MAKEFOURCC('I', 'c', 'o', 'n'):
                     if (draw && arg->icons && icon < MAX_IMAGES && arg->icons[icon]) {
                         flush_text_batch(&batch, arg);
@@ -352,8 +352,8 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
                                             .texture = arg->icons[icon],
                                             .shader = SHADER_UI,
                                             .alphamode = BLEND_MODE_BLEND,
-                                            .screen = MAKE(RECT, cursor.x, cursor.y + linesize.y * 0.1f, linesize.x, linesize.y),
-                                            .uv = MAKE(RECT, 0, 0, 1, 1),
+                                            .screen = MAKE(rect_t, cursor.x, cursor.y + linesize.y * 0.1f, linesize.x, linesize.y),
+                                            .uv = MAKE(rect_t, 0, 0, 1, 1),
                                             .color = COLOR32_WHITE,
                                             .flags = (arg->flags & DRAW_CLIP),
                                             .clip = arg->clip));
@@ -371,7 +371,7 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
         }
         if (!strncmp(p, "|c", 2) || !strncmp(p, "|C", 2)) {
             COLOR32 c;
-            sscanf(p+2, "%08x", (DWORD *)&c);
+            sscanf(p+2, "%08x", (uint32_t *)&c);
             color.a = c.a;
             color.b = c.r;
             color.g = c.g;
@@ -389,10 +389,10 @@ static VECTOR2 process_text(LPCDRAWTEXT arg, BOOL draw) {
         glyphSet_t *set = R_GetGlyphSet((LPFONT)arg->font, codepoint);
         stbtt_bakedchar *g = &set->glyphs[codepoint & 0xff];
         if (draw) {
-            FLOAT const w = set->image->width;
-            FLOAT const h = set->image->height;
-            RECT const uv_rect = get_uvrect(g, h, w);
-            RECT const screen = get_screenrect(&cursor, g);
+            float const w = set->image->width;
+            float const h = set->image->height;
+            rect_t const uv_rect = get_uvrect(g, h, w);
+            rect_t const screen = get_screenrect(&cursor, g);
             add_text_glyph(&batch, arg, set->image, &screen, &uv_rect, color);
         }
         cursor.x += INV_SCALE_X(g->xadvance);

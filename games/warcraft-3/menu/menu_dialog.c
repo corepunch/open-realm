@@ -1,6 +1,6 @@
 #include "menu_dialog.h"
 
-static LPCSTR UI_DialogWar3IconPath(uiDialogWar3Icon_t icon) {
+static cstring_t UI_DialogWar3IconPath(uiDialogWar3Icon_t icon) {
     switch (icon) {
         case UI_DIALOG_WAR3_ICON_ERROR:
             return "UI\\Widgets\\Glues\\dialogbox-error.blp";
@@ -12,19 +12,19 @@ static LPCSTR UI_DialogWar3IconPath(uiDialogWar3Icon_t icon) {
     }
 }
 
-static LPCSTR UI_DialogWar3TemplateName(uiDialogWar3Init_t const *init) {
+static cstring_t UI_DialogWar3TemplateName(uiDialogWar3Init_t const *init) {
     return init && init->template_name && init->template_name[0]
            ? init->template_name
            : "DialogWar3";
 }
 
-static LPCSTR UI_DialogWar3ModalName(uiDialogWar3Init_t const *init) {
+static cstring_t UI_DialogWar3ModalName(uiDialogWar3Init_t const *init) {
     return init && init->modal_name && init->modal_name[0]
            ? init->modal_name
            : "DialogWar3Modal";
 }
 
-static void UI_DialogWar3SetVisible(uiDialogWar3_t *dialog, BOOL visible) {
+static void UI_DialogWar3SetVisible(uiDialogWar3_t *dialog, bool visible) {
     if (!dialog) {
         return;
     }
@@ -32,11 +32,11 @@ static void UI_DialogWar3SetVisible(uiDialogWar3_t *dialog, BOOL visible) {
     UI_SetHidden(dialog->frame, !visible);
 }
 
-static BOOL UI_DialogWar3CreateModal(uiDialogWar3_t *dialog,
+static bool UI_DialogWar3CreateModal(uiDialogWar3_t *dialog,
                                      LPFRAMEDEF parent,
                                      uiDialogWar3Init_t const *init)
 {
-    LPCSTR modal_name = UI_DialogWar3ModalName(init);
+    cstring_t modal_name = UI_DialogWar3ModalName(init);
 
     dialog->modal = UI_FindFrame(modal_name);
     if (!dialog->modal) {
@@ -56,7 +56,7 @@ static BOOL UI_DialogWar3CreateModal(uiDialogWar3_t *dialog,
     return true;
 }
 
-static BOOL UI_DialogWar3EnsureTemplate(LPCSTR template_name) {
+static bool UI_DialogWar3EnsureTemplate(cstring_t template_name) {
     if (!strcmp(template_name, "BattleNetDialogTemplate")) {
         return UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") &&
                UI_EnsureFDF("UI\\FrameDef\\Glue\\DialogWar3.fdf") &&
@@ -71,7 +71,7 @@ static BOOL UI_DialogWar3EnsureTemplate(LPCSTR template_name) {
     return false;
 }
 
-static LPFRAMEDEF UI_DialogWar3CloneTemplate(LPCSTR template_name, LPFRAMEDEF parent) {
+static LPFRAMEDEF UI_DialogWar3CloneTemplate(cstring_t template_name, LPFRAMEDEF parent) {
     LPFRAMEDEF template_frame = UI_FindFrame(template_name);
     LPFRAMEDEF frame = template_frame ? UI_CloneFrameTree(template_frame, parent) : NULL;
     if (frame) {
@@ -80,9 +80,9 @@ static LPFRAMEDEF UI_DialogWar3CloneTemplate(LPCSTR template_name, LPFRAMEDEF pa
     return frame;
 }
 
-static LPFRAMEDEF UI_DialogWar3CloneNamed(LPCSTR template_name,
+static LPFRAMEDEF UI_DialogWar3CloneNamed(cstring_t template_name,
                                           LPFRAMEDEF parent,
-                                          LPCSTR name)
+                                          cstring_t name)
 {
     LPFRAMEDEF frame = UI_DialogWar3CloneTemplate(template_name, parent);
     if (frame && name) {
@@ -116,7 +116,7 @@ static void UI_DialogWar3BindCommon(uiDialogWar3_t *dialog) {
     dialog->yes_button = dialog->frames.DialogButtonYes;
 }
 
-static BOOL UI_DialogWar3CreateLegacy(uiDialogWar3_t *dialog) {
+static bool UI_DialogWar3CreateLegacy(uiDialogWar3_t *dialog) {
     if (!DialogWar3_Load(&dialog->frames)) {
         return false;
     }
@@ -127,12 +127,12 @@ static BOOL UI_DialogWar3CreateLegacy(uiDialogWar3_t *dialog) {
     return true;
 }
 
-static LPFRAMEDEF UI_DialogWar3CreateText(uiDialogWar3_t *dialog, LPCSTR template_name) {
+static LPFRAMEDEF UI_DialogWar3CreateText(uiDialogWar3_t *dialog, cstring_t template_name) {
     /* ScriptDialog already has ScriptDialogText from the War3 template; preserve it. */
     if (!strcmp(template_name, "ScriptDialog")) {
         return UI_FindChildFrame(dialog->frame, "ScriptDialogText");
     }
-    LPCSTR text_template = "StandardInfoTextTemplate";
+    cstring_t text_template = "StandardInfoTextTemplate";
     LPFRAMEDEF text = UI_DialogWar3CloneNamed(text_template, dialog->frame, "DialogText");
     if (!text) {
         text = UI_Spawn(FT_TEXT, dialog->frame);
@@ -148,14 +148,14 @@ static LPFRAMEDEF UI_DialogWar3CreateText(uiDialogWar3_t *dialog, LPCSTR templat
     return text;
 }
 
-static BOOL UI_DialogWar3CreateButton(uiDialogWar3_t *dialog,
-                                      LPCSTR template_name,
-                                      LPCSTR command)
+static bool UI_DialogWar3CreateButton(uiDialogWar3_t *dialog,
+                                      cstring_t template_name,
+                                      cstring_t command)
 {
-    BOOL battlenet = !strcmp(template_name, "BattleNetDialogTemplate");
-    LPCSTR button_template = battlenet ? "BattleNetBorderedButtonTemplate"
+    bool battlenet = !strcmp(template_name, "BattleNetDialogTemplate");
+    cstring_t button_template = battlenet ? "BattleNetBorderedButtonTemplate"
                              : "StandardButtonTemplate";
-    LPCSTR text_template = battlenet ? "BattleNetButtonTextTemplate"
+    cstring_t text_template = battlenet ? "BattleNetButtonTextTemplate"
                            : "StandardButtonTextTemplate";
     LPFRAMEDEF text;
 
@@ -173,10 +173,10 @@ static BOOL UI_DialogWar3CreateButton(uiDialogWar3_t *dialog,
     return true;
 }
 
-static BOOL UI_DialogWar3CreateTemplate(uiDialogWar3_t *dialog,
+static bool UI_DialogWar3CreateTemplate(uiDialogWar3_t *dialog,
                                         uiDialogWar3Init_t const *init)
 {
-    LPCSTR template_name = UI_DialogWar3TemplateName(init);
+    cstring_t template_name = UI_DialogWar3TemplateName(init);
 
     if (!strcmp(template_name, "DialogWar3")) {
         return UI_DialogWar3CreateLegacy(dialog);
@@ -200,7 +200,7 @@ static BOOL UI_DialogWar3CreateTemplate(uiDialogWar3_t *dialog,
     return true;
 }
 
-BOOL UI_DialogWar3Init(uiDialogWar3_t *dialog,
+bool UI_DialogWar3Init(uiDialogWar3_t *dialog,
                        LPFRAMEDEF parent,
                        uiDialogWar3Init_t const *init)
 {
@@ -252,7 +252,7 @@ void UI_DialogWar3Hide(uiDialogWar3_t *dialog) {
     UI_DialogWar3SetVisible(dialog, false);
 }
 
-BOOL UI_DialogWar3Visible(uiDialogWar3_t const *dialog) {
+bool UI_DialogWar3Visible(uiDialogWar3_t const *dialog) {
     return dialog && dialog->modal && dialog->frame &&
            !dialog->modal->hidden && !dialog->frame->hidden;
 }

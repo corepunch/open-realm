@@ -51,7 +51,7 @@ static void wb_chunk(wbuf_t *out, uint32_t fourcc, wbuf_t *payload) {
 /* MVER payload: version 18 for WDT */
 static void write_mver(wbuf_t *p) { wb_u32(p, 18); }
 
-/* MPHD payload: one DWORD of flags */
+/* MPHD payload: one uint32_t of flags */
 static void write_mphd(wbuf_t *p, uint32_t flags) { wb_u32(p, flags); wb_zero(p, 28); /* 8 DWORDs total */ }
 
 /* MAIN payload: 64×64 × 8-byte entries, all zero (no tiles present) */
@@ -62,21 +62,21 @@ static void write_mwmo(wbuf_t *p, const char *wmo_path) {
     wb_write(p, wmo_path, strlen(wmo_path) + 1);
 }
 
-/* DIWM payload: one DWORD offset → 0 (first entry in MWMO blob) */
+/* DIWM payload: one uint32_t offset → 0 (first entry in MWMO blob) */
 static void write_mwid(wbuf_t *p) { wb_u32(p, 0); }
 
 /* FDOM payload: one 64-byte wowMapObjDef_t record at world origin.
    Layout:
-     DWORD name_id = 0
-     DWORD unique_id = 0
+     uint32_t name_id = 0
+     uint32_t unique_id = 0
      float position[3] = {0, 0, 0}
      float rotation[3] = {0, 0, 0}
      float extents_min[3] = {-64,-64,-64}
      float extents_max[3] = { 64, 64, 64}
-     WORD flags = 0
-     WORD doodad_set = 0
-     WORD name_set = 0
-     WORD unk = 0
+     uint16_t flags = 0
+     uint16_t doodad_set = 0
+     uint16_t name_set = 0
+     uint16_t unk = 0
    Total = 4+4+12+12+24+2+2+2+2 = 64 bytes */
 static void write_modf_origin(wbuf_t *p) {
     wb_u32(p, 0);  /* name_id */

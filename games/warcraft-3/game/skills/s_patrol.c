@@ -9,8 +9,8 @@ static void ai_patrol_walk(LPEDICT ent) {
         }
     }
 
-    FLOAT distance = M_DistanceToGoal(ent);
-    FLOAT move_distance = unit_movedistance(ent);
+    float distance = M_DistanceToGoal(ent);
+    float move_distance = unit_movedistance(ent);
 
     if (move_should_arrive(ent, move_distance) || move_is_blocked(ent, distance, move_distance)) {
         ent->movement.patrol_target = ent->movement.patrol_target == ent->movement.patrol_a
@@ -45,8 +45,8 @@ void order_patrol(LPEDICT self, LPEDICT b) {
     order_patrol_resume(self);
 }
 
-static BOOL patrol_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
-    BOOL any = false;
+static bool patrol_selectlocation(LPEDICT clent, LPCVECTOR2 location) {
+    bool any = false;
 
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
         if ((ent->aiflags & AI_IMMOBILE) || ent->data.UnitBalance->speed <= 0) {

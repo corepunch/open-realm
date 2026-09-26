@@ -13,8 +13,8 @@ typedef struct UnresponsiveDialog_s {
 } UnresponsiveDialog_t;
 
 
-static inline BOOL UnresponsiveDialog_Bind(UnresponsiveDialog_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool UnresponsiveDialog_Bind(UnresponsiveDialog_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -31,7 +31,7 @@ static inline BOOL UnresponsiveDialog_Bind(UnresponsiveDialog_t *out, LPFRAMEDEF
     return ok;
 }
 
-static inline BOOL UnresponsiveDialog_Load(UnresponsiveDialog_t *out) {
+static inline bool UnresponsiveDialog_Load(UnresponsiveDialog_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\UnresponsiveDialog.fdf") &&
            UnresponsiveDialog_Bind(out, UI_FindFrame("UnresponsiveDialog"));

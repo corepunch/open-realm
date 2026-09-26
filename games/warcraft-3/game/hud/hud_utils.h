@@ -2,12 +2,12 @@
 #define hud_utils_h
 
 /* Missing authored text is represented by an empty, bounded HUD string. */
-static void UI_CopyString(LPSTR out, DWORD size, LPCSTR text) {
+static void UI_CopyString(string_t out, uint32_t size, cstring_t text) {
     if (out && size) snprintf(out, size, "%s", text ? text : "");
 }
 
 /* ROC rows are label,sequence,model; TFT prepends a numeric expansion category (even for ROC campaigns). */
-static inline BOOL UI_ParseLoadingRow(LPCSTR row, LPDWORD sequence, LPSTR model) {
+static inline bool UI_ParseLoadingRow(cstring_t row, uint32_t * sequence, string_t model) {
     int offset = 0;
     *sequence = 0; model[0] = 0;
     if (!row) return false;
@@ -17,8 +17,8 @@ static inline BOOL UI_ParseLoadingRow(LPCSTR row, LPDWORD sequence, LPSTR model)
 }
 
 /* Keep generated FDF frames and later proxy frames in one monotonically increasing wire namespace. */
-static DWORD UI_NextProxyFrameNumber(DWORD next, DWORD written) { return MAX(next, written + 1); }
-static BOOL UI_HasSecondAttack(UnitWeapons_t const *weapons) {
+static uint32_t UI_NextProxyFrameNumber(uint32_t next, uint32_t written) { return MAX(next, written + 1); }
+static bool UI_HasSecondAttack(UnitWeapons_t const *weapons) {
     if (!weapons || !(weapons->attacksEnabled & 0x2)) return false;
     return weapons->attack2.damageDice > 0 && weapons->attack2.showUI;
 }
@@ -28,8 +28,8 @@ static BOOL UI_HasSecondAttack(UnitWeapons_t const *weapons) {
  * without that upgrade class use the corresponding Neutral artwork. Keep the
  * authored attack/defense type in the key here: Warsmash only falls Spells
  * back to Magic when the Spells skin field itself is absent. */
-static void UI_InfoPanelIconSkinKey(LPCSTR prefix, LPCSTR type, BOOL has_upgrade,
-                                    LPSTR out, DWORD out_size) {
+static void UI_InfoPanelIconSkinKey(cstring_t prefix, cstring_t type, bool has_upgrade,
+                                    string_t out, uint32_t out_size) {
     char code[32];
     size_t length;
 
@@ -46,21 +46,21 @@ static void UI_InfoPanelIconSkinKey(LPCSTR prefix, LPCSTR type, BOOL has_upgrade
     code[0] = (char)toupper((unsigned char)code[0]);
     snprintf(out, out_size, "InfoPanelIcon%s%s%s", prefix, code, has_upgrade ? "" : "Neutral");
 }
-static void UI_SetPortraitFrameModel(LPFRAMEDEF frame, DWORD model) {
+static void UI_SetPortraitFrameModel(LPFRAMEDEF frame, uint32_t model) {
     frame->Type = FT_PORTRAIT;
     frame->Portrait.model = model;
 }
 
 /* Dynamic lists repeat authored row geometry; only the row index is runtime data. */
-static LPFRAMEDEF UI_CloneStackedRow(LPCFRAMEDEF tmpl, LPFRAMEDEF parent, DWORD row) {
+static LPFRAMEDEF UI_CloneStackedRow(LPCFRAMEDEF tmpl, LPFRAMEDEF parent, uint32_t row) {
     LPFRAMEDEF frame = UI_CloneFrameTree(tmpl, parent);
-    if (frame) UI_SetPoint(frame, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0.0f, -(FLOAT)row * frame->Height);
+    if (frame) UI_SetPoint(frame, FRAMEPOINT_TOPLEFT, parent, FRAMEPOINT_TOPLEFT, 0.0f, -(float)row * frame->Height);
     return frame;
 }
 
 /* Correct stale war3skins attribute paths before they enter the image configstring table. */
-static LPCSTR UI_ResolveTextureAlias(LPCSTR path) {
-    static struct { LPCSTR from, to; } const aliases[] = {
+static cstring_t UI_ResolveTextureAlias(cstring_t path) {
+    static struct { cstring_t from, to; } const aliases[] = {
         { "HeroStrengthIcon", "UI\\Widgets\\Console\\Human\\infocard-heroattributes-str.blp" },
         { "HeroAgilityIcon", "UI\\Widgets\\Console\\Human\\infocard-heroattributes-agi.blp" },
         { "HeroIntelligenceIcon", "UI\\Widgets\\Console\\Human\\infocard-heroattributes-int.blp" },

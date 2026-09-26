@@ -21,7 +21,7 @@ typedef struct {
     entityState_t baseline;
     entityState_t current;
     entityState_t prev;
-    DWORD serverframe;
+    uint32_t serverframe;
     COLOR32 tint;
     bool tint_valid;
     bool selected;
@@ -40,7 +40,7 @@ typedef enum {
 
 typedef struct {
     mouseEventType_t event;
-    DWORD button;
+    uint32_t button;
     int wheel;
     VECTOR2 origin;
 } mouseEvent_t;
@@ -66,168 +66,168 @@ struct frame {
 };
 
 struct client_state {
-    BOOL refresh_prepped;
+    bool refresh_prepped;
     sizeBuf_t loading;        /* compressed loading-screen chunks; released after decode or disconnect */
-    FLOAT loading_progress;   /* client-owned normalized loading progress [0,1] */
-    BOOL precache_ready;       /* complete media table received after the loading-only batch */
+    float loading_progress;   /* client-owned normalized loading progress [0,1] */
+    bool precache_ready;       /* complete media table received after the loading-only batch */
     LPMODEL models[MAX_MODELS];
     LPMODEL portraits[MAX_MODELS];
     LPMODEL minimap_model;
     LPCTEXTURE pics[MAX_IMAGES];
     LPTEXTURE dynamicPics[MAX_DYNAMIC_IMAGES];
     char dynamicPicNames[MAX_DYNAMIC_IMAGES][512];
-    DWORD dynamicPicCursor;
+    uint32_t dynamicPicCursor;
     LPCFONT fonts[MAX_FONTSTYLES];
     PATHSTR configstrings[MAX_CONFIGSTRINGS];
     centity_t ents[MAX_CLIENT_ENTITIES];
-    HANDLE layout[MAX_LAYOUT_LAYERS];
+    handle_t layout[MAX_LAYOUT_LAYERS];
     viewDef_t viewDef;
     wc3WeatherEffect_t weather_effects[MAX_WEATHER_EFFECTS];
-    DWORD num_weather_effects;
+    uint32_t num_weather_effects;
     LIGHTNINGEFFECT lightning_effects[MAX_LIGHTNING_EFFECTS];
-    DWORD num_lightning_effects;
+    uint32_t num_lightning_effects;
     struct frame frame;
     VECTOR2 startingPosition;
     PLAYER playerstate;
     struct {
-        BOOL active;
+        bool active;
         VECTOR2 origin;
-        BOOL view;
+        bool view;
         VECTOR3 angles;
-        FLOAT distance;
-        DWORD focus_ms, view_ms;
+        float distance;
+        uint32_t focus_ms, view_ms;
     } camera_prediction;
     struct {
-        DWORD width;
-        DWORD height;
-        BYTE *visible;
-        BYTE *explored;
-        BYTE *texture;
-        DWORD generation;
+        uint32_t width;
+        uint32_t height;
+        uint8_t *visible;
+        uint8_t *explored;
+        uint8_t *texture;
+        uint32_t generation;
     } fow;
     terrainMask_t terrain_mask;
     LPENTITYSTATE cursorEntity;
     struct {
-        DWORD image;
-        FLOAT radius;
+        uint32_t image;
+        float radius;
     } cursor_splat;
-    DWORD hover_entity;     /* entity number under mouse cursor (0 = none) */
+    uint32_t hover_entity;     /* entity number under mouse cursor (0 = none) */
     LPMODEL moveConfirmation;
-    DWORD num_entities;
+    uint32_t num_entities;
     /* Compact list of entity numbers whose current state carries a live model.
      * CL_ParseFrame and CL_AddEntities iterate this instead of scanning all
      * MAX_CLIENT_ENTITIES slots every frame. */
-    DWORD active_entities[MAX_CLIENT_ENTITIES];
-    DWORD num_active;
-    DWORD time;
+    uint32_t active_entities[MAX_CLIENT_ENTITIES];
+    uint32_t num_active;
+    uint32_t time;
     struct {
-        RECT rect;
+        rect_t rect;
         bool in_progress;
-        DWORD entity_nums[MAX_SELECTED_ENTITIES];  /* Currently selected entity numbers */
-        DWORD num_selected;                         /* Number of currently selected entities */
+        uint32_t entity_nums[MAX_SELECTED_ENTITIES];  /* Currently selected entity numbers */
+        uint32_t num_selected;                         /* Number of currently selected entities */
     } selection;
     struct {
-        DWORD entity_nums[MAX_SELECTED_ENTITIES];
-        DWORD num_selected;
+        uint32_t entity_nums[MAX_SELECTED_ENTITIES];
+        uint32_t num_selected;
     } groups[MAX_CONTROL_GROUPS];
-    DWORD group_last;    /* last recalled group, MAX_CONTROL_GROUPS if none */
-    DWORD group_last_ms;
+    uint32_t group_last;    /* last recalled group, MAX_CONTROL_GROUPS if none */
+    uint32_t group_last_ms;
 };
 
 struct client_static {
     struct netchan netchan;
     keydest_t key_dest;
     connstate_t state;
-    DWORD disable_screen;       /* loading plaque timestamp; freeze screen while nonzero */
+    uint32_t disable_screen;       /* loading plaque timestamp; freeze screen while nonzero */
     int disable_servercount;    /* servercount when plaque was raised */
 };
 
 // cl_main.c
-void CL_Connect(LPCSTR host, unsigned short port);
-void CL_Disconnect(LPCSTR reason, BOOL notify);
+void CL_Connect(cstring_t host, unsigned short port);
+void CL_Disconnect(cstring_t reason, bool notify);
 void CL_SetMenuBindings(void);
 void CL_SetGameplayInput(void);
 void CL_SetGameplayBindings(void);
-void CL_BeginLoadingMap(LPCSTR mapName);
+void CL_BeginLoadingMap(cstring_t mapName);
 void CL_PrepLoading(void);
-void CL_SetLoadingProgress(FLOAT progress);
+void CL_SetLoadingProgress(float progress);
 
 /* Long-form client music presentation (client/cl_music.c). */
 void CL_MusicInit(void);
 void CL_MusicReset(void);
 void CL_MusicShutdown(void);
-void CL_MusicPlayMenu(LPCSTR playlist);
+void CL_MusicPlayMenu(cstring_t playlist);
 void CL_MusicStopMenu(void);
 void CL_MusicUpdate(void);
-void CL_MusicSetMap(LPCSTR playlist, BOOL random, LONG index, DWORD session_id);
+void CL_MusicSetMap(cstring_t playlist, bool random, int32_t index, uint32_t session_id);
 void CL_MusicClearMap(void);
-void CL_MusicPlay(LPCSTR playlist, BOOL random, LONG index, LONG start_ms, LONG fade_ms,
-                  DWORD played_mask, DWORD session_id);
-void CL_MusicStop(BOOL fade_out);
+void CL_MusicPlay(cstring_t playlist, bool random, int32_t index, int32_t start_ms, int32_t fade_ms,
+                  uint32_t played_mask, uint32_t session_id);
+void CL_MusicStop(bool fade_out);
 void CL_MusicResume(void);
-void CL_MusicPlayThematic(LPCSTR playlist, LONG index, LONG start_ms, DWORD session_id);
+void CL_MusicPlayThematic(cstring_t playlist, int32_t index, int32_t start_ms, uint32_t session_id);
 void CL_MusicEndThematic(void);
-void CL_MusicSetVolume(LONG volume);
-void CL_MusicSetPosition(LONG millisecs);
-void CL_MusicSetThematicVolume(LONG volume);
-void CL_MusicSetThematicPosition(LONG millisecs);
+void CL_MusicSetVolume(int32_t volume);
+void CL_MusicSetPosition(int32_t millisecs);
+void CL_MusicSetThematicVolume(int32_t volume);
+void CL_MusicSetThematicPosition(int32_t millisecs);
 void CL_MusicSuspend(void);
 void CL_MusicResumeFromSuspend(void);
 
 /* Optional full-screen movie playback (client/cl_movie.c). */
 void CL_MovieInit(void);
 void CL_Movie_f(void);
-void CL_QueueMovie(LPCSTR path);
-BOOL CL_PlayMovie(LPCSTR path);
-BOOL CL_MovieActive(void);
+void CL_QueueMovie(cstring_t path);
+bool CL_PlayMovie(cstring_t path);
+bool CL_MovieActive(void);
 void CL_MovieUpdate(void);
 void CL_MovieDraw(void);
-BOOL CL_MovieKeyEvent(keyCode_t key, bool down);
+bool CL_MovieKeyEvent(keyCode_t key, bool down);
 void CL_MovieShutdown(void);
 VECTOR2 CL_ClampCameraPosition(VECTOR2 position);
 void CL_PredictCameraPosition(VECTOR2 position);
-static inline FLOAT cl_normalize_entity_scale(FLOAT scale) { return scale > 0.0f ? scale : 1.0f; }
+static inline float cl_normalize_entity_scale(float scale) { return scale > 0.0f ? scale : 1.0f; }
 
 void V_RenderView(void);
 void V_Shutdown(void);
 void CL_PrepRefresh(void);
-void CL_RegisterConfigString(DWORD index);
-void CL_UpdateConfigString(DWORD index, LPCSTR olds);
+void CL_RegisterConfigString(uint32_t index);
+void CL_UpdateConfigString(uint32_t index, cstring_t olds);
 void CL_RestartRefresh(void);
 // cl_parse.c
 void CL_ParseServerMessage(LPSIZEBUF msg);
-void CL_AddActiveEntity(DWORD index);
-void CL_RemoveActiveEntity(DWORD index);
+void CL_AddActiveEntity(uint32_t index);
+void CL_RemoveActiveEntity(uint32_t index);
 
 // cl_canvas.c
 void CL_CanvasInit(void);
 void CL_CanvasResolvePolicy(void);
 void CL_CanvasWindowChanged(void);
-void CL_CanvasFrame(DWORD now);
+void CL_CanvasFrame(uint32_t now);
 void CL_CanvasWriteChrome(void);
 LPCUICANVAS CL_Canvas(void);
 UICANVASCLASS CL_CanvasSettledChrome(void);
 
 // cl_window.c
-void CL_WindowOpen(uiWindowDef_t const *def, HANDLE layout);
-BOOL CL_WindowMouseOver(int x, int y);
-void CL_WindowClose(DWORD id);
+void CL_WindowOpen(uiWindowDef_t const *def, handle_t layout);
+bool CL_WindowMouseOver(int x, int y);
+void CL_WindowClose(uint32_t id);
 void CL_WindowClear(void);
 void CL_WindowDraw(void);
-BOOL CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param);
-BOOL CL_WindowKeyEvent(int key);
-BOOL CL_WindowTextInput(LPCSTR text);
-BOOL CL_WindowTextInputActive(void);
-LPCSTR CL_WindowEditTextValue(DWORD text_frame);
-BOOL CL_WindowEditCursor(DWORD text_frame, LPDWORD cursor);
-void CL_SetTransientTextInput(BOOL enabled);
-BOOL CL_WindowModalActive(void);
+bool CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param);
+bool CL_WindowKeyEvent(int key);
+bool CL_WindowTextInput(cstring_t text);
+bool CL_WindowTextInputActive(void);
+cstring_t CL_WindowEditTextValue(uint32_t text_frame);
+bool CL_WindowEditCursor(uint32_t text_frame, uint32_t * cursor);
+void CL_SetTransientTextInput(bool enabled);
+bool CL_WindowModalActive(void);
 
 void CON_DrawConsole(void);
-void CON_printf(LPCSTR fmt, ...);
+void CON_printf(cstring_t fmt, ...);
 void CON_Init(void);
 void CON_ToggleConsole(void);
-void CON_TextInput(LPCSTR text);
+void CON_TextInput(cstring_t text);
 void CON_KeyEvent(int key, bool down);
 
 // cl_view.c
@@ -236,8 +236,8 @@ void CON_KeyEvent(int key, bool down);
 void Matrix4_getCameraMatrix(LPMATRIX4 output);
 /* Paused views retain the last scene and render time. Zero delta is required
  * because model renderers emit effects while submitting cached entities. */
-static inline BOOL V_AdvanceSceneTime(viewDef_t *view, DWORD now, LPDWORD last, BOOL paused) {
-    DWORD elapsed;
+static inline bool V_AdvanceSceneTime(viewDef_t *view, uint32_t now, uint32_t * last, bool paused) {
+    uint32_t elapsed;
 
     /* Map/session time restarts from zero. A persistent renderer clock must
      * treat that as a new epoch instead of unsigned-wrap advancing effects by
@@ -257,28 +257,28 @@ static inline BOOL V_AdvanceSceneTime(viewDef_t *view, DWORD now, LPDWORD last, 
     return true;
 }
 void V_AddEntity(renderEntity_t *ent);
-BOOL V_FindEntity(DWORD number, renderEntity_t *out);
+bool V_FindEntity(uint32_t number, renderEntity_t *out);
 void V_AddDecal(renderDecal_t *decal);
 
 // cl_scrn.c
-LPCUIFRAME SCR_Clear(HANDLE data);
-LPCUIFRAME SCR_ClearLayer(HANDLE data, DWORD layer);
-LPCUIFRAME SCR_ClearWindow(HANDLE data);
-DWORD SCR_NumFrames(void);
-LPUIFRAME SCR_Frame(DWORD number);
-LPCRECT SCR_LayoutRect(LPCUIFRAME frame);
-void CL_LayoutDrawMinimap(LPCUIFRAME frame, LPCRECT screen);
+LPCUIFRAME SCR_Clear(handle_t data);
+LPCUIFRAME SCR_ClearLayer(handle_t data, uint32_t layer);
+LPCUIFRAME SCR_ClearWindow(handle_t data);
+uint32_t SCR_NumFrames(void);
+LPUIFRAME SCR_Frame(uint32_t number);
+rect_t const * SCR_LayoutRect(LPCUIFRAME frame);
+void CL_LayoutDrawMinimap(LPCUIFRAME frame, rect_t const * screen);
 void CL_ClearMinimap(void);
 void CL_ParseMinimapPing(LPSIZEBUF msg);
 void CL_UpdateMinimapModel(void);
 #ifdef BZ_TESTS
-DWORD CL_MinimapPingCount(void);
-DWORD CL_MinimapRecentCount(void);
+uint32_t CL_MinimapPingCount(void);
+uint32_t CL_MinimapRecentCount(void);
 #endif
 /* World-hover targeting and UI_STAT_CONTEXT_* name/vital bindings share this
  * snapshot gate so a stale hover cannot keep a name after death or flag loss.
  * Invulnerable units may publish a name with neither bar flag. */
-static inline BOOL CL_EntityAllowsWorldHover(LPCENTITYSTATE state) {
+static inline bool CL_EntityAllowsWorldHover(LPCENTITYSTATE state) {
     return state && state->model &&
            state->stats[ENT_HEALTH] > 0 &&
            !(state->flags & EF_NOT_SELECTABLE) &&
@@ -286,37 +286,37 @@ static inline BOOL CL_EntityAllowsWorldHover(LPCENTITYSTATE state) {
 }
 
 LPCENTITYSTATE SCR_LayoutContextEntity(void);
-BOOL SCR_LayoutEntityContextActive(void);
-BOOL SCR_LayoutContextValue(DWORD stat, LPFLOAT value);
-BOOL SCR_LayoutContextFrameVisible(LPCUIFRAME frame);
-BOOL SCR_LayoutWorldHoverRoot(LPRECT root);
-FLOAT SCR_UICanvasWidth(void);
+bool SCR_LayoutEntityContextActive(void);
+bool SCR_LayoutContextValue(uint32_t stat, float * value);
+bool SCR_LayoutContextFrameVisible(LPCUIFRAME frame);
+bool SCR_LayoutWorldHoverRoot(rect_t * root);
+float SCR_UICanvasWidth(void);
 VECTOR2 SCR_ScreenToUI(int x, int y);
-BOOL SCR_ProjectWorldPoint(LPCVECTOR3 point, LPVECTOR2 screen);
-VECTOR2 SCR_GetAxisBounds(LPCRECT rect, bool is_x_axis);
-FLOAT SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis);
+bool SCR_ProjectWorldPoint(LPCVECTOR3 point, LPVECTOR2 screen);
+VECTOR2 SCR_GetAxisBounds(rect_t const * rect, bool is_x_axis);
+float SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis);
 VECTOR2 SCR_SolveAxisPosition(LPCUIFRAME frame,
                               uiFramePoints_t const points,
-                              FLOAT width,
+                              float width,
                               bool is_x_axis,
                               bool assigned_size);
-LPCSTR SCR_GetStringValue(LPCUIFRAME frame);
-LPCSTR SCR_GetTooltipText(LPCUIFRAME frame);
+cstring_t SCR_GetStringValue(LPCUIFRAME frame);
+cstring_t SCR_GetTooltipText(LPCUIFRAME frame);
 drawText_t SCR_GetDrawText(LPCUIFRAME frame,
-                         FLOAT avl_width,
-                         LPCSTR text,
+                         float avl_width,
+                         cstring_t text,
                          uiLabel_t const *label);
-void SCR_UpdateScreen(DWORD msec);
+void SCR_UpdateScreen(uint32_t msec);
 void SCR_BeginLoadingPlaque(void);
 void SCR_UpdateLoadingPlaque(void);
 void SCR_EndLoadingPlaque(void);
 void SCR_ClearLayoutResources(void);
 
 // cl_screenshot.c
-extern BOOL cl_screenshot_pending;
-extern DWORD cl_screenshot_delay;
+extern bool cl_screenshot_pending;
+extern uint32_t cl_screenshot_delay;
 void CL_Screenshot_f(void);
-BOOL CL_ScreenshotReady(void);
+bool CL_ScreenshotReady(void);
 
 // cl_input.c
 void CL_Input(void);
@@ -330,10 +330,10 @@ void CL_DrawTEnts(void);
 void CL_ClearTEnts(void);
 
 // cl_main.c - UI integration
-int CL_ModelIndex(LPCSTR modelName);
-int CL_ImageIndex(LPCSTR imageName);
-int CL_FontIndex(LPCSTR fontName, DWORD fontSize);
-void CL_UIMenuCommand(LPCSTR command);
+int CL_ModelIndex(cstring_t modelName);
+int CL_ImageIndex(cstring_t imageName);
+int CL_FontIndex(cstring_t fontName, uint32_t fontSize);
+void CL_UIMenuCommand(cstring_t command);
 
 /* Entity one-shot sound/effect events (cl_fx.c) */
 void CL_EntityEvent(entityState_t const *ent);
@@ -346,9 +346,9 @@ extern struct client_static cls;
 extern refExport_t re;
 extern menuExport_t menu;
 extern mouseEvent_t mouse;
-extern BOOL scr_initialized;
+extern bool scr_initialized;
 
 /* Loading and active worlds own presentation independently of keyboard focus. */
-static inline BOOL CL_MenuActive(void) { return cls.state != ca_active && cl.playerstate.client_ui_state != CLIENT_UI_LOADING; }
+static inline bool CL_MenuActive(void) { return cls.state != ca_active && cl.playerstate.client_ui_state != CLIENT_UI_LOADING; }
 
 #endif

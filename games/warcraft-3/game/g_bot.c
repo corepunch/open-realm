@@ -6,7 +6,7 @@
 #define BOT_BUILD_GRID 32.0f // world units; WC3 structures snap to this placement-cell interval
 #define BOT_BUILD_SEARCH_RINGS 32 // 32-unit grid rings; searches 1024 world units around a town for legal placement
 
-static bot_t *G_BotState(DWORD player) {
+static bot_t *G_BotState(uint32_t player) {
     return player < MAX_PLAYERS ? &level.bots[player] : NULL;
 }
 
@@ -18,7 +18,7 @@ static void G_BotClearCaptains(bot_t *bot) {
 }
 
 /* KillUnit changes life immediately while ordinary death also carries SVF_DEADMONSTER. */
-BOOL G_BotUnitAlive(LPEDICT unit) {
+bool G_BotUnitAlive(LPEDICT unit) {
     return unit && unit->inuse && unit->health.value > 0 && !(unit->svflags & SVF_DEADMONSTER);
 }
 
@@ -33,13 +33,13 @@ void G_BotStopGathering(LPPLAYER player) {
     }
 }
 
-static BOOL G_BotHarvesterReserved(bot_t *bot, LPEDICT unit) {
+static bool G_BotHarvesterReserved(bot_t *bot, LPEDICT unit) {
     FOR_EACH_ARRAY(LPEDICT, assigned, bot->harvesters) if (*assigned == unit) return true;
     return false;
 }
 
 static void G_BotReserveHarvester(bot_t *bot, LPEDICT unit) {
-    DWORD count = ARRAY_COUNT(bot->harvesters);
+    uint32_t count = ARRAY_COUNT(bot->harvesters);
     LPEDICT *units = gi.MemAlloc((count + 1) * sizeof(*units));
     if (count) memcpy(units, bot->harvesters, count * sizeof(*units));
     if (bot->harvesters) gi.MemFree(bot->harvesters);
@@ -54,7 +54,7 @@ void G_BotClearHarvest(LPPLAYER player) {
 }
 
 /* Town IDs enumerate owned gold drop-offs in spawn order, matching the expansion index used by common.ai. */
-LPEDICT G_BotTown(LPPLAYER player, LONG town) {
+LPEDICT G_BotTown(LPPLAYER player, int32_t town) {
     edict_t probe = {0};
     if (!player || town < 0) return NULL;
     probe.s.player = PLAYER_NUM(player);
@@ -65,12 +65,12 @@ LPEDICT G_BotTown(LPPLAYER player, LONG town) {
 
 static LPEDICT G_BotMineOwner(LPPLAYER player, LPEDICT mine) {
     LPEDICT best = NULL;
-    FLOAT best_dist = 0;
+    float best_dist = 0;
     edict_t probe = {0};
     if (!player || !mine) return NULL;
     probe.s.player = PLAYER_NUM(player);
     FILTER_EDICTS(town, S_CanReturnResourceAt(&probe, town, RETURN_RESOURCE_GOLD)) {
-        FLOAT dist = Vector2_distance(&town->s.origin2, &mine->s.origin2);
+        float dist = Vector2_distance(&town->s.origin2, &mine->s.origin2);
         if (!best || dist < best_dist) { best = town; best_dist = dist; }
     }
     return best;
@@ -78,61 +78,61 @@ static LPEDICT G_BotMineOwner(LPPLAYER player, LPEDICT mine) {
 
 static LPEDICT G_BotHarvestTarget(LPPLAYER player, LPEDICT town, returnResource_t resource) {
     LPEDICT best = NULL;
-    FLOAT best_dist = 0;
+    float best_dist = 0;
     FILTER_EDICTS(ent, resource == RETURN_RESOURCE_GOLD ? S_GoldMineCanHarvest(ent) :
         ent->inuse && ent->targtype == TARG_TREE && !M_IsDead(ent)) {
-        FLOAT dist = Vector2_distance(&town->s.origin2, &ent->s.origin2);
+        float dist = Vector2_distance(&town->s.origin2, &ent->s.origin2);
         if (resource == RETURN_RESOURCE_GOLD && G_BotMineOwner(player, ent) != town) continue;
         if (!best || dist < best_dist) { best = ent; best_dist = dist; }
     }
     return best;
 }
 
-LPEDICT G_BotTownMine(LPPLAYER player, LONG town) {
+LPEDICT G_BotTownMine(LPPLAYER player, int32_t town) {
     LPEDICT hall = G_BotTown(player, town);
     return hall ? G_BotHarvestTarget(player, hall, RETURN_RESOURCE_GOLD) : NULL;
 }
 
-LONG G_BotTownWithMine(LPPLAYER player) {
-    for (LONG town = 0; G_BotTown(player, town); town++)
+int32_t G_BotTownWithMine(LPPLAYER player) {
+    for (int32_t town = 0; G_BotTown(player, town); town++)
         if (G_BotTownMine(player, town)) return town;
     return -1;
 }
 
-DWORD G_BotMinesOwned(LPPLAYER player) {
-    DWORD count = 0;
-    for (LONG town = 0; G_BotTown(player, town); town++)
+uint32_t G_BotMinesOwned(LPPLAYER player) {
+    uint32_t count = 0;
+    for (int32_t town = 0; G_BotTown(player, town); town++)
         if (G_BotTownMine(player, town)) count++;
     return count;
 }
 
-DWORD G_BotGoldOwned(LPPLAYER player) {
-    DWORD gold = 0;
-    for (LONG town = 0; G_BotTown(player, town); town++) {
+uint32_t G_BotGoldOwned(LPPLAYER player) {
+    uint32_t gold = 0;
+    for (int32_t town = 0; G_BotTown(player, town); town++) {
         LPEDICT mine = G_BotTownMine(player, town);
         if (mine) gold += mine->resources;
     }
     return gold;
 }
 
-static BOOL G_BotUnitAtTown(LPPLAYER player, LPEDICT unit, LONG town_id) {
+static bool G_BotUnitAtTown(LPPLAYER player, LPEDICT unit, int32_t town_id) {
     LPEDICT town, nearest = NULL, candidate;
-    FLOAT best_dist = 0;
+    float best_dist = 0;
     if (town_id < 0) return true;
     town = G_BotTown(player, town_id);
     if (!town) return false;
-    for (LONG index = 0; (candidate = G_BotTown(player, index)); index++) {
-        FLOAT dist = Vector2_distance(&candidate->s.origin2, &unit->s.origin2);
+    for (int32_t index = 0; (candidate = G_BotTown(player, index)); index++) {
+        float dist = Vector2_distance(&candidate->s.origin2, &unit->s.origin2);
         if (!nearest || dist < best_dist) { nearest = candidate; best_dist = dist; }
     }
     return nearest == town;
 }
 
-static BOOL G_BotBuildSiteReachable(LPEDICT worker, LPCVECTOR2 point) {
+static bool G_BotBuildSiteReachable(LPEDICT worker, LPCVECTOR2 point) {
     return worker && point && CM_LineIsWalkableForRadius(&worker->s.origin2, point, MAX(0.0f, worker->collision));
 }
 
-static BOOL G_BotBuildNearTown(LPPLAYER player, DWORD class_id, LONG town_id) {
+static bool G_BotBuildNearTown(LPPLAYER player, uint32_t class_id, int32_t town_id) {
     LPEDICT town = G_BotTown(player, town_id < 0 ? 0 : town_id);
     if (!town) return false;
     /* Pending footprints are not baked yet, so serialize them to keep later orders from invalidating earlier placement. */
@@ -141,8 +141,8 @@ static BOOL G_BotBuildNearTown(LPPLAYER player, DWORD class_id, LONG town_id) {
     FILTER_EDICTS(worker, G_BotUnitAlive(worker) && worker->s.player == PLAYER_NUM(player) &&
         !worker->construction.active && !worker->training && !worker->build_project &&
         (!worker->currentmove || worker->currentmove->proc != CAbilityRepair) && G_WorkerCanBuild(worker, class_id)) {
-        for (LONG ring = 1; ring <= BOT_BUILD_SEARCH_RINGS; ring++) {
-            for (LONG x = -ring; x <= ring; x++) for (LONG y = -ring; y <= ring; y++) {
+        for (int32_t ring = 1; ring <= BOT_BUILD_SEARCH_RINGS; ring++) {
+            for (int32_t x = -ring; x <= ring; x++) for (int32_t y = -ring; y <= ring; y++) {
                 VECTOR2 point;
                 if (abs(x) != ring && abs(y) != ring) continue;
                 point = MAKE(VECTOR2, town->s.origin2.x + x * BOT_BUILD_GRID,
@@ -156,12 +156,12 @@ static BOOL G_BotBuildNearTown(LPPLAYER player, DWORD class_id, LONG town_id) {
 }
 
 /* common.ai has already bounded qty by resources; each accepted action still performs authoritative checks/payment. */
-BOOL G_BotProduce(LPPLAYER player, LONG qty, DWORD class_id, LONG town_id) {
-    DWORD made = 0;
+bool G_BotProduce(LPPLAYER player, int32_t qty, uint32_t class_id, int32_t town_id) {
+    uint32_t made = 0;
     if (!player || qty <= 0 || !class_id) return false;
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI produce request player=%u qty=%d id=%.4s town=%d\n",
-        PLAYER_NUM(player), qty, (LPCSTR)&class_id, town_id);
+        PLAYER_NUM(player), qty, (cstring_t)&class_id, town_id);
 #endif
     while (qty-- > 0) {
         if (G_UnitIsBuilding(class_id)) {
@@ -179,18 +179,18 @@ BOOL G_BotProduce(LPPLAYER player, LONG qty, DWORD class_id, LONG town_id) {
         made++;
     }
 #ifdef WC3_DEBUG_AI
-    fprintf(stderr, "WC3_DEBUG_AI produce result id=%.4s made=%u\n", (LPCSTR)&class_id, made);
+    fprintf(stderr, "WC3_DEBUG_AI produce result id=%.4s made=%u\n", (cstring_t)&class_id, made);
 #endif
     return made > 0;
 }
 
-static BOOL G_BotHarvesting(LPEDICT unit, returnResource_t resource) {
+static bool G_BotHarvesting(LPEDICT unit, returnResource_t resource) {
     abilityProc_t proc = resource == RETURN_RESOURCE_GOLD ? CAbilityGoldMine : CAbilityHarvest;
     return unit->currentmove && unit->currentmove->proc == proc;
 }
 
 /* A ClearHarvestAI pass preserves active jobs, then assigns each remaining worker once. */
-void G_BotHarvest(LPPLAYER player, LONG town_id, LONG peons, BOOL gold) {
+void G_BotHarvest(LPPLAYER player, int32_t town_id, int32_t peons, bool gold) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     returnResource_t resource = gold ? RETURN_RESOURCE_GOLD : RETURN_RESOURCE_LUMBER;
     LPEDICT town, target;
@@ -202,14 +202,14 @@ void G_BotHarvest(LPPLAYER player, LONG town_id, LONG peons, BOOL gold) {
     }
     while (peons-- > 0) {
         LPEDICT best = NULL;
-        FLOAT best_dist = 0;
+        float best_dist = 0;
         /* Preserve accepted construction orders; harvest reassignment used to strand their pending footprints. */
         FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) && !unit->training &&
             !unit->construction.active && !unit->build_project &&
             (!unit->currentmove || (unit->currentmove->proc != CAbilityGoldMine &&
              unit->currentmove->proc != CAbilityHarvest && unit->currentmove->proc != CAbilityRepair)) && unit->data.UnitAbilities &&
             G_ActorHasSkill(unit, "Ahar") && !G_BotHarvesterReserved(bot, unit)) {
-            FLOAT dist = Vector2_distance(&town->s.origin2, &unit->s.origin2);
+            float dist = Vector2_distance(&town->s.origin2, &unit->s.origin2);
             if (!best || dist < best_dist) { best = unit; best_dist = dist; }
         }
         if (!best) return;
@@ -229,9 +229,9 @@ void G_BotCreateCaptains(LPPLAYER player) {
 }
 
 /* Captain members remain in TownCount, so common.ai adds this count when requesting their replacements. */
-DWORD G_BotIgnoredUnits(LPPLAYER player, DWORD class_id) {
+uint32_t G_BotIgnoredUnits(LPPLAYER player, uint32_t class_id) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
-    DWORD count = 0;
+    uint32_t count = 0;
     if (!bot) return 0;
     FOR_LOOP(i, BOT_CAPTAIN_COUNT) FOR_EACH_ARRAY(LPEDICT, unit, bot->captains[i].units)
         if (G_BotUnitAlive(*unit) && (*unit)->s.player == PLAYER_NUM(player) && (*unit)->class_id == class_id) count++;
@@ -241,7 +241,7 @@ DWORD G_BotIgnoredUnits(LPPLAYER player, DWORD class_id) {
 }
 
 /* Combat belongs to members, not formation state; validating each target also clears stale combat links. */
-BOOL G_BotCaptainInCombat(LPPLAYER player, BOOL attack) {
+bool G_BotCaptainInCombat(LPPLAYER player, bool attack) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     botCaptain_t *captain;
     if (!bot) return false;
@@ -251,7 +251,7 @@ BOOL G_BotCaptainInCombat(LPPLAYER player, BOOL attack) {
     return false;
 }
 
-static BOOL G_BotCaptainHasUnit(bot_t *bot, LPEDICT unit) {
+static bool G_BotCaptainHasUnit(bot_t *bot, LPEDICT unit) {
     FOR_LOOP(i, BOT_CAPTAIN_COUNT) FOR_EACH_ARRAY(LPEDICT, member, bot->captains[i].units)
         if (*member == unit) return true;
     return false;
@@ -271,7 +271,7 @@ void G_BotInitAssault(LPPLAYER player) {
 }
 
 static void G_BotCaptainAdd(botCaptain_t *captain, LPEDICT unit) {
-    DWORD count = ARRAY_COUNT(captain->units);
+    uint32_t count = ARRAY_COUNT(captain->units);
     LPEDICT *units = gi.MemAlloc((count + 1) * sizeof(*units));
     if (count) memcpy(units, captain->units, count * sizeof(*units));
     if (captain->units) gi.MemFree(captain->units);
@@ -279,10 +279,10 @@ static void G_BotCaptainAdd(botCaptain_t *captain, LPEDICT unit) {
 }
 
 /* Production is requested by common.ai; roster fills never steal units assigned to the other captain. */
-static BOOL G_BotCaptainFill(LPPLAYER player, botCaptainType_t type, LONG qty, DWORD class_id) {
+static bool G_BotCaptainFill(LPPLAYER player, botCaptainType_t type, int32_t qty, uint32_t class_id) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     botCaptain_t *captain;
-    LONG have = 0;
+    int32_t have = 0;
     if (!bot || qty <= 0 || !class_id) return qty <= 0;
     captain = bot->captains + type;
     FOR_EACH_ARRAY(LPEDICT, unit, captain->units)
@@ -294,40 +294,40 @@ static BOOL G_BotCaptainFill(LPPLAYER player, botCaptainType_t type, LONG qty, D
     return have >= qty;
 }
 
-BOOL G_BotAddAssault(LPPLAYER player, LONG qty, DWORD class_id) {
+bool G_BotAddAssault(LPPLAYER player, int32_t qty, uint32_t class_id) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
-    BOOL ready;
+    bool ready;
     if (bot && qty > 0 && class_id) bot->captains[BOT_CAPTAIN_ATTACK].desired += qty;
     ready = G_BotCaptainFill(player, BOT_CAPTAIN_ATTACK, qty, class_id);
 #ifdef WC3_DEBUG_AI
     fprintf(stderr, "WC3_DEBUG_AI assault add player=%u qty=%d id=%.4s ready=%d size=%u desired=%d\n",
-        player ? PLAYER_NUM(player) : MAX_PLAYERS, qty, (LPCSTR)&class_id, ready,
+        player ? PLAYER_NUM(player) : MAX_PLAYERS, qty, (cstring_t)&class_id, ready,
         G_BotCaptainGroupSize(player), bot ? bot->captains[BOT_CAPTAIN_ATTACK].desired : 0);
 #endif
     return ready;
 }
 
-DWORD G_BotCaptainGroupSize(LPPLAYER player) {
+uint32_t G_BotCaptainGroupSize(LPPLAYER player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
-    DWORD count = 0;
+    uint32_t count = 0;
     if (!bot) return 0;
     FOR_EACH_ARRAY(LPEDICT, unit, bot->captains[BOT_CAPTAIN_ATTACK].units)
         if (G_BotUnitAlive(*unit)) count++;
     return count;
 }
 
-BOOL G_BotCaptainIsFull(LPPLAYER player) {
+bool G_BotCaptainIsFull(LPPLAYER player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     return bot && G_BotCaptainGroupSize(player) >= bot->captains[BOT_CAPTAIN_ATTACK].desired;
 }
 
 /* Blizzard scores heroes and ordinary units separately so one healthy category cannot hide the other's losses. */
-LONG G_BotCaptainReadiness(LPPLAYER player, BOOL mana) {
+int32_t G_BotCaptainReadiness(LPPLAYER player, bool mana) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
-    FLOAT cur[2] = {0}, max[2] = {0};
+    float cur[2] = {0}, max[2] = {0};
     if (!bot) return 100;
     FOR_EACH_ARRAY(LPEDICT, unit, bot->captains[BOT_CAPTAIN_ATTACK].units) {
-        DWORD hero;
+        uint32_t hero;
         if (!G_BotUnitAlive(*unit)) continue;
         hero = G_UnitIsHero(*unit) ? 1 : 0;
         cur[hero] += mana ? (*unit)->mana.value : (*unit)->health.value;
@@ -335,17 +335,17 @@ LONG G_BotCaptainReadiness(LPPLAYER player, BOOL mana) {
     }
     /* The original fixed-real divider defines equal operands, including 0/0, as 1.0. */
     FOR_LOOP(i, 2) cur[i] = cur[i] == max[i] ? 100.0f : cur[i] * 100.0f / max[i];
-    return (LONG)MIN(cur[0], cur[1]);
+    return (int32_t)MIN(cur[0], cur[1]);
 }
 
-BOOL G_BotAddDefenders(LPPLAYER player, LONG qty, DWORD class_id) {
+bool G_BotAddDefenders(LPPLAYER player, int32_t qty, uint32_t class_id) {
     return G_BotCaptainFill(player, BOT_CAPTAIN_DEFENSE, qty, class_id);
 }
 
-void G_BotAddGuardPost(LPPLAYER player, DWORD class_id, FLOAT x, FLOAT y) {
+void G_BotAddGuardPost(LPPLAYER player, uint32_t class_id, float x, float y) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     botGuardPost_t *guards;
-    DWORD count;
+    uint32_t count;
     if (!bot || !class_id) return;
     count = ARRAY_COUNT(bot->guards); guards = gi.MemAlloc((count + 1) * sizeof(*guards));
     if (count) memcpy(guards, bot->guards, count * sizeof(*guards));
@@ -354,7 +354,7 @@ void G_BotAddGuardPost(LPPLAYER player, DWORD class_id, FLOAT x, FLOAT y) {
     bot->guards[count] = MAKE(botGuardPost_t, class_id, MAKE(VECTOR2, x, y), NULL);
 }
 
-static BOOL G_BotGuardHasUnit(bot_t *bot, LPEDICT unit) {
+static bool G_BotGuardHasUnit(bot_t *bot, LPEDICT unit) {
     FOR_EACH_ARRAY(botGuardPost_t, post, bot->guards) if (post->unit == unit) return true;
     return false;
 }
@@ -384,7 +384,7 @@ void G_BotReturnGuardPosts(LPPLAYER player) {
 }
 
 /* common.ai captain selectors are script constants: ATTACK_CAPTAIN=1, DEFENSE_CAPTAIN=2, BOTH_CAPTAINS=3. */
-void G_BotSetCaptainHome(LPPLAYER player, LONG which, FLOAT x, FLOAT y) {
+void G_BotSetCaptainHome(LPPLAYER player, int32_t which, float x, float y) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     VECTOR2 home;
     if (!bot) return;
@@ -393,13 +393,13 @@ void G_BotSetCaptainHome(LPPLAYER player, LONG which, FLOAT x, FLOAT y) {
     if (which == 2 || which == 3) bot->captains[BOT_CAPTAIN_DEFENSE].home = home;
 }
 
-void G_BotSetStagePoint(LPPLAYER player, FLOAT x, FLOAT y) {
+void G_BotSetStagePoint(LPPLAYER player, float x, float y) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     if (!bot) return;
     bot->stage = MAKE(VECTOR2, x, y); bot->stage_valid = true;
 }
 
-static BOOL G_BotIsHostile(LPPLAYER player, LPEDICT ent) {
+static bool G_BotIsHostile(LPPLAYER player, LPEDICT ent) {
     LPPLAYER owner;
     if (!player || !ent) return false;
     owner = G_GetPlayerByNumber(ent->s.player);
@@ -410,14 +410,14 @@ static BOOL G_BotIsHostile(LPPLAYER player, LPEDICT ent) {
  * buildings, so waves never order attacks on items, waypoints, corpses, or
  * the attackers themselves. A negative target suicides against any hostile
  * owner; otherwise only the named player's forces qualify. */
-static LPEDICT G_BotAssaultTarget(LPPLAYER player, LPEDICT self, LONG target) {
+static LPEDICT G_BotAssaultTarget(LPPLAYER player, LPEDICT self, int32_t target) {
     LPEDICT best = NULL;
-    FLOAT best_dist = 0;
+    float best_dist = 0;
     if (!player || !G_BotUnitAlive(self)) return NULL;
     FILTER_EDICTS(ent, ent != self && ent->inuse && !(ent->svflags & (SVF_DEADMONSTER | SVF_NOCLIENT)) &&
         ent->health.value > 0 && ((ent->svflags & SVF_MONSTER) || G_UnitIsBuilding(ent->class_id)) &&
-        (target >= 0 ? ent->s.player == (DWORD)target : G_BotIsHostile(player, ent))) {
-        FLOAT dist = Vector2_distance(&self->s.origin2, &ent->s.origin2);
+        (target >= 0 ? ent->s.player == (uint32_t)target : G_BotIsHostile(player, ent))) {
+        float dist = Vector2_distance(&self->s.origin2, &ent->s.origin2);
         if (!best || dist < best_dist) { best = ent; best_dist = dist; }
     }
     return best;
@@ -425,7 +425,7 @@ static LPEDICT G_BotAssaultTarget(LPPLAYER player, LPEDICT self, LONG target) {
 
 /* Send one assault member at the enemy, falling back to an attack-move toward
  * the staged point so waves keep moving when no target is visible yet. */
-static void G_BotOrderAssaultMember(bot_t *bot, LPEDICT unit, LONG target) {
+static void G_BotOrderAssaultMember(bot_t *bot, LPEDICT unit, int32_t target) {
     LPEDICT enemy = bot ? G_BotAssaultTarget(bot->player, unit, target) : NULL;
     if (enemy) { order_attack(unit, enemy); return; }
     if (bot && bot->stage_valid) order_attackmove(unit, Waypoint_add(&bot->stage));
@@ -435,9 +435,9 @@ static void G_BotOrderAssaultMember(bot_t *bot, LPEDICT unit, LONG target) {
  * the ordinary AddAssault path, then send the requested type at the enemy.
  * Retail common.ai declares both natives void; the boolean reports roster
  * acceptance for tests, mirroring AddAssault. */
-BOOL G_BotSuicideUnits(LPPLAYER player, LONG qty, DWORD class_id, LONG target) {
+bool G_BotSuicideUnits(LPPLAYER player, int32_t qty, uint32_t class_id, int32_t target) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
-    BOOL accepted;
+    bool accepted;
     if (!bot || qty <= 0 || !class_id) return qty <= 0;
     accepted = G_BotAddAssault(player, qty, class_id);
     FOR_EACH_ARRAY(LPEDICT, member, bot->captains[BOT_CAPTAIN_ATTACK].units) {
@@ -451,17 +451,17 @@ BOOL G_BotSuicideUnits(LPPLAYER player, LONG qty, DWORD class_id, LONG target) {
  * reports whether the wave left. check_full holds the wave until the roster
  * reaches its requested size; without it an under-strength captain still
  * attacks so campaign scripts never stall on a missing full house. */
-BOOL G_BotSuicidePlayer(LPPLAYER player, DWORD target, BOOL check_full) {
+bool G_BotSuicidePlayer(LPPLAYER player, uint32_t target, bool check_full) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     botCaptain_t *captain;
-    BOOL any = false;
+    bool any = false;
     if (!bot) return false;
     captain = bot->captains + BOT_CAPTAIN_ATTACK;
     FOR_EACH_ARRAY(LPEDICT, member, captain->units) if (G_BotUnitAlive(*member)) { any = true; break; }
     if (!any) return false;
     if (check_full && !G_BotCaptainIsFull(player)) return false;
     FOR_EACH_ARRAY(LPEDICT, member, captain->units)
-        if (G_BotUnitAlive(*member)) G_BotOrderAssaultMember(bot, *member, (LONG)target);
+        if (G_BotUnitAlive(*member)) G_BotOrderAssaultMember(bot, *member, (int32_t)target);
     captain->state = BOT_CAPTAIN_ACTIVE;
     if (bot->stage_valid) captain->goal = bot->stage;
     return true;
@@ -471,8 +471,8 @@ BOOL G_BotSuicidePlayer(LPPLAYER player, DWORD target, BOOL check_full) {
  * completed, owned units. Automatic a+b->make merge orders are not implemented
  * yet, so a shortfall returns false and production (SetBuildUnit/Conversions)
  * remains responsible for supplying the fused type. */
-BOOL G_BotMergeUnits(LPPLAYER player, LONG qty, DWORD a, DWORD b, DWORD make) {
-    LONG have = 0;
+bool G_BotMergeUnits(LPPLAYER player, int32_t qty, uint32_t a, uint32_t b, uint32_t make) {
+    int32_t have = 0;
     (void)a; (void)b;
     if (!player || qty <= 0 || !make) return qty <= 0;
     FILTER_EDICTS(ent, G_BotUnitAlive(ent) && ent->s.player == PLAYER_NUM(player) &&
@@ -481,10 +481,10 @@ BOOL G_BotMergeUnits(LPPLAYER player, LONG qty, DWORD a, DWORD b, DWORD make) {
 }
 
 /* CommandAI is a per-player stack: GetLast* observes the newest command until PopLastCommand removes it. */
-BOOL G_BotPushCommand(LPPLAYER player, LONG command, LONG data) {
+bool G_BotPushCommand(LPPLAYER player, int32_t command, int32_t data) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     botCommand_t *commands;
-    DWORD count;
+    uint32_t count;
     if (!bot) return false;
     count = ARRAY_COUNT(bot->commands);
     commands = gi.MemAlloc((count + 1) * sizeof(*commands));
@@ -495,17 +495,17 @@ BOOL G_BotPushCommand(LPPLAYER player, LONG command, LONG data) {
     return true;
 }
 
-DWORD G_BotCommandsWaiting(LPPLAYER player) {
+uint32_t G_BotCommandsWaiting(LPPLAYER player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     return bot ? ARRAY_COUNT(bot->commands) : 0;
 }
 
-LONG G_BotLastCommand(LPPLAYER player) {
+int32_t G_BotLastCommand(LPPLAYER player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     return bot && ARRAY_COUNT(bot->commands) ? bot->commands[ARRAY_COUNT(bot->commands) - 1].command : 0;
 }
 
-LONG G_BotLastData(LPPLAYER player) {
+int32_t G_BotLastData(LPPLAYER player) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     return bot && ARRAY_COUNT(bot->commands) ? bot->commands[ARRAY_COUNT(bot->commands) - 1].data : 0;
 }
@@ -516,7 +516,7 @@ void G_BotPopCommand(LPPLAYER player) {
 }
 
 /* AI script paths are normally basenames; preserve an explicit archive path when a map supplies one. */
-static BOOL G_BotScriptPath(LPCSTR script, LPSTR path, size_t size) {
+static bool G_BotScriptPath(cstring_t script, string_t path, size_t size) {
     int len;
     if (!script || !*script) return false;
     len = strchr(script, '\\') || strchr(script, '/') ? snprintf(path, size, "%s", script) :
@@ -524,7 +524,7 @@ static BOOL G_BotScriptPath(LPCSTR script, LPSTR path, size_t size) {
     return len >= 0 && (size_t)len < size;
 }
 
-void G_BotStop(DWORD player) {
+void G_BotStop(uint32_t player) {
     bot_t *bot = G_BotState(player);
     if (!bot) return;
     if (bot->vm) jass_close(bot->vm);
@@ -536,7 +536,7 @@ void G_BotStop(DWORD player) {
 }
 
 /* Removal can originate inside the player's AI coroutine, so teardown waits until that resume returns. */
-void G_BotRequestStop(DWORD player) {
+void G_BotRequestStop(uint32_t player) {
     bot_t *bot = G_BotState(player);
     if (bot && bot->vm) { bot->stop_requested = true; jass_haltevents(bot->vm); }
 }
@@ -546,10 +546,10 @@ void G_BotShutdown(void) {
 }
 
 /* Each bot gets a private JASS root because common.ai stores all policy state in globals. */
-BOOL G_BotStart(LPPLAYER player, LPCSTR script, botMode_t mode) {
+bool G_BotStart(LPPLAYER player, cstring_t script, botMode_t mode) {
     bot_t *bot;
     char path[MAX_PATHLEN];
-    DWORD playernum;
+    uint32_t playernum;
 
     if (!player || !G_BotScriptPath(script, path, sizeof(path))) {
         fprintf(stderr, "WC3 AI: invalid player or script\n");
@@ -600,7 +600,7 @@ BOOL G_BotStart(LPPLAYER player, LPCSTR script, botMode_t mode) {
     return true;
 }
 
-void G_BotPause(DWORD player, BOOL paused) {
+void G_BotPause(uint32_t player, bool paused) {
     bot_t *bot = G_BotState(player);
     if (bot && bot->vm) bot->paused = paused;
 }

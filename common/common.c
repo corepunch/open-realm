@@ -29,9 +29,9 @@ extern void Key_Init(void);
 #define MAX_ARG_CHARS 1024
 
 static int com_argc;
-static LPCSTR com_argv[MAX_NUM_ARGVS + 1];
+static cstring_t com_argv[MAX_NUM_ARGVS + 1];
 
-const LPCSTR WarcraftSheets[] = {
+const cstring_t WarcraftSheets[] = {
     "Units\\unitUI.slk",
     "Units\\AbilityData.slk",
     "Units\\UnitWeapons.slk",
@@ -77,15 +77,15 @@ const LPCSTR WarcraftSheets[] = {
 #define MAX_ARCHIVES 64
 #define MAX_GAME_DIRS 16
 
-static HANDLE archives[MAX_ARCHIVES] = { 0 };
+static handle_t archives[MAX_ARCHIVES] = { 0 };
 static PATHSTR archiveNames[MAX_ARCHIVES];
 static PATHSTR gameDirs[MAX_GAME_DIRS];
-static HANDLE priority_archive; /* optional session overlay; searched before archives[] */
+static handle_t priority_archive; /* optional session overlay; searched before archives[] */
 
-typedef void (*fsDiskEntryFunc_t)(LPCSTR name, LPCSTR path, BOOL isDirectory, BOOL isFile, void *userData);
+typedef void (*fsDiskEntryFunc_t)(cstring_t name, cstring_t path, bool isDirectory, bool isFile, void *userData);
 
-static void FS_NormalizePath(LPCSTR in, LPSTR out, DWORD out_size) {
-    DWORD i;
+static void FS_NormalizePath(cstring_t in, string_t out, uint32_t out_size) {
+    uint32_t i;
 
     if (!out || out_size == 0) {
         return;
@@ -102,7 +102,7 @@ static void FS_NormalizePath(LPCSTR in, LPSTR out, DWORD out_size) {
     }
 }
 
-static BOOL FS_PathHasExtension(LPCSTR filename, LPCSTR extension) {
+static bool FS_PathHasExtension(cstring_t filename, cstring_t extension) {
     size_t filenameLen;
     size_t extensionLen;
 
@@ -117,7 +117,7 @@ static BOOL FS_PathHasExtension(LPCSTR filename, LPCSTR extension) {
     return !strcasecmp(filename + filenameLen - extensionLen, extension);
 }
 
-static BOOL FS_IsMapPath(LPCSTR filename) {
+static bool FS_IsMapPath(cstring_t filename) {
 #ifdef SC2
     return FS_PathHasExtension(filename, ".SC2Map") ||
            FS_PathHasExtension(filename, ".s2ma") ||
@@ -127,7 +127,7 @@ static BOOL FS_IsMapPath(LPCSTR filename) {
 #endif
 }
 
-static size_t FS_MapExtensionLength(LPCSTR filename) {
+static size_t FS_MapExtensionLength(cstring_t filename) {
 #ifdef SC2
     if (FS_PathHasExtension(filename, ".SC2Components")) return strlen(".SC2Components");
     if (FS_PathHasExtension(filename, ".SC2Map")) return strlen(".SC2Map");
@@ -139,21 +139,21 @@ static size_t FS_MapExtensionLength(LPCSTR filename) {
     return 0;
 }
 
-static BOOL FS_IsExplicitMapPath(LPCSTR name) {
+static bool FS_IsExplicitMapPath(cstring_t name) {
     return name &&
            (strchr(name, '/') ||
             strchr(name, '\\') ||
             FS_IsMapPath(name));
 }
 
-static LPCSTR FS_BaseName(LPCSTR path) {
-    LPCSTR base;
+static cstring_t FS_BaseName(cstring_t path) {
+    cstring_t base;
 
     if (!path) {
         return "";
     }
     base = path;
-    for (LPCSTR p = path; *p; p++) {
+    for (cstring_t p = path; *p; p++) {
         if (*p == '/' || *p == '\\') {
             base = p + 1;
         }
@@ -161,8 +161,8 @@ static LPCSTR FS_BaseName(LPCSTR path) {
     return base;
 }
 
-static BOOL FS_MapBaseEquals(LPCSTR path, LPCSTR name) {
-    LPCSTR base = FS_BaseName(path);
+static bool FS_MapBaseEquals(cstring_t path, cstring_t name) {
+    cstring_t base = FS_BaseName(path);
     size_t nameLen = strlen(name ? name : "");
     size_t baseLen = strlen(base);
     size_t extLen = FS_MapExtensionLength(base);
@@ -181,7 +181,7 @@ static int FS_CompareMapPaths(const void *a, const void *b) {
     return strcasecmp(*pa, *pb);
 }
 
-static BOOL FS_MapListHas(PATHSTR *maps, DWORD count, LPCSTR path) {
+static bool FS_MapListHas(PATHSTR *maps, uint32_t count, cstring_t path) {
     FOR_LOOP(i, count) {
         if (!strcasecmp(maps[i], path)) {
             return true;
@@ -191,14 +191,14 @@ static BOOL FS_MapListHas(PATHSTR *maps, DWORD count, LPCSTR path) {
 }
 
 #ifdef SC2
-static LPCSTR FS_FindSC2MapExtension(LPCSTR path) {
-    static LPCSTR const ext = ".SC2Map";
+static cstring_t FS_FindSC2MapExtension(cstring_t path) {
+    static cstring_t const ext = ".SC2Map";
     size_t extLen = strlen(ext);
 
     if (!path) {
         return NULL;
     }
-    for (LPCSTR p = path; *p; p++) {
+    for (cstring_t p = path; *p; p++) {
         if (!strncasecmp(p, ext, extLen) &&
             (p[extLen] == '\0' || p[extLen] == '/' || p[extLen] == '\\')) {
             return p;
@@ -207,8 +207,8 @@ static LPCSTR FS_FindSC2MapExtension(LPCSTR path) {
     return NULL;
 }
 
-static BOOL FS_CollapseSC2MapPath(LPCSTR path, LPSTR out, DWORD out_size) {
-    LPCSTR map_ext;
+static bool FS_CollapseSC2MapPath(cstring_t path, string_t out, uint32_t out_size) {
+    cstring_t map_ext;
     size_t len;
 
     if (!path || !out || out_size == 0) {
@@ -228,7 +228,7 @@ static BOOL FS_CollapseSC2MapPath(LPCSTR path, LPSTR out, DWORD out_size) {
 }
 #endif
 
-HANDLE FS_AddArchive(LPCSTR filename) {
+handle_t FS_AddArchive(cstring_t filename) {
     if (!filename || !*filename) {
         return NULL;
     }
@@ -252,15 +252,15 @@ HANDLE FS_AddArchive(LPCSTR filename) {
     return NULL;
 }
 
-void FS_SetPriorityArchive(HANDLE archive) {
+void FS_SetPriorityArchive(handle_t archive) {
     priority_archive = archive;
 }
 
-HANDLE FS_GetPriorityArchive(void) {
+handle_t FS_GetPriorityArchive(void) {
     return priority_archive;
 }
 
-static BOOL FS_StatPath(LPCSTR filename, BOOL *isDirectory, BOOL *isFile) {
+static bool FS_StatPath(cstring_t filename, bool *isDirectory, bool *isFile) {
 #ifdef _WIN32
     struct _stat st;
 
@@ -297,7 +297,7 @@ static BOOL FS_StatPath(LPCSTR filename, BOOL *isDirectory, BOOL *isFile) {
     return true;
 }
 
-static BOOL FS_FileModifiedTime(LPCSTR filename, time_t *modified) {
+static bool FS_FileModifiedTime(cstring_t filename, time_t *modified) {
 #ifdef _WIN32
     struct _stat st;
 
@@ -313,14 +313,14 @@ static BOOL FS_FileModifiedTime(LPCSTR filename, time_t *modified) {
     return true;
 }
 
-static BOOL FS_DirectoryExists(LPCSTR filename) {
-    BOOL isDirectory = false;
+static bool FS_DirectoryExists(cstring_t filename) {
+    bool isDirectory = false;
 
     return FS_StatPath(filename, &isDirectory, NULL) && isDirectory;
 }
 
-static BOOL FS_FileOnDiskExists(LPCSTR filename) {
-    BOOL isFile = false;
+static bool FS_FileOnDiskExists(cstring_t filename) {
+    bool isFile = false;
 
     return FS_StatPath(filename, NULL, &isFile) && isFile;
 }
@@ -336,9 +336,9 @@ static PATHSTR fs_home_dir = { 0 };
 static PATHSTR fs_save_dir = { 0 };
 
 /* Create every component of a user path because ~/.local/share/<game> may not exist on first launch. */
-static BOOL FS_CreateDirectoryPath(LPCSTR dir) {
+static bool FS_CreateDirectoryPath(cstring_t dir) {
     PATHSTR path;
-    LPSTR p;
+    string_t p;
 
     if (!dir || !*dir || strlen(dir) >= sizeof(path)) {
         return false;
@@ -365,7 +365,7 @@ static BOOL FS_CreateDirectoryPath(LPCSTR dir) {
 #endif
 }
 
-void FS_SetShareDirectory(LPCSTR dir) {
+void FS_SetShareDirectory(cstring_t dir) {
     /* First-match-wins: main() probes candidates in priority order (flat exe
      * dir, then the FHS build tree, then CWD); once resolved, later fallbacks
      * must not clobber a better absolute path. */
@@ -378,7 +378,7 @@ void FS_SetShareDirectory(LPCSTR dir) {
 /* Create and adopt the per-user directory only if it ends up writable, so a
  * read-only $HOME (handheld/SD-card deploy) transparently falls back to the
  * base share dir instead of failing every config write. */
-void FS_SetHomeDirectory(LPCSTR dir) {
+void FS_SetHomeDirectory(cstring_t dir) {
     if (!dir || !*dir) {
         return;
     }
@@ -391,16 +391,16 @@ void FS_SetHomeDirectory(LPCSTR dir) {
     fs_save_dir[0] = '\0';
 }
 
-LPCSTR FS_BasePath(void) {
+cstring_t FS_BasePath(void) {
     return fs_share_dir[0] ? fs_share_dir : "share";
 }
 
-LPCSTR FS_HomePath(void) {
+cstring_t FS_HomePath(void) {
     return fs_home_dir;
 }
 
 /* Resolve a writable per-game file that is not assigned to a dedicated subdirectory. */
-void FS_UserPath(LPCSTR rel, LPSTR out, DWORD out_size) {
+void FS_UserPath(cstring_t rel, string_t out, uint32_t out_size) {
     if (fs_home_dir[0]) {
         snprintf(out, out_size, "%s/%s", fs_home_dir, rel);
     } else {
@@ -409,7 +409,7 @@ void FS_UserPath(LPCSTR rel, LPSTR out, DWORD out_size) {
 }
 
 /* Resolve a writable per-game configuration file beside autoexec.cfg. */
-void FS_ConfigPath(LPCSTR rel, LPSTR out, DWORD out_size) {
+void FS_ConfigPath(cstring_t rel, string_t out, uint32_t out_size) {
     if (fs_home_dir[0]) {
         snprintf(out, out_size, "%s/%s", fs_home_dir, rel);
     } else {
@@ -417,7 +417,7 @@ void FS_ConfigPath(LPCSTR rel, LPSTR out, DWORD out_size) {
     }
 }
 
-static BOOL FS_EnsureSaveDirectory(void) {
+static bool FS_EnsureSaveDirectory(void) {
     PATHSTR game_dir;
 
     if (fs_save_dir[0]) return true;
@@ -450,8 +450,8 @@ static BOOL FS_EnsureSaveDirectory(void) {
 
 /* Resolve a writable save file under the platform's per-user data directory;
  * this keeps gameplay saves separate from configuration files. */
-void FS_SavePath(LPCSTR rel, LPSTR out, DWORD out_size) {
-    LPCSTR extension;
+void FS_SavePath(cstring_t rel, string_t out, uint32_t out_size) {
+    cstring_t extension;
 
     if (!out || out_size == 0) return;
     out[0] = '\0';
@@ -461,7 +461,7 @@ void FS_SavePath(LPCSTR rel, LPSTR out, DWORD out_size) {
 }
 
 /* Delete one resolved save slot without exposing unrestricted filesystem removal to game modules. */
-BOOL FS_DeleteSave(LPCSTR rel) {
+bool FS_DeleteSave(cstring_t rel) {
     PATHSTR path;
 
     if (!rel || !*rel || !strcmp(rel, ".") || !strcmp(rel, "..") || strpbrk(rel, "/\\")) {
@@ -475,7 +475,7 @@ BOOL FS_DeleteSave(LPCSTR rel) {
     return false;
 }
 
-static BOOL FS_HasExtension(LPCSTR filename, LPCSTR extension) {
+static bool FS_HasExtension(cstring_t filename, cstring_t extension) {
     size_t filenameLen;
     size_t extensionLen;
 
@@ -490,9 +490,9 @@ static BOOL FS_HasExtension(LPCSTR filename, LPCSTR extension) {
     return !strcasecmp(filename + filenameLen - extensionLen, extension);
 }
 
-static BOOL FS_IsArchiveExtensionAt(LPCSTR path, size_t dot) {
+static bool FS_IsArchiveExtensionAt(cstring_t path, size_t dot) {
 #ifdef SC2
-    static LPCSTR const extensions[] = {
+    static cstring_t const extensions[] = {
         ".mpq",
         ".SC2Map",
         ".s2ma",
@@ -502,13 +502,13 @@ static BOOL FS_IsArchiveExtensionAt(LPCSTR path, size_t dot) {
         NULL
     };
 #else
-    static LPCSTR const extensions[] = { ".mpq", ".w3m", ".w3x", NULL };
+    static cstring_t const extensions[] = { ".mpq", ".w3m", ".w3x", NULL };
 #endif
 
     if (!path || path[dot] != '.') {
         return false;
     }
-    for (DWORD i = 0; extensions[i]; i++) {
+    for (uint32_t i = 0; extensions[i]; i++) {
         size_t len = strlen(extensions[i]);
 
         if (strncasecmp(path + dot, extensions[i], len)) {
@@ -519,10 +519,10 @@ static BOOL FS_IsArchiveExtensionAt(LPCSTR path, size_t dot) {
     return false;
 }
 
-static BOOL FS_SplitNestedArchivePath(LPCSTR filename,
-                                      LPSTR outer,
-                                      DWORD outer_size,
-                                      LPCSTR *inner) {
+static bool FS_SplitNestedArchivePath(cstring_t filename,
+                                      string_t outer,
+                                      uint32_t outer_size,
+                                      cstring_t *inner) {
     if (!filename || !outer || outer_size == 0 || !inner) {
         return false;
     }
@@ -549,8 +549,8 @@ static BOOL FS_SplitNestedArchivePath(LPCSTR filename,
     return false;
 }
 
-static void FS_MakeDiskPath(LPCSTR root, LPCSTR filename, LPSTR out, DWORD out_size) {
-    DWORD len;
+static void FS_MakeDiskPath(cstring_t root, cstring_t filename, string_t out, uint32_t out_size) {
+    uint32_t len;
 
     if (!out || out_size == 0) {
         return;
@@ -560,15 +560,15 @@ static void FS_MakeDiskPath(LPCSTR root, LPCSTR filename, LPSTR out, DWORD out_s
         return;
     }
     snprintf(out, out_size, "%s/%s", root, filename);
-    len = (DWORD)strlen(root);
-    for (LPSTR p = out + len; *p; p++) {
+    len = (uint32_t)strlen(root);
+    for (string_t p = out + len; *p; p++) {
         if (*p == '\\') {
             *p = '/';
         }
     }
 }
 
-static void FS_ForEachDiskEntry(LPCSTR dirname, fsDiskEntryFunc_t func, void *userData) {
+static void FS_ForEachDiskEntry(cstring_t dirname, fsDiskEntryFunc_t func, void *userData) {
     if (!dirname || !*dirname || !func) {
         return;
     }
@@ -585,7 +585,7 @@ static void FS_ForEachDiskEntry(LPCSTR dirname, fsDiskEntryFunc_t func, void *us
     }
     do {
         char path[MAX_PATHLEN * 2];
-        BOOL isDirectory;
+        bool isDirectory;
 
         if (!strcmp(entry.name, ".") || !strcmp(entry.name, "..")) {
             continue;
@@ -604,8 +604,8 @@ static void FS_ForEachDiskEntry(LPCSTR dirname, fsDiskEntryFunc_t func, void *us
     }
     while ((entry = readdir(dir)) != NULL) {
         char path[MAX_PATHLEN * 2];
-        BOOL isDirectory = false;
-        BOOL isFile = false;
+        bool isDirectory = false;
+        bool isFile = false;
 
         if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) {
             continue;
@@ -627,11 +627,11 @@ typedef struct {
 
 typedef struct {
     fsSaveListEntry_t *entries;
-    DWORD count;
+    uint32_t count;
 } fsSaveListCollect_t;
 
 /* FS_EnumerateDiskDirectory owns this five-argument callback ABI, so it cannot use a local parameter struct. */
-static void FS_CollectSaveEntry(LPCSTR name, LPCSTR path, BOOL isDirectory, BOOL isFile, void *userData) {
+static void FS_CollectSaveEntry(cstring_t name, cstring_t path, bool isDirectory, bool isFile, void *userData) {
     fsSaveListCollect_t *collect = userData;
     fsSaveListEntry_t *next;
     size_t len;
@@ -665,9 +665,9 @@ static int FS_CompareSaveEntries(const void *a, const void *b) {
 /* Return save basenames as a double-NUL-terminated list. Newest files come
  * first; equal mtimes fall back to a case-insensitive name sort so callers
  * still get deterministic ordering across hosts. */
-DWORD FS_ListSaves(LPSTR out, DWORD out_size) {
+uint32_t FS_ListSaves(string_t out, uint32_t out_size) {
     fsSaveListCollect_t collect = { 0 };
-    DWORD written = 0, used = 0;
+    uint32_t written = 0, used = 0;
 
     if (!out || out_size == 0) return 0;
     out[0] = '\0';
@@ -676,7 +676,7 @@ DWORD FS_ListSaves(LPSTR out, DWORD out_size) {
     if (collect.count > 1)
         qsort(collect.entries, collect.count, sizeof(*collect.entries), FS_CompareSaveEntries);
     FOR_LOOP(i, collect.count) {
-        DWORD len = (DWORD)strlen(collect.entries[i].name) + 1;
+        uint32_t len = (uint32_t)strlen(collect.entries[i].name) + 1;
         if (used + len + 1 > out_size) break;
         memcpy(out + used, collect.entries[i].name, len);
         used += len;
@@ -687,7 +687,7 @@ DWORD FS_ListSaves(LPSTR out, DWORD out_size) {
     return written;
 }
 
-static void FS_AddGameDirectory(LPCSTR dirname) {
+static void FS_AddGameDirectory(cstring_t dirname) {
     if (!dirname || !*dirname) {
         return;
     }
@@ -709,8 +709,8 @@ static void FS_AddGameDirectory(LPCSTR dirname) {
 static int FS_ComparePaths(const void *a, const void *b) {
     PATHSTR const *pa = a;
     PATHSTR const *pb = b;
-    LPCSTR abase = FS_BaseName(*pa);
-    LPCSTR bbase = FS_BaseName(*pb);
+    cstring_t abase = FS_BaseName(*pa);
+    cstring_t bbase = FS_BaseName(*pb);
     int cmp = strcasecmp(abase, bbase);
 
     return cmp ? cmp : strcasecmp(*pa, *pb);
@@ -718,17 +718,17 @@ static int FS_ComparePaths(const void *a, const void *b) {
 
 typedef struct {
     PATHSTR *paths;
-    DWORD maxPaths;
-    DWORD count;
+    uint32_t maxPaths;
+    uint32_t count;
 } fsArchiveScan_t;
 
-static void FS_AddArchiveScanDirectoryEntry(LPCSTR name,
-                                            LPCSTR path,
-                                            BOOL isDirectory,
-                                            BOOL isFile,
+static void FS_AddArchiveScanDirectoryEntry(cstring_t name,
+                                            cstring_t path,
+                                            bool isDirectory,
+                                            bool isFile,
                                             void *userData);
 
-static void FS_AddArchiveScanEntry(LPCSTR name, LPCSTR path, BOOL isDirectory, BOOL isFile, void *userData) {
+static void FS_AddArchiveScanEntry(cstring_t name, cstring_t path, bool isDirectory, bool isFile, void *userData) {
     fsArchiveScan_t *scan = userData;
 
     if (!scan) {
@@ -749,7 +749,7 @@ static void FS_AddArchiveScanEntry(LPCSTR name, LPCSTR path, BOOL isDirectory, B
     }
 }
 
-static void FS_AddArchiveScanDirectory(LPCSTR dirname, fsArchiveScan_t *scan) {
+static void FS_AddArchiveScanDirectory(cstring_t dirname, fsArchiveScan_t *scan) {
     if (!dirname || !scan || scan->count >= scan->maxPaths) {
         return;
     }
@@ -757,10 +757,10 @@ static void FS_AddArchiveScanDirectory(LPCSTR dirname, fsArchiveScan_t *scan) {
     FS_ForEachDiskEntry(dirname, FS_AddArchiveScanDirectoryEntry, scan);
 }
 
-static void FS_AddArchiveScanDirectoryEntry(LPCSTR name,
-                                            LPCSTR path,
-                                            BOOL isDirectory,
-                                            BOOL isFile,
+static void FS_AddArchiveScanDirectoryEntry(cstring_t name,
+                                            cstring_t path,
+                                            bool isDirectory,
+                                            bool isFile,
                                             void *userData) {
     (void)name;
     (void)isFile;
@@ -769,10 +769,10 @@ static void FS_AddArchiveScanDirectoryEntry(LPCSTR name,
     }
 }
 
-BOOL FS_AddDataDirectory(LPCSTR dirname) {
+bool FS_AddDataDirectory(cstring_t dirname) {
     PATHSTR archivePaths[MAX_ARCHIVES];
     fsArchiveScan_t scan = { archivePaths, MAX_ARCHIVES, 0 };
-    DWORD mountedCount = 0;
+    uint32_t mountedCount = 0;
 
     if (!FS_DirectoryExists(dirname)) {
         return false;
@@ -794,9 +794,9 @@ BOOL FS_AddDataDirectory(LPCSTR dirname) {
 /* Optional expansion archive families remain mounted so front ends can switch
  * editions without closing archives underneath live renderer/UI resources. */
 /* War3Local from patched installs can carry TFT race AI; ROC must use the matching scripts from War3.mpq. */
-BOOL FS_ArchiveFileVisible(LPCSTR archive, LPCSTR filename) {
-    LPCSTR base;
-    LPCSTR expansion_prefix;
+bool FS_ArchiveFileVisible(cstring_t archive, cstring_t filename) {
+    cstring_t base;
+    cstring_t expansion_prefix;
 
     if (!archive || !filename)
         return true;
@@ -815,7 +815,7 @@ BOOL FS_ArchiveFileVisible(LPCSTR archive, LPCSTR filename) {
 
 #if 0
 static void ExtractStarCraft2(void) {
-    HANDLE archive;
+    handle_t archive;
     SFileOpenArchive("/Users/igor/Documents/SC2Install/Installer Tome 1.MPQ", 0, 0, &archive);
 //    SFileOpenArchive("/Users/igor/Desktop/terrain.MPQ", 0, 0, &archive);
 //    SFileOpenArchive("/Users/igor/Documents/StarCraft2/Campaigns/Liberty.SC2Campaign/base.SC2Assets", 0, 0, &archive);
@@ -826,11 +826,11 @@ static void ExtractStarCraft2(void) {
 //    SFileExtractFile(archive, "Assets\\Textures\\SpecialOps_Dropship_Diffuse.dds", "/Users/igor/Desktop/SpecialOps_Dropship_Diffuse.dds", 0);
     
     SFILE_FIND_DATA findData;
-    HANDLE handle = SFileFindFirstFile(archive, "*", &findData, 0);
+    handle_t handle = SFileFindFirstFile(archive, "*", &findData, 0);
     if (handle) {
-        LPCSTR skip[] = { NULL };// ".m3", ".ogg", ".ogv", ".fx", ".bls", ".gfx", ".wav", ".dds", ".tga", "\\Cache\\", NULL };
+        cstring_t skip[] = { NULL };// ".m3", ".ogg", ".ogv", ".fx", ".bls", ".gfx", ".wav", ".dds", ".tga", "\\Cache\\", NULL };
         do {
-            for (LPCSTR *s = skip; *s; s++) {
+            for (cstring_t *s = skip; *s; s++) {
                 if (strstr(findData.cFileName, *s))
                     goto skip_print;
             }
@@ -838,7 +838,7 @@ static void ExtractStarCraft2(void) {
 //                printf("%s\n", findData.cFileName);
             }
             if (strstr(findData.cFileName, "MapScript.galaxy")) {
-                HANDLE file;
+                handle_t file;
                 SFileOpenFileEx(archive, findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
                 char ch;
                 while (SFileReadFile(file, &ch, 1, NULL, NULL)) {
@@ -860,19 +860,19 @@ static void ExtractStarCraft2(void) {
 }
 #endif
 
-static BOOL filelock = false;
-void PF_Sleep(DWORD msec);
+static bool filelock = false;
+void PF_Sleep(uint32_t msec);
 
 typedef struct fsFind_s {
-    DWORD archiveIndex;
-    HANDLE current;
+    uint32_t archiveIndex;
+    handle_t current;
     PATHSTR mask;
     PATHSTR *looseFiles;
-    DWORD looseCount;
-    DWORD looseIndex;
+    uint32_t looseCount;
+    uint32_t looseIndex;
 } fsFind_t;
 
-static BOOL FS_FindFilenameMatches(LPCSTR filename, LPCSTR mask) {
+static bool FS_FindFilenameMatches(cstring_t filename, cstring_t mask) {
     PATHSTR normalizedFilename;
     PATHSTR normalizedMask;
     size_t mask_len;
@@ -889,7 +889,7 @@ static BOOL FS_FindFilenameMatches(LPCSTR filename, LPCSTR mask) {
     return !strcasecmp(normalizedFilename, normalizedMask);
 }
 
-static BOOL FS_FindAppendLoose(fsFind_t *find, LPCSTR name) {
+static bool FS_FindAppendLoose(fsFind_t *find, cstring_t name) {
     PATHSTR *next;
 
     if (!find || !name || !*name) {
@@ -906,13 +906,13 @@ static BOOL FS_FindAppendLoose(fsFind_t *find, LPCSTR name) {
 
 typedef struct {
     fsFind_t *find;
-    LPCSTR root;
-    LPCSTR rel;
+    cstring_t root;
+    cstring_t rel;
 } fsLooseCollect_t;
 
-static void FS_FindCollectLooseDir(fsFind_t *find, LPCSTR root, LPCSTR rel);
+static void FS_FindCollectLooseDir(fsFind_t *find, cstring_t root, cstring_t rel);
 
-static void FS_FindCollectLooseEntry(LPCSTR name, LPCSTR path, BOOL isDirectory, BOOL isFile, void *userData) {
+static void FS_FindCollectLooseEntry(cstring_t name, cstring_t path, bool isDirectory, bool isFile, void *userData) {
     fsLooseCollect_t *collect = userData;
     char childRel[MAX_PATHLEN * 2];
 
@@ -936,7 +936,7 @@ static void FS_FindCollectLooseEntry(LPCSTR name, LPCSTR path, BOOL isDirectory,
     }
 }
 
-static void FS_FindCollectLooseDir(fsFind_t *find, LPCSTR root, LPCSTR rel) {
+static void FS_FindCollectLooseDir(fsFind_t *find, cstring_t root, cstring_t rel) {
     char path[MAX_PATHLEN * 2];
     fsLooseCollect_t collect = { find, root, rel };
 
@@ -947,9 +947,9 @@ static void FS_FindCollectLooseDir(fsFind_t *find, LPCSTR root, LPCSTR rel) {
     FS_ForEachDiskEntry(path, FS_FindCollectLooseEntry, &collect);
 }
 
-static HANDLE FS_OpenNestedLooseFile(LPCSTR filename);
+static handle_t FS_OpenNestedLooseFile(cstring_t filename);
 
-HANDLE FS_OpenFile(LPCSTR fileName) {
+handle_t FS_OpenFile(cstring_t fileName) {
     while (filelock) {
         PF_Sleep(10);
     }
@@ -959,12 +959,12 @@ HANDLE FS_OpenFile(LPCSTR fileName) {
         return NULL;
     }
     if (priority_archive) {
-        HANDLE file;
+        handle_t file;
         if (SFileOpenFileEx(priority_archive, fileName, SFILE_OPEN_FROM_MPQ, &file))
             return file;
     }
     for (int i = MAX_ARCHIVES - 1; i >= 0; i--) {
-        HANDLE file;
+        handle_t file;
         if (!archives[i]) {
             continue;
         }
@@ -974,7 +974,7 @@ HANDLE FS_OpenFile(LPCSTR fileName) {
             return file;
         }
     }
-    HANDLE looseNestedFile = FS_OpenNestedLooseFile(fileName);
+    handle_t looseNestedFile = FS_OpenNestedLooseFile(fileName);
     if (looseNestedFile) {
         return looseNestedFile;
     }
@@ -982,7 +982,7 @@ HANDLE FS_OpenFile(LPCSTR fileName) {
     return NULL;
 }
 
-bool FS_ResolveLoosePath(LPCSTR fileName, LPSTR out, DWORD out_size) {
+bool FS_ResolveLoosePath(cstring_t fileName, string_t out, uint32_t out_size) {
     if (out && out_size) out[0] = '\0';
     if (!fileName || !*fileName || !out || !out_size) return false;
     FOR_LOOP(i, MAX_GAME_DIRS) {
@@ -997,8 +997,8 @@ bool FS_ResolveLoosePath(LPCSTR fileName, LPSTR out, DWORD out_size) {
     return false;
 }
 
-bool FS_FileExists(LPCSTR fileName) {
-    HANDLE file = FS_OpenFile(fileName);
+bool FS_FileExists(cstring_t fileName) {
+    handle_t file = FS_OpenFile(fileName);
     if (file) {
         FS_CloseFile(file);
         return true;
@@ -1009,7 +1009,7 @@ bool FS_FileExists(LPCSTR fileName) {
     if (FS_PathHasExtension(fileName, ".SC2Map")) {
         char mapInfoPath[MAX_PATHLEN + 16];
         snprintf(mapInfoPath, sizeof(mapInfoPath), "%s/MapInfo", fileName);
-        HANDLE h = FS_OpenFile(mapInfoPath);
+        handle_t h = FS_OpenFile(mapInfoPath);
         if (h) { FS_CloseFile(h); return true; }
     }
 #endif
@@ -1032,12 +1032,12 @@ bool FS_FileExists(LPCSTR fileName) {
     return false;
 }
 
-HANDLE FS_ReadLooseFile(LPCSTR filename, LPDWORD size, DWORD extraBytes) {
+handle_t FS_ReadLooseFile(cstring_t filename, uint32_t * size, uint32_t extraBytes) {
     FOR_LOOP(i, MAX_GAME_DIRS) {
         char path[MAX_PATHLEN * 2];
         FILE *file;
         long fileSize;
-        LPBYTE buffer;
+        uint8_t * buffer;
 
         if (!gameDirs[i][0]) {
             continue;
@@ -1071,19 +1071,19 @@ HANDLE FS_ReadLooseFile(LPCSTR filename, LPDWORD size, DWORD extraBytes) {
             memset(buffer + fileSize, 0, extraBytes);
         }
         if (size) {
-            *size = (DWORD)fileSize;
+            *size = (uint32_t)fileSize;
         }
         return buffer;
     }
     return NULL;
 }
 
-static HANDLE FS_OpenNestedLooseFile(LPCSTR filename) {
+static handle_t FS_OpenNestedLooseFile(cstring_t filename) {
     char outer[MAX_PATHLEN * 2];
-    LPCSTR inner;
-    DWORD outerSize = 0;
-    BYTE *outerData;
-    HANDLE file;
+    cstring_t inner;
+    uint32_t outerSize = 0;
+    uint8_t *outerData;
+    handle_t file;
 
     if (!FS_SplitNestedArchivePath(filename, outer, sizeof(outer), &inner)) {
         return NULL;
@@ -1103,17 +1103,17 @@ static HANDLE FS_OpenNestedLooseFile(LPCSTR filename) {
     return NULL;
 }
 
-void FS_CloseFile(HANDLE file) {
+void FS_CloseFile(handle_t file) {
     SFileCloseFile(file);
     filelock = false;
 }
 
 // Quake 3-style FS_ReadFile: returns size, allocates buffer via buf pointer
-int FS_ReadFileQ3(LPCSTR filename, void **buf) {
+int FS_ReadFileQ3(cstring_t filename, void **buf) {
     if (!buf) {
         return -1;
     }
-    DWORD size = 0;
+    uint32_t size = 0;
     *buf = FS_ReadFile(filename, &size);
     if (!*buf) {
         return -1;
@@ -1121,14 +1121,14 @@ int FS_ReadFileQ3(LPCSTR filename, void **buf) {
     return (int)size;
 }
 
-HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size) {
-    HANDLE fp = FS_OpenFile(filename);
-    DWORD read_size = 0;
+handle_t FS_ReadFile(cstring_t filename, uint32_t * size) {
+    handle_t fp = FS_OpenFile(filename);
+    uint32_t read_size = 0;
     if (!fp) {
         return FS_ReadLooseFile(filename, size, 0);
     }
     *size = SFileGetFileSize(fp, NULL);
-    LPSTR buffer = MemAlloc(*size + 1);
+    string_t buffer = MemAlloc(*size + 1);
     if (!SFileReadFile(fp, buffer, *size, &read_size, NULL) || read_size != *size) {
         fprintf(stderr, "FS_ReadFile: incomplete MPQ read for %s (%u/%u bytes)\n", filename, read_size, *size);
         MemFree(buffer); FS_CloseFile(fp); *size = 0;
@@ -1146,17 +1146,17 @@ void FS_FreeFile(void *buf) {
 /* FS_MmapFile: map a loose disk file read-only. Falls back to FS_ReadLooseFile
  * if mmap is unavailable (Windows) or the file only exists in an MPQ archive.
  * The returned pointer must be released with FS_MunmapFile, NOT FS_FreeFile.
- * Header layout: [size:DWORD][fd:int][flags:DWORD][padding][data...] so that
+ * Header layout: [size:uint32_t][fd:int][flags:uint32_t][padding][data...] so that
  * FS_MunmapFile can munmap/close without a side-channel. */
 #ifndef _WIN32
 #define MMAP_HDR_SIZE  16   /* must be >= 4+4+4 and page-aligned-friendly */
-void *FS_MmapFile(LPCSTR filename, LPDWORD out_size) {
+void *FS_MmapFile(cstring_t filename, uint32_t * out_size) {
     FOR_LOOP(i, MAX_GAME_DIRS) {
         char path[MAX_PATHLEN * 2];
         int fd;
         struct stat st;
         void *base;
-        BYTE *hdr;
+        uint8_t *hdr;
 
         if (!gameDirs[i][0]) continue;
         FS_MakeDiskPath(gameDirs[i], filename, path, sizeof(path));
@@ -1168,17 +1168,17 @@ void *FS_MmapFile(LPCSTR filename, LPDWORD out_size) {
         if (base == MAP_FAILED) { close(fd); continue; }
 
         /* mmap the actual file data into the region just after the header */
-        hdr = (BYTE *)base;
+        hdr = (uint8_t *)base;
         if (mmap(hdr + MMAP_HDR_SIZE, (size_t)st.st_size, PROT_READ, MAP_PRIVATE | MAP_FIXED, fd, 0) == MAP_FAILED) {
             munmap(base, (size_t)st.st_size + MMAP_HDR_SIZE);
             close(fd);
             continue;
         }
         close(fd);
-        *(DWORD *)(hdr + 0) = (DWORD)st.st_size;
+        *(uint32_t *)(hdr + 0) = (uint32_t)st.st_size;
         *(int *)  (hdr + 4) = -1;   /* fd already closed */
-        *(DWORD *)(hdr + 8) = 1;    /* mmap flag */
-        if (out_size) *out_size = (DWORD)st.st_size;
+        *(uint32_t *)(hdr + 8) = 1;    /* mmap flag */
+        if (out_size) *out_size = (uint32_t)st.st_size;
         return hdr + MMAP_HDR_SIZE;
     }
     /* File not found loose — fall back to heap read (e.g. from MPQ) */
@@ -1186,14 +1186,14 @@ void *FS_MmapFile(LPCSTR filename, LPDWORD out_size) {
 }
 
 void FS_MunmapFile(void *ptr) {
-    BYTE *hdr;
-    DWORD sz;
-    DWORD flags;
+    uint8_t *hdr;
+    uint32_t sz;
+    uint32_t flags;
 
     if (!ptr) return;
-    hdr = (BYTE *)ptr - MMAP_HDR_SIZE;
-    sz    = *(DWORD *)(hdr + 0);
-    flags = *(DWORD *)(hdr + 8);
+    hdr = (uint8_t *)ptr - MMAP_HDR_SIZE;
+    sz    = *(uint32_t *)(hdr + 0);
+    flags = *(uint32_t *)(hdr + 8);
     if (flags & 1)
         munmap(hdr, (size_t)sz + MMAP_HDR_SIZE);
     else
@@ -1201,7 +1201,7 @@ void FS_MunmapFile(void *ptr) {
 }
 #else
 /* Windows stub — fall through to heap read */
-void *FS_MmapFile(LPCSTR filename, LPDWORD out_size) {
+void *FS_MmapFile(cstring_t filename, uint32_t * out_size) {
     return FS_ReadLooseFile(filename, out_size, 0);
 }
 void FS_MunmapFile(void *ptr) { MemFree(ptr); }
@@ -1212,15 +1212,15 @@ void FS_MunmapFile(void *ptr) { MemFree(ptr); }
  * The optional priority archive is invoked last. callback receives a
  * NUL-terminated buffer + its byte length; it must NOT free the buffer — the
  * caller owns it and frees after the callback returns. */
-void FS_ReadFileAll(LPCSTR filename, void (*callback)(HANDLE buf, DWORD size, void *ud), void *ud) {
+void FS_ReadFileAll(cstring_t filename, void (*callback)(handle_t buf, uint32_t size, void *ud), void *ud) {
     if (!filename || !*filename || !callback) return;
     for (int i = 0; i < MAX_ARCHIVES; i++) {
-        HANDLE file;
+        handle_t file;
         if (!archives[i]) continue;
         if (!FS_ArchiveFileVisible(archiveNames[i], filename)) continue;
         if (!SFileOpenFileEx(archives[i], filename, SFILE_OPEN_FROM_MPQ, &file)) continue;
-        DWORD sz = SFileGetFileSize(file, NULL);
-        LPSTR buf = MemAlloc(sz + 1);
+        uint32_t sz = SFileGetFileSize(file, NULL);
+        string_t buf = MemAlloc(sz + 1);
         SFileReadFile(file, buf, sz, NULL, NULL);
         buf[sz] = '\0';
         SFileCloseFile(file);
@@ -1228,10 +1228,10 @@ void FS_ReadFileAll(LPCSTR filename, void (*callback)(HANDLE buf, DWORD size, vo
         MemFree(buf);
     }
     if (priority_archive) {
-        HANDLE file;
+        handle_t file;
         if (SFileOpenFileEx(priority_archive, filename, SFILE_OPEN_FROM_MPQ, &file)) {
-            DWORD sz = SFileGetFileSize(file, NULL);
-            LPSTR buf = MemAlloc(sz + 1);
+            uint32_t sz = SFileGetFileSize(file, NULL);
+            string_t buf = MemAlloc(sz + 1);
             SFileReadFile(file, buf, sz, NULL, NULL);
             buf[sz] = '\0';
             SFileCloseFile(file);
@@ -1241,9 +1241,9 @@ void FS_ReadFileAll(LPCSTR filename, void (*callback)(HANDLE buf, DWORD size, vo
     }
 }
 
-static BOOL FS_FindAdvance(fsFind_t *find, SFILE_FIND_DATA *findData) {
+static bool FS_FindAdvance(fsFind_t *find, SFILE_FIND_DATA *findData) {
     if (find && findData && find->looseIndex < find->looseCount) {
-        LPCSTR name = find->looseFiles[find->looseIndex++];
+        cstring_t name = find->looseFiles[find->looseIndex++];
 
         memset(findData, 0, sizeof(*findData));
         snprintf(findData->cFileName, sizeof(findData->cFileName), "%s", name);
@@ -1275,7 +1275,7 @@ static BOOL FS_FindAdvance(fsFind_t *find, SFILE_FIND_DATA *findData) {
     return false;
 }
 
-HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData) {
+handle_t FS_FindFirstFile(cstring_t mask, SFILE_FIND_DATA *findData) {
     fsFind_t *find;
 
     while (filelock) {
@@ -1293,7 +1293,7 @@ HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData) {
         return NULL;
     }
     snprintf(find->mask, sizeof(find->mask), "%s", mask);
-    LPCSTR looseRoot = (!strncasecmp(mask, "Maps\\", 5) || !strncasecmp(mask, "Maps/", 5)) ? "Maps" : "";
+    cstring_t looseRoot = (!strncasecmp(mask, "Maps\\", 5) || !strncasecmp(mask, "Maps/", 5)) ? "Maps" : "";
     FOR_LOOP(i, MAX_GAME_DIRS) {
         if (gameDirs[i][0]) {
             FS_FindCollectLooseDir(find, gameDirs[i], looseRoot);
@@ -1318,11 +1318,11 @@ HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData) {
     return NULL;
 }
 
-BOOL FS_FindNextFile(HANDLE handle, SFILE_FIND_DATA *findData) {
+bool FS_FindNextFile(handle_t handle, SFILE_FIND_DATA *findData) {
     return FS_FindAdvance(handle, findData);
 }
 
-BOOL FS_FindClose(HANDLE handle) {
+bool FS_FindClose(handle_t handle) {
     fsFind_t *find = handle;
 
     if (find) {
@@ -1336,11 +1336,11 @@ BOOL FS_FindClose(HANDLE handle) {
     return true;
 }
 
-DWORD FS_ListMaps(fsMapListFunc_t func, void *userData) {
+uint32_t FS_ListMaps(fsMapListFunc_t func, void *userData) {
     PATHSTR *maps;
     SFILE_FIND_DATA findData;
-    HANDLE handle;
-    DWORD count = 0;
+    handle_t handle;
+    uint32_t count = 0;
 
     maps = calloc(MAX_FS_MAPS, sizeof(*maps));
     if (!maps) {
@@ -1380,13 +1380,13 @@ DWORD FS_ListMaps(fsMapListFunc_t func, void *userData) {
 }
 
 typedef struct {
-    LPCSTR name;
-    LPSTR out;
-    DWORD out_size;
-    DWORD matches;
+    cstring_t name;
+    string_t out;
+    uint32_t out_size;
+    uint32_t matches;
 } fsMapResolveState_t;
 
-static void FS_ResolveMapPathCallback(LPCSTR path, void *userData) {
+static void FS_ResolveMapPathCallback(cstring_t path, void *userData) {
     fsMapResolveState_t *resolve = userData;
 
     if (!resolve || !FS_MapBaseEquals(path, resolve->name)) {
@@ -1398,7 +1398,7 @@ static void FS_ResolveMapPathCallback(LPCSTR path, void *userData) {
     resolve->matches++;
 }
 
-fsMapResolve_t FS_ResolveMapPath(LPCSTR name, LPSTR out, DWORD out_size) {
+fsMapResolve_t FS_ResolveMapPath(cstring_t name, string_t out, uint32_t out_size) {
     fsMapResolveState_t resolve;
     PATHSTR normalized;
 
@@ -1430,7 +1430,7 @@ fsMapResolve_t FS_ResolveMapPath(LPCSTR name, LPSTR out, DWORD out_size) {
     return FS_MAP_RESOLVE_NOT_FOUND;
 }
 
-bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
+bool FS_ExtractFile(cstring_t toExtract, cstring_t extracted) {
     FOR_LOOP(i, MAX_ARCHIVES) {
         if (SFileExtractFile(archives[i], toExtract, extracted, 0))
             return true;
@@ -1470,7 +1470,7 @@ void FS_Init(void) {
 
 #if 0
     SFILE_FIND_DATA findData;
-    HANDLE handle = SFileFindFirstFile(archives[0], "*", &findData, 0);
+    handle_t handle = SFileFindFirstFile(archives[0], "*", &findData, 0);
     if (handle) {
          do {
 //             if(strstr(findData.cFileName, ".fdf")) {
@@ -1482,7 +1482,7 @@ void FS_Init(void) {
 //             if (strstr(findData.cFileName, "EscMenuTemplates") ||
 //                strstr(findData.cFileName, "CinematicPanel")) {
               if (strstr(findData.cFileName, ".txt")){
-                 HANDLE file;
+                 handle_t file;
                  SFileOpenFileEx(archives[0], findData.cFileName, SFILE_OPEN_FROM_MPQ, &file);
                  char ch;
                  while (SFileReadFile(file, &ch, 1, NULL, NULL)) {
@@ -1496,12 +1496,12 @@ void FS_Init(void) {
          SFileFindClose(handle);
      }
 #endif
-//    for (LPCSTR* s = WarcraftSheets; *s; s++) {
+//    for (cstring_t* s = WarcraftSheets; *s; s++) {
 //        printf("%s\n", *s);
 //        FS_ReadSheet(*s);
 //    }
 
-//    void FPrintSheetStructs(LPCSTR *fileNames);
+//    void FPrintSheetStructs(cstring_t *fileNames);
 //    FPrintSheetStructs(WarcraftSheets);
 }
 
@@ -1517,7 +1517,7 @@ void FS_Shutdown(void) {
     }
 }
 
-BOMStatus PF_TextRemoveBom(LPSTR buffer) {
+BOMStatus PF_TextRemoveBom(string_t buffer) {
     unsigned char utf8_bom[] = { 0xEF, 0xBB, 0xBF };
     unsigned char utf16le_bom[] = { 0xFF, 0xFE };
     unsigned char utf16be_bom[] = { 0xFE, 0xFF };
@@ -1539,14 +1539,14 @@ BOMStatus PF_TextRemoveBom(LPSTR buffer) {
     return NO_BOM;
 }
 
-HANDLE MemAlloc(long size) {
-    HANDLE mem = malloc(size);
+handle_t MemAlloc(long size) {
+    handle_t mem = malloc(size);
 //    printf("Alloc (%d) %llx\n", size, mem);
     memset(mem, 0, size);
     return mem;
 }
 
-void MemFree(HANDLE mem) {
+void MemFree(handle_t mem) {
 //    printf("Free %llx\n", mem);
     free(mem);
 }
@@ -1564,7 +1564,7 @@ void Com_Quit(void) {
     Sys_Quit();
 }
 
-void COM_InitArgv(int argc, LPCSTR *argv) {
+void COM_InitArgv(int argc, cstring_t *argv) {
     int i;
 
     if (argc > MAX_NUM_ARGVS) {
@@ -1584,7 +1584,7 @@ int COM_Argc(void) {
     return com_argc;
 }
 
-LPCSTR COM_Argv(int arg) {
+cstring_t COM_Argv(int arg) {
     if (arg < 0 || arg >= com_argc || !com_argv[arg]) {
         return "";
     }
@@ -1599,12 +1599,12 @@ void COM_ClearArgv(int arg) {
 }
 
 typedef struct {
-    LPCSTR name;
-    DWORD count;
+    cstring_t name;
+    uint32_t count;
 } comMapMatchPrint_t;
 
-static void Com_PrintMapCallback(LPCSTR path, void *userData) {
-    DWORD *count = userData;
+static void Com_PrintMapCallback(cstring_t path, void *userData) {
+    uint32_t *count = userData;
 
     fprintf(stderr, "%s\n", path);
     if (count) {
@@ -1612,7 +1612,7 @@ static void Com_PrintMapCallback(LPCSTR path, void *userData) {
     }
 }
 
-static void Com_PrintMapMatchCallback(LPCSTR path, void *userData) {
+static void Com_PrintMapMatchCallback(cstring_t path, void *userData) {
     comMapMatchPrint_t *matches = userData;
 
     if (!matches || !FS_MapBaseEquals(path, matches->name)) {
@@ -1626,10 +1626,10 @@ static void Com_PrintMapMatchCallback(LPCSTR path, void *userData) {
 #include "stb_dbc.h"
 
 /* AzerothCore supplies numeric map IDs; the client Map.dbc owns their MPQ directory names. */
-static bool Com_WowMapPathForId(DWORD map_id, LPSTR out, DWORD out_size) {
+static bool Com_WowMapPathForId(uint32_t map_id, string_t out, uint32_t out_size) {
     stbDbc_t h;
-    LPBYTE data;
-    DWORD size = 0;
+    uint8_t * data;
+    uint32_t size = 0;
 
     if (!out || !out_size)
         return false;
@@ -1640,13 +1640,13 @@ static bool Com_WowMapPathForId(DWORD map_id, LPSTR out, DWORD out_size) {
         return false;
     }
     {
-        BYTE const *record = Stb_DbcFindID(data, &h, map_id);
+        uint8_t const *record = Stb_DbcFindID(data, &h, map_id);
         if (record) {
-            LPCSTR dir = Stb_DbcString(Stb_DbcStrings(data, &h), h.string_size, Stb_DbcField(&h, record, 1));
+            cstring_t dir = Stb_DbcString(Stb_DbcStrings(data, &h), h.string_size, Stb_DbcField(&h, record, 1));
             if (dir && *dir) {
                 int written = snprintf(out, out_size, "World/Maps/%s/%s.wdt", dir, dir);
                 FS_FreeFile(data);
-                return written > 0 && (DWORD)written < out_size;
+                return written > 0 && (uint32_t)written < out_size;
             }
         }
     }
@@ -1655,7 +1655,7 @@ static bool Com_WowMapPathForId(DWORD map_id, LPSTR out, DWORD out_size) {
 }
 #endif
 
-bool Com_ResolveMapArgument(LPCSTR arg, LPSTR out, DWORD out_size) {
+bool Com_ResolveMapArgument(cstring_t arg, string_t out, uint32_t out_size) {
     fsMapResolve_t status;
 
 #ifdef WOW
@@ -1665,7 +1665,7 @@ bool Com_ResolveMapArgument(LPCSTR arg, LPSTR out, DWORD out_size) {
         return true;
     }
     if (arg && !strcmp(arg, "playercreate")) {
-        DWORD map_id = SV_PlayerCreateMap();
+        uint32_t map_id = SV_PlayerCreateMap();
 
         if (map_id != ~0u && Com_WowMapPathForId(map_id, out, out_size))
             return true;
@@ -1673,11 +1673,11 @@ bool Com_ResolveMapArgument(LPCSTR arg, LPSTR out, DWORD out_size) {
         return false;
     }
     if (arg && *arg) {
-        DWORD map_id = 0;
-        LPCSTR p = arg;
+        uint32_t map_id = 0;
+        cstring_t p = arg;
 
         while (*p >= '0' && *p <= '9') {
-            DWORD digit = (DWORD)(*p++ - '0');
+            uint32_t digit = (uint32_t)(*p++ - '0');
             if (map_id > (~0u - digit) / 10)
                 break;
             map_id = map_id * 10 + digit;
@@ -1705,7 +1705,7 @@ bool Com_ResolveMapArgument(LPCSTR arg, LPSTR out, DWORD out_size) {
 
 
 static void Com_Maps_f(void) {
-    DWORD count = 0;
+    uint32_t count = 0;
 
     FS_ListMaps(Com_PrintMapCallback, &count);
     fprintf(stderr, "%u maps\n", count);
@@ -1725,7 +1725,7 @@ static void Com_Path_f(void) {
     }
 }
 
-static BOOL Com_DirExtensionMatches(LPCSTR path, LPCSTR extension) {
+static bool Com_DirExtensionMatches(cstring_t path, cstring_t extension) {
     char dotted[64];
 
     if (!extension || !*extension) {
@@ -1739,12 +1739,12 @@ static BOOL Com_DirExtensionMatches(LPCSTR path, LPCSTR extension) {
 }
 
 static void Com_Dir_f(void) {
-    LPCSTR path = Cmd_Argc() > 1 ? Cmd_Argv(1) : "*";
-    LPCSTR extension = Cmd_Argc() > 2 ? Cmd_Argv(2) : NULL;
+    cstring_t path = Cmd_Argc() > 1 ? Cmd_Argv(1) : "*";
+    cstring_t extension = Cmd_Argc() > 2 ? Cmd_Argv(2) : NULL;
     char mask[MAX_PATHLEN * 2];
     SFILE_FIND_DATA findData;
-    HANDLE handle;
-    DWORD count = 0;
+    handle_t handle;
+    uint32_t count = 0;
 
     if (strchr(path, '*')) {
         snprintf(mask, sizeof(mask), "%s", path);
@@ -1801,7 +1801,7 @@ static void Com_LoadGame_f(void) {
  * production build the registry is empty and this reports zero tests. */
 static void Com_Test_f(void) {
     /* Tests execute commands too; Cmd_Argv storage changes while the registry is running. */
-    LPCSTR arg = Cmd_Argc() > 1 ? Cmd_Argv(1) : "*";
+    cstring_t arg = Cmd_Argc() > 1 ? Cmd_Argv(1) : "*";
     char *pattern = MemAlloc(strlen(arg) + 1);
     strcpy(pattern, arg);
     int failures = Test_Run(pattern);
@@ -1809,7 +1809,7 @@ static void Com_Test_f(void) {
     exit(failures ? 1 : 0);
 }
 
-void Com_Init(int argc, LPCSTR *argv) {
+void Com_Init(int argc, cstring_t *argv) {
     COM_InitArgv(argc, argv);
     Cbuf_Init();
     Cvar_Init();
@@ -1856,7 +1856,7 @@ void Com_Init(int argc, LPCSTR *argv) {
     /* Leave generic +commands queued until client/UI modules register commands. */
 }
 
-void Com_Error(errorCode_t code, LPCSTR fmt, ...) {
+void Com_Error(errorCode_t code, cstring_t fmt, ...) {
     va_list argptr;
     static char msg[MAXPRINTMSG];
     static bool recursive;

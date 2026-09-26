@@ -9,9 +9,9 @@ enum {
     ID_SEQS = MAKEFOURCC('S','E','Q','S'),
 };
 
-static DWORD fnv1a32(LPCSTR str) {
-    DWORD prime = 16777619;
-    DWORD hash  = 2166136261;
+static uint32_t fnv1a32(cstring_t str) {
+    uint32_t prime = 16777619;
+    uint32_t hash  = 2166136261;
     while (*str) {
         hash = (hash ^ *str++) * prime;
     }
@@ -43,22 +43,22 @@ static void ConvertMDLXAnimationName(LPANIMATION seq) {
 /* ---- MD34 (StarCraft II / SC2 M3) ---- */
 
 typedef struct {
-    DWORD nEntries;
-    DWORD offset;
-    DWORD flags;
+    uint32_t nEntries;
+    uint32_t offset;
+    uint32_t flags;
 } md34Reference_t;
 
 struct md33Header {
-    DWORD ofsRefs;
-    DWORD nRefs;
+    uint32_t ofsRefs;
+    uint32_t nRefs;
     md34Reference_t MODL;
 };
 
 struct md34ReferenceEntry {
-    DWORD id;
-    DWORD offset;
-    DWORD nEntries;
-    DWORD version;
+    uint32_t id;
+    uint32_t offset;
+    uint32_t nEntries;
+    uint32_t version;
 };
 
 struct md34BoundingSphere {
@@ -68,25 +68,25 @@ struct md34BoundingSphere {
 };
 
 struct md34NameRef {
-    DWORD nEntries;
-    DWORD ref;
-    DWORD flags;
+    uint32_t nEntries;
+    uint32_t ref;
+    uint32_t flags;
 };
 
 struct md34Sequence {
-    DWORD unknown[2];
+    uint32_t unknown[2];
     struct md34NameRef name;
-    DWORD interval[2];
+    uint32_t interval[2];
     float movementSpeed;
-    DWORD flags;
-    DWORD frequency;
-    LONG unk[3];
-    LONG unk2;
+    uint32_t flags;
+    uint32_t frequency;
+    int32_t unk[3];
+    int32_t unk2;
     struct md34BoundingSphere boundingSphere;
-    LONG d5[3];
+    int32_t d5[3];
 };
 
-static BYTE const *ModelDataAt(BYTE const *data, DWORD data_size, DWORD offset, DWORD size) {
+static uint8_t const *ModelDataAt(uint8_t const *data, uint32_t data_size, uint32_t offset, uint32_t size) {
     if (!data || offset > data_size || size > data_size - offset)
         return NULL;
     return data + offset;
@@ -96,12 +96,12 @@ static int compare_animation_name(const void *a, const void *b) {
     return strcmp(((LPCANIMATION)a)->name, ((LPCANIMATION)b)->name);
 }
 
-static animation_t *LoadModelMD34(BYTE const *data, DWORD data_size, DWORD *out_count) {
+static animation_t *LoadModelMD34(uint8_t const *data, uint32_t data_size, uint32_t *out_count) {
     struct md33Header const *hdr = (struct md33Header const *)ModelDataAt(data, data_size, 4, sizeof(*hdr));
     struct md34ReferenceEntry const *ent;
 
     animation_t *animations = NULL;
-    DWORD num = 0;
+    uint32_t num = 0;
 
     if (!hdr) {
         *out_count = 0;
@@ -125,7 +125,7 @@ static animation_t *LoadModelMD34(BYTE const *data, DWORD data_size, DWORD *out_
         animations = gi.MemAlloc(sizeof(animation_t) * re->nEntries);
         memset(animations, 0, sizeof(animation_t) * re->nEntries);
         num = re->nEntries;
-        DWORD startanim = 0;
+        uint32_t startanim = 0;
         FOR_LOOP(j, re->nEntries) {
             struct md34Sequence const *src = seq + j;
             char const *name = src->name.ref < hdr->nRefs
@@ -133,7 +133,7 @@ static animation_t *LoadModelMD34(BYTE const *data, DWORD data_size, DWORD *out_
                 : NULL;
             LPANIMATION dest = animations + j;
             if (name) {
-                DWORD name_len = MIN(src->name.nEntries, sizeof(dest->name) - 1);
+                uint32_t name_len = MIN(src->name.nEntries, sizeof(dest->name) - 1);
                 memcpy(dest->name, name, name_len);
             }
             dest->interval[0] = startanim + src->interval[0];
@@ -152,20 +152,20 @@ static animation_t *LoadModelMD34(BYTE const *data, DWORD data_size, DWORD *out_
 
 /* ---- MDLX (Warcraft III) ---- */
 
-static animation_t *LoadModelMDLX(BYTE const *data, DWORD data_size, DWORD *out_count) {
-    DWORD payloadSize = data_size > 4 ? data_size - 4 : 0;
+static animation_t *LoadModelMDLX(uint8_t const *data, uint32_t data_size, uint32_t *out_count) {
+    uint32_t payloadSize = data_size > 4 ? data_size - 4 : 0;
     animation_t *animations = NULL;
-    DWORD num = 0;
-    BYTE const *ptr = data + 4;
-    BYTE const *end = ptr + payloadSize;
+    uint32_t num = 0;
+    uint8_t const *ptr = data + 4;
+    uint8_t const *end = ptr + payloadSize;
 
     while (ptr && ptr + 8 <= end) {
-        DWORD header, size;
-        memcpy(&header, ptr, sizeof(DWORD));
-        memcpy(&size,   ptr + 4, sizeof(DWORD));
+        uint32_t header, size;
+        memcpy(&header, ptr, sizeof(uint32_t));
+        memcpy(&size,   ptr + 4, sizeof(uint32_t));
         ptr += 8;
         if (ptr + size > end) {
-            size = (DWORD)(end - ptr);
+            size = (uint32_t)(end - ptr);
         }
         if (header == ID_SEQS) {
             enum { SEQ_RECORD_SIZE = 132 }; /* on-disk mdxSequence_t, may differ from animation_t */
@@ -186,8 +186,8 @@ static animation_t *LoadModelMDLX(BYTE const *data, DWORD data_size, DWORD *out_
 #ifdef BZ_TESTS
 TEST(wc3_model, empty_mdlx_sequence_name_does_not_break_animation_loading) {
     enum { SEQ_SIZE = 132, HEADER_SIZE = 12 };
-    BYTE data[HEADER_SIZE + 2 * SEQ_SIZE] = {0};
-    DWORD chunk = ID_SEQS, chunk_size = 2 * SEQ_SIZE, count = 0;
+    uint8_t data[HEADER_SIZE + 2 * SEQ_SIZE] = {0};
+    uint32_t chunk = ID_SEQS, chunk_size = 2 * SEQ_SIZE, count = 0;
     animation_t *animations;
 
     memcpy(data, "MDLX", 4);
@@ -212,20 +212,20 @@ TEST(wc3_model, empty_mdlx_sequence_name_does_not_break_animation_loading) {
 
 typedef struct {
     animation_t *animations;
-    DWORD        num_animations;
+    uint32_t        num_animations;
     char         filename[MAX_PATHLEN];
-    BOOL         loaded;   /* load attempted (success or failure) — avoids
+    bool         loaded;   /* load attempted (success or failure) — avoids
                               re-reading/parsing the model from the MPQ every
                               frame for models that fail or have 0 animations. */
 } g_cmodel_t;
 
 static g_cmodel_t g_models[G_MAX_MODELS];
 
-void G_NormalizeModelFilename(LPCSTR authored, LPSTR out, size_t out_size) {
-    LPCSTR slash_back;
-    LPCSTR slash_forward;
-    LPCSTR slash;
-    LPCSTR dot;
+void G_NormalizeModelFilename(cstring_t authored, string_t out, size_t out_size) {
+    cstring_t slash_back;
+    cstring_t slash_forward;
+    cstring_t slash;
+    cstring_t dot;
 
     if (!out || !out_size) return;
     out[0] = '\0';
@@ -242,15 +242,15 @@ void G_NormalizeModelFilename(LPCSTR authored, LPSTR out, size_t out_size) {
         snprintf(out, out_size, "%s.mdx", authored);
 }
 
-int G_RegisterModel(LPCSTR filename) {
+int G_RegisterModel(cstring_t filename) {
     int index = gi.ModelIndex(filename);
     if (index > 0 && index < G_MAX_MODELS && !g_models[index].filename[0])
         strncpy(g_models[index].filename, filename, MAX_PATHLEN - 1);
     return index;
 }
 
-static BYTE *ReadModelFile(LPCSTR filename, DWORD *out_size) {
-    BYTE *data;
+static uint8_t *ReadModelFile(cstring_t filename, uint32_t *out_size) {
+    uint8_t *data;
 
     if (!filename || !*filename)
         return NULL;
@@ -267,10 +267,10 @@ static BYTE *ReadModelFile(LPCSTR filename, DWORD *out_size) {
     return data;
 }
 
-static g_cmodel_t *LoadModel(LPCSTR filename) {
-    DWORD fileheader;
-    DWORD data_size = 0;
-    BYTE *data = ReadModelFile(filename, &data_size);
+static g_cmodel_t *LoadModel(cstring_t filename) {
+    uint32_t fileheader;
+    uint32_t data_size = 0;
+    uint8_t *data = ReadModelFile(filename, &data_size);
     if (!data || data_size < sizeof(fileheader)) {
         if (data)
             gi.MemFree(data);
@@ -295,7 +295,7 @@ static g_cmodel_t *LoadModel(LPCSTR filename) {
     return model;
 }
 
-static g_cmodel_t *GetModel(DWORD modelindex) {
+static g_cmodel_t *GetModel(uint32_t modelindex) {
     if (modelindex == 0 || modelindex >= G_MAX_MODELS)
         return NULL;
     g_cmodel_t *entry = &g_models[modelindex];
@@ -313,11 +313,11 @@ static g_cmodel_t *GetModel(DWORD modelindex) {
     return entry->animations ? entry : NULL;
 }
 
-LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname) {
+LPCANIMATION G_GetAnimation(uint32_t modelindex, cstring_t animname) {
     g_cmodel_t *model = GetModel(modelindex);
     if (!model)
         return NULL;
-    DWORD hash = fnv1a32(animname);
+    uint32_t hash = fnv1a32(animname);
     FOR_LOOP(i, model->num_animations) {
         if (model->animations[i].syncpoint == hash)
             return &model->animations[i];
@@ -335,30 +335,30 @@ LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname) {
 
 typedef struct {
     char value[WC3_ANIMATION_MAX_TAGS][WC3_ANIMATION_TAG_SIZE];
-    DWORD count;
+    uint32_t count;
 } animationTagSet_t;
 
-static BOOL AnimationTokenIsNumeric(LPCSTR token) {
+static bool AnimationTokenIsNumeric(cstring_t token) {
     if (!token || !*token) return false;
     for (; *token; token++) if (!isdigit((unsigned char)*token)) return false;
     return true;
 }
 
-static BOOL AnimationTagSetContains(animationTagSet_t const *set, LPCSTR token) {
+static bool AnimationTagSetContains(animationTagSet_t const *set, cstring_t token) {
     FOR_LOOP(i, set->count) if (!strcasecmp(set->value[i], token)) return true;
     return false;
 }
 
-static void AnimationTagSetAdd(animationTagSet_t *set, LPCSTR token) {
+static void AnimationTagSetAdd(animationTagSet_t *set, cstring_t token) {
     if (!token || !*token || AnimationTokenIsNumeric(token) ||
         AnimationTagSetContains(set, token) || set->count >= WC3_ANIMATION_MAX_TAGS)
         return;
     strlcpy(set->value[set->count++], token, WC3_ANIMATION_TAG_SIZE);
 }
 
-static void AnimationParseWords(LPCSTR text, animationTagSet_t *set) {
+static void AnimationParseWords(cstring_t text, animationTagSet_t *set) {
     char token[WC3_ANIMATION_TAG_SIZE];
-    DWORD length = 0;
+    uint32_t length = 0;
 
     if (!text) return;
     for (;;) {
@@ -376,7 +376,7 @@ static void AnimationParseWords(LPCSTR text, animationTagSet_t *set) {
     }
 }
 
-static void AnimationParseRequest(LPCSTR text, char primary[WC3_ANIMATION_TAG_SIZE],
+static void AnimationParseRequest(cstring_t text, char primary[WC3_ANIMATION_TAG_SIZE],
                                   animationTagSet_t *secondary) {
     animationTagSet_t words = {0};
 
@@ -384,26 +384,26 @@ static void AnimationParseRequest(LPCSTR text, char primary[WC3_ANIMATION_TAG_SI
     AnimationParseWords(text, &words);
     if (!words.count) return;
     strlcpy(primary, words.value[0], WC3_ANIMATION_TAG_SIZE);
-    for (DWORD i = 1; i < words.count; i++) AnimationTagSetAdd(secondary, words.value[i]);
+    for (uint32_t i = 1; i < words.count; i++) AnimationTagSetAdd(secondary, words.value[i]);
 }
 
-static DWORD AnimationTagSetMatchCount(animationTagSet_t const *required,
+static uint32_t AnimationTagSetMatchCount(animationTagSet_t const *required,
                                        animationTagSet_t const *candidate) {
-    DWORD matches = 0;
+    uint32_t matches = 0;
     FOR_LOOP(i, required->count) if (AnimationTagSetContains(candidate, required->value[i])) matches++;
     return matches;
 }
 
-static BOOL AnimationTagSetsEqual(animationTagSet_t const *a, animationTagSet_t const *b) {
+static bool AnimationTagSetsEqual(animationTagSet_t const *a, animationTagSet_t const *b) {
     return a->count == b->count && AnimationTagSetMatchCount(a, b) == a->count;
 }
 
-static BOOL AnimationTagSetContainsAll(animationTagSet_t const *candidate,
+static bool AnimationTagSetContainsAll(animationTagSet_t const *candidate,
                                        animationTagSet_t const *required) {
     return AnimationTagSetMatchCount(required, candidate) == required->count;
 }
 
-static void AnimationTagSetReplace(animationTagSet_t const *source, LPCSTR from, LPCSTR to,
+static void AnimationTagSetReplace(animationTagSet_t const *source, cstring_t from, cstring_t to,
                                    animationTagSet_t *dest) {
     memset(dest, 0, sizeof(*dest));
     FOR_LOOP(i, source->count) {
@@ -411,15 +411,15 @@ static void AnimationTagSetReplace(animationTagSet_t const *source, LPCSTR from,
     }
 }
 
-static LPCANIMATION AnimationFindContainingSet(LPCANIMATION animations, DWORD count, LPCSTR primary,
+static LPCANIMATION AnimationFindContainingSet(LPCANIMATION animations, uint32_t count, cstring_t primary,
                                                animationTagSet_t const *required) {
     LPCANIMATION contains = NULL;
-    DWORD contains_extras = UINT32_MAX;
+    uint32_t contains_extras = UINT32_MAX;
 
     FOR_LOOP(i, count) {
         animationTagSet_t sequence_tags = {0};
         char sequence_primary[WC3_ANIMATION_TAG_SIZE];
-        DWORD matches, extras;
+        uint32_t matches, extras;
 
         AnimationParseRequest(animations[i].name, sequence_primary, &sequence_tags);
         if (strcasecmp(primary, sequence_primary)) continue;
@@ -443,16 +443,16 @@ static LPCANIMATION AnimationFindContainingSet(LPCANIMATION animations, DWORD co
  * only expose `Alternate` sequences (notably Medivh raven form). Preserve a real
  * AlternateEx sequence when present, but retry Alternate before dropping to an
  * unrelated/untagged fallback. */
-LPCANIMATION G_SelectAnimationForProperties(LPCANIMATION animations, DWORD count,
-                                            LPCSTR animname, LPCSTR properties) {
+LPCANIMATION G_SelectAnimationForProperties(LPCANIMATION animations, uint32_t count,
+                                            cstring_t animname, cstring_t properties) {
     animationTagSet_t required = {0};
     char primary[WC3_ANIMATION_TAG_SIZE];
     LPCANIMATION contains = NULL;
     LPCANIMATION overlap = NULL;
     LPCANIMATION primary_fallback = NULL;
-    DWORD contains_extras = UINT32_MAX;
-    DWORD overlap_matches = 0;
-    DWORD overlap_extras = UINT32_MAX;
+    uint32_t contains_extras = UINT32_MAX;
+    uint32_t overlap_matches = 0;
+    uint32_t overlap_extras = UINT32_MAX;
 
     if (!animations || !count || !animname || !*animname) return NULL;
     AnimationParseRequest(animname, primary, &required);
@@ -462,7 +462,7 @@ LPCANIMATION G_SelectAnimationForProperties(LPCANIMATION animations, DWORD count
     FOR_LOOP(i, count) {
         animationTagSet_t sequence_tags = {0};
         char sequence_primary[WC3_ANIMATION_TAG_SIZE];
-        DWORD matches, extras;
+        uint32_t matches, extras;
 
         AnimationParseRequest(animations[i].name, sequence_primary, &sequence_tags);
         if (strcasecmp(primary, sequence_primary)) continue;
@@ -505,7 +505,7 @@ LPCANIMATION G_SelectAnimationForProperties(LPCANIMATION animations, DWORD count
     return NULL;
 }
 
-LPCANIMATION G_GetAnimationForProperties(DWORD modelindex, LPCSTR animname, LPCSTR properties) {
+LPCANIMATION G_GetAnimationForProperties(uint32_t modelindex, cstring_t animname, cstring_t properties) {
     g_cmodel_t *model = GetModel(modelindex);
     LPCANIMATION selected;
 
@@ -517,14 +517,14 @@ LPCANIMATION G_GetAnimationForProperties(DWORD modelindex, LPCSTR animname, LPCS
 }
 
 /* Select numbered variants without crossing the selected sequence's tag set. */
-LPCANIMATION G_SelectAnimationVariantForProperties(LPCANIMATION animations, DWORD count,
-                                                    LPCSTR animname, LPCSTR properties, BOOL randomize) {
+LPCANIMATION G_SelectAnimationVariantForProperties(LPCANIMATION animations, uint32_t count,
+                                                    cstring_t animname, cstring_t properties, bool randomize) {
     LPCANIMATION selected;
     LPCANIMATION choice = NULL;
     animationTagSet_t selected_tags = {0};
     char primary[WC3_ANIMATION_TAG_SIZE];
     char candidate_primary[WC3_ANIMATION_TAG_SIZE];
-    DWORD matches = 0;
+    uint32_t matches = 0;
 
     selected = G_SelectAnimationForProperties(animations, count, animname, properties);
     if (!selected || !randomize) return selected;
@@ -538,26 +538,26 @@ LPCANIMATION G_SelectAnimationVariantForProperties(LPCANIMATION animations, DWOR
         if (strcasecmp(primary, candidate_primary)) continue;
         if (!AnimationTagSetsEqual(&selected_tags, &candidate_tags)) continue;
         matches++;
-        if ((DWORD)(rand() % matches) == 0) choice = candidate;
+        if ((uint32_t)(rand() % matches) == 0) choice = candidate;
     }
     return choice ? choice : selected;
 }
 
 /* Select an authored animation variant while preserving the ordinary selector's fallback. */
-LPCANIMATION G_GetAnimationVariant(DWORD modelindex, LPCSTR animname, BOOL randomize) {
+LPCANIMATION G_GetAnimationVariant(uint32_t modelindex, cstring_t animname, bool randomize) {
     g_cmodel_t *model = GetModel(modelindex);
     if (!model) return NULL;
     return G_SelectAnimationVariantForProperties(model->animations, model->num_animations,
                                                   animname, NULL, randomize);
 }
 
-static LPCANIMATION AnimationVariantForProperties(g_cmodel_t *model, LPCSTR animname, LPCSTR properties) {
+static LPCANIMATION AnimationVariantForProperties(g_cmodel_t *model, cstring_t animname, cstring_t properties) {
     if (!model) return NULL;
     return G_SelectAnimationVariantForProperties(model->animations, model->num_animations,
                                                   animname, properties, true);
 }
 
-BOOL G_AnimationHasPrimary(LPCANIMATION animation, LPCSTR primary) {
+bool G_AnimationHasPrimary(LPCANIMATION animation, cstring_t primary) {
     size_t len;
     unsigned char next;
 
@@ -568,7 +568,7 @@ BOOL G_AnimationHasPrimary(LPCANIMATION animation, LPCSTR primary) {
     return next == '\0' || !isalnum(next);
 }
 
-static void AnimationTagSetWrite(animationTagSet_t const *set, LPSTR out, size_t out_size) {
+static void AnimationTagSetWrite(animationTagSet_t const *set, string_t out, size_t out_size) {
     if (!out || !out_size) return;
     out[0] = '\0';
     FOR_LOOP(i, set->count) {
@@ -579,7 +579,7 @@ static void AnimationTagSetWrite(animationTagSet_t const *set, LPSTR out, size_t
 
 void G_ResetUnitAnimationProperties(LPEDICT unit) {
     animationTagSet_t properties = {0};
-    LPCSTR authored;
+    cstring_t authored;
 
     if (!unit) return;
     authored = unit->data.UnitProfile ? unit->data.UnitProfile->animProps : NULL;
@@ -588,11 +588,11 @@ void G_ResetUnitAnimationProperties(LPEDICT unit) {
     unit->animation_request[0] = '\0';
 }
 
-LPCANIMATION G_GetUnitAnimation(LPEDICT unit, LPCSTR animname) {
+LPCANIMATION G_GetUnitAnimation(LPEDICT unit, cstring_t animname) {
     return unit ? G_GetAnimationForProperties(unit->s.model, animname, unit->animation_props) : NULL;
 }
 
-void G_SetUnitAnimation(LPEDICT unit, LPCSTR animname) {
+void G_SetUnitAnimation(LPEDICT unit, cstring_t animname) {
     char request[WC3_ANIMATION_REQUEST_SIZE];
     char primary[WC3_ANIMATION_TAG_SIZE];
     animationTagSet_t request_tags = {0};
@@ -606,12 +606,12 @@ void G_SetUnitAnimation(LPEDICT unit, LPCSTR animname) {
     if (!unit->animation) unit->animation = G_GetUnitAnimation(unit, request);
 }
 
-void G_AddUnitAnimationProperties(LPEDICT unit, LPCSTR properties, BOOL add) {
+void G_AddUnitAnimationProperties(LPEDICT unit, cstring_t properties, bool add) {
     animationTagSet_t current = {0};
     animationTagSet_t changed = {0};
     animationTagSet_t result = {0};
     char request[WC3_ANIMATION_REQUEST_SIZE];
-    BOOL mutated = false;
+    bool mutated = false;
 
     if (!unit || !properties || !*properties) return;
     AnimationParseWords(unit->animation_props, &current);

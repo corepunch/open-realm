@@ -64,22 +64,22 @@ static unsigned int gal_void(LPJASS j)    { (void)j; return 0; }
 static unsigned int gal_true(LPJASS j) { return jass_pushboolean(j, 1); }
 static unsigned int gal_false_ret(LPJASS j) { return jass_pushboolean(j, 0); }
 static unsigned int gal_zero(LPJASS j)    { return jass_pushinteger(j, 0); }
-static float gal_sound_length(LPCSTR id, int asset) {
+static float gal_sound_length(cstring_t id, int asset) {
     return !strcmp(id, "IntroLine") && asset == 2 ? 2.5f : 0.0f;
 }
-static DWORD gal_actor_destroyed, gal_actor_last;
+static uint32_t gal_actor_destroyed, gal_actor_last;
 static void gal_actor_destroy(unsigned id) { gal_actor_destroyed++; gal_actor_last = id; }
-static BOOL gal_unit_moving;
-static LONG gal_move_count;
-static FLOAT gal_move_x;
+static bool gal_unit_moving;
+static int32_t gal_move_count;
+static float gal_move_x;
 static LPCJASSFUNC gal_saved_code;
-static DWORD gal_code_calls;
-static void *gal_unit_create(LPCSTR type, int player, float x, float y, float angle) {
+static uint32_t gal_code_calls;
+static void *gal_unit_create(cstring_t type, int player, float x, float y, float angle) {
     (void)type; (void)player; (void)x; (void)y; (void)angle;
     return (void *)(uintptr_t)1;
 }
-static FLOAT gal_created_angle, gal_facing_angle;
-static void *gal_facing_create(LPCSTR type, int player, float x, float y, float angle) {
+static float gal_created_angle, gal_facing_angle;
+static void *gal_facing_create(cstring_t type, int player, float x, float y, float angle) {
     gal_created_angle = angle;
     return gal_unit_create(type, player, x, y, angle);
 }
@@ -87,7 +87,7 @@ static void gal_set_facing(void *ent, float x, float y, float angle) {
     (void)ent; (void)x; (void)y; gal_facing_angle = angle;
 }
 static int gal_owners[8], gal_units;
-static void *gal_owned_create(LPCSTR type, int player, float x, float y, float angle) {
+static void *gal_owned_create(cstring_t type, int player, float x, float y, float angle) {
     (void)type; (void)x; (void)y; (void)angle;
     gal_owners[gal_units] = player;
     return &gal_owners[gal_units++];
@@ -96,14 +96,14 @@ static int gal_unit_owner(void *ent) { return *(int *)ent; }
 static void gal_unit_move(void *ent, float x, float y) {
     (void)ent; (void)y; gal_move_count++; gal_move_x = x; gal_unit_moving = true;
 }
-static BOOL gal_is_moving(void *ent) { (void)ent; return gal_unit_moving; }
+static bool gal_is_moving(void *ent) { (void)ent; return gal_unit_moving; }
 
-static DWORD gal_save_code(LPJASS j) { gal_saved_code = jass_checkcode(j, 1); return 0; }
-static DWORD gal_call_saved(LPJASS j) { jass_pushfunction(j, gal_saved_code); return jass_call(j, 0); }
-static DWORD gal_code_callback(LPJASS j) { (void)j; gal_code_calls++; return 0; }
+static uint32_t gal_save_code(LPJASS j) { gal_saved_code = jass_checkcode(j, 1); return 0; }
+static uint32_t gal_call_saved(LPJASS j) { jass_pushfunction(j, gal_saved_code); return jass_call(j, 0); }
+static uint32_t gal_code_callback(LPJASS j) { (void)j; gal_code_calls++; return 0; }
 
 static unsigned int gal_TestFail(LPJASS j) {
-    LPCSTR msg = jass_checkstring(j, 1);
+    cstring_t msg = jass_checkstring(j, 1);
     jass_rterror(j, msg ? msg : "TestFail");
     return 0;
 }
@@ -291,7 +291,7 @@ static int gal_parse_mode(gal_state_t *s, const char *src, JASSMODE mode) {
     unsigned int len = (unsigned int)strlen(src);
     char *buf = malloc(len + 1);
     memcpy(buf, src, len + 1);
-    BOOL ok = jass_dobuffer_ex(s->j, buf, mode);
+    bool ok = jass_dobuffer_ex(s->j, buf, mode);
     free(buf);
     if (!ok || jass_rterror_pending(s->j)) {
         snprintf(s->errmsg, sizeof(s->errmsg), "%s", jass_rterror_message(s->j));
@@ -871,16 +871,16 @@ TEST(galaxy, vm_color_percentages) {
         "color opaque() { return Color(100.0, 50.2, 0.0); }\n"
         "color alpha() { return ColorWithAlpha(0.0, 100.0, 50.2, 50.2); }\n"
         "color clear() { return ColorWithAlpha(0.0, 0.0, 0.0, 0.0); }"));
-    LPCSTR names[] = {
+    cstring_t names[] = {
         "opaque",
         "alpha",
         "clear"
     };
-    DWORD values[] = { 0xffff8000u, 0x8000ff80u, 0 };
+    uint32_t values[] = { 0xffff8000u, 0x8000ff80u, 0 };
     FOR_LOOP(i, 3) {
         jass_callbyname(s.j, names[i], false);
         T_ASSERT(!jass_rterror_pending(s.j));
-        T_EQ((DWORD)jass_checkinteger(s.j, -1), values[i]);
+        T_EQ((uint32_t)jass_checkinteger(s.j, -1), values[i]);
         jass_pop(s.j, 1);
     }
     gal_destroy(&s);
@@ -1417,7 +1417,7 @@ static int gal_load_errors = 0;
 
 static void gal_load(LPJASS j, const char *path) {
     jass_rterror_clear(j);
-    BOOL ok = jass_dofile_ex(j, path, JASS_MODE_GALAXY);
+    bool ok = jass_dofile_ex(j, path, JASS_MODE_GALAXY);
     if (!ok || jass_rterror_pending(j)) {
         fprintf(stderr, "[smoke] parse/eval error in %s: %s\n", path,
                 jass_rterror_pending(j) ? jass_rterror_message(j) : "unknown");
@@ -1478,7 +1478,7 @@ TEST(galaxy, create_and_set_facing_share_radian_host_contract) {
     T_ASSERT(gal_run(&s,
         "void main() { UnitCreate(1, \"Marine\", 0, 1, Point(3.0, 5.0), 90.0);"
         "UnitSetFacing(UnitLastCreated(), 90.0, 0.0); }"));
-    T_FEQ(gal_created_angle, (FLOAT)M_PI / 2, 0.0001f);
+    T_FEQ(gal_created_angle, (float)M_PI / 2, 0.0001f);
     T_FEQ(gal_facing_angle, gal_created_angle, 0.0001f);
     sc2_galaxy_on_unit_create = NULL; sc2_galaxy_unit_set_position = NULL;
     galaxy_reset(); gal_destroy(&s);

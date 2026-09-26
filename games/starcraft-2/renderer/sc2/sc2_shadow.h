@@ -6,16 +6,16 @@
 typedef struct SC2SHADOWVIEW {
     MATRIX4 camera;
     VECTOR3 target, light;
-    FLOAT reach;
+    float reach;
 } SC2SHADOWVIEW;
 typedef struct SC2SHADOWVIEW *LPSC2SHADOWVIEW;
 typedef const struct SC2SHADOWVIEW *LPCSC2SHADOWVIEW;
 
 /* Fit native SC2 units to the visible ground footprint, rather than a WC3-sized 3000-unit square. */
-static BOOL sc2_shadow_matrix(LPCSC2SHADOWVIEW in, LPMATRIX4 out) {
+static bool sc2_shadow_matrix(LPCSC2SHADOWVIEW in, LPMATRIX4 out) {
     MATRIX4 inv, view, proj;
     VECTOR3 dir = in->light;
-    FLOAT radius = 0;
+    float radius = 0;
     Matrix4_inverse(&in->camera, &inv);
     FOR_LOOP(i, 4) {
         VECTOR3 a = Matrix4_multiply_vector3(&inv, &(VECTOR3){ i & 1 ? 1 : -1, i & 2 ? 1 : -1, -1 });

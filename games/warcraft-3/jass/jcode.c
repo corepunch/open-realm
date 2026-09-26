@@ -13,9 +13,9 @@ typedef char vmBuffer_t[1024 * 1024];
 static vmBuffer_t vmBuffers[4];
 
 struct vmBuffer {
-    LPSTR data;
-    DWORD writecount;
-    DWORD buffersize;
+    string_t data;
+    uint32_t writecount;
+    uint32_t buffersize;
 };
 
 struct vmWriter {
@@ -25,7 +25,7 @@ struct vmWriter {
     struct vmBuffer init;
 };
 
-static BOOL jcode_atob(LPCSTR str) {
+static bool jcode_atob(cstring_t str) {
     return !strcmp(str, "true");
 }
 
@@ -35,7 +35,7 @@ void VM_Write(struct vmBuffer *buffer, const char *format, ...) {
     va_start(args, format);
     vsnprintf(buffer->data + buffer->writecount, buffer->buffersize - buffer->writecount, format, args);
     va_end(args);
-    DWORD str_len = (DWORD)strlen(buffer->data + buffer->writecount);
+    uint32_t str_len = (uint32_t)strlen(buffer->data + buffer->writecount);
     buffer->data[buffer->writecount + str_len++] = '\n';
     buffer->writecount += str_len;
 }
@@ -81,11 +81,11 @@ TOKENFUNC(Identifier) {
 }
 
 TOKENFUNC(FourCC) {
-//    return jass_pushinteger(j, *(DWORD *)t->primary);
+//    return jass_pushinteger(j, *(uint32_t *)t->primary);
 }
 
 TOKENFUNC(Call) {
-    DWORD num_args = 0;
+    uint32_t num_args = 0;
     FOR_EACH_LIST(TOKEN, arg, t->args) {
         write_RegularToken(w, arg);
         num_args++;
@@ -98,12 +98,12 @@ TOKENFUNC(Call) {
 
 //    LPCJASSFUNC f = NULL;
 //    LPJASSCFUNCTION cf = NULL;
-//    DWORD stacksize = j->num_stack;
+//    uint32_t stacksize = j->num_stack;
 //    if (!strcmp(t->primary, "CommentString") && t->args) {
 //        fprintf(stdout, "%s\n", t->args->primary);
 //        return 0;
 //    } else if ((f = find_function(j, t->primary))) {
-//        DWORD args = 0;
+//        uint32_t args = 0;
 //        jass_pushfunction(j, f);
 //        FOR_EACH_LIST(TOKEN, arg, t->args) {
 //            jass_dotoken(j, arg);
@@ -112,7 +112,7 @@ TOKENFUNC(Call) {
 //        jass_call(j, args);
 //        return j->num_stack - stacksize;
 //    } else if ((cf = find_cfunction(j, t->primary))) {
-//        DWORD args = 0;
+//        uint32_t args = 0;
 //        jass_pushcfunction(j, cf);
 //        FOR_EACH_LIST(TOKEN, arg, t->args) {
 //            jass_dotoken(j, arg);
@@ -161,10 +161,10 @@ TOKENFUNC(TYPEDEF) {
     VM_Write(&w->global, "\t.asciz \"%s\"", t->primary);
 }
 
-void VM_InitValue(LPWRITER w, LPCTOKEN t, LPCSTR name) {
-    DWORD start = w->text.writecount;
+void VM_InitValue(LPWRITER w, LPCTOKEN t, cstring_t name) {
+    uint32_t start = w->text.writecount;
     write_RegularToken(w, t);
-    DWORD diff = w->text.writecount - start;
+    uint32_t diff = w->text.writecount - start;
     memcpy(w->init.data + w->init.writecount, w->text.data + start, diff + 1);
     w->text.data[start] = '\0';
     w->text.writecount = start;
@@ -192,7 +192,7 @@ TOKENFUNC(FUNCTION) {
 }
 
 struct {
-    LPCSTR name;
+    cstring_t name;
     TOKENTYPE type;
     void (*func)(LPWRITER, LPCTOKEN);
 } token_writers[] = {

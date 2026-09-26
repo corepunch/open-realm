@@ -9,13 +9,13 @@
 #include "server.h"
 
 void SV_HandleUnitUIRequest(LPCLIENT client, LPSIZEBUF msg) {
-    BYTE num_selected = MSG_ReadByte(msg);
+    uint8_t num_selected = MSG_ReadByte(msg);
 
     (void)client;
     if (num_selected > 12) {
         return;
     }
-    for (BYTE i = 0; i < num_selected; i++) {
+    for (uint8_t i = 0; i < num_selected; i++) {
         (void)MSG_ReadShort(msg);
     }
 }

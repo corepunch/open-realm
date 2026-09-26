@@ -8,35 +8,35 @@
 #define ALLIES_MAX_TARGETS PLAYER_NEUTRAL_AGGRESSIVE
 
 typedef struct {
-    BOOL active;
-    USHORT alliances[MAX_PLAYERS];
-    BOOL allied_victory;
+    bool active;
+    uint16_t alliances[MAX_PLAYERS];
+    bool allied_victory;
 } alliesDraft_t;
 
 static AllianceSlot_t alliance_slots[ALLIES_MAX_TARGETS];
 static alliesDraft_t allies_drafts[MAX_PLAYERS];
-static BOOL alliance_loaded;
+static bool alliance_loaded;
 
-static BOOL AlliesEnsureLoaded(void);
+static bool AlliesEnsureLoaded(void);
 
 void UI_LoadHudAllies(void) {
     alliance_loaded = false;
     AlliesEnsureLoaded();
 }
 
-static BOOL AlliesDebugEnabled(void) {
+static bool AlliesDebugEnabled(void) {
     return atoi(gi.CvarString("ui_window_debug", "0")) != 0;
 }
 
-static LPCSTR AlliesImageName(DWORD image) {
-    LPCSTR value;
+static cstring_t AlliesImageName(uint32_t image) {
+    cstring_t value;
     if (image >= MAX_IMAGES) return UI_ImageKey(image);
     if (!image || !gi.GetConfigstring) return image ? "<unavailable>" : "<none>";
     value = gi.GetConfigstring(CS_IMAGES + image);
     return value && *value ? value : "<empty>";
 }
 
-static void AlliesDebugFdfBackdrop(LPCSTR stage, LPCSTR label, LPCFRAMEDEF frame) {
+static void AlliesDebugFdfBackdrop(cstring_t stage, cstring_t label, LPCFRAMEDEF frame) {
     if (!AlliesDebugEnabled()) return;
     if (!frame) {
         fprintf(stderr, "WC3_ALLIES_UI server stage=%s backdrop=%s MISSING\n", stage, label);
@@ -62,7 +62,7 @@ static void AlliesDebugFdfBackdrop(LPCSTR stage, LPCSTR label, LPCFRAMEDEF frame
 }
 
 static void AlliesDebugWireBackdrop(LPCFRAMEDEF frame) {
-    BYTE typedata[256] = { 0 };
+    uint8_t typedata[256] = { 0 };
     UINAME textbuf = { 0 };
     uiFrame_t wire;
     uiBackdrop_t const *bd;
@@ -95,19 +95,19 @@ static void AlliesDebugWireBackdrop(LPCFRAMEDEF frame) {
             (unsigned)bd->TileBackground, (unsigned)bd->BlendAll, (unsigned)bd->Mirrored);
 }
 
-static BOOL AlliesTargetAvailable(DWORD viewer, DWORD target) {
+static bool AlliesTargetAvailable(uint32_t viewer, uint32_t target) {
     if (target >= PLAYER_NEUTRAL_AGGRESSIVE || target == viewer) return false;
     if (level.mapinfo) return level.mapinfo->players[target].used;
     LPGAMECLIENT client = G_GetPlayerClientByNumber(target);
     return client && client->ps.number == target && client->ps.name && *client->ps.name;
 }
 
-static LPGAMECLIENT AlliesTargetClient(DWORD target) {
+static LPGAMECLIENT AlliesTargetClient(uint32_t target) {
     LPGAMECLIENT client = G_GetPlayerClientByNumber(target);
     return client && client->ps.number == target ? client : NULL;
 }
 
-static void AlliesSetSlotPosition(AllianceSlot_t *slot, DWORD row) {
+static void AlliesSetSlotPosition(AllianceSlot_t *slot, uint32_t row) {
     LPFRAMEDEF root = slot ? slot->AllianceSlot : NULL;
     if (!root || !hud.allies.PlayersHeader) return;
     memset(&root->Points, 0, sizeof(root->Points));
@@ -142,7 +142,7 @@ static void AlliesPinBackdropToDialog(void) {
     }
 }
 
-static BOOL AlliesEnsureLoaded(void) {
+static bool AlliesEnsureLoaded(void) {
     AllianceSlot_t slot_template;
 
     if (alliance_loaded) return hud.allies.AllianceDialog != NULL;
@@ -190,7 +190,7 @@ static BOOL AlliesEnsureLoaded(void) {
 }
 
 static alliesDraft_t *AlliesDraft(LPEDICT ent) {
-    DWORD player;
+    uint32_t player;
     if (!ent || !ent->client) return NULL;
     player = ent->client->ps.number;
     return player < MAX_PLAYERS ? &allies_drafts[player] : NULL;
@@ -198,7 +198,7 @@ static alliesDraft_t *AlliesDraft(LPEDICT ent) {
 
 static void AlliesBeginDraft(LPEDICT ent) {
     alliesDraft_t *draft = AlliesDraft(ent);
-    DWORD player;
+    uint32_t player;
     if (!draft) return;
     player = ent->client->ps.number;
     memset(draft, 0, sizeof(*draft));
@@ -207,24 +207,24 @@ static void AlliesBeginDraft(LPEDICT ent) {
     draft->allied_victory = ent->client->ps.stats[PLAYERSTATE_ALLIED_VICTORY] != 0;
 }
 
-static void AlliesSetCheckBox(LPFRAMEDEF frame, BOOL checked, BOOL enabled, LPCSTR command) {
+static void AlliesSetCheckBox(LPFRAMEDEF frame, bool checked, bool enabled, cstring_t command) {
     if (!frame) return;
     frame->CheckBox.Checked = checked;
     if (enabled && command) UI_SetOnClick(frame, "%s", command);
     else UI_SetOnClick(frame, "");
 }
 
-static void AlliesPopulateSlot(AllianceSlot_t *slot, DWORD target,
-                               alliesDraft_t const *draft, BOOL controls_visible,
-                               BOOL controls_enabled) {
+static void AlliesPopulateSlot(AllianceSlot_t *slot, uint32_t target,
+                               alliesDraft_t const *draft, bool controls_visible,
+                               bool controls_enabled) {
     LPGAMECLIENT target_client = AlliesTargetClient(target);
-    DWORD const mask = draft->alliances[target];
+    uint32_t const mask = draft->alliances[target];
     char color_art[MAX_PATHLEN];
     char command[64];
-    LPCSTR name = target_client && target_client->jass.name[0]
+    cstring_t name = target_client && target_client->jass.name[0]
         ? target_client->jass.name
         : target_client && target_client->ps.name ? target_client->ps.name : "";
-    DWORD color = target_client ? target_client->ps.color : target;
+    uint32_t color = target_client ? target_client->ps.color : target;
 
     UI_SetHidden(slot->AllianceSlot, false);
     UI_SetText(slot->PlayerNameLabel, "%s", name);
@@ -258,10 +258,10 @@ static void AlliesPopulateSlot(AllianceSlot_t *slot, DWORD target,
 
 static void AlliesWriteDraft(LPEDICT ent) {
     alliesDraft_t *draft = AlliesDraft(ent);
-    DWORD const player = ent->client->ps.number;
-    BOOL const hidden = (level.setup.map_flags & WC3_MAP_ALLIANCE_CHANGES_HIDDEN) != 0;
-    BOOL const locked = (level.setup.map_flags & WC3_MAP_LOCK_ALLIANCE_CHANGES) != 0;
-    DWORD row = 0;
+    uint32_t const player = ent->client->ps.number;
+    bool const hidden = (level.setup.map_flags & WC3_MAP_ALLIANCE_CHANGES_HIDDEN) != 0;
+    bool const locked = (level.setup.map_flags & WC3_MAP_LOCK_ALLIANCE_CHANGES) != 0;
+    uint32_t row = 0;
 
     if (!draft || !draft->active || !AlliesEnsureLoaded()) return;
 
@@ -307,10 +307,10 @@ void UI_ShowAllies(LPEDICT ent) {
     AlliesWriteDraft(ent);
 }
 
-void UI_AlliesToggle(LPEDICT ent, DWORD target, PLAYERALLIANCE type) {
+void UI_AlliesToggle(LPEDICT ent, uint32_t target, PLAYERALLIANCE type) {
     alliesDraft_t *draft = AlliesDraft(ent);
-    DWORD const player = ent && ent->client ? ent->client->ps.number : MAX_PLAYERS;
-    DWORD flag;
+    uint32_t const player = ent && ent->client ? ent->client->ps.number : MAX_PLAYERS;
+    uint32_t flag;
 
     if (!draft || !draft->active || player >= MAX_PLAYERS ||
         (level.setup.map_flags & (WC3_MAP_LOCK_ALLIANCE_CHANGES | WC3_MAP_ALLIANCE_CHANGES_HIDDEN)) ||
@@ -338,7 +338,7 @@ void UI_AlliesToggleVictory(LPEDICT ent) {
 
 void UI_AlliesAccept(LPEDICT ent) {
     alliesDraft_t *draft = AlliesDraft(ent);
-    DWORD const player = ent && ent->client ? ent->client->ps.number : MAX_PLAYERS;
+    uint32_t const player = ent && ent->client ? ent->client->ps.number : MAX_PLAYERS;
 
     if (!draft || !draft->active || player >= MAX_PLAYERS) return;
     if (!(level.setup.map_flags & (WC3_MAP_LOCK_ALLIANCE_CHANGES | WC3_MAP_ALLIANCE_CHANGES_HIDDEN))) {
@@ -352,7 +352,7 @@ void UI_AlliesAccept(LPEDICT ent) {
             };
             FOR_LOOP(i, sizeof(types) / sizeof(types[0])) {
                 PLAYERALLIANCE const type = types[i];
-                BOOL const value = (draft->alliances[target] & (1u << type)) != 0;
+                bool const value = (draft->alliances[target] & (1u << type)) != 0;
                 if (!!G_GetPlayerAlliance(&ent->client->ps, &target_client->ps, type) != value)
                     G_SetPlayerAlliance(&ent->client->ps, &target_client->ps, type, value);
             }

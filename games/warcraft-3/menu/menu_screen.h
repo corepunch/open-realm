@@ -11,15 +11,15 @@
 #include "menu_local.h"
 
 typedef struct uiScreen_s {
-    LPCSTR name;
+    cstring_t name;
     GLUEDEST glue;
-    LPCSTR const *left; // Native FDF subtree names; remaining frames belong to the right side.
-    BOOL (*load)(void);
+    cstring_t const *left; // Native FDF subtree names; remaining frames belong to the right side.
+    bool (*load)(void);
     void (*init)(void);
     void (*shutdown)(void);
     void (*refresh)(int msec);
     void (*draw)(void);
-    void (*key_event)(int key, BOOL down);
+    void (*key_event)(int key, bool down);
 } uiScreen_t;
 
 /* Screen implementations */
@@ -33,9 +33,9 @@ extern uiScreen_t lanCreateScreen;
 extern uiScreen_t gameSetupScreen;
 extern uiScreen_t quitConfirmScreen;
 
-LPCSTR LAN_SelectedMapPath(void);
-LPCSTR LAN_SelectedMapName(void);
-DWORD LAN_SelectedGameSpeed(void);
+cstring_t LAN_SelectedMapPath(void);
+cstring_t LAN_SelectedMapName(void);
+uint32_t LAN_SelectedGameSpeed(void);
 
 void M_ShowMainMenu(void);
 void M_ShowSinglePlayerMenu(void);
@@ -60,28 +60,28 @@ void OptionsMenu_Apply(void);
 void SinglePlayerMenu_ShowMain(void);
 void SinglePlayerMenu_ShowCampaign(void);
 void SinglePlayerMenu_BackCampaign(void);
-void SinglePlayerMenu_LaunchCampaign(LPCSTR name);
-void SinglePlayerMenu_LaunchCampaignIndex(DWORD index);
-void SinglePlayerMenu_LaunchMissionIndex(DWORD index);
-void SinglePlayerMenu_SetDifficulty(DWORD difficulty);
+void SinglePlayerMenu_LaunchCampaign(cstring_t name);
+void SinglePlayerMenu_LaunchCampaignIndex(uint32_t index);
+void SinglePlayerMenu_LaunchMissionIndex(uint32_t index);
+void SinglePlayerMenu_SetDifficulty(uint32_t difficulty);
 
 void LAN_ShowCreate(void);
 void LAN_ShowSinglePlayerCreate(void);
 void LAN_ShowBrowser(void);
 void LAN_RefreshMaps(void);
-void LAN_SelectMapIndex(DWORD index);
+void LAN_SelectMapIndex(uint32_t index);
 void LAN_StartSelectedMap(void);
 void LAN_JoinSelectedGame(void);
 void LAN_ApplyPlayerName(void);
-BOOL LAN_IsSinglePlayerCreate(void);
+bool LAN_IsSinglePlayerCreate(void);
 
-BOOL GameSetup_StartGame(void);
-void GameSetup_LoadMap(LPCSTR map_path);
+bool GameSetup_StartGame(void);
+void GameSetup_LoadMap(cstring_t map_path);
 void GameSetup_UpdateLobbySetup(lobbyState_t const *state);
-void GameSetup_AddChatMessage(LPCSTR text, BOOL own);
-void GameSetup_SetSlotType(DWORD slot, DWORD value);
-void GameSetup_SetSlotRace(DWORD slot, DWORD value);
-void GameSetup_CycleSlotTeam(DWORD slot);
-void GameSetup_CycleSlotColor(DWORD slot);
+void GameSetup_AddChatMessage(cstring_t text, bool own);
+void GameSetup_SetSlotType(uint32_t slot, uint32_t value);
+void GameSetup_SetSlotRace(uint32_t slot, uint32_t value);
+void GameSetup_CycleSlotTeam(uint32_t slot);
+void GameSetup_CycleSlotColor(uint32_t slot);
 
 #endif /* UI_SCREEN_H */

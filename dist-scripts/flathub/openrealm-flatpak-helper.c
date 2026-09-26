@@ -144,7 +144,7 @@ static int pick_data_directory(void) {
     expected_request_path = g_strdup_printf(
         "/org/freedesktop/portal/desktop/request/%s/%s", sender, token);
     response.request_path = g_strdup(expected_request_path);
-    response.loop = g_main_loop_new(NULL, FALSE);
+    response.loop = g_main_loop_new(NULL, false);
 
     /*
      * Supplying handle_token makes the request object path predictable on
@@ -166,9 +166,9 @@ static int pick_data_directory(void) {
 
     g_variant_builder_init(&options, G_VARIANT_TYPE_VARDICT);
     g_variant_builder_add(&options, "{sv}", "handle_token", g_variant_new_string(token));
-    g_variant_builder_add(&options, "{sv}", "multiple", g_variant_new_boolean(FALSE));
-    g_variant_builder_add(&options, "{sv}", "directory", g_variant_new_boolean(TRUE));
-    g_variant_builder_add(&options, "{sv}", "modal", g_variant_new_boolean(TRUE));
+    g_variant_builder_add(&options, "{sv}", "multiple", g_variant_new_boolean(false));
+    g_variant_builder_add(&options, "{sv}", "directory", g_variant_new_boolean(true));
+    g_variant_builder_add(&options, "{sv}", "modal", g_variant_new_boolean(true));
     g_variant_builder_add(&options, "{sv}", "accept_label",
                           g_variant_new_string("Use this folder"));
 

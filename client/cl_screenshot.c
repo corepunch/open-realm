@@ -4,8 +4,8 @@
 #include <limits.h>
 #include <stdlib.h>
 
-BOOL cl_screenshot_pending;
-DWORD cl_screenshot_delay;
+bool cl_screenshot_pending;
+uint32_t cl_screenshot_delay;
 
 /* Queue a framebuffer capture for the Nth rendered frame after this command. */
 void CL_Screenshot_f(void) {
@@ -18,11 +18,11 @@ void CL_Screenshot_f(void) {
 			return;
 		}
 	}
-	cl_screenshot_delay = (DWORD)delay; cl_screenshot_pending = true;
+	cl_screenshot_delay = (uint32_t)delay; cl_screenshot_pending = true;
 }
 
 /* Count rendered frames, not simulation frames, so captures always contain a completed framebuffer. */
-BOOL CL_ScreenshotReady(void) {
+bool CL_ScreenshotReady(void) {
 	if (!cl_screenshot_pending) return false;
 	if (cl_screenshot_delay > 1) { cl_screenshot_delay--; return false; }
 	cl_screenshot_pending = false; cl_screenshot_delay = 0;

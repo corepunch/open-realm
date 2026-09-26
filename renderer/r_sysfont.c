@@ -3,7 +3,7 @@
 #include "conchars_sysfont.h"
 
 LPTEXTURE R_MakeSysFontTexture(void) {
-    LPTEXTURE texture = R_LoadTexturePCX((HANDLE)conchars_sysfont_pcx, CONCHARS_SYSFONT_PCX_SIZE);
+    LPTEXTURE texture = R_LoadTexturePCX((handle_t)conchars_sysfont_pcx, CONCHARS_SYSFONT_PCX_SIZE);
 
     assert(texture);
 

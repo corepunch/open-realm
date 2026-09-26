@@ -3,7 +3,7 @@
 #include "../g_local.h"
 #include "../game/skills/s_skills.h"
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *slk_text);
@@ -69,7 +69,7 @@ TEST(wc3_ability_dispatch, autocast_boolean_messages_switch_and_remove) {
         "C;Y7;X1;K\"Aren\"\nC;Y7;X2;K\"Aren\"\n"
         "C;Y8;X1;K\"AEpa\"\nC;Y8;X2;K\"AEpa\"\nE\n";
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
-    DWORD const codes[] = { MAKEFOURCC('A','h','e','a'), MAKEFOURCC('A','i','n','f'),
+    uint32_t const codes[] = { MAKEFOURCC('A','h','e','a'), MAKEFOURCC('A','i','n','f'),
         MAKEFOURCC('A','s','l','o'), MAKEFOURCC('A','s','p','s'),
         MAKEFOURCC('A','r','e','p'), MAKEFOURCC('A','r','e','n') };
     reset_entities(); setup_test_world();

@@ -14,7 +14,7 @@
 #define PATHSTR char[512]
 #endif
 
-static HANDLE archives[64] = { 0 };
+static handle_t archives[64] = { 0 };
 static const char *g_map_path = NULL;
 static struct {
     VECTOR2 position;
@@ -29,12 +29,12 @@ static struct {
     .fov = 50.0f,
 };
 
-static void Tool_DrawString(refExport_t const *re, LPCSTR string, int x, int y) {
+static void Tool_DrawString(refExport_t const *re, cstring_t string, int x, int y) {
     if (!string) {
         return;
     }
-    for (DWORD i = 0; string[i]; i++) {
-        re->DrawChar(x + i * 8, y, (BYTE)string[i]);
+    for (uint32_t i = 0; string[i]; i++) {
+        re->DrawChar(x + i * 8, y, (uint8_t)string[i]);
     }
 }
 
@@ -47,7 +47,7 @@ static void usage(void) {
         "  maptool -mpq War3.mpq -map Maps\\\\Campaign\\\\Human02.w3m\n");
 }
 
-static void errorf(LPCSTR fmt, ...) {
+static void errorf(cstring_t fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
@@ -56,28 +56,28 @@ static void errorf(LPCSTR fmt, ...) {
     exit(1);
 }
 
-HANDLE FS_OpenFile(LPCSTR fileName) {
+handle_t FS_OpenFile(cstring_t fileName) {
     return Viewer_OpenFile(archives, sizeof(archives) / sizeof(archives[0]), fileName);
 }
 
-void FS_CloseFile(HANDLE file) {
+void FS_CloseFile(handle_t file) {
     Viewer_CloseFile(file);
 }
 
-bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
+bool FS_ExtractFile(cstring_t toExtract, cstring_t extracted) {
     return Viewer_ExtractFile(archives, sizeof(archives) / sizeof(archives[0]), toExtract, extracted);
 }
 
-bool FS_FileExists(LPCSTR fileName) {
+bool FS_FileExists(cstring_t fileName) {
     return Viewer_FileExists(archives, sizeof(archives) / sizeof(archives[0]), fileName);
 }
 
-HANDLE MemAlloc(long size) { return Viewer_MemAlloc(size); }
-void MemFree(HANDLE mem) { Viewer_MemFree(mem); }
+handle_t MemAlloc(long size) { return Viewer_MemAlloc(size); }
+void MemFree(handle_t mem) { Viewer_MemFree(mem); }
 
 void Sys_Quit(void) { exit(0); }
 
-static void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, FLOAT distance, LPMATRIX4 output) {
+static void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, float distance, LPMATRIX4 output) {
     VECTOR3 const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
     Matrix4_translate(output, &(VECTOR3){0, 0, -distance});
@@ -85,7 +85,7 @@ static void Matrix4_fromViewAngles(LPCVECTOR3 target, LPCVECTOR3 angles, FLOAT d
     Matrix4_translate(output, &vieworg);
 }
 
-static void Matrix4_fromViewQuat(LPCVECTOR3 target, LPCQUATERNION quat, FLOAT distance, LPMATRIX4 output) {
+static void Matrix4_fromViewQuat(LPCVECTOR3 target, LPCQUATERNION quat, float distance, LPMATRIX4 output) {
     VECTOR3 const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
     Matrix4_translate(output, &(VECTOR3){0, 0, -distance});
@@ -223,8 +223,8 @@ int main(int argc, char **argv) {
 
         viewDef_t viewdef = { 0 };
         BuildMapCamera(&re, &viewdef);
-        viewdef.viewport = (RECT){ 0, 0, 1, 1 };
-        viewdef.scissor = (RECT){ 0, 0, 1, 1 };
+        viewdef.viewport = (rect_t){ 0, 0, 1, 1 };
+        viewdef.scissor = (rect_t){ 0, 0, 1, 1 };
         viewdef.time = SDL_GetTicks();
         viewdef.deltaTime = 16;
         viewdef.lerpfrac = 0.0f;

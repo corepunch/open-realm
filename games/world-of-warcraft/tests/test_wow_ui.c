@@ -16,57 +16,57 @@
 #endif
 
 struct texture {
-    DWORD texid;
-    DWORD width;
-    DWORD height;
+    uint32_t texid;
+    uint32_t width;
+    uint32_t height;
     char name[256];
 };
 
 struct font {
-    DWORD size;
+    uint32_t size;
     char name[256];
 };
 
 
-static HANDLE test_archive;
+static handle_t test_archive;
 static PLAYER test_ps;
 static refExport_t test_renderer;
 static LPCTEXTURE test_textures[MAX_IMAGES];
-static DWORD next_texture_id;
-static DWORD loaded_textures;
-static DWORD missing_textures;
-static DWORD forbidden_texture_loads;
-static DWORD draw_panel_count;
-static DWORD draw_inventory_count;
-static DWORD draw_fill_count;
-static DWORD draw_text_count;
-static DWORD draw_cursor_count;
-static DWORD draw_minimap_count;
-static DWORD draw_tip_alert_count;
+static uint32_t next_texture_id;
+static uint32_t loaded_textures;
+static uint32_t missing_textures;
+static uint32_t forbidden_texture_loads;
+static uint32_t draw_panel_count;
+static uint32_t draw_inventory_count;
+static uint32_t draw_fill_count;
+static uint32_t draw_text_count;
+static uint32_t draw_cursor_count;
+static uint32_t draw_minimap_count;
+static uint32_t draw_tip_alert_count;
 static char last_draw_text[256];
 static char last_server_command[256];
 static char last_cmd_execute_text[256];
-static DWORD last_panel_width;
-static DWORD last_panel_height;
-static DWORD last_inventory_width;
-static DWORD last_inventory_height;
+static uint32_t last_panel_width;
+static uint32_t last_panel_height;
+static uint32_t last_inventory_width;
+static uint32_t last_inventory_height;
 static char test_show_tips[8];
 
-static BOOL test_path_is_wow_default(LPCSTR name) {
+static bool test_path_is_wow_default(cstring_t name) {
     return name &&
         (strstr(name, "Interface\\TargetingFrame\\UI-PlayerFrame.blp") ||
          strstr(name, "Interface\\MainMenuBar\\UI-MainMenuBar.blp") ||
          strstr(name, "Interface\\Glues\\LoadingBar\\"));
 }
 
-static DWORD test_read32(BYTE const *p) {
-    return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
+static uint32_t test_read32(uint8_t const *p) {
+    return ((uint32_t)p[0]) | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
 
-static int test_fs_read_file(LPCSTR fileName, void **buf) {
-    HANDLE file;
-    DWORD size;
-    DWORD read = 0;
+static int test_fs_read_file(cstring_t fileName, void **buf) {
+    handle_t file;
+    uint32_t size;
+    uint32_t read = 0;
 
     if (!buf) {
         return -1;
@@ -91,34 +91,34 @@ static void test_fs_free_file(void *buf) {
     free(buf);
 }
 
-static HANDLE test_mem_alloc(long size) {
+static handle_t test_mem_alloc(long size) {
     return calloc(1, (size_t)size);
 }
 
-static void test_mem_free(HANDLE mem) {
+static void test_mem_free(handle_t mem) {
     free(mem);
 }
 
-static void test_printf(LPCSTR fmt, ...) {
+static void test_printf(cstring_t fmt, ...) {
     (void)fmt;
 }
 
-static void test_read_texture_size(LPCSTR name, LPTEXTURE texture) {
+static void test_read_texture_size(cstring_t name, LPTEXTURE texture) {
     void *buf = NULL;
     int size = test_fs_read_file(name, &buf);
 
     texture->width = 0;
     texture->height = 0;
     if (size >= 20 && buf && test_read32(buf) == ID_BLP2) {
-        texture->width = test_read32((BYTE const *)buf + 12);
-        texture->height = test_read32((BYTE const *)buf + 16);
+        texture->width = test_read32((uint8_t const *)buf + 12);
+        texture->height = test_read32((uint8_t const *)buf + 16);
     } else {
         missing_textures++;
     }
     test_fs_free_file(buf);
 }
 
-static LPTEXTURE test_load_texture(LPCSTR name) {
+static LPTEXTURE test_load_texture(cstring_t name) {
     LPTEXTURE texture = calloc(1, sizeof(*texture));
 
     T_NOT_NULL(texture);
@@ -135,7 +135,7 @@ static LPTEXTURE test_load_texture(LPCSTR name) {
     return texture;
 }
 
-static LPFONT test_load_font(LPCSTR name, DWORD size) {
+static LPFONT test_load_font(cstring_t name, uint32_t size) {
     LPFONT font = calloc(1, sizeof(*font));
 
     T_NOT_NULL(font);
@@ -157,7 +157,7 @@ static size2_t test_get_texture_size(LPCTEXTURE texture) {
     return s;
 }
 
-static void test_draw_image(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
+static void test_draw_image(LPCTEXTURE texture, rect_t const * screen, rect_t const * uv, COLOR32 color) {
     (void)uv;
     (void)color;
     if (!texture) {
@@ -183,21 +183,21 @@ static void test_draw_image_ex(LPCDRAWIMAGE image) {
     }
 }
 
-static void test_draw_fill(LPCRECT rect, COLOR32 color) {
+static void test_draw_fill(rect_t const * rect, COLOR32 color) {
     (void)rect;
     (void)color;
     draw_fill_count++;
 }
 
-static void test_draw_minimap(LPCRECT rect, LPCSTR map) {
+static void test_draw_minimap(rect_t const * rect, cstring_t map) {
     (void)map;
     (void)rect;
     draw_minimap_count++;
 }
 
 static VECTOR2 test_get_text_size(LPCDRAWTEXT drawText) {
-    FLOAT w = drawText && drawText->text ? (FLOAT)strlen(drawText->text) * 0.01f : 0.0f;
-    FLOAT h = drawText && drawText->font ? drawText->font->size / 1000.0f : 0.012f;
+    float w = drawText && drawText->text ? (float)strlen(drawText->text) * 0.01f : 0.0f;
+    float h = drawText && drawText->font ? drawText->font->size / 1000.0f : 0.012f;
     return MAKE(VECTOR2, w, h);
 }
 
@@ -208,11 +208,11 @@ static void test_draw_text(LPCDRAWTEXT drawText) {
         draw_cursor_count++;
 }
 
-static LPCTEXTURE test_get_texture(DWORD index) {
+static LPCTEXTURE test_get_texture(uint32_t index) {
     return index < MAX_IMAGES ? test_textures[index] : NULL;
 }
 
-static int test_image_index(LPCSTR imageName) {
+static int test_image_index(cstring_t imageName) {
     FOR_LOOP(i, MAX_IMAGES) {
         LPCTEXTURE texture = test_textures[i];
 
@@ -220,7 +220,7 @@ static int test_image_index(LPCSTR imageName) {
             return (int)i;
         }
     }
-    for (DWORD i = 1; i < MAX_IMAGES; i++) {
+    for (uint32_t i = 1; i < MAX_IMAGES; i++) {
         if (!test_textures[i]) {
             test_textures[i] = test_load_texture(imageName);
             return (int)i;
@@ -239,20 +239,20 @@ static LPRENDERER test_get_renderer(void) {
     return &test_renderer;
 }
 
-static void test_server_command(LPCSTR text) {
+static void test_server_command(cstring_t text) {
     snprintf(last_server_command, sizeof(last_server_command), "%s", text ? text : "");
 }
 
-static void test_cmd_execute_text(LPCSTR text) {
+static void test_cmd_execute_text(cstring_t text) {
     snprintf(last_cmd_execute_text, sizeof(last_cmd_execute_text), "%s", text ? text : "");
 }
 
-static LPCSTR test_cvar_string(LPCSTR name, LPCSTR fallback) {
+static cstring_t test_cvar_string(cstring_t name, cstring_t fallback) {
     if (!strcmp(name, BZ_WOW_CVAR_SHOW_TIPS)) return test_show_tips;
     return fallback;
 }
 
-static void test_cvar_set(LPCSTR name, LPCSTR value) {
+static void test_cvar_set(cstring_t name, cstring_t value) {
     if (!strcmp(name, BZ_WOW_CVAR_SHOW_TIPS)) snprintf(test_show_tips, sizeof(test_show_tips), "%s", value);
 }
 
@@ -313,7 +313,7 @@ static menuExport_t init_ui(void) {
     return menu;
 }
 
-extern BOOL UIWow_RunLuaString(LPCSTR name, LPCSTR script);
+extern bool UIWow_RunLuaString(cstring_t name, cstring_t script);
 
 TEST(wow_ui, wow_lua_ui_draws_from_generated_mpq) {
     menuExport_t menu;

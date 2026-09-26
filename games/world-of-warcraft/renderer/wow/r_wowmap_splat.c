@@ -3,7 +3,7 @@
 typedef struct {
     LPCTEXTURE texture;
     splat_shader_t *shader;
-    DWORD num_vertices;
+    uint32_t num_vertices;
     VERTEX vertices[WOW_SPLAT_BATCH_VERTICES];
 } WOWSPLATBATCH;
 
@@ -11,7 +11,7 @@ static WOWSPLATBATCH wow_splat_batches[WOW_SPLAT_BATCHES];
 
 /* Stream one material batch in a single upload/draw pair. */
 static void Wow_DrawSplatVertices(LPCTEXTURE texture, splat_shader_t *shader,
-                                  LPCVERTEX vertices, DWORD num_vertices) {
+                                  LPCVERTEX vertices, uint32_t num_vertices) {
     MATRIX4 model_matrix;
 
     if (!texture || !shader || !vertices || !num_vertices) return;
@@ -47,7 +47,7 @@ void Wow_FlushSplats(void) {
 
 /* Group splats by material; common blob shadows and selection rings become one draw each. */
 static void Wow_QueueSplatVertices(LPCTEXTURE texture, splat_shader_t *shader,
-                                   LPCVERTEX vertices, DWORD num_vertices) {
+                                   LPCVERTEX vertices, uint32_t num_vertices) {
     WOWSPLATBATCH *empty = NULL;
 
     if (!texture || !shader || !vertices || !num_vertices) return;
@@ -80,7 +80,7 @@ static void Wow_QueueSplatVertices(LPCTEXTURE texture, splat_shader_t *shader,
     empty->num_vertices += num_vertices;
 }
 
-BOOL Wow_MakeSplatVertex(float x,
+bool Wow_MakeSplatVertex(float x,
                                 float y,
                                 LPCVECTOR2 mins,
                                 float width,
@@ -98,7 +98,7 @@ BOOL Wow_MakeSplatVertex(float x,
 }
 
 void Wow_AddSplatTriangle(LPVERTEX vertices,
-                                 LPDWORD count,
+                                 uint32_t * count,
                                  VERTEX a,
                                  VERTEX b,
                                  VERTEX c,
@@ -128,15 +128,15 @@ void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, spl
     float height;
     int cols;
     int rows;
-    DWORD max_vertices;
-    DWORD num_vertices = 0;
+    uint32_t max_vertices;
+    uint32_t num_vertices = 0;
     VERTEX stack_vertices[WOW_SPLAT_MIN_SUBDIVISIONS * WOW_SPLAT_MIN_SUBDIVISIONS * 6];
     VERTEX samples[(WOW_SPLAT_MAX_SUBDIVISIONS + 1) * (WOW_SPLAT_MAX_SUBDIVISIONS + 1)];
-    BYTE valid[(WOW_SPLAT_MAX_SUBDIVISIONS + 1) * (WOW_SPLAT_MAX_SUBDIVISIONS + 1)];
+    uint8_t valid[(WOW_SPLAT_MAX_SUBDIVISIONS + 1) * (WOW_SPLAT_MAX_SUBDIVISIONS + 1)];
     VERTEX *vertices;
-    BOOL vertices_allocated = false;
+    bool vertices_allocated = false;
     float max_height_delta;
-    static BOOL warned_missing_sample;
+    static bool warned_missing_sample;
 
     if (!mins || !maxs || !texture || !shader) {
         return;
@@ -148,7 +148,7 @@ void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, spl
         return;
     }
     if (!wow_world.chunks) {
-        static BOOL warned_no_terrain;
+        static bool warned_no_terrain;
         if (!warned_no_terrain) {
             fprintf(stderr, "WoW splat: no terrain samples; drawing flat at z=0\n");
             warned_no_terrain = true;
@@ -160,7 +160,7 @@ void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, spl
     /* Small selection rings need enough fitted triangles to follow an ADT slope instead of cutting through it. */
     cols = MAX(WOW_SPLAT_MIN_SUBDIVISIONS, MIN(WOW_SPLAT_MAX_SUBDIVISIONS, (int)ceilf(width / (WOW_ADT_UNIT_SIZE * 0.5f))));
     rows = MAX(WOW_SPLAT_MIN_SUBDIVISIONS, MIN(WOW_SPLAT_MAX_SUBDIVISIONS, (int)ceilf(height / (WOW_ADT_UNIT_SIZE * 0.5f))));
-    max_vertices = (DWORD)(cols * rows * 6);
+    max_vertices = (uint32_t)(cols * rows * 6);
     vertices = max_vertices <= sizeof(stack_vertices) / sizeof(stack_vertices[0])
         ? stack_vertices : ri.MemAlloc(sizeof(*vertices) * max_vertices);
     if (!vertices) return;
@@ -169,12 +169,12 @@ void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, spl
     /* TODO: move height projection to the vertex shader once terrain heights live in a GPU atlas. */
     max_height_delta = MAX(WOW_SPLAT_MAX_HEIGHT_DELTA, MIN(width, height) * 0.75f);
     float fallback_z = 0.0f;
-    BOOL have_fallback = false;
+    bool have_fallback = false;
     for (int y = 0; y <= rows; y++) {
         float sy = LerpNumber(mins->y, maxs->y, (float)y / (float)rows);
         for (int x = 0; x <= cols; x++) {
             float sx = LerpNumber(mins->x, maxs->x, (float)x / (float)cols);
-            DWORD index = (DWORD)(y * (cols + 1) + x);
+            uint32_t index = (uint32_t)(y * (cols + 1) + x);
             valid[index] = Wow_MakeSplatVertex(sx, sy, mins, width, height, color, &samples[index]);
             if (valid[index]) {
                 fallback_z = samples[index].position.z; /* already includes WOW_SPLAT_Z_BIAS */
@@ -188,10 +188,10 @@ void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, spl
         for (int x = 0; x < cols; x++) {
             float x0 = LerpNumber(mins->x, maxs->x, (float)x / (float)cols);
             float x1 = LerpNumber(mins->x, maxs->x, (float)(x + 1) / (float)cols);
-            DWORD i00 = (DWORD)(y * (cols + 1) + x);
-            DWORD i10 = i00 + 1;
-            DWORD i01 = i00 + (DWORD)(cols + 1);
-            DWORD i11 = i01 + 1;
+            uint32_t i00 = (uint32_t)(y * (cols + 1) + x);
+            uint32_t i10 = i00 + 1;
+            uint32_t i01 = i00 + (uint32_t)(cols + 1);
+            uint32_t i11 = i01 + 1;
             VERTEX v00;
             VERTEX v10;
             VERTEX v11;
@@ -241,7 +241,7 @@ void R_RenderRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, LPCTEXTURE texture, spl
     if (vertices_allocated) ri.MemFree(vertices);
 }
 
-void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, FLOAT z,
+void R_RenderFlatRectSplat(LPCVECTOR2 mins, LPCVECTOR2 maxs, float z,
                            LPCTEXTURE texture, splat_shader_t *shader, COLOR32 color) {
     float width;
     float height;
@@ -296,11 +296,11 @@ float GetAccurateHeightAtPoint(float sx, float sy) {
     return 0.0f;
 }
 
-FLOAT Wow_GetHeightAtPoint(FLOAT x, FLOAT y) {
+float Wow_GetHeightAtPoint(float x, float y) {
     return GetAccurateHeightAtPoint(x, y);
 }
 
-bool R_TraceLocation(viewDef_t const *viewdef, FLOAT x, FLOAT y, LPVECTOR3 output) {
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, LPVECTOR3 output) {
     LINE3 const line = R_LineForScreenPoint(viewdef, x, y);
     float const dz = line.b.z - line.a.z;
     float t;

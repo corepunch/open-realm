@@ -15,16 +15,16 @@
 
 refImport_t ri;
 
-void MemFree(HANDLE mem) {
+void MemFree(handle_t mem) {
     free(mem);
 }
 
-int Cvar_Integer(LPCSTR name, int fallback) {
+int Cvar_Integer(cstring_t name, int fallback) {
     (void)name;
     return fallback;
 }
 
-static sizeBuf_t make_msg_buf(BYTE *buf, DWORD bufsz) {
+static sizeBuf_t make_msg_buf(uint8_t *buf, uint32_t bufsz) {
     sizeBuf_t sb;
     SZ_Init(&sb, buf, bufsz);
     return sb;
@@ -55,7 +55,7 @@ TEST(wow_m2, attachment_ids_match_wowdev_canonical_table) {
 }
 
 TEST(wow_m2, dbc_character_path_resolves_race_and_gender) {
-    DWORD race, gender;
+    uint32_t race, gender;
 
     T_ASSERT(M2_DbcCharacterRaceGender("Character\\Orc\\Male\\OrcMale.m2", &race, &gender));
     T_EQ(race, 2); T_EQ(gender, 0);
@@ -85,7 +85,7 @@ TEST(wow_renderer, world_labels_use_wowee_distance_tiers_and_fade) {
 TEST(wow_renderer, character_composite_cache_hits_then_evicts_oldest) {
     m2CompositeCacheKey_t keys[2] = { 0 };
     m2CompositeCacheParams_t params = { keys, 2, { (void *)1, 10, 20, 30, 0, false }, NULL, false };
-    DWORD clock = 0, slot;
+    uint32_t clock = 0, slot;
 
     params.clock = &clock;
     slot = m2_composite_cache_slot(&params); T_EQ(slot, 0); T_ASSERT(!params.hit);
@@ -115,8 +115,8 @@ TEST(wow_renderer, orbit_stays_behind_native_heading) {
         Matrix4_identity(&view); Matrix4_translate(&view, &(VECTOR3){ 0, 0, -8.5f });
         Matrix4_rotateQuat(&view, &quat); Matrix4_inverse(&view, &inv);
         FOR_LOOP(k, 3) {
-            T_FEQ(((FLOAT *)&back)[k], ((FLOAT *)&native)[k], 0.001f);
-            T_FEQ(inv.v[12 + k], -8.5f * ((FLOAT *)&forward)[k], 0.001f);
+            T_FEQ(((float *)&back)[k], ((float *)&native)[k], 0.001f);
+            T_FEQ(inv.v[12 + k], -8.5f * ((float *)&forward)[k], 0.001f);
         }
         T_ASSERT(view.v[9] > 0);
     }
@@ -125,11 +125,11 @@ TEST(wow_renderer, orbit_stays_behind_native_heading) {
 /* Compare the reduced placement against the previous basis chain, including tilted/scaled WMOs. */
 TEST(wow_renderer, placement_preserves_native_geometry) {
     FOR_LOOP(i, 12) {
-        WOWPLACEMENT place = { .pos = { 17000, 42, 16900 }, .rot = { i * 31, -(FLOAT)i * 17, i * 47 },
+        WOWPLACEMENT place = { .pos = { 17000, 42, 16900 }, .rot = { i * 31, -(float)i * 17, i * 47 },
             .scale = i ? i * 256 : 0 };
         MATRIX4 old, basis, tmp, matrix;
         VECTOR3 pos = Wow_ObjectPosition(place.pos.x, place.pos.y, place.pos.z);
-        FLOAT scale = place.scale ? place.scale / 1024.0f : 1.0f;
+        float scale = place.scale ? place.scale / 1024.0f : 1.0f;
         Matrix4_identity(&old); Matrix4_translate(&old, &pos);
         Matrix4_identity(&basis);
         basis.v[0] = 0; basis.v[1] = 1; basis.v[2] = 0;
@@ -184,9 +184,9 @@ TEST(wow_m2, zero_particle_curve_stays_zero) {
 }
 
 TEST(wow_m2, particle_ranges_spread_an_upward_vector) {
-    VECTOR3 straight = m2_particle_direction(0.0f, 2.0f * (FLOAT)M_PI, (VECTOR2){ 1.0f, -1.0f });
-    VECTOR3 spread = m2_particle_direction(0.5f, 2.0f * (FLOAT)M_PI, (VECTOR2){ 1.0f, -0.5f });
-    VECTOR3 torch = m2_particle_direction(0.08726646f, 2.0f * (FLOAT)M_PI, (VECTOR2){ 1.0f, 1.0f });
+    VECTOR3 straight = m2_particle_direction(0.0f, 2.0f * (float)M_PI, (VECTOR2){ 1.0f, -1.0f });
+    VECTOR3 spread = m2_particle_direction(0.5f, 2.0f * (float)M_PI, (VECTOR2){ 1.0f, -0.5f });
+    VECTOR3 torch = m2_particle_direction(0.08726646f, 2.0f * (float)M_PI, (VECTOR2){ 1.0f, 1.0f });
 
     T_ASSERT(fabsf(straight.x) < 0.0001f);
     T_ASSERT(fabsf(straight.y) < 0.0001f);
@@ -216,17 +216,17 @@ TEST(wow_m2, format_convention_selects_file_shaped_records) {
 }
 
 TEST(wow_m2, file_arrays_are_bounds_checked) {
-    BYTE data[16] = { 0 };
+    uint8_t data[16] = { 0 };
     m2Array_t valid = { 2, 4 }, overflow = { 4, 8 }, negative = { 1, -1 };
 
-    T_ASSERT(m2_array_ptr(data, sizeof(data), valid, sizeof(DWORD)) == data + 4);
-    T_ASSERT(m2_array_ptr(data, sizeof(data), overflow, sizeof(DWORD)) == NULL);
+    T_ASSERT(m2_array_ptr(data, sizeof(data), valid, sizeof(uint32_t)) == data + 4);
+    T_ASSERT(m2_array_ptr(data, sizeof(data), overflow, sizeof(uint32_t)) == NULL);
     T_ASSERT(m2_array_ptr(data, sizeof(data), negative, 1) == NULL);
 }
 
 TEST(wow_m2, skin_vertex_range_is_prevalidated_before_copy) {
-    WORD vertices[] = { 2, 0, 1 };
-    WORD indices[] = { 0, 2 };
+    uint16_t vertices[] = { 2, 0, 1 };
+    uint16_t indices[] = { 0, 2 };
 
     T_ASSERT(m2_validate_skin_vertex_range(vertices, 3, indices, 2, 3, 0, 2));
     T_ASSERT(!m2_validate_skin_vertex_range(vertices, 3, indices, 2, 2, 0, 2));
@@ -235,9 +235,9 @@ TEST(wow_m2, skin_vertex_range_is_prevalidated_before_copy) {
 }
 
 TEST(wow_m2, character_geoset_selection_uses_model_fallbacks) {
-    WORD available[] = { 501, 505, 902, 903, 1301, 1302 };
-    WORD tauren[] = { 501, 903, 1301 }, legacy[] = { 501, 902, 1301 };
-    DWORD count = sizeof(available) / sizeof(available[0]);
+    uint16_t available[] = { 501, 505, 902, 903, 1301, 1302 };
+    uint16_t tauren[] = { 501, 903, 1301 }, legacy[] = { 501, 902, 1301 };
+    uint32_t count = sizeof(available) / sizeof(available[0]);
 
     T_EQ(Wow_CharacterGeosetPick(available, count, 5, 501, 501), 501);
     T_EQ(Wow_CharacterGeosetPick(available, count, 5, 503, 501), 501);
@@ -266,19 +266,19 @@ TEST(wow_m2, item_display_texture_base_matches_dbc_schema) {
 }
 
 TEST(wow_m2, char_sections_layout_matches_mounted_dbc_schema) {
-    DWORD classic[20][10] = { 0 }, wrath[20][10] = { 0 };
+    uint32_t classic[20][10] = { 0 }, wrath[20][10] = { 0 };
 
     FOR_LOOP(i, 20) {
         classic[i][4] = i % 4; classic[i][5] = i % 10; classic[i][6] = 100 + i;
         wrath[i][4] = 100 + i; wrath[i][8] = i % 4; wrath[i][9] = i % 10;
     }
-    T_EQ(m2_char_sections_layout((BYTE const *)classic, 20, sizeof(classic[0])), M2_CHAR_SECTIONS_VARIATION_FIRST);
-    T_EQ(m2_char_sections_layout((BYTE const *)wrath, 20, sizeof(wrath[0])), M2_CHAR_SECTIONS_TEXTURE_FIRST);
+    T_EQ(m2_char_sections_layout((uint8_t const *)classic, 20, sizeof(classic[0])), M2_CHAR_SECTIONS_VARIATION_FIRST);
+    T_EQ(m2_char_sections_layout((uint8_t const *)wrath, 20, sizeof(wrath[0])), M2_CHAR_SECTIONS_TEXTURE_FIRST);
     T_EQ(m2_char_sections_layout(NULL, 0, 0), M2_CHAR_SECTIONS_INVALID);
 }
 
 TEST(wow_m2, creature_extra_items_select_classic_npc_slots) {
-    BYTE expected[] = { 1, 2, 4, 3, 5, 6, 7, 0, 8, 9, 10 };
+    uint8_t expected[] = { 1, 2, 4, 3, 5, 6, 7, 0, 8, 9, 10 };
 
     FOR_LOOP(i, sizeof(expected)) T_EQ(Wow_CharacterCreatureItemSlot(i), expected[i]);
 }
@@ -300,16 +300,16 @@ TEST(wow_m2, race_number_resolves_from_shared_config_table) {
 }
 
 TEST(wow_dbc, table_parser_fills_struct_from_columns) {
-    typedef struct { DWORD id, flags; LPCSTR name; } rec_t;
+    typedef struct { uint32_t id, flags; cstring_t name; } rec_t;
     static stbDbcField_t const schema[] = {
         { 0, offsetof(rec_t, id),    STB_DBC_U32 },
         { 1, offsetof(rec_t, flags), STB_DBC_U32 },
         { 2, offsetof(rec_t, name),  STB_DBC_STR },
     };
-    BYTE records[2 * 12];
-    BYTE strings[] = { 0, 'H', 'u', 'm', 'a', 'n', 0, 'O', 'r', 'c', 0 }; /* offset 0 is the null string */
+    uint8_t records[2 * 12];
+    uint8_t strings[] = { 0, 'H', 'u', 'm', 'a', 'n', 0, 'O', 'r', 'c', 0 }; /* offset 0 is the null string */
     rec_t out[2];
-    DWORD v;
+    uint32_t v;
     memset(records, 0, sizeof(records));
     v = 1; memcpy(records + 0, &v, 4); v = 7; memcpy(records + 4, &v, 4); v = 1; memcpy(records + 8, &v, 4);
     v = 2; memcpy(records + 12, &v, 4); v = 8; memcpy(records + 16, &v, 4); v = 7; memcpy(records + 20, &v, 4);
@@ -321,26 +321,26 @@ TEST(wow_dbc, table_parser_fills_struct_from_columns) {
 }
 
 TEST(wow_dbc, table_parser_bounds_checks_columns_outside_record) {
-    typedef struct { DWORD id, flags; LPCSTR name; } rec_t;
+    typedef struct { uint32_t id, flags; cstring_t name; } rec_t;
     static stbDbcField_t const schema[] = {
         { 0, offsetof(rec_t, id),    STB_DBC_U32 },
         { 1, offsetof(rec_t, flags), STB_DBC_U32 },
         { 4, offsetof(rec_t, name),  STB_DBC_STR }, /* column 4 is past a 3-column record */
     };
-    BYTE records[12] = { 0 };
-    rec_t out = { .id = 0xdead, .flags = 0xbeef, .name = (LPCSTR)0x1 };
-    DWORD v = 9;
+    uint8_t records[12] = { 0 };
+    rec_t out = { .id = 0xdead, .flags = 0xbeef, .name = (cstring_t)0x1 };
+    uint32_t v = 9;
     memcpy(records + 0, &v, 4);
 
     Stb_DbcParseRows(records, 1, 12, NULL, 0, schema, 3, &out, sizeof(out));
 
-    T_EQ(out.id, 9); T_EQ(out.flags, 0); T_EQ(out.name, (LPCSTR)0x1); /* out-of-range column untouched */
+    T_EQ(out.id, 9); T_EQ(out.flags, 0); T_EQ(out.name, (cstring_t)0x1); /* out-of-range column untouched */
 }
 
 TEST(wow_dbc, table_parser_rejects_unsupported_shared_type) {
     static stbDbcField_t const schema[] = { { 0, 0, BZ_FIELD_CHAR_ARRAY } };
-    BYTE records[4] = { 1, 0, 0, 0 };
-    DWORD out = 0xdeadbeef;
+    uint8_t records[4] = { 1, 0, 0, 0 };
+    uint32_t out = 0xdeadbeef;
 
     Stb_DbcParseRows(records, 1, sizeof(records), NULL, 0, schema, 1, &out, sizeof(out));
 
@@ -348,15 +348,15 @@ TEST(wow_dbc, table_parser_rejects_unsupported_shared_type) {
 }
 
 TEST(wow_dbc, table_parser_fills_contiguous_array_from_columns) {
-    typedef struct { DWORD id; LPCSTR names[3]; } rec_t;
+    typedef struct { uint32_t id; cstring_t names[3]; } rec_t;
     static stbDbcField_t const schema[] = {
         { 0, offsetof(rec_t, id),    STB_DBC_U32 },
         { 1, offsetof(rec_t, names), STB_DBC_STR, 3 },
     };
-    BYTE records[16] = { 0 };
-    BYTE strings[] = { 0, 'H', 'u', 'm', 'a', 'n', 0, 'O', 'r', 'c', 0, 'D', 'w', 'f', 0 };
+    uint8_t records[16] = { 0 };
+    uint8_t strings[] = { 0, 'H', 'u', 'm', 'a', 'n', 0, 'O', 'r', 'c', 0, 'D', 'w', 'f', 0 };
     rec_t out = { 0 };
-    DWORD v;
+    uint32_t v;
     v = 7; memcpy(records + 0, &v, 4);
     v = 1; memcpy(records + 4, &v, 4);
     v = 7; memcpy(records + 8, &v, 4);
@@ -369,19 +369,19 @@ TEST(wow_dbc, table_parser_fills_contiguous_array_from_columns) {
 }
 
 TEST(wow_dbc, table_parser_array_stops_at_record_boundary) {
-    typedef struct { LPCSTR names[3]; } rec_t;
+    typedef struct { cstring_t names[3]; } rec_t;
     static stbDbcField_t const schema[] = {
         { 0, offsetof(rec_t, names), STB_DBC_STR, 3 },
     };
-    BYTE records[8] = { 0 }; /* only columns 0-1 fit */
-    rec_t out = { .names[0] = (LPCSTR)0x1, .names[1] = (LPCSTR)0x2, .names[2] = (LPCSTR)0x3 };
-    DWORD v = 1;
+    uint8_t records[8] = { 0 }; /* only columns 0-1 fit */
+    rec_t out = { .names[0] = (cstring_t)0x1, .names[1] = (cstring_t)0x2, .names[2] = (cstring_t)0x3 };
+    uint32_t v = 1;
     memcpy(records + 0, &v, 4);
     v = 7; memcpy(records + 4, &v, 4);
 
     Stb_DbcParseRows(records, 1, 8, NULL, 0, schema, 1, &out, sizeof(out));
 
-    T_EQ(out.names[0], (LPCSTR)NULL); T_EQ(out.names[1], (LPCSTR)NULL); T_EQ(out.names[2], (LPCSTR)0x3);
+    T_EQ(out.names[0], (cstring_t)NULL); T_EQ(out.names[1], (cstring_t)NULL); T_EQ(out.names[2], (cstring_t)0x3);
 }
 
 TEST(wow_m2, helmet_hide_mask_bits_match_geoset_groups) {
@@ -415,12 +415,12 @@ TEST(wow_m2, pants_remain_below_transparent_boot_texture) {
  * covers entity-state delta (de)serialization, which links common/msg.c +
  * common/net.c and therefore cannot run inside the game module. */
 TEST(wow_appearance, wow_entity_delta_preserves_appearance_and_equipment) {
-    BYTE buf[256];
+    uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     entityState_t from = { 0 };
     entityState_t to = { 0 };
     entityState_t out = { 0 };
-    DWORD bits = 0;
+    uint32_t bits = 0;
     int number;
 
     to.number = 7;
@@ -442,10 +442,10 @@ TEST(wow_appearance, wow_entity_delta_preserves_appearance_and_equipment) {
 }
 
 TEST(wow_appearance, wow_entity_delta_preserves_fractional_radius) {
-    BYTE buf[256];
+    uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     entityState_t from = { 0 }, to = { .number = 8, .model = 3, .radius = 0.5f }, out = { 0 };
-    DWORD bits = 0;
+    uint32_t bits = 0;
     int number;
 
     MSG_WriteDeltaEntity(&sb, &from, &to, true);
@@ -458,10 +458,10 @@ TEST(wow_appearance, wow_entity_delta_preserves_fractional_radius) {
 }
 
 TEST(wow_appearance, wow_entity_delta_preserves_quest_flags) {
-    BYTE buf[256];
+    uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     entityState_t from = { 0 }, to = { .number = 9, .model = 3, .flags = EF_HAS_QUEST | EF_QUEST_COMPLETE }, out = { 0 };
-    DWORD bits = 0;
+    uint32_t bits = 0;
     int number;
 
     MSG_WriteDeltaEntity(&sb, &from, &to, true);
@@ -475,10 +475,10 @@ TEST(wow_appearance, wow_entity_delta_preserves_quest_flags) {
 }
 
 TEST(wow_appearance, wow_entity_delta_preserves_mounted_flag) {
-    BYTE buf[256];
+    uint8_t buf[256];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
     entityState_t from = { 0 }, to = { .number = 10, .model = 3, .flags = EF_MOUNTED }, out = { 0 };
-    DWORD bits = 0;
+    uint32_t bits = 0;
     int number;
 
     MSG_WriteDeltaEntity(&sb, &from, &to, true);

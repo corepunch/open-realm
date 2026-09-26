@@ -1,14 +1,14 @@
 #include "r_mdx.h"
 
-typedef struct { DWORD count; int first; } MDXPALETTEERROR, *LPMDXPALETTEERROR;
+typedef struct { uint32_t count; int first; } MDXPALETTEERROR, *LPMDXPALETTEERROR;
 
-static BYTE R_AddGeosetMatrixPaletteEntry(mdxGeoset_t *geoset, int matrix_id, LPMDXPALETTEERROR overflow) {
+static uint8_t R_AddGeosetMatrixPaletteEntry(mdxGeoset_t *geoset, int matrix_id, LPMDXPALETTEERROR overflow) {
     if (matrix_id < 0) {
         matrix_id = 0;
     }
     FOR_LOOP(i, geoset->num_matrixPalette) {
         if (geoset->matrixPalette[i] == matrix_id) {
-            return (BYTE)i;
+            return (uint8_t)i;
         }
     }
     if (geoset->num_matrixPalette >= MDX_MATRIX_PALETTE) {
@@ -18,17 +18,17 @@ static BYTE R_AddGeosetMatrixPaletteEntry(mdxGeoset_t *geoset, int matrix_id, LP
         return 0;
     }
     geoset->matrixPalette[geoset->num_matrixPalette] = matrix_id;
-    return (BYTE)geoset->num_matrixPalette++;
+    return (uint8_t)geoset->num_matrixPalette++;
 }
 
 /* Keep geoset-local palette indices while packing every stream into the shared vertex format. */
 static void mdx_pack_vertices(mdxGeoset_t *geoset, LPVERTEX vertices) {
-    typedef BYTE matrixGroup_t[MAX_SKIN_BONES];
-    DWORD matrixGroupCount = geoset->num_matrixGroupSizes > 0 && geoset->matrixGroupSizes && geoset->matrices
-        ? (DWORD)geoset->num_matrixGroupSizes
+    typedef uint8_t matrixGroup_t[MAX_SKIN_BONES];
+    uint32_t matrixGroupCount = geoset->num_matrixGroupSizes > 0 && geoset->matrixGroupSizes && geoset->matrices
+        ? (uint32_t)geoset->num_matrixGroupSizes
         : 1;
     matrixGroup_t *matrixGroups = ri.MemAlloc(sizeof(matrixGroup_t) * matrixGroupCount);
-    DWORD indexOffset = 0;
+    uint32_t indexOffset = 0;
     MDXPALETTEERROR overflow = {0};
     geoset->matrixPalette = ri.MemAlloc(sizeof(*geoset->matrixPalette) * MDX_MATRIX_PALETTE);
     geoset->num_matrixPalette = 0;
@@ -40,12 +40,12 @@ static void mdx_pack_vertices(mdxGeoset_t *geoset, LPVERTEX vertices) {
             matrixGroups[matrixGroupIndex][0] = R_AddGeosetMatrixPaletteEntry(geoset, 0, &overflow);
             continue;
         }
-        DWORD sourceGroupSize = geoset->matrixGroupSizes[matrixGroupIndex];
-        DWORD groupSize = MIN(sourceGroupSize, MAX_SKIN_BONES);
-        if (indexOffset >= (DWORD)geoset->num_matrices) {
+        uint32_t sourceGroupSize = geoset->matrixGroupSizes[matrixGroupIndex];
+        uint32_t groupSize = MIN(sourceGroupSize, MAX_SKIN_BONES);
+        if (indexOffset >= (uint32_t)geoset->num_matrices) {
             groupSize = 0;
-        } else if (indexOffset + groupSize > (DWORD)geoset->num_matrices) {
-            groupSize = (DWORD)geoset->num_matrices - indexOffset;
+        } else if (indexOffset + groupSize > (uint32_t)geoset->num_matrices) {
+            groupSize = (uint32_t)geoset->num_matrices - indexOffset;
         }
         FOR_LOOP(matrixIndex, groupSize) {
             int matrix_id = geoset->matrices[indexOffset + matrixIndex];
@@ -68,12 +68,12 @@ static void mdx_pack_vertices(mdxGeoset_t *geoset, LPVERTEX vertices) {
         vertices[vertex].normal = geoset->normals[vertex];
         vertices[vertex].texcoord = geoset->texcoord[vertex];
         vertices[vertex].color = COLOR32_WHITE;
-        DWORD matrixGroupIndex = 0;
-        DWORD matrixGroupSize = 1;
-        BYTE leftover = 0xff;
-        BYTE leftoversize = 1;
+        uint32_t matrixGroupIndex = 0;
+        uint32_t matrixGroupSize = 1;
+        uint8_t leftover = 0xff;
+        uint8_t leftoversize = 1;
         if (geoset->vertexGroups && geoset->matrixGroupSizes && geoset->num_matrixGroupSizes > 0) {
-            matrixGroupIndex = (BYTE)geoset->vertexGroups[vertex];
+            matrixGroupIndex = (uint8_t)geoset->vertexGroups[vertex];
             if (matrixGroupIndex >= matrixGroupCount) {
                 matrixGroupIndex = matrixGroupCount - 1;
             }
@@ -86,17 +86,17 @@ static void mdx_pack_vertices(mdxGeoset_t *geoset, LPVERTEX vertices) {
             }
             leftoversize = matrixGroupSize;
         }
-        BYTE *matrixGroup = matrixGroups[matrixGroupIndex];
+        uint8_t *matrixGroup = matrixGroups[matrixGroupIndex];
         /* Distribute equal weights across all bones in the group, then keep
            the top 4 by weight (descending) and renormalize to sum=255. */
-        BYTE rawSkin[MAX_SKIN_BONES] = {0};
-        BYTE rawWeight[MAX_SKIN_BONES] = {0};
+        uint8_t rawSkin[MAX_SKIN_BONES] = {0};
+        uint8_t rawWeight[MAX_SKIN_BONES] = {0};
         memcpy(rawSkin, matrixGroup, MAX_SKIN_BONES);
         if (matrixGroupCount == 1 && matrixGroup[0] == 0) {
             rawWeight[0] = 255;
         } else {
             FOR_LOOP(matrixIndex, matrixGroupSize) {
-                BYTE value = (float)leftover / (float)leftoversize;
+                uint8_t value = (float)leftover / (float)leftoversize;
                 rawWeight[matrixIndex] = value;
                 leftover = MAX(0, leftover - value);
                 leftoversize = MAX(1, leftoversize - 1);
@@ -121,25 +121,25 @@ static void mdx_pack_vertices(mdxGeoset_t *geoset, LPVERTEX vertices) {
             }
         }
         /* Renormalize top-4 weights to sum=255. */
-        DWORD wsum = 0;
+        uint32_t wsum = 0;
         FOR_LOOP(j, 4) wsum += vertices[vertex].boneWeight[j];
         if (wsum && wsum != 255) {
-            DWORD acc = 0;
+            uint32_t acc = 0;
             FOR_LOOP(j, 4) {
-                DWORD w = vertices[vertex].boneWeight[j] * 255 / wsum;
-                vertices[vertex].boneWeight[j] = (BYTE)w;
+                uint32_t w = vertices[vertex].boneWeight[j] * 255 / wsum;
+                vertices[vertex].boneWeight[j] = (uint8_t)w;
                 acc += w;
             }
             /* Fix rounding remainder in the highest-weight slot. */
-            if (acc < 255) vertices[vertex].boneWeight[0] += (BYTE)(255 - acc);
+            if (acc < 255) vertices[vertex].boneWeight[0] += (uint8_t)(255 - acc);
         }
     }
     ri.MemFree(matrixGroups);
 }
 
 /* One model owns two buffers; VAOs retain each geoset's vertex range and local 16-bit index interpretation. */
-void MDX_PackModelGeometry(mdxModel_t *model, LPVERTEX vertices, USHORT *indices) {
-    DWORD base = 0, elems = 0;
+void MDX_PackModelGeometry(mdxModel_t *model, LPVERTEX vertices, uint16_t *indices) {
+    uint32_t base = 0, elems = 0;
     FOR_EACH_LIST(mdxGeoset_t, geo, model->geosets) {
         mdx_pack_vertices(geo, vertices + base);
         memcpy(indices + elems, geo->triangles, geo->num_triangles * sizeof(*indices));
@@ -158,14 +158,14 @@ void MDX_BuildBuffers(mdxModel_t *model) {
         { attrib_skin1, 4, GL_UNSIGNED_BYTE, GL_FALSE, offsetof(VERTEX, skin) },
         { attrib_boneWeight1, 4, GL_UNSIGNED_BYTE, GL_TRUE, offsetof(VERTEX, boneWeight) },
     };
-    DWORD verts = 0, elems = 0, base = 0;
+    uint32_t verts = 0, elems = 0, base = 0;
     FOR_EACH_LIST(mdxGeoset_t, geo, model->geosets) {
         verts += geo->num_vertices;
         elems += geo->num_triangles;
     }
     if (!model->geosets) return;
     LPVERTEX vertices = ri.MemAlloc(verts * sizeof(*vertices));
-    USHORT *indices = ri.MemAlloc(elems * sizeof(*indices));
+    uint16_t *indices = ri.MemAlloc(elems * sizeof(*indices));
     MDX_PackModelGeometry(model, vertices, indices);
     R_Call(glGenBuffers, BZ_MDX_BUFFER_COUNT, model->buffers);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, model->buffers[BZ_MDX_VERTEX_BUFFER]);

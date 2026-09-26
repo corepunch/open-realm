@@ -4,21 +4,21 @@
 /* Numbered control groups stored on cl.groups. Config binds `group N`. */
 #define BZ_GROUP_TAP_MS 500 // milliseconds; deliberate double-tap window; controls group camera recenter
 
-DWORD CL_SelectionLimit(void) { return MAX(1, MIN(MAX_SELECTED_ENTITIES, Cvar_Integer("cl_selection_limit", MAX_SELECTED_ENTITIES))); }
+uint32_t CL_SelectionLimit(void) { return MAX(1, MIN(MAX_SELECTED_ENTITIES, Cvar_Integer("cl_selection_limit", MAX_SELECTED_ENTITIES))); }
 
 static void CL_ResetGroupTap(void) {
     cl.group_last = MAX_CONTROL_GROUPS;
     cl.group_last_ms = 0;
 }
 
-static BOOL CL_GroupCenter(DWORD const *ids, DWORD n, LPVECTOR2 center) {
+static bool CL_GroupCenter(uint32_t const *ids, uint32_t n, LPVECTOR2 center) {
     double x = 0.0, y = 0.0;
-    DWORD valid = 0;
+    uint32_t valid = 0;
 
     if (!ids || !center) return false;
     n = MIN(n, CL_SelectionLimit());
     FOR_LOOP(i, n) {
-        DWORD const number = ids[i];
+        uint32_t const number = ids[i];
         LPCENTITYSTATE state;
         if (!number || number >= MAX_CLIENT_ENTITIES) continue;
         state = &cl.ents[number].current;
@@ -29,13 +29,13 @@ static BOOL CL_GroupCenter(DWORD const *ids, DWORD n, LPVECTOR2 center) {
         valid++;
     }
     if (!valid) return false;
-    center->x = (FLOAT)(x / valid);
-    center->y = (FLOAT)(y / valid);
+    center->x = (float)(x / valid);
+    center->y = (float)(y / valid);
     return true;
 }
 
 /* The configured capacity bounds local hints; the server reconciles legality through svc_set_selection. */
-void CL_ApplySelection(DWORD const *ids, DWORD n) {
+void CL_ApplySelection(uint32_t const *ids, uint32_t n) {
     char buffer[1024];
     n = MIN(n, CL_SelectionLimit());
     strlcpy(buffer, n ? "select" : "select 0", sizeof(buffer));
@@ -46,19 +46,19 @@ void CL_ApplySelection(DWORD const *ids, DWORD n) {
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
     SZ_Printf(&cls.netchan.message, "%s", buffer);
     cl.selection.num_selected = n;
-    memcpy(cl.selection.entity_nums, ids, sizeof(DWORD) * n);
+    memcpy(cl.selection.entity_nums, ids, sizeof(uint32_t) * n);
 }
 
-static void CL_GroupAssign(DWORD g) {
-    DWORD n = cl.selection.num_selected;
+static void CL_GroupAssign(uint32_t g) {
+    uint32_t n = cl.selection.num_selected;
     n = MIN(n, CL_SelectionLimit());
     cl.groups[g].num_selected = n;
-    memcpy(cl.groups[g].entity_nums, cl.selection.entity_nums, sizeof(DWORD) * n);
+    memcpy(cl.groups[g].entity_nums, cl.selection.entity_nums, sizeof(uint32_t) * n);
     CL_ResetGroupTap();
 }
 
-static void CL_GroupAdd(DWORD g) {
-    DWORD n = cl.selection.num_selected;
+static void CL_GroupAdd(uint32_t g) {
+    uint32_t n = cl.selection.num_selected;
     n = MIN(n, CL_SelectionLimit());
     cl.groups[g].num_selected = CL_ControlGroupAppendUnique(
         cl.groups[g].entity_nums, cl.groups[g].num_selected, CL_SelectionLimit(),
@@ -66,9 +66,9 @@ static void CL_GroupAdd(DWORD g) {
     CL_ResetGroupTap();
 }
 
-static void CL_GroupRecall(DWORD g) {
-    DWORD now;
-    BOOL center_on_group;
+static void CL_GroupRecall(uint32_t g) {
+    uint32_t now;
+    bool center_on_group;
     VECTOR2 center;
 
     if (cl.groups[g].num_selected == 0) {
@@ -77,7 +77,7 @@ static void CL_GroupRecall(DWORD g) {
     }
     now = cl.time;
     center_on_group = cl.group_last == g &&
-        (DWORD)(now - cl.group_last_ms) <= BZ_GROUP_TAP_MS;
+        (uint32_t)(now - cl.group_last_ms) <= BZ_GROUP_TAP_MS;
     CL_ApplySelection(cl.groups[g].entity_nums, cl.groups[g].num_selected);
     if (Cvar_Integer("cl_group_focus", 1) && center_on_group && CL_GroupCenter(cl.groups[g].entity_nums, cl.groups[g].num_selected, &center))
         CL_SetCameraPosition(center);
@@ -86,27 +86,27 @@ static void CL_GroupRecall(DWORD g) {
 }
 
 static void CL_Group_f(void) {
-    static struct { LPCSTR name; DWORD op; } const verbs[] = {
+    static struct { cstring_t name; uint32_t op; } const verbs[] = {
         { "assign", 1 },
         { "add", 2 },
         { NULL, 0 },
     };
-    LPCSTR a1 = Cmd_Argv(1);
-    DWORD g, op = 0;
+    cstring_t a1 = Cmd_Argv(1);
+    uint32_t g, op = 0;
 
     if (!CL_GameplayInputReady() || CL_WindowModalActive()) return;
     if (Cmd_Argc() < 2) {
         fprintf(stderr, "group [assign|add] <0-9>\n");
         return;
     }
-    for (DWORD i = 0; verbs[i].name; i++) {
+    for (uint32_t i = 0; verbs[i].name; i++) {
         if (!strcasecmp(a1, verbs[i].name)) {
             op = verbs[i].op;
             a1 = Cmd_Argv(2);
             break;
         }
     }
-    g = (DWORD)atoi(a1);
+    g = (uint32_t)atoi(a1);
     if (!a1 || a1[0] < '0' || a1[0] > '9' || a1[1] || g >= MAX_CONTROL_GROUPS) {
         fprintf(stderr, "group: %s is not a group number (0-9)\n", a1 ? a1 : "");
         return;
@@ -124,10 +124,10 @@ void CL_ControlGroupsInit(void) {
 #ifdef BZ_TESTS
 #include "shared/test.h"
 TEST(client_input, single_selection_groups_recall_one_target_without_moving_camera) {
-    BYTE old_sel[sizeof(cl.selection)], old_group[sizeof(cl.groups[0])], data[256];
+    uint8_t old_sel[sizeof(cl.selection)], old_group[sizeof(cl.groups[0])], data[256];
     sizeBuf_t old_msg = cls.netchan.message;
     menuExport_t old_menu = menu;
-    DWORD old_last = cl.group_last, old_ms = cl.group_last_ms, ids[] = { 7, 8 };
+    uint32_t old_last = cl.group_last, old_ms = cl.group_last_ms, ids[] = { 7, 8 };
     char command[64];
     int limit = Cvar_Integer("cl_selection_limit", 64), focus = Cvar_Integer("cl_group_focus", 1);
     memcpy(old_sel, &cl.selection, sizeof(old_sel));

@@ -20,11 +20,11 @@ typedef enum {
 _Static_assert(WC3_MINIMAP_CONTACT_NEUTRAL_BUILDING <= 7,
                "WC3 automatic minimap contacts must fit the generic three-bit presentation variant");
 
-static inline wc3MinimapContact_t wc3_minimap_contact_get(USHORT flags) {
+static inline wc3MinimapContact_t wc3_minimap_contact_get(uint16_t flags) {
     return (wc3MinimapContact_t)EFX_GAME_VARIANT_GET(flags);
 }
 
-static inline USHORT wc3_minimap_contact_set(USHORT flags, wc3MinimapContact_t contact) {
+static inline uint16_t wc3_minimap_contact_set(uint16_t flags, wc3MinimapContact_t contact) {
     return EFX_GAME_VARIANT_SET(flags, contact);
 }
 

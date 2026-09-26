@@ -1,16 +1,16 @@
 #include "g_local.h"
 
 /* Routing consumes game-owned surface policy; only this edict contract contains WC3 destructable state. */
-static BOOL entity_is_live_walkable_surface(edict_t const *ent) {
+static bool entity_is_live_walkable_surface(edict_t const *ent) {
     return ent && ent->destructable.initialized && !ent->destructable.dead &&
         ent->destructable.placement_solid && ent->pathtex &&
         ent->data.DestructableData && ent->data.DestructableData->walkable;
 }
 
-static BYTE entity_dynamic_pathing_flags(edict_t const *ent) {
+static uint8_t entity_dynamic_pathing_flags(edict_t const *ent) {
     return M_UnitStaticPathingFlags(ent);
 }
-static BOOL entity_is_pathing_ignored(edict_t const *ent) {
+static bool entity_is_pathing_ignored(edict_t const *ent) {
     /* A construction-site indicator is a visible reservation, not a building
      * obstacle. Once construction starts, the real structure blocks movement. */
     return ent && (ent->s.flags & (EF_BUILDING | EF_NOT_SELECTABLE)) ==
@@ -22,11 +22,11 @@ static BOOL entity_is_pathing_ignored(edict_t const *ent) {
  * retain their existing unrotated contract. */
 static void entity_pathtex_transform(pathTexTransformParams_t const *params, pathTexTransform_t *transform) {
     pathTex_t const *pt = params ? params->pathtex : NULL;
-    FLOAT const angle = params && params->ent ? params->ent->s.angle : 0.0f;
+    float const angle = params && params->ent ? params->ent->s.angle : 0.0f;
     int quarter;
 
     if (!transform || !pt) return;
-    quarter = (pt->width != pt->height) + (int)lroundf(angle / ((FLOAT)M_PI / 2.0f));
+    quarter = (pt->width != pt->height) + (int)lroundf(angle / ((float)M_PI / 2.0f));
     transform->turn = ((quarter % 4) + 4) % 4;
     transform->width = transform->turn & 1 ? pt->height : pt->width;
     transform->height = transform->turn & 1 ? pt->width : pt->height;
@@ -34,11 +34,11 @@ static void entity_pathtex_transform(pathTexTransformParams_t const *params, pat
         transform->turn = 0, transform->width = pt->width, transform->height = pt->height;
 }
 
-static inline HANDLE G_WorldReadFile(LPCSTR filename, LPDWORD size) { return gi.ReadFile(filename, size); }
-static inline HANDLE G_WorldMemAlloc(long size) { return gi.MemAlloc(size); }
-static inline void G_WorldMemFree(HANDLE mem) { gi.MemFree(mem); }
-static inline void G_WorldSetPriorityArchive(HANDLE archive) { gi.SetPriorityArchive(archive); }
-static inline BOMStatus G_WorldTextRemoveBom(LPSTR buffer) {
+static inline handle_t G_WorldReadFile(cstring_t filename, uint32_t * size) { return gi.ReadFile(filename, size); }
+static inline handle_t G_WorldMemAlloc(long size) { return gi.MemAlloc(size); }
+static inline void G_WorldMemFree(handle_t mem) { gi.MemFree(mem); }
+static inline void G_WorldSetPriorityArchive(handle_t archive) { gi.SetPriorityArchive(archive); }
+static inline BOMStatus G_WorldTextRemoveBom(string_t buffer) {
 	size_t len;
 	if (!buffer) return INVALID_BOM;
 	len = strlen(buffer);
@@ -62,13 +62,13 @@ static inline BOMStatus G_WorldTextRemoveBom(LPSTR buffer) {
 
 /* WC3 Way Gate entry selection uses the shared router's static grid, but this
  * rectangle-specific policy belongs to the game that consumes it. */
-BOOL G_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBOX2 bounds,
-                                                      FLOAT radius, BYTE blocked_flags, LPVECTOR2 out) {
+bool G_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBOX2 bounds,
+                                                      float radius, uint8_t blocked_flags, LPVECTOR2 out) {
     BOX2 rect;
     VECTOR2 nmin, nmax;
-    FLOAT best_distance = FLT_MAX;
+    float best_distance = FLT_MAX;
     int radius_cells, x0, x1, y0, y1;
-    BOOL found = false;
+    bool found = false;
 
     if (!location || !bounds || !out) return false;
     rect.min = (VECTOR2){ MIN(bounds->min.x, bounds->max.x), MIN(bounds->min.y, bounds->max.y) };
@@ -90,13 +90,13 @@ BOOL G_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBO
 
     for (int y = y0; y <= y1; y++) for (int x = x0; x <= x1; x++) {
         VECTOR2 a, b, candidate, check;
-        FLOAT min_x, max_x, min_y, max_y, distance;
+        float min_x, max_x, min_y, max_y, distance;
         int check_x, check_y;
 
         if (!is_pathable_node_original_for_radius_cells_flags(x, y, radius_cells, blocked_flags)) continue;
-        a = CM_GetDenormalizedMapPosition((FLOAT)x / pathmap.width, (FLOAT)y / pathmap.height);
-        b = CM_GetDenormalizedMapPosition((FLOAT)(x + 1) / pathmap.width,
-                                           (FLOAT)(y + 1) / pathmap.height);
+        a = CM_GetDenormalizedMapPosition((float)x / pathmap.width, (float)y / pathmap.height);
+        b = CM_GetDenormalizedMapPosition((float)(x + 1) / pathmap.width,
+                                           (float)(y + 1) / pathmap.height);
         min_x = MAX(rect.min.x, MIN(a.x, b.x)); max_x = MIN(rect.max.x, MAX(a.x, b.x));
         min_y = MAX(rect.min.y, MIN(a.y, b.y)); max_y = MIN(rect.max.y, MAX(a.y, b.y));
         if (min_x > max_x || min_y > max_y) continue;

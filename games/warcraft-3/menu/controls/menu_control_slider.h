@@ -1,10 +1,10 @@
 #ifndef UI_CONTROL_SLIDER_H
 #define UI_CONTROL_SLIDER_H
 
-static FLOAT UI_SliderFraction(LPCFRAMEDEF frame) {
-    FLOAT min_value = frame->Slider.MinValue;
-    FLOAT max_value = frame->Slider.MaxValue;
-    FLOAT value = frame->Slider.InitialValue;
+static float UI_SliderFraction(LPCFRAMEDEF frame) {
+    float min_value = frame->Slider.MinValue;
+    float max_value = frame->Slider.MaxValue;
+    float value = frame->Slider.InitialValue;
 
     if (max_value <= min_value) {
         return 0.0f;
@@ -13,13 +13,13 @@ static FLOAT UI_SliderFraction(LPCFRAMEDEF frame) {
     return (value - min_value) / (max_value - min_value);
 }
 
-static RECT UI_SliderThumbRect(LPCFRAMEDEF slider, LPCRECT slider_rect, LPCFRAMEDEF thumb) {
-    FLOAT const fraction = UI_SliderFraction(slider);
-    FLOAT const thumb_w = thumb && thumb->Width > 0 ? thumb->Width : slider_rect->h;
-    FLOAT const thumb_h = thumb && thumb->Height > 0 ? thumb->Height : slider_rect->h;
-    FLOAT const travel_w = MAX(0.0f, slider_rect->w - thumb_w);
-    FLOAT const travel_h = MAX(0.0f, slider_rect->h - thumb_h);
-    RECT rect = {
+static rect_t UI_SliderThumbRect(LPCFRAMEDEF slider, rect_t const * slider_rect, LPCFRAMEDEF thumb) {
+    float const fraction = UI_SliderFraction(slider);
+    float const thumb_w = thumb && thumb->Width > 0 ? thumb->Width : slider_rect->h;
+    float const thumb_h = thumb && thumb->Height > 0 ? thumb->Height : slider_rect->h;
+    float const travel_w = MAX(0.0f, slider_rect->w - thumb_w);
+    float const travel_h = MAX(0.0f, slider_rect->h - thumb_h);
+    rect_t rect = {
         .x = slider_rect->x + (slider_rect->w - thumb_w) * 0.5f,
         .y = slider_rect->y + (slider_rect->h - thumb_h) * 0.5f,
         .w = thumb_w,
@@ -34,26 +34,26 @@ static RECT UI_SliderThumbRect(LPCFRAMEDEF slider, LPCRECT slider_rect, LPCFRAME
     return rect;
 }
 
-static FLOAT UI_SliderValueFromMousePos(LPCFRAMEDEF slider, LPCRECT slider_rect, LPCFRAMEDEF thumb, VECTOR2 mouse) {
-    FLOAT const min_value = slider->Slider.MinValue;
-    FLOAT const max_value = slider->Slider.MaxValue;
-    FLOAT value_range = max_value - min_value;
-    FLOAT fraction;
-    FLOAT value;
+static float UI_SliderValueFromMousePos(LPCFRAMEDEF slider, rect_t const * slider_rect, LPCFRAMEDEF thumb, VECTOR2 mouse) {
+    float const min_value = slider->Slider.MinValue;
+    float const max_value = slider->Slider.MaxValue;
+    float value_range = max_value - min_value;
+    float fraction;
+    float value;
 
     if (value_range <= 0.0f) {
         return min_value;
     }
 
     if (slider->Slider.Layout == LAYOUT_VERTICAL) {
-        FLOAT const thumb_h = thumb && thumb->Height > 0 ? thumb->Height : slider_rect->h;
-        FLOAT const travel_h = MAX(0.0f, slider_rect->h - thumb_h);
-        FLOAT const local = mouse.y - slider_rect->y - thumb_h * 0.5f;
+        float const thumb_h = thumb && thumb->Height > 0 ? thumb->Height : slider_rect->h;
+        float const travel_h = MAX(0.0f, slider_rect->h - thumb_h);
+        float const local = mouse.y - slider_rect->y - thumb_h * 0.5f;
         fraction = travel_h > 0.0f ? 1.0f - (local / travel_h) : 0.0f;
     } else {
-        FLOAT const thumb_w = thumb && thumb->Width > 0 ? thumb->Width : slider_rect->h;
-        FLOAT const travel_w = MAX(0.0f, slider_rect->w - thumb_w);
-        FLOAT const local = mouse.x - slider_rect->x - thumb_w * 0.5f;
+        float const thumb_w = thumb && thumb->Width > 0 ? thumb->Width : slider_rect->h;
+        float const travel_w = MAX(0.0f, slider_rect->w - thumb_w);
+        float const local = mouse.x - slider_rect->x - thumb_w * 0.5f;
         fraction = travel_w > 0.0f ? local / travel_w : 0.0f;
     }
 
@@ -65,7 +65,7 @@ static FLOAT UI_SliderValueFromMousePos(LPCFRAMEDEF slider, LPCRECT slider_rect,
     return MAX(min_value, MIN(max_value, value));
 }
 
-static void UI_DrawSlider(LPCFRAMEDEF frame, LPCRECT rect) {
+static void UI_DrawSlider(LPCFRAMEDEF frame, rect_t const * rect) {
     LPCFRAMEDEF backdrop;
     LPCFRAMEDEF thumb;
 
@@ -76,7 +76,7 @@ static void UI_DrawSlider(LPCFRAMEDEF frame, LPCRECT rect) {
 
     thumb = UI_FindFrameNear(frame, frame->Slider.ThumbButtonFrame);
     if (thumb) {
-        RECT thumb_rect = UI_SliderThumbRect(frame, rect, thumb);
+        rect_t thumb_rect = UI_SliderThumbRect(frame, rect, thumb);
         LPCFRAMEDEF thumb_backdrop = UI_FindFrameNear(thumb, thumb->Control.Backdrop.Normal);
         if (!thumb_backdrop) {
             thumb_backdrop = UI_ButtonBackdrop(thumb, &thumb_rect);

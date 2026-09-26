@@ -1,6 +1,6 @@
 #include "r_terrain_layers.h"
 
-void R_DrawTerrainSegment(LPCMAPSEGMENT segment, DWORD mask) {
+void R_DrawTerrainSegment(LPCMAPSEGMENT segment, uint32_t mask) {
     if (!segment || !Frustum_ContainsAABox(&tr.viewDef.frustum, &segment->bbox))
         return;
     FOR_EACH_LIST(MAPLAYER, layer, segment->layers) {

@@ -9,7 +9,7 @@ TEST(sc2_control, m3_picking) {
     model_t model = { .modeltype = ID_43DM, .m3 = &m3 };
     renderEntity_t ent = { .model = &model, .origin = {10, 20, 8}, .scale = 2, .angle = 0 };
     LINE3 ray = {{10, 21.5f, 20}, {10, 21.5f, 0}};
-    FLOAT dist;
+    float dist;
     BOX3 box;
     T_ASSERT(R_GetEntityBounds(&ent, &box)); T_FEQ(box.max.z, 2, 0.001f);
     T_ASSERT(R_TraceModel(&ent, &ray, &dist)); T_FEQ(dist, 8, 0.001f);
@@ -24,9 +24,9 @@ TEST(sc2_control, fractional_snapshot_geometry) {
     entityState_t from = {0}, to = { .number = 1, .model = 1, .origin = {35.275f, 23.625f, 8.125f},
         .radius = 0.375f, .renderfx = RF_SELECTED }, out = {0};
     FOR_LOOP(i, 2) {
-        BYTE buf[256];
+        uint8_t buf[256];
         sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
-        DWORD bits = 0;
+        uint32_t bits = 0;
         MSG_WriteDeltaEntity(&msg, &from, &to, true);
         int num = MSG_ReadEntityBits(&msg, &bits);
         MSG_ReadDeltaEntity(&msg, &out, num, bits);
@@ -61,7 +61,7 @@ TEST(sc2_control, authored_placement_and_camera_preserved) {
     m3Model_t m3 = { .boundings = { .min = {-2, -0.5f, 0}, .max = {1, 0.5f, 3}, .radius = 2 } };
     model_t model = { .modeltype = ID_43DM, .m3 = &m3 };
     FOR_LOOP(i, 12) {
-        FLOAT raw = i * 0.37f;
+        float raw = i * 0.37f;
         renderEntity_t ent = { .model = &model, .origin = {3, 5, 7}, .scale = 1.5f,
             .angle = SC2_PlacementHeading(raw) };
         MATRIX4 matrix, old;
@@ -80,7 +80,7 @@ TEST(sc2_control, authored_placement_and_camera_preserved) {
 
 /* Include the snapshot codec: a non-periodic angle grid introduced a 0.299-degree placement bias. */
 TEST(sc2_control, snapshot_preserves_authored_placement) {
-    FLOAT angles[] = { 0, M_PI / 2, M_PI, 3 * M_PI / 2, -M_PI / 2, 2 * M_PI,
+    float angles[] = { 0, M_PI / 2, M_PI, 3 * M_PI / 2, -M_PI / 2, 2 * M_PI,
         0.8427f, 0.7963f, -0.8427f }; /* TRaynor01's two bridge placements. */
     model_t model = { .modeltype = ID_43DM };
     FOR_LOOP(i, sizeof(angles) / sizeof(angles[0])) {
@@ -88,8 +88,8 @@ TEST(sc2_control, snapshot_preserves_authored_placement) {
         FOR_LOOP(j, 2) {
             entityState_t source = { .number = 1, .model = 1, .scale = 1.5f, .origin = {3, 5, 7},
                 .angle = j ? SC2_PlacementHeading(angles[i]) : angles[i] };
-            BYTE bytes[256]; sizeBuf_t msg = { .data = bytes, .maxsize = sizeof(bytes) };
-            DWORD bits;
+            uint8_t bytes[256]; sizeBuf_t msg = { .data = bytes, .maxsize = sizeof(bytes) };
+            uint32_t bits;
             MSG_WriteDeltaEntity(&msg, &zero, &source, true);
             int number = MSG_ReadEntityBits(&msg, &bits);
             MSG_ReadDeltaEntity(&msg, &states[j], number, bits);
@@ -106,15 +106,15 @@ TEST(sc2_control, snapshot_preserves_authored_placement) {
 }
 
 /* Use the live snapshot codec and client yaw interpolation before the common renderer boundary. */
-extern FLOAT LerpRotation(FLOAT a, FLOAT b, FLOAT t);
+extern float LerpRotation(float a, float b, float t);
 TEST(sc2_control, snapshot_interpolation_preserves_facing) {
     model_t model = { .modeltype = ID_43DM };
     entityState_t zero = {0}, states[2] = {0};
     FOR_LOOP(i, 2) {
         entityState_t source = { .number = 1, .model = 1, .scale = 1,
-            .angle = (FLOAT)DEG2RAD(i ? 10 : 350), .origin = { 3 + i, 5, 7 } };
-        BYTE bytes[512]; sizeBuf_t msg = { .data = bytes, .maxsize = sizeof(bytes) };
-        DWORD bits;
+            .angle = (float)DEG2RAD(i ? 10 : 350), .origin = { 3 + i, 5, 7 } };
+        uint8_t bytes[512]; sizeBuf_t msg = { .data = bytes, .maxsize = sizeof(bytes) };
+        uint32_t bits;
         MSG_WriteDeltaEntity(&msg, &zero, &source, true);
         int number = MSG_ReadEntityBits(&msg, &bits);
         MSG_ReadDeltaEntity(&msg, &states[i], number, bits);

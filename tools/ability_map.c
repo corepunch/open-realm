@@ -15,7 +15,7 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define RK(s) ((DWORD)((unsigned char)(s)[0] | ((unsigned char)(s)[1] << 8) | \
+#define RK(s) ((uint32_t)((unsigned char)(s)[0] | ((unsigned char)(s)[1] << 8) | \
                        ((unsigned char)(s)[2] << 16) | ((unsigned char)(s)[3] << 24)))
 
 /* ---- Minimal PE parser for RTTI extraction ---- */
@@ -30,7 +30,7 @@ static char **pe_rtti_strings(const char *path, size_t *out_count) {
     fread(data, 1, fsize, f);
     fclose(f);
 
-    if (fsize < 64 || *(WORD *)data != 0x5A4D) { free(data); return NULL; }
+    if (fsize < 64 || *(uint16_t *)data != 0x5A4D) { free(data); return NULL; }
 
     /* Scan entire binary for MSVC RTTI ".?AVCAbility...@@" pattern. */
     size_t cap = 256, count = 0;
@@ -80,17 +80,17 @@ static char **pe_rtti_strings(const char *path, size_t *out_count) {
 
 /* ---- AbilityData struct (minimal) ---- */
 typedef struct {
-    DWORD id, code, uberAlias;
-    LPCSTR comments, sort, race;
-    LONG version, levels, reqLevel, levelSkip, priority;
-    BOOL useInEditor, hero, item, checkDep, InBeta;
-    LPCSTR targs[4];
-    FLOAT cast[4], dur[4], heroDur[4], cool[4], cost[4], area[4], range[4];
-    FLOAT data[4][9];
-    DWORD dataId[4][9];
-    DWORD unitID[4];
-    LPCSTR buffID[4], efctID[4];
-    LPCSTR castCheck, durCheck, heroDurCheck, coolCheck, costCheck, areaCheck, rangeCheck;
+    uint32_t id, code, uberAlias;
+    cstring_t comments, sort, race;
+    int32_t version, levels, reqLevel, levelSkip, priority;
+    bool useInEditor, hero, item, checkDep, InBeta;
+    cstring_t targs[4];
+    float cast[4], dur[4], heroDur[4], cool[4], cost[4], area[4], range[4];
+    float data[4][9];
+    uint32_t dataId[4][9];
+    uint32_t unitID[4];
+    cstring_t buffID[4], efctID[4];
+    cstring_t castCheck, durCheck, heroDurCheck, coolCheck, costCheck, areaCheck, rangeCheck;
 } AbilityData_t;
 
 #define AB_F(N,F,L,T) { N, offsetof(AbilityData_t, F[L]), T }
@@ -418,8 +418,8 @@ static void validate_classmap(char **rtti_names, size_t rtti_count) {
                     classmap[i].rawcode, classmap[i].classname);
 }
 
-static bool is_implemented(DWORD key) {
-    static DWORD const implemented[] = {
+static bool is_implemented(uint32_t key) {
+    static uint32_t const implemented[] = {
         RK("AHhb"), RK("AHad"), RK("AHwe"), RK("AHbz"), RK("AHtb"), RK("AHca"),
         RK("AOsf"), RK("AOmi"), RK("AEbl"), RK("AEfk"), RK("AEsh"), RK("AEim"),
         RK("Aeat"), RK("Ambt"), RK("Aroo"), RK("AUcs"), RK("ANfb"), RK("ANfs"),
@@ -458,14 +458,14 @@ static const char *to_snake(const char *classname) {
 }
 
 static void add_cb(const char *path, void *ud) {
-    HANDLE *a = (HANDLE *)ud;
+    handle_t *a = (handle_t *)ud;
     Tool_AddArchive(a, 8, path);
 }
 
 int main(int argc, char **argv) {
-    HANDLE archives[8] = {0};
-    LPCSTR data_dir = NULL;
-    LPCSTR dll_path = NULL;
+    handle_t archives[8] = {0};
+    cstring_t data_dir = NULL;
+    cstring_t dll_path = NULL;
 
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-data") && i + 1 < argc) data_dir = argv[++i];
@@ -497,11 +497,11 @@ int main(int argc, char **argv) {
 
     /* Load AbilityData.slk */
     AbilityData_t *rows = NULL;
-    DWORD count = Stb_SlkLoad("Units\\AbilityData.slk", ability_schema, (void **)&rows, sizeof(AbilityData_t));
+    uint32_t count = Stb_SlkLoad("Units\\AbilityData.slk", ability_schema, (void **)&rows, sizeof(AbilityData_t));
     if (!count || !rows) { fprintf(stderr, "Failed to load AbilityData.slk\n"); return 1; }
 
     /* Load ability strings for names */
-    LPCSTR str_files[] = {
+    cstring_t str_files[] = {
         "Units\\HumanAbilityStrings.txt", "Units\\OrcAbilityStrings.txt",
         "Units\\UndeadAbilityStrings.txt", "Units\\NightElfAbilityStrings.txt",
         "Units\\NeutralAbilityStrings.txt", "Units\\CommonAbilityStrings.txt",
@@ -511,22 +511,22 @@ int main(int argc, char **argv) {
     Stb_IniCacheLoadFiles(&ini, str_files);
 
     /* Process unique rawcodes */
-    typedef struct { DWORD key; const char *name; const char *classname; bool hero; bool item; const char *sort; const char *race; } abil_t;
+    typedef struct { uint32_t key; const char *name; const char *classname; bool hero; bool item; const char *sort; const char *race; } abil_t;
     abil_t *abilities = NULL;
-    DWORD abil_count = 0, abil_cap = 0;
+    uint32_t abil_count = 0, abil_cap = 0;
 
-    for (DWORD i = 0; i < count; i++) {
+    for (uint32_t i = 0; i < count; i++) {
         AbilityData_t *row = rows + i;
         if (!row->id) continue;
-        DWORD code = row->code ? row->code : row->id;
+        uint32_t code = row->code ? row->code : row->id;
         if (row->uberAlias) code = row->uberAlias;
 
         bool dup = false;
-        for (DWORD j = 0; j < abil_count; j++) { if (abilities[j].key == code) { dup = true; break; } }
+        for (uint32_t j = 0; j < abil_count; j++) { if (abilities[j].key == code) { dup = true; break; } }
         if (dup) continue;
 
         char key5[5] = {0}; memcpy(key5, &code, 4);
-        LPCSTR name = Stb_IniCacheFind(&ini, key5, "Name");
+        cstring_t name = Stb_IniCacheFind(&ini, key5, "Name");
         const char *cn = lookup_classname(key5);
 
         if (abil_count >= abil_cap) { abil_cap = abil_cap ? abil_cap * 2 : 512; abilities = realloc(abilities, abil_cap * sizeof(abil_t)); }
@@ -535,11 +535,11 @@ int main(int argc, char **argv) {
     }
 
     /* Output: grouped by implemented vs missing */
-    DWORD missing = 0;
+    uint32_t missing = 0;
     printf("/* Missing WC3 abilities with Game.dll C++ class names */\n");
     printf("/* Generated by ability_map from Game.dll RTTI + AbilityData.slk */\n\n");
 
-    for (DWORD i = 0; i < abil_count; i++) {
+    for (uint32_t i = 0; i < abil_count; i++) {
         abil_t *a = &abilities[i];
         bool done = is_implemented(a->key);
         if (done) continue;
@@ -560,13 +560,13 @@ int main(int argc, char **argv) {
 
     /* Print unmapped RTTI classes */
     bool *used = calloc(rtti_count, sizeof(bool));
-    for (DWORD i = 0; i < abil_count; i++) {
+    for (uint32_t i = 0; i < abil_count; i++) {
         if (!abilities[i].classname) continue;
         for (size_t j = 0; j < rtti_count; j++) {
             if (!strcmp(rtti_names[j], abilities[i].classname)) { used[j] = true; break; }
         }
     }
-    DWORD unused_count = 0;
+    uint32_t unused_count = 0;
     for (size_t j = 0; j < rtti_count; j++) {
         if (!used[j]) { fprintf(stderr, "  unmapped RTTI: %s\n", rtti_names[j]); unused_count++; }
     }

@@ -28,13 +28,13 @@
  *
  *     #include "common/stb_dbc.h"
  *
- *     LPBYTE data; int size = ri.FS_ReadFile("DBFilesClient\\Map.dbc", (void **)&data);
+ *     uint8_t * data; int size = ri.FS_ReadFile("DBFilesClient\\Map.dbc", (void **)&data);
  *     stbDbc_t h;
  *     if (data && Stb_DbcValid(data, size, &h)) {
- *         BYTE const *records = Stb_DbcRecords(data);
- *         BYTE const *strings = Stb_DbcStrings(data, &h);
- *         BYTE const *rec = Stb_DbcFindID(data, &h, id);
- *         LPCSTR name = Stb_DbcString(strings, h.string_size, Stb_DbcField(&h, rec, 1));
+ *         uint8_t const *records = Stb_DbcRecords(data);
+ *         uint8_t const *strings = Stb_DbcStrings(data, &h);
+ *         uint8_t const *rec = Stb_DbcFindID(data, &h, id);
+ *         cstring_t name = Stb_DbcString(strings, h.string_size, Stb_DbcField(&h, rec, 1));
  *     }
  */
 #ifndef stb_dbc_h
@@ -48,21 +48,21 @@
 /* -------------------------------------------------------------------------- */
 /* "WDBC" read back as a little-endian 32-bit word (see ID_WDBC in common/shared.h). */
 typedef struct {
-    DWORD records;
-    DWORD fields;
-    DWORD record_size;
-    DWORD string_size;
+    uint32_t records;
+    uint32_t fields;
+    uint32_t record_size;
+    uint32_t string_size;
 } stbDbc_t;
 
 /* -------------------------------------------------------------------------- */
 /* Scalar reads                                                                */
 /* -------------------------------------------------------------------------- */
-static inline DWORD Stb_DbcRead32(BYTE const *p) {
-    return ((DWORD)p[0]) | ((DWORD)p[1] << 8) | ((DWORD)p[2] << 16) | ((DWORD)p[3] << 24);
+static inline uint32_t Stb_DbcRead32(uint8_t const *p) {
+    return ((uint32_t)p[0]) | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
 
-static inline FLOAT Stb_DbcReadFloat(BYTE const *p) {
-    FLOAT value;
+static inline float Stb_DbcReadFloat(uint8_t const *p) {
+    float value;
     memcpy(&value, p, sizeof(value));
     return value;
 }
@@ -73,15 +73,15 @@ static inline FLOAT Stb_DbcReadFloat(BYTE const *p) {
 /* Validates the magic and envelope, filling *header. Classic files may report a
  * logical field count larger than record_size / 4, so only record_size >= 4 is
  * required here; callers bounds-check each accessed field via Stb_DbcField. */
-static inline BOOL Stb_DbcValid(BYTE const *data, DWORD size, stbDbc_t *header) {
-    if (!data || !header || size <= 20 || *(DWORD const *)data != ID_WDBC) {
+static inline bool Stb_DbcValid(uint8_t const *data, uint32_t size, stbDbc_t *header) {
+    if (!data || !header || size <= 20 || *(uint32_t const *)data != ID_WDBC) {
         return false;
     }
     header->records = Stb_DbcRead32(data + 4);
     header->fields = Stb_DbcRead32(data + 8);
     header->record_size = Stb_DbcRead32(data + 12);
     header->string_size = Stb_DbcRead32(data + 16);
-    if (!header->fields || header->record_size < sizeof(DWORD) ||
+    if (!header->fields || header->record_size < sizeof(uint32_t) ||
         20 + header->records * header->record_size + header->string_size > size) {
         return false;
     }
@@ -91,15 +91,15 @@ static inline BOOL Stb_DbcValid(BYTE const *data, DWORD size, stbDbc_t *header) 
 /* -------------------------------------------------------------------------- */
 /* Block pointers                                                              */
 /* -------------------------------------------------------------------------- */
-static inline BYTE const *Stb_DbcRecords(BYTE const *data) {
+static inline uint8_t const *Stb_DbcRecords(uint8_t const *data) {
     return data + 20;
 }
 
-static inline BYTE const *Stb_DbcStrings(BYTE const *data, stbDbc_t const *header) {
+static inline uint8_t const *Stb_DbcStrings(uint8_t const *data, stbDbc_t const *header) {
     return data + 20 + header->records * header->record_size;
 }
 
-static inline BYTE const *Stb_DbcRecordAt(BYTE const *records, DWORD index, DWORD record_size) {
+static inline uint8_t const *Stb_DbcRecordAt(uint8_t const *records, uint32_t index, uint32_t record_size) {
     return records + index * record_size;
 }
 
@@ -108,21 +108,21 @@ static inline BYTE const *Stb_DbcRecordAt(BYTE const *records, DWORD index, DWOR
 /* -------------------------------------------------------------------------- */
 /* Bounds-checked 32-bit field access; returns 0 when the field index exceeds
  * the logical field count or the physical record. */
-static inline DWORD Stb_DbcField(stbDbc_t const *header, BYTE const *record, DWORD field) {
+static inline uint32_t Stb_DbcField(stbDbc_t const *header, uint8_t const *record, uint32_t field) {
     if (!header || !record || field >= header->fields ||
-        field * sizeof(DWORD) + sizeof(DWORD) > header->record_size) {
+        field * sizeof(uint32_t) + sizeof(uint32_t) > header->record_size) {
         return 0;
     }
-    return Stb_DbcRead32(record + field * sizeof(DWORD));
+    return Stb_DbcRead32(record + field * sizeof(uint32_t));
 }
 
 /* Resolve a string-block offset; offset 0 (null string) and out-of-range
  * offsets both return NULL. */
-static inline LPCSTR Stb_DbcString(BYTE const *strings, DWORD string_size, DWORD offset) {
+static inline cstring_t Stb_DbcString(uint8_t const *strings, uint32_t string_size, uint32_t offset) {
     if (!strings || !offset || offset >= string_size) {
         return NULL;
     }
-    return (LPCSTR)(strings + offset);
+    return (cstring_t)(strings + offset);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -130,15 +130,15 @@ static inline LPCSTR Stb_DbcString(BYTE const *strings, DWORD string_size, DWORD
 /* -------------------------------------------------------------------------- */
 /* Linear scan for the record whose field 0 equals `id`; returns the record or
  * NULL. For hot lookups the renderer keeps its own FNV-1a index on top of this. */
-static inline BYTE const *Stb_DbcFindID(BYTE const *data, stbDbc_t const *header, DWORD id) {
-    BYTE const *records;
-    DWORD i;
+static inline uint8_t const *Stb_DbcFindID(uint8_t const *data, stbDbc_t const *header, uint32_t id) {
+    uint8_t const *records;
+    uint32_t i;
     if (!data || !header) {
         return NULL;
     }
     records = Stb_DbcRecords(data);
     for (i = 0; i < header->records; i++) {
-        BYTE const *record = records + i * header->record_size;
+        uint8_t const *record = records + i * header->record_size;
         if (Stb_DbcRead32(record) == id) {
             return record;
         }
@@ -167,38 +167,38 @@ static inline BYTE const *Stb_DbcFindID(BYTE const *data, stbDbc_t const *header
 #define STB_DBC_FLOAT BZ_FIELD_FLOAT /* 4-byte little-endian float column */
 
 typedef struct {
-    DWORD column;       /* first DBC column index (0-based); byte offset = column * 4 */
+    uint32_t column;       /* first DBC column index (0-based); byte offset = column * 4 */
     ptrdiff_t offset;   /* offsetof(Rec, field); for an array, its base element */
     bzFieldType_t type;
-    DWORD count;        /* consecutive columns mapped to consecutive array elements (0 = scalar) */
+    uint32_t count;        /* consecutive columns mapped to consecutive array elements (0 = scalar) */
 } stbDbcField_t;
 
-static inline void Stb_DbcParseRows(BYTE const *records, DWORD count, DWORD record_size,
-                                    BYTE const *strings, DWORD string_size,
-                                    stbDbcField_t const *schema, DWORD schema_count,
-                                    void *out, DWORD out_stride) {
+static inline void Stb_DbcParseRows(uint8_t const *records, uint32_t count, uint32_t record_size,
+                                    uint8_t const *strings, uint32_t string_size,
+                                    stbDbcField_t const *schema, uint32_t schema_count,
+                                    void *out, uint32_t out_stride) {
     FOR_LOOP(r, count) {
-        BYTE const *record = records + r * record_size;
-        BYTE *dest = (BYTE *)out + r * out_stride;
+        uint8_t const *record = records + r * record_size;
+        uint8_t *dest = (uint8_t *)out + r * out_stride;
         FOR_LOOP(f, schema_count) {
             stbDbcField_t const *s = &schema[f];
-            DWORD n = s->count ? s->count : 1;
-            DWORD esize = (s->type == STB_DBC_U32 || s->type == BZ_FIELD_FOURCC) ? sizeof(DWORD) :
-                          s->type == STB_DBC_FLOAT ? sizeof(FLOAT) :
-                          s->type == STB_DBC_STR ? sizeof(LPCSTR) : 0;
+            uint32_t n = s->count ? s->count : 1;
+            uint32_t esize = (s->type == STB_DBC_U32 || s->type == BZ_FIELD_FOURCC) ? sizeof(uint32_t) :
+                          s->type == STB_DBC_FLOAT ? sizeof(float) :
+                          s->type == STB_DBC_STR ? sizeof(cstring_t) : 0;
             if (!esize) {
                 if (!r) fprintf(stderr, "Stb_DbcParseRows: unsupported field type %d at schema %u\n", s->type, (unsigned)f);
                 continue;
             }
             FOR_LOOP(e, n) {
-                DWORD byte_offset = (s->column + e) * sizeof(DWORD);
-                if (byte_offset + sizeof(DWORD) > record_size) break;
+                uint32_t byte_offset = (s->column + e) * sizeof(uint32_t);
+                if (byte_offset + sizeof(uint32_t) > record_size) break;
                 if (s->type == STB_DBC_U32 || s->type == BZ_FIELD_FOURCC)
-                    *(DWORD *)(dest + s->offset + e * esize) = Stb_DbcRead32(record + byte_offset);
+                    *(uint32_t *)(dest + s->offset + e * esize) = Stb_DbcRead32(record + byte_offset);
                 else if (s->type == STB_DBC_FLOAT)
-                    *(FLOAT *)(dest + s->offset + e * esize) = Stb_DbcReadFloat(record + byte_offset);
+                    *(float *)(dest + s->offset + e * esize) = Stb_DbcReadFloat(record + byte_offset);
                 else if (s->type == STB_DBC_STR)
-                    *(LPCSTR *)(dest + s->offset + e * esize) =
+                    *(cstring_t *)(dest + s->offset + e * esize) =
                         Stb_DbcString(strings, string_size, Stb_DbcRead32(record + byte_offset));
             }
         }
@@ -214,50 +214,50 @@ static inline void Stb_DbcParseRows(BYTE const *records, DWORD count, DWORD reco
  * resident file image, so keep the cache alive as long as rows are read. */
 
 typedef struct {
-    void *(*read)(LPCSTR filename, DWORD *size); /* resident buffer or NULL */
+    void *(*read)(cstring_t filename, uint32_t *size); /* resident buffer or NULL */
     void  (*free)(void *buffer);                 /* release a read() buffer */
     void *(*alloc)(size_t bytes);                /* row-array / index allocator */
     void  (*dealloc)(void *mem);                 /* release alloc() memory */
 } stbDbcIO_t;
 
 typedef struct {
-    LPBYTE data;
-    DWORD size, records, fields, record_size, string_size;
-    BYTE const *records_base, *strings_base;
+    uint8_t * data;
+    uint32_t size, records, fields, record_size, string_size;
+    uint8_t const *records_base, *strings_base;
     int *index;
-    DWORD index_capacity, index_field;
+    uint32_t index_capacity, index_field;
     void *rows;       /* decoded struct array (Stb_DbcParseRows output) */
-    DWORD row_stride;
-    BOOL tried, valid;
+    uint32_t row_stride;
+    bool tried, valid;
 } stbDbcCache_t;
 
 /* Typed accessor for a decoded row; `cache` is the stbDbcCache_t lvalue. */
 #define STB_DBC_ROW(cache, T, idx) \
-    ((T const *)((BYTE const *)(cache).rows + (size_t)(idx) * (cache).row_stride))
+    ((T const *)((uint8_t const *)(cache).rows + (size_t)(idx) * (cache).row_stride))
 
-static inline BOOL Stb_DbcCacheLoad(stbDbcCache_t *c, LPCSTR filename, stbDbcIO_t const *io) {
+static inline bool Stb_DbcCacheLoad(stbDbcCache_t *c, cstring_t filename, stbDbcIO_t const *io) {
     stbDbc_t h;
-    DWORD size = 0;
+    uint32_t size = 0;
     void *data;
     if (!c || !filename || !io || !io->read) return false;
     if (c->tried) return c->valid;
     c->tried = true;
     data = io->read(filename, &size);
-    if (!data || size <= 20 || !Stb_DbcValid((BYTE const *)data, size, &h)) {
+    if (!data || size <= 20 || !Stb_DbcValid((uint8_t const *)data, size, &h)) {
         if (data && io->free) io->free(data);
         return false;
     }
     c->data = data; c->size = size;
     c->records = h.records; c->fields = h.fields;
     c->record_size = h.record_size; c->string_size = h.string_size;
-    c->records_base = Stb_DbcRecords((BYTE const *)data);
-    c->strings_base = Stb_DbcStrings((BYTE const *)data, &h);
+    c->records_base = Stb_DbcRecords((uint8_t const *)data);
+    c->strings_base = Stb_DbcStrings((uint8_t const *)data, &h);
     c->valid = true;
     return true;
 }
 
-static inline BOOL Stb_DbcCacheDecode(stbDbcCache_t *c, stbDbcField_t const *schema, DWORD schema_count,
-                                      DWORD row_stride, stbDbcIO_t const *io) {
+static inline bool Stb_DbcCacheDecode(stbDbcCache_t *c, stbDbcField_t const *schema, uint32_t schema_count,
+                                      uint32_t row_stride, stbDbcIO_t const *io) {
     if (!c || !c->valid || c->rows) return c->rows != NULL;
     if (!io || !io->alloc) return false;
     c->rows = io->alloc((size_t)c->records * row_stride);
@@ -284,20 +284,20 @@ static inline void Stb_DbcCacheFree(stbDbcCache_t *c, stbDbcIO_t const *io) {
 
 /* Raw field access is only used to build/query the FNV index; decoded consumers
  * read struct fields filled by Stb_DbcParseRows. */
-static inline DWORD Stb_DbcCacheField(stbDbcCache_t const *c, BYTE const *record, DWORD field) {
-    if (!c || !record || field >= c->fields || field * sizeof(DWORD) + sizeof(DWORD) > c->record_size)
+static inline uint32_t Stb_DbcCacheField(stbDbcCache_t const *c, uint8_t const *record, uint32_t field) {
+    if (!c || !record || field >= c->fields || field * sizeof(uint32_t) + sizeof(uint32_t) > c->record_size)
         return 0;
-    return Stb_DbcRead32(record + field * sizeof(DWORD));
+    return Stb_DbcRead32(record + field * sizeof(uint32_t));
 }
 
-static inline DWORD Stb_DbcFnv1a32(DWORD key) {
-    DWORD hash = 2166136261u;
+static inline uint32_t Stb_DbcFnv1a32(uint32_t key) {
+    uint32_t hash = 2166136261u;
     FOR_LOOP(i, sizeof(key)) { hash ^= (key >> (i * 8)) & 0xffu; hash *= 16777619u; }
     return hash;
 }
 
-static inline BOOL Stb_DbcCacheBuildIndex(stbDbcCache_t *c, DWORD field, stbDbcIO_t const *io) {
-    DWORD capacity = 1;
+static inline bool Stb_DbcCacheBuildIndex(stbDbcCache_t *c, uint32_t field, stbDbcIO_t const *io) {
+    uint32_t capacity = 1;
     int *index;
     if (!c || !c->valid || field >= c->fields || !io || !io->alloc) return false;
     while (capacity < c->records * 2u) capacity <<= 1;
@@ -308,9 +308,9 @@ static inline BOOL Stb_DbcCacheBuildIndex(stbDbcCache_t *c, DWORD field, stbDbcI
     }
     FOR_LOOP(i, capacity) index[i] = -1;
     FOR_LOOP(i, c->records) {
-        BYTE const *record = c->records_base + i * c->record_size;
-        DWORD key = Stb_DbcCacheField(c, record, field);
-        DWORD slot = Stb_DbcFnv1a32(key) & (capacity - 1);
+        uint8_t const *record = c->records_base + i * c->record_size;
+        uint32_t key = Stb_DbcCacheField(c, record, field);
+        uint32_t slot = Stb_DbcFnv1a32(key) & (capacity - 1);
         while (index[slot] >= 0 && Stb_DbcCacheField(c, c->records_base + index[slot] * c->record_size, field) != key)
             slot = (slot + 1) & (capacity - 1);
         index[slot] = (int)i;
@@ -320,31 +320,31 @@ static inline BOOL Stb_DbcCacheBuildIndex(stbDbcCache_t *c, DWORD field, stbDbcI
 }
 
 /* Return the row index for key (or -1); the caller must have loaded the DBC. */
-static inline int Stb_DbcCacheFindKey(stbDbcCache_t *c, DWORD field, DWORD key, stbDbcIO_t const *io) {
-    DWORD slot;
+static inline int Stb_DbcCacheFindKey(stbDbcCache_t *c, uint32_t field, uint32_t key, stbDbcIO_t const *io) {
+    uint32_t slot;
     if (!c || !c->valid || field >= c->fields) return -1;
     if (!c->index && !Stb_DbcCacheBuildIndex(c, field, io)) return -1;
     if (c->index_field != field) return -1;
     slot = Stb_DbcFnv1a32(key) & (c->index_capacity - 1);
     while (c->index[slot] >= 0) {
-        BYTE const *record = c->records_base + c->index[slot] * c->record_size;
+        uint8_t const *record = c->records_base + c->index[slot] * c->record_size;
         if (Stb_DbcCacheField(c, record, field) == key) return c->index[slot];
         slot = (slot + 1) & (c->index_capacity - 1);
     }
     return -1;
 }
 
-static inline int Stb_DbcCacheFindID(stbDbcCache_t *c, DWORD id, stbDbcIO_t const *io) {
+static inline int Stb_DbcCacheFindID(stbDbcCache_t *c, uint32_t id, stbDbcIO_t const *io) {
     return Stb_DbcCacheFindKey(c, 0, id, io);
 }
 
 /* Fill NULL string pointers with "" (some consumers index [0] directly). */
-static inline void Stb_DbcNormalizeStrings(void *rows, DWORD count, DWORD stride,
-                                           stbDbcField_t const *schema, DWORD schema_count) {
+static inline void Stb_DbcNormalizeStrings(void *rows, uint32_t count, uint32_t stride,
+                                           stbDbcField_t const *schema, uint32_t schema_count) {
     FOR_LOOP(f, schema_count) if (schema[f].type == STB_DBC_STR) {
-        DWORD n = schema[f].count ? schema[f].count : 1;
+        uint32_t n = schema[f].count ? schema[f].count : 1;
         FOR_LOOP(e, n) FOR_LOOP(i, count) {
-            LPCSTR *p = (LPCSTR *)((BYTE *)rows + i * stride + schema[f].offset + e * sizeof(LPCSTR));
+            cstring_t *p = (cstring_t *)((uint8_t *)rows + i * stride + schema[f].offset + e * sizeof(cstring_t));
             if (!*p) *p = "";
         }
     }

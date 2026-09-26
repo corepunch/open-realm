@@ -16,7 +16,7 @@ typedef struct {
     uiFramePointPos_t point;
     LPCFRAMEDEF relative;
     uiFramePointPos_t target;
-    FLOAT offset;
+    float offset;
 } timerDialogPointParams_t;
 
 static void TimerDialogSetHorizontalPoint(timerDialogPointParams_t const *params) {
@@ -30,19 +30,19 @@ static void TimerDialogSetHorizontalPoint(timerDialogPointParams_t const *params
     params->frame->AnyPointsSet = true;
 }
 
-static DWORD TimerDialogMeasureFont(void) {
+static uint32_t TimerDialogMeasureFont(void) {
     LPFRAMEDEF title = hud.timer_dialog.TimerDialogTitle;
     LPFRAMEDEF value = hud.timer_dialog.TimerDialogValue;
     LPFRAMEDEF measure = title;
 
-    DWORD font;
+    uint32_t font;
 
     if (!measure || (value && value->Font.Size > measure->Font.Size)) measure = value;
     font = measure ? UI_LiveFont(measure->Font.Index) : 0;
     return font ? font : gi.FontIndex("Fonts\\FRIZQT__.TTF", HUD_FONT_SIZE);
 }
 
-static LPTIMERDIALOG UI_VisibleTimerDialog(DWORD player_num) {
+static LPTIMERDIALOG UI_VisibleTimerDialog(uint32_t player_num) {
     if (player_num >= MAX_CLIENTS) return NULL;
     FOR_LOOP(i, MAX_TIMERDIALOGS) {
         LPTIMERDIALOG dialog = &level.timer_dialogs[i];
@@ -51,7 +51,7 @@ static LPTIMERDIALOG UI_VisibleTimerDialog(DWORD player_num) {
     return NULL;
 }
 
-FLOAT UI_TimerDialogLeaderboardOffset(DWORD client_num) {
+float UI_TimerDialogLeaderboardOffset(uint32_t client_num) {
     if (!UI_VisibleTimerDialog(client_num) || !hud.timer_dialog.TimerDialog) return 0.0f;
     return hud.timer_dialog.TimerDialog->Height + BZ_WC3_HUD_TIMER_DIALOG_STACK_GAP;
 }
@@ -126,11 +126,11 @@ void UI_LoadHudTimerDialogs(void) {
 
 void UI_WriteTimerDialogs(LPEDICT ent) {
     LPTIMERDIALOG dialog;
-    LPCSTR title;
+    cstring_t title;
     char value[32];
     char measure[MAX_TRIGSTR_LENGTH + sizeof(value) + 8];
     uiSizeToTextParams_t size_params;
-    DWORD player_num;
+    uint32_t player_num;
 
     if (!ent || !ent->client) return;
     player_num = ent->client->ps.number;

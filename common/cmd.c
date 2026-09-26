@@ -8,21 +8,21 @@
 
 typedef struct cmd_function_s {
     struct cmd_function_s *next;
-    LPCSTR name;
+    cstring_t name;
     xcommand_t function;
 } cmd_function_t;
 
 static sizeBuf_t cmd_text;
-static BYTE cmd_text_buf[8192];
-static BYTE cmd_defer_buf[sizeof(cmd_text_buf)];
-static DWORD cmd_defer_size;
+static uint8_t cmd_text_buf[8192];
+static uint8_t cmd_defer_buf[sizeof(cmd_text_buf)];
+static uint32_t cmd_defer_size;
 static bool cmd_wait;
 static cmd_function_t *cmd_functions; // possible commands to execute
 static int cmd_argc;
 static char cmd_argv[MAX_CMD_TOKENS][MAX_CMD_TOKEN_CHARS];
 static char cmd_args[MAX_CMD_TOKEN_CHARS];
 
-static BOOL Cmd_NameMatches(LPCSTR name, LPCSTR partial) {
+static bool Cmd_NameMatches(cstring_t name, cstring_t partial) {
     size_t len;
 
     if (!name || !partial) {
@@ -32,8 +32,8 @@ static BOOL Cmd_NameMatches(LPCSTR name, LPCSTR partial) {
     return !strncasecmp(name, partial, len);
 }
 
-static void Cmd_CommonPrefix(LPSTR out, DWORD out_size, LPCSTR name) {
-    DWORD i;
+static void Cmd_CommonPrefix(string_t out, uint32_t out_size, cstring_t name) {
+    uint32_t i;
 
     if (!out || out_size == 0 || !name) {
         return;
@@ -51,7 +51,7 @@ static void Cmd_CommonPrefix(LPSTR out, DWORD out_size, LPCSTR name) {
 }
 
 static void Cmd_List_f(void) {
-    DWORD count = 0;
+    uint32_t count = 0;
 
     FOR_EACH_LIST(cmd_function_t, cmd, cmd_functions) {
         fprintf(stderr, "%s\n", cmd->name);
@@ -81,8 +81,8 @@ void Cbuf_Init(void) {
     Cmd_AddCommand("cmdlist", Cmd_List_f);
 }
 
-void Cbuf_AddText(LPCSTR text) {
-    DWORD l = (DWORD)strlen(text);
+void Cbuf_AddText(cstring_t text) {
+    uint32_t l = (uint32_t)strlen(text);
     if (cmd_text.cursize + l >= cmd_text.maxsize) {
         fprintf(stderr, "Cbuf_AddText: overflow\n");
         return;
@@ -119,17 +119,17 @@ void Cbuf_InsertFromDefer(void) {
     cmd_defer_size = 0;
 }
 
-static bool Cbuf_IsCommandLineSwitch(LPCSTR arg) {
+static bool Cbuf_IsCommandLineSwitch(cstring_t arg) {
     return arg && (arg[0] == '+' || arg[0] == '-') && arg[1] != '\0';
 }
 
-static void Cbuf_AddQuotedArg(LPCSTR arg) {
+static void Cbuf_AddQuotedArg(cstring_t arg) {
     bool quote = false;
 
     if (!arg) {
         return;
     }
-    for (LPCSTR p = arg; *p; p++) {
+    for (cstring_t p = arg; *p; p++) {
         if (isspace((unsigned char)*p) || *p == '"' || *p == ';') {
             quote = true;
             break;
@@ -140,7 +140,7 @@ static void Cbuf_AddQuotedArg(LPCSTR arg) {
         return;
     }
     Cbuf_AddText("\"");
-    for (LPCSTR p = arg; *p; p++) {
+    for (cstring_t p = arg; *p; p++) {
         if (*p == '"' || *p == '\\') {
             Cbuf_AddText("\\");
         }
@@ -163,7 +163,7 @@ void Cbuf_AddEarlyCommands(bool clear) {
     int argc = COM_Argc();
 
     for (int i = 1; i < argc; i++) {
-        LPCSTR arg = COM_Argv(i);
+        cstring_t arg = COM_Argv(i);
 
         if (!strcmp(arg, "+set") && i + 2 < argc) {
             Cvar_Set(COM_Argv(i + 1), COM_Argv(i + 2));
@@ -185,7 +185,7 @@ void Cbuf_AddEarlyCommands(bool clear) {
             continue;
         }
         if (arg[0] == '+' && Cvar_String(arg + 1, NULL) != NULL) {
-            LPCSTR value = "1";
+            cstring_t value = "1";
             int cmd_index = i;
 
             if (i + 1 < argc && !Cbuf_IsCommandLineSwitch(COM_Argv(i + 1))) {
@@ -216,7 +216,7 @@ bool Cbuf_AddLateCommands(void) {
     bool added = false;
 
     for (int i = 1; i < argc; i++) {
-        LPCSTR arg = COM_Argv(i);
+        cstring_t arg = COM_Argv(i);
 
         if (!arg[0] || arg[0] != '+') {
             continue;
@@ -233,16 +233,16 @@ bool Cbuf_AddLateCommands(void) {
     return added;
 }
 
-LPCSTR current_command = NULL;
+cstring_t current_command = NULL;
 
-static void Cmd_TokenizeString(LPCSTR text) {
-    LPCSTR p = text;
+static void Cmd_TokenizeString(cstring_t text) {
+    cstring_t p = text;
 
     cmd_argc = 0;
     cmd_args[0] = '\0';
     memset(cmd_argv, 0, sizeof(cmd_argv));
     while (p && *p && cmd_argc < MAX_CMD_TOKENS) {
-        LPSTR out;
+        string_t out;
         size_t len = 0;
 
         while (*p && isspace((unsigned char)*p)) {
@@ -282,14 +282,14 @@ int Cmd_Argc(void) {
     return cmd_argc;
 }
 
-LPCSTR Cmd_Argv(int arg) {
+cstring_t Cmd_Argv(int arg) {
     if (arg < 0 || arg >= cmd_argc) {
         return "";
     }
     return cmd_argv[arg];
 }
 
-LPCSTR Cmd_ArgsFrom(int arg) {
+cstring_t Cmd_ArgsFrom(int arg) {
     cmd_args[0] = '\0';
     for (int i = arg; i < cmd_argc; i++) {
         if (i > arg) {
@@ -300,8 +300,8 @@ LPCSTR Cmd_ArgsFrom(int arg) {
     return cmd_args;
 }
 
-void Cmd_ExecuteString(LPCSTR text) {
-    LPCSTR token;
+void Cmd_ExecuteString(cstring_t text) {
+    cstring_t token;
 
     Cmd_TokenizeString(text);
     if (!cmd_argc)
@@ -330,16 +330,16 @@ void Cmd_ExecuteString(LPCSTR text) {
 }
 
 void Cbuf_Execute(void) {
-    DWORD i;
-    LPSTR text;
+    uint32_t i;
+    string_t text;
     char line[1024];
-    DWORD quotes;
+    uint32_t quotes;
     bool comment;
 
     while (cmd_text.cursize) {
         // find a \n or ; line break
-        text = (LPSTR)cmd_text.data;
-        text = (LPSTR)cmd_text.data;
+        text = (string_t)cmd_text.data;
+        text = (string_t)cmd_text.data;
         quotes = 0;
         comment = false;
         for (i=0 ; i< cmd_text.cursize ; i++) {
@@ -381,7 +381,7 @@ void Cbuf_Execute(void) {
     }
 }
 
-bool Cmd_Exists(LPCSTR cmd_name) {
+bool Cmd_Exists(cstring_t cmd_name) {
     FOR_EACH_LIST(cmd_function_t, cmd, cmd_functions) {
         if (!strcmp(cmd_name, cmd->name)) {
             return true;
@@ -399,7 +399,7 @@ void Cmd_ForEachCommand(cmdListFunc_t func, void *userData) {
     }
 }
 
-int Cmd_CompleteCommand(LPCSTR partial, LPSTR out, DWORD out_size, bool print) {
+int Cmd_CompleteCommand(cstring_t partial, string_t out, uint32_t out_size, bool print) {
     int matches = 0;
     char common[MAX_CMD_TOKEN_CHARS];
 
@@ -424,7 +424,7 @@ int Cmd_CompleteCommand(LPCSTR partial, LPSTR out, DWORD out_size, bool print) {
     return matches;
 }
 
-void Cmd_AddCommand(LPCSTR cmd_name, xcommand_t function) {
+void Cmd_AddCommand(cstring_t cmd_name, xcommand_t function) {
     if (Cmd_Exists(cmd_name)) {
         fprintf(stderr, "Cmd_AddCommand: %s already defined\n", cmd_name);
         return;
@@ -435,7 +435,7 @@ void Cmd_AddCommand(LPCSTR cmd_name, xcommand_t function) {
     ADD_TO_LIST(cmd, cmd_functions);
 }
 
-void Cmd_RemoveCommand(LPCSTR cmd_name) {
+void Cmd_RemoveCommand(cstring_t cmd_name) {
     cmd_function_t **prev = &cmd_functions;
 
     FOR_EACH_LIST(cmd_function_t, cmd, cmd_functions) {

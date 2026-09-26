@@ -9,7 +9,7 @@
  * the one-shot fires exactly once. */
 void CL_EntityEvent(entityState_t const *ent) {
     if (!ent->event || !ent->sound) return;
-    LPCSTR path = cl.configstrings[CS_SOUNDS + ent->sound];
+    cstring_t path = cl.configstrings[CS_SOUNDS + ent->sound];
     if (path && path[0])
         S_PlaySoundAt(path, &ent->origin2);
 }

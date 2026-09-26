@@ -14,8 +14,8 @@ typedef struct LoadingSlot_s {
 } LoadingSlot_t;
 
 
-static inline BOOL LoadingSlot_Bind(LoadingSlot_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool LoadingSlot_Bind(LoadingSlot_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -33,7 +33,7 @@ static inline BOOL LoadingSlot_Bind(LoadingSlot_t *out, LPFRAMEDEF bind_root) {
     return ok;
 }
 
-static inline BOOL LoadingSlot_Load(LoadingSlot_t *out) {
+static inline bool LoadingSlot_Load(LoadingSlot_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\Glue\\Loading.fdf") &&
            LoadingSlot_Bind(out, UI_FindFrame("LoadingPlayerSlot"));

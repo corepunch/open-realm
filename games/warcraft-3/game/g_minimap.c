@@ -4,9 +4,9 @@
 #define WC3_DEFAULT_ALERT_PING_DURATION 1.0f
 
 /* Serialize transient minimap presentation for one connected client. */
-void G_SendMinimapPing(LPGAMECLIENT client, LPCVECTOR2 position, FLOAT duration, COLOR32 color, DWORD flags) {
+void G_SendMinimapPing(LPGAMECLIENT client, LPCVECTOR2 position, float duration, COLOR32 color, uint32_t flags) {
     LPEDICT clent;
-    LPCSTR model;
+    cstring_t model;
 
     if (!client || !position || duration <= 0.0f || !client->connected || !gi.MinimapPing) return;
     clent = G_GetPlayerEntityByNumber(client->ps.number);

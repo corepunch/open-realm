@@ -2,9 +2,9 @@
 #include "common/stb_slk.h"
 
 /* Read one value from a versioned comma-separated MiscData field. */
-static BOOL G_EnvironmentFogListValue(LPCSTR value, DWORD index, LPFLOAT out) {
+static bool G_EnvironmentFogListValue(cstring_t value, uint32_t index, float * out) {
     char *stop = NULL;
-    FLOAT parsed = 0.0f;
+    float parsed = 0.0f;
 
     if (!value || !out) return false;
     FOR_LOOP(i, index + 1) {
@@ -25,22 +25,22 @@ static BOOL G_EnvironmentFogListValue(LPCSTR value, DWORD index, LPFLOAT out) {
 }
 
 /* [DefaultZFog] is a singleton (index 0); [MenuZFog] is versioned. Try the expansion cell, retry the RoC cell. */
-static BOOL G_EnvironmentFogVersionedValue(LPCSTR value, DWORD index, DWORD fallback, LPFLOAT out) {
+static bool G_EnvironmentFogVersionedValue(cstring_t value, uint32_t index, uint32_t fallback, float * out) {
     if (G_EnvironmentFogListValue(value, index, out)) return true;
     return index != fallback && G_EnvironmentFogListValue(value, fallback, out);
 }
 
-BOOL G_EnvironmentFogDefault(wc3EnvironmentFogState_t *fog) {
+bool G_EnvironmentFogDefault(wc3EnvironmentFogState_t *fog) {
     if (!fog) return false;
     *fog = (wc3EnvironmentFogState_t){ .style = WC3_ENV_FOG_NONE };
-    DWORD const version = atoi(gi.CvarString("fs_expansion", "0")) != 0 ? 1u : 0u;
-    LPCSTR style_value = Stb_IniCacheFind(&game.config.misc, "DefaultZFog", "Style");
-    LPCSTR start_value = Stb_IniCacheFind(&game.config.misc, "DefaultZFog", "Start");
-    LPCSTR end_value = Stb_IniCacheFind(&game.config.misc, "DefaultZFog", "End");
-    LPCSTR density_value = Stb_IniCacheFind(&game.config.misc, "DefaultZFog", "Density");
-    LPCSTR color_value = Stb_IniCacheFind(&game.config.misc, "DefaultZFog", "Color");
-    FLOAT style = -1.0f;
-    FLOAT alpha = 255.0f, red = 0.0f, green = 0.0f, blue = 0.0f;
+    uint32_t const version = atoi(gi.CvarString("fs_expansion", "0")) != 0 ? 1u : 0u;
+    cstring_t style_value = Stb_IniCacheFind(&game.config.misc, "DefaultZFog", "Style");
+    cstring_t start_value = Stb_IniCacheFind(&game.config.misc, "DefaultZFog", "Start");
+    cstring_t end_value = Stb_IniCacheFind(&game.config.misc, "DefaultZFog", "End");
+    cstring_t density_value = Stb_IniCacheFind(&game.config.misc, "DefaultZFog", "Density");
+    cstring_t color_value = Stb_IniCacheFind(&game.config.misc, "DefaultZFog", "Color");
+    float style = -1.0f;
+    float alpha = 255.0f, red = 0.0f, green = 0.0f, blue = 0.0f;
 
     if (!G_EnvironmentFogVersionedValue(style_value, version, 0, &style)) {
         fprintf(stderr, "WC3: DefaultZFog.Style is missing version %u\n", (unsigned)version);
@@ -63,7 +63,7 @@ BOOL G_EnvironmentFogDefault(wc3EnvironmentFogState_t *fog) {
         fprintf(stderr, "WC3: DefaultZFog is incomplete for version %u\n", (unsigned)version);
         return false;
     }
-    fog->style = (LONG)style + 1;
+    fog->style = (int32_t)style + 1;
     (void)alpha; /* viewDef currently carries RGB only. */
     fog->color = (VECTOR3){ red / 255.0f, green / 255.0f, blue / 255.0f };
     return true;

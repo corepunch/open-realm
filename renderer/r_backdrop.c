@@ -12,9 +12,9 @@
 
 #define NUM_BACKDROP_CORNERS 8
 
-static void backdrop_rects(LPCRECT screen, LPRECT rects, FLOAT corner_size) {
-    FLOAT x[] = { 0, corner_size, screen->w - corner_size, screen->w };
-    FLOAT y[] = { 0, corner_size, screen->h - corner_size, screen->h };
+static void backdrop_rects(rect_t const * screen, rect_t * rects, float corner_size) {
+    float x[] = { 0, corner_size, screen->w - corner_size, screen->w };
+    float y[] = { 0, corner_size, screen->h - corner_size, screen->h };
     FOR_LOOP(i, BACKDROP_SIZE) {
         rects[i].x = screen->x + x[i % 3];
         rects[i].y = screen->y + y[i / 3];
@@ -23,7 +23,7 @@ static void backdrop_rects(LPCRECT screen, LPRECT rects, FLOAT corner_size) {
     }
 }
 
-static FLOAT backdrop_edge_tile(LPCRECT rect, BACKDROPCORNER edge, FLOAT imagesize) {
+static float backdrop_edge_tile(rect_t const * rect, BACKDROPCORNER edge, float imagesize) {
     switch (edge) {
         case BACKDROP_LEFT_EDGE:
         case BACKDROP_RIGHT_EDGE:
@@ -36,34 +36,34 @@ static FLOAT backdrop_edge_tile(LPCRECT rect, BACKDROPCORNER edge, FLOAT imagesi
     }
 }
 
-static BOOL backdrop_edge_flip(BACKDROPCORNER edge) {
+static bool backdrop_edge_flip(BACKDROPCORNER edge) {
     return edge == BACKDROP_TOP_EDGE || edge == BACKDROP_BOTTOM_EDGE;
 }
 
-static RECT backdrop_edge_uv(BACKDROPCORNER c, FLOAT tile, int idx, BOOL wow) {
+static rect_t backdrop_edge_uv(BACKDROPCORNER c, float tile, int idx, bool wow) {
     if (wow) {
         switch (c) {
-            case BACKDROP_LEFT_EDGE:   return (RECT){ 0.0f, 0.0f, 0.5f, tile };
-            case BACKDROP_RIGHT_EDGE:  return (RECT){ 0.5f, 0.0f, 0.5f, tile };
-            case BACKDROP_TOP_EDGE:    return (RECT){ 0.0f, 0.0f, tile, 0.5f };
-            case BACKDROP_BOTTOM_EDGE: return (RECT){ 0.0f, 0.5f, tile, 0.5f };
-            case BACKDROP_TOP_LEFT_CORNER:     return (RECT){ 0.0f, 0.0f, 0.5f, 0.5f };
-            case BACKDROP_TOP_RIGHT_CORNER:    return (RECT){ 0.5f, 0.0f, 0.5f, 0.5f };
-            case BACKDROP_BOTTOM_LEFT_CORNER:  return (RECT){ 0.0f, 0.5f, 0.5f, 0.5f };
-            case BACKDROP_BOTTOM_RIGHT_CORNER: return (RECT){ 0.5f, 0.5f, 0.5f, 0.5f };
-            default: return (RECT){ 0, 0, 1, 1 };
+            case BACKDROP_LEFT_EDGE:   return (rect_t){ 0.0f, 0.0f, 0.5f, tile };
+            case BACKDROP_RIGHT_EDGE:  return (rect_t){ 0.5f, 0.0f, 0.5f, tile };
+            case BACKDROP_TOP_EDGE:    return (rect_t){ 0.0f, 0.0f, tile, 0.5f };
+            case BACKDROP_BOTTOM_EDGE: return (rect_t){ 0.0f, 0.5f, tile, 0.5f };
+            case BACKDROP_TOP_LEFT_CORNER:     return (rect_t){ 0.0f, 0.0f, 0.5f, 0.5f };
+            case BACKDROP_TOP_RIGHT_CORNER:    return (rect_t){ 0.5f, 0.0f, 0.5f, 0.5f };
+            case BACKDROP_BOTTOM_LEFT_CORNER:  return (rect_t){ 0.0f, 0.5f, 0.5f, 0.5f };
+            case BACKDROP_BOTTOM_RIGHT_CORNER: return (rect_t){ 0.5f, 0.5f, 0.5f, 0.5f };
+            default: return (rect_t){ 0, 0, 1, 1 };
         }
     }
     /* WC3: 8 equal horizontal strips */
-    FLOAT const k = 1.0f / NUM_BACKDROP_CORNERS;
-    return (RECT){ idx * k, 0, k, tile };
+    float const k = 1.0f / NUM_BACKDROP_CORNERS;
+    return (rect_t){ idx * k, 0, k, tile };
 }
 
 void R_DrawBackdrop(LPCDRAWBACKDROP db) {
-    RECT rects[BACKDROP_SIZE];
-    RECT background;
+    rect_t rects[BACKDROP_SIZE];
+    rect_t background;
     VERTEX vertices[(1 + NUM_BACKDROP_CORNERS) * 6];
-    DWORD num_vertices;
+    uint32_t num_vertices;
     BACKDROPCORNER const corners[NUM_BACKDROP_CORNERS] = {
         BACKDROP_LEFT_EDGE,
         BACKDROP_RIGHT_EDGE,
@@ -75,7 +75,7 @@ void R_DrawBackdrop(LPCDRAWBACKDROP db) {
         BACKDROP_BOTTOM_RIGHT_CORNER,
     };
     size2_t backSize, edgeSize;
-    BOOL const wow = (db->flags & DRAW_EDGE_2X2) != 0;
+    bool const wow = (db->flags & DRAW_EDGE_2X2) != 0;
 
     if (!db || (!db->bg.texture && !db->edge.texture)) {
         return;
@@ -93,7 +93,7 @@ void R_DrawBackdrop(LPCDRAWBACKDROP db) {
         background.w -= db->insets.left + db->insets.right;
         background.h -= db->insets.top + db->insets.bottom;
 
-        RECT bg_uv = { 0, 0, 1, 1 };
+        rect_t bg_uv = { 0, 0, 1, 1 };
         if ((db->flags & DRAW_TILE) && backSize.width > 0 && backSize.height > 0) {
             bg_uv.w = background.w / (backSize.width / 1000.f);
             bg_uv.h = background.h / (backSize.height / 1000.f);
@@ -116,7 +116,7 @@ void R_DrawBackdrop(LPCDRAWBACKDROP db) {
     /* --- edge/corner quads (batched into one drawcall) --- */
     if (db->edge.texture) {
         edgeSize = R_GetTextureSize(db->edge.texture);
-        BOOL edge_repeat = false;
+        bool edge_repeat = false;
 
         num_vertices = 0;
         FOR_LOOP(i, NUM_BACKDROP_CORNERS) {
@@ -124,11 +124,11 @@ void R_DrawBackdrop(LPCDRAWBACKDROP db) {
             if ((db->corner.flags & (1 << c)) == 0)
                 continue;
 
-            FLOAT tile;
+            float tile;
             if (wow) {
                 /* WoW 2×2 quadrant: edges tile by their strip dimension */
-                FLOAT const half_h = edgeSize.height * 0.5f / 1000.f;
-                FLOAT const full_w = edgeSize.width / 1000.f;
+                float const half_h = edgeSize.height * 0.5f / 1000.f;
+                float const full_w = edgeSize.width / 1000.f;
                 if (c == BACKDROP_LEFT_EDGE || c == BACKDROP_RIGHT_EDGE)
                     tile = half_h > 0 ? ceilf(rects[c].h / half_h) : 1;
                 else if (c == BACKDROP_TOP_EDGE || c == BACKDROP_BOTTOM_EDGE)
@@ -136,12 +136,12 @@ void R_DrawBackdrop(LPCDRAWBACKDROP db) {
                 else
                     tile = 1;
             } else {
-                FLOAT const h = edgeSize.height / 1000.f;
+                float const h = edgeSize.height / 1000.f;
                 tile = backdrop_edge_tile(rects + c, c, h);
             }
 
-            RECT const uv = backdrop_edge_uv(c, tile, i, wow);
-            BOOL const flip = !wow && backdrop_edge_flip(c);
+            rect_t const uv = backdrop_edge_uv(c, tile, i, wow);
+            bool const flip = !wow && backdrop_edge_flip(c);
 
             if (tile > 1.0f) edge_repeat = true;
             R_AddQuad(vertices + num_vertices, rects + c, &uv, db->edge.color, 0);

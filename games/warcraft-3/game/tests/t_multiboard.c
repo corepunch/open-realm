@@ -3,7 +3,7 @@
 #include "../g_local.h"
 #include <string.h>
 
-BOOL run_test_jass(LPCSTR src);
+bool run_test_jass(cstring_t src);
 void setup_test_world(void);
 extern LPPLAYER currentplayer;
 

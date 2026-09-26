@@ -11,7 +11,7 @@ static void disease_tick(LPEDICT target, heroabilitystatus_t *slot) {
         return;
     }
     while (slot->level && slot->next_tick <= G_Time() && slot->next_tick < slot->timestamp) {
-        DWORD code = slot->data, rank = slot->rank;
+        uint32_t code = slot->data, rank = slot->rank;
         /* T_Damage updates statuses too: advance before damage to prevent recursive ticks. */
         slot->next_tick += DISEASE_TICK_MS;
         S_SpellDamage(target, source, (int)S_SpellData(code, rank, 2));
@@ -23,7 +23,7 @@ static void disease_tick(LPEDICT target, heroabilitystatus_t *slot) {
 BZ_ABILITY_PROC(CAbilityDiseaseCloud) {
     abilityAliasRef_t ability;
     abilityLevel_t const *row;
-    LPCSTR buff;
+    cstring_t buff;
     if (msg == A_STATUS_TICK && call && call->status.slot) { disease_tick(ent, call->status.slot); return true; }
     if (msg == A_STATUS_DEATH && call && call->status.slot) { unit_expirestatus(ent, call->status.slot); return true; }
     if (msg != A_UPDATE || !S_AuraUnitActive(ent)) return CAbilityPassive(ent, msg, call);
@@ -44,7 +44,7 @@ BZ_ABILITY_PROC(CAbilityDiseaseCloud) {
             slot->source = ent; slot->source_spawn_time = ent->spawn_time;
             slot->next_tick = G_Time() + DISEASE_TICK_MS;
         } else if (slot->source == ent && slot->source_spawn_time == ent->spawn_time) {
-            slot->timestamp = G_Time() + (DWORD)(row->data[0].number * 1000.0f);
+            slot->timestamp = G_Time() + (uint32_t)(row->data[0].number * 1000.0f);
         }
     }
     return true;

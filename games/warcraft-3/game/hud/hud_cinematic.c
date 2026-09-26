@@ -43,9 +43,9 @@ void UI_LoadHudMessage(void) {
 }
 
 /* Copy the constructed frame so one player's runtime text/position never mutates the shared template. */
-static FRAMEDEF MessageFrame(LPCVECTOR2 pos, LPCSTR message) {
+static FRAMEDEF MessageFrame(LPCVECTOR2 pos, cstring_t message) {
     FRAMEDEF frame = hud.msg_text;
-    frame.Text = (LPSTR)message;
+    frame.Text = (string_t)message;
     frame.TextLength = strlen(message);
     /* WC3 DisplayTextToPlayer standard position is center-left (y=0.30 from screen top).
      * JASS y=0 is the baseline; positive y shifts the text upward.
@@ -55,7 +55,7 @@ static FRAMEDEF MessageFrame(LPCVECTOR2 pos, LPCSTR message) {
     return frame;
 }
 
-static BOOL HasTransmission(LPGAMECLIENT client) {
+static bool HasTransmission(LPGAMECLIENT client) {
     LPPLAYER ps;
 
     if (!client) return false;
@@ -65,12 +65,12 @@ static BOOL HasTransmission(LPGAMECLIENT client) {
            (ps->texts[PLAYERTEXT_DIALOGUE] && ps->texts[PLAYERTEXT_DIALOGUE][0]);
 }
 
-static BOOL TransmissionTalking(LPGAMECLIENT client) {
+static bool TransmissionTalking(LPGAMECLIENT client) {
     return client && client->cinematic_voice_end_time &&
            G_Time() < client->cinematic_voice_end_time;
 }
 
-static void WriteMessageLayer(LPEDICT ent, LPCVECTOR2 pos, LPCSTR message) {
+static void WriteMessageLayer(LPEDICT ent, LPCVECTOR2 pos, cstring_t message) {
     FRAMEDEF frame;
 
     if (!ent || !hud.msg_text.Name[0]) return;
@@ -115,8 +115,8 @@ static void WriteGameplayTransmissionPortrait(LPEDICT ent) {
 }
 
 /* Format the active transmission exactly as it appears in the gameplay message layer. */
-static void format_gameplay_transmission_message(LPGAMECLIENT client, LPSTR message, size_t size) {
-    LPCSTR speaker, dialogue;
+static void format_gameplay_transmission_message(LPGAMECLIENT client, string_t message, size_t size) {
+    cstring_t speaker, dialogue;
 
     if (!message || !size) return;
     message[0] = '\0';
@@ -150,7 +150,7 @@ static void WriteGameplayTransmissionMessage(LPEDICT ent) {
     WriteMessageLayer(ent, NULL, UI_FormatMessageText(message));
 }
 
-void UI_ClearLayer(LPEDICT ent, DWORD layer) {
+void UI_ClearLayer(LPEDICT ent, uint32_t layer) {
     if (!ent) return;
     UI_WriteStart(layer);
     UI_WriteEnd(ent);
@@ -191,7 +191,7 @@ void UI_WriteDialoguePresentation(LPEDICT ent) {
     }
 }
 
-void UI_ShowInterface(LPEDICT ent, BOOL flag, FLOAT duration) {
+void UI_ShowInterface(LPEDICT ent, bool flag, float duration) {
     (void)duration;
     if (!ent || !ent->client) return;
     ent->client->ps.client_ui_state = flag ? CLIENT_UI_GAME : CLIENT_UI_CINEMATIC;
@@ -208,10 +208,10 @@ void UI_ShowGameInterface(LPEDICT ent) {
         ent->client->presentation_dirty = false;
 }
 
-static void UI_ShowTextInternal(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration,
-                                BOOL record_in_log) {
+static void UI_ShowTextInternal(LPEDICT ent, LPCVECTOR2 pos, cstring_t text, float duration,
+                                bool record_in_log) {
     LPGAMECLIENT client;
-    LPCSTR resolved, message;
+    cstring_t resolved, message;
 
     if (!ent || !ent->client) return;
     /* G_LoadMap eagerly binds the HUD, but JASS tests and startup callbacks can
@@ -223,14 +223,14 @@ static void UI_ShowTextInternal(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT 
     message = UI_FormatMessageText(resolved);
 
     if (duration < 0.0f)
-        duration = (FLOAT)strlen(resolved) / WC3_MESSAGE_CHARS_PER_SECOND + WC3_MESSAGE_BASE_DURATION;
+        duration = (float)strlen(resolved) / WC3_MESSAGE_CHARS_PER_SECOND + WC3_MESSAGE_BASE_DURATION;
     if (duration <= 0.0f) {
         UI_ClearTextMessages(ent);
         return;
     }
 
     client->message.position = pos ? *pos : MAKE(VECTOR2, 0.05f, 0.0f);
-    client->message.end_time = G_Time() + MAX(1u, (DWORD)(duration * 1000.0f));
+    client->message.end_time = G_Time() + MAX(1u, (uint32_t)(duration * 1000.0f));
     snprintf(client->message.text, sizeof(client->message.text), "%s", message);
     if (record_in_log) UI_MessageLogAppend(ent, client->message.text);
 
@@ -241,11 +241,11 @@ static void UI_ShowTextInternal(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT 
     UI_InvalidateDialoguePresentation(ent);
 }
 
-void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
+void UI_ShowText(LPEDICT ent, LPCVECTOR2 pos, cstring_t text, float duration) {
     UI_ShowTextInternal(ent, pos, text, duration, true);
 }
 
-void UI_ShowTransientText(LPEDICT ent, LPCVECTOR2 pos, LPCSTR text, FLOAT duration) {
+void UI_ShowTransientText(LPEDICT ent, LPCVECTOR2 pos, cstring_t text, float duration) {
     UI_ShowTextInternal(ent, pos, text, duration, false);
 }
 
@@ -274,10 +274,10 @@ void UI_WriteCinematicLayer(LPEDICT ent) {
         return;
     }
 
-    BOOL has_portrait = ps->cinematic_portrait != 0;
-    BOOL has_speaker = ps->texts[PLAYERTEXT_SPEAKER] && ps->texts[PLAYERTEXT_SPEAKER][0];
-    BOOL has_dialogue = ps->texts[PLAYERTEXT_DIALOGUE] && ps->texts[PLAYERTEXT_DIALOGUE][0];
-    BOOL has_scene = has_portrait || has_speaker || has_dialogue;
+    bool has_portrait = ps->cinematic_portrait != 0;
+    bool has_speaker = ps->texts[PLAYERTEXT_SPEAKER] && ps->texts[PLAYERTEXT_SPEAKER][0];
+    bool has_dialogue = ps->texts[PLAYERTEXT_DIALOGUE] && ps->texts[PLAYERTEXT_DIALOGUE][0];
+    bool has_scene = has_portrait || has_speaker || has_dialogue;
 
     /* Hide the whole scene panel only when there's nothing to show. */
     UI_SetHidden(hud.cinematic.CinematicScenePanel, !has_scene);

@@ -7,9 +7,9 @@
 
 /* World overlays use the centered, aspect-preserving area of WC3's square
  * minimap texture. */
-static inline RECT WC3_MinimapContentRect(LPCRECT frame, LPCVECTOR2 map_size) {
-    RECT content = frame ? *frame : (RECT){ 0 };
-    FLOAT world_size;
+static inline rect_t WC3_MinimapContentRect(rect_t const * frame, LPCVECTOR2 map_size) {
+    rect_t content = frame ? *frame : (rect_t){ 0 };
+    float world_size;
     if (!frame || !map_size || map_size->x <= 0.0f || map_size->y <= 0.0f) return content;
     world_size = MAX(map_size->x, map_size->y);
     content.w = frame->w * (map_size->x / world_size);
@@ -21,7 +21,7 @@ static inline RECT WC3_MinimapContentRect(LPCRECT frame, LPCVECTOR2 map_size) {
 
 /* Capture-calibrated sizes are UI-canvas units, not pixels. */
 static inline VECTOR2 wc3_minimap_marker_size(wc3MinimapContact_t contact) {
-    FLOAT size;
+    float size;
     switch (contact) {
     case WC3_MINIMAP_CONTACT_UNIT: size = 0.002f; break;
     case WC3_MINIMAP_CONTACT_BUILDING: size = 0.005f; break;
@@ -35,9 +35,9 @@ static inline VECTOR2 wc3_minimap_marker_size(wc3MinimapContact_t contact) {
     return MAKE(VECTOR2, size, size);
 }
 
-static inline RECT wc3_minimap_marker_rect(VECTOR2 const *point, wc3MinimapContact_t contact) {
+static inline rect_t wc3_minimap_marker_rect(VECTOR2 const *point, wc3MinimapContact_t contact) {
     VECTOR2 const size = wc3_minimap_marker_size(contact);
-    return point ? MAKE(RECT, point->x - size.x * 0.5f, point->y - size.y * 0.5f, size.x, size.y) : (RECT){ 0 };
+    return point ? MAKE(rect_t, point->x - size.x * 0.5f, point->y - size.y * 0.5f, size.x, size.y) : (rect_t){ 0 };
 }
 
 typedef enum {
@@ -49,8 +49,8 @@ typedef enum {
 } wc3MinimapColorKind_t;
 
 typedef struct {
-    DWORD owner, viewer, filter;
-    BOOL hostile;
+    uint32_t owner, viewer, filter;
+    bool hostile;
 } wc3MinimapColorParams_t;
 
 /* Selection's EF_NEUTRAL includes passive allies. Minimap relationship colors
@@ -66,7 +66,7 @@ static inline wc3MinimapColorKind_t wc3_minimap_ordinary_color_kind(wc3MinimapCo
     return WC3_MINIMAP_COLOR_ALLY_TEAL;
 }
 
-static inline LPCSTR wc3_minimap_skin_key(wc3MinimapContact_t contact) {
+static inline cstring_t wc3_minimap_skin_key(wc3MinimapContact_t contact) {
     switch (contact) {
     case WC3_MINIMAP_CONTACT_HERO: return "MinimapHeroTexture";
     case WC3_MINIMAP_CONTACT_GOLD_MINE: return "MinimapResourceTexture";
@@ -77,10 +77,10 @@ static inline LPCSTR wc3_minimap_skin_key(wc3MinimapContact_t contact) {
     }
 }
 
-static inline LPCSTR wc3_minimap_skin_texture_path(
-    stbIniCache_t const *theme, stbIniCache_t const *map_skin, LPCSTR key)
+static inline cstring_t wc3_minimap_skin_texture_path(
+    stbIniCache_t const *theme, stbIniCache_t const *map_skin, cstring_t key)
 {
-    LPCSTR value;
+    cstring_t value;
     if (!key || !*key) return NULL;
     value = map_skin ? Stb_IniCacheFind(map_skin, "CustomSkin", key) : NULL;
     if (value) return value;
@@ -90,10 +90,10 @@ static inline LPCSTR wc3_minimap_skin_texture_path(
 typedef struct {
     wc3MinimapContact_t contact;
     const char *key, *path;
-    BOOL map_override;
+    bool map_override;
 } wc3MinimapSpecialAsset_t;
 
-typedef void *(*wc3MinimapTextureLoadFn)(void *context, LPCSTR path);
+typedef void *(*wc3MinimapTextureLoadFn)(void *context, cstring_t path);
 
 static inline void *wc3_minimap_register_special_asset(
     wc3MinimapSpecialAsset_t const *asset, void *placeholder, void *context,
@@ -104,15 +104,15 @@ static inline void *wc3_minimap_register_special_asset(
     return loader ? loader(context, asset->path) : placeholder;
 }
 
-static inline DWORD wc3_minimap_special_assets(
+static inline uint32_t wc3_minimap_special_assets(
     stbIniCache_t const *theme, stbIniCache_t const *map_skin,
-    wc3MinimapSpecialAsset_t *assets, DWORD capacity)
+    wc3MinimapSpecialAsset_t *assets, uint32_t capacity)
 {
-    DWORD count = 0;
+    uint32_t count = 0;
     for (wc3MinimapContact_t contact = WC3_MINIMAP_CONTACT_HERO;
          contact <= WC3_MINIMAP_CONTACT_NEUTRAL_BUILDING; contact++) {
-        LPCSTR const key = wc3_minimap_skin_key(contact);
-        LPCSTR const override = key && map_skin ? Stb_IniCacheFind(map_skin, "CustomSkin", key) : NULL;
+        cstring_t const key = wc3_minimap_skin_key(contact);
+        cstring_t const override = key && map_skin ? Stb_IniCacheFind(map_skin, "CustomSkin", key) : NULL;
         if (assets && count < capacity) assets[count] = (wc3MinimapSpecialAsset_t){
             contact, key, wc3_minimap_skin_texture_path(theme, map_skin, key), override && *override
         };

@@ -20,31 +20,31 @@
 
 #pragma pack(push, 1)
 typedef struct {
-    DWORD dwID;
-    DWORD dwHeaderSize;
-    DWORD dwArchiveSize;
-    USHORT wFormatVersion;
-    USHORT wSectorSizeShift;
-    DWORD dwHashTablePos;
-    DWORD dwBlockTablePos;
-    DWORD dwHashTableSize;
-    DWORD dwBlockTableSize;
+    uint32_t dwID;
+    uint32_t dwHeaderSize;
+    uint32_t dwArchiveSize;
+    uint16_t wFormatVersion;
+    uint16_t wSectorSizeShift;
+    uint32_t dwHashTablePos;
+    uint32_t dwBlockTablePos;
+    uint32_t dwHashTableSize;
+    uint32_t dwBlockTableSize;
 } testMpqHeader_t;
 
 typedef struct {
-    DWORD dwNameHash1;
-    DWORD dwNameHash2;
-    USHORT wLocale;
-    BYTE bPlatform;
-    BYTE bFlags;
-    DWORD dwBlockIndex;
+    uint32_t dwNameHash1;
+    uint32_t dwNameHash2;
+    uint16_t wLocale;
+    uint8_t bPlatform;
+    uint8_t bFlags;
+    uint32_t dwBlockIndex;
 } testMpqHash_t;
 
 typedef struct {
-    DWORD dwBlockOffset;
-    DWORD dwBlockSize;
-    DWORD dwFileSize;
-    DWORD dwFlags;
+    uint32_t dwBlockOffset;
+    uint32_t dwBlockSize;
+    uint32_t dwFileSize;
+    uint32_t dwFlags;
 } testMpqBlock_t;
 #pragma pack(pop)
 
@@ -88,37 +88,37 @@ static const char *resolve_dota_path(int argc, char **argv)
 }
 
 /* Build an in-memory MPQ with one compressed+encrypted member and wSectorSizeShift>12. */
-static BYTE *build_large_sector_archive(DWORD *out_size, BYTE *expected, DWORD expected_size)
+static uint8_t *build_large_sector_archive(uint32_t *out_size, uint8_t *expected, uint32_t expected_size)
 {
     enum { HASH_SIZE = 16 };
     const char *name = "big.bin";
-    DWORD sector_table_bytes = 2 * sizeof(DWORD);
-    DWORD block_offset = sizeof(testMpqHeader_t);
-    DWORD block_size = sector_table_bytes + expected_size;
-    DWORD hash_pos = block_offset + block_size;
-    DWORD block_pos = hash_pos + HASH_SIZE * sizeof(testMpqHash_t);
-    DWORD archive_size = block_pos + sizeof(testMpqBlock_t);
-    BYTE *blob;
+    uint32_t sector_table_bytes = 2 * sizeof(uint32_t);
+    uint32_t block_offset = sizeof(testMpqHeader_t);
+    uint32_t block_size = sector_table_bytes + expected_size;
+    uint32_t hash_pos = block_offset + block_size;
+    uint32_t block_pos = hash_pos + HASH_SIZE * sizeof(testMpqHash_t);
+    uint32_t archive_size = block_pos + sizeof(testMpqBlock_t);
+    uint8_t *blob;
     testMpqHeader_t *hdr;
     testMpqHash_t *hashes;
     testMpqBlock_t *block;
-    DWORD *offsets;
-    BYTE *sector;
-    DWORD file_key;
-    DWORD slot;
-    DWORD i;
+    uint32_t *offsets;
+    uint8_t *sector;
+    uint32_t file_key;
+    uint32_t slot;
+    uint32_t i;
 
     if (expected_size != MPQ_LARGE_FILE_SIZE)
         fail("large-sector fixture size mismatch");
 
-    blob = (BYTE *)calloc(1, archive_size);
+    blob = (uint8_t *)calloc(1, archive_size);
     if (!blob)
         fail("calloc failed for large-sector archive");
 
     for (i = 0; i < expected_size; i++)
-        expected[i] = (BYTE)((i * 17u + 3u) & 0xFFu);
+        expected[i] = (uint8_t)((i * 17u + 3u) & 0xFFu);
     memcpy(expected, "W3E!", 4);
-    expected[expected_size - 1] = 0xA5; // trailing non-DWORD byte must survive encrypt/decrypt
+    expected[expected_size - 1] = 0xA5; // trailing non-uint32_t byte must survive encrypt/decrypt
 
     hdr = (testMpqHeader_t *)blob;
     hdr->dwID = 0x1A51504Du;
@@ -131,14 +131,14 @@ static BYTE *build_large_sector_archive(DWORD *out_size, BYTE *expected, DWORD e
     hdr->dwHashTableSize = HASH_SIZE;
     hdr->dwBlockTableSize = 1;
 
-    offsets = (DWORD *)(blob + block_offset);
+    offsets = (uint32_t *)(blob + block_offset);
     offsets[0] = sector_table_bytes;
     offsets[1] = sector_table_bytes + expected_size;
     sector = blob + block_offset + sector_table_bytes;
     memcpy(sector, expected, expected_size);
 
     file_key = Mpq_TestHashString(name, MPQ_HASH_FILE_KEY);
-    Mpq_TestEncryptBlock((BYTE *)offsets, sector_table_bytes, file_key - 1);
+    Mpq_TestEncryptBlock((uint8_t *)offsets, sector_table_bytes, file_key - 1);
     Mpq_TestEncryptBlock(sector, expected_size, file_key);
 
     hashes = (testMpqHash_t *)(blob + hash_pos);
@@ -157,14 +157,14 @@ static BYTE *build_large_sector_archive(DWORD *out_size, BYTE *expected, DWORD e
     hashes[slot].bPlatform = 0;
     hashes[slot].bFlags = 0;
     hashes[slot].dwBlockIndex = 0;
-    Mpq_TestEncryptBlock((BYTE *)hashes, HASH_SIZE * sizeof(*hashes), MPQ_KEY_HASH_TABLE);
+    Mpq_TestEncryptBlock((uint8_t *)hashes, HASH_SIZE * sizeof(*hashes), MPQ_KEY_HASH_TABLE);
 
     block = (testMpqBlock_t *)(blob + block_pos);
     block->dwBlockOffset = block_offset;
     block->dwBlockSize = block_size;
     block->dwFileSize = expected_size;
     block->dwFlags = MPQ_FILE_EXISTS | MPQ_FILE_COMPRESS | MPQ_FILE_ENCRYPTED;
-    Mpq_TestEncryptBlock((BYTE *)block, sizeof(*block), MPQ_KEY_BLOCK_TABLE);
+    Mpq_TestEncryptBlock((uint8_t *)block, sizeof(*block), MPQ_KEY_BLOCK_TABLE);
 
     *out_size = archive_size;
     return blob;
@@ -172,14 +172,14 @@ static BYTE *build_large_sector_archive(DWORD *out_size, BYTE *expected, DWORD e
 
 static void test_large_sector_archive(void)
 {
-    BYTE expected[MPQ_LARGE_FILE_SIZE];
-    BYTE *got;
-    BYTE *archive_data;
-    DWORD archive_size = 0;
-    DWORD bytes_read = 0;
-    HANDLE archive;
-    HANDLE file;
-    DWORD i;
+    uint8_t expected[MPQ_LARGE_FILE_SIZE];
+    uint8_t *got;
+    uint8_t *archive_data;
+    uint32_t archive_size = 0;
+    uint32_t bytes_read = 0;
+    handle_t archive;
+    handle_t file;
+    uint32_t i;
 
     archive_data = build_large_sector_archive(&archive_size, expected, sizeof(expected));
     if (!SFileOpenArchiveFromMemory(archive_data, archive_size, 0, &archive)) {
@@ -197,7 +197,7 @@ static void test_large_sector_archive(void)
         free(archive_data);
         fail("large-sector member has unexpected size");
     }
-    got = (BYTE *)malloc(sizeof(expected));
+    got = (uint8_t *)malloc(sizeof(expected));
     if (!got || !SFileReadFile(file, got, sizeof(expected), &bytes_read, NULL) || bytes_read != sizeof(expected)) {
         free(got);
         SFileCloseFile(file);
@@ -210,7 +210,7 @@ static void test_large_sector_archive(void)
         SFileCloseFile(file);
         SFileCloseArchive(archive);
         free(archive_data);
-        fail("large-sector member payload mismatch (including non-DWORD tail byte)");
+        fail("large-sector member payload mismatch (including non-uint32_t tail byte)");
     }
     /* Spot-check the undecrypted tail survived: last byte was size%4 leftover. */
     if (got[sizeof(expected) - 1] != 0xA5) {
@@ -237,10 +237,10 @@ static void test_large_sector_archive(void)
 
 static void test_dota_map_if_present(const char *dota_path)
 {
-    HANDLE archive;
-    HANDLE file;
-    BYTE magic[4];
-    DWORD bytes_read = 0;
+    handle_t archive;
+    handle_t file;
+    uint8_t magic[4];
+    uint32_t bytes_read = 0;
 
     if (!dota_path)
         return;
@@ -262,34 +262,34 @@ static void test_dota_map_if_present(const char *dota_path)
 
 int main(int argc, char **argv)
 {
-    static BYTE const adpcm_mono[] = { 0x40, 0, 0, 0x34, 0x12 };
-    static BYTE const adpcm_stereo[] = { 0x80, 0, 0, 0x34, 0x12, 0x78, 0x56 };
+    static uint8_t const adpcm_mono[] = { 0x40, 0, 0, 0x34, 0x12 };
+    static uint8_t const adpcm_stereo[] = { 0x80, 0, 0, 0x34, 0x12, 0x78, 0x56 };
     const char *mpq_path = resolve_mpq_path(argc, argv);
     const char *dota_path = resolve_dota_path(argc, argv);
-    HANDLE archive;
-    HANDLE file;
+    handle_t archive;
+    handle_t file;
     SFILE_FIND_DATA find_data;
-    HANDLE find;
-    DWORD bytes_read;
-    DWORD size_low;
-    DWORD size_high;
-    BYTE header[128];
-    LONG dist_hi;
+    handle_t find;
+    uint32_t bytes_read;
+    uint32_t size_low;
+    uint32_t size_high;
+    uint8_t header[128];
+    int32_t dist_hi;
     char out_path[] = "/tmp/openwarcraft3_mpq_extract.bin";
     struct stat st;
-    BYTE *map_buffer;
-    HANDLE map_file;
-    HANDLE map_archive;
-    HANDLE map_info;
-    HANDLE nested_map_info;
-    HANDLE owned_map_info;
-    DWORD map_size;
-    DWORD map_bytes_read;
-    DWORD sound_size;
-    DWORD riff_size;
-    BYTE *sound_data;
-    BYTE decoded[4];
-    DWORD decoded_size;
+    uint8_t *map_buffer;
+    handle_t map_file;
+    handle_t map_archive;
+    handle_t map_info;
+    handle_t nested_map_info;
+    handle_t owned_map_info;
+    uint32_t map_size;
+    uint32_t map_bytes_read;
+    uint32_t sound_size;
+    uint32_t riff_size;
+    uint8_t *sound_data;
+    uint8_t decoded[4];
+    uint32_t decoded_size;
 
     if (!Mpq_TestDecompressSector(adpcm_mono, sizeof(adpcm_mono), decoded, 2, &decoded_size) ||
         decoded_size != 2 || decoded[0] != 0x34 || decoded[1] != 0x12)
@@ -350,7 +350,7 @@ int main(int argc, char **argv)
         fail("SFileOpenFileEx failed for compressed unit sound");
     }
     sound_size = SFileGetFileSize(file, NULL);
-    sound_data = (BYTE *)malloc(sound_size);
+    sound_data = (uint8_t *)malloc(sound_size);
     if (!sound_data || !SFileReadFile(file, sound_data, sound_size, &bytes_read, NULL) || bytes_read != sound_size) {
         free(sound_data);
         SFileCloseFile(file);
@@ -403,7 +403,7 @@ int main(int argc, char **argv)
         fail("SFileOpenFileEx failed for nested map");
     }
     map_size = SFileGetFileSize(map_file, NULL);
-    map_buffer = (BYTE *)malloc(map_size);
+    map_buffer = (uint8_t *)malloc(map_size);
     if (!map_buffer) {
         SFileCloseFile(map_file);
         SFileCloseArchive(archive);
@@ -429,7 +429,7 @@ int main(int argc, char **argv)
     }
     SFileCloseFile(owned_map_info);
 
-    map_buffer = (BYTE *)malloc(map_size);
+    map_buffer = (uint8_t *)malloc(map_size);
     if (!map_buffer) {
         SFileCloseArchive(archive);
         fail("second malloc failed for nested map");

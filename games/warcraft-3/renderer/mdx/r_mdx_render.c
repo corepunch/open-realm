@@ -29,7 +29,7 @@ static void Matrix4_getLightMatrix(LPCVECTOR3 sunangles, LPCVECTOR3 target, floa
 }
 
 static bool
-R_GetModelCameraMatrix(mdxModel_t const *model, DWORD frame, float aspect, LPMATRIX4 output, LPVECTOR3 root)
+R_GetModelCameraMatrix(mdxModel_t const *model, uint32_t frame, float aspect, LPMATRIX4 output, LPVECTOR3 root)
 {
     if (!model || !model->cameras) {
         return false;
@@ -87,10 +87,10 @@ R_GetModelCameraMatrix(mdxModel_t const *model, DWORD frame, float aspect, LPMAT
     return true;
 }
 
-static BOOL R_UIAnimationRatio(LPCSTR anim, LPFLOAT ratio) {
-    LPCSTR marker;
+static bool R_UIAnimationRatio(cstring_t anim, float * ratio) {
+    cstring_t marker;
     char *end = NULL;
-    FLOAT value;
+    float value;
 
     if (!anim || !ratio) return false;
     marker = strrchr(anim, '@');
@@ -101,9 +101,9 @@ static BOOL R_UIAnimationRatio(LPCSTR anim, LPFLOAT ratio) {
     return true;
 }
 
-static DWORD R_UISequenceFrame(mdxSequence_t const *seq, LPCSTR anim, DWORD anim_time) {
-    DWORD seq_len, offset;
-    FLOAT ratio;
+static uint32_t R_UISequenceFrame(mdxSequence_t const *seq, cstring_t anim, uint32_t anim_time) {
+    uint32_t seq_len, offset;
+    float ratio;
 
     if (!seq) return 0;
     seq_len = seq->interval[1] - seq->interval[0];
@@ -111,14 +111,14 @@ static DWORD R_UISequenceFrame(mdxSequence_t const *seq, LPCSTR anim, DWORD anim
     if (!R_UIAnimationRatio(anim, &ratio))
         return seq->interval[0] + (anim_time % seq_len);
 
-    offset = (DWORD)floorf(ratio * (FLOAT)seq_len);
+    offset = (uint32_t)floorf(ratio * (float)seq_len);
     if (offset >= seq_len) offset = seq_len - 1;
     return seq->interval[0] + offset;
 }
 
-static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, LPCSTR anim) {
+static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, cstring_t anim) {
     mdxSequence_t const *seq = NULL;
-    LPCSTR sequence = anim;
+    cstring_t sequence = anim;
 
     if (!mdx) {
         return NULL;
@@ -135,7 +135,7 @@ static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, LPCSTR ani
             seq = &mdx->sequences[index];
         }
     } else if (anim && *anim) {
-        LPCSTR ratio = strchr(anim, '@');
+        cstring_t ratio = strchr(anim, '@');
         if (ratio) {
             char sequence_name[sizeof(mdxObjectName_t) + 1];
             size_t len = (size_t)(ratio - anim);
@@ -153,7 +153,7 @@ static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, LPCSTR ani
     if (!seq && mdx->cameras && anim &&
         (!strcmp(anim, "Stand") || !strcmp(anim, "Portrait") || !strcmp(anim, "Portrait Talk"))) {
         FOR_LOOP(i, mdx->num_sequences) {
-            LPCSTR name = mdx->sequences[i].name;
+            cstring_t name = mdx->sequences[i].name;
             size_t len = strlen("Portrait");
             if (!strncmp(name, "Portrait", len) && (name[len] == '\0' || name[len] == ' ' || name[len] == '-')) {
                 seq = &mdx->sequences[i];
@@ -165,7 +165,7 @@ static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, LPCSTR ani
     if (!seq && anim && *anim && mdx->sequences && mdx->num_sequences > 0) {
         static char last_missing[sizeof(mdxObjectName_t) + 1];
         char missing[sizeof(last_missing)];
-        LPCSTR ratio = strchr(anim, '@');
+        cstring_t ratio = strchr(anim, '@');
         size_t len = ratio ? (size_t)(ratio - anim) : strlen(anim);
 
         len = MIN(len, sizeof(missing) - 1);
@@ -183,7 +183,7 @@ static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, LPCSTR ani
     return seq;
 }
 
-bool MDLX_ExtractCamera(mdxModel_t const *model, DWORD frame, float aspect, LPMATRIX4 output, LPMATRIX4 light) {
+bool MDLX_ExtractCamera(mdxModel_t const *model, uint32_t frame, float aspect, LPMATRIX4 output, LPMATRIX4 light) {
     VECTOR3 root;
     VECTOR3 lightAngles = { 10, 270, 0 };
     bool ok = R_GetModelCameraMatrix(model, frame, aspect, output, &root);
@@ -193,7 +193,7 @@ bool MDLX_ExtractCamera(mdxModel_t const *model, DWORD frame, float aspect, LPMA
     return ok;
 }
 
-bool MDLX_SetEntityAnimationFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity) {
+bool MDLX_SetEntityAnimationFrame(LPCMODEL model, cstring_t anim, renderEntity_t *entity) {
     if (!model || !model->mdx || !entity) {
         return false;
     }
@@ -206,7 +206,7 @@ bool MDLX_SetEntityAnimationFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *e
      * zero-initialise their viewDef and call SetEntityAnimFrame before
      * RenderFrame, so tr.viewDef.time is still 0. Fall back to the wall clock
      * unless the animation string supplies an explicit @ratio. */
-    DWORD anim_time = tr.viewDef.time;
+    uint32_t anim_time = tr.viewDef.time;
     if (anim_time == 0) anim_time = SDL_GetTicks();
     entity->frame = R_UISequenceFrame(seq, anim, anim_time);
     entity->oldframe = entity->frame;
@@ -264,8 +264,8 @@ void MDLX_ReleaseSprites(mdxModel_t *model) {
 
 void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, COLOR32 tint) {
     LPCMODEL model = sprite->model;
-    LPCSTR anim = sprite->anim;
-    FLOAT x = sprite->x, y = sprite->y;
+    cstring_t anim = sprite->anim;
+    float x = sprite->x, y = sprite->y;
     renderEntity_t entity;
     viewDef_t viewdef;
     viewDef_t saved_viewdef;
@@ -288,7 +288,7 @@ void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, COLOR32 tint) {
     entity.tint = tint.a ? tint : COLOR32_WHITE;
     entity.frame = R_UISequenceFrame(seq, anim, tr.viewDef.time);
     entity.oldframe = entity.frame;
-    viewdef.scissor = (RECT) { 0, 0, 1, 1 };
+    viewdef.scissor = (rect_t) { 0, 0, 1, 1 };
     viewdef.num_entities = 1;
     viewdef.entities = &entity;
     viewdef.rdflags |= RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL;
@@ -296,7 +296,7 @@ void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, COLOR32 tint) {
 
     entity.flags |= RF_NO_FOGOFWAR | RF_NO_SHADOW | RF_NO_LIGHTING;
 
-    RECT screen = R_UISceneRect();
+    rect_t screen = R_UISceneRect();
     entity.origin = fdf_sprite_coords
         ? (VECTOR3){x, y, 0}
         : (VECTOR3){x, screen.y + screen.h - y, 0};
@@ -324,11 +324,11 @@ void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, COLOR32 tint) {
     tr.viewDef = saved_viewdef;
 }
 
-void MDLX_DrawSpriteTinted(LPCMODEL model, LPCSTR anim, float x, float y, COLOR32 tint) {
+void MDLX_DrawSpriteTinted(LPCMODEL model, cstring_t anim, float x, float y, COLOR32 tint) {
     MDLX_DrawSpriteInstance(&MAKE(drawSprite_t, .model = model, .anim = anim, .x = x, .y = y, .id = model), tint);
 }
 
-void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y) {
+void MDLX_DrawSprite(LPCMODEL model, cstring_t anim, float x, float y) {
     MDLX_DrawSpriteTinted(model, anim, x, y, COLOR32_WHITE);
 }
 

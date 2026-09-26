@@ -7,7 +7,7 @@
 
 #define MODEL_ATTACHMENT_PATH_LENGTH 0x100
 #define MDX_TEXTURE_PATH_LENGTH 260
-#define MDX_TEXTURE_RECORD_SIZE (sizeof(DWORD) + MDX_TEXTURE_PATH_LENGTH + sizeof(DWORD))
+#define MDX_TEXTURE_RECORD_SIZE (sizeof(uint32_t) + MDX_TEXTURE_PATH_LENGTH + sizeof(uint32_t))
 #define MDX_MAX_NODES 1024
 #define MDX_MATRIX_PALETTE BZ_BONE_PALETTE_MAX
 
@@ -81,11 +81,11 @@ typedef struct mdxBounds_s {
 } mdxBounds_t;
 
 typedef struct mdxVertexSkin_s {
-    BYTE skin[4];
-    BYTE boneWeight[4];
+    uint8_t skin[4];
+    uint8_t boneWeight[4];
 } mdxVertexSkin_t;
 
-typedef DWORD replaceableID_t;
+typedef uint32_t replaceableID_t;
 
 #define TEXREPL_NONE 0
 #define TEXREPL_TEAMCOLOR 1
@@ -93,9 +93,9 @@ typedef DWORD replaceableID_t;
 
 typedef struct mdxSequence_s {
     mdxObjectName_t name;
-    DWORD interval[2];
+    uint32_t interval[2];
     float movespeed;     // movement speed of the entity while playing this animation
-    DWORD flags;      // &1: non looping
+    uint32_t flags;      // &1: non looping
     float rarity;
     int syncpoint;
     mdxBounds_t bounds;
@@ -105,7 +105,7 @@ typedef struct mdxInfo_s {
     mdxObjectName_t name;
     mdxFileName_t animationFile;
     mdxBounds_t bounds;
-    DWORD blendTime;
+    uint32_t blendTime;
 } mdxInfo_t;
 
 typedef struct {
@@ -114,18 +114,18 @@ typedef struct {
 } mdxKeyFrame_t;
 
 typedef struct {
-    DWORD keyframeCount;
+    uint32_t keyframeCount;
     MODELKEYTRACKDATATYPE datatype;
     MODELKEYTRACKTYPE linetype;
-    DWORD globalSeqId;        // GLBS index or 0xFFFFFFFF if none
+    uint32_t globalSeqId;        // GLBS index or 0xFFFFFFFF if none
     mdxKeyFrame_t values[];
 } mdxKeyTrack_t;
 
 typedef struct mdxGeosetAnim_s {
     float staticAlpha;        // 0 is transparent, 1 is opaque
-    DWORD flags;           // &2: color
+    uint32_t flags;           // &2: color
     VECTOR3 staticColor;
-    DWORD geosetId;        // GEOS index or 0xFFFFFFFF if none
+    uint32_t geosetId;        // GEOS index or 0xFFFFFFFF if none
     mdxKeyTrack_t *alphas; // float
     mdxKeyTrack_t *colors; // vec3
     struct mdxGeosetAnim_s *next;
@@ -133,9 +133,9 @@ typedef struct mdxGeosetAnim_s {
 
 typedef struct mdxNode_s {
     mdxObjectName_t name;
-    DWORD node_id; // globally unique id, used as the index in the hierarchy. index into PIVT
-    DWORD parent_id; // parent MDLGENOBJECT's objectId or 0xFFFFFFFF if none
-    DWORD flags;
+    uint32_t node_id; // globally unique id, used as the index in the hierarchy. index into PIVT
+    uint32_t parent_id; // parent MDLGENOBJECT's objectId or 0xFFFFFFFF if none
+    uint32_t flags;
     mdxKeyTrack_t *translation; // vec3
     mdxKeyTrack_t *rotation; // quat
     mdxKeyTrack_t *scale; // vec3
@@ -143,8 +143,8 @@ typedef struct mdxNode_s {
 
 typedef struct mdxBone_s {
     mdxNode_t node;
-    DWORD geoset_id;
-    DWORD geoset_animation_id;
+    uint32_t geoset_id;
+    uint32_t geoset_animation_id;
     struct mdxBone_s *next;
 } mdxBone_t;
 
@@ -156,14 +156,14 @@ typedef struct mdxHelper_s {
 typedef struct mdxAttachment_s {
     mdxNode_t node;
     char path[MODEL_ATTACHMENT_PATH_LENGTH];
-    DWORD attachmentID;
+    uint32_t attachmentID;
     mdxKeyTrack_t *Visibility;
     struct mdxAttachment_s *next;
 } mdxAttachment_t;
 
 typedef struct mdxAttachmentPosition_s {
-    LPCSTR name;
-    LPCSTR path;
+    cstring_t name;
+    cstring_t path;
     VECTOR3 origin;
     MATRIX4 transform;
 } mdxAttachmentPosition_t;
@@ -204,14 +204,14 @@ typedef struct mdxCollisionShape_s {
 } mdxCollisionShape_t;
 
 typedef struct mdxGlobalSequence_s {
-    DWORD value;
+    uint32_t value;
 } mdxGlobalSequence_t;
 
 typedef struct mdxEvent_s {
     mdxNode_t node;
-    DWORD num_keys;
-    DWORD globalSeqId;
-    DWORD *keys;
+    uint32_t num_keys;
+    uint32_t globalSeqId;
+    uint32_t *keys;
     struct mdxEvent_s *next;
 } mdxEvent_t;
 
@@ -225,8 +225,8 @@ typedef struct mdxTexture_s {
 typedef struct mdxMaterialLayer_s {
     BLEND_MODE blendMode;
     mdxGeoFlags_t flags;
-    DWORD textureId;        // TEXS index or 0xFFFFFFFF for none
-    DWORD transformId;      // TXAN index or 0xFFFFFFFF for none
+    uint32_t textureId;        // TEXS index or 0xFFFFFFFF for none
+    uint32_t transformId;      // TXAN index or 0xFFFFFFFF for none
     int coordId;           // UAVS index or -1 for none, defines vertex buffer format coordId == -1 ? GxVBF_PN : GxVBF_PNT0
     float staticAlpha;
     mdxKeyTrack_t *alpha; // float
@@ -265,7 +265,7 @@ typedef struct mdxCamera_s {
 } mdxCamera_t;
 
 typedef struct {
-    DWORD start, end, repeat;
+    uint32_t start, end, repeat;
 } mdxParticleAnimation_t;
 
 enum {
@@ -277,7 +277,7 @@ enum {
     MDX_PRE2_FILTER_COUNT,
 };
 
-static inline BLEND_MODE MDLX_ParticleBlendMode(DWORD filter_mode) {
+static inline BLEND_MODE MDLX_ParticleBlendMode(uint32_t filter_mode) {
     switch (filter_mode) {
         case MDX_PRE2_FILTER_BLEND:       return BLEND_MODE_BLEND;
         case MDX_PRE2_FILTER_ADDITIVE:    return BLEND_MODE_ADD;
@@ -298,23 +298,23 @@ typedef struct mdxParticleEmitter_s {
     float EmissionRate;
     float Length;
     float Width;
-    DWORD FilterMode;
-    DWORD Rows;
-    DWORD Columns;
-    DWORD FrameFlags; /* PRE2 enum: 0 head, 1 tail, 2 both. */
+    uint32_t FilterMode;
+    uint32_t Rows;
+    uint32_t Columns;
+    uint32_t FrameFlags; /* PRE2 enum: 0 head, 1 tail, 2 both. */
     float TailLength;
     float Time;
     float SegmentColor[9];
-    BYTE Alpha[3];
+    uint8_t Alpha[3];
     float ParticleScaling[3];
     mdxParticleAnimation_t LifeSpanUVAnim;
     mdxParticleAnimation_t DecayUVAnim;
     mdxParticleAnimation_t TailUVAnim;
     mdxParticleAnimation_t TailDecayUVAnim;
-    DWORD TextureID;
-    DWORD Squirt;
-    DWORD PriorityPlane;
-    DWORD ReplaceableId;
+    uint32_t TextureID;
+    uint32_t Squirt;
+    uint32_t PriorityPlane;
+    uint32_t ReplaceableId;
 
     struct {
         mdxKeyTrack_t *Visibility;
@@ -340,7 +340,7 @@ typedef struct mdxRibbonEmitter_s {
     float heightAbove, heightBelow, alpha;
     VECTOR3 color;
     float lifespan;
-    DWORD textureSlot, emissionRate, rows, columns, materialId;
+    uint32_t textureSlot, emissionRate, rows, columns, materialId;
     float gravity;
     struct {
         mdxKeyTrack_t *Visibility;
@@ -354,9 +354,9 @@ typedef struct mdxRibbonEmitter_s {
 } mdxRibbonEmitter_t;
 
 typedef struct mdxRibbonInstance_s {
-    DWORD number, stamp, team;
+    uint32_t number, stamp, team;
     trail_t *trails; /* engine trails, one per emitter; game owns the per-model store */
-    DWORD ntrails;
+    uint32_t ntrails;
     struct mdxRibbonInstance_s *next;
 } mdxRibbonInstance_t;
 
@@ -366,8 +366,8 @@ typedef struct mdxRibbonInstance_s {
  * their lifespan instead of popping with the edict. */
 typedef struct mdxDetachedRibbon_s {
     struct mdxModel_s *model;
-    DWORD number; /* origin entity; dropped if that entity draws again */
-    DWORD emitter, materialId, columns, rows, slot, team;
+    uint32_t number; /* origin entity; dropped if that entity draws again */
+    uint32_t emitter, materialId, columns, rows, slot, team;
     float lifespan, gravity;
     trail_t trail;
     struct mdxDetachedRibbon_s *next;
@@ -403,22 +403,22 @@ typedef struct mdxGeoset_s {
     int num_matrixGroupSizes;
     int num_bounds;
     int num_texcoordChannels;    
-    DWORD vertexArrayBuffer;
-    DWORD indexofs; // bytes into the model-owned index buffer; indices remain geoset-local
+    uint32_t vertexArrayBuffer;
+    uint32_t indexofs; // bytes into the model-owned index buffer; indices remain geoset-local
     struct mdxGeoset_s *next;
 } mdxGeoset_t;
 
 typedef struct mdxSprite_s {
     void const *id, *scope;
-    DWORD time;
+    uint32_t time;
     mdxParticleEmitter_t *emitters;
     particleScene_t particles;
     struct mdxSprite_s *next;
 } mdxSprite_t;
 
 typedef struct mdxModel_s {
-    DWORD buffers[BZ_MDX_BUFFER_COUNT];
-    DWORD version;
+    uint32_t buffers[BZ_MDX_BUFFER_COUNT];
+    uint32_t version;
     mdxInfo_t info;
     mdxBounds_t bounds;
     mdxGeoset_t *geosets;
@@ -436,7 +436,7 @@ typedef struct mdxModel_s {
     mdxParticleEmitter_t *emitters;
     mdxRibbonEmitter_t *ribbons;
     mdxRibbonInstance_t *ribbon_states;
-    DWORD ribbon_tick; /* last frame the orphan sweep ran for this model */
+    uint32_t ribbon_tick; /* last frame the orphan sweep ran for this model */
     mdxSprite_t *sprites;
     mdxAttachment_t *attachments;
     mdxLight_t *lights;
@@ -457,49 +457,49 @@ typedef struct {
 extern mdlx_state_t mdlx;
 extern MATRIX4 node_matrices[MDX_MAX_NODES];
 
-mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, DWORD time);
-BOOL MDLX_EventKeyCrossed(mdxModel_t const *model, mdxEvent_t const *event, DWORD key, DWORD previous_frame, DWORD current_frame, DWORD previous_time, DWORD current_time);
-void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, DWORD time, HANDLE output);
-void MDLX_GetAnimatedColorTrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, DWORD time, LPVECTOR3 output);
+mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, uint32_t time);
+bool MDLX_EventKeyCrossed(mdxModel_t const *model, mdxEvent_t const *event, uint32_t key, uint32_t previous_frame, uint32_t current_frame, uint32_t previous_time, uint32_t current_time);
+void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, uint32_t time, handle_t output);
+void MDLX_GetAnimatedColorTrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, uint32_t time, LPVECTOR3 output);
 void MDLX_GetGeosetAnimationStaticColor(mdxGeosetAnim_t const *geosetAnim, LPVECTOR3 output);
-void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matrix, DWORD frame1, DWORD frame0);
-BOOL MDLX_EvaluateLight(mdxModel_t const *model, mdxLight_t const *light,
-                        LPCMATRIX4 model_matrix, DWORD frame, BOOL use_visibility,
+void MDLX_BindBoneMatrices(mdxModel_t const *model, LPCMATRIX4 model_matrix, uint32_t frame1, uint32_t frame0);
+bool MDLX_EvaluateLight(mdxModel_t const *model, mdxLight_t const *light,
+                        LPCMATRIX4 model_matrix, uint32_t frame, bool use_visibility,
                         LPRMODELLIGHT output);
-BOOL MDLX_SampleFirstLight(LPCMODEL model, FLOAT ratio, LPRMODELLIGHT output);
-mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, LPCSTR name);
-DWORD MDLX_CollectAttachmentPositions(mdxModel_t const *model, LPCMATRIX4 model_matrix,
-                                      DWORD frame, DWORD oldframe, LPCSTR prefix,
-                                      mdxAttachmentPosition_t *positions, DWORD max_positions);
+bool MDLX_SampleFirstLight(LPCMODEL model, float ratio, LPRMODELLIGHT output);
+mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, cstring_t name);
+uint32_t MDLX_CollectAttachmentPositions(mdxModel_t const *model, LPCMATRIX4 model_matrix,
+                                      uint32_t frame, uint32_t oldframe, cstring_t prefix,
+                                      mdxAttachmentPosition_t *positions, uint32_t max_positions);
 
-mdxModel_t *R_LoadModelMDLX(void *buffer, DWORD size);
+mdxModel_t *R_LoadModelMDLX(void *buffer, uint32_t size);
 void MDLX_Release(mdxModel_t *model);
 void MDX_BuildBuffers(mdxModel_t *model);
-void MDX_PackModelGeometry(mdxModel_t *model, LPVERTEX vertices, USHORT *indices);
+void MDX_PackModelGeometry(mdxModel_t *model, LPVERTEX vertices, uint16_t *indices);
 void MDLX_Init(void);
 void MDLX_Shutdown(void);
 void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, LPCMATRIX4 model_matrix);
 bool MDLX_TraceModel(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 intersection);
 bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, LPCLINE3 line, LPVECTOR3 intersection);
-bool MDLX_ExtractCamera(mdxModel_t const *model, DWORD frame, float aspect, LPMATRIX4 output, LPMATRIX4 light);
-bool MDLX_SetEntityAnimationFrame(LPCMODEL model, LPCSTR anim, renderEntity_t *entity);
+bool MDLX_ExtractCamera(mdxModel_t const *model, uint32_t frame, float aspect, LPMATRIX4 output, LPMATRIX4 light);
+bool MDLX_SetEntityAnimationFrame(LPCMODEL model, cstring_t anim, renderEntity_t *entity);
 void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, COLOR32 tint);
 void MDLX_ReleaseSprites(mdxModel_t *model);
-void MDLX_DrawSprite(LPCMODEL model, LPCSTR anim, float x, float y);
-void MDLX_DrawSpriteTinted(LPCMODEL model, LPCSTR anim, float x, float y, COLOR32 tint);
+void MDLX_DrawSprite(LPCMODEL model, cstring_t anim, float x, float y);
+void MDLX_DrawSpriteTinted(LPCMODEL model, cstring_t anim, float x, float y, COLOR32 tint);
 
-LPCTEXTURE MDLX_GetTexture(mdxModel_t const *, DWORD, DWORD, DWORD, LPCTEXTURE);
+LPCTEXTURE MDLX_GetTexture(mdxModel_t const *, uint32_t, uint32_t, uint32_t, LPCTEXTURE);
 void MDLX_RenderParticleEmitters(renderEntity_t const *, mdxModel_t const *, LPCMATRIX4);
 void MDLX_RenderRibbonEmitters(renderEntity_t const *, mdxModel_t const *, LPCMATRIX4);
-void MDLX_DrawRibbonVerts(mdxModel_t const *model, VERTEX *verts, DWORD nverts,
-                          mdxMaterial_t const *material, DWORD team);
-mdxMaterial_t *MDLX_MaterialAt(mdxModel_t const *model, DWORD id);
-DWORD MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix,
-                               mdxRibbonEmitter_t *ribbon, VERTEX *out, DWORD max);
+void MDLX_DrawRibbonVerts(mdxModel_t const *model, VERTEX *verts, uint32_t nverts,
+                          mdxMaterial_t const *material, uint32_t team);
+mdxMaterial_t *MDLX_MaterialAt(mdxModel_t const *model, uint32_t id);
+uint32_t MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, LPCMATRIX4 model_matrix,
+                               mdxRibbonEmitter_t *ribbon, VERTEX *out, uint32_t max);
 void MDLX_TickDetachedRibbons(void); /* once per frame from R_RenderModel: fade entity-less trails */
 void MDLX_ForgetRibbonModel(mdxModel_t *model); /* model release: drop registry entry and its orphans */
-DWORD MDLX_DetachedRibbonCount(void); /* headless lifecycle diagnostic; no material or GL state */
-BOOL MDLX_SetLayerBlend(mdxMaterialLayer_t const *layer, DWORD layerID);
+uint32_t MDLX_DetachedRibbonCount(void); /* headless lifecycle diagnostic; no material or GL state */
+bool MDLX_SetLayerBlend(mdxMaterialLayer_t const *layer, uint32_t layerID);
 void MDLX_ApplyLayerFlags(mdxMaterialLayer_t const *layer);
 
 #endif

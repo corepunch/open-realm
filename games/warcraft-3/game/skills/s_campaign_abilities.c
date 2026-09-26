@@ -1,28 +1,28 @@
 #include "s_skills.h"
 
 /* Campaign rawcodes keep their own spell descriptor so every lookup uses the campaign AbilityData row. */
-static LPCSTR campaign_buff(abilityitem_t const *spell, DWORD level) {
-    LPCSTR buff = G_AbilityLevel(spell->code, level)->buffID;
+static cstring_t campaign_buff(abilityitem_t const *spell, uint32_t level) {
+    cstring_t buff = G_AbilityLevel(spell->code, level)->buffID;
     return buff && strlen(buff) >= 4 ? buff : NULL;
 }
 
 static void campaign_status_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    LPCSTR buff = campaign_buff(spell, level);
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    cstring_t buff = campaign_buff(spell, level);
     if (st.entity && buff) unit_addtimedstatus(st.entity, buff, level, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
 }
 
 static void campaign_area_damage_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    DWORD damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    uint32_t damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && Vector2_distance(&target->s.origin2, &st.point) <= area)
         S_SpellDamage(target, caster, damage);
 }
 
 static void campaign_summon_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    DWORD level = S_SpellLevel(caster, spell->code), count = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
-    DWORD unit = S_SpellUnitId(spell->code, level); FLOAT duration = S_SpellDuration(spell->code, level, false);
+    uint32_t level = S_SpellLevel(caster, spell->code), count = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
+    uint32_t unit = S_SpellUnitId(spell->code, level); float duration = S_SpellDuration(spell->code, level, false);
     if (st.type == SPELL_TARGET_POINT) { FOR_LOOP(i, count) S_SummonAt(caster, unit, &st.point, duration); }
     else S_SummonUnits(caster, unit, count, duration);
 }
@@ -38,15 +38,15 @@ static void campaign_toggle_execute(LPEDICT caster, spellTarget_t st, abilityite
 BZ_SIMPLE_SPELL_PROC(AbilityAttributeModSkill) { campaign_toggle_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilitySpawnTentacle) { campaign_summon_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityAvatarCampaign) {
-    DWORD level = S_SpellLevel(caster, spell->code), form = S_SpellUnitId(spell->code, level);
+    uint32_t level = S_SpellLevel(caster, spell->code), form = S_SpellUnitId(spell->code, level);
     if (form) G_TransformUnitType(caster, form);
 }
 /* Dark Conversion consumes its victim only after publishing the spawned unit;
  * campaign JASS observes that summon and owns its final replacement/order. */
 BZ_SIMPLE_SPELL_PROC(AbilityDarkConversion) {
-    DWORD level = S_SpellLevel(caster, spell->code), unit = S_SpellUnitId(spell->code, level);
+    uint32_t level = S_SpellLevel(caster, spell->code), unit = S_SpellUnitId(spell->code, level);
     LPEDICT summon;
-    LPCSTR buff;
+    cstring_t buff;
 
     if (!caster || !st.entity || !unit) return;
     summon = S_SummonAt(caster, unit, &st.entity->s.origin2, 0.0f);
@@ -57,9 +57,9 @@ BZ_SIMPLE_SPELL_PROC(AbilityDarkConversion) {
 }
 BZ_SIMPLE_SPELL_PROC(AbilityShockwaveCampaign) { campaign_area_damage_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityWarStompCampaign) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level), duration = S_SpellDuration(spell->code, level, false);
-    DWORD damage = (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1));
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level), duration = S_SpellDuration(spell->code, level, false);
+    uint32_t damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1));
     FILTER_EDICTS(target, target != caster && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && target->targtype == TARG_GROUND && Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area) {
         S_SpellDamage(target, caster, damage);
         if (!M_IsDead(target) && duration > 0.0f) unit_addtimedstatus(target, "Bstu", 1, duration);
@@ -70,8 +70,8 @@ BZ_SIMPLE_SPELL_PROC(AbilitySpiritBeast) { campaign_summon_execute(caster, st, s
 BZ_SIMPLE_SPELL_PROC(AbilityReincarnationCampaign) { campaign_toggle_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityFeedbackCampaign) { campaign_toggle_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityAbolishMagic) {
-    DWORD level = S_SpellLevel(caster, spell->code), count = 0; FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    FILTER_EDICTS(target, count < (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1)) && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
+    uint32_t level = S_SpellLevel(caster, spell->code), count = 0; float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    FILTER_EDICTS(target, count < (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)) && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target) && Vector2_distance(&target->s.origin2, &st.point) <= area) {
         FOR_LOOP(i, MAX_UNIT_STATUSES) if (target->abilstatus[i].level && target->abilstatus[i].timestamp) memset(target->abilstatus + i, 0, sizeof(target->abilstatus[i]));
         count++;
     }
@@ -81,8 +81,8 @@ BZ_SIMPLE_SPELL_PROC(AbilitySubmergeRoyalGuard) { campaign_toggle_execute(caster
 BZ_SIMPLE_SPELL_PROC(AbilitySubmergeSnapDragon) { campaign_toggle_execute(caster, st, spell); }
 
 /* BuffID is "Bena,Beng"; index 0 is air, index 1 is ground. Empty ROC BuffID falls back to Bens. */
-static LPCSTR ensnare_buff_token(LPCSTR list, DWORD index) {
-    DWORD i = 0;
+static cstring_t ensnare_buff_token(cstring_t list, uint32_t index) {
+    uint32_t i = 0;
     if (!list) return NULL;
     for (;;) {
         if (strlen(list) < 4) return NULL;
@@ -93,8 +93,8 @@ static LPCSTR ensnare_buff_token(LPCSTR list, DWORD index) {
     }
 }
 
-static BOOL ensnare_is_flyer(LPCEDICT unit) {
-    LPCSTR movetp;
+static bool ensnare_is_flyer(LPCEDICT unit) {
+    cstring_t movetp;
     if (!unit) return false;
     if (unit->aiflags & AI_FLYING) return true;
     movetp = unit->data.UnitData ? unit->data.UnitData->moveTypeName : NULL;
@@ -112,13 +112,13 @@ static heroabilitystatus_t *ensnare_status(LPEDICT unit) {
     return NULL;
 }
 
-static FLOAT ensnare_authored_height(LPCEDICT unit) {
+static float ensnare_authored_height(LPCEDICT unit) {
     return unit && unit->data.UnitData ? unit->data.UnitData->moveHeight : 0.0f;
 }
 
 /* Apply DataA/B land: zero DataA snaps; otherwise start at DataB (else current/authored). */
-static void ensnare_begin_land(LPEDICT unit, DWORD spell_code, DWORD level) {
-    FLOAT adjust, height;
+static void ensnare_begin_land(LPEDICT unit, uint32_t spell_code, uint32_t level) {
+    float adjust, height;
     if (!unit || !ensnare_is_flyer(unit)) {
         if (unit) memset(&unit->ensnare, 0, sizeof(unit->ensnare));
         return;
@@ -140,7 +140,7 @@ static void ensnare_begin_land(LPEDICT unit, DWORD spell_code, DWORD level) {
     gi.LinkEntity(unit);
 }
 
-static void ensnare_set_height(LPEDICT unit, FLOAT height) {
+static void ensnare_set_height(LPEDICT unit, float height) {
     unit->unitinfo.FlyHeight = MAX(0.0f, height);
     M_CheckGround(unit);
     gi.LinkEntity(unit);
@@ -148,9 +148,9 @@ static void ensnare_set_height(LPEDICT unit, FLOAT height) {
 
 /* Advance land/rise owned by CAbilityEnsnare (AB_UPDATE). */
 static void ensnare_update(LPEDICT unit) {
-    FLOAT frac, target;
+    float frac, target;
     if (!unit || unit->ensnare.phase == ENSNARE_HEIGHT_NONE || unit->ensnare.adjust <= 0.0f) return;
-    frac = ((FLOAT)G_Time() - (FLOAT)unit->ensnare.start) / (unit->ensnare.adjust * 1000.0f);
+    frac = ((float)G_Time() - (float)unit->ensnare.start) / (unit->ensnare.adjust * 1000.0f);
     if (unit->ensnare.phase == ENSNARE_HEIGHT_LAND) {
         if (frac >= 1.0f) {
             ensnare_set_height(unit, 0.0f);
@@ -169,27 +169,27 @@ static void ensnare_update(LPEDICT unit) {
     }
 }
 
-BOOL S_StatusIsEnsnare(DWORD code) {
+bool S_StatusIsEnsnare(uint32_t code) {
     return code == MAKEFOURCC('B', 'e', 'n', 's') || code == MAKEFOURCC('B', 'e', 'n', 'a') ||
         code == MAKEFOURCC('B', 'e', 'n', 'g') || code == MAKEFOURCC('B','w','e','a') ||
         code == MAKEFOURCC('B','w','e','b');
 }
 
-BOOL S_UnitIsEnsnared(LPCEDICT unit) {
+bool S_UnitIsEnsnared(LPCEDICT unit) {
     if (unit) FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (S_StatusIsEnsnare(unit->abilstatus[i].code) && S_UnitHasStatus(unit, unit->abilstatus[i].code)) return true;
     return false;
 }
 
 /* DataC Melee Attack Range while the bind is active; 0 when not ensnared. */
-FLOAT S_EnsnareMeleeRange(LPCEDICT unit) {
+float S_EnsnareMeleeRange(LPCEDICT unit) {
     heroabilitystatus_t const *slot = ensnare_status((LPEDICT)unit);
     if (!slot || !slot->data) return 0.0f;
     return S_SpellData(slot->data, slot->level, 3);
 }
 
-static BOOL ensnare_authored_flyer(LPCEDICT unit) {
-    LPCSTR movetp = unit && unit->data.UnitData ? unit->data.UnitData->moveTypeName : NULL;
+static bool ensnare_authored_flyer(LPCEDICT unit) {
+    cstring_t movetp = unit && unit->data.UnitData ? unit->data.UnitData->moveTypeName : NULL;
     return movetp && !strcmp(movetp, "fly");
 }
 
@@ -227,7 +227,7 @@ static void ensnare_refresh(LPEDICT unit) {
  * expiry starts a gradual rise when DataA was non-zero; flight restores only
  * when no other Ensnare bind remains on the victim. */
 static void ensnare_remove(LPEDICT unit, heroabilitystatus_t const *expiring) {
-    FLOAT adjust, target;
+    float adjust, target;
     if (!unit || !expiring) return;
     /* Web and Ensnare share one height transition: removing either cannot release the other. */
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
@@ -249,8 +249,8 @@ static void ensnare_remove(LPEDICT unit, heroabilitystatus_t const *expiring) {
 }
 
 static void ensnare_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-    DWORD level = S_SpellLevel(caster, spell->code);
-    LPCSTR list, buff;
+    uint32_t level = S_SpellLevel(caster, spell->code);
+    cstring_t list, buff;
     heroabilitystatus_t *slot;
     (void)caster;
     if (!st.entity) return;
@@ -307,15 +307,15 @@ BZ_SIMPLE_SPELL_PROC(AbilitySummonQuilbeastCampaign) { campaign_summon_execute(c
 BZ_SIMPLE_SPELL_PROC(AbilitySummonMisha) { campaign_summon_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityStampedeCampaign) { campaign_summon_execute(caster, st, spell); }
 BZ_SIMPLE_SPELL_PROC(AbilityBattleRoar) {
-    DWORD level = S_SpellLevel(caster, spell->code); LPCSTR buff = campaign_buff(spell, level);
-    FLOAT area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
+    uint32_t level = S_SpellLevel(caster, spell->code); cstring_t buff = campaign_buff(spell, level);
+    float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsFriend(caster, target) && Vector2_distance(&target->s.origin2, &caster->s.origin2) <= area)
         if (buff) unit_addtimedstatus(target, buff, level, S_SpellDuration(spell->code, level, false));
 }
 BZ_SIMPLE_SPELL_PROC(AbilityStormBoltCampaign) {
-    DWORD level = S_SpellLevel(caster, spell->code);
+    uint32_t level = S_SpellLevel(caster, spell->code);
     if (!st.entity || !S_SpellIsAliveTarget(st.entity)) return;
-    S_SpellDamage(st.entity, caster, (DWORD)MAX(1.0f, S_SpellData(spell->code, level, 1)));
+    S_SpellDamage(st.entity, caster, (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 1)));
     if (!M_IsDead(st.entity)) unit_addtimedstatus(st.entity, "Bstu", 1, S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity)));
 }
 BZ_SIMPLE_SPELL_PROC(AbilityBreathOfFireCampaign) { campaign_area_damage_execute(caster, st, spell); }

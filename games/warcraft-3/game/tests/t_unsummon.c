@@ -5,12 +5,12 @@
 #define BZ_AUNS MAKEFOURCC('A', 'u', 'n', 's')
 #define BZ_BUNS MAKEFOURCC('B', 'u', 'n', 's')
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 void G_RunEntities(void);
-void CM_ProcessPathJobs(DWORD work_budget);
-void setup_test_pathmap(DWORD width, DWORD height, BYTE const *cells);
+void CM_ProcessPathJobs(uint32_t work_budget);
+void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
 
@@ -85,7 +85,7 @@ static LPEDICT uns_effect(LPEDICT building) {
     return NULL;
 }
 
-static void uns_tick(LPEDICT caster, DWORD count) {
+static void uns_tick(LPEDICT caster, uint32_t count) {
     FOR_LOOP(i, count) {
         LPEDICT thinker = uns_thinker(caster);
         if (!thinker) return;
@@ -151,7 +151,7 @@ TEST(wc3_spell, unsummon_approaches_before_starting_demolition) {
  * through the surrounding cells is blocked, Unsummon must cancel cleanly. */
 TEST(wc3_spell, unsummon_built_building_without_walkable_approach_cancels) {
     enum { UNS_MAP_W = 64, UNS_MAP_H = 64, UNS_FOOT_W = 8, UNS_FOOT_H = 8 };
-    static BYTE cells[UNS_MAP_W * UNS_MAP_H];
+    static uint8_t cells[UNS_MAP_W * UNS_MAP_H];
     UNSFIX fix;
     pathTex_t *pathtex;
 
@@ -210,7 +210,7 @@ TEST(wc3_spell, unsummon_interruption_while_approaching_preserves_target) {
 
 TEST(wc3_spell, unsummon_order_interruption_after_start_keeps_earned_refund) {
     UNSFIX fix;
-    USHORT gold;
+    uint16_t gold;
     uns_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
     uns_tick(fix.caster, 2);
@@ -337,7 +337,7 @@ TEST(wc3_spell, unsummon_building_destruction_refunds_queued_training) {
 
 TEST(wc3_spell, unsummon_rejects_invalid_targets_without_mana_spend) {
     UNSFIX fix;
-    FLOAT mana;
+    float mana;
     uns_setup(&fix);
     mana = fix.caster->mana.value;
 
@@ -353,7 +353,7 @@ TEST(wc3_spell, unsummon_rejects_invalid_targets_without_mana_spend) {
 
 TEST(wc3_spell, unsummon_reports_under_construction_from_command_strings) {
     UNSFIX fix;
-    FLOAT mana;
+    float mana;
 
     uns_setup(&fix);
     g_edicts[0].client = fix.client;
@@ -368,7 +368,7 @@ TEST(wc3_spell, unsummon_reports_under_construction_from_command_strings) {
 }
 
 TEST(wc3_save, unsummon_live_channel_thinker_round_trips) {
-    LPCSTR filename = "/tmp/openwarcraft3-unsummon-live.bin";
+    cstring_t filename = "/tmp/openwarcraft3-unsummon-live.bin";
     UNSFIX fix;
     LPEDICT thinker;
     uns_setup(&fix);

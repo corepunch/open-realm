@@ -11,31 +11,31 @@
 /* World markers are M2 models; GossipFrame BLPs are only dialog-list icons. */
 
 typedef struct {
-    DWORD display_id;
-    FLOAT min_radius;
-    FLOAT walk_speed;
+    uint32_t display_id;
+    float min_radius;
+    float walk_speed;
 } wowAmbientCreatureType_t;
 
 typedef struct {
-    DWORD display_id;
+    uint32_t display_id;
     PATHSTR model_path;
-    FLOAT scale;
-    FLOAT radius;
-    BOOL resolved;
-    BOOL failed;
+    float scale;
+    float radius;
+    bool resolved;
+    bool failed;
 } wowCreatureModelCache_t;
 
 /* CreatureDisplayInfo / CreatureModelData decode into file-shaped structs via the
  * shared schema table (common/stb_dbc.h); consumers read named fields, not raw
- * column offsets. Scale/collision are FLOAT columns. */
-typedef struct { DWORD id, model_id; FLOAT scale; } gCreatureDisplayInfoRec_t;
+ * column offsets. Scale/collision are float columns. */
+typedef struct { uint32_t id, model_id; float scale; } gCreatureDisplayInfoRec_t;
 static stbDbcField_t const creature_display_info_schema[] = {
     { 0, offsetof(gCreatureDisplayInfoRec_t, id),       STB_DBC_U32 },
     { 1, offsetof(gCreatureDisplayInfoRec_t, model_id), STB_DBC_U32 },
     { 4, offsetof(gCreatureDisplayInfoRec_t, scale),    STB_DBC_FLOAT },
 };
 
-typedef struct { DWORD id; LPCSTR model_name; FLOAT model_scale, collision_width; } gCreatureModelDataRec_t;
+typedef struct { uint32_t id; cstring_t model_name; float model_scale, collision_width; } gCreatureModelDataRec_t;
 static stbDbcField_t const creature_model_data_schema[] = {
     {  0, offsetof(gCreatureModelDataRec_t, id),              STB_DBC_U32 },
     {  2, offsetof(gCreatureModelDataRec_t, model_name),      STB_DBC_STR },
@@ -56,23 +56,23 @@ static wowAmbientCreatureType_t const wow_ambient_creature_types[] = {
 static wowCreatureModelCache_t wow_creature_model_cache[sizeof(wow_ambient_creature_types) /
                                                         sizeof(wow_ambient_creature_types[0])];
 
-static USHORT G_UnitNameConfigstring(LPCSTR name) {
+static uint16_t G_UnitNameConfigstring(cstring_t name) {
     char buf[ENT_NAME_SLOT_SIZE * ENT_NAMES_PER_CS];
     if (!name || !*name) return 0;
-    for (DWORD slot = 0; slot < CS_MAX_NAMES / ENT_NAMES_PER_CS; slot++) {
-        DWORD idx = CS_GENERAL + slot;
-        LPCSTR cs = gi.GetConfigstring(idx);
-        for (DWORD sub = 0; sub < ENT_NAMES_PER_CS; sub++) {
-            LPCSTR entry = cs ? cs + sub * ENT_NAME_SLOT_SIZE : NULL;
+    for (uint32_t slot = 0; slot < CS_MAX_NAMES / ENT_NAMES_PER_CS; slot++) {
+        uint32_t idx = CS_GENERAL + slot;
+        cstring_t cs = gi.GetConfigstring(idx);
+        for (uint32_t sub = 0; sub < ENT_NAMES_PER_CS; sub++) {
+            cstring_t entry = cs ? cs + sub * ENT_NAME_SLOT_SIZE : NULL;
             if (entry && !entity_name_slot_empty(entry)) {
                 if (entity_name_slot_equals(entry, name))
-                    return (USHORT)(slot * ENT_NAMES_PER_CS + sub + 1);
+                    return (uint16_t)(slot * ENT_NAMES_PER_CS + sub + 1);
                 continue;
             }
             entity_name_pool_prepare(buf, cs);
             entity_name_slot_store(buf, sub, name);
             gi.configstring(idx, buf);
-            return (USHORT)(slot * ENT_NAMES_PER_CS + sub + 1);
+            return (uint16_t)(slot * ENT_NAMES_PER_CS + sub + 1);
         }
     }
     fprintf(stderr, "G_UnitNameConfigstring: pool full for \"%s\"\n", name);
@@ -88,11 +88,11 @@ static LPCWOWCREATUREMODEL Wow_CreaturePrimaryModel(LPCWOWCREATURE creature) {
     return NULL;
 }
 
-static BOOL Wow_ResolveCreatureModel(DWORD display_id,
-                                     LPSTR model_path,
-                                     DWORD model_path_size,
-                                     FLOAT *scale,
-                                     FLOAT *radius) {
+static bool Wow_ResolveCreatureModel(uint32_t display_id,
+                                     string_t model_path,
+                                     uint32_t model_path_size,
+                                     float *scale,
+                                     float *radius) {
     int idx;
     gCreatureDisplayInfoRec_t const *display;
     gCreatureModelDataRec_t const *model;
@@ -128,11 +128,11 @@ static BOOL Wow_ResolveCreatureModel(DWORD display_id,
     return true;
 }
 
-static BOOL Wow_CachedCreatureModel(DWORD display_id,
-                                    LPSTR model_path,
-                                    DWORD model_path_size,
-                                    FLOAT *scale,
-                                    FLOAT *radius) {
+static bool Wow_CachedCreatureModel(uint32_t display_id,
+                                    string_t model_path,
+                                    uint32_t model_path_size,
+                                    float *scale,
+                                    float *radius) {
     FOR_LOOP(i, sizeof(wow_creature_model_cache) / sizeof(wow_creature_model_cache[0])) {
         wowCreatureModelCache_t *cache = &wow_creature_model_cache[i];
 
@@ -165,11 +165,11 @@ static BOOL Wow_CachedCreatureModel(DWORD display_id,
 }
 
 static void Wow_MonsterStart(LPEDICT ent,
-                             DWORD display_id,
+                             uint32_t display_id,
                              LPCVECTOR2 home,
-                             FLOAT yaw,
-                             FLOAT patrol_radius,
-                             FLOAT walk_speed) {
+                             float yaw,
+                             float patrol_radius,
+                             float walk_speed) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
 
     if (!ent || !local) {
@@ -179,7 +179,7 @@ static void Wow_MonsterStart(LPEDICT ent,
     local->home = home ? *home : ent->s.origin2;
     local->yaw = yaw;
     local->patrol_radius = patrol_radius;
-    local->patrol_phase = (FLOAT)DEG2RAD(yaw);
+    local->patrol_phase = (float)DEG2RAD(yaw);
     local->walk_speed = walk_speed;
     local->health = 3;
     local->attack_damage_point = 250;
@@ -190,10 +190,10 @@ static void Wow_MonsterStart(LPEDICT ent,
     local->think = Wow_RunCreatureFrame;
     local->attack = Wow_AIAttack;
     local->pain = Wow_AIPain;
-    /* EF_HOSTILE fits in the BYTE flags field; RF_HOSTILE (bit 13) overflows renderfx.
+    /* EF_HOSTILE fits in the uint8_t flags field; RF_HOSTILE (bit 13) overflows renderfx.
      * cl_view.c translates EF_HOSTILE → RF_HOSTILE when building renderEntity_t. */
     ent->s.flags = EF_GROUND_ANCHOR | EF_HOSTILE;
-    ent->s.angle = (FLOAT)DEG2RAD(yaw);
+    ent->s.angle = (float)DEG2RAD(yaw);
     if (patrol_radius > 0.0f) {
         Wow_SetWalkMove(ent);
     } else {
@@ -201,14 +201,14 @@ static void Wow_MonsterStart(LPEDICT ent,
     }
 }
 
-static LPEDICT Wow_SpawnCreature(DWORD display_id,
+static LPEDICT Wow_SpawnCreature(uint32_t display_id,
                                  LPCVECTOR2 origin,
-                                 FLOAT yaw,
-                                 FLOAT patrol_radius,
-                                 FLOAT walk_speed) {
+                                 float yaw,
+                                 float patrol_radius,
+                                 float walk_speed) {
     PATHSTR model_path;
-    FLOAT scale = 1.0f;
-    FLOAT radius = 1.0f;
+    float scale = 1.0f;
+    float radius = 1.0f;
     LPEDICT ent;
 
     if (!origin || !Wow_CachedCreatureModel(display_id, model_path, sizeof(model_path), &scale, &radius)) {
@@ -237,23 +237,23 @@ static LPEDICT Wow_SpawnCreature(DWORD display_id,
     return ent;
 }
 
-typedef struct { FLOAT dist2; DWORD idx; } wowGiverSort_t;
+typedef struct { float dist2; uint32_t idx; } wowGiverSort_t;
 static int Wow_CmpGiverDist(void const *a, void const *b) {
-    FLOAT const da = ((wowGiverSort_t const *)a)->dist2;
-    FLOAT const db = ((wowGiverSort_t const *)b)->dist2;
+    float const da = ((wowGiverSort_t const *)a)->dist2;
+    float const db = ((wowGiverSort_t const *)b)->dist2;
     return da < db ? -1 : da > db ? 1 : 0;
 }
 
 /* Spawn non-hostile quest NPCs and server-side objective anchors from the
  * imported world database, limited to the player's nearby starting area. */
 void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
-    DWORD givers = 0;
-    DWORD objectives = 0;
-    DWORD budget = WOW_QUEST_LOCATION_BUDGET;
-    FLOAT const spawn_radius = 6500.0f;
-    FLOAT const spawn_radius2 = spawn_radius * spawn_radius;
+    uint32_t givers = 0;
+    uint32_t objectives = 0;
+    uint32_t budget = WOW_QUEST_LOCATION_BUDGET;
+    float const spawn_radius = 6500.0f;
+    float const spawn_radius2 = spawn_radius * spawn_radius;
     wowGiverSort_t sorted[2048];
-    DWORD nsorted = 0;
+    uint32_t nsorted = 0;
 
     if (!origin)
         return;
@@ -264,27 +264,27 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         LPCWOWQUESTGIVER data = Wow_QuestGiver(i);
         VECTOR2 pos = { data->position.x, data->position.y };
         VECTOR2 delta = Vector2_sub(&pos, origin);
-        FLOAT dist2 = delta.x * delta.x + delta.y * delta.y;
+        float dist2 = delta.x * delta.x + delta.y * delta.y;
         if (dist2 <= spawn_radius2 && nsorted < sizeof(sorted) / sizeof(*sorted)) {
             sorted[nsorted].dist2 = dist2;
-            sorted[nsorted].idx  = (DWORD)i;
+            sorted[nsorted].idx  = (uint32_t)i;
             nsorted++;
         }
     }
     qsort(sorted, nsorted, sizeof(*sorted), Wow_CmpGiverDist);
 
     FOR_LOOP(si, nsorted) {
-        DWORD i = sorted[si].idx;
+        uint32_t i = sorted[si].idx;
         LPCWOWQUESTGIVER data = Wow_QuestGiver(i);
         LPCWOWCREATURE creature = Wow_CreatureByEntry(data->creature_entry);
         LPCWOWCREATUREMODEL creature_model;
         PATHSTR model_path;
-        FLOAT scale = 1.0f;
-        FLOAT radius = 1.0f;
+        float scale = 1.0f;
+        float radius = 1.0f;
         VECTOR2 position;
         LPEDICT ent;
         wowEntityLocal_t *local;
-        BOOL duplicate = false;
+        bool duplicate = false;
 
         if (!budget)
             break;
@@ -313,7 +313,7 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         local->display_id = creature_model->display_id;
         local->quest_id = data->quest_id;
         local->home = position;
-        local->yaw = (FLOAT)RAD2DEG(data->orientation);
+        local->yaw = (float)RAD2DEG(data->orientation);
         local->health = 1;
         ent->s.origin = data->position;
         ent->s.origin2 = position;
@@ -321,7 +321,7 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
         ent->s.radius = radius;
         ent->s.player = 2;
         ent->s.class_id = creature_model->display_id;
-        local->quest_available_model = (DWORD)G_RegisterModel(WOW_QUEST_AVAILABLE_MODEL);
+        local->quest_available_model = (uint32_t)G_RegisterModel(WOW_QUEST_AVAILABLE_MODEL);
         ent->s.name = G_UnitNameConfigstring(creature->name);
         ent->s.angle = data->orientation;
         ent->s.flags = EF_GROUND_ANCHOR | EF_HAS_QUEST;
@@ -368,7 +368,7 @@ void Wow_SpawnQuestLocations(LPCVECTOR2 origin) {
 
 void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin) {
     VECTOR2 creature_origin;
-    DWORD spawned = 0;
+    uint32_t spawned = 0;
 
     if (!origin) {
         return;
@@ -379,17 +379,17 @@ void Wow_SpawnAmbientCreatures(LPCVECTOR2 origin) {
     }
 
     FOR_LOOP(i, WOW_AMBIENT_CREATURE_COUNT) {
-        DWORD const type_count = sizeof(wow_ambient_creature_types) / sizeof(wow_ambient_creature_types[0]);
+        uint32_t const type_count = sizeof(wow_ambient_creature_types) / sizeof(wow_ambient_creature_types[0]);
         wowAmbientCreatureType_t const *type = &wow_ambient_creature_types[i % type_count];
-        FLOAT const angle = (FLOAT)DEG2RAD((i * 137) % 360);
-        FLOAT const radius = type->min_radius + (FLOAT)((i / type_count) * 5) + (FLOAT)((i % 3) * 2);
-        FLOAT const patrol_radius = type->walk_speed > 0.0f ? 2.5f + (FLOAT)(i % 5) : 0.0f;
+        float const angle = (float)DEG2RAD((i * 137) % 360);
+        float const radius = type->min_radius + (float)((i / type_count) * 5) + (float)((i % 3) * 2);
+        float const patrol_radius = type->walk_speed > 0.0f ? 2.5f + (float)(i % 5) : 0.0f;
 
         creature_origin = (VECTOR2){
             origin->x + cosf(angle) * radius,
             origin->y + sinf(angle) * radius,
         };
-        if (Wow_SpawnCreature(type->display_id, &creature_origin, (FLOAT)RAD2DEG(angle) + 180.0f, patrol_radius, type->walk_speed)) {
+        if (Wow_SpawnCreature(type->display_id, &creature_origin, (float)RAD2DEG(angle) + 180.0f, patrol_radius, type->walk_speed)) {
             spawned++;
         }
     }

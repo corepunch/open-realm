@@ -1,6 +1,6 @@
 #include "r_wowmap.h"
 
-LPMODEL Wow_LoadDoodadModel(LPCSTR path) {
+LPMODEL Wow_LoadDoodadModel(cstring_t path) {
     wowDoodadModel_t *entry, *prev = NULL;
 
     if (!path || !*path) return NULL;
@@ -57,7 +57,7 @@ void Wow_BucketDoodadInstance(wowDoodadInstance_t *instance) {
     wow_world.doodad_buckets[bucket_y][bucket_x] = instance;
 }
 
-void Wow_AddDoodadInstance(LPCSTR model_path, wowDoodadDef_t const *def) {
+void Wow_AddDoodadInstance(cstring_t model_path, wowDoodadDef_t const *def) {
     wowDoodadInstance_t *instance;
     LPMODEL model;
 
@@ -74,8 +74,8 @@ void Wow_AddDoodadInstance(LPCSTR model_path, wowDoodadDef_t const *def) {
         FOR_LOOP(i, wow_world.num_placed_dood_ids)
             if (wow_world.placed_dood_ids[i] == def->unique_id) return;
         if (wow_world.num_placed_dood_ids == wow_world.cap_placed_dood_ids) {
-            DWORD cap = wow_world.cap_placed_dood_ids ? wow_world.cap_placed_dood_ids * 2 : 256;
-            DWORD *arr = ri.MemAlloc(cap * sizeof(*arr));
+            uint32_t cap = wow_world.cap_placed_dood_ids ? wow_world.cap_placed_dood_ids * 2 : 256;
+            uint32_t *arr = ri.MemAlloc(cap * sizeof(*arr));
             if (arr) {
                 if (wow_world.placed_dood_ids)
                     memcpy(arr, wow_world.placed_dood_ids, wow_world.num_placed_dood_ids * sizeof(*arr));
@@ -109,7 +109,7 @@ void Wow_AddDoodadInstance(LPCSTR model_path, wowDoodadDef_t const *def) {
 }
 
 /* Ground-effect M2s already contain the authoritative geometry and material paths from the MPQ. */
-void Wow_AddGroundEffectInstance(LPCSTR model_path, VECTOR3 origin, float angle) {
+void Wow_AddGroundEffectInstance(cstring_t model_path, VECTOR3 origin, float angle) {
     wowDoodadInstance_t *instance;
     LPMODEL model;
 
@@ -130,7 +130,7 @@ void Wow_AddGroundEffectInstance(LPCSTR model_path, VECTOR3 origin, float angle)
     wow_world.num_ground_effects++;
 }
 
-void Wow_AddMarker(VERTEX *vertices, LPDWORD index, VECTOR3 p, float size, COLOR32 color) {
+void Wow_AddMarker(VERTEX *vertices, uint32_t * index, VECTOR3 p, float size, COLOR32 color) {
     VECTOR3 a = { p.x - size, p.y - size, p.z };
     VECTOR3 b = { p.x + size, p.y - size, p.z };
     VECTOR3 c = { p.x + size, p.y + size, p.z };
@@ -151,17 +151,17 @@ void Wow_AddMarker(VERTEX *vertices, LPDWORD index, VECTOR3 p, float size, COLOR
 }
 
 VERTEX *Wow_AppendMarkers(VERTEX *old_vertices,
-                                 LPDWORD old_count,
-                                 BYTE const *chunk,
-                                 DWORD size,
-                                 BYTE const *name_blob,
-                                 DWORD name_blob_size,
-                                 DWORD const *name_offsets,
-                                 DWORD name_offset_count,
-                                 BOOL wmo) {
-    DWORD record_size = wmo ? sizeof(wowMapObjDef_t) : sizeof(wowDoodadDef_t);
-    DWORD count = size / record_size;
-    DWORD new_count = *old_count + count * 12;
+                                 uint32_t * old_count,
+                                 uint8_t const *chunk,
+                                 uint32_t size,
+                                 uint8_t const *name_blob,
+                                 uint32_t name_blob_size,
+                                 uint32_t const *name_offsets,
+                                 uint32_t name_offset_count,
+                                 bool wmo) {
+    uint32_t record_size = wmo ? sizeof(wowMapObjDef_t) : sizeof(wowDoodadDef_t);
+    uint32_t count = size / record_size;
+    uint32_t new_count = *old_count + count * 12;
     VERTEX *vertices = ri.MemAlloc(sizeof(VERTEX) * MAX(new_count, 1));
 
     if (*old_count && old_vertices) {
@@ -178,7 +178,7 @@ VERTEX *Wow_AppendMarkers(VERTEX *old_vertices,
             wow_world.num_wmos++;
         } else {
             wowDoodadDef_t const *def = (wowDoodadDef_t const *)(chunk + i * record_size);
-            LPCSTR model_path = NULL;
+            cstring_t model_path = NULL;
             float model_scale = def->scale / 1024.0f;
             float radius = 0.0f;
             float marker_size;
@@ -203,11 +203,11 @@ VERTEX *Wow_AppendMarkers(VERTEX *old_vertices,
 }
 
 VERTEX *Wow_AppendDoodadErrorMarkers(VERTEX *old_vertices,
-                                            LPDWORD old_count,
-                                            BYTE const *chunk,
-                                            DWORD size) {
-    DWORD count = size / sizeof(wowDoodadDef_t);
-    DWORD new_count = *old_count + count * 12;
+                                            uint32_t * old_count,
+                                            uint8_t const *chunk,
+                                            uint32_t size) {
+    uint32_t count = size / sizeof(wowDoodadDef_t);
+    uint32_t new_count = *old_count + count * 12;
     VERTEX *vertices = ri.MemAlloc(sizeof(VERTEX) * MAX(new_count, 1));
 
     if (*old_count && old_vertices) {

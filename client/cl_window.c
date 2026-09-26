@@ -7,66 +7,66 @@
 #define MAX_WINDOW_LIST_VALUES 16 // entries; bounds retained list state; used per transient window
 
 typedef struct {
-    DWORD frame;
-    FLOAT value;
+    uint32_t frame;
+    float value;
 } clientWindowValue_t;
 
 typedef struct {
-    DWORD frame;
-    DWORD text_frame;
-    DWORD max_chars;
-    DWORD cursor;
+    uint32_t frame;
+    uint32_t text_frame;
+    uint32_t max_chars;
+    uint32_t cursor;
     char text[256];
 } clientWindowEdit_t;
 
 typedef struct {
-    DWORD frame;
-    SHORT selected;
+    uint32_t frame;
+    int16_t selected;
 } clientWindowList_t;
 
 typedef struct {
-    LPSTR data;
-    DWORD size;
+    string_t data;
+    uint32_t size;
 } windowTextOut_t;
 
 typedef struct clientWindow_s {
-    DWORD id, class_id, flags;
-    HANDLE layout;
+    uint32_t id, class_id, flags;
+    handle_t layout;
     VECTOR2 offset;
-    BOOL debug_draw_logged;
+    bool debug_draw_logged;
     clientWindowValue_t scroll_values[MAX_WINDOW_SCROLL_VALUES];
-    DWORD num_scroll_values;
+    uint32_t num_scroll_values;
     clientWindowEdit_t edit_values[MAX_WINDOW_EDIT_VALUES];
-    DWORD num_edit_values;
+    uint32_t num_edit_values;
     clientWindowList_t list_values[MAX_WINDOW_LIST_VALUES];
-    DWORD num_list_values;
+    uint32_t num_list_values;
     struct clientWindow_s *prev, *next;
 } clientWindow_t;
 
 static struct {
     clientWindow_t *first, *last, *focus, *drag, *scroll_drag, *edit_window;
-    DWORD scroll_drag_frame;
-    DWORD edit_frame;
+    uint32_t scroll_drag_frame;
+    uint32_t edit_frame;
     VECTOR2 drag_point, drag_offset;
-    BOOL modal_paused;
+    bool modal_paused;
 } cl_windows;
 
-static RECT CL_WindowRoot(clientWindow_t const *window);
-static BOOL CL_WindowIsEditBox(LPCUIFRAME frame);
+static rect_t CL_WindowRoot(clientWindow_t const *window);
+static bool CL_WindowIsEditBox(LPCUIFRAME frame);
 static LPUIFRAME CL_WindowEditTextFrame(LPCUIFRAME edit);
 
-static BOOL CL_WindowDebugEnabled(void) {
+static bool CL_WindowDebugEnabled(void) {
     return Cvar_Integer("ui_window_debug", 0) != 0;
 }
 
-static LPCSTR CL_WindowImageName(RESOURCE image) {
+static cstring_t CL_WindowImageName(RESOURCE image) {
     if (!image) return "<none>";
     if (image >= MAX_IMAGES) return "<out-of-range>";
     return cl.configstrings[CS_IMAGES + image];
 }
 
 static void CL_WindowDebugLayout(clientWindow_t const *window) {
-    RECT root;
+    rect_t root;
     LPCUIFRAME root_frame;
 
     if (!window || !CL_WindowDebugEnabled()) return;
@@ -80,7 +80,7 @@ static void CL_WindowDebugLayout(clientWindow_t const *window) {
             (unsigned)SCR_NumFrames(), window->offset.x, window->offset.y,
             root.x, root.y, root.w, root.h);
     if (root_frame) {
-        RECT const *r = SCR_LayoutRect(root_frame);
+        rect_t const *r = SCR_LayoutRect(root_frame);
         fprintf(stderr,
                 "UI_WINDOW_DEBUG window=%08x root_frame number=%u parent=%u type=%u "
                 "rect=(%.4f,%.4f %.4fx%.4f) color=(%u,%u,%u,%u) buffer=%u\n",
@@ -93,8 +93,8 @@ static void CL_WindowDebugLayout(clientWindow_t const *window) {
     FOR_LOOP(i, SCR_NumFrames()) {
         LPCUIFRAME frame = SCR_Frame(i);
         uiBackdrop_t const *bd;
-        RECT const *r;
-        LPCSTR bg_name, edge_name;
+        rect_t const *r;
+        cstring_t bg_name, edge_name;
         if (!frame || frame->flags.type != FT_BACKDROP) continue;
         r = SCR_LayoutRect(frame);
         if (frame->buffer.size < sizeof(uiBackdrop_t) || !frame->buffer.data) {
@@ -129,7 +129,7 @@ static void CL_WindowDebugLayout(clientWindow_t const *window) {
     }
     FOR_LOOP(i, SCR_NumFrames()) {
         LPCUIFRAME frame = SCR_Frame(i);
-        RECT const *r;
+        rect_t const *r;
         if (!frame) continue;
         r = SCR_LayoutRect(frame);
         if (CL_WindowIsEditBox(frame) && frame->buffer.data &&
@@ -153,8 +153,8 @@ static void CL_WindowDebugLayout(clientWindow_t const *window) {
         } else if (frame->flags.type == FT_LISTBOX && frame->buffer.data &&
                    frame->buffer.size >= sizeof(uiListBox_t)) {
             uiListBox_t const *list = frame->buffer.data;
-            FLOAT item_height = list->itemHeight > 0.0f ? list->itemHeight : 0.018f;
-            FLOAT inner_height = MAX(0.0f, r->h - list->border * 2.0f);
+            float item_height = list->itemHeight > 0.0f ? list->itemHeight : 0.018f;
+            float inner_height = MAX(0.0f, r->h - list->border * 2.0f);
             int visible_rows = item_height > 0.0f ? (int)floorf(inner_height / item_height) : 0;
             fprintf(stderr,
                     "UI_WINDOW_DEBUG window=%08x control=list frame=%u parent=%u id=\"%s\" "
@@ -247,13 +247,13 @@ static void CL_WindowFocus(clientWindow_t *window) {
     cl_windows.focus = window;
 }
 
-static clientWindow_t *CL_WindowById(DWORD id) {
+static clientWindow_t *CL_WindowById(uint32_t id) {
     FOR_EACH_LIST(clientWindow_t, window, cl_windows.first)
         if (window->id == id) return window;
     return NULL;
 }
 
-static clientWindow_t *CL_WindowByClass(DWORD class_id) {
+static clientWindow_t *CL_WindowByClass(uint32_t class_id) {
     FOR_EACH_LIST(clientWindow_t, window, cl_windows.first)
         if (window->class_id == class_id) return window;
     return NULL;
@@ -265,7 +265,7 @@ static clientWindow_t *CL_WindowModal(void) {
     return NULL;
 }
 
-static BOOL CL_WindowPauseOwnerPresent(void) {
+static bool CL_WindowPauseOwnerPresent(void) {
     for (clientWindow_t *window = cl_windows.last; window; window = window->prev) {
         if ((window->flags & UI_WINDOW_MODAL) && !(window->flags & UI_WINDOW_NO_PAUSE)) return true;
     }
@@ -276,7 +276,7 @@ static BOOL CL_WindowPauseOwnerPresent(void) {
  * request synchronized with pause-owning modal-list presence so a modal such
  * as WC3's Allies dialog can capture gameplay input without freezing time. */
 static void CL_WindowSyncPause(void) {
-    BOOL paused = CL_WindowPauseOwnerPresent();
+    bool paused = CL_WindowPauseOwnerPresent();
     char command[16];
     if (paused == cl_windows.modal_paused) return;
     cl_windows.modal_paused = paused;
@@ -284,14 +284,14 @@ static void CL_WindowSyncPause(void) {
     Cmd_ForwardToServer(command);
 }
 
-static RECT CL_WindowRoot(clientWindow_t const *window) {
-    RECT root = SCR_LayoutSceneRect();
+static rect_t CL_WindowRoot(clientWindow_t const *window) {
+    rect_t root = SCR_LayoutSceneRect();
     root.x += window->offset.x;
     root.y += window->offset.y;
     return root;
 }
 
-static void CL_WindowRememberScroll(clientWindow_t *window, DWORD frame_number, FLOAT value) {
+static void CL_WindowRememberScroll(clientWindow_t *window, uint32_t frame_number, float value) {
     if (!window || !frame_number) return;
     value = MIN(1.0f, MAX(0.0f, value));
     FOR_LOOP(i, window->num_scroll_values) {
@@ -306,7 +306,7 @@ static void CL_WindowRememberScroll(clientWindow_t *window, DWORD frame_number, 
     };
 }
 
-static BOOL CL_WindowIsEditBox(LPCUIFRAME frame) {
+static bool CL_WindowIsEditBox(LPCUIFRAME frame) {
     return frame && (frame->flags.type == FT_EDITBOX ||
                      frame->flags.type == FT_GLUEEDITBOX ||
                      frame->flags.type == FT_SLASHCHATBOX);
@@ -323,7 +323,7 @@ static LPUIFRAME CL_WindowEditTextFrame(LPCUIFRAME edit) {
     return NULL;
 }
 
-static clientWindowEdit_t *CL_WindowEditValue(clientWindow_t *window, LPCUIFRAME edit, BOOL create) {
+static clientWindowEdit_t *CL_WindowEditValue(clientWindow_t *window, LPCUIFRAME edit, bool create) {
     LPUIFRAME text_frame;
     uiEditBox_t const *wire;
     clientWindowEdit_t *value;
@@ -344,11 +344,11 @@ static clientWindowEdit_t *CL_WindowEditValue(clientWindow_t *window, LPCUIFRAME
     value->max_chars = MIN(value->max_chars, sizeof(value->text) - 1);
     snprintf(value->text, sizeof(value->text), "%.*s",
              (int)value->max_chars, text_frame->text ? text_frame->text : "");
-    value->cursor = (DWORD)strlen(value->text);
+    value->cursor = (uint32_t)strlen(value->text);
     return value;
 }
 
-static clientWindowList_t *CL_WindowListValue(clientWindow_t *window, LPCUIFRAME frame, BOOL create) {
+static clientWindowList_t *CL_WindowListValue(clientWindow_t *window, LPCUIFRAME frame, bool create) {
     uiListBox_t const *wire;
     clientWindowList_t *value;
 
@@ -378,7 +378,7 @@ static void CL_WindowFocusEdit(clientWindow_t *window, LPCUIFRAME edit) {
     CL_SetTransientTextInput(true);
 }
 
-static LPCSTR CL_WindowListSelectedText(LPCUIFRAME frame, SHORT selected, windowTextOut_t *out) {
+static cstring_t CL_WindowListSelectedText(LPCUIFRAME frame, int16_t selected, windowTextOut_t *out) {
     char items[2048];
     char *save = NULL, *line;
     int index = 0;
@@ -398,7 +398,7 @@ static LPCSTR CL_WindowListSelectedText(LPCUIFRAME frame, SHORT selected, window
 }
 
 /* A chooser may bind its selected hidden value to an edit control so an existing name can be amended or overwritten. */
-static void CL_WindowListApplyEdit(clientWindow_t *window, LPCUIFRAME frame, SHORT selected) {
+static void CL_WindowListApplyEdit(clientWindow_t *window, LPCUIFRAME frame, int16_t selected) {
     uiListBox_t const *wire;
     char selected_text[CMDARG_LEN];
 
@@ -413,13 +413,13 @@ static void CL_WindowListApplyEdit(clientWindow_t *window, LPCUIFRAME frame, SHO
         value = CL_WindowEditValue(window, edit, true);
         if (!value) return;
         snprintf(value->text, sizeof(value->text), "%.*s", (int)value->max_chars, selected_text);
-        value->cursor = (DWORD)strlen(value->text);
+        value->cursor = (uint32_t)strlen(value->text);
         return;
     }
     fprintf(stderr, "CL_WindowListApplyEdit: unresolved edit frame %u\n", (unsigned)wire->editTarget);
 }
 
-static BOOL CL_WindowControlValue(clientWindow_t *window, LPCSTR id, windowTextOut_t *out) {
+static bool CL_WindowControlValue(clientWindow_t *window, cstring_t id, windowTextOut_t *out) {
     if (!window || !id || !*id || !out || !out->data || out->size == 0) return false;
     FOR_LOOP(i, SCR_NumFrames()) {
         LPCUIFRAME frame = SCR_Frame(i);
@@ -446,16 +446,16 @@ static BOOL CL_WindowControlValue(clientWindow_t *window, LPCSTR id, windowTextO
     return false;
 }
 
-static BOOL CL_WindowFormatCommand(clientWindow_t *window, LPCSTR src, windowTextOut_t *dst) {
-    DWORD out = 0;
+static bool CL_WindowFormatCommand(clientWindow_t *window, cstring_t src, windowTextOut_t *dst) {
+    uint32_t out = 0;
 
     if (!dst || !dst->data || dst->size == 0) return false;
     dst->data[0] = '\0';
     if (!src) return false;
-    for (DWORD i = 0; src[i] && out + 1 < dst->size; i++) {
+    for (uint32_t i = 0; src[i] && out + 1 < dst->size; i++) {
         if (src[i] == '{') {
             char id[80], value[256];
-            DWORD n = 0, j = i + 1;
+            uint32_t n = 0, j = i + 1;
             while (src[j] && src[j] != '}' && n + 1 < sizeof(id)) id[n++] = src[j++];
             if (src[j] == '}') {
                 id[n] = '\0';
@@ -465,7 +465,7 @@ static BOOL CL_WindowFormatCommand(clientWindow_t *window, LPCSTR src, windowTex
                     dst->data[0] = '\0';
                     return false;
                 }
-                for (DWORD k = 0; value[k] && out + 1 < dst->size; k++) {
+                for (uint32_t k = 0; value[k] && out + 1 < dst->size; k++) {
                     if ((value[k] == '"' || value[k] == '\\') && out + 2 < dst->size)
                         dst->data[out++] = '\\';
                     dst->data[out++] = value[k];
@@ -480,7 +480,7 @@ static BOOL CL_WindowFormatCommand(clientWindow_t *window, LPCSTR src, windowTex
     return true;
 }
 
-static void CL_WindowPrepareState(clientWindow_t *window, LPCRECT root) {
+static void CL_WindowPrepareState(clientWindow_t *window, rect_t const * root) {
     if (!window) return;
     SCR_WindowPrepare(window->layout, root);
     FOR_LOOP(i, window->num_scroll_values) {
@@ -492,7 +492,7 @@ static void CL_WindowPrepareState(clientWindow_t *window, LPCRECT root) {
         LPUIFRAME text = SCR_Frame(value->text_frame);
         if (text) {
             text->text = value->text;
-            text->textLength = (DWORD)strlen(value->text);
+            text->textLength = (uint32_t)strlen(value->text);
         }
     }
     FOR_LOOP(i, window->num_list_values) {
@@ -515,8 +515,8 @@ static LPUIFRAME CL_WindowScrollOwner(LPUIFRAME frame) {
 
 static int CL_WindowListMaxScroll(LPCUIFRAME frame) {
     uiListBox_t const *lb;
-    RECT view;
-    FLOAT item_height;
+    rect_t view;
+    float item_height;
     int count = 0, visible;
 
     if (!frame || frame->flags.type != FT_LISTBOX || !frame->buffer.data ||
@@ -527,13 +527,13 @@ static int CL_WindowListMaxScroll(LPCUIFRAME frame) {
     item_height = lb->itemHeight > 0.0f ? lb->itemHeight : 0.018f;
     if (frame->text && *frame->text) {
         count = 1;
-        for (LPCSTR p = frame->text; *p; p++) if (*p == '\n') count++;
+        for (cstring_t p = frame->text; *p; p++) if (*p == '\n') count++;
     }
     visible = MAX((int)floorf(view.h / item_height), 1);
     return MAX(count - visible, 0);
 }
 
-static FLOAT CL_WindowScrollStep(LPCUIFRAME owner) {
+static float CL_WindowScrollStep(LPCUIFRAME owner) {
     if (owner && owner->flags.type == FT_LISTBOX) {
         int max_scroll = CL_WindowListMaxScroll(owner);
         return max_scroll > 0 ? 1.0f / max_scroll : 0.0f;
@@ -541,7 +541,7 @@ static FLOAT CL_WindowScrollStep(LPCUIFRAME owner) {
     return 0.1f;
 }
 
-static BOOL CL_WindowSetScroll(clientWindow_t *window, LPUIFRAME owner, FLOAT value) {
+static bool CL_WindowSetScroll(clientWindow_t *window, LPUIFRAME owner, float value) {
     if (!window || !owner) return false;
     if ((owner->flags.type == FT_TEXTAREA && SCR_LayoutTextAreaMaxScroll(owner) <= 0.0f) ||
         (owner->flags.type == FT_LISTBOX && CL_WindowListMaxScroll(owner) <= 0)) {
@@ -560,7 +560,7 @@ static BOOL CL_WindowSetScroll(clientWindow_t *window, LPUIFRAME owner, FLOAT va
 }
 
 static LPUIFRAME CL_WindowFrameAtType(LPCVECTOR2 point, FRAMETYPE type) {
-    for (DWORD i = SCR_NumFrames(); i > 0; i--) {
+    for (uint32_t i = SCR_NumFrames(); i > 0; i--) {
         LPUIFRAME frame = SCR_Frame(i - 1);
         if (frame && frame->flags.type == type && Rect_contains(SCR_LayoutRect(frame), point))
             return frame;
@@ -568,7 +568,7 @@ static LPUIFRAME CL_WindowFrameAtType(LPCVECTOR2 point, FRAMETYPE type) {
     return NULL;
 }
 
-static BOOL CL_WindowScrollWheel(clientWindow_t *window, LPCVECTOR2 point, int wheel_y) {
+static bool CL_WindowScrollWheel(clientWindow_t *window, LPCVECTOR2 point, int wheel_y) {
     LPUIFRAME hit, owner;
     if (!window || !point || !wheel_y) return false;
     hit = CL_WindowFrameAtType(point, FT_SCROLLBAR);
@@ -583,12 +583,12 @@ static BOOL CL_WindowScrollWheel(clientWindow_t *window, LPCVECTOR2 point, int w
                               owner->value - wheel_y * CL_WindowScrollStep(owner));
 }
 
-static BOOL CL_WindowScrollBarSetFromPoint(clientWindow_t *window, LPUIFRAME scrollbar,
-                                           LPCVECTOR2 point, BOOL drag_track) {
+static bool CL_WindowScrollBarSetFromPoint(clientWindow_t *window, LPUIFRAME scrollbar,
+                                           LPCVECTOR2 point, bool drag_track) {
     LPUIFRAME owner = CL_WindowScrollOwner(scrollbar);
-    RECT const *screen;
-    RECT track;
-    FLOAT bh, th, value;
+    rect_t const *screen;
+    rect_t track;
+    float bh, th, value;
 
     if (!window || !scrollbar || !owner || !point) return false;
     if ((owner->flags.type == FT_TEXTAREA && SCR_LayoutTextAreaMaxScroll(owner) <= 0.0f) ||
@@ -597,7 +597,7 @@ static BOOL CL_WindowScrollBarSetFromPoint(clientWindow_t *window, LPUIFRAME scr
     screen = SCR_LayoutRect(scrollbar);
     if (!screen || screen->w <= 0.0f || screen->h <= 0.0f) return true;
     bh = MIN(screen->w * UI_PIXEL_ASPECT, screen->h * 0.5f);
-    track = MAKE(RECT, screen->x, screen->y + bh, screen->w, screen->h - bh * 2.0f);
+    track = MAKE(rect_t, screen->x, screen->y + bh, screen->w, screen->h - bh * 2.0f);
     value = owner->value;
 
     if (!drag_track && point->y < track.y) {
@@ -605,7 +605,7 @@ static BOOL CL_WindowScrollBarSetFromPoint(clientWindow_t *window, LPUIFRAME scr
     } else if (!drag_track && point->y >= track.y + track.h) {
         value += CL_WindowScrollStep(owner);
     } else if (track.h > 0.0f) {
-        BOOL compact = scrollbar->buffer.size == sizeof(uiScrollBarImage_t);
+        bool compact = scrollbar->buffer.size == sizeof(uiScrollBarImage_t);
         th = MIN(compact ? bh : MIN(bh, 0.010f), track.h);
         value = track.h > th
             ? (point->y - track.y - th * 0.5f) / (track.h - th)
@@ -614,14 +614,14 @@ static BOOL CL_WindowScrollBarSetFromPoint(clientWindow_t *window, LPUIFRAME scr
     return CL_WindowSetScroll(window, owner, value);
 }
 
-static BOOL CL_WindowContains(clientWindow_t *window, LPCVECTOR2 point) {
-    RECT root = CL_WindowRoot(window);
+static bool CL_WindowContains(clientWindow_t *window, LPCVECTOR2 point) {
+    rect_t root = CL_WindowRoot(window);
     CL_WindowPrepareState(window, &root);
     LPCUIFRAME frame = SCR_Frame(1);
     return frame && Rect_contains(SCR_LayoutRect(frame), point);
 }
 
-BOOL CL_WindowMouseOver(int x, int y) {
+bool CL_WindowMouseOver(int x, int y) {
     VECTOR2 point = SCR_ScreenToUI(x, y);
     clientWindow_t *modal = CL_WindowModal();
     for (clientWindow_t *window = cl_windows.last; window; window = window->prev) {
@@ -632,9 +632,9 @@ BOOL CL_WindowMouseOver(int x, int y) {
 }
 
 static LPCUIFRAME CL_WindowClickableAt(clientWindow_t *window, LPCVECTOR2 point) {
-    RECT root = CL_WindowRoot(window);
+    rect_t root = CL_WindowRoot(window);
     CL_WindowPrepareState(window, &root);
-    for (DWORD i = SCR_NumFrames(); i > 0; i--) {
+    for (uint32_t i = SCR_NumFrames(); i > 0; i--) {
         LPCUIFRAME frame = SCR_Frame(i - 1);
         if (SCR_LayoutFrameHasClickCommand(frame) && Rect_contains(SCR_LayoutRect(frame), point)) return frame;
     }
@@ -649,7 +649,7 @@ static void CL_WindowActivateFrame(clientWindow_t *window, LPCUIFRAME frame) {
         !strcmp(frame->onclick, UI_WINDOW_CLOSE_NOTIFY_ACTION)) {
         CL_WindowClose(window->id);
     } else if (!strncmp(frame->onclick, UI_WINDOW_CLOSE_COMMAND_PREFIX, close_command_len)) {
-        LPCSTR source = frame->onclick + close_command_len;
+        cstring_t source = frame->onclick + close_command_len;
         char command[CMDARG_LEN * 4];
         if (CL_WindowFormatCommand(window, source, &MAKE(windowTextOut_t, .data = command, .size = sizeof(command))))
             Cmd_ForwardToServer(command);
@@ -670,7 +670,7 @@ static void CL_WindowActivateFrame(clientWindow_t *window, LPCUIFRAME frame) {
     }
 }
 
-void CL_WindowOpen(uiWindowDef_t const *def, HANDLE layout) {
+void CL_WindowOpen(uiWindowDef_t const *def, handle_t layout) {
     clientWindow_t *window = CL_WindowById(def->id);
     if (!window && (def->flags & UI_WINDOW_UNIQUE)) window = CL_WindowByClass(def->class_id);
     if (!window) {
@@ -691,7 +691,7 @@ void CL_WindowOpen(uiWindowDef_t const *def, HANDLE layout) {
     CL_WindowFocus(window);
     CL_WindowDebugLayout(window);
     {
-        RECT root = CL_WindowRoot(window);
+        rect_t root = CL_WindowRoot(window);
         CL_WindowPrepareState(window, &root);
         FOR_LOOP(i, SCR_NumFrames()) {
             LPCUIFRAME frame = SCR_Frame(i);
@@ -701,7 +701,7 @@ void CL_WindowOpen(uiWindowDef_t const *def, HANDLE layout) {
     CL_WindowSyncPause();
 }
 
-void CL_WindowClose(DWORD id) {
+void CL_WindowClose(uint32_t id) {
     clientWindow_t *window = CL_WindowById(id);
     if (!window) return;
     if (cl_windows.edit_window == window) CL_WindowBlurEdit();
@@ -723,19 +723,19 @@ void CL_WindowClear(void) {
     memset(&cl_windows, 0, sizeof(cl_windows));
 }
 
-BOOL CL_WindowModalActive(void) { return CL_WindowModal() != NULL; }
+bool CL_WindowModalActive(void) { return CL_WindowModal() != NULL; }
 
 /* SDL text input is owned by a focused transient edit box while gameplay
  * remains key_game. Player snapshots repeatedly reaffirm gameplay input, so
  * expose that ownership rather than letting CL_SetGameplayInput disable text
  * delivery underneath the still-focused edit control. */
-BOOL CL_WindowTextInputActive(void) {
+bool CL_WindowTextInputActive(void) {
     return cl_windows.edit_window != NULL && cl_windows.edit_frame != 0;
 }
 
 void CL_WindowDraw(void) {
     FOR_EACH_LIST(clientWindow_t, window, cl_windows.first) {
-        RECT root = CL_WindowRoot(window);
+        rect_t root = CL_WindowRoot(window);
         CL_WindowPrepareState(window, &root);
         if (!window->debug_draw_logged && CL_WindowDebugEnabled()) {
             fprintf(stderr,
@@ -748,13 +748,13 @@ void CL_WindowDraw(void) {
     }
 }
 
-BOOL CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
+bool CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 point = SCR_ScreenToUI(x, y);
     clientWindow_t *modal = CL_WindowModal(), *window;
     LPCUIFRAME frame;
 
     if (cl_windows.scroll_drag) {
-        RECT root = CL_WindowRoot(cl_windows.scroll_drag);
+        rect_t root = CL_WindowRoot(cl_windows.scroll_drag);
         CL_WindowPrepareState(cl_windows.scroll_drag, &root);
         frame = SCR_Frame(cl_windows.scroll_drag_frame);
         if (event == MENU_MOUSE_MOVE && frame && frame->flags.type == FT_SCROLLBAR) {
@@ -773,7 +773,7 @@ BOOL CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
         return true;
     }
     for (window = cl_windows.last; window; window = window->prev) {
-        RECT root;
+        rect_t root;
         LPUIFRAME scrollbar;
         if (modal && window != modal) continue;
         if (!CL_WindowContains(window, &point)) continue;
@@ -798,8 +798,8 @@ BOOL CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
             if (list && !list_scrollbar &&
                 list->buffer.data && list->buffer.size >= sizeof(uiListBox_t)) {
                 uiListBox_t const *lb = list->buffer.data;
-                RECT list_rect = *SCR_LayoutRect(list);
-                FLOAT item_height = lb->itemHeight > 0.0f ? lb->itemHeight : 0.018f;
+                rect_t list_rect = *SCR_LayoutRect(list);
+                float item_height = lb->itemHeight > 0.0f ? lb->itemHeight : 0.018f;
                 clientWindowList_t *value = CL_WindowListValue(window, list, true);
                 list_rect.x += lb->border; list_rect.y += lb->border;
                 list_rect.w = MAX(0.0f, list_rect.w - lb->border * 2.0f);
@@ -813,7 +813,7 @@ BOOL CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
                     int count = 0;
                     int visible = MAX((int)floorf(list_rect.h / item_height), 1);
                     int max_scroll, scroll_offset;
-                    if (list->text) for (LPCSTR p = list->text; *p; p++) if (*p == '\n') count++;
+                    if (list->text) for (cstring_t p = list->text; *p; p++) if (*p == '\n') count++;
                     if (list->text && *list->text) count++;
                     max_scroll = MAX(count - visible, 0);
                     scroll_offset = max_scroll
@@ -821,7 +821,7 @@ BOOL CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
                         : 0;
                     row += scroll_offset;
                     if (row >= 0 && row < count) {
-                        value->selected = (SHORT)row;
+                        value->selected = (int16_t)row;
                         CL_WindowListApplyEdit(window, list, value->selected);
                     }
                 }
@@ -833,9 +833,9 @@ BOOL CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
 
         scrollbar = CL_WindowFrameAtType(&point, FT_SCROLLBAR);
         if (scrollbar && event == MENU_MOUSE_DOWN && param == 1) {
-            RECT const *sr = SCR_LayoutRect(scrollbar);
-            FLOAT bh = MIN(sr->w * UI_PIXEL_ASPECT, sr->h * 0.5f);
-            BOOL track = point.y >= sr->y + bh && point.y < sr->y + sr->h - bh;
+            rect_t const *sr = SCR_LayoutRect(scrollbar);
+            float bh = MIN(sr->w * UI_PIXEL_ASPECT, sr->h * 0.5f);
+            bool track = point.y >= sr->y + bh && point.y < sr->y + sr->h - bh;
             CL_WindowScrollBarSetFromPoint(window, scrollbar, &point, track);
             if (track) {
                 cl_windows.scroll_drag = window;
@@ -860,11 +860,11 @@ BOOL CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     return modal != NULL;
 }
 
-BOOL CL_WindowKeyEvent(int key) {
+bool CL_WindowKeyEvent(int key) {
     clientWindow_t *window = CL_WindowModal();
     int upper = toupper(key);
-    RECT root;
-    BOOL modal;
+    rect_t root;
+    bool modal;
 
     if (!window) window = cl_windows.focus;
     if (!window) return false;
@@ -905,9 +905,9 @@ BOOL CL_WindowKeyEvent(int key) {
     }
     root = CL_WindowRoot(window);
     CL_WindowPrepareState(window, &root);
-    for (DWORD i = SCR_NumFrames(); i > 0; i--) {
+    for (uint32_t i = SCR_NumFrames(); i > 0; i--) {
         LPCUIFRAME frame = SCR_Frame(i - 1);
-        BOOL cancel;
+        bool cancel;
         if (!SCR_LayoutFrameHasClickCommand(frame)) continue;
         cancel = key == K_ESCAPE && !strcmp(frame->onclick, "button CmdCancel");
         if (cancel || (frame->hotkey && toupper(frame->hotkey) == upper)) {
@@ -919,7 +919,7 @@ BOOL CL_WindowKeyEvent(int key) {
 }
 
 
-BOOL CL_WindowTextInput(LPCSTR text) {
+bool CL_WindowTextInput(cstring_t text) {
     clientWindow_t *window = cl_windows.edit_window;
     clientWindowEdit_t *value = NULL;
     char filtered[256];
@@ -952,7 +952,7 @@ static clientWindow_t *CL_WindowPrepared(void) {
     return NULL;
 }
 
-LPCSTR CL_WindowEditTextValue(DWORD text_frame) {
+cstring_t CL_WindowEditTextValue(uint32_t text_frame) {
     clientWindow_t *window = CL_WindowPrepared();
 
     if (!window || !text_frame) return NULL;
@@ -968,7 +968,7 @@ LPCSTR CL_WindowEditTextValue(DWORD text_frame) {
     return NULL;
 }
 
-BOOL CL_WindowEditCursor(DWORD text_frame, LPDWORD cursor) {
+bool CL_WindowEditCursor(uint32_t text_frame, uint32_t * cursor) {
     clientWindow_t *window = CL_WindowPrepared();
     if (!window || window != cl_windows.edit_window || !text_frame) return false;
     FOR_LOOP(i, window->num_edit_values) {

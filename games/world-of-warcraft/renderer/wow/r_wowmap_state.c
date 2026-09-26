@@ -3,7 +3,7 @@
 
 wowMap_t wow_world;
 
-BOOL Wow_PathHasExtension(LPCSTR path, LPCSTR extension) {
+bool Wow_PathHasExtension(cstring_t path, cstring_t extension) {
     size_t path_len;
     size_t ext_len;
 
@@ -18,7 +18,7 @@ BOOL Wow_PathHasExtension(LPCSTR path, LPCSTR extension) {
     return strcasecmp(path + path_len - ext_len, extension) == 0;
 }
 
-void Wow_NormalizeMapPath(LPCSTR mapFileName, LPSTR out, DWORD out_size) {
+void Wow_NormalizeMapPath(cstring_t mapFileName, string_t out, uint32_t out_size) {
     if (!mapFileName || !*mapFileName) {
         snprintf(out, out_size, "World/Maps/Azeroth/Azeroth.wdt");
     } else if (Wow_PathHasExtension(mapFileName, ".wdt")) {
@@ -28,7 +28,7 @@ void Wow_NormalizeMapPath(LPCSTR mapFileName, LPSTR out, DWORD out_size) {
     }
 }
 
-void Wow_SetMapNames(LPCSTR path) {
+void Wow_SetMapNames(cstring_t path) {
     char const *slash = strrchr(path, '/');
     char const *backslash = strrchr(path, '\\');
     char const *base = slash > backslash ? slash : backslash;
@@ -55,10 +55,10 @@ void Wow_SetMapNames(LPCSTR path) {
 }
 
 /* Resolve Blizzard's logical mapXX_YY names once; runtime tile draws then avoid filesystem work. */
-BOOL Wow_LoadMinimapTranslations(void) {
-    LPBYTE data = NULL;
+bool Wow_LoadMinimapTranslations(void) {
+    uint8_t * data = NULL;
     int size = ri.FS_ReadFile("Textures/Minimap/md5translate.trs", (void **)&data);
-    DWORD found = 0;
+    uint32_t found = 0;
 
     if (size <= 0 || !data) {
         fprintf(stderr, "Wow_LoadMinimapTranslations: missing Textures/Minimap/md5translate.trs\n");
@@ -74,7 +74,7 @@ BOOL Wow_LoadMinimapTranslations(void) {
         if (sscanf(line, "%127[^\\]\\map%d_%d.blp\t%32s", dir, &x, &y, hash) != 4) continue;
         if (strcasecmp(dir, wow_world.map_name) || x < 0 || x >= WOW_WDT_TILES || y < 0 || y >= WOW_WDT_TILES) continue;
         if (strlen(hash) != WOW_MINIMAP_HASH_LENGTH) continue;
-        BOOL valid = true;
+        bool valid = true;
         FOR_LOOP(i, WOW_MINIMAP_HASH_LENGTH) valid = valid && isxdigit((unsigned char)hash[i]);
         if (!valid) continue;
         memcpy(wow_world.minimap_hash[x][y], hash, sizeof(hash)); found++;
@@ -85,14 +85,14 @@ BOOL Wow_LoadMinimapTranslations(void) {
     return found != 0;
 }
 
-DWORD Wow_Read32(BYTE const *p) {
-    DWORD v;
+uint32_t Wow_Read32(uint8_t const *p) {
+    uint32_t v;
     memcpy(&v, p, sizeof(v));
     return v;
 }
 
-WORD Wow_Read16(BYTE const *p) {
-    WORD v;
+uint16_t Wow_Read16(uint8_t const *p) {
+    uint16_t v;
     memcpy(&v, p, sizeof(v));
     return v;
 }
@@ -266,7 +266,7 @@ void Wow_ShutdownWorldShaders(void) {
     memset(&wow_grass_shader, 0, sizeof(wow_grass_shader));
 }
 
-LPTEXTURE Wow_LoadTexture(LPCSTR path, BOOL streamable) {
+LPTEXTURE Wow_LoadTexture(cstring_t path, bool streamable) {
     wowTextureCache_t *entry;
 
     /* Streaming world textures (terrain, WMO) are owned by the renderer cache,
@@ -302,40 +302,40 @@ LPTEXTURE Wow_LoadTexture(LPCSTR path, BOOL streamable) {
     return entry->texture;
 }
 
-BOOL Wow_ReadM2RadiusFromPath(LPCSTR path, float *radius) {
-    LPBYTE data = NULL;
+bool Wow_ReadM2RadiusFromPath(cstring_t path, float *radius) {
+    uint8_t * data = NULL;
     int size;
-    DWORD version;
-    DWORD radius_offset;
+    uint32_t version;
+    uint32_t radius_offset;
 
     size = ri.FS_ReadFile(path, (void **)&data);
-    if (size < (int)(sizeof(DWORD) * 2) || !data) {
+    if (size < (int)(sizeof(uint32_t) * 2) || !data) {
         SAFE_DELETE(data, ri.FS_FreeFile);
         return false;
     }
 
-    if (*(DWORD *)data != MAKEFOURCC('M', 'D', '2', '0')) {
+    if (*(uint32_t *)data != MAKEFOURCC('M', 'D', '2', '0')) {
         ri.FS_FreeFile(data);
         return false;
     }
 
-    memcpy(&version, data + sizeof(DWORD), sizeof(version));
+    memcpy(&version, data + sizeof(uint32_t), sizeof(version));
     radius_offset = 8;
     radius_offset += sizeof(wowM2Array_t);
-    radius_offset += sizeof(DWORD);
+    radius_offset += sizeof(uint32_t);
     radius_offset += sizeof(wowM2Array_t) * 3;
     if (version <= 263) {
         radius_offset += sizeof(wowM2Array_t);
     }
     radius_offset += sizeof(wowM2Array_t) * 3;
-    radius_offset += version <= 263 ? sizeof(wowM2Array_t) : sizeof(DWORD);
+    radius_offset += version <= 263 ? sizeof(wowM2Array_t) : sizeof(uint32_t);
     radius_offset += sizeof(wowM2Array_t) * 3;
     if (version <= 263) {
         radius_offset += sizeof(wowM2Array_t);
     }
     radius_offset += sizeof(wowM2Array_t) * 8;
     radius_offset += sizeof(float) * 6;
-    if ((DWORD)size < radius_offset + sizeof(*radius)) {
+    if ((uint32_t)size < radius_offset + sizeof(*radius)) {
         ri.FS_FreeFile(data);
         return false;
     }
@@ -345,7 +345,7 @@ BOOL Wow_ReadM2RadiusFromPath(LPCSTR path, float *radius) {
     return true;
 }
 
-BOOL Wow_CopyModelPathFallback(LPCSTR path, LPSTR out, DWORD out_size) {
+bool Wow_CopyModelPathFallback(cstring_t path, string_t out, uint32_t out_size) {
     size_t len;
 
     if (!path || !out || out_size == 0 || !Wow_PathHasExtension(path, ".mdx")) {
@@ -364,7 +364,7 @@ BOOL Wow_CopyModelPathFallback(LPCSTR path, LPSTR out, DWORD out_size) {
     return true;
 }
 
-float Wow_LoadM2BoundsRadius(LPCSTR path) {
+float Wow_LoadM2BoundsRadius(cstring_t path) {
     wowM2BoundsCache_t *entry;
     PATHSTR fallback_path;
     float radius = 0.0f;
@@ -396,7 +396,7 @@ float Wow_LoadM2BoundsRadius(LPCSTR path) {
     return radius;
 }
 
-void Wow_FreeStringList(char **strings, DWORD count) {
+void Wow_FreeStringList(char **strings, uint32_t count) {
     if (!strings) {
         return;
     }
@@ -406,15 +406,15 @@ void Wow_FreeStringList(char **strings, DWORD count) {
     ri.MemFree(strings);
 }
 
-char **Wow_ParseStringBlock(BYTE const *data, DWORD size, LPDWORD out_count) {
-    DWORD count = 0;
-    DWORD offset = 0;
+char **Wow_ParseStringBlock(uint8_t const *data, uint32_t size, uint32_t * out_count) {
+    uint32_t count = 0;
+    uint32_t offset = 0;
     char **strings;
 
     while (offset < size) {
-        size_t len = strlen((LPCSTR)(data + offset));
+        size_t len = strlen((cstring_t)(data + offset));
         count++;
-        offset += (DWORD)len + 1;
+        offset += (uint32_t)len + 1;
     }
 
     strings = ri.MemAlloc(sizeof(char *) * MAX(count, 1));
@@ -422,20 +422,20 @@ char **Wow_ParseStringBlock(BYTE const *data, DWORD size, LPDWORD out_count) {
     offset = 0;
     count = 0;
     while (offset < size) {
-        LPCSTR value = (LPCSTR)(data + offset);
+        cstring_t value = (cstring_t)(data + offset);
         size_t len = strlen(value);
         strings[count] = ri.MemAlloc(len + 1);
         memcpy(strings[count], value, len + 1);
         count++;
-        offset += (DWORD)len + 1;
+        offset += (uint32_t)len + 1;
     }
 
     *out_count = count;
     return strings;
 }
 
-LPCSTR Wow_StringRefFromOffsets(BYTE const *blob, DWORD blob_size, DWORD const *offsets, DWORD offset_count, DWORD id) {
-    DWORD offset;
+cstring_t Wow_StringRefFromOffsets(uint8_t const *blob, uint32_t blob_size, uint32_t const *offsets, uint32_t offset_count, uint32_t id) {
+    uint32_t offset;
 
     if (!blob || !offsets || id >= offset_count) {
         return NULL;
@@ -444,5 +444,5 @@ LPCSTR Wow_StringRefFromOffsets(BYTE const *blob, DWORD blob_size, DWORD const *
     if (offset >= blob_size || memchr(blob + offset, '\0', blob_size - offset) == NULL) {
         return NULL;
     }
-    return (LPCSTR)(blob + offset);
+    return (cstring_t)(blob + offset);
 }

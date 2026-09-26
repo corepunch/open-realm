@@ -16,8 +16,8 @@ typedef struct CreditsMenu_s {
     LPFRAMEDEF CreditsBackButtonText;
 } CreditsMenu_t;
 
-static inline BOOL CreditsMenu_Load(CreditsMenu_t *out) {
-    BOOL ok = true;
+static inline bool CreditsMenu_Load(CreditsMenu_t *out) {
+    bool ok = true;
     LPFRAMEDEF bind_root;
     if (!out) {
         return false;

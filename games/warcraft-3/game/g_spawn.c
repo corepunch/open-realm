@@ -8,35 +8,35 @@ extern JASSMODULE jass_funcs[];
 static LPEDICT reposition_unit;
 static LPCVECTOR2 reposition_point;
 
-static BOOL G_TutorialFlowDebugEnabledForMapSource(void) {
+static bool G_TutorialFlowDebugEnabledForMapSource(void) {
     return WC3_TUTORIAL_DEBUG_ENABLED();
 }
 
 /* Keep generated war3map.j as the authoritative source for preplaced units and items. */
-static BOOL G_LoadMapUnitData(void) {
+static bool G_LoadMapUnitData(void) {
     return atoi(gi.CvarString("wc3_load_units_from_map_data", "0")) != 0;
 }
 
 /* Unit/item placements are duplicated by the generated CreateAllUnits/CreateAllItems functions. */
-static BOOL G_MapObjectCreatedByMapScript(DWORD id) {
+static bool G_MapObjectCreatedByMapScript(uint32_t id) {
     if (id == MAKEFOURCC('s', 'l', 'o', 'c') || G_Doodad(id)->id || G_DestructableData(id)->file)
         return false;
     return G_UnitUI(id)->modelFile || G_ItemData(id)->file;
 }
 
 #ifdef BZ_TESTS
-BOOL G_TestMapObjectCreatedByMapScript(DWORD id) { return G_MapObjectCreatedByMapScript(id); }
+bool G_TestMapObjectCreatedByMapScript(uint32_t id) { return G_MapObjectCreatedByMapScript(id); }
 #endif
 
-static void G_JassCoroutineTrace(HANDLE trigger_handle, LPCSTR function, LPCSTR phase,
-                                 DWORD now, DWORD wake_time, BOOL yielded, BOOL done) {
+static void G_JassCoroutineTrace(handle_t trigger_handle, cstring_t function, cstring_t phase,
+                                 uint32_t now, uint32_t wake_time, bool yielded, bool done) {
     LPTRIGGER trigger = trigger_handle;
-    LONG ordinal;
+    int32_t ordinal;
     if (!G_TutorialFlowDebugEnabledForMapSource() || !trigger ||
         trigger < level.triggers || trigger >= level.triggers + level.num_triggers) {
         return;
     }
-    ordinal = (LONG)(trigger - level.triggers);
+    ordinal = (int32_t)(trigger - level.triggers);
     if (ordinal < 120 || ordinal > 165) return;
     fprintf(stderr,
             "WC3_TUTORIAL_COROUTINE phase=%s trigger=%ld function=\"%s\" now=%u wake=%u yielded=%d done=%d\n",
@@ -61,9 +61,9 @@ void G_InitJassHost(void) {
     ));
 }
 
-static LPCSTR G_FindJassMapFunction(LPCSTR script, LPCSTR name, LPCSTR *finish) {
+static cstring_t G_FindJassMapFunction(cstring_t script, cstring_t name, cstring_t *finish) {
     char needle[192];
-    LPCSTR start, end;
+    cstring_t start, end;
     if (finish) *finish = NULL;
     if (!script || !name || !*name) return NULL;
     snprintf(needle, sizeof(needle), "function %s takes", name);
@@ -77,8 +77,8 @@ static LPCSTR G_FindJassMapFunction(LPCSTR script, LPCSTR name, LPCSTR *finish) 
     return start;
 }
 
-static void G_DumpTutorialJassFunction(LPCSTR script, LPCSTR name) {
-    LPCSTR start, finish;
+static void G_DumpTutorialJassFunction(cstring_t script, cstring_t name) {
+    cstring_t start, finish;
     size_t length;
     start = G_FindJassMapFunction(script, name, &finish);
     if (!start) {
@@ -95,21 +95,21 @@ static void G_DumpTutorialJassFunction(LPCSTR script, LPCSTR name) {
     fprintf(stdout, "WC3_TUTORIAL_SOURCE end function=\"%s\"\n", name);
 }
 
-static BOOL G_JassRangeContains(LPCSTR start, LPCSTR finish, LPCSTR needle) {
-    LPCSTR hit;
+static bool G_JassRangeContains(cstring_t start, cstring_t finish, cstring_t needle) {
+    cstring_t hit;
     if (!start || !finish || !needle || start >= finish) return false;
     hit = strstr(start, needle);
     return hit && hit < finish;
 }
 
-static void G_DumpTutorialJassFunctionsReferencing(LPCSTR script, LPCSTR needle) {
-    LPCSTR cursor = script;
+static void G_DumpTutorialJassFunctionsReferencing(cstring_t script, cstring_t needle) {
+    cstring_t cursor = script;
     char function_name[160];
     if (!script || !needle || !*needle) return;
     while ((cursor = strstr(cursor, "function ")) != NULL) {
-        LPCSTR name_start = cursor + strlen("function ");
-        LPCSTR name_end = strstr(name_start, " takes");
-        LPCSTR finish = strstr(name_start, "endfunction");
+        cstring_t name_start = cursor + strlen("function ");
+        cstring_t name_end = strstr(name_start, " takes");
+        cstring_t finish = strstr(name_start, "endfunction");
         size_t name_len;
         if (!name_end || !finish) break;
         finish += strlen("endfunction");
@@ -128,14 +128,14 @@ static void G_DumpTutorialJassFunctionsReferencing(LPCSTR script, LPCSTR needle)
     }
 }
 
-static void G_DumpReferencedTutorialTriggers(LPCSTR script, LPCSTR start, LPCSTR finish) {
-    LPCSTR cursor = start;
+static void G_DumpReferencedTutorialTriggers(cstring_t script, cstring_t start, cstring_t finish) {
+    cstring_t cursor = start;
     char seen[16][96] = {{0}};
-    DWORD seen_count = 0;
+    uint32_t seen_count = 0;
     while (cursor && cursor < finish && seen_count < 16) {
-        LPCSTR ref = strstr(cursor, "gg_trg_");
+        cstring_t ref = strstr(cursor, "gg_trg_");
         size_t len;
-        BOOL duplicate = false;
+        bool duplicate = false;
         char suffix[96];
         char function_name[160];
         if (!ref || ref >= finish) break;
@@ -165,8 +165,8 @@ static void G_DumpReferencedTutorialTriggers(LPCSTR script, LPCSTR start, LPCSTR
     }
 }
 
-static void G_DumpPrologue02BurrowHandoffSource(LPCSTR script) {
-    static LPCSTR const root_names[] = {
+static void G_DumpPrologue02BurrowHandoffSource(cstring_t script) {
+    static cstring_t const root_names[] = {
         "Trig_W2_BurrowComplete_Q_Func002001",
         "Trig_W2_BurrowComplete_Q_Func007001",
         "Trig_W2_BurrowComplete_Q_Conditions",
@@ -185,7 +185,7 @@ static void G_DumpPrologue02BurrowHandoffSource(LPCSTR script) {
         "Trig_U1_SelectWarMill_Q_Actions",
         "InitTrig_U1_SelectWarMill_Q",
     };
-    LPCSTR action_start, action_finish;
+    cstring_t action_start, action_finish;
     if (!G_TutorialFlowDebugEnabledForMapSource()) return;
     FOR_LOOP(i, sizeof(root_names) / sizeof(root_names[0]))
         G_DumpTutorialJassFunction(script, root_names[i]);
@@ -199,14 +199,14 @@ static void G_DumpPrologue02BurrowHandoffSource(LPCSTR script) {
     G_DumpTutorialJassFunctionsReferencing(script, "gg_snd_T02Narrator035");
 }
 
-static DWORD G_NormalizeMapObjectPlayer(DWORD player) {
+static uint32_t G_NormalizeMapObjectPlayer(uint32_t player) {
     if (player < MAX_PLAYERS) {
         return player;
     }
     return PLAYER_NEUTRAL_PASSIVE;
 }
 
-LPCSTR targs[] = {
+cstring_t targs[] = {
     "none", // NONE
     "air",  // AIR
     "aliv", // ALIVE
@@ -241,7 +241,7 @@ LPCSTR targs[] = {
 };
 
 /* Convert an internal target category to the authored UnitWeapons targetflag bit. */
-DWORD G_TargetFlagForType(TARGTYPE type) {
+uint32_t G_TargetFlagForType(TARGTYPE type) {
     switch (type) {
     case TARG_GROUND:     return WC3_TARGET_FLAG_GROUND;
     case TARG_AIR:        return WC3_TARGET_FLAG_AIR;
@@ -257,22 +257,22 @@ DWORD G_TargetFlagForType(TARGTYPE type) {
     }
 }
 
-TARGTYPE G_GetTargetType(LPCSTR str) {
+TARGTYPE G_GetTargetType(cstring_t str) {
     /* Missing target metadata means no target flags; strlen(NULL) previously crashed sparse unit transforms. */
     if (!str || !*str) return TARG_NONE;
-    DWORD const len = (DWORD)strlen(str);
+    uint32_t const len = (uint32_t)strlen(str);
     if (len < 3) return TARG_NONE;
     char buf[64] = { 0 };
     FOR_LOOP(c, len) buf[c] = tolower(str[c]);
     FOR_LOOP(i, sizeof(targs)/sizeof(*targs)) {
-        if (*(DWORD *)buf == *(DWORD *)targs[i])
+        if (*(uint32_t *)buf == *(uint32_t *)targs[i])
             return i;
     }
     return TARG_NONE;
 }
 
 //struct spawn {
-//    LPCSTR name;
+//    cstring_t name;
 //    void (*func)(LPEDICT edict);
 //};
 
@@ -294,7 +294,7 @@ static void G_InitEdict(LPEDICT e) {
 }
 
 LPEDICT G_Spawn(void) {
-    for (DWORD i = game.max_clients; i < globals.num_edicts; i++) {
+    for (uint32_t i = game.max_clients; i < globals.num_edicts; i++) {
         LPEDICT e = &g_edicts[i];
         if (!e->inuse && e->freetime + 1000 < level.time) {
             G_InitEdict(e);
@@ -311,9 +311,9 @@ LPEDICT G_Spawn(void) {
 }
 
 /* Confirm a candidate variation resolves through the authoritative VFS. */
-static BOOL SP_DoodadModelExists(LPCSTR filename) {
-    DWORD size = 0;
-    HANDLE data;
+static bool SP_DoodadModelExists(cstring_t filename) {
+    uint32_t size = 0;
+    handle_t data;
 
     if (!filename || !*filename) return false;
     data = gi.ReadFile(filename, &size);
@@ -323,11 +323,11 @@ static BOOL SP_DoodadModelExists(LPCSTR filename) {
 }
 
 /* Resolve an authored doodad model and only use a variation file that exists. */
-static void SP_DoodadModelFilename(Doodads_t const *row, DWORD variation,
-                                   LPSTR out, size_t out_size) {
+static void SP_DoodadModelFilename(Doodads_t const *row, uint32_t variation,
+                                   string_t out, size_t out_size) {
     PATHSTR stem = { 0 };
     PATHSTR varied = { 0 };
-    LPCSTR file;
+    cstring_t file;
     char *dot;
 
     if (!out || !out_size) return;
@@ -346,12 +346,12 @@ static void SP_DoodadModelFilename(Doodads_t const *row, DWORD variation,
         *dot = '\0';
 
     if (row->numVar > 1) {
-        DWORD const max_variation = (DWORD)row->numVar - 1;
+        uint32_t const max_variation = (uint32_t)row->numVar - 1;
         char suffix[16];
         snprintf(suffix, sizeof(suffix), "%u.mdx", MIN(variation, max_variation));
         if (strlen(stem) + strlen(suffix) >= sizeof(varied)) {
             fprintf(stderr, "WC3 doodad model path is too long for '%.4s': %s%s\n",
-                    (LPCSTR)&row->id, stem, suffix);
+                    (cstring_t)&row->id, stem, suffix);
             return;
         }
         strlcpy(varied, stem, sizeof(varied));
@@ -385,11 +385,11 @@ static void SP_SpawnDoodad(LPEDICT edict) {
  * bridge points the game-side animation loader at a file that is not in
  * War3.mpq even though the renderer can recover by stripping that digit. */
 static void SP_DestructableModelFilename(DestructableData_t const *row,
-                                         DWORD variation,
-                                         LPSTR out,
+                                         uint32_t variation,
+                                         string_t out,
                                          size_t out_size) {
     PATHSTR stem = { 0 };
-    LPCSTR file;
+    cstring_t file;
     char *dot;
 
     if (!out || !out_size) return;
@@ -408,7 +408,7 @@ static void SP_DestructableModelFilename(DestructableData_t const *row,
         *dot = '\0';
 
     if (row->numVar > 1) {
-        DWORD const max_variation = (DWORD)row->numVar - 1;
+        uint32_t const max_variation = (uint32_t)row->numVar - 1;
         snprintf(out, out_size, "%s%u.mdx", stem, MIN(variation, max_variation));
     } else {
         snprintf(out, out_size, "%s.mdx", stem);
@@ -417,10 +417,10 @@ static void SP_DestructableModelFilename(DestructableData_t const *row,
 
 static void SP_SpawnDestructable(LPEDICT edict) {
     DestructableData_t const *row = edict->data.DestructableData;
-    LPCSTR path_tex = row->pathingTexture;
-    FLOAT radius = row->radius;
+    cstring_t path_tex = row->pathingTexture;
+    float radius = row->radius;
     PATHSTR buffer;
-    LPCSTR tex = row->textureFile;
+    cstring_t tex = row->textureFile;
     /* texFile may include an extension; "_" means the model has no replacement texture. */
     edict->s.image = tex && *tex && strcmp(tex, "_") ? gi.ImageIndex(tex) : 0;
     SP_DestructableModelFilename(row, edict->variation, buffer, sizeof(buffer));
@@ -437,7 +437,7 @@ static void SP_SpawnDestructable(LPEDICT edict) {
     edict->destructable.alive_collision = edict->collision;
     edict->destructable.initialized = true;
     edict->destructable.dead = false;
-    edict->destructable.item_table = (DWORD)-1;
+    edict->destructable.item_table = (uint32_t)-1;
     edict->destructable.placement_solid = true;
     edict->destructable.pathing_active = edict->pathtex || edict->collision > 0.0f;
 #ifndef USE_SHADOWMAPS
@@ -461,8 +461,8 @@ static void SP_SpawnDestructable(LPEDICT edict) {
  * jass-lib `currentunit`/GetEnumUnit pair). */
 LPEDICT currentdestructable = NULL;
 
-static BOOL G_ClassIdIsPrintable(DWORD class_id) {
-    BYTE const *id = (BYTE const *)&class_id;
+static bool G_ClassIdIsPrintable(uint32_t class_id) {
+    uint8_t const *id = (uint8_t const *)&class_id;
 
     FOR_LOOP(i, 4) {
         if (id[i] < 32 || id[i] > 126) {
@@ -535,7 +535,7 @@ void SP_CallSpawn(LPEDICT edict) {
 void SP_worldspawn(LPEDICT ent) {
 }
 
-static DWORD G_MapPlayerTeam(LPCMAPINFO mapinfo, DWORD playernum) {
+static uint32_t G_MapPlayerTeam(LPCMAPINFO mapinfo, uint32_t playernum) {
     if (!mapinfo || !mapinfo->teams) {
         return playernum;
     }
@@ -547,7 +547,7 @@ static DWORD G_MapPlayerTeam(LPCMAPINFO mapinfo, DWORD playernum) {
     return playernum;
 }
 
-static DWORD G_LocalMapPlayerNumber(LPCMAPINFO mapinfo) {
+static uint32_t G_LocalMapPlayerNumber(LPCMAPINFO mapinfo) {
     if (!mapinfo) {
         return 0;
     }
@@ -559,8 +559,8 @@ static DWORD G_LocalMapPlayerNumber(LPCMAPINFO mapinfo) {
     return 0;
 }
 
-static DWORD G_ClientSlotMapPlayerNumber(LPCMAPINFO mapinfo, DWORD slot, DWORD local_player) {
-    DWORD count = 1;
+static uint32_t G_ClientSlotMapPlayerNumber(LPCMAPINFO mapinfo, uint32_t slot, uint32_t local_player) {
+    uint32_t count = 1;
 
     if (slot == 0) {
         return local_player;
@@ -577,7 +577,7 @@ static DWORD G_ClientSlotMapPlayerNumber(LPCMAPINFO mapinfo, DWORD slot, DWORD l
 }
 
 /* JASS mapcontrol values do not match W3I playerType values after computer. */
-static DWORD G_MapControl(LPCMAPPLAYER player) {
+static uint32_t G_MapControl(LPCMAPPLAYER player) {
     if (!player) return 5;
     switch (player->playerType) {
         case kPlayerTypeHuman: return 0;
@@ -589,7 +589,7 @@ static DWORD G_MapControl(LPCMAPPLAYER player) {
 }
 
 /* Race preferences are bit flags, unlike the sequential W3I race enum. */
-static DWORD G_RacePreference(LPCMAPPLAYER player) {
+static uint32_t G_RacePreference(LPCMAPPLAYER player) {
     if (!player) return 0;
     switch (player->playerRace) {
         case kPlayerRaceHuman: return 1;
@@ -600,9 +600,9 @@ static DWORD G_RacePreference(LPCMAPPLAYER player) {
     }
 }
 
-static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) {
+static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, uint32_t playernum) {
     LPCMAPPLAYER player = mapinfo ? mapinfo->players + playernum : NULL;
-    LPCSTR name = player && player->playerName ? G_LevelString(player->playerName) : NULL;
+    cstring_t name = player && player->playerName ? G_LevelString(player->playerName) : NULL;
     LPPLAYER ps = &clent->client->ps;
     G_SetClientConnected(clent, false);
     G_ResetSelectionFocus(clent->client);
@@ -615,9 +615,9 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
     ps->color = player ? player->color : playernum;
     if (playernum == PLAYER_NEUTRAL_PASSIVE) ps->color = WC3_PLAYER_COLOR_LIGHT_GRAY;
     ps->race = player ? player->playerRace : kPlayerRaceNone;
-    ps->name = (LPSTR)name;
-    ps->start_location = player ? (LONG)playernum : -1;
-    ps->stats[PLAYERSTATE_FOOD_CAP_CEILING] = (USHORT)MIN(MAX(0, game.constants.foodCeiling), USHRT_MAX);
+    ps->name = (string_t)name;
+    ps->start_location = player ? (int32_t)playernum : -1;
+    ps->stats[PLAYERSTATE_FOOD_CAP_CEILING] = (uint16_t)MIN(MAX(0, game.constants.foodCeiling), USHRT_MAX);
     ps->stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 100;
     ps->stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = 100;
     ps->vieworigin = G_MakeServerOrigin(player ? player->startingPosition.x : 0.0f, player ? player->startingPosition.y : 0.0f, 0.0f);
@@ -658,9 +658,9 @@ static void G_InitMapPlayer(LPEDICT clent, LPCMAPINFO mapinfo, DWORD playernum) 
 void G_SpawnEntities(void) {
     LPCMAPINFO mapinfo = CM_GetMapInfo();
     LPCDOODAD entities = CM_GetDoodads();
-    DWORD local_player = G_LocalMapPlayerNumber(mapinfo);
-    LONG difficulty = 1;
-    LPCSTR map_path = gi.CvarString("map", "");
+    uint32_t local_player = G_LocalMapPlayerNumber(mapinfo);
+    int32_t difficulty = 1;
+    cstring_t map_path = gi.CvarString("map", "");
 
     /* Map replacement must release script roots before level pointers are cleared. */
     G_BotShutdown();
@@ -694,8 +694,8 @@ void G_SpawnEntities(void) {
     }
     if (difficulty < 0) difficulty = 0;
     if (difficulty > 3) difficulty = 3;
-    level.setup.difficulty = (DWORD)difficulty;
-    level.setup.default_difficulty = (DWORD)difficulty;
+    level.setup.difficulty = (uint32_t)difficulty;
+    level.setup.default_difficulty = (uint32_t)difficulty;
     level.setup.resource_density = level.setup.creature_density = 2;
     if (mapinfo) {
         strlcpy(level.setup.name, G_LevelString(mapinfo->mapName ? mapinfo->mapName : ""), sizeof(level.setup.name));
@@ -707,7 +707,7 @@ void G_SpawnEntities(void) {
     
     FOR_LOOP(p, MAX_PLAYERS) {
         LPGAMECLIENT client = game.clients+p;
-        DWORD playernum = G_ClientSlotMapPlayerNumber(mapinfo, p, local_player);
+        uint32_t playernum = G_ClientSlotMapPlayerNumber(mapinfo, p, local_player);
         g_edicts[p].client = client;
         G_InitMapPlayer(g_edicts+p, mapinfo, playernum);
     }
@@ -719,7 +719,7 @@ void G_SpawnEntities(void) {
     /* Quake II's body queue reserves real edicts before map entities, keeping all entity pointers in one address domain. */
     G_InitWaypoints();
 
-    DWORD spawn_count = 0;
+    uint32_t spawn_count = 0;
     FOR_EACH_LIST(DOODAD const, doodad, entities) {
         if ((spawn_count++ & 127u) == 0) gi.LoadingFrame();
         if (!G_LoadMapUnitData() && G_MapObjectCreatedByMapScript(doodad->doodID))
@@ -740,7 +740,7 @@ void G_SpawnEntities(void) {
         ent->s.angle = doodad->angle;
         ent->s.scale = doodad->scale.x;
         SP_CallSpawn(ent);
-        if ((S_GoldMineIsMine(ent) || S_GoldMineIsOverlay(ent)) && doodad->goldAmount != (DWORD)-1)
+        if ((S_GoldMineIsMine(ent) || S_GoldMineIsOverlay(ent)) && doodad->goldAmount != (uint32_t)-1)
             ent->resources = doodad->goldAmount;
         if (ent->svflags & SVF_MONSTER) G_ApplyMapUnitTeamColor(ent, doodad);
         if (G_IsDestructable(ent)) {
@@ -778,7 +778,7 @@ void G_SpawnEntities(void) {
 }
  
 /* Spawn a unit at a point while allowing map-restoration paths to skip presentation-only birth. */
-static LPEDICT SP_SpawnAtLocationInternal(DWORD class_id, DWORD player, LPCVECTOR2 location, BOOL play_birth) {
+static LPEDICT SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, LPCVECTOR2 location, bool play_birth) {
     LPEDICT ent = G_Spawn();
     LPGAMECLIENT client;
     if (!ent) {
@@ -817,17 +817,17 @@ static LPEDICT SP_SpawnAtLocationInternal(DWORD class_id, DWORD player, LPCVECTO
     return ent;
 }
 
-LPEDICT SP_SpawnAtLocation(DWORD class_id, DWORD player, LPCVECTOR2 location) {
+LPEDICT SP_SpawnAtLocation(uint32_t class_id, uint32_t player, LPCVECTOR2 location) {
     return SP_SpawnAtLocationInternal(class_id, player, location, true);
 }
 
-LPEDICT SP_SpawnAtLocationNoBirth(DWORD class_id, DWORD player, LPCVECTOR2 location) {
+LPEDICT SP_SpawnAtLocationNoBirth(uint32_t class_id, uint32_t player, LPCVECTOR2 location) {
     return SP_SpawnAtLocationInternal(class_id, player, location, false);
 }
 
-static BOOL bind_map_destructables = false;
+static bool bind_map_destructables = false;
 
-void G_SetDestructableScriptBinding(BOOL enabled) {
+void G_SetDestructableScriptBinding(bool enabled) {
     bind_map_destructables = enabled;
 }
 
@@ -852,14 +852,14 @@ void G_SetDestructableScriptBinding(BOOL enabled) {
  * duplicate.  Match a same-type destructable within 10 units of the spot. */
 /* HACK: Positional binding is required until the map parser exposes the
  * generated script variable's editor creation ID. */
-LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT facing, FLOAT scale, DWORD variation) {
+LPEDICT G_CreateDestructable(uint32_t class_id, float x, float y, float z, float facing, float scale, uint32_t variation) {
     if (bind_map_destructables) {
         LPEDICT best = NULL;
-        FLOAT best_distance = 10.0f;
+        float best_distance = 10.0f;
 
         FOR_LOOP(i, globals.num_edicts) {
             LPEDICT existing = &g_edicts[i];
-            FLOAT distance;
+            float distance;
 
             if (!existing->inuse ||
                 existing->class_id != class_id ||
@@ -912,13 +912,13 @@ LPEDICT G_CreateDestructable(DWORD class_id, FLOAT x, FLOAT y, FLOAT z, FLOAT fa
     return ent;
 }
 
-LPEDICT G_CreateDeadDestructable(DWORD class_id,
-                                 FLOAT x,
-                                 FLOAT y,
-                                 FLOAT z,
-                                 FLOAT facing,
-                                 FLOAT scale,
-                                 DWORD variation) {
+LPEDICT G_CreateDeadDestructable(uint32_t class_id,
+                                 float x,
+                                 float y,
+                                 float z,
+                                 float facing,
+                                 float scale,
+                                 uint32_t variation) {
     LPEDICT ent = G_CreateDestructable(class_id, x, y, z, facing, scale, variation);
 
     if (ent) {
@@ -927,12 +927,12 @@ LPEDICT G_CreateDeadDestructable(DWORD class_id,
     return ent;
 }
 
-BOOL SP_FindEmptySpaceAround(LPEDICT townhall, DWORD class_id, LPVECTOR2 out, FLOAT *angle) {
-    FLOAT const colsize = G_UnitUI(class_id)->selectionScale * SEL_SCALE / 2;
-    FLOAT const start_angle = M_PI * 1.25f;
+bool SP_FindEmptySpaceAround(LPEDICT townhall, uint32_t class_id, LPVECTOR2 out, float *angle) {
+    float const colsize = G_UnitUI(class_id)->selectionScale * SEL_SCALE / 2;
+    float const start_angle = M_PI * 1.25f;
     FOR_LOOP(i, MAX_SPAWN_ITERATIONS) {
-        FLOAT const radius = townhall->s.radius + colsize * (i * 2 + 1);
-        FLOAT const num_points = M_PI * radius / colsize;
+        float const radius = townhall->s.radius + colsize * (i * 2 + 1);
+        float const num_points = M_PI * radius / colsize;
         FOR_LOOP(j, num_points) {
             *angle = start_angle + 2 * M_PI * j / num_points;
             *out = MAKE(VECTOR2,
@@ -947,8 +947,8 @@ BOOL SP_FindEmptySpaceAround(LPEDICT townhall, DWORD class_id, LPVECTOR2 out, FL
     return false;
 }
 
-static BOOL SP_CanPlaceUnitAt(LPEDICT unit, LPCVECTOR2 point) {
-    BYTE const blocked_flags = M_UnitStaticPathingFlags(unit);
+static bool SP_CanPlaceUnitAt(LPEDICT unit, LPCVECTOR2 point) {
+    uint8_t const blocked_flags = M_UnitStaticPathingFlags(unit);
     if (!unit || !point) {
         return false;
     }
@@ -977,8 +977,8 @@ static BOOL SP_CanPlaceUnitAt(LPEDICT unit, LPCVECTOR2 point) {
 /* The old per-candidate full edict scan made crowded CreateUnit spawns costly.
  * BoxEdicts bounds include each linked entity's collision radius; keep the
  * same precise circle/layer rules while querying only nearby units. */
-static BOOL G_RepositionBlocker(LPCEDICT other) {
-    FLOAT dx, dy, reach;
+static bool G_RepositionBlocker(LPCEDICT other) {
+    float dx, dy, reach;
     LPEDICT unit = reposition_unit;
     if (other == unit || (G_IsItem(unit) && other == unit->item.carrier) ||
         IS_HOLLOW(other) || other->collision <= 0.0f ||
@@ -989,9 +989,9 @@ static BOOL G_RepositionBlocker(LPCEDICT other) {
     return dx * dx + dy * dy < reach * reach;
 }
 
-static BOOL G_CanRepositionUnitAt(LPEDICT unit, LPCVECTOR2 point) {
+static bool G_CanRepositionUnitAt(LPEDICT unit, LPCVECTOR2 point) {
     LPEDICT blockers[MAX_REPOSITION_BLOCKERS];
-    FLOAT radius;
+    float radius;
     BOX2 area;
     if (!unit || !point) return false;
     if (!CM_PointIsPathableForRadiusFlags(point, unit->collision, M_UnitStaticPathingFlags(unit))) return false;
@@ -1007,7 +1007,7 @@ static BOOL G_CanRepositionUnitAt(LPEDICT unit, LPCVECTOR2 point) {
  * then walk a deterministic 64-world-unit square spiral for at most 300
  * candidates. Keep the requested point as the fallback when no candidate is
  * legal, matching Warsmash's outputX/outputY initialization. */
-BOOL G_FindUnitUnstuckPosition(LPEDICT unit, LPCVECTOR2 requested, LPVECTOR2 out) {
+bool G_FindUnitUnstuckPosition(LPEDICT unit, LPCVECTOR2 requested, LPVECTOR2 out) {
     int check_x = 0, check_y = 0;
 
     if (!unit || !requested || !out) {
@@ -1041,15 +1041,15 @@ BOOL G_FindUnitUnstuckPosition(LPEDICT unit, LPCVECTOR2 requested, LPVECTOR2 out
 typedef struct {
     LPEDICT   producer;
     LPEDICT   unit;
-    FLOAT     spacing;
+    float     spacing;
     LPVECTOR2 out;
-    FLOAT    *angle;
+    float    *angle;
 } unitExitCtx_t;
 
-static BOOL SP_TryUnitExitCandidate(unitExitCtx_t const *ctx, int grid_x, int grid_y) {
+static bool SP_TryUnitExitCandidate(unitExitCtx_t const *ctx, int grid_x, int grid_y) {
     VECTOR2 const candidate = {
-        ctx->producer->s.origin2.x + (FLOAT)grid_x * ctx->spacing,
-        ctx->producer->s.origin2.y + (FLOAT)grid_y * ctx->spacing,
+        ctx->producer->s.origin2.x + (float)grid_x * ctx->spacing,
+        ctx->producer->s.origin2.y + (float)grid_y * ctx->spacing,
     };
 
     /* MOVETYPE_NONE buildings are omitted from the dynamic collision scan;
@@ -1070,9 +1070,9 @@ static BOOL SP_TryUnitExitCandidate(unitExitCtx_t const *ctx, int grid_x, int gr
  * exit point is found. Search deterministic 64-world-unit square rings, using
  * the trained unit's real collision radius against both the baked static
  * pathmap and dynamic unit circles. */
-BOOL SP_FindUnitExitPosition(LPEDICT producer, LPEDICT unit, LPVECTOR2 out, FLOAT *angle) {
-    DWORD const max_candidates = 300;
-    DWORD tested = 0;
+bool SP_FindUnitExitPosition(LPEDICT producer, LPEDICT unit, LPVECTOR2 out, float *angle) {
+    uint32_t const max_candidates = 300;
+    uint32_t tested = 0;
     unitExitCtx_t ctx;
 
     if (!producer || !unit || !out || !angle) {

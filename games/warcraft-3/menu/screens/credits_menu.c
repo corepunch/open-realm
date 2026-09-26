@@ -9,7 +9,7 @@
 static LPFRAMEDEF credits_root;
 static uiDialogWar3_t credits_dialog;
 
-static BOOL CreditsMenu_LoadScreen(void) {
+static bool CreditsMenu_LoadScreen(void) {
     credits_root = UI_FindFrame("CreditsMenu");
     if (!credits_root) {
         credits_root = UI_Spawn(FT_FRAME, NULL);
@@ -51,7 +51,7 @@ static void CreditsMenu_Draw(void) {
     }
 }
 
-static void CreditsMenu_KeyEvent(int key, BOOL down) {
+static void CreditsMenu_KeyEvent(int key, bool down) {
     (void)key;
     (void)down;
 }

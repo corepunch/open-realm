@@ -6,12 +6,12 @@
 /* The client canvas resolves the scene from its window and policy (docs/architecture/ui-canvas.md); the
  * renderer only maps it onto the whole drawable, so projection can never disagree with pointer mapping.
  * Before the first push (renderer start-up, standalone renderer tests) the authored scene applies. */
-RECT R_UISceneRect(void) {
+rect_t R_UISceneRect(void) {
     if (tr.uiScene.w > 0.0f && tr.uiScene.h > 0.0f) return tr.uiScene;
-    return MAKE(RECT, 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT);
+    return MAKE(rect_t, 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT);
 }
 
-void R_SetUIScene(LPCRECT scene) {
+void R_SetUIScene(rect_t const * scene) {
     if (!scene || scene->w <= 0.0f || scene->h <= 0.0f) {
         fprintf(stderr, "R_SetUIScene: rejected empty scene\n");
         return;
@@ -20,9 +20,9 @@ void R_SetUIScene(LPCRECT scene) {
 }
 
 /* Share glyph batching internally; only scaled characters need a renderer export. */
-static void r_draw_string_scaled(float x, float y, LPCSTR text, float scale) {
+static void r_draw_string_scaled(float x, float y, cstring_t text, float scale) {
     VERTEX simp[6 * 128];
-    DWORD count = 0;
+    uint32_t count = 0;
     size2_t window = R_GetWindowSize();
     MATRIX4 ui_matrix;
     float char_width;
@@ -34,11 +34,11 @@ static void r_draw_string_scaled(float x, float y, LPCSTR text, float scale) {
     char_height = SYSFONT_DRAW_HEIGHT * scale;
     if (y <= -char_height) return;
 
-    for (DWORD i = 0; text[i] && i < 128; i++) {
-        DWORD ch = (BYTE)text[i];
+    for (uint32_t i = 0; text[i] && i < 128; i++) {
+        uint32_t ch = (uint8_t)text[i];
         float fx = ch & 15, fy = ch >> 4;
         if ((ch & 127) == 32) continue;
-        R_AddQuad(simp + count, &(RECT){ x + i * char_width, y, char_width, char_height }, &(RECT){ fx / SYSFONT_COLS, fy / SYSFONT_ROWS, 1.f / SYSFONT_COLS, 1.f / SYSFONT_ROWS }, COLOR32_WHITE, 0);
+        R_AddQuad(simp + count, &(rect_t){ x + i * char_width, y, char_width, char_height }, &(rect_t){ fx / SYSFONT_COLS, fy / SYSFONT_ROWS, 1.f / SYSFONT_COLS, 1.f / SYSFONT_ROWS }, COLOR32_WHITE, 0);
         count += 6;
     }
     if (!count) return;
@@ -60,7 +60,7 @@ static void r_draw_string_scaled(float x, float y, LPCSTR text, float scale) {
     R_Call(glDrawArrays, GL_TRIANGLES, 0, count);
 }
 
-void R_DrawString(int x, int y, LPCSTR text) {
+void R_DrawString(int x, int y, cstring_t text) {
     r_draw_string_scaled((float)x, (float)y, text, 1.0f);
 }
 
@@ -73,7 +73,7 @@ void R_DrawChar(int x, int y, int c) {
     R_DrawCharScaled((float)x, (float)y, c, 1.0f);
 }
 
-void R_DrawFill(LPCRECT rect, COLOR32 color) {
+void R_DrawFill(rect_t const * rect, COLOR32 color) {
     VERTEX simp[6];
     MATRIX4 ui_matrix;
     size2_t window = R_GetWindowSize();
@@ -82,7 +82,7 @@ void R_DrawFill(LPCRECT rect, COLOR32 color) {
         return;
     }
 
-    R_AddQuad(simp, rect, &(RECT){0, 0, 1, 1}, color, 0);
+    R_AddQuad(simp, rect, &(rect_t){0, 0, 1, 1}, color, 0);
     Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
 
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
@@ -120,12 +120,12 @@ void R_SetBlending(BLEND_MODE mode) {
 //    }
 }
 
-static void R_SetUIClipScissor(LPCRECT clip) {
-    RECT const scene = R_UISceneRect();
-    FLOAT x = (clip->x - scene.x) / scene.w;
-    FLOAT y = 1.0f - ((clip->y + clip->h - scene.y) / scene.h);
-    FLOAT w = clip->w / scene.w;
-    FLOAT h = clip->h / scene.h;
+static void R_SetUIClipScissor(rect_t const * clip) {
+    rect_t const scene = R_UISceneRect();
+    float x = (clip->x - scene.x) / scene.w;
+    float y = 1.0f - ((clip->y + clip->h - scene.y) / scene.h);
+    float w = clip->w / scene.w;
+    float h = clip->h / scene.h;
 
     x = MAX(0.0f, MIN(1.0f, x));
     y = MAX(0.0f, MIN(1.0f, y));
@@ -147,13 +147,13 @@ static void R_ResetUIScissor(void) {
 void R_DrawImageBatch(LPCTEXTURE texture,
                       SHADERTYPE shaderType,
                       BLEND_MODE alphamode,
-                      FLOAT uActiveGlow,
-                      FLOAT uRadialShade,
-                      BOOL hasClip,
-                      LPCRECT clip,
+                      float uActiveGlow,
+                      float uRadialShade,
+                      bool hasClip,
+                      rect_t const * clip,
                       LPCVERTEX vertices,
-                      DWORD num_vertices,
-                      BOOL repeat)
+                      uint32_t num_vertices,
+                      bool repeat)
 {
     if (!vertices || !num_vertices) {
         return;
@@ -162,7 +162,7 @@ void R_DrawImageBatch(LPCTEXTURE texture,
     SPRITEPROG *shader = R_SpriteShader(shaderType);
     
     MATRIX4 ui_matrix, model_matrix;
-    RECT const scene = R_UISceneRect();
+    rect_t const scene = R_UISceneRect();
     Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y + scene.h, scene.y, 0.0f, 100.0f);
     Matrix4_identity(&model_matrix);
     
@@ -213,15 +213,15 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
     R_AddQuad(simp, &drawImage->screen, &drawImage->uv, drawImage->color, 0);
 
     if (drawImage->angle) {
-        FLOAT const cx = drawImage->screen.x + drawImage->screen.w * 0.5f;
-        FLOAT const cy = drawImage->screen.y + drawImage->screen.h * 0.5f;
-        FLOAT const radians = drawImage->angle * (FLOAT)(M_PI / 180.0);
-        FLOAT const c = cosf(radians);
-        FLOAT const s = sinf(radians);
+        float const cx = drawImage->screen.x + drawImage->screen.w * 0.5f;
+        float const cy = drawImage->screen.y + drawImage->screen.h * 0.5f;
+        float const radians = drawImage->angle * (float)(M_PI / 180.0);
+        float const c = cosf(radians);
+        float const s = sinf(radians);
 
         FOR_LOOP(i, 6) {
-            FLOAT const x = simp[i].position.x - cx;
-            FLOAT const y = simp[i].position.y - cy;
+            float const x = simp[i].position.x - cx;
+            float const y = simp[i].position.y - cy;
             simp[i].position.x = cx + x * c - y * s;
             simp[i].position.y = cy + x * s + y * c;
         }
@@ -239,11 +239,11 @@ void R_DrawImageEx(LPCDRAWIMAGE drawImage) {
                      drawImage->uv.w > 1 || drawImage->uv.h > 1);
 }
 
-void R_DrawImage(LPCTEXTURE texture, LPCRECT screen, LPCRECT uv, COLOR32 color) {
+void R_DrawImage(LPCTEXTURE texture, rect_t const * screen, rect_t const * uv, COLOR32 color) {
     R_DrawImageEx(&MAKE(drawImage_t,
                         .texture = texture,
                         .screen = *screen,
-                        .uv = uv ? *uv : MAKE(RECT,0,0,1,1),
+                        .uv = uv ? *uv : MAKE(rect_t,0,0,1,1),
                         .color = color,
                         .shader = SHADER_UI));
 }
@@ -261,8 +261,8 @@ static void R_DisableCinematicPBO(void) {
 }
 
 /* Map a pixel-unpack buffer so video uploads do not make the driver copy client memory synchronously. */
-static BOOL R_MapCinematicFrame(LPCDRAWCINEMATICFRAME frame) {
-    DWORD size = frame->width * frame->height * 4;
+static bool R_MapCinematicFrame(LPCDRAWCINEMATICFRAME frame) {
+    uint32_t size = frame->width * frame->height * 4;
     void *mapped;
     GLboolean unmapped;
 
@@ -331,13 +331,13 @@ void R_DrawCinematicFrame(LPCDRAWCINEMATICFRAME frame) {
         if (!R_MapCinematicFrame(frame))
             R_Call(glTexSubImage2D, GL_TEXTURE_2D, 0, 0, 0, frame->width, frame->height, GL_RGBA, GL_UNSIGNED_BYTE, frame->pixels);
     }
-    R_DrawImage(tr.cinematic, &frame->screen, &(RECT){0, 0, 1, 1}, COLOR32_WHITE);
+    R_DrawImage(tr.cinematic, &frame->screen, &(rect_t){0, 0, 1, 1}, COLOR32_WHITE);
 }
 
-static BOOL R_MinimapPointForWorld(LPCVECTOR3 world, LPCRECT screen, LPVECTOR2 out) {
+static bool R_MinimapPointForWorld(LPCVECTOR3 world, rect_t const * screen, LPVECTOR2 out) {
     VECTOR2 map_size;
-    FLOAT nx;
-    FLOAT ny;
+    float nx;
+    float ny;
 
     if (!tr.world || !world || !screen || !out) {
         return false;
@@ -358,7 +358,7 @@ static BOOL R_MinimapPointForWorld(LPCVECTOR3 world, LPCRECT screen, LPVECTOR2 o
     return true;
 }
 
-static BOOL R_TraceViewportCornerToMinimap(FLOAT x, FLOAT y, LPCRECT screen, LPVECTOR2 out, LPVECTOR3 world_out) {
+static bool R_TraceViewportCornerToMinimap(float x, float y, rect_t const * screen, LPVECTOR2 out, LPVECTOR3 world_out) {
     VECTOR3 world;
     LINE3 line;
     PLANE3 ground = {
@@ -376,9 +376,9 @@ static BOOL R_TraceViewportCornerToMinimap(FLOAT x, FLOAT y, LPCRECT screen, LPV
     return R_MinimapPointForWorld(&world, screen, out);
 }
 
-static void R_DrawUILineStrip(VERTEX const *vertices, DWORD count) {
+static void R_DrawUILineStrip(VERTEX const *vertices, uint32_t count) {
     MATRIX4 ui_matrix, model_matrix;
-    RECT const scene = R_UISceneRect();
+    rect_t const scene = R_UISceneRect();
 
     Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y + scene.h, scene.y, 0.0f, 100.0f);
     Matrix4_identity(&model_matrix);
@@ -399,16 +399,16 @@ static void R_DrawUILineStrip(VERTEX const *vertices, DWORD count) {
     R_Call(glDepthMask, GL_TRUE);
 }
 
-void R_DrawMinimapCameraRect(LPCRECT screen) {
+void R_DrawMinimapCameraRect(rect_t const * screen) {
     size2_t window = R_GetWindowSize();
-    FLOAT left = tr.viewDef.viewport.x * window.width;
-    FLOAT right = (tr.viewDef.viewport.x + tr.viewDef.viewport.w) * window.width;
-    FLOAT top = (1.0f - (tr.viewDef.viewport.y + tr.viewDef.viewport.h)) * window.height;
-    FLOAT bottom = (1.0f - tr.viewDef.viewport.y) * window.height;
+    float left = tr.viewDef.viewport.x * window.width;
+    float right = (tr.viewDef.viewport.x + tr.viewDef.viewport.w) * window.width;
+    float top = (1.0f - (tr.viewDef.viewport.y + tr.viewDef.viewport.h)) * window.height;
+    float bottom = (1.0f - tr.viewDef.viewport.y) * window.height;
     VECTOR2 corners[4];
     VERTEX vertices[5];
     COLOR32 color = MAKE(COLOR32, 255, 255, 255, 220);
-    RECT uv = { 0, 0, 1, 1 };
+    rect_t uv = { 0, 0, 1, 1 };
 
     if (!tr.world || !screen ||
         (tr.viewDef.rdflags & (RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL)) ||
@@ -436,7 +436,7 @@ void R_DrawMinimapCameraRect(LPCRECT screen) {
     R_DrawUILineStrip(vertices, 5);
 }
 
-void R_DrawMinimapBorder(LPCRECT screen, COLOR32 color) {
+void R_DrawMinimapBorder(rect_t const * screen, COLOR32 color) {
     VERTEX vertices[5];
 
     if (!screen || screen->w <= 0.0f || screen->h <= 0.0f) return;
@@ -462,7 +462,7 @@ bool R_WorldToMinimap(LPCVECTOR2 world, LPVECTOR2 outScreen) {
  * to a world position, so a minimap click can recenter the camera. */
 bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld) {
     size2_t window;
-    RECT scene;
+    rect_t scene;
     VECTOR2 map_size;
     float ux, uy, nx, ny;
 
@@ -478,7 +478,7 @@ bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld) {
     ux = scene.x + (x / (float)window.width)  * scene.w;
     uy = scene.y + (y / (float)window.height) * scene.h;
 
-    RECT const r = tr.minimapRect;
+    rect_t const r = tr.minimapRect;
     if (ux < r.x || ux > r.x + r.w || uy < r.y || uy > r.y + r.h) {
         return false;
     }
@@ -493,7 +493,7 @@ bool R_TraceMinimap(float x, float y, LPVECTOR2 outWorld) {
     return true;
 }
 
-void R_DrawMinimapScene(LPCRECT screen, LPCSTR map) {
+void R_DrawMinimapScene(rect_t const * screen, cstring_t map) {
     if (!screen) {
         return;
     }
@@ -505,15 +505,15 @@ void R_DrawMinimapScene(LPCRECT screen, LPCSTR map) {
 }
 
 void R_DrawPic(LPCTEXTURE texture, float x, float y) {
-    RECT screen = { x, y, texture->width / 2000.0, texture->height / 2000.0};
+    rect_t screen = { x, y, texture->width / 2000.0, texture->height / 2000.0};
     R_DrawImage(texture, &screen, NULL, COLOR32_WHITE);
 }
 
-void R_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color) {
-    FLOAT const cx = rect->x + rect->w * 0.5f;
-    FLOAT const cy = rect->y + rect->h * 0.5f;
-    FLOAT const size = MAX(MIN(rect->w, rect->h) * 0.11f, 0.006f);
-    RECT const screen = { cx - size * 0.5f, cy - size * 0.5f, size, size };
+void R_DrawLoadingIndicator(rect_t const * rect, uint32_t time, COLOR32 color) {
+    float const cx = rect->x + rect->w * 0.5f;
+    float const cy = rect->y + rect->h * 0.5f;
+    float const size = MAX(MIN(rect->w, rect->h) * 0.11f, 0.006f);
+    rect_t const screen = { cx - size * 0.5f, cy - size * 0.5f, size, size };
 
     if (!color.a) {
         color = MAKE(COLOR32, 235, 220, 180, 255);
@@ -522,13 +522,13 @@ void R_DrawLoadingIndicator(LPCRECT rect, DWORD time, COLOR32 color) {
     R_DrawImageEx(&MAKE(drawImage_t,
                         .texture = tr.texture[TEX_LOADING_INDICATOR],
                         .screen = screen,
-                        .uv = MAKE(RECT, 0, 0, 1, 1),
+                        .uv = MAKE(rect_t, 0, 0, 1, 1),
                         .color = color,
                         .shader = SHADER_UI,
-                        .angle = -360.0f * (FLOAT)(time % 900) / 900.0f));
+                        .angle = -360.0f * (float)(time % 900) / 900.0f));
 }
 
-void R_DrawWireRect(LPCRECT rect, COLOR32 color) {
+void R_DrawWireRect(rect_t const * rect, COLOR32 color) {
     static VERTEX simp[5];
     R_AddStrip(simp, rect, color);
 
@@ -551,11 +551,11 @@ void R_DrawWireRect(LPCRECT rect, COLOR32 color) {
     R_Call(glDrawArrays, GL_LINE_STRIP, 0, sizeof(simp) / sizeof(*simp));
 }
 
-void R_DrawSelectionRect(LPCRECT rect, COLOR32 color) {
+void R_DrawSelectionRect(rect_t const * rect, COLOR32 color) {
     /* Selection is a world overlay even though the marquee is drawn in window coordinates. */
     R_SetupScissor(&tr.viewDef.scissor);
     R_DrawWireRect(rect, color);
-    R_SetupScissor(&(RECT){0, 0, 1, 1});
+    R_SetupScissor(&(rect_t){0, 0, 1, 1});
 }
 
 void R_DrawBoundingBox(LPCBOX3 box, LPCMATRIX4 modelMatrix, LPCMATRIX4 vpMatrix, COLOR32 color) {

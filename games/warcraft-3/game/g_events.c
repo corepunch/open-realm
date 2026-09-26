@@ -1,9 +1,9 @@
 #include "g_local.h"
 
-BOOL jass_calltriggerevent(LPJASS j, LPTRIGGER trigger, GAMEEVENT const *event);
-BOOL jass_evaluateboolexpr(LPJASS j, LPCJASSFUNC expr, LPEDICT unit);
+bool jass_calltriggerevent(LPJASS j, LPTRIGGER trigger, GAMEEVENT const *event);
+bool jass_evaluateboolexpr(LPJASS j, LPCJASSFUNC expr, LPEDICT unit);
 
-BOOL G_LimitMatches(DWORD op, FLOAT value, FLOAT limit) {
+bool G_LimitMatches(uint32_t op, float value, float limit) {
     switch (op) {
         case WC3_LIMITOP_LESS_THAN: return value < limit;
         case WC3_LIMITOP_LESS_THAN_OR_EQUAL: return value <= limit;
@@ -15,7 +15,7 @@ BOOL G_LimitMatches(DWORD op, FLOAT value, FLOAT limit) {
     }
 }
 
-void G_JassVariableChanged(LPCSTR name, FLOAT before, FLOAT after) {
+void G_JassVariableChanged(cstring_t name, float before, float after) {
     FOR_EACH_EVENT(evt) {
         if (evt->type == EVENT_GAME_VARIABLE_LIMIT && evt->variable && !strcmp(evt->variable, name) &&
             !G_LimitMatches(evt->limitop, before, evt->limitval) && G_LimitMatches(evt->limitop, after, evt->limitval))
@@ -26,7 +26,7 @@ void G_JassVariableChanged(LPCSTR name, FLOAT before, FLOAT after) {
 /* One authoritative terminal-result transition shared by JASS RemovePlayer
  * and developer cheats.  Keep campaign/result presentation downstream of the
  * normal EVENT_PLAYER_VICTORY / EVENT_PLAYER_DEFEAT pipeline. */
-BOOL G_RemovePlayerWithResult(DWORD player_num, DWORD game_result) {
+bool G_RemovePlayerWithResult(uint32_t player_num, uint32_t game_result) {
     LPGAMECLIENT client;
     LPEDICT pent;
 
@@ -54,7 +54,7 @@ BOOL G_RemovePlayerWithResult(DWORD player_num, DWORD game_result) {
         return false;
     }
 
-    client->ps.stats[PLAYERSTATE_GAME_RESULT] = (USHORT)game_result;
+    client->ps.stats[PLAYERSTATE_GAME_RESULT] = (uint16_t)game_result;
     client->jass.removed = true;
     client->jass.pending_game_result = 0;
     client->jass.pending_game_result_event = level.events.read;
@@ -95,8 +95,8 @@ BOOL G_RemovePlayerWithResult(DWORD player_num, DWORD game_result) {
 
 static void G_ExecuteEvent(GAMEEVENT *evt) {
     LPEDICT subject = evt->edict;
-    BOOL result_event = evt->type == EVENT_PLAYER_VICTORY || evt->type == EVENT_PLAYER_DEFEAT;
-    DWORD matching_handlers = 0, invoked_handlers = 0;
+    bool result_event = evt->type == EVENT_PLAYER_VICTORY || evt->type == EVENT_PLAYER_DEFEAT;
+    uint32_t matching_handlers = 0, invoked_handlers = 0;
     /* KillUnit followed by RemoveUnit still owes death notifications while the corpse exists. */
     if (evt->edict_spawn_tracked &&
         (!subject || !subject->inuse || subject->spawn_time != evt->edict_spawn_time ||
@@ -168,18 +168,18 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                  *    context unit so GetTriggerUnit()/GetDyingUnit() resolve to
                  *    it (e.g. Naga_Victory_Check counts the dying naga). */
                 if (e->type == evt->type) {
-                    BOOL direct = subject && e->subject == subject;
-                    BOOL owner_match = subject &&
+                    bool direct = subject && e->subject == subject;
+                    bool owner_match = subject &&
                         e->subject == G_GetPlayerEntityByNumber(subject->s.player);
-                    LONG quest_trigger_ordinal = e->trigger
-                        ? (LONG)(e->trigger - level.triggers) : -1L;
-                    BOOL quest_peon_stage = gi.CvarString &&
+                    int32_t quest_trigger_ordinal = e->trigger
+                        ? (int32_t)(e->trigger - level.triggers) : -1L;
+                    bool quest_peon_stage = gi.CvarString &&
                         WC3_TUTORIAL_DEBUG_ENABLED() &&
                         quest_trigger_ordinal >= 95 && quest_trigger_ordinal <= 106;
-                    BOOL subgroup_stage = gi.CvarString &&
+                    bool subgroup_stage = gi.CvarString &&
                         WC3_TUTORIAL_DEBUG_ENABLED() &&
                         quest_trigger_ordinal >= 208 && quest_trigger_ordinal <= 213;
-                    BOOL quest_build_event = gi.CvarString &&
+                    bool quest_build_event = gi.CvarString &&
                         WC3_TUTORIAL_DEBUG_ENABLED() &&
                         (evt->type == EVENT_PLAYER_UNIT_CONSTRUCT_START ||
                          evt->type == EVENT_PLAYER_UNIT_CONSTRUCT_FINISH ||
@@ -189,7 +189,7 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                                 "WC3_QUEST_BUILD dispatch event=%u trigger=%ld building=%ld id=%.4s owner=%u handler_subject=%ld direct=%d owner_match=%d match=%d disabled=%d\n",
                                 (unsigned)evt->type, (long)quest_trigger_ordinal,
                                 subject ? (long)(subject - globals.edicts) : -1L,
-                                subject ? (LPCSTR)&subject->class_id : "----",
+                                subject ? (cstring_t)&subject->class_id : "----",
                                 subject ? (unsigned)subject->s.player : 0u,
                                 e->subject ? (long)(e->subject - globals.edicts) : -1L,
                                 direct, owner_match, direct || owner_match,
@@ -200,10 +200,10 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                                 "WC3_SUBGROUP dispatch event=%u trigger=%ld subject=%ld id=%.4s owner=%u source=%ld source_id=%.4s handler_subject=%ld direct=%d owner_match=%d match=%d disabled=%d\n",
                                 (unsigned)evt->type, (long)quest_trigger_ordinal,
                                 subject ? (long)(subject - globals.edicts) : -1L,
-                                subject ? (LPCSTR)&subject->class_id : "----",
+                                subject ? (cstring_t)&subject->class_id : "----",
                                 subject ? (unsigned)subject->s.player : 0u,
                                 evt->source ? (long)(evt->source - globals.edicts) : -1L,
-                                evt->source ? (LPCSTR)&evt->source->class_id : "----",
+                                evt->source ? (cstring_t)&evt->source->class_id : "----",
                                 e->subject ? (long)(e->subject - globals.edicts) : -1L,
                                 direct, owner_match, direct || owner_match,
                                 e->trigger ? (int)e->trigger->disabled : -1);
@@ -213,10 +213,10 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                                 "WC3_QUEST_PEON dispatch event=%u trigger=%ld unit=%ld id=%.4s owner=%u source=%ld source_id=%.4s handler_subject=%ld direct=%d owner_match=%d match=%d disabled=%d\n",
                                 (unsigned)evt->type, (long)quest_trigger_ordinal,
                                 subject ? (long)(subject - globals.edicts) : -1L,
-                                subject ? (LPCSTR)&subject->class_id : "----",
+                                subject ? (cstring_t)&subject->class_id : "----",
                                 subject ? (unsigned)subject->s.player : 0u,
                                 evt->source ? (long)(evt->source - globals.edicts) : -1L,
-                                evt->source ? (LPCSTR)&evt->source->class_id : "----",
+                                evt->source ? (cstring_t)&evt->source->class_id : "----",
                                 e->subject ? (long)(e->subject - globals.edicts) : -1L,
                                 direct, owner_match, direct || owner_match,
                                 e->trigger ? (int)e->trigger->disabled : -1);
@@ -229,7 +229,7 @@ static void G_ExecuteEvent(GAMEEVENT *evt) {
                             (unsigned)direct, (unsigned)owner_match);
                     }
                     if (direct || owner_match) {
-                        BOOL queued = jass_calltriggerevent(level.vm, e->trigger, evt);
+                        bool queued = jass_calltriggerevent(level.vm, e->trigger, evt);
                         if (quest_build_event) {
                             fprintf(stderr,
                                     "WC3_QUEST_BUILD dispatch-result event=%u trigger=%ld queued=%d disabled=%d\n",
@@ -269,9 +269,9 @@ static void G_TouchTriggers(LPEDICT ent) {
     FOR_EACH_EVENT(evt) {
         switch (evt->type) {
             case EVENT_GAME_ENTER_REGION: {
-                HANDLE event_handle = G_EventHandle(evt), region_handle = evt->region;
+                handle_t event_handle = G_EventHandle(evt), region_handle = evt->region;
                 LPREGION region = G_RegionFromHandle(evt->region);
-                DWORD spawn_time = ent->spawn_time;
+                uint32_t spawn_time = ent->spawn_time;
                 if (region && G_RegionContains(region, &ent->s.origin2) &&
                     !G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
                     ent->inuse && ent->spawn_time == spawn_time && !G_IsDeferredFree(ent) &&
@@ -282,9 +282,9 @@ static void G_TouchTriggers(LPEDICT ent) {
                 break;
             }
             case EVENT_GAME_LEAVE_REGION: {
-                HANDLE event_handle = G_EventHandle(evt), region_handle = evt->region;
+                handle_t event_handle = G_EventHandle(evt), region_handle = evt->region;
                 LPREGION region = G_RegionFromHandle(evt->region);
-                DWORD spawn_time = ent->spawn_time;
+                uint32_t spawn_time = ent->spawn_time;
                 if (region && !G_RegionContains(region, &ent->s.origin2) &&
                     G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
                     ent->inuse && ent->spawn_time == spawn_time && !G_IsDeferredFree(ent) &&
@@ -376,8 +376,8 @@ void G_RunEntities(void) {
 }
 
 /* A late-frame death must reach its actions before deferred removal clears the dying unit. */
-BOOL G_HasPendingDeathEvent(LPCEDICT ent) {
-    for (DWORD i = level.events.read; i < level.events.write; i++) {
+bool G_HasPendingDeathEvent(LPCEDICT ent) {
+    for (uint32_t i = level.events.read; i < level.events.write; i++) {
         GAMEEVENT const *evt = &level.events.queue[i % MAX_EVENT_QUEUE];
         if (G_IsDeathEvent(evt->type) && evt->edict == ent &&
             (!evt->edict_spawn_tracked || evt->edict_spawn_time == ent->spawn_time)) return true;
@@ -405,12 +405,12 @@ void G_RunEvents(void) {
  * pending result handoff; repeat for chained player removals, bounded by the
  * number of player slots. */
 void G_DrainPausedResultEvents(void) {
-    DWORD passes = 0;
+    uint32_t passes = 0;
 
     if (!level.script_paused || !level.vm) return;
 
     while (passes++ < MAX_PLAYERS) {
-        BOOL waiting = false;
+        bool waiting = false;
 
         FOR_LOOP(i, game.max_clients) {
             LPGAMECLIENT client = game.clients + i;

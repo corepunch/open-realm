@@ -7,20 +7,20 @@ static umove_t raven_morph = { "morph", NULL, raven_forward_end, CAbilityRavenFo
 static umove_t raven_morph_alt = { "morph alternate", NULL, raven_reverse_end, CAbilityRavenForm };
 typedef struct ravenform_s {
     AbilityData_t const *ability;
-    DWORD base_type;
-    DWORD raven_type;
+    uint32_t base_type;
+    uint32_t raven_type;
 } RAVENFORM;
 typedef RAVENFORM *LPRAVENFORM;
 typedef RAVENFORM const *LPCRAVENFORM;
 
-static DWORD const raven_codes[] = {
+static uint32_t const raven_codes[] = {
     MAKEFOURCC('A','m','r','f'), /* Medivh Crow Form */
     MAKEFOURCC('A','r','a','v'), /* Druid Storm Crow Form */
 };
 
 /* Play the authored morph sequence after a form rebind; the reverse transform
  * uses the source form's Alternate sequence before returning to ordinary stand. */
-static void raven_play_morph(LPEDICT unit, BOOL raven_form) {
+static void raven_play_morph(LPEDICT unit, bool raven_form) {
     LPCANIMATION morph;
 
     if (raven_form) G_AddUnitAnimationProperties(unit, "alternate,alternateex", false);
@@ -37,7 +37,7 @@ static void raven_play_morph(LPEDICT unit, BOOL raven_form) {
     }
     if (!morph) {
         fprintf(stderr, "WC3_RAVEN missing morph animation order=%s class=%.4s\n",
-                raven_form ? "ravenform" : "unravenform", (LPCSTR)&unit->class_id);
+                raven_form ? "ravenform" : "unravenform", (cstring_t)&unit->class_id);
         /* TODO: Custom models may omit morph clips; complete the form after reporting the missing sequence. */
         (raven_form ? raven_forward_end : raven_reverse_end)(unit);
     }
@@ -48,7 +48,7 @@ static void raven_play_morph(LPEDICT unit, BOOL raven_form) {
 static void raven_begin_rise(LPEDICT unit) {
     if (unit->raven.rise_state != RAVEN_RISE_AFTER_MORPH) return;
     if (unit->raven.rise_duration > 0.0f) {
-        unit->raven.rise_start = (FLOAT)G_Time();
+        unit->raven.rise_start = (float)G_Time();
         unit->raven.rise_state = RAVEN_RISE_ACTIVE;
     } else {
         unit->unitinfo.FlyHeight = unit->raven.fly_height;
@@ -67,14 +67,14 @@ static void raven_forward_end(LPEDICT unit) {
 
 /* Advance Raven Form's authored takeoff height independently from animation. */
 static void raven_update(LPEDICT unit) {
-    FLOAT fraction;
+    float fraction;
     if (!unit) return;
     /* Prologue01 replaces Morph with Move after 0.5s. Its endfunc then never runs;
      * finish the pending takeoff transition without replacing the new order. */
     if (unit->raven.rise_state == RAVEN_RISE_AFTER_MORPH && unit->currentmove != &raven_morph)
         raven_begin_rise(unit);
     if (unit->raven.rise_state != RAVEN_RISE_ACTIVE) return;
-    fraction = ((FLOAT)G_Time() - unit->raven.rise_start) / (unit->raven.rise_duration * 1000.0f);
+    fraction = ((float)G_Time() - unit->raven.rise_start) / (unit->raven.rise_duration * 1000.0f);
     if (fraction >= 1.0f) {
         unit->unitinfo.FlyHeight = unit->raven.fly_height;
         unit->raven.rise_state = RAVEN_RISE_NONE;
@@ -91,12 +91,12 @@ static void raven_reverse_end(LPEDICT unit) {
 }
 
 /* Preplaced campaign forms resolve through the same authored endpoints as learned abilities. */
-static BOOL raven_form_data(LPEDICT unit, LPRAVENFORM out) {
+static bool raven_form_data(LPEDICT unit, LPRAVENFORM out) {
     if (!unit || !out) return false;
     FOR_LOOP(i, sizeof(raven_codes) / sizeof(raven_codes[0])) {
         AbilityData_t const *ability = G_AbilityData(raven_codes[i]);
-        DWORD const base_type = ability->level[0].data[0].id;
-        DWORD const raven_type = ability->level[0].unitID;
+        uint32_t const base_type = ability->level[0].data[0].id;
+        uint32_t const raven_type = ability->level[0].unitID;
         RAVENFORM current;
 
         if (!ability->id || !base_type || !raven_type) continue;
@@ -117,12 +117,12 @@ static BOOL raven_form_data(LPEDICT unit, LPRAVENFORM out) {
 }
 
 /* Rebind in place so script handles and selection survive both morph directions. */
-static BOOL raven_form_order(LPEDICT unit, BOOL raven_form) {
+static bool raven_form_order(LPEDICT unit, bool raven_form) {
     RAVENFORM form = {0};
-    DWORD target_type;
+    uint32_t target_type;
 
     if (!raven_form_data(unit, &form)) {
-        fprintf(stderr, "Raven Form: no transform endpoints for %.4s\n", (LPCSTR)&unit->class_id);
+        fprintf(stderr, "Raven Form: no transform endpoints for %.4s\n", (cstring_t)&unit->class_id);
         return false;
     }
     target_type = raven_form ? form.raven_type : form.base_type;
@@ -136,7 +136,7 @@ static BOOL raven_form_order(LPEDICT unit, BOOL raven_form) {
 
     G_ClearUnitOrderQueue(unit);
     if (!G_TransformUnitType(unit, target_type)) {
-        fprintf(stderr, "Raven Form: cannot transform %.4s to %.4s\n", (LPCSTR)&unit->class_id, (LPCSTR)&target_type);
+        fprintf(stderr, "Raven Form: cannot transform %.4s to %.4s\n", (cstring_t)&unit->class_id, (cstring_t)&target_type);
         return false;
     }
 
@@ -159,11 +159,11 @@ static BOOL raven_form_order(LPEDICT unit, BOOL raven_form) {
 }
 
 /* Orders and the command card share the same ability-owned form transition. */
-static BOOL raven_order(LPEDICT unit, LPCSTR order) {
+static bool raven_order(LPEDICT unit, cstring_t order) {
     return raven_form_order(unit, !strcmp(order, raven_orders[0]));
 }
 
-static BOOL raven_is_on(LPEDICT unit) {
+static bool raven_is_on(LPEDICT unit) {
     RAVENFORM form;
     return raven_form_data(unit, &form) && unit->class_id == form.raven_type;
 }

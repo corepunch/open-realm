@@ -8,7 +8,7 @@
 #include "hud_local.h"
 
 /* Write one texture inside a context-bound hover row. */
-static void UI_WriteHoverTexture(DWORD parent, FLOAT y, FLOAT w, FLOAT h, LPCSTR art, DWORD stat, COLOR32 color) {
+static void UI_WriteHoverTexture(uint32_t parent, float y, float w, float h, cstring_t art, uint32_t stat, COLOR32 color) {
     uiFrame_t frame = { 0 };
 
     frame.flags.type = FT_TEXTURE; frame.tex.index = gi.ImageIndex(art); frame.stat = stat; frame.color = color;
@@ -19,7 +19,7 @@ static void UI_WriteHoverTexture(DWORD parent, FLOAT y, FLOAT w, FLOAT h, LPCSTR
 }
 
 /* Write a fill bar whose fraction is resolved from the hovered snapshot entity. */
-static void UI_WriteHoverBar(DWORD parent, FLOAT y, FLOAT w, FLOAT h, LPCSTR art, DWORD stat, COLOR32 color) {
+static void UI_WriteHoverBar(uint32_t parent, float y, float w, float h, cstring_t art, uint32_t stat, COLOR32 color) {
     uiFrame_t frame = { 0 };
 
     frame.flags.type = FT_SIMPLESTATUSBAR; frame.tex.index = gi.ImageIndex(art); frame.stat = stat; frame.color = color;
@@ -31,9 +31,9 @@ static void UI_WriteHoverBar(DWORD parent, FLOAT y, FLOAT w, FLOAT h, LPCSTR art
 
 /* A context row contributes its full authored height only while the client has
  * that live hover capability. The shared layout solver collapses it otherwise. */
-static DWORD UI_WriteHoverRow(DWORD stat, DWORD below, FLOAT height) {
+static uint32_t UI_WriteHoverRow(uint32_t stat, uint32_t below, float height) {
     uiFrame_t frame = { 0 };
-    DWORD const number = ui_next_frame_number;
+    uint32_t const number = ui_next_frame_number;
 
     frame.flags.type = FT_FRAME; frame.stat = stat;
     frame.size.width = 0.045f; frame.size.height = height;
@@ -43,9 +43,9 @@ static DWORD UI_WriteHoverRow(DWORD stat, DWORD below, FLOAT height) {
     return number;
 }
 
-static LPCSTR UI_HoverResourceLabel(void) {
-    static BOOL warned;
-    LPCSTR label = UI_GetString("COLON_GOLD");
+static cstring_t UI_HoverResourceLabel(void) {
+    static bool warned;
+    cstring_t label = UI_GetString("COLON_GOLD");
 
     if (label && strcmp(label, "COLON_GOLD")) return label;
     if (!warned) {
@@ -57,9 +57,9 @@ static LPCSTR UI_HoverResourceLabel(void) {
 
 /* Retail COccupUI is a cargo CStatBar. This hover stack places it below HP/MP;
  * capacity owns the slot count while filled and empty slots use separate art. */
-static DWORD UI_WriteHoverCargoBar(LPCSTR filled_art, LPCSTR empty_art) {
+static uint32_t UI_WriteHoverCargoBar(cstring_t filled_art, cstring_t empty_art) {
     uiFrame_t frame = { 0 };
-    DWORD const number = ui_next_frame_number;
+    uint32_t const number = ui_next_frame_number;
 
     frame.flags.type = FT_SEGMENTED_STATUSBAR;
     frame.tex.index = gi.ImageIndex(filled_art);
@@ -77,10 +77,10 @@ static DWORD UI_WriteHoverCargoBar(LPCSTR filled_art, LPCSTR empty_art) {
 /* The server owns the complete widget; only its declared context changes at draw time. */
 void UI_WriteHoverLayout(LPEDICT ent) {
     uiFrame_t frame = { 0 };
-    LPCSTR black = "Textures\\Black32.blp";
-    LPCSTR hp = "SimpleHpBarConsoleSmall";
-    LPCSTR mana = "SimpleManaBarConsoleSmall";
-    DWORD cargo, mana_row, health_row;
+    cstring_t black = "Textures\\Black32.blp";
+    cstring_t hp = "SimpleHpBarConsoleSmall";
+    cstring_t mana = "SimpleManaBarConsoleSmall";
+    uint32_t cargo, mana_row, health_row;
 
     if (!ent || !ent->client || !ent->client->connected) return;
     UI_WriteStart(LAYER_WORLD_HOVER);

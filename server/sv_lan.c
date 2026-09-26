@@ -1,10 +1,9 @@
 #include "server.h"
 
-#include "common/net_platform.h"
 #include <stdlib.h>
 
-static DWORD SV_LanPlayerCount(void) {
-    DWORD count = 0;
+static uint32_t SV_LanPlayerCount(void) {
+    uint32_t count = 0;
     FOR_LOOP(i, svs.num_clients) {
         if (svs.clients[i].state == cs_connected || svs.clients[i].state == cs_spawned) {
             count++;
@@ -13,7 +12,7 @@ static DWORD SV_LanPlayerCount(void) {
     return count;
 }
 
-static void SV_LanSanitizeValue(LPCSTR in, LPSTR out, size_t out_size) {
+static void SV_LanSanitizeValue(cstring_t in, string_t out, size_t out_size) {
     size_t write = 0;
 
     if (!out || out_size == 0) {
@@ -77,7 +76,7 @@ void SV_ConnectionlessPacket(const netadr_t *from, LPSIZEBUF msg) {
     char payload[256];
     char command[32] = { 0 };
     char *status;
-    DWORD length;
+    uint32_t length;
     int protocol = 0;
 
     if (!msg || msg->cursize <= 4) {

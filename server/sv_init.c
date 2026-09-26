@@ -1,15 +1,13 @@
 #include "server.h"
 #include <zlib.h>
 
-#include "common/net_platform.h"
-
-static const struct { DWORD base, count; } loading_pools[] = {
+static const struct { uint32_t base, count; } loading_pools[] = {
     { CS_MODELS, MAX_MODELS },
     { CS_IMAGES, MAX_IMAGES },
     { CS_FONTS, MAX_FONTSTYLES },
 };
 
-static BOOL SV_EnsureServerPort(void) {
+static bool SV_EnsureServerPort(void) {
     NET_ConfigSource(NS_SERVER, true);
     if (!NET_IsConfigured(NS_SERVER)) {
         fprintf(stderr, "SV_EnsureServerPort: failed to bind UDP server port\n");
@@ -23,13 +21,13 @@ static void SV_SetMapConfigStrings(void) {
     char maxclients[16], checksum[16];
 
     snprintf(maxclients, sizeof(maxclients), "%d", ge->max_clients);
-    SV_SetConfigString(CS_MAXCLIENTS, maxclients, (DWORD)(strlen(maxclients) + 1));
+    SV_SetConfigString(CS_MAXCLIENTS, maxclients, (uint32_t)(strlen(maxclients) + 1));
     snprintf(checksum, sizeof(checksum), "%u", (unsigned)CM_GetMapChecksum());
-    SV_SetConfigString(CS_MAPCHECKSUM, checksum, (DWORD)(strlen(checksum) + 1));
+    SV_SetConfigString(CS_MAPCHECKSUM, checksum, (uint32_t)(strlen(checksum) + 1));
 }
 
 #ifndef TOOL_COMMON_NO_MPQ
-static BOOL SV_SavePath(LPCSTR name, PATHSTR path) {
+static bool SV_SavePath(cstring_t name, PATHSTR path) {
     if (!name || !name[0] || strchr(name, '/') || strchr(name, '\\')) {
         fprintf(stderr, "save: invalid save name\n");
         return false;
@@ -38,7 +36,7 @@ static BOOL SV_SavePath(LPCSTR name, PATHSTR path) {
     return true;
 }
 
-BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size) {
+bool SV_GetSaveMap(cstring_t name, string_t map, uint32_t map_size) {
     PATHSTR path;
     if (!SV_SavePath(name, path)) return false;
     if (!ge) SV_InitGameProgs();
@@ -57,7 +55,7 @@ static void SV_SaveGame_f(void) {
     if (!ge || !ge->SaveGame || !ge->SaveGame(path)) fprintf(stderr, "save: failed to write %s\n", path);
 }
 
-BOOL SV_LoadGame(LPCSTR name, LPCSTR map) {
+bool SV_LoadGame(cstring_t name, cstring_t map) {
     PATHSTR path;
     if (!name || !map || !*map || !SV_SavePath(name, path)) return false;
     /* Q2 SpawnEntities then SV_CheckForSavegame: ClearWorld + ReadLevel before
@@ -98,14 +96,14 @@ static void SV_ClearLobbyClients(void) {
 
 typedef struct {
     netadr_t addr;
-    DWORD playernum;
-    DWORD lobby_slot;
+    uint32_t playernum;
+    uint32_t lobby_slot;
     char userinfo[256];
     UINAME name;
 } savedLobbyClient_t;
 
-static DWORD SV_SaveLobbyClients(savedLobbyClient_t *saved, DWORD max_saved) {
-    DWORD count = 0;
+static uint32_t SV_SaveLobbyClients(savedLobbyClient_t *saved, uint32_t max_saved) {
+    uint32_t count = 0;
 
     if (sv.state != ss_lobby || !saved || max_saved == 0) {
         return 0;
@@ -129,7 +127,7 @@ static DWORD SV_SaveLobbyClients(savedLobbyClient_t *saved, DWORD max_saved) {
     return count;
 }
 
-static void SV_RestoreLobbyClients(savedLobbyClient_t const *saved, DWORD count) {
+static void SV_RestoreLobbyClients(savedLobbyClient_t const *saved, uint32_t count) {
     if (!saved || count == 0) {
         SV_ClientConnect();
         return;
@@ -144,7 +142,7 @@ static void SV_RestoreLobbyClients(savedLobbyClient_t const *saved, DWORD count)
         cl = &svs.clients[svs.num_clients++];
         memset(cl, 0, sizeof(*cl));
         cl->state = cs_connected;
-        cl->lastframe = (DWORD)-1;
+        cl->lastframe = (uint32_t)-1;
         cl->netchan.remote_address = saved[i].addr;
         cl->playernum = saved[i].playernum;
         cl->lobby_slot = saved[i].lobby_slot;
@@ -161,7 +159,7 @@ void SV_ClientConnect(void) {
     if (svs.num_clients > 0 &&
         svs.clients[0].netchan.remote_address.type == NA_LOOPBACK) {
         netadr_t adr = { NA_LOOPBACK };
-        svs.clients[0].lastframe = (DWORD)-1;
+        svs.clients[0].lastframe = (uint32_t)-1;
         SV_InitMulticast();
         SV_LobbyAssignClient(0, true);
         Netchan_OutOfBandPrint(NS_SERVER, adr, "client_connect %d", BZ_PROTOCOL_VERSION);
@@ -177,7 +175,7 @@ void SV_ClientConnect(void) {
     svs.num_clients++;
     memset(cl, 0, sizeof(*cl));
     cl->state = cs_connected;
-    cl->lastframe = (DWORD)-1;
+    cl->lastframe = (uint32_t)-1;
     SV_LobbyClientInit(cl, NULL);
     SV_InitMulticast();
     // Local client uses the in-process loopback path
@@ -209,7 +207,7 @@ LPCLIENT SV_FindClientByAddr(const netadr_t *from) {
 }
 
 /* Register a new remote client that sent the first connection packet. */
-void SV_DirectConnect(const netadr_t *from, LPCSTR userinfo) {
+void SV_DirectConnect(const netadr_t *from, cstring_t userinfo) {
     LPCLIENT existing;
     if (!from) return;
     /* A repeated request means the first reply was lost or a local map restart
@@ -225,11 +223,11 @@ void SV_DirectConnect(const netadr_t *from, LPCSTR userinfo) {
         return;
     }
     LPCLIENT cl = &svs.clients[svs.num_clients];
-    DWORD clientnum = svs.num_clients;
+    uint32_t clientnum = svs.num_clients;
     svs.num_clients++;
     memset(cl, 0, sizeof(*cl));
     cl->state = cs_connected;
-    cl->lastframe = (DWORD)-1;
+    cl->lastframe = (uint32_t)-1;
     SV_LobbyClientInit(cl, userinfo);
     SV_InitMulticast();
     cl->netchan.remote_address = *from;
@@ -245,7 +243,7 @@ void SV_DirectConnect(const netadr_t *from, LPCSTR userinfo) {
 }
 
 /* Retain the authored layout for late joiners without a configstring-slot budget or lossy text rewrite. */
-BOOL SV_BuildLoadingScreen(void) {
+bool SV_BuildLoadingScreen(void) {
     if (sv.multicast.overflowed || sv.multicast.cursize < 8 ||
         sv.multicast.data[0] != svc_layout || sv.multicast.data[1] != LAYER_LOADING) {
         fprintf(stderr, "SV_BuildLoadingScreen: missing loading layout\n");
@@ -283,18 +281,18 @@ void SV_SendLoadingScreen(LPCLIENT cl) {
     SV_WriteConfigString(&cl->netchan.message, CS_ASSET_SCOPE);
     SV_WriteConfigString(&cl->netchan.message, CS_MAXCLIENTS);
     FOR_LOOP(i, sizeof(loading_pools) / sizeof(*loading_pools))
-        for (DWORD j = 1; j < sv.loading_end[i]; j++) {
-            DWORD index = loading_pools[i].base + j;
+        for (uint32_t j = 1; j < sv.loading_end[i]; j++) {
+            uint32_t index = loading_pools[i].base + j;
             if (cl->netchan.message.cursize + SV_ConfigStringWireSize(index) > SV_SignonLimit(&cl->netchan))
                 Netchan_Transmit(NS_SERVER, &cl->netchan);
             SV_WriteConfigString(&cl->netchan.message, index);
         }
-    for (DWORD pos = 0; pos < sv.loading.cursize;) {
+    for (uint32_t pos = 0; pos < sv.loading.cursize;) {
         /* The loopback reader requires packets strictly smaller than MAX_MSGLEN. */
-        DWORD limit = MIN(SV_SignonLimit(&cl->netchan), MAX_MSGLEN - 1);
+        uint32_t limit = MIN(SV_SignonLimit(&cl->netchan), MAX_MSGLEN - 1);
         if (cl->netchan.message.cursize + BZ_LOADING_HEADER_SIZE >= limit)
             Netchan_Transmit(NS_SERVER, &cl->netchan);
-        DWORD size = MIN(sv.loading.cursize - pos, limit - cl->netchan.message.cursize - BZ_LOADING_HEADER_SIZE);
+        uint32_t size = MIN(sv.loading.cursize - pos, limit - cl->netchan.message.cursize - BZ_LOADING_HEADER_SIZE);
         MSG_WriteByte(&cl->netchan.message, svc_loading_screen);
         MSG_WriteLong(&cl->netchan.message, sv.loading.cursize);
         MSG_WriteLong(&cl->netchan.message, pos);
@@ -305,10 +303,10 @@ void SV_SendLoadingScreen(LPCLIENT cl) {
     }
 }
 
-void SV_Map(LPCSTR mapFilename) {
+void SV_Map(cstring_t mapFilename) {
     savedLobbyClient_t lobby_clients[MAX_CLIENTS];
-    DWORD num_lobby_clients;
-    BOOL had_lobby;
+    uint32_t num_lobby_clients;
+    bool had_lobby;
 
     fprintf(stderr, "Server initialization (loopback/local map).\n");
     had_lobby = sv.state == ss_lobby && svs.lobby.active;
@@ -353,7 +351,7 @@ void SV_Map(LPCSTR mapFilename) {
     fprintf(stderr, "Server initialized.\n\n");
 }
 
-void SV_StartLobby(LPCSTR mapFilename) {
+void SV_StartLobby(cstring_t mapFilename) {
     if (!mapFilename || !mapFilename[0]) {
         return;
     }

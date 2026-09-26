@@ -13,19 +13,19 @@
 #define WC3_HERO_DAMAGE_ALERT_MS 3000 // milliseconds; keeps a damaged Hero conspicuous through several red pulses without rebuilding on expiry
 
 typedef struct {
-    DWORD entity;
-    DWORD time;
+    uint32_t entity;
+    uint32_t time;
 } heroShortcutClick_t;
 
 static heroShortcutClick_t hero_shortcut_clicks[MAX_CLIENTS];
 
-static BOOL G_ShortcutIsControlledMonster(LPGAMECLIENT client, LPCEDICT ent) {
+static bool G_ShortcutIsControlledMonster(LPGAMECLIENT client, LPCEDICT ent) {
     return client && ent && ent->inuse && (ent->svflags & SVF_MONSTER) &&
         G_UnitCanControl(client, ent);
 }
 
-static BOOL G_UnitHasWorkerShortcutCapability(LPCEDICT ent) {
-    LPCSTR builds;
+static bool G_UnitHasWorkerShortcutCapability(LPCEDICT ent) {
+    cstring_t builds;
 
     if (!ent || !ent->data.UnitProfile) return false;
     builds = ent->data.UnitProfile->builds;
@@ -36,14 +36,14 @@ static BOOL G_UnitHasWorkerShortcutCapability(LPCEDICT ent) {
     return (builds && *builds) || G_ActorHasSkill((LPEDICT)ent, "Ahar");
 }
 
-BOOL G_UnitShowsHeroShortcut(LPGAMECLIENT client, LPCEDICT ent) {
+bool G_UnitShowsHeroShortcut(LPGAMECLIENT client, LPCEDICT ent) {
     return G_ShortcutIsControlledMonster(client, ent) && ent->data.UnitBalance &&
         ent->data.UnitUI && !ent->training && !(ent->s.renderfx & RF_HIDDEN) &&
         !ent->data.UnitUI->hideHeroBar && !(ent->aiflags & AI_ILLUSION) &&
         G_UnitIsHero(ent);
 }
 
-BOOL G_UnitIsIdleWorker(LPCEDICT ent) {
+bool G_UnitIsIdleWorker(LPCEDICT ent) {
     if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER) ||
         !ent->data.UnitBalance || ent->training || G_UnitIsBuilding(ent->class_id) ||
         M_IsDead(ent) || (ent->s.renderfx & RF_HIDDEN) ||
@@ -55,7 +55,7 @@ BOOL G_UnitIsIdleWorker(LPCEDICT ent) {
     return G_UnitHasWorkerShortcutCapability(ent);
 }
 
-BOOL G_UnitShowsIdleWorkerShortcut(LPGAMECLIENT client, LPCEDICT ent) {
+bool G_UnitShowsIdleWorkerShortcut(LPGAMECLIENT client, LPCEDICT ent) {
     return G_ShortcutIsControlledMonster(client, ent) && G_UnitIsIdleWorker(ent);
 }
 
@@ -96,30 +96,30 @@ void G_AlertHeroShortcutDamage(LPEDICT ent) {
     G_InvalidateUnitShortcuts(owner);
 }
 
-LPEDICT G_GetNextIdleWorker(LPGAMECLIENT client, DWORD after) {
-    DWORD count = globals.num_edicts;
+LPEDICT G_GetNextIdleWorker(LPGAMECLIENT client, uint32_t after) {
+    uint32_t count = globals.num_edicts;
 
     if (!client || count <= 1) return NULL;
     if (after >= count) after = 0;
 
-    for (DWORD i = after + 1; i < count; i++) {
+    for (uint32_t i = after + 1; i < count; i++) {
         LPEDICT ent = &globals.edicts[i];
         if (G_UnitShowsIdleWorkerShortcut(client, ent)) return ent;
     }
-    for (DWORD i = 1; i <= after && i < count; i++) {
+    for (uint32_t i = 1; i <= after && i < count; i++) {
         LPEDICT ent = &globals.edicts[i];
         if (G_UnitShowsIdleWorkerShortcut(client, ent)) return ent;
     }
     return NULL;
 }
 
-static LPEDICT G_GetHeroShortcut(LPGAMECLIENT client, DWORD slot) {
+static LPEDICT G_GetHeroShortcut(LPGAMECLIENT client, uint32_t slot) {
     LPEDICT ordered[WC3_HERO_FUNCTION_KEYS] = { 0 };
-    DWORD seen = 0;
+    uint32_t seen = 0;
 
     if (!client || slot >= WC3_HERO_FUNCTION_KEYS) return NULL;
     FILTER_EDICTS(ent, G_UnitShowsHeroShortcut(client, ent)) {
-        DWORD insert;
+        uint32_t insert;
 
         if (seen < WC3_HERO_FUNCTION_KEYS) {
             insert = seen;
@@ -141,12 +141,12 @@ static LPEDICT G_GetHeroShortcut(LPGAMECLIENT client, DWORD slot) {
         seen++;
     }
 
-    return slot < MIN(seen, (DWORD)WC3_HERO_FUNCTION_KEYS) ? ordered[slot] : NULL;
+    return slot < MIN(seen, (uint32_t)WC3_HERO_FUNCTION_KEYS) ? ordered[slot] : NULL;
 }
 
-static BOOL G_SelectShortcutUnit(LPEDICT clent, LPEDICT target) {
+static bool G_SelectShortcutUnit(LPEDICT clent, LPEDICT target) {
     LPGAMECLIENT client;
-    DWORD bit;
+    uint32_t bit;
 
     if (!clent || !(client = clent->client) ||
         !G_UnitCanControl(client, target) || !G_UnitCanBeSelected(client, target)) {
@@ -170,20 +170,20 @@ static void G_CenterShortcutUnit(LPEDICT clent, LPCEDICT target) {
 }
 
 static void G_ActivateHeroShortcut(LPEDICT clent, LPEDICT hero) {
-    LONG client_index;
+    int32_t client_index;
     heroShortcutClick_t *click;
-    DWORD number;
-    DWORD now;
-    BOOL double_click;
+    uint32_t number;
+    uint32_t now;
+    bool double_click;
 
     if (!clent || !clent->client || !hero || !G_UnitShowsHeroShortcut(clent->client, hero)) return;
-    client_index = (LONG)(clent->client - game.clients);
+    client_index = (int32_t)(clent->client - game.clients);
     if (client_index < 0 || client_index >= game.max_clients || client_index >= MAX_CLIENTS) return;
 
-    number = (DWORD)(hero - globals.edicts);
+    number = (uint32_t)(hero - globals.edicts);
     click = &hero_shortcut_clicks[client_index];
     now = G_Time();
-    double_click = click->entity == number && (DWORD)(now - click->time) < WC3_HERO_BUTTON_DOUBLE_CLICK_MS;
+    double_click = click->entity == number && (uint32_t)(now - click->time) < WC3_HERO_BUTTON_DOUBLE_CLICK_MS;
     click->entity = number;
     click->time = now;
 
@@ -197,12 +197,12 @@ static void G_ActivateHeroShortcut(LPEDICT clent, LPEDICT hero) {
         G_SelectShortcutUnit(clent, hero);
 }
 
-void G_ActivateHeroButton(LPEDICT clent, DWORD number) {
+void G_ActivateHeroButton(LPEDICT clent, uint32_t number) {
     if (!clent || !clent->client || number >= globals.num_edicts) return;
     G_ActivateHeroShortcut(clent, &globals.edicts[number]);
 }
 
-void G_ActivateHeroKey(LPEDICT clent, DWORD slot) {
+void G_ActivateHeroKey(LPEDICT clent, uint32_t slot) {
     LPEDICT hero;
 
     if (!clent || !clent->client) return;
@@ -211,10 +211,10 @@ void G_ActivateHeroKey(LPEDICT clent, DWORD slot) {
     G_ActivateHeroShortcut(clent, hero);
 }
 
-void G_ActivateIdleWorkerShortcut(LPEDICT clent, DWORD hinted_number) {
+void G_ActivateIdleWorkerShortcut(LPEDICT clent, uint32_t hinted_number) {
     LPGAMECLIENT client;
     LPEDICT worker = NULL;
-    DWORD number;
+    uint32_t number;
 
     if (!clent || !(client = clent->client)) return;
 
@@ -233,7 +233,7 @@ void G_ActivateIdleWorkerShortcut(LPEDICT clent, DWORD hinted_number) {
         return;
     }
 
-    number = (DWORD)(worker - globals.edicts);
+    number = (uint32_t)(worker - globals.edicts);
     if (!G_SelectShortcutUnit(clent, worker)) return;
     G_CenterShortcutUnit(clent, worker);
     client->shortcuts.last_idle_worker = number;

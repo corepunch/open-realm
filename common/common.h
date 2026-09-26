@@ -119,8 +119,8 @@ struct font;
 struct m2Model_s;
 
 typedef void (*xcommand_t)(void);
-typedef void (*cmdListFunc_t)(LPCSTR name, void *userData);
-typedef void (*fsMapListFunc_t)(LPCSTR path, void *userData);
+typedef void (*cmdListFunc_t)(cstring_t name, void *userData);
+typedef void (*fsMapListFunc_t)(cstring_t path, void *userData);
 
 typedef enum {
     FS_MAP_RESOLVE_OK,
@@ -130,13 +130,13 @@ typedef enum {
 
 typedef struct cvar_s {
     struct cvar_s *next;
-    LPCSTR name;
-    LPSTR string;
-    FLOAT value;
+    cstring_t name;
+    string_t string;
+    float value;
     int integer;
-    DWORD flags;
+    uint32_t flags;
     bool modified;
-    LPCSTR description; /* shown on tab-complete; set via Cvar_Describe */
+    cstring_t description; /* shown on tab-complete; set via Cvar_Describe */
 } cvar_t;
 
 enum {
@@ -167,132 +167,132 @@ KNOWN_AS(CliffInfo, CLIFFINFO);
 #endif
 
 // common.c
-void Com_Init(int argc, LPCSTR *argv);
-void Com_Error(errorCode_t code, LPCSTR fmt, ...);
-void LoadMap(LPCSTR pFilename);
-bool Com_ResolveMapArgument(LPCSTR arg, LPSTR out, DWORD out_size);
+void Com_Init(int argc, cstring_t *argv);
+void Com_Error(errorCode_t code, cstring_t fmt, ...);
+void LoadMap(cstring_t pFilename);
+bool Com_ResolveMapArgument(cstring_t arg, string_t out, uint32_t out_size);
 
 void FS_Init(void);
-void FS_SetShareDirectory(LPCSTR dir);
-void FS_SetHomeDirectory(LPCSTR dir);
-LPCSTR FS_BasePath(void);
-LPCSTR FS_HomePath(void);
-void FS_UserPath(LPCSTR rel, LPSTR out, DWORD out_size);
-void FS_ConfigPath(LPCSTR rel, LPSTR out, DWORD out_size);
-void FS_SavePath(LPCSTR rel, LPSTR out, DWORD out_size);
-DWORD FS_ListSaves(LPSTR out, DWORD out_size);
-BOOL FS_DeleteSave(LPCSTR rel);
+void FS_SetShareDirectory(cstring_t dir);
+void FS_SetHomeDirectory(cstring_t dir);
+cstring_t FS_BasePath(void);
+cstring_t FS_HomePath(void);
+void FS_UserPath(cstring_t rel, string_t out, uint32_t out_size);
+void FS_ConfigPath(cstring_t rel, string_t out, uint32_t out_size);
+void FS_SavePath(cstring_t rel, string_t out, uint32_t out_size);
+uint32_t FS_ListSaves(string_t out, uint32_t out_size);
+bool FS_DeleteSave(cstring_t rel);
 void FS_Shutdown(void);
-BOMStatus PF_TextRemoveBom(LPSTR buffer);
+BOMStatus PF_TextRemoveBom(string_t buffer);
 
 void Com_Quit(void);
 void Sys_Quit(void);
 
-HANDLE FS_AddArchive(LPCSTR filename);
-BOOL FS_AddDataDirectory(LPCSTR dirname);
-BOOL FS_ArchiveFileVisible(LPCSTR archive, LPCSTR filename);
+handle_t FS_AddArchive(cstring_t filename);
+bool FS_AddDataDirectory(cstring_t dirname);
+bool FS_ArchiveFileVisible(cstring_t archive, cstring_t filename);
 /* Highest-priority open archive for FS_OpenFile/FS_ReadFile (e.g. current map MPQ). NULL clears. */
-void FS_SetPriorityArchive(HANDLE archive);
-HANDLE FS_GetPriorityArchive(void);
-HANDLE FS_OpenFile(LPCSTR fileName);
-void FS_CloseFile(HANDLE file);
-HANDLE FS_ReadLooseFile(LPCSTR filename, LPDWORD size, DWORD extraBytes);
-bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted);
-bool FS_FileExists(LPCSTR fileName);
-bool FS_ResolveLoosePath(LPCSTR fileName, LPSTR out, DWORD out_size);
-HANDLE FS_ReadFile(LPCSTR filename, LPDWORD size);
-void FS_ReadFileAll(LPCSTR filename, void (*callback)(HANDLE buf, DWORD size, void *ud), void *ud);
+void FS_SetPriorityArchive(handle_t archive);
+handle_t FS_GetPriorityArchive(void);
+handle_t FS_OpenFile(cstring_t fileName);
+void FS_CloseFile(handle_t file);
+handle_t FS_ReadLooseFile(cstring_t filename, uint32_t * size, uint32_t extraBytes);
+bool FS_ExtractFile(cstring_t toExtract, cstring_t extracted);
+bool FS_FileExists(cstring_t fileName);
+bool FS_ResolveLoosePath(cstring_t fileName, string_t out, uint32_t out_size);
+handle_t FS_ReadFile(cstring_t filename, uint32_t * size);
+void FS_ReadFileAll(cstring_t filename, void (*callback)(handle_t buf, uint32_t size, void *ud), void *ud);
 
 // Quake 3-style file API (returns file size, allocates buffer)
-int FS_ReadFileQ3(LPCSTR filename, void **buf);
+int FS_ReadFileQ3(cstring_t filename, void **buf);
 void FS_FreeFile(void *buf);
 // mmap-backed read for loose files (PROT_READ, MAP_PRIVATE); free with FS_MunmapFile
-void *FS_MmapFile(LPCSTR filename, LPDWORD out_size);
+void *FS_MmapFile(cstring_t filename, uint32_t * out_size);
 void  FS_MunmapFile(void *ptr);
-HANDLE FS_FindFirstFile(LPCSTR mask, SFILE_FIND_DATA *findData);
-BOOL FS_FindNextFile(HANDLE find, SFILE_FIND_DATA *findData);
-BOOL FS_FindClose(HANDLE find);
-DWORD FS_ListMaps(fsMapListFunc_t func, void *userData);
-fsMapResolve_t FS_ResolveMapPath(LPCSTR name, LPSTR out, DWORD out_size);
+handle_t FS_FindFirstFile(cstring_t mask, SFILE_FIND_DATA *findData);
+bool FS_FindNextFile(handle_t find, SFILE_FIND_DATA *findData);
+bool FS_FindClose(handle_t find);
+uint32_t FS_ListMaps(fsMapListFunc_t func, void *userData);
+fsMapResolve_t FS_ResolveMapPath(cstring_t name, string_t out, uint32_t out_size);
 
 typedef struct {
-    HANDLE (*ReadFile)(LPCSTR filename, LPDWORD size);
-    void (*FreeFile)(HANDLE file);
-    HANDLE (*MemAlloc)(long size);
-    void (*MemFree)(HANDLE mem);
+    handle_t (*ReadFile)(cstring_t filename, uint32_t * size);
+    void (*FreeFile)(handle_t file);
+    handle_t (*MemAlloc)(long size);
+    void (*MemFree)(handle_t mem);
 } SHEETHOST;
 
 void FS_SetSheetHost(SHEETHOST const *host);
 
 void CL_Init(void);
-void CL_Frame(DWORD msec);
+void CL_Frame(uint32_t msec);
 void CL_Shutdown(void);
 
 /* Sound (sound/s_sound.c) */
-BOOL S_Init(void);
+bool S_Init(void);
 void S_Shutdown(void);
-void S_PlaySound(DWORD kit_id);
-void S_PlaySoundByName(LPCSTR name);
+void S_PlaySound(uint32_t kit_id);
+void S_PlaySoundByName(cstring_t name);
 void S_StopAllSounds(void);
 void S_BeginRegistration(void);
 void S_EndRegistration(void);
-void CL_Connect(LPCSTR host, unsigned short port);
+void CL_Connect(cstring_t host, unsigned short port);
 void CL_SetMenuBindings(void);
 void CL_SetGameplayBindings(void);
-void CL_BeginLoadingMap(LPCSTR mapName);
+void CL_BeginLoadingMap(cstring_t mapName);
 void CL_LoadingFrame(void);
 
 void SV_Init(void);
-void SV_Frame(DWORD msec);
+void SV_Frame(uint32_t msec);
 void SV_Shutdown(void);
-void SV_StartLobby(LPCSTR pFilename);
-void SV_Map(LPCSTR pFilename);
-BOOL SV_GetSaveMap(LPCSTR name, LPSTR map, DWORD map_size);
-BOOL SV_LoadGame(LPCSTR name, LPCSTR map);
+void SV_StartLobby(cstring_t pFilename);
+void SV_Map(cstring_t pFilename);
+bool SV_GetSaveMap(cstring_t name, string_t map, uint32_t map_size);
+bool SV_LoadGame(cstring_t name, cstring_t map);
 #ifdef WOW
-DWORD SV_PlayerCreateMap(void);
+uint32_t SV_PlayerCreateMap(void);
 #endif
-void SV_LobbyBroadcastChat(LPCSTR sender, LPCSTR text);
-void SV_LobbyBroadcastChatFrom(DWORD sender_client, LPCSTR sender, LPCSTR text);
-void MenuAction(LPCSTR action, LPCSTR arg);
+void SV_LobbyBroadcastChat(cstring_t sender, cstring_t text);
+void SV_LobbyBroadcastChatFrom(uint32_t sender_client, cstring_t sender, cstring_t text);
+void MenuAction(cstring_t action, cstring_t arg);
 
-HANDLE MemAlloc(long size);
-void MemFree(HANDLE mem);
+handle_t MemAlloc(long size);
+void MemFree(handle_t mem);
 
-void Sys_MkDir(LPCSTR directory);
+void Sys_MkDir(cstring_t directory);
 
 struct edict_s;
-DWORD CM_BuildHeatmap(struct edict_s *goalentity);
-DWORD CM_BuildHeatmapForRadius(struct edict_s *goalentity, FLOAT radius);
-DWORD CM_RequestHeatmapForRadius(struct edict_s *goalentity, FLOAT radius);
-DWORD CM_RequestHeatmapForRadiusFlags(struct edict_s *goalentity, FLOAT radius, BYTE blocked_flags);
-void  CM_ProcessPathJobs(DWORD work_budget);
-BOOL  CM_FindPathWaypoint(pathAccelParams_t const *params, LPVECTOR2 out);
-BOOL  CM_ActivateCachedFlow(DWORD generation);
-BOOL  CM_ActivateCachedFlowForFlags(DWORD generation, BYTE blocked_flags);
-BOOL  CM_FlowReachedGoal(DWORD generation, FLOAT x, FLOAT y);
-BOOL  CM_FlowCanReach(DWORD generation, FLOAT x, FLOAT y);
-VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny);
+uint32_t CM_BuildHeatmap(struct edict_s *goalentity);
+uint32_t CM_BuildHeatmapForRadius(struct edict_s *goalentity, float radius);
+uint32_t CM_RequestHeatmapForRadius(struct edict_s *goalentity, float radius);
+uint32_t CM_RequestHeatmapForRadiusFlags(struct edict_s *goalentity, float radius, uint8_t blocked_flags);
+void  CM_ProcessPathJobs(uint32_t work_budget);
+bool  CM_FindPathWaypoint(pathAccelParams_t const *params, LPVECTOR2 out);
+bool  CM_ActivateCachedFlow(uint32_t generation);
+bool  CM_ActivateCachedFlowForFlags(uint32_t generation, uint8_t blocked_flags);
+bool  CM_FlowReachedGoal(uint32_t generation, float x, float y);
+bool  CM_FlowCanReach(uint32_t generation, float x, float y);
+VECTOR2 get_flow_direction(uint32_t heatmapindex, float fnx, float fny);
 void CM_BakeStaticObstacles(void);
 void CM_InvalidatePathCache(void);
-void CM_SetupPathMap(DWORD width, DWORD height, BYTE const *cells);
-BOOL CM_IsMapLoaded(LPCSTR mapFilename);
-BOOL CM_ClosestPathablePoint(LPCVECTOR2 location, LPVECTOR2 out);
-BOOL CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
-BOOL CM_ClosestPathablePointForRadiusFlags(LPCVECTOR2 location, FLOAT radius, BYTE blocked_flags,
+void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells);
+bool CM_IsMapLoaded(cstring_t mapFilename);
+bool CM_ClosestPathablePoint(LPCVECTOR2 location, LPVECTOR2 out);
+bool CM_ClosestPathablePointForRadius(LPCVECTOR2 location, float radius, LPVECTOR2 out);
+bool CM_ClosestPathablePointForRadiusFlags(LPCVECTOR2 location, float radius, uint8_t blocked_flags,
                                            LPVECTOR2 out);
-BOOL CM_ClosestReachablePointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius, LPVECTOR2 out);
-BOOL CM_ClosestReachablePointForRadiusFlags(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius,
-                                            BYTE blocked_flags, LPVECTOR2 out);
-BOOL CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT range, FLOAT radius, LPVECTOR2 out);
-FLOAT CM_PathCellWorldSize(void);
-BOOL CM_FindApproachPointToFootprintForRadius(struct edict_s const *target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
-BOOL CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
-FLOAT CM_GetHeightAtPoint(FLOAT sx, FLOAT sy);
-FLOAT CM_GetWaterHeightAtPoint(FLOAT sx, FLOAT sy);
-BOOL CM_TerrainPointIsWalkable(LPCVECTOR2 location);
-BOOL CM_TerrainPointIsSwimmable(LPCVECTOR2 location);
-FLOAT CM_GetCameraHeightOffset(void);
+bool CM_ClosestReachablePointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, float radius, LPVECTOR2 out);
+bool CM_ClosestReachablePointForRadiusFlags(LPCVECTOR2 from, LPCVECTOR2 target, float radius,
+                                            uint8_t blocked_flags, LPVECTOR2 out);
+bool CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, float range, float radius, LPVECTOR2 out);
+float CM_PathCellWorldSize(void);
+bool CM_FindApproachPointToFootprintForRadius(struct edict_s const *target, LPCVECTOR2 from, float range, float radius, LPVECTOR2 out);
+bool CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target, LPCVECTOR2 from, float range, float radius, LPVECTOR2 out);
+float CM_GetHeightAtPoint(float sx, float sy);
+float CM_GetWaterHeightAtPoint(float sx, float sy);
+bool CM_TerrainPointIsWalkable(LPCVECTOR2 location);
+bool CM_TerrainPointIsSwimmable(LPCVECTOR2 location);
+float CM_GetCameraHeightOffset(void);
 BOX2 CM_GetWorldBounds(void);
 
 struct world_state {
@@ -303,7 +303,7 @@ struct world_state {
 
 typedef struct {
     VECTOR3 target;
-    FLOAT distance, pitch, yaw, fov, znear, zfar, height_offset;
+    float distance, pitch, yaw, fov, znear, zfar, height_offset;
 } gameCamera_t;
 
 /* Games must author fov/znear/zfar together; the client copies all three like distance. */
@@ -313,40 +313,40 @@ static inline void player_set_lens(LPPLAYER ps, gameCamera_t const *cam) {
     ps->zfar = cam->zfar;
 }
 
-BOOL CL_GameDefaultCamera(gameCamera_t *camera);
-BOOL CL_GameCameraUsesWorldUp(void);
-FLOAT CL_GameLerpDegrees(FLOAT a, FLOAT b, FLOAT fraction);
-LPCSTR CL_GameOrderQueueReleaseCommand(void);
-BOOL CL_GameBuildCursorBlocked(LPCVECTOR3 origin);
-void CL_GameModifyBuildPathing(LPCVECTOR2 point, LPBYTE flags);
+bool CL_GameDefaultCamera(gameCamera_t *camera);
+bool CL_GameCameraUsesWorldUp(void);
+float CL_GameLerpDegrees(float a, float b, float fraction);
+cstring_t CL_GameOrderQueueReleaseCommand(void);
+bool CL_GameBuildCursorBlocked(LPCVECTOR3 origin);
+void CL_GameModifyBuildPathing(LPCVECTOR2 point, uint8_t * flags);
 typedef struct {
-    DWORD anchor;
-    DWORD const *visible;
-    DWORD visible_count, limit;
-    LPSTR command;
-    DWORD command_size;
+    uint32_t anchor;
+    uint32_t const *visible;
+    uint32_t visible_count, limit;
+    string_t command;
+    uint32_t command_size;
 } gameSameTypeSelection_t;
-BOOL CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection);
+bool CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection);
 /* Resolved from the mounted archives once per session and after an edition switch; see common/ui_canvas.h. */
 UICANVASPOLICY CL_GameCanvasPolicy(void);
 
 extern struct world_state world;
 
 /* Implemented by the selected game's common/world_*.c. */
-bool     CM_LoadMapFormat(LPCSTR mapFilename, cmLoadYield_t yield);
-VECTOR2  CM_GetNormalizedMapPosition(FLOAT x, FLOAT y);
-VECTOR2  CM_GetDenormalizedMapPosition(FLOAT x, FLOAT y);
+bool     CM_LoadMapFormat(cstring_t mapFilename, cmLoadYield_t yield);
+VECTOR2  CM_GetNormalizedMapPosition(float x, float y);
+VECTOR2  CM_GetDenormalizedMapPosition(float x, float y);
 
 // games/warcraft-3/sheet/parser.c
-LPSTR ParserGetTokenEx(parser_t *p, bool sameLine);
-LPSTR ParserGetToken(parser_t *p);
-LPSTR FS_ReadFileIntoString(LPCSTR fileName);
-void FS_FreeFileString(LPSTR buffer);
+string_t ParserGetTokenEx(parser_t *p, bool sameLine);
+string_t ParserGetToken(parser_t *p);
+string_t FS_ReadFileIntoString(cstring_t fileName);
+void FS_FreeFileString(string_t buffer);
 void ParserError(parser_t *p);
 
 // cmd.c
 void Cbuf_Init(void);
-void Cbuf_AddText(LPCSTR text);
+void Cbuf_AddText(cstring_t text);
 void Cbuf_Execute(void);
 void Cbuf_CopyToDefer(void);
 void Cbuf_InsertFromDefer(void);
@@ -354,40 +354,40 @@ void Cbuf_ClearDefer(void);
 void Cbuf_AddEarlyCommands(bool clear);
 bool Cbuf_AddLateCommands(void);
 int Cmd_Argc(void);
-LPCSTR Cmd_Argv(int arg);
-LPCSTR Cmd_ArgsFrom(int arg);
-void Cmd_AddCommand(LPCSTR cmd_name, xcommand_t function);
-void Cmd_RemoveCommand(LPCSTR cmd_name);
-bool Cmd_Exists(LPCSTR cmd_name);
-void Cmd_ExecuteString(LPCSTR text);
-void Cmd_ForwardToServer(LPCSTR text);
+cstring_t Cmd_Argv(int arg);
+cstring_t Cmd_ArgsFrom(int arg);
+void Cmd_AddCommand(cstring_t cmd_name, xcommand_t function);
+void Cmd_RemoveCommand(cstring_t cmd_name);
+bool Cmd_Exists(cstring_t cmd_name);
+void Cmd_ExecuteString(cstring_t text);
+void Cmd_ForwardToServer(cstring_t text);
 void Cmd_ForEachCommand(cmdListFunc_t func, void *userData);
-int Cmd_CompleteCommand(LPCSTR partial, LPSTR out, DWORD out_size, bool print);
+int Cmd_CompleteCommand(cstring_t partial, string_t out, uint32_t out_size, bool print);
 
 // common.c command-line args
-void COM_InitArgv(int argc, LPCSTR *argv);
+void COM_InitArgv(int argc, cstring_t *argv);
 int COM_Argc(void);
-LPCSTR COM_Argv(int arg);
+cstring_t COM_Argv(int arg);
 void COM_ClearArgv(int arg);
 
 // cvar.c
 void Cvar_Init(void);
 void Cvar_EndConfig(void);
-cvar_t *Cvar_Get(LPCSTR name, LPCSTR value, DWORD flags);
-cvar_t *Cvar_GetD(LPCSTR name, LPCSTR value, DWORD flags, LPCSTR description);
-cvar_t *Cvar_Set(LPCSTR name, LPCSTR value);
-cvar_t *Cvar_SetValue(LPCSTR name, FLOAT value);
-LPCSTR Cvar_String(LPCSTR name, LPCSTR fallback);
-int Cvar_Integer(LPCSTR name, int fallback);
-FLOAT Cvar_Value(LPCSTR name, FLOAT fallback);
-bool Cvar_LoadConfig(LPCSTR filename);
-void Cvar_WriteConfig(LPCSTR filename);
-void Cvar_ApplyConfigCommandLine(int argc, LPCSTR *argv);
-void Cvar_ApplyCommandLine(int argc, LPCSTR *argv);
-bool Cvar_ApplyBooleanCommandLineFlag(LPCSTR name);
+cvar_t *Cvar_Get(cstring_t name, cstring_t value, uint32_t flags);
+cvar_t *Cvar_GetD(cstring_t name, cstring_t value, uint32_t flags, cstring_t description);
+cvar_t *Cvar_Set(cstring_t name, cstring_t value);
+cvar_t *Cvar_SetValue(cstring_t name, float value);
+cstring_t Cvar_String(cstring_t name, cstring_t fallback);
+int Cvar_Integer(cstring_t name, int fallback);
+float Cvar_Value(cstring_t name, float fallback);
+bool Cvar_LoadConfig(cstring_t filename);
+void Cvar_WriteConfig(cstring_t filename);
+void Cvar_ApplyConfigCommandLine(int argc, cstring_t *argv);
+void Cvar_ApplyCommandLine(int argc, cstring_t *argv);
+bool Cvar_ApplyBooleanCommandLineFlag(cstring_t name);
 bool Cvar_Command(void);
 void Cvar_ForEachVariable(cmdListFunc_t func, void *userData);
-int Cvar_CompleteVariable(LPCSTR partial, LPSTR out, DWORD out_size, bool print);
-void Cvar_Describe(LPCSTR name, LPCSTR description);
+int Cvar_CompleteVariable(cstring_t partial, string_t out, uint32_t out_size, bool print);
+void Cvar_Describe(cstring_t name, cstring_t description);
 
 #endif

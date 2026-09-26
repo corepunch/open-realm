@@ -80,14 +80,14 @@ static struct {
     LPBUFFER casters;
     LPTEXTURE sight;
     LPTEXTURE network;
-    BYTE const *network_data;
-    DWORD network_generation;
-    DWORD last_update_time;
+    uint8_t const *network_data;
+    uint32_t network_generation;
+    uint32_t last_update_time;
 } fow_resources = { 0 };
 
 typedef struct caster_vertex {
     struct { short x, y, z; } position;
-    struct { BYTE x, y; } texcoord;
+    struct { uint8_t x, y; } texcoord;
 } castervertex_t;
 
 static castervertex_t casters[MAX_FOGOFWAR_CASTERS * NUM_SIGHT_SECIONS * NUM_RECT_VERTICES];
@@ -96,13 +96,13 @@ static renderEntity_t const *revealers[MAX_FOGOFWAR_REVEALERS];
 LPTEXTURE R_AllocateSightTexture(void) {
     LPTEXTURE texture = R_AllocateTexture(SIGHT_SIZE, SIGHT_SIZE);
     COLOR32 col[SIGHT_SIZE * SIGHT_SIZE];
-    DWORD mid = SIGHT_SIZE/2;
+    uint32_t mid = SIGHT_SIZE/2;
     VECTOR2 center = {mid,mid};
     FOR_LOOP(x, SIGHT_SIZE) {
         FOR_LOOP(y, SIGHT_SIZE) {
             float const d = Vector2_distance(&center, &(VECTOR2){x,y});
             float const f = MAX(0, 1.0 - d / mid);
-            DWORD c = MIN(1, f * 2.0) * 0xff;
+            uint32_t c = MIN(1, f * 2.0) * 0xff;
             col[x+y*SIGHT_SIZE].r = 0xff;
             col[x+y*SIGHT_SIZE].g = 0xff;
             col[x+y*SIGHT_SIZE].b = 0xff;
@@ -129,8 +129,8 @@ static void R_MakeSightMatrix(renderEntity_t const *ent, LPMATRIX4 model_matrix)
     tr.shader_ui.state.model = *model_matrix;
 }
 
-static DWORD R_CollectRevealers(renderEntity_t const **out, DWORD max_revealers) {
-    DWORD count = 0;
+static uint32_t R_CollectRevealers(renderEntity_t const **out, uint32_t max_revealers) {
+    uint32_t count = 0;
 
     FOR_LOOP(i, tr.viewDef.num_entities) {
         renderEntity_t const *ent = &tr.viewDef.entities[i];
@@ -152,17 +152,17 @@ static DWORD R_CollectRevealers(renderEntity_t const **out, DWORD max_revealers)
     return count;
 }
 
-static BOOL R_CasterNearRevealers(renderEntity_t const *caster,
+static bool R_CasterNearRevealers(renderEntity_t const *caster,
                                   renderEntity_t const **revealer_list,
-                                  DWORD num_revealers)
+                                  uint32_t num_revealers)
 {
-    FLOAT const range = SIGHT_DISTANCE + caster->radius + 100.0f;
-    FLOAT const range_sq = range * range;
+    float const range = SIGHT_DISTANCE + caster->radius + 100.0f;
+    float const range_sq = range * range;
 
     FOR_LOOP(i, num_revealers) {
         renderEntity_t const *revealer = revealer_list[i];
-        FLOAT const dx = caster->origin.x - revealer->origin.x;
-        FLOAT const dy = caster->origin.y - revealer->origin.y;
+        float const dx = caster->origin.x - revealer->origin.x;
+        float const dy = caster->origin.y - revealer->origin.y;
 
         if (caster == revealer) {
             continue;
@@ -174,9 +174,9 @@ static BOOL R_CasterNearRevealers(renderEntity_t const *caster,
     return false;
 }
 
-static DWORD R_AddCastersToBuffer(LPCBUFFER buffer,
+static uint32_t R_AddCastersToBuffer(LPCBUFFER buffer,
                                   renderEntity_t const **revealer_list,
-                                  DWORD num_revealers)
+                                  uint32_t num_revealers)
 {
     castervertex_t *caster_writer = casters;
     castervertex_t *caster_end = casters + sizeof(casters) / sizeof(*casters);
@@ -192,12 +192,12 @@ static DWORD R_AddCastersToBuffer(LPCBUFFER buffer,
         if (!R_CasterNearRevealers(ent, revealer_list, num_revealers)) {
             continue;
         }
-        RECT screen = { ent->origin.x, ent->origin.y, 0, 0, };
+        rect_t screen = { ent->origin.x, ent->origin.y, 0, 0, };
         FOR_LOOP(j, NUM_SIGHT_SECIONS) {
             if (caster_writer + NUM_RECT_VERTICES > caster_end) {
                 goto upload;
             }
-            RECT uv = {((float)j)/NUM_SIGHT_SECIONS,0,1.0/NUM_SIGHT_SECIONS,1};
+            rect_t uv = {((float)j)/NUM_SIGHT_SECIONS,0,1.0/NUM_SIGHT_SECIONS,1};
             LPCVERTEX end = R_AddQuad(rect, &screen, &uv, white, ent->radius);
             for (LPCVERTEX v = rect; v != end; v++) {
                 caster_writer->position.x = v->position.x;
@@ -214,12 +214,12 @@ upload:
     R_Call(glBindVertexArray, buffer->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, buffer->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(castervertex_t) * (caster_writer - casters), casters, GL_DYNAMIC_DRAW);
-    return (DWORD)(caster_writer - casters);
+    return (uint32_t)(caster_writer - casters);
 }
 
-static DWORD R_PushRectToBuffer(DWORD buffer_id, LPCRECT value, float alpha) {
+static uint32_t R_PushRectToBuffer(uint32_t buffer_id, rect_t const * value, float alpha) {
     COLOR32 white = {255*alpha,255*alpha,255*alpha,255*alpha};
-    RECT uv = {0,0,1,1};
+    rect_t uv = {0,0,1,1};
     VERTEX rect[NUM_RECT_VERTICES];
     R_AddQuad(rect, value, &uv, white, 0);
     R_Call(glBindVertexArray, tr.buffer[RBUF_TEMP1]->vao);
@@ -231,7 +231,7 @@ static DWORD R_PushRectToBuffer(DWORD buffer_id, LPCRECT value, float alpha) {
 static void R_BlitTexture(GLuint texid, float alpha) {
     MATRIX4 model_matrix;
     MATRIX4 proj_matrix;
-    RECT const uv = {0,0,1,1};
+    rect_t const uv = {0,0,1,1};
     
     Matrix4_ortho(&proj_matrix, 0, 1, 0, 1, -1, 1);
     Matrix4_identity(&model_matrix);
@@ -243,7 +243,7 @@ static void R_BlitTexture(GLuint texid, float alpha) {
 
     R_Call(glBindTexture, GL_TEXTURE_2D, texid);
     {
-        DWORD count = R_PushRectToBuffer(RBUF_TEMP1, &uv, alpha);
+        uint32_t count = R_PushRectToBuffer(RBUF_TEMP1, &uv, alpha);
         R_StatsDraw(GL_TRIANGLES, count, 1);
         R_ApplyShader(&tr.shader_ui);
         R_Call(glDrawArrays, GL_TRIANGLES, 0, count);
@@ -272,9 +272,9 @@ void R_RenderFogOfWar(void) {
     }
     fow_resources.last_update_time = tr.viewDef.time;
     
-    DWORD const texture_width = (tr.world->width - 1) * 4;
-    DWORD const texture_height = (tr.world->height - 1) * 4;
-    DWORD const num_revealers = R_CollectRevealers(revealers, MAX_FOGOFWAR_REVEALERS);
+    uint32_t const texture_width = (tr.world->width - 1) * 4;
+    uint32_t const texture_height = (tr.world->height - 1) * 4;
+    uint32_t const num_revealers = R_CollectRevealers(revealers, MAX_FOGOFWAR_REVEALERS);
 
     MATRIX4 model_matrix;
     MATRIX4 proj_matrix;
@@ -284,9 +284,9 @@ void R_RenderFogOfWar(void) {
     Matrix4_translate(&model_matrix, &(VECTOR3) { -tr.world->center.x, -tr.world->center.y, 0 });
     Matrix4_ortho(&proj_matrix, 0.0f, mapsize.x, 0.0f, mapsize.y, 0.0f, 100.0f);
 
-    R_PushRectToBuffer(RBUF_TEMP1, &(RECT const){0,0,1,1}, 1);
+    R_PushRectToBuffer(RBUF_TEMP1, &(rect_t const){0,0,1,1}, 1);
 
-    DWORD num_casters = 0;
+    uint32_t num_casters = 0;
     if (num_revealers > 0) {
         num_casters = R_AddCastersToBuffer(fow_resources.casters, revealers, num_revealers);
 
@@ -396,7 +396,7 @@ LPBUFFER R_MakeCastersVertexArrayObject(void) {
     return buf;
 }
 
-void R_InitFogOfWar(DWORD width, DWORD height) {
+void R_InitFogOfWar(uint32_t width, uint32_t height) {
     fow_resources.rt[FOW_RT_IMMEDIATE] = R_AllocateRenderTexture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0);
     fow_resources.rt[FOW_RT_HISTORY] = R_AllocateRenderTexture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0);
     fow_resources.rt[FOW_RT_RESULT] = R_AllocateRenderTexture(width, height, GL_RGBA, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0);
@@ -423,7 +423,7 @@ void R_ShutdownFogOfWar(void) {
     fow_resources.last_update_time = 0;
 }
 
-DWORD R_GetFogOfWarTexture(void) {
+uint32_t R_GetFogOfWarTexture(void) {
     if (fow_resources.network &&
         !(tr.viewDef.rdflags & (RDF_NOFOG | RDF_NOWORLDMODEL))) {
         return fow_resources.network->texid;
@@ -435,7 +435,7 @@ DWORD R_GetFogOfWarTexture(void) {
     return tr.texture[TEX_WHITE]->texid;
 }
 
-DWORD R_GetMinimapFogOfWarTexture(void) {
+uint32_t R_GetMinimapFogOfWarTexture(void) {
     if (fow_resources.network) {
         return fow_resources.network->texid;
     }
@@ -446,9 +446,9 @@ DWORD R_GetMinimapFogOfWarTexture(void) {
 }
 
 void R_UpdateFogOfWarData(void) {
-    DWORD width = tr.viewDef.fow_width, height = tr.viewDef.fow_height;
-    BYTE const *data = tr.viewDef.fow_data;
-    BOOL allocate;
+    uint32_t width = tr.viewDef.fow_width, height = tr.viewDef.fow_height;
+    uint8_t const *data = tr.viewDef.fow_data;
+    bool allocate;
 
     if (!width || !height || !data) {
         R_ReleaseTexture(fow_resources.network);

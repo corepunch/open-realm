@@ -28,32 +28,32 @@ enum {
 };
 
 typedef struct {
-    LPCSTR texture[M2_CHAR_TEX_COMPONENT_COUNT][M2_CHAR_TEX_PRIORITIES];
-    LPCSTR cape_texture;
-    LPCSTR helm_model;          /* ItemDisplayInfo model name stem (head slot) */
-    LPCSTR shoulder_model[2];   /* left / right shoulder model name stems */
-    LPCSTR helm_texture;        /* ItemDisplayInfo model texture stem (head slot) */
-    LPCSTR shoulder_texture[2]; /* left / right shoulder model texture stems */
-    DWORD helm_vis_id[2];       /* HelmetGeosetVisData ids (male, female) from ItemDisplayInfo */
-    DWORD helm_hide;            /* race-resolved geoset hide mask (M2_HELM_HIDE_*) */
-    DWORD geoset[M2_NUM_GEOSET_GROUPS];
-    DWORD flags;
+    cstring_t texture[M2_CHAR_TEX_COMPONENT_COUNT][M2_CHAR_TEX_PRIORITIES];
+    cstring_t cape_texture;
+    cstring_t helm_model;          /* ItemDisplayInfo model name stem (head slot) */
+    cstring_t shoulder_model[2];   /* left / right shoulder model name stems */
+    cstring_t helm_texture;        /* ItemDisplayInfo model texture stem (head slot) */
+    cstring_t shoulder_texture[2]; /* left / right shoulder model texture stems */
+    uint32_t helm_vis_id[2];       /* HelmetGeosetVisData ids (male, female) from ItemDisplayInfo */
+    uint32_t helm_hide;            /* race-resolved geoset hide mask (M2_HELM_HIDE_*) */
+    uint32_t geoset[M2_NUM_GEOSET_GROUPS];
+    uint32_t flags;
 } M2CHARACTEROUTFIT;
 typedef M2CHARACTEROUTFIT *LPM2CHARACTEROUTFIT;
 typedef M2CHARACTEROUTFIT const *LPCM2CHARACTEROUTFIT;
 
 typedef struct {
-    DWORD appearance;
-    DWORD display_ids[11];
+    uint32_t appearance;
+    uint32_t display_ids[11];
 } M2CREATUREAPPEARANCE;
 typedef M2CREATUREAPPEARANCE *LPM2CREATUREAPPEARANCE;
 typedef M2CREATUREAPPEARANCE const *LPCM2CREATUREAPPEARANCE;
 
-BOOL M2_DbcResolveCreatureAppearance(DWORD display_id, LPM2CREATUREAPPEARANCE out);
-BOOL M2_DbcCharacterOutfit(LPCSTR model_path, DWORD appearance, DWORD equipment, LPCM2CREATUREAPPEARANCE creature, LPM2CHARACTEROUTFIT outfit);
-BOOL M2_DbcCharacterRaceGender(LPCSTR model_path, LPDWORD race_id, LPDWORD gender_id);
-BOOL M2_DbcCharacterVariationTexturePath(LPCSTR model_path, DWORD section_index, DWORD variation_index, DWORD color_index, DWORD texture_index, LPSTR out, DWORD out_size);
-BOOL M2_DbcCharacterTexturePathForType(LPCSTR model_path, DWORD appearance, DWORD texture_type, LPSTR out, DWORD out_size);
+bool M2_DbcResolveCreatureAppearance(uint32_t display_id, LPM2CREATUREAPPEARANCE out);
+bool M2_DbcCharacterOutfit(cstring_t model_path, uint32_t appearance, uint32_t equipment, LPCM2CREATUREAPPEARANCE creature, LPM2CHARACTEROUTFIT outfit);
+bool M2_DbcCharacterRaceGender(cstring_t model_path, uint32_t * race_id, uint32_t * gender_id);
+bool M2_DbcCharacterVariationTexturePath(cstring_t model_path, uint32_t section_index, uint32_t variation_index, uint32_t color_index, uint32_t texture_index, string_t out, uint32_t out_size);
+bool M2_DbcCharacterTexturePathForType(cstring_t model_path, uint32_t appearance, uint32_t texture_type, string_t out, uint32_t out_size);
 void M2_DbcShutdown(void);
 
 #endif

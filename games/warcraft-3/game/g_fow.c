@@ -6,43 +6,43 @@
 #define FOW_BLOCKER_LIGHT_MARGIN_CELLS 1
 #define G_FOW_CELL_INDEX(x, y) ((y) * level.fow.width + (x))
 #define G_FOW_SET_VISIBLE_CELL(grid, x, y) do { \
-    DWORD fow_index_ = G_FOW_CELL_INDEX((DWORD)(x), (DWORD)(y)); \
+    uint32_t fow_index_ = G_FOW_CELL_INDEX((uint32_t)(x), (uint32_t)(y)); \
     if (!(grid)->visible[fow_index_]) { \
         (grid)->visible[fow_index_] = 1; \
-        (grid)->visible_rows[(DWORD)(y)] = 1; \
+        (grid)->visible_rows[(uint32_t)(y)] = 1; \
         if ((grid)->dirty_visible_rows) { \
-            (grid)->dirty_visible_rows[(DWORD)(y)] = 1; \
+            (grid)->dirty_visible_rows[(uint32_t)(y)] = 1; \
         } \
     } \
     if (!(grid)->explored[fow_index_]) { \
         (grid)->explored[fow_index_] = 1; \
         if ((grid)->dirty_explored_rows) { \
-            (grid)->dirty_explored_rows[(DWORD)(y)] = 1; \
+            (grid)->dirty_explored_rows[(uint32_t)(y)] = 1; \
         } \
     } \
 } while (0)
 
-static DWORD g_fow_blocker_hash;
-static DWORD g_fow_blocker_count;
-static BOOL g_fow_blockers_valid;
-static BOOL g_fow_blockers_dirty = true;
+static uint32_t g_fow_blocker_hash;
+static uint32_t g_fow_blocker_count;
+static bool g_fow_blockers_valid;
+static bool g_fow_blockers_dirty = true;
 #ifdef WC3_FOW_PACKED_MASK
-static BOOL g_fow_fast;
+static bool g_fow_fast;
 #endif
 
-static DWORD G_FowCellCount(void) {
+static uint32_t G_FowCellCount(void) {
     return level.fow.width * level.fow.height;
 }
 
-static DWORD G_FowCellIndex(DWORD x, DWORD y) {
+static uint32_t G_FowCellIndex(uint32_t x, uint32_t y) {
     return G_FOW_CELL_INDEX(x, y);
 }
 
-static BOOL G_FowReady(void) {
+static bool G_FowReady(void) {
     return level.fow.width > 0 && level.fow.height > 0;
 }
 
-BOOL G_FowPlayersShareVision(DWORD viewer, DWORD owner) {
+bool G_FowPlayersShareVision(uint32_t viewer, uint32_t owner) {
     if (viewer >= MAX_PLAYERS || owner >= MAX_PLAYERS) {
         return false;
     }
@@ -54,35 +54,35 @@ BOOL G_FowPlayersShareVision(DWORD viewer, DWORD owner) {
            (level.alliances[owner][viewer] & (1 << ALLIANCE_SHARED_VISION_FORCED));
 }
 
-DWORD G_FowWorldToCellX(FLOAT x) {
+uint32_t G_FowWorldToCellX(float x) {
     if (!G_FowReady()) {
         return FOW_INVALID_CELL;
     }
-    int cell = (int)floorf((x - level.fow.bounds.min.x) / (FLOAT)FOW_CELL_SIZE);
+    int cell = (int)floorf((x - level.fow.bounds.min.x) / (float)FOW_CELL_SIZE);
     if (cell < 0) {
         return 0;
     }
-    if ((DWORD)cell >= level.fow.width) {
+    if ((uint32_t)cell >= level.fow.width) {
         return level.fow.width - 1;
     }
-    return (DWORD)cell;
+    return (uint32_t)cell;
 }
 
-DWORD G_FowWorldToCellY(FLOAT y) {
+uint32_t G_FowWorldToCellY(float y) {
     if (!G_FowReady()) {
         return FOW_INVALID_CELL;
     }
-    int cell = (int)floorf((y - level.fow.bounds.min.y) / (FLOAT)FOW_CELL_SIZE);
+    int cell = (int)floorf((y - level.fow.bounds.min.y) / (float)FOW_CELL_SIZE);
     if (cell < 0) {
         return 0;
     }
-    if ((DWORD)cell >= level.fow.height) {
+    if ((uint32_t)cell >= level.fow.height) {
         return level.fow.height - 1;
     }
-    return (DWORD)cell;
+    return (uint32_t)cell;
 }
 
-static void G_FowSetVisible(fowPlayerGrid_t *grid, DWORD x, DWORD y) {
+static void G_FowSetVisible(fowPlayerGrid_t *grid, uint32_t x, uint32_t y) {
     if (!grid || !grid->visible || !grid->explored ||
         x >= level.fow.width || y >= level.fow.height) {
         return;
@@ -91,26 +91,26 @@ static void G_FowSetVisible(fowPlayerGrid_t *grid, DWORD x, DWORD y) {
     G_FOW_SET_VISIBLE_CELL(grid, x, y);
 }
 
-static BOOL G_FowStateValid(DWORD state) { return state && state <= WC3_FOG_STATE_VISIBLE && !(state & (state - 1)); }
+static bool G_FowStateValid(uint32_t state) { return state && state <= WC3_FOG_STATE_VISIBLE && !(state & (state - 1)); }
 
 typedef struct {
-    DWORD x, y, state;
+    uint32_t x, y, state;
     int cells;
 } FOGDISK;
 typedef FOGDISK *LPFOGDISK;
 typedef FOGDISK const *LPCFOGDISK;
 
 /* Scripted fog states own both planes, so the three JASS states need no parallel cinematic map. */
-static void G_FowSetCellState(fowPlayerGrid_t *grid, DWORD index, DWORD state) {
-    DWORD y, x;
+static void G_FowSetCellState(fowPlayerGrid_t *grid, uint32_t index, uint32_t state) {
+    uint32_t y, x;
     if (!grid || !grid->visible || !grid->explored || index >= G_FowCellCount()) return;
     y = index / level.fow.width;
     x = index - y * level.fow.width;
 #ifdef WC3_FOW_PACKED_MASK
     if (g_fow_fast) {
-        WORD *visible = grid->packed_visible + (x >> 4) + y * grid->packed_stride;
-        WORD *explored = grid->packed_explored + (x >> 4) + y * grid->packed_stride;
-        WORD bit = (WORD)(1u << (x & 15));
+        uint16_t *visible = grid->packed_visible + (x >> 4) + y * grid->packed_stride;
+        uint16_t *explored = grid->packed_explored + (x >> 4) + y * grid->packed_stride;
+        uint16_t bit = (uint16_t)(1u << (x & 15));
         /* Scripted fog writes must update the packed planes read in fast mode, not only the legacy byte planes. */
         if (state == WC3_FOG_STATE_VISIBLE) *visible |= bit, *explored |= bit;
         else if (state == WC3_FOG_STATE_FOGGED) *visible &= ~bit, *explored |= bit;
@@ -138,8 +138,8 @@ static void G_FowSetCellState(fowPlayerGrid_t *grid, DWORD index, DWORD state) {
     }
 }
 
-static void G_FowSetBlocked(DWORD x, DWORD y) {
-    DWORD index;
+static void G_FowSetBlocked(uint32_t x, uint32_t y) {
+    uint32_t index;
 
     if (!level.fow.blocked || x >= level.fow.width || y >= level.fow.height) {
         return;
@@ -151,7 +151,7 @@ static void G_FowSetBlocked(DWORD x, DWORD y) {
     }
 }
 
-static void G_FowSetBlockedDilated(DWORD x, DWORD y, int dilation) {
+static void G_FowSetBlockedDilated(uint32_t x, uint32_t y, int dilation) {
     for (int dy = -dilation; dy <= dilation; dy++) {
         int by = (int)y + dy;
         if (by < 0 || by >= (int)level.fow.height) {
@@ -162,7 +162,7 @@ static void G_FowSetBlockedDilated(DWORD x, DWORD y, int dilation) {
             if (bx < 0 || bx >= (int)level.fow.width) {
                 continue;
             }
-            G_FowSetBlocked((DWORD)bx, (DWORD)by);
+            G_FowSetBlocked((uint32_t)bx, (uint32_t)by);
         }
     }
 }
@@ -183,7 +183,7 @@ static void G_FowClearVisible(fowPlayerGrid_t *grid) {
     }
 }
 
-static BOOL G_FowAnyBlockedInBox(int minx, int miny, int maxx, int maxy) {
+static bool G_FowAnyBlockedInBox(int minx, int miny, int maxx, int maxy) {
     if (!level.fow.blocked || !level.fow.num_blocked) {
         return false;
     }
@@ -193,7 +193,7 @@ static BOOL G_FowAnyBlockedInBox(int minx, int miny, int maxx, int maxy) {
     maxx = MIN(maxx, (int)level.fow.width - 1);
     maxy = MIN(maxy, (int)level.fow.height - 1);
     for (int y = miny; y <= maxy; y++) {
-        BYTE const *row = level.fow.blocked + y * level.fow.width;
+        uint8_t const *row = level.fow.blocked + y * level.fow.width;
         for (int x = minx; x <= maxx; x++) {
             if (row[x]) {
                 return true;
@@ -203,8 +203,8 @@ static BOOL G_FowAnyBlockedInBox(int minx, int miny, int maxx, int maxy) {
     return false;
 }
 
-static int G_FowRadiusCells(FLOAT radius) {
-    return MAX(1, (int)ceilf(radius / (FLOAT)FOW_CELL_SIZE));
+static int G_FowRadiusCells(float radius) {
+    return MAX(1, (int)ceilf(radius / (float)FOW_CELL_SIZE));
 }
 
 /* Circular trigger/modifier state writes reuse the ordinary fog-grid rasterization. */
@@ -217,25 +217,25 @@ static void G_FowSetDiskState(fowPlayerGrid_t *grid, LPCFOGDISK disk) {
         if (y < 0 || y >= (int)level.fow.height) {
             continue;
         }
-        max_dx = (int)sqrtf((FLOAT)(radius_sq - dy * dy));
+        max_dx = (int)sqrtf((float)(radius_sq - dy * dy));
         for (int dx = -max_dx; dx <= max_dx; dx++) {
             int x = (int)disk->x + dx;
             if (x < 0 || x >= (int)level.fow.width) {
                 continue;
             }
-            G_FowSetCellState(grid, G_FowCellIndex((DWORD)x, (DWORD)y), disk->state);
+            G_FowSetCellState(grid, G_FowCellIndex((uint32_t)x, (uint32_t)y), disk->state);
         }
     }
 }
-static void G_FowRevealDisk(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int radius_cells) {
+static void G_FowRevealDisk(fowPlayerGrid_t *grid, uint32_t cx, uint32_t cy, int radius_cells) {
     FOGDISK disk = { cx, cy, WC3_FOG_STATE_VISIBLE, radius_cells };
     G_FowSetDiskState(grid, &disk);
 }
 
 #ifdef WC3_FOW_PACKED_MASK
 /* Apply retail's packed horizontal spans; the byte plane is materialized once after all revealers. */
-static void G_FowRevealPacked(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int radius_cells) {
-    static WORD const bit[16] = {
+static void G_FowRevealPacked(fowPlayerGrid_t *grid, uint32_t cx, uint32_t cy, int radius_cells) {
+    static uint16_t const bit[16] = {
         0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080,
         0x0100, 0x0200, 0x0400, 0x0800, 0x1000, 0x2000, 0x4000, 0x8000,
     };
@@ -248,14 +248,14 @@ static void G_FowRevealPacked(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int rad
         int max_x;
 
         if (y < 0 || y >= (int)level.fow.height) continue;
-        max_dx = (int)sqrtf((FLOAT)(radius_sq - dy * dy));
+        max_dx = (int)sqrtf((float)(radius_sq - dy * dy));
         min_x = MAX(0, (int)cx - max_dx);
         max_x = MIN((int)level.fow.width - 1, (int)cx + max_dx);
         for (int x = min_x; x <= max_x;) {
             int word = x >> 4;
             int first = x & 15;
             int last = MIN(15, max_x - (word << 4));
-            WORD mask = 0;
+            uint16_t mask = 0;
 
             for (int bit_index = first; bit_index <= last; bit_index++) mask |= bit[bit_index];
             grid->packed_visible[word + y * grid->packed_stride] |= mask;
@@ -268,16 +268,16 @@ static void G_FowRevealPacked(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int rad
     }
 }
 
-static void G_FowRevealPackedBox(fowPlayerGrid_t *grid, DWORD x0, DWORD y0, DWORD x1, DWORD y1) {
+static void G_FowRevealPackedBox(fowPlayerGrid_t *grid, uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1) {
     FOR_LOOP(y, y1 - y0 + 1) {
-        DWORD const row = y + y0;
-        DWORD x = x0;
+        uint32_t const row = y + y0;
+        uint32_t x = x0;
         while (x <= x1) {
-            DWORD const word = x >> 4;
-            DWORD const first = x & 15;
-            DWORD const last = MIN(15, x1 - (word << 4));
-            WORD mask = 0;
-            for (DWORD bit_index = first; bit_index <= last; bit_index++) mask |= (WORD)(1u << bit_index);
+            uint32_t const word = x >> 4;
+            uint32_t const first = x & 15;
+            uint32_t const last = MIN(15, x1 - (word << 4));
+            uint16_t mask = 0;
+            for (uint32_t bit_index = first; bit_index <= last; bit_index++) mask |= (uint16_t)(1u << bit_index);
             grid->packed_visible[word + row * grid->packed_stride] |= mask;
             grid->packed_explored[word + row * grid->packed_stride] |= mask;
             grid->visible_rows[row] = grid->dirty_visible_rows[row] = 1;
@@ -287,7 +287,7 @@ static void G_FowRevealPackedBox(fowPlayerGrid_t *grid, DWORD x0, DWORD y0, DWOR
     }
 }
 
-static BOOL G_FowPackedAt(WORD const *plane, fowPlayerGrid_t const *grid, DWORD x, DWORD y) {
+static bool G_FowPackedAt(uint16_t const *plane, fowPlayerGrid_t const *grid, uint32_t x, uint32_t y) {
     return plane[(x >> 4) + y * grid->packed_stride] & (1u << (x & 15));
 }
 #endif
@@ -296,8 +296,8 @@ static void G_FowCastLight(fowPlayerGrid_t *grid,
                            int cx,
                            int cy,
                            int row,
-                           FLOAT start,
-                           FLOAT end,
+                           float start,
+                           float end,
                            int radius,
                            int xx,
                            int xy,
@@ -311,17 +311,17 @@ static void G_FowCastLight(fowPlayerGrid_t *grid,
     }
 
     for (int distance = row; distance <= radius; distance++) {
-        BOOL blocked = false;
-        FLOAT next_start = start;
+        bool blocked = false;
+        float next_start = start;
         int delta_y = -distance;
 
         for (int delta_x = -distance; delta_x <= 0; delta_x++) {
             int x = cx + delta_x * xx + delta_y * xy;
             int y = cy + delta_x * yx + delta_y * yy;
-            FLOAT left_slope = ((FLOAT)delta_x - 0.5f) / ((FLOAT)delta_y + 0.5f);
-            FLOAT right_slope = ((FLOAT)delta_x + 0.5f) / ((FLOAT)delta_y - 0.5f);
-            BOOL in_bounds;
-            BOOL cell_blocked;
+            float left_slope = ((float)delta_x - 0.5f) / ((float)delta_y + 0.5f);
+            float right_slope = ((float)delta_x + 0.5f) / ((float)delta_y - 0.5f);
+            bool in_bounds;
+            bool cell_blocked;
 
             if (start < right_slope) {
                 continue;
@@ -333,7 +333,7 @@ static void G_FowCastLight(fowPlayerGrid_t *grid,
             in_bounds = x >= 0 && y >= 0 &&
                         x < (int)level.fow.width && y < (int)level.fow.height;
             cell_blocked = in_bounds &&
-                           level.fow.blocked[G_FOW_CELL_INDEX((DWORD)x, (DWORD)y)] != 0;
+                           level.fow.blocked[G_FOW_CELL_INDEX((uint32_t)x, (uint32_t)y)] != 0;
             if (in_bounds && delta_x * delta_x + delta_y * delta_y <= radius_sq)
             {
                 G_FOW_SET_VISIBLE_CELL(grid, x, y);
@@ -368,7 +368,7 @@ static void G_FowCastLight(fowPlayerGrid_t *grid,
     }
 }
 
-static void G_FowRevealShadowcast(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int radius_cells) {
+static void G_FowRevealShadowcast(fowPlayerGrid_t *grid, uint32_t cx, uint32_t cy, int radius_cells) {
     static int const mult[8][4] = {
         { 1,  0,  0,  1 },
         { 0,  1,  1,  0 },
@@ -396,7 +396,7 @@ static void G_FowRevealShadowcast(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int
     }
 }
 
-static BOOL G_FowHasVisibleNeighbor(fowPlayerGrid_t *grid, int x, int y, int margin) {
+static bool G_FowHasVisibleNeighbor(fowPlayerGrid_t *grid, int x, int y, int margin) {
     int margin_sq = margin * margin;
 
     for (int dy = -margin; dy <= margin; dy++) {
@@ -406,7 +406,7 @@ static BOOL G_FowHasVisibleNeighbor(fowPlayerGrid_t *grid, int x, int y, int mar
         }
         for (int dx = -margin; dx <= margin; dx++) {
             int nx = x + dx;
-            DWORD index;
+            uint32_t index;
 
             if (nx < 0 || nx >= (int)level.fow.width) {
                 continue;
@@ -414,7 +414,7 @@ static BOOL G_FowHasVisibleNeighbor(fowPlayerGrid_t *grid, int x, int y, int mar
             if (dx * dx + dy * dy > margin_sq) {
                 continue;
             }
-            index = G_FOW_CELL_INDEX((DWORD)nx, (DWORD)ny);
+            index = G_FOW_CELL_INDEX((uint32_t)nx, (uint32_t)ny);
             if (grid->visible[index]) {
                 return true;
             }
@@ -424,22 +424,22 @@ static BOOL G_FowHasVisibleNeighbor(fowPlayerGrid_t *grid, int x, int y, int mar
 }
 
 /* Commit only marked blockers; the old second square walk revisited over 10K cells per Human02 update. */
-static void G_FowCommitRimCells(fowPlayerGrid_t *grid, DWORD count) {
+static void G_FowCommitRimCells(fowPlayerGrid_t *grid, uint32_t count) {
     FOR_LOOP(i, count) {
-        DWORD const index = level.fow.rim_cells[i];
-        DWORD const y = index / level.fow.width;
-        DWORD const x = index - y * level.fow.width;
+        uint32_t const index = level.fow.rim_cells[i];
+        uint32_t const y = index / level.fow.width;
+        uint32_t const x = index - y * level.fow.width;
 
         grid->visible[index] = 0;
         G_FOW_SET_VISIBLE_CELL(grid, x, y);
     }
 }
 
-static void G_FowRevealBlockerRim(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int radius_cells) {
+static void G_FowRevealBlockerRim(fowPlayerGrid_t *grid, uint32_t cx, uint32_t cy, int radius_cells) {
     int margin = FOW_BLOCKER_LIGHT_MARGIN_CELLS;
     int max_radius = radius_cells + margin;
     int max_radius_sq = max_radius * max_radius;
-    DWORD rim_count = 0;
+    uint32_t rim_count = 0;
 
     for (int dy = -max_radius; dy <= max_radius; dy++) {
         int y = (int)cy + dy;
@@ -448,7 +448,7 @@ static void G_FowRevealBlockerRim(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int
         }
         for (int dx = -max_radius; dx <= max_radius; dx++) {
             int x = (int)cx + dx;
-            DWORD index;
+            uint32_t index;
 
             if (x < 0 || x >= (int)level.fow.width) {
                 continue;
@@ -457,7 +457,7 @@ static void G_FowRevealBlockerRim(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int
                 continue;
             }
 
-            index = G_FOW_CELL_INDEX((DWORD)x, (DWORD)y);
+            index = G_FOW_CELL_INDEX((uint32_t)x, (uint32_t)y);
             if (!level.fow.blocked[index]) {
                 continue;
             }
@@ -472,9 +472,9 @@ static void G_FowRevealBlockerRim(fowPlayerGrid_t *grid, DWORD cx, DWORD cy, int
     G_FowCommitRimCells(grid, rim_count);
 }
 
-static void G_FowRevealCircle(DWORD player, LPCEDICT ent, FLOAT radius) {
+static void G_FowRevealCircle(uint32_t player, LPCEDICT ent, float radius) {
     fowPlayerGrid_t *grid;
-    DWORD cx, cy;
+    uint32_t cx, cy;
     int radius_cells;
 
     if (player >= MAX_PLAYERS || !ent || radius <= 0.0f || !G_FowReady()) {
@@ -511,15 +511,15 @@ static void G_FowRevealCircle(DWORD player, LPCEDICT ent, FLOAT radius) {
 
 /* MiscData owns the dawn/dusk thresholds. The same authoritative simulation
  * time drives sight, regeneration, JASS game state and future presentation. */
-BOOL G_IsNight(void) {
-    FLOAT const time = G_GetTimeOfDay();
+bool G_IsNight(void) {
+    float const time = G_GetTimeOfDay();
     return !(time >= game.constants.dawnTimeGameHours &&
              time < game.constants.duskTimeGameHours);
 }
 
-static FLOAT G_FowEntitySightRadius(LPCEDICT ent) {
-    FLOAT day;
-    FLOAT night;
+static float G_FowEntitySightRadius(LPCEDICT ent) {
+    float day;
+    float night;
 
     if (!ent) {
         return 0.0f;
@@ -533,7 +533,7 @@ static FLOAT G_FowEntitySightRadius(LPCEDICT ent) {
     return G_IsNight() ? night : day;
 }
 
-static BOOL G_FowEntityIsRevealer(LPCEDICT ent) {
+static bool G_FowEntityIsRevealer(LPCEDICT ent) {
     if (!ent || !ent->inuse || ent->s.player >= MAX_PLAYERS) {
         return false;
     }
@@ -549,7 +549,7 @@ static BOOL G_FowEntityIsRevealer(LPCEDICT ent) {
     return G_FowEntitySightRadius(ent) > 0.0f;
 }
 
-static BOOL G_FowEntityIsBlocker(LPCEDICT ent) {
+static bool G_FowEntityIsBlocker(LPCEDICT ent) {
     if (!ent || !ent->inuse || !(ent->s.flags & EF_FOW_BLOCKER)) {
         return false;
     }
@@ -562,32 +562,32 @@ static BOOL G_FowEntityIsBlocker(LPCEDICT ent) {
     return true;
 }
 
-static DWORD G_FowHashMix(DWORD hash, DWORD value) {
+static uint32_t G_FowHashMix(uint32_t hash, uint32_t value) {
     hash ^= value;
     hash *= 16777619u;
     return hash;
 }
 
-static DWORD G_FowHashFloat(DWORD hash, FLOAT value) {
-    DWORD bits;
+static uint32_t G_FowHashFloat(uint32_t hash, float value) {
+    uint32_t bits;
 
     memcpy(&bits, &value, sizeof(bits));
     return G_FowHashMix(hash, bits);
 }
 
-static DWORD G_FowHashPointer(DWORD hash, void const *ptr) {
-    DWORD_PTR value = (DWORD_PTR)ptr;
+static uint32_t G_FowHashPointer(uint32_t hash, void const *ptr) {
+    uintptr_t value = (uintptr_t)ptr;
 
-    hash = G_FowHashMix(hash, (DWORD)value);
-    return G_FowHashMix(hash, (DWORD)(value >> 16 >> 16));
+    hash = G_FowHashMix(hash, (uint32_t)value);
+    return G_FowHashMix(hash, (uint32_t)(value >> 16 >> 16));
 }
 
 /* Blocker owners call this after a lifecycle change so steady updates avoid hashing every edict. */
 void G_FowMarkBlockersDirty(void) { g_fow_blockers_dirty = true; }
 
-static BOOL G_FowBlockersChanged(void) {
-    DWORD hash = 2166136261u;
-    DWORD count = 0;
+static bool G_FowBlockersChanged(void) {
+    uint32_t hash = 2166136261u;
+    uint32_t count = 0;
 
     if (!g_fow_blockers_dirty) return false;
     g_fow_blockers_dirty = false;
@@ -642,10 +642,10 @@ static int G_FowBlockerDilation(LPCEDICT ent) {
     return 0;
 }
 
-static BOOL G_FowMarkBlockerPathTex(LPCEDICT ent, int dilation) {
+static bool G_FowMarkBlockerPathTex(LPCEDICT ent, int dilation) {
     pathTex_t const *pathtex = ent->pathtex;
-    FLOAT scale;
-    BOOL marked = false;
+    float scale;
+    bool marked = false;
 
     if (!pathtex || !pathtex->width || !pathtex->height) {
         return false;
@@ -655,20 +655,20 @@ static BOOL G_FowMarkBlockerPathTex(LPCEDICT ent, int dilation) {
     FOR_LOOP(py, pathtex->height) {
         FOR_LOOP(px, pathtex->width) {
             COLOR32 const *pixel = &pathtex->map[px + py * pathtex->width];
-            FLOAT x;
-            FLOAT y;
-            DWORD cx;
-            DWORD cy;
+            float x;
+            float y;
+            uint32_t cx;
+            uint32_t cy;
 
             if (!pixel->b) {
                 continue;
             }
 
             x = ent->s.origin.x +
-                ((FLOAT)px + 0.5f - (FLOAT)pathtex->width * 0.5f) *
+                ((float)px + 0.5f - (float)pathtex->width * 0.5f) *
                 FOW_PATHING_PIXEL_SIZE * scale;
             y = ent->s.origin.y +
-                ((FLOAT)py + 0.5f - (FLOAT)pathtex->height * 0.5f) *
+                ((float)py + 0.5f - (float)pathtex->height * 0.5f) *
                 FOW_PATHING_PIXEL_SIZE * scale;
             cx = G_FowWorldToCellX(x);
             cy = G_FowWorldToCellY(y);
@@ -683,9 +683,9 @@ static BOOL G_FowMarkBlockerPathTex(LPCEDICT ent, int dilation) {
 }
 
 static void G_FowMarkBlocker(LPCEDICT ent) {
-    DWORD cx;
-    DWORD cy;
-    FLOAT radius;
+    uint32_t cx;
+    uint32_t cy;
+    float radius;
     int radius_cells;
     int dilation;
 
@@ -706,7 +706,7 @@ static void G_FowMarkBlocker(LPCEDICT ent) {
 
     G_FowSetBlockedDilated(cx, cy, dilation);
     radius = MAX(ent->s.radius, ent->collision);
-    radius_cells = (int)floorf(radius / (FLOAT)FOW_CELL_SIZE);
+    radius_cells = (int)floorf(radius / (float)FOW_CELL_SIZE);
     if (radius_cells <= 0) {
         return;
     }
@@ -722,7 +722,7 @@ static void G_FowMarkBlocker(LPCEDICT ent) {
                 continue;
             }
             if (dx * dx + dy * dy <= radius_cells * radius_cells) {
-                G_FowSetBlockedDilated((DWORD)x, (DWORD)y, dilation);
+                G_FowSetBlockedDilated((uint32_t)x, (uint32_t)y, dilation);
             }
         }
     }
@@ -740,7 +740,7 @@ static void G_FowRebuildBlockers(void) {
 }
 
 /* Reveal directly into connected viewer grids; source-owner grids are irrelevant when nobody consumes them. */
-static void G_FowRevealForViewers(LPCEDICT ent, FLOAT radius, DWORD viewers) {
+static void G_FowRevealForViewers(LPCEDICT ent, float radius, uint32_t viewers) {
     FOR_LOOP(viewer, MAX_PLAYERS)
         if (viewers & (1u << viewer))
             G_FowRevealCircle(viewer, ent, radius);
@@ -752,9 +752,9 @@ static void G_FowRevealForViewers(LPCEDICT ent, FLOAT radius, DWORD viewers) {
 #define MAX_FOG_MODIFIERS 256 // handles; bounded active map-script fog modifiers
 
 static LPFOGMODIFIER g_fog_modifiers[MAX_FOG_MODIFIERS];
-static DWORD g_num_fog_modifiers;
+static uint32_t g_num_fog_modifiers;
 
-static void G_FowApplyModifierForPlayer(DWORD player, LPCFOGMODIFIER mod);
+static void G_FowApplyModifierForPlayer(uint32_t player, LPCFOGMODIFIER mod);
 
 /* Start is observable immediately in Warcraft scripts. This matters for the
  * common reveal pattern that starts and destroys/stops a VISIBLE modifier in
@@ -804,11 +804,11 @@ void G_FogModifierStop(LPFOGMODIFIER mod) {
 }
 
 /* Rectangular writes use the same cell-state contract as circular reveals. */
-static void G_FowSetBoxState(fowPlayerGrid_t *grid, LPCBOX2 box, DWORD state) {
-    DWORD x0 = G_FowWorldToCellX(box->min.x);
-    DWORD y0 = G_FowWorldToCellY(box->min.y);
-    DWORD x1 = G_FowWorldToCellX(box->max.x);
-    DWORD y1 = G_FowWorldToCellY(box->max.y);
+static void G_FowSetBoxState(fowPlayerGrid_t *grid, LPCBOX2 box, uint32_t state) {
+    uint32_t x0 = G_FowWorldToCellX(box->min.x);
+    uint32_t y0 = G_FowWorldToCellY(box->min.y);
+    uint32_t x1 = G_FowWorldToCellX(box->max.x);
+    uint32_t y1 = G_FowWorldToCellY(box->max.y);
 
     if (x0 == FOW_INVALID_CELL || y0 == FOW_INVALID_CELL ||
         x1 == FOW_INVALID_CELL || y1 == FOW_INVALID_CELL) {
@@ -820,8 +820,8 @@ static void G_FowSetBoxState(fowPlayerGrid_t *grid, LPCBOX2 box, DWORD state) {
         return;
     }
 #endif
-    for (DWORD y = y0; y <= y1; y++) {
-        for (DWORD x = x0; x <= x1; x++) G_FowSetCellState(grid, G_FowCellIndex(x, y), state);
+    for (uint32_t y = y0; y <= y1; y++) {
+        for (uint32_t x = x0; x <= x1; x++) G_FowSetCellState(grid, G_FowCellIndex(x, y), state);
     }
 }
 
@@ -838,8 +838,8 @@ void G_FowSetStateRect(LPCFOGWRITE fog, LPCBOX2 box) {
 }
 
 /* Radius and location natives share one authoritative circular state path. */
-void G_FowSetStateRadius(LPCFOGWRITE fog, LPCVECTOR2 center, FLOAT radius) {
-    DWORD cx, cy;
+void G_FowSetStateRadius(LPCFOGWRITE fog, LPCVECTOR2 center, float radius) {
+    uint32_t cx, cy;
     int cells;
     if (!fog || fog->player >= MAX_PLAYERS || !center ||
         !G_FowReady() || !G_FowStateValid(fog->state))
@@ -857,13 +857,13 @@ void G_FowSetStateRadius(LPCFOGWRITE fog, LPCVECTOR2 center, FLOAT radius) {
     }
 }
 
-static void G_FowApplyModifierForPlayer(DWORD player, LPCFOGMODIFIER mod) {
+static void G_FowApplyModifierForPlayer(uint32_t player, LPCFOGMODIFIER mod) {
     fowPlayerGrid_t *grid = &level.fow.players[player];
     if (mod->is_rect) {
         G_FowSetBoxState(grid, &mod->rect, mod->state);
     } else {
-        DWORD cx = G_FowWorldToCellX(mod->center.x);
-        DWORD cy = G_FowWorldToCellY(mod->center.y);
+        uint32_t cx = G_FowWorldToCellX(mod->center.x);
+        uint32_t cy = G_FowWorldToCellY(mod->center.y);
         if (cx == FOW_INVALID_CELL || cy == FOW_INVALID_CELL) {
             return;
         }
@@ -876,7 +876,7 @@ static void G_FowApplyModifierForPlayer(DWORD player, LPCFOGMODIFIER mod) {
     }
 }
 
-static void G_FowApplyModifiers(DWORD viewers) {
+static void G_FowApplyModifiers(uint32_t viewers) {
     FOR_LOOP(i, g_num_fog_modifiers) {
         LPCFOGMODIFIER mod = g_fog_modifiers[i];
         if (!mod || !mod->started || !G_FowStateValid(mod->state) ||
@@ -916,14 +916,14 @@ void G_FowShutdown(void) {
 }
 
 void G_FowInit(void) {
-    DWORD cells;
+    uint32_t cells;
 
     G_FowShutdown();
     g_fow_blockers_valid = false;
     g_fow_blockers_dirty = true;
     level.fow.bounds = CM_GetWorldBounds();
-    level.fow.width = (DWORD)ceilf((level.fow.bounds.max.x - level.fow.bounds.min.x) / (FLOAT)FOW_CELL_SIZE);
-    level.fow.height = (DWORD)ceilf((level.fow.bounds.max.y - level.fow.bounds.min.y) / (FLOAT)FOW_CELL_SIZE);
+    level.fow.width = (uint32_t)ceilf((level.fow.bounds.max.x - level.fow.bounds.min.x) / (float)FOW_CELL_SIZE);
+    level.fow.height = (uint32_t)ceilf((level.fow.bounds.max.y - level.fow.bounds.min.y) / (float)FOW_CELL_SIZE);
     level.fow.width = MAX(level.fow.width, 1);
     level.fow.height = MAX(level.fow.height, 1);
     cells = G_FowCellCount();
@@ -971,14 +971,14 @@ void G_FowInit(void) {
 }
 
 /* Mark a player grid as consumed before its first authoritative update. */
-void G_FowConnectPlayer(DWORD player) {
+void G_FowConnectPlayer(uint32_t player) {
     if (player < MAX_PLAYERS)
         level.fow.players[player].client_connected = true;
 }
 
 void G_FowUpdate(void) {
-    DWORD owner_viewers[MAX_PLAYERS] = { 0 };
-    DWORD viewers = 0;
+    uint32_t owner_viewers[MAX_PLAYERS] = { 0 };
+    uint32_t viewers = 0;
 
     if (!G_FowReady()) {
         return;
@@ -1010,7 +1010,7 @@ void G_FowUpdate(void) {
 
     FOR_LOOP(i, globals.num_edicts) {
         LPCEDICT ent = &g_edicts[i];
-        FLOAT radius;
+        float radius;
 
         if (ent->s.player >= MAX_PLAYERS || !owner_viewers[ent->s.player] || !G_FowEntityIsRevealer(ent)) {
             continue;
@@ -1042,15 +1042,15 @@ void G_FowUpdate(void) {
    native; honor it for server-side unit visibility too, otherwise units in the
    (still-fogged) cinematic area are never networked and the scene renders
    without its actors. */
-static BOOL G_FowPlayerFogDisabled(DWORD player) {
+static bool G_FowPlayerFogDisabled(uint32_t player) {
     LPGAMECLIENT client = G_GetPlayerClientByNumber(player);
     return client && (client->ps.rdflags & RDF_NOFOG);
 }
 
 /* Hover information is interactive gameplay state, so unlike explored
  * scenery it is exposed only while the entity is actively visible. */
-BOOL G_FowPlayerCanHoverEntity(DWORD player, LPCEDICT ent) {
-    DWORD x, y, index;
+bool G_FowPlayerCanHoverEntity(uint32_t player, LPCEDICT ent) {
+    uint32_t x, y, index;
     fowPlayerGrid_t const *grid;
 
     if (!ent || player >= MAX_PLAYERS || !G_FowReady()) {
@@ -1079,8 +1079,8 @@ BOOL G_FowPlayerCanHoverEntity(DWORD player, LPCEDICT ent) {
     return grid->visible && grid->visible[index] != 0;
 }
 
-BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent) {
-    DWORD x, y, index;
+bool G_FowPlayerCanSeeEntity(uint32_t player, LPCEDICT ent) {
+    uint32_t x, y, index;
     fowPlayerGrid_t const *grid;
 
     if (!ent || player >= MAX_PLAYERS || !G_FowReady()) {
@@ -1117,7 +1117,7 @@ BOOL G_FowPlayerCanSeeEntity(DWORD player, LPCEDICT ent) {
     return grid->visible && grid->visible[index] != 0;
 }
 
-static BYTE *G_FowPlaneForFlags(fowPlayerGrid_t *grid, DWORD flags, DWORD plane) {
+static uint8_t *G_FowPlaneForFlags(fowPlayerGrid_t *grid, uint32_t flags, uint32_t plane) {
     if (plane == FOW_MSG_VISIBLE_PLANE && (flags & FOW_MSG_VISIBLE_PLANE)) {
         return grid->visible;
     }
@@ -1127,11 +1127,11 @@ static BYTE *G_FowPlaneForFlags(fowPlayerGrid_t *grid, DWORD flags, DWORD plane)
     return NULL;
 }
 
-typedef struct { fowPlayerGrid_t *grid; BYTE *planes[2]; DWORD plane_count, width, first_row, row_count, plane_bits, x, y, plane_index; BYTE *plane; } fowPackCtx_t;
+typedef struct { fowPlayerGrid_t *grid; uint8_t *planes[2]; uint32_t plane_count, width, first_row, row_count, plane_bits, x, y, plane_index; uint8_t *plane; } fowPackCtx_t;
 
-static BYTE G_FowPackBit(DWORD index, void *ctx) {
+static uint8_t G_FowPackBit(uint32_t index, void *ctx) {
     fowPackCtx_t *c = ctx;
-    BYTE v;
+    uint8_t v;
     (void)index; /* MSG_EncodeRLE reads sequentially, so x/y/plane track the position with no division. */
 #ifdef WC3_FOW_PACKED_MASK
     if (g_fow_fast && c->plane == c->grid->visible) v = G_FowPackedAt(c->grid->packed_visible, c->grid, c->x, c->y);
@@ -1149,21 +1149,21 @@ static BYTE G_FowPackBit(DWORD index, void *ctx) {
     return v;
 }
 
-static DWORD G_FowPackRows(fowPlayerGrid_t *grid,
-                           DWORD flags,
-                           DWORD first_row,
-                           DWORD row_count,
-                           BYTE *payload,
-                           DWORD payload_size)
+static uint32_t G_FowPackRows(fowPlayerGrid_t *grid,
+                           uint32_t flags,
+                           uint32_t first_row,
+                           uint32_t row_count,
+                           uint8_t *payload,
+                           uint32_t payload_size)
 {
-    DWORD planes[] = { FOW_MSG_VISIBLE_PLANE, FOW_MSG_EXPLORED_PLANE };
+    uint32_t planes[] = { FOW_MSG_VISIBLE_PLANE, FOW_MSG_EXPLORED_PLANE };
     fowPackCtx_t c;
     if (!payload || payload_size < 2) return 0;
     c.grid = grid; c.plane_count = 0; c.width = level.fow.width; c.first_row = first_row;
     c.row_count = row_count; c.plane_bits = level.fow.width * row_count;
     c.x = 0; c.y = first_row; c.plane_index = 0; c.plane = NULL;
     FOR_LOOP(plane_index, sizeof(planes) / sizeof(planes[0])) {
-        BYTE *plane = G_FowPlaneForFlags(grid, flags, planes[plane_index]);
+        uint8_t *plane = G_FowPlaneForFlags(grid, flags, planes[plane_index]);
         if (plane) c.planes[c.plane_count++] = plane;
     }
     if (!c.plane_count || !c.plane_bits) return 0;
@@ -1171,10 +1171,10 @@ static DWORD G_FowPackRows(fowPlayerGrid_t *grid,
     return MSG_EncodeRLE(payload, payload_size, c.plane_bits * c.plane_count, G_FowPackBit, &c);
 }
 
-static void G_FowWriteRows(LPEDICT ent, DWORD player, DWORD flags, DWORD first_row, DWORD row_count) {
-    BYTE payload[FOW_CHUNK_TARGET_BYTES];
-    DWORD plane_count = 0;
-    DWORD payload_bytes;
+static void G_FowWriteRows(LPEDICT ent, uint32_t player, uint32_t flags, uint32_t first_row, uint32_t row_count) {
+    uint8_t payload[FOW_CHUNK_TARGET_BYTES];
+    uint32_t plane_count = 0;
+    uint32_t payload_bytes;
     pfWriteData_t data;
 
     if (!ent || player >= MAX_PLAYERS || !G_FowReady() || row_count == 0 ||
@@ -1202,20 +1202,20 @@ static void G_FowWriteRows(LPEDICT ent, DWORD player, DWORD flags, DWORD first_r
         return;
     }
 
-    gi.Write(PF_BYTE, &(LONG){ svc_fogofwar });
-    gi.Write(PF_BYTE, &(LONG){ flags | FOW_MSG_RLE });
-    gi.Write(PF_SHORT, &(LONG){ level.fow.width });
-    gi.Write(PF_SHORT, &(LONG){ level.fow.height });
-    gi.Write(PF_SHORT, &(LONG){ first_row });
-    gi.Write(PF_SHORT, &(LONG){ row_count });
-    gi.Write(PF_SHORT, &(LONG){ payload_bytes });
+    gi.Write(PF_BYTE, &(int32_t){ svc_fogofwar });
+    gi.Write(PF_BYTE, &(int32_t){ flags | FOW_MSG_RLE });
+    gi.Write(PF_SHORT, &(int32_t){ level.fow.width });
+    gi.Write(PF_SHORT, &(int32_t){ level.fow.height });
+    gi.Write(PF_SHORT, &(int32_t){ first_row });
+    gi.Write(PF_SHORT, &(int32_t){ row_count });
+    gi.Write(PF_SHORT, &(int32_t){ payload_bytes });
     data = (pfWriteData_t){ payload, payload_bytes };
     gi.Write(PF_DATA, &data);
     gi.unicast(ent);
 }
 
-static DWORD G_FowRowsPerChunk(DWORD flags) {
-    DWORD plane_count = 0;
+static uint32_t G_FowRowsPerChunk(uint32_t flags) {
+    uint32_t plane_count = 0;
 
     if (flags & FOW_MSG_VISIBLE_PLANE) {
         plane_count++;
@@ -1230,8 +1230,8 @@ static DWORD G_FowRowsPerChunk(DWORD flags) {
 }
 
 void G_FowSendFull(LPEDICT ent) {
-    DWORD player;
-    DWORD rows_per_chunk;
+    uint32_t player;
+    uint32_t rows_per_chunk;
 
     if (!ent || !ent->client || !G_FowReady()) {
         return;
@@ -1242,7 +1242,7 @@ void G_FowSendFull(LPEDICT ent) {
     }
     G_FowConnectPlayer(player);
     rows_per_chunk = G_FowRowsPerChunk(FOW_MSG_VISIBLE_PLANE | FOW_MSG_EXPLORED_PLANE);
-    for (DWORD row = 0; row < level.fow.height; row += rows_per_chunk) {
+    for (uint32_t row = 0; row < level.fow.height; row += rows_per_chunk) {
         G_FowWriteRows(ent,
                        player,
                        FOW_MSG_FULL | FOW_MSG_VISIBLE_PLANE | FOW_MSG_EXPLORED_PLANE,
@@ -1252,12 +1252,12 @@ void G_FowSendFull(LPEDICT ent) {
 }
 
 static void G_FowSendDirtyPlane(LPEDICT ent,
-                                DWORD player,
-                                BYTE *dirty_rows,
-                                DWORD plane_flag)
+                                uint32_t player,
+                                uint8_t *dirty_rows,
+                                uint32_t plane_flag)
 {
-    DWORD rows_per_chunk;
-    DWORD row = 0;
+    uint32_t rows_per_chunk;
+    uint32_t row = 0;
 
     if (!dirty_rows) {
         return;
@@ -1270,8 +1270,8 @@ static void G_FowSendDirtyPlane(LPEDICT ent,
         if (row >= level.fow.height) {
             break;
         }
-        DWORD first = row;
-        DWORD count = 0;
+        uint32_t first = row;
+        uint32_t count = 0;
         while (row < level.fow.height && dirty_rows[row] && count < rows_per_chunk) {
             dirty_rows[row] = 0;
             row++;
@@ -1286,7 +1286,7 @@ void G_FowSendDeltas(void) {
         return;
     }
 
-    FOR_LOOP(player, MIN((DWORD)game.max_clients, (DWORD)MAX_PLAYERS)) {
+    FOR_LOOP(player, MIN((uint32_t)game.max_clients, (uint32_t)MAX_PLAYERS)) {
         LPEDICT ent = G_GetPlayerEntityByNumber(player);
         if (!level.fow.players[player].client_connected || !ent || !ent->client) {
             continue;

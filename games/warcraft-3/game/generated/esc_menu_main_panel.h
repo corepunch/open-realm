@@ -63,8 +63,8 @@ typedef struct EscMenuMainPanelGame_s {
     LPFRAMEDEF EscMenuBackdrop;
 } EscMenuMainPanelGame_t;
 
-static inline BOOL EscMenuMainPanelGame_Load(EscMenuMainPanelGame_t *out) {
-    BOOL ok = true;
+static inline bool EscMenuMainPanelGame_Load(EscMenuMainPanelGame_t *out) {
+    bool ok = true;
     LPFRAMEDEF bind_root;
     if (!out) {
         return false;

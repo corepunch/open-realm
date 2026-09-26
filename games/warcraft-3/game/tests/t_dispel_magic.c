@@ -11,14 +11,14 @@
 #define BZ_BTLF MAKEFOURCC('B', 'T', 'L', 'F') // rawcode; timed-life lifecycle status
 #define BZ_AUAN MAKEFOURCC('A', 'U', 'a', 'n') // rawcode; Animate Dead
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
 void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock DataB/DataA/DataE so tests cannot pass on retail 200/50/75/180. */
-static LPCSTR dispel_family_slk =
+static cstring_t dispel_family_slk =
 	"ID;PWXL;N;EBB;Y4;X12\n"
 	"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
 	"C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Cost1\"\nC;Y1;X6;K\"Cool1\"\n"
@@ -42,7 +42,7 @@ typedef struct {
 	LPEDICT caster, enemy, summon, far;
 } DISPELFIX;
 
-static DISPELFIX dispel_setup(DWORD code) {
+static DISPELFIX dispel_setup(uint32_t code) {
 	DISPELFIX fix;
 	reset_entities(); setup_test_world(); level.time = 1000;
 	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;

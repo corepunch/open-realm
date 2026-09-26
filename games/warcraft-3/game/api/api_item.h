@@ -1,7 +1,7 @@
-DWORD CreateItem(LPJASS j) {
-    LONG itemid = jass_checkinteger(j, 1);
-    FLOAT x = jass_checknumber(j, 2);
-    FLOAT y = jass_checknumber(j, 3);
+uint32_t CreateItem(LPJASS j) {
+    int32_t itemid = jass_checkinteger(j, 1);
+    float x = jass_checknumber(j, 2);
+    float y = jass_checknumber(j, 3);
     ItemData_t const *data;
 
     /* Human09 recreates Muradin's inventory after the Frostmourne cinematic.
@@ -11,76 +11,76 @@ DWORD CreateItem(LPJASS j) {
         fprintf(stderr, "CreateItem: refusing empty item ID at (%.1f, %.1f)\n", x, y);
         return jass_pushnullhandle(j, "item");
     }
-    data = G_ItemData((DWORD)itemid);
+    data = G_ItemData((uint32_t)itemid);
     if (!data || !data->file) {
         fprintf(stderr, "CreateItem: unresolved item ID 0x%08x at (%.1f, %.1f)\n",
-                (DWORD)itemid, x, y);
+                (uint32_t)itemid, x, y);
         return jass_pushnullhandle(j, "item");
     }
     LPEDICT item = SP_SpawnAtLocation(itemid, 0, &MAKE(VECTOR2, x, y));
     return jass_pushlighthandle(j, item, "item");
 }
-DWORD RemoveItem(LPJASS j) {
+uint32_t RemoveItem(LPJASS j) {
     LPEDICT whichItem = jass_checkhandle(j, 1, "item");
     if (whichItem) G_RemoveItem(whichItem);
     return 0;
 }
-DWORD GetItemPlayer(LPJASS j) {
-    //HANDLE whichItem = jass_checkhandle(j, 1, "item");
+uint32_t GetItemPlayer(LPJASS j) {
+    //handle_t whichItem = jass_checkhandle(j, 1, "item");
     return jass_pushnullhandle(j, "player");
 }
-DWORD GetItemTypeId(LPJASS j) {
+uint32_t GetItemTypeId(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
-    return jass_pushinteger(j, item ? (LONG)item->class_id : 0);
+    return jass_pushinteger(j, item ? (int32_t)item->class_id : 0);
 }
 /* GetItemType: the item's classification (itemtype enum), read data-driven from
  * ItemData's "icla"/itemClass column and mapped to the ITEM_TYPE_* indices
  * (common.j: 0=Permanent..6=Miscellaneous, 7=Unknown).  Pushed as an itemtype
  * handle exactly like ConvertItemType, so `set t = GetItemType(i)` gets 1 value
  * (an unregistered/void-returning stub here desynced the VM stack). */
-DWORD GetItemType(LPJASS j) {
+uint32_t GetItemType(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
-    LPCSTR cls = item ? item->data.ItemData->itemClass : NULL;
-    API_ALLOC(DWORD, itemtype);
+    cstring_t cls = item ? item->data.ItemData->itemClass : NULL;
+    API_ALLOC(uint32_t, itemtype);
     *itemtype = G_ItemTypeFromClass(cls);
     return 1;
 }
-DWORD GetItemLevel(LPJASS j) {
+uint32_t GetItemLevel(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
     return jass_pushinteger(j, item ? item->data.ItemData->level : 0);
 }
-DWORD GetItemCharges(LPJASS j) {
+uint32_t GetItemCharges(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
-    return jass_pushinteger(j, item ? (LONG)G_ItemCharges(item) : 0);
+    return jass_pushinteger(j, item ? (int32_t)G_ItemCharges(item) : 0);
 }
-DWORD SetItemCharges(LPJASS j) {
+uint32_t SetItemCharges(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
-    LONG charges = jass_checkinteger(j, 2);
-    if (item) G_SetItemCharges(item, (DWORD)MAX(charges, 0));
+    int32_t charges = jass_checkinteger(j, 2);
+    if (item) G_SetItemCharges(item, (uint32_t)MAX(charges, 0));
     return 0;
 }
-DWORD SetItemDropID(LPJASS j) {
+uint32_t SetItemDropID(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
-    LONG unit_id = jass_checkinteger(j, 2);
-    if (item && G_IsItem(item)) item->item.drop_id = (DWORD)unit_id;
+    int32_t unit_id = jass_checkinteger(j, 2);
+    if (item && G_IsItem(item)) item->item.drop_id = (uint32_t)unit_id;
     return 0;
 }
-DWORD GetItemDropID(LPJASS j) {
+uint32_t GetItemDropID(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
-    return jass_pushinteger(j, item && G_IsItem(item) ? (LONG)item->item.drop_id : 0);
+    return jass_pushinteger(j, item && G_IsItem(item) ? (int32_t)item->item.drop_id : 0);
 }
-DWORD GetItemX(LPJASS j) {
+uint32_t GetItemX(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
     return jass_pushnumber(j, item ? item->s.origin.x : 0);
 }
-DWORD GetItemY(LPJASS j) {
+uint32_t GetItemY(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
     return jass_pushnumber(j, item ? item->s.origin.y : 0);
 }
-DWORD SetItemPosition(LPJASS j) {
+uint32_t SetItemPosition(LPJASS j) {
     LPEDICT item = jass_checkhandle(j, 1, "item");
-    FLOAT x = jass_checknumber(j, 2);
-    FLOAT y = jass_checknumber(j, 3);
+    float x = jass_checknumber(j, 2);
+    float y = jass_checknumber(j, 3);
     if (item && item->item.in_world) {
         item->s.origin.x = x;
         item->s.origin.y = y;
@@ -90,43 +90,43 @@ DWORD SetItemPosition(LPJASS j) {
     }
     return 0;
 }
-DWORD SetItemDropOnDeath(LPJASS j) {
-    //HANDLE whichItem = jass_checkhandle(j, 1, "item");
-    //BOOL flag = jass_checkboolean(j, 2);
+uint32_t SetItemDropOnDeath(LPJASS j) {
+    //handle_t whichItem = jass_checkhandle(j, 1, "item");
+    //bool flag = jass_checkboolean(j, 2);
     return 0;
 }
-DWORD SetItemDroppable(LPJASS j) {
-    //HANDLE i = jass_checkhandle(j, 1, "item");
-    //BOOL flag = jass_checkboolean(j, 2);
+uint32_t SetItemDroppable(LPJASS j) {
+    //handle_t i = jass_checkhandle(j, 1, "item");
+    //bool flag = jass_checkboolean(j, 2);
     return 0;
 }
-DWORD SetItemPlayer(LPJASS j) {
-    //HANDLE whichItem = jass_checkhandle(j, 1, "item");
+uint32_t SetItemPlayer(LPJASS j) {
+    //handle_t whichItem = jass_checkhandle(j, 1, "item");
     //LPPLAYER whichPlayer = jass_checkhandle(j, 2, "player");
-    //BOOL changeColor = jass_checkboolean(j, 3);
+    //bool changeColor = jass_checkboolean(j, 3);
     return 0;
 }
-DWORD SetItemInvulnerable(LPJASS j) {
-    //HANDLE whichItem = jass_checkhandle(j, 1, "item");
-    //BOOL flag = jass_checkboolean(j, 2);
+uint32_t SetItemInvulnerable(LPJASS j) {
+    //handle_t whichItem = jass_checkhandle(j, 1, "item");
+    //bool flag = jass_checkboolean(j, 2);
     return 0;
 }
-DWORD IsItemInvulnerable(LPJASS j) {
-    //HANDLE whichItem = jass_checkhandle(j, 1, "item");
+uint32_t IsItemInvulnerable(LPJASS j) {
+    //handle_t whichItem = jass_checkhandle(j, 1, "item");
     return jass_pushboolean(j, 0);
 }
-DWORD GetManipulatedItem(LPJASS j) {
+uint32_t GetManipulatedItem(LPJASS j) {
     LPEDICT item = jass_getcontext(j)->source;
     return item && G_IsItem(item) ? jass_pushlighthandle(j, item, "item") : jass_pushnullhandle(j, "item");
 }
-DWORD GetOrderTargetItem(LPJASS j) {
+uint32_t GetOrderTargetItem(LPJASS j) {
     return jass_pushnullhandle(j, "item");
 }
-DWORD GetEnumItem(LPJASS j) {
+uint32_t GetEnumItem(LPJASS j) {
     extern LPEDICT currentenumitem;
     return jass_pushlighthandle(j, currentenumitem, "item");
 }
-DWORD EnumItemsInRect(LPJASS j) {
+uint32_t EnumItemsInRect(LPJASS j) {
     /* Visit every in-world item inside the rect, exposing each as the enum item
      * (GetEnumItem) while the action runs. Mirrors EnumDestructablesInRect;
      * the boolexpr filter (arg 2) is ignored for now. */
@@ -144,23 +144,23 @@ DWORD EnumItemsInRect(LPJASS j) {
     currentenumitem = NULL;
     return 0;
 }
-DWORD GetItemName(LPJASS j) {
+uint32_t GetItemName(LPJASS j) {
     LPEDICT whichItem = jass_checkhandle(j, 1, "item");
-    LPCSTR name = whichItem ? G_ObjectName(whichItem->class_id) : NULL;
+    cstring_t name = whichItem ? G_ObjectName(whichItem->class_id) : NULL;
     return jass_pushstring(j, name ? name : "");
 }
-DWORD GetItemUserData(LPJASS j) {
+uint32_t GetItemUserData(LPJASS j) {
     LPEDICT whichItem = jass_checkhandle(j, 1, "item");
     return jass_pushinteger(j, whichItem ? whichItem->item.user_data : 0);
 }
-DWORD SetItemUserData(LPJASS j) {
+uint32_t SetItemUserData(LPJASS j) {
     LPEDICT whichItem = jass_checkhandle(j, 1, "item");
     if (whichItem) whichItem->item.user_data = jass_checkinteger(j, 2);
     return 0;
 }
-DWORD SetItemVisible(LPJASS j) {
+uint32_t SetItemVisible(LPJASS j) {
     LPEDICT whichItem = jass_checkhandle(j, 1, "item");
-    BOOL show = jass_checkboolean(j, 2);
+    bool show = jass_checkboolean(j, 2);
     if (!whichItem || !G_IsItem(whichItem)) return 0;
     if (show) {
         whichItem->s.renderfx &= ~RF_HIDDEN;
@@ -171,24 +171,24 @@ DWORD SetItemVisible(LPJASS j) {
     }
     return 0;
 }
-DWORD IsItemVisible(LPJASS j) {
+uint32_t IsItemVisible(LPJASS j) {
     LPEDICT whichItem = jass_checkhandle(j, 1, "item");
     return jass_pushboolean(j, whichItem && !(whichItem->s.renderfx & RF_HIDDEN) &&
                               !(whichItem->svflags & SVF_NOCLIENT));
 }
-DWORD IsItemOwned(LPJASS j) {
+uint32_t IsItemOwned(LPJASS j) {
     LPEDICT whichItem = jass_checkhandle(j, 1, "item");
     return jass_pushboolean(j, whichItem && whichItem->item.carrier && !whichItem->item.in_world);
 }
-DWORD IsItemPowerup(LPJASS j) {
+uint32_t IsItemPowerup(LPJASS j) {
     LPEDICT whichItem = jass_checkhandle(j, 1, "item");
     ItemData_t const *data = whichItem ? whichItem->data.ItemData : NULL;
     if (!data && whichItem) data = G_ItemData(whichItem->class_id);
     return jass_pushboolean(j, data && data->powerup);
 }
-DWORD SetItemPawnable(LPJASS j) {
+uint32_t SetItemPawnable(LPJASS j) {
     LPEDICT whichItem = jass_checkhandle(j, 1, "item");
-    BOOL flag = jass_checkboolean(j, 2);
+    bool flag = jass_checkboolean(j, 2);
     if (whichItem) {
         whichItem->item.pawnable_set = true;
         whichItem->item.pawnable = flag;

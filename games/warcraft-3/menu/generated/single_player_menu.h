@@ -152,8 +152,8 @@ typedef struct SinglePlayerMenu_s {
     LPFRAMEDEF TutorialButton;
 } SinglePlayerMenu_t;
 
-static inline BOOL SinglePlayerMenu_Load(SinglePlayerMenu_t *out) {
-    BOOL ok = true;
+static inline bool SinglePlayerMenu_Load(SinglePlayerMenu_t *out) {
+    bool ok = true;
     LPFRAMEDEF bind_root;
     if (!out) {
         return false;

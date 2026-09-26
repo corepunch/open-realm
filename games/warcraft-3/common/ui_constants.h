@@ -33,14 +33,14 @@
  * compared like war3skins lookups (case-insensitive); the token must be the bare File property, so
  * BackdropEdgeFile/HighlightAlphaFile never match.  CL_GameCanvasPolicy uses it to detect the widescreen
  * console tiles that retail 1.30+ ConsoleUI.fdf authors and classic archives do not. */
-static inline BOOL W3_FdfReferencesFile(LPCSTR text, LPCSTR file) {
+static inline bool W3_FdfReferencesFile(cstring_t text, cstring_t file) {
     size_t len = file ? strlen(file) : 0;
     if (!text || !len) return false;
-    for (LPCSTR p = text; *p; p++) {
+    for (cstring_t p = text; *p; p++) {
         if (p[0] == '/' && p[1] == '/') { while (*p && *p != '\n') p++; if (!*p) break; continue; }
-        if (p[0] == '/' && p[1] == '*') { LPCSTR end = strstr(p + 2, "*/"); if (!end) break; p = end + 1; continue; }
+        if (p[0] == '/' && p[1] == '*') { cstring_t end = strstr(p + 2, "*/"); if (!end) break; p = end + 1; continue; }
         if (strncmp(p, "File", 4) || (p > text && (isalnum((unsigned char)p[-1]) || p[-1] == '_'))) continue;
-        LPCSTR q = p + 4;
+        cstring_t q = p + 4;
         while (*q == ' ' || *q == '\t') q++;
         if (*q == '"' && !strncasecmp(q + 1, file, len) && q[1 + len] == '"') return true;
     }

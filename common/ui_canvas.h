@@ -11,11 +11,11 @@
  * scene area exists beside that root, so a game never authors extension chrome nobody can see. */
 static inline UICANVAS UI_ResolveCanvas(size2_t window, UICANVASPOLICY policy) {
     UICANVAS canvas = { .scene = { 0, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT }, .window = window, .policy = policy };
-    FLOAT aspect = window.height ? (FLOAT)window.width / (FLOAT)window.height : 0.0f;
+    float aspect = window.height ? (float)window.width / (float)window.height : 0.0f;
     if (policy != UI_CANVAS_STRETCH && aspect > UI_MIN_ASPECT) canvas.scene.w = UI_BASE_HEIGHT * aspect;
     canvas.root = canvas.scene;
     if (policy == UI_CANVAS_EXPAND_CENTER && canvas.scene.w > UI_BASE_WIDTH)
-        canvas.root = MAKE(RECT, (canvas.scene.w - UI_BASE_WIDTH) * 0.5f, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT);
+        canvas.root = MAKE(rect_t, (canvas.scene.w - UI_BASE_WIDTH) * 0.5f, 0, UI_BASE_WIDTH, UI_BASE_HEIGHT);
     canvas.chrome = canvas.scene.w > canvas.root.w ? UI_CANVAS_WIDE : UI_CANVAS_STANDARD;
     return canvas;
 }

@@ -19,14 +19,14 @@ menuImport_t mi;
 
 uiWowState_t wow_ui;
 
-static BOOL uiWow_menu_commands_registered;
+static bool uiWow_menu_commands_registered;
 
 
 /* -------------------------------------------------------------------------
  * Shared helpers used by menu_lua.c and menu_loading.c
  * ---------------------------------------------------------------------- */
 
-void UIWow_Printf(LPCSTR fmt, ...) {
+void UIWow_Printf(cstring_t fmt, ...) {
     va_list args;
     char text[1024];
 
@@ -39,7 +39,7 @@ void UIWow_Printf(LPCSTR fmt, ...) {
     mi.Printf("%s", text);
 }
 
-void UIWow_WarnOnce(DWORD flag, LPCSTR fmt, ...) {
+void UIWow_WarnOnce(uint32_t flag, cstring_t fmt, ...) {
     va_list args;
     char text[1024];
 
@@ -65,15 +65,15 @@ void UIWow_EnsureRenderer(void) {
     }
 }
 
-static BOOL UIWow_TexturePathHasExt(LPCSTR name) {
-    LPCSTR slash;
+static bool UIWow_TexturePathHasExt(cstring_t name) {
+    cstring_t slash;
     if (!name || !*name) return false;
     slash = strrchr(name, '\\');
     if (!slash) slash = strrchr(name, '/');
     return strchr(slash ? slash + 1 : name, '.') != NULL;
 }
 
-static BOOL UIWow_MainHasArchiveFile(LPCSTR path) {
+static bool UIWow_MainHasArchiveFile(cstring_t path) {
     void *buf = NULL;
     int size;
     if (!path || !*path || !mi.FS_ReadFile || !mi.FS_FreeFile) return false;
@@ -94,11 +94,11 @@ static BOOL UIWow_MainHasArchiveFile(LPCSTR path) {
  * Glue-Panel-Button-Down.blp as separate states but no combined disabled+pressed variant.
  * The UI XML references this composite path for the pushed state of a disabled button, so
  * we fall back to Disabled.blp — treating disabled+down identically to disabled. */
-static void UIWow_ResolveTexturePath(LPCSTR in, LPSTR out, size_t out_size) {
-    static LPCSTR exts[] = { ".blp", ".tga", ".dds", NULL };
-    static LPCSTR splash_prefix = "Interface\\Glues\\Common\\Glues-Splash-";
-    static LPCSTR splash_fallback = "Interface\\Glues\\Common\\Glues-Logo.blp";
-    static LPCSTR disabled_down_fallback = "Interface\\Glues\\Common\\Glue-Panel-Button-Disabled.blp";
+static void UIWow_ResolveTexturePath(cstring_t in, string_t out, size_t out_size) {
+    static cstring_t exts[] = { ".blp", ".tga", ".dds", NULL };
+    static cstring_t splash_prefix = "Interface\\Glues\\Common\\Glues-Splash-";
+    static cstring_t splash_fallback = "Interface\\Glues\\Common\\Glues-Logo.blp";
+    static cstring_t disabled_down_fallback = "Interface\\Glues\\Common\\Glue-Panel-Button-Disabled.blp";
     PATHSTR candidate;
     snprintf(out, out_size, "%s", in ? in : "");
     if (!in || !*in || UIWow_TexturePathHasExt(in)) return;
@@ -118,7 +118,7 @@ static void UIWow_ResolveTexturePath(LPCSTR in, LPSTR out, size_t out_size) {
     }
 }
 
-LPTEXTURE UIWow_LoadTexture(LPCSTR name) {
+LPTEXTURE UIWow_LoadTexture(cstring_t name) {
     int empty_slot = -1;
     PATHSTR resolved;
 
@@ -170,7 +170,7 @@ LPTEXTURE UIWow_LoadTexture(LPCSTR name) {
     }
 }
 
-LPCFONT UIWow_LoadFont(DWORD size) {
+LPCFONT UIWow_LoadFont(uint32_t size) {
     UIWow_EnsureRenderer();
     if (!wow_ui.renderer) {
         return NULL;
@@ -226,7 +226,7 @@ static void UIWow_Shutdown(void) {
     memset(&wow_ui, 0, sizeof(wow_ui));
 }
 
-static void UIWow_Refresh(DWORD time) {
+static void UIWow_Refresh(uint32_t time) {
     wow_ui.time = time;
     UIWow_CallLuaUpdate(time);
     UIWow_EnsureRenderer();
@@ -256,7 +256,7 @@ static void UIWow_ReleaseScreenAssets(void) {
     wow_ui.texture_recycle_index = 0;
 }
 
-static void UIWow_RecreateLuaStateForMenu(LPCSTR menu_name) {
+static void UIWow_RecreateLuaStateForMenu(cstring_t menu_name) {
     if (!menu_name || !*menu_name) {
         return;
     }
@@ -287,7 +287,7 @@ VECTOR2 UIWow_MouseFdf(int x, int y) {
     if (window.width == 0 || window.height == 0) {
         window = (size2_t){ 1024, 768 };
     }
-    return MAKE(VECTOR2, x / (FLOAT)window.width, y / (FLOAT)window.height);
+    return MAKE(VECTOR2, x / (float)window.width, y / (float)window.height);
 }
 
 /* Forward mouse motion to Lua when XML does not own the hovered frame. */
@@ -312,13 +312,13 @@ static void UIWow_LuaMouseMove(int x, int y) {
  * Input routing
  * ---------------------------------------------------------------------- */
 
-static void UIWow_KeyEvent(int key, BOOL down, DWORD time) {
+static void UIWow_KeyEvent(int key, bool down, uint32_t time) {
     if (UIWow_XMLKeyEvent(key, down, time)) {
         return;
     }
 }
 
-static void UIWow_TextInput(LPCSTR text) {
+static void UIWow_TextInput(cstring_t text) {
     if (UIWow_XMLTextInput(text)) {
         return;
     }
@@ -338,7 +338,7 @@ static void UIWow_TextInput(LPCSTR text) {
     UIWow_LuaPCall(1);
 }
 
-static BOOL UIWow_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
+static bool UIWow_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     VECTOR2 mouse_pos;
     if (UIWow_XMLMouseEvent(event, x, y, param)) {
         return true;
@@ -371,7 +371,7 @@ static BOOL UIWow_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param
  * Glue-menu commands
  * ---------------------------------------------------------------------- */
 
-static void UIWow_CallLuaShow(LPCSTR menu_name, LPCSTR lua_func, LPCSTR glue_screen) {
+static void UIWow_CallLuaShow(cstring_t menu_name, cstring_t lua_func, cstring_t glue_screen) {
     UIWow_RecreateLuaStateForMenu(menu_name);
     snprintf(wow_ui.current_menu, sizeof(wow_ui.current_menu), "%s", menu_name);
     if (!wow_ui.lua) {
@@ -404,7 +404,7 @@ static void UIWow_ShowLoginMenu(void)          { UIWow_CallLuaShow("login",     
 static void UIWow_ShowCharacterSelectMenu(void){ UIWow_CallLuaShow("character_select", "ow3_show_character_select", "charselect"); }
 static void UIWow_ShowCharacterCreateMenu(void){ UIWow_CallLuaShow("character_create", "ow3_show_character_create", "charcreate"); }
 
-typedef struct { LPCSTR command; void (*function)(void); } uiWowMenuCommandDef_t;
+typedef struct { cstring_t command; void (*function)(void); } uiWowMenuCommandDef_t;
 
 static uiWowMenuCommandDef_t const uiWow_menu_command_defs[] = {
     { "menu_login",            UIWow_ShowLoginMenu },

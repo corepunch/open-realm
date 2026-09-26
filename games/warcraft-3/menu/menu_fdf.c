@@ -24,7 +24,7 @@
 static LPCTEXTURE ui_textures[UI_MAX_TEXTURES] = { 0 };
 static PATHSTR ui_texture_names[UI_MAX_TEXTURES] = { 0 };
 static PATHSTR ui_texture_keys[UI_MAX_TEXTURES] = { 0 };
-static BOOL ui_texture_decorated[UI_MAX_TEXTURES] = { 0 };
+static bool ui_texture_decorated[UI_MAX_TEXTURES] = { 0 };
 static LPCMODEL ui_models[UI_MAX_MODELS] = { 0 };
 static PATHSTR ui_model_names[UI_MAX_MODELS] = { 0 };
 
@@ -47,14 +47,14 @@ BZ_HOST_HIDDEN void UI_ClearTextures(void) {
     memset(ui_model_names, 0, sizeof(ui_model_names));
 }
 
-static BOOL UI_HasKnownTextureExtension(LPCSTR file) {
-    LPCSTR dot = file ? strrchr(file, '.') : NULL;
+static bool UI_HasKnownTextureExtension(cstring_t file) {
+    cstring_t dot = file ? strrchr(file, '.') : NULL;
     return dot && (!strcasecmp(dot, ".blp") ||
                    !strcasecmp(dot, ".tga") ||
                    !strcasecmp(dot, ".dds"));
 }
 
-static LPCSTR EnsureExtension(LPCSTR file, LPCSTR ext) {
+static cstring_t EnsureExtension(cstring_t file, cstring_t ext) {
     static PATHSTR blp;
     if (!UI_HasKnownTextureExtension(file)) {
         snprintf(blp, sizeof(blp), "%s%s", file, ext);
@@ -63,9 +63,9 @@ static LPCSTR EnsureExtension(LPCSTR file, LPCSTR ext) {
     return file;
 }
 
-BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
-    LPCSTR resolved;
-    DWORD index;
+BZ_HOST_HIDDEN uint32_t UI_LoadTexture(cstring_t file, bool decorate) {
+    cstring_t resolved;
+    uint32_t index;
 
     if (!file || !*file) return 0;
 
@@ -83,7 +83,7 @@ BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
     }
 
     index = 0;
-    for (DWORD i = 1; i < UI_MAX_TEXTURES; i++) {
+    for (uint32_t i = 1; i < UI_MAX_TEXTURES; i++) {
         if (!ui_texture_names[i][0]) { index = i; break; }
     }
     if (!index || !mi.GetRenderer) return 0;
@@ -95,16 +95,16 @@ BZ_HOST_HIDDEN DWORD UI_LoadTexture(LPCSTR file, BOOL decorate) {
     return index;
 }
 
-LPCSTR UI_TextureName(DWORD index) {
+cstring_t UI_TextureName(uint32_t index) {
     if (!index || index >= UI_MAX_TEXTURES) return NULL;
     return ui_texture_names[index][0] ? ui_texture_names[index] : NULL;
 }
 
-LPCTEXTURE UI_GetTexture(DWORD index) {
+LPCTEXTURE UI_GetTexture(uint32_t index) {
     if (!index || index >= UI_MAX_TEXTURES || !ui_texture_names[index][0]) return NULL;
     LPRENDERER renderer = mi.GetRenderer();
     if (ui_texture_decorated[index] && ui_texture_keys[index][0]) {
-        LPCSTR resolved = EnsureExtension(Theme_String(ui_texture_keys[index], "Default"), ".blp");
+        cstring_t resolved = EnsureExtension(Theme_String(ui_texture_keys[index], "Default"), ".blp");
         if (strcmp(ui_texture_names[index], resolved)) {
             if (ui_textures[index]) renderer->ReleaseTexture((LPTEXTURE)ui_textures[index]);
             ui_textures[index] = NULL;
@@ -115,15 +115,15 @@ LPCTEXTURE UI_GetTexture(DWORD index) {
     return ui_textures[index];
 }
 
-LPCMODEL UI_GetModel(DWORD index) {
+LPCMODEL UI_GetModel(uint32_t index) {
     if (!index || index >= UI_MAX_MODELS) return NULL;
     return ui_models[index];
 }
 
-BZ_HOST_HIDDEN DWORD UI_LoadModel(LPCSTR file, BOOL decorate) {
+BZ_HOST_HIDDEN uint32_t UI_LoadModel(cstring_t file, bool decorate) {
     LPRENDERER renderer = NULL;
-    DWORD modelIndex = 0;
-    LPCSTR model = file;
+    uint32_t modelIndex = 0;
+    cstring_t model = file;
 
     if (!model || !*model) return 0;
 
@@ -133,7 +133,7 @@ BZ_HOST_HIDDEN DWORD UI_LoadModel(LPCSTR file, BOOL decorate) {
             return i;
     }
 
-    for (DWORD i = 1; i < UI_MAX_MODELS; i++) {
+    for (uint32_t i = 1; i < UI_MAX_MODELS; i++) {
         if (!ui_model_names[i][0]) { modelIndex = i; break; }
     }
     if (!modelIndex || !mi.GetRenderer) return 0;
@@ -147,22 +147,22 @@ BZ_HOST_HIDDEN DWORD UI_LoadModel(LPCSTR file, BOOL decorate) {
 
 /* ---- FDF host services (UI module) ---------------------------------------- */
 
-BZ_HOST_HIDDEN HANDLE UI_FdfAlloc(long size) { return mi.MemAlloc(size); }
-BZ_HOST_HIDDEN void UI_FdfFree(HANDLE ptr) { mi.MemFree(ptr); }
-BZ_HOST_HIDDEN DWORD UI_FdfFontIndex(LPCSTR name, DWORD size) { return mi.FontIndex(name, size); }
-BZ_HOST_HIDDEN int UI_FdfReadFile(LPCSTR name, HANDLE *out) {
+BZ_HOST_HIDDEN handle_t UI_FdfAlloc(long size) { return mi.MemAlloc(size); }
+BZ_HOST_HIDDEN void UI_FdfFree(handle_t ptr) { mi.MemFree(ptr); }
+BZ_HOST_HIDDEN uint32_t UI_FdfFontIndex(cstring_t name, uint32_t size) { return mi.FontIndex(name, size); }
+BZ_HOST_HIDDEN int UI_FdfReadFile(cstring_t name, handle_t *out) {
     int size = mi.FS_ReadFile(name, out);
     return size;
 }
-BZ_HOST_HIDDEN void UI_FdfFreeFile(HANDLE buf) { mi.FS_FreeFile(buf); }
+BZ_HOST_HIDDEN void UI_FdfFreeFile(handle_t buf) { mi.FS_FreeFile(buf); }
 
 /* ---- UI_BindMapList (menu-module specific) ----------------------------------- */
 
 void UI_BindMapList(LPFRAMEDEF frame,
                     uiMapListState_t *state,
                     LPCFRAMEDEF label,
-                    DWORD visible_rows,
-                    LPCSTR select_command)
+                    uint32_t visible_rows,
+                    cstring_t select_command)
 {
     uiMapListControl_t *control;
 

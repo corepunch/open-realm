@@ -12,8 +12,8 @@ typedef struct LeaderBoard_s {
 } LeaderBoard_t;
 
 
-static inline BOOL LeaderBoard_Bind(LeaderBoard_t *out, LPFRAMEDEF bind_root) {
-    BOOL ok = true;
+static inline bool LeaderBoard_Bind(LeaderBoard_t *out, LPFRAMEDEF bind_root) {
+    bool ok = true;
     if (!out) {
         return false;
     }
@@ -29,7 +29,7 @@ static inline BOOL LeaderBoard_Bind(LeaderBoard_t *out, LPFRAMEDEF bind_root) {
     return ok;
 }
 
-static inline BOOL LeaderBoard_Load(LeaderBoard_t *out) {
+static inline bool LeaderBoard_Load(LeaderBoard_t *out) {
     return out &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\EscMenuTemplates.fdf") &&
            UI_EnsureFDF("UI\\FrameDef\\UI\\LeaderBoard.fdf") &&

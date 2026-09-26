@@ -3,27 +3,27 @@
 #include "test.h"
 #include "../g_local.h"
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 
-static DWORD shortcut_root_number;
-static BOOL shortcut_root_extended;
-static BOOL shortcut_hero_parented;
-static BOOL shortcut_worker_parented;
-static BOOL shortcut_count_parented;
-static BOOL shortcut_skill_count_seen;
-static BOOL shortcut_hero_alert_seen;
-static FLOAT shortcut_hero_alert_deadline;
-static DWORD shortcut_hero_entities[8];
-static DWORD shortcut_hero_entity_count;
+static uint32_t shortcut_root_number;
+static bool shortcut_root_extended;
+static bool shortcut_hero_parented;
+static bool shortcut_worker_parented;
+static bool shortcut_count_parented;
+static bool shortcut_skill_count_seen;
+static bool shortcut_hero_alert_seen;
+static float shortcut_hero_alert_deadline;
+static uint32_t shortcut_hero_entities[8];
+static uint32_t shortcut_hero_entity_count;
 
-static int shortcut_test_image(LPCSTR name) {
+static int shortcut_test_image(cstring_t name) {
     T_ASSERT(name && *name);
     return 1;
 }
 
-static int shortcut_test_font(LPCSTR name, DWORD size) {
+static int shortcut_test_font(cstring_t name, uint32_t size) {
     T_ASSERT(name && *name);
     T_EQ(size, HUD_FONT_SIZE);
     return 1;
@@ -56,7 +56,7 @@ static void shortcut_test_write(pfWriteType_t type, void const *value) {
             shortcut_hero_alert_deadline = frame->value;
             if (shortcut_hero_entity_count < sizeof(shortcut_hero_entities) / sizeof(shortcut_hero_entities[0]) &&
                 sscanf(frame->onclick, "herobutton %u", &number) == 1) {
-                shortcut_hero_entities[shortcut_hero_entity_count++] = (DWORD)number;
+                shortcut_hero_entities[shortcut_hero_entity_count++] = (uint32_t)number;
             }
         }
         if (!strncmp(frame->onclick, "idleworker ", 11)) shortcut_worker_parented = true;
@@ -255,8 +255,8 @@ TEST(wc3_shortcuts, hero_buttons_match_multiselect_order) {
     UnitProfile_t hero_profile = { .art = "TestUI\\Textures\\solid_white.blp" };
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
-    int (*old_image)(LPCSTR) = gi.ImageIndex;
-    int (*old_font)(LPCSTR, DWORD) = gi.FontIndex;
+    int (*old_image)(cstring_t) = gi.ImageIndex;
+    int (*old_font)(cstring_t, uint32_t) = gi.FontIndex;
 
     reset_entities();
     setup_test_world();
@@ -316,8 +316,8 @@ TEST(wc3_shortcuts, hud_buttons_share_full_canvas_left_root) {
     UnitProfile_t worker_profile;
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
-    int (*old_image)(LPCSTR) = gi.ImageIndex;
-    int (*old_font)(LPCSTR, DWORD) = gi.FontIndex;
+    int (*old_image)(cstring_t) = gi.ImageIndex;
+    int (*old_font)(cstring_t, uint32_t) = gi.FontIndex;
 
     reset_entities();
     setup_test_world();

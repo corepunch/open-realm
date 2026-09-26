@@ -2,12 +2,12 @@
 
 #define ID_TIMED_LIFE "BTLF"
 
-static void mirror_image_spawn(LPEDICT caster, DWORD index, DWORD count, FLOAT duration) {
+static void mirror_image_spawn(LPEDICT caster, uint32_t index, uint32_t count, float duration) {
     VECTOR2 loc;
-    FLOAT angle;
+    float angle;
     LPEDICT image;
 
-    angle = count ? (2.0f * (FLOAT)M_PI * (FLOAT)index) / (FLOAT)count : 0.0f;
+    angle = count ? (2.0f * (float)M_PI * (float)index) / (float)count : 0.0f;
     loc = caster->s.origin2;
     loc.x += cosf(angle) * MAX(64.0f, caster->collision + 32.0f);
     loc.y += sinf(angle) * MAX(64.0f, caster->collision + 32.0f);
@@ -41,14 +41,14 @@ static void mirror_image_spawn(LPEDICT caster, DWORD index, DWORD count, FLOAT d
 }
 
 BZ_SIMPLE_SPELL_PROC(AbilityMirrorImage) {
-    DWORD level;
-    DWORD count;
-    FLOAT duration;
+    uint32_t level;
+    uint32_t count;
+    float duration;
     (void)st;
 
     if (!caster || !spell) return;
     level = S_SpellLevel(caster, spell->code);
-    count = (DWORD)MAX(0.0f, S_SpellData(spell->code, level, 1));
+    count = (uint32_t)MAX(0.0f, S_SpellData(spell->code, level, 1));
     duration = S_SpellDuration(spell->code, level, false);
     if (!count) count = 1;
 

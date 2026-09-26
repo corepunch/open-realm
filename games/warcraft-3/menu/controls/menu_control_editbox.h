@@ -57,12 +57,12 @@ static LPFRAMEDEF UI_EditTextFrame(LPCFRAMEDEF frame) {
     return text_frame;
 }
 
-static LPCSTR UI_EditText(LPCFRAMEDEF frame) {
+static cstring_t UI_EditText(LPCFRAMEDEF frame) {
     LPFRAMEDEF text_frame = UI_EditTextFrame(frame);
     return text_frame && text_frame->Text ? text_frame->Text : "";
 }
 
-static void UI_SetEditText(LPCFRAMEDEF frame, LPCSTR text) {
+static void UI_SetEditText(LPCFRAMEDEF frame, cstring_t text) {
     LPFRAMEDEF text_frame = UI_EditTextFrame(frame);
 
     if (!text_frame) {
@@ -71,8 +71,8 @@ static void UI_SetEditText(LPCFRAMEDEF frame, LPCSTR text) {
     UI_SetText(text_frame, "%s", text ? text : "");
 }
 
-static DWORD UI_EditMaxChars(LPCFRAMEDEF frame) {
-    DWORD max_chars = frame && frame->Edit.MaxChars ? frame->Edit.MaxChars : 255;
+static uint32_t UI_EditMaxChars(LPCFRAMEDEF frame) {
+    uint32_t max_chars = frame && frame->Edit.MaxChars ? frame->Edit.MaxChars : 255;
     return MIN(max_chars, sizeof(((LPFRAMEDEF)frame)->TextStorage) - 1);
 }
 
@@ -91,11 +91,11 @@ static void UI_FocusEdit(LPFRAMEDEF frame) {
         active_ti.text = text_frame ? text_frame->TextStorage : NULL;
         active_ti.size = text_frame ? sizeof(text_frame->TextStorage) : 0;
         active_ti.max_chars = UI_EditMaxChars(frame);
-        active_ti.cursor = (DWORD)strlen(UI_EditText(frame));
+        active_ti.cursor = (uint32_t)strlen(UI_EditText(frame));
     }
 }
 
-BOOL M_EditKey(int key) {
+bool M_EditKey(int key) {
     int result;
 
     if (!active_edit) {
@@ -116,7 +116,7 @@ BOOL M_EditKey(int key) {
     }
 }
 
-void UI_EditTextInput(LPCSTR text) {
+void UI_EditTextInput(cstring_t text) {
     char filtered[256];
 
     if (!active_edit || !text) {
@@ -128,11 +128,11 @@ void UI_EditTextInput(LPCSTR text) {
     }
 }
 
-static void UI_DrawEditBox(LPCFRAMEDEF frame, LPCRECT rect) {
+static void UI_DrawEditBox(LPCFRAMEDEF frame, rect_t const * rect) {
     LPRENDERER renderer = mi.GetRenderer();
     LPFRAMEDEF text_frame = UI_EditTextFrame(frame);
     LPCFRAMEDEF backdrop = UI_FindFrameNear(frame, frame->Control.Backdrop.Normal);
-    RECT text_rect = *rect;
+    rect_t text_rect = *rect;
 
     UI_DrawBackdropWithColor(backdrop, rect, frame->Color);
     if (!text_frame) {
@@ -151,7 +151,7 @@ static void UI_DrawEditBox(LPCFRAMEDEF frame, LPCRECT rect) {
     UI_DrawText(text_frame, &text_rect);
 
     if (active_edit == frame && renderer && renderer->DrawText && renderer->GetTextSize) {
-        LPCSTR text = UI_EditText(frame);
+        cstring_t text = UI_EditText(frame);
         LPCFONT font = renderer->LoadFont(UI_FontFile(text_frame->Font.Name),
                                           UI_FontPixelSize(text_frame->Font.Size));
         COLOR32 cursor_color = frame->Edit.CursorColor.a ? frame->Edit.CursorColor : COLOR32_WHITE;

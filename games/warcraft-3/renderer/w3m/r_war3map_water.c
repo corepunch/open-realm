@@ -17,7 +17,7 @@ static struct color32 GetWaterOpacity(float waterlevel, float height) {
 
 // FUNCTIONS
 
-static void R_MakeWaterTile(LPCWAR3MAP map, DWORD x, DWORD y) {
+static void R_MakeWaterTile(LPCWAR3MAP map, uint32_t x, uint32_t y) {
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, tr.world, tile);
 
@@ -104,17 +104,17 @@ static void R_MakeWaterTile(LPCWAR3MAP map, DWORD x, DWORD y) {
     water_current_vertex += sizeof(geom) / sizeof(VERTEX);
 }
 
-LPMAPLAYER R_BuildMapSegmentWater(LPCWAR3MAP map, DWORD sx, DWORD sy) {
+LPMAPLAYER R_BuildMapSegmentWater(LPCWAR3MAP map, uint32_t sx, uint32_t sy) {
     LPMAPLAYER mapLayer = ri.MemAlloc(sizeof(MAPLAYER));
     mapLayer->type = MAPLAYERTYPE_WATER;
     mapLayer->texture = tr.texture[TEX_WATER];
     water_current_vertex = water_vertex_buffer;
-    for (DWORD x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++) {
-        for (DWORD y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++) {
+    for (uint32_t x = sx * SEGMENT_SIZE; x < (sx + 1) * SEGMENT_SIZE; x++) {
+        for (uint32_t y = sy * SEGMENT_SIZE; y < (sy + 1) * SEGMENT_SIZE; y++) {
             R_MakeWaterTile(map, x, y);
         }
     }
-    mapLayer->num_vertices = (DWORD)(water_current_vertex - water_vertex_buffer);
+    mapLayer->num_vertices = (uint32_t)(water_current_vertex - water_vertex_buffer);
     mapLayer->buffer = R_MakeVertexArrayObject(water_vertex_buffer, mapLayer->num_vertices);
     return mapLayer;
 }

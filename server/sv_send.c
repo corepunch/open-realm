@@ -3,18 +3,18 @@
 /* Dedicated servers can inspect the exact svc_layout payload before it enters the netchan. */
 static void SV_DebugLayoutMessage(sizeBuf_t const *source) {
     sizeBuf_t msg = *source;
-    DWORD frames = 0, textured = 0, stats = 0;
+    uint32_t frames = 0, textured = 0, stats = 0;
 
     msg.readcount = 0;
     if (MSG_ReadByte(&msg) != svc_layout) return;
-    DWORD layer = MSG_ReadByte(&msg);
-    while (msg.readcount + sizeof(DWORD) + sizeof(WORD) <= msg.cursize) {
+    uint32_t layer = MSG_ReadByte(&msg);
+    while (msg.readcount + sizeof(uint32_t) + sizeof(uint16_t) <= msg.cursize) {
         UIFRAME frame = { 0 };
-        DWORD bits, number = MSG_ReadEntityBits(&msg, &bits);
+        uint32_t bits, number = MSG_ReadEntityBits(&msg, &bits);
         if (!number && !bits) break;
         MSG_ReadDeltaUIFrame(&msg, &frame, number, bits);
         if (msg.readcount >= msg.cursize) break;
-        DWORD payload = (BYTE)MSG_ReadByte(&msg);
+        uint32_t payload = (uint8_t)MSG_ReadByte(&msg);
         if (payload > msg.cursize - msg.readcount) break;
         msg.readcount += payload;
         frames++;
@@ -49,7 +49,7 @@ void PF_Unicast(LPEDICT ent) {
     Netchan_Transmit(NS_SERVER, &client->netchan);
 }
 
-void SV_WritePayload(LPSIZEBUF msg, BYTE opcode, sizeBuf_t const *payload) {
+void SV_WritePayload(LPSIZEBUF msg, uint8_t opcode, sizeBuf_t const *payload) {
     if (!msg || !payload) return;
     MSG_WriteByte(msg, opcode);
     SZ_Write(msg, payload->data, payload->cursize);
@@ -97,14 +97,14 @@ LPCLIENT SV_ClientForEntityRecipient(LPEDICT ent) {
 
 /* Encode one Quake 2-compatible sound event and deliver it to the selected
  * recipients.  CHAN_OWNER is a delivery policy and never crosses the wire. */
-void SV_StartSoundPolicy(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, FLOAT volume,
-                   FLOAT attenuation, FLOAT timeofs, soundPolicy_t const *policy) {
-    DWORD flags = 0, ent_num = 0;
+void SV_StartSoundPolicy(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, float volume,
+                   float attenuation, float timeofs, soundPolicy_t const *policy) {
+    uint32_t flags = 0, ent_num = 0;
     VECTOR3 ent_origin;
     LPCVECTOR3 pos = origin;
-    BOOL owner_only = channel & CHAN_OWNER;
-    BOOL reliable = channel & CHAN_RELIABLE;
-    BYTE *data;
+    bool owner_only = channel & CHAN_OWNER;
+    bool reliable = channel & CHAN_RELIABLE;
+    uint8_t *data;
 
     if (sound_index <= 0 || sound_index >= MAX_SOUNDS || volume < 0.0f || volume > 1.0f || attenuation < 0.0f ||
         attenuation > 4.0f || timeofs < 0.0f || timeofs > 0.255f) {
@@ -166,7 +166,7 @@ void SV_StartSoundPolicy(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_
     SZ_Clear(&sv.multicast);
 }
 
-void SV_StartSound(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, FLOAT volume,
-                   FLOAT attenuation, FLOAT timeofs) {
+void SV_StartSound(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound_index, float volume,
+                   float attenuation, float timeofs) {
     SV_StartSoundPolicy(origin, ent, channel, sound_index, volume, attenuation, timeofs, NULL);
 }

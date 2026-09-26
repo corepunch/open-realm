@@ -25,34 +25,34 @@ struct jass_missing { LPJASSMISSING next; char name[]; };
 
 struct jass_var {
     LPCJASSTYPE type;
-    HANDLE value;
+    handle_t value;
     LPJASSREF ref;
-    BOOL constant;
-    BOOL array;
+    bool constant;
+    bool array;
     struct {
         LPJASSDICT locals;
-        DWORD returnstack;
-        BOOL done;
-        BOOL break_pending;  /* set by Galaxy `break`; cleared by eval_LOOP */
+        uint32_t returnstack;
+        bool done;
+        bool break_pending;  /* set by Galaxy `break`; cleared by eval_LOOP */
     } env;
     LPJASSARRAY _array;
 };
 
 /* Shared handle metadata distinguishes VM-owned payloads from native light handles. */
 struct jass_ref {
-    DWORD refs, size, id;
+    uint32_t refs, size, id;
 };
 
 struct jass_type {
     LPCJASSTYPE inherit;
     LPJASSTYPE next;
-    LPCSTR name;
+    cstring_t name;
 };
 
 struct jass_arg {
     LPJASSARG next;
     LPCJASSTYPE type;
-    LPCSTR name;
+    cstring_t name;
 };
 
 struct jass_function {
@@ -60,22 +60,22 @@ struct jass_function {
     LPCJASSTYPE returns;
     LPJASSFUNC next;
     LPJASSFUNC hash_next;
-    LPCSTR name;
+    cstring_t name;
     LPCTOKEN code;
-    DWORD (*nativefunc)(LPJASS j);
-    BOOL constant, native;
+    uint32_t (*nativefunc)(LPJASS j);
+    bool constant, native;
 };
 
 struct jass_array {
     LPJASSARRAY next;
-    DWORD index;
+    uint32_t index;
     JASSVAR value;
 };
 
 struct jass_dict {
     LPJASSDICT next;
     LPJASSDICT hash_next;
-    LPCSTR key;
+    cstring_t key;
     JASSVAR value;
 };
 
@@ -92,21 +92,21 @@ struct jass_coroutine_frame {
     LPCTOKEN body;
     LPCTOKEN pc;
     LPJASSDICT locals;
-    DWORD loop_count;
+    uint32_t loop_count;
 };
 
 struct jass_coroutine {
     LPJASSCOROUTINE next;
     LPJASS state;
     LPJASSCOROUTINEFRAME frames;
-    DWORD wake_time;
-    BOOL yielded;
-    BOOL done;
-    LONG loop_a_index;
-    BOOL loop_a_index_valid;
+    uint32_t wake_time;
+    bool yielded;
+    bool done;
+    int32_t loop_a_index;
+    bool loop_a_index_valid;
     /* Runtime error abort: set by jass_rterror(), caught in jass_resumecoroutine(). */
     jmp_buf rterror_jmp;
-    BOOL rterror_jmp_set;
+    bool rterror_jmp_set;
 };
 
 struct jass_program {
@@ -124,20 +124,20 @@ struct jass_s {
     LPJASSFUNC function_hash[BZ_JASS_HASH_SIZE];
     LPJASSPROGRAM programs;
     JASSVAR stack[MAX_JASS_STACK];
-    DWORD num_stack;
+    uint32_t num_stack;
     LPJASSVAR stack_pointer;
     JASSCONTEXT context;
     LPJASS root;
     LPJASSCOROUTINE coroutines;
     LPJASSCOROUTINE current_coroutine;
-    BOOL halt_events;
+    bool halt_events;
     /* Runtime error state — owned by root, written by jass_rterror(). */
     LPJASSMISSING missing;
-    BOOL rterror_pending;
+    bool rterror_pending;
     char rterror_message[512];
     jmp_buf sync_rterror_jmp;
-    BOOL sync_rterror_jmp_set;
-    DWORD next_handle_id;
+    bool sync_rterror_jmp_set;
+    uint32_t next_handle_id;
 };
 
 /* Primitive type table — indexed by JASSTYPEID. Defined in jdo.c. */

@@ -23,16 +23,16 @@
 #include "common/campaign_progress.h"
 
 /* Helpers defined in t_utils.c */
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-void CM_SetupTestPathmap(DWORD width, DWORD height, BYTE const *cells);
+void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void CM_SetupTestWorldBounds(LPCBOX2 bounds);
-BOOL run_test_jass(LPCSTR src);
+bool run_test_jass(cstring_t src);
 extern LPPLAYER currentplayer;
 void unit_die(LPEDICT self, LPEDICT attacker);
-void unit_build(LPEDICT self, DWORD class_id);
-static LPEDICT find_test_unit(DWORD class_id);
+void unit_build(LPEDICT self, uint32_t class_id);
+static LPEDICT find_test_unit(uint32_t class_id);
 
 
 
@@ -52,24 +52,24 @@ static LPEDICT find_test_unit(DWORD class_id);
  * that G_GetPlayerByNumber / PLAYER_CLIENT macros work correctly.
  */
 static LPPLAYER test_player(int idx) {
-    game.clients[idx].ps.number = (DWORD)idx;
+    game.clients[idx].ps.number = (uint32_t)idx;
     return &game.clients[idx].ps;
 }
 
-static DWORD selection_native_packet_count;
-static DWORD selection_native_packet_units;
+static uint32_t selection_native_packet_count;
+static uint32_t selection_native_packet_units;
 static int selection_native_packet_stage;
 
 static void selection_native_test_write(pfWriteType_t type, void const *data) {
-    LONG value;
+    int32_t value;
 
     if (type != PF_BYTE || !data) return;
-    value = *(LONG const *)data;
+    value = *(int32_t const *)data;
     if (selection_native_packet_stage == 0 && value == svc_set_selection) {
         selection_native_packet_count++;
         selection_native_packet_stage = 1;
     } else if (selection_native_packet_stage == 1) {
-        selection_native_packet_units = (DWORD)value;
+        selection_native_packet_units = (uint32_t)value;
         selection_native_packet_stage = 2;
     }
 }
@@ -81,8 +81,8 @@ TEST(wc3_api, jass_selection_masks_and_sync_are_deferred) {
     void (*old_unicast)(LPEDICT) = gi.unicast;
     LPPLAYER saved_currentplayer = currentplayer;
     LPEDICT first = NULL, second = NULL;
-    DWORD player0_bit = 1u << 0;
-    DWORD player1_bit = 1u << 1;
+    uint32_t player0_bit = 1u << 0;
+    uint32_t player1_bit = 1u << 1;
 
     reset_entities();
     setup_test_world();
@@ -135,7 +135,7 @@ TEST(wc3_api, jass_selection_masks_and_sync_are_deferred) {
     game.clients[1].connected = false;
 
     selection_native_packet_count = 0;
-    selection_native_packet_units = (DWORD)-1;
+    selection_native_packet_units = (uint32_t)-1;
     selection_native_packet_stage = 0;
     gi.Write = selection_native_test_write;
     gi.unicast = selection_native_test_unicast;
@@ -185,7 +185,7 @@ TEST(wc3_api, undead_race_and_unit_type_match_authored_unit_data) {
 }
 
 TEST(wc3_api, authored_race_names_map_to_jass_race_values) {
-    static struct { LPCSTR name; LONG value; } const races[] = {
+    static struct { cstring_t name; int32_t value; } const races[] = {
         { STR_HUMAN, 1 }, { STR_ORC, 2 }, { STR_UNDEAD, 3 }, { STR_NIGHTELF, 4 },
         { STR_DEMON, 5 }, { STR_CREEPS, 8 }, { STR_OTHER, 7 },
         { STR_CRITTERS, 10 }, { STR_COMMONER, 9 }, { "naga", 11 },
@@ -248,19 +248,19 @@ TEST(wc3_api, unit_life_limit_event_queue_saturation_does_not_crash) {
     registration->limitval = 0.0f;
 
     FOR_LOOP(i, MAX_EVENT_QUEUE)
-        T_NOT_NULL(G_PublishEventWithValue(NULL, EVENT_GAME_VICTORY, NULL, (LONG)i));
+        T_NOT_NULL(G_PublishEventWithValue(NULL, EVENT_GAME_VICTORY, NULL, (int32_t)i));
     G_SetHealth(unit, 0.0f);
 
     T_FEQ(unit->health.value, 0.0f, 0.001f);
-    T_EQ(level.events.write, (DWORD)MAX_EVENT_QUEUE);
+    T_EQ(level.events.write, (uint32_t)MAX_EVENT_QUEUE);
     T_EQ(level.events.queue[0].value, 0);
-    T_EQ(level.events.queue[MAX_EVENT_QUEUE - 1].value, (LONG)MAX_EVENT_QUEUE - 1);
+    T_EQ(level.events.queue[MAX_EVENT_QUEUE - 1].value, (int32_t)MAX_EVENT_QUEUE - 1);
 }
 
 TEST(wc3_api, reused_unit_does_not_inherit_old_life_event) {
     LPEDICT unit, replacement;
     LPEVENT registration;
-    DWORD old_spawn_time;
+    uint32_t old_spawn_time;
 
     reset_entities(); setup_test_world();
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
@@ -684,52 +684,52 @@ TEST(wc3_api, removed_region_events_release_handler_capacity) {
         "  endloop\n"
         "endfunction\n"));
     {
-        DWORD active_region_events = 0;
+        uint32_t active_region_events = 0;
         FOR_EACH_EVENT(event) if (event->type == EVENT_GAME_ENTER_REGION || event->type == EVENT_GAME_LEAVE_REGION)
             active_region_events++;
         T_EQ(active_region_events, 0);
     }
 }
 
-static DWORD unit_team_color(LPCEDICT unit) {
-    DWORD const encoded = unit
+static uint32_t unit_team_color(LPCEDICT unit) {
+    uint32_t const encoded = unit
         ? (unit->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT : 0;
     return encoded ? encoded - 1u : 0;
 }
 
-static LPCSTR skip_cutscene_cvar(LPCSTR name, LPCSTR fallback) {
+static cstring_t skip_cutscene_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "skip_cutscene") ? "1" : fallback;
 }
 
-static LPCSTR group_debug_cvar(LPCSTR name, LPCSTR fallback) {
+static cstring_t group_debug_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "wc3_group_debug") ? "1" : fallback;
 }
 
-static DWORD presentation_write_count;
-static DWORD presentation_unicast_count;
+static uint32_t presentation_write_count;
+static uint32_t presentation_unicast_count;
 static pfWriteType_t indicator_types[4];
-static LONG indicator_values[4];
-static DWORD indicator_write_count;
+static int32_t indicator_values[4];
+static uint32_t indicator_write_count;
 static LPEDICT indicator_recipient;
-static BOOL captured_pause;
-static DWORD dnc_model_index_calls;
-static DWORD dnc_configstring_calls;
-static DWORD dnc_configstring_index[2];
+static bool captured_pause;
+static uint32_t dnc_model_index_calls;
+static uint32_t dnc_configstring_calls;
+static uint32_t dnc_configstring_index[2];
 static char dnc_configstring_value[2][16];
-static DWORD sky_model_index_calls;
-static DWORD sky_configstring_calls;
-static DWORD sky_configstring_index;
+static uint32_t sky_model_index_calls;
+static uint32_t sky_configstring_calls;
+static uint32_t sky_configstring_index;
 static char sky_configstring_value[16];
-static DWORD scene_fog_configstring_calls;
-static DWORD scene_fog_configstring_index;
+static uint32_t scene_fog_configstring_calls;
+static uint32_t scene_fog_configstring_index;
 static char scene_fog_configstring_value[MAX_PATHLEN];
 
-static int capture_dnc_model_index(LPCSTR modelName) {
+static int capture_dnc_model_index(cstring_t modelName) {
     (void)modelName;
     return 41 + (int)dnc_model_index_calls++;
 }
 
-static void capture_dnc_configstring(DWORD index, LPCSTR value) {
+static void capture_dnc_configstring(uint32_t index, cstring_t value) {
     if (dnc_configstring_calls < 2) {
         dnc_configstring_index[dnc_configstring_calls] = index;
         snprintf(dnc_configstring_value[dnc_configstring_calls],
@@ -739,30 +739,30 @@ static void capture_dnc_configstring(DWORD index, LPCSTR value) {
     dnc_configstring_calls++;
 }
 
-static int capture_sky_model_index(LPCSTR modelName) {
+static int capture_sky_model_index(cstring_t modelName) {
     (void)modelName;
     sky_model_index_calls++;
     return 41;
 }
 
-static void capture_sky_configstring(DWORD index, LPCSTR value) {
+static void capture_sky_configstring(uint32_t index, cstring_t value) {
     sky_configstring_calls++;
     sky_configstring_index = index;
     snprintf(sky_configstring_value, sizeof(sky_configstring_value), "%s", value ? value : "");
 }
 
-static void capture_scene_fog_configstring(DWORD index, LPCSTR value) {
+static void capture_scene_fog_configstring(uint32_t index, cstring_t value) {
     scene_fog_configstring_calls++;
     scene_fog_configstring_index = index;
     snprintf(scene_fog_configstring_value, sizeof(scene_fog_configstring_value), "%s", value ? value : "");
 }
 
-static void capture_pause(BOOL paused) { captured_pause = paused; }
+static void capture_pause(bool paused) { captured_pause = paused; }
 
 /* Campaign messages explicitly request attention; opening the journal acknowledges it. */
 TEST(wc3_api, quest_flash_is_player_local_and_acknowledged) {
     LPPLAYER saved = currentplayer;
-    DWORD oldtime = level.time;
+    uint32_t oldtime = level.time;
     setup_test_world();
     game.clients[0].quest_until = game.clients[1].quest_until = 0;
     currentplayer = test_player(1); level.time = 500;
@@ -906,7 +906,7 @@ TEST(wc3_api, ability_cooldown_natives_share_unit_cooldown_state) {
 }
 
 TEST(wc3_api, pause_game_forwards_authoritative_pause_state) {
-    void (*old_set_paused)(BOOL) = gi.SetPaused;
+    void (*old_set_paused)(bool) = gi.SetPaused;
 
     captured_pause = false;
     gi.SetPaused = capture_pause;
@@ -924,7 +924,7 @@ TEST(wc3_api, pause_game_forwards_authoritative_pause_state) {
 }
 
 TEST(wc3_api, quest_pause_is_single_client_only) {
-    void (*old_set_paused)(BOOL) = gi.SetPaused;
+    void (*old_set_paused)(bool) = gi.SetPaused;
 
     captured_pause = false;
     gi.SetPaused = capture_pause;
@@ -958,10 +958,10 @@ static void capture_presentation_unicast(LPEDICT ent) {
 }
 
 static void capture_indicator_write(pfWriteType_t type, void const *data) {
-    DWORD const slot = indicator_write_count++;
+    uint32_t const slot = indicator_write_count++;
     if (slot >= 4) return;
     indicator_types[slot] = type;
-    if (data) indicator_values[slot] = *(LONG const *)data;
+    if (data) indicator_values[slot] = *(int32_t const *)data;
 }
 
 static void capture_indicator_unicast(LPEDICT ent) {
@@ -997,7 +997,7 @@ TEST(wc3_api, add_indicator_accepts_unit_widget_and_sends_local_tinted_ring) {
     T_EQ(indicator_types[2], PF_LONG);
     T_ASSERT(indicator_values[2] > 0);
     T_EQ(indicator_types[3], PF_LONG);
-    T_EQ((DWORD)indicator_values[3], 0xc84080ffu);
+    T_EQ((uint32_t)indicator_values[3], 0xc84080ffu);
     T_EQ(indicator_recipient, &g_edicts[0]);
 
     gi.Write = old_write;
@@ -1058,21 +1058,21 @@ TEST(wc3_api, client_ui_init_preserves_authored_state_and_rejects_invalid_state)
     T_EQ(gc->ps.client_ui_state, CLIENT_UI_GAME);
 }
 
-static LPCSTR gamecache_disabled_cvar(LPCSTR name, LPCSTR fallback) {
+static cstring_t gamecache_disabled_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "wc3_gamecache_mode") ? "disabled" : fallback;
 }
 
-static LPCSTR gamecache_memory_cvar(LPCSTR name, LPCSTR fallback) {
+static cstring_t gamecache_memory_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "wc3_gamecache_mode") ? "memory" : fallback;
 }
 
-static LPCSTR campaign_progress_roc_cvar(LPCSTR name, LPCSTR fallback) {
+static cstring_t campaign_progress_roc_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "fs_expansion") ? "0" : fallback;
 }
 
 static char campaign_progress_test_path[] = "campaign-progress-native-test.orcp";
 
-static void campaign_progress_test_user_path(LPCSTR rel, LPSTR out, DWORD out_size) {
+static void campaign_progress_test_user_path(cstring_t rel, string_t out, uint32_t out_size) {
     (void)rel;
     if (!out || !out_size) return;
     snprintf(out, out_size, "%s", campaign_progress_test_path);
@@ -1080,15 +1080,15 @@ static void campaign_progress_test_user_path(LPCSTR rel, LPSTR out, DWORD out_si
 
 static int ui_sound_calls;
 static int ui_sound_value;
-static FLOAT ui_sound_volume;
+static float ui_sound_volume;
 static char ui_sound_path[512];
-static int capture_ui_sound_index(LPCSTR path) {
+static int capture_ui_sound_index(cstring_t path) {
     snprintf(ui_sound_path, sizeof(ui_sound_path), "%s", path ? path : "");
     return 77;
 }
-static int capture_ui_sound_index_alias(LPCSTR path, LPCSTR alias) { (void)alias; return capture_ui_sound_index(path); }
+static int capture_ui_sound_index_alias(cstring_t path, cstring_t alias) { (void)alias; return capture_ui_sound_index(path); }
 
-static void capture_ui_sound(LPEDICT ent, int channel, int sound, FLOAT volume, FLOAT attenuation, FLOAT timeofs) {
+static void capture_ui_sound(LPEDICT ent, int channel, int sound, float volume, float attenuation, float timeofs) {
     (void)ent; (void)attenuation; (void)timeofs;
     ui_sound_calls++;
     ui_sound_value = sound;
@@ -1097,7 +1097,7 @@ static void capture_ui_sound(LPEDICT ent, int channel, int sound, FLOAT volume, 
 }
 
 static void capture_ui_sound_policy(LPCVECTOR3 origin, LPEDICT ent, int channel, int sound,
-                                    FLOAT volume, FLOAT attenuation, FLOAT timeofs, soundPolicy_t const *policy) {
+                                    float volume, float attenuation, float timeofs, soundPolicy_t const *policy) {
     T_NULL(origin); T_NOT_NULL(policy); T_EQ(policy->max_total, 24);
     capture_ui_sound(ent, channel, sound, volume, attenuation, timeofs);
 }
@@ -1114,7 +1114,7 @@ TEST(wc3_api, default_camera_authors_lens) {
 /* Campaign human slots need not match the connection slot; exercise the real VM/edict module boundary. */
 TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     LPGAMECLIENT gc = &game.clients[0];
-    LPCSTR cancel[] = { "cancel" };
+    cstring_t cancel[] = { "cancel" };
     game.clients[1].ps.number = 0;
     gc->ps.number = 1;
     gc->camera.state.viewangles = (VECTOR3){300, 0, 120};
@@ -1366,7 +1366,7 @@ TEST(wc3_api, camera_margin_is_default_camera_inset_from_playable_area) {
 
     /* Complements produce playable [-3584,-2304]..[3072,1792].
      * Default camera bounds are inset by L=256, R=384, B=384, T=512. */
-    memcpy(mapinfo->cameraBounds.bounds, (FLOAT[8]){
+    memcpy(mapinfo->cameraBounds.bounds, (float[8]){
         -3328.0f, -1920.0f,
         -3328.0f,  1280.0f,
          2688.0f,  1280.0f,
@@ -1539,7 +1539,7 @@ TEST(wc3_api, camera_field_set_adjust_and_stop_sample_current_transition) {
 
 TEST(wc3_api, camera_field_setters_preserve_authored_angle_mapping) {
     LPGAMECLIENT gc = &game.clients[0];
-    FLOAT pitch = G_CameraAuthoredToPitch(304.0f);
+    float pitch = G_CameraAuthoredToPitch(304.0f);
 
     gc->ps.number = 0;
     gc->camera.state.viewangles = (VECTOR3){ pitch, 0.0f, G_CameraAuthoredToYaw(90.0f, pitch) };
@@ -1610,7 +1610,7 @@ TEST(wc3_api, camera_target_controller_can_inherit_unit_facing) {
     T_ASSERT(gc->camera.target_inherit_orientation);
 
     target->s.origin2 = MAKE(VECTOR2, 300.0f, 400.0f);
-    target->s.angle = (FLOAT)DEG2RAD(45.0f);
+    target->s.angle = (float)DEG2RAD(45.0f);
     G_RunClients();
     T_FEQ(gc->camera.state.position.x, 310.0f, 0.001f);
     T_FEQ(gc->camera.state.position.y, 380.0f, 0.001f);
@@ -1717,7 +1717,7 @@ TEST(wc3_api, camera_bounds_are_map_global) {
 
 /* Fast-forward only changes cinematic timing; JASS retains ownership of the input/UI lifecycle. */
 TEST(wc3_api, skip_cutscene_preserves_scripted_input_and_ui_state) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     LPGAMECLIENT gc = &game.clients[0];
 
     gi.CvarString = skip_cutscene_cvar;
@@ -1742,21 +1742,21 @@ TEST(wc3_api, skip_cutscene_preserves_scripted_input_and_ui_state) {
     gi.CvarString = old_cvar;
 }
 
-static DWORD test_fow_cell(FLOAT x, FLOAT y) {
-    DWORD cx = G_FowWorldToCellX(x), cy = G_FowWorldToCellY(y);
+static uint32_t test_fow_cell(float x, float y) {
+    uint32_t cx = G_FowWorldToCellX(x), cy = G_FowWorldToCellY(y);
     return cy * level.fow.width + cx;
 }
 
 #ifdef WC3_FOW_PACKED_MASK
-static LPCSTR api_fow_fast_cvar(LPCSTR name, LPCSTR fallback) {
+static cstring_t api_fow_fast_cvar(cstring_t name, cstring_t fallback) {
     return !strcmp(name, "wc3_fow_fast") ? "1" : fallback;
 }
 
 TEST(wc3_api, fog_state_natives_update_packed_planes) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     fowPlayerGrid_t *grid;
-    DWORD index, word;
-    WORD bit;
+    uint32_t index, word;
+    uint16_t bit;
 
     setup_test_world();
     G_FowInit();
@@ -1766,7 +1766,7 @@ TEST(wc3_api, fog_state_natives_update_packed_planes) {
     grid = &level.fow.players[0];
     index = test_fow_cell(0.0f, 0.0f);
     word = (index % level.fow.width >> 4) + index / level.fow.width * grid->packed_stride;
-    bit = (WORD)(1u << (index % level.fow.width & 15));
+    bit = (uint16_t)(1u << (index % level.fow.width & 15));
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -1789,7 +1789,7 @@ TEST(wc3_api, fog_state_natives_update_packed_planes) {
 #endif
 
 TEST(wc3_api, fog_state_natives_write_masked_fogged_and_visible) {
-    DWORD fogged, visible, masked;
+    uint32_t fogged, visible, masked;
     fowPlayerGrid_t *grid;
     setup_test_world();
     G_FowInit();
@@ -1810,7 +1810,7 @@ TEST(wc3_api, fog_state_natives_write_masked_fogged_and_visible) {
 }
 
 TEST(wc3_api, fog_state_shared_vision_reaches_allied_viewer_only) {
-    DWORD index;
+    uint32_t index;
     setup_test_world();
     G_FowInit();
     G_SetPlayerAlliance(test_player(0), test_player(1), ALLIANCE_SHARED_VISION, true);
@@ -1831,7 +1831,7 @@ TEST(wc3_api, fog_modifier_same_turn_start_stop_still_explores) {
         .center = { 0.0f, 0.0f },
         .radius = 32.0f,
     };
-    DWORD index;
+    uint32_t index;
 
     setup_test_world();
     G_FowInit();
@@ -1857,7 +1857,7 @@ TEST(wc3_api, fog_modifier_states_and_visible_stop_transition) {
         .center = { 0.0f, 0.0f },
         .radius = 32.0f,
     };
-    DWORD index;
+    uint32_t index;
     setup_test_world();
     G_FowInit();
     G_FowConnectPlayer(0);
@@ -1896,7 +1896,7 @@ TEST(wc3_time, jass_state_uses_misc_clock_and_suspend) {
     G_UpdateTimeOfDay();
     T_FEQ(G_GetTimeOfDay(), 12.0f, 0.001f);
     T_EQ(game.clients[0].ps.stats[UI_PLAYERSTAT_ENV_PHASE],
-         (USHORT)lroundf(0.5f * (FLOAT)USHRT_MAX));
+         (uint16_t)lroundf(0.5f * (float)USHRT_MAX));
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -1906,7 +1906,7 @@ TEST(wc3_time, jass_state_uses_misc_clock_and_suspend) {
     G_UpdateTimeOfDay();
     T_FEQ(G_GetTimeOfDay(), 12.0f, 0.001f);
     T_EQ(game.clients[0].ps.stats[UI_PLAYERSTAT_ENV_PHASE],
-         (USHORT)lroundf(0.5f * (FLOAT)USHRT_MAX));
+         (uint16_t)lroundf(0.5f * (float)USHRT_MAX));
 
     /* An explicit set still applies while ordinary progression is suspended. */
     G_SetTimeOfDay(18.0f);
@@ -1923,8 +1923,8 @@ TEST(wc3_time, jass_state_uses_misc_clock_and_suspend) {
 }
 
 TEST(wc3_time, false_time_overrides_and_freezes_canonical_clock) {
-    FLOAT const tick_seconds = (FLOAT)FRAMETIME / 1000.0f;
-    FLOAT const clock_step = tick_seconds / game.constants.gameDayLength * game.constants.gameDayHours;
+    float const tick_seconds = (float)FRAMETIME / 1000.0f;
+    float const clock_step = tick_seconds / game.constants.gameDayLength * game.constants.gameDayHours;
 
     G_SetTimeOfDay(12.0f);
     G_UpdateTimeOfDay();
@@ -1972,8 +1972,8 @@ TEST(wc3_time, warsmash_false_time_native_can_be_declared_by_extension_script) {
 }
 
 TEST(wc3_time, false_time_transition_drives_game_state_events) {
-    FLOAT const step = (FLOAT)FRAMETIME / 1000.0f;
-    DWORD writes;
+    float const step = (float)FRAMETIME / 1000.0f;
+    uint32_t writes;
 
     G_SetTimeOfDay(12.0f);
     G_UpdateTimeOfDay();
@@ -1993,8 +1993,8 @@ TEST(wc3_time, false_time_transition_drives_game_state_events) {
 }
 
 TEST(wc3_time, set_day_night_models_publishes_registered_dnc_models) {
-    int (*old_model_index)(LPCSTR) = gi.ModelIndex;
-    void (*old_configstring)(DWORD, LPCSTR) = gi.configstring;
+    int (*old_model_index)(cstring_t) = gi.ModelIndex;
+    void (*old_configstring)(uint32_t, cstring_t) = gi.configstring;
 
     dnc_model_index_calls = 0;
     dnc_configstring_calls = 0;
@@ -2020,10 +2020,10 @@ TEST(wc3_time, set_day_night_models_publishes_registered_dnc_models) {
 }
 
 TEST(wc3_environment_fog, set_terrain_fog_ex_publishes_runtime_state) {
-    void (*old_configstring)(DWORD, LPCSTR) = gi.configstring;
+    void (*old_configstring)(uint32_t, cstring_t) = gi.configstring;
     int style = -1;
-    FLOAT start = 0.0f, end = 0.0f, density = 0.0f;
-    FLOAT red = 0.0f, green = 0.0f, blue = 0.0f;
+    float start = 0.0f, end = 0.0f, density = 0.0f;
+    float red = 0.0f, green = 0.0f, blue = 0.0f;
 
     scene_fog_configstring_calls = 0;
     scene_fog_configstring_index = 0;
@@ -2058,7 +2058,7 @@ TEST(wc3_environment_fog, set_terrain_fog_ex_publishes_runtime_state) {
 }
 
 TEST(wc3_environment_fog, reset_terrain_fog_restores_default_state) {
-    void (*old_configstring)(DWORD, LPCSTR) = gi.configstring;
+    void (*old_configstring)(uint32_t, cstring_t) = gi.configstring;
 
     level.environment_fog.defaults = (wc3EnvironmentFogState_t){
         .style = WC3_ENV_FOG_LINEAR,
@@ -2096,7 +2096,7 @@ TEST(wc3_environment_fog, reset_terrain_fog_restores_default_state) {
 }
 
 TEST(wc3_environment_fog, reset_without_default_is_noop) {
-    void (*old_configstring)(DWORD, LPCSTR) = gi.configstring;
+    void (*old_configstring)(uint32_t, cstring_t) = gi.configstring;
 
     level.environment_fog.defaults_valid = false;
     level.environment_fog.active = (wc3EnvironmentFogState_t){
@@ -2123,8 +2123,8 @@ TEST(wc3_environment_fog, reset_without_default_is_noop) {
     gi.configstring = old_configstring;
 }
 
-static LPCSTR fog_roc_cvar(LPCSTR name, LPCSTR fallback) { return !strcmp(name, "fs_expansion") ? "0" : fallback; }
-static LPCSTR fog_tft_cvar(LPCSTR name, LPCSTR fallback) { return !strcmp(name, "fs_expansion") ? "1" : fallback; }
+static cstring_t fog_roc_cvar(cstring_t name, cstring_t fallback) { return !strcmp(name, "fs_expansion") ? "0" : fallback; }
+static cstring_t fog_tft_cvar(cstring_t name, cstring_t fallback) { return !strcmp(name, "fs_expansion") ? "1" : fallback; }
 
 static void check_singleton_default_zfog(wc3EnvironmentFogState_t const *fog) {
     T_EQ(fog->style, WC3_ENV_FOG_LINEAR); /* authored 0 maps through +1 */
@@ -2139,7 +2139,7 @@ static void check_singleton_default_zfog(wc3EnvironmentFogState_t const *fog) {
 /* Retail [DefaultZFog] is a singleton; TFT index 1 never parses, so index 0 is the per-field fallback. */
 TEST(wc3_environment_fog, singleton_default_zfog_parses_under_both_editions) {
     stbIniCache_t saved = game.config.misc, custom = { 0 };
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     wc3EnvironmentFogState_t fog;
 
     T_ASSERT(Stb_IniCacheLoad(&custom, "TestData\\DefaultZFog.txt"));
@@ -2157,7 +2157,7 @@ TEST(wc3_environment_fog, singleton_default_zfog_parses_under_both_editions) {
 }
 
 TEST(wc3_environment_fog, invalid_extended_style_disables_scene_fog) {
-    void (*old_configstring)(DWORD, LPCSTR) = gi.configstring;
+    void (*old_configstring)(uint32_t, cstring_t) = gi.configstring;
 
     scene_fog_configstring_calls = 0;
     scene_fog_configstring_value[0] = '\0';
@@ -2173,8 +2173,8 @@ TEST(wc3_environment_fog, invalid_extended_style_disables_scene_fog) {
 }
 
 TEST(wc3_api, set_sky_model_publishes_registered_model) {
-    int (*old_model_index)(LPCSTR) = gi.ModelIndex;
-    void (*old_configstring)(DWORD, LPCSTR) = gi.configstring;
+    int (*old_model_index)(cstring_t) = gi.ModelIndex;
+    void (*old_configstring)(uint32_t, cstring_t) = gi.configstring;
 
     sky_model_index_calls = sky_configstring_calls = 0;
     sky_configstring_index = 0;
@@ -2224,7 +2224,7 @@ TEST(wc3_time, dawn_and_dusk_use_misc_thresholds) {
 }
 
 TEST(wc3_time, game_state_event_fires_on_false_to_true_transition) {
-    DWORD writes;
+    uint32_t writes;
 
     G_SetTimeOfDay(5.0f);
     G_UpdateTimeOfDay();
@@ -2255,7 +2255,7 @@ TEST(wc3_time, game_state_event_fires_on_false_to_true_transition) {
 }
 
 TEST(wc3_api, variable_event_fires_when_counter_reaches_limit) {
-    DWORD writes;
+    uint32_t writes;
 
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -2335,7 +2335,7 @@ TEST(wc3_api, display_text_tracks_lifetime_and_clear) {
     T_STREQ(gc->message_log.entries[0], "Timed message");
 }
 
-static LPEDICT find_test_unit(DWORD class_id) {
+static LPEDICT find_test_unit(uint32_t class_id) {
     FOR_LOOP(i, globals.num_edicts) {
         if (g_edicts[i].inuse && g_edicts[i].class_id == class_id) {
             return g_edicts + i;
@@ -2346,7 +2346,7 @@ static LPEDICT find_test_unit(DWORD class_id) {
 
 static void setup_set_unit_position_pathmap(void) {
     enum { CELLS = 16 };
-    BYTE pathmap[CELLS * CELLS] = {0};
+    uint8_t pathmap[CELLS * CELLS] = {0};
 
     /* Requested point (256,256) lies in cell (8,8). Buildings and other
      * authored blockers are baked into this same no-walk map in production. */
@@ -2409,7 +2409,7 @@ TEST(wc3_api, createunit_avoids_live_unit_collision) {
 
 TEST(wc3_api, flyer_unstuck_search_uses_unflyable_instead_of_unwalkable) {
     enum { CELLS = 16 };
-    BYTE pathmap[CELLS * CELLS] = {0};
+    uint8_t pathmap[CELLS * CELLS] = {0};
     VECTOR2 const requested = {256.0f, 256.0f};
     VECTOR2 out;
     LPEDICT mover = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
@@ -2524,11 +2524,11 @@ TEST(wc3_api, set_unit_scale_uses_wc3_x_component_as_uniform_scale) {
 }
 
 TEST(wc3_api, set_unit_vertex_color_publishes_clamped_rgba) {
-    BYTE data[256];
+    uint8_t data[256];
     LPEDICT tinted, clent;
-    DWORD size, offset;
-    USHORT header, count;
-    BOOL found = false;
+    uint32_t size, offset;
+    uint16_t header, count;
+    bool found = false;
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -2551,13 +2551,13 @@ TEST(wc3_api, set_unit_vertex_color_publishes_clamped_rgba) {
     T_ASSERT(header & BZ_GAME_DATAGRAM_ENTITY_TINTS);
     offset = sizeof(header) + (header & BZ_GAME_DATAGRAM_COUNT_MASK) * sizeof(wc3WeatherEffect_t);
     if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
-        USHORT lightning_count = 0;
+        uint16_t lightning_count = 0;
         memcpy(&lightning_count, data + offset, sizeof(lightning_count)); offset += sizeof(lightning_count);
         offset += lightning_count * sizeof(LIGHTNINGEFFECT);
     }
     memcpy(&count, data + offset, sizeof(count)); offset += sizeof(count);
     FOR_LOOP(i, count) {
-        USHORT number; COLOR32 color;
+        uint16_t number; COLOR32 color;
         memcpy(&number, data + offset, sizeof(number)); offset += sizeof(number);
         memcpy(&color, data + offset, sizeof(color)); offset += sizeof(color);
         if (number != tinted->s.number) continue;
@@ -2609,12 +2609,12 @@ TEST(wc3_api, explicit_vertex_color_override_survives_authored_rebind) {
 
 
 TEST(wc3_api, game_datagram_carries_and_expires_lightning_snapshot) {
-    BYTE data[1024];
+    uint8_t data[1024];
     VECTOR3 source = { 10.0f, 20.0f, 30.0f }, target = { 100.0f, 200.0f, 40.0f };
     COLOR32 tint = MAKE(COLOR32, 200, 150, 100, 255);
     LPGLIGHTNING effect;
-    DWORD size, offset;
-    USHORT header, count;
+    uint32_t size, offset;
+    uint16_t header, count;
     LIGHTNINGEFFECT wire;
 
     memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
@@ -2649,12 +2649,12 @@ TEST(wc3_api, game_datagram_carries_and_expires_lightning_snapshot) {
 }
 
 TEST(wc3_api, ability_lightning_tracks_attached_units_in_datagram) {
-    BYTE data[1024];
+    uint8_t data[1024];
     VECTOR3 source = { 10.0f, 20.0f, 30.0f }, target = { 100.0f, 200.0f, 40.0f };
     LPEDICT source_unit, target_unit;
     LPGLIGHTNING effect;
-    DWORD size, offset;
-    USHORT header, count;
+    uint32_t size, offset;
+    uint16_t header, count;
     LIGHTNINGEFFECT wire;
 
     reset_entities();
@@ -2690,7 +2690,7 @@ TEST(wc3_api, ability_lightning_tracks_attached_units_in_datagram) {
 
 TEST(wc3_api, jass_lightning_natives_use_the_presentation_registry) {
     LPGLIGHTNING effect;
-    DWORD id = UINT32_MAX;
+    uint32_t id = UINT32_MAX;
 
     memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
     level.next_lightning_id = 0;
@@ -2793,9 +2793,9 @@ TEST(wc3_api, removeunit_hides_before_deferred_edict_release) {
 TEST(wc3_api, human04_intro_cancel_preserves_unit_lifecycle_until_frame_end) {
     LPEDICT mine = NULL, worker = NULL, building = NULL, replacement;
     ggroup_t *cancel_group;
-    DWORD const bit = 1u << game.clients[0].ps.number;
+    uint32_t const bit = 1u << game.clients[0].ps.number;
     char number[16];
-    LPCSTR select[] = { "select", number };
+    cstring_t select[] = { "select", number };
 
     setup_test_world();
     currentplayer = &game.clients[0].ps;
@@ -2898,7 +2898,7 @@ TEST(wc3_api, createunit_allocates_fresh_nearby_unit) {
 }
 
 TEST(wc3_api, createunit_starts_ready_without_birth_delay) {
-    static LPCSTR const ui_slk =
+    static cstring_t const ui_slk =
         "ID;PWXL;N;EBB;Y3;X2\n"
         "C;Y1;X1;K\"unitUIID\"\n"
         "C;Y1;X2;K\"file\"\n"
@@ -2928,7 +2928,7 @@ TEST(wc3_api, createunit_starts_ready_without_birth_delay) {
 }
 
 TEST(wc3_api, createunit_links_building_collision_bounds) {
-    static LPCSTR const ui_slk =
+    static cstring_t const ui_slk =
         "ID;PWXL;N;EBB;Y3;X3\n"
         "C;Y1;X1;K\"unitUIID\"\n"
         "C;Y1;X2;K\"file\"\n"
@@ -2937,7 +2937,7 @@ TEST(wc3_api, createunit_links_building_collision_bounds) {
         "C;Y2;X2;K\"TestUI\\\\Models\\\\quad_sprite.mdx\"\n"
         "C;Y2;X3;K1\n"
         "E\n";
-    static LPCSTR const balance_slk =
+    static cstring_t const balance_slk =
         "ID;PWXL;N;EBB;Y3;X3\n"
         "C;Y1;X1;K\"unitBalanceID\"\n"
         "C;Y1;X2;K\"collision\"\n"
@@ -2946,7 +2946,7 @@ TEST(wc3_api, createunit_links_building_collision_bounds) {
         "C;Y2;X2;K64\n"
         "C;Y2;X3;K1\n"
         "E\n";
-    static LPCSTR const data_slk =
+    static cstring_t const data_slk =
         "ID;PWXL;N;EBB;Y1;X1\n"
         "C;Y1;X1;K\"id\"\n"
         "C;Y2;X1;K\"hpea\"\n"
@@ -2955,7 +2955,7 @@ TEST(wc3_api, createunit_links_building_collision_bounds) {
     LPEDICT building;
     LPEDICT found[4] = { 0 };
     BOX2 area = { { -256.0f, -256.0f }, { 256.0f, 256.0f } };
-    BOOL linked = false;
+    bool linked = false;
 
     reset_entities();
     setup_test_world();
@@ -2996,7 +2996,7 @@ TEST(wc3_api, message_log_is_bounded_and_evicts_oldest_entry) {
     char text[64];
 
     memset(&gc->message_log, 0, sizeof(gc->message_log));
-    for (DWORD i = 0; i < WC3_MESSAGE_LOG_MAX_ENTRIES + 1; i++) {
+    for (uint32_t i = 0; i < WC3_MESSAGE_LOG_MAX_ENTRIES + 1; i++) {
         snprintf(text, sizeof(text), "Message %u", (unsigned)i);
         UI_MessageLogAppend(&ent, text);
     }
@@ -3092,14 +3092,14 @@ TEST(wc3_api, gameplay_transmission_preserves_underlying_timed_message_state) {
     T_STREQ(gc->message.text, "Objective updated");
 }
 
-static DWORD ui_point_calls;
-static BOOL count_ui_point(LPEDICT ent, LPCVECTOR2 loc) { ui_point_calls++; return false; }
+static uint32_t ui_point_calls;
+static bool count_ui_point(LPEDICT ent, LPCVECTOR2 loc) { ui_point_calls++; return false; }
 
 TEST(wc3_api, enable_user_ui_does_not_block_world_selection) {
     LPGAMECLIENT gc = &game.clients[0];
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     char number[16];
-    LPCSTR select[] = { "select", number };
+    cstring_t select[] = { "select", number };
 
     gc->ps.number = 0;
     unit->s.player = 0;
@@ -3123,7 +3123,7 @@ TEST(wc3_api, same_type_selection_filters_candidates_by_anchor_type) {
     LPEDICT second = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96.0f, 64.0f);
     LPEDICT other = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 128.0f, 64.0f);
     char first_number[16], second_number[16], other_number[16];
-    LPCSTR command[] = { "select", first_number, "sametype", first_number, second_number, other_number };
+    cstring_t command[] = { "select", first_number, "sametype", first_number, second_number, other_number };
 
     gc->ps.number = 0;
     first->s.player = second->s.player = other->s.player = 0;
@@ -3144,8 +3144,8 @@ TEST(wc3_api, client_selection_publishes_selection_events_once_per_delta) {
     LPEDICT second = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 96.0f, 64.0f);
     char first_number[16];
     char second_number[16];
-    LPCSTR select_first[] = { "select", first_number };
-    LPCSTR select_second[] = { "select", second_number };
+    cstring_t select_first[] = { "select", first_number };
+    cstring_t select_second[] = { "select", second_number };
 
     gc->ps.number = 0;
     first->s.player = second->s.player = 0;
@@ -3239,7 +3239,7 @@ TEST(wc3_api, build_placement_publishes_point_order_event_context) {
     LPEDICT builder;
     UnitProfile_t profile = { .builds = "hbar" };
     VECTOR2 point = { 64.0f, 64.0f };
-    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+    uint32_t const barracks = MAKEFOURCC('h','b','a','r');
 
     setup_test_world();
     builder = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -128.0f, -128.0f);
@@ -3281,7 +3281,7 @@ TEST(wc3_api, issue_build_order_by_id_uses_authoritative_build_path) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT builder;
     UnitProfile_t profile = { .builds = "hbar" };
-    DWORD const barracks = MAKEFOURCC('h','b','a','r');
+    uint32_t const barracks = MAKEFOURCC('h','b','a','r');
 
     setup_test_world();
     T_ASSERT(run_test_jass(
@@ -3412,9 +3412,9 @@ TEST(wc3_api, spell_effect_event_exposes_wc3_response_context_and_order_ids) {
 
     G_PublishEventWithPoint(&(gameEventPointParams_t){
         .edict = caster, .type = EVENT_PLAYER_UNIT_SPELL_EFFECT, .source = target,
-        .value = (LONG)MAKEFOURCC('A','O','c','l') });
+        .value = (int32_t)MAKEFOURCC('A','O','c','l') });
     G_PublishEventWithPoint(&(gameEventPointParams_t){
-        .edict = caster, .type = EVENT_PLAYER_UNIT_SPELL_EFFECT, .value = (LONG)MAKEFOURCC('A','E','b','l'),
+        .edict = caster, .type = EVENT_PLAYER_UNIT_SPELL_EFFECT, .value = (int32_t)MAKEFOURCC('A','E','b','l'),
         .point = &point });
     G_RunEvents();
     jass_runevents(level.vm);
@@ -3425,7 +3425,7 @@ TEST(wc3_api, spell_effect_event_exposes_wc3_response_context_and_order_ids) {
 
 TEST(wc3_api, enable_user_ui_does_not_block_target_commands) {
     LPGAMECLIENT gc = &game.clients[0];
-    LPCSTR point[] = { "point", "10", "20" };
+    cstring_t point[] = { "point", "10", "20" };
 
     ui_point_calls = 0; gc->ps.number = 0; gc->menu.on_location_selected = count_ui_point;
     currentplayer = &gc->ps;
@@ -3511,7 +3511,7 @@ TEST(wc3_api, effect_natives_return_independent_handles) {
 
 TEST(wc3_api, jass_sound_runtime_tracks_one_shot_volume_and_attachment_safely) {
     int handle_storage = 0;
-    HANDLE handle = &handle_storage;
+    handle_t handle = &handle_storage;
     jassSoundPlayback_t playback;
     LPEDICT unit;
 
@@ -3550,7 +3550,7 @@ TEST(wc3_api, jass_sound_runtime_tracks_one_shot_volume_and_attachment_safely) {
 }
 
 TEST(wc3_api, jass_create_sound_from_label_uses_merged_ambience_table) {
-    static LPCSTR const slk =
+    static cstring_t const slk =
         "ID;PWXL;N;E\n"
         "B;X4;Y2;D0\n"
         "C;Y1;X1;K\"SoundLabel\"\n"
@@ -3566,8 +3566,8 @@ TEST(wc3_api, jass_create_sound_from_label_uses_merged_ambience_table) {
     LPEDICT recipient = &g_edicts[0];
     slkTestData_t *rows = parse_slk_string(slk);
     slkTestData_t *old_rows = G_SetSLKRows("AmbienceSounds", rows);
-    void (*old_sound)(LPEDICT, int, int, FLOAT, FLOAT, FLOAT) = gi.Sound;
-    int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
+    void (*old_sound)(LPEDICT, int, int, float, float, float) = gi.Sound;
+    int (*old_soundindex)(cstring_t) = gi.SoundIndex;
     __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
 
     recipient->client = gc;
@@ -3595,7 +3595,7 @@ TEST(wc3_api, jass_create_sound_from_label_uses_merged_ambience_table) {
 }
 
 TEST(wc3_api, jass_create_sound_filename_with_label_keeps_explicit_file_and_uses_unitack_params) {
-    static LPCSTR const slk =
+    static cstring_t const slk =
         "ID;PWXL;N;E\n"
         "B;X4;Y2;D0\n"
         "C;Y1;X1;K\"SoundLabel\"\n"
@@ -3611,8 +3611,8 @@ TEST(wc3_api, jass_create_sound_filename_with_label_keeps_explicit_file_and_uses
     LPEDICT recipient = &g_edicts[0];
     slkTestData_t *rows = parse_slk_string(slk);
     slkTestData_t *old_rows = G_SetSLKRows("UnitAckSounds", rows);
-    void (*old_sound)(LPEDICT, int, int, FLOAT, FLOAT, FLOAT) = gi.Sound;
-    int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
+    void (*old_sound)(LPEDICT, int, int, float, float, float) = gi.Sound;
+    int (*old_soundindex)(cstring_t) = gi.SoundIndex;
     __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
 
     recipient->client = gc; gc->ps.number = 0; gc->connected = true; currentplayer = &gc->ps;
@@ -3634,7 +3634,7 @@ TEST(wc3_api, jass_create_sound_filename_with_label_keeps_explicit_file_and_uses
 }
 
 TEST(wc3_api, jass_set_sound_params_from_label_keeps_filename_and_uses_dialog_params) {
-    static LPCSTR const slk =
+    static cstring_t const slk =
         "ID;PWXL;N;E\n"
         "B;X4;Y2;D0\n"
         "C;Y1;X1;K\"SoundLabel\"\n"
@@ -3650,8 +3650,8 @@ TEST(wc3_api, jass_set_sound_params_from_label_keeps_filename_and_uses_dialog_pa
     LPEDICT recipient = &g_edicts[0];
     slkTestData_t *rows = parse_slk_string(slk);
     slkTestData_t *old_rows = G_SetSLKRows("DialogSounds", rows);
-    void (*old_sound)(LPEDICT, int, int, FLOAT, FLOAT, FLOAT) = gi.Sound;
-    int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
+    void (*old_sound)(LPEDICT, int, int, float, float, float) = gi.Sound;
+    int (*old_soundindex)(cstring_t) = gi.SoundIndex;
     __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
 
     recipient->client = gc; gc->ps.number = 0; gc->connected = true; currentplayer = &gc->ps;
@@ -3676,8 +3676,8 @@ TEST(wc3_api, jass_set_sound_params_from_label_keeps_filename_and_uses_dialog_pa
 TEST(wc3_api, jass_start_sound_skips_disconnected_local_player) {
     LPGAMECLIENT gc = &game.clients[0];
     LPEDICT recipient = &g_edicts[0];
-    void (*old_sound)(LPEDICT, int, int, FLOAT, FLOAT, FLOAT) = gi.Sound;
-    int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
+    void (*old_sound)(LPEDICT, int, int, float, float, float) = gi.Sound;
+    int (*old_soundindex)(cstring_t) = gi.SoundIndex;
     __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
 
     recipient->client = gc;
@@ -3713,8 +3713,8 @@ TEST(wc3_api, jass_start_sound_skips_disconnected_local_player) {
 TEST(wc3_api, ui_sound_transport_waits_for_connected_client) {
     GAMECLIENT client = { 0 };
     edict_t ent = { .client = &client };
-    void (*old_sound)(LPEDICT, int, int, FLOAT, FLOAT, FLOAT) = gi.Sound;
-    int (*old_soundindex)(LPCSTR) = gi.SoundIndex;
+    void (*old_sound)(LPEDICT, int, int, float, float, float) = gi.Sound;
+    int (*old_soundindex)(cstring_t) = gi.SoundIndex;
     __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
 
     ui_sound_calls = 0;
@@ -4122,7 +4122,7 @@ TEST(wc3_api, multiselect_portrait_second_click_collapses_exact_focused_unit) {
     LPEDICT footman_second = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 32, 0);
     LPEDICT paladin = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 64, 0);
     char second_number[16];
-    LPCSTR focus_second[] = { "focus", second_number };
+    cstring_t focus_second[] = { "focus", second_number };
 
     client->ps.number = 0;
     G_ResetSelectionFocus(client);
@@ -4275,7 +4275,7 @@ TEST(wc3_api, multiselect_order_matches_warsmash_priority_level_and_rawcode) {
 TEST(wc3_api, selection_revalidation_clears_hidden_raw_selection_bit) {
     LPGAMECLIENT client = &game.clients[0];
     LPEDICT ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
-    DWORD bit = 1 << client->ps.number;
+    uint32_t bit = 1 << client->ps.number;
 
     ent->svflags |= SVF_MONSTER;
     ent->s.player = 1;
@@ -4571,11 +4571,11 @@ TEST(wc3_api, hero_xp_set) {
 TEST(wc3_api, hero_xp_add) {
     LPEDICT ent = make_unit_hero();
     ent->hero.xp = 100;
-    DWORD add = 50;
+    uint32_t add = 50;
     /* Replicate AddHeroXP logic: cap at INT32_MAX */
-    DWORD cur = ent->hero.xp;
-    DWORD sum = cur + add;
-    ent->hero.xp = (sum < cur || sum > (DWORD)INT32_MAX) ? (DWORD)INT32_MAX : sum;
+    uint32_t cur = ent->hero.xp;
+    uint32_t sum = cur + add;
+    ent->hero.xp = (sum < cur || sum > (uint32_t)INT32_MAX) ? (uint32_t)INT32_MAX : sum;
     T_EQ((int)ent->hero.xp, 150);
 }
 
@@ -4626,14 +4626,14 @@ TEST(wc3_api, hero_skill_points_map_main_can_award_points) {
 
 TEST(wc3_api, hero_xp_overflow_clamps) {
     LPEDICT ent = make_unit_hero();
-    ent->hero.xp = (DWORD)INT32_MAX - 5;
-    DWORD add = 100;
-    DWORD cur = ent->hero.xp;
-    DWORD sum = cur + add;
-    ent->hero.xp = (sum < cur || sum > (DWORD)INT32_MAX) ? (DWORD)INT32_MAX : sum;
+    ent->hero.xp = (uint32_t)INT32_MAX - 5;
+    uint32_t add = 100;
+    uint32_t cur = ent->hero.xp;
+    uint32_t sum = cur + add;
+    ent->hero.xp = (sum < cur || sum > (uint32_t)INT32_MAX) ? (uint32_t)INT32_MAX : sum;
     /* Overflow past INT32_MAX clamps to INT32_MAX, never goes negative */
     T_EQ((long long)ent->hero.xp, (long long)INT32_MAX);
-    T_ASSERT((LONG)ent->hero.xp >= 0);
+    T_ASSERT((int32_t)ent->hero.xp >= 0);
 }
 
 /* =========================================================================
@@ -4656,12 +4656,12 @@ TEST(wc3_api, hero_xp_not_added_when_suspended) {
     ent->hero.xp = 100;
     ent->hero.suspend_xp = true;
     /* Replicate AddHeroXP: skip when suspend_xp is set */
-    LONG xp_to_add = 50;
+    int32_t xp_to_add = 50;
     if (!ent->hero.suspend_xp && xp_to_add > 0) {
-        DWORD add = (DWORD)xp_to_add;
-        DWORD cur = ent->hero.xp;
-        DWORD sum = cur + add;
-        ent->hero.xp = (sum < cur || sum > (DWORD)INT32_MAX) ? (DWORD)INT32_MAX : sum;
+        uint32_t add = (uint32_t)xp_to_add;
+        uint32_t cur = ent->hero.xp;
+        uint32_t sum = cur + add;
+        ent->hero.xp = (sum < cur || sum > (uint32_t)INT32_MAX) ? (uint32_t)INT32_MAX : sum;
     }
     T_EQ((int)ent->hero.xp, 100);
 }
@@ -4712,7 +4712,7 @@ TEST(wc3_api, unit_color_default_zero) {
 
 TEST(wc3_api, unit_color_override_distinguishes_red_from_default) {
     LPEDICT ent = make_unit_hero();
-    DWORD color = 99;
+    uint32_t color = 99;
 
     G_SetUnitColorOverride(ent, 0);
     T_ASSERT(ent->unit_color != 0);
@@ -4722,7 +4722,7 @@ TEST(wc3_api, unit_color_override_distinguishes_red_from_default) {
 
 TEST(wc3_api, set_unit_color_publishes_team_color_without_changing_owner) {
     LPEDICT unit = NULL;
-    DWORD encoded;
+    uint32_t encoded;
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -4736,7 +4736,7 @@ TEST(wc3_api, set_unit_color_publishes_team_color_without_changing_owner) {
     encoded = (unit->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT;
     T_EQ(unit->s.player, 4);
     {
-        DWORD color = 0;
+        uint32_t color = 0;
         T_ASSERT(G_GetUnitColorOverride(unit, &color));
         T_EQ(color, 8);
     }
@@ -4745,7 +4745,7 @@ TEST(wc3_api, set_unit_color_publishes_team_color_without_changing_owner) {
 
 TEST(wc3_api, set_unit_color_can_override_owner_with_red) {
     LPEDICT unit = NULL;
-    DWORD encoded;
+    uint32_t encoded;
 
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
@@ -4760,7 +4760,7 @@ TEST(wc3_api, set_unit_color_can_override_owner_with_red) {
     encoded = (unit->s.effect_flags & EFX_TEAM_COLOR_MASK) >> EFX_TEAM_COLOR_SHIFT;
     T_EQ(encoded, 1);
     {
-        DWORD color = 99;
+        uint32_t color = 99;
         T_ASSERT(G_GetUnitColorOverride(unit, &color));
         T_EQ(color, 0);
     }
@@ -4797,7 +4797,7 @@ TEST(wc3_api, set_unit_owner_honors_change_color) {
 TEST(wc3_api, authored_team_color_precedence_matches_unit_data) {
     LPEDICT unit = make_unit_hero();
     UnitUI_t ui = *unit->data.UnitUI;
-    DOODAD placement = { .color = (DWORD)-1 };
+    DOODAD placement = { .color = (uint32_t)-1 };
 
     unit->data.UnitUI = &ui;
     unit->s.player = 4;
@@ -4938,7 +4938,7 @@ TEST(wc3_api, group_debug_creator_follows_slot_lifecycle) {
 }
 
 TEST(wc3_api, group_debug_captures_nested_jass_call_chain) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
 
     reset_entities();
     gi.CvarString = group_debug_cvar;
@@ -4959,10 +4959,10 @@ TEST(wc3_api, group_debug_captures_nested_jass_call_chain) {
 }
 
 TEST(wc3_api, destroyed_group_slots_are_reused) {
-    DWORD const saved_num_groups = level.num_groups;
+    uint32_t const saved_num_groups = level.num_groups;
     ggroup_t *first = NULL;
 
-    for (DWORD i = 0; i < 4096; i++) {
+    for (uint32_t i = 0; i < 4096; i++) {
         ggroup_t *group = G_AllocJassGroup();
         T_NOT_NULL(group);
         if (!group) break;
@@ -4978,10 +4978,10 @@ TEST(wc3_api, destroyed_group_slots_are_reused) {
 
 TEST(wc3_api, group_registry_grows_past_legacy_1024_limit) {
     enum { LEGACY_GROUP_LIMIT = 1024, EXTRA_GROUPS = 64 };
-    DWORD id = UINT32_MAX;
+    uint32_t id = UINT32_MAX;
 
     reset_entities();
-    for (DWORD i = 0; i < LEGACY_GROUP_LIMIT + EXTRA_GROUPS; i++) {
+    for (uint32_t i = 0; i < LEGACY_GROUP_LIMIT + EXTRA_GROUPS; i++) {
         ggroup_t *group = G_AllocJassGroup();
         T_NOT_NULL(group);
         if (!group) break;
@@ -4996,7 +4996,7 @@ TEST(wc3_api, group_registry_grows_past_legacy_1024_limit) {
 }
 
 TEST(wc3_api, destroyed_group_handle_is_not_saveable_or_loadable) {
-    DWORD id = UINT32_MAX;
+    uint32_t id = UINT32_MAX;
     ggroup_t *group = G_AllocJassGroup();
 
     T_NOT_NULL(group);
@@ -5116,7 +5116,7 @@ TEST(wc3_api, unit_ability_permanence_requires_present_ability) {
 
 TEST(wc3_api, unit_ability_mutation_rejects_full_lists) {
     static UnitAbilities_t const abilities = { .abilList = "Ahar" };
-    DWORD invulnerable = MAKEFOURCC('A','I','n','v');
+    uint32_t invulnerable = MAKEFOURCC('A','I','n','v');
     reset_entities();
     LPEDICT unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     FOR_LOOP(i, MAX_ABILITIES) unit->abilities.added[i] = i + 1;
@@ -5156,8 +5156,8 @@ TEST(wc3_api, group_is_unit_in_group_true) {
     g.units[0] = a;
     g.num_units = 1;
     /* Replicate IsUnitInGroup logic */
-    BOOL found = false;
-    for (DWORD i = 0; i < g.num_units; i++) {
+    bool found = false;
+    for (uint32_t i = 0; i < g.num_units; i++) {
         if (g.units[i] == a) { found = true; break; }
     }
     T_ASSERT(found);
@@ -5170,8 +5170,8 @@ TEST(wc3_api, group_is_unit_in_group_false) {
     ggroup_t g = {0};
     g.units[0] = a;
     g.num_units = 1;
-    BOOL found = false;
-    for (DWORD i = 0; i < g.num_units; i++) {
+    bool found = false;
+    for (uint32_t i = 0; i < g.num_units; i++) {
         if (g.units[i] == b) { found = true; break; }
     }
     T_ASSERT(!found);
@@ -5185,11 +5185,11 @@ TEST(wc3_api, group_is_unit_in_group_false) {
  * Replicate SubString() logic from api_misc.h:
  *   source[start..end) — start inclusive, end exclusive.
  */
-static void substr(const char *source, LONG start, LONG end, char *out, LONG outsz) {
-    LONG len = (LONG)strlen(source);
+static void substr(const char *source, int32_t start, int32_t end, char *out, int32_t outsz) {
+    int32_t len = (int32_t)strlen(source);
     if (start < 0) start = 0;
     if (end > len) end = len;
-    LONG n = end - start;
+    int32_t n = end - start;
     if (n <= 0 || n + 1 > outsz) { out[0] = '\0'; return; }
     strncpy(out, source + start, (size_t)n);
     out[n] = '\0';
@@ -5197,31 +5197,31 @@ static void substr(const char *source, LONG start, LONG end, char *out, LONG out
 
 TEST(wc3_api, substring_basic) {
     char buf[64];
-    substr("hello", 1, 4, buf, (LONG)sizeof(buf));
+    substr("hello", 1, 4, buf, (int32_t)sizeof(buf));
     T_STREQ(buf, "ell");
 }
 
 TEST(wc3_api, substring_full) {
     char buf[64];
-    substr("hello", 0, 5, buf, (LONG)sizeof(buf));
+    substr("hello", 0, 5, buf, (int32_t)sizeof(buf));
     T_STREQ(buf, "hello");
 }
 
 TEST(wc3_api, substring_start_equals_end) {
     char buf[64];
-    substr("hello", 2, 2, buf, (LONG)sizeof(buf));
+    substr("hello", 2, 2, buf, (int32_t)sizeof(buf));
     T_STREQ(buf, "");
 }
 
 TEST(wc3_api, substring_end_past_len) {
     char buf[64];
-    substr("hi", 0, 100, buf, (LONG)sizeof(buf));
+    substr("hi", 0, 100, buf, (int32_t)sizeof(buf));
     T_STREQ(buf, "hi");
 }
 
 TEST(wc3_api, substring_single_char) {
     char buf[64];
-    substr("hello", 0, 1, buf, (LONG)sizeof(buf));
+    substr("hello", 0, 1, buf, (int32_t)sizeof(buf));
     T_STREQ(buf, "h");
 }
 
@@ -5232,25 +5232,25 @@ TEST(wc3_api, substring_single_char) {
 TEST(wc3_api, random_int_in_range) {
     srand(42);
     for (int i = 0; i < 50; i++) {
-        LONG lo = 1, hi = 10;
-        LONG r = lo + rand() % (hi - lo + 1);
+        int32_t lo = 1, hi = 10;
+        int32_t r = lo + rand() % (hi - lo + 1);
         T_ASSERT(r >= lo && r <= hi);
     }
 }
 
 TEST(wc3_api, random_int_single_value) {
     srand(1);
-    LONG lo = 7, hi = 7;
-    LONG r = lo + rand() % (hi - lo + 1);
+    int32_t lo = 7, hi = 7;
+    int32_t r = lo + rand() % (hi - lo + 1);
     T_EQ((int)r, 7);
 }
 
 TEST(wc3_api, random_real_in_range) {
     srand(42);
     for (int i = 0; i < 50; i++) {
-        FLOAT lo = 0.0f, hi = 1.0f;
-        FLOAT t = (FLOAT)rand() / (FLOAT)RAND_MAX;
-        FLOAT r = lo + t * (hi - lo);
+        float lo = 0.0f, hi = 1.0f;
+        float t = (float)rand() / (float)RAND_MAX;
+        float r = lo + t * (hi - lo);
         T_ASSERT(r >= lo && r <= hi);
     }
 }
@@ -5279,7 +5279,7 @@ TEST(wc3_api, item_position_set) {
 TEST(wc3_api, item_type_id) {
     reset_entities();
     LPEDICT item = alloc_test_unit(MAKEFOURCC('I','0','0','0'), 0.0f, 0.0f);
-    DWORD expected = MAKEFOURCC('I','0','0','0');
+    uint32_t expected = MAKEFOURCC('I','0','0','0');
     T_EQ((int)item->class_id, (int)expected);
 }
 
@@ -5294,7 +5294,7 @@ static LPEDICT alloc_inventory_test_unit(void) {
     return unit;
 }
 
-static LPEDICT alloc_world_test_item(DWORD class_id) {
+static LPEDICT alloc_world_test_item(uint32_t class_id) {
     LPEDICT item = alloc_test_unit(class_id, 0, 0);
     item->s.model = 1;
     item->targtype = TARG_ITEM;
@@ -5309,7 +5309,7 @@ TEST(wc3_api, unit_has_item_true) {
     LPEDICT item = alloc_world_test_item(MAKEFOURCC('r','a','t','f'));
     unit_additemtoslot(unit, item, 0);
     /* UnitHasItem checks pointer identity */
-    BOOL found = false;
+    bool found = false;
     FOR_LOOP(i, MAX_INVENTORY) {
         if (unit->inventory[i] == item) { found = true; break; }
     }
@@ -5325,7 +5325,7 @@ TEST(wc3_api, unit_has_item_false_different_instance) {
     LPEDICT item2 = alloc_world_test_item(MAKEFOURCC('r','a','t','f'));
     unit_additemtoslot(unit, item1, 0);
     /* item2 is NOT in inventory */
-    BOOL found = false;
+    bool found = false;
     FOR_LOOP(i, MAX_INVENTORY) {
         if (unit->inventory[i] == item2) { found = true; break; }
     }
@@ -5398,7 +5398,7 @@ TEST(wc3_api, unit_in_range) {
     reset_entities();
     LPEDICT a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     LPEDICT b = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 3.0f, 4.0f);  /* dist = 5 */
-    FLOAT dist = Vector2_distance(&a->s.origin2, &b->s.origin2);
+    float dist = Vector2_distance(&a->s.origin2, &b->s.origin2);
     T_ASSERT(dist <= 6.0f);
 }
 
@@ -5406,7 +5406,7 @@ TEST(wc3_api, unit_out_of_range) {
     reset_entities();
     LPEDICT a = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     LPEDICT b = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 3.0f, 4.0f);  /* dist = 5 */
-    FLOAT dist = Vector2_distance(&a->s.origin2, &b->s.origin2);
+    float dist = Vector2_distance(&a->s.origin2, &b->s.origin2);
     T_ASSERT(!(dist <= 4.0f));
 }
 
@@ -5466,7 +5466,7 @@ TEST(wc3_api, deferred_removed_range_subject_cannot_dispatch_crossing) {
     LPPLAYER saved_currentplayer = currentplayer;
     LPEDICT subject = NULL, target = NULL;
     LPEVENT rangeEvent = NULL;
-    BOOL queuedRangeCrossing = false;
+    bool queuedRangeCrossing = false;
     VECTOR2 destination = { 200.0f, 0.0f };
 
     G_ResetDeferredFrees(); reset_entities(); setup_test_world(); currentplayer = NULL;
@@ -5518,7 +5518,7 @@ TEST(wc3_api, deferred_removed_range_subject_cannot_dispatch_crossing) {
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= rangeEvent->range);
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= 256.0f);
     T_ASSERT(level.events.write > level.events.read);
-    for (DWORD i = level.events.read; i < level.events.write; i++) {
+    for (uint32_t i = level.events.read; i < level.events.write; i++) {
         GAMEEVENT *queued = &level.events.queue[i % MAX_EVENT_QUEUE];
         if (queued->type == EVENT_UNIT_IN_RANGE && queued->responseTo == rangeEvent)
             queuedRangeCrossing = true;
@@ -5558,7 +5558,7 @@ TEST(wc3_api, unit_in_range_queue_full_does_not_crash_subject_movement) {
     T_ASSERT(unit_issueorder(subject, "move", &destination));
     level.events.read = 0; level.events.write = MAX_EVENT_QUEUE;
     G_RunEntities();
-    T_EQ(level.events.write, (DWORD)MAX_EVENT_QUEUE);
+    T_EQ(level.events.write, (uint32_t)MAX_EVENT_QUEUE);
     currentplayer = saved_currentplayer;
 }
 
@@ -5598,7 +5598,7 @@ TEST(wc3_api, unit_in_range_queue_full_does_not_crash_target_movement) {
     level.events.read = 0; level.events.write = MAX_EVENT_QUEUE;
     G_RunEntities();
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= 256.0f);
-    T_EQ(level.events.write, (DWORD)MAX_EVENT_QUEUE);
+    T_EQ(level.events.write, (uint32_t)MAX_EVENT_QUEUE);
     currentplayer = saved_currentplayer;
 }
 
@@ -5779,8 +5779,8 @@ TEST(wc3_api, player_structure_count_survives_nonstructure_death) {
  * ========================================================================= */
 
 TEST(wc3_api, campaign_progress_natives_persist_stock_bj_unlocks) {
-    void (*old_user_path)(LPCSTR, LPSTR, DWORD) = gi.UserPath;
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    void (*old_user_path)(cstring_t, string_t, uint32_t) = gi.UserPath;
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     wc3CampaignProgress_t progress;
     wc3CampaignProgressKey_t campaign_key;
     wc3CampaignProgressKey_t mission_key;
@@ -5875,7 +5875,7 @@ TEST(wc3_api, gamecache_scalar_values_round_trip_and_flush_by_type) {
 }
 
 TEST(wc3_api, gamecache_disabled_keeps_handle_local_and_does_not_commit) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
 
     gi.CvarString = gamecache_disabled_cvar;
     T_ASSERT(run_test_jass(
@@ -5892,7 +5892,7 @@ TEST(wc3_api, gamecache_disabled_keeps_handle_local_and_does_not_commit) {
 }
 
 TEST(wc3_api, gamecache_save_commits_to_process_memory) {
-    LPCSTR (*old_cvar)(LPCSTR, LPCSTR) = gi.CvarString;
+    cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
 
     gi.CvarString = gamecache_memory_cvar;
     T_ASSERT(run_test_jass(
@@ -6016,7 +6016,7 @@ TEST(wc3_api, gamecache_restore_dead_hero_at_quarter_health) {
 
 TEST(wc3_api, gamecache_restore_preserves_explicit_red_unit_color) {
     LPEDICT restored = NULL;
-    DWORD color = 99;
+    uint32_t color = 99;
 
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -6052,7 +6052,7 @@ TEST(wc3_api, gamecache_restore_preserves_explicit_red_unit_color) {
  * ========================================================================= */
 
 /* Removal must preserve both death registrations and the dying-unit context until actions run. */
-static void death_events_before_corpse_removal(BOOL queued) {
+static void death_events_before_corpse_removal(bool queued) {
     LPEDICT victim;
     setup_test_world();
     T_ASSERT(run_test_jass(
@@ -6366,7 +6366,7 @@ TEST(wc3_api, authored_global_and_region_weather_start_enabled) {
 TEST(wc3_api, weather_effect_handle_round_trips_through_save_codec) {
     BOX2 bounds = { .min = {-32.0f, -16.0f}, .max = {64.0f, 96.0f} };
     LPGWEATHER effect = G_WeatherAdd(&bounds, MAKEFOURCC('R','A','l','r'), false);
-    DWORD id = UINT32_MAX;
+    uint32_t id = UINT32_MAX;
 
     T_NOT_NULL(effect);
     T_ASSERT(G_SaveJassHandle("weathereffect", effect, &id));
@@ -6381,8 +6381,8 @@ TEST(wc3_api, weather_effect_handle_round_trips_through_save_codec) {
 TEST(wc3_api, controller_input_preserves_scripted_ownership) {
     LPGAMECLIENT gc = &game.clients[0];
     INPUTCMD cmd = { .action = BZ_INPUT_VIEW, .view = {{-40, 0, 25}, 1200} };
-    BOOL old_ctrl = gc->no_control;
-    FLOAT dist = gc->camera.state.target_distance;
+    bool old_ctrl = gc->no_control;
+    float dist = gc->camera.state.target_distance;
     gc->no_control = true;
     globals.ClientInput(&g_edicts[0], &cmd);
     T_FEQ(gc->camera.state.target_distance, dist, 0.001f);
@@ -6637,7 +6637,7 @@ TEST(wc3_api, dota_hero_attr_ability_level_and_order) {
 TEST(wc3_api, dota_unit_damage_target_and_invulnerable) {
     LPEDICT attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
     LPEDICT target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
-    FLOAT life_before;
+    float life_before;
     T_NOT_NULL(attacker); T_NOT_NULL(target);
     G_SetHealth(attacker, 500); G_SetHealth(target, 500);
     life_before = target->health.value;
@@ -6727,7 +6727,7 @@ TEST(wc3_api, removed_damage_source_does_not_cancel_live_subject_event) {
     LPEDICT attacker, target = NULL;
     LPEVENT damageRegistration = NULL;
     GAMEEVENT *damageEvent = NULL;
-    DWORD queued_before;
+    uint32_t queued_before;
 
     G_ResetDeferredFrees(); reset_entities(); setup_test_world(); currentplayer = NULL;
     attacker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);
@@ -6764,7 +6764,7 @@ TEST(wc3_api, removed_damage_source_does_not_cancel_live_subject_event) {
     queued_before = level.events.write;
     T_Damage(target, attacker, 25);
     T_ASSERT(level.events.write > queued_before);
-    for (DWORD i = queued_before; i < level.events.write; i++) {
+    for (uint32_t i = queued_before; i < level.events.write; i++) {
         GAMEEVENT *queued = &level.events.queue[i % MAX_EVENT_QUEUE];
         if (queued->type == EVENT_UNIT_DAMAGED) damageEvent = queued;
     }
@@ -6810,27 +6810,27 @@ TEST(wc3_api, blight_natives_share_authoritative_world_state) {
         "endfunction\n"));
 }
 
-typedef struct { LPBYTE out; DWORD count; } blightBitDst_t;
-static void blight_test_write(DWORD index, BYTE value, DWORD count, void *ctx) {
+typedef struct { uint8_t * out; uint32_t count; } blightBitDst_t;
+static void blight_test_write(uint32_t index, uint8_t value, uint32_t count, void *ctx) {
     blightBitDst_t *c = ctx;
     FOR_LOOP(i, count) if (index + i < c->count) c->out[index + i] = value;
 }
 
 /* Decode one RLE terrain-mask payload into a flat 0/1 array; returns decoded bits. */
-static DWORD blight_test_decode(BYTE const *payload, terrainMaskChunk_t const *chunk, LPBYTE out, DWORD count) {
-    DWORD bits = (DWORD)chunk->width * chunk->row_count;
+static uint32_t blight_test_decode(uint8_t const *payload, terrainMaskChunk_t const *chunk, uint8_t * out, uint32_t count) {
+    uint32_t bits = (uint32_t)chunk->width * chunk->row_count;
     if (!MSG_ValidateRLE(payload, chunk->payload_bytes, bits)) return 0;
     memset(out, 0, count);
     return MSG_DecodeRLE(payload, chunk->payload_bytes, bits, blight_test_write, &(blightBitDst_t){ out, count });
 }
 
 TEST(wc3_api, blight_datagram_carries_runtime_mask_and_clears_delivered_rows) {
-    BYTE data[8192], bits[4096];
-    USHORT header;
+    uint8_t data[8192], bits[4096];
+    uint16_t header;
     terrainMaskChunk_t chunk;
     VECTOR2 point = { 32.0f, 32.0f };
     LPEDICT client_ent;
-    DWORD size, offset, bit;
+    uint32_t size, offset, bit;
 
     setup_test_world();
     client_ent = &g_edicts[0];
@@ -6846,32 +6846,32 @@ TEST(wc3_api, blight_datagram_carries_runtime_mask_and_clears_delivered_rows) {
     T_ASSERT(header & BZ_GAME_DATAGRAM_TERRAIN_MASK);
     offset = sizeof(header) + (header & BZ_GAME_DATAGRAM_COUNT_MASK) * sizeof(wc3WeatherEffect_t);
     if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
-        USHORT lightning_count = 0;
+        uint16_t lightning_count = 0;
         memcpy(&lightning_count, data + offset, sizeof(lightning_count)); offset += sizeof(lightning_count);
         offset += lightning_count * sizeof(LIGHTNINGEFFECT);
     }
-    if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
+    if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(uint16_t);
     memcpy(&chunk, data + offset, sizeof(chunk)); offset += sizeof(chunk);
     T_EQ(chunk.width, 64); T_EQ(chunk.height, 64); T_EQ(chunk.row_count, 64);
     bit = 33 + 33 * chunk.width;
-    T_EQ(blight_test_decode(data + offset, &chunk, bits, sizeof(bits)), (DWORD)chunk.width * chunk.row_count);
+    T_EQ(blight_test_decode(data + offset, &chunk, bits, sizeof(bits)), (uint32_t)chunk.width * chunk.row_count);
     T_ASSERT(bits[bit]);
 
     size = G_WriteClientDatagram(client_ent, data, sizeof(data));
     memcpy(&header, data, sizeof(header));
     T_ASSERT(!(header & BZ_GAME_DATAGRAM_TERRAIN_MASK));
-    T_EQ(size, sizeof(USHORT) * 2);
+    T_EQ(size, sizeof(uint16_t) * 2);
     client_ent->client = NULL;
     game.clients[0].connected = false;
 }
 
 TEST(wc3_api, blight_sweep_resends_dropped_rows) {
-    BYTE data[8192], bits[4096];
-    USHORT header;
+    uint8_t data[8192], bits[4096];
+    uint16_t header;
     terrainMaskChunk_t chunk;
     VECTOR2 point = { 32.0f, 32.0f };
     LPEDICT client_ent;
-    DWORD size, offset, bit;
+    uint32_t size, offset, bit;
 
     setup_test_world();
     client_ent = &g_edicts[0];
@@ -6896,16 +6896,16 @@ TEST(wc3_api, blight_sweep_resends_dropped_rows) {
     T_ASSERT(header & BZ_GAME_DATAGRAM_TERRAIN_MASK);
     offset = sizeof(header) + (header & BZ_GAME_DATAGRAM_COUNT_MASK) * sizeof(wc3WeatherEffect_t);
     if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
-        USHORT lightning_count = 0;
+        uint16_t lightning_count = 0;
         memcpy(&lightning_count, data + offset, sizeof(lightning_count)); offset += sizeof(lightning_count);
         offset += lightning_count * sizeof(LIGHTNINGEFFECT);
     }
-    if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
+    if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(uint16_t);
     memcpy(&chunk, data + offset, sizeof(chunk)); offset += sizeof(chunk);
     T_EQ(chunk.width, 64); T_EQ(chunk.height, 64);
     bit = 33 + 33 * chunk.width;
     T_ASSERT(chunk.first_row <= 33 && 33 < chunk.first_row + chunk.row_count);
-    T_EQ(blight_test_decode(data + offset, &chunk, bits, sizeof(bits)), (DWORD)chunk.width * chunk.row_count);
+    T_EQ(blight_test_decode(data + offset, &chunk, bits, sizeof(bits)), (uint32_t)chunk.width * chunk.row_count);
     T_ASSERT(bits[bit - chunk.first_row * chunk.width]);
     client_ent->client = NULL;
     game.clients[0].connected = false;
@@ -6913,10 +6913,10 @@ TEST(wc3_api, blight_sweep_resends_dropped_rows) {
 }
 
 TEST(wc3_api, blight_checkerboard_row_uses_bitpack_escape_and_makes_progress) {
-    BYTE data[sizeof(terrainMaskChunk_t) + 16], bits[4096];
+    uint8_t data[sizeof(terrainMaskChunk_t) + 16], bits[4096];
     terrainMaskChunk_t chunk;
     LPEDICT client_ent;
-    DWORD size, offset = sizeof(chunk);
+    uint32_t size, offset = sizeof(chunk);
 
     setup_test_world();
     client_ent = &g_edicts[0];
@@ -6925,7 +6925,7 @@ TEST(wc3_api, blight_checkerboard_row_uses_bitpack_escape_and_makes_progress) {
     game.clients[0].ps.number = 0;
     T_EQ(level.blight.width, 64); T_EQ(level.blight.height, 64);
     /* Checkerboard defeats RLE: one alternating row costs W+1 bytes, so the escape must bound it. */
-    FOR_LOOP(i, 64u * 64u) level.blight.cells[i] = (BYTE)(i & 1);
+    FOR_LOOP(i, 64u * 64u) level.blight.cells[i] = (uint8_t)(i & 1);
     G_BlightMarkClientFull(client_ent);
     /* Bitpack one row costs 1 + 64/8 = 9 bytes; RLE one alternating row costs 65, two rows fit neither. */
     size = G_BlightWriteDatagram(client_ent, data, sizeof(data));
@@ -6934,7 +6934,7 @@ TEST(wc3_api, blight_checkerboard_row_uses_bitpack_escape_and_makes_progress) {
     T_EQ(chunk.first_row, 0); T_EQ(chunk.row_count, 1);
     T_EQ(data[offset], 2); /* bitpack escape bounds the worst case */
     T_EQ(blight_test_decode(data + offset, &chunk, bits, sizeof(bits)), 64u);
-    FOR_LOOP(i, 64u) T_EQ(bits[i], (BYTE)(i & 1));
+    FOR_LOOP(i, 64u) T_EQ(bits[i], (uint8_t)(i & 1));
     /* The delivered row cleared, so the next band keeps moving instead of stalling. */
     size = G_BlightWriteDatagram(client_ent, data, sizeof(data));
     T_EQ(size, sizeof(chunk) + 9);
@@ -6956,12 +6956,12 @@ TEST(wc3_api, blight_checkerboard_row_uses_bitpack_escape_and_makes_progress) {
 }
 
 TEST(wc3_api, blight_dirty_rows_take_priority_over_sweep) {
-    BYTE data[8192];
-    USHORT header;
+    uint8_t data[8192];
+    uint16_t header;
     terrainMaskChunk_t chunk;
     VECTOR2 point = { 32.0f, 32.0f };
     LPEDICT client_ent;
-    DWORD size, offset;
+    uint32_t size, offset;
 
     setup_test_world();
     client_ent = &g_edicts[0];
@@ -6977,11 +6977,11 @@ TEST(wc3_api, blight_dirty_rows_take_priority_over_sweep) {
     T_ASSERT(header & BZ_GAME_DATAGRAM_TERRAIN_MASK);
     offset = sizeof(header) + (header & BZ_GAME_DATAGRAM_COUNT_MASK) * sizeof(wc3WeatherEffect_t);
     if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
-        USHORT lightning_count = 0;
+        uint16_t lightning_count = 0;
         memcpy(&lightning_count, data + offset, sizeof(lightning_count)); offset += sizeof(lightning_count);
         offset += lightning_count * sizeof(LIGHTNINGEFFECT);
     }
-    if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(USHORT);
+    if (header & BZ_GAME_DATAGRAM_ENTITY_TINTS) offset += sizeof(uint16_t);
     memcpy(&chunk, data + offset, sizeof(chunk));
     T_ASSERT(chunk.first_row > 0);
     T_EQ(level.blight.sweep_row[0], 0);
@@ -7008,19 +7008,19 @@ TEST(wc3_api, blight_mark_client_full_resets_sweep_cursor) {
 TEST(wc3_api, blight_tileset_line_parse_truncates_long_value) {
     char line[512];
     char key = 0;
-    BYTE raw[sizeof(PATHSTR) + 1];
+    uint8_t raw[sizeof(PATHSTR) + 1];
     char sentinel = (char)0xA5;
 
     memset(line, 'A', sizeof(line) - 2);
     memcpy(line, "A = foo , ", 10);
     line[sizeof(line) - 2] = 0; line[sizeof(line) - 1] = 0;
     memset(raw, 0, sizeof(raw));
-    raw[sizeof(raw) - 1] = (BYTE)sentinel;
-    T_ASSERT(WC3_ParseBlightTilesetLine(line, &key, (LPSTR)raw));
+    raw[sizeof(raw) - 1] = (uint8_t)sentinel;
+    T_ASSERT(WC3_ParseBlightTilesetLine(line, &key, (string_t)raw));
     T_EQ(key, 'A');
-    T_EQ(raw[sizeof(raw) - 1], (BYTE)sentinel);
-    T_EQ(strlen((LPCSTR)raw), (size_t)(MAX_PATHLEN - 1));
-    T_ASSERT(!WC3_ParseBlightTilesetLine("[TileSets]", &key, (LPSTR)raw));
+    T_EQ(raw[sizeof(raw) - 1], (uint8_t)sentinel);
+    T_EQ(strlen((cstring_t)raw), (size_t)(MAX_PATHLEN - 1));
+    T_ASSERT(!WC3_ParseBlightTilesetLine("[TileSets]", &key, (string_t)raw));
 }
 
 #endif /* BZ_TESTS */

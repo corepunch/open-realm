@@ -2,7 +2,7 @@
  * 51 uniform samples per sequence, in FDF Y-down units relative to the open pose.
  * Keep departure tracks separate: they are not reversed entrances. */
 #define BZ_GLUE_SAMPLES 51 // samples; 2% intervals retain native bounce; used for panel-content interpolation.
-typedef struct { FLOAT enter[BZ_GLUE_SAMPLES], leave[BZ_GLUE_SAMPLES]; } GLUEMOTION;
+typedef struct { float enter[BZ_GLUE_SAMPLES], leave[BZ_GLUE_SAMPLES]; } GLUEMOTION;
 typedef GLUEMOTION *LPGLUEMOTION;
 typedef const GLUEMOTION *LPCGLUEMOTION;
 

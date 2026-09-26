@@ -5,19 +5,19 @@
 
 typedef struct {
     VERTEX *vertices;
-    DWORD *groups;
-    DWORD num_vertices;
-    DWORD capacity;
-    DWORD current_group;
+    uint32_t *groups;
+    uint32_t num_vertices;
+    uint32_t capacity;
+    uint32_t current_group;
 } rCliffBakeList_t;
 
-typedef struct { int qx, qy, qz; DWORD idx; } rNormalWeldKey_t;
+typedef struct { int qx, qy, qz; uint32_t idx; } rNormalWeldKey_t;
 
 /* Header consumers may only use the pure predicate; unused helpers must not import ri at -O0. */
-static inline void R_CliffBakeGrow(rCliffBakeList_t *list, DWORD add) {
+static inline void R_CliffBakeGrow(rCliffBakeList_t *list, uint32_t add) {
     VERTEX *vertices;
-    DWORD *groups;
-    DWORD capacity;
+    uint32_t *groups;
+    uint32_t capacity;
 
     if (list->num_vertices + add <= list->capacity)
         return;
@@ -44,7 +44,7 @@ static inline LPVERTEX R_CliffBakeVertex(rCliffBakeList_t *list) {
     return &list->vertices[list->num_vertices++];
 }
 
-static inline BOOL R_CliffWeldCompatible(LPCVERTEX a, DWORD a_group, LPCVERTEX b, DWORD b_group, FLOAT z_snap) {
+static inline bool R_CliffWeldCompatible(LPCVERTEX a, uint32_t a_group, LPCVERTEX b, uint32_t b_group, float z_snap) {
 	return a_group != b_group &&
 		   (int)roundf(a->position.z / z_snap) == (int)roundf(b->position.z / z_snap) &&
 		   Vector3_dot(&a->normal, &b->normal) > 0.0f;
@@ -59,12 +59,12 @@ static inline int r_cliff_weld_cmp(const void *a, const void *b) {
 }
 
 /* Weld only coincident, similarly facing cliff vertices; XY-only averaging merged stacked and opposing faces. */
-static inline void R_CliffWeldNormals(rCliffBakeList_t *list, FLOAT snap) {
+static inline void R_CliffWeldNormals(rCliffBakeList_t *list, float snap) {
     VERTEX *vertices = list->vertices;
-    DWORD n = list->num_vertices;
+    uint32_t n = list->num_vertices;
     rNormalWeldKey_t *keys;
     VECTOR3 *normals;
-    DWORD i;
+    uint32_t i;
 
     if (n < 2 || snap <= 0.0f) return;
     keys = ri.MemAlloc(n * sizeof(*keys));
@@ -78,17 +78,17 @@ static inline void R_CliffWeldNormals(rCliffBakeList_t *list, FLOAT snap) {
     qsort(keys, n, sizeof(*keys), r_cliff_weld_cmp);
     i = 0;
     while (i < n) {
-        DWORD j = i;
+        uint32_t j = i;
         while (j < n && keys[j].qx == keys[i].qx && keys[j].qy == keys[i].qy && keys[j].qz == keys[i].qz)
             j++;
-        for (DWORD k = i; k < j; k++) {
+        for (uint32_t k = i; k < j; k++) {
             VECTOR3 avg = vertices[keys[k].idx].normal;
-            DWORD count = Vector3_len(&avg) > 0.0f;
-            for (DWORD l = i; l < j; l++) {
+            uint32_t count = Vector3_len(&avg) > 0.0f;
+            for (uint32_t l = i; l < j; l++) {
                 if (!R_CliffWeldCompatible(&vertices[keys[k].idx], list->groups[keys[k].idx], &vertices[keys[l].idx], list->groups[keys[l].idx], 0.001f)) continue;
                 /* Expanded triangles repeat the same authored normal; count each placement/normal once. */
-                BOOL duplicate = false;
-                for (DWORD m = i; m < l; m++) {
+                bool duplicate = false;
+                for (uint32_t m = i; m < l; m++) {
                     VECTOR3 delta = Vector3_sub(&vertices[keys[m].idx].normal, &vertices[keys[l].idx].normal);
                     if (list->groups[keys[m].idx] == list->groups[keys[l].idx] && Vector3_dot(&delta, &delta) < 0.000001f) {
                         duplicate = true; break;

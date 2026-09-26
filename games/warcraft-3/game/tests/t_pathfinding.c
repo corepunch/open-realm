@@ -30,7 +30,7 @@
 #include "../g_local.h"
 
 /* Helpers defined in t_utils.c */
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 
@@ -41,7 +41,7 @@ void setup_test_world(void);
  * --------------------------------------------------------------------- */
 
 /* Defined in routing.c, only compiled for test builds. */
-void setup_test_pathmap(DWORD width, DWORD height, BYTE const *cells);
+void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void CM_SetupTestWorldBounds(LPCBOX2 bounds);
 
 struct routePerfStats_s;
@@ -49,40 +49,40 @@ void CM_ResetTestPathPerfStats(void);
 extern struct routePerfStats_s CM_GetTestPathPerfStats(void);
 
 /* Public API from routing.c. */
-DWORD  CM_BuildHeatmap(edict_t *goalentity);
-DWORD  CM_BuildHeatmapForRadius(edict_t *goalentity, FLOAT radius);
-DWORD  CM_RequestHeatmapForRadius(edict_t *goalentity, FLOAT radius);
-DWORD  CM_RequestHeatmapForRadiusFlags(edict_t *goalentity, FLOAT radius, BYTE blocked_flags);
-void   CM_ProcessPathJobs(DWORD work_budget);
-BOOL   CM_ClosestPathablePointForRadius(LPCVECTOR2 location, FLOAT radius, LPVECTOR2 out);
-BOOL   CM_ClosestPathablePointForRadiusFlags(LPCVECTOR2 location, FLOAT radius, BYTE blocked_flags, LPVECTOR2 out);
-BOOL   G_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBOX2 bounds, FLOAT radius, BYTE blocked_flags, LPVECTOR2 out);
-BOOL   CM_ClosestReachablePointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius, LPVECTOR2 out);
-BOOL   CM_ClosestReachablePointForRadiusFlags(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT radius,
-                                              BYTE blocked_flags, LPVECTOR2 out);
-BOOL   CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius);
-BOOL   CM_LineIsPathableForRadiusFlags(LPCVECTOR2 a, LPCVECTOR2 b, FLOAT radius, BYTE blocked_flags);
-BOOL   CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, FLOAT range, FLOAT radius, LPVECTOR2 out);
-BOOL   CM_FindApproachPointToFootprintForRadius(LPCEDICT target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
-BOOL   CM_FindInnerApproachPointToFootprintForRadius(LPCEDICT target, LPCVECTOR2 from, FLOAT range, FLOAT radius, LPVECTOR2 out);
-BOOL   CM_FlowReachedGoal(DWORD generation, FLOAT x, FLOAT y);
-BOOL   CM_FlowCanReach(DWORD generation, FLOAT x, FLOAT y);
-VECTOR2 get_flow_direction(DWORD heatmapindex, float fnx, float fny);
+uint32_t  CM_BuildHeatmap(edict_t *goalentity);
+uint32_t  CM_BuildHeatmapForRadius(edict_t *goalentity, float radius);
+uint32_t  CM_RequestHeatmapForRadius(edict_t *goalentity, float radius);
+uint32_t  CM_RequestHeatmapForRadiusFlags(edict_t *goalentity, float radius, uint8_t blocked_flags);
+void   CM_ProcessPathJobs(uint32_t work_budget);
+bool   CM_ClosestPathablePointForRadius(LPCVECTOR2 location, float radius, LPVECTOR2 out);
+bool   CM_ClosestPathablePointForRadiusFlags(LPCVECTOR2 location, float radius, uint8_t blocked_flags, LPVECTOR2 out);
+bool   G_ClosestStaticPathablePointInRectForRadiusFlags(LPCVECTOR2 location, LPCBOX2 bounds, float radius, uint8_t blocked_flags, LPVECTOR2 out);
+bool   CM_ClosestReachablePointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, float radius, LPVECTOR2 out);
+bool   CM_ClosestReachablePointForRadiusFlags(LPCVECTOR2 from, LPCVECTOR2 target, float radius,
+                                              uint8_t blocked_flags, LPVECTOR2 out);
+bool   CM_LineIsWalkableForRadius(LPCVECTOR2 a, LPCVECTOR2 b, float radius);
+bool   CM_LineIsPathableForRadiusFlags(LPCVECTOR2 a, LPCVECTOR2 b, float radius, uint8_t blocked_flags);
+bool   CM_FindDirectApproachPointForRadius(LPCVECTOR2 from, LPCVECTOR2 target, float range, float radius, LPVECTOR2 out);
+bool   CM_FindApproachPointToFootprintForRadius(LPCEDICT target, LPCVECTOR2 from, float range, float radius, LPVECTOR2 out);
+bool   CM_FindInnerApproachPointToFootprintForRadius(LPCEDICT target, LPCVECTOR2 from, float range, float radius, LPVECTOR2 out);
+bool   CM_FlowReachedGoal(uint32_t generation, float x, float y);
+bool   CM_FlowCanReach(uint32_t generation, float x, float y);
+VECTOR2 get_flow_direction(uint32_t heatmapindex, float fnx, float fny);
 
 /* Static-map point test from routing.c — the static half of move-time
  * collision (unit_trymove in skills/s_move.c). */
-BOOL CM_PointIsPathableForRadius(LPCVECTOR2 location, FLOAT radius);
-BOOL CM_PointIsPathableForRadiusFlags(LPCVECTOR2 location, FLOAT radius, BYTE blocked_flags);
+bool CM_PointIsPathableForRadius(LPCVECTOR2 location, float radius);
+bool CM_PointIsPathableForRadiusFlags(LPCVECTOR2 location, float radius, uint8_t blocked_flags);
 
 /* From g_monster.c */
 LPEDICT Waypoint_add(LPCVECTOR2 spot);
-DWORD M_RefreshHeatmap(LPEDICT goal, FLOAT radius);
+uint32_t M_RefreshHeatmap(LPEDICT goal, float radius);
 
 /* From s_move.c — needed to set up a moving unit. */
 void order_move(LPEDICT self, LPEDICT target);
 void order_patrol(LPEDICT self, LPEDICT target);
 void order_attackmove(LPEDICT self, LPEDICT target);
-BOOL M_MoveIsValid(LPEDICT self, LPCVECTOR2 pos);
+bool M_MoveIsValid(LPEDICT self, LPCVECTOR2 pos);
 void unit_changeangle(LPEDICT self);
 
 /* From m_unit.c */
@@ -105,13 +105,13 @@ void unit_stand(LPEDICT self);
 #define MAP_H 10
 
 /*  0 = open, 2 = nowalk (bit 1 set, matching pathMapCell_t.nowalk). */
-static BYTE open_map[MAP_W * MAP_H];   /* all open */
+static uint8_t open_map[MAP_W * MAP_H];   /* all open */
 
 /* Wall column at x=5, rows 0-7, leaving rows 8-9 as a gap. */
-static BYTE wall_map[MAP_W * MAP_H];
+static uint8_t wall_map[MAP_W * MAP_H];
 
 /* Full wall column at x=5, splitting the map into two unreachable halves. */
-static BYTE split_map[MAP_W * MAP_H];
+static uint8_t split_map[MAP_W * MAP_H];
 
 static void build_open_map(void) {
     memset(open_map, 0, sizeof(open_map));
@@ -140,8 +140,8 @@ static LPEDICT make_waypoint(float cell_x, float cell_y) {
 /* Build the flow field for a goal and remember its generation so flow_at_cell
  * can pass the real handle (get_flow_direction now activates the field for that
  * generation rather than reading whatever was globally active). */
-static DWORD g_flow_gen = 0;
-static DWORD build_flow(LPEDICT goal) {
+static uint32_t g_flow_gen = 0;
+static uint32_t build_flow(LPEDICT goal) {
     g_flow_gen = CM_BuildHeatmap(goal);
     return g_flow_gen;
 }
@@ -170,7 +170,7 @@ static LPEDICT make_unit_at(float x, float y) {
 
 /* The game initializer and flag/radius queries must share routing storage, never the executable's client cells. */
 TEST(wc3_pathfinding, terrain_flags_and_routing_share_game_storage) {
-    BYTE cells[] = { 2, 0, 0, 0 }, flags = 0;
+    uint8_t cells[] = { 2, 0, 0, 0 }, flags = 0;
     VECTOR2 point = { 0.5f, 0.5f };
     setup_test_pathmap(2, 2, cells);
     T_ASSERT(CM_GetPathingFlagsAt(&point, &flags)); T_EQ(flags, 2);
@@ -183,7 +183,7 @@ TEST(wc3_pathfinding, terrain_flags_and_routing_share_game_storage) {
 }
 
 TEST(wc3_pathfinding, movement_class_pathing_distinguishes_walk_and_fly_bits) {
-    BYTE cells[10 * 10] = { 0 };
+    uint8_t cells[10 * 10] = { 0 };
     VECTOR2 nowalk = { 4.5f, 3.5f };
     VECTOR2 nofly = { 4.5f, 6.5f };
     VECTOR2 walk_from = { 1.5f, 3.5f }, walk_to = { 8.5f, 3.5f };
@@ -205,7 +205,7 @@ TEST(wc3_pathfinding, movement_class_pathing_distinguishes_walk_and_fly_bits) {
 }
 
 TEST(wc3_pathfinding, static_path_texture_green_channel_marks_unflyable) {
-    BYTE cells[8 * 8] = { 0 }, flags = 0;
+    uint8_t cells[8 * 8] = { 0 }, flags = 0;
     VECTOR2 center = { 4.5f, 4.5f };
     LPEDICT building;
     pathTex_t *pathtex;
@@ -232,7 +232,7 @@ TEST(wc3_pathfinding, static_path_texture_green_channel_marks_unflyable) {
 }
 
 TEST(wc3_pathfinding, flyer_move_validation_uses_unflyable_static_pathing) {
-    BYTE cells[8 * 8] = { 0 };
+    uint8_t cells[8 * 8] = { 0 };
     VECTOR2 target = { 4.5f, 4.5f };
     LPEDICT flyer;
 
@@ -250,9 +250,9 @@ TEST(wc3_pathfinding, flyer_move_validation_uses_unflyable_static_pathing) {
 }
 
 TEST(wc3_pathfinding, heatmap_cache_separates_ground_and_flying_pathing) {
-    BYTE cells[10 * 10] = { 0 };
+    uint8_t cells[10 * 10] = { 0 };
     LPEDICT goal;
-    DWORD fly_gen, ground_gen;
+    uint32_t fly_gen, ground_gen;
 
     for (int y = 0; y < 10; y++)
         cells[y * 10 + 4] = CM_PATHING_UNWALKABLE;
@@ -280,8 +280,8 @@ TEST(wc3_pathfinding, heatmap_cache_hit_same_goal) {
     reset_entities();
 
     LPEDICT wp = make_waypoint(5.0f, 5.0f);
-    DWORD gen1 = CM_BuildHeatmap(wp);
-    DWORD gen2 = CM_BuildHeatmap(wp);
+    uint32_t gen1 = CM_BuildHeatmap(wp);
+    uint32_t gen2 = CM_BuildHeatmap(wp);
 
     /* Same goal: generation must be identical — no rebuild. */
     T_EQ(gen1, gen2);
@@ -294,8 +294,8 @@ TEST(wc3_pathfinding, heatmap_cache_hit_same_target_different_waypoint) {
 
     LPEDICT wp1 = make_waypoint(5.0f, 5.0f);
     LPEDICT wp2 = make_waypoint(5.0f, 5.0f);
-    DWORD gen1 = CM_BuildHeatmap(wp1);
-    DWORD gen2 = CM_BuildHeatmap(wp2);
+    uint32_t gen1 = CM_BuildHeatmap(wp1);
+    uint32_t gen2 = CM_BuildHeatmap(wp2);
 
     T_ASSERT(wp1 != wp2);
     T_EQ(gen1, gen2);
@@ -332,8 +332,8 @@ TEST(wc3_pathfinding, heatmap_cache_miss_different_goal) {
 
     LPEDICT wp1 = make_waypoint(2.0f, 2.0f);
     LPEDICT wp2 = make_waypoint(7.0f, 7.0f);
-    DWORD gen1 = CM_BuildHeatmap(wp1);
-    DWORD gen2 = CM_BuildHeatmap(wp2);
+    uint32_t gen1 = CM_BuildHeatmap(wp1);
+    uint32_t gen2 = CM_BuildHeatmap(wp2);
 
     /* Different goals must produce different generations. */
     T_ASSERT(gen1 != gen2);
@@ -345,7 +345,7 @@ TEST(wc3_pathfinding, heatmap_generation_is_nonzero) {
     reset_entities();
 
     LPEDICT wp = make_waypoint(3.0f, 3.0f);
-    DWORD gen = CM_BuildHeatmap(wp);
+    uint32_t gen = CM_BuildHeatmap(wp);
 
     T_ASSERT(gen != 0);
 }
@@ -361,13 +361,13 @@ TEST(wc3_pathfinding, invalidation_does_not_recycle_heatmap_generation) {
 
     LPEDICT first = make_waypoint(2.0f, 2.0f);
     LPEDICT second = make_waypoint(7.0f, 7.0f);
-    DWORD old_gen = CM_BuildHeatmap(first);
+    uint32_t old_gen = CM_BuildHeatmap(first);
 
     T_ASSERT(old_gen != 0);
     CM_InvalidatePathCache();
     T_ASSERT(!CM_ActivateCachedFlow(old_gen));
 
-    DWORD new_gen = CM_BuildHeatmap(second);
+    uint32_t new_gen = CM_BuildHeatmap(second);
     T_ASSERT(new_gen != 0);
     T_ASSERT(new_gen != old_gen);
     T_ASSERT(!CM_ActivateCachedFlow(old_gen));
@@ -391,7 +391,7 @@ TEST(wc3_pathfinding, incremental_heatmap_serializes_cache_misses_without_losing
     for (int i = 0; i < 200; i++)
         CM_ProcessPathJobs(4);
 
-    DWORD first_gen = CM_RequestHeatmapForRadius(first, 0.0f);
+    uint32_t first_gen = CM_RequestHeatmapForRadius(first, 0.0f);
     T_ASSERT(first_gen != 0);
 
     /* Once the first job completes, the previously waiting destination can
@@ -400,14 +400,14 @@ TEST(wc3_pathfinding, incremental_heatmap_serializes_cache_misses_without_losing
     for (int i = 0; i < 200; i++)
         CM_ProcessPathJobs(4);
 
-    DWORD second_gen = CM_RequestHeatmapForRadius(second, 0.0f);
+    uint32_t second_gen = CM_RequestHeatmapForRadius(second, 0.0f);
     T_ASSERT(second_gen != 0);
     T_ASSERT(second_gen != first_gen);
 }
 
 TEST(wc3_pathfinding, production_budget_completes_large_open_field_in_two_frames) {
     enum { WIDTH = 256, HEIGHT = 256 };
-    static BYTE open[WIDTH * HEIGHT];
+    static uint8_t open[WIDTH * HEIGHT];
     LPEDICT goal;
 
     memset(open, 0, sizeof(open));
@@ -424,7 +424,7 @@ TEST(wc3_pathfinding, production_budget_completes_large_open_field_in_two_frames
 
 TEST(wc3_pathfinding, heatmap_reuses_neighbor_pathability_queries) {
     enum { WIDTH = 256, HEIGHT = 256 };
-    static BYTE open[WIDTH * HEIGHT];
+    static uint8_t open[WIDTH * HEIGHT];
     struct routePerfStats_s stats;
     LPEDICT goal;
 
@@ -456,7 +456,7 @@ TEST(wc3_pathfinding, nearby_detour_accelerator_returns_clear_waypoint) {
 
 TEST(wc3_pathfinding, distant_detour_skips_bounded_accelerator) {
     enum { WIDTH = 128, HEIGHT = 16 };
-    static BYTE open[WIDTH * HEIGHT];
+    static uint8_t open[WIDTH * HEIGHT];
     VECTOR2 from = {2.0f, 8.0f}, target = {100.0f, 8.0f}, waypoint;
     pathAccelParams_t params = { &from, &target, 0.0f, 0 };
 
@@ -466,7 +466,7 @@ TEST(wc3_pathfinding, distant_detour_skips_bounded_accelerator) {
 }
 
 TEST(wc3_pathfinding, nearby_detour_accelerator_respects_collision_radius) {
-    BYTE narrow[MAP_W * MAP_H];
+    uint8_t narrow[MAP_W * MAP_H];
     VECTOR2 from = {2.0f, 5.0f}, target = {7.0f, 5.0f}, waypoint;
     pathAccelParams_t point = { &from, &target, 0.0f, 0 };
     pathAccelParams_t wide = { &from, &target, 1.0f, 0 };
@@ -485,8 +485,8 @@ TEST(wc3_pathfinding, heatmap_cache_separates_collision_radius) {
     reset_entities();
 
     LPEDICT wp = make_waypoint(5.0f, 5.0f);
-    DWORD point_gen = CM_BuildHeatmapForRadius(wp, 0.0f);
-    DWORD wide_gen = CM_BuildHeatmapForRadius(wp, 1.0f);
+    uint32_t point_gen = CM_BuildHeatmapForRadius(wp, 0.0f);
+    uint32_t wide_gen = CM_BuildHeatmapForRadius(wp, 1.0f);
 
     T_ASSERT(point_gen != 0);
     T_ASSERT(wide_gen != 0);
@@ -512,15 +512,15 @@ TEST(wc3_pathfinding, multi_goal_cache_no_thrash) {
     T_ASSERT(wp_a != wp_b);
 
     /* Build both goals once — they each occupy a cache slot. */
-    DWORD gen_a1 = CM_BuildHeatmap(wp_a);
-    DWORD gen_b1 = CM_BuildHeatmap(wp_b);
+    uint32_t gen_a1 = CM_BuildHeatmap(wp_a);
+    uint32_t gen_b1 = CM_BuildHeatmap(wp_b);
 
     /* Both goals are different so their generations must differ. */
     T_ASSERT(gen_a1 != gen_b1);
 
     /* Switch back to each — both should hit the cache (same generation). */
-    DWORD gen_a2 = CM_BuildHeatmap(wp_a);
-    DWORD gen_b2 = CM_BuildHeatmap(wp_b);
+    uint32_t gen_a2 = CM_BuildHeatmap(wp_a);
+    uint32_t gen_b2 = CM_BuildHeatmap(wp_b);
 
     T_EQ(gen_a1, gen_a2);
     T_EQ(gen_b1, gen_b2);
@@ -532,14 +532,14 @@ TEST(wc3_pathfinding, heatmap_cache_ignores_stale_dynamic_pathmap_stamps) {
     reset_entities();
 
     LPEDICT wp1 = make_waypoint(5.0f, 5.0f);
-    DWORD gen1 = CM_BuildHeatmap(wp1);
+    uint32_t gen1 = CM_BuildHeatmap(wp1);
 
     LPEDICT unit = make_unit_at(wp1->s.origin.x, wp1->s.origin.y);
     VECTOR2 pathable;
     CM_ClosestPathablePointForRadius(&wp1->s.origin2, unit->collision, &pathable);
 
     LPEDICT wp2 = make_waypoint(5.0f, 5.0f);
-    DWORD gen2 = CM_BuildHeatmap(wp2);
+    uint32_t gen2 = CM_BuildHeatmap(wp2);
 
     T_EQ(gen1, gen2);
 }
@@ -571,7 +571,7 @@ TEST(wc3_pathfinding, flow_reachability_distinguishes_disconnected_component) {
     reset_entities();
 
     LPEDICT wp = make_waypoint(7.0f, 5.0f);
-    DWORD gen = CM_BuildHeatmap(wp);
+    uint32_t gen = CM_BuildHeatmap(wp);
 
     T_ASSERT(CM_FlowCanReach(gen, 7.0f, 5.0f));
     T_ASSERT(!CM_FlowCanReach(gen, 3.0f, 5.0f));
@@ -627,7 +627,7 @@ TEST(wc3_pathfinding, flow_goal_has_no_outward_direction) {
     reset_entities();
 
     LPEDICT wp = make_waypoint(5.0f, 5.0f);
-    DWORD gen = CM_BuildHeatmap(wp);
+    uint32_t gen = CM_BuildHeatmap(wp);
     VECTOR2 dir = get_flow_direction(gen, 5.0f, 5.0f);
 
     T_ASSERT(CM_FlowReachedGoal(gen, 5.0f, 5.0f));
@@ -636,14 +636,14 @@ TEST(wc3_pathfinding, flow_goal_has_no_outward_direction) {
 }
 
 TEST(wc3_pathfinding, flow_goal_reports_adjusted_blocked_target_cell) {
-    BYTE blocked_goal[MAP_W * MAP_H];
+    uint8_t blocked_goal[MAP_W * MAP_H];
     memset(blocked_goal, 0, sizeof(blocked_goal));
     blocked_goal[5 * MAP_W + 5] = 2;
     setup_test_pathmap(MAP_W, MAP_H, blocked_goal);
     reset_entities();
 
     LPEDICT wp = make_waypoint(5.0f, 5.0f);
-    DWORD gen = CM_BuildHeatmap(wp);
+    uint32_t gen = CM_BuildHeatmap(wp);
 
     T_ASSERT(gen != 0);
     T_ASSERT(!CM_FlowReachedGoal(gen, 5.0f, 5.0f));
@@ -658,8 +658,8 @@ TEST(wc3_pathfinding, flow_goal_reports_adjusted_blocked_target_cell) {
  * would otherwise orbit the same wrong location instead of completing the
  * behavior-owned footprint/range interaction. */
 TEST(wc3_pathfinding, point_flow_adjusted_goal_has_no_outward_direction) {
-    BYTE blocked_goal[MAP_W * MAP_H];
-    FLOAT goal_x = 5.0f, goal_y = 4.0f;
+    uint8_t blocked_goal[MAP_W * MAP_H];
+    float goal_x = 5.0f, goal_y = 4.0f;
     VECTOR2 dir;
 
     memset(blocked_goal, 0, sizeof(blocked_goal));
@@ -668,7 +668,7 @@ TEST(wc3_pathfinding, point_flow_adjusted_goal_has_no_outward_direction) {
     reset_entities();
 
     LPEDICT wp = make_waypoint(5.0f, 5.0f);
-    DWORD gen = CM_BuildHeatmap(wp);
+    uint32_t gen = CM_BuildHeatmap(wp);
 
     T_ASSERT(gen != 0);
     if (!CM_FlowReachedGoal(gen, goal_x, goal_y)) {
@@ -687,8 +687,8 @@ TEST(wc3_pathfinding, point_flow_adjusted_goal_has_no_outward_direction) {
  * toward the real entity target so mine entry, resource deposit, attack range,
  * and similar behavior checks can finish. */
 TEST(wc3_pathfinding, interaction_point_route_reports_adjusted_goal) {
-    BYTE blocked_goal[MAP_W * MAP_H];
-    FLOAT goal_x = 5.0f, goal_y = 4.0f;
+    uint8_t blocked_goal[MAP_W * MAP_H];
+    float goal_x = 5.0f, goal_y = 4.0f;
 
     memset(blocked_goal, 0, sizeof(blocked_goal));
     blocked_goal[5 * MAP_W + 5] = 2;
@@ -696,7 +696,7 @@ TEST(wc3_pathfinding, interaction_point_route_reports_adjusted_goal) {
     reset_entities();
 
     LPEDICT target = make_waypoint(5.0f, 5.0f);
-    DWORD gen = CM_BuildHeatmap(target);
+    uint32_t gen = CM_BuildHeatmap(target);
     T_ASSERT(gen != 0);
     if (!CM_FlowReachedGoal(gen, goal_x, goal_y)) {
         goal_x = 4.0f;
@@ -718,7 +718,7 @@ TEST(wc3_pathfinding, interaction_point_route_reports_adjusted_goal) {
 }
 
 TEST(wc3_pathfinding, line_walkability_respects_collision_radius) {
-    BYTE corridor[MAP_W * MAP_H];
+    uint8_t corridor[MAP_W * MAP_H];
     memset(corridor, 0, sizeof(corridor));
     for (int x = 0; x < MAP_W; x++) {
         corridor[4 * MAP_W + x] = 2;
@@ -734,7 +734,7 @@ TEST(wc3_pathfinding, line_walkability_respects_collision_radius) {
 }
 
 TEST(wc3_pathfinding, direct_approach_stops_before_blocked_target_center) {
-    BYTE blocked_target[MAP_W * MAP_H];
+    uint8_t blocked_target[MAP_W * MAP_H];
     VECTOR2 from = { 1.0f, 5.0f };
     VECTOR2 target = { 5.0f, 5.0f };
     VECTOR2 approach = { 0 };
@@ -752,7 +752,7 @@ TEST(wc3_pathfinding, direct_approach_stops_before_blocked_target_center) {
 
 
 TEST(wc3_pathfinding, footprint_approach_returns_legal_point_beside_blocked_building) {
-    BYTE blocked_target[MAP_W * MAP_H];
+    uint8_t blocked_target[MAP_W * MAP_H];
     LPEDICT building;
     pathTex_t *pathtex;
     VECTOR2 from = { 1.0f, 5.0f };
@@ -785,7 +785,7 @@ TEST(wc3_pathfinding, footprint_approach_returns_legal_point_beside_blocked_buil
  * ordering: choose the innermost legal ring first, then preserve the worker's
  * side among points on that ring. */
 TEST(wc3_pathfinding, footprint_inner_approach_prefers_contact_ring_over_outer_staging) {
-    BYTE blocked_target[MAP_W * MAP_H];
+    uint8_t blocked_target[MAP_W * MAP_H];
     LPEDICT building;
     pathTex_t *pathtex;
     VECTOR2 from = { 0.5f, 5.5f };
@@ -822,7 +822,7 @@ TEST(wc3_pathfinding, footprint_inner_approach_prefers_contact_ring_over_outer_s
  * open middle of this five-cell texture even though it is outside range of
  * either authored blocked pixel. */
 TEST(wc3_pathfinding, footprint_approach_respects_sparse_path_texture) {
-    BYTE blocked_target[MAP_W * MAP_H];
+    uint8_t blocked_target[MAP_W * MAP_H];
     LPEDICT building;
     pathTex_t *pathtex;
     VECTOR2 from = { 5.5f, 5.5f };
@@ -856,7 +856,7 @@ TEST(wc3_pathfinding, footprint_approach_respects_sparse_path_texture) {
 }
 
 TEST(wc3_pathfinding, heatmap_rejects_corridor_too_narrow_for_radius) {
-    BYTE corridor[MAP_W * MAP_H];
+    uint8_t corridor[MAP_W * MAP_H];
     memset(corridor, 2, sizeof(corridor));
     for (int x = 0; x < MAP_W; x++)
         corridor[5 * MAP_W + x] = 0;
@@ -871,7 +871,7 @@ TEST(wc3_pathfinding, heatmap_rejects_corridor_too_narrow_for_radius) {
 /* Move steering and move-time collision must use the same footprint.  A point
  * route fits through this one-cell opening, but a radius-one unit does not. */
 TEST(wc3_pathfinding, move_order_requests_collision_sized_route) {
-    BYTE gap_map[MAP_W * MAP_H];
+    uint8_t gap_map[MAP_W * MAP_H];
     memset(gap_map, 0, sizeof(gap_map));
     for (int y = 2; y <= 6; y++)
         if (y != 5) gap_map[y * MAP_W + 5] = 2;
@@ -891,7 +891,7 @@ TEST(wc3_pathfinding, move_order_requests_collision_sized_route) {
 }
 
 TEST(wc3_pathfinding, patrol_requests_collision_sized_route) {
-    BYTE gap_map[MAP_W * MAP_H];
+    uint8_t gap_map[MAP_W * MAP_H];
     memset(gap_map, 0, sizeof(gap_map));
     for (int y = 2; y <= 6; y++)
         if (y != 5) gap_map[y * MAP_W + 5] = 2;
@@ -909,7 +909,7 @@ TEST(wc3_pathfinding, patrol_requests_collision_sized_route) {
 }
 
 TEST(wc3_pathfinding, attack_move_requests_collision_sized_route) {
-    BYTE gap_map[MAP_W * MAP_H];
+    uint8_t gap_map[MAP_W * MAP_H];
     memset(gap_map, 0, sizeof(gap_map));
     for (int y = 2; y <= 6; y++)
         if (y != 5) gap_map[y * MAP_W + 5] = 2;
@@ -943,8 +943,8 @@ TEST(wc3_pathfinding, unit_presence_does_not_invalidate_heatmap_cache) {
     LPEDICT unit = make_unit_at(3.0f, 5.0f);
     (void)unit;
 
-    DWORD gen1 = CM_BuildHeatmap(wp);
-    DWORD gen2 = CM_BuildHeatmap(wp);
+    uint32_t gen1 = CM_BuildHeatmap(wp);
+    uint32_t gen2 = CM_BuildHeatmap(wp);
 
     T_EQ(gen1, gen2);
 }
@@ -1002,7 +1002,7 @@ TEST(wc3_pathfinding, closest_pathable_ignores_dead_dynamic_unit) {
 }
 
 TEST(wc3_pathfinding, closest_pathable_dynamic_units_use_movement_layer) {
-    BYTE cells[MAP_W * MAP_H] = { 0 };
+    uint8_t cells[MAP_W * MAP_H] = { 0 };
     VECTOR2 point = { 2.0f, 5.0f }, out = { 0 };
     LPEDICT blocker;
 
@@ -1060,8 +1060,8 @@ TEST(wc3_pathfinding, closest_reachable_respects_collision_radius) {
 /* An impossible footprint must not synchronously reflood the map on every
  * steering tick while the same move order remains active. */
 TEST(wc3_pathfinding, movement_throttles_repeated_unreachable_fallback) {
-    BYTE blocked_map[MAP_W * MAP_H];
-    DWORD first_time, second_time, first_calls;
+    uint8_t blocked_map[MAP_W * MAP_H];
+    uint32_t first_time, second_time, first_calls;
     struct routePerfStats_s stats;
     LPEDICT unit, goal;
 
@@ -1092,7 +1092,7 @@ TEST(wc3_pathfinding, movement_throttles_repeated_unreachable_fallback) {
 /* A successful fallback retarget must not be recomputed when its move order
  * has already been adjusted once. */
 TEST(wc3_pathfinding, movement_remembers_applied_unreachable_fallback) {
-    BYTE split[MAP_W * MAP_H];
+    uint8_t split[MAP_W * MAP_H];
     LPEDICT unit, goal;
 
     build_split_map();
@@ -1116,7 +1116,7 @@ TEST(wc3_pathfinding, movement_remembers_applied_unreachable_fallback) {
  * (squeezing the corner is not a legal move), so its flow is zero, not a
  * diagonal pointing into the corner. */
 TEST(wc3_pathfinding, no_diagonal_corner_cutting) {
-    BYTE corner_map[MAP_W * MAP_H];
+    uint8_t corner_map[MAP_W * MAP_H];
     memset(corner_map, 0, sizeof(corner_map));
     corner_map[0 * MAP_W + 1] = 2;  /* wall at (1,0) */
     corner_map[1 * MAP_W + 0] = 2;  /* wall at (0,1) */
@@ -1135,7 +1135,7 @@ TEST(wc3_pathfinding, no_diagonal_corner_cutting) {
  * Otherwise generic movement bypasses routing for the exact ox/xo fence shape
  * and repeatedly asks collision to enter the blocked diagonal gap. */
 TEST(wc3_pathfinding, direct_line_rejects_diagonal_corner_cutting) {
-    BYTE corner_map[MAP_W * MAP_H];
+    uint8_t corner_map[MAP_W * MAP_H];
     VECTOR2 start = { 0.5f, 0.5f };
     VECTOR2 goal = { 1.5f, 1.5f };
     memset(corner_map, 0, sizeof(corner_map));
@@ -1147,7 +1147,7 @@ TEST(wc3_pathfinding, direct_line_rejects_diagonal_corner_cutting) {
 }
 
 TEST(wc3_pathfinding, closest_reachable_does_not_cross_diagonal_corner) {
-    BYTE corner_map[MAP_W * MAP_H];
+    uint8_t corner_map[MAP_W * MAP_H];
     VECTOR2 start = { 0.5f, 0.5f };
     VECTOR2 target = { 1.5f, 1.5f };
     VECTOR2 out = {0};
@@ -1162,7 +1162,7 @@ TEST(wc3_pathfinding, closest_reachable_does_not_cross_diagonal_corner) {
 }
 
 TEST(wc3_pathfinding, movement_rejects_swept_static_obstacle) {
-    BYTE blocked_map[MAP_W * MAP_H];
+    uint8_t blocked_map[MAP_W * MAP_H];
     VECTOR2 from = { 0.0f, 0.0f }, to = { 2.0f, 2.0f };
     LPEDICT unit;
     memset(blocked_map, 0, sizeof(blocked_map));
@@ -1263,7 +1263,7 @@ TEST(wc3_pathfinding, proximity_shortcut_gives_correct_angle) {
     }
 
     /* Angle must point from (0,0) toward the goal. */
-    FLOAT expected = atan2f(wp->s.origin.y - unit->s.origin.y,
+    float expected = atan2f(wp->s.origin.y - unit->s.origin.y,
                             wp->s.origin.x - unit->s.origin.x);
     T_FEQ(unit->s.angle, expected, 0.01f);
 }
@@ -1273,7 +1273,7 @@ TEST(wc3_pathfinding, proximity_shortcut_gives_correct_angle) {
  * --------------------------------------------------------------------- */
 
 TEST(wc3_pathfinding, static_rect_query_handles_subcell_interaction_area) {
-    BYTE cells[4 * 4] = { 0 };
+    uint8_t cells[4 * 4] = { 0 };
     BOX2 rect = { .min = {1.10f, 1.10f}, .max = {1.20f, 1.20f} };
     VECTOR2 from = {0.25f, 0.25f}, out = {0};
 
@@ -1286,7 +1286,7 @@ TEST(wc3_pathfinding, static_rect_query_handles_subcell_interaction_area) {
 }
 
 TEST(wc3_pathfinding, static_rect_query_skips_blocked_intersecting_cell) {
-    BYTE cells[4 * 4] = { 0 };
+    uint8_t cells[4 * 4] = { 0 };
     BOX2 rect = { .min = {1.10f, 1.10f}, .max = {2.90f, 1.90f} };
     VECTOR2 from = {1.20f, 1.20f}, out = {0};
 
@@ -1300,7 +1300,7 @@ TEST(wc3_pathfinding, static_rect_query_skips_blocked_intersecting_cell) {
 }
 
 TEST(wc3_pathfinding, static_rect_query_ignores_temporary_unit_occupancy) {
-    BYTE cells[4 * 4] = { 0 };
+    uint8_t cells[4 * 4] = { 0 };
     BOX2 rect = { .min = {1.25f, 1.25f}, .max = {1.75f, 1.75f} };
     VECTOR2 from = {1.50f, 1.50f}, out = {0};
     LPEDICT blocker;
@@ -1320,10 +1320,10 @@ TEST(wc3_pathfinding, static_rect_query_ignores_temporary_unit_occupancy) {
 }
 
 TEST(wc3_pathfinding, blight_world_state_uses_wpm_seed_and_survives_static_rebuild) {
-    BYTE cells[10 * 10] = { 0 };
+    uint8_t cells[10 * 10] = { 0 };
     VECTOR2 authored = { 16.0f, 16.0f };
     VECTOR2 runtime = { 144.0f, 144.0f };
-    BYTE saved[100];
+    uint8_t saved[100];
 
     cells[0] = 0x20;
     CM_SetupTestPathmap(10, 10, cells);

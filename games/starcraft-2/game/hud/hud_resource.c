@@ -24,7 +24,7 @@ static sc2BaseFrame_t *resource_find(void) {
          *   ResourceLabel1 = gas (vespene)            → LUMBER
          *   ResourceLabel0 = secondary mineral slot   → GOLD
          * ResourceLabel3 was previously unbound, causing "text N" fallback. */
-        static struct { LPCSTR name; DWORD stat; } const bindings[] = {
+        static struct { cstring_t name; uint32_t stat; } const bindings[] = {
             { "ResourceLabel0", PLAYERSTATE_RESOURCE_GOLD },
             { "ResourceLabel1", PLAYERSTATE_RESOURCE_LUMBER },
             { "ResourceLabel2", PLAYERSTATE_RESOURCE_HERO_TOKENS },
@@ -46,7 +46,7 @@ static void write_one(sc2BaseFrame_t *f) {
 }
 
 void SC2_HUD_WriteResourcePanel(LPEDICT ent) {
-    DWORD count = 0;
+    uint32_t count = 0;
     sc2BaseFrame_t *frames = SC2_HUD_EnsureLayout(&count);
     if (!frames) return;
 

@@ -24,9 +24,9 @@
  *  lookups Wow_SelectSpawnPoint / Wow_PlayerCreateMap).  Only entity placement
  *  stays here because it touches game-runtime state.
  */
-void Wow_TeleportPlayer(LPEDICT ent, DWORD idx) {
+void Wow_TeleportPlayer(LPEDICT ent, uint32_t idx) {
     LPCWOWSPAWNPOINT sp = Wow_SpawnByIndex(idx);
-    FLOAT z;
+    float z;
     if (!sp) return;
     z = Wow_TerrainHeight(sp->x, sp->y);
     if (z == 0.0f) z = sp->z;
@@ -39,8 +39,8 @@ void Wow_TeleportPlayer(LPEDICT ent, DWORD idx) {
 
 /* Teleport to an explicit world position — used for area trigger destinations
  * and warp-by-name where there is no playercreateinfo entry. */
-void Wow_TeleportPlayerToPos(LPEDICT ent, FLOAT x, FLOAT y, FLOAT z, FLOAT orientation) {
-    FLOAT tz = Wow_TerrainHeight(x, y);
+void Wow_TeleportPlayerToPos(LPEDICT ent, float x, float y, float z, float orientation) {
+    float tz = Wow_TerrainHeight(x, y);
     /* SQL z is authoritative for dungeon interiors where terrain height is 0. */
     if (tz != 0.0f) z = tz;
     ent->s.origin = (VECTOR3){ x, y, z };

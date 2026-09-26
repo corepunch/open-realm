@@ -2,21 +2,21 @@
 
 #pragma pack (push, 1)
 typedef struct {
-    BYTE id_length, colormap_type, image_type;
-    WORD colormap_index, colormap_length;
-    BYTE colormap_size;
-    WORD x_origin, y_origin, width, height;
-    BYTE pixel_size, attributes;
+    uint8_t id_length, colormap_type, image_type;
+    uint16_t colormap_index, colormap_length;
+    uint8_t colormap_size;
+    uint16_t x_origin, y_origin, width, height;
+    uint8_t pixel_size, attributes;
 } tgaHeader_t;
 #pragma pack (pop)
 
 #define TGA_ORIGIN_MASK 0x30
 
-pathTex_t *LoadTGA(BYTE const* mem, size_t size) {
+pathTex_t *LoadTGA(uint8_t const* mem, size_t size) {
     tgaHeader_t const *header;
-    BYTE const *tga;
+    uint8_t const *tga;
     size_t offset, bytes_per_pixel, num_pixels;
-    DWORD columns, rows;
+    uint32_t columns, rows;
 
     if (!mem || size < sizeof(tgaHeader_t)) return NULL;
     header = (tgaHeader_t const *)mem;
@@ -60,8 +60,8 @@ pathTex_t *LoadTGA(BYTE const* mem, size_t size) {
         for (int row=rows-1; row>=0; row--) {
             for (int column=0; column<columns; column++) {
                 LPCCOLOR32 pcolor = &pathTex->map[column + row * columns];
-                LPBYTE dest = (LPBYTE)pcolor;
-                BYTE value;
+                uint8_t * dest = (uint8_t *)pcolor;
+                uint8_t value;
                 switch (header->pixel_size) {
                     case 8:
                         value = *tga++;

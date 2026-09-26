@@ -30,12 +30,12 @@ typedef struct {
     LPTRIGGER trigger;
     LPEDICT unit;
     LPEDICT source;
-    LONG value;
+    int32_t value;
     LPCVECTOR2 point;
-    BOOL has_point;
-    HANDLE timer;
-    HANDLE region;
-    BOOL timer_pending;
+    bool has_point;
+    handle_t timer;
+    handle_t region;
+    bool timer_pending;
 } jassTriggerContextParams_t;
 
 #define assert_type(var, type) do { if (!jass_checktype(var, type)) jass_rterror(j, "invalid native argument: expected " #type); } while (0)
@@ -51,7 +51,7 @@ LPJASSVAR VAR = &j->stack[j->num_stack++]; \
 memset(VAR, 0, sizeof(*VAR)); \
 VAR->type = &jass_types[TYPE];
 
-static void jass_store_value(LPJASSVAR var, LPCVOID value, DWORD size) {
+static void jass_store_value(LPJASSVAR var, void const * value, uint32_t size) {
     jass_setnull(var);
     if (!value) {
         return;
@@ -61,12 +61,12 @@ static void jass_store_value(LPJASSVAR var, LPCVOID value, DWORD size) {
 }
 
 #define JASS_CMPOP(NAME, OP) \
-DWORD NAME(LPJASS j) { \
+uint32_t NAME(LPJASS j) { \
     return jass_pushboolean(j, jass_checknumber(j, 1) OP jass_checknumber(j, 2)); \
 }
 
 #define JASS_NUMOP(NAME, OP) \
-DWORD NAME(LPJASS j) { \
+uint32_t NAME(LPJASS j) { \
     if (jass_gettype(j, 1) == jasstype_integer && jass_gettype(j, 2) == jasstype_integer) { \
         return jass_pushinteger(j, jass_checkinteger(j, 1) OP jass_checkinteger(j, 2)); \
     } else { \
@@ -86,18 +86,18 @@ DWORD NAME(LPJASS j) { \
 LPPLAYER currentplayer = NULL;
 LPEDICT currentunit = NULL;
 LPPLAYER currentenumplayer = NULL;
-static HANDLE currenttimer = NULL;
+static handle_t currenttimer = NULL;
 
-LPCSTR keywords[] = {
+cstring_t keywords[] = {
     "elseif", "else", "endif", "set", "endfunction", "local", "then", NULL
 };
 
 static JASSHOST jass_host;
 
 typedef struct {
-    LPCSTR delimiters;
+    cstring_t delimiters;
     LPTOKEN (*parse)(LPPARSER p);
-    DWORD flags;
+    uint32_t flags;
 } JASSSYNTAX;
 
 static const JASSSYNTAX jass_syntax[] = {
@@ -124,54 +124,54 @@ JASSTYPE jass_types[] = {
  * Forward declarations
  * ========================================================================= */
 
-static void jass_missingcall(LPJASS j, LPCSTR name, BOOL native);
+static void jass_missingcall(LPJASS j, cstring_t name, bool native);
 static LPJASSVAR jass_stackvalue(LPJASS j, int index);
 static LPJASSVAR jass_topvalue(LPJASS j);
 static JASSTYPEID jass_getvarbasetype(LPCJASSVAR var);
-static DWORD jass_dotoken(LPJASS j, LPCTOKEN token);
-static LPCJASSFUNC find_function(LPCJASS j, LPCSTR name);
-static LPJASSVAR find_global(LPCJASS j, LPCSTR name);
+static uint32_t jass_dotoken(LPJASS j, LPCTOKEN token);
+static LPCJASSFUNC find_function(LPCJASS j, cstring_t name);
+static LPJASSVAR find_global(LPCJASS j, cstring_t name);
 static void eval_SINGLETOKEN(LPJASS j, LPCTOKEN token);
 static void eval_VARDECL(LPJASS j, LPCTOKEN token);
 void eval_TOKENS(LPJASS j, LPCTOKEN token);
 static void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other);
 void jass_setreturn(LPJASS j);
-BOOL jass_mustreturn(LPJASS j);
-BOOL uses_localplayer(LPCTOKEN token);
+bool jass_mustreturn(LPJASS j);
+bool uses_localplayer(LPCTOKEN token);
 static void jass_setnull(LPJASSVAR var);
-static LPCJASSTYPE find_type(LPCJASS j, LPCSTR name);
+static LPCJASSTYPE find_type(LPCJASS j, cstring_t name);
 static LPCJASSTYPE get_base_type(LPCJASSTYPE type);
-static LPJASSVAR ensure_array_value(LPJASS j, LPJASSVAR dest, DWORD index);
-static void jass_discard(LPJASS j, DWORD count);
+static LPJASSVAR ensure_array_value(LPJASS j, LPJASSVAR dest, uint32_t index);
+static void jass_discard(LPJASS j, uint32_t count);
 
 /* =========================================================================
  * Host interface
  * ========================================================================= */
 
-static BOOL jass_atob(LPCSTR str) {
+static bool jass_atob(cstring_t str) {
     return !strcmp(str, "true");
 }
 
-static void jass_default_error(LPCSTR message) { fprintf(stderr, "JASS runtime error: %s\n", message); }
+static void jass_default_error(cstring_t message) { fprintf(stderr, "JASS runtime error: %s\n", message); }
 
 void jass_sethost(JASSHOST const *host) {
     jass_host = *host;
     if (!jass_host.RuntimeError) jass_host.RuntimeError = jass_default_error;
 }
 
-HANDLE jass_alloc(long size) {
+handle_t jass_alloc(long size) {
     return jass_host.MemAlloc(size);
 }
 
-void jass_free(HANDLE ptr) {
+void jass_free(handle_t ptr) {
     jass_host.MemFree(ptr);
 }
 
-static DWORD jass_gettime(void) {
+static uint32_t jass_gettime(void) {
     return jass_host.GetTime ? jass_host.GetTime() : 0;
 }
 
-static LPPLAYER jass_getplayerbyindex(DWORD number) {
+static LPPLAYER jass_getplayerbyindex(uint32_t number) {
     return jass_host.GetPlayerByNumber ? jass_host.GetPlayerByNumber(number) : NULL;
 }
 
@@ -179,13 +179,13 @@ static LPPLAYER jass_getplayerbyindex(DWORD number) {
  * Operators (built-in native functions for arithmetic / comparison)
  * ========================================================================= */
 
-DWORD __add(LPJASS j) {
+uint32_t __add(LPJASS j) {
     if (jass_gettype(j, 1) == jasstype_string && jass_gettype(j, 2) == jasstype_string) {
-        LPCSTR a = jass_checkstring(j, 1);
-        LPCSTR b = jass_checkstring(j, 2);
-        DWORD alen = a ? (DWORD)strlen(a) : 0;
-        DWORD blen = b ? (DWORD)strlen(b) : 0;
-        LPSTR text = jass_alloc(alen + blen + 1);
+        cstring_t a = jass_checkstring(j, 1);
+        cstring_t b = jass_checkstring(j, 2);
+        uint32_t alen = a ? (uint32_t)strlen(a) : 0;
+        uint32_t blen = b ? (uint32_t)strlen(b) : 0;
+        string_t text = jass_alloc(alen + blen + 1);
 
         if (alen) {
             memcpy(text, a, alen);
@@ -205,7 +205,7 @@ DWORD __add(LPJASS j) {
     return jass_pushnumber(j, jass_checknumber(j, 1) + jass_checknumber(j, 2));
 }
 
-DWORD __unm(LPJASS j) {
+uint32_t __unm(LPJASS j) {
     if (jass_gettype(j, 1) == jasstype_integer) {
         return jass_pushinteger(j, -jass_checkinteger(j, 1));
     } else {
@@ -221,8 +221,8 @@ JASS_CMPOP(__ge, >=);
 JASS_CMPOP(__gt, >);
 JASS_CMPOP(__lt, <);
 
-static BOOL jass_valuehandle(LPCSTR type) {
-    static LPCSTR const value_handles[] = {
+static bool jass_valuehandle(cstring_t type) {
+    static cstring_t const value_handles[] = {
         "race", "alliancetype", "racepreference", "igamestate", "fgamestate", "playerstate",
         "playergameresult", "unitstate", "gameevent", "playerevent", "playerunitevent", "widgetevent",
         "dialogevent", "unitevent", "limitop", "unittype", "gamespeed", "placement", "startlocprio",
@@ -234,62 +234,62 @@ static BOOL jass_valuehandle(LPCSTR type) {
     return false;
 }
 
-static BOOL var_eq(LPCJASSVAR a, LPCJASSVAR b) {
+static bool var_eq(LPCJASSVAR a, LPCJASSVAR b) {
     switch ((a->value == NULL) + (b->value == NULL)) {
         case 2: return true;
         case 1: return false;
     }
     if (jass_getvarbasetype(a) != jass_getvarbasetype(b)) return false;
     switch (jass_getvarbasetype(a)) {
-        case jasstype_integer: return !memcmp(a->value, b->value, sizeof(LONG));
-        case jasstype_real: return !memcmp(a->value, b->value, sizeof(FLOAT));
+        case jasstype_integer: return !memcmp(a->value, b->value, sizeof(int32_t));
+        case jasstype_real: return !memcmp(a->value, b->value, sizeof(float));
         case jasstype_string: return !strcmp(a->value, b->value);
-        case jasstype_boolean: return !memcmp(a->value, b->value, sizeof(BOOL));
-        case jasstype_code: return !memcmp(a->value, b->value, sizeof(HANDLE));
-        case jasstype_cfunction: return !memcmp(a->value, b->value, sizeof(HANDLE));
+        case jasstype_boolean: return !memcmp(a->value, b->value, sizeof(bool));
+        case jasstype_code: return !memcmp(a->value, b->value, sizeof(handle_t));
+        case jasstype_cfunction: return !memcmp(a->value, b->value, sizeof(handle_t));
         case jasstype_handle:
             if (a->value == b->value) return true;
             if (a->type != b->type) return false;
             /* Galaxy opaque types have no JASS declaration; unequal identities must not dereference a null type. */
-            return a->type && jass_valuehandle(a->type->name) && !memcmp(a->value, b->value, sizeof(DWORD));
+            return a->type && jass_valuehandle(a->type->name) && !memcmp(a->value, b->value, sizeof(uint32_t));
     }
     return false;
 }
 
-DWORD __eq(LPJASS j) {
+uint32_t __eq(LPJASS j) {
     return jass_pushboolean(j, var_eq(jass_stackvalue(j, 1), jass_stackvalue(j, 2)));
 }
 
-DWORD __ne(LPJASS j) {
+uint32_t __ne(LPJASS j) {
     return jass_pushboolean(j, !var_eq(jass_stackvalue(j, 1), jass_stackvalue(j, 2)));
 }
 
-DWORD __and(LPJASS j) {
+uint32_t __and(LPJASS j) {
     return jass_pushboolean(j, jass_toboolean(j, 1) && jass_toboolean(j, 2));
 }
 
-DWORD __or(LPJASS j) {
+uint32_t __or(LPJASS j) {
     return jass_pushboolean(j, jass_toboolean(j, 1) || jass_toboolean(j, 2));
 }
 
-DWORD __not(LPJASS j) {
+uint32_t __not(LPJASS j) {
     return jass_pushboolean(j, !jass_toboolean(j, 1));
 }
 
-DWORD __lsh(LPJASS j) {
-    return jass_pushinteger(j, (LONG)jass_checkinteger(j, 1) << (LONG)jass_checkinteger(j, 2));
+uint32_t __lsh(LPJASS j) {
+    return jass_pushinteger(j, (int32_t)jass_checkinteger(j, 1) << (int32_t)jass_checkinteger(j, 2));
 }
-DWORD __rsh(LPJASS j) {
-    return jass_pushinteger(j, (LONG)jass_checkinteger(j, 1) >> (LONG)jass_checkinteger(j, 2));
+uint32_t __rsh(LPJASS j) {
+    return jass_pushinteger(j, (int32_t)jass_checkinteger(j, 1) >> (int32_t)jass_checkinteger(j, 2));
 }
-DWORD __bor(LPJASS j) {
-    return jass_pushinteger(j, (LONG)jass_checkinteger(j, 1) | (LONG)jass_checkinteger(j, 2));
+uint32_t __bor(LPJASS j) {
+    return jass_pushinteger(j, (int32_t)jass_checkinteger(j, 1) | (int32_t)jass_checkinteger(j, 2));
 }
-DWORD __band(LPJASS j) {
-    return jass_pushinteger(j, (LONG)jass_checkinteger(j, 1) & (LONG)jass_checkinteger(j, 2));
+uint32_t __band(LPJASS j) {
+    return jass_pushinteger(j, (int32_t)jass_checkinteger(j, 1) & (int32_t)jass_checkinteger(j, 2));
 }
-DWORD __xor(LPJASS j) {
-    return jass_pushinteger(j, (LONG)jass_checkinteger(j, 1) ^ (LONG)jass_checkinteger(j, 2));
+uint32_t __xor(LPJASS j) {
+    return jass_pushinteger(j, (int32_t)jass_checkinteger(j, 1) ^ (int32_t)jass_checkinteger(j, 2));
 }
 
 JASSMODULE jass_operators[] = {
@@ -319,7 +319,7 @@ JASSMODULE jass_operators[] = {
  * String utilities
  * ========================================================================= */
 
-void removeDoubleBackslashes(LPSTR str) {
+void removeDoubleBackslashes(string_t str) {
     size_t len = strlen(str);
     size_t j = 0;
     for (size_t i = 0; i < len; i++) {
@@ -331,8 +331,8 @@ void removeDoubleBackslashes(LPSTR str) {
     str[j] = '\0';
 }
 
-BOOL is_integer(LPCSTR tok) {
-    LPSTR endptr;
+bool is_integer(cstring_t tok) {
+    string_t endptr;
     if (!tok || !*tok) return false;
     if (*tok == '$') {
         if (!tok[1]) return false;
@@ -343,28 +343,28 @@ BOOL is_integer(LPCSTR tok) {
     return *endptr == '\0';
 }
 
-BOOL is_float(LPCSTR tok) {
-    LPSTR endptr;
+bool is_float(cstring_t tok) {
+    string_t endptr;
     strtod(tok, &endptr);
     return *endptr == '\0';
 }
 
-BOOL is_fourcc(LPCSTR tok) {
+bool is_fourcc(cstring_t tok) {
     return *tok == '\'';
 }
 
-BOOL is_string(LPCSTR tok) {
+bool is_string(cstring_t tok) {
     return *tok == '\"';
 }
 
-BOOL is_identifier(LPCSTR str) {
+bool is_identifier(cstring_t str) {
     if (!isalpha(*str) && *str != '_')
         return false;
-    for (LPCSTR s = str; *s; ++s) {
+    for (cstring_t s = str; *s; ++s) {
         if (!isalnum(*s) && *s != '_')
             return false;
     }
-    for (LPCSTR *kw = keywords; *kw; kw++) {
+    for (cstring_t *kw = keywords; *kw; kw++) {
         if (!strcmp(str, *kw)) {
             return false;
         }
@@ -372,7 +372,7 @@ BOOL is_identifier(LPCSTR str) {
     return true;
 }
 
-BOOL is_comma(LPCSTR str) {
+bool is_comma(cstring_t str) {
     return !strcmp(str, ",");
 }
 
@@ -386,7 +386,7 @@ LPCJASSCONTEXT jass_getcontext(LPJASS j) {
 
 static LPJASS jass_root(LPJASS j) { return j->root ? j->root : j; }
 LPJASS jass_getroot(LPJASS j)     { return jass_root(j); }
-BOOL jass_isrunning(LPJASS j)     { return jass_root(j)->current_coroutine != NULL; }
+bool jass_isrunning(LPJASS j)     { return jass_root(j)->current_coroutine != NULL; }
 void jass_haltevents(LPJASS j)    { jass_root(j)->halt_events = true; }
 
 /* =========================================================================
@@ -466,7 +466,7 @@ static LPJASSDICT jass_coroutine_buildlocals(LPJASS j, LPCJASSFUNC func, LPCTOKE
         local->key = arg->name;
         local->value.type = arg->type;
         if (arg_token) {
-            DWORD count = jass_dotoken(j, arg_token);
+            uint32_t count = jass_dotoken(j, arg_token);
             /* Match synchronous calls: a void or unresolved argument becomes null instead of underflowing the stack. */
             if (!count) { jass_pushnull(j); count = 1; }
             jass_copy(j, &local->value, jass_topvalue(j));
@@ -531,7 +531,7 @@ LPJASSCOROUTINE jass_startcoroutine(LPJASS j, LPCJASSCONTEXT context) {
     return co;
 }
 
-LPJASSCOROUTINE jass_startcoroutinebyname(LPJASS j, LPCSTR name) {
+LPJASSCOROUTINE jass_startcoroutinebyname(LPJASS j, cstring_t name) {
     LPCJASSFUNC func = find_function(jass_root(j), name);
     JASSCONTEXT context = *jass_getcontext(j);
 
@@ -544,7 +544,7 @@ LPJASSCOROUTINE jass_startcoroutinebyname(LPJASS j, LPCSTR name) {
 }
 
 /* AI roots have no ambient map-trigger context, so their entrypoint must carry the owning player explicitly. */
-LPJASSCOROUTINE jass_startcoroutinebynameforplayer(LPJASS j, LPCSTR name, struct playerState_s *player) {
+LPJASSCOROUTINE jass_startcoroutinebynameforplayer(LPJASS j, cstring_t name, struct playerState_s *player) {
     LPCJASSFUNC func = find_function(jass_root(j), name);
     JASSCONTEXT context = *jass_getcontext(j);
     if (!func) {
@@ -557,7 +557,7 @@ LPJASSCOROUTINE jass_startcoroutinebynameforplayer(LPJASS j, LPCSTR name, struct
 }
 
 /* Dynamic wait-done calls must share the active coroutine so yielded child frames resume before their caller. */
-BOOL jass_callcoroutinebyname(LPJASS j, LPCSTR name) {
+bool jass_callcoroutinebyname(LPJASS j, cstring_t name) {
     LPJASS root = jass_root(j);
     LPJASSCOROUTINE co = root->current_coroutine;
     LPCJASSFUNC func = find_function(root, name);
@@ -567,11 +567,11 @@ BOOL jass_callcoroutinebyname(LPJASS j, LPCSTR name) {
     return true;
 }
 
-LPCSTR jass_functionname(LPCJASSFUNC func) {
+cstring_t jass_functionname(LPCJASSFUNC func) {
     return func ? func->name : NULL;
 }
 
-LPCSTR jass_currentfunctionname(LPJASS j) {
+cstring_t jass_currentfunctionname(LPJASS j) {
     LPJASS root = jass_root(j);
     LPJASSCOROUTINE co = root->current_coroutine;
     LPJASSCOROUTINEFRAME frame = co ? jass_coroutine_functionframe(co) : NULL;
@@ -579,11 +579,11 @@ LPCSTR jass_currentfunctionname(LPJASS j) {
     return jass_functionname(func);
 }
 
-DWORD jass_formatcallchain(LPJASS j, LPSTR buffer, DWORD size) {
+uint32_t jass_formatcallchain(LPJASS j, string_t buffer, uint32_t size) {
     LPJASS root;
     LPJASSCOROUTINE co;
-    DWORD used = 0;
-    BOOL any = false;
+    uint32_t used = 0;
+    bool any = false;
 
     if (!buffer || !size) return 0;
     buffer[0] = '\0';
@@ -592,29 +592,29 @@ DWORD jass_formatcallchain(LPJASS j, LPSTR buffer, DWORD size) {
     co = root->current_coroutine;
     if (co) {
         FOR_EACH_LIST(JASSCOROUTINEFRAME, frame, co->frames) {
-            LPCSTR name;
+            cstring_t name;
             int wrote;
             if (frame->type != JASS_FRAME_FUNCTION || !frame->func) continue;
             name = jass_functionname(frame->func);
             if (!name || !*name) continue;
             wrote = snprintf(buffer + used, size - used, "%s%s", any ? " <- " : "", name);
             if (wrote < 0) break;
-            if ((DWORD)wrote >= size - used) { used = size - 1; break; }
-            used += (DWORD)wrote;
+            if ((uint32_t)wrote >= size - used) { used = size - 1; break; }
+            used += (uint32_t)wrote;
             any = true;
         }
     }
     if (!any && j->context.func) {
-        LPCSTR name = jass_functionname(j->context.func);
+        cstring_t name = jass_functionname(j->context.func);
         if (name) snprintf(buffer, size, "%s", name);
     }
-    return (DWORD)strlen(buffer);
+    return (uint32_t)strlen(buffer);
 }
 
-LPCJASSFUNC jass_functionbyname(LPJASS j, LPCSTR name) { return find_function(jass_root(j), name); }
-void jass_settimercontext(HANDLE timer) { currenttimer = timer; }
+LPCJASSFUNC jass_functionbyname(LPJASS j, cstring_t name) { return find_function(jass_root(j), name); }
+void jass_settimercontext(handle_t timer) { currenttimer = timer; }
 
-BOOL jass_triggerdisabled(LPTRIGGER trigger) {
+bool jass_triggerdisabled(LPTRIGGER trigger) {
     return trigger ? trigger->disabled : false;
 }
 
@@ -622,7 +622,7 @@ BOOL jass_triggerdisabled(LPTRIGGER trigger) {
  * Sleep / yield
  * ========================================================================= */
 
-void jass_sleep(LPJASS j, DWORD msec) {
+void jass_sleep(LPJASS j, uint32_t msec) {
     LPJASS root = jass_root(j);
     LPJASSCOROUTINE co = root->current_coroutine;
     if (!co) {
@@ -632,7 +632,7 @@ void jass_sleep(LPJASS j, DWORD msec) {
     co->yielded = true;
 }
 
-static BOOL jass_yielded(LPJASS j) {
+static bool jass_yielded(LPJASS j) {
     LPJASS root = jass_root(j);
     LPJASSCOROUTINE co = root->current_coroutine;
     return co && co->yielded;
@@ -642,7 +642,7 @@ static BOOL jass_yielded(LPJASS j) {
  * Runtime error boundary  (JASS equivalent of Lua error())
  * ========================================================================= */
 
-static void jass_setruntimeerror(LPJASS j, LPCSTR message) {
+static void jass_setruntimeerror(LPJASS j, cstring_t message) {
     LPJASS root = jass_root(j);
     root->rterror_pending = true;
     snprintf(root->rterror_message, sizeof(root->rterror_message), "%s", message ? message : "(nil)");
@@ -650,7 +650,7 @@ static void jass_setruntimeerror(LPJASS j, LPCSTR message) {
 }
 
 /* Missing calls unwind like native errors; returning no value used to let broken callers continue. */
-static void jass_missingcall(LPJASS j, LPCSTR name, BOOL native) {
+static void jass_missingcall(LPJASS j, cstring_t name, bool native) {
     LPJASS root = jass_root(j);
     LPJASSMISSING item = root->missing;
     char message[256];
@@ -666,19 +666,19 @@ static void jass_missingcall(LPJASS j, LPCSTR name, BOOL native) {
     else jass_setruntimeerror(j, message);
 }
 
-DWORD jass_missingcount(LPJASS j) {
-    DWORD count = 0;
+uint32_t jass_missingcount(LPJASS j) {
+    uint32_t count = 0;
     for (LPJASSMISSING item = jass_root(j)->missing; item; item = item->next) count++;
     return count;
 }
 
-LPCSTR jass_missingname(LPJASS j, DWORD index) {
+cstring_t jass_missingname(LPJASS j, uint32_t index) {
     LPJASSMISSING item = jass_root(j)->missing;
     while (item && index--) item = item->next;
     return item ? item->name : NULL;
 }
 
-void jass_rterror(LPJASS j, LPCSTR message) {
+void jass_rterror(LPJASS j, cstring_t message) {
     LPJASS root = jass_root(j);
     jass_setruntimeerror(root, message);
 
@@ -691,11 +691,11 @@ void jass_rterror(LPJASS j, LPCSTR message) {
     abort();
 }
 
-BOOL jass_rterror_pending(LPJASS j) {
+bool jass_rterror_pending(LPJASS j) {
     return jass_root(j)->rterror_pending;
 }
 
-LPCSTR jass_rterror_message(LPJASS j) {
+cstring_t jass_rterror_message(LPJASS j) {
     return jass_root(j)->rterror_message;
 }
 
@@ -723,7 +723,7 @@ static LPPLAYER jass_eventplayer(LPEDICT unit) {
  * Coroutine resume engine
  * ========================================================================= */
 
-static BOOL jass_coroutine_callstatement(LPJASS j, LPJASSCOROUTINE co, LPCTOKEN token) {
+static bool jass_coroutine_callstatement(LPJASS j, LPJASSCOROUTINE co, LPCTOKEN token) {
     LPCJASSFUNC func = NULL;
     LPJASSDICT locals;
 
@@ -764,7 +764,7 @@ static LPCTOKEN jass_coroutine_selectifbody(LPJASS j, LPCTOKEN token) {
     return NULL;
 }
 
-static BOOL jass_coroutine_runlocalplayerif(LPJASS j, LPJASSCOROUTINE co, LPCTOKEN token) {
+static bool jass_coroutine_runlocalplayerif(LPJASS j, LPJASSCOROUTINE co, LPCTOKEN token) {
     LPPLAYER previous_player;
 
     if (!uses_localplayer(token->condition) || currentplayer) {
@@ -905,19 +905,19 @@ static void jass_resumecoroutine(LPJASSCOROUTINE co) {
     }
 }
 
-BOOL jass_coroutinedone(LPCJASSCOROUTINE co) {
+bool jass_coroutinedone(LPCJASSCOROUTINE co) {
     return !co || co->done;
 }
 
-BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co) {
+bool jass_resume(LPJASS j, LPJASSCOROUTINE co) {
     LPJASS root = jass_root(j);
     LPJASSCOROUTINE previous_coroutine = root->current_coroutine;
-    DWORD now = jass_gettime();
+    uint32_t now = jass_gettime();
     LPPLAYER previous_player;
     LPEDICT previous_unit;
     LPJASSVAR loop_index = find_global(jass_root(j), "bj_forLoopAIndex");
-    LONG previous_loop_index = 0;
-    BOOL restore_loop_index = co && co->loop_a_index_valid && loop_index && loop_index->value &&
+    int32_t previous_loop_index = 0;
+    bool restore_loop_index = co && co->loop_a_index_valid && loop_index && loop_index->value &&
         jass_getvarbasetype(loop_index) == jasstype_integer;
 
     if (!co || co->done || co->wake_time > now) {
@@ -942,7 +942,7 @@ BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co) {
 
     root->current_coroutine = co;
     if (restore_loop_index) {
-        previous_loop_index = *(LONG *)loop_index->value;
+        previous_loop_index = *(int32_t *)loop_index->value;
         /* Restore the captured index while this coroutine resumes; the original shared
          * global is put back below so its caller continues with its own loop state. */
         jass_pushinteger(root, co->loop_a_index);
@@ -1008,7 +1008,7 @@ void jass_runevents(LPJASS j) {
  * Trigger evaluation / execution
  * ========================================================================= */
 
-static BOOL jass_evaluatetriggercontext(LPJASS j, jassTriggerContextParams_t const *params) {
+static bool jass_evaluatetriggercontext(LPJASS j, jassTriggerContextParams_t const *params) {
     LPPLAYER player = jass_eventplayer(params->unit);
 
     if (params->trigger->disabled) {
@@ -1032,7 +1032,7 @@ static BOOL jass_evaluatetriggercontext(LPJASS j, jassTriggerContextParams_t con
         jass_pushfunction(&tmp_state, cond->expr);
         LPEDICT previous_unit = currentunit;
         currentunit = params->unit;
-        DWORD result_count = jass_call(&tmp_state, 0);
+        uint32_t result_count = jass_call(&tmp_state, 0);
         currentunit = previous_unit;
         if (result_count != 1 || !jass_popboolean(&tmp_state)) {
             return false;
@@ -1041,7 +1041,7 @@ static BOOL jass_evaluatetriggercontext(LPJASS j, jassTriggerContextParams_t con
     return true;
 }
 
-BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
+bool jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
     return jass_evaluatetriggercontext(j, &(jassTriggerContextParams_t){ .trigger = trigger, .unit = unit });
 }
 
@@ -1050,7 +1050,7 @@ BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
  * function in a scratch state with the unit bound as the context/current unit
  * so GetFilterUnit()/GetEnumUnit() inside the filter resolve to it.  Returns
  * the filter's boolean result; a null filter passes (matches "no filter"). */
-BOOL jass_evaluateboolexpr(LPJASS j, LPCJASSFUNC expr, LPEDICT unit) {
+bool jass_evaluateboolexpr(LPJASS j, LPCJASSFUNC expr, LPEDICT unit) {
     if (!expr) {
         return true;
     }
@@ -1062,14 +1062,14 @@ BOOL jass_evaluateboolexpr(LPJASS j, LPCJASSFUNC expr, LPEDICT unit) {
     jass_pushfunction(&tmp_state, expr);
     LPEDICT previous_unit = currentunit;
     currentunit = unit;
-    DWORD result_count = jass_call(&tmp_state, 0);
+    uint32_t result_count = jass_call(&tmp_state, 0);
     currentunit = previous_unit;
     return result_count == 1 && jass_popboolean(&tmp_state);
 }
 
 /* Force filters bind players through the same scratch-state context used by
  * trigger callbacks, keeping GetFilterPlayer isolated across nested calls. */
-BOOL jass_evaluateplayerexpr(LPJASS j, LPCJASSFUNC expr, LPPLAYER player) {
+bool jass_evaluateplayerexpr(LPJASS j, LPCJASSFUNC expr, LPPLAYER player) {
     if (!expr) return true;
     JASS tmp_state;
     memcpy(&tmp_state, j, sizeof(struct jass_s));
@@ -1077,11 +1077,11 @@ BOOL jass_evaluateplayerexpr(LPJASS j, LPCJASSFUNC expr, LPPLAYER player) {
     tmp_state.num_stack = 0;
     tmp_state.context.playerState = player;
     jass_pushfunction(&tmp_state, expr);
-    DWORD result_count = jass_call(&tmp_state, 0);
+    uint32_t result_count = jass_call(&tmp_state, 0);
     return result_count == 1 && jass_popboolean(&tmp_state);
 }
 
-static void jass_executetriggercontext(LPJASS j, jassTriggerContextParams_t const *params, BOOL immediate) {
+static void jass_executetriggercontext(LPJASS j, jassTriggerContextParams_t const *params, bool immediate) {
     LPJASSCOROUTINE first = NULL, last = NULL;
     FOR_EACH_LIST(TRIGGERACTION, action, params->trigger->actions) {
         LPPLAYER player = jass_eventplayer(params->unit);
@@ -1103,7 +1103,7 @@ static void jass_executetriggercontext(LPJASS j, jassTriggerContextParams_t cons
         LPJASSVAR loop_index = find_global(j, "bj_forLoopAIndex");
         /* Keep queued and suspended actions on the loop index captured at dispatch. */
         if (co && loop_index && loop_index->value && jass_getvarbasetype(loop_index) == jasstype_integer) {
-            co->loop_a_index = *(LONG *)loop_index->value;
+            co->loop_a_index = *(int32_t *)loop_index->value;
             co->loop_a_index_valid = true;
         }
         if (co) {
@@ -1128,23 +1128,23 @@ void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit) {
     jass_executetriggercontext(j, &(jassTriggerContextParams_t){ .trigger = trigger, .unit = unit }, true);
 }
 
-static BOOL jass_calltriggercontext(LPJASS j, jassTriggerContextParams_t const *params) {
+static bool jass_calltriggercontext(LPJASS j, jassTriggerContextParams_t const *params) {
     if (!jass_evaluatetriggercontext(j, params))
         return false;
     jass_executetriggercontext(j, params, false);
     return true;
 }
 
-BOOL jass_calltriggerwithvalue(LPJASS j,
+bool jass_calltriggerwithvalue(LPJASS j,
                                LPTRIGGER trigger,
                                LPEDICT unit,
                                LPEDICT source,
-                               LONG eventValue) {
+                               int32_t eventValue) {
     return jass_calltriggercontext(j, &(jassTriggerContextParams_t){
         .trigger = trigger, .unit = unit, .source = source, .value = eventValue });
 }
 
-BOOL jass_calltriggerevent(LPJASS j, LPTRIGGER trigger, GAMEEVENT const *event) {
+bool jass_calltriggerevent(LPJASS j, LPTRIGGER trigger, GAMEEVENT const *event) {
     if (!event) return false;
     return jass_calltriggercontext(j, &(jassTriggerContextParams_t){
         .trigger = trigger, .unit = event->edict, .source = event->source, .value = event->value,
@@ -1153,8 +1153,8 @@ BOOL jass_calltriggerevent(LPJASS j, LPTRIGGER trigger, GAMEEVENT const *event) 
             ? event->responseTo->region : NULL });
 }
 
-BOOL jass_calltriggerwithtimer(LPJASS j, LPTRIGGER trigger, HANDLE timer) {
-    BOOL queued;
+bool jass_calltriggerwithtimer(LPJASS j, LPTRIGGER trigger, handle_t timer) {
+    bool queued;
     jassTriggerContextParams_t params = { .trigger = trigger, .timer = timer, .timer_pending = true };
     currenttimer = timer;
     queued = jass_calltriggercontext(j, &params);
@@ -1162,7 +1162,7 @@ BOOL jass_calltriggerwithtimer(LPJASS j, LPTRIGGER trigger, HANDLE timer) {
     return queued;
 }
 
-BOOL jass_calltrigger(LPJASS j,
+bool jass_calltrigger(LPJASS j,
                       LPTRIGGER trigger,
                       LPEDICT unit,
                       LPEDICT source) {
@@ -1173,7 +1173,7 @@ BOOL jass_calltrigger(LPJASS j,
  * Lookup helpers
  * ========================================================================= */
 
-static LPJASSCFUNCTION find_cfunction(LPCJASS j, LPCSTR name) {
+static LPJASSCFUNCTION find_cfunction(LPCJASS j, cstring_t name) {
     for (LPCJASSMODULE m = jass_operators; m->name; m++) {
         if (!strcmp(m->name, name)) {
             return m->func;
@@ -1197,13 +1197,13 @@ static LPJASSCFUNCTION find_cfunction(LPCJASS j, LPCSTR name) {
 }
 
 /* Root declarations use separate bucket links so list order and duplicate-name behavior stay unchanged. */
-static DWORD jass_hash(LPCSTR name) {
-    DWORD hash = 0;
-    while (*name) hash = (BYTE)*name++ + (hash << 6) + (hash << 16) - hash;
+static uint32_t jass_hash(cstring_t name) {
+    uint32_t hash = 0;
+    while (*name) hash = (uint8_t)*name++ + (hash << 6) + (hash << 16) - hash;
     return hash & (BZ_JASS_HASH_SIZE - 1);
 }
 
-static LPCJASSFUNC find_function(LPCJASS j, LPCSTR name) {
+static LPCJASSFUNC find_function(LPCJASS j, cstring_t name) {
     for (LPCJASSFUNC func = j->function_hash[jass_hash(name)]; func; func = func->hash_next) {
         if (!strcmp(func->name, name)) {
             return func;
@@ -1212,7 +1212,7 @@ static LPCJASSFUNC find_function(LPCJASS j, LPCSTR name) {
     return NULL;
 }
 
-static LPJASSVAR find_dict(LPJASSDICT dict, LPCSTR name) {
+static LPJASSVAR find_dict(LPJASSDICT dict, cstring_t name) {
     FOR_EACH_LIST(JASSDICT, item, dict) {
         if (!strcmp(item->key, name)) {
             return &item->value;
@@ -1221,14 +1221,14 @@ static LPJASSVAR find_dict(LPJASSDICT dict, LPCSTR name) {
     return NULL;
 }
 
-static LPJASSVAR find_global(LPCJASS j, LPCSTR name) {
+static LPJASSVAR find_global(LPCJASS j, cstring_t name) {
     for (LPJASSDICT item = j->global_hash[jass_hash(name)]; item; item = item->hash_next) {
         if (!strcmp(item->key, name)) return &item->value;
     }
     return NULL;
 }
 
-static LPCJASSTYPE find_type(LPCJASS j, LPCSTR name) {
+static LPCJASSTYPE find_type(LPCJASS j, cstring_t name) {
     FOR_LOOP(i, sizeof(jass_types)/sizeof(*jass_types)) {
         if (!strcmp(jass_types[i].name, name)) {
             return &jass_types[i];
@@ -1259,11 +1259,11 @@ void jass_setreturn(LPJASS j) {
     jass_stackvalue(j, 0)->env.returnstack = j->num_stack;
 }
 
-BOOL jass_mustreturn(LPJASS j) {
+bool jass_mustreturn(LPJASS j) {
     return jass_stackvalue(j, 0)->env.done;
 }
 
-DWORD jass_top(LPJASS j) {
+uint32_t jass_top(LPJASS j) {
     return j->num_stack - 1;
 }
 
@@ -1288,15 +1288,15 @@ JASSTYPEID jass_gettype(LPJASS j, int index) {
     return jass_getvarbasetype(var);
 }
 
-BOOL jass_checktype(LPCJASSVAR var, JASSTYPEID type) {
+bool jass_checktype(LPCJASSVAR var, JASSTYPEID type) {
     return get_base_type(var->type) == jass_types + type;
 }
 
-void jass_pop(LPJASS j, DWORD count) {
+void jass_pop(LPJASS j, uint32_t count) {
     j->num_stack -= count;
 }
 
-static void jass_discard(LPJASS j, DWORD count) {
+static void jass_discard(LPJASS j, uint32_t count) {
     while (count-- && j->num_stack) {
         jass_setnull(jass_topvalue(j));
         jass_pop(j, 1);
@@ -1354,7 +1354,7 @@ void jass_setnull(LPJASSVAR var) {
     }
 }
 
-BOOL is_handle_convertible(LPCJASSTYPE from, LPCJASSTYPE to) {
+bool is_handle_convertible(LPCJASSTYPE from, LPCJASSTYPE to) {
     if (from == to) {
         return true;
     } else if (from->inherit) {
@@ -1364,7 +1364,7 @@ BOOL is_handle_convertible(LPCJASSTYPE from, LPCJASSTYPE to) {
     }
 }
 
-static LPJASSVAR ensure_array_value(LPJASS j, LPJASSVAR dest, DWORD index) {
+static LPJASSVAR ensure_array_value(LPJASS j, LPJASSVAR dest, uint32_t index) {
     (void)j;
     FOR_EACH_LIST(JASSARRAY, var, dest->_array) {
         if (var->index == index) {
@@ -1379,7 +1379,7 @@ static LPJASSVAR ensure_array_value(LPJASS j, LPJASSVAR dest, DWORD index) {
 }
 
 void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
-    FLOAT fval = 0;
+    float fval = 0;
     jass_setnull(var);
     if (other->_array) {
         var->type = other->type;
@@ -1391,7 +1391,7 @@ void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
         return;
     } else switch (jass_getvarbasetype(var)) {
         case jasstype_integer:
-            jass_store_value(var, other->value, sizeof(LONG));
+            jass_store_value(var, other->value, sizeof(int32_t));
             break;
         case jasstype_handle:
             if (var->type && other->type && !is_handle_convertible(other->type, var->type)) {
@@ -1406,19 +1406,19 @@ void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
         case jasstype_real:
             switch (jass_getvarbasetype(other)) {
                 case jasstype_real:
-                    fval = *(FLOAT const *)other->value;
+                    fval = *(float const *)other->value;
                     break;
                 case jasstype_integer:
-                    fval = *(LONG const *)other->value;
+                    fval = *(int32_t const *)other->value;
                     break;
                 default:
                     fval = 0.0f;
                     break;
             }
-            jass_store_value(var, &fval, sizeof(FLOAT));
+            jass_store_value(var, &fval, sizeof(float));
             break;
         case jasstype_boolean:
-            jass_store_value(var, other->value, sizeof(BOOL));
+            jass_store_value(var, other->value, sizeof(bool));
             break;
         case jasstype_string:
             jass_store_value(var, other->value, strlen((char *)other->value)+1);
@@ -1438,18 +1438,18 @@ void jass_copy(LPJASS j, LPJASSVAR var, LPCJASSVAR other) {
  * Public C API — stack push / check / pop (mirrors Lua's lapi.c)
  * ========================================================================= */
 
-DWORD jass_pushnull(LPJASS j) {
+uint32_t jass_pushnull(LPJASS j) {
     JASS_ADD_STACK(j, var, jasstype_handle);
     return 1;
 }
 
-DWORD jass_pushinteger(LPJASS j, LONG value) {
+uint32_t jass_pushinteger(LPJASS j, int32_t value) {
     JASS_ADD_STACK(j, var, jasstype_integer);
     jass_store_value(var, &value, sizeof(value));
     return 1;
 }
 
-DWORD jass_pushhandle(LPJASS j, HANDLE value, LPCSTR type) {
+uint32_t jass_pushhandle(LPJASS j, handle_t value, cstring_t type) {
     JASS_ADD_STACK(j, var, jasstype_handle);
     jass_setnull(var);
     var->type = find_type(j, type);
@@ -1461,12 +1461,12 @@ DWORD jass_pushhandle(LPJASS j, HANDLE value, LPCSTR type) {
     return 1;
 }
 
-DWORD jass_pushnullhandle(LPJASS j, LPCSTR type) {
+uint32_t jass_pushnullhandle(LPJASS j, cstring_t type) {
     return jass_pushhandle(j, 0, type);
 }
 
-HANDLE jass_newhandle(LPJASS j, DWORD size, LPCSTR type) {
-    HANDLE data = size ? jass_alloc(size) : NULL;
+handle_t jass_newhandle(LPJASS j, uint32_t size, cstring_t type) {
+    handle_t data = size ? jass_alloc(size) : NULL;
     jass_pushhandle(j, data, type);
     if (data) {
         LPJASSVAR var = jass_topvalue(j);
@@ -1476,7 +1476,7 @@ HANDLE jass_newhandle(LPJASS j, DWORD size, LPCSTR type) {
     return data;
 }
 
-DWORD jass_pushlighthandle(LPJASS j, HANDLE value, LPCSTR type) {
+uint32_t jass_pushlighthandle(LPJASS j, handle_t value, cstring_t type) {
     JASS_ADD_STACK(j, var, jasstype_handle);
     jass_setnull(var);
     var->type = find_type(j, type);
@@ -1486,49 +1486,49 @@ DWORD jass_pushlighthandle(LPJASS j, HANDLE value, LPCSTR type) {
     return 1;
 }
 
-DWORD jass_pushnumber(LPJASS j, FLOAT value) {
+uint32_t jass_pushnumber(LPJASS j, float value) {
     JASS_ADD_STACK(j, var, jasstype_real);
     jass_store_value(var, &value, sizeof(value));
     return 1;
 }
 
-DWORD jass_pushboolean(LPJASS j, BOOL value) {
+uint32_t jass_pushboolean(LPJASS j, bool value) {
     JASS_ADD_STACK(j, var, jasstype_boolean);
     jass_store_value(var, &value, sizeof(value));
     return 1;
 }
 
-DWORD jass_pushstringlen(LPJASS j, LPCSTR value, DWORD len) {
+uint32_t jass_pushstringlen(LPJASS j, cstring_t value, uint32_t len) {
     JASS_ADD_STACK(j, var, jasstype_string);
     jass_store_value(var, value, len+1);
-    ((LPSTR)var->value)[len] = '\0';
+    ((string_t)var->value)[len] = '\0';
     removeDoubleBackslashes(var->value);
     return 1;
 }
 
-DWORD jass_pushstring(LPJASS j, LPCSTR value) {
+uint32_t jass_pushstring(LPJASS j, cstring_t value) {
     /* Tolerate a NULL string from a native (several are stubs that return 0);
      * strlen(NULL) would crash.  An unset JASS string is the empty string. */
     if (!value)
         value = "";
-    jass_pushstringlen(j, value, (DWORD)strlen(value));
+    jass_pushstringlen(j, value, (uint32_t)strlen(value));
     return 1;
 }
 
-DWORD jass_pushcfunction(LPJASS j, LPJASSCFUNCTION func) {
+uint32_t jass_pushcfunction(LPJASS j, LPJASSCFUNCTION func) {
     JASS_ADD_STACK(j, var, jasstype_cfunction);
     jass_store_value(var, &func, sizeof(LPJASSCFUNCTION));
     return 1;
 }
 
 /* Code values retain their declaration so native and scripted callbacks share one stable representation. */
-DWORD jass_pushfunction(LPJASS j, LPCJASSFUNC func) {
+uint32_t jass_pushfunction(LPJASS j, LPCJASSFUNC func) {
     JASS_ADD_STACK(j, var, jasstype_code);
     var->value = (LPJASSFUNC)func;
     return 1;
 }
 
-DWORD jass_pushvalue(LPJASS j, LPCJASSVAR other) {
+uint32_t jass_pushvalue(LPJASS j, LPCJASSVAR other) {
     LPCJASSTYPE type = other->type;
     BZ_JASS_REQUIRE_STACK(j);
     LPJASSVAR var = &j->stack[j->num_stack++];
@@ -1538,52 +1538,52 @@ DWORD jass_pushvalue(LPJASS j, LPCJASSVAR other) {
     return 1;
 }
 
-LONG jass_checkinteger(LPJASS j, int index) {
+int32_t jass_checkinteger(LPJASS j, int index) {
     LPCJASSVAR var = jass_stackvalue(j, index);
     assert_type(var, jasstype_integer);
-    return var->value ? *(LONG *)var->value : 0;
+    return var->value ? *(int32_t *)var->value : 0;
 }
 
-FLOAT jass_checknumber(LPJASS j, int index) {
+float jass_checknumber(LPJASS j, int index) {
     LPCJASSVAR var = jass_stackvalue(j, index);
     if (!var->value) {
         return 0;
     }
     if (jass_checktype(var, jasstype_real)) {
-        return *(FLOAT *)var->value;
+        return *(float *)var->value;
     }
     if (jass_checktype(var, jasstype_integer)) {
-        return *(LONG *)var->value;
+        return *(int32_t *)var->value;
     }
     if (jass_checktype(var, jasstype_boolean)) {
-        return *(BOOL *)var->value ? 1 : 0;
+        return *(bool *)var->value ? 1 : 0;
     }
     return 0.0f;  /* Galaxy: treat unknown numeric type as 0 */
 }
 
-BOOL jass_checkboolean(LPJASS j, int index) {
+bool jass_checkboolean(LPJASS j, int index) {
     LPCJASSVAR var = jass_stackvalue(j, index);
     assert_type(var, jasstype_boolean);
-    return var->value ? *(BOOL *)var->value : 0;
+    return var->value ? *(bool *)var->value : 0;
 }
 
-BOOL jass_toboolean(LPJASS j, int index) {
+bool jass_toboolean(LPJASS j, int index) {
     LPCJASSVAR var = jass_stackvalue(j, index);
     JASSTYPEID type = jass_getvarbasetype(var);
     if (var->value == NULL)
         return false;
     switch (type) {
-        case jasstype_integer: return *(LONG *)var->value != 0;
-        case jasstype_real: return *(FLOAT *)var->value != 0;
+        case jasstype_integer: return *(int32_t *)var->value != 0;
+        case jasstype_real: return *(float *)var->value != 0;
         case jasstype_string: return strlen(var->value) > 0;
-        case jasstype_boolean: return *(BOOL *)var->value != 0;
+        case jasstype_boolean: return *(bool *)var->value != 0;
         case jasstype_handle: return true;
         case jasstype_code: return true;
         default: return false;
     }
 }
 
-LPCSTR jass_checkstring(LPJASS j, int index) {
+cstring_t jass_checkstring(LPJASS j, int index) {
     LPCJASSVAR var = jass_stackvalue(j, index);
     /* JASS null is polymorphic.  The VM stores it as a null handle, but Blizzard's
      * cinematic helpers pass null through string parameters; treat that value as
@@ -1600,7 +1600,7 @@ LPCJASSFUNC jass_checkcode(LPJASS j, int index) {
     return var->value;
 }
 
-HANDLE jass_checkhandle(LPJASS j, int index, LPCSTR type) {
+handle_t jass_checkhandle(LPJASS j, int index, cstring_t type) {
     LPCJASSVAR var = jass_stackvalue(j, index);
     if (!var->value) {
         return NULL;
@@ -1615,14 +1615,14 @@ HANDLE jass_checkhandle(LPJASS j, int index, LPCSTR type) {
     return var->value;
 }
 
-BOOL jass_popboolean(LPJASS j) {
-    BOOL value = jass_toboolean(j, -1);
+bool jass_popboolean(LPJASS j) {
+    bool value = jass_toboolean(j, -1);
     jass_pop(j, 1);
     return value;
 }
 
-static DWORD jass_popinteger(LPJASS j) {
-    DWORD value = jass_checkinteger(j, -1);
+static uint32_t jass_popinteger(LPJASS j) {
+    uint32_t value = jass_checkinteger(j, -1);
     jass_pop(j, 1);
     return value;
 }
@@ -1631,25 +1631,25 @@ static DWORD jass_popinteger(LPJASS j) {
  * Token evaluators — expression evaluation (jass_dotoken)
  * ========================================================================= */
 
-DWORD VM_EvalInteger(LPJASS j, LPCTOKEN token) {
-    LPCSTR s = token->primary;
-    if (s && *s == '$') return jass_pushinteger(j, (LONG)strtol(s + 1, NULL, 16));
-    return jass_pushinteger(j, (LONG)strtol(s, NULL, 0));
+uint32_t VM_EvalInteger(LPJASS j, LPCTOKEN token) {
+    cstring_t s = token->primary;
+    if (s && *s == '$') return jass_pushinteger(j, (int32_t)strtol(s + 1, NULL, 16));
+    return jass_pushinteger(j, (int32_t)strtol(s, NULL, 0));
 }
 
-DWORD VM_EvalReal(LPJASS j, LPCTOKEN token) {
+uint32_t VM_EvalReal(LPJASS j, LPCTOKEN token) {
     return jass_pushnumber(j, atof(token->primary));
 }
 
-DWORD VM_EvalString(LPJASS j, LPCTOKEN token) {
+uint32_t VM_EvalString(LPJASS j, LPCTOKEN token) {
     return jass_pushstring(j, token->primary);
 }
 
-DWORD VM_EvalBoolean(LPJASS j, LPCTOKEN token) {
+uint32_t VM_EvalBoolean(LPJASS j, LPCTOKEN token) {
     return jass_pushboolean(j, jass_atob(token->primary));
 }
 
-DWORD VM_EvalIdentifier(LPJASS j, LPCTOKEN token) {
+uint32_t VM_EvalIdentifier(LPJASS j, LPCTOKEN token) {
     LPCJASSFUNC f = NULL;
     LPCJASSVAR v = NULL;
     if (token->flags & TF_FUNCTION) {
@@ -1671,7 +1671,7 @@ DWORD VM_EvalIdentifier(LPJASS j, LPCTOKEN token) {
 static LPJASSVAR jass_array_value(LPJASS j, LPJASSVAR var, LPCTOKEN token) {
     while (token) {
         /* Evaluate before asserting: release builds must not erase the VM operation. */
-        DWORD count = jass_dotoken(j, token->index);
+        uint32_t count = jass_dotoken(j, token->index);
         if (count != 1) jass_pushnull(j);
         var = ensure_array_value(j, var, jass_popinteger(j));
         token = token->body;
@@ -1679,10 +1679,10 @@ static LPJASSVAR jass_array_value(LPJASS j, LPJASSVAR var, LPCTOKEN token) {
     return var;
 }
 
-DWORD VM_EvalArrayAccess(LPJASS j, LPCTOKEN token) {
-    DWORD count = jass_dotoken(j, token->index);
+uint32_t VM_EvalArrayAccess(LPJASS j, LPCTOKEN token) {
+    uint32_t count = jass_dotoken(j, token->index);
     if (count != 1) { jass_pushnull(j); }
-    DWORD index_val = jass_popinteger(j);
+    uint32_t index_val = jass_popinteger(j);
     VM_EvalIdentifier(j, token);
     LPJASSVAR var = jass_stackvalue(j, -1);
     LPJASSVAR item = ensure_array_value(j, var, index_val);
@@ -1694,14 +1694,14 @@ DWORD VM_EvalArrayAccess(LPJASS j, LPCTOKEN token) {
     return 1;
 }
 
-DWORD VM_EvalFourCC(LPJASS j, LPCTOKEN token) {
-    return jass_pushinteger(j, *(DWORD *)token->primary);
+uint32_t VM_EvalFourCC(LPJASS j, LPCTOKEN token) {
+    return jass_pushinteger(j, *(uint32_t *)token->primary);
 }
 
-DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
+uint32_t VM_EvalCall(LPJASS j, LPCTOKEN token) {
     LPCJASSFUNC f = NULL;
     LPJASSCFUNCTION cf = NULL;
-    DWORD stacksize = j->num_stack;
+    uint32_t stacksize = j->num_stack;
     if (!strcmp(token->primary, "CommentString") && token->args) {
         fprintf(stdout, "%s\n", token->args->primary);
         return 0;
@@ -1711,7 +1711,7 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
             jass_missingcall(j, f->name, true);
             return 0;
         }
-        DWORD args = 0;
+        uint32_t args = 0;
         jass_pushfunction(j, f);
         FOR_EACH_LIST(TOKEN, arg, token->args) {
             if (!jass_dotoken(j, arg)) {
@@ -1722,7 +1722,7 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
         jass_call(j, args);
         return j->num_stack - stacksize;
     } else if ((cf = find_cfunction(j, token->primary))) {
-        DWORD args = 0;
+        uint32_t args = 0;
         jass_pushcfunction(j, cf);
         FOR_EACH_LIST(TOKEN, arg, token->args) {
             if (!jass_dotoken(j, arg)) {
@@ -1740,7 +1740,7 @@ DWORD VM_EvalCall(LPJASS j, LPCTOKEN token) {
 
 static struct {
     TOKENTYPE tokentype;
-    DWORD (*func)(LPJASS j, LPCTOKEN token);
+    uint32_t (*func)(LPJASS j, LPCTOKEN token);
 } vm_token_types[] = {
     { TT_INTEGER,     VM_EvalInteger     },
     { TT_REAL,        VM_EvalReal        },
@@ -1752,7 +1752,7 @@ static struct {
     { TT_CALL,        VM_EvalCall        },
 };
 
-DWORD jass_dotoken(LPJASS j, LPCTOKEN token) {
+uint32_t jass_dotoken(LPJASS j, LPCTOKEN token) {
     if (!token)
         return 0;
     FOR_LOOP(idx, sizeof(vm_token_types)/sizeof(*vm_token_types)) {
@@ -1768,22 +1768,22 @@ DWORD jass_dotoken(LPJASS j, LPCTOKEN token) {
  * Statement evaluators
  * ========================================================================= */
 
-static FLOAT jass_numbervalue(LPCJASSVAR var) {
+static float jass_numbervalue(LPCJASSVAR var) {
     if (!var || !var->value) return 0.0f;
-    if (jass_getvarbasetype(var) == jasstype_real) return *(FLOAT *)var->value;
-    if (jass_getvarbasetype(var) == jasstype_integer) return *(LONG *)var->value;
+    if (jass_getvarbasetype(var) == jasstype_real) return *(float *)var->value;
+    if (jass_getvarbasetype(var) == jasstype_integer) return *(int32_t *)var->value;
     return 0.0f;
 }
 
-static void jass_set_value(LPJASS j, LPJASSVAR dest, LPCTOKEN init, LPCSTR name) {
-    DWORD stack = jass_dotoken(j, init);
+static void jass_set_value(LPJASS j, LPJASSVAR dest, LPCTOKEN init, cstring_t name) {
+    uint32_t stack = jass_dotoken(j, init);
     /* Normally an initializer expression yields exactly one value.  Tolerate
      * other counts instead of aborting: a value-returning function whose body
      * fell through, or an unimplemented/void native (returns 0), would
      * otherwise crash the whole VM mid-map.  Assign the top value when one was
      * produced and pop exactly what was pushed so the stack stays balanced. */
     if (stack >= 1) {
-        FLOAT before = jass_numbervalue(dest);
+        float before = jass_numbervalue(dest);
         jass_copy(j, dest, j->stack + jass_top(j));
         jass_pop(j, stack);
         if (name && jass_host.VariableChanged &&
@@ -1794,9 +1794,9 @@ static void jass_set_value(LPJASS j, LPJASSVAR dest, LPCTOKEN init, LPCSTR name)
 
 static void jass_set_array_value(LPJASS j, LPJASSVAR dest, LPCTOKEN token, LPCTOKEN init) {
     /* Evaluate before asserting: NDEBUG previously skipped both expressions and copied an unrelated stack value. */
-    DWORD count = jass_dotoken(j, token->index);
+    uint32_t count = jass_dotoken(j, token->index);
     if (count != 1) { jass_pushnull(j); }
-    DWORD index_val = jass_popinteger(j);
+    uint32_t index_val = jass_popinteger(j);
     LPJASSVAR index_dest = ensure_array_value(j, dest, index_val);
     if (token->body) index_dest = jass_array_value(j, index_dest, token->body);
     count = jass_dotoken(j, init);
@@ -1827,7 +1827,7 @@ TOKENFUNC(TYPEDEF) {
     ADD_TO_LIST(type, j->types);
 }
 
-BOOL uses_localplayer(LPCTOKEN token) {
+bool uses_localplayer(LPCTOKEN token) {
     if (!token) return false;
     if (token->type == TT_CALL && token->primary && !strcmp(token->primary, "GetLocalPlayer")) {
         return true;
@@ -1940,7 +1940,7 @@ TOKENFUNC(CALL) {
 }
 
 TOKENFUNC(LOOP) {
-    for (DWORD i = 0;; i++) {
+    for (uint32_t i = 0;; i++) {
         FOR_EACH_LIST(TOKEN const, tok, token->body) {
             if (jass_mustreturn(j) || jass_yielded(j)) {
                 return;
@@ -1976,7 +1976,7 @@ TOKENFUNC(LOOP) {
 }
 
 static struct {
-    LPCSTR name;
+    cstring_t name;
     TOKENTYPE type;
     void (*func)(LPJASS, LPCTOKEN);
 } token_eval[] = {
@@ -2030,10 +2030,10 @@ TOKENFUNC(TOKENS) {
  * Buffer / file execution
  * ========================================================================= */
 
-static void jass_remove_comments(LPSTR buf) {
-    BOOL in_line  = false;
-    BOOL in_block = false;
-    DWORD quotes  = 0;
+static void jass_remove_comments(string_t buf) {
+    bool in_line  = false;
+    bool in_block = false;
+    uint32_t quotes  = 0;
     char *src = buf, *dst = buf;
     while (*src) {
         if (!in_line && !in_block) {
@@ -2049,7 +2049,7 @@ static void jass_remove_comments(LPSTR buf) {
     *dst = '\0';
 }
 
-static void jass_remove_bom(LPSTR buf) {
+static void jass_remove_bom(string_t buf) {
     unsigned char *u = (unsigned char *)buf;
     if (u[0] == 0xEF && u[1] == 0xBB && u[2] == 0xBF) { memmove(buf, buf + 3, strlen(buf + 3) + 1); return; }
     if (u[0] == 0xFF && u[1] == 0xFE)                  { memmove(buf, buf + 2, strlen(buf + 2) + 1); return; }
@@ -2057,16 +2057,16 @@ static void jass_remove_bom(LPSTR buf) {
 }
 
 /* Forward declaration — galaxy_preprocess_includes calls jass_dofile_ex. */
-BOOL jass_dofile_ex(LPJASS j, LPCSTR fileName, JASSMODE mode);
+bool jass_dofile_ex(LPJASS j, cstring_t fileName, JASSMODE mode);
 
 /* Include-once guard: tracks files already loaded in this VM to prevent
  * re-parsing when multiple files include the same library. */
 #define GALAXY_MAX_INCLUDES 256
 static char galaxy_loaded[GALAXY_MAX_INCLUDES][512];
-static DWORD galaxy_loaded_n;
+static uint32_t galaxy_loaded_n;
 
-static BOOL galaxy_already_loaded(LPCSTR path) {
-    for (DWORD i = 0; i < galaxy_loaded_n; i++) {
+static bool galaxy_already_loaded(cstring_t path) {
+    for (uint32_t i = 0; i < galaxy_loaded_n; i++) {
         if (!strcmp(galaxy_loaded[i], path)) return true;
     }
     assert(galaxy_loaded_n < GALAXY_MAX_INCLUDES);
@@ -2082,34 +2082,34 @@ void galaxy_loaded_reset(void) {
  * overwrite each with spaces (preserving newlines for line-number stability),
  * and recursively load the included file before the main buffer is parsed.
  * Each unique path is loaded at most once per VM lifetime. */
-static void galaxy_preprocess_includes(LPJASS j, LPSTR buf, JASSMODE mode) {
-    LPSTR cur = buf;
+static void galaxy_preprocess_includes(LPJASS j, string_t buf, JASSMODE mode) {
+    string_t cur = buf;
     while (*cur) {
         while (*cur && isspace((unsigned char)*cur)) cur++;
         if (strncmp(cur, "include", 7) == 0 &&
             (cur[7] == ' ' || cur[7] == '\t' || cur[7] == '"')) {
-            LPSTR line_start = cur;
+            string_t line_start = cur;
             cur += 7;
             while (*cur == ' ' || *cur == '\t') cur++;
             if (*cur == '"') {
                 cur++;
-                LPSTR path_start = cur;
+                string_t path_start = cur;
                 while (*cur && *cur != '"' && *cur != '\n') cur++;
                 if (*cur == '"') {
-                    DWORD path_len = (DWORD)(cur - path_start);
+                    uint32_t path_len = (uint32_t)(cur - path_start);
                     cur++;
                     char path[512];
-                    DWORD copy_len = path_len < 500 ? path_len : 500;
+                    uint32_t copy_len = path_len < 500 ? path_len : 500;
                     memcpy(path, path_start, copy_len);
                     path[copy_len] = '\0';
                     /* Append .galaxy if path has no extension. */
-                    LPCSTR slash = strrchr(path, '/');
-                    LPCSTR dot   = strrchr(path, '.');
+                    cstring_t slash = strrchr(path, '/');
+                    cstring_t dot   = strrchr(path, '.');
                     if (!dot || (slash && dot < slash)) {
                         strlcat(path, ".galaxy", sizeof(path));
                     }
                     /* Erase directive in place; keep newlines for line numbers. */
-                    for (LPSTR p = line_start; p < cur; p++) {
+                    for (string_t p = line_start; p < cur; p++) {
                         if (*p != '\n') *p = ' ';
                     }
                     /* Include-once guard: skip if already loaded. */
@@ -2129,7 +2129,7 @@ static void galaxy_preprocess_includes(LPJASS j, LPSTR buf, JASSMODE mode) {
 /* Global initializers can call natives before a script entry point establishes its call boundary. */
 static void jass_evalprogram(LPJASS j, LPCTOKEN program) {
     LPJASS root = jass_root(j);
-    DWORD base = j->num_stack;
+    uint32_t base = j->num_stack;
     LPJASSVAR saved = j->stack_pointer;
     if (root->current_coroutine || root->sync_rterror_jmp_set) { eval_TOKENS(j, program); return; }
     root->sync_rterror_jmp_set = true;
@@ -2138,7 +2138,7 @@ static void jass_evalprogram(LPJASS j, LPCTOKEN program) {
     root->sync_rterror_jmp_set = false;
 }
 
-BOOL jass_dobuffer_ex(LPJASS j, LPSTR buffer, JASSMODE mode) {
+bool jass_dobuffer_ex(LPJASS j, string_t buffer, JASSMODE mode) {
     if (!buffer) {
         /* Missing mapscript used to SIGSEGV in jass_remove_comments(NULL). */
         jass_setruntimeerror(j, "null buffer");
@@ -2146,7 +2146,7 @@ BOOL jass_dobuffer_ex(LPJASS j, LPSTR buffer, JASSMODE mode) {
     }
     jass_remove_comments(buffer);
     jass_remove_bom(buffer);
-    if ((DWORD)mode >= sizeof(jass_syntax) / sizeof(jass_syntax[0])) {
+    if ((uint32_t)mode >= sizeof(jass_syntax) / sizeof(jass_syntax[0])) {
         LPJASS root = jass_root(j);
         root->rterror_pending = true;
         snprintf(root->rterror_message, sizeof(root->rterror_message), "unknown syntax mode");
@@ -2170,30 +2170,30 @@ BOOL jass_dobuffer_ex(LPJASS j, LPSTR buffer, JASSMODE mode) {
     return !jass_rterror_pending(j);
 }
 
-BOOL jass_dobuffer(LPJASS j, LPSTR buffer) {
+bool jass_dobuffer(LPJASS j, string_t buffer) {
     return jass_dobuffer_ex(j, buffer, JASS_MODE_JASS);
 }
 
 typedef struct {
-    DWORD magic, version, identity, globals, coroutines;
+    uint32_t magic, version, identity, globals, coroutines;
 } JASSSNAPSHOTHEADER;
 
-static DWORD const jass_snapshot_magic = MAKEFOURCC('J', 'S', 'V', 'M');
+static uint32_t const jass_snapshot_magic = MAKEFOURCC('J', 'S', 'V', 'M');
 
 /* Snapshot identity hashes immutable parser metadata, never process-local addresses. */
-static DWORD jass_snapshot_hashbytes(DWORD hash, LPCVOID data, size_t size) {
-    BYTE const *bytes = data;
+static uint32_t jass_snapshot_hashbytes(uint32_t hash, void const * data, size_t size) {
+    uint8_t const *bytes = data;
     while (size--) hash = (hash ^ *bytes++) * 16777619u;
     return hash;
 }
 
-static DWORD jass_snapshot_hashstr(DWORD hash, LPCSTR text) {
-    DWORD len = text ? (DWORD)strlen(text) : 0;
+static uint32_t jass_snapshot_hashstr(uint32_t hash, cstring_t text) {
+    uint32_t len = text ? (uint32_t)strlen(text) : 0;
     hash = jass_snapshot_hashbytes(hash, &len, sizeof(len));
     return len ? jass_snapshot_hashbytes(hash, text, len) : hash;
 }
 
-static DWORD jass_snapshot_hashtokens(DWORD hash, LPCTOKEN token) {
+static uint32_t jass_snapshot_hashtokens(uint32_t hash, LPCTOKEN token) {
     FOR_EACH_LIST(TOKEN const, item, token) {
         hash = jass_snapshot_hashbytes(hash, &item->type, sizeof(item->type));
         hash = jass_snapshot_hashbytes(hash, &item->flags, sizeof(item->flags));
@@ -2209,26 +2209,26 @@ static DWORD jass_snapshot_hashtokens(DWORD hash, LPCTOKEN token) {
     return hash;
 }
 
-static DWORD jass_snapshot_identity(LPCJASS j) {
-    DWORD hash = 2166136261u;
+static uint32_t jass_snapshot_identity(LPCJASS j) {
+    uint32_t hash = 2166136261u;
     FOR_EACH_LIST(JASSPROGRAM const, program, j->programs) hash = jass_snapshot_hashtokens(hash, program->tokens);
     return hash;
 }
 
-DWORD jass_programidentity(LPJASS j) { return jass_snapshot_identity(jass_root(j)); }
+uint32_t jass_programidentity(LPJASS j) { return jass_snapshot_identity(jass_root(j)); }
 
-static BOOL jass_snapshot_io(JASSSNAPSHOT *snapshot, void *data, size_t size) {
-    return size <= UINT32_MAX && snapshot && snapshot->transfer && snapshot->transfer(snapshot->context, data, (DWORD)size);
+static bool jass_snapshot_io(JASSSNAPSHOT *snapshot, void *data, size_t size) {
+    return size <= UINT32_MAX && snapshot && snapshot->transfer && snapshot->transfer(snapshot->context, data, (uint32_t)size);
 }
 
-static BOOL jass_snapshot_writestr(JASSSNAPSHOT *snapshot, LPCSTR text) {
-    DWORD len = text ? (DWORD)strlen(text) + 1 : 0;
+static bool jass_snapshot_writestr(JASSSNAPSHOT *snapshot, cstring_t text) {
+    uint32_t len = text ? (uint32_t)strlen(text) + 1 : 0;
     return jass_snapshot_io(snapshot, &len, sizeof(len)) && (!len || jass_snapshot_io(snapshot, (void *)text, len));
 }
 
-static BOOL jass_snapshot_readstr(JASSSNAPSHOT *snapshot, LPSTR *text) {
-    DWORD len;
-    LPSTR value = NULL;
+static bool jass_snapshot_readstr(JASSSNAPSHOT *snapshot, string_t *text) {
+    uint32_t len;
+    string_t value = NULL;
     if (!jass_snapshot_io(snapshot, &len, sizeof(len)) || len > BZ_JASS_SNAPSHOT_MAX_STRING) return false;
     if (len) {
         value = jass_alloc(len);
@@ -2238,8 +2238,8 @@ static BOOL jass_snapshot_readstr(JASSSNAPSHOT *snapshot, LPSTR *text) {
     return true;
 }
 
-static DWORD jass_snapshot_arraycount(LPCJASSARRAY array) {
-    DWORD count = 0;
+static uint32_t jass_snapshot_arraycount(LPCJASSARRAY array) {
+    uint32_t count = 0;
     FOR_EACH_LIST(JASSARRAY const, item, array) count++;
     return count;
 }
@@ -2254,14 +2254,14 @@ typedef enum {
 
 typedef struct jass_snapshot_handle_s {
     struct jass_snapshot_handle_s *next;
-    DWORD id, size;
-    LPCSTR type;
-    HANDLE value;
+    uint32_t id, size;
+    cstring_t type;
+    handle_t value;
     LPJASSREF ref;
 } jassSnapshotHandle_t;
 
-static BOOL jass_snapshot_ownedhandle(LPCSTR type) {
-    static LPCSTR const types[] = {
+static bool jass_snapshot_ownedhandle(cstring_t type) {
+    static cstring_t const types[] = {
         "sound", "camerasetup", "rect", "location", "force", "gamecache", "region", "fogmodifier",
         "version", "itemtype", "attacktype", "damagetype", "weapontype", "soundtype", "pathingtype",
         "mousebuttontype", "aidifficulty", "playerscore"
@@ -2270,13 +2270,13 @@ static BOOL jass_snapshot_ownedhandle(LPCSTR type) {
     return false;
 }
 
-static BOOL jass_snapshot_functionhandle(LPCSTR type) {
-    static LPCSTR const types[] = { "boolexpr", "conditionfunc", "filterfunc" };
+static bool jass_snapshot_functionhandle(cstring_t type) {
+    static cstring_t const types[] = { "boolexpr", "conditionfunc", "filterfunc" };
     FOR_LOOP(i, sizeof(types) / sizeof(*types)) if (!strcmp(type, types[i])) return true;
     return false;
 }
 
-static jassSnapshotHandle_t *jass_snapshot_findhandle(JASSSNAPSHOT *snapshot, DWORD id) {
+static jassSnapshotHandle_t *jass_snapshot_findhandle(JASSSNAPSHOT *snapshot, uint32_t id) {
     jassSnapshotHandle_t *handles = snapshot->handles;
     FOR_EACH_LIST(jassSnapshotHandle_t, item, handles) if (item->id == id) return item;
     return NULL;
@@ -2291,13 +2291,13 @@ static void jass_snapshot_freehandles(JASSSNAPSHOT *snapshot) {
 }
 
 /* Handles use explicit encodings: native IDs relocate through the host, while safe VM-owned payloads carry identity+bytes. */
-static BOOL jass_snapshot_writehandle(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSVAR var) {
-    DWORD encoding, id;
+static bool jass_snapshot_writehandle(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSVAR var) {
+    uint32_t encoding, id;
     (void)j;
     if (jass_valuehandle(var->type->name)) {
         encoding = JASS_SNAPSHOT_HANDLE_VALUE;
         return jass_snapshot_io(snapshot, &encoding, sizeof(encoding)) &&
-            jass_snapshot_io(snapshot, var->value, sizeof(DWORD));
+            jass_snapshot_io(snapshot, var->value, sizeof(uint32_t));
     }
     /* VM-owned and function handles must bypass the host: a host miss means stale only for host-owned domains. */
     if (jass_snapshot_ownedhandle(var->type->name) && var->ref && var->ref->size) {
@@ -2325,21 +2325,21 @@ static BOOL jass_snapshot_writehandle(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSV
     return false;
 }
 
-static BOOL jass_snapshot_readhandle(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSVAR var) {
-    DWORD encoding, id, size;
-    HANDLE value;
-    LPSTR name = NULL;
+static bool jass_snapshot_readhandle(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSVAR var) {
+    uint32_t encoding, id, size;
+    handle_t value;
+    string_t name = NULL;
     if (!jass_snapshot_io(snapshot, &encoding, sizeof(encoding))) return false;
     if (encoding == JASS_SNAPSHOT_HANDLE_NULL) {
         var->value = NULL;
         return true;
     }
     if (encoding == JASS_SNAPSHOT_HANDLE_VALUE) {
-        if (!jass_valuehandle(var->type->name) || !(var->value = jass_alloc(sizeof(DWORD))) ||
-            !jass_snapshot_io(snapshot, var->value, sizeof(DWORD))) return false;
+        if (!jass_valuehandle(var->type->name) || !(var->value = jass_alloc(sizeof(uint32_t))) ||
+            !jass_snapshot_io(snapshot, var->value, sizeof(uint32_t))) return false;
         var->ref = jass_alloc(sizeof(*var->ref));
         if (!var->ref) return false;
-        *var->ref = (JASSREF){ .size = sizeof(DWORD) };
+        *var->ref = (JASSREF){ .size = sizeof(uint32_t) };
         return true;
     }
     if (encoding == JASS_SNAPSHOT_HANDLE_HOST) {
@@ -2355,7 +2355,7 @@ static BOOL jass_snapshot_readhandle(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSVAR
     }
     if (encoding == JASS_SNAPSHOT_HANDLE_FUNCTION) {
         if (!jass_snapshot_functionhandle(var->type->name) || !jass_snapshot_readstr(snapshot, &name) || !name ||
-            !(var->value = (HANDLE)find_function(j, name))) { SAFE_DELETE(name, jass_free); return false; }
+            !(var->value = (handle_t)find_function(j, name))) { SAFE_DELETE(name, jass_free); return false; }
         SAFE_DELETE(name, jass_free);
         var->ref = jass_alloc(sizeof(*var->ref));
         if (!var->ref) return false;
@@ -2387,8 +2387,8 @@ static BOOL jass_snapshot_readhandle(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSVAR
 }
 
 /* Values carry their declared type so changed scripts and corrupt tags reject before mutation. */
-static BOOL jass_snapshot_writevar(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSVAR var) {
-    DWORD present = var->value || var->_array, count = jass_snapshot_arraycount(var->_array);
+static bool jass_snapshot_writevar(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSVAR var) {
+    uint32_t present = var->value || var->_array, count = jass_snapshot_arraycount(var->_array);
     JASSTYPEID base;
     if (!var->type) { fprintf(stderr, "JASS snapshot: value has no declared type\n"); return false; }
     base = jass_getvarbasetype(var);
@@ -2400,9 +2400,9 @@ static BOOL jass_snapshot_writevar(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSVAR 
             !jass_snapshot_writevar(j, snapshot, &item->value)) return false;
     if (!present || count) return true;
     switch (base) {
-    case jasstype_integer: return jass_snapshot_io(snapshot, var->value, sizeof(LONG));
-    case jasstype_real: return jass_snapshot_io(snapshot, var->value, sizeof(FLOAT));
-    case jasstype_boolean: return jass_snapshot_io(snapshot, var->value, sizeof(BOOL));
+    case jasstype_integer: return jass_snapshot_io(snapshot, var->value, sizeof(int32_t));
+    case jasstype_real: return jass_snapshot_io(snapshot, var->value, sizeof(float));
+    case jasstype_boolean: return jass_snapshot_io(snapshot, var->value, sizeof(bool));
     case jasstype_string: return jass_snapshot_writestr(snapshot, var->value);
     case jasstype_code: return jass_snapshot_writestr(snapshot, jass_functionname(var->value));
     case jasstype_handle: return jass_snapshot_writehandle(j, snapshot, var);
@@ -2410,9 +2410,9 @@ static BOOL jass_snapshot_writevar(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSVAR 
     }
 }
 
-static BOOL jass_snapshot_readvar(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSVAR var) {
-    LPSTR type = NULL, text = NULL;
-    DWORD present, count;
+static bool jass_snapshot_readvar(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSVAR var) {
+    string_t type = NULL, text = NULL;
+    uint32_t present, count;
     LPCJASSTYPE declared;
     if (!jass_snapshot_readstr(snapshot, &type) || !type || !(declared = find_type(j, type)) ||
         !jass_snapshot_io(snapshot, &present, sizeof(present)) || present > 1 ||
@@ -2422,41 +2422,41 @@ static BOOL jass_snapshot_readvar(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSVAR va
     SAFE_DELETE(type, jass_free);
     var->type = declared;
     FOR_LOOP(i, count) {
-        DWORD index;
+        uint32_t index;
         if (!jass_snapshot_io(snapshot, &index, sizeof(index)) ||
             !jass_snapshot_readvar(j, snapshot, ensure_array_value(j, var, index))) return false;
     }
     if (!present || count) return present == !!count;
     switch (jass_getvarbasetype(var)) {
-    case jasstype_integer: return (var->value = jass_alloc(sizeof(LONG))) && jass_snapshot_io(snapshot, var->value, sizeof(LONG));
-    case jasstype_real: return (var->value = jass_alloc(sizeof(FLOAT))) && jass_snapshot_io(snapshot, var->value, sizeof(FLOAT));
-    case jasstype_boolean: return (var->value = jass_alloc(sizeof(BOOL))) && jass_snapshot_io(snapshot, var->value, sizeof(BOOL));
+    case jasstype_integer: return (var->value = jass_alloc(sizeof(int32_t))) && jass_snapshot_io(snapshot, var->value, sizeof(int32_t));
+    case jasstype_real: return (var->value = jass_alloc(sizeof(float))) && jass_snapshot_io(snapshot, var->value, sizeof(float));
+    case jasstype_boolean: return (var->value = jass_alloc(sizeof(bool))) && jass_snapshot_io(snapshot, var->value, sizeof(bool));
     case jasstype_string:
         if (!jass_snapshot_readstr(snapshot, &text) || !text) return false;
         var->value = text; return true;
     case jasstype_code:
         if (!jass_snapshot_readstr(snapshot, &text) || !text) return false;
-        var->value = (HANDLE)find_function(j, text); SAFE_DELETE(text, jass_free); return var->value != NULL;
+        var->value = (handle_t)find_function(j, text); SAFE_DELETE(text, jass_free); return var->value != NULL;
     case jasstype_handle: return jass_snapshot_readhandle(j, snapshot, var);
     default: fprintf(stderr, "JASS snapshot: unsupported value type %s\n", var->type->name); return false;
     }
 }
 
-static DWORD jass_snapshot_globalcount(LPCJASS j) {
-    DWORD count = 0;
+static uint32_t jass_snapshot_globalcount(LPCJASS j) {
+    uint32_t count = 0;
     FOR_EACH_LIST(JASSDICT const, item, j->globals) if (!item->value.constant) count++;
     return count;
 }
 
-static DWORD jass_snapshot_coroutinecount(LPCJASS j) {
-    DWORD count = 0;
+static uint32_t jass_snapshot_coroutinecount(LPCJASS j) {
+    uint32_t count = 0;
     FOR_EACH_LIST(JASSCOROUTINE const, co, j->coroutines) if (!co->done) count++;
     return count;
 }
 
-static BOOL jass_snapshot_findtoken(LPCTOKEN token, LPCTOKEN wanted, DWORD *ordinal, DWORD *found) {
+static bool jass_snapshot_findtoken(LPCTOKEN token, LPCTOKEN wanted, uint32_t *ordinal, uint32_t *found) {
     FOR_EACH_LIST(TOKEN const, item, token) {
-        DWORD current = (*ordinal)++;
+        uint32_t current = (*ordinal)++;
         if (item == wanted) { *found = current; return true; }
         if (jass_snapshot_findtoken(item->init, wanted, ordinal, found) ||
             jass_snapshot_findtoken(item->body, wanted, ordinal, found) ||
@@ -2468,15 +2468,15 @@ static BOOL jass_snapshot_findtoken(LPCTOKEN token, LPCTOKEN wanted, DWORD *ordi
     return false;
 }
 
-static DWORD jass_snapshot_tokenid(LPCJASS j, LPCTOKEN wanted) {
-    DWORD ordinal = 0, found = UINT32_MAX;
+static uint32_t jass_snapshot_tokenid(LPCJASS j, LPCTOKEN wanted) {
+    uint32_t ordinal = 0, found = UINT32_MAX;
     if (!wanted) return UINT32_MAX;
     FOR_EACH_LIST(JASSPROGRAM const, program, j->programs)
         if (jass_snapshot_findtoken(program->tokens, wanted, &ordinal, &found)) return found;
     return UINT32_MAX;
 }
 
-static LPCTOKEN jass_snapshot_gettoken(LPCTOKEN token, DWORD wanted, DWORD *ordinal) {
+static LPCTOKEN jass_snapshot_gettoken(LPCTOKEN token, uint32_t wanted, uint32_t *ordinal) {
     FOR_EACH_LIST(TOKEN const, item, token) {
         if ((*ordinal)++ == wanted) return item;
         LPCTOKEN found = jass_snapshot_gettoken(item->init, wanted, ordinal);
@@ -2490,8 +2490,8 @@ static LPCTOKEN jass_snapshot_gettoken(LPCTOKEN token, DWORD wanted, DWORD *ordi
     return NULL;
 }
 
-static LPCTOKEN jass_snapshot_token(LPCJASS j, DWORD wanted) {
-    DWORD ordinal = 0;
+static LPCTOKEN jass_snapshot_token(LPCJASS j, uint32_t wanted) {
+    uint32_t ordinal = 0;
     if (wanted == UINT32_MAX) return NULL;
     FOR_EACH_LIST(JASSPROGRAM const, program, j->programs) {
         LPCTOKEN found = jass_snapshot_gettoken(program->tokens, wanted, &ordinal);
@@ -2500,26 +2500,26 @@ static LPCTOKEN jass_snapshot_token(LPCJASS j, DWORD wanted) {
     return NULL;
 }
 
-static DWORD jass_snapshot_dictcount(LPCJASSDICT dict) {
-    DWORD count = 0;
+static uint32_t jass_snapshot_dictcount(LPCJASSDICT dict) {
+    uint32_t count = 0;
     FOR_EACH_LIST(JASSDICT const, item, dict) count++;
     return count;
 }
 
-static BOOL jass_snapshot_writedict(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSDICT dict) {
-    DWORD count = jass_snapshot_dictcount(dict);
+static bool jass_snapshot_writedict(LPJASS j, JASSSNAPSHOT *snapshot, LPCJASSDICT dict) {
+    uint32_t count = jass_snapshot_dictcount(dict);
     if (!jass_snapshot_io(snapshot, &count, sizeof(count))) return false;
     FOR_EACH_LIST(JASSDICT const, item, dict)
         if (!jass_snapshot_writestr(snapshot, item->key) || !jass_snapshot_writevar(j, snapshot, &item->value)) return false;
     return true;
 }
 
-static BOOL jass_snapshot_readdict(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSDICT *dict) {
-    DWORD count;
+static bool jass_snapshot_readdict(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSDICT *dict) {
+    uint32_t count;
     if (!jass_snapshot_io(snapshot, &count, sizeof(count)) || count > BZ_JASS_SNAPSHOT_MAX_COUNT) return false;
     FOR_LOOP(i, count) {
         LPJASSDICT item = JASSALLOC(JASSDICT);
-        LPSTR name = NULL;
+        string_t name = NULL;
         if (!jass_snapshot_readstr(snapshot, &name) || !name || find_dict(*dict, name)) {
             SAFE_DELETE(name, jass_free); jass_free(item); return false;
         }
@@ -2530,8 +2530,8 @@ static BOOL jass_snapshot_readdict(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSDICT 
     return true;
 }
 
-static BOOL jass_snapshot_writecontext_handle(JASSSNAPSHOT *snapshot, LPCSTR type, HANDLE value) {
-    DWORD present = value != NULL, id = 0;
+static bool jass_snapshot_writecontext_handle(JASSSNAPSHOT *snapshot, cstring_t type, handle_t value) {
+    uint32_t present = value != NULL, id = 0;
 
     if (!present) return jass_snapshot_io(snapshot, &present, sizeof(present));
     if (!jass_host.SaveHandle) {
@@ -2552,8 +2552,8 @@ static BOOL jass_snapshot_writecontext_handle(JASSSNAPSHOT *snapshot, LPCSTR typ
         jass_snapshot_io(snapshot, &id, sizeof(id));
 }
 
-static BOOL jass_snapshot_writecontext(JASSSNAPSHOT *snapshot, LPCJASSCONTEXT context) {
-    struct { LPCSTR type; HANDLE value; } handles[] = {
+static bool jass_snapshot_writecontext(JASSSNAPSHOT *snapshot, LPCJASSCONTEXT context) {
+    struct { cstring_t type; handle_t value; } handles[] = {
         { "trigger", context->trigger }, { "unit", context->unit }, { "unit", context->source },
         { "player", context->playerState }, { "player", context->localPlayerState },
         { "timer", context->timer }, { "region", context->region },
@@ -2569,15 +2569,15 @@ static BOOL jass_snapshot_writecontext(JASSSNAPSHOT *snapshot, LPCJASSCONTEXT co
     return true;
 }
 
-static BOOL jass_snapshot_readcontext(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSCONTEXT context) {
-    struct { LPCSTR type; HANDLE *value; } handles[] = {
-        { "trigger", (HANDLE *)&context->trigger }, { "unit", (HANDLE *)&context->unit },
-        { "unit", (HANDLE *)&context->source }, { "player", (HANDLE *)&context->playerState },
-        { "player", (HANDLE *)&context->localPlayerState }, { "timer", &context->timer },
+static bool jass_snapshot_readcontext(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSCONTEXT context) {
+    struct { cstring_t type; handle_t *value; } handles[] = {
+        { "trigger", (handle_t *)&context->trigger }, { "unit", (handle_t *)&context->unit },
+        { "unit", (handle_t *)&context->source }, { "player", (handle_t *)&context->playerState },
+        { "player", (handle_t *)&context->localPlayerState }, { "timer", &context->timer },
         { "region", &context->region },
     };
-    LPSTR func = NULL;
-    BOOL has_func;
+    string_t func = NULL;
+    bool has_func;
     if (!jass_snapshot_readstr(snapshot, &func)) return false;
     has_func = func != NULL;
     context->func = func ? find_function(j, func) : NULL;
@@ -2590,7 +2590,7 @@ static BOOL jass_snapshot_readcontext(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSCO
         !jass_snapshot_io(snapshot, &context->timer_pending, sizeof(context->timer_pending)) ||
         context->hasPoint > 1 || context->timer_pending > 1) return false;
     FOR_LOOP(i, sizeof(handles) / sizeof(*handles)) {
-        DWORD present, id;
+        uint32_t present, id;
         if (!jass_snapshot_io(snapshot, &present, sizeof(present)) || present > 1) return false;
         if (present && (!jass_snapshot_io(snapshot, &id, sizeof(id)) || !jass_host.LoadHandle ||
             !(*handles[i].value = jass_host.LoadHandle(handles[i].type, id)))) return false;
@@ -2598,18 +2598,18 @@ static BOOL jass_snapshot_readcontext(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSCO
     return true;
 }
 
-static BOOL jass_snapshot_writecoroutines(LPJASS j, JASSSNAPSHOT *snapshot) {
-    DWORD count = jass_snapshot_coroutinecount(j), now = jass_gettime();
+static bool jass_snapshot_writecoroutines(LPJASS j, JASSSNAPSHOT *snapshot) {
+    uint32_t count = jass_snapshot_coroutinecount(j), now = jass_gettime();
     if (!jass_snapshot_io(snapshot, &count, sizeof(count))) return false;
     FOR_EACH_LIST(JASSCOROUTINE const, co, j->coroutines) {
-        DWORD frames = 0, remaining = co->wake_time > now ? co->wake_time - now : 0;
+        uint32_t frames = 0, remaining = co->wake_time > now ? co->wake_time - now : 0;
         if (co->done) continue;
         FOR_EACH_LIST(JASSCOROUTINEFRAME const, frame, co->frames) frames++;
         if (!jass_snapshot_writecontext(snapshot, &co->state->context) ||
             !jass_snapshot_io(snapshot, &remaining, sizeof(remaining)) ||
             !jass_snapshot_io(snapshot, &frames, sizeof(frames))) return false;
         FOR_EACH_LIST(JASSCOROUTINEFRAME const, frame, co->frames) {
-            DWORD body = jass_snapshot_tokenid(j, frame->body), pc = jass_snapshot_tokenid(j, frame->pc);
+            uint32_t body = jass_snapshot_tokenid(j, frame->body), pc = jass_snapshot_tokenid(j, frame->pc);
             if ((frame->body && body == UINT32_MAX) || (frame->pc && pc == UINT32_MAX) ||
                 !jass_snapshot_io(snapshot, (void *)&frame->type, sizeof(frame->type)) ||
                 !jass_snapshot_writestr(snapshot, jass_functionname(frame->func)) ||
@@ -2621,14 +2621,14 @@ static BOOL jass_snapshot_writecoroutines(LPJASS j, JASSSNAPSHOT *snapshot) {
     return true;
 }
 
-static BOOL jass_snapshot_readcoroutines(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSCOROUTINE *list) {
-    DWORD count, now = jass_gettime();
+static bool jass_snapshot_readcoroutines(LPJASS j, JASSSNAPSHOT *snapshot, LPJASSCOROUTINE *list) {
+    uint32_t count, now = jass_gettime();
     if (!jass_snapshot_io(snapshot, &count, sizeof(count)) || count > BZ_JASS_SNAPSHOT_MAX_COUNT) return false;
     FOR_LOOP(i, count) {
         LPJASS state = JASSALLOC(JASS);
         LPJASSCOROUTINE co = JASSALLOC(JASSCOROUTINE);
         LPJASSCOROUTINEFRAME *tail = &co->frames;
-        DWORD remaining, frames;
+        uint32_t remaining, frames;
         memcpy(state, j, sizeof(*state));
         memset(state->stack, 0, sizeof(state->stack));
         memset(&state->context, 0, sizeof(state->context));
@@ -2643,8 +2643,8 @@ static BOOL jass_snapshot_readcoroutines(LPJASS j, JASSSNAPSHOT *snapshot, LPJAS
         co->wake_time += remaining;
         FOR_LOOP(k, frames) {
             LPJASSCOROUTINEFRAME frame = JASSALLOC(JASSCOROUTINEFRAME);
-            LPSTR func = NULL;
-            DWORD body, pc;
+            string_t func = NULL;
+            uint32_t body, pc;
             memset(frame, 0, sizeof(*frame));
             if (!jass_snapshot_io(snapshot, &frame->type, sizeof(frame->type)) || frame->type > JASS_FRAME_LOOP ||
                 !jass_snapshot_readstr(snapshot, &func) ||
@@ -2667,7 +2667,7 @@ static BOOL jass_snapshot_readcoroutines(LPJASS j, JASSSNAPSHOT *snapshot, LPJAS
     return true;
 }
 
-BOOL jass_writesnapshot(LPJASS j, JASSSNAPSHOT *snapshot) {
+bool jass_writesnapshot(LPJASS j, JASSSNAPSHOT *snapshot) {
     LPJASS root = jass_root(j);
     JASSSNAPSHOTHEADER header = {
         jass_snapshot_magic, BZ_JASS_SNAPSHOT_VERSION, jass_snapshot_identity(root), jass_snapshot_globalcount(root),
@@ -2686,18 +2686,18 @@ BOOL jass_writesnapshot(LPJASS j, JASSSNAPSHOT *snapshot) {
     return jass_snapshot_writecoroutines(root, snapshot);
 }
 
-BOOL jass_readsnapshot(LPJASS j, JASSSNAPSHOT *snapshot) {
+bool jass_readsnapshot(LPJASS j, JASSSNAPSHOT *snapshot) {
     LPJASS root = jass_root(j);
     JASSSNAPSHOTHEADER header;
     LPJASSDICT staged = NULL;
     LPJASSCOROUTINE coroutines = NULL;
-    BOOL ok = false;
+    bool ok = false;
     if (root->current_coroutine || root->sync_rterror_jmp_set || !jass_snapshot_io(snapshot, &header, sizeof(header)) ||
         header.magic != jass_snapshot_magic || header.version != BZ_JASS_SNAPSHOT_VERSION ||
         header.identity != jass_snapshot_identity(root) || header.globals != jass_snapshot_globalcount(root) ||
         header.globals > BZ_JASS_SNAPSHOT_MAX_COUNT || header.coroutines > BZ_JASS_SNAPSHOT_MAX_COUNT) return false;
     FOR_LOOP(i, header.globals) {
-        LPSTR name = NULL;
+        string_t name = NULL;
         LPJASSDICT item = NULL;
         LPJASSVAR live;
         if (!jass_snapshot_readstr(snapshot, &name) || !name || find_dict(staged, name) ||
@@ -2762,15 +2762,15 @@ void jass_close(LPJASS j) {
     jass_free(root);
 }
 
-BOOL jass_dofile_ex(LPJASS j, LPCSTR fileName, JASSMODE mode) {
-    DWORD size = 0;
-    LPSTR buffer = jass_host.ReadFile(fileName, &size);
+bool jass_dofile_ex(LPJASS j, cstring_t fileName, JASSMODE mode) {
+    uint32_t size = 0;
+    string_t buffer = jass_host.ReadFile(fileName, &size);
     if (buffer) {
-        LPSTR nul_terminated = jass_alloc(size + 1);
+        string_t nul_terminated = jass_alloc(size + 1);
         memcpy(nul_terminated, buffer, size);
         nul_terminated[size] = '\0';
         jass_free(buffer);
-        BOOL success = jass_dobuffer_ex(j, nul_terminated, mode);
+        bool success = jass_dobuffer_ex(j, nul_terminated, mode);
         jass_free(nul_terminated);
         return success;
     } else {
@@ -2778,9 +2778,9 @@ BOOL jass_dofile_ex(LPJASS j, LPCSTR fileName, JASSMODE mode) {
     }
 }
 
-BOOL jass_dofile(LPJASS j, LPCSTR fileName) {
+bool jass_dofile(LPJASS j, cstring_t fileName) {
     /* Auto-detect Galaxy mode from file extension. */
-    LPCSTR dot = strrchr(fileName, '.');
+    cstring_t dot = strrchr(fileName, '.');
     JASSMODE mode = (dot && !strcmp(dot, ".galaxy")) ? JASS_MODE_GALAXY : JASS_MODE_JASS;
     return jass_dofile_ex(j, fileName, mode);
 }
@@ -2793,10 +2793,10 @@ BOOL jass_dofile(LPJASS j, LPCSTR fileName) {
 static int depth = 0, callnum = 0;
 #endif
 
-static DWORD jass_call_impl(LPJASS j, DWORD args) {
+static uint32_t jass_call_impl(LPJASS j, uint32_t args) {
     LPJASSVAR root = &j->stack[j->num_stack - args - 1];
     LPJASSVAR old_stack_pointer = j->stack_pointer;
-    DWORD ret = 0;
+    uint32_t ret = 0;
     j->stack_pointer = &j->stack[j->num_stack - args - 1];
 #ifdef DEBUG_JASS
     callnum++;
@@ -2806,13 +2806,13 @@ static DWORD jass_call_impl(LPJASS j, DWORD args) {
     if (jass_getvarbasetype(root) == jasstype_cfunction) {
         LPJASSCFUNCTION func = *(LPJASSCFUNCTION *)root->value;
 #ifdef DEBUG_JASS
-        for (DWORD i = 0; jass_host.natives[i].name; i++) {
+        for (uint32_t i = 0; jass_host.natives[i].name; i++) {
             if (jass_host.natives[i].func == func) {
                 printf("%s (native)", jass_host.natives[i].name);
                 break;
             }
         }
-        for (DWORD i = 0; jass_operators[i].name; i++) {
+        for (uint32_t i = 0; jass_operators[i].name; i++) {
             if (jass_operators[i].func == func) {
                 printf("%s (native)", jass_operators[i].name);
                 break;
@@ -2824,7 +2824,7 @@ static DWORD jass_call_impl(LPJASS j, DWORD args) {
     } else {
         LPCJASSFUNC func = root->value;
         LPJASSDICT locals = NULL;
-        DWORD argnum = 1;
+        uint32_t argnum = 1;
 #ifdef DEBUG_JASS
         printf("%s\n", func->name);
 #endif
@@ -2858,11 +2858,11 @@ static DWORD jass_call_impl(LPJASS j, DWORD args) {
 }
 
 /* Synchronous native failures unwind to the outer call instead of executing later script statements. */
-DWORD jass_call(LPJASS j, DWORD args) {
+uint32_t jass_call(LPJASS j, uint32_t args) {
     LPJASS root = jass_root(j);
     LPJASSVAR stack_pointer = j->stack_pointer;
-    DWORD stack_base = j->num_stack - args - 1;
-    DWORD ret;
+    uint32_t stack_base = j->num_stack - args - 1;
+    uint32_t ret;
 
     if (root->current_coroutine || root->sync_rterror_jmp_set) return jass_call_impl(j, args);
     root->sync_rterror_jmp_set = true;
@@ -2877,7 +2877,7 @@ DWORD jass_call(LPJASS j, DWORD args) {
     return ret;
 }
 
-void jass_callbyname(LPJASS j, LPCSTR name, BOOL spawn_coroutine) {
+void jass_callbyname(LPJASS j, cstring_t name, bool spawn_coroutine) {
     LPCJASSFUNC func = find_function(j, name);
     if (!func) {
         jass_missingcall(j, name, false);

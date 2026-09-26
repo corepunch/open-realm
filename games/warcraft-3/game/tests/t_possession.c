@@ -8,7 +8,7 @@
 #define BZ_BPOS MAKEFOURCC('B', 'p', 'o', 's') // rawcode; target Possession stun buff
 #define BZ_BPOC MAKEFOURCC('B', 'p', 'o', 'c') // rawcode; caster Possession damage-amp buff
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -54,7 +54,7 @@ static LPEDICT pos_thinker(LPEDICT caster) {
 
 /* Fill the caller's POSFIX. Returning a copy would dangle UnitBalance pointers
  * (&local.enemy_bal) after return; Linux then misreads G_UnitIsHero / DataA level. */
-static void pos_setup(POSFIX *fix, LPCSTR slk, DWORD code) {
+static void pos_setup(POSFIX *fix, cstring_t slk, uint32_t code) {
     reset_entities(); setup_test_world(); level.time = 1000;
     ((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((LPMAPINFO)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
@@ -121,7 +121,7 @@ TEST(wc3_spell, possession_acps_alias_takes_over) {
 /* Rejects ally/dead/hero/flyer/over-level/magic-immune without spending mana. */
 TEST(wc3_spell, possession_rejects_invalid_targets_without_mana_spend) {
     POSFIX fix; pos_setup(&fix, POS_APOS_SLK, BZ_APOS);
-    FLOAT mana = fix.caster->mana.value;
+    float mana = fix.caster->mana.value;
 
     T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_APOS, fix.ally));
     T_FEQ(fix.caster->mana.value, mana, 0.001f);

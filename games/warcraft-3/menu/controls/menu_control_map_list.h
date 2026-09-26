@@ -1,18 +1,18 @@
 #ifndef UI_CONTROL_MAP_LIST_H
 #define UI_CONTROL_MAP_LIST_H
 
-static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
+static void UI_DrawMapListControl(LPCFRAMEDEF frame, rect_t const * rect) {
     LPRENDERER renderer = mi.GetRenderer();
     uiMapListControl_t const *control;
     uiMapListState_t *state;
     LPCFONT font;
-    DWORD visible_rows;
-    FLOAT row_height;
-    DWORD first_row;
-    FLOAT visual_scroll;
-    FLOAT row_offset;
-    RECT content;
-    RECT clip;
+    uint32_t visible_rows;
+    float row_height;
+    uint32_t first_row;
+    float visual_scroll;
+    float row_offset;
+    rect_t content;
+    rect_t clip;
 
     if (!frame || !rect) {
         return;
@@ -25,17 +25,17 @@ static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
     }
 
     row_height = control->RowHeight > 0 ? control->RowHeight : 0.019f;
-    visible_rows = control->VisibleRows ? control->VisibleRows : (DWORD)((rect->h - control->InsetY * 2.0f) / row_height);
-    content = MAKE(RECT,
+    visible_rows = control->VisibleRows ? control->VisibleRows : (uint32_t)((rect->h - control->InsetY * 2.0f) / row_height);
+    content = MAKE(rect_t,
                    rect->x + control->InsetX,
                    rect->y + control->InsetY,
                    rect->w - control->InsetX * 2.0f,
                    row_height);
-    clip = MAKE(RECT,
+    clip = MAKE(rect_t,
                 content.x,
                 content.y,
                 content.w,
-                row_height * (FLOAT)visible_rows);
+                row_height * (float)visible_rows);
 
     font = renderer->LoadFont(UI_FontFile(control->FontName), UI_FontPixelSize(control->FontSize));
     if (!font) {
@@ -46,17 +46,17 @@ static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
     if (visual_scroll < 0.0f) {
         visual_scroll = 0.0f;
     }
-    first_row = (DWORD)floorf(visual_scroll);
-    row_offset = (visual_scroll - (FLOAT)first_row) * row_height;
+    first_row = (uint32_t)floorf(visual_scroll);
+    row_offset = (visual_scroll - (float)first_row) * row_height;
 
-    for (DWORD row = 0; row <= visible_rows; row++) {
-        DWORD const index = first_row + row;
+    for (uint32_t row = 0; row <= visible_rows; row++) {
+        uint32_t const index = first_row + row;
         uiMapListItem_t const *item;
         char text[256];
-        BOOL selected;
-        RECT row_rect = content;
-        RECT icon_rect;
-        RECT text_rect;
+        bool selected;
+        rect_t row_rect = content;
+        rect_t icon_rect;
+        rect_t text_rect;
 
         if (index >= state->count) {
             break;
@@ -64,12 +64,12 @@ static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
 
         item = &state->items[index];
         selected = index == state->selected;
-        row_rect.y += row_height * (FLOAT)row - row_offset;
+        row_rect.y += row_height * (float)row - row_offset;
         if (row_rect.y + row_rect.h <= clip.y || row_rect.y >= clip.y + clip.h) {
             continue;
         }
         if (selected && renderer->DrawImageEx) {
-            RECT selection = row_rect;
+            rect_t selection = row_rect;
             selection.x += 0.0025f;
             selection.y += 0.002f;
             selection.w -= 0.005f;
@@ -79,7 +79,7 @@ static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
                                         .shader = SHADER_UI,
                                         .alphamode = BLEND_MODE_BLEND,
                                         .screen = selection,
-                                        .uv = MAKE(RECT, 0, 0, 1, 1),
+                                        .uv = MAKE(rect_t, 0, 0, 1, 1),
                                          .color = Theme_ListBoxSelectionColor(),
                                          .flags = DRAW_CLIP,
                                         .clip = clip));
@@ -94,7 +94,7 @@ static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
         icon_rect.w = row_height - 0.002f;
         icon_rect.h = row_height - 0.002f;
         if (renderer->DrawImageEx) {
-            DWORD const icon = UI_LoadTexture("ui\\widgets\\glues\\icon-file-melee.blp", false);
+            uint32_t const icon = UI_LoadTexture("ui\\widgets\\glues\\icon-file-melee.blp", false);
             LPCTEXTURE icon_texture = UI_GetTexture(icon);
 
             if (icon_texture) {
@@ -103,7 +103,7 @@ static void UI_DrawMapListControl(LPCFRAMEDEF frame, LPCRECT rect) {
                                             .shader = SHADER_UI,
                                             .alphamode = BLEND_MODE_BLEND,
                                             .screen = icon_rect,
-                                            .uv = MAKE(RECT, 0, 0, 1, 1),
+                                            .uv = MAKE(rect_t, 0, 0, 1, 1),
                                              .color = COLOR32_WHITE,
                                              .flags = DRAW_CLIP,
                                             .clip = clip));

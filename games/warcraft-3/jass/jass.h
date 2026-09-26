@@ -49,90 +49,90 @@ typedef gameCache_t ggamecache_t;
 
 typedef struct {
     PATHSTR fileName;
-    BOOL looping;
-    BOOL is3D;
-    BOOL stopwhenoutofrange;
-    LONG fadeInRate;
-    LONG fadeOutRate;
-    DWORD duration;
+    bool looping;
+    bool is3D;
+    bool stopwhenoutofrange;
+    int32_t fadeInRate;
+    int32_t fadeOutRate;
+    uint32_t duration;
     int soundIndex; /* CS_SOUNDS configstring index; populated by CreateSound */
-    FLOAT volume;
+    float volume;
     VECTOR3 position;
-    LONG attached_entity;
-    DWORD attached_spawn_time;
-    BOOL has_position;
+    int32_t attached_entity;
+    uint32_t attached_spawn_time;
+    bool has_position;
 } gsound_t;
 
 struct vm_program {
-    HANDLE data;
-    DWORD size;
+    handle_t data;
+    uint32_t size;
 };
 
 struct jass_context {
     LPTRIGGER trigger;
     LPEDICT unit;
     LPEDICT source;
-    LONG eventValue;
+    int32_t eventValue;
     VECTOR2 point;
-    BOOL hasPoint;
+    uint8_t hasPoint;
     LPPLAYER playerState;
     LPPLAYER localPlayerState;
-    HANDLE timer;
-    HANDLE region;
-    DWORD timer_generation;
-    BOOL timer_pending;
+    handle_t timer;
+    handle_t region;
+    uint32_t timer_generation;
+    uint8_t timer_pending;
     LPCJASSFUNC func;
 };
 
-LONG jass_checkinteger(LPJASS j, int index);
-FLOAT jass_checknumber(LPJASS j, int index);
-BOOL jass_checkboolean(LPJASS j, int index);
-LPCSTR jass_checkstring(LPJASS j, int index);
+int32_t jass_checkinteger(LPJASS j, int index);
+float jass_checknumber(LPJASS j, int index);
+bool jass_checkboolean(LPJASS j, int index);
+cstring_t jass_checkstring(LPJASS j, int index);
 LPCJASSFUNC jass_checkcode(LPJASS j, int index);
-HANDLE jass_checkhandle(LPJASS j, int index, LPCSTR type);
-BOOL jass_toboolean(LPJASS j, int index);
-DWORD jass_call(LPJASS j, DWORD args);
+handle_t jass_checkhandle(LPJASS j, int index, cstring_t type);
+bool jass_toboolean(LPJASS j, int index);
+uint32_t jass_call(LPJASS j, uint32_t args);
 void jass_sethost(JASSHOST const *host);
 LPJASSCOROUTINE jass_startcoroutine(LPJASS j, LPCJASSCONTEXT context);
-LPJASSCOROUTINE jass_startcoroutinebyname(LPJASS j, LPCSTR name);
-BOOL jass_callcoroutinebyname(LPJASS j, LPCSTR name);
-BOOL jass_resume(LPJASS j, LPJASSCOROUTINE co);
-BOOL jass_coroutinedone(LPCJASSCOROUTINE co);
+LPJASSCOROUTINE jass_startcoroutinebyname(LPJASS j, cstring_t name);
+bool jass_callcoroutinebyname(LPJASS j, cstring_t name);
+bool jass_resume(LPJASS j, LPJASSCOROUTINE co);
+bool jass_coroutinedone(LPCJASSCOROUTINE co);
 void jass_runevents(LPJASS j);
-void jass_sleep(LPJASS j, DWORD msec);
-LPCSTR jass_functionname(LPCJASSFUNC func);
-LPCSTR jass_currentfunctionname(LPJASS j);
-DWORD jass_formatcallchain(LPJASS j, LPSTR buffer, DWORD size);
-LPCJASSFUNC jass_functionbyname(LPJASS j, LPCSTR name);
-void jass_settimercontext(HANDLE timer);
-BOOL jass_triggerdisabled(LPTRIGGER trigger);
+void jass_sleep(LPJASS j, uint32_t msec);
+cstring_t jass_functionname(LPCJASSFUNC func);
+cstring_t jass_currentfunctionname(LPJASS j);
+uint32_t jass_formatcallchain(LPJASS j, string_t buffer, uint32_t size);
+LPCJASSFUNC jass_functionbyname(LPJASS j, cstring_t name);
+void jass_settimercontext(handle_t timer);
+bool jass_triggerdisabled(LPTRIGGER trigger);
 JASSTYPEID jass_gettype(LPJASS j, int index);
-DWORD jass_pushnull(LPJASS j);
-DWORD jass_pushinteger(LPJASS j, LONG value);
-DWORD jass_pushhandle(LPJASS j, HANDLE value, LPCSTR type);
-DWORD jass_pushlighthandle(LPJASS j, HANDLE value, LPCSTR type);
-DWORD jass_pushnumber(LPJASS j, FLOAT value);
-DWORD jass_pushboolean(LPJASS j, BOOL value);
-DWORD jass_pushstring(LPJASS j, LPCSTR value);
-DWORD jass_pushstringlen(LPJASS j, LPCSTR value, DWORD len);
-DWORD jass_pushfunction(LPJASS j, LPCJASSFUNC func);
-DWORD jass_pushnullhandle(LPJASS j, LPCSTR type);
-HANDLE jass_newhandle(LPJASS j, DWORD size, LPCSTR type);
-HANDLE jass_alloc(long size);
-void jass_free(HANDLE ptr);
+uint32_t jass_pushnull(LPJASS j);
+uint32_t jass_pushinteger(LPJASS j, int32_t value);
+uint32_t jass_pushhandle(LPJASS j, handle_t value, cstring_t type);
+uint32_t jass_pushlighthandle(LPJASS j, handle_t value, cstring_t type);
+uint32_t jass_pushnumber(LPJASS j, float value);
+uint32_t jass_pushboolean(LPJASS j, bool value);
+uint32_t jass_pushstring(LPJASS j, cstring_t value);
+uint32_t jass_pushstringlen(LPJASS j, cstring_t value, uint32_t len);
+uint32_t jass_pushfunction(LPJASS j, LPCJASSFUNC func);
+uint32_t jass_pushnullhandle(LPJASS j, cstring_t type);
+handle_t jass_newhandle(LPJASS j, uint32_t size, cstring_t type);
+handle_t jass_alloc(long size);
+void jass_free(handle_t ptr);
 LPCJASSCONTEXT jass_getcontext(LPJASS j);
-BOOL jass_calltriggerevent(LPJASS j, LPTRIGGER trigger, GAMEEVENT const *event);
+bool jass_calltriggerevent(LPJASS j, LPTRIGGER trigger, GAMEEVENT const *event);
 LPJASS jass_getroot(LPJASS j);
-BOOL jass_isrunning(LPJASS j);
+bool jass_isrunning(LPJASS j);
 void jass_haltevents(LPJASS j);
-BOOL jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit, LPEDICT source);
-BOOL jass_calltriggerwithvalue(LPJASS j, LPTRIGGER trigger, LPEDICT unit, LPEDICT source, LONG eventValue);
-BOOL jass_calltriggerwithtimer(LPJASS j, LPTRIGGER trigger, HANDLE timer);
-BOOL jass_popboolean(LPJASS j);
-void jass_pop(LPJASS j, DWORD count);
-BOOL jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
-BOOL jass_evaluateboolexpr(LPJASS j, LPCJASSFUNC expr, LPEDICT unit);
-BOOL jass_evaluateplayerexpr(LPJASS j, LPCJASSFUNC expr, LPPLAYER player);
+bool jass_calltrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit, LPEDICT source);
+bool jass_calltriggerwithvalue(LPJASS j, LPTRIGGER trigger, LPEDICT unit, LPEDICT source, int32_t eventValue);
+bool jass_calltriggerwithtimer(LPJASS j, LPTRIGGER trigger, handle_t timer);
+bool jass_popboolean(LPJASS j);
+void jass_pop(LPJASS j, uint32_t count);
+bool jass_evaluatetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
+bool jass_evaluateboolexpr(LPJASS j, LPCJASSFUNC expr, LPEDICT unit);
+bool jass_evaluateplayerexpr(LPJASS j, LPCJASSFUNC expr, LPPLAYER player);
 void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
 
 /* -------------------------------------------------------------------------
@@ -147,24 +147,24 @@ void jass_executetrigger(LPJASS j, LPTRIGGER trigger, LPEDICT unit);
  * jass_rterror_message() returns the message string (valid until cleared).
  * jass_rterror_clear() resets the error state.
  * ------------------------------------------------------------------------- */
-void   jass_rterror(LPJASS j, LPCSTR message);
-BOOL   jass_rterror_pending(LPJASS j);
-LPCSTR jass_rterror_message(LPJASS j);
+void   jass_rterror(LPJASS j, cstring_t message);
+bool   jass_rterror_pending(LPJASS j);
+cstring_t jass_rterror_message(LPJASS j);
 void   jass_rterror_clear(LPJASS j);
 
 /* jass_callbyname — call a named JASS function.
  * spawn_coroutine=true: enqueue as a new coroutine (returns immediately).
  * spawn_coroutine=false: call synchronously on the current stack. */
-void jass_callbyname(LPJASS j, LPCSTR name, BOOL spawn_coroutine);
+void jass_callbyname(LPJASS j, cstring_t name, bool spawn_coroutine);
 
 /* jass_dofile / jass_dobuffer — load and evaluate source (JASS mode).
  * jass_dofile auto-detects Galaxy mode for .galaxy filenames. */
-BOOL jass_dofile(LPJASS j, LPCSTR fileName);
-BOOL jass_dobuffer(LPJASS j, LPSTR buffer);
+bool jass_dofile(LPJASS j, cstring_t fileName);
+bool jass_dobuffer(LPJASS j, string_t buffer);
 
 /* _ex variants — explicit mode control. */
-BOOL jass_dofile_ex(LPJASS j, LPCSTR fileName, JASSMODE mode);
-BOOL jass_dobuffer_ex(LPJASS j, LPSTR buffer, JASSMODE mode);
+bool jass_dofile_ex(LPJASS j, cstring_t fileName, JASSMODE mode);
+bool jass_dobuffer_ex(LPJASS j, string_t buffer, JASSMODE mode);
 
 /* jass_newstate / jass_close — state lifecycle. */
 LPJASS jass_newstate(void);

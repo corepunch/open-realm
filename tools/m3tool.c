@@ -9,21 +9,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-static HANDLE archives[64];
-static LPCSTR g_model_path;
+static handle_t archives[64];
+static cstring_t g_model_path;
 static bool g_info_only;
 static bool g_dump_all;
 static bool g_run_once;
 static viewer_orbit_t g_orbit;
 
-HANDLE MemAlloc(long size) { return Tool_MemAlloc(size); }
-void MemFree(HANDLE mem) { Viewer_MemFree(mem); }
+handle_t MemAlloc(long size) { return Tool_MemAlloc(size); }
+void MemFree(handle_t mem) { Viewer_MemFree(mem); }
 
 void Sys_Quit(void) {
     exit(0);
 }
 
-bool FS_ExtractFile(LPCSTR toExtract, LPCSTR extracted) {
+bool FS_ExtractFile(cstring_t toExtract, cstring_t extracted) {
     return Viewer_ExtractFile(archives, sizeof(archives) / sizeof(archives[0]), toExtract, extracted);
 }
 
@@ -37,7 +37,7 @@ static void usage(void) {
             "  m3tool -mpq data/StarCraft2/Mods/Liberty.SC2Mod/base.SC2Assets -model Assets\\\\Units\\\\Terran\\\\Marine\\\\Marine.m3 --dump-all\n");
 }
 
-static void errorf(LPCSTR fmt, ...) {
+static void errorf(cstring_t fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
@@ -46,16 +46,16 @@ static void errorf(LPCSTR fmt, ...) {
     exit(1);
 }
 
-static void Tool_DrawString(refExport_t const *re, LPCSTR string, int x, int y) {
+static void Tool_DrawString(refExport_t const *re, cstring_t string, int x, int y) {
     if (!re || !string) {
         return;
     }
-    for (DWORD i = 0; string[i]; i++) {
-        re->DrawChar(x + (int)i * 8, y, (BYTE)string[i]);
+    for (uint32_t i = 0; string[i]; i++) {
+        re->DrawChar(x + (int)i * 8, y, (uint8_t)string[i]);
     }
 }
 
-static void PrintLayer(LPCSTR label, m3Layer_t const *layer, DWORD count) {
+static void PrintLayer(cstring_t label, m3Layer_t const *layer, uint32_t count) {
     FOR_LOOP(i, count) {
         COLOR32 color = layer[i].color.initValue;
         fprintf(stderr,
@@ -76,7 +76,7 @@ static void PrintLayer(LPCSTR label, m3Layer_t const *layer, DWORD count) {
 
 static BOX3 M3PreviewBounds(m3Model_t const *m3) {
     BOX3 bounds = { 0 };
-    BOOL has_bounds = false;
+    bool has_bounds = false;
 
     if (!m3) {
         return bounds;
@@ -109,9 +109,9 @@ static BOX3 M3PreviewBounds(m3Model_t const *m3) {
 static void PrintModelInfo(LPCMODEL model) {
     m3Model_t const *m3 = model ? model->m3 : NULL;
     BOX3 bounds = M3PreviewBounds(m3);
-    FLOAT width = fabsf(bounds.max.x - bounds.min.x);
-    FLOAT depth = fabsf(bounds.max.y - bounds.min.y);
-    FLOAT height = fabsf(bounds.max.z - bounds.min.z);
+    float width = fabsf(bounds.max.x - bounds.min.x);
+    float depth = fabsf(bounds.max.y - bounds.min.y);
+    float height = fabsf(bounds.max.z - bounds.min.z);
 
     if (!m3) {
         fprintf(stderr, "m3tool: no M3 model loaded\n");
@@ -239,16 +239,16 @@ static void PrintModelInfo(LPCMODEL model) {
     }
 }
 
-static void RenderFrame(refExport_t const *re, LPCMODEL model, LPCBOX3 bounds, DWORD now) {
+static void RenderFrame(refExport_t const *re, LPCMODEL model, LPCBOX3 bounds, uint32_t now) {
     viewDef_t viewdef = { 0 };
     renderEntity_t entity = { 0 };
     VECTOR3 center = Box3_Center(bounds);
-    FLOAT width = fabsf(bounds->max.x - bounds->min.x);
-    FLOAT depth = fabsf(bounds->max.y - bounds->min.y);
-    FLOAT height = fabsf(bounds->max.z - bounds->min.z);
-    FLOAT radius = MAX(1.0f, MAX(width, MAX(depth, height)));
+    float width = fabsf(bounds->max.x - bounds->min.x);
+    float depth = fabsf(bounds->max.y - bounds->min.y);
+    float height = fabsf(bounds->max.z - bounds->min.z);
+    float radius = MAX(1.0f, MAX(width, MAX(depth, height)));
     size2_t window = re->GetWindowSize();
-    FLOAT aspect = window.height ? (FLOAT)window.width / (FLOAT)window.height : 1.0f;
+    float aspect = window.height ? (float)window.width / (float)window.height : 1.0f;
     MATRIX4 entity_matrix;
 
     entity.model = model;
@@ -257,8 +257,8 @@ static void RenderFrame(refExport_t const *re, LPCMODEL model, LPCBOX3 bounds, D
     entity.frame = now;
     entity.oldframe = now;
 
-    viewdef.viewport = (RECT){ 0, 0, 1, 1 };
-    viewdef.scissor = (RECT){ 0, 0, 1, 1 };
+    viewdef.viewport = (rect_t){ 0, 0, 1, 1 };
+    viewdef.scissor = (rect_t){ 0, 0, 1, 1 };
     viewdef.time = now;
     viewdef.deltaTime = 16;
     viewdef.lerpfrac = 0.0f;
@@ -283,8 +283,8 @@ int main(int argc, char **argv) {
     refExport_t re;
     LPMODEL model;
     BOX3 bounds;
-    FLOAT width, depth, height, extent;
-    BOOL running = true;
+    float width, depth, height, extent;
+    bool running = true;
 
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-mpq") && i + 1 < argc) {

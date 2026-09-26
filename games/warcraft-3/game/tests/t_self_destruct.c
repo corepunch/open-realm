@@ -10,7 +10,7 @@
 #define BZ_ANSY MAKEFOURCC('A', 'N', 's', 'y') // rawcode; Pocket Factory
 #define BZ_OGRU MAKEFOURCC('o', 'g', 'r', 'u') // unitCode; fixture Clockwerk
 
-LPEDICT alloc_test_unit(DWORD class_id, FLOAT x, FLOAT y);
+LPEDICT alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *text);
@@ -45,7 +45,7 @@ static char const sd_slk[] =
 	"C;Y4;X9;K\"3\"\nC;Y4;X10;K\"0\"\nC;Y4;X11;K\"0.1\"\nC;Y4;X12;K\"0.1\"\n"
 	"C;Y4;X13;K\"0\"\nC;Y4;X14;K\"0\"\nE\n";
 
-static SDFIX sd_setup(DWORD code) {
+static SDFIX sd_setup(uint32_t code) {
 	SDFIX fix;
 	reset_entities(); setup_test_world(); level.time = 1000;
 	((LPMAPINFO)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;

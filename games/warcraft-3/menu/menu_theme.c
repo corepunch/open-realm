@@ -17,7 +17,7 @@ typedef struct {
 } themeEntry_t;
 
 static themeEntry_t theme_entries[MAX_THEME_ENTRIES];
-static DWORD theme_count = 0;
+static uint32_t theme_count = 0;
 
 static char *UI_ThemeTrim(char *text) {
     text += strspn(text, " \t\r\n");
@@ -31,10 +31,10 @@ BZ_HOST_HIDDEN void UI_ClearTheme(void) {
     theme_count = 0;
 }
 
-void UI_LoadTheme(LPCSTR fileName) {
+void UI_LoadTheme(cstring_t fileName) {
     void *buffer = NULL;
     int size = mi.FS_ReadFile(fileName, &buffer);
-    LPSTR text;
+    string_t text;
     char *cursor;
     UINAME category = "Default";
 
@@ -44,7 +44,7 @@ void UI_LoadTheme(LPCSTR fileName) {
         return;
     }
 
-    text = mi.MemAlloc((DWORD)size + 1);
+    text = mi.MemAlloc((uint32_t)size + 1);
     if (!text) {
         mi.FS_FreeFile(buffer);
         return;
@@ -102,7 +102,7 @@ void UI_LoadTheme(LPCSTR fileName) {
     mi.MemFree(text);
 }
 
-static LPCSTR UI_FindThemeValue(LPCSTR entry, LPCSTR category) {
+static cstring_t UI_FindThemeValue(cstring_t entry, cstring_t category) {
     FOR_LOOP(i, theme_count) {
         if (!strcmp(theme_entries[i].key, entry) &&
             (!category || !strcmp(theme_entries[i].category, category))) {
@@ -113,18 +113,18 @@ static LPCSTR UI_FindThemeValue(LPCSTR entry, LPCSTR category) {
 }
 
 /* Warcraft skin versions follow the mounted data edition: 0=RoC, 1=TFT. */
-static DWORD UI_ThemeGameVersion(void) {
-    LPCSTR expansion = mi.Cvar_String
+static uint32_t UI_ThemeGameVersion(void) {
+    cstring_t expansion = mi.Cvar_String
         ? mi.Cvar_String("fs_expansion", "0")
         : "0";
 
     return expansion && atoi(expansion) != 0 ? 1 : 0;
 }
 
-BZ_HOST_HIDDEN LPCSTR Theme_String(LPCSTR entry, LPCSTR category) {
-    LPCSTR filename = NULL;
+BZ_HOST_HIDDEN cstring_t Theme_String(cstring_t entry, cstring_t category) {
+    cstring_t filename = NULL;
     char versioned[128];
-    LPCSTR fallback = "Default";
+    cstring_t fallback = "Default";
 
     if (!category || !*category) {
         category = fallback;
@@ -152,7 +152,7 @@ BZ_HOST_HIDDEN LPCSTR Theme_String(LPCSTR entry, LPCSTR category) {
     return entry;
 }
 
-BZ_HOST_HIDDEN FLOAT Theme_Float(LPCSTR entry, LPCSTR category) {
+BZ_HOST_HIDDEN float Theme_Float(cstring_t entry, cstring_t category) {
     return atof(Theme_String(entry, category));
 }
 

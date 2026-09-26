@@ -1,4 +1,4 @@
-DWORD Rect(LPJASS j) {
+uint32_t Rect(LPJASS j) {
     API_ALLOC(BOX2, rect);
     rect->min.x = jass_checknumber(j, 1);
     rect->min.y = jass_checknumber(j, 2);
@@ -6,7 +6,7 @@ DWORD Rect(LPJASS j) {
     rect->max.y = jass_checknumber(j, 4);
     return 1;
 }
-DWORD RectFromLoc(LPJASS j) {
+uint32_t RectFromLoc(LPJASS j) {
     LPCVECTOR2 min = jass_checkhandle(j, 1, "location");
     LPCVECTOR2 max = jass_checkhandle(j, 2, "location");
     API_ALLOC(BOX2, rect);
@@ -14,16 +14,16 @@ DWORD RectFromLoc(LPJASS j) {
     if (max) rect->max = *max;
     return 1;
 }
-DWORD RemoveRect(LPJASS j) {
-    //HANDLE whichRect = jass_checkhandle(j, 1, "rect");
+uint32_t RemoveRect(LPJASS j) {
+    //handle_t whichRect = jass_checkhandle(j, 1, "rect");
     return 0;
 }
-DWORD SetRect(LPJASS j) {
+uint32_t SetRect(LPJASS j) {
     LPBOX2 whichRect = jass_checkhandle(j, 1, "rect");
-    FLOAT minx = jass_checknumber(j, 2);
-    FLOAT miny = jass_checknumber(j, 3);
-    FLOAT maxx = jass_checknumber(j, 4);
-    FLOAT maxy = jass_checknumber(j, 5);
+    float minx = jass_checknumber(j, 2);
+    float miny = jass_checknumber(j, 3);
+    float maxx = jass_checknumber(j, 4);
+    float maxy = jass_checknumber(j, 5);
     if (whichRect) {
         whichRect->min.x = minx;
         whichRect->min.y = miny;
@@ -32,7 +32,7 @@ DWORD SetRect(LPJASS j) {
     }
     return 0;
 }
-DWORD SetRectFromLoc(LPJASS j) {
+uint32_t SetRectFromLoc(LPJASS j) {
     LPBOX2 whichRect = jass_checkhandle(j, 1, "rect");
     LPCVECTOR2 min = jass_checkhandle(j, 2, "location");
     LPCVECTOR2 max = jass_checkhandle(j, 3, "location");
@@ -40,7 +40,7 @@ DWORD SetRectFromLoc(LPJASS j) {
     if (whichRect && max) whichRect->max = *max;
     return 0;
 }
-DWORD MoveRectTo(LPJASS j) {
+uint32_t MoveRectTo(LPJASS j) {
     LPBOX2 whichRect = jass_checkhandle(j, 1, "rect");
     VECTOR2 newCenterLoc = {
         jass_checknumber(j, 2),
@@ -49,38 +49,38 @@ DWORD MoveRectTo(LPJASS j) {
     if (whichRect) Box2_moveTo(whichRect, &newCenterLoc);
     return 0;
 }
-DWORD MoveRectToLoc(LPJASS j) {
+uint32_t MoveRectToLoc(LPJASS j) {
     LPBOX2 whichRect = jass_checkhandle(j, 1, "rect");
     LPCVECTOR2 newCenterLoc = jass_checkhandle(j, 2, "location");
     if (whichRect && newCenterLoc) Box2_moveTo(whichRect, newCenterLoc);
     return 0;
 }
-DWORD GetRectCenterX(LPJASS j) {
+uint32_t GetRectCenterX(LPJASS j) {
     LPCBOX2 whichRect = jass_checkhandle(j, 1, "rect");
     return jass_pushnumber(j, whichRect ? Box2_center(whichRect).x : 0);
 }
-DWORD GetRectCenterY(LPJASS j) {
+uint32_t GetRectCenterY(LPJASS j) {
     LPCBOX2 whichRect = jass_checkhandle(j, 1, "rect");
     return jass_pushnumber(j, whichRect ? Box2_center(whichRect).y : 0);
 }
-DWORD GetRectMinX(LPJASS j) {
+uint32_t GetRectMinX(LPJASS j) {
     LPCBOX2 whichRect = jass_checkhandle(j, 1, "rect");
     return jass_pushnumber(j, whichRect ? whichRect->min.x : 0);
 }
-DWORD GetRectMinY(LPJASS j) {
+uint32_t GetRectMinY(LPJASS j) {
     LPCBOX2 whichRect = jass_checkhandle(j, 1, "rect");
     return jass_pushnumber(j, whichRect ? whichRect->min.y : 0);
 }
-DWORD GetRectMaxX(LPJASS j) {
+uint32_t GetRectMaxX(LPJASS j) {
     LPCBOX2 whichRect = jass_checkhandle(j, 1, "rect");
     return jass_pushnumber(j, whichRect ? whichRect->max.x : 0);
 }
-DWORD GetRectMaxY(LPJASS j) {
+uint32_t GetRectMaxY(LPJASS j) {
     LPCBOX2 whichRect = jass_checkhandle(j, 1, "rect");
     return jass_pushnumber(j, whichRect ? whichRect->max.y : 0);
 }
-DWORD CreateRegion(LPJASS j) {
-    DWORD i;
+uint32_t CreateRegion(LPJASS j) {
+    uint32_t i;
     LPREGION region;
     for (i = 0; i < MAX_REGIONS && (level.regions[i].inuse || level.regions[i].exhausted); i++) { }
     if (i == MAX_REGIONS) {
@@ -93,8 +93,8 @@ DWORD CreateRegion(LPJASS j) {
     if (i >= level.num_regions) level.num_regions = i + 1;
     return jass_pushlighthandle(j, G_RegionHandle(i), "region");
 }
-DWORD RemoveRegion(LPJASS j) {
-    HANDLE handle = jass_checkhandle(j, 1, "region");
+uint32_t RemoveRegion(LPJASS j) {
+    handle_t handle = jass_checkhandle(j, 1, "region");
     LPREGION region = G_RegionFromHandle(handle);
     if (!region) return 0;
     region->inuse = false;
@@ -106,7 +106,7 @@ DWORD RemoveRegion(LPJASS j) {
         LPEVENT event = &level.events.handlers[i];
         if (!event->inuse || event->region != handle) continue;
         event->region = NULL;
-        for (DWORD n = level.events.read; n < level.events.write; n++)
+        for (uint32_t n = level.events.read; n < level.events.write; n++)
             if (level.events.queue[n % MAX_EVENT_QUEUE].responseTo == event)
                 level.events.queue[n % MAX_EVENT_QUEUE].responseTo = NULL;
         event->inuse = false;
@@ -115,7 +115,7 @@ DWORD RemoveRegion(LPJASS j) {
     }
     return 0;
 }
-DWORD RegionAddRect(LPJASS j) {
+uint32_t RegionAddRect(LPJASS j) {
     LPREGION whichRegion = G_RegionFromHandle(jass_checkhandle(j, 1, "region"));
     LPCBOX2 r = jass_checkhandle(j, 2, "rect");
     if (!whichRegion || !whichRegion->inuse || !r) return 0;
@@ -127,7 +127,7 @@ DWORD RegionAddRect(LPJASS j) {
     whichRegion->rects[whichRegion->num_rects++] = *r;
     return 0;
 }
-DWORD RegionClearRect(LPJASS j) {
+uint32_t RegionClearRect(LPJASS j) {
     LPREGION whichRegion = G_RegionFromHandle(jass_checkhandle(j, 1, "region"));
     LPCBOX2 r = jass_checkhandle(j, 2, "rect");
     if (!whichRegion || !whichRegion->inuse || !r) return 0;
@@ -139,52 +139,52 @@ DWORD RegionClearRect(LPJASS j) {
     }
     return 0;
 }
-DWORD RegionAddCell(LPJASS j) {
-    //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
+uint32_t RegionAddCell(LPJASS j) {
+    //handle_t whichRegion = jass_checkhandle(j, 1, "region");
+    //float x = jass_checknumber(j, 2);
+    //float y = jass_checknumber(j, 3);
     return 0;
 }
-DWORD RegionAddCellAtLoc(LPJASS j) {
-    //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
-    //HANDLE whichLocation = jass_checkhandle(j, 2, "location");
+uint32_t RegionAddCellAtLoc(LPJASS j) {
+    //handle_t whichRegion = jass_checkhandle(j, 1, "region");
+    //handle_t whichLocation = jass_checkhandle(j, 2, "location");
     return 0;
 }
-DWORD RegionClearCell(LPJASS j) {
-    //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
-    //FLOAT x = jass_checknumber(j, 2);
-    //FLOAT y = jass_checknumber(j, 3);
+uint32_t RegionClearCell(LPJASS j) {
+    //handle_t whichRegion = jass_checkhandle(j, 1, "region");
+    //float x = jass_checknumber(j, 2);
+    //float y = jass_checknumber(j, 3);
     return 0;
 }
-DWORD RegionClearCellAtLoc(LPJASS j) {
-    //HANDLE whichRegion = jass_checkhandle(j, 1, "region");
-    //HANDLE whichLocation = jass_checkhandle(j, 2, "location");
+uint32_t RegionClearCellAtLoc(LPJASS j) {
+    //handle_t whichRegion = jass_checkhandle(j, 1, "region");
+    //handle_t whichLocation = jass_checkhandle(j, 2, "location");
     return 0;
 }
-DWORD Location(LPJASS j) {
+uint32_t Location(LPJASS j) {
     API_ALLOC(VECTOR2, location);
     location->x = jass_checknumber(j, 1);
     location->y = jass_checknumber(j, 2);
     return 1;
 }
-DWORD RemoveLocation(LPJASS j) {
-    //HANDLE whichLocation = jass_checkhandle(j, 1, "location");
+uint32_t RemoveLocation(LPJASS j) {
+    //handle_t whichLocation = jass_checkhandle(j, 1, "location");
     return 0;
 }
-DWORD MoveLocation(LPJASS j) {
+uint32_t MoveLocation(LPJASS j) {
     LPVECTOR2 whichLocation = jass_checkhandle(j, 1, "location");
     if (whichLocation) { whichLocation->x = jass_checknumber(j, 2); whichLocation->y = jass_checknumber(j, 3); }
     return 0;
 }
-DWORD GetLocationX(LPJASS j) {
+uint32_t GetLocationX(LPJASS j) {
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 1, "location");
     return jass_pushnumber(j, whichLocation ? whichLocation->x : 0); // null location reads as 0, like GetRectCenterX
 }
-DWORD GetLocationY(LPJASS j) {
+uint32_t GetLocationY(LPJASS j) {
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 1, "location");
     return jass_pushnumber(j, whichLocation ? whichLocation->y : 0); // null location reads as 0, like GetRectCenterX
 }
-DWORD GetLocationZ(LPJASS j) {
+uint32_t GetLocationZ(LPJASS j) {
     LPCVECTOR2 whichLocation = jass_checkhandle(j, 1, "location");
     return jass_pushnumber(j, whichLocation ? CM_GetHeightAtPoint(whichLocation->x, whichLocation->y) : 0);
 }

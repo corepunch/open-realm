@@ -17,8 +17,8 @@
 
 BZ_ITEM_PROC(AbilityItemHeal) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
-    DWORD code = S_SpellCurrentCode(clent, ID_ITEM_HEAL);
-    FLOAT amount = S_SpellData(code, 1, 1);
+    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_HEAL);
+    float amount = S_SpellData(code, 1, 1);
 
     if (!S_SpellIsAliveTarget(target) || amount <= 0 || target->health.value >= target->health.max_value) {
         return false;
@@ -30,8 +30,8 @@ BZ_ITEM_PROC(AbilityItemHeal) {
 
 BZ_ITEM_PROC(AbilityItemManaRestore) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
-    DWORD code = S_SpellCurrentCode(clent, ID_ITEM_MANA);
-    FLOAT amount = S_SpellData(code, 1, 1);
+    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_MANA);
+    float amount = S_SpellData(code, 1, 1);
 
     if (!target || amount <= 0 || target->mana.value >= target->mana.max_value) {
         return false;
@@ -43,8 +43,8 @@ BZ_ITEM_PROC(AbilityItemManaRestore) {
 
 BZ_ITEM_PROC(AbilityMaxLifeMod) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
-    DWORD code = S_SpellCurrentCode(clent, ID_ITEM_LIFE_GAIN);
-    FLOAT amount = S_SpellData(code, 1, 1);
+    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_LIFE_GAIN);
+    float amount = S_SpellData(code, 1, 1);
 
     if (!target || amount <= 0) {
         return false;
@@ -59,17 +59,17 @@ BZ_ITEM_PROC(AbilityMaxLifeMod) {
  * Permanently adds to hero base stats, consumes the item. */
 BZ_ITEM_PROC(AbilityStrengthMod) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
-    DWORD code = S_SpellCurrentCode(clent, 0);
-    FLOAT str = S_SpellData(code, 1, 3);
-    FLOAT agi = S_SpellData(code, 1, 1);
-    FLOAT intel = S_SpellData(code, 1, 2);
+    uint32_t code = S_SpellCurrentCode(clent, 0);
+    float str = S_SpellData(code, 1, 3);
+    float agi = S_SpellData(code, 1, 1);
+    float intel = S_SpellData(code, 1, 2);
 
     if (!target || !G_UnitIsHero(target)) {
         return false;
     }
-    target->hero.str += (DWORD)str;
-    target->hero.agi += (DWORD)agi;
-    target->hero.intel += (DWORD)intel;
+    target->hero.str += (uint32_t)str;
+    target->hero.agi += (uint32_t)agi;
+    target->hero.intel += (uint32_t)intel;
     G_RecomputeHeroStats(target);
     G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
     return true;
@@ -78,8 +78,8 @@ BZ_ITEM_PROC(AbilityStrengthMod) {
 /* WarSmash: CAbilityItemExperienceGain — grants XP. */
 BZ_ITEM_PROC(AbilityExperienceMod) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
-    DWORD code = S_SpellCurrentCode(clent, ID_ITEM_XP_GAIN);
-    DWORD amount = (DWORD)S_SpellData(code, 1, 1);
+    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_XP_GAIN);
+    uint32_t amount = (uint32_t)S_SpellData(code, 1, 1);
 
     if (!target || !G_UnitIsHero(target) || amount == 0) {
         return false;
@@ -92,14 +92,14 @@ BZ_ITEM_PROC(AbilityExperienceMod) {
 /* WarSmash: CAbilityItemLevelGain — grants hero level. */
 BZ_ITEM_PROC(AbilityLevelMod) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
-    DWORD code = S_SpellCurrentCode(clent, ID_ITEM_LEVEL_GAIN);
-    DWORD levels = (DWORD)S_SpellData(code, 1, 1);
+    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_LEVEL_GAIN);
+    uint32_t levels = (uint32_t)S_SpellData(code, 1, 1);
 
     if (!target || !G_UnitIsHero(target) || levels == 0) {
         return false;
     }
-    DWORD target_level = MIN(target->hero.level + levels, G_MaxHeroLevel());
-    DWORD target_xp = G_HeroXPForLevel(target_level);
+    uint32_t target_level = MIN(target->hero.level + levels, G_MaxHeroLevel());
+    uint32_t target_xp = G_HeroXPForLevel(target_level);
     if (target_xp <= target->hero.xp) {
         return false;
     }
@@ -111,8 +111,8 @@ BZ_ITEM_PROC(AbilityLevelMod) {
 /* WarSmash: CAbilityItemFigurineSummon — summons a unit. */
 BZ_ITEM_PROC(AbilityFigurineSkeleton) {
     LPEDICT target = G_GetMainSelectedUnit(clent->client);
-    DWORD code = S_SpellCurrentCode(clent, ID_ITEM_FIGURINE);
-    DWORD unit_id = S_SpellUnitId(code, 1);
+    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_FIGURINE);
+    uint32_t unit_id = S_SpellUnitId(code, 1);
 
     if (!target || !unit_id) {
         return false;
@@ -132,12 +132,12 @@ BZ_ITEM_PROC(AbilityFigurineSkeleton) {
  * carrier: the ability data decides the actual numbers. */
 BZ_ITEM_PROC(AbilityItemDefenseAoe) {
     LPEDICT caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
-    DWORD code = S_SpellCurrentCode(clent, ID_ITEM_DEFENSE_AOE);
-    DWORD level = 1;
-    FLOAT bonus = S_SpellData(code, level, 1);
-    FLOAT area = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
-    LPCSTR buff = G_AbilityLevel(code, level)->buffID;
-    DWORD affected = 0;
+    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_DEFENSE_AOE);
+    uint32_t level = 1;
+    float bonus = S_SpellData(code, level, 1);
+    float area = S_SpellNumber(code, ABILITY_NUMBER_AREA, level);
+    cstring_t buff = G_AbilityLevel(code, level)->buffID;
+    uint32_t affected = 0;
 
     if (!caster || bonus <= 0.0f || area < 0.0f || !buff || strlen(buff) < 4) {
         return false;
@@ -149,7 +149,7 @@ BZ_ITEM_PROC(AbilityItemDefenseAoe) {
      Vector2_distance(&(t)->s.origin2, &caster->s.origin2) <= area)
 
     FILTER_EDICTS(target, ITEM_DEFENSE_AOE_TARGET(target)) {
-        FLOAT duration = S_SpellDuration(code, level, G_UnitIsHero(target));
+        float duration = S_SpellDuration(code, level, G_UnitIsHero(target));
         unit_addtimedstatus(target, buff, level, duration);
         G_SpawnAbilityEffectTarget(code, WC3_EFFECT_TARGET, 0, target, NULL, true);
         affected++;
@@ -165,10 +165,10 @@ BZ_ITEM_PROC(AbilityItemDefenseAoe) {
  * see the same temporary time. */
 BZ_ITEM_PROC(AbilityItemChangeTOD) {
     LPEDICT caster = clent && clent->client ? G_GetMainSelectedUnit(clent->client) : NULL;
-    DWORD code = S_SpellCurrentCode(clent, ID_ITEM_CHANGE_TIME);
-    LONG hour = (LONG)S_SpellData(code, 1, 1);
-    LONG minute = (LONG)S_SpellData(code, 1, 2);
-    FLOAT duration = S_SpellDuration(code, 1, false);
+    uint32_t code = S_SpellCurrentCode(clent, ID_ITEM_CHANGE_TIME);
+    int32_t hour = (int32_t)S_SpellData(code, 1, 1);
+    int32_t minute = (int32_t)S_SpellData(code, 1, 2);
+    float duration = S_SpellDuration(code, 1, false);
 
     if (!caster) {
         return false;

@@ -38,7 +38,7 @@ typedef struct lan_join_state_s {
     lanMode_t mode;
     uiMapListState_t games;
     uiMapListState_t maps;
-    BOOL ready;
+    bool ready;
     LPFRAMEDEF root;
     LPFRAMEDEF join_button;
     LPFRAMEDEF play_button;
@@ -52,7 +52,7 @@ typedef struct lan_join_state_s {
     LPFRAMEDEF game_speed_value;
 } lan_join_state_t;
 
-static LPCSTR const lan_left[] = {
+static cstring_t const lan_left[] = {
     "GameListPanel",
     "GameSettingsPanel",
     "CustomCreateTitle",
@@ -64,8 +64,8 @@ static LPCSTR const lan_left[] = {
 
 static lan_join_state_t lan;
 
-static BOOL LANJoin_LoadScreen(void) {
-    BOOL ok = true;
+static bool LANJoin_LoadScreen(void) {
+    bool ok = true;
 
     ok = UI_EnsureFDF("UI\\FrameDef\\GlobalStrings.fdf") && ok;
     ok = UI_EnsureFDF("UI\\FrameDef\\Glue\\StandardTemplates.fdf") && ok;
@@ -76,26 +76,26 @@ static BOOL LANJoin_LoadScreen(void) {
     return ok;
 }
 
-static void LAN_CopyString(LPSTR out, size_t out_size, LPCSTR value) {
+static void LAN_CopyString(string_t out, size_t out_size, cstring_t value) {
     if (!out || out_size == 0) {
         return;
     }
     snprintf(out, out_size, "%s", value ? value : "");
 }
 
-static void LAN_CopyTitleSubtitle(LPSTR out, size_t out_size, LPCSTR title, LPCSTR subtitle) {
+static void LAN_CopyTitleSubtitle(string_t out, size_t out_size, cstring_t title, cstring_t subtitle) {
     if (!out || out_size == 0) {
         return;
     }
     snprintf(out, out_size, "%s: %s", title ? title : "", subtitle ? subtitle : "");
 }
 
-static BOOL LAN_HasMapExtension(LPCSTR path) {
-    LPCSTR dot = strrchr(path, '.');
+static bool LAN_HasMapExtension(cstring_t path) {
+    cstring_t dot = strrchr(path, '.');
     return dot && (!strcasecmp(dot, ".w3m") || !strcasecmp(dot, ".w3x"));
 }
 
-static BOOL LAN_IsCampaignMap(LPCSTR path) {
+static bool LAN_IsCampaignMap(cstring_t path) {
     return path && (!strncasecmp(path, "Maps\\Campaign\\", 14) ||
                     !strncasecmp(path, "Maps/Campaign/", 14) ||
                     !strncasecmp(path, "Maps\\FrozenThrone\\Campaign\\", 26) ||
@@ -142,8 +142,8 @@ static void LAN_SetMapDisplayName(uiMapListItem_t *item,
     }
 }
 
-static DWORD LAN_CountMapPlayers(LPCMAPINFO info) {
-    DWORD count = 0;
+static uint32_t LAN_CountMapPlayers(LPCMAPINFO info) {
+    uint32_t count = 0;
 
     FOR_LOOP(i, MAX_PLAYERS) {
         if (info && info->players[i].used) {
@@ -153,9 +153,9 @@ static DWORD LAN_CountMapPlayers(LPCMAPINFO info) {
     return count;
 }
 
-static BOOL LAN_ParseMapInfo(uiMapListItem_t *item) {
+static bool LAN_ParseMapInfo(uiMapListItem_t *item) {
     MAPINFO info;
-    LPCSTR tileset;
+    cstring_t tileset;
 
     if (!item) {
         return false;
@@ -173,7 +173,7 @@ static BOOL LAN_ParseMapInfo(uiMapListItem_t *item) {
              sizeof(item->mapSize),
              "%s",
              UI_MapSizeName(info.playableArea.width, info.playableArea.height));
-    tileset = UI_MapTilesetName((BYTE)info.mainGroundType);
+    tileset = UI_MapTilesetName((uint8_t)info.mainGroundType);
     snprintf(item->tileset, sizeof(item->tileset), "%s", tileset ? tileset : UI_GetString("UNKNOWNMAP_TILESET"));
     item->flags = info.flags;
     item->players = MIN(LAN_CountMapPlayers(&info), 16);
@@ -181,8 +181,8 @@ static BOOL LAN_ParseMapInfo(uiMapListItem_t *item) {
     return true;
 }
 
-static BOOL LAN_MapExists(LPCSTR path) {
-    for (DWORD i = 0; i < lan.maps.count; i++) {
+static bool LAN_MapExists(cstring_t path) {
+    for (uint32_t i = 0; i < lan.maps.count; i++) {
         if (!strcasecmp(lan.maps.items[i].path, path)) {
             return true;
         }
@@ -190,7 +190,7 @@ static BOOL LAN_MapExists(LPCSTR path) {
     return false;
 }
 
-static void LAN_AddMap(LPCSTR path) {
+static void LAN_AddMap(cstring_t path) {
     uiMapListItem_t *item;
 
     if (!path || !*path || lan.maps.count >= UI_MAX_MAP_LIST_ITEMS ||
@@ -224,7 +224,7 @@ static int LAN_CompareMaps(const void *a, const void *b) {
     return strcasecmp(ma->name, mb->name);
 }
 
-static void LAN_LoadMapsWithExtension(LPCSTR extension) {
+static void LAN_LoadMapsWithExtension(cstring_t extension) {
     char listbuf[LAN_FILELIST_SIZE];
     int count;
     char *cursor;
@@ -247,11 +247,11 @@ static void LAN_LoadMaps(void) {
     LAN_LoadMapsWithExtension(".w3m");
     LAN_LoadMapsWithExtension(".w3x");
     qsort(lan.maps.items, lan.maps.count, sizeof(lan.maps.items[0]), LAN_CompareMaps);
-    lan.maps.visualScroll = (FLOAT)lan.maps.scroll;
+    lan.maps.visualScroll = (float)lan.maps.scroll;
     mi.Printf("LAN_LoadMaps: %d maps\n", (int)lan.maps.count);
 }
 
-static void LAN_SetTextIfPresent(LPFRAMEDEF frame, LPCSTR format, ...) {
+static void LAN_SetTextIfPresent(LPFRAMEDEF frame, cstring_t format, ...) {
     va_list argptr;
     char text[1024];
 
@@ -264,7 +264,7 @@ static void LAN_SetTextIfPresent(LPFRAMEDEF frame, LPCSTR format, ...) {
     UI_SetText(frame, "%s", text);
 }
 
-static LPCSTR LAN_GameSpeedValueText(DWORD value) {
+static cstring_t LAN_GameSpeedValueText(uint32_t value) {
     switch (value) {
         case 0:
             return UI_GetString("SLOW");
@@ -276,14 +276,14 @@ static LPCSTR LAN_GameSpeedValueText(DWORD value) {
     }
 }
 
-static LPCSTR LAN_PlayerName(void) {
-    LPCSTR name = mi.Cvar_String
+static cstring_t LAN_PlayerName(void) {
+    cstring_t name = mi.Cvar_String
         ? mi.Cvar_String("name", LAN_PLAYER_NAME_DEFAULT)
         : LAN_PLAYER_NAME_DEFAULT;
     return name && name[0] ? name : LAN_PLAYER_NAME_DEFAULT;
 }
 
-static BOOL LAN_HasVisibleText(LPCSTR text) {
+static bool LAN_HasVisibleText(cstring_t text) {
     if (!text) {
         return false;
     }
@@ -305,7 +305,7 @@ static void LAN_InitPlayerNameEditBox(void) {
 }
 
 void LAN_ApplyPlayerName(void) {
-    LPCSTR text;
+    cstring_t text;
 
     if (!lan.join_frames.PlayerNameEditBox) {
         return;
@@ -320,7 +320,7 @@ void LAN_ApplyPlayerName(void) {
     }
 }
 
-static LPCSTR LAN_GameSpeedText(void) {
+static cstring_t LAN_GameSpeedText(void) {
     int value;
 
     if (!lan.game_speed_slider) {
@@ -328,7 +328,7 @@ static LPCSTR LAN_GameSpeedText(void) {
     }
 
     value = (int)floorf(lan.game_speed_slider->Slider.InitialValue + 0.5f);
-    return LAN_GameSpeedValueText((DWORD)value);
+    return LAN_GameSpeedValueText((uint32_t)value);
 }
 
 static void LAN_UpdateGameSpeed(void) {
@@ -360,7 +360,7 @@ static void LAN_CreateMapListFrame(LPFRAMEDEF container,
                                    LPFRAMEDEF label,
                                    MapListBox_t *list_box,
                                    uiMapListState_t *state,
-                                   DWORD visible_rows) {
+                                   uint32_t visible_rows) {
     LPFRAMEDEF root;
 
     if (!list_box || !state || list_box->MapListBox || !container) {
@@ -447,9 +447,9 @@ static void LAN_CopyGameMapInfo(uiMapListItem_t *item, const menuLanGame_t *game
     snprintf(item->tileset, sizeof(item->tileset), "%s", UI_GetString("UNKNOWNMAP_TILESET"));
 }
 
-static void LAN_CopyGame(uiMapListItem_t *item, const menuLanGame_t *game, DWORD index) {
+static void LAN_CopyGame(uiMapListItem_t *item, const menuLanGame_t *game, uint32_t index) {
     PATHSTR path;
-    BOOL path_changed;
+    bool path_changed;
 
     if (!item || !game) {
         return;
@@ -474,7 +474,7 @@ static void LAN_CopyGame(uiMapListItem_t *item, const menuLanGame_t *game, DWORD
 }
 
 static void LAN_LoadGames(void) {
-    DWORD count;
+    uint32_t count;
 
     if (!mi.LAN_NumServers || !mi.LAN_Server) {
         return;
@@ -569,7 +569,7 @@ static void LAN_RequestServerRefresh(void) {
     }
 }
 
-static BOOL LAN_BuildBrowserFrames(void) {
+static bool LAN_BuildBrowserFrames(void) {
     lan.ready = false;
     lan.root = lan.join_frames.LocalMultiplayerJoin;
     if (!lan.root) {
@@ -598,7 +598,7 @@ static BOOL LAN_BuildBrowserFrames(void) {
     return true;
 }
 
-static BOOL LAN_BuildCreateFrames(void) {
+static bool LAN_BuildCreateFrames(void) {
     lan.ready = false;
     lan.root = lan.create_frames.LocalMultiplayerCreate;
     if (!lan.root) {
@@ -664,9 +664,9 @@ static void LANJoin_Shutdown(void) {
 
 static void LANJoin_Refresh(int msec) {
     uiMapListState_t *list;
-    FLOAT target;
-    FLOAT diff;
-    FLOAT alpha;
+    float target;
+    float diff;
+    float alpha;
 
     if (!lan.ready) {
         return;
@@ -678,9 +678,9 @@ static void LANJoin_Refresh(int msec) {
         LAN_UpdateControls();
     }
 
-    target = (FLOAT)list->scroll;
+    target = (float)list->scroll;
     diff = target - list->visualScroll;
-    alpha = (FLOAT)msec / 90.0f;
+    alpha = (float)msec / 90.0f;
 
     if (alpha > 1.0f) {
         alpha = 1.0f;
@@ -703,7 +703,7 @@ static void LANJoin_Draw(void) {
     UI_DrawFrame(lan.root);
 }
 
-static void LANJoin_KeyEvent(int key, BOOL down) {
+static void LANJoin_KeyEvent(int key, bool down) {
     if (!down) {
         return;
     }
@@ -714,7 +714,7 @@ static void LANJoin_KeyEvent(int key, BOOL down) {
     }
 }
 
-LPCSTR LAN_SelectedMapPath(void) {
+cstring_t LAN_SelectedMapPath(void) {
     if (!lan.ready) {
         return NULL;
     }
@@ -724,7 +724,7 @@ LPCSTR LAN_SelectedMapPath(void) {
     return lan.maps.items[lan.maps.selected].path;
 }
 
-LPCSTR LAN_SelectedMapName(void) {
+cstring_t LAN_SelectedMapName(void) {
     if (!lan.ready) {
         return NULL;
     }
@@ -736,7 +736,7 @@ LPCSTR LAN_SelectedMapName(void) {
         : lan.maps.items[lan.maps.selected].path;
 }
 
-DWORD LAN_SelectedGameSpeed(void) {
+uint32_t LAN_SelectedGameSpeed(void) {
     int value;
 
     if (!lan.ready || !lan.game_speed_slider) {
@@ -749,7 +749,7 @@ DWORD LAN_SelectedGameSpeed(void) {
     if (value > 2) {
         return 2;
     }
-    return (DWORD)value;
+    return (uint32_t)value;
 }
 
 void LAN_StartSelectedMap(void) {
@@ -764,9 +764,9 @@ void LAN_StartSelectedMap(void) {
     M_ShowGameSetupMenu();
 }
 
-void LAN_SelectMapIndex(DWORD index) {
+void LAN_SelectMapIndex(uint32_t index) {
     uiMapListState_t *list;
-    DWORD visible_rows;
+    uint32_t visible_rows;
 
     if (!lan.ready) {
         return;
@@ -816,7 +816,7 @@ void LAN_ShowSinglePlayerCreate(void) {
     LAN_ShowMode(LAN_MODE_SINGLE_PLAYER_CREATE);
 }
 
-BOOL LAN_IsSinglePlayerCreate(void) {
+bool LAN_IsSinglePlayerCreate(void) {
     return lan.mode == LAN_MODE_SINGLE_PLAYER_CREATE;
 }
 

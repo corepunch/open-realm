@@ -2,7 +2,7 @@
 #include "test.h"
 #include "../skills/s_skills.h"
 
-LPEDICT alloc_test_unit(DWORD, FLOAT, FLOAT);
+LPEDICT alloc_test_unit(uint32_t, float, float);
 void reset_entities(void);
 void setup_test_world(void);
 slkTestData_t *parse_slk_string(const char *);
@@ -11,7 +11,7 @@ void free_slk_rows(slkTestData_t *);
 /* Stock column meanings with deterministic proc chance; all cases drive production entry points. */
 typedef struct { slkTestData_t *rows, *old; LPEDICT caster, target; UnitAbilities_t abilities; } CREEPFIX;
 
-typedef struct { LPCSTR id, parent, buffs, targs; FLOAT area, data[6]; BOOL roc; } CREEPDATA;
+typedef struct { cstring_t id, parent, buffs, targs; float area, data[6]; bool roc; } CREEPDATA;
 
 static void creep_setup(CREEPFIX *fix, CREEPDATA const *row) {
     char slk[4096];
@@ -54,7 +54,7 @@ static void creep_setup(CREEPFIX *fix, CREEPDATA const *row) {
 
 static void creep_done(CREEPFIX *fix) { G_SetSLKRows("AbilityData", fix->old); free_slk_rows(fix->rows); }
 
-static LPEDICT creep_neighbor(FLOAT x) {
+static LPEDICT creep_neighbor(float x) {
     LPEDICT unit = alloc_test_unit(FS_SLKKey("hfoo"), x, 0);
     unit->svflags |= SVF_MONSTER; unit->targtype = TARG_GROUND; unit->s.player = 1;
     unit->health.value = unit->health.max_value = 500; unit->die = unit_die;
@@ -260,7 +260,7 @@ TEST(wc3_spell, creep_regression_incinerate_expiry_dispel_and_source_reuse) {
 }
 
 TEST(wc3_save, creep_disease_status_round_trip_and_source_reuse) {
-    LPCSTR filename = "/tmp/openwarcraft3-creep-disease.bin";
+    cstring_t filename = "/tmp/openwarcraft3-creep-disease.bin";
     CREEPFIX fix;
     heroabilitystatus_t *slot;
     creep_setup(&fix, &(CREEPDATA){ .id = "Aap1", .parent = "Aapl", .buffs = "Bapl", .area = 176, .data = {120, 1} });
@@ -279,7 +279,7 @@ TEST(wc3_save, creep_disease_status_round_trip_and_source_reuse) {
 }
 
 TEST(wc3_save, creep_incinerate_mark_and_delayed_explosion_round_trip) {
-    LPCSTR filename = "/tmp/openwarcraft3-creep-incinerate.bin";
+    cstring_t filename = "/tmp/openwarcraft3-creep-incinerate.bin";
     CREEPFIX fix;
     LPEDICT nearby, blast = NULL;
     creep_setup(&fix, &(CREEPDATA){ .id = "ANic", .parent = "ANic", .buffs = "BNic", .data = {2, 30, 120, 15, 240, 0.2f} });
@@ -299,7 +299,7 @@ TEST(wc3_save, creep_incinerate_mark_and_delayed_explosion_round_trip) {
 }
 
 TEST(wc3_save, creep_monsoon_channel_round_trip) {
-    LPCSTR filename = "/tmp/openwarcraft3-creep-monsoon.bin";
+    cstring_t filename = "/tmp/openwarcraft3-creep-monsoon.bin";
     CREEPFIX fix;
     LPEDICT thinker = NULL;
     creep_setup(&fix, &(CREEPDATA){ .id = "ANmo", .parent = "ANmo", .buffs = "ANmd", .targs = "air,ground,structure,enemy,neutral", .area = 64, .data = {20, 1.5f, 0.35f} });
@@ -319,7 +319,7 @@ TEST(wc3_save, creep_monsoon_channel_round_trip) {
 }
 
 TEST(wc3_save, creep_web_autocast_landing_and_expiry_round_trip) {
-    LPCSTR filename = "/tmp/openwarcraft3-creep-web.bin";
+    cstring_t filename = "/tmp/openwarcraft3-creep-web.bin";
     CREEPFIX fix;
     slkTestData_t *units, *old_units;
     abilityitem_t item;

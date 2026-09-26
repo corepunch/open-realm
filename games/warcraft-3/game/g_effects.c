@@ -21,7 +21,7 @@ static umove_t wc3_effect_birth = { "birth", NULL, G_EffectEnterStand };
 static umove_t wc3_effect_stand = { "stand", NULL, G_EffectLoopStand };
 static umove_t wc3_effect_death = { "death", NULL, G_FreeEdict };
 
-static LPCSTR G_EffectFieldName(wc3EffectType_t type, BOOL alternate) {
+static cstring_t G_EffectFieldName(wc3EffectType_t type, bool alternate) {
     switch (type) {
         case WC3_EFFECT_EFFECT:      return alternate ? "Effectart"     : "EffectArt";
         case WC3_EFFECT_TARGET:      return alternate ? "Targetart"     : "TargetArt";
@@ -34,9 +34,9 @@ static LPCSTR G_EffectFieldName(wc3EffectType_t type, BOOL alternate) {
 }
 
 
-static LPCSTR G_BuffEffectValue(DWORD buff_id, wc3EffectType_t type) {
+static cstring_t G_BuffEffectValue(uint32_t buff_id, wc3EffectType_t type) {
     AbilityBuffData_t const *row = G_AbilityBuffData(buff_id);
-    LPCSTR value = NULL;
+    cstring_t value = NULL;
 
     if (row->id != buff_id) return NULL;
     switch (type) {
@@ -63,10 +63,10 @@ static LPCSTR G_BuffEffectValue(DWORD buff_id, wc3EffectType_t type) {
     return NULL;
 }
 
-static LPCSTR G_EffectConfigValue(DWORD ability_id, wc3EffectType_t type) {
+static cstring_t G_EffectConfigValue(uint32_t ability_id, wc3EffectType_t type) {
     char classname[5];
-    LPCSTR field;
-    LPCSTR value;
+    cstring_t field;
+    cstring_t value;
     AbilityData_t const *row;
 
     memcpy(classname, &ability_id, 4);
@@ -99,9 +99,9 @@ static LPCSTR G_EffectConfigValue(DWORD ability_id, wc3EffectType_t type) {
 
 
 /* Resolve an optional presentation override before reading the authored ability row. */
-static LPCSTR G_AbilityPresentationValue(DWORD ability_id, LPCSTR field) {
+static cstring_t G_AbilityPresentationValue(uint32_t ability_id, cstring_t field) {
     char classname[5];
-    LPCSTR value;
+    cstring_t value;
     AbilityData_t const *row;
 
     if (!field) return NULL;
@@ -121,9 +121,9 @@ static LPCSTR G_AbilityPresentationValue(DWORD ability_id, LPCSTR field) {
 }
 
 /* Select the indexed LightningEffect rawcode while preserving the last authored fallback. */
-DWORD G_AbilityLightningId(DWORD ability_id, DWORD index) {
-    LPCSTR list = G_AbilityPresentationValue(ability_id, "LightningEffect");
-    DWORD selected = 0, count = 0;
+uint32_t G_AbilityLightningId(uint32_t ability_id, uint32_t index) {
+    cstring_t list = G_AbilityPresentationValue(ability_id, "LightningEffect");
+    uint32_t selected = 0, count = 0;
 
     if (!list || !*list) return 0;
     PARSE_LIST(list, lightning, parse_segment) {
@@ -135,7 +135,7 @@ DWORD G_AbilityLightningId(DWORD ability_id, DWORD index) {
 }
 
 /* Reject pointers outside the stable level registry before any native mutates a handle. */
-BOOL G_LightningValid(LPCGLIGHTNING effect) {
+bool G_LightningValid(LPCGLIGHTNING effect) {
     uintptr_t pointer = (uintptr_t)effect, base = (uintptr_t)level.lightning_effects;
     return effect && pointer >= base && pointer < base + sizeof(level.lightning_effects) &&
         (pointer - base) % sizeof(*effect) == 0 && effect->inuse;
@@ -144,7 +144,7 @@ BOOL G_LightningValid(LPCGLIGHTNING effect) {
 /* Allocate one save-stable lightning slot and initialize its presentation state. */
 LPGLIGHTNING G_LightningAdd(LPCLIGHTNINGADDPARAMS params) {
     LPGLIGHTNING effect = NULL;
-    DWORD now;
+    uint32_t now;
 
     if (!params || !params->effect_id || !params->source || !params->target) return NULL;
     FOR_LOOP(i, MAX_LIGHTNING_EFFECTS) {
@@ -181,12 +181,12 @@ void G_LightningMove(LPGLIGHTNING effect, LPCVECTOR3 source, LPCVECTOR3 target) 
 }
 
 /* Validate an endpoint's spawn generation before copying its current origin. */
-static BOOL G_LightningEntityValid(LPEDICT entity, DWORD spawn_time) {
+static bool G_LightningEntityValid(LPEDICT entity, uint32_t spawn_time) {
     return entity && entity->inuse && entity->spawn_time == spawn_time;
 }
 
 /* Refresh one endpoint or clear it when its edict was freed or reused. */
-static void G_LightningEndpoint(LPEDICT *entity, DWORD *spawn_time, LPVECTOR3 position) {
+static void G_LightningEndpoint(LPEDICT *entity, uint32_t *spawn_time, LPVECTOR3 position) {
     if (!G_LightningEntityValid(*entity, *spawn_time)) {
         *entity = NULL; *spawn_time = 0;
         return;
@@ -221,7 +221,7 @@ void G_LightningColor(LPGLIGHTNING effect, COLOR32 color) {
 }
 
 /* Store JASS's unclamped colour values alongside the wire-compatible bytes. */
-void G_LightningScriptColor(LPGLIGHTNING effect, COLOR32 color, LPCFLOAT precise) {
+void G_LightningScriptColor(LPGLIGHTNING effect, COLOR32 color, float const * precise) {
     if (!G_LightningValid(effect)) return;
     effect->state.color = color;
     if (precise) memcpy(effect->script_color, precise, sizeof(effect->script_color));
@@ -236,7 +236,7 @@ void G_LightningRemove(LPGLIGHTNING effect) {
 /* Resolve and attach one ability-selected bolt to its caster and target. */
 LPGLIGHTNING G_SpawnAbilityLightning(LPCABILITYLIGHTNINGPARAMS params) {
     VECTOR3 from, to;
-    DWORD effect_id;
+    uint32_t effect_id;
 
     if (!params || !params->source || !params->target) return NULL;
     effect_id = G_AbilityLightningId(params->ability_id, params->index);
@@ -258,12 +258,12 @@ LPGLIGHTNING G_SpawnAbilityLightning(LPCABILITYLIGHTNINGPARAMS params) {
     }
 }
 
-LPCSTR G_AbilityEffectArt(DWORD ability_id, wc3EffectType_t type, DWORD index) {
+cstring_t G_AbilityEffectArt(uint32_t ability_id, wc3EffectType_t type, uint32_t index) {
     static char selected[4][MAX_PATHLEN];
-    static DWORD cursor;
+    static uint32_t cursor;
     char *out = selected[cursor++ & 3];
-    LPCSTR list = G_EffectConfigValue(ability_id, type);
-    DWORD count = 0;
+    cstring_t list = G_EffectConfigValue(ability_id, type);
+    uint32_t count = 0;
 
     out[0] = '\0';
     if (!list || !*list || type == WC3_EFFECT_LIGHTNING) return NULL;
@@ -308,7 +308,7 @@ static void G_EffectEnterStand(LPEDICT effect) {
     }
 }
 
-static void G_EffectStartAnimation(LPEDICT effect, BOOL temporary) {
+static void G_EffectStartAnimation(LPEDICT effect, bool temporary) {
     unit_setmove(effect, temporary ? &wc3_effect_temp_birth : &wc3_effect_birth);
     if (effect->animation) return;
 
@@ -329,8 +329,8 @@ static void G_EffectStartAnimation(LPEDICT effect, BOOL temporary) {
     }
 }
 
-LPEDICT G_SpawnModelEffect(LPCSTR model, LPCVECTOR2 point, LPEDICT target,
-                           LPCSTR attach_point, BOOL temporary) {
+LPEDICT G_SpawnModelEffect(cstring_t model, LPCVECTOR2 point, LPEDICT target,
+                           cstring_t attach_point, bool temporary) {
     LPEDICT effect;
 
     if (!model || !*model || (!point && !target)) return NULL;
@@ -374,19 +374,19 @@ LPEDICT G_SpawnModelEffect(LPCSTR model, LPCVECTOR2 point, LPEDICT target,
     return effect->inuse ? effect : NULL;
 }
 
-LPEDICT G_SpawnAbilityEffectAtPoint(DWORD ability_id, wc3EffectType_t type, DWORD index,
-                                    LPCVECTOR2 point, BOOL temporary) {
+LPEDICT G_SpawnAbilityEffectAtPoint(uint32_t ability_id, wc3EffectType_t type, uint32_t index,
+                                    LPCVECTOR2 point, bool temporary) {
     return G_SpawnModelEffect(G_AbilityEffectArt(ability_id, type, index), point, NULL, NULL, temporary);
 }
 
-LPEDICT G_SpawnAbilityEffectTarget(DWORD ability_id, wc3EffectType_t type, DWORD index,
-                                   LPEDICT target, LPCSTR attach_point, BOOL temporary) {
+LPEDICT G_SpawnAbilityEffectTarget(uint32_t ability_id, wc3EffectType_t type, uint32_t index,
+                                   LPEDICT target, cstring_t attach_point, bool temporary) {
     return G_SpawnModelEffect(G_AbilityEffectArt(ability_id, type, index), NULL, target, attach_point, temporary);
 }
 
 
-LPEDICT G_SpawnOwnedAbilityEffectAtPoint(LPEDICT owner, DWORD ability_id,
-                                         wc3EffectType_t type, DWORD index,
+LPEDICT G_SpawnOwnedAbilityEffectAtPoint(LPEDICT owner, uint32_t ability_id,
+                                         wc3EffectType_t type, uint32_t index,
                                          LPCVECTOR2 point) {
     LPEDICT effect = G_SpawnAbilityEffectAtPoint(ability_id, type, index, point, false);
     if (effect) effect->owner = owner;
@@ -395,7 +395,7 @@ LPEDICT G_SpawnOwnedAbilityEffectAtPoint(LPEDICT owner, DWORD ability_id,
 
 void G_DestroyOwnedEffects(LPEDICT owner) {
     LPEDICT owned[32];
-    DWORD count = 0;
+    uint32_t count = 0;
     if (!owner) return;
     FILTER_EDICTS(effect, effect->owner == owner && (effect->s.flags & EF_NOT_SELECTABLE) &&
                   (effect->s.model || effect->s.sound)) {

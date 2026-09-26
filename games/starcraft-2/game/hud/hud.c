@@ -8,7 +8,7 @@
  *
  * Frame numbers are assigned sequentially as frames are written
  * (matching the WC3 pattern in hud.c / UI_ResetFrameWriteList).
- * parent_index == (DWORD)-1 means the frame is a root (parent = 0).
+ * parent_index == (uint32_t)-1 means the frame is a root (parent = 0).
  */
 
 /* Pull in the SC2 layout parser (single-header library). */
@@ -21,12 +21,12 @@
 #include <stdlib.h>
 
 /* sc2_layout_import — host services for menu_layout.c when compiled into the game module.
- * gi.ReadFile signature (HANDLE, LPDWORD) differs from sc2_layout_import.FS_ReadFile
+ * gi.ReadFile signature (handle_t, uint32_t *) differs from sc2_layout_import.FS_ReadFile
  * (int, void**), so we wrap it. */
 sc2LayoutImport_t sc2_layout_import;
 
-static int sc2_hud_read_file(LPCSTR filename, void **buf) {
-    DWORD size = 0;
+static int sc2_hud_read_file(cstring_t filename, void **buf) {
+    uint32_t size = 0;
     *buf = gi.ReadFile(filename, &size);
     return *buf ? (int)size : -1;
 }
@@ -48,7 +48,7 @@ static int assets_catalog_count;
 static char missing_ui_keys[512][80];
 static int missing_ui_key_count;
 
-static BOOL sc2_hud_missing_ui_seen(LPCSTR key) {
+static bool sc2_hud_missing_ui_seen(cstring_t key) {
     for (int i = 0; i < missing_ui_key_count; i++)
         if (!strcasecmp(missing_ui_keys[i], key)) return true;
     if (missing_ui_key_count < (int)(sizeof(missing_ui_keys) / sizeof(*missing_ui_keys))) {
@@ -62,7 +62,7 @@ static BOOL sc2_hud_missing_ui_seen(LPCSTR key) {
 /* Parse one Assets.txt buffer into assets_catalog.  Called by ReadFileAll
  * callback lowest-priority first; later archives overwrite earlier entries
  * for the same key, so Liberty beats Core where they conflict. */
-static void sc2_hud_parse_assets_txt(HANDLE buf, DWORD len, void *ud) {
+static void sc2_hud_parse_assets_txt(handle_t buf, uint32_t len, void *ud) {
     (void)ud;
     if (!buf || !len) return;
     if (!assets_catalog) {
@@ -116,8 +116,8 @@ static void sc2_hud_parse_assets_txt(HANDLE buf, DWORD len, void *ud) {
  * GameData/Assets.txt in the SC2 mod archives (the SC2 equivalent of
  * war3skins.txt).  paths[] covers Core.SC2Mod entries; assets_catalog
  * covers Liberty.SC2Mod entries loaded at runtime. */
-static int sc2_hud_image_index(LPCSTR resource) {
-    static struct { LPCSTR logical, physical; } const paths[] = {
+static int sc2_hud_image_index(cstring_t resource) {
+    static struct { cstring_t logical, physical; } const paths[] = {
         { "UI/ResourceIcon0",    "Assets/Textures/icon-mineral.dds" },
         { "UI/ResourceIcon1",    "Assets/Textures/icon-gas.dds" },
         { "UI/ResourceIcon2",    "Assets/Textures/icon-highyieldmineral.dds" },
@@ -168,7 +168,7 @@ static int sc2_hud_image_index(LPCSTR resource) {
 
 /* Resolve a UI model resource key (e.g. @@UI/ConsoleModelInfopanel) to its
  * .m3 path via assets_catalog, then register it as a model and return its index. */
-static int sc2_hud_model_index(LPCSTR resource) {
+static int sc2_hud_model_index(cstring_t resource) {
     while (*resource == '@') resource++;
     for (int i = 0; i < assets_catalog_count; i++) {
         if (!strcasecmp(resource, assets_catalog[i].key))
@@ -199,25 +199,25 @@ static RESOURCE portrait_model;
 void SC2_HUD_SetPortraitModel(RESOURCE model) { portrait_model = model; }
 
 /* ------------------------------------------------------------------ */
-/* Frame numbering — flat wire[] map, (DWORD)-1 = unassigned */
+/* Frame numbering — flat wire[] map, (uint32_t)-1 = unassigned */
 
 #define SC2_MAX_FRAMES_WRITE 512
-static DWORD frame_to_wire[SC2_MAX_FRAMES_WRITE];
-static DWORD num_frames_written;
+static uint32_t frame_to_wire[SC2_MAX_FRAMES_WRITE];
+static uint32_t num_frames_written;
 
 static void reset_frame_write(void) {
     for (int i = 0; i < SC2_MAX_FRAMES_WRITE; i++)
-        frame_to_wire[i] = (DWORD)-1;
+        frame_to_wire[i] = (uint32_t)-1;
     num_frames_written = 0;
 }
 
-static DWORD get_wire(DWORD index) {
-    return (index < SC2_MAX_FRAMES_WRITE && frame_to_wire[index] != (DWORD)-1)
+static uint32_t get_wire(uint32_t index) {
+    return (index < SC2_MAX_FRAMES_WRITE && frame_to_wire[index] != (uint32_t)-1)
            ? frame_to_wire[index] : 0;
 }
 
-static DWORD assign_number(DWORD index) {
-    if (index < SC2_MAX_FRAMES_WRITE && frame_to_wire[index] == (DWORD)-1)
+static uint32_t assign_number(uint32_t index) {
+    if (index < SC2_MAX_FRAMES_WRITE && frame_to_wire[index] == (uint32_t)-1)
         frame_to_wire[index] = ++num_frames_written;
     return get_wire(index);
 }
@@ -232,7 +232,7 @@ static void copy_points(uiFrame_t *out, LPCSC2BASEFRAME frame) {
         if (px->used) {
             out->points.x[i].used      = 1;
             out->points.x[i].targetPos = px->targetPos;
-            out->points.x[i].relativeTo = (BYTE)((px->relative_index != (DWORD)-1)
+            out->points.x[i].relativeTo = (uint8_t)((px->relative_index != (uint32_t)-1)
                                           ? get_wire(px->relative_index)
                                           : UI_PARENT);
             out->points.x[i].offset = (int16_t)(px->offset * UI_FRAMEPOINT_SCALE);
@@ -242,7 +242,7 @@ static void copy_points(uiFrame_t *out, LPCSC2BASEFRAME frame) {
         if (py->used) {
             out->points.y[i].used      = 1;
             out->points.y[i].targetPos = py->targetPos;
-            out->points.y[i].relativeTo = (BYTE)((py->relative_index != (DWORD)-1)
+            out->points.y[i].relativeTo = (uint8_t)((py->relative_index != (uint32_t)-1)
                                           ? get_wire(py->relative_index)
                                           : UI_PARENT);
             out->points.y[i].offset = (int16_t)(py->offset * UI_FRAMEPOINT_SCALE);
@@ -252,22 +252,22 @@ static void copy_points(uiFrame_t *out, LPCSC2BASEFRAME frame) {
 
 /* ------------------------------------------------------------------ */
 
-BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
+bool SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
     if (!frame || !out) return false;
 
     memset(out, 0, sizeof(*out));
     out->number = assign_number(frame->number);
-    out->parent = (frame->parent_index != (DWORD)-1)
+    out->parent = (frame->parent_index != (uint32_t)-1)
                   ? get_wire(frame->parent_index)
                   : 0;
     out->color       = frame->color;
-    out->color.a     = (BYTE)(out->color.a * frame->alpha);
+    out->color.a     = (uint8_t)(out->color.a * frame->alpha);
     out->size.width  = frame->size.width;
     out->size.height = frame->size.height;
     /* SC2_FRAMETYPE_PORTRAIT = unit portrait viewer: use the selected unit model.
      * SC2_FRAMETYPE_MODEL    = console chrome: use the .m3 resolved from Assets.txt. */
     out->tex.index   = (frame->sc2_type == SC2_FRAMETYPE_PORTRAIT && portrait_model)
-                       ? (USHORT)portrait_model : (USHORT)frame->image;
+                       ? (uint16_t)portrait_model : (uint16_t)frame->image;
     out->tex.coord[1] = 0xff;
     out->tex.coord[3] = 0xff;
     out->flags.type  = frame->type;
@@ -275,7 +275,7 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
     out->text        = frame->text;
     if (frame->type == FT_TEXT) {
         out->buffer.size = sizeof(frame->label);
-        out->buffer.data = (HANDLE)&frame->label;
+        out->buffer.data = (handle_t)&frame->label;
     }
     copy_points(out, frame);
     if (frame->sc2_type == SC2_FRAMETYPE_MODEL) {
@@ -285,7 +285,7 @@ BOOL SC2_HUD_BuildFrameForWrite(LPCSC2BASEFRAME frame, uiFrame_t *out) {
         }
         /* The center model's steady sequences omit its placement track; Birth ends at the assembled console pose. */
         out->text = "Birth";
-        out->buffer.data = (HANDLE)&frame->model;
+        out->buffer.data = (handle_t)&frame->model;
         out->buffer.size = sizeof(frame->model);
     }
     return true;
@@ -297,11 +297,11 @@ void SC2_HUD_WriteFrame(LPCSC2BASEFRAME frame) {
     gi.Write(PF_UIFRAME, &tmp);
 }
 
-void SC2_HUD_WriteFrameWithChildren(LPCSC2BASEFRAME frames, DWORD count,
+void SC2_HUD_WriteFrameWithChildren(LPCSC2BASEFRAME frames, uint32_t count,
                                     LPCSC2BASEFRAME frame) {
     if (!frame || (frame->ui_flags & SC2_UIFLAG_HIDDEN)) return;
     SC2_HUD_WriteFrame(frame);
-    for (DWORD i = 0; i < count; i++) {
+    for (uint32_t i = 0; i < count; i++) {
         if (frames[i].parent_index == frame->number &&
             !(frames[i].ui_flags & SC2_UIFLAG_HIDDEN))
             SC2_HUD_WriteFrameWithChildren(frames, count, &frames[i]);
@@ -311,9 +311,9 @@ void SC2_HUD_WriteFrameWithChildren(LPCSC2BASEFRAME frames, DWORD count,
 /* Walk the parent chain of 'frame' to the root and write each ancestor
  * once (root first), so every parent has a smaller wire number than its
  * children.  Already-assigned frames are silently skipped by assign_number. */
-void SC2_HUD_WriteAncestors(LPCSC2BASEFRAME frames, DWORD count,
+void SC2_HUD_WriteAncestors(LPCSC2BASEFRAME frames, uint32_t count,
                              LPCSC2BASEFRAME frame) {
-    if (!frame || frame->parent_index == (DWORD)-1) return;
+    if (!frame || frame->parent_index == (uint32_t)-1) return;
     LPCSC2BASEFRAME parent = &frames[frame->parent_index];
     SC2_HUD_WriteAncestors(frames, count, parent);
     if (!(parent->ui_flags & SC2_UIFLAG_HIDDEN))
@@ -323,11 +323,11 @@ void SC2_HUD_WriteAncestors(LPCSC2BASEFRAME frames, DWORD count,
 /* ------------------------------------------------------------------ */
 /* Shared layout load — one SC2_LayoutBuildGameUI() for all panels */
 
-static BOOL layout_loaded;
-static BOOL layout_ok;
+static bool layout_loaded;
+static bool layout_ok;
 
 static void sc2_hud_hide_optional_panels(void) {
-    static LPCSTR hide_names[] = {
+    static cstring_t hide_names[] = {
         "PausePanel", "ConversationPanel", "TalkerPanel",
         "ResourceRequestAlertPanel", "HeroPanel", "InventoryPanel",
         "CreditsPanel", "TipAlertMovingFrame", "TipAlertPanel",
@@ -346,7 +346,7 @@ static void sc2_hud_hide_optional_panels(void) {
     }
 }
 
-sc2BaseFrame_t *SC2_HUD_EnsureLayout(DWORD *count) {
+sc2BaseFrame_t *SC2_HUD_EnsureLayout(uint32_t *count) {
     if (!layout_loaded) {
         layout_loaded = true;
         layout_ok = SC2_LayoutBuildGameUI();
@@ -361,20 +361,20 @@ sc2BaseFrame_t *SC2_HUD_EnsureLayout(DWORD *count) {
 
 /* ------------------------------------------------------------------ */
 
-void SC2_HUD_WriteStart(DWORD layer) {
+void SC2_HUD_WriteStart(uint32_t layer) {
     reset_frame_write();
-    gi.Write(PF_BYTE, &(LONG){ svc_layout });
-    gi.Write(PF_BYTE, &(LONG){ layer });
+    gi.Write(PF_BYTE, &(int32_t){ svc_layout });
+    gi.Write(PF_BYTE, &(int32_t){ layer });
 }
 
 void SC2_HUD_WriteEnd(LPEDICT ent) {
-    gi.Write(PF_LONG,  &(LONG){ 0 });  /* bits=0  — frame terminator */
-    gi.Write(PF_SHORT, &(LONG){ 0 });  /* number=0 */
+    gi.Write(PF_LONG,  &(int32_t){ 0 });  /* bits=0  — frame terminator */
+    gi.Write(PF_SHORT, &(int32_t){ 0 });  /* number=0 */
     if (ent) gi.unicast(ent);
 }
 
-void SC2_HUD_WriteLayout(LPEDICT ent, LPCSC2BASEFRAME frames, DWORD count,
-                         LPCSC2BASEFRAME root, DWORD layer) {
+void SC2_HUD_WriteLayout(LPEDICT ent, LPCSC2BASEFRAME frames, uint32_t count,
+                         LPCSC2BASEFRAME root, uint32_t layer) {
     SC2_HUD_WriteStart(layer);   /* resets num_frames_written to 0 */
     SC2_HUD_WriteFrameWithChildren(frames, count, root);
     SC2_HUD_WriteEnd(ent);

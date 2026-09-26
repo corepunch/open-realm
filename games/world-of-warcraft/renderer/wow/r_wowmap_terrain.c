@@ -1,6 +1,6 @@
 #include "r_wowmap.h"
 
-COLOR32 Wow_Color(BYTE r, BYTE g, BYTE b, BYTE a) {
+COLOR32 Wow_Color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
     return (COLOR32){ b, g, r, a };
 }
 
@@ -68,7 +68,7 @@ VECTOR3 Wow_TerrainFaceNormal(LPCVECTOR3 a, LPCVECTOR3 b, LPCVECTOR3 c) {
     return normal;
 }
 
-static VECTOR3 Wow_DecodeTerrainNormal(BYTE const *normals, int index) {
+static VECTOR3 Wow_DecodeTerrainNormal(uint8_t const *normals, int index) {
     int base = index * 3;
     signed char nx;
     signed char ny;
@@ -100,10 +100,10 @@ void Wow_AccumulateTerrainCellNormals(VECTOR3 normals[WOW_MCVT_COUNT],
                                              float const *heights,
                                              int x,
                                              int y) {
-    static BYTE const tri[] = { 9, 0, 17, 9, 1, 0, 9, 18, 1, 9, 17, 18 };
+    static uint8_t const tri[] = { 9, 0, 17, 9, 1, 0, 9, 18, 1, 9, 17, 18 };
     int base = y * 17 + x;
 
-    for (DWORD i = 0; i < sizeof(tri) / sizeof(tri[0]); i += 3) {
+    for (uint32_t i = 0; i < sizeof(tri) / sizeof(tri[0]); i += 3) {
         int i0 = base + tri[i + 0];
         int i1 = base + tri[i + 1];
         int i2 = base + tri[i + 2];
@@ -129,7 +129,7 @@ void Wow_NormalizeTerrainNormals(VECTOR3 normals[WOW_MCVT_COUNT]) {
 }
 
 void Wow_PushTerrainVertex(VERTEX *vertices,
-                                  LPDWORD index,
+                                  uint32_t * index,
                                   wowVec3_t pos,
                                   float const *heights,
                                   LPCVECTOR3 normal,
@@ -144,7 +144,7 @@ void Wow_PushTerrainVertex(VERTEX *vertices,
     vertices[(*index)++] = vertex;
 }
 
-BOOL Wow_IsHole(WORD holes, int x, int y) {
+bool Wow_IsHole(uint16_t holes, int x, int y) {
     static int holetab_h[4] = { 0x1111, 0x2222, 0x4444, 0x8888 };
     static int holetab_v[4] = { 0x000f, 0x00f0, 0x0f00, 0xf000 };
     x >>= 1;
@@ -153,14 +153,14 @@ BOOL Wow_IsHole(WORD holes, int x, int y) {
 }
 
 void Wow_AddTerrainCell(VERTEX *vertices,
-                               LPDWORD index,
+                               uint32_t * index,
                                wowVec3_t pos,
                                float const *heights,
                                VECTOR3 const normals[WOW_MCVT_COUNT],
                                int x,
                                int y,
                                COLOR32 const *mccv) {
-    static BYTE const tri[] = { 9, 0, 17, 9, 1, 0, 9, 18, 1, 9, 17, 18 };
+    static uint8_t const tri[] = { 9, 0, 17, 9, 1, 0, 9, 18, 1, 9, 17, 18 };
     int base = y * 17 + x;
     FOR_LOOP(i, sizeof(tri) / sizeof(tri[0])) {
         int height_index = base + tri[i];
@@ -168,7 +168,7 @@ void Wow_AddTerrainCell(VERTEX *vertices,
     }
 }
 
-BOOL Wow_BarycentricHeight(float px,
+bool Wow_BarycentricHeight(float px,
                                   float py,
                                   float ax,
                                   float ay,
@@ -199,7 +199,7 @@ BOOL Wow_BarycentricHeight(float px,
     return true;
 }
 
-BOOL Wow_HeightInCell(float const *heights, int row, int col, float fx, float fy, float *height) {
+bool Wow_HeightInCell(float const *heights, int row, int col, float fx, float fy, float *height) {
     int base = row * 17 + col;
     float h_tl = heights[base];
     float h_tr = heights[base + 1];
@@ -213,7 +213,7 @@ BOOL Wow_HeightInCell(float const *heights, int row, int col, float fx, float fy
            Wow_BarycentricHeight(fx, fy, 0.5f, 0.5f, h_c, 1.0f, 0.0f, h_bl, 1.0f, 1.0f, h_br, height);
 }
 
-BOOL Wow_TerrainHeightAtPoint(float sx, float sy, float *height) {
+bool Wow_TerrainHeightAtPoint(float sx, float sy, float *height) {
     wowAdtChunk_t const *chunk;
     int ix, iy;
 
@@ -238,19 +238,19 @@ BOOL Wow_TerrainHeightAtPoint(float sx, float sy, float *height) {
 }
 
 void Wow_AddAdtChunk(wowVec3_t pos,
-                            DWORD alpha_index_x,
-                            DWORD alpha_index_y,
-                            WORD holes,
+                            uint32_t alpha_index_x,
+                            uint32_t alpha_index_y,
+                            uint16_t holes,
                             uint64_t no_effect_mask,
-                            BYTE const alpha[4][WOW_ALPHA_TEXELS],
+                            uint8_t const alpha[4][WOW_ALPHA_TEXELS],
                             wowLayer_t const *layers,
-                            DWORD layer_count,
+                            uint32_t layer_count,
                             char **textures,
-                            DWORD num_textures,
+                            uint32_t num_textures,
                             float const *heights,
-                            BYTE const *normals,
+                            uint8_t const *normals,
                             COLOR32 const *mccv,
-                            BYTE const *mcsh) {
+                            uint8_t const *mcsh) {
     enum { MAX_VERTICES = 8 * 8 * 12 };
     COLOR32 mccv_fallback[WOW_MCVT_COUNT];
     /* Vanilla (1.x) ADTs have no MCCV, so fall back to white and let the shader's
@@ -262,12 +262,12 @@ void Wow_AddAdtChunk(wowVec3_t pos,
         FOR_LOOP(i, WOW_MCVT_COUNT) mccv_fallback[i] = white;
         mccv = mccv_fallback;
     }
-    DWORD slot_texture_ids[4] = { 0, 0, 0, 0 };
-    DWORD unique_layer_count = Wow_BuildUniqueTextureSlots(layers, layer_count, slot_texture_ids);
-    DWORD effective_layers = MAX(1, MIN(unique_layer_count ? unique_layer_count : layer_count, 4));
+    uint32_t slot_texture_ids[4] = { 0, 0, 0, 0 };
+    uint32_t unique_layer_count = Wow_BuildUniqueTextureSlots(layers, layer_count, slot_texture_ids);
+    uint32_t effective_layers = MAX(1, MIN(unique_layer_count ? unique_layer_count : layer_count, 4));
     VECTOR3 derived_normals[WOW_MCVT_COUNT];
     VERTEX *vertices;
-    DWORD num_vertices = 0;
+    uint32_t num_vertices = 0;
     wowAdtChunk_t *chunk;
 
     if (!heights) {
@@ -341,7 +341,7 @@ void Wow_AddAdtChunk(wowVec3_t pos,
         wow_world.has_atlas_origin = true;
     }
     FOR_LOOP(layer_index, 4) {
-        DWORD texture_id = 0;
+        uint32_t texture_id = 0;
         if (layer_index < unique_layer_count) {
             texture_id = slot_texture_ids[layer_index];
         } else if (unique_layer_count > 0) {

@@ -1,14 +1,14 @@
 #include "r_local.h"
 
-static DWORD PCX_ReadLE16(BYTE const *p) {
-    return p[0] | ((DWORD)p[1] << 8);
+static uint32_t PCX_ReadLE16(uint8_t const *p) {
+    return p[0] | ((uint32_t)p[1] << 8);
 }
 
-BOOL R_IsTexturePCX(HANDLE data, DWORD filesize) {
-    BYTE const *file = data;
-    DWORD width;
-    DWORD height;
-    DWORD bytes_per_line;
+bool R_IsTexturePCX(handle_t data, uint32_t filesize) {
+    uint8_t const *file = data;
+    uint32_t width;
+    uint32_t height;
+    uint32_t bytes_per_line;
 
     if (!file || filesize < 128) {
         return false;
@@ -26,20 +26,20 @@ BOOL R_IsTexturePCX(HANDLE data, DWORD filesize) {
            bytes_per_line >= width;
 }
 
-LPTEXTURE R_LoadTexturePCX(HANDLE data, DWORD filesize) {
-    BYTE const *file = data;
-    BYTE const *src;
-    BYTE const *src_end;
-    BYTE palette[256][3];
-    LPBYTE rows = NULL;
+LPTEXTURE R_LoadTexturePCX(handle_t data, uint32_t filesize) {
+    uint8_t const *file = data;
+    uint8_t const *src;
+    uint8_t const *src_end;
+    uint8_t palette[256][3];
+    uint8_t * rows = NULL;
     LPCOLOR32 pixels = NULL;
     LPTEXTURE texture = NULL;
-    DWORD width;
-    DWORD height;
-    DWORD bytes_per_line;
-    DWORD row_size;
-    DWORD palette_pos;
-    DWORD out = 0;
+    uint32_t width;
+    uint32_t height;
+    uint32_t bytes_per_line;
+    uint32_t row_size;
+    uint32_t palette_pos;
+    uint32_t out = 0;
 
     if (!file || filesize < 128) {
         return NULL;
@@ -53,10 +53,10 @@ LPTEXTURE R_LoadTexturePCX(HANDLE data, DWORD filesize) {
         return NULL;
     }
 
-    for (DWORD i = 0; i < 256; i++) {
-        palette[i][0] = (BYTE)i;
-        palette[i][1] = (BYTE)i;
-        palette[i][2] = (BYTE)i;
+    for (uint32_t i = 0; i < 256; i++) {
+        palette[i][0] = (uint8_t)i;
+        palette[i][1] = (uint8_t)i;
+        palette[i][2] = (uint8_t)i;
     }
     palette_pos = filesize;
     if (filesize >= 897 && file[filesize - 769] == 0x0c) {
@@ -74,9 +74,9 @@ LPTEXTURE R_LoadTexturePCX(HANDLE data, DWORD filesize) {
     src = file + 128;
     src_end = file + palette_pos;
     while (out < row_size && src < src_end) {
-        DWORD run;
-        BYTE value;
-        BYTE b = *src++;
+        uint32_t run;
+        uint8_t value;
+        uint8_t b = *src++;
 
         if ((b & 0xc0) == 0xc0) {
             run = b & 0x3f;
@@ -96,9 +96,9 @@ LPTEXTURE R_LoadTexturePCX(HANDLE data, DWORD filesize) {
         goto done;
     }
 
-    for (DWORD y = 0; y < height; y++) {
-        for (DWORD x = 0; x < width; x++) {
-            BYTE index = rows[y * bytes_per_line + x];
+    for (uint32_t y = 0; y < height; y++) {
+        for (uint32_t x = 0; x < width; x++) {
+            uint8_t index = rows[y * bytes_per_line + x];
             LPCOLOR32 pixel = pixels + y * width + x;
 
             /* PCX palettes are RGB; the old swap compensated for the desktop BGRA uploader. */

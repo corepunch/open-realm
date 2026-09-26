@@ -25,7 +25,7 @@ void tree_stand(LPEDICT self) {
     G_DestructableStartAliveAnimation(self, false);
 }
 
-void G_DestructableStartAliveAnimation(LPEDICT self, BOOL birth) {
+void G_DestructableStartAliveAnimation(LPEDICT self, bool birth) {
     self->aiflags &= ~AI_HOLD_FRAME;
     unit_setmove(self, birth ? &tree_move_birth : &tree_move_stand);
     if (self->animation)

@@ -16,16 +16,16 @@
  * link the common C sources) share one codec with the engine, exactly like
  * the TerrainMask_* helpers. */
 
-typedef BYTE (*rleBitReader_t)(DWORD index, void *ctx); // 1-bit mask source; returns 0 or 1
-typedef void (*rleRunWriter_t)(DWORD index, BYTE value, DWORD count, void *ctx); // run sink; index is the first bit
+typedef uint8_t (*rleBitReader_t)(uint32_t index, void *ctx); // 1-bit mask source; returns 0 or 1
+typedef void (*rleRunWriter_t)(uint32_t index, uint8_t value, uint32_t count, void *ctx); // run sink; index is the first bit
 
-static inline DWORD MSG_EncodeRLE(LPBYTE out, DWORD capacity, DWORD bit_count, rleBitReader_t read, void *ctx) {
-    DWORD n = 0, i;
-    BOOL started = false;
-    BYTE cur = 0, run = 0;
+static inline uint32_t MSG_EncodeRLE(uint8_t * out, uint32_t capacity, uint32_t bit_count, rleBitReader_t read, void *ctx) {
+    uint32_t n = 0, i;
+    bool started = false;
+    uint8_t cur = 0, run = 0;
     if (!out || !read || !bit_count || capacity < 2) return 0;
     for (i = 0; i < bit_count; i++) {
-        BYTE v = read(i, ctx) ? 1 : 0;
+        uint8_t v = read(i, ctx) ? 1 : 0;
         if (!started) { out[n++] = v; cur = v; run = 1; started = true; continue; }
         if (v == cur) {
             if (run == 255) { if (n >= capacity) return 0; out[n++] = 255; run = 0; }
@@ -44,17 +44,17 @@ static inline DWORD MSG_EncodeRLE(LPBYTE out, DWORD capacity, DWORD bit_count, r
 
 /* Bitpack escape: bounded at 1 + (bits+7)/8 bytes, so a single row always fits
  * the datagram reservation even for checkerboard masks RLE cannot compress. */
-static inline DWORD MSG_EncodeBitpack(LPBYTE out, DWORD capacity, DWORD bit_count, rleBitReader_t read, void *ctx) {
-    DWORD n, i;
+static inline uint32_t MSG_EncodeBitpack(uint8_t * out, uint32_t capacity, uint32_t bit_count, rleBitReader_t read, void *ctx) {
+    uint32_t n, i;
     if (!out || !read || !bit_count || capacity < 1 + (bit_count + 7) / 8) return 0;
     n = 1 + (bit_count + 7) / 8;
     out[0] = 2; memset(out + 1, 0, n - 1);
-    for (i = 0; i < bit_count; i++) if (read(i, ctx)) out[1 + (i >> 3)] |= (BYTE)(1u << (i & 7));
+    for (i = 0; i < bit_count; i++) if (read(i, ctx)) out[1 + (i >> 3)] |= (uint8_t)(1u << (i & 7));
     return n;
 }
 
-static inline BOOL MSG_ValidateRLE(BYTE const *payload, DWORD payload_bytes, DWORD expected_bits) {
-    DWORD bits = 0, i;
+static inline bool MSG_ValidateRLE(uint8_t const *payload, uint32_t payload_bytes, uint32_t expected_bits) {
+    uint32_t bits = 0, i;
     if (!payload || payload_bytes < 2 || !expected_bits) return false;
     if (payload[0] == 2) return payload_bytes == 1 + (expected_bits + 7) / 8;
     if (payload[0] != 0 && payload[0] != 1) return false;
@@ -66,17 +66,17 @@ static inline BOOL MSG_ValidateRLE(BYTE const *payload, DWORD payload_bytes, DWO
     return bits == expected_bits;
 }
 
-static inline DWORD MSG_DecodeRLE(BYTE const *payload, DWORD payload_bytes, DWORD expected_bits,
+static inline uint32_t MSG_DecodeRLE(uint8_t const *payload, uint32_t payload_bytes, uint32_t expected_bits,
     rleRunWriter_t write, void *ctx) {
-    DWORD done = 0, i;
-    BYTE value;
+    uint32_t done = 0, i;
+    uint8_t value;
     if (!payload || !write || payload_bytes < 2 || !expected_bits) return 0;
     if (payload[0] == 2) { /* bitpack escape; runs are coalesced so plane writers keep memset speed */
-        DWORD bit = 0;
+        uint32_t bit = 0;
         if (payload_bytes != 1 + (expected_bits + 7) / 8) return 0;
         while (bit < expected_bits) {
-            DWORD end = bit + 1;
-            BYTE v = (payload[1 + (bit >> 3)] >> (bit & 7)) & 1;
+            uint32_t end = bit + 1;
+            uint8_t v = (payload[1 + (bit >> 3)] >> (bit & 7)) & 1;
             while (end < expected_bits && (((payload[1 + (end >> 3)] >> (end & 7)) & 1) == v)) end++;
             write(bit, v, end - bit, ctx);
             bit = end;
@@ -86,9 +86,9 @@ static inline DWORD MSG_DecodeRLE(BYTE const *payload, DWORD payload_bytes, DWOR
     if (payload[0] != 0 && payload[0] != 1) return 0;
     value = payload[0] ? 1 : 0;
     for (i = 1; i < payload_bytes; i++) {
-        DWORD run = payload[i];
+        uint32_t run = payload[i];
         while (run) {
-            DWORD count;
+            uint32_t count;
             if (done >= expected_bits) return 0;
             count = MIN(run, expected_bits - done);
             write(done, value, count, ctx);

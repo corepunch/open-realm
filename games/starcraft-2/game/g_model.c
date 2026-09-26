@@ -2,9 +2,9 @@
 #include <ctype.h>
 #include <stdlib.h>
 
-static DWORD fnv1a32(LPCSTR str) {
-    DWORD prime = 16777619;
-    DWORD hash  = 2166136261;
+static uint32_t fnv1a32(cstring_t str) {
+    uint32_t prime = 16777619;
+    uint32_t hash  = 2166136261;
     while (*str) {
         hash = (hash ^ *str++) * prime;
     }
@@ -15,9 +15,9 @@ static void ConvertMD34AnimationName(LPANIMATION seq) {
     char buffer[80];
     memset(buffer, 0, sizeof(buffer));
     strncpy(buffer, seq->name, sizeof(buffer) - 1);
-    for (DWORD i = 0; buffer[i]; i++)
+    for (uint32_t i = 0; buffer[i]; i++)
         buffer[i] = (char)tolower(buffer[i]);
-    for (DWORD i = (DWORD)strlen(buffer) - 1; i > 0 && isspace(buffer[i]); i--)
+    for (uint32_t i = (uint32_t)strlen(buffer) - 1; i > 0 && isspace(buffer[i]); i--)
         buffer[i] = '\0';
     seq->syncpoint = fnv1a32(buffer);
 }
@@ -25,44 +25,44 @@ static void ConvertMD34AnimationName(LPANIMATION seq) {
 /* ---- MD34 (StarCraft II M3) ---- */
 
 typedef struct {
-    DWORD nEntries;
-    DWORD offset;
-    DWORD flags;
+    uint32_t nEntries;
+    uint32_t offset;
+    uint32_t flags;
 } md34Reference_t;
 
 struct md33Header {
-    DWORD ofsRefs;
-    DWORD nRefs;
+    uint32_t ofsRefs;
+    uint32_t nRefs;
     md34Reference_t MODL;
 };
 
 struct md34ReferenceEntry {
-    DWORD id;
-    DWORD offset;
-    DWORD nEntries;
-    DWORD version;
+    uint32_t id;
+    uint32_t offset;
+    uint32_t nEntries;
+    uint32_t version;
 };
 
 struct md34NameRef {
-    DWORD nEntries;
-    DWORD ref;
-    DWORD flags;
+    uint32_t nEntries;
+    uint32_t ref;
+    uint32_t flags;
 };
 
 struct md34Sequence {
-    DWORD unknown[2];
+    uint32_t unknown[2];
     struct md34NameRef name;
-    DWORD interval[2];
+    uint32_t interval[2];
     float movementSpeed;
-    DWORD flags;
-    DWORD frequency;
-    LONG unk[3];
-    LONG unk2;
+    uint32_t flags;
+    uint32_t frequency;
+    int32_t unk[3];
+    int32_t unk2;
     struct { VECTOR3 min; VECTOR3 max; float radius; } boundingSphere;
-    LONG d5[3];
+    int32_t d5[3];
 };
 
-static BYTE const *ModelDataAt(BYTE const *data, DWORD data_size, DWORD offset, DWORD size) {
+static uint8_t const *ModelDataAt(uint8_t const *data, uint32_t data_size, uint32_t offset, uint32_t size) {
     if (!data || offset > data_size || size > data_size - offset)
         return NULL;
     return data + offset;
@@ -72,12 +72,12 @@ static int compare_animation_name(const void *a, const void *b) {
     return strcmp(((LPCANIMATION)a)->name, ((LPCANIMATION)b)->name);
 }
 
-static animation_t *LoadModelMD34(BYTE const *data, DWORD data_size, DWORD *out_count) {
+static animation_t *LoadModelMD34(uint8_t const *data, uint32_t data_size, uint32_t *out_count) {
     struct md33Header const *hdr = (struct md33Header const *)ModelDataAt(data, data_size, 4, sizeof(*hdr));
     struct md34ReferenceEntry const *ent;
 
     animation_t *animations = NULL;
-    DWORD num = 0;
+    uint32_t num = 0;
 
     if (!hdr) {
         *out_count = 0;
@@ -101,7 +101,7 @@ static animation_t *LoadModelMD34(BYTE const *data, DWORD data_size, DWORD *out_
         animations = gi.MemAlloc(sizeof(animation_t) * re->nEntries);
         memset(animations, 0, sizeof(animation_t) * re->nEntries);
         num = re->nEntries;
-        DWORD startanim = 0;
+        uint32_t startanim = 0;
         FOR_LOOP(j, re->nEntries) {
             struct md34Sequence const *src = seq + j;
             char const *name = src->name.ref < hdr->nRefs
@@ -109,7 +109,7 @@ static animation_t *LoadModelMD34(BYTE const *data, DWORD data_size, DWORD *out_
                 : NULL;
             LPANIMATION dest = animations + j;
             if (name) {
-                DWORD name_len = MIN(src->name.nEntries, sizeof(dest->name) - 1);
+                uint32_t name_len = MIN(src->name.nEntries, sizeof(dest->name) - 1);
                 memcpy(dest->name, name, name_len);
             }
             dest->interval[0] = startanim + src->interval[0];
@@ -132,21 +132,21 @@ static animation_t *LoadModelMD34(BYTE const *data, DWORD data_size, DWORD *out_
 
 typedef struct {
     animation_t *animations;
-    DWORD        num_animations;
+    uint32_t        num_animations;
     char         filename[MAX_PATHLEN];
 } g_cmodel_t;
 
 static g_cmodel_t g_models[G_MAX_MODELS];
 
-int G_RegisterModel(LPCSTR filename) {
+int G_RegisterModel(cstring_t filename) {
     int index = gi.ModelIndex(filename);
     if (index > 0 && index < G_MAX_MODELS && !g_models[index].filename[0])
         strncpy(g_models[index].filename, filename, MAX_PATHLEN - 1);
     return index;
 }
 
-static BYTE *ReadModelFile(LPCSTR filename, DWORD *out_size) {
-    BYTE *data;
+static uint8_t *ReadModelFile(cstring_t filename, uint32_t *out_size) {
+    uint8_t *data;
 
     if (!filename || !*filename)
         return NULL;
@@ -154,7 +154,7 @@ static BYTE *ReadModelFile(LPCSTR filename, DWORD *out_size) {
     if (!data) {
         PATHSTR path;
         size_t len = strlen(filename);
-        LPSTR ext;
+        string_t ext;
 
         if (len == 0 || len >= sizeof(path))
             return NULL;
@@ -168,10 +168,10 @@ static BYTE *ReadModelFile(LPCSTR filename, DWORD *out_size) {
     return data;
 }
 
-static g_cmodel_t *LoadModel(LPCSTR filename) {
-    DWORD fileheader;
-    DWORD data_size = 0;
-    BYTE *data = ReadModelFile(filename, &data_size);
+static g_cmodel_t *LoadModel(cstring_t filename) {
+    uint32_t fileheader;
+    uint32_t data_size = 0;
+    uint8_t *data = ReadModelFile(filename, &data_size);
     if (!data || data_size < sizeof(fileheader)) {
         if (data)
             gi.MemFree(data);
@@ -189,7 +189,7 @@ static g_cmodel_t *LoadModel(LPCSTR filename) {
     return model;
 }
 
-static g_cmodel_t *GetModel(DWORD modelindex) {
+static g_cmodel_t *GetModel(uint32_t modelindex) {
     if (modelindex == 0 || modelindex >= G_MAX_MODELS)
         return NULL;
     g_cmodel_t *entry = &g_models[modelindex];
@@ -204,11 +204,11 @@ static g_cmodel_t *GetModel(DWORD modelindex) {
     return entry->animations ? entry : NULL;
 }
 
-LPCANIMATION G_GetAnimation(DWORD modelindex, LPCSTR animname) {
+LPCANIMATION G_GetAnimation(uint32_t modelindex, cstring_t animname) {
     g_cmodel_t *model = GetModel(modelindex);
     if (!model)
         return NULL;
-    DWORD hash = fnv1a32(animname);
+    uint32_t hash = fnv1a32(animname);
     FOR_LOOP(i, model->num_animations) {
         if (model->animations[i].syncpoint == hash)
             return &model->animations[i];

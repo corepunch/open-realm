@@ -6,15 +6,15 @@
 /* Bounded nearest-N insertion over the full eligible population. Only
  * strictly-closer candidates displace the retained farthest, so equal
  * distances keep edict order (deterministic tie-break). */
-static DWORD spirit_link_nearest_insert(LPEDICT *cands, FLOAT *dists, DWORD n, DWORD maxn, LPEDICT target, FLOAT dist) {
-	DWORD far = 0;
+static uint32_t spirit_link_nearest_insert(LPEDICT *cands, float *dists, uint32_t n, uint32_t maxn, LPEDICT target, float dist) {
+	uint32_t far = 0;
 	FOR_LOOP(i, n) if (dists[i] > dists[far]) far = i;
 	if (n < maxn) { cands[n] = target; dists[n] = dist; return n + 1; }
 	if (dist < dists[far]) { cands[far] = target; dists[far] = dist; }
 	return n;
 }
 
-static void spirit_link_store_code(LPEDICT unit, DWORD buff, DWORD code) {
+static void spirit_link_store_code(LPEDICT unit, uint32_t buff, uint32_t code) {
 	FOR_LOOP(i, MAX_UNIT_STATUSES)
 		if (unit->abilstatus[i].level && unit->abilstatus[i].code == buff) {
 			unit->abilstatus[i].data = code; break;
@@ -25,20 +25,20 @@ static void spirit_link_store_code(LPEDICT unit, DWORD buff, DWORD code) {
  * The click target is kept first when valid; remaining slots go to the
  * nearest others. Equal distances keep edict order. */
 static void spirit_link_execute(LPEDICT caster, spellTarget_t st, abilityitem_t const *spell) {
-	DWORD level, buff, maxn, n = 0, j, rest, restmax;
-	BOOL clicked;
-	FLOAT area, dur, dist;
-	LPCSTR buffstr;
+	uint32_t level, buff, maxn, n = 0, j, rest, restmax;
+	bool clicked;
+	float area, dur, dist;
+	cstring_t buffstr;
 	LPEDICT cands[SPL_MAX_CANDS];
-	FLOAT dists[SPL_MAX_CANDS];
+	float dists[SPL_MAX_CANDS];
 	if (!st.entity || !spell) return;
 	level = S_SpellLevel(caster, spell->code);
 	area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-	maxn = (DWORD)S_SpellData(spell->code, level, 2);
+	maxn = (uint32_t)S_SpellData(spell->code, level, 2);
 	dur = S_SpellDuration(spell->code, level, G_UnitIsHero(st.entity));
 	buffstr = G_AbilityLevel(spell->code, level)->buffID;
 	if (!buffstr || strlen(buffstr) < 4) buffstr = "Bspl";
-	buff = *((DWORD const *)buffstr);
+	buff = *((uint32_t const *)buffstr);
 	if (!maxn) return;
 	if (maxn > SPL_MAX_CANDS) {
 		fprintf(stderr, "spirit_link: DataB %u exceeds scratch %d; clamping\n", (unsigned)maxn, SPL_MAX_CANDS);
@@ -55,7 +55,7 @@ static void spirit_link_execute(LPEDICT caster, spellTarget_t st, abilityitem_t 
 	}
 	FOR_LOOP(i, n) for (j = i + 1; j < n; j++)
 		if (dists[j] < dists[i]) {
-			FLOAT td = dists[i]; LPEDICT te = cands[i];
+			float td = dists[i]; LPEDICT te = cands[i];
 			dists[i] = dists[j]; cands[i] = cands[j]; dists[j] = td; cands[j] = te;
 		}
 	if (n > maxn) n = maxn;
@@ -86,20 +86,20 @@ static void spirit_link_strip(LPEDICT unit) {
 /* Flat redirected share: never fatal — clamp to 1 HP and clear Bspl. */
 static void spirit_link_apply_share(LPEDICT unit, int amount) {
 	if (!unit || amount <= 0 || M_IsDead(unit)) return;
-	if (unit->health.value <= (FLOAT)amount) {
+	if (unit->health.value <= (float)amount) {
 		G_SetHealth(unit, 1); spirit_link_strip(unit); return;
 	}
-	G_AddHealth(unit, -(FLOAT)amount);
+	G_AddHealth(unit, -(float)amount);
 }
 
 /* Split DataA of post-mitigation damage across living allied Bspl holders; return primary take.
  * The 64-entry scratch cannot truncate real groups: selection above caps each
  * cast at authored DataB targets, far below this bound. */
 int S_SpiritLinkRedirect(LPEDICT target, LPEDICT attacker, int damage) {
-	static BOOL redirecting;
+	static bool redirecting;
 	heroabilitystatus_t *slot;
-	DWORD code, level, n = 0;
-	FLOAT ratio;
+	uint32_t code, level, n = 0;
+	float ratio;
 	int shared, kept, portion;
 	LPEDICT linked[SPL_MAX_CANDS];
 	(void)attacker;
@@ -117,7 +117,7 @@ int S_SpiritLinkRedirect(LPEDICT target, LPEDICT attacker, int damage) {
 		linked[n++] = other;
 	}
 	if (n < 1) return damage;
-	shared = (int)((FLOAT)damage * ratio);
+	shared = (int)((float)damage * ratio);
 	kept = damage - shared;
 	portion = shared / (int)n;
 	redirecting = true;

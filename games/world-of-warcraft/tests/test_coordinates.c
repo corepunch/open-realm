@@ -38,7 +38,7 @@ TEST(wow_coordinates, tilted_doodads_preserve_authored_transform) {
     model_t model = { .modeltype = ID_MD20 };
     FOR_LOOP(i, 12) {
         renderEntity_t ent = { .model = &model, .origin = {3, 5, 7}, .scale = 0.5f + i * 0.25f,
-            .rotation = { i * 31, -(FLOAT)i * 17, i * 47 } };
+            .rotation = { i * 31, -(float)i * 17, i * 47 } };
         MATRIX4 old, basis = { .v = {0,1,0,0, 0,0,1,0, 1,0,0,0, 0,0,0,1} }, tmp, matrix;
         Matrix4_identity(&old); Matrix4_translate(&old, &ent.origin);
         Matrix4_multiply(&old, &basis, &tmp); old = tmp;

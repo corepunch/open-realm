@@ -3,8 +3,8 @@
 #define BZ_AEXH MAKEFOURCC('A', 'e', 'x', 'h') // rawcode; Exhume Corpses TFT Meat Wagon research
 
 /* Count the authored corpse type in this wagon's real cargo slots. */
-static DWORD exhume_count(LPEDICT wagon, DWORD unit_id) {
-	DWORD n = 0;
+static uint32_t exhume_count(LPEDICT wagon, uint32_t unit_id) {
+	uint32_t n = 0;
 	if (!wagon || !unit_id || !S_CargoIsCorpseHolder(wagon)) return 0;
 	FOR_LOOP(i, wagon->cargo.count) {
 		LPEDICT corpse = S_CargoUnitAt(wagon, i);
@@ -19,11 +19,11 @@ static LPEDICT exhume_find_thinker(LPEDICT wagon) {
 	return NULL;
 }
 
-static void exhume_spawn(LPEDICT wagon, DWORD unit_id) {
+static void exhume_spawn(LPEDICT wagon, uint32_t unit_id) {
 	LPEDICT corpse = SP_SpawnAtLocationNoBirth(unit_id, wagon->s.player, &wagon->s.origin2);
 	if (!corpse) {
 		fprintf(stderr, "WC3 Exhume: failed to spawn corpse %.4s for wagon %u\n",
-			(LPCSTR)&unit_id, wagon->s.number);
+			(cstring_t)&unit_id, wagon->s.number);
 		return;
 	}
 	corpse->owner = wagon;
@@ -36,8 +36,8 @@ static void exhume_spawn(LPEDICT wagon, DWORD unit_id) {
 /* Classless producer owned by the wagon; wagon removal or missing Aexh ends it. */
 void exhume_think(LPEDICT thinker) {
 	LPEDICT wagon = thinker->owner;
-	DWORD code = BZ_AEXH, level, unit_id, cap, interval_ms;
-	FLOAT interval;
+	uint32_t code = BZ_AEXH, level, unit_id, cap, interval_ms;
+	float interval;
 	if (!wagon || !wagon->inuse || M_IsDead(wagon) || !G_UnitAbilityLevel(wagon, code)) {
 		G_FreeEdict(thinker);
 		return;
@@ -45,18 +45,18 @@ void exhume_think(LPEDICT thinker) {
 	if (G_Time() < thinker->freetime) return;
 	level = G_UnitAbilityLevel(wagon, code);
 	interval = S_SpellDuration(code, level, false);
-	interval_ms = interval > 0.0f ? (DWORD)(interval * 1000.0f) : 0;
+	interval_ms = interval > 0.0f ? (uint32_t)(interval * 1000.0f) : 0;
 	if (!interval_ms) { G_FreeEdict(thinker); return; }
 	unit_id = S_SpellUnitId(code, level);
-	cap = (DWORD)MAX(0.0f, S_SpellData(code, level, 1));
+	cap = (uint32_t)MAX(0.0f, S_SpellData(code, level, 1));
 	if (unit_id && exhume_count(wagon, unit_id) < cap) exhume_spawn(wagon, unit_id);
 	thinker->freetime = G_Time() + interval_ms;
 }
 
 /* Arm the thinker on the first update after the unit gains Aexh. */
 static void exhume_ensure(LPEDICT wagon) {
-	DWORD level = G_UnitAbilityLevel(wagon, BZ_AEXH);
-	FLOAT interval;
+	uint32_t level = G_UnitAbilityLevel(wagon, BZ_AEXH);
+	float interval;
 	LPEDICT thinker;
 	if (!wagon || !level || M_IsDead(wagon) || exhume_find_thinker(wagon)) return;
 	interval = S_SpellDuration(BZ_AEXH, level, false);
@@ -65,7 +65,7 @@ static void exhume_ensure(LPEDICT wagon) {
 	if (!thinker) return;
 	thinker->owner = wagon;
 	thinker->think = exhume_think;
-	thinker->freetime = G_Time() + (DWORD)(interval * 1000.0f);
+	thinker->freetime = G_Time() + (uint32_t)(interval * 1000.0f);
 }
 
 /* Name=Exhume Corpses

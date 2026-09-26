@@ -5,14 +5,14 @@
 
 /* TFT stores full/outer damage in DataB/D and radii in DataC/E; Area is deliberately zero. */
 void incinerate_explode_think(LPEDICT ent) {
-    DWORD code = ent->class_id, rank = ent->resources;
+    uint32_t code = ent->class_id, rank = ent->resources;
     LPEDICT source = ent->owner;
-    FLOAT full = S_SpellData(code, rank, 3), outer = S_SpellData(code, rank, 5);
+    float full = S_SpellData(code, rank, 3), outer = S_SpellData(code, rank, 5);
     if (G_Time() < ent->freetime) return;
     if (source && source->inuse && source->spawn_time == ent->channel.owner_spawn_time) {
         FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellAllowsTarget(code, source, target)) {
-            FLOAT dist = Vector2_distance(&target->s.origin2, &ent->s.origin2);
-            FLOAT damage = dist <= full ? S_SpellData(code, rank, 2) :
+            float dist = Vector2_distance(&target->s.origin2, &ent->s.origin2);
+            float damage = dist <= full ? S_SpellData(code, rank, 2) :
                            dist <= outer ? S_SpellData(code, rank, 4) : 0.0f;
             if (damage > 0.0f) S_SpellDamage(target, source, (int)damage);
         }
@@ -24,8 +24,8 @@ void incinerate_explode_think(LPEDICT ent) {
 void S_IncinerateOnHit(LPEDICT attacker, LPEDICT target) {
     abilityAliasRef_t ability = S_ResolveAbilityAlias(attacker, ID_INCINERATE_ARROW);
     heroabilitystatus_t *slot;
-    LPCSTR buff;
-    DWORD stacks, code, rank;
+    cstring_t buff;
+    uint32_t stacks, code, rank;
     if (!ability.alias) ability = S_ResolveAbilityAlias(attacker, ID_INCINERATE);
     code = ability.alias; rank = ability.level;
     if (!code || !rank || !target || !S_SpellAllowsTarget(code, attacker, target)) return;
@@ -53,7 +53,7 @@ BZ_ABILITY_PROC(CAbilityIncinerate) {
     blast = G_Spawn(); blast->owner = slot->source;
     blast->channel.owner_spawn_time = slot->source_spawn_time;
     blast->class_id = slot->data; blast->resources = slot->rank; blast->s.origin2 = ent->s.origin2;
-    blast->freetime = G_Time() + (DWORD)(MAX(0.0f, S_SpellData(slot->data, slot->rank, 6)) * 1000.0f);
+    blast->freetime = G_Time() + (uint32_t)(MAX(0.0f, S_SpellData(slot->data, slot->rank, 6)) * 1000.0f);
     blast->think = incinerate_explode_think;
     memset(slot, 0, sizeof(*slot));
     ent->aiflags |= AI_CORPSE_UNRAISABLE;
