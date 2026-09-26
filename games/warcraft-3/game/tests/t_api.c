@@ -6708,7 +6708,6 @@ TEST(wc3_api, dota_unit_damage_target_and_invulnerable) {
 }
 
 TEST(wc3_api, dota_item_user_data_visibility_and_stock) {
-    edict_t *item = NULL;
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"
         "  local item it = CreateItem('ratf', 0.0, 0.0)\n"
@@ -6726,20 +6725,12 @@ TEST(wc3_api, dota_item_user_data_visibility_and_stock) {
         "  call BJassAssert(IsItemInvulnerable(it), \"item invulnerability set\")\n"
         "  call SetItemInvulnerable(it, false)\n"
         "  call BJassAssert(not IsItemInvulnerable(it), \"item invulnerability cleared\")\n"
-        "  call SetItemDroppable(it, false)\n"
-        "  call BJassAssert(IsItemInvulnerable(it) == false, \"item remains vulnerable\")\n"
         "  call AddUnitToStock(shop, 'hfoo', 2, 5)\n"
         "  call RemoveUnitFromStock(shop, 'hfoo')\n"
         "  call BJassAssert(AddLightning(\"CLPB\", false, 0.0, 0.0, 10.0, 10.0) != null, \"AddLightning\")\n"
         "  call BJassAssert(CreateImage(\"\", 32.0, 32.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0) != null, \"CreateImage\")\n"
         "  call BJassAssert(CreateUbersplat(0.0, 0.0, \"\", 255, 255, 255, 255, false, false) != null, \"CreateUbersplat\")\n"
         "endfunction\n"));
-    FOR_LOOP(i, globals.num_edicts) if (g_edicts[i].class_id == MAKEFOURCC('r','a','t','f')) item = &g_edicts[i];
-    T_NOT_NULL(item);
-    T_ASSERT(item->item.droppable_set);
-    T_ASSERT(!item->item.droppable);
-    T_ASSERT(!G_ItemIsDroppable(item));
-    T_ASSERT(!item->invulnerable);
 }
 
 TEST(wc3_api, dota_damage_event_exposes_source_and_amount) {

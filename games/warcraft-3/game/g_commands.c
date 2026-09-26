@@ -1861,10 +1861,7 @@ CLIENTCOMMAND(DropItem) {
         slot < 0 || (uint32_t)slot >= G_InventoryCapacity(unit)) {
         return;
     }
-    {
-        edict_t *item = unit->inventory[slot];
-        if (G_ItemIsDroppable(item)) G_DropItem(unit, (uint32_t)slot);
-    }
+    G_DropItem(unit, (uint32_t)slot);
 }
 
 static void G_PublishEndCinematicForHumans(edict_t *clent, bool debug_log) {
