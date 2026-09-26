@@ -1023,6 +1023,36 @@ bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     return true;
 }
 
+bool S_IssuePointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point) {
+    uint32_t level;
+    float range;
+    ability_t const *spell;
+    abilityitem_t item;
+    spellTarget_t target;
+    spellPointValidateParams_t val;
+
+    if (!caster || !point || !code || !G_UnitAbilityLevel(caster, code) || S_UnitPolymorphed(caster))
+        return false;
+    spell = S_SpellAbilityForCode(code);
+    item = MAKE(abilityitem_t, .code = code, .ability = spell);
+    if (!spell || (spell->target_type != SPELL_TARGET_POINT &&
+                   spell->target_type != SPELL_TARGET_UNIT_OR_POINT) ||
+        !S_AbilityHasCommand(spell) || (spell->flags & AB_TOGGLE)) return false;
+    level = S_SpellLevel(caster, code);
+    range = S_SpellRange(code, level);
+    val = MAKE(spellPointValidateParams_t, .caster = caster, .code = code,
+               .level = level, .point = point, .range = 0.0f);
+    if (!spell_validate_point(&val)) return false;
+    target = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = *point);
+    if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
+
+    if (range > 0.0f && Vector2_distance(&caster->s.origin2, point) > range)
+        return spell_begin_target_approach(caster, code, NULL, point, NULL, 0);
+
+    spell_execute_point_target(NULL, caster, code, level, spell, point, NULL, 0, NULL);
+    return true;
+}
+
 /* Shared command entry point for all spell abilities.  Sets up the appropriate
  * target-selection UI based on ability_t.target_type, or executes
  * immediately for no-target spells. */

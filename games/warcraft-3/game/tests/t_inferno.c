@@ -1,5 +1,6 @@
 #ifdef BZ_TESTS
 #include "test.h"
+#include "../g_local.h"
 #include "../skills/s_skills.h"
 
 #define BZ_ANIN MAKEFOURCC('A', 'N', 'i', 'n') // rawcode; creep Inferno
@@ -23,7 +24,7 @@ void G_RunEntities(void);
 
 /* Non-stock ANin (+ ANrc link): DataA=40, DataB=12, DataC=0.5, Dur=3, HeroDur=1.5, Area=200. */
 static char const inferno_slk[] =
-    "ID;PWXL;N;EBB;Y3;X14\n"
+    "ID;PWXL;N;EBB;Y4;X14\n"
     "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs\"\n"
     "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"Area1\"\n"
     "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"DataC1\"\n"
@@ -38,7 +39,13 @@ static char const inferno_slk[] =
     "C;Y3;X1;K\"ANrc\"\nC;Y3;X2;K\"ANrc\"\nC;Y3;X3;K\"\"\n"
     "C;Y3;X4;K\"0.5\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"200\"\n"
     "C;Y3;X7;K\"ANin\"\nC;Y3;X8;K\"1\"\nC;Y3;X11;K\"1000\"\n"
-    "C;Y3;X12;K\"0\"\nC;Y3;X13;K\"0\"\nC;Y3;X14;K\"1\"\nE\n";
+    "C;Y3;X12;K\"0\"\nC;Y3;X13;K\"0\"\nC;Y3;X14;K\"1\"\n"
+    "C;Y4;X1;K\"AUin\"\nC;Y4;X2;K\"AUin\"\n"
+    "C;Y4;X3;K\"ground,structure,debris,enemy,neutral\"\n"
+    "C;Y4;X4;K\"3\"\nC;Y4;X5;K\"1.5\"\nC;Y4;X6;K\"200\"\n"
+    "C;Y4;X7;K\"40\"\nC;Y4;X8;K\"12\"\nC;Y4;X9;K\"0.5\"\n"
+    "C;Y4;X10;K\"hfoo\"\nC;Y4;X11;K\"900\"\nC;Y4;X12;K\"0\"\n"
+    "C;Y4;X13;K\"0\"\nC;Y4;X14;K\"1\"\nE\n";
 
 typedef struct {
     slkTestData_t *rows, *old;
@@ -62,6 +69,13 @@ static edict_t *inferno_thinker(edict_t *caster) {
 
 static edict_t *inferno_summon(edict_t *caster) {
     FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->class_id == BZ_HFOO)
+        return ent;
+    return NULL;
+}
+
+static edict_t *spell_approach(edict_t *caster, uint32_t code) {
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->class_id == code &&
+                  ent->think == S_SpellTargetApproachThink)
         return ent;
     return NULL;
 }
@@ -105,6 +119,62 @@ TEST(wc3_spell, inferno_procedure_and_flags) {
     T_ASSERT(item.ability->flags & AB_SPELL);
     T_ASSERT(!(item.ability->flags & AB_CHANNEL));
     T_EQ((int)item.ability->target_type, (int)SPELL_TARGET_POINT);
+}
+
+TEST(wc3_spell, point_spell_order_approach_round_trips_save) {
+    cstring_t const path = "/tmp/openwarcraft3-point-spell-approach-save.bin";
+    inFix_t fix; edict_t *approach, *summon; vec2_t point = { 1200, 0 };
+    uint32_t const code = MAKEFOURCC('A','U','i','n');
+    uint32_t caster_slot, approach_slot, frame;
+    bool accepted, saved;
+
+    inferno_setup(&fix, code);
+    caster_slot = (uint32_t)(fix.caster - g_edicts);
+    fix.caster->think = monster_think; fix.caster->movetype = MOVETYPE_STEP;
+    fix.caster->collision = 16.0f; fix.caster->unitinfo.MoveSpeed = 300.0f;
+    fix.caster->stand = unit_stand; unit_stand(fix.caster); gi.LinkEntity(fix.caster);
+    fix.enemy->s.origin2.y = fix.far->s.origin2.y = fix.hero->s.origin2.y = 1000;
+    fix.enemy->s.origin.y = fix.far->s.origin.y = fix.hero->s.origin.y = 1000;
+    gi.LinkEntity(fix.enemy); gi.LinkEntity(fix.far); gi.LinkEntity(fix.hero);
+
+    accepted = G_IssueUnitPointOrder(fix.caster, "inferno", &point, false, 0, 0.0f);
+    T_ASSERT(accepted);
+    approach = spell_approach(fix.caster, code);
+    T_NOT_NULL(approach);
+    if (!accepted || !approach) goto cleanup_point_spell_approach;
+    T_ASSERT(fix.caster->goalentity == approach);
+    T_FEQ(approach->s.origin2.x, point.x, 0.001f);
+    T_FEQ(approach->s.origin2.y, point.y, 0.001f);
+    approach_slot = (uint32_t)(approach - g_edicts);
+
+    saved = WriteGame(path);
+    T_ASSERT(saved);
+    if (saved) {
+        T_ASSERT(ReadGame(path));
+        fix.caster = &globals.edicts[caster_slot];
+        approach = &globals.edicts[approach_slot];
+        T_ASSERT(approach->inuse && approach->think == S_SpellTargetApproachThink);
+        T_ASSERT(approach->goalentity == approach);
+        T_ASSERT(fix.caster->goalentity == approach);
+        T_ASSERT(move_is_active_order_walk(fix.caster));
+        T_FEQ(approach->s.origin2.x, point.x, 0.001f);
+        T_FEQ(approach->s.origin2.y, point.y, 0.001f);
+
+        for (frame = 0; frame < 200 && approach->inuse; frame++) {
+            level.time += FRAMETIME;
+            G_RunEntities();
+        }
+        T_ASSERT(frame < 200);
+        T_ASSERT(!approach->inuse);
+        T_FEQ(fix.caster->s.origin2.x, point.x - S_SpellRange(code, 1), 100.0f);
+        summon = inferno_summon(fix.caster);
+        T_NOT_NULL(summon);
+        if (summon) T_FEQ(summon->s.origin2.x, point.x, 0.001f);
+    }
+
+cleanup_point_spell_approach:
+    remove(path);
+    inferno_done(fix);
 }
 
 /* DataC delays blast: no damage/stun/summon until the authored delay elapses. */
