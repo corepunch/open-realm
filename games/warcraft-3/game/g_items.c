@@ -426,11 +426,6 @@ int32_t G_FindFreeInventorySlot(edict_t const *unit) {
     return -1;
 }
 
-bool G_ItemIsDroppable(edict_t const *item) {
-    return G_IsItem(item) && (item->item.droppable_set ? item->item.droppable :
-        item->data.ItemData && item->data.ItemData->droppable);
-}
-
 bool G_CanPickupItem(edict_t *unit, edict_t *item) {
     if (!G_UnitHasInventory(unit) || M_IsDead(unit) || !G_IsItem(item)) {
         return false;
