@@ -4,10 +4,10 @@
 
 #define BZ_TEST_WARP MAKEFOURCC('Z','w','r','p')
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 bool run_test_jass(cstring_t src);
 
@@ -26,8 +26,8 @@ static char const waygate_slk[] =
 
 typedef struct {
     slkTestData_t *rows, *old;
-    edict_t * gate;
-    edict_t * unit;
+    edict_t *gate;
+    edict_t *unit;
 } wayFix_t;
 
 static wayFix_t waygate_setup(float unit_x, float unit_y) {
@@ -61,7 +61,7 @@ static void waygate_done(wayFix_t fix) {
     free_slk_rows(fix.rows);
 }
 
-static void assert_no_waygate_order(edict_t const * unit) {
+static void assert_no_waygate_order(edict_t const *unit) {
     T_NULL(unit->movement.waygate_target);
     T_NULL(unit->movement.waygate_goal);
     T_EQ(unit->movement.waygate_target_spawn_time, 0);
@@ -167,7 +167,7 @@ TEST(wc3_waygate, approach_uses_live_destination_at_traversal_time) {
 
 TEST(wc3_waygate, rejected_replacement_order_preserves_inflight_approach) {
     wayFix_t fix = waygate_setup(300.0f, 0.0f);
-    edict_t * goal;
+    edict_t *goal;
 
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
     goal = fix.unit->movement.waygate_goal;
@@ -193,7 +193,7 @@ TEST(wc3_waygate, accepted_point_order_replaces_inflight_approach) {
 
 TEST(wc3_waygate, accepted_target_order_replaces_inflight_approach) {
     wayFix_t fix = waygate_setup(300.0f, 0.0f);
-    edict_t * friend = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 0.0f);
+    edict_t *friend = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 500.0f, 0.0f);
     friend->svflags |= SVF_MONSTER;
 
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
@@ -206,7 +206,7 @@ TEST(wc3_waygate, accepted_target_order_replaces_inflight_approach) {
 TEST(wc3_waygate, shift_queued_order_does_not_interrupt_inflight_approach) {
     wayFix_t fix = waygate_setup(300.0f, 0.0f);
     vector2_t destination = { 500.0f, 100.0f };
-    edict_t * goal;
+    edict_t *goal;
 
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
     goal = fix.unit->movement.waygate_goal;
@@ -303,7 +303,7 @@ TEST(wc3_save, waygate_state_and_inflight_approach_round_trip) {
 TEST(wc3_save, rejects_invalid_waygate_entity_references) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-waygate-invalid-reference.bin";
     wayFix_t fix = waygate_setup(300.0f, 0.0f);
-    edict_t * target, *goal;
+    edict_t *target, *goal;
 
     T_ASSERT(G_IssueUnitTargetOrder(fix.unit, "smart", fix.gate, false, 0));
     target = fix.unit->movement.waygate_target;

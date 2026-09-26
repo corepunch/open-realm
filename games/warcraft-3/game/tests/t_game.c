@@ -21,7 +21,7 @@
 #include "../g_local.h"
 
 /* Helpers defined in t_utils.c */
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 void G_ResetTestSelectionChecks(void);
@@ -34,9 +34,9 @@ bool run_test_jass(cstring_t src);
 #include "../../../renderer/r_local.h"
 
 /* Forward declarations for internal functions not exposed in any header. */
-bool  M_IsDead(edict_t const * ent);
+bool  M_IsDead(edict_t const *ent);
 uint32_t FindEnumValue(cstring_t value, cstring_t values[]);
-void  unit_runwait(edict_t * self, void (*callback)(edict_t *));
+void  unit_runwait(edict_t *self, void (*callback)(edict_t *));
 
 TEST(wc3_game, timer_dialog_formats_zero_padded_countdown) {
     gtimer_t timer = {0};
@@ -91,7 +91,7 @@ TEST(wc3_game, event_queue_rejects_overflow_without_overwriting_pending_events) 
  * Helpers
  * ========================================================================= */
 
-static player_t * game_player(int idx) {
+static player_t *game_player(int idx) {
     game.clients[idx].ps.number = (uint32_t)idx;
     return &game.clients[idx].ps;
 }
@@ -126,7 +126,7 @@ static bool portrait_capture_text_relative;
 static char portrait_capture_animation[32];
 
 static void portrait_test_write(pfWriteType_t type, void const *data) {
-    uiFrame_t const * frame;
+    uiFrame_t const *frame;
 
     if (type != PF_UIFRAME || !data) return;
     frame = data;
@@ -163,7 +163,7 @@ static int portrait_test_font(cstring_t name, uint32_t size) {
 
 static void selection_test_write(pfWriteType_t type, void const *data) {
     if (type == PF_UIFRAME && data) {
-        uiFrame_t const * frame = data;
+        uiFrame_t const *frame = data;
         if (frame->flags.type == FT_MULTISELECT && frame->buffer.data &&
             frame->buffer.size >= sizeof(uiMultiselect_t)) {
             uiMultiselect_t const *multi = frame->buffer.data;
@@ -196,23 +196,23 @@ static void selection_test_write(pfWriteType_t type, void const *data) {
     }
 }
 
-static void selection_test_unicast(edict_t * ent) { (void)ent; }
+static void selection_test_unicast(edict_t *ent) { (void)ent; }
 
 static bool timer_dialog_size_capture;
 static char timer_dialog_measure_text[128];
 static uiNameTag_t timer_dialog_size_to_text;
 static uint32_t timer_dialog_unicast_count;
-static edict_t * timer_dialog_unicast_target;
+static edict_t *timer_dialog_unicast_target;
 static bool leaderboard_size_capture;
 static char leaderboard_measure_capture_text[128];
 
-static void timer_dialog_test_unicast(edict_t * ent) {
+static void timer_dialog_test_unicast(edict_t *ent) {
     timer_dialog_unicast_count++;
     timer_dialog_unicast_target = ent;
 }
 
 static void timer_dialog_test_write(pfWriteType_t type, void const *data) {
-    uiFrame_t const * frame;
+    uiFrame_t const *frame;
 
     if (type != PF_UIFRAME || !data) return;
     frame = data;
@@ -225,7 +225,7 @@ static void timer_dialog_test_write(pfWriteType_t type, void const *data) {
 }
 
 static void leaderboard_test_write(pfWriteType_t type, void const *data) {
-    uiFrame_t const * frame;
+    uiFrame_t const *frame;
 
     if (type != PF_UIFRAME || !data) return;
     frame = data;
@@ -238,7 +238,7 @@ static void leaderboard_test_write(pfWriteType_t type, void const *data) {
 TEST(wc3_game, selected_unit_cheats_preserve_controller_and_run_death) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     cstring_t god[] = { "god" }, kill[] = { "kill" };
-    edict_t * unit, *clent;
+    edict_t *unit, *clent;
 
     setup_test_world();
     clent = &g_edicts[0];
@@ -264,8 +264,8 @@ TEST(wc3_game, selected_unit_cheats_preserve_controller_and_run_death) {
 
 TEST(wc3_game, give_resource_cheats_target_issuing_player_without_selection) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
-    gameClient_t * client = &game.clients[0];
-    edict_t * clent = &g_edicts[0];
+    gameClient_t *client = &game.clients[0];
+    edict_t *clent = &g_edicts[0];
     cstring_t give_gold[] = { "give", "gold", "5000" };
     cstring_t give_lumber[] = { "give", "lumber", "5000" };
     cstring_t give_res[] = { "give", "res", "5000" };
@@ -299,8 +299,8 @@ TEST(wc3_game, give_resource_cheats_target_issuing_player_without_selection) {
 
 TEST(wc3_game, hero_max_cheat_uses_max_level_xp_and_restores_level_skill_budget) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
-    gameClient_t * client = &game.clients[0];
-    edict_t * hero;
+    gameClient_t *client = &game.clients[0];
+    edict_t *hero;
     cstring_t command[] = { "hero", "max" };
     uint32_t max_level;
 
@@ -330,8 +330,8 @@ TEST(wc3_game, hero_max_cheat_uses_max_level_xp_and_restores_level_skill_budget)
 
 TEST(wc3_game, hero_select_cheat_selects_owned_hero_without_mouse_input) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
-    gameClient_t * client = &game.clients[0];
-    edict_t * hero;
+    gameClient_t *client = &game.clients[0];
+    edict_t *hero;
     cstring_t command[] = { "hero", "select" };
 
     setup_test_world();
@@ -351,8 +351,8 @@ TEST(wc3_game, hero_select_cheat_selects_owned_hero_without_mouse_input) {
 
 TEST(wc3_game, hero_health_and_mana_cheats_fill_or_set_with_max_clamp) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
-    gameClient_t * client = &game.clients[0];
-    edict_t * hero;
+    gameClient_t *client = &game.clients[0];
+    edict_t *hero;
     cstring_t fill_health[] = { "hero", "health" };
     cstring_t set_health[] = { "hero", "health", "275" };
     cstring_t clamp_health[] = { "hero", "health", "9999" };
@@ -470,9 +470,9 @@ TEST(wc3_game, instant_all_sets_and_toggles_both_player_cheats) {
 
 TEST(wc3_game, enemiesclear_and_eclear_remove_nearby_enemy_units_only) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
-    gameClient_t * client = &game.clients[0];
-    edict_t * clent = &g_edicts[0];
-    edict_t * center, *near_enemy, *far_enemy, *friendly;
+    gameClient_t *client = &game.clients[0];
+    edict_t *clent = &g_edicts[0];
+    edict_t *center, *near_enemy, *far_enemy, *friendly;
     cstring_t enemiesclear[] = { "enemiesclear", "128" };
     cstring_t eclear[] = { "eclear", "128" };
 
@@ -511,9 +511,9 @@ TEST(wc3_game, enemiesclear_and_eclear_remove_nearby_enemy_units_only) {
 }
 
 TEST(wc3_game, camera_move_and_selected_share_camera_command_family) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * clent = &g_edicts[0];
-    edict_t * selected;
+    gameClient_t *client = &game.clients[0];
+    edict_t *clent = &g_edicts[0];
+    edict_t *selected;
     cstring_t move[] = { "camera", "move", "320", "-96" };
     cstring_t focus[] = { "camera", "selected" };
 
@@ -540,7 +540,7 @@ TEST(wc3_game, camera_move_and_selected_share_camera_command_family) {
 
 TEST(wc3_game, day_and_night_cheats_use_authored_phase_midpoints) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
-    edict_t * clent = &g_edicts[0];
+    edict_t *clent = &g_edicts[0];
     cstring_t day[] = { "day" };
     cstring_t night[] = { "night" };
 
@@ -579,7 +579,7 @@ TEST(wc3_game, day_and_night_cheats_use_authored_phase_midpoints) {
 
 TEST(wc3_game, starting_resource_cheat_requires_permission_at_arm_and_apply) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
-    mapInfo_t * mapinfo;
+    mapInfo_t *mapinfo;
     setup_test_world();
     mapinfo = (mapInfo_t *)level.mapinfo;
     mapinfo->players[0].used = true;
@@ -608,7 +608,7 @@ TEST(wc3_game, starting_resource_cheat_requires_permission_at_arm_and_apply) {
 TEST(wc3_game, unit_cheats_reject_disabled_missing_and_enemy_selection) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
     cstring_t god[] = { "god" }, kill[] = { "kill" };
-    edict_t * unit, *clent;
+    edict_t *unit, *clent;
     setup_test_world();
     clent = &g_edicts[0];
     gi.CvarString = give_resources_cheat_cvar;
@@ -635,7 +635,7 @@ TEST(wc3_game, unit_cheats_reject_disabled_missing_and_enemy_selection) {
 
 TEST(wc3_game, starting_resource_cheat_waits_for_playable_human_state) {
     cstring_t (*old_cvar)(cstring_t, cstring_t) = gi.CvarString;
-    mapInfo_t * mapinfo;
+    mapInfo_t *mapinfo;
 
     setup_test_world();
     mapinfo = (mapInfo_t *)level.mapinfo;
@@ -692,10 +692,10 @@ TEST(wc3_game, starting_resource_cheat_waits_for_playable_human_state) {
     gi.CvarString = old_cvar;
 }
 
-static edict_t * make_test_unit(void) {
+static edict_t *make_test_unit(void) {
     reset_entities();
     strlcpy(level.map_path, "Maps\\Campaign\\SaveTest.w3m", sizeof(level.map_path));
-    edict_t * ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     ent->health.value     = 250.0f;
     ent->health.max_value = 250.0f;
     ent->stand            = unit_stand;
@@ -713,7 +713,7 @@ static bool hover_layout_pending, hover_layer_seen, hover_infopanel_layer_seen, 
             hover_mana_row_chained, hover_health_row_chained, hover_name_chained;
 static uint32_t hover_frame_count, hover_unicast_count, hover_image_count, hover_font_count,
              hover_cargo_frame, hover_mana_row_frame, hover_health_row_frame;
-static edict_t * hover_unicast_target;
+static edict_t *hover_unicast_target;
 static pfWriteType_t window_frame_type;
 static uint32_t window_text_offset;
 
@@ -732,7 +732,7 @@ static void hover_test_write(pfWriteType_t type, void const *value) {
         }
         else hover_layout_pending = byte == svc_layout;
     } else if (type == PF_UIFRAME) {
-        uiFrame_t const * frame = value;
+        uiFrame_t const *frame = value;
         hover_frame_count++;
         hover_name_seen |= frame->flags.type == FT_NAMETAG && frame->stat == UI_STAT_CONTEXT_NAME;
         hover_name_sized |= frame->flags.type == FT_NAMETAG && (frame->flagsvalue & UIFLAG_SIZE_TO_CONTENT);
@@ -767,7 +767,7 @@ static void hover_test_write(pfWriteType_t type, void const *value) {
         hover_infopanel_tooltip_seen |= frame->flags.type == FT_TOOLTIPTEXT;
     }
 }
-static void hover_test_unicast(edict_t * ent) { hover_unicast_count++; hover_unicast_target = ent; }
+static void hover_test_unicast(edict_t *ent) { hover_unicast_count++; hover_unicast_target = ent; }
 static void infopanel_test_write(pfWriteType_t type, void const *value) {
     if (!value) return;
     if (type == PF_BYTE) {
@@ -789,7 +789,7 @@ static void window_test_write(pfWriteType_t type, void const *value) {
 }
 
 static uint32_t alert_ping_count, alert_ping_flags;
-static edict_t * alert_ping_target;
+static edict_t *alert_ping_target;
 static vector2_t alert_ping_position;
 static float alert_ping_duration;
 static color32_t alert_ping_color;
@@ -798,7 +798,7 @@ static PATHSTR alert_ping_model;
 static void alert_test_configstring(uint32_t index, cstring_t value) {
     if (index == CS_MINIMAP) snprintf(alert_ping_model, sizeof(alert_ping_model), "%s", value);
 }
-static void alert_test_minimap_ping(edict_t * ent, vector2_t const * position, float duration, color32_t color, uint32_t flags) {
+static void alert_test_minimap_ping(edict_t *ent, vector2_t const *position, float duration, color32_t color, uint32_t flags) {
     alert_ping_count++; alert_ping_target = ent; alert_ping_position = *position; alert_ping_duration = duration;
     alert_ping_color = color; alert_ping_flags = flags;
 }
@@ -1070,8 +1070,8 @@ TEST(wc3_game, hud_status_icon_missing_candidates_cache_null) {
 }
 
 TEST(wc3_game, hud_timed_status_fraction_is_owner_only) {
-    gameClient_t * viewer = game.clients;
-    edict_t * ent = make_test_unit();
+    gameClient_t *viewer = game.clients;
+    edict_t *ent = make_test_unit();
     uint16_t half;
 
     viewer->ps.number = 0;
@@ -1109,8 +1109,8 @@ TEST(wc3_game, hud_second_attack_requires_enabled_slot_and_showui) {
 TEST(wc3_game, player_zero_food_ignores_free_edicts) {
     static UnitBalance_t const owned_balance = { .foodMade = 6, .foodUsed = 1 };
     static UnitBalance_t const enemy_balance = { .foodMade = 12, .foodUsed = 2 };
-    gameClient_t * client = &game.clients[0];
-    edict_t * owned, *enemy;
+    gameClient_t *client = &game.clients[0];
+    edict_t *owned, *enemy;
 
     reset_entities();
     client->ps.number = 0;
@@ -1126,9 +1126,9 @@ TEST(wc3_game, player_zero_food_ignores_free_edicts) {
 TEST(wc3_game, authoritative_selection_sync_mirrors_surviving_server_membership) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
-    gameClient_t * client = &game.clients[0];
-    edict_t * player = &g_edicts[0];
-    edict_t * first, *second, *third;
+    gameClient_t *client = &game.clients[0];
+    edict_t *player = &g_edicts[0];
+    edict_t *first, *second, *third;
 
     reset_entities();
     setup_test_world();
@@ -1179,9 +1179,9 @@ TEST(wc3_game, authoritative_selection_sync_mirrors_surviving_server_membership)
 TEST(wc3_game, multiselect_payload_marks_the_focused_unit_type_subgroup) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
-    gameClient_t * client = &game.clients[0];
-    edict_t * player = &g_edicts[0];
-    edict_t * selected[3];
+    gameClient_t *client = &game.clients[0];
+    edict_t *player = &g_edicts[0];
+    edict_t *selected[3];
 
     reset_entities();
     setup_test_world();
@@ -1227,9 +1227,9 @@ TEST(wc3_game, multiselect_payload_marks_the_focused_unit_type_subgroup) {
 TEST(wc3_game, multiselect_info_panel_refreshes_when_membership_shrinks) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
-    gameClient_t * client = &game.clients[0];
-    edict_t * player = &g_edicts[0];
-    edict_t * units[3];
+    gameClient_t *client = &game.clients[0];
+    edict_t *player = &g_edicts[0];
+    edict_t *units[3];
 
     reset_entities();
     setup_test_world();
@@ -1263,9 +1263,9 @@ TEST(wc3_game, multiselect_portrait_uses_focused_unit_and_safe_area_root) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
     int (*old_font)(cstring_t, uint32_t) = gi.FontIndex;
-    gameClient_t * client = &game.clients[0];
-    edict_t * player = &g_edicts[0];
-    edict_t * first, *second;
+    gameClient_t *client = &game.clients[0];
+    edict_t *player = &g_edicts[0];
+    edict_t *first, *second;
 
     reset_entities();
     setup_test_world();
@@ -1330,8 +1330,8 @@ TEST(wc3_game, multiselect_portrait_uses_focused_unit_and_safe_area_root) {
 
 TEST(wc3_game, idle_response_updates_skip_selection_scans) {
     enum { DECOYS = 256, UPDATES = 4 };
-    gameClient_t * client = &game.clients[0];
-    edict_t * player = &g_edicts[0];
+    gameClient_t *client = &game.clients[0];
+    edict_t *player = &g_edicts[0];
 
     reset_entities();
     setup_test_world();
@@ -1345,15 +1345,15 @@ TEST(wc3_game, idle_response_updates_skip_selection_scans) {
     T_EQ(G_GetTestSelectionChecks(), 0);
 }
 
-void test_sound_event(edict_t * ent, uint32_t request, uint32_t event);
+void test_sound_event(edict_t *ent, uint32_t request, uint32_t event);
 
 TEST(wc3_game, selected_unit_portrait_follows_confirmed_playback) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
     void (*old_unicast)(edict_t *) = gi.unicast;
     int (*old_font)(cstring_t, uint32_t) = gi.FontIndex;
-    gameClient_t * client = &game.clients[0];
-    edict_t * player = &g_edicts[0];
-    edict_t * unit;
+    gameClient_t *client = &game.clients[0];
+    edict_t *player = &g_edicts[0];
+    edict_t *unit;
 
     reset_entities();
     setup_test_world();
@@ -1390,8 +1390,8 @@ TEST(wc3_game, selected_unit_portrait_follows_confirmed_playback) {
 }
 
 TEST(wc3_game, response_cleanup_runs_from_server_frame_scheduler) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * unit;
+    gameClient_t *client = &game.clients[0];
+    edict_t *unit;
 
     reset_entities();
     setup_test_world();
@@ -1424,9 +1424,9 @@ TEST(wc3_game, response_cleanup_runs_from_server_frame_scheduler) {
 }
 
 TEST(wc3_game, response_end_tracks_the_current_focused_unit) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * player = &g_edicts[0];
-    edict_t * speaker, *focused;
+    gameClient_t *client = &game.clients[0];
+    edict_t *player = &g_edicts[0];
+    edict_t *speaker, *focused;
 
     reset_entities();
     setup_test_world();
@@ -1459,9 +1459,9 @@ TEST(wc3_game, response_end_tracks_the_current_focused_unit) {
 }
 
 TEST(wc3_game, response_feedback_ignores_reused_entity_slots) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * player = &g_edicts[0];
-    edict_t * speaker, *replacement;
+    gameClient_t *client = &game.clients[0];
+    edict_t *player = &g_edicts[0];
+    edict_t *speaker, *replacement;
     uint32_t speaker_number;
 
     reset_entities();
@@ -1507,9 +1507,9 @@ TEST(wc3_game, response_feedback_ignores_reused_entity_slots) {
 }
 
 TEST(wc3_game, multiselect_portrait_live_stats_follow_focus) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * player = &g_edicts[0];
-    edict_t * first, *second;
+    gameClient_t *client = &game.clients[0];
+    edict_t *player = &g_edicts[0];
+    edict_t *first, *second;
 
     reset_entities();
     setup_test_world();
@@ -1548,9 +1548,9 @@ TEST(wc3_game, multiselect_portrait_live_stats_follow_focus) {
 }
 
 TEST(wc3_game, portrait_live_stats_refresh_reserved_connected_client_edict) {
-    gameClient_t * client = &game.clients[0];
-    edict_t * player;
-    edict_t * unit;
+    gameClient_t *client = &game.clients[0];
+    edict_t *player;
+    edict_t *unit;
 
     reset_entities();
     setup_test_world();
@@ -1633,9 +1633,9 @@ TEST(wc3_game, hud_portrait_model_uses_serialized_field) {
 }
 
 TEST(wc3_game, selected_unit_portrait_invalidation_marks_selecting_client_dirty) {
-    gameClient_t * selected_client = &game.clients[0];
-    gameClient_t * other_client = &game.clients[1];
-    edict_t * unit;
+    gameClient_t *selected_client = &game.clients[0];
+    gameClient_t *other_client = &game.clients[1];
+    edict_t *unit;
 
     reset_entities();
     setup_test_world();
@@ -1766,7 +1766,7 @@ TEST(wc3_game, hud_checkbox_serializes_authored_states_and_checked_value) {
     uint8_t typedata[256];
     char textbuf[128];
     uiFrame_t out;
-    frameDef_t * box, *normal, *pushed, *disabled, *over, *checked, *disabled_checked;
+    frameDef_t *box, *normal, *pushed, *disabled, *over, *checked, *disabled_checked;
     uiCheckBox_t const *wire;
 
     UI_ClearTemplates();
@@ -1812,7 +1812,7 @@ TEST(wc3_game, hud_simple_button_serializes_button_state) {
     uint8_t typedata[256];
     char textbuf[128];
     uiFrame_t out;
-    frameDef_t * button, *normal, *pushed, *disabled;
+    frameDef_t *button, *normal, *pushed, *disabled;
 
     UI_ClearTemplates();
     button = UI_Spawn(FT_SIMPLEBUTTON, NULL);
@@ -2028,7 +2028,7 @@ TEST(wc3_game, hud_reset_drops_cached_image_names) {
 }
 
 TEST(wc3_game, hud_control_state_art_is_embedded_but_button_text_is_not_art) {
-    frameDef_t * button, *normal, *pushed, *label;
+    frameDef_t *button, *normal, *pushed, *label;
 
     UI_ClearTemplates();
     button = UI_Spawn(FT_GLUETEXTBUTTON, NULL);
@@ -2054,7 +2054,7 @@ TEST(wc3_game, hud_control_state_art_is_embedded_but_button_text_is_not_art) {
 }
 
 TEST(wc3_game, hud_scrollbar_buttons_are_embedded_control_art) {
-    frameDef_t * scrollbar, *inc, *dec, *thumb;
+    frameDef_t *scrollbar, *inc, *dec, *thumb;
 
     UI_ClearTemplates();
     scrollbar = UI_Spawn(FT_SCROLLBAR, NULL);
@@ -2083,7 +2083,7 @@ TEST(wc3_game, hud_highlight_serializes_texture_and_mode) {
     uint8_t typedata[256];
     char textbuf[128];
     uiFrame_t out;
-    frameDef_t * highlight;
+    frameDef_t *highlight;
 
     UI_ClearTemplates();
     highlight = UI_Spawn(FT_HIGHLIGHT, NULL);
@@ -2103,7 +2103,7 @@ TEST(wc3_game, hud_glue_button_serializes_backdrops) {
     uint8_t typedata[256];
     char textbuf[128];
     uiFrame_t out;
-    frameDef_t * button, *normal, *pushed;
+    frameDef_t *button, *normal, *pushed;
 
     UI_ClearTemplates();
     button = UI_Spawn(FT_GLUEBUTTON, NULL);
@@ -2126,7 +2126,7 @@ TEST(wc3_game, hud_glue_button_serializes_backdrops) {
 TEST(wc3_game, hud_authored_row_keeps_template_size) {
     FRAMEDEF tmpl = { .Type = FT_FRAME, .Width = 0.08f, .Height = 0.033f };
     FRAMEDEF parent = { .Type = FT_FRAME };
-    frameDef_t * row = UI_CloneStackedRow(&tmpl, &parent, 0);
+    frameDef_t *row = UI_CloneStackedRow(&tmpl, &parent, 0);
     T_NOT_NULL(row);
     T_FEQ(row->Width, 0.08f, 0.001f);
     T_FEQ(row->Height, 0.033f, 0.001f);
@@ -2136,7 +2136,7 @@ TEST(wc3_game, hud_authored_row_keeps_template_size) {
 TEST(wc3_game, hud_authored_row_stride_uses_template_height) {
     FRAMEDEF tmpl = { .Type = FT_FRAME, .Width = 0.15f, .Height = 0.012f };
     FRAMEDEF parent = { .Type = FT_FRAME };
-    frameDef_t * row = UI_CloneStackedRow(&tmpl, &parent, 3);
+    frameDef_t *row = UI_CloneStackedRow(&tmpl, &parent, 3);
     T_NOT_NULL(row);
     T_ASSERT(row->Points.y[FPP_MIN].relativeTo == &parent);
     T_FEQ(row->Points.y[FPP_MIN].offset, -0.036f, 0.001f);
@@ -2148,7 +2148,7 @@ static uint32_t quest_sprite_count;
 static PATHSTR quest_model;
 static int quest_test_model(cstring_t name) { snprintf(quest_model, sizeof(quest_model), "%s", name); return 77; }
 static void quest_test_write(pfWriteType_t type, void const *value) {
-    uiFrame_t const * frame = value;
+    uiFrame_t const *frame = value;
     if (type == PF_UIFRAME && frame->flags.type == FT_SPRITE) { quest_sprite = *frame; quest_sprite_count++; }
 }
 
@@ -2156,9 +2156,9 @@ static void quest_test_write(pfWriteType_t type, void const *value) {
 TEST(wc3_game, hud_quest_indicator_uses_skin_anchor_and_timeout) {
     __typeof__(gi.Write) old_write = gi.Write;
     __typeof__(gi.ModelIndex) old_model = gi.ModelIndex;
-    frameDef_t * old_button = hud.upper.UpperButtonBarQuestsButton;
+    frameDef_t *old_button = hud.upper.UpperButtonBarQuestsButton;
     uint32_t oldtime = level.time;
-    gameClient_t * client = &game.clients[0];
+    gameClient_t *client = &game.clients[0];
     FRAMEDEF button = { .Type = FT_FRAME };
     gi.Write = quest_test_write; gi.ModelIndex = quest_test_model;
     hud.upper.UpperButtonBarQuestsButton = &button;
@@ -2185,7 +2185,7 @@ static PATHSTR autocast_model;
 static int autocast_test_model(cstring_t name) { snprintf(autocast_model, sizeof(autocast_model), "%s", name); return 88; }
 static int autocast_test_image(cstring_t name) { (void)name; return 1; }
 static void autocast_test_write(pfWriteType_t type, void const *value) {
-    uiFrame_t const * frame = value;
+    uiFrame_t const *frame = value;
     if (type != PF_UIFRAME || !frame) return;
     if (frame->flags.type == FT_COMMANDBUTTON) autocast_parent = frame->number;
     if (frame->flags.type == FT_SPRITE) { autocast_sprite = *frame; autocast_sprite_count++; }
@@ -2280,7 +2280,7 @@ TEST(wc3_game, hud_quest_visibility_requires_enabled_and_discovered) {
 TEST(wc3_game, hud_quest_rows_bind_authored_children) {
     quest_t quest = { .title = "Test Quest", .discovered = true, .required = true, .enabled = true };
     questItem_t item = { .description = "Test Objective" };
-    frameDef_t * list, *item_list, *button, *title, *item_title;
+    frameDef_t *list, *item_list, *button, *title, *item_title;
 
     UI_ClearTemplates();
     hud.quest_row = UI_Spawn(FT_FRAME, NULL);
@@ -2332,7 +2332,7 @@ TEST(wc3_game, hud_quest_rows_bind_authored_children) {
 TEST(wc3_game, hud_quest_rows_show_undiscovered_and_completed_state) {
     quest_t done = { .title = "Finished", .discovered = true, .required = true, .enabled = true, .completed = true };
     quest_t hidden = { .title = "Secret", .discovered = false, .required = false, .enabled = true };
-    frameDef_t * list, *optional, *button, *title, *complete;
+    frameDef_t *list, *optional, *button, *title, *complete;
 
     done.inuse = true;
     hidden.inuse = true;
@@ -2409,7 +2409,7 @@ TEST(wc3_game, hover_layout_is_server_authored_with_entity_context_bindings) {
     void (*old_unicast)(edict_t *) = gi.unicast;
     int (*old_image)(cstring_t) = gi.ImageIndex;
     int (*old_font)(cstring_t, uint32_t) = gi.FontIndex;
-    edict_t * player;
+    edict_t *player;
 
     setup_test_world(); player = &g_edicts[0]; player->client->connected = true;
     player->mana.max_value = 100.0f; player->mana.value = 50.0f;
@@ -2434,9 +2434,9 @@ TEST(wc3_game, hover_layout_is_server_authored_with_entity_context_bindings) {
 
 TEST(wc3_game, single_info_panel_serializes_tooltip_presenter) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;
-    gameClient_t * client = &game.clients[0];
-    edict_t * player = &g_edicts[0];
-    edict_t * selected[1];
+    gameClient_t *client = &game.clients[0];
+    edict_t *player = &g_edicts[0];
+    edict_t *selected[1];
 
     setup_test_world(); selected[0] = make_test_unit();
     player->client = client; client->connected = true; client->ps.number = 0;
@@ -2504,14 +2504,14 @@ TEST(wc3_game, region_contains_max_boundary_exclusive) {
  * ========================================================================= */
 
 TEST(wc3_game, free_edict_clears_inuse) {
-    edict_t * ent = make_test_unit();
+    edict_t *ent = make_test_unit();
     T_ASSERT(ent->inuse);
     G_FreeEdict(ent);
     T_ASSERT(!ent->inuse);
 }
 
 TEST(wc3_game, free_edict_stamps_freetime) {
-    edict_t * ent = make_test_unit();
+    edict_t *ent = make_test_unit();
     level.time = 9876;
     G_FreeEdict(ent);
     T_EQ((int)ent->freetime, 9876);
@@ -2522,19 +2522,19 @@ TEST(wc3_game, free_edict_stamps_freetime) {
  * ========================================================================= */
 
 TEST(wc3_game, is_dead_alive_unit_false) {
-    edict_t * ent = make_test_unit();
+    edict_t *ent = make_test_unit();
     ent->health.value = 100.0f;
     T_ASSERT(!M_IsDead(ent));
 }
 
 TEST(wc3_game, is_dead_zero_hp_true) {
-    edict_t * ent = make_test_unit();
+    edict_t *ent = make_test_unit();
     ent->health.value = 0.0f;
     T_ASSERT(M_IsDead(ent));
 }
 
 TEST(wc3_game, is_dead_negative_hp_true) {
-    edict_t * ent = make_test_unit();
+    edict_t *ent = make_test_unit();
     ent->health.value = -1.0f;
     T_ASSERT(M_IsDead(ent));
 }
@@ -2594,13 +2594,13 @@ TEST(wc3_game, find_enum_unknown_returns_0) {
 
 static int _runwait_cb_count = 0;
 
-static void runwait_cb(edict_t * ent) {
+static void runwait_cb(edict_t *ent) {
     (void)ent;
     _runwait_cb_count++;
 }
 
 TEST(wc3_game, runwait_zero_wait_no_callback) {
-    edict_t * ent = make_test_unit();
+    edict_t *ent = make_test_unit();
     ent->wait = 0.0f;
     _runwait_cb_count = 0;
     unit_runwait(ent, runwait_cb);
@@ -2609,7 +2609,7 @@ TEST(wc3_game, runwait_zero_wait_no_callback) {
 
 TEST(wc3_game, runwait_large_wait_decrements) {
     /* FRAMETIME = 100 ms → FRAMETIME/1000.f = 0.1 s. */
-    edict_t * ent = make_test_unit();
+    edict_t *ent = make_test_unit();
     ent->wait = 1.0f;
     _runwait_cb_count = 0;
     unit_runwait(ent, runwait_cb);
@@ -2620,7 +2620,7 @@ TEST(wc3_game, runwait_large_wait_decrements) {
 
 TEST(wc3_game, runwait_small_wait_triggers_callback) {
     /* wait == 0.05 < FRAMETIME/1000.f (0.1) → callback fires. */
-    edict_t * ent = make_test_unit();
+    edict_t *ent = make_test_unit();
     ent->wait = 0.05f;
     _runwait_cb_count = 0;
     unit_runwait(ent, runwait_cb);
@@ -2633,8 +2633,8 @@ TEST(wc3_game, runwait_small_wait_triggers_callback) {
  * ========================================================================= */
 
 TEST(wc3_game, issuetargetorder_attack_returns_true) {
-    edict_t * unit   = make_test_unit();
-    edict_t * target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50.0f, 0.0f);
+    edict_t *unit   = make_test_unit();
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50.0f, 0.0f);
     target->targtype = TARG_GROUND;
     /* order_attack is the real implementation from s_attack.c — just verify return value. */
     bool result = unit_issuetargetorder(unit, "attack", target);
@@ -2642,8 +2642,8 @@ TEST(wc3_game, issuetargetorder_attack_returns_true) {
 }
 
 TEST(wc3_game, issuetargetorder_unknown_returns_false) {
-    edict_t * unit   = make_test_unit();
-    edict_t * target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50.0f, 0.0f);
+    edict_t *unit   = make_test_unit();
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 50.0f, 0.0f);
     bool result = unit_issuetargetorder(unit, "heal", target);
     T_ASSERT(!result);
 }
@@ -2653,7 +2653,7 @@ TEST(wc3_game, issuetargetorder_unknown_returns_false) {
  * ========================================================================= */
 
 TEST(wc3_game, learnability_first_ability_fills_slot0) {
-    edict_t * ent = make_test_unit();
+    edict_t *ent = make_test_unit();
     uint32_t code = MAKEFOURCC('A','H','b','z');
     unit_learnability(ent, code);
     T_EQ((int)ent->heroabilities[0].code,  (int)code);
@@ -2661,7 +2661,7 @@ TEST(wc3_game, learnability_first_ability_fills_slot0) {
 }
 
 TEST(wc3_game, learnability_same_code_increments_level) {
-    edict_t * ent = make_test_unit();
+    edict_t *ent = make_test_unit();
     uint32_t code = MAKEFOURCC('A','H','b','z');
     unit_learnability(ent, code);
     unit_learnability(ent, code);
@@ -2671,7 +2671,7 @@ TEST(wc3_game, learnability_same_code_increments_level) {
 }
 
 TEST(wc3_game, learnability_different_codes_fill_consecutive_slots) {
-    edict_t * ent = make_test_unit();
+    edict_t *ent = make_test_unit();
     uint32_t code1 = MAKEFOURCC('A','H','b','z');
     uint32_t code2 = MAKEFOURCC('A','H','t','b');
     unit_learnability(ent, code1);
@@ -2686,8 +2686,8 @@ TEST(wc3_game, learnability_different_codes_fill_consecutive_slots) {
  * ========================================================================= */
 
 TEST(wc3_game, alliance_shared_vision_set_get) {
-    player_t * p0 = game_player(0);
-    player_t * p1 = game_player(1);
+    player_t *p0 = game_player(0);
+    player_t *p1 = game_player(1);
     /* Clear alliance table. */
     memset(level.alliances, 0, sizeof(level.alliances));
     G_SetPlayerAlliance(p0, p1, ALLIANCE_SHARED_VISION, true);
@@ -2695,8 +2695,8 @@ TEST(wc3_game, alliance_shared_vision_set_get) {
 }
 
 TEST(wc3_game, alliance_shared_vision_does_not_set_passive) {
-    player_t * p0 = game_player(0);
-    player_t * p1 = game_player(1);
+    player_t *p0 = game_player(0);
+    player_t *p1 = game_player(1);
     memset(level.alliances, 0, sizeof(level.alliances));
     G_SetPlayerAlliance(p0, p1, ALLIANCE_SHARED_VISION, true);
     /* Setting SHARED_VISION must not accidentally set PASSIVE. */
@@ -2704,8 +2704,8 @@ TEST(wc3_game, alliance_shared_vision_does_not_set_passive) {
 }
 
 TEST(wc3_game, alliance_multiple_types_independent) {
-    player_t * p0 = game_player(0);
-    player_t * p1 = game_player(1);
+    player_t *p0 = game_player(0);
+    player_t *p1 = game_player(1);
     memset(level.alliances, 0, sizeof(level.alliances));
     G_SetPlayerAlliance(p0, p1, ALLIANCE_PASSIVE,       true);
     G_SetPlayerAlliance(p0, p1, ALLIANCE_SHARED_VISION, true);
@@ -2714,8 +2714,8 @@ TEST(wc3_game, alliance_multiple_types_independent) {
 }
 
 TEST(wc3_game, alliance_revoke_one_type_keeps_other) {
-    player_t * p0 = game_player(0);
-    player_t * p1 = game_player(1);
+    player_t *p0 = game_player(0);
+    player_t *p1 = game_player(1);
     memset(level.alliances, 0, sizeof(level.alliances));
     G_SetPlayerAlliance(p0, p1, ALLIANCE_PASSIVE,       true);
     G_SetPlayerAlliance(p0, p1, ALLIANCE_SHARED_VISION, true);
@@ -2729,24 +2729,24 @@ TEST(wc3_game, alliance_revoke_one_type_keeps_other) {
  * ========================================================================= */
 
 TEST(wc3_game, player_gold_default_zero) {
-    player_t * p = game_player(0);
+    player_t *p = game_player(0);
     T_EQ((int)p->stats[PLAYERSTATE_RESOURCE_GOLD], 0);
 }
 
 TEST(wc3_game, player_gold_set_get) {
-    player_t * p = game_player(0);
+    player_t *p = game_player(0);
     p->stats[PLAYERSTATE_RESOURCE_GOLD] = 500;
     T_EQ((int)p->stats[PLAYERSTATE_RESOURCE_GOLD], 500);
 }
 
 TEST(wc3_game, player_lumber_set_get) {
-    player_t * p = game_player(0);
+    player_t *p = game_player(0);
     p->stats[PLAYERSTATE_RESOURCE_LUMBER] = 200;
     T_EQ((int)p->stats[PLAYERSTATE_RESOURCE_LUMBER], 200);
 }
 
 TEST(wc3_game, player_gold_lumber_independent) {
-    player_t * p = game_player(1);
+    player_t *p = game_player(1);
     p->stats[PLAYERSTATE_RESOURCE_GOLD]   = 300;
     p->stats[PLAYERSTATE_RESOURCE_LUMBER] = 150;
     T_EQ((int)p->stats[PLAYERSTATE_RESOURCE_GOLD],   300);
@@ -2773,7 +2773,7 @@ TEST(wc3_game, fow_revealer_marks_visible_and_explored) {
     G_FowInit();
     G_FowConnectPlayer(0);
 
-    edict_t * revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    edict_t *revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     revealer->s.player = 0;
     revealer->runtime.sight_radius.day = 128.0f;
     revealer->health.value = 1.0f;
@@ -2790,7 +2790,7 @@ TEST(wc3_game, fow_updates_only_connected_shared_viewers) {
     reset_entities();
     G_FowInit();
 
-    edict_t * revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    edict_t *revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     revealer->s.player = 5;
     revealer->runtime.sight_radius.day = 128.0f;
     revealer->health.value = revealer->health.max_value = 1.0f;
@@ -2815,7 +2815,7 @@ TEST(wc3_game, fow_visible_clears_but_explored_remains) {
     G_FowInit();
     G_FowConnectPlayer(0);
 
-    edict_t * revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    edict_t *revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
     revealer->s.player = 0;
     revealer->runtime.sight_radius.day = 128.0f;
     revealer->health.value = 1.0f;
@@ -2839,11 +2839,11 @@ TEST(wc3_game, fow_static_scenery_persists_after_unit_vision_leaves) {
     G_FowInit();
     G_FowConnectPlayer(0);
 
-    edict_t * revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
-    edict_t * tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 64.0f, 64.0f);
-    edict_t * unseen = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 1024.0f, 1024.0f);
-    edict_t * unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
-    edict_t * building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64.0f, 64.0f);
+    edict_t *revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    edict_t *tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 64.0f, 64.0f);
+    edict_t *unseen = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 1024.0f, 1024.0f);
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
+    edict_t *building = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64.0f, 64.0f);
     revealer->s.player = 0;
     revealer->runtime.sight_radius.day = 128.0f;
     revealer->health.value = revealer->health.max_value = 1.0f;
@@ -2871,14 +2871,14 @@ TEST(wc3_game, fow_static_scenery_persists_after_unit_vision_leaves) {
 }
 
 TEST(wc3_game, acquisition_range_uses_spawn_cache) {
-    edict_t * ent = make_test_unit();
+    edict_t *ent = make_test_unit();
     ent->class_id = MAKEFOURCC('n', 'o', 'n', 'e');
     ent->runtime.acquisition_range = 375.0f;
     T_FEQ(G_AcquisitionRange(ent), 375.0f, 0.001f);
 }
 
 TEST(wc3_game, hold_position_acquires_within_uacq_not_attack_range) {
-    edict_t * guard, *enemy;
+    edict_t *guard, *enemy;
 
     reset_entities();
     setup_test_world();
@@ -2906,13 +2906,13 @@ TEST(wc3_game, fow_blocker_stops_visibility_behind_it) {
     G_FowInit();
     G_FowConnectPlayer(0);
 
-    edict_t * revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 96.0f, 96.0f);
+    edict_t *revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 96.0f, 96.0f);
     revealer->s.player = 0;
     revealer->runtime.sight_radius.day = 256.0f;
     revealer->health.value = 1.0f;
     revealer->health.max_value = 1.0f;
 
-    edict_t * blocker = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 160.0f, 96.0f);
+    edict_t *blocker = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 160.0f, 96.0f);
     blocker->s.flags |= EF_FOW_BLOCKER;
     blocker->health.value = 1.0f;
     blocker->health.max_value = 1.0f;
@@ -2942,12 +2942,12 @@ TEST(wc3_game, fow_packed_fast_path_uses_word_mask_and_skips_occlusion) {
     G_FowConnectPlayer(0);
     gi.CvarString = fow_fast_cvar;
 
-    edict_t * revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 96.0f, 96.0f);
+    edict_t *revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 96.0f, 96.0f);
     revealer->s.player = 0;
     revealer->runtime.sight_radius.day = 256.0f;
     revealer->health.value = revealer->health.max_value = 1.0f;
 
-    edict_t * blocker = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 160.0f, 96.0f);
+    edict_t *blocker = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 160.0f, 96.0f);
     blocker->s.flags |= EF_FOW_BLOCKER;
     blocker->health.value = blocker->health.max_value = 1.0f;
 
@@ -2969,7 +2969,7 @@ TEST(wc3_game, fow_packed_fast_path_uses_word_mask_and_skips_occlusion) {
 
 TEST(wc3_game, fow_blocker_cache_skips_clean_and_unchanged_dirty_updates) {
     uint32_t old_index, new_index, sentinel;
-    edict_t * blocker;
+    edict_t *blocker;
     vector2_t direction = { 1.0f, 0.0f };
 
     reset_entities();
@@ -3016,13 +3016,13 @@ TEST(wc3_game, fow_tree_pathtex_closes_gap_behind_canopy) {
     G_FowInit();
     G_FowConnectPlayer(0);
 
-    edict_t * revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32.0f, 128.0f);
+    edict_t *revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 32.0f, 128.0f);
     revealer->s.player = 0;
     revealer->runtime.sight_radius.day = 320.0f;
     revealer->health.value = 1.0f;
     revealer->health.max_value = 1.0f;
 
-    edict_t * tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 128.0f, 128.0f);
+    edict_t *tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 128.0f, 128.0f);
     tree->s.flags |= EF_FOW_BLOCKER;
     tree->targtype = TARG_TREE;
     tree->s.scale = 1.0f;
@@ -3044,7 +3044,7 @@ TEST(wc3_game, fow_full_sync_marks_player_connected) {
     reset_entities();
     G_FowInit();
 
-    edict_t * clent = &g_edicts[0];
+    edict_t *clent = &g_edicts[0];
     clent->client = &game.clients[0];
     clent->client->ps.number = 0;
 
@@ -3064,7 +3064,7 @@ TEST(wc3_game, fow_full_sync_marks_player_connected) {
  * numbers).
  * ========================================================================= */
 
-void CM_SetupTestWorldBounds(box2_t const * bounds);
+void CM_SetupTestWorldBounds(box2_t const *bounds);
 
 static volatile float acquisition_bench_sink;
 
@@ -3088,7 +3088,7 @@ TEST(wc3_perf, fow_update_large_map) {
 
     for (int p = 0; p < 2; p++) {
         for (int i = 0; i < 80; i++) {
-            edict_t * ent         = G_Spawn();
+            edict_t *ent         = G_Spawn();
             ent->s.player       = (uint32_t)p;
             ent->s.origin.x     = 1024.0f + (i % 16) * 900.0f;
             ent->s.origin.y     = 1024.0f + (i / 16) * 900.0f + p * 6000.0f;
@@ -3112,7 +3112,7 @@ TEST(wc3_perf, run_entities_1900) {
     setup_test_world();
 
     for (int i = 0; i < 1900; i++) {
-        edict_t * ent = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'),
+        edict_t *ent = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'),
                                       (float)((i % 50) * 64),
                                       (float)((i / 50) * 64));
         ent->health.value     = 100.0f;
@@ -3128,7 +3128,7 @@ TEST(wc3_perf, run_entities_1900) {
 TEST(wc3_perf, acquisition_ranges_1900) {
     setup_test_world();
     for (int i = 0; i < 1900; i++) {
-        edict_t * ent = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+        edict_t *ent = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
         ent->runtime.sight_radius.day = 600.0f;
         ent->runtime.acquisition_range = 300.0f;
     }
@@ -3140,10 +3140,10 @@ TEST(wc3_perf, acquisition_ranges_1900) {
 TEST(wc3_perf, crowded_unstuck_search) {
     vector2_t const point = {512.0f, 512.0f};
     vector2_t out;
-    edict_t * mover;
+    edict_t *mover;
     setup_test_world(); reset_entities();
     FOR_LOOP(i, 1900) {
-        edict_t * ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'),
+        edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'),
                                       (float)(i % 50) * 32.0f, (float)(i / 50) * 32.0f);
         ent->s.model = 1; ent->collision = 16.0f;
         gi.LinkEntity(ent);
@@ -3168,7 +3168,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
         .enabled = true,
         .inuse = true
     };
-    edict_t * first, *second, *indicator, *found[4];
+    edict_t *first, *second, *indicator, *found[4];
     box2_t area = { .min = { 0, 0 }, .max = { 128, 128 } };
 
     reset_entities();
@@ -3177,8 +3177,8 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     level.quests[0] = quest;
     level.quests[0].items[0] = item;
     level.quests[0].num_items = 1;
-    quest_t * saved_quest = &level.quests[0];
-    questItem_t * saved_item = &saved_quest->items[0];
+    quest_t *saved_quest = &level.quests[0];
+    questItem_t *saved_item = &saved_quest->items[0];
     first = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 12.0f, 24.0f);
     second = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 48.0f, 72.0f);
     gi.LinkEntity(first); gi.LinkEntity(second);
@@ -3413,7 +3413,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
 /* A load restores the Q2-style server tick; timers are clock-free countdowns and need no rebase. */
 TEST(wc3_save, load_restores_server_clock_onto_saved_time) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-clock.bin";
-    gtimer_t * timer;
+    gtimer_t *timer;
 
     T_ASSERT(level.map_path[0]);
     level.time = 20800;
@@ -3459,7 +3459,7 @@ TEST(wc3_save, name) { \
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-" #name ".bin"; \
     field_t const *desc = find_save_field(#field); \
     reset_entities(); \
-    edict_t * unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
     T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_INT); T_EQ(desc->array_size, 0); } \
     unit->field = saved; \
     T_ASSERT(WriteGame(filename)); unit->field = 0; T_ASSERT(ReadGame(filename)); T_EQ(unit->field, saved); \
@@ -3471,8 +3471,8 @@ TEST(wc3_save, name) { \
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-" #name ".bin"; \
     field_t const *desc = find_save_field(schema); \
     reset_entities(); \
-    edict_t * unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
-    edict_t * target = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f); \
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64.0f, 0.0f); \
     T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_EDICT); T_EQ(desc->array_size, count); } \
     unit->field = target; \
     T_ASSERT(WriteGame(filename)); unit->field = NULL; T_ASSERT(ReadGame(filename)); T_ASSERT(unit->field == target); \
@@ -3485,7 +3485,7 @@ TEST(wc3_save, name) { \
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-" #name ".bin"; \
     field_t const *desc = find_save_field(#field); \
     reset_entities(); \
-    edict_t * unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f); \
     T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_FLOAT); T_EQ(desc->array_size, 0); } \
     unit->field = saved; \
     T_ASSERT(WriteGame(filename)); unit->field = 0; T_ASSERT(ReadGame(filename)); T_FEQ(unit->field, saved, 0.001f); \
@@ -3509,7 +3509,7 @@ TEST(wc3_save, artillery_profile_round_trips_inflight_projectile) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-artillery-profile.bin";
     field_t const *desc = find_save_field("artillery");
     reset_entities();
-    edict_t * projectile = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    edict_t *projectile = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     projectile->artillery = (edictArtillery_t) { ATK_SIEGE, WC3_TARGET_FLAG_GROUND, WC3_TARGET_FLAG_GROUND,
                                                   40.0f, 80.0f, 120.0f, 0.5f, 0.25f };
     T_NOT_NULL(desc); if (desc) T_EQ(desc->type, F_STRUCT);
@@ -3533,7 +3533,7 @@ TEST(wc3_save, neutral_shop_stock_round_trips_in_roc_and_tft_map_state) {
 
     FOR_LOOP(i, sizeof(formats) / sizeof(formats[0])) {
         char filename[96];
-        edict_t * shop;
+        edict_t *shop;
         field_t const *stock_desc;
         field_t const *items_desc;
         field_t const *units_desc;
@@ -3634,7 +3634,7 @@ SAVE_INT_FIELD_TEST(field_animation_override_round_trip, animation_override, 1)
 TEST(wc3_save, field_hero_shortcut_alert_is_runtime_only) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-hero-shortcut-alert.bin";
     field_t const *desc = find_save_field("hero_shortcut_alert_until");
-    edict_t * unit;
+    edict_t *unit;
 
     reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
@@ -3652,7 +3652,7 @@ TEST(wc3_save, blight_world_and_growth_state_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-blight.bin";
     uint32_t const ability = MAKEFOURCC('A','b','l','1');
     vector2_t point = { 32.0f, 32.0f };
-    edict_t * unit;
+    edict_t *unit;
 
     setup_test_world(); reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
@@ -3680,7 +3680,7 @@ TEST(wc3_save, field_collision_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-field-collision.bin";
     field_t const *desc = find_save_field("collision");
     reset_entities();
-    edict_t * unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_FLOAT); T_EQ(desc->array_size, 0); }
     unit->collision = 42.5f;
     T_ASSERT(WriteGame(filename)); unit->collision = 0.0f; T_ASSERT(ReadGame(filename));
@@ -3691,7 +3691,7 @@ TEST(wc3_save, field_origin_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-field-origin.bin";
     field_t const *desc = find_save_field("s.origin");
     reset_entities();
-    edict_t * unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_VECTOR); T_EQ(desc->array_size, 0); }
     unit->s.origin = (vector3_t){ 12.5f, 34.5f, 56.5f };
     T_ASSERT(WriteGame(filename)); unit->s.origin = (vector3_t){ 0 }; T_ASSERT(ReadGame(filename));
@@ -3704,7 +3704,7 @@ TEST(wc3_save, field_channel_origin_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-channel-origin.bin";
     field_t const *desc = find_save_field("channel.origin");
     reset_entities();
-    edict_t * unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
     T_NOT_NULL(desc);
     if (desc) T_EQ(desc->type, F_VECTOR);
     unit->channel.origin = (vector2_t){ 12.5f, 34.5f };
@@ -3715,7 +3715,7 @@ TEST(wc3_save, field_channel_origin_round_trip) {
 
 TEST(wc3_save, field_vertex_tint_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-field-vertex-tint.bin";
-    edict_t * unit;
+    edict_t *unit;
 
     reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
@@ -3733,8 +3733,8 @@ TEST(wc3_save, field_vertex_tint_round_trip) {
 
 TEST(wc3_save, lightning_registry_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-lightning.bin";
-    edict_t * source_unit, *target_unit;
-    gLightning_t * effect;
+    edict_t *source_unit, *target_unit;
+    gLightning_t *effect;
     vector3_t source = { 1.0f, 2.0f, 3.0f }, target = { 4.0f, 5.0f, 6.0f };
 
     reset_entities();
@@ -3775,7 +3775,7 @@ TEST(wc3_save, lightning_registry_round_trip) {
 
 TEST(wc3_save, construction_payment_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-construction-payment.bin";
-    edict_t * unit, *worker;
+    edict_t *unit, *worker;
 
     reset_entities();
     unit = alloc_test_unit(MAKEFOURCC('h', 'b', 'a', 'r'), 0.0f, 0.0f);
@@ -3828,7 +3828,7 @@ TEST(wc3_save, construction_payment_round_trip) {
 
 TEST(wc3_save, racial_gold_mine_state_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-racial-gold-mine.bin";
-    edict_t * parent, *overlay, *acolyte;
+    edict_t *parent, *overlay, *acolyte;
 
     reset_entities();
     parent = alloc_test_unit(MAKEFOURCC('n', 'g', 'o', 'l'), 0.0f, 0.0f);
@@ -3897,7 +3897,7 @@ SAVE_PTR_FIELD_TEST(field_build_preview_round_trip, "build_preview", build_previ
 TEST(wc3_save, clears_nested_process_owned_fields) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-nested-runtime.bin";
     reset_entities();
-    edict_t * unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     unit->militia.partner = (edict_t *)(uintptr_t)1;
     unit->destructable.drop_sets = (droppableItemSet_t *)(uintptr_t)1;
     ARRAY_COUNT(unit->destructable.drop_sets) = 7;
@@ -3913,7 +3913,7 @@ TEST(wc3_save, clears_nested_process_owned_fields) {
 TEST(wc3_save, round_trip_actor_abilities) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-abilities.bin";
     reset_entities();
-    edict_t * unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     unit->abilities.added[0] = MAKEFOURCC('A', '0', '0', '1'); ARRAY_COUNT(unit->abilities.added) = 1;
     unit->abilities.removed[0] = MAKEFOURCC('A', '0', '0', '2'); ARRAY_COUNT(unit->abilities.removed) = 1;
     unit->abilities.permanent[0] = MAKEFOURCC('A', '0', '0', '3'); ARRAY_COUNT(unit->abilities.permanent) = 1;
@@ -3942,27 +3942,27 @@ TEST(wc3_save, rebinds_process_owned_entity_callbacks) {
     T_ASSERT(!unknown.stand && !unknown.birth && !unknown.pain && !unknown.die && !unknown.think);
 }
 
-static void unknown_save_think(edict_t * ent) { (void)ent; }
+static void unknown_save_think(edict_t *ent) { (void)ent; }
 
 TEST(wc3_save, round_trip_entity_c_callbacks) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-cfunctions.bin";
     reset_entities();
-    edict_t * unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
-    edict_t * mine = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 1.0f, 0.0f);
-    edict_t * idle = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 2.0f, 0.0f);
-    edict_t * effect = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 3.0f, 0.0f);
-    edict_t * tree = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 4.0f, 0.0f);
-    edict_t * human = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 5.0f, 0.0f);
-    edict_t * portal = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 6.0f, 0.0f);
-    edict_t * spray = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 7.0f, 0.0f);
-    edict_t * can = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 8.0f, 0.0f);
-    edict_t * pos = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 9.0f, 0.0f);
-    edict_t * lsh = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 10.0f, 0.0f);
-    edict_t * far_sight = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 11.0f, 0.0f);
-    edict_t * chain = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 12.0f, 0.0f);
-    edict_t * chain_marker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 13.0f, 0.0f);
-    edict_t * cargo_approach = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 14.0f, 0.0f);
-    edict_t * cannibalize_approach = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 15.0f, 0.0f);
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    edict_t *mine = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 1.0f, 0.0f);
+    edict_t *idle = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 2.0f, 0.0f);
+    edict_t *effect = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 3.0f, 0.0f);
+    edict_t *tree = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 4.0f, 0.0f);
+    edict_t *human = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 5.0f, 0.0f);
+    edict_t *portal = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 6.0f, 0.0f);
+    edict_t *spray = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 7.0f, 0.0f);
+    edict_t *can = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 8.0f, 0.0f);
+    edict_t *pos = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 9.0f, 0.0f);
+    edict_t *lsh = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 10.0f, 0.0f);
+    edict_t *far_sight = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 11.0f, 0.0f);
+    edict_t *chain = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 12.0f, 0.0f);
+    edict_t *chain_marker = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 13.0f, 0.0f);
+    edict_t *cargo_approach = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 14.0f, 0.0f);
+    edict_t *cannibalize_approach = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 15.0f, 0.0f);
     unit->stand = unit_stand; unit->birth = unit_birth; unit->die = unit_die; unit->think = monster_think;
     mine->stand = unit_stand; mine->think = blight_mine_think;
     idle->stand = unit_stand; idle->think = NULL;
@@ -4029,7 +4029,7 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
 TEST(wc3_save, rejects_unknown_c_callback) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-unknown-cfunction.bin";
     reset_entities();
-    edict_t * unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
+    edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     unit->think = unknown_save_think;
     T_ASSERT(!WriteGame(filename));
     remove(filename);
@@ -4038,11 +4038,11 @@ TEST(wc3_save, rejects_unknown_c_callback) {
 TEST(wc3_save, round_trip_region_event_filter_function) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-region-filter-save-test.bin";
     levelEvents_t old_events = level.events;
-    event_t * registration = NULL;
+    event_t *registration = NULL;
     handle_t expected_region, restored_region;
-    region_t * restored_data;
+    region_t *restored_data;
     uint32_t expected_region_id = UINT32_MAX;
-    jassFunc_t const * expected_filter;
+    jassFunc_t const *expected_filter;
 
     T_ASSERT(run_test_jass(
         "globals\n"
@@ -4194,7 +4194,7 @@ TEST(wc3_save, round_trip_game_state_event_condition) {
     reset_entities();
     memset(&level.events, 0, sizeof(level.events));
     level.events.handlers[0] = handler; level.events.handlers[0].inuse = true;
-    event_t * saved_handler = &level.events.handlers[0];
+    event_t *saved_handler = &level.events.handlers[0];
     T_ASSERT(WriteGame(filename));
     saved_handler->state = saved_handler->limitop = 0; saved_handler->limitval = 0.0f;
     T_ASSERT(ReadGame(filename));
@@ -4218,7 +4218,7 @@ TEST(wc3_save, round_trip_variable_event_condition) {
     reset_entities();
     memset(&level.events, 0, sizeof(level.events));
     level.events.handlers[0] = handler; level.events.handlers[0].inuse = true;
-    event_t * saved_handler = &level.events.handlers[0];
+    event_t *saved_handler = &level.events.handlers[0];
     T_ASSERT(WriteGame(filename));
     saved_handler->variable = NULL;
     T_ASSERT(ReadGame(filename));
@@ -4231,12 +4231,12 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-event-save-test.bin";
     levelEvents_t old_events = level.events;
     event_t handler = { .type = EVENT_UNIT_IN_RANGE };
-    edict_t * subject, *source;
+    edict_t *subject, *source;
     vector2_t point = { 11.0f, 22.0f };
 
     reset_entities(); memset(&level.events, 0, sizeof(level.events));
     level.events.handlers[0] = handler; level.events.handlers[0].inuse = true;
-    event_t * saved_handler = &level.events.handlers[0];
+    event_t *saved_handler = &level.events.handlers[0];
     subject = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     subject->spawn_time = level.time + 1234;
     G_SetEventSubject(saved_handler, subject);
@@ -4269,7 +4269,7 @@ TEST(wc3_save, round_trip_unread_event_queue) {
 TEST(wc3_save, round_trip_waypoint_references) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-waypoint-save-test.bin";
     vector2_t destination = { 192.0f, 96.0f };
-    edict_t * unit, *waypoint;
+    edict_t *unit, *waypoint;
     uint32_t cursor, count;
 
     reset_entities();
@@ -4442,7 +4442,7 @@ TEST(wc3_save, round_trip_jass_globals) {
 
 TEST(wc3_save, round_trip_timer_dialog_state_and_handle) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-timer-dialog-save-test.bin";
-    player_t * saved = currentplayer;
+    player_t *saved = currentplayer;
 
     currentplayer = NULL;
     T_ASSERT(run_test_jass(
@@ -4494,7 +4494,7 @@ TEST(wc3_save, round_trip_timer_dialog_state_and_handle) {
 
 TEST(wc3_save, round_trip_leaderboard_state_and_handle) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-leaderboard-save-test.bin";
-    player_t * saved_currentplayer = currentplayer;
+    player_t *saved_currentplayer = currentplayer;
     currentplayer = NULL;
 
     T_ASSERT(run_test_jass(
@@ -4794,7 +4794,7 @@ TEST(wc3_save, resumes_sleeping_jass_coroutine) {
 
 TEST(wc3_save, preserves_research_event_context_across_sleeping_coroutine) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-research-context-save-test.bin";
-    edict_t * producer;
+    edict_t *producer;
     uint32_t const upgrade = MAKEFOURCC('R','h','m','e');
 
     setup_test_world();
@@ -4833,7 +4833,7 @@ TEST(wc3_save, preserves_research_event_context_across_sleeping_coroutine) {
 
 TEST(wc3_save, preserves_spell_point_context_across_sleeping_coroutine) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-spell-context-save-test.bin";
-    edict_t * caster;
+    edict_t *caster;
     vector2_t point = { 123.0f, 234.0f };
 
     setup_test_world();
@@ -4877,7 +4877,7 @@ TEST(wc3_save, preserves_spell_point_context_across_sleeping_coroutine) {
 
 TEST(wc3_save, rejects_corruption_without_mutation) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-corrupt-save-test.bin";
-    edict_t * unit;
+    edict_t *unit;
     FILE *f;
     uint8_t byte = 0;
     reset_entities();
@@ -4898,7 +4898,7 @@ TEST(wc3_save, rejects_corruption_without_mutation) {
 TEST(wc3_save, rejects_script_identity_without_mutation) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-script-mismatch-save-test.bin";
     char extra[] = "function AddedAfterSave takes nothing returns nothing\nendfunction\n";
-    edict_t * unit;
+    edict_t *unit;
     T_ASSERT(run_test_jass("function main takes nothing returns nothing\nendfunction\n"));
     unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     unit->harvested_gold = 37;

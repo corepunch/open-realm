@@ -12,8 +12,8 @@
 
 extern jassModule_t jass_funcs[];
 
-void test_sound_event(edict_t * ent, uint32_t request, uint32_t event) {
-    edict_t * player = g_edicts;
+void test_sound_event(edict_t *ent, uint32_t request, uint32_t event) {
+    edict_t *player = g_edicts;
     player->client = game.clients;
     player->client->connected = true;
     player->client->ps.number = ent->s.player;
@@ -25,9 +25,9 @@ void test_sound_event(edict_t * ent, uint32_t request, uint32_t event) {
     G_ClientCommand(player, 4, args);
 }
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y) {
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y) {
     static UnitWeapons_t const test_weapons = { .attacksEnabled = 3 };
-    edict_t * ent = G_Spawn();
+    edict_t *ent = G_Spawn();
     ent->class_id = class_id;
     G_BindEntityData(ent);
     /* The fixture archive has no UnitWeapons.slk. Tests that construct attacks
@@ -71,7 +71,7 @@ void reset_entities(void) {
 
 /* CM_SetupTestPathmap is in routing.c, only compiled for test builds. */
 void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells);
-void CM_SetupTestWorldBounds(box2_t const * bounds);
+void CM_SetupTestWorldBounds(box2_t const *bounds);
 
 /*
  * Minimal test world: an all-walkable pathmap covering coords up to 2048×2048

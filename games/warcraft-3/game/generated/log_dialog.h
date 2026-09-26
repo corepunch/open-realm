@@ -5,18 +5,18 @@
 #include "../g_local.h"
 
 typedef struct LogDialog_s {
-    frameDef_t * LogDialog;
-    frameDef_t * LogBackdrop;
-    frameDef_t * LogTitle;
-    frameDef_t * LogOkButton;
-    frameDef_t * LogOkButtonText;
-    frameDef_t * LogAreaBackdrop;
-    frameDef_t * LogArea;
-    frameDef_t * LogAreaScrollBar;
+    frameDef_t *LogDialog;
+    frameDef_t *LogBackdrop;
+    frameDef_t *LogTitle;
+    frameDef_t *LogOkButton;
+    frameDef_t *LogOkButtonText;
+    frameDef_t *LogAreaBackdrop;
+    frameDef_t *LogArea;
+    frameDef_t *LogAreaScrollBar;
 } LogDialog_t;
 
 
-static inline bool LogDialog_Bind(LogDialog_t *out, frameDef_t * bind_root) {
+static inline bool LogDialog_Bind(LogDialog_t *out, frameDef_t *bind_root) {
     bool ok = true;
     if (!out) {
         return false;

@@ -49,9 +49,9 @@ typedef struct {
 
 
 
-bool M2_DbcResolveCreatureAppearance(uint32_t display_id, m2CreatureAppearance_t * out);
-bool M2_DbcCharacterOutfit(cstring_t model_path, uint32_t appearance, uint32_t equipment, m2CreatureAppearance_t const * creature, m2CharacterOutfit_t * outfit);
-bool M2_DbcCharacterRaceGender(cstring_t model_path, uint32_t * race_id, uint32_t * gender_id);
+bool M2_DbcResolveCreatureAppearance(uint32_t display_id, m2CreatureAppearance_t *out);
+bool M2_DbcCharacterOutfit(cstring_t model_path, uint32_t appearance, uint32_t equipment, m2CreatureAppearance_t const *creature, m2CharacterOutfit_t *outfit);
+bool M2_DbcCharacterRaceGender(cstring_t model_path, uint32_t *race_id, uint32_t *gender_id);
 bool M2_DbcCharacterVariationTexturePath(cstring_t model_path, uint32_t section_index, uint32_t variation_index, uint32_t color_index, uint32_t texture_index, string_t out, uint32_t out_size);
 bool M2_DbcCharacterTexturePathForType(cstring_t model_path, uint32_t appearance, uint32_t texture_type, string_t out, uint32_t out_size);
 void M2_DbcShutdown(void);

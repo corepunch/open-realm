@@ -75,7 +75,7 @@ static uint32_t UI_WriteHoverCargoBar(cstring_t filled_art, cstring_t empty_art)
 }
 
 /* The server owns the complete widget; only its declared context changes at draw time. */
-void UI_WriteHoverLayout(edict_t * ent) {
+void UI_WriteHoverLayout(edict_t *ent) {
     uiFrame_t frame = { 0 };
     cstring_t black = "Textures\\Black32.blp";
     cstring_t hp = "SimpleHpBarConsoleSmall";

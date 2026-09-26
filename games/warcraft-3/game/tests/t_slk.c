@@ -15,7 +15,7 @@
 
 void setup_test_world(void);
 void reset_entities(void);
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 
 TEST(wc3_slk, map_game_data_set_matches_w3i_and_melee_fallback) {
     mapInfo_t info = { 0 };
@@ -270,7 +270,7 @@ TEST(wc3_slk, map_w3a_custom_rawcode_inherits_mechanics_and_authored_level) {
     slkTestData_t *rows = parse_slk_string(slk), *old;
     abilityitem_t item;
     UnitAbilities_t ability_list = { .abilList = "A00Y" };
-    edict_t * caster, *target, *next, *last, *thinker = NULL;
+    edict_t *caster, *target, *next, *last, *thinker = NULL;
 
     reset_entities(); setup_test_world(); level.time = 1000;
     old = G_SetSLKRows("AbilityData", rows);
@@ -426,7 +426,7 @@ TEST(wc3_slk, map_archive_w3a_parse_stores_original_ability_mods) {
     gi.MemFree(bytes);
 }
 
-slkTestData_t *parse_slk_string(const char *slk_text) {
+slkTestData_t *parse_slk_string(char const *slk_text) {
     static slkField_t const schema[] = { { NULL, 0, 0 } };
     void *rows = NULL;
     uint32_t count = Stb_SlkLoadBuffer(slk_text, schema, &rows, sizeof(uint32_t));
@@ -601,7 +601,7 @@ TEST(wc3_slk, map_unit_name_resolves_wts_override) {
     };
     slkTestData_t *rows = parse_slk_string(profile_slk);
     slkTestData_t *saved_rows;
-    mapInfo_t const * saved_mapinfo;
+    mapInfo_t const *saved_mapinfo;
     cstring_t pool;
     uint32_t slot;
 
@@ -778,7 +778,7 @@ TEST(wc3_slk, map_unit_balance_overrides_stock_fields_and_custom_inheritance) {
     uint32_t const base_id = MAKEFOURCC('n','m','e','r');
     uint32_t const custom_id = MAKEFOURCC('x','m','e','r');
     uint32_t stock_max = 1, stock_regen = 7, stock_start = 0, gold = 321;
-    mapInfo_t const * saved_mapinfo;
+    mapInfo_t const *saved_mapinfo;
     UnitBalance_t const *base;
     int32_t saved_stock_max, saved_stock_regen, saved_stock_start, saved_gold;
     unitModification_t mods[] = {
@@ -833,7 +833,7 @@ TEST(wc3_slk, map_item_data_overrides_stock_fields_and_custom_inheritance) {
     uint32_t const base_id = MAKEFOURCC('s','p','r','o');
     uint32_t const custom_id = MAKEFOURCC('x','p','r','o');
     uint32_t stock_max = 1, stock_regen = 7, stock_start = 3, gold = 321;
-    mapInfo_t const * saved_mapinfo;
+    mapInfo_t const *saved_mapinfo;
     ItemData_t const *base;
     int32_t saved_stock_max, saved_stock_regen, saved_stock_start, saved_gold;
     unitModification_t mods[] = {
@@ -896,7 +896,7 @@ TEST(wc3_slk, map_custom_unit_ui_overrides_model_and_scale) {
         "E\n";
     uint32_t const base_id = MAKEFOURCC('h','f','o','o');
     uint32_t const custom_id = MAKEFOURCC('x','f','o','o');
-    mapInfo_t const * saved_mapinfo;
+    mapInfo_t const *saved_mapinfo;
     slkTestData_t *rows = parse_slk_string(slk_ui);
     slkTestData_t *saved_ui;
     slkTestData_t *replaced_ui;
@@ -944,7 +944,7 @@ TEST(wc3_slk, map_custom_unit_ui_overrides_model_and_scale) {
 TEST(wc3_slk, map_original_unit_ui_override_is_custom_inheritance_source) {
     uint32_t const base_id = MAKEFOURCC('h','f','o','o');
     uint32_t const custom_id = MAKEFOURCC('x','f','o','o');
-    mapInfo_t const * saved_mapinfo;
+    mapInfo_t const *saved_mapinfo;
     unitModification_t model = {
         .modID = MAKEFOURCC('u','m','d','l'), .type = mod_string,
         .data = (handle_t)"Units\\Campaign\\OriginalOverride\\OriginalOverride"
@@ -974,7 +974,7 @@ TEST(wc3_slk, map_custom_unit_ui_rows_are_stable_per_unit) {
     uint32_t const base_id = MAKEFOURCC('h','f','o','o');
     uint32_t const first_id = MAKEFOURCC('x','f','o','1');
     uint32_t const second_id = MAKEFOURCC('x','f','o','2');
-    mapInfo_t const * saved_mapinfo;
+    mapInfo_t const *saved_mapinfo;
     unitModification_t models[] = {
         { .modID = MAKEFOURCC('u','m','d','l'), .type = mod_string, .data = (handle_t)"Units\\Campaign\\First\\First" },
         { .modID = MAKEFOURCC('u','m','d','l'), .type = mod_string, .data = (handle_t)"Units\\Campaign\\Second\\Second" },
@@ -1011,7 +1011,7 @@ TEST(wc3_slk, required_animation_names_select_matching_alternate_sequence) {
         { .name = "Walk" },
         { .name = "Walk Alternate" },
     };
-    animation_t const * selected;
+    animation_t const *selected;
 
     selected = G_SelectAnimationForProperties(animations, 4, "stand", "alternate");
     T_NOT_NULL(selected);
@@ -1037,8 +1037,8 @@ TEST(wc3_slk, randomized_walk_variants_keep_the_selected_tag_set) {
 
     srand(1);
     for (int i = 0; i < 64; i++) {
-        animation_t const * generic = G_SelectAnimationVariantForProperties(animations, 5, "walk", "", true);
-        animation_t const * alternate = G_SelectAnimationVariantForProperties(animations, 5, "walk", "alternate", true);
+        animation_t const *generic = G_SelectAnimationVariantForProperties(animations, 5, "walk", "", true);
+        animation_t const *alternate = G_SelectAnimationVariantForProperties(animations, 5, "walk", "alternate", true);
         T_NOT_NULL(generic);
         T_NOT_NULL(alternate);
         if (generic) T_ASSERT(!strncmp(generic->name, "Walk", 4) && strstr(generic->name, "Alternate") == NULL);
@@ -1053,7 +1053,7 @@ TEST(wc3_slk, required_animation_names_alternateex_falls_back_to_alternate_seque
         { .name = "Walk" },
         { .name = "Walk Alternate" },
     };
-    animation_t const * selected;
+    animation_t const *selected;
 
     selected = G_SelectAnimationForProperties(animations, 4, "stand", "alternateex");
     T_NOT_NULL(selected);
@@ -1070,7 +1070,7 @@ TEST(wc3_slk, required_animation_names_alternateex_prefers_real_alternateex_sequ
         { .name = "Stand Alternate" },
         { .name = "Stand AlternateEx" },
     };
-    animation_t const * selected = G_SelectAnimationForProperties(animations, 3, "stand", "alternateex");
+    animation_t const *selected = G_SelectAnimationForProperties(animations, 3, "stand", "alternateex");
 
     T_NOT_NULL(selected);
     if (selected) T_STREQ(selected->name, "Stand AlternateEx");
@@ -1082,7 +1082,7 @@ TEST(wc3_slk, required_animation_names_combine_order_tags_with_unit_tags) {
         { .name = "Stand Alternate" },
         { .name = "Stand Ready Alternate" },
     };
-    animation_t const * selected = G_SelectAnimationForProperties(animations, 3, "stand ready", "alternate");
+    animation_t const *selected = G_SelectAnimationForProperties(animations, 3, "stand ready", "alternate");
 
     T_NOT_NULL(selected);
     if (selected) T_STREQ(selected->name, "Stand Ready Alternate");
@@ -1094,8 +1094,8 @@ TEST(wc3_slk, decay_secondary_tag_falls_back_within_decay_family) {
         { .name = "Decay" },
         { .name = "Death" },
     };
-    animation_t const * flesh = G_SelectAnimationForProperties(animations, 3, "decay flesh", NULL);
-    animation_t const * bone = G_SelectAnimationForProperties(animations, 3, "decay bone", NULL);
+    animation_t const *flesh = G_SelectAnimationForProperties(animations, 3, "decay flesh", NULL);
+    animation_t const *bone = G_SelectAnimationForProperties(animations, 3, "decay bone", NULL);
 
     T_NOT_NULL(flesh);
     T_NOT_NULL(bone);
@@ -1119,7 +1119,7 @@ TEST(wc3_slk, unit_animation_properties_add_and_remove_persistent_tags) {
 TEST(wc3_slk, map_original_required_animation_names_feed_custom_inheritance) {
     uint32_t const base_id = MAKEFOURCC('h','f','o','o');
     uint32_t const custom_id = MAKEFOURCC('x','f','o','b');
-    mapInfo_t const * saved_mapinfo;
+    mapInfo_t const *saved_mapinfo;
     unitModification_t anim_props = {
         .modID = MAKEFOURCC('u','a','n','i'), .type = mod_string, .data = (handle_t)"alternate"
     };
@@ -1147,7 +1147,7 @@ TEST(wc3_slk, map_original_required_animation_names_feed_custom_inheritance) {
 TEST(wc3_slk, map_custom_unit_profile_overrides_required_animation_names) {
     uint32_t const base_id = MAKEFOURCC('h','f','o','o');
     uint32_t const custom_id = MAKEFOURCC('x','f','o','a');
-    mapInfo_t const * saved_mapinfo;
+    mapInfo_t const *saved_mapinfo;
     unitModification_t anim_props = {
         .modID = MAKEFOURCC('u','a','n','i'), .type = mod_string, .data = (handle_t)"alternate"
     };

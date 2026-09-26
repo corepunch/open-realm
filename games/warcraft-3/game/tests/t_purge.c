@@ -8,11 +8,11 @@
 #define BZ_BPRG MAKEFOURCC('B', 'p', 'r', 'g') // rawcode; Purge slow/pause buff
 #define BZ_AUAN MAKEFOURCC('A', 'U', 'a', 'n') // rawcode; Animate Dead
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-void unit_stand(edict_t * self);
-slkTestData_t *parse_slk_string(const char *text);
+void unit_stand(edict_t *self);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock DataA/DataC/DataD/DataE/Dur so tests cannot pass on hardcoded retail constants. */
@@ -36,7 +36,7 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
 	slkTestData_t *rows, *old;
-	edict_t * caster, *enemy;
+	edict_t *caster, *enemy;
 } purgeFix_t;
 
 static purgeFix_t purge_setup(cstring_t slk, uint32_t code) {
@@ -79,7 +79,7 @@ TEST(wc3_spell, purge_aprg_slows_by_authored_dataa_without_immobilize) {
 		"C;Y2;X7;K\"12\"\nC;Y2;X8;K\"4\"\nC;Y2;X9;K\"Bprg\"\n"
 		"C;Y2;X10;K\"0.5\"\nC;Y2;X11;K\"180\"\nC;Y2;X12;K\"0\"\nE\n";
 	purgeFix_t fix = purge_setup(slk, BZ_APRG);
-	edict_t * wp;
+	edict_t *wp;
 
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APRG, fix.enemy));
 	T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPRG), 1);
@@ -94,7 +94,7 @@ TEST(wc3_spell, purge_aprg_slows_by_authored_dataa_without_immobilize) {
 /* Apg2 DataD immobilizes ordinary units; after pause, DataA slow remains until Dur. */
 TEST(wc3_spell, purge_apg2_immobilizes_for_datad_then_slows) {
 	purgeFix_t fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
-	edict_t * wp;
+	edict_t *wp;
 
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APG2, fix.enemy));
 	T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPRG), 1);
@@ -122,8 +122,8 @@ TEST(wc3_spell, purge_apg2_immobilizes_for_datad_then_slows) {
 TEST(wc3_spell, purge_apg2_hero_uses_datae_pause) {
 	static UnitBalance_t hero_bal = { .strength = 1 };
 	purgeFix_t fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
-	edict_t * hero = alloc_test_unit(MAKEFOURCC('O','g','r','h'), 160, 0);
-	edict_t * wp;
+	edict_t *hero = alloc_test_unit(MAKEFOURCC('O','g','r','h'), 160, 0);
+	edict_t *wp;
 
 	hero->s.player = 1; hero->svflags |= SVF_MONSTER; hero->targtype = TARG_GROUND;
 	hero->data.UnitBalance = &hero_bal;
@@ -148,7 +148,7 @@ TEST(wc3_spell, purge_apg2_hero_uses_datae_pause) {
 /* Apg2 still deals authored DataC to summoned units (owner set). */
 TEST(wc3_spell, purge_apg2_damages_summoned_with_datac) {
 	purgeFix_t fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
-	edict_t * summon = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 128, 0);
+	edict_t *summon = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 128, 0);
 	summon->s.player = 1; summon->svflags |= SVF_MONSTER; summon->targtype = TARG_GROUND;
 	summon->health.value = summon->health.max_value = 500;
 	summon->owner = fix.caster;
@@ -163,7 +163,7 @@ TEST(wc3_spell, purge_apg2_damages_summoned_with_datac) {
  * does not destroy an Animated Dead unit. */
 TEST(wc3_spell, purge_does_not_deal_summon_damage_to_animated_dead) {
 	purgeFix_t fix = purge_setup(PURGE_APG2_SLK, BZ_APG2);
-	edict_t * summon = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 128, 0);
+	edict_t *summon = alloc_test_unit(MAKEFOURCC('o','g','r','u'), 128, 0);
 	summon->s.player = 1; summon->svflags |= SVF_MONSTER; summon->targtype = TARG_GROUND;
 	summon->health.value = summon->health.max_value = 500;
 	summon->owner = fix.caster; summon->summon_ability = BZ_AUAN;

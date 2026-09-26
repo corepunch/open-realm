@@ -20,9 +20,9 @@ typedef struct {
 
 static char leaderboard_measure_text[(MAX_TRIGSTR_LENGTH + 48) * (MAX_LEADERBOARD_ITEMS + 1)];
 
-static void LeaderboardItemText(leaderboard_t const * board, struct gleaderboarditem_s const *item,
+static void LeaderboardItemText(leaderboard_t const *board, struct gleaderboarditem_s const *item,
                                 string_t out, size_t out_size) {
-    player_t * player = item->player >= 0 ? G_GetPlayerByNumber((uint32_t)item->player) : NULL;
+    player_t *player = item->player >= 0 ? G_GetPlayerByNumber((uint32_t)item->player) : NULL;
     cstring_t name = board->show_names && player && player->name ? player->name : "";
     cstring_t label = item->show_label ? item->label : "";
     if (*name && *label) snprintf(out, out_size, "%s - %s", name, label);
@@ -53,7 +53,7 @@ static void WriteLeaderboardText(leaderboardTextParams_t const *params) {
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
-static void ResetFramePoints(frameDef_t * frame) {
+static void ResetFramePoints(frameDef_t *frame) {
     if (!frame) return;
     memset(&frame->Points, 0, sizeof(frame->Points));
     frame->AnyPointsSet = false;
@@ -107,9 +107,9 @@ void UI_LoadHudLeaderboards(void) {
     }
 }
 
-void UI_WriteLeaderboard(edict_t * ent) {
-    leaderboard_t * board;
-    frameDef_t * root, *backdrop, *title, *container;
+void UI_WriteLeaderboard(edict_t *ent) {
+    leaderboard_t *board;
+    frameDef_t *root, *backdrop, *title, *container;
     float row_height, title_height, total_height, list_top, top_y;
     bool has_title;
     uint32_t player, rows, visible_rows, parent, measure_font;

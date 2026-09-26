@@ -16,13 +16,13 @@
 #define PATHSTR char[512]
 #endif
 
-extern void ReadNode(sizeBuf_t * buffer, mdxNode_t *node, uint32_t size);
+extern void ReadNode(sizeBuf_t *buffer, mdxNode_t *node, uint32_t size);
 extern void R_ReleaseModelNode(mdxNode_t *node);
 
 #define BZ_MDX_MOTION_STEPS 50 // intervals; 2% spacing captures panel overshoot; used for diagnostic motion sampling.
 
-static const char *g_model_path = NULL;
-static const char *g_requested_animation = NULL;
+static char const *g_model_path = NULL;
+static char const *g_requested_animation = NULL;
 static bool g_use_model_camera = false;
 static bool g_use_front_ortho = false;
 static bool g_info_only = false;
@@ -31,7 +31,7 @@ static bool g_run_once = false;
 /* Deterministic golden-image output: when g_output_path is set, mdxtool renders
  * one clean frame (no overlay/bbox), with a fixed logical time and seeded RNG so
  * the PNG is byte-stable across runs, then exits. */
-static const char *g_output_path = NULL;
+static char const *g_output_path = NULL;
 static long g_fixed_time = -1;   /* logical ms; -1 => wall clock (SDL_GetTicks) */
 static long g_seed = -1;         /* srand seed for particle RNG; -1 => unseeded */
 static handle_t archives[64] = { 0 };
@@ -159,7 +159,7 @@ bool FS_FileExists(cstring_t fileName) {
     return Viewer_FileExists(archives, sizeof(archives) / sizeof(archives[0]), fileName);
 }
 
-handle_t FS_ReadFile(cstring_t filename, uint32_t * size);
+handle_t FS_ReadFile(cstring_t filename, uint32_t *size);
 
 handle_t MemAlloc(long size) { return Viewer_MemAlloc(size); }
 void MemFree(handle_t mem) { Viewer_MemFree(mem); }
@@ -172,7 +172,7 @@ static void Matrix4_getPreviewCameraMatrix(viewer_orbit_t const *orbit,
                                            float aspect,
                                            float near_clip,
                                            float far_clip,
-                                           matrix4_t * output)
+                                           matrix4_t *output)
 {
     Viewer_OrbitBuildCamera(orbit, aspect, 35.0f, near_clip, far_clip, output);
 }
@@ -180,7 +180,7 @@ static void Matrix4_getPreviewCameraMatrix(viewer_orbit_t const *orbit,
 static void Matrix4_getFrontOrthoCameraMatrix(mdxModel_t const *mdx,
                                               float aspect,
                                               float scale,
-                                              matrix4_t * output)
+                                              matrix4_t *output)
 {
     // Mirror the UI scene camera: fixed UI coordinate range 0..0.8 x 0..0.6
     // (aspect and scale are unused — model local coords ARE screen coords)
@@ -201,7 +201,7 @@ static void Matrix4_getFrontOrthoCameraMatrix(mdxModel_t const *mdx,
     Matrix4_multiply(&proj, &view, output);
 }
 
-static void Matrix4_getSideLightMatrix(vector3_t const * eye, vector3_t const * target, float scale, matrix4_t * output) {
+static void Matrix4_getSideLightMatrix(vector3_t const *eye, vector3_t const *target, float scale, matrix4_t *output) {
     matrix4_t proj, view;
     vector3_t forward = Vector3_sub(target, eye);
     vector3_t right = Vector3_cross(&forward, &(vector3_t){ 0, 0, 1 });
@@ -390,7 +390,7 @@ static uint32_t CountCameras(mdxModel_t const *mdx) {
     return count;
 }
 
-static uint32_t CountVariableSizeEntries(uint8_t * data, uint32_t size) {
+static uint32_t CountVariableSizeEntries(uint8_t *data, uint32_t size) {
     uint32_t count = 0;
     uint32_t offset = 0;
     while (offset + sizeof(uint32_t) <= size) {
@@ -404,7 +404,7 @@ static uint32_t CountVariableSizeEntries(uint8_t * data, uint32_t size) {
     return count;
 }
 
-static uint32_t CountInclusiveSizeEntries(uint8_t * data, uint32_t size) {
+static uint32_t CountInclusiveSizeEntries(uint8_t *data, uint32_t size) {
     uint32_t count = 0;
     uint32_t offset = 0;
     while (offset + sizeof(uint32_t) <= size) {
@@ -539,7 +539,7 @@ static mdxSequence_t const *FindSequenceByRequestedName(mdxModel_t const *mdx, c
 }
 
 /* Use the production MDX decoder/interpolator to inspect motion without a GL window. */
-static void dump_node_motion(uint8_t * data, uint32_t size, mdxModel_t const *model) {
+static void dump_node_motion(uint8_t *data, uint32_t size, mdxModel_t const *model) {
     for (uint32_t off = 0; off + 96 <= size;) {
         uint32_t len = *(uint32_t *)(data + off);
         if (len < 96 || len + 8 > size - off) {
@@ -584,7 +584,7 @@ static bool DumpModelInfoNoWindow(cstring_t modelPath) {
         return false;
     }
 
-    uint8_t * data = MemAlloc(fileSize);
+    uint8_t *data = MemAlloc(fileSize);
     SFileReadFile(file, data, fileSize, NULL, NULL);
     FS_CloseFile(file);
 
@@ -607,7 +607,7 @@ static bool DumpModelInfoNoWindow(cstring_t modelPath) {
             break;
         }
 
-        uint8_t * chunk = data + offset;
+        uint8_t *chunk = data + offset;
         switch (chunkId) {
             case MAKEFOURCC('M', 'O', 'D', 'L'):
                 if (chunkSize >= sizeof(mdxInfo_t)) {
@@ -692,7 +692,7 @@ static bool DumpModelInfoNoWindow(cstring_t modelPath) {
     return true;
 }
 
-static void BuildTexturePreviewCache(refExport_t const *re, model_t * model) {
+static void BuildTexturePreviewCache(refExport_t const *re, model_t *model) {
     FreeTexturePreviewCache();
     modelInfo_t modelInfo = { 0 };
     uint32_t textureCount = 0;
@@ -740,7 +740,7 @@ static void DrawTexturePreviews(refExport_t const *re) {
 
     size2_t window = re->GetWindowSize();
     for (uint32_t i = 0; i < texture_previews.count; i++) {
-        texture_t const * texture = texture_previews.textures[i];
+        texture_t const *texture = texture_previews.textures[i];
         if (!texture) {
             continue;
         }
@@ -782,7 +782,7 @@ static void DrawTexturePreviews(refExport_t const *re) {
     }
 }
 
-static bool BuildModelCameraMatrix(mdxModel_t const *model, float aspect, matrix4_t * output, vector3_t * root) {
+static bool BuildModelCameraMatrix(mdxModel_t const *model, float aspect, matrix4_t *output, vector3_t *root) {
     if (!model || !model->cameras) {
         return false;
     }
@@ -1085,7 +1085,7 @@ static void DumpFrameCoverage(refExport_t const *re) {
 
 /* Read the rendered framebuffer back and write it as a PNG.  glReadPixels gives
  * rows bottom-up, so flip on write.  Used for deterministic golden images. */
-static bool SaveFramePNG(refExport_t const *re, const char *path) {
+static bool SaveFramePNG(refExport_t const *re, char const *path) {
     size2_t window = re->GetWindowSize();
     uint32_t width = window.width;
     uint32_t height = window.height;
@@ -1113,7 +1113,7 @@ static bool SaveFramePNG(refExport_t const *re, const char *path) {
     return true;
 }
 
-static void RenderModelFrame(refExport_t const *re, model_t * model, uint32_t now, bool useModelCamera) {
+static void RenderModelFrame(refExport_t const *re, model_t *model, uint32_t now, bool useModelCamera) {
     viewDef_t viewdef = { 0 };
     renderEntity_t entity = { 0 };
     mdxModel_t const *mdx = model->mdx;
@@ -1303,8 +1303,8 @@ static void RenderModelFrame(refExport_t const *re, model_t * model, uint32_t no
 }
 
 int main(int argc, char **argv) {
-    const char *mpq = NULL;
-    const char *modelPath = NULL;
+    char const *mpq = NULL;
+    char const *modelPath = NULL;
 
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--use-model-camera") || !strcmp(argv[i], "-use-model-camera")) {
@@ -1403,7 +1403,7 @@ int main(int argc, char **argv) {
 
     g_model_path = modelPath;
     fprintf(stderr, "mdxtool: loading model %s\n", modelPath);
-    model_t * model = re.LoadModel(modelPath);
+    model_t *model = re.LoadModel(modelPath);
     if (!model || !model->mdx) {
         fprintf(stderr, "Failed to load MDX model: %s\n", modelPath);
         re.Shutdown();

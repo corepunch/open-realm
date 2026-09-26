@@ -2,7 +2,7 @@
 
 #define MILITIA_BUFF "Bmil"
 
-static uint32_t militia_actor_ability_alias(edict_t * ent, uint32_t base_code) {
+static uint32_t militia_actor_ability_alias(edict_t *ent, uint32_t base_code) {
     char alias[5] = {0};
 
     if (!ent) return 0;
@@ -23,7 +23,7 @@ static uint32_t militia_actor_ability_alias(edict_t * ent, uint32_t base_code) {
     return 0;
 }
 
-static bool militia_actor_ability_removed(edict_t * ent, uint32_t base_code) {
+static bool militia_actor_ability_removed(edict_t *ent, uint32_t base_code) {
     if (!ent) return false;
     FOR_LOOP(i, ARRAY_COUNT(ent->abilities.removed)) {
         uint32_t const code = ent->abilities.removed[i];
@@ -32,13 +32,13 @@ static bool militia_actor_ability_removed(edict_t * ent, uint32_t base_code) {
     return false;
 }
 
-static uint32_t militia_hall_base_type(edict_t * hall) {
+static uint32_t militia_hall_base_type(edict_t *hall) {
     return hall && hall->data.UnitAbilities && hall->data.UnitAbilities->id
         ? hall->data.UnitAbilities->id : (hall ? hall->class_id : 0);
 }
 
-static bool militia_is_first_tier_one_hall(edict_t * hall) {
-    edict_t * first = NULL;
+static bool militia_is_first_tier_one_hall(edict_t *hall) {
+    edict_t *first = NULL;
 
     if (!hall || militia_hall_base_type(hall) != MAKEFOURCC('h','t','o','w')) return false;
     FILTER_EDICTS(candidate, candidate->inuse && (candidate->svflags & SVF_MONSTER) &&
@@ -52,7 +52,7 @@ static bool militia_is_first_tier_one_hall(edict_t * hall) {
     return first == hall;
 }
 
-static bool militia_can_recover_hall_ability(edict_t * hall) {
+static bool militia_can_recover_hall_ability(edict_t *hall) {
     uint32_t const type = militia_hall_base_type(hall);
 
     if (!hall || militia_actor_ability_removed(hall, MAKEFOURCC('A','m','i','c'))) return false;
@@ -60,7 +60,7 @@ static bool militia_can_recover_hall_ability(edict_t * hall) {
     return type == MAKEFOURCC('h','t','o','w') && militia_is_first_tier_one_hall(hall);
 }
 
-static uint32_t militia_hall_ability_alias(edict_t * hall, bool recover) {
+static uint32_t militia_hall_ability_alias(edict_t *hall, bool recover) {
     uint32_t ability = militia_actor_ability_alias(hall, MAKEFOURCC('A','m','i','c'));
 
     if (ability || !recover || !militia_can_recover_hall_ability(hall)) return ability;
@@ -75,11 +75,11 @@ static uint32_t militia_hall_ability_alias(edict_t * hall, bool recover) {
     return ability;
 }
 
-bool S_MilitiaEnsureHallAbility(edict_t * hall) {
+bool S_MilitiaEnsureHallAbility(edict_t *hall) {
     return militia_hall_ability_alias(hall, true) != 0;
 }
 
-static void militia_sync_form(edict_t * unit, uint32_t ability) {
+static void militia_sync_form(edict_t *unit, uint32_t ability) {
     uint32_t normal_type, militia_type;
 
     if (!unit || !ability || unit->militia.ability) return;
@@ -92,7 +92,7 @@ static void militia_sync_form(edict_t * unit, uint32_t ability) {
     unit->militia.active = true;
 }
 
-static bool militia_partner_valid(edict_t * worker, edict_t * hall) {
+static bool militia_partner_valid(edict_t *worker, edict_t *hall) {
     if (!worker || !hall || !hall->inuse || M_IsDead(worker) || M_IsDead(hall)) return false;
     if (worker->s.player != hall->s.player || worker->paused || hall->paused) return false;
     if (hall != worker->militia.partner || hall->spawn_time != worker->militia.partner_spawn_time) return false;
@@ -100,7 +100,7 @@ static bool militia_partner_valid(edict_t * worker, edict_t * hall) {
     return militia_hall_ability_alias(hall, false) != 0;
 }
 
-static bool militia_in_range(edict_t * worker, edict_t * hall) {
+static bool militia_in_range(edict_t *worker, edict_t *hall) {
     uint32_t const hall_ability = militia_hall_ability_alias(hall, false);
     float const range = hall_ability ? MAX(0.0f, S_SpellRange(hall_ability, 1)) : 0.0f;
     float const footprint = CM_DistanceToPathingFootprint(hall, &worker->s.origin2);
@@ -110,7 +110,7 @@ static bool militia_in_range(edict_t * worker, edict_t * hall) {
         worker->collision + hall->collision + range;
 }
 
-static bool militia_prepare_approach(edict_t * worker, edict_t * hall) {
+static bool militia_prepare_approach(edict_t *worker, edict_t *hall) {
     uint32_t const hall_ability = militia_hall_ability_alias(hall, false);
     vector2_t approach;
     float range;
@@ -131,7 +131,7 @@ static bool militia_prepare_approach(edict_t * worker, edict_t * hall) {
     return false;
 }
 
-static returnResource_t militia_previous_resource(edict_t * worker) {
+static returnResource_t militia_previous_resource(edict_t *worker) {
     if (!worker) return 0;
     if (worker->harvested_gold || (worker->currentmove && worker->currentmove->proc == CAbilityGoldMine))
         return RETURN_RESOURCE_GOLD;
@@ -140,8 +140,8 @@ static returnResource_t militia_previous_resource(edict_t * worker) {
     return 0;
 }
 
-static void militia_return_carried_resources(edict_t * worker) {
-    player_t * player;
+static void militia_return_carried_resources(edict_t *worker) {
+    player_t *player;
 
     if (!worker || !(player = G_GetPlayerByNumber(worker->s.player))) return;
     if (worker->harvested_gold) {
@@ -156,7 +156,7 @@ static void militia_return_carried_resources(edict_t * worker) {
     }
 }
 
-static void militia_remove_buff(edict_t * unit) {
+static void militia_remove_buff(edict_t *unit) {
     uint32_t const code = MAKEFOURCC('B','m','i','l');
     FOR_LOOP(i, MAX_UNIT_STATUSES) {
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == code)
@@ -164,23 +164,23 @@ static void militia_remove_buff(edict_t * unit) {
     }
 }
 
-static bool militia_transform_type(edict_t * unit, uint32_t type) {
+static bool militia_transform_type(edict_t *unit, uint32_t type) {
     return G_TransformUnitType(unit, type);
 }
 
-static void militia_clear_pairing(edict_t * unit) {
+static void militia_clear_pairing(edict_t *unit) {
     unit->militia.partner = NULL;
     unit->militia.partner_spawn_time = 0;
     unit->militia.returning = false;
 }
 
-static void militia_back_to_work(edict_t * unit, returnResource_t resource) {
+static void militia_back_to_work(edict_t *unit, returnResource_t resource) {
     if (resource == RETURN_RESOURCE_GOLD && unit_issueimmediateorder(unit, "autoharvestgold")) return;
     if (resource == RETURN_RESOURCE_LUMBER && unit_issueimmediateorder(unit, "autoharvestlumber")) return;
     unit_stand(unit);
 }
 
-static bool militia_transform_forward(edict_t * worker) {
+static bool militia_transform_forward(edict_t *worker) {
     uint32_t const ability = worker->militia.ability;
     uint32_t const normal_type = S_SpellDataId(ability, 1, 1);
     uint32_t const militia_type = S_SpellDataId(ability, 1, 2);
@@ -201,7 +201,7 @@ static bool militia_transform_forward(edict_t * worker) {
     return true;
 }
 
-static bool militia_transform_back(edict_t * militia, bool resume_work) {
+static bool militia_transform_back(edict_t *militia, bool resume_work) {
     returnResource_t const resource = (returnResource_t)militia->militia.previous_resource;
     uint32_t const normal_type = militia->militia.normal_type;
 
@@ -222,8 +222,8 @@ static bool militia_transform_back(edict_t * militia, bool resume_work) {
     return true;
 }
 
-static void ai_militia_pair_walk(edict_t * worker) {
-    edict_t * hall = worker ? worker->militia.partner : NULL;
+static void ai_militia_pair_walk(edict_t *worker) {
+    edict_t *hall = worker ? worker->militia.partner : NULL;
     float distance, step;
 
     if (!militia_partner_valid(worker, hall)) {
@@ -267,7 +267,7 @@ static void ai_militia_pair_walk(edict_t * worker) {
 
 static umove_t militia_move_walk = { "walk", ai_militia_pair_walk, NULL, CAbilityMilitia };
 
-bool S_MilitiaTargetOrder(edict_t * worker, cstring_t order, edict_t * hall) {
+bool S_MilitiaTargetOrder(edict_t *worker, cstring_t order, edict_t *hall) {
     uint32_t worker_ability;
     bool returning;
 
@@ -331,8 +331,8 @@ float S_MilitiaPairSearchRadius(uint32_t ability) {
     return radius == 0.0f ? FLT_MAX : radius;
 }
 
-static edict_t * militia_find_partner(edict_t * worker, uint32_t worker_ability) {
-    edict_t * best = NULL;
+static edict_t *militia_find_partner(edict_t *worker, uint32_t worker_ability) {
+    edict_t *best = NULL;
     float best_distance = FLT_MAX;
     float const radius = S_MilitiaPairSearchRadius(worker_ability);
 
@@ -355,7 +355,7 @@ static edict_t * militia_find_partner(edict_t * worker, uint32_t worker_ability)
     return best;
 }
 
-static bool militia_toggle_on(edict_t * unit) {
+static bool militia_toggle_on(edict_t *unit) {
     uint32_t ability, militia_type;
 
     if (!unit) return false;
@@ -365,13 +365,13 @@ static bool militia_toggle_on(edict_t * unit) {
     return militia_type && unit->class_id == militia_type;
 }
 
-static void militia_cmd(edict_t * clent) {
+static void militia_cmd(edict_t *clent) {
     bool issued = false;
 
     if (!clent || !clent->client) return;
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, worker) {
         uint32_t const ability = militia_actor_ability_alias(worker, MAKEFOURCC('A','m','i','l'));
-        edict_t * hall;
+        edict_t *hall;
         cstring_t order;
         if (!ability || worker->paused || worker->militia.partner || S_GoldMineWorkerIsInside(worker)) {
             continue;
@@ -388,7 +388,7 @@ static void militia_cmd(edict_t * clent) {
     if (!issued) G_ShowCommandErrorText(clent, "No suitable Town Hall could be found.");
 }
 
-void S_CancelMilitiaPairing(edict_t * unit) {
+void S_CancelMilitiaPairing(edict_t *unit) {
     if (!unit || !unit->militia.ability) return;
     militia_clear_pairing(unit);
     if (!unit->militia.active) {
@@ -399,7 +399,7 @@ void S_CancelMilitiaPairing(edict_t * unit) {
     }
 }
 
-void S_MilitiaExpire(edict_t * unit) {
+void S_MilitiaExpire(edict_t *unit) {
     if (!unit || !unit->militia.active || M_IsDead(unit)) return;
     if (!militia_transform_back(unit, false)) return;
     /* Natural expiration is not Back to Work. Preserve a combat/move behavior
@@ -409,7 +409,7 @@ void S_MilitiaExpire(edict_t * unit) {
 }
 
 BZ_COMMAND_PROC(AbilityMilitiaConvert) {
-    gameClient_t * client;
+    gameClient_t *client;
     bool off;
     bool issued = false;
 

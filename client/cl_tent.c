@@ -111,14 +111,14 @@ missile_t *CL_AllocMissile(void) {
     return tents.missiles;
 }
 
-void CL_AllocateConfirmationObject(vector3_t const * origin, color32_t tint) {
+void CL_AllocateConfirmationObject(vector3_t const *origin, color32_t tint) {
     uint32_t i = cl_confcounter++;
     cl_confs[i % MAX_CONFIRMATION_OBJECTS].origin = *origin;
     cl_confs[i % MAX_CONFIRMATION_OBJECTS].timespamp = cl.time;
     cl_confs[i % MAX_CONFIRMATION_OBJECTS].tint = tint;
 }
 
-void CL_ParseTEnt(sizeBuf_t * msg) {
+void CL_ParseTEnt(sizeBuf_t *msg) {
     vector3_t pos;//, pos2, dir;
     tempEvent_t evt = MSG_ReadByte(msg);
     missile_t *missile;
@@ -201,7 +201,7 @@ void CL_ParseTEnt(sizeBuf_t * msg) {
 }
 
 /* Build the transient point marker payload; the renderer owns support-surface lookup for bridge geometry. */
-static renderEntity_t CL_BuildConfirmationEntity(moveConfirmation_t const *mc, model_t * model) {
+static renderEntity_t CL_BuildConfirmationEntity(moveConfirmation_t const *mc, model_t *model) {
     renderEntity_t ent;
     memset(&ent, 0, sizeof(ent));
     ent.origin = mc->origin;

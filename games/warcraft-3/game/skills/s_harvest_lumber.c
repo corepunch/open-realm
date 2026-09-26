@@ -16,7 +16,7 @@ typedef struct harvestLumberTuning_s {
 } harvestLumberTuning_t;
 
 /* Resolve the worker's authored harvest alias, including runtime-added aliases. */
-static uint32_t harvest_actor_ability_alias(edict_t const * ent, uint32_t base_code) {
+static uint32_t harvest_actor_ability_alias(edict_t const *ent, uint32_t base_code) {
     char alias_name[5] = {0};
 
     if (!ent) return 0;
@@ -40,13 +40,13 @@ static uint32_t harvest_actor_ability_alias(edict_t const * ent, uint32_t base_c
 }
 
 /* Prefer the lumber-only ability and otherwise use the shared Harvest ability. */
-static uint32_t harvest_lumber_alias(edict_t const * ent) {
+static uint32_t harvest_lumber_alias(edict_t const *ent) {
     uint32_t alias = harvest_actor_ability_alias(ent, MAKEFOURCC('A','h','r','l'));
     return alias ? alias : harvest_actor_ability_alias(ent, MAKEFOURCC('A','h','a','r'));
 }
 
 /* Confirm that the worker has authoritative lumber-harvest data with capacity. */
-bool S_HarvestCanLumber(edict_t const * ent) {
+bool S_HarvestCanLumber(edict_t const *ent) {
     uint32_t const alias = harvest_lumber_alias(ent);
     AbilityData_t const *data;
 
@@ -59,7 +59,7 @@ bool S_HarvestCanLumber(edict_t const * ent) {
 }
 
 /* Confirm that the worker has authoritative gold-harvest data with capacity. */
-bool S_HarvestCanGold(edict_t const * ent) {
+bool S_HarvestCanGold(edict_t const *ent) {
     uint32_t const alias = harvest_actor_ability_alias(ent, MAKEFOURCC('A','h','a','r'));
     AbilityData_t const *data;
 
@@ -72,7 +72,7 @@ bool S_HarvestCanGold(edict_t const * ent) {
 }
 
 /* Collect per-worker lumber tuning from the resolved ability instead of globals. */
-static harvestLumberTuning_t harvest_lumber_tuning(edict_t const * ent) {
+static harvestLumberTuning_t harvest_lumber_tuning(edict_t const *ent) {
     harvestLumberTuning_t tuning = {
         .tree_damage = HARVEST_TREE_DAMAGE,
         .lumber_capacity = HARVEST_LUMBER_CAPACITY,
@@ -97,13 +97,13 @@ static harvestLumberTuning_t harvest_lumber_tuning(edict_t const * ent) {
     return tuning;
 }
 
-void harvest_cooldown(edict_t * ent);
-void harvest_swing(edict_t * ent);
-void harvest_walkback(edict_t * ent);
-void harvest_walk(edict_t * ent);
+void harvest_cooldown(edict_t *ent);
+void harvest_swing(edict_t *ent);
+void harvest_walkback(edict_t *ent);
+void harvest_walk(edict_t *ent);
 
-void harvest_start(edict_t * self, edict_t * target);
-void harvest_gold_start(edict_t * self, edict_t * target);
+void harvest_start(edict_t *self, edict_t *target);
+void harvest_gold_start(edict_t *self, edict_t *target);
 
 static int harvest_path_debug_level(void) {
     cstring_t value;
@@ -155,7 +155,7 @@ bool S_UnitTypeReturnsGold(uint32_t unit_id) {
     return false;
 }
 
-bool S_CanReturnResourceAt(edict_t * unit, edict_t * building, returnResource_t resource) {
+bool S_CanReturnResourceAt(edict_t *unit, edict_t *building, returnResource_t resource) {
     cstring_t abilities;
 
     /* Unit data exposes Return Resources before construction completes, but
@@ -173,7 +173,7 @@ bool S_CanReturnResourceAt(edict_t * unit, edict_t * building, returnResource_t 
     return false;
 }
 
-void S_SetCarriedResource(edict_t * unit, returnResource_t resource, uint32_t amount) {
+void S_SetCarriedResource(edict_t *unit, returnResource_t resource, uint32_t amount) {
     bool const was_carrying = unit && (unit->harvested_gold > 0 || unit->harvested_lumber > 0);
     bool is_carrying;
 
@@ -201,20 +201,20 @@ void S_SetCarriedResource(edict_t * unit, returnResource_t resource, uint32_t am
     is_carrying = unit->harvested_gold > 0 || unit->harvested_lumber > 0;
     if (was_carrying != is_carrying) {
         FOR_LOOP(i, game.max_clients) {
-            gameClient_t * client = game.clients + i;
+            gameClient_t *client = game.clients + i;
             if (G_IsEntitySelected(client, unit))
                 G_InvalidateCommands(client);
         }
     }
 }
 
-edict_t * S_FindNearestResourceDropoff(edict_t * unit, returnResource_t resource) {
-    edict_t * best = NULL;
+edict_t *S_FindNearestResourceDropoff(edict_t *unit, returnResource_t resource) {
+    edict_t *best = NULL;
     float best_dist = 0;
 
     /* TODO: use pathfinding distance; geometric distance misjudges across impassable terrain */
     FOR_LOOP(i, globals.num_edicts) {
-        edict_t * building = &globals.edicts[i];
+        edict_t *building = &globals.edicts[i];
         float dist;
         if (!S_CanReturnResourceAt(unit, building, resource))
             continue;
@@ -227,15 +227,15 @@ edict_t * S_FindNearestResourceDropoff(edict_t * unit, returnResource_t resource
     return best;
 }
 
-static edict_t * find_another_tree_near(edict_t const * worker, vector2_t const * origin) {
+static edict_t *find_another_tree_near(edict_t const *worker, vector2_t const *origin) {
     float min_dist = harvest_lumber_tuning(worker).search_range;
-    edict_t * other = NULL;
+    edict_t *other = NULL;
 
     if (!origin)
         return NULL;
 
     FOR_LOOP(i, globals.num_edicts) {
-        edict_t * tree = globals.edicts + i;
+        edict_t *tree = globals.edicts + i;
         float dist;
 
         if (tree->targtype != TARG_TREE || M_IsDead(tree))
@@ -249,7 +249,7 @@ static edict_t * find_another_tree_near(edict_t const * worker, vector2_t const 
     return other;
 }
 
-static edict_t * find_another_tree(edict_t * ent) {
+static edict_t *find_another_tree(edict_t *ent) {
     return ent ? find_another_tree_near(ent, &ent->s.origin2) : NULL;
 }
 
@@ -257,15 +257,15 @@ static edict_t * find_another_tree(edict_t * ent) {
  * from the worker's current position, then continues through the ordinary
  * targeted Harvest state machine.  Keep target discovery here so JASS/order
  * dispatch does not need to know what counts as a live resource. */
-static edict_t * harvest_find_nearest_resource(edict_t * worker, returnResource_t resource) {
-    edict_t * best = NULL;
+static edict_t *harvest_find_nearest_resource(edict_t *worker, returnResource_t resource) {
+    edict_t *best = NULL;
     float best_dist = 0.0f;
 
     if (!worker)
         return NULL;
 
     FOR_LOOP(i, globals.num_edicts) {
-        edict_t * target = globals.edicts + i;
+        edict_t *target = globals.edicts + i;
         float dist;
 
         if (resource == RETURN_RESOURCE_GOLD) {
@@ -291,8 +291,8 @@ static edict_t * harvest_find_nearest_resource(edict_t * worker, returnResource_
  * the drop-off centre.  Restrict the search to the innermost collision-safe
  * pathing-cell ring so the closest candidate is the nearest edge of the Town
  * Hall/Lumber Mill from the worker's current side. */
-static bool harvest_find_nearest_dropoff_approach(edict_t * ent, edict_t * dropoff,
-                                                   vector2_t * out) {
+static bool harvest_find_nearest_dropoff_approach(edict_t *ent, edict_t *dropoff,
+                                                   vector2_t *out) {
     float const route_band = ent ?
         ent->collision + CM_PathCellWorldSize() * 1.41421356237f : 0.0f;
 
@@ -309,7 +309,7 @@ static bool harvest_find_nearest_dropoff_approach(edict_t * ent, edict_t * dropo
  * route to a legal approach point that is itself within HARVEST_RANGE.  This
  * avoids full flow-field builds for every candidate while still rejecting the
  * buried interior trees that caused the original orbit. */
-static bool tree_has_reachable_harvest_approach(edict_t * ent, edict_t * tree) {
+static bool tree_has_reachable_harvest_approach(edict_t *ent, edict_t *tree) {
     vector2_t approach;
     float const distance = Vector2_distance(&ent->s.origin2, &tree->s.origin2);
     float const range = harvest_lumber_tuning(ent).range;
@@ -320,12 +320,12 @@ static bool tree_has_reachable_harvest_approach(edict_t * ent, edict_t * tree) {
                                                range, ent->collision, &approach);
 }
 
-static edict_t * find_reachable_replacement_tree(edict_t * ent, edict_t * exclude) {
+static edict_t *find_reachable_replacement_tree(edict_t *ent, edict_t *exclude) {
     float min_dist = harvest_lumber_tuning(ent).search_range;
-    edict_t * other = NULL;
+    edict_t *other = NULL;
 
     FOR_LOOP(i, globals.num_edicts) {
-        edict_t * tree = globals.edicts + i;
+        edict_t *tree = globals.edicts + i;
         float dist;
         bool reachable;
 
@@ -347,9 +347,9 @@ static edict_t * find_reachable_replacement_tree(edict_t * ent, edict_t * exclud
     return other;
 }
 
-static void harvest_route_failed(edict_t * ent, cstring_t reason) {
-    edict_t * failed = ent->goalentity;
-    edict_t * other = find_reachable_replacement_tree(ent, failed);
+static void harvest_route_failed(edict_t *ent, cstring_t reason) {
+    edict_t *failed = ent->goalentity;
+    edict_t *other = find_reachable_replacement_tree(ent, failed);
 
     if (other) {
         HARVEST_PATH_LOG(1,
@@ -367,8 +367,8 @@ static void harvest_route_failed(edict_t * ent, cstring_t reason) {
     ent->stand(ent);
 }
 
-static void look_for_another_tree(edict_t * ent) {
-    edict_t * other = find_another_tree(ent);
+static void look_for_another_tree(edict_t *ent) {
+    edict_t *other = find_another_tree(ent);
     if (other) {
         harvest_start(ent, other);
     } else {
@@ -392,7 +392,7 @@ static void skill_remove(uint32_t *skills, uint32_t *count, uint32_t index) {
     memmove(skills + index, skills + index + 1, (--*count - index) * sizeof(*skills));
 }
 
-static bool actor_has_skill(edict_t const * ent, uint32_t code) {
+static bool actor_has_skill(edict_t const *ent, uint32_t code) {
     cstring_t abilities;
     if (!ent || !code) return false;
     if (skill_index(ent->abilities.removed, ARRAY_COUNT(ent->abilities.removed), code) >= 0) return false;
@@ -409,15 +409,15 @@ static bool actor_has_skill(edict_t const * ent, uint32_t code) {
     return false;
 }
 
-bool G_ActorHasSkill(edict_t const * ent, cstring_t id) {
+bool G_ActorHasSkill(edict_t const *ent, cstring_t id) {
     uint32_t code = 0;
     if (!id || strlen(id) != 4) return false;
     memcpy(&code, id, sizeof(code));
     return actor_has_skill(ent, code);
 }
 
-static bool harvest_auto_start(edict_t * self, returnResource_t resource) {
-    edict_t * target;
+static bool harvest_auto_start(edict_t *self, returnResource_t resource) {
+    edict_t *target;
 
     /* These are worker-internal immediate orders, not substitutes for giving
      * Harvest to arbitrary units. Ahrl is lumber-only while Ahar can harvest
@@ -439,15 +439,15 @@ static bool harvest_auto_start(edict_t * self, returnResource_t resource) {
     return false;
 }
 
-bool harvest_auto_start_gold(edict_t * self) {
+bool harvest_auto_start_gold(edict_t *self) {
     return harvest_auto_start(self, RETURN_RESOURCE_GOLD);
 }
 
-bool harvest_auto_start_lumber(edict_t * self) {
+bool harvest_auto_start_lumber(edict_t *self) {
     return harvest_auto_start(self, RETURN_RESOURCE_LUMBER);
 }
 
-bool G_ActorAddSkill(edict_t * ent, uint32_t code) {
+bool G_ActorAddSkill(edict_t *ent, uint32_t code) {
     int32_t index;
     if (!ent || !code || actor_has_skill(ent, code)) return false;
     index = skill_index(ent->abilities.removed, ARRAY_COUNT(ent->abilities.removed), code);
@@ -458,11 +458,11 @@ bool G_ActorAddSkill(edict_t * ent, uint32_t code) {
     }
     if (code == MAKEFOURCC('A', 'h', 'a', 'r')) G_InvalidateUnitShortcutsForUnit(ent);
     S_EnableAbility(ent, code);
-    { gameClient_t * client = G_GetPlayerClientByNumber(ent->s.player); if (client) G_InvalidateCommands(client); }
+    { gameClient_t *client = G_GetPlayerClientByNumber(ent->s.player); if (client) G_InvalidateCommands(client); }
     return true;
 }
 
-bool G_ActorRemoveSkill(edict_t * ent, uint32_t code) {
+bool G_ActorRemoveSkill(edict_t *ent, uint32_t code) {
     int32_t index;
     if (!ent || !code || !actor_has_skill(ent, code)) return false;
     index = skill_index(ent->abilities.added, ARRAY_COUNT(ent->abilities.added), code);
@@ -475,11 +475,11 @@ bool G_ActorRemoveSkill(edict_t * ent, uint32_t code) {
     index = skill_index(ent->abilities.permanent, ARRAY_COUNT(ent->abilities.permanent), code);
     if (index >= 0) skill_remove(ent->abilities.permanent, &ARRAY_COUNT(ent->abilities.permanent), index);
     S_DisableAbility(ent, code);
-    { gameClient_t * client = G_GetPlayerClientByNumber(ent->s.player); if (client) G_InvalidateCommands(client); }
+    { gameClient_t *client = G_GetPlayerClientByNumber(ent->s.player); if (client) G_InvalidateCommands(client); }
     return true;
 }
 
-bool G_ActorSetSkillPermanent(edict_t * ent, uint32_t code, bool permanent) {
+bool G_ActorSetSkillPermanent(edict_t *ent, uint32_t code, bool permanent) {
     int32_t index;
     if (!actor_has_skill(ent, code)) return false;
     index = skill_index(ent->abilities.permanent, ARRAY_COUNT(ent->abilities.permanent), code);
@@ -488,15 +488,15 @@ bool G_ActorSetSkillPermanent(edict_t * ent, uint32_t code, bool permanent) {
     return true;
 }
 
-bool G_ActorSkillPermanent(edict_t * ent, uint32_t code) {
+bool G_ActorSkillPermanent(edict_t *ent, uint32_t code) {
     return ent && skill_index(ent->abilities.permanent, ARRAY_COUNT(ent->abilities.permanent), code) >= 0;
 }
 
-void G_FreeActorSkills(edict_t * ent) {
+void G_FreeActorSkills(edict_t *ent) {
     if (ent) memset(&ent->abilities, 0, sizeof(ent->abilities));
 }
 
-static void ai_walktree(edict_t * ent) {
+static void ai_walktree(edict_t *ent) {
     float const distance = M_DistanceToGoal(ent);
     float const range = harvest_lumber_tuning(ent).range;
 
@@ -530,10 +530,10 @@ static void ai_walktree(edict_t * ent) {
     }
 }
 
-static void harvest_finish_lumber_deposit(edict_t * ent) {
-    edict_t * dropoff = ent->goalentity;
-    edict_t * tree;
-    player_t * player;
+static void harvest_finish_lumber_deposit(edict_t *ent) {
+    edict_t *dropoff = ent->goalentity;
+    edict_t *tree;
+    player_t *player;
 
     G_PublishMessage(ent, GAME_MSG_HARVEST_DEPOSIT_LUMBER, dropoff);
     player = G_GetPlayerByNumber(ent->s.player);
@@ -560,9 +560,9 @@ static void harvest_finish_lumber_deposit(edict_t * ent) {
     }
 }
 
-static void ai_harvest_walkback(edict_t * ent) {
+static void ai_harvest_walkback(edict_t *ent) {
     if (!S_CanReturnResourceAt(ent, ent->goalentity, RETURN_RESOURCE_LUMBER)) {
-        edict_t * dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_LUMBER);
+        edict_t *dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_LUMBER);
         if (!dropoff) {
             ent->stand(ent);
             return;
@@ -611,8 +611,8 @@ static void ai_harvest_walkback(edict_t * ent) {
     }
 }
 
-static void ai_chop(edict_t * ent) {
-    edict_t * tree = ent->secondarygoal;
+static void ai_chop(edict_t *ent) {
+    edict_t *tree = ent->secondarygoal;
     harvestLumberTuning_t const tuning = harvest_lumber_tuning(ent);
     bool const valid_hit = tree && G_IsDestructable(tree) && !M_IsDead(tree) &&
                            !tree->invulnerable && tuning.tree_damage > 0.0f;
@@ -639,11 +639,11 @@ static void ai_chop(edict_t * ent) {
     }
 }
 
-static void ai_swing(edict_t * ent) {
+static void ai_swing(edict_t *ent) {
     unit_runwait(ent, ai_chop);
 }
 
-static void ai_cooldown(edict_t * ent) {
+static void ai_cooldown(edict_t *ent) {
     unit_runwait(ent, harvest_swing);
 }
 
@@ -652,7 +652,7 @@ static umove_t harvest_move_walkback = { "walk", ai_harvest_walkback, NULL, CAbi
 static umove_t harvest_move_swing = { "attack", ai_swing, harvest_cooldown, CAbilityHarvest };
 static umove_t harvest_move_cooldown = { "stand ready", ai_cooldown, NULL, CAbilityHarvest };
 
-void harvest_cooldown(edict_t * ent) {
+void harvest_cooldown(edict_t *ent) {
     harvestLumberTuning_t const tuning = harvest_lumber_tuning(ent);
 
     if (ent->harvested_lumber >= tuning.lumber_capacity) {
@@ -665,16 +665,16 @@ void harvest_cooldown(edict_t * ent) {
     }
 }
 
-void harvest_walk(edict_t * ent) {
+void harvest_walk(edict_t *ent) {
     unit_setmove(ent, &harvest_move_walk);
 }
 
-void harvest_swing(edict_t * ent) {
+void harvest_swing(edict_t *ent) {
     unit_setmove(ent, &harvest_move_swing);
     ent->wait = ent->data.UnitWeapons->attack1.damagePoint;
 }
 
-bool harvest_lumber_return_to(edict_t * ent, edict_t * dropoff) {
+bool harvest_lumber_return_to(edict_t *ent, edict_t *dropoff) {
     if (!ent || !dropoff || !ent->harvested_lumber ||
         !S_CanReturnResourceAt(ent, dropoff, RETURN_RESOURCE_LUMBER)) {
         return false;
@@ -687,15 +687,15 @@ bool harvest_lumber_return_to(edict_t * ent, edict_t * dropoff) {
     return true;
 }
 
-void harvest_walkback(edict_t * ent) {
-    edict_t * dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_LUMBER);
+void harvest_walkback(edict_t *ent) {
+    edict_t *dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_LUMBER);
     if (!harvest_lumber_return_to(ent, dropoff))
         ent->stand(ent);
 }
 
-void CMD_Harvest(edict_t * ent);
+void CMD_Harvest(edict_t *ent);
 
-void harvest_start(edict_t * self, edict_t * target) {
+void harvest_start(edict_t *self, edict_t *target) {
     harvestLumberTuning_t const tuning = harvest_lumber_tuning(self);
 
     self->secondarygoal = target;
@@ -719,10 +719,10 @@ void harvest_start(edict_t * self, edict_t * target) {
 static float wisp_lumber_per_interval;
 static uint32_t wisp_interval_count;
 
-static void ai_wisp_mine(edict_t * ent) {
+static void ai_wisp_mine(edict_t *ent) {
     unit_runwait(ent, NULL);
     /* Wisp gathers lumber and is consumed. */
-    player_t * player = G_GetPlayerByNumber(ent->s.player);
+    player_t *player = G_GetPlayerByNumber(ent->s.player);
     if (player) {
         G_CreditResourceIncome(player, ent, PLAYERSTATE_RESOURCE_LUMBER,
                                (int32_t)wisp_lumber_per_interval);
@@ -735,7 +735,7 @@ static void ai_wisp_mine(edict_t * ent) {
 
 static umove_t wisp_harvest_mine = { "stand", ai_wisp_mine, NULL, CAbilityWispHarvest };
 
-static void ai_wisp_walktree(edict_t * ent) {
+static void ai_wisp_walktree(edict_t *ent) {
     if (M_DistanceToGoal(ent) > HARVEST_RANGE) {
         unit_changeangle(ent);
         unit_moveindirection(ent);
@@ -747,12 +747,12 @@ static void ai_wisp_walktree(edict_t * ent) {
 
 static umove_t wisp_harvest_walk = { "walk", ai_wisp_walktree, NULL, CAbilityWispHarvest };
 
-void wisp_harvest_start(edict_t * self, edict_t * target) {
+void wisp_harvest_start(edict_t *self, edict_t *target) {
     self->goalentity = target;
     unit_setmove(self, &wisp_harvest_walk);
 }
 
-static bool wisp_harvest_selecttarget(edict_t * clent, edict_t * target) {
+static bool wisp_harvest_selecttarget(edict_t *clent, edict_t *target) {
     if (!target || target->targtype != TARG_TREE || M_IsDead(target)) {
         return false;
     }
@@ -762,7 +762,7 @@ static bool wisp_harvest_selecttarget(edict_t * clent, edict_t * target) {
     return true;
 }
 
-static void wisp_harvest_command(edict_t * clent) {
+static void wisp_harvest_command(edict_t *clent) {
     UI_AddCancelButton(clent);
     clent->client->menu.on_entity_selected = wisp_harvest_selecttarget;
 }
@@ -780,7 +780,7 @@ BZ_ABILITY_PROC(CAbilityWispHarvest) {
 }
 
 /* ---- Acolyte harvest: target blighted gold mine ------------------------- */
-static bool acolyte_harvest_selecttarget(edict_t * clent, edict_t * target) {
+static bool acolyte_harvest_selecttarget(edict_t *clent, edict_t *target) {
     bool issued = false;
 
     if (!clent || !clent->client) return false;
@@ -810,7 +810,7 @@ BZ_COMMAND_PROC(AbilityReturn) {
         if (ent->harvested_lumber > 0) {
             harvest_walkback(ent);
         } else if (ent->harvested_gold > 0) {
-            edict_t * dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
+            edict_t *dropoff = S_FindNearestResourceDropoff(ent, RETURN_RESOURCE_GOLD);
             if (!harvest_gold_return_to(ent, dropoff))
                 ent->stand(ent);
         }
@@ -818,7 +818,7 @@ BZ_COMMAND_PROC(AbilityReturn) {
 }
 
 /* ---- Harvest menu dispatch (extended for wisp/acolyte) ------------------ */
-bool harvest_menu_selecttarget(edict_t * clent, edict_t * target) {
+bool harvest_menu_selecttarget(edict_t *clent, edict_t *target) {
     if (target && G_ActorHasSkill(target, "Abgm")) {
         bool has_acolyte = false;
         if (target->s.player != clent->client->ps.number) {
@@ -845,12 +845,12 @@ bool harvest_menu_selecttarget(edict_t * clent, edict_t * target) {
     return true;
 }
 
-static bool harvest_is_toggle_on(edict_t * ent) {
+static bool harvest_is_toggle_on(edict_t *ent) {
     return ent && (ent->harvested_lumber > 0 || ent->harvested_gold > 0);
 }
 
-void harvest_command(edict_t * ent) {
-    edict_t * selected = G_GetMainSelectedUnit(ent->client);
+void harvest_command(edict_t *ent) {
+    edict_t *selected = G_GetMainSelectedUnit(ent->client);
 
     /* Ahar is the worker's visible command in stock unit data. While the main
      * selected worker carries resources, activating it performs the same
@@ -865,7 +865,7 @@ void harvest_command(edict_t * ent) {
 }
 
 /* Issue a lumber target to the selected workers while preserving ability ownership. */
-static bool harvest_lumber_selecttarget(edict_t * clent, edict_t * target) {
+static bool harvest_lumber_selecttarget(edict_t *clent, edict_t *target) {
     bool issued = false;
 
     if (!clent || !clent->client || !target || target->targtype != TARG_TREE || M_IsDead(target))
@@ -879,8 +879,8 @@ static bool harvest_lumber_selecttarget(edict_t * clent, edict_t * target) {
 }
 
 /* Enter lumber target mode or return carried lumber through the owning ability. */
-static void harvest_lumber_command(edict_t * clent) {
-    edict_t * selected;
+static void harvest_lumber_command(edict_t *clent) {
+    edict_t *selected;
 
     if (!clent || !clent->client) return;
     selected = G_GetMainSelectedUnit(clent->client);

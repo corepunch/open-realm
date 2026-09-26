@@ -20,7 +20,7 @@ typedef struct cvaralias_s {
 
 
 static cvar_t *cvar_vars;
-static cvarAlias_t * aliases;
+static cvarAlias_t *aliases;
 static bool aliases_open;
 
 static bool Cvar_NameMatches(cstring_t name, cstring_t partial) {
@@ -495,7 +495,7 @@ static void Cvar_Alias_f(void) {
             break;
         }
     }
-    cvarAlias_t * alias = MemAlloc(sizeof(*alias));
+    cvarAlias_t *alias = MemAlloc(sizeof(*alias));
     *alias = (cvarAlias_t){ .next = aliases, .name = Cvar_CopyString(name), .target = target };
     aliases = alias;
 }

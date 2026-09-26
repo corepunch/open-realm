@@ -1,12 +1,12 @@
 #define API_PLAYERSTATE(NAME) \
-jassContext_t const * NAME##Context = jass_getcontext(j); \
-player_t * NAME = NAME##Context && NAME##Context->unit ? G_GetPlayerByNumber(NAME##Context->unit->s.player) : currentplayer;
+jassContext_t const *NAME##Context = jass_getcontext(j); \
+player_t *NAME = NAME##Context && NAME##Context->unit ? G_GetPlayerByNumber(NAME##Context->unit->s.player) : currentplayer;
 
-extern player_t * currentplayer;
+extern player_t *currentplayer;
 
 #define WC3_CAMERA_ASPECT 1.66f /* Warcraft camera horizontal/vertical FOV conversion aspect */
 
-static gameClient_t * G_CurrentCameraClient(cstring_t func) {
+static gameClient_t *G_CurrentCameraClient(cstring_t func) {
     (void)func;
     if (!currentplayer) {
         return NULL;
@@ -27,7 +27,7 @@ static float G_CameraVerticalToHorizontalFov(float vertical) {
 static float G_CameraDegreesToRadians(float value) { return value * (float)M_PI / 180.0f; }
 
 /* Sample all interpolated camera fields so a new transition can rebase from the in-flight state. */
-static camerasetup_t G_CameraStateAtTime(gameClient_t * gc, uint32_t now) {
+static camerasetup_t G_CameraStateAtTime(gameClient_t *gc, uint32_t now) {
     camerasetup_t current;
     uint32_t duration;
     float k;
@@ -59,7 +59,7 @@ static camerasetup_t G_CameraStateAtTime(gameClient_t * gc, uint32_t now) {
 }
 
 /* Reconstruct the rendered orbit eye from the same target, orientation, and distance sent to the client. */
-static vector3_t G_CameraEyePositionFromState(vector3_t const * target, vector3_t const * angles, float distance) {
+static vector3_t G_CameraEyePositionFromState(vector3_t const *target, vector3_t const *angles, float distance) {
     quaternion_t quat;
     matrix4_t view, inverse;
     vector3_t eye, origin = Vector3_unm(target);
@@ -73,7 +73,7 @@ static vector3_t G_CameraEyePositionFromState(vector3_t const * target, vector3_
     eye = (vector3_t){ inverse.v[12], inverse.v[13], inverse.v[14] };
     return eye;
 }
-static vector3_t G_CameraEyePosition(player_t const * playerstate) {
+static vector3_t G_CameraEyePosition(player_t const *playerstate) {
     return G_CameraEyePositionFromState(&playerstate->vieworigin, &playerstate->viewangles, playerstate->distance);
 }
 
@@ -85,10 +85,10 @@ static float G_CameraPitchToAuthored(float value) {
 static float G_CameraAuthoredToYaw(float value, float pitch) { return pitch < 0 ? 450 - value : 270 - value; }
 static float G_CameraYawToAuthored(float value, float pitch) { return pitch < 0 ? 450 - value : 270 - value; }
 /* Convert the client Euler yaw back to Warcraft's authored rotation field. */
-static float G_CameraRotation(player_t const * p) { return G_CameraYawToAuthored(p->viewangles.z, p->viewangles.x); }
+static float G_CameraRotation(player_t const *p) { return G_CameraYawToAuthored(p->viewangles.z, p->viewangles.x); }
 
 /* Read one sampled camera field in the authored units consumed by camera setters. */
-static float G_GetCameraStateField(camerasetup_t const * camera, CAMERAFIELD field) {
+static float G_GetCameraStateField(camerasetup_t const *camera, CAMERAFIELD field) {
     if (!camera) {
         return 0.0f;
     }
@@ -110,7 +110,7 @@ static float G_GetCameraStateField(camerasetup_t const * camera, CAMERAFIELD fie
 }
 
 /* Write one authored camera field while preserving the setup's shared angle convention. */
-static bool G_SetCameraStateField(camerasetup_t * camera, CAMERAFIELD field, float value) {
+static bool G_SetCameraStateField(camerasetup_t *camera, CAMERAFIELD field, float value) {
     if (!camera) {
         return false;
     }
@@ -143,7 +143,7 @@ static bool G_SetCameraStateField(camerasetup_t * camera, CAMERAFIELD field, flo
 
 /* Start a scalar field transition from the current in-flight setup for the current JASS player. */
 static void G_SetCameraFieldForCurrentPlayer(CAMERAFIELD field, float value, float duration) {
-    gameClient_t * gc = G_CurrentCameraClient("G_SetCameraFieldForCurrentPlayer");
+    gameClient_t *gc = G_CurrentCameraClient("G_SetCameraFieldForCurrentPlayer");
     camerasetup_t current, target;
     uint32_t now;
 
@@ -166,18 +166,18 @@ static void G_SetCameraFieldForCurrentPlayer(CAMERAFIELD field, float value, flo
 }
 
 /* Recover the authored target offset from the terrain-composed runtime target height. */
-static float G_CameraZOffset(player_t const * p) {
-    gameClient_t * gc = G_CurrentCameraClient("G_CameraZOffset");
+static float G_CameraZOffset(player_t const *p) {
+    gameClient_t *gc = G_CurrentCameraClient("G_CameraZOffset");
     return gc ? p->vieworigin.z - gc->camera.target_height
               : p->vieworigin.z - CM_GetHeightAtPoint(p->vieworigin.x, p->vieworigin.y) - CM_GetCameraHeightOffset();
 }
 
 #ifdef WC3_DEBUG_CAMERA_TRACE
 /* Emit opt-in camera samples for retail/OpenRealm comparisons without changing map JASS. */
-void G_CameraTraceSnapshotForClient(gameClient_t * gc, cstring_t label) {
-    player_t const * p;
-    camerasetup_t * s;
-    vector3_t const * ang;
+void G_CameraTraceSnapshotForClient(gameClient_t *gc, cstring_t label) {
+    player_t const *p;
+    camerasetup_t *s;
+    vector3_t const *ang;
     float dist, fov, roll, zoff, farz;
     float terrain, sample_height, realized_base, composed_z;
     float k = 0.0f;
@@ -242,7 +242,7 @@ void G_CameraTraceSnapshot(cstring_t label) {
 static void G_SetCameraPositionForCurrentPlayer(cstring_t func, float x, float y,
                                                  bool set_z, float z_offset,
                                                  float duration) {
-    gameClient_t * gc = G_CurrentCameraClient(func);
+    gameClient_t *gc = G_CurrentCameraClient(func);
     vector2_t position = { x, y };
 
     if (!gc) {
@@ -263,12 +263,12 @@ static void G_SetCameraPositionForCurrentPlayer(cstring_t func, float x, float y
     gc->camera.end_time = gc->camera.start_time + duration * 1000;
 }
 
-uint32_t SetCameraTargetController(jass_t * j) {
-    edict_t * whichUnit = jass_checkhandle(j, 1, "unit");
+uint32_t SetCameraTargetController(jass_t *j) {
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     float xoffset = jass_checknumber(j, 2);
     float yoffset = jass_checknumber(j, 3);
     bool inheritOrientation = jass_checkboolean(j, 4);
-    gameClient_t * gc = G_CurrentCameraClient("SetCameraTargetController");
+    gameClient_t *gc = G_CurrentCameraClient("SetCameraTargetController");
     if (!gc) {
         return 0;
     }
@@ -291,22 +291,22 @@ uint32_t SetCameraTargetController(jass_t * j) {
     }
     return 0;
 }
-uint32_t SetCameraOrientController(jass_t * j) {
-    //edict_t * whichUnit = jass_checkhandle(j, 1, "unit");
+uint32_t SetCameraOrientController(jass_t *j) {
+    //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     //float xoffset = jass_checknumber(j, 2);
     //float yoffset = jass_checknumber(j, 3);
     return 0;
 }
-uint32_t SetCameraPosition(jass_t * j) {
+uint32_t SetCameraPosition(jass_t *j) {
     float x = jass_checknumber(j, 1);
     float y = jass_checknumber(j, 2);
     G_SetCameraPositionForCurrentPlayer("SetCameraPosition", x, y, false, 0.0f, 0);
     return 0;
 }
-uint32_t SetCameraQuickPosition(jass_t * j) {
+uint32_t SetCameraQuickPosition(jass_t *j) {
     float x = jass_checknumber(j, 1);
     float y = jass_checknumber(j, 2);
-    gameClient_t * gc = G_CurrentCameraClient("SetCameraQuickPosition");
+    gameClient_t *gc = G_CurrentCameraClient("SetCameraQuickPosition");
     if (!gc) {
         return 0;
     }
@@ -316,7 +316,7 @@ uint32_t SetCameraQuickPosition(jass_t * j) {
     gc->camera.quick_position_set = true;
     return 0;
 }
-uint32_t SetCameraBounds(jass_t * j) {
+uint32_t SetCameraBounds(jass_t *j) {
     float bounds[8];
 
     FOR_LOOP(i, 8) {
@@ -326,8 +326,8 @@ uint32_t SetCameraBounds(jass_t * j) {
     return 0;
 }
 /* Freeze the current timed camera transition at its sampled state. */
-uint32_t StopCamera(jass_t * j) {
-    gameClient_t * gc = G_CurrentCameraClient("StopCamera");
+uint32_t StopCamera(jass_t *j) {
+    gameClient_t *gc = G_CurrentCameraClient("StopCamera");
     uint32_t now;
 
     (void)j;
@@ -340,9 +340,9 @@ uint32_t StopCamera(jass_t * j) {
     gc->camera.start_time = gc->camera.end_time = now;
     return 0;
 }
-uint32_t ResetToGameCamera(jass_t * j) {
+uint32_t ResetToGameCamera(jass_t *j) {
     float duration = jass_checknumber(j, 1);
-    gameClient_t * gc = G_CurrentCameraClient("ResetToGameCamera");
+    gameClient_t *gc = G_CurrentCameraClient("ResetToGameCamera");
     if (!gc) {
         return 0;
     }
@@ -365,27 +365,27 @@ uint32_t ResetToGameCamera(jass_t * j) {
     gc->camera.end_time = gc->camera.start_time + (duration * 1000);
     return 0;
 }
-uint32_t PanCameraTo(jass_t * j) {
+uint32_t PanCameraTo(jass_t *j) {
     float x = jass_checknumber(j, 1);
     float y = jass_checknumber(j, 2);
     G_SetCameraPositionForCurrentPlayer("PanCameraTo", x, y, false, 0.0f, 0);
     return 0;
 }
-uint32_t PanCameraToTimed(jass_t * j) {
+uint32_t PanCameraToTimed(jass_t *j) {
     float x = jass_checknumber(j, 1);
     float y = jass_checknumber(j, 2);
     float duration = jass_checknumber(j, 3);
     G_SetCameraPositionForCurrentPlayer("PanCameraToTimed", x, y, false, 0.0f, duration);
     return 0;
 }
-uint32_t PanCameraToWithZ(jass_t * j) {
+uint32_t PanCameraToWithZ(jass_t *j) {
     float x = jass_checknumber(j, 1);
     float y = jass_checknumber(j, 2);
     float zOffsetDest = jass_checknumber(j, 3);
     G_SetCameraPositionForCurrentPlayer("PanCameraToWithZ", x, y, true, zOffsetDest, 0);
     return 0;
 }
-uint32_t PanCameraToTimedWithZ(jass_t * j) {
+uint32_t PanCameraToTimedWithZ(jass_t *j) {
     float x = jass_checknumber(j, 1);
     float y = jass_checknumber(j, 2);
     float zOffsetDest = jass_checknumber(j, 3);
@@ -393,11 +393,11 @@ uint32_t PanCameraToTimedWithZ(jass_t * j) {
     G_SetCameraPositionForCurrentPlayer("PanCameraToTimedWithZ", x, y, true, zOffsetDest, duration);
     return 0;
 }
-uint32_t SetCinematicCamera(jass_t * j) {
+uint32_t SetCinematicCamera(jass_t *j) {
     //cstring_t cameraModelFile = jass_checkstring(j, 1);
     return 0;
 }
-uint32_t SetCameraField(jass_t * j) {
+uint32_t SetCameraField(jass_t *j) {
     CAMERAFIELD *whichField = jass_checkhandle(j, 1, "camerafield");
     float value = jass_checknumber(j, 2);
     float duration = jass_checknumber(j, 3);
@@ -407,11 +407,11 @@ uint32_t SetCameraField(jass_t * j) {
     }
     return 0;
 }
-uint32_t AdjustCameraField(jass_t * j) {
+uint32_t AdjustCameraField(jass_t *j) {
     CAMERAFIELD *whichField = jass_checkhandle(j, 1, "camerafield");
     float offset = jass_checknumber(j, 2);
     float duration = jass_checknumber(j, 3);
-    gameClient_t * gc = G_CurrentCameraClient("AdjustCameraField");
+    gameClient_t *gc = G_CurrentCameraClient("AdjustCameraField");
 
     if (gc && whichField) {
         camerasetup_t current = G_CameraStateAtTime(gc, G_Time());
@@ -419,7 +419,7 @@ uint32_t AdjustCameraField(jass_t * j) {
     }
     return 0;
 }
-uint32_t CreateCameraSetup(jass_t * j) {
+uint32_t CreateCameraSetup(jass_t *j) {
     API_ALLOC(camerasetup_t, camerasetup);
     {
         gameCamera_t cam;
@@ -432,8 +432,8 @@ uint32_t CreateCameraSetup(jass_t * j) {
     }
     return 1;
 }
-uint32_t CameraSetupSetField(jass_t * j) {
-    camerasetup_t * whichSetup = jass_checkhandle(j, 1, "camerasetup");
+uint32_t CameraSetupSetField(jass_t *j) {
+    camerasetup_t *whichSetup = jass_checkhandle(j, 1, "camerasetup");
     CAMERAFIELD *whichField = jass_checkhandle(j, 2, "camerafield");
     float value = jass_checknumber(j, 3);
     switch (*whichField) {
@@ -458,8 +458,8 @@ uint32_t CameraSetupSetField(jass_t * j) {
 //    float duration = jass_checknumber(j, 4);
     return 0;
 }
-uint32_t CameraSetupGetField(jass_t * j) {
-    camerasetup_t * whichSetup = jass_checkhandle(j, 1, "camerasetup");
+uint32_t CameraSetupGetField(jass_t *j) {
+    camerasetup_t *whichSetup = jass_checkhandle(j, 1, "camerasetup");
     uint32_t *whichField = jass_checkhandle(j, 2, "camerafield");
     float value = 0;
     switch (*whichField) {
@@ -478,8 +478,8 @@ uint32_t CameraSetupGetField(jass_t * j) {
     }
     return jass_pushnumber(j, value);
 }
-uint32_t CameraSetupSetDestPosition(jass_t * j) {
-    camerasetup_t * whichSetup = jass_checkhandle(j, 1, "camerasetup");
+uint32_t CameraSetupSetDestPosition(jass_t *j) {
+    camerasetup_t *whichSetup = jass_checkhandle(j, 1, "camerasetup");
     float x = jass_checknumber(j, 2);
     float y = jass_checknumber(j, 3);
 //    float duration = jass_checknumber(j, 4);
@@ -487,24 +487,24 @@ uint32_t CameraSetupSetDestPosition(jass_t * j) {
     whichSetup->position.y = y;
     return 0;
 }
-uint32_t CameraSetupGetDestPositionLoc(jass_t * j) {
-    camerasetup_t * whichSetup = jass_checkhandle(j, 1, "camerasetup");
+uint32_t CameraSetupGetDestPositionLoc(jass_t *j) {
+    camerasetup_t *whichSetup = jass_checkhandle(j, 1, "camerasetup");
     return jass_pushlighthandle(j, &whichSetup->position, "location");
 }
-uint32_t CameraSetupGetDestPositionX(jass_t * j) {
-    camerasetup_t * whichSetup = jass_checkhandle(j, 1, "camerasetup");
+uint32_t CameraSetupGetDestPositionX(jass_t *j) {
+    camerasetup_t *whichSetup = jass_checkhandle(j, 1, "camerasetup");
     return jass_pushnumber(j, whichSetup->position.x);
 }
-uint32_t CameraSetupGetDestPositionY(jass_t * j) {
-    camerasetup_t * whichSetup = jass_checkhandle(j, 1, "camerasetup");
+uint32_t CameraSetupGetDestPositionY(jass_t *j) {
+    camerasetup_t *whichSetup = jass_checkhandle(j, 1, "camerasetup");
     return jass_pushnumber(j, whichSetup->position.y);
 }
 /* CameraSetup Apply variants share one state transition. The plain Apply
  * still has no retained per-field duration, but WithZ must override the setup's
  * authored Z offset exactly like Warsmash's setTargetZOffset path. */
-static void G_ApplyCameraSetup(camerasetup_t * setup, bool apply_position,
+static void G_ApplyCameraSetup(camerasetup_t *setup, bool apply_position,
                                bool override_z, float z_offset, float duration_ms) {
-    gameClient_t * gc = G_CurrentCameraClient("CameraSetupApply");
+    gameClient_t *gc = G_CurrentCameraClient("CameraSetupApply");
     if (!gc || !setup) {
         return;
     }
@@ -530,8 +530,8 @@ static void G_ApplyCameraSetup(camerasetup_t * setup, bool apply_position,
     gc->camera.start_time = G_Time();
     gc->camera.end_time = gc->camera.start_time + duration_ms;
 }
-uint32_t CameraSetupApply(jass_t * j) {
-    camerasetup_t * whichSetup = jass_checkhandle(j, 1, "camerasetup");
+uint32_t CameraSetupApply(jass_t *j) {
+    camerasetup_t *whichSetup = jass_checkhandle(j, 1, "camerasetup");
     bool doPan = jass_checkboolean(j, 2);
     (void)jass_checkboolean(j, 3); /* panTimed: untimed camera rates are not retained yet */
     G_ApplyCameraSetup(whichSetup, doPan, false, 0.0f, 0);
@@ -540,8 +540,8 @@ uint32_t CameraSetupApply(jass_t * j) {
 #endif
     return 0;
 }
-uint32_t CameraSetupApplyWithZ(jass_t * j) {
-    camerasetup_t * whichSetup = jass_checkhandle(j, 1, "camerasetup");
+uint32_t CameraSetupApplyWithZ(jass_t *j) {
+    camerasetup_t *whichSetup = jass_checkhandle(j, 1, "camerasetup");
     float zDestOffset = jass_checknumber(j, 2);
     G_ApplyCameraSetup(whichSetup, true, true, zDestOffset, 0);
 #ifdef WC3_DEBUG_CAMERA_TRACE
@@ -549,8 +549,8 @@ uint32_t CameraSetupApplyWithZ(jass_t * j) {
 #endif
     return 0;
 }
-uint32_t CameraSetupApplyForceDuration(jass_t * j) {
-    camerasetup_t * whichSetup = jass_checkhandle(j, 1, "camerasetup");
+uint32_t CameraSetupApplyForceDuration(jass_t *j) {
+    camerasetup_t *whichSetup = jass_checkhandle(j, 1, "camerasetup");
     bool doPan = jass_checkboolean(j, 2);
     float forceDuration = jass_checknumber(j, 3);
     G_ApplyCameraSetup(whichSetup, doPan, false, 0.0f, forceDuration * 1000);
@@ -559,8 +559,8 @@ uint32_t CameraSetupApplyForceDuration(jass_t * j) {
 #endif
     return 0;
 }
-uint32_t CameraSetupApplyForceDurationWithZ(jass_t * j) {
-    camerasetup_t * whichSetup = jass_checkhandle(j, 1, "camerasetup");
+uint32_t CameraSetupApplyForceDurationWithZ(jass_t *j) {
+    camerasetup_t *whichSetup = jass_checkhandle(j, 1, "camerasetup");
     float zDestOffset = jass_checknumber(j, 2);
     float forceDuration = jass_checknumber(j, 3);
     G_ApplyCameraSetup(whichSetup, true, true, zDestOffset, forceDuration * 1000);
@@ -569,17 +569,17 @@ uint32_t CameraSetupApplyForceDurationWithZ(jass_t * j) {
 #endif
     return 0;
 }
-uint32_t CameraSetTargetNoise(jass_t * j) {
+uint32_t CameraSetTargetNoise(jass_t *j) {
     //float mag = jass_checknumber(j, 1);
     //float velocity = jass_checknumber(j, 2);
     return 0;
 }
-uint32_t CameraSetSourceNoise(jass_t * j) {
+uint32_t CameraSetSourceNoise(jass_t *j) {
     //float mag = jass_checknumber(j, 1);
     //float velocity = jass_checknumber(j, 2);
     return 0;
 }
-uint32_t CameraSetSmoothingFactor(jass_t * j) {
+uint32_t CameraSetSmoothingFactor(jass_t *j) {
     //float factor = jass_checknumber(j, 1);
     return 0;
 }
@@ -610,7 +610,7 @@ static box2_t G_PlayableMapBounds(void) {
     return playable;
 }
 
-uint32_t GetCameraMargin(jass_t * j) {
+uint32_t GetCameraMargin(jass_t *j) {
     int32_t whichMargin = jass_checkinteger(j, 1);
     box2_t const camera = G_DefaultCameraBounds();
     box2_t const playable = G_PlayableMapBounds();
@@ -624,19 +624,19 @@ uint32_t GetCameraMargin(jass_t * j) {
     }
     return 1;
 }
-uint32_t GetCameraBoundMinX(jass_t * j) {
+uint32_t GetCameraBoundMinX(jass_t *j) {
     return jass_pushnumber(j, level.camera_bounds.min.x);
 }
-uint32_t GetCameraBoundMinY(jass_t * j) {
+uint32_t GetCameraBoundMinY(jass_t *j) {
     return jass_pushnumber(j, level.camera_bounds.min.y);
 }
-uint32_t GetCameraBoundMaxX(jass_t * j) {
+uint32_t GetCameraBoundMaxX(jass_t *j) {
     return jass_pushnumber(j, level.camera_bounds.max.x);
 }
-uint32_t GetCameraBoundMaxY(jass_t * j) {
+uint32_t GetCameraBoundMaxY(jass_t *j) {
     return jass_pushnumber(j, level.camera_bounds.max.y);
 }
-uint32_t GetCameraField(jass_t * j) {
+uint32_t GetCameraField(jass_t *j) {
     handle_t whichField = jass_checkhandle(j, 1, "camerafield");
     API_PLAYERSTATE(playerstate);
     float value = 0;
@@ -659,20 +659,20 @@ uint32_t GetCameraField(jass_t * j) {
     }
     return jass_pushnumber(j, value);
 }
-uint32_t GetCameraTargetPositionX(jass_t * j) {
+uint32_t GetCameraTargetPositionX(jass_t *j) {
     API_PLAYERSTATE(playerstate);
     return jass_pushnumber(j, playerstate ? playerstate->vieworigin.x : 0);
 }
-uint32_t GetCameraTargetPositionY(jass_t * j) {
+uint32_t GetCameraTargetPositionY(jass_t *j) {
     API_PLAYERSTATE(playerstate);
     return jass_pushnumber(j, playerstate ? playerstate->vieworigin.y : 0);
 }
-uint32_t GetCameraTargetPositionZ(jass_t * j) {
+uint32_t GetCameraTargetPositionZ(jass_t *j) {
     API_PLAYERSTATE(playerstate);
     return jass_pushnumber(j, playerstate ? playerstate->vieworigin.z : 0);
 }
 
-uint32_t GetCameraTargetPositionLoc(jass_t * j) {
+uint32_t GetCameraTargetPositionLoc(jass_t *j) {
     API_ALLOC(vector2_t, location);
     API_PLAYERSTATE(playerstate);
     if (playerstate) {
@@ -680,22 +680,22 @@ uint32_t GetCameraTargetPositionLoc(jass_t * j) {
     }
     return 1;
 }
-uint32_t GetCameraEyePositionX(jass_t * j) {
+uint32_t GetCameraEyePositionX(jass_t *j) {
     API_PLAYERSTATE(playerstate);
     vector3_t eye = playerstate ? G_CameraEyePosition(playerstate) : (vector3_t){ 0 };
     return jass_pushnumber(j, eye.x);
 }
-uint32_t GetCameraEyePositionY(jass_t * j) {
+uint32_t GetCameraEyePositionY(jass_t *j) {
     API_PLAYERSTATE(playerstate);
     vector3_t eye = playerstate ? G_CameraEyePosition(playerstate) : (vector3_t){ 0 };
     return jass_pushnumber(j, eye.y);
 }
-uint32_t GetCameraEyePositionZ(jass_t * j) {
+uint32_t GetCameraEyePositionZ(jass_t *j) {
     API_PLAYERSTATE(playerstate);
     vector3_t eye = playerstate ? G_CameraEyePosition(playerstate) : (vector3_t){ 0 };
     return jass_pushnumber(j, eye.z);
 }
-uint32_t GetCameraEyePositionLoc(jass_t * j) {
+uint32_t GetCameraEyePositionLoc(jass_t *j) {
     API_ALLOC(vector2_t, location);
     API_PLAYERSTATE(playerstate);
     if (playerstate) {

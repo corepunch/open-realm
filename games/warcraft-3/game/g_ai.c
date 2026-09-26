@@ -1,14 +1,14 @@
 #include "g_local.h"
 #include "skills/s_skills.h"
 
-void unit_setanimation(edict_t * self, cstring_t anim) {
+void unit_setanimation(edict_t *self, cstring_t anim) {
     /* Walk is requested every movement tick. Keep the selected numbered walk
      * sequence until a move transition selects a fresh animation. */
     if (self && anim && !strcmp(anim, "walk") && G_AnimationHasPrimary(self->animation, "walk")) return;
     G_SetUnitAnimation(self, anim);
 }
 
-static bool unit_is_active_repair_move(edict_t * self) {
+static bool unit_is_active_repair_move(edict_t *self) {
     char rawcode[5];
     ability_t const *handler;
 
@@ -19,7 +19,7 @@ static bool unit_is_active_repair_move(edict_t * self) {
     return handler && self->currentmove->proc == handler->proc;
 }
 
-void unit_setmove(edict_t * self, umove_t *move) {
+void unit_setmove(edict_t *self, umove_t *move) {
     bool was_idle = G_UnitIsIdleWorker(self);
 
     if (self->currentmove != move) move_cancel_displacement(self);
@@ -85,7 +85,7 @@ void unit_setmove(edict_t * self, umove_t *move) {
     }
 }
 
-void unit_runwait(edict_t * self, void (*callback)(edict_t * )) {
+void unit_runwait(edict_t *self, void (*callback)(edict_t * )) {
     if (self->wait <= 0)
         return;
     if (self->wait > FRAMETIME / 1000.f) {
@@ -96,19 +96,19 @@ void unit_runwait(edict_t * self, void (*callback)(edict_t * )) {
     }
 }
 
-void ai_idle(edict_t * self) {
+void ai_idle(edict_t *self) {
 }
 
-void order_attack(edict_t * self, edict_t * target);
+void order_attack(edict_t *self, edict_t *target);
 
 #define MAX_SIGHT_ENTITIES 256
 
-static edict_t * ai_current_entity = NULL;
-static edict_t * sight_entities[MAX_SIGHT_ENTITIES];
+static edict_t *ai_current_entity = NULL;
+static edict_t *sight_entities[MAX_SIGHT_ENTITIES];
 
-static bool unit_has_attack(edict_t const * self);
+static bool unit_has_attack(edict_t const *self);
 
-static bool filter_sight(edict_t const * ent) {
+static bool filter_sight(edict_t const *ent) {
     if (!(ent->svflags & SVF_MONSTER) || !ai_current_entity ||
         ai_current_entity->s.player >= MAX_PLAYERS || ent->s.player >= MAX_PLAYERS ||
         ent->s.player == ai_current_entity->s.player)
@@ -144,7 +144,7 @@ static bool filter_sight(edict_t const * ent) {
 }
 
 /* Does this unit have an attack to acquire targets with? */
-static bool unit_has_attack(edict_t const * self) {
+static bool unit_has_attack(edict_t const *self) {
     return S_CargoAttacksEnabled(self) &&
            ((S_UnitAttackSlotEnabled(self, 0) && self->attack1.cooldown > 0.0f && (self->attack1.damageBase > 0 || self->attack1.numberOfDice > 0)) ||
             (S_UnitAttackSlotEnabled(self, 1) && self->attack2.cooldown > 0.0f && (self->attack2.damageBase > 0 || self->attack2.numberOfDice > 0)));
@@ -154,27 +154,27 @@ static bool unit_has_attack(edict_t const * self) {
  * staggered by entity index, instead of every sim tick. */
 #define AI_ACQUIRE_INTERVAL 300 /* ms */
 
-bool G_ShouldAcquireThisFrame(edict_t const * self) {
+bool G_ShouldAcquireThisFrame(edict_t const *self) {
     uint32_t const stagger = (uint32_t)(self - g_edicts) % AI_ACQUIRE_INTERVAL;
     return ((level.time + stagger) % AI_ACQUIRE_INTERVAL) < (uint32_t)FRAMETIME;
 }
 
 /* Return the spawn-cached range; repeated SLK walks dominated large acquisition scans. */
-float G_AcquisitionRange(edict_t const * self) {
+float G_AcquisitionRange(edict_t const *self) {
     return self->runtime.acquisition_range;
 }
 
-edict_t * G_FindNearestEnemy(edict_t * self, float radius) {
+edict_t *G_FindNearestEnemy(edict_t *self, float radius) {
     ai_current_entity = self;
     box2_t const sightbox = {
         { self->s.origin2.x - radius, self->s.origin2.y - radius },
         { self->s.origin2.x + radius, self->s.origin2.y + radius },
     };
     uint32_t numents = gi.BoxEdicts(&sightbox, sight_entities, MAX_SIGHT_ENTITIES, filter_sight);
-    edict_t * best = NULL;
+    edict_t *best = NULL;
     float best_dist = radius;
     FOR_LOOP(i, numents) {
-        edict_t * ent = sight_entities[i];
+        edict_t *ent = sight_entities[i];
         float const d = Vector2_distance(&ent->s.origin2, &self->s.origin2);
         if (d < best_dist) {
             best_dist = d;
@@ -184,7 +184,7 @@ edict_t * G_FindNearestEnemy(edict_t * self, float radius) {
     return best;
 }
 
-void ai_stand(edict_t * self) {
+void ai_stand(edict_t *self) {
     if (!(self->svflags & SVF_MONSTER))
         return;
     /* Upgrading structures keep their world entity but their ordinary
@@ -218,14 +218,14 @@ void ai_stand(edict_t * self) {
     if (!unit_has_attack(self))
         return;
 
-    edict_t * best = G_FindNearestEnemy(self, G_AcquisitionRange(self));
+    edict_t *best = G_FindNearestEnemy(self, G_AcquisitionRange(self));
     if (best) {
         order_attack(self, best);
     }
 }
 
-void ai_birth(edict_t * self) {
+void ai_birth(edict_t *self) {
 }
 
-void ai_pain(edict_t * self) {
+void ai_pain(edict_t *self) {
 }

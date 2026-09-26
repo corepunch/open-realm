@@ -1,7 +1,7 @@
 #include "g_local.h"
 
-bool jass_calltriggerevent(jass_t * j, trigger_t * trigger, gameEvent_t const *event);
-bool jass_evaluateboolexpr(jass_t * j, jassFunc_t const * expr, edict_t * unit);
+bool jass_calltriggerevent(jass_t *j, trigger_t *trigger, gameEvent_t const *event);
+bool jass_evaluateboolexpr(jass_t *j, jassFunc_t const *expr, edict_t *unit);
 
 bool G_LimitMatches(uint32_t op, float value, float limit) {
     switch (op) {
@@ -27,8 +27,8 @@ void G_JassVariableChanged(cstring_t name, float before, float after) {
  * and developer cheats.  Keep campaign/result presentation downstream of the
  * normal EVENT_PLAYER_VICTORY / EVENT_PLAYER_DEFEAT pipeline. */
 bool G_RemovePlayerWithResult(uint32_t player_num, uint32_t game_result) {
-    gameClient_t * client;
-    edict_t * pent;
+    gameClient_t *client;
+    edict_t *pent;
 
     if (player_num >= game.max_clients || game_result > 3) {
         G_GameResultDebug("RemovePlayer ignored reason=invalid_args player=%u result=%u",
@@ -94,7 +94,7 @@ bool G_RemovePlayerWithResult(uint32_t player_num, uint32_t game_result) {
 }
 
 static void G_ExecuteEvent(gameEvent_t *evt) {
-    edict_t * subject = evt->edict;
+    edict_t *subject = evt->edict;
     bool result_event = evt->type == EVENT_PLAYER_VICTORY || evt->type == EVENT_PLAYER_DEFEAT;
     uint32_t matching_handlers = 0, invoked_handlers = 0;
     /* KillUnit followed by RemoveUnit still owes death notifications while the corpse exists. */
@@ -265,12 +265,12 @@ static void G_ExecuteEvent(gameEvent_t *evt) {
     }
 }
 
-static void G_TouchTriggers(edict_t * ent) {
+static void G_TouchTriggers(edict_t *ent) {
     FOR_EACH_EVENT(evt) {
         switch (evt->type) {
             case EVENT_GAME_ENTER_REGION: {
                 handle_t event_handle = G_EventHandle(evt), region_handle = evt->region;
-                region_t * region = G_RegionFromHandle(evt->region);
+                region_t *region = G_RegionFromHandle(evt->region);
                 uint32_t spawn_time = ent->spawn_time;
                 if (region && G_RegionContains(region, &ent->s.origin2) &&
                     !G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
@@ -283,7 +283,7 @@ static void G_TouchTriggers(edict_t * ent) {
             }
             case EVENT_GAME_LEAVE_REGION: {
                 handle_t event_handle = G_EventHandle(evt), region_handle = evt->region;
-                region_t * region = G_RegionFromHandle(evt->region);
+                region_t *region = G_RegionFromHandle(evt->region);
                 uint32_t spawn_time = ent->spawn_time;
                 if (region && !G_RegionContains(region, &ent->s.origin2) &&
                     G_RegionContains(region, &ent->old_origin) && jass_evaluateboolexpr(level.vm, evt->filter, ent) &&
@@ -297,7 +297,7 @@ static void G_TouchTriggers(edict_t * ent) {
             case EVENT_UNIT_IN_RANGE:
                 if (!G_EventSubjectIsCurrent(evt)) break;
                 if (ent == evt->subject) {
-                    edict_t * target;
+                    edict_t *target;
 
                     /* A unit-in-range event is symmetric for movement: the
                      * registered subject may approach a target.  The
@@ -331,7 +331,7 @@ static void G_TouchTriggers(edict_t * ent) {
 
 /* Explicit JASS position changes happen before G_RunEntities samples old_origin.
  * Evaluate the crossing here, then make the teleported position the next baseline. */
-void G_UnitPositionChanged(edict_t * ent, vector2_t const * old_position) {
+void G_UnitPositionChanged(edict_t *ent, vector2_t const *old_position) {
     if (!ent || !ent->inuse || !old_position ||
         !memcmp(old_position, &ent->s.origin2, sizeof(*old_position))) return;
     ent->old_origin = *old_position;
@@ -341,7 +341,7 @@ void G_UnitPositionChanged(edict_t * ent, vector2_t const * old_position) {
 
 void G_RunEntities(void) {
     FOR_LOOP(i, globals.num_edicts) {
-        edict_t * ent = globals.edicts+i;
+        edict_t *ent = globals.edicts+i;
         if (!ent->inuse) continue; /* freed edicts are memset and never re-sent; skip the per-frame clear */
         ent->old_origin = ent->s.origin2;
         if (ent->sound.pending) {
@@ -362,12 +362,12 @@ void G_RunEntities(void) {
         }
     }
     FOR_LOOP(i, globals.num_edicts) {
-        edict_t * ent = globals.edicts+i;
+        edict_t *ent = globals.edicts+i;
         if (!ent->inuse) continue;
         G_RunEntity(ent);
     }
     FOR_LOOP(i, globals.num_edicts) {
-        edict_t * ent = globals.edicts+i;
+        edict_t *ent = globals.edicts+i;
         if (!ent->inuse) continue;
         if (!memcmp(&ent->old_origin, &ent->s.origin2, sizeof(vector2_t)))
             continue;
@@ -376,7 +376,7 @@ void G_RunEntities(void) {
 }
 
 /* A late-frame death must reach its actions before deferred removal clears the dying unit. */
-bool G_HasPendingDeathEvent(edict_t const * ent) {
+bool G_HasPendingDeathEvent(edict_t const *ent) {
     for (uint32_t i = level.events.read; i < level.events.write; i++) {
         gameEvent_t const *evt = &level.events.queue[i % MAX_EVENT_QUEUE];
         if (G_IsDeathEvent(evt->type) && evt->edict == ent &&
@@ -413,7 +413,7 @@ void G_DrainPausedResultEvents(void) {
         bool waiting = false;
 
         FOR_LOOP(i, game.max_clients) {
-            gameClient_t * client = game.clients + i;
+            gameClient_t *client = game.clients + i;
             if (client->jass.pending_game_result &&
                 level.events.read < client->jass.pending_game_result_event) {
                 waiting = true;

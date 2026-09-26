@@ -331,7 +331,7 @@ typedef struct {
         float RotationPitch;
         uint32_t unknown7;
     } fresnel2;
-    texture_t const * texture;
+    texture_t const *texture;
 } m3Layer_t;
 
 typedef struct {

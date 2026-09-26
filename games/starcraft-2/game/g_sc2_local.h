@@ -26,7 +26,7 @@ typedef struct {
 
 
 typedef struct {
-    jass_t * vm;
+    jass_t *vm;
     bool   scriptsStarted;
     float  cinefade;       /* 0=clear … 1=fully black (written to client ps.cinefade) */
     bool   cinematic;      /* true while cinematic bars/overlay is active */
@@ -40,7 +40,7 @@ typedef struct {
 extern sc2Level_t sc2_level;
 
 int          G_RegisterModel(cstring_t filename);
-animation_t const * G_GetAnimation(uint32_t modelindex, cstring_t animname);
+animation_t const *G_GetAnimation(uint32_t modelindex, cstring_t animname);
 void         G_FreeModels(void);
 
 /* HUD declarations are in hud/hud.h; include that separately in .c files. */

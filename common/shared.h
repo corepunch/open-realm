@@ -27,7 +27,7 @@ static inline char const *bz_strcasestr(char const *haystack, char const *needle
 #endif
 
 /* Windows and older Linux C libraries lack BSD strlcpy/strlcat. */
-static inline size_t bz_strlcpy(char *destination, const char *source, size_t size) {
+static inline size_t bz_strlcpy(char *destination, char const *source, size_t size) {
     size_t const source_length = strlen(source);
     if (size > 0) {
         size_t const copy_length = source_length < size - 1 ? source_length : size - 1;
@@ -37,7 +37,7 @@ static inline size_t bz_strlcpy(char *destination, const char *source, size_t si
     return source_length;
 }
 
-static inline size_t bz_strlcat(char *destination, const char *source, size_t size) {
+static inline size_t bz_strlcat(char *destination, char const *source, size_t size) {
     size_t destination_length = 0, source_length = strlen(source);
     while (destination_length < size && destination[destination_length]) destination_length++;
     if (destination_length == size) return size + source_length;
@@ -847,7 +847,7 @@ static inline uint32_t ShadowPackRect(float x, float y, float w, float h) {
            ((uint32_t)ShadowPackRectComponent(h) << 24);
 }
 
-static inline void ShadowUnpackRect(uint32_t packed, float * x, float * y, float * w, float * h) {
+static inline void ShadowUnpackRect(uint32_t packed, float *x, float *y, float *w, float *h) {
     if (x) *x = ShadowUnpackRectComponent((uint8_t)(packed & 0xff));
     if (y) *y = ShadowUnpackRectComponent((uint8_t)((packed >> 8) & 0xff));
     if (w) *w = ShadowUnpackRectComponent((uint8_t)((packed >> 16) & 0xff));

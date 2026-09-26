@@ -11,13 +11,13 @@
 #define BZ_BAM2 MAKEFOURCC('B', 'a', 'm', '2') // rawcode; spell-damage absorption buff
 #define BZ_AHTB MAKEFOURCC('A', 'H', 't', 'b') // rawcode; Storm Bolt, used as a hostile spell probe
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
-typedef struct { slkTestData_t *rows, *old; edict_t * caster, *ally, *enemy; } amsFix_t;
+typedef struct { slkTestData_t *rows, *old; edict_t *caster, *ally, *enemy; } amsFix_t;
 
 static amsFix_t ams_setup(cstring_t slk, uint32_t code) {
     amsFix_t fix;
@@ -40,7 +40,7 @@ static amsFix_t ams_setup(cstring_t slk, uint32_t code) {
 
 static void ams_done(amsFix_t fix) { G_SetSLKRows("AbilityData", fix.old); free_slk_rows(fix.rows); }
 
-static uint32_t ams_remaining(edict_t const * unit) {
+static uint32_t ams_remaining(edict_t const *unit) {
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BAM2) return unit->abilstatus[i].data;
     return 0;

@@ -3,24 +3,24 @@
 #define BZ_AEXH MAKEFOURCC('A', 'e', 'x', 'h') // rawcode; Exhume Corpses TFT Meat Wagon research
 
 /* Count the authored corpse type in this wagon's real cargo slots. */
-static uint32_t exhume_count(edict_t * wagon, uint32_t unit_id) {
+static uint32_t exhume_count(edict_t *wagon, uint32_t unit_id) {
 	uint32_t n = 0;
 	if (!wagon || !unit_id || !S_CargoIsCorpseHolder(wagon)) return 0;
 	FOR_LOOP(i, wagon->cargo.count) {
-		edict_t * corpse = S_CargoUnitAt(wagon, i);
+		edict_t *corpse = S_CargoUnitAt(wagon, i);
 		if (corpse && S_CorpseCargoIsStored(corpse) && corpse->class_id == unit_id) n++;
 	}
 	return n;
 }
 
-static edict_t * exhume_find_thinker(edict_t * wagon) {
+static edict_t *exhume_find_thinker(edict_t *wagon) {
 	FILTER_EDICTS(ent, ent->inuse && ent->owner == wagon && ent->think == exhume_think && !ent->class_id)
 		return ent;
 	return NULL;
 }
 
-static void exhume_spawn(edict_t * wagon, uint32_t unit_id) {
-	edict_t * corpse = SP_SpawnAtLocationNoBirth(unit_id, wagon->s.player, &wagon->s.origin2);
+static void exhume_spawn(edict_t *wagon, uint32_t unit_id) {
+	edict_t *corpse = SP_SpawnAtLocationNoBirth(unit_id, wagon->s.player, &wagon->s.origin2);
 	if (!corpse) {
 		fprintf(stderr, "WC3 Exhume: failed to spawn corpse %.4s for wagon %u\n",
 			(cstring_t)&unit_id, wagon->s.number);
@@ -34,8 +34,8 @@ static void exhume_spawn(edict_t * wagon, uint32_t unit_id) {
 }
 
 /* Classless producer owned by the wagon; wagon removal or missing Aexh ends it. */
-void exhume_think(edict_t * thinker) {
-	edict_t * wagon = thinker->owner;
+void exhume_think(edict_t *thinker) {
+	edict_t *wagon = thinker->owner;
 	uint32_t code = BZ_AEXH, level, unit_id, cap, interval_ms;
 	float interval;
 	if (!wagon || !wagon->inuse || M_IsDead(wagon) || !G_UnitAbilityLevel(wagon, code)) {
@@ -54,10 +54,10 @@ void exhume_think(edict_t * thinker) {
 }
 
 /* Arm the thinker on the first update after the unit gains Aexh. */
-static void exhume_ensure(edict_t * wagon) {
+static void exhume_ensure(edict_t *wagon) {
 	uint32_t level = G_UnitAbilityLevel(wagon, BZ_AEXH);
 	float interval;
-	edict_t * thinker;
+	edict_t *thinker;
 	if (!wagon || !level || M_IsDead(wagon) || exhume_find_thinker(wagon)) return;
 	interval = S_SpellDuration(BZ_AEXH, level, false);
 	if (interval <= 0.0f) return;

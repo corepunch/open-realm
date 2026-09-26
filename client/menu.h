@@ -6,8 +6,7 @@
  * (server/game.h).
  *
  * The client fills menuImport_t with callbacks for file I/O, memory allocation,
- * and command execution, then calls M_GetAPI() to receive the menuExport_t
- * function table.
+ * and command execution, then calls M_GetAPI() to receive the menuExport_t *function table.
  *
  * The menu library loads FDF files, builds frame hierarchies, manages menu
  * navigation, and handles input events. It owns its string table (loaded from
@@ -52,7 +51,7 @@ typedef struct {
     int (*FS_ReadFile)(cstring_t fileName, void **buf);  /* Returns file size, allocates buf */
     void (*FS_FreeFile)(void *buf);
     int (*FS_GetFileList)(cstring_t path, cstring_t extension, char *listbuf, int bufsize);
-    void (*FS_WriteFile)(cstring_t path, const void *data, int size); /* Write to local disk */
+    void (*FS_WriteFile)(cstring_t path, void const *data, int size); /* Write to local disk */
     void (*UserPath)(cstring_t rel, string_t out, uint32_t out_size); /* Resolve writable per-user game data */
     
     /* Memory allocation */

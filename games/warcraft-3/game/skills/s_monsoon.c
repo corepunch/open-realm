@@ -1,7 +1,7 @@
 #include "s_skills.h"
 
 /* Monsoon stays at the selected point; DataB sets the pulse interval, DataC scales building damage. */
-void monsoon_think(edict_t * ent) {
+void monsoon_think(edict_t *ent) {
     uint32_t code = ent->class_id, rank = ent->resources;
     uint32_t step = (uint32_t)(S_SpellData(code, rank, 2) * 1000.0f);
     if (!S_SpellChannelActive(ent) || G_Time() >= ent->spawn_time) {
@@ -26,7 +26,7 @@ void monsoon_think(edict_t * ent) {
 /* The generic channel thinker has no position: initialize it from the cast before the first pulse. */
 BZ_ABILITY_PROC(CAbilityMonsoon) {
     uint32_t code = call && call->item ? call->item->code : 0, rank;
-    edict_t * thinker;
+    edict_t *thinker;
     if (msg != A_VALIDATE && msg != A_EXECUTE) return CAbilitySimpleSpell(ent, msg, call);
     rank = S_SpellLevel(ent, code);
     if (msg == A_VALIDATE) return call && call->target && call->target->type == SPELL_TARGET_POINT &&

@@ -12,11 +12,11 @@ typedef struct {
 
 typedef struct {
     cameraHeightMap_t *map;
-    void const * data;
+    void const *data;
     uint32_t width, height_count, radius, samples;
     vector2_t origin;
     float cell_size;
-    float (*get_height)(void const * data, uint32_t x, uint32_t y);
+    float (*get_height)(void const *data, uint32_t x, uint32_t y);
 } cameraHeightBuild_t;
 
 void R_BuildCameraHeightMap(cameraHeightBuild_t const *params);

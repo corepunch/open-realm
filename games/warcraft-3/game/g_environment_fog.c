@@ -2,7 +2,7 @@
 #include "common/stb_slk.h"
 
 /* Read one value from a versioned comma-separated MiscData field. */
-static bool G_EnvironmentFogListValue(cstring_t value, uint32_t index, float * out) {
+static bool G_EnvironmentFogListValue(cstring_t value, uint32_t index, float *out) {
     char *stop = NULL;
     float parsed = 0.0f;
 
@@ -25,7 +25,7 @@ static bool G_EnvironmentFogListValue(cstring_t value, uint32_t index, float * o
 }
 
 /* [DefaultZFog] is a singleton (index 0); [MenuZFog] is versioned. Try the expansion cell, retry the RoC cell. */
-static bool G_EnvironmentFogVersionedValue(cstring_t value, uint32_t index, uint32_t fallback, float * out) {
+static bool G_EnvironmentFogVersionedValue(cstring_t value, uint32_t index, uint32_t fallback, float *out) {
     if (G_EnvironmentFogListValue(value, index, out)) return true;
     return index != fallback && G_EnvironmentFogListValue(value, fallback, out);
 }

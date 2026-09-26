@@ -30,23 +30,23 @@ typedef struct {
 } uiDialogWar3Config_t;
 
 typedef struct {
-    frameDef_t * parent;
-    frameDef_t * modal;
-    frameDef_t * frame;
-    frameDef_t * text;
-    frameDef_t * icon;
-    frameDef_t * ok_backdrop;
-    frameDef_t * ok_button;
-    frameDef_t * no_backdrop;
-    frameDef_t * no_button;
-    frameDef_t * yes_backdrop;
-    frameDef_t * yes_button;
+    frameDef_t *parent;
+    frameDef_t *modal;
+    frameDef_t *frame;
+    frameDef_t *text;
+    frameDef_t *icon;
+    frameDef_t *ok_backdrop;
+    frameDef_t *ok_button;
+    frameDef_t *no_backdrop;
+    frameDef_t *no_button;
+    frameDef_t *yes_backdrop;
+    frameDef_t *yes_button;
     DialogWar3_t frames;
     float default_height;
 } uiDialogWar3_t;
 
 bool UI_DialogWar3Init(uiDialogWar3_t *dialog,
-                       frameDef_t * parent,
+                       frameDef_t *parent,
                        uiDialogWar3Init_t const *init);
 void UI_DialogWar3Show(uiDialogWar3_t *dialog,
                        uiDialogWar3Config_t const *config);

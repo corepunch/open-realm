@@ -106,7 +106,7 @@ static box3_t M3PreviewBounds(m3Model_t const *m3) {
     return bounds;
 }
 
-static void PrintModelInfo(model_t const * model) {
+static void PrintModelInfo(model_t const *model) {
     m3Model_t const *m3 = model ? model->m3 : NULL;
     box3_t bounds = M3PreviewBounds(m3);
     float width = fabsf(bounds.max.x - bounds.min.x);
@@ -239,7 +239,7 @@ static void PrintModelInfo(model_t const * model) {
     }
 }
 
-static void RenderFrame(refExport_t const *re, model_t const * model, box3_t const * bounds, uint32_t now) {
+static void RenderFrame(refExport_t const *re, model_t const *model, box3_t const *bounds, uint32_t now) {
     viewDef_t viewdef = { 0 };
     renderEntity_t entity = { 0 };
     vector3_t center = Box3_Center(bounds);
@@ -281,7 +281,7 @@ static void RenderFrame(refExport_t const *re, model_t const * model, box3_t con
 
 int main(int argc, char **argv) {
     refExport_t re;
-    model_t * model;
+    model_t *model;
     box3_t bounds;
     float width, depth, height, extent;
     bool running = true;

@@ -40,20 +40,20 @@ typedef struct {
 } sfileFindData_t;
 
 bool SFileOpenArchive(cstring_t filename, uint32_t priority, uint32_t flags, handle_t *archive);
-bool SFileOpenArchiveFromMemory(const void *data, uint32_t size, uint32_t flags, handle_t *archive);
+bool SFileOpenArchiveFromMemory(void const *data, uint32_t size, uint32_t flags, handle_t *archive);
 bool SFileCloseArchive(handle_t archive);
 
 bool SFileCreateArchive(cstring_t filename, uint32_t flags, uint32_t maxFiles, handle_t *archive);
 bool SFileAddFile(handle_t archive, cstring_t sourceFile, cstring_t archivedName);
-bool SFileAddFileFromBuffer(handle_t archive, cstring_t archivedName, const void *data, uint32_t size);
+bool SFileAddFileFromBuffer(handle_t archive, cstring_t archivedName, void const *data, uint32_t size);
 
 bool SFileOpenFileEx(handle_t archive, cstring_t fileName, uint32_t searchScope, handle_t *file);
 bool SFileOpenFileFromArchiveMemory(uint8_t *data, uint32_t size, cstring_t fileName, uint32_t searchScope, handle_t *file);
 bool SFileCloseFile(handle_t file);
 
-bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t * bytesRead, void * overlapped);
-uint32_t SFileGetFileSize(handle_t file, uint32_t * highSize);
-uint32_t SFileSetFilePointer(handle_t file, int32_t distance, int32_t * distanceHigh, uint32_t moveMethod);
+bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t *bytesRead, void *overlapped);
+uint32_t SFileGetFileSize(handle_t file, uint32_t *highSize);
+uint32_t SFileSetFilePointer(handle_t file, int32_t distance, int32_t *distanceHigh, uint32_t moveMethod);
 
 bool SFileExtractFile(handle_t archive, cstring_t toExtract, cstring_t extracted, uint32_t flags);
 
@@ -63,7 +63,7 @@ bool SFileFindClose(handle_t find);
 
 #ifdef MPQ_TEST_API
 bool Mpq_TestDecompressSector(uint8_t const *src, uint32_t src_size, uint8_t *dst, uint32_t dst_size, uint32_t *out_size);
-uint32_t Mpq_TestHashString(const char *str, uint32_t hash_type);
+uint32_t Mpq_TestHashString(char const *str, uint32_t hash_type);
 bool Mpq_TestEncryptBlock(uint8_t *data, uint32_t size, uint32_t seed);
 #endif
 

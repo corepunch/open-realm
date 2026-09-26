@@ -21,7 +21,7 @@ static uint32_t UI_WriteShortcutRoot(void) {
     return number;
 }
 
-static void UI_SetShortcutRect(uiFrame_t * frame, uint32_t parent,
+static void UI_SetShortcutRect(uiFrame_t *frame, uint32_t parent,
                                float x, float y, float w, float h) {
     frame->parent = parent;
     UI_SetFrameRect(frame, x, y, w, h);
@@ -48,7 +48,7 @@ static void UI_WriteShortcutNumber(uint32_t parent, float x, float y, float w, f
     UI_WriteProxyFrame(&frame, &label, sizeof(label));
 }
 
-static void UI_WriteUnitShortcutButton(uint32_t parent, float x, float y, float size, edict_t const * unit,
+static void UI_WriteUnitShortcutButton(uint32_t parent, float x, float y, float size, edict_t const *unit,
                                        cstring_t command, cstring_t tooltip, bool damage_alert) {
     uiFrame_t frame;
     cstring_t art;
@@ -68,10 +68,10 @@ static void UI_WriteUnitShortcutButton(uint32_t parent, float x, float y, float 
     UI_WriteProxyFrame(&frame, NULL, 0);
 }
 
-void UI_WriteUnitShortcutLayer(edict_t * clent) {
-    gameClient_t * client;
-    edict_t * next_idle = NULL;
-    edict_t * wrap_idle = NULL;
+void UI_WriteUnitShortcutLayer(edict_t *clent) {
+    gameClient_t *client;
+    edict_t *next_idle = NULL;
+    edict_t *wrap_idle = NULL;
     edict_t * *heroes;
     uint32_t hero_count = 0;
     uint32_t idle_count = 0;
@@ -91,14 +91,14 @@ void UI_WriteUnitShortcutLayer(edict_t * clent) {
      * deferred so the roster can use the exact same stable ordering as the
      * multiselect status panel. */
     FOR_LOOP(i, globals.num_edicts) {
-        edict_t * unit = &globals.edicts[i];
+        edict_t *unit = &globals.edicts[i];
 
         if (G_UnitShowsHeroShortcut(client, unit)) {
             uint32_t insert = hero_count++;
 
             heroes[insert] = unit;
             while (insert > 0 && G_CompareSelectionOrder(heroes[insert], heroes[insert - 1]) < 0) {
-                edict_t * swap = heroes[insert - 1];
+                edict_t *swap = heroes[insert - 1];
                 heroes[insert - 1] = heroes[insert];
                 heroes[insert] = swap;
                 insert--;
@@ -113,7 +113,7 @@ void UI_WriteUnitShortcutLayer(edict_t * clent) {
     }
 
     FOR_LOOP(hero_slot, hero_count) {
-        edict_t * unit = heroes[hero_slot];
+        edict_t *unit = heroes[hero_slot];
         uint32_t number = (uint32_t)(unit - globals.edicts);
         cstring_t name = unit->data.UnitProfile && unit->data.UnitProfile->name
             ? G_LevelString(unit->data.UnitProfile->name) : "Hero";

@@ -1439,7 +1439,7 @@ static void AddMapItemDataOverride(unitData_t const *item, uint32_t target_id, u
         ApplyMapObjectTypedField(&override->row, offsetof(edict_t, data.ItemData), item->modifications + i);
 }
 
-void G_SetMapUnitOverrides(mapInfo_t const * mapinfo) {
+void G_SetMapUnitOverrides(mapInfo_t const *mapinfo) {
     uint32_t unit_capacity, item_capacity;
 
     free(map_unit_balance_overrides);
@@ -1741,7 +1741,7 @@ static void FreeMapAbilityOverrides(void) {
     map_ability_override_count = 0;
 }
 
-void G_SetMapAbilityOverrides(mapInfo_t const * mapinfo) {
+void G_SetMapAbilityOverrides(mapInfo_t const *mapinfo) {
     uint32_t capacity;
 
     FreeMapAbilityOverrides();
@@ -1798,21 +1798,21 @@ static uint32_t ResolveItemID(uint32_t id) {
 }
 
 /* Resolve a Warcraft field code through the immutable typed row cached on the edict. */
-static uint8_t const *UnitFieldValue(edict_t * unit, uint32_t field_id, bzFieldType_t *type) {
+static uint8_t const *UnitFieldValue(edict_t *unit, uint32_t field_id, bzFieldType_t *type) {
     unitMeta_t const *metadata = G_FindMetaData(UnitsMetaData, field_id);
     if (!metadata) { warn_unregistered_field(field_id); return NULL; }
-    uint8_t const *row = *(uint8_t const * const *)((uint8_t const *)unit + metadata->row_offset);
+    uint8_t const *row = *(uint8_t const *const *)((uint8_t const *)unit + metadata->row_offset);
     if (!row) return NULL;
     *type = metadata->type;
     return row + metadata->field_offset;
 }
 
-cstring_t UnitMetaString(edict_t * unit, uint32_t field_id) {
+cstring_t UnitMetaString(edict_t *unit, uint32_t field_id) {
     bzFieldType_t type; uint8_t const *value = UnitFieldValue(unit, field_id, &type);
     return value && type == BZ_FIELD_CSTR ? *(cstring_t const *)value : NULL;
 }
 
-int32_t UnitMetaInteger(edict_t * unit, uint32_t field_id) {
+int32_t UnitMetaInteger(edict_t *unit, uint32_t field_id) {
     bzFieldType_t type; uint8_t const *value = UnitFieldValue(unit, field_id, &type);
     if (!value) return 0;
     switch (type) {
@@ -1823,7 +1823,7 @@ int32_t UnitMetaInteger(edict_t * unit, uint32_t field_id) {
     }
 }
 
-bool UnitMetaBoolean(edict_t * unit, uint32_t field_id) {
+bool UnitMetaBoolean(edict_t *unit, uint32_t field_id) {
     bzFieldType_t type; uint8_t const *value = UnitFieldValue(unit, field_id, &type);
     if (!value) return false;
     if (type == BZ_FIELD_BOOL) return *(bool const *)value;
@@ -1832,7 +1832,7 @@ bool UnitMetaBoolean(edict_t * unit, uint32_t field_id) {
     return *(int32_t const *)value != 0;
 }
 
-float UnitMetaReal(edict_t * unit, uint32_t field_id) {
+float UnitMetaReal(edict_t *unit, uint32_t field_id) {
     bzFieldType_t type; uint8_t const *value = UnitFieldValue(unit, field_id, &type);
     if (!value) return 0;
     if (type == BZ_FIELD_FLOAT) return *(float const *)value;
@@ -2042,13 +2042,13 @@ float G_UnitCastPoint(uint32_t id) {
     return d ? d->castPoint : 0.f;
 }
 
-bool G_IsReignOfChaosMap(mapInfo_t const * mapinfo) {
+bool G_IsReignOfChaosMap(mapInfo_t const *mapinfo) {
     /* Real ROC W3I formats are <= 24.  Treat zero as unknown so synthetic
      * tests/maps without parsed W3I metadata do not silently gain ROC rules. */
     return mapinfo && mapinfo->fileFormat > 0 && mapinfo->fileFormat <= 24;
 }
 
-uint32_t G_MapGameDataSet(mapInfo_t const * mapinfo) {
+uint32_t G_MapGameDataSet(mapInfo_t const *mapinfo) {
     uint32_t data_set = mapinfo && mapinfo->fileFormat >= 25
         ? mapinfo->gameDataSet
         : WC3_MAP_GAME_DATA_SET_DEFAULT;

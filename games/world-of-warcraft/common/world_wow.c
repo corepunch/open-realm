@@ -20,8 +20,8 @@ bool CL_GameCameraUsesWorldUp(void) { return false; }
 UICANVASPOLICY CL_GameCanvasPolicy(void) { return UI_CANVAS_POLICY; }
 float CL_GameLerpDegrees(float a, float b, float fraction) { return a + (b - a) * fraction; }
 cstring_t CL_GameOrderQueueReleaseCommand(void) { return NULL; }
-bool CL_GameBuildCursorBlocked(vector3_t const * origin) { (void)origin; return false; }
-void CL_GameModifyBuildPathing(vector2_t const * point, uint8_t * flags) { (void)point; (void)flags; }
+bool CL_GameBuildCursorBlocked(vector3_t const *origin) { (void)origin; return false; }
+void CL_GameModifyBuildPathing(vector2_t const *point, uint8_t *flags) { (void)point; (void)flags; }
 bool CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection) {
     (void)selection;
     return false;
@@ -30,7 +30,7 @@ bool CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection) {
 /* WoW has no WC3-style byte pathing-cell mask for local build previews.
  * Returning false tells generic client presentation that this map backend
  * cannot classify those preview cells. */
-bool CM_GetPathingFlagsAt(vector2_t const * location, uint8_t * flags) {
+bool CM_GetPathingFlagsAt(vector2_t const *location, uint8_t *flags) {
     (void)location;
     if (flags) *flags = 0;
     return false;
@@ -96,7 +96,7 @@ typedef struct {
     cmWowWmoModel_t const *model;
     cmWowWmoGroup_t const *group;
     cmWowWmoInstance_t const *instance;
-    vector3_t const * start, *end;
+    vector3_t const *start, *end;
     float best;
     bool walls_only;
 } cmWowTrace_t;
@@ -169,7 +169,7 @@ void CM_WowFreeAllSpawns(void) {
 }
 
 uint32_t CM_WowGetAllSpawnCount(void) { return cm_wow_all_spawn_count; }
-vector3_t const * CM_WowGetSpawnPos(uint32_t index) { return index < cm_wow_all_spawn_count ? &cm_wow_all_spawns[index].pos : NULL; }
+vector3_t const *CM_WowGetSpawnPos(uint32_t index) { return index < cm_wow_all_spawn_count ? &cm_wow_all_spawns[index].pos : NULL; }
 cstring_t CM_WowGetSpawnName(uint32_t index) { return index < cm_wow_all_spawn_count ? cm_wow_all_spawns[index].name : NULL; }
 uint32_t CM_WowGetMapId(void) { return cm_wow_map_id; }
 
@@ -260,7 +260,7 @@ typedef struct {
 } cmWowWmoDef_t;
 
 /* MODF and WMO vertices use the same transform as the renderer; collision must agree bit-for-bit with visuals. */
-static void CM_WowWmoMatrix(cmWowWmoDef_t const *def, matrix4_t * matrix) {
+static void CM_WowWmoMatrix(cmWowWmoDef_t const *def, matrix4_t *matrix) {
     wowPlacement_t place = { .pos = def->position, .rot = def->rotation, .scale = def->scale };
     Wow_PlacementMatrix(&place, matrix);
 }
@@ -273,7 +273,7 @@ static void CM_WowWmoGroupPath(cstring_t root, uint32_t index, string_t out, uin
         snprintf(out, out_size, "%s_%03u.wmo", root, (unsigned)index);
 }
 
-static bool CM_WowWmoAppendTriangle(cmWowWmoModel_t *model, vector3_t const * a, vector3_t const * b, vector3_t const * c) {
+static bool CM_WowWmoAppendTriangle(cmWowWmoModel_t *model, vector3_t const *a, vector3_t const *b, vector3_t const *c) {
     cmWowWmoTri_t *tri;
     if (model->count == model->capacity) {
         uint32_t capacity = model->capacity ? model->capacity * 2 : 1024;
@@ -291,7 +291,7 @@ static bool CM_WowWmoAppendTriangle(cmWowWmoModel_t *model, vector3_t const * a,
 /* MOPY bit 0x04 marks detail/non-colliding faces; all other authored triangles are floor candidates. */
 static bool CM_WowLoadWmoGroup(cmWowWmoModel_t *model, uint32_t group_index) {
     PATHSTR path;
-    uint8_t * data;
+    uint8_t *data;
     uint32_t size = 0, offset = 0, mopy_count = 0, index_count = 0, vertex_count = 0;
     uint8_t const *mopy = NULL, *mobn = NULL;
     uint16_t const *indices = NULL;
@@ -417,7 +417,7 @@ static bool CM_WowBuildWmoGrid(cmWowWmoModel_t *model) {
 /* Models are shared by MODF instances and loaded only after the player enters an instance's authored bounds. */
 static cmWowWmoModel_t *CM_WowGetWmoModel(cstring_t path) {
     cmWowWmoModel_t *model;
-    uint8_t * data;
+    uint8_t *data;
     uint32_t size = 0, offset = 0, group_count = 0;
     for (model = cm_wow_wmo_models; model; model = model->next)
         if (!strcasecmp(model->path, path)) return model->valid ? model : NULL;
@@ -496,7 +496,7 @@ static void CM_WowLoadAdtWmos(cmWowAdtHeightCache_t *cache, uint8_t const *data,
 static void CM_WowLoadAdtHeights(int tile_x, int tile_y) {
     cmWowAdtHeightCache_t *cache = NULL, *oldest = NULL;
     PATHSTR path;
-    uint8_t * data;
+    uint8_t *data;
     uint32_t size = 0, offset = 0;
 
     FOR_LOOP(i, CM_WOW_HEIGHT_CACHE_TILES) {
@@ -573,7 +573,7 @@ static void CM_WowLoadAdtHeights(int tile_x, int tile_y) {
 }
 
 /* Two-sided segment/triangle test: WMO winding differs between indoor and outdoor groups. */
-bool CM_WowRayTriangle(vector3_t const * start, vector3_t const * end, vector3_t const * a, vector3_t const * b, vector3_t const * c, float *fraction) {
+bool CM_WowRayTriangle(vector3_t const *start, vector3_t const *end, vector3_t const *a, vector3_t const *b, vector3_t const *c, float *fraction) {
     vector3_t dir = Vector3_sub(end, start), edge1 = Vector3_sub(b, a), edge2 = Vector3_sub(c, a);
     vector3_t p = Vector3_cross(&dir, &edge2), t, q;
     float det = Vector3_dot(&edge1, &p), inv, u, v, hit;
@@ -630,7 +630,7 @@ static void CM_WowTraceWmoBsp(cmWowTrace_t *trace, int32_t node_index, uint32_t 
 }
 
 #ifdef BZ_TESTS
-bool CM_WowTestBspRay(vector3_t const * start, vector3_t const * end, float *fraction) {
+bool CM_WowTestBspRay(vector3_t const *start, vector3_t const *end, float *fraction) {
     cmWowWmoTri_t triangles[] = { { .a = { 0, 0, 0 }, .b = { 1, 0, 0 }, .c = { 0, 1, 0 } } };
     cmWowWmoBspNode_t nodes[] = {
         { .flags = 0, .children = { 1, 2 }, .distance = 0.5f },
@@ -724,7 +724,7 @@ float CM_WowFloorHeight(float sx, float sy, float ref_z, float step_up) {
 }
 
 /* Test one player-height ray against authored WMO walls, using BSP or the existing fallback grid. */
-static bool CM_WowInstanceWallRay(cmWowWmoInstance_t *instance, vector3_t const * world_start, vector3_t const * world_end) {
+static bool CM_WowInstanceWallRay(cmWowWmoInstance_t *instance, vector3_t const *world_start, vector3_t const *world_end) {
     vector3_t start, finish, seg_min, seg_max;
     if (!instance->model) instance->model = CM_WowGetWmoModel(instance->path);
     if (!instance->model) return false;
@@ -763,7 +763,7 @@ static bool CM_WowInstanceWallRay(cmWowWmoInstance_t *instance, vector3_t const 
 }
 
 /* Sweep center and cylinder-edge rays at shin/chest height so walls cannot be crossed or edge-clipped. */
-bool CM_WowMoveBlocked(vector3_t const * from, vector3_t const * to) {
+bool CM_WowMoveBlocked(vector3_t const *from, vector3_t const *to) {
     cmWowAdtHeightCache_t *cache[2] = { NULL, NULL };
     vector2_t move = { to->x - from->x, to->y - from->y };
     float len = sqrtf(move.x * move.x + move.y * move.y);
@@ -884,7 +884,7 @@ static bool CM_WowTerrainHeightAtPoint(float sx, float sy, float *height) {
 
 static bool CM_WowFindMapId(cstring_t map_name, uint32_t *map_id) {
     stbDbc_t h;
-    uint8_t * data;
+    uint8_t *data;
     uint32_t size = 0;
     uint8_t const *records_base, *strings_base;
 
@@ -924,10 +924,10 @@ static cstring_t CM_WowWorldSafeLocName(uint8_t const *record, uint32_t fields,
     return NULL;
 }
 
-static uint32_t CM_WowCollectWorldSafeLocs(uint32_t map_id, vector3_t * first_spawn,
+static uint32_t CM_WowCollectWorldSafeLocs(uint32_t map_id, vector3_t *first_spawn,
                                         string_t first_name, size_t first_name_size) {
     stbDbc_t h;
-    uint8_t * data;
+    uint8_t *data;
     uint32_t size = 0;
     uint8_t const *records_base, *strings_base;
     uint32_t count = 0;

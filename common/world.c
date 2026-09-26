@@ -12,7 +12,7 @@ static uint32_t cm_map_checksum;
 #define CM_MAP_CRC32_POLY 0xedb88320u // CRC-32 polynomial; identifies the authoritative bytes accepted by the map loader
 
 /* Hash the exact virtual map file supplied to the format loader for Q2-style client map validation. */
-static uint32_t CM_CalcMapChecksum(const uint8_t *bytes, uint32_t size) {
+static uint32_t CM_CalcMapChecksum(uint8_t const *bytes, uint32_t size) {
     uint32_t crc = 0xffffffffu;
 
     FOR_LOOP(i, size) {
@@ -60,7 +60,7 @@ static uint32_t SFileBytesRemaining(handle_t file) {
     return size - position;
 }
 
-static bool CM_ReadInfoInto(handle_t archive, mapInfo_t * info, bool setup_only) {
+static bool CM_ReadInfoInto(handle_t archive, mapInfo_t *info, bool setup_only) {
     handle_t file;
 
     if (!archive || !info) {
@@ -252,7 +252,7 @@ static void __attribute__((unused)) CM_ReadInfo(handle_t archive) {
     CM_ReadInfoInto(archive, &world.info, false);
 }
 
-void CM_FreeMapInfo(mapInfo_t * mapInfo) {
+void CM_FreeMapInfo(mapInfo_t *mapInfo) {
     mapTrigStr_t *string = mapInfo ? mapInfo->strings : NULL;
 
     if (!mapInfo) {
@@ -386,7 +386,7 @@ static void CM_FreeDroppedItemSets(uint32_t num_sets, droppableItemSet_t *sets) 
     MemFree(sets);
 }
 
-static void CM_FreeDoodadPlacementData(doodad_t * doodad) {
+static void CM_FreeDoodadPlacementData(doodad_t *doodad) {
     if (!doodad) {
         return;
     }
@@ -468,7 +468,7 @@ static void __attribute__((unused)) CM_ReadDoodads(handle_t archive) {
 
     FOR_LOOP(index, header.count) {
         uint32_t count;
-        doodad_t * doodad = MemAlloc(sizeof(doodad_t));
+        doodad_t *doodad = MemAlloc(sizeof(doodad_t));
         char context[128];
 
         snprintf(context, sizeof(context), "war3map.doo doodad %u", (unsigned)index);
@@ -641,7 +641,7 @@ static void __attribute__((unused)) CM_ReadUnitDoodads(handle_t archive) {
     }
 
     FOR_LOOP(index, header.count) {
-        doodad_t * doodad = MemAlloc(sizeof(doodad_t));
+        doodad_t *doodad = MemAlloc(sizeof(doodad_t));
         if (!CM_ReadUnit(file, doodad, &header, index)) {
             CM_FreeDoodadPlacementData(doodad);
             MemFree(doodad);
@@ -653,7 +653,7 @@ static void __attribute__((unused)) CM_ReadUnitDoodads(handle_t archive) {
     SFileCloseFile(file);
 }
 
-static bool CM_ReadWar3MapVertex(handle_t file, war3mapVertex_t * vert) {
+static bool CM_ReadWar3MapVertex(handle_t file, war3mapVertex_t *vert) {
     uint16_t water_and_edge;
     uint8_t flags;
     uint8_t variation;
@@ -964,7 +964,7 @@ static void CM_AppendTrigStringText(mapTrigStr_t *entry, cstring_t line) {
     }
 }
 
-static void CM_ReadStringsInto(handle_t archive, mapInfo_t * info) {
+static void CM_ReadStringsInto(handle_t archive, mapInfo_t *info) {
     string_t buffer = FS_ReadArchiveFileIntoString(archive, "war3map.wts");
     cstring_t cursor;
     mapTrigStr_t *entry = NULL;
@@ -1016,7 +1016,7 @@ static void CM_ReadStringsInto(handle_t archive, mapInfo_t * info) {
 }
 
 /* Loading presentation needs only map metadata and trigger strings, before terrain or entity parsing. */
-bool CM_ReadMapInfo(cstring_t filename, mapInfo_t * info) {
+bool CM_ReadMapInfo(cstring_t filename, mapInfo_t *info) {
     handle_t archive, data;
     uint32_t size = 0;
     bool valid;
@@ -1061,7 +1061,7 @@ bool CM_LoadMap(cstring_t mapFilename, cmLoadYield_t yield) {
     snprintf(cm_loaded_map, sizeof(cm_loaded_map), "%s", mapFilename ? mapFilename : "");
     data = FS_ReadFile(mapFilename, &size);
     if (data && size) {
-        cm_map_checksum = CM_CalcMapChecksum((const uint8_t *)data, size);
+        cm_map_checksum = CM_CalcMapChecksum((uint8_t const *)data, size);
         FS_FreeFile(data);
     } else {
         fprintf(stderr, "CM_LoadMap: unable to read map bytes for checksum %s\n", mapFilename ? mapFilename : "");
@@ -1086,20 +1086,20 @@ bool CM_IsMapLoaded(cstring_t mapFilename) {
 #endif
 }
 
-doodad_t * CM_GetDoodads(void) {
+doodad_t *CM_GetDoodads(void) {
     return world.doodads;
 }
 
 uint32_t CM_GetLocalPlayerNumber(void) {
     FOR_LOOP(i, MAX_PLAYERS) {
-        mapPlayer_t const * player = world.info.players + i;
+        mapPlayer_t const *player = world.info.players + i;
         if (player->playerType == kPlayerTypeHuman)
             return i;
     }
     return 0;
 }
 
-mapInfo_t const * CM_GetMapInfo(void) {
+mapInfo_t const *CM_GetMapInfo(void) {
     return &world.info;
 }
 

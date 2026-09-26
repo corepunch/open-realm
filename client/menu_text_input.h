@@ -178,8 +178,8 @@ static inline int M_TextInput_Key(menuTextInput_t *ti, int key) {
 
 /* ---- Cursor rendering ---- */
 
-static inline void M_DrawTextInputCursor(refExport_t * renderer,
-                                   drawText_t const * style,
+static inline void M_DrawTextInputCursor(refExport_t *renderer,
+                                   drawText_t const *style,
                                    cstring_t text,
                                    uint32_t cursor,
                                    color32_t color) {

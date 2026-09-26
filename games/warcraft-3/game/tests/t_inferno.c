@@ -14,10 +14,10 @@
 #define BZ_HERO 1.5f // fixture HeroDur; hero stun seconds (not stock 2)
 #define BZ_AREA 200.0f // fixture Area; blast radius (not stock 250)
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 void G_RunEntities(void);
 
@@ -42,25 +42,25 @@ static char const inferno_slk[] =
 
 typedef struct {
     slkTestData_t *rows, *old;
-    edict_t * caster, *enemy, *far, *hero;
+    edict_t *caster, *enemy, *far, *hero;
     UnitBalance_t unit_bal, hero_bal;
     vector2_t point;
 } inFix_t;
 
-static uint32_t stun_ms(edict_t const * unit) {
+static uint32_t stun_ms(edict_t const *unit) {
     FOR_LOOP(i, MAX_UNIT_STATUSES)
         if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSTU)
             return unit->abilstatus[i].duration_ms;
     return 0;
 }
 
-static edict_t * inferno_thinker(edict_t * caster) {
+static edict_t *inferno_thinker(edict_t *caster) {
     FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->think == inferno_think)
         return ent;
     return NULL;
 }
 
-static edict_t * inferno_summon(edict_t * caster) {
+static edict_t *inferno_summon(edict_t *caster) {
     FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->class_id == BZ_HFOO)
         return ent;
     return NULL;
@@ -143,7 +143,7 @@ TEST(wc3_spell, inferno_out_of_area_untouched) {
 
 TEST(wc3_spell, inferno_summon_uses_datab_life) {
     inFix_t fix; inferno_setup(&fix, BZ_ANIN);
-    edict_t * summon;
+    edict_t *summon;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANIN, &fix.point));
     level.time += (uint32_t)(BZ_DELAY * 1000.0f); G_RunEntities();
     summon = inferno_summon(fix.caster);

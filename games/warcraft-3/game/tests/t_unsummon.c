@@ -5,13 +5,13 @@
 #define BZ_AUNS MAKEFOURCC('A', 'u', 'n', 's')
 #define BZ_BUNS MAKEFOURCC('B', 'u', 'n', 's')
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
 void G_RunEntities(void);
 void CM_ProcessPathJobs(uint32_t work_budget);
 void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock Cost/DataA/DataB prove the implementation reads authored data. */
@@ -27,9 +27,9 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
     slkTestData_t *rows, *old;
-    edict_t * caster, *building, *enemy_bldg, *unit;
+    edict_t *caster, *building, *enemy_bldg, *unit;
     UnitBalance_t bldg_bal, unit_bal;
-    gameClient_t * client;
+    gameClient_t *client;
 } unsFix_t;
 
 static void uns_setup(unsFix_t *fix) {
@@ -74,20 +74,20 @@ static void uns_done(unsFix_t *fix) {
     free_slk_rows(fix->rows);
 }
 
-static edict_t * uns_thinker(edict_t * caster) {
+static edict_t *uns_thinker(edict_t *caster) {
     FILTER_EDICTS(ent, ent->inuse && ent->owner == caster && ent->think == unsummon_think) return ent;
     return NULL;
 }
 
-static edict_t * uns_effect(edict_t * building) {
+static edict_t *uns_effect(edict_t *building) {
     FILTER_EDICTS(ent, ent->inuse && ent->goalentity == building &&
         (ent->s.flags & EF_NOT_SELECTABLE)) return ent;
     return NULL;
 }
 
-static void uns_tick(edict_t * caster, uint32_t count) {
+static void uns_tick(edict_t *caster, uint32_t count) {
     FOR_LOOP(i, count) {
-        edict_t * thinker = uns_thinker(caster);
+        edict_t *thinker = uns_thinker(caster);
         if (!thinker) return;
         level.time += FRAMETIME;
         G_RunEntities();
@@ -280,7 +280,7 @@ TEST(wc3_spell, unsummon_cancel_after_start_keeps_demolition_active) {
 
 TEST(wc3_spell, unsummon_approach_uses_matching_channel_and_target) {
     unsFix_t fix;
-    edict_t * first;
+    edict_t *first;
 
     uns_setup(&fix);
     fix.enemy_bldg->s.player = 0;
@@ -370,7 +370,7 @@ TEST(wc3_spell, unsummon_reports_under_construction_from_command_strings) {
 TEST(wc3_save, unsummon_live_channel_thinker_round_trips) {
     cstring_t filename = "/tmp/openwarcraft3-unsummon-live.bin";
     unsFix_t fix;
-    edict_t * thinker;
+    edict_t *thinker;
     uns_setup(&fix);
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
     thinker = uns_thinker(fix.caster);

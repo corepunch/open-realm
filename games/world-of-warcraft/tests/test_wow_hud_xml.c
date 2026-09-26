@@ -20,7 +20,7 @@ struct font    { uint32_t size; char name[256]; };
 static handle_t test_archive;
 static refExport_t test_renderer;
 static player_t test_ps;
-static texture_t const * test_textures[MAX_IMAGES];
+static texture_t const *test_textures[MAX_IMAGES];
 static uint32_t next_texture_id;
 static int geometry_warnings;
 static drawText_t last_draw_text;
@@ -54,44 +54,44 @@ static void test_printf(cstring_t fmt, ...) {
     if (strstr(msg, "UIWow: unresolved FrameXML geometry")) geometry_warnings++;
 }
 
-static texture_t * test_load_texture(cstring_t name) {
-    texture_t * t = calloc(1, sizeof(*t));
+static texture_t *test_load_texture(cstring_t name) {
+    texture_t *t = calloc(1, sizeof(*t));
     T_NOT_NULL(t);
     t->texid = ++next_texture_id;
     snprintf(t->name, sizeof(t->name), "%s", name ? name : "");
     return t;
 }
-static font_t * test_load_font(cstring_t name, uint32_t sz) {
-    font_t * f = calloc(1, sizeof(*f));
+static font_t *test_load_font(cstring_t name, uint32_t sz) {
+    font_t *f = calloc(1, sizeof(*f));
     T_NOT_NULL(f);
     f->size = sz;
     snprintf(f->name, sizeof(f->name), "%s", name ? name : "");
     return f;
 }
-static void     test_release_texture(texture_t * t) { free(t); }
-static size2_t  test_get_texture_size(texture_t const * t) { size2_t s = {0,0}; if(t){s.width=t->width;s.height=t->height;} return s; }
-static void     test_draw_image(texture_t const * t, rect_t const * s, rect_t const * u, color32_t c) { (void)t;(void)s;(void)u;(void)c; }
-static void test_draw_image_ex(drawImage_t const * i) {
+static void     test_release_texture(texture_t *t) { free(t); }
+static size2_t  test_get_texture_size(texture_t const *t) { size2_t s = {0,0}; if(t){s.width=t->width;s.height=t->height;} return s; }
+static void     test_draw_image(texture_t const *t, rect_t const *s, rect_t const *u, color32_t c) { (void)t;(void)s;(void)u;(void)c; }
+static void test_draw_image_ex(drawImage_t const *i) {
     snprintf(last_draw_image_name, sizeof(last_draw_image_name), "%s", i && i->texture ? i->texture->name : "");
 }
-static void     test_draw_fill(rect_t const * r, color32_t c) { (void)r;(void)c; }
-static void     test_draw_minimap(rect_t const * r, cstring_t map) { (void)r; (void)map; }
-static vector2_t  test_get_text_size(drawText_t const * dt) { return MAKE(vector2_t, dt&&dt->text?(float)strlen(dt->text)*0.01f:0.0f, 0.012f); }
-static void test_draw_text(drawText_t const * dt) {
+static void     test_draw_fill(rect_t const *r, color32_t c) { (void)r;(void)c; }
+static void     test_draw_minimap(rect_t const *r, cstring_t map) { (void)r; (void)map; }
+static vector2_t  test_get_text_size(drawText_t const *dt) { return MAKE(vector2_t, dt&&dt->text?(float)strlen(dt->text)*0.01f:0.0f, 0.012f); }
+static void test_draw_text(drawText_t const *dt) {
     draw_text_calls++;
     if (!dt) return;
     last_draw_text = *dt;
     snprintf(last_draw_text_value, sizeof(last_draw_text_value), "%s", dt->text ? dt->text : "");
     last_draw_text.text = last_draw_text_value;
 }
-static texture_t const * test_get_texture(uint32_t i) { return i < MAX_IMAGES ? test_textures[i] : NULL; }
+static texture_t const *test_get_texture(uint32_t i) { return i < MAX_IMAGES ? test_textures[i] : NULL; }
 static int test_image_index(cstring_t n) {
     for (uint32_t i = 1; i < MAX_IMAGES; i++) {
         if (!test_textures[i]) { test_textures[i] = test_load_texture(n); return (int)i; }
     }
     return 0;
 }
-static refExport_t * test_get_renderer(void) { return &test_renderer; }
+static refExport_t *test_get_renderer(void) { return &test_renderer; }
 
 static void reset_state(void) {
     memset(&test_ps, 0, sizeof(test_ps));

@@ -52,8 +52,8 @@ static struct {
 } cl_windows;
 
 static rect_t CL_WindowRoot(clientWindow_t const *window);
-static bool CL_WindowIsEditBox(uiFrame_t const * frame);
-static uiFrame_t * CL_WindowEditTextFrame(uiFrame_t const * edit);
+static bool CL_WindowIsEditBox(uiFrame_t const *frame);
+static uiFrame_t *CL_WindowEditTextFrame(uiFrame_t const *edit);
 
 static bool CL_WindowDebugEnabled(void) {
     return Cvar_Integer("ui_window_debug", 0) != 0;
@@ -67,7 +67,7 @@ static cstring_t CL_WindowImageName(RESOURCE image) {
 
 static void CL_WindowDebugLayout(clientWindow_t const *window) {
     rect_t root;
-    uiFrame_t const * root_frame;
+    uiFrame_t const *root_frame;
 
     if (!window || !CL_WindowDebugEnabled()) return;
     root = CL_WindowRoot(window);
@@ -91,7 +91,7 @@ static void CL_WindowDebugLayout(clientWindow_t const *window) {
                 (unsigned)root_frame->buffer.size);
     }
     FOR_LOOP(i, SCR_NumFrames()) {
-        uiFrame_t const * frame = SCR_Frame(i);
+        uiFrame_t const *frame = SCR_Frame(i);
         uiBackdrop_t const *bd;
         rect_t const *r;
         cstring_t bg_name, edge_name;
@@ -128,14 +128,14 @@ static void CL_WindowDebugLayout(clientWindow_t const *window) {
                 (unsigned)bd->TileBackground, (unsigned)bd->BlendAll, (unsigned)bd->Mirrored);
     }
     FOR_LOOP(i, SCR_NumFrames()) {
-        uiFrame_t const * frame = SCR_Frame(i);
+        uiFrame_t const *frame = SCR_Frame(i);
         rect_t const *r;
         if (!frame) continue;
         r = SCR_LayoutRect(frame);
         if (CL_WindowIsEditBox(frame) && frame->buffer.data &&
             frame->buffer.size >= sizeof(uiEditBox_t)) {
             uiEditBox_t const *edit = frame->buffer.data;
-            uiFrame_t * text = CL_WindowEditTextFrame(frame);
+            uiFrame_t *text = CL_WindowEditTextFrame(frame);
             fprintf(stderr,
                     "UI_WINDOW_DEBUG window=%08x control=edit frame=%u parent=%u id=\"%s\" "
                     "rect=(%.4f,%.4f %.4fx%.4f) font=%u maxChars=%u focused=%d "
@@ -306,16 +306,16 @@ static void CL_WindowRememberScroll(clientWindow_t *window, uint32_t frame_numbe
     };
 }
 
-static bool CL_WindowIsEditBox(uiFrame_t const * frame) {
+static bool CL_WindowIsEditBox(uiFrame_t const *frame) {
     return frame && (frame->flags.type == FT_EDITBOX ||
                      frame->flags.type == FT_GLUEEDITBOX ||
                      frame->flags.type == FT_SLASHCHATBOX);
 }
 
-static uiFrame_t * CL_WindowEditTextFrame(uiFrame_t const * edit) {
+static uiFrame_t *CL_WindowEditTextFrame(uiFrame_t const *edit) {
     if (!edit) return NULL;
     FOR_LOOP(i, SCR_NumFrames()) {
-        uiFrame_t * child = SCR_Frame(i);
+        uiFrame_t *child = SCR_Frame(i);
         if (child && child->parent == edit->number &&
             (child->flags.type == FT_TEXT || child->flags.type == FT_STRING))
             return child;
@@ -323,8 +323,8 @@ static uiFrame_t * CL_WindowEditTextFrame(uiFrame_t const * edit) {
     return NULL;
 }
 
-static clientWindowEdit_t *CL_WindowEditValue(clientWindow_t *window, uiFrame_t const * edit, bool create) {
-    uiFrame_t * text_frame;
+static clientWindowEdit_t *CL_WindowEditValue(clientWindow_t *window, uiFrame_t const *edit, bool create) {
+    uiFrame_t *text_frame;
     uiEditBox_t const *wire;
     clientWindowEdit_t *value;
 
@@ -348,7 +348,7 @@ static clientWindowEdit_t *CL_WindowEditValue(clientWindow_t *window, uiFrame_t 
     return value;
 }
 
-static clientWindowList_t *CL_WindowListValue(clientWindow_t *window, uiFrame_t const * frame, bool create) {
+static clientWindowList_t *CL_WindowListValue(clientWindow_t *window, uiFrame_t const *frame, bool create) {
     uiListBox_t const *wire;
     clientWindowList_t *value;
 
@@ -370,7 +370,7 @@ static void CL_WindowBlurEdit(void) {
     CL_SetTransientTextInput(false);
 }
 
-static void CL_WindowFocusEdit(clientWindow_t *window, uiFrame_t const * edit) {
+static void CL_WindowFocusEdit(clientWindow_t *window, uiFrame_t const *edit) {
     clientWindowEdit_t *value = CL_WindowEditValue(window, edit, true);
     if (!value) return;
     cl_windows.edit_window = window;
@@ -378,7 +378,7 @@ static void CL_WindowFocusEdit(clientWindow_t *window, uiFrame_t const * edit) {
     CL_SetTransientTextInput(true);
 }
 
-static cstring_t CL_WindowListSelectedText(uiFrame_t const * frame, int16_t selected, windowTextOut_t *out) {
+static cstring_t CL_WindowListSelectedText(uiFrame_t const *frame, int16_t selected, windowTextOut_t *out) {
     char items[2048];
     char *save = NULL, *line;
     int index = 0;
@@ -398,7 +398,7 @@ static cstring_t CL_WindowListSelectedText(uiFrame_t const * frame, int16_t sele
 }
 
 /* A chooser may bind its selected hidden value to an edit control so an existing name can be amended or overwritten. */
-static void CL_WindowListApplyEdit(clientWindow_t *window, uiFrame_t const * frame, int16_t selected) {
+static void CL_WindowListApplyEdit(clientWindow_t *window, uiFrame_t const *frame, int16_t selected) {
     uiListBox_t const *wire;
     char selected_text[CMDARG_LEN];
 
@@ -406,7 +406,7 @@ static void CL_WindowListApplyEdit(clientWindow_t *window, uiFrame_t const * fra
     wire = frame->buffer.data;
     if (!wire->editTarget || !CL_WindowListSelectedText(frame, selected, &MAKE(windowTextOut_t, .data = selected_text, .size = sizeof(selected_text)))) return;
     FOR_LOOP(i, SCR_NumFrames()) {
-        uiFrame_t * edit = SCR_Frame(i);
+        uiFrame_t *edit = SCR_Frame(i);
         clientWindowEdit_t *value;
         if (!CL_WindowIsEditBox(edit) || !edit->buffer.data || edit->buffer.size < sizeof(uiEditBox_t)) continue;
         if (edit->number != wire->editTarget) continue;
@@ -422,7 +422,7 @@ static void CL_WindowListApplyEdit(clientWindow_t *window, uiFrame_t const * fra
 static bool CL_WindowControlValue(clientWindow_t *window, cstring_t id, windowTextOut_t *out) {
     if (!window || !id || !*id || !out || !out->data || out->size == 0) return false;
     FOR_LOOP(i, SCR_NumFrames()) {
-        uiFrame_t const * frame = SCR_Frame(i);
+        uiFrame_t const *frame = SCR_Frame(i);
         if (!frame || !frame->buffer.data) continue;
         if (CL_WindowIsEditBox(frame) && frame->buffer.size >= sizeof(uiEditBox_t)) {
             uiEditBox_t const *edit = frame->buffer.data;
@@ -480,16 +480,16 @@ static bool CL_WindowFormatCommand(clientWindow_t *window, cstring_t src, window
     return true;
 }
 
-static void CL_WindowPrepareState(clientWindow_t *window, rect_t const * root) {
+static void CL_WindowPrepareState(clientWindow_t *window, rect_t const *root) {
     if (!window) return;
     SCR_WindowPrepare(window->layout, root);
     FOR_LOOP(i, window->num_scroll_values) {
-        uiFrame_t * frame = SCR_Frame(window->scroll_values[i].frame);
+        uiFrame_t *frame = SCR_Frame(window->scroll_values[i].frame);
         if (frame) frame->value = window->scroll_values[i].value;
     }
     FOR_LOOP(i, window->num_edit_values) {
         clientWindowEdit_t *value = &window->edit_values[i];
-        uiFrame_t * text = SCR_Frame(value->text_frame);
+        uiFrame_t *text = SCR_Frame(value->text_frame);
         if (text) {
             text->text = value->text;
             text->textLength = (uint32_t)strlen(value->text);
@@ -497,14 +497,14 @@ static void CL_WindowPrepareState(clientWindow_t *window, rect_t const * root) {
     }
     FOR_LOOP(i, window->num_list_values) {
         clientWindowList_t *value = &window->list_values[i];
-        uiFrame_t * frame = SCR_Frame(value->frame);
+        uiFrame_t *frame = SCR_Frame(value->frame);
         if (frame && frame->buffer.data && frame->buffer.size >= sizeof(uiListBox_t))
             ((uiListBox_t *)frame->buffer.data)->selectedIndex = value->selected;
     }
 }
 
-static uiFrame_t * CL_WindowScrollOwner(uiFrame_t * frame) {
-    uiFrame_t * parent;
+static uiFrame_t *CL_WindowScrollOwner(uiFrame_t *frame) {
+    uiFrame_t *parent;
     if (!frame) return NULL;
     if (frame->flags.type == FT_TEXTAREA || frame->flags.type == FT_LISTBOX) return frame;
     if (frame->flags.type != FT_SCROLLBAR || frame->parent >= SCR_NumFrames()) return NULL;
@@ -513,7 +513,7 @@ static uiFrame_t * CL_WindowScrollOwner(uiFrame_t * frame) {
         ? parent : frame;
 }
 
-static int CL_WindowListMaxScroll(uiFrame_t const * frame) {
+static int CL_WindowListMaxScroll(uiFrame_t const *frame) {
     uiListBox_t const *lb;
     rect_t view;
     float item_height;
@@ -533,7 +533,7 @@ static int CL_WindowListMaxScroll(uiFrame_t const * frame) {
     return MAX(count - visible, 0);
 }
 
-static float CL_WindowScrollStep(uiFrame_t const * owner) {
+static float CL_WindowScrollStep(uiFrame_t const *owner) {
     if (owner && owner->flags.type == FT_LISTBOX) {
         int max_scroll = CL_WindowListMaxScroll(owner);
         return max_scroll > 0 ? 1.0f / max_scroll : 0.0f;
@@ -541,7 +541,7 @@ static float CL_WindowScrollStep(uiFrame_t const * owner) {
     return 0.1f;
 }
 
-static bool CL_WindowSetScroll(clientWindow_t *window, uiFrame_t * owner, float value) {
+static bool CL_WindowSetScroll(clientWindow_t *window, uiFrame_t *owner, float value) {
     if (!window || !owner) return false;
     if ((owner->flags.type == FT_TEXTAREA && SCR_LayoutTextAreaMaxScroll(owner) <= 0.0f) ||
         (owner->flags.type == FT_LISTBOX && CL_WindowListMaxScroll(owner) <= 0)) {
@@ -552,24 +552,24 @@ static bool CL_WindowSetScroll(clientWindow_t *window, uiFrame_t * owner, float 
     CL_WindowRememberScroll(window, owner->number, value);
     /* TextArea scrollbars mirror their parent's local viewport state. */
     FOR_LOOP(i, SCR_NumFrames()) {
-        uiFrame_t * child = SCR_Frame(i);
+        uiFrame_t *child = SCR_Frame(i);
         if (child && child->parent == owner->number && child->flags.type == FT_SCROLLBAR)
             child->value = value;
     }
     return true;
 }
 
-static uiFrame_t * CL_WindowFrameAtType(vector2_t const * point, FRAMETYPE type) {
+static uiFrame_t *CL_WindowFrameAtType(vector2_t const *point, FRAMETYPE type) {
     for (uint32_t i = SCR_NumFrames(); i > 0; i--) {
-        uiFrame_t * frame = SCR_Frame(i - 1);
+        uiFrame_t *frame = SCR_Frame(i - 1);
         if (frame && frame->flags.type == type && Rect_contains(SCR_LayoutRect(frame), point))
             return frame;
     }
     return NULL;
 }
 
-static bool CL_WindowScrollWheel(clientWindow_t *window, vector2_t const * point, int wheel_y) {
-    uiFrame_t * hit, *owner;
+static bool CL_WindowScrollWheel(clientWindow_t *window, vector2_t const *point, int wheel_y) {
+    uiFrame_t *hit, *owner;
     if (!window || !point || !wheel_y) return false;
     hit = CL_WindowFrameAtType(point, FT_SCROLLBAR);
     if (!hit) hit = CL_WindowFrameAtType(point, FT_TEXTAREA);
@@ -583,9 +583,9 @@ static bool CL_WindowScrollWheel(clientWindow_t *window, vector2_t const * point
                               owner->value - wheel_y * CL_WindowScrollStep(owner));
 }
 
-static bool CL_WindowScrollBarSetFromPoint(clientWindow_t *window, uiFrame_t * scrollbar,
-                                           vector2_t const * point, bool drag_track) {
-    uiFrame_t * owner = CL_WindowScrollOwner(scrollbar);
+static bool CL_WindowScrollBarSetFromPoint(clientWindow_t *window, uiFrame_t *scrollbar,
+                                           vector2_t const *point, bool drag_track) {
+    uiFrame_t *owner = CL_WindowScrollOwner(scrollbar);
     rect_t const *screen;
     rect_t track;
     float bh, th, value;
@@ -614,10 +614,10 @@ static bool CL_WindowScrollBarSetFromPoint(clientWindow_t *window, uiFrame_t * s
     return CL_WindowSetScroll(window, owner, value);
 }
 
-static bool CL_WindowContains(clientWindow_t *window, vector2_t const * point) {
+static bool CL_WindowContains(clientWindow_t *window, vector2_t const *point) {
     rect_t root = CL_WindowRoot(window);
     CL_WindowPrepareState(window, &root);
-    uiFrame_t const * frame = SCR_Frame(1);
+    uiFrame_t const *frame = SCR_Frame(1);
     return frame && Rect_contains(SCR_LayoutRect(frame), point);
 }
 
@@ -631,18 +631,18 @@ bool CL_WindowMouseOver(int x, int y) {
     return modal != NULL;
 }
 
-static uiFrame_t const * CL_WindowClickableAt(clientWindow_t *window, vector2_t const * point) {
+static uiFrame_t const *CL_WindowClickableAt(clientWindow_t *window, vector2_t const *point) {
     rect_t root = CL_WindowRoot(window);
     CL_WindowPrepareState(window, &root);
     for (uint32_t i = SCR_NumFrames(); i > 0; i--) {
-        uiFrame_t const * frame = SCR_Frame(i - 1);
+        uiFrame_t const *frame = SCR_Frame(i - 1);
         if (SCR_LayoutFrameHasClickCommand(frame) && Rect_contains(SCR_LayoutRect(frame), point)) return frame;
     }
     return NULL;
 }
 
 /* Consume client-owned button actions locally; ordinary layout actions remain server commands. */
-static void CL_WindowActivateFrame(clientWindow_t *window, uiFrame_t const * frame) {
+static void CL_WindowActivateFrame(clientWindow_t *window, uiFrame_t const *frame) {
     size_t const close_command_len = sizeof(UI_WINDOW_CLOSE_COMMAND_PREFIX) - 1;
     if (!frame) return;
     if (!strcmp(frame->onclick, UI_WINDOW_CLOSE_ACTION) ||
@@ -694,7 +694,7 @@ void CL_WindowOpen(uiWindowDef_t const *def, handle_t layout) {
         rect_t root = CL_WindowRoot(window);
         CL_WindowPrepareState(window, &root);
         FOR_LOOP(i, SCR_NumFrames()) {
-            uiFrame_t const * frame = SCR_Frame(i);
+            uiFrame_t const *frame = SCR_Frame(i);
             if (CL_WindowIsEditBox(frame)) { CL_WindowFocusEdit(window, frame); break; }
         }
     }
@@ -751,7 +751,7 @@ void CL_WindowDraw(void) {
 bool CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     vector2_t point = SCR_ScreenToUI(x, y);
     clientWindow_t *modal = CL_WindowModal(), *window;
-    uiFrame_t const * frame;
+    uiFrame_t const *frame;
 
     if (cl_windows.scroll_drag) {
         rect_t root = CL_WindowRoot(cl_windows.scroll_drag);
@@ -774,7 +774,7 @@ bool CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
     }
     for (window = cl_windows.last; window; window = window->prev) {
         rect_t root;
-        uiFrame_t * scrollbar;
+        uiFrame_t *scrollbar;
         if (modal && window != modal) continue;
         if (!CL_WindowContains(window, &point)) continue;
         if (event == MENU_MOUSE_DOWN && param == 1) CL_WindowFocus(window);
@@ -785,9 +785,9 @@ bool CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
             return true;
 
         if (event == MENU_MOUSE_DOWN && param == 1) {
-            uiFrame_t * edit = CL_WindowFrameAtType(&point, FT_EDITBOX);
-            uiFrame_t * list = CL_WindowFrameAtType(&point, FT_LISTBOX);
-            uiFrame_t * list_scrollbar = CL_WindowFrameAtType(&point, FT_SCROLLBAR);
+            uiFrame_t *edit = CL_WindowFrameAtType(&point, FT_EDITBOX);
+            uiFrame_t *list = CL_WindowFrameAtType(&point, FT_LISTBOX);
+            uiFrame_t *list_scrollbar = CL_WindowFrameAtType(&point, FT_SCROLLBAR);
             if (!edit) edit = CL_WindowFrameAtType(&point, FT_GLUEEDITBOX);
             if (!edit) edit = CL_WindowFrameAtType(&point, FT_SLASHCHATBOX);
             if (edit) {
@@ -906,7 +906,7 @@ bool CL_WindowKeyEvent(int key) {
     root = CL_WindowRoot(window);
     CL_WindowPrepareState(window, &root);
     for (uint32_t i = SCR_NumFrames(); i > 0; i--) {
-        uiFrame_t const * frame = SCR_Frame(i - 1);
+        uiFrame_t const *frame = SCR_Frame(i - 1);
         bool cancel;
         if (!SCR_LayoutFrameHasClickCommand(frame)) continue;
         cancel = key == K_ESCAPE && !strcmp(frame->onclick, "button CmdCancel");
@@ -968,7 +968,7 @@ cstring_t CL_WindowEditTextValue(uint32_t text_frame) {
     return NULL;
 }
 
-bool CL_WindowEditCursor(uint32_t text_frame, uint32_t * cursor) {
+bool CL_WindowEditCursor(uint32_t text_frame, uint32_t *cursor) {
     clientWindow_t *window = CL_WindowPrepared();
     if (!window || window != cl_windows.edit_window || !text_frame) return false;
     FOR_LOOP(i, window->num_edit_values) {

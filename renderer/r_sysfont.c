@@ -2,8 +2,8 @@
 
 #include "conchars_sysfont.h"
 
-texture_t * R_MakeSysFontTexture(void) {
-    texture_t * texture = R_LoadTexturePCX((handle_t)conchars_sysfont_pcx, CONCHARS_SYSFONT_PCX_SIZE);
+texture_t *R_MakeSysFontTexture(void) {
+    texture_t *texture = R_LoadTexturePCX((handle_t)conchars_sysfont_pcx, CONCHARS_SYSFONT_PCX_SIZE);
 
     assert(texture);
 

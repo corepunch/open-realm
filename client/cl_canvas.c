@@ -89,7 +89,7 @@ void CL_CanvasWriteChrome(void) {
     MSG_WriteString(&cls.netchan.message, command);
 }
 
-uiCanvas_t const * CL_Canvas(void) { return &canvas.live; }
+uiCanvas_t const *CL_Canvas(void) { return &canvas.live; }
 
 /* Presentation class the server should currently author for; tests and diagnostics read it, gameplay never does. */
 UICANVASCLASS CL_CanvasSettledChrome(void) { return canvas.settled; }

@@ -2,15 +2,15 @@
 
 /* ---- Healing Spray (ANhs): channeled point AoE heal waves ---------------- */
 
-static bool healing_spray_hits(edict_t * caster, uint32_t code, edict_t * target, float radius, vector2_t const * origin) {
+static bool healing_spray_hits(edict_t *caster, uint32_t code, edict_t *target, float radius, vector2_t const *origin) {
     if (!target || !S_SpellIsAliveTarget(target)) return false;
     if (Vector2_distance(&target->s.origin2, origin) > radius) return false;
     return S_SpellAllowsTarget(code, caster, target);
 }
 
-void healing_spray_think(edict_t * ent) {
+void healing_spray_think(edict_t *ent) {
     uint32_t now = G_Time(), ntargets = 0;
-    edict_t * caster = ent->owner;
+    edict_t *caster = ent->owner;
     float heal = (float)ent->damage, maxheal = ent->velocity;
 
     if (!S_SpellChannelActive(ent)) { S_SpellEndChannel(ent); return; }
@@ -33,7 +33,7 @@ void healing_spray_think(edict_t * ent) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityHealingSpray) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    edict_t * thinker = S_SpellChannelThinker(caster, spell->code);
+    edict_t *thinker = S_SpellChannelThinker(caster, spell->code);
 
     thinker->s.origin2 = st.point;
     thinker->s.origin.x = st.point.x;
@@ -49,13 +49,13 @@ BZ_SIMPLE_SPELL_PROC(AbilityHealingSpray) {
 
 /* ---- Transmute (ANtm): kill target, credit goldCost * DataA -------------- */
 
-static bool transmute_is_neutral(edict_t const * target) {
+static bool transmute_is_neutral(edict_t const *target) {
     return target && target->s.player < MAX_PLAYERS && level.mapinfo &&
         level.mapinfo->players[target->s.player].playerType == kPlayerTypeNeutral;
 }
 
-static bool transmute_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
-    edict_t * target = st.entity;
+static bool transmute_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    edict_t *target = st.entity;
     uint32_t level = S_SpellLevel(caster, spell->code);
     uint32_t max_level = (uint32_t)S_SpellData(spell->code, level, 3); /* DataC maxCreepLv */
     UnitBalance_t const *bal;
@@ -68,13 +68,13 @@ static bool transmute_validate(edict_t * caster, spellTarget_t st, abilityitem_t
     return true;
 }
 
-static void transmute_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
-    edict_t * target = st.entity;
+static void transmute_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    edict_t *target = st.entity;
     uint32_t level = S_SpellLevel(caster, spell->code);
     float gold_factor = S_SpellData(spell->code, level, 1); /* DataA */
     float lumber_factor = S_SpellData(spell->code, level, 2); /* DataB */
     UnitBalance_t const *bal;
-    gameClient_t * client;
+    gameClient_t *client;
     int32_t gold, lumber;
 
     if (!target || !target->data.UnitBalance) return;

@@ -9,10 +9,10 @@
 #define BZ_HPEA MAKEFOURCC('h', 'p', 'e', 'a') // unit; fixture archer/companion (non-stock earc)
 #define BZ_OGRU MAKEFOURCC('o', 'g', 'r', 'u') // unit; fixture rider (non-stock ehpr)
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock DataA/UnitID/Cost so mount cannot pass on retail ehip/ehpr/0. */
@@ -40,7 +40,7 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
 	slkTestData_t *rows, *old;
-	edict_t * caster, *partner, *enemy, *wrong;
+	edict_t *caster, *partner, *enemy, *wrong;
 } coupleFix_t;
 
 static void couple_setup(coupleFix_t *fix, cstring_t slk, uint32_t code, uint32_t caster_id, uint32_t partner_id) {
@@ -99,7 +99,7 @@ TEST(wc3_spell, hippogryph_couple_reads_authored_partner_and_rider) {
 /* Acoa consumes caster+partner and spawns authored UnitID rider. */
 TEST(wc3_spell, hippogryph_couple_acoa_mounts_into_rider) {
 	coupleFix_t fix;
-	edict_t * rider;
+	edict_t *rider;
 	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOA, BZ_HPEA, BZ_HFOO);
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACOA, fix.partner));
 	/* Execute frees both inputs; spent Cost is observed only on reject paths. */
@@ -116,7 +116,7 @@ TEST(wc3_spell, hippogryph_couple_acoa_mounts_into_rider) {
 /* Acoh is the inverse target (hippo casts on archer) with the same merge. */
 TEST(wc3_spell, hippogryph_couple_acoh_picks_up_into_rider) {
 	coupleFix_t fix;
-	edict_t * rider = NULL;
+	edict_t *rider = NULL;
 	couple_setup(&fix, COUPLE_MOUNT_SLK, BZ_ACOH, BZ_HFOO, BZ_HPEA);
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACOH, fix.partner));
 	T_ASSERT(!fix.caster->inuse);

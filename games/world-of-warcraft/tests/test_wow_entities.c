@@ -53,23 +53,23 @@ static animation_t test_animations[] = {
     { .name = "Dead",         .interval = { 0, 1200 } },
 };
 
-static void put32(uint8_t * out, uint32_t value) {
+static void put32(uint8_t *out, uint32_t value) {
     out[0] = (uint8_t)(value & 0xff);
     out[1] = (uint8_t)((value >> 8) & 0xff);
     out[2] = (uint8_t)((value >> 16) & 0xff);
     out[3] = (uint8_t)((value >> 24) & 0xff);
 }
-static void putfield(uint8_t * record, uint32_t field, uint32_t value) {
+static void putfield(uint8_t *record, uint32_t field, uint32_t value) {
     put32(record + field * sizeof(uint32_t), value);
 }
-static void putfield_float(uint8_t * record, uint32_t field, float value) {
+static void putfield_float(uint8_t *record, uint32_t field, float value) {
     memcpy(record + field * sizeof(uint32_t), &value, sizeof(value));
 }
 
-static handle_t alloc_dbc(uint32_t records, uint32_t fields, uint32_t string_size, uint32_t * size_out) {
+static handle_t alloc_dbc(uint32_t records, uint32_t fields, uint32_t string_size, uint32_t *size_out) {
     uint32_t record_size = fields * sizeof(uint32_t);
     uint32_t size = 20 + records * record_size + string_size;
-    uint8_t * data = calloc(1, size);
+    uint8_t *data = calloc(1, size);
     *(uint32_t *)data = ID_WDBC;
     put32(data + 4, records);
     put32(data + 8, fields);
@@ -78,7 +78,7 @@ static handle_t alloc_dbc(uint32_t records, uint32_t fields, uint32_t string_siz
     *size_out = size;
     return data;
 }
-static uint32_t add_string(uint8_t * strings, uint32_t *cursor, cstring_t value) {
+static uint32_t add_string(uint8_t *strings, uint32_t *cursor, cstring_t value) {
     uint32_t offset = *cursor, len = (uint32_t)strlen(value) + 1;
     memcpy(strings + offset, value, len);
     *cursor += len;
@@ -94,10 +94,10 @@ static bool path_eq(cstring_t a, cstring_t b) {
     return *a == '\0' && *b == '\0';
 }
 
-static handle_t make_map_dbc(uint32_t * size_out) {
+static handle_t make_map_dbc(uint32_t *size_out) {
     uint32_t size;
-    uint8_t * data = alloc_dbc(1, 5, 64, &size);
-    uint8_t * record = data + 20, strings = record + 5 * sizeof(uint32_t);
+    uint8_t *data = alloc_dbc(1, 5, 64, &size);
+    uint8_t *record = data + 20, strings = record + 5 * sizeof(uint32_t);
     uint32_t cursor = 1;
     putfield(record, 0, 1);
     putfield(record, 1, add_string(strings, &cursor, "Azeroth"));
@@ -106,10 +106,10 @@ static handle_t make_map_dbc(uint32_t * size_out) {
     *size_out = size;
     return data;
 }
-static handle_t make_world_safe_locs_dbc(uint32_t * size_out) {
+static handle_t make_world_safe_locs_dbc(uint32_t *size_out) {
     uint32_t size;
-    uint8_t * data = alloc_dbc(1, 6, 64, &size);
-    uint8_t * record = data + 20, strings = record + 6 * sizeof(uint32_t);
+    uint8_t *data = alloc_dbc(1, 6, 64, &size);
+    uint8_t *record = data + 20, strings = record + 6 * sizeof(uint32_t);
     uint32_t cursor = 1;
     putfield(record, 0, 100);
     putfield(record, 1, 1);
@@ -120,12 +120,12 @@ static handle_t make_world_safe_locs_dbc(uint32_t * size_out) {
     *size_out = size;
     return data;
 }
-static handle_t make_creature_display_info_dbc(uint32_t * size_out) {
+static handle_t make_creature_display_info_dbc(uint32_t *size_out) {
     uint32_t displays[] = { 161, 193, 163, 188 };
     uint32_t size;
-    uint8_t * data = alloc_dbc(4, 5, 1, &size);
+    uint8_t *data = alloc_dbc(4, 5, 1, &size);
     FOR_LOOP(i, 4) {
-        uint8_t * record = data + 20 + i * 5 * sizeof(uint32_t);
+        uint8_t *record = data + 20 + i * 5 * sizeof(uint32_t);
         putfield(record, 0, displays[i]);
         putfield(record, 1, 700 + i);
         putfield_float(record, 4, 1.0f);
@@ -133,15 +133,15 @@ static handle_t make_creature_display_info_dbc(uint32_t * size_out) {
     *size_out = size;
     return data;
 }
-static handle_t make_creature_model_data_dbc(uint32_t * size_out) {
+static handle_t make_creature_model_data_dbc(uint32_t *size_out) {
     uint32_t size;
-    uint8_t * data = alloc_dbc(4, 15, 160, &size);
-    uint8_t * records = data + 20, strings = records + 4 * 15 * sizeof(uint32_t);
+    uint8_t *data = alloc_dbc(4, 15, 160, &size);
+    uint8_t *records = data + 20, strings = records + 4 * 15 * sizeof(uint32_t);
     uint32_t cursor = 1;
     FOR_LOOP(i, 4) {
         char name[64];
         snprintf(name, sizeof(name), "Creature\\Test\\Creature%u.m2", (unsigned)i);
-        uint8_t * record = records + i * 15 * sizeof(uint32_t);
+        uint8_t *record = records + i * 15 * sizeof(uint32_t);
         putfield(record, 0, 700 + i);
         putfield(record, 2, add_string(strings, &cursor, name));
         putfield_float(record, 4, 1.0f);
@@ -152,7 +152,7 @@ static handle_t make_creature_model_data_dbc(uint32_t * size_out) {
 }
 
 /* ---- game_import stubs ---- */
-static handle_t test_read_file(cstring_t filename, uint32_t * size) {
+static handle_t test_read_file(cstring_t filename, uint32_t *size) {
     if (path_eq(filename, "DBFilesClient\\Map.dbc")) return make_map_dbc(size);
     if (path_eq(filename, "DBFilesClient\\WorldSafeLocs.dbc")) return make_world_safe_locs_dbc(size);
     if (path_eq(filename, "DBFilesClient\\CreatureDisplayInfo.dbc")) return make_creature_display_info_dbc(size);
@@ -164,7 +164,7 @@ static handle_t test_mem_alloc(long n) { return calloc(1, (size_t)n); }
 static void test_mem_free(handle_t m) { free(m); }
 static void test_clear_world(void) {}
 static void test_loading_frame(void) {}
-static void test_apply_lobby_settings(mapInfo_t * info) { (void)info; }
+static void test_apply_lobby_settings(mapInfo_t *info) { (void)info; }
 static int test_model_index(cstring_t name) {
     FOR_LOOP(i, test_num_models)
         if (!strcasecmp(test_models[i].name, name)) return test_models[i].index;
@@ -189,10 +189,10 @@ static void test_error(cstring_t fmt, ...) {
     vsnprintf(test_last_error, sizeof(test_last_error), fmt, args);
     va_end(args);
 }
-void UI_WriteWowHud(edict_t * ent) { (void)ent; }
-void UI_WriteWowHover(edict_t * ent) { (void)ent; }
-void UI_WriteWelcomeWindow(edict_t * ent) { (void)ent; }
-void UI_WriteLoadingLayout(edict_t * ent) { (void)ent; }
+void UI_WriteWowHud(edict_t *ent) { (void)ent; }
+void UI_WriteWowHover(edict_t *ent) { (void)ent; }
+void UI_WriteWelcomeWindow(edict_t *ent) { (void)ent; }
+void UI_WriteLoadingLayout(edict_t *ent) { (void)ent; }
 
 static struct game_import test_import(void) {
     struct game_import import;
@@ -214,7 +214,7 @@ static struct game_import test_import(void) {
 }
 
 int G_RegisterModel(cstring_t filename) { return gi.ModelIndex(filename); }
-animation_t const * G_GetAnimation(uint32_t idx, cstring_t name) {
+animation_t const *G_GetAnimation(uint32_t idx, cstring_t name) {
     (void)idx;
     FOR_LOOP(i, sizeof(test_animations) / sizeof(test_animations[0]))
         if (!strcasecmp(test_animations[i].name, name)) return &test_animations[i];
@@ -246,7 +246,7 @@ static struct game_export *init_game(void) {
 
 /* Entities are identified by their game-local think function pointer (Quake2
  * style); there is no kind tag. */
-static edict_t * first_with_think(void (*think)(edict_t *)) {
+static edict_t *first_with_think(void (*think)(edict_t *)) {
     for (uint32_t i = MAX_CLIENTS; i < (uint32_t)globals.num_edicts; i++) {
         if (wow_edicts[i].inuse && Wow_EntityLocal(&wow_edicts[i])->think == think) return &wow_edicts[i];
     }
@@ -271,7 +271,7 @@ TEST(wow_entities, dying_creature_becomes_corpse) {
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame(); /* reset spawn budget */
 
-    edict_t * creature = first_with_think(Wow_RunCreatureFrame);
+    edict_t *creature = first_with_think(Wow_RunCreatureFrame);
     T_NOT_NULL(creature);
     wowEntityLocal_t *cl = Wow_EntityLocal(creature);
     uint32_t model = creature->s.model;
@@ -300,7 +300,7 @@ TEST(wow_entities, corpse_decays_over_time) {
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
-    edict_t * creature = first_with_think(Wow_RunCreatureFrame);
+    edict_t *creature = first_with_think(Wow_RunCreatureFrame);
     T_NOT_NULL(creature);
     Wow_AIDie(creature, &wow_edicts[0]);
     while (Wow_EntityLocal(creature)->death_time > 0) Wow_AIAdvanceLockedFrame(creature);
@@ -321,7 +321,7 @@ TEST(wow_entities, corpse_removed_after_timer_expires) {
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
-    edict_t * creature = first_with_think(Wow_RunCreatureFrame);
+    edict_t *creature = first_with_think(Wow_RunCreatureFrame);
     T_NOT_NULL(creature);
     Wow_AIDie(creature, &wow_edicts[0]);
     while (Wow_EntityLocal(creature)->death_time > 0) Wow_AIAdvanceLockedFrame(creature);
@@ -340,7 +340,7 @@ TEST(wow_entities, walking_creature_reanchors_to_terrain) {
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
-    edict_t * creature = first_with_think(Wow_RunCreatureFrame);
+    edict_t *creature = first_with_think(Wow_RunCreatureFrame);
     T_NOT_NULL(creature);
     wowEntityLocal_t *cl = Wow_EntityLocal(creature);
     T_ASSERT(cl->patrol_radius > 0.0f && cl->walk_speed > 0.0f);
@@ -366,7 +366,7 @@ TEST(wow_entities, dynamic_object_spawn_and_properties) {
     game->RunFrame();
 
     vector2_t origin = { 100.0f, 200.0f };
-    edict_t * dobj = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 5000);
+    edict_t *dobj = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 5000);
     T_NOT_NULL(dobj);
 
     wowEntityLocal_t *dl = Wow_EntityLocal(dobj);
@@ -392,7 +392,7 @@ TEST(wow_entities, dynamic_object_despawns_after_duration) {
     game->RunFrame();
 
     vector2_t origin = { 0, 0 };
-    edict_t * dobj = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, FRAMETIME);
+    edict_t *dobj = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, FRAMETIME);
     T_NOT_NULL(dobj);
 
     game->RunFrame();
@@ -434,11 +434,11 @@ TEST(wow_entities, spawn_budget_resets_per_frame) {
     game->RunFrame();
 
     vector2_t origin = { 0, 0 };
-    edict_t * d1 = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 1000);
+    edict_t *d1 = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 1000);
     T_NOT_NULL(d1);
     game->RunFrame();
 
-    edict_t * d2 = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 1000);
+    edict_t *d2 = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 1000);
     T_NOT_NULL(d2);
     T_ASSERT(d1 != d2);
 
@@ -469,7 +469,7 @@ TEST(wow_entities, edict_limit_reached_returns_null) {
     uint32_t num = (uint32_t)globals.num_edicts;
     /* Fill remaining edicts with corpses (up to WOW_MAX_EDICTS) */
     while (num < WOW_MAX_EDICTS) {
-        edict_t * e = &wow_edicts[num++];
+        edict_t *e = &wow_edicts[num++];
         memset(e, 0, sizeof(*e));
         memset(&wow_entity_locals[num - 1], 0, sizeof(wow_entity_locals[0]));
         e->inuse = true;
@@ -479,7 +479,7 @@ TEST(wow_entities, edict_limit_reached_returns_null) {
     }
 
     vector2_t origin = { 0, 0 };
-    edict_t * should_fail = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 1000);
+    edict_t *should_fail = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 1000);
     T_NULL(should_fail);
 
     if (game->Shutdown) game->Shutdown();
@@ -491,9 +491,9 @@ TEST(wow_entities, edict_limit_reached_returns_null) {
 
 TEST(wow_entities, stb_dbc_parses_header_and_fields) {
     uint32_t size;
-    uint8_t * data = alloc_dbc(2, 4, 128, &size);
-    uint8_t * r0 = data + 20, r1 = r0 + 4 * sizeof(uint32_t);
-    uint8_t * strings = r1 + 4 * sizeof(uint32_t);
+    uint8_t *data = alloc_dbc(2, 4, 128, &size);
+    uint8_t *r0 = data + 20, r1 = r0 + 4 * sizeof(uint32_t);
+    uint8_t *strings = r1 + 4 * sizeof(uint32_t);
     uint32_t cursor = 1;
     stbDbc_t h;
     uint8_t const *found;
@@ -534,7 +534,7 @@ TEST(wow_entities, stb_dbc_parses_header_and_fields) {
     free(data);
 
     /* Malformed envelope: block overflow, too-small record size, bad magic. */
-    uint8_t * bad = malloc(64);
+    uint8_t *bad = malloc(64);
     *(uint32_t *)bad = ID_WDBC;
     put32(bad + 4, 10); put32(bad + 8, 1); put32(bad + 12, 4); put32(bad + 16, 0);
     T_ASSERT(!Stb_DbcValid(bad, 32, &h)); /* 20 + 10*4 > 32 */
@@ -546,7 +546,7 @@ TEST(wow_entities, stb_dbc_parses_header_and_fields) {
 
     /* Loose rule: logical field_count may exceed record_size/4 (classic CharStartOutfit),
        but Stb_DbcField still bounds-checks against the physical record. */
-    uint8_t * wide = calloc(1, 20 + 8);
+    uint8_t *wide = calloc(1, 20 + 8);
     *(uint32_t *)wide = ID_WDBC;
     put32(wide + 4, 1); put32(wide + 8, 40); put32(wide + 12, 8); put32(wide + 16, 0);
     T_ASSERT(Stb_DbcValid(wide, 20 + 8, &h));

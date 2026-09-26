@@ -4,8 +4,8 @@
 #define DISEASE_TICK_MS 1000 // milliseconds; DataB is damage per second; infection pulse interval
 
 /* A recipient carries the infection after leaving the aura; rank and pulse deadline survive save/load. */
-static void disease_tick(edict_t * target, heroabilitystatus_t *slot) {
-    edict_t * source = slot->source;
+static void disease_tick(edict_t *target, heroabilitystatus_t *slot) {
+    edict_t *source = slot->source;
     if (!source || !source->inuse || source->spawn_time != slot->source_spawn_time) {
         unit_expirestatus(target, slot);
         return;

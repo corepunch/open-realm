@@ -19,7 +19,7 @@ typedef struct m2KnownTexture_s {
 static m2KnownTexture_t *m2_known_textures;
 
 typedef struct m2ModelBatch_s {
-	texture_t * texture;
+	texture_t *texture;
 	drawRange_t draw;
 	uint32_t texture_type;
 	uint16_t bone_count;
@@ -43,7 +43,7 @@ struct m2Model_s {
     box3_t geometry_bounds;
     uint32_t flags;
     /* Renderer-owned state that has no representation in the M2 file. */
-    buffer_t * buffer;
+    buffer_t *buffer;
     m2ModelBatch_t *batches;
     uint32_t num_batches;
 };
@@ -57,10 +57,10 @@ typedef struct {
     m2Box_t bounding_box;
 } m2GeometryInfo_t;
 
-static modelProg_t * m2_shader;
+static modelProg_t *m2_shader;
 static matrix4_t m2_bone_matrices[M2_MAX_BONES];
 
-static modelProg_t * M2_Shader(void) {
+static modelProg_t *M2_Shader(void) {
     if (!m2_shader) {
         m2_shader = R_ModelShader();
     }
@@ -130,7 +130,7 @@ static m2Model_t *M2_CreateFallbackModel(cstring_t modelFilename, cstring_t reas
 #define M2_CHARACTER_COMPOSITE_RESOLUTION 256 // pixels; Classic character body atlases use this native resolution
 #define M2_CHARACTER_COMPOSITE_CACHE_SIZE 16 // atlases; bounded global LRU shared across all loaded character models
 typedef struct {
-    rendertarget_t * target;
+    rendertarget_t *target;
     texture_t texture;
 } m2CharCompositeCache_t;
 static m2CharCompositeCache_t m2_character_composite_cache[M2_CHARACTER_COMPOSITE_CACHE_SIZE];
@@ -168,7 +168,7 @@ static uint8_t M2_CharacterTextureSlotForSection(uint16_t section_id) {
 
 static bool M2_TextureExists(cstring_t path) {
     m2KnownTexture_t *known;
-    uint8_t * data = NULL;
+    uint8_t *data = NULL;
     int size;
 
     if (!path || !*path) {
@@ -387,7 +387,7 @@ static uint16_t M2_SequenceAnimId(m2Model_t const *model, uint32_t seq) {
 }
 
 /* Lua SetSequence passes Blizzard animation IDs, not raw M2 sequence row indices. */
-static bool M2_FindSequenceByAnimId(m2Model_t const *model, uint32_t anim_id, uint32_t * seq) {
+static bool M2_FindSequenceByAnimId(m2Model_t const *model, uint32_t anim_id, uint32_t *seq) {
     if (!model || !seq)
         return false;
     FOR_LOOP(i, M2_SequenceCount(model)) {
@@ -687,11 +687,11 @@ static float M2_EvaluateFloatTrack(m2Model_t const *model,
 
 bool M2_CameraView(m2Model_t const *model,
                    uint32_t camera_index,
-                   vector3_t * eye,
-                   vector3_t * target,
-                   float * fov_degrees,
-                   float * znear,
-                   float * zfar) {
+                   vector3_t *eye,
+                   vector3_t *target,
+                   float *fov_degrees,
+                   float *znear,
+                   float *zfar) {
     m2PoseTime_t pose;
     m2TrackView_t position_track;
     m2TrackView_t target_track;
@@ -752,7 +752,7 @@ static quaternion_t M2_DecodeCompQuat(m2CompQuat_t const *source) {
     };
 }
 
-static quaternion_t M2_QuaternionNlerp(quaternion_t const * q1, quaternion_t const * q2, float ratio) {
+static quaternion_t M2_QuaternionNlerp(quaternion_t const *q1, quaternion_t const *q2, float ratio) {
     quaternion_t out = {
         .x = (q2->x - q1->x) * ratio + q1->x,
         .y = (q2->y - q1->y) * ratio + q1->y,
@@ -954,7 +954,7 @@ static void m2_sample_part_track(m2Model_t const *model, m2PartTrack_t const *tr
 	memcpy(out, vals + (count - 1) * elem_size, elem_size);
 }
 
-static texture_t * m2_particle_texture(m2Model_t const *model, m2Particle_t const *p) {
+static texture_t *m2_particle_texture(m2Model_t const *model, m2Particle_t const *p) {
 	m2TextureDisk_t const *tex; cstring_t path; m2Array_t textures;
 	if (!model || !p) return tr.texture[TEX_WHITE];
 	textures = M2_TexturesArray(model);
@@ -966,7 +966,7 @@ static texture_t * m2_particle_texture(m2Model_t const *model, m2Particle_t cons
 	return path && *path ? R_LoadTexture(path) : tr.texture[TEX_WHITE];
 }
 
-static texture_t * m2_ribbon_texture(m2Model_t const *model, m2Ribbon_t const *r, uint32_t slot) {
+static texture_t *m2_ribbon_texture(m2Model_t const *model, m2Ribbon_t const *r, uint32_t slot) {
 	uint16_t const *indices; m2TextureDisk_t const *tex; uint32_t idx; cstring_t path; m2Array_t textures;
 	if (!model || !r) return tr.texture[TEX_WHITE];
 	textures = M2_TexturesArray(model);
@@ -988,12 +988,12 @@ static texture_t * m2_ribbon_texture(m2Model_t const *model, m2Ribbon_t const *r
 typedef struct {
 	float speed, varia, lat, lon, grav, life, life_var, zsource, midpoint;
 	float alpha[3]; vector2_t scale[3]; vector3_t color[3];
-	texture_t * texture; uint16_t bone_index;
-	m2Model_t const *model; m2Particle_t const *p; matrix4_t const * model_matrix;
+	texture_t *texture; uint16_t bone_index;
+	m2Model_t const *model; m2Particle_t const *p; matrix4_t const *model_matrix;
 } m2_pctx_t;
 
 /* M2 emitter positions are local to their bone, not the model origin. */
-static void M2_EmitterMatrix(m2_pctx_t const *ctx, matrix4_t * out) {
+static void M2_EmitterMatrix(m2_pctx_t const *ctx, matrix4_t *out) {
     if (ctx->model && ctx->bone_index < (uint32_t)M2_BonesArray(ctx->model).size) {
         Matrix4_multiply(ctx->model_matrix, &m2_bone_matrices[ctx->bone_index], out);
         return;
@@ -1047,7 +1047,7 @@ static void m2p_sample_classic_data(uint8_t const *raw, m2_pctx_t *ctx) {
     ctx->midpoint = midpoint;
 }
 
-static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entity, matrix4_t const * model_matrix) {
+static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entity, matrix4_t const *model_matrix) {
 	m2Array_t particles;
 	if (!model || !entity) return;
 	particles = M2_ParticlesArray(model);
@@ -1105,7 +1105,7 @@ static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entit
 	}
 }
 
-static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity, matrix4_t const * model_matrix) {
+static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity, matrix4_t const *model_matrix) {
 	m2Array_t ribbons;
 	if (!model || !entity) return;
 	ribbons = M2_RibbonsArray(model);
@@ -1147,7 +1147,7 @@ static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity,
 		uint8_t size_b = (uint8_t)MIN(255, (int)(w + 0.5f));
 		uint32_t cols = MAX(1, m2_ribbon_cols(model->format, raw));
 		uint32_t rows = MAX(1, m2_ribbon_rows(model->format, raw));
-		texture_t * tex = m2_ribbon_texture(model, r, slot);
+		texture_t *tex = m2_ribbon_texture(model, r, slot);
 		float grav = m2_ribbon_gravity(model->format, raw);
 		matrix4_t emitter_matrix = *model_matrix;
 		if (r->bone_index < (uint32_t)M2_BonesArray(model).size)
@@ -1201,7 +1201,7 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
         m2TrackView_t rtrk = M2_BoneRotationTrack(model, i);
         m2TrackView_t strk = M2_BoneScaleTrack(model, i);
         bool has_keys = M2_TrackHasKeys(&ttrk) || M2_TrackHasKeys(&rtrk) || M2_TrackHasKeys(&strk);
-        matrix4_t const * parent = &identity;
+        matrix4_t const *parent = &identity;
 
         if (parent_index != 0xFFFF && parent_index < i) {
             parent = &m2_bone_matrices[parent_index];
@@ -1231,7 +1231,7 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
     }
 }
 
-static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *batch, modelProg_t * shader) {
+static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *batch, modelProg_t *shader) {
     matrix4_t palette[BZ_BONE_PALETTE_MAX];
     uint16_t const *bone_lookup = model ? M2_BoneLookup(model) : NULL;
     uint32_t nlook = model ? (uint32_t)M2_BoneLookupArray(model).size : 0;
@@ -1258,7 +1258,7 @@ static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *ba
     shader->state.boneCount = count;
 }
 
-static texture_t * M2_TextureForBatch(uint8_t const *m2_data,
+static texture_t *M2_TextureForBatch(uint8_t const *m2_data,
                                     uint32_t m2_size,
                                     m2GeometryInfo_t const *geom,
                                     m2Batch_t const *batch,
@@ -1459,7 +1459,7 @@ static bool M2_IsCharacterModelPath(cstring_t model_path) {
  *   variant absent from certain race/gender models (retail fallback behavior).
  *   All other groups are pure GROUP*100+variant arithmetic. */
 static bool M2_CharacterGeosetVisible(m2Model_t const *model,
-                                       m2CharacterOutfit_t const * outfit,
+                                       m2CharacterOutfit_t const *outfit,
                                        uint16_t section_id) {
     uint32_t group, geoset, n;
     uint16_t available[64];
@@ -1562,7 +1562,7 @@ m2Model_t *R_LoadModelM2(cstring_t modelFilename, void *buffer, uint32_t size, b
     uint8_t const *m2_base = buffer;
     uint32_t m2_size = size;
     m2VertexDisk_t const *m2_vertices;
-    uint8_t * skin_data = NULL;
+    uint8_t *skin_data = NULL;
     uint32_t skin_size = 0;
     PATHSTR skin_path;
     m2SkinHeader_t const *skin;
@@ -1777,7 +1777,7 @@ m2Model_t *R_LoadModelM2(cstring_t modelFilename, void *buffer, uint32_t size, b
     return model;
 }
 
-static bool M2_CharacterTextureModified(m2CharacterOutfit_t const * outfit, uint32_t appearance) {
+static bool M2_CharacterTextureModified(m2CharacterOutfit_t const *outfit, uint32_t appearance) {
     wowAppearance_t unpacked = Wow_UnpackAppearance(appearance);
 
     if (unpacked.faceID || unpacked.facialHairStyleID) return true;
@@ -1788,7 +1788,7 @@ static bool M2_CharacterTextureModified(m2CharacterOutfit_t const * outfit, uint
     return false;
 }
 
-static void M2_DrawCompositeQuad(texture_t * texture, rect_t const * screen, bool blend) {
+static void M2_DrawCompositeQuad(texture_t *texture, rect_t const *screen, bool blend) {
     vertex_t vertices[6];
     matrix4_t projection;
     matrix4_t identity;
@@ -1819,7 +1819,7 @@ static void M2_DrawCompositeComponent(cstring_t stem, uint8_t slot, cstring_t mo
                                       uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
     if (stem && *stem) {
         PATHSTR resolved;
-        texture_t * texture;
+        texture_t *texture;
 
         if (!M2_CharacterComponentTexturePath(stem, slot, model_path, resolved, sizeof(resolved))) return;
         texture = R_LoadTexture(resolved);
@@ -1834,7 +1834,7 @@ static void M2_DrawCompositeHeadVariation(cstring_t model_path, uint32_t section
 
     FOR_LOOP(i, 2) {
         PATHSTR path;
-        texture_t * texture;
+        texture_t *texture;
 
         if (!M2_DbcCharacterVariationTexturePath(model_path, section_id, variation_index, color_index, texture_indices[i], path, sizeof(path))) continue;
         texture = R_LoadTexture(path);
@@ -1844,16 +1844,16 @@ static void M2_DrawCompositeHeadVariation(cstring_t model_path, uint32_t section
     }
 }
 
-static texture_t * M2_PrepareCharacterTexture(m2Model_t const *model,
+static texture_t *M2_PrepareCharacterTexture(m2Model_t const *model,
                                             renderEntity_t const *entity,
-                                            m2CharacterOutfit_t const * outfit) {
+                                            m2CharacterOutfit_t const *outfit) {
     static uint32_t const rects[M2_CHAR_TEX_COMPONENT_COUNT][4] = {
         { 0, 0, 128, 64 }, { 0, 64, 128, 64 }, { 0, 128, 128, 32 },
         { 128, 0, 128, 64 }, { 128, 64, 128, 32 }, { 128, 96, 128, 64 },
         { 128, 160, 128, 64 }, { 128, 224, 128, 32 }
     };
     PATHSTR base_path;
-    texture_t * base;
+    texture_t *base;
     m2CharCompositeCache_t *cached;
     m2CompositeCacheParams_t cache;
     uint32_t cache_slot;
@@ -1916,7 +1916,7 @@ static texture_t * M2_PrepareCharacterTexture(m2Model_t const *model,
     return &cached->texture;
 }
 
-static texture_t * M2_CharacterTextureForBatch(m2Model_t const *model,
+static texture_t *M2_CharacterTextureForBatch(m2Model_t const *model,
                                              renderEntity_t const *entity,
                                              m2ModelBatch_t *batch) {
     PATHSTR texture_path;
@@ -1928,8 +1928,8 @@ static texture_t * M2_CharacterTextureForBatch(m2Model_t const *model,
     return batch->texture;
 }
 
-bool M2_AttachmentMatrix(m2Model_t const *model, uint32_t attachment_id, matrix4_t const * model_matrix, matrix4_t * out);
-void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, matrix4_t const * transform);
+bool M2_AttachmentMatrix(m2Model_t const *model, uint32_t attachment_id, matrix4_t const *model_matrix, matrix4_t *out);
+void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, matrix4_t const *transform);
 
 /* Race abbreviation used by Item\ObjectComponents\Head\<name>_<race><gender>.m2. */
 static cstring_t M2_RaceCode(uint32_t race_id) {
@@ -1960,9 +1960,9 @@ static bool M2_ItemAttachmentPath(cstring_t character_path, cstring_t model_name
 
 /* Item attachment models are loaded once per path and kept resident by their
  * single R_LoadModel reference; the per-frame path would otherwise leak refs. */
-static model_t const * M2_ItemModel(cstring_t path) {
+static model_t const *M2_ItemModel(cstring_t path) {
     static PATHSTR cached_path[64];
-    static model_t const * cached_model[64];
+    static model_t const *cached_model[64];
     uint32_t free_slot = 64;
     if (!path || !*path) return NULL;
     FOR_LOOP(i, 64) {
@@ -1992,10 +1992,10 @@ static bool M2_ItemTexturePath(cstring_t texture_name, bool helm, string_t out, 
  * parent's bone scratch stays intact. The item's model texture (ItemDisplayInfo
  * field 3/4) overrides the attachment's replaceable object skin. */
 static void M2_RenderItemAttachments(renderEntity_t const *entity, m2Model_t const *model,
-                                     matrix4_t const * transform, m2CharacterOutfit_t const * outfit) {
+                                     matrix4_t const *transform, m2CharacterOutfit_t const *outfit) {
     static uint32_t const ids[3] = { 11, 6, 5 }; /* helm, shoulder-left, shoulder-right */
-    model_t const * models[3] = { NULL, NULL, NULL };
-    texture_t * textures[3] = { NULL, NULL, NULL };
+    model_t const *models[3] = { NULL, NULL, NULL };
+    texture_t *textures[3] = { NULL, NULL, NULL };
     matrix4_t matrices[3];
     bool valid[3] = { false, false, false };
     PATHSTR path;
@@ -2024,7 +2024,7 @@ static void M2_RenderItemAttachments(renderEntity_t const *entity, m2Model_t con
 }
 
 /* Keep ordinary and instanced M2 batches on the same material-state contract. */
-static void M2_SetBlendMode(modelProg_t * shader, uint32_t mode) {
+static void M2_SetBlendMode(modelProg_t *shader, uint32_t mode) {
     shader->state.alphaKey = mode == BLEND_MODE_ALPHAKEY;
     R_SetAlphaKeyState(mode == BLEND_MODE_ALPHAKEY);
     if (mode == BLEND_MODE_NONE) {
@@ -2040,7 +2040,7 @@ static void M2_SetBlendMode(modelProg_t * shader, uint32_t mode) {
 }
 
 /* WoW's world sun is an ordinary directional entry; the shared shader never has a zero-light mode. */
-static void M2_BindSunLight(modelProg_t * shader) {
+static void M2_BindSunLight(modelProg_t *shader) {
     modelLighting_t light;
     if (!R_LightingFromEnviron(&tr.viewDef.entityLight, &light)) {
         light = (modelLighting_t){
@@ -2057,17 +2057,17 @@ static void M2_BindSunLight(modelProg_t * shader) {
     R_SetModelLighting(shader, &light);
 }
 
-void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, matrix4_t const * transform) {
+void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, matrix4_t const *transform) {
     renderEntity_t resolved_entity;
     renderEntity_t const *draw_entity = entity;
     m2CreatureAppearance_t creature = { 0 };
-    m2CreatureAppearance_t const * creature_ptr = NULL;
+    m2CreatureAppearance_t const *creature_ptr = NULL;
     matrix3_t normal_matrix;
     m2CharacterOutfit_t outfit_data;
-    m2CharacterOutfit_t const * outfit = NULL;
-    texture_t * character_texture = NULL;
+    m2CharacterOutfit_t const *outfit = NULL;
+    texture_t *character_texture = NULL;
     m2ModelBatch_t *batch;
-    modelProg_t * shader;
+    modelProg_t *shader;
     bool ground_effect;
     float ground_alpha = 1.0f;
 
@@ -2122,7 +2122,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, matrix
     R_Call(glDisable, GL_BLEND);
 
 	for (batch = model->batches; batch; batch = batch->next) {
-		texture_t const * texture;
+		texture_t const *texture;
 
 		if (!M2_CharacterGeosetVisible(model, outfit, batch->section_id)) {
 			continue;
@@ -2149,9 +2149,9 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, matrix
 /* Static-mesh instanced path for ground-effect clutter. Renders `count` copies
    of the model in one draw call per batch. Classic detail M2s have no keyed bone
    tracks, so this path adds root-anchored wind in the vertex shader. */
-void M2_RenderInstanced(m2Model_t const *model, instanceBuffer_t const * instances, uint32_t flags) {
+void M2_RenderInstanced(m2Model_t const *model, instanceBuffer_t const *instances, uint32_t flags) {
     m2ModelBatch_t *batch;
-    modelProg_t * shader;
+    modelProg_t *shader;
 
     if (!model || !instances || !instances->count) return;
 
@@ -2210,8 +2210,8 @@ void M2_RenderInstanced(m2Model_t const *model, instanceBuffer_t const * instanc
 
 bool M2_AttachmentMatrix(m2Model_t const *model,
                          uint32_t attachment_id,
-                         matrix4_t const * model_matrix,
-                         matrix4_t * out) {
+                         matrix4_t const *model_matrix,
+                         matrix4_t *out) {
     uint8_t const *attachments;
     uint16_t const *lookup;
     uint32_t attachment_index = 0xFFFFu;
@@ -2269,7 +2269,7 @@ bool M2_AttachmentMatrix(m2Model_t const *model,
 
 /* Rebuild the requested entity pose before resolving an attachment outside the M2 draw pass. */
 bool M2_EntityAttachmentPosition(m2Model_t const *model, renderEntity_t const *entity, uint32_t attachment_id,
-                                 matrix4_t const * model_matrix, vector3_t * out) {
+                                 matrix4_t const *model_matrix, vector3_t *out) {
     matrix4_t matrix;
     if (!model || !entity || !model_matrix || !out) return false;
     M2_CalculateBoneMatrices(model, entity);
@@ -2279,7 +2279,7 @@ bool M2_EntityAttachmentPosition(m2Model_t const *model, renderEntity_t const *e
 }
 
 /* Resolve an attachment while this model's just-calculated pose still owns the shared bone palette. */
-bool M2_PosedAttachmentPosition(m2Model_t const *model, uint32_t attachment_id, matrix4_t const * model_matrix, vector3_t * out) {
+bool M2_PosedAttachmentPosition(m2Model_t const *model, uint32_t attachment_id, matrix4_t const *model_matrix, vector3_t *out) {
     matrix4_t matrix;
     if (!model || !model_matrix || !out || !M2_AttachmentMatrix(model, attachment_id, model_matrix, &matrix)) return false;
     *out = MAKE(vector3_t, matrix.v[12], matrix.v[13], matrix.v[14]);

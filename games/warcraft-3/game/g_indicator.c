@@ -2,7 +2,7 @@
 
 /* Retail Smart-click acknowledgement uses the same selection-circle palette
  * as unit relationship presentation. UI\MiscData.txt stores these as A,R,G,B. */
-color32_t G_SmartTargetIndicatorColor(uint32_t viewer, edict_t const * unit) {
+color32_t G_SmartTargetIndicatorColor(uint32_t viewer, edict_t const *unit) {
     static cstring_t const keys[] = { "ColorFriend", "ColorNeutral", "ColorEnemy" };
     static color32_t const stock[] = {
         MAKE(color32_t, .r = 0, .g = 255, .b = 0, .a = 255),
@@ -27,8 +27,8 @@ color32_t G_SmartTargetIndicatorColor(uint32_t viewer, edict_t const * unit) {
 }
 
 /* Serialize one indicator to a target client's temporary-entity stream. */
-static void G_SendWidgetIndicatorClient(gameClient_t * client, edict_t const * widget, color32_t color) {
-    edict_t * clent;
+static void G_SendWidgetIndicatorClient(gameClient_t *client, edict_t const *widget, color32_t color) {
+    edict_t *clent;
     uint32_t packed;
 
     if (!client || !widget || !color.a || !client->connected || !gi.Write || !gi.unicast) return;
@@ -46,7 +46,7 @@ static void G_SendWidgetIndicatorClient(gameClient_t * client, edict_t const * w
 
 /* AddIndicator is local presentation, not simulation state. Keep its lifetime
  * on the client and send only the source widget/color for each recipient. */
-void G_SendWidgetIndicator(edict_t * widget, color32_t color, player_t * local_player) {
+void G_SendWidgetIndicator(edict_t *widget, color32_t color, player_t *local_player) {
     if (!widget || !color.a) return;
     if (local_player) {
         G_SendWidgetIndicatorClient(PLAYER_CLIENT(local_player), widget, color);

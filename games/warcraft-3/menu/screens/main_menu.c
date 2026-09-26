@@ -30,7 +30,7 @@ static MainMenu_t main_menu;
 static uiDialogWar3_t quit_dialog;
 
 /* State */
-static frameDef_t * edition_button;
+static frameDef_t *edition_button;
 
 static bool MainMenu_LoadScreen(void) {
     return MainMenu_Load(&main_menu);
@@ -142,7 +142,7 @@ static void MainMenu_Refresh(int msec) {
 }
 
 static void MainMenu_Draw(void) {
-    frameDef_t const * roots[2];
+    frameDef_t const *roots[2];
     uint32_t num_roots = 0;
 
 

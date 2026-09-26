@@ -1,9 +1,9 @@
 /* galaxy_transmission.h — transmission natives */
-static uint32_t sc2_TransmissionSource(jass_t * j)        { return jass_pushnullhandle(j, "transmissionsource"); }
-static uint32_t sc2_TransmissionSourceFromModel(jass_t * j){ return jass_pushnullhandle(j, "transmissionsource"); }
-static uint32_t sc2_TransmissionSourceFromUnit(jass_t * j) { return jass_pushnullhandle(j, "transmissionsource"); }
+static uint32_t sc2_TransmissionSource(jass_t *j)        { return jass_pushnullhandle(j, "transmissionsource"); }
+static uint32_t sc2_TransmissionSourceFromModel(jass_t *j){ return jass_pushnullhandle(j, "transmissionsource"); }
+static uint32_t sc2_TransmissionSourceFromUnit(jass_t *j) { return jass_pushnullhandle(j, "transmissionsource"); }
 /* TransmissionSend: send a transmission to players; sleep if waitUntilDone and duration > 0. */
-static uint32_t sc2_TransmissionSend(jass_t * j) {
+static uint32_t sc2_TransmissionSend(jass_t *j) {
     /* args: playergroup, source, camerainfo, string anim, soundlink, text speaker,
      *       text msg, fixed duration, int durationType, bool waitUntilDone */
     float sound_dur  = sc2_sound_length(j, 5);
@@ -24,12 +24,12 @@ static uint32_t sc2_TransmissionSend(jass_t * j) {
         jass_sleep(j, (uint32_t)(dur * 1000.0f));
     return jass_pushnullhandle(j, "sound");
 }
-static uint32_t sc2_TransmissionLastSent(jass_t * j)      { return jass_pushinteger(j, 0); }
-static uint32_t sc2_TransmissionClear(jass_t * j)         { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TransmissionClearAll(jass_t * j)      { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_TransmissionWait(jass_t * j) {
+static uint32_t sc2_TransmissionLastSent(jass_t *j)      { return jass_pushinteger(j, 0); }
+static uint32_t sc2_TransmissionClear(jass_t *j)         { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TransmissionClearAll(jass_t *j)      { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TransmissionWait(jass_t *j) {
     float secs = jass_checknumber(j, 2);
     if (secs > 0.0f) jass_sleep(j, (uint32_t)(secs * 1000.0f));
     return jass_pushnull(j);
 }
-static uint32_t sc2_TransmissionSetOption(jass_t * j)     { (void)j; return jass_pushnull(j); }
+static uint32_t sc2_TransmissionSetOption(jass_t *j)     { (void)j; return jass_pushnull(j); }

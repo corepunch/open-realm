@@ -118,7 +118,7 @@ static void UIWow_ResolveTexturePath(cstring_t in, string_t out, size_t out_size
     }
 }
 
-texture_t * UIWow_LoadTexture(cstring_t name) {
+texture_t *UIWow_LoadTexture(cstring_t name) {
     int empty_slot = -1;
     PATHSTR resolved;
 
@@ -170,7 +170,7 @@ texture_t * UIWow_LoadTexture(cstring_t name) {
     }
 }
 
-font_t const * UIWow_LoadFont(uint32_t size) {
+font_t const *UIWow_LoadFont(uint32_t size) {
     UIWow_EnsureRenderer();
     if (!wow_ui.renderer) {
         return NULL;
@@ -191,7 +191,7 @@ font_t const * UIWow_LoadFont(uint32_t size) {
         }
     }
     {
-        font_t const * font = wow_ui.renderer->LoadFont("Fonts\\FRIZQT__.TTF", size);
+        font_t const *font = wow_ui.renderer->LoadFont("Fonts\\FRIZQT__.TTF", size);
         if (!font) {
             UIWow_Printf("UIWow: renderer failed to load font '%s' size=%u\n", "Fonts\\FRIZQT__.TTF", size);
         }

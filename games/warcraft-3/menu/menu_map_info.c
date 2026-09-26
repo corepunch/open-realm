@@ -5,15 +5,15 @@
 #include "menu_local.h"
 #include "generated/map_info_pane.h"
 
-static void UI_SetSizeIfPresent(frameDef_t * frame, float width, float height) {
+static void UI_SetSizeIfPresent(frameDef_t *frame, float width, float height) {
     if (frame) {
         UI_SetSize(frame, width, height);
     }
 }
 
-static void UI_SetPointIfPresent(frameDef_t * frame,
+static void UI_SetPointIfPresent(frameDef_t *frame,
                                  UIFRAMEPOINT point,
-                                 frameDef_t const * relative,
+                                 frameDef_t const *relative,
                                  UIFRAMEPOINT relative_point,
                                  float x,
                                  float y)
@@ -23,13 +23,13 @@ static void UI_SetPointIfPresent(frameDef_t * frame,
     }
 }
 
-static void UI_SetHiddenIfPresent(frameDef_t * frame, bool hidden) {
+static void UI_SetHiddenIfPresent(frameDef_t *frame, bool hidden) {
     if (frame) {
         UI_SetHidden(frame, hidden);
     }
 }
 
-void UI_LayoutMapInfoPane(frameDef_t * frame) {
+void UI_LayoutMapInfoPane(frameDef_t *frame) {
     MapInfoPane_t pane;
     float height, row_top, map_top = 0.035f;
     bool compact;

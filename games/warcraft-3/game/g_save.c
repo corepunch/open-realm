@@ -810,7 +810,7 @@ static void ClearRuntimeFields(void *object, field_t const *fields, uint32_t fla
     }
 }
 
-static bool SaveBytes(FILE *f, void const * data, size_t size) { return fwrite(data, 1, size, f) == size; }
+static bool SaveBytes(FILE *f, void const *data, size_t size) { return fwrite(data, 1, size, f) == size; }
 static bool LoadBytes(FILE *f, void *data, size_t size) { return fread(data, 1, size, f) == size; }
 static bool WriteJassBytes(void *context, void *data, uint32_t size) { return SaveBytes(context, data, size); }
 static bool ReadJassBytes(void *context, void *data, uint32_t size) { return LoadBytes(context, data, size); }
@@ -820,7 +820,7 @@ static bool WriteString(FILE *f, cstring_t text);
 static bool ReadString(FILE *f, string_t *text);
 static uint32_t ActiveEventCount(void);
 
-static uint32_t SaveHash(uint32_t hash, void const * data, size_t size) {
+static uint32_t SaveHash(uint32_t hash, void const *data, size_t size) {
     uint8_t const *bytes = data;
     while (size--) hash = (hash ^ *bytes++) * 16777619u;
     return hash;
@@ -925,7 +925,7 @@ static uint32_t ActiveEventCount(void) {
     return count;
 }
 
-static bool EventId(event_t * value, uint32_t *id) {
+static bool EventId(event_t *value, uint32_t *id) {
     if (!value) { *id = UINT32_MAX; return true; }
     if (value >= level.events.handlers && value < level.events.handlers + MAX_EVENTS) {
         *id = (uint32_t)(value - level.events.handlers); return value->inuse;
@@ -933,17 +933,17 @@ static bool EventId(event_t * value, uint32_t *id) {
     return false;
 }
 
-static event_t * EventById(uint32_t id) {
+static event_t *EventById(uint32_t id) {
     return id < MAX_EVENTS && level.events.handlers[id].inuse ? &level.events.handlers[id] : NULL;
 }
 
-static bool TriggerIndex(trigger_t * value, uint32_t *id) {
+static bool TriggerIndex(trigger_t *value, uint32_t *id) {
     if (!value) { *id = UINT32_MAX; return true; }
     if (value < level.triggers || value >= level.triggers + level.num_triggers) return false;
     *id = (uint32_t)(value - level.triggers); return true;
 }
 
-static bool TimerIndex(gtimer_t * value, uint32_t *id) {
+static bool TimerIndex(gtimer_t *value, uint32_t *id) {
     if (!value) { *id = UINT32_MAX; return true; }
     if (value < level.timers || value >= level.timers + level.num_timers) return false;
     *id = (uint32_t)(value - level.timers); return true;
@@ -1025,7 +1025,7 @@ bool G_SaveJassHandle(cstring_t type, handle_t value, uint32_t *id) {
     uint32_t index = 0;
     if (!JassHandleDomain(type, &domain) || !value) return false;
     if (domain == JASS_HANDLE_ENTITY) {
-        edict_t * ent = value;
+        edict_t *ent = value;
         uintptr_t ptr = (uintptr_t)ent, base = (uintptr_t)g_edicts;
         if (ptr < base || ptr >= base + sizeof(*g_edicts) * globals.num_edicts || (ptr - base) % sizeof(*g_edicts)) {
             fprintf(stderr, "WC3 SaveGame: %s handle %p outside edict table [%p, %p)\n", type, value,
@@ -1050,14 +1050,14 @@ bool G_SaveJassHandle(cstring_t type, handle_t value, uint32_t *id) {
         return TimerIndex(value, id);
     }
     if (domain == JASS_HANDLE_TIMERDIALOG) {
-        timerdialog_t * dialog = value;
+        timerdialog_t *dialog = value;
         if (dialog < level.timer_dialogs || dialog >= level.timer_dialogs + MAX_TIMERDIALOGS || !dialog->inuse)
             return false;
         *id = (uint32_t)(dialog - level.timer_dialogs);
         return true;
     }
     if (domain == JASS_HANDLE_LEADERBOARD) {
-        leaderboard_t * board = value;
+        leaderboard_t *board = value;
         uintptr_t ptr = (uintptr_t)board, base = (uintptr_t)level.leaderboards;
         size_t span = sizeof(level.leaderboards);
         if (!board || ptr < base || ptr >= base + span ||
@@ -1066,7 +1066,7 @@ bool G_SaveJassHandle(cstring_t type, handle_t value, uint32_t *id) {
         return true;
     }
     if (domain == JASS_HANDLE_MULTIBOARD) {
-        multiboard_t * board = value;
+        multiboard_t *board = value;
         uintptr_t ptr = (uintptr_t)board, base = (uintptr_t)level.multiboards;
         size_t span = sizeof(level.multiboards);
         if (!board || ptr < base || ptr >= base + span ||
@@ -1075,7 +1075,7 @@ bool G_SaveJassHandle(cstring_t type, handle_t value, uint32_t *id) {
         return true;
     }
     if (domain == JASS_HANDLE_MULTIBOARDITEM) {
-        multiboardItem_t * item = value;
+        multiboardItem_t *item = value;
         uintptr_t ptr = (uintptr_t)item, base = (uintptr_t)level.multiboard_items;
         size_t span = sizeof(level.multiboard_items);
         if (!item || ptr < base || ptr >= base + span ||
@@ -1084,7 +1084,7 @@ bool G_SaveJassHandle(cstring_t type, handle_t value, uint32_t *id) {
         return true;
     }
     if (domain == JASS_HANDLE_TEXTTAG) {
-        texttag_t * tag = value;
+        texttag_t *tag = value;
         uintptr_t ptr = (uintptr_t)tag, base = (uintptr_t)level.texttags;
         size_t span = sizeof(level.texttags);
         if (!tag || ptr < base || ptr >= base + span ||
@@ -1097,14 +1097,14 @@ bool G_SaveJassHandle(cstring_t type, handle_t value, uint32_t *id) {
         return true;
     }
     if (domain == JASS_HANDLE_WEATHER) {
-        gweather_t * effect = value;
+        gweather_t *effect = value;
         if (effect < level.weather_effects || effect >= level.weather_effects + MAX_WEATHER_EFFECTS || !effect->inuse)
             return false;
         *id = (uint32_t)(effect - level.weather_effects);
         return true;
     }
     if (domain == JASS_HANDLE_LIGHTNING) {
-        gLightning_t * effect = value;
+        gLightning_t *effect = value;
         uintptr_t pointer = (uintptr_t)effect, base = (uintptr_t)level.lightning_effects;
         if (!effect || pointer < base || pointer >= base + sizeof(level.lightning_effects) ||
             (pointer - base) % sizeof(*effect) || !effect->inuse) return false;
@@ -1112,7 +1112,7 @@ bool G_SaveJassHandle(cstring_t type, handle_t value, uint32_t *id) {
         return true;
     }
     if (domain == JASS_HANDLE_REGION) {
-        region_t * region = G_RegionFromHandle(value);
+        region_t *region = G_RegionFromHandle(value);
         if (!region) return false;
         *id = (uint32_t)(region - level.regions);
         return true;
@@ -1129,7 +1129,7 @@ bool G_SaveJassHandle(cstring_t type, handle_t value, uint32_t *id) {
         return false;
     }
     if (domain == JASS_HANDLE_EVENT) {
-        event_t * event = G_EventFromHandle(value);
+        event_t *event = G_EventFromHandle(value);
         return event && EventId(event, id);
     }
     return TriggerIndex(value, id);
@@ -1162,7 +1162,7 @@ handle_t G_LoadJassHandle(cstring_t type, uint32_t id) {
     if (domain == JASS_HANDLE_REGION)
         return G_RegionHandle(id);
     if (domain == JASS_HANDLE_EVENT) {
-        event_t * event = EventById(id);
+        event_t *event = EventById(id);
         return G_EventHandle(event);
     }
     return JassListHandle(domain, id);
@@ -1211,7 +1211,7 @@ static bool WriteField1(field_t const *field, uint8_t *base) {
         void *p = base + field->ofs + i * size;
         switch (field->type) {
         case F_EDICT: {
-            edict_t * value = *(edict_t * *)p;
+            edict_t *value = *(edict_t * *)p;
             uintptr_t ptr = (uintptr_t)value, base = (uintptr_t)g_edicts;
             if (value && (ptr < base || ptr >= base + sizeof(*g_edicts) * globals.num_edicts ||
                 (ptr - base) % sizeof(*g_edicts))) {
@@ -1315,7 +1315,7 @@ static bool WriteMappedIndex(field_t const *field, void *ptr, int *index) {
     switch (field->type) {
     case F_EDICT:
     case F_ITEM: {
-        edict_t * value = *(edict_t * *)ptr;
+        edict_t *value = *(edict_t * *)ptr;
         uintptr_t addr = (uintptr_t)value, base = (uintptr_t)g_edicts;
         if (value && (addr < base || addr >= base + sizeof(*g_edicts) * globals.num_edicts ||
             (addr - base) % sizeof(*g_edicts))) return false;
@@ -1355,7 +1355,7 @@ static bool ReadMappedIndex(field_t const *field, void *ptr, int index) {
         if (index >= (int)level.num_timers) return false;
         *(gtimer_t * *)ptr = index < 0 ? NULL : &level.timers[index]; return true;
     case F_EVENT: {
-        event_t * event;
+        event_t *event;
         if (index < 0) { *(event_t * *)ptr = NULL; return true; }
         event = EventById((uint32_t)index);
         if (!event) return false;
@@ -1399,7 +1399,7 @@ static bool WriteMappedFields(FILE *f, field_t const *fields, uint8_t *base) {
             if (!WriteString(f, jass_functionname(*(jassFunc_t const * *)(base + fields->ofs)))) return false;
             break;
         case F_REGION: {
-            region_t * region = *(region_t * *)(base + fields->ofs);
+            region_t *region = *(region_t * *)(base + fields->ofs);
             uint32_t id = UINT32_MAX;
             if (region && !G_SaveJassHandle("region", region, &id)) {
                 fprintf(stderr, "WC3 SaveGame: cannot resolve region field %s\n", fields->name); return false;
@@ -1602,7 +1602,7 @@ static bool ReadHashtableEntry(FILE *f, hashtableEntry_t *e) {
 
 static bool WriteHashtables(FILE *f) {
     FOR_LOOP(i, MAX_HASHTABLES) {
-        hashtable_t * table = &level.hashtables[i];
+        hashtable_t *table = &level.hashtables[i];
         uint32_t count;
         if (!table->inuse) continue;
         count = table->num_entries;
@@ -1624,7 +1624,7 @@ static bool WriteHashtables(FILE *f) {
 
 static bool ReadHashtables(FILE *f) {
     FOR_LOOP(i, MAX_HASHTABLES) {
-        hashtable_t * table = &level.hashtables[i];
+        hashtable_t *table = &level.hashtables[i];
         uint32_t count = 0;
         if (table->entries) { gi.MemFree(table->entries); table->entries = NULL; }
         table->num_entries = table->capacity = 0;
@@ -1645,7 +1645,7 @@ static bool ReadHashtables(FILE *f) {
     return true;
 }
 
-static bool WriteEdict(FILE *f, edict_t const * ent) {
+static bool WriteEdict(FILE *f, edict_t const *ent) {
     edict_t temp = *ent;
     field_t const *field;
 
@@ -1655,7 +1655,7 @@ static bool WriteEdict(FILE *f, edict_t const * ent) {
     return SaveBytes(f, &temp, sizeof(temp));
 }
 
-static bool WriteClient(FILE *f, gameClient_t const * client) {
+static bool WriteClient(FILE *f, gameClient_t const *client) {
     gameClient_t temp = *client;
     int target = client->camera.target_controller ? (int)(client->camera.target_controller - g_edicts) : -1;
 
@@ -1665,7 +1665,7 @@ static bool WriteClient(FILE *f, gameClient_t const * client) {
     return SaveBytes(f, &temp, sizeof(temp)) && SaveBytes(f, &target, sizeof(target));
 }
 
-static bool ReadClient(FILE *f, gameClient_t * client, int *target) {
+static bool ReadClient(FILE *f, gameClient_t *client, int *target) {
     if (!LoadBytes(f, client, sizeof(*client)) || !LoadBytes(f, target, sizeof(*target))) return false;
     if (*target < -1 || *target >= (int)globals.max_edicts) return false;
     client->ps.name = client->jass.name;
@@ -1684,7 +1684,7 @@ static bool ReadClient(FILE *f, gameClient_t * client, int *target) {
 
 static bool WriteBlight(FILE *f) {
     uint32_t const size = G_GetBlightStateSize();
-    uint8_t * data = NULL;
+    uint8_t *data = NULL;
     bool ok;
 
     if (!SaveBytes(f, &size, sizeof(size))) return false;
@@ -1698,7 +1698,7 @@ static bool WriteBlight(FILE *f) {
 
 static bool ReadBlight(FILE *f) {
     uint32_t size, expected;
-    uint8_t * data = NULL;
+    uint8_t *data = NULL;
     bool ok;
 
     if (!LoadBytes(f, &size, sizeof(size))) return false;
@@ -1712,7 +1712,7 @@ static bool ReadBlight(FILE *f) {
     return ok;
 }
 
-static bool ReadEdict(FILE *f, edict_t * ent) {
+static bool ReadEdict(FILE *f, edict_t *ent) {
     field_t const *field;
 
     if (!LoadBytes(f, ent, sizeof(*ent))) return false;
@@ -1819,7 +1819,7 @@ bool ReadGame(cstring_t filename) {
         }
     }
     FOR_LOOP(i, MAX_EVENTS) {
-        event_t * event = &level.events.handlers[i];
+        event_t *event = &level.events.handlers[i];
         current_nonregion_event_slots[i] = event->inuse &&
             event->type != EVENT_GAME_ENTER_REGION && event->type != EVENT_GAME_LEAVE_REGION;
     }
@@ -1880,7 +1880,7 @@ bool ReadGame(cstring_t filename) {
     FOR_LOOP(i, game.max_clients) g_edicts[i].client = game.clients + i;
     FOR_LOOP(i, game.max_clients) game.clients[i].camera.target_controller = targets[i] < 0 ? NULL : g_edicts + targets[i];
     FOR_LOOP(i, globals.num_edicts) {
-        edict_t * ent = g_edicts + i;
+        edict_t *ent = g_edicts + i;
         if (ent->inuse && ent->rally_indicator && ent->owner && ent->owner->client)
             ent->owner->client->rally_indicator = ent;
     }

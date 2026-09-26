@@ -1,7 +1,7 @@
 #include "g_local.h"
 
-static gameClient_t * G_FoodClient(uint32_t player) {
-    gameClient_t * client = G_GetPlayerClientByNumber(player);
+static gameClient_t *G_FoodClient(uint32_t player) {
+    gameClient_t *client = G_GetPlayerClientByNumber(player);
     return client && client->ps.number == player ? client : NULL;
 }
 
@@ -12,7 +12,7 @@ bool G_FoodLimitsEnabled(void) {
     return !value || atoi(value) != 0;
 }
 
-int32_t G_GetEffectiveFoodCap(gameClient_t * client) {
+int32_t G_GetEffectiveFoodCap(gameClient_t *client) {
     int32_t cap, ceiling;
 
     if (!client) return 0;
@@ -22,7 +22,7 @@ int32_t G_GetEffectiveFoodCap(gameClient_t * client) {
     return MAX(0, cap);
 }
 
-uint32_t G_GetPlayerUpkeepTier(gameClient_t * client) {
+uint32_t G_GetPlayerUpkeepTier(gameClient_t *client) {
     int32_t food;
     uint32_t count;
 
@@ -38,7 +38,7 @@ uint32_t G_GetPlayerUpkeepTier(gameClient_t * client) {
     return count;
 }
 
-static int32_t G_UpkeepRate(float const * taxes, uint32_t count, uint32_t tier) {
+static int32_t G_UpkeepRate(float const *taxes, uint32_t count, uint32_t tier) {
     float tax;
 
     if (!taxes || !count) return 100;
@@ -55,7 +55,7 @@ int32_t G_GetUpkeepLumberRateForTier(uint32_t tier) {
     return G_UpkeepRate(game.constants.upkeepLumberTax, game.constants.upkeepLumberTaxCount, tier);
 }
 
-static void G_AdjustFoodStat(gameClient_t * client, uint32_t state, int32_t delta) {
+static void G_AdjustFoodStat(gameClient_t *client, uint32_t state, int32_t delta) {
     int32_t value;
 
     if (!client || !delta) return;
@@ -67,7 +67,7 @@ static void G_AdjustFoodStat(gameClient_t * client, uint32_t state, int32_t delt
     G_InvalidateCommands(client);
 }
 
-void G_RecomputePlayerUpkeep(gameClient_t * client) {
+void G_RecomputePlayerUpkeep(gameClient_t *client) {
     uint32_t tier;
 
     if (!client) return;
@@ -76,7 +76,7 @@ void G_RecomputePlayerUpkeep(gameClient_t * client) {
     client->ps.stats[PLAYERSTATE_LUMBER_UPKEEP_RATE] = (uint16_t)G_GetUpkeepLumberRateForTier(tier);
 }
 
-bool G_PlayerHasFoodFor(gameClient_t * client, int32_t food_cost) {
+bool G_PlayerHasFoodFor(gameClient_t *client, int32_t food_cost) {
     int32_t used, cap;
 
     if (!client) return false;
@@ -86,8 +86,8 @@ bool G_PlayerHasFoodFor(gameClient_t * client, int32_t food_cost) {
     return used + food_cost <= cap;
 }
 
-void G_SetUnitFoodUsed(edict_t * unit, int32_t amount) {
-    gameClient_t * client;
+void G_SetUnitFoodUsed(edict_t *unit, int32_t amount) {
+    gameClient_t *client;
     int32_t value, delta;
 
     if (!unit) return;
@@ -98,8 +98,8 @@ void G_SetUnitFoodUsed(edict_t * unit, int32_t amount) {
     G_AdjustFoodStat(client, PLAYERSTATE_RESOURCE_FOOD_USED, delta);
 }
 
-void G_SetUnitFoodMade(edict_t * unit, int32_t amount) {
-    gameClient_t * client;
+void G_SetUnitFoodMade(edict_t *unit, int32_t amount) {
+    gameClient_t *client;
     int32_t value, delta;
 
     if (!unit) return;
@@ -110,20 +110,20 @@ void G_SetUnitFoodMade(edict_t * unit, int32_t amount) {
     G_AdjustFoodStat(client, PLAYERSTATE_RESOURCE_FOOD_CAP, delta);
 }
 
-void G_ActivateUnitFood(edict_t * unit) {
+void G_ActivateUnitFood(edict_t *unit) {
     if (!unit || !unit->data.UnitBalance || (unit->svflags & SVF_DEADMONSTER)) return;
     G_SetUnitFoodUsed(unit, unit->data.UnitBalance->foodUsed);
     G_SetUnitFoodMade(unit, unit->data.UnitBalance->foodMade);
 }
 
-void G_ClearUnitFood(edict_t * unit) {
+void G_ClearUnitFood(edict_t *unit) {
     if (!unit) return;
     G_SetUnitFoodMade(unit, 0);
     G_SetUnitFoodUsed(unit, 0);
 }
 
-void G_ClearTrainingQueueFood(edict_t * producer) {
-    edict_t * queued;
+void G_ClearTrainingQueueFood(edict_t *producer) {
+    edict_t *queued;
 
     if (!producer) return;
     queued = producer->build;
@@ -133,8 +133,8 @@ void G_ClearTrainingQueueFood(edict_t * producer) {
     }
 }
 
-void G_SetUnitPlayer(edict_t * unit, uint32_t player) {
-    gameClient_t * old_client, *new_client;
+void G_SetUnitPlayer(edict_t *unit, uint32_t player) {
+    gameClient_t *old_client, *new_client;
     uint32_t old_player;
 
     if (!unit || unit->s.player == player) return;
@@ -165,8 +165,8 @@ void G_SetUnitPlayer(edict_t * unit, uint32_t player) {
     G_InvalidateUnitShortcutsForUnit(unit);
 }
 
-bool G_ReserveTrainingFood(edict_t * unit) {
-    gameClient_t * client;
+bool G_ReserveTrainingFood(edict_t *unit) {
+    gameClient_t *client;
     int32_t cost;
 
     if (!unit || !unit->data.UnitBalance) return false;
@@ -180,7 +180,7 @@ bool G_ReserveTrainingFood(edict_t * unit) {
     return true;
 }
 
-int32_t G_ApplyResourceIncome(player_t * player, uint32_t resource_state, int32_t gross_amount) {
+int32_t G_ApplyResourceIncome(player_t *player, uint32_t resource_state, int32_t gross_amount) {
     int32_t rate = 100;
 
     if (!player || gross_amount <= 0) return 0;
@@ -196,7 +196,7 @@ int32_t G_ApplyResourceIncome(player_t * player, uint32_t resource_state, int32_
 /* Commit an income transaction before publishing its presentation event.
  * Callers use the returned net amount when they need the credited value; the
  * existing G_ApplyResourceIncome helper remains pure for previews/tests. */
-int32_t G_CreditResourceIncome(player_t * player, edict_t * source, uint32_t resource_state, int32_t gross_amount) {
+int32_t G_CreditResourceIncome(player_t *player, edict_t *source, uint32_t resource_state, int32_t gross_amount) {
     int32_t const credited = G_ApplyResourceIncome(player, resource_state, gross_amount);
 
     if (!player || resource_state >= MAX_STATS || credited <= 0) return 0;

@@ -61,11 +61,11 @@ static void QuestDebugText(uint32_t quest_index, cstring_t field, cstring_t raw,
 
 /* Retail lists enabled undiscovered quests as placeholders but only lets the
  * player open discovered quests. */
-static bool QuestIsListVisible(quest_t const * quest) {
+static bool QuestIsListVisible(quest_t const *quest) {
     return quest && quest->enabled;
 }
 
-static bool QuestIsVisibleMember(quest_t const * quest) {
+static bool QuestIsVisibleMember(quest_t const *quest) {
     if (!quest) return false;
     FOR_EACH_QUEST(q) {
         if (q == quest) return QuestIsVisible(q);
@@ -73,7 +73,7 @@ static bool QuestIsVisibleMember(quest_t const * quest) {
     return false;
 }
 
-uint32_t UI_QuestIndex(quest_t const * quest) {
+uint32_t UI_QuestIndex(quest_t const *quest) {
     uint32_t index = 0;
     FOR_EACH_QUEST(q) {
         if (q == quest) return index;
@@ -83,7 +83,7 @@ uint32_t UI_QuestIndex(quest_t const * quest) {
 }
 
 
-static void ResetRowsForParent(frameDef_t * *rows, uint32_t *count, frameDef_t * parent) {
+static void ResetRowsForParent(frameDef_t * *rows, uint32_t *count, frameDef_t *parent) {
     if (!rows || !count || !*count) return;
     if (!rows[0] || !rows[0]->inuse || rows[0]->Parent != parent) {
         memset(rows, 0, sizeof(frameDef_t *) * MAX_UI_CLASSES);
@@ -91,9 +91,9 @@ static void ResetRowsForParent(frameDef_t * *rows, uint32_t *count, frameDef_t *
     }
 }
 
-static frameDef_t * QuestRowAt(frameDef_t * *rows, uint32_t *count, frameDef_t * container, uint32_t row,
-                             frameDef_t const * row_template) {
-    frameDef_t * frame;
+static frameDef_t *QuestRowAt(frameDef_t * *rows, uint32_t *count, frameDef_t *container, uint32_t row,
+                             frameDef_t const *row_template) {
+    frameDef_t *frame;
 
     if (!rows || !count || !container || !row_template || row >= MAX_UI_CLASSES) return NULL;
     frame = rows[row];
@@ -119,7 +119,7 @@ static void HideUnusedRows(frameDef_t * *rows, uint32_t count, uint32_t used) {
     }
 }
 
-static void PopulateQuestList(frameDef_t * container, bool required, quest_t const * selected) {
+static void PopulateQuestList(frameDef_t *container, bool required, quest_t const *selected) {
     frameDef_t * *rows = required ? hud.required_rows : hud.optional_rows;
     uint32_t *row_count = required ? &hud.required_row_count : &hud.optional_row_count;
     uint32_t row = 0;
@@ -129,8 +129,8 @@ static void PopulateQuestList(frameDef_t * container, bool required, quest_t con
     FOR_EACH_QUEST(quest) {
         char text[256];
         char command[64];
-        frameDef_t * row_frame, *button, *title, *icon_container;
-        frameDef_t * selected_highlight, *completed_highlight, *failed_highlight, *complete;
+        frameDef_t *row_frame, *button, *title, *icon_container;
+        frameDef_t *selected_highlight, *completed_highlight, *failed_highlight, *complete;
         cstring_t title_text, icon_path;
         uint32_t quest_index;
         bool authored_selection;
@@ -210,14 +210,14 @@ static void PopulateQuestList(frameDef_t * container, bool required, quest_t con
     HideUnusedRows(rows, *row_count, row);
 }
 
-static void PopulateQuestItems(frameDef_t * container, quest_t const * quest) {
+static void PopulateQuestItems(frameDef_t *container, quest_t const *quest) {
     uint32_t row = 0;
 
     if (!container || !quest) return;
     ResetRowsForParent(hud.quest_item_rows, &hud.quest_item_row_count, container);
     FOR_EACH_QUESTITEM(quest, item) {
         char text[512];
-        frameDef_t * item_frame, *title;
+        frameDef_t *item_frame, *title;
 
         snprintf(text, sizeof(text), "%s %s",
                  item->completed ? "- |cff80ff80" : "-",
@@ -246,7 +246,7 @@ static void PopulateQuestItems(frameDef_t * container, quest_t const * quest) {
     HideUnusedRows(hud.quest_item_rows, hud.quest_item_row_count, row);
 }
 
-void UI_ShowQuest(edict_t * ent, quest_t const * quest) {
+void UI_ShowQuest(edict_t *ent, quest_t const *quest) {
     cstring_t title, description, subtitle;
 
     if (!ent || !ent->client || !QuestIsVisibleMember(quest)) return;
@@ -305,8 +305,8 @@ void UI_ShowQuest(edict_t * ent, quest_t const * quest) {
     UI_SetCurrentClient(NULL);
 }
 
-void UI_ShowQuests(edict_t * ent) {
-    quest_t const * quest = NULL;
+void UI_ShowQuests(edict_t *ent) {
+    quest_t const *quest = NULL;
 
     if (!ent || !ent->client) return;
     ent->client->quest_until = 0;

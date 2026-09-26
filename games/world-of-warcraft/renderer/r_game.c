@@ -10,33 +10,33 @@ void Wow_RegisterMap(cstring_t mapFileName);
 void Wow_DrawWorld(void);
 void Wow_DrawTerrainShadows(void);
 void Wow_DrawAlphaSurfaces(void);
-void Wow_DrawMinimap(rect_t const * screen);
+void Wow_DrawMinimap(rect_t const *screen);
 float Wow_GetHeightAtPoint(float x, float y);
-bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t * output);
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t *output);
 float GetAccurateHeightAtPoint(float sx, float sy);
 
-static texture_t * s_quest_active_icon;
+static texture_t *s_quest_active_icon;
 
 m2Model_t *R_LoadModelM2(cstring_t modelFilename, void *buffer, uint32_t size, bool *buffer_owned);
 void M2_Init(void);
-void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, matrix4_t const * transform);
-void M2_RenderInstanced(m2Model_t const *model, instanceBuffer_t const * instances, uint32_t flags);
+void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, matrix4_t const *transform);
+void M2_RenderInstanced(m2Model_t const *model, instanceBuffer_t const *instances, uint32_t flags);
 bool M2_CanStaticInstance(m2Model_t const *model);
-bool M2_AttachmentMatrix(m2Model_t const *model, uint32_t attachment_id, matrix4_t const * model_matrix, matrix4_t * out);
+bool M2_AttachmentMatrix(m2Model_t const *model, uint32_t attachment_id, matrix4_t const *model_matrix, matrix4_t *out);
 bool M2_EntityAttachmentPosition(m2Model_t const *model, renderEntity_t const *entity, uint32_t attachment_id,
-                                 matrix4_t const * model_matrix, vector3_t * out);
-bool M2_PosedAttachmentPosition(m2Model_t const *model, uint32_t attachment_id, matrix4_t const * model_matrix, vector3_t * out);
+                                 matrix4_t const *model_matrix, vector3_t *out);
+bool M2_PosedAttachmentPosition(m2Model_t const *model, uint32_t attachment_id, matrix4_t const *model_matrix, vector3_t *out);
 float M2_GroundOffset(m2Model_t const *model);
 float M2_HeadHeight(m2Model_t const *model);
 float M2_VisibleBottom(m2Model_t const *model);
-bool M2_CameraView(m2Model_t const *model, uint32_t camera_index, vector3_t * eye, vector3_t * target, float * fov_degrees, float * znear, float * zfar);
+bool M2_CameraView(m2Model_t const *model, uint32_t camera_index, vector3_t *eye, vector3_t *target, float *fov_degrees, float *znear, float *zfar);
 bool M2_IsCharacterModel(m2Model_t const *model);
 bool M2_SetEntitySequenceFrame(m2Model_t const *model, cstring_t anim, renderEntity_t *entity);
 void M2_Release(m2Model_t *model);
 void M2_Shutdown(void);
 
 typedef struct {
-    model_t const * model;
+    model_t const *model;
     vector3_t origin, rotation, point;
     uint32_t time, frame, oldframe, flags;
     float angle, scale;
@@ -55,7 +55,7 @@ static bool R_WowOverheadCacheMatch(wowOverheadCache_t const *cache, renderEntit
 }
 
 /* Preserve the model-authored attachment result before another M2 draw overwrites the shared bone palette. */
-static void R_WowCacheOverhead(renderEntity_t const *entity, matrix4_t const * transform) {
+static void R_WowCacheOverhead(renderEntity_t const *entity, matrix4_t const *transform) {
     wowOverheadCache_t *cache;
     uint32_t attachment;
     if (entity->number >= MAX_GAME_ENTITIES) return;
@@ -86,7 +86,7 @@ static bool R_WowPathHasExtension(cstring_t path, cstring_t extension) {
 void R_LoadAssets(void) {
     /* WoW has no WC3 selection-circle BLPs; generate one ring and share it across the size slots until
      * distinct per-size variants exist. */
-    texture_t * ring = R_MakeSelectionCircleTexture();
+    texture_t *ring = R_MakeSelectionCircleTexture();
     FOR_LOOP(i, NUM_SELECTION_CIRCLES)
         tr.texture[TEX_SELECTION_CIRCLE+i] = ring;
     s_quest_active_icon = R_LoadTexture(WOW_QUEST_ACTIVE_ICON);
@@ -105,7 +105,7 @@ void R_SetupTextureMatrix(void) {
     Matrix4_identity(&tr.viewDef.textureMatrix);
 }
 
-void R_DrawMinimap(rect_t const * screen, cstring_t map) {
+void R_DrawMinimap(rect_t const *screen, cstring_t map) {
     if (map) { fprintf(stderr, "R_DrawMinimap: static preview unsupported for %s\n", map); return; }
     Wow_DrawMinimap(screen);
 }
@@ -159,11 +159,11 @@ vector2_t R_WorldSize(void) {
     return (vector2_t){ 0 };
 }
 
-model_t * R_LoadModel(cstring_t modelFilename) {
+model_t *R_LoadModel(cstring_t modelFilename) {
     void *buffer = NULL;
     PATHSTR load_name;
     int fileSize = ri.FS_ReadFile(modelFilename, &buffer);
-    model_t * model;
+    model_t *model;
 
     snprintf(load_name, sizeof(load_name), "%s", modelFilename ? modelFilename : "");
     /* WoW only uses .m2; legacy data files (WMO MODN chunks, early ADTs) may
@@ -209,14 +209,14 @@ model_t * R_LoadModel(cstring_t modelFilename) {
     return model;
 }
 
-void R_ReleaseModel(model_t * model) {
+void R_ReleaseModel(model_t *model) {
     if (model->modeltype == ID_MD20) {
         M2_Release(model->m2);
     }
     ri.MemFree(model);
 }
 
-matrix4_t const * R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
+matrix4_t const *R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
     pose->angles = Wow_DoodadOrientation(entity->rotation);
     pose->angles.yaw += entity->angle;
     if (entity->model && entity->model->modeltype == ID_MD20 && (entity->flags & RF_GROUND_ANCHOR) &&
@@ -225,13 +225,13 @@ matrix4_t const * R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) 
     return &wow_model_basis;
 }
 
-bool R_GetEntityBounds(renderEntity_t const *entity, box3_t * bounds) {
+bool R_GetEntityBounds(renderEntity_t const *entity, box3_t *bounds) {
     (void)entity; (void)bounds;
     return false;
 }
 
 /* Build a stable top/front light for WoW UI model-camera previews. */
-static void R_WowEntityCameraLightMatrix(vector3_t const * target, float radius, matrix4_t * output) {
+static void R_WowEntityCameraLightMatrix(vector3_t const *target, float radius, matrix4_t *output) {
     matrix4_t proj;
     matrix4_t view;
     vector3_t light_dir = { -0.35f, -0.50f, 0.80f };
@@ -306,18 +306,18 @@ void R_RenderModel(renderEntity_t const *entity) {
     }
 }
 
-void R_RenderModelInstanced(model_t const * model, instanceBuffer_t const * instances, uint32_t flags) {
+void R_RenderModelInstanced(model_t const *model, instanceBuffer_t const *instances, uint32_t flags) {
     if (!model || model->modeltype != ID_MD20) {
         return;
     }
     M2_RenderInstanced(model->m2, instances, flags);
 }
 
-bool R_ModelCanStaticInstance(model_t const * model) {
+bool R_ModelCanStaticInstance(model_t const *model) {
     return model && model->modeltype == ID_MD20 && M2_CanStaticInstance(model->m2);
 }
 
-bool R_TraceModel(renderEntity_t const *entity, line3_t const * line, float * distance) {
+bool R_TraceModel(renderEntity_t const *entity, line3_t const *line, float *distance) {
     vector3_t ab;
     vector3_t ac;
     vector3_t center;
@@ -361,8 +361,8 @@ bool R_TraceModel(renderEntity_t const *entity, line3_t const * line, float * di
 }
 
 #ifndef USE_SHADOWMAPS
-bool R_RenderShadow(renderEntity_t const *entity, vector2_t const * origin) {
-    texture_t const * shadow;
+bool R_RenderShadow(renderEntity_t const *entity, vector2_t const *origin) {
+    texture_t const *shadow;
     bool use_fast_blob;
     float shadow_z;
     vector2_t mins;
@@ -428,8 +428,8 @@ float R_SelectionRadius(renderEntity_t const *entity) {
 }
 
 /* The PlayerName attachment (mounted variant when riding) is the model-authored name-plate point. */
-bool R_EntityOverheadPosition(renderEntity_t const *entity, vector3_t * out) {
-    static model_t const * last_missing;
+bool R_EntityOverheadPosition(renderEntity_t const *entity, vector3_t *out) {
+    static model_t const *last_missing;
     wowOverheadCache_t *cache;
     matrix4_t transform;
     uint32_t attachment;
@@ -455,7 +455,7 @@ bool R_EntityOverheadPosition(renderEntity_t const *entity, vector3_t * out) {
     out->z += (M2_GroundOffset(entity->model->m2) + M2_HeadHeight(entity->model->m2)) * entity->scale;
     return false;
 }
-bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vector3_t * out) {
+bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vector3_t *out) {
     (void)entity; (void)prefix; (void)out;
     return false;
 }
@@ -468,7 +468,7 @@ float R_EntityHeight(renderEntity_t const *entity) {
     return top.z - entity->origin.z;
 }
 
-bool R_GetModelInfo(model_t * model, modelInfo_t * info) {
+bool R_GetModelInfo(model_t *model, modelInfo_t *info) {
     if (info) memset(info, 0, sizeof(*info));
     (void)model;
     return false;
@@ -546,7 +546,7 @@ bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t
     return true;
 }
 
-bool R_SetEntityAnimFrame(model_t const * model, cstring_t anim, renderEntity_t *entity) {
+bool R_SetEntityAnimFrame(model_t const *model, cstring_t anim, renderEntity_t *entity) {
     if (!model || model->modeltype != ID_MD20)
         return false;
     return M2_SetEntitySequenceFrame(model->m2, anim, entity);

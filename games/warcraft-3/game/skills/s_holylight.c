@@ -1,10 +1,10 @@
 #include "s_skills.h"
 
-void holylight_done(edict_t * self);
+void holylight_done(edict_t *self);
 
 static umove_t move_heal = { "stand channel", ai_idle, holylight_done, CAbilityHolyBolt };
 
-void holylight_done(edict_t * self) {
+void holylight_done(edict_t *self) {
     self->stand(self);
 }
 
@@ -14,7 +14,7 @@ BZ_ABILITY_PROC(CAbilityHolyBolt) {
     switch (msg) {
     case A_VALIDATE: {
         spellTarget_t const *st = call ? call->target : NULL;
-        edict_t * target = st ? st->entity : NULL;
+        edict_t *target = st ? st->entity : NULL;
 
         if (!st || target == ent) return false;
         if (!S_SpellIsAliveTarget(target)) return false;
@@ -27,7 +27,7 @@ BZ_ABILITY_PROC(CAbilityHolyBolt) {
     case A_EXECUTE: {
         abilityitem_t const *spell = call ? call->item : NULL;
         spellTarget_t const *st = call ? call->target : NULL;
-        edict_t * target = st ? st->entity : NULL;
+        edict_t *target = st ? st->entity : NULL;
         uint32_t level;
         float amount;
 

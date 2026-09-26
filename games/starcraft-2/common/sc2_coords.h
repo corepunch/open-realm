@@ -16,7 +16,7 @@ static inline float SC2_FacingRadians(float degrees) { return (float)DEG2RAD(deg
 static inline vector3_t SC2_EulerFromCamera(float pitch, float yaw) {
     return (vector3_t){ pitch - 90.0f, 0.0f, yaw - 180.0f };
 }
-static inline vector3_t SC2_CameraFromEuler(vector3_t const * euler, float height) {
+static inline vector3_t SC2_CameraFromEuler(vector3_t const *euler, float height) {
     return (vector3_t){ euler->x + 90.0f, euler->z + 180.0f, height };
 }
 

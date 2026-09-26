@@ -7,11 +7,11 @@
 #include <string.h>
 
 #define MDLX_STACK_DRAW_ORDER 64
-texture_t const * MDLX_GetTexture(mdxModel_t const *model,
+texture_t const *MDLX_GetTexture(mdxModel_t const *model,
                                  uint32_t teamID,
                                  uint32_t textureID,
                                  uint32_t replaceableID,
-                                 texture_t const * overrideTexture) {
+                                 texture_t const *overrideTexture) {
     mdxTexture_t const *modeltex = &model->textures[textureID];
     switch (replaceableID) {
         case TEXREPL_TEAMCOLOR: return tr.texture[TEX_TEAM_COLOR + teamID];
@@ -131,7 +131,7 @@ static mdxMaterial_t *MDLX_GetMaterialAtIndex(mdxGeoset_t const *geoset, mdxMode
     return material;
 }
 
-static int MDLX_CompareGeosetDrawOrder(const void *a, const void *b) {
+static int MDLX_CompareGeosetDrawOrder(void const *a, void const *b) {
     mdxGeosetDrawOrder_t const *lhs = a;
     mdxGeosetDrawOrder_t const *rhs = b;
 
@@ -323,14 +323,14 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
                              mdxGeoset_t const *geoset,
                              mdxMaterial_t const *material,
                              uint32_t team,
-                             texture_t const * overrideTexture,
+                             texture_t const *overrideTexture,
                              bool forceUnshaded,
                              uint32_t frame,
-                             vector4_t const * tint,
+                             vector4_t const *tint,
                              bool blendedPass)
 {
     bool force_two_sided = model && !model->cameras;
-    modelProg_t * shader = mdlx.shader;
+    modelProg_t *shader = mdlx.shader;
     vector4_t geosetColor;
 
     if (!MDLX_MaterialHasPass(material, blendedPass)) {
@@ -399,7 +399,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         MDLX_BindLayerTextureAnimation(model, layer, frame);
         uint32_t textureId = MDLX_EvaluateLayerTextureId(model, layer, frame);
         mdxTexture_t const *modeltex = &model->textures[textureId];
-        texture_t const * texture = MDLX_GetTexture(model, team, textureId, modeltex->replaceableID, overrideTexture);
+        texture_t const *texture = MDLX_GetTexture(model, team, textureId, modeltex->replaceableID, overrideTexture);
         R_BindTexture(texture, 0);
         R_Call(glBindVertexArray, geoset->vertexArrayBuffer);
         /* The geoset VAO already binds the model-owned index buffer. */
@@ -444,7 +444,7 @@ uint32_t MDLX_RemapAnimation(mdxModel_t const *model, uint32_t frame, cstring_t 
     return frame;
 }
 
-static bool MDLX_TraceModelMesh(renderEntity_t const *ent, line3_t const * line, vector3_t * intersection) {
+static bool MDLX_TraceModelMesh(renderEntity_t const *ent, line3_t const *line, vector3_t *intersection) {
     matrix4_t invmodel, matmodel;
     vector3_t best_point = { 0 };
     float best_distance = FLT_MAX;
@@ -508,11 +508,11 @@ static bool MDLX_TraceModelMesh(renderEntity_t const *ent, line3_t const * line,
     return hit;
 }
 
-bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, line3_t const * line, vector3_t * intersection) {
+bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, line3_t const *line, vector3_t *intersection) {
     return MDLX_TraceModelMesh(ent, line, intersection);
 }
 
-bool MDLX_TraceModel(renderEntity_t const *ent, line3_t const * line, vector3_t * intersection) {
+bool MDLX_TraceModel(renderEntity_t const *ent, line3_t const *line, vector3_t *intersection) {
     matrix4_t invmodel, matmodel;
     vector3_t best_point = { 0 };
     float best_distance = FLT_MAX;
@@ -575,8 +575,8 @@ bool MDLX_TraceModel(renderEntity_t const *ent, line3_t const * line, vector3_t 
     return hit;
 }
 
-static void MDLX_RenderGeosets(const renderEntity_t *entity,
-                               const mdxModel_t *model)
+static void MDLX_RenderGeosets(renderEntity_t const *entity,
+                               mdxModel_t const *model)
 {
     bool forceUnshaded = (entity->flags & RF_NO_LIGHTING) != 0;
     color32_t const color = (entity->tint_valid || entity->tint.a) ? entity->tint : COLOR32_WHITE;
@@ -652,7 +652,7 @@ static void MDLX_RenderGeosets(const renderEntity_t *entity,
 }
 
 static int MDLX_CollectModelLights(mdxModel_t const *model,
-                                   matrix4_t const * modelMatrix,
+                                   matrix4_t const *modelMatrix,
                                    uint32_t frame,
                                    rModelLight_t *lights,
                                    int maxLights)
@@ -727,7 +727,7 @@ void MDLX_DrawRibbonVerts(mdxModel_t const *model, vertex_t *verts, uint32_t nve
         mdxMaterialLayer_t const *layer = &material->layers[layerID];
         uint32_t textureId = layer->textureId;
         mdxTexture_t const *modeltex;
-        texture_t const * texture;
+        texture_t const *texture;
         bool layerFog;
 
         if (textureId >= (uint32_t)model->num_textures) continue;
@@ -752,7 +752,7 @@ void MDLX_DrawRibbonVerts(mdxModel_t const *model, vertex_t *verts, uint32_t nve
     }
 }
 
-void MDLX_RenderRibbonEmitters(renderEntity_t const *entity, mdxModel_t const *model, matrix4_t const * model_matrix) {
+void MDLX_RenderRibbonEmitters(renderEntity_t const *entity, mdxModel_t const *model, matrix4_t const *model_matrix) {
     modelProg_t *shader;
     matrix4_t saved_model;
     int saved_unshaded, saved_fog;
@@ -782,7 +782,7 @@ void MDLX_RenderRibbonEmitters(renderEntity_t const *entity, mdxModel_t const *m
 
 void MDX_RenderModel(renderEntity_t const *entity,
                      mdxModel_t const *model,
-                     matrix4_t const * transform)
+                     matrix4_t const *transform)
 {
     if (!(tr.viewDef.rdflags & RDF_NOFRUSTUMCULL)) {
         vector3_t const center = Box3_Center(&model->bounds.box);
@@ -809,7 +809,7 @@ void MDX_RenderModel(renderEntity_t const *entity,
         entity = &remappedEntity;
     }
     
-    modelProg_t * shader = mdlx.shader;
+    modelProg_t *shader = mdlx.shader;
     matrix3_t normalMatrix;
     GLfloat const *viewProjectionMatrix =
 #ifdef USE_SHADOWMAPS
@@ -863,7 +863,7 @@ void MDX_RenderModel(renderEntity_t const *entity,
     }
     modelLighting_t lighting = { 0 };
     bool const portraitLighting = (entity->flags & RF_PORTRAIT_LIGHTING) != 0;
-    environLight_t const * environment = !portraitLighting && tr.viewDef.entityLight.valid
+    environLight_t const *environment = !portraitLighting && tr.viewDef.entityLight.valid
         ? &tr.viewDef.entityLight
         : (!portraitLighting && tr.viewDef.terrainLight.valid ? &tr.viewDef.terrainLight : NULL);
     int numLights = 0;

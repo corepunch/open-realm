@@ -5,29 +5,29 @@
 #include "../g_local.h"
 
 typedef struct ReplayPanel_s {
-    frameDef_t * SimpleReplayPanel;
-    frameDef_t * BACKGROUND;
-    frameDef_t * SimpleReplayPanelBackdrop;
-    frameDef_t * ReplayVisionLabel;
-    frameDef_t * ReplayVisionMenu;
-    frameDef_t * ReplayVisionMenuBackdrop;
-    frameDef_t * ReplayVisionMenuDisabledBackdrop;
-    frameDef_t * ReplayVisionMenuTitle;
-    frameDef_t * ReplayVisionMenuArrow;
-    frameDef_t * ReplayVisionPopupMenu;
-    frameDef_t * EscMenuPopupMenuMenuBackdropTemplate;
-    frameDef_t * ReplayStatusBar;
-    frameDef_t * ReplayStatusBarBorder;
-    frameDef_t * ARTWORK;
-    frameDef_t * ReplayElapsedTimeLabel;
-    frameDef_t * ReplayElapsedTime;
-    frameDef_t * ReplaySpeedAtLabel;
-    frameDef_t * ReplaySpeedMultiplier;
-    frameDef_t * ReplaySpeedLabel;
+    frameDef_t *SimpleReplayPanel;
+    frameDef_t *BACKGROUND;
+    frameDef_t *SimpleReplayPanelBackdrop;
+    frameDef_t *ReplayVisionLabel;
+    frameDef_t *ReplayVisionMenu;
+    frameDef_t *ReplayVisionMenuBackdrop;
+    frameDef_t *ReplayVisionMenuDisabledBackdrop;
+    frameDef_t *ReplayVisionMenuTitle;
+    frameDef_t *ReplayVisionMenuArrow;
+    frameDef_t *ReplayVisionPopupMenu;
+    frameDef_t *EscMenuPopupMenuMenuBackdropTemplate;
+    frameDef_t *ReplayStatusBar;
+    frameDef_t *ReplayStatusBarBorder;
+    frameDef_t *ARTWORK;
+    frameDef_t *ReplayElapsedTimeLabel;
+    frameDef_t *ReplayElapsedTime;
+    frameDef_t *ReplaySpeedAtLabel;
+    frameDef_t *ReplaySpeedMultiplier;
+    frameDef_t *ReplaySpeedLabel;
 } ReplayPanel_t;
 
 
-static inline bool ReplayPanel_Bind(ReplayPanel_t *out, frameDef_t * bind_root) {
+static inline bool ReplayPanel_Bind(ReplayPanel_t *out, frameDef_t *bind_root) {
     bool ok = true;
     if (!out) {
         return false;

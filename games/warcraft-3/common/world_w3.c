@@ -55,7 +55,7 @@ void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
 }
 
 /* Client collision circles add live blockers; this lookup supplies the map's authored terrain flags. */
-bool CM_GetPathingFlagsAt(vector2_t const * pos, uint8_t * flags) {
+bool CM_GetPathingFlagsAt(vector2_t const *pos, uint8_t *flags) {
     if (flags) *flags = 0;
     if (!pos || !flags || !cl_path.cells) return false;
     vector2_t n = CM_GetNormalizedMapPosition(pos->x, pos->y);
@@ -69,7 +69,7 @@ bool CM_GetPathingFlagsAt(vector2_t const * pos, uint8_t * flags) {
 
 cstring_t CL_GameOrderQueueReleaseCommand(void) { return "orderqueuerelease"; }
 
-bool CL_GameBuildCursorBlocked(vector3_t const * origin) {
+bool CL_GameBuildCursorBlocked(vector3_t const *origin) {
     float const min_dist_sq = WC3_GOLD_MINE_MIN_DISTANCE * WC3_GOLD_MINE_MIN_DISTANCE;
     if (!origin || !cl.cursorEntity || !(cl.cursorEntity->flags & EF_RESOURCE_RETURN)) return false;
     FOR_LOOP(i, cl.num_active) {
@@ -86,7 +86,7 @@ bool CL_GameBuildCursorBlocked(vector3_t const * origin) {
     return false;
 }
 
-void CL_GameModifyBuildPathing(vector2_t const * point, uint8_t * flags) {
+void CL_GameModifyBuildPathing(vector2_t const *point, uint8_t *flags) {
     uint32_t x, y;
 
     if (!point || !flags || !cl.terrain_mask.cells) return;
@@ -165,25 +165,25 @@ float CM_GetCameraHeightOffset(void) {
 static box2_t test_world_bounds;
 static bool test_world_bounds_set;
 
-void CM_SetupTestWorldBounds(box2_t const * bounds) {
+void CM_SetupTestWorldBounds(box2_t const *bounds) {
 	test_world_bounds_set = bounds != NULL;
 	if (bounds) test_world_bounds = *bounds;
 }
 #endif
 
-static war3mapVertex_t const * CM_GetWar3MapVertex(uint32_t x, uint32_t y) {
+static war3mapVertex_t const *CM_GetWar3MapVertex(uint32_t x, uint32_t y) {
 	if (!world.map || !world.map->vertices) return NULL;
 	int const index = x + y * world.map->width;
 	char const *ptr = ((char const *)world.map->vertices) + index * sizeof(war3mapVertex_t);
 	return (war3mapVertex_t const *)ptr;
 }
 
-static float CM_GetWar3MapVertexHeight(war3mapVertex_t const * vert) {
+static float CM_GetWar3MapVertexHeight(war3mapVertex_t const *vert) {
 	if (!vert) return 0;
 	return DECODE_HEIGHT(vert->accurate_height) + vert->level * TILE_SIZE - HEIGHT_COR;
 }
 
-static float CM_GetWar3MapVertexWaterHeight(war3mapVertex_t const * vert) {
+static float CM_GetWar3MapVertexWaterHeight(war3mapVertex_t const *vert) {
     if (!vert) return -FLT_MAX;
     return DECODE_HEIGHT(vert->waterlevel) - WATER_HEIGHT_COR;
 }
@@ -287,7 +287,7 @@ static void CM_W3FreeDroppedItemSets(uint32_t num_sets, droppableItemSet_t *sets
     MemFree(sets);
 }
 
-static void CM_W3FreeDoodadPlacement(doodad_t * doodad) {
+static void CM_W3FreeDoodadPlacement(doodad_t *doodad) {
     if (!doodad) return;
     CM_W3FreeDroppedItemSets(doodad->num_droppedItemSets, doodad->droppableItemSets);
     SAFE_DELETE(doodad->inventoryItems, MemFree);
@@ -314,7 +314,7 @@ static void CM_W3ClearMapData(void) {
     CM_W3FreeUnitOverrides(world.info.num_userCreatedAbilities, &world.info.userCreatedAbilities);
     CM_ReleaseModel();
     while (world.doodads) {
-        doodad_t * doodad = world.doodads;
+        doodad_t *doodad = world.doodads;
         world.doodads = doodad->next;
         CM_W3FreeDoodadPlacement(doodad);
         MemFree(doodad);
@@ -360,10 +360,10 @@ float CM_GetHeightAtPoint(float sx, float sy) {
     float y = (sy - world.map->center.y) / TILE_SIZE;
     float fx = floorf(x);
     float fy = floorf(y);
-    war3mapVertex_t const * va = CM_GetWar3MapVertex(fx, fy);
-    war3mapVertex_t const * vb = CM_GetWar3MapVertex(fx + 1, fy);
-    war3mapVertex_t const * vc = CM_GetWar3MapVertex(fx, fy + 1);
-    war3mapVertex_t const * vd = CM_GetWar3MapVertex(fx + 1, fy + 1);
+    war3mapVertex_t const *va = CM_GetWar3MapVertex(fx, fy);
+    war3mapVertex_t const *vb = CM_GetWar3MapVertex(fx + 1, fy);
+    war3mapVertex_t const *vc = CM_GetWar3MapVertex(fx, fy + 1);
+    war3mapVertex_t const *vd = CM_GetWar3MapVertex(fx + 1, fy + 1);
     float a = CM_GetWar3MapVertexHeight(va);
     float b = CM_GetWar3MapVertexHeight(vb);
     float c = CM_GetWar3MapVertexHeight(vc);
@@ -433,7 +433,7 @@ void CM_ReadPathMap(handle_t archive) {
     handle_t file;
     uint32_t header, version;
     uint32_t width, height;
-    uint8_t * cells;
+    uint8_t *cells;
     if (!SFileOpenFileEx(archive, "war3map.wpm", SFILE_OPEN_FROM_MPQ, &file)) {
         CM_SetupPathMap(world.map ? world.map->width : 0, world.map ? world.map->height : 0, NULL);
         return;

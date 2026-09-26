@@ -1,8 +1,8 @@
 #include "s_skills.h"
 
 /* Drain's Ndr1/Ndr2 select health/mana independently; allied transfer uses Ndr4/Ndr5 instead. */
-static bool siphon_mana_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
-    edict_t * target = st.entity;
+static bool siphon_mana_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
+    edict_t *target = st.entity;
     uint32_t rank = S_SpellLevel(caster, spell->code);
     if (!target || target == caster) return false;
     if (S_SpellIsFriend(caster, target))
@@ -13,8 +13,8 @@ static bool siphon_mana_validate(edict_t * caster, spellTarget_t st, abilityitem
 }
 
 /* Recheck both edict incarnations and the cast serial before every pulse; cancelled drains cannot revive on recast. */
-void siphon_mana_think(edict_t * ent) {
-    edict_t * caster = ent->owner, *target = ent->goalentity;
+void siphon_mana_think(edict_t *ent) {
+    edict_t *caster = ent->owner, *target = ent->goalentity;
     uint32_t now = G_Time(), code = ent->class_id, rank = ent->resources;
     float amount, before;
     if (!S_SpellChannelActive(ent) || !S_SpellIsAliveTarget(target) ||
@@ -42,9 +42,9 @@ void siphon_mana_think(edict_t * ent) {
 }
 
 /* A shared thinker keeps the requested rawcode and rank, so Life Drain and Siphon Mana retain different data. */
-static void siphon_mana_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static void siphon_mana_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t rank = S_SpellLevel(caster, spell->code);
-    edict_t * ent = S_SpellChannelThinker(caster, spell->code);
+    edict_t *ent = S_SpellChannelThinker(caster, spell->code);
     ent->goalentity = st.entity; ent->channel.target_spawn_time = st.entity->spawn_time;
     ent->resources = rank; ent->velocity = S_SpellData(spell->code, rank, 3);
     ent->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, rank);

@@ -46,12 +46,12 @@ typedef enum {
 typedef struct {
     char input_name[256]; /* as passed to UIWow_LoadTexture, used for cache lookup */
     char name[256];       /* resolved path (with extension), used for loading */
-    texture_t * texture;
+    texture_t *texture;
 } uiWowTexture_t;
 
 typedef struct {
     uint32_t size;
-    font_t const * font;
+    font_t const *font;
 } uiWowFont_t;
 
 typedef struct wowXmlPoint_s {
@@ -62,20 +62,20 @@ typedef struct wowXmlPoint_s {
 
 
 typedef struct {
-    refExport_t * renderer;
+    refExport_t *renderer;
     lua_State *lua;
     uint32_t warn_once_mask;
     uiWowTexture_t tex_cache[WOW_UI_MAX_TEXTURES];
     uint32_t texture_recycle_index;
     uiWowFont_t font_cache[WOW_UI_MAX_FONTS];
-    texture_t * textures[WOW_UI_TEX_COUNT];
+    texture_t *textures[WOW_UI_TEX_COUNT];
     PATHSTR active_map;
     PATHSTR current_menu;
     int model_frame_idx;      /* frame index for SetCharSelectModelFrame */
     int char_customize_frame_idx;
     int char_select_frame_idx;
     int selected_char_idx;    /* 0-based index into wow_charlist for char-select screen */
-    model_t * char_customize_model;
+    model_t *char_customize_model;
     PATHSTR char_customize_model_path;
     uint32_t time;
 } uiWowState_t;
@@ -105,7 +105,7 @@ void UIWow_XMLSetFrameVisible(cstring_t name, bool visible);
 bool UIWow_XMLSetFrameText(cstring_t name, cstring_t text);
 bool UIWow_XMLSetButtonPressed(cstring_t name, bool pressed);
 bool UIWow_XMLSetButtonChecked(cstring_t name, bool checked);
-bool UIWow_XMLSetFramePoint(cstring_t name, wowXmlPoint_t const * point);
+bool UIWow_XMLSetFramePoint(cstring_t name, wowXmlPoint_t const *point);
 bool UIWow_XMLSizeFrameToText(cstring_t frame, cstring_t text, float padding);
 bool UIWow_XMLDrawFrame(cstring_t name);
 void UIWow_XMLClearFrames(void);
@@ -133,8 +133,8 @@ void UIWow_EnsureRenderer(void);
 void UIWow_Printf(cstring_t fmt, ...);
 void UIWow_WarnOnce(uint32_t flag, cstring_t fmt, ...);
 vector2_t UIWow_MouseFdf(int x, int y);
-texture_t * UIWow_LoadTexture(cstring_t name);
-font_t const * UIWow_LoadFont(uint32_t size);
+texture_t *UIWow_LoadTexture(cstring_t name);
+font_t const *UIWow_LoadFont(uint32_t size);
 
 /* XML runtime input hooks. */
 bool UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param);

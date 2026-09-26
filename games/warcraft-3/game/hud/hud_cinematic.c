@@ -43,7 +43,7 @@ void UI_LoadHudMessage(void) {
 }
 
 /* Copy the constructed frame so one player's runtime text/position never mutates the shared template. */
-static FRAMEDEF MessageFrame(vector2_t const * pos, cstring_t message) {
+static FRAMEDEF MessageFrame(vector2_t const *pos, cstring_t message) {
     FRAMEDEF frame = hud.msg_text;
     frame.Text = (string_t)message;
     frame.TextLength = strlen(message);
@@ -55,8 +55,8 @@ static FRAMEDEF MessageFrame(vector2_t const * pos, cstring_t message) {
     return frame;
 }
 
-static bool HasTransmission(gameClient_t * client) {
-    player_t * ps;
+static bool HasTransmission(gameClient_t *client) {
+    player_t *ps;
 
     if (!client) return false;
     ps = &client->ps;
@@ -65,12 +65,12 @@ static bool HasTransmission(gameClient_t * client) {
            (ps->texts[PLAYERTEXT_DIALOGUE] && ps->texts[PLAYERTEXT_DIALOGUE][0]);
 }
 
-static bool TransmissionTalking(gameClient_t * client) {
+static bool TransmissionTalking(gameClient_t *client) {
     return client && client->cinematic_voice_end_time &&
            G_Time() < client->cinematic_voice_end_time;
 }
 
-static void WriteMessageLayer(edict_t * ent, vector2_t const * pos, cstring_t message) {
+static void WriteMessageLayer(edict_t *ent, vector2_t const *pos, cstring_t message) {
     FRAMEDEF frame;
 
     if (!ent || !hud.msg_text.Name[0]) return;
@@ -83,8 +83,8 @@ static void WriteMessageLayer(edict_t * ent, vector2_t const * pos, cstring_t me
     UI_WriteEnd(ent);
 }
 
-static void WriteStoredMessageLayer(edict_t * ent) {
-    gameClient_t * client;
+static void WriteStoredMessageLayer(edict_t *ent) {
+    gameClient_t *client;
 
     if (!ent || !ent->client) return;
     client = ent->client;
@@ -93,8 +93,8 @@ static void WriteStoredMessageLayer(edict_t * ent) {
                       client->message.end_time ? client->message.text : NULL);
 }
 
-static void WriteGameplayTransmissionPortrait(edict_t * ent) {
-    gameClient_t * client;
+static void WriteGameplayTransmissionPortrait(edict_t *ent) {
+    gameClient_t *client;
     uiFrame_t frame;
 
     if (!ent || !ent->client) return;
@@ -115,7 +115,7 @@ static void WriteGameplayTransmissionPortrait(edict_t * ent) {
 }
 
 /* Format the active transmission exactly as it appears in the gameplay message layer. */
-static void format_gameplay_transmission_message(gameClient_t * client, string_t message, size_t size) {
+static void format_gameplay_transmission_message(gameClient_t *client, string_t message, size_t size) {
     cstring_t speaker, dialogue;
 
     if (!message || !size) return;
@@ -134,7 +134,7 @@ static void format_gameplay_transmission_message(gameClient_t * client, string_t
 }
 
 /* Retain a non-empty transmission in the player's bounded Message Log history. */
-void UI_RecordTransmissionMessage(edict_t * ent) {
+void UI_RecordTransmissionMessage(edict_t *ent) {
     char message[1200];
 
     if (!ent || !ent->client) return;
@@ -142,7 +142,7 @@ void UI_RecordTransmissionMessage(edict_t * ent) {
     if (*message) UI_MessageLogAppend(ent, UI_FormatMessageText(message));
 }
 
-static void WriteGameplayTransmissionMessage(edict_t * ent) {
+static void WriteGameplayTransmissionMessage(edict_t *ent) {
     char message[1200];
 
     if (!ent || !ent->client) return;
@@ -150,18 +150,18 @@ static void WriteGameplayTransmissionMessage(edict_t * ent) {
     WriteMessageLayer(ent, NULL, UI_FormatMessageText(message));
 }
 
-void UI_ClearLayer(edict_t * ent, uint32_t layer) {
+void UI_ClearLayer(edict_t *ent, uint32_t layer) {
     if (!ent) return;
     UI_WriteStart(layer);
     UI_WriteEnd(ent);
 }
 
-void UI_InvalidateDialoguePresentation(edict_t * ent) {
+void UI_InvalidateDialoguePresentation(edict_t *ent) {
     if (ent && ent->client) ent->client->presentation_dirty = true;
 }
 
-void UI_WriteDialoguePresentation(edict_t * ent) {
-    gameClient_t * client;
+void UI_WriteDialoguePresentation(edict_t *ent) {
+    gameClient_t *client;
 
     if (!ent || !ent->client) return;
     client = ent->client;
@@ -191,7 +191,7 @@ void UI_WriteDialoguePresentation(edict_t * ent) {
     }
 }
 
-void UI_ShowInterface(edict_t * ent, bool flag, float duration) {
+void UI_ShowInterface(edict_t *ent, bool flag, float duration) {
     (void)duration;
     if (!ent || !ent->client) return;
     ent->client->ps.client_ui_state = flag ? CLIENT_UI_GAME : CLIENT_UI_CINEMATIC;
@@ -202,15 +202,15 @@ void UI_ShowInterface(edict_t * ent, bool flag, float duration) {
     UI_InvalidateDialoguePresentation(ent);
 }
 
-void UI_ShowGameInterface(edict_t * ent) {
+void UI_ShowGameInterface(edict_t *ent) {
     UI_WriteDialoguePresentation(ent);
     if (ent && ent->client && ent->client->connected)
         ent->client->presentation_dirty = false;
 }
 
-static void UI_ShowTextInternal(edict_t * ent, vector2_t const * pos, cstring_t text, float duration,
+static void UI_ShowTextInternal(edict_t *ent, vector2_t const *pos, cstring_t text, float duration,
                                 bool record_in_log) {
-    gameClient_t * client;
+    gameClient_t *client;
     cstring_t resolved, message;
 
     if (!ent || !ent->client) return;
@@ -241,16 +241,16 @@ static void UI_ShowTextInternal(edict_t * ent, vector2_t const * pos, cstring_t 
     UI_InvalidateDialoguePresentation(ent);
 }
 
-void UI_ShowText(edict_t * ent, vector2_t const * pos, cstring_t text, float duration) {
+void UI_ShowText(edict_t *ent, vector2_t const *pos, cstring_t text, float duration) {
     UI_ShowTextInternal(ent, pos, text, duration, true);
 }
 
-void UI_ShowTransientText(edict_t * ent, vector2_t const * pos, cstring_t text, float duration) {
+void UI_ShowTransientText(edict_t *ent, vector2_t const *pos, cstring_t text, float duration) {
     UI_ShowTextInternal(ent, pos, text, duration, false);
 }
 
-void UI_ClearTextMessages(edict_t * ent) {
-    gameClient_t * client;
+void UI_ClearTextMessages(edict_t *ent) {
+    gameClient_t *client;
 
     if (!ent || !ent->client) return;
     client = ent->client;
@@ -259,9 +259,9 @@ void UI_ClearTextMessages(edict_t * ent) {
     UI_InvalidateDialoguePresentation(ent);
 }
 
-void UI_WriteCinematicLayer(edict_t * ent) {
-    gameClient_t * client;
-    player_t * ps;
+void UI_WriteCinematicLayer(edict_t *ent) {
+    gameClient_t *client;
+    player_t *ps;
 
     if (!ent || !ent->client) return;
     client = ent->client;

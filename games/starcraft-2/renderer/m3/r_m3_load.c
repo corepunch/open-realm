@@ -45,7 +45,7 @@ static matrix4_t tmp[M3_MAX_NODES];
 m3Model_t *currentmodel;
 
 static struct {
-    modelProg_t * shader;
+    modelProg_t *shader;
     uint32_t uDiffuseMap;
     uint32_t indexofs;
 } m3 = { 0 };
@@ -67,7 +67,7 @@ R_EvalKeyframeValue(void const *left,
                     handle_t out);
 
 /* M3 diffuse uses the same shadow-casting authored key as SC2 terrain. */
-static void M3_SetLighting(modelProg_t * shader, renderEntity_t const *entity) {
+static void M3_SetLighting(modelProg_t *shader, renderEntity_t const *entity) {
     sc2Map_t const *map = SC2_MapCurrent();
     sc2MapLighting_t const *src = map ? &map->lighting : NULL;
     /* Layout-camera chrome is a separate scene: the map's colorized ambient made the HUD nearly black. */
@@ -687,7 +687,7 @@ static void M3_DrawEmissiveLayer(m3Region_t const *region, m3Material_t const *m
 }
 
 static void M3_DrawRegionMaterial(m3Region_t const *region, m3Material_t const *material, float alpha) {
-    texture_t const * diffuse = material->diffuseLayer && material->diffuseLayer->texture ? material->diffuseLayer->texture : tr.texture[TEX_WHITE];
+    texture_t const *diffuse = material->diffuseLayer && material->diffuseLayer->texture ? material->diffuseLayer->texture : tr.texture[TEX_WHITE];
     color32_t diffuse_color = M3_LayerColor(material->diffuseLayer);
 #ifndef __linux__
     uint32_t const num_indices = region->triangleIndicesCount;
@@ -774,7 +774,7 @@ void M3_DrawDivisions(m3Model_t const *model, m3Divisions_t const *divisions, bo
     }
 }
 
-void M3_MakeBoneMatrix(vector3_t const * p, vector4_t const * r, vector3_t const * s, matrix4_t const * par, matrix4_t * m) {
+void M3_MakeBoneMatrix(vector3_t const *p, vector4_t const *r, vector3_t const *s, matrix4_t const *par, matrix4_t *m) {
     matrix4_t matrix;
     Matrix4_identity(&matrix);
     Matrix4_translate(&matrix, p);
@@ -795,8 +795,7 @@ void M3_MakeBoneMatrix(vector3_t const * p, vector4_t const * r, vector3_t const
 //    return NULL;
 //}
 
-m3SequenceTimeline_t const *
-M3_FindSequenceTimeline(m3Model_t const *model,
+m3SequenceTimeline_t const *M3_FindSequenceTimeline(m3Model_t const *model,
                         m3Sequence_t const *seq)
 {
     M3_FOR_EACH(SequenceTimeline, stc, model->stc) {
@@ -807,8 +806,7 @@ M3_FindSequenceTimeline(m3Model_t const *model,
     return NULL;
 }
 
-m3SequenceTimeline_t const *
-M3_FindAnimationAtTime(m3Model_t const *model,
+m3SequenceTimeline_t const *M3_FindAnimationAtTime(m3Model_t const *model,
                        uint32_t time,
                        uint32_t *localtime)
 {
@@ -823,7 +821,7 @@ M3_FindAnimationAtTime(m3Model_t const *model,
     return NULL;
 }
 
-void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, matrix4_t const * transform) {
+void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, matrix4_t const *transform) {
     matrix4_t identity;
     if (!entity || !model || !model->renbuf || !model->bones || !model->absoluteInverseBoneRestPositions)
         return;
@@ -838,7 +836,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, matrix
     b.stc = M3_FindAnimationAtTime(model, entity->frame, &b.time);
 
     M3_FOR_EACH(Bone, bone, model->bones) {
-        matrix4_t const * parent = bone->parent >= 0 && bone->parent < (int16_t)model->bonesNum ? tmp+bone->parent : &identity;
+        matrix4_t const *parent = bone->parent >= 0 && bone->parent < (int16_t)model->bonesNum ? tmp+bone->parent : &identity;
         vector3_t a_p = M3_GetVector3AnimValue(model, a.stc, &bone->position, a.time);
         vector4_t a_r = M3_GetVector4AnimValue(model, a.stc, &bone->rotation, a.time);
         vector3_t a_s = M3_GetVector3AnimValue(model, a.stc, &bone->scale, a.time);
@@ -932,7 +930,7 @@ void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, matrix
 }
 
 /* Draw generated geometry through an M3 model's first authored material. */
-void M3_RenderBuffer(renderEntity_t const *entity, m3Model_t const *model, buffer_t const * buffer, uint32_t vertices, uint32_t indices) {
+void M3_RenderBuffer(renderEntity_t const *entity, m3Model_t const *model, buffer_t const *buffer, uint32_t vertices, uint32_t indices) {
     m3Model_t view;
     m3Divisions_t div = {0};
     m3Region_t region = {.verticesCount=vertices,.triangleIndicesCount=indices,.bonesCount=1,.boneLookupIndicesCount=1};

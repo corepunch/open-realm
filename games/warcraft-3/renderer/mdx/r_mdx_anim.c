@@ -139,7 +139,7 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *ke
 void MDLX_GetAnimatedColorTrackValue(mdxModel_t const *model,
                                      mdxKeyTrack_t const *keytrack,
                                      uint32_t time,
-                                     vector3_t * output)
+                                     vector3_t *output)
 {
     float red;
 
@@ -154,7 +154,7 @@ void MDLX_GetAnimatedColorTrackValue(mdxModel_t const *model,
  * Warsmash swizzles its base vector just like KGAC. This semantic conversion is
  * independent of host endianness and GL/BGRA upload capabilities. */
 void MDLX_GetGeosetAnimationStaticColor(mdxGeosetAnim_t const *geosetAnim,
-                                        vector3_t * output)
+                                        vector3_t *output)
 {
     if (!geosetAnim || !output) return;
     output->x = geosetAnim->staticColor.z;
@@ -162,12 +162,12 @@ void MDLX_GetGeosetAnimationStaticColor(mdxGeosetAnim_t const *geosetAnim,
     output->z = geosetAnim->staticColor.x;
 }
 
-static void R_CalculateNodeMatrix(mdxModel_t const *model, mdxNode_t *node, uint32_t frame1, uint32_t frame0, matrix4_t * matrix) {
+static void R_CalculateNodeMatrix(mdxModel_t const *model, mdxNode_t *node, uint32_t frame1, uint32_t frame0, matrix4_t *matrix) {
     vector3_t vTranslation = { 0, 0, 0 };
     quaternion_t vRotation = { 0, 0, 0, 1 };
     vector3_t vScale = { 1, 1, 1 };
     vector3_t zero_pivot = { 0, 0, 0 };
-    vector3_t const * pivot = &zero_pivot;
+    vector3_t const *pivot = &zero_pivot;
     if (node->node_id < (uint32_t)model->num_pivots) {
         pivot = (vector3_t const *)&model->pivots[node->node_id];
     }
@@ -212,15 +212,15 @@ static void R_CalculateNodeMatrix(mdxModel_t const *model, mdxNode_t *node, uint
     }
 }
 
-matrix4_t const * R_GetNodeGlobalMatrix(mdxModel_t const *model, matrix4_t const * model_matrix, mdxNode_t const *node) {
+matrix4_t const *R_GetNodeGlobalMatrix(mdxModel_t const *model, matrix4_t const *model_matrix, mdxNode_t const *node) {
     if (!node || node->node_id >= MDX_MAX_NODES) {
         return NULL;
     }
-    matrix4_t * global_matrix = node_matrices + node->node_id;
-    matrix4_t * local_matrix = local_matrices+node->node_id;
+    matrix4_t *global_matrix = node_matrices + node->node_id;
+    matrix4_t *local_matrix = local_matrices+node->node_id;
     if (global_matrix->v[15] == 0) {
         if (node->parent_id != -1 && node->parent_id < MDX_MAX_NODES && model->nodes[node->parent_id]) {
-            matrix4_t const * parent_matrix = R_GetNodeGlobalMatrix(model, model_matrix, model->nodes[node->parent_id]);
+            matrix4_t const *parent_matrix = R_GetNodeGlobalMatrix(model, model_matrix, model->nodes[node->parent_id]);
             if (!parent_matrix) {
                 return NULL;
             }
@@ -236,7 +236,7 @@ matrix4_t const * R_GetNodeGlobalMatrix(mdxModel_t const *model, matrix4_t const
             }
             vector3_t tmppvt = Matrix4_multiply_vector3(global_matrix, &pivot);
             if (node->parent_id != -1 && node->parent_id < MDX_MAX_NODES && model->nodes[node->parent_id]) {
-                matrix4_t const * parent_matrix = R_GetNodeGlobalMatrix(model, model_matrix, model->nodes[node->parent_id]);
+                matrix4_t const *parent_matrix = R_GetNodeGlobalMatrix(model, model_matrix, model->nodes[node->parent_id]);
                 if (!parent_matrix) {
                     return NULL;
                 }
@@ -261,14 +261,14 @@ matrix4_t const * R_GetNodeGlobalMatrix(mdxModel_t const *model, matrix4_t const
     return global_matrix;
 }
 
-void AddSkin(vector3_t * pos, matrix4_t const * mat, vector3_t const * org, float weight) {
+void AddSkin(vector3_t *pos, matrix4_t const *mat, vector3_t const *org, float weight) {
     if (weight == 0) return;
     vector3_t val = Matrix4_multiply_vector3(mat, org);
     val = Vector3_scale(&val, weight);
     *pos = Vector3_add(pos, &val);
 }
 
-void MDLX_BindBoneMatrices(mdxModel_t const *model, matrix4_t const * model_matrix, uint32_t frame1, uint32_t frame0) {
+void MDLX_BindBoneMatrices(mdxModel_t const *model, matrix4_t const *model_matrix, uint32_t frame1, uint32_t frame0) {
     /* Only the nodes this model actually has need their global matrices
      * recomputed.  The old path memset the full 64KB node_matrices array and
      * scanned all MDX_MAX_NODES slots twice; models have tens of nodes, so the
@@ -285,7 +285,7 @@ void MDLX_BindBoneMatrices(mdxModel_t const *model, matrix4_t const * model_matr
 /* Resolve authored attachment pivots from the same interpolated node pose used
  * for geometry. Callers can filter by a name prefix (for example "Sprite ")
  * without depending on list order in the MDX file. */
-uint32_t MDLX_CollectAttachmentPositions(mdxModel_t const *model, matrix4_t const * model_matrix,
+uint32_t MDLX_CollectAttachmentPositions(mdxModel_t const *model, matrix4_t const *model_matrix,
                                       uint32_t frame, uint32_t oldframe, cstring_t prefix,
                                       mdxAttachmentPosition_t *positions, uint32_t max_positions) {
     uint32_t count = 0;

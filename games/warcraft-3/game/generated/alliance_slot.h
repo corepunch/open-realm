@@ -5,21 +5,21 @@
 #include "../g_local.h"
 
 typedef struct AllianceSlot_s {
-    frameDef_t * AllianceSlot;
-    frameDef_t * ColorBackdrop;
-    frameDef_t * ColorBorder;
-    frameDef_t * PlayerNameLabel;
-    frameDef_t * AllyCheckBox;
-    frameDef_t * VisionCheckBox;
-    frameDef_t * UnitsCheckBox;
-    frameDef_t * GoldBackdrop;
-    frameDef_t * GoldText;
-    frameDef_t * LumberBackdrop;
-    frameDef_t * LumberText;
+    frameDef_t *AllianceSlot;
+    frameDef_t *ColorBackdrop;
+    frameDef_t *ColorBorder;
+    frameDef_t *PlayerNameLabel;
+    frameDef_t *AllyCheckBox;
+    frameDef_t *VisionCheckBox;
+    frameDef_t *UnitsCheckBox;
+    frameDef_t *GoldBackdrop;
+    frameDef_t *GoldText;
+    frameDef_t *LumberBackdrop;
+    frameDef_t *LumberText;
 } AllianceSlot_t;
 
 
-static inline bool AllianceSlot_Bind(AllianceSlot_t *out, frameDef_t * bind_root) {
+static inline bool AllianceSlot_Bind(AllianceSlot_t *out, frameDef_t *bind_root) {
     bool ok = true;
     if (!out) {
         return false;

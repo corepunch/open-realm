@@ -11,7 +11,7 @@ if (EMITTER->keytracks.NAME) { \
    and emitter metadata needed to fill a cparticle_t on each spawn. */
 typedef struct {
     mdxModel_t const *model; mdxParticleEmitter_t const *emitter;
-    matrix4_t const * matrix; uint32_t team_id;
+    matrix4_t const *matrix; uint32_t team_id;
     float speed, varia, lat, grav, life, length, width;
 } mdx_pctx_t;
 
@@ -64,7 +64,7 @@ static void mdx_spawn_particle(void *raw) {
    emission across frames (same pattern as WoW's M2_DrawParticles). */
 static void MDLX_RenderHeadEmitter(mdxModel_t const *model,
                                    mdxParticleEmitter_t *emitter,
-                                   matrix4_t const * modelMatrix,
+                                   matrix4_t const *modelMatrix,
                                    float frame,
                                    uint32_t teamID)
 {
@@ -84,7 +84,7 @@ static void MDLX_RenderHeadEmitter(mdxModel_t const *model,
     R_EmitParticles(EmissionRate, &emitter->accumulator, tr.viewDef.deltaTime, mdx_spawn_particle, &ctx);
 }
 
-void MDLX_RenderParticleEmitters(const renderEntity_t *entity, const mdxModel_t *model, matrix4_t const * model_matrix) {
+void MDLX_RenderParticleEmitters(renderEntity_t const *entity, mdxModel_t const *model, matrix4_t const *model_matrix) {
     /*
      * Dead destructable remains are marked RF_NOT_SELECTABLE.  While their
      * death sequence is advancing oldframe != frame, so the destruction

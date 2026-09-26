@@ -33,7 +33,7 @@ static cstring_t melee_buff(abilityitem_t const *spell, uint32_t level) {
     return buff && strlen(buff) >= 4 ? buff : melee_buff_fallback(spell->code);
 }
 
-static void melee_status_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static void melee_status_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     cstring_t buff = melee_buff(spell, level);
     if (!st.entity || !buff) return;
@@ -41,23 +41,23 @@ static void melee_status_execute(edict_t * caster, spellTarget_t st, abilityitem
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_TARGET, 0, st.entity, NULL, true);
 }
 
-static bool bloodlust_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool bloodlust_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     (void)spell;
     return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsFriend(caster, st.entity);
 }
 
-static bool faerie_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool faerie_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     (void)spell;
     return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsEnemy(caster, st.entity);
 }
 
-static bool rejuv_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool rejuv_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     (void)spell;
     return st.entity && S_SpellIsAliveTarget(st.entity) && S_SpellIsFriend(caster, st.entity);
 }
 
-static bool melee_autocast_acquire(edict_t * caster, uint32_t code, bool friendly, bool wounded) {
-    edict_t * best = NULL;
+static bool melee_autocast_acquire(edict_t *caster, uint32_t code, bool friendly, bool wounded) {
+    edict_t *best = NULL;
     float range = S_SpellRange(code, S_SpellLevel(caster, code));
     float best_distance = FLT_MAX;
     if (range <= 0.0f) range = MELEE_AUTOCAST_RADIUS;
@@ -131,30 +131,30 @@ BZ_SIMPLE_SPELL_PROC(AbilityRoar) {
 }
 
 /* DataA owns the attack-rate bonus as a fraction (0.4 = +40%); DataB owns move speed. */
-float S_BloodlustAttackBonus(edict_t const * unit) {
+float S_BloodlustAttackBonus(edict_t const *unit) {
     uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'b', 'l', 'o'));
     return level ? S_SpellData(MAKEFOURCC('A', 'b', 'l', 'o'), level, 1) : 0.0f;
 }
 
-float S_BloodlustMoveBonus(edict_t const * unit) {
+float S_BloodlustMoveBonus(edict_t const *unit) {
     uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'b', 'l', 'o'));
     return level ? S_SpellData(MAKEFOURCC('A', 'b', 'l', 'o'), level, 2) : 0.0f;
 }
 
 /* DataA owns the armor reduction as a flat amount. */
-float S_FaerieArmorDelta(edict_t const * unit) {
+float S_FaerieArmorDelta(edict_t const *unit) {
     uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'f', 'a', 'e'));
     return level ? -S_SpellData(MAKEFOURCC('A', 'f', 'a', 'e'), level, 1) : 0.0f;
 }
 
 /* DataA owns the damage bonus as a fraction (0.25 = +25%). */
-float S_RoarDamageBonus(edict_t const * unit) {
+float S_RoarDamageBonus(edict_t const *unit) {
     uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'r', 'o', 'a'));
     return level ? S_SpellData(MAKEFOURCC('A', 'r', 'o', 'a'), level, 1) : 0.0f;
 }
 
 /* DataA owns total healing over Dur seconds; tick rate derives from both. */
-float S_RejuvHealRate(edict_t const * unit) {
+float S_RejuvHealRate(edict_t const *unit) {
     uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'r', 'e', 'j'));
     float duration;
     if (!level) return 0.0f;
@@ -182,12 +182,12 @@ BZ_ABILITY_PROC(CAbilityFrenzy) {
 }
 
 /* DataA owns the attack-rate bonus as a fraction; DataB owns the armor reduction (flat). */
-float S_FrenzyAttackBonus(edict_t const * unit) {
+float S_FrenzyAttackBonus(edict_t const *unit) {
     uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'f', 'z', 'y'));
     return level ? S_SpellData(MAKEFOURCC('A', 'f', 'z', 'y'), level, 1) : 0.0f;
 }
 
-float S_FrenzyArmorDelta(edict_t const * unit) {
+float S_FrenzyArmorDelta(edict_t const *unit) {
     uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'f', 'z', 'y'));
     return level ? -S_SpellData(MAKEFOURCC('A', 'f', 'z', 'y'), level, 2) : 0.0f;
 }
@@ -196,7 +196,7 @@ float S_FrenzyArmorDelta(edict_t const * unit) {
  * Ubertip="Increases the attack rate of a target unit by <Auhf,DataA1,%>%, but drains <Auhf,DataB1> hit points per second. |nLasts <Auhf,Dur1> seconds."
  * targs are air,ground,organic with no allegiance token; enemy casts are legal.
  */
-static bool unholy_frenzy_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool unholy_frenzy_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     return spell && st.entity && S_SpellIsAliveTarget(st.entity) &&
         S_SpellAllowsTarget(spell->code, caster, st.entity);
 }
@@ -204,18 +204,18 @@ static bool unholy_frenzy_validate(edict_t * caster, spellTarget_t st, abilityit
 BZ_VALIDATED_SPELL_PROC(AbilityUnholyFrenzy, unholy_frenzy_validate, melee_status_execute)
 
 /* TFT BuffID is BUhf; item AIuf authors Buhf. Consumers accept both fourccs. */
-static uint32_t unholy_frenzy_level(edict_t const * unit) {
+static uint32_t unholy_frenzy_level(edict_t const *unit) {
     uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'U', 'h', 'f'));
     return level ? level : G_UnitStatusLevel(unit, MAKEFOURCC('B', 'u', 'h', 'f'));
 }
 
 /* DataA owns the attack-rate bonus as a fraction; DataB owns the life drain in HP/second. */
-float S_UnholyFrenzyAttackBonus(edict_t const * unit) {
+float S_UnholyFrenzyAttackBonus(edict_t const *unit) {
     uint32_t level = unholy_frenzy_level(unit);
     return level ? S_SpellData(MAKEFOURCC('A', 'u', 'h', 'f'), level, 1) : 0.0f;
 }
 
-float S_UnholyFrenzyLifeDrain(edict_t const * unit) {
+float S_UnholyFrenzyLifeDrain(edict_t const *unit) {
     uint32_t level = unholy_frenzy_level(unit);
     return level ? S_SpellData(MAKEFOURCC('A', 'u', 'h', 'f'), level, 2) : 0.0f;
 }
@@ -240,7 +240,7 @@ BZ_ABILITY_PROC(CAbilityCurse) {
 }
 
 /* DataA owns the miss chance as a fraction (0.33 = 33% miss chance). */
-float S_CurseMissChance(edict_t const * unit) {
+float S_CurseMissChance(edict_t const *unit) {
     uint32_t level = G_UnitStatusLevel(unit, MAKEFOURCC('B', 'c', 'r', 's'));
     return level ? S_SpellData(MAKEFOURCC('A', 'c', 'r', 's'), level, 1) : 0.0f;
 }

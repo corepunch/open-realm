@@ -35,7 +35,7 @@ static void SV_LanSanitizeValue(cstring_t in, string_t out, size_t out_size) {
     out[write] = '\0';
 }
 
-static void SV_LanInfo(const netadr_t *from) {
+static void SV_LanInfo(netadr_t const *from) {
     char mapname[80];
     char hostname[80];
     char speed[16];
@@ -72,7 +72,7 @@ static void SV_LanInfo(const netadr_t *from) {
                            slots);
 }
 
-void SV_ConnectionlessPacket(const netadr_t *from, sizeBuf_t * msg) {
+void SV_ConnectionlessPacket(netadr_t const *from, sizeBuf_t *msg) {
     char payload[256];
     char command[32] = { 0 };
     char *status;

@@ -18,30 +18,30 @@
 
 /* Build sc2BaseFrame_t → uiFrame_t and queue via gi.Write(PF_UIFRAME).
  * Returns false if frame is NULL or the uiFrame_t buffer overflows. */
-bool SC2_HUD_BuildFrameForWrite(sc2BaseFrame_t const * frame, uiFrame_t *out);
+bool SC2_HUD_BuildFrameForWrite(sc2BaseFrame_t const *frame, uiFrame_t *out);
 
 /* Write one frame (calls SC2_HUD_BuildFrameForWrite + gi.Write). */
-void SC2_HUD_WriteFrame(sc2BaseFrame_t const * frame);
+void SC2_HUD_WriteFrame(sc2BaseFrame_t const *frame);
 
 /* Write the parent chain of 'frame' up to the root, root first, skipping
  * already-assigned frames.  Ensures all ancestor wire numbers exist before
  * children reference them. */
-void SC2_HUD_WriteAncestors(sc2BaseFrame_t const * frames, uint32_t count,
-                             sc2BaseFrame_t const * frame);
+void SC2_HUD_WriteAncestors(sc2BaseFrame_t const *frames, uint32_t count,
+                             sc2BaseFrame_t const *frame);
 
 /* Write frame tree rooted at 'frame' recursively (depth-first, skip hidden). */
-void SC2_HUD_WriteFrameWithChildren(sc2BaseFrame_t const * frames, uint32_t count,
-                                    sc2BaseFrame_t const * frame);
+void SC2_HUD_WriteFrameWithChildren(sc2BaseFrame_t const *frames, uint32_t count,
+                                    sc2BaseFrame_t const *frame);
 
 /* Open a layout layer message (svc_layout + layer byte). */
 void SC2_HUD_WriteStart(uint32_t layer);
 
 /* Close the message and unicast to ent. */
-void SC2_HUD_WriteEnd(edict_t * ent);
+void SC2_HUD_WriteEnd(edict_t *ent);
 
 /* Write a complete layout layer: start → tree → end. */
-void SC2_HUD_WriteLayout(edict_t * ent, sc2BaseFrame_t const * frames, uint32_t count,
-                         sc2BaseFrame_t const * root, uint32_t layer);
+void SC2_HUD_WriteLayout(edict_t *ent, sc2BaseFrame_t const *frames, uint32_t count,
+                         sc2BaseFrame_t const *root, uint32_t layer);
 
 /* Wire gi file I/O into the layout parser — call once from SC2_Init. */
 void SC2_HUD_InitLayoutHost(void);
@@ -54,8 +54,8 @@ void SC2_HUD_InitLayoutHost(void);
 sc2BaseFrame_t *SC2_HUD_EnsureLayout(uint32_t *count);
 
 /* Per-frame HUD writers called from G_RunFrame */
-void SC2_HUD_WriteResourcePanel(edict_t * ent);
-void SC2_HUD_WriteConsolePanel(edict_t * ent);
+void SC2_HUD_WriteResourcePanel(edict_t *ent);
+void SC2_HUD_WriteConsolePanel(edict_t *ent);
 void SC2_HUD_PrepareCommandPanel(sc2BaseFrame_t *frames, uint32_t count, sc2BaseFrame_t *root);
 
 /* Set the model index used by FT_PORTRAIT frames on the next console write.

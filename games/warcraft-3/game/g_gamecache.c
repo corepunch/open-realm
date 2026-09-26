@@ -132,7 +132,7 @@ static bool G_GameCachePath(cstring_t campaign, string_t out, uint32_t out_size)
     return true;
 }
 
-static bool G_GameCacheWriteBytes(FILE *f, void const * data, size_t size) {
+static bool G_GameCacheWriteBytes(FILE *f, void const *data, size_t size) {
     return size == 0 || fwrite(data, 1, size, f) == size;
 }
 
@@ -170,7 +170,7 @@ static bool G_GameCacheWriteU32(FILE *f, uint32_t value) {
     return G_GameCacheWriteBytes(f, bytes, sizeof(bytes));
 }
 
-static bool G_GameCacheReadU32(FILE *f, uint32_t * value) {
+static bool G_GameCacheReadU32(FILE *f, uint32_t *value) {
     uint8_t bytes[4];
     if (!G_GameCacheReadBytes(f, bytes, sizeof(bytes))) return false;
     *value = (uint32_t)bytes[0] |
@@ -595,7 +595,7 @@ bool G_GameCacheStoreString(gameCache_t *cache, cstring_t mission, cstring_t key
     return true;
 }
 
-bool G_GameCacheStoreUnit(gameCache_t *cache, cstring_t mission, cstring_t key, edict_t const * unit) {
+bool G_GameCacheStoreUnit(gameCache_t *cache, cstring_t mission, cstring_t key, edict_t const *unit) {
     gameCacheEntry_t *entry;
     gameCacheUnit_t *saved;
 
@@ -611,7 +611,7 @@ bool G_GameCacheStoreUnit(gameCache_t *cache, cstring_t mission, cstring_t key, 
     saved->mana = unit->mana;
     saved->unit_color = unit->unit_color;
     FOR_LOOP(i, MAX_INVENTORY) {
-        edict_t const * item = unit->inventory[i];
+        edict_t const *item = unit->inventory[i];
         if (!item) continue;
         saved->inventory[i].item_id = item->class_id;
         saved->inventory[i].charges = item->item.charges;
@@ -644,11 +644,11 @@ cstring_t G_GameCacheGetString(gameCache_t const *cache, cstring_t mission, cstr
     return entry ? entry->value.string : "";
 }
 
-edict_t * G_GameCacheRestoreUnit(gameCache_t const *cache, cstring_t mission, cstring_t key,
-                              uint32_t player, vector2_t const * location, float facing) {
+edict_t *G_GameCacheRestoreUnit(gameCache_t const *cache, cstring_t mission, cstring_t key,
+                              uint32_t player, vector2_t const *location, float facing) {
     gameCacheEntry_t const *entry = G_GameCacheFindConst(cache, mission, key, GAMECACHE_UNIT);
     gameCacheUnit_t const *saved;
-    edict_t * unit;
+    edict_t *unit;
 
     if (!entry || !location) return NULL;
     saved = &entry->value.unit;
@@ -679,7 +679,7 @@ edict_t * G_GameCacheRestoreUnit(gameCache_t const *cache, cstring_t mission, cs
 
     FOR_LOOP(i, MAX_INVENTORY) {
         gameCacheItem_t const *saved_item = saved->inventory + i;
-        edict_t * item;
+        edict_t *item;
         if (!saved_item->item_id) continue;
         item = SP_SpawnAtLocation(saved_item->item_id, player, &unit->s.origin2);
         if (!item) {

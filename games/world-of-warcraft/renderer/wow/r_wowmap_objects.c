@@ -1,6 +1,6 @@
 #include "r_wowmap.h"
 
-model_t * Wow_LoadDoodadModel(cstring_t path) {
+model_t *Wow_LoadDoodadModel(cstring_t path) {
     wowDoodadModel_t *entry, *prev = NULL;
 
     if (!path || !*path) return NULL;
@@ -59,7 +59,7 @@ void Wow_BucketDoodadInstance(wowDoodadInstance_t *instance) {
 
 void Wow_AddDoodadInstance(cstring_t model_path, wowDoodadDef_t const *def) {
     wowDoodadInstance_t *instance;
-    model_t * model;
+    model_t *model;
 
     if (!model_path || !*model_path || !def) {
         wow_world.num_missing_doodad_models++;
@@ -111,7 +111,7 @@ void Wow_AddDoodadInstance(cstring_t model_path, wowDoodadDef_t const *def) {
 /* Ground-effect M2s already contain the authoritative geometry and material paths from the MPQ. */
 void Wow_AddGroundEffectInstance(cstring_t model_path, vector3_t origin, float angle) {
     wowDoodadInstance_t *instance;
-    model_t * model;
+    model_t *model;
 
     model = Wow_LoadDoodadModel(model_path);
     if (!model) {
@@ -130,7 +130,7 @@ void Wow_AddGroundEffectInstance(cstring_t model_path, vector3_t origin, float a
     wow_world.num_ground_effects++;
 }
 
-void Wow_AddMarker(vertex_t *vertices, uint32_t * index, vector3_t p, float size, color32_t color) {
+void Wow_AddMarker(vertex_t *vertices, uint32_t *index, vector3_t p, float size, color32_t color) {
     vector3_t a = { p.x - size, p.y - size, p.z };
     vector3_t b = { p.x + size, p.y - size, p.z };
     vector3_t c = { p.x + size, p.y + size, p.z };
@@ -151,7 +151,7 @@ void Wow_AddMarker(vertex_t *vertices, uint32_t * index, vector3_t p, float size
 }
 
 vertex_t *Wow_AppendMarkers(vertex_t *old_vertices,
-                                 uint32_t * old_count,
+                                 uint32_t *old_count,
                                  uint8_t const *chunk,
                                  uint32_t size,
                                  uint8_t const *name_blob,
@@ -203,7 +203,7 @@ vertex_t *Wow_AppendMarkers(vertex_t *old_vertices,
 }
 
 vertex_t *Wow_AppendDoodadErrorMarkers(vertex_t *old_vertices,
-                                            uint32_t * old_count,
+                                            uint32_t *old_count,
                                             uint8_t const *chunk,
                                             uint32_t size) {
     uint32_t count = size / sizeof(wowDoodadDef_t);

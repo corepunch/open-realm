@@ -14,7 +14,7 @@ vertex_t Wow_Vertex(float x, float y, float z, float u, float v, color32_t color
     return vertex;
 }
 
-void Wow_AddBoundsPoint(box3_t * bounds, vector3_t const * p) {
+void Wow_AddBoundsPoint(box3_t *bounds, vector3_t const *p) {
     bounds->min.x = MIN(bounds->min.x, p->x);
     bounds->min.y = MIN(bounds->min.y, p->y);
     bounds->min.z = MIN(bounds->min.z, p->z);
@@ -52,7 +52,7 @@ vector3_t Wow_McvtPoint(wowVec3_t pos, float const *heights, int index) {
     return Vector3_add(&base, &offset);
 }
 
-vector3_t Wow_TerrainFaceNormal(vector3_t const * a, vector3_t const * b, vector3_t const * c) {
+vector3_t Wow_TerrainFaceNormal(vector3_t const *a, vector3_t const *b, vector3_t const *c) {
     vector3_t ab = Vector3_sub(b, a);
     vector3_t ac = Vector3_sub(c, a);
     vector3_t normal = Vector3_cross(&ab, &ac);
@@ -129,10 +129,10 @@ void Wow_NormalizeTerrainNormals(vector3_t normals[WOW_MCVT_COUNT]) {
 }
 
 void Wow_PushTerrainVertex(vertex_t *vertices,
-                                  uint32_t * index,
+                                  uint32_t *index,
                                   wowVec3_t pos,
                                   float const *heights,
-                                  vector3_t const * normal,
+                                  vector3_t const *normal,
                                   int height_index,
                                   color32_t color) {
     vector3_t p = Wow_McvtPoint(pos, heights, height_index);
@@ -153,7 +153,7 @@ bool Wow_IsHole(uint16_t holes, int x, int y) {
 }
 
 void Wow_AddTerrainCell(vertex_t *vertices,
-                               uint32_t * index,
+                               uint32_t *index,
                                wowVec3_t pos,
                                float const *heights,
                                vector3_t const normals[WOW_MCVT_COUNT],

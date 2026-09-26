@@ -3,7 +3,7 @@
 #define ID_STUN_BUFF "Bstu"
 
 /* Living ground/structure units in the blast, including spell-immune (DAMAGE_TYPE_NORMAL). */
-static bool volcano_hits(edict_t * caster, edict_t * target, float radius, vector2_t const * origin) {
+static bool volcano_hits(edict_t *caster, edict_t *target, float radius, vector2_t const *origin) {
     if (!target || target == caster || !S_SpellIsAliveTarget(target)) return false;
     if (Vector2_distance(&target->s.origin2, origin) > radius) return false;
     if (target->targtype == TARG_AIR) return false;
@@ -13,28 +13,28 @@ static bool volcano_hits(edict_t * caster, edict_t * target, float radius, vecto
 
 /* Gate on targtype before G_IsDestructable: channel thinkers have class_id set but no
  * DestructableData pointer, and G_IsDestructable would NULL-deref them. */
-static bool volcano_hits_destructable(edict_t * skip, edict_t * target, float radius, vector2_t const * origin) {
+static bool volcano_hits_destructable(edict_t *skip, edict_t *target, float radius, vector2_t const *origin) {
     if (!target || target == skip || !target->inuse) return false;
     if (target->targtype != TARG_TREE && target->targtype != TARG_DEBRIS) return false;
     if (!G_IsDestructable(target) || target->destructable.dead) return false;
     return Vector2_distance(&target->s.origin2, origin) <= radius;
 }
 
-static float volcano_wave_damage(edict_t * ent, float dist) {
+static float volcano_wave_damage(edict_t *ent, float dist) {
     float dmg = (float)ent->damage;
     if (dist > ent->collision * 0.5f) dmg *= ent->health.value; /* DataF half-damage factor */
     return dmg;
 }
 
-static void volcano_finish(edict_t * ent) {
+static void volcano_finish(edict_t *ent) {
     if (ent->goalentity && ent->goalentity->inuse) G_FreeEdict(ent->goalentity);
     ent->goalentity = NULL;
     S_SpellEndChannel(ent);
 }
 
-void volcano_think(edict_t * ent) {
+void volcano_think(edict_t *ent) {
     uint32_t now = G_Time(), code = ent->class_id, level;
-    edict_t * caster = ent->owner;
+    edict_t *caster = ent->owner;
     float factor = ent->velocity;
     vector2_t origin = ent->s.origin2;
 
@@ -62,7 +62,7 @@ void volcano_think(edict_t * ent) {
 BZ_SIMPLE_SPELL_PROC(AbilityVolcano) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     uint32_t unit_id = S_SpellUnitId(spell->code, level);
-    edict_t * thinker = S_SpellChannelThinker(caster, spell->code);
+    edict_t *thinker = S_SpellChannelThinker(caster, spell->code);
 
     thinker->s.origin2 = st.point;
     thinker->s.origin.x = st.point.x;
@@ -74,7 +74,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityVolcano) {
     thinker->velocity = S_SpellData(spell->code, level, 4); /* DataD building damage factor */
     thinker->health.value = S_SpellData(spell->code, level, 6); /* DataF half-damage factor */
     if (unit_id) {
-        edict_t * doodad = G_CreateDestructable(unit_id, st.point.x, st.point.y, 0, 0, 1, 0);
+        edict_t *doodad = G_CreateDestructable(unit_id, st.point.x, st.point.y, 0, 0, 1, 0);
         if (doodad) thinker->goalentity = doodad;
         else fprintf(stderr, "WC3 Volcano: failed to spawn UnitID %.4s\n", (cstring_t)&unit_id);
     }

@@ -41,7 +41,7 @@ void PF_Write(pfWriteType_t type, void const *value) {
             break;
         }
         case PF_UIFRAME: {
-            uiFrame_t const * frame = (uiFrame_t const *)value;
+            uiFrame_t const *frame = (uiFrame_t const *)value;
             uint32_t before = sv.multicast.cursize;
             uiFrame_t empty;
             memset(&empty, 0, sizeof(uiFrame_t));
@@ -57,7 +57,7 @@ void PF_Write(pfWriteType_t type, void const *value) {
             break;
         }
         case PF_UIWINDOWFRAME: {
-            uiFrame_t const * frame = (uiFrame_t const *)value;
+            uiFrame_t const *frame = (uiFrame_t const *)value;
             uiFrame_t empty = { 0 };
             empty.tex.coord[1] = empty.tex.coord[3] = 0xff;
             MSG_WriteDeltaUIWindowFrame(&sv.multicast, &empty, frame, true);
@@ -101,15 +101,15 @@ void SV_SetGameTime(uint32_t time) {
     sv.time = time;
 }
 
-void PF_Multicast(vector3_t const * origin, multicast_t to) {
+void PF_Multicast(vector3_t const *origin, multicast_t to) {
     SV_Multicast(origin, to);
 }
 
-static void PF_StartSound(edict_t * ent, int channel, int sound_index, float volume, float attenuation, float timeofs) {
+static void PF_StartSound(edict_t *ent, int channel, int sound_index, float volume, float attenuation, float timeofs) {
     SV_StartSound(NULL, ent, channel, sound_index, volume, attenuation, timeofs);
 }
 
-static void PF_PositionedSound(vector3_t const * origin, edict_t * ent, int channel, int sound_index, float volume,
+static void PF_PositionedSound(vector3_t const *origin, edict_t *ent, int channel, int sound_index, float volume,
                                float attenuation, float timeofs) {
     SV_StartSound(origin, ent, channel, sound_index, volume, attenuation, timeofs);
 }

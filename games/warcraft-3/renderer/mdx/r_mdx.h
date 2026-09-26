@@ -451,7 +451,7 @@ typedef struct mdxModel_s {
 } mdxModel_t;
 
 typedef struct {
-    modelProg_t * shader;
+    modelProg_t *shader;
 } mdlx_state_t;
 
 extern mdlx_state_t mdlx;
@@ -460,41 +460,41 @@ extern matrix4_t node_matrices[MDX_MAX_NODES];
 mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, uint32_t time);
 bool MDLX_EventKeyCrossed(mdxModel_t const *model, mdxEvent_t const *event, uint32_t key, uint32_t previous_frame, uint32_t current_frame, uint32_t previous_time, uint32_t current_time);
 void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, uint32_t time, handle_t output);
-void MDLX_GetAnimatedColorTrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, uint32_t time, vector3_t * output);
-void MDLX_GetGeosetAnimationStaticColor(mdxGeosetAnim_t const *geosetAnim, vector3_t * output);
-void MDLX_BindBoneMatrices(mdxModel_t const *model, matrix4_t const * model_matrix, uint32_t frame1, uint32_t frame0);
+void MDLX_GetAnimatedColorTrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, uint32_t time, vector3_t *output);
+void MDLX_GetGeosetAnimationStaticColor(mdxGeosetAnim_t const *geosetAnim, vector3_t *output);
+void MDLX_BindBoneMatrices(mdxModel_t const *model, matrix4_t const *model_matrix, uint32_t frame1, uint32_t frame0);
 bool MDLX_EvaluateLight(mdxModel_t const *model, mdxLight_t const *light,
-                        matrix4_t const * model_matrix, uint32_t frame, bool use_visibility,
-                        rModelLight_t * output);
-bool MDLX_SampleFirstLight(model_t const * model, float ratio, rModelLight_t * output);
+                        matrix4_t const *model_matrix, uint32_t frame, bool use_visibility,
+                        rModelLight_t *output);
+bool MDLX_SampleFirstLight(model_t const *model, float ratio, rModelLight_t *output);
 mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, cstring_t name);
-uint32_t MDLX_CollectAttachmentPositions(mdxModel_t const *model, matrix4_t const * model_matrix,
+uint32_t MDLX_CollectAttachmentPositions(mdxModel_t const *model, matrix4_t const *model_matrix,
                                       uint32_t frame, uint32_t oldframe, cstring_t prefix,
                                       mdxAttachmentPosition_t *positions, uint32_t max_positions);
 
 mdxModel_t *R_LoadModelMDLX(void *buffer, uint32_t size);
 void MDLX_Release(mdxModel_t *model);
 void MDX_BuildBuffers(mdxModel_t *model);
-void MDX_PackModelGeometry(mdxModel_t *model, vertex_t * vertices, uint16_t *indices);
+void MDX_PackModelGeometry(mdxModel_t *model, vertex_t *vertices, uint16_t *indices);
 void MDLX_Init(void);
 void MDLX_Shutdown(void);
-void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, matrix4_t const * model_matrix);
-bool MDLX_TraceModel(renderEntity_t const *ent, line3_t const * line, vector3_t * intersection);
-bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, line3_t const * line, vector3_t * intersection);
-bool MDLX_ExtractCamera(mdxModel_t const *model, uint32_t frame, float aspect, matrix4_t * output, matrix4_t * light);
-bool MDLX_SetEntityAnimationFrame(model_t const * model, cstring_t anim, renderEntity_t *entity);
+void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, matrix4_t const *model_matrix);
+bool MDLX_TraceModel(renderEntity_t const *ent, line3_t const *line, vector3_t *intersection);
+bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, line3_t const *line, vector3_t *intersection);
+bool MDLX_ExtractCamera(mdxModel_t const *model, uint32_t frame, float aspect, matrix4_t *output, matrix4_t *light);
+bool MDLX_SetEntityAnimationFrame(model_t const *model, cstring_t anim, renderEntity_t *entity);
 void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, color32_t tint);
 void MDLX_ReleaseSprites(mdxModel_t *model);
-void MDLX_DrawSprite(model_t const * model, cstring_t anim, float x, float y);
-void MDLX_DrawSpriteTinted(model_t const * model, cstring_t anim, float x, float y, color32_t tint);
+void MDLX_DrawSprite(model_t const *model, cstring_t anim, float x, float y);
+void MDLX_DrawSpriteTinted(model_t const *model, cstring_t anim, float x, float y, color32_t tint);
 
-texture_t const * MDLX_GetTexture(mdxModel_t const *, uint32_t, uint32_t, uint32_t, texture_t const *);
+texture_t const *MDLX_GetTexture(mdxModel_t const *, uint32_t, uint32_t, uint32_t, texture_t const *);
 void MDLX_RenderParticleEmitters(renderEntity_t const *, mdxModel_t const *, matrix4_t const *);
 void MDLX_RenderRibbonEmitters(renderEntity_t const *, mdxModel_t const *, matrix4_t const *);
 void MDLX_DrawRibbonVerts(mdxModel_t const *model, vertex_t *verts, uint32_t nverts,
                           mdxMaterial_t const *material, uint32_t team);
 mdxMaterial_t *MDLX_MaterialAt(mdxModel_t const *model, uint32_t id);
-uint32_t MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, matrix4_t const * model_matrix,
+uint32_t MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, matrix4_t const *model_matrix,
                                mdxRibbonEmitter_t *ribbon, vertex_t *out, uint32_t max);
 void MDLX_TickDetachedRibbons(void); /* once per frame from R_RenderModel: fade entity-less trails */
 void MDLX_ForgetRibbonModel(mdxModel_t *model); /* model release: drop registry entry and its orphans */

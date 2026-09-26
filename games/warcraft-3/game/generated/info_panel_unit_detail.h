@@ -5,36 +5,36 @@
 #include "../g_local.h"
 
 typedef struct InfoPanelUnitDetail_s {
-    frameDef_t * InfoPanelUnitDetail;
-    frameDef_t * NameValue;
-    frameDef_t * HeroLevelBar;
-    frameDef_t * UnitStatsPanel;
-    frameDef_t * ProgressIndicator;
-    frameDef_t * ClassValue;
-    frameDef_t * DefenseLabel;
-    frameDef_t * DefenseValue;
-    frameDef_t * AttackLabel1;
-    frameDef_t * AttackValue1;
-    frameDef_t * AttackLabel2;
-    frameDef_t * AttackValue2;
-    frameDef_t * SpeedTitle;
-    frameDef_t * SpeedValue;
-    frameDef_t * RangeTitle1;
-    frameDef_t * RangeValue1;
-    frameDef_t * RangeTitle2;
-    frameDef_t * RangeValue2;
-    frameDef_t * IconBackdrop1;
-    frameDef_t * IconValue1;
-    frameDef_t * IconBackdrop2;
-    frameDef_t * IconValue2;
-    frameDef_t * IconBackdrop3;
-    frameDef_t * IconValue3;
-    frameDef_t * IconBackdrop4;
-    frameDef_t * IconValue4;
+    frameDef_t *InfoPanelUnitDetail;
+    frameDef_t *NameValue;
+    frameDef_t *HeroLevelBar;
+    frameDef_t *UnitStatsPanel;
+    frameDef_t *ProgressIndicator;
+    frameDef_t *ClassValue;
+    frameDef_t *DefenseLabel;
+    frameDef_t *DefenseValue;
+    frameDef_t *AttackLabel1;
+    frameDef_t *AttackValue1;
+    frameDef_t *AttackLabel2;
+    frameDef_t *AttackValue2;
+    frameDef_t *SpeedTitle;
+    frameDef_t *SpeedValue;
+    frameDef_t *RangeTitle1;
+    frameDef_t *RangeValue1;
+    frameDef_t *RangeTitle2;
+    frameDef_t *RangeValue2;
+    frameDef_t *IconBackdrop1;
+    frameDef_t *IconValue1;
+    frameDef_t *IconBackdrop2;
+    frameDef_t *IconValue2;
+    frameDef_t *IconBackdrop3;
+    frameDef_t *IconValue3;
+    frameDef_t *IconBackdrop4;
+    frameDef_t *IconValue4;
 } InfoPanelUnitDetail_t;
 
 
-static inline bool InfoPanelUnitDetail_Bind(InfoPanelUnitDetail_t *out, frameDef_t * bind_root) {
+static inline bool InfoPanelUnitDetail_Bind(InfoPanelUnitDetail_t *out, frameDef_t *bind_root) {
     bool ok = true;
     if (!out) {
         return false;

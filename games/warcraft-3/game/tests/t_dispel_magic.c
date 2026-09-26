@@ -11,10 +11,10 @@
 #define BZ_BTLF MAKEFOURCC('B', 'T', 'L', 'F') // rawcode; timed-life lifecycle status
 #define BZ_AUAN MAKEFOURCC('A', 'U', 'a', 'n') // rawcode; Animate Dead
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock DataB/DataA/DataE so tests cannot pass on retail 200/50/75/180. */
@@ -39,7 +39,7 @@ static cstring_t dispel_family_slk =
 
 typedef struct {
 	slkTestData_t *rows, *old;
-	edict_t * caster, *enemy, *summon, *far;
+	edict_t *caster, *enemy, *summon, *far;
 } dispelFix_t;
 
 static dispelFix_t dispel_setup(uint32_t code) {
@@ -189,7 +189,7 @@ TEST(wc3_spell, dispel_restores_ensnared_flyer) {
 		"C;Y3;X4;K\"ground,air,enemy,neutral\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"500\"\n"
 		"C;Y3;X7;K\"7\"\nC;Y3;X8;K\"3\"\nC;Y3;X10;K\"Bena,Beng\"\nE\n";
 	slkTestData_t *rows, *old;
-	edict_t * priest, *raider, *flyer;
+	edict_t *priest, *raider, *flyer;
 	vector2_t point;
 	reset_entities(); setup_test_world(); level.time = 1000;
 	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;

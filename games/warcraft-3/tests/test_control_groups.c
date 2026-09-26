@@ -2,10 +2,10 @@
 #include "cl_control_groups.h"
 #include "../../client/ui_layout.h"
 
-void SCR_LayoutDrawCommandButton(uiFrame_t const * frame, rect_t const * screen);
+void SCR_LayoutDrawCommandButton(uiFrame_t const *frame, rect_t const *screen);
 static bool button_glow;
 static float button_radial_shade;
-static void capture_button_glow(drawImage_t const * draw) { button_glow = draw->uActiveGlow; button_radial_shade = draw->uRadialShade; }
+static void capture_button_glow(drawImage_t const *draw) { button_glow = draw->uActiveGlow; button_radial_shade = draw->uRadialShade; }
 
 /* Test the renderer submission, including the shared sentinel and independent autocast flag. */
 TEST(client_layout, command_glow_requires_an_ability_or_autocast) {

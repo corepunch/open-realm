@@ -15,7 +15,7 @@
 #define TEXT_BATCH_VERTICES 1020
 
 typedef struct {
-    texture_t * image;
+    texture_t *image;
     stbtt_bakedchar glyphs[MAX_GLYPHSET];
 } glyphSet_t;
 
@@ -33,7 +33,7 @@ typedef struct  font {
 static font_t *r_fonts;
 static uint32_t r_num_fonts;
 
-static const char* utf8_to_codepoint(const char *p, unsigned *dst) {
+static char const *utf8_to_codepoint(char const *p, unsigned *dst) {
     unsigned res, n;
     switch (*p & 0xf0) {
         case 0xf0 :  res = *p & 0x07;  n = 3;  break;
@@ -85,7 +85,7 @@ retry:
         set->glyphs[i].xadvance = floor(set->glyphs[i].xadvance);
     }
     
-    color32_t * pixels = ri.MemAlloc(sizeof(color32_t) * width * height);
+    color32_t *pixels = ri.MemAlloc(sizeof(color32_t) * width * height);
     /* convert 8bit data to 32bit */
     for (int i = 0; i < width * height; i++) {
         uint8_t n = fontimage[i];
@@ -110,7 +110,7 @@ static glyphSet_t* R_GetGlyphSet(font_t *font, int codepoint) {
 }
 
 
-font_t * R_LoadFont(cstring_t filename, uint32_t size) {
+font_t *R_LoadFont(cstring_t filename, uint32_t size) {
     if (!filename || !*filename) {
         return NULL;
     }
@@ -164,7 +164,7 @@ fail:
     return NULL;
 }
 
-void R_ReleaseFont(font_t * font) {
+void R_ReleaseFont(font_t *font) {
     font_t **link = &r_fonts;
     while (*link) {
         if (*link == font) {
@@ -191,7 +191,7 @@ void R_ShutdownFonts(void) {
     }
 }
 
-float R_GetFontWidth(font_t * font, cstring_t text) {
+float R_GetFontWidth(font_t *font, cstring_t text) {
     float x = 0;
     cstring_t p = text;
     unsigned codepoint;
@@ -205,11 +205,11 @@ float R_GetFontWidth(font_t * font, cstring_t text) {
 }
 
 
-float R_GetFontHeight(font_t * font) {
+float R_GetFontHeight(font_t *font) {
     return FONT_SCALE * INV_SCALE_Y(font->height);
 }
 
-bool will_word_fit(cstring_t text, float width, font_t const * font) {
+bool will_word_fit(cstring_t text, float width, font_t const *font) {
     cstring_t p = text;
     for (; *p && !isspace(*p) && *p != '|';) {
         unsigned codepoint;
@@ -229,7 +229,7 @@ bool will_word_fit(cstring_t text, float width, font_t const * font) {
     return R_TextFitsWidth(width);
 }
 
-static vector2_t get_position(drawText_t const * arg) {
+static vector2_t get_position(drawText_t const *arg) {
     vector2_t pos = { 0 };
     vector2_t size = R_GetTextSize(arg);
     switch (arg->halign) {
@@ -256,7 +256,7 @@ static rect_t get_uvrect(stbtt_bakedchar *g, float h, float w) {
     return uv_rect;
 }
 
-static rect_t get_screenrect(vector2_t const * cursor, stbtt_bakedchar *g) {
+static rect_t get_screenrect(vector2_t const *cursor, stbtt_bakedchar *g) {
     rect_t const screen = {
         .x = cursor->x + INV_SCALE_X(g->xoff),
         .y = cursor->y + INV_SCALE_Y(g->yoff),
@@ -269,10 +269,10 @@ static rect_t get_screenrect(vector2_t const * cursor, stbtt_bakedchar *g) {
 typedef struct {
     vertex_t vertices[TEXT_BATCH_VERTICES];
     uint32_t count;
-    texture_t const * texture;
+    texture_t const *texture;
 } textBatch_t;
 
-static void flush_text_batch(textBatch_t *batch, drawText_t const * arg) {
+static void flush_text_batch(textBatch_t *batch, drawText_t const *arg) {
     if (!batch->count) {
         return;
     }
@@ -291,10 +291,10 @@ static void flush_text_batch(textBatch_t *batch, drawText_t const * arg) {
 }
 
 static void add_text_glyph(textBatch_t *batch,
-                           drawText_t const * arg,
-                           texture_t const * texture,
-                           rect_t const * screen,
-                           rect_t const * uv,
+                           drawText_t const *arg,
+                           texture_t const *texture,
+                           rect_t const *screen,
+                           rect_t const *uv,
                            color32_t color)
 {
     if (batch->texture != texture || batch->count + 6 > TEXT_BATCH_VERTICES) {
@@ -305,7 +305,7 @@ static void add_text_glyph(textBatch_t *batch,
     batch->count += 6;
 }
 
-static vector2_t process_text(drawText_t const * arg, bool draw) {
+static vector2_t process_text(drawText_t const *arg, bool draw) {
     if (!arg->font) {
         return MAKE(vector2_t, 0, 0);
     }
@@ -408,12 +408,12 @@ static vector2_t process_text(drawText_t const * arg, bool draw) {
 }
 
 
-void R_DrawText(drawText_t const * arg) {
+void R_DrawText(drawText_t const *arg) {
     process_text(arg, true);
     
 //    R_DrawWireRect(&arg->rect, MAKE(COLOR32, 255, 0, 255, 255));
 }
 
-vector2_t R_GetTextSize(drawText_t const * arg) {
+vector2_t R_GetTextSize(drawText_t const *arg) {
     return process_text(arg, false);
 }

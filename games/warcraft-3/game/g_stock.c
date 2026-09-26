@@ -8,14 +8,14 @@
 static bool shop_warned_activation_fallback, shop_warned_interaction_missing;
 static bool shop_warned_pawn_rate, shop_warned_give_range;
 
-static void G_ResetItemStock(edict_t * unit) {
+static void G_ResetItemStock(edict_t *unit) {
     if (!unit) return;
     unit->stock.items_initialized = false;
     unit->stock.item_count = 0;
     memset(unit->stock.items, 0, sizeof(unit->stock.items));
 }
 
-static void G_ResetUnitStock(edict_t * unit) {
+static void G_ResetUnitStock(edict_t *unit) {
     if (!unit) return;
     unit->stock.units_initialized = false;
     unit->stock.unit_count = 0;
@@ -23,7 +23,7 @@ static void G_ResetUnitStock(edict_t * unit) {
 }
 
 /* Units created after a global slot change inherit the current capacities. */
-void G_InitStockSlots(edict_t * unit) {
+void G_InitStockSlots(edict_t *unit) {
     if (!unit) return;
     unit->stock.item_slots = level.stock.item_slots;
     unit->stock.unit_slots = level.stock.unit_slots;
@@ -50,7 +50,7 @@ void G_SetAllStockSlots(bool items, int32_t slots) {
 }
 
 /* Unit-specific stock limits override the current global capacity without changing later spawns. */
-void G_SetStockSlots(edict_t * unit, bool items, int32_t slots) {
+void G_SetStockSlots(edict_t *unit, bool items, int32_t slots) {
     uint32_t value = (uint32_t)MAX(0, slots);
     if (!unit) return;
     if (items) {
@@ -65,7 +65,7 @@ void G_SetStockSlots(edict_t * unit, bool items, int32_t slots) {
 }
 
 /* Identifies live units whose authored merchandise makes them shops. */
-bool G_IsItemShop(edict_t const * shop) {
+bool G_IsItemShop(edict_t const *shop) {
     cstring_t items;
 
     if (!shop || !shop->inuse || !shop->class_id || M_IsDead((edict_t *)shop)) return false;
@@ -73,7 +73,7 @@ bool G_IsItemShop(edict_t const * shop) {
     return (items && *items) || (shop->stock.items_initialized && shop->stock.item_count);
 }
 
-bool G_IsUnitShop(edict_t const * shop) {
+bool G_IsUnitShop(edict_t const *shop) {
     cstring_t units;
 
     if (!shop || !shop->inuse || !shop->class_id || M_IsDead((edict_t *)shop)) return false;
@@ -81,7 +81,7 @@ bool G_IsUnitShop(edict_t const * shop) {
     return (units && *units) || (shop->stock.units_initialized && shop->stock.unit_count);
 }
 
-static bool G_CanUseShop(gameClient_t * client, edict_t const * shop) {
+static bool G_CanUseShop(gameClient_t *client, edict_t const *shop) {
     if (!client || !shop || (!G_IsItemShop(shop) && !G_IsUnitShop(shop))) return false;
     /* Neutral Passive shops are public. Owned/racial shops remain usable by
      * players with normal command authority. Aall/allied shop-sharing is a
@@ -91,18 +91,18 @@ static bool G_CanUseShop(gameClient_t * client, edict_t const * shop) {
 }
 
 /* Applies the neutral/public versus owned/control-authority policy for shop access. */
-bool G_CanUseItemShop(gameClient_t * client, edict_t const * shop) {
+bool G_CanUseItemShop(gameClient_t *client, edict_t const *shop) {
     return G_IsItemShop(shop) && G_CanUseShop(client, shop);
 }
 
-bool G_CanUseUnitShop(gameClient_t * client, edict_t const * shop) {
+bool G_CanUseUnitShop(gameClient_t *client, edict_t const *shop) {
     return G_IsUnitShop(shop) && G_CanUseShop(client, shop);
 }
 
 /* Aneu/Aall DataA is the neutral-building activation radius in Warcraft and
  * Warsmash.  Keep a retail-compatible 450 fallback for custom/minimal data
  * that declares Sellitems without carrying the neutral-building ability. */
-float G_ShopActivationRadius(edict_t const * shop) {
+float G_ShopActivationRadius(edict_t const *shop) {
     cstring_t abilities;
 
     if (!shop || !shop->data.UnitAbilities) {
@@ -134,7 +134,7 @@ float G_ShopActivationRadius(edict_t const * shop) {
     return SHOP_DEFAULT_ACTIVATION_RADIUS;
 }
 
-static bool G_ShopPatronInRange(edict_t const * shop, edict_t const * unit) {
+static bool G_ShopPatronInRange(edict_t const *shop, edict_t const *unit) {
     float reach;
     float distance;
 
@@ -151,7 +151,7 @@ enum {
     SHOP_INTERACT_ANY_ANE2 = 16,
 };
 
-static int32_t G_ShopInteractionType(edict_t const * shop) {
+static int32_t G_ShopInteractionType(edict_t const *shop) {
     cstring_t abilities;
 
     if (!shop || !shop->data.UnitAbilities) return 0;
@@ -171,7 +171,7 @@ static int32_t G_ShopInteractionType(edict_t const * shop) {
     return 0;
 }
 
-static bool G_ShopPatronEligible(edict_t const * shop, edict_t const * unit, bool require_inventory) {
+static bool G_ShopPatronEligible(edict_t const *shop, edict_t const *unit, bool require_inventory) {
     int32_t const interaction = G_ShopInteractionType(shop);
     bool const is_unit = unit && ((unit->svflags & SVF_MONSTER) || G_UnitIsBuilding(unit->class_id));
 
@@ -206,8 +206,8 @@ static bool G_ShopPatronEligible(edict_t const * shop, edict_t const * unit, boo
  * periodically reacquires it within DataA according to DataB interaction type.
  * OpenRealm resolves the nearest valid owned unit deterministically when shop
  * state is requested; item purchases additionally require inventory capacity. */
-static edict_t * G_FindShopPatronInternal(gameClient_t * client, edict_t * shop, bool require_inventory) {
-    edict_t * best = NULL;
+static edict_t *G_FindShopPatronInternal(gameClient_t *client, edict_t *shop, bool require_inventory) {
+    edict_t *best = NULL;
     float best_distance = FLT_MAX;
 
     if (!G_CanUseShop(client, shop)) return NULL;
@@ -225,12 +225,12 @@ static edict_t * G_FindShopPatronInternal(gameClient_t * client, edict_t * shop,
     return best;
 }
 
-edict_t * G_FindShopPatron(gameClient_t * client, edict_t * shop) {
+edict_t *G_FindShopPatron(gameClient_t *client, edict_t *shop) {
     if (!G_CanUseItemShop(client, shop)) return NULL;
     return G_FindShopPatronInternal(client, shop, true);
 }
 
-edict_t * G_FindUnitShopPatron(gameClient_t * client, edict_t * shop) {
+edict_t *G_FindUnitShopPatron(gameClient_t *client, edict_t *shop) {
     if (!G_CanUseUnitShop(client, shop)) return NULL;
     return G_FindShopPatronInternal(client, shop, false);
 }
@@ -241,7 +241,7 @@ static uint32_t G_StockDelayMs(int32_t seconds) {
     return (uint32_t)seconds * 1000u;
 }
 
-static void G_InitItemStock(edict_t * shop) {
+static void G_InitItemStock(edict_t *shop) {
     cstring_t items;
     uint32_t limit;
 
@@ -331,7 +331,7 @@ static void G_StartStockRestock(edictShopStockItem_t *entry, int32_t regen_secon
     entry->delay_end = now + regen;
 }
 
-static void G_UpdateItemStockEntry(edict_t * shop, uint32_t index) {
+static void G_UpdateItemStockEntry(edict_t *shop, uint32_t index) {
     ItemData_t const *item;
 
     if (!shop || index >= shop->stock.item_count) return;
@@ -339,7 +339,7 @@ static void G_UpdateItemStockEntry(edict_t * shop, uint32_t index) {
     if (item) G_UpdateStockEntry(&shop->stock.items[index], item->stockRegen);
 }
 
-static int32_t G_FindShopItemStock(edict_t * shop, uint32_t item_id) {
+static int32_t G_FindShopItemStock(edict_t *shop, uint32_t item_id) {
     G_InitItemStock(shop);
     FOR_LOOP(i, shop ? shop->stock.item_count : 0) {
         if (shop->stock.items[i].id != item_id) continue;
@@ -349,7 +349,7 @@ static int32_t G_FindShopItemStock(edict_t * shop, uint32_t item_id) {
     return -1;
 }
 
-static void G_StartItemRestock(edict_t * shop, uint32_t index) {
+static void G_StartItemRestock(edict_t *shop, uint32_t index) {
     ItemData_t const *item;
 
     if (!shop || index >= shop->stock.item_count) return;
@@ -357,7 +357,7 @@ static void G_StartItemRestock(edict_t * shop, uint32_t index) {
     if (item) G_StartStockRestock(&shop->stock.items[index], item->stockRegen);
 }
 
-static int32_t G_FindItemStockEntry(edict_t * shop, uint32_t item_id) {
+static int32_t G_FindItemStockEntry(edict_t *shop, uint32_t item_id) {
     if (!shop) return -1;
     FOR_LOOP(i, shop->stock.item_count)
         if (shop->stock.items[i].id == item_id) return (int32_t)i;
@@ -367,7 +367,7 @@ static int32_t G_FindItemStockEntry(edict_t * shop, uint32_t item_id) {
 /* Dynamic item stock mirrors Warcraft's neutral-shop natives: supplied
  * current/max values take effect immediately and authored stockRegen owns
  * later replenishment. */
-bool G_AddItemStock(edict_t * shop, uint32_t item_id, int32_t current, int32_t maximum) {
+bool G_AddItemStock(edict_t *shop, uint32_t item_id, int32_t current, int32_t maximum) {
     ItemData_t const *item;
     int32_t index;
     uint32_t limit;
@@ -393,7 +393,7 @@ bool G_AddItemStock(edict_t * shop, uint32_t item_id, int32_t current, int32_t m
     return true;
 }
 
-void G_RemoveItemStock(edict_t * shop, uint32_t item_id) {
+void G_RemoveItemStock(edict_t *shop, uint32_t item_id) {
     int32_t index;
 
     if (!shop || !shop->inuse || !G_ActorHasSkill(shop, "Asid")) return;
@@ -417,7 +417,7 @@ void G_RemoveItemStockAll(uint32_t item_id) {
         G_RemoveItemStock(shop, item_id);
 }
 
-static void G_InitUnitStock(edict_t * shop) {
+static void G_InitUnitStock(edict_t *shop) {
     cstring_t units;
     uint32_t limit;
 
@@ -474,7 +474,7 @@ static void G_InitUnitStock(edict_t * shop) {
     }
 }
 
-static void G_UpdateUnitStockEntry(edict_t * shop, uint32_t index) {
+static void G_UpdateUnitStockEntry(edict_t *shop, uint32_t index) {
     UnitBalance_t const *unit;
 
     if (!shop || index >= shop->stock.unit_count) return;
@@ -483,7 +483,7 @@ static void G_UpdateUnitStockEntry(edict_t * shop, uint32_t index) {
         G_UpdateStockEntry(&shop->stock.units[index], unit->stockRegen);
 }
 
-static int32_t G_FindShopUnitStock(edict_t * shop, uint32_t unit_id) {
+static int32_t G_FindShopUnitStock(edict_t *shop, uint32_t unit_id) {
     G_InitUnitStock(shop);
     FOR_LOOP(i, shop ? shop->stock.unit_count : 0) {
         if (shop->stock.units[i].id != unit_id) continue;
@@ -493,7 +493,7 @@ static int32_t G_FindShopUnitStock(edict_t * shop, uint32_t unit_id) {
     return -1;
 }
 
-static void G_StartUnitRestock(edict_t * shop, uint32_t index) {
+static void G_StartUnitRestock(edict_t *shop, uint32_t index) {
     UnitBalance_t const *unit;
 
     if (!shop || index >= shop->stock.unit_count) return;
@@ -502,7 +502,7 @@ static void G_StartUnitRestock(edict_t * shop, uint32_t index) {
         G_StartStockRestock(&shop->stock.units[index], unit->stockRegen);
 }
 
-static int32_t G_FindUnitStockEntry(edict_t * shop, uint32_t unit_id) {
+static int32_t G_FindUnitStockEntry(edict_t *shop, uint32_t unit_id) {
     if (!shop) return -1;
     FOR_LOOP(i, shop->stock.unit_count)
         if (shop->stock.units[i].id == unit_id) return (int32_t)i;
@@ -511,7 +511,7 @@ static int32_t G_FindUnitStockEntry(edict_t * shop, uint32_t unit_id) {
 
 /* Warcraft's stock natives override the current/max stock immediately; the
  * unit type's authored stockRegen continues to own later replenishment. */
-bool G_AddUnitStock(edict_t * shop, uint32_t unit_id, int32_t current, int32_t maximum) {
+bool G_AddUnitStock(edict_t *shop, uint32_t unit_id, int32_t current, int32_t maximum) {
     UnitBalance_t const *unit;
     int32_t index;
     uint32_t limit;
@@ -537,7 +537,7 @@ bool G_AddUnitStock(edict_t * shop, uint32_t unit_id, int32_t current, int32_t m
     return true;
 }
 
-void G_RemoveUnitStock(edict_t * shop, uint32_t unit_id) {
+void G_RemoveUnitStock(edict_t *shop, uint32_t unit_id) {
     int32_t index;
 
     if (!shop || !shop->inuse || !G_ActorHasSkill(shop, "Asud")) return;
@@ -561,11 +561,11 @@ void G_RemoveUnitStockAll(uint32_t unit_id) {
         G_RemoveUnitStock(shop, unit_id);
 }
 
-bool G_ShopSellsItem(edict_t * shop, uint32_t item_id) {
+bool G_ShopSellsItem(edict_t *shop, uint32_t item_id) {
     return G_IsItemShop(shop) && G_FindShopItemStock(shop, item_id) >= 0;
 }
 
-bool G_ShopSellsUnit(edict_t * shop, uint32_t unit_id) {
+bool G_ShopSellsUnit(edict_t *shop, uint32_t unit_id) {
     return G_IsUnitShop(shop) && G_FindShopUnitStock(shop, unit_id) >= 0;
 }
 
@@ -582,11 +582,11 @@ static void G_DisableShopButton(gameCommandButton_t *button, cstring_t reason) {
 
 /* Builds the visible merchandise card while revalidating patron, stock, and resources. */
 uint8_t G_GetShopItemButtons(shopItemButtonsParams_t *params) {
-    gameClient_t * client = params ? params->client : NULL;
-    edict_t * shop = params ? params->shop : NULL;
+    gameClient_t *client = params ? params->client : NULL;
+    edict_t *shop = params ? params->shop : NULL;
     gameCommandButton_t *buttons = params ? params->buttons : NULL;
     uint8_t max_buttons = params ? params->max_buttons : 0;
-    edict_t * patron;
+    edict_t *patron;
     uint8_t count = 0;
 
     if (!client || !buttons || !max_buttons || !G_CanUseItemShop(client, shop)) return 0;
@@ -637,11 +637,11 @@ uint8_t G_GetShopItemButtons(shopItemButtonsParams_t *params) {
 
 
 uint8_t G_GetShopUnitButtons(shopItemButtonsParams_t *params) {
-    gameClient_t * client = params ? params->client : NULL;
-    edict_t * shop = params ? params->shop : NULL;
+    gameClient_t *client = params ? params->client : NULL;
+    edict_t *shop = params ? params->shop : NULL;
     gameCommandButton_t *buttons = params ? params->buttons : NULL;
     uint8_t max_buttons = params ? params->max_buttons : 0;
-    edict_t * patron;
+    edict_t *patron;
     uint8_t count = 0;
 
     if (!client || !buttons || !max_buttons || !G_CanUseUnitShop(client, shop)) return 0;
@@ -723,10 +723,10 @@ uint8_t G_GetShopButtons(shopItemButtonsParams_t *params) {
     return count;
 }
 
-bool G_ShopPurchaseItem(edict_t * clent, edict_t * shop, uint32_t item_id) {
-    gameClient_t * client = clent ? clent->client : NULL;
-    edict_t * patron;
-    edict_t * item_ent;
+bool G_ShopPurchaseItem(edict_t *clent, edict_t *shop, uint32_t item_id) {
+    gameClient_t *client = clent ? clent->client : NULL;
+    edict_t *patron;
+    edict_t *item_ent;
     ItemData_t const *item;
     int32_t stock_index;
     uint32_t gold;
@@ -784,10 +784,10 @@ bool G_ShopPurchaseItem(edict_t * clent, edict_t * shop, uint32_t item_id) {
     return true;
 }
 
-bool G_ShopPurchaseUnit(edict_t * clent, edict_t * shop, uint32_t unit_id) {
-    gameClient_t * client = clent ? clent->client : NULL;
-    edict_t * patron;
-    edict_t * unit_ent;
+bool G_ShopPurchaseUnit(edict_t *clent, edict_t *shop, uint32_t unit_id) {
+    gameClient_t *client = clent ? clent->client : NULL;
+    edict_t *patron;
+    edict_t *unit_ent;
     UnitBalance_t const *unit;
     UnitUI_t const *ui;
     int32_t stock_index;
@@ -856,10 +856,10 @@ bool G_ShopPurchaseUnit(edict_t * clent, edict_t * shop, uint32_t unit_id) {
     return true;
 }
 
-edict_t * eventsolditem = NULL;
-edict_t * eventsoldunit = NULL;
+edict_t *eventsolditem = NULL;
+edict_t *eventsoldunit = NULL;
 
-void G_SetPlayerAbilityAvailable(gameClient_t * client, uint32_t abilid, bool avail) {
+void G_SetPlayerAbilityAvailable(gameClient_t *client, uint32_t abilid, bool avail) {
     uint32_t i;
     if (!client || !abilid) return;
     if (avail) {
@@ -879,7 +879,7 @@ void G_SetPlayerAbilityAvailable(gameClient_t * client, uint32_t abilid, bool av
     client->jass.disabled_abilities[client->jass.disabled_ability_count++] = abilid;
 }
 
-bool G_IsPlayerAbilityAvailable(gameClient_t const * client, uint32_t abilid) {
+bool G_IsPlayerAbilityAvailable(gameClient_t const *client, uint32_t abilid) {
     uint32_t i;
     if (!client || !abilid) return true;
     for (i = 0; i < client->jass.disabled_ability_count; i++)
@@ -917,11 +917,11 @@ static float G_ShopGiveItemRange(void) {
 
 /* Sells a carried pawnable item only after validating shop authority and authored range. */
 bool G_ShopPawnItem(shopPawnItemParams_t *params) {
-    edict_t * clent = params ? params->clent : NULL;
-    edict_t * shop = params ? params->shop : NULL;
-    edict_t * carrier = params ? params->carrier : NULL;
-    edict_t * item = params ? params->item : NULL;
-    gameClient_t * client = clent ? clent->client : NULL;
+    edict_t *clent = params ? params->clent : NULL;
+    edict_t *shop = params ? params->shop : NULL;
+    edict_t *carrier = params ? params->carrier : NULL;
+    edict_t *item = params ? params->item : NULL;
+    gameClient_t *client = clent ? clent->client : NULL;
     ItemData_t const *data;
     float distance;
     float reach;

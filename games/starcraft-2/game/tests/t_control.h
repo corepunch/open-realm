@@ -7,12 +7,12 @@ static uint32_t sc2_test_count, sc2_test_time;
 static void sc2_test_write(pfWriteType_t type, void const *value) {
     if (type == PF_BYTE || type == PF_LONG) sc2_test_wire[sc2_test_count++] = *(int32_t const *)value;
 }
-static void sc2_test_unicast(edict_t * ent) { (void)ent; }
-static void sc2_test_link(edict_t * ent) { (void)ent; }
+static void sc2_test_unicast(edict_t *ent) { (void)ent; }
+static void sc2_test_link(edict_t *ent) { (void)ent; }
 static uint32_t sc2_test_clock(void) { return sc2_test_time; }
 
 /* Compare the renderer's native model front with a completed authoritative move step. */
-static void sc2_test_model_follows_step(edict_t const * ent, vector2_t previous) {
+static void sc2_test_model_follows_step(edict_t const *ent, vector2_t previous) {
     entityState_t state = ent->s;
     model_t model = { .modeltype = ID_43DM };
     renderEntity_t render = { .model = &model, .origin = state.origin, .angle = state.angle, .scale = 1 };
@@ -87,7 +87,7 @@ TEST(sc2_control, shared_router_detours_and_arrives) {
     map->MapInfo.width = map->MapInfo.height = 32; map->cell_size = 1; map->origin = (vector2_t){0};
     FOR_LOOP(y, 20) cells[y * 32 + 16] = 2;
     CM_SetupPathMap(32, 32, cells);
-    edict_t * ent = &sc2_edicts[1];
+    edict_t *ent = &sc2_edicts[1];
     *ent = (edict_t){ .inuse = true, .svflags = SVF_MONSTER, .collision = 0.375f,
         .s = { .number = 1, .model = 1, .origin = {8.25f, 10.25f, 0} } };
     sc2_move[1].mobile = true;
@@ -123,7 +123,7 @@ TEST(sc2_control, cutscene_flight_preserves_positions) {
     gi.LinkEntity = sc2_test_link; gi.GetTime = sc2_test_clock;
     memset(sc2_edicts, 0, sizeof(sc2_edicts)); memset(sc2_move, 0, sizeof(sc2_move));
     globals.num_edicts = 2;
-    edict_t * ent = &sc2_edicts[1];
+    edict_t *ent = &sc2_edicts[1];
     *ent = (edict_t){ .inuse = true, .s = { .number = 1, .model = 1, .radius = 0.375f } };
     sc2_move[1].mobile = sc2_move[1].flying = true; sc2_move[1].height = 4.375f;
     SC2_GalaxyUnitSetPosition(ent, 8.25f, 10.125f, 0);
@@ -147,7 +147,7 @@ TEST(sc2_control, cardinal_move_orders_face_displacement) {
     FOR_LOOP(i, 4) {
         memset(sc2_edicts, 0, sizeof(sc2_edicts)); memset(sc2_move, 0, sizeof(sc2_move));
         globals.num_edicts = 2; sc2_edicts[0].client = &sc2_clients[0]; sc2_clients[0].ps.number = 1;
-        edict_t * ent = &sc2_edicts[1];
+        edict_t *ent = &sc2_edicts[1];
         *ent = (edict_t){ .inuse = true, .s = { .number = 1, .model = 1, .scale = 1, .player = 1, .origin = {8, 8, 0} } };
         sc2_move[1].mobile = true;
         sc2_test_count = 0;

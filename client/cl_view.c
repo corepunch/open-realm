@@ -18,7 +18,7 @@ static bool begin_sent = false;
 
 /* Optional CS_MODELS indices become handles here. Games that do not publish
  * CS_TERRAIN_LIGHT_MODEL / CS_ENTITY_LIGHT_MODEL leave the slots empty. */
-static model_t const * V_ConfigLightModel(uint32_t configstring) {
+static model_t const *V_ConfigLightModel(uint32_t configstring) {
     cstring_t value;
     char *end = NULL;
     unsigned long index;
@@ -31,7 +31,7 @@ static model_t const * V_ConfigLightModel(uint32_t configstring) {
     return cl.models[index];
 }
 
-static model_t const * V_ConfigSkyModel(void) {
+static model_t const *V_ConfigSkyModel(void) {
     char *end = NULL;
     unsigned long index = strtoul(cl.configstrings[CS_SKY], &end, 10);
     if (!*cl.configstrings[CS_SKY] || end == cl.configstrings[CS_SKY] || *end || index == 0 || index >= MAX_MODELS)
@@ -127,7 +127,7 @@ static void CL_SendBegin(void) {
     MSG_WriteString(&cls.netchan.message, "begin");
 }
 
-static void Matrix4_fromViewAngles(vector3_t const * target, vector3_t const * angles, float distance, matrix4_t * output) {
+static void Matrix4_fromViewAngles(vector3_t const *target, vector3_t const *angles, float distance, matrix4_t *output) {
     vector3_t const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
     Matrix4_translate(output, &(vector3_t){0, 0, -distance});
@@ -135,7 +135,7 @@ static void Matrix4_fromViewAngles(vector3_t const * target, vector3_t const * a
     Matrix4_translate(output, &vieworg);
 }
 
-void Matrix4_fromViewQuat(vector3_t const * target, quaternion_t const * quat, float distance, matrix4_t * output) {
+void Matrix4_fromViewQuat(vector3_t const *target, quaternion_t const *quat, float distance, matrix4_t *output) {
     vector3_t const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
     Matrix4_translate(output, &(vector3_t){0, 0, -distance});
@@ -143,7 +143,7 @@ void Matrix4_fromViewQuat(vector3_t const * target, quaternion_t const * quat, f
     Matrix4_translate(output, &vieworg);
 }
 
-static void Matrix4_getLightMatrix(vector3_t const * sunangles, float scale, matrix4_t * output) {
+static void Matrix4_getLightMatrix(vector3_t const *sunangles, float scale, matrix4_t *output) {
     matrix4_t proj, view, tmp1, tmp2;
     vector3_t const target = cl.viewDef.target;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0, 3000.0);
@@ -155,7 +155,7 @@ static void Matrix4_getLightMatrix(vector3_t const * sunangles, float scale, mat
     Matrix4_multiply(&proj, &view, output);
 }
 
-static void Matrix4_getPreviewCameraMatrix(vector3_t const * target, matrix4_t * output) {
+static void Matrix4_getPreviewCameraMatrix(vector3_t const *target, matrix4_t *output) {
     matrix4_t proj, view;
     size2_t windowSize = re.GetWindowSize();
     vector3_t eye = { 520.0f, -420.0f, 220.0f };
@@ -167,14 +167,14 @@ static void Matrix4_getPreviewCameraMatrix(vector3_t const * target, matrix4_t *
     Matrix4_multiply(&proj, &view, output);
 }
 
-static void Matrix4_getPreviewLightMatrix(vector3_t const * sunangles, vector3_t const * target, float scale, matrix4_t * output) {
+static void Matrix4_getPreviewLightMatrix(vector3_t const *sunangles, vector3_t const *target, float scale, matrix4_t *output) {
     matrix4_t proj, view;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0, 3000.0);
     Matrix4_fromViewAngles(target, sunangles, 1000, &view);
     Matrix4_multiply(&proj, &view, output);
 }
 
-void Matrix4_getCameraMatrix(matrix4_t * output) {
+void Matrix4_getCameraMatrix(matrix4_t *output) {
     if (!world_loaded) {
         Matrix4_identity(output);
         return;
@@ -350,7 +350,7 @@ static void V_ClearScene(void) {
     cl.viewDef.num_splat_rects = 0;
 }
 
-static bool CL_CircleOverlapsSplatRect(entityState_t const * state, renderSplatRect_t const *rect) {
+static bool CL_CircleOverlapsSplatRect(entityState_t const *state, renderSplatRect_t const *rect) {
     float const x = MAX(rect->mins.x, MIN(rect->maxs.x, state->origin.x));
     float const y = MAX(rect->mins.y, MIN(rect->maxs.y, state->origin.y));
     float const dx = x - state->origin.x;
@@ -358,7 +358,7 @@ static bool CL_CircleOverlapsSplatRect(entityState_t const * state, renderSplatR
     return dx * dx + dy * dy < state->collision * state->collision;
 }
 
-static void CL_AddBuildingPlacementGrid(vector3_t const * origin) {
+static void CL_AddBuildingPlacementGrid(vector3_t const *origin) {
     uint32_t const width = cl.cursorEntity->pathing_width;
     uint32_t const height = cl.cursorEntity->pathing_height;
     uint32_t const preview = cl.cursorEntity->pathing_preview;
@@ -742,7 +742,7 @@ TEST(client_entities, omitted_scale_defaults_to_one_in_render_path) {
     centity_t cent = { .prev = { .number = 7, .model = 1 }, .current = { .number = 7, .model = 1 } };
     viewDef_t saved_view = cl.viewDef;
     renderEntity_t saved_entity;
-    model_t * saved_model = cl.models[1];
+    model_t *saved_model = cl.models[1];
     int const saved_count = view_state.num_entities;
     bool const had_entity = saved_count > 0;
 

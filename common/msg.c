@@ -170,7 +170,7 @@ _Static_assert(MSG_FIELD_COUNT(playerStateFields) <= 32, "player-state delta mas
 _Static_assert(MSG_FIELD_COUNT(entityStateFields) <= 32, "entity-state delta mask is 32 bits");
 _Static_assert(MSG_FIELD_COUNT(uiFrameFields) <= 32, "ui-frame delta mask is 32 bits");
 
-void MSG_Write(sizeBuf_t * buf, void const * value, uint32_t size) {
+void MSG_Write(sizeBuf_t *buf, void const *value, uint32_t size) {
     if (buf->cursize + size > buf->maxsize) {
         fprintf(stderr,
                 "Write buffer overflow (msg): size=%u cursize=%u maxsize=%u\n",
@@ -184,65 +184,65 @@ void MSG_Write(sizeBuf_t * buf, void const * value, uint32_t size) {
     buf->cursize += size;
 }
 
-void MSG_WriteByte(sizeBuf_t * buf, int value) {
+void MSG_WriteByte(sizeBuf_t *buf, int value) {
     uint8_t val = (uint8_t)value;
     MSG_Write(buf, &val, 1);
 }
 
-void MSG_WriteShort(sizeBuf_t * buf, int value) {
+void MSG_WriteShort(sizeBuf_t *buf, int value) {
     short val = value;
     MSG_Write(buf, &val, 2);
 }
 
-void MSG_WriteLong(sizeBuf_t * buf, int value) {
+void MSG_WriteLong(sizeBuf_t *buf, int value) {
     MSG_Write(buf, &value, 4);
 }
 
-void MSG_WriteFloat(sizeBuf_t * buf, float value) {
+void MSG_WriteFloat(sizeBuf_t *buf, float value) {
     MSG_Write(buf, &value, 4);
 }
 
-void MSG_WriteFloat2(sizeBuf_t * buf, float value) {
+void MSG_WriteFloat2(sizeBuf_t *buf, float value) {
     MSG_WriteShort(buf, value * 0xffff);
 }
 
-void MSG_WriteString(sizeBuf_t * buf, cstring_t value) {
+void MSG_WriteString(sizeBuf_t *buf, cstring_t value) {
     MSG_Write(buf, value, (int)strlen(value) + 1);
 }
 
-void MSG_WritePos(sizeBuf_t * buf, vector3_t const * pos) {
+void MSG_WritePos(sizeBuf_t *buf, vector3_t const *pos) {
     MSG_WriteShort(buf, pos->x);
     MSG_WriteShort(buf, pos->y);
     MSG_WriteShort(buf, pos->z);
 }
 
-void MSG_ReadPos(sizeBuf_t * buf, vector3_t * pos) {
+void MSG_ReadPos(sizeBuf_t *buf, vector3_t *pos) {
     pos->x = MSG_ReadShort(buf);
     pos->y = MSG_ReadShort(buf);
     pos->z = MSG_ReadShort(buf);
 }
 
-void MSG_WriteDir(sizeBuf_t * buf, vector3_t const * dir) {
+void MSG_WriteDir(sizeBuf_t *buf, vector3_t const *dir) {
     MSG_WriteFloat(buf, dir->x);
     MSG_WriteFloat(buf, dir->y);
     MSG_WriteFloat(buf, dir->z);
 }
 
-void MSG_ReadDir(sizeBuf_t * buf, vector3_t * dir) {
+void MSG_ReadDir(sizeBuf_t *buf, vector3_t *dir) {
     dir->x = MSG_ReadFloat(buf);
     dir->y = MSG_ReadFloat(buf);
     dir->z = MSG_ReadFloat(buf);
 }
 
-void MSG_WriteAngle(sizeBuf_t * buf, float f) {
+void MSG_WriteAngle(sizeBuf_t *buf, float f) {
     MSG_WriteByte(buf, (int)(f*256/(2*M_PI))&0xff);
 }
 
-float MSG_ReadAngle(sizeBuf_t * buf) {
+float MSG_ReadAngle(sizeBuf_t *buf) {
     return MSG_ReadByte(buf)*(2*M_PI)/256;
 }
 
-int MSG_Read(sizeBuf_t * buf, handle_t value, uint32_t size) {
+int MSG_Read(sizeBuf_t *buf, handle_t value, uint32_t size) {
     if (buf->readcount + size > buf->cursize) {
         return 0;
     }
@@ -251,31 +251,31 @@ int MSG_Read(sizeBuf_t * buf, handle_t value, uint32_t size) {
     return size;
 }
 
-int MSG_ReadByte(sizeBuf_t * buf) {
+int MSG_ReadByte(sizeBuf_t *buf) {
     uint8_t value = 0;
     MSG_Read(buf, &value, 1);
     return value;
 }
 
-int MSG_ReadShort(sizeBuf_t * buf) {
+int MSG_ReadShort(sizeBuf_t *buf) {
     short value = 0;
     MSG_Read(buf, &value, 2);
     return value;
 }
 
-int MSG_ReadLong(sizeBuf_t * buf) {
+int MSG_ReadLong(sizeBuf_t *buf) {
     int value = 0;
     MSG_Read(buf, &value, 4);
     return value;
 }
 
-float MSG_ReadFloat(sizeBuf_t * buf) {
+float MSG_ReadFloat(sizeBuf_t *buf) {
     float value = 0;
     MSG_Read(buf, &value, 4);
     return value;
 }
 
-void MSG_ReadString(sizeBuf_t * buf, string_t value) {
+void MSG_ReadString(sizeBuf_t *buf, string_t value) {
     for (int c = MSG_ReadByte(buf), i = 0;; c = MSG_ReadByte(buf), i++) {
         value[i] = c;
         if (c == 0)
@@ -283,7 +283,7 @@ void MSG_ReadString(sizeBuf_t * buf, string_t value) {
     }
 }
 
-void MSG_ReadStringN(sizeBuf_t * buf, string_t value, int maxlen) {
+void MSG_ReadStringN(sizeBuf_t *buf, string_t value, int maxlen) {
     int i = 0;
     for (;;) {
         int c = MSG_ReadByte(buf);
@@ -295,7 +295,7 @@ void MSG_ReadStringN(sizeBuf_t * buf, string_t value, int maxlen) {
     value[i] = '\0';
 }
 
-cstring_t MSG_ReadString2(sizeBuf_t * buf) {
+cstring_t MSG_ReadString2(sizeBuf_t *buf) {
     static char buffer[2048];
     MSG_ReadString(buf, buffer);
     return buffer;
@@ -340,7 +340,7 @@ static uint32_t MSG_GetBits(void const *from, void const *to, netField_t *fields
     return bits;
 }
 
-static void MSG_WriteFields(sizeBuf_t * msg,
+static void MSG_WriteFields(sizeBuf_t *msg,
                             void const *to,
                             netField_t *fields,
                             uint32_t bits,
@@ -375,7 +375,7 @@ static void MSG_WriteFields(sizeBuf_t * msg,
     }
 }
 
-static void MSG_ReadFields(sizeBuf_t * msg,
+static void MSG_ReadFields(sizeBuf_t *msg,
                            void const *edict,
                            netField_t *fields,
                            uint32_t bits,
@@ -419,9 +419,9 @@ static void MSG_ReadFields(sizeBuf_t * msg,
     }
 }
 
-void MSG_WriteDeltaEntity(sizeBuf_t * msg,
-                          entityState_t const * from,
-                          entityState_t const * to,
+void MSG_WriteDeltaEntity(sizeBuf_t *msg,
+                          entityState_t const *from,
+                          entityState_t const *to,
                           bool force)
 {
     /* Unchanged snapshots dominate static scenes; the old path walked every wire field before discovering no delta. */
@@ -434,8 +434,8 @@ void MSG_WriteDeltaEntity(sizeBuf_t * msg,
     MSG_WriteFields(msg, to, entityStateFields, bits, false);
 }
 
-void MSG_ReadDeltaEntity(sizeBuf_t * msg,
-                         entityState_t * edict,
+void MSG_ReadDeltaEntity(sizeBuf_t *msg,
+                         entityState_t *edict,
                          int number,
                          int bits)
 {
@@ -443,9 +443,9 @@ void MSG_ReadDeltaEntity(sizeBuf_t * msg,
     MSG_ReadFields(msg, edict, entityStateFields, bits, false);
 }
 
-void MSG_WriteDeltaUIFrame(sizeBuf_t * msg,
-                           uiFrame_t const * from,
-                           uiFrame_t const * to,
+void MSG_WriteDeltaUIFrame(sizeBuf_t *msg,
+                           uiFrame_t const *from,
+                           uiFrame_t const *to,
                            bool force)
 {
     uint32_t bits = MSG_GetBits(from, to, uiFrameFields, false);
@@ -455,8 +455,8 @@ void MSG_WriteDeltaUIFrame(sizeBuf_t * msg,
     MSG_WriteFields(msg, to, uiFrameFields, bits, false);
 }
 
-void MSG_ReadDeltaUIFrame(sizeBuf_t * msg,
-                          uiFrame_t * edict,
+void MSG_ReadDeltaUIFrame(sizeBuf_t *msg,
+                          uiFrame_t *edict,
                           int number,
                           int bits)
 {
@@ -465,14 +465,14 @@ void MSG_ReadDeltaUIFrame(sizeBuf_t * msg,
 }
 
 /* Window frame strings are uint32_t offsets into the packet's trailing text arena. */
-void MSG_WriteDeltaUIWindowFrame(sizeBuf_t * msg, uiFrame_t const * from, uiFrame_t const * to, bool force) {
+void MSG_WriteDeltaUIWindowFrame(sizeBuf_t *msg, uiFrame_t const *from, uiFrame_t const *to, bool force) {
     uint32_t bits = MSG_GetBits(from, to, uiFrameFields, true);
     if (!bits && !force) return;
     MSG_WriteEntityBits(msg, (uint32_t)bits, to->number);
     MSG_WriteFields(msg, to, uiFrameFields, bits, true);
 }
 
-bool MSG_ReadDeltaUIWindowFrame(sizeBuf_t * msg, uiFrame_t * edict, int number, int bits) {
+bool MSG_ReadDeltaUIWindowFrame(sizeBuf_t *msg, uiFrame_t *edict, int number, int bits) {
     uint32_t size = 0, known = 0;
 
     for (netField_t *field = uiFrameFields; field->name; field++) {
@@ -497,17 +497,17 @@ bool MSG_ReadDeltaUIWindowFrame(sizeBuf_t * msg, uiFrame_t * edict, int number, 
     return true;
 }
 
-void MSG_WriteDeltaPlayerState(sizeBuf_t * msg,
-                               player_t const * from,
-                               player_t const * to)
+void MSG_WriteDeltaPlayerState(sizeBuf_t *msg,
+                               player_t const *from,
+                               player_t const *to)
 {
     uint32_t bits = MSG_GetBits(from, to, playerStateFields, false);
     MSG_WritePlayerBits(msg, bits, to->number);
     MSG_WriteFields(msg, to, playerStateFields, bits, false);
 }
 
-void MSG_ReadDeltaPlayerState(sizeBuf_t * msg,
-                              player_t * edict,
+void MSG_ReadDeltaPlayerState(sizeBuf_t *msg,
+                              player_t *edict,
                               int number,
                               int bits)
 {
@@ -515,7 +515,7 @@ void MSG_ReadDeltaPlayerState(sizeBuf_t * msg,
     MSG_ReadFields(msg, edict, playerStateFields, bits, false);
 }
 
-void SZ_Printf(sizeBuf_t * msg, cstring_t fmt, ...) {
+void SZ_Printf(sizeBuf_t *msg, cstring_t fmt, ...) {
     va_list argptr;
     int written;
 
@@ -539,28 +539,28 @@ void SZ_Printf(sizeBuf_t * msg, cstring_t fmt, ...) {
     msg->cursize += written + 1;
 }
 
-void MSG_WriteEntityBits(sizeBuf_t * buf, uint32_t bits, uint32_t number) {
+void MSG_WriteEntityBits(sizeBuf_t *buf, uint32_t bits, uint32_t number) {
     MSG_WriteLong(buf, bits);
     MSG_WriteShort(buf, number);
 }
 
-int MSG_ReadEntityBits(sizeBuf_t * buf, uint32_t *bits) {
+int MSG_ReadEntityBits(sizeBuf_t *buf, uint32_t *bits) {
     *bits = MSG_ReadLong(buf);
     return MSG_ReadShort(buf);
 }
 
-void MSG_WritePlayerBits(sizeBuf_t * buf, uint32_t bits, uint32_t number) {
+void MSG_WritePlayerBits(sizeBuf_t *buf, uint32_t bits, uint32_t number) {
     MSG_WriteLong(buf, bits);
     MSG_WriteShort(buf, number);
 }
 
-int MSG_ReadPlayerBits(sizeBuf_t * buf, uint32_t *bits) {
+int MSG_ReadPlayerBits(sizeBuf_t *buf, uint32_t *bits) {
     *bits = MSG_ReadLong(buf);
     return MSG_ReadShort(buf);
 }
 
 /* Each controller operation carries only its typed payload; no native struct padding goes on the wire. */
-void MSG_WriteInput(sizeBuf_t * buf, inputCmd_t const * cmd) {
+void MSG_WriteInput(sizeBuf_t *buf, inputCmd_t const *cmd) {
     MSG_WriteByte(buf, cmd->action);
     switch (cmd->action) {
     case BZ_INPUT_FOCUS:
@@ -576,7 +576,7 @@ void MSG_WriteInput(sizeBuf_t * buf, inputCmd_t const * cmd) {
 }
 
 /* Validate the complete operation before the server passes it to an authoritative player edict. */
-bool MSG_ReadInput(sizeBuf_t * buf, inputCmd_t * cmd) {
+bool MSG_ReadInput(sizeBuf_t *buf, inputCmd_t *cmd) {
     static uint32_t const sizes[] = { 8, 16, 3 };
     if (buf->readcount >= buf->cursize) return false;
     *cmd = (inputCmd_t){ .action = MSG_ReadByte(buf) };

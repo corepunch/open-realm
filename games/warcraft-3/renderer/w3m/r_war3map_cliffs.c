@@ -6,13 +6,13 @@
 
 static rCliffBakeList_t cliff_bake;
 typedef struct cliffLayer_s {
-    maplayer_t * layer;
+    maplayer_t *layer;
     uint32_t first;
     struct cliffLayer_s *next;
 } cliffLayer_t;
 static cliffLayer_t *cliff_layers;
 
-vector3_t R_GetVertexNormal(war3map_t const * map, uint32_t x, uint32_t y);
+vector3_t R_GetVertexNormal(war3map_t const *map, uint32_t x, uint32_t y);
 
 typedef struct {
     uint32_t cliff;
@@ -26,7 +26,7 @@ typedef struct {
 
 struct tCliff {
     PATHSTR name;
-    model_t const * model;
+    model_t const *model;
     struct tCliff *next;
 };
 
@@ -35,7 +35,7 @@ static struct tCliff *g_cliffs = NULL;
 struct tCliffTexture {
     uint32_t cliffid;
     char tileset;
-    texture_t const * texture;
+    texture_t const *texture;
     struct tCliffTexture *next;
 };
 
@@ -57,7 +57,7 @@ void R_ResetCliffCache(void) {
 
 // HELPERS
 
-static int TileBaseLevel(war3mapVertex_t const * tile) {
+static int TileBaseLevel(war3mapVertex_t const *tile) {
     uint32_t minLevel = tile->level;
     FOR_LOOP(tileIndex, 4) {
         minLevel = MIN(minLevel, tile[tileIndex].level);
@@ -110,7 +110,7 @@ static float GetAccurateWaterLevelAtPoint(float sx, float sy) {
 
 // FUNCTIONS
 
-static model_t const * R_LoadCliffModel(cliffData_t const *data, char const *ccfg, bool ramp) {
+static model_t const *R_LoadCliffModel(cliffData_t const *data, char const *ccfg, bool ramp) {
     PATHSTR zBuffer;
     cstring_t dir = ramp ? data->rampModelDir : data->cliffModelDir;
     snprintf(zBuffer, sizeof(zBuffer), "Doodads\\Terrain\\%s\\%s%s0.mdx", dir, dir, ccfg);
@@ -129,7 +129,7 @@ static model_t const * R_LoadCliffModel(cliffData_t const *data, char const *ccf
     return cliff->model;
 }
 
-static texture_t const * R_LoadCliffTexture(uint32_t cliffID, char tileset, cliffData_t const *data) {
+static texture_t const *R_LoadCliffTexture(uint32_t cliffID, char tileset, cliffData_t const *data) {
     PATHSTR buffer = { 0 };
 
     for (struct tCliffTexture *it = g_cliff_textures; it; it = it->next) {
@@ -157,7 +157,7 @@ static texture_t const * R_LoadCliffTexture(uint32_t cliffID, char tileset, clif
 }
 
 /* Like SC2, only snap mesh edges that border emitted terrain, leaving stacked/internal faces intact. */
-static bool R_CliffGroundJoin(war3map_t const * map, vector3_t * pos) {
+static bool R_CliffGroundJoin(war3map_t const *map, vector3_t *pos) {
     float gx = (pos->x - map->center.x) / TILE_SIZE, gy = (pos->y - map->center.y) / TILE_SIZE;
     int ix = (int)floorf(gx), iy = (int)floorf(gy);
     for (int y = iy - 1; y <= iy; y++) for (int x = ix - 1; x <= ix; x++) {
@@ -177,7 +177,7 @@ static bool R_CliffGroundJoin(war3map_t const * map, vector3_t * pos) {
     return false;
 }
 
-static void R_MakeCliff(war3map_t const * map, uint32_t x, uint32_t y, cliffData_t const *data) {
+static void R_MakeCliff(war3map_t const *map, uint32_t x, uint32_t y, cliffData_t const *data) {
     struct War3MapVertex tile[4];
     GetTileVertices(x, y, map, tile);
 
@@ -190,7 +190,7 @@ static void R_MakeCliff(war3map_t const * map, uint32_t x, uint32_t y, cliffData
     int const baselevel = TileBaseLevel(tile);
 
     FOR_LOOP(index, 4) {
-        war3mapVertex_t const * vert = &tile[r_cliff_corners[index]];
+        war3mapVertex_t const *vert = &tile[r_cliff_corners[index]];
         int const diff = vert->level - baselevel;
         if (diff == 0) {
             cliffcfg[index] = (is_ramp && vert->ramp) ? 'L' : 'A';
@@ -201,7 +201,7 @@ static void R_MakeCliff(war3map_t const * map, uint32_t x, uint32_t y, cliffData
         }
     }
     
-    model_t const * pModel = R_LoadCliffModel(data, cliffcfg, is_ramp);
+    model_t const *pModel = R_LoadCliffModel(data, cliffcfg, is_ramp);
     if (!pModel || pModel->modeltype != ID_MDLX || !pModel->mdx || !pModel->mdx->geosets) {
         fprintf(stderr, "Model %.4s not found\n", (cstring_t)&cliffcfg);
         return;
@@ -258,13 +258,13 @@ static void R_MakeCliff(war3map_t const * map, uint32_t x, uint32_t y, cliffData
     }
 }
 
-maplayer_t * R_BuildMapSegmentCliffs(war3map_t const * map, uint32_t sx, uint32_t sy, uint32_t cliff) {
+maplayer_t *R_BuildMapSegmentCliffs(war3map_t const *map, uint32_t sx, uint32_t sy, uint32_t cliff) {
     uint32_t cliffID = map->cliffs[cliff];
     if (cliffID == NO_CLIFF) {
         return NULL;
     }
 
-    maplayer_t * mapLayer = ri.MemAlloc(sizeof(maplayer_t));
+    maplayer_t *mapLayer = ri.MemAlloc(sizeof(maplayer_t));
     w3CliffType_t const *row = R_CliffType(cliffID);
     cliffData_t data = {
         .cliff = cliff,

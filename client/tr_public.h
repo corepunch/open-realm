@@ -43,7 +43,7 @@ enum {
 
 /* Text drawing parameters */
 typedef struct drawText_s {
-    font_t const * font;
+    font_t const *font;
     cstring_t text;
     rect_t rect;
     color32_t color;
@@ -58,7 +58,7 @@ typedef struct drawText_s {
 
 /* Image drawing parameters */
 typedef struct drawImage_s {
-    texture_t const * texture;
+    texture_t const *texture;
     SHADERTYPE shader;
     BLEND_MODE alphamode;
     rect_t screen;
@@ -74,7 +74,7 @@ typedef struct drawImage_s {
 /* Backdrop drawing parameters (9-slice border + tiled background) */
 typedef struct drawBackdrop_s {
     rect_t screen;
-    struct { texture_t const * texture; color32_t color; } bg, edge;
+    struct { texture_t const *texture; color32_t color; } bg, edge;
     struct { int16_t flags; float size; } corner;
     struct { float right, top, bottom, left; } insets;
     uint8_t flags;
@@ -108,7 +108,7 @@ typedef struct {
     void (*MemFree)(handle_t);
     uint32_t (*LoadSlk)(cstring_t filename, slkField_t const *schema, void **dest, uint32_t row_stride);
     cstring_t (*CvarString)(cstring_t name, cstring_t fallback);
-    void (*PlaySoundAt)(cstring_t path, vector3_t const * origin, float volume);
+    void (*PlaySoundAt)(cstring_t path, vector3_t const *origin, float volume);
     void (*error)(cstring_t fmt, ...);
 } refImport_t;
 
@@ -129,10 +129,10 @@ typedef struct {
 
 typedef struct {
     vector3_t origin;
-    model_t const * model;
-    struct { model_t const * model; orientation_t angles; } attachment; /* local pose after the parent socket */
-    texture_t const * skin;
-    texture_t const * splat;
+    model_t const *model;
+    struct { model_t const *model; orientation_t angles; } attachment; /* local pose after the parent socket */
+    texture_t const *skin;
+    texture_t const *splat;
     cstring_t name;                      /* server-authored world label (NULL = none) */
     uint32_t number;
     uint32_t owner;                     /* authoritative entity owner/player slot when the game assigns one */
@@ -141,7 +141,7 @@ typedef struct {
     uint32_t display_id;
     uint32_t appearance;
     uint32_t equipment;
-    model_t const * overhead_model;
+    model_t const *overhead_model;
     vector3_t rotation;   /* Authored placement Euler degrees; game adapter decodes to yaw/pitch/roll. */
 #endif
     uint32_t frame;
@@ -149,14 +149,14 @@ typedef struct {
     uint32_t flags;
     uint8_t health;        /* compressed 0..255 snapshot health ratio */
     uint16_t effect_flags;
-    model_t const * effect_model;
+    model_t const *effect_model;
     float angle;        /* Canonical actor heading in radians, independent of height anchoring. */
     float scale;
     float radius;
     float splatsize;
     float ground_offset; /* current altitude above an authored ground/support surface */
 #ifndef USE_SHADOWMAPS
-    texture_t const * shadow;
+    texture_t const *shadow;
     rect_t shadow_rect;
 #endif
     color32_t tint;  /* optional per-instance model RGBA */
@@ -166,7 +166,7 @@ typedef struct {
 
 typedef struct {
     vector2_t origin;
-    texture_t const * texture;
+    texture_t const *texture;
     color32_t color;
     float radius;
 } renderDecal_t;
@@ -197,13 +197,13 @@ typedef struct {
     uint32_t num_weather_effects;
     wc3WeatherEffect_t const *weather_effects;
     uint32_t num_lightning_effects;
-    lightningEffect_t const * lightning_effects;
+    lightningEffect_t const *lightning_effects;
     matrix4_t viewProjectionMatrix;
     matrix4_t lightMatrix;
     matrix4_t textureMatrix;
-    model_t const * terrainLightModel; /* optional sampling source; game renderer evaluates into terrainLight */
-    model_t const * entityLightModel;  /* optional sampling source; game renderer evaluates into entityLight */
-    model_t const * skyModel;          /* optional camera-relative unlit world model */
+    model_t const *terrainLightModel; /* optional sampling source; game renderer evaluates into terrainLight */
+    model_t const *entityLightModel;  /* optional sampling source; game renderer evaluates into entityLight */
+    model_t const *skyModel;          /* optional camera-relative unlit world model */
     float environmentPhase;     /* normalized 0..1 clock used to sample environment light models */
     environLight_t terrainLight;  /* evaluated world/terrain light; valid=0 keeps the renderer fallback */
     environLight_t entityLight;   /* evaluated entity light; valid=0 reuses terrainLight or the fallback */
@@ -233,7 +233,7 @@ struct modelInfo_s {
 };
 
 typedef struct {
-    model_t const * model;
+    model_t const *model;
     cstring_t anim;
     float x, y;
     void const *id, *scope; /* Stable UI owner and layout identities; separate instances sharing one model. */
@@ -247,52 +247,52 @@ typedef struct {
     void (*RenderFrame)(viewDef_t const *viewdef);
     texture_t * (*LoadTexture)(cstring_t fileName);
     /* NULL releases the renderer-owned cinematic texture. */
-    void (*DrawCinematicFrame)(drawCinematicFrame_t const * frame);
+    void (*DrawCinematicFrame)(drawCinematicFrame_t const *frame);
     model_t * (*LoadModel)(cstring_t filename);
     font_t * (*LoadFont)(cstring_t filename, uint32_t size);
     size2_t (*GetWindowSize)(void);
     rect_t (*GetUISceneRect)(void);
     /* The client canvas owns the scene (docs/architecture/ui-canvas.md); the renderer only projects it. */
-    void (*SetUIScene)(rect_t const * scene);
+    void (*SetUIScene)(rect_t const *scene);
     uint32_t (*GetDrawCalls)(void);
     void (*SetWindowSize)(uint32_t width, uint32_t height);
     void (*WindowChanged)(void);
-    size2_t (*GetTextureSize)(texture_t const * texture);
-    void (*ReleaseTexture)(texture_t * texture);
-    void (*ReleaseModel)(model_t * model);
+    size2_t (*GetTextureSize)(texture_t const *texture);
+    void (*ReleaseTexture)(texture_t *texture);
+    void (*ReleaseModel)(model_t *model);
     void (*BeginFrame)(void);
     void (*EndFrame)(void);
     void (*Screenshot)(void);
     void (*DrawChar)(int x, int y, int c);
     void (*DrawString)(int x, int y, cstring_t text);
     void (*DrawCharScaled)(float x, float y, int c, float scale);
-    void (*DrawFill)(rect_t const * rect, color32_t color);
-    void (*DrawSelectionRect)(rect_t const * rect, color32_t color);
-    void (*DrawPic)(texture_t const * texture, float x, float y);
-    void (*DrawImage)(texture_t const * texture, rect_t const * screen, rect_t const * uv, color32_t color);
-    void (*DrawImageEx)(drawImage_t const * drawImage);
-    void (*DrawBackdrop)(drawBackdrop_t const * drawBackdrop);
-    void (*DrawMinimap)(rect_t const * screen, cstring_t map);
-    void (*DrawLoadingIndicator)(rect_t const * rect, uint32_t time, color32_t color);
+    void (*DrawFill)(rect_t const *rect, color32_t color);
+    void (*DrawSelectionRect)(rect_t const *rect, color32_t color);
+    void (*DrawPic)(texture_t const *texture, float x, float y);
+    void (*DrawImage)(texture_t const *texture, rect_t const *screen, rect_t const *uv, color32_t color);
+    void (*DrawImageEx)(drawImage_t const *drawImage);
+    void (*DrawBackdrop)(drawBackdrop_t const *drawBackdrop);
+    void (*DrawMinimap)(rect_t const *screen, cstring_t map);
+    void (*DrawLoadingIndicator)(rect_t const *rect, uint32_t time, color32_t color);
     void (*DrawSprite)(drawSprite_t const *sprite);
     bool (*DrawCursor)(float x, float y, color32_t tint);
-    bool (*SetEntityAnimFrame)(model_t const * model, cstring_t anim, renderEntity_t *entity);
-    void (*DrawText)(drawText_t const * drawText);
-    vector2_t (*GetTextSize)(drawText_t const * drawText);
-    bool (*GetModelInfo)(model_t * model, modelInfo_t * info);
-    bool (*GetEntityOverheadPosition)(renderEntity_t const *entity, vector3_t * out);
-    bool (*GetEntityAttachmentPosition)(renderEntity_t const *entity, cstring_t prefix, vector3_t * out);
+    bool (*SetEntityAnimFrame)(model_t const *model, cstring_t anim, renderEntity_t *entity);
+    void (*DrawText)(drawText_t const *drawText);
+    vector2_t (*GetTextSize)(drawText_t const *drawText);
+    bool (*GetModelInfo)(model_t *model, modelInfo_t *info);
+    bool (*GetEntityOverheadPosition)(renderEntity_t const *entity, vector3_t *out);
+    bool (*GetEntityAttachmentPosition)(renderEntity_t const *entity, cstring_t prefix, vector3_t *out);
 
-    void (*DrawBoundingBox)(box3_t const * box, matrix4_t const * modelMatrix, matrix4_t const * vpMatrix, color32_t color);
+    void (*DrawBoundingBox)(box3_t const *box, matrix4_t const *modelMatrix, matrix4_t const *vpMatrix, color32_t color);
     float (*GetHeightAtPoint)(float x, float y);
     float (*GetCameraHeightAtPoint)(float x, float y);
     bool (*CameraUsesTerrainHeight)(void);
-    bool (*TraceEntity)(viewDef_t const *viewdef, float x, float y, uint32_t * number);
-    bool (*TraceLocation)(viewDef_t const *viewdef, float x, float y, vector3_t * point);
-    bool (*TraceCameraPlane)(viewDef_t const *viewdef, float x, float y, vector3_t * point);
-    bool (*TraceMinimap)(float x, float y, vector2_t * outWorld);
-    bool (*WorldToMinimap)(vector2_t const * world, vector2_t * outScreen);
-    uint32_t (*EntitiesInRect)(viewDef_t const *viewdef, rect_t const * rect, uint32_t max, uint32_t * array);
+    bool (*TraceEntity)(viewDef_t const *viewdef, float x, float y, uint32_t *number);
+    bool (*TraceLocation)(viewDef_t const *viewdef, float x, float y, vector3_t *point);
+    bool (*TraceCameraPlane)(viewDef_t const *viewdef, float x, float y, vector3_t *point);
+    bool (*TraceMinimap)(float x, float y, vector2_t *outWorld);
+    bool (*WorldToMinimap)(vector2_t const *world, vector2_t *outScreen);
+    uint32_t (*EntitiesInRect)(viewDef_t const *viewdef, rect_t const *rect, uint32_t max, uint32_t *array);
 
 } refExport_t;
 

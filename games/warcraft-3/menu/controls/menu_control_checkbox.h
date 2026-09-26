@@ -1,18 +1,18 @@
 #ifndef UI_CONTROL_CHECKBOX_H
 #define UI_CONTROL_CHECKBOX_H
 
-static bool UI_CheckBoxEnabled(frameDef_t const * frame) {
+static bool UI_CheckBoxEnabled(frameDef_t const *frame) {
     return frame && !(frame->ui_flags & UIFLAG_DISABLED);
 }
 
-static bool UI_CheckBoxIsPushed(frameDef_t const * frame, rect_t const * rect) {
+static bool UI_CheckBoxIsPushed(frameDef_t const *frame, rect_t const *rect) {
     (void)rect;
     return UI_CheckBoxEnabled(frame) &&
            !UI_PointerBlockedByPopup(frame) &&
            (frame->ui_flags & UIFLAG_PRESSED);
 }
 
-static frameDef_t const * UI_CheckBoxBackdrop(frameDef_t const * frame, rect_t const * rect) {
+static frameDef_t const *UI_CheckBoxBackdrop(frameDef_t const *frame, rect_t const *rect) {
     cstring_t backdrop_name;
 
     if (!frame) {
@@ -28,7 +28,7 @@ static frameDef_t const * UI_CheckBoxBackdrop(frameDef_t const * frame, rect_t c
     return UI_FindFrameNear(frame, backdrop_name);
 }
 
-static frameDef_t const * UI_CheckBoxCheckHighlight(frameDef_t const * frame) {
+static frameDef_t const *UI_CheckBoxCheckHighlight(frameDef_t const *frame) {
     cstring_t highlight_name;
 
     if (!frame || !frame->CheckBox.Checked) {
@@ -40,8 +40,8 @@ static frameDef_t const * UI_CheckBoxCheckHighlight(frameDef_t const * frame) {
     return UI_FindFrameNear(frame, highlight_name);
 }
 
-static void UI_DrawCheckBoxMouseOverHighlight(frameDef_t const * frame) {
-    rect_t const * rect;
+static void UI_DrawCheckBoxMouseOverHighlight(frameDef_t const *frame) {
+    rect_t const *rect;
 
     if (!frame || !UI_CheckBoxEnabled(frame) || UI_PointerBlockedByPopup(frame)) {
         return;

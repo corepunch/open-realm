@@ -59,7 +59,7 @@ static int UIWow_LuaDrawImage(lua_State *L) {
     rect_t screen = UIWow_LuaRect(L, 2);
     rect_t uv = MAKE(rect_t, 0, 0, 1, 1);
     color32_t color = UIWow_LuaColor(L, 6, COLOR32_WHITE);
-    texture_t * texture = UIWow_LoadTexture(name);
+    texture_t *texture = UIWow_LoadTexture(name);
 
     if (wow_ui.renderer && texture) {
         wow_ui.renderer->DrawImage(texture, &screen, &uv, color);
@@ -77,7 +77,7 @@ static int UIWow_LuaDrawImageUV(lua_State *L) {
     float bottom = (float)luaL_checknumber(L, 9);
     rect_t uv = MAKE(rect_t, left, top, right - left, bottom - top);
     color32_t color = UIWow_LuaColor(L, 10, COLOR32_WHITE);
-    texture_t * texture = UIWow_LoadTexture(name);
+    texture_t *texture = UIWow_LoadTexture(name);
 
     if (wow_ui.renderer && texture) {
         wow_ui.renderer->DrawImage(texture, &screen, &uv, color);
@@ -121,7 +121,7 @@ static int UIWow_LuaDrawBackdrop(lua_State *L) {
 
     /* Background — stretched inside the inset */
     if (bg_path && *bg_path) {
-        texture_t * bg = UIWow_LoadTexture(bg_path);
+        texture_t *bg = UIWow_LoadTexture(bg_path);
         if (bg) {
             rect_t inner = MAKE(rect_t, sc.x + e, sc.y + e, sc.w - e * 2.0f, sc.h - e * 2.0f);
             wow_ui.renderer->DrawImage(bg, &inner, &fuv, COLOR32_WHITE);
@@ -133,7 +133,7 @@ static int UIWow_LuaDrawBackdrop(lua_State *L) {
      * each holding one corner/edge piece at half-texture size).
      * UV layout: corners at the four quadrants, edges along each side. */
     if (border_path && *border_path && e > 0.0f) {
-        texture_t * border = UIWow_LoadTexture(border_path);
+        texture_t *border = UIWow_LoadTexture(border_path);
         if (border) {
             float r = sc.x + sc.w; /* right edge */
             float b = sc.y + sc.h; /* bottom edge */
@@ -182,7 +182,7 @@ static int UIWow_LuaDrawText(lua_State *L) {
     uint32_t size = (uint32_t)luaL_optinteger(L, 6, 14);
     color32_t color = UIWow_LuaColor(L, 7, COLOR32_WHITE);
     cstring_t align = luaL_optstring(L, 11, "left");
-    font_t const * font = UIWow_LoadFont(size);
+    font_t const *font = UIWow_LoadFont(size);
     uiFontJustificationH_t halign = FONT_JUSTIFYLEFT;
 
     if (!strcasecmp(align, "center")) {
@@ -233,7 +233,7 @@ static int UIWow_LuaDrawImageAdditive(lua_State *L) {
     rect_t screen = UIWow_LuaRect(L, 2);
     rect_t uv = MAKE(rect_t, 0, 0, 1, 1);
     color32_t color = UIWow_LuaColor(L, 6, COLOR32_WHITE);
-    texture_t * texture = UIWow_LoadTexture(name);
+    texture_t *texture = UIWow_LoadTexture(name);
 
     if (wow_ui.renderer && texture) {
         wow_ui.renderer->DrawImageEx(&MAKE(drawImage_t, .texture   = texture, .screen    = screen, .uv        = uv, .color     = color, .shader    = SHADER_UI, .alphamode = BLEND_MODE_ADD));

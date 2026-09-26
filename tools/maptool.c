@@ -15,7 +15,7 @@
 #endif
 
 static handle_t archives[64] = { 0 };
-static const char *g_map_path = NULL;
+static char const *g_map_path = NULL;
 static struct {
     vector2_t position;
     vector3_t viewangles;
@@ -77,7 +77,7 @@ void MemFree(handle_t mem) { Viewer_MemFree(mem); }
 
 void Sys_Quit(void) { exit(0); }
 
-static void Matrix4_fromViewAngles(vector3_t const * target, vector3_t const * angles, float distance, matrix4_t * output) {
+static void Matrix4_fromViewAngles(vector3_t const *target, vector3_t const *angles, float distance, matrix4_t *output) {
     vector3_t const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
     Matrix4_translate(output, &(vector3_t){0, 0, -distance});
@@ -85,7 +85,7 @@ static void Matrix4_fromViewAngles(vector3_t const * target, vector3_t const * a
     Matrix4_translate(output, &vieworg);
 }
 
-static void Matrix4_fromViewQuat(vector3_t const * target, quaternion_t const * quat, float distance, matrix4_t * output) {
+static void Matrix4_fromViewQuat(vector3_t const *target, quaternion_t const *quat, float distance, matrix4_t *output) {
     vector3_t const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
     Matrix4_translate(output, &(vector3_t){0, 0, -distance});
@@ -93,7 +93,7 @@ static void Matrix4_fromViewQuat(vector3_t const * target, quaternion_t const * 
     Matrix4_translate(output, &vieworg);
 }
 
-static void Matrix4_getLightMatrix(vector3_t const * sunangles, vector3_t const * target, float scale, matrix4_t * output) {
+static void Matrix4_getLightMatrix(vector3_t const *sunangles, vector3_t const *target, float scale, matrix4_t *output) {
     matrix4_t proj, view;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, 100.0, 3500.0);
     Matrix4_fromViewAngles(target, sunangles, 1000, &view);
@@ -131,8 +131,8 @@ static void BuildMapCamera(refExport_t const *re, viewDef_t *viewdef) {
 }
 
 int main(int argc, char **argv) {
-    const char *mpq = NULL;
-    const char *mapPath = NULL;
+    char const *mpq = NULL;
+    char const *mapPath = NULL;
 
     for (int i = 1; i < argc; i++) {
         if (!strncmp(argv[i], "-mpq=", 5)) {

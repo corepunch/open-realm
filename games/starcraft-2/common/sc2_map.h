@@ -375,7 +375,7 @@ static inline float sc2_map_height_adjust_at_point(sc2Map_t const *map, float x,
 }
 
 typedef struct {
-    handle_t (*read_file)(cstring_t filename, uint32_t * size);
+    handle_t (*read_file)(cstring_t filename, uint32_t *size);
     void   (*free_file)(handle_t file);
     handle_t (*mem_alloc)(long size);
     void   (*mem_free)(handle_t mem);

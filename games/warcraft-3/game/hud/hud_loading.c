@@ -16,7 +16,7 @@ void UI_LoadHudLoading(void) {
     memset(loadslot, 0, sizeof(loadslot));
     if (!LoadingSlot_Load(&tmpl)) return;
     FOR_LOOP(i, PLAYER_NEUTRAL_AGGRESSIVE) {
-        frameDef_t * row = UI_CloneFrameTree(tmpl.LoadingPlayerSlot, hud.loading.LoadingMeleePlayerContainer);
+        frameDef_t *row = UI_CloneFrameTree(tmpl.LoadingPlayerSlot, hud.loading.LoadingMeleePlayerContainer);
         if (!LoadingSlot_Bind(&loadslot[i], row)) return;
         UI_SetHidden(row, true);
         UI_SetHidden(loadslot[i].LoadingPlayerSlotLevel, true);
@@ -29,11 +29,11 @@ void UI_LoadHudLoading(void) {
     }
 }
 
-static cstring_t loading_text(mapInfo_t const * info, cstring_t text) { return text && *text ? G_MapString(info, text) : " "; }
+static cstring_t loading_text(mapInfo_t const *info, cstring_t text) { return text && *text ? G_MapString(info, text) : " "; }
 
 /* Repeat native rows using their authored stride; only participating lobby slots enter this list. */
-static void loading_players(mapInfo_t const * info) {
-    frameDef_t * pane = hud.loading.LoadingMeleePlayerContainer;
+static void loading_players(mapInfo_t const *info) {
+    frameDef_t *pane = hud.loading.LoadingMeleePlayerContainer;
     uint32_t count = 0;
     FOR_LOOP(i, PLAYER_NEUTRAL_AGGRESSIVE)
         if (info->players[i].used && (info->players[i].playerType == kPlayerTypeHuman ||
@@ -41,10 +41,10 @@ static void loading_players(mapInfo_t const * info) {
     uint32_t rows = (count + 1) / 2, n = 0;
     FOR_LOOP(i, PLAYER_NEUTRAL_AGGRESSIVE) UI_SetHidden(loadslot[i].LoadingPlayerSlot, true);
     FOR_LOOP(i, PLAYER_NEUTRAL_AGGRESSIVE) {
-        mapPlayer_t const * player = &info->players[i];
+        mapPlayer_t const *player = &info->players[i];
         if (!player->used || (player->playerType != kPlayerTypeHuman && player->playerType != kPlayerTypeComputer)) continue;
         LoadingSlot_t *slot = &loadslot[n];
-        frameDef_t * row = slot->LoadingPlayerSlot;
+        frameDef_t *row = slot->LoadingPlayerSlot;
         /* The container supplies the first column; the template supplies row and column spacing. */
         UI_SetPoint(row, FRAMEPOINT_TOPLEFT, pane, FRAMEPOINT_LEFT, (n / rows) * pane->Width, (rows * 0.5f - n % rows) * row->Height);
         UI_SetText(slot->LoadingPlayerSlotName, "%s", loading_text(info, player->playerName));
@@ -55,7 +55,7 @@ static void loading_players(mapInfo_t const * info) {
 }
 
 /* Resolve W3I presentation before the server publishes the loading-only media table. */
-void UI_WriteLoadingLayout(edict_t * ent, mapInfo_t const * info) {
+void UI_WriteLoadingLayout(edict_t *ent, mapInfo_t const *info) {
     cstring_t title = info && info->loadingScreenTitle && *info->loadingScreenTitle ? info->loadingScreenTitle :
                    info ? info->mapName : NULL;
     uint32_t model = 0, seq = 0;

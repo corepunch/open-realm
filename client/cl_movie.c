@@ -189,7 +189,7 @@ static bool CL_MovieQueueVideoFrame(AVFrame const *frame) {
     dst_data[0] = cl_movie.frames[index].rgba;
     dst_linesize[0] = (int)cl_movie.width * 4;
     sws_scale(cl_movie.sws,
-              (uint8_t const * const *)frame->data,
+              (uint8_t const *const *)frame->data,
               frame->linesize,
               0,
               frame->height,
@@ -497,7 +497,7 @@ static rect_t movie_test_rect;
 static size2_t movie_test_window;
 static rect_t CL_MovieTestScene(void) { return MAKE(rect_t, 0, 0, 0.8f, 0.6f); }
 static size2_t CL_MovieTestWindow(void) { return movie_test_window; }
-static void CL_MovieTestFill(rect_t const * rect, color32_t color) { (void)rect; (void)color; }
+static void CL_MovieTestFill(rect_t const *rect, color32_t color) { (void)rect; (void)color; }
 static void CL_MovieTestFrame(drawCinematicFrame_t const *frame) { movie_test_rect = frame->screen; }
 TEST(client_movie, letterboxing_uses_physical_aspect_on_stretched_canvas) {
     refExport_t saved_re = re;

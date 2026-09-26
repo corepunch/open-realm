@@ -29,8 +29,8 @@ static inline void Viewer_MemFree(handle_t mem);
 
 static inline bool Viewer_OrbitHandleEvent(viewer_orbit_t *orbit, SDL_Event const *event);
 static inline void Viewer_OrbitInit(viewer_orbit_t *orbit, vector3_t target, float distance, float yaw_deg, float pitch_deg);
-static inline void Viewer_OrbitBuildCamera(viewer_orbit_t const *orbit, float aspect, float fov, float znear, float zfar, matrix4_t * output);
-static inline void Viewer_OrbitBuildLight(viewer_orbit_t const *orbit, vector3_t const * sunangles, float scale, matrix4_t * output);
+static inline void Viewer_OrbitBuildCamera(viewer_orbit_t const *orbit, float aspect, float fov, float znear, float zfar, matrix4_t *output);
+static inline void Viewer_OrbitBuildLight(viewer_orbit_t const *orbit, vector3_t const *sunangles, float scale, matrix4_t *output);
 
 static vector3_t Viewer_OrbitEye(viewer_orbit_t const *orbit) {
     float const yaw = orbit->yaw_deg * (float)M_PI / 180.0f;
@@ -98,7 +98,7 @@ static inline void Viewer_OrbitInit(viewer_orbit_t *orbit, vector3_t target, flo
     Viewer_OrbitClamp(orbit);
 }
 
-static inline void Viewer_OrbitBuildCamera(viewer_orbit_t const *orbit, float aspect, float fov, float znear, float zfar, matrix4_t * output) {
+static inline void Viewer_OrbitBuildCamera(viewer_orbit_t const *orbit, float aspect, float fov, float znear, float zfar, matrix4_t *output) {
     matrix4_t proj, view;
     vector3_t eye = Viewer_OrbitEye(orbit);
     vector3_t dir = Vector3_sub(&orbit->target, &eye);
@@ -107,7 +107,7 @@ static inline void Viewer_OrbitBuildCamera(viewer_orbit_t const *orbit, float as
     Matrix4_multiply(&proj, &view, output);
 }
 
-static inline void Viewer_OrbitBuildLight(viewer_orbit_t const *orbit, vector3_t const * sunangles, float scale, matrix4_t * output) {
+static inline void Viewer_OrbitBuildLight(viewer_orbit_t const *orbit, vector3_t const *sunangles, float scale, matrix4_t *output) {
     matrix4_t proj, view;
     vector3_t eye = Viewer_OrbitEye(orbit);
     vector3_t dir = Vector3_sub(&orbit->target, &eye);

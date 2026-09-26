@@ -11,7 +11,7 @@ static void CL_ResetGroupTap(void) {
     cl.group_last_ms = 0;
 }
 
-static bool CL_GroupCenter(uint32_t const *ids, uint32_t n, vector2_t * center) {
+static bool CL_GroupCenter(uint32_t const *ids, uint32_t n, vector2_t *center) {
     double x = 0.0, y = 0.0;
     uint32_t valid = 0;
 
@@ -19,7 +19,7 @@ static bool CL_GroupCenter(uint32_t const *ids, uint32_t n, vector2_t * center) 
     n = MIN(n, CL_SelectionLimit());
     FOR_LOOP(i, n) {
         uint32_t const number = ids[i];
-        entityState_t const * state;
+        entityState_t const *state;
         if (!number || number >= MAX_CLIENT_ENTITIES) continue;
         state = &cl.ents[number].current;
         if (!state->model || state->stats[ENT_HEALTH] == 0 ||

@@ -16,13 +16,13 @@ typedef struct sc2RoadTri_s {
 void      R_SC2ShutdownShaders(void);
 void      R_SC2RegisterMap(cstring_t mapFileName);
 void      R_SC2DrawWorld(void);
-bool      R_SC2TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t * output);
+bool      R_SC2TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t *output);
 float     R_SC2GetHeightAtPoint(float x, float y);
 float     R_SC2GetCameraHeightAtPoint(float x, float y);
 vector2_t   R_SC2WorldSize(void);
 
 /* HRDT deforms a unit cube between endpoint offsets, with its top on the authored surface. */
-static inline void r_sc2_hard_tile_matrix(sc2MapHardTile_t const *tile, matrix4_t * matrix) {
+static inline void r_sc2_hard_tile_matrix(sc2MapHardTile_t const *tile, matrix4_t *matrix) {
 	vector3_t along = Vector3_sub(&tile->end, &tile->start);
 	vector3_t side = Vector3_cross(&along, &tile->normal);
 	vector3_t base = Vector3_scale(&tile->normal, -tile->scale.y);
@@ -43,7 +43,7 @@ static inline float r_sc2_road_side(vector3_t a, vector3_t b, vector3_t p) {
 
 /* Intersect a ribbon triangle with one ground triangle, retaining road UVs.
    Clipping at cell diagonals is essential: vertex-only draping spans terrain folds. */
-static inline uint32_t r_sc2_clip_road(vertex_t const * road, vertex_t const * ground, vertex_t * out) {
+static inline uint32_t r_sc2_clip_road(vertex_t const *road, vertex_t const *ground, vertex_t *out) {
     vertex_t poly[8], scratch[8];
     uint32_t count = 3, total = 0;
     float area = r_sc2_road_side(ground[0].position, ground[1].position, ground[2].position);
@@ -89,7 +89,7 @@ static inline uint32_t r_sc2_clip_road(vertex_t const * road, vertex_t const * g
 }
 
 /* Distance below the authored ribbon plane; HRDT depth bounds projection onto cliff tops. */
-static inline float r_sc2_road_depth(vertex_t const * road, vector3_t p) {
+static inline float r_sc2_road_depth(vertex_t const *road, vector3_t p) {
     float area = r_sc2_road_side(road[0].position, road[1].position, road[2].position);
     float u = r_sc2_road_side(road[1].position, road[2].position, p)/area;
     float v = r_sc2_road_side(road[2].position, road[0].position, p)/area;
@@ -98,7 +98,7 @@ static inline float r_sc2_road_depth(vertex_t const * road, vector3_t p) {
 
 /* Cliff meshes replace grid cells at bridge ends. Clip to the authored depth envelope so roads
    reach their actual surface without being projected all the way down the canyon walls. */
-static inline uint32_t r_sc2_clip_road_cliff(sc2RoadTri_t const * road, vertex_t const * cliff, vertex_t * out) {
+static inline uint32_t r_sc2_clip_road_cliff(sc2RoadTri_t const *road, vertex_t const *cliff, vertex_t *out) {
     vertex_t clipped[18];
     uint32_t total = 0;
     if (fabsf(r_sc2_road_side(road->verts[0].position, road->verts[1].position, road->verts[2].position)) < 1e-8f) return 0;

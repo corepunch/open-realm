@@ -6,7 +6,7 @@
 
 /* ---- Blink (AEbl): instant teleport to a target point within range -------- */
 
-static bool blink_validate(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static bool blink_validate(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float maxrange = S_SpellData(spell->code, level, 1);
     float minrange = S_SpellData(spell->code, level, 2);
@@ -17,7 +17,7 @@ static bool blink_validate(edict_t * caster, spellTarget_t st, abilityitem_t con
     return true;
 }
 
-static void blink_execute(edict_t * caster, spellTarget_t st, abilityitem_t const *spell) {
+static void blink_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_SPECIAL, 0, caster, NULL, true);
     vector2_t dest = st.point;
     CM_ClosestPathablePointForRadiusFlags(&st.point, caster->collision, M_UnitStaticPathingFlags(caster), &dest);
@@ -60,7 +60,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityFanOfKnives) {
 /* ---- Shadow Strike (AEsh): single-target nuke ----------------------------- */
 
 BZ_SIMPLE_SPELL_PROC(AbilityShadowStrike) {
-    edict_t * target = st.entity;
+    edict_t *target = st.entity;
     uint32_t level = S_SpellLevel(caster, spell->code);
     uint32_t damage = (uint32_t)MAX(1.0f, S_SpellData(spell->code, level, 5)); /* DataE = Initial Damage */
 

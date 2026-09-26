@@ -1,8 +1,8 @@
 #ifndef UI_CONTROL_BUTTON_H
 #define UI_CONTROL_BUTTON_H
 
-static bool UI_ButtonIsPopupArrow(frameDef_t const * frame) {
-    frameDef_t const * parent = frame ? frame->Parent : NULL;
+static bool UI_ButtonIsPopupArrow(frameDef_t const *frame) {
+    frameDef_t const *parent = frame ? frame->Parent : NULL;
 
     return frame &&
            parent &&
@@ -11,15 +11,15 @@ static bool UI_ButtonIsPopupArrow(frameDef_t const * frame) {
            !strcmp(frame->Name, parent->Popup.ArrowFrame);
 }
 
-static bool UI_ButtonBackdropNameContains(frameDef_t const * frame, cstring_t text) {
+static bool UI_ButtonBackdropNameContains(frameDef_t const *frame, cstring_t text) {
     return frame &&
            frame->Control.Backdrop.Normal[0] &&
            text &&
            strstr(frame->Control.Backdrop.Normal, text);
 }
 
-static bool UI_ButtonBackdropTextureContains(frameDef_t const * frame, cstring_t text) {
-    frameDef_t const * backdrop;
+static bool UI_ButtonBackdropTextureContains(frameDef_t const *frame, cstring_t text) {
+    frameDef_t const *backdrop;
     cstring_t background;
     cstring_t edge;
 
@@ -36,7 +36,7 @@ static bool UI_ButtonBackdropTextureContains(frameDef_t const * frame, cstring_t
            (edge && strstr(edge, text));
 }
 
-static cstring_t UI_ButtonPopupPushedBackdropName(frameDef_t const * frame) {
+static cstring_t UI_ButtonPopupPushedBackdropName(frameDef_t const *frame) {
     if (!frame || !UI_IsPopupFrameType(frame->Type)) {
         return NULL;
     }
@@ -55,7 +55,7 @@ static cstring_t UI_ButtonPopupPushedBackdropName(frameDef_t const * frame) {
     return NULL;
 }
 
-static cstring_t UI_ButtonFallbackMouseOverHighlightName(frameDef_t const * frame) {
+static cstring_t UI_ButtonFallbackMouseOverHighlightName(frameDef_t const *frame) {
     if (!frame) {
         return NULL;
     }
@@ -83,7 +83,7 @@ static cstring_t UI_ButtonFallbackMouseOverHighlightName(frameDef_t const * fram
     return NULL;
 }
 
-static vector2_t UI_ButtonPushedTextOffset(frameDef_t const * frame) {
+static vector2_t UI_ButtonPushedTextOffset(frameDef_t const *frame) {
     if (frame &&
         (frame->Button.PushedTextOffset.x != 0.0f ||
          frame->Button.PushedTextOffset.y != 0.0f)) {
@@ -101,7 +101,7 @@ static vector2_t UI_ButtonPushedTextOffset(frameDef_t const * frame) {
     return MAKE(vector2_t, 0.0f, 0.0f);
 }
 
-static bool UI_ButtonEnabled(frameDef_t const * frame) {
+static bool UI_ButtonEnabled(frameDef_t const *frame) {
     return frame &&
            !(frame->ui_flags & UIFLAG_DISABLED) &&
            (frame->OnClick[0] ||
@@ -110,13 +110,13 @@ static bool UI_ButtonEnabled(frameDef_t const * frame) {
             UI_ButtonIsPopupArrow(frame));
 }
 
-static bool UI_ButtonIsPushed(frameDef_t const * frame, rect_t const * rect) {
+static bool UI_ButtonIsPushed(frameDef_t const *frame, rect_t const *rect) {
     (void)rect;
     return UI_ButtonEnabled(frame) && (frame->ui_flags & UIFLAG_PRESSED);
 }
 
-static void UI_DrawButtonText(frameDef_t const * frame, rect_t const * rect) {
-    frameDef_t * text_frame = NULL;
+static void UI_DrawButtonText(frameDef_t const *frame, rect_t const *rect) {
+    frameDef_t *text_frame = NULL;
     rect_t text_rect = *rect;
     color32_t original_color;
     bool use_disabled_color;
@@ -156,7 +156,7 @@ static void UI_DrawButtonText(frameDef_t const * frame, rect_t const * rect) {
     text_frame->Font.Color = original_color;
 }
 
-static frameDef_t const * UI_ButtonBackdrop(frameDef_t const * frame, rect_t const * rect) {
+static frameDef_t const *UI_ButtonBackdrop(frameDef_t const *frame, rect_t const *rect) {
     cstring_t backdrop_name = frame->Control.Backdrop.Normal;
     bool const pushed = UI_ButtonIsPushed(frame, rect);
 
@@ -170,14 +170,14 @@ static frameDef_t const * UI_ButtonBackdrop(frameDef_t const * frame, rect_t con
                         : UI_ButtonPopupPushedBackdropName(frame);
     }
 
-    frameDef_t const * backdrop = UI_FindFrameNear(frame, backdrop_name);
+    frameDef_t const *backdrop = UI_FindFrameNear(frame, backdrop_name);
     if (!backdrop && frame->Button.NormalTexture[0]) {
         backdrop = UI_FindFrameNear(frame, frame->Button.NormalTexture);
     }
     return backdrop;
 }
 
-static frameDef_t const * UI_ButtonMouseOverHighlight(frameDef_t const * frame) {
+static frameDef_t const *UI_ButtonMouseOverHighlight(frameDef_t const *frame) {
     cstring_t highlight_name;
 
     if (!frame) {

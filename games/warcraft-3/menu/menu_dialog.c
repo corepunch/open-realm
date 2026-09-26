@@ -33,7 +33,7 @@ static void UI_DialogWar3SetVisible(uiDialogWar3_t *dialog, bool visible) {
 }
 
 static bool UI_DialogWar3CreateModal(uiDialogWar3_t *dialog,
-                                     frameDef_t * parent,
+                                     frameDef_t *parent,
                                      uiDialogWar3Init_t const *init)
 {
     cstring_t modal_name = UI_DialogWar3ModalName(init);
@@ -71,20 +71,20 @@ static bool UI_DialogWar3EnsureTemplate(cstring_t template_name) {
     return false;
 }
 
-static frameDef_t * UI_DialogWar3CloneTemplate(cstring_t template_name, frameDef_t * parent) {
-    frameDef_t * template_frame = UI_FindFrame(template_name);
-    frameDef_t * frame = template_frame ? UI_CloneFrameTree(template_frame, parent) : NULL;
+static frameDef_t *UI_DialogWar3CloneTemplate(cstring_t template_name, frameDef_t *parent) {
+    frameDef_t *template_frame = UI_FindFrame(template_name);
+    frameDef_t *frame = template_frame ? UI_CloneFrameTree(template_frame, parent) : NULL;
     if (frame) {
         frame->Parent = parent;
     }
     return frame;
 }
 
-static frameDef_t * UI_DialogWar3CloneNamed(cstring_t template_name,
-                                          frameDef_t * parent,
+static frameDef_t *UI_DialogWar3CloneNamed(cstring_t template_name,
+                                          frameDef_t *parent,
                                           cstring_t name)
 {
-    frameDef_t * frame = UI_DialogWar3CloneTemplate(template_name, parent);
+    frameDef_t *frame = UI_DialogWar3CloneTemplate(template_name, parent);
     if (frame && name) {
         snprintf(frame->Name, sizeof(frame->Name), "%s", name);
     }
@@ -92,9 +92,9 @@ static frameDef_t * UI_DialogWar3CloneNamed(cstring_t template_name,
 }
 
 static void UI_DialogWar3UseDialogBackdrop(uiDialogWar3_t *dialog) {
-    frameDef_t * source_dialog = UI_FindFrame("DialogWar3");
-    frameDef_t * source = source_dialog ? UI_FindChildFrame(source_dialog, source_dialog->DialogBackdropName) : NULL;
-    frameDef_t * dest = dialog && dialog->frame ? UI_FindChildFrame(dialog->frame, dialog->frame->DialogBackdropName) : NULL;
+    frameDef_t *source_dialog = UI_FindFrame("DialogWar3");
+    frameDef_t *source = source_dialog ? UI_FindChildFrame(source_dialog, source_dialog->DialogBackdropName) : NULL;
+    frameDef_t *dest = dialog && dialog->frame ? UI_FindChildFrame(dialog->frame, dialog->frame->DialogBackdropName) : NULL;
 
     if (!source || !dest) return;
     dest->Backdrop = source->Backdrop;
@@ -127,13 +127,13 @@ static bool UI_DialogWar3CreateLegacy(uiDialogWar3_t *dialog) {
     return true;
 }
 
-static frameDef_t * UI_DialogWar3CreateText(uiDialogWar3_t *dialog, cstring_t template_name) {
+static frameDef_t *UI_DialogWar3CreateText(uiDialogWar3_t *dialog, cstring_t template_name) {
     /* ScriptDialog already has ScriptDialogText from the War3 template; preserve it. */
     if (!strcmp(template_name, "ScriptDialog")) {
         return UI_FindChildFrame(dialog->frame, "ScriptDialogText");
     }
     cstring_t text_template = "StandardInfoTextTemplate";
-    frameDef_t * text = UI_DialogWar3CloneNamed(text_template, dialog->frame, "DialogText");
+    frameDef_t *text = UI_DialogWar3CloneNamed(text_template, dialog->frame, "DialogText");
     if (!text) {
         text = UI_Spawn(FT_TEXT, dialog->frame);
         if (!text) {
@@ -157,7 +157,7 @@ static bool UI_DialogWar3CreateButton(uiDialogWar3_t *dialog,
                              : "StandardButtonTemplate";
     cstring_t text_template = battlenet ? "BattleNetButtonTextTemplate"
                            : "StandardButtonTextTemplate";
-    frameDef_t * text;
+    frameDef_t *text;
 
     dialog->ok_button = UI_DialogWar3CloneNamed(button_template, dialog->frame, "DialogButtonOK");
     text = UI_DialogWar3CloneNamed(text_template, dialog->ok_button, "DialogButtonOKText");
@@ -201,7 +201,7 @@ static bool UI_DialogWar3CreateTemplate(uiDialogWar3_t *dialog,
 }
 
 bool UI_DialogWar3Init(uiDialogWar3_t *dialog,
-                       frameDef_t * parent,
+                       frameDef_t *parent,
                        uiDialogWar3Init_t const *init)
 {
     if (!dialog || !parent) {

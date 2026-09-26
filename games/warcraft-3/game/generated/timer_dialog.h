@@ -5,14 +5,14 @@
 #include "../g_local.h"
 
 typedef struct TimerDialog_s {
-    frameDef_t * TimerDialog;
-    frameDef_t * TimerDialogBackdrop;
-    frameDef_t * TimerDialogValue;
-    frameDef_t * TimerDialogTitle;
+    frameDef_t *TimerDialog;
+    frameDef_t *TimerDialogBackdrop;
+    frameDef_t *TimerDialogValue;
+    frameDef_t *TimerDialogTitle;
 } TimerDialog_t;
 
 
-static inline bool TimerDialog_Bind(TimerDialog_t *out, frameDef_t * bind_root) {
+static inline bool TimerDialog_Bind(TimerDialog_t *out, frameDef_t *bind_root) {
     bool ok = true;
     if (!out) {
         return false;

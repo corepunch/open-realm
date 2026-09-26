@@ -1,6 +1,6 @@
 #include "../cmath3.h"
 
-int Line3_intersect_sphere3(line3_t const * line, sphere3_t const * sphere, vector3_t * output) {
+int Line3_intersect_sphere3(line3_t const *line, sphere3_t const *sphere, vector3_t *output) {
     float cx = sphere->center.x;
     float cy = sphere->center.y;
     float cz = sphere->center.z;
@@ -51,7 +51,7 @@ int Line3_intersect_sphere3(line3_t const * line, sphere3_t const * sphere, vect
     return 1;
 }
 
-int Line3_intersect_plane3(line3_t const * line, plane3_t const * plane, vector3_t * output) {
+int Line3_intersect_plane3(line3_t const *line, plane3_t const *plane, vector3_t *output) {
     vector3_t direction = Vector3_sub(&line->b, &line->a);
     float dotProduct = Vector3_dot(&direction, &plane->normal);
     // Check if the line and plane are parallel
@@ -65,12 +65,12 @@ int Line3_intersect_plane3(line3_t const * line, plane3_t const * plane, vector3
     return 1;
 }
 
-static inline float DotNormal(vector3_t const * normal, vector3_t const * a, vector3_t const * b, vector3_t const * c) {
+static inline float DotNormal(vector3_t const *normal, vector3_t const *a, vector3_t const *b, vector3_t const *c) {
     vector3_t const rcross = Triangle_normal(&(const triangle3_t) { *a, *b, *c });
     return Vector3_dot(normal, &rcross);
 }
 
-int Line3_intersect_triangle(line3_t const * line, triangle3_t const * triangle, vector3_t * output) {
+int Line3_intersect_triangle(line3_t const *line, triangle3_t const *triangle, vector3_t *output) {
     vector3_t const normal = Triangle_normal(triangle);
     vector3_t const diff1 = Vector3_sub(&line->a, &triangle->a);
     vector3_t const diff2 = Vector3_sub(&line->b, &triangle->a);
@@ -108,7 +108,7 @@ int Line3_intersect_triangle(line3_t const * line, triangle3_t const * triangle,
 //   return (det >= 1e-6 && t >= 0.0 && u >= 0.0 && v >= 0.0 && (u+v) <= 1.0);
 //}
 
-int Line3_intersect_box3(line3_t const * line, box3_t const * box, vector3_t * output) {
+int Line3_intersect_box3(line3_t const *line, box3_t const *box, vector3_t *output) {
     float st, et, fst = 0, fet = 1;
     float const *bmin = &box->min.x;
     float const *bmax = &box->max.x;

@@ -59,7 +59,7 @@ void test_client_stubs_set_cvar(cstring_t name, cstring_t value) {
 
 static bool mock_CameraUsesTerrainHeight(void) { return false; }
 static size2_t mock_GetWindowSize(void) { return test_window_size; }
-static void mock_SetUIScene(rect_t const * scene) { test_ui_scene = *scene; }
+static void mock_SetUIScene(rect_t const *scene) { test_ui_scene = *scene; }
 /* The scene the client canvas last pushed to the renderer; tests compare it with CL_Canvas(). */
 rect_t test_client_stubs_ui_scene(void) { return test_ui_scene; }
 /* Stands in for the per-game hook in games/<game>/common/world_*.c. */
@@ -69,9 +69,9 @@ void test_client_stubs_set_canvas_policy(UICANVASPOLICY policy) {
     test_canvas_policy = policy;
     CL_CanvasResolvePolicy();
 }
-static void mock_DrawLoadingIndicator(rect_t const * rect, uint32_t time, color32_t color) { (void)rect; (void)time; (void)color; }
-static void mock_DrawFill(rect_t const * rect, color32_t color) { (void)rect; (void)color; }
-static void mock_DrawImageEx(drawImage_t const * image) { (void)image; }
+static void mock_DrawLoadingIndicator(rect_t const *rect, uint32_t time, color32_t color) { (void)rect; (void)time; (void)color; }
+static void mock_DrawFill(rect_t const *rect, color32_t color) { (void)rect; (void)color; }
+static void mock_DrawImageEx(drawImage_t const *image) { (void)image; }
 static bool mock_DrawCursor(float x, float y, color32_t tint) {
     (void)x; (void)y;
     test_cursor_draw_calls++;
@@ -134,7 +134,7 @@ cvar_t *Cvar_Set(cstring_t name, cstring_t value) {
     return NULL;
 }
 
-void CL_ParseTEnt(sizeBuf_t * msg) { (void)msg; }
+void CL_ParseTEnt(sizeBuf_t *msg) { (void)msg; }
 void CL_BeginLoadingMap(cstring_t mapName) { (void)mapName; cl.playerstate.client_ui_state = CLIENT_UI_LOADING; cls.state = ca_connected; cl.num_active = 0; }
 void CL_SetGameplayInput(void) { cls.key_dest = key_game; }
 void CL_ReloadImageResources(void) {}
@@ -142,11 +142,11 @@ void CL_Disconnect(cstring_t reason, bool notify) { (void)reason; (void)notify; 
 void CL_EntityEvent(entityState_t const *ent) { (void)ent; }
 void S_RegisterSound(cstring_t path) { (void)path; }
 void S_PlaySoundFile(cstring_t path) { (void)path; }
-void S_PlaySoundPacket(cstring_t path, vector3_t const * origin, bool positioned, int channel, float volume, float attenuation,
+void S_PlaySoundPacket(cstring_t path, vector3_t const *origin, bool positioned, int channel, float volume, float attenuation,
                        float timeofs) {
     (void)path; (void)origin; (void)positioned; (void)channel; (void)volume; (void)attenuation; (void)timeofs;
 }
-bool S_PlaySoundPolicy(cstring_t path, vector3_t const * origin, bool positioned, int channel, float volume,
+bool S_PlaySoundPolicy(cstring_t path, vector3_t const *origin, bool positioned, int channel, float volume,
                        float attenuation, float timeofs, soundPolicy_t const *policy) {
     (void)policy;
     S_PlaySoundPacket(path, origin, positioned, channel, volume, attenuation, timeofs);

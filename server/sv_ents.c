@@ -29,7 +29,7 @@ typedef struct {
 /* Determine whether a client should receive updates for the given entity.
  * Always true for the client's own player-owned entities; otherwise based
  * on a simple distance check against the client's camera position. */
-static bool SV_CanClientSeeEntity(client_t const * client, edict_t const * edict) {
+static bool SV_CanClientSeeEntity(client_t const *client, edict_t const *edict) {
 #ifdef WOW
     (void)client;
     (void)edict;
@@ -49,7 +49,7 @@ static bool SV_CanClientSeeEntity(client_t const * client, edict_t const * edict
 #endif
 }
 
-static float SV_ClientEntityVisibilityScore(client_t const * client, edict_t const * edict) {
+static float SV_ClientEntityVisibilityScore(client_t const *client, edict_t const *edict) {
 #ifdef WOW
     (void)client;
     (void)edict;
@@ -67,7 +67,7 @@ static float SV_ClientEntityVisibilityScore(client_t const * client, edict_t con
 #endif
 }
 
-static int SV_CompareCandidateByNumber(const void *a, const void *b) {
+static int SV_CompareCandidateByNumber(void const *a, void const *b) {
     visibleEntityCandidate_t const *ea = a;
     visibleEntityCandidate_t const *eb = b;
     return ea->edict->s.number - eb->edict->s.number;
@@ -117,7 +117,7 @@ static void SV_AddVisibleEntityCandidate(visibleEntityCandidate_t *candidates,
     }
 }
 
-entityState_t * SV_NextClientEntity(void) {
+entityState_t *SV_NextClientEntity(void) {
     int index = svs.next_client_entities++ % svs.num_client_entities;
     return &svs.client_entities[index];
 }
@@ -125,9 +125,9 @@ entityState_t * SV_NextClientEntity(void) {
 /* Populate a client frame snapshot with all entities visible to the client.
  * The snapshot records the player state and a list of entity states that will
  * be delta-encoded and sent by SV_WriteFrameToClient. */
-void SV_BuildClientFrame(client_t * client) {
+void SV_BuildClientFrame(client_t *client) {
     edict_t *clent = client->edict;
-    clientFrame_t * frame = &client->frames[sv.framenum & UPDATE_MASK];
+    clientFrame_t *frame = &client->frames[sv.framenum & UPDATE_MASK];
     /* Keep the per-client, per-frame candidate workspace off the stack. */
     static visibleEntityCandidate_t candidates[MAX_PACKET_ENTITIES];
     int num_candidates = 0;
@@ -208,7 +208,7 @@ void SV_BuildClientFrame(client_t * client) {
 
     for (int index = 0; index < num_candidates; index++) {
         edict_t *edict = candidates[index].edict;
-        entityState_t * state = SV_NextClientEntity();
+        entityState_t *state = SV_NextClientEntity();
         *state = edict->s;
         ge->CustomizeEntity(clent->client->ps.number, edict, state);
         if (edict->selected & (1 << clent->client->ps.number)) {
@@ -222,7 +222,7 @@ void SV_BuildClientFrame(client_t * client) {
  * Entities present in both old and new frames are written as deltas.
  * New entities are written against the server baseline.
  * Entities removed since the last frame receive a U_REMOVE flag. */
-void SV_EmitPacketEntities(clientFrame_t const * from, clientFrame_t const * to, sizeBuf_t * msg) {
+void SV_EmitPacketEntities(clientFrame_t const *from, clientFrame_t const *to, sizeBuf_t *msg) {
     int const from_num_entities = from ? from->num_entities : 0;
     entityState_t nullstate = { 0 };
     int debug_entities = Cvar_Integer("sv_debug_entities", 0);
@@ -236,8 +236,8 @@ void SV_EmitPacketEntities(clientFrame_t const * from, clientFrame_t const * to,
          newindex < to->num_entities ||
          oldindex < from_num_entities;)
     {
-        entityState_t * newent = NULL;
-        entityState_t * oldent = NULL;
+        entityState_t *newent = NULL;
+        entityState_t *oldent = NULL;
         int newnum = 0, oldnum = 0;
         if (newindex >= to->num_entities) {
             newnum = HIGH_NUMBER;
@@ -271,7 +271,7 @@ void SV_EmitPacketEntities(clientFrame_t const * from, clientFrame_t const * to,
             continue;
         }
         if (newnum < oldnum) { // this is a new entity, send it from the baseline
-            entityState_t const * base = &nullstate;
+            entityState_t const *base = &nullstate;
             if (sv.baselines && newnum >= 0 && newnum < ge->max_edicts) {
                 base = &sv.baselines[newnum];
             }
@@ -324,9 +324,9 @@ void SV_EmitPacketEntities(clientFrame_t const * from, clientFrame_t const * to,
     }
 }
 
-void SV_WritePlayerstateToClient(clientFrame_t const * from, clientFrame_t const * to, sizeBuf_t * msg) {
-    player_t const * ps = &to->ps;
-    player_t const * ops = NULL;
+void SV_WritePlayerstateToClient(clientFrame_t const *from, clientFrame_t const *to, sizeBuf_t *msg) {
+    player_t const *ps = &to->ps;
+    player_t const *ops = NULL;
     player_t dummy;
     if (!from) {
         memset(&dummy, 0, sizeof(dummy));
@@ -341,9 +341,9 @@ void SV_WritePlayerstateToClient(clientFrame_t const * from, clientFrame_t const
 /* Write the full frame packet (svc_frame header + player state + entity list)
  * to the client's outgoing channel and record the sent frame number so the
  * next call can compute the correct delta. */
-void SV_WriteFrameToClient(client_t * client) {
-    clientFrame_t * frame = &client->frames[sv.framenum & UPDATE_MASK];
-    clientFrame_t * oldframe = client->lastframe == (uint32_t)-1
+void SV_WriteFrameToClient(client_t *client) {
+    clientFrame_t *frame = &client->frames[sv.framenum & UPDATE_MASK];
+    clientFrame_t *oldframe = client->lastframe == (uint32_t)-1
         ? NULL
         : &client->frames[client->lastframe & UPDATE_MASK];
     uint32_t start_size = client->netchan.message.cursize;

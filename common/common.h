@@ -196,18 +196,18 @@ void FS_SetPriorityArchive(handle_t archive);
 handle_t FS_GetPriorityArchive(void);
 handle_t FS_OpenFile(cstring_t fileName);
 void FS_CloseFile(handle_t file);
-handle_t FS_ReadLooseFile(cstring_t filename, uint32_t * size, uint32_t extraBytes);
+handle_t FS_ReadLooseFile(cstring_t filename, uint32_t *size, uint32_t extraBytes);
 bool FS_ExtractFile(cstring_t toExtract, cstring_t extracted);
 bool FS_FileExists(cstring_t fileName);
 bool FS_ResolveLoosePath(cstring_t fileName, string_t out, uint32_t out_size);
-handle_t FS_ReadFile(cstring_t filename, uint32_t * size);
+handle_t FS_ReadFile(cstring_t filename, uint32_t *size);
 void FS_ReadFileAll(cstring_t filename, void (*callback)(handle_t buf, uint32_t size, void *ud), void *ud);
 
 // Quake 3-style file API (returns file size, allocates buffer)
 int FS_ReadFileQ3(cstring_t filename, void **buf);
 void FS_FreeFile(void *buf);
 // mmap-backed read for loose files (PROT_READ, MAP_PRIVATE); free with FS_MunmapFile
-void *FS_MmapFile(cstring_t filename, uint32_t * out_size);
+void *FS_MmapFile(cstring_t filename, uint32_t *out_size);
 void  FS_MunmapFile(void *ptr);
 handle_t FS_FindFirstFile(cstring_t mask, sfileFindData_t *findData);
 bool FS_FindNextFile(handle_t find, sfileFindData_t *findData);
@@ -216,7 +216,7 @@ uint32_t FS_ListMaps(fsMapListFunc_t func, void *userData);
 fsMapResolve_t FS_ResolveMapPath(cstring_t name, string_t out, uint32_t out_size);
 
 typedef struct {
-    handle_t (*ReadFile)(cstring_t filename, uint32_t * size);
+    handle_t (*ReadFile)(cstring_t filename, uint32_t *size);
     void (*FreeFile)(handle_t file);
     handle_t (*MemAlloc)(long size);
     void (*MemFree)(handle_t mem);
@@ -267,7 +267,7 @@ uint32_t CM_BuildHeatmapForRadius(struct edict_s *goalentity, float radius);
 uint32_t CM_RequestHeatmapForRadius(struct edict_s *goalentity, float radius);
 uint32_t CM_RequestHeatmapForRadiusFlags(struct edict_s *goalentity, float radius, uint8_t blocked_flags);
 void  CM_ProcessPathJobs(uint32_t work_budget);
-bool  CM_FindPathWaypoint(pathAccelParams_t const *params, vector2_t * out);
+bool  CM_FindPathWaypoint(pathAccelParams_t const *params, vector2_t *out);
 bool  CM_ActivateCachedFlow(uint32_t generation);
 bool  CM_ActivateCachedFlowForFlags(uint32_t generation, uint8_t blocked_flags);
 bool  CM_FlowReachedGoal(uint32_t generation, float x, float y);
@@ -277,26 +277,26 @@ void CM_BakeStaticObstacles(void);
 void CM_InvalidatePathCache(void);
 void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells);
 bool CM_IsMapLoaded(cstring_t mapFilename);
-bool CM_ClosestPathablePoint(vector2_t const * location, vector2_t * out);
-bool CM_ClosestPathablePointForRadius(vector2_t const * location, float radius, vector2_t * out);
-bool CM_ClosestPathablePointForRadiusFlags(vector2_t const * location, float radius, uint8_t blocked_flags,
-                                           vector2_t * out);
-bool CM_ClosestReachablePointForRadius(vector2_t const * from, vector2_t const * target, float radius, vector2_t * out);
-bool CM_ClosestReachablePointForRadiusFlags(vector2_t const * from, vector2_t const * target, float radius,
-                                            uint8_t blocked_flags, vector2_t * out);
-bool CM_FindDirectApproachPointForRadius(vector2_t const * from, vector2_t const * target, float range, float radius, vector2_t * out);
+bool CM_ClosestPathablePoint(vector2_t const *location, vector2_t *out);
+bool CM_ClosestPathablePointForRadius(vector2_t const *location, float radius, vector2_t *out);
+bool CM_ClosestPathablePointForRadiusFlags(vector2_t const *location, float radius, uint8_t blocked_flags,
+                                           vector2_t *out);
+bool CM_ClosestReachablePointForRadius(vector2_t const *from, vector2_t const *target, float radius, vector2_t *out);
+bool CM_ClosestReachablePointForRadiusFlags(vector2_t const *from, vector2_t const *target, float radius,
+                                            uint8_t blocked_flags, vector2_t *out);
+bool CM_FindDirectApproachPointForRadius(vector2_t const *from, vector2_t const *target, float range, float radius, vector2_t *out);
 float CM_PathCellWorldSize(void);
-bool CM_FindApproachPointToFootprintForRadius(struct edict_s const *target, vector2_t const * from, float range, float radius, vector2_t * out);
-bool CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target, vector2_t const * from, float range, float radius, vector2_t * out);
+bool CM_FindApproachPointToFootprintForRadius(struct edict_s const *target, vector2_t const *from, float range, float radius, vector2_t *out);
+bool CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target, vector2_t const *from, float range, float radius, vector2_t *out);
 float CM_GetHeightAtPoint(float sx, float sy);
 float CM_GetWaterHeightAtPoint(float sx, float sy);
-bool CM_TerrainPointIsWalkable(vector2_t const * location);
-bool CM_TerrainPointIsSwimmable(vector2_t const * location);
+bool CM_TerrainPointIsWalkable(vector2_t const *location);
+bool CM_TerrainPointIsSwimmable(vector2_t const *location);
 float CM_GetCameraHeightOffset(void);
 box2_t CM_GetWorldBounds(void);
 
 struct world_state {
-    war3map_t * map;
+    war3map_t *map;
     mapInfo_t info;
     struct Doodad *doodads;
 };
@@ -307,7 +307,7 @@ typedef struct {
 } gameCamera_t;
 
 /* Games must author fov/znear/zfar together; the client copies all three like distance. */
-static inline void player_set_lens(player_t * ps, gameCamera_t const *cam) {
+static inline void player_set_lens(player_t *ps, gameCamera_t const *cam) {
     ps->fov = cam->fov;
     ps->znear = cam->znear;
     ps->zfar = cam->zfar;
@@ -317,8 +317,8 @@ bool CL_GameDefaultCamera(gameCamera_t *camera);
 bool CL_GameCameraUsesWorldUp(void);
 float CL_GameLerpDegrees(float a, float b, float fraction);
 cstring_t CL_GameOrderQueueReleaseCommand(void);
-bool CL_GameBuildCursorBlocked(vector3_t const * origin);
-void CL_GameModifyBuildPathing(vector2_t const * point, uint8_t * flags);
+bool CL_GameBuildCursorBlocked(vector3_t const *origin);
+void CL_GameModifyBuildPathing(vector2_t const *point, uint8_t *flags);
 typedef struct {
     uint32_t anchor;
     uint32_t const *visible;

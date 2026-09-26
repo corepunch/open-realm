@@ -191,8 +191,8 @@ uint32_t MDLX_DetachedRibbonCount(void) {
 }
 
 static void MDLX_RibbonWorldEdge(mdxModel_t const *model, mdxRibbonEmitter_t const *ribbon,
-                                 matrix4_t const * model_matrix, float heightAbove, float heightBelow,
-                                 vector3_t * above, vector3_t * below)
+                                 matrix4_t const *model_matrix, float heightAbove, float heightBelow,
+                                 vector3_t *above, vector3_t *below)
 {
     matrix4_t world;
     vector3_t local_above = { 0, heightAbove, 0 };
@@ -221,7 +221,7 @@ static uint32_t MDLX_RibbonIndex(mdxModel_t const *model, mdxRibbonEmitter_t con
 }
 
 /* Advance one emitter's per-instance trail and write its current triangle strip. */
-uint32_t MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, matrix4_t const * model_matrix,
+uint32_t MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, matrix4_t const *model_matrix,
                               mdxRibbonEmitter_t *ribbon, vertex_t *out, uint32_t max)
 {
     mdxRibbonInstance_t *state;

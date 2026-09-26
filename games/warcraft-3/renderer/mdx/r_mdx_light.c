@@ -3,10 +3,10 @@
 
 bool MDLX_EvaluateLight(mdxModel_t const *model,
                         mdxLight_t const *light,
-                        matrix4_t const * modelMatrix,
+                        matrix4_t const *modelMatrix,
                         uint32_t frame,
                         bool useVisibility,
-                        rModelLight_t * output)
+                        rModelLight_t *output)
 {
     float visibility = 1.0f;
     vector3_t color, ambc;
@@ -71,7 +71,7 @@ bool MDLX_EvaluateLight(mdxModel_t const *model,
  * game-time ratio. Warsmash consumes the first light from each DNC instance
  * directly; its DNC world-light manager does not filter that light through the
  * normal scene-light visibility list. */
-bool MDLX_SampleFirstLight(model_t const * model, float ratio, rModelLight_t * output) {
+bool MDLX_SampleFirstLight(model_t const *model, float ratio, rModelLight_t *output) {
     mdxModel_t const *mdx;
     mdxSequence_t const *seq;
     matrix4_t identity;
@@ -97,7 +97,7 @@ bool MDLX_SampleFirstLight(model_t const * model, float ratio, rModelLight_t * o
      * local so resource reloads cannot leave a stale cross-frame result. */
     {
         typedef struct {
-            model_t const * model;
+            model_t const *model;
             uint32_t frame;
             uint32_t viewTime;
             rModelLight_t light;

@@ -11,7 +11,7 @@ static uint32_t fnv1a32(cstring_t str) {
     return hash;
 }
 
-static void ConvertMD34AnimationName(animation_t * seq) {
+static void ConvertMD34AnimationName(animation_t *seq) {
     char buffer[80];
     memset(buffer, 0, sizeof(buffer));
     strncpy(buffer, seq->name, sizeof(buffer) - 1);
@@ -68,7 +68,7 @@ static uint8_t const *ModelDataAt(uint8_t const *data, uint32_t data_size, uint3
     return data + offset;
 }
 
-static int compare_animation_name(const void *a, const void *b) {
+static int compare_animation_name(void const *a, void const *b) {
     return strcmp(((animation_t const *)a)->name, ((animation_t const *)b)->name);
 }
 
@@ -107,7 +107,7 @@ static animation_t *LoadModelMD34(uint8_t const *data, uint32_t data_size, uint3
             char const *name = src->name.ref < hdr->nRefs
                 ? (char const *)ModelDataAt(data, data_size, ent[src->name.ref].offset, src->name.nEntries)
                 : NULL;
-            animation_t * dest = animations + j;
+            animation_t *dest = animations + j;
             if (name) {
                 uint32_t name_len = MIN(src->name.nEntries, sizeof(dest->name) - 1);
                 memcpy(dest->name, name, name_len);
@@ -204,7 +204,7 @@ static g_cmodel_t *GetModel(uint32_t modelindex) {
     return entry->animations ? entry : NULL;
 }
 
-animation_t const * G_GetAnimation(uint32_t modelindex, cstring_t animname) {
+animation_t const *G_GetAnimation(uint32_t modelindex, cstring_t animname) {
     g_cmodel_t *model = GetModel(modelindex);
     if (!model)
         return NULL;

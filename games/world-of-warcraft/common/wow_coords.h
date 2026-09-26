@@ -31,7 +31,7 @@ static int Wow_TileIndex(float coord) { return (int)floorf(32.0f - coord / WOW_A
 
 /* WMO/M2 vertices stay in native Z-up model space. Convert only their ADT placement, once,
  * identically for collision and rendering. B*Ry(y-270)*Rz(-x)*Rx(z-90) = Rz(y+180)*Ry(x)*Rx(z). */
-static void Wow_PlacementMatrix(wowPlacement_t const * def, matrix4_t * matrix) {
+static void Wow_PlacementMatrix(wowPlacement_t const *def, matrix4_t *matrix) {
     vector3_t pos = Wow_ObjectPosition(def->pos.x, def->pos.y, def->pos.z);
     float scale = def->scale ? def->scale / 1024.0f : 1.0f;
     orientation_t angles = Wow_DoodadOrientation(def->rot);
@@ -48,12 +48,12 @@ static vector3_t Wow_EulerFromCamera(float pitch, float yaw) {
 }
 
 /* Native {downward pitch, heading, roll}; keep movement heading out of view-matrix coordinates. */
-static vector3_t Wow_CameraFromEuler(vector3_t const * euler) {
+static vector3_t Wow_CameraFromEuler(vector3_t const *euler) {
     return (vector3_t){ euler->x + 90.0f, 90.0f - euler->z, euler->y };
 }
 
 /* Native camera angles are {downward pitch, heading, roll} in degrees, Z-up. */
-static vector3_t Wow_ViewForward(vector3_t const * angles) {
+static vector3_t Wow_ViewForward(vector3_t const *angles) {
     float yaw = (float)DEG2RAD(angles->y), pitch = (float)DEG2RAD(angles->x);
     return (vector3_t){ cosf(pitch) * cosf(yaw), cosf(pitch) * sinf(yaw), -sinf(pitch) };
 }

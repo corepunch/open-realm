@@ -1,7 +1,7 @@
 #include "s_skills.h"
 
 /* Splash/secondary hits: air enemy or neutral, not the primary, not the caster. */
-static bool unstable_concoction_splash_allows(uint32_t code, edict_t * caster, edict_t * primary, edict_t * target) {
+static bool unstable_concoction_splash_allows(uint32_t code, edict_t *caster, edict_t *primary, edict_t *target) {
 	cstring_t targets;
 	if (!caster || !S_SpellIsAliveTarget(target) || target == caster || target == primary ||
 		S_UnitIsCycloned(target) || target->targtype != TARG_AIR)
@@ -15,7 +15,7 @@ static bool unstable_concoction_splash_allows(uint32_t code, edict_t * caster, e
 	return false;
 }
 
-static void unstable_concoction_explode(edict_t * caster, edict_t * primary, uint32_t code) {
+static void unstable_concoction_explode(edict_t *caster, edict_t *primary, uint32_t code) {
 	uint32_t level = MAX(1u, G_UnitAbilityLevel(caster, code));
 	float full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
 	float part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
@@ -40,7 +40,7 @@ static void unstable_concoction_explode(edict_t * caster, edict_t * primary, uin
 	}
 }
 
-static void unstable_concoction_kill_caster(edict_t * caster) {
+static void unstable_concoction_kill_caster(edict_t *caster) {
 	G_SetHealth(caster, 0);
 	if (caster->die) caster->die(caster, caster);
 	else unit_die(caster, caster);

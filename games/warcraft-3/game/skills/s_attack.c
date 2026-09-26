@@ -16,16 +16,16 @@
  */
 #include "s_skills.h"
 
-void attack_walk(edict_t * ent);
-void attack_melee(edict_t * ent);
-void attack_melee_cooldown(edict_t * ent);
-void attack_ranged(edict_t * ent);
-void attack_ranged_cooldown(edict_t * ent);
-void order_attack(edict_t * self, edict_t * target);
+void attack_walk(edict_t *ent);
+void attack_melee(edict_t *ent);
+void attack_melee_cooldown(edict_t *ent);
+void attack_ranged(edict_t *ent);
+void attack_ranged_cooldown(edict_t *ent);
+void order_attack(edict_t *self, edict_t *target);
 
 typedef struct {
-    edict_t * target;
-    vector2_t const * fixed_target;
+    edict_t *target;
+    vector2_t const *fixed_target;
     vector3_t start;
     vector3_t dir;
     uint32_t speed;
@@ -36,14 +36,14 @@ typedef struct {
     uint32_t area_targets;
 }  rocketDesc_t;
 
-bool S_UnitAttackSlotEnabled(edict_t const * attacker, uint32_t slot) {
+bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
     return attacker && slot < 2 && attacker->data.UnitWeapons &&
         (attacker->data.UnitWeapons->attacksEnabled & (1 << slot)) != 0;
 }
 
 /* Attack 1/2 remain the authored runtime copies. Select the compatible slot
  * from the target whenever attack behavior reads a profile. */
-static unitAttack_t const *attack_profile(edict_t const * attacker, edict_t const * target) {
+static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const *target) {
     uint32_t flag = target ? G_TargetFlagForType(target->targtype) : 0;
     if (attacker && target && target->destructable.initialized && target->targtype == TARG_TREE) {
         if (attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) return &attacker->attack1;
@@ -60,8 +60,8 @@ static unitAttack_t const *attack_profile(edict_t const * attacker, edict_t cons
 /* Spawn a projectile entity aimed at desc->target.
  * The entity is given MOVETYPE_FLYMISSILE so that SV_Physics_Toss() in
  * g_phys.c will move it each frame until it reaches the target. */
-void fire_rocket(edict_t * ent, rocketDesc_t const *desc) {
-    edict_t * rocket;
+void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
+    edict_t *rocket;
     vector2_t aim;
 
     if (!ent || !desc || (!desc->target && !desc->fixed_target)) return;
@@ -122,7 +122,7 @@ void fire_rocket(edict_t * ent, rocketDesc_t const *desc) {
 //    gi.linkentity (rocket);
 }
 
-static float ai_rolldamage1(edict_t * self, int weapon) {
+static float ai_rolldamage1(edict_t *self, int weapon) {
     unitAttack_t const *atk = ACTIVE_ATTACK(self);
     float damageBase = atk->damageBase;
     (void)weapon;
@@ -136,14 +136,14 @@ static float ai_rolldamage1(edict_t * self, int weapon) {
     return damageBase + atk->temporaryDamageBonus;
 }
 
-void M_GetEntityMatrix(entityState_t const * entity, matrix4_t * matrix) {
+void M_GetEntityMatrix(entityState_t const *entity, matrix4_t *matrix) {
     Matrix4_identity(matrix);
     Matrix4_translate(matrix, &entity->origin);
     Matrix4_rotate(matrix, &(vector3_t){0, 0, entity->angle * 180 / M_PI}, ROTATE_XYZ);
     Matrix4_scale(matrix, &(vector3_t){entity->scale, entity->scale, entity->scale});
 }
 
-static bool can_attack(edict_t const * ent) {
+static bool can_attack(edict_t const *ent) {
     if (S_UnitIsCycloned(ent) || G_BuildingIsUnsummoning(ent)) return false;
     if (!S_HumanCanAttack(ent)) return false;
     if (!S_CargoAttacksEnabled(ent)) return false;
@@ -158,7 +158,7 @@ static bool can_attack(edict_t const * ent) {
 /* Weapon target masks are authoritative for ordinary unit targets as well as
  * destructables.  UnitData.targetType supplies the target category while
  * UnitWeapons.targs1/ua1g supplies the attacker's allowed categories. */
-bool S_AttackCanTarget(edict_t const * attacker, edict_t const * target) {
+bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target) {
     uint32_t flag;
 
     if (!attacker || G_BuildingIsUnsummoning(attacker) || !target || !target->inuse || attacker == target ||
@@ -178,7 +178,7 @@ bool S_AttackCanTarget(edict_t const * attacker, edict_t const * target) {
 }
 
 /* Delayed damage can outlive its attack order; only that order may complete or resume its parent behavior. */
-static void attack_finish_after_combat(edict_t * attacker, edict_t const * target) {
+static void attack_finish_after_combat(edict_t *attacker, edict_t const *target) {
     if (!attacker || M_IsDead(attacker) || !attacker->currentmove ||
         attacker->currentmove->proc != CAbilityAttack || attacker->goalentity != target) return;
     unit_leavecombat(attacker);
@@ -200,7 +200,7 @@ static void attack_finish_after_combat(edict_t * attacker, edict_t const * targe
     }
 }
 
-static bool attack_stop_if_target_invalid(edict_t * attacker) {
+static bool attack_stop_if_target_invalid(edict_t *attacker) {
     if (S_AttackCanTarget(attacker, attacker ? attacker->goalentity : NULL)) {
         return false;
     }
@@ -228,17 +228,17 @@ static float const g_default_damage_table[8][8] = {
  * then numeric armor. Positive armor is 1/(1+K*A); negative armor uses the
  * Warcraft exponential curve 2-(1-K)^(-A). Result remains minimum 1 for the
  * existing OpenRealm physical-attack contract. */
-static int attack_damage_type(edict_t * attacker, edict_t * target, int base, uint32_t atk);
-int G_AttackDamage(edict_t * attacker, edict_t * target, int base) {
+static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint32_t atk);
+int G_AttackDamage(edict_t *attacker, edict_t *target, int base) {
     return attack_damage_type(attacker, target, base,
                               attacker && target ? attack_profile(attacker, target)->type : 0);
 }
 
-int G_AttackDamageWithType(edict_t * attacker, edict_t * target, int base, uint32_t type) {
+int G_AttackDamageWithType(edict_t *attacker, edict_t *target, int base, uint32_t type) {
     return attack_damage_type(attacker, target, base, type);
 }
 
-static int attack_damage_type(edict_t * attacker, edict_t * target, int base, uint32_t atk) {
+static int attack_damage_type(edict_t *attacker, edict_t *target, int base, uint32_t atk) {
     if (!attacker || !target || base <= 0) return base;
     uint32_t def = target->defense_type;
     if (atk >= 8) atk = 0;
@@ -264,7 +264,7 @@ static int attack_damage_type(edict_t * attacker, edict_t * target, int base, ui
  * If the hit is lethal, the target's die() callback is invoked and the
  * attacker returns to its stand (idle) state.  Otherwise, if the target is
  * able to attack back it issues an automatic counter-attack order. */
-void T_Damage(edict_t * target, edict_t * attacker, int damage) {
+void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     bool instant_kill;
 
     if (!target || target->invulnerable || S_UnitIsCycloned(target) || M_IsDead(target)) {
@@ -317,7 +317,7 @@ void T_Damage(edict_t * target, edict_t * attacker, int damage) {
     }
 }
 
-void S_ResolveAttackHit(edict_t * attacker, edict_t * target, int damage) {
+void S_ResolveAttackHit(edict_t *attacker, edict_t *target, int damage) {
     if (S_EvasionRoll(target)) return;
     { float const miss = S_CurseMissChance(attacker); if (miss > 0.0f && (float)(rand() % 100) < miss * 100.0f) return; }
     S_HumanBreakInvisibility(attacker);
@@ -375,7 +375,7 @@ void S_ResolveAttackHit(edict_t * attacker, edict_t * target, int damage) {
 }
 
 
-static bool artillery_splash_target_allowed(edict_t * attacker, edict_t * target, uint32_t mask, uint32_t targets_allowed) {
+static bool artillery_splash_target_allowed(edict_t *attacker, edict_t *target, uint32_t mask, uint32_t targets_allowed) {
     uint32_t flag;
 
     if (!attacker || !target || !target->inuse || target == attacker || M_IsDead(target)) return false;
@@ -391,7 +391,7 @@ static bool artillery_splash_target_allowed(edict_t * attacker, edict_t * target
  * established hit contract: only that original target receives primary-hit
  * listeners (if it is still in the blast); secondary/Attack-Ground victims
  * receive physical splash damage without multiplying orb/lifesteal/cleave. */
-void S_ResolveArtilleryPointHit(edict_t * attacker, edict_t * primary, vector2_t const * impact, int raw_damage,
+void S_ResolveArtilleryPointHit(edict_t *attacker, edict_t *primary, vector2_t const *impact, int raw_damage,
                                 struct edictArtillery_s const *profile) {
     float max_radius;
 
@@ -416,7 +416,7 @@ void S_ResolveArtilleryPointHit(edict_t * attacker, edict_t * primary, vector2_t
     }
 }
 
-void S_ResolveArtilleryHit(edict_t * attacker, edict_t * target, int raw_damage) {
+void S_ResolveArtilleryHit(edict_t *attacker, edict_t *target, int raw_damage) {
     vector2_t impact;
     unitAttack_t const *atk;
     struct edictArtillery_s profile = { 0 };
@@ -434,14 +434,14 @@ void S_ResolveArtilleryHit(edict_t * attacker, edict_t * target, int raw_damage)
     S_ResolveArtilleryPointHit(attacker, target, &impact, raw_damage, &profile);
 }
 
-static bool attack_animation_can_finish(edict_t const * ent) {
+static bool attack_animation_can_finish(edict_t const *ent) {
     return ent && ent->animation && ent->animation->interval[1] > ent->animation->interval[0];
 }
 
-static void damage_target(edict_t * ent) {
+static void damage_target(edict_t *ent) {
     if (attack_stop_if_target_invalid(ent)) return;
     umove_t const *move = ent->currentmove;
-    edict_t * target = ent->goalentity;
+    edict_t *target = ent->goalentity;
     S_ResolveAttackHit(ent, ent->goalentity, G_AttackDamage(ent, ent->goalentity, ai_rolldamage1(ent, 1)));
     /* Normal units enter recovery from the attack animation's end callback.
      * Some building models (notably Orc Burrows in the current asset path) do
@@ -456,11 +456,11 @@ static void damage_target(edict_t * ent) {
         attack_melee_cooldown(ent);
 }
 
-static void throw_missile(edict_t * ent) {
+static void throw_missile(edict_t *ent) {
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
-    edict_t * other = ent->goalentity;
+    edict_t *other = ent->goalentity;
     /* Roll at launch, but defer target armor/type mitigation until impact so
      * armor or defense changes while the projectile is in flight are honored. */
     int damage = (int)ai_rolldamage1(ent, 1);
@@ -495,7 +495,7 @@ static void throw_missile(edict_t * ent) {
 //    gi.multicast(&ent->s.origin, MULTICAST_PHS);
 }
 
-static void ai_melee(edict_t * ent) {
+static void ai_melee(edict_t *ent) {
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
@@ -503,7 +503,7 @@ static void ai_melee(edict_t * ent) {
     unit_runwait(ent, damage_target);
 }
 
-static void ai_ranged(edict_t * ent) {
+static void ai_ranged(edict_t *ent) {
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
@@ -511,21 +511,21 @@ static void ai_ranged(edict_t * ent) {
     unit_runwait(ent, throw_missile);
 }
 
-static float attack_minimum_range(edict_t const * ent) {
+static float attack_minimum_range(edict_t const *ent) {
     return ent && ent->data.UnitWeapons ? MAX(0.0f, ent->data.UnitWeapons->minimumAttackRange) : 0.0f;
 }
 
-static bool attack_target_too_close_for(edict_t const * ent, edict_t const * target) {
+static bool attack_target_too_close_for(edict_t const *ent, edict_t const *target) {
     float const minimum = attack_minimum_range(ent);
     if (!ent || !target || minimum <= 0.0f) return false;
     return Vector2_distance(&target->s.origin2, &ent->s.origin2) < minimum;
 }
 
-static bool attack_target_too_close(edict_t * ent) {
+static bool attack_target_too_close(edict_t *ent) {
     return ent && attack_target_too_close_for(ent, ent->goalentity);
 }
 
-static void attack_retreat_from_target(edict_t * ent) {
+static void attack_retreat_from_target(edict_t *ent) {
     vector2_t dir;
     float len;
 
@@ -541,7 +541,7 @@ static void attack_retreat_from_target(edict_t * ent) {
     unit_moveindirection(ent);
 }
 
-static bool attack_target_out_of_range_for(edict_t const * ent, edict_t const * target) {
+static bool attack_target_out_of_range_for(edict_t const *ent, edict_t const *target) {
     float footprint, range, ensnare_range;
 
     if (!ent || !target) return true;
@@ -558,7 +558,7 @@ static bool attack_target_out_of_range_for(edict_t const * ent, edict_t const * 
     return Vector2_distance(&target->s.origin2, &ent->s.origin2) > range;
 }
 
-static bool attack_target_out_of_range(edict_t * ent) {
+static bool attack_target_out_of_range(edict_t *ent) {
     return !ent || attack_target_out_of_range_for(ent, ent->goalentity);
 }
 
@@ -566,7 +566,7 @@ static bool attack_target_out_of_range(edict_t * ent) {
  * something they can see but can never approach.  Mobile units still acquire
  * throughout uacq and chase normally; Hold Position keeps its separate
  * disable-chase lifecycle. */
-bool S_AttackCanAutoAcquire(edict_t const * attacker, edict_t const * target) {
+bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target) {
     if (!S_AttackCanTarget(attacker, target)) return false;
     if ((attacker->aiflags & AI_IMMOBILE) &&
         (attack_target_out_of_range_for(attacker, target) || attack_target_too_close_for(attacker, target)))
@@ -574,7 +574,7 @@ bool S_AttackCanAutoAcquire(edict_t const * attacker, edict_t const * target) {
     return true;
 }
 
-static void ai_melee_cooldown(edict_t * ent) {
+static void ai_melee_cooldown(edict_t *ent) {
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
@@ -585,7 +585,7 @@ static void ai_melee_cooldown(edict_t * ent) {
     }
 }
 
-static void ai_ranged_cooldown(edict_t * ent) {
+static void ai_ranged_cooldown(edict_t *ent) {
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
@@ -596,7 +596,7 @@ static void ai_ranged_cooldown(edict_t * ent) {
     }
 }
 
-static void ai_attack_walk(edict_t * ent) {
+static void ai_attack_walk(edict_t *ent) {
     if (attack_stop_if_target_invalid(ent)) {
         return;
     }
@@ -633,12 +633,12 @@ static umove_t attack_move_melee = { "attack", ai_melee, attack_melee_cooldown, 
 static umove_t attack_move_ranged_cooldown = { "stand ready", ai_ranged_cooldown, NULL, CAbilityAttack };
 static umove_t attack_move_ranged = { "attack range", ai_ranged, attack_ranged_cooldown, CAbilityAttack };
 
-void attack_walk(edict_t * self) {
+void attack_walk(edict_t *self) {
     unit_setmove(self, &attack_move_walk);
 }
 
 /* Set the attack target and start walking toward attack range. */
-void order_attack(edict_t * self, edict_t * target) {
+void order_attack(edict_t *self, edict_t *target) {
     if (!self || S_UnitIsCycloned(self) || S_GoldMineWorkerIsInside(self) ||
         !S_AttackCanTarget(self, target)) {
         return;
@@ -649,7 +649,7 @@ void order_attack(edict_t * self, edict_t * target) {
 }
 
 /* Player orders replace retained movement; automatic acquisition keeps it so combat can resume Follow/Patrol. */
-bool S_OrderAttack(edict_t * self, edict_t * target) {
+bool S_OrderAttack(edict_t *self, edict_t *target) {
     if (!self || M_IsDead(self) || S_UnitIsCycloned(self) || S_GoldMineWorkerIsInside(self) ||
         !S_AttackCanTarget(self, target))
         return false;
@@ -661,7 +661,7 @@ bool S_OrderAttack(edict_t * self, edict_t * target) {
     return true;
 }
 
-static float attack_speed_divisor(edict_t * self) {
+static float attack_speed_divisor(edict_t *self) {
     float const agi_bonus = game.constants.combatConstantsLoaded
                           ? game.constants.agiAttackSpeedBonus
                           : 0.02f;
@@ -671,7 +671,7 @@ static float attack_speed_divisor(edict_t * self) {
                       - S_DefendAttackReduction(self) - S_CreepAttackSpeedReduction(self) - S_SlowAuraAttackReduction(self);
     if (S_AuraUnitActive(self)) {
         FOR_LOOP(i, globals.num_edicts) {
-            edict_t * aura = g_edicts + i;
+            edict_t *aura = g_edicts + i;
             uint32_t level = G_UnitAbilityLevel(aura, MAKEFOURCC('A', 'O', 'a', 'e'));
             abilityLevel_t const *ability_level;
             if (!S_AuraUnitActive(aura) || !level || !S_SpellIsFriend(aura, self)) continue;
@@ -687,7 +687,7 @@ static float attack_speed_divisor(edict_t * self) {
     return 1.0f + total_bonus;
 }
 
-void attack_melee_cooldown(edict_t * self) {
+void attack_melee_cooldown(edict_t *self) {
     float divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_melee_cooldown);
     self->wait = MAX(0.0f, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
@@ -698,21 +698,21 @@ void attack_melee_cooldown(edict_t * self) {
     if (self->wait <= 0.0f) attack_melee(self);
 }
 
-void attack_melee(edict_t * self) {
+void attack_melee(edict_t *self) {
     float divisor = attack_speed_divisor(self);
     S_PermanentInvisibilityReveal(self);
     unit_setmove(self, &attack_move_melee);
     self->wait = ACTIVE_ATTACK(self)->damagePoint / divisor;
 }
 
-void attack_ranged_cooldown(edict_t * self) {
+void attack_ranged_cooldown(edict_t *self) {
     float divisor = attack_speed_divisor(self);
     unit_setmove(self, &attack_move_ranged_cooldown);
     self->wait = MAX(0.0f, (ACTIVE_ATTACK(self)->cooldown - ACTIVE_ATTACK(self)->damagePoint) / divisor);
     if (self->wait <= 0.0f) attack_ranged(self);
 }
 
-void attack_ranged(edict_t * self) {
+void attack_ranged(edict_t *self) {
     float divisor = attack_speed_divisor(self);
     S_PermanentInvisibilityReveal(self);
     unit_setmove(self, &attack_move_ranged);
@@ -724,37 +724,37 @@ void attack_ranged(edict_t * self) {
  * clicked point authoritative, walks a mobile siege unit into its normal
  * min/max range band, and snapshots that same point into each projectile at
  * the damage point. */
-static bool attack_ground_valid(edict_t const * ent) {
+static bool attack_ground_valid(edict_t const *ent) {
     return ent && ent->inuse && !M_IsDead((edict_t *)ent) && S_UnitAttackSlotEnabled(ent, 0) && ent->attack1.type != ATK_NONE &&
            ent->attack1.weapon == WPN_ARTILLERY && !S_UnitIsCycloned(ent) &&
            S_HumanCanAttack(ent) && S_CargoAttacksEnabled(ent);
 }
 
-static float attack_ground_distance(edict_t const * ent) {
+static float attack_ground_distance(edict_t const *ent) {
     return ent ? Vector2_distance(&ent->s.origin2, &ent->channel.origin) : FLT_MAX;
 }
 
-static bool attack_ground_out_of_range(edict_t const * ent) {
+static bool attack_ground_out_of_range(edict_t const *ent) {
     return !ent || attack_ground_distance(ent) > ent->attack1.range;
 }
 
-static bool attack_ground_too_close(edict_t const * ent) {
+static bool attack_ground_too_close(edict_t const *ent) {
     float const minimum = attack_minimum_range(ent);
     return ent && minimum > 0.0f && attack_ground_distance(ent) < minimum;
 }
 
-static void attack_ground_walk(edict_t * ent);
-static void attack_ground_ranged(edict_t * ent);
-static void attack_ground_cooldown(edict_t * ent);
+static void attack_ground_walk(edict_t *ent);
+static void attack_ground_ranged(edict_t *ent);
+static void attack_ground_cooldown(edict_t *ent);
 
-static void attack_ground_stop(edict_t * ent) {
+static void attack_ground_stop(edict_t *ent) {
     if (!ent) return;
     ent->goalentity = NULL;
     if (ent->stand) ent->stand(ent);
     else ent->currentmove = NULL;
 }
 
-static void throw_artillery_ground(edict_t * ent) {
+static void throw_artillery_ground(edict_t *ent) {
     int damage;
     matrix4_t matrix;
     vector3_t origin;
@@ -779,19 +779,19 @@ static void throw_artillery_ground(edict_t * ent) {
         attack_ground_cooldown(ent);
 }
 
-static void ai_attack_ground_ranged(edict_t * ent) {
+static void ai_attack_ground_ranged(edict_t *ent) {
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
     unit_changeangle(ent);
     unit_runwait(ent, throw_artillery_ground);
 }
 
-static void ai_attack_ground_cooldown(edict_t * ent) {
+static void ai_attack_ground_cooldown(edict_t *ent) {
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
     if (attack_ground_out_of_range(ent) || attack_ground_too_close(ent)) attack_ground_walk(ent);
     else unit_runwait(ent, attack_ground_ranged);
 }
 
-static void ai_attack_ground_walk(edict_t * ent) {
+static void ai_attack_ground_walk(edict_t *ent) {
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
     if (attack_ground_out_of_range(ent)) {
         if (ent->aiflags & AI_IMMOBILE) { attack_ground_stop(ent); return; }
@@ -811,18 +811,18 @@ static umove_t attack_ground_move_walk = { "walk", ai_attack_ground_walk, NULL, 
 static umove_t attack_ground_move_cooldown = { "stand ready", ai_attack_ground_cooldown, NULL, CAbilityAttackGround };
 static umove_t attack_ground_move_ranged = { "attack range", ai_attack_ground_ranged, attack_ground_cooldown, CAbilityAttackGround };
 
-static void attack_ground_walk(edict_t * ent) {
+static void attack_ground_walk(edict_t *ent) {
     unit_setmove(ent, &attack_ground_move_walk);
 }
 
-static void attack_ground_cooldown(edict_t * ent) {
+static void attack_ground_cooldown(edict_t *ent) {
     float divisor = attack_speed_divisor(ent);
     unit_setmove(ent, &attack_ground_move_cooldown);
     ent->wait = MAX(0.0f, (ent->attack1.cooldown - ent->attack1.damagePoint) / divisor);
     if (ent->wait <= 0.0f) attack_ground_ranged(ent);
 }
 
-static void attack_ground_ranged(edict_t * ent) {
+static void attack_ground_ranged(edict_t *ent) {
     float divisor = attack_speed_divisor(ent);
     S_PermanentInvisibilityReveal(ent);
     unit_setmove(ent, &attack_ground_move_ranged);
@@ -830,8 +830,8 @@ static void attack_ground_ranged(edict_t * ent) {
     if (ent->sound.attack) G_PlaySound(NULL, ent, CHAN_WEAPON, ent->sound.attack, 1.0f, 1.0f, 0.0f);
 }
 
-bool S_OrderAttackGround(edict_t * unit, vector2_t const * point) {
-    edict_t * waypoint;
+bool S_OrderAttackGround(edict_t *unit, vector2_t const *point) {
+    edict_t *waypoint;
 
     if (!unit || !point || !attack_ground_valid(unit) || S_GoldMineWorkerIsInside(unit) ||
         S_UnitPolymorphed(unit)) return false;
@@ -849,7 +849,7 @@ bool S_OrderAttackGround(edict_t * unit, vector2_t const * point) {
     return true;
 }
 
-bool attack_menu_selecttarget(edict_t * ent, edict_t * target) {
+bool attack_menu_selecttarget(edict_t *ent, edict_t *target) {
     bool destructable = G_DestructableIsAttackable(target);
     bool issued = false;
 
@@ -873,9 +873,9 @@ bool attack_menu_selecttarget(edict_t * ent, edict_t * target) {
 
 /* Attack-move: walk toward the goal, but each tick prefer engaging the
  * nearest enemy within acquisition range over continuing to walk. */
-static void ai_attackmove_walk(edict_t * ent) {
+static void ai_attackmove_walk(edict_t *ent) {
     if (G_ShouldAcquireThisFrame(ent)) {
-        edict_t * enemy = G_FindNearestEnemy(ent, G_AcquisitionRange(ent));
+        edict_t *enemy = G_FindNearestEnemy(ent, G_AcquisitionRange(ent));
         if (enemy) {
             order_attack(ent, enemy);
             return;
@@ -905,7 +905,7 @@ static void ai_attackmove_walk(edict_t * ent) {
 static umove_t attackmove_move_walk = { "walk", ai_attackmove_walk, NULL, CAbilityAttack };
 
 /* Begin (or resume, after a kill) attack-moving toward a waypoint. */
-void order_attackmove(edict_t * self, edict_t * waypoint) {
+void order_attackmove(edict_t *self, edict_t *waypoint) {
     if (S_GoldMineWorkerIsInside(self))
         return;
     self->movement.attackmove_waypoint = waypoint;
@@ -919,7 +919,7 @@ void order_attackmove(edict_t * self, edict_t * waypoint) {
     unit_setmove(self, &attackmove_move_walk);
 }
 
-static bool attackmove_selectlocation(edict_t * clent, vector2_t const * location) {
+static bool attackmove_selectlocation(edict_t *clent, vector2_t const *location) {
     bool any = false;
 
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
@@ -948,7 +948,7 @@ BZ_COMMAND_PROC(AbilityAttack) {
     clent->client->menu.supports_order_queue = true;
 }
 
-static bool attack_ground_selectlocation(edict_t * clent, vector2_t const * location) {
+static bool attack_ground_selectlocation(edict_t *clent, vector2_t const *location) {
     bool any = false;
 
     if (!clent || !clent->client || !location) return false;

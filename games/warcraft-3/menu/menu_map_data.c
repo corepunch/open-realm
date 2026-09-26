@@ -31,7 +31,7 @@ static void UI_SFileReadString(handle_t file, string_t *lppString) {
     SFileReadFile(file, *lppString, stringLength, NULL, NULL);
 }
 
-static bool UI_ReadInfoInto(handle_t archive, mapInfo_t * info) {
+static bool UI_ReadInfoInto(handle_t archive, mapInfo_t *info) {
     handle_t file;
 
     if (!archive || !info)
@@ -187,7 +187,7 @@ static void UI_MapRemoveBom(string_t buffer) {
         memmove(buffer, buffer + 3, strlen(buffer + 3) + 1);
 }
 
-static void UI_ReadStringsInto(handle_t archive, mapInfo_t * info) {
+static void UI_ReadStringsInto(handle_t archive, mapInfo_t *info) {
     handle_t file;
     uint32_t size;
     string_t buffer;
@@ -264,7 +264,7 @@ static bool UI_OpenMapArchive(cstring_t mapFilename, handle_t *mapArchive, void 
     return true;
 }
 
-bool UI_ReadMapInfo(cstring_t mapFilename, mapInfo_t * info) {
+bool UI_ReadMapInfo(cstring_t mapFilename, mapInfo_t *info) {
     handle_t mapArchive;
     void *mapData;
 
@@ -310,7 +310,7 @@ bool UI_FindMapPreviewTexture(cstring_t mapFilename, string_t out, uint32_t out_
     return found;
 }
 
-void UI_FreeMapInfo(mapInfo_t * mapInfo) {
+void UI_FreeMapInfo(mapInfo_t *mapInfo) {
     mapTrigStr_t *string = mapInfo ? mapInfo->strings : NULL;
 
     if (!mapInfo)
@@ -360,7 +360,7 @@ void UI_DefaultMapName(cstring_t path, string_t out, uint32_t out_size) {
         out[len - 4] = '\0';
 }
 
-void UI_ResolveMapInfoString(mapInfo_t const * info, cstring_t text, string_t out, uint32_t out_size) {
+void UI_ResolveMapInfoString(mapInfo_t const *info, cstring_t text, string_t out, uint32_t out_size) {
     uint32_t id;
 
     if (!out || out_size == 0)

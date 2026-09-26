@@ -56,7 +56,7 @@ void Wow_SetMapNames(cstring_t path) {
 
 /* Resolve Blizzard's logical mapXX_YY names once; runtime tile draws then avoid filesystem work. */
 bool Wow_LoadMinimapTranslations(void) {
-    uint8_t * data = NULL;
+    uint8_t *data = NULL;
     int size = ri.FS_ReadFile("Textures/Minimap/md5translate.trs", (void **)&data);
     uint32_t found = 0;
 
@@ -266,7 +266,7 @@ void Wow_ShutdownWorldShaders(void) {
     memset(&wow_grass_shader, 0, sizeof(wow_grass_shader));
 }
 
-texture_t * Wow_LoadTexture(cstring_t path, bool streamable) {
+texture_t *Wow_LoadTexture(cstring_t path, bool streamable) {
     wowTextureCache_t *entry;
 
     /* Streaming world textures (terrain, WMO) are owned by the renderer cache,
@@ -274,7 +274,7 @@ texture_t * Wow_LoadTexture(cstring_t path, bool streamable) {
        slides.  Keeping them out of wow_world.textures avoids a stale pointer in
        that list after a reclaim. */
     if (streamable) {
-        texture_t * texture = R_LoadTextureStreamed(path);
+        texture_t *texture = R_LoadTextureStreamed(path);
         R_SetTextureWrap(texture, true, true);
         return texture;
     }
@@ -303,7 +303,7 @@ texture_t * Wow_LoadTexture(cstring_t path, bool streamable) {
 }
 
 bool Wow_ReadM2RadiusFromPath(cstring_t path, float *radius) {
-    uint8_t * data = NULL;
+    uint8_t *data = NULL;
     int size;
     uint32_t version;
     uint32_t radius_offset;
@@ -406,7 +406,7 @@ void Wow_FreeStringList(char **strings, uint32_t count) {
     ri.MemFree(strings);
 }
 
-char **Wow_ParseStringBlock(uint8_t const *data, uint32_t size, uint32_t * out_count) {
+char **Wow_ParseStringBlock(uint8_t const *data, uint32_t size, uint32_t *out_count) {
     uint32_t count = 0;
     uint32_t offset = 0;
     char **strings;

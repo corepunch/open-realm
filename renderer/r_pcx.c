@@ -26,14 +26,14 @@ bool R_IsTexturePCX(handle_t data, uint32_t filesize) {
            bytes_per_line >= width;
 }
 
-texture_t * R_LoadTexturePCX(handle_t data, uint32_t filesize) {
+texture_t *R_LoadTexturePCX(handle_t data, uint32_t filesize) {
     uint8_t const *file = data;
     uint8_t const *src;
     uint8_t const *src_end;
     uint8_t palette[256][3];
-    uint8_t * rows = NULL;
-    color32_t * pixels = NULL;
-    texture_t * texture = NULL;
+    uint8_t *rows = NULL;
+    color32_t *pixels = NULL;
+    texture_t *texture = NULL;
     uint32_t width;
     uint32_t height;
     uint32_t bytes_per_line;
@@ -99,7 +99,7 @@ texture_t * R_LoadTexturePCX(handle_t data, uint32_t filesize) {
     for (uint32_t y = 0; y < height; y++) {
         for (uint32_t x = 0; x < width; x++) {
             uint8_t index = rows[y * bytes_per_line + x];
-            color32_t * pixel = pixels + y * width + x;
+            color32_t *pixel = pixels + y * width + x;
 
             /* PCX palettes are RGB; the old swap compensated for the desktop BGRA uploader. */
             pixel->r = palette[index][0];

@@ -16,7 +16,7 @@ static wowMove_t wow_move_death = { "Death", NULL, NULL };
 #define WOW_DEFAULT_DEATH_TIME 1200
 #define BZ_WOW_CORPSE_TIME 300000
 
-void Wow_FaceTarget(edict_t * ent, edict_t * target) {
+void Wow_FaceTarget(edict_t *ent, edict_t *target) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     vector2_t delta;
 
@@ -69,7 +69,7 @@ static void Wow_AttackTimingFromAnimation(wowEntityLocal_t const *local,
     }
 }
 
-static void Wow_AdvanceDeathFrame(edict_t * ent, wowEntityLocal_t *local) {
+static void Wow_AdvanceDeathFrame(edict_t *ent, wowEntityLocal_t *local) {
     uint32_t end_frame;
 
     if (!ent || !local || !local->animation) {
@@ -88,7 +88,7 @@ static void Wow_AdvanceDeathFrame(edict_t * ent, wowEntityLocal_t *local) {
     }
 }
 
-void Wow_ApplyDamage(edict_t * target, edict_t * attacker, uint32_t damage) {
+void Wow_ApplyDamage(edict_t *target, edict_t *attacker, uint32_t damage) {
     wowEntityLocal_t *target_local;
     uint32_t actual;
 
@@ -130,10 +130,10 @@ void Wow_ApplyDamage(edict_t * target, edict_t * attacker, uint32_t damage) {
     }
 }
 
-bool Wow_EntityAffectingCombat(edict_t * ent) {
+bool Wow_EntityAffectingCombat(edict_t *ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     wowEntityLocal_t *target_local;
-    edict_t * target;
+    edict_t *target;
 
     if (!ent || !local) {
         return false;
@@ -152,27 +152,27 @@ bool Wow_EntityAffectingCombat(edict_t * ent) {
     return true;
 }
 
-bool Wow_SetStandMove(edict_t * ent) {
+bool Wow_SetStandMove(edict_t *ent) {
     return Wow_SetEntityMove(ent, &wow_move_stand);
 }
 
-bool Wow_SetRunMove(edict_t * ent) {
+bool Wow_SetRunMove(edict_t *ent) {
     return Wow_SetEntityMove(ent, &wow_move_run);
 }
 
-bool Wow_SetWalkMove(edict_t * ent) {
+bool Wow_SetWalkMove(edict_t *ent) {
     return Wow_SetEntityMove(ent, &wow_move_walk);
 }
 
 /* Preserve facing while selecting the M2 locomotion sequence that matches the input direction. */
-bool Wow_SetDirectionalMove(edict_t * ent, uint32_t flags) {
+bool Wow_SetDirectionalMove(edict_t *ent, uint32_t flags) {
     if ((flags & WOW_MOVE_BACK) && !(flags & WOW_MOVE_FORWARD))
         return Wow_SetEntityMove(ent, &wow_move_back) || Wow_SetRunMove(ent);
     /* A/D are lateral movement; ShuffleLeft/Right are turn animations, not strafe animations. */
     return Wow_SetRunMove(ent);
 }
 
-bool Wow_SetCombatReadyAnimation(edict_t * ent) {
+bool Wow_SetCombatReadyAnimation(edict_t *ent) {
     static cstring_t const weapon_ready_animations[] = {
         "Ready1H",
         "ReadyUnarmed",
@@ -194,7 +194,7 @@ bool Wow_SetCombatReadyAnimation(edict_t * ent) {
     return Wow_SetStandMove(ent);
 }
 
-void Wow_AIIdle(edict_t * ent) {
+void Wow_AIIdle(edict_t *ent) {
     if (Wow_EntityAffectingCombat(ent)) {
         Wow_SetCombatReadyAnimation(ent);
     } else {
@@ -202,7 +202,7 @@ void Wow_AIIdle(edict_t * ent) {
     }
 }
 
-void Wow_AIMove(edict_t * ent) {
+void Wow_AIMove(edict_t *ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     vector2_t target;
     vector2_t delta;
@@ -236,7 +236,7 @@ void Wow_AIMove(edict_t * ent) {
     Wow_SetWalkMove(ent);
 }
 
-void Wow_AIAttack(edict_t * ent) {
+void Wow_AIAttack(edict_t *ent) {
     static cstring_t const attack_animations[] = {
         "Attack1H",
         "AttackUnarmed",
@@ -245,7 +245,7 @@ void Wow_AIAttack(edict_t * ent) {
         NULL,
     };
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
-    edict_t * target;
+    edict_t *target;
 
     uint32_t damage_point;
     uint32_t backswing;
@@ -286,7 +286,7 @@ void Wow_AIAttack(edict_t * ent) {
     local->attack_damage_done = false;
 }
 
-void Wow_AIPain(edict_t * ent) {
+void Wow_AIPain(edict_t *ent) {
     static cstring_t const pain_animations[] = {
         "CombatWound",
         "StandWound",
@@ -303,7 +303,7 @@ void Wow_AIPain(edict_t * ent) {
     Wow_SetEntityMoveFirstAnimation(ent, &wow_move_pain, pain_animations);
 }
 
-void Wow_AIDie(edict_t * ent, edict_t * attacker) {
+void Wow_AIDie(edict_t *ent, edict_t *attacker) {
     static cstring_t const death_animations[] = {
         "Death",
         "Dead",
@@ -335,7 +335,7 @@ void Wow_AIDie(edict_t * ent, edict_t * attacker) {
     }
 }
 
-bool Wow_AIAdvanceLockedFrame(edict_t * ent) {
+bool Wow_AIAdvanceLockedFrame(edict_t *ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     bool finished;
 
@@ -378,7 +378,7 @@ bool Wow_AIAdvanceLockedFrame(edict_t * ent) {
         local->attack_time = local->attack_damage_time + local->attack_backswing_time;
         Wow_AdvanceEntityFrame(ent);
         if (finished && !local->attack_damage_done) {
-            edict_t * target = Wow_EntityAffectingCombat(ent) ? local->enemy : NULL;
+            edict_t *target = Wow_EntityAffectingCombat(ent) ? local->enemy : NULL;
 
             local->attack_damage_done = true;
             if (target) {
@@ -431,7 +431,7 @@ bool Wow_AIAdvanceLockedFrame(edict_t * ent) {
     return false;
 }
 
-void Wow_AIRunFrame(edict_t * ent) {
+void Wow_AIRunFrame(edict_t *ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
 
     if (!ent || !local) {
@@ -461,7 +461,7 @@ void Wow_AIRunFrame(edict_t * ent) {
     Wow_AdvanceEntityFrame(ent);
 }
 
-void Wow_RunCreatureFrame(edict_t * ent) {
+void Wow_RunCreatureFrame(edict_t *ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
 
     if (!ent || !local || !(ent->svflags & SVF_MONSTER)) {

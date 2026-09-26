@@ -6,16 +6,16 @@
 #define DEFAULT_SPELL_AREA_CURSOR "ReplaceableTextures\\Selection\\SpellAreaOfEffect.blp"
 
 typedef struct {
-    edict_t * caster;
+    edict_t *caster;
     uint32_t code, level;
     ability_t const *spell;
-    edict_t * target;
+    edict_t *target;
 } spellUnitTargetParams_t;
 
 typedef struct {
-    edict_t * clent, *caster;
+    edict_t *clent, *caster;
     uint32_t code, level;
-    vector2_t const * point;
+    vector2_t const *point;
     float range;
 } spellPointValidateParams_t;
 
@@ -42,7 +42,7 @@ static cstring_t S_SpellThemeString(cstring_t key, cstring_t def) {
 }
 
 /* Build the borrowed typed payload used by the synchronous spell messages. */
-static intptr_t spell_message(edict_t * ent, abilityMsg_t msg, abilityitem_t const *item, spellTarget_t const *target) {
+static intptr_t spell_message(edict_t *ent, abilityMsg_t msg, abilityitem_t const *item, spellTarget_t const *target) {
     abilityCall_t call = MAKE(abilityCall_t, .item = item, .target = target);
     return S_AbilityMessage(ent, msg, &call);
 }
@@ -90,7 +90,7 @@ void S_SpellCodeString(uint32_t code, string_t out) {
     out[4] = '\0';
 }
 
-uint32_t S_SpellCurrentCode(edict_t * clent, uint32_t fallback) {
+uint32_t S_SpellCurrentCode(edict_t *clent, uint32_t fallback) {
     uint32_t code = clent && clent->client ? clent->client->menu.ability_code : 0;
     return code ? code : fallback;
 }
@@ -110,7 +110,7 @@ ability_t const *S_SpellAbilityForCode(uint32_t code) {
     return ability && (ability->flags & AB_SPELL) && ability->proc ? ability : NULL;
 }
 
-uint32_t S_SpellLevel(edict_t * caster, uint32_t code) {
+uint32_t S_SpellLevel(edict_t *caster, uint32_t code) {
     if (!caster) {
         return 1;
     }
@@ -182,8 +182,8 @@ float S_SpellDuration(uint32_t code, uint32_t level, bool hero) {
     return S_SpellNumber(code, hero ? ABILITY_NUMBER_HERO_DURATION : ABILITY_NUMBER_DURATION, level);
 }
 
-static void S_SpellInvalidateCooldownUI(edict_t * caster) {
-    gameClient_t * client;
+static void S_SpellInvalidateCooldownUI(edict_t *caster) {
+    gameClient_t *client;
     if (!caster) return;
     client = G_GetPlayerClientByNumber(caster->s.player);
     if (client && client->ps.number == caster->s.player) G_InvalidateCommands(client);
@@ -193,7 +193,7 @@ static uint32_t S_SpellCooldownCode(uint32_t code) {
     return code ? G_AbilityCode(code) : 0;
 }
 
-static abilityCooldown_t *S_SpellFindCooldown(edict_t * caster, uint32_t code) {
+static abilityCooldown_t *S_SpellFindCooldown(edict_t *caster, uint32_t code) {
     uint32_t const cooldown_code = S_SpellCooldownCode(code);
 
     if (!caster || !cooldown_code) return NULL;
@@ -204,7 +204,7 @@ static abilityCooldown_t *S_SpellFindCooldown(edict_t * caster, uint32_t code) {
     return NULL;
 }
 
-static abilityCooldown_t *S_SpellAllocCooldown(edict_t * caster, uint32_t code) {
+static abilityCooldown_t *S_SpellAllocCooldown(edict_t *caster, uint32_t code) {
     uint32_t const cooldown_code = S_SpellCooldownCode(code);
     uint32_t const now = G_Time();
     abilityCooldown_t *available = NULL;
@@ -222,25 +222,25 @@ static abilityCooldown_t *S_SpellAllocCooldown(edict_t * caster, uint32_t code) 
     return available;
 }
 
-bool S_SpellCooldownReady(edict_t * caster, uint32_t code) {
+bool S_SpellCooldownReady(edict_t *caster, uint32_t code) {
     abilityCooldown_t const *cooldown = S_SpellFindCooldown(caster, code);
     return !cooldown || (int32_t)(cooldown->end_time - G_Time()) <= 0;
 }
 
-float S_SpellCooldownRemaining(edict_t * caster, uint32_t code) {
+float S_SpellCooldownRemaining(edict_t *caster, uint32_t code) {
     abilityCooldown_t const *cooldown = S_SpellFindCooldown(caster, code);
     uint32_t const now = G_Time();
     if (!cooldown || (int32_t)(cooldown->end_time - now) <= 0) return 0.0f;
     return (float)(uint32_t)(cooldown->end_time - now) / 1000.0f;
 }
 
-float S_SpellCooldownLength(edict_t * caster, uint32_t code) {
+float S_SpellCooldownLength(edict_t *caster, uint32_t code) {
     abilityCooldown_t const *cooldown = S_SpellFindCooldown(caster, code);
     if (!cooldown || cooldown->end_time == cooldown->start_time) return 0.0f;
     return (float)(uint32_t)(cooldown->end_time - cooldown->start_time) / 1000.0f;
 }
 
-bool S_SpellCooldownWindow(edict_t * caster, uint32_t code, abilityCooldownWindow_t *window) {
+bool S_SpellCooldownWindow(edict_t *caster, uint32_t code, abilityCooldownWindow_t *window) {
     abilityCooldown_t const *cooldown = S_SpellFindCooldown(caster, code);
     if (!cooldown || !window || (int32_t)(cooldown->end_time - G_Time()) <= 0) return false;
     window->start_time = cooldown->start_time;
@@ -251,7 +251,7 @@ bool S_SpellCooldownWindow(edict_t * caster, uint32_t code, abilityCooldownWindo
 /* Fraction of an ability's authored cooldown still remaining. The total comes
  * from the cooldown record captured at cast time, so learning another level
  * while a cooldown is active cannot make the command-card sweep jump. */
-float S_SpellCooldownFraction(edict_t * caster, uint32_t code, uint32_t level) {
+float S_SpellCooldownFraction(edict_t *caster, uint32_t code, uint32_t level) {
     float const remaining = S_SpellCooldownRemaining(caster, code);
     float const total = S_SpellCooldownLength(caster, code);
     (void)level;
@@ -259,7 +259,7 @@ float S_SpellCooldownFraction(edict_t * caster, uint32_t code, uint32_t level) {
     return MIN(1.0f, remaining / total);
 }
 
-void S_SpellStartCooldownDuration(edict_t * caster, uint32_t code, float duration) {
+void S_SpellStartCooldownDuration(edict_t *caster, uint32_t code, float duration) {
     abilityCooldown_t *cooldown;
     uint32_t duration_ms;
 
@@ -277,12 +277,12 @@ void S_SpellStartCooldownDuration(edict_t * caster, uint32_t code, float duratio
     S_SpellInvalidateCooldownUI(caster);
 }
 
-void S_SpellStartCooldown(edict_t * caster, uint32_t code, uint32_t level) {
+void S_SpellStartCooldown(edict_t *caster, uint32_t code, uint32_t level) {
     S_SpellStartCooldownDuration(caster, code,
         S_SpellNumber(code, ABILITY_NUMBER_COOLDOWN, level));
 }
 
-void S_SpellEndCooldown(edict_t * caster, uint32_t code) {
+void S_SpellEndCooldown(edict_t *caster, uint32_t code) {
     abilityCooldown_t *cooldown = S_SpellFindCooldown(caster, code);
     if (cooldown) {
         memset(cooldown, 0, sizeof(*cooldown));
@@ -290,13 +290,13 @@ void S_SpellEndCooldown(edict_t * caster, uint32_t code) {
     }
 }
 
-void S_SpellResetCooldowns(edict_t * caster) {
+void S_SpellResetCooldowns(edict_t *caster) {
     if (!caster) return;
     memset(caster->abilitycooldowns, 0, sizeof(caster->abilitycooldowns));
     S_SpellInvalidateCooldownUI(caster);
 }
 
-bool S_SpellSpendMana(edict_t * caster, uint32_t code, uint32_t level) {
+bool S_SpellSpendMana(edict_t *caster, uint32_t code, uint32_t level) {
     float cost;
 
     if (!caster) {
@@ -313,7 +313,7 @@ bool S_SpellSpendMana(edict_t * caster, uint32_t code, uint32_t level) {
     return true;
 }
 
-bool S_SpellCanPay(edict_t * caster, uint32_t code, uint32_t level) {
+bool S_SpellCanPay(edict_t *caster, uint32_t code, uint32_t level) {
     float cost;
 
     if (!caster) {
@@ -323,18 +323,18 @@ bool S_SpellCanPay(edict_t * caster, uint32_t code, uint32_t level) {
     return cost <= 0 || caster->mana.value >= cost;
 }
 
-bool S_SpellTargetInRange(edict_t * caster, edict_t * target, float range) {
+bool S_SpellTargetInRange(edict_t *caster, edict_t *target, float range) {
     if (!caster || !target) {
         return false;
     }
     return range <= 0 || Vector2_distance(&caster->s.origin2, &target->s.origin2) <= range;
 }
 
-bool S_SpellIsAliveTarget(edict_t * target) {
+bool S_SpellIsAliveTarget(edict_t *target) {
     return target && target->inuse && (target->svflags & SVF_MONSTER) && !M_IsDead(target);
 }
 
-bool S_SpellIsEnemy(edict_t * caster, edict_t * target) {
+bool S_SpellIsEnemy(edict_t *caster, edict_t *target) {
     uint32_t owner;
 
     if (!caster || !target || caster->s.player >= MAX_PLAYERS || target->s.player >= MAX_PLAYERS) {
@@ -351,7 +351,7 @@ bool S_SpellIsEnemy(edict_t * caster, edict_t * target) {
     return !G_PlayerTreatsPlayerAsAlly(caster->s.player, owner);
 }
 
-bool S_SpellIsFriend(edict_t * caster, edict_t * target) {
+bool S_SpellIsFriend(edict_t *caster, edict_t *target) {
     uint32_t owner;
 
     if (!caster || !target || caster->s.player >= MAX_PLAYERS || target->s.player >= MAX_PLAYERS) {
@@ -368,7 +368,7 @@ bool S_SpellIsFriend(edict_t * caster, edict_t * target) {
     return G_PlayerTreatsPlayerAsAlly(caster->s.player, owner);
 }
 
-bool S_SpellAllowsTarget(uint32_t code, edict_t * caster, edict_t * target) {
+bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target) {
     cstring_t targets;
     uint32_t ability_level;
     bool structure;
@@ -408,7 +408,7 @@ bool S_SpellAllowsTarget(uint32_t code, edict_t * caster, edict_t * target) {
     return !strstr(targets, "friend") && !strstr(targets, "enemy") && !strstr(targets, "neutral");
 }
 
-static bool spell_allows_corpse_target(uint32_t code, edict_t * caster, edict_t * target, bool stored) {
+static bool spell_allows_corpse_target(uint32_t code, edict_t *caster, edict_t *target, bool stored) {
     cstring_t targets;
     uint32_t ability_level;
     bool structure;
@@ -436,22 +436,22 @@ static bool spell_allows_corpse_target(uint32_t code, edict_t * caster, edict_t 
         !strstr(targets, "enemy") && !strstr(targets, "neutral");
 }
 
-bool S_SpellAllowsCorpseTarget(uint32_t code, edict_t * caster, edict_t * target) {
+bool S_SpellAllowsCorpseTarget(uint32_t code, edict_t *caster, edict_t *target) {
     return spell_allows_corpse_target(code, caster, target, false);
 }
 
-bool S_SpellAllowsStoredCorpseTarget(uint32_t code, edict_t * caster, edict_t * target) {
+bool S_SpellAllowsStoredCorpseTarget(uint32_t code, edict_t *caster, edict_t *target) {
     return spell_allows_corpse_target(code, caster, target, true);
 }
 
-void S_SpellHeal(edict_t * target, float amount) {
+void S_SpellHeal(edict_t *target, float amount) {
     if (!target || amount <= 0) {
         return;
     }
     G_AddHealth(target, amount);
 }
 
-void S_SpellCursorSplat(edict_t * clent, float radius) {
+void S_SpellCursorSplat(edict_t *clent, float radius) {
     int32_t image = 0;
 
     if (!clent || !clent->client) {
@@ -468,21 +468,21 @@ void S_SpellCursorSplat(edict_t * clent, float radius) {
     gi.unicast(clent);
 }
 
-bool S_SpellIsChanneling(edict_t * caster) {
+bool S_SpellIsChanneling(edict_t *caster) {
     return caster && caster->channel.code != 0;
 }
 
 /* Some temporary summons own a timed lifecycle but are not destroyable by
  * dispel-style summoned-unit damage. Resolve this by the concrete ability
  * procedure so AbilityData aliases inherit the same Animate Dead behavior. */
-bool S_SummonIsDispelImmune(edict_t const * unit) {
+bool S_SummonIsDispelImmune(edict_t const *unit) {
     abilityitem_t item;
     if (!unit || !unit->summon_ability) return false;
     item = S_AbilityItem(unit->summon_ability);
     return item.ability && item.ability->proc == CAbilityAnimateDead;
 }
 
-void S_SpellCancelChannel(edict_t * caster) {
+void S_SpellCancelChannel(edict_t *caster) {
     uint32_t code;
     if (!caster || !caster->channel.code) return;
     code = caster->channel.code;
@@ -496,8 +496,8 @@ void S_SpellCancelChannel(edict_t * caster) {
 }
 
 /* A cast serial and owner incarnation prevent a retired thinker from following a recast or reused edict. */
-edict_t * S_SpellChannelThinker(edict_t * caster, uint32_t code) {
-    edict_t * ent = G_Spawn();
+edict_t *S_SpellChannelThinker(edict_t *caster, uint32_t code) {
+    edict_t *ent = G_Spawn();
     ent->owner = caster; ent->class_id = code;
     ent->channel.serial = caster->channel.serial;
     ent->channel.owner_spawn_time = caster->spawn_time;
@@ -505,8 +505,8 @@ edict_t * S_SpellChannelThinker(edict_t * caster, uint32_t code) {
 }
 
 /* Each effect rechecks the caster before ticking, independently of edict iteration order. */
-bool S_SpellChannelActive(edict_t * ent) {
-    edict_t * caster = ent ? ent->owner : NULL;
+bool S_SpellChannelActive(edict_t *ent) {
+    edict_t *caster = ent ? ent->owner : NULL;
     if (!caster || !caster->inuse || caster->spawn_time != ent->channel.owner_spawn_time) return false;
     spell_run_frame(caster);
     return !M_IsDead(caster) && caster->channel.code == ent->class_id &&
@@ -514,8 +514,8 @@ bool S_SpellChannelActive(edict_t * ent) {
 }
 
 /* Ending an old thinker must never cancel a replacement order or a newer cast of the same spell. */
-void S_SpellEndChannel(edict_t * ent) {
-    edict_t * caster = ent->owner;
+void S_SpellEndChannel(edict_t *ent) {
+    edict_t *caster = ent->owner;
     if (caster && caster->inuse && caster->spawn_time == ent->channel.owner_spawn_time &&
         caster->channel.code == ent->class_id && caster->channel.serial == ent->channel.serial)
         S_SpellCancelChannel(caster);
@@ -526,7 +526,7 @@ void S_SpellEndChannel(edict_t * ent) {
 
 /* Per-frame channel enforcement: if the caster has moved from cast_origin,
  * cancel the channel.  Called from G_RunEntity. */
-void spell_run_frame(edict_t * ent) {
+void spell_run_frame(edict_t *ent) {
     if (!ent->channel.code)
         return;
 
@@ -546,7 +546,7 @@ void spell_run_frame(edict_t * ent) {
 }
 
 /* Shared validation for spell spells: mana, cooldown, and optional range check. */
-static bool spell_validate(edict_t * clent, edict_t * caster, uint32_t code, uint32_t level, edict_t * target, float range) {
+static bool spell_validate(edict_t *clent, edict_t *caster, uint32_t code, uint32_t level, edict_t *target, float range) {
     if (!S_SpellIsAliveTarget(caster) || caster->stunned || S_UnitPolymorphed(caster) || S_UnitIsCycloned(caster)) return false;
     if (S_UnitIsSilenced(caster)) {
         G_ShowCommandErrorText(clent, "Silenced.");
@@ -589,7 +589,7 @@ static bool spell_validate_point(spellPointValidateParams_t const *params) {
 }
 
 /* Start channel: lock caster in place and record the origin for movement-cancel. */
-static void spell_begin_channel(edict_t * caster, uint32_t code) {
+static void spell_begin_channel(edict_t *caster, uint32_t code) {
     if (caster->stand) caster->stand(caster);
     caster->channel.serial++;
     caster->channel.code = code;
@@ -597,7 +597,7 @@ static void spell_begin_channel(edict_t * caster, uint32_t code) {
 }
 
 /* Pre-execute common work: spend mana, start cooldown, then Mana Flare probes. */
-static void spell_commit(edict_t * caster, uint32_t code, uint32_t level) {
+static void spell_commit(edict_t *caster, uint32_t code, uint32_t level) {
     S_SpellCancelChannel(caster);
     S_HumanBreakInvisibility(caster);
     S_PermanentInvisibilityReveal(caster);
@@ -609,9 +609,9 @@ static void spell_commit(edict_t * caster, uint32_t code, uint32_t level) {
 /* Warcraft exposes spell response data only while dispatching the spell event.
  * Publish SPELL_EFFECT at the irreversible cast point: resources have been
  * committed, but the gameplay callback has not run yet. */
-static void spell_publish_effect(edict_t * caster, uint32_t code, spellTarget_t target) {
-    edict_t * source = target.type == SPELL_TARGET_UNIT ? target.entity : NULL;
-    vector2_t const * point = target.type == SPELL_TARGET_POINT ? &target.point : NULL;
+static void spell_publish_effect(edict_t *caster, uint32_t code, spellTarget_t target) {
+    edict_t *source = target.type == SPELL_TARGET_UNIT ? target.entity : NULL;
+    vector2_t const *point = target.type == SPELL_TARGET_POINT ? &target.point : NULL;
     gameEventPointParams_t params = MAKE(gameEventPointParams_t, .edict = caster,
                                          .source = source, .value = (int32_t)code, .point = point);
 
@@ -642,9 +642,9 @@ static void spell_execute_unit_target(spellUnitTargetParams_t const *params) {
  * server thinker watches the ordinary Move order and commits the spell when the
  * caster reaches authored cast range. Replacing that Move order cancels the
  * pending cast naturally. */
-static void spell_unit_target_approach_think(edict_t * thinker) {
-    edict_t * caster = thinker ? thinker->owner : NULL;
-    edict_t * target = thinker ? thinker->goalentity : NULL;
+static void spell_unit_target_approach_think(edict_t *thinker) {
+    edict_t *caster = thinker ? thinker->owner : NULL;
+    edict_t *target = thinker ? thinker->goalentity : NULL;
     uint32_t code = thinker ? thinker->class_id : 0;
     ability_t const *spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };
@@ -692,8 +692,8 @@ static void spell_unit_target_approach_think(edict_t * thinker) {
 }
 
 /* Start the ordinary walk order used to bring an out-of-range spell target into range. */
-static bool spell_begin_unit_target_approach(edict_t * caster, uint32_t code, edict_t * target) {
-    edict_t * thinker;
+static bool spell_begin_unit_target_approach(edict_t *caster, uint32_t code, edict_t *target) {
+    edict_t *thinker;
 
     if (!caster || !target || (caster->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(caster) ||
         G_UnitStatusLevel(caster, MAKEFOURCC('B', 'E', 'e', 'r')))
@@ -713,8 +713,8 @@ static bool spell_begin_unit_target_approach(edict_t * caster, uint32_t code, ed
 }
 
 /* Called when user clicks a target entity for a UNIT-target spell. */
-static bool spell_unit_target_selected(edict_t * clent, edict_t * target) {
-    edict_t * caster = G_GetMainSelectedUnit(clent->client);
+static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
+    edict_t *caster = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, 0);
     uint32_t level = S_SpellLevel(caster, code);
     float range = S_SpellRange(code, level);
@@ -740,8 +740,8 @@ static bool spell_unit_target_selected(edict_t * clent, edict_t * target) {
 }
 
 /* Called when user clicks a location for a POINT-target spell. */
-static bool spell_point_target_selected(edict_t * clent, vector2_t const * point) {
-    edict_t * caster = G_GetMainSelectedUnit(clent->client);
+static bool spell_point_target_selected(edict_t *clent, vector2_t const *point) {
+    edict_t *caster = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, 0);
     uint32_t level = S_SpellLevel(caster, code);
     float range = S_SpellRange(code, level);
@@ -767,8 +767,8 @@ static bool spell_point_target_selected(edict_t * clent, vector2_t const * point
 }
 
 /* No-target (self-cast / instant) execute in-place. */
-static void spell_no_target_execute(edict_t * clent) {
-    edict_t * caster = G_GetMainSelectedUnit(clent->client);
+static void spell_no_target_execute(edict_t *clent) {
+    edict_t *caster = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, 0);
     uint32_t level = S_SpellLevel(caster, code);
     ability_t const *spell = S_SpellAbilityForCode(code);
@@ -785,7 +785,7 @@ static void spell_no_target_execute(edict_t * clent) {
     spell_message(caster, A_EXECUTE, &item, &st);
 }
 
-bool S_CastNoTargetSpell(edict_t * caster, uint32_t code) {
+bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
     uint32_t level;
     ability_t const *spell;
     spellTarget_t target = { .type = SPELL_TARGET_NONE };
@@ -805,7 +805,7 @@ bool S_CastNoTargetSpell(edict_t * caster, uint32_t code) {
     return true;
 }
 
-bool S_CastPointTargetSpell(edict_t * caster, uint32_t code, vector2_t const * point) {
+bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vector2_t const *point) {
     uint32_t level;
     float range;
     ability_t const *spell;
@@ -834,7 +834,7 @@ bool S_CastPointTargetSpell(edict_t * caster, uint32_t code, vector2_t const * p
 }
 
 /* Autocast and AI orders use the same target and resource contract as a player-selected unit spell. */
-bool S_CastUnitTargetSpell(edict_t * caster, uint32_t code, edict_t * unit) {
+bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     uint32_t level;
     ability_t const *spell;
     spellTarget_t target = { .type = SPELL_TARGET_UNIT, .entity = unit };
@@ -859,7 +859,7 @@ bool S_CastUnitTargetSpell(edict_t * caster, uint32_t code, edict_t * unit) {
     return true;
 }
 
-bool S_IssueUnitTargetSpell(edict_t * caster, uint32_t code, edict_t * unit) {
+bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     uint32_t level;
     float range;
     ability_t const *spell;
@@ -889,8 +889,8 @@ bool S_IssueUnitTargetSpell(edict_t * caster, uint32_t code, edict_t * unit) {
 /* Shared command entry point for all spell abilities.  Sets up the appropriate
  * target-selection UI based on ability_t.target_type, or executes
  * immediately for no-target spells. */
-void spell_cmd(edict_t * clent) {
-    edict_t * caster = G_GetMainSelectedUnit(clent->client);
+void spell_cmd(edict_t *clent) {
+    edict_t *caster = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, 0);
     ability_t const *spell = S_SpellAbilityForCode(code);
     abilityitem_t item = { .code = code, .ability = spell };

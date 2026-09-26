@@ -5,16 +5,16 @@
 #include "../g_local.h"
 
 typedef struct SuspendDialog_s {
-    frameDef_t * SuspendDialog;
-    frameDef_t * SuspendBackdrop;
-    frameDef_t * SuspendTitleText;
-    frameDef_t * SuspendDropPlayersButton;
-    frameDef_t * SuspendDropPlayersButtonText;
-    frameDef_t * SuspendTimerText;
+    frameDef_t *SuspendDialog;
+    frameDef_t *SuspendBackdrop;
+    frameDef_t *SuspendTitleText;
+    frameDef_t *SuspendDropPlayersButton;
+    frameDef_t *SuspendDropPlayersButtonText;
+    frameDef_t *SuspendTimerText;
 } SuspendDialog_t;
 
 
-static inline bool SuspendDialog_Bind(SuspendDialog_t *out, frameDef_t * bind_root) {
+static inline bool SuspendDialog_Bind(SuspendDialog_t *out, frameDef_t *bind_root) {
     bool ok = true;
     if (!out) {
         return false;

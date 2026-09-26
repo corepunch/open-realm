@@ -5,7 +5,7 @@
 #include "client/tr_public.h"
 
 /* Model positions are normalized viewport anchors; widening preserves authored vertical scale. */
-static inline void M_ModelMatrix(uiModel_t const * model, float aspect, matrix4_t * out) {
+static inline void M_ModelMatrix(uiModel_t const *model, float aspect, matrix4_t *out) {
     matrix4_t proj, view, local;
     vector3_t dir = Vector3_sub(&model->target, &model->eye);
     float model_aspect = (model->aspect > 0.0f) ? model->aspect : 1.0f;

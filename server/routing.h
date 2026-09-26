@@ -15,10 +15,10 @@ typedef struct {
 
 
 typedef struct {
-    edict_t * ent;
+    edict_t *ent;
     float angle, dist;
     int rings;
-    bool (*valid)(edict_t * ent, vector2_t const * point);
+    bool (*valid)(edict_t *ent, vector2_t const *point);
 } routeSlide_t;
 
 
@@ -31,11 +31,11 @@ typedef struct {
 } pathTexTransform_t;
 
 typedef struct {
-    edict_t const * ent;
+    edict_t const *ent;
     pathTex_t const *pathtex;
 } pathTexTransformParams_t;
 
-float CM_SlideRoute(routeSlide_t const * slide);
-bool CM_AccelerateRoute(routePath_t * path, pathAccelParams_t const *params, vector2_t * dir);
-pathTexTransform_t CM_GetPathTexTransform(edict_t const * ent);
+float CM_SlideRoute(routeSlide_t const *slide);
+bool CM_AccelerateRoute(routePath_t *path, pathAccelParams_t const *params, vector2_t *dir);
+pathTexTransform_t CM_GetPathTexTransform(edict_t const *ent);
 #endif

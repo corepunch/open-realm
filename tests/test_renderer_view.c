@@ -14,8 +14,8 @@ static int entities, scenes;
 
 void R_SetupEnvironmentLighting(void) {}
 void R_ConformGroundSurfaces(viewDef_t *view) { (void)view; }
-void R_SetupViewport(rect_t const * rect) { (void)rect; }
-void R_SetupScissor(rect_t const * rect) { (void)rect; }
+void R_SetupViewport(rect_t const *rect) { (void)rect; }
+void R_SetupScissor(rect_t const *rect) { (void)rect; }
 void R_SetupGL(bool light) { (void)light; }
 void R_RevertSettings(void) {}
 void R_RenderFogOfWar(void) {}
@@ -28,7 +28,7 @@ TEST(renderer_view, shadow_fog_follows_each_view) {
     renderEntity_t ent = {0};
     viewDef_t view = { .time = 1, .fogEnable = true, .fogStart = 800, .fogEnd = 3500,
         .fogColor = {0.2f, 0.3f, 0.4f}, .entities = &ent, .num_entities = 1 };
-    spriteState_t const * fog = &tr.shader_shadowSplat.state;
+    spriteState_t const *fog = &tr.shader_shadowSplat.state;
     FOR_LOOP(i, 2) {
         view.rdflags = i ? RDF_USE_ENTITY_CAMERA : 0;
         view.fogEnable = true;

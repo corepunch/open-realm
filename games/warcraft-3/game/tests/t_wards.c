@@ -17,10 +17,10 @@
 #define BZ_STA_HERO 1.5f // fixture HeroDur; not stock 2.5
 #define BZ_SIGHT 350.0f // fixture Adt1 Rng; not stock 1100
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 void G_RunEntities(void);
 
@@ -55,7 +55,7 @@ static char const wards_slk[] =
 
 typedef struct {
 	slkTestData_t *rows, *old;
-	edict_t * caster, *enemy, *far, *hero, *air;
+	edict_t *caster, *enemy, *far, *hero, *air;
 	UnitBalance_t unit_bal, hero_bal;
 } wardFix_t;
 
@@ -96,7 +96,7 @@ static void ward_done(wardFix_t *fix) {
 
 static void ward_tick(uint32_t ms) { level.time += ms; G_RunEntities(); }
 
-static edict_t * ward_find(uint32_t class_id) {
+static edict_t *ward_find(uint32_t class_id) {
 	FILTER_EDICTS(ent, ent->inuse && ent->class_id == class_id && ent->owner) return ent;
 	return NULL;
 }
@@ -107,7 +107,7 @@ static uint32_t ward_count(uint32_t class_id) {
 	return n;
 }
 
-static uint32_t stasis_stun_ms(edict_t const * unit) {
+static uint32_t stasis_stun_ms(edict_t const *unit) {
 	FOR_LOOP(i, MAX_UNIT_STATUSES)
 		if (unit->abilstatus[i].level && unit->abilstatus[i].code == BZ_BSTA)
 			return unit->abilstatus[i].duration_ms;
@@ -122,7 +122,7 @@ TEST(wc3_spell, stasis_trap_procedure_is_point_spell) {
 }
 
 TEST(wc3_spell, stasis_trap_cast_creates_owned_timed_invisible_ward) {
-	wardFix_t fix; vector2_t point = { 128, 96 }; edict_t * ward;
+	wardFix_t fix; vector2_t point = { 128, 96 }; edict_t *ward;
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &point));
@@ -138,7 +138,7 @@ TEST(wc3_spell, stasis_trap_cast_creates_owned_timed_invisible_ward) {
 
 /* Arm delay is DataA; stun uses DataD for units and HeroDur for heroes. */
 TEST(wc3_spell, stasis_trap_arms_then_stuns_land_enemies_in_datac) {
-	wardFix_t fix; vector2_t point = { 64, 0 }; edict_t * ward;
+	wardFix_t fix; vector2_t point = { 64, 0 }; edict_t *ward;
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
 	fix.enemy->s.origin2 = point; fix.hero->s.origin2 = (vector2_t){ 80, 0 };
@@ -158,7 +158,7 @@ TEST(wc3_spell, stasis_trap_arms_then_stuns_land_enemies_in_datac) {
 }
 
 TEST(wc3_spell, stasis_trap_ignores_air_units) {
-	wardFix_t fix; vector2_t point = { 0, 0 }; edict_t * ward;
+	wardFix_t fix; vector2_t point = { 0, 0 }; edict_t *ward;
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
 	fix.air->s.origin2 = point;
@@ -193,7 +193,7 @@ TEST(wc3_spell, sentry_ward_aliases_share_procedure) {
 }
 
 TEST(wc3_spell, sentry_ward_cast_creates_owned_timed_ward_and_detects_hidden) {
-	wardFix_t fix; vector2_t point = { 128, 128 }; edict_t * ward;
+	wardFix_t fix; vector2_t point = { 128, 128 }; edict_t *ward;
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
 	fix.enemy->s.origin2 = (vector2_t){ 200, 128 };
@@ -331,7 +331,7 @@ TEST(wc3_spell, active_spell_commit_restarts_permanent_invisibility_transition) 
 }
 
 TEST(wc3_spell, far_sight_detects_permanent_invisibility_only_for_its_viewers) {
-	wardFix_t fix; edict_t * sight;
+	wardFix_t fix; edict_t *sight;
 	ward_setup(&fix);
 	G_FowInit(); G_FowConnectPlayer(0); G_FowConnectPlayer(1); G_FowConnectPlayer(2);
 	fix.caster->runtime.sight_radius.day = 256.0f;
@@ -365,7 +365,7 @@ TEST(wc3_spell, true_sight_only_reveals_rf_hidden_states_known_to_be_invisibilit
 }
 
 TEST(wc3_spell, sentry_ward_aisw_uses_alias_unitid) {
-	wardFix_t fix; vector2_t point = { 64, 64 }; edict_t * ward;
+	wardFix_t fix; vector2_t point = { 64, 64 }; edict_t *ward;
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AISW, .level = 1);
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_AISW, &point));

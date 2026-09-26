@@ -48,7 +48,7 @@ static onFireNames_t const *onfire_family(uint32_t race) {
     return &onfire_standard;
 }
 
-static uint32_t onfire_level(edict_t const * ent) {
+static uint32_t onfire_level(edict_t const *ent) {
     uint8_t health;
 
     if (!ent->inuse || !(ent->s.flags & EF_BUILDING) || ent->health.value <= 0.0f ||
@@ -60,13 +60,13 @@ static uint32_t onfire_level(edict_t const * ent) {
     return 3;
 }
 
-static void onfire_disabled(edict_t * ent) {
+static void onfire_disabled(edict_t *ent) {
     ent->s.effect = 0;
     ent->s.effect_flags &= EFX_TEAM_COLOR_MASK;
 }
 
 /* Apply one of four fire levels: off, small, medium, or severe. */
-static void onfire_level_changed(edict_t * ent, uint32_t level) {
+static void onfire_level_changed(edict_t *ent, uint32_t level) {
     UnitData_t const *data;
     onFireNames_t const *names;
     onFireStage_t const *stage;
@@ -95,7 +95,7 @@ static void onfire_level_changed(edict_t * ent, uint32_t level) {
         EFX_MODEL | EFX_ATTACH_SLOTS | stage->slots;
 }
 
-static void onfire_enabled(edict_t * ent) { onfire_level_changed(ent, onfire_level(ent)); }
+static void onfire_enabled(edict_t *ent) { onfire_level_changed(ent, onfire_level(ent)); }
 
 /* Retail synthesizes one race-specific CAbilityOnFire for buildings instead of listing it in UnitAbilities.slk. */
 BZ_ABILITY_PROC(CAbilityOnFireHuman) {

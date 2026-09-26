@@ -1,6 +1,6 @@
 #include "server.h"
 
-void SV_ParseCameraPosition(sizeBuf_t * msg, client_t * client) {
+void SV_ParseCameraPosition(sizeBuf_t *msg, client_t *client) {
     edict_t *clent = client->edict;
     float x = MSG_ReadFloat(msg);
     float y = MSG_ReadFloat(msg);
@@ -11,7 +11,7 @@ void SV_ParseCameraPosition(sizeBuf_t * msg, client_t * client) {
     ge->ClientInput(clent, &(inputCmd_t){ .action = BZ_INPUT_FOCUS, .focus = {x, y} });
 }
 
-void SV_ParseClientMessage(sizeBuf_t * msg, client_t * client) {
+void SV_ParseClientMessage(sizeBuf_t *msg, client_t *client) {
     uint8_t pack_id = 0;
     while (MSG_Read(msg, &pack_id, 1)) {
         switch (pack_id) {

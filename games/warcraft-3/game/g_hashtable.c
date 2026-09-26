@@ -1,6 +1,6 @@
 #include "g_local.h"
 
-static int32_t hashtable_index(hashtable_t const * table) {
+static int32_t hashtable_index(hashtable_t const *table) {
     uintptr_t ptr = (uintptr_t)table, base = (uintptr_t)level.hashtables;
     size_t span = sizeof(level.hashtables);
     if (!table || ptr < base || ptr >= base + span ||
@@ -8,14 +8,14 @@ static int32_t hashtable_index(hashtable_t const * table) {
     return (int32_t)((ptr - base) / sizeof(*table));
 }
 
-bool G_HashtableIndex(hashtable_t const * table, uint32_t *index) {
+bool G_HashtableIndex(hashtable_t const *table, uint32_t *index) {
     int32_t id = hashtable_index(table);
     if (id < 0) return false;
     if (index) *index = (uint32_t)id;
     return true;
 }
 
-bool G_HashtableReserve(hashtable_t * table, uint32_t need) {
+bool G_HashtableReserve(hashtable_t *table, uint32_t need) {
     hashtableEntry_t *next;
     uint32_t cap;
     if (!table || !table->inuse) return false;
@@ -37,9 +37,9 @@ bool G_HashtableReserve(hashtable_t * table, uint32_t need) {
     return true;
 }
 
-hashtable_t * G_AllocHashtable(void) {
+hashtable_t *G_AllocHashtable(void) {
     FOR_LOOP(i, MAX_HASHTABLES) if (!level.hashtables[i].inuse) {
-        hashtable_t * table = &level.hashtables[i];
+        hashtable_t *table = &level.hashtables[i];
         memset(table, 0, sizeof(*table));
         table->inuse = true;
         return table;
@@ -48,7 +48,7 @@ hashtable_t * G_AllocHashtable(void) {
     return NULL;
 }
 
-void G_FreeHashtable(hashtable_t * table) {
+void G_FreeHashtable(hashtable_t *table) {
     if (hashtable_index(table) < 0) return;
     if (table->entries) gi.MemFree(table->entries);
     memset(table, 0, sizeof(*table));

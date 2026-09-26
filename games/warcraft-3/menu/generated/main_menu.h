@@ -5,45 +5,45 @@
 #include "../menu_local.h"
 
 typedef struct MainMenu_s {
-    frameDef_t * MainMenuFrame;
-    frameDef_t * WarCraftIIILogo;
-    frameDef_t * RealmSelect;
-    frameDef_t * RealmSelectText;
-    frameDef_t * RealmSelectMessage;
-    frameDef_t * RealmListContainer;
-    frameDef_t * RealmSelectOKBackdrop;
-    frameDef_t * RealmSelectOKButton;
-    frameDef_t * RealmSelectOKText;
-    frameDef_t * RealmSelectCancelBackdrop;
-    frameDef_t * RealmSelectCancelButton;
-    frameDef_t * RealmSelectCancelText;
-    frameDef_t * ControlLayer;
-    frameDef_t * SinglePlayerBackdrop;
-    frameDef_t * SinglePlayerButton;
-    frameDef_t * SinglePlayerButtonText;
-    frameDef_t * BattleNetBackdrop;
-    frameDef_t * RealmButton;
-    frameDef_t * RealmButtonBackdropTemplate;
-    frameDef_t * RealmButtonPushedBackdropTemplate;
-    frameDef_t * RealmButtonDisabledBackdropTemplate;
-    frameDef_t * BattleNetButton;
-    frameDef_t * BattleNetButtonText;
-    frameDef_t * LocalAreaNetworkBackdrop;
-    frameDef_t * LocalAreaNetworkButton;
-    frameDef_t * LocalAreaNetworkButtonText;
-    frameDef_t * OptionsBackdrop;
-    frameDef_t * OptionsButton;
-    frameDef_t * OptionsButtonText;
-    frameDef_t * CreditsBackdrop;
-    frameDef_t * CreditsButton;
-    frameDef_t * CreditsButtonText;
-    frameDef_t * ExitBackdrop;
-    frameDef_t * ExitButton;
-    frameDef_t * ExitButtonText;
+    frameDef_t *MainMenuFrame;
+    frameDef_t *WarCraftIIILogo;
+    frameDef_t *RealmSelect;
+    frameDef_t *RealmSelectText;
+    frameDef_t *RealmSelectMessage;
+    frameDef_t *RealmListContainer;
+    frameDef_t *RealmSelectOKBackdrop;
+    frameDef_t *RealmSelectOKButton;
+    frameDef_t *RealmSelectOKText;
+    frameDef_t *RealmSelectCancelBackdrop;
+    frameDef_t *RealmSelectCancelButton;
+    frameDef_t *RealmSelectCancelText;
+    frameDef_t *ControlLayer;
+    frameDef_t *SinglePlayerBackdrop;
+    frameDef_t *SinglePlayerButton;
+    frameDef_t *SinglePlayerButtonText;
+    frameDef_t *BattleNetBackdrop;
+    frameDef_t *RealmButton;
+    frameDef_t *RealmButtonBackdropTemplate;
+    frameDef_t *RealmButtonPushedBackdropTemplate;
+    frameDef_t *RealmButtonDisabledBackdropTemplate;
+    frameDef_t *BattleNetButton;
+    frameDef_t *BattleNetButtonText;
+    frameDef_t *LocalAreaNetworkBackdrop;
+    frameDef_t *LocalAreaNetworkButton;
+    frameDef_t *LocalAreaNetworkButtonText;
+    frameDef_t *OptionsBackdrop;
+    frameDef_t *OptionsButton;
+    frameDef_t *OptionsButtonText;
+    frameDef_t *CreditsBackdrop;
+    frameDef_t *CreditsButton;
+    frameDef_t *CreditsButtonText;
+    frameDef_t *ExitBackdrop;
+    frameDef_t *ExitButton;
+    frameDef_t *ExitButtonText;
 } MainMenu_t;
 
 
-static inline bool MainMenu_Bind(MainMenu_t *out, frameDef_t * bind_root) {
+static inline bool MainMenu_Bind(MainMenu_t *out, frameDef_t *bind_root) {
     bool ok = true;
     if (!out) {
         return false;

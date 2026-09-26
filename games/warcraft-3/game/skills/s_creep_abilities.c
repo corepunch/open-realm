@@ -14,7 +14,7 @@
 #define ID_ORB_ANNIHILATION MAKEFOURCC('A','N','a','k')
 
 
-static bool unit_has_proc_ability(edict_t const * ent, abilityProc_t proc) {
+static bool unit_has_proc_ability(edict_t const *ent, abilityProc_t proc) {
     char name[5] = {0};
     if (!ent) return false;
     if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
@@ -41,7 +41,7 @@ static bool unit_has_proc_ability(edict_t const * ent, abilityProc_t proc) {
     return false;
 }
 
-void S_CreepAttackOnHit(edict_t * attacker, edict_t * target) {
+void S_CreepAttackOnHit(edict_t *attacker, edict_t *target) {
     uint32_t level, code;
     if (!attacker || !target || !S_SpellIsEnemy(attacker, target) || M_IsDead(target)) return;
     code = G_UnitAbilityLevel(attacker, ID_MIND_ROT) ? ID_MIND_ROT : 0;
@@ -61,12 +61,12 @@ void S_CreepAttackOnHit(edict_t * attacker, edict_t * target) {
     }
 }
 
-float S_CreepAttackSpeedReduction(edict_t const * unit) {
+float S_CreepAttackSpeedReduction(edict_t const *unit) {
     uint32_t level = unit ? G_UnitStatusLevel(unit, BUFF_LIQUID_FIRE) : 0;
     return level ? S_SpellData(ID_LIQUID_FIRE, level, 3) : 0.0f;
 }
 
-static void death_damage_aoe(edict_t * ent, uint32_t code) {
+static void death_damage_aoe(edict_t *ent, uint32_t code) {
     uint32_t level = MAX(1u, G_UnitAbilityLevel(ent, code));
     float full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
     float part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
@@ -123,9 +123,9 @@ BZ_ABILITY_PROC(CAbilityDrunkenBrawler) { return CAbilityPassive(ent, msg, call)
 BZ_ABILITY_PROC(CAbilitySellItem) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilitySellUnit) { return CAbilityPassive(ent, msg, call); }
 
-bool S_UnitIsResistant(edict_t const * unit) { return G_UnitIsHero(unit) || unit_has_proc_ability(unit, CAbilityResistantSkin); }
+bool S_UnitIsResistant(edict_t const *unit) { return G_UnitIsHero(unit) || unit_has_proc_ability(unit, CAbilityResistantSkin); }
 
-int S_OrbAnnihilationDamage(edict_t * attacker, int damage) {
+int S_OrbAnnihilationDamage(edict_t *attacker, int damage) {
     uint32_t level = attacker ? G_UnitAbilityLevel(attacker, ID_ORB_ANNIHILATION) : 0;
     return level ? damage + (int)S_SpellData(ID_ORB_ANNIHILATION, level, 1) : damage;
 }
@@ -133,7 +133,7 @@ BZ_ABILITY_PROC(CAbilitySlowAura) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityCommandAura) { return CAbilityPassive(ent, msg, call); }
 BZ_ABILITY_PROC(CAbilityWarDrums) { return CAbilityPassive(ent, msg, call); }
 
-int S_FeedbackDamage(edict_t * attacker, edict_t * target, int damage) {
+int S_FeedbackDamage(edict_t *attacker, edict_t *target, int damage) {
     static uint32_t const codes[] = { ID_FEEDBACK, ID_FEEDBACK_TOWER };
     uint32_t code = 0, level, slot;
     size_t i;
@@ -148,7 +148,7 @@ int S_FeedbackDamage(edict_t * attacker, edict_t * target, int damage) {
     }
 }
 
-int S_HardenedSkinDamage(edict_t * target, int damage) {
+int S_HardenedSkinDamage(edict_t *target, int damage) {
     static uint32_t const codes[] = { ID_HARDENED_SKIN, ID_HARDENED_SKIN_NAGA };
     uint32_t code = 0, level;
     size_t i;

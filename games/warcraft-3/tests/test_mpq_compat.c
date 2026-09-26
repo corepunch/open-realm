@@ -48,13 +48,13 @@ typedef struct {
 } testMpqBlock_t;
 #pragma pack(pop)
 
-static void fail(const char *msg)
+static void fail(char const *msg)
 {
     fprintf(stderr, "test_mpq_compat: %s\n", msg);
     exit(1);
 }
 
-static const char *resolve_mpq_path(int argc, char **argv)
+static char const *resolve_mpq_path(int argc, char **argv)
 {
     int i;
 
@@ -67,9 +67,9 @@ static const char *resolve_mpq_path(int argc, char **argv)
     return "data/Warcraft III/War3.mpq";
 }
 
-static const char *resolve_dota_path(int argc, char **argv)
+static char const *resolve_dota_path(int argc, char **argv)
 {
-    static const char *const candidates[] = {
+    static char const *const candidates[] = {
         "data/Warcraft III/Maps/DotA v6.83dAI PMV 1.42 EN.w3x",
         "/Users/igor/Developer/openwarcraft3/data/Warcraft III/Maps/DotA v6.83dAI PMV 1.42 EN.w3x",
         NULL
@@ -91,7 +91,7 @@ static const char *resolve_dota_path(int argc, char **argv)
 static uint8_t *build_large_sector_archive(uint32_t *out_size, uint8_t *expected, uint32_t expected_size)
 {
     enum { HASH_SIZE = 16 };
-    const char *name = "big.bin";
+    char const *name = "big.bin";
     uint32_t sector_table_bytes = 2 * sizeof(uint32_t);
     uint32_t block_offset = sizeof(testMpqHeader_t);
     uint32_t block_size = sector_table_bytes + expected_size;
@@ -235,7 +235,7 @@ static void test_large_sector_archive(void)
     free(archive_data);
 }
 
-static void test_dota_map_if_present(const char *dota_path)
+static void test_dota_map_if_present(char const *dota_path)
 {
     handle_t archive;
     handle_t file;
@@ -264,8 +264,8 @@ int main(int argc, char **argv)
 {
     static uint8_t const adpcm_mono[] = { 0x40, 0, 0, 0x34, 0x12 };
     static uint8_t const adpcm_stereo[] = { 0x80, 0, 0, 0x34, 0x12, 0x78, 0x56 };
-    const char *mpq_path = resolve_mpq_path(argc, argv);
-    const char *dota_path = resolve_dota_path(argc, argv);
+    char const *mpq_path = resolve_mpq_path(argc, argv);
+    char const *dota_path = resolve_dota_path(argc, argv);
     handle_t archive;
     handle_t file;
     sfileFindData_t find_data;

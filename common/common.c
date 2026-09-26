@@ -174,7 +174,7 @@ static bool FS_MapBaseEquals(cstring_t path, cstring_t name) {
     return nameLen == baseLen && !strncasecmp(base, name, baseLen);
 }
 
-static int FS_CompareMapPaths(const void *a, const void *b) {
+static int FS_CompareMapPaths(void const *a, void const *b) {
     PATHSTR const *pa = a;
     PATHSTR const *pb = b;
 
@@ -653,7 +653,7 @@ static void FS_CollectSaveEntry(cstring_t name, cstring_t path, bool isDirectory
     collect->count++;
 }
 
-static int FS_CompareSaveEntries(const void *a, const void *b) {
+static int FS_CompareSaveEntries(void const *a, void const *b) {
     fsSaveListEntry_t const *left = a;
     fsSaveListEntry_t const *right = b;
 
@@ -706,7 +706,7 @@ static void FS_AddGameDirectory(cstring_t dirname) {
     }
 }
 
-static int FS_ComparePaths(const void *a, const void *b) {
+static int FS_ComparePaths(void const *a, void const *b) {
     PATHSTR const *pa = a;
     PATHSTR const *pb = b;
     cstring_t abase = FS_BaseName(*pa);
@@ -1032,12 +1032,12 @@ bool FS_FileExists(cstring_t fileName) {
     return false;
 }
 
-handle_t FS_ReadLooseFile(cstring_t filename, uint32_t * size, uint32_t extraBytes) {
+handle_t FS_ReadLooseFile(cstring_t filename, uint32_t *size, uint32_t extraBytes) {
     FOR_LOOP(i, MAX_GAME_DIRS) {
         char path[MAX_PATHLEN * 2];
         FILE *file;
         long fileSize;
-        uint8_t * buffer;
+        uint8_t *buffer;
 
         if (!gameDirs[i][0]) {
             continue;
@@ -1121,7 +1121,7 @@ int FS_ReadFileQ3(cstring_t filename, void **buf) {
     return (int)size;
 }
 
-handle_t FS_ReadFile(cstring_t filename, uint32_t * size) {
+handle_t FS_ReadFile(cstring_t filename, uint32_t *size) {
     handle_t fp = FS_OpenFile(filename);
     uint32_t read_size = 0;
     if (!fp) {
@@ -1150,7 +1150,7 @@ void FS_FreeFile(void *buf) {
  * FS_MunmapFile can munmap/close without a side-channel. */
 #ifndef _WIN32
 #define MMAP_HDR_SIZE  16   /* must be >= 4+4+4 and page-aligned-friendly */
-void *FS_MmapFile(cstring_t filename, uint32_t * out_size) {
+void *FS_MmapFile(cstring_t filename, uint32_t *out_size) {
     FOR_LOOP(i, MAX_GAME_DIRS) {
         char path[MAX_PATHLEN * 2];
         int fd;
@@ -1201,7 +1201,7 @@ void FS_MunmapFile(void *ptr) {
 }
 #else
 /* Windows stub — fall through to heap read */
-void *FS_MmapFile(cstring_t filename, uint32_t * out_size) {
+void *FS_MmapFile(cstring_t filename, uint32_t *out_size) {
     return FS_ReadLooseFile(filename, out_size, 0);
 }
 void FS_MunmapFile(void *ptr) { MemFree(ptr); }
@@ -1628,7 +1628,7 @@ static void Com_PrintMapMatchCallback(cstring_t path, void *userData) {
 /* AzerothCore supplies numeric map IDs; the client Map.dbc owns their MPQ directory names. */
 static bool Com_WowMapPathForId(uint32_t map_id, string_t out, uint32_t out_size) {
     stbDbc_t h;
-    uint8_t * data;
+    uint8_t *data;
     uint32_t size = 0;
 
     if (!out || !out_size)

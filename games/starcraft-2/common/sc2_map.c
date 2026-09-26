@@ -111,14 +111,14 @@ typedef struct sc2_convtext {
 
 typedef struct sc2_conversation {
     struct sc2_conversation *next;
-    sc2Convtext_t * text;
+    sc2Convtext_t *text;
     char id[128], name[256], image[256];
 } sc2Conversation_t;
 
 
 
 typedef struct {
-    sc2Conversation_t * conv;
+    sc2Conversation_t *conv;
     uint32_t models_count;
     uint32_t actors_count;
     uint32_t units_count;
@@ -216,7 +216,7 @@ static void sc2_free(handle_t mem) {
     if (sc2_host.mem_free) sc2_host.mem_free(mem);
 }
 
-static handle_t sc2_read_file(cstring_t filename, uint32_t * size) {
+static handle_t sc2_read_file(cstring_t filename, uint32_t *size) {
     return sc2_host.read_file ? sc2_host.read_file(filename, size) : NULL;
 }
 
@@ -238,9 +238,9 @@ static bool sc2_file_exists(cstring_t path) {
 /* Conversation strings share the catalog lifetime, including replacement on the next map load. */
 static void sc2_free_catalog(sc2Catalog_t *catalog) {
     while (catalog->conv) {
-        sc2Conversation_t * next = catalog->conv->next;
+        sc2Conversation_t *next = catalog->conv->next;
         while (catalog->conv->text) {
-            sc2Convtext_t * text = catalog->conv->text;
+            sc2Convtext_t *text = catalog->conv->text;
             catalog->conv->text = text->next; sc2_free(text);
         }
         sc2_free(catalog->conv); catalog->conv = next;
@@ -295,11 +295,11 @@ static void sc2_source_close(sc2MapSource_t *source) {
     memset(source, 0, sizeof(*source));
 }
 
-static handle_t sc2_source_read(sc2MapSource_t *source, cstring_t filename, uint32_t * size) {
+static handle_t sc2_source_read(sc2MapSource_t *source, cstring_t filename, uint32_t *size) {
     PATHSTR path;
     handle_t file;
     uint32_t file_size;
-    uint8_t * data;
+    uint8_t *data;
 
     if (size) *size = 0;
     if (!source || !filename || !*filename) return NULL;
@@ -339,7 +339,7 @@ static handle_t sc2_source_read(sc2MapSource_t *source, cstring_t filename, uint
 
 static xmlDocPtr sc2_read_xml(sc2MapSource_t *source, cstring_t filename) {
     uint32_t size = 0;
-    uint8_t * data = sc2_source_read(source, filename, &size);
+    uint8_t *data = sc2_source_read(source, filename, &size);
     xmlDocPtr doc = NULL;
     if (data && size > 0) {
         doc = xmlReadMemory((char const *)data, (int)size, filename, NULL,
@@ -351,7 +351,7 @@ static xmlDocPtr sc2_read_xml(sc2MapSource_t *source, cstring_t filename) {
 
 static xmlDocPtr sc2_read_global_xml(cstring_t filename) {
     uint32_t size = 0;
-    uint8_t * data = sc2_read_file(filename, &size);
+    uint8_t *data = sc2_read_file(filename, &size);
     xmlDocPtr doc = NULL;
 
     if (!data && filename) {
@@ -368,10 +368,10 @@ static xmlDocPtr sc2_read_global_xml(cstring_t filename) {
     return doc;
 }
 
-static uint8_t * sc2_read_disk_file(cstring_t filename, uint32_t * size) {
+static uint8_t *sc2_read_disk_file(cstring_t filename, uint32_t *size) {
     FILE *file;
     long file_size;
-    uint8_t * data;
+    uint8_t *data;
 
     if (size) *size = 0;
     if (!filename || !*filename)
@@ -402,8 +402,8 @@ static uint8_t * sc2_read_disk_file(cstring_t filename, uint32_t * size) {
 static xmlDocPtr sc2_read_catalog_xml_from_archive(cstring_t archive_name, cstring_t filename) {
     uint32_t archive_size = 0;
     uint32_t file_size;
-    uint8_t * archive_data;
-    uint8_t * data;
+    uint8_t *archive_data;
+    uint8_t *data;
     handle_t archive;
     handle_t file;
     xmlDocPtr doc = NULL;
@@ -584,7 +584,7 @@ static void sc2_parse_terrain_value(cstring_t key, cstring_t value) {
     }
 }
 
-static bool sc2_parse_argb_color(cstring_t text, color32_t * color) {
+static bool sc2_parse_argb_color(cstring_t text, color32_t *color) {
     uint32_t a, r, g, b;
 
     if (!text || !color)
@@ -600,7 +600,7 @@ static bool sc2_parse_argb_color(cstring_t text, color32_t * color) {
     return false;
 }
 
-static bool sc2_parse_rgba_color(cstring_t text, color32_t * color) {
+static bool sc2_parse_rgba_color(cstring_t text, color32_t *color) {
     uint32_t r, g, b, a;
 
     if (!text || !color)
@@ -834,7 +834,7 @@ static void sc2_parse_mapinfo_node(xmlNodePtr node) {
 
 static bool sc2_parse_mapinfo_binary(sc2MapSource_t *source) {
     uint32_t size = 0;
-    uint8_t * data = sc2_source_read(source, "MapInfo", &size);
+    uint8_t *data = sc2_source_read(source, "MapInfo", &size);
     uint32_t header_size = (uint32_t)(sizeof(sc2_map.MapInfo) - sizeof(sc2_map.MapInfo.data));
 
     if (!data || size < header_size) {
@@ -1993,7 +1993,7 @@ static void sc2_parse_conversation_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
             }
             if (!row.id[0]) { fprintf(stderr, "SC2 conversation: missing index ID in %s\n", group); continue; }
             snprintf(key, sizeof(key), "%s|%s", group, row.id);
-            sc2Conversation_t * out = catalog->conv;
+            sc2Conversation_t *out = catalog->conv;
             while (out && strcmp(out->id, key)) out = out->next;
             if (!out) {
                 out = sc2_alloc(sizeof(*out));
@@ -2016,7 +2016,7 @@ static void sc2_parse_conversation_doc(sc2Catalog_t *catalog, xmlDocPtr doc) {
                 for (xmlNodePtr sub = child->children; sub; sub = sub->next)
                     sc2_parse_xml_child_field(&info, sc2_conv_text_fields, SC2_ARRAY_LEN(sc2_conv_text_fields), sub, "value");
                 if (!info.id[0]) { fprintf(stderr, "SC2 conversation: missing InfoText ID in %s\n", key); continue; }
-                sc2Convtext_t * text = out->text;
+                sc2Convtext_t *text = out->text;
                 while (text && strcmp(text->id, info.id)) text = text->next;
                 if (!text) { text = sc2_alloc(sizeof(*text)); info.next = out->text; out->text = text; }
                 else info.next = text->next;
@@ -2564,15 +2564,15 @@ void SC2_MapDump(FILE *out, cstring_t filename) {
     }
 }
 
-static uint8_t * sc2_read_binary_layer(sc2MapSource_t *source,
+static uint8_t *sc2_read_binary_layer(sc2MapSource_t *source,
                                     cstring_t filename,
                                     uint32_t min_size,
                                     uint32_t expected_fourcc,
-                                    uint32_t * out_size) {
+                                    uint32_t *out_size) {
     uint32_t size = 0;
     uint32_t fourcc = 0;
-    uint8_t * data = sc2_source_read(source, filename, &size);
-    uint8_t * copy;
+    uint8_t *data = sc2_source_read(source, filename, &size);
+    uint8_t *copy;
 
     if (out_size) *out_size = 0;
     if (!data || size < min_size || size < sizeof(fourcc)) {
@@ -2705,7 +2705,7 @@ static void sc2_parse_texture_masks(sc2MapSource_t *source) {
     }
 }
 
-static bool sc2_hard_tile_layout(uint8_t const *data, uint32_t size, uint32_t * count) {
+static bool sc2_hard_tile_layout(uint8_t const *data, uint32_t size, uint32_t *count) {
     size_t offset = SC2_HARD_TILE_HEADER_SIZE;
     uint32_t blocks, total = 0;
 
@@ -2733,7 +2733,7 @@ static bool sc2_hard_tile_layout(uint8_t const *data, uint32_t size, uint32_t * 
 /* HRDT stores each block's tile ID after its placement records, requiring a validated two-pass decode. */
 static void sc2_parse_hard_tiles(sc2MapSource_t *source) {
     uint32_t size = 0, count = 0, blocks;
-    uint8_t * data = sc2_read_binary_layer(source, "t3HardTile", SC2_HARD_TILE_HEADER_SIZE,
+    uint8_t *data = sc2_read_binary_layer(source, "t3HardTile", SC2_HARD_TILE_HEADER_SIZE,
                                         MAKEFOURCC('H','R','D','T'), &size);
     size_t offset = SC2_HARD_TILE_HEADER_SIZE;
 
@@ -2914,10 +2914,10 @@ bool SC2_MapDefaultCamera(sc2MapCamera_t *camera) {
 
 /* Galaxy state IDs are catalog group and index joined by '|', not guessed localization paths. */
 cstring_t SC2_MapConversationField(cstring_t key, cstring_t field) {
-    sc2Conversation_t * row = sc2_persistent_catalog ? sc2_persistent_catalog->conv : NULL;
+    sc2Conversation_t *row = sc2_persistent_catalog ? sc2_persistent_catalog->conv : NULL;
     while (row && strcmp(row->id, key)) row = row->next;
     if (row && !strncmp(field, "Text:", 5)) {
-        for (sc2Convtext_t * text = row->text; text; text = text->next)
+        for (sc2Convtext_t *text = row->text; text; text = text->next)
             if (!strcmp(text->id, field + 5)) return text->text;
     }
     if (row) for (uint32_t i = 1; i < SC2_ARRAY_LEN(sc2_conv_fields); i++)

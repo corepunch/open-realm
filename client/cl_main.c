@@ -126,7 +126,7 @@ static void CL_LANRefreshServers(void);
 static uint32_t CL_LANNumServers(void);
 static bool CL_LANServer(uint32_t index, menuLanGame_t *out);
 static void CL_LANConnectServer(uint32_t index);
-static refExport_t * CL_UIGetRenderer(void);
+static refExport_t *CL_UIGetRenderer(void);
 
 static void CL_SuspendMenu(void) {
     if (cl_menu_life != CL_MENU_READY) return;
@@ -229,7 +229,7 @@ static int CL_UI_ReadFile(cstring_t fileName, void **buf) {
 }
 
 /* Write a local file by path (relative to CWD, same as share/ configs). */
-static void CL_UI_WriteFile(cstring_t path, const void *data, int size) {
+static void CL_UI_WriteFile(cstring_t path, void const *data, int size) {
     FILE *f;
     if (!path || !data || size <= 0) return;
     f = fopen(path, "wb");
@@ -248,7 +248,7 @@ static bool CL_UI_HasExtension(cstring_t name, cstring_t extension) {
     return dot && !strcasecmp(dot, extension);
 }
 
-static int CL_UI_CompareFileNames(const void *a, const void *b) {
+static int CL_UI_CompareFileNames(void const *a, void const *b) {
     return strcasecmp((cstring_t)a, (cstring_t)b);
 }
 
@@ -352,7 +352,7 @@ static void CL_UIServerCommand(cstring_t text) {
 }
 
 /* Renderer access callback for UI rendering */
-static refExport_t * CL_UIGetRenderer(void) {
+static refExport_t *CL_UIGetRenderer(void) {
     return &re;
 }
 
@@ -437,7 +437,7 @@ static void CL_LANConnectServer(uint32_t index) {
     CL_Connect(game->address, port);
 }
 
-static void CL_AddLANServer(const netadr_t *from, cstring_t info) {
+static void CL_AddLANServer(netadr_t const *from, cstring_t info) {
     menuLanGame_t *game;
     char value[128];
     cstring_t address;
@@ -809,7 +809,7 @@ static void CL_TestRegisterMap(cstring_t map) {
 }
 
 /* Dedicated test runs have no renderer; the menu rebuild re-resolves the canvas, which pushes its scene. */
-static void CL_TestSetUIScene(rect_t const * scene) { (void)scene; }
+static void CL_TestSetUIScene(rect_t const *scene) { (void)scene; }
 
 TEST(client_session, menu_resources_suspend_once_and_resume_once) {
     clMenuLife_t old_life = cl_menu_life;
@@ -878,7 +878,7 @@ TEST(client_session, menu_rebuild_clears_world_scope_before_returning_to_menu) {
 #endif
 
 
-static void CL_RendererPlaySoundAt(cstring_t path, vector3_t const * origin, float volume) {
+static void CL_RendererPlaySoundAt(cstring_t path, vector3_t const *origin, float volume) {
     if (!origin) return;
     S_PlaySoundPacket(path, origin, true, CHAN_AUTO, volume, 1.0f, 0.0f);
 }
@@ -967,7 +967,7 @@ void CL_Init(void) {
     CL_MenuCommand(Cvar_String("cl_start_menu", "menu_main"));
 }
 
-void CL_ConnectionlessPacket(const netadr_t *from, sizeBuf_t * msg) {
+void CL_ConnectionlessPacket(netadr_t const *from, sizeBuf_t *msg) {
     char payload[1024] = { 0 };
     char command[256] = { 0 };
     char *info;
@@ -1037,7 +1037,7 @@ TEST(client_session, connection_reply_requires_matching_protocol) {
 }
 #endif
 
-static void CL_ReadPacketMessage(const netadr_t *from, sizeBuf_t * msg, int length) {
+static void CL_ReadPacketMessage(netadr_t const *from, sizeBuf_t *msg, int length) {
     cl_last_packet_time = cl_realtime;
     if (length >= 4) {
         int hdr;

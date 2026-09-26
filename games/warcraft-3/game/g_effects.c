@@ -12,8 +12,8 @@ static umove_t wc3_effect_birth;
 static umove_t wc3_effect_stand;
 static umove_t wc3_effect_death;
 
-static void G_EffectEnterStand(edict_t * effect);
-static void G_EffectLoopStand(edict_t * effect);
+static void G_EffectEnterStand(edict_t *effect);
+static void G_EffectLoopStand(edict_t *effect);
 
 static umove_t wc3_effect_temp_birth = { "birth", NULL, G_FreeEdict };
 static umove_t wc3_effect_temp_stand = { "stand", NULL, G_FreeEdict };
@@ -135,15 +135,15 @@ uint32_t G_AbilityLightningId(uint32_t ability_id, uint32_t index) {
 }
 
 /* Reject pointers outside the stable level registry before any native mutates a handle. */
-bool G_LightningValid(gLightning_t const * effect) {
+bool G_LightningValid(gLightning_t const *effect) {
     uintptr_t pointer = (uintptr_t)effect, base = (uintptr_t)level.lightning_effects;
     return effect && pointer >= base && pointer < base + sizeof(level.lightning_effects) &&
         (pointer - base) % sizeof(*effect) == 0 && effect->inuse;
 }
 
 /* Allocate one save-stable lightning slot and initialize its presentation state. */
-gLightning_t * G_LightningAdd(lightningAddParams_t const * params) {
-    gLightning_t * effect = NULL;
+gLightning_t *G_LightningAdd(lightningAddParams_t const *params) {
+    gLightning_t *effect = NULL;
     uint32_t now;
 
     if (!params || !params->effect_id || !params->source || !params->target) return NULL;
@@ -174,19 +174,19 @@ gLightning_t * G_LightningAdd(lightningAddParams_t const * params) {
 }
 
 /* Replace explicit coordinates without changing an attached endpoint contract. */
-void G_LightningMove(gLightning_t * effect, vector3_t const * source, vector3_t const * target) {
+void G_LightningMove(gLightning_t *effect, vector3_t const *source, vector3_t const *target) {
     if (!G_LightningValid(effect)) return;
     if (source) effect->state.source = *source;
     if (target) effect->state.target = *target;
 }
 
 /* Validate an endpoint's spawn generation before copying its current origin. */
-static bool G_LightningEntityValid(edict_t * entity, uint32_t spawn_time) {
+static bool G_LightningEntityValid(edict_t *entity, uint32_t spawn_time) {
     return entity && entity->inuse && entity->spawn_time == spawn_time;
 }
 
 /* Refresh one endpoint or clear it when its edict was freed or reused. */
-static void G_LightningEndpoint(edict_t * *entity, uint32_t *spawn_time, vector3_t * position) {
+static void G_LightningEndpoint(edict_t * *entity, uint32_t *spawn_time, vector3_t *position) {
     if (!G_LightningEntityValid(*entity, *spawn_time)) {
         *entity = NULL; *spawn_time = 0;
         return;
@@ -196,7 +196,7 @@ static void G_LightningEndpoint(edict_t * *entity, uint32_t *spawn_time, vector3
 }
 
 /* Attach a spell bolt to the units that own its two moving endpoints. */
-void G_LightningAttach(gLightning_t * effect, edict_t const * source, edict_t const * target) {
+void G_LightningAttach(gLightning_t *effect, edict_t const *source, edict_t const *target) {
     if (!G_LightningValid(effect)) return;
     effect->source_entity = (edict_t *)source;
     effect->source_spawn_time = source ? source->spawn_time : 0;
@@ -206,14 +206,14 @@ void G_LightningAttach(gLightning_t * effect, edict_t const * source, edict_t co
 }
 
 /* Refresh both attached endpoints before the next client datagram is emitted. */
-void G_LightningUpdateAttached(gLightning_t * effect) {
+void G_LightningUpdateAttached(gLightning_t *effect) {
     if (!G_LightningValid(effect)) return;
     G_LightningEndpoint(&effect->source_entity, &effect->source_spawn_time, &effect->state.source);
     G_LightningEndpoint(&effect->target_entity, &effect->target_spawn_time, &effect->state.target);
 }
 
 /* Update the byte colour used by the renderer and the precise JASS colour cache. */
-void G_LightningColor(gLightning_t * effect, color32_t color) {
+void G_LightningColor(gLightning_t *effect, color32_t color) {
     if (!G_LightningValid(effect)) return;
     effect->state.color = color;
     effect->script_color[0] = BYTE2FLOAT(color.r); effect->script_color[1] = BYTE2FLOAT(color.g);
@@ -221,20 +221,20 @@ void G_LightningColor(gLightning_t * effect, color32_t color) {
 }
 
 /* Store JASS's unclamped colour values alongside the wire-compatible bytes. */
-void G_LightningScriptColor(gLightning_t * effect, color32_t color, float const * precise) {
+void G_LightningScriptColor(gLightning_t *effect, color32_t color, float const *precise) {
     if (!G_LightningValid(effect)) return;
     effect->state.color = color;
     if (precise) memcpy(effect->script_color, precise, sizeof(effect->script_color));
 }
 
 /* Release a lightning slot so its stable registry ordinal can be reused. */
-void G_LightningRemove(gLightning_t * effect) {
+void G_LightningRemove(gLightning_t *effect) {
     if (!G_LightningValid(effect)) return;
     memset(effect, 0, sizeof(*effect));
 }
 
 /* Resolve and attach one ability-selected bolt to its caster and target. */
-gLightning_t * G_SpawnAbilityLightning(abilityLightningParams_t const * params) {
+gLightning_t *G_SpawnAbilityLightning(abilityLightningParams_t const *params) {
     vector3_t from, to;
     uint32_t effect_id;
 
@@ -249,7 +249,7 @@ gLightning_t * G_SpawnAbilityLightning(abilityLightningParams_t const * params) 
     from.z += params->source->s.radius * 0.5f;
     to.z += params->target->s.radius * 0.5f;
     {
-        gLightning_t * effect = G_LightningAdd(&(lightningAddParams_t){
+        gLightning_t *effect = G_LightningAdd(&(lightningAddParams_t){
             .effect_id = effect_id, .source = &from, .target = &to,
             .color = COLOR32_WHITE, .duration_ms = params->duration_ms,
         });
@@ -280,7 +280,7 @@ cstring_t G_AbilityEffectArt(uint32_t ability_id, wc3EffectType_t type, uint32_t
     return count ? out : NULL;
 }
 
-void G_EffectValidateTarget(edict_t * effect) {
+void G_EffectValidateTarget(edict_t *effect) {
     if (!effect->goalentity || !effect->goalentity->inuse ||
         effect->goalentity->spawn_time != effect->damage) {
         effect->goalentity = NULL;
@@ -289,18 +289,18 @@ void G_EffectValidateTarget(edict_t * effect) {
     }
 }
 
-void G_EffectThink(edict_t * effect) {
+void G_EffectThink(edict_t *effect) {
     if (effect->goalentity && effect->wait != 0.0f) {
         effect->s.origin.z += effect->wait;
     }
     M_MoveFrame(effect);
 }
 
-static void G_EffectLoopStand(edict_t * effect) {
+static void G_EffectLoopStand(edict_t *effect) {
     unit_setmove(effect, &wc3_effect_stand);
 }
 
-static void G_EffectEnterStand(edict_t * effect) {
+static void G_EffectEnterStand(edict_t *effect) {
     unit_setmove(effect, &wc3_effect_stand);
     if (!effect->animation) {
         effect->think = G_FreeEdict;
@@ -308,7 +308,7 @@ static void G_EffectEnterStand(edict_t * effect) {
     }
 }
 
-static void G_EffectStartAnimation(edict_t * effect, bool temporary) {
+static void G_EffectStartAnimation(edict_t *effect, bool temporary) {
     unit_setmove(effect, temporary ? &wc3_effect_temp_birth : &wc3_effect_birth);
     if (effect->animation) return;
 
@@ -329,9 +329,9 @@ static void G_EffectStartAnimation(edict_t * effect, bool temporary) {
     }
 }
 
-edict_t * G_SpawnModelEffect(cstring_t model, vector2_t const * point, edict_t * target,
+edict_t *G_SpawnModelEffect(cstring_t model, vector2_t const *point, edict_t *target,
                            cstring_t attach_point, bool temporary) {
-    edict_t * effect;
+    edict_t *effect;
 
     if (!model || !*model || (!point && !target)) return NULL;
     effect = G_Spawn();
@@ -374,27 +374,27 @@ edict_t * G_SpawnModelEffect(cstring_t model, vector2_t const * point, edict_t *
     return effect->inuse ? effect : NULL;
 }
 
-edict_t * G_SpawnAbilityEffectAtPoint(uint32_t ability_id, wc3EffectType_t type, uint32_t index,
-                                    vector2_t const * point, bool temporary) {
+edict_t *G_SpawnAbilityEffectAtPoint(uint32_t ability_id, wc3EffectType_t type, uint32_t index,
+                                    vector2_t const *point, bool temporary) {
     return G_SpawnModelEffect(G_AbilityEffectArt(ability_id, type, index), point, NULL, NULL, temporary);
 }
 
-edict_t * G_SpawnAbilityEffectTarget(uint32_t ability_id, wc3EffectType_t type, uint32_t index,
-                                   edict_t * target, cstring_t attach_point, bool temporary) {
+edict_t *G_SpawnAbilityEffectTarget(uint32_t ability_id, wc3EffectType_t type, uint32_t index,
+                                   edict_t *target, cstring_t attach_point, bool temporary) {
     return G_SpawnModelEffect(G_AbilityEffectArt(ability_id, type, index), NULL, target, attach_point, temporary);
 }
 
 
-edict_t * G_SpawnOwnedAbilityEffectAtPoint(edict_t * owner, uint32_t ability_id,
+edict_t *G_SpawnOwnedAbilityEffectAtPoint(edict_t *owner, uint32_t ability_id,
                                          wc3EffectType_t type, uint32_t index,
-                                         vector2_t const * point) {
-    edict_t * effect = G_SpawnAbilityEffectAtPoint(ability_id, type, index, point, false);
+                                         vector2_t const *point) {
+    edict_t *effect = G_SpawnAbilityEffectAtPoint(ability_id, type, index, point, false);
     if (effect) effect->owner = owner;
     return effect;
 }
 
-void G_DestroyOwnedEffects(edict_t * owner) {
-    edict_t * owned[32];
+void G_DestroyOwnedEffects(edict_t *owner) {
+    edict_t *owned[32];
     uint32_t count = 0;
     if (!owner) return;
     FILTER_EDICTS(effect, effect->owner == owner && (effect->s.flags & EF_NOT_SELECTABLE) &&
@@ -408,7 +408,7 @@ void G_DestroyOwnedEffects(edict_t * owner) {
     }
 }
 
-void G_DestroyEffect(edict_t * effect) {
+void G_DestroyEffect(edict_t *effect) {
     if (!effect || !effect->inuse) return;
     effect->prethink = NULL;
     effect->s.sound = 0;

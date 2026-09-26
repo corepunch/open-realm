@@ -16,7 +16,7 @@ cparticle_t *R_SpawnParticle(void) {
     emitted[emit_count] = (cparticle_t){ .size_value_scale = 1, .size_time_scale = 1 };
     return &emitted[emit_count++];
 }
-texture_t const * MDLX_GetTexture(mdxModel_t const *model, uint32_t team, uint32_t tex, uint32_t repl, texture_t const * over) {
+texture_t const *MDLX_GetTexture(mdxModel_t const *model, uint32_t team, uint32_t tex, uint32_t repl, texture_t const *over) {
     (void)model; (void)team; (void)tex; (void)repl; (void)over; return NULL;
 }
 void MDLX_ReleaseSprites(mdxModel_t *model) { (void)model; }
@@ -27,7 +27,7 @@ static bool backdrop_repeat;
 static size2_t backdrop_size = {256, 64};
 
 /* Capture the real shader source submission without requiring a window in the unit suite. */
-static void BZ_TestShaderSource(GLuint shader, GLsizei count, const GLchar *const *strings, const GLint *lengths) {
+static void BZ_TestShaderSource(GLuint shader, GLsizei count, GLchar const *const *strings, GLint const *lengths) {
     size_t used = 0;
     (void)shader;
     FOR_LOOP(i, count) {
@@ -50,27 +50,27 @@ static GLuint BZ_TestCreateShader(GLenum type) { shader_test.creates++; return t
 static GLuint BZ_TestCreateProgram(void) { return GL_LINK_STATUS; }
 static void BZ_TestCompileShader(GLuint obj) { (void)obj; }
 static void BZ_TestAttachShader(GLuint obj, GLuint shader) { (void)obj; (void)shader; }
-static void BZ_TestBindAttrib(GLuint obj, GLuint idx, const GLchar *name) { (void)obj; (void)idx; (void)name; }
+static void BZ_TestBindAttrib(GLuint obj, GLuint idx, GLchar const *name) { (void)obj; (void)idx; (void)name; }
 static void BZ_TestLinkProgram(GLuint obj) { (void)obj; shader_test.links++; }
 static void BZ_TestUseProgram(GLuint obj) { (void)obj; shader_test.uses++; }
 static void BZ_TestDeleteShader(GLuint obj) { (void)obj; shader_test.deleted++; }
-static GLint BZ_TestUniformLocation(GLuint obj, const GLchar *name) { (void)obj; (void)name; return 0; }
+static GLint BZ_TestUniformLocation(GLuint obj, GLchar const *name) { (void)obj; (void)name; return 0; }
 static struct { int calls, width, integer; GLsizei count; GLboolean transpose; float data[2048]; } upload;
-static void capture_float(int width, GLsizei count, const GLfloat *val) {
+static void capture_float(int width, GLsizei count, GLfloat const *val) {
     upload.calls++; upload.width = width; upload.count = count;
     memcpy(upload.data, val, width * count * sizeof(float));
 }
 static void BZ_TestUniform1i(GLint loc, GLint val) { (void)loc; upload.calls++; upload.integer = val; }
-static void BZ_TestUniform1iv(GLint loc, GLsizei n, const GLint *v) { (void)n; BZ_TestUniform1i(loc, *v); }
-static void BZ_TestUniform2iv(GLint loc, GLsizei n, const GLint *v) { (void)n; BZ_TestUniform1i(loc, v[1]); }
-static void BZ_TestUniform1fv(GLint loc, GLsizei n, const GLfloat *v) { (void)loc; capture_float(1, n, v); }
-static void BZ_TestUniform2fv(GLint loc, GLsizei n, const GLfloat *v) { (void)loc; capture_float(2, n, v); }
-static void BZ_TestUniform3fv(GLint loc, GLsizei n, const GLfloat *v) { (void)loc; capture_float(3, n, v); }
-static void BZ_TestUniform4fv(GLint loc, GLsizei n, const GLfloat *v) { (void)loc; capture_float(4, n, v); }
-static void BZ_TestUniformMatrix3(GLint loc, GLsizei count, GLboolean transpose, const GLfloat *val) {
+static void BZ_TestUniform1iv(GLint loc, GLsizei n, GLint const *v) { (void)n; BZ_TestUniform1i(loc, *v); }
+static void BZ_TestUniform2iv(GLint loc, GLsizei n, GLint const *v) { (void)n; BZ_TestUniform1i(loc, v[1]); }
+static void BZ_TestUniform1fv(GLint loc, GLsizei n, GLfloat const *v) { (void)loc; capture_float(1, n, v); }
+static void BZ_TestUniform2fv(GLint loc, GLsizei n, GLfloat const *v) { (void)loc; capture_float(2, n, v); }
+static void BZ_TestUniform3fv(GLint loc, GLsizei n, GLfloat const *v) { (void)loc; capture_float(3, n, v); }
+static void BZ_TestUniform4fv(GLint loc, GLsizei n, GLfloat const *v) { (void)loc; capture_float(4, n, v); }
+static void BZ_TestUniformMatrix3(GLint loc, GLsizei count, GLboolean transpose, GLfloat const *val) {
     (void)loc; capture_float(9, count, val); upload.transpose = transpose;
 }
-static void BZ_TestUniformMatrix4(GLint loc, GLsizei count, GLboolean transpose, const GLfloat *val) {
+static void BZ_TestUniformMatrix4(GLint loc, GLsizei count, GLboolean transpose, GLfloat const *val) {
     (void)loc; capture_float(16, count, val); upload.transpose = transpose; shader_test.uploads++;
 }
 static int deleted_programs;
@@ -144,12 +144,12 @@ static uint32_t load_count, release_count, register_count;
 static bool fail_load, fail_scoped_load, touch_during_registration;
 static PATHSTR last_model_load;
 static uint32_t spawn_count;
-static texture_t * texture_load_result;
+static texture_t *texture_load_result;
 static PATHSTR last_texture_load;
 static GLenum upload_format, upload_internal;
 static color32_t upload_pixel;
 static uint32_t upload_count;
-static void const * upload_data;
+static void const *upload_data;
 static cstring_t test_version = "3.1", test_extension = "";
 static uint32_t alloc_count, free_count, ext_count;
 static bool cache_minimap_textures;
@@ -165,7 +165,7 @@ static GLubyte const *test_glstring(GLenum name) { (void)name; return (GLubyte c
 static SDL_bool test_hasext(char const *name) { ext_count++; return !strcmp(name, test_extension) ? SDL_TRUE : SDL_FALSE; }
 
 /* Capture the actual GL upload contract without requiring a display or a particular GL backend. */
-static void test_teximage(GLenum target, GLint level, GLint internal, GLsizei w, GLsizei h, GLint border, GLenum format, GLenum type, const void *data) {
+static void test_teximage(GLenum target, GLint level, GLint internal, GLsizei w, GLsizei h, GLint border, GLenum format, GLenum type, void const *data) {
     (void)target; (void)level; (void)w; (void)h; (void)border;
     T_EQ(type, GL_UNSIGNED_BYTE);
     upload_format = format; upload_internal = internal; upload_data = data; upload_count++;
@@ -175,7 +175,7 @@ static void test_gentex(GLsizei n, GLuint *ids) { while (n--) *ids++ = 99; }
 static void test_bindtex(GLenum target, GLuint id) { (void)target; (void)id; }
 static void test_texparam(GLenum target, GLenum name, GLint value) { (void)target; (void)name; (void)value; }
 static uint32_t texture_delete_count;
-static void test_deletetex(GLsizei n, const GLuint *ids) { (void)ids; texture_delete_count += n; }
+static void test_deletetex(GLsizei n, GLuint const *ids) { (void)ids; texture_delete_count += n; }
 #undef glTexImage2D
 #undef glGenTextures
 #undef glBindTexture
@@ -203,7 +203,7 @@ static void test_genva(GLsizei n, GLuint *ids) { while (n--) *ids++ = 7; }
 static void test_bindva(GLuint id) { (void)id; }
 static void test_bindbuf(GLenum target, GLuint id) { (void)target; (void)id; }
 static void test_enableattr(GLuint index) { (void)index; }
-static void test_attrptr(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *ptr) {
+static void test_attrptr(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, void const *ptr) {
     (void)index; (void)size; (void)type; (void)normalized; (void)stride; (void)ptr;
 }
 static void test_divisor(GLuint index, GLuint divisor) { (void)index; (void)divisor; }
@@ -236,7 +236,7 @@ static void test_free(handle_t memory) { free_count++; free(memory); }
 static void test_error(cstring_t format, ...) { (void)format; T_ASSERT(false); }
 static void test_spawn(void *context) { (*(uint32_t *)context)++; }
 
-texture_t * R_LoadTexture(cstring_t filename) {
+texture_t *R_LoadTexture(cstring_t filename) {
     snprintf(last_texture_load, sizeof(last_texture_load), "%s", filename);
     if (cache_minimap_textures) {
         PATHSTR resolved;
@@ -246,7 +246,7 @@ texture_t * R_LoadTexture(cstring_t filename) {
         if (R_MapAssetCandidate(filename, resolved, sizeof(resolved)) && test_minimap_fs_read(resolved, &file) >= 0) {
             free(file); file = NULL; path = resolved;
         }
-        texture_t * texture = R_FindLoadedTexture(path);
+        texture_t *texture = R_FindLoadedTexture(path);
         if (texture) return texture;
         if (test_minimap_fs_read(path, &file) < 0)
             return tr.texture[TEX_PLACEHOLDER];
@@ -260,16 +260,16 @@ texture_t * R_LoadTexture(cstring_t filename) {
 }
 
 static mdxModel_t *cliff_model;
-model_t * R_LoadModel(cstring_t filename) {
+model_t *R_LoadModel(cstring_t filename) {
     load_count++;
     snprintf(last_model_load, sizeof(last_model_load), "%s", filename ? filename : "");
     if (fail_load || (fail_scoped_load && strstr(last_model_load, ".w3m\\"))) return NULL;
-    model_t * model = test_alloc(sizeof(model_t));
+    model_t *model = test_alloc(sizeof(model_t));
     if (cliff_model) { model->modeltype = ID_MDLX; model->mdx = cliff_model; }
     return model;
 }
 
-void R_ReleaseModel(model_t * model) { release_count++; test_free(model); }
+void R_ReleaseModel(model_t *model) { release_count++; test_free(model); }
 
 static bool test_mpq_read(handle_t archive, cstring_t path, void **buffer, uint32_t *size_out) {
     handle_t file = NULL;
@@ -320,7 +320,7 @@ static void reset_registry(void) {
     last_model_load[0] = '\0';
 }
 
-static texture_t * reset_texture_registry(void) {
+static texture_t *reset_texture_registry(void) {
     R_ShutdownTextureCache();
     ri.MemAlloc = test_alloc; ri.MemFree = test_free;
     r_load_streamed = false; r_stream_generation = 0; texture_delete_count = 0;
@@ -953,7 +953,7 @@ TEST(renderer_model, mdx_geometry_packs_two_geosets_into_model_ranges) {
 }
 
 TEST(renderer_model, map_scope_precedes_base_model_and_clears_at_boundary) {
-    model_t * first, *second;
+    model_t *first, *second;
 
     reset_registry();
     R_RegisterMapAssets("Maps\\Campaign\\Human02.w3m");
@@ -974,7 +974,7 @@ TEST(renderer_model, map_scope_precedes_base_model_and_clears_at_boundary) {
 }
 
 TEST(renderer_model, map_scope_falls_back_when_import_is_absent) {
-    model_t * model;
+    model_t *model;
 
     reset_registry();
     R_RegisterMapAssets("Maps\\Campaign\\Human03.w3m");
@@ -986,7 +986,7 @@ TEST(renderer_model, map_scope_falls_back_when_import_is_absent) {
 }
 
 TEST(renderer_model, filename_cache_hit_and_miss) {
-    model_t * first, *second;
+    model_t *first, *second;
     reset_registry();
     first = R_LoadRegisteredModel("Models/Foo.mdx");
     second = R_LoadRegisteredModel("models/foo.mdx");
@@ -997,7 +997,7 @@ TEST(renderer_model, filename_cache_hit_and_miss) {
 }
 
 TEST(renderer_model, registration_keeps_touched_model_then_reclaims_it) {
-    model_t * model;
+    model_t *model;
     reset_registry();
     model = R_LoadRegisteredModel("models/touched.mdx"); R_ReleaseRegisteredModel(model);
     touch_during_registration = true; R_RegisterMapAssets("current");
@@ -1007,7 +1007,7 @@ TEST(renderer_model, registration_keeps_touched_model_then_reclaims_it) {
 }
 
 TEST(renderer_model, missing_model_placeholder_is_cached) {
-    model_t * first, *second;
+    model_t *first, *second;
     reset_registry(); fail_load = true;
     first = R_LoadRegisteredModel("models/missing.mdx"); second = R_LoadRegisteredModel("models/missing.mdx");
     T_ASSERT(first == second); T_EQ(load_count, 1);
@@ -1016,7 +1016,7 @@ TEST(renderer_model, missing_model_placeholder_is_cached) {
 }
 
 TEST(renderer_model, unknown_model_release_is_immediate) {
-    model_t * model;
+    model_t *model;
     reset_registry(); model = test_alloc(sizeof(*model));
     R_ReleaseRegisteredModel(model); T_EQ(release_count, 1);
 }
@@ -1086,7 +1086,7 @@ TEST(renderer_texture, wc3_map_registration_reclaims_skin_override_and_keeps_sto
 }
 
 TEST(renderer_texture, persistent_then_streamed_remains_pinned) {
-    texture_t * texture = reset_texture_registry();
+    texture_t *texture = reset_texture_registry();
 
     R_CacheLoadedTexture("textures/shared.blp", texture);
     T_ASSERT(r_image_cache->pinned); T_ASSERT(!r_image_cache->streamed);
@@ -1097,7 +1097,7 @@ TEST(renderer_texture, persistent_then_streamed_remains_pinned) {
 }
 
 TEST(renderer_texture, streamed_then_persistent_becomes_pinned) {
-    texture_t * texture = reset_texture_registry();
+    texture_t *texture = reset_texture_registry();
 
     r_load_streamed = true; R_CacheLoadedTexture("textures/shared.blp", texture); r_load_streamed = false;
     T_ASSERT(r_image_cache->streamed); T_ASSERT(!r_image_cache->pinned);
@@ -1109,7 +1109,7 @@ TEST(renderer_texture, streamed_then_persistent_becomes_pinned) {
 }
 
 TEST(renderer_texture, stale_streamed_texture_is_reclaimed) {
-    texture_t * texture = reset_texture_registry();
+    texture_t *texture = reset_texture_registry();
 
     r_load_streamed = true; R_CacheLoadedTexture("textures/streamed.blp", texture); r_load_streamed = false;
     R_AdvanceTextureGeneration(); R_ReclaimStreamedTextures(0);
@@ -1117,7 +1117,7 @@ TEST(renderer_texture, stale_streamed_texture_is_reclaimed) {
 }
 
 TEST(renderer_texture, current_streamed_generation_is_retained) {
-    texture_t * texture = reset_texture_registry();
+    texture_t *texture = reset_texture_registry();
 
     r_load_streamed = true; R_CacheLoadedTexture("textures/current.blp", texture); r_load_streamed = false;
     R_ReclaimStreamedTextures(0);
@@ -1126,7 +1126,7 @@ TEST(renderer_texture, current_streamed_generation_is_retained) {
 }
 
 TEST(renderer_texture, persistent_alias_pins_streamed_owner) {
-    texture_t * texture = reset_texture_registry();
+    texture_t *texture = reset_texture_registry();
 
     r_load_streamed = true; R_CacheLoadedTexture("textures/owner.blp", texture); r_load_streamed = false;
     R_CacheLoadedTexture("textures/alias.blp", texture);
@@ -1138,7 +1138,7 @@ TEST(renderer_texture, persistent_alias_pins_streamed_owner) {
 }
 
 TEST(renderer_texture, reclaim_removes_streamed_aliases_with_owner) {
-    texture_t * texture = reset_texture_registry();
+    texture_t *texture = reset_texture_registry();
 
     r_load_streamed = true;
     R_CacheLoadedTexture("textures/owner.blp", texture);
@@ -1354,7 +1354,7 @@ TEST(renderer_shader, shadow_fog_uploads_colour_range_and_disable) {
 
 TEST(renderer_shader, model_cache_checks_compile_and_link_once) {
     reset_shader();
-    modelProg_t * shader = R_ModelShader();
+    modelProg_t *shader = R_ModelShader();
     T_NOT_NULL(shader); T_ASSERT(R_ModelShader() == shader);
     T_EQ(shader_test.creates, 2); T_EQ(shader_test.links, 1); T_EQ(shader_test.deleted, 2);
     T_EQ(shader_test.exitcode, 0); T_EQ(shader_test.logs, 0);
@@ -1363,7 +1363,7 @@ TEST(renderer_shader, model_cache_checks_compile_and_link_once) {
 
 TEST(renderer_shader, instanced_cache_initializes_full_identity_palette_once) {
     reset_shader();
-    modelProg_t * shader = R_ModelShaderInstanced();
+    modelProg_t *shader = R_ModelShaderInstanced();
     T_NOT_NULL(shader); T_ASSERT(R_ModelShaderInstanced() == shader);
     T_EQ(shader_test.creates, 2); T_EQ(shader_test.links, 1); T_EQ(shader_test.uploads, 0);
     FOR_LOOP(i, BZ_BONE_PALETTE_MAX) FOR_LOOP(j, 16) T_EQ(shader->state.bones[i].v[j], j % 5 == 0 ? 1.0f : 0.0f);
@@ -1650,9 +1650,9 @@ TEST(renderer_terrain, undead04_waygate_cliff_type_from_native_corners) {
 }
 
 /* Exercise the terrain/cliff bakers with real height normals, mocking asset lookup and draw submission. */
-void R_DrawBuffer(buffer_t const * buffer, uint32_t count) {}
+void R_DrawBuffer(buffer_t const *buffer, uint32_t count) {}
 line3_t R_LineForScreenPoint(viewDef_t const *view, float x, float y) { return (line3_t){0}; }
-texture_t const * R_BlightTexture(void) { return texture_load_result; }
+texture_t const *R_BlightTexture(void) { return texture_load_result; }
 w3TerrainArt_t const *R_TerrainArt(uint32_t id) { T_ASSERT(false); return NULL; }
 static struct { uint32_t enables, disables, offsets; float factor, units; } splat_bias;
 static void test_splat_enable(GLenum cap) { if (cap == GL_POLYGON_OFFSET_FILL) splat_bias.enables++; }
@@ -1695,7 +1695,7 @@ TEST(renderer_terrain, splat_rect_stops_at_partial_tile_edge) {
         R_MakeSplatTile(&map, 0, 0, mins, maxs->x - mins->x, maxs->y - mins->y, COLOR32_WHITE);
         T_ASSERT(ground_current_vertex > ground_vertex_buffer);
         if (i) T_EQ(ground_current_vertex - ground_vertex_buffer, 9);
-        for (vertex_t * v = ground_vertex_buffer; v < ground_current_vertex; v++) {
+        for (vertex_t *v = ground_vertex_buffer; v < ground_current_vertex; v++) {
             T_ASSERT(v->position.x >= mins->x && v->position.x <= maxs->x);
             T_ASSERT(v->position.y >= mins->y && v->position.y <= maxs->y);
             T_ASSERT(v->texcoord.x >= 0 && v->texcoord.x <= 1);
@@ -1717,7 +1717,7 @@ TEST(renderer_terrain, clipped_splat_follows_both_terrain_triangles) {
     R_MakeSplatTile(&map, 0, 0, &mins, maxs.x - mins.x, maxs.y - mins.y, COLOR32_WHITE);
     T_ASSERT(ground_current_vertex > ground_vertex_buffer);
     T_ASSERT(ground_current_vertex - ground_vertex_buffer <= SPLAT_TILE_MAX_VERTICES);
-    for (vertex_t * v = ground_vertex_buffer; v < ground_current_vertex; v++) {
+    for (vertex_t *v = ground_vertex_buffer; v < ground_current_vertex; v++) {
         float u = v->position.x / TILE_SIZE, t = v->position.y / TILE_SIZE;
         float z = u >= t ? p0.z + (u-t)*(p1.z-p0.z) + t*(p2.z-p0.z)
                          : p0.z + u*(p2.z-p0.z) + (t-u)*(p3.z-p0.z);
@@ -1740,7 +1740,7 @@ w3CliffType_t const *R_CliffType(uint32_t id) {
 }
 #include "games/warcraft-3/renderer/w3m/r_war3map_utils.c"
 /* The cliff material test needs the real bake/finalize lifecycle, but no OpenGL context. */
-static buffer_t * test_cliff_buffer(vertex_t const * vertices, uint32_t count) { return test_alloc(sizeof(buffer_t)); }
+static buffer_t *test_cliff_buffer(vertex_t const *vertices, uint32_t count) { return test_alloc(sizeof(buffer_t)); }
 #define R_MakeVertexArrayObject test_cliff_buffer
 #include "games/warcraft-3/renderer/w3m/r_war3map_cliffs.c"
 #undef R_MakeVertexArrayObject
@@ -1749,8 +1749,8 @@ TEST(renderer_terrain, cliff_cache_distinguishes_model_directories) {
     cliffData_t city = { .cliffModelDir = "CityCliffs", .rampModelDir = "CityCliffTrans" };
     cliffData_t dirt = { .cliffModelDir = "Cliffs", .rampModelDir = "CliffTrans" };
     reset_registry(); R_SetMapAssetScope(NULL);
-    model_t const * a = R_LoadCliffModel(&city, "AABB", false);
-    model_t const * b = R_LoadCliffModel(&dirt, "AABB", false);
+    model_t const *a = R_LoadCliffModel(&city, "AABB", false);
+    model_t const *b = R_LoadCliffModel(&dirt, "AABB", false);
     T_ASSERT(a != b); T_EQ(load_count, 2);
     T_STREQ(last_model_load, "Doodads\\Terrain\\Cliffs\\CliffsAABB0.mdx");
     T_ASSERT(R_LoadCliffModel(&city, "AABB", false) == a); T_EQ(load_count, 2);
@@ -1789,7 +1789,7 @@ TEST(renderer_terrain, cliff_baker_preserves_native_axes_uvs_and_ground_coverage
         FOR_LOOP(y, 5) FOR_LOOP(x, 5)
             T_EQ(verts[x+y*5].ground, x >= 1 && x <= (pass ? 2 : 3) && y >= 1 && y <= 2 ? 4 : 0);
         FOR_LOOP(i, 3) {
-            vertex_t const * v = &cliff_bake.vertices[i];
+            vertex_t const *v = &cliff_bake.vertices[i];
             T_FEQ(v->position.x, 128 + pos[i].y, 0.001f);
             T_FEQ(v->position.y, 128 - pos[i].x, 0.001f);
             T_FEQ(v->position.z, 384 + pos[i].z, 0.001f);
@@ -1855,7 +1855,7 @@ TEST(renderer_terrain, undead04_cliff_material_inherits_nearby_authored_slot) {
     vector2_t uv[3] = {0}; short tris[] = {0,1,2};
     mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3, .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
     mdxModel_t mdx = { .geosets = &geo, .bounds.box = { .min = {-128,0,0}, .max = {0,128,128} } };
-    texture_t texture = {0}; texture_t * saved = texture_load_result;
+    texture_t texture = {0}; texture_t *saved = texture_load_result;
     int (*read_file)(cstring_t, void **) = ri.FS_ReadFile;
     reset_registry(); R_SetMapAssetScope(NULL); tr.world = &map; cliff_model = &mdx;
     ri.FS_ReadFile = test_texture_read; texture_file = ""; texture_load_result = &texture;
@@ -1866,7 +1866,7 @@ TEST(renderer_terrain, undead04_cliff_material_inherits_nearby_authored_slot) {
             verts[x+y*span] = (war3mapVertex_t){ .level = y >= 2 ? 5 : 4, .cliff = y ? 15 : slot,
                 .ground = 4, .accurate_height = 8192 };
         T_NULL(R_BuildMapSegmentCliffs(&map, 0, 0, 1-slot));
-        maplayer_t * layer = R_BuildMapSegmentCliffs(&map, 0, 0, slot);
+        maplayer_t *layer = R_BuildMapSegmentCliffs(&map, 0, 0, slot);
         T_NOT_NULL(layer); T_EQ(layer->num_vertices, SEGMENT_SIZE*3); T_ASSERT(layer->texture == &texture);
         T_STREQ(last_texture_load, slot ? "ReplaceableTextures\\Cliff\\Cliff0.blp" : "ReplaceableTextures\\Cliff\\Cliff1.blp");
         FOR_LOOP(y, span) FOR_LOOP(x, span)
@@ -2219,11 +2219,11 @@ TEST(renderer_buffer, instanced_array_range_uses_first_count_and_instances) {
 }
 
 /* Capture backdrop UV generation before GPU submission, including mirrored repeat. */
-static size2_t test_backdrop_size(texture_t const * tex) { (void)tex; return backdrop_size; }
-static vertex_t *test_backdrop_quad(vertex_t *buf, rect_t const * rect, rect_t const * uv, color32_t color, float z) {
+static size2_t test_backdrop_size(texture_t const *tex) { (void)tex; return backdrop_size; }
+static vertex_t *test_backdrop_quad(vertex_t *buf, rect_t const *rect, rect_t const *uv, color32_t color, float z) {
     (void)rect; (void)color; (void)z; backdrop_uv = *uv; return buf + 6;
 }
-static void test_backdrop_batch(texture_t const * tex, SHADERTYPE shader, BLEND_MODE blend, float glow, float radialShade, bool hasclip, rect_t const * clip, vertex_t const * verts, uint32_t count, bool repeat) {
+static void test_backdrop_batch(texture_t const *tex, SHADERTYPE shader, BLEND_MODE blend, float glow, float radialShade, bool hasclip, rect_t const *clip, vertex_t const *verts, uint32_t count, bool repeat) {
     (void)tex; (void)shader; (void)blend; (void)glow; (void)radialShade; (void)hasclip; (void)clip; (void)verts;
     T_EQ(count, 6); backdrop_repeat = repeat;
 }

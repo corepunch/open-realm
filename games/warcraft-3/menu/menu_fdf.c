@@ -21,15 +21,15 @@
 
 /* ---- Texture/model cache (menu-module specific) ----------------------------- */
 
-static texture_t const * ui_textures[UI_MAX_TEXTURES] = { 0 };
+static texture_t const *ui_textures[UI_MAX_TEXTURES] = { 0 };
 static PATHSTR ui_texture_names[UI_MAX_TEXTURES] = { 0 };
 static PATHSTR ui_texture_keys[UI_MAX_TEXTURES] = { 0 };
 static bool ui_texture_decorated[UI_MAX_TEXTURES] = { 0 };
-static model_t const * ui_models[UI_MAX_MODELS] = { 0 };
+static model_t const *ui_models[UI_MAX_MODELS] = { 0 };
 static PATHSTR ui_model_names[UI_MAX_MODELS] = { 0 };
 
 void UI_ReleaseAssets(void) {
-    refExport_t * renderer = mi.GetRenderer();
+    refExport_t *renderer = mi.GetRenderer();
 
     FOR_LOOP(i, UI_MAX_TEXTURES)
         if (ui_textures[i]) renderer->ReleaseTexture((texture_t *)ui_textures[i]);
@@ -100,9 +100,9 @@ cstring_t UI_TextureName(uint32_t index) {
     return ui_texture_names[index][0] ? ui_texture_names[index] : NULL;
 }
 
-texture_t const * UI_GetTexture(uint32_t index) {
+texture_t const *UI_GetTexture(uint32_t index) {
     if (!index || index >= UI_MAX_TEXTURES || !ui_texture_names[index][0]) return NULL;
-    refExport_t * renderer = mi.GetRenderer();
+    refExport_t *renderer = mi.GetRenderer();
     if (ui_texture_decorated[index] && ui_texture_keys[index][0]) {
         cstring_t resolved = EnsureExtension(Theme_String(ui_texture_keys[index], "Default"), ".blp");
         if (strcmp(ui_texture_names[index], resolved)) {
@@ -115,13 +115,13 @@ texture_t const * UI_GetTexture(uint32_t index) {
     return ui_textures[index];
 }
 
-model_t const * UI_GetModel(uint32_t index) {
+model_t const *UI_GetModel(uint32_t index) {
     if (!index || index >= UI_MAX_MODELS) return NULL;
     return ui_models[index];
 }
 
 BZ_HOST_HIDDEN uint32_t UI_LoadModel(cstring_t file, bool decorate) {
-    refExport_t * renderer = NULL;
+    refExport_t *renderer = NULL;
     uint32_t modelIndex = 0;
     cstring_t model = file;
 
@@ -158,9 +158,9 @@ BZ_HOST_HIDDEN void UI_FdfFreeFile(handle_t buf) { mi.FS_FreeFile(buf); }
 
 /* ---- UI_BindMapList (menu-module specific) ----------------------------------- */
 
-void UI_BindMapList(frameDef_t * frame,
+void UI_BindMapList(frameDef_t *frame,
                     uiMapListState_t *state,
-                    frameDef_t const * label,
+                    frameDef_t const *label,
                     uint32_t visible_rows,
                     cstring_t select_command)
 {

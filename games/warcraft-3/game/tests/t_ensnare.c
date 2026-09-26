@@ -8,10 +8,10 @@
 #define BZ_BENA MAKEFOURCC('B', 'e', 'n', 'a') // rawcode; TFT EnsnareAir buff
 #define BZ_BENG MAKEFOURCC('B', 'e', 'n', 'g') // rawcode; TFT EnsnareGround buff
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
 /* Non-stock Dur/Cost so tests cannot pass on hardcoded retail 12/0.
@@ -54,7 +54,7 @@ void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
     slkTestData_t *rows, *old;
-    edict_t * caster, *ground, *flyer;
+    edict_t *caster, *ground, *flyer;
     UnitData_t flyer_data;
 } ensFix_t;
 
@@ -97,7 +97,7 @@ TEST(wc3_spell, ensnare_aliases_share_procedure) {
 /* Ground Bens keeps the order_move early-return lock used with BEer. */
 TEST(wc3_spell, ensnare_ground_bens_blocks_move) {
     ensFix_t fix; ens_setup(&fix, ENS_BENS_SLK);
-    edict_t * wp;
+    edict_t *wp;
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.ground));
     T_EQ(G_UnitStatusLevel(fix.ground, BZ_BENS), 1);
@@ -115,7 +115,7 @@ TEST(wc3_spell, ensnare_ground_bens_blocks_move) {
 /* Flying targets take Bena, lose AI_FLYING, and land on the support surface. */
 TEST(wc3_spell, ensnare_flyer_lands_and_locks) {
     ensFix_t fix; ens_setup(&fix, ENS_SLK);
-    edict_t * wp;
+    edict_t *wp;
 
     T_ASSERT(fix.flyer->aiflags & AI_FLYING);
     T_FEQ(fix.flyer->unitinfo.FlyHeight, 180, 0.001f);
@@ -148,7 +148,7 @@ TEST(wc3_spell, ensnare_ground_gets_beng_not_flying) {
 /* Expiry restores authored flyer flags and moveHeight through status refresh. */
 TEST(wc3_spell, ensnare_expiry_restores_flyer) {
     ensFix_t fix; ens_setup(&fix, ENS_SLK);
-    edict_t * wp;
+    edict_t *wp;
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
     T_ASSERT(!(fix.flyer->aiflags & AI_FLYING));
@@ -176,7 +176,7 @@ TEST(wc3_spell, ensnare_roc_empty_buffid_and_recast) {
         "C;Y2;X4;K\"ground,air,enemy,neutral\"\nC;Y2;X5;K\"17\"\nC;Y2;X6;K\"500\"\n"
         "C;Y2;X7;K\"7\"\nC;Y2;X8;K\"3\"\nE\n";
     ensFix_t fix; ens_setup(&fix, slk);
-    edict_t * wp;
+    edict_t *wp;
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.ground));
     T_EQ(G_UnitStatusLevel(fix.ground, BZ_BENS), 1);
@@ -278,7 +278,7 @@ TEST(wc3_spell, ensnare_second_bind_keeps_lock_after_first_expires) {
 /* Expiry restores ordinary attack and movement orders, not just status slots. */
 TEST(wc3_spell, ensnare_expiry_restores_attack_and_move_orders) {
     ensFix_t fix; ens_setup(&fix, ENS_SLK);
-    edict_t * wp, *victim;
+    edict_t *wp, *victim;
 
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
     level.time += 7000; unit_updatestatuses(fix.flyer);

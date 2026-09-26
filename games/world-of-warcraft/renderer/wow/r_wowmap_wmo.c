@@ -3,12 +3,12 @@
 
 typedef struct {
     vertex_t *vertices;
-    texture_t * texture;
+    texture_t *texture;
     uint32_t count, capacity;
 } wowWmoBuild_t;
 
 typedef struct {
-    texture_t * const *materials;
+    texture_t *const *materials;
     uint8_t const *mat_blend_modes;  /* blend_modes[material_id], 0-4, size=material_count */
     wowWmoBuild_t *builds;
     uint32_t material_count, slot_count, build_count;
@@ -150,9 +150,9 @@ static void Wow_ParseRootChunk(wowWmoModel_t *model, wowWmoRootChunks_t *chunks,
         if (tag == kRootArrays[i].tag) { Wow_AllocWmoArray(model, chunk, chunk_size, kRootArrays[i].count_off, kRootArrays[i].ptr_off, kRootArrays[i].elem_size); return; }
 }
 
-static uint32_t Wow_WmoMaterialSlot(uint32_t material_id, texture_t * const *materials,
+static uint32_t Wow_WmoMaterialSlot(uint32_t material_id, texture_t *const *materials,
                                    uint8_t const *blend_modes, uint32_t count) {
-    texture_t * texture = material_id < count ? materials[material_id] : tr.texture[TEX_WHITE];
+    texture_t *texture = material_id < count ? materials[material_id] : tr.texture[TEX_WHITE];
     uint8_t blend = (blend_modes && material_id < count) ? blend_modes[material_id] : 0;
     FOR_LOOP(i, count)
         if (materials[i] == texture && (!blend_modes || blend_modes[i] == blend)) return i;
@@ -186,7 +186,7 @@ vector3_t Wow_ObjectPoint(wowVec3_t p) {
 }
 
 /* Renderer and collision consume one placement transform; vertex data needs no axis swaps. */
-void Wow_InstanceMatrix(wowMapObjDef_t const *def, matrix4_t * matrix) {
+void Wow_InstanceMatrix(wowMapObjDef_t const *def, matrix4_t *matrix) {
     wowPlacement_t place = { .pos = { def->position.x, def->position.y, def->position.z },
         .rot = { def->rotation.x, def->rotation.y, def->rotation.z }, .scale = def->scale };
     Wow_PlacementMatrix(&place, matrix);
@@ -257,7 +257,7 @@ void Wow_FixMocvAlpha(uint8_t *colors, uint32_t color_count,
 
 static bool Wow_LoadWmoGroup(wowWmoModel_t *model, uint32_t group_index, wowWmoLoad_t *load) {
     PATHSTR group_path;
-    uint8_t * data = NULL;
+    uint8_t *data = NULL;
     int size;
     uint32_t offset = 0;
     wowWmoGroupChunks_t chunks = { 0 };
@@ -433,7 +433,7 @@ cleanup:
 }
 
 bool Wow_LoadWmoModel(wowWmoModel_t *model) {
-    uint8_t * data = NULL;
+    uint8_t *data = NULL;
     int size;
     uint32_t offset = 0;
     wowWmoRootChunks_t chunks = { 0 };
@@ -601,7 +601,7 @@ void Wow_AddWmoInstance(cstring_t path, wowMapObjDef_t const *def) {
    instance matrix. Linear attenuation from atten_start to atten_end is applied when
    use_atten is set; AMBIENT lights (type 3) contribute fully regardless of distance.
    The result is clamped to [0,1] per channel to prevent over-brightening. */
-void Wow_ComputeMoltContribution(wowWmoModel_t const *model, matrix4_t const * matrix,
+void Wow_ComputeMoltContribution(wowWmoModel_t const *model, matrix4_t const *matrix,
                                   vector3_t ref_pos, vector3_t *out) {
     uint32_t i;
     out->x = out->y = out->z = 0.0f;
@@ -634,7 +634,7 @@ void Wow_ComputeMoltContribution(wowWmoModel_t const *model, matrix4_t const * m
     *out = Vector3_clamp01(out);
 }
 
-void Wow_WmoDoodadLocalMatrix(wowWmoDoodadDef_t const *def, matrix4_t * m) {
+void Wow_WmoDoodadLocalMatrix(wowWmoDoodadDef_t const *def, matrix4_t *m) {
     quaternion_t q = { def->quat[0], def->quat[1], def->quat[2], def->quat[3] };
     vector3_t pos   = { def->position.x, def->position.y, def->position.z };
     vector3_t scale = { def->scale, def->scale, def->scale };
@@ -685,7 +685,7 @@ void Wow_QueueWmoDoodads(wowWmoInstance_t const *wmo) {
             wowWmoDoodadDef_t const *d = &model->doodad_defs[di];
             uint32_t name_off = d->name_flags & 0x00FFFFFF;
             cstring_t path = Wow_StringAt(model->doodad_name_blob, model->doodad_name_blob_size, name_off);
-            model_t * m; wowDoodadModel_t *g;
+            model_t *m; wowDoodadModel_t *g;
             if (!path || !*path) { model->def_groups[di] = NULL; continue; }
             m = Wow_LoadDoodadModel(path);
             if (!m) { model->def_groups[di] = NULL; continue; }

@@ -327,7 +327,7 @@ struct mpq_cache_entry;
 
 typedef struct {
     FILE *fp;
-    const uint8_t *memory;
+    uint8_t const *memory;
     uint32_t memory_size;
     uint32_t memory_pos;
     char filename[256];
@@ -435,7 +435,7 @@ static uint8_t AsciiToUpper(uint8_t ch)
     return ch;
 }
 
-static uint32_t HashString(const char *str, uint32_t hash_type)
+static uint32_t HashString(char const *str, uint32_t hash_type)
 {
     uint32_t seed1 = 0x7FED7FED;
     uint32_t seed2 = 0xEEEEEEEE;
@@ -478,7 +478,7 @@ static void TrimEdgeSlashes(char *s)
     }
 }
 
-static uint32_t CacheKeyHash(const char *str)
+static uint32_t CacheKeyHash(char const *str)
 {
     uint32_t hash = 2166136261u;
 
@@ -496,7 +496,7 @@ static uint32_t CacheKeyHash(const char *str)
     return hash;
 }
 
-static void CanonicalizeMpqKey(const char *src, char *dst, size_t dst_size)
+static void CanonicalizeMpqKey(char const *src, char *dst, size_t dst_size)
 {
     size_t i = 0;
 
@@ -517,7 +517,7 @@ static void CanonicalizeMpqKey(const char *src, char *dst, size_t dst_size)
     TrimEdgeSlashes(dst);
 }
 
-static bool LookupCachedBlock(mpqArchive_t *mpq, const char *fileName, uint32_t *block_index)
+static bool LookupCachedBlock(mpqArchive_t *mpq, char const *fileName, uint32_t *block_index)
 {
     char key[1024];
     uint32_t hash;
@@ -541,7 +541,7 @@ static bool LookupCachedBlock(mpqArchive_t *mpq, const char *fileName, uint32_t 
     return false;
 }
 
-static void CacheBlockLookup(mpqArchive_t *mpq, const char *fileName, uint32_t block_index)
+static void CacheBlockLookup(mpqArchive_t *mpq, char const *fileName, uint32_t block_index)
 {
     char key[1024];
     uint32_t hash;
@@ -599,7 +599,7 @@ static bool HasArchiveExtensionAt(cstring_t path, size_t dot)
     return false;
 }
 
-static bool FindBlockIndex(mpqArchive_t *mpq, const char *fileName, uint32_t hash1, uint32_t hash2, uint32_t *block_index)
+static bool FindBlockIndex(mpqArchive_t *mpq, char const *fileName, uint32_t hash1, uint32_t hash2, uint32_t *block_index)
 {
     uint32_t hash_pos;
     uint32_t index;
@@ -666,10 +666,10 @@ static bool FindBlockIndex(mpqArchive_t *mpq, const char *fileName, uint32_t has
     return false;
 }
 
-static const char *BaseNamePtr(const char *path)
+static char const *BaseNamePtr(char const *path)
 {
-    const char *slash1;
-    const char *slash2;
+    char const *slash1;
+    char const *slash2;
 
     if (!path) {
         return path;
@@ -686,9 +686,9 @@ static const char *BaseNamePtr(const char *path)
     return path;
 }
 
-static bool DecryptBlock(uint8_t * data, uint32_t size, uint32_t seed1)
+static bool DecryptBlock(uint8_t *data, uint32_t size, uint32_t seed1)
 {
-    uint32_t * pdw = (uint32_t *)data;
+    uint32_t *pdw = (uint32_t *)data;
     uint32_t nblocks = size >> 2; // uint32_t-aligned only; leftover 1-3 bytes stay ciphertext/plaintext as stored
     uint32_t seed2 = 0xEEEEEEEE;
     uint32_t index;
@@ -711,9 +711,9 @@ static bool DecryptBlock(uint8_t * data, uint32_t size, uint32_t seed1)
     return true;
 }
 
-static bool EncryptBlock(uint8_t * data, uint32_t size, uint32_t seed1)
+static bool EncryptBlock(uint8_t *data, uint32_t size, uint32_t seed1)
 {
-    uint32_t * pdw = (uint32_t *)data;
+    uint32_t *pdw = (uint32_t *)data;
     uint32_t nblocks = size >> 2; // uint32_t-aligned only; leftover 1-3 bytes stay plaintext
     uint32_t seed2 = 0xEEEEEEEE;
     uint32_t index;
@@ -735,7 +735,7 @@ static bool EncryptBlock(uint8_t * data, uint32_t size, uint32_t seed1)
 }
 
 #ifdef MPQ_TEST_API
-uint32_t Mpq_TestHashString(const char *str, uint32_t hash_type) { return HashString(str, hash_type); }
+uint32_t Mpq_TestHashString(char const *str, uint32_t hash_type) { return HashString(str, hash_type); }
 bool Mpq_TestEncryptBlock(uint8_t *data, uint32_t size, uint32_t seed) { return EncryptBlock(data, size, seed); }
 #endif
 
@@ -768,7 +768,7 @@ static void FreeWriterEntries(mpqArchive_t *mpq)
     mpq->write_capacity = 0;
 }
 
-static bool WriterHasEntry(mpqArchive_t *mpq, const char *fileName)
+static bool WriterHasEntry(mpqArchive_t *mpq, char const *fileName)
 {
     uint32_t i;
     char key[1024];
@@ -789,7 +789,7 @@ static bool WriterHasEntry(mpqArchive_t *mpq, const char *fileName)
     return false;
 }
 
-static bool WriterCompressData(const uint8_t *data, uint32_t size, uint8_t **out_data, uint32_t *out_size, uint32_t *out_flags)
+static bool WriterCompressData(uint8_t const *data, uint32_t size, uint8_t **out_data, uint32_t *out_size, uint32_t *out_flags)
 {
     uint8_t *compressed;
     uLongf compressed_bound;
@@ -829,11 +829,11 @@ static bool WriterCompressData(const uint8_t *data, uint32_t size, uint8_t **out
     return true;
 }
 
-static bool WriterAddData(mpqArchive_t *mpq, const char *archivedName, const uint8_t *data, uint32_t size)
+static bool WriterAddData(mpqArchive_t *mpq, char const *archivedName, uint8_t const *data, uint32_t size)
 {
     mpqWriteEntry_t *entry;
     uint8_t *compressed = NULL;
-    const uint8_t *to_write = data;
+    uint8_t const *to_write = data;
     uint32_t write_size = size;
     uint32_t flags = MPQ_FILE_EXISTS;
     long pos;
@@ -1038,7 +1038,7 @@ done:
     return ok;
 }
 
-static bool SectorTableLooksValid(const uint32_t *offsets, uint32_t sector_count, uint32_t compressed_size)
+static bool SectorTableLooksValid(uint32_t const *offsets, uint32_t sector_count, uint32_t compressed_size)
 {
     uint32_t i;
 
@@ -1064,11 +1064,11 @@ static bool SectorTableLooksValid(const uint32_t *offsets, uint32_t sector_count
 
 static void PreloadListfileCache(mpqArchive_t *mpq);
 
-static bool TryInflateSector(const uint8_t *compressed, uint32_t compressed_size, uint32_t uncompressed_size, uint8_t *out, uint32_t *out_size)
+static bool TryInflateSector(uint8_t const *compressed, uint32_t compressed_size, uint32_t uncompressed_size, uint8_t *out, uint32_t *out_size)
 {
     z_stream zs;
     int zlib_ret;
-    const uint8_t *payload = compressed;
+    uint8_t const *payload = compressed;
     uint32_t payload_size = compressed_size;
 
     if (!compressed || !out || !out_size || compressed_size == 0) {
@@ -1307,7 +1307,7 @@ bool SFileOpenArchive(cstring_t filename, uint32_t priority, uint32_t flags, han
     return SFileOpenArchiveSource(mpq, archive);
 }
 
-bool SFileOpenArchiveFromMemory(const void *data, uint32_t size, uint32_t flags, handle_t *archive)
+bool SFileOpenArchiveFromMemory(void const *data, uint32_t size, uint32_t flags, handle_t *archive)
 {
     mpqArchive_t *mpq;
 
@@ -1322,7 +1322,7 @@ bool SFileOpenArchiveFromMemory(const void *data, uint32_t size, uint32_t flags,
         return false;
     }
 
-    mpq->memory = (const uint8_t *)data;
+    mpq->memory = (uint8_t const *)data;
     mpq->memory_size = size;
     strncpy(mpq->filename, "<memory>", sizeof(mpq->filename) - 1);
     return SFileOpenArchiveSource(mpq, archive);
@@ -1373,7 +1373,7 @@ bool SFileAddFile(handle_t archive, cstring_t sourceFile, cstring_t archivedName
     uint8_t *buffer;
     long size_long;
     size_t size;
-    const char *name = archivedName ? archivedName : BaseNamePtr(sourceFile);
+    char const *name = archivedName ? archivedName : BaseNamePtr(sourceFile);
     bool ok;
 
     if (!mpq || !mpq->write_mode || !sourceFile || !name) {
@@ -1413,7 +1413,7 @@ bool SFileAddFile(handle_t archive, cstring_t sourceFile, cstring_t archivedName
     return ok;
 }
 
-bool SFileAddFileFromBuffer(handle_t archive, cstring_t archivedName, const void *data, uint32_t size)
+bool SFileAddFileFromBuffer(handle_t archive, cstring_t archivedName, void const *data, uint32_t size)
 {
     mpqArchive_t *mpq = (mpqArchive_t *)archive;
 
@@ -1421,7 +1421,7 @@ bool SFileAddFileFromBuffer(handle_t archive, cstring_t archivedName, const void
         return false;
     }
 
-    return WriterAddData(mpq, archivedName, (const uint8_t *)data, size);
+    return WriterAddData(mpq, archivedName, (uint8_t const *)data, size);
 }
 
 bool SFileCloseArchive(handle_t archive)
@@ -1659,7 +1659,7 @@ bool SFileCloseFile(handle_t file)
     return true;
 }
 
-bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t * bytesRead, void * overlapped)
+bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t *bytesRead, void *overlapped)
 {
     mpqFile_t *mpqfile = (mpqFile_t *)file;
     mpqArchive_t *mpq;
@@ -1842,7 +1842,7 @@ bool SFileReadFile(handle_t file, void *buffer, uint32_t toRead, uint32_t * byte
     return read_so_far > 0 || toRead == 0;
 }
 
-uint32_t SFileGetFileSize(handle_t file, uint32_t * highSize)
+uint32_t SFileGetFileSize(handle_t file, uint32_t *highSize)
 {
     mpqFile_t *mpqfile = (mpqFile_t *)file;
 
@@ -1857,7 +1857,7 @@ uint32_t SFileGetFileSize(handle_t file, uint32_t * highSize)
     return mpqfile->file_size;
 }
 
-uint32_t SFileSetFilePointer(handle_t file, int32_t distance, int32_t * distanceHigh, uint32_t moveMethod)
+uint32_t SFileSetFilePointer(handle_t file, int32_t distance, int32_t *distanceHigh, uint32_t moveMethod)
 {
     mpqFile_t *mpqfile = (mpqFile_t *)file;
     uint32_t new_pos;
@@ -2114,9 +2114,9 @@ static void PreloadListfileCache(mpqArchive_t *mpq)
     free(buffer);
 }
 
-static bool FilenameMatches(const char *filename, const char *mask);
+static bool FilenameMatches(char const *filename, char const *mask);
 static void FreeFindList(mpqFind_t *find);
-static bool AppendFindListEntry(mpqFind_t *find, const char *name);
+static bool AppendFindListEntry(mpqFind_t *find, char const *name);
 
 handle_t SFileFindFirstFile(handle_t archive, cstring_t mask, sfileFindData_t *findData, cstring_t listFile)
 {
@@ -2211,7 +2211,7 @@ handle_t SFileFindFirstFile(handle_t archive, cstring_t mask, sfileFindData_t *f
     return (handle_t)find;
 }
 
-static bool FilenameMatches(const char *filename, const char *mask)
+static bool FilenameMatches(char const *filename, char const *mask)
 {
     // Simple wildcard matching - "*" matches everything
     if (!mask || !mask[0] || strcmp(mask, "*") == 0) {
@@ -2243,7 +2243,7 @@ static void FreeFindList(mpqFind_t *find)
     find->file_count = 0;
 }
 
-static bool AppendFindListEntry(mpqFind_t *find, const char *name)
+static bool AppendFindListEntry(mpqFind_t *find, char const *name)
 {
     char **next;
     char *copy;
@@ -2267,7 +2267,7 @@ static bool AppendFindListEntry(mpqFind_t *find, const char *name)
 bool SFileFindNextFile(handle_t find, sfileFindData_t *findData)
 {
     mpqFind_t *mpqfind = (mpqFind_t *)find;
-    const char *name;
+    char const *name;
     uint32_t block_index;
 
     if (!mpqfind || !findData) {

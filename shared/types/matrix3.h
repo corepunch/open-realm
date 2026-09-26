@@ -16,6 +16,6 @@ typedef struct matrix4 matrix4_t;
 
 
 
-void Matrix3_normal(matrix3_t * out, matrix4_t const * modelview);
+void Matrix3_normal(matrix3_t *out, matrix4_t const *modelview);
 
 #endif

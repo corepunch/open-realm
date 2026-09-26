@@ -12,7 +12,7 @@ float Wow_DayFraction(void) {
    Light*.dbc, so the authored sun path is unavailable; this is WoWee's
    time-of-day directionalDir negated and Y-up→Z-up swapped to engine axes.
    day_frac 0=midnight, 0.25=dawn(sun in -X), 0.5=noon(overhead), 0.75=dusk. */
-void Wow_SunDirection(float day_frac, vector3_t * out) {
+void Wow_SunDirection(float day_frac, vector3_t *out) {
     float a = day_frac * 6.283185307f; /* 2π over the day cycle */
     out->x = -0.6f * sinf(a);
     out->y = -0.6f * cosf(a);
@@ -83,7 +83,7 @@ bool Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk) {
     return Frustum_ContainsSphere(&tr.viewDef.frustum, &(sphere3_t){ .center = center, .radius = radius, });
 }
 
-bool Wow_WmoGroupInView(wowWmoGroup_t const *group, matrix4_t const * matrix) {
+bool Wow_WmoGroupInView(wowWmoGroup_t const *group, matrix4_t const *matrix) {
     vector3_t center;
     vector3_t extents;
     vector3_t world_center;
@@ -117,7 +117,7 @@ bool Wow_WmoGroupInView(wowWmoGroup_t const *group, matrix4_t const * matrix) {
 /* Returns true if the world-space point lies within any interior group's AABB (in world space).
    Each group's local AABB is conservatively transformed to world space by expanding over all 8
    corners; this is correct for axis-aligned groups and conservative for rotated ones. */
-bool Wow_WmoContainsPoint(wowWmoModel_t const *model, matrix4_t const * matrix, vector3_t point) {
+bool Wow_WmoContainsPoint(wowWmoModel_t const *model, matrix4_t const *matrix, vector3_t point) {
     if (!model || !matrix || !model->portals) return false;
     FOR_LOOP(i, model->num_groups) {
         wowWmoGroup_t const *group = &model->groups[i];
@@ -144,7 +144,7 @@ bool Wow_WmoContainsPoint(wowWmoModel_t const *model, matrix4_t const * matrix, 
     return false;
 }
 
-void Wow_BindWorldTexture(texture_t const * texture, uint32_t unit, texture_t const * bound[5], uint32_t * binds) {
+void Wow_BindWorldTexture(texture_t const *texture, uint32_t unit, texture_t const *bound[5], uint32_t *binds) {
     texture = texture ? texture : tr.texture[TEX_WHITE];
     if (unit >= 5 || bound[unit] == texture) {
         return;

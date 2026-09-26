@@ -4,15 +4,15 @@
 
 #define BZ_AUCO MAKEFOURCC('A', 'u', 'c', 'o') // rawcode; Unstable Concoction
 
-edict_t * alloc_test_unit(uint32_t class_id, float x, float y);
+edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
 void setup_test_world(void);
-slkTestData_t *parse_slk_string(const char *text);
+slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
 typedef struct {
 	slkTestData_t *rows, *old;
-	edict_t * caster, *primary, *splash, *ground, *ally;
+	edict_t *caster, *primary, *splash, *ground, *ally;
 } ucFix_t;
 
 /* Non-stock DataB/DataC/DataD prove execute reads abilityitem_t.code, not retail 600/200/140. */
