@@ -81,6 +81,7 @@ typedef struct {
     uint32_t           unit_flags;
     color32_t         color;
     color32_t         tint_color;
+    float           unit_properties[24]; /* resolved CUnit defaults, parents and map overrides */
     sc2MapCamera_t  camera;
 } sc2MapObject_t;
 

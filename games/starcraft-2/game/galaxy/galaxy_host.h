@@ -85,6 +85,22 @@ extern void (*sc2_galaxy_on_actor_create)(unsigned actor_id, char const *model,
 extern void (*sc2_galaxy_on_actor_send)(unsigned actor_id, char const *msg);
 extern void (*sc2_galaxy_on_actor_destroy)(unsigned actor_id);
 
+/* Native adapters address server-owned unit state; the VM has no duplicate vital store. */
+#include <math.h>
+#include "games/starcraft-2/common/sc2_unit_state.h"
+extern sc2UnitState_t *(*sc2_galaxy_unit_state)(void *ent);
+extern bool (*sc2_galaxy_unit_location)(void *ent, float *x, float *y, float *z, float *facing);
+extern void *(*sc2_galaxy_unit_from_id)(uint32_t map_id);
+extern void (*sc2_galaxy_unit_changed)(void *ent);
+extern void (*sc2_galaxy_unit_remove)(void *ent);
+extern void (*sc2_galaxy_unit_set_owner)(void *ent, int player, bool change_color);
+
+typedef struct {
+    float properties[16]; uint32_t states, alliances[32];
+    int difficulty, type; bool active;
+} sc2PlayerState_t;
+extern sc2PlayerState_t sc2_players[32];
+
 /* Debug-only state inspection for bounded cinematic traces. */
 extern void *sc2_gunits[];
 extern uint32_t sc2_gunit_n;

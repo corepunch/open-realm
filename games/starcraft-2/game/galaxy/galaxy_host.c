@@ -77,6 +77,13 @@ bool (*sc2_galaxy_unit_is_moving)(void *ent);
 bool (*sc2_galaxy_unit_is_alive)(void *ent);
 int (*sc2_galaxy_unit_owner)(void *ent);
 
+sc2UnitState_t *(*sc2_galaxy_unit_state)(void *ent);
+bool (*sc2_galaxy_unit_location)(void *ent, float *x, float *y, float *z, float *facing);
+void *(*sc2_galaxy_unit_from_id)(uint32_t map_id);
+void (*sc2_galaxy_unit_changed)(void *ent);
+void (*sc2_galaxy_unit_remove)(void *ent);
+void (*sc2_galaxy_unit_set_owner)(void *ent, int player, bool change_color);
+
 void (*sc2_galaxy_on_actor_create)(unsigned actor_id, char const *model,
                                    unsigned unit_id, float x, float y);
 void (*sc2_galaxy_on_actor_send)(unsigned actor_id, char const *msg);
@@ -85,13 +92,14 @@ void (*sc2_galaxy_on_actor_destroy)(unsigned actor_id);
 /* -------------------------------------------------------------------------
  * Domain modules — each brings its own state, helpers, and native functions.
  * ------------------------------------------------------------------------- */
+#include "galaxy_collection.h"
+#include "galaxy_player.h"
 #include "galaxy_trigger.h"
 #include "galaxy_point.h"
 #include "galaxy_catalog.h"
 #include "galaxy_unit.h"
 #include "galaxy_camera.h"
 #include "galaxy_cinematic.h"
-#include "galaxy_player.h"
 #include "galaxy_sound.h"
 #include "galaxy_transmission.h"
 #include "galaxy_game.h"
@@ -108,6 +116,14 @@ void galaxy_loaded_reset(void);
 
 void galaxy_reset(void) {
     sc2_objectives_reset();
+    sc2_collections_reset();
+    memset(sc2_players,0,sizeof(sc2_players));
+    memset(sc2_gunits,0,sizeof(sc2_gunits));
+    memset(sc2_regions,0,sizeof(sc2_regions));
+    memset(sc2_region_nodes,0,sizeof(sc2_region_nodes));
+    sc2_region_n = sc2_region_node_n = 1;
+    sc2_last_unit_group = 0;
+
     for (uint32_t i = 0; i < sc2_trig_n; i++) {
         free((void *)sc2_trigs[i].func);  /* free strdup'd names */
         sc2_trigs[i].func = NULL;
@@ -137,7 +153,7 @@ void galaxy_reset(void) {
     memset(sc2_scopes, 0, sizeof(sc2_scopes));
     memset(sc2_unit_scope, 0, sizeof(sc2_unit_scope));
     memset(sc2_int_loops, 0, sizeof(sc2_int_loops));
-    sc2_group_loop.active = false;
+
     galaxy_loaded_reset();
 }
 
@@ -221,6 +237,31 @@ void galaxy_tick(jass_t *vm) {
  * Native table
  * ------------------------------------------------------------------------- */
 static jassModule_t sc2_galaxy_natives[] = {
+    { "UnitSetPropertyInt", sc2_UnitSetPropertyInt },
+    { "UnitGetPropertyInt", sc2_UnitGetPropertyInt },
+    { "UnitSetCustomValue", sc2_UnitSetCustomValue },
+    { "UnitGetCustomValue", sc2_UnitGetCustomValue },
+    { "PlayerGroupLoopCurrent", sc2_PlayerGroupLoopCurrent },
+    { "PlayerModifyPropertyFixed", sc2_PlayerModifyPropertyFixed },
+    { "PlayerGetPropertyInt", sc2_PlayerGetPropertyInt },
+    { "PlayerGetPropertyFixed", sc2_PlayerGetPropertyFixed },
+    { "PlayerSetDifficulty", sc2_PlayerSetDifficulty },
+    { "PointSetHeight", sc2_PointSetHeight },
+    { "PointSet", sc2_PointSet },
+    { "PointsInRange", sc2_PointsInRange },
+    { "RegionSetOffset", sc2_RegionSetOffset },
+    { "OrderGetPlayer", sc2_OrderGetPlayer },
+    { "OrderSetAbilityCommand", sc2_OrderSetAbilityCommand },
+    { "OrderGetAbilityCommand", sc2_OrderGetAbilityCommand },
+    { "OrderGetTargetType", sc2_OrderGetTargetType },
+    { "OrderSetTargetPoint", sc2_OrderSetTargetPoint },
+    { "OrderGetTargetPoint", sc2_OrderGetTargetPoint },
+    { "OrderSetTargetUnit", sc2_OrderSetTargetUnit },
+    { "OrderGetTargetUnit", sc2_OrderGetTargetUnit },
+    { "OrderSetFlag", sc2_OrderSetFlag },
+    { "OrderGetFlag", sc2_OrderGetFlag },
+    { "OrderGetTargetPosition", sc2_OrderGetTargetPosition },
+
     { "ACos",                                sc2_ACos },
     { "ASin",                                sc2_ASin },
     { "ATan",                                sc2_ATan },

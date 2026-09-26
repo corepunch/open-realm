@@ -649,6 +649,10 @@ TEST(sc2_map, sc2_map_loads_xml_objects_and_terrain) {
     T_STREQ(unit.model, "Assets\\Units\\Terran\\MarineManifestModel\\MarineManifestModel.m3");
     T_STREQ(unit.mover, "Ground");
     T_FEQ(unit.radius, 0.875f, 0.001f);
+    T_FEQ(unit.unit_properties[0],73,0.001f); T_FEQ(unit.unit_properties[2],117,0.001f);
+    T_FEQ(unit.unit_properties[3],1.5f,0.001f); T_FEQ(unit.unit_properties[4],0,0.001f);
+    T_FEQ(unit.unit_properties[6],31,0.001f); T_FEQ(unit.unit_properties[8],11,0.001f);
+    T_FEQ(unit.unit_properties[20],3.75f,0.001f); T_FEQ(unit.unit_properties[12],2,0.001f);
     T_FEQ(unit.move_height, 1.25f, 0.001f);
 
     T_STREQ(map->map_name, "SC2 Tiny Fixture");

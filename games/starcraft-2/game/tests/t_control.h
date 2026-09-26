@@ -161,3 +161,64 @@ TEST(sc2_control, cardinal_move_orders_face_displacement) {
     }
     g_models[1] = model; gi = saved;
 }
+
+/* Same lifecycle as WC3: kill stops movement and selection; revival restores both. */
+TEST(sc2_control, galaxy_vitals_lifecycle_and_pause) {
+    struct game_import saved=gi;
+    animation_t anims[]={ {.name="Stand",.interval={0,1000}}, {.name="Walk",.interval={1000,2000}}, {.name="Death",.interval={2000,3000}} };
+    g_cmodel_t model=g_models[1]; g_models[1].animations=anims; g_models[1].num_animations=3;
+    gi.LinkEntity=sc2_test_link; gi.UnlinkEntity=sc2_test_link; gi.GetTime=sc2_test_clock;
+    memset(sc2_edicts,0,sizeof(sc2_edicts)); memset(sc2_move,0,sizeof(sc2_move)); memset(sc2_units,0,sizeof(sc2_units));
+    globals.num_edicts=2; globals.max_clients=1;
+    edict_t *ent=&sc2_edicts[1]; *ent=(edict_t){.inuse=true,.s={.number=1,.player=2,.model=1}};
+    sc2MapObject_t object={.id=72,.name="Marine",.radius=0.375f};
+    object.unit_properties[0]=73; object.unit_properties[2]=117; object.unit_properties[3]=1.5f;
+    object.unit_properties[4]=17; object.unit_properties[6]=31; object.unit_properties[20]=3.75f;
+    SC2_UnitInit(ent,&object); sc2_move[1].mobile=true; sc2_move[1].flying=true;
+    T_ASSERT(SC2_IsSelectable(ent,2)); T_ASSERT(SC2_GalaxyUnitIsAlive(ent));
+    T_ASSERT(SC2_UnitFromId(72)==ent);
+    SC2_OrderMove(ent,&(vector2_t){10,0}); SC2_RunUnit(ent);
+    T_ASSERT(ent->s.origin.x>0); T_FEQ(sc2_move[1].speed,3.75f,0.001f);
+    float x=ent->s.origin.x, hp=sc2_units[1].vitals[0].value;
+    sc2_units[1].states |= 1u<<SC2_UNIT_PAUSED; SC2_UnitChanged(ent);
+    SC2_RunUnit(ent); SC2_UnitTick(ent); T_FEQ(ent->s.origin.x,x,0.001f); T_FEQ(sc2_units[1].vitals[0].value,hp,0.001f);
+    sc2_units[1].states &= ~(1u<<SC2_UNIT_PAUSED); SC2_UnitChanged(ent);
+    SC2_RunUnit(ent); SC2_UnitTick(ent); T_ASSERT(ent->s.origin.x>x); T_ASSERT(sc2_units[1].vitals[0].value>hp);
+    ent->selected=1u<<2; SC2_UnitSetProperty(&sc2_units[1],0,0); SC2_UnitChanged(ent);
+    T_ASSERT(!SC2_GalaxyUnitIsAlive(ent)); T_ASSERT(!SC2_IsSelectable(ent,2)); T_ASSERT(!sc2_move[1].moving);
+    T_EQ(ent->selected,0); T_ASSERT(ent->svflags & SVF_DEADMONSTER); T_EQ(ent->s.frame,2000);
+    T_ASSERT(!sc2_collision_filter(ent));
+    SC2_UnitSetProperty(&sc2_units[1],0,117); SC2_UnitChanged(ent);
+    T_ASSERT(SC2_GalaxyUnitIsAlive(ent)); T_ASSERT(SC2_IsSelectable(ent,2)); T_ASSERT(!(ent->svflags & SVF_DEADMONSTER));
+    sc2_units[1].states |= 1u<<SC2_UNIT_HIDDEN; SC2_UnitChanged(ent);
+    T_ASSERT(ent->s.renderfx & RF_HIDDEN); T_ASSERT(!SC2_IsSelectable(ent,2));
+    sc2_units[1].states &= ~(1u<<SC2_UNIT_HIDDEN); SC2_UnitChanged(ent); T_ASSERT(!(ent->s.renderfx & RF_HIDDEN));
+    SC2_UnitSetOwner(ent,7,false); T_EQ(ent->s.player,7);
+    T_EQ((ent->s.effect_flags & EFX_TEAM_COLOR_MASK)>>EFX_TEAM_COLOR_SHIFT,3);
+    SC2_UnitSetOwner(ent,2,true); T_EQ(ent->s.effect_flags & EFX_TEAM_COLOR_MASK,0);
+    SC2_UnitRemove(ent); T_ASSERT(!ent->inuse); T_NULL(SC2_UnitFromId(72)); T_NULL(SC2_UnitState(ent));
+    memset(sc2_units,0,sizeof(sc2_units)); g_models[1]=model; gi=saved;
+}
+
+static handle_t sc2_test_alloc(long size) { return calloc(1,(size_t)size); }
+TEST(sc2_control, galaxy_resources_publish_without_camera_change) {
+    struct game_import saved=gi; bool started=sc2_level.scriptsStarted;
+    gi.GetTime=sc2_test_clock; sc2_level.scriptsStarted=false; globals.num_edicts=1; globals.max_clients=1;
+    memset(sc2_move,0,sizeof(sc2_move)); memset(sc2_units,0,sizeof(sc2_units));
+    memset(sc2_edicts,0,sizeof(sc2_edicts)); memset(sc2_players,0,sizeof(sc2_players));
+    sc2_clients[0].ps.number=1;
+    jass_sethost(&(jassHost_t){.MemAlloc=sc2_test_alloc,.MemFree=free,.galaxy_natives=galaxy_get_natives()});
+    jass_t *vm=jass_newstate();
+    char script[]="native void PlayerModifyPropertyInt(int p,int prop,int op,int value);"
+        "native void PlayerModifyPropertyFixed(int p,int prop,int op,fixed value);"
+        "void main() { PlayerModifyPropertyInt(1,0,0,137); PlayerModifyPropertyInt(1,1,0,29);"
+        "PlayerModifyPropertyFixed(1,4,0,3.5); PlayerModifyPropertyInt(1,5,0,19); }";
+    T_ASSERT(jass_dobuffer_ex(vm,script,JASS_MODE_GALAXY)); jass_callbyname(vm,"main",false);
+    T_ASSERT(!jass_rterror_pending(vm)); SC2_RunFrame();
+    T_EQ(sc2_clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD],137);
+    T_EQ(sc2_clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER],29);
+    T_EQ(sc2_clients[0].ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED],3);
+    T_EQ(sc2_clients[0].ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP],19);
+    T_FEQ(sc2_players[1].properties[4],3.5f,0.001f);
+    jass_close(vm); gi=saved; sc2_level.scriptsStarted=started;
+}

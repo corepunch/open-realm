@@ -1484,4 +1484,7 @@ TEST(galaxy, create_and_set_facing_share_radian_host_contract) {
     galaxy_reset(); gal_destroy(&s);
 }
 
+
+#include "test_galaxy_foundations.h"
+
 #endif /* BZ_TESTS */
