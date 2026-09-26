@@ -66,7 +66,7 @@ static float unit_decay_flesh_duration(edict_t const *self) {
 }
 
 static float unit_decay_bone_duration(edict_t const *self) {
-    if (self && G_UnitIsBuilding(self->class_id))
+    if (self && (self->s.flags & EF_BUILDING))
         return unit_decay_wait(game.constants.structureDecayTime);
     return unit_decay_wait(game.constants.boneDecayTime);
 }
@@ -96,7 +96,7 @@ static void unit_begin_bone_decay(edict_t *self) {
  * is not established by the available retail evidence. */
 void G_RestartCorpseBoneDecayAfterCargo(edict_t *corpse) {
     if (!corpse || !corpse->inuse || corpse->currentmove != &unit_move_decay_bones ||
-        G_UnitIsHero(corpse) || G_UnitIsBuilding(corpse->class_id)) return;
+        G_UnitIsHero(corpse) || (corpse->s.flags & EF_BUILDING)) return;
     corpse->wait = unit_decay_wait(game.constants.boneDecayTime);
 }
 
@@ -129,7 +129,7 @@ void unit_begin_decay(edict_t *self) {
         self->wait = FRAMETIME / 1000.0f;
         return;
     }
-    if (G_UnitIsBuilding(self->class_id)) {
+    if (self->s.flags & EF_BUILDING) {
         unit_set_decay_move(self, &unit_move_decay_bones);
         self->wait = unit_decay_wait(game.constants.structureDecayTime);
         return;
@@ -384,7 +384,7 @@ void unit_die(edict_t *self, edict_t *attacker) {
     /* Static building footprints are baked into pathmap.original. Rebuild after
      * the death flag becomes authoritative so destroyed/cancelled structures
      * stop blocking routes immediately. */
-    if (G_UnitIsBuilding(self->class_id)) CM_BakeStaticObstacles();
+    if (self->s.flags & EF_BUILDING) CM_BakeStaticObstacles();
     G_InvalidateRallyTarget(self);
     /* A dead producer cannot retain ownership of a revival.  This clears each
      * Hero's reviving flag and refunds what this Altar charged. */

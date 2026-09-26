@@ -933,7 +933,7 @@ uint32_t IsUnitType(jass_t *j) {
     if (*whichUnitType < 32 && (whichUnit->script_unit_types & (1u << *whichUnitType)))
         return jass_pushboolean(j, 1);
     if (*whichUnitType == WC3_UNIT_TYPE_STRUCTURE)
-        return jass_pushboolean(j, G_UnitIsBuilding(whichUnit->class_id));
+        return jass_pushboolean(j, (whichUnit->s.flags & EF_BUILDING) != 0);
     if (*whichUnitType == WC3_UNIT_TYPE_GROUND)
         return jass_pushboolean(j, !(whichUnit->aiflags & AI_FLYING));
     if (*whichUnitType == 0) /* UNIT_TYPE_HERO */

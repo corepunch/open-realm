@@ -37,8 +37,11 @@ typedef struct {
 }  rocketDesc_t;
 
 bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
-    return attacker && slot < 2 && attacker->data.UnitWeapons &&
-        (attacker->data.UnitWeapons->attacksEnabled & (1 << slot)) != 0;
+    uint32_t enabled;
+    if (!attacker || slot >= 2) return false;
+    enabled = attacker->data.UnitWeapons ? attacker->data.UnitWeapons->attacksEnabled : 0;
+    if (attacker->ancient_root.ability) enabled = S_AncientAttackMask(attacker);
+    return (enabled & (1u << slot)) != 0;
 }
 
 /* Attack 1/2 remain the authored runtime copies. Select the compatible slot

@@ -229,7 +229,7 @@ static ability_t abilitylist[] = {
     { "Awha", CAbilityWispHarvest, AB_COMMAND },  /* Gather */
     { "Aent", CAbilityEntangle, AB_COMMAND },  /* Entangle Gold Mine */
     { "Aenc", CAbilityPassive, AB_PASSIVE },  /* Load */
-    { "Aroo", CAbilityRoot, AB_COMMAND },  /* Root */
+    { "Aroo", CAbilityRoot, AB_COMMAND | AB_UPDATE },  /* Root */
     { "AEmb", CAbilityManaBurn, AB_SPELL, SPELL_TARGET_UNIT },  /* Mana Burn */
     { "AEim", CAbilityImmolation, AB_SPELL | AB_TOGGLE },  /* Immolation */
     { "AEev", CAbilityPassive, AB_PASSIVE },  /* Evasion */
@@ -675,8 +675,8 @@ static ability_t abilitylist[] = {
     { "Argd", CAbilityReturn, AB_COMMAND },  /* Return (Gold) */
     { "Argl", CAbilityReturn, AB_COMMAND },  /* Return (Gold & Lumber) */
     { "Arlm", CAbilityReturn, AB_COMMAND },  /* Return (Lumber) */
-    { "Aro1", CAbilityRoot, AB_COMMAND },  /* Root (Ancients) */
-    { "Aro2", CAbilityRoot, AB_COMMAND },  /* Root (Ancient Protector) */
+    { "Aro1", CAbilityRoot, AB_COMMAND | AB_UPDATE },  /* Root (Ancients) */
+    { "Aro2", CAbilityRoot, AB_COMMAND | AB_UPDATE },  /* Root (Ancient Protector) */
     { "Awfb", CAbilityFireBolt, AB_SPELL, SPELL_TARGET_UNIT },  /* Fire Bolt (warlock) */
     { "Awrg", CAbilityStomp, AB_SPELL },  /* War Stomp (sea giant) */
     { "Awrh", CAbilityStomp, AB_SPELL },  /* War Stomp (hydra) */
@@ -866,6 +866,10 @@ void S_UnitAbilityMoveLeave(edict_t *ent, abilityProc_t next_move_proc) {
     abilityCall_t call = MAKE(abilityCall_t, .next_move_proc = next_move_proc);
     if (ent)
         unit_dispatch_authored_abilities(ent, A_MOVE_LEAVE, &call, false, true, true);
+}
+
+bool S_UnitAbilityMoveArrive(edict_t *ent) {
+    return ent && unit_dispatch_authored_abilities(ent, A_MOVE_ARRIVE, NULL, true, false, false) != 0;
 }
 
 abilityOrderResult_t S_UnitIssuedTargetOrder(edict_t *issuer, cstring_t order, edict_t *target) {

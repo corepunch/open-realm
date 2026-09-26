@@ -740,6 +740,7 @@ typedef enum {
     A_UNIT_INIT,        /* Spawn/type rebind: initialize behavior from the unit's authored data. */
     A_IDLE,             /* Stand AI: return true after starting an innate idle behavior. */
     A_MOVE_LEAVE,       /* Before replacing a distinct move: release the old behavior's state. */
+    A_MOVE_ARRIVE,      /* Move reached its point; true consumes arrival before queued-order polling. */
     A_DAMAGED,          /* Positive post-mitigation damage, before combat response. */
     A_PROJECTILE_HIT,   /* Projectile impact: let owned abilities react before damage. */
     A_UNIT_REMOVE,      /* Before freeing the edict: release behavior-owned resources. */
@@ -1156,7 +1157,7 @@ typedef struct {
     uint32_t flags;
 } unitbalance_t;
 
-#define UNIT_BALANCE_BUILDING 0x1 // bit; immutable building classification; used by hot AI/FOW paths
+#define UNIT_BALANCE_BUILDING 0x1 // bit; current rooted/building mode; immutable unit-type metadata remains separate
 #define UNIT_BALANCE_PERMANENT_INVISIBLE 0x2 // bit; cached Apiv classification for hot per-viewer FOW checks
 #define WC3_UNIT_TYPE_STRUCTURE 2 // handle value; Warcraft structure type; used by IsUnitType
 #define WC3_UNIT_TYPE_GROUND 4 // handle value; authored ground movement class; used by IsUnitType
@@ -1290,6 +1291,14 @@ typedef struct edictArtillery_s {
     uint32_t attack_type, area_targets, targets_allowed;
     float area_full, area_medium, area_small, factor_medium, factor_small;
 } edictArtillery_t;
+
+typedef enum {
+    ANCIENT_ROOT_UNINITIALIZED,
+    ANCIENT_ROOTED,
+    ANCIENT_ROOTING,
+    ANCIENT_UPROOTED,
+    ANCIENT_UPROOTING,
+} ancientRootMode_t;
 
 struct edict_s {
     entityState_t s;
@@ -1425,6 +1434,22 @@ struct edict_s {
         uint32_t start;  /* G_Time() when current land/rise phase began */
         ensnareHeightState_t phase;
     } ensnare;
+    struct edictAncientRoot_s {
+        ancientRootMode_t mode;
+        uint32_t ability;
+        uint32_t unit_type;
+        uint32_t rooted_defense_type;
+        uint32_t transition_end_time;
+        vec2_t destination;
+        edict_t *approach_goal;
+        uint32_t approach_goal_spawn_time;
+        float mobile_collision;
+        float rooted_collision;
+        bool has_mobile_collision;
+        bool has_rooted_collision;
+        bool rooted_turning;
+        bool approaching;
+    } ancient_root;
     uint32_t heatmap2;
     vec2_t heatmap2_origin;  /* target position when heatmap2 was last built */
     uint32_t heatmap2_time;      /* level.time when heatmap2 was last built */
@@ -2508,6 +2533,11 @@ bool G_ClosestStaticPathablePointInRectForRadiusFlags(vec2_t const *location, bo
 // g_abilities.c
 void S_RunAbilityUpdates(edict_t *);
 bool S_UnitAbilityEvent(edict_t *, abilityMsg_t);
+bool S_UnitAbilityMoveArrive(edict_t *);
+bool S_AncientIsRooted(edict_t const *);
+bool S_AncientHasRootAbility(edict_t const *);
+uint32_t S_AncientAttackMask(edict_t const *);
+void S_ReleaseEntangledMineForTree(edict_t *);
 void S_UnitAbilityMoveLeave(edict_t *, abilityProc_t);
 bool S_UnitAbilityOrderAccepted(edict_t *, cstring_t);
 abilityOrderResult_t S_UnitIssuedTargetOrder(edict_t *, cstring_t, edict_t *);
@@ -2590,6 +2620,7 @@ void G_RefundBuilding(gameClient_t *client, uint32_t building_id);
 void G_SnapBuildingPoint(uint32_t building_id, vec2_t *point);
 void G_GetBuildPlacementPathingFlags(uint32_t building_id, uint8_t *prevented, uint8_t *required);
 buildPlacementResult_t G_EvaluateBuildPlacement(edict_t *builder, uint32_t building_id, vec2_t const *requested, vec2_t *snapped);
+buildPlacementResult_t G_EvaluateRootPlacement(edict_t *unit, vec2_t const *requested, vec2_t *snapped);
 bool G_DisplaceBuildOccupants(edict_t *builder, edict_t *building);
 bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *location);
 bool G_IssueBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *location);
@@ -2632,6 +2663,8 @@ void Get_Commands_f(edict_t *);
 void CMD_CancelCommand(edict_t *ent);
 bool G_ClearBuildPlacementMode(edict_t *clent);
 bool G_CancelBuildPlacement(edict_t *clent);
+void G_ShowRootPlacementCursor(edict_t *clent, edict_t *unit);
+void G_ClearRootPlacementCursor(edict_t *clent);
 bool build_menu_send_builder(edict_t *clent, vec2_t const *location);
 void Get_Portrait_f(edict_t *);
 void G_RefreshInventoryLayer(edict_t *);

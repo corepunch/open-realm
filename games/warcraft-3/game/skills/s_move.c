@@ -566,7 +566,7 @@ bool unit_changeangle_towards_point_ignore_units(edict_t *self, vec2_t const *po
 }
 
 static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
-    if (self->aiflags & AI_IMMOBILE)
+    if ((self->aiflags & AI_IMMOBILE) && !(S_AncientIsRooted(self) && self->ancient_root.rooted_turning))
         return;
     if (move_displacement_steer(self, policy))
         return;
@@ -678,7 +678,7 @@ void unit_changeangle_worker(edict_t *self) {
 static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
                                                moveAvoidPolicy_t policy,
                                                bool continue_to_target) {
-    if (self->aiflags & AI_IMMOBILE)
+    if ((self->aiflags & AI_IMMOBILE) && !(S_AncientIsRooted(self) && self->ancient_root.rooted_turning))
         return;
     vec2_t to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     vec2_t dir;
@@ -1398,6 +1398,7 @@ static void ai_move_walk(edict_t *ent) {
             ent->s.origin2 = ent->goalentity->s.origin2;
             gi.LinkEntity(ent);
         }
+        if (S_UnitAbilityMoveArrive(ent)) return;
         ent->stand(ent);
     } else {
         blocked = move_is_blocked(ent, distance, move_distance);

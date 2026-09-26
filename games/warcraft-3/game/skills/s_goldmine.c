@@ -663,6 +663,19 @@ static bool mineoverlay_parent_in_use(edict_t *parent, edict_t *except) {
     return false;
 }
 
+/* A rooted Tree owns the lifetime of its Entangled Mine. Root/Uproot and unit
+ * removal share this path so the overlay's normal death cleanup restores the
+ * original mine and releases its cargo consistently. */
+void S_ReleaseEntangledMineForTree(edict_t *tree) {
+    if (!tree) return;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *overlay = globals.edicts + i;
+        if (!overlay->inuse || overlay == tree || overlay->mineoverlay.entangle_tree != tree ||
+            overlay->mineoverlay.entangle_tree_spawn_time != tree->spawn_time) continue;
+        unit_die(overlay, NULL);
+    }
+}
+
 bool S_MineOverlayBind(edict_t *overlay, edict_t *parent) {
     if (!overlay || !parent || overlay == parent || !overlay->inuse || !parent->inuse ||
         M_IsDead(overlay) || M_IsDead(parent) || !S_GoldMineIsMine(parent) ||
@@ -1262,7 +1275,7 @@ static bool entangle_goldmine_selecttarget(edict_t *clent, edict_t *target) {
     if (!caster) {
         return false;
     }
-    if (!caster->no_pathing) {
+    if (!S_AncientIsRooted(caster)) {
         G_ShowCommandErrorKey(clent, "Mustroottoentangle", "Must be rooted to entangle a Gold Mine.");
         return false;
     }

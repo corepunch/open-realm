@@ -277,6 +277,17 @@ static bool G_IsImplementedAbility(cstring_t code) {
     return S_AbilityHasCommand(ability);
 }
 
+static bool G_AncientAbilityVisible(edict_t const *unit, ability_t const *ability) {
+    bool rooted;
+    if (!S_AncientHasRootAbility(unit)) return true;
+    if (!ability) return false;
+    if (ability->proc == CAbilityRoot) return true;
+    rooted = S_AncientIsRooted(unit);
+    if (ability->proc == CAbilityEatTree) return !rooted;
+    if (ability->proc == CAbilityEntangle) return rooted;
+    return rooted;
+}
+
 static bool G_HasCommandRawcode(gameCommandButton_t const *buttons, uint8_t count, uint32_t code) {
     FOR_LOOP(i, count) {
         uint32_t button_code = 0;
@@ -294,7 +305,8 @@ static void G_AddAbilityCommandButtons(edict_t *ent, gameCommandButton_t *button
     uint32_t rawcode;
     bool researched;
 
-    if (!S_AbilityHasCommand(ability) || strlen(code) != 4 || *count >= max_buttons) return;
+    if (!S_AbilityHasCommand(ability) || !G_AncientAbilityVisible(ent, ability) ||
+        strlen(code) != 4 || *count >= max_buttons) return;
     memcpy(&rawcode, code, sizeof(rawcode));
     /* Entangle Gold Mine becomes hidden/permanent per unit while the resulting
      * mine exists. Keep the authored command unavailable for that overlay lifetime. */
@@ -413,8 +425,12 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     if (ent->currentmove && ent->currentmove->think == ai_birth) {
         return 0;
     }
+    if (ent->ancient_root.mode == ANCIENT_UPROOTING ||
+        (ent->ancient_root.mode == ANCIENT_ROOTING && !ent->ancient_root.approaching)) {
+        return 0;
+    }
 
-    if (b->speed > 0) {
+    if (b->speed > 0 && !(ent->aiflags & AI_IMMOBILE)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdMove, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdHoldPos, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdPatrol, false, 0);
@@ -424,9 +440,11 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
          * enabled the building attack: it cancels the current attack/order. */
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdStop, false, 0);
     }
-    if (w->attack1.damageDice != 0 && (!is_burrow || burrow_occupied)) {
+    if (((w->attack1.damageDice != 0 && S_UnitAttackSlotEnabled(ent, 0)) ||
+         (w->attack2.damageDice != 0 && S_UnitAttackSlotEnabled(ent, 1))) && (!is_burrow || burrow_occupied)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttack, false, 0);
-        if (ent->attack1.weapon == WPN_ARTILLERY)
+        if ((S_UnitAttackSlotEnabled(ent, 0) && ent->attack1.weapon == WPN_ARTILLERY) ||
+            (S_UnitAttackSlotEnabled(ent, 1) && ent->attack2.weapon == WPN_ARTILLERY))
             G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttackGround, false, 0);
     }
     /* Some WC3 data paths expose the Burrow hold/battle-stations abilities
@@ -437,7 +455,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     if (burrow_occupied) {
         G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, "Astd");
     }
-    if (G_UnitProfile(ent->class_id)->builds) {
+    if ((ent->runtime.flags & UNIT_BALANCE_BUILDING) && G_UnitProfile(ent->class_id)->builds) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdBuild, false, 0);
     }
     if (a->heroAbilList) {
@@ -447,7 +465,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
             buttons[idx].number = ent->hero.skillpoints;
         }
     }
-    if (G_UnitHasRally(ent)) {
+    if ((ent->runtime.flags & UNIT_BALANCE_BUILDING) && G_UnitHasRally(ent)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdRally, false, 0);
     }
     if (a->abilList) {
@@ -474,7 +492,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
             }
         }
     }
-    if (G_UnitProfile(ent->class_id)->upgrade) {
+    if ((ent->runtime.flags & UNIT_BALANCE_BUILDING) && G_UnitProfile(ent->class_id)->upgrade) {
         PARSE_LIST(G_UnitProfile(ent->class_id)->upgrade, upgrade_to, parse_segment) {
             gameClient_t *client = G_GetPlayerClientByNumber(ent->s.player);
             uint32_t unit_id = 0;

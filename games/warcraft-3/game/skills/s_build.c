@@ -295,6 +295,32 @@ static void FillUnitData(entityState_t *ent, uint32_t unit_id, cstring_t anim) {
     }
 }
 
+void G_ShowRootPlacementCursor(edict_t *clent, edict_t *unit) {
+    entityState_t cursor;
+    gameClient_t *owner;
+    uint8_t prevented = 0, required = 0;
+    if (!clent || !clent->client || !unit) return;
+    owner = G_GetPlayerClientByNumber(unit->s.player);
+    if (!owner) return;
+    FillUnitData(&cursor, unit->class_id, "stand");
+    cursor.player = unit->s.player;
+    G_SetEntityTeamColor(&cursor, owner->ps.color);
+    G_GetBuildPlacementPathingFlags(unit->class_id, &prevented, &required);
+    cursor.pathing_preview = EntityPathingPreviewPack(unit->s.number, prevented, required);
+    UI_AddCancelButton(clent);
+    gi.Write(PF_BYTE, &(int32_t){svc_cursor});
+    gi.Write(PF_ENTITY, &cursor);
+    gi.unicast(clent);
+}
+
+void G_ClearRootPlacementCursor(edict_t *clent) {
+    entityState_t empty = {0};
+    if (!clent || !clent->client) return;
+    gi.Write(PF_BYTE, &(int32_t){svc_cursor});
+    gi.Write(PF_ENTITY, &empty);
+    gi.unicast(clent);
+}
+
 void build_build(edict_t *ent) {
     gameClient_t *client;
     vec2_t snapped;
