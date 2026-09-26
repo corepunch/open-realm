@@ -612,6 +612,8 @@ static bool spell_validate_point(spellPointValidateParams_t const *params) {
     return true;
 }
 
+static void spell_cancel_target_approaches(edict_t *caster, edict_t *except);
+
 /* Start channel: lock caster in place and record the origin for movement-cancel. */
 static void spell_begin_channel(edict_t *caster, uint32_t code) {
     if (caster->stand) caster->stand(caster);
@@ -621,7 +623,8 @@ static void spell_begin_channel(edict_t *caster, uint32_t code) {
 }
 
 /* Pre-execute common work: spend mana, start cooldown, then Mana Flare probes. */
-static void spell_commit(edict_t *caster, uint32_t code, uint32_t level) {
+static void spell_commit(edict_t *caster, uint32_t code, uint32_t level, edict_t *active_approach) {
+    spell_cancel_target_approaches(caster, active_approach);
     S_SpellCancelChannel(caster);
     S_HumanBreakInvisibility(caster);
     S_PermanentInvisibilityReveal(caster);
@@ -653,15 +656,32 @@ static bool spell_item_source_valid(edict_t const *caster, edict_t const *item, 
         !item->item.pending_use_removal && item->item.carrier == caster;
 }
 
+/* A committed new cast replaces deferred spell casts. Keep the approach that
+ * reached range alive until its caller finishes, but retire any older ones. */
+static void spell_cancel_target_approaches(edict_t *caster, edict_t *except) {
+    bool stop_move = false;
+
+    if (!caster || !caster->inuse) return;
+    FILTER_EDICTS(thinker, thinker != except && thinker->inuse &&
+                  thinker->owner == caster && thinker->think == S_SpellTargetApproachThink) {
+        if (caster->goalentity == thinker) {
+            caster->goalentity = NULL;
+            stop_move = move_is_active_order_walk(caster);
+        }
+        G_FreeEdict(thinker);
+    }
+    if (stop_move) unit_stand(caster);
+}
+
 /* Commit a validated unit-target spell at the point where its cast range is reached. */
-static bool spell_execute_unit_target(spellUnitTargetParams_t const *params) {
+static bool spell_execute_unit_target(spellUnitTargetParams_t const *params, edict_t *active_approach) {
     spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = params->target };
     abilityitem_t item = { .code = params->code, .ability = params->spell };
     abilityCall_t call = MAKE(abilityCall_t, .item = &item, .target = &st,
                               .source_item = params->source_item,
                               .source_item_spawn_time = params->source_item_spawn_time);
 
-    spell_commit(params->caster, params->code, params->level);
+    spell_commit(params->caster, params->code, params->level, active_approach);
     if (params->spell->flags & AB_CHANNEL)
         spell_begin_channel(params->caster, params->code);
     spell_publish_effect(params->caster, params->code, st);
@@ -678,14 +698,14 @@ static bool spell_execute_unit_target(spellUnitTargetParams_t const *params) {
 static bool spell_execute_point_target(edict_t *clent, edict_t *caster, uint32_t code,
                                        uint32_t level, ability_t const *spell,
                                        vec2_t const *point, edict_t *source_item,
-                                       uint32_t source_item_spawn_time) {
+                                       uint32_t source_item_spawn_time, edict_t *active_approach) {
     spellTarget_t st = { .type = SPELL_TARGET_POINT, .point = *point };
     abilityitem_t item = { .code = code, .ability = spell };
     abilityCall_t call = MAKE(abilityCall_t, .item = &item, .target = &st,
                               .source_item = source_item,
                               .source_item_spawn_time = source_item_spawn_time);
 
-    spell_commit(caster, code, level);
+    spell_commit(caster, code, level, active_approach);
     if (spell->flags & AB_CHANNEL)
         spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, st);
@@ -755,7 +775,7 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
         if (caster->goalentity == thinker) caster->goalentity = NULL;
         unit_stand(caster);
         spell_execute_point_target(clent, caster, code, level, spell, &thinker->s.origin2,
-                                   source_item, thinker->spell_item_spawn_time);
+                                   source_item, thinker->spell_item_spawn_time, thinker);
         G_FreeEdict(thinker);
         return;
     }
@@ -782,7 +802,7 @@ void S_SpellTargetApproachThink(edict_t *thinker) {
         .source_item = source_item, .source_item_spawn_time = thinker->spell_item_spawn_time
     };
     unit_stand(caster);
-    spell_execute_unit_target(&params);
+    spell_execute_unit_target(&params, thinker);
     G_FreeEdict(thinker);
 }
 
@@ -843,7 +863,7 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
         .caster = caster, .code = code, .level = level, .spell = spell, .target = target,
         .source_item = source_item, .source_item_spawn_time = source_item_spawn_time
     };
-    return spell_execute_unit_target(&params);
+    return spell_execute_unit_target(&params, NULL);
 }
 
 /* Called when user clicks a location for a POINT-target spell. */
@@ -874,7 +894,7 @@ static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
     }
 
     if (!spell_execute_point_target(clent, caster, code, level, spell, point,
-                                    source_item, source_item_spawn_time)) return false;
+                                    source_item, source_item_spawn_time, NULL)) return false;
     S_SpellCursorSplat(clent, 0.0f);
     G_SendPointConfirmation(clent, point, false);
     return true;
@@ -895,7 +915,7 @@ static void spell_no_target_execute(edict_t *clent) {
     spellTarget_t st = { .type = SPELL_TARGET_NONE, .entity = NULL };
     if (!spell_message(caster, A_VALIDATE, &item, &st)) return;
 
-    spell_commit(caster, code, level);
+    spell_commit(caster, code, level, NULL);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, st);
     if (spell_message(caster, A_EXECUTE, &item, &st) && source_item)
@@ -915,7 +935,7 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
     if (!spell_validate(NULL, caster, code, level, NULL, 0)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
-    spell_commit(caster, code, level);
+    spell_commit(caster, code, level, NULL);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, target);
     spell_message(caster, A_EXECUTE, &item, &target);
@@ -943,7 +963,7 @@ bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point)
     target = MAKE(spellTarget_t, .type = SPELL_TARGET_POINT, .point = *point);
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
-    spell_commit(caster, code, level);
+    spell_commit(caster, code, level, NULL);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, target);
     spell_message(caster, A_EXECUTE, &item, &target);
@@ -969,7 +989,7 @@ bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     if (!S_SpellAllowsTarget(code, caster, unit)) return false;
     if (!spell_message(caster, A_VALIDATE, &item, &target)) return false;
 
-    spell_commit(caster, code, level);
+    spell_commit(caster, code, level, NULL);
     if (spell->flags & AB_CHANNEL) spell_begin_channel(caster, code);
     spell_publish_effect(caster, code, target);
     spell_message(caster, A_EXECUTE, &item, &target);
@@ -999,7 +1019,7 @@ bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *unit) {
     spellUnitTargetParams_t params = {
         .caster = caster, .code = code, .level = level, .spell = spell, .target = unit
     };
-    spell_execute_unit_target(&params);
+    spell_execute_unit_target(&params, NULL);
     return true;
 }
 
