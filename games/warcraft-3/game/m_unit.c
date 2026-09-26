@@ -902,7 +902,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
             bool accepted;
             if (queue) return false;
             G_ClearUnitOrderQueue(self);
-            accepted = S_CastPointTargetSpell(self, spell_code, point);
+            accepted = S_IssuePointTargetSpell(self, spell_code, point);
             if (accepted) {
                 S_UnitAbilityOrderAccepted(self, order);
                 G_PublishIssuedPointOrder(self, unit_order_event_id(order), point,

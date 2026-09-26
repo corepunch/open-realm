@@ -1304,22 +1304,27 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
     ItemData_t item_data = { .abilList = "AIpm", .uses = 4, .perishable = false };
     slkTestData_t *rows, *old;
     edict_t *player, *hero, *item, *mine = NULL, *approach = NULL;
+    uint32_t hero_slot, item_slot;
+    cstring_t const save_path = "/tmp/openwarcraft3-point-item-approach-save.bin";
     cstring_t far_click[] = { "point", "700", "0" };
     cstring_t replace_approach[] = { "button", "Amov" };
     cstring_t replace_click[] = { "point", "20", "0" };
     cstring_t another_far_click[] = { "point", "1300", "0" };
+    cstring_t save_far_click[] = { "point", "620", "800" };
     cstring_t valid_click[] = { "point", "640", "0" };
 
     setup_test_world();
     rows = parse_slk_string(ability_slk); old = G_SetSLKRows("AbilityData", rows);
     player = &g_edicts[0]; player->client->ps.number = 0;
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 0, 0);
+    hero_slot = (uint32_t)(hero - g_edicts);
     hero->data.UnitAbilities = &abilities; hero->s.player = 0; hero->svflags |= SVF_MONSTER;
     hero->targtype = TARG_GROUND; hero->health.value = hero->health.max_value = 100;
     hero->think = monster_think; hero->stand = unit_stand; hero->movetype = MOVETYPE_STEP;
     hero->collision = 16.0f; unit_stand(hero); gi.LinkEntity(hero);
     hero->heroabilities[0] = MAKE(heroability_t, .code = MAKEFOURCC('A','O','f','s'), .level = 1);
     item = make_item_test_world_item(MAKEFOURCC('g','o','b','m'), 0, 0);
+    item_slot = (uint32_t)(item - g_edicts);
     item->data.ItemData = &item_data; item->item.charges = 4; item->spawn_time = 1234;
     T_ASSERT(G_AddItemToSlot(hero, item, 0));
     G_SelectEntity(player->client, hero);
@@ -1414,6 +1419,48 @@ TEST(wc3_items, point_target_item_walks_into_range_then_places_at_clicked_point)
         T_ASSERT(Vector2_distance(&ent->s.origin2, &(vec2_t){1300, 0}) > 0.001f);
     }
 
+    G_UseItem(hero, 0);
+    G_ClientCommand(player, 3, save_far_click);
+    approach = NULL;
+    FILTER_EDICTS(ent, ent->inuse && ent->owner == hero && ent->spell_item == item &&
+                  ent->class_id == MAKEFOURCC('A','I','p','m')) {
+        approach = ent; break;
+    }
+    T_NOT_NULL(approach);
+    if (approach) {
+        uint32_t const approach_slot = (uint32_t)(approach - g_edicts);
+        bool const saved = WriteGame(save_path);
+        T_ASSERT(saved);
+        if (saved && ReadGame(save_path)) {
+            hero = &globals.edicts[hero_slot]; item = &globals.edicts[item_slot];
+            approach = &globals.edicts[approach_slot];
+            T_ASSERT(hero->goalentity == approach);
+            T_ASSERT(approach->goalentity == approach);
+            T_ASSERT(move_is_active_order_walk(hero));
+            T_FEQ(approach->s.origin2.x, 620.0f, 0.001f);
+            T_FEQ(approach->s.origin2.y, 800.0f, 0.001f);
+            {
+                float const start_y = hero->s.origin2.y;
+                uint32_t frame;
+                for (frame = 0; frame < 400 && approach->inuse; frame++) {
+                    level.time += FRAMETIME;
+                    G_RunEntities();
+                }
+                T_ASSERT(hero->s.origin2.y > start_y);
+                T_ASSERT(frame < 400);
+            }
+            T_ASSERT(!approach->inuse);
+            T_EQ(G_ItemCharges(item), 1);
+            FILTER_EDICTS(ent, ent->inuse && ent->class_id == MAKEFOURCC('h','f','o','o') &&
+                          ent->owner == hero && Vector2_distance(&ent->s.origin2, &(vec2_t){620, 800}) < 0.001f)
+                mine = ent;
+            T_NOT_NULL(mine);
+        } else if (saved) {
+            T_ASSERT(false);
+        }
+    }
+
+    remove(save_path);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 

@@ -503,6 +503,7 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code);
 bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point);
 bool S_CastUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *target);
 bool S_IssueUnitTargetSpell(edict_t *caster, uint32_t code, edict_t *target);
+bool S_IssuePointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point);
 bool S_SpellTargetInRange(edict_t *caster, edict_t *target, float range);
 bool S_SpellIsAliveTarget(edict_t *target);
 bool S_UnitIsCycloned(edict_t const *unit);
