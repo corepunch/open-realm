@@ -1,7 +1,7 @@
 # OpenWarcraft3 on iPad
 
-A single statically linked iPad app built directly with Xcode SDK commands,
-following the `mapview/ui` Makefile workflow. No Xcode project or third-party
+An iPad app (one executable plus six embedded frameworks) built directly with
+Xcode SDK commands, following the `mapview/ui` Makefile workflow. No Xcode project or third-party
 iOS dependencies are required beyond the SDL2 release tarball (downloaded and
 built automatically). The default deployment target is iPadOS 16.
 
@@ -51,8 +51,8 @@ and override `BUILD_DIR` or `ARCH`.
   for the selected SDK (`CMAKE_SYSTEM_NAME=iOS`, SDK sysroot, static only).
   No `.xcodeproj` is involved at any step.
 - `tools/ipad/bundle.py` assembles the `.app`: project `share/` plus
-  `games/warcraft-3/share/` under `Warcraft3.app/share/`, icon sizes via
-  `sips` + `actool`, and an `Info.plist` with iPad-only device family,
+  `games/warcraft-3/share/` under `Warcraft3.app/share/`, a universal
+  1024x1024 app icon compiled by `actool`, and an `Info.plist` with iPad-only device family,
   `opengles-3` capability, file-sharing/Documents support, and a launch
   screen. Unlike the Orion port, no `UIApplicationSceneManifest` is set: SDL2
   provides its own app delegate and a foreign scene delegate would break
@@ -67,13 +67,18 @@ and override `BUILD_DIR` or `ARCH`.
 ## Game data
 
 Retail Warcraft III data is not bundled (it is gigabytes and license-owned).
-Copy the MPQs into the app's Documents folder — visible in Files once
-installed — using file sharing, AirDrop, or `xcrun devicectl`:
+Copy the MPQs into the app's Documents folder — *On My iPad > OpenWarcraft3*
+in Files once installed — using Finder file sharing, AirDrop, or
+`xcrun devicectl` (one file per call):
 
 ```sh
-xcrun devicectl device copy to --device <UDID> --source <warcraft3-mpq-dir> \
-  --destination Root/Documents
+xcrun devicectl device copy to --device <UDID> \
+  --domain-type appDataContainer --domain-identifier com.openwarcraft3.warcraft3 \
+  --source "/path/to/Warcraft III/War3.mpq" --destination Documents/War3.mpq
 ```
+
+Without `war3.mpq` in Documents the app shows a "Warcraft III data not found"
+alert and exits instead of starting with an empty (black) screen.
 
 ## iOS graphics gotchas (why the renderer changed)
 
@@ -111,5 +116,6 @@ input code (`client/cl_input.c`) for the desktop assumptions that still apply.
 ## Icons
 
 `icons/warcraft3.png` is a project-owned placeholder (navy/gold ring mark,
-1024x1024). `tools/ipad/bundle.py` derives the required icon sizes with `sips`
-and compiles the asset catalog with `actool`. Replace the file to rebrand.
+1024x1024). `tools/ipad/bundle.py` emits it as a single-size universal
+1024x1024 app icon (converted with `sips`) and `actool` derives every iPad
+size. Replace the file to rebrand.

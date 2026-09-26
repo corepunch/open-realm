@@ -31,7 +31,6 @@ The shared runtime contains the client, server, renderer backend, networking, ar
 Pre-built binaries and Flatpak bundles are available from the [latest release](https://github.com/corepunch/open-realm/releases/latest). CI artifacts are published by the [CI workflow](https://github.com/corepunch/open-realm/actions/workflows/c-cpp.yml). Neither releases nor CI artifacts contain retail assets.
 
 For Flatpak and Steam Deck packaging, see [Flatpak And Steam Deck Packaging](docs/flatpak-steam-deck.md).
-For iPad deployment without an Xcode project, see [packaging/ipad/README.md](packaging/ipad/README.md).
 
 ## Build
 
@@ -104,6 +103,29 @@ Open the in-game Quake-style console with backtick/tilde. Use `build/bin/mpqtool
 ```bash
 build/bin/mpqtool -mpq "/path/to/Warcraft III/War3.mpq" ls Maps/Campaign
 ```
+
+## Run on iPad
+
+The iPad build needs macOS with Xcode (for the iOS SDK, `xcrun`, and `devicectl`), CMake, and no Xcode project. SDL2 is downloaded and built automatically on first use.
+
+1. Connect the iPad by USB (or pair it over Wi-Fi in Xcode's *Devices and Simulators*), unlock it, and enable *Developer Mode* in Settings > Privacy & Security.
+2. Make sure a development signing certificate and a matching iOS development provisioning profile for `com.openwarcraft3.warcraft3` (or a wildcard) are installed. Signing in to Xcode with your Apple ID and letting it create one for any app is enough.
+3. Build, sign, install, and launch:
+
+```bash
+make ipad-deploy
+```
+
+With several devices attached, list them and pick one; pass `TEAM`, `PROFILE`, or `BUNDLE_ID` to override signing:
+
+```bash
+make list-devices
+make ipad-deploy DEVICE="iPad name or identifier" TEAM=ABCDE12345
+```
+
+4. Copy `War3.mpq` and `War3Local.mpq` (plus `War3x.mpq`/`War3xLocal.mpq` for The Frozen Throne) into *On My iPad > OpenWarcraft3* with the Files app or Finder, then relaunch. Without them the app shows a "data not found" alert.
+
+The iPad must be unlocked for the launch step. `make ipad-run` does the same in an iPad simulator. See [packaging/ipad/README.md](packaging/ipad/README.md) for details.
 
 ## Tests and diagnostics
 
