@@ -79,7 +79,7 @@ typedef struct {
 typedef struct {
     cstring_t name;
     cstring_t model_path;
-    model_t * model;
+    model_t *model;
 } wc3SpawnData_t;
 
 static slkField_t const anim_lookup_schema[] = {
@@ -306,7 +306,7 @@ static wc3SpawnData_t *R_W3SpawnData(cstring_t id) {
     return NULL;
 }
 
-static model_t * R_W3SpawnModel(wc3SpawnData_t *row) {
+static model_t *R_W3SpawnModel(wc3SpawnData_t *row) {
     if (!row || !row->model_path || !row->model_path[0]) return NULL;
     if (!row->model) row->model = R_LoadRegisteredModel(row->model_path);
     return row->model && row->model->modeltype == ID_MDLX && row->model->mdx ? row->model : NULL;
@@ -977,11 +977,11 @@ static bool R_W3RenderEventSpawn(wc3EventSpawn_t *spawn, uint32_t slot) {
 }
 
 static void R_W3EmitSpawnEvent(renderEntity_t const *entity, mdxModel_t const *model,
-                               mdxEvent_t const *event, mat4_t const * transform) {
+                               mdxEvent_t const *event, mat4_t const *transform) {
     char id[sizeof(event->node.name) + 1];
     wc3SpawnData_t *row;
     wc3EventSpawn_t *spawn;
-    model_t * child_model;
+    model_t *child_model;
     mdxSequence_t const *seq;
     uint32_t slot;
 

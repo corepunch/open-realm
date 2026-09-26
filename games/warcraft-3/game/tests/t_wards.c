@@ -202,15 +202,15 @@ TEST(wc3_spell, stasis_trap_destroys_peer_wards_in_detonation_radius) {
 
 static edict_t *mine_uninitialized(float x, float y) {
 	static UnitAbilities_t abilities = { .abilList = "Amin,Amnx", .heroAbilList = "" };
-	edict_t * mine = alloc_test_unit(MAKEFOURCC('n', 'g', 'l', 'm'), x, y);
+	edict_t *mine = alloc_test_unit(MAKEFOURCC('n', 'g', 'l', 'm'), x, y);
 	mine->data.UnitAbilities = &abilities;
 	mine->s.player = 0; mine->svflags |= SVF_MONSTER; mine->targtype = TARG_GROUND;
 	mine->health.value = mine->health.max_value = 100; mine->collision = 16.0f; mine->die = unit_die;
 	return mine;
 }
 
-static edict_t * mine_fixture(float x, float y) {
-	edict_t * mine = mine_uninitialized(x, y);
+static edict_t *mine_fixture(float x, float y) {
+	edict_t *mine = mine_uninitialized(x, y);
 	S_UnitAbilityEvent(mine, A_UNIT_INIT);
 	return mine;
 }
@@ -249,7 +249,7 @@ TEST(wc3_spell, goblin_land_mine_registry_uses_separate_place_and_intrinsic_hand
 }
 
 TEST(wc3_spell, item_place_mine_spawns_real_owned_unit_at_point) {
-	wardFix_t fix; vec2_t point = { 192, 96 }; edict_t * mine;
+	wardFix_t fix; vec2_t point = { 192, 96 }; edict_t *mine;
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AIPM, .level = 1);
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_AIPM, &point));
@@ -261,7 +261,7 @@ TEST(wc3_spell, item_place_mine_spawns_real_owned_unit_at_point) {
 }
 
 TEST(wc3_spell, goblin_land_mine_arms_and_transitions_to_viewer_specific_invisibility) {
-	wardFix_t fix; edict_t * mine;
+	wardFix_t fix; edict_t *mine;
 	ward_setup(&fix);
 	fix.enemy->s.origin2 = fix.hero->s.origin2 = fix.far->s.origin2 = (vec2_t){ 500, 0 };
 	mine = mine_fixture(0, 0);
@@ -277,7 +277,7 @@ TEST(wc3_spell, goblin_land_mine_arms_and_transitions_to_viewer_specific_invisib
 }
 
 TEST(wc3_spell, goblin_land_mine_thinker_allocation_failure_keeps_unit_functional) {
-	wardFix_t fix; edict_t * mine; uint32_t max_edicts;
+	wardFix_t fix; edict_t *mine; uint32_t max_edicts;
 	ward_setup(&fix); mine = mine_uninitialized(0, 0);
 	max_edicts = globals.max_edicts; globals.max_edicts = globals.num_edicts;
 	S_UnitAbilityEvent(mine, A_UNIT_INIT);
@@ -288,7 +288,7 @@ TEST(wc3_spell, goblin_land_mine_thinker_allocation_failure_keeps_unit_functiona
 }
 
 TEST(wc3_spell, goblin_land_mine_disable_restores_collision_and_clears_timer) {
-	wardFix_t fix; edict_t * mine;
+	wardFix_t fix; edict_t *mine;
 	ward_setup(&fix); mine = mine_fixture(0, 0);
 	T_FEQ(mine->collision, 0.0f, .001f); T_NOT_NULL(mine_timer(mine));
 	T_ASSERT(G_ActorRemoveSkill(mine, BZ_AMIN));
@@ -311,7 +311,7 @@ TEST(wc3_spell, goblin_land_mine_reinitialize_keeps_existing_timer_when_edicts_a
 }
 
 TEST(wc3_spell, goblin_land_mine_trigger_uses_cast_range_and_normal_death_path) {
-	wardFix_t fix; edict_t * mine;
+	wardFix_t fix; edict_t *mine;
 	ward_setup(&fix);
 	fix.enemy->s.origin2 = (vec2_t){ BZ_MINE_TRIGGER - 1.0f, 0 };
 	fix.hero->s.origin2 = fix.far->s.origin2 = (vec2_t){ 500, 0 };
@@ -357,7 +357,7 @@ TEST(wc3_spell, goblin_land_mine_ignores_rooted_ancient_but_triggers_on_uprooted
 }
 
 TEST(wc3_spell, mine_death_damage_waits_duration_and_enumerates_victims_at_resolution_time) {
-	wardFix_t fix; edict_t * mine; float enemy_health;
+	wardFix_t fix; edict_t *mine; float enemy_health;
 	ward_setup(&fix);
 	fix.enemy->s.origin2 = (vec2_t){ 50, 0 };
 	fix.far->s.origin2 = (vec2_t){ 200, 0 };
@@ -376,7 +376,7 @@ TEST(wc3_spell, mine_death_damage_waits_duration_and_enumerates_victims_at_resol
 }
 
 TEST(wc3_spell, mine_death_damage_allocation_failure_resolves_immediately) {
-	wardFix_t fix; edict_t * mine; uint32_t max_edicts;
+	wardFix_t fix; edict_t *mine; uint32_t max_edicts;
 	ward_setup(&fix); fix.enemy->s.origin2 = (vec2_t){ 50, 0 };
 	mine = mine_fixture(0, 0);
 	max_edicts = globals.max_edicts; globals.max_edicts = globals.num_edicts;
@@ -387,7 +387,7 @@ TEST(wc3_spell, mine_death_damage_allocation_failure_resolves_immediately) {
 }
 
 TEST(wc3_spell, mine_death_damage_uses_full_and_partial_authored_rings) {
-	wardFix_t fix; edict_t * mine;
+	wardFix_t fix; edict_t *mine;
 	ward_setup(&fix);
 	fix.enemy->s.origin2 = (vec2_t){ 50, 0 };
 	fix.far->s.origin2 = (vec2_t){ 200, 0 };
