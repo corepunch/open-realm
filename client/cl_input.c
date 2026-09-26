@@ -220,6 +220,28 @@ static void CL_EndPan(void) {
     camera_drag.active = false;
 }
 
+/* The pan trace uses the view matrix built at the last render while
+ * CL_SetCameraPosition moves the camera origin immediately, so a second pan
+ * update in the same input pass would re-apply the whole offset (two fingers
+ * send one motion event each per frame: the pan then overshoots, oscillates,
+ * and runs off to the map edge). Motion only records the latest pan point;
+ * CL_Input applies it once after draining SDL events. */
+static struct {
+    bool pending;
+    vec2_t point;
+} pan_motion;
+
+static void CL_QueuePan(float x, float y) {
+    pan_motion.pending = true;
+    pan_motion.point = (vec2_t){ x, y };
+}
+
+static void CL_FlushPan(void) {
+    if (!pan_motion.pending) return;
+    pan_motion.pending = false;
+    if (camera_drag.active) CL_UpdatePan(pan_motion.point.x, pan_motion.point.y);
+}
+
 /* Two fingers on a touchscreen pan the camera like +pan (middle mouse): the
  * ground under the fingers' midpoint follows them. SDL also synthesizes
  * mouse events from the first finger (which == SDL_TOUCH_MOUSEID), so the
@@ -270,7 +292,7 @@ static void CL_TouchFingerEvent(SDL_TouchFingerEvent const *finger) {
             touch_pan.pos[slot] = pos;
             if (touch_pan.gesture && touch_pan.count == 2) {
                 vec2_t center = CL_TouchPanCenter();
-                CL_UpdatePan(center.x, center.y);
+                CL_QueuePan(center.x, center.y);
             }
             break;
         case SDL_FINGERUP:
@@ -447,7 +469,7 @@ static void CL_MouseMotion(SDL_MouseMotionEvent const *motion) {
         return;
     }
     if (camera_drag.active) {
-        CL_UpdatePan(motion->x, motion->y);
+        CL_QueuePan(motion->x, motion->y);
     }
     CL_UpdateMinimapDrag(motion->x, motion->y);
     if (cl.selection.in_progress && CL_SelectionLimit() > 1) {
@@ -794,6 +816,7 @@ void CL_Input(void) {
                 break;
         }
     }
+    CL_FlushPan();
     if (hover_update_pending) CL_UpdateHover((float)hover_motion.x, (float)hover_motion.y);
     CL_InputFrame();
 }
@@ -1700,15 +1723,19 @@ TEST(client_input, two_finger_touch_pans_camera) {
     T_EQ(SDL_PushEvent(&event), 1); CL_Input(); Cbuf_Execute();
     T_ASSERT(!input.select && !cl.selection.in_progress && camera_drag.active);
 
-    /* Moving one finger drags the midpoint 51.2px right; the first finger's
+    /* Both fingers report motion in one input pass (one event each per frame)
+     * and drag the midpoint 102.4px right: the pan must apply once, since the
+     * trace still uses the last rendered view matrix. The first finger's
      * synthetic motion must not pan on its own. */
     event = (SDL_Event){ .tfinger = { .type = SDL_FINGERMOTION, .touchId = 1, .fingerId = 1, .x = 0.5f, .y = 0.5f } };
     T_EQ(SDL_PushEvent(&event), 1);
     event = (SDL_Event){ .motion = { .type = SDL_MOUSEMOTION, .which = SDL_TOUCH_MOUSEID, .x = 900, .y = 700 } };
     T_EQ(SDL_PushEvent(&event), 1);
+    event = (SDL_Event){ .tfinger = { .type = SDL_FINGERMOTION, .touchId = 1, .fingerId = 2, .x = 0.7f, .y = 0.5f } };
+    T_EQ(SDL_PushEvent(&event), 1);
     CL_Input(); Cbuf_Execute();
     T_EQ(CL_TestCountFocus(&cls.netchan.message, &focus), 1);
-    vec2_t expected = CL_ClampCameraPosition((vec2_t){ 500 + 512 - 563.2f, 400 });
+    vec2_t expected = CL_ClampCameraPosition((vec2_t){ 500 + 512 - 614.4f, 400 });
     T_FEQ(focus.focus.x, expected.x, 0.01f); T_FEQ(focus.focus.y, expected.y, 0.01f);
 
     /* Lifting ends the pan without turning the first touch into a click. */
@@ -1735,7 +1762,7 @@ TEST(client_input, two_finger_touch_pans_camera) {
     }
 
     cl = *old_cl; MemFree(old_cl); cls = old_cls; re = old_re; input = old_input; mouse = old_mouse;
-    touch_is_direct = old_direct; memset(&touch_pan, 0, sizeof(touch_pan));
+    touch_is_direct = old_direct; memset(&touch_pan, 0, sizeof(touch_pan)); pan_motion.pending = false;
     FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_SetLayoutLayer(i, cl.layout[i]);
     Key_SetBinding(K_MOUSE1, 0, select_binding);
     if (add_select_down) Cmd_RemoveCommand("+select");
