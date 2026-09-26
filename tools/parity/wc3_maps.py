@@ -8,13 +8,15 @@ import json
 import os
 from pathlib import Path
 import re
-import subprocess
 import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools'))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from wc3_map_audit import clean_title, parse_w3i_name
+from map_archive import read_member
+from map_picker import label, filter_maps, picker_theme, draw_picker, pick_map
 
 # Ordered from base data to localized/expansion data and finally the patch archive.
 ARCHIVES = ('war3.mpq', 'war3local.mpq', 'war3x.mpq', 'war3xlocal.mpq', 'war3patch.mpq')
@@ -87,16 +89,6 @@ def decode_text(data, source):
     except UnicodeDecodeError:
         print(f'wc3 catalog: decoding legacy Windows-1252 text: {source}', file=sys.stderr)
         return data.decode('cp1252')
-
-
-def read_member(tool, archive, member, optional=False):
-    result = subprocess.run([str(tool), '-mpq', str(archive), 'cat', member], capture_output=True)
-    error = result.stderr.decode(errors='replace').strip()
-    if optional and result.returncode == 1 and error.replace('\\', '/') == f'Cannot open MPQ file: {member}':
-        return None
-    if result.returncode or error or not result.stdout:
-        raise RuntimeError(f'{archive}: {member}: {error or "empty/unreadable archive member"}')
-    return result.stdout
 
 
 def find_archives(data):
@@ -210,15 +202,6 @@ def load_catalog(data, tool, refresh=False, map_dirs=()):
     return rows
 
 
-def label(row):
-    return f"{row['edition']}-{row['slug']:<22}  {row['title'] + ': ' if row['title'] else ''}{row['name']}"
-
-
-def filter_maps(rows, query):
-    words = query.casefold().split()
-    return [row for row in rows if all(word in ' '.join(row.values()).casefold() for word in words)]
-
-
 def resolve_map(rows, slug, edition):
     for prefix in CAMPAIGN_FILES:
         if slug.startswith(prefix + '-'):
@@ -230,125 +213,6 @@ def resolve_map(rows, slug, edition):
         if row['edition'] == edition and row['slug'] == slug:
             return row
     raise ValueError(f"Unknown map '{slug}' in {edition}; use --list or --select")
-
-
-def picker_theme():
-    theme = dict(text=curses.A_NORMAL, muted=curses.A_DIM, accent=curses.A_BOLD,
-                 roc=curses.A_BOLD, tft=curses.A_BOLD, selected=curses.A_REVERSE | curses.A_BOLD)
-    if not curses.has_colors():
-        return theme
-    curses.start_color()
-    curses.use_default_colors()
-    # Indexed colors preserve the terminal background; eight-color terminals use ANSI hues.
-    palette = [('text', 252, curses.COLOR_WHITE, -1), ('muted', 244, curses.COLOR_WHITE, -1),
-               ('accent', 222, curses.COLOR_YELLOW, -1), ('roc', 117, curses.COLOR_CYAN, -1),
-               ('tft', 183, curses.COLOR_MAGENTA, -1), ('selected', 234, curses.COLOR_BLACK, 222)]
-    for pair, (name, rich, basic, background) in enumerate(palette, 1):
-        foreground = rich if curses.COLORS >= 256 else basic
-        if background >= 0 and curses.COLORS < 256:
-            background = curses.COLOR_YELLOW
-        curses.init_pair(pair, foreground, background)
-        theme[name] = curses.color_pair(pair) | (curses.A_BOLD if name in ('accent', 'selected') else 0)
-    return theme
-
-
-def draw_picker(screen, choices, query, selected, total, theme):
-    height, width = screen.getmaxyx()
-    screen.erase()
-
-    def put(y, x, text, style='text', limit=None):
-        available = min(width - x - 1, limit if limit is not None else width)
-        if 0 <= y < height and x >= 0 and available > 0:
-            # A row can shrink during a resize; the next input redraws the whole screen.
-            try:
-                screen.addnstr(y, x, text, available, theme[style])
-            except curses.error:
-                pass
-
-    if height < 13 or width < 48:
-        put(0, 0, 'WARCRAFT III  /  Select a map', 'accent')
-        put(1, 0, '> ' + query, 'accent')
-        count, top = max(1, height - 3), 2
-        start = max(0, selected - count + 1)
-        for i, row in enumerate(choices[start:start + count]):
-            put(top + i, 0, label(row), 'selected' if start + i == selected else 'text')
-        put(height - 1, 0, 'Enter launch  /  Esc back', 'muted')
-        screen.refresh()
-        return count
-
-    margin = 3 if width >= 80 else 1
-    edge = width - margin - 1
-    rule = '─' * (edge - margin)
-    put(1, margin, 'W A R C R A F T   I I I', 'accent')
-    put(2, margin, 'CAMPAIGN ATLAS', 'muted')
-    summary = f'{len(choices)} / {total} maps'
-    put(2, max(margin + 20, edge - len(summary)), summary, 'muted')
-    put(4, margin, '⌕  ' + (query if query else 'Search maps, chapters, campaigns…'),
-        'accent' if query else 'muted')
-    put(5, margin, rule, 'muted')
-    alias_x, name_x = margin + 8, margin + (34 if width >= 90 else 24)
-    put(6, margin + 2, 'GAME', 'muted')
-    put(6, alias_x, 'MAP', 'muted')
-    put(6, name_x, 'CHAPTER / DESTINATION', 'muted')
-    count, top = max(1, height - 13), 7
-    start = max(0, selected - count + 1)
-    for i, row in enumerate(choices[start:start + count]):
-        active = start + i == selected
-        y = top + i
-        if active:
-            put(y, margin, ' ' * (edge - margin), 'selected')
-        put(y, margin, '›' if active else ' ', 'selected' if active else 'text')
-        put(y, margin + 2, row['edition'].upper(), 'selected' if active else row['edition'])
-        alias = row['slug']
-        space = name_x - alias_x - 2
-        put(y, alias_x, alias if len(alias) <= space else alias[:space - 1] + '…',
-            'selected' if active else 'muted', space)
-        title = row['title'] + ' · ' if row['title'] else ''
-        put(y, name_x, title + row['name'], 'selected' if active else 'text', edge - name_x)
-    if not choices:
-        put(top + 1, margin + 2, 'No maps match your search.', 'accent')
-        put(top + 2, margin + 2, 'Try a name or chapter, or press Ctrl-U to clear.', 'muted')
-    put(height - 5, margin, rule, 'muted')
-    if choices:
-        row = choices[selected]
-        put(height - 4, margin, row['name'], 'accent')
-        put(height - 3, margin, row['campaign'] or 'Return to the main menu', 'muted')
-        put(height - 2, margin, row['edition'] + '-' + row['slug'] + ('  ·  ' + row['path'] if row['path'] else ''), 'muted')
-        position = f'{selected + 1} / {len(choices)}'
-        put(height - 5, edge - len(position) - 1, ' ' + position, 'muted')
-    put(height - 1, margin, '↑↓ Choose   Enter Launch   Esc Back   Ctrl-U Clear   PgUp/PgDn Scroll', 'muted')
-    screen.refresh()
-    return count
-
-
-def pick_map(screen, rows):
-    curses.curs_set(0)
-    theme = picker_theme()
-    query, selected = '', 0
-    screen.keypad(True)
-    while True:
-        choices = filter_maps(rows, query)
-        selected = max(0, min(selected, len(choices) - 1))
-        count = draw_picker(screen, choices, query, selected, len(rows), theme)
-        key = screen.get_wch()
-        if key in ('\x1b', '\x03'):
-            return None
-        if key in ('\n', '\r', curses.KEY_ENTER) and choices:
-            return choices[selected]
-        if key in (curses.KEY_DOWN, '\t'):
-            selected = min(selected + 1, len(choices) - 1)
-        elif key == curses.KEY_UP:
-            selected = max(0, selected - 1)
-        elif key == curses.KEY_NPAGE:
-            selected += count
-        elif key == curses.KEY_PPAGE:
-            selected -= count
-        elif key in (curses.KEY_BACKSPACE, '\x7f', '\b'):
-            query, selected = query[:-1], 0
-        elif key == '\x15':
-            query, selected = '', 0
-        elif isinstance(key, str) and key.isprintable():
-            query, selected = query + key, 0
 
 
 def main():

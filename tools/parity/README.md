@@ -1,7 +1,27 @@
 # Parity harness
 
-Tools for keeping the reimplementation visually faithful to the original
-Warcraft III, and for catching rendering regressions.
+Tools for launching maps and keeping the reimplementation visually faithful to
+the original games, including rendering regression checks.
+
+## StarCraft II map picker
+
+`sc2.sh` uses the same terminal picker as Warcraft III. Its catalog is built from
+installed `.SC2Maps` archive listfiles and loose `.SC2Map` directories. Display
+names come from the map's `DocInfo/Name` game string.
+
+```bash
+make mpqtool opensc2
+SC2DATA=data/StarCraft2 tools/parity/sc2.sh --list
+SC2DATA=data/StarCraft2 tools/parity/sc2.sh --select
+SC2DATA=data/StarCraft2 tools/parity/sc2.sh --map=traynor01
+SC2DATA=data/StarCraft2 SC2_DRY_RUN=1 tools/parity/sc2.sh --map=traynor01
+make test-sc2-parity
+```
+
+`--refresh` rebuilds `build/parity/sc2-maps.json`. `SC2_BINARY` selects another
+OpenRealm binary and `SC2_PARITY_LOGS` selects the log directory. Loose
+`.SC2Map` and `.SC2Components` maps below `SC2DATA` are included. See the
+[SC2 map picker contract](../../docs/games/starcraft-2/map-picker.md).
 
 ## Linux retail comparison with Wine
 
@@ -33,6 +53,7 @@ use arrows/Page Up/Page Down to navigate, Enter to launch, Escape to cancel, and
 The picker uses a gold selection bar, cyan ROC labels, violet TFT labels, and a selected-map
 detail area. It uses the terminal background, adapts its palette to 256/8-color terminals,
 falls back to reverse-video selection without color, and switches to a compact layout in small windows.
+The shared picker implementation is `map_picker.py`; game-specific catalogs own map discovery and aliases.
 Optional `--maps-dir=PATH` folders are scanned recursively for `.w3m`/`.w3x` files and may be repeated.
 Their `custom-<folder>-<map>` aliases appear alongside campaigns, using W3I/WTS names. Native loose
 map paths are relative to the data directory (including `../` for external folders); retail receives
