@@ -33,7 +33,7 @@ typedef struct {
     bool moving;
     bool mobile;
     bool flying;
-    vector2_t target;
+    vec2_t target;
     routePath_t path;
     float speed, height;
     animation_t const *anim;
@@ -170,9 +170,9 @@ static void SC2_StopUnit(edict_t *ent) {
     ent->s.ability = 0;
 }
 
-static void SC2_OrderMove(edict_t *ent, vector2_t const *target) {
+static void SC2_OrderMove(edict_t *ent, vec2_t const *target) {
     uint32_t number = SC2_EdictNumber(ent);
-    vector2_t pathable = *target;
+    vec2_t pathable = *target;
 
     if (number >= SC2_MAX_EDICTS || !sc2_move[number].mobile || !SC2_UnitCanMove(number)) {
         return;
@@ -188,7 +188,7 @@ static void SC2_OrderMove(edict_t *ent, vector2_t const *target) {
     ent->s.ability = 0;
 }
 
-static void SC2_MoveSelected(edict_t *clent, vector2_t const *target) {
+static void SC2_MoveSelected(edict_t *clent, vec2_t const *target) {
     uint32_t player = SC2_ClientPlayer(clent);
     bool issued = false;
 
@@ -205,7 +205,7 @@ static void SC2_MoveSelected(edict_t *clent, vector2_t const *target) {
     }
     gi.Write(PF_BYTE, &(int32_t){svc_temp_entity});
     gi.Write(PF_BYTE, &(int32_t){TE_MOVE_CONFIRMATION});
-    gi.Write(PF_POSITION, &(vector3_t){target->x, target->y, 0});
+    gi.Write(PF_POSITION, &(vec3_t){target->x, target->y, 0});
     gi.unicast(clent);
 }
 
@@ -217,14 +217,14 @@ static void SC2_MoveToTargetEntity(edict_t *clent, uint32_t target_number) {
 }
 
 /* Use WC3's swept static-path check for both steering candidates and committed steps. */
-static bool SC2_MoveIsValid(edict_t *ent, vector2_t const *point) {
+static bool SC2_MoveIsValid(edict_t *ent, vec2_t const *point) {
     return sc2_move[SC2_EdictNumber(ent)].flying || CM_LineIsWalkableForRadius(&ent->s.origin2, point, ent->collision);
 }
 
 static void SC2_RunUnit(edict_t *ent) {
     uint32_t number = SC2_EdictNumber(ent);
-    vector2_t to_goal;
-    vector2_t dir;
+    vec2_t to_goal;
+    vec2_t dir;
     float dist;
     float step;
 
@@ -254,7 +254,7 @@ static void SC2_RunUnit(edict_t *ent) {
             sc2_move[number].path.valid = false;
             dir = get_flow_direction(flow, ent->s.origin2.x, ent->s.origin2.y);
             if (Vector2_len(&dir) <= 0.001f) {
-                vector2_t closest;
+                vec2_t closest;
                 if (!CM_FlowCanReach(flow, ent->s.origin2.x, ent->s.origin2.y) &&
                     CM_ClosestReachablePointForRadius(&ent->s.origin2, &sc2_move[number].target, ent->collision, &closest))
                     SC2_OrderMove(ent, &closest);
@@ -264,13 +264,13 @@ static void SC2_RunUnit(edict_t *ent) {
     }
     Vector2_normalize(&dir);
     if (!(sc2_units[number].states & (1u<<SC2_UNIT_TURN_SUPPRESSED))) ent->s.angle = atan2f(dir.y, dir.x);
-    vector2_t next = Vector2_mad(&ent->s.origin2, step, &dir);
+    vec2_t next = Vector2_mad(&ent->s.origin2, step, &dir);
     if (!SC2_MoveIsValid(ent, &next)) {
         /* WC3 resolves blocked flow steps with local steering; SC2 previously stalled at the same corner forever. */
         routeSlide_t slide = { .ent = ent, .angle = ent->s.angle, .dist = step,
             .rings = BZ_ROUTE_SLIDE_RINGS, .valid = SC2_MoveIsValid };
         ent->s.angle = CM_SlideRoute(&slide);
-        next = Vector2_mad(&ent->s.origin2, step, &MAKE(vector2_t, cosf(ent->s.angle), sinf(ent->s.angle)));
+        next = Vector2_mad(&ent->s.origin2, step, &MAKE(vec2_t, cosf(ent->s.angle), sinf(ent->s.angle)));
         if (!SC2_MoveIsValid(ent, &next)) return;
     }
     if (!ent->s.ability) { SC2_UnitAnimation(ent, "Walk"); ent->s.ability = 1; }
@@ -282,8 +282,8 @@ static bool sc2_collision_filter(edict_t const *ent) {
     return ent && ent->inuse && !(ent->svflags & SVF_DEADMONSTER) && ent->s.model && ent->collision > 0;
 }
 
-static void SC2_PushEntity(edict_t *ent, float distance, vector2_t const *dir) {
-    vector2_t next = Vector2_mad(&ent->s.origin2, distance, dir);
+static void SC2_PushEntity(edict_t *ent, float distance, vec2_t const *dir) {
+    vec2_t next = Vector2_mad(&ent->s.origin2, distance, dir);
     if (!CM_LineIsWalkableForRadius(&ent->s.origin2, &next, ent->collision)) return;
     ent->s.origin2 = next;
     SC2_LinkUnit(ent);
@@ -303,7 +303,7 @@ static void SC2_SolveCollisions(void) {
             uint32_t bnum = SC2_EdictNumber(b);
             float radius;
             float distance;
-            vector2_t d;
+            vec2_t d;
 
             if (b == a) {
                 continue;
@@ -332,21 +332,21 @@ static void SC2_SolveCollisions(void) {
  * Galaxy callbacks — bridge between galaxy_host.c natives and SC2 game state.
  * ------------------------------------------------------------------------- */
 /* playerState.viewangles is ROTATE_ZYX {pitch, roll, yaw}; SC2CAMERA.angles is {pitch, yaw, height}. */
-static vector3_t SC2_ViewAngles(vector3_t const *camera_angles) {
+static vec3_t SC2_ViewAngles(vec3_t const *camera_angles) {
     return SC2_EulerFromCamera(camera_angles->x, camera_angles->y);
 }
 
-static vector3_t SC2_CameraAnglesFromPlayer(player_t const *ps) {
+static vec3_t SC2_CameraAnglesFromPlayer(player_t const *ps) {
     return SC2_CameraFromEuler(&ps->viewangles, ps->vieworigin.z - SC2_MapHeightAtPoint(ps->vieworigin.x, ps->vieworigin.y));
 }
 
-static void SC2_WriteCamera(vector2_t const *origin, vector3_t const *angles, float distance, float fov) {
+static void SC2_WriteCamera(vec2_t const *origin, vec3_t const *angles, float distance, float fov) {
     gameCamera_t defaults;
 
     CL_GameDefaultCamera(&defaults);
     defaults.fov = fov;
     FOR_LOOP(i, SC2_MAX_CLIENTS) {
-        sc2_clients[i].ps.vieworigin = (vector3_t){
+        sc2_clients[i].ps.vieworigin = (vec3_t){
             origin->x, origin->y, SC2_MapHeightAtPoint(origin->x, origin->y) + angles->z
         };
         sc2_edicts[i].s.origin = sc2_clients[i].ps.vieworigin;
@@ -383,7 +383,7 @@ static void SC2_UpdateCamera(void) {
     }
     k = (now - sc2_level.camera.start_time) / (float)duration;
     cur.origin = Vector2_lerp(&a->origin, &b->origin, k);
-    cur.angles = (vector3_t){ LerpNumber(a->angles.x, b->angles.x, k), SC2_LerpDegrees(a->angles.y, b->angles.y, k),
+    cur.angles = (vec3_t){ LerpNumber(a->angles.x, b->angles.x, k), SC2_LerpDegrees(a->angles.y, b->angles.y, k),
                             LerpNumber(a->angles.z, b->angles.z, k) };
     cur.distance = LerpNumber(a->distance, b->distance, k);
     cur.fov = LerpNumber(a->fov, b->fov, k);
@@ -507,7 +507,7 @@ static void SC2_GalaxyUnitSetPosition(void *ent_ptr, float x, float y, float fac
     edict_t *ent = (edict_t *)ent_ptr;
     if (!ent || !ent->inuse) return;
     if (x == x) { /* NaN check: NaN != NaN, so x==x is false only for NaN → skip position */
-        ent->s.origin2 = (vector2_t){ x, y };
+        ent->s.origin2 = (vec2_t){ x, y };
         SC2_LinkUnit(ent);
     }
     if (!isnan(facing)) ent->s.angle = facing;
@@ -527,7 +527,7 @@ static void SC2_GalaxyUnitMove(void *ent_ptr, float x, float y) {
             (unsigned)SC2_EdictNumber(ent), ent ? ent->s.origin.x : 0.0f, ent ? ent->s.origin.y : 0.0f,
             ent ? ent->s.origin.z : 0.0f, x, y);
 #endif
-    SC2_OrderMove((edict_t *)ent_ptr, &(vector2_t){ x, y });
+    SC2_OrderMove((edict_t *)ent_ptr, &(vec2_t){ x, y });
 }
 
 static bool SC2_GalaxyUnitIsMoving(void *ent_ptr) {
@@ -565,7 +565,7 @@ static void *SC2_GalaxyCreateUnit(cstring_t unit_type, int player, float x, floa
     ent->s.number = (uint32_t)(ent - sc2_edicts);
     ent->s.origin.x = x;
     ent->s.origin.y = y;
-    ent->s.origin2 = (vector2_t){ x, y };
+    ent->s.origin2 = (vec2_t){ x, y };
     ent->s.angle = angle;
     ent->s.scale = 1.0f;
     ent->s.player = (uint32_t)player;
@@ -620,13 +620,13 @@ static void SC2_InitClients(void) {
         ent->client = &sc2_clients[i];
         ent->client->ps.number = i + 1;
         ent->client->ps.client_ui_state = CLIENT_UI_GAME;
-        ent->client->ps.vieworigin = (vector3_t){
+        ent->client->ps.vieworigin = (vec3_t){
             camera.target.x, camera.target.y,
             SC2_MapHeightAtPoint(camera.target.x, camera.target.y) + camera.height_offset
         };
         ent->client->ps.distance = camera.distance;
         ent->client->ps.rdflags = RDF_NOFOG | RDF_NOFOGMASK;
-        ent->client->ps.viewangles = (vector3_t){ camera.pitch, 0.0f, camera.yaw };
+        ent->client->ps.viewangles = (vec3_t){ camera.pitch, 0.0f, camera.yaw };
         player_set_lens(&ent->client->ps, &camera);
     }
     sc2_level.camera.old = sc2_level.camera.state = (sc2Camera_t){ { camera.target.x, camera.target.y },
@@ -769,7 +769,7 @@ static void SC2_RunFrame(void) {
         edict_t *dropship = sc2_gunit_n ? (edict_t *)sc2_gunits[0] : NULL;
         trace_frame++;
         if (trace_frame % 5 == 0) {
-            vector3_t const cam = sc2_clients[0].ps.viewangles;
+            vec3_t const cam = sc2_clients[0].ps.viewangles;
             fprintf(stderr, "SC2 cutscene trace: frame=%u camera=(%.2f,%.2f) pitch=%.2f yaw=%.2f dist=%.2f height=%.2f",
                     (unsigned)trace_frame, sc2_clients[0].ps.vieworigin.x, sc2_clients[0].ps.vieworigin.y,
                     cam.x, cam.z, (double)sc2_clients[0].ps.distance,
@@ -848,7 +848,7 @@ static bool SC2_PrepareMap(cstring_t filename) {
 }
 
 static void SC2_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
-    vector2_t loc;
+    vec2_t loc;
 
     if (!ent || argc == 0 || !argv || !argv[0]) {
         return;
@@ -862,7 +862,7 @@ static void SC2_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
             return;
         }
         /* Shared input sends selection and right-click orders separately; never consume the first move. */
-        loc = (vector2_t){ atof(argv[1]), atof(argv[2]) };
+        loc = (vec2_t){ atof(argv[1]), atof(argv[2]) };
         SC2_MoveSelected(ent, &loc);
         return;
     }

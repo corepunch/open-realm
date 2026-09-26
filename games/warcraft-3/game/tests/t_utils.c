@@ -34,7 +34,7 @@ edict_t *alloc_test_unit(uint32_t class_id, float x, float y) {
      * by hand start with both authored weapon slots enabled unless they attach
      * a specific row for a disabled-slot case. */
     ent->data.UnitWeapons = &test_weapons;
-    ent->s.origin2 = (vector2_t){x, y};
+    ent->s.origin2 = (vec2_t){x, y};
     ent->s.origin.x = x;
     ent->s.origin.y = y;
     ent->s.origin.z = 0;

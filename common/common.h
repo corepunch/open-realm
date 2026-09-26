@@ -267,31 +267,31 @@ uint32_t CM_BuildHeatmapForRadius(struct edict_s *goalentity, float radius);
 uint32_t CM_RequestHeatmapForRadius(struct edict_s *goalentity, float radius);
 uint32_t CM_RequestHeatmapForRadiusFlags(struct edict_s *goalentity, float radius, uint8_t blocked_flags);
 void  CM_ProcessPathJobs(uint32_t work_budget);
-bool  CM_FindPathWaypoint(pathAccelParams_t const *params, vector2_t *out);
+bool  CM_FindPathWaypoint(pathAccelParams_t const *params, vec2_t *out);
 bool  CM_ActivateCachedFlow(uint32_t generation);
 bool  CM_ActivateCachedFlowForFlags(uint32_t generation, uint8_t blocked_flags);
 bool  CM_FlowReachedGoal(uint32_t generation, float x, float y);
 bool  CM_FlowCanReach(uint32_t generation, float x, float y);
-vector2_t get_flow_direction(uint32_t heatmapindex, float fnx, float fny);
+vec2_t get_flow_direction(uint32_t heatmapindex, float fnx, float fny);
 void CM_BakeStaticObstacles(void);
 void CM_InvalidatePathCache(void);
 void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells);
 bool CM_IsMapLoaded(cstring_t mapFilename);
-bool CM_ClosestPathablePoint(vector2_t const *location, vector2_t *out);
-bool CM_ClosestPathablePointForRadius(vector2_t const *location, float radius, vector2_t *out);
-bool CM_ClosestPathablePointForRadiusFlags(vector2_t const *location, float radius, uint8_t blocked_flags,
-                                           vector2_t *out);
-bool CM_ClosestReachablePointForRadius(vector2_t const *from, vector2_t const *target, float radius, vector2_t *out);
-bool CM_ClosestReachablePointForRadiusFlags(vector2_t const *from, vector2_t const *target, float radius,
-                                            uint8_t blocked_flags, vector2_t *out);
-bool CM_FindDirectApproachPointForRadius(vector2_t const *from, vector2_t const *target, float range, float radius, vector2_t *out);
+bool CM_ClosestPathablePoint(vec2_t const *location, vec2_t *out);
+bool CM_ClosestPathablePointForRadius(vec2_t const *location, float radius, vec2_t *out);
+bool CM_ClosestPathablePointForRadiusFlags(vec2_t const *location, float radius, uint8_t blocked_flags,
+                                           vec2_t *out);
+bool CM_ClosestReachablePointForRadius(vec2_t const *from, vec2_t const *target, float radius, vec2_t *out);
+bool CM_ClosestReachablePointForRadiusFlags(vec2_t const *from, vec2_t const *target, float radius,
+                                            uint8_t blocked_flags, vec2_t *out);
+bool CM_FindDirectApproachPointForRadius(vec2_t const *from, vec2_t const *target, float range, float radius, vec2_t *out);
 float CM_PathCellWorldSize(void);
-bool CM_FindApproachPointToFootprintForRadius(struct edict_s const *target, vector2_t const *from, float range, float radius, vector2_t *out);
-bool CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target, vector2_t const *from, float range, float radius, vector2_t *out);
+bool CM_FindApproachPointToFootprintForRadius(struct edict_s const *target, vec2_t const *from, float range, float radius, vec2_t *out);
+bool CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target, vec2_t const *from, float range, float radius, vec2_t *out);
 float CM_GetHeightAtPoint(float sx, float sy);
 float CM_GetWaterHeightAtPoint(float sx, float sy);
-bool CM_TerrainPointIsWalkable(vector2_t const *location);
-bool CM_TerrainPointIsSwimmable(vector2_t const *location);
+bool CM_TerrainPointIsWalkable(vec2_t const *location);
+bool CM_TerrainPointIsSwimmable(vec2_t const *location);
 float CM_GetCameraHeightOffset(void);
 box2_t CM_GetWorldBounds(void);
 
@@ -302,7 +302,7 @@ struct world_state {
 };
 
 typedef struct {
-    vector3_t target;
+    vec3_t target;
     float distance, pitch, yaw, fov, znear, zfar, height_offset;
 } gameCamera_t;
 
@@ -317,8 +317,8 @@ bool CL_GameDefaultCamera(gameCamera_t *camera);
 bool CL_GameCameraUsesWorldUp(void);
 float CL_GameLerpDegrees(float a, float b, float fraction);
 cstring_t CL_GameOrderQueueReleaseCommand(void);
-bool CL_GameBuildCursorBlocked(vector3_t const *origin);
-void CL_GameModifyBuildPathing(vector2_t const *point, uint8_t *flags);
+bool CL_GameBuildCursorBlocked(vec3_t const *origin);
+void CL_GameModifyBuildPathing(vec2_t const *point, uint8_t *flags);
 typedef struct {
     uint32_t anchor;
     uint32_t const *visible;
@@ -334,8 +334,8 @@ extern struct world_state world;
 
 /* Implemented by the selected game's common/world_*.c. */
 bool     CM_LoadMapFormat(cstring_t mapFilename, cmLoadYield_t yield);
-vector2_t  CM_GetNormalizedMapPosition(float x, float y);
-vector2_t  CM_GetDenormalizedMapPosition(float x, float y);
+vec2_t  CM_GetNormalizedMapPosition(float x, float y);
+vec2_t  CM_GetDenormalizedMapPosition(float x, float y);
 
 // games/warcraft-3/sheet/parser.c
 string_t ParserGetTokenEx(parser_t *p, bool sameLine);

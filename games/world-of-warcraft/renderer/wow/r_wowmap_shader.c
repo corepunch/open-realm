@@ -235,8 +235,8 @@ void Wow_InitTerrainShader(void) {
     wow_terrain_shader.state.alphaAtlasChunks = (GLfloat)WOW_ALPHA_ATLAS_CHUNKS;
     wow_terrain_shader.state.singleTexture = 0;
     wow_terrain_shader.state.wmoIndoor = 0;
-    wow_terrain_shader.state.wmoAmbient = (vector3_t){ 0.0f, 0.0f, 0.0f };
-    wow_terrain_shader.state.wmoLightAdd = (vector3_t){ 0.0f, 0.0f, 0.0f };
+    wow_terrain_shader.state.wmoAmbient = (vec3_t){ 0.0f, 0.0f, 0.0f };
+    wow_terrain_shader.state.wmoLightAdd = (vec3_t){ 0.0f, 0.0f, 0.0f };
     wow_terrain_shader.state.wmoBlendMode = 0;
 }
 

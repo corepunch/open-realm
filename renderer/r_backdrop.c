@@ -146,7 +146,7 @@ void R_DrawBackdrop(drawBackdrop_t const *db) {
             if (tile > 1.0f) edge_repeat = true;
             R_AddQuad(vertices + num_vertices, rects + c, &uv, db->edge.color, 0);
             if (flip) {
-                vector2_t tmp = vertices[num_vertices + 1].texcoord;
+                vec2_t tmp = vertices[num_vertices + 1].texcoord;
                 vertices[num_vertices + 1].texcoord = vertices[num_vertices + 5].texcoord;
                 vertices[num_vertices + 5].texcoord = tmp;
             }

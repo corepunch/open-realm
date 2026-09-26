@@ -12,24 +12,24 @@ void Wow_DrawTerrainShadows(void);
 void Wow_DrawAlphaSurfaces(void);
 void Wow_DrawMinimap(rect_t const *screen);
 float Wow_GetHeightAtPoint(float x, float y);
-bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t *output);
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *output);
 float GetAccurateHeightAtPoint(float sx, float sy);
 
 static texture_t *s_quest_active_icon;
 
 m2Model_t *R_LoadModelM2(cstring_t modelFilename, void *buffer, uint32_t size, bool *buffer_owned);
 void M2_Init(void);
-void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, matrix4_t const *transform);
+void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, mat4_t const *transform);
 void M2_RenderInstanced(m2Model_t const *model, instanceBuffer_t const *instances, uint32_t flags);
 bool M2_CanStaticInstance(m2Model_t const *model);
-bool M2_AttachmentMatrix(m2Model_t const *model, uint32_t attachment_id, matrix4_t const *model_matrix, matrix4_t *out);
+bool M2_AttachmentMatrix(m2Model_t const *model, uint32_t attachment_id, mat4_t const *model_matrix, mat4_t *out);
 bool M2_EntityAttachmentPosition(m2Model_t const *model, renderEntity_t const *entity, uint32_t attachment_id,
-                                 matrix4_t const *model_matrix, vector3_t *out);
-bool M2_PosedAttachmentPosition(m2Model_t const *model, uint32_t attachment_id, matrix4_t const *model_matrix, vector3_t *out);
+                                 mat4_t const *model_matrix, vec3_t *out);
+bool M2_PosedAttachmentPosition(m2Model_t const *model, uint32_t attachment_id, mat4_t const *model_matrix, vec3_t *out);
 float M2_GroundOffset(m2Model_t const *model);
 float M2_HeadHeight(m2Model_t const *model);
 float M2_VisibleBottom(m2Model_t const *model);
-bool M2_CameraView(m2Model_t const *model, uint32_t camera_index, vector3_t *eye, vector3_t *target, float *fov_degrees, float *znear, float *zfar);
+bool M2_CameraView(m2Model_t const *model, uint32_t camera_index, vec3_t *eye, vec3_t *target, float *fov_degrees, float *znear, float *zfar);
 bool M2_IsCharacterModel(m2Model_t const *model);
 bool M2_SetEntitySequenceFrame(m2Model_t const *model, cstring_t anim, renderEntity_t *entity);
 void M2_Release(m2Model_t *model);
@@ -37,7 +37,7 @@ void M2_Shutdown(void);
 
 typedef struct {
     model_t const *model;
-    vector3_t origin, rotation, point;
+    vec3_t origin, rotation, point;
     uint32_t time, frame, oldframe, flags;
     float angle, scale;
     bool valid, found;
@@ -55,7 +55,7 @@ static bool R_WowOverheadCacheMatch(wowOverheadCache_t const *cache, renderEntit
 }
 
 /* Preserve the model-authored attachment result before another M2 draw overwrites the shared bone palette. */
-static void R_WowCacheOverhead(renderEntity_t const *entity, matrix4_t const *transform) {
+static void R_WowCacheOverhead(renderEntity_t const *entity, mat4_t const *transform) {
     wowOverheadCache_t *cache;
     uint32_t attachment;
     if (entity->number >= MAX_GAME_ENTITIES) return;
@@ -116,7 +116,7 @@ void R_RegisterMap(cstring_t mapFileName) {
 }
 
 void R_SetupEnvironmentLighting(void) {
-    vector3_t dir;
+    vec3_t dir;
     environLight_t sun;
     Wow_SunDirection(Wow_DayFraction(), &dir);
     sun = (environLight_t){
@@ -155,8 +155,8 @@ float R_GetHeightAtPoint(float x, float y) {
 float R_GetCameraHeightAtPoint(float x, float y) { return R_GetHeightAtPoint(x, y); }
 bool R_CameraUsesTerrainHeight(void) { return false; }
 
-vector2_t R_WorldSize(void) {
-    return (vector2_t){ 0 };
+vec2_t R_WorldSize(void) {
+    return (vec2_t){ 0 };
 }
 
 model_t *R_LoadModel(cstring_t modelFilename) {
@@ -216,7 +216,7 @@ void R_ReleaseModel(model_t *model) {
     ri.MemFree(model);
 }
 
-matrix4_t const *R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
+mat4_t const *R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
     pose->angles = Wow_DoodadOrientation(entity->rotation);
     pose->angles.yaw += entity->angle;
     if (entity->model && entity->model->modeltype == ID_MD20 && (entity->flags & RF_GROUND_ANCHOR) &&
@@ -231,12 +231,12 @@ bool R_GetEntityBounds(renderEntity_t const *entity, box3_t *bounds) {
 }
 
 /* Build a stable top/front light for WoW UI model-camera previews. */
-static void R_WowEntityCameraLightMatrix(vector3_t const *target, float radius, matrix4_t *output) {
-    matrix4_t proj;
-    matrix4_t view;
-    vector3_t light_dir = { -0.35f, -0.50f, 0.80f };
-    vector3_t view_dir;
-    vector3_t eye;
+static void R_WowEntityCameraLightMatrix(vec3_t const *target, float radius, mat4_t *output) {
+    mat4_t proj;
+    mat4_t view;
+    vec3_t light_dir = { -0.35f, -0.50f, 0.80f };
+    vec3_t view_dir;
+    vec3_t eye;
     float distance = MAX(1000.0f, radius * 8.0f);
     float scale = MAX(64.0f, radius * 2.5f);
 
@@ -244,15 +244,15 @@ static void R_WowEntityCameraLightMatrix(vector3_t const *target, float radius, 
     view_dir = Vector3_unm(&light_dir);
     eye = Vector3_mad(target, distance, &light_dir);
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0f, 3000.0f);
-    Matrix4_lookAt(&view, &eye, &view_dir, &(vector3_t){ 0.0f, 0.0f, 1.0f });
+    Matrix4_lookAt(&view, &eye, &view_dir, &(vec3_t){ 0.0f, 0.0f, 1.0f });
     Matrix4_multiply(&proj, &view, output);
 }
 
 void R_UpdateEntityPresentation(renderEntity_t const *entity) { (void)entity; }
 
 void R_RenderModel(renderEntity_t const *entity) {
-    matrix4_t transform;
-    matrix4_t attached_transform;
+    mat4_t transform;
+    mat4_t attached_transform;
     renderEntity_t attached_entity;
     uint32_t attachment_id;
 
@@ -280,7 +280,7 @@ void R_RenderModel(renderEntity_t const *entity) {
         M2_RenderModel(&marker, marker.model->m2, &attached_transform);
     }
     if (s_quest_active_icon && (entity->flags & RF_HAS_QUEST)) {
-        vector3_t origin = entity->origin;
+        vec3_t origin = entity->origin;
         origin.z += (M2_GroundOffset(entity->model->m2) + M2_HeadHeight(entity->model->m2)) * entity->scale + 0.25f;
         color32_t tint = (entity->flags & RF_QUEST_COMPLETE) ? MAKE(color32_t, 255, 215, 0, 255) : COLOR32_WHITE;
         R_DrawBillboardSprite(s_quest_active_icon, &origin, 0.5f, tint);
@@ -318,14 +318,14 @@ bool R_ModelCanStaticInstance(model_t const *model) {
 }
 
 bool R_TraceModel(renderEntity_t const *entity, line3_t const *line, float *distance) {
-    vector3_t ab;
-    vector3_t ac;
-    vector3_t center;
+    vec3_t ab;
+    vec3_t ac;
+    vec3_t center;
     float radius;
     float denom;
     float t;
-    vector3_t closest;
-    vector3_t delta;
+    vec3_t closest;
+    vec3_t delta;
     float dist2;
 
     if (!entity || !entity->number || !entity->model) {
@@ -344,7 +344,7 @@ bool R_TraceModel(renderEntity_t const *entity, line3_t const *line, float *dist
     ac = Vector3_sub(&center, &line->a);
     t = Vector3_dot(&ac, &ab) / denom;
     t = MAX(0.0f, MIN(1.0f, t));
-    closest = (vector3_t){
+    closest = (vec3_t){
         line->a.x + ab.x * t,
         line->a.y + ab.y * t,
         line->a.z + ab.z * t,
@@ -361,12 +361,12 @@ bool R_TraceModel(renderEntity_t const *entity, line3_t const *line, float *dist
 }
 
 #ifndef USE_SHADOWMAPS
-bool R_RenderShadow(renderEntity_t const *entity, vector2_t const *origin) {
+bool R_RenderShadow(renderEntity_t const *entity, vec2_t const *origin) {
     texture_t const *shadow;
     bool use_fast_blob;
     float shadow_z;
-    vector2_t mins;
-    vector2_t maxs;
+    vec2_t mins;
+    vec2_t maxs;
     box3_t bounds;
     color32_t shadowColor = {0, 0, 0, 128};
 
@@ -428,10 +428,10 @@ float R_SelectionRadius(renderEntity_t const *entity) {
 }
 
 /* The PlayerName attachment (mounted variant when riding) is the model-authored name-plate point. */
-bool R_EntityOverheadPosition(renderEntity_t const *entity, vector3_t *out) {
+bool R_EntityOverheadPosition(renderEntity_t const *entity, vec3_t *out) {
     static model_t const *last_missing;
     wowOverheadCache_t *cache;
-    matrix4_t transform;
+    mat4_t transform;
     uint32_t attachment;
     if (!entity || !out) return false;
     *out = entity->origin;
@@ -455,14 +455,14 @@ bool R_EntityOverheadPosition(renderEntity_t const *entity, vector3_t *out) {
     out->z += (M2_GroundOffset(entity->model->m2) + M2_HeadHeight(entity->model->m2)) * entity->scale;
     return false;
 }
-bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vector3_t *out) {
+bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vec3_t *out) {
     (void)entity; (void)prefix; (void)out;
     return false;
 }
 
 
 float R_EntityHeight(renderEntity_t const *entity) {
-    vector3_t top;
+    vec3_t top;
     if (!entity) return 0.0f;
     R_EntityOverheadPosition(entity, &top);
     return top.z - entity->origin.z;
@@ -476,14 +476,14 @@ bool R_GetModelInfo(model_t *model, modelInfo_t *info) {
 
 bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef) {
     box3_t const *bounds;
-    matrix4_t transform;
-    vector3_t center;
-    vector3_t eye;
-    vector3_t target;
-    vector3_t dir;
-    vector3_t up;
-    vector3_t model_origin;
-    vector3_t model_z;
+    mat4_t transform;
+    vec3_t center;
+    vec3_t eye;
+    vec3_t target;
+    vec3_t dir;
+    vec3_t up;
+    vec3_t model_origin;
+    vec3_t model_z;
     float radius;
     float distance;
     float fov = 35.0f;
@@ -498,12 +498,12 @@ bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t
     bounds = &m2->bounds;
     R_GetEntityMatrix(entity, &transform);
 
-    center = (vector3_t){
+    center = (vec3_t){
         (bounds->max.x + bounds->min.x) * 0.5f,
         (bounds->max.y + bounds->min.y) * 0.5f,
         (bounds->max.z + bounds->min.z) * 0.5f
     };
-    radius = Vector3_len(&(vector3_t){
+    radius = Vector3_len(&(vec3_t){
         bounds->max.x - bounds->min.x,
         bounds->max.y - bounds->min.y,
         bounds->max.z - bounds->min.z
@@ -515,29 +515,29 @@ bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t
     if (!M2_CameraView(m2, 0, &eye, &target, &fov, &znear, &zfar)) {
         distance = radius / tanf((fov * (float)M_PI / 180.0f) * 0.5f);
         if (M2_IsCharacterModel(m2)) {
-            target = (vector3_t){ center.x, center.y, center.z + radius * 0.28f };
-            eye = (vector3_t){ target.x, target.y - distance * 0.52f, target.z + radius * 0.02f };
+            target = (vec3_t){ center.x, center.y, center.z + radius * 0.28f };
+            eye = (vec3_t){ target.x, target.y - distance * 0.52f, target.z + radius * 0.02f };
             znear = MAX(0.1f, distance * 0.02f);
         } else {
-            eye = (vector3_t){ center.x, center.y - distance * 1.35f, center.z + radius * 0.25f };
+            eye = (vec3_t){ center.x, center.y - distance * 1.35f, center.z + radius * 0.25f };
             target = center;
         }
         zfar = MAX(zfar, distance + radius * 4.0f);
     }
     eye = Matrix4_multiply_vector3(&transform, &eye);
     target = Matrix4_multiply_vector3(&transform, &target);
-    model_origin = Matrix4_multiply_vector3(&transform, &(vector3_t){0, 0, 0});
-    model_z = Matrix4_multiply_vector3(&transform, &(vector3_t){0, 0, 1});
+    model_origin = Matrix4_multiply_vector3(&transform, &(vec3_t){0, 0, 0});
+    model_z = Matrix4_multiply_vector3(&transform, &(vec3_t){0, 0, 1});
     up = Vector3_sub(&model_z, &model_origin);
     if (Vector3_len(&up) <= 0.001f) {
-        up = (vector3_t){ 0.0f, 0.0f, 1.0f };
+        up = (vec3_t){ 0.0f, 0.0f, 1.0f };
     }
     dir = Vector3_sub(&target, &eye);
     if (Vector3_len(&dir) <= 0.001f) {
-        dir = (vector3_t){ 0.0f, 1.0f, 0.0f };
+        dir = (vec3_t){ 0.0f, 1.0f, 0.0f };
     }
 
-    matrix4_t proj_matrix, view_matrix;
+    mat4_t proj_matrix, view_matrix;
     Matrix4_perspective(&proj_matrix, fov, aspect, znear, zfar);
     Matrix4_lookAt(&view_matrix, &eye, &dir, &up);
     Matrix4_multiply(&proj_matrix, &view_matrix, &viewdef->viewProjectionMatrix);

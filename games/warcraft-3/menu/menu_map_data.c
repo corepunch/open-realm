@@ -108,7 +108,7 @@ static bool UI_ReadInfoInto(handle_t archive, mapInfo_t *info) {
         SFileReadFile(file, &player->playerRace, sizeof(playerRace_t), NULL, NULL);
         SFileReadFile(file, &player->flags, sizeof(uint32_t), NULL, NULL);
         UI_SFileReadString(file, &player->playerName);
-        SFileReadFile(file, &player->startingPosition, sizeof(vector2_t), NULL, NULL);
+        SFileReadFile(file, &player->startingPosition, sizeof(vec2_t), NULL, NULL);
         SFileReadFile(file, &player->allyLowPrioritiesFlags, sizeof(uint32_t), NULL, NULL);
         SFileReadFile(file, &player->allyHighPrioritiesFlags, sizeof(uint32_t), NULL, NULL);
         if (info->fileFormat >= 31) {

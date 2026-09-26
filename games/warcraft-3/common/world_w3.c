@@ -55,10 +55,10 @@ void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
 }
 
 /* Client collision circles add live blockers; this lookup supplies the map's authored terrain flags. */
-bool CM_GetPathingFlagsAt(vector2_t const *pos, uint8_t *flags) {
+bool CM_GetPathingFlagsAt(vec2_t const *pos, uint8_t *flags) {
     if (flags) *flags = 0;
     if (!pos || !flags || !cl_path.cells) return false;
-    vector2_t n = CM_GetNormalizedMapPosition(pos->x, pos->y);
+    vec2_t n = CM_GetNormalizedMapPosition(pos->x, pos->y);
     int x = (int)floorf(n.x * cl_path.width), y = (int)floorf(n.y * cl_path.height);
     if (x < 0 || y < 0 || x >= cl_path.width || y >= cl_path.height) return false;
     *flags = cl_path.cells[x + y * cl_path.width];
@@ -69,7 +69,7 @@ bool CM_GetPathingFlagsAt(vector2_t const *pos, uint8_t *flags) {
 
 cstring_t CL_GameOrderQueueReleaseCommand(void) { return "orderqueuerelease"; }
 
-bool CL_GameBuildCursorBlocked(vector3_t const *origin) {
+bool CL_GameBuildCursorBlocked(vec3_t const *origin) {
     float const min_dist_sq = WC3_GOLD_MINE_MIN_DISTANCE * WC3_GOLD_MINE_MIN_DISTANCE;
     if (!origin || !cl.cursorEntity || !(cl.cursorEntity->flags & EF_RESOURCE_RETURN)) return false;
     FOR_LOOP(i, cl.num_active) {
@@ -86,7 +86,7 @@ bool CL_GameBuildCursorBlocked(vector3_t const *origin) {
     return false;
 }
 
-void CL_GameModifyBuildPathing(vector2_t const *point, uint8_t *flags) {
+void CL_GameModifyBuildPathing(vec2_t const *point, uint8_t *flags) {
     uint32_t x, y;
 
     if (!point || !flags || !cl.terrain_mask.cells) return;
@@ -388,31 +388,31 @@ float CM_GetWaterHeightAtPoint(float sx, float sy) {
     return LerpNumber(ab, cd, y - fy);
 }
 
-vector2_t CM_GetNormalizedMapPosition(float x, float y) {
+vec2_t CM_GetNormalizedMapPosition(float x, float y) {
 #ifdef BZ_TESTS
 	if (test_world_bounds_set) {
 		float width = test_world_bounds.max.x - test_world_bounds.min.x;
 		float height = test_world_bounds.max.y - test_world_bounds.min.y;
-		return (vector2_t){ width ? (x - test_world_bounds.min.x) / width : 0,
+		return (vec2_t){ width ? (x - test_world_bounds.min.x) / width : 0,
 		                  height ? (y - test_world_bounds.min.y) / height : 0 };
 	}
 #endif
-	if (!world.map) return (vector2_t){0, 0};
+	if (!world.map) return (vec2_t){0, 0};
 	float _x = (x - world.map->center.x) / ((world.map->width - 1) * TILE_SIZE);
 	float _y = (y - world.map->center.y) / ((world.map->height - 1) * TILE_SIZE);
-	return (vector2_t){ _x, _y };
+	return (vec2_t){ _x, _y };
 }
 
-vector2_t CM_GetDenormalizedMapPosition(float x, float y) {
+vec2_t CM_GetDenormalizedMapPosition(float x, float y) {
 #ifdef BZ_TESTS
 	if (test_world_bounds_set)
-		return (vector2_t){ x * (test_world_bounds.max.x - test_world_bounds.min.x) + test_world_bounds.min.x,
+		return (vec2_t){ x * (test_world_bounds.max.x - test_world_bounds.min.x) + test_world_bounds.min.x,
 		                  y * (test_world_bounds.max.y - test_world_bounds.min.y) + test_world_bounds.min.y };
 #endif
-	if (!world.map) return (vector2_t){0, 0};
+	if (!world.map) return (vec2_t){0, 0};
 	float _x = x * (world.map->width - 1) * TILE_SIZE + world.map->center.x;
 	float _y = y * (world.map->height - 1) * TILE_SIZE + world.map->center.y;
-	return (vector2_t){ _x, _y };
+	return (vec2_t){ _x, _y };
 }
 
 box2_t CM_GetWorldBounds(void) {
@@ -463,13 +463,13 @@ TEST(client_world, terrain_path_flags_survive_load_replace_and_clear) {
     uint8_t cells[] = { 2, 4, 8, 16 }, flags = 0;
     CM_SetupTestWorldBounds(&(box2_t){ .min = { 0, 0 }, .max = { 64, 64 } });
     CM_SetupPathMap(2, 2, cells);
-    T_ASSERT(CM_GetPathingFlagsAt(&(vector2_t){ 48, 16 }, &flags)); T_EQ(flags, 4);
-    T_ASSERT(CM_GetPathingFlagsAt(&(vector2_t){ 16, 48 }, &flags)); T_EQ(flags, 8);
-    T_ASSERT(!CM_GetPathingFlagsAt(&(vector2_t){ 64, 16 }, &flags));
+    T_ASSERT(CM_GetPathingFlagsAt(&(vec2_t){ 48, 16 }, &flags)); T_EQ(flags, 4);
+    T_ASSERT(CM_GetPathingFlagsAt(&(vec2_t){ 16, 48 }, &flags)); T_EQ(flags, 8);
+    T_ASSERT(!CM_GetPathingFlagsAt(&(vec2_t){ 64, 16 }, &flags));
     CM_SetupPathMap(1, 1, cells);
-    T_ASSERT(CM_GetPathingFlagsAt(&(vector2_t){ 48, 48 }, &flags)); T_EQ(flags, 2);
+    T_ASSERT(CM_GetPathingFlagsAt(&(vec2_t){ 48, 48 }, &flags)); T_EQ(flags, 2);
     CM_SetupPathMap(0, 0, NULL);
-    T_ASSERT(!CM_GetPathingFlagsAt(&(vector2_t){ 16, 16 }, &flags));
+    T_ASSERT(!CM_GetPathingFlagsAt(&(vec2_t){ 16, 16 }, &flags));
     CM_SetupTestWorldBounds(NULL);
 }
 #endif

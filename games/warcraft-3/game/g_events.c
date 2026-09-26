@@ -317,7 +317,7 @@ static void G_TouchTriggers(edict_t *ent) {
                     }
                 } else if (evt->subject &&
                            memcmp(&((edict_t *)evt->subject)->old_origin,
-                                  &((edict_t *)evt->subject)->s.origin2, sizeof(vector2_t)) == 0 &&
+                                  &((edict_t *)evt->subject)->s.origin2, sizeof(vec2_t)) == 0 &&
                            Vector2_distance(&((edict_t *)evt->subject)->old_origin, &ent->old_origin) > evt->range &&
                            Vector2_distance(&((edict_t *)evt->subject)->s.origin2, &ent->s.origin2) <= evt->range) {
                     G_PublishEventResponse(ent, evt->type, evt);
@@ -331,7 +331,7 @@ static void G_TouchTriggers(edict_t *ent) {
 
 /* Explicit JASS position changes happen before G_RunEntities samples old_origin.
  * Evaluate the crossing here, then make the teleported position the next baseline. */
-void G_UnitPositionChanged(edict_t *ent, vector2_t const *old_position) {
+void G_UnitPositionChanged(edict_t *ent, vec2_t const *old_position) {
     if (!ent || !ent->inuse || !old_position ||
         !memcmp(old_position, &ent->s.origin2, sizeof(*old_position))) return;
     ent->old_origin = *old_position;
@@ -370,7 +370,7 @@ void G_RunEntities(void) {
         edict_t *ent = globals.edicts+i;
         if (!ent->inuse) continue;
         if (!G_UnitIsWorldActive(ent)) continue;
-        if (!memcmp(&ent->old_origin, &ent->s.origin2, sizeof(vector2_t)))
+        if (!memcmp(&ent->old_origin, &ent->s.origin2, sizeof(vec2_t)))
             continue;
         G_TouchTriggers(ent);
     }

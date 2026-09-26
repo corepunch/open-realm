@@ -83,7 +83,7 @@ TEST(wc3_spell, dispel_magic_aliases_share_procedure) {
 /* Adis reads its own DataB for summoned damage; ordinary units are untouched. */
 TEST(wc3_spell, dispel_adis_damages_summoned_with_datab) {
 	dispelFix_t fix = dispel_setup(BZ_ADIS);
-	vector2_t point = fix.summon->s.origin2;
+	vec2_t point = fix.summon->s.origin2;
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ADIS, &point));
 	T_FEQ(fix.summon->health.value, 389, 0.001f); /* 500 - 111 */
 	T_FEQ(fix.enemy->health.value, 500, 0.001f);
@@ -95,7 +95,7 @@ TEST(wc3_spell, dispel_adis_damages_summoned_with_datab) {
  * Its BTLF marker must likewise survive so the unit still expires normally. */
 TEST(wc3_spell, dispel_does_not_damage_animated_dead) {
 	dispelFix_t fix = dispel_setup(BZ_ADIS);
-	vector2_t point = fix.summon->s.origin2;
+	vec2_t point = fix.summon->s.origin2;
 	fix.summon->summon_ability = BZ_AUAN;
 	unit_addtimedstatus(fix.summon, "BTLF", 1, 30.0f);
 	T_ASSERT(S_SummonIsDispelImmune(fix.summon));
@@ -108,7 +108,7 @@ TEST(wc3_spell, dispel_does_not_damage_animated_dead) {
 /* Adch is not an Adis alias; it must still damage summons from its DataB row. */
 TEST(wc3_spell, dispel_adch_damages_summoned_with_datab) {
 	dispelFix_t fix = dispel_setup(BZ_ADCH);
-	vector2_t point = fix.summon->s.origin2;
+	vec2_t point = fix.summon->s.origin2;
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ADCH, &point));
 	T_FEQ(fix.summon->health.value, 278, 0.001f); /* 500 - 222 */
 	T_FEQ(fix.enemy->health.value, 500, 0.001f);
@@ -117,7 +117,7 @@ TEST(wc3_spell, dispel_adch_damages_summoned_with_datab) {
 
 TEST(wc3_spell, dispel_removes_timed_statuses_in_area) {
 	dispelFix_t fix = dispel_setup(BZ_ADIS);
-	vector2_t point = fix.enemy->s.origin2;
+	vec2_t point = fix.enemy->s.origin2;
 	unit_addtimedstatus(fix.enemy, "Bslo", 1, 30.0f);
 	unit_addtimedstatus(fix.enemy, "Binf", 1, 30.0f);
 	T_ASSERT(S_UnitHasStatus(fix.enemy, BZ_BSLO));
@@ -133,7 +133,7 @@ TEST(wc3_spell, dispel_removes_timed_statuses_in_area) {
  * would accidentally turn a temporary summon into a permanent unit. */
 TEST(wc3_spell, dispel_preserves_timed_life_status) {
 	dispelFix_t fix = dispel_setup(BZ_ADIS);
-	vector2_t point = fix.enemy->s.origin2;
+	vec2_t point = fix.enemy->s.origin2;
 	unit_addtimedstatus(fix.enemy, "BTLF", 1, 30.0f);
 	unit_addtimedstatus(fix.enemy, "Bslo", 1, 30.0f);
 	T_ASSERT(S_UnitHasStatus(fix.enemy, BZ_BTLF));
@@ -146,7 +146,7 @@ TEST(wc3_spell, dispel_preserves_timed_life_status) {
 /* Advm heals DataA HP and DataB mana per buff removed (two buffs, non-stock values). */
 TEST(wc3_spell, devour_magic_heals_per_buff_removed) {
 	dispelFix_t fix = dispel_setup(BZ_ADVM);
-	vector2_t point = fix.enemy->s.origin2;
+	vec2_t point = fix.enemy->s.origin2;
 	fix.caster->health.value = 100;
 	fix.caster->mana.value = 10;
 	unit_addtimedstatus(fix.enemy, "Bslo", 1, 30.0f);
@@ -163,7 +163,7 @@ TEST(wc3_spell, devour_magic_heals_per_buff_removed) {
 /* Advm summoned damage must use DataE=91, not DataB=23. */
 TEST(wc3_spell, devour_magic_summoned_damage_uses_datae) {
 	dispelFix_t fix = dispel_setup(BZ_ADVM);
-	vector2_t point = fix.summon->s.origin2;
+	vec2_t point = fix.summon->s.origin2;
 	fix.caster->health.value = 100;
 	fix.caster->mana.value = 10;
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ADVM, &point));
@@ -190,7 +190,7 @@ TEST(wc3_spell, dispel_restores_ensnared_flyer) {
 		"C;Y3;X7;K\"7\"\nC;Y3;X8;K\"3\"\nC;Y3;X10;K\"Bena,Beng\"\nE\n";
 	slkTestData_t *rows, *old;
 	edict_t *priest, *raider, *flyer;
-	vector2_t point;
+	vec2_t point;
 	reset_entities(); setup_test_world(); level.time = 1000;
 	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
 	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
@@ -223,7 +223,7 @@ TEST(wc3_spell, dispel_restores_ensnared_flyer) {
 
 TEST(wc3_spell, devour_magic_empty_area_heals_nothing) {
 	dispelFix_t fix = dispel_setup(BZ_ADVM);
-	vector2_t point = { 400, 400 };
+	vec2_t point = { 400, 400 };
 	fix.caster->health.value = 100;
 	fix.caster->mana.value = 10;
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ADVM, &point));

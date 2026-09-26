@@ -128,7 +128,7 @@ static bool G_BotUnitAtTown(player_t *player, edict_t *unit, int32_t town_id) {
     return nearest == town;
 }
 
-static bool G_BotBuildSiteReachable(edict_t *worker, vector2_t const *point) {
+static bool G_BotBuildSiteReachable(edict_t *worker, vec2_t const *point) {
     return worker && point && CM_LineIsWalkableForRadius(&worker->s.origin2, point, MAX(0.0f, worker->collision));
 }
 
@@ -143,9 +143,9 @@ static bool G_BotBuildNearTown(player_t *player, uint32_t class_id, int32_t town
         (!worker->currentmove || worker->currentmove->proc != CAbilityRepair) && G_WorkerCanBuild(worker, class_id)) {
         for (int32_t ring = 1; ring <= BOT_BUILD_SEARCH_RINGS; ring++) {
             for (int32_t x = -ring; x <= ring; x++) for (int32_t y = -ring; y <= ring; y++) {
-                vector2_t point;
+                vec2_t point;
                 if (abs(x) != ring && abs(y) != ring) continue;
-                point = MAKE(vector2_t, town->s.origin2.x + x * BOT_BUILD_GRID,
+                point = MAKE(vec2_t, town->s.origin2.x + x * BOT_BUILD_GRID,
                              town->s.origin2.y + y * BOT_BUILD_GRID);
                 if (!G_BotBuildSiteReachable(worker, &point)) continue;
                 if (G_IssueBuildOrder(worker, class_id, &point)) return true;
@@ -351,7 +351,7 @@ void G_BotAddGuardPost(player_t *player, uint32_t class_id, float x, float y) {
     if (count) memcpy(guards, bot->guards, count * sizeof(*guards));
     if (bot->guards) gi.MemFree(bot->guards);
     bot->guards = guards; ARRAY_COUNT(bot->guards) = count + 1;
-    bot->guards[count] = MAKE(botGuardPost_t, class_id, MAKE(vector2_t, x, y), NULL);
+    bot->guards[count] = MAKE(botGuardPost_t, class_id, MAKE(vec2_t, x, y), NULL);
 }
 
 static bool G_BotGuardHasUnit(bot_t *bot, edict_t *unit) {
@@ -386,9 +386,9 @@ void G_BotReturnGuardPosts(player_t *player) {
 /* common.ai captain selectors are script constants: ATTACK_CAPTAIN=1, DEFENSE_CAPTAIN=2, BOTH_CAPTAINS=3. */
 void G_BotSetCaptainHome(player_t *player, int32_t which, float x, float y) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
-    vector2_t home;
+    vec2_t home;
     if (!bot) return;
-    home = MAKE(vector2_t, x, y);
+    home = MAKE(vec2_t, x, y);
     if (which == 1 || which == 3) bot->captains[BOT_CAPTAIN_ATTACK].home = home;
     if (which == 2 || which == 3) bot->captains[BOT_CAPTAIN_DEFENSE].home = home;
 }
@@ -396,7 +396,7 @@ void G_BotSetCaptainHome(player_t *player, int32_t which, float x, float y) {
 void G_BotSetStagePoint(player_t *player, float x, float y) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     if (!bot) return;
-    bot->stage = MAKE(vector2_t, x, y); bot->stage_valid = true;
+    bot->stage = MAKE(vec2_t, x, y); bot->stage_valid = true;
 }
 
 static bool G_BotIsHostile(player_t *player, edict_t *ent) {

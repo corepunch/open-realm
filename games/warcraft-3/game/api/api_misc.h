@@ -190,13 +190,13 @@ uint32_t DefineStartLocation(jass_t *j) {
     float y = jass_checknumber(j, 3);
 
     if (level.mapinfo && whichStartLoc >= 0 && whichStartLoc < MAX_PLAYERS) {
-        ((mapInfo_t *)level.mapinfo)->players[whichStartLoc].startingPosition = (vector2_t){ x, y };
+        ((mapInfo_t *)level.mapinfo)->players[whichStartLoc].startingPosition = (vec2_t){ x, y };
     }
     return 0;
 }
 uint32_t DefineStartLocationLoc(jass_t *j) {
     int32_t whichStartLoc = jass_checkinteger(j, 1);
-    vector2_t const *whichLocation = jass_checkhandle(j, 2, "location");
+    vec2_t const *whichLocation = jass_checkhandle(j, 2, "location");
 
     if (level.mapinfo && whichLocation &&
         whichStartLoc >= 0 && whichStartLoc < MAX_PLAYERS) {
@@ -319,7 +319,7 @@ uint32_t GetStartLocationY(jass_t *j) {
 }
 uint32_t GetStartLocationLoc(jass_t *j) {
     int32_t whichStartLocation = jass_checkinteger(j, 1);
-    API_ALLOC(vector2_t, location);
+    API_ALLOC(vec2_t, location);
 
     if (level.mapinfo && whichStartLocation >= 0 && whichStartLocation < MAX_PLAYERS) {
         *location = level.mapinfo->players[whichStartLocation].startingPosition;
@@ -470,12 +470,12 @@ uint32_t IsUnitInRegion(jass_t *j) {
 }
 uint32_t IsPointInRegion(jass_t *j) {
     region_t const *whichRegion = G_RegionFromHandle(jass_checkhandle(j, 1, "region"));
-    vector2_t point = { jass_checknumber(j, 2), jass_checknumber(j, 3) };
+    vec2_t point = { jass_checknumber(j, 2), jass_checknumber(j, 3) };
     return jass_pushboolean(j, whichRegion && G_RegionContains(whichRegion, &point));
 }
 uint32_t IsLocationInRegion(jass_t *j) {
     region_t const *whichRegion = G_RegionFromHandle(jass_checkhandle(j, 1, "region"));
-    vector2_t const *whichLocation = jass_checkhandle(j, 2, "location");
+    vec2_t const *whichLocation = jass_checkhandle(j, 2, "location");
     return jass_pushboolean(j, whichRegion && whichLocation && G_RegionContains(whichRegion, whichLocation));
 }
 /* Return the loaded terrain bounds so Blizzard.j's GetEntireMapRect can enumerate every map unit. */
@@ -670,18 +670,18 @@ uint32_t GetIssuedOrderId(jass_t *j) {
     return jass_pushinteger(j, G_GetIssuedOrderId(jass_getcontext(j)->unit));
 }
 uint32_t GetOrderPointX(jass_t *j) {
-    vector2_t point = { 0.0f, 0.0f };
+    vec2_t point = { 0.0f, 0.0f };
     G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
     return jass_pushnumber(j, point.x);
 }
 uint32_t GetOrderPointY(jass_t *j) {
-    vector2_t point = { 0.0f, 0.0f };
+    vec2_t point = { 0.0f, 0.0f };
     G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
     return jass_pushnumber(j, point.y);
 }
 uint32_t GetOrderPointLoc(jass_t *j) {
-    vector2_t point = { 0.0f, 0.0f };
-    API_ALLOC(vector2_t, location);
+    vec2_t point = { 0.0f, 0.0f };
+    API_ALLOC(vec2_t, location);
     G_GetIssuedOrderPoint(jass_getcontext(j)->unit, &point);
     *location = point;
     return 1;
@@ -731,8 +731,8 @@ uint32_t GetSpellTargetY(jass_t *j) {
 }
 uint32_t GetSpellTargetLoc(jass_t *j) {
     jassContext_t const *ctx = jass_getcontext(j);
-    API_ALLOC(vector2_t, location);
-    *location = ctx->hasPoint ? ctx->point : (vector2_t){ 0.0f, 0.0f };
+    API_ALLOC(vec2_t, location);
+    *location = ctx->hasPoint ? ctx->point : (vec2_t){ 0.0f, 0.0f };
     return 1;
 }
 uint32_t GetEventPlayerState(jass_t *j) {
@@ -913,7 +913,7 @@ uint32_t CopySaveGame(jass_t *j) {
 uint32_t GetTerrainType(jass_t *j) { (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); return jass_pushinteger(j, 0); }
 uint32_t GetTerrainVariance(jass_t *j) { (void)jass_checknumber(j, 1); (void)jass_checknumber(j, 2); return jass_pushinteger(j, 0); }
 uint32_t IsPointBlighted(jass_t *j) {
-    vector2_t point = { jass_checknumber(j, 1), jass_checknumber(j, 2) };
+    vec2_t point = { jass_checknumber(j, 1), jass_checknumber(j, 2) };
     return jass_pushboolean(j, G_IsPointBlighted(&point));
 }
 uint32_t IsTerrainPathable(jass_t *j) {
@@ -1165,7 +1165,7 @@ uint32_t RestoreUnit(jass_t *j) {
     cstring_t mission = jass_checkstring(j, 2);
     cstring_t key = jass_checkstring(j, 3);
     player_t *player = jass_checkhandle(j, 4, "player");
-    vector2_t location = { jass_checknumber(j, 5), jass_checknumber(j, 6) };
+    vec2_t location = { jass_checknumber(j, 5), jass_checknumber(j, 6) };
     float facing = jass_checknumber(j, 7);
     edict_t *unit;
 
@@ -1509,7 +1509,7 @@ uint32_t PingMinimap(jass_t *j) {
     float x = jass_checknumber(j, 1);
     float y = jass_checknumber(j, 2);
     float duration = jass_checknumber(j, 3);
-    vector2_t position = { x, y };
+    vec2_t position = { x, y };
 
     if (duration <= 0.0f) return 0;
     if (currentplayer) {
@@ -1528,7 +1528,7 @@ uint32_t PingMinimapEx(jass_t *j) {
     int32_t green = jass_checkinteger(j, 5);
     int32_t blue = jass_checkinteger(j, 6);
     bool extraEffects = jass_checkboolean(j, 7);
-    vector2_t position = { x, y };
+    vec2_t position = { x, y };
     color32_t color = MAKE(color32_t,
         (uint8_t)MAX(0, MIN(255, red)),
         (uint8_t)MAX(0, MIN(255, green)),
@@ -1885,13 +1885,13 @@ uint32_t ConvertPlayerScore(jass_t *j) {
  * used by ability presentation.  The client therefore renders JASS and spell
  * lightning through one endpoint/data-row path. */
 typedef struct {
-    vector3_t pos, size, origin;
+    vec3_t pos, size, origin;
     float color[4];
     bool shown, render, render_always;
     char file[128];
 } jassImage_t;
 typedef struct {
-    vector2_t pos;
+    vec2_t pos;
     float color[4];
     bool shown, render, render_always, finished;
     char name[64];
@@ -1907,7 +1907,7 @@ static uint8_t JassLightningByte(float value) {
 }
 
 static uint32_t JassLightningCreate(jass_t *j, cstring_t code, bool check_visibility,
-                                  vector3_t const *source, vector3_t const *target) {
+                                  vec3_t const *source, vec3_t const *target) {
     gLightning_t *bolt;
     (void)check_visibility; /* Visibility filtering is a client fog concern, not a global registry property. */
     bolt = G_LightningAdd(&(lightningAddParams_t){
@@ -1918,13 +1918,13 @@ static uint32_t JassLightningCreate(jass_t *j, cstring_t code, bool check_visibi
 }
 
 uint32_t AddLightningEx(jass_t *j) {
-    vector3_t source = MAKE(vector3_t, jass_checknumber(j, 3), jass_checknumber(j, 4), jass_checknumber(j, 5));
-    vector3_t target = MAKE(vector3_t, jass_checknumber(j, 6), jass_checknumber(j, 7), jass_checknumber(j, 8));
+    vec3_t source = MAKE(vec3_t, jass_checknumber(j, 3), jass_checknumber(j, 4), jass_checknumber(j, 5));
+    vec3_t target = MAKE(vec3_t, jass_checknumber(j, 6), jass_checknumber(j, 7), jass_checknumber(j, 8));
     return JassLightningCreate(j, jass_checkstring(j, 1), jass_checkboolean(j, 2), &source, &target);
 }
 uint32_t AddLightning(jass_t *j) {
-    vector3_t source = MAKE(vector3_t, jass_checknumber(j, 3), jass_checknumber(j, 4), 0);
-    vector3_t target = MAKE(vector3_t, jass_checknumber(j, 5), jass_checknumber(j, 6), 0);
+    vec3_t source = MAKE(vec3_t, jass_checknumber(j, 3), jass_checknumber(j, 4), 0);
+    vec3_t target = MAKE(vec3_t, jass_checknumber(j, 5), jass_checknumber(j, 6), 0);
     return JassLightningCreate(j, jass_checkstring(j, 1), jass_checkboolean(j, 2), &source, &target);
 }
 uint32_t DestroyLightning(jass_t *j) {
@@ -1935,17 +1935,17 @@ uint32_t DestroyLightning(jass_t *j) {
 }
 uint32_t MoveLightningEx(jass_t *j) {
     gLightning_t *bolt = jass_checkhandle(j, 1, "lightning");
-    vector3_t source, target;
+    vec3_t source, target;
     (void)jass_checkboolean(j, 2);
-    source = MAKE(vector3_t, jass_checknumber(j, 3), jass_checknumber(j, 4), jass_checknumber(j, 5));
-    target = MAKE(vector3_t, jass_checknumber(j, 6), jass_checknumber(j, 7), jass_checknumber(j, 8));
+    source = MAKE(vec3_t, jass_checknumber(j, 3), jass_checknumber(j, 4), jass_checknumber(j, 5));
+    target = MAKE(vec3_t, jass_checknumber(j, 6), jass_checknumber(j, 7), jass_checknumber(j, 8));
     if (!G_LightningValid(bolt)) return jass_pushboolean(j, 0);
     G_LightningMove(bolt, &source, &target);
     return jass_pushboolean(j, 1);
 }
 uint32_t MoveLightning(jass_t *j) {
     gLightning_t *bolt = jass_checkhandle(j, 1, "lightning");
-    vector3_t source, target;
+    vec3_t source, target;
     (void)jass_checkboolean(j, 2);
     if (!G_LightningValid(bolt)) return jass_pushboolean(j, 0);
     source = bolt->state.source; target = bolt->state.target;
@@ -1979,9 +1979,9 @@ uint32_t CreateImage(jass_t *j) {
     jassImage_t *img = jass_newhandle(j, sizeof(*img), "image");
     if (!img) return jass_pushnullhandle(j, "image");
     memset(img, 0, sizeof(*img));
-    img->size = MAKE(vector3_t, jass_checknumber(j, 2), jass_checknumber(j, 3), jass_checknumber(j, 4));
-    img->pos = MAKE(vector3_t, jass_checknumber(j, 5), jass_checknumber(j, 6), jass_checknumber(j, 7));
-    img->origin = MAKE(vector3_t, jass_checknumber(j, 8), jass_checknumber(j, 9), jass_checknumber(j, 10));
+    img->size = MAKE(vec3_t, jass_checknumber(j, 2), jass_checknumber(j, 3), jass_checknumber(j, 4));
+    img->pos = MAKE(vec3_t, jass_checknumber(j, 5), jass_checknumber(j, 6), jass_checknumber(j, 7));
+    img->origin = MAKE(vec3_t, jass_checknumber(j, 8), jass_checknumber(j, 9), jass_checknumber(j, 10));
     (void)jass_checkinteger(j, 11);
     img->color[0] = img->color[1] = img->color[2] = img->color[3] = 1.0f;
     img->shown = true;
@@ -1992,7 +1992,7 @@ uint32_t DestroyImage(jass_t *j) { jassImage_t *img = jass_checkhandle(j, 1, "im
 uint32_t ShowImage(jass_t *j) { jassImage_t *img = jass_checkhandle(j, 1, "image"); if (img) img->shown = jass_checkboolean(j, 2); return 0; }
 uint32_t SetImagePosition(jass_t *j) {
     jassImage_t *img = jass_checkhandle(j, 1, "image");
-    if (img) img->pos = MAKE(vector3_t, jass_checknumber(j, 2), jass_checknumber(j, 3), jass_checknumber(j, 4));
+    if (img) img->pos = MAKE(vec3_t, jass_checknumber(j, 2), jass_checknumber(j, 3), jass_checknumber(j, 4));
     return 0;
 }
 uint32_t SetImageColor(jass_t *j) {
@@ -2014,7 +2014,7 @@ uint32_t CreateUbersplat(jass_t *j) {
     cstring_t name = jass_checkstring(j, 3);
     if (!u) return jass_pushnullhandle(j, "ubersplat");
     memset(u, 0, sizeof(*u));
-    u->pos = MAKE(vector2_t, jass_checknumber(j, 1), jass_checknumber(j, 2));
+    u->pos = MAKE(vec2_t, jass_checknumber(j, 1), jass_checknumber(j, 2));
     u->color[0] = jass_checkinteger(j, 4) / 255.0f; u->color[1] = jass_checkinteger(j, 5) / 255.0f;
     u->color[2] = jass_checkinteger(j, 6) / 255.0f; u->color[3] = jass_checkinteger(j, 7) / 255.0f;
     (void)jass_checkboolean(j, 8); (void)jass_checkboolean(j, 9);

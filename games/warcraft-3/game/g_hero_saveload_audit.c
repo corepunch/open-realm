@@ -22,7 +22,7 @@ typedef enum {
 
 typedef struct {
     uint32_t number, class_id, added_count;
-    vector3_t origin;
+    vec3_t origin;
     uint32_t abilities[MAX_HERO_ABILITIES], levels[MAX_HERO_ABILITIES];
     uint32_t added[MAX_ABILITIES];
     uint32_t inventory[MAX_INVENTORY], charges[MAX_INVENTORY];
@@ -156,11 +156,11 @@ static bool hsa_ready_to_walk(edict_t const *hero, bool timed_out) {
 
 static bool hsa_issue_walk(edict_t *hero) {
     static float const dist[] = { HSA_WALK_DIST, 160.0f, 256.0f, 512.0f };
-    static vector2_t const dirs[] = {
+    static vec2_t const dirs[] = {
         { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 },
         { 0.7f, 0.7f }, { -0.7f, 0.7f }, { 0.7f, -0.7f }, { -0.7f, -0.7f }
     };
-    vector2_t dest, goal;
+    vec2_t dest, goal;
 
     /* unit_issueorder("move") stays true when ClosestPathable snaps the click
      * back onto the current cell (intro pocket). Require the waypoint to leave. */

@@ -16,16 +16,16 @@ typedef struct sc2RoadTri_s {
 void      R_SC2ShutdownShaders(void);
 void      R_SC2RegisterMap(cstring_t mapFileName);
 void      R_SC2DrawWorld(void);
-bool      R_SC2TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t *output);
+bool      R_SC2TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *output);
 float     R_SC2GetHeightAtPoint(float x, float y);
 float     R_SC2GetCameraHeightAtPoint(float x, float y);
-vector2_t   R_SC2WorldSize(void);
+vec2_t   R_SC2WorldSize(void);
 
 /* HRDT deforms a unit cube between endpoint offsets, with its top on the authored surface. */
-static inline void r_sc2_hard_tile_matrix(sc2MapHardTile_t const *tile, matrix4_t *matrix) {
-	vector3_t along = Vector3_sub(&tile->end, &tile->start);
-	vector3_t side = Vector3_cross(&along, &tile->normal);
-	vector3_t base = Vector3_scale(&tile->normal, -tile->scale.y);
+static inline void r_sc2_hard_tile_matrix(sc2MapHardTile_t const *tile, mat4_t *matrix) {
+	vec3_t along = Vector3_sub(&tile->end, &tile->start);
+	vec3_t side = Vector3_cross(&along, &tile->normal);
+	vec3_t base = Vector3_scale(&tile->normal, -tile->scale.y);
 
 	Vector3_normalize(&side); side = Vector3_scale(&side, tile->scale.x * 2.0f);
 	Matrix4_identity(matrix);
@@ -37,7 +37,7 @@ static inline void r_sc2_hard_tile_matrix(sc2MapHardTile_t const *tile, matrix4_
 }
 
 /* Signed XY area gives both clipping half-planes and barycentric surface weights. */
-static inline float r_sc2_road_side(vector3_t a, vector3_t b, vector3_t p) {
+static inline float r_sc2_road_side(vec3_t a, vec3_t b, vec3_t p) {
     return (b.x-a.x)*(p.y-a.y) - (b.y-a.y)*(p.x-a.x);
 }
 
@@ -51,7 +51,7 @@ static inline uint32_t r_sc2_clip_road(vertex_t const *road, vertex_t const *gro
     if (fabsf(area) < 1e-8f) return 0;
     memcpy(poly, road, 3 * sizeof(*poly));
     FOR_LOOP(edge, 3) {
-        vector3_t a = ground[edge].position, b = ground[(edge+1)%3].position;
+        vec3_t a = ground[edge].position, b = ground[(edge+1)%3].position;
         uint32_t n = 0;
         for (uint32_t i = 0; i < count; i++) {
             vertex_t prev = poly[(i+count-1)%count], cur = poly[i];
@@ -69,13 +69,13 @@ static inline uint32_t r_sc2_clip_road(vertex_t const *road, vertex_t const *gro
         count = n; memcpy(poly, scratch, n * sizeof(*poly));
     }
     FOR_LOOP(i, count) {
-        vector3_t p = poly[i].position;
+        vec3_t p = poly[i].position;
         float u = r_sc2_road_side(ground[1].position, ground[2].position, p) / area;
         float v = r_sc2_road_side(ground[2].position, ground[0].position, p) / area;
         float w = 1-u-v;
         /* Authored spline Z must not lift the road above ground rings. */
         poly[i].position.z = u*ground[0].position.z + v*ground[1].position.z + w*ground[2].position.z;
-        poly[i].normal = (vector3_t){
+        poly[i].normal = (vec3_t){
             u*ground[0].normal.x + v*ground[1].normal.x + w*ground[2].normal.x,
             u*ground[0].normal.y + v*ground[1].normal.y + w*ground[2].normal.y,
             u*ground[0].normal.z + v*ground[1].normal.z + w*ground[2].normal.z };
@@ -89,7 +89,7 @@ static inline uint32_t r_sc2_clip_road(vertex_t const *road, vertex_t const *gro
 }
 
 /* Distance below the authored ribbon plane; HRDT depth bounds projection onto cliff tops. */
-static inline float r_sc2_road_depth(vertex_t const *road, vector3_t p) {
+static inline float r_sc2_road_depth(vertex_t const *road, vec3_t p) {
     float area = r_sc2_road_side(road[0].position, road[1].position, road[2].position);
     float u = r_sc2_road_side(road[1].position, road[2].position, p)/area;
     float v = r_sc2_road_side(road[2].position, road[0].position, p)/area;
@@ -135,19 +135,19 @@ static inline uint32_t r_sc2_clip_road_cliff(sc2RoadTri_t const *road, vertex_t 
     return total;
 }
 
-static inline vector3_t r_sc2_hard_tile_curve_point(sc2MapHardTile_t const *a, sc2MapHardTile_t const *b, float t) {
-	vector3_t p1 = Vector3_add(&a->position, &a->end), p2 = Vector3_add(&b->position, &b->start);
-	vector3_t ab = Vector3_lerp(&a->position, &p1, t), bc = Vector3_lerp(&p1, &p2, t), cd = Vector3_lerp(&p2, &b->position, t);
-	vector3_t abc = Vector3_lerp(&ab, &bc, t), bcd = Vector3_lerp(&bc, &cd, t);
+static inline vec3_t r_sc2_hard_tile_curve_point(sc2MapHardTile_t const *a, sc2MapHardTile_t const *b, float t) {
+	vec3_t p1 = Vector3_add(&a->position, &a->end), p2 = Vector3_add(&b->position, &b->start);
+	vec3_t ab = Vector3_lerp(&a->position, &p1, t), bc = Vector3_lerp(&p1, &p2, t), cd = Vector3_lerp(&p2, &b->position, t);
+	vec3_t abc = Vector3_lerp(&ab, &bc, t), bcd = Vector3_lerp(&bc, &cd, t);
 	return Vector3_lerp(&abc, &bcd, t);
 }
 
-static inline vector3_t r_sc2_hard_tile_curve_tangent(sc2MapHardTile_t const *a, sc2MapHardTile_t const *b, float t) {
-	vector3_t p1 = Vector3_add(&a->position, &a->end), p2 = Vector3_add(&b->position, &b->start);
-	vector3_t d0 = Vector3_sub(&p1, &a->position), d1 = Vector3_sub(&p2, &p1), d2 = Vector3_sub(&b->position, &p2);
+static inline vec3_t r_sc2_hard_tile_curve_tangent(sc2MapHardTile_t const *a, sc2MapHardTile_t const *b, float t) {
+	vec3_t p1 = Vector3_add(&a->position, &a->end), p2 = Vector3_add(&b->position, &b->start);
+	vec3_t d0 = Vector3_sub(&p1, &a->position), d1 = Vector3_sub(&p2, &p1), d2 = Vector3_sub(&b->position, &p2);
 	float u = 1.0f - t;
-	vector3_t tangent = Vector3_add(&(vector3_t){d0.x * u * u, d0.y * u * u, d0.z * u * u},
-		&(vector3_t){d1.x * 2.0f * u * t + d2.x * t * t, d1.y * 2.0f * u * t + d2.y * t * t, d1.z * 2.0f * u * t + d2.z * t * t});
+	vec3_t tangent = Vector3_add(&(vec3_t){d0.x * u * u, d0.y * u * u, d0.z * u * u},
+		&(vec3_t){d1.x * 2.0f * u * t + d2.x * t * t, d1.y * 2.0f * u * t + d2.y * t * t, d1.z * 2.0f * u * t + d2.z * t * t});
 	return tangent;
 }
 

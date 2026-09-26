@@ -64,7 +64,7 @@ typedef struct mapPlayer_s {
     playerRace_t playerRace;
     uint32_t flags;
     string_t playerName;
-    vector2_t startingPosition;
+    vec2_t startingPosition;
     uint32_t allyLowPrioritiesFlags; // (bit "x"=1 -> set for player "x")
     uint32_t allyHighPrioritiesFlags; // (bit "x"=1 -> set for player "x")
     uint32_t enemyLowPrioritiesFlags; // 1.32+

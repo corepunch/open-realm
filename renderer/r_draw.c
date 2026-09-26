@@ -24,7 +24,7 @@ static void r_draw_string_scaled(float x, float y, cstring_t text, float scale) 
     vertex_t simp[6 * 128];
     uint32_t count = 0;
     size2_t window = R_GetWindowSize();
-    matrix4_t ui_matrix;
+    mat4_t ui_matrix;
     float char_width;
     float char_height;
 
@@ -75,7 +75,7 @@ void R_DrawChar(int x, int y, int c) {
 
 void R_DrawFill(rect_t const *rect, color32_t color) {
     vertex_t simp[6];
-    matrix4_t ui_matrix;
+    mat4_t ui_matrix;
     size2_t window = R_GetWindowSize();
 
     if (!rect || rect->w <= 0.0f || rect->h <= 0.0f || !color.a) {
@@ -161,7 +161,7 @@ void R_DrawImageBatch(texture_t const *texture,
 
     spriteProg_t *shader = R_SpriteShader(shaderType);
     
-    matrix4_t ui_matrix, model_matrix;
+    mat4_t ui_matrix, model_matrix;
     rect_t const scene = R_UISceneRect();
     Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y + scene.h, scene.y, 0.0f, 100.0f);
     Matrix4_identity(&model_matrix);
@@ -334,8 +334,8 @@ void R_DrawCinematicFrame(drawCinematicFrame_t const *frame) {
     R_DrawImage(tr.cinematic, &frame->screen, &(rect_t){0, 0, 1, 1}, COLOR32_WHITE);
 }
 
-static bool R_MinimapPointForWorld(vector3_t const *world, rect_t const *screen, vector2_t *out) {
-    vector2_t map_size;
+static bool R_MinimapPointForWorld(vec3_t const *world, rect_t const *screen, vec2_t *out) {
+    vec2_t map_size;
     float nx;
     float ny;
 
@@ -358,8 +358,8 @@ static bool R_MinimapPointForWorld(vector3_t const *world, rect_t const *screen,
     return true;
 }
 
-static bool R_TraceViewportCornerToMinimap(float x, float y, rect_t const *screen, vector2_t *out, vector3_t *world_out) {
-    vector3_t world;
+static bool R_TraceViewportCornerToMinimap(float x, float y, rect_t const *screen, vec2_t *out, vec3_t *world_out) {
+    vec3_t world;
     line3_t line;
     plane3_t ground = {
         .normal = { 0.0f, 0.0f, 1.0f },
@@ -377,7 +377,7 @@ static bool R_TraceViewportCornerToMinimap(float x, float y, rect_t const *scree
 }
 
 static void R_DrawUILineStrip(vertex_t const *vertices, uint32_t count) {
-    matrix4_t ui_matrix, model_matrix;
+    mat4_t ui_matrix, model_matrix;
     rect_t const scene = R_UISceneRect();
 
     Matrix4_ortho(&ui_matrix, scene.x, scene.x + scene.w, scene.y + scene.h, scene.y, 0.0f, 100.0f);
@@ -405,7 +405,7 @@ void R_DrawMinimapCameraRect(rect_t const *screen) {
     float right = (tr.viewDef.viewport.x + tr.viewDef.viewport.w) * window.width;
     float top = (1.0f - (tr.viewDef.viewport.y + tr.viewDef.viewport.h)) * window.height;
     float bottom = (1.0f - tr.viewDef.viewport.y) * window.height;
-    vector2_t corners[4];
+    vec2_t corners[4];
     vertex_t vertices[5];
     color32_t color = MAKE(color32_t, 255, 255, 255, 220);
     rect_t uv = { 0, 0, 1, 1 };
@@ -417,7 +417,7 @@ void R_DrawMinimapCameraRect(rect_t const *screen) {
         return;
     }
 
-    vector3_t worlds[4];
+    vec3_t worlds[4];
     if (!R_TraceViewportCornerToMinimap(left, top, screen, &corners[0], &worlds[0]) ||
         !R_TraceViewportCornerToMinimap(right, top, screen, &corners[1], &worlds[1]) ||
         !R_TraceViewportCornerToMinimap(right, bottom, screen, &corners[2], &worlds[2]) ||
@@ -426,7 +426,7 @@ void R_DrawMinimapCameraRect(rect_t const *screen) {
     }
 
     FOR_LOOP(i, 5) {
-        vector2_t const *corner = &corners[i % 4];
+        vec2_t const *corner = &corners[i % 4];
         vertices[i] = (vertex_t){
             .position = { corner->x, corner->y, 0 },
             .texcoord = { uv.x, uv.y },
@@ -448,22 +448,22 @@ void R_DrawMinimapBorder(rect_t const *screen, color32_t color) {
     R_DrawUILineStrip(vertices, 5);
 }
 
-bool R_WorldToMinimap(vector2_t const *world, vector2_t *outScreen) {
-    vector3_t point;
+bool R_WorldToMinimap(vec2_t const *world, vec2_t *outScreen) {
+    vec3_t point;
 
     if (!tr.hasMinimap || !tr.world || !world || !outScreen) {
         return false;
     }
-    point = (vector3_t){ world->x, world->y, 0.0f };
+    point = (vec3_t){ world->x, world->y, 0.0f };
     return R_MinimapPointForWorld(&point, &tr.minimapRect, outScreen);
 }
 
 /* Inverse of R_MinimapPointForWorld: map a window-pixel click over the minimap
  * to a world position for camera focus or point-order input. */
-bool R_TraceMinimap(float x, float y, vector2_t *outWorld) {
+bool R_TraceMinimap(float x, float y, vec2_t *outWorld) {
     size2_t window;
     rect_t scene;
-    vector2_t map_size;
+    vec2_t map_size;
     float ux, uy, nx, ny;
 
     if (!tr.hasMinimap || !tr.world || !outWorld) {
@@ -532,7 +532,7 @@ void R_DrawWireRect(rect_t const *rect, color32_t color) {
     static vertex_t simp[5];
     R_AddStrip(simp, rect, color);
 
-    matrix4_t ui_matrix;
+    mat4_t ui_matrix;
     size2_t const window = R_GetWindowSize();
     Matrix4_ortho(&ui_matrix, 0.0f, window.width, window.height, 0.0f, 0.0f, 100.0f);
 
@@ -558,13 +558,13 @@ void R_DrawSelectionRect(rect_t const *rect, color32_t color) {
     R_SetupScissor(&(rect_t){0, 0, 1, 1});
 }
 
-void R_DrawBoundingBox(box3_t const *box, matrix4_t const *modelMatrix, matrix4_t const *vpMatrix, color32_t color) {
+void R_DrawBoundingBox(box3_t const *box, mat4_t const *modelMatrix, mat4_t const *vpMatrix, color32_t color) {
     static const int edges[12][2] = {
         {0,1},{1,2},{2,3},{3,0},
         {4,5},{5,6},{6,7},{7,4},
         {0,4},{1,5},{2,6},{3,7},
     };
-    vector3_t corners[8] = {
+    vec3_t corners[8] = {
         { box->min.x, box->min.y, box->min.z },
         { box->max.x, box->min.y, box->min.z },
         { box->max.x, box->max.y, box->min.z },

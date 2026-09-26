@@ -6,16 +6,16 @@
 struct matrix3 {
     union {
         float v[9];
-        vector3_t column[3];
+        vec3_t column[3];
     };
 };
 
-typedef struct matrix3 matrix3_t;
-typedef struct matrix4 matrix4_t;
+typedef struct matrix3 mat3_t;
+typedef struct matrix4 mat4_t;
 
 
 
 
-void Matrix3_normal(matrix3_t *out, matrix4_t const *modelview);
+void Matrix3_normal(mat3_t *out, mat4_t const *modelview);
 
 #endif

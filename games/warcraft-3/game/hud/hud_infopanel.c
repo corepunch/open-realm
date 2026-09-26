@@ -944,7 +944,7 @@ void UI_WriteMultiselect(edict_t * *ents, uint32_t count, gameClient_t *viewer) 
     multi->hp_bar = gi.ImageIndex("SimpleHpBarConsole");
     multi->mana_bar = gi.ImageIndex("SimpleManaBarConsole");
     multi->focus_highlight = highlight && *highlight ? gi.ImageIndex(highlight) : 0;
-    multi->offset = MAKE(vector2_t, 0.031f, 0.050f);
+    multi->offset = MAKE(vec2_t, 0.031f, 0.050f);
     multi->numcolumns = 6;
     multi->numitems = count;
     FOR_LOOP(i, count) {

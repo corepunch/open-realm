@@ -17,7 +17,7 @@ typedef struct {
 typedef struct {
     edict_t *clent, *caster;
     uint32_t code, level;
-    vector2_t const *point;
+    vec2_t const *point;
     float range;
 } spellPointValidateParams_t;
 
@@ -635,7 +635,7 @@ static void spell_commit(edict_t *caster, uint32_t code, uint32_t level) {
  * committed, but the gameplay callback has not run yet. */
 static void spell_publish_effect(edict_t *caster, uint32_t code, spellTarget_t target) {
     edict_t *source = target.type == SPELL_TARGET_UNIT ? target.entity : NULL;
-    vector2_t const *point = target.type == SPELL_TARGET_POINT ? &target.point : NULL;
+    vec2_t const *point = target.type == SPELL_TARGET_POINT ? &target.point : NULL;
     gameEventPointParams_t params = MAKE(gameEventPointParams_t, .edict = caster,
                                          .source = source, .value = (int32_t)code, .point = point);
 
@@ -786,7 +786,7 @@ static bool spell_unit_target_selected(edict_t *clent, edict_t *target) {
 }
 
 /* Called when user clicks a location for a POINT-target spell. */
-static bool spell_point_target_selected(edict_t *clent, vector2_t const *point) {
+static bool spell_point_target_selected(edict_t *clent, vec2_t const *point) {
     edict_t *caster = G_GetMainSelectedUnit(clent->client);
     uint32_t code = S_SpellCurrentCode(clent, 0);
     uint32_t level = S_SpellLevel(caster, code);
@@ -858,7 +858,7 @@ bool S_CastNoTargetSpell(edict_t *caster, uint32_t code) {
     return true;
 }
 
-bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vector2_t const *point) {
+bool S_CastPointTargetSpell(edict_t *caster, uint32_t code, vec2_t const *point) {
     uint32_t level;
     float range;
     ability_t const *spell;

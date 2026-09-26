@@ -108,19 +108,19 @@ typedef struct {
     void (*MemFree)(handle_t);
     uint32_t (*LoadSlk)(cstring_t filename, slkField_t const *schema, void **dest, uint32_t row_stride);
     cstring_t (*CvarString)(cstring_t name, cstring_t fallback);
-    void (*PlaySoundAt)(cstring_t path, vector3_t const *origin, float volume);
+    void (*PlaySoundAt)(cstring_t path, vec3_t const *origin, float volume);
     void (*error)(cstring_t fmt, ...);
 } refImport_t;
 
 typedef struct {
-    vector3_t target;
-    vector3_t angles;
+    vec3_t target;
+    vec3_t angles;
 } viewLight_t;
 
 typedef struct {
-    vector3_t origin;
-    vector3_t eye;       /* derived rendered eye; camerastate[0] is refreshed from the final orbit view */
-    vector3_t viewangles;
+    vec3_t origin;
+    vec3_t eye;       /* derived rendered eye; camerastate[0] is refreshed from the final orbit view */
+    vec3_t viewangles;
     float distance;
     float fov;      /* vertical field of view in degrees */
     float znear;
@@ -128,7 +128,7 @@ typedef struct {
 } viewCamera_t;
 
 typedef struct {
-    vector3_t origin;
+    vec3_t origin;
     model_t const *model;
     struct { model_t const *model; orientation_t angles; } attachment; /* local pose after the parent socket */
     texture_t const *skin;
@@ -142,7 +142,7 @@ typedef struct {
     uint32_t appearance;
     uint32_t equipment;
     model_t const *overhead_model;
-    vector3_t rotation;   /* Authored placement Euler degrees; game adapter decodes to yaw/pitch/roll. */
+    vec3_t rotation;   /* Authored placement Euler degrees; game adapter decodes to yaw/pitch/roll. */
 #endif
     uint32_t frame;
     uint32_t oldframe;
@@ -165,7 +165,7 @@ typedef struct {
 } renderEntity_t;
 
 typedef struct {
-    vector2_t origin;
+    vec2_t origin;
     texture_t const *texture;
     color32_t color;
     float radius;
@@ -175,14 +175,14 @@ typedef struct {
  * its built-in white texture, so callers can submit many placement/pathing
  * cells without allocating textures or issuing one draw per cell. */
 typedef struct {
-    vector2_t mins;
-    vector2_t maxs;
+    vec2_t mins;
+    vec2_t maxs;
     color32_t color;
 } renderSplatRect_t;
 
 typedef struct {
     viewCamera_t camerastate[2];
-    vector3_t target; /* Rendered camera focus shared by projection, drag-panning, and shadows. */
+    vec3_t target; /* Rendered camera focus shared by projection, drag-panning, and shadows. */
     rect_t viewport;
     rect_t scissor;
     uint32_t time;
@@ -198,9 +198,9 @@ typedef struct {
     wc3WeatherEffect_t const *weather_effects;
     uint32_t num_lightning_effects;
     lightningEffect_t const *lightning_effects;
-    matrix4_t viewProjectionMatrix;
-    matrix4_t lightMatrix;
-    matrix4_t textureMatrix;
+    mat4_t viewProjectionMatrix;
+    mat4_t lightMatrix;
+    mat4_t textureMatrix;
     model_t const *terrainLightModel; /* optional sampling source; game renderer evaluates into terrainLight */
     model_t const *entityLightModel;  /* optional sampling source; game renderer evaluates into entityLight */
     model_t const *skyModel;          /* optional camera-relative unlit world model */
@@ -222,7 +222,7 @@ typedef struct {
     bool fogEnable;
     float fogStart;
     float fogEnd;
-    vector3_t fogColor;
+    vec3_t fogColor;
 } viewDef_t;
 
 struct modelInfo_s {
@@ -278,20 +278,20 @@ typedef struct {
     bool (*DrawCursor)(float x, float y, color32_t tint);
     bool (*SetEntityAnimFrame)(model_t const *model, cstring_t anim, renderEntity_t *entity);
     void (*DrawText)(drawText_t const *drawText);
-    vector2_t (*GetTextSize)(drawText_t const *drawText);
+    vec2_t (*GetTextSize)(drawText_t const *drawText);
     bool (*GetModelInfo)(model_t *model, modelInfo_t *info);
-    bool (*GetEntityOverheadPosition)(renderEntity_t const *entity, vector3_t *out);
-    bool (*GetEntityAttachmentPosition)(renderEntity_t const *entity, cstring_t prefix, vector3_t *out);
+    bool (*GetEntityOverheadPosition)(renderEntity_t const *entity, vec3_t *out);
+    bool (*GetEntityAttachmentPosition)(renderEntity_t const *entity, cstring_t prefix, vec3_t *out);
 
-    void (*DrawBoundingBox)(box3_t const *box, matrix4_t const *modelMatrix, matrix4_t const *vpMatrix, color32_t color);
+    void (*DrawBoundingBox)(box3_t const *box, mat4_t const *modelMatrix, mat4_t const *vpMatrix, color32_t color);
     float (*GetHeightAtPoint)(float x, float y);
     float (*GetCameraHeightAtPoint)(float x, float y);
     bool (*CameraUsesTerrainHeight)(void);
     bool (*TraceEntity)(viewDef_t const *viewdef, float x, float y, uint32_t *number);
-    bool (*TraceLocation)(viewDef_t const *viewdef, float x, float y, vector3_t *point);
-    bool (*TraceCameraPlane)(viewDef_t const *viewdef, float x, float y, vector3_t *point);
-    bool (*TraceMinimap)(float x, float y, vector2_t *outWorld);
-    bool (*WorldToMinimap)(vector2_t const *world, vector2_t *outScreen);
+    bool (*TraceLocation)(viewDef_t const *viewdef, float x, float y, vec3_t *point);
+    bool (*TraceCameraPlane)(viewDef_t const *viewdef, float x, float y, vec3_t *point);
+    bool (*TraceMinimap)(float x, float y, vec2_t *outWorld);
+    bool (*WorldToMinimap)(vec2_t const *world, vec2_t *outScreen);
     uint32_t (*EntitiesInRect)(viewDef_t const *viewdef, rect_t const *rect, uint32_t max, uint32_t *array);
 
 } refExport_t;

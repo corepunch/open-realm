@@ -10,7 +10,7 @@
 
 void M3_Init(void);
 void M3_Shutdown(void);
-void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, matrix4_t const *transform);
+void M3_RenderModel(renderEntity_t const *entity, m3Model_t const *model, mat4_t const *transform);
 
 typedef struct {
     model_t *model;
@@ -19,7 +19,7 @@ typedef struct {
 } model_texture_cache_t;
 
 typedef struct {
-    vector2_t const *mins, *maxs;
+    vec2_t const *mins, *maxs;
     float z;
     texture_t const *texture;
     splat_shader_t *shader;
@@ -79,7 +79,7 @@ static float R_M3InterpFloat(float const *left, float const *right, float t, MOD
     }
 }
 
-static vector3_t R_M3InterpVec3(vector3_t const *left, vector3_t const *right, float t, MODELKEYTRACKTYPE lineType) {
+static vec3_t R_M3InterpVec3(vec3_t const *left, vec3_t const *right, float t, MODELKEYTRACKTYPE lineType) {
     switch (lineType) {
         case TRACK_NO_INTERP: return left[KEY_VALUE];
         case TRACK_BEZIER: return Vector3_bezier(&left[KEY_VALUE], &left[KEY_OUTTAN], &right[KEY_INTAN], &right[KEY_VALUE], t);
@@ -107,19 +107,19 @@ void R_EvalKeyframeValue(void const *left,
     switch (datatype) {
         case TDATA_INT1: *((int *)out) = R_M3InterpInt(left, right, t, linetype); return;
         case TDATA_FLOAT1: *((float *)out) = R_M3InterpFloat(left, right, t, linetype); return;
-        case TDATA_FLOAT3: *((vector3_t *)out) = R_M3InterpVec3(left, right, t, linetype); return;
+        case TDATA_FLOAT3: *((vec3_t *)out) = R_M3InterpVec3(left, right, t, linetype); return;
         case TDATA_FLOAT4: *((quaternion_t *)out) = R_M3InterpQuat(left, right, t, linetype); return;
     }
 }
 
 /* Ground rings sample the terrain; explicit plane splats retain their caller-owned elevation. */
 static void R_SC2DrawSplat(sc2Splat_t const *draw) {
-    vector2_t const *mins = draw->mins, *maxs = draw->maxs;
+    vec2_t const *mins = draw->mins, *maxs = draw->maxs;
     float z = draw->z;
     texture_t const *texture = draw->texture;
     splat_shader_t *shader = draw->shader;
     color32_t color = draw->color;
-    matrix4_t model_matrix;
+    mat4_t model_matrix;
     float const width = maxs->x - mins->x;
     float const height = maxs->y - mins->y;
     if (!texture || width <= 0 || height <= 0) {
@@ -155,12 +155,12 @@ static void R_SC2DrawSplat(sc2Splat_t const *draw) {
     R_Call(glDepthMask, GL_TRUE);
 }
 
-void R_RenderFlatRectSplat(vector2_t const *mins, vector2_t const *maxs, float z, texture_t const *texture, splat_shader_t *shader, color32_t color) {
+void R_RenderFlatRectSplat(vec2_t const *mins, vec2_t const *maxs, float z, texture_t const *texture, splat_shader_t *shader, color32_t color) {
     R_SC2DrawSplat(&(sc2Splat_t){ .mins = mins, .maxs = maxs, .z = z, .texture = texture, .shader = shader, .color = color });
 }
 
-void R_RenderRectSplat(vector2_t const *mins,
-                       vector2_t const *maxs,
+void R_RenderRectSplat(vec2_t const *mins,
+                       vec2_t const *maxs,
                        texture_t const *texture,
                        splat_shader_t *shader,
                        color32_t color)
@@ -169,17 +169,17 @@ void R_RenderRectSplat(vector2_t const *mins,
     R_SC2DrawSplat(&(sc2Splat_t){ .mins = mins, .maxs = maxs, .texture = texture, .shader = shader, .color = color, .terrain = true });
 }
 
-void R_RenderSplat(vector2_t const *position,
+void R_RenderSplat(vec2_t const *position,
                    float radius,
                    texture_t const *texture,
                    splat_shader_t *shader,
                    color32_t color)
 {
-    vector2_t mins = {
+    vec2_t mins = {
         .x = position->x - radius,
         .y = position->y - radius,
     };
-    vector2_t maxs = {
+    vec2_t maxs = {
         .x = position->x + radius,
         .y = position->y + radius,
     };
@@ -191,7 +191,7 @@ void R_RenderSplat(vector2_t const *position,
  * pass exists only in the WC3 terrain-conforming renderer). */
 static splat_shader_t *sc2_batch_shader;
 void R_BeginSplatBatch(splat_shader_t *shader) { sc2_batch_shader = shader; }
-void R_AddRectSplat(vector2_t const *mins, vector2_t const *maxs, texture_t const *texture, color32_t color) {
+void R_AddRectSplat(vec2_t const *mins, vec2_t const *maxs, texture_t const *texture, color32_t color) {
     R_RenderRectSplat(mins, maxs, texture, sc2_batch_shader, color);
 }
 void R_EndSplatBatch(void) { }
@@ -270,7 +270,7 @@ void R_DrawTerrainShadows(void) {
 void R_DrawAlphaSurfaces(void) {
 }
 
-bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t *point) {
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *point) {
     return R_SC2TraceLocation(viewdef, x, y, point);
 }
 
@@ -281,7 +281,7 @@ float R_GetHeightAtPoint(float x, float y) {
 float R_GetCameraHeightAtPoint(float x, float y) { return R_SC2GetCameraHeightAtPoint(x, y); }
 bool R_CameraUsesTerrainHeight(void) { return true; }
 
-vector2_t R_WorldSize(void) {
+vec2_t R_WorldSize(void) {
     return R_SC2WorldSize();
 }
 
@@ -311,7 +311,7 @@ void R_ReleaseModel(model_t *model) {
 void R_UpdateEntityPresentation(renderEntity_t const *entity) { (void)entity; }
 
 void R_RenderModel(renderEntity_t const *entity) {
-    matrix4_t transform;
+    mat4_t transform;
 
     if (!entity || !entity->model || entity->model->modeltype != ID_43DM || !entity->model->m3) {
         return;
@@ -322,8 +322,8 @@ void R_RenderModel(renderEntity_t const *entity) {
 
 /* Pick in model space so authored M3 bounds follow the rendered rotation and scale. */
 bool R_TraceModel(renderEntity_t const *entity, line3_t const *line, float *distance) {
-    matrix4_t matrix, inverse;
-    vector3_t hit;
+    mat4_t matrix, inverse;
+    vec3_t hit;
     box3_t box;
     if (!R_GetEntityBounds(entity, &box)) return false;
     R_GetEntityMatrix(entity, &matrix);
@@ -335,7 +335,7 @@ bool R_TraceModel(renderEntity_t const *entity, line3_t const *line, float *dist
     return true;
 }
 
-matrix4_t const *R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
+mat4_t const *R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
     (void)entity; (void)pose;
     return &sc2_model_basis;
 }
@@ -347,7 +347,7 @@ bool R_GetEntityBounds(renderEntity_t const *entity, box3_t *bounds) {
     return true;
 }
 
-bool R_RenderShadow(renderEntity_t const *entity, vector2_t const *origin) {
+bool R_RenderShadow(renderEntity_t const *entity, vec2_t const *origin) {
     (void)entity;
     (void)origin;
     return false;
@@ -358,12 +358,12 @@ float R_SelectionRadius(renderEntity_t const *entity) {
 }
 
 float R_EntityHeight(renderEntity_t const *entity) { return entity ? entity->radius * 2.0f : 0.0f; }
-bool R_EntityOverheadPosition(renderEntity_t const *entity, vector3_t *out) {
+bool R_EntityOverheadPosition(renderEntity_t const *entity, vec3_t *out) {
     if (!entity || !out) return false;
     *out = entity->origin; out->z += R_EntityHeight(entity);
     return true;
 }
-bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vector3_t *out) {
+bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vec3_t *out) {
     (void)entity; (void)prefix; (void)out;
     return false;
 }
@@ -440,31 +440,31 @@ bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t
 
     m3Model_t const *m3 = entity->model->m3;
     BoundingSphere const *bs = &m3->boundings;
-    vector3_t center = {
+    vec3_t center = {
         (bs->max.x + bs->min.x) * 0.5f,
         (bs->max.y + bs->min.y) * 0.5f,
         (bs->max.z + bs->min.z) * 0.5f
     };
     float radius = (bs->radius > 0.1f) ? bs->radius : 1.5f;
-    matrix4_t transform;
+    mat4_t transform;
     R_GetEntityMatrix(entity, &transform);
 
-    matrix4_t proj, view;
+    mat4_t proj, view;
     {
         float fov  = 35.0f;
         float dist = radius / tanf((fov * (float)M_PI / 180.0f) * 0.5f);
-        vector3_t eye = { center.x, center.y - dist * 0.9f, center.z + radius * 0.25f };
-        vector3_t tgt = center;
+        vec3_t eye = { center.x, center.y - dist * 0.9f, center.z + radius * 0.25f };
+        vec3_t tgt = center;
         eye = Matrix4_multiply_vector3(&transform, &eye);
         tgt = Matrix4_multiply_vector3(&transform, &tgt);
-        vector3_t model_z = Matrix4_multiply_vector3(&transform, &(vector3_t){0, 0, 1});
-        vector3_t model_o = Matrix4_multiply_vector3(&transform, &(vector3_t){0, 0, 0});
-        vector3_t up      = Vector3_sub(&model_z, &model_o);
+        vec3_t model_z = Matrix4_multiply_vector3(&transform, &(vec3_t){0, 0, 1});
+        vec3_t model_o = Matrix4_multiply_vector3(&transform, &(vec3_t){0, 0, 0});
+        vec3_t up      = Vector3_sub(&model_z, &model_o);
         if (Vector3_len(&up) <= 0.001f)
-            up = (vector3_t){ 0.0f, 0.0f, 1.0f };
-        vector3_t dir = Vector3_sub(&tgt, &eye);
+            up = (vec3_t){ 0.0f, 0.0f, 1.0f };
+        vec3_t dir = Vector3_sub(&tgt, &eye);
         if (Vector3_len(&dir) <= 0.001f)
-            dir = (vector3_t){ 0.0f, 1.0f, 0.0f };
+            dir = (vec3_t){ 0.0f, 1.0f, 0.0f };
         Matrix4_perspective(&proj, fov, aspect, MAX(0.05f, dist * 0.02f), MAX(dist + radius * 4.0f, 100.0f));
         Matrix4_lookAt(&view, &eye, &dir, &up);
     }

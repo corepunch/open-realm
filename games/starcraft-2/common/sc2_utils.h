@@ -68,7 +68,7 @@ static uint32_t sc2_hash32(cstring_t str) {
     return hash;
 }
 
-static bool sc2_parse_vec3(cstring_t text, vector3_t *out) {
+static bool sc2_parse_vec3(cstring_t text, vec3_t *out) {
     int count;
 
     if (!text || !out) return false;

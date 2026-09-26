@@ -47,7 +47,7 @@ TEST(renderer_view, shadow_fog_follows_each_view) {
         R_RenderFrame(&view);
         T_ASSERT(!fog->fogEnable);
         view.fogStart = 2200; view.fogEnd = 6000;
-        view.fogColor = (vector3_t){0.4f, 0.5f, 0.6f};
+        view.fogColor = (vec3_t){0.4f, 0.5f, 0.6f};
     }
 }
 

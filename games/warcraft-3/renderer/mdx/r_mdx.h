@@ -124,7 +124,7 @@ typedef struct {
 typedef struct mdxGeosetAnim_s {
     float staticAlpha;        // 0 is transparent, 1 is opaque
     uint32_t flags;           // &2: color
-    vector3_t staticColor;
+    vec3_t staticColor;
     uint32_t geosetId;        // GEOS index or 0xFFFFFFFF if none
     mdxKeyTrack_t *alphas; // float
     mdxKeyTrack_t *colors; // vec3
@@ -164,8 +164,8 @@ typedef struct mdxAttachment_s {
 typedef struct mdxAttachmentPosition_s {
     cstring_t name;
     cstring_t path;
-    vector3_t origin;
-    matrix4_t transform;
+    vec3_t origin;
+    mat4_t transform;
 } mdxAttachmentPosition_t;
 
 typedef enum {
@@ -179,9 +179,9 @@ typedef struct mdxLight_s {
     MODELLIGHTTYPE type;
     float AttenuationStart;
     float AttenuationEnd;
-    vector3_t Color;
+    vec3_t Color;
     float Intensity;
-    vector3_t AmbColor;
+    vec3_t AmbColor;
     float AmbIntensity;
     struct {
         mdxKeyTrack_t *Visibility;
@@ -198,7 +198,7 @@ typedef struct mdxLight_s {
 typedef struct mdxCollisionShape_s {
     mdxNode_t node;
     MODELCOLLISIONSHAPETYPE type;
-    vector3_t vertex[2];
+    vec3_t vertex[2];
     float radius;
     struct mdxCollisionShape_s *next;
 } mdxCollisionShape_t;
@@ -253,11 +253,11 @@ typedef struct mdxTextureAnim_s {
 
 typedef struct mdxCamera_s {
     mdxObjectName_t name;
-    vector3_t pivot;
+    vec3_t pivot;
     float fieldOfView;      // default is 0.9500215
     float farClip;          // default is 27.7777786
     float nearClip;         // default is 0.222222224
-    vector3_t targetPivot;
+    vec3_t targetPivot;
     mdxKeyTrack_t *translation; // vec3
     mdxKeyTrack_t *roll; // float
     mdxKeyTrack_t *targetTranslation; // vec3
@@ -338,7 +338,7 @@ typedef struct mdxParticleEmitter_s {
 typedef struct mdxRibbonEmitter_s {
     mdxNode_t node;
     float heightAbove, heightBelow, alpha;
-    vector3_t color;
+    vec3_t color;
     float lifespan;
     uint32_t textureSlot, emissionRate, rows, columns, materialId;
     float gravity;
@@ -374,9 +374,9 @@ typedef struct mdxDetachedRibbon_s {
 } mdxDetachedRibbon_t;
 
 typedef struct mdxGeoset_s {
-    vector3_t *vertices;
-    vector3_t *normals;
-    vector2_t *texcoord;
+    vec3_t *vertices;
+    vec3_t *normals;
+    vec2_t *texcoord;
     mdxBounds_t *bounds;
     mdxBounds_t default_bounds;
     mdxGeosetAnim_t *geosetAnim;
@@ -443,7 +443,7 @@ typedef struct mdxModel_s {
     mdxNode_t *nodes[MDX_MAX_NODES];
     mdxNode_t *node_list[MDX_MAX_NODES]; /* compact list of present nodes; avoids scanning 1024 slots per frame */
     int num_nodes;
-    vector3_t *pivots;
+    vec3_t *pivots;
     int num_textures;
     int num_sequences;
     int num_globalSequences;
@@ -455,20 +455,20 @@ typedef struct {
 } mdlx_state_t;
 
 extern mdlx_state_t mdlx;
-extern matrix4_t node_matrices[MDX_MAX_NODES];
+extern mat4_t node_matrices[MDX_MAX_NODES];
 
 mdxSequence_t const *R_FindSequenceAtTime(mdxModel_t const *model, uint32_t time);
 bool MDLX_EventKeyCrossed(mdxModel_t const *model, mdxEvent_t const *event, uint32_t key, uint32_t previous_frame, uint32_t current_frame, uint32_t previous_time, uint32_t current_time);
 void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, uint32_t time, handle_t output);
-void MDLX_GetAnimatedColorTrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, uint32_t time, vector3_t *output);
-void MDLX_GetGeosetAnimationStaticColor(mdxGeosetAnim_t const *geosetAnim, vector3_t *output);
-void MDLX_BindBoneMatrices(mdxModel_t const *model, matrix4_t const *model_matrix, uint32_t frame1, uint32_t frame0);
+void MDLX_GetAnimatedColorTrackValue(mdxModel_t const *model, mdxKeyTrack_t const *keytrack, uint32_t time, vec3_t *output);
+void MDLX_GetGeosetAnimationStaticColor(mdxGeosetAnim_t const *geosetAnim, vec3_t *output);
+void MDLX_BindBoneMatrices(mdxModel_t const *model, mat4_t const *model_matrix, uint32_t frame1, uint32_t frame0);
 bool MDLX_EvaluateLight(mdxModel_t const *model, mdxLight_t const *light,
-                        matrix4_t const *model_matrix, uint32_t frame, bool use_visibility,
+                        mat4_t const *model_matrix, uint32_t frame, bool use_visibility,
                         rModelLight_t *output);
 bool MDLX_SampleFirstLight(model_t const *model, float ratio, rModelLight_t *output);
 mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, cstring_t name);
-uint32_t MDLX_CollectAttachmentPositions(mdxModel_t const *model, matrix4_t const *model_matrix,
+uint32_t MDLX_CollectAttachmentPositions(mdxModel_t const *model, mat4_t const *model_matrix,
                                       uint32_t frame, uint32_t oldframe, cstring_t prefix,
                                       mdxAttachmentPosition_t *positions, uint32_t max_positions);
 
@@ -478,10 +478,10 @@ void MDX_BuildBuffers(mdxModel_t *model);
 void MDX_PackModelGeometry(mdxModel_t *model, vertex_t *vertices, uint16_t *indices);
 void MDLX_Init(void);
 void MDLX_Shutdown(void);
-void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, matrix4_t const *model_matrix);
-bool MDLX_TraceModel(renderEntity_t const *ent, line3_t const *line, vector3_t *intersection);
-bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, line3_t const *line, vector3_t *intersection);
-bool MDLX_ExtractCamera(mdxModel_t const *model, uint32_t frame, float aspect, matrix4_t *output, matrix4_t *light);
+void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, mat4_t const *model_matrix);
+bool MDLX_TraceModel(renderEntity_t const *ent, line3_t const *line, vec3_t *intersection);
+bool MDLX_TraceWalkableSurface(renderEntity_t const *ent, line3_t const *line, vec3_t *intersection);
+bool MDLX_ExtractCamera(mdxModel_t const *model, uint32_t frame, float aspect, mat4_t *output, mat4_t *light);
 bool MDLX_SetEntityAnimationFrame(model_t const *model, cstring_t anim, renderEntity_t *entity);
 void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, color32_t tint);
 void MDLX_ReleaseSprites(mdxModel_t *model);
@@ -489,12 +489,12 @@ void MDLX_DrawSprite(model_t const *model, cstring_t anim, float x, float y);
 void MDLX_DrawSpriteTinted(model_t const *model, cstring_t anim, float x, float y, color32_t tint);
 
 texture_t const *MDLX_GetTexture(mdxModel_t const *, uint32_t, uint32_t, uint32_t, texture_t const *);
-void MDLX_RenderParticleEmitters(renderEntity_t const *, mdxModel_t const *, matrix4_t const *);
-void MDLX_RenderRibbonEmitters(renderEntity_t const *, mdxModel_t const *, matrix4_t const *);
+void MDLX_RenderParticleEmitters(renderEntity_t const *, mdxModel_t const *, mat4_t const *);
+void MDLX_RenderRibbonEmitters(renderEntity_t const *, mdxModel_t const *, mat4_t const *);
 void MDLX_DrawRibbonVerts(mdxModel_t const *model, vertex_t *verts, uint32_t nverts,
                           mdxMaterial_t const *material, uint32_t team);
 mdxMaterial_t *MDLX_MaterialAt(mdxModel_t const *model, uint32_t id);
-uint32_t MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, matrix4_t const *model_matrix,
+uint32_t MDLX_EmitRibbonVertices(mdxModel_t *model, renderEntity_t const *entity, mat4_t const *model_matrix,
                                mdxRibbonEmitter_t *ribbon, vertex_t *out, uint32_t max);
 void MDLX_TickDetachedRibbons(void); /* once per frame from R_RenderModel: fade entity-less trails */
 void MDLX_ForgetRibbonModel(mdxModel_t *model); /* model release: drop registry entry and its orphans */

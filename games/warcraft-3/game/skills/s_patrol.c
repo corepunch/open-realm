@@ -45,14 +45,14 @@ void order_patrol(edict_t *self, edict_t *b) {
     order_patrol_resume(self);
 }
 
-static bool patrol_selectlocation(edict_t *clent, vector2_t const *location) {
+static bool patrol_selectlocation(edict_t *clent, vec2_t const *location) {
     bool any = false;
 
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
         if ((ent->aiflags & AI_IMMOBILE) || ent->data.UnitBalance->speed <= 0) {
             continue;
         }
-        vector2_t target = *location;
+        vec2_t target = *location;
         CM_ClosestPathablePointForRadiusFlags(location, ent->collision, M_UnitStaticPathingFlags(ent), &target);
         order_patrol(ent, Waypoint_add(&target));
         any = true;

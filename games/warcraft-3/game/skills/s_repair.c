@@ -366,7 +366,7 @@ static void repair_set_work(edict_t *ent) {
 
 static bool repair_prepare_approach(edict_t *ent) {
     edict_t *building = ent ? ent->build : NULL;
-    vector2_t approach;
+    vec2_t approach;
     float interaction_range;
     bool found;
 
@@ -586,7 +586,7 @@ static umove_t repair_generic_move_work = { "stand work", ai_repair, NULL, CAbil
 static umove_t repair_legacy_move_work = { "stand work", ai_repair_legacy, NULL, CAbilityRepair };
 
 static bool repair_begin(edict_t *ent, edict_t *building, uint32_t code, bool primary) {
-    vector2_t origin;
+    vec2_t origin;
     float angle;
 
     if (!ent || !building || !code || !repair_target_valid(ent, building, code, primary)) return false;
@@ -653,7 +653,7 @@ void repair_build_primary(edict_t *ent, edict_t *building) {
 }
 
 void repair_build_legacy(edict_t *ent, edict_t *building) {
-    vector2_t origin;
+    vec2_t origin;
     float angle;
 
     if (!ent || !building) return;

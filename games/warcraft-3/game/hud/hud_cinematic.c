@@ -43,7 +43,7 @@ void UI_LoadHudMessage(void) {
 }
 
 /* Copy the constructed frame so one player's runtime text/position never mutates the shared template. */
-static FRAMEDEF MessageFrame(vector2_t const *pos, cstring_t message) {
+static FRAMEDEF MessageFrame(vec2_t const *pos, cstring_t message) {
     FRAMEDEF frame = hud.msg_text;
     frame.Text = (string_t)message;
     frame.TextLength = strlen(message);
@@ -70,7 +70,7 @@ static bool TransmissionTalking(gameClient_t *client) {
            G_Time() < client->cinematic_voice_end_time;
 }
 
-static void WriteMessageLayer(edict_t *ent, vector2_t const *pos, cstring_t message) {
+static void WriteMessageLayer(edict_t *ent, vec2_t const *pos, cstring_t message) {
     FRAMEDEF frame;
 
     if (!ent || !hud.msg_text.Name[0]) return;
@@ -208,7 +208,7 @@ void UI_ShowGameInterface(edict_t *ent) {
         ent->client->presentation_dirty = false;
 }
 
-static void UI_ShowTextInternal(edict_t *ent, vector2_t const *pos, cstring_t text, float duration,
+static void UI_ShowTextInternal(edict_t *ent, vec2_t const *pos, cstring_t text, float duration,
                                 bool record_in_log) {
     gameClient_t *client;
     cstring_t resolved, message;
@@ -229,7 +229,7 @@ static void UI_ShowTextInternal(edict_t *ent, vector2_t const *pos, cstring_t te
         return;
     }
 
-    client->message.position = pos ? *pos : MAKE(vector2_t, 0.05f, 0.0f);
+    client->message.position = pos ? *pos : MAKE(vec2_t, 0.05f, 0.0f);
     client->message.end_time = G_Time() + MAX(1u, (uint32_t)(duration * 1000.0f));
     snprintf(client->message.text, sizeof(client->message.text), "%s", message);
     if (record_in_log) UI_MessageLogAppend(ent, client->message.text);
@@ -241,11 +241,11 @@ static void UI_ShowTextInternal(edict_t *ent, vector2_t const *pos, cstring_t te
     UI_InvalidateDialoguePresentation(ent);
 }
 
-void UI_ShowText(edict_t *ent, vector2_t const *pos, cstring_t text, float duration) {
+void UI_ShowText(edict_t *ent, vec2_t const *pos, cstring_t text, float duration) {
     UI_ShowTextInternal(ent, pos, text, duration, true);
 }
 
-void UI_ShowTransientText(edict_t *ent, vector2_t const *pos, cstring_t text, float duration) {
+void UI_ShowTransientText(edict_t *ent, vec2_t const *pos, cstring_t text, float duration) {
     UI_ShowTextInternal(ent, pos, text, duration, false);
 }
 

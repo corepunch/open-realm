@@ -174,7 +174,7 @@ gLightning_t *G_LightningAdd(lightningAddParams_t const *params) {
 }
 
 /* Replace explicit coordinates without changing an attached endpoint contract. */
-void G_LightningMove(gLightning_t *effect, vector3_t const *source, vector3_t const *target) {
+void G_LightningMove(gLightning_t *effect, vec3_t const *source, vec3_t const *target) {
     if (!G_LightningValid(effect)) return;
     if (source) effect->state.source = *source;
     if (target) effect->state.target = *target;
@@ -186,7 +186,7 @@ static bool G_LightningEntityValid(edict_t *entity, uint32_t spawn_time) {
 }
 
 /* Refresh one endpoint or clear it when its edict was freed or reused. */
-static void G_LightningEndpoint(edict_t * *entity, uint32_t *spawn_time, vector3_t *position) {
+static void G_LightningEndpoint(edict_t * *entity, uint32_t *spawn_time, vec3_t *position) {
     if (!G_LightningEntityValid(*entity, *spawn_time)) {
         *entity = NULL; *spawn_time = 0;
         return;
@@ -235,7 +235,7 @@ void G_LightningRemove(gLightning_t *effect) {
 
 /* Resolve and attach one ability-selected bolt to its caster and target. */
 gLightning_t *G_SpawnAbilityLightning(abilityLightningParams_t const *params) {
-    vector3_t from, to;
+    vec3_t from, to;
     uint32_t effect_id;
 
     if (!params || !params->source || !params->target) return NULL;
@@ -329,7 +329,7 @@ static void G_EffectStartAnimation(edict_t *effect, bool temporary) {
     }
 }
 
-edict_t *G_SpawnModelEffect(cstring_t model, vector2_t const *point, edict_t *target,
+edict_t *G_SpawnModelEffect(cstring_t model, vec2_t const *point, edict_t *target,
                            cstring_t attach_point, bool temporary) {
     edict_t *effect;
 
@@ -375,7 +375,7 @@ edict_t *G_SpawnModelEffect(cstring_t model, vector2_t const *point, edict_t *ta
 }
 
 edict_t *G_SpawnAbilityEffectAtPoint(uint32_t ability_id, wc3EffectType_t type, uint32_t index,
-                                    vector2_t const *point, bool temporary) {
+                                    vec2_t const *point, bool temporary) {
     return G_SpawnModelEffect(G_AbilityEffectArt(ability_id, type, index), point, NULL, NULL, temporary);
 }
 
@@ -387,7 +387,7 @@ edict_t *G_SpawnAbilityEffectTarget(uint32_t ability_id, wc3EffectType_t type, u
 
 edict_t *G_SpawnOwnedAbilityEffectAtPoint(edict_t *owner, uint32_t ability_id,
                                          wc3EffectType_t type, uint32_t index,
-                                         vector2_t const *point) {
+                                         vec2_t const *point) {
     edict_t *effect = G_SpawnAbilityEffectAtPoint(ability_id, type, index, point, false);
     if (effect) effect->owner = owner;
     return effect;

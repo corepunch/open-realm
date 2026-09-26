@@ -568,8 +568,8 @@ static void SC2_ResolveTemplate(sc2Frame_t *frame, sc2Frame_t *tmpl) {
     }
 
     static const struct { size_t offset, size; } fields[] = {
-        { offsetof(uiModel_t, pos), sizeof(vector3_t) }, { offsetof(uiModel_t, scale), sizeof(vector3_t) },
-        { offsetof(uiModel_t, eye), sizeof(vector3_t) }, { offsetof(uiModel_t, target), sizeof(vector3_t) },
+        { offsetof(uiModel_t, pos), sizeof(vec3_t) }, { offsetof(uiModel_t, scale), sizeof(vec3_t) },
+        { offsetof(uiModel_t, eye), sizeof(vec3_t) }, { offsetof(uiModel_t, target), sizeof(vec3_t) },
         { offsetof(uiModel_t, fov), sizeof(float) }, { offsetof(uiModel_t, znear), sizeof(float) },
         { offsetof(uiModel_t, zfar), sizeof(float) }, { offsetof(uiModel_t, projection), sizeof(UIMODELPROJECTION) },
     };
@@ -771,7 +771,7 @@ static void SC2_ParseModel(void *node, sc2Frame_t *frame) {
         FOR_LOOP(i, sizeof(fields) / sizeof(*fields)) {
             if (strcasecmp((cstring_t)child->name, fields[i].name)) continue;
             cstring_t text = SC2_XmlGetProp(child, "val");
-            vector3_t *v = (vector3_t *)((char *)&frame->model + fields[i].offset);
+            vec3_t *v = (vec3_t *)((char *)&frame->model + fields[i].offset);
             if (text && sscanf(text, "%f,%f,%f", &v->x, &v->y, &v->z) == 3)
                 frame->model_flags |= 1u << i;
             else fprintf(stderr, "SC2_Layout: invalid Model %s on %s\n", fields[i].name, frame->name);

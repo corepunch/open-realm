@@ -2,7 +2,7 @@
 
 /* ---- Healing Spray (ANhs): channeled point AoE heal waves ---------------- */
 
-static bool healing_spray_hits(edict_t *caster, uint32_t code, edict_t *target, float radius, vector2_t const *origin) {
+static bool healing_spray_hits(edict_t *caster, uint32_t code, edict_t *target, float radius, vec2_t const *origin) {
     if (!target || !S_SpellIsAliveTarget(target)) return false;
     if (Vector2_distance(&target->s.origin2, origin) > radius) return false;
     return S_SpellAllowsTarget(code, caster, target);

@@ -10,9 +10,9 @@
 #define NUM_SIGHT_SECIONS 5
 
 typedef struct fowraycaststate_s {
-    matrix4_t viewProjection;
-    matrix4_t model;
-    vector2_t eyePosition;
+    mat4_t viewProjection;
+    mat4_t model;
+    vec2_t eyePosition;
 } fowRaycastState_t;
 
 
@@ -97,10 +97,10 @@ texture_t *R_AllocateSightTexture(void) {
     texture_t *texture = R_AllocateTexture(SIGHT_SIZE, SIGHT_SIZE);
     color32_t col[SIGHT_SIZE * SIGHT_SIZE];
     uint32_t mid = SIGHT_SIZE/2;
-    vector2_t center = {mid,mid};
+    vec2_t center = {mid,mid};
     FOR_LOOP(x, SIGHT_SIZE) {
         FOR_LOOP(y, SIGHT_SIZE) {
-            float const d = Vector2_distance(&center, &(vector2_t){x,y});
+            float const d = Vector2_distance(&center, &(vec2_t){x,y});
             float const f = MAX(0, 1.0 - d / mid);
             uint32_t c = MIN(1, f * 2.0) * 0xff;
             col[x+y*SIGHT_SIZE].r = 0xff;
@@ -113,14 +113,14 @@ texture_t *R_AllocateSightTexture(void) {
     return texture;
 }
 
-static void R_MakeSightMatrix(renderEntity_t const *ent, matrix4_t *model_matrix) {
+static void R_MakeSightMatrix(renderEntity_t const *ent, mat4_t *model_matrix) {
     Matrix4_identity(model_matrix);
-    Matrix4_translate(model_matrix, &(vector3_t) {
+    Matrix4_translate(model_matrix, &(vec3_t) {
         ent->origin.x - tr.world->center.x - SIGHT_DISTANCE / 2,
         ent->origin.y - tr.world->center.y - SIGHT_DISTANCE / 2,
         0
     });
-    Matrix4_scale(model_matrix, &(vector3_t) {
+    Matrix4_scale(model_matrix, &(vec3_t) {
         SIGHT_DISTANCE,
         SIGHT_DISTANCE,
         SIGHT_DISTANCE,
@@ -229,8 +229,8 @@ static uint32_t R_PushRectToBuffer(uint32_t buffer_id, rect_t const *value, floa
 }
 
 static void R_BlitTexture(GLuint texid, float alpha) {
-    matrix4_t model_matrix;
-    matrix4_t proj_matrix;
+    mat4_t model_matrix;
+    mat4_t proj_matrix;
     rect_t const uv = {0,0,1,1};
     
     Matrix4_ortho(&proj_matrix, 0, 1, 0, 1, -1, 1);
@@ -276,12 +276,12 @@ void R_RenderFogOfWar(void) {
     uint32_t const texture_height = (tr.world->height - 1) * 4;
     uint32_t const num_revealers = R_CollectRevealers(revealers, MAX_FOGOFWAR_REVEALERS);
 
-    matrix4_t model_matrix;
-    matrix4_t proj_matrix;
-    vector2_t mapsize = R_WorldSize();
+    mat4_t model_matrix;
+    mat4_t proj_matrix;
+    vec2_t mapsize = R_WorldSize();
 
     Matrix4_identity(&model_matrix);
-    Matrix4_translate(&model_matrix, &(vector3_t) { -tr.world->center.x, -tr.world->center.y, 0 });
+    Matrix4_translate(&model_matrix, &(vec3_t) { -tr.world->center.x, -tr.world->center.y, 0 });
     Matrix4_ortho(&proj_matrix, 0.0f, mapsize.x, 0.0f, mapsize.y, 0.0f, 100.0f);
 
     R_PushRectToBuffer(RBUF_TEMP1, &(rect_t const){0,0,1,1}, 1);
@@ -327,7 +327,7 @@ void R_RenderFogOfWar(void) {
 
         // Draw line of sight into dst alpha
 
-        memcpy(&fow_resources.shader.state.eyePosition, (GLfloat *)&ent->origin, (1) * sizeof(vector2_t));
+        memcpy(&fow_resources.shader.state.eyePosition, (GLfloat *)&ent->origin, (1) * sizeof(vec2_t));
         R_Call(glBindVertexArray, fow_resources.casters->vao);
         R_Call(glBlendFunc, GL_DST_ALPHA, GL_ZERO);
         R_Call(glBindBuffer, GL_ARRAY_BUFFER, fow_resources.casters->vbo);

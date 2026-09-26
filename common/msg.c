@@ -210,25 +210,25 @@ void MSG_WriteString(sizeBuf_t *buf, cstring_t value) {
     MSG_Write(buf, value, (int)strlen(value) + 1);
 }
 
-void MSG_WritePos(sizeBuf_t *buf, vector3_t const *pos) {
+void MSG_WritePos(sizeBuf_t *buf, vec3_t const *pos) {
     MSG_WriteShort(buf, pos->x);
     MSG_WriteShort(buf, pos->y);
     MSG_WriteShort(buf, pos->z);
 }
 
-void MSG_ReadPos(sizeBuf_t *buf, vector3_t *pos) {
+void MSG_ReadPos(sizeBuf_t *buf, vec3_t *pos) {
     pos->x = MSG_ReadShort(buf);
     pos->y = MSG_ReadShort(buf);
     pos->z = MSG_ReadShort(buf);
 }
 
-void MSG_WriteDir(sizeBuf_t *buf, vector3_t const *dir) {
+void MSG_WriteDir(sizeBuf_t *buf, vec3_t const *dir) {
     MSG_WriteFloat(buf, dir->x);
     MSG_WriteFloat(buf, dir->y);
     MSG_WriteFloat(buf, dir->z);
 }
 
-void MSG_ReadDir(sizeBuf_t *buf, vector3_t *dir) {
+void MSG_ReadDir(sizeBuf_t *buf, vec3_t *dir) {
     dir->x = MSG_ReadFloat(buf);
     dir->y = MSG_ReadFloat(buf);
     dir->z = MSG_ReadFloat(buf);
@@ -309,14 +309,14 @@ static uint32_t MSG_GetBits(void const *from, void const *to, netField_t *fields
         int *toF = (int *)((uint8_t *)to + field->offset);
         switch (field->type) {
             case NFT_VECTOR2:
-                if (memcmp(fromF, toF, sizeof(vector2_t))!=0) bits |= MSG_FIELDBIT(field, fields);
+                if (memcmp(fromF, toF, sizeof(vec2_t))!=0) bits |= MSG_FIELDBIT(field, fields);
                 break;
             case NFT_BOX2:
                 if (memcmp(fromF, toF, sizeof(box2_t))!=0) bits |= MSG_FIELDBIT(field, fields);
                 break;
             case NFT_VECTOR3:
             case NFT_VECTOR3_FLOAT:
-                if (memcmp(fromF, toF, sizeof(vector3_t))!=0) bits |= MSG_FIELDBIT(field, fields);
+                if (memcmp(fromF, toF, sizeof(vec3_t))!=0) bits |= MSG_FIELDBIT(field, fields);
                 break;
             case NFT_QUATERNION:
                 if (memcmp(fromF, toF, sizeof(quaternion_t))!=0) bits |= MSG_FIELDBIT(field, fields);
@@ -583,7 +583,7 @@ bool MSG_ReadInput(sizeBuf_t *buf, inputCmd_t *cmd) {
     if (cmd->action > BZ_INPUT_MOVE || sizes[cmd->action] > buf->cursize - buf->readcount) return false;
     switch (cmd->action) {
     case BZ_INPUT_FOCUS:
-        cmd->focus = (vector2_t){ MSG_ReadFloat(buf), MSG_ReadFloat(buf) };
+        cmd->focus = (vec2_t){ MSG_ReadFloat(buf), MSG_ReadFloat(buf) };
         return isfinite(cmd->focus.x) && isfinite(cmd->focus.y);
     case BZ_INPUT_VIEW:
         MSG_ReadDir(buf, &cmd->view.angles); cmd->view.distance = MSG_ReadFloat(buf);

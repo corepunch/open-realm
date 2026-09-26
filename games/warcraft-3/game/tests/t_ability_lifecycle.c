@@ -30,7 +30,7 @@ static int review_capture_sound_index(cstring_t path) {
 static int review_capture_sound_index_alias(cstring_t path, cstring_t alias) { (void)alias; return review_capture_sound_index(path); }
 
 
-static void review_capture_sound_policy(vector3_t const *origin, edict_t *emitter, int channel, int sound, float volume, float attenuation, float timeofs, soundPolicy_t const *policy) {
+static void review_capture_sound_policy(vec3_t const *origin, edict_t *emitter, int channel, int sound, float volume, float attenuation, float timeofs, soundPolicy_t const *policy) {
     T_NOT_NULL(policy);
     T_EQ(policy->max_total, 24);
     T_EQ(policy->flags, SOUND_IGNORE_USER);
@@ -429,7 +429,7 @@ TEST(wc3_ability_lifecycle, water_elemental_uses_dataa_count_and_marks_summons) 
     edict_t *caster = review_setup();
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     uint32_t count = 0;
-    vector2_t first = {0};
+    vec2_t first = {0};
     bool separated = false;
     caster->s.angle = 0.35f;
     T_ASSERT(S_CastNoTargetSpell(caster, FS_SLKKey("AHwe")));
@@ -473,7 +473,7 @@ TEST(wc3_ability_lifecycle, mass_teleport_delays_caps_and_excludes_allies_and_st
     T_ASSERT(building->s.origin2.x < 1000);
     /* Relocation must also update the server broad phase: the caster vacated
      * x=0, so an unmoved unit can legally occupy that point after completion. */
-    T_ASSERT(G_CanRepositionUnitAt(own3, &MAKE(vector2_t, 0, 0)));
+    T_ASSERT(G_CanRepositionUnitAt(own3, &MAKE(vec2_t, 0, 0)));
     T_ASSERT(!target->paused); T_EQ(caster->channel.code, 0); T_ASSERT(!thinker->inuse);
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
@@ -875,7 +875,7 @@ TEST(wc3_ability_lifecycle, stop_move_and_attack_retire_channel_before_motion) {
         T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHdr"), enemy));
         edict_t *thinker = review_thinker(caster);
         if (i == 0) T_ASSERT(unit_issueimmediateorder(caster, orders[i]));
-        else if (i == 1) T_ASSERT(unit_issueorder(caster, orders[i], &MAKE(vector2_t, .x = 300)));
+        else if (i == 1) T_ASSERT(unit_issueorder(caster, orders[i], &MAKE(vec2_t, .x = 300)));
         else T_ASSERT(unit_issuetargetorder(caster, orders[i], enemy));
         umove_t const *move = caster->currentmove;
         T_EQ(caster->channel.code, 0); T_FEQ(caster->s.origin2.x, 0, .001f);

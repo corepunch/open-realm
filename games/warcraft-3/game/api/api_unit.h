@@ -38,7 +38,7 @@ uint32_t GetUnit##NAME(jass_t *j) {  \
 uint32_t SetUnit##NAME(jass_t *j) { \
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit"); \
     if (whichUnit) { \
-        vector2_t old_position = whichUnit->s.origin2; \
+        vec2_t old_position = whichUnit->s.origin2; \
         whichUnit->FIELD = jass_checknumber(j, 2); \
         if (whichUnit->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty(); \
         gi.LinkEntity(whichUnit); \
@@ -57,11 +57,11 @@ UNIT_POSITION_ACCESS(Y, s.origin.y);
 
 uint32_t SetUnitPositionLoc(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    vector2_t const *whichLocation = jass_checkhandle(j, 2, "location");
-    vector2_t position;
+    vec2_t const *whichLocation = jass_checkhandle(j, 2, "location");
+    vec2_t position;
 
     if (whichUnit && whichLocation) {
-        vector2_t old_position = whichUnit->s.origin2;
+        vec2_t old_position = whichUnit->s.origin2;
         G_FindUnitUnstuckPosition(whichUnit, whichLocation, &position);
         whichUnit->s.origin.x = position.x;
         whichUnit->s.origin.y = position.y;
@@ -195,11 +195,11 @@ uint32_t GetUnitState(jass_t *j) {
 }
 uint32_t SetUnitPosition(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    vector2_t requested = MAKE(vector2_t, jass_checknumber(j, 2), jass_checknumber(j, 3));
-    vector2_t position;
+    vec2_t requested = MAKE(vec2_t, jass_checknumber(j, 2), jass_checknumber(j, 3));
+    vec2_t position;
 
     if (whichUnit) {
-        vector2_t old_position = whichUnit->s.origin2;
+        vec2_t old_position = whichUnit->s.origin2;
         G_FindUnitUnstuckPosition(whichUnit, &requested, &position);
         whichUnit->s.origin.x = position.x;
         whichUnit->s.origin.y = position.y;
@@ -534,7 +534,7 @@ uint32_t UnitDropItemPoint(jass_t *j) {
         return jass_pushboolean(j, 0);
     slot = whichItem->item.inventory_slot;
     if (slot < 0) return jass_pushboolean(j, 0);
-    return jass_pushboolean(j, G_DropItemAtScripted(whichUnit, (uint32_t)slot, &MAKE(vector2_t, x, y)));
+    return jass_pushboolean(j, G_DropItemAtScripted(whichUnit, (uint32_t)slot, &MAKE(vec2_t, x, y)));
 }
 uint32_t UnitDamageTarget(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
@@ -639,7 +639,7 @@ uint32_t ReviveHero(jass_t *j) {
 }
 uint32_t ReviveHeroLoc(jass_t *j) {
     edict_t *whichHero = jass_checkhandle(j, 1, "unit");
-    vector2_t const *location = jass_checkhandle(j, 2, "location");
+    vec2_t const *location = jass_checkhandle(j, 2, "location");
     //bool doEyecandy = jass_checkboolean(j, 3);
     return jass_pushboolean(j, whichHero && location &&
         G_ReviveHero(whichHero, location->x, location->y));
@@ -781,7 +781,7 @@ uint32_t UnitUseItemTarget(jass_t *j) {
 }
 uint32_t GetUnitRallyPoint(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    API_ALLOC(vector2_t, location);
+    API_ALLOC(vec2_t, location);
     if (whichUnit) {
         G_ResolveRallyTarget(whichUnit, location, NULL);
     }
@@ -814,7 +814,7 @@ uint32_t GetUnitRallyDestructable(jass_t *j) {
 }
 uint32_t GetUnitLoc(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    API_ALLOC(vector2_t, location);
+    API_ALLOC(vec2_t, location);
     if (whichUnit) {
         *location = whichUnit->s.origin2;
     }
@@ -971,11 +971,11 @@ uint32_t IsUnitInRangeXY(jass_t *j) {
     float y = jass_checknumber(j, 3);
     float distance = jass_checknumber(j, 4);
     if (!whichUnit) return jass_pushboolean(j, 0);
-    return jass_pushboolean(j, Vector2_distance(&whichUnit->s.origin2, &MAKE(vector2_t, x, y)) <= distance);
+    return jass_pushboolean(j, Vector2_distance(&whichUnit->s.origin2, &MAKE(vec2_t, x, y)) <= distance);
 }
 uint32_t IsUnitInRangeLoc(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    vector2_t const *whichLocation = jass_checkhandle(j, 2, "location");
+    vec2_t const *whichLocation = jass_checkhandle(j, 2, "location");
     float distance = jass_checknumber(j, 3);
     if (!whichUnit || !whichLocation) return jass_pushboolean(j, 0);
     return jass_pushboolean(j, Vector2_distance(&whichUnit->s.origin2, whichLocation) <= distance);
@@ -1091,20 +1091,20 @@ uint32_t IssuePointOrder(jass_t *j) {
     cstring_t order = jass_checkstring(j, 2);
     float x = jass_checknumber(j, 3);
     float y = jass_checknumber(j, 4);
-    bool ret = unit_issueorder(whichUnit, order, &MAKE(vector2_t, x, y));
+    bool ret = unit_issueorder(whichUnit, order, &MAKE(vec2_t, x, y));
     return jass_pushboolean(j, ret);
 }
 uint32_t IssuePointOrderLoc(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     cstring_t order = jass_checkstring(j, 2);
-    vector2_t const *whichLocation = jass_checkhandle(j, 3, "location");
+    vec2_t const *whichLocation = jass_checkhandle(j, 3, "location");
     bool ret = unit_issueorder(whichUnit, order, whichLocation);
     return jass_pushboolean(j, ret);
 }
 uint32_t IssuePointOrderById(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     uint32_t order = (uint32_t)jass_checkinteger(j, 2);
-    vector2_t point = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
+    vec2_t point = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
 
     /* Building rawcodes are valid point-order ids, but they are not entries in
      * the canonical Warcraft order table. Keep construction on the existing
@@ -1116,7 +1116,7 @@ uint32_t IssuePointOrderById(jass_t *j) {
 uint32_t IssuePointOrderByIdLoc(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
     uint32_t order = (uint32_t)jass_checkinteger(j, 2);
-    vector2_t const *whichLocation = jass_checkhandle(j, 3, "location");
+    vec2_t const *whichLocation = jass_checkhandle(j, 3, "location");
 
     if (G_UnitIsBuilding(order))
         return jass_pushboolean(j, G_IssueBuildOrder(whichUnit, order, whichLocation));
@@ -1169,7 +1169,7 @@ uint32_t IssueBuildOrder(jass_t *j) {
 uint32_t IssueBuildOrderById(jass_t *j) {
     edict_t *whichPeon = jass_checkhandle(j, 1, "unit");
     uint32_t unitId = (uint32_t)jass_checkinteger(j, 2);
-    vector2_t point = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
+    vec2_t point = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
     bool accepted;
 
     accepted = G_IssueBuildOrder(whichPeon, unitId, &point);
@@ -1193,19 +1193,19 @@ uint32_t GetResourceAmount(jass_t *j) {
 }
 uint32_t WaygateGetDestinationX(jass_t *j) {
     edict_t *waygate = jass_checkhandle(j, 1, "unit");
-    vector2_t destination = {0};
+    vec2_t destination = {0};
     S_WaygateGetDestination(waygate, &destination);
     return jass_pushnumber(j, destination.x);
 }
 uint32_t WaygateGetDestinationY(jass_t *j) {
     edict_t *waygate = jass_checkhandle(j, 1, "unit");
-    vector2_t destination = {0};
+    vec2_t destination = {0};
     S_WaygateGetDestination(waygate, &destination);
     return jass_pushnumber(j, destination.y);
 }
 uint32_t WaygateSetDestination(jass_t *j) {
     edict_t *waygate = jass_checkhandle(j, 1, "unit");
-    vector2_t destination = { jass_checknumber(j, 2), jass_checknumber(j, 3) };
+    vec2_t destination = { jass_checknumber(j, 2), jass_checknumber(j, 3) };
     S_WaygateSetDestination(waygate, &destination);
     return 0;
 }
@@ -1245,7 +1245,7 @@ uint32_t RecycleGuardPosition(jass_t *j) {
 uint32_t CreateUnit(jass_t *j) {
     player_t *player = jass_checkhandle(j, 1, "player");
     uint32_t unitid = jass_checkinteger(j, 2);
-    vector2_t location = MAKE(vector2_t, jass_checknumber(j, 3), jass_checknumber(j, 4));
+    vec2_t location = MAKE(vec2_t, jass_checknumber(j, 3), jass_checknumber(j, 4));
     float facing = jass_checknumber(j, 5);
     if (!player) {
         return jass_pushnullhandle(j, "unit");
@@ -1264,7 +1264,7 @@ uint32_t CreateUnitByName(jass_t *j) {
 uint32_t CreateUnitAtLoc(jass_t *j) {
     player_t *player = jass_checkhandle(j, 1, "player");
     uint32_t unitid = jass_checkinteger(j, 2);
-    vector2_t const *location = jass_checkhandle(j, 3, "location");
+    vec2_t const *location = jass_checkhandle(j, 3, "location");
     float facing = jass_checknumber(j, 4);
     if (!player || !location) {
         return jass_pushnullhandle(j, "unit");
@@ -1289,7 +1289,7 @@ uint32_t CreateCorpse(jass_t *j) {
 }
 uint32_t CreateBlightedGoldmine(jass_t *j) {
     player_t *player = jass_checkhandle(j, 1, "player");
-    vector2_t origin = MAKE(vector2_t, jass_checknumber(j, 2), jass_checknumber(j, 3));
+    vec2_t origin = MAKE(vec2_t, jass_checknumber(j, 2), jass_checknumber(j, 3));
     float facing = jass_checknumber(j, 4);
     edict_t *mine;
 

@@ -120,7 +120,7 @@ TEST(wc3_spell, custom_spells_keep_identity_in_validation_and_channel_completion
     UnitAbilities_t abilities = { .abilList = "A003,A004" };
     slkTestData_t *rows = parse_slk_string(slk), *old;
     edict_t *caster = make_hero(MAKEFOURCC('H','p','a','l'), 500, 200, 0, 0);
-    vector2_t point = {50, 0};
+    vec2_t point = {50, 0};
 
     old = G_SetSLKRows("AbilityData", rows);
     caster->data.UnitAbilities = &abilities;
@@ -2598,7 +2598,7 @@ TEST(wc3_spell, point_order_name_routes_blink_and_carries_spell_point) {
     slkTestData_t *rows = parse_slk_string(slk);
     slkTestData_t *old;
     edict_t *caster = make_hero(MAKEFOURCC('E','w','d','n'), 500, 300, 0, 0);
-    vector2_t point = { 64.0f, 32.0f };
+    vec2_t point = { 64.0f, 32.0f };
 
     old = G_SetSLKRows("AbilityData", rows);
     caster->data.UnitAbilities = &abilities;
@@ -3597,7 +3597,7 @@ TEST(wc3_spell, far_sight_reapplies_visibility_until_authored_duration_expires) 
         "C;Y2;X4;K\"128\"\nC;Y2;X5;K\"1\"\nC;Y2;X6;K\"\"\nE\n";
     slkTestData_t *rows = parse_slk_string(slk), *old;
     edict_t *caster; edict_t *thinker = NULL;
-    vector2_t point = { 256.0f, 0.0f };
+    vec2_t point = { 256.0f, 0.0f };
     uint32_t cell;
 
     reset_entities(); setup_test_world(); G_FowInit(); G_FowConnectPlayer(0);
@@ -3648,7 +3648,7 @@ TEST(wc3_spell, earthquake_waits_for_effect_delay_slows_ground_and_damages_struc
     edict_t *building = alloc_test_unit(MAKEFOURCC('o','b','u','r'), 70, 0);
     edict_t *tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 80, 0);
     edict_t *thinker = NULL;
-    vector2_t point = { 0, 0 };
+    vec2_t point = { 0, 0 };
 
     caster->data.UnitAbilities = &abilities; caster->s.player = 0;
     ground->s.player = air->s.player = building->s.player = 1;

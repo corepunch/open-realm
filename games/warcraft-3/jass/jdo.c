@@ -31,7 +31,7 @@ typedef struct {
     edict_t *unit;
     edict_t *source;
     int32_t value;
-    vector2_t const *point;
+    vec2_t const *point;
     bool has_point;
     handle_t timer;
     handle_t region;
@@ -1036,7 +1036,7 @@ static bool jass_evaluatetriggercontext(jass_t *j, jassTriggerContextParams_t co
         tmp_state.context.unit = params->unit;
         tmp_state.context.source = params->source;
         tmp_state.context.eventValue = params->value;
-        tmp_state.context.point = params->point ? *params->point : (vector2_t){ 0.0f, 0.0f };
+        tmp_state.context.point = params->point ? *params->point : (vec2_t){ 0.0f, 0.0f };
         tmp_state.context.hasPoint = params->has_point;
         tmp_state.context.playerState = player;
         tmp_state.context.localPlayerState = currentplayer;
@@ -1104,7 +1104,7 @@ static void jass_executetriggercontext(jass_t *j, jassTriggerContextParams_t con
                                   .unit = params->unit,
                                   .source = params->source,
                                   .eventValue = params->value,
-                                  .point = params->point ? *params->point : (vector2_t){ 0.0f, 0.0f },
+                                  .point = params->point ? *params->point : (vec2_t){ 0.0f, 0.0f },
                                   .hasPoint = params->has_point,
                                   .playerState = player,
                                   .localPlayerState = currentplayer,

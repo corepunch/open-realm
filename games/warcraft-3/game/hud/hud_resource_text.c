@@ -68,7 +68,7 @@ static bool resource_text_style(uint32_t resource_state, resourceTextStyle_t *st
 void G_ResourceGainEvent(edict_t *source, uint32_t resource_state, int32_t amount) {
     resourceTextStyle_t style;
     char field[64], text[32];
-    vector3_t origin;
+    vec3_t origin;
     color32_t color;
     float lifetime, fade_start, height;
     uint32_t color_bits, lifetime_ms, fade_start_ms, font_size;

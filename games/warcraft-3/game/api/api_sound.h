@@ -134,7 +134,7 @@ uint32_t SetSoundPosition(jass_t *j) {
     float x = jass_checknumber(j, 2);
     float y = jass_checknumber(j, 3);
     float z = jass_checknumber(j, 4);
-    if (sound) G_JassSoundSetPosition(sound, &MAKE(vector3_t, x, y, z));
+    if (sound) G_JassSoundSetPosition(sound, &MAKE(vec3_t, x, y, z));
     return 0;
 }
 uint32_t SetSoundVelocity(jass_t *j) {

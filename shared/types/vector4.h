@@ -3,7 +3,7 @@
 
 struct vector4 { float x, y, z, w; };
 
-typedef struct vector4 vector4_t;
+typedef struct vector4 vec4_t;
 
 
 

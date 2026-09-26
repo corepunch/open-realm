@@ -229,9 +229,9 @@ bool will_word_fit(cstring_t text, float width, font_t const *font) {
     return R_TextFitsWidth(width);
 }
 
-static vector2_t get_position(drawText_t const *arg) {
-    vector2_t pos = { 0 };
-    vector2_t size = R_GetTextSize(arg);
+static vec2_t get_position(drawText_t const *arg) {
+    vec2_t pos = { 0 };
+    vec2_t size = R_GetTextSize(arg);
     switch (arg->halign) {
         case FONT_JUSTIFYRIGHT: pos.x = arg->rect.x + arg->rect.w - size.x; break;
         case FONT_JUSTIFYCENTER: pos.x = arg->rect.x + (arg->rect.w - size.x) / 2; break;
@@ -256,7 +256,7 @@ static rect_t get_uvrect(stbtt_bakedchar *g, float h, float w) {
     return uv_rect;
 }
 
-static rect_t get_screenrect(vector2_t const *cursor, stbtt_bakedchar *g) {
+static rect_t get_screenrect(vec2_t const *cursor, stbtt_bakedchar *g) {
     rect_t const screen = {
         .x = cursor->x + INV_SCALE_X(g->xoff),
         .y = cursor->y + INV_SCALE_Y(g->yoff),
@@ -305,14 +305,14 @@ static void add_text_glyph(textBatch_t *batch,
     batch->count += 6;
 }
 
-static vector2_t process_text(drawText_t const *arg, bool draw) {
+static vec2_t process_text(drawText_t const *arg, bool draw) {
     if (!arg->font) {
-        return MAKE(vector2_t, 0, 0);
+        return MAKE(vec2_t, 0, 0);
     }
-    vector2_t pos = draw ? get_position(arg) : MAKE(vector2_t, 0, 0);
+    vec2_t pos = draw ? get_position(arg) : MAKE(vec2_t, 0, 0);
     color32_t color = arg->color;
-    vector2_t cursor = pos;
-    vector2_t linesize = MAKE(vector2_t, 0.5f * arg->font->size / UI_FONT_COORD_SCALE, 0.5f * arg->font->size / UI_FONT_COORD_SCALE * UI_PIXEL_ASPECT);
+    vec2_t cursor = pos;
+    vec2_t linesize = MAKE(vec2_t, 0.5f * arg->font->size / UI_FONT_COORD_SCALE, 0.5f * arg->font->size / UI_FONT_COORD_SCALE * UI_PIXEL_ASPECT);
     float line_height = R_GetFontHeight((font_t *)arg->font);
     float line_advance = line_height * (arg->lineHeight > 0 ? arg->lineHeight : 1.0f);
     float max_cursor_x = pos.x;
@@ -402,7 +402,7 @@ static vector2_t process_text(drawText_t const *arg, bool draw) {
     if (draw) {
         flush_text_batch(&batch, arg);
     }
-    return MAKE(vector2_t,
+    return MAKE(vec2_t,
                 max_cursor_x - pos.x,
                 (max_cursor_y - min_cursor_y) + R_GetFontHeight((font_t *)arg->font));
 }
@@ -414,6 +414,6 @@ void R_DrawText(drawText_t const *arg) {
 //    R_DrawWireRect(&arg->rect, MAKE(COLOR32, 255, 0, 255, 255));
 }
 
-vector2_t R_GetTextSize(drawText_t const *arg) {
+vec2_t R_GetTextSize(drawText_t const *arg) {
     return process_text(arg, false);
 }

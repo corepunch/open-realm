@@ -67,7 +67,7 @@ TEST(wc3_order_lifecycle, hold_attacks_in_range_then_stays_when_enemy_leaves) {
 TEST(wc3_order_lifecycle, delayed_kill_preserves_new_move_order) {
     setup_test_world();
     edict_t *unit = review_order_unit(0, 0), *enemy = review_order_unit(300, 1);
-    vector2_t point = {600, 0};
+    vec2_t point = {600, 0};
     T_ASSERT(unit_issuetargetorder(unit, "attack", enemy));
     edict_t *missile = G_Spawn();
     missile->owner = unit;
@@ -75,7 +75,7 @@ TEST(wc3_order_lifecycle, delayed_kill_preserves_new_move_order) {
     missile->velocity = 10000;
     missile->damage = 10000;
     T_ASSERT(unit_issueorder(unit, "move", &point));
-    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &MAKE(vector2_t, .x = 800), true, 0, 0));
+    T_ASSERT(G_IssueUnitPointOrder(unit, "move", &MAKE(vec2_t, .x = 800), true, 0, 0));
     umove_t const *move = unit->currentmove;
     /* A projectile resolves damage after its owner has already accepted Move. */
     SV_Physics_Toss(missile);
@@ -122,7 +122,7 @@ TEST(wc3_order_lifecycle, auto_attack_resumes_patrol_but_smart_attack_replaces_i
     setup_test_world();
     edict_t *unit = review_order_unit(0, 0), *first = review_order_unit(300, 1);
     edict_t *second = review_order_unit(400, 1);
-    order_patrol(unit, Waypoint_add(&MAKE(vector2_t, .x = 600)));
+    order_patrol(unit, Waypoint_add(&MAKE(vec2_t, .x = 600)));
     edict_t *patrol = unit->movement.patrol_target;
     order_attack(unit, first);
     T_Damage(first, unit, (int)first->health.value);

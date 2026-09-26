@@ -5,7 +5,7 @@
 
 typedef enum { M2_FORMAT_CLASSIC, M2_FORMAT_MODERN } m2Format_t;
 typedef struct { int32_t size, offset; } m2Array_t;
-typedef struct { vector3_t min, max; } m2Box_t;
+typedef struct { vec3_t min, max; } m2Box_t;
 typedef struct { uint16_t track_type, loop_index; m2Array_t sequence_times, sequence_keys; } m2Track_t;
 typedef struct { uint16_t track_type, loop_index; m2Array_t ranges, times, keys; } m2TrackClassic_t;
 typedef struct { m2Array_t times, values; } m2PartTrack_t;
@@ -44,14 +44,14 @@ typedef struct {
 typedef struct {
     uint32_t attachment_id;
     uint16_t bone_index, padding;
-    vector3_t position;
+    vec3_t position;
     m2Track_t visibility_track;
 } m2AttachmentModern_t;
 
 typedef struct {
     uint32_t attachment_id;
     uint16_t bone_index, padding;
-    vector3_t position;
+    vec3_t position;
     m2TrackClassic_t visibility_track;
 } m2AttachmentClassic_t;
 
@@ -124,9 +124,9 @@ typedef struct {
     uint32_t camera_id;
     float fov, far_clip, near_clip;
     m2Track_t position_track;
-    vector3_t position_pivot;
+    vec3_t position_pivot;
     m2Track_t target_track;
-    vector3_t target_pivot;
+    vec3_t target_pivot;
     m2Track_t roll_track;
 } m2CameraModern_t;
 
@@ -134,9 +134,9 @@ typedef struct {
     uint32_t camera_id;
     float fov, far_clip, near_clip;
     m2TrackClassic_t position_track;
-    vector3_t position_pivot;
+    vec3_t position_pivot;
     m2TrackClassic_t target_track;
-    vector3_t target_pivot;
+    vec3_t target_pivot;
     m2TrackClassic_t roll_track;
 } m2CameraClassic_t;
 
@@ -145,14 +145,14 @@ typedef struct {
     uint16_t parent_index, dist_to_parent;
     uint32_t union_data;
     m2Track_t translation_track, rotation_track, scale_track;
-    vector3_t pivot;
+    vec3_t pivot;
 } m2CompBoneModern_t;
 
 typedef struct {
     uint32_t bone_id, flags;
     uint16_t parent_index, submesh_id;
     m2TrackClassic_t translation_track, rotation_track, scale_track;
-    vector3_t pivot;
+    vec3_t pivot;
 } m2CompBoneClassic_t;
 
 typedef struct {
@@ -196,10 +196,10 @@ typedef union {
 } m2File_t;
 
 typedef struct {
-    vector3_t pos;
+    vec3_t pos;
     uint8_t bone_weights[4], bone_indices[4];
-    vector3_t normal;
-    vector2_t tex_coords[2];
+    vec3_t normal;
+    vec2_t tex_coords[2];
 } m2VertexDisk_t;
 
 typedef struct { uint32_t type, flags; m2Array_t filename; } m2TextureDisk_t;
@@ -215,14 +215,14 @@ typedef struct { m2Array_t vertices, indices, bones, sections, batches; uint32_t
 typedef struct {
     uint16_t skin_section_id, level, vertex_start, vertex_count, index_start, index_count;
     uint16_t bone_count, bone_combo_index, bone_influences, center_bone_index;
-    vector3_t center_position, sort_center_position;
+    vec3_t center_position, sort_center_position;
     float sort_radius;
 } m2SkinSection_t;
 
 typedef struct {
     uint16_t skin_section_id, level, vertex_start, vertex_count, index_start, index_count;
     uint16_t bone_count, bone_combo_index, bone_influences, center_bone_index;
-    vector3_t center_position;
+    vec3_t center_position;
 } m2SkinSectionLegacy_t;
 
 typedef struct {
@@ -236,7 +236,7 @@ typedef struct {
 
 typedef struct {
     uint32_t particle_id, flags;
-    vector3_t position;
+    vec3_t position;
     uint16_t bone_index, texture_index;
     m2Array_t geometry_mdl, recursion_mdl;
     uint8_t blend_mode, emitter_type;
@@ -249,12 +249,12 @@ typedef struct {
     float emission_rate_variation;
     m2Track_t width_track, length_track, zsource_track;
     m2PartTrack_t color_track, alpha_track, scale_track;
-    vector2_t scale_variation;
+    vec2_t scale_variation;
     m2PartTrack_t head_cell_track, tail_cell_track;
     float tail_length, twinkle_fps, twinkle_onoff, twinkle_scale[2];
     float ivel_scale, drag, initial_spin, initial_spin_variation, spin, spin_variation;
     m2Box_t tumble;
-    vector3_t wind_vector;
+    vec3_t wind_vector;
     float wind_time, follow_speed1, follow_scale1, follow_speed2, follow_scale2;
     m2Array_t spline;
     m2Track_t visibility_track;
@@ -262,7 +262,7 @@ typedef struct {
 
 typedef struct {
     uint32_t particle_id, flags;
-    vector3_t position;
+    vec3_t position;
     uint16_t bone_index, texture_index;
     m2Array_t geometry_mdl, recursion_mdl;
     uint8_t blend_mode, emitter_type;
@@ -280,7 +280,7 @@ typedef struct {
 typedef struct {
     uint32_t ribbon_id;
     uint16_t bone_index, pad0;
-    vector3_t position;
+    vec3_t position;
     m2Array_t texture_indices, material_indices;
     m2Track_t color_track, alpha_track, height_above_track, height_below_track;
     float edges_per_second, edge_lifetime, gravity;
@@ -291,7 +291,7 @@ typedef struct {
 typedef struct {
     uint32_t ribbon_id;
     uint16_t bone_index, pad0;
-    vector3_t position;
+    vec3_t position;
     m2Array_t texture_indices, material_indices;
     m2TrackClassic_t color_track, alpha_track, height_above_track, height_below_track;
     float edges_per_second, edge_lifetime, gravity;

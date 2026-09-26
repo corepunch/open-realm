@@ -20,7 +20,7 @@ static bool couple_validate(edict_t *caster, spellTarget_t st, abilityitem_t con
 static void couple_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
 	edict_t *target = st.entity, *rider;
 	uint32_t level, result;
-	vector2_t origin;
+	vec2_t origin;
 
 	if (!caster || !spell || !target || !couple_validate(caster, st, spell)) return;
 	level = S_SpellLevel(caster, spell->code);

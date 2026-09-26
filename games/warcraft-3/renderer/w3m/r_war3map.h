@@ -10,7 +10,7 @@
 
 static const uint8_t r_cliff_corners[] = { 1, 0, 2, 3 }; /* Native MDX configuration: NW,NE,SE,SW. */
 /* Retail rotates cliff geometry -90 degrees; selecting a rotated filename does not preserve authored UVs/shape. */
-static const matrix4_t r_cliff_axes = { .v = {0,-1,0,0, 1,0,0,0, 0,0,1,0, 0,0,0,1} };
+static const mat4_t r_cliff_axes = { .v = {0,-1,0,0, 1,0,0,0, 0,0,1,0, 0,0,0,1} };
 
 maplayer_t *R_BuildMapSegmentLayer(war3map_t const *map, uint32_t sx, uint32_t sy, uint32_t layer);
 maplayer_t *R_BuildGroundLayerGlobal(war3map_t const *map, uint32_t layer);
@@ -19,7 +19,7 @@ maplayer_t *R_BuildMapSegmentWater(war3map_t const *map, uint32_t sx, uint32_t s
 void R_ResetGroundTextures(void);
 void R_ResetCliffCache(void);
 void R_FinishCliffs(void);
-vector3_t R_GetVertexPosition(war3map_t const *map, uint32_t x, uint32_t y, bool useLevel);
+vec3_t R_GetVertexPosition(war3map_t const *map, uint32_t x, uint32_t y, bool useLevel);
 void R_ResetBlightCache(void);
 void R_LoadBlightTexture(uint8_t tileset);
 texture_t const *R_BlightTexture(void);
@@ -29,7 +29,7 @@ void _W3M_ClearMap(void);
 float R_W3CameraHeightAtPoint(float x, float y);
 float R_W3TerrainHeightAtPoint(float x, float y);
 
-vector2_t GetWar3MapPosition(war3map_t const *war3Map, float x, float y);
+vec2_t GetWar3MapPosition(war3map_t const *war3Map, float x, float y);
 float GetTileDepth(float waterlevel, float height);
 struct color32 MakeColor(float r, float g, float b, float a);
 war3mapVertex_t const *GetWar3MapVertex(war3map_t const *terrain, uint32_t x, uint32_t y);
@@ -59,13 +59,13 @@ static inline uint32_t R_CliffTexture(war3map_t const *map, int x, int y) {
 }
 
 /* Extend the two-cell MDX footprint into the low neighbour omitted by the ground baker. */
-static inline vector2_t R_CliffRampOffset(war3mapVertex_t const *tile, box3_t const *box) {
-    vector3_t span = Vector3_sub(&box->max, &box->min);
+static inline vec2_t R_CliffRampOffset(war3mapVertex_t const *tile, box3_t const *box) {
+    vec3_t span = Vector3_sub(&box->max, &box->min);
     if (span.y > span.x) {
         /* After the native -90 degree rotation both ramp axes span [0,256]; extend toward the low side. */
-        return (vector2_t){ .x = tile[3].level + tile[1].level < tile[2].level + tile[0].level ? -TILE_SIZE : 0 };
+        return (vec2_t){ .x = tile[3].level + tile[1].level < tile[2].level + tile[0].level ? -TILE_SIZE : 0 };
     }
-    return (vector2_t){ .y = tile[3].level + tile[2].level < tile[1].level + tile[0].level ? -TILE_SIZE : 0 };
+    return (vec2_t){ .y = tile[3].level + tile[2].level < tile[1].level + tile[0].level ? -TILE_SIZE : 0 };
 }
 
 /* Transition models join two adjacent ramp corners one cliff level apart; tile order is NE,NW,SE,SW. */
@@ -94,6 +94,6 @@ static inline bool R_CliffOwnsCorner(war3map_t const *map, int x, int y) {
     return false;
 }
 
-vector2_t GetWar3MapSize(war3map_t const *war3Map);
+vec2_t GetWar3MapSize(war3map_t const *war3Map);
 
 #endif

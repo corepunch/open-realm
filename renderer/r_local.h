@@ -85,9 +85,9 @@ KNOWN_AS(render_target, rendertarget_t);
 KNOWN_AS(vertex, vertex_t);
 
 typedef struct vertex {
-    vector3_t position;
-    vector2_t texcoord;
-    vector3_t normal;
+    vec3_t position;
+    vec2_t texcoord;
+    vec3_t normal;
     color32_t color;
     uint8_t skin[MAX_SKIN_BONES];
     uint8_t boneWeight[MAX_SKIN_BONES];
@@ -119,7 +119,7 @@ typedef struct instanceBuffer_s {
 
 
 
-static inline size_t R_InstanceBufferBytes(uint32_t count) { return (size_t)count * sizeof(matrix4_t); }
+static inline size_t R_InstanceBufferBytes(uint32_t count) { return (size_t)count * sizeof(mat4_t); }
 static inline uint32_t R_InstanceBufferCapacity(uint32_t capacity, uint32_t count) {
     if (capacity >= count) return capacity;
     for (capacity = capacity ? capacity : 16; capacity < count; capacity *= 2) {}
@@ -138,14 +138,14 @@ static inline void R_SwapRedBlue(uint8_t *pixels, uint32_t count, uint32_t strid
 
 /* Simple sprite/UI shaders: position+texcoord+color vertex, unlit fragment. */
 typedef struct spritestate_s {
-    matrix4_t viewProjection;
-    matrix4_t model;
+    mat4_t viewProjection;
+    mat4_t model;
     int texture;
     float activeGlow;
     float radialShade;
     bool fogEnable;
-    vector3_t fogColor;
-    vector2_t fogParams;
+    vec3_t fogColor;
+    vec2_t fogParams;
 } spriteState_t;
 
 
@@ -160,19 +160,19 @@ typedef struct spriteprog_s {
    progid/viewProjection/model share the SPRITEPROG prefix layout so the
    splat path can address either type through splat_shader_t. */
 typedef struct defaultState_s {
-    matrix4_t viewProjection;
-    matrix4_t model;
-    matrix4_t textureMatrix;
-    matrix4_t lightMatrix;
-    matrix3_t normalMatrix;
+    mat4_t viewProjection;
+    mat4_t model;
+    mat4_t textureMatrix;
+    mat4_t lightMatrix;
+    mat3_t normalMatrix;
     int lightCount;
-    matrix4_t lights[BZ_MODEL_LIGHT_MAX];
+    mat4_t lights[BZ_MODEL_LIGHT_MAX];
     int texture;
     int shadowmap;
     int fogOfWar;
     bool fogEnable;
-    vector3_t fogColor;
-    vector2_t fogParams;
+    vec3_t fogColor;
+    vec2_t fogParams;
 } defaultState_t;
 
 
@@ -186,7 +186,7 @@ typedef struct defaultProg_s {
 /* Minimal common view for the splat/decals path: the three uniforms it uploads. */
 typedef struct {
     shaderProg_t prog;
-    struct { matrix4_t viewProjection, model; } state;
+    struct { mat4_t viewProjection, model; } state;
 } splat_shader_t;
 
 /* SPRITEPROG and DEFAULTPROG share a progid/viewProjection/model prefix,
@@ -195,29 +195,29 @@ typedef struct {
 
 /* Shared skinned-model shader (MDX/M2/M3): bone palette + 8 packed lights. */
 typedef struct modelState_s {
-    matrix4_t bones[BZ_BONE_PALETTE_MAX];
+    mat4_t bones[BZ_BONE_PALETTE_MAX];
     uint32_t boneCount;
-    matrix4_t viewProjection;
-    matrix4_t lightMatrix;
-    matrix4_t textureMatrix;
+    mat4_t viewProjection;
+    mat4_t lightMatrix;
+    mat4_t textureMatrix;
     int lightCount;
     float firstBoneLookupIndex;
-    matrix4_t lights[BZ_MODEL_LIGHT_MAX];
-    matrix4_t grassParams;
-    matrix4_t model;
-    matrix3_t normalMatrix;
+    mat4_t lights[BZ_MODEL_LIGHT_MAX];
+    mat4_t grassParams;
+    mat4_t model;
+    mat3_t normalMatrix;
     int texture;
     int shadowmap;
     int fogOfWar;
     float layerAlpha;
-    vector4_t geosetColor;
-    matrix3_t uvMatrix;
+    vec4_t geosetColor;
+    mat3_t uvMatrix;
     bool alphaKey;
     float alphaCutoff;
     bool unshaded;
     bool fogEnable;
-    vector3_t fogColor;
-    vector2_t fogParams;
+    vec3_t fogColor;
+    vec2_t fogParams;
 } modelState_t;
 
 
@@ -351,20 +351,20 @@ void R_SetTextureWrap(texture_t const *texture, bool wrapS, bool wrapT);
 void R_DrawEntity(renderEntity_t const *edict, bool shad);
 void R_DrawSplatRects(void);
 void R_DrawTerrainShadows(void);
-bool MDLX_TraceModel(renderEntity_t const *edict, line3_t const *line, vector3_t *intersection);
+bool MDLX_TraceModel(renderEntity_t const *edict, line3_t const *line, vec3_t *intersection);
 void R_ReleaseVertexArrayObject(buffer_t *buffer);
 texture_t const *R_FindTextureByID(uint32_t textureID);
 void R_DrawSprite(drawSprite_t const *sprite);
 bool R_SetEntityAnimFrame(model_t const *model, cstring_t anim, renderEntity_t *entity);
-void R_RenderSplat(vector2_t const *position, float radius, texture_t const *texture, splat_shader_t *shader, color32_t color);
+void R_RenderSplat(vec2_t const *position, float radius, texture_t const *texture, splat_shader_t *shader, color32_t color);
 void R_DrawBackdrop(drawBackdrop_t const *drawBackdrop);
-void R_RenderRectSplat(vector2_t const *mins, vector2_t const *maxs, texture_t const *texture, splat_shader_t *shader, color32_t color);
-void R_RenderFlatRectSplat(vector2_t const *mins, vector2_t const *maxs, float z, texture_t const *texture, splat_shader_t *shader, color32_t color);
+void R_RenderRectSplat(vec2_t const *mins, vec2_t const *maxs, texture_t const *texture, splat_shader_t *shader, color32_t color);
+void R_RenderFlatRectSplat(vec2_t const *mins, vec2_t const *maxs, float z, texture_t const *texture, splat_shader_t *shader, color32_t color);
 /* Batched splat rendering: accumulate many ground decals (unit shadows) into one
  * vertex-buffer upload + draw per contiguous texture run (plus capacity flushes),
  * instead of one upload + draw per splat. */
 void R_BeginSplatBatch(splat_shader_t *shader);
-void R_AddRectSplat(vector2_t const *mins, vector2_t const *maxs, texture_t const *texture, color32_t color);
+void R_AddRectSplat(vec2_t const *mins, vec2_t const *maxs, texture_t const *texture, color32_t color);
 void R_EndSplatBatch(void);
 
 // r_shader.c
@@ -390,10 +390,10 @@ uint32_t R_GetFrameDrawCalls(void);
 
 // r_ents.c
 bool R_TraceEntity(viewDef_t const *viewdef, float x, float y, uint32_t *number);
-bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t *point);
-bool R_TraceCameraPlane(viewDef_t const *viewdef, float x, float y, vector3_t *point);
-void R_GetEntityMatrix(renderEntity_t const *entity, matrix4_t *matrix);
-void R_GetAttachmentMatrix(renderEntity_t const *entity, matrix4_t const *socket, matrix4_t *matrix);
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *point);
+bool R_TraceCameraPlane(viewDef_t const *viewdef, float x, float y, vec3_t *point);
+void R_GetEntityMatrix(renderEntity_t const *entity, mat4_t *matrix);
+void R_GetAttachmentMatrix(renderEntity_t const *entity, mat4_t const *socket, mat4_t *matrix);
 line3_t R_LineForScreenPoint(viewDef_t const *viewdef, float x, float y);
 uint32_t R_EntitiesInRect(viewDef_t const *viewdef, rect_t const *rect, uint32_t max, uint32_t *array);
 void R_DrawEntities(void);
@@ -426,8 +426,8 @@ void R_DrawIndexedBuffer16(buffer_t const *buffer, drawElements_t const *draw);
 void R_DrawIndexedBuffer32(buffer_t const *buffer, drawElements_t const *draw);
 void R_DrawBufferCopies(buffer_t const *buffer, uint32_t num_vertices, uint32_t num_instances);
 void R_DrawIndexedBuffer(buffer_t const *buffer, uint32_t num_indices);
-bool R_MakeInstanceBuffer(instanceBuffer_t *buffer, matrix4_t const *matrices, uint32_t count);
-bool R_UpdateInstanceBuffer(instanceBuffer_t *buffer, matrix4_t const *matrices, uint32_t count);
+bool R_MakeInstanceBuffer(instanceBuffer_t *buffer, mat4_t const *matrices, uint32_t count);
+bool R_UpdateInstanceBuffer(instanceBuffer_t *buffer, mat4_t const *matrices, uint32_t count);
 void R_ReleaseInstanceBuffer(instanceBuffer_t *buffer);
 void R_DrawBufferInstanced(buffer_t const *buffer, uint32_t num_vertices, instanceBuffer_t const *instances);
 void R_DrawBufferRangeInstanced(buffer_t const *buffer, drawRange_t const *draw, instanceBuffer_t const *instances);
@@ -443,25 +443,25 @@ void R_DrawImage(texture_t const *texture, rect_t const *screen, rect_t const *u
 void R_DrawImageEx(drawImage_t const *drawImage);
 void R_DrawImageBatch(texture_t const *texture, SHADERTYPE shaderType, BLEND_MODE alphamode, float uActiveGlow, float uRadialShade, bool hasClip, rect_t const *clip, vertex_t const *vertices, uint32_t num_vertices, bool repeat);
 void R_DrawMinimapScene(rect_t const *screen, cstring_t map);
-bool R_TraceMinimap(float x, float y, vector2_t *outWorld);
-bool R_WorldToMinimap(vector2_t const *world, vector2_t *outScreen);
+bool R_TraceMinimap(float x, float y, vec2_t *outWorld);
+bool R_WorldToMinimap(vec2_t const *world, vec2_t *outScreen);
 void R_DrawMinimapCameraRect(rect_t const *screen);
 void R_DrawMinimapBorder(rect_t const *screen, color32_t color);
 void R_DrawLoadingIndicator(rect_t const *rect, uint32_t time, color32_t color);
 void R_DrawPic(texture_t const *texture, float x, float y);
 void R_DrawSelectionRect(rect_t const *rect, color32_t color);
-void R_DrawBoundingBox(box3_t const *box, matrix4_t const *modelMatrix, matrix4_t const *vpMatrix, color32_t color);
+void R_DrawBoundingBox(box3_t const *box, mat4_t const *modelMatrix, mat4_t const *vpMatrix, color32_t color);
 void R_DrawWireRect(rect_t const *rect, color32_t color);
 bool R_GetModelInfo(model_t *model, modelInfo_t *info);
-bool R_GetEntityOverheadPosition(renderEntity_t const *entity, vector3_t *out);
-bool R_GetEntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vector3_t *out);
+bool R_GetEntityOverheadPosition(renderEntity_t const *entity, vec3_t *out);
+bool R_GetEntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vec3_t *out);
 rect_t R_UISceneRect(void);
 void R_SetUIScene(rect_t const *scene);
 
 // r_font.c
 font_t *R_LoadFont(cstring_t filename, uint32_t size);
 void R_ShutdownFonts(void);
-vector2_t R_GetTextSize(drawText_t const *drawText);
+vec2_t R_GetTextSize(drawText_t const *drawText);
 void R_DrawText(drawText_t const *drawText);
 void R_DrawString(int x, int y, cstring_t text);
 /* One thousandth of a pixel in normalized UI space is exact enough for glyph-fit decisions. */
@@ -492,10 +492,10 @@ void R_InitParticles(void);
 void R_ShutdownParticles(void);
 void R_DrawParticles(void);
 cparticle_t *R_SpawnParticle(void);
-void R_DrawBillboardSprite(texture_t const *texture, vector3_t const *origin, float size, color32_t color);
+void R_DrawBillboardSprite(texture_t const *texture, vec3_t const *origin, float size, color32_t color);
 typedef struct {
     texture_t const *texture;
-    vector3_t const *points;
+    vec3_t const *points;
     uint32_t point_count;
     float width;
     float texcoord_scale;

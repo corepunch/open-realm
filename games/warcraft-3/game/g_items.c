@@ -531,9 +531,9 @@ bool G_OrderPickupItem(edict_t *unit, edict_t *item) {
     return true;
 }
 
-static bool G_DropItemAtInternal(edict_t *unit, uint32_t slot, vector2_t const *position, bool play_sound) {
+static bool G_DropItemAtInternal(edict_t *unit, uint32_t slot, vec2_t const *position, bool play_sound) {
     edict_t *item;
-    vector2_t drop_position;
+    vec2_t drop_position;
 
     if (!unit || !position || slot >= (uint32_t)G_InventoryCapacity(unit)) {
         return false;
@@ -568,7 +568,7 @@ static bool G_DropItemAtInternal(edict_t *unit, uint32_t slot, vector2_t const *
     return true;
 }
 
-bool G_DropItemAt(edict_t *unit, uint32_t slot, vector2_t const *position) {
+bool G_DropItemAt(edict_t *unit, uint32_t slot, vec2_t const *position) {
     edict_t *item;
 
     if (!unit || slot >= (uint32_t)G_InventoryCapacity(unit)) return false;
@@ -577,7 +577,7 @@ bool G_DropItemAt(edict_t *unit, uint32_t slot, vector2_t const *position) {
     return G_DropItemAtInternal(unit, slot, position, true);
 }
 
-bool G_DropItemAtScripted(edict_t *unit, uint32_t slot, vector2_t const *position) {
+bool G_DropItemAtScripted(edict_t *unit, uint32_t slot, vec2_t const *position) {
     if (unit && slot < G_InventoryCapacity(unit) &&
         G_ItemAbilitiesPreventDrop(unit, unit->inventory[slot])) return false;
     return G_DropItemAtInternal(unit, slot, position, true);
@@ -655,7 +655,7 @@ static void G_DropItemThink(edict_t *unit) {
 
     distance = M_DistanceToGoal(unit);
     if (distance <= ITEM_DROP_RANGE) {
-        vector2_t const position = destination->s.origin2;
+        vec2_t const position = destination->s.origin2;
         G_DropItemAt(unit, (uint32_t)slot, &position);
         G_StopDropItemOrder(unit);
         return;
@@ -674,7 +674,7 @@ static umove_t item_move_drop = {
     .animation = "walk", .think = G_DropItemThink, .endfunc = NULL, .proc = CAbilityInventory
 };
 
-bool G_OrderDropItemAt(edict_t *unit, edict_t *item, vector2_t const *position) {
+bool G_OrderDropItemAt(edict_t *unit, edict_t *item, vec2_t const *position) {
     if (!unit || !item || !position || !G_InventoryCanDropItems(unit) ||
         !G_ItemDroppable(item) || G_ItemAbilitiesPreventDrop(unit, item) || (unit->aiflags & AI_IMMOBILE) ||
         !G_IsItem(item) || item->item.carrier != unit || item->item.in_world ||

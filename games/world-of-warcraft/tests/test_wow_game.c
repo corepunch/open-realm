@@ -592,8 +592,8 @@ TEST(wow_game, quest_serverdata_contains_givers_and_objective_locations) {
 }
 
 TEST(wow_game, quest_giver_group_index_returns_only_one_physical_npc_rows) {
-    vector2_t deputy = { -8947.64f, -132.319f };
-    vector2_t missing = { 1.0f, 2.0f };
+    vec2_t deputy = { -8947.64f, -132.319f };
+    vec2_t missing = { 1.0f, 2.0f };
     uint32_t group = Wow_QuestGiverGroup(6, &deputy);
     uint32_t expected[] = { 6, 18, 783, 3903, 5261 };
 
@@ -627,7 +627,7 @@ TEST(wow_game, creature_serverdata_preserves_templates_and_all_models) {
 
 TEST(wow_game, quest_givers_receive_creature_frame_for_idle_animation) {
     struct game_export *game = init_game();
-    vector2_t origin = { -8947.64f, -132.319f }; /* Deputy Willem (entry 823, display 2072) */
+    vec2_t origin = { -8947.64f, -132.319f }; /* Deputy Willem (entry 823, display 2072) */
     bool found = false;
 
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
@@ -656,7 +656,7 @@ TEST(wow_game, quest_givers_receive_creature_frame_for_idle_animation) {
 
 TEST(wow_game, quest_marker_transitions_on_acceptance) {
     struct game_export *game = init_game();
-    vector2_t origin = { -8947.64f, -132.319f };
+    vec2_t origin = { -8947.64f, -132.319f };
     edict_t *giver = NULL;
     entityState_t state;
     uint32_t avail_model;
@@ -763,7 +763,7 @@ TEST(wow_game, deputy_willem_opens_classic_first_human_quest_frame) {
     player = &wow_edicts[0];
     game->ClientBegin(player);
     game->RunFrame();
-    Wow_SpawnQuestLocations(&(vector2_t){ -8947.64f, -132.319f });
+    Wow_SpawnQuestLocations(&(vec2_t){ -8947.64f, -132.319f });
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = &wow_edicts[i];
         if (!ent->inuse || ent->s.class_id != 2072) continue;
@@ -1260,7 +1260,7 @@ TEST(wow_game, wow_load_map_spawns_and_runs_creature_state) {
     edict_t *creature;
     wowEntityLocal_t *creature_local;
     wowEntityLocal_t *player_local;
-    vector2_t before;
+    vec2_t before;
     char target_num[16];
     cstring_t attack_argv[] = { "attack", target_num };
 
@@ -1313,7 +1313,7 @@ TEST(wow_game, selecting_target_does_not_start_combat_or_chase) {
     struct game_export *game = init_game();
     edict_t *player, *creature;
     wowEntityLocal_t *local;
-    vector2_t before;
+    vec2_t before;
     char target_num[16];
     cstring_t select_argv[] = { "select", target_num };
 
@@ -1349,8 +1349,8 @@ TEST(wow_game, wow_fireball_cast_interrupts_melee_and_launches) {
     creature = first_creature();
     local = Wow_EntityLocal(player);
     T_NOT_NULL(creature);
-    creature->s.origin = (vector3_t){ player->s.origin.x + 10.0f, player->s.origin.y, player->s.origin.z };
-    creature->s.origin2 = (vector2_t){ creature->s.origin.x, creature->s.origin.y };
+    creature->s.origin = (vec3_t){ player->s.origin.x + 10.0f, player->s.origin.y, player->s.origin.z };
+    creature->s.origin2 = (vec2_t){ creature->s.origin.x, creature->s.origin.y };
     ((wowClient_t *)player->client)->selected_entity = creature->s.number;
     local->enemy = creature;
     local->attack_time = local->attack_damage_time = 500;
@@ -1394,8 +1394,8 @@ TEST(wow_game, wow_fireball_movement_cancels) {
     creature = first_creature();
     local = Wow_EntityLocal(player);
     T_NOT_NULL(creature);
-    creature->s.origin = (vector3_t){ player->s.origin.x + 10.0f, player->s.origin.y, player->s.origin.z };
-    creature->s.origin2 = (vector2_t){ creature->s.origin.x, creature->s.origin.y };
+    creature->s.origin = (vec3_t){ player->s.origin.x + 10.0f, player->s.origin.y, player->s.origin.z };
+    creature->s.origin2 = (vec2_t){ creature->s.origin.x, creature->s.origin.y };
     ((wowClient_t *)player->client)->selected_entity = creature->s.number;
     game->ClientCommand(player, 5, move_argv);
     game->ClientCommand(player, 2, action_argv);
@@ -2111,8 +2111,8 @@ TEST(wow_game, cast_progress_stat_shows_countdown) {
     creature = first_creature();
     T_NOT_NULL(creature);
     if (!creature) { if (game->Shutdown) game->Shutdown(); return; }
-    creature->s.origin  = (vector3_t){ player->s.origin.x + 10.0f, player->s.origin.y, player->s.origin.z };
-    creature->s.origin2 = (vector2_t){ creature->s.origin.x, creature->s.origin.y };
+    creature->s.origin  = (vec3_t){ player->s.origin.x + 10.0f, player->s.origin.y, player->s.origin.z };
+    creature->s.origin2 = (vec2_t){ creature->s.origin.x, creature->s.origin.y };
     ((wowClient_t *)player->client)->selected_entity = creature->s.number;
     local = Wow_EntityLocal(player);
 
@@ -2203,7 +2203,7 @@ TEST(wow_game, controller_orbits_authoritative_actor_focus) {
     T_FEQ(player->client->ps.viewangles.x, -72, 0.001f);
     T_FEQ(player->client->ps.viewangles.z, 0, 0.001f);
     T_FEQ(player->client->ps.distance, 8, 0.001f);
-    vector3_t focus = player->client->ps.vieworigin;
+    vec3_t focus = player->client->ps.vieworigin;
     game->ClientInput(player, &(inputCmd_t){ .action = BZ_INPUT_FOCUS, .focus = {999, 999} });
     T_FEQ(player->client->ps.vieworigin.x, focus.x, 0.001f);
     T_FEQ(player->client->ps.vieworigin.y, focus.y, 0.001f);
@@ -2211,7 +2211,7 @@ TEST(wow_game, controller_orbits_authoritative_actor_focus) {
     game->ClientInput(player, &(inputCmd_t){ .action = BZ_INPUT_MOVE, .move = {BZ_MOVE_FORWARD, 16} });
     game->RunFrame();
     T_ASSERT(player->s.origin.y != focus.y);
-    vector3_t stopped = player->s.origin;
+    vec3_t stopped = player->s.origin;
     game->ClientInput(player, &(inputCmd_t){ .action = BZ_INPUT_MOVE });
     game->RunFrame();
     T_FEQ(player->s.origin.x, stopped.x, 0.001f);

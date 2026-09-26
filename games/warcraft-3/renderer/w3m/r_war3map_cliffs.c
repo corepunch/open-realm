@@ -12,7 +12,7 @@ typedef struct cliffLayer_s {
 } cliffLayer_t;
 static cliffLayer_t *cliff_layers;
 
-vector3_t R_GetVertexNormal(war3map_t const *map, uint32_t x, uint32_t y);
+vec3_t R_GetVertexNormal(war3map_t const *map, uint32_t x, uint32_t y);
 
 typedef struct {
     uint32_t cliff;
@@ -65,17 +65,17 @@ static int TileBaseLevel(war3mapVertex_t const *tile) {
     return minLevel;
 }
 
-static vector3_t GetAccurateNormalAtPoint(float sx, float sy) {
+static vec3_t GetAccurateNormalAtPoint(float sx, float sy) {
     float x = sx / TILE_SIZE;
     float y = sy / TILE_SIZE;
     float fx = floorf(x);
     float fy = floorf(y);
-    vector3_t a = R_GetVertexNormal(tr.world, fx, fy);
-    vector3_t b = R_GetVertexNormal(tr.world, fx + 1, fy);
-    vector3_t c = R_GetVertexNormal(tr.world, fx, fy + 1);
-    vector3_t d = R_GetVertexNormal(tr.world, fx + 1, fy + 1);
-    vector3_t ab = Vector3_lerp(&a, &b, x - fx);
-    vector3_t cd = Vector3_lerp(&c, &d, x - fx);
+    vec3_t a = R_GetVertexNormal(tr.world, fx, fy);
+    vec3_t b = R_GetVertexNormal(tr.world, fx + 1, fy);
+    vec3_t c = R_GetVertexNormal(tr.world, fx, fy + 1);
+    vec3_t d = R_GetVertexNormal(tr.world, fx + 1, fy + 1);
+    vec3_t ab = Vector3_lerp(&a, &b, x - fx);
+    vec3_t cd = Vector3_lerp(&c, &d, x - fx);
     return Vector3_lerp(&ab, &cd, y - fy);
 }
 
@@ -157,7 +157,7 @@ static texture_t const *R_LoadCliffTexture(uint32_t cliffID, char tileset, cliff
 }
 
 /* Like SC2, only snap mesh edges that border emitted terrain, leaving stacked/internal faces intact. */
-static bool R_CliffGroundJoin(war3map_t const *map, vector3_t *pos) {
+static bool R_CliffGroundJoin(war3map_t const *map, vec3_t *pos) {
     float gx = (pos->x - map->center.x) / TILE_SIZE, gy = (pos->y - map->center.y) / TILE_SIZE;
     int ix = (int)floorf(gx), iy = (int)floorf(gy);
     for (int y = iy - 1; y <= iy; y++) for (int x = ix - 1; x <= ix; x++) {
@@ -212,16 +212,16 @@ static void R_MakeCliff(war3map_t const *map, uint32_t x, uint32_t y, cliffData_
         return;
     }
     
-    vector2_t offset = { x * TILE_SIZE, y * TILE_SIZE };
+    vec2_t offset = { x * TILE_SIZE, y * TILE_SIZE };
     
     if (is_ramp) {
-        vector2_t shift = R_CliffRampOffset(tile, &pModel->mdx->bounds.box);
+        vec2_t shift = R_CliffRampOffset(tile, &pModel->mdx->bounds.box);
         offset = Vector2_add(&offset, &shift);
     }
 
     uint32_t const ground_key = data->groundTile ? data->groundTile : data->upperTile;
     if (ground_key) {
-        vector3_t span = Vector3_sub(&pModel->mdx->bounds.box.max, &pModel->mdx->bounds.box.min);
+        vec3_t span = Vector3_sub(&pModel->mdx->bounds.box.max, &pModel->mdx->bounds.box.min);
         int sx = offset.x / TILE_SIZE, sy = offset.y / TILE_SIZE;
         int nx = is_ramp && span.y > span.x ? 2 : 1, ny = is_ramp && span.x >= span.y ? 2 : 1;
         FOR_LOOP(gindx, map->num_grounds) {
@@ -237,7 +237,7 @@ static void R_MakeCliff(war3map_t const *map, uint32_t x, uint32_t y, cliffData_
     cliff_bake.current_group++;
     FOR_LOOP(t, pGeoset->num_triangles) {
         const int i = pGeoset->triangles[t];
-        vector3_t pos = Matrix4_multiply_vector3(&r_cliff_axes, &pGeoset->vertices[i]);
+        vec3_t pos = Matrix4_multiply_vector3(&r_cliff_axes, &pGeoset->vertices[i]);
         const float fx = pos.x + offset.x;
         const float fy = pos.y + offset.y;
         const float fh = GetAccurateHeightAtPoint(fx, fy);
@@ -245,15 +245,15 @@ static void R_MakeCliff(war3map_t const *map, uint32_t x, uint32_t y, cliffData_
         const float fz = pGeoset->vertices[i].z + baselevel * TILE_SIZE + fh - HEIGHT_COR;
         const float dp = GetTileDepth(fw, fz);
         struct vertex *v = R_CliffBakeVertex(&cliff_bake);
-        vector3_t fn = Matrix4_multiply_vector3(&r_cliff_axes, &pGeoset->normals[i]);
-        vector3_t an = GetAccurateNormalAtPoint(fx, fy);
+        vec3_t fn = Matrix4_multiply_vector3(&r_cliff_axes, &pGeoset->normals[i]);
+        vec3_t an = GetAccurateNormalAtPoint(fx, fy);
         v->color = MakeColor(dp, LerpNumber(dp, 1, 0.25), LerpNumber(dp, 1, 0.5), 1);
         v->position.x = map->center.x + fx;
         v->position.y = map->center.y + fy;
         v->position.z = fz;
         bool join = R_CliffGroundJoin(map, &v->position);
         v->texcoord = pGeoset->texcoord[i];
-        v->normal = join && fn.z > 0 ? an : Vector3_mad(&(vector3_t){fn.x,fn.y,0}, fn.z, &an);
+        v->normal = join && fn.z > 0 ? an : Vector3_mad(&(vec3_t){fn.x,fn.y,0}, fn.z, &an);
         Vector3_normalize(&v->normal);
     }
 }

@@ -64,7 +64,7 @@ void G_JassSoundRuntimeInit(handle_t handle) {
     gsound_t *state = handle;
     if (!state) return;
     state->volume = 1.0f;
-    state->position = (vector3_t){ 0 };
+    state->position = (vec3_t){ 0 };
     state->attached_entity = -1;
     state->attached_spawn_time = 0;
     state->has_position = false;
@@ -75,7 +75,7 @@ void G_JassSoundSetVolume(handle_t handle, float volume) {
     if (state) state->volume = MAX(0.0f, MIN(volume, 1.0f));
 }
 
-void G_JassSoundSetPosition(handle_t handle, vector3_t const *position) {
+void G_JassSoundSetPosition(handle_t handle, vec3_t const *position) {
     gsound_t *state = handle;
     if (!state || !position) return;
     state->position = *position;
@@ -189,7 +189,7 @@ soundPolicy_t const *G_SoundIndexPolicy(int index) {
     return index > 0 && index < MAX_SOUNDS && sound_index_policy[index].max_total ? &sound_index_policy[index] : NULL;
 }
 
-void G_PlaySound(vector3_t const *origin, edict_t *ent, int channel, int index, float volume, float attenuation, float timeofs) {
+void G_PlaySound(vec3_t const *origin, edict_t *ent, int channel, int index, float volume, float attenuation, float timeofs) {
     soundPolicy_t const *registered = G_SoundIndexPolicy(index);
     uint32_t request = ent && ent->sound.pending == index && (channel & CHAN_OWNER) ? G_UnitResponseRequest(ent, index) : 0;
     if (registered || request) {
@@ -355,12 +355,12 @@ int G_AbilityEffectSoundIndex(uint32_t ability_id, bool looped) {
     return alias ? G_RegisterAbilitySoundRow(G_AbilitySound(alias)) : 0;
 }
 
-void G_PlayAbilityEffectSound(uint32_t ability_id, vector2_t const *point) {
+void G_PlayAbilityEffectSound(uint32_t ability_id, vec2_t const *point) {
     cstring_t alias = G_AbilitySoundAlias(ability_id, false);
     UnitAckSounds_t const *row = alias ? G_AbilitySound(alias) : NULL;
     int sound = row ? G_RegisterAbilitySoundRow(row) : 0;
     if (sound && point) {
-        vector3_t origin = { point->x, point->y, CM_GetHeightAtPoint(point->x, point->y) };
+        vec3_t origin = { point->x, point->y, CM_GetHeightAtPoint(point->x, point->y) };
         float volume = MAX(0.0f, MIN(1.0f, row->Volume / 127.0f));
         G_PlaySound(&origin, NULL, CHAN_RELIABLE, sound, volume, 1.0f, 0.0f);
     }
@@ -493,7 +493,7 @@ void G_ShowCommandErrorKey(edict_t *clent, cstring_t error_key, cstring_t fallba
     text = G_CommandErrorString(clent->client, error_key);
     if (!text || !text[0]) text = fallback;
     if (text && text[0])
-        UI_ShowTransientText(clent, &MAKE(vector2_t, 0, 0), text, 2.0f);
+        UI_ShowTransientText(clent, &MAKE(vec2_t, 0, 0), text, 2.0f);
     G_PlayCommandErrorSound(clent, error_key);
 }
 
@@ -506,7 +506,7 @@ void G_ShowCommandErrorText(edict_t *clent, cstring_t text) {
         G_ShowCommandErrorKey(clent, key, text);
         return;
     }
-    UI_ShowTransientText(clent, &MAKE(vector2_t, 0, 0), text, 2.0f);
+    UI_ShowTransientText(clent, &MAKE(vec2_t, 0, 0), text, 2.0f);
     G_PlayUISoundForPlayer(clent, "InterfaceError");
 }
 

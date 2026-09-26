@@ -40,7 +40,7 @@ typedef enum {
 } sc2ObjectType_t;
 
 typedef struct {
-    vector3_t         target;
+    vec3_t         target;
     float           distance;
     float           pitch;
     float           yaw;
@@ -62,7 +62,7 @@ typedef struct {
     char            sound[256];
     char            attach_id[64];
     char            object_type[64];
-    vector3_t         position;
+    vec3_t         position;
     float           angle;
     float           scale;
     float           radius;
@@ -91,25 +91,25 @@ static inline float sc2_unit_world_height(float terrain, float height, bool flyi
 
 typedef struct {
     bool            enabled;
-    vector3_t         color;
+    vec3_t         color;
     float           color_multiplier;
     float           spec_color_multiplier;
-    vector3_t         direction;
+    vec3_t         direction;
 } sc2DirectionalLight_t;
 
 typedef struct {
     bool            enabled;
     uint32_t           colorize;
     char            id[64];
-    vector3_t         ambient_color;
+    vec3_t         ambient_color;
     float           colorization_blend;
     sc2DirectionalLight_t directional[SC2_MAX_DIRECTIONAL_LIGHTS];
 } sc2MapLighting_t;
 
 /* Colorized SC2 lights use the authored blend as ambient strength; ordinary lights use their ambient directly. */
-static vector3_t sc2_light_ambient(sc2MapLighting_t const *light) {
+static vec3_t sc2_light_ambient(sc2MapLighting_t const *light) {
     float scale = light && light->colorize ? light->colorization_blend : 1.0f;
-    return light ? Vector3_scale(&light->ambient_color, scale) : (vector3_t){ 0.35f, 0.35f, 0.40f };
+    return light ? Vector3_scale(&light->ambient_color, scale) : (vec3_t){ 0.35f, 0.35f, 0.40f };
 }
 
 typedef struct {
@@ -131,7 +131,7 @@ typedef struct {
 
 /* t3Terrain rampList boxes use orthonormal up/right axes and half extents in height-grid units. */
 typedef struct sc2RampBox_s {
-    vector2_t up, right, center;
+    vec2_t up, right, center;
     float width, height;
 } sc2RampBox_t;
 
@@ -220,11 +220,11 @@ typedef struct {
 typedef struct {
     char            tile[64];
     char            model[256];
-    vector3_t         position;
-    vector3_t         normal;
-    vector3_t         start;
-    vector3_t         end;
-    vector2_t         scale;
+    vec3_t         position;
+    vec3_t         normal;
+    vec3_t         start;
+    vec3_t         end;
+    vec2_t         scale;
     uint16_t          flags;
 } sc2MapHardTile_t;
 
@@ -248,7 +248,7 @@ typedef struct {
 
 typedef struct {
     char           map_name[128];
-    vector2_t        origin;
+    vec2_t        origin;
     float          cell_size;
     uint32_t          num_objects;
     sc2MapObject_t objects[SC2_MAX_MAP_OBJECTS];
@@ -396,8 +396,8 @@ cstring_t        SC2_MapConversationField(cstring_t key, cstring_t field);
 float         SC2_MapHeightAtPoint(float x, float y);
 float         SC2_MapAirHeightAtPoint(float x, float y);
 box2_t          SC2_MapBounds(void);
-vector2_t       SC2_MapNormalizedPosition(float x, float y);
-vector2_t       SC2_MapDenormalizedPosition(float x, float y);
+vec2_t       SC2_MapNormalizedPosition(float x, float y);
+vec2_t       SC2_MapDenormalizedPosition(float x, float y);
 uint32_t         SC2_MapObjectClassId(sc2MapObject_t const *object);
 bool          SC2_MapDefaultCamera(sc2MapCamera_t *camera);
 void          SC2_MapDump(FILE *out, cstring_t filename);

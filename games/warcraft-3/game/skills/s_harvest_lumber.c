@@ -227,7 +227,7 @@ edict_t *S_FindNearestResourceDropoff(edict_t *unit, returnResource_t resource) 
     return best;
 }
 
-static edict_t *find_another_tree_near(edict_t const *worker, vector2_t const *origin) {
+static edict_t *find_another_tree_near(edict_t const *worker, vec2_t const *origin) {
     float min_dist = harvest_lumber_tuning(worker).search_range;
     edict_t *other = NULL;
 
@@ -292,7 +292,7 @@ static edict_t *harvest_find_nearest_resource(edict_t *worker, returnResource_t 
  * pathing-cell ring so the closest candidate is the nearest edge of the Town
  * Hall/Lumber Mill from the worker's current side. */
 static bool harvest_find_nearest_dropoff_approach(edict_t *ent, edict_t *dropoff,
-                                                   vector2_t *out) {
+                                                   vec2_t *out) {
     float const route_band = ent ?
         ent->collision + CM_PathCellWorldSize() * 1.41421356237f : 0.0f;
 
@@ -310,7 +310,7 @@ static bool harvest_find_nearest_dropoff_approach(edict_t *ent, edict_t *dropoff
  * avoids full flow-field builds for every candidate while still rejecting the
  * buried interior trees that caused the original orbit. */
 static bool tree_has_reachable_harvest_approach(edict_t *ent, edict_t *tree) {
-    vector2_t approach;
+    vec2_t approach;
     float const distance = Vector2_distance(&ent->s.origin2, &tree->s.origin2);
     float const range = harvest_lumber_tuning(ent).range;
 
@@ -589,7 +589,7 @@ static void ai_harvest_walkback(edict_t *ent) {
     if (footprint_deposit || circle_deposit) {
         harvest_finish_lumber_deposit(ent);
     } else {
-        vector2_t approach;
+        vec2_t approach;
 
         /* Return Resources owns a building interaction, not movement to its
          * centre. Pick the innermost collision-safe ring and the worker's

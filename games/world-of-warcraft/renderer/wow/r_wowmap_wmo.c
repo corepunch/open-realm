@@ -114,7 +114,7 @@ static void Wow_LoadMohd(wowWmoModel_t *model, uint8_t const *chunk, uint32_t ch
         model->bounds_center.x = (bmin[0] + bmax[0]) * 0.5f;
         model->bounds_center.y = (bmin[1] + bmax[1]) * 0.5f;
         model->bounds_center.z = (bmin[2] + bmax[2]) * 0.5f;
-        vector3_t half = { bmax[0] - model->bounds_center.x,
+        vec3_t half = { bmax[0] - model->bounds_center.x,
                          bmax[1] - model->bounds_center.y,
                          bmax[2] - model->bounds_center.z };
         model->bounds_radius = Vector3_len(&half);
@@ -181,12 +181,12 @@ static void Wow_WmoBuildFree(wowWmoBuild_t *builds, uint32_t count) {
     ri.MemFree(builds);
 }
 
-vector3_t Wow_ObjectPoint(wowVec3_t p) {
+vec3_t Wow_ObjectPoint(wowVec3_t p) {
     return Wow_ObjectPosition(p.x, p.y, p.z);
 }
 
 /* Renderer and collision consume one placement transform; vertex data needs no axis swaps. */
-void Wow_InstanceMatrix(wowMapObjDef_t const *def, matrix4_t *matrix) {
+void Wow_InstanceMatrix(wowMapObjDef_t const *def, mat4_t *matrix) {
     wowPlacement_t place = { .pos = { def->position.x, def->position.y, def->position.z },
         .rot = { def->rotation.x, def->rotation.y, def->rotation.z }, .scale = def->scale };
     Wow_PlacementMatrix(&place, matrix);
@@ -381,7 +381,7 @@ static bool Wow_LoadWmoGroup(wowWmoModel_t *model, uint32_t group_index, wowWmoL
             ? Wow_Color(colors_copy[vertex_index * 4], colors_copy[vertex_index * 4 + 1], colors_copy[vertex_index * 4 + 2], colors_copy[vertex_index * 4 + 3])
             : Wow_Color(127, 127, 127, 0xFF);
         vertex_t vertex = Wow_Vertex(p.x, p.y, p.z, uv.u, uv.v, color);
-        if (chunks.normals && vertex_index < ARRAY_COUNT(chunks.normals)) vertex.normal = *(vector3_t const *)(chunks.normals + vertex_index);
+        if (chunks.normals && vertex_index < ARRAY_COUNT(chunks.normals)) vertex.normal = *(vec3_t const *)(chunks.normals + vertex_index);
         if (!Wow_WmoBuildAppend(build, vertex) || !Wow_WmoBuildAppend(&load->builds[slot], vertex)) {
             fprintf(stderr, "WoW WMO: failed to grow material geometry for %s\n", group_path);
             goto cleanup;
@@ -601,8 +601,8 @@ void Wow_AddWmoInstance(cstring_t path, wowMapObjDef_t const *def) {
    instance matrix. Linear attenuation from atten_start to atten_end is applied when
    use_atten is set; AMBIENT lights (type 3) contribute fully regardless of distance.
    The result is clamped to [0,1] per channel to prevent over-brightening. */
-void Wow_ComputeMoltContribution(wowWmoModel_t const *model, matrix4_t const *matrix,
-                                  vector3_t ref_pos, vector3_t *out) {
+void Wow_ComputeMoltContribution(wowWmoModel_t const *model, mat4_t const *matrix,
+                                  vec3_t ref_pos, vec3_t *out) {
     uint32_t i;
     out->x = out->y = out->z = 0.0f;
     if (!model->lights || !model->num_lights_parsed) return;
@@ -613,9 +613,9 @@ void Wow_ComputeMoltContribution(wowWmoModel_t const *model, matrix4_t const *ma
         if (lt->type == 3) { /* AMBIENT: global contribution, no position needed */
             atten = 1.0f;
         } else if (lt->type == 0 || lt->type == 1) { /* OMNI / SPOT: distance falloff */
-            vector3_t local_pos = { lt->position.x, lt->position.y, lt->position.z };
-            vector3_t world_pos = Matrix4_multiply_vector3(matrix, &local_pos);
-            vector3_t delta = Vector3_sub(&world_pos, &ref_pos);
+            vec3_t local_pos = { lt->position.x, lt->position.y, lt->position.z };
+            vec3_t world_pos = Matrix4_multiply_vector3(matrix, &local_pos);
+            vec3_t delta = Vector3_sub(&world_pos, &ref_pos);
             float dist = Vector3_len(&delta);
             if (lt->use_atten) {
                 if (dist <= lt->atten_start) {
@@ -628,17 +628,17 @@ void Wow_ComputeMoltContribution(wowWmoModel_t const *model, matrix4_t const *ma
             }
         }
         contrib = atten * lt->intensity;
-        vector3_t color = { lt->color.r, lt->color.g, lt->color.b };
+        vec3_t color = { lt->color.r, lt->color.g, lt->color.b };
         *out = Vector3_mad(out, contrib / 255.0f, &color);
     }
     *out = Vector3_clamp01(out);
 }
 
-void Wow_WmoDoodadLocalMatrix(wowWmoDoodadDef_t const *def, matrix4_t *m) {
+void Wow_WmoDoodadLocalMatrix(wowWmoDoodadDef_t const *def, mat4_t *m) {
     quaternion_t q = { def->quat[0], def->quat[1], def->quat[2], def->quat[3] };
-    vector3_t pos   = { def->position.x, def->position.y, def->position.z };
-    vector3_t scale = { def->scale, def->scale, def->scale };
-    vector3_t zero  = { 0.0f, 0.0f, 0.0f };
+    vec3_t pos   = { def->position.x, def->position.y, def->position.z };
+    vec3_t scale = { def->scale, def->scale, def->scale };
+    vec3_t zero  = { 0.0f, 0.0f, 0.0f };
     Matrix4_from_rotation_translation_scale_origin(m, &q, &pos, &scale, &zero);
 }
 
@@ -647,7 +647,7 @@ static void Wow_QueueWmoDoodad(wowWmoInstance_t const *wmo, uint32_t idx) {
     wowWmoModel_t *model = wmo->model;
     wowWmoDoodadDef_t const *def = &model->doodad_defs[idx];
     wowDoodadModel_t *group;
-    matrix4_t local, world;
+    mat4_t local, world;
     uint8_t inst_flags = (uint8_t)(def->name_flags >> 24);
     if ((inst_flags & 0x04) && def->color.a < model->num_lights_parsed) return;
     group = model->def_groups[idx];
@@ -656,7 +656,7 @@ static void Wow_QueueWmoDoodad(wowWmoInstance_t const *wmo, uint32_t idx) {
     Matrix4_multiply(&wmo->matrix, &local, &world);
     if (group->wmo_count == group->wmo_capacity) {
         uint32_t capacity = group->wmo_capacity ? group->wmo_capacity * 2 : 16;
-        matrix4_t *matrices = ri.MemAlloc(capacity * sizeof(*matrices));
+        mat4_t *matrices = ri.MemAlloc(capacity * sizeof(*matrices));
         if (!matrices) return;
         if (group->wmo_matrices) {
             memcpy(matrices, group->wmo_matrices, group->wmo_count * sizeof(*matrices));

@@ -25,7 +25,7 @@ void unit_entercombat(edict_t *self, edict_t *target);
 void unit_leavecombat(edict_t *self);
 bool unit_affectingcombat(edict_t *self);
 bool unit_issuetargetorder(edict_t *self, cstring_t order, edict_t *target);
-bool unit_issueorder(edict_t *self, cstring_t order, vector2_t const *point);
+bool unit_issueorder(edict_t *self, cstring_t order, vec2_t const *point);
 bool unit_issueimmediateorder(edict_t *self, cstring_t order);
 bool unit_additem(edict_t *edict, edict_t *item);
 bool unit_additemtoslot(edict_t *edict, edict_t *item, uint32_t slot);
@@ -93,7 +93,7 @@ static void order_sound_capture(edict_t *ent, int channel, int index, float volu
     order_sound_calls++; order_sound_index = index;
 }
 
-static void order_sound_policy_capture(vector3_t const *origin, edict_t *ent, int channel, int index,
+static void order_sound_policy_capture(vec3_t const *origin, edict_t *ent, int channel, int index,
                                        float volume, float attenuation, float offset, soundPolicy_t const *policy) {
     T_ASSERT(policy && policy->request);
     T_EQ(policy->request, G_UnitResponseRequest(ent, index));
@@ -138,7 +138,7 @@ static edict_t *make_unit(float x, float y) {
     ent->class_id       = MAKEFOURCC('h','p','e','a');
     G_BindEntityData(ent);
     ent->data.UnitWeapons = &test_weapons;
-    ent->s.origin2      = (vector2_t){x, y};
+    ent->s.origin2      = (vec2_t){x, y};
     ent->s.origin.x     = x;
     ent->s.origin.y     = y;
     ent->s.origin.z     = 0;
@@ -178,7 +178,7 @@ static edict_t *make_world_item(uint32_t class_id) {
 
 static edict_t *unit_make_harvest_tree(float x, float y) {
     edict_t *tree = G_Spawn();
-    tree->s.origin2 = (vector2_t){x, y};
+    tree->s.origin2 = (vec2_t){x, y};
     tree->s.origin.x = x;
     tree->s.origin.y = y;
     tree->targtype = TARG_TREE;
@@ -189,7 +189,7 @@ static edict_t *unit_make_harvest_tree(float x, float y) {
 static edict_t *unit_make_harvest_goldmine(float x, float y) {
     static UnitAbilities_t const abilities = { .abilList = "Agld" };
     edict_t *mine = G_Spawn();
-    mine->s.origin2 = (vector2_t){x, y};
+    mine->s.origin2 = (vec2_t){x, y};
     mine->s.origin.x = x;
     mine->s.origin.y = y;
     mine->data.UnitAbilities = &abilities;
@@ -569,7 +569,7 @@ TEST(wc3_unit, stand_uses_ready_animation_in_combat) {
     edict_t *target = G_Spawn();
     target->class_id = MAKEFOURCC('h','f','o','o');
     G_BindEntityData(target);
-    target->s.origin2 = (vector2_t){50, 0};
+    target->s.origin2 = (vec2_t){50, 0};
     target->s.model = 1;
     target->inuse = true;
     target->health.value = 100.0f;
@@ -588,7 +588,7 @@ TEST(wc3_unit, stop_exits_ready_animation) {
     edict_t *target = G_Spawn();
     target->class_id = MAKEFOURCC('h','f','o','o');
     G_BindEntityData(target);
-    target->s.origin2 = (vector2_t){50, 0};
+    target->s.origin2 = (vec2_t){50, 0};
     target->s.model = 1;
     target->inuse = true;
     target->health.value = 100.0f;
@@ -850,7 +850,7 @@ TEST(wc3_unit, dead_unit_rejects_orders_that_would_replace_death_animation) {
     reset_test_entities();
     edict_t *ent = make_unit(0, 0);
     edict_t *target = make_unit(128, 0);
-    vector2_t point = { 64.0f, 0.0f };
+    vec2_t point = { 64.0f, 0.0f };
 
     ent->health.value = 0.0f;
     unit_die(ent, target);
@@ -981,7 +981,7 @@ TEST(wc3_unit, queued_smart_on_passive_ally_revalidates_to_follow) {
     setup_test_world();
     edict_t *follower = make_unit(0, 0);
     edict_t *leader = make_unit(256, 0);
-    vector2_t first = { 96.0f, 0.0f };
+    vec2_t first = { 96.0f, 0.0f };
     follower->svflags |= SVF_MONSTER;
     leader->svflags |= SVF_MONSTER;
     follower->s.player = 0;
@@ -1362,7 +1362,7 @@ TEST(wc3_unit, hero_revive_cleanup_stops_on_cyclic_production_queue) {
 TEST(wc3_unit, issueorder_move_creates_waypoint) {
     reset_test_entities();
     edict_t *ent = make_unit(0, 0);
-    vector2_t dest = {100.0f, 0.0f};
+    vec2_t dest = {100.0f, 0.0f};
     bool result = unit_issueorder(ent, "move", &dest);
     T_ASSERT(result);
     T_NOT_NULL(ent->goalentity);
@@ -1371,7 +1371,7 @@ TEST(wc3_unit, issueorder_move_creates_waypoint) {
 TEST(wc3_unit, issueorder_move_sets_walk_animation) {
     reset_test_entities();
     edict_t *ent = make_unit(0, 0);
-    vector2_t dest = {100.0f, 0.0f};
+    vec2_t dest = {100.0f, 0.0f};
     unit_issueorder(ent, "move", &dest);
     T_NOT_NULL(ent->currentmove);
     T_STREQ(ent->currentmove->animation, "walk");
@@ -1381,9 +1381,9 @@ TEST(wc3_unit, shift_move_starts_immediately_when_idle_then_queues_fifo) {
     reset_test_entities();
     setup_test_world();
     edict_t *ent = make_unit(0, 0);
-    vector2_t a = { 96.0f, 0.0f };
-    vector2_t b = { 192.0f, 0.0f };
-    vector2_t c = { 288.0f, 0.0f };
+    vec2_t a = { 96.0f, 0.0f };
+    vec2_t b = { 192.0f, 0.0f };
+    vec2_t c = { 288.0f, 0.0f };
 
     T_ASSERT(G_IssueUnitPointOrder(ent, "move", &a, true, 0, 0.0f));
     T_EQ(G_UnitQueuedOrderCount(ent), 0);
@@ -1405,9 +1405,9 @@ TEST(wc3_unit, nonqueued_move_replaces_pending_shift_orders) {
     reset_test_entities();
     setup_test_world();
     edict_t *ent = make_unit(0, 0);
-    vector2_t a = { 96.0f, 0.0f };
-    vector2_t b = { 192.0f, 0.0f };
-    vector2_t replacement = { 320.0f, 0.0f };
+    vec2_t a = { 96.0f, 0.0f };
+    vec2_t b = { 192.0f, 0.0f };
+    vec2_t replacement = { 320.0f, 0.0f };
 
     T_ASSERT(G_IssueUnitPointOrder(ent, "move", &a, true, 0, 0.0f));
     T_ASSERT(G_IssueUnitPointOrder(ent, "move", &b, true, 0, 0.0f));
@@ -1445,8 +1445,8 @@ TEST(wc3_unit, stale_queued_entity_target_is_skipped_for_next_order) {
     setup_test_world();
     edict_t *ent = make_unit(0, 0);
     edict_t *target = make_unit(128, 0);
-    vector2_t a = { 64.0f, 0.0f };
-    vector2_t b = { 256.0f, 0.0f };
+    vec2_t a = { 64.0f, 0.0f };
+    vec2_t b = { 256.0f, 0.0f };
 
     T_ASSERT(G_IssueUnitPointOrder(ent, "move", &a, true, 0, 0.0f));
     T_ASSERT(G_IssueUnitTargetOrder(ent, "attack", target, true, 0));
@@ -1465,8 +1465,8 @@ TEST(wc3_unit, stale_queued_entity_target_is_skipped_for_next_order) {
 TEST(wc3_unit, stop_clears_pending_shift_orders) {
     reset_test_entities();
     edict_t *ent = make_unit(0, 0);
-    vector2_t a = { 96.0f, 0.0f };
-    vector2_t b = { 192.0f, 0.0f };
+    vec2_t a = { 96.0f, 0.0f };
+    vec2_t b = { 192.0f, 0.0f };
 
     T_ASSERT(G_IssueUnitPointOrder(ent, "move", &a, true, 0, 0.0f));
     T_ASSERT(G_IssueUnitPointOrder(ent, "move", &b, true, 0, 0.0f));
@@ -1480,7 +1480,7 @@ TEST(wc3_unit, stop_clears_pending_shift_orders) {
 TEST(wc3_unit, point_attack_order_uses_attack_move_behavior) {
     reset_test_entities();
     edict_t *ent = make_unit(0, 0);
-    vector2_t dest = { 128.0f, 0.0f };
+    vec2_t dest = { 128.0f, 0.0f };
 
     T_ASSERT(unit_issueorder(ent, "attack", &dest));
     T_NOT_NULL(ent->movement.attackmove_waypoint);
@@ -1493,12 +1493,12 @@ TEST(wc3_unit, issueorder_move_preserves_combat_state) {
     edict_t *target = G_Spawn();
     target->class_id = MAKEFOURCC('h','f','o','o');
     G_BindEntityData(target);
-    target->s.origin2 = (vector2_t){50, 0};
+    target->s.origin2 = (vec2_t){50, 0};
     target->s.model = 1;
     target->inuse = true;
     target->health.value = 100.0f;
     target->health.max_value = 100.0f;
-    vector2_t dest = {100.0f, 0.0f};
+    vec2_t dest = {100.0f, 0.0f};
 
     unit_entercombat(ent, target);
     unit_issueorder(ent, "move", &dest);
@@ -1510,7 +1510,7 @@ TEST(wc3_unit, issueorder_move_preserves_combat_state) {
 TEST(wc3_unit, issueorder_unknown_returns_false) {
     reset_test_entities();
     edict_t *ent = make_unit(0, 0);
-    vector2_t dest = {100.0f, 0.0f};
+    vec2_t dest = {100.0f, 0.0f};
     bool result = unit_issueorder(ent, "patrol", &dest);
     T_ASSERT(!result);
 }
@@ -1518,7 +1518,7 @@ TEST(wc3_unit, issueorder_unknown_returns_false) {
 TEST(wc3_unit, issueorder_null_inputs_return_false) {
     reset_test_entities();
     edict_t *ent = make_unit(0, 0);
-    vector2_t dest = {100.0f, 0.0f};
+    vec2_t dest = {100.0f, 0.0f};
 
     T_ASSERT(!unit_issueorder(NULL, "move", &dest));
     T_ASSERT(!unit_issueorder(ent, NULL, &dest));
@@ -1528,7 +1528,7 @@ TEST(wc3_unit, issueorder_null_inputs_return_false) {
 TEST(wc3_unit, issueimmediateorder_stop) {
     reset_test_entities();
     edict_t *ent = make_unit(0, 0);
-    vector2_t dest = {100.0f, 0.0f};
+    vec2_t dest = {100.0f, 0.0f};
     unit_issueorder(ent, "move", &dest);
     T_STREQ(ent->currentmove->animation, "walk");
 
@@ -1540,7 +1540,7 @@ TEST(wc3_unit, issueimmediateorder_stop) {
 TEST(wc3_unit, issueimmediateorder_holdposition_uses_hold_state) {
     reset_test_entities();
     edict_t *ent = make_unit(0, 0);
-    vector2_t dest = {100.0f, 0.0f};
+    vec2_t dest = {100.0f, 0.0f};
     unit_issueorder(ent, "move", &dest);
 
     T_ASSERT(unit_issueimmediateorder(ent, "holdposition"));
@@ -1759,7 +1759,7 @@ TEST(wc3_unit, raven_ability_dispatch_and_toggle) {
 /* Completing the ability's morph starts takeoff; an unrelated Move order must not stop its timer. */
 TEST(wc3_unit, raven_morph_completion_and_takeoff_survive_move_order) {
     slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
-    vector2_t point = {128, 64};
+    vec2_t point = {128, 64};
     reset_test_entities(); setup_test_world();
     install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
@@ -1789,7 +1789,7 @@ TEST(wc3_unit, raven_morph_completion_and_takeoff_survive_move_order) {
 /* Prologue01 issues Move after 0.5 seconds, before Medivh's forward Morph clip ends. */
 TEST(wc3_unit, raven_takeoff_survives_interrupted_morph) {
     slkTestData_t *ability_rows, *old_ability, *ui_rows, *old_ui, *profile_rows, *old_profile;
-    vector2_t point = {128, 64};
+    vec2_t point = {128, 64};
     reset_test_entities(); setup_test_world();
     install_raven_form_test_data(&ability_rows, &old_ability, &ui_rows, &old_ui, &profile_rows, &old_profile);
     edict_t *ent = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);

@@ -1,7 +1,7 @@
 #include "renderer/r_trail.h"
 #include <string.h>
 
-int R_TrailAdvance(trail_t *trail, vector3_t above, vector3_t below, color32_t color,
+int R_TrailAdvance(trail_t *trail, vec3_t above, vec3_t below, color32_t color,
                    float lifespan, float rate, float gravity, uint32_t now_ms, uint32_t delta_ms)
 {
     int write, alive, e;
@@ -47,8 +47,8 @@ int R_TrailAdvance(trail_t *trail, vector3_t above, vector3_t below, color32_t c
     return alive;
 }
 
-static void R_TrailQuad(trailVert_t *out, vector3_t a, vector3_t b, vector3_t c, vector3_t d,
-                        vector2_t uv_a, vector2_t uv_b, vector2_t uv_c, vector2_t uv_d,
+static void R_TrailQuad(trailVert_t *out, vec3_t a, vec3_t b, vec3_t c, vec3_t d,
+                        vec2_t uv_a, vec2_t uv_b, vec2_t uv_c, vec2_t uv_d,
                         color32_t ca, color32_t cb)
 {
     out[0] = (trailVert_t){ a, uv_a, ca }; out[1] = (trailVert_t){ b, uv_b, ca };
@@ -76,10 +76,10 @@ uint32_t R_TrailStripVerts(trail_t const *trail, float lifespan, uint32_t column
         float t_old = MIN(1.0f, trail->edges[a].age / lifespan);
         float t_new = MIN(1.0f, trail->edges[b].age / lifespan);
         float u0 = cell_u + t_new / cols, u1 = cell_u + t_old / cols;
-        vector2_t uv_above0 = { u1, cell_v };
-        vector2_t uv_below0 = { u1, cell_v + 1.0f / rows_f };
-        vector2_t uv_below1 = { u0, cell_v + 1.0f / rows_f };
-        vector2_t uv_above1 = { u0, cell_v };
+        vec2_t uv_above0 = { u1, cell_v };
+        vec2_t uv_below0 = { u1, cell_v + 1.0f / rows_f };
+        vec2_t uv_below1 = { u0, cell_v + 1.0f / rows_f };
+        vec2_t uv_above1 = { u0, cell_v };
         R_TrailQuad(out + used, trail->edges[a].above, trail->edges[a].below,
                     trail->edges[b].below, trail->edges[b].above,
                     uv_above0, uv_below0, uv_below1, uv_above1,

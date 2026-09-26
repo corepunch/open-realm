@@ -10,14 +10,14 @@ m3##TYPE##_t *NAME;
 typedef uint16_t m3Face_t;
 typedef char m3Char_t;
 typedef float m3Float32_t;
-typedef matrix4_t m3Matrix4_t;
+typedef mat4_t m3Matrix4_t;
 typedef int32_t m3Int32_t;
 typedef uint32_t m3Uint32_t;
 typedef int16_t m3Int16_t;
 typedef uint16_t m3Uint16_t;
-typedef vector2_t m3Vector2_t;
-typedef vector3_t m3Vector3_t;
-typedef vector4_t m3Vector4_t;
+typedef vec2_t m3Vector2_t;
+typedef vec3_t m3Vector3_t;
+typedef vec4_t m3Vector4_t;
 typedef color32_t m3Pixel_t;
 
 typedef struct {
@@ -40,13 +40,13 @@ M3_DECL_ANIMREF(Pixel, color32_t);
 M3_DECL_ANIMREF(Uint16, uint16_t);
 M3_DECL_ANIMREF(Uint32, uint32_t);
 M3_DECL_ANIMREF(Float32, float);
-M3_DECL_ANIMREF(Vector2, vector2_t);
-M3_DECL_ANIMREF(Vector3, vector3_t);
-M3_DECL_ANIMREF(Vector4, vector4_t);
+M3_DECL_ANIMREF(Vector2, vec2_t);
+M3_DECL_ANIMREF(Vector3, vec3_t);
+M3_DECL_ANIMREF(Vector4, vec4_t);
 
 typedef struct {
-    vector3_t min;
-    vector3_t max;
+    vec3_t min;
+    vec3_t max;
     float radius;
 } BoundingSphere;
 
@@ -54,9 +54,9 @@ typedef struct {
     uint32_t shape;
     uint16_t bone;
     uint16_t unknown0;
-    matrix4_t matrix;
+    mat4_t matrix;
     uint32_t unknown[6];
-    vector3_t size;
+    vec3_t size;
 } BoundingShape;
 
 typedef struct {
@@ -100,7 +100,7 @@ typedef struct {
 } m3Bone_t;
 
 typedef struct m3Vertex_s {
-    vector3_t pos;
+    vec3_t pos;
     uint8_t boneWeight[4];
     uint8_t boneIndex[4];
     uint8_t normal[4];
@@ -225,9 +225,9 @@ typedef struct {
 
 struct m3Bounds
 {
-    /*0x00*/ vector3_t extents1[2];
+    /*0x00*/ vec3_t extents1[2];
     /*0x18*/ float radius1;
-    /*0x1C*/ vector3_t extents2[2];
+    /*0x1C*/ vec3_t extents2[2];
     /*0x34*/ float radius2;
 };
 

@@ -36,12 +36,12 @@ static uint32_t JassAbilityStringId(cstring_t ability) {
 
 uint32_t AddSpecialEffect(jass_t *j) {
     cstring_t modelName = jass_checkstring(j, 1);
-    vector2_t where = { jass_checknumber(j, 2), jass_checknumber(j, 3) };
+    vec2_t where = { jass_checknumber(j, 2), jass_checknumber(j, 3) };
     return JassPushEffect(j, G_SpawnModelEffect(modelName, &where, NULL, NULL, false));
 }
 uint32_t AddSpecialEffectLoc(jass_t *j) {
     cstring_t modelName = jass_checkstring(j, 1);
-    vector2_t const *where = jass_checkhandle(j, 2, "location");
+    vec2_t const *where = jass_checkhandle(j, 2, "location");
     return JassPushEffect(j, where ? G_SpawnModelEffect(modelName, where, NULL, NULL, false) : NULL);
 }
 uint32_t AddSpecialEffectTarget(jass_t *j) {
@@ -60,7 +60,7 @@ uint32_t DestroyEffect(jass_t *j) {
 uint32_t AddSpellEffect(jass_t *j) {
     cstring_t abilityString = jass_checkstring(j, 1);
     wc3EffectType_t type;
-    vector2_t where = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
+    vec2_t where = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
     uint32_t abilityId = JassAbilityStringId(abilityString);
     if (!abilityId || !JassEffectType(j, 2, &type)) return jass_pushnullhandle(j, "effect");
     return JassPushEffect(j, G_SpawnAbilityEffectAtPoint(abilityId, type, 0, &where, false));
@@ -68,7 +68,7 @@ uint32_t AddSpellEffect(jass_t *j) {
 uint32_t AddSpellEffectLoc(jass_t *j) {
     cstring_t abilityString = jass_checkstring(j, 1);
     wc3EffectType_t type;
-    vector2_t const *where = jass_checkhandle(j, 3, "location");
+    vec2_t const *where = jass_checkhandle(j, 3, "location");
     uint32_t abilityId = JassAbilityStringId(abilityString);
     if (!abilityId || !where || !JassEffectType(j, 2, &type)) return jass_pushnullhandle(j, "effect");
     return JassPushEffect(j, G_SpawnAbilityEffectAtPoint(abilityId, type, 0, where, false));
@@ -76,14 +76,14 @@ uint32_t AddSpellEffectLoc(jass_t *j) {
 uint32_t AddSpellEffectById(jass_t *j) {
     uint32_t abilityId = (uint32_t)jass_checkinteger(j, 1);
     wc3EffectType_t type;
-    vector2_t where = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
+    vec2_t where = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
     if (!abilityId || !JassEffectType(j, 2, &type)) return jass_pushnullhandle(j, "effect");
     return JassPushEffect(j, G_SpawnAbilityEffectAtPoint(abilityId, type, 0, &where, false));
 }
 uint32_t AddSpellEffectByIdLoc(jass_t *j) {
     uint32_t abilityId = (uint32_t)jass_checkinteger(j, 1);
     wc3EffectType_t type;
-    vector2_t const *where = jass_checkhandle(j, 3, "location");
+    vec2_t const *where = jass_checkhandle(j, 3, "location");
     if (!abilityId || !where || !JassEffectType(j, 2, &type)) return jass_pushnullhandle(j, "effect");
     return JassPushEffect(j, G_SpawnAbilityEffectAtPoint(abilityId, type, 0, where, false));
 }

@@ -37,8 +37,8 @@ doodad_t *CM_GetDoodads(void) { return NULL; }
 static mapInfo_t *test_mapinfo;
 mapInfo_t const *CM_GetMapInfo(void) { return test_mapinfo; }
 float CM_GetHeightAtPoint(float x, float y) { (void)x; (void)y; return 0.0f; }
-vector2_t CM_GetNormalizedMapPosition(float x, float y) { return (vector2_t){ x, y }; }
-vector2_t CM_GetDenormalizedMapPosition(float x, float y) { return (vector2_t){ x, y }; }
+vec2_t CM_GetNormalizedMapPosition(float x, float y) { return (vec2_t){ x, y }; }
+vec2_t CM_GetDenormalizedMapPosition(float x, float y) { return (vec2_t){ x, y }; }
 /* CM_GetWorldBounds lives in test_client_stubs.c so net and server tests share one map box. */
 handle_t FS_FindFirstFile(cstring_t mask, sfileFindData_t *findData) {
     (void)mask;
@@ -129,7 +129,7 @@ static edict_t test_edicts[MAX_CLIENT_ENTITIES];
 static uint32_t test_game_shutdowns;
 static uint32_t test_camera_calls;
 static edict_t *test_camera_ent;
-static vector2_t test_camera_pos;
+static vec2_t test_camera_pos;
 
 static void test_set_camera(edict_t *ent, inputCmd_t const *cmd) {
     test_camera_calls++; test_camera_ent = ent; test_camera_pos = cmd->focus;
@@ -359,7 +359,7 @@ TEST(server_net, camera_packet_waits_for_spawned_client_edict) {
 
     reset_server_state(1);
     client = &svs.clients[0]; client->state = cs_connected;
-    test_camera_calls = 0; test_camera_ent = NULL; test_camera_pos = MAKE(vector2_t, 0, 0);
+    test_camera_calls = 0; test_camera_ent = NULL; test_camera_pos = MAKE(vec2_t, 0, 0);
     MSG_WriteByte(&msg, clc_camera_position); MSG_WriteFloat(&msg, 12.0f); MSG_WriteFloat(&msg, -34.0f);
     SV_ParseClientMessage(&msg, client);
     T_EQ(test_camera_calls, 0);
@@ -1182,7 +1182,7 @@ TEST(server_net, lobby_setup_message_round_trips_slot_table) {
 
 TEST(server_net, multicast_syncs_updates_to_all_connected_clients) {
     uint8_t payload[] = { 0x11, 0x22, 0x33, 0x44 };
-    vector3_t origin = { 0, 0, 0 };
+    vec3_t origin = { 0, 0, 0 };
     reset_server_state(4);
     SZ_Init(&sv.multicast, sv.multicast_buf, sizeof(sv.multicast_buf));
     FOR_LOOP(i, 3) {

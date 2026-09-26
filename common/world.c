@@ -144,7 +144,7 @@ static bool CM_ReadInfoInto(handle_t archive, mapInfo_t *info, bool setup_only) 
         SFileReadFile(file, &player->playerRace, sizeof(playerRace_t), NULL, NULL);
         SFileReadFile(file, &player->flags, sizeof(uint32_t), NULL, NULL);
         SFileReadString(file, &player->playerName);
-        SFileReadFile(file, &player->startingPosition, sizeof(vector2_t), NULL, NULL);
+        SFileReadFile(file, &player->startingPosition, sizeof(vec2_t), NULL, NULL);
         SFileReadFile(file, &player->allyLowPrioritiesFlags, sizeof(uint32_t), NULL, NULL);
         SFileReadFile(file, &player->allyHighPrioritiesFlags, sizeof(uint32_t), NULL, NULL);
         if (info->fileFormat >= 31) {
@@ -480,9 +480,9 @@ static void __attribute__((unused)) CM_ReadDoodads(handle_t archive) {
         doodad->targetAcquisition = -1.0f;
         SFileReadFile(file, &doodad->doodID, sizeof(uint32_t), NULL, NULL);
         SFileReadFile(file, &doodad->variation, sizeof(uint32_t), NULL, NULL);
-        SFileReadFile(file, &doodad->position, sizeof(vector3_t), NULL, NULL);
+        SFileReadFile(file, &doodad->position, sizeof(vec3_t), NULL, NULL);
         SFileReadFile(file, &doodad->angle, sizeof(float), NULL, NULL);
-        SFileReadFile(file, &doodad->scale, sizeof(vector3_t), NULL, NULL);
+        SFileReadFile(file, &doodad->scale, sizeof(vec3_t), NULL, NULL);
         SFileReadFile(file, &doodad->flags, sizeof(uint8_t), NULL, NULL);
         SFileReadFile(file, &doodad->treeLife, sizeof(uint8_t), NULL, NULL);
         if (header.tft) {
@@ -555,9 +555,9 @@ static bool CM_ReadUnit(handle_t file, struct Doodad *unit, cmPlacementHeader_t 
 
     SFileReadFile(file, &unit->doodID, sizeof(uint32_t), NULL, NULL);
     SFileReadFile(file, &unit->variation, sizeof(uint32_t), NULL, NULL);
-    SFileReadFile(file, &unit->position, sizeof(vector3_t), NULL, NULL);
+    SFileReadFile(file, &unit->position, sizeof(vec3_t), NULL, NULL);
     SFileReadFile(file, &unit->angle, sizeof(float), NULL, NULL);
-    SFileReadFile(file, &unit->scale, sizeof(vector3_t), NULL, NULL);
+    SFileReadFile(file, &unit->scale, sizeof(vec3_t), NULL, NULL);
     SFileReadFile(file, &unit->flags, sizeof(uint8_t), NULL, NULL);
     SFileReadFile(file, &unit->player, sizeof(uint32_t), NULL, NULL);
     SFileReadFile(file, &unit->unknown1, sizeof(uint8_t), NULL, NULL);

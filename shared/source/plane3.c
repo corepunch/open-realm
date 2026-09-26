@@ -16,6 +16,6 @@ void Plane3_Normalize(plane3_t *plane) {
     plane->distance /= magnitude;
 }
 
-float Plane3_MultiplyVector3(plane3_t const *p, vector3_t const *v) {
+float Plane3_MultiplyVector3(plane3_t const *p, vec3_t const *v) {
     return p->a * v->x + p->b * v->y + p->c * v->z + p->d;
 }

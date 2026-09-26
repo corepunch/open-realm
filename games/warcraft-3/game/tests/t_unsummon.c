@@ -161,10 +161,10 @@ TEST(wc3_spell, unsummon_built_building_without_walkable_approach_cancels) {
             cells[x + y * UNS_MAP_W] = CM_PATHING_UNWALKABLE;
     uns_setup(&fix);
     setup_test_pathmap(UNS_MAP_W, UNS_MAP_H, cells);
-    fix.caster->s.origin2 = (vector2_t){ 0.0f, 32.0f };
-    fix.caster->s.origin = MAKE(vector3_t, 0.0f, 32.0f, 0.0f);
-    fix.building->s.origin2 = (vector2_t){ 32.0f, 32.0f };
-    fix.building->s.origin = MAKE(vector3_t, 32.0f, 32.0f, 0.0f);
+    fix.caster->s.origin2 = (vec2_t){ 0.0f, 32.0f };
+    fix.caster->s.origin = MAKE(vec3_t, 0.0f, 32.0f, 0.0f);
+    fix.building->s.origin2 = (vec2_t){ 32.0f, 32.0f };
+    fix.building->s.origin = MAKE(vec3_t, 32.0f, 32.0f, 0.0f);
     pathtex = gi.MemAlloc(sizeof(*pathtex) + UNS_FOOT_W * UNS_FOOT_H * sizeof(color32_t));
     T_NOT_NULL(pathtex);
     pathtex->width = UNS_FOOT_W;

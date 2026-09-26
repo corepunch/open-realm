@@ -223,9 +223,9 @@ struct uiFrameDef_s {
         color32_t HighlightColor;
         color32_t DisabledColor;
         color32_t ShadowColor;
-        vector2_t ShadowOffset;
+        vec2_t ShadowOffset;
         struct {
-            vector2_t Offset;
+            vec2_t Offset;
             uiFontJustificationH_t Horizontal;
             uiFontJustificationV_t Vertical;
         } Justification;
@@ -237,7 +237,7 @@ struct uiFrameDef_s {
         color32_t Color;
     } Highlight;
     struct {
-        vector2_t PushedTextOffset;
+        vec2_t PushedTextOffset;
         UINAME NormalTexture;
         UINAME PushedTexture;
         UINAME DisabledTexture;
@@ -298,7 +298,7 @@ struct uiFrameDef_s {
         UINAME Text;
         color32_t TextColor;
         UINAME TextFrame;
-        vector2_t TextOffset;
+        vec2_t TextOffset;
     } Edit;
     struct {
         UINAME ArrowFrame;

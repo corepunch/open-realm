@@ -333,7 +333,7 @@ TEST(wc3_api, reused_unit_does_not_inherit_old_life_event) {
 TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
     player_t *saved_currentplayer = currentplayer;
     edict_t *mover = NULL;
-    vector2_t destination = {80.0f, 0.0f};
+    vec2_t destination = {80.0f, 0.0f};
 
     reset_entities();
     setup_test_world();
@@ -414,7 +414,7 @@ TEST(wc3_api, movement_crossing_region_publishes_entering_unit) {
 TEST(wc3_api, removed_region_filter_cannot_publish_to_reused_event) {
     player_t *saved_currentplayer = currentplayer;
     edict_t *mover = NULL;
-    vector2_t destination = {80.0f, 0.0f};
+    vec2_t destination = {80.0f, 0.0f};
 
     reset_entities();
     setup_test_world();
@@ -480,7 +480,7 @@ TEST(wc3_api, removed_region_filter_cannot_publish_to_reused_event) {
 TEST(wc3_api, removed_region_filter_unit_does_not_receive_crossing_event) {
     player_t *saved_currentplayer = currentplayer;
     edict_t *mover = NULL;
-    vector2_t destination = {80.0f, 0.0f};
+    vec2_t destination = {80.0f, 0.0f};
 
     G_ResetDeferredFrees(); reset_entities(); setup_test_world(); currentplayer = NULL;
     T_ASSERT(run_test_jass(
@@ -1145,7 +1145,7 @@ static void capture_ui_sound(edict_t *ent, int channel, int sound, float volume,
     T_EQ(channel, CHAN_OWNER | CHAN_RELIABLE);
 }
 
-static void capture_ui_sound_policy(vector3_t const *origin, edict_t *ent, int channel, int sound,
+static void capture_ui_sound_policy(vec3_t const *origin, edict_t *ent, int channel, int sound,
                                     float volume, float attenuation, float timeofs, soundPolicy_t const *policy) {
     T_NULL(origin); T_NOT_NULL(policy); T_EQ(policy->max_total, 24);
     capture_ui_sound(ent, channel, sound, volume, attenuation, timeofs);
@@ -1166,7 +1166,7 @@ TEST(wc3_api, escape_restores_game_camera_ui_and_control) {
     cstring_t cancel[] = { "cancel" };
     game.clients[1].ps.number = 0;
     gc->ps.number = 1;
-    gc->camera.state.viewangles = (vector3_t){300, 0, 120};
+    gc->camera.state.viewangles = (vec3_t){300, 0, 120};
     gc->camera.state.target_distance = 900;
     gc->camera.state.fov = 35;
     currentplayer = NULL;
@@ -1271,7 +1271,7 @@ TEST(wc3_api, entering_unit_native_returns_region_event_subject) {
 TEST(wc3_api, leaving_region_event_is_registered_and_dispatched) {
     player_t *saved_currentplayer = currentplayer;
     edict_t *leaving = NULL;
-    vector2_t destination = { 300.0f, 150.0f };
+    vec2_t destination = { 300.0f, 150.0f };
 
     reset_entities();
     setup_test_world();
@@ -1464,7 +1464,7 @@ TEST(wc3_api, world_bounds_enables_full_map_group_transfer) {
 
 TEST(wc3_api, camera_bounds_clamp_user_and_scripted_targets) {
     gameClient_t *gc = &game.clients[0];
-    vector2_t requested = { 500.0f, -500.0f };
+    vec2_t requested = { 500.0f, -500.0f };
 
     currentplayer = NULL;
     T_ASSERT(run_test_jass(
@@ -1498,9 +1498,9 @@ TEST(wc3_api, camera_angle_interpolation_uses_shortest_periodic_arc) {
     gc->camera.target_controller = NULL;
     gc->camera.target_inherit_orientation = false;
     gc->camera.old_state = gc->camera.state;
-    gc->camera.old_state.viewangles = (vector3_t){ -394.0f, 0.0f, 350.0f };
+    gc->camera.old_state.viewangles = (vec3_t){ -394.0f, 0.0f, 350.0f };
     gc->camera.state = gc->camera.old_state;
-    gc->camera.state.viewangles = (vector3_t){ 326.0f, 0.0f, 10.0f };
+    gc->camera.state.viewangles = (vec3_t){ 326.0f, 0.0f, 10.0f };
     gc->camera.start_time = 100;
     gc->camera.end_time = 1100;
     level.time = 600;
@@ -1520,8 +1520,8 @@ TEST(wc3_api, camera_runtime_getters_report_interpolated_state_and_eye) {
     gameClient_t *gc = &game.clients[0];
 
     gc->ps.number = 0;
-    gc->ps.vieworigin = (vector3_t){ 100.0f, 200.0f, 300.0f };
-    gc->ps.viewangles = (vector3_t){ 0.0f, 0.0f, 0.0f };
+    gc->ps.vieworigin = (vec3_t){ 100.0f, 200.0f, 300.0f };
+    gc->ps.viewangles = (vec3_t){ 0.0f, 0.0f, 0.0f };
     gc->ps.distance = 100.0f;
     gc->ps.fov = 50.0f;
     gc->ps.znear = 100.0f;
@@ -1591,7 +1591,7 @@ TEST(wc3_api, camera_field_setters_preserve_authored_angle_mapping) {
     float pitch = G_CameraAuthoredToPitch(304.0f);
 
     gc->ps.number = 0;
-    gc->camera.state.viewangles = (vector3_t){ pitch, 0.0f, G_CameraAuthoredToYaw(90.0f, pitch) };
+    gc->camera.state.viewangles = (vec3_t){ pitch, 0.0f, G_CameraAuthoredToYaw(90.0f, pitch) };
     gc->camera.state.fov = G_CameraHorizontalToVerticalFov(70.0f);
     gc->camera.old_state = gc->camera.state;
     gc->camera.start_time = gc->camera.end_time = 100;
@@ -1616,7 +1616,7 @@ TEST(wc3_api, timed_camera_pan_with_z_interpolates_target_height) {
     gameClient_t *gc = &game.clients[0];
 
     gc->ps.number = 0;
-    gc->camera.state.position = MAKE(vector2_t, 0.0f, 0.0f);
+    gc->camera.state.position = MAKE(vec2_t, 0.0f, 0.0f);
     gc->camera.state.z_offset = 0.0f;
     gc->camera.target_height = G_MakeServerOrigin(0.0f, 0.0f, 0.0f).z;
     gc->camera.old_state = gc->camera.state;
@@ -1658,7 +1658,7 @@ TEST(wc3_api, camera_target_controller_can_inherit_unit_facing) {
     T_FEQ(gc->camera.state.viewangles.z, -45.0f, 0.001f);
     T_ASSERT(gc->camera.target_inherit_orientation);
 
-    target->s.origin2 = MAKE(vector2_t, 300.0f, 400.0f);
+    target->s.origin2 = MAKE(vec2_t, 300.0f, 400.0f);
     target->s.angle = (float)DEG2RAD(45.0f);
     G_RunClients();
     T_FEQ(gc->camera.state.position.x, 310.0f, 0.001f);
@@ -1671,7 +1671,7 @@ TEST(wc3_api, camera_setup_applies_clip_planes_z_and_dopan_contract) {
     gameClient_t *gc = &game.clients[0];
 
     gc->ps.number = 0;
-    gc->camera.state.position = MAKE(vector2_t, 12.0f, 34.0f);
+    gc->camera.state.position = MAKE(vec2_t, 12.0f, 34.0f);
     gc->camera.state.near_z = 100.0f;
     gc->camera.state.far_z = 5000.0f;
     gc->camera.state.z_offset = 0.0f;
@@ -1726,8 +1726,8 @@ TEST(wc3_api, camera_quick_position_sets_spacebar_target_without_moving_camera) 
     gameClient_t *gc = &game.clients[0];
 
     gc->ps.number = 0;
-    gc->camera.state.position = MAKE(vector2_t, 12.0f, 34.0f);
-    gc->camera.quick_position = MAKE(vector2_t, 0.0f, 0.0f);
+    gc->camera.state.position = MAKE(vec2_t, 12.0f, 34.0f);
+    gc->camera.quick_position = MAKE(vec2_t, 0.0f, 0.0f);
     gc->camera.quick_position_set = false;
     currentplayer = &gc->ps;
     T_ASSERT(run_test_jass(
@@ -2440,7 +2440,7 @@ TEST(wc3_api, createunit_unstucks_from_blocked_pathing) {
 }
 
 TEST(wc3_api, createunit_avoids_live_unit_collision) {
-    vector2_t const point = { 256.0f, 256.0f };
+    vec2_t const point = { 256.0f, 256.0f };
     edict_t *first, *second;
 
     reset_entities(); setup_test_world();
@@ -2459,8 +2459,8 @@ TEST(wc3_api, createunit_avoids_live_unit_collision) {
 TEST(wc3_api, flyer_unstuck_search_uses_unflyable_instead_of_unwalkable) {
     enum { CELLS = 16 };
     uint8_t pathmap[CELLS * CELLS] = {0};
-    vector2_t const requested = {256.0f, 256.0f};
-    vector2_t out;
+    vec2_t const requested = {256.0f, 256.0f};
+    vec2_t out;
     edict_t *mover = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
 
     mover->s.model = 1;
@@ -2483,8 +2483,8 @@ TEST(wc3_api, flyer_unstuck_search_uses_unflyable_instead_of_unwalkable) {
 }
 
 TEST(wc3_api, unit_unstuck_search_skips_live_unit_collision) {
-    vector2_t const requested = {256.0f, 256.0f};
-    vector2_t out;
+    vec2_t const requested = {256.0f, 256.0f};
+    vec2_t out;
     edict_t *blocker;
     edict_t *mover;
 
@@ -2659,7 +2659,7 @@ TEST(wc3_api, explicit_vertex_color_override_survives_authored_rebind) {
 
 TEST(wc3_api, game_datagram_carries_and_expires_lightning_snapshot) {
     uint8_t data[1024];
-    vector3_t source = { 10.0f, 20.0f, 30.0f }, target = { 100.0f, 200.0f, 40.0f };
+    vec3_t source = { 10.0f, 20.0f, 30.0f }, target = { 100.0f, 200.0f, 40.0f };
     color32_t tint = MAKE(color32_t, 200, 150, 100, 255);
     gLightning_t *effect;
     uint32_t size, offset;
@@ -2699,7 +2699,7 @@ TEST(wc3_api, game_datagram_carries_and_expires_lightning_snapshot) {
 
 TEST(wc3_api, ability_lightning_tracks_attached_units_in_datagram) {
     uint8_t data[1024];
-    vector3_t source = { 10.0f, 20.0f, 30.0f }, target = { 100.0f, 200.0f, 40.0f };
+    vec3_t source = { 10.0f, 20.0f, 30.0f }, target = { 100.0f, 200.0f, 40.0f };
     edict_t *source_unit, *target_unit;
     gLightning_t *effect;
     uint32_t size, offset;
@@ -2804,7 +2804,7 @@ TEST(wc3_api, transient_command_style_text_does_not_enter_message_log) {
 
     memset(&gc->message_log, 0, sizeof(gc->message_log));
     level.time = 100;
-    UI_ShowTransientText(&ent, &MAKE(vector2_t, 0.0f, 0.0f), "Not enough gold.", 2.0f);
+    UI_ShowTransientText(&ent, &MAKE(vec2_t, 0.0f, 0.0f), "Not enough gold.", 2.0f);
 
     T_STREQ(gc->message.text, "Not enough gold.");
     T_EQ(gc->message_log.count, 0);
@@ -2926,7 +2926,7 @@ TEST(wc3_api, createunit_does_not_reuse_deferred_dead_unit) {
     dead = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0, 0);
     unit_die(dead, NULL);
     G_DeferFreeEdict(dead);
-    replacement = unit_createorfind(0, MAKEFOURCC('h','p','e','a'), &(vector2_t){0, 0}, 0);
+    replacement = unit_createorfind(0, MAKEFOURCC('h','p','e','a'), &(vec2_t){0, 0}, 0);
     T_ASSERT(replacement && replacement != dead);
     T_ASSERT(replacement->inuse);
     G_RunDeferredFrees();
@@ -2939,7 +2939,7 @@ TEST(wc3_api, createunit_allocates_fresh_nearby_unit) {
     G_ResetDeferredFrees();
     reset_entities();
     existing = alloc_test_unit(MAKEFOURCC('n','z','o','m'), 0, 0);
-    created = unit_create(0, MAKEFOURCC('n','z','o','m'), &(vector2_t){0, 0}, 0);
+    created = unit_create(0, MAKEFOURCC('n','z','o','m'), &(vec2_t){0, 0}, 0);
     T_ASSERT(created && created != existing);
     T_ASSERT(created->inuse);
     G_FreeEdict(created);
@@ -2962,7 +2962,7 @@ TEST(wc3_api, createunit_starts_ready_without_birth_delay) {
     setup_test_world();
     ui_rows = parse_slk_string(ui_slk);
     old_ui = G_SetSLKRows("UnitUI", ui_rows);
-    unit = unit_create(0, BZ_WC3_UNIT_FOOTMAN, &(vector2_t){0, 0}, 0);
+    unit = unit_create(0, BZ_WC3_UNIT_FOOTMAN, &(vec2_t){0, 0}, 0);
     T_NOT_NULL(unit);
     if (unit) {
         T_NOT_NULL(unit->currentmove);
@@ -3016,7 +3016,7 @@ TEST(wc3_api, createunit_links_building_collision_bounds) {
     old_data = G_SetSLKRows("UnitData", data_rows);
     T_ASSERT(G_UnitIsBuilding(BZ_WC3_UNIT_PEASANT));
     T_EQ((int)G_UnitCollision(BZ_WC3_UNIT_PEASANT), 64);
-    building = unit_create(0, BZ_WC3_UNIT_PEASANT, &(vector2_t){0, 0}, 0);
+    building = unit_create(0, BZ_WC3_UNIT_PEASANT, &(vec2_t){0, 0}, 0);
     T_NOT_NULL(building);
     if (building) {
         T_ASSERT(building->data.UnitUI->modelFile);
@@ -3142,7 +3142,7 @@ TEST(wc3_api, gameplay_transmission_preserves_underlying_timed_message_state) {
 }
 
 static uint32_t ui_point_calls;
-static bool count_ui_point(edict_t *ent, vector2_t const *loc) { ui_point_calls++; return false; }
+static bool count_ui_point(edict_t *ent, vec2_t const *loc) { ui_point_calls++; return false; }
 
 TEST(wc3_api, enable_user_ui_does_not_block_world_selection) {
     gameClient_t *gc = &game.clients[0];
@@ -3287,7 +3287,7 @@ TEST(wc3_api, build_placement_publishes_point_order_event_context) {
     gameClient_t *client = &game.clients[0];
     edict_t *builder;
     UnitProfile_t profile = { .builds = "hbar" };
-    vector2_t point = { 64.0f, 64.0f };
+    vec2_t point = { 64.0f, 64.0f };
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
 
     setup_test_world();
@@ -3422,7 +3422,7 @@ TEST(wc3_api, construct_finish_fires_player_and_unit_events_with_structure_conte
 
 TEST(wc3_api, spell_effect_event_exposes_wc3_response_context_and_order_ids) {
     edict_t *caster, *target;
-    vector2_t point = { 96.0f, 144.0f };
+    vec2_t point = { 96.0f, 144.0f };
 
     setup_test_world();
     caster = alloc_test_unit(MAKEFOURCC('O','t','c','h'), 0.0f, 0.0f);
@@ -3523,7 +3523,7 @@ static edict_t *make_unit_hero(void) {
 }
 
 TEST(wc3_api, model_effects_are_rendered_but_not_world_selectable) {
-    vector2_t point = { 64.0f, 64.0f };
+    vec2_t point = { 64.0f, 64.0f };
     edict_t *target;
     edict_t *point_effect;
     edict_t *target_effect;
@@ -3574,7 +3574,7 @@ TEST(wc3_api, jass_sound_runtime_tracks_one_shot_volume_and_attachment_safely) {
     T_ASSERT(!playback.positioned);
 
     G_JassSoundSetVolume(handle, 0.5f);
-    G_JassSoundSetPosition(handle, &MAKE(vector3_t, 10.0f, 20.0f, 30.0f));
+    G_JassSoundSetPosition(handle, &MAKE(vec3_t, 10.0f, 20.0f, 30.0f));
     G_JassSoundPlayback(handle, &playback);
     T_FEQ(playback.volume, 0.5f, 0.001f);
     T_ASSERT(playback.positioned);
@@ -5462,7 +5462,7 @@ TEST(wc3_api, unit_out_of_range) {
 TEST(wc3_api, unit_in_range_fires_when_registered_subject_moves) {
     player_t *saved_currentplayer = currentplayer;
     edict_t *subject, *target;
-    vector2_t destination = { 100.0f, 0.0f };
+    vec2_t destination = { 100.0f, 0.0f };
 
     reset_entities();
     setup_test_world();
@@ -5516,7 +5516,7 @@ TEST(wc3_api, deferred_removed_range_subject_cannot_dispatch_crossing) {
     edict_t *subject = NULL, *target = NULL;
     event_t *rangeEvent = NULL;
     bool queuedRangeCrossing = false;
-    vector2_t destination = { 200.0f, 0.0f };
+    vec2_t destination = { 200.0f, 0.0f };
 
     G_ResetDeferredFrees(); reset_entities(); setup_test_world(); currentplayer = NULL;
     T_ASSERT(run_test_jass(
@@ -5562,7 +5562,7 @@ TEST(wc3_api, deferred_removed_range_subject_cannot_dispatch_crossing) {
     target->health.value = target->health.max_value = 250.0f; unit_stand(target);
     T_ASSERT(unit_issueorder(target, "move", &destination));
     G_RunEntities();
-    T_ASSERT(memcmp(&subject->old_origin, &subject->s.origin2, sizeof(vector2_t)) == 0);
+    T_ASSERT(memcmp(&subject->old_origin, &subject->s.origin2, sizeof(vec2_t)) == 0);
     T_ASSERT(Vector2_distance(&subject->old_origin, &target->old_origin) > rangeEvent->range);
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= rangeEvent->range);
     T_ASSERT(Vector2_distance(&subject->s.origin2, &target->s.origin2) <= 256.0f);
@@ -5583,7 +5583,7 @@ TEST(wc3_api, deferred_removed_range_subject_cannot_dispatch_crossing) {
 TEST(wc3_api, unit_in_range_queue_full_does_not_crash_subject_movement) {
     player_t *saved_currentplayer = currentplayer;
     edict_t *subject = NULL;
-    vector2_t destination = {100.0f, 0.0f};
+    vec2_t destination = {100.0f, 0.0f};
 
     reset_entities(); setup_test_world(); currentplayer = NULL;
     T_ASSERT(run_test_jass(
@@ -5615,7 +5615,7 @@ TEST(wc3_api, unit_in_range_queue_full_does_not_crash_target_movement) {
     player_t *saved_currentplayer = currentplayer;
     edict_t *subject = NULL;
     edict_t *target = NULL;
-    vector2_t destination = {100.0f, 0.0f};
+    vec2_t destination = {100.0f, 0.0f};
 
     reset_entities(); setup_test_world(); currentplayer = NULL;
     T_ASSERT(run_test_jass(
@@ -6213,7 +6213,7 @@ TEST(wc3_api, death_events_reject_a_reused_subject_slot) {
     T_NOT_NULL(victim);
     G_FreeEdict(victim);
     level.time += 2000;
-    replacement = SP_SpawnAtLocation(MAKEFOURCC('h','p','e','a'), 0, &MAKE(vector2_t, 64, 64));
+    replacement = SP_SpawnAtLocation(MAKEFOURCC('h','p','e','a'), 0, &MAKE(vec2_t, 64, 64));
     T_ASSERT(replacement == victim);
     G_DeferFreeEdict(replacement);
     G_RunDeferredFrees();
@@ -6450,7 +6450,7 @@ TEST(wc3_api, controller_focus_updates_camera_and_respects_control) {
     gameClient_t *gc = &game.clients[0];
     inputCmd_t cmd = { .action = BZ_INPUT_FOCUS, .focus = { 300, 400 } };
     level.camera_bounds = (box2_t){ .min = { 0, 0 }, .max = { 512, 512 } };
-    gc->camera.state.position = (vector2_t){ 10, 20 };
+    gc->camera.state.position = (vec2_t){ 10, 20 };
     gc->camera.target_controller = &g_edicts[2];
     gc->no_control = true;
     globals.ClientInput(&g_edicts[0], &cmd);
@@ -6460,7 +6460,7 @@ TEST(wc3_api, controller_focus_updates_camera_and_respects_control) {
     globals.ClientInput(&g_edicts[0], &cmd);
     T_FEQ(gc->camera.state.position.x, 300, 0.001f); T_FEQ(gc->camera.state.position.y, 400, 0.001f);
     T_NULL(gc->camera.target_controller); T_EQ(gc->camera.start_time, gc->camera.end_time);
-    cmd.focus = (vector2_t){ -100, 700 };
+    cmd.focus = (vec2_t){ -100, 700 };
     globals.ClientInput(&g_edicts[0], &cmd);
     T_FEQ(gc->camera.state.position.x, 0, 0.001f); T_FEQ(gc->camera.state.position.y, 512, 0.001f);
 }
@@ -6877,7 +6877,7 @@ TEST(wc3_api, blight_datagram_carries_runtime_mask_and_clears_delivered_rows) {
     uint8_t data[8192], bits[4096];
     uint16_t header;
     terrainMaskChunk_t chunk;
-    vector2_t point = { 32.0f, 32.0f };
+    vec2_t point = { 32.0f, 32.0f };
     edict_t *client_ent;
     uint32_t size, offset, bit;
 
@@ -6918,7 +6918,7 @@ TEST(wc3_api, blight_sweep_resends_dropped_rows) {
     uint8_t data[8192], bits[4096];
     uint16_t header;
     terrainMaskChunk_t chunk;
-    vector2_t point = { 32.0f, 32.0f };
+    vec2_t point = { 32.0f, 32.0f };
     edict_t *client_ent;
     uint32_t size, offset, bit;
 
@@ -7008,7 +7008,7 @@ TEST(wc3_api, blight_dirty_rows_take_priority_over_sweep) {
     uint8_t data[8192];
     uint16_t header;
     terrainMaskChunk_t chunk;
-    vector2_t point = { 32.0f, 32.0f };
+    vec2_t point = { 32.0f, 32.0f };
     edict_t *client_ent;
     uint32_t size, offset;
 

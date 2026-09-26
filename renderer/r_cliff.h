@@ -63,7 +63,7 @@ static inline void R_CliffWeldNormals(rCliffBakeList_t *list, float snap) {
     vertex_t *vertices = list->vertices;
     uint32_t n = list->num_vertices;
     rNormalWeldKey_t *keys;
-    vector3_t *normals;
+    vec3_t *normals;
     uint32_t i;
 
     if (n < 2 || snap <= 0.0f) return;
@@ -82,14 +82,14 @@ static inline void R_CliffWeldNormals(rCliffBakeList_t *list, float snap) {
         while (j < n && keys[j].qx == keys[i].qx && keys[j].qy == keys[i].qy && keys[j].qz == keys[i].qz)
             j++;
         for (uint32_t k = i; k < j; k++) {
-            vector3_t avg = vertices[keys[k].idx].normal;
+            vec3_t avg = vertices[keys[k].idx].normal;
             uint32_t count = Vector3_len(&avg) > 0.0f;
             for (uint32_t l = i; l < j; l++) {
                 if (!R_CliffWeldCompatible(&vertices[keys[k].idx], list->groups[keys[k].idx], &vertices[keys[l].idx], list->groups[keys[l].idx], 0.001f)) continue;
                 /* Expanded triangles repeat the same authored normal; count each placement/normal once. */
                 bool duplicate = false;
                 for (uint32_t m = i; m < l; m++) {
-                    vector3_t delta = Vector3_sub(&vertices[keys[m].idx].normal, &vertices[keys[l].idx].normal);
+                    vec3_t delta = Vector3_sub(&vertices[keys[m].idx].normal, &vertices[keys[l].idx].normal);
                     if (list->groups[keys[m].idx] == list->groups[keys[l].idx] && Vector3_dot(&delta, &delta) < 0.000001f) {
                         duplicate = true; break;
                     }

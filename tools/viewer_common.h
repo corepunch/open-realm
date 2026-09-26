@@ -9,7 +9,7 @@
 #define VIEWER_WINDOW_HEIGHT 600
 
 typedef struct viewer_orbit_s {
-    vector3_t target;
+    vec3_t target;
     float yaw_deg;
     float pitch_deg;
     float distance;
@@ -28,18 +28,18 @@ static inline handle_t Viewer_MemAlloc(long size);
 static inline void Viewer_MemFree(handle_t mem);
 
 static inline bool Viewer_OrbitHandleEvent(viewer_orbit_t *orbit, SDL_Event const *event);
-static inline void Viewer_OrbitInit(viewer_orbit_t *orbit, vector3_t target, float distance, float yaw_deg, float pitch_deg);
-static inline void Viewer_OrbitBuildCamera(viewer_orbit_t const *orbit, float aspect, float fov, float znear, float zfar, matrix4_t *output);
-static inline void Viewer_OrbitBuildLight(viewer_orbit_t const *orbit, vector3_t const *sunangles, float scale, matrix4_t *output);
+static inline void Viewer_OrbitInit(viewer_orbit_t *orbit, vec3_t target, float distance, float yaw_deg, float pitch_deg);
+static inline void Viewer_OrbitBuildCamera(viewer_orbit_t const *orbit, float aspect, float fov, float znear, float zfar, mat4_t *output);
+static inline void Viewer_OrbitBuildLight(viewer_orbit_t const *orbit, vec3_t const *sunangles, float scale, mat4_t *output);
 
-static vector3_t Viewer_OrbitEye(viewer_orbit_t const *orbit) {
+static vec3_t Viewer_OrbitEye(viewer_orbit_t const *orbit) {
     float const yaw = orbit->yaw_deg * (float)M_PI / 180.0f;
     float const pitch = orbit->pitch_deg * (float)M_PI / 180.0f;
     float const cp = cosf(pitch);
     float const sp = sinf(pitch);
     float const cy = cosf(yaw);
     float const sy = sinf(yaw);
-    return (vector3_t) {
+    return (vec3_t) {
         orbit->target.x + orbit->distance * cp * cy,
         orbit->target.y + orbit->distance * cp * sy,
         orbit->target.z + orbit->distance * sp,
@@ -86,7 +86,7 @@ static inline bool Viewer_OrbitHandleEvent(viewer_orbit_t *orbit, SDL_Event cons
     return false;
 }
 
-static inline void Viewer_OrbitInit(viewer_orbit_t *orbit, vector3_t target, float distance, float yaw_deg, float pitch_deg) {
+static inline void Viewer_OrbitInit(viewer_orbit_t *orbit, vec3_t target, float distance, float yaw_deg, float pitch_deg) {
     *orbit = (viewer_orbit_t) {
         .target = target,
         .yaw_deg = yaw_deg,
@@ -98,21 +98,21 @@ static inline void Viewer_OrbitInit(viewer_orbit_t *orbit, vector3_t target, flo
     Viewer_OrbitClamp(orbit);
 }
 
-static inline void Viewer_OrbitBuildCamera(viewer_orbit_t const *orbit, float aspect, float fov, float znear, float zfar, matrix4_t *output) {
-    matrix4_t proj, view;
-    vector3_t eye = Viewer_OrbitEye(orbit);
-    vector3_t dir = Vector3_sub(&orbit->target, &eye);
+static inline void Viewer_OrbitBuildCamera(viewer_orbit_t const *orbit, float aspect, float fov, float znear, float zfar, mat4_t *output) {
+    mat4_t proj, view;
+    vec3_t eye = Viewer_OrbitEye(orbit);
+    vec3_t dir = Vector3_sub(&orbit->target, &eye);
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
-    Matrix4_lookAt(&view, &eye, &dir, &(vector3_t){ 0, 0, 1 });
+    Matrix4_lookAt(&view, &eye, &dir, &(vec3_t){ 0, 0, 1 });
     Matrix4_multiply(&proj, &view, output);
 }
 
-static inline void Viewer_OrbitBuildLight(viewer_orbit_t const *orbit, vector3_t const *sunangles, float scale, matrix4_t *output) {
-    matrix4_t proj, view;
-    vector3_t eye = Viewer_OrbitEye(orbit);
-    vector3_t dir = Vector3_sub(&orbit->target, &eye);
+static inline void Viewer_OrbitBuildLight(viewer_orbit_t const *orbit, vec3_t const *sunangles, float scale, mat4_t *output) {
+    mat4_t proj, view;
+    vec3_t eye = Viewer_OrbitEye(orbit);
+    vec3_t dir = Vector3_sub(&orbit->target, &eye);
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0f, 3000.0f);
-    Matrix4_lookAt(&view, &eye, &dir, &(vector3_t){ 0, 0, 1 });
+    Matrix4_lookAt(&view, &eye, &dir, &(vec3_t){ 0, 0, 1 });
     Matrix4_multiply(&proj, &view, output);
     (void)sunangles;
 }

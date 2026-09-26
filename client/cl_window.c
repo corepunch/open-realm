@@ -32,7 +32,7 @@ typedef struct {
 typedef struct clientWindow_s {
     uint32_t id, class_id, flags;
     handle_t layout;
-    vector2_t offset;
+    vec2_t offset;
     bool debug_draw_logged;
     clientWindowValue_t scroll_values[MAX_WINDOW_SCROLL_VALUES];
     uint32_t num_scroll_values;
@@ -47,7 +47,7 @@ static struct {
     clientWindow_t *first, *last, *focus, *drag, *scroll_drag, *edit_window;
     uint32_t scroll_drag_frame;
     uint32_t edit_frame;
-    vector2_t drag_point, drag_offset;
+    vec2_t drag_point, drag_offset;
     bool modal_paused;
 } cl_windows;
 
@@ -559,7 +559,7 @@ static bool CL_WindowSetScroll(clientWindow_t *window, uiFrame_t *owner, float v
     return true;
 }
 
-static uiFrame_t *CL_WindowFrameAtType(vector2_t const *point, FRAMETYPE type) {
+static uiFrame_t *CL_WindowFrameAtType(vec2_t const *point, FRAMETYPE type) {
     for (uint32_t i = SCR_NumFrames(); i > 0; i--) {
         uiFrame_t *frame = SCR_Frame(i - 1);
         if (frame && frame->flags.type == type && Rect_contains(SCR_LayoutRect(frame), point))
@@ -568,7 +568,7 @@ static uiFrame_t *CL_WindowFrameAtType(vector2_t const *point, FRAMETYPE type) {
     return NULL;
 }
 
-static bool CL_WindowScrollWheel(clientWindow_t *window, vector2_t const *point, int wheel_y) {
+static bool CL_WindowScrollWheel(clientWindow_t *window, vec2_t const *point, int wheel_y) {
     uiFrame_t *hit, *owner;
     if (!window || !point || !wheel_y) return false;
     hit = CL_WindowFrameAtType(point, FT_SCROLLBAR);
@@ -584,7 +584,7 @@ static bool CL_WindowScrollWheel(clientWindow_t *window, vector2_t const *point,
 }
 
 static bool CL_WindowScrollBarSetFromPoint(clientWindow_t *window, uiFrame_t *scrollbar,
-                                           vector2_t const *point, bool drag_track) {
+                                           vec2_t const *point, bool drag_track) {
     uiFrame_t *owner = CL_WindowScrollOwner(scrollbar);
     rect_t const *screen;
     rect_t track;
@@ -614,7 +614,7 @@ static bool CL_WindowScrollBarSetFromPoint(clientWindow_t *window, uiFrame_t *sc
     return CL_WindowSetScroll(window, owner, value);
 }
 
-static bool CL_WindowContains(clientWindow_t *window, vector2_t const *point) {
+static bool CL_WindowContains(clientWindow_t *window, vec2_t const *point) {
     rect_t root = CL_WindowRoot(window);
     CL_WindowPrepareState(window, &root);
     uiFrame_t const *frame = SCR_Frame(1);
@@ -622,7 +622,7 @@ static bool CL_WindowContains(clientWindow_t *window, vector2_t const *point) {
 }
 
 bool CL_WindowMouseOver(int x, int y) {
-    vector2_t point = SCR_ScreenToUI(x, y);
+    vec2_t point = SCR_ScreenToUI(x, y);
     clientWindow_t *modal = CL_WindowModal();
     for (clientWindow_t *window = cl_windows.last; window; window = window->prev) {
         if (modal && window != modal) continue;
@@ -631,7 +631,7 @@ bool CL_WindowMouseOver(int x, int y) {
     return modal != NULL;
 }
 
-static uiFrame_t const *CL_WindowClickableAt(clientWindow_t *window, vector2_t const *point) {
+static uiFrame_t const *CL_WindowClickableAt(clientWindow_t *window, vec2_t const *point) {
     rect_t root = CL_WindowRoot(window);
     CL_WindowPrepareState(window, &root);
     for (uint32_t i = SCR_NumFrames(); i > 0; i--) {
@@ -749,7 +749,7 @@ void CL_WindowDraw(void) {
 }
 
 bool CL_WindowMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
-    vector2_t point = SCR_ScreenToUI(x, y);
+    vec2_t point = SCR_ScreenToUI(x, y);
     clientWindow_t *modal = CL_WindowModal(), *window;
     uiFrame_t const *frame;
 

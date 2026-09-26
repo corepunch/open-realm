@@ -663,7 +663,7 @@ bool UI_BuildFrameForWrite(frameDef_t const *frame,
             data->hp_bar = frame->Multiselect.HpBar;
             data->mana_bar = frame->Multiselect.ManaBar;
             data->focus_highlight = 0;
-            data->offset = MAKE(vector2_t, 0.031f, 0.050f);
+            data->offset = MAKE(vec2_t, 0.031f, 0.050f);
             data->numcolumns = 6;
             data->numitems = frame->Multiselect.NumItems;
             memcpy(data->items, frame->Multiselect.Items, sizeof(uiMultiselectItem_t) * data->numitems);

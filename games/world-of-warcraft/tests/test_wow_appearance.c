@@ -97,7 +97,7 @@ TEST(wow_renderer, character_composite_cache_hits_then_evicts_oldest) {
 }
 
 TEST(wow_renderer, view_angle_helpers_wrap_and_match_forward_axis) {
-    vector3_t angles = { 0.0f, 90.0f, 0.0f }, forward;
+    vec3_t angles = { 0.0f, 90.0f, 0.0f }, forward;
 
     T_ASSERT(fabsf(Wow_LerpDegrees(350.0f, 10.0f, 0.5f) - 360.0f) < 0.001f);
     forward = Wow_ViewForward(&angles);
@@ -107,12 +107,12 @@ TEST(wow_renderer, view_angle_helpers_wrap_and_match_forward_axis) {
 /* Recover the eye from the same Euler -> quaternion -> orbit path used by the client. */
 TEST(wow_renderer, orbit_stays_behind_native_heading) {
     FOR_LOOP(i, 5) FOR_LOOP(j, 4) {
-        vector3_t native = { 5 + j * 16, i * 90, 0 };
-        vector3_t euler = Wow_EulerFromCamera(native.x, native.y), back = Wow_CameraFromEuler(&euler);
-        vector3_t forward = Wow_ViewForward(&native);
+        vec3_t native = { 5 + j * 16, i * 90, 0 };
+        vec3_t euler = Wow_EulerFromCamera(native.x, native.y), back = Wow_CameraFromEuler(&euler);
+        vec3_t forward = Wow_ViewForward(&native);
         quaternion_t quat = Quaternion_fromEuler(&euler, ROTATE_ZYX);
-        matrix4_t view, inv;
-        Matrix4_identity(&view); Matrix4_translate(&view, &(vector3_t){ 0, 0, -8.5f });
+        mat4_t view, inv;
+        Matrix4_identity(&view); Matrix4_translate(&view, &(vec3_t){ 0, 0, -8.5f });
         Matrix4_rotateQuat(&view, &quat); Matrix4_inverse(&view, &inv);
         FOR_LOOP(k, 3) {
             T_FEQ(((float *)&back)[k], ((float *)&native)[k], 0.001f);
@@ -127,8 +127,8 @@ TEST(wow_renderer, placement_preserves_native_geometry) {
     FOR_LOOP(i, 12) {
         wowPlacement_t place = { .pos = { 17000, 42, 16900 }, .rot = { i * 31, -(float)i * 17, i * 47 },
             .scale = i ? i * 256 : 0 };
-        matrix4_t old, basis, tmp, matrix;
-        vector3_t pos = Wow_ObjectPosition(place.pos.x, place.pos.y, place.pos.z);
+        mat4_t old, basis, tmp, matrix;
+        vec3_t pos = Wow_ObjectPosition(place.pos.x, place.pos.y, place.pos.z);
         float scale = place.scale ? place.scale / 1024.0f : 1.0f;
         Matrix4_identity(&old); Matrix4_translate(&old, &pos);
         Matrix4_identity(&basis);
@@ -136,10 +136,10 @@ TEST(wow_renderer, placement_preserves_native_geometry) {
         basis.v[4] = 0; basis.v[5] = 0; basis.v[6] = 1;
         basis.v[8] = 1; basis.v[9] = 0; basis.v[10] = 0;
         Matrix4_multiply(&old, &basis, &tmp); old = tmp;
-        Matrix4_rotate(&old, &(vector3_t){ 0, place.rot.y - 270, 0 }, ROTATE_XYZ);
-        Matrix4_rotate(&old, &(vector3_t){ 0, 0, -place.rot.x }, ROTATE_XYZ);
-        Matrix4_rotate(&old, &(vector3_t){ place.rot.z - 90, 0, 0 }, ROTATE_XYZ);
-        Matrix4_scale(&old, &(vector3_t){ scale, scale, scale });
+        Matrix4_rotate(&old, &(vec3_t){ 0, place.rot.y - 270, 0 }, ROTATE_XYZ);
+        Matrix4_rotate(&old, &(vec3_t){ 0, 0, -place.rot.x }, ROTATE_XYZ);
+        Matrix4_rotate(&old, &(vec3_t){ place.rot.z - 90, 0, 0 }, ROTATE_XYZ);
+        Matrix4_scale(&old, &(vec3_t){ scale, scale, scale });
         Wow_PlacementMatrix(&place, &matrix);
         FOR_LOOP(k, 16) T_FEQ(matrix.v[k], old.v[k], 0.0001f);
     }
@@ -147,7 +147,7 @@ TEST(wow_renderer, placement_preserves_native_geometry) {
 
 /* Shadow culling rejects outside bounds while RDF_NOFRUSTUMCULL's caller path preserves them. */
 TEST(wow_renderer, shadow_bounds_honor_frustum_and_override) {
-    matrix4_t identity;
+    mat4_t identity;
     frustum3_t frustum;
     box3_t inside = { .min = { -0.5f, -0.5f, -0.5f }, .max = { 0.5f, 0.5f, 0.5f } };
     box3_t outside = { .min = { 2.0f, 2.0f, 2.0f }, .max = { 3.0f, 3.0f, 3.0f } };
@@ -184,9 +184,9 @@ TEST(wow_m2, zero_particle_curve_stays_zero) {
 }
 
 TEST(wow_m2, particle_ranges_spread_an_upward_vector) {
-    vector3_t straight = m2_particle_direction(0.0f, 2.0f * (float)M_PI, (vector2_t){ 1.0f, -1.0f });
-    vector3_t spread = m2_particle_direction(0.5f, 2.0f * (float)M_PI, (vector2_t){ 1.0f, -0.5f });
-    vector3_t torch = m2_particle_direction(0.08726646f, 2.0f * (float)M_PI, (vector2_t){ 1.0f, 1.0f });
+    vec3_t straight = m2_particle_direction(0.0f, 2.0f * (float)M_PI, (vec2_t){ 1.0f, -1.0f });
+    vec3_t spread = m2_particle_direction(0.5f, 2.0f * (float)M_PI, (vec2_t){ 1.0f, -0.5f });
+    vec3_t torch = m2_particle_direction(0.08726646f, 2.0f * (float)M_PI, (vec2_t){ 1.0f, 1.0f });
 
     T_ASSERT(fabsf(straight.x) < 0.0001f);
     T_ASSERT(fabsf(straight.y) < 0.0001f);
@@ -491,10 +491,10 @@ TEST(wow_appearance, wow_entity_delta_preserves_mounted_flag) {
 }
 
 TEST(wow_renderer, source_coordinate_adapters) {
-    vector3_t point = Wow_ObjectPosition(17000, 42, 16900);
+    vec3_t point = Wow_ObjectPosition(17000, 42, 16900);
     T_FEQ(point.x, 32 * WOW_ADT_SIZE - 16900, 0.001f);
     T_FEQ(point.y, 32 * WOW_ADT_SIZE - 17000, 0.001f); T_FEQ(point.z, 42, 0.0001f);
-    vector3_t offset = Wow_TerrainOffset(2, 3, 4), normal = Wow_TerrainNormal((vector3_t){0.2f, 0.3f, 0.4f});
+    vec3_t offset = Wow_TerrainOffset(2, 3, 4), normal = Wow_TerrainNormal((vec3_t){0.2f, 0.3f, 0.4f});
     T_FEQ(offset.x, -2, 0.0001f); T_FEQ(offset.y, -3, 0.0001f); T_FEQ(offset.z, 4, 0.0001f);
     T_FEQ(normal.x, -0.3f, 0.0001f); T_FEQ(normal.y, -0.2f, 0.0001f); T_FEQ(normal.z, 0.4f, 0.0001f);
     T_EQ(Wow_TileIndex(0), 32); T_EQ(Wow_TileIndex(0.5f), 31); T_EQ(Wow_TileIndex(-0.5f), 32);

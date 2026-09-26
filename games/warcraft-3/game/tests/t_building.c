@@ -10,7 +10,7 @@ void setup_test_pathmap(uint32_t width, uint32_t height, uint8_t const *cells);
 void repair_build_primary(edict_t *ent, edict_t *building);
 void repair_build_legacy(edict_t *ent, edict_t *building);
 void build_build(edict_t *ent);
-bool build_menu_send_builder(edict_t *clent, vector2_t const *location);
+bool build_menu_send_builder(edict_t *clent, vec2_t const *location);
 void build_menu_selectlocation(edict_t *ent, uint32_t building_id);
 slkTestData_t *parse_slk_string(char const *slk_text);
 void free_slk_rows(slkTestData_t *rows);
@@ -1889,8 +1889,8 @@ TEST(wc3_building, placement_accepts_open_ground_rejects_live_unit_and_map_edge)
     edict_t *worker;
     edict_t *blocker;
     UnitAbilities_t abilities = { .abilList = "Arep" };
-    vector2_t requested = { 64.0f, 64.0f };
-    vector2_t snapped;
+    vec2_t requested = { 64.0f, 64.0f };
+    vec2_t snapped;
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
 
     setup_test_world();
@@ -1913,7 +1913,7 @@ TEST(wc3_building, placement_accepts_open_ground_rejects_live_unit_and_map_edge)
     blocker->collision = 16.0f;
     T_EQ(G_EvaluateBuildPlacement(builder, barracks, &requested, &snapped), PLACE_UNIT_BLOCKED);
 
-    requested = (vector2_t){ 100000.0f, 100000.0f };
+    requested = (vec2_t){ 100000.0f, 100000.0f };
     T_EQ(G_EvaluateBuildPlacement(builder, barracks, &requested, &snapped), PLACE_OUT_OF_BOUNDS);
 }
 
@@ -1921,8 +1921,8 @@ TEST(wc3_building, gold_return_building_respects_gold_mine_exclusion_radius) {
     edict_t *builder;
     edict_t *mine;
     UnitAbilities_t mine_abilities = { .abilList = "Abgm" };
-    vector2_t requested = { 0.0f, 0.0f };
-    vector2_t snapped;
+    vec2_t requested = { 0.0f, 0.0f };
+    vec2_t snapped;
     uint32_t const gold_return_building = MAKEFOURCC('h','T','S','T');
     uint32_t const ordinary_building = MAKEFOURCC('h','b','a','r');
 
@@ -1966,7 +1966,7 @@ TEST(wc3_building, blight_required_placement_tracks_runtime_blight) {
         "E\n";
     uint32_t const building = MAKEFOURCC('u','B','l','t');
     uint32_t const anti_blight = MAKEFOURCC('u','N','o','B');
-    vector2_t requested = { 32.0f, 32.0f }, snapped;
+    vec2_t requested = { 32.0f, 32.0f }, snapped;
     slkTestData_t *rows;
     slkTestData_t *old;
     edict_t *builder;
@@ -2013,7 +2013,7 @@ TEST(wc3_building, shared_build_order_uses_authoritative_validation) {
     gameClient_t *client = &game.clients[0];
     edict_t *builder;
     UnitProfile_t profile = { .builds = "hbar" };
-    vector2_t point = { 64.0f, 64.0f };
+    vec2_t point = { 64.0f, 64.0f };
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
 
     setup_test_world();
@@ -2040,23 +2040,23 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
     static UnitAbilities_t const abilities = { .abilList = "Arep" };
     static UnitData_t const worker_data = { .moveTypeName = "foot", .race = STR_HUMAN };
     edict_t *farm, *barracks, *townhall;
-    vector2_t const farm_point = { -1360.0f, -4608.0f };
-    vector2_t const barracks_point = { -1744.0f, -3536.0f };
-    vector2_t const townhall_point = { -2208.0f, -4048.0f };
+    vec2_t const farm_point = { -1360.0f, -4608.0f };
+    vec2_t const barracks_point = { -1744.0f, -3536.0f };
+    vec2_t const townhall_point = { -2208.0f, -4048.0f };
     edict_t *workers[3];
     uint32_t const worker_ids[3] = {
         MAKEFOURCC('h','p','e','a'), MAKEFOURCC('h','p','e','a'), MAKEFOURCC('h','p','e','a')
     };
-    vector2_t const starts[3] = {
+    vec2_t const starts[3] = {
         { -3709.839f, -6104.534f },
         { -3814.181f, -6050.230f },
         { -3692.568f, -5993.369f }
     };
-    vector2_t const points[3] = { farm_point, barracks_point, townhall_point };
-    vector2_t const region_min[3] = {
+    vec2_t const points[3] = { farm_point, barracks_point, townhall_point };
+    vec2_t const region_min[3] = {
         { -1440.0f, -4768.0f }, { -1856.0f, -3648.0f }, { -2336.0f, -4192.0f }
     };
-    vector2_t const region_max[3] = {
+    vec2_t const region_max[3] = {
         { -1280.0f, -4448.0f }, { -1632.0f, -3424.0f }, { -2080.0f, -3904.0f }
     };
     uint32_t const buildings[3] = {
@@ -2113,7 +2113,7 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
                  * Retail accepts the order and displaces it when construction
                  * materializes; it is not a placement-time hard blocker. */
                 edict_t *const barracks_goal = workers[1]->goalentity;
-                vector2_t const before_preview = workers[1]->s.origin2;
+                vec2_t const before_preview = workers[1]->s.origin2;
                 workers[1]->s.origin2 = points[i];
                 gi.LinkEntity(workers[1]);
                 T_ASSERT(G_IssueBuildOrder(workers[i], buildings[i], &points[i]));
@@ -2161,7 +2161,7 @@ TEST(wc3_building, construction_blocks_after_site_indicator) {
     size_t const pathtex_size = sizeof(pathTex_t) + sizeof(color32_t);
     edict_t *building;
     pathTex_t *pathtex;
-    vector2_t point = { 0.0f, 0.0f };
+    vec2_t point = { 0.0f, 0.0f };
 
     setup_test_world();
     memset(pathmap, 0, sizeof(pathmap));
@@ -2197,10 +2197,10 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     size_t const pathtex_size = sizeof(pathTex_t) + FOOTPRINT * FOOTPRINT * sizeof(color32_t);
     edict_t *builder, *worker, *building, *waypoint;
     pathTex_t *pathtex;
-    vector2_t const building_point = { 0.0f, 0.0f };
-    vector2_t const worker_start = { 0.0f, -192.0f };
-    vector2_t const later_build = { 0.0f, 512.0f };
-    vector2_t before_displace, after_first_step;
+    vec2_t const building_point = { 0.0f, 0.0f };
+    vec2_t const worker_start = { 0.0f, -192.0f };
+    vec2_t const later_build = { 0.0f, 512.0f };
+    vec2_t before_displace, after_first_step;
     float normal_step;
 
     setup_test_world();
@@ -2266,7 +2266,7 @@ TEST(wc3_building, acolyte_places_haunted_mine_on_off_grid_gold_mine) {
     gameClient_t *client = &game.clients[0];
     edict_t *worker, *mine;
     UnitProfile_t profile = { .builds = "ugol" };
-    vector2_t requested = { 101.0f, 99.0f }, snapped;
+    vec2_t requested = { 101.0f, 99.0f }, snapped;
     uint32_t const haunted = MAKEFOURCC('u','g','o','l');
 
     setup_test_world();
@@ -2291,7 +2291,7 @@ TEST(wc3_building, shared_build_order_releases_builder_from_gold_mine) {
     gameClient_t *client = &game.clients[0];
     edict_t *builder, *mine;
     UnitProfile_t profile = { .builds = "hbar" };
-    vector2_t point = { 64.0f, 64.0f };
+    vec2_t point = { 64.0f, 64.0f };
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
 
     setup_test_world();
@@ -2311,7 +2311,7 @@ TEST(wc3_building, shared_build_order_releases_builder_from_gold_mine) {
 }
 
 TEST(wc3_building, building_snap_without_authored_pathing_uses_32_unit_grid) {
-    vector2_t point = { 47.0f, 79.0f };
+    vec2_t point = { 47.0f, 79.0f };
 
     G_SnapBuildingPoint(MAKEFOURCC('h','p','e','a'), &point);
 
@@ -2501,7 +2501,7 @@ TEST(wc3_building, orc_build_dispatch_hides_peon_with_shared_repair_ability) {
     UnitProfile_t profile = { .builds = "hbar" };
     UnitAbilities_t abilities = { .abilList = "Arep" };
     edict_t *worker, *building = NULL;
-    vector2_t point = { 64.0f, 64.0f };
+    vec2_t point = { 64.0f, 64.0f };
     uint32_t const barracks = MAKEFOURCC('h', 'b', 'a', 'r');
 
     setup_test_world();
@@ -2532,7 +2532,7 @@ TEST(wc3_building, legacy_custom_worker_construction_progresses_from_zero_health
     UnitBalance_t building_balance;
     UnitProfile_t profile = { .builds = "hbar" };
     edict_t *worker, *building;
-    vector2_t point = { 64.0f, 64.0f };
+    vec2_t point = { 64.0f, 64.0f };
     uint32_t const barracks = MAKEFOURCC('h', 'b', 'a', 'r');
 
     setup_test_world();
@@ -2669,8 +2669,8 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
     UnitBalance_t ziggurat_balance;
     edict_t *acolyte, *ziggurat = NULL;
     slkTestData_t *ability_rows, *old_ability, *balance_rows, *old_balance;
-    vector2_t const build_point = { 64.0f, 0.0f };
-    vector2_t const move_point = { -128.0f, 0.0f };
+    vec2_t const build_point = { 64.0f, 0.0f };
+    vec2_t const move_point = { -128.0f, 0.0f };
     uint32_t const acolyte_id = MAKEFOURCC('u', 'a', 'c', 'o');
     uint32_t const ziggurat_id = MAKEFOURCC('u', 'z', 'i', 'g');
 
@@ -2896,7 +2896,7 @@ TEST(wc3_building, replacing_pre_spawn_build_order_clears_project) {
     gameClient_t *client = &game.clients[0];
     edict_t *builder;
     UnitProfile_t profile = { .builds = "hbar" };
-    vector2_t point = { 64.0f, 64.0f };
+    vec2_t point = { 64.0f, 64.0f };
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
 
     setup_test_world();
@@ -3041,7 +3041,7 @@ TEST(wc3_building, cancel_command_cancels_selected_spawned_construction) {
 TEST(wc3_building, dead_building_releases_baked_static_pathing) {
     edict_t *building;
     pathTex_t *pathtex;
-    vector2_t point = { 0.0f, 0.0f };
+    vec2_t point = { 0.0f, 0.0f };
     size_t const pathtex_size = sizeof(*pathtex) + sizeof(color32_t);
 
     setup_test_world();
@@ -3582,7 +3582,7 @@ TEST(wc3_building, repair_order_walks_to_remote_target_without_teleporting) {
     edict_t *worker;
     edict_t *building;
     UnitAbilities_t abilities = { .abilList = "Aren" };
-    vector2_t start;
+    vec2_t start;
     slkTestData_t *rows, *old_abilities;
 
     old_abilities = building_install_repair_data(&rows);
@@ -3855,7 +3855,7 @@ TEST(wc3_building, moving_away_while_repairing_preserves_replacement_goal) {
     UnitAbilities_t abilities = { .abilList = "Aren" };
     ability_t const *repair;
     slkTestData_t *rows, *old_abilities;
-    vector2_t destination = { 512.0f, 0.0f };
+    vec2_t destination = { 512.0f, 0.0f };
 
     old_abilities = building_install_repair_data(&rows);
     setup_test_world();
@@ -4326,7 +4326,7 @@ TEST(wc3_building, scheduler_starts_queued_build_after_current_move_completes) {
     edict_t *clent;
     edict_t *worker = building_begin_barracks_placement(&clent);
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
-    vector2_t const move_target = { 0.0f, 0.0f };
+    vec2_t const move_target = { 0.0f, 0.0f };
     cstring_t build[] = { "point", "512", "64", "queue" };
     edict_t *queued_preview;
     uint32_t queued_spawn_time;
@@ -4367,7 +4367,7 @@ TEST(wc3_building, scheduler_starts_queued_build_after_current_move_completes) {
 TEST(wc3_building, scheduler_discards_queued_build_that_loses_its_resources) {
     edict_t *clent;
     edict_t *worker = building_begin_barracks_placement(&clent);
-    vector2_t const move_target = { 0.0f, 0.0f };
+    vec2_t const move_target = { 0.0f, 0.0f };
     cstring_t build[] = { "point", "512", "64", "queue" };
     edict_t *queued_preview;
     uint32_t queued_spawn_time;
@@ -4406,7 +4406,7 @@ TEST(wc3_building, scheduler_discards_queued_build_that_loses_its_resources) {
 TEST(wc3_building, queued_build_payload_and_indicator_survive_save_load) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-queued-build.bin";
     uint32_t const barracks = MAKEFOURCC('h','b','a','r');
-    vector2_t const point = { 512.0f, 64.0f };
+    vec2_t const point = { 512.0f, 64.0f };
     edict_t *clent;
     edict_t *worker = building_begin_barracks_placement(&clent);
     edict_t *preview = G_CreateBuildPreview(worker, barracks, &point);

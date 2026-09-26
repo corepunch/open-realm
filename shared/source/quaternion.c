@@ -64,7 +64,7 @@ quaternion_t Quaternion_normalized(quaternion_t const *param) {
     return r;
 }
 
-quaternion_t Quaternion_fromMatrix(matrix4_t const *mat) {
+quaternion_t Quaternion_fromMatrix(mat4_t const *mat) {
     quaternion_t r;
 
     // Algorithm in Ken Shoemake's article in 1987 SIGGRAPH course notes
@@ -103,8 +103,8 @@ quaternion_t Quaternion_fromMatrix(matrix4_t const *mat) {
     return Quaternion_normalized(&r);
 }
 
-quaternion_t Quaternion_fromEuler(vector3_t const *euler, ROTATIONORDER order) {
-    matrix4_t tmp;
+quaternion_t Quaternion_fromEuler(vec3_t const *euler, ROTATIONORDER order) {
+    mat4_t tmp;
     Matrix4_identity(&tmp);
     Matrix4_rotate(&tmp, euler, order);
     return Quaternion_fromMatrix(&tmp);

@@ -5,7 +5,7 @@
 
 /* Renderer-derived pose; source/wire Euler fields keep their authored layout. */
 typedef struct {
-    vector3_t origin;
+    vec3_t origin;
     orientation_t angles;
     float scale;
 } modelPose_t;
@@ -40,11 +40,11 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef);
 void R_DrawWorld(void);
 void R_DrawTerrainShadows(void);
 void R_DrawAlphaSurfaces(void);
-bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t *point);
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *point);
 float R_GetHeightAtPoint(float x, float y);
 float R_GetCameraHeightAtPoint(float x, float y);
 bool R_CameraUsesTerrainHeight(void);
-vector2_t R_WorldSize(void);
+vec2_t R_WorldSize(void);
 
 model_t *R_LoadModel(cstring_t modelFilename);
 void R_ReleaseModel(model_t *model);
@@ -56,15 +56,15 @@ bool R_TraceModel(renderEntity_t const *entity, line3_t const *line, float *dist
 bool R_GetEntityBounds(renderEntity_t const *entity, box3_t *bounds);
 bool R_GetModelInfo(model_t *model, modelInfo_t *info);
 /* Mandatory for every game, including identity conversions. Returns native-model -> actor basis. */
-matrix4_t const *R_EntityPose(renderEntity_t const *entity, modelPose_t *pose);
+mat4_t const *R_EntityPose(renderEntity_t const *entity, modelPose_t *pose);
 #ifndef USE_SHADOWMAPS
-bool R_RenderShadow(renderEntity_t const *entity, vector2_t const *origin);
+bool R_RenderShadow(renderEntity_t const *entity, vec2_t const *origin);
 #endif
 /* Selection-circle radius for the shared entity path; per-game tuning (e.g. WoW's fractional-creature clamp). */
 float R_SelectionRadius(renderEntity_t const *entity);
 float R_EntityHeight(renderEntity_t const *entity);
-bool R_EntityOverheadPosition(renderEntity_t const *entity, vector3_t *out);
-bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vector3_t *out);
+bool R_EntityOverheadPosition(renderEntity_t const *entity, vec3_t *out);
+bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vec3_t *out);
 
 bool R_ExtractEntityCamera(renderEntity_t const *entity, float aspect, viewDef_t *viewdef);
 bool R_SetEntityAnimFrame(model_t const *model, cstring_t anim, renderEntity_t *entity);

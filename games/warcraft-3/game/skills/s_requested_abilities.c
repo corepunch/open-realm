@@ -51,7 +51,7 @@ static void toggle_status_execute(edict_t *caster, spellTarget_t st, abilityitem
     unit_addstatus(caster, GetClassName(spell->code), S_SpellLevel(caster, spell->code));
 }
 
-static void radial_damage_status(edict_t *caster, vector2_t point, abilityitem_t const *spell, uint32_t data) {
+static void radial_damage_status(edict_t *caster, vec2_t point, abilityitem_t const *spell, uint32_t data) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     cstring_t buff = spell_buff(spell, level);
@@ -63,7 +63,7 @@ static void radial_damage_status(edict_t *caster, vector2_t point, abilityitem_t
     }
 }
 
-static bool earthquake_hits_destructable(edict_t *target, float radius, vector2_t const *origin) {
+static bool earthquake_hits_destructable(edict_t *target, float radius, vec2_t const *origin) {
     if (!target || !target->inuse || (target->targtype != TARG_TREE && target->targtype != TARG_DEBRIS)) return false;
     if (!G_IsDestructable(target) || target->destructable.dead) return false;
     return Vector2_distance(&target->s.origin2, origin) <= radius;
@@ -75,7 +75,7 @@ float S_EarthquakeMoveReduction(edict_t const *unit) {
     return MIN(1.0f, MAX(0.0f, S_SpellData(ID_EARTHQUAKE, level, 3)));
 }
 
-static edict_t *spell_begin_area_presentation(edict_t *owner, uint32_t code, vector2_t const *point) {
+static edict_t *spell_begin_area_presentation(edict_t *owner, uint32_t code, vec2_t const *point) {
     edict_t *effect;
     int loop_sound;
     G_PlayAbilityEffectSound(code, point);
@@ -324,9 +324,9 @@ void chain_lightning_think(edict_t *thinker) {
             .duration_ms = CHAIN_LIGHTNING_BOLT_MS,
         });
     } else {
-        vector3_t from = { thinker->s.origin2.x, thinker->s.origin2.y,
+        vec3_t from = { thinker->s.origin2.x, thinker->s.origin2.y,
             CM_GetHeightAtPoint(thinker->s.origin2.x, thinker->s.origin2.y) + next->s.radius * 0.5f };
-        vector3_t to = next->s.origin;
+        vec3_t to = next->s.origin;
         uint32_t lightning = G_AbilityLightningId(thinker->class_id, 1);
         to.z += next->s.radius * 0.5f;
         if (lightning) G_LightningAdd(&(lightningAddParams_t){
@@ -433,8 +433,8 @@ static void mass_teleport_track_effect(edict_t *thinker, edict_t *effect) {
     effect->summon_ability = thinker->class_id;
 }
 
-static void mass_teleport_move_unit(edict_t *unit, uint32_t code, vector2_t const *requested) {
-    vector2_t source, position;
+static void mass_teleport_move_unit(edict_t *unit, uint32_t code, vec2_t const *requested) {
+    vec2_t source, position;
 
     if (!unit || !requested) return;
     source = unit->s.origin2;
@@ -456,7 +456,7 @@ void mass_teleport_think(edict_t *thinker) {
     uint32_t now = G_Time(), level, limit, count = 1;
     float area;
     bool cluster;
-    vector2_t src, dst;
+    vec2_t src, dst;
 
     if (!thinker) return;
     if (!S_SpellChannelActive(thinker)) {
@@ -491,8 +491,8 @@ void mass_teleport_think(edict_t *thinker) {
                   unit->s.player == caster->s.player && unit->targtype != TARG_STRUCTURE &&
                   !G_UnitIsBuilding(unit->class_id) &&
                   Vector2_distance(&unit->s.origin2, &src) <= area) {
-        vector2_t offset = Vector2_sub(&unit->s.origin2, &src);
-        vector2_t requested = cluster ? dst : Vector2_add(&dst, &offset);
+        vec2_t offset = Vector2_sub(&unit->s.origin2, &src);
+        vec2_t requested = cluster ? dst : Vector2_add(&dst, &offset);
         mass_teleport_move_unit(unit, thinker->class_id, &requested);
         count++;
     }
@@ -586,14 +586,14 @@ BZ_SIMPLE_SPELL_PROC(AbilityCarrionScarabs) {
  */
 BZ_SIMPLE_SPELL_PROC(AbilityImpale) {
     uint32_t level = S_SpellLevel(caster, spell->code);
-    vector2_t offset = Vector2_sub(&st.point, &caster->s.origin2);
+    vec2_t offset = Vector2_sub(&st.point, &caster->s.origin2);
     float distance = Vector2_distance(&caster->s.origin2, &st.point);
-    vector2_t direction;
+    vec2_t direction;
     cstring_t buff = spell_buff(spell, level);
     if (distance <= 0.0f) return;
     direction = Vector2_scale(&offset, 1.0f / distance);
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(caster, target)) {
-        vector2_t delta = Vector2_sub(&target->s.origin2, &caster->s.origin2);
+        vec2_t delta = Vector2_sub(&target->s.origin2, &caster->s.origin2);
         float along = Vector2_dot(&delta, &direction);
         float across = delta.x * direction.y - delta.y * direction.x;
         if (along < 0.0f || along > S_SpellData(spell->code, level, 1) ||

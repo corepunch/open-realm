@@ -543,7 +543,7 @@ bool UIWow_XMLSetFramePoint(cstring_t name, wowXmlPoint_t const *in) {
 
 /* Reproduce FrameXML's GetHeight + SetHeight sizing before the parent backdrop is drawn. */
 bool UIWow_XMLSizeFrameToText(cstring_t frame, cstring_t text, float padding) {
-    int fi = UIWow_XmlFindByName(frame), ti = UIWow_XmlFindByName(text); rect_t r; font_t const *font; vector2_t sz;
+    int fi = UIWow_XmlFindByName(frame), ti = UIWow_XmlFindByName(text); rect_t r; font_t const *font; vec2_t sz;
     if (fi < 0 || ti < 0 || wow_xml.elems[ti].type != WOW_XML_FONTSTRING || !wow_ui.renderer || !wow_ui.renderer->GetTextSize)
         return false;
     r = UIWow_XmlComputeRect(ti); font = UIWow_LoadFont((uint32_t)wow_xml.elems[ti].font_size);
@@ -969,7 +969,7 @@ static void UIWow_XMLDrawElementLayer(int i, int layer, int hovered_button) {
                 /* When width is unconstrained, measure at full virtual width to get the natural line width.
                    Passing r.w=0 would wrap every character at column 0 and freeze measured.w near zero. */
                 float measure_w = e->size.w > 0 ? r.w : 1.0f;
-                vector2_t sz = wow_ui.renderer->GetTextSize(&MAKE(drawText_t, .font = f, .text = display, .rect = r, .textWidth = measure_w, .lineHeight = 1.33f, .flags = (e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0));
+                vec2_t sz = wow_ui.renderer->GetTextSize(&MAKE(drawText_t, .font = f, .text = display, .rect = r, .textWidth = measure_w, .lineHeight = 1.33f, .flags = (e->flags & EF_WORD_WRAP) ? DRAW_WORD_WRAP : 0));
                 if (e->size.w == 0) e->measured.w = sz.x;
                 if (e->size.h == 0) e->measured.h = sz.y;
                 r = UIWow_XmlComputeRect(i);
@@ -1061,7 +1061,7 @@ static int UIWow_XMLScrollBarParent(int idx) {
 
 
 bool UIWow_XMLMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
-    vector2_t mouse = UIWow_MouseFdf(x, y);
+    vec2_t mouse = UIWow_MouseFdf(x, y);
     float fdf_x = mouse.x, fdf_y = mouse.y;
     int wheel_y = event == MENU_MOUSE_SCROLL ? MENU_MOUSE_PARAM_Y(param) : 0;
     int hit;

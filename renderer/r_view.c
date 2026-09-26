@@ -8,7 +8,7 @@ void R_RenderFrame(viewDef_t const *viewDef) {
     /* Shadows used to darken the fog itself; give their colour blend the same scene fog as terrain. */
     tr.shader_shadowSplat.state.fogEnable = viewDef->fogEnable && !(viewDef->rdflags & RDF_NOWORLDMODEL);
     tr.shader_shadowSplat.state.fogColor = viewDef->fogColor;
-    tr.shader_shadowSplat.state.fogParams = (vector2_t){ viewDef->fogStart, viewDef->fogEnd };
+    tr.shader_shadowSplat.state.fogParams = (vec2_t){ viewDef->fogStart, viewDef->fogEnd };
 
     /* UI scene and portrait callers zero-initialise their viewDef, leaving
      * time == 0, which would freeze model animations (MDLX_SetEntityAnimationFrame

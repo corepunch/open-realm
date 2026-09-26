@@ -51,7 +51,7 @@ TEST(client_canvas, stretch_policy_keeps_the_authored_scene_at_every_aspect) {
     FOR_LOOP(i, sizeof(sizes) / sizeof(sizes[0])) {
         test_client_stubs_set_window_size(sizes[i].width, sizes[i].height);
         uiCanvas_t const *canvas = CL_Canvas();
-        vector2_t corner = SCR_ScreenToUI(sizes[i].width, sizes[i].height);
+        vec2_t corner = SCR_ScreenToUI(sizes[i].width, sizes[i].height);
         T_ASSERT(rect_eq(canvas->scene, MAKE(rect_t, 0, 0, 0.8f, 0.6f)));
         T_ASSERT(rect_eq(SCR_LayoutSceneRect(), canvas->scene));
         T_ASSERT(rect_eq(test_client_stubs_ui_scene(), canvas->scene));
@@ -76,7 +76,7 @@ TEST(client_canvas, expand_center_widens_the_scene_and_centers_the_hud_root) {
     FOR_LOOP(i, sizeof(cases) / sizeof(cases[0])) {
         test_client_stubs_set_window_size(cases[i].size.width, cases[i].size.height);
         uiCanvas_t const *canvas = CL_Canvas();
-        vector2_t middle = SCR_ScreenToUI(cases[i].size.width / 2, cases[i].size.height / 2);
+        vec2_t middle = SCR_ScreenToUI(cases[i].size.width / 2, cases[i].size.height / 2);
         T_ASSERT(rect_eq(canvas->scene, MAKE(rect_t, 0, 0, cases[i].width, 0.6f)));
         T_ASSERT(rect_eq(canvas->root, MAKE(rect_t, cases[i].root_x, 0, 0.8f, 0.6f)));
         T_ASSERT(rect_eq(SCR_LayoutSceneRect(), canvas->root));
@@ -157,13 +157,13 @@ TEST(client_canvas, world_projection_matches_the_pointer_canvas) {
     FOR_LOOP(p, 3) {
         test_client_stubs_set_canvas_policy(policies[p]);
         FOR_LOOP(i, sizeof(sizes) / sizeof(sizes[0])) {
-            vector2_t screen;
+            vec2_t screen;
             test_client_stubs_set_window_size(sizes[i].width, sizes[i].height);
-            T_ASSERT(SCR_ProjectWorldPoint(&MAKE(vector3_t, 0, 0, 0), &screen));
+            T_ASSERT(SCR_ProjectWorldPoint(&MAKE(vec3_t, 0, 0, 0), &screen));
             T_FEQ(screen.x, CL_Canvas()->scene.w * 0.5f, 0.0001f); T_FEQ(screen.y, 0.24f, 0.0001f);
-            T_ASSERT(SCR_ProjectWorldPoint(&MAKE(vector3_t, 1, 0, 0), &screen));
+            T_ASSERT(SCR_ProjectWorldPoint(&MAKE(vec3_t, 1, 0, 0), &screen));
             T_FEQ(screen.x, SCR_ScreenToUI(sizes[i].width, 0).x, 0.0001f);
-            T_ASSERT(!SCR_ProjectWorldPoint(&MAKE(vector3_t, 1.1f, 0, 0), &screen));
+            T_ASSERT(!SCR_ProjectWorldPoint(&MAKE(vec3_t, 1.1f, 0, 0), &screen));
         }
     }
 }

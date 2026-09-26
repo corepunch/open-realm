@@ -704,10 +704,10 @@ static void sc2_init_directional_light(sc2DirectionalLight_t *light) {
     if (!light || light->enabled)
         return;
     light->enabled = true;
-    light->color = (vector3_t){ 1.0f, 1.0f, 1.0f };
+    light->color = (vec3_t){ 1.0f, 1.0f, 1.0f };
     light->color_multiplier = 1.0f;
     light->spec_color_multiplier = 1.0f;
-    light->direction = (vector3_t){ 0.0f, 0.0f, -1.0f };
+    light->direction = (vec3_t){ 0.0f, 0.0f, -1.0f };
 }
 
 static void sc2_parse_light_data_value(xmlNode *node, int light_index, cstring_t name, cstring_t value) {
@@ -803,7 +803,7 @@ static void sc2_parse_cliff_cell_node(xmlNode *node) {
 
 static void sc2_map_try_size_field(cstring_t key, cstring_t value) {
     sc2MapInfo_t *mapInfo = sc2_ensure_mapinfo();
-    vector3_t v;
+    vec3_t v;
     if (!mapInfo || !key || !value || !*value) return;
     if ((sc2_contains_i(key, "width") || sc2_streqi(key, "x")) && atoi(value) > 0)
         mapInfo->width = (uint32_t)atoi(value);
@@ -1105,7 +1105,7 @@ static bool sc2_parse_xml_field(void *base, sc2XmlField_t const *fields, uint32_
                 snprintf(out, field->size, "%s", value);
                 return true;
             case SC2_XML_FIELD_VEC3:
-                return sc2_parse_vec3(value, (vector3_t *)out);
+                return sc2_parse_vec3(value, (vec3_t *)out);
             case SC2_XML_FIELD_COLOR_ARGB:
                 return sc2_parse_argb_color(value, (color32_t *)out);
             case SC2_XML_FIELD_COLOR_RGBA:
@@ -2884,17 +2884,17 @@ box2_t SC2_MapBounds(void) {
     };
 }
 
-vector2_t SC2_MapNormalizedPosition(float x, float y) {
+vec2_t SC2_MapNormalizedPosition(float x, float y) {
     box2_t bounds = SC2_MapBounds();
-    return (vector2_t){
+    return (vec2_t){
         (x - bounds.min.x) / MAX(1.0f, bounds.max.x - bounds.min.x),
         (y - bounds.min.y) / MAX(1.0f, bounds.max.y - bounds.min.y),
     };
 }
 
-vector2_t SC2_MapDenormalizedPosition(float x, float y) {
+vec2_t SC2_MapDenormalizedPosition(float x, float y) {
     box2_t bounds = SC2_MapBounds();
-    return (vector2_t){
+    return (vec2_t){
         bounds.min.x + x * (bounds.max.x - bounds.min.x),
         bounds.min.y + y * (bounds.max.y - bounds.min.y),
     };
@@ -2911,7 +2911,7 @@ bool SC2_MapDefaultCamera(sc2MapCamera_t *camera) {
         return false;
     }
     if (sc2_map.MapInfo.width && sc2_map.MapInfo.height) {
-        value.target = (vector3_t){
+        value.target = (vec3_t){
             sc2_map.origin.x + (float)sc2_map.MapInfo.width * sc2_map.cell_size * 0.5f,
             sc2_map.origin.y + (float)sc2_map.MapInfo.height * sc2_map.cell_size * 0.5f,
             0.0f,

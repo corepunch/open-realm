@@ -77,7 +77,7 @@ TEST(wc3_spell, pocket_factory_aliases_share_procedure) {
 /* Point cast summons the authored UnitID at the point with Dur as BTLF; goblins wait for DataA. */
 TEST(wc3_spell, pocket_factory_cast_creates_owned_factory_and_spawns_on_interval) {
     pfFix_t fix = pf_setup(BZ_ANSY);
-    vector2_t point = { 256, 192 };
+    vec2_t point = { 256, 192 };
     edict_t *factory, *thinker, *first;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
     factory = pf_find(BZ_HFOO); thinker = pf_thinker(factory);
@@ -97,7 +97,7 @@ TEST(wc3_spell, pocket_factory_cast_creates_owned_factory_and_spawns_on_interval
 /* DataC is each Clockwerk's timed life; expiry goes through unit_updatestatuses, not RunFrame. */
 TEST(wc3_spell, pocket_factory_clockwerk_btlf_matches_datac) {
     pfFix_t fix = pf_setup(BZ_ANSY);
-    vector2_t point = { 128, 128 };
+    vec2_t point = { 128, 128 };
     edict_t *goblin;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
     pf_tick(2000); goblin = pf_find(BZ_OGRU); T_NOT_NULL(goblin);
@@ -112,7 +112,7 @@ TEST(wc3_spell, pocket_factory_clockwerk_btlf_matches_datac) {
 /* Freeing the factory invalidates its classless thinker so a later DataA tick cannot spawn. */
 TEST(wc3_spell, pocket_factory_factory_removal_cancels_production) {
     pfFix_t fix = pf_setup(BZ_ANSY);
-    vector2_t point = { 128, 128 };
+    vec2_t point = { 128, 128 };
     edict_t *factory, *thinker;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
     factory = pf_find(BZ_HFOO); thinker = pf_thinker(factory);
@@ -126,7 +126,7 @@ TEST(wc3_spell, pocket_factory_factory_removal_cancels_production) {
 /* ANs1 shares CAbilityPocketFactory but reads its own DataA through abilityitem_t.code. */
 TEST(wc3_spell, pocket_factory_ans1_uses_alias_dataa_interval) {
     pfFix_t fix = pf_setup(BZ_ANS1);
-    vector2_t point = { 64, 64 };
+    vec2_t point = { 64, 64 };
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANS1, &point));
     T_NOT_NULL(pf_find(BZ_HFOO));
     pf_tick(999); T_EQ(pf_count(BZ_OGRU), 0);
@@ -137,7 +137,7 @@ TEST(wc3_spell, pocket_factory_ans1_uses_alias_dataa_interval) {
 /* Thinker allocation failure must roll the factory back instead of leaving an inert summon. */
 TEST(wc3_spell, pocket_factory_thinker_alloc_failure_rolls_back_factory) {
     pfFix_t fix = pf_setup(BZ_ANSY);
-    vector2_t point = { 128, 128 };
+    vec2_t point = { 128, 128 };
     uint32_t max_edicts = globals.max_edicts;
     globals.max_edicts = globals.num_edicts + 1;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
@@ -149,7 +149,7 @@ TEST(wc3_spell, pocket_factory_thinker_alloc_failure_rolls_back_factory) {
 /* DataE leash: a factory-owned Clockwerk past the authored range is ordered home. */
 TEST(wc3_spell, pocket_factory_datae_leash_returns_clockwerk) {
     pfFix_t fix = pf_setup(BZ_ANSY);
-    vector2_t point = { 256, 192 };
+    vec2_t point = { 256, 192 };
     edict_t *factory, *goblin, *thinker;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANSY, &point));
     factory = pf_find(BZ_HFOO); thinker = pf_thinker(factory);

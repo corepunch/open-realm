@@ -262,10 +262,10 @@ static BLEND_MODE m2_particle_blend_mode(uint16_t wow_blend) {
 }
 
 /* M2 stores cone inclination and azimuth ranges in radians around the authored +Z launch axis. */
-static vector3_t m2_particle_direction(float vertical_range, float horizontal_range, vector2_t random) {
+static vec3_t m2_particle_direction(float vertical_range, float horizontal_range, vec2_t random) {
     float phi = (random.x + 1.0f) * 0.5f * MAX(0.0f, vertical_range);
     float theta = random.y * 0.5f * horizontal_range;
-    return (vector3_t){ sinf(phi) * cosf(theta), sinf(phi) * sinf(theta), cosf(phi) };
+    return (vec3_t){ sinf(phi) * cosf(theta), sinf(phi) * sinf(theta), cosf(phi) };
 }
 
 static uint32_t m2_read32(uint8_t const *p) {

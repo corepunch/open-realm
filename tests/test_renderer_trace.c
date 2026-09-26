@@ -15,9 +15,9 @@ bool R_TraceModel(renderEntity_t const *ent, line3_t const *line, float *distanc
 /* Exact snapshot terrain can change while the rendered target stays above a narrow depression. */
 TEST(renderer_view, pan_plane_uses_rendered_target) {
     viewDef_t view = { .viewport = { 0, 0.22f, 1, 0.76f }, .target = { 0, 0, 10 } };
-    matrix4_t proj, camera;
-    vector3_t point, eye = { 0, -10, 20 }, dir = { 0, 10, -10 };
-    Matrix4_lookAt(&camera, &eye, &dir, &(vector3_t){ 0, 0, 1 });
+    mat4_t proj, camera;
+    vec3_t point, eye = { 0, -10, 20 }, dir = { 0, 10, -10 };
+    Matrix4_lookAt(&camera, &eye, &dir, &(vec3_t){ 0, 0, 1 });
     Matrix4_perspective(&proj, 60, 4.0f / 3.0f, 1, 1000);
     Matrix4_multiply(&proj, &camera, &view.viewProjectionMatrix);
     FOR_LOOP(i, 3) {

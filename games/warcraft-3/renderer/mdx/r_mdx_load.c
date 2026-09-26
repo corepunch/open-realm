@@ -184,9 +184,9 @@ void ReadGeoset(sizeBuf_t *buffer, mdxGeoset_t *geoset) {
     uint32_t header;
     while (MSG_Read(buffer, &header, 4)) {
         switch (header) {
-            case ID_VRTX: SFileReadArray2(buffer, geoset, vertices, sizeof(vector3_t)); break;
-            case ID_NRMS: SFileReadArray2(buffer, geoset, normals, sizeof(vector3_t)); break;
-            case ID_UVBS: SFileReadArray2(buffer, geoset, texcoord, sizeof(vector2_t)); break;
+            case ID_VRTX: SFileReadArray2(buffer, geoset, vertices, sizeof(vec3_t)); break;
+            case ID_NRMS: SFileReadArray2(buffer, geoset, normals, sizeof(vec3_t)); break;
+            case ID_UVBS: SFileReadArray2(buffer, geoset, texcoord, sizeof(vec2_t)); break;
             case ID_PTYP: SFileReadArray2(buffer, geoset, primitiveTypes, sizeof(int)); break;
             case ID_PCNT: SFileReadArray2(buffer, geoset, primitiveCounts, sizeof(int)); break;
             case ID_PVTX: SFileReadArray2(buffer, geoset, triangles, sizeof(short)); break;
@@ -314,9 +314,9 @@ void ReadHelper(sizeBuf_t *buffer, mdxHelper_t *helper) {
 void ReadCollisionShape(sizeBuf_t *buffer, mdxCollisionShape_t *cs) {
     ReadNode(buffer, &cs->node, buffer->cursize - buffer->readcount);
     MSG_ReadOverflow(buffer, &cs->type, sizeof(uint32_t));
-    MSG_ReadOverflow(buffer, &cs->vertex[0], sizeof(vector3_t));
+    MSG_ReadOverflow(buffer, &cs->vertex[0], sizeof(vec3_t));
     if (cs->type != SHAPETYPE_SPHERE) {
-        MSG_ReadOverflow(buffer, &cs->vertex[1], sizeof(vector3_t));
+        MSG_ReadOverflow(buffer, &cs->vertex[1], sizeof(vec3_t));
     }
     if ((cs->type == SHAPETYPE_SPHERE) || (cs->type == SHAPETYPE_CYLINDER)) {
         MSG_ReadOverflow(buffer, &cs->radius, sizeof(float));
@@ -415,11 +415,11 @@ void ReadRibbonEmitter(sizeBuf_t *buffer, mdxRibbonEmitter_t *ribbon) {
 void ReadCamera(sizeBuf_t *buffer, mdxCamera_t *camera) {
     uint32_t blockHeader;
     MSG_Read(buffer, &camera->name, sizeof(mdxObjectName_t));
-    MSG_Read(buffer, &camera->pivot, sizeof(vector3_t));
+    MSG_Read(buffer, &camera->pivot, sizeof(vec3_t));
     MSG_Read(buffer, &camera->fieldOfView, sizeof(float));
     MSG_Read(buffer, &camera->farClip, sizeof(float));
     MSG_Read(buffer, &camera->nearClip, sizeof(float));
-    MSG_Read(buffer, &camera->targetPivot, sizeof(vector3_t));
+    MSG_Read(buffer, &camera->targetPivot, sizeof(vec3_t));
     while (MSG_Read(buffer, &blockHeader, 4)) {
         switch (blockHeader) {
             case ID_KCTR: ReadKeyTrack(buffer, TDATA_FLOAT3, &camera->translation); break;
@@ -595,7 +595,7 @@ blockReadCode_t MDLX_ReadGLBS(sizeBuf_t *sb, mdxModel_t *model) {
 }
 
 blockReadCode_t MDLX_ReadPIVT(sizeBuf_t *sb, mdxModel_t *model) {
-    typedef vector3_t mdxVec3_t;
+    typedef vec3_t mdxVec3_t;
     MODEL_READ_ARRAY(sb, Vec3, pivots);
     return BLOCKREAD_OK;
 }
@@ -669,7 +669,7 @@ mdxBounds_t MDX_CalculateBounds(mdxModel_t const *model) {
     mdxBounds_t b = { 0 };
     FOR_EACH_LIST(mdxGeoset_t, geoset, model->geosets) {
         FOR_LOOP(i, geoset->num_vertices) {
-            vector3_t const *vertex = geoset->vertices+i;
+            vec3_t const *vertex = geoset->vertices+i;
             b.box.min.x = MIN(vertex->x, b.box.min.x);
             b.box.min.y = MIN(vertex->y, b.box.min.y);
             b.box.min.z = MIN(vertex->z, b.box.min.z);

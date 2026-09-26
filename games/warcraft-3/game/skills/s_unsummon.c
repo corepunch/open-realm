@@ -37,7 +37,7 @@ static bool unsummon_in_range(edict_t *worker, edict_t *building) {
 }
 
 static bool unsummon_prepare_approach(edict_t *worker, edict_t *building) {
-    vector2_t approach;
+    vec2_t approach;
     float footprint;
     float const route_band = worker ?
         worker->collision + CM_PathCellWorldSize() * 1.41421356237f : 0.0f;

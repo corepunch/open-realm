@@ -166,7 +166,7 @@ static bool Wow_CachedCreatureModel(uint32_t display_id,
 
 static void Wow_MonsterStart(edict_t *ent,
                              uint32_t display_id,
-                             vector2_t const *home,
+                             vec2_t const *home,
                              float yaw,
                              float patrol_radius,
                              float walk_speed) {
@@ -202,7 +202,7 @@ static void Wow_MonsterStart(edict_t *ent,
 }
 
 static edict_t *Wow_SpawnCreature(uint32_t display_id,
-                                 vector2_t const *origin,
+                                 vec2_t const *origin,
                                  float yaw,
                                  float patrol_radius,
                                  float walk_speed) {
@@ -227,7 +227,7 @@ static edict_t *Wow_SpawnCreature(uint32_t display_id,
         fprintf(stderr, "WoW creature display %u skipped: model %s could not be indexed\n", (unsigned)display_id, model_path);
         return NULL;
     }
-    ent->s.origin = (vector3_t){ origin->x, origin->y, Wow_TerrainHeight(origin->x, origin->y) };
+    ent->s.origin = (vec3_t){ origin->x, origin->y, Wow_TerrainHeight(origin->x, origin->y) };
     ent->s.origin2 = *origin;
     ent->s.scale = scale;
     ent->s.radius = radius;
@@ -246,7 +246,7 @@ static int Wow_CmpGiverDist(void const *a, void const *b) {
 
 /* Spawn non-hostile quest NPCs and server-side objective anchors from the
  * imported world database, limited to the player's nearby starting area. */
-void Wow_SpawnQuestLocations(vector2_t const *origin) {
+void Wow_SpawnQuestLocations(vec2_t const *origin) {
     uint32_t givers = 0;
     uint32_t objectives = 0;
     uint32_t budget = WOW_QUEST_LOCATION_BUDGET;
@@ -262,8 +262,8 @@ void Wow_SpawnQuestLocations(vector2_t const *origin) {
      * givers; table order (quest_id) is irrelevant to spawn priority. */
     FOR_LOOP(i, Wow_QuestGiverCount()) {
         wowQuestGiver_t const *data = Wow_QuestGiver(i);
-        vector2_t pos = { data->position.x, data->position.y };
-        vector2_t delta = Vector2_sub(&pos, origin);
+        vec2_t pos = { data->position.x, data->position.y };
+        vec2_t delta = Vector2_sub(&pos, origin);
         float dist2 = delta.x * delta.x + delta.y * delta.y;
         if (dist2 <= spawn_radius2 && nsorted < sizeof(sorted) / sizeof(*sorted)) {
             sorted[nsorted].dist2 = dist2;
@@ -281,7 +281,7 @@ void Wow_SpawnQuestLocations(vector2_t const *origin) {
         PATHSTR model_path;
         float scale = 1.0f;
         float radius = 1.0f;
-        vector2_t position;
+        vec2_t position;
         edict_t *ent;
         wowEntityLocal_t *local;
         bool duplicate = false;
@@ -298,7 +298,7 @@ void Wow_SpawnQuestLocations(vector2_t const *origin) {
         }
         if (data->display_id != creature_model->display_id)
             fprintf(stderr, "WoW: quest giver creature %u display %u disagrees with primary model %u\n", (unsigned)data->creature_entry, (unsigned)data->display_id, (unsigned)creature_model->display_id);
-        position = (vector2_t){ data->position.x, data->position.y };
+        position = (vec2_t){ data->position.x, data->position.y };
         if (!Wow_CachedCreatureModel(creature_model->display_id, model_path, sizeof(model_path), &scale, &radius))
             continue;
         ent = Wow_Spawn();
@@ -338,8 +338,8 @@ void Wow_SpawnQuestLocations(vector2_t const *origin) {
 
     FOR_LOOP(i, Wow_QuestObjectiveCount()) {
         wowQuestObjective_t const *data = Wow_QuestObjective(i);
-        vector2_t position = data->position;
-        vector2_t delta = Vector2_sub(&position, origin);
+        vec2_t position = data->position;
+        vec2_t delta = Vector2_sub(&position, origin);
         edict_t *ent;
         wowEntityLocal_t *local;
 
@@ -355,7 +355,7 @@ void Wow_SpawnQuestLocations(vector2_t const *origin) {
         local->go_type = WOW_QUEST_OBJECTIVE_ANCHOR;
         local->go_state = 0;
         local->think = Wow_RunGameObjectFrame;
-        ent->s.origin = (vector3_t){ position.x, position.y, Wow_TerrainHeight(position.x, position.y) };
+        ent->s.origin = (vec3_t){ position.x, position.y, Wow_TerrainHeight(position.x, position.y) };
         ent->s.origin2 = position;
         ent->s.radius = 1.0f;
         ent->s.flags = EF_GROUND_ANCHOR;
@@ -366,8 +366,8 @@ void Wow_SpawnQuestLocations(vector2_t const *origin) {
     fprintf(stderr, "WoW: spawned %u quest givers and %u objective anchors\n", (unsigned)givers, (unsigned)objectives);
 }
 
-void Wow_SpawnAmbientCreatures(vector2_t const *origin) {
-    vector2_t creature_origin;
+void Wow_SpawnAmbientCreatures(vec2_t const *origin) {
+    vec2_t creature_origin;
     uint32_t spawned = 0;
 
     if (!origin) {
@@ -385,7 +385,7 @@ void Wow_SpawnAmbientCreatures(vector2_t const *origin) {
         float const radius = type->min_radius + (float)((i / type_count) * 5) + (float)((i % 3) * 2);
         float const patrol_radius = type->walk_speed > 0.0f ? 2.5f + (float)(i % 5) : 0.0f;
 
-        creature_origin = (vector2_t){
+        creature_origin = (vec2_t){
             origin->x + cosf(angle) * radius,
             origin->y + sinf(angle) * radius,
         };

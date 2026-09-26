@@ -39,10 +39,10 @@ void InsertLinkBefore (link_t *l, link_t *before) {
     l->next->prev = l;
 }
 
-areaNode_t *SV_CreateAreaNode(uint32_t depth, vector2_t const *mins, vector2_t const *maxs) {
+areaNode_t *SV_CreateAreaNode(uint32_t depth, vec2_t const *mins, vec2_t const *maxs) {
     areaNode_t *anode = &sv_areanodes[sv_numareanodes++];
-    vector2_t size = Vector2_sub(maxs, mins);
-    vector2_t mins1 = *mins, mins2 = *mins, maxs1 = *maxs, maxs2 = *maxs;
+    vec2_t size = Vector2_sub(maxs, mins);
+    vec2_t mins1 = *mins, mins2 = *mins, maxs1 = *maxs, maxs2 = *maxs;
 
     ClearLink (&anode->solid_edicts);
  
@@ -90,8 +90,8 @@ void SV_LinkEntity(edict_t *ent) {
     if (!ent->inuse)
         return;
 
-    vector2_t const size = { ent->collision, ent->collision };
-    vector2_t const eps = { 1, 1 };
+    vec2_t const size = { ent->collision, ent->collision };
+    vec2_t const eps = { 1, 1 };
     
     ent->areanum = 0;
     ent->bounds.min = Vector2_sub(&ent->s.origin2, &size);

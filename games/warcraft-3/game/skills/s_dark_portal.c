@@ -11,9 +11,9 @@ static uint32_t dark_portal_count(uint32_t code, uint32_t level) {
 }
 
 /* Permanent campaign troop: food/stand/summon events, but no owner/BTLF mark. */
-static edict_t *dark_portal_spawn(edict_t *caster, uint32_t unit_id, vector2_t const *loc) {
+static edict_t *dark_portal_spawn(edict_t *caster, uint32_t unit_id, vec2_t const *loc) {
     edict_t *troop;
-    vector2_t spot;
+    vec2_t spot;
     float angle = 0.0f;
     if (!caster || !unit_id || !loc) return NULL;
     spot = *loc;

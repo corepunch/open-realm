@@ -110,7 +110,7 @@ typedef struct {
     uint32_t quest_id;
     uint32_t creature_entry;
     uint32_t display_id;
-    vector3_t position;
+    vec3_t position;
     float orientation;
 } wowQuestGiver_t;
 
@@ -149,7 +149,7 @@ typedef struct {
 
 typedef struct {
     uint32_t quest_id;
-    vector2_t position;
+    vec2_t position;
 } wowQuestObjective_t;
 
 #define WOW_QUEST_MAX_OBJECTIVE_TEXT 4
@@ -190,7 +190,7 @@ static bool Wow_QuestGiverSame(wowQuestGiver_t const *a, wowQuestGiver_t const *
 
 uint32_t Wow_QuestGiverCount(void);
 wowQuestGiver_t const *Wow_QuestGiver(uint32_t index);
-uint32_t Wow_QuestGiverGroup(uint32_t quest_id, vector2_t const *position);
+uint32_t Wow_QuestGiverGroup(uint32_t quest_id, vec2_t const *position);
 uint32_t Wow_QuestGiverGroupCount(uint32_t group);
 wowQuestGiver_t const *Wow_QuestGiverInGroup(uint32_t group, uint32_t index);
 uint32_t Wow_QuestObjectiveCount(void);
@@ -271,7 +271,7 @@ typedef struct {
     uint32_t display_id;
     animation_t const *animation;
     wowMove_t *currentmove;
-    vector2_t home;
+    vec2_t home;
     float yaw;
     float patrol_radius;
     float patrol_phase;
@@ -296,7 +296,7 @@ typedef struct {
     uint32_t cast_duration;     /* total cast duration (ms) */
     uint32_t cast_remaining;    /* ms remaining until cast completes */
     uint32_t cast_target;       /* entity number of target */
-    vector2_t cast_origin;     /* XY position when cast began (movement cancels) */
+    vec2_t cast_origin;     /* XY position when cast began (movement cancels) */
     uint32_t cast_release_time; /* ms remaining in the post-launch release animation */
     uint32_t gcd_time;          /* ms remaining on global cooldown */
     uint32_t selected_action_slot;  /* highlighted action bar slot (0-11, 255=none) */
@@ -402,7 +402,7 @@ void         G_FreeModels(void);
 float Wow_Clamp(float value, float min_value, float max_value);
 float Wow_TerrainHeight(float x, float y);
 float Wow_FloorHeight(float x, float y, float z);
-bool Wow_TerrainMoveWalkable(vector3_t const *from, vector3_t const *to, float terrain);
+bool Wow_TerrainMoveWalkable(vec3_t const *from, vec3_t const *to, float terrain);
 uint32_t Wow_EntityIndex(edict_t const *ent);
 wowEntityLocal_t *Wow_EntityLocal(edict_t const *ent);
 animation_t const *Wow_SetEntityAnimation(edict_t *ent, cstring_t animation_name);
@@ -425,15 +425,15 @@ bool Wow_SetWalkMove(edict_t *ent);
 bool Wow_SetDirectionalMove(edict_t *ent, uint32_t flags);
 bool Wow_SetCombatReadyAnimation(edict_t *ent);
 void Wow_AIRunFrame(edict_t *ent);
-void Wow_SpawnAmbientCreatures(vector2_t const *origin);
-void Wow_SpawnQuestLocations(vector2_t const *origin);
+void Wow_SpawnAmbientCreatures(vec2_t const *origin);
+void Wow_SpawnQuestLocations(vec2_t const *origin);
 void Wow_RunCreatureFrame(edict_t *ent);
-void Wow_SpawnGameObjects(vector2_t const *origin);
+void Wow_SpawnGameObjects(vec2_t const *origin);
 void WowGo_SetDoodadTransform(wowDoodadDef_t const *def, entityState_t *state);
 void Wow_RunGameObjectFrame(edict_t *ent);
 void Wow_RunCorpseFrame(edict_t *ent);
 void Wow_RunDynamicObjectFrame(edict_t *ent);
-edict_t *Wow_SpawnDynamicObject(uint32_t spell_id, vector2_t const *origin, uint32_t duration);
+edict_t *Wow_SpawnDynamicObject(uint32_t spell_id, vec2_t const *origin, uint32_t duration);
 edict_t *Wow_SpawnCorpse(edict_t *dead_entity);
 cstring_t Wow_CachedCreatureName(uint32_t display_id);
 uint32_t Wow_CachedCreatureType(uint32_t display_id);
@@ -464,7 +464,7 @@ uint32_t           Wow_SpawnCount(void);
 wowSpawnPoint_t const *Wow_SpawnByIndex(uint32_t index);
 uint32_t           Wow_SelectSpawnPoint(cstring_t race, uint32_t class_id);
 uint32_t           Wow_PlayerCreateMap(cstring_t race, uint32_t class_id);
-vector3_t const *Wow_GetSpawnPos(uint32_t idx);
+vec3_t const *Wow_GetSpawnPos(uint32_t idx);
 bool            Wow_HasSpawnForMap(uint32_t map_id); /* true if ANY race spawns on map_id */
 /* g_wow.c — loot system */
 void   Wow_RollLoot(edict_t *ent);

@@ -55,7 +55,7 @@ void SV_WritePayload(sizeBuf_t *msg, uint8_t opcode, sizeBuf_t const *payload) {
     SZ_Write(msg, payload->data, payload->cursize);
 }
 
-void SV_Multicast(vector3_t const *origin, multicast_t to) {
+void SV_Multicast(vec3_t const *origin, multicast_t to) {
     FOR_LOOP(i, svs.num_clients) {
         client_t *client = &svs.clients[i];
         SZ_Write(&client->netchan.message, sv.multicast.data, sv.multicast.cursize);
@@ -97,11 +97,11 @@ client_t *SV_ClientForEntityRecipient(edict_t *ent) {
 
 /* Encode one Quake 2-compatible sound event and deliver it to the selected
  * recipients.  CHAN_OWNER is a delivery policy and never crosses the wire. */
-void SV_StartSoundPolicy(vector3_t const *origin, edict_t *ent, int channel, int sound_index, float volume,
+void SV_StartSoundPolicy(vec3_t const *origin, edict_t *ent, int channel, int sound_index, float volume,
                    float attenuation, float timeofs, soundPolicy_t const *policy) {
     uint32_t flags = 0, ent_num = 0;
-    vector3_t ent_origin;
-    vector3_t const *pos = origin;
+    vec3_t ent_origin;
+    vec3_t const *pos = origin;
     bool owner_only = channel & CHAN_OWNER;
     bool reliable = channel & CHAN_RELIABLE;
     uint8_t *data;
@@ -166,7 +166,7 @@ void SV_StartSoundPolicy(vector3_t const *origin, edict_t *ent, int channel, int
     SZ_Clear(&sv.multicast);
 }
 
-void SV_StartSound(vector3_t const *origin, edict_t *ent, int channel, int sound_index, float volume,
+void SV_StartSound(vec3_t const *origin, edict_t *ent, int channel, int sound_index, float volume,
                    float attenuation, float timeofs) {
     SV_StartSoundPolicy(origin, ent, channel, sound_index, volume, attenuation, timeofs, NULL);
 }

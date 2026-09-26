@@ -112,7 +112,7 @@ static bool militia_in_range(edict_t *worker, edict_t *hall) {
 
 static bool militia_prepare_approach(edict_t *worker, edict_t *hall) {
     uint32_t const hall_ability = militia_hall_ability_alias(hall, false);
-    vector2_t approach;
+    vec2_t approach;
     float range;
 
     if (!worker || !hall || !hall_ability) return false;

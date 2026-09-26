@@ -105,7 +105,7 @@ TEST(wc3_spell, ensnare_ground_bens_blocks_move) {
     T_ASSERT(!(fix.ground->aiflags & AI_FLYING));
     T_FEQ(fix.ground->unitinfo.FlyHeight, 0, 0.001f);
 
-    wp = Waypoint_add(&(vector2_t){200, 0});
+    wp = Waypoint_add(&(vec2_t){200, 0});
     fix.ground->goalentity = NULL;
     order_move(fix.ground, wp);
     T_ASSERT(fix.ground->goalentity != wp);
@@ -127,7 +127,7 @@ TEST(wc3_spell, ensnare_flyer_lands_and_locks) {
     T_FEQ(fix.flyer->unitinfo.FlyHeight, 0, 0.001f);
     T_ASSERT(fix.flyer->s.origin.z < 179.0f);
 
-    wp = Waypoint_add(&(vector2_t){240, 0});
+    wp = Waypoint_add(&(vec2_t){240, 0});
     fix.flyer->goalentity = NULL;
     order_move(fix.flyer, wp);
     T_ASSERT(fix.flyer->goalentity != wp);
@@ -159,7 +159,7 @@ TEST(wc3_spell, ensnare_expiry_restores_flyer) {
     T_ASSERT(fix.flyer->aiflags & AI_FLYING);
     T_FEQ(fix.flyer->unitinfo.FlyHeight, 180, 0.001f);
 
-    wp = Waypoint_add(&(vector2_t){280, 0});
+    wp = Waypoint_add(&(vec2_t){280, 0});
     order_move(fix.flyer, wp);
     T_ASSERT(fix.flyer->goalentity == wp);
     ens_done(fix);
@@ -183,7 +183,7 @@ TEST(wc3_spell, ensnare_roc_empty_buffid_and_recast) {
     fix.caster->mana.value = 100;
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.ground));
     T_EQ(G_UnitStatusLevel(fix.ground, BZ_BENS), 1);
-    wp = Waypoint_add(&(vector2_t){300, 0});
+    wp = Waypoint_add(&(vec2_t){300, 0});
     order_move(fix.ground, wp);
     T_ASSERT(fix.ground->goalentity != wp);
     ens_done(fix);
@@ -283,7 +283,7 @@ TEST(wc3_spell, ensnare_expiry_restores_attack_and_move_orders) {
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_AENS, fix.flyer));
     level.time += 7000; unit_updatestatuses(fix.flyer);
     T_ASSERT(!S_UnitIsEnsnared(fix.flyer));
-    wp = Waypoint_add(&(vector2_t){280, 0});
+    wp = Waypoint_add(&(vec2_t){280, 0});
     fix.flyer->goalentity = NULL;
     order_move(fix.flyer, wp);
     T_ASSERT(fix.flyer->goalentity == wp);

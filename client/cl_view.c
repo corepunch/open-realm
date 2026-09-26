@@ -51,7 +51,7 @@ static void V_UpdateSceneFog(viewDef_t *view, bool world) {
     if (!view) return;
     view->fogEnable = false;
     view->fogStart = view->fogEnd = 0.0f;
-    view->fogColor = (vector3_t){0};
+    view->fogColor = (vec3_t){0};
     if (!world || !*cl.configstrings[CS_SCENE_FOG]) {
         invalid_logged = false;
         return;
@@ -69,7 +69,7 @@ static void V_UpdateSceneFog(viewDef_t *view, bool world) {
     view->fogEnable = true;
     view->fogStart = start;
     view->fogEnd = end;
-    view->fogColor = (vector3_t){ red, green, blue };
+    view->fogColor = (vec3_t){ red, green, blue };
 }
 
 /* Client copies sampling inputs and the day-phase stat. The game renderer
@@ -94,7 +94,7 @@ static void V_UpdateEnvironmentLighting(viewDef_t *view, bool world) {
         (float)cl.playerstate.stats[UI_PLAYERSTAT_ENV_PHASE] / (float)USHRT_MAX;
 }
 
-vector3_t lightAngles = {-40,0,60};
+vec3_t lightAngles = {-40,0,60};
 
 /* A reconnect receives a fresh configstring table; reset only the refresh
  * lifecycle flags so CL_PrepRefresh performs one registration pass. */
@@ -127,63 +127,63 @@ static void CL_SendBegin(void) {
     MSG_WriteString(&cls.netchan.message, "begin");
 }
 
-static void Matrix4_fromViewAngles(vector3_t const *target, vector3_t const *angles, float distance, matrix4_t *output) {
-    vector3_t const vieworg = Vector3_unm(target);
+static void Matrix4_fromViewAngles(vec3_t const *target, vec3_t const *angles, float distance, mat4_t *output) {
+    vec3_t const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
-    Matrix4_translate(output, &(vector3_t){0, 0, -distance});
+    Matrix4_translate(output, &(vec3_t){0, 0, -distance});
     Matrix4_rotate(output, angles, ROTATE_ZYX);
     Matrix4_translate(output, &vieworg);
 }
 
-void Matrix4_fromViewQuat(vector3_t const *target, quaternion_t const *quat, float distance, matrix4_t *output) {
-    vector3_t const vieworg = Vector3_unm(target);
+void Matrix4_fromViewQuat(vec3_t const *target, quaternion_t const *quat, float distance, mat4_t *output) {
+    vec3_t const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
-    Matrix4_translate(output, &(vector3_t){0, 0, -distance});
+    Matrix4_translate(output, &(vec3_t){0, 0, -distance});
     Matrix4_rotateQuat(output, quat);
     Matrix4_translate(output, &vieworg);
 }
 
-static void Matrix4_getLightMatrix(vector3_t const *sunangles, float scale, matrix4_t *output) {
-    matrix4_t proj, view, tmp1, tmp2;
-    vector3_t const target = cl.viewDef.target;
+static void Matrix4_getLightMatrix(vec3_t const *sunangles, float scale, mat4_t *output) {
+    mat4_t proj, view, tmp1, tmp2;
+    vec3_t const target = cl.viewDef.target;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0, 3000.0);
     Matrix4_identity(&tmp1);
-    Matrix4_rotate(&tmp1, &(vector3_t){0,0,45}, ROTATE_XYZ);
+    Matrix4_rotate(&tmp1, &(vec3_t){0,0,45}, ROTATE_XYZ);
     Matrix4_fromViewAngles(&target, sunangles, 1000, &tmp2);
     Matrix4_multiply(&tmp1, &tmp2, &view);
-    Matrix4_translate(&view, &(vector3_t){0,-500,0});
+    Matrix4_translate(&view, &(vec3_t){0,-500,0});
     Matrix4_multiply(&proj, &view, output);
 }
 
-static void Matrix4_getPreviewCameraMatrix(vector3_t const *target, matrix4_t *output) {
-    matrix4_t proj, view;
+static void Matrix4_getPreviewCameraMatrix(vec3_t const *target, mat4_t *output) {
+    mat4_t proj, view;
     size2_t windowSize = re.GetWindowSize();
-    vector3_t eye = { 520.0f, -420.0f, 220.0f };
-    vector3_t dir = Vector3_sub(target, &eye);
+    vec3_t eye = { 520.0f, -420.0f, 220.0f };
+    vec3_t dir = Vector3_sub(target, &eye);
     float aspect = (float)windowSize.width / (float)windowSize.height;
 
     Matrix4_perspective(&proj, 35.0f, aspect, 10.0f, 4000.0f);
-    Matrix4_lookAt(&view, &eye, &dir, &(vector3_t){0, 0, 1});
+    Matrix4_lookAt(&view, &eye, &dir, &(vec3_t){0, 0, 1});
     Matrix4_multiply(&proj, &view, output);
 }
 
-static void Matrix4_getPreviewLightMatrix(vector3_t const *sunangles, vector3_t const *target, float scale, matrix4_t *output) {
-    matrix4_t proj, view;
+static void Matrix4_getPreviewLightMatrix(vec3_t const *sunangles, vec3_t const *target, float scale, mat4_t *output) {
+    mat4_t proj, view;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, -1000.0, 3000.0);
     Matrix4_fromViewAngles(target, sunangles, 1000, &view);
     Matrix4_multiply(&proj, &view, output);
 }
 
-void Matrix4_getCameraMatrix(matrix4_t *output) {
+void Matrix4_getCameraMatrix(mat4_t *output) {
     if (!world_loaded) {
         Matrix4_identity(output);
         return;
     }
-    matrix4_t proj, view, inverse;
+    mat4_t proj, view, inverse;
     size2_t windowSize = re.GetWindowSize();
     viewCamera_t *a = cl.viewDef.camerastate+1;
     viewCamera_t *b = cl.viewDef.camerastate+0;
-    vector3_t origin = Vector3_lerp(&a->origin, &b->origin, cl.viewDef.lerpfrac);
+    vec3_t origin = Vector3_lerp(&a->origin, &b->origin, cl.viewDef.lerpfrac);
     if (re.CameraUsesTerrainHeight()) {
         float az = a->origin.z - re.GetHeightAtPoint(a->origin.x, a->origin.y);
         float bz = b->origin.z - re.GetHeightAtPoint(b->origin.x, b->origin.y);
@@ -207,11 +207,11 @@ void Matrix4_getCameraMatrix(matrix4_t *output) {
     Matrix4_perspective(&proj, fov, aspect, znear, zfar);
     Matrix4_fromViewQuat(&origin, &quat, distance, &view);
     Matrix4_inverse(&view, &inverse);
-    cl.viewDef.camerastate[0].eye = (vector3_t){ inverse.v[12], inverse.v[13], inverse.v[14] };
+    cl.viewDef.camerastate[0].eye = (vec3_t){ inverse.v[12], inverse.v[13], inverse.v[14] };
     /* Some game cameras orbit a target and require a world-up basis to keep low shots upright. */
     if (distance > 0.0f && CL_GameCameraUsesWorldUp()) {
-        vector3_t direction = Vector3_sub(&origin, &cl.viewDef.camerastate[0].eye);
-        Matrix4_lookAt(&view, &cl.viewDef.camerastate[0].eye, &direction, &(vector3_t){0, 0, 1});
+        vec3_t direction = Vector3_sub(&origin, &cl.viewDef.camerastate[0].eye);
+        Matrix4_lookAt(&view, &cl.viewDef.camerastate[0].eye, &direction, &(vec3_t){0, 0, 1});
     }
     Matrix4_multiply(&proj, &view, output);
 }
@@ -358,7 +358,7 @@ static bool CL_CircleOverlapsSplatRect(entityState_t const *state, renderSplatRe
     return dx * dx + dy * dy < state->collision * state->collision;
 }
 
-static void CL_AddBuildingPlacementGrid(vector3_t const *origin) {
+static void CL_AddBuildingPlacementGrid(vec3_t const *origin) {
     uint32_t const width = cl.cursorEntity->pathing_width;
     uint32_t const height = cl.cursorEntity->pathing_height;
     uint32_t const preview = cl.cursorEntity->pathing_preview;
@@ -382,7 +382,7 @@ static void CL_AddBuildingPlacementGrid(vector3_t const *origin) {
     FOR_LOOP(x, width) {
         FOR_LOOP(y, height) {
             renderSplatRect_t rect;
-            vector2_t sample;
+            vec2_t sample;
             uint8_t pathing = 0;
             bool blocked;
 
@@ -390,7 +390,7 @@ static void CL_AddBuildingPlacementGrid(vector3_t const *origin) {
             rect.mins.y = origin->y - half_height + y * cell_size;
             rect.maxs.x = rect.mins.x + cell_size;
             rect.maxs.y = rect.mins.y + cell_size;
-            sample = (vector2_t){
+            sample = (vec2_t){
                 (rect.mins.x + rect.maxs.x) * 0.5f,
                 (rect.mins.y + rect.maxs.y) * 0.5f,
             };
@@ -487,7 +487,7 @@ static void CL_AddBuilding(void) {
 
 static void CL_AddCursorSplat(void) {
     renderDecal_t decal;
-    vector3_t point;
+    vec3_t point;
 
     if (!cl.cursor_splat.image || cl.cursor_splat.image >= MAX_IMAGES ||
         cl.cursor_splat.radius <= 0.0f) {
@@ -501,7 +501,7 @@ static void CL_AddCursorSplat(void) {
     }
 
     memset(&decal, 0, sizeof(decal));
-    decal.origin = (vector2_t){ point.x, point.y };
+    decal.origin = (vec2_t){ point.x, point.y };
     decal.radius = cl.cursor_splat.radius;
     decal.texture = cl.pics[cl.cursor_splat.image];
     decal.color = (color32_t){ 255, 255, 255, 180 };
@@ -563,7 +563,7 @@ void CL_PrepRefresh(void) {
 
         CL_GameDefaultCamera(&defaults);
         camera.origin = defaults.target;
-        camera.viewangles = (vector3_t){ defaults.pitch, 0.0f, defaults.yaw };
+        camera.viewangles = (vec3_t){ defaults.pitch, 0.0f, defaults.yaw };
         camera.fov = defaults.fov;
         camera.distance = defaults.distance;
         camera.znear = defaults.znear;
@@ -628,7 +628,7 @@ void V_RenderView(void) {
     cl.viewDef.fow_generation = cl.fow.generation;
     cl.viewDef.terrain_mask = cl.terrain_mask;
     if (!world_loaded || cls.state != ca_active) {
-        vector3_t target = { 0, 0, 90 };
+        vec3_t target = { 0, 0, 90 };
         uint32_t const elapsed = lastTime && cl.time >= lastTime ? cl.time - lastTime : 0;
 
         cl.viewDef.target = target;
@@ -675,8 +675,8 @@ void V_RenderView(void) {
 #if !defined(WOW) && !defined(SC2)
         {
             float yaw_rad = (float)DEG2RAD(cl.playerstate.viewangles.z);
-            vector2_t listener_origin = { cl.playerstate.vieworigin.x, cl.playerstate.vieworigin.y };
-            vector2_t listener_right = { cosf(yaw_rad), sinf(yaw_rad) };
+            vec2_t listener_origin = { cl.playerstate.vieworigin.x, cl.playerstate.vieworigin.y };
+            vec2_t listener_right = { cosf(yaw_rad), sinf(yaw_rad) };
             S_SetListener(&listener_origin, &listener_right);
         }
 #endif
@@ -774,10 +774,10 @@ TEST(client_entities, omitted_scale_defaults_to_one_in_render_path) {
 
 /* Recover camera Z from the actual projection with a zero-angle, zero-distance test camera. */
 static float v_test_camera_z(void) {
-    matrix4_t inv;
+    mat4_t inv;
     Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
     Matrix4_inverse(&cl.viewDef.viewProjectionMatrix, &inv);
-    return Matrix4_multiply_vector3(&inv, &(vector3_t){ 0, 0, -1 }).z + 1.0f;
+    return Matrix4_multiply_vector3(&inv, &(vec3_t){ 0, 0, -1 }).z + 1.0f;
 }
 
 /* Sky and particles consume the same interpolated eye used to build the final view. */
@@ -820,7 +820,7 @@ TEST(client_camera, terrain_offsets_interpolate) {
     cl.viewDef = (viewDef_t){ .viewport = { 0, 0, 1, 1 } };
     cl.viewDef.camerastate[1] = (viewCamera_t){ .origin = { 0, 0, 20 }, .fov = 60, .znear = 1, .zfar = 1000 };
     cl.viewDef.camerastate[0] = cl.viewDef.camerastate[1];
-    cl.viewDef.camerastate[0].origin = (vector3_t){ 100, 0, 140 };
+    cl.viewDef.camerastate[0].origin = (vec3_t){ 100, 0, 140 };
     FOR_LOOP(i, 3) {
         cl.viewDef.lerpfrac = i * 0.5f;
         T_FEQ(v_test_camera_z(), 70.0f + i * 10.0f, 0.001f);
@@ -831,7 +831,7 @@ TEST(client_camera, terrain_offsets_interpolate) {
     T_FEQ(v_test_camera_z(), 50.0f, 0.001f);
     world_loaded = false;
     Matrix4_getCameraMatrix(&cl.viewDef.viewProjectionMatrix);
-    matrix4_t identity;
+    mat4_t identity;
     Matrix4_identity(&identity);
     T_EQ(memcmp(&cl.viewDef.viewProjectionMatrix, &identity, sizeof(identity)), 0);
     cl.viewDef = saved; re = api; world_loaded = loaded;

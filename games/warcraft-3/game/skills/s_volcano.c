@@ -3,7 +3,7 @@
 #define ID_STUN_BUFF "Bstu"
 
 /* Living ground/structure units in the blast, including spell-immune (DAMAGE_TYPE_NORMAL). */
-static bool volcano_hits(edict_t *caster, edict_t *target, float radius, vector2_t const *origin) {
+static bool volcano_hits(edict_t *caster, edict_t *target, float radius, vec2_t const *origin) {
     if (!target || target == caster || !S_SpellIsAliveTarget(target)) return false;
     if (Vector2_distance(&target->s.origin2, origin) > radius) return false;
     if (target->targtype == TARG_AIR) return false;
@@ -13,7 +13,7 @@ static bool volcano_hits(edict_t *caster, edict_t *target, float radius, vector2
 
 /* Gate on targtype before G_IsDestructable: channel thinkers have class_id set but no
  * DestructableData pointer, and G_IsDestructable would NULL-deref them. */
-static bool volcano_hits_destructable(edict_t *skip, edict_t *target, float radius, vector2_t const *origin) {
+static bool volcano_hits_destructable(edict_t *skip, edict_t *target, float radius, vec2_t const *origin) {
     if (!target || target == skip || !target->inuse) return false;
     if (target->targtype != TARG_TREE && target->targtype != TARG_DEBRIS) return false;
     if (!G_IsDestructable(target) || target->destructable.dead) return false;
@@ -36,7 +36,7 @@ void volcano_think(edict_t *ent) {
     uint32_t now = G_Time(), code = ent->class_id, level;
     edict_t *caster = ent->owner;
     float factor = ent->velocity;
-    vector2_t origin = ent->s.origin2;
+    vec2_t origin = ent->s.origin2;
 
     if (!S_SpellChannelActive(ent)) { volcano_finish(ent); return; }
     if (ent->freetime && now < ent->freetime) return;

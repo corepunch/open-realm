@@ -213,7 +213,7 @@ static uint32_t graveyard_corpse_count(edict_t *graveyard, uint32_t unit_id, flo
     if (!graveyard || !unit_id || radius < 0.0f) return 0;
     FILTER_EDICTS(ent, ent->inuse && ent->class_id == unit_id && M_IsDead(ent) &&
                   (ent->svflags & SVF_DEADMONSTER)) {
-        vector2_t position;
+        vec2_t position;
         if (S_CorpseCargoPosition(ent, &position) &&
             Vector2_distance(&position, &graveyard->s.origin2) <= radius) count++;
     }
@@ -221,7 +221,7 @@ static uint32_t graveyard_corpse_count(edict_t *graveyard, uint32_t unit_id, flo
 }
 
 static void graveyard_spawn_corpse(edict_t *graveyard, uint32_t unit_id, float radius, uint32_t ordinal) {
-    vector2_t point;
+    vec2_t point;
     float angle;
     edict_t *corpse;
 
@@ -323,7 +323,7 @@ static edict_t *cannibalize_corpse(edict_t *caster, abilityitem_t const *spell) 
                   transport->s.player == caster->s.player) {
         FOR_LOOP(i, transport->cargo.count) {
             edict_t *unit = S_CargoUnitAt(transport, i);
-            vector2_t position;
+            vec2_t position;
             float distance;
             if (!unit || !S_CorpseCargoIsStored(unit) || G_UnitIsHero(unit) ||
                 !S_SpellAllowsStoredCorpseTarget(spell->code, caster, unit) ||
@@ -370,7 +370,7 @@ static bool cannibalize_can_approach(edict_t *caster) {
 }
 
 static bool cannibalize_in_range(edict_t *caster, edict_t *corpse) {
-    vector2_t position;
+    vec2_t position;
     edict_t *target;
 
     if (!caster || !corpse || !S_CorpseCargoPosition(corpse, &position) ||
@@ -558,7 +558,7 @@ static edict_t *raise_dead_corpse(edict_t *caster, uint32_t code, float range) {
                   transport->s.player == caster->s.player) {
         FOR_LOOP(i, transport->cargo.count) {
             edict_t *unit = S_CargoUnitAt(transport, i);
-            vector2_t position;
+            vec2_t position;
             float distance;
             int32_t rank;
             if (!unit || !S_CorpseCargoIsStored(unit) || G_UnitIsHero(unit) ||
@@ -595,7 +595,7 @@ static void raise_dead_add_authored_buff(edict_t *summon, cstring_t buff_list, u
 static void raise_dead_spawn_group(edict_t *caster, abilityitem_t const *spell, edict_t *corpse,
                                    uint32_t level, uint32_t unit_id, uint32_t count, float duration,
                                    cstring_t buff) {
-    vector2_t position;
+    vec2_t position;
 
     if (!unit_id || !count || !corpse || !S_CorpseCargoPosition(corpse, &position)) return;
     FOR_LOOP(i, count) {

@@ -584,7 +584,7 @@ static uint32_t unit_spell_code_for_order(edict_t const *unit, cstring_t order) 
 }
 
 static uint32_t issued_order_ids[MAX_ENTITIES];
-static vector2_t issued_order_points[MAX_ENTITIES];
+static vec2_t issued_order_points[MAX_ENTITIES];
 static bool issued_order_point_valid[MAX_ENTITIES];
 
 static uint32_t unit_order_event_id(cstring_t order) {
@@ -596,15 +596,15 @@ uint32_t G_GetIssuedOrderId(edict_t const *self) {
     return issued_order_ids[self->s.number];
 }
 
-bool G_GetIssuedOrderPoint(edict_t const *self, vector2_t *point) {
-    if (point) *point = (vector2_t){ 0.0f, 0.0f };
+bool G_GetIssuedOrderPoint(edict_t const *self, vec2_t *point) {
+    if (point) *point = (vec2_t){ 0.0f, 0.0f };
     if (!self || self->s.number >= MAX_ENTITIES || !point ||
         !issued_order_point_valid[self->s.number]) return false;
     *point = issued_order_points[self->s.number];
     return true;
 }
 
-void G_PublishIssuedPointOrder(edict_t *self, uint32_t order_id, vector2_t const *point,
+void G_PublishIssuedPointOrder(edict_t *self, uint32_t order_id, vec2_t const *point,
                                uint32_t issuer_player, cstring_t debug_order) {
     if (!self || self->s.number >= MAX_ENTITIES || !point) return;
     issued_order_ids[self->s.number] = order_id;
@@ -655,7 +655,7 @@ bool G_UnitHasActiveOrder(edict_t const *self) {
 }
 
 bool G_QueueUnitOrder(edict_t *self, cstring_t order, unitOrderTargetType_t target_type,
-                      vector2_t const *point, edict_t *target, uint32_t issuer_player,
+                      vec2_t const *point, edict_t *target, uint32_t issuer_player,
                       float group_speed, uint32_t order_id) {
     unitOrderQueue_t *queue;
     unitOrder_t *queued;
@@ -713,7 +713,7 @@ uint32_t G_UnitQueuedOrderCount(edict_t const *self) {
     return self ? self->order_queue.count : 0;
 }
 
-static bool unit_issueorder_now(edict_t *self, cstring_t order, vector2_t const *point, float group_speed);
+static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *point, float group_speed);
 
 static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *target) {
     if (!self || !order || !target) return false;
@@ -791,8 +791,8 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
     return false;
 }
 
-static bool unit_issueorder_now(edict_t *self, cstring_t order, vector2_t const *point, float group_speed) {
-    vector2_t target;
+static bool unit_issueorder_now(edict_t *self, cstring_t order, vec2_t const *point, float group_speed) {
+    vec2_t target;
     edict_t *waypoint;
 
     if (!self || !order || !point) return false;
@@ -880,7 +880,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     }
 }
 
-bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vector2_t const *point,
+bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
                            bool queue, uint32_t issuer_player, float group_speed) {
     if (!self || !order || !point || !unit_order_name_valid(order)) return false;
     if (M_IsDead(self) || G_BuildingUpgradeActive(self)) return false;
@@ -960,7 +960,7 @@ bool unit_issuetargetorder(edict_t *self, cstring_t order, edict_t *target) {
                                   self ? self->s.player : 0);
 }
 
-bool unit_issueorder(edict_t *self, cstring_t order, vector2_t const *point) {
+bool unit_issueorder(edict_t *self, cstring_t order, vec2_t const *point) {
     if (G_BuildingUpgradeActive(self)) return false;
     return G_IssueUnitPointOrder(self, order, point, false,
                                  self ? self->s.player : 0, 0.0f);
@@ -1097,7 +1097,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
 
 /* Create a new runtime unit; explicit JASS creation must not reuse a nearby
  * entity because ReplaceUnitBJ destroys the returned replacement handle. */
-edict_t *unit_create(uint32_t player, uint32_t unitid, vector2_t const *location, float facing) {
+edict_t *unit_create(uint32_t player, uint32_t unitid, vec2_t const *location, float facing) {
     /* CreateUnit returns an immediately usable unit. SP_SpawnAtLocation's
      * presentation birth is for callers that own a spawn lifecycle; applying
      * it here left a stale birth wait behind the explicit stand transition. */
@@ -1107,7 +1107,7 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vector2_t const *location
     }
     /* Warsmash CreateUnit delegates to createUnitSimple, which checks the
      * spawned unit against static pathing and nudges it to a legal point. */
-    vector2_t position;
+    vec2_t position;
     if (G_FindUnitUnstuckPosition(unit, location, &position)) {
         unit->s.origin2 = position;
         unit->s.origin.x = position.x;
@@ -1125,7 +1125,7 @@ edict_t *unit_create(uint32_t player, uint32_t unitid, vector2_t const *location
     return unit;
 }
 
-edict_t *unit_createorfind(uint32_t player, uint32_t unitid, vector2_t const *location, float facing) {
+edict_t *unit_createorfind(uint32_t player, uint32_t unitid, vec2_t const *location, float facing) {
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = &globals.edicts[i];
         if (ent->inuse && !M_IsDead(ent) && ent->class_id == unitid &&

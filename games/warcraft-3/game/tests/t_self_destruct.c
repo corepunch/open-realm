@@ -115,7 +115,7 @@ TEST(wc3_spell, self_destruct_asds_without_dataf_does_not_explode_on_death) {
 /* Kaboom click is a point-target cast: authored DataB blast + caster death, even with DataF=0. */
 TEST(wc3_spell, self_destruct_asds_click_detonates_and_kills_caster) {
 	sdFix_t fix = sd_setup(BZ_ASDS);
-	vector2_t point = { 0, 0 };
+	vec2_t point = { 0, 0 };
 	ability_t const *abil = S_AbilityItem(BZ_ASDS).ability;
 	T_NOT_NULL(abil);
 	T_ASSERT(abil->flags & AB_SPELL);
@@ -175,7 +175,7 @@ TEST(wc3_spell, self_destruct_pocket_factory_goblin_btlf_detonates) {
 		"C;Y3;X13;K\"15\"\nC;Y3;X14;K\"1\"\nC;Y3;X15;K\"1\"\nC;Y3;X16;K\"\"\nE\n";
 	slkTestData_t *rows = parse_slk_string(both), *old;
 	edict_t *caster, *goblin = NULL, *enemy;
-	vector2_t point = { 128, 128 };
+	vec2_t point = { 128, 128 };
 	reset_entities(); setup_test_world(); level.time = 1000;
 	((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
 	((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;

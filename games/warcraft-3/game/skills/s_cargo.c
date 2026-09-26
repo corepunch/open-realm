@@ -88,7 +88,7 @@ bool S_CorpseCargoIsStored(edict_t const *unit) {
 /* Stored corpse edicts keep their identity and decay state, but corpse-fed
  * abilities treat them as physically present at their current holder.  Do not
  * rely on the hidden edict's stale pre-load origin after the Wagon moves. */
-bool S_CorpseCargoPosition(edict_t const *corpse, vector2_t *out) {
+bool S_CorpseCargoPosition(edict_t const *corpse, vec2_t *out) {
     edict_t *transport;
 
     if (!corpse || !out) return false;
@@ -175,7 +175,7 @@ static void cargo_add_unit(edict_t *transport, edict_t *unit) {
 }
 
 static void cargo_place_unloaded_unit(edict_t *transport, edict_t *unit) {
-    vector2_t position;
+    vec2_t position;
 
     if (!transport || !unit) return;
     if (!G_FindUnitUnstuckPosition(unit, &transport->s.origin2, &position))
@@ -503,7 +503,7 @@ static bool cargo_board_target_valid(edict_t *unit, edict_t *transport) {
 }
 
 static bool cargo_prepare_board_approach(edict_t *unit, edict_t *transport) {
-    vector2_t approach;
+    vec2_t approach;
     float const interaction_range = unit->collision + cargo_load_range(transport);
 
     if (!unit || !transport) return false;
@@ -635,7 +635,7 @@ BZ_COMMAND_PROC(AbilityBattlestations) {
 
 /* ---- Drop (Adro): drop cargo at a point --------------------------------- */
 
-static bool drop_selectlocation(edict_t *clent, vector2_t const *point) {
+static bool drop_selectlocation(edict_t *clent, vec2_t const *point) {
     edict_t *caster = G_GetMainSelectedUnit(clent->client);
     (void)point;
 

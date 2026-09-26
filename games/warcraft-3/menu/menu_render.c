@@ -168,15 +168,15 @@ rect_t UI_GetCenteredSceneRect(void) {
     return scene;
 }
 
-static vector2_t UI_GetXBounds(rect_t const *rect) {
-    return (vector2_t) { rect->x, rect->x + rect->w };
+static vec2_t UI_GetXBounds(rect_t const *rect) {
+    return (vec2_t) { rect->x, rect->x + rect->w };
 }
 
-static vector2_t UI_GetYBounds(rect_t const *rect) {
-    return (vector2_t) { rect->y, rect->y + rect->h };
+static vec2_t UI_GetYBounds(rect_t const *rect) {
+    return (vec2_t) { rect->y, rect->y + rect->h };
 }
 
-static vector2_t UI_GetAxisBounds(rect_t const *rect, bool is_x_axis) {
+static vec2_t UI_GetAxisBounds(rect_t const *rect, bool is_x_axis) {
     return is_x_axis ? UI_GetXBounds(rect) : UI_GetYBounds(rect);
 }
 
@@ -199,7 +199,7 @@ static float UI_GetAnchor(frameDef_t const *frame,
                          framePoint_t const *p,
                          bool is_x_axis)
 {
-    vector2_t b = UI_GetAxisBounds(UI_GetRelativeRect(frame, p->relativeTo), is_x_axis);
+    vec2_t b = UI_GetAxisBounds(UI_GetRelativeRect(frame, p->relativeTo), is_x_axis);
     float offset = UI_NormalizeAnchorOffset(p, is_x_axis);
     
     if (p->targetPos == FPP_MID) {
@@ -211,7 +211,7 @@ static float UI_GetAnchor(frameDef_t const *frame,
     }
 }
 
-static vector2_t UI_SolveAxisPosition(frameDef_t const *frame,
+static vec2_t UI_SolveAxisPosition(frameDef_t const *frame,
                                    framePoint_t const *points,
                                    float size,
                                    bool is_x_axis)
@@ -222,7 +222,7 @@ static vector2_t UI_SolveAxisPosition(frameDef_t const *frame,
 
     if (pmid->used) {
         /* Center anchor: position = mid - size/2 */
-        return (vector2_t) {
+        return (vec2_t) {
             UI_GetAnchor(frame, pmid, is_x_axis) - size / 2.0f,
             size,
         };
@@ -230,26 +230,26 @@ static vector2_t UI_SolveAxisPosition(frameDef_t const *frame,
         /* Both min and max: stretch between anchors */
         float anchor_min = UI_GetAnchor(frame, pmin, is_x_axis);
         float anchor_max = UI_GetAnchor(frame, pmax, is_x_axis);
-        return (vector2_t) {
+        return (vec2_t) {
             anchor_min,
             anchor_max - anchor_min,
         };
     } else if (pmax->used) {
         /* Max anchor only: position = max - size */
-        return (vector2_t) {
+        return (vec2_t) {
             UI_GetAnchor(frame, pmax, is_x_axis) - size,
             size,
         };
     } else if (pmin->used) {
         /* Min anchor only: position = min */
-        return (vector2_t) {
+        return (vec2_t) {
             UI_GetAnchor(frame, pmin, is_x_axis),
             size,
         };
     }
     
     /* No anchors set: default to (0,0) with given size */
-    return (vector2_t) { 0, size };
+    return (vec2_t) { 0, size };
 }
 
 static rect_t const *UI_LayoutBase(frameDef_t const *frame) {
@@ -293,7 +293,7 @@ static rect_t const *UI_LayoutBase(frameDef_t const *frame) {
                         .lineHeight = 1.0f,
                         .flags = (intrinsic_w > 0) ? DRAW_WORD_WRAP : 0,
                     };
-                    vector2_t text_size = renderer ? renderer->GetTextSize((drawText_t const *)&dt) : MAKE(vector2_t, 0, 0);
+                    vec2_t text_size = renderer ? renderer->GetTextSize((drawText_t const *)&dt) : MAKE(vec2_t, 0, 0);
                     if (auto_width) {
                         intrinsic_w = text_size.x;
                     }
@@ -347,8 +347,8 @@ static rect_t const *UI_LayoutBase(frameDef_t const *frame) {
     }
     
     /* Solve X and Y positions */
-    vector2_t x_pos = UI_SolveAxisPosition(frame, frame->Points.x, intrinsic_w, true);
-    vector2_t y_pos = UI_SolveAxisPosition(frame, frame->Points.y, intrinsic_h, false);
+    vec2_t x_pos = UI_SolveAxisPosition(frame, frame->Points.x, intrinsic_w, true);
+    vec2_t y_pos = UI_SolveAxisPosition(frame, frame->Points.y, intrinsic_h, false);
     
     *out = (rect_t) {
         .x = x_pos.x,
@@ -1054,7 +1054,7 @@ void UI_SliderBeginDrag(frameDef_t const *frame, float fdf_x, float fdf_y) {
     frameDef_t const *thumb = UI_FindFrameNear(frame, frame->Slider.ThumbButtonFrame);
     rect_t thumb_rect = UI_SliderThumbRect(frame, rect, thumb);
     if (UI_PointInRect(fdf_x, fdf_y, rect) || UI_PointInRect(fdf_x, fdf_y, &thumb_rect)) {
-        vector2_t mouse = { fdf_x, fdf_y };
+        vec2_t mouse = { fdf_x, fdf_y };
         active_slider = frame;
         ((frameDef_t *)frame)->Slider.InitialValue = UI_SliderValueFromMousePos(frame, rect, thumb, mouse);
     }
@@ -1069,7 +1069,7 @@ void UI_SliderUpdateDrag(frameDef_t const *frame, float fdf_x, float fdf_y) {
         return;
     }
     frameDef_t const *thumb = UI_FindFrameNear(frame, frame->Slider.ThumbButtonFrame);
-    vector2_t mouse = { fdf_x, fdf_y };
+    vec2_t mouse = { fdf_x, fdf_y };
     ((frameDef_t *)frame)->Slider.InitialValue = UI_SliderValueFromMousePos(frame, rect, thumb, mouse);
 }
 

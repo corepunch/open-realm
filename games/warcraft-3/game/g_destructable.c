@@ -259,7 +259,7 @@ void G_SpawnDestructableLoot(edict_t *ent) {
     FOR_LOOP(i, selected_count) {
         float angle = selected_count > 1 ? 2.0f * M_PI * (float)i / (float)selected_count : 0.0f;
         float radius = selected_count > 1 ? DESTRUCTABLE_DROP_RADIUS : 0.0f;
-        vector2_t point = {
+        vec2_t point = {
             ent->s.origin.x + cosf(angle) * radius,
             ent->s.origin.y + sinf(angle) * radius,
         };

@@ -18,8 +18,8 @@ extern struct game_export globals;
 
 /* Level-local state for the Galaxy VM and cinematic system. */
 typedef struct {
-    vector2_t origin;
-    vector3_t angles;
+    vec2_t origin;
+    vec3_t angles;
     float distance, fov;
 } sc2Camera_t;
 

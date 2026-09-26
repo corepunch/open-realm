@@ -133,7 +133,7 @@ static bool gold_route_pending(edict_t const *worker) {
  * closest to this worker.  Unlike centre-rooted flow routing, this preserves
  * the worker's approach side (mine on the left -> left edge of the Town Hall). */
 static bool gold_find_nearest_footprint_approach(edict_t *worker, edict_t *target,
-                                                  vector2_t *out) {
+                                                  vec2_t *out) {
     float const route_band = worker ?
         worker->collision + CM_PathCellWorldSize() * 1.41421356237f : 0.0f;
 
@@ -433,7 +433,7 @@ static void ai_goldmine_walkback(edict_t *ent) {
                     ent->harvested_gold);
         goldmine_finish_deposit(ent, dropoff, debug);
     } else {
-        vector2_t approach;
+        vec2_t approach;
 
         /* Return Resources targets the building interaction boundary, not an
          * arbitrary legal cell around its blocked centre. Pick the innermost
@@ -748,7 +748,7 @@ void S_MineOverlayBindPreplaced(void) {
 
 /* CreateBlightedGoldmine is a script-visible overlay constructor; bind it
  * immediately so subsequent scripted harvest orders receive a live target. */
-edict_t *S_CreateBlightedGoldmine(uint32_t player, vector2_t const *origin, float facing) {
+edict_t *S_CreateBlightedGoldmine(uint32_t player, vec2_t const *origin, float facing) {
     edict_t *overlay;
 
     if (!origin) return NULL;
@@ -863,7 +863,7 @@ static float haunted_mine_ring_radius(edict_t *mine) {
 }
 
 /* Convert a fixed mining-ring slot into the world position used by the worker. */
-static void haunted_mine_slot_position(edict_t *mine, uint32_t slot, uint32_t capacity, vector2_t *out) {
+static void haunted_mine_slot_position(edict_t *mine, uint32_t slot, uint32_t capacity, vec2_t *out) {
     double angle;
     float radius;
     if (!out || !mine || !capacity) return;
@@ -899,7 +899,7 @@ static void haunted_mine_ensure_effects(edict_t *mine) {
         !(capacity = haunted_mine_max_miners(mine))) return;
 
     FOR_LOOP(i, capacity) {
-        vector2_t point;
+        vec2_t point;
         edict_t *effect;
         double angle;
 
@@ -990,7 +990,7 @@ static bool acolyte_claim_slot(edict_t *worker, edict_t *mine) {
 
     if (!capacity) return false;
     FOR_LOOP(i, capacity) {
-        vector2_t point;
+        vec2_t point;
         float dx, dy, distance;
         if (haunted_slot_occupied(mine, (int32_t)i)) continue;
         haunted_mine_slot_position(mine, i, capacity, &point);
@@ -1014,7 +1014,7 @@ static bool acolyte_claim_slot(edict_t *worker, edict_t *mine) {
 static void acolyte_snap_to_slot(edict_t *worker) {
     edict_t *mine;
     uint32_t capacity;
-    vector2_t point;
+    vec2_t point;
     if (!S_AcolyteHarvestIsActive(worker) || !(mine = worker->acolyte_mine.mine)) return;
     capacity = haunted_mine_max_miners(mine);
     if (!capacity || worker->acolyte_mine.slot < 0 || (uint32_t)worker->acolyte_mine.slot >= capacity) return;

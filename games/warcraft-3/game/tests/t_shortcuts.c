@@ -186,7 +186,7 @@ TEST(wc3_shortcuts, hero_button_double_click_selects_then_centers_camera) {
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 320.0f, 448.0f);
     hero->svflags |= SVF_MONSTER;
     hero->s.player = 0;
-    client->camera.state.position = (vector2_t){ 64.0f, 96.0f };
+    client->camera.state.position = (vec2_t){ 64.0f, 96.0f };
     client->camera.old_state.position = client->camera.state.position;
     level.time = 1000;
 
@@ -200,7 +200,7 @@ TEST(wc3_shortcuts, hero_button_double_click_selects_then_centers_camera) {
     T_FEQ(client->camera.state.position.y, hero->s.origin2.y, 0.001f);
 
     level.time += 501; /* beyond Warsmash 500 ms double-click window */
-    client->camera.state.position = (vector2_t){ 80.0f, 112.0f };
+    client->camera.state.position = (vec2_t){ 80.0f, 112.0f };
     client->camera.old_state.position = client->camera.state.position;
     G_ActivateHeroButton(clent, hero->s.number);
     T_FEQ(client->camera.state.position.x, 80.0f, 0.001f);
@@ -220,7 +220,7 @@ TEST(wc3_shortcuts, hero_function_key_requires_quick_second_press_to_center) {
     hero = alloc_test_unit(MAKEFOURCC('H','p','a','l'), 352.0f, 480.0f);
     hero->svflags |= SVF_MONSTER;
     hero->s.player = 0;
-    client->camera.state.position = (vector2_t){ 96.0f, 128.0f };
+    client->camera.state.position = (vec2_t){ 96.0f, 128.0f };
     client->camera.old_state.position = client->camera.state.position;
     level.time = 3000;
 
@@ -235,7 +235,7 @@ TEST(wc3_shortcuts, hero_function_key_requires_quick_second_press_to_center) {
     T_FEQ(client->camera.state.position.y, hero->s.origin2.y, 0.001f);
 
     level.time += 501;
-    client->camera.state.position = (vector2_t){ 112.0f, 144.0f };
+    client->camera.state.position = (vec2_t){ 112.0f, 144.0f };
     client->camera.old_state.position = client->camera.state.position;
     G_ActivateHeroKey(clent, 0);
     T_FEQ(client->camera.state.position.x, 112.0f, 0.001f);

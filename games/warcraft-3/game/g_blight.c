@@ -14,7 +14,7 @@ static uint32_t G_BlightConnectedMask(void) {
     return mask;
 }
 
-static bool G_BlightCell(vector2_t const *point, uint32_t *x, uint32_t *y) {
+static bool G_BlightCell(vec2_t const *point, uint32_t *x, uint32_t *y) {
     if (!point || !level.blight.cells) return false;
     return TerrainMask_CellForPoint(level.blight.bounds.min, WC3_BLIGHT_PATH_CELL, level.blight.width, level.blight.height, point, x, y);
 }
@@ -30,7 +30,7 @@ static bool G_SetBlightCell(int32_t x, int32_t y, bool add, uint32_t mask) {
 }
 
 static uint32_t G_SetBlightCorner(float x, float y, bool add, uint32_t mask) {
-    vector2_t sample;
+    vec2_t sample;
     uint32_t ux, uy;
     int32_t cx, cy;
     uint32_t changed = 0;
@@ -55,7 +55,7 @@ static bool G_BlightDestructableFootprintBlighted(edict_t const *ent) {
     if (!pathtex || !pathtex->width || !pathtex->height)
         return G_IsPointBlighted(&ent->s.origin2);
     FOR_LOOP(y, pathtex->height) FOR_LOOP(x, pathtex->width) {
-        vector2_t sample;
+        vec2_t sample;
         if (!pathtex->map[x + y * pathtex->width].b) continue;
         sample.x = ent->s.origin2.x + ((float)x + 0.5f - (float)pathtex->width * 0.5f) * WC3_BLIGHT_PATH_CELL;
         sample.y = ent->s.origin2.y + ((float)y + 0.5f - (float)pathtex->height * 0.5f) * WC3_BLIGHT_PATH_CELL;
@@ -117,7 +117,7 @@ void G_BlightShutdown(void) {
 void G_BlightInit(void) {
     uint32_t cells;
     uint32_t unavailable = 0;
-    vector2_t sample;
+    vec2_t sample;
 
     G_BlightShutdown();
     level.blight.bounds = CM_GetWorldBounds();
@@ -160,12 +160,12 @@ void G_BlightInit(void) {
                 (unsigned)unavailable);
 }
 
-bool G_IsPointBlighted(vector2_t const *point) {
+bool G_IsPointBlighted(vec2_t const *point) {
     uint32_t x, y;
     return G_BlightCell(point, &x, &y) && level.blight.cells[x + y * level.blight.width] != 0;
 }
 
-void G_SetBlightPoint(vector2_t const *point, bool add) {
+void G_SetBlightPoint(vec2_t const *point, bool add) {
     float x, y;
     uint32_t mask;
     if (!point || !level.blight.cells) return;
@@ -180,7 +180,7 @@ void G_SetBlightPoint(vector2_t const *point, bool add) {
     }
 }
 
-void G_SetBlightRadius(vector2_t const *point, float radius, bool add) {
+void G_SetBlightRadius(vec2_t const *point, float radius, bool add) {
     float min_x, min_y, max_x, max_y;
     uint32_t mask;
     if (!point || !level.blight.cells || radius < 0.0f) return;

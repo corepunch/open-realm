@@ -90,8 +90,8 @@ typedef struct {
 
     /* Listener state for spatialization — set each frame from the camera */
     struct {
-        vector2_t origin;
-        vector2_t right;   /* normalized right vector in world XY */
+        vec2_t origin;
+        vec2_t right;   /* normalized right vector in world XY */
     } listener;
 
     /* Active playback channels */
@@ -101,7 +101,7 @@ typedef struct {
         float       master_vol;
         float       leftvol;
         float       rightvol;
-        vector2_t     origin;
+        vec2_t     origin;
         float       attenuation;
         int         channel;
         unsigned    priority;
@@ -138,19 +138,19 @@ void S_BeginRegistration(void);
 void S_EndRegistration(void);
 void S_RegisterSound(cstring_t path);
 void S_PlaySoundFile(cstring_t path);
-void S_PlaySoundAt(cstring_t path, vector2_t const *origin);
-void S_PlaySoundPacket(cstring_t path, vector3_t const *origin, bool positioned, int channel, float volume, float attenuation,
+void S_PlaySoundAt(cstring_t path, vec2_t const *origin);
+void S_PlaySoundPacket(cstring_t path, vec3_t const *origin, bool positioned, int channel, float volume, float attenuation,
                        float timeofs);
 bool S_PollSoundEvent(soundEvent_t *event);
 void S_ClearSoundEvents(void);
-bool S_PlaySoundPolicy(cstring_t path, vector3_t const *origin, bool positioned, int channel, float volume, float attenuation, float timeofs, soundPolicy_t const *policy);
+bool S_PlaySoundPolicy(cstring_t path, vec3_t const *origin, bool positioned, int channel, float volume, float attenuation, float timeofs, soundPolicy_t const *policy);
 #ifdef BZ_TESTS
 void S_TestMix(int16_t *out, uint32_t frames);
 #endif
 void S_BeginLoopingSounds(void);
-void S_UpdateLoopingSound(uint32_t entity, cstring_t path, vector2_t const *origin, float volume, float attenuation);
+void S_UpdateLoopingSound(uint32_t entity, cstring_t path, vec2_t const *origin, float volume, float attenuation);
 void S_EndLoopingSounds(void);
-void S_SetListener(vector2_t const *origin, vector2_t const *right);
+void S_SetListener(vec2_t const *origin, vec2_t const *right);
 void S_StreamStart(sStreamId_t stream);
 uint32_t S_StreamSamples(sStreamId_t stream, int16_t const *samples, uint32_t frames);
 uint32_t S_StreamBufferedFrames(sStreamId_t stream);

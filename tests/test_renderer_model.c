@@ -452,7 +452,7 @@ TEST(renderer_model, dnc_first_light_follows_sequence_zero_phase) {
 
 TEST(renderer_model, geoset_animation_static_colors_convert_bgr_to_rgb) {
     mdxGeosetAnim_t geosetAnim = { .staticColor = { 0.85f, 0.40f, 0.10f } };
-    vector3_t rgb = { 0, 0, 0 };
+    vec3_t rgb = { 0, 0, 0 };
 
     MDLX_GetGeosetAnimationStaticColor(&geosetAnim, &rgb);
     T_FEQ(rgb.x, geosetAnim.staticColor.z, 0.001f);
@@ -461,11 +461,11 @@ TEST(renderer_model, geoset_animation_static_colors_convert_bgr_to_rgb) {
 }
 
 TEST(renderer_model, animated_mdx_color_tracks_convert_bgr_to_rgb) {
-    uint8_t storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vector3_t)] = { 0 };
+    uint8_t storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vec3_t)] = { 0 };
     mdxKeyTrack_t *track = (mdxKeyTrack_t *)storage;
     mdxKeyFrame_t *key = (mdxKeyFrame_t *)track->values;
-    vector3_t authored_bgr = { 0.85f, 0.40f, 0.10f };
-    vector3_t rgb = { 0, 0, 0 };
+    vec3_t authored_bgr = { 0.85f, 0.40f, 0.10f };
+    vec3_t rgb = { 0, 0, 0 };
     mdxSequence_t seq = { .interval = { 0, 1000 } };
     mdxModel_t model = { .sequences = &seq, .num_sequences = 1 };
 
@@ -483,13 +483,13 @@ TEST(renderer_model, animated_mdx_color_tracks_convert_bgr_to_rgb) {
 }
 
 TEST(renderer_model, animated_mdx_light_colors_follow_warsmash_rgb_order) {
-    uint8_t color_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vector3_t)] = { 0 };
-    uint8_t ambient_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vector3_t)] = { 0 };
+    uint8_t color_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vec3_t)] = { 0 };
+    uint8_t ambient_storage[sizeof(mdxKeyTrack_t) + sizeof(int) + sizeof(vec3_t)] = { 0 };
     mdxKeyTrack_t *color_track = (mdxKeyTrack_t *)color_storage;
     mdxKeyTrack_t *ambient_track = (mdxKeyTrack_t *)ambient_storage;
     mdxKeyFrame_t *color_key = (mdxKeyFrame_t *)color_track->values;
     mdxKeyFrame_t *ambient_key = (mdxKeyFrame_t *)ambient_track->values;
-    vector3_t authored_bgr = { 0.799191f, 0.532794f, 0.313408f };
+    vec3_t authored_bgr = { 0.799191f, 0.532794f, 0.313408f };
     mdxSequence_t seq = { .interval = { 0, 1000 } };
     mdxLight_t light = {
         .type = MODELLIGHTTYPE_DIRECT,
@@ -528,10 +528,10 @@ TEST(renderer_model, mdx_ui_particles_preserve_pivot_sizes_and_both_quads) {
         .Speed = 0.02f, .FrameFlags = 2, .TailLength = 0.3f, .Time = 0.5f,
         .Alpha = {255, 255, 0}, .ParticleScaling = {0.01f, 0.004f, 0.002f},
         .SegmentColor = {1,1,1, 1,1,0, 0,0,0}, .Rows = 1, .Columns = 1, .FilterMode = 1 };
-    vector3_t pivot = {0.005f, 0.02f, 0.018f};
+    vec3_t pivot = {0.005f, 0.02f, 0.018f};
     mdxModel_t model = { .emitters = &emitter, .pivots = &pivot, .num_pivots = 1 };
     renderEntity_t entity = { .frame = 833, .oldframe = 833 };
-    matrix4_t matrix;
+    mat4_t matrix;
     viewDef_t saved = tr.viewDef;
     Matrix4_identity(&matrix); Matrix4_identity(&node_matrices[0]);
     tr.viewDef.deltaTime = 20; emit_count = 0;
@@ -546,7 +546,7 @@ TEST(renderer_model, mdx_ui_particles_preserve_pivot_sizes_and_both_quads) {
 
 TEST(renderer_model, mdx_ribbon_trail_emits_connected_edges_and_expires) {
     trail_t trail = { 0 };
-    vector3_t above = { 0, 10, 0 }, below = { 0, -10, 0 };
+    vec3_t above = { 0, 10, 0 }, below = { 0, -10, 0 };
     color32_t white = { 255, 255, 255, 180 };
     trailVert_t verts[32];
     uint32_t nverts;
@@ -588,7 +588,7 @@ TEST(renderer_model, mdx_ribbon_strip_u_survives_adding_an_edge) {
 
 TEST(renderer_model, mdx_ribbon_hitch_does_not_stack_coincident_edges) {
     trail_t trail = { 0 };
-    vector3_t above = { 0, 10, 0 }, below = { 0, -10, 0 };
+    vec3_t above = { 0, 10, 0 }, below = { 0, -10, 0 };
     color32_t white = { 255, 255, 255, 255 };
     float xmin, xmax;
     int e, alive;
@@ -608,7 +608,7 @@ TEST(renderer_model, mdx_ribbon_hitch_does_not_stack_coincident_edges) {
 
 TEST(renderer_model, mdx_ribbon_edges_match_spawn_time_positions) {
     trail_t trail = { 0 };
-    vector3_t above = { 0, 10, 0 }, below = { 0, -10, 0 };
+    vec3_t above = { 0, 10, 0 }, below = { 0, -10, 0 };
     color32_t white = { 255, 255, 255, 255 };
     int e;
 
@@ -625,7 +625,7 @@ TEST(renderer_model, mdx_ribbon_edges_match_spawn_time_positions) {
 
 TEST(renderer_model, mdx_ribbon_edge_colors_stay_historic) {
     trail_t trail = { 0 };
-    vector3_t above = { 0, 10, 0 }, below = { 0, -10, 0 };
+    vec3_t above = { 0, 10, 0 }, below = { 0, -10, 0 };
     color32_t red = { 255, 0, 0, 255 }, white = { 255, 255, 255, 255 };
     trailVert_t verts[12];
 
@@ -643,11 +643,11 @@ TEST(renderer_model, mdx_ribbon_visibility_defaults_outside_death_keys) {
     mdxSequence_t seqs[2] = { { .interval = { 0, 1000 } }, { .interval = { 2000, 3000 } } };
     mdxRibbonEmitter_t ribbon = { .heightAbove = 20, .heightBelow = 20, .alpha = 0.7f,
         .color = { 1, 1, 1 }, .lifespan = 0.5f, .emissionRate = 20, .rows = 1, .columns = 1 };
-    vector3_t pivot = { 0, 0, 0 };
+    vec3_t pivot = { 0, 0, 0 };
     mdxModel_t model = { .ribbons = &ribbon, .pivots = &pivot, .num_pivots = 1,
         .sequences = seqs, .num_sequences = 2 };
     renderEntity_t entity = { .number = 7, .frame = 0 };
-    matrix4_t matrix;
+    mat4_t matrix;
     vertex_t verts[64];
     uint32_t nverts;
     float visibility = 1.0f;
@@ -688,10 +688,10 @@ TEST(renderer_model, mdx_ribbon_visibility_defaults_outside_death_keys) {
 TEST(renderer_model, mdx_ribbon_second_emit_same_frame_does_not_advance) {
     mdxRibbonEmitter_t ribbon = { .heightAbove = 20, .heightBelow = 20, .alpha = 1.0f,
         .color = { 1, 1, 1 }, .lifespan = 1.0f, .emissionRate = 20, .rows = 1, .columns = 1 };
-    vector3_t pivot = { 0, 0, 0 };
+    vec3_t pivot = { 0, 0, 0 };
     mdxModel_t model = { .ribbons = &ribbon, .pivots = &pivot, .num_pivots = 1 };
     renderEntity_t entity = { .number = 9, .frame = 0 };
-    matrix4_t matrix;
+    mat4_t matrix;
     vertex_t verts[64];
     viewDef_t saved = tr.viewDef;
 
@@ -717,10 +717,10 @@ TEST(renderer_model, mdx_ribbon_second_emit_same_frame_does_not_advance) {
 TEST(renderer_model, mdx_ribbon_entity_reuse_after_gap_drops_old_edges) {
     mdxRibbonEmitter_t ribbon = { .heightAbove = 10, .heightBelow = 10, .alpha = 1.0f,
         .color = { 1, 1, 1 }, .lifespan = 1.0f, .emissionRate = 20, .rows = 1, .columns = 1 };
-    vector3_t pivot = { 0, 0, 0 };
+    vec3_t pivot = { 0, 0, 0 };
     mdxModel_t model = { .ribbons = &ribbon, .pivots = &pivot, .num_pivots = 1 };
     renderEntity_t entity = { .number = 11, .frame = 0 };
-    matrix4_t matrix;
+    mat4_t matrix;
     vertex_t verts[64];
     uint32_t nverts;
     viewDef_t saved = tr.viewDef;
@@ -731,7 +731,7 @@ TEST(renderer_model, mdx_ribbon_entity_reuse_after_gap_drops_old_edges) {
     tr.viewDef.deltaTime = 50; tr.viewDef.time = 1000;
     MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
     T_EQ(model.ribbon_states->trails[0].count, 1);
-    Matrix4_translate(&matrix, &(vector3_t){ 10000.0f, 0.0f, 0.0f }); /* edict reused far away a second later */
+    Matrix4_translate(&matrix, &(vec3_t){ 10000.0f, 0.0f, 0.0f }); /* edict reused far away a second later */
     tr.viewDef.time = 2000;
     MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
     T_EQ(model.ribbon_states->trails[0].count, 1);
@@ -753,7 +753,7 @@ TEST(renderer_model, mdx_detached_ribbon_waits_one_frame_then_fades_out) {
         .color = { 1, 1, 1 }, .lifespan = 0.5f, .emissionRate = 20, .rows = 1, .columns = 1 };
     mdxModel_t model = { .ribbons = &ribbon };
     renderEntity_t entity = { .number = 31 };
-    matrix4_t matrix;
+    mat4_t matrix;
     vertex_t verts[64];
     viewDef_t saved = tr.viewDef;
 
@@ -779,7 +779,7 @@ TEST(renderer_model, mdx_detached_ribbon_reattach_cancels_orphan) {
         .color = { 1, 1, 1 }, .lifespan = 1.0f, .emissionRate = 20, .rows = 1, .columns = 1 };
     mdxModel_t model = { .ribbons = &ribbon };
     renderEntity_t entity = { .number = 32 };
-    matrix4_t matrix;
+    mat4_t matrix;
     vertex_t verts[64];
     viewDef_t saved = tr.viewDef;
 
@@ -801,7 +801,7 @@ TEST(renderer_model, mdx_detached_ribbon_reuse_drops_old_owner_state) {
         .color = { 1, 1, 1 }, .lifespan = 1.0f, .emissionRate = 20, .rows = 1, .columns = 1 };
     mdxModel_t model = { .ribbons = &ribbon };
     renderEntity_t entity = { .number = 33 };
-    matrix4_t matrix;
+    mat4_t matrix;
     vertex_t verts[64];
     viewDef_t saved = tr.viewDef;
 
@@ -811,7 +811,7 @@ TEST(renderer_model, mdx_detached_ribbon_reuse_drops_old_owner_state) {
     MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
     tr.viewDef.time = 3100; MDLX_TickDetachedRibbons();
     T_EQ(MDLX_DetachedRibbonCount(), (uint32_t)1);
-    tr.viewDef.time = 4000; Matrix4_translate(&matrix, &(vector3_t){10000, 0, 0});
+    tr.viewDef.time = 4000; Matrix4_translate(&matrix, &(vec3_t){10000, 0, 0});
     MDLX_EmitRibbonVertices(&model, &entity, &matrix, &ribbon, verts, 64);
     T_EQ(MDLX_DetachedRibbonCount(), (uint32_t)0);
     T_ASSERT(model.ribbon_states->trails[0].count >= 1);
@@ -907,9 +907,9 @@ TEST(renderer_model, mdx_particle_filter_modes_preserve_authored_blending) {
 TEST(renderer_model, mdx_attachment_positions_follow_authored_pivot_and_model_transform) {
     mdxAttachment_t sprite = { 0 }, other = { 0 };
     mdxAttachmentPosition_t positions[2] = { 0 };
-    vector3_t pivots[] = { { 4.0f, 5.0f, 6.0f }, { 1.0f, 2.0f, 3.0f } };
+    vec3_t pivots[] = { { 4.0f, 5.0f, 6.0f }, { 1.0f, 2.0f, 3.0f } };
     mdxModel_t model = { .attachments = &sprite, .pivots = pivots, .num_pivots = 2 };
-    matrix4_t transform;
+    mat4_t transform;
     uint32_t count;
 
     snprintf(sprite.node.name, sizeof(sprite.node.name), "Sprite First Ref");
@@ -921,7 +921,7 @@ TEST(renderer_model, mdx_attachment_positions_follow_authored_pivot_and_model_tr
     model.num_nodes = 2;
 
     Matrix4_identity(&transform);
-    Matrix4_translate(&transform, &(vector3_t){ 10.0f, 20.0f, 30.0f });
+    Matrix4_translate(&transform, &(vec3_t){ 10.0f, 20.0f, 30.0f });
     count = MDLX_CollectAttachmentPositions(&model, &transform, 0, 0,
                                             "Sprite ", positions,
                                             sizeof(positions) / sizeof(*positions));
@@ -935,8 +935,8 @@ TEST(renderer_model, mdx_attachment_positions_follow_authored_pivot_and_model_tr
 
 
 TEST(renderer_model, mdx_geometry_packs_two_geosets_into_model_ranges) {
-    vector3_t pos[] = {{1,2,3}, {4,5,6}, {7,8,9}}, normals[] = {{0,0,1}, {0,1,0}, {1,0,0}};
-    vector2_t uv[] = {{0,0}, {1,0}, {0,1}};
+    vec3_t pos[] = {{1,2,3}, {4,5,6}, {7,8,9}}, normals[] = {{0,0,1}, {0,1,0}, {1,0,0}};
+    vec2_t uv[] = {{0,0}, {1,0}, {0,1}};
     short first_idx[] = {0,1,0}, second_idx[] = {0};
     mdxGeoset_t second = {.vertices=pos+2,.normals=normals+2,.texcoord=uv+2,.triangles=second_idx,
         .num_vertices=1,.num_normals=1,.num_texcoord=1,.num_triangles=1};
@@ -1196,7 +1196,7 @@ TEST(renderer_shader, environ_light_converts_to_model_lighting) {
 }
 
 TEST(renderer_shader, directional_light_uses_array_schema) {
-    matrix4_t packed[BZ_MODEL_LIGHT_MAX];
+    mat4_t packed[BZ_MODEL_LIGHT_MAX];
     modelLighting_t state = {
         .ambient = { 1, 1, 1 }, .count = 1,
         .lights[0] = {
@@ -1211,7 +1211,7 @@ TEST(renderer_shader, directional_light_uses_array_schema) {
 }
 
 TEST(renderer_shader, lighting_state_packs_all_sources) {
-    matrix4_t packed[BZ_MODEL_LIGHT_MAX];
+    mat4_t packed[BZ_MODEL_LIGHT_MAX];
     modelLighting_t state = { .count = 3 };
     FOR_LOOP(i, state.count) {
         state.lights[i].type = R_MODEL_LIGHT_DIRECT;
@@ -1223,7 +1223,7 @@ TEST(renderer_shader, lighting_state_packs_all_sources) {
 }
 
 TEST(renderer_shader, grass_state_uses_one_matrix) {
-    matrix4_t packed;
+    mat4_t packed;
     modelGrass_t grass = {
         .camera = { 1, 2 }, .fade = { 3, 4 }, .time = 5, .wind = { 6, 7, 8 },
         .phase = { 9, 10, 11, 12 }, .height = { 13, 14 }, .enabled = true,
@@ -1340,10 +1340,10 @@ TEST(renderer_shader, shadow_fog_uploads_colour_range_and_disable) {
     memset(&upload, 0, sizeof(upload));
     shader.state.fogEnable = true;
     R_ApplyShader(&shader); T_EQ(upload.calls, 1); T_EQ(upload.integer, 1);
-    shader.state.fogColor = (vector3_t){0.2f, 0.3f, 0.4f};
+    shader.state.fogColor = (vec3_t){0.2f, 0.3f, 0.4f};
     R_ApplyShader(&shader); T_EQ(upload.calls, 2); T_EQ(upload.width, 3);
     T_FEQ(upload.data[0], 0.2f, 0.0001f); T_FEQ(upload.data[2], 0.4f, 0.0001f);
-    shader.state.fogParams = (vector2_t){800, 3500};
+    shader.state.fogParams = (vec2_t){800, 3500};
     R_ApplyShader(&shader); T_EQ(upload.calls, 3); T_EQ(upload.width, 2);
     T_EQ(upload.data[0], 800); T_EQ(upload.data[1], 3500);
     R_ApplyShader(&shader); T_EQ(upload.calls, 3);
@@ -1681,7 +1681,7 @@ TEST(renderer_terrain, splat_draw_biases_coplanar_terrain_geometry) {
 TEST(renderer_terrain, splat_rect_stops_at_partial_tile_edge) {
     war3mapVertex_t verts[4] = {0};
     war3map_t map = { .width = 2, .height = 2, .vertices = verts };
-    struct { vector2_t mins, maxs; } rects[] = {
+    struct { vec2_t mins, maxs; } rects[] = {
         { { 32, 24 }, { 96, 104 } },
         { { 32, -1000 }, { 1000, 1000 } },
         { { -1000, -1000 }, { 96, 1000 } },
@@ -1690,7 +1690,7 @@ TEST(renderer_terrain, splat_rect_stops_at_partial_tile_edge) {
     };
     FOR_LOOP(i, 4) verts[i].accurate_height = 8192;
     FOR_LOOP(i, 5) {
-        vector2_t *mins = &rects[i].mins, *maxs = &rects[i].maxs;
+        vec2_t *mins = &rects[i].mins, *maxs = &rects[i].maxs;
         ground_current_vertex = ground_vertex_buffer;
         R_MakeSplatTile(&map, 0, 0, mins, maxs->x - mins->x, maxs->y - mins->y, COLOR32_WHITE);
         T_ASSERT(ground_current_vertex > ground_vertex_buffer);
@@ -1708,11 +1708,11 @@ TEST(renderer_terrain, splat_rect_stops_at_partial_tile_edge) {
 TEST(renderer_terrain, clipped_splat_follows_both_terrain_triangles) {
     war3mapVertex_t verts[4] = {0};
     war3map_t map = { .width = 2, .height = 2, .vertices = verts };
-    vector2_t mins = { 24, 20 }, maxs = { 108, 112 };
+    vec2_t mins = { 24, 20 }, maxs = { 108, 112 };
     FOR_LOOP(i, 4) verts[i].accurate_height = 8192;
     verts[1].level = 1; verts[2].level = 2;
-    vector3_t p0 = R_GetVertexPosition(&map, 0, 0, true), p1 = R_GetVertexPosition(&map, 1, 0, true);
-    vector3_t p2 = R_GetVertexPosition(&map, 1, 1, true), p3 = R_GetVertexPosition(&map, 0, 1, true);
+    vec3_t p0 = R_GetVertexPosition(&map, 0, 0, true), p1 = R_GetVertexPosition(&map, 1, 0, true);
+    vec3_t p2 = R_GetVertexPosition(&map, 1, 1, true), p3 = R_GetVertexPosition(&map, 0, 1, true);
     ground_current_vertex = ground_vertex_buffer;
     R_MakeSplatTile(&map, 0, 0, &mins, maxs.x - mins.x, maxs.y - mins.y, COLOR32_WHITE);
     T_ASSERT(ground_current_vertex > ground_vertex_buffer);
@@ -1767,8 +1767,8 @@ TEST(renderer_terrain, cliff_baker_preserves_native_axes_uvs_and_ground_coverage
     war3mapVertex_t verts[25] = {0};
     uint32_t grounds[5] = {0};
     war3map_t map = { .width = 5, .height = 5, .vertices = verts, .grounds = grounds, .num_grounds = 5 };
-    vector3_t pos[] = {{-128,0,128}, {-128,256,0}, {0,256,0}}, norm[] = {{1,0,0}, {1,0,0}, {1,0,0}};
-    vector2_t uv[] = {{0.1f,0.2f}, {0.3f,0.4f}, {0.5f,0.6f}};
+    vec3_t pos[] = {{-128,0,128}, {-128,256,0}, {0,256,0}}, norm[] = {{1,0,0}, {1,0,0}, {1,0,0}};
+    vec2_t uv[] = {{0.1f,0.2f}, {0.3f,0.4f}, {0.5f,0.6f}};
     short tris[] = {0,1,2};
     mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3, .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
     mdxModel_t mdx = { .geosets = &geo, .bounds.box = { .min = {-128,0,0}, .max = {0,256,128} } };
@@ -1823,9 +1823,9 @@ TEST(renderer_terrain, undead04_implicit_cliff_and_ground_join) {
     uint32_t grounds[] = { MAKEFOURCC('V','d','r','t') };
     war3map_t map = { .width = 5, .height = 5, .vertices = verts, .grounds = grounds, .num_grounds = 1 };
     /* AABB native mesh: north edge is high; exterior lip is slightly below the terrain. */
-    vector3_t pos[] = {{-128,0,120}, {-128,64,120}, {-128,128,120}};
-    vector3_t norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
-    vector2_t uv[3] = {0}; short tris[] = {0,1,2};
+    vec3_t pos[] = {{-128,0,120}, {-128,64,120}, {-128,128,120}};
+    vec3_t norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
+    vec2_t uv[3] = {0}; short tris[] = {0,1,2};
     mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3, .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
     mdxModel_t mdx = { .geosets = &geo, .bounds.box = { .min = {-128,0,0}, .max = {0,128,128} } };
     cliffData_t data = { .cliff = 1, .groundTile = grounds[0], .rampModelDir = "CliffTrans", .cliffModelDir = "Cliffs" };
@@ -1851,8 +1851,8 @@ TEST(renderer_terrain, undead04_cliff_material_inherits_nearby_authored_slot) {
     uint32_t cliffs[] = { MAKEFOURCC('C','L','g','r'), MAKEFOURCC('C','V','d','i') };
     war3map_t map = { .tileset = 'L', .custom = 1, .width = span, .height = span, .vertices = verts,
         .grounds = grounds, .num_grounds = 7, .cliffs = cliffs, .num_cliffs = 2 };
-    vector3_t pos[] = {{-128,0,120}, {-128,64,120}, {-128,128,120}}, norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
-    vector2_t uv[3] = {0}; short tris[] = {0,1,2};
+    vec3_t pos[] = {{-128,0,120}, {-128,64,120}, {-128,128,120}}, norm[] = {{0,0,1}, {0,0,1}, {0,0,1}};
+    vec2_t uv[3] = {0}; short tris[] = {0,1,2};
     mdxGeoset_t geo = { .num_vertices = 3, .num_triangles = 3, .vertices = pos, .normals = norm, .texcoord = uv, .triangles = tris };
     mdxModel_t mdx = { .geosets = &geo, .bounds.box = { .min = {-128,0,0}, .max = {0,128,128} } };
     texture_t texture = {0}; texture_t *saved = texture_load_result;
@@ -1897,7 +1897,7 @@ TEST(renderer_terrain, blight_preserves_cliff_corners) {
 
 TEST(renderer_terrain, ramp_footprints_cover_the_low_neighbour) {
     /* Levels use GetTileVertices' NE,NW,SE,SW order. Bounds are native MDX tile-space bounds. */
-    static const struct { uint8_t level[4]; bool eastwest; vector2_t low; } cases[] = {
+    static const struct { uint8_t level[4]; bool eastwest; vec2_t low; } cases[] = {
         { .level = {5,5,5,6}, .eastwest = true, .low = {1,0} }, /* (36,33) AALH -> (37,33). */
         { .level = {5,6,5,5}, .eastwest = true, .low = {1,0} }, /* (36,34) HLAA -> (37,34). */
         { .level = {5,6,5,6}, .eastwest = true, .low = {1,0} }, /* BALH/HLAB: rows 36,37,41,42. */
@@ -1912,9 +1912,9 @@ TEST(renderer_terrain, ramp_footprints_cover_the_low_neighbour) {
         if (cases[i].eastwest) box.max.y *= 2;
         else box.min.x *= 2;
         FOR_LOOP(j, 4) tile[j].level = cases[i].level[j];
-        vector2_t shift = R_CliffRampOffset(tile, &box);
-        vector3_t a = Matrix4_multiply_vector3(&r_cliff_axes, &box.min);
-        vector3_t b = Matrix4_multiply_vector3(&r_cliff_axes, &box.max);
+        vec2_t shift = R_CliffRampOffset(tile, &box);
+        vec3_t a = Matrix4_multiply_vector3(&r_cliff_axes, &box.min);
+        vec3_t b = Matrix4_multiply_vector3(&r_cliff_axes, &box.max);
         /* The mesh must cover this cliff cell plus exactly the low-side cell skipped by R_MakeTile. */
         T_FEQ((MIN(a.x, b.x) + shift.x) / TILE_SIZE, MIN(0, cases[i].low.x), 0.001f);
         T_FEQ((MAX(a.x, b.x) + shift.x) / TILE_SIZE, MAX(0, cases[i].low.x) + 1, 0.001f);
@@ -1955,9 +1955,9 @@ TEST(renderer_shader, shadow_receiver_contract) {
  * ----------------------------------------------------------------------- */
 
 typedef struct sdTestState_s {
-    matrix4_t mvp;
+    mat4_t mvp;
     int texture;
-    vector4_t color;
+    vec4_t color;
 } sdTestState_t;
 
 
@@ -1992,7 +1992,7 @@ static const shader_desc_t sd_test = {
 };
 #undef SHADER_TYPE
 
-typedef struct { matrix4_t fixed[2], counted[3]; uint32_t count; } sdArrayTestState_t;
+typedef struct { mat4_t fixed[2], counted[3]; uint32_t count; } sdArrayTestState_t;
 #define SHADER_TYPE sdArrayTestState_t
 static const shader_desc_t sd_array_test = { .Uniforms = {
     UNIFORM(fixed,   UT_FLOAT_MAT4, PRECISION_HIGH, 2),
@@ -2142,7 +2142,7 @@ TEST(renderer_shader_desc, apply_uploads_only_changed_uniforms) {
 
 /* Fixed-capacity GLSL arrays upload only the active CPU prefix named by their count field. */
 TEST(renderer_shader_desc, counted_array_uses_runtime_upload_count) {
-    typedef struct { matrix4_t values[4]; uint32_t count; } testCountState_t;
+    typedef struct { mat4_t values[4]; uint32_t count; } testCountState_t;
     testCountState_t state = { .count = 2 };
     shader_desc_t desc = { .Name = "counted", .Uniforms = {{
         .name = "values", .type = UT_FLOAT_MAT4, .count = 4, .count_offset = offsetof(testCountState_t, count), .counted = true,

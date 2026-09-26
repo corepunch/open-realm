@@ -19,15 +19,15 @@ struct {
  * point and UIFLAG_EXTEND_WIDESCREEN_X frames reach the full scene regardless of the root. */
 rect_t SCR_LayoutSceneRect(void) { return CL_Canvas()->root; }
 
-vector2_t get_x(rect_t const *rect) {
-    return (vector2_t) { rect->x, rect->x + rect->w };
+vec2_t get_x(rect_t const *rect) {
+    return (vec2_t) { rect->x, rect->x + rect->w };
 }
 
-vector2_t get_y(rect_t const *rect) {
-    return (vector2_t) { rect->y, rect->y + rect->h };
+vec2_t get_y(rect_t const *rect) {
+    return (vec2_t) { rect->y, rect->y + rect->h };
 }
 
-vector2_t SCR_GetAxisBounds(rect_t const *rect, bool is_x_axis) {
+vec2_t SCR_GetAxisBounds(rect_t const *rect, bool is_x_axis) {
     return is_x_axis ? get_x(rect) : get_y(rect);
 }
 
@@ -46,10 +46,10 @@ rect_t const *SCR_LayoutRectByNumber(uiFrame_t const *context, uint32_t number) 
 
 float SCR_GetAnchor(uiFrame_t const *f,
                     uiFramePoint_t const *p,
-                    vector2_t (*get)(rect_t const *))
+                    vec2_t (*get)(rect_t const *))
 {
     bool const is_x_axis = (get == get_x);
-    vector2_t b = SCR_GetAxisBounds(SCR_LayoutRectByNumber(f, p->relativeTo), is_x_axis);
+    vec2_t b = SCR_GetAxisBounds(SCR_LayoutRectByNumber(f, p->relativeTo), is_x_axis);
     float offset = SCR_NormalizeAnchorOffset(p, is_x_axis);
     if (p->targetPos == FPP_MID) {
         return (b.x + b.y) / 2 + offset;
@@ -60,7 +60,7 @@ float SCR_GetAnchor(uiFrame_t const *f,
     }
 }
 
-vector2_t SCR_SolveAxisPosition(uiFrame_t const *frame,
+vec2_t SCR_SolveAxisPosition(uiFrame_t const *frame,
                               uiFramePoints_t const points,
                               float width,
                               bool is_x_axis,
@@ -69,7 +69,7 @@ vector2_t SCR_SolveAxisPosition(uiFrame_t const *frame,
     uiFramePoint_t const *pmin = points + FPP_MIN;
     uiFramePoint_t const *pmid = points + FPP_MID;
     uiFramePoint_t const *pmax = points + FPP_MAX;
-    vector2_t (*get)(rect_t const *) = is_x_axis ? get_x : get_y;
+    vec2_t (*get)(rect_t const *) = is_x_axis ? get_x : get_y;
 
     /* Warcraft preserves an authored Width/Height when both opposing anchors
      * exist.  Horizontal layout is left/min anchored; vertical layout is
@@ -77,56 +77,56 @@ vector2_t SCR_SolveAxisPosition(uiFrame_t const *frame,
      * Only an auto-sized axis stretches between min and max. */
     if (assigned_size && pmin->used && pmax->used) {
         if (is_x_axis) {
-            return (vector2_t) {
+            return (vec2_t) {
                 SCR_GetAnchor(frame, pmin, get),
                 width,
             };
         }
-        return (vector2_t) {
+        return (vec2_t) {
             SCR_GetAnchor(frame, pmax, get) - width,
             width,
         };
     }
 
     if (pmid->used) {
-        return (vector2_t) {
+        return (vec2_t) {
             SCR_GetAnchor(frame, pmid, get) - width / 2,
             width,
         };
     } else if (pmin->used && pmax->used) {
         float anchor_min = SCR_GetAnchor(frame, pmin, get);
         float anchor_max = SCR_GetAnchor(frame, pmax, get);
-        return (vector2_t) {
+        return (vec2_t) {
             anchor_min,
             anchor_max - anchor_min,
         };
     } else if (pmax->used) {
-        return (vector2_t) {
+        return (vec2_t) {
             SCR_GetAnchor(frame, pmax, get) - width,
             width,
         };
     } else {
-        return (vector2_t) {
+        return (vec2_t) {
             SCR_GetAnchor(frame, pmin, get),
             width,
         };
     }
 }
 
-vector2_t get_position(uiFrame_t const *frame,
+vec2_t get_position(uiFrame_t const *frame,
                      uiFramePoints_t const p,
                      float width,
-                     vector2_t (*get)(rect_t const *),
+                     vec2_t (*get)(rect_t const *),
                      bool assigned_size)
 {
     return SCR_SolveAxisPosition(frame, p, width, get == get_x, assigned_size);
 }
 
-static vector2_t SCR_MeasureSizeToContent(uiFrame_t const *f, float avl) {
+static vec2_t SCR_MeasureSizeToContent(uiFrame_t const *f, float avl) {
     uiNameTag_t const *t = f->buffer.data;
     drawText_t d = SCR_GetDrawText(f, avl, SCR_GetStringValue(f), &t->text);
-    vector2_t s = re.GetTextSize(&d);
-    return (vector2_t){ MAX(t->min_width, s.x + t->padding_x * 2), s.y + t->padding_y * 2 };
+    vec2_t s = re.GetTextSize(&d);
+    return (vec2_t){ MAX(t->min_width, s.x + t->padding_x * 2), s.y + t->padding_y * 2 };
 }
 
 /* Context bindings read only recipient-filtered snapshot state already present on the client. */
@@ -349,14 +349,14 @@ rect_t const *SCR_LayoutRect(uiFrame_t const *frame) {
         runtimes[frame->number].calculated = true; // done here to avoid recursion
     }
     if (!SCR_LayoutContextFrameVisible(frame)) {
-        vector2_t const rect[] = {
+        vec2_t const rect[] = {
             get_position(frame, frame->points.x, 0.0f, get_x, assigned_width),
             get_position(frame, frame->points.y, 0.0f, get_y, assigned_height),
         };
         runtimes[frame->number].rect = MAKE(rect_t, rect[0].x, rect[1].x, 0.0f, 0.0f);
         return &runtimes[frame->number].rect;
     }
-    vector2_t elemsize = {0};
+    vec2_t elemsize = {0};
     float avl_space = runtimes[0].rect.w;
     drawText_t drawtext = {0};
     switch (frame->flags.type) {
@@ -376,7 +376,7 @@ rect_t const *SCR_LayoutRect(uiFrame_t const *frame) {
             elemsize = re.GetTextSize(&drawtext);
             if (frame->size.width == 0 && frame->textLength > 0) {
                 drawText_t space = SCR_GetDrawText(frame, avl_space, " ", label);
-                vector2_t const space_size = re.GetTextSize(&space);
+                vec2_t const space_size = re.GetTextSize(&space);
                 elemsize.x = (float)frame->textLength * space_size.x;
             }
             break;
@@ -426,7 +426,7 @@ rect_t const *SCR_LayoutRect(uiFrame_t const *frame) {
     if (frame->size.height == 0 && !(frame->points.y[FPP_MIN].used && frame->points.y[FPP_MAX].used)) {
         ((uiFrame_t * )frame)->size.height = elemsize.y;
     }
-    vector2_t const rect[] = {
+    vec2_t const rect[] = {
         get_position(frame, frame->points.x, frame->size.width, get_x, assigned_width),
         get_position(frame, frame->points.y, frame->size.height, get_y, assigned_height),
     };

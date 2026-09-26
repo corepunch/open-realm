@@ -793,7 +793,7 @@ bool G_ShopPurchaseUnit(edict_t *clent, edict_t *shop, uint32_t unit_id) {
     int32_t stock_index;
     uint32_t gold;
     uint32_t lumber;
-    vector2_t exit_origin;
+    vec2_t exit_origin;
     float exit_angle;
 
     if (!G_CanUseUnitShop(client, shop)) return false;

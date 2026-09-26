@@ -90,7 +90,7 @@ TEST(wc3_spell, healing_spray_procedure_is_channel_point_spell) {
 /* First wave heals friendlies in Area by DataA; enemy/mech/far are untouched. */
 TEST(wc3_spell, healing_spray_first_wave_heals_friendlies_in_area) {
     hsFix_t fix; hs_setup(&fix);
-    vector2_t point = fix.ally->s.origin2;
+    vec2_t point = fix.ally->s.origin2;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANHS, &point));
     T_EQ(fix.caster->channel.code, BZ_ANHS);
     T_FEQ(fix.ally->health.value, 125, 0.001f);
@@ -104,7 +104,7 @@ TEST(wc3_spell, healing_spray_first_wave_heals_friendlies_in_area) {
 /* DataD caps the wave: two allies at DataA=25 would be 50, so each gets 20. */
 TEST(wc3_spell, healing_spray_scales_heal_to_max_gained_hp) {
     hsFix_t fix; hs_setup(&fix);
-    vector2_t point = fix.ally->s.origin2;
+    vec2_t point = fix.ally->s.origin2;
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X16\n"
         "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
@@ -130,7 +130,7 @@ TEST(wc3_spell, healing_spray_scales_heal_to_max_gained_hp) {
 /* Second pulse waits for authored DataB, then fires through the entity scheduler. */
 TEST(wc3_spell, healing_spray_second_wave_after_authored_interval) {
     hsFix_t fix; hs_setup(&fix);
-    vector2_t point = fix.ally->s.origin2;
+    vec2_t point = fix.ally->s.origin2;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANHS, &point));
     edict_t *thinker = hs_thinker(fix.caster);
     T_NOT_NULL(thinker);
@@ -146,7 +146,7 @@ TEST(wc3_spell, healing_spray_second_wave_after_authored_interval) {
 
 TEST(wc3_spell, healing_spray_caster_move_cancels_remaining_waves) {
     hsFix_t fix; hs_setup(&fix);
-    vector2_t point = fix.ally->s.origin2;
+    vec2_t point = fix.ally->s.origin2;
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANHS, &point));
     edict_t *thinker = hs_thinker(fix.caster);
     T_NOT_NULL(thinker);

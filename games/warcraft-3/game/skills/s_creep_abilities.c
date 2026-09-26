@@ -70,7 +70,7 @@ static void death_damage_aoe(edict_t *ent, uint32_t code) {
     uint32_t level = MAX(1u, G_UnitAbilityLevel(ent, code));
     float full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
     float part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
-    vector2_t origin = ent->s.origin2;
+    vec2_t origin = ent->s.origin2;
     if (part_r < full_r) part_r = full_r;
     FILTER_EDICTS(target, target != ent && S_SpellIsAliveTarget(target) && S_SpellIsEnemy(ent, target)) {
         float dist = Vector2_distance(&target->s.origin2, &origin);

@@ -58,7 +58,7 @@ typedef struct {
 } m2GeometryInfo_t;
 
 static modelProg_t *m2_shader;
-static matrix4_t m2_bone_matrices[M2_MAX_BONES];
+static mat4_t m2_bone_matrices[M2_MAX_BONES];
 
 static modelProg_t *M2_Shader(void) {
     if (!m2_shader) {
@@ -86,22 +86,22 @@ static m2Model_t *M2_CreateFallbackModel(cstring_t modelFilename, cstring_t reas
     M2_LogFallback(modelFilename, reason);
 
     if (!initialized) {
-        vector3_t base[4] = {
+        vec3_t base[4] = {
             { -14.0f, -14.0f, 0.0f },
             {  14.0f, -14.0f, 0.0f },
             {  14.0f,  14.0f, 0.0f },
             { -14.0f,  14.0f, 0.0f },
         };
-        vector3_t top = { 0.0f, 0.0f, 42.0f };
+        vec3_t top = { 0.0f, 0.0f, 42.0f };
         int tri[12] = { 0, 1, 2, 0, 2, 3, 0, 1, 4, 2, 3, 4 };
-        vector3_t points[5];
+        vec3_t points[5];
         memcpy(points, base, sizeof(base));
         points[4] = top;
         FOR_LOOP(i, 12) {
             memset(&vertices[i], 0, sizeof(vertices[i]));
             vertices[i].position = points[tri[i]];
-            vertices[i].normal = (vector3_t){ 0.0f, 0.0f, 1.0f };
-            vertices[i].texcoord = (vector2_t){ 0.0f, 0.0f };
+            vertices[i].normal = (vec3_t){ 0.0f, 0.0f, 1.0f };
+            vertices[i].texcoord = (vec2_t){ 0.0f, 0.0f };
             vertices[i].color = color;
         }
         initialized = true;
@@ -647,23 +647,23 @@ static bool M2_FindTrackKeys(m2Model_t const *model,
     return true;
 }
 
-static vector3_t M2_EvaluateVectorTrack(m2Model_t const *model,
+static vec3_t M2_EvaluateVectorTrack(m2Model_t const *model,
                                       m2TrackView_t const *track,
                                       uint32_t seq,
                                       uint32_t tim,
-                                      vector3_t default_value) {
+                                      vec3_t default_value) {
     void const *left;
     void const *right;
     float ratio;
     uint32_t track_time = M2_TrackTime(model, track, seq, tim);
 
-    if (!M2_FindTrackKeys(model, track, seq, track_time, sizeof(vector3_t), &left, &right, &ratio)) {
+    if (!M2_FindTrackKeys(model, track, seq, track_time, sizeof(vec3_t), &left, &right, &ratio)) {
         return default_value;
     }
     if (left == right) {
-        return *(vector3_t const *)left;
+        return *(vec3_t const *)left;
     }
-    return Vector3_lerp((vector3_t const *)left, (vector3_t const *)right, ratio);
+    return Vector3_lerp((vec3_t const *)left, (vec3_t const *)right, ratio);
 }
 
 static float M2_EvaluateFloatTrack(m2Model_t const *model,
@@ -687,18 +687,18 @@ static float M2_EvaluateFloatTrack(m2Model_t const *model,
 
 bool M2_CameraView(m2Model_t const *model,
                    uint32_t camera_index,
-                   vector3_t *eye,
-                   vector3_t *target,
+                   vec3_t *eye,
+                   vec3_t *target,
                    float *fov_degrees,
                    float *znear,
                    float *zfar) {
     m2PoseTime_t pose;
     m2TrackView_t position_track;
     m2TrackView_t target_track;
-    vector3_t position_value;
-    vector3_t target_value;
-    vector3_t position_pivot;
-    vector3_t target_pivot;
+    vec3_t position_value;
+    vec3_t target_value;
+    vec3_t position_pivot;
+    vec3_t target_pivot;
     float fov;
     float far_clip;
     float near_clip;
@@ -730,8 +730,8 @@ bool M2_CameraView(m2Model_t const *model,
         fov = camera->fov; near_clip = camera->near_clip; far_clip = camera->far_clip;
     }
     M2_FrameToPoseTime(model, tr.viewDef.time, &pose);
-    position_value = M2_EvaluateVectorTrack(model, &position_track, pose.seq, pose.tim, (vector3_t){ 0.0f, 0.0f, 0.0f });
-    target_value = M2_EvaluateVectorTrack(model, &target_track, pose.seq, pose.tim, (vector3_t){ 0.0f, 0.0f, 0.0f });
+    position_value = M2_EvaluateVectorTrack(model, &position_track, pose.seq, pose.tim, (vec3_t){ 0.0f, 0.0f, 0.0f });
+    target_value = M2_EvaluateVectorTrack(model, &target_track, pose.seq, pose.tim, (vec3_t){ 0.0f, 0.0f, 0.0f });
     *eye = Vector3_add(&position_pivot, &position_value);
     *target = Vector3_add(&target_pivot, &target_value);
     if (fov_degrees)
@@ -848,11 +848,11 @@ static uint16_t M2_BoneParentIndex(m2Model_t const *model, uint32_t bone_index) 
     return ((m2CompBoneModern_t const *)bone)->parent_index;
 }
 
-static vector3_t M2_BonePivot(m2Model_t const *model, uint32_t bone_index) {
+static vec3_t M2_BonePivot(m2Model_t const *model, uint32_t bone_index) {
     void const *bone = M2_BonePtr(model, bone_index);
 
     if (!bone) {
-        return (vector3_t){ 0.0f, 0.0f, 0.0f };
+        return (vec3_t){ 0.0f, 0.0f, 0.0f };
     }
     if (model->format->format == M2_FORMAT_CLASSIC) {
         return ((m2CompBoneClassic_t const *)bone)->pivot;
@@ -943,10 +943,10 @@ static void m2_sample_part_track(m2Model_t const *model, m2PartTrack_t const *tr
 			uint8_t const *a = vals + (i - 1) * elem_size, *b = vals + i * elem_size;
 			if (elem_size == sizeof(int16_t))
 				*(int16_t *)out = (int16_t)LerpNumber((float)*(int16_t *)a, (float)*(int16_t *)b, ratio);
-			else if (elem_size == sizeof(vector2_t))
-				*(vector2_t *)out = Vector2_lerp((vector2_t const *)a, (vector2_t const *)b, ratio);
-			else if (elem_size == sizeof(vector3_t))
-				*(vector3_t *)out = Vector3_lerp((vector3_t const *)a, (vector3_t const *)b, ratio);
+			else if (elem_size == sizeof(vec2_t))
+				*(vec2_t *)out = Vector2_lerp((vec2_t const *)a, (vec2_t const *)b, ratio);
+			else if (elem_size == sizeof(vec3_t))
+				*(vec3_t *)out = Vector3_lerp((vec3_t const *)a, (vec3_t const *)b, ratio);
 			else memcpy(out, a, elem_size);
 			return;
 		}
@@ -987,13 +987,13 @@ static texture_t *m2_ribbon_texture(m2Model_t const *model, m2Ribbon_t const *r,
 
 typedef struct {
 	float speed, varia, lat, lon, grav, life, life_var, zsource, midpoint;
-	float alpha[3]; vector2_t scale[3]; vector3_t color[3];
+	float alpha[3]; vec2_t scale[3]; vec3_t color[3];
 	texture_t *texture; uint16_t bone_index;
-	m2Model_t const *model; m2Particle_t const *p; matrix4_t const *model_matrix;
+	m2Model_t const *model; m2Particle_t const *p; mat4_t const *model_matrix;
 } m2_pctx_t;
 
 /* M2 emitter positions are local to their bone, not the model origin. */
-static void M2_EmitterMatrix(m2_pctx_t const *ctx, matrix4_t *out) {
+static void M2_EmitterMatrix(m2_pctx_t const *ctx, mat4_t *out) {
     if (ctx->model && ctx->bone_index < (uint32_t)M2_BonesArray(ctx->model).size) {
         Matrix4_multiply(ctx->model_matrix, &m2_bone_matrices[ctx->bone_index], out);
         return;
@@ -1005,21 +1005,21 @@ static void m2_spawn_particle(void *raw) {
 	m2_pctx_t *ctx = (m2_pctx_t *)raw;
 	cparticle_t *fx = R_SpawnParticle(); if (!fx) return;
 	float r = (float)rand() / (float)RAND_MAX;
-	matrix4_t emitter_matrix;
+	mat4_t emitter_matrix;
 	M2_EmitterMatrix(ctx, &emitter_matrix);
-	vector3_t local_origin = ctx->p->position;
+	vec3_t local_origin = ctx->p->position;
 	local_origin.z += ctx->zsource;
-	vector3_t org = Matrix4_multiply_vector3(&emitter_matrix, &local_origin);
-	vector3_t dir = m2_particle_direction(ctx->lat, ctx->lon, (vector2_t){ 2.0f * (float)rand() / (float)RAND_MAX - 1.0f, 2.0f * (float)rand() / (float)RAND_MAX - 1.0f });
-	vector3_t w_dir = Matrix4_multiply_vector3(&emitter_matrix, &dir);
-	vector3_t w_zero = Matrix4_multiply_vector3(&emitter_matrix, &(vector3_t){ 0, 0, 0 });
+	vec3_t org = Matrix4_multiply_vector3(&emitter_matrix, &local_origin);
+	vec3_t dir = m2_particle_direction(ctx->lat, ctx->lon, (vec2_t){ 2.0f * (float)rand() / (float)RAND_MAX - 1.0f, 2.0f * (float)rand() / (float)RAND_MAX - 1.0f });
+	vec3_t w_dir = Matrix4_multiply_vector3(&emitter_matrix, &dir);
+	vec3_t w_zero = Matrix4_multiply_vector3(&emitter_matrix, &(vec3_t){ 0, 0, 0 });
 	dir = Vector3_sub(&w_dir, &w_zero);
 	Vector3_normalize(&dir);
 	fx->texture = ctx->texture;
 	fx->blend_mode = m2_particle_blend_mode(ctx->p->blend_mode);
 	fx->org = org;
 	fx->vel = Vector3_scale(&dir, MAX(0.0f, ctx->speed + (r - 0.5f) * ctx->varia));
-	fx->accel = (vector3_t){ 0, 0, -ctx->grav };
+	fx->accel = (vec3_t){ 0, 0, -ctx->grav };
 	fx->color[0] = M2_C32(ctx->color[0], ctx->alpha[0]);
 	fx->color[1] = M2_C32(ctx->color[1], ctx->alpha[1]);
 	fx->color[2] = M2_C32(ctx->color[2], ctx->alpha[2]);
@@ -1037,17 +1037,17 @@ static void m2p_sample_classic_data(uint8_t const *raw, m2_pctx_t *ctx) {
     if (midpoint < 0.0f || midpoint > 1.0f) midpoint = 0.5f;
     FOR_LOOP(i, 3) {
         uint32_t bgra = p->colors[i];
-        ctx->color[i] = (vector3_t){ ((bgra >> 16) & 0xff) / 255.0f, ((bgra >> 8) & 0xff) / 255.0f,
+        ctx->color[i] = (vec3_t){ ((bgra >> 16) & 0xff) / 255.0f, ((bgra >> 8) & 0xff) / 255.0f,
                                    (bgra & 0xff) / 255.0f };
         ctx->alpha[i] = ((bgra >> 24) & 0xff) / 255.0f;
-        ctx->scale[i] = (vector2_t){ p->scales[i], 0.0f };
+        ctx->scale[i] = (vec2_t){ p->scales[i], 0.0f };
         if (ctx->alpha[i] > 0.01f) all_alpha_zero = false;
     }
     if (all_alpha_zero) { ctx->alpha[0] = 1.0f; ctx->alpha[1] = 1.0f; ctx->alpha[2] = 0.0f; }
     ctx->midpoint = midpoint;
 }
 
-static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entity, matrix4_t const *model_matrix) {
+static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entity, mat4_t const *model_matrix) {
 	m2Array_t particles;
 	if (!model || !entity) return;
 	particles = M2_ParticlesArray(model);
@@ -1092,12 +1092,12 @@ static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entit
 			  ctx.alpha[1] = m2_fixed16_to_float(raw2);
 			  m2_sample_part_track(model, alpha_pt, 1.0f, sizeof(raw2), &raw2);
 			  ctx.alpha[2] = m2_fixed16_to_float(raw2); }
-			m2_sample_part_track(model, scale_pt, 0.0f, sizeof(vector2_t), &ctx.scale[0]);
-			m2_sample_part_track(model, scale_pt, 0.5f, sizeof(vector2_t), &ctx.scale[1]);
-			m2_sample_part_track(model, scale_pt, 1.0f, sizeof(vector2_t), &ctx.scale[2]);
-			m2_sample_part_track(model, color_pt, 0.0f, sizeof(vector3_t), &ctx.color[0]);
-			m2_sample_part_track(model, color_pt, 0.5f, sizeof(vector3_t), &ctx.color[1]);
-			m2_sample_part_track(model, color_pt, 1.0f, sizeof(vector3_t), &ctx.color[2]);
+			m2_sample_part_track(model, scale_pt, 0.0f, sizeof(vec2_t), &ctx.scale[0]);
+			m2_sample_part_track(model, scale_pt, 0.5f, sizeof(vec2_t), &ctx.scale[1]);
+			m2_sample_part_track(model, scale_pt, 1.0f, sizeof(vec2_t), &ctx.scale[2]);
+			m2_sample_part_track(model, color_pt, 0.0f, sizeof(vec3_t), &ctx.color[0]);
+			m2_sample_part_track(model, color_pt, 0.5f, sizeof(vec3_t), &ctx.color[1]);
+			m2_sample_part_track(model, color_pt, 1.0f, sizeof(vec3_t), &ctx.color[2]);
 		}
 		ctx.texture = m2_particle_texture(model, p);
 		ctx.bone_index = p->bone_index;
@@ -1105,7 +1105,7 @@ static void M2_DrawParticles(m2Model_t const *model, renderEntity_t const *entit
 	}
 }
 
-static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity, matrix4_t const *model_matrix) {
+static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity, mat4_t const *model_matrix) {
 	m2Array_t ribbons;
 	if (!model || !entity) return;
 	ribbons = M2_RibbonsArray(model);
@@ -1122,7 +1122,7 @@ static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity,
 		if (eps <= 0.0f) continue;
 		float edge_life = m2_ribbon_edge_lifetime(model->format, raw);
 		m2TrackView_t color_t = m2_ribbon_track(model->format, raw, M2_RIBBON_COLOR);
-		vector3_t col = M2_EvaluateVectorTrack(model, &color_t, seq_idx, seq_time, (vector3_t){ 1, 1, 1 });
+		vec3_t col = M2_EvaluateVectorTrack(model, &color_t, seq_idx, seq_time, (vec3_t){ 1, 1, 1 });
 		m2TrackView_t alpha_t = m2_ribbon_track(model->format, raw, M2_RIBBON_ALPHA);
 		void const *la, *ra; float rta;
 		uint32_t tt = M2_TrackTime(model, &alpha_t, seq_idx, seq_time);
@@ -1149,10 +1149,10 @@ static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity,
 		uint32_t rows = MAX(1, m2_ribbon_rows(model->format, raw));
 		texture_t *tex = m2_ribbon_texture(model, r, slot);
 		float grav = m2_ribbon_gravity(model->format, raw);
-		matrix4_t emitter_matrix = *model_matrix;
+		mat4_t emitter_matrix = *model_matrix;
 		if (r->bone_index < (uint32_t)M2_BonesArray(model).size)
 			Matrix4_multiply(model_matrix, &m2_bone_matrices[r->bone_index], &emitter_matrix);
-		vector3_t spine = Matrix4_multiply_vector3(&emitter_matrix, &r->position);
+		vec3_t spine = Matrix4_multiply_vector3(&emitter_matrix, &r->position);
 		uint32_t last_ms = tr.viewDef.time - tr.viewDef.deltaTime;
 		uint32_t start_ms = last_ms - last_ms % 1000;
 		for (float t = (float)start_ms; t < (float)tr.viewDef.time; t += 1000.0f / eps) {
@@ -1161,8 +1161,8 @@ static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity,
 			fx = R_SpawnParticle();
 			if (!fx) break;
 			fx->texture = tex; fx->org = spine;
-			fx->vel = (vector3_t){ 0, 0, 0 };
-			fx->accel = (vector3_t){ 0, 0, -MAX(0.0f, grav) };
+			fx->vel = (vec3_t){ 0, 0, 0 };
+			fx->accel = (vec3_t){ 0, 0, -MAX(0.0f, grav) };
 			fx->color[0] = fx->color[1] = fx->color[2] = rgba;
 			fx->size[0] = fx->size[1] = fx->size[2] = size_b;
 			fx->midtime = 0x80; fx->columns = cols; fx->rows = rows;
@@ -1172,7 +1172,7 @@ static void M2_DrawRibbons(m2Model_t const *model, renderEntity_t const *entity,
 }
 
 static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t const *entity) {
-    matrix4_t identity;
+    mat4_t identity;
     m2PoseTime_t cur, old;
     float pose_lerp = 1.0f;
     uint32_t bone_count;
@@ -1196,27 +1196,27 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
     FOR_LOOP(i, bone_count) {
         uint16_t parent_index = M2_BoneParentIndex(model, i);
         uint32_t flags = M2_BoneFlags(model, i);
-        vector3_t pivot = M2_BonePivot(model, i);
+        vec3_t pivot = M2_BonePivot(model, i);
         m2TrackView_t ttrk = M2_BoneTranslationTrack(model, i);
         m2TrackView_t rtrk = M2_BoneRotationTrack(model, i);
         m2TrackView_t strk = M2_BoneScaleTrack(model, i);
         bool has_keys = M2_TrackHasKeys(&ttrk) || M2_TrackHasKeys(&rtrk) || M2_TrackHasKeys(&strk);
-        matrix4_t const *parent = &identity;
+        mat4_t const *parent = &identity;
 
         if (parent_index != 0xFFFF && parent_index < i) {
             parent = &m2_bone_matrices[parent_index];
         }
 
         if ((flags & (0x80 | 0x200)) || has_keys) {
-            matrix4_t local;
-            vector3_t tran = M2_EvaluateVectorTrack(model, &ttrk, cur.seq, cur.tim, (vector3_t){ 0.0f, 0.0f, 0.0f });
+            mat4_t local;
+            vec3_t tran = M2_EvaluateVectorTrack(model, &ttrk, cur.seq, cur.tim, (vec3_t){ 0.0f, 0.0f, 0.0f });
             quaternion_t rot = M2_EvaluateRotationTrack(model, &rtrk, cur.seq, cur.tim, (quaternion_t){ 0.0f, 0.0f, 0.0f, 1.0f });
-            vector3_t scl = M2_EvaluateVectorTrack(model, &strk, cur.seq, cur.tim, (vector3_t){ 1.0f, 1.0f, 1.0f });
+            vec3_t scl = M2_EvaluateVectorTrack(model, &strk, cur.seq, cur.tim, (vec3_t){ 1.0f, 1.0f, 1.0f });
 
             if (pose_lerp < 1.0f) {
-                vector3_t otrn = M2_EvaluateVectorTrack(model, &ttrk, old.seq, old.tim, (vector3_t){ 0.0f, 0.0f, 0.0f });
+                vec3_t otrn = M2_EvaluateVectorTrack(model, &ttrk, old.seq, old.tim, (vec3_t){ 0.0f, 0.0f, 0.0f });
                 quaternion_t orot = M2_EvaluateRotationTrack(model, &rtrk, old.seq, old.tim, (quaternion_t){ 0.0f, 0.0f, 0.0f, 1.0f });
-                vector3_t oscl = M2_EvaluateVectorTrack(model, &strk, old.seq, old.tim, (vector3_t){ 1.0f, 1.0f, 1.0f });
+                vec3_t oscl = M2_EvaluateVectorTrack(model, &strk, old.seq, old.tim, (vec3_t){ 1.0f, 1.0f, 1.0f });
 
                 tran = Vector3_lerp(&otrn, &tran, pose_lerp);
                 rot = Quaternion_slerp(&orot, &rot, pose_lerp);
@@ -1232,7 +1232,7 @@ static void M2_CalculateBoneMatrices(m2Model_t const *model, renderEntity_t cons
 }
 
 static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *batch, modelProg_t *shader) {
-    matrix4_t palette[BZ_BONE_PALETTE_MAX];
+    mat4_t palette[BZ_BONE_PALETTE_MAX];
     uint16_t const *bone_lookup = model ? M2_BoneLookup(model) : NULL;
     uint32_t nlook = model ? (uint32_t)M2_BoneLookupArray(model).size : 0;
     uint32_t nbone = model ? (uint32_t)M2_BonesArray(model).size : 0;
@@ -1254,7 +1254,7 @@ static void M2_UploadBatchBones(m2Model_t const *model, m2ModelBatch_t const *ba
         }
     }
 
-    memcpy(&shader->state.bones, palette[0].v, count * sizeof(matrix4_t));
+    memcpy(&shader->state.bones, palette[0].v, count * sizeof(mat4_t));
     shader->state.boneCount = count;
 }
 
@@ -1345,7 +1345,7 @@ static bool M2_CalculateGeometryBounds(m2VertexDisk_t const *verts, uint32_t nve
     bounds->min = verts[0].pos;
     bounds->max = verts[0].pos;
     for (uint32_t i = 1; i < nverts; i++) {
-        vector3_t p = verts[i].pos;
+        vec3_t p = verts[i].pos;
         bounds->min.x = MIN(bounds->min.x, p.x);
         bounds->min.y = MIN(bounds->min.y, p.y);
         bounds->min.z = MIN(bounds->min.z, p.z);
@@ -1790,8 +1790,8 @@ static bool M2_CharacterTextureModified(m2CharacterOutfit_t const *outfit, uint3
 
 static void M2_DrawCompositeQuad(texture_t *texture, rect_t const *screen, bool blend) {
     vertex_t vertices[6];
-    matrix4_t projection;
-    matrix4_t identity;
+    mat4_t projection;
+    mat4_t identity;
     rect_t uv = { 0, 0, 1, 1 };
 
     R_AddQuad(vertices, screen, &uv, COLOR32_WHITE, 0);
@@ -1928,8 +1928,8 @@ static texture_t *M2_CharacterTextureForBatch(m2Model_t const *model,
     return batch->texture;
 }
 
-bool M2_AttachmentMatrix(m2Model_t const *model, uint32_t attachment_id, matrix4_t const *model_matrix, matrix4_t *out);
-void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, matrix4_t const *transform);
+bool M2_AttachmentMatrix(m2Model_t const *model, uint32_t attachment_id, mat4_t const *model_matrix, mat4_t *out);
+void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, mat4_t const *transform);
 
 /* Race abbreviation used by Item\ObjectComponents\Head\<name>_<race><gender>.m2. */
 static cstring_t M2_RaceCode(uint32_t race_id) {
@@ -1992,11 +1992,11 @@ static bool M2_ItemTexturePath(cstring_t texture_name, bool helm, string_t out, 
  * parent's bone scratch stays intact. The item's model texture (ItemDisplayInfo
  * field 3/4) overrides the attachment's replaceable object skin. */
 static void M2_RenderItemAttachments(renderEntity_t const *entity, m2Model_t const *model,
-                                     matrix4_t const *transform, m2CharacterOutfit_t const *outfit) {
+                                     mat4_t const *transform, m2CharacterOutfit_t const *outfit) {
     static uint32_t const ids[3] = { 11, 6, 5 }; /* helm, shoulder-left, shoulder-right */
     model_t const *models[3] = { NULL, NULL, NULL };
     texture_t *textures[3] = { NULL, NULL, NULL };
-    matrix4_t matrices[3];
+    mat4_t matrices[3];
     bool valid[3] = { false, false, false };
     PATHSTR path;
     if (!entity || !model || !transform || !outfit) return;
@@ -2057,12 +2057,12 @@ static void M2_BindSunLight(modelProg_t *shader) {
     R_SetModelLighting(shader, &light);
 }
 
-void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, matrix4_t const *transform) {
+void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, mat4_t const *transform) {
     renderEntity_t resolved_entity;
     renderEntity_t const *draw_entity = entity;
     m2CreatureAppearance_t creature = { 0 };
     m2CreatureAppearance_t const *creature_ptr = NULL;
-    matrix3_t normal_matrix;
+    mat3_t normal_matrix;
     m2CharacterOutfit_t outfit_data;
     m2CharacterOutfit_t const *outfit = NULL;
     texture_t *character_texture = NULL;
@@ -2078,7 +2078,7 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, matrix
 
     ground_effect = entity->flags & RF_GROUND_EFFECT;
     if (ground_effect) {
-        vector3_t delta = Vector3_sub(&entity->origin, &tr.viewDef.camerastate[0].origin);
+        vec3_t delta = Vector3_sub(&entity->origin, &tr.viewDef.camerastate[0].origin);
         float distance = Vector3_len(&delta);
         float fade_range = WOW_GRASS_DRAW_DISTANCE - WOW_GRASS_FADE_START_DISTANCE;
         ground_alpha = 1.0f - MAX(0.0f, MIN(1.0f, (distance - WOW_GRASS_FADE_START_DISTANCE) / fade_range));
@@ -2108,14 +2108,14 @@ void M2_RenderModel(renderEntity_t const *entity, m2Model_t const *model, matrix
     shader->state.normalMatrix = normal_matrix;
     M2_BindSunLight(shader);
     /* Set identity defaults for UV/color/layer uniforms that M2 does not animate. */
-    shader->state.geosetColor = (vector4_t){ 1.0f, 1.0f, 1.0f, ground_alpha };
+    shader->state.geosetColor = (vec4_t){ 1.0f, 1.0f, 1.0f, ground_alpha };
     shader->state.layerAlpha = 1.0f;
-    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; memcpy(&shader->state.uvMatrix, m, (1) * sizeof(matrix3_t)); }
+    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; memcpy(&shader->state.uvMatrix, m, (1) * sizeof(mat3_t)); }
     shader->state.alphaKey = 0;
     shader->state.unshaded = 0;
     shader->state.fogEnable = tr.viewDef.fogEnable;
-    shader->state.fogColor = (vector3_t){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
-    shader->state.fogParams = (vector2_t){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
+    shader->state.fogColor = (vec3_t){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
+    shader->state.fogParams = (vec2_t){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
     shader->state.firstBoneLookupIndex = 0.0f;
     R_Call(glEnable, GL_DEPTH_TEST);
     R_Call(glDepthMask, GL_TRUE);
@@ -2169,17 +2169,17 @@ void M2_RenderInstanced(m2Model_t const *model, instanceBuffer_t const *instance
     shader->state.textureMatrix = tr.viewDef.textureMatrix;
     shader->state.lightMatrix = tr.viewDef.lightMatrix;
     M2_BindSunLight(shader);
-    shader->state.geosetColor = (vector4_t){ 1.0f, 1.0f, 1.0f, 1.0f };
+    shader->state.geosetColor = (vec4_t){ 1.0f, 1.0f, 1.0f, 1.0f };
     shader->state.layerAlpha = 1.0f;
-    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; memcpy(&shader->state.uvMatrix, m, (1) * sizeof(matrix3_t)); }
+    { GLfloat m[9] = { 1,0,0, 0,1,0, 0,0,1 }; memcpy(&shader->state.uvMatrix, m, (1) * sizeof(mat3_t)); }
     shader->state.alphaKey = 0;
     shader->state.unshaded = 0;
     shader->state.fogEnable = tr.viewDef.fogEnable;
-    shader->state.fogColor = (vector3_t){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
-    shader->state.fogParams = (vector2_t){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
+    shader->state.fogColor = (vec3_t){ tr.viewDef.fogColor.x, tr.viewDef.fogColor.y, tr.viewDef.fogColor.z };
+    shader->state.fogParams = (vec2_t){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
     shader->state.firstBoneLookupIndex = 0.0f;
     {
-        vector3_t cam = tr.viewDef.camerastate[0].origin;
+        vec3_t cam = tr.viewDef.camerastate[0].origin;
         modelGrass_t grass = {
             .camera = { cam.x, cam.y },
             .fade = { WOW_GRASS_FADE_START_DISTANCE, WOW_GRASS_DRAW_DISTANCE },
@@ -2210,14 +2210,14 @@ void M2_RenderInstanced(m2Model_t const *model, instanceBuffer_t const *instance
 
 bool M2_AttachmentMatrix(m2Model_t const *model,
                          uint32_t attachment_id,
-                         matrix4_t const *model_matrix,
-                         matrix4_t *out) {
+                         mat4_t const *model_matrix,
+                         mat4_t *out) {
     uint8_t const *attachments;
     uint16_t const *lookup;
     uint32_t attachment_index = 0xFFFFu;
     uint16_t bone_index;
-    vector3_t position;
-    matrix4_t local;
+    vec3_t position;
+    mat4_t local;
     m2Array_t attachment_array;
     m2Array_t lookup_array;
 
@@ -2269,20 +2269,20 @@ bool M2_AttachmentMatrix(m2Model_t const *model,
 
 /* Rebuild the requested entity pose before resolving an attachment outside the M2 draw pass. */
 bool M2_EntityAttachmentPosition(m2Model_t const *model, renderEntity_t const *entity, uint32_t attachment_id,
-                                 matrix4_t const *model_matrix, vector3_t *out) {
-    matrix4_t matrix;
+                                 mat4_t const *model_matrix, vec3_t *out) {
+    mat4_t matrix;
     if (!model || !entity || !model_matrix || !out) return false;
     M2_CalculateBoneMatrices(model, entity);
     if (!M2_AttachmentMatrix(model, attachment_id, model_matrix, &matrix)) return false;
-    *out = MAKE(vector3_t, matrix.v[12], matrix.v[13], matrix.v[14]);
+    *out = MAKE(vec3_t, matrix.v[12], matrix.v[13], matrix.v[14]);
     return true;
 }
 
 /* Resolve an attachment while this model's just-calculated pose still owns the shared bone palette. */
-bool M2_PosedAttachmentPosition(m2Model_t const *model, uint32_t attachment_id, matrix4_t const *model_matrix, vector3_t *out) {
-    matrix4_t matrix;
+bool M2_PosedAttachmentPosition(m2Model_t const *model, uint32_t attachment_id, mat4_t const *model_matrix, vec3_t *out) {
+    mat4_t matrix;
     if (!model || !model_matrix || !out || !M2_AttachmentMatrix(model, attachment_id, model_matrix, &matrix)) return false;
-    *out = MAKE(vector3_t, matrix.v[12], matrix.v[13], matrix.v[14]);
+    *out = MAKE(vec3_t, matrix.v[12], matrix.v[13], matrix.v[14]);
     return true;
 }
 

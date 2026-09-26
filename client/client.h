@@ -42,7 +42,7 @@ typedef struct {
     mouseEventType_t event;
     uint32_t button;
     int wheel;
-    vector2_t origin;
+    vec2_t origin;
 } mouseEvent_t;
 
 typedef enum {
@@ -87,13 +87,13 @@ struct client_state {
     lightningEffect_t lightning_effects[MAX_LIGHTNING_EFFECTS];
     uint32_t num_lightning_effects;
     struct frame frame;
-    vector2_t startingPosition;
+    vec2_t startingPosition;
     player_t playerstate;
     struct {
         bool active;
-        vector2_t origin;
+        vec2_t origin;
         bool view;
-        vector3_t angles;
+        vec3_t angles;
         float distance;
         uint32_t focus_ms, view_ms;
     } camera_prediction;
@@ -184,8 +184,8 @@ void CL_MovieUpdate(void);
 void CL_MovieDraw(void);
 bool CL_MovieKeyEvent(keyCode_t key, bool down);
 void CL_MovieShutdown(void);
-vector2_t CL_ClampCameraPosition(vector2_t position);
-void CL_PredictCameraPosition(vector2_t position);
+vec2_t CL_ClampCameraPosition(vec2_t position);
+void CL_PredictCameraPosition(vec2_t position);
 static inline float cl_normalize_entity_scale(float scale) { return scale > 0.0f ? scale : 1.0f; }
 
 void V_RenderView(void);
@@ -231,9 +231,9 @@ void CON_TextInput(cstring_t text);
 void CON_KeyEvent(int key, bool down);
 
 // cl_view.c
-//void Matrix4_fromViewAngles(vector3_t const *target, vector3_t const *angles, float distance, matrix4_t *output);
-//void Matrix4_getLightMatrix(vector3_t const *sunangles, vector3_t const *target, float scale, matrix4_t *output);
-void Matrix4_getCameraMatrix(matrix4_t *output);
+//void Matrix4_fromViewAngles(vec3_t const *target, vec3_t const *angles, float distance, mat4_t *output);
+//void Matrix4_getLightMatrix(vec3_t const *sunangles, vec3_t const *target, float scale, mat4_t *output);
+void Matrix4_getCameraMatrix(mat4_t *output);
 /* Paused views retain the last scene and render time. Zero delta is required
  * because model renderers emit effects while submitting cached entities. */
 static inline bool V_AdvanceSceneTime(viewDef_t *view, uint32_t now, uint32_t *last, bool paused) {
@@ -291,11 +291,11 @@ bool SCR_LayoutContextValue(uint32_t stat, float *value);
 bool SCR_LayoutContextFrameVisible(uiFrame_t const *frame);
 bool SCR_LayoutWorldHoverRoot(rect_t *root);
 float SCR_UICanvasWidth(void);
-vector2_t SCR_ScreenToUI(int x, int y);
-bool SCR_ProjectWorldPoint(vector3_t const *point, vector2_t *screen);
-vector2_t SCR_GetAxisBounds(rect_t const *rect, bool is_x_axis);
+vec2_t SCR_ScreenToUI(int x, int y);
+bool SCR_ProjectWorldPoint(vec3_t const *point, vec2_t *screen);
+vec2_t SCR_GetAxisBounds(rect_t const *rect, bool is_x_axis);
 float SCR_NormalizeAnchorOffset(uiFramePoint_t const *p, bool is_x_axis);
-vector2_t SCR_SolveAxisPosition(uiFrame_t const *frame,
+vec2_t SCR_SolveAxisPosition(uiFrame_t const *frame,
                               uiFramePoints_t const points,
                               float width,
                               bool is_x_axis,

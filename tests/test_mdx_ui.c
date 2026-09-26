@@ -4,7 +4,7 @@
 
 struct render_globals tr;
 refImport_t ri;
-matrix4_t node_matrices[MDX_MAX_NODES];
+mat4_t node_matrices[MDX_MAX_NODES];
 static viewDef_t drawn;
 static handle_t calloc_test(long size) { return calloc(1, size); }
 

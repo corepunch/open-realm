@@ -13,7 +13,7 @@ static edict_t *make_test_doodad(float x, float y) {
 
     ent->class_id = doodad_row.id;
     ent->s.class_id = ent->class_id;
-    ent->s.origin2 = (vector2_t){ x, y };
+    ent->s.origin2 = (vec2_t){ x, y };
     ent->s.origin.x = x;
     ent->s.origin.y = y;
     ent->data.Doodads = &doodad_row;

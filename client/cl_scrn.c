@@ -20,7 +20,7 @@ float SCR_UICanvasWidth(void) { return CL_Canvas()->scene.w; }
  * the window it was resolved from, so a frame never mixes an old scene with a
  * new window size.
  */
-vector2_t SCR_ScreenToUI(int x, int y) {
+vec2_t SCR_ScreenToUI(int x, int y) {
     uiCanvas_t const *canvas = CL_Canvas();
     float nx = 0.0f, ny = 0.0f;
 
@@ -29,7 +29,7 @@ vector2_t SCR_ScreenToUI(int x, int y) {
         ny = (float)y / (float)canvas->window.height;
     }
 
-    return MAKE(vector2_t, nx * canvas->scene.w, ny * canvas->scene.h);
+    return MAKE(vec2_t, nx * canvas->scene.w, ny * canvas->scene.h);
 }
 
 static void SCR_DrawString(int x, int y, cstring_t string) {
@@ -114,7 +114,7 @@ static void SCR_DrawCursor(void) {
     }
 
     if (Cvar_Integer("r_cursor", 0) == 1) {
-        vector2_t const pos = SCR_ScreenToUI(x, y);
+        vec2_t const pos = SCR_ScreenToUI(x, y);
         drawn = re.DrawCursor(pos.x, pos.y, SCR_CursorTint());
     }
     SCR_UpdateSystemCursor(drawn);
@@ -254,7 +254,7 @@ static bool layout_current_window;
 /* Project a world point through the active camera into the virtual UI canvas.
  * The world scissor is authoritative: callers should not turn an off-screen
  * world event into a HUD notification pinned to the nearest edge. */
-bool SCR_ProjectWorldPoint(vector3_t const *point, vector2_t *screen) {
+bool SCR_ProjectWorldPoint(vec3_t const *point, vec2_t *screen) {
     float const *m;
     float cx, cy, cw, vx, vy;
 
@@ -268,15 +268,15 @@ bool SCR_ProjectWorldPoint(vector3_t const *point, vector2_t *screen) {
     vy = cl.viewDef.viewport.y + (cy / cw * 0.5f + 0.5f) * cl.viewDef.viewport.h;
     if (vx < cl.viewDef.scissor.x || vx > cl.viewDef.scissor.x + cl.viewDef.scissor.w ||
         vy < cl.viewDef.scissor.y || vy > cl.viewDef.scissor.y + cl.viewDef.scissor.h) return false;
-    *screen = MAKE(vector2_t, vx * SCR_UICanvasWidth(), (1.0f - vy) * UI_BASE_HEIGHT);
+    *screen = MAKE(vec2_t, vx * SCR_UICanvasWidth(), (1.0f - vy) * UI_BASE_HEIGHT);
     return true;
 }
 
 /* Entity-context layouts use a server-authored tree rooted at the client-projected model top. */
 bool SCR_LayoutWorldHoverRoot(rect_t *root) {
     entityState_t const *ent = SCR_LayoutContextEntity();
-    vector3_t top;
-    vector2_t screen;
+    vec3_t top;
+    vec2_t screen;
 
     if (!root || !ent) return false;
     FOR_LOOP(i, cl.viewDef.num_entities) {
@@ -727,7 +727,7 @@ static void SCR_LayoutDrawGlueTextButtonHighlight(uiFrame_t const *frame) {
         SCR_LayoutDrawHighlightData(&gb->highlight, SCR_LayoutRect(frame));
 }
 
-bool SCR_LayoutScrollTextAreaAt(handle_t layout, vector2_t const *point, int wheel_y) {
+bool SCR_LayoutScrollTextAreaAt(handle_t layout, vec2_t const *point, int wheel_y) {
     (void)layout;
     if (!point || !wheel_y) return false;
     for (uint32_t i = SCR_NumFrames(); i > 0; i--) {
@@ -813,7 +813,7 @@ void SCR_LayoutUpdateBuildQueue(uiFrame_t const *frame, rect_t const *screen) {
 #define HP_BAR_HEIGHT_RATIO  0.175f
 #define HP_BAR_SPACING_RATIO 0.02f
 
-static uint32_t SCR_LayoutMultiselectEntityAt(uiFrame_t const *frame, vector2_t const *point) {
+static uint32_t SCR_LayoutMultiselectEntityAt(uiFrame_t const *frame, vec2_t const *point) {
     uiMultiselect_t const *ms;
     uint32_t count;
 
@@ -1249,7 +1249,7 @@ void SCR_LayoutDrawTooltip(uiFrame_t const *frame, rect_t const *scrn) {
     rect_t screen = *scrn;
     drawText_t dt = SCR_GetDrawText(frame, screen.w - PAD*2, active_tooltip, &tt->text);
     dt.flags |= DRAW_WORD_WRAP;
-    vector2_t tsz = re.GetTextSize(&dt);
+    vec2_t tsz = re.GetTextSize(&dt);
     tsz.y    += PAD * 2;
     screen.y += screen.h - tsz.y;
     screen.h  = tsz.y;
@@ -1441,7 +1441,7 @@ static int SCR_LayoutModalLayer(void) {
 bool SCR_LayoutModalActive(void) { return SCR_LayoutModalLayer() >= 0; }
 
 bool SCR_LayoutMouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
-    vector2_t const point = SCR_ScreenToUI(x, y);
+    vec2_t const point = SCR_ScreenToUI(x, y);
     uiFrame_t const *hovered_frame = NULL;
     int const modal_layer = SCR_LayoutModalLayer();
     /* This path handles persistent layout layers, not client-managed windows. */
@@ -1617,7 +1617,7 @@ static bool SCR_RangesOverlap(float a0, float a1, float b0, float b1) {
  * transparent console art to hide the line.  Full-screen world games have a
  * scissor bottom at UI_BASE_HEIGHT, making this a no-op. */
 void SCR_LayoutClampSelectionRect(rect_t *rect) {
-    vector2_t start, finish, clamped;
+    vec2_t start, finish, clamped;
     float world_bottom;
     float xmin, xmax;
     size2_t window;
@@ -1667,7 +1667,7 @@ void SCR_LayoutClampSelectionRect(rect_t *rect) {
 }
 
 bool SCR_LayoutHitTest(int x, int y) {
-    vector2_t const point = SCR_ScreenToUI(x, y);
+    vec2_t const point = SCR_ScreenToUI(x, y);
     if (SCR_LayoutModalActive()) return true;
     FOR_LOOP(layer, MAX_LAYOUT_LAYERS) {
         handle_t layout = layout_layers[layer];

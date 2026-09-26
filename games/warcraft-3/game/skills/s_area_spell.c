@@ -11,7 +11,7 @@ static uint32_t blizzard_level(edict_t const *ent) {
 
 typedef struct {
     edict_t *caster;
-    vector2_t direction;
+    vec2_t direction;
     float length, width;
 } shockwaveContext_t;
 
@@ -83,7 +83,7 @@ static void blizzard_spawn_shards(edict_t *ent) {
     FOR_LOOP(i, shards) {
         float angle = ((float)rand() / (float)RAND_MAX) * 2.0f * (float)M_PI;
         float distance = ((float)rand() / (float)RAND_MAX) * ent->collision;
-        vector2_t point = ent->s.origin2;
+        vec2_t point = ent->s.origin2;
         point.x += cosf(angle) * distance;
         point.y += sinf(angle) * distance;
         /* Blizzard's shard EffectArt belongs to its authored EfctID object
@@ -125,7 +125,7 @@ void blizzard_think(edict_t *ent) {
 }
 
 static bool shockwave_hits(edict_t *target, shockwaveContext_t const *ctx) {
-    vector2_t offset;
+    vec2_t offset;
     float along, across;
 
     if (!target->inuse || target == ctx->caster || !S_SpellIsAliveTarget(target) ||
@@ -222,7 +222,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityCarrionSwarm) {
 BZ_SIMPLE_SPELL_PROC(AbilityShockwave) {
     uint32_t level = S_SpellLevel(caster, spell->code), ntargets = 0;
     shockwaveContext_t ctx = { .caster = caster };
-    vector2_t offset = Vector2_sub(&st.point, &caster->s.origin2);
+    vec2_t offset = Vector2_sub(&st.point, &caster->s.origin2);
     float distance = Vector2_distance(&caster->s.origin2, &st.point);
     float damage = MAX(1.0f, S_SpellData(spell->code, level, 1));
     float maxtotal = S_SpellData(spell->code, level, 2);
@@ -317,7 +317,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityFrostNova) {
     uint32_t rank = S_SpellLevel(caster, spell->code);
     float radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, rank);
     cstring_t buff = G_AbilityLevel(spell->code, rank)->buffID;
-    vector2_t center = st.entity->s.origin2;
+    vec2_t center = st.entity->s.origin2;
     FILTER_EDICTS(target, S_SpellIsEnemy(caster, target) && S_SpellAllowsTarget(spell->code, caster, target) &&
                   Vector2_distance(&target->s.origin2, &center) <= radius) {
         float damage = S_SpellData(spell->code, rank, 1);

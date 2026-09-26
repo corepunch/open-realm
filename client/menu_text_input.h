@@ -185,7 +185,7 @@ static inline void M_DrawTextInputCursor(refExport_t *renderer,
                                    color32_t color) {
     char prefix[1024];
     drawText_t measure, draw;
-    vector2_t prefix_size;
+    vec2_t prefix_size;
     rect_t cursor_rect;
     uint32_t len;
 

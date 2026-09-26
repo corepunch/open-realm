@@ -28,7 +28,7 @@ static char const andp_slk[] =
     "C;Y2;X7;K\"hfoo\"\nC;Y2;X8;K\"3\"\nC;Y2;X9;K\"3\"\n"
     "C;Y2;X10;K\"800\"\nC;Y2;X11;K\"0\"\nE\n";
 
-typedef struct { slkTestData_t *rows, *old; edict_t *caster; vector2_t point; } dpFix_t;
+typedef struct { slkTestData_t *rows, *old; edict_t *caster; vec2_t point; } dpFix_t;
 
 static dpFix_t dp_setup(void) {
     dpFix_t fix;
@@ -39,7 +39,7 @@ static dpFix_t dp_setup(void) {
     fix.caster->s.player = 0; fix.caster->svflags |= SVF_MONSTER; fix.caster->targtype = TARG_GROUND;
     fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ANDP, .level = 1);
     fix.caster->mana.value = fix.caster->mana.max_value = 100;
-    fix.point = MAKE(vector2_t, .x = 128, .y = 96);
+    fix.point = MAKE(vec2_t, .x = 128, .y = 96);
     return fix;
 }
 

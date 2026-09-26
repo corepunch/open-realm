@@ -47,11 +47,11 @@ struct game_import {
     int (*SoundIndex)(cstring_t soundName);
     int (*SoundIndexAlias)(cstring_t soundName, cstring_t alias);
     void (*Sound)(edict_t *ent, int channel, int sound_index, float volume, float attenuation, float timeofs);
-    void (*PositionedSound)(vector3_t const *origin, edict_t *ent, int channel, int sound_index, float volume,
+    void (*PositionedSound)(vec3_t const *origin, edict_t *ent, int channel, int sound_index, float volume,
                             float attenuation, float timeofs);
-    void (*SoundPolicy)(vector3_t const *origin, edict_t *ent, int channel, int sound_index, float volume,
+    void (*SoundPolicy)(vec3_t const *origin, edict_t *ent, int channel, int sound_index, float volume,
                          float attenuation, float timeofs, soundPolicy_t const *policy);
-    void (*MinimapPing)(edict_t *ent, vector2_t const *position, float duration, color32_t color, uint32_t flags);
+    void (*MinimapPing)(edict_t *ent, vec2_t const *position, float duration, color32_t color, uint32_t flags);
     int (*ImageIndex)(cstring_t imageName);
     int (*FontIndex)(cstring_t fontName, uint32_t fontSize);
     void (*LinkEntity)(edict_t *ent);
@@ -77,7 +77,7 @@ struct game_import {
     /* Freeze only authoritative simulation advancement. The server keeps
      * packet processing and client transport alive while paused. */
     void (*SetPaused)(bool paused);
-    void (*multicast)(vector3_t const *origin, multicast_t to);
+    void (*multicast)(vec3_t const *origin, multicast_t to);
     void (*unicast)(edict_t *ent);
     void (*Write)(pfWriteType_t type, void const *value);
 
@@ -173,13 +173,13 @@ struct game_export {
 struct game_export *GetGameAPI(struct game_import *game_import);
 
 /* Invisible controllers use the same movement axes as actors, with a game-owned focus speed. */
-static inline vector2_t input_move_focus(inputCmd_t const *cmd, player_t const *ps, float speed) {
+static inline vec2_t input_move_focus(inputCmd_t const *cmd, player_t const *ps, float speed) {
     uint32_t bits = cmd->move.buttons;
-    vector3_t dir = { !!(bits & BZ_MOVE_FORWARD) - !!(bits & BZ_MOVE_BACK),
+    vec3_t dir = { !!(bits & BZ_MOVE_FORWARD) - !!(bits & BZ_MOVE_BACK),
         !!(bits & BZ_MOVE_LEFT) - !!(bits & BZ_MOVE_RIGHT), 0 };
-    dir = Vector3_rotateAroundAxis(&dir, &(vector3_t){0, 0, 1}, DEG2RAD(ps->viewangles.z));
-    vector3_t pos = Vector3_mad(&ps->vieworigin, speed * cmd->move.msec / 1000.0f, &dir);
-    return (vector2_t){ pos.x, pos.y };
+    dir = Vector3_rotateAroundAxis(&dir, &(vec3_t){0, 0, 1}, DEG2RAD(ps->viewangles.z));
+    vec3_t pos = Vector3_mad(&ps->vieworigin, speed * cmd->move.msec / 1000.0f, &dir);
+    return (vec2_t){ pos.x, pos.y };
 }
 
 #endif

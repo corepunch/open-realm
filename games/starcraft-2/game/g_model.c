@@ -58,7 +58,7 @@ struct md34Sequence {
     uint32_t frequency;
     int32_t unk[3];
     int32_t unk2;
-    struct { vector3_t min; vector3_t max; float radius; } boundingSphere;
+    struct { vec3_t min; vec3_t max; float radius; } boundingSphere;
     int32_t d5[3];
 };
 

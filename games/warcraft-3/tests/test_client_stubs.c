@@ -142,11 +142,11 @@ void CL_Disconnect(cstring_t reason, bool notify) { (void)reason; (void)notify; 
 void CL_EntityEvent(entityState_t const *ent) { (void)ent; }
 void S_RegisterSound(cstring_t path) { (void)path; }
 void S_PlaySoundFile(cstring_t path) { (void)path; }
-void S_PlaySoundPacket(cstring_t path, vector3_t const *origin, bool positioned, int channel, float volume, float attenuation,
+void S_PlaySoundPacket(cstring_t path, vec3_t const *origin, bool positioned, int channel, float volume, float attenuation,
                        float timeofs) {
     (void)path; (void)origin; (void)positioned; (void)channel; (void)volume; (void)attenuation; (void)timeofs;
 }
-bool S_PlaySoundPolicy(cstring_t path, vector3_t const *origin, bool positioned, int channel, float volume,
+bool S_PlaySoundPolicy(cstring_t path, vec3_t const *origin, bool positioned, int channel, float volume,
                        float attenuation, float timeofs, soundPolicy_t const *policy) {
     (void)policy;
     S_PlaySoundPacket(path, origin, positioned, channel, volume, attenuation, timeofs);

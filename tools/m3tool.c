@@ -82,7 +82,7 @@ static box3_t M3PreviewBounds(m3Model_t const *m3) {
         return bounds;
     }
     FOR_LOOP(i, m3->verticesNum) {
-        vector3_t const *v = &m3->vertices[i].pos;
+        vec3_t const *v = &m3->vertices[i].pos;
         if (!isfinite(v->x) || !isfinite(v->y) || !isfinite(v->z)) {
             continue;
         }
@@ -242,18 +242,18 @@ static void PrintModelInfo(model_t const *model) {
 static void RenderFrame(refExport_t const *re, model_t const *model, box3_t const *bounds, uint32_t now) {
     viewDef_t viewdef = { 0 };
     renderEntity_t entity = { 0 };
-    vector3_t center = Box3_Center(bounds);
+    vec3_t center = Box3_Center(bounds);
     float width = fabsf(bounds->max.x - bounds->min.x);
     float depth = fabsf(bounds->max.y - bounds->min.y);
     float height = fabsf(bounds->max.z - bounds->min.z);
     float radius = MAX(1.0f, MAX(width, MAX(depth, height)));
     size2_t window = re->GetWindowSize();
     float aspect = window.height ? (float)window.width / (float)window.height : 1.0f;
-    matrix4_t entity_matrix;
+    mat4_t entity_matrix;
 
     entity.model = model;
     entity.scale = 1.0f;
-    entity.origin = (vector3_t){ -center.x, -center.y, -center.z };
+    entity.origin = (vec3_t){ -center.x, -center.y, -center.z };
     entity.frame = now;
     entity.oldframe = now;
 
@@ -267,7 +267,7 @@ static void RenderFrame(refExport_t const *re, model_t const *model, box3_t cons
     viewdef.rdflags = RDF_NOWORLDMODEL | RDF_NOFRUSTUMCULL | RDF_NOFOG | RDF_NOFOGMASK;
     Matrix4_identity(&viewdef.textureMatrix);
     Viewer_OrbitBuildCamera(&g_orbit, aspect, 35.0f, 0.1f, MAX(100.0f, g_orbit.distance + radius * 8.0f), &viewdef.viewProjectionMatrix);
-    Viewer_OrbitBuildLight(&g_orbit, &(vector3_t){ 0.0f, 0.0f, 0.0f }, MAX(32.0f, radius * 2.0f), &viewdef.lightMatrix);
+    Viewer_OrbitBuildLight(&g_orbit, &(vec3_t){ 0.0f, 0.0f, 0.0f }, MAX(32.0f, radius * 2.0f), &viewdef.lightMatrix);
 
     re->BeginFrame();
     re->RenderFrame(&viewdef);
@@ -340,7 +340,7 @@ int main(int argc, char **argv) {
     depth = fabsf(bounds.max.y - bounds.min.y);
     height = fabsf(bounds.max.z - bounds.min.z);
     extent = MAX(1.0f, MAX(width, MAX(depth, height)));
-    Viewer_OrbitInit(&g_orbit, (vector3_t){ 0, 0, 0 }, extent * 2.5f, -45.0f, 20.0f);
+    Viewer_OrbitInit(&g_orbit, (vec3_t){ 0, 0, 0 }, extent * 2.5f, -45.0f, 20.0f);
     g_orbit.reverse_drag = true;
 
     while (running) {

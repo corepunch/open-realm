@@ -55,8 +55,8 @@ static void combat_prepare(edict_t * *attacker_out, edict_t * *target_out) {
     target->s.number = 2;
     attacker->s.model = target->s.model = model;
     attacker->svflags = target->svflags = SVF_MONSTER;
-    attacker->s.origin2 = (vector2_t){ 0.0f, 0.0f };
-    target->s.origin2 = (vector2_t){ 2.0f, 0.0f };
+    attacker->s.origin2 = (vec2_t){ 0.0f, 0.0f };
+    target->s.origin2 = (vec2_t){ 2.0f, 0.0f };
 
     al = Wow_EntityLocal(attacker);
     tl = Wow_EntityLocal(target);

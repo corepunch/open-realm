@@ -26,10 +26,10 @@ void PF_Write(pfWriteType_t type, void const *value) {
             MSG_WriteString(&sv.multicast, value ? (cstring_t)value : "");
             break;
         case PF_POSITION:
-            MSG_WritePos(&sv.multicast, (vector3_t const *)value);
+            MSG_WritePos(&sv.multicast, (vec3_t const *)value);
             break;
         case PF_DIRECTION:
-            MSG_WriteDir(&sv.multicast, (vector3_t const *)value);
+            MSG_WriteDir(&sv.multicast, (vec3_t const *)value);
             break;
         case PF_ANGLE:
             MSG_WriteAngle(&sv.multicast, *(float const *)value);
@@ -101,7 +101,7 @@ void SV_SetGameTime(uint32_t time) {
     sv.time = time;
 }
 
-void PF_Multicast(vector3_t const *origin, multicast_t to) {
+void PF_Multicast(vec3_t const *origin, multicast_t to) {
     SV_Multicast(origin, to);
 }
 
@@ -109,7 +109,7 @@ static void PF_StartSound(edict_t *ent, int channel, int sound_index, float volu
     SV_StartSound(NULL, ent, channel, sound_index, volume, attenuation, timeofs);
 }
 
-static void PF_PositionedSound(vector3_t const *origin, edict_t *ent, int channel, int sound_index, float volume,
+static void PF_PositionedSound(vec3_t const *origin, edict_t *ent, int channel, int sound_index, float volume,
                                float attenuation, float timeofs) {
     SV_StartSound(origin, ent, channel, sound_index, volume, attenuation, timeofs);
 }

@@ -12,7 +12,7 @@ static wowSplatbatch_t wow_splat_batches[WOW_SPLAT_BATCHES];
 /* Stream one material batch in a single upload/draw pair. */
 static void Wow_DrawSplatVertices(texture_t const *texture, splat_shader_t *shader,
                                   vertex_t const *vertices, uint32_t num_vertices) {
-    matrix4_t model_matrix;
+    mat4_t model_matrix;
 
     if (!texture || !shader || !vertices || !num_vertices) return;
     Matrix4_identity(&model_matrix);
@@ -82,7 +82,7 @@ static void Wow_QueueSplatVertices(texture_t const *texture, splat_shader_t *sha
 
 bool Wow_MakeSplatVertex(float x,
                                 float y,
-                                vector2_t const *mins,
+                                vec2_t const *mins,
                                 float width,
                                 float height,
                                 color32_t color,
@@ -105,7 +105,7 @@ void Wow_AddSplatTriangle(vertex_t *vertices,
                                  float max_height_delta) {
     float min_z = MIN(a.position.z, MIN(b.position.z, c.position.z));
     float max_z = MAX(a.position.z, MAX(b.position.z, c.position.z));
-    vector3_t normal;
+    vec3_t normal;
 
     if (max_z - min_z > max_height_delta) {
         return;
@@ -123,7 +123,7 @@ void Wow_AddSplatTriangle(vertex_t *vertices,
 void Wow_DrawTerrainShadows(void) {
 }
 
-void R_RenderRectSplat(vector2_t const *mins, vector2_t const *maxs, texture_t const *texture, splat_shader_t *shader, color32_t color) {
+void R_RenderRectSplat(vec2_t const *mins, vec2_t const *maxs, texture_t const *texture, splat_shader_t *shader, color32_t color) {
     float width;
     float height;
     int cols;
@@ -241,7 +241,7 @@ void R_RenderRectSplat(vector2_t const *mins, vector2_t const *maxs, texture_t c
     if (vertices_allocated) ri.MemFree(vertices);
 }
 
-void R_RenderFlatRectSplat(vector2_t const *mins, vector2_t const *maxs, float z,
+void R_RenderFlatRectSplat(vec2_t const *mins, vec2_t const *maxs, float z,
                            texture_t const *texture, splat_shader_t *shader, color32_t color) {
     float width;
     float height;
@@ -267,10 +267,10 @@ void R_RenderFlatRectSplat(vector2_t const *mins, vector2_t const *maxs, float z
     Wow_QueueSplatVertices(texture, shader, vertices, 6);
 }
 
-void R_RenderSplat(vector2_t const *position, float radius, texture_t const *texture, splat_shader_t *shader, color32_t color) {
+void R_RenderSplat(vec2_t const *position, float radius, texture_t const *texture, splat_shader_t *shader, color32_t color) {
     if (!position || radius <= 0.0f) return;
-    vector2_t mins = { .x = position->x - radius, .y = position->y - radius };
-    vector2_t maxs = { .x = position->x + radius, .y = position->y + radius };
+    vec2_t mins = { .x = position->x - radius, .y = position->y - radius };
+    vec2_t maxs = { .x = position->x + radius, .y = position->y + radius };
     R_RenderRectSplat(&mins, &maxs, texture, shader, color);
 }
 
@@ -278,14 +278,14 @@ void R_RenderSplat(vector2_t const *position, float radius, texture_t const *tex
  * batch through Wow_QueueSplatVertices, so the shared batch API stays immediate. */
 static splat_shader_t *wow_batch_shader;
 void R_BeginSplatBatch(splat_shader_t *shader) { wow_batch_shader = shader; }
-void R_AddRectSplat(vector2_t const *mins, vector2_t const *maxs, texture_t const *texture, color32_t color) {
+void R_AddRectSplat(vec2_t const *mins, vec2_t const *maxs, texture_t const *texture, color32_t color) {
     R_RenderRectSplat(mins, maxs, texture, wow_batch_shader, color);
 }
 void R_EndSplatBatch(void) { }
 
-vector2_t GetWar3MapSize(war3map_t const *war3Map) {
+vec2_t GetWar3MapSize(war3map_t const *war3Map) {
     (void)war3Map;
-    return (vector2_t){ 0.0f, 0.0f };
+    return (vec2_t){ 0.0f, 0.0f };
 }
 
 float GetAccurateHeightAtPoint(float sx, float sy) {
@@ -300,7 +300,7 @@ float Wow_GetHeightAtPoint(float x, float y) {
     return GetAccurateHeightAtPoint(x, y);
 }
 
-bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t *output) {
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *output) {
     line3_t const line = R_LineForScreenPoint(viewdef, x, y);
     float const dz = line.b.z - line.a.z;
     float t;

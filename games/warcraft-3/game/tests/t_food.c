@@ -20,14 +20,14 @@ typedef struct {
     pfWriteType_t types[16];
     int32_t integral[16];
     float real[16];
-    vector3_t position;
+    vec3_t position;
     char text[32];
     uint32_t count;
     uint32_t font_size;
     char font_name[MAX_PATHLEN];
     uint32_t multicast_count;
     multicast_t multicast_to;
-    vector3_t multicast_origin;
+    vec3_t multicast_origin;
 } resourceGainCapture_t;
 
 static resourceGainCapture_t resource_gain_capture;
@@ -49,7 +49,7 @@ static void resource_gain_test_write(pfWriteType_t type, void const *value) {
             resource_gain_capture.real[slot] = *(float const *)value;
             break;
         case PF_POSITION:
-            resource_gain_capture.position = *(vector3_t const *)value;
+            resource_gain_capture.position = *(vec3_t const *)value;
             break;
         case PF_STRING:
             strlcpy(resource_gain_capture.text, value, sizeof(resource_gain_capture.text));
@@ -65,7 +65,7 @@ static int resource_gain_test_font(cstring_t name, uint32_t size) {
     return 17;
 }
 
-static void resource_gain_test_multicast(vector3_t const *origin, multicast_t to) {
+static void resource_gain_test_multicast(vec3_t const *origin, multicast_t to) {
     resource_gain_capture.multicast_count++;
     resource_gain_capture.multicast_to = to;
     if (origin) resource_gain_capture.multicast_origin = *origin;
@@ -242,11 +242,11 @@ TEST(wc3_food, credited_gold_emits_net_resource_gain_world_text) {
     player_t *player = &game.clients[0].ps;
     edict_t *source = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 100.0f, 200.0f);
     void (*saved_write)(pfWriteType_t, void const *) = gi.Write;
-    void (*saved_multicast)(vector3_t const *, multicast_t) = gi.multicast;
+    void (*saved_multicast)(vec3_t const *, multicast_t) = gi.multicast;
     int (*saved_font)(cstring_t, uint32_t) = gi.FontIndex;
 
     memset(&resource_gain_capture, 0, sizeof(resource_gain_capture));
-    source->s.origin = MAKE(vector3_t, 100.0f, 200.0f, 3.0f);
+    source->s.origin = MAKE(vec3_t, 100.0f, 200.0f, 3.0f);
     player->stats[PLAYERSTATE_RESOURCE_GOLD] = 500;
     player->stats[PLAYERSTATE_GOLD_UPKEEP_RATE] = 70;
     gi.Write = resource_gain_test_write;

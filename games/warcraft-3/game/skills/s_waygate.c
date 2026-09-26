@@ -48,13 +48,13 @@ bool S_WaygateIsActive(edict_t const *gate) {
     return S_WaygateIsGate(gate) && gate->waygate.active;
 }
 
-bool S_WaygateGetDestination(edict_t const *gate, vector2_t *destination) {
+bool S_WaygateGetDestination(edict_t const *gate, vec2_t *destination) {
     if (!S_WaygateIsGate(gate) || !destination) return false;
     *destination = gate->waygate.destination;
     return gate->waygate.destination_set;
 }
 
-void S_WaygateSetDestination(edict_t *gate, vector2_t const *destination) {
+void S_WaygateSetDestination(edict_t *gate, vec2_t const *destination) {
     if (!S_WaygateIsGate(gate) || !destination) return;
     gate->waygate.destination = *destination;
     gate->waygate.destination_set = true;
@@ -66,7 +66,7 @@ void S_WaygateSetActive(edict_t *gate, bool active) {
     G_AddUnitAnimationProperties(gate, "alternate", gate->waygate.active);
 }
 
-static bool waygate_point_inside(edict_t const *gate, vector2_t const *point) {
+static bool waygate_point_inside(edict_t const *gate, vec2_t const *point) {
     float width, height;
 
     if (!gate || !point || !waygate_dimensions(gate, &width, &height)) return false;
@@ -104,7 +104,7 @@ static void waygate_clear_order(edict_t *unit) {
 }
 
 static bool waygate_complete(edict_t *unit, edict_t *gate) {
-    vector2_t source, position;
+    vec2_t source, position;
 
     if (!unit || !gate) return false;
     source = unit->s.origin2;
@@ -126,19 +126,19 @@ static bool waygate_complete(edict_t *unit, edict_t *gate) {
     return true;
 }
 
-static bool waygate_find_entry_point(edict_t *unit, edict_t *gate, vector2_t *out) {
+static bool waygate_find_entry_point(edict_t *unit, edict_t *gate, vec2_t *out) {
     float width, height;
     box2_t entry;
 
     if (!unit || !gate || !out || !waygate_dimensions(gate, &width, &height)) return false;
-    entry.min = (vector2_t){ gate->s.origin2.x - width * 0.5f, gate->s.origin2.y - height * 0.5f };
-    entry.max = (vector2_t){ gate->s.origin2.x + width * 0.5f, gate->s.origin2.y + height * 0.5f };
+    entry.min = (vec2_t){ gate->s.origin2.x - width * 0.5f, gate->s.origin2.y - height * 0.5f };
+    entry.max = (vec2_t){ gate->s.origin2.x + width * 0.5f, gate->s.origin2.y + height * 0.5f };
     return G_ClosestStaticPathablePointInRectForRadiusFlags(&unit->s.origin2, &entry,
         unit->collision, M_UnitStaticPathingFlags(unit), out);
 }
 
 static edict_t *waygate_create_approach_goal(edict_t *unit, edict_t *gate) {
-    vector2_t approach;
+    vec2_t approach;
 
     if (waygate_find_entry_point(unit, gate, &approach))
         return Waypoint_add(&approach);

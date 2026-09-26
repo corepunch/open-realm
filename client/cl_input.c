@@ -9,7 +9,7 @@ mouseEvent_t mouse;
 static keyCode_t mouse_button_keys[8];
 static struct {
     bool active;
-    vector3_t anchor;
+    vec3_t anchor;
 } camera_drag;
 
 static bool smart_click_active;
@@ -22,7 +22,7 @@ static bool CL_MouseOverGameplayUIAt(int x, int y);
 static struct {
     uint32_t buttons, sent, last_ms;
     bool select, look, focus;
-    vector2_t down, travel;
+    vec2_t down, travel;
     uint32_t last_select_entity, last_select_ms;
     SDL_Cursor *arrow, *cross, *hand;
 } input = { .focus = true };
@@ -34,7 +34,7 @@ static void CL_SendInput(inputCmd_t const *cmd) {
 }
 
 /* Keep immediate orbit feedback separate from the authoritative delta-compressed player state. */
-static void CL_SendView(vector3_t angles, float dist) {
+static void CL_SendView(vec3_t angles, float dist) {
     cl.camera_prediction.view = true;
     cl.camera_prediction.angles = angles;
     cl.camera_prediction.distance = dist;
@@ -51,7 +51,7 @@ static void CL_LookMotion(SDL_MouseMotionEvent const *motion) {
     if (!input.look || !CL_GameplayInputReady()) return;
     float speed = Cvar_Value("cl_mouse_speed", 0.18f);
     float lo = Cvar_Value("cl_camera_min_pitch", -85), hi = Cvar_Value("cl_camera_max_pitch", 85);
-    vector3_t angles = cl.viewDef.camerastate[0].viewangles;
+    vec3_t angles = cl.viewDef.camerastate[0].viewangles;
     input.travel.x += motion->xrel; input.travel.y += motion->yrel;
     angles.x = remainderf(angles.x, 360.0f);
     angles.z = remainderf(angles.z - motion->xrel * speed, 360.0f);
@@ -75,14 +75,14 @@ static void CL_UpdateCursor(void) {
     SDL_SetCursor(!cl.hover_entity ? input.arrow : hostile ? input.cross : input.hand);
 }
 
-static bool CL_ClickTravel(vector2_t delta) {
+static bool CL_ClickTravel(vec2_t delta) {
     float limit = Cvar_Value("cl_click_threshold", 10);
     return delta.x * delta.x + delta.y * delta.y <= limit * limit;
 }
 
 static void IN_LookDown(void) {
     if (!CL_GameplayInputReady() || CL_MouseOverGameplayUI()) return;
-    input.look = true; input.travel = (vector2_t){0};
+    input.look = true; input.travel = (vec2_t){0};
     SDL_SetRelativeMouseMode(SDL_TRUE);
 }
 
@@ -112,7 +112,7 @@ static void IN_AttackUp(void) {
     bool held = input.select;
     input.select = false;
     if (!held || !CL_GameplayInputReady() || CL_MouseOverGameplayUI()) return;
-    vector2_t delta = {mouse.origin.x - input.down.x, mouse.origin.y - input.down.y};
+    vec2_t delta = {mouse.origin.x - input.down.x, mouse.origin.y - input.down.y};
     uint32_t entnum;
     if (!CL_ClickTravel(delta) || !re.TraceEntity(&cl.viewDef, mouse.origin.x, mouse.origin.y, &entnum)) return;
     MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
@@ -181,7 +181,7 @@ static void CL_SendOrderQueueReleaseOnShiftUp(int sym, SDL_Keymod mods) {
     CL_SendOrderQueueRelease();
 }
 
-static bool CL_TracePan(float x, float y, vector3_t *point) {
+static bool CL_TracePan(float x, float y, vec3_t *point) {
     return Cvar_Integer("cl_camera_pan_plane", 0)
         ? re.TraceCameraPlane(&cl.viewDef, x, y, point) : re.TraceLocation(&cl.viewDef, x, y, point);
 }
@@ -196,8 +196,8 @@ static void CL_BeginPan(float x, float y) {
 }
 
 static void CL_UpdatePan(float x, float y) {
-    vector3_t point;
-    vector2_t position;
+    vec3_t point;
+    vec2_t position;
 
     if (!CL_GameplayInputReady()) {
         camera_drag.active = false;
@@ -228,8 +228,8 @@ static void CL_SendSmartPointCommand(float x, float y) {
 
 static void CL_SendSmartCommand(float x, float y) {
     uint32_t entnum;
-    vector2_t minimap_point;
-    vector3_t point;
+    vec2_t minimap_point;
+    vec3_t point;
     bool have_point = false;
 
     if (!CL_GameplayInputReady()) {
@@ -428,9 +428,9 @@ static void CL_ScrollFrame(void) {
         return;
     }
 
-    vector2_t position;
+    vec2_t position;
     float step = Cvar_Value("cl_camera_scroll_speed", 0) * dt;
-    vector3_t dir = Vector3_rotateAroundAxis(&(vector3_t){dx, dy, 0}, &(vector3_t){0, 0, 1}, DEG2RAD(cl.viewDef.camerastate[0].viewangles.z));
+    vec3_t dir = Vector3_rotateAroundAxis(&(vec3_t){dx, dy, 0}, &(vec3_t){0, 0, 1}, DEG2RAD(cl.viewDef.camerastate[0].viewangles.z));
     position.x = cl.viewDef.camerastate[0].origin.x + dir.x * step;
     position.y = cl.viewDef.camerastate[0].origin.y + dir.y * step;
     CL_SetCameraPosition(position);
@@ -819,7 +819,7 @@ void IN_SelectUp(void) {
     CL_EndMinimapDrag();
     if (CL_SelectionLimit() == 1) {
         if (!held || !CL_GameplayInputReady() || CL_MouseOverGameplayUI()) return;
-        vector2_t delta = { mouse.origin.x - input.down.x, mouse.origin.y - input.down.y };
+        vec2_t delta = { mouse.origin.x - input.down.x, mouse.origin.y - input.down.y };
         if (!CL_ClickTravel(delta) || (input.look && !CL_ClickTravel(input.travel))) return;
         uint32_t entnum = 0;
         bool hit = re.TraceEntity(&cl.viewDef, mouse.origin.x, mouse.origin.y, &entnum);
@@ -835,7 +835,7 @@ void IN_SelectUp(void) {
     rect_t const r = cl.selection.rect;
     cl.selection.in_progress = false;
     uint32_t entnum;
-    vector3_t point;
+    vec3_t point;
     if (fabs(r.w)+fabs(r.h) < 10) {
         SDL_Keymod const mods = SDL_GetModState();
         bool const queue = (mods & (KMOD_LSHIFT | KMOD_RSHIFT)) != 0;
@@ -969,13 +969,13 @@ void CL_InitInput(void) {
 #include "shared/test.h"
 void CL_ParseLayout(sizeBuf_t *msg);
 static uint32_t pan_terrain, pan_plane;
-static bool CL_TestTerrain(viewDef_t const *view, float x, float y, vector3_t *point) {
+static bool CL_TestTerrain(viewDef_t const *view, float x, float y, vec3_t *point) {
     (void)view; (void)x; (void)y;
-    pan_terrain++; *point = (vector3_t){ 1, 2, 3 }; return true;
+    pan_terrain++; *point = (vec3_t){ 1, 2, 3 }; return true;
 }
-static bool CL_TestPlane(viewDef_t const *view, float x, float y, vector3_t *point) {
+static bool CL_TestPlane(viewDef_t const *view, float x, float y, vec3_t *point) {
     (void)view; (void)x; (void)y;
-    pan_plane++; *point = (vector3_t){ 4, 5, 6 }; return true;
+    pan_plane++; *point = (vec3_t){ 4, 5, 6 }; return true;
 }
 static bool CL_TestSmartEntity(viewDef_t const *view, float x, float y, uint32_t *number) {
     (void)view; (void)x; (void)y; *number = 42; return true;
@@ -983,16 +983,16 @@ static bool CL_TestSmartEntity(viewDef_t const *view, float x, float y, uint32_t
 static bool CL_TestSelectEntity(viewDef_t const *view, float x, float y, uint32_t *number) {
     (void)view; (void)x; (void)y; *number = 7; return true;
 }
-static bool CL_TestSmartLocation(viewDef_t const *view, float x, float y, vector3_t *point) {
-    (void)view; (void)x; (void)y; *point = (vector3_t){ 123, 456, 0 }; return true;
+static bool CL_TestSmartLocation(viewDef_t const *view, float x, float y, vec3_t *point) {
+    (void)view; (void)x; (void)y; *point = (vec3_t){ 123, 456, 0 }; return true;
 }
-static bool CL_TestNoLocation(viewDef_t const *view, float x, float y, vector3_t *point) {
+static bool CL_TestNoLocation(viewDef_t const *view, float x, float y, vec3_t *point) {
     (void)view; (void)x; (void)y; (void)point; return false;
 }
-static bool CL_TestMinimap(float x, float y, vector2_t *point) {
-    (void)y; *point = (vector2_t){ 300, 400 }; return x >= 0 && x <= 100 && y >= 0 && y <= 100;
+static bool CL_TestMinimap(float x, float y, vec2_t *point) {
+    (void)y; *point = (vec2_t){ 300, 400 }; return x >= 0 && x <= 100 && y >= 0 && y <= 100;
 }
-static bool CL_TestNoMinimap(float x, float y, vector2_t *point) {
+static bool CL_TestNoMinimap(float x, float y, vec2_t *point) {
     (void)x; (void)y; (void)point; return false;
 }
 static rect_t same_type_rect;
@@ -1010,8 +1010,8 @@ static int smart_trace_order;
 static bool CL_TestSmartEntityOrder(viewDef_t const *view, float x, float y, uint32_t *number) {
     (void)view; (void)x; (void)y; smart_trace_order = 1; *number = 42; return true;
 }
-static bool CL_TestSmartLocationOrder(viewDef_t const *view, float x, float y, vector3_t *point) {
-    (void)view; (void)x; (void)y; T_ASSERT(smart_trace_order == 1); *point = (vector3_t){ 123, 456, 0 }; return true;
+static bool CL_TestSmartLocationOrder(viewDef_t const *view, float x, float y, vec3_t *point) {
+    (void)view; (void)x; (void)y; T_ASSERT(smart_trace_order == 1); *point = (vec3_t){ 123, 456, 0 }; return true;
 }
 
 /* Exercise the wire command without letting transient input state leak into later suites. */
@@ -1262,7 +1262,7 @@ TEST(client_input, quick_arrow_press_is_sampled_before_release) {
     Key_SetBinding(K_LEFTARROW, 0, "+camwest");
     re.GetWindowSize = CL_TestWindowSize; re.CameraUsesTerrainHeight = CL_TestCameraUsesTerrainHeight;
     cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
-    cl.viewDef.camerastate[0].origin = (vector3_t){0}; cl.viewDef.camerastate[0].viewangles = (vector3_t){0};
+    cl.viewDef.camerastate[0].origin = (vec3_t){0}; cl.viewDef.camerastate[0].viewangles = (vec3_t){0};
     input = (__typeof__(input)){ .focus = true, .last_ms = SDL_GetTicks() - 16 };
     Cvar_SetValue("cl_camera_scroll_speed", 1400);
     SZ_Init(&cls.netchan.message, data, sizeof(data));
@@ -1294,14 +1294,14 @@ TEST(client_input, minimap_focus_and_release_are_selection_independent) {
     refExport_t saved = re;
     int old_state = cls.state, old_dest = cls.key_dest, old_ui = cl.playerstate.client_ui_state;
     int old_limit = Cvar_Integer("cl_selection_limit", 64);
-    vector2_t expected = CL_ClampCameraPosition((vector2_t){ 300, 400 });
+    vec2_t expected = CL_ClampCameraPosition((vec2_t){ 300, 400 });
     inputCmd_t cmd;
 
     re.TraceMinimap = CL_TestMinimap; re.GetWindowSize = CL_TestWindowSize;
     re.CameraUsesTerrainHeight = CL_TestCameraUsesTerrainHeight;
     cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
     input.focus = true; input.select = false; cl.selection.in_progress = false;
-    mouse.origin = (vector2_t){ 10, 20 };
+    mouse.origin = (vec2_t){ 10, 20 };
     FOR_LOOP(i, 2) {
         Cvar_SetValue("cl_selection_limit", i ? 64 : 1);
         SZ_Init(&cls.netchan.message, data, sizeof(data));
@@ -1342,9 +1342,9 @@ TEST(client_input, minimap_focus_and_release_are_selection_independent) {
 }
 
 static uint32_t hover_trace_calls;
-static vector2_t hover_trace_point;
+static vec2_t hover_trace_point;
 static bool CL_TestHoverEntity(viewDef_t const *view, float x, float y, uint32_t *number) {
-    (void)view; hover_trace_calls++; hover_trace_point = (vector2_t){ x, y }; *number = 7; return true;
+    (void)view; hover_trace_calls++; hover_trace_point = (vec2_t){ x, y }; *number = 7; return true;
 }
 
 TEST(client_input, hover_trace_coalesces_mouse_motion_in_input_pump) {
@@ -1367,7 +1367,7 @@ TEST(client_input, hover_trace_coalesces_mouse_motion_in_input_pump) {
     cls.state = ca_active; cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_GAME;
     re.TraceEntity = CL_TestHoverEntity; re.GetWindowSize = CL_TestWindowSize;
     Cvar_SetValue("cl_hover_health_only", 0); Cvar_SetValue("cl_context_cursor", 0);
-    hover_trace_calls = 0; hover_trace_point = (vector2_t){ 0 };
+    hover_trace_calls = 0; hover_trace_point = (vec2_t){ 0 };
     FOR_LOOP(i, sizeof(events) / sizeof(events[0])) T_EQ(SDL_PushEvent(&events[i]), 1);
     CL_Input();
     T_EQ(hover_trace_calls, 1); T_FEQ(hover_trace_point.x, 505, 0.001f);
@@ -1472,7 +1472,7 @@ TEST(client_input, minimap_sdl_click_drag_release_over_hud) {
     T_EQ(SDL_PushEvent(&event), 1); CL_Input(); Cbuf_Execute();
     T_EQ(MSG_ReadByte(&cls.netchan.message), clc_input);
     T_ASSERT(MSG_ReadInput(&cls.netchan.message, &cmd)); T_EQ(cmd.action, BZ_INPUT_FOCUS);
-    vector2_t expected = CL_ClampCameraPosition((vector2_t){ 300, 400 });
+    vec2_t expected = CL_ClampCameraPosition((vec2_t){ 300, 400 });
     T_FEQ(cmd.focus.x, expected.x, 0.001f); T_FEQ(cmd.focus.y, expected.y, 0.001f);
     T_ASSERT(!input.select && !cl.selection.in_progress);
     T_EQ(cls.netchan.message.readcount, cls.netchan.message.cursize);
@@ -1556,7 +1556,7 @@ TEST(client_input, minimap_sdl_click_drag_release_over_hud) {
 TEST(client_input, pan_uses_configured_surface) {
     refExport_t saved = re;
     float old = Cvar_Value("cl_camera_pan_plane", 0);
-    vector3_t point;
+    vec3_t point;
     re.TraceLocation = CL_TestTerrain;
     re.TraceCameraPlane = CL_TestPlane;
     pan_terrain = pan_plane = 0;

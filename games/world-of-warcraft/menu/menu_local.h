@@ -132,7 +132,7 @@ void UIWow_DrawLoadingScreenC(cstring_t map, cstring_t status, float progress);
 void UIWow_EnsureRenderer(void);
 void UIWow_Printf(cstring_t fmt, ...);
 void UIWow_WarnOnce(uint32_t flag, cstring_t fmt, ...);
-vector2_t UIWow_MouseFdf(int x, int y);
+vec2_t UIWow_MouseFdf(int x, int y);
 texture_t *UIWow_LoadTexture(cstring_t name);
 font_t const *UIWow_LoadFont(uint32_t size);
 

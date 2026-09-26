@@ -25,9 +25,9 @@ void order_attack(edict_t *self, edict_t *target);
 
 typedef struct {
     edict_t *target;
-    vector2_t const *fixed_target;
-    vector3_t start;
-    vector3_t dir;
+    vec2_t const *fixed_target;
+    vec3_t start;
+    vec3_t dir;
     uint32_t speed;
     uint32_t model;
     uint32_t damage;
@@ -62,7 +62,7 @@ static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const
  * g_phys.c will move it each frame until it reaches the target. */
 void fire_rocket(edict_t *ent, rocketDesc_t const *desc) {
     edict_t *rocket;
-    vector2_t aim;
+    vec2_t aim;
 
     if (!ent || !desc || (!desc->target && !desc->fixed_target)) return;
     rocket = G_Spawn();
@@ -136,11 +136,11 @@ static float ai_rolldamage1(edict_t *self, int weapon) {
     return damageBase + atk->temporaryDamageBonus;
 }
 
-void M_GetEntityMatrix(entityState_t const *entity, matrix4_t *matrix) {
+void M_GetEntityMatrix(entityState_t const *entity, mat4_t *matrix) {
     Matrix4_identity(matrix);
     Matrix4_translate(matrix, &entity->origin);
-    Matrix4_rotate(matrix, &(vector3_t){0, 0, entity->angle * 180 / M_PI}, ROTATE_XYZ);
-    Matrix4_scale(matrix, &(vector3_t){entity->scale, entity->scale, entity->scale});
+    Matrix4_rotate(matrix, &(vec3_t){0, 0, entity->angle * 180 / M_PI}, ROTATE_XYZ);
+    Matrix4_scale(matrix, &(vec3_t){entity->scale, entity->scale, entity->scale});
 }
 
 static bool can_attack(edict_t const *ent) {
@@ -391,7 +391,7 @@ static bool artillery_splash_target_allowed(edict_t *attacker, edict_t *target, 
  * established hit contract: only that original target receives primary-hit
  * listeners (if it is still in the blast); secondary/Attack-Ground victims
  * receive physical splash damage without multiplying orb/lifesteal/cleave. */
-void S_ResolveArtilleryPointHit(edict_t *attacker, edict_t *primary, vector2_t const *impact, int raw_damage,
+void S_ResolveArtilleryPointHit(edict_t *attacker, edict_t *primary, vec2_t const *impact, int raw_damage,
                                 struct edictArtillery_s const *profile) {
     float max_radius;
 
@@ -417,7 +417,7 @@ void S_ResolveArtilleryPointHit(edict_t *attacker, edict_t *primary, vector2_t c
 }
 
 void S_ResolveArtilleryHit(edict_t *attacker, edict_t *target, int raw_damage) {
-    vector2_t impact;
+    vec2_t impact;
     unitAttack_t const *atk;
     struct edictArtillery_s profile = { 0 };
     if (!target) return;
@@ -464,11 +464,11 @@ static void throw_missile(edict_t *ent) {
     /* Roll at launch, but defer target armor/type mitigation until impact so
      * armor or defense changes while the projectile is in flight are honored. */
     int damage = (int)ai_rolldamage1(ent, 1);
-    matrix4_t matrix;
+    mat4_t matrix;
     M_GetEntityMatrix(&ent->s, &matrix);
     unitAttack_t const *atk = ACTIVE_ATTACK(ent);
-    vector3_t origin = Matrix4_multiply_vector3(&matrix, &atk->origin);
-    vector2_t impact = other->s.origin2;
+    vec3_t origin = Matrix4_multiply_vector3(&matrix, &atk->origin);
+    vec2_t impact = other->s.origin2;
     fire_rocket(ent, &(rocketDesc_t) {
         .start = origin,
         .target = other,
@@ -526,13 +526,13 @@ static bool attack_target_too_close(edict_t *ent) {
 }
 
 static void attack_retreat_from_target(edict_t *ent) {
-    vector2_t dir;
+    vec2_t dir;
     float len;
 
     if (!ent || !ent->goalentity) return;
     dir = Vector2_sub(&ent->s.origin2, &ent->goalentity->s.origin2);
     len = Vector2_len(&dir);
-    if (len <= 0.001f) dir = MAKE(vector2_t, cosf(ent->s.angle + (float)M_PI), sinf(ent->s.angle + (float)M_PI));
+    if (len <= 0.001f) dir = MAKE(vec2_t, cosf(ent->s.angle + (float)M_PI), sinf(ent->s.angle + (float)M_PI));
     else { dir.x /= len; dir.y /= len; }
     ent->s.angle = atan2f(dir.y, dir.x);
     ent->movement.heading = ent->s.angle;
@@ -756,9 +756,9 @@ static void attack_ground_stop(edict_t *ent) {
 
 static void throw_artillery_ground(edict_t *ent) {
     int damage;
-    matrix4_t matrix;
-    vector3_t origin;
-    vector2_t impact;
+    mat4_t matrix;
+    vec3_t origin;
+    vec2_t impact;
 
     if (!attack_ground_valid(ent)) { attack_ground_stop(ent); return; }
     impact = ent->channel.origin;
@@ -830,7 +830,7 @@ static void attack_ground_ranged(edict_t *ent) {
     if (ent->sound.attack) G_PlaySound(NULL, ent, CHAN_WEAPON, ent->sound.attack, 1.0f, 1.0f, 0.0f);
 }
 
-bool S_OrderAttackGround(edict_t *unit, vector2_t const *point) {
+bool S_OrderAttackGround(edict_t *unit, vec2_t const *point) {
     edict_t *waypoint;
 
     if (!unit || !point || !attack_ground_valid(unit) || S_GoldMineWorkerIsInside(unit) ||
@@ -919,11 +919,11 @@ void order_attackmove(edict_t *self, edict_t *waypoint) {
     unit_setmove(self, &attackmove_move_walk);
 }
 
-static bool attackmove_selectlocation(edict_t *clent, vector2_t const *location) {
+static bool attackmove_selectlocation(edict_t *clent, vec2_t const *location) {
     bool any = false;
 
     FOR_CONTROLLABLE_SELECTED_UNITS(clent->client, ent) {
-        vector2_t target = *location;
+        vec2_t target = *location;
         if ((ent->aiflags & AI_IMMOBILE) || ent->data.UnitBalance->speed <= 0) {
             continue;
         }
@@ -948,7 +948,7 @@ BZ_COMMAND_PROC(AbilityAttack) {
     clent->client->menu.supports_order_queue = true;
 }
 
-static bool attack_ground_selectlocation(edict_t *clent, vector2_t const *location) {
+static bool attack_ground_selectlocation(edict_t *clent, vec2_t const *location) {
     bool any = false;
 
     if (!clent || !clent->client || !location) return false;

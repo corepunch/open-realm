@@ -3,16 +3,16 @@
 
 bool MDLX_EvaluateLight(mdxModel_t const *model,
                         mdxLight_t const *light,
-                        matrix4_t const *modelMatrix,
+                        mat4_t const *modelMatrix,
                         uint32_t frame,
                         bool useVisibility,
                         rModelLight_t *output)
 {
     float visibility = 1.0f;
-    vector3_t color, ambc;
+    vec3_t color, ambc;
     float intensity, ambIntensity, astart;
-    vector3_t pivot = { 0, 0, 0 };
-    vector3_t localPos, localDirTarget, worldPos, worldDirTarget, worldDir;
+    vec3_t pivot = { 0, 0, 0 };
+    vec3_t localPos, localDirTarget, worldPos, worldDirTarget, worldDir;
 
     if (!model || !light || !modelMatrix || !output) return false;
 
@@ -40,7 +40,7 @@ bool MDLX_EvaluateLight(mdxModel_t const *model,
     if (light->node.node_id < (uint32_t)model->num_pivots)
         pivot = model->pivots[light->node.node_id];
     localPos = pivot;
-    localDirTarget = (vector3_t){ pivot.x, pivot.y, pivot.z - 1.0f };
+    localDirTarget = (vec3_t){ pivot.x, pivot.y, pivot.z - 1.0f };
     if (light->node.node_id < MDX_MAX_NODES && model->nodes[light->node.node_id]) {
         localPos = Matrix4_multiply_vector3(&node_matrices[light->node.node_id], &pivot);
         localDirTarget = Matrix4_multiply_vector3(&node_matrices[light->node.node_id], &localDirTarget);
@@ -50,7 +50,7 @@ bool MDLX_EvaluateLight(mdxModel_t const *model,
     worldDirTarget = Matrix4_multiply_vector3(modelMatrix, &localDirTarget);
     worldDir = Vector3_sub(&worldDirTarget, &worldPos);
     if (Vector3_lengthsq(&worldDir) < EPSILON)
-        worldDir = (vector3_t){ 0, 0, -1 };
+        worldDir = (vec3_t){ 0, 0, -1 };
     else
         Vector3_normalize(&worldDir);
 
@@ -74,7 +74,7 @@ bool MDLX_EvaluateLight(mdxModel_t const *model,
 bool MDLX_SampleFirstLight(model_t const *model, float ratio, rModelLight_t *output) {
     mdxModel_t const *mdx;
     mdxSequence_t const *seq;
-    matrix4_t identity;
+    mat4_t identity;
     uint32_t length, offset, frame;
 
     if (!model || model->modeltype != ID_MDLX || !model->mdx || !output)

@@ -11,7 +11,7 @@ static void CL_ResetGroupTap(void) {
     cl.group_last_ms = 0;
 }
 
-static bool CL_GroupCenter(uint32_t const *ids, uint32_t n, vector2_t *center) {
+static bool CL_GroupCenter(uint32_t const *ids, uint32_t n, vec2_t *center) {
     double x = 0.0, y = 0.0;
     uint32_t valid = 0;
 
@@ -69,7 +69,7 @@ static void CL_GroupAdd(uint32_t g) {
 static void CL_GroupRecall(uint32_t g) {
     uint32_t now;
     bool center_on_group;
-    vector2_t center;
+    vec2_t center;
 
     if (cl.groups[g].num_selected == 0) {
         CL_ResetGroupTap();

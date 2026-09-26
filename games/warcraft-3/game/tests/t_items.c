@@ -31,7 +31,7 @@ static bool item_test_target_callback(edict_t *clent, edict_t *target) {
 }
 
 /* Supply a valid point callback for the same target-mode cleanup test. */
-static bool item_test_location_callback(edict_t *clent, vector2_t const *location) {
+static bool item_test_location_callback(edict_t *clent, vec2_t const *location) {
     (void)clent;
     (void)location;
     return false;
@@ -631,7 +631,7 @@ TEST(wc3_items, inventory_get_and_drop_flags_gate_orders_but_not_script_style_mu
     UnitAbilities_t abilities = { .abilList = "Agt0", .heroAbilList = "" };
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t *unit, *item;
-    vector2_t destination = { 64.0f, 0.0f };
+    vec2_t destination = { 64.0f, 0.0f };
 
     setup_test_world();
     unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0, 0);
@@ -1453,7 +1453,7 @@ TEST(wc3_items, point_drop_waits_for_simulation_tick) {
     setup_test_world();
     edict_t *unit = make_item_test_inventory_unit(0, 0);
     edict_t *item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
-    vector2_t destination = { ITEM_DROP_RANGE - 1.0f, 0.0f };
+    vec2_t destination = { ITEM_DROP_RANGE - 1.0f, 0.0f };
 
     T_ASSERT(G_PickupItem(unit, item));
     T_ASSERT(G_OrderDropItemAt(unit, item, &destination));
@@ -1474,7 +1474,7 @@ TEST(wc3_items, distant_point_drop_moves_before_releasing_item) {
     setup_test_world();
     edict_t *unit = make_item_test_inventory_unit(0, 0);
     edict_t *item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
-    vector2_t destination = { ITEM_DROP_RANGE + 200.0f, 0.0f };
+    vec2_t destination = { ITEM_DROP_RANGE + 200.0f, 0.0f };
 
     T_ASSERT(G_PickupItem(unit, item));
     T_ASSERT(G_OrderDropItemAt(unit, item, &destination));
@@ -1491,7 +1491,7 @@ TEST(wc3_items, point_drop_revalidates_carried_item) {
     setup_test_world();
     edict_t *unit = make_item_test_inventory_unit(0, 0);
     edict_t *item = make_item_test_world_item(MAKEFOURCC('r','a','t','f'), 32, 0);
-    vector2_t destination = { ITEM_DROP_RANGE + 200.0f, 0.0f };
+    vec2_t destination = { ITEM_DROP_RANGE + 200.0f, 0.0f };
 
     T_ASSERT(G_PickupItem(unit, item));
     T_ASSERT(G_OrderDropItemAt(unit, item, &destination));
@@ -1561,7 +1561,7 @@ TEST(wc3_items, drop_at_rejects_slot_beyond_capacity) {
     T_ASSERT(G_AddItemToSlot(unit, item0, 0));
     T_ASSERT(G_AddItemToSlot(unit, item1, 1));
 
-    vector2_t pos = MAKE(vector2_t, 0, 0);
+    vec2_t pos = MAKE(vec2_t, 0, 0);
     T_ASSERT(!G_DropItemAt(unit, 4, &pos));
     T_ASSERT(unit->inventory[0] == item0);
     T_ASSERT(unit->inventory[1] == item1);
@@ -1900,7 +1900,7 @@ TEST(wc3_items, soul_gem_target_capture_keeps_live_hero_until_carrier_death) {
     T_ASSERT(filled2->item.soul_target == target2);
     T_EQ(carrier->forced_visibility_count[1], 2);
 
-    carrier->s.origin2 = MAKE(vector2_t, 192, 224);
+    carrier->s.origin2 = MAKE(vec2_t, 192, 224);
     carrier->s.origin.x = 192;
     carrier->s.origin.y = 224;
     T_ASSERT(G_FowPlayerCanSeeEntity(1, carrier));

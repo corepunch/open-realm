@@ -6,7 +6,7 @@
 
 extern jassModule_t jass_funcs[];
 static edict_t *reposition_unit;
-static vector2_t const *reposition_point;
+static vec2_t const *reposition_point;
 
 static bool G_TutorialFlowDebugEnabledForMapSource(void) {
     return WC3_TUTORIAL_DEBUG_ENABLED();
@@ -624,10 +624,10 @@ static void G_InitMapPlayer(edict_t *clent, mapInfo_t const *mapinfo, uint32_t p
     {
         gameCamera_t cam;
         CL_GameDefaultCamera(&cam);
-        ps->viewangles = (vector3_t){ cam.pitch, 0, cam.yaw };
+        ps->viewangles = (vec3_t){ cam.pitch, 0, cam.yaw };
         ps->distance = cam.distance;
         player_set_lens(ps, &cam);
-        clent->client->camera.state.position = (vector2_t){ ps->vieworigin.x, ps->vieworigin.y };
+        clent->client->camera.state.position = (vec2_t){ ps->vieworigin.x, ps->vieworigin.y };
         clent->client->camera.state.viewangles = ps->viewangles;
         clent->client->camera.state.fov = cam.fov;
         clent->client->camera.state.target_distance = cam.distance;
@@ -778,7 +778,7 @@ void G_SpawnEntities(void) {
 }
  
 /* Spawn a unit at a point while allowing map-restoration paths to skip presentation-only birth. */
-static edict_t *SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, vector2_t const *location, bool play_birth) {
+static edict_t *SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, vec2_t const *location, bool play_birth) {
     edict_t *ent = G_Spawn();
     gameClient_t *client;
     if (!ent) {
@@ -817,11 +817,11 @@ static edict_t *SP_SpawnAtLocationInternal(uint32_t class_id, uint32_t player, v
     return ent;
 }
 
-edict_t *SP_SpawnAtLocation(uint32_t class_id, uint32_t player, vector2_t const *location) {
+edict_t *SP_SpawnAtLocation(uint32_t class_id, uint32_t player, vec2_t const *location) {
     return SP_SpawnAtLocationInternal(class_id, player, location, true);
 }
 
-edict_t *SP_SpawnAtLocationNoBirth(uint32_t class_id, uint32_t player, vector2_t const *location) {
+edict_t *SP_SpawnAtLocationNoBirth(uint32_t class_id, uint32_t player, vec2_t const *location) {
     return SP_SpawnAtLocationInternal(class_id, player, location, false);
 }
 
@@ -870,7 +870,7 @@ edict_t *G_CreateDestructable(uint32_t class_id, float x, float y, float z, floa
             }
 
             distance = Vector2_distance(
-                &MAKE(vector2_t, x, y),
+                &MAKE(vec2_t, x, y),
                 &existing->s.origin2);
 
             if (distance >= best_distance) {
@@ -901,7 +901,7 @@ edict_t *G_CreateDestructable(uint32_t class_id, float x, float y, float z, floa
     ent->class_id = class_id;
     ent->variation = variation;
     ent->s.player = PLAYER_NEUTRAL_PASSIVE;
-    ent->s.origin = MAKE(vector3_t, x, y, z);
+    ent->s.origin = MAKE(vec3_t, x, y, z);
     ent->s.angle = facing;
     ent->s.scale = scale;
     ent->spawn_time = G_Time();
@@ -927,7 +927,7 @@ edict_t *G_CreateDeadDestructable(uint32_t class_id,
     return ent;
 }
 
-bool SP_FindEmptySpaceAround(edict_t *townhall, uint32_t class_id, vector2_t *out, float *angle) {
+bool SP_FindEmptySpaceAround(edict_t *townhall, uint32_t class_id, vec2_t *out, float *angle) {
     float const colsize = G_UnitUI(class_id)->selectionScale * SEL_SCALE / 2;
     float const start_angle = M_PI * 1.25f;
     FOR_LOOP(i, MAX_SPAWN_ITERATIONS) {
@@ -935,7 +935,7 @@ bool SP_FindEmptySpaceAround(edict_t *townhall, uint32_t class_id, vector2_t *ou
         float const num_points = M_PI * radius / colsize;
         FOR_LOOP(j, num_points) {
             *angle = start_angle + 2 * M_PI * j / num_points;
-            *out = MAKE(vector2_t,
+            *out = MAKE(vec2_t,
                 townhall->s.origin2.x + cosf(*angle) * radius,
                 townhall->s.origin2.y + sinf(*angle) * radius,
             );
@@ -947,7 +947,7 @@ bool SP_FindEmptySpaceAround(edict_t *townhall, uint32_t class_id, vector2_t *ou
     return false;
 }
 
-static bool SP_CanPlaceUnitAt(edict_t *unit, vector2_t const *point) {
+static bool SP_CanPlaceUnitAt(edict_t *unit, vec2_t const *point) {
     uint8_t const blocked_flags = M_UnitStaticPathingFlags(unit);
     if (!unit || !point) {
         return false;
@@ -958,7 +958,7 @@ static bool SP_CanPlaceUnitAt(edict_t *unit, vector2_t const *point) {
 
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *other = &globals.edicts[i];
-        vector2_t delta;
+        vec2_t delta;
 
         if (other == unit || IS_HOLLOW(other) || other->movetype == MOVETYPE_NONE || other->collision <= 0.0f) {
             continue;
@@ -989,7 +989,7 @@ static bool G_RepositionBlocker(edict_t const *other) {
     return dx * dx + dy * dy < reach * reach;
 }
 
-static bool G_CanRepositionUnitAt(edict_t *unit, vector2_t const *point) {
+static bool G_CanRepositionUnitAt(edict_t *unit, vec2_t const *point) {
     edict_t *blockers[MAX_REPOSITION_BLOCKERS];
     float radius;
     box2_t area;
@@ -1007,7 +1007,7 @@ static bool G_CanRepositionUnitAt(edict_t *unit, vector2_t const *point) {
  * then walk a deterministic 64-world-unit square spiral for at most 300
  * candidates. Keep the requested point as the fallback when no candidate is
  * legal, matching Warsmash's outputX/outputY initialization. */
-bool G_FindUnitUnstuckPosition(edict_t *unit, vector2_t const *requested, vector2_t *out) {
+bool G_FindUnitUnstuckPosition(edict_t *unit, vec2_t const *requested, vec2_t *out) {
     int check_x = 0, check_y = 0;
 
     if (!unit || !requested || !out) {
@@ -1015,7 +1015,7 @@ bool G_FindUnitUnstuckPosition(edict_t *unit, vector2_t const *requested, vector
     }
     *out = *requested;
     for (int i = 0; i < 300; i++) {
-        vector2_t const candidate = {
+        vec2_t const candidate = {
             requested->x + check_x * 64.0f,
             requested->y + check_y * 64.0f,
         };
@@ -1042,12 +1042,12 @@ typedef struct {
     edict_t *producer;
     edict_t *unit;
     float     spacing;
-    vector2_t *out;
+    vec2_t *out;
     float    *angle;
 } unitExitCtx_t;
 
 static bool SP_TryUnitExitCandidate(unitExitCtx_t const *ctx, int grid_x, int grid_y) {
-    vector2_t const candidate = {
+    vec2_t const candidate = {
         ctx->producer->s.origin2.x + (float)grid_x * ctx->spacing,
         ctx->producer->s.origin2.y + (float)grid_y * ctx->spacing,
     };
@@ -1070,7 +1070,7 @@ static bool SP_TryUnitExitCandidate(unitExitCtx_t const *ctx, int grid_x, int gr
  * exit point is found. Search deterministic 64-world-unit square rings, using
  * the trained unit's real collision radius against both the baked static
  * pathmap and dynamic unit circles. */
-bool SP_FindUnitExitPosition(edict_t *producer, edict_t *unit, vector2_t *out, float *angle) {
+bool SP_FindUnitExitPosition(edict_t *producer, edict_t *unit, vec2_t *out, float *angle) {
     uint32_t const max_candidates = 300;
     uint32_t tested = 0;
     unitExitCtx_t ctx;

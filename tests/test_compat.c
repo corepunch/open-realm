@@ -33,15 +33,15 @@ TEST(orientation, named_angles_match_canonical_axes) {
     FOR_LOOP(i, 12) {
         orientation_t angles = { .yaw = i * 0.63f, .pitch = i * -0.31f, .roll = i * 0.47f };
         quaternion_t q = Quaternion_fromOrientation(&angles);
-        matrix4_t actual, expected;
+        mat4_t actual, expected;
         Matrix4_identity(&actual); Matrix4_rotateQuat(&actual, &q);
         Matrix4_identity(&expected);
-        Matrix4_rotate(&expected, &MAKE(vector3_t, RAD2DEG(angles.roll), -RAD2DEG(angles.pitch), RAD2DEG(angles.yaw)), ROTATE_XYZ);
+        Matrix4_rotate(&expected, &MAKE(vec3_t, RAD2DEG(angles.roll), -RAD2DEG(angles.pitch), RAD2DEG(angles.yaw)), ROTATE_XYZ);
         FOR_LOOP(k, 16) T_FEQ(actual.v[k], expected.v[k], 0.00001f);
     }
     quaternion_t up = Quaternion_fromOrientation(&MAKE(orientation_t, .pitch = M_PI / 2));
-    matrix4_t matrix;
+    mat4_t matrix;
     Matrix4_identity(&matrix); Matrix4_rotateQuat(&matrix, &up);
-    vector3_t forward = Matrix4_multiply_vector3(&matrix, &MAKE(vector3_t, 1, 0, 0));
+    vec3_t forward = Matrix4_multiply_vector3(&matrix, &MAKE(vec3_t, 1, 0, 0));
     T_FEQ(forward.x, 0, 0.00001f); T_FEQ(forward.z, 1, 0.00001f);
 }

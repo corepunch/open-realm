@@ -8,17 +8,17 @@ war3mapVertex_t const *GetWar3MapVertex(war3map_t const *war3Map, uint32_t x, ui
     return (war3mapVertex_t const *)ptr;
 }
 
-vector2_t GetWar3MapSize(war3map_t const *war3Map) {
-    vector2_t size = {
+vec2_t GetWar3MapSize(war3map_t const *war3Map) {
+    vec2_t size = {
         .x = (tr.world->width - 1) * TILE_SIZE,
         .y = (tr.world->height - 1) * TILE_SIZE
     };
     return size;
 }
 
-vector2_t GetWar3MapPosition(war3map_t const *war3Map, float x, float y) {
-    vector2_t size = GetWar3MapSize(war3Map);
-    vector2_t point = {
+vec2_t GetWar3MapPosition(war3map_t const *war3Map, float x, float y) {
+    vec2_t size = GetWar3MapSize(war3Map);
+    vec2_t point = {
         .x = (x - war3Map->center.x) / size.x,
         .y = (y - war3Map->center.y) / size.y,
     };

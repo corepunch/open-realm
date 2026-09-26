@@ -214,8 +214,8 @@ void UI_HideGameResult(edict_t *ent);
 /* Cinematic / interface (hud_cinematic.c) */
 void UI_ShowInterface(edict_t *ent, bool flag, float duration);
 void UI_ShowGameInterface(edict_t *ent);
-void UI_ShowText(edict_t *ent, vector2_t const *pos, cstring_t text, float duration);
-void UI_ShowTransientText(edict_t *ent, vector2_t const *pos, cstring_t text, float duration);
+void UI_ShowText(edict_t *ent, vec2_t const *pos, cstring_t text, float duration);
+void UI_ShowTransientText(edict_t *ent, vec2_t const *pos, cstring_t text, float duration);
 void UI_RecordTransmissionMessage(edict_t *ent);
 void UI_ClearTextMessages(edict_t *ent);
 void UI_InvalidateDialoguePresentation(edict_t *ent);

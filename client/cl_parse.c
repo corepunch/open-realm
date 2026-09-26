@@ -19,7 +19,7 @@
 
 /* Keep predicted camera targets inside the loaded map. Scripted WC3 camera
  * rectangles stay server-side; the client does not get a per-player copy. */
-vector2_t CL_ClampCameraPosition(vector2_t position) {
+vec2_t CL_ClampCameraPosition(vec2_t position) {
     box2_t bounds = CM_GetWorldBounds();
     if (bounds.max.x > bounds.min.x)
         position.x = MAX(bounds.min.x, MIN(bounds.max.x, position.x));
@@ -240,7 +240,7 @@ static void CL_ParseBaseline(sizeBuf_t *msg) {
     }
 }
 
-static bool CL_EnsureTerrainMaskSize(uint32_t width, uint32_t height, vector2_t origin, float cell_size) {
+static bool CL_EnsureTerrainMaskSize(uint32_t width, uint32_t height, vec2_t origin, float cell_size) {
     uint32_t cells;
 
     if (!width || !height || !cell_size || height > UINT_MAX / width) return false;
@@ -300,7 +300,7 @@ static bool CL_ParseTerrainMaskChunk(sizeBuf_t *msg) {
         return false;
     }
     if (!CL_EnsureTerrainMaskSize(chunk.width, chunk.height,
-            (vector2_t){ chunk.min_x, chunk.min_y }, chunk.cell_size)) return false;
+            (vec2_t){ chunk.min_x, chunk.min_y }, chunk.cell_size)) return false;
     ctx = (maskUnpackCtx_t){ chunk.first_row, cl.terrain_mask.width, &changed };
     decoded = MSG_DecodeRLE(payload, chunk.payload_bytes, row_cells, CL_MaskUnpackRun, &ctx);
     assert(decoded == row_cells); /* validated above, so the decode cannot fail */
@@ -422,7 +422,7 @@ void CL_ParsePlayerInfo(sizeBuf_t *msg) {
     if (cl.time - cl.camera_prediction.focus_ms > BZ_INPUT_MAX_MSEC) cl.camera_prediction.active = false;
     if (cl.time - cl.camera_prediction.view_ms > BZ_INPUT_MAX_MSEC) cl.camera_prediction.view = false;
     if (cl.camera_prediction.view) {
-        if (!memcmp(&cl.playerstate.viewangles, &cl.camera_prediction.angles, sizeof(vector3_t)) &&
+        if (!memcmp(&cl.playerstate.viewangles, &cl.camera_prediction.angles, sizeof(vec3_t)) &&
             cl.playerstate.distance == cl.camera_prediction.distance) {
             cl.camera_prediction.view = false;
         } else {
@@ -908,7 +908,7 @@ static void CL_ParseSound(sizeBuf_t *msg) {
     uint32_t flags = (uint32_t)MSG_ReadByte(msg);
     int sound_index = MSG_ReadShort(msg), channel = 0, entity = 0;
     float volume = DEFAULT_SOUND_PACKET_VOLUME, attenuation = DEFAULT_SOUND_PACKET_ATTENUATION, timeofs = 0.0f;
-    vector3_t origin = { 0 };
+    vec3_t origin = { 0 };
     cstring_t path;
     soundPolicy_t policy = {0};
 
@@ -973,8 +973,8 @@ TEST(client_sound, packed_entity_above_4095_reaches_mixer) {
     strlcpy(cl.configstrings[CS_SOUNDS + 1], "packet-test.wav", sizeof(path));
     FOR_LOOP(i, sizeof(entities) / sizeof(*entities)) {
         uint32_t entity = entities[i];
-        vector3_t origin = cl.ents[entity].current.origin;
-        cl.ents[entity].current.origin = (vector3_t){ 123, 456, 0 };
+        vec3_t origin = cl.ents[entity].current.origin;
+        cl.ents[entity].current.origin = (vec3_t){ 123, 456, 0 };
         memset(s.channels, 0, sizeof(s.channels));
         SZ_Init(&msg, data, sizeof(data));
         MSG_WriteByte(&msg, SND_ENT | SND_POS | (i ? SND_PRIORITY : 0));

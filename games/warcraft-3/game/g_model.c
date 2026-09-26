@@ -62,8 +62,8 @@ struct md34ReferenceEntry {
 };
 
 struct md34BoundingSphere {
-    vector3_t min;
-    vector3_t max;
+    vec3_t min;
+    vec3_t max;
     float radius;
 };
 

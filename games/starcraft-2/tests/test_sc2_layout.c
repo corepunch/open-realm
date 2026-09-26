@@ -471,19 +471,19 @@ TEST(sc2_layout, model_camera_payload) {
 TEST(sc2_layout, model_camera_widescreen) {
     uiModel_t model = { .eye = {0,-5,0}, .pos = {-1,-1,0}, .scale = {1,1,1},
         .fov = 90, .znear = 1, .zfar = 1000, .aspect = 4.0f / 3, .projection = UI_MODEL_ORTHOGRAPHIC };
-    matrix4_t narrow, wide;
+    mat4_t narrow, wide;
     M_ModelMatrix(&model, 4.0f / 3, &narrow); M_ModelMatrix(&model, 16.0f / 9, &wide);
-    vector3_t a = Matrix4_multiply_vector3(&narrow, &(vector3_t){0,0,0});
-    vector3_t b = Matrix4_multiply_vector3(&wide, &(vector3_t){0,0,0});
+    vec3_t a = Matrix4_multiply_vector3(&narrow, &(vec3_t){0,0,0});
+    vec3_t b = Matrix4_multiply_vector3(&wide, &(vec3_t){0,0,0});
     T_FEQ(a.x, -1, .0001f); T_FEQ(b.x, a.x, .0001f); T_FEQ(a.y, -1, .0001f);
     T_FEQ(b.y, a.y, .0001f);
-    a = Matrix4_multiply_vector3(&narrow, &(vector3_t){.5f,0,.25f});
-    b = Matrix4_multiply_vector3(&wide, &(vector3_t){.5f,0,.25f});
+    a = Matrix4_multiply_vector3(&narrow, &(vec3_t){.5f,0,.25f});
+    b = Matrix4_multiply_vector3(&wide, &(vec3_t){.5f,0,.25f});
     T_FEQ(b.y, a.y, .0001f); T_FEQ((b.x + 1) * (16.0f/9), (a.x + 1) * (4.0f/3), .0001f);
     model.pos.x = 1; M_ModelMatrix(&model, 16.0f/9, &wide);
-    b = Matrix4_multiply_vector3(&wide, &(vector3_t){0,0,0}); T_FEQ(b.x, 1, .0001f);
-    model.projection = UI_MODEL_PERSPECTIVE; model.pos = (vector3_t){0};
+    b = Matrix4_multiply_vector3(&wide, &(vec3_t){0,0,0}); T_FEQ(b.x, 1, .0001f);
+    model.projection = UI_MODEL_PERSPECTIVE; model.pos = (vec3_t){0};
     M_ModelMatrix(&model, 16.0f/9, &wide);
-    b = Matrix4_multiply_vector3(&wide, &(vector3_t){0,0,0});
+    b = Matrix4_multiply_vector3(&wide, &(vec3_t){0,0,0});
     T_FEQ(b.x, 0, .0001f); T_FEQ(b.y, 0, .0001f); T_ASSERT(b.z > -1 && b.z < 1);
 }

@@ -176,7 +176,7 @@ TEST(wc3_bot, produce_queues_trainable_units_and_rejects_unknown_types) {
 TEST(wc3_bot, build_site_requires_direct_static_route) {
     uint8_t cells[100] = {0};
     edict_t worker = { .collision = 0.0f, .s.origin2 = { 1.0f, 5.0f } };
-    vector2_t same_side = { 4.0f, 5.0f }, across_wall = { 8.0f, 5.0f };
+    vec2_t same_side = { 4.0f, 5.0f }, across_wall = { 8.0f, 5.0f };
     FOR_LOOP(y, 10) cells[5 + y * 10] = 2;
     setup_test_pathmap(10, 10, cells);
     T_ASSERT(G_BotBuildSiteReachable(&worker, &same_side));
@@ -485,7 +485,7 @@ TEST(wc3_bot, suicide_player_launches_full_and_timeout_partial_assaults_at_targe
 
     enemy->svflags |= SVF_MONSTER;
     mapinfo->players[1].used = true;
-    mapinfo->players[1].startingPosition = MAKE(vector2_t, 256, 128);
+    mapinfo->players[1].startingPosition = MAKE(vec2_t, 256, 128);
     bot->player = &game.clients[2].ps;
     G_BotSetStagePoint(&game.clients[2].ps, 256, 128);
     G_BotCreateCaptains(&game.clients[2].ps);
@@ -516,7 +516,7 @@ TEST(wc3_bot, suicide_player_native_runs_in_player_bound_ai_vm) {
 
     enemy->svflags |= SVF_MONSTER;
     mapinfo->players[1].used = true;
-    mapinfo->players[1].startingPosition = MAKE(vector2_t, 256, 128);
+    mapinfo->players[1].startingPosition = MAKE(vec2_t, 256, 128);
     T_ASSERT(G_BotStart(&game.clients[2].ps, "test_suicide_player.ai", BOT_CAMPAIGN));
     G_BotCreateCaptains(&game.clients[2].ps);
     G_BotInitAssault(&game.clients[2].ps);

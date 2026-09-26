@@ -108,7 +108,7 @@ struct md34Sequence {
     uint32_t frequency;
     int32_t unk[3];
     int32_t unk2;
-    struct { vector3_t min; vector3_t max; float radius; } boundingSphere;
+    struct { vec3_t min; vec3_t max; float radius; } boundingSphere;
     int32_t d5[3];
 };
 
@@ -202,8 +202,8 @@ typedef struct {
     uint32_t minimum_repetitions;
     uint32_t maximum_repetitions;
     uint32_t blend_time;
-    vector3_t min;
-    vector3_t max;
+    vec3_t min;
+    vec3_t max;
     float radius;
     int16_t next_animation;
     uint16_t  alias_next;
@@ -219,8 +219,8 @@ typedef struct {
     uint32_t minimum_repetitions;
     uint32_t maximum_repetitions;
     uint32_t blend_time;
-    vector3_t min;
-    vector3_t max;
+    vec3_t min;
+    vec3_t max;
     float radius;
     int16_t next_animation;
     uint16_t  alias_next;
@@ -262,7 +262,7 @@ typedef struct {
     uint32_t data;
     uint16_t bone_index;
     uint16_t padding;
-    vector3_t position;
+    vec3_t position;
     svM2EventTrack_t track;
 } svM2EventModern_t;
 
@@ -271,7 +271,7 @@ typedef struct {
     uint32_t data;
     uint16_t bone_index;
     uint16_t padding;
-    vector3_t position;
+    vec3_t position;
     svM2EventTrackClassic_t track;
 } svM2EventClassic_t;
 
@@ -445,11 +445,11 @@ static int16_t M2SequenceRarity(uint8_t const *seq, bool classic) {
     return classic ? ((svM2SequenceClassic_t const *)seq)->probability
                    : (int16_t)((svM2SequenceModern_t const *)seq)->frequency;
 }
-static vector3_t M2SequenceMin(uint8_t const *seq, bool classic) {
+static vec3_t M2SequenceMin(uint8_t const *seq, bool classic) {
     return classic ? ((svM2SequenceClassic_t const *)seq)->min
                    : ((svM2SequenceModern_t  const *)seq)->min;
 }
-static vector3_t M2SequenceMax(uint8_t const *seq, bool classic) {
+static vec3_t M2SequenceMax(uint8_t const *seq, bool classic) {
     return classic ? ((svM2SequenceClassic_t const *)seq)->max
                    : ((svM2SequenceModern_t  const *)seq)->max;
 }

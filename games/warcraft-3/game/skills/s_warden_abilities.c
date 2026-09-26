@@ -19,7 +19,7 @@ static bool blink_validate(edict_t *caster, spellTarget_t st, abilityitem_t cons
 
 static void blink_execute(edict_t *caster, spellTarget_t st, abilityitem_t const *spell) {
     G_SpawnAbilityEffectTarget(spell->code, WC3_EFFECT_SPECIAL, 0, caster, NULL, true);
-    vector2_t dest = st.point;
+    vec2_t dest = st.point;
     CM_ClosestPathablePointForRadiusFlags(&st.point, caster->collision, M_UnitStaticPathingFlags(caster), &dest);
     caster->s.origin2 = dest;
     caster->s.origin.x = dest.x;

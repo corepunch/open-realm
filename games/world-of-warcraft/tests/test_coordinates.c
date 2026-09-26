@@ -9,9 +9,9 @@ TEST(wow_coordinates, actor_heading_is_independent_of_ground_anchor) {
     FOR_LOOP(i, 4) FOR_LOOP(grounded, 2) {
         renderEntity_t ent = { .model = &model, .origin = {3, 5, 7}, .scale = 2,
             .angle = i * M_PI / 2, .flags = grounded ? RF_GROUND_ANCHOR : 0 };
-        matrix4_t matrix;
+        mat4_t matrix;
         R_GetEntityMatrix(&ent, &matrix);
-        vector3_t front = Matrix4_multiply_vector3(&matrix, &MAKE(vector3_t, 1, 0, 0));
+        vec3_t front = Matrix4_multiply_vector3(&matrix, &MAKE(vec3_t, 1, 0, 0));
         T_FEQ(front.x, 3 + 2 * cosf(ent.angle), 0.0001f);
         T_FEQ(front.y, 5 + 2 * sinf(ent.angle), 0.0001f);
         T_FEQ(front.z, 7, 0.0001f);
@@ -24,10 +24,10 @@ TEST(wow_coordinates, grass_uses_radian_heading) {
     FOR_LOOP(i, 8) {
         renderEntity_t ent = { .model = &model, .origin = {2, 4, 6}, .scale = 1,
             .angle = i * M_PI / 4, .flags = RF_GROUND_EFFECT };
-        matrix4_t matrix;
+        mat4_t matrix;
         R_GetEntityMatrix(&ent, &matrix);
-        vector3_t front = Matrix4_multiply_vector3(&matrix, &MAKE(vector3_t, 1, 0, 0));
-        vector3_t up = Matrix4_multiply_vector3(&matrix, &MAKE(vector3_t, 0, 0, 1));
+        vec3_t front = Matrix4_multiply_vector3(&matrix, &MAKE(vec3_t, 1, 0, 0));
+        vec3_t up = Matrix4_multiply_vector3(&matrix, &MAKE(vec3_t, 0, 0, 1));
         T_FEQ(front.x, 2 + cosf(ent.angle), 0.0001f);
         T_FEQ(front.y, 4 + sinf(ent.angle), 0.0001f);
         T_FEQ(up.x, 2, 0.0001f); T_FEQ(up.y, 4, 0.0001f); T_FEQ(up.z, 7, 0.0001f);
@@ -39,13 +39,13 @@ TEST(wow_coordinates, tilted_doodads_preserve_authored_transform) {
     FOR_LOOP(i, 12) {
         renderEntity_t ent = { .model = &model, .origin = {3, 5, 7}, .scale = 0.5f + i * 0.25f,
             .rotation = { i * 31, -(float)i * 17, i * 47 } };
-        matrix4_t old, basis = { .v = {0,1,0,0, 0,0,1,0, 1,0,0,0, 0,0,0,1} }, tmp, matrix;
+        mat4_t old, basis = { .v = {0,1,0,0, 0,0,1,0, 1,0,0,0, 0,0,0,1} }, tmp, matrix;
         Matrix4_identity(&old); Matrix4_translate(&old, &ent.origin);
         Matrix4_multiply(&old, &basis, &tmp); old = tmp;
-        Matrix4_rotate(&old, &MAKE(vector3_t, 0, ent.rotation.y - 90, 0), ROTATE_XYZ);
-        Matrix4_rotate(&old, &MAKE(vector3_t, 0, 0, -ent.rotation.x), ROTATE_XYZ);
-        Matrix4_rotate(&old, &MAKE(vector3_t, ent.rotation.z - 90, 0, 0), ROTATE_XYZ);
-        Matrix4_scale(&old, &MAKE(vector3_t, ent.scale, ent.scale, ent.scale));
+        Matrix4_rotate(&old, &MAKE(vec3_t, 0, ent.rotation.y - 90, 0), ROTATE_XYZ);
+        Matrix4_rotate(&old, &MAKE(vec3_t, 0, 0, -ent.rotation.x), ROTATE_XYZ);
+        Matrix4_rotate(&old, &MAKE(vec3_t, ent.rotation.z - 90, 0, 0), ROTATE_XYZ);
+        Matrix4_scale(&old, &MAKE(vec3_t, ent.scale, ent.scale, ent.scale));
         R_GetEntityMatrix(&ent, &matrix);
         FOR_LOOP(k, 16) T_FEQ(matrix.v[k], old.v[k], 0.0001f);
         modelPose_t pose = { .origin = ent.origin, .scale = ent.scale };
@@ -58,12 +58,12 @@ TEST(wow_coordinates, tilted_doodads_preserve_authored_transform) {
 TEST(wow_coordinates, preview_attachment_facing_leaves_parent_camera_pose_fixed) {
     model_t model = { .modeltype = ID_MD20 };
     renderEntity_t ent = { .model = &model, .scale = 1, .attachment = { .model = &model, .angles.yaw = M_PI / 2 } };
-    matrix4_t parent, child;
+    mat4_t parent, child;
     R_GetEntityMatrix(&ent, &parent);
     child = parent;
-    Matrix4_translate(&child, &MAKE(vector3_t, 2, 3, 4));
+    Matrix4_translate(&child, &MAKE(vec3_t, 2, 3, 4));
     R_GetAttachmentMatrix(&ent, &child, &child);
-    vector3_t front = Matrix4_multiply_vector3(&child, &MAKE(vector3_t, 1, 0, 0));
+    vec3_t front = Matrix4_multiply_vector3(&child, &MAKE(vec3_t, 1, 0, 0));
     T_FEQ(parent.v[0], 1, 0.0001f); T_FEQ(parent.v[1], 0, 0.0001f);
     T_FEQ(front.x, 2, 0.0001f); T_FEQ(front.y, 4, 0.0001f); T_FEQ(front.z, 4, 0.0001f);
 }
@@ -72,15 +72,15 @@ TEST(wow_coordinates, wmo_placement_and_native_child_share_one_basis) {
     wowMapObjDef_t def = { .position = {17000, 42, 16900}, .rotation = {17, 31, 47}, .scale = 1536 };
     wowPlacement_t source = { .pos = {17000, 42, 16900}, .rot = {17, 31, 47}, .scale = 1536 };
     wowWmoDoodadDef_t child = { .position = {2, 3, 4}, .quat = {0, 0, 0.70710678f, 0.70710678f}, .scale = 0.5f };
-    matrix4_t render, collision, local, world;
+    mat4_t render, collision, local, world;
     Wow_InstanceMatrix(&def, &render);
     Wow_PlacementMatrix(&source, &collision);
     FOR_LOOP(k, 16) T_FEQ(render.v[k], collision.v[k], 0.0001f);
     Wow_WmoDoodadLocalMatrix(&child, &local);
     Matrix4_multiply(&render, &local, &world);
-    vector3_t native = Matrix4_multiply_vector3(&local, &MAKE(vector3_t, 1, 0, 0));
+    vec3_t native = Matrix4_multiply_vector3(&local, &MAKE(vec3_t, 1, 0, 0));
     T_FEQ(native.x, 2, 0.0001f); T_FEQ(native.y, 3.5f, 0.0001f); T_FEQ(native.z, 4, 0.0001f);
-    vector3_t expected = Matrix4_multiply_vector3(&collision, &native);
-    vector3_t actual = Matrix4_multiply_vector3(&world, &MAKE(vector3_t, 1, 0, 0));
+    vec3_t expected = Matrix4_multiply_vector3(&collision, &native);
+    vec3_t actual = Matrix4_multiply_vector3(&world, &MAKE(vec3_t, 1, 0, 0));
     T_FEQ(actual.x, expected.x, 0.0001f); T_FEQ(actual.y, expected.y, 0.0001f); T_FEQ(actual.z, expected.z, 0.0001f);
 }

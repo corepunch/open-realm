@@ -11,7 +11,7 @@
 #define ENTITY_INDICATOR_ON_TIME 250   /* ms visible at the start of each cycle */
 
 typedef struct  {
-    vector3_t origin;
+    vec3_t origin;
     uint32_t timespamp;
     color32_t tint;
 } moveConfirmation_t;
@@ -23,7 +23,7 @@ typedef enum {
 
 typedef struct {
     mistype_t type;
-    vector3_t origin;
+    vec3_t origin;
     float angle;
     float speed;
     uint32_t model;
@@ -33,7 +33,7 @@ typedef struct {
 
 typedef struct {
     bool active;
-    vector3_t origin;
+    vec3_t origin;
     uint32_t model;       /* configstring model index */
     uint32_t starttime;
     uint32_t lifetime;    /* ms */
@@ -48,7 +48,7 @@ typedef struct {
 
 typedef struct {
     bool active;
-    vector3_t origin;
+    vec3_t origin;
     char text[FLOATING_TEXT_CAPACITY];
     color32_t color;
     uint32_t font;        /* configstring font index */
@@ -111,7 +111,7 @@ missile_t *CL_AllocMissile(void) {
     return tents.missiles;
 }
 
-void CL_AllocateConfirmationObject(vector3_t const *origin, color32_t tint) {
+void CL_AllocateConfirmationObject(vec3_t const *origin, color32_t tint) {
     uint32_t i = cl_confcounter++;
     cl_confs[i % MAX_CONFIRMATION_OBJECTS].origin = *origin;
     cl_confs[i % MAX_CONFIRMATION_OBJECTS].timespamp = cl.time;
@@ -119,7 +119,7 @@ void CL_AllocateConfirmationObject(vector3_t const *origin, color32_t tint) {
 }
 
 void CL_ParseTEnt(sizeBuf_t *msg) {
-    vector3_t pos;//, pos2, dir;
+    vec3_t pos;//, pos2, dir;
     tempEvent_t evt = MSG_ReadByte(msg);
     missile_t *missile;
     switch (evt) {
@@ -227,7 +227,7 @@ static void CL_AddConfirmationObject(moveConfirmation_t const *mc) {
 }
 
 void CL_AddMissile(missile_t const *missile) {
-    vector3_t dir = { cos(missile->angle), sin(missile->angle), 0 };
+    vec3_t dir = { cos(missile->angle), sin(missile->angle), 0 };
     float distance = (cl.time - missile->starttime) * missile->speed / 1000;
     renderEntity_t ent;
     memset(&ent, 0, sizeof(ent));
@@ -291,7 +291,7 @@ void CL_DrawTEnts(void) {
 
     FOR_LOOP(i, MAX_FLOATING_TEXTS) {
         floatingText_t *text = &tents.texts[i];
-        vector2_t screen;
+        vec2_t screen;
         uint32_t age;
         float seconds, alpha = 1.0f;
         color32_t color, shadow;

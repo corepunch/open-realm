@@ -501,7 +501,7 @@ TEST(wc3_game, enemiesclear_and_eclear_remove_nearby_enemy_units_only) {
     T_ASSERT(far_enemy->inuse);
     T_ASSERT(friendly->inuse);
 
-    far_enemy->s.origin2 = (vector2_t){ 64.0f, 0.0f };
+    far_enemy->s.origin2 = (vec2_t){ 64.0f, 0.0f };
     far_enemy->s.origin.x = 64.0f;
     far_enemy->s.origin.y = 0.0f;
     G_ClientCommand(clent, 2, eclear);
@@ -790,7 +790,7 @@ static void window_test_write(pfWriteType_t type, void const *value) {
 
 static uint32_t alert_ping_count, alert_ping_flags;
 static edict_t *alert_ping_target;
-static vector2_t alert_ping_position;
+static vec2_t alert_ping_position;
 static float alert_ping_duration;
 static color32_t alert_ping_color;
 static PATHSTR alert_ping_model;
@@ -798,7 +798,7 @@ static PATHSTR alert_ping_model;
 static void alert_test_configstring(uint32_t index, cstring_t value) {
     if (index == CS_MINIMAP) snprintf(alert_ping_model, sizeof(alert_ping_model), "%s", value);
 }
-static void alert_test_minimap_ping(edict_t *ent, vector2_t const *position, float duration, color32_t color, uint32_t flags) {
+static void alert_test_minimap_ping(edict_t *ent, vec2_t const *position, float duration, color32_t color, uint32_t flags) {
     alert_ping_count++; alert_ping_target = ent; alert_ping_position = *position; alert_ping_duration = duration;
     alert_ping_color = color; alert_ping_flags = flags;
 }
@@ -816,9 +816,9 @@ TEST(wc3_game, hud_proxy_number_never_moves_backwards) {
 }
 
 TEST(wc3_game, minimap_ping_uses_generic_packet_import) {
-    void (*saved_ping)(edict_t *, vector2_t const *, float, color32_t, uint32_t) = gi.MinimapPing;
+    void (*saved_ping)(edict_t *, vec2_t const *, float, color32_t, uint32_t) = gi.MinimapPing;
     void (*saved_configstring)(uint32_t, cstring_t) = gi.configstring;
-    vector2_t position = { 123.5f, -44.25f };
+    vec2_t position = { 123.5f, -44.25f };
     color32_t color = MAKE(color32_t, 10, 20, 30, 255);
 
     game.clients[0].connected = true;
@@ -2448,7 +2448,7 @@ TEST(wc3_game, hud_message_overlay_loads_authored_geometry) {
 }
 
 TEST(wc3_game, hud_message_overlay_position_is_runtime_data) {
-    vector2_t pos = { 0.20f, 0.10f };
+    vec2_t pos = { 0.20f, 0.10f };
     FRAMEDEF frame = MessageFrame(&pos, "Runtime message");
     T_FEQ(frame.Width, 0.30f, 0.001f);
     T_FEQ(frame.Height, 0.145f, 0.001f);
@@ -2460,7 +2460,7 @@ TEST(wc3_game, hud_message_overlay_position_is_runtime_data) {
 }
 
 TEST(wc3_game, hud_message_overlay_invalid_position_keeps_fdf_anchor) {
-    vector2_t pos = { -1.0f, UI_BASE_HEIGHT + 1.0f };
+    vec2_t pos = { -1.0f, UI_BASE_HEIGHT + 1.0f };
     FRAMEDEF frame = MessageFrame(&pos, "Authored position");
     T_FEQ(frame.Points.x[FPP_MIN].offset, 0.05f, 0.001f);
     T_FEQ(frame.Points.y[FPP_MIN].offset, -0.30f, 0.001f);
@@ -2522,7 +2522,7 @@ TEST(wc3_game, single_info_panel_serializes_tooltip_presenter) {
 
 TEST(wc3_game, region_contains_empty_region_false) {
     region_t r = { .num_rects = 0 };
-    vector2_t p = { 5.0f, 5.0f };
+    vec2_t p = { 5.0f, 5.0f };
     T_ASSERT(!G_RegionContains(&r, &p));
 }
 
@@ -2531,7 +2531,7 @@ TEST(wc3_game, region_contains_point_inside) {
         .rects[0] = { { 0.0f, 0.0f }, { 100.0f, 100.0f } },
         .num_rects = 1
     };
-    vector2_t p = { 50.0f, 50.0f };
+    vec2_t p = { 50.0f, 50.0f };
     T_ASSERT(G_RegionContains(&r, &p));
 }
 
@@ -2540,7 +2540,7 @@ TEST(wc3_game, region_contains_point_outside) {
         .rects[0] = { { 0.0f, 0.0f }, { 100.0f, 100.0f } },
         .num_rects = 1
     };
-    vector2_t p = { 200.0f, 200.0f };
+    vec2_t p = { 200.0f, 200.0f };
     T_ASSERT(!G_RegionContains(&r, &p));
 }
 
@@ -2551,7 +2551,7 @@ TEST(wc3_game, region_contains_multirect_hits_second) {
         .rects[1] = { { 200.0f, 200.0f }, { 300.0f, 300.0f } },
         .num_rects = 2
     };
-    vector2_t p = { 250.0f, 250.0f };
+    vec2_t p = { 250.0f, 250.0f };
     T_ASSERT(G_RegionContains(&r, &p));
 }
 
@@ -2561,7 +2561,7 @@ TEST(wc3_game, region_contains_max_boundary_exclusive) {
         .rects[0] = { { 0.0f, 0.0f }, { 100.0f, 100.0f } },
         .num_rects = 1
     };
-    vector2_t p = { 100.0f, 50.0f };   /* exactly at max.x */
+    vec2_t p = { 100.0f, 50.0f };   /* exactly at max.x */
     T_ASSERT(!G_RegionContains(&r, &p));
 }
 
@@ -3036,7 +3036,7 @@ TEST(wc3_game, fow_packed_fast_path_uses_word_mask_and_skips_occlusion) {
 TEST(wc3_game, fow_blocker_cache_skips_clean_and_unchanged_dirty_updates) {
     uint32_t old_index, new_index, sentinel;
     edict_t *blocker;
-    vector2_t direction = { 1.0f, 0.0f };
+    vec2_t direction = { 1.0f, 0.0f };
 
     reset_entities();
     G_FowInit();
@@ -3204,8 +3204,8 @@ TEST(wc3_perf, acquisition_ranges_1900) {
 /* Scripted CreateUnit near a crowded point must retain collision semantics
  * without walking the entire edict array for every spiral candidate. */
 TEST(wc3_perf, crowded_unstuck_search) {
-    vector2_t const point = {512.0f, 512.0f};
-    vector2_t out;
+    vec2_t const point = {512.0f, 512.0f};
+    vec2_t out;
     edict_t *mover;
     setup_test_world(); reset_entities();
     FOR_LOOP(i, 1900) {
@@ -3330,7 +3330,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 123;
     game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 45;
     game.clients[0].camera.state.fov = 61.0f;
-    game.clients[0].camera.state.position = (vector2_t){ 333.0f, 444.0f };
+    game.clients[0].camera.state.position = (vec2_t){ 333.0f, 444.0f };
     game.clients[0].camera.state.z_offset = 222.0f;
     game.clients[0].camera.state.near_z = 75.0f;
     game.clients[0].camera.state.far_z = 7000.0f;
@@ -3365,7 +3365,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
     game.clients[0].camera.state.fov = 0.0f;
-    game.clients[0].camera.state.position = (vector2_t){ 0.0f, 0.0f };
+    game.clients[0].camera.state.position = (vec2_t){ 0.0f, 0.0f };
     game.clients[0].camera.state.z_offset = 0.0f;
     game.clients[0].camera.state.near_z = 0.0f;
     game.clients[0].camera.state.far_z = 0.0f;
@@ -3717,7 +3717,7 @@ TEST(wc3_save, field_hero_shortcut_alert_is_runtime_only) {
 TEST(wc3_save, blight_world_and_growth_state_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-blight.bin";
     uint32_t const ability = MAKEFOURCC('A','b','l','1');
-    vector2_t point = { 32.0f, 32.0f };
+    vec2_t point = { 32.0f, 32.0f };
     edict_t *unit;
 
     setup_test_world(); reset_entities();
@@ -3759,8 +3759,8 @@ TEST(wc3_save, field_origin_round_trip) {
     reset_entities();
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0.0f, 0.0f);
     T_NOT_NULL(desc); if (desc) { T_EQ(desc->type, F_VECTOR); T_EQ(desc->array_size, 0); }
-    unit->s.origin = (vector3_t){ 12.5f, 34.5f, 56.5f };
-    T_ASSERT(WriteGame(filename)); unit->s.origin = (vector3_t){ 0 }; T_ASSERT(ReadGame(filename));
+    unit->s.origin = (vec3_t){ 12.5f, 34.5f, 56.5f };
+    T_ASSERT(WriteGame(filename)); unit->s.origin = (vec3_t){ 0 }; T_ASSERT(ReadGame(filename));
     T_FEQ(unit->s.origin.x, 12.5f, 0.001f); T_FEQ(unit->s.origin.y, 34.5f, 0.001f);
     T_FEQ(unit->s.origin.z, 56.5f, 0.001f); remove(filename);
 }
@@ -3773,8 +3773,8 @@ TEST(wc3_save, field_channel_origin_round_trip) {
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h', 'p', 'e', 'a'), 0, 0);
     T_NOT_NULL(desc);
     if (desc) T_EQ(desc->type, F_VECTOR);
-    unit->channel.origin = (vector2_t){ 12.5f, 34.5f };
-    T_ASSERT(WriteGame(filename)); unit->channel.origin = (vector2_t){0}; T_ASSERT(ReadGame(filename));
+    unit->channel.origin = (vec2_t){ 12.5f, 34.5f };
+    T_ASSERT(WriteGame(filename)); unit->channel.origin = (vec2_t){0}; T_ASSERT(ReadGame(filename));
     T_FEQ(unit->channel.origin.x, 12.5f, 0.001f); T_FEQ(unit->channel.origin.y, 34.5f, 0.001f);
     remove(filename);
 }
@@ -3801,7 +3801,7 @@ TEST(wc3_save, lightning_registry_round_trip) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-save-lightning.bin";
     edict_t *source_unit, *target_unit;
     gLightning_t *effect;
-    vector3_t source = { 1.0f, 2.0f, 3.0f }, target = { 4.0f, 5.0f, 6.0f };
+    vec3_t source = { 1.0f, 2.0f, 3.0f }, target = { 4.0f, 5.0f, 6.0f };
 
     reset_entities();
     memset(level.lightning_effects, 0, sizeof(level.lightning_effects));
@@ -4095,13 +4095,13 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     cargo_approach->think = corpse_cargo_approach_think; cannibalize_approach->think = cannibalize_approach_think;
     can->think = cannibalize_think; pos->think = possession_two_think; lsh->think = lsh_think;
     far_sight->think = far_sight_think; far_sight->s.player = 3;
-    far_sight->s.origin2 = (vector2_t){ 123.0f, 456.0f }; far_sight->collision = 777.0f; far_sight->spawn_time = 9876;
+    far_sight->s.origin2 = (vec2_t){ 123.0f, 456.0f }; far_sight->collision = 777.0f; far_sight->spawn_time = 9876;
     unit->spawn_time = 2468; mine->spawn_time = 369; chain->spawn_time = 1357;
     unit->permanent_invisibility_reveal_until = 97531;
     unit->runtime.flags |= UNIT_BALANCE_PERMANENT_INVISIBLE;
     chain->think = chain_lightning_think; chain->owner = unit; chain->class_id = MAKEFOURCC('A', 'O', 'c', 'l');
     chain->channel.owner_spawn_time = unit->spawn_time;
-    chain->s.origin2 = (vector2_t){ 321.0f, 654.0f }; chain->collision = 500.0f; chain->wait = 45.0f;
+    chain->s.origin2 = (vec2_t){ 321.0f, 654.0f }; chain->collision = 500.0f; chain->wait = 45.0f;
     chain->velocity = 0.9f; chain->resources = 3; chain->freetime = 4321;
     chain_marker->class_id = MAKEFOURCC('C', 'L', 'v', 's'); chain_marker->svflags |= SVF_NOCLIENT;
     chain_marker->owner = chain; chain_marker->channel.owner_spawn_time = chain->spawn_time;
@@ -4110,8 +4110,8 @@ TEST(wc3_save, round_trip_entity_c_callbacks) {
     unit->think = mine->think = idle->think = effect->think = tree->think = human->think = monster_think;
     portal->think = spray->think = can->think = pos->think = lsh->think = far_sight->think = chain->think = monster_think;
     cargo_approach->think = cannibalize_approach->think = monster_think;
-    far_sight->s.player = 0; far_sight->s.origin2 = (vector2_t){ 0 }; far_sight->collision = 0; far_sight->spawn_time = 0;
-    chain->owner = NULL; chain->class_id = 0; chain->channel.owner_spawn_time = 0; chain->s.origin2 = (vector2_t){ 0 }; chain->collision = chain->wait = chain->velocity = 0;
+    far_sight->s.player = 0; far_sight->s.origin2 = (vec2_t){ 0 }; far_sight->collision = 0; far_sight->spawn_time = 0;
+    chain->owner = NULL; chain->class_id = 0; chain->channel.owner_spawn_time = 0; chain->s.origin2 = (vec2_t){ 0 }; chain->collision = chain->wait = chain->velocity = 0;
     chain->resources = chain->freetime = 0;
     chain_marker->class_id = chain_marker->svflags = chain_marker->channel.owner_spawn_time = chain_marker->resources = 0;
     chain_marker->owner = chain_marker->goalentity = NULL;
@@ -4354,7 +4354,7 @@ TEST(wc3_save, round_trip_unread_event_queue) {
     levelEvents_t old_events = level.events;
     event_t handler = { .type = EVENT_UNIT_IN_RANGE };
     edict_t *subject, *source;
-    vector2_t point = { 11.0f, 22.0f };
+    vec2_t point = { 11.0f, 22.0f };
 
     reset_entities(); memset(&level.events, 0, sizeof(level.events));
     level.events.handlers[0] = handler; level.events.handlers[0].inuse = true;
@@ -4390,7 +4390,7 @@ TEST(wc3_save, round_trip_unread_event_queue) {
 
 TEST(wc3_save, round_trip_waypoint_references) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-waypoint-save-test.bin";
-    vector2_t destination = { 192.0f, 96.0f };
+    vec2_t destination = { 192.0f, 96.0f };
     edict_t *unit, *waypoint;
     uint32_t cursor, count;
 
@@ -4403,9 +4403,9 @@ TEST(wc3_save, round_trip_waypoint_references) {
     unit->goalentity = waypoint;
     unit->movement.attackmove_waypoint = waypoint;
     T_ASSERT(WriteGame(filename));
-    waypoint->s.origin2 = (vector2_t){ 0 };
+    waypoint->s.origin2 = (vec2_t){ 0 };
     unit->goalentity = unit->movement.attackmove_waypoint = NULL;
-    Waypoint_add(&(vector2_t){ 1.0f, 1.0f });
+    Waypoint_add(&(vec2_t){ 1.0f, 1.0f });
     T_ASSERT(ReadGame(filename));
     T_ASSERT(unit->goalentity == waypoint && unit->movement.attackmove_waypoint == waypoint);
     T_FEQ(waypoint->s.origin2.x, destination.x, 0.01f); T_FEQ(waypoint->s.origin2.y, destination.y, 0.01f);
@@ -4956,7 +4956,7 @@ TEST(wc3_save, preserves_research_event_context_across_sleeping_coroutine) {
 TEST(wc3_save, preserves_spell_point_context_across_sleeping_coroutine) {
     cstring_t filename = "/tmp/openwarcraft3-wc3-spell-context-save-test.bin";
     edict_t *caster;
-    vector2_t point = { 123.0f, 234.0f };
+    vec2_t point = { 123.0f, 234.0f };
 
     setup_test_world();
     caster = alloc_test_unit(MAKEFOURCC('O','t','c','h'), 0.0f, 0.0f);

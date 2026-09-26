@@ -39,14 +39,14 @@ struct MapSegment {
 void R_DrawTerrainSegment(mapsegment_t const *segment, uint32_t mask);
 
 /* Both tile renderers need normals independent of triangle diagonals and holes in neighbouring cells. */
-static inline vector3_t R_TerrainGridNormal(terrainNormals_t const *grid, uint32_t x, uint32_t y) {
+static inline vec3_t R_TerrainGridNormal(terrainNormals_t const *grid, uint32_t x, uint32_t y) {
     float left = grid->height(grid->data, x ? x - 1 : x, y);
     float right = grid->height(grid->data, x + (x + 1 < grid->width), y);
     float top = grid->height(grid->data, x, y ? y - 1 : y);
     float bottom = grid->height(grid->data, x, y + (y + 1 < grid->height_count));
-    vector3_t dx = { x && x + 1 < grid->width ? 2.0f * grid->cell_size : grid->cell_size, 0.0f, right - left };
-    vector3_t dy = { 0.0f, y && y + 1 < grid->height_count ? 2.0f * grid->cell_size : grid->cell_size, bottom - top };
-    vector3_t normal = Vector3_cross(&dx, &dy);
+    vec3_t dx = { x && x + 1 < grid->width ? 2.0f * grid->cell_size : grid->cell_size, 0.0f, right - left };
+    vec3_t dy = { 0.0f, y && y + 1 < grid->height_count ? 2.0f * grid->cell_size : grid->cell_size, bottom - top };
+    vec3_t normal = Vector3_cross(&dx, &dy);
 
     Vector3_normalize(&normal);
     return normal;

@@ -16,7 +16,7 @@ typedef void (*cmLoadYield_t)(void);
 #define CM_PATHING_UNFLYABLE  0x04
 
 typedef struct {
-    vector2_t const *from, *target;
+    vec2_t const *from, *target;
     float radius;
     uint8_t blocked_flags; /* 0 preserves the legacy UNWALKABLE contract */
 } pathAccelParams_t;
@@ -43,7 +43,7 @@ struct war3map {
     uint32_t custom;
     uint32_t *grounds;
     uint32_t *cliffs;
-    vector2_t center;
+    vec2_t center;
     uint32_t width;
     uint32_t height;
     handle_t vertices;
@@ -64,37 +64,37 @@ mapInfo_t const *CM_GetMapInfo(void);
 bool CM_ReadMapInfo(cstring_t filename, mapInfo_t *info);
 void CM_FreeMapInfo(mapInfo_t *info);
 void CM_ReadAbilities(handle_t archive);
-vector2_t CM_GetNormalizedMapPosition(float x, float y);
-vector2_t CM_GetDenormalizedMapPosition(float x, float y);
-bool CM_ClosestPathablePoint(vector2_t const *location, vector2_t *out);
-bool CM_ClosestPathablePointForRadius(vector2_t const *location, float radius, vector2_t *out);
-bool CM_ClosestPathablePointForRadiusFlags(vector2_t const *location, float radius, uint8_t blocked_flags,
-                                           vector2_t *out);
-bool CM_ClosestReachablePointForRadius(vector2_t const *from, vector2_t const *target, float radius, vector2_t *out);
-bool CM_ClosestReachablePointForRadiusFlags(vector2_t const *from, vector2_t const *target, float radius,
-                                            uint8_t blocked_flags, vector2_t *out);
-bool CM_PointIsPathableForRadius(vector2_t const *location, float radius);
-bool CM_PointIsPathableForRadiusFlags(vector2_t const *location, float radius, uint8_t blocked_flags);
-bool CM_LineIsWalkable(vector2_t const *a, vector2_t const *b);
+vec2_t CM_GetNormalizedMapPosition(float x, float y);
+vec2_t CM_GetDenormalizedMapPosition(float x, float y);
+bool CM_ClosestPathablePoint(vec2_t const *location, vec2_t *out);
+bool CM_ClosestPathablePointForRadius(vec2_t const *location, float radius, vec2_t *out);
+bool CM_ClosestPathablePointForRadiusFlags(vec2_t const *location, float radius, uint8_t blocked_flags,
+                                           vec2_t *out);
+bool CM_ClosestReachablePointForRadius(vec2_t const *from, vec2_t const *target, float radius, vec2_t *out);
+bool CM_ClosestReachablePointForRadiusFlags(vec2_t const *from, vec2_t const *target, float radius,
+                                            uint8_t blocked_flags, vec2_t *out);
+bool CM_PointIsPathableForRadius(vec2_t const *location, float radius);
+bool CM_PointIsPathableForRadiusFlags(vec2_t const *location, float radius, uint8_t blocked_flags);
+bool CM_LineIsWalkable(vec2_t const *a, vec2_t const *b);
 /* Optional byte-mask pathing sample used by generic local presentation.
  * Backends without a compatible cell mask return false and clear flags. */
-bool CM_GetPathingFlagsAt(vector2_t const *location, uint8_t *flags);
-bool CM_TerrainPointIsWalkable(vector2_t const *location);
-bool CM_TerrainPointIsSwimmable(vector2_t const *location);
-bool CM_LineIsWalkableForRadius(vector2_t const *a, vector2_t const *b, float radius);
-bool CM_LineIsPathableForRadiusFlags(vector2_t const *a, vector2_t const *b, float radius, uint8_t blocked_flags);
-bool CM_FindPathWaypoint(pathAccelParams_t const *params, vector2_t *out);
-bool CM_FindDirectApproachPointForRadius(vector2_t const *from, vector2_t const *target, float range, float radius, vector2_t *out);
+bool CM_GetPathingFlagsAt(vec2_t const *location, uint8_t *flags);
+bool CM_TerrainPointIsWalkable(vec2_t const *location);
+bool CM_TerrainPointIsSwimmable(vec2_t const *location);
+bool CM_LineIsWalkableForRadius(vec2_t const *a, vec2_t const *b, float radius);
+bool CM_LineIsPathableForRadiusFlags(vec2_t const *a, vec2_t const *b, float radius, uint8_t blocked_flags);
+bool CM_FindPathWaypoint(pathAccelParams_t const *params, vec2_t *out);
+bool CM_FindDirectApproachPointForRadius(vec2_t const *from, vec2_t const *target, float range, float radius, vec2_t *out);
 float CM_PathCellWorldSize(void);
 uint32_t CM_RequestHeatmapForRadius(struct edict_s *goalentity, float radius);
 uint32_t CM_RequestHeatmapForRadiusFlags(struct edict_s *goalentity, float radius, uint8_t blocked_flags);
 bool CM_ActivateCachedFlowForFlags(uint32_t generation, uint8_t blocked_flags);
 void CM_ProcessPathJobs(uint32_t work_budget);
-bool CM_FindApproachPointToFootprintForRadius(struct edict_s const *target, vector2_t const *from, float range, float radius, vector2_t *out);
-bool CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target, vector2_t const *from, float range, float radius, vector2_t *out);
+bool CM_FindApproachPointToFootprintForRadius(struct edict_s const *target, vec2_t const *from, float range, float radius, vec2_t *out);
+bool CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target, vec2_t const *from, float range, float radius, vec2_t *out);
 /* Distance from a world point to the target entity's authored no-walk
  * pathing footprint. Returns FLT_MAX when the target has no usable footprint. */
-float CM_DistanceToPathingFootprint(struct edict_s const *target, vector2_t const *point);
+float CM_DistanceToPathingFootprint(struct edict_s const *target, vec2_t const *point);
 box2_t CM_GetWorldBounds(void);
 
 /* WoW-only: all WorldSafeLocs entries for the current map.  Populated during
@@ -102,14 +102,14 @@ box2_t CM_GetWorldBounds(void);
 #ifdef WOW
 uint32_t CM_WowGetMapId(void);
 uint32_t CM_WowGetAllSpawnCount(void);
-vector3_t const *CM_WowGetSpawnPos(uint32_t index);
+vec3_t const *CM_WowGetSpawnPos(uint32_t index);
 cstring_t CM_WowGetSpawnName(uint32_t index);
 cstring_t CM_WowAdtPath(int tile_x, int tile_y, string_t out, uint32_t out_size);
 float CM_WowFloorHeight(float x, float y, float ref_z, float step_up);
-bool CM_WowMoveBlocked(vector3_t const *from, vector3_t const *to);
-bool CM_WowRayTriangle(vector3_t const *start, vector3_t const *end, vector3_t const *a, vector3_t const *b, vector3_t const *c, float *fraction);
+bool CM_WowMoveBlocked(vec3_t const *from, vec3_t const *to);
+bool CM_WowRayTriangle(vec3_t const *start, vec3_t const *end, vec3_t const *a, vec3_t const *b, vec3_t const *c, float *fraction);
 #ifdef BZ_TESTS
-bool CM_WowTestBspRay(vector3_t const *start, vector3_t const *end, float *fraction);
+bool CM_WowTestBspRay(vec3_t const *start, vec3_t const *end, float *fraction);
 bool CM_WowTestWallRay(bool wall);
 #endif
 #endif

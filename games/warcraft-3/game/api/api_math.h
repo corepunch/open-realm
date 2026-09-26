@@ -7,8 +7,8 @@ uint32_t Rect(jass_t *j) {
     return 1;
 }
 uint32_t RectFromLoc(jass_t *j) {
-    vector2_t const *min = jass_checkhandle(j, 1, "location");
-    vector2_t const *max = jass_checkhandle(j, 2, "location");
+    vec2_t const *min = jass_checkhandle(j, 1, "location");
+    vec2_t const *max = jass_checkhandle(j, 2, "location");
     API_ALLOC(box2_t, rect);
     if (min) rect->min = *min;
     if (max) rect->max = *max;
@@ -34,15 +34,15 @@ uint32_t SetRect(jass_t *j) {
 }
 uint32_t SetRectFromLoc(jass_t *j) {
     box2_t *whichRect = jass_checkhandle(j, 1, "rect");
-    vector2_t const *min = jass_checkhandle(j, 2, "location");
-    vector2_t const *max = jass_checkhandle(j, 3, "location");
+    vec2_t const *min = jass_checkhandle(j, 2, "location");
+    vec2_t const *max = jass_checkhandle(j, 3, "location");
     if (whichRect && min) whichRect->min = *min;
     if (whichRect && max) whichRect->max = *max;
     return 0;
 }
 uint32_t MoveRectTo(jass_t *j) {
     box2_t *whichRect = jass_checkhandle(j, 1, "rect");
-    vector2_t newCenterLoc = {
+    vec2_t newCenterLoc = {
         jass_checknumber(j, 2),
         jass_checknumber(j, 3),
     };
@@ -51,7 +51,7 @@ uint32_t MoveRectTo(jass_t *j) {
 }
 uint32_t MoveRectToLoc(jass_t *j) {
     box2_t *whichRect = jass_checkhandle(j, 1, "rect");
-    vector2_t const *newCenterLoc = jass_checkhandle(j, 2, "location");
+    vec2_t const *newCenterLoc = jass_checkhandle(j, 2, "location");
     if (whichRect && newCenterLoc) Box2_moveTo(whichRect, newCenterLoc);
     return 0;
 }
@@ -162,7 +162,7 @@ uint32_t RegionClearCellAtLoc(jass_t *j) {
     return 0;
 }
 uint32_t Location(jass_t *j) {
-    API_ALLOC(vector2_t, location);
+    API_ALLOC(vec2_t, location);
     location->x = jass_checknumber(j, 1);
     location->y = jass_checknumber(j, 2);
     return 1;
@@ -172,19 +172,19 @@ uint32_t RemoveLocation(jass_t *j) {
     return 0;
 }
 uint32_t MoveLocation(jass_t *j) {
-    vector2_t *whichLocation = jass_checkhandle(j, 1, "location");
+    vec2_t *whichLocation = jass_checkhandle(j, 1, "location");
     if (whichLocation) { whichLocation->x = jass_checknumber(j, 2); whichLocation->y = jass_checknumber(j, 3); }
     return 0;
 }
 uint32_t GetLocationX(jass_t *j) {
-    vector2_t const *whichLocation = jass_checkhandle(j, 1, "location");
+    vec2_t const *whichLocation = jass_checkhandle(j, 1, "location");
     return jass_pushnumber(j, whichLocation ? whichLocation->x : 0); // null location reads as 0, like GetRectCenterX
 }
 uint32_t GetLocationY(jass_t *j) {
-    vector2_t const *whichLocation = jass_checkhandle(j, 1, "location");
+    vec2_t const *whichLocation = jass_checkhandle(j, 1, "location");
     return jass_pushnumber(j, whichLocation ? whichLocation->y : 0); // null location reads as 0, like GetRectCenterX
 }
 uint32_t GetLocationZ(jass_t *j) {
-    vector2_t const *whichLocation = jass_checkhandle(j, 1, "location");
+    vec2_t const *whichLocation = jass_checkhandle(j, 1, "location");
     return jass_pushnumber(j, whichLocation ? CM_GetHeightAtPoint(whichLocation->x, whichLocation->y) : 0);
 }

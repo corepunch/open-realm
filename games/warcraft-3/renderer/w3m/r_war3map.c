@@ -95,8 +95,8 @@ static mapsegment_t *R_BuildMapSegment(war3map_t const *map, uint32_t sx, uint32
             ADD_TO_LIST(mapLayer, mapSegment->layers);
         }
     }
-    mapSegment->bbox.min = MAKE(vector3_t, FLT_MAX, FLT_MAX, FLT_MAX);
-    mapSegment->bbox.max = MAKE(vector3_t, -FLT_MAX, -FLT_MAX, -FLT_MAX);
+    mapSegment->bbox.min = MAKE(vec3_t, FLT_MAX, FLT_MAX, FLT_MAX);
+    mapSegment->bbox.max = MAKE(vec3_t, -FLT_MAX, -FLT_MAX, -FLT_MAX);
     return mapSegment;
 }
 
@@ -109,9 +109,9 @@ static void R_BuildGroundLayers(war3map_t const *map) {
     }
 }
 
-static vector3_t R_GetMapVertexPoint(war3map_t const *map, uint32_t x, uint32_t y) {
+static vec3_t R_GetMapVertexPoint(war3map_t const *map, uint32_t x, uint32_t y) {
     war3mapVertex_t const *mapVertex = GetWar3MapVertex(map, x, y);
-    return (vector3_t) {
+    return (vec3_t) {
         .x = map->center.x + x * TILE_SIZE,
         .y = map->center.y + y * TILE_SIZE,
         .z = GetWar3MapVertexHeight(mapVertex),
@@ -127,7 +127,7 @@ static void R_LoadMapSegments(war3map_t const *map) {
                 FOR_LOOP(sy, SEGMENT_SIZE+1) {
                     float x = fx * SEGMENT_SIZE + sx;
                     float y = fy * SEGMENT_SIZE + sy;
-                    vector3_t v = R_GetMapVertexPoint(map, x, y);
+                    vec3_t v = R_GetMapVertexPoint(map, x, y);
                     segment->bbox.min.x = MIN(segment->bbox.min.x, v.x);
                     segment->bbox.min.y = MIN(segment->bbox.min.y, v.y);
                     segment->bbox.min.z = MIN(segment->bbox.min.z, v.z);
@@ -324,9 +324,9 @@ void _W3M_DrawTerrainShadows(void) {
         return;
     }
 
-    vector2_t size = GetWar3MapSize(tr.world);
-    vector2_t mins = tr.world->center;
-    vector2_t maxs = {
+    vec2_t size = GetWar3MapSize(tr.world);
+    vec2_t mins = tr.world->center;
+    vec2_t maxs = {
         .x = tr.world->center.x + size.x,
         .y = tr.world->center.y + size.y,
     };
@@ -339,7 +339,7 @@ void _W3M_DrawTerrainShadows(void) {
 static void _W3M_SetSceneFog(void) {
     tr.shader_default.state.fogEnable = tr.viewDef.fogEnable;
     tr.shader_default.state.fogColor = tr.viewDef.fogColor;
-    tr.shader_default.state.fogParams = (vector2_t){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
+    tr.shader_default.state.fogParams = (vec2_t){ tr.viewDef.fogStart, tr.viewDef.fogEnd };
 }
 
 void _W3M_DrawWorld(void) {

@@ -1,6 +1,6 @@
 #include "../cmath3.h"
 
-void Frustum_Calculate(matrix4_t const *matrix, frustum3_t *output) {
+void Frustum_Calculate(mat4_t const *matrix, frustum3_t *output) {
     output->right.normal.x = matrix->v[ 3] - matrix->v[ 0];
     output->right.normal.y = matrix->v[ 7] - matrix->v[ 4];
     output->right.normal.z = matrix->v[11] - matrix->v[ 8];
@@ -53,20 +53,20 @@ int Frustum_ContainsSphere(frustum3_t const *frustum, sphere3_t const *sphere) {
     return 1;
 }
 
-int Frustum_ContainsPoint(frustum3_t const *frustum, vector3_t const *point) {
+int Frustum_ContainsPoint(frustum3_t const *frustum, vec3_t const *point) {
     return Frustum_ContainsSphere(frustum, &(sphere3_t){.center=*point,.radius=0});
 }
 
-int Frustum_ContainsBox(frustum3_t const *frustum, box3_t const *box, matrix4_t const *matrix) {
-    vector3_t const points[] = {
-        Matrix4_multiply_vector3(matrix, &(vector3_t) { box->min.x, box->min.y, box->min.z }),
-        Matrix4_multiply_vector3(matrix, &(vector3_t) { box->max.x, box->min.y, box->min.z }),
-        Matrix4_multiply_vector3(matrix, &(vector3_t) { box->min.x, box->max.y, box->min.z }),
-        Matrix4_multiply_vector3(matrix, &(vector3_t) { box->max.x, box->max.y, box->min.z }),
-        Matrix4_multiply_vector3(matrix, &(vector3_t) { box->min.x, box->min.y, box->max.z }),
-        Matrix4_multiply_vector3(matrix, &(vector3_t) { box->max.x, box->min.y, box->max.z }),
-        Matrix4_multiply_vector3(matrix, &(vector3_t) { box->min.x, box->max.y, box->max.z }),
-        Matrix4_multiply_vector3(matrix, &(vector3_t) { box->max.x, box->max.y, box->max.z }),
+int Frustum_ContainsBox(frustum3_t const *frustum, box3_t const *box, mat4_t const *matrix) {
+    vec3_t const points[] = {
+        Matrix4_multiply_vector3(matrix, &(vec3_t) { box->min.x, box->min.y, box->min.z }),
+        Matrix4_multiply_vector3(matrix, &(vec3_t) { box->max.x, box->min.y, box->min.z }),
+        Matrix4_multiply_vector3(matrix, &(vec3_t) { box->min.x, box->max.y, box->min.z }),
+        Matrix4_multiply_vector3(matrix, &(vec3_t) { box->max.x, box->max.y, box->min.z }),
+        Matrix4_multiply_vector3(matrix, &(vec3_t) { box->min.x, box->min.y, box->max.z }),
+        Matrix4_multiply_vector3(matrix, &(vec3_t) { box->max.x, box->min.y, box->max.z }),
+        Matrix4_multiply_vector3(matrix, &(vec3_t) { box->min.x, box->max.y, box->max.z }),
+        Matrix4_multiply_vector3(matrix, &(vec3_t) { box->max.x, box->max.y, box->max.z }),
     };
     for (unsigned i = 0; i < FRUSTUM_NUM_PLANES; i++) {
         for (unsigned j = 0; j < sizeof(points)/sizeof(*points); j++) {
@@ -81,7 +81,7 @@ int Frustum_ContainsBox(frustum3_t const *frustum, box3_t const *box, matrix4_t 
 }
 
 int Frustum_ContainsAABox(frustum3_t const *frustum, box3_t const *box) {
-    vector3_t const points[] = {
+    vec3_t const points[] = {
         { box->min.x, box->min.y, box->min.z },
         { box->max.x, box->min.y, box->min.z },
         { box->min.x, box->max.y, box->min.z },

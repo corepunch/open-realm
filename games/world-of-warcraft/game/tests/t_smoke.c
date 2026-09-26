@@ -36,7 +36,7 @@ TEST(wow_smoke, default_camera_authors_lens) {
 }
 
 TEST(wow_smoke, byte_pathing_flags_are_explicitly_unsupported) {
-    vector2_t point = { 0.0f, 0.0f };
+    vec2_t point = { 0.0f, 0.0f };
     uint8_t flags = 0xff;
 
     T_ASSERT(!CM_GetPathingFlagsAt(&point, &flags));
@@ -56,8 +56,8 @@ TEST(wow_smoke, read_float_roundtrip) {
 }
 
 TEST(wow_smoke, wmo_floor_ray) {
-    vector3_t start = { 0.25f, 0.25f, 2.0f }, end = { 0.25f, 0.25f, -2.0f };
-    vector3_t a = { 0.0f, 0.0f, 0.0f }, b = { 1.0f, 0.0f, 0.0f }, c = { 0.0f, 1.0f, 0.0f };
+    vec3_t start = { 0.25f, 0.25f, 2.0f }, end = { 0.25f, 0.25f, -2.0f };
+    vec3_t a = { 0.0f, 0.0f, 0.0f }, b = { 1.0f, 0.0f, 0.0f }, c = { 0.0f, 1.0f, 0.0f };
     float fraction = -1.0f;
     T_ASSERT(CM_WowRayTriangle(&start, &end, &a, &b, &c, &fraction));
     T_FEQ(fraction, 0.5f, 0.0001f);
@@ -66,7 +66,7 @@ TEST(wow_smoke, wmo_floor_ray) {
 }
 
 TEST(wow_smoke, wmo_bsp_traversal) {
-    vector3_t start = { 0.75f, 0.10f, 2.0f }, end = { 0.75f, 0.10f, -2.0f };
+    vec3_t start = { 0.75f, 0.10f, 2.0f }, end = { 0.75f, 0.10f, -2.0f };
     float fraction;
     T_ASSERT(CM_WowTestBspRay(&start, &end, &fraction));
     T_FEQ(fraction, 0.5f, 0.0001f);
@@ -80,7 +80,7 @@ TEST(wow_smoke, wmo_wall_trace_rejects_floor_triangles) {
 }
 
 TEST(wow_smoke, terrain_slope_blocks_mountains_but_not_wmo_steps) {
-    vector3_t from = { 0, 0, 0 }, gentle = { 0.7f, 0, 0.5f }, steep = { 0.7f, 0, 1.0f };
+    vec3_t from = { 0, 0, 0 }, gentle = { 0.7f, 0, 0.5f }, steep = { 0.7f, 0, 1.0f };
     T_ASSERT(Wow_TerrainMoveWalkable(&from, &gentle, gentle.z));
     T_ASSERT(!Wow_TerrainMoveWalkable(&from, &steep, steep.z));
     T_ASSERT(Wow_TerrainMoveWalkable(&from, &steep, 0.0f));

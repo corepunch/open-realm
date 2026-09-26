@@ -855,7 +855,7 @@ void G_FowSetStateRect(fogWrite_t const *fog, box2_t const *box) {
 }
 
 /* Radius and location natives share one authoritative circular state path. */
-void G_FowSetStateRadius(fogWrite_t const *fog, vector2_t const *center, float radius) {
+void G_FowSetStateRadius(fogWrite_t const *fog, vec2_t const *center, float radius) {
     uint32_t cx, cy;
     int cells;
     if (!fog || fog->player >= MAX_PLAYERS || !center ||

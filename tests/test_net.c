@@ -74,7 +74,7 @@ static drawText_t test_listbox_draw[8];
 static uint32_t test_listbox_draws;
 static uint32_t test_begin_frames, test_end_frames;
 static uint32_t test_model_loads, test_model_releases, test_tex_loads, test_tex_releases;
-static vector3_t test_overhead_point;
+static vec3_t test_overhead_point;
 static rect_t test_status_rect;
 static uint32_t test_status_draws;
 static texture_t const *test_status_textures[16];
@@ -113,13 +113,13 @@ static void capture_listbox_text(drawText_t const *text) {
         test_listbox_draw[test_listbox_draws] = *text;
     test_listbox_draws++;
 }
-static vector2_t tall_textarea_size(drawText_t const *text) {
+static vec2_t tall_textarea_size(drawText_t const *text) {
     (void)text;
-    return MAKE(vector2_t, 0.2f, 0.8f);
+    return MAKE(vec2_t, 0.2f, 0.8f);
 }
 static void capture_begin_frame(void) { test_begin_frames++; }
 static void capture_end_frame(void) { test_end_frames++; }
-static bool capture_overhead_point(renderEntity_t const *entity, vector3_t *out) {
+static bool capture_overhead_point(renderEntity_t const *entity, vec3_t *out) {
     (void)entity; *out = test_overhead_point; return true;
 }
 static void capture_status_image(texture_t const *texture, rect_t const *screen, rect_t const *uv, color32_t color) {
@@ -249,7 +249,7 @@ TEST(client_layout, world_hover_root_projects_model_top_into_ui_canvas) {
     cl.viewDef.entities = &render; cl.viewDef.num_entities = 1;
     cl.viewDef.viewport = cl.viewDef.scissor = MAKE(rect_t, 0, 0.22f, 1, 0.76f);
     Matrix4_identity(&cl.viewDef.viewProjectionMatrix);
-    test_overhead_point = MAKE(vector3_t, 0, 0, 0);
+    test_overhead_point = MAKE(vec3_t, 0, 0, 0);
     re.GetEntityOverheadPosition = capture_overhead_point;
 
     T_ASSERT(SCR_LayoutWorldHoverRoot(&root));
@@ -351,7 +351,7 @@ TEST(client_layout, world_hover_root_rejects_point_outside_world_scissor) {
     cl.viewDef.entities = &render; cl.viewDef.num_entities = 1;
     cl.viewDef.viewport = cl.viewDef.scissor = MAKE(rect_t, 0, 0.22f, 1, 0.76f);
     Matrix4_identity(&cl.viewDef.viewProjectionMatrix);
-    test_overhead_point = MAKE(vector3_t, 0, 2, 0);
+    test_overhead_point = MAKE(vec3_t, 0, 2, 0);
     re.GetEntityOverheadPosition = capture_overhead_point;
     T_ASSERT(!SCR_LayoutWorldHoverRoot(&root));
 }
@@ -1079,8 +1079,8 @@ TEST(net, msg_readbyte_past_end_returns_zero) {
 TEST(net, msg_writepos_readpos_roundtrip) {
     uint8_t buf[32];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    vector3_t out = {0};
-    vector3_t in  = {128.0f, -64.0f, 32.0f};
+    vec3_t out = {0};
+    vec3_t in  = {128.0f, -64.0f, 32.0f};
     MSG_WritePos(&sb, &in);
     sb.readcount = 0;
     MSG_ReadPos(&sb, &out);
@@ -1092,8 +1092,8 @@ TEST(net, msg_writepos_readpos_roundtrip) {
 TEST(net, msg_writedir_readdir_roundtrip) {
     uint8_t buf[32];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
-    vector3_t dir = {0.707f, 0.0f, -0.707f};
-    vector3_t out = {0};
+    vec3_t dir = {0.707f, 0.0f, -0.707f};
+    vec3_t out = {0};
     MSG_WriteDir(&sb, &dir);
     sb.readcount = 0;
     MSG_ReadDir(&sb, &out);
@@ -1181,7 +1181,7 @@ TEST(net, ui_window_frame_delta_preserves_text_offsets) {
     T_EQ(out.flags.type, FT_SIMPLEFRAME);
 }
 
-static vector2_t text_length_mock_size(drawText_t const *text);
+static vec2_t text_length_mock_size(drawText_t const *text);
 
 static uint32_t test_scoped_hud_text_draws;
 static uint32_t test_scoped_edit_text_draws;
@@ -1575,11 +1575,11 @@ TEST(net, ui_frame_delta_preserves_timed_status_binding) {
     T_EQ(out.stat, UI_STAT_SELECTION_TIMED_STATUS);
 }
 
-static vector2_t text_length_mock_size(drawText_t const *text) {
+static vec2_t text_length_mock_size(drawText_t const *text) {
     if (text && text->text && !strcmp(text->text, " ")) {
-        return MAKE(vector2_t, 0.006f, 0.012f);
+        return MAKE(vec2_t, 0.006f, 0.012f);
     }
-    return MAKE(vector2_t, 0.018f, 0.012f);
+    return MAKE(vec2_t, 0.018f, 0.012f);
 }
 
 TEST(net, cinematic_fade_covers_widescreen_canvas) {
@@ -2040,15 +2040,15 @@ TEST(net, terrain_mask_corner_and_tile_mask) {
 }
 
 TEST(net, terrain_mask_cell_lookup_agrees_at_edges) {
-    vector2_t origin = { 0.0f, 0.0f };
+    vec2_t origin = { 0.0f, 0.0f };
     uint32_t x = 99, y = 99;
-    T_ASSERT(TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(vector2_t){ 0.0f, 0.0f }, &x, &y));
+    T_ASSERT(TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(vec2_t){ 0.0f, 0.0f }, &x, &y));
     T_EQ(x, 0); T_EQ(y, 0);
-    T_ASSERT(TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(vector2_t){ 255.9f, 255.9f }, &x, &y));
+    T_ASSERT(TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(vec2_t){ 255.9f, 255.9f }, &x, &y));
     T_EQ(x, 7); T_EQ(y, 7);
-    T_ASSERT(!TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(vector2_t){ 256.0f, 0.0f }, &x, &y));
-    T_ASSERT(!TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(vector2_t){ -0.1f, 0.0f }, &x, &y));
-    T_ASSERT(!TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(vector2_t){ 0.0f, 256.0f }, &x, &y));
+    T_ASSERT(!TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(vec2_t){ 256.0f, 0.0f }, &x, &y));
+    T_ASSERT(!TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(vec2_t){ -0.1f, 0.0f }, &x, &y));
+    T_ASSERT(!TerrainMask_CellForPoint(origin, 32.0f, 8, 8, &(vec2_t){ 0.0f, 256.0f }, &x, &y));
 }
 
 static void write_fow_message(sizeBuf_t *sb,
@@ -2382,7 +2382,7 @@ TEST(net, playerinfo_game_state_preserves_open_menu_input) {
     cls.key_dest = key_menu;
     cls.netchan.remote_address.type = NA_IP;
     to.number = 1;
-    to.vieworigin = (vector3_t){ 128.0f, 256.0f, 0 };
+    to.vieworigin = (vec3_t){ 128.0f, 256.0f, 0 };
     to.fov = 50;
     to.distance = 1650;
     to.znear = 100.0f;
@@ -2449,14 +2449,14 @@ TEST(net, cinematic_cleanup_restores_camera_and_ui_samples) {
     player_t from = {0}, to = { .number = 1, .client_ui_state = CLIENT_UI_CINEMATIC, .fov = 35, .distance = 900, .znear = 55.0f, .zfar = 6500.0f };
 
     test_client_stubs_init();
-    to.viewangles = (vector3_t){300, 0, 120};
+    to.viewangles = (vec3_t){300, 0, 120};
     to.uiflags = ~(1u << LAYER_CINEMATIC);
     MSG_WriteByte(&sb, svc_playerinfo); MSG_WriteDeltaPlayerState(&sb, &from, &to);
     CL_ParseServerMessage(&sb);
     T_EQ(cl.playerstate.client_ui_state, CLIENT_UI_CINEMATIC);
     from = to;
     to.client_ui_state = CLIENT_UI_GAME; to.uiflags = 1u << LAYER_CINEMATIC;
-    to.viewangles = (vector3_t){326, 0, 0}; to.vieworigin = (vector3_t){128, 256, 0}; to.fov = 50; to.distance = 1650;
+    to.viewangles = (vec3_t){326, 0, 0}; to.vieworigin = (vec3_t){128, 256, 0}; to.fov = 50; to.distance = 1650;
     to.znear = 100.0f; to.zfar = 5000.0f;
     SZ_Clear(&sb); sb.readcount = 0;
     MSG_WriteByte(&sb, svc_playerinfo); MSG_WriteDeltaPlayerState(&sb, &from, &to);
@@ -2501,14 +2501,14 @@ TEST(net, playerstate_identity_bytes_roundtrip) {
 }
 
 TEST(net, camera_clamp_uses_world_bounds) {
-    vector2_t clamped;
+    vec2_t clamped;
 
     test_client_stubs_init();
     test_client_stubs_set_world_bounds((box2_t){
         .min = { -4096.0f, -3072.0f },
         .max = { 4096.0f, 3072.0f },
     });
-    clamped = CL_ClampCameraPosition((vector2_t){ 5000.0f, -4000.0f });
+    clamped = CL_ClampCameraPosition((vec2_t){ 5000.0f, -4000.0f });
     T_FEQ(clamped.x, 4096.0f, 0.001f);
     T_FEQ(clamped.y, -3072.0f, 0.001f);
 }
@@ -2524,7 +2524,7 @@ TEST(net, playerstate_camera_render_fields_roundtrip) {
 
     to.number = 4;
     to.vieworigin.z = 275.0f;
-    to.viewangles = (vector3_t){ 12.5f, 45.0f, 90.0f };
+    to.viewangles = (vec3_t){ 12.5f, 45.0f, 90.0f };
     to.znear = 75.0f;
     to.zfar = 6500.0f;
     /* texts[1] is the final player-state text field; the player mask remains 32 bits. */
@@ -2582,16 +2582,16 @@ TEST(net, camera_prediction_preserves_terrain_offsets) {
     test_client_stubs_init();
     re.CameraUsesTerrainHeight = test_camera_terrain; re.GetHeightAtPoint = test_camera_height;
     test_client_stubs_set_world_bounds((box2_t){ .min = { -1000, -1000 }, .max = { 1000, 1000 } });
-    cl.viewDef.camerastate[0].origin = (vector3_t){ 0, 0, 20 };
-    cl.viewDef.camerastate[1].origin = (vector3_t){ 10, 0, 40 };
-    CL_PredictCameraPosition((vector2_t){ 100, 0 });
+    cl.viewDef.camerastate[0].origin = (vec3_t){ 0, 0, 20 };
+    cl.viewDef.camerastate[1].origin = (vec3_t){ 10, 0, 40 };
+    CL_PredictCameraPosition((vec2_t){ 100, 0 });
     T_FEQ(cl.viewDef.camerastate[0].origin.z, 120, 0.001f);
     T_FEQ(cl.viewDef.camerastate[1].origin.z, 130, 0.001f);
-    CL_PredictCameraPosition((vector2_t){ 200, 0 });
+    CL_PredictCameraPosition((vec2_t){ 200, 0 });
     T_FEQ(cl.viewDef.camerastate[0].origin.z, 220, 0.001f);
     T_FEQ(cl.viewDef.camerastate[1].origin.z, 230, 0.001f);
     cl.camera_prediction.active = true;
-    cl.camera_prediction.origin = (vector2_t){ 200, 0 };
+    cl.camera_prediction.origin = (vec2_t){ 200, 0 };
     MSG_WriteByte(&sb, svc_playerinfo); MSG_WriteDeltaPlayerState(&sb, &from, &to);
     CL_ParseServerMessage(&sb);
     T_ASSERT(cl.camera_prediction.active);
@@ -2599,7 +2599,7 @@ TEST(net, camera_prediction_preserves_terrain_offsets) {
     T_FEQ(cl.viewDef.camerastate[0].origin.x, 200, 0.001f);
     T_FEQ(cl.viewDef.camerastate[0].origin.z, 240, 0.001f);
     T_FEQ(cl.viewDef.camerastate[1].origin.z, 220, 0.001f);
-    from = to; to.vieworigin = (vector3_t){ 200, 0, 240 };
+    from = to; to.vieworigin = (vec3_t){ 200, 0, 240 };
     sb = make_msg_buf(buf, sizeof(buf));
     MSG_WriteByte(&sb, svc_playerinfo); MSG_WriteDeltaPlayerState(&sb, &from, &to);
     CL_ParseServerMessage(&sb);
@@ -2607,7 +2607,7 @@ TEST(net, camera_prediction_preserves_terrain_offsets) {
     FOR_LOOP(i, 2) T_FEQ(cl.viewDef.camerastate[i].origin.z, 240, 0.001f);
     test_client_stubs_init();
     cl.viewDef.camerastate[0].origin.z = 25;
-    CL_PredictCameraPosition((vector2_t){ 200, 0 });
+    CL_PredictCameraPosition((vec2_t){ 200, 0 });
     T_FEQ(cl.viewDef.camerastate[0].origin.x, 200, 0.001f);
     T_FEQ(cl.viewDef.camerastate[0].origin.z, 25, 0.001f);
 }
@@ -2620,7 +2620,7 @@ TEST(net, camera_prediction_reconciles_to_server_clamped_bound) {
 
     test_client_stubs_init();
     to.number = 1;
-    to.vieworigin = (vector3_t){ 100.0f, -50.0f, 0 };
+    to.vieworigin = (vec3_t){ 100.0f, -50.0f, 0 };
     test_client_stubs_set_world_bounds((box2_t){
         .min = { -100.0f, -50.0f },
         .max = { 100.0f, 50.0f },
@@ -2631,7 +2631,7 @@ TEST(net, camera_prediction_reconciles_to_server_clamped_bound) {
     to.zfar = 5000.0f;
     to.client_ui_state = CLIENT_UI_GAME;
     cl.camera_prediction.active = true;
-    cl.camera_prediction.origin = (vector2_t){ 500.0f, -500.0f };
+    cl.camera_prediction.origin = (vec2_t){ 500.0f, -500.0f };
 
     MSG_WriteByte(&sb, svc_playerinfo);
     MSG_WriteDeltaPlayerState(&sb, &from, &to);
@@ -3433,7 +3433,7 @@ TEST(client_screen, multiselect_left_click_is_consumed_and_sends_focus) {
     SZ_Init(&cls.netchan.message, message_buf, sizeof(message_buf));
 
     memset(multiselect_buf, 0, sizeof(multiselect_buf));
-    multi->offset = MAKE(vector2_t, 0.031f, 0.050f);
+    multi->offset = MAKE(vec2_t, 0.031f, 0.050f);
     multi->numcolumns = 6;
     multi->numitems = 1;
     multi->items[0].entity = 77;
@@ -3932,7 +3932,7 @@ TEST(net, orbit_prediction_expires_and_yields_to_scripted_camera) {
     cl.time = 100;
     cl.camera_prediction.view = true;
     cl.camera_prediction.view_ms = cl.time;
-    cl.camera_prediction.angles = (vector3_t){25, 0, 90};
+    cl.camera_prediction.angles = (vec3_t){25, 0, 90};
     cl.camera_prediction.distance = 12;
     MSG_WriteByte(&msg, svc_playerinfo); MSG_WriteDeltaPlayerState(&msg, &from, &to);
     CL_ParseServerMessage(&msg);

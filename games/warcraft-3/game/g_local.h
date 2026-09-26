@@ -170,7 +170,7 @@ typedef struct {
 
 typedef struct {
     bool (*on_entity_selected)(edict_t *, edict_t *);
-    bool (*on_location_selected)(edict_t *, vector2_t const *);
+    bool (*on_location_selected)(edict_t *, vec2_t const *);
     void (*cmdbutton)(edict_t *, uint32_t);
     void (*refresh)(edict_t *);
     uint32_t ability_code;
@@ -480,8 +480,8 @@ struct gcamerasetup_s {
 //    float roll;
 //    float rotations;
     float z_offset;
-    vector3_t viewangles;
-    vector2_t position;
+    vec3_t viewangles;
+    vec2_t position;
 };
 
 #define WC3_MESSAGE_LOG_MAX_ENTRIES 128 // entries; bounded per-client message history for the Message Log dialog
@@ -570,10 +570,10 @@ struct client_s {
         float target_height;
         uint32_t start_time;
         uint32_t end_time;
-        vector2_t quick_position; /* SetCameraQuickPosition spacebar target; does not move the camera */
+        vec2_t quick_position; /* SetCameraQuickPosition spacebar target; does not move the camera */
         bool quick_position_set;
         edict_t *target_controller;
-        vector2_t target_offset;
+        vec2_t target_offset;
         bool target_inherit_orientation;
     } camera;
     /* Info-panel cache. For single units entity/xp track static presentation;
@@ -606,7 +606,7 @@ struct client_s {
     } shortcuts;
     edict_t *rally_indicator;
     struct {
-        vector2_t position;
+        vec2_t position;
         uint32_t end_time;        /* game time (ms), 0 = inactive */
         char text[1024];
     } message;
@@ -636,7 +636,7 @@ typedef enum {
 typedef struct {
     char order[UNIT_ORDER_NAME_SIZE];
     unitOrderTargetType_t target_type;
-    vector2_t point;
+    vec2_t point;
     /* Entity-target orders identify their gameplay target here. Queued Build
      * orders instead identify their owner-only Construction Site Indicator so
      * queue teardown can remove presentation without storing process pointers. */
@@ -689,7 +689,7 @@ typedef struct spell_target_s {
     spellTargetType_t type;
     union {
         edict_t *entity;
-        vector2_t point;
+        vec2_t point;
     };
 } spellTarget_t;
 
@@ -802,7 +802,7 @@ typedef struct {
 typedef struct {
     attackType_t type;
     weaponType_t weapon;
-    vector3_t origin;
+    vec3_t origin;
     uint32_t damageBase;
     uint32_t numberOfDice;
     uint32_t sidesPerDie;
@@ -864,7 +864,7 @@ typedef struct gameevent_s {
     uint32_t source_spawn_time;
     bool source_spawn_tracked;
     int32_t value; /* scalar JASS callback payload (for example spell/research rawcode) */
-    vector2_t point;
+    vec2_t point;
     bool has_point;
     event_t *responseTo;
 } gameEvent_t;
@@ -874,7 +874,7 @@ typedef struct {
     EVENTTYPE type;
     edict_t *source;
     int32_t value;
-    vector2_t const *point;
+    vec2_t const *point;
 } gameEventPointParams_t;
 
 typedef enum {
@@ -911,7 +911,7 @@ typedef struct {
 
 typedef struct {
     uint32_t class_id;
-    vector2_t origin;
+    vec2_t origin;
 } gitem_t;
 
 #define MAX_GROUP_SIZE 256 // entities; Warcraft III group enumeration cap used by JASS group handles
@@ -980,7 +980,7 @@ typedef struct glightning_s {
 
 typedef struct lightningaddparams_s {
     uint32_t effect_id;
-    vector3_t const *source, *target;
+    vec3_t const *source, *target;
     color32_t color;
     uint32_t duration_ms;
 } lightningAddParams_t;
@@ -1328,7 +1328,7 @@ struct edict_s {
     } research;
     struct edictRally_s {
         rallyTargetType_t type;
-        vector2_t point;
+        vec2_t point;
         edict_t *entity;
         uint32_t entity_spawn_time;
     } rally;
@@ -1415,7 +1415,7 @@ struct edict_s {
         ensnareHeightState_t phase;
     } ensnare;
     uint32_t heatmap2;
-    vector2_t heatmap2_origin;  /* target position when heatmap2 was last built */
+    vec2_t heatmap2_origin;  /* target position when heatmap2 was last built */
     uint32_t heatmap2_time;      /* level.time when heatmap2 was last built */
     float heatmap2_radius;    /* mover collision radius used for heatmap2 */
     uint32_t peonsinside;
@@ -1527,20 +1527,20 @@ struct edict_s {
         uint32_t serial;   // cast identity; old thinkers cannot continue or cancel a replacement cast
         uint32_t owner_spawn_time; // thinker copy of caster identity; rejects reused owner slots
         uint32_t target_spawn_time; // thinker copy of target identity; rejects reused target slots
-        vector2_t origin; // position when channel started (movement cancels channel)
+        vec2_t origin; // position when channel started (movement cancels channel)
     } channel;
     uint32_t unit_color;   // WC3_UNIT_COLOR_OVERRIDE_FLAG | playercolor; zero uses owner color
     int32_t user_data;     /* SetUnitUserData script scratch; no gameplay consumer reads it yet */
     bool uses_alt_icon; /* UnitSetUsesAltIcon presentation flag; no minimap consumer reads it yet */
-    vector2_t old_origin;
+    vec2_t old_origin;
     unitOrderQueue_t order_queue;
     struct edictWaygate_s {
-        vector2_t destination;
+        vec2_t destination;
         bool destination_set;
         bool active;
     } waygate;
     struct edictMovement_s {
-        vector2_t last_origin;
+        vec2_t last_origin;
         float last_distance;
         uint32_t blocked_frames;
         uint32_t flow_generation; /* active static-route field selected this tick */
@@ -1548,9 +1548,9 @@ struct edict_s {
         bool flow_unreachable;  /* field exists but current cell has no route */
         bool flow_direct;       /* static path from mover to requested goal is clear */
         bool displacement_active; /* temporary construction exit is being walked */
-        vector2_t displacement_target;
-        vector2_t flow_fallback_target; /* last unreachable fallback request */
-        vector2_t flow_fallback_approach; /* temporary reachable waypoint; target remains authoritative */
+        vec2_t displacement_target;
+        vec2_t flow_fallback_target; /* last unreachable fallback request */
+        vec2_t flow_fallback_approach; /* temporary reachable waypoint; target remains authoritative */
         float flow_fallback_radius;
         uint32_t flow_fallback_time;
         uint32_t waygate_target_spawn_time; /* guards the target edict while explicitly approaching a Way Gate */
@@ -1561,7 +1561,7 @@ struct edict_s {
         routePath_t path; /* persistent WC3 accelerator state shared with other server games */
         float group_speed;  // slowest member's speed for a group move (0 = no cap), keeps the group together
         float heading;      // avoidance-resolved heading chosen this tick by unit_changeangle; movement follows it
-        vector2_t worker_avoid_origin; /* start of the active resource-worker avoidance corridor */
+        vec2_t worker_avoid_origin; /* start of the active resource-worker avoidance corridor */
         float worker_avoid_heading;  /* direct corridor heading captured when local blocking begins */
         uint32_t worker_avoid_blocked_frames; /* consecutive blocked decisions before queue escape */
         bool worker_avoid_active;    /* resource-worker corridor is constraining lateral sidesteps */
@@ -1820,7 +1820,7 @@ typedef struct fogmodifier_s {
     uint32_t state;             /* WC3_FOG_STATE_* */
     bool is_rect;
     box2_t rect;               /* used when is_rect */
-    vector2_t center;          /* used when !is_rect */
+    vec2_t center;          /* used when !is_rect */
     float radius;            /* used when !is_rect */
     bool use_shared_vision;
     bool started;
@@ -1848,7 +1848,7 @@ typedef enum {
 
 typedef struct {
     ARRAY(edict_t *, units);
-    vector2_t home, goal;
+    vec2_t home, goal;
     uint32_t desired;
     botCaptainState_t state;
 } botCaptain_t;
@@ -1859,7 +1859,7 @@ typedef struct {
 
 typedef struct {
     uint32_t class_id;
-    vector2_t origin;
+    vec2_t origin;
     edict_t *unit;
 } botGuardPost_t;
 
@@ -1887,7 +1887,7 @@ typedef struct {
     player_t *player;
     struct jass_function const *hero_levels;
     botCaptain_t captains[BOT_CAPTAIN_COUNT];
-    vector2_t stage; /* SetStagePoint staging area; assault fallback when no enemy target is visible */
+    vec2_t stage; /* SetStagePoint staging area; assault fallback when no enemy target is visible */
     bool stage_valid;
     ARRAY(botCommand_t, commands);
     ARRAY(edict_t *, harvesters);
@@ -1927,7 +1927,7 @@ typedef struct {
     float start;
     float end;
     float density;
-    vector3_t color;
+    vec3_t color;
 } wc3EnvironmentFogState_t;
 
 typedef struct {
@@ -1939,7 +1939,7 @@ typedef struct {
 typedef struct {
     int32_t style;
     float start, end, density;
-    vector3_t color;
+    vec3_t color;
 } wc3EnvironmentFogParams_t;
 
 struct level_locals {
@@ -2078,8 +2078,8 @@ cstring_t G_MapString(mapInfo_t const *info, cstring_t name);
 cstring_t G_UnitName(uint32_t);
 float G_Cinefade(void);
 bool G_SkipCutscene(void);
-vector2_t G_ClampCameraPosition(gameClient_t *client, vector2_t const *position);
-vector3_t G_MakeServerOrigin(float x, float y, float z_offset);
+vec2_t G_ClampCameraPosition(gameClient_t *client, vec2_t const *position);
+vec3_t G_MakeServerOrigin(float x, float y, float z_offset);
 void G_SetCameraBounds(float const bounds[8]);
 void G_ClearCameraTarget(gameClient_t *client, cstring_t func);
 void G_SetPlayerText(gameClient_t *, PLAYERTEXT, cstring_t);
@@ -2150,9 +2150,9 @@ bool G_BotMergeUnits(player_t *, int32_t, uint32_t, uint32_t, uint32_t);
 // g_blight.c
 void G_BlightInit(void);
 void G_BlightShutdown(void);
-bool G_IsPointBlighted(vector2_t const *point);
-void G_SetBlightPoint(vector2_t const *point, bool add);
-void G_SetBlightRadius(vector2_t const *point, float radius, bool add);
+bool G_IsPointBlighted(vec2_t const *point);
+void G_SetBlightPoint(vec2_t const *point, bool add);
+void G_SetBlightRadius(vec2_t const *point, float radius, bool add);
 void G_SetBlightRect(box2_t const *rect, bool add);
 void G_BlightInitializeDestructable(edict_t *ent);
 void G_BlightUpdateDestructables(box2_t const *region);
@@ -2182,7 +2182,7 @@ bool S_PermanentInvisibilityActive(edict_t const *unit);
 void S_PermanentInvisibilityInitialize(edict_t *unit);
 void S_PermanentInvisibilityReveal(edict_t *unit);
 void G_FowSetStateRect(fogWrite_t const *fog, box2_t const *box);
-void G_FowSetStateRadius(fogWrite_t const *fog, vector2_t const *center, float radius);
+void G_FowSetStateRadius(fogWrite_t const *fog, vec2_t const *center, float radius);
 void G_FogModifierStart(fogModifier_t *mod);
 void G_FogModifierStop(fogModifier_t *mod);
 uint32_t G_FowWorldToCellX(float x);
@@ -2223,12 +2223,12 @@ void G_SpawnEntities(void);
 #ifdef BZ_TESTS
 bool G_TestMapObjectCreatedByMapScript(uint32_t id);
 #endif
-bool SP_FindEmptySpaceAround(edict_t *, uint32_t, vector2_t *, float *);
-bool G_FindUnitUnstuckPosition(edict_t *unit, vector2_t const *requested, vector2_t *out);
-bool SP_FindUnitExitPosition(edict_t *producer, edict_t *unit, vector2_t *out, float *angle);
-edict_t *SP_SpawnAtLocation(uint32_t, uint32_t, vector2_t const *);
-edict_t *SP_SpawnAtLocationNoBirth(uint32_t, uint32_t, vector2_t const *);
-edict_t *G_CreateBuildPreview(edict_t *builder, uint32_t building_id, vector2_t const *location);
+bool SP_FindEmptySpaceAround(edict_t *, uint32_t, vec2_t *, float *);
+bool G_FindUnitUnstuckPosition(edict_t *unit, vec2_t const *requested, vec2_t *out);
+bool SP_FindUnitExitPosition(edict_t *producer, edict_t *unit, vec2_t *out, float *angle);
+edict_t *SP_SpawnAtLocation(uint32_t, uint32_t, vec2_t const *);
+edict_t *SP_SpawnAtLocationNoBirth(uint32_t, uint32_t, vec2_t const *);
+edict_t *G_CreateBuildPreview(edict_t *builder, uint32_t building_id, vec2_t const *location);
 void G_ClearBuildPreview(edict_t *builder);
 edict_t *G_CreateDestructable(uint32_t class_id, float x, float y, float z, float facing, float scale, uint32_t variation);
 edict_t *G_CreateDeadDestructable(uint32_t class_id, float x, float y, float z, float facing, float scale, uint32_t variation);
@@ -2327,7 +2327,7 @@ void G_TimerDestroy(gtimer_t *timer);
 bool G_TimerCoroutineValid(handle_t timer, uint32_t generation);
 uint32_t G_TimerRemaining(gtimer_t const *timer);
 
-edict_t *Waypoint_add(vector2_t const *);
+edict_t *Waypoint_add(vec2_t const *);
 void G_InitWaypoints(void);
 void M_CheckGround (edict_t *);
 void G_RegisterGroundSurface(edict_t *);
@@ -2372,16 +2372,16 @@ void unit_refreshstatusflags(edict_t *);
 // skills/s_move.c — locomotion shared by Move, Follow, Attack, Build and Harvest
 void unit_moveindirection(edict_t *);
 void unit_moveindirection_ignore_units(edict_t *);
-bool unit_snap_to_point_ignore_units(edict_t *, vector2_t const *);
+bool unit_snap_to_point_ignore_units(edict_t *, vec2_t const *);
 void unit_changeangle(edict_t *);
 void unit_changeangle_worker(edict_t *);
 void unit_changeangle_interaction_ignore_units(edict_t *);
-bool unit_changeangle_towards_point_ignore_units(edict_t *, vector2_t const *);
-void unit_changeangle_towards_point(edict_t *, vector2_t const *);
-void unit_changeangle_towards_point_worker(edict_t *, vector2_t const *);
+bool unit_changeangle_towards_point_ignore_units(edict_t *, vec2_t const *);
+void unit_changeangle_towards_point(edict_t *, vec2_t const *);
+void unit_changeangle_towards_point_worker(edict_t *, vec2_t const *);
 void unit_changeangle_for_radius(edict_t *, float);
 void unit_changeangle_for_radius_worker(edict_t *, float);
-bool M_MoveIsValid(edict_t *self, vector2_t const *pos);
+bool M_MoveIsValid(edict_t *self, vec2_t const *pos);
 bool M_CheckAttack(edict_t *);
 bool unit_is_walking(edict_t const *);
 void unit_setanimation(edict_t *, cstring_t);
@@ -2435,9 +2435,9 @@ bool G_HeroCanBeRevivedAt(edict_t const *altar, edict_t const *hero);
 // skills/s_rally.c
 bool G_UnitHasRally(edict_t const *producer);
 void G_ResetRallyTarget(edict_t *producer);
-bool G_SetRallyPoint(edict_t *producer, vector2_t const *point);
+bool G_SetRallyPoint(edict_t *producer, vec2_t const *point);
 bool G_SetRallyEntity(edict_t *producer, edict_t *target);
-rallyTargetType_t G_ResolveRallyTarget(edict_t *producer, vector2_t *point, edict_t * *target);
+rallyTargetType_t G_ResolveRallyTarget(edict_t *producer, vec2_t *point, edict_t * *target);
 bool G_ApplyRallyOrder(edict_t *producer, edict_t *produced);
 void G_InvalidateRallyTarget(edict_t *target);
 void G_UpdateRallyIndicator(gameClient_t *client);
@@ -2476,11 +2476,11 @@ bool S_UnitPolymorphed(edict_t const *unit);
 BZ_ABILITY_PROC(CAbilityOnFireHuman);
 void G_ApplyUnitAbilityTraits(edict_t *);
 void G_SolveCollisions(void);
-bool M_CheckCollision(vector2_t const *, float);
-void G_PushEntity(edict_t *ent, float distance, vector2_t const *direction);
-void G_PushEntity3(edict_t *ent, float distance, vector3_t const *direction);
-bool G_ClosestStaticPathablePointInRectForRadiusFlags(vector2_t const *location, box2_t const *bounds,
-                                                      float radius, uint8_t blocked_flags, vector2_t *out);
+bool M_CheckCollision(vec2_t const *, float);
+void G_PushEntity(edict_t *ent, float distance, vec2_t const *direction);
+void G_PushEntity3(edict_t *ent, float distance, vec3_t const *direction);
+bool G_ClosestStaticPathablePointInRectForRadiusFlags(vec2_t const *location, box2_t const *bounds,
+                                                      float radius, uint8_t blocked_flags, vec2_t *out);
 
 // g_abilities.c
 void S_RunAbilityUpdates(edict_t *);
@@ -2511,8 +2511,8 @@ cstring_t GetClassName(uint32_t);
 
 // g_effects.c
 cstring_t G_AbilityEffectArt(uint32_t ability_id, wc3EffectType_t type, uint32_t index);
-edict_t *G_SpawnModelEffect(cstring_t model, vector2_t const *point, edict_t *target, cstring_t attach_point, bool temporary);
-edict_t *G_SpawnAbilityEffectAtPoint(uint32_t ability_id, wc3EffectType_t type, uint32_t index, vector2_t const *point, bool temporary);
+edict_t *G_SpawnModelEffect(cstring_t model, vec2_t const *point, edict_t *target, cstring_t attach_point, bool temporary);
+edict_t *G_SpawnAbilityEffectAtPoint(uint32_t ability_id, wc3EffectType_t type, uint32_t index, vec2_t const *point, bool temporary);
 edict_t *G_SpawnAbilityEffectTarget(uint32_t ability_id, wc3EffectType_t type, uint32_t index, edict_t *target, cstring_t attach_point, bool temporary);
 void G_DestroyEffect(edict_t *effect);
 uint32_t G_AbilityLightningId(uint32_t ability_id, uint32_t index);
@@ -2520,12 +2520,12 @@ gLightning_t *G_LightningAdd(lightningAddParams_t const *params);
 bool G_LightningValid(gLightning_t const *effect);
 void G_LightningAttach(gLightning_t *effect, edict_t const *source, edict_t const *target);
 void G_LightningUpdateAttached(gLightning_t *effect);
-void G_LightningMove(gLightning_t *effect, vector3_t const *source, vector3_t const *target);
+void G_LightningMove(gLightning_t *effect, vec3_t const *source, vec3_t const *target);
 void G_LightningColor(gLightning_t *effect, color32_t color);
 void G_LightningScriptColor(gLightning_t *effect, color32_t color, float const *precise);
 void G_LightningRemove(gLightning_t *effect);
 gLightning_t *G_SpawnAbilityLightning(abilityLightningParams_t const *params);
-edict_t *G_SpawnOwnedAbilityEffectAtPoint(edict_t *owner, uint32_t ability_id, wc3EffectType_t type, uint32_t index, vector2_t const *point);
+edict_t *G_SpawnOwnedAbilityEffectAtPoint(edict_t *owner, uint32_t ability_id, wc3EffectType_t type, uint32_t index, vec2_t const *point);
 void G_DestroyOwnedEffects(edict_t *owner);
 void G_EffectThink(edict_t *);
 void G_EffectValidateTarget(edict_t *);
@@ -2562,14 +2562,14 @@ bool G_UnitAbilityResearchAvailable(edict_t const *unit, uint32_t ability_id);
 uint32_t G_GetUnitUpgradeForClass(edict_t const *unit, cstring_t wanted_class);
 bool G_ChargeBuilding(gameClient_t *client, uint32_t building_id);
 void G_RefundBuilding(gameClient_t *client, uint32_t building_id);
-void G_SnapBuildingPoint(uint32_t building_id, vector2_t *point);
+void G_SnapBuildingPoint(uint32_t building_id, vec2_t *point);
 void G_GetBuildPlacementPathingFlags(uint32_t building_id, uint8_t *prevented, uint8_t *required);
-buildPlacementResult_t G_EvaluateBuildPlacement(edict_t *builder, uint32_t building_id, vector2_t const *requested, vector2_t *snapped);
+buildPlacementResult_t G_EvaluateBuildPlacement(edict_t *builder, uint32_t building_id, vec2_t const *requested, vec2_t *snapped);
 bool G_DisplaceBuildOccupants(edict_t *builder, edict_t *building);
-bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vector2_t const *location);
-bool G_IssueBuildOrder(edict_t *builder, uint32_t building_id, vector2_t const *location);
-bool G_IssueUnitBuildOrder(edict_t *builder, uint32_t building_id, vector2_t const *location, bool queue, uint32_t issuer_player);
-bool G_FindBuildOnTarget(uint32_t building_id, vector2_t const *point, edict_t * *out);
+bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *location);
+bool G_IssueBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *location);
+bool G_IssueUnitBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *location, bool queue, uint32_t issuer_player);
+bool G_FindBuildOnTarget(uint32_t building_id, vec2_t const *point, edict_t * *out);
 float G_BuildApproachDistance(uint32_t building_id);
 bool G_StartHumanConstruction(edict_t *builder, edict_t *building);
 bool G_StartOrcConstruction(edict_t *builder, edict_t *building);
@@ -2607,7 +2607,7 @@ void Get_Commands_f(edict_t *);
 void CMD_CancelCommand(edict_t *ent);
 bool G_ClearBuildPlacementMode(edict_t *clent);
 bool G_CancelBuildPlacement(edict_t *clent);
-bool build_menu_send_builder(edict_t *clent, vector2_t const *location);
+bool build_menu_send_builder(edict_t *clent, vec2_t const *location);
 void Get_Portrait_f(edict_t *);
 void G_RefreshInventoryLayer(edict_t *);
 void G_InvalidateUnitInfoPanel(edict_t *);
@@ -2639,8 +2639,8 @@ void UI_AddCommandButtonExtended(cstring_t code, bool research, uint32_t level);
 void UI_WriteTooltipFrame(void);
 void UI_SetCurrentClient(gameClient_t *client);
 void UI_ShowInterface(edict_t *, bool, float);
-void UI_ShowText(edict_t *, vector2_t const *, cstring_t, float);
-void UI_ShowTransientText(edict_t *, vector2_t const *, cstring_t, float);
+void UI_ShowText(edict_t *, vec2_t const *, cstring_t, float);
+void UI_ShowTransientText(edict_t *, vec2_t const *, cstring_t, float);
 void UI_RecordTransmissionMessage(edict_t *);
 void UI_ClearTextMessages(edict_t *);
 void UI_InvalidateDialoguePresentation(edict_t *);
@@ -2759,13 +2759,13 @@ void G_RegisterSelectSounds(edict_t *, cstring_t);
 void G_RegisterGlobalSounds(void);  /* register world sounds (tree fall, etc.) at map init */
 void G_ResetSoundPresentationState(void);
 soundPolicy_t const *G_SoundIndexPolicy(int index);
-void G_PlaySound(vector3_t const *origin, edict_t *ent, int channel, int index, float volume, float attenuation, float timeofs);
+void G_PlaySound(vec3_t const *origin, edict_t *ent, int channel, int index, float volume, float attenuation, float timeofs);
 float G_SoundIndexVolume(int);
 uint32_t G_SoundIndexDuration(int);
 int G_UISoundIndex(cstring_t);
 void G_PlayUISoundForPlayer(edict_t *, cstring_t);
 int G_AbilityEffectSoundIndex(uint32_t ability_id, bool looped);
-void G_PlayAbilityEffectSound(uint32_t ability_id, vector2_t const *point);
+void G_PlayAbilityEffectSound(uint32_t ability_id, vec2_t const *point);
 uint32_t G_UnitAckSoundVariantCount(cstring_t label, cstring_t suffix);
 int G_UnitAckSoundVariantIndex(cstring_t label, cstring_t suffix, uint32_t variant);
 uint32_t G_UnitCombatSoundVariantCount(cstring_t key);
@@ -2776,7 +2776,7 @@ void G_SetConstructionLoopSound(edict_t *building, bool active);
 
 typedef struct {
     float volume;
-    vector3_t origin;
+    vec3_t origin;
     edict_t *emitter;
     bool positioned;
 } jassSoundPlayback_t;
@@ -2808,14 +2808,14 @@ int32_t G_AudioDurationFromMemory(cstring_t filename, uint8_t const *data, uint3
 int32_t G_SoundFileDuration(cstring_t filename);
 void G_JassSoundRuntimeInit(handle_t sound);
 void G_JassSoundSetVolume(handle_t sound, float volume);
-void G_JassSoundSetPosition(handle_t sound, vector3_t const *position);
+void G_JassSoundSetPosition(handle_t sound, vec3_t const *position);
 void G_JassSoundAttach(handle_t sound, edict_t *unit);
 void G_JassSoundPlayback(handle_t sound, jassSoundPlayback_t *playback);
-void G_SendPointConfirmation(edict_t *, vector2_t const *, bool attack);
+void G_SendPointConfirmation(edict_t *, vec2_t const *, bool attack);
 void G_QueueReadySound(edict_t *);
 void G_QueueOwnerSoundAlias(edict_t *, cstring_t);
 void G_QueueOwnerUISound(edict_t *, cstring_t);
-void G_SendMinimapPing(gameClient_t *, vector2_t const *, float, color32_t, uint32_t);
+void G_SendMinimapPing(gameClient_t *, vec2_t const *, float, color32_t, uint32_t);
 void G_SendOwnerMinimapAlert(edict_t *);
 color32_t G_SmartTargetIndicatorColor(uint32_t, edict_t const *);
 void G_SendWidgetIndicator(edict_t *, color32_t, player_t *);
@@ -2851,7 +2851,7 @@ void G_QueueSelectionSound(edict_t *, bool);
 void G_QueueAttackOrderSound(edict_t *);
 void G_ClientCommand(edict_t *, uint32_t, cstring_t[]);
 bool G_CheatsEnabled(void);
-void G_ClientSetCameraPosition(edict_t *, vector2_t const *);
+void G_ClientSetCameraPosition(edict_t *, vec2_t const *);
 
 //  s_skills.c
 float AB_Data(cstring_t, uint32_t, uint32_t);
@@ -2875,11 +2875,11 @@ event_t *G_MakeEvent(EVENTTYPE);
 void G_SetEventSubject(event_t *, edict_t *);
 void G_SetPlayerEventSubject(event_t *, edict_t *);
 bool G_EventSubjectIsCurrent(event_t *);
-void G_UnitPositionChanged(edict_t *, vector2_t const *);
+void G_UnitPositionChanged(edict_t *, vec2_t const *);
 void G_JassVariableChanged(cstring_t, float, float);
 bool G_LimitMatches(uint32_t, float, float);
 quest_t *G_MakeQuest(void);
-bool G_RegionContains(region_t const *, vector2_t const *);
+bool G_RegionContains(region_t const *, vec2_t const *);
 void G_RemoveQuest(quest_t *);
 void G_InitPlayerAlliances(mapInfo_t const *);
 void G_SetPlayerAlliance(player_t const *, player_t const *, PLAYERALLIANCE, bool);
@@ -2887,18 +2887,18 @@ bool G_GetPlayerAlliance(player_t const *, player_t const *, PLAYERALLIANCE);
 bool G_PlayerTreatsPlayerAsAlly(uint32_t, uint32_t);
 
 // m_unit.c
-bool unit_issueorder(edict_t *, cstring_t, vector2_t const *);
+bool unit_issueorder(edict_t *, cstring_t, vec2_t const *);
 bool unit_issueimmediateorder(edict_t *, cstring_t);
 bool unit_issuetargetorder(edict_t *, cstring_t, edict_t *);
 bool G_TransformUnitType(edict_t *, uint32_t);
-bool G_IssueUnitPointOrder(edict_t *, cstring_t, vector2_t const *, bool, uint32_t, float);
+bool G_IssueUnitPointOrder(edict_t *, cstring_t, vec2_t const *, bool, uint32_t, float);
 bool G_IssueUnitTargetOrder(edict_t *, cstring_t, edict_t *, bool, uint32_t);
-bool G_QueueUnitOrder(edict_t *, cstring_t, unitOrderTargetType_t, vector2_t const *, edict_t *, uint32_t, float, uint32_t);
+bool G_QueueUnitOrder(edict_t *, cstring_t, unitOrderTargetType_t, vec2_t const *, edict_t *, uint32_t, float, uint32_t);
 bool G_UnitHasActiveOrder(edict_t const *);
-void G_PublishIssuedPointOrder(edict_t *, uint32_t, vector2_t const *, uint32_t, cstring_t);
+void G_PublishIssuedPointOrder(edict_t *, uint32_t, vec2_t const *, uint32_t, cstring_t);
 void G_PublishIssuedImmediateOrder(edict_t *, uint32_t, uint32_t, cstring_t);
 uint32_t G_GetIssuedOrderId(edict_t const *);
-bool G_GetIssuedOrderPoint(edict_t const *, vector2_t *);
+bool G_GetIssuedOrderPoint(edict_t const *, vec2_t *);
 uint32_t G_OrderId(cstring_t);
 cstring_t G_OrderId2String(uint32_t);
 bool G_UnitStartNextQueuedOrder(edict_t *);
@@ -2908,8 +2908,8 @@ void unit_birth(edict_t *);
 void unit_die(edict_t *, edict_t *);
 void unit_begin_decay(edict_t *);
 void G_RestartCorpseBoneDecayAfterCargo(edict_t *);
-edict_t *unit_create(uint32_t, uint32_t, vector2_t const *, float);
-edict_t *unit_createorfind(uint32_t, uint32_t, vector2_t const *, float);
+edict_t *unit_create(uint32_t, uint32_t, vec2_t const *, float);
+edict_t *unit_createorfind(uint32_t, uint32_t, vec2_t const *, float);
 bool unit_additemtoslot(edict_t *, edict_t *, uint32_t);
 bool unit_additem(edict_t *, edict_t *);
 void unit_addstatus(edict_t *, cstring_t, uint32_t);
@@ -2949,7 +2949,7 @@ float G_GameCacheGetReal(gameCache_t const *cache, cstring_t mission, cstring_t 
 bool G_GameCacheGetBoolean(gameCache_t const *cache, cstring_t mission, cstring_t key);
 cstring_t G_GameCacheGetString(gameCache_t const *cache, cstring_t mission, cstring_t key);
 edict_t *G_GameCacheRestoreUnit(gameCache_t const *cache, cstring_t mission, cstring_t key,
-                              uint32_t player, vector2_t const *location, float facing);
+                              uint32_t player, vec2_t const *location, float facing);
 
 void G_RecomputeHeroStats(edict_t *);
 uint32_t G_MaxHeroLevel(void);
@@ -2982,7 +2982,7 @@ bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot);
 bool S_AttackCanAutoAcquire(edict_t const *attacker, edict_t const *target);
 void order_move(edict_t *, edict_t *);
 bool move_is_active_order_walk(edict_t const *);
-void move_start_displacement(edict_t *, vector2_t const *);
+void move_start_displacement(edict_t *, vec2_t const *);
 void move_cancel_displacement(edict_t *);
 bool move_displacement_active(edict_t const *);
 bool move_displacement_reached(edict_t *);
@@ -3019,7 +3019,7 @@ void S_GoldMineReleaseWorker(edict_t *);
 bool S_MineOverlayBind(edict_t *, edict_t *);
 void S_MineOverlayBindPreplaced(void);
 void S_MineOverlayRelease(edict_t *);
-edict_t *S_CreateBlightedGoldmine(uint32_t, vector2_t const *, float);
+edict_t *S_CreateBlightedGoldmine(uint32_t, vec2_t const *, float);
 void S_GoldMineSetResourceAmount(edict_t *, uint32_t);
 bool S_AcolyteHarvestOrder(edict_t *, edict_t *);
 void S_AcolyteHarvestRelease(edict_t *);
@@ -3045,7 +3045,7 @@ void S_CargoReleaseUnit(edict_t *);
 bool S_CargoIsBurrow(edict_t *);
 bool S_CargoIsCorpseHolder(edict_t *);
 bool S_CorpseCargoIsStored(edict_t const *);
-bool S_CorpseCargoPosition(edict_t const *, vector2_t *);
+bool S_CorpseCargoPosition(edict_t const *, vec2_t *);
 uint32_t S_CargoCapacity(edict_t *);
 edict_t *S_CargoUnitAt(edict_t const *, uint32_t);
 bool S_CargoUnloadAt(edict_t *, uint32_t);
@@ -3053,8 +3053,8 @@ bool S_CargoBeginUnloadAll(edict_t *);
 void S_CargoStandDown(edict_t *);
 bool S_WaygateIsGate(edict_t const *);
 bool S_WaygateIsActive(edict_t const *);
-bool S_WaygateGetDestination(edict_t const *, vector2_t *);
-void S_WaygateSetDestination(edict_t *, vector2_t const *);
+bool S_WaygateGetDestination(edict_t const *, vec2_t *);
+void S_WaygateSetDestination(edict_t *, vec2_t const *);
 void S_WaygateSetActive(edict_t *, bool);
 void blight_mine_think(edict_t *);
 void blizzard_think(edict_t *);
@@ -3085,7 +3085,7 @@ void healing_spray_think(edict_t *);
 void cannibalize_think(edict_t *);
 void possession_two_think(edict_t *);
 void lsh_think(edict_t *);
-bool move_selectlocation(edict_t *, vector2_t const *);
+bool move_selectlocation(edict_t *, vec2_t const *);
 bool move_should_arrive(edict_t *, float);
 bool move_is_blocked(edict_t *, float, float);
 bool move_is_settled_near_goal(edict_t *, float, float);
@@ -3139,10 +3139,10 @@ bool G_AddItemToSlot(edict_t *unit, edict_t *item, uint32_t slot);
 bool G_AddItemToSlotInternal(edict_t *unit, edict_t *item, uint32_t slot, bool publish_event);
 bool G_PickupItem(edict_t *unit, edict_t *item);
 bool G_OrderPickupItem(edict_t *unit, edict_t *item);
-bool G_DropItemAt(edict_t *unit, uint32_t slot, vector2_t const *position);
-bool G_DropItemAtScripted(edict_t *unit, uint32_t slot, vector2_t const *position);
+bool G_DropItemAt(edict_t *unit, uint32_t slot, vec2_t const *position);
+bool G_DropItemAtScripted(edict_t *unit, uint32_t slot, vec2_t const *position);
 bool G_DropItem(edict_t *unit, uint32_t slot);
-bool G_OrderDropItemAt(edict_t *unit, edict_t *item, vector2_t const *position);
+bool G_OrderDropItemAt(edict_t *unit, edict_t *item, vec2_t const *position);
 void G_RemoveItem(edict_t *item);
 void G_UseItem(edict_t *unit, uint32_t slot);
 uint32_t G_ItemTypeFromClass(cstring_t cls);

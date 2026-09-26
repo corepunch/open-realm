@@ -83,7 +83,7 @@ static cstring_t UI_ButtonFallbackMouseOverHighlightName(frameDef_t const *frame
     return NULL;
 }
 
-static vector2_t UI_ButtonPushedTextOffset(frameDef_t const *frame) {
+static vec2_t UI_ButtonPushedTextOffset(frameDef_t const *frame) {
     if (frame &&
         (frame->Button.PushedTextOffset.x != 0.0f ||
          frame->Button.PushedTextOffset.y != 0.0f)) {
@@ -91,14 +91,14 @@ static vector2_t UI_ButtonPushedTextOffset(frameDef_t const *frame) {
     }
     if (frame && UI_IsPopupFrameType(frame->Type)) {
         if (UI_ButtonBackdropNameContains(frame, "BattleNet")) {
-            return MAKE(vector2_t, -0.002f, -0.003f);
+            return MAKE(vec2_t, -0.002f, -0.003f);
         }
         if (UI_ButtonBackdropNameContains(frame, "EscMenu")) {
-            return MAKE(vector2_t, 0.002f, -0.002f);
+            return MAKE(vec2_t, 0.002f, -0.002f);
         }
-        return MAKE(vector2_t, -0.0015f, -0.0015f);
+        return MAKE(vec2_t, -0.0015f, -0.0015f);
     }
-    return MAKE(vector2_t, 0.0f, 0.0f);
+    return MAKE(vec2_t, 0.0f, 0.0f);
 }
 
 static bool UI_ButtonEnabled(frameDef_t const *frame) {
@@ -138,7 +138,7 @@ static void UI_DrawButtonText(frameDef_t const *frame, rect_t const *rect) {
     }
 
     if (UI_ButtonIsPushed(frame, rect)) {
-        vector2_t pushed_offset = UI_ButtonPushedTextOffset(frame);
+        vec2_t pushed_offset = UI_ButtonPushedTextOffset(frame);
         text_rect.x += pushed_offset.x;
         text_rect.y -= pushed_offset.y;
     }

@@ -7,14 +7,14 @@ color32_t Wow_Color(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
 vertex_t Wow_Vertex(float x, float y, float z, float u, float v, color32_t color) {
     vertex_t vertex;
     memset(&vertex, 0, sizeof(vertex));
-    vertex.position = (vector3_t){ x, y, z };
-    vertex.texcoord = (vector2_t){ u, v };
-    vertex.normal = (vector3_t){ 0.0f, 0.0f, 1.0f };
+    vertex.position = (vec3_t){ x, y, z };
+    vertex.texcoord = (vec2_t){ u, v };
+    vertex.normal = (vec3_t){ 0.0f, 0.0f, 1.0f };
     vertex.color = color;
     return vertex;
 }
 
-void Wow_AddBoundsPoint(box3_t *bounds, vector3_t const *p) {
+void Wow_AddBoundsPoint(box3_t *bounds, vec3_t const *p) {
     bounds->min.x = MIN(bounds->min.x, p->x);
     bounds->min.y = MIN(bounds->min.y, p->y);
     bounds->min.z = MIN(bounds->min.z, p->z);
@@ -30,10 +30,10 @@ box3_t Wow_EmptyBounds(void) {
     };
 }
 
-vector2_t Wow_McvtCoords(int index) {
+vec2_t Wow_McvtCoords(int index) {
     int row = index / 17;
     int col = index % 17;
-    vector2_t coords;
+    vec2_t coords;
 
     if (col < 9) {
         coords.x = col * WOW_ADT_UNIT_SIZE;
@@ -45,20 +45,20 @@ vector2_t Wow_McvtCoords(int index) {
     return coords;
 }
 
-vector3_t Wow_McvtPoint(wowVec3_t pos, float const *heights, int index) {
-    vector2_t coords = Wow_McvtCoords(index);
+vec3_t Wow_McvtPoint(wowVec3_t pos, float const *heights, int index) {
+    vec2_t coords = Wow_McvtCoords(index);
 
-    vector3_t base = { pos.x, pos.y, pos.z }, offset = Wow_TerrainOffset(coords.y, coords.x, heights[index]);
+    vec3_t base = { pos.x, pos.y, pos.z }, offset = Wow_TerrainOffset(coords.y, coords.x, heights[index]);
     return Vector3_add(&base, &offset);
 }
 
-vector3_t Wow_TerrainFaceNormal(vector3_t const *a, vector3_t const *b, vector3_t const *c) {
-    vector3_t ab = Vector3_sub(b, a);
-    vector3_t ac = Vector3_sub(c, a);
-    vector3_t normal = Vector3_cross(&ab, &ac);
+vec3_t Wow_TerrainFaceNormal(vec3_t const *a, vec3_t const *b, vec3_t const *c) {
+    vec3_t ab = Vector3_sub(b, a);
+    vec3_t ac = Vector3_sub(c, a);
+    vec3_t normal = Vector3_cross(&ab, &ac);
 
     if (Vector3_lengthsq(&normal) <= 0.000001f) {
-        return (vector3_t){ 0.0f, 0.0f, 1.0f };
+        return (vec3_t){ 0.0f, 0.0f, 1.0f };
     }
 
     Vector3_normalize(&normal);
@@ -68,25 +68,25 @@ vector3_t Wow_TerrainFaceNormal(vector3_t const *a, vector3_t const *b, vector3_
     return normal;
 }
 
-static vector3_t Wow_DecodeTerrainNormal(uint8_t const *normals, int index) {
+static vec3_t Wow_DecodeTerrainNormal(uint8_t const *normals, int index) {
     int base = index * 3;
     signed char nx;
     signed char ny;
     signed char nz;
-    vector3_t normal;
+    vec3_t normal;
 
     if (!normals) {
-        return (vector3_t){ 0.0f, 0.0f, 1.0f };
+        return (vec3_t){ 0.0f, 0.0f, 1.0f };
     }
 
     nx = (signed char)normals[base + 0];
     ny = (signed char)normals[base + 1];
     nz = (signed char)normals[base + 2];
 
-    normal = Wow_TerrainNormal((vector3_t){ nx / 127.0f, ny / 127.0f, nz / 127.0f });
+    normal = Wow_TerrainNormal((vec3_t){ nx / 127.0f, ny / 127.0f, nz / 127.0f });
 
     if (Vector3_lengthsq(&normal) <= 0.000001f) {
-        return (vector3_t){ 0.0f, 0.0f, 1.0f };
+        return (vec3_t){ 0.0f, 0.0f, 1.0f };
     }
     Vector3_normalize(&normal);
     if (normal.z < 0.0f) {
@@ -95,7 +95,7 @@ static vector3_t Wow_DecodeTerrainNormal(uint8_t const *normals, int index) {
     return normal;
 }
 
-void Wow_AccumulateTerrainCellNormals(vector3_t normals[WOW_MCVT_COUNT],
+void Wow_AccumulateTerrainCellNormals(vec3_t normals[WOW_MCVT_COUNT],
                                              wowVec3_t pos,
                                              float const *heights,
                                              int x,
@@ -107,10 +107,10 @@ void Wow_AccumulateTerrainCellNormals(vector3_t normals[WOW_MCVT_COUNT],
         int i0 = base + tri[i + 0];
         int i1 = base + tri[i + 1];
         int i2 = base + tri[i + 2];
-        vector3_t p0 = Wow_McvtPoint(pos, heights, i0);
-        vector3_t p1 = Wow_McvtPoint(pos, heights, i1);
-        vector3_t p2 = Wow_McvtPoint(pos, heights, i2);
-        vector3_t normal = Wow_TerrainFaceNormal(&p0, &p1, &p2);
+        vec3_t p0 = Wow_McvtPoint(pos, heights, i0);
+        vec3_t p1 = Wow_McvtPoint(pos, heights, i1);
+        vec3_t p2 = Wow_McvtPoint(pos, heights, i2);
+        vec3_t normal = Wow_TerrainFaceNormal(&p0, &p1, &p2);
 
         normals[i0] = Vector3_add(&normals[i0], &normal);
         normals[i1] = Vector3_add(&normals[i1], &normal);
@@ -118,10 +118,10 @@ void Wow_AccumulateTerrainCellNormals(vector3_t normals[WOW_MCVT_COUNT],
     }
 }
 
-void Wow_NormalizeTerrainNormals(vector3_t normals[WOW_MCVT_COUNT]) {
+void Wow_NormalizeTerrainNormals(vec3_t normals[WOW_MCVT_COUNT]) {
     FOR_LOOP(i, WOW_MCVT_COUNT) {
         if (Vector3_lengthsq(&normals[i]) <= 0.000001f) {
-            normals[i] = (vector3_t){ 0.0f, 0.0f, 1.0f };
+            normals[i] = (vec3_t){ 0.0f, 0.0f, 1.0f };
             continue;
         }
         Vector3_normalize(&normals[i]);
@@ -132,11 +132,11 @@ void Wow_PushTerrainVertex(vertex_t *vertices,
                                   uint32_t *index,
                                   wowVec3_t pos,
                                   float const *heights,
-                                  vector3_t const *normal,
+                                  vec3_t const *normal,
                                   int height_index,
                                   color32_t color) {
-    vector3_t p = Wow_McvtPoint(pos, heights, height_index);
-    vector2_t coords = Wow_McvtCoords(height_index);
+    vec3_t p = Wow_McvtPoint(pos, heights, height_index);
+    vec2_t coords = Wow_McvtCoords(height_index);
     float u = coords.x / WOW_ADT_UNIT_SIZE;
     float v = coords.y / WOW_ADT_UNIT_SIZE;
     vertex_t vertex = Wow_Vertex(p.x, p.y, p.z, u, v, color);
@@ -156,7 +156,7 @@ void Wow_AddTerrainCell(vertex_t *vertices,
                                uint32_t *index,
                                wowVec3_t pos,
                                float const *heights,
-                               vector3_t const normals[WOW_MCVT_COUNT],
+                               vec3_t const normals[WOW_MCVT_COUNT],
                                int x,
                                int y,
                                color32_t const *mccv) {
@@ -265,7 +265,7 @@ void Wow_AddAdtChunk(wowVec3_t pos,
     uint32_t slot_texture_ids[4] = { 0, 0, 0, 0 };
     uint32_t unique_layer_count = Wow_BuildUniqueTextureSlots(layers, layer_count, slot_texture_ids);
     uint32_t effective_layers = MAX(1, MIN(unique_layer_count ? unique_layer_count : layer_count, 4));
-    vector3_t derived_normals[WOW_MCVT_COUNT];
+    vec3_t derived_normals[WOW_MCVT_COUNT];
     vertex_t *vertices;
     uint32_t num_vertices = 0;
     wowAdtChunk_t *chunk;

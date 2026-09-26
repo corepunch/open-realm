@@ -19,7 +19,7 @@ typedef struct {
     bool initialized;
     bool active;
     uint32_t time;
-    vector2_t mouse_fdf;
+    vec2_t mouse_fdf;
     uiScreen_t *transition_screen;
     void (*configure)(void);
     void (*transition_action)(void);
@@ -441,7 +441,7 @@ void M_KeyEvent(int key, bool down, uint32_t time) {
 }
 
 /* Convert pixel coordinates to FDF/UI space for hit testing */
-static vector2_t UI_PixelToFdf(int px, int py) {
+static vec2_t UI_PixelToFdf(int px, int py) {
     refExport_t *renderer = mi.GetRenderer();
     size2_t window = renderer && renderer->GetWindowSize ? renderer->GetWindowSize() : MAKE(size2_t, 0, 0);
     rect_t scene = UI_GetSceneRect();
@@ -452,7 +452,7 @@ static vector2_t UI_PixelToFdf(int px, int py) {
         nx = (float)px / (float)window.width;
         ny = (float)py / (float)window.height;
     }
-    return MAKE(vector2_t, scene.x + nx * scene.w, scene.y + ny * scene.h);
+    return MAKE(vec2_t, scene.x + nx * scene.w, scene.y + ny * scene.h);
 }
 
 /* All UI mouse work starts here so draw code only consumes event-updated state. */
@@ -471,7 +471,7 @@ bool M_MouseEvent(menuMouseEvent_t event, int x, int y, int32_t param) {
         return false;
     }
 
-    vector2_t fdf = UI_PixelToFdf(x, y);
+    vec2_t fdf = UI_PixelToFdf(x, y);
     ui_state.mouse_fdf = fdf;
     frameDef_t const *hit = UI_HitTest(fdf.x, fdf.y);
     UI_UpdateMouseFrameFlags(hit, up && left);

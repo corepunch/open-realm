@@ -44,7 +44,7 @@ typedef struct {
     slkTestData_t *rows, *old;
     edict_t *caster, *enemy, *far, *hero;
     UnitBalance_t unit_bal, hero_bal;
-    vector2_t point;
+    vec2_t point;
 } inFix_t;
 
 static uint32_t stun_ms(edict_t const *unit) {
@@ -159,7 +159,7 @@ TEST(wc3_spell, inferno_summon_uses_datab_life) {
 
 TEST(wc3_spell, inferno_stun_uses_herodur_for_heroes) {
     inFix_t fix; inferno_setup(&fix, BZ_ANIN);
-    vector2_t point = fix.hero->s.origin2;
+    vec2_t point = fix.hero->s.origin2;
     T_ASSERT(G_UnitIsHero(fix.hero));
     T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ANIN, &point));
     level.time += (uint32_t)(BZ_DELAY * 1000.0f); G_RunEntities();

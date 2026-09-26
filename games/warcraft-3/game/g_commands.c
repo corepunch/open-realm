@@ -864,11 +864,11 @@ CLIENTCOMMAND(Select) {
     }
 }
 
-void G_SendPointConfirmation(edict_t *clent, vector2_t const *point, bool attack) {
+void G_SendPointConfirmation(edict_t *clent, vec2_t const *point, bool attack) {
     if (!clent || !clent->client || !point) return;
     gi.Write(PF_BYTE, &(int32_t){ svc_temp_entity });
     gi.Write(PF_BYTE, &(int32_t){ attack ? TE_ATTACK_CONFIRMATION : TE_MOVE_CONFIRMATION });
-    gi.Write(PF_POSITION, &(vector3_t){ point->x, point->y, 0 });
+    gi.Write(PF_POSITION, &(vec3_t){ point->x, point->y, 0 });
     gi.unicast(clent);
 }
 
@@ -951,7 +951,7 @@ CLIENTCOMMAND(Point) {
     if (client->menu.on_location_selected) {
         bool const queued = client->menu.supports_order_queue &&
                             G_CommandQueueRequested(argc, argv, 3);
-        vector2_t loc = { atoi(argv[1]), atoi(argv[2]) };
+        vec2_t loc = { atoi(argv[1]), atoi(argv[2]) };
         bool accepted;
 
         client->menu.order_queued = queued;
@@ -978,7 +978,7 @@ CLIENTCOMMAND(Smart) {
     bool rallied = false;
     bool queued;
     bool have_click_point = false;
-    vector2_t click_point = { 0 };
+    vec2_t click_point = { 0 };
     uint32_t number;
     edict_t *target;
 
@@ -998,7 +998,7 @@ CLIENTCOMMAND(Smart) {
     target = &globals.edicts[number];
     queued = G_CommandQueueRequested(argc, argv, 2);
     if (argc >= 4 && strcmp(argv[2], "queue") && strcmp(argv[3], "queue")) {
-        click_point = (vector2_t){ atoi(argv[2]), atoi(argv[3]) };
+        click_point = (vec2_t){ atoi(argv[2]), atoi(argv[3]) };
         have_click_point = true;
     }
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
@@ -1036,7 +1036,7 @@ CLIENTCOMMAND(Smart) {
 
 CLIENTCOMMAND(SmartPoint) {
     gameClient_t *client = clent->client;
-    vector2_t loc;
+    vec2_t loc;
     bool rally = false;
     bool non_rally = false;
     bool issued = false;
@@ -1055,7 +1055,7 @@ CLIENTCOMMAND(SmartPoint) {
     if (argc < 3) {
         return;
     }
-    loc = (vector2_t){ atoi(argv[1]), atoi(argv[2]) };
+    loc = (vec2_t){ atoi(argv[1]), atoi(argv[2]) };
     queued = G_CommandQueueRequested(argc, argv, 3);
     FOR_CONTROLLABLE_SELECTED_UNITS(client, ent) {
         if (G_UnitHasRally(ent)) {
@@ -1430,7 +1430,7 @@ CLIENTCOMMAND(Hero) {
         return;
     }
     if (argc >= 2 && !strcasecmp(argv[1], "walk")) {
-        vector2_t dest;
+        vec2_t dest;
         float dx = 80.0f, dy = 0.0f;
         hero = client ? G_GetMainSelectedUnit(client) : NULL;
         if (!hero || !G_UnitCanControl(client, hero) || !G_UnitIsHero(hero)) {
@@ -1444,7 +1444,7 @@ CLIENTCOMMAND(Hero) {
             G_CheatPrintf(clent, "WC3: usage: hero walk [dx dy]");
             return;
         }
-        dest = (vector2_t){ hero->s.origin2.x + dx, hero->s.origin2.y + dy };
+        dest = (vec2_t){ hero->s.origin2.x + dx, hero->s.origin2.y + dy };
         if (!unit_issueorder(hero, "move", &dest)) {
             G_CheatPrintf(clent, "WC3: hero walk order rejected");
             return;
@@ -1807,7 +1807,7 @@ static bool G_ItemDragSelectEntity(edict_t *clent, edict_t *target) {
 }
 
 /* Complete an inventory point drop using the exact item captured by the drag command. */
-static bool G_ItemDragSelectLocation(edict_t *clent, vector2_t const *location) {
+static bool G_ItemDragSelectLocation(edict_t *clent, vec2_t const *location) {
     gameClient_t *client = clent ? clent->client : NULL;
     edict_t *unit;
     edict_t *item;
@@ -2593,7 +2593,7 @@ static void CMD_PortraitCameraDown(edict_t *clent, uint32_t argc, cstring_t argv
     if (!target || clent->client->no_control || clent->client->camera.target_controller) return;
     G_ClientSetCameraPosition(clent, &target->s.origin2);
     clent->client->camera.target_controller = target;
-    clent->client->camera.target_offset = (vector2_t){ 0, 0 };
+    clent->client->camera.target_offset = (vec2_t){ 0, 0 };
 }
 
 static void CMD_QuickCamera(edict_t *clent, uint32_t argc, cstring_t argv[]) {
@@ -2622,12 +2622,12 @@ CLIENTCOMMAND(Camera) {
         return;
     }
     if (!strcasecmp(argv[1], "move")) {
-        vector2_t point;
+        vec2_t point;
         if (argc != 4 || !G_DebugIsNumber(argv[2]) || !G_DebugIsNumber(argv[3])) {
             fprintf(stderr, "usage: camera move <x> <y>\n");
             return;
         }
-        point = (vector2_t){ (float)atoi(argv[2]), (float)atoi(argv[3]) };
+        point = (vec2_t){ (float)atoi(argv[2]), (float)atoi(argv[3]) };
         G_ClientSetCameraPosition(clent, &point);
         return;
     }
@@ -2638,7 +2638,7 @@ CLIENTCOMMAND(Camera) {
         }
         G_ClientSetCameraPosition(clent, &target->s.origin2);
         client->camera.target_controller = target;
-        client->camera.target_offset = (vector2_t){ 0, 0 };
+        client->camera.target_offset = (vec2_t){ 0, 0 };
         return;
     }
     fprintf(stderr, "usage: camera <move <x> <y>|selected>\n");
@@ -2649,7 +2649,7 @@ CLIENTCOMMAND(Camera) {
 CLIENTCOMMAND(EnemiesClear) {
     gameClient_t *client = clent ? clent->client : NULL;
     edict_t *center;
-    vector2_t origin;
+    vec2_t origin;
     float radius = WC3_ENEMIES_CLEAR_RADIUS;
     float radius_sq;
     uint32_t removed = 0;
@@ -2697,7 +2697,7 @@ CLIENTCOMMAND(EnemiesClear) {
 CLIENTCOMMAND(DebugSpawn) {
     gameClient_t *client = clent->client;
     uint32_t class_id;
-    vector2_t location;
+    vec2_t location;
     edict_t *spawned;
     uint32_t first_ability = 2;
 
@@ -2707,7 +2707,7 @@ CLIENTCOMMAND(DebugSpawn) {
     }
 
     class_id = *((uint32_t const *)argv[1]);
-    location = (vector2_t){ client->ps.vieworigin.x, client->ps.vieworigin.y };
+    location = (vec2_t){ client->ps.vieworigin.x, client->ps.vieworigin.y };
     if (argc >= 4 && G_DebugIsNumber(argv[2]) && G_DebugIsNumber(argv[3])) {
         location.x = atoi(argv[2]);
         location.y = atoi(argv[3]);
@@ -2882,8 +2882,8 @@ void G_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
     }
 }
 
-void G_ClientSetCameraPosition(edict_t *ent, vector2_t const *position) {
-    vector2_t clamped;
+void G_ClientSetCameraPosition(edict_t *ent, vec2_t const *position) {
+    vec2_t clamped;
 
     if (ent->client->no_control)
         return;

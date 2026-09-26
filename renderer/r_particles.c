@@ -5,10 +5,10 @@
 #define MAX_PARTICLES 10000
 
 typedef struct particle_vertex {
-    vector3_t position;
+    vec3_t position;
     color32_t color;
     float size;
-    vector3_t tail;
+    vec3_t tail;
     float uv[2];
     uint8_t axis[2];
 } particleVertex_t;
@@ -19,7 +19,7 @@ typedef enum {
 } PARTICLEUVORDER;
 
 typedef struct particlequad_s {
-    vector3_t const *point, *tail;
+    vec3_t const *point, *tail;
     float u0, v0, u1, v1;
     color32_t color;
     float size;
@@ -28,10 +28,10 @@ typedef struct particlequad_s {
 
 
 typedef struct particleState_s {
-    matrix4_t viewProjection;
-    matrix4_t textureMatrix;
-    matrix4_t model;
-    vector3_t eye;
+    mat4_t viewProjection;
+    mat4_t textureMatrix;
+    mat4_t model;
+    vec3_t eye;
     int texture;
     int fogOfWar;
     bool alphaKey;
@@ -102,7 +102,7 @@ cparticle_t *R_SpawnParticle(void) {
     p->next = active_particles;
     active_particles = p;
     p->blend_mode = BLEND_MODE_ADD;
-    p->tail = (vector3_t){0};
+    p->tail = (vec3_t){0};
     p->size_value_scale = p->size_time_scale = 1.0f;
     return p;
 }
@@ -184,7 +184,7 @@ static particleVertex_t *R_AddParticleQuad(particleVertex_t *buffer,
         {{0,3}, {0,1}, {2,1}, {2,1}, {2,3}, {0,3}},
     };
     float const uv[4] = {quad->u0, quad->v0, quad->u1, quad->v1};
-    vector3_t const tail = quad->tail ? *quad->tail : (vector3_t){0};
+    vec3_t const tail = quad->tail ? *quad->tail : (vec3_t){0};
 
     FOR_LOOP(i, NUM_PARTICLE_VERTICES) {
         particleVertex_t const vertex = {
@@ -201,8 +201,8 @@ static particleVertex_t *R_AddParticleQuad(particleVertex_t *buffer,
 }
 
 particleVertex_t *R_AddParticle(particleVertex_t *buffer,
-              vector3_t const *point,
-              vector3_t const *tail,
+              vec3_t const *point,
+              vec3_t const *tail,
               color32_t uvr,
               color32_t color,
               float size)
@@ -269,7 +269,7 @@ color32_t FX_BlendColor(cparticle_t const *p) {
     }
 }
 
-static void R_FlushParticles(texture_t const *texture, matrix4_t const *matrix, particleVertex_t *pv, BLEND_MODE blend_mode) {
+static void R_FlushParticles(texture_t const *texture, mat4_t const *matrix, particleVertex_t *pv, BLEND_MODE blend_mode) {
     R_Call(glBindVertexArray, particles_resources.particles->vao);
     R_Call(glBindBuffer, GL_ARRAY_BUFFER, particles_resources.particles->vbo);
     R_Call(glBufferData, GL_ARRAY_BUFFER, sizeof(particleVertex_t) * (pv - particles_resources.vertices), particles_resources.vertices, GL_DYNAMIC_DRAW);
@@ -347,7 +347,7 @@ static color32_t FX_GetFrame(cparticle_t const *p) {
 }
 
 void R_DrawParticles(void) {
-    matrix4_t matrix;
+    mat4_t matrix;
     particleVertex_t *pv = particles_resources.vertices;
     texture_t const *texture;
     BLEND_MODE blend_mode;
@@ -367,9 +367,9 @@ void R_DrawParticles(void) {
          * integrates gravity per-frame (semi-implicit Euler), which over a
          * particle's life is the 1/2*a*t^2 closed form below; applying the full
          * a*t^2 made gravity-driven particles fall ~2x too fast. */
-        vector3_t halfAccelT = Vector3_scale(&p->accel, 0.5f * p->time);
-        vector3_t vel = Vector3_add(&p->vel, &halfAccelT);
-        vector3_t org = Vector3_mad(&p->org, p->time, &vel);
+        vec3_t halfAccelT = Vector3_scale(&p->accel, 0.5f * p->time);
+        vec3_t vel = Vector3_add(&p->vel, &halfAccelT);
+        vec3_t org = Vector3_mad(&p->org, p->time, &vel);
         color32_t col = FX_BlendColor(p);
         float size = p->size_value_scale * FX_BlendFloat(p->size, p->time * p->size_time_scale,
                                                          BYTE2FLOAT(p->midtime));
@@ -385,8 +385,8 @@ void R_DrawParticles(void) {
 /* Draw a single camera-facing (billboarded) sprite at a world position, reusing the particle
  * billboard pipeline. BLP textures are stored top-down and the particle shader maps a quad's top
  * vertex to V=1, so the UV rect is V-flipped to keep the sprite upright (top of image at top of quad). */
-void R_DrawBillboardSprite(texture_t const *texture, vector3_t const *origin, float size, color32_t color) {
-    matrix4_t matrix;
+void R_DrawBillboardSprite(texture_t const *texture, vec3_t const *origin, float size, color32_t color) {
+    mat4_t matrix;
     particleVertex_t *pv = particles_resources.vertices;
     color32_t const uv = { 0, 255, 255, 0 };
 
@@ -401,7 +401,7 @@ void R_DrawBillboardSprite(texture_t const *texture, vector3_t const *origin, fl
  * segment into a camera-facing quad, while continuous U coordinates allow
  * tiled textures to move along the complete strip. */
 void R_DrawRibbon(ribbonDraw_t const *draw) {
-    matrix4_t matrix;
+    mat4_t matrix;
     particleVertex_t *pv = particles_resources.vertices;
     GLboolean depth_enabled;
     float distance = 0.0f;
@@ -413,7 +413,7 @@ void R_DrawRibbon(ribbonDraw_t const *draw) {
     depth_enabled = glIsEnabled(GL_DEPTH_TEST);
     if (!draw->depth_test && depth_enabled) R_Call(glDisable, GL_DEPTH_TEST);
     FOR_LOOP(i, draw->point_count - 1) {
-        vector3_t tail = Vector3_sub(draw->points + i + 1, draw->points + i);
+        vec3_t tail = Vector3_sub(draw->points + i + 1, draw->points + i);
         float length = Vector3_len(&tail);
         if (length <= 0.001f) continue;
         if (pv + NUM_PARTICLE_VERTICES > particles_resources.vertices + MAX_PARTICLES * NUM_PARTICLE_VERTICES) break;

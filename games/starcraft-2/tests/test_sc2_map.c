@@ -39,7 +39,7 @@ TEST(sc2_map, shared_grid_normals) {
     float flat[9] = {0};
     float slope[9] = {0,1,2, 0,1,2, 0,1,2};
     terrainNormals_t grid = { flat, test_grid_height, 3, 3, 1.0f };
-    vector3_t normal = R_TerrainGridNormal(&grid, 1, 1);
+    vec3_t normal = R_TerrainGridNormal(&grid, 1, 1);
 
     T_FEQ(normal.x, 0.0f, 0.0001f); T_FEQ(normal.y, 0.0f, 0.0001f); T_FEQ(normal.z, 1.0f, 0.0001f);
     grid.data = slope; normal = R_TerrainGridNormal(&grid, 1, 1);
@@ -71,9 +71,9 @@ TEST(sc2_map, flying_unit_height_is_terrain_relative) {
 TEST(sc2_map, ramp_join_matches_ground_triangles) {
     float height[] = { 0, 0, 0, 4 };
     /* A diagonal cliff lip at the cell center lies on the emitted 00--11 edge. */
-    T_FEQ(r_sc2_ground_triangle_height(height, (vector2_t){0.5f,0.5f}), 2, 0.0001f);
-    T_FEQ(r_sc2_ground_triangle_height(height, (vector2_t){0.75f,0.5f}), 2, 0.0001f);
-    T_FEQ(r_sc2_ground_triangle_height(height, (vector2_t){0.5f,0.75f}), 2, 0.0001f);
+    T_FEQ(r_sc2_ground_triangle_height(height, (vec2_t){0.5f,0.5f}), 2, 0.0001f);
+    T_FEQ(r_sc2_ground_triangle_height(height, (vec2_t){0.75f,0.5f}), 2, 0.0001f);
+    T_FEQ(r_sc2_ground_triangle_height(height, (vec2_t){0.5f,0.75f}), 2, 0.0001f);
 }
 
 TEST(sc2_map, ramp_footprints_select_authored_straight_and_diagonal_meshes) {
@@ -92,8 +92,8 @@ TEST(sc2_map, ramp_footprints_select_authored_straight_and_diagonal_meshes) {
     T_STREQ(right.config, "BCRQ"); T_EQ(right.rotation, 1);
     T_FEQ(left.bounds.max.y-left.bounds.min.y, 4, 0.001f);
     map.t3Terrain.ramps = &ramp; ARRAY_COUNT(map.t3Terrain.ramps) = 1;
-    T_ASSERT(r_sc2_ramp_covers_ground(&map, (vector2_t){99,34}));
-    T_ASSERT(!r_sc2_ramp_covers_ground(&map, (vector2_t){101,34}));
+    T_ASSERT(r_sc2_ramp_covers_ground(&map, (vec2_t){99,34}));
+    T_ASSERT(!r_sc2_ramp_covers_ground(&map, (vec2_t){101,34}));
     ramp.mid = (sc2RampBox_t){ .up = {-0.7071068f,-0.7071068f}, .right = {-0.7071068f,0.7071068f}, .center = {50,90}, .width = 2.828427f, .height = 2.828427f };
     ramp.edge[0] = (sc2RampBox_t){ .up = {0,-1}, .right = {-1,0}, .center = {52,88}, .width = 2, .height = 2 };
     ramp.edge[1] = (sc2RampBox_t){ .up = {0,-1}, .right = {-1,0}, .center = {48,92}, .width = 2, .height = 2 };
@@ -102,11 +102,11 @@ TEST(sc2_map, ramp_footprints_select_authored_straight_and_diagonal_meshes) {
     /* This cyclic configuration resolves to the archive's QBRQ orientation, not lexicographic BRQQ. */
     T_STREQ(right.config, "BRQQ"); T_EQ(right.rotation, 3);
     /* BQQR is L-shaped: its NE 2x2 block is absent. After rotation, keep only the NW block. */
-    T_ASSERT(r_sc2_ramp_covers_ground(&map, (vector2_t){50.5f,87.5f}));
-    T_ASSERT(r_sc2_ramp_covers_ground(&map, (vector2_t){52.5f,89.5f}));
-    T_ASSERT(!r_sc2_ramp_covers_ground(&map, (vector2_t){51.5f,88.5f}));
-    T_ASSERT(r_sc2_ramp_covers_ground(&map, (vector2_t){53,87}));
-    T_ASSERT(!r_sc2_ramp_covers_ground(&map, (vector2_t){51,89}));
+    T_ASSERT(r_sc2_ramp_covers_ground(&map, (vec2_t){50.5f,87.5f}));
+    T_ASSERT(r_sc2_ramp_covers_ground(&map, (vec2_t){52.5f,89.5f}));
+    T_ASSERT(!r_sc2_ramp_covers_ground(&map, (vec2_t){51.5f,88.5f}));
+    T_ASSERT(r_sc2_ramp_covers_ground(&map, (vec2_t){53,87}));
+    T_ASSERT(!r_sc2_ramp_covers_ground(&map, (vec2_t){51,89}));
     free(grid);
 }
 
@@ -140,15 +140,15 @@ TEST(sc2_map, hard_tile_matrix_maps_prism_to_authored_surface) {
         .end = { 2,0,0 },
         .scale = { 1.5f, 1 },
     };
-    matrix4_t matrix;
-    vector3_t start_left, end_right, long_end, width_edge, top;
+    mat4_t matrix;
+    vec3_t start_left, end_right, long_end, width_edge, top;
 
     r_sc2_hard_tile_matrix(&tile, &matrix);
-    start_left = Matrix4_multiply_vector3(&matrix, &(vector3_t){-.5f,-.5f,1});
-    end_right = Matrix4_multiply_vector3(&matrix, &(vector3_t){.5f,.5f,1});
-    long_end = Matrix4_multiply_vector3(&matrix, &(vector3_t){0,.5f,1});
-    width_edge = Matrix4_multiply_vector3(&matrix, &(vector3_t){.5f,0,1});
-    top = Matrix4_multiply_vector3(&matrix, &(vector3_t){0,0,1});
+    start_left = Matrix4_multiply_vector3(&matrix, &(vec3_t){-.5f,-.5f,1});
+    end_right = Matrix4_multiply_vector3(&matrix, &(vec3_t){.5f,.5f,1});
+    long_end = Matrix4_multiply_vector3(&matrix, &(vec3_t){0,.5f,1});
+    width_edge = Matrix4_multiply_vector3(&matrix, &(vec3_t){.5f,0,1});
+    top = Matrix4_multiply_vector3(&matrix, &(vec3_t){0,0,1});
     T_FEQ(start_left.x, 8, .0001f); T_FEQ(start_left.y, 21.5f, .0001f); T_FEQ(start_left.z, 3, .0001f);
     T_FEQ(end_right.x, 12, .0001f); T_FEQ(end_right.y, 18.5f, .0001f); T_FEQ(end_right.z, 3, .0001f);
     T_FEQ(long_end.x, 12, .0001f); T_FEQ(long_end.y, 20, .0001f);
@@ -188,7 +188,7 @@ TEST(sc2_map, hard_tile_clips_at_terrain_diagonal) {
         uint32_t n = r_sc2_clip_road(road, ground, out);
         T_EQ(n, r_sc2_clip_road(road, ground, NULL)); T_ASSERT(n >= 3);
         for (uint32_t i = 0; i < n; i += 3) {
-            vector3_t center = {0};
+            vec3_t center = {0};
             area += fabsf(r_sc2_road_side(out[i].position, out[i+1].position, out[i+2].position)) * .5f;
             FOR_LOOP(j, 3) {
                 vertex_t v = out[i+j];
@@ -602,8 +602,8 @@ static void assert_tiny_map_known_file_catalog_fallback(sc2Map_t *map) {
 TEST(sc2_map, campaign_object_capacity) { T_EQ(SC2_MAX_MAP_OBJECTS, 4096); }
 
 TEST(sc2_map, camera_pitch_converts_to_orbit_euler) {
-    vector3_t euler = SC2_EulerFromCamera(56.0f, 180.0f);
-    vector3_t native;
+    vec3_t euler = SC2_EulerFromCamera(56.0f, 180.0f);
+    vec3_t native;
     T_FEQ(euler.x, -34.0f, 0.001f);
     T_FEQ(euler.y, 0.0f, 0.001f);
     T_FEQ(euler.z, 0.0f, 0.001f);
@@ -619,10 +619,10 @@ TEST(sc2_map, camera_pitch_converts_to_orbit_euler) {
 TEST(sc2_map, camera_eye_side_and_upright_basis) {
     FOR_LOOP(i, 5) {
         float yaw = i * 90.0f, pitch = 56.0f;
-        vector3_t angles = SC2_EulerFromCamera(pitch, yaw);
+        vec3_t angles = SC2_EulerFromCamera(pitch, yaw);
         quaternion_t quat = Quaternion_fromEuler(&angles, ROTATE_ZYX);
-        matrix4_t view, inv;
-        Matrix4_identity(&view); Matrix4_translate(&view, &(vector3_t){ 0, 0, -34 });
+        mat4_t view, inv;
+        Matrix4_identity(&view); Matrix4_translate(&view, &(vec3_t){ 0, 0, -34 });
         Matrix4_rotateQuat(&view, &quat); Matrix4_inverse(&view, &inv);
         T_FEQ(inv.v[12], 34 * sinf(DEG2RAD(yaw)) * cosf(DEG2RAD(pitch)), 0.001f);
         T_FEQ(inv.v[13], 34 * cosf(DEG2RAD(yaw)) * cosf(DEG2RAD(pitch)), 0.001f);
@@ -801,7 +801,7 @@ TEST(sc2_map, sc2_map_loads_xml_objects_and_terrain) {
 /* Non-colorized catalogs retain direct ambient while missing lighting uses the renderer fallback. */
 TEST(sc2_map, ordinary_and_missing_light_ambient) {
     sc2MapLighting_t light = { .ambient_color = { 0.1f, 0.2f, 0.3f } };
-    vector3_t ambient = sc2_light_ambient(&light);
+    vec3_t ambient = sc2_light_ambient(&light);
     T_FEQ(ambient.x, 0.1f, 0.001f); T_FEQ(ambient.y, 0.2f, 0.001f); T_FEQ(ambient.z, 0.3f, 0.001f);
     ambient = sc2_light_ambient(NULL);
     T_FEQ(ambient.x, 0.35f, 0.001f); T_FEQ(ambient.y, 0.35f, 0.001f); T_FEQ(ambient.z, 0.4f, 0.001f);
@@ -1020,27 +1020,27 @@ TEST(sc2_map, sc2_map_rejects_huge_dimension_binary_terrain_layers) {
 /* Native unit-scale shadow coverage fits the visible ground and handles a vertical key light. */
 TEST(sc2_map, shadow_camera_ground_footprint) {
     sc2shadowview_t input = { .target = {48,48,0}, .light = {.724693f,-.124265f,-.677775f}, .reach = 34 };
-    matrix4_t view, proj, shadow;
-    vector3_t dir = {0,1,-1}; Vector3_normalize(&dir);
-    vector3_t eye = Vector3_mad(&input.target, -input.reach, &dir);
-    Matrix4_lookAt(&view, &eye, &dir, &(vector3_t){0,0,1});
+    mat4_t view, proj, shadow;
+    vec3_t dir = {0,1,-1}; Vector3_normalize(&dir);
+    vec3_t eye = Vector3_mad(&input.target, -input.reach, &dir);
+    Matrix4_lookAt(&view, &eye, &dir, &(vec3_t){0,0,1});
     Matrix4_perspective(&proj, 45, 16.0f/9, 1, 1000); Matrix4_multiply(&proj, &view, &input.camera);
     T_ASSERT(sc2_shadow_matrix(&input, &shadow));
-    vector3_t a = Matrix4_multiply_vector3(&shadow, &input.target);
-    vector3_t b = Matrix4_multiply_vector3(&shadow, &(vector3_t){49,48,0});
+    vec3_t a = Matrix4_multiply_vector3(&shadow, &input.target);
+    vec3_t b = Matrix4_multiply_vector3(&shadow, &(vec3_t){49,48,0});
     T_ASSERT(fabsf(a.x) < 1 && fabsf(a.y) < 1 && fabsf(a.z) < 1);
     T_ASSERT(Vector3_distance(&a, &b) > .01f);
-    matrix4_t inv; Matrix4_inverse(&input.camera, &inv);
+    mat4_t inv; Matrix4_inverse(&input.camera, &inv);
     FOR_LOOP(i, 4) {
-        vector3_t near = Matrix4_multiply_vector3(&inv, &(vector3_t){i&1?1:-1,i&2?1:-1,-1});
-        vector3_t far = Matrix4_multiply_vector3(&inv, &(vector3_t){i&1?1:-1,i&2?1:-1,1});
-        vector3_t ray = Vector3_sub(&far, &near), ground = Vector3_mad(&near, -near.z/ray.z, &ray);
-        vector3_t clip = Matrix4_multiply_vector3(&shadow, &ground);
+        vec3_t near = Matrix4_multiply_vector3(&inv, &(vec3_t){i&1?1:-1,i&2?1:-1,-1});
+        vec3_t far = Matrix4_multiply_vector3(&inv, &(vec3_t){i&1?1:-1,i&2?1:-1,1});
+        vec3_t ray = Vector3_sub(&far, &near), ground = Vector3_mad(&near, -near.z/ray.z, &ray);
+        vec3_t clip = Matrix4_multiply_vector3(&shadow, &ground);
         T_ASSERT(fabsf(clip.x) <= 1 && fabsf(clip.y) <= 1 && fabsf(clip.z) <= 1);
     }
-    input.light = (vector3_t){0,0,-1}; T_ASSERT(sc2_shadow_matrix(&input, &shadow));
+    input.light = (vec3_t){0,0,-1}; T_ASSERT(sc2_shadow_matrix(&input, &shadow));
     a = Matrix4_multiply_vector3(&shadow, &input.target); T_FEQ(a.x, 0, .0001f); T_FEQ(a.y, 0, .0001f);
-    input.light = (vector3_t){0}; T_ASSERT(!sc2_shadow_matrix(&input, &shadow));
+    input.light = (vec3_t){0}; T_ASSERT(!sc2_shadow_matrix(&input, &shadow));
     input.light.z = -1; input.reach = 0; T_ASSERT(!sc2_shadow_matrix(&input, &shadow));
 }
 

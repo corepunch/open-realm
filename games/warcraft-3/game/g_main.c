@@ -569,19 +569,19 @@ bool G_SkipCutscene(void) {
     return value && *value && strcmp(value, "0");
 }
 
-vector3_t G_MakeServerOrigin(float x, float y, float z_offset) {
-    return (vector3_t){ x, y, CM_GetHeightAtPoint(x, y) + CM_GetCameraHeightOffset() + z_offset };
+vec3_t G_MakeServerOrigin(float x, float y, float z_offset) {
+    return (vec3_t){ x, y, CM_GetHeightAtPoint(x, y) + CM_GetCameraHeightOffset() + z_offset };
 }
 
 /* Compose an exact server camera sample; the client replaces only its terrain base with the blurred render sample. */
-static vector3_t G_MakeCameraOrigin(gameClient_t *client, float x, float y, float z_offset) {
+static vec3_t G_MakeCameraOrigin(gameClient_t *client, float x, float y, float z_offset) {
     float const base = CM_GetHeightAtPoint(x, y) + CM_GetCameraHeightOffset();
     client->camera.target_height = base;
-    return (vector3_t){ x, y, base + z_offset };
+    return (vec3_t){ x, y, base + z_offset };
 }
 
-vector2_t G_ClampCameraPosition(gameClient_t *client, vector2_t const *position) {
-    vector2_t clamped = position ? *position : (vector2_t){ 0, 0 };
+vec2_t G_ClampCameraPosition(gameClient_t *client, vec2_t const *position) {
+    vec2_t clamped = position ? *position : (vec2_t){ 0, 0 };
     box2_t bounds = level.camera_bounds;
 
     (void)client;
@@ -594,10 +594,10 @@ vector2_t G_ClampCameraPosition(gameClient_t *client, vector2_t const *position)
 }
 
 static void G_ReclampClientCamera(gameClient_t *client) {
-    vector2_t position;
+    vec2_t position;
 
     if (!client) return;
-    position = (vector2_t){ client->ps.vieworigin.x, client->ps.vieworigin.y };
+    position = (vec2_t){ client->ps.vieworigin.x, client->ps.vieworigin.y };
     position = G_ClampCameraPosition(client, &position);
     client->ps.vieworigin = G_MakeCameraOrigin(client, position.x, position.y, client->camera.state.z_offset);
     position = G_ClampCameraPosition(client, &client->camera.old_state.position);
@@ -627,13 +627,13 @@ void G_ClearCameraTarget(gameClient_t *client, cstring_t func) {
         return;
     }
     client->camera.target_controller = NULL;
-    client->camera.target_offset = (vector2_t){ 0, 0 };
+    client->camera.target_offset = (vec2_t){ 0, 0 };
     client->camera.target_inherit_orientation = false;
 }
 
 static void G_UpdateCameraTarget(gameClient_t *client) {
     edict_t *target = client->camera.target_controller;
-    vector2_t position;
+    vec2_t position;
 
     if (!target) {
         return;
@@ -689,7 +689,7 @@ static void G_ClientInput(edict_t *ent, inputCmd_t const *cmd) {
         client->camera.old_state = client->camera.state;
         client->camera.start_time = client->camera.end_time = G_Time();
     } else {
-        vector2_t pos = cmd->action == BZ_INPUT_FOCUS ? cmd->focus
+        vec2_t pos = cmd->action == BZ_INPUT_FOCUS ? cmd->focus
             : input_move_focus(cmd, &client->ps, atof(gi.CvarString("cl_camera_scroll_speed", "1400")));
         G_ClientSetCameraPosition(ent, &pos);
     }
@@ -708,11 +708,11 @@ static void G_RunClients(void) {
             float k = (G_Time() - client->camera.start_time) / (float)duration;
             camerasetup_t const *a = &client->camera.old_state;
             camerasetup_t const *b = &client->camera.state;
-            vector2_t p = Vector2_lerp(&a->position, &b->position, k);
+            vec2_t p = Vector2_lerp(&a->position, &b->position, k);
             client->ps.vieworigin = G_MakeCameraOrigin(client, p.x, p.y, LerpNumber(a->z_offset, b->z_offset, k));
             /* JASS interpolates camera fields independently. Angle fields use
              * the game's periodic-degree rule; WC3 takes the shortest arc. */
-            client->ps.viewangles = (vector3_t){
+            client->ps.viewangles = (vec3_t){
                 CL_GameLerpDegrees(a->viewangles.x, b->viewangles.x, k),
                 CL_GameLerpDegrees(a->viewangles.y, b->viewangles.y, k),
                 CL_GameLerpDegrees(a->viewangles.z, b->viewangles.z, k),
@@ -1229,7 +1229,7 @@ static void G_ClientBegin(edict_t *edict) {
     G_InitClientUIState(client);
     G_MusicSyncClient(client);
     if (!client->mapplayer) {
-        client->ps.vieworigin = (vector3_t){ 0, 0, 0 };
+        client->ps.vieworigin = (vec3_t){ 0, 0, 0 };
     }
     fprintf(stderr,
             "G_ClientBegin: edict=%u player=%u team=%u race=%u color=%u start_location=%ld origin=(%.1f %.1f) name=\"%s\"\n",

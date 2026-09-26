@@ -4,7 +4,7 @@
 #include "vector3.h"
 
 struct sphere3 {
-    vector3_t center;
+    vec3_t center;
     float radius;
 };
 

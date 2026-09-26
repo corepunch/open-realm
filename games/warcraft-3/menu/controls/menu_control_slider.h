@@ -34,7 +34,7 @@ static rect_t UI_SliderThumbRect(frameDef_t const *slider, rect_t const *slider_
     return rect;
 }
 
-static float UI_SliderValueFromMousePos(frameDef_t const *slider, rect_t const *slider_rect, frameDef_t const *thumb, vector2_t mouse) {
+static float UI_SliderValueFromMousePos(frameDef_t const *slider, rect_t const *slider_rect, frameDef_t const *thumb, vec2_t mouse) {
     float const min_value = slider->Slider.MinValue;
     float const max_value = slider->Slider.MaxValue;
     float value_range = max_value - min_value;

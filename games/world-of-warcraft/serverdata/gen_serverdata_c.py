@@ -98,8 +98,8 @@ def gen_playercreateinfo(output_dir):
         '            return wow_spawn_points[i].map;',
         '    return ~0u;',
         '}', '',
-        'vector3_t const * Wow_GetSpawnPos(uint32_t idx) {',
-        '    static vector3_t v;',
+        'vec3_t const * Wow_GetSpawnPos(uint32_t idx) {',
+        '    static vec3_t v;',
         '    if (idx >= Wow_SpawnCount()) return NULL;',
         '    v.x = wow_spawn_points[idx].x;',
         '    v.y = wow_spawn_points[idx].y;',
@@ -200,7 +200,7 @@ def gen_quests(output_dir):
     lines.append('};')
     lines.append('')
     lines.append('typedef struct { uint32_t first, count; } wowQuestGiverGroup_t;')
-    lines.append('typedef struct { uint32_t quest_id; vector2_t position; uint32_t group; } wowQuestGiverLookup_t;')
+    lines.append('typedef struct { uint32_t quest_id; vec2_t position; uint32_t group; } wowQuestGiverLookup_t;')
     lines.append('static const uint32_t wow_quest_giver_group_rows[] = {')
     for rows in groups:
         lines.append('    ' + ', '.join(str(i) for i in rows) + ',')
@@ -260,7 +260,7 @@ def gen_quests(output_dir):
     lines.append('wowQuestGiver_t const * Wow_QuestGiver(uint32_t index) {')
     lines.append('    return index < Wow_QuestGiverCount() ? &wow_quest_givers[index] : NULL;')
     lines.append('}')
-    lines.append('uint32_t Wow_QuestGiverGroup(uint32_t quest_id, vector2_t const * position) {')
+    lines.append('uint32_t Wow_QuestGiverGroup(uint32_t quest_id, vec2_t const * position) {')
     lines.append('    uint32_t lo = 0, hi = sizeof(wow_quest_giver_lookup) / sizeof(wow_quest_giver_lookup[0]);')
     lines.append('    if (!position) return WOW_QUEST_GIVER_GROUP_NONE;')
     lines.append('    while (lo < hi) {')

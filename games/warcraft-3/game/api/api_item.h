@@ -17,7 +17,7 @@ uint32_t CreateItem(jass_t *j) {
                 (uint32_t)itemid, x, y);
         return jass_pushnullhandle(j, "item");
     }
-    edict_t *item = SP_SpawnAtLocation(itemid, 0, &MAKE(vector2_t, x, y));
+    edict_t *item = SP_SpawnAtLocation(itemid, 0, &MAKE(vec2_t, x, y));
     return jass_pushlighthandle(j, item, "item");
 }
 uint32_t RemoveItem(jass_t *j) {
@@ -85,7 +85,7 @@ uint32_t SetItemPosition(jass_t *j) {
         item->s.origin.x = x;
         item->s.origin.y = y;
         item->s.origin.z = CM_GetHeightAtPoint(x, y);
-        item->s.origin2 = MAKE(vector2_t, x, y);
+        item->s.origin2 = MAKE(vec2_t, x, y);
         gi.LinkEntity(item);
     }
     return 0;

@@ -507,7 +507,7 @@ uint32_t SetFogStateRect(jass_t *j) {
 uint32_t SetFogStateRadius(jass_t *j) {
     player_t *forWhichPlayer = jass_checkhandle(j, 1, "player");
     uint32_t *whichState = jass_checkhandle(j, 2, "fogstate");
-    vector2_t center = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
+    vec2_t center = { jass_checknumber(j, 3), jass_checknumber(j, 4) };
     float radius = jass_checknumber(j, 5);
     bool useSharedVision = jass_checkboolean(j, 6);
     if (forWhichPlayer && whichState) {
@@ -519,7 +519,7 @@ uint32_t SetFogStateRadius(jass_t *j) {
 uint32_t SetFogStateRadiusLoc(jass_t *j) {
     player_t *forWhichPlayer = jass_checkhandle(j, 1, "player");
     uint32_t *whichState = jass_checkhandle(j, 2, "fogstate");
-    vector2_t const *center = jass_checkhandle(j, 3, "location");
+    vec2_t const *center = jass_checkhandle(j, 3, "location");
     float radius = jass_checknumber(j, 4);
     bool useSharedVision = jass_checkboolean(j, 5);
     if (forWhichPlayer && whichState && center) {
@@ -596,7 +596,7 @@ uint32_t CreateFogModifierRadius(jass_t *j) {
     bool useSharedVision = jass_checkboolean(j, 6);
     fogModifier_t *mod = G_NewFogModifier(j, forWhichPlayer, whichState, useSharedVision);
     if (mod) {
-        mod->center = MAKE(vector2_t, centerx, centerY);
+        mod->center = MAKE(vec2_t, centerx, centerY);
         mod->radius = radius;
     }
     return 1;
@@ -604,7 +604,7 @@ uint32_t CreateFogModifierRadius(jass_t *j) {
 uint32_t CreateFogModifierRadiusLoc(jass_t *j) {
     player_t *forWhichPlayer = jass_checkhandle(j, 1, "player");
     uint32_t *whichState = jass_checkhandle(j, 2, "fogstate");
-    vector2_t const *center = jass_checkhandle(j, 3, "location");
+    vec2_t const *center = jass_checkhandle(j, 3, "location");
     float radius = jass_checknumber(j, 4);
     bool useSharedVision = jass_checkboolean(j, 5);
     fogModifier_t *mod = G_NewFogModifier(j, forWhichPlayer, whichState, useSharedVision);
@@ -644,7 +644,7 @@ uint32_t DisplayTextToPlayer(jass_t *j) {
                 toPlayer ? (int)PLAYER_NUM(toPlayer) : -1, x, y,
                 message ? message : "", G_LevelString(message) ? G_LevelString(message) : "");
     }
-    UI_ShowText(PLAYER_ENT(toPlayer), &MAKE(vector2_t, x, y), message, -1.0f);
+    UI_ShowText(PLAYER_ENT(toPlayer), &MAKE(vec2_t, x, y), message, -1.0f);
     return 0;
 }
 uint32_t DisplayTimedTextToPlayer(jass_t *j) {
@@ -663,7 +663,7 @@ uint32_t DisplayTimedTextToPlayer(jass_t *j) {
                 toPlayer ? (int)PLAYER_NUM(toPlayer) : -1, x, y, duration,
                 message ? message : "", G_LevelString(message) ? G_LevelString(message) : "");
     }
-    UI_ShowText(PLAYER_ENT(toPlayer), &MAKE(vector2_t, x, y), message, duration);
+    UI_ShowText(PLAYER_ENT(toPlayer), &MAKE(vec2_t, x, y), message, duration);
     return 0;
 }
 uint32_t DisplayTimedTextFromPlayer(jass_t *j) {
@@ -682,7 +682,7 @@ uint32_t DisplayTimedTextFromPlayer(jass_t *j) {
                 toPlayer ? (int)PLAYER_NUM(toPlayer) : -1, x, y, duration,
                 message ? message : "", G_LevelString(message) ? G_LevelString(message) : "");
     }
-    UI_ShowText(PLAYER_ENT(toPlayer), &MAKE(vector2_t, x, y), message, duration);
+    UI_ShowText(PLAYER_ENT(toPlayer), &MAKE(vec2_t, x, y), message, duration);
     return 0;
 }
 uint32_t ClearTextMessages(jass_t *j) {
@@ -725,7 +725,7 @@ uint32_t RemoveAllGuardPositions(jass_t *j) {
 }
 uint32_t SetBlight(jass_t *j) {
     player_t *whichPlayer = jass_checkhandle(j, 1, "player");
-    vector2_t point = { jass_checknumber(j, 2), jass_checknumber(j, 3) };
+    vec2_t point = { jass_checknumber(j, 2), jass_checknumber(j, 3) };
     float radius = jass_checknumber(j, 4);
     bool addBlight = jass_checkboolean(j, 5);
     (void)whichPlayer; /* Blight is global terrain state; player is API-compatible ownership context. */
@@ -742,7 +742,7 @@ uint32_t SetBlightRect(jass_t *j) {
 }
 uint32_t SetBlightPoint(jass_t *j) {
     player_t *whichPlayer = jass_checkhandle(j, 1, "player");
-    vector2_t point = { jass_checknumber(j, 2), jass_checknumber(j, 3) };
+    vec2_t point = { jass_checknumber(j, 2), jass_checknumber(j, 3) };
     bool addBlight = jass_checkboolean(j, 4);
     (void)whichPlayer;
     G_SetBlightPoint(&point, addBlight);
@@ -750,7 +750,7 @@ uint32_t SetBlightPoint(jass_t *j) {
 }
 uint32_t SetBlightLoc(jass_t *j) {
     player_t *whichPlayer = jass_checkhandle(j, 1, "player");
-    vector2_t const *whichLocation = jass_checkhandle(j, 2, "location");
+    vec2_t const *whichLocation = jass_checkhandle(j, 2, "location");
     float radius = jass_checknumber(j, 3);
     bool addBlight = jass_checkboolean(j, 4);
     (void)whichPlayer;

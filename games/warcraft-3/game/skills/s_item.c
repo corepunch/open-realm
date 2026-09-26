@@ -72,7 +72,7 @@ static void soul_trap_unlink(edict_t *target) {
     target->soul_trap_viewer = 0;
 }
 
-static void soul_trap_release_target(edict_t *target, vector2_t const *position, bool restore_world) {
+static void soul_trap_release_target(edict_t *target, vec2_t const *position, bool restore_world) {
     bool remove_asou;
     edict_t *item;
     uint32_t item_spawn;
@@ -109,7 +109,7 @@ static void soul_trap_release_target(edict_t *target, vector2_t const *position,
         G_ActorRemoveSkill(target, ID_SOUL_POSSESSION);
 }
 
-static void soul_trap_release_carried(edict_t *carrier, vector2_t const *position, bool restore_world) {
+static void soul_trap_release_carried(edict_t *carrier, vec2_t const *position, bool restore_world) {
     uint32_t guard = 0;
     if (!carrier) return;
     while (carrier->soul_trap_head && guard++ < globals.max_edicts) {

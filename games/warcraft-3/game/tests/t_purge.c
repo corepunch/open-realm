@@ -85,7 +85,7 @@ TEST(wc3_spell, purge_aprg_slows_by_authored_dataa_without_immobilize) {
 	T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPRG), 1);
 	T_FEQ(S_PurgeMoveReduction(fix.enemy), 0.5f, 0.001f);
 	T_ASSERT(!S_PurgeIsImmobilized(fix.enemy));
-	wp = Waypoint_add(&(vector2_t){200, 0});
+	wp = Waypoint_add(&(vec2_t){200, 0});
 	order_move(fix.enemy, wp);
 	T_ASSERT(fix.enemy->goalentity == wp);
 	purge_done(fix);
@@ -100,7 +100,7 @@ TEST(wc3_spell, purge_apg2_immobilizes_for_datad_then_slows) {
 	T_EQ(G_UnitStatusLevel(fix.enemy, BZ_BPRG), 1);
 	T_ASSERT(S_PurgeIsImmobilized(fix.enemy));
 	T_FEQ(S_PurgeMoveReduction(fix.enemy), 1.0f, 0.001f);
-	wp = Waypoint_add(&(vector2_t){200, 0});
+	wp = Waypoint_add(&(vec2_t){200, 0});
 	fix.enemy->goalentity = NULL;
 	order_move(fix.enemy, wp);
 	T_ASSERT(fix.enemy->goalentity != wp);
@@ -133,7 +133,7 @@ TEST(wc3_spell, purge_apg2_hero_uses_datae_pause) {
 
 	T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_APG2, hero));
 	T_ASSERT(S_PurgeIsImmobilized(hero));
-	wp = Waypoint_add(&(vector2_t){220, 0});
+	wp = Waypoint_add(&(vec2_t){220, 0});
 	order_move(hero, wp);
 	T_ASSERT(hero->goalentity != wp);
 

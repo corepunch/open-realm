@@ -75,10 +75,10 @@ static void arm_hero_audit(cstring_t map) {
 TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
     cstring_t path = "/tmp/openwarcraft3-wc3-hero-saveload.bin";
     edict_t *hero, *item0, *item1;
-    vector3_t saved_origin;
+    vec3_t saved_origin;
     uint32_t saved_holy, saved_shield, saved_added, saved_item0, saved_item1, saved_charges0, saved_charges1, saved_drop_id, index;
     char saved_move[32], snap[512];
-    vector2_t dest = { 80.0f, 0.0f };
+    vec2_t dest = { 80.0f, 0.0f };
 
     reset_entities();
     setup_test_world();
@@ -114,7 +114,7 @@ TEST(wc3_save, walking_hero_round_trips_abilities_inventory_origin) {
     T_ASSERT(strstr(snap, "AHhb:1") != NULL);
     T_ASSERT(strstr(snap, "spro:3") != NULL);
     T_ASSERT(WriteGame(path));
-    hero->s.origin = (vector3_t){ 0 };
+    hero->s.origin = (vec3_t){ 0 };
     hero->heroabilities[0].code = hero->heroabilities[1].code = 0;
     hero->heroabilities[0].level = hero->heroabilities[1].level = 0;
     ARRAY_COUNT(hero->abilities.added) = 0;

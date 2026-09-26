@@ -146,7 +146,7 @@ uint32_t GroupEnumUnitsInRange(jass_t *j) {
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = &globals.edicts[i];
         if (IS_UNIT(ent) && !G_IsDeferredFree(ent) &&
-            Vector2_distance(&ent->s.origin2, &MAKE(vector2_t, x, y)) <= radius &&
+            Vector2_distance(&ent->s.origin2, &MAKE(vec2_t, x, y)) <= radius &&
             jass_evaluateboolexpr(j, filter, ent)) {
             group_add_entity(whichGroup, ent);
         }
@@ -155,7 +155,7 @@ uint32_t GroupEnumUnitsInRange(jass_t *j) {
 }
 uint32_t GroupEnumUnitsInRangeOfLoc(jass_t *j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    vector2_t const *whichLocation = jass_checkhandle(j, 2, "location");
+    vec2_t const *whichLocation = jass_checkhandle(j, 2, "location");
     float radius = jass_checknumber(j, 3);
     jassFunc_t const *filter = jass_checkhandle(j, 4, "boolexpr");
     if (!G_JassGroupValid(whichGroup) || !whichLocation) {
@@ -183,7 +183,7 @@ uint32_t GroupEnumUnitsInRangeCounted(jass_t *j) {
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = &globals.edicts[i];
         if (countLimit > 0 && IS_UNIT(ent) && !G_IsDeferredFree(ent) &&
-            Vector2_distance(&ent->s.origin2, &MAKE(vector2_t, x, y)) <= radius &&
+            Vector2_distance(&ent->s.origin2, &MAKE(vec2_t, x, y)) <= radius &&
             jass_evaluateboolexpr(j, filter, ent)) {
             group_add_entity(whichGroup, ent);
             countLimit--;
@@ -193,7 +193,7 @@ uint32_t GroupEnumUnitsInRangeCounted(jass_t *j) {
 }
 uint32_t GroupEnumUnitsInRangeOfLocCounted(jass_t *j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
-    vector2_t const *whichLocation = jass_checkhandle(j, 2, "location");
+    vec2_t const *whichLocation = jass_checkhandle(j, 2, "location");
     float radius = jass_checknumber(j, 3);
     jassFunc_t const *filter = jass_checkhandle(j, 4, "boolexpr");
     int32_t countLimit = jass_checkinteger(j, 5);
@@ -245,7 +245,7 @@ uint32_t GroupImmediateOrderById(jass_t *j) {
 uint32_t GroupPointOrder(jass_t *j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     cstring_t order = jass_checkstring(j, 2);
-    vector2_t dest = MAKE(vector2_t, jass_checknumber(j, 3), jass_checknumber(j, 4));
+    vec2_t dest = MAKE(vec2_t, jass_checknumber(j, 3), jass_checknumber(j, 4));
     if (!G_JassGroupValid(whichGroup)) return jass_pushboolean(j, 0);
     bool any = false;
     FOR_LOOP(i, whichGroup->num_units) {
@@ -256,7 +256,7 @@ uint32_t GroupPointOrder(jass_t *j) {
 uint32_t GroupPointOrderLoc(jass_t *j) {
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
     cstring_t order = jass_checkstring(j, 2);
-    vector2_t const *dest = jass_checkhandle(j, 3, "location");
+    vec2_t const *dest = jass_checkhandle(j, 3, "location");
     if (!G_JassGroupValid(whichGroup) || !dest) return jass_pushboolean(j, 0);
     bool any = false;
     FOR_LOOP(i, whichGroup->num_units) {

@@ -35,7 +35,7 @@ static void G_ClearBuildPlacementCursor(edict_t *clent) {
 static void ai_build_walk(edict_t *ent) {
     edict_t *goal = ent ? ent->goalentity : NULL;
     float distance, step, approach_range, reach;
-    vector2_t approach = { 0, 0 };
+    vec2_t approach = { 0, 0 };
     bool direct_approach;
 
     if (!ent || !goal || !ent->build_project) {
@@ -129,9 +129,9 @@ static umove_t build_move_walk = { "walk", ai_build_walk, NULL, CAbilityBuild };
 static umove_t build_move_summon = { "stand work", NULL, NULL, CAbilityBuild };
 
 /* Shared callers submit only validated legal orders; build_build revalidates before charging at arrival. */
-bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vector2_t const *location) {
+bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *location) {
     gameClient_t *client;
-    vector2_t snapped;
+    vec2_t snapped;
     edict_t *waypoint;
 
     if (!builder || !location || !(client = G_GetPlayerClientByNumber(builder->s.player))) {
@@ -207,8 +207,8 @@ bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vector2_t const
     return true;
 }
 
-bool G_IssueBuildOrder(edict_t *builder, uint32_t building_id, vector2_t const *location) {
-    vector2_t snapped;
+bool G_IssueBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *location) {
+    vec2_t snapped;
 
     if (!G_ExecuteBuildOrder(builder, building_id, location)) return false;
     snapped = *location;
@@ -220,9 +220,9 @@ bool G_IssueBuildOrder(edict_t *builder, uint32_t building_id, vector2_t const *
     return true;
 }
 
-bool G_IssueUnitBuildOrder(edict_t *builder, uint32_t building_id, vector2_t const *location,
+bool G_IssueUnitBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *location,
                            bool queue, uint32_t issuer_player) {
-    vector2_t snapped;
+    vec2_t snapped;
 
     if (!builder || !building_id || !location || M_IsDead(builder) ||
         G_BuildingUpgradeActive(builder) || S_GoldMineWorkerIsInside(builder)) return false;
@@ -297,7 +297,7 @@ static void FillUnitData(entityState_t *ent, uint32_t unit_id, cstring_t anim) {
 
 void build_build(edict_t *ent) {
     gameClient_t *client;
-    vector2_t snapped;
+    vec2_t snapped;
     buildPlacementResult_t placement;
     buildCommandState_t state;
     edict_t *building;
@@ -471,10 +471,10 @@ void build_build(edict_t *ent) {
     Get_Portrait_f(G_GetPlayerEntityByNumber(ent->s.player));
 }
 
-bool build_menu_send_builder(edict_t *clent, vector2_t const *location) {
+bool build_menu_send_builder(edict_t *clent, vec2_t const *location) {
     edict_t *builder;
     gameClient_t *owner;
-    vector2_t snapped;
+    vec2_t snapped;
     buildPlacementResult_t placement;
     buildCommandState_t state;
     char reason[128];

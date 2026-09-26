@@ -18,10 +18,10 @@ static void *test_minimap_load_streamed(void *context, cstring_t path) {
 }
 
 TEST(wc3_minimap, marker_sizes_match_retail_capture_calibration) {
-    vector2_t const unit = wc3_minimap_marker_size(WC3_MINIMAP_CONTACT_UNIT);
-    vector2_t const building = wc3_minimap_marker_size(WC3_MINIMAP_CONTACT_BUILDING);
-    vector2_t const special = wc3_minimap_marker_size(WC3_MINIMAP_CONTACT_GOLD_MINE);
-    vector2_t const hero = wc3_minimap_marker_size(WC3_MINIMAP_CONTACT_HERO);
+    vec2_t const unit = wc3_minimap_marker_size(WC3_MINIMAP_CONTACT_UNIT);
+    vec2_t const building = wc3_minimap_marker_size(WC3_MINIMAP_CONTACT_BUILDING);
+    vec2_t const special = wc3_minimap_marker_size(WC3_MINIMAP_CONTACT_GOLD_MINE);
+    vec2_t const hero = wc3_minimap_marker_size(WC3_MINIMAP_CONTACT_HERO);
 
     T_FEQ(unit.x, 0.002f, 0.000001f);
     T_FEQ(unit.y, 0.002f, 0.000001f);
@@ -32,7 +32,7 @@ TEST(wc3_minimap, marker_sizes_match_retail_capture_calibration) {
     T_FEQ(hero.x, 0.014f, 0.000001f);
     T_FEQ(hero.y, 0.014f, 0.000001f);
 
-    rect_t const marker = wc3_minimap_marker_rect(&(vector2_t){ 0.5f, 0.25f }, WC3_MINIMAP_CONTACT_HERO);
+    rect_t const marker = wc3_minimap_marker_rect(&(vec2_t){ 0.5f, 0.25f }, WC3_MINIMAP_CONTACT_HERO);
     T_FEQ(marker.x, 0.493f, 0.000001f);
     T_FEQ(marker.y, 0.243f, 0.000001f);
     T_FEQ(marker.w, 0.014f, 0.000001f);

@@ -115,7 +115,7 @@ static void ShowResearchComplete(edict_t *producer, uint32_t upgrade_id, int32_t
         snprintf(text, sizeof(text), "%s%s",
                  completed && strcmp(completed, "COLON_COMPLETED") ? completed : "Completed: ",
                  button.tooltip[0] ? button.tooltip : GetClassName(upgrade_id));
-        UI_ShowText(clent, &MAKE(vector2_t, 0, 0), text, 2.0f);
+        UI_ShowText(clent, &MAKE(vec2_t, 0, 0), text, 2.0f);
     }
     sound = Theme_PlayerString(client, "ResearchComplete", NULL);
     if (sound && *sound) G_PlayUISoundForPlayer(clent, sound);
@@ -300,7 +300,7 @@ static void RefundHeroRevive(edict_t *altar, edict_t *hero) {
 }
 
 static bool ShowTrainedUnit(edict_t *townhall, edict_t *unit) {
-    vector2_t origin;
+    vec2_t origin;
     float angle;
 
     if (!SP_FindUnitExitPosition(townhall, unit, &origin, &angle)) {
@@ -320,7 +320,7 @@ static bool ShowTrainedUnit(edict_t *townhall, edict_t *unit) {
 }
 
 static bool CompleteHeroRevive(edict_t *altar, edict_t *hero) {
-    vector2_t origin;
+    vec2_t origin;
     float angle;
     edict_t *next;
 

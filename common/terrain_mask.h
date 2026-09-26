@@ -8,7 +8,7 @@
 typedef struct {
     uint32_t width;
     uint32_t height;
-    vector2_t origin;
+    vec2_t origin;
     float cell_size;
     uint8_t *cells;
     uint32_t generation;
@@ -29,7 +29,7 @@ typedef struct {
 _Static_assert(sizeof(terrainMaskChunk_t) == 24, "Terrain-mask datagram header must remain a compact wire record");
 _Static_assert(offsetof(terrainMaskChunk_t, min_x) == 12, "Terrain-mask chunk keeps wire offsets with explicit reserved");
 
-static inline bool TerrainMask_CellForPoint(vector2_t origin, float cell_size, uint32_t width, uint32_t height, vector2_t const *point, uint32_t *x, uint32_t *y) {
+static inline bool TerrainMask_CellForPoint(vec2_t origin, float cell_size, uint32_t width, uint32_t height, vec2_t const *point, uint32_t *x, uint32_t *y) {
     float fx, fy;
     if (!point || !x || !y || !width || !height || cell_size <= 0.0f) return false;
     fx = (point->x - origin.x) / cell_size; fy = (point->y - origin.y) / cell_size;

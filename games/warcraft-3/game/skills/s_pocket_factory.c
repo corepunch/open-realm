@@ -15,7 +15,7 @@ static void pocket_factory_leash(edict_t *factory, uint32_t clockwerk, float lea
 /* Pocket Factory's classless thinker follows the factory slot, so removing or reusing the factory cannot keep production alive. */
 void pocket_factory_think(edict_t *thinker) {
     edict_t *factory = thinker->owner;
-    vector2_t loc;
+    vec2_t loc;
     if (!factory || !factory->inuse || G_Time() >= thinker->spawn_time) { G_FreeEdict(thinker); return; }
     pocket_factory_leash(factory, thinker->damage, thinker->velocity);
     if (G_Time() < thinker->freetime) return;

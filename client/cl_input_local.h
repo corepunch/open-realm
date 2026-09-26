@@ -7,7 +7,7 @@
 
 bool CL_MouseOverGameplayUI(void);
 bool CL_GameplayInputReady(void);
-void CL_SetCameraPosition(vector2_t position);
+void CL_SetCameraPosition(vec2_t position);
 
 void CL_ResetInput(void);
 uint32_t CL_SelectionLimit(void);

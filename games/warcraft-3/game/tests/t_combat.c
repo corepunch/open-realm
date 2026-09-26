@@ -137,7 +137,7 @@ TEST(wc3_combat, flymissile_advances_animation_and_tracks_homing_yaw) {
     missile = G_Spawn();
     target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 100.0f);
     target->s.origin.z = 200.0f;
-    missile->s.origin = (vector3_t){ 0.0f, 0.0f, 0.0f };
+    missile->s.origin = (vec3_t){ 0.0f, 0.0f, 0.0f };
     missile->goalentity = target;
     missile->movetype = MOVETYPE_FLYMISSILE;
     missile->velocity = 0.1f;
@@ -1023,7 +1023,7 @@ TEST(wc3_combat, runentity_ability_index_from_currentmove) {
      * would catch G_RunEntity hard-coding s.ability = 0. */
     edict_t *ent      = make_combat_unit(MAKEFOURCC('h','p','e','a'), 250.0f, 0.0f, 0.0f);
     ent->movetype    = MOVETYPE_NONE;
-    vector2_t dest     = MAKE(vector2_t, 100.0f, 100.0f);
+    vec2_t dest     = MAKE(vec2_t, 100.0f, 100.0f);
     edict_t *waypoint = Waypoint_add(&dest);
     order_move(ent, waypoint);  /* sets currentmove->proc = CAbilityMove */
     T_NOT_NULL(ent->currentmove);
@@ -1814,7 +1814,7 @@ TEST(wc3_combat, attack_ground_accepts_artillery_point_and_launches_fixed_projec
     UnitWeapons_t weapons = { .attacksEnabled = 3, .minimumAttackRange = 50.0f,
                               .attack1 = { .areaTargets = WC3_TARGET_FLAG_GROUND } };
     edict_t *attacker = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380.0f, 0.0f, 0.0f);
-    vector2_t point = { 200.0f, 75.0f };
+    vec2_t point = { 200.0f, 75.0f };
     edict_t *missile = NULL;
 
     attacker->data.UnitWeapons = &weapons;
@@ -2305,7 +2305,7 @@ TEST(wc3_combat, blight_growth_uses_authored_expansion_and_availability) {
         "C;Y2;X6;K219\n"
         "E\n";
     uint32_t const code = MAKEFOURCC('A','b','l','1');
-    vector2_t first_ring = { 48.0f, 0.0f }, second_ring = { 176.0f, 0.0f };
+    vec2_t first_ring = { 48.0f, 0.0f }, second_ring = { 176.0f, 0.0f };
     slkTestData_t *rows = parse_slk_string(blight_slk);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
     edict_t *unit;
@@ -2352,7 +2352,7 @@ TEST(wc3_combat, blight_growth_reads_roc_data_columns) {
         "C;Y2;X6;K73\n"
         "E\n";
     uint32_t const code = MAKEFOURCC('A','b','l','1');
-    vector2_t first_ring = { 48.0f, 0.0f };
+    vec2_t first_ring = { 48.0f, 0.0f };
     slkTestData_t *rows = parse_slk_string(blight_roc_slk);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
     edict_t *unit;
@@ -2371,7 +2371,7 @@ TEST(wc3_combat, blight_growth_reads_roc_data_columns) {
 TEST(wc3_combat, blight_regeneration_tracks_world_state_without_movement) {
     edict_t *unit;
     UnitBalance_t balance;
-    vector2_t point = { 0.0f, 0.0f };
+    vec2_t point = { 0.0f, 0.0f };
 
     setup_test_world();
     unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), point.x, point.y);
@@ -2826,7 +2826,7 @@ TEST(wc3_combat, victory_and_defeat_are_distinct_event_types) {
  * before the order holds the unit at its origin (repro from #476). */
 TEST(wc3_combat, attack_ground_ensnare_before_order_holds_position) {
     edict_t *unit;
-    vector2_t point = { 1000, 0 };
+    vec2_t point = { 1000, 0 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
@@ -2846,7 +2846,7 @@ TEST(wc3_combat, attack_ground_ensnare_before_order_holds_position) {
 /* Lock applied mid-approach freezes further steps; the order is retained. */
 TEST(wc3_combat, attack_ground_ensnare_mid_approach_freezes) {
     edict_t *unit;
-    vector2_t point = { 1000, 0 };
+    vec2_t point = { 1000, 0 };
     float frozen_x, frozen_y;
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
@@ -2873,7 +2873,7 @@ TEST(wc3_combat, attack_ground_ensnare_mid_approach_freezes) {
 TEST(wc3_combat, attack_ground_min_range_no_retreat_while_locked) {
     UnitWeapons_t weapons = { .attacksEnabled = 3, .minimumAttackRange = 150.0f };
     edict_t *unit;
-    vector2_t point = { 50, 0 };
+    vec2_t point = { 50, 0 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     unit->data.UnitWeapons = &weapons;
@@ -2893,7 +2893,7 @@ TEST(wc3_combat, attack_ground_min_range_no_retreat_while_locked) {
 /* Movement lock must not disable stationary firing at an in-range point. */
 TEST(wc3_combat, attack_ground_locked_still_fires_in_range) {
     edict_t *unit, *missile = NULL;
-    vector2_t point = { 200, 75 };
+    vec2_t point = { 200, 75 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
@@ -2917,7 +2917,7 @@ TEST(wc3_combat, attack_ground_locked_still_fires_in_range) {
 /* Expiry removes the restriction; the retained order then progresses. */
 TEST(wc3_combat, attack_ground_resumes_after_lock_expiry) {
     edict_t *unit;
-    vector2_t point = { 1000, 0 };
+    vec2_t point = { 1000, 0 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
@@ -2943,7 +2943,7 @@ TEST(wc3_combat, attack_ground_resumes_after_lock_expiry) {
 /* Stop and replacement orders stay effective while locked. */
 TEST(wc3_combat, attack_ground_stop_and_replace_while_locked) {
     edict_t *unit;
-    vector2_t point = { 1000, 0 }, other = { 10, 0 };
+    vec2_t point = { 1000, 0 }, other = { 10, 0 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
@@ -2965,7 +2965,7 @@ TEST(wc3_combat, attack_ground_stop_and_replace_while_locked) {
 /* Roots lock translation the same way; immobile artillery still fires in range. */
 TEST(wc3_combat, attack_ground_roots_and_immobile_cover) {
     edict_t *unit, *tower, *missile = NULL;
-    vector2_t far = { 1000, 0 }, near = { 200, 75 };
+    vec2_t far = { 1000, 0 }, near = { 200, 75 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 0, 0);
     unit->attack1.type = ATK_SIEGE; unit->attack1.weapon = WPN_ARTILLERY;
@@ -2997,7 +2997,7 @@ TEST(wc3_combat, attack_ground_roots_and_immobile_cover) {
 /* Scheduler-path coverage: issued point order advances through G_RunEntities. */
 TEST(wc3_combat, attack_ground_issued_order_holds_while_ensnared) {
     edict_t *unit;
-    vector2_t point = { 1000, 0 };
+    vec2_t point = { 1000, 0 };
     setup_test_world(); reset_entities(); level.time = 1000;
     unit = make_combat_unit(MAKEFOURCC('u','m','t','w'), 380, 100, 0);
     unit->s.player = 0;

@@ -23,7 +23,7 @@ static void self_destruct_explode(edict_t *ent, uint32_t code) {
 	float full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
 	float part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
 	float build = S_SpellData(code, level, 5);
-	vector2_t origin = ent->s.origin2;
+	vec2_t origin = ent->s.origin2;
 	if (full_d <= 0.0f && part_d <= 0.0f) return;
 	if (part_r < full_r) part_r = full_r;
 	FILTER_EDICTS(target, self_destruct_allows(code, ent, target)) {
@@ -54,7 +54,7 @@ static void self_destruct_kaboom(edict_t *ent, uint32_t code) {
 static bool self_destruct_autocast_acquire(edict_t *caster, uint32_t code) {
 	uint32_t level = MAX(1u, G_UnitAbilityLevel(caster, code));
 	float full_r = S_SpellData(code, level, 1);
-	vector2_t point;
+	vec2_t point;
 	if (full_r <= 0.0f) full_r = 100.0f;
 	FILTER_EDICTS(target, self_destruct_allows(code, caster, target)) {
 		if (Vector2_distance(&target->s.origin2, &caster->s.origin2) > full_r) continue;

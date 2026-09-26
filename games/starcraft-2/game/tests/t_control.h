@@ -12,15 +12,15 @@ static void sc2_test_link(edict_t *ent) { (void)ent; }
 static uint32_t sc2_test_clock(void) { return sc2_test_time; }
 
 /* Compare the renderer's native model front with a completed authoritative move step. */
-static void sc2_test_model_follows_step(edict_t const *ent, vector2_t previous) {
+static void sc2_test_model_follows_step(edict_t const *ent, vec2_t previous) {
     entityState_t state = ent->s;
     model_t model = { .modeltype = ID_43DM };
     renderEntity_t render = { .model = &model, .origin = state.origin, .angle = state.angle, .scale = 1 };
-    matrix4_t matrix;
+    mat4_t matrix;
     R_GetEntityMatrix(&render, &matrix);
-    vector3_t front = Matrix4_multiply_vector3(&matrix, &MAKE(vector3_t, 0, -1, 0));
-    vector2_t forward = { front.x - state.origin.x, front.y - state.origin.y };
-    vector2_t step = Vector2_sub(&ent->s.origin2, &previous);
+    vec3_t front = Matrix4_multiply_vector3(&matrix, &MAKE(vec3_t, 0, -1, 0));
+    vec2_t forward = { front.x - state.origin.x, front.y - state.origin.y };
+    vec2_t step = Vector2_sub(&ent->s.origin2, &previous);
     Vector2_normalize(&step); Vector2_normalize(&forward);
     T_ASSERT(forward.x * step.x + forward.y * step.y > 0.9999f);
 }
@@ -76,7 +76,7 @@ TEST(sc2_control, shared_router_detours_and_arrives) {
     sc2Map_t *map = SC2_MapCurrent();
     sc2MapInfo_t info = map->MapInfo;
     float cell = map->cell_size;
-    vector2_t origin = map->origin;
+    vec2_t origin = map->origin;
     uint8_t cells[32 * 32] = { 0 };
     animation_t anims[] = { { .name = "Stand", .interval = {0, 1000} }, { .name = "Walk", .interval = {1000, 2000} } };
     g_cmodel_t model = g_models[1];
@@ -84,14 +84,14 @@ TEST(sc2_control, shared_router_detours_and_arrives) {
     gi.LinkEntity = sc2_test_link; gi.GetTime = sc2_test_clock;
     memset(sc2_edicts, 0, sizeof(sc2_edicts)); memset(sc2_move, 0, sizeof(sc2_move));
     globals.num_edicts = 2;
-    map->MapInfo.width = map->MapInfo.height = 32; map->cell_size = 1; map->origin = (vector2_t){0};
+    map->MapInfo.width = map->MapInfo.height = 32; map->cell_size = 1; map->origin = (vec2_t){0};
     FOR_LOOP(y, 20) cells[y * 32 + 16] = 2;
     CM_SetupPathMap(32, 32, cells);
     edict_t *ent = &sc2_edicts[1];
     *ent = (edict_t){ .inuse = true, .svflags = SVF_MONSTER, .collision = 0.375f,
         .s = { .number = 1, .model = 1, .origin = {8.25f, 10.25f, 0} } };
     sc2_move[1].mobile = true;
-    vector2_t target = {24.375f, 10.625f};
+    vec2_t target = {24.375f, 10.625f};
     SC2_OrderMove(ent, &target);
     T_FEQ(sc2_move[1].target.x, target.x, 0.00001f);
     T_ASSERT(!CM_LineIsWalkableForRadius(&ent->s.origin2, &target, ent->collision));
@@ -99,7 +99,7 @@ TEST(sc2_control, shared_router_detours_and_arrives) {
     T_ASSERT(sc2_move[1].path.valid); /* WC3's immediate A* handles a pending field. */
     bool detour = false;
     for (int i = 0; i < 300 && sc2_move[1].moving; i++) {
-        vector2_t prev = ent->s.origin2;
+        vec2_t prev = ent->s.origin2;
         CM_ProcessPathJobs(BZ_PATH_WORK_BUDGET);
         SC2_RunUnit(ent);
         T_ASSERT(CM_LineIsWalkableForRadius(&prev, &ent->s.origin2, ent->collision));
@@ -154,7 +154,7 @@ TEST(sc2_control, cardinal_move_orders_face_displacement) {
         SC2_ClientCommand(sc2_edicts, 2, (cstring_t[]){"select", "1"});
         cstring_t points[][2] = { {"20", "8"}, {"8", "20"}, {"0", "8"}, {"8", "0"} };
         SC2_ClientCommand(sc2_edicts, 3, (cstring_t[]){"smartpoint", points[i][0], points[i][1]});
-        vector2_t previous = ent->s.origin2;
+        vec2_t previous = ent->s.origin2;
         SC2_RunUnit(ent);
         T_ASSERT(sc2_move[1].moving);
         sc2_test_model_follows_step(ent, previous);
@@ -177,7 +177,7 @@ TEST(sc2_control, galaxy_vitals_lifecycle_and_pause) {
     SC2_UnitInit(ent,&object); sc2_move[1].mobile=true; sc2_move[1].flying=true;
     T_ASSERT(SC2_IsSelectable(ent,2)); T_ASSERT(SC2_GalaxyUnitIsAlive(ent));
     T_ASSERT(SC2_UnitFromId(72)==ent);
-    SC2_OrderMove(ent,&(vector2_t){10,0}); SC2_RunUnit(ent);
+    SC2_OrderMove(ent,&(vec2_t){10,0}); SC2_RunUnit(ent);
     T_ASSERT(ent->s.origin.x>0); T_FEQ(sc2_move[1].speed,3.75f,0.001f);
     float x=ent->s.origin.x, hp=sc2_units[1].vitals[0].value;
     sc2_units[1].states |= 1u<<SC2_UNIT_PAUSED; SC2_UnitChanged(ent);

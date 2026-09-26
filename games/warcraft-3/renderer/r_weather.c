@@ -209,7 +209,7 @@ static void R_WeatherSync(void) {
 
 static box2_t R_WeatherEmissionBounds(void) {
     float radius = MAX(WEATHER_MIN_EMIT_RADIUS, tr.viewDef.camerastate[0].distance * 1.25f);
-    vector3_t center = tr.viewDef.camerastate[0].origin;
+    vec3_t center = tr.viewDef.camerastate[0].origin;
     return (box2_t){
         .min = { center.x - radius, center.y - radius },
         .max = { center.x + radius, center.y + radius },
@@ -238,7 +238,7 @@ static void R_WeatherSpawn(renderWeatherEffect_t *effect, box2_t const *area) {
     w3WeatherArt_t const *art = effect->art;
     cparticle_t *p;
     float ax, ay, speed;
-    vector3_t direction;
+    vec3_t direction;
 
     if (!art || !area || art->lifespan <= 0.0f) return;
     p = R_SpawnParticle();
@@ -251,11 +251,11 @@ static void R_WeatherSpawn(renderWeatherEffect_t *effect, box2_t const *area) {
 
     ax = art->angleX * WEATHER_DEG2RAD;
     ay = art->angleY * WEATHER_DEG2RAD;
-    direction = (vector3_t){ sinf(ay) * cosf(ax), -sinf(ax), cosf(ay) * cosf(ax) };
+    direction = (vec3_t){ sinf(ay) * cosf(ax), -sinf(ax), cosf(ay) * cosf(ax) };
     speed = art->velocity;
     p->vel = Vector3_scale(&direction, speed);
     p->accel = Vector3_scale(&direction, art->acceleration);
-    p->tail = art->tail ? Vector3_scale(&p->vel, art->tailLength) : (vector3_t){0};
+    p->tail = art->tail ? Vector3_scale(&p->vel, art->tailLength) : (vec3_t){0};
 
     p->color[0] = (color32_t){ R_WeatherByte(art->redStart), R_WeatherByte(art->greenStart), R_WeatherByte(art->blueStart), R_WeatherByte(art->alphaStart) };
     p->color[1] = (color32_t){ R_WeatherByte(art->redMid), R_WeatherByte(art->greenMid), R_WeatherByte(art->blueMid), R_WeatherByte(art->alphaMid) };

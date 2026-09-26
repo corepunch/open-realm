@@ -45,10 +45,10 @@ TEST(sc2_control, model_front_follows_heading) {
     model_t model = { .modeltype = ID_43DM };
     FOR_LOOP(i, 4) {
         renderEntity_t ent = { .model = &model, .origin = {3, 5, 7}, .scale = 2, .angle = i * M_PI / 2 };
-        matrix4_t matrix;
+        mat4_t matrix;
         R_GetEntityMatrix(&ent, &matrix);
-        vector3_t front = Matrix4_multiply_vector3(&matrix, &MAKE(vector3_t, 0, -1, 0));
-        vector3_t up = Matrix4_multiply_vector3(&matrix, &MAKE(vector3_t, 0, 0, 1));
+        vec3_t front = Matrix4_multiply_vector3(&matrix, &MAKE(vec3_t, 0, -1, 0));
+        vec3_t up = Matrix4_multiply_vector3(&matrix, &MAKE(vec3_t, 0, 0, 1));
         T_FEQ(front.x, ent.origin.x + 2 * cosf(ent.angle), 0.0001f);
         T_FEQ(front.y, ent.origin.y + 2 * sinf(ent.angle), 0.0001f);
         T_FEQ(front.z, ent.origin.z, 0.0001f);
@@ -64,16 +64,16 @@ TEST(sc2_control, authored_placement_and_camera_preserved) {
         float raw = i * 0.37f;
         renderEntity_t ent = { .model = &model, .origin = {3, 5, 7}, .scale = 1.5f,
             .angle = SC2_PlacementHeading(raw) };
-        matrix4_t matrix, old;
+        mat4_t matrix, old;
         Matrix4_identity(&old); Matrix4_translate(&old, &ent.origin);
-        Matrix4_rotate(&old, &MAKE(vector3_t, 0, 0, RAD2DEG(raw)), ROTATE_XYZ);
-        Matrix4_scale(&old, &MAKE(vector3_t, 1.5f, 1.5f, 1.5f));
+        Matrix4_rotate(&old, &MAKE(vec3_t, 0, 0, RAD2DEG(raw)), ROTATE_XYZ);
+        Matrix4_scale(&old, &MAKE(vec3_t, 1.5f, 1.5f, 1.5f));
         R_GetEntityMatrix(&ent, &matrix);
         FOR_LOOP(k, 16) T_FEQ(matrix.v[k], old.v[k], 0.0001f);
         viewDef_t camera = {0};
         T_ASSERT(R_ExtractEntityCamera(&ent, 1.5f, &camera));
-        vector3_t center = Matrix4_multiply_vector3(&matrix, &MAKE(vector3_t, -0.5f, 0, 1.5f));
-        vector3_t ndc = Matrix4_multiply_vector3(&camera.viewProjectionMatrix, &center);
+        vec3_t center = Matrix4_multiply_vector3(&matrix, &MAKE(vec3_t, -0.5f, 0, 1.5f));
+        vec3_t ndc = Matrix4_multiply_vector3(&camera.viewProjectionMatrix, &center);
         T_FEQ(ndc.x, 0, 0.001f); T_FEQ(ndc.y, 0, 0.001f);
     }
 }
@@ -96,10 +96,10 @@ TEST(sc2_control, snapshot_preserves_authored_placement) {
         }
         renderEntity_t ent = { .model = &model, .origin = states[1].origin,
             .scale = states[1].scale, .angle = states[1].angle };
-        matrix4_t expected, actual;
+        mat4_t expected, actual;
         Matrix4_identity(&expected); Matrix4_translate(&expected, &states[0].origin);
-        Matrix4_rotate(&expected, &MAKE(vector3_t, 0, 0, RAD2DEG(states[0].angle)), ROTATE_XYZ);
-        Matrix4_scale(&expected, &MAKE(vector3_t, ent.scale, ent.scale, ent.scale));
+        Matrix4_rotate(&expected, &MAKE(vec3_t, 0, 0, RAD2DEG(states[0].angle)), ROTATE_XYZ);
+        Matrix4_scale(&expected, &MAKE(vec3_t, ent.scale, ent.scale, ent.scale));
         R_GetEntityMatrix(&ent, &actual);
         FOR_LOOP(k, 16) T_FEQ(actual.v[k], expected.v[k], 0.0001f);
     }
@@ -122,7 +122,7 @@ TEST(sc2_control, snapshot_interpolation_preserves_facing) {
     renderEntity_t ent = { .model = &model, .scale = 1,
         .origin = Vector3_lerp(&states[0].origin, &states[1].origin, 0.5f),
         .angle = LerpRotation(states[0].angle, states[1].angle, 0.5f) };
-    matrix4_t matrix; R_GetEntityMatrix(&ent, &matrix);
-    vector3_t front = Matrix4_multiply_vector3(&matrix, &MAKE(vector3_t, 0, -1, 0));
+    mat4_t matrix; R_GetEntityMatrix(&ent, &matrix);
+    vec3_t front = Matrix4_multiply_vector3(&matrix, &MAKE(vec3_t, 0, -1, 0));
     T_FEQ(front.x, 4.5f, 0.01f); T_FEQ(front.y, 5, 0.01f); T_FEQ(front.z, 7, 0.0001f);
 }

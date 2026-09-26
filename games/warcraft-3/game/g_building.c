@@ -13,7 +13,7 @@
  * snapshots. It has no collision and never bakes static pathing. Its footprint
  * still displaces friendly mobile units at placement time; the real structure
  * repeats that displacement when construction starts. */
-edict_t *G_CreateBuildPreview(edict_t *builder, uint32_t building_id, vector2_t const *location) {
+edict_t *G_CreateBuildPreview(edict_t *builder, uint32_t building_id, vec2_t const *location) {
     edict_t *preview;
     animation_t const *stand;
 
@@ -1154,7 +1154,7 @@ void G_GetBuildPlacementPathingFlags(uint32_t building_id, uint8_t *prevented, u
     }
 }
 
-void G_SnapBuildingPoint(uint32_t building_id, vector2_t *point) {
+void G_SnapBuildingPoint(uint32_t building_id, vec2_t *point) {
     pathTex_t *pathtex;
     UnitData_t const *data;
 
@@ -1178,7 +1178,7 @@ static bool G_PathCellUsed(pathTex_t const *pathtex, uint32_t x, uint32_t y) {
     return pathtex->map[x + y * pathtex->width].b != 0;
 }
 
-bool G_FindBuildOnTarget(uint32_t building_id, vector2_t const *point, edict_t * *out) {
+bool G_FindBuildOnTarget(uint32_t building_id, vec2_t const *point, edict_t * *out) {
     UnitData_t const *data = G_UnitData(building_id);
     if (out) *out = NULL;
     if (!data->isBuildOn) return true;
@@ -1215,13 +1215,13 @@ static bool G_LiveUnitBlocksBuild(edict_t *builder, edict_t *build_on, box2_t co
         if (ent == builder || ent == build_on || ent->collision <= 0.0f) continue;
         x = MAX(footprint->min.x, MIN(footprint->max.x, ent->s.origin2.x));
         y = MAX(footprint->min.y, MIN(footprint->max.y, ent->s.origin2.y));
-        vector2_t nearest = { x, y };
+        vec2_t nearest = { x, y };
         if (Vector2_distance(&nearest, &ent->s.origin2) < ent->collision && !G_BuildUnitCanDisplace(builder, ent)) return true;
     }
     return false;
 }
 
-static bool G_BuildTooCloseToGoldMine(uint32_t building_id, vector2_t const *point) {
+static bool G_BuildTooCloseToGoldMine(uint32_t building_id, vec2_t const *point) {
     if (!point || !S_UnitTypeReturnsGold(building_id)) return false;
 
     FILTER_EDICTS(mine, mine->inuse && !M_IsDead(mine) && S_GoldMineIsMine(mine)) {
@@ -1234,7 +1234,7 @@ static bool G_BuildTooCloseToGoldMine(uint32_t building_id, vector2_t const *poi
 /* Move friendly mobile units clear of a newly baked footprint while retaining their active orders. */
 bool G_DisplaceBuildOccupants(edict_t *builder, edict_t *building) {
     edict_t * *units;
-    vector2_t *positions;
+    vec2_t *positions;
     uint32_t count = 0;
 
     if (!builder || !building || !globals.num_edicts) return false;
@@ -1292,8 +1292,8 @@ bool G_DisplaceBuildOccupants(edict_t *builder, edict_t *building) {
     return true;
 }
 
-buildPlacementResult_t G_EvaluateBuildPlacement(edict_t *builder, uint32_t building_id, vector2_t const *requested,
-                                                vector2_t *snapped) {
+buildPlacementResult_t G_EvaluateBuildPlacement(edict_t *builder, uint32_t building_id, vec2_t const *requested,
+                                                vec2_t *snapped) {
     UnitData_t const *data = G_UnitData(building_id);
     uint8_t prevented = 0;
     uint8_t required = 0;
@@ -1301,7 +1301,7 @@ buildPlacementResult_t G_EvaluateBuildPlacement(edict_t *builder, uint32_t build
     edict_t *build_on = NULL;
     uint32_t width = 1, height = 1;
     box2_t footprint;
-    vector2_t point;
+    vec2_t point;
 
     if (!requested || !G_UnitIsBuilding(building_id)) {
 #ifdef WC3_DEBUG_MINING
@@ -1346,7 +1346,7 @@ buildPlacementResult_t G_EvaluateBuildPlacement(edict_t *builder, uint32_t build
     if (!build_on) {
         FOR_LOOP(x, width) {
             FOR_LOOP(y, height) {
-                vector2_t sample;
+                vec2_t sample;
                 uint8_t flags;
                 if (pathtex && !G_PathCellUsed(pathtex, x, y)) continue;
                 sample.x = point.x + ((float)x + 0.5f - (float)width * 0.5f) * WC3_BUILD_CELL_SIZE;
@@ -1588,7 +1588,7 @@ static void G_ReleaseConstructionWorker(edict_t *building, bool completed) {
         G_SetUnitFoodUsed(worker, worker->data.UnitBalance->foodUsed);
 
     if (inside) {
-        vector2_t origin;
+        vec2_t origin;
         float angle;
         if (SP_FindUnitExitPosition(building, worker, &origin, &angle)) {
             worker->s.origin2 = origin;

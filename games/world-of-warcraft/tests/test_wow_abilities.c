@@ -216,8 +216,8 @@ static edict_t *make_player(void) {
         local->idle = Wow_AIIdle;
         local->attack = Wow_AIAttack;
         local->pain = Wow_AIPain;
-        ent->s.origin = (vector3_t){ 0.0f, 0.0f, 0.0f };
-        ent->s.origin2 = (vector2_t){ 0.0f, 0.0f };
+        ent->s.origin = (vec3_t){ 0.0f, 0.0f, 0.0f };
+        ent->s.origin2 = (vec2_t){ 0.0f, 0.0f };
         ent->s.angle = 0.0f;
         ent->s.scale = 1.0f;
         ent->s.radius = 1.0f;
@@ -241,8 +241,8 @@ static edict_t *make_creature(float x, float y) {
         local->idle = Wow_AIIdle;
         local->attack = Wow_AIAttack;
         local->pain = Wow_AIPain;
-        ent->s.origin = (vector3_t){ x, y, 0.0f };
-        ent->s.origin2 = (vector2_t){ x, y };
+        ent->s.origin = (vec3_t){ x, y, 0.0f };
+        ent->s.origin2 = (vec2_t){ x, y };
         ent->s.angle = 0.0f;
         ent->s.scale = 1.0f;
         ent->s.radius = 1.5f;

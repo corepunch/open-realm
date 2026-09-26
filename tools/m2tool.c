@@ -40,11 +40,11 @@ typedef struct {
     m2Array_t texture_units;
     m2Array_t transparency_lookup_table;
     m2Array_t texture_animation_lookup_table;
-    vector3_t bounding_box_min;
-    vector3_t bounding_box_max;
+    vec3_t bounding_box_min;
+    vec3_t bounding_box_max;
     float bounding_sphere_radius;
-    vector3_t collision_box_min;
-    vector3_t collision_box_max;
+    vec3_t collision_box_min;
+    vec3_t collision_box_max;
     float collision_sphere_radius;
     m2Array_t bounding_triangles;
     m2Array_t bounding_vertices;
@@ -71,8 +71,8 @@ typedef struct {
     uint32_t minimum_repetitions;
     uint32_t maximum_repetitions;
     uint32_t blend_time;
-    vector3_t min;
-    vector3_t max;
+    vec3_t min;
+    vec3_t max;
     float radius;
     int16_t next_animation;
     uint16_t alias_next;
@@ -89,8 +89,8 @@ typedef struct {
     uint32_t minimum_repetitions;
     uint32_t maximum_repetitions;
     uint32_t blend_time;
-    vector3_t min;
-    vector3_t max;
+    vec3_t min;
+    vec3_t max;
     float radius;
     int16_t next_animation;
     uint16_t alias_next;
@@ -132,7 +132,7 @@ typedef struct {
     uint32_t attachment_id;
     uint16_t bone_index;
     uint16_t padding;
-    vector3_t position;
+    vec3_t position;
     m2Track_t visibility_track;
 } m2AttachmentModern_t;
 
@@ -140,7 +140,7 @@ typedef struct {
     uint32_t attachment_id;
     uint16_t bone_index;
     uint16_t padding;
-    vector3_t position;
+    vec3_t position;
     m2TrackClassic_t visibility_track;
 } m2AttachmentClassic_t;
 
@@ -153,7 +153,7 @@ typedef struct {
     m2Track_t translation_track;
     m2Track_t rotation_track;
     m2Track_t scale_track;
-    vector3_t pivot;
+    vec3_t pivot;
 } m2CompBoneModern_t;
 
 typedef struct {
@@ -164,15 +164,15 @@ typedef struct {
     m2TrackClassic_t translation_track;
     m2TrackClassic_t rotation_track;
     m2TrackClassic_t scale_track;
-    vector3_t pivot;
+    vec3_t pivot;
 } m2CompBoneClassic_t;
 
 typedef struct {
-    vector3_t pos;
+    vec3_t pos;
     uint8_t bone_weights[4];
     uint8_t bone_indices[4];
-    vector3_t normal;
-    vector2_t tex_coords[2];
+    vec3_t normal;
+    vec2_t tex_coords[2];
 } m2Vertex_t;
 
 typedef struct {
@@ -211,8 +211,8 @@ typedef struct {
     uint16_t bone_combo_index;
     uint16_t bone_influences;
     uint16_t center_bone_index;
-    vector3_t center_position;
-    vector3_t sort_center_position;
+    vec3_t center_position;
+    vec3_t sort_center_position;
     float sort_radius;
 } m2SkinSection_t;
 
@@ -227,7 +227,7 @@ typedef struct {
     uint16_t bone_combo_index;
     uint16_t bone_influences;
     uint16_t center_bone_index;
-    vector3_t center_position;
+    vec3_t center_position;
 } m2SkinSectionLegacy_t;
 
 typedef struct {
@@ -253,7 +253,7 @@ typedef struct {
 
 /* Modern (WotLK+) particle emitter binary layout — m2Track_t (20 bytes each). */
 typedef struct {
-    uint32_t particle_id, flags; vector3_t position; uint16_t bone_index, texture_index;
+    uint32_t particle_id, flags; vec3_t position; uint16_t bone_index, texture_index;
     m2Array_t geometry_mdl, recursion_mdl;
     uint8_t blend_mode, emitter_type; uint16_t color_index, pad; int16_t priority_plane; uint16_t rows, cols;
     m2Track_t speed_track, variation_track, latitude_track, longitude_track, gravity_track, life_track;
@@ -262,12 +262,12 @@ typedef struct {
     float emission_rate_variation;
     m2Track_t width_track, length_track, zsource_track;
     m2PartTrack_t color_track, alpha_track, scale_track;
-    vector2_t scale_variation;
+    vec2_t scale_variation;
     m2PartTrack_t head_cell_track, tail_cell_track;
     float tail_length, twinkle_fps, twinkle_onoff, twinkle_scale[2];
     float ivel_scale, drag, initial_spin, initial_spin_variation, spin, spin_variation;
-    vector3_t tumble_min, tumble_max;
-    vector3_t wind_vector; float wind_time;
+    vec3_t tumble_min, tumble_max;
+    vec3_t wind_vector; float wind_time;
     float follow_speed1, follow_scale1, follow_speed2, follow_scale2;
     m2Array_t spline;
     m2Track_t visibility_track;
@@ -275,7 +275,7 @@ typedef struct {
 
 /* Classic/TBC stores ten contiguous 28-byte tracks followed by static lifecycle values. */
 typedef struct {
-    uint32_t particle_id, flags; vector3_t position; uint16_t bone_index, texture_index;
+    uint32_t particle_id, flags; vec3_t position; uint16_t bone_index, texture_index;
     m2Array_t geometry_mdl, recursion_mdl;
     uint8_t blend_mode, emitter_type; uint16_t color_index, pad; int16_t priority_plane; uint16_t rows, cols;
     m2TrackClassic_t speed_track, variation_track, latitude_track, longitude_track, gravity_track, life_track;
@@ -290,7 +290,7 @@ _Static_assert(sizeof(m2ParticleClassic_t) == 0x1f8, "classic M2 particles are 0
 
 /* Modern ribbon emitter — m2Track_t (20 bytes each). */
 typedef struct {
-    uint32_t ribbon_id; uint16_t bone_index, pad0; vector3_t position;
+    uint32_t ribbon_id; uint16_t bone_index, pad0; vec3_t position;
     m2Array_t texture_indices, material_indices;
     m2Track_t color_track, alpha_track, height_above_track, height_below_track;
     float edges_per_second, edge_lifetime, gravity;
@@ -301,7 +301,7 @@ typedef struct {
 
 /* Classic ribbon emitter — m2TrackClassic_t (24 bytes each). */
 typedef struct {
-    uint32_t ribbon_id; uint16_t bone_index, pad0; vector3_t position;
+    uint32_t ribbon_id; uint16_t bone_index, pad0; vec3_t position;
     m2Array_t texture_indices, material_indices;
     m2TrackClassic_t color_track, alpha_track, height_above_track, height_below_track;
     float edges_per_second, edge_lifetime, gravity;
@@ -962,8 +962,8 @@ static m2Array_t ReadArray(uint8_t const *p) {
     return array;
 }
 
-static vector3_t ReadVec3(uint8_t const *p) {
-    return (vector3_t){ ReadFloat(p), ReadFloat(p + 4), ReadFloat(p + 8) };
+static vec3_t ReadVec3(uint8_t const *p) {
+    return (vec3_t){ ReadFloat(p), ReadFloat(p + 4), ReadFloat(p + 8) };
 }
 
 static void SkipArray(uint32_t *offset) {
@@ -1090,13 +1090,13 @@ static cstring_t StringPtr(uint8_t const *base, uint32_t file_size, m2Array_t ar
     return (cstring_t)(base + offset);
 }
 
-static void PrintVec3(cstring_t label, vector3_t v) {
+static void PrintVec3(cstring_t label, vec3_t v) {
     printf("  %-22s %.6f %.6f %.6f\n", label, v.x, v.y, v.z);
 }
 
-static void PrintBoundsMetrics(cstring_t label, vector3_t min, vector3_t max) {
-    vector3_t extent = { max.x - min.x, max.y - min.y, max.z - min.z };
-    vector3_t center = {
+static void PrintBoundsMetrics(cstring_t label, vec3_t min, vec3_t max) {
+    vec3_t extent = { max.x - min.x, max.y - min.y, max.z - min.z };
+    vec3_t center = {
         (min.x + max.x) * 0.5f,
         (min.y + max.y) * 0.5f,
         (min.z + max.z) * 0.5f,
@@ -1133,7 +1133,7 @@ static void PrintAttachments(uint8_t const *data, uint32_t size, m2HeaderInfo_t 
     FOR_LOOP(i, (uint32_t)header->attachments.count) {
         uint32_t attachment_id;
         uint16_t bone_index;
-        vector3_t position;
+        vec3_t position;
 
         if (legacy) {
             m2AttachmentClassic_t const *attachment = (m2AttachmentClassic_t const *)(attachments + i * stride);
@@ -1197,7 +1197,7 @@ static void PrintEvents(uint8_t const *data, uint32_t size, m2HeaderInfo_t const
     }
 }
 
-static void UpdateBounds(box3_t *bounds, vector3_t p, bool *has_bounds) {
+static void UpdateBounds(box3_t *bounds, vec3_t p, bool *has_bounds) {
     if (!*has_bounds) {
         bounds->min = p;
         bounds->max = p;
@@ -1460,15 +1460,15 @@ static uint32_t ModernTrackKeyRange(uint8_t const *data,
                (uint32_t)sequence_keys[sequence_index].keys.count);
 }
 
-static vector3_t KeyVec3(uint8_t const *keys, uint32_t index) {
-    return *(vector3_t const *)(keys + index * sizeof(vector3_t));
+static vec3_t KeyVec3(uint8_t const *keys, uint32_t index) {
+    return *(vec3_t const *)(keys + index * sizeof(vec3_t));
 }
 
 static void PrintTrackLine(cstring_t label,
                            uint32_t bone_index,
                            uint32_t flags,
                            uint16_t parent_index,
-                           vector3_t pivot,
+                           vec3_t pivot,
                            uint32_t count,
                            m2Range_t range,
                            uint32_t const *times,
@@ -1491,9 +1491,9 @@ static void PrintTrackLine(cstring_t label,
     }
     if (count && keys) {
         if (vector_keys) {
-            vector3_t first = KeyVec3(keys, 0);
-            vector3_t mid = KeyVec3(keys, count / 2);
-            vector3_t last = KeyVec3(keys, count - 1);
+            vec3_t first = KeyVec3(keys, 0);
+            vec3_t mid = KeyVec3(keys, count / 2);
+            vec3_t last = KeyVec3(keys, count - 1);
             printf(" first=(%.3f %.3f %.3f) mid=(%.3f %.3f %.3f) last=(%.3f %.3f %.3f)",
                    first.x, first.y, first.z,
                    mid.x, mid.y, mid.z,
@@ -1577,14 +1577,14 @@ static void PrintAnimationDiagnostics(uint8_t const *data, uint32_t size, m2Head
         m2Range_t scale_range = { 0, 0 };
         uint32_t flags;
         uint16_t parent_index;
-        vector3_t pivot;
+        vec3_t pivot;
 
         if (classic) {
             m2CompBoneClassic_t const *bone = (m2CompBoneClassic_t const *)(bones + i * bone_stride);
             flags = bone->flags;
             parent_index = bone->parent_index;
             pivot = bone->pivot;
-            trans_count = ClassicTrackKeyRange(data, size, &bone->translation_track, sequence_index, sizeof(vector3_t), &trans_range, &times, &keys);
+            trans_count = ClassicTrackKeyRange(data, size, &bone->translation_track, sequence_index, sizeof(vec3_t), &trans_range, &times, &keys);
             if (trans_count) {
                 trans_bones++;
             }
@@ -1596,7 +1596,7 @@ static void PrintAnimationDiagnostics(uint8_t const *data, uint32_t size, m2Head
             }
             times = NULL;
             keys = NULL;
-            scale_count = ClassicTrackKeyRange(data, size, &bone->scale_track, sequence_index, sizeof(vector3_t), &scale_range, &times, &keys);
+            scale_count = ClassicTrackKeyRange(data, size, &bone->scale_track, sequence_index, sizeof(vec3_t), &scale_range, &times, &keys);
             if (scale_count) {
                 scale_bones++;
             }
@@ -1605,7 +1605,7 @@ static void PrintAnimationDiagnostics(uint8_t const *data, uint32_t size, m2Head
             flags = bone->flags;
             parent_index = bone->parent_index;
             pivot = bone->pivot;
-            trans_count = ModernTrackKeyRange(data, size, &bone->translation_track, sequence_index, sizeof(vector3_t), &times, &keys);
+            trans_count = ModernTrackKeyRange(data, size, &bone->translation_track, sequence_index, sizeof(vec3_t), &times, &keys);
             if (trans_count) {
                 trans_bones++;
             }
@@ -1617,7 +1617,7 @@ static void PrintAnimationDiagnostics(uint8_t const *data, uint32_t size, m2Head
             }
             times = NULL;
             keys = NULL;
-            scale_count = ModernTrackKeyRange(data, size, &bone->scale_track, sequence_index, sizeof(vector3_t), &times, &keys);
+            scale_count = ModernTrackKeyRange(data, size, &bone->scale_track, sequence_index, sizeof(vec3_t), &times, &keys);
             if (scale_count) {
                 scale_bones++;
             }
@@ -1627,30 +1627,30 @@ static void PrintAnimationDiagnostics(uint8_t const *data, uint32_t size, m2Head
             if (classic) {
                 m2CompBoneClassic_t const *bone = (m2CompBoneClassic_t const *)(bones + i * bone_stride);
                 if (trans_count) {
-                    trans_count = ClassicTrackKeyRange(data, size, &bone->translation_track, sequence_index, sizeof(vector3_t), &trans_range, &times, &keys);
-                    PrintTrackLine("trans", i, flags, parent_index, pivot, trans_count, trans_range, times, keys, sizeof(vector3_t), true, true);
+                    trans_count = ClassicTrackKeyRange(data, size, &bone->translation_track, sequence_index, sizeof(vec3_t), &trans_range, &times, &keys);
+                    PrintTrackLine("trans", i, flags, parent_index, pivot, trans_count, trans_range, times, keys, sizeof(vec3_t), true, true);
                 }
                 if (rot_count) {
                     rot_count = ClassicTrackKeyRange(data, size, &bone->rotation_track, sequence_index, sizeof(quaternion_t), &rot_range, &times, &keys);
                     PrintTrackLine("rot", i, flags, parent_index, pivot, rot_count, rot_range, times, keys, sizeof(quaternion_t), true, false);
                 }
                 if (scale_count) {
-                    scale_count = ClassicTrackKeyRange(data, size, &bone->scale_track, sequence_index, sizeof(vector3_t), &scale_range, &times, &keys);
-                    PrintTrackLine("scale", i, flags, parent_index, pivot, scale_count, scale_range, times, keys, sizeof(vector3_t), true, true);
+                    scale_count = ClassicTrackKeyRange(data, size, &bone->scale_track, sequence_index, sizeof(vec3_t), &scale_range, &times, &keys);
+                    PrintTrackLine("scale", i, flags, parent_index, pivot, scale_count, scale_range, times, keys, sizeof(vec3_t), true, true);
                 }
             } else {
                 m2CompBoneModern_t const *bone = (m2CompBoneModern_t const *)(bones + i * bone_stride);
                 if (trans_count) {
-                    trans_count = ModernTrackKeyRange(data, size, &bone->translation_track, sequence_index, sizeof(vector3_t), &times, &keys);
-                    PrintTrackLine("trans", i, flags, parent_index, pivot, trans_count, trans_range, times, keys, sizeof(vector3_t), false, true);
+                    trans_count = ModernTrackKeyRange(data, size, &bone->translation_track, sequence_index, sizeof(vec3_t), &times, &keys);
+                    PrintTrackLine("trans", i, flags, parent_index, pivot, trans_count, trans_range, times, keys, sizeof(vec3_t), false, true);
                 }
                 if (rot_count) {
                     rot_count = ModernTrackKeyRange(data, size, &bone->rotation_track, sequence_index, sizeof(m2CompQuat_t), &times, &keys);
                     PrintTrackLine("rot", i, flags, parent_index, pivot, rot_count, rot_range, times, keys, sizeof(m2CompQuat_t), false, false);
                 }
                 if (scale_count) {
-                    scale_count = ModernTrackKeyRange(data, size, &bone->scale_track, sequence_index, sizeof(vector3_t), &times, &keys);
-                    PrintTrackLine("scale", i, flags, parent_index, pivot, scale_count, scale_range, times, keys, sizeof(vector3_t), false, true);
+                    scale_count = ModernTrackKeyRange(data, size, &bone->scale_track, sequence_index, sizeof(vec3_t), &times, &keys);
+                    PrintTrackLine("scale", i, flags, parent_index, pivot, scale_count, scale_range, times, keys, sizeof(vec3_t), false, true);
                 }
             }
             if (!trans_count && !rot_count && !scale_count) {
@@ -2339,7 +2339,7 @@ static void RenderViewerFrame(refExport_t const *re, model_t *model, uint32_t no
 
     Matrix4_identity(&viewdef.textureMatrix);
     Viewer_OrbitBuildCamera(&g_orbit, aspect, 35.0f, near_clip, far_clip, &viewdef.viewProjectionMatrix);
-    Viewer_OrbitBuildLight(&g_orbit, &(vector3_t){ 0.0f, 0.0f, 0.0f }, MAX(32.0f, radius * 2.0f), &viewdef.lightMatrix);
+    Viewer_OrbitBuildLight(&g_orbit, &(vec3_t){ 0.0f, 0.0f, 0.0f }, MAX(32.0f, radius * 2.0f), &viewdef.lightMatrix);
     viewdef.viewport = (rect_t){ 0, 0, 1, 1 };
     viewdef.scissor = (rect_t){ 0, 0, 1, 1 };
     viewdef.time = now;
@@ -2386,7 +2386,7 @@ static int RunViewer(void) {
     g_preview_scale = extent > 0.0001f ? MAX(1.0f, 24.0f / extent) : 1.0f;
     orbit_distance = MAX(40.0f, extent * g_preview_scale * 2.4f);
     Viewer_OrbitInit(&g_orbit,
-                     (vector3_t){ 0.0f, 0.0f, height * g_preview_scale * 0.55f },
+                     (vec3_t){ 0.0f, 0.0f, height * g_preview_scale * 0.55f },
                      orbit_distance,
                      -45.0f,
                      18.0f);

@@ -340,9 +340,9 @@ void R_ReleaseRenderTexture(rendertarget_t *rt) {
 void R_SetupGL(bool drawLight) {
     size2_t const window = R_GetWindowSize();
     
-    matrix4_t model_matrix;
-    matrix3_t normal_matrix;
-    matrix4_t ui_matrix;
+    mat4_t model_matrix;
+    mat3_t normal_matrix;
+    mat4_t ui_matrix;
 
     Matrix4_identity(&model_matrix);
     R_SetupTextureMatrix();
@@ -359,7 +359,7 @@ void R_SetupGL(bool drawLight) {
 #endif
         tr.viewDef.viewProjectionMatrix.v;
 
-    memcpy(&tr.shader_default.state.viewProjection, viewProjectionMatrix, (1) * sizeof(matrix4_t));
+    memcpy(&tr.shader_default.state.viewProjection, viewProjectionMatrix, (1) * sizeof(mat4_t));
     tr.shader_default.state.textureMatrix = tr.viewDef.textureMatrix;
     tr.shader_default.state.model = model_matrix;
     tr.shader_default.state.lightMatrix = tr.viewDef.lightMatrix;
@@ -1052,13 +1052,13 @@ size2_t R_GetTextureSize(texture_t const *texture) {
 
 
 /* Keep model-format bounds inside the renderer while clients place game-owned world UI. */
-bool R_GetEntityOverheadPosition(renderEntity_t const *entity, vector3_t *out) {
+bool R_GetEntityOverheadPosition(renderEntity_t const *entity, vec3_t *out) {
     return R_EntityOverheadPosition(entity, out);
 }
 
 /* Keep attachment-name/model-format knowledge in the selected game renderer.
  * Shared client presentation can request an authored attachment by prefix. */
-bool R_GetEntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vector3_t *out) {
+bool R_GetEntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vec3_t *out) {
     return R_EntityAttachmentPosition(entity, prefix, out);
 }
 

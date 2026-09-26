@@ -109,7 +109,7 @@ buffer_t *R_MakeIndexedVertexArrayObject(vertex_t const *vertices, uint32_t num_
 /* Static instance transforms are immutable until their ADT window is replaced. */
 static GLuint r_instanced_vao = 0;
 
-bool R_MakeInstanceBuffer(instanceBuffer_t *buffer, matrix4_t const *matrices, uint32_t count) {
+bool R_MakeInstanceBuffer(instanceBuffer_t *buffer, mat4_t const *matrices, uint32_t count) {
     if (!buffer || !matrices || !count) return false;
     memset(buffer, 0, sizeof(*buffer));
     R_Call(glGenBuffers, 1, &buffer->vbo);
@@ -121,7 +121,7 @@ bool R_MakeInstanceBuffer(instanceBuffer_t *buffer, matrix4_t const *matrices, u
 }
 
 /* Visible static doodads regroup by model each frame; retain their VBO allocation across frames. */
-bool R_UpdateInstanceBuffer(instanceBuffer_t *buffer, matrix4_t const *matrices, uint32_t count) {
+bool R_UpdateInstanceBuffer(instanceBuffer_t *buffer, mat4_t const *matrices, uint32_t count) {
     uint32_t capacity;
 
     if (!buffer || !matrices || !count) return false;
@@ -167,7 +167,7 @@ static bool R_BindInstancedBuffer(buffer_t const *buffer, instanceBuffer_t const
     FOR_LOOP(i, 4) {
         R_Call(glEnableVertexAttribArray, attrib_instance + i);
         R_Call(glVertexAttribPointer, attrib_instance + i, 4, GL_FLOAT, GL_FALSE,
-            sizeof(matrix4_t), (void *)(i * 4 * sizeof(float)));
+            sizeof(mat4_t), (void *)(i * 4 * sizeof(float)));
         R_Call(glVertexAttribDivisor, attrib_instance + i, 1);
     }
     return true;

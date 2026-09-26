@@ -159,18 +159,18 @@ int SV_SoundIndexAlias(cstring_t name, cstring_t alias);
 client_t *SV_ClientForEntityRecipient(edict_t *ent);
 client_t *SV_ClientForEdictRecipient(edict_t *ent);
 void PF_Unicast(edict_t *ent);
-void SV_StartSoundPolicy(vector3_t const *origin, edict_t *ent, int channel, int sound_index, float volume,
+void SV_StartSoundPolicy(vec3_t const *origin, edict_t *ent, int channel, int sound_index, float volume,
                          float attenuation, float timeofs, soundPolicy_t const *policy);
-void SV_StartSound(vector3_t const *origin, edict_t *ent, int channel, int sound_index, float volume, float attenuation,
+void SV_StartSound(vec3_t const *origin, edict_t *ent, int channel, int sound_index, float volume, float attenuation,
                    float timeofs);
-void SV_MinimapPing(edict_t *ent, vector2_t const *position, float duration, color32_t color, uint32_t flags);
+void SV_MinimapPing(edict_t *ent, vec2_t const *position, float duration, color32_t color, uint32_t flags);
 int SV_ImageIndex(cstring_t name);
 int SV_FontIndex(cstring_t name, uint32_t fontSize);
 //void SV_LoadModels(void); // model animation data is loaded lazily by game modules now
 
 // sv_game.c
 void SV_WritePayload(sizeBuf_t *msg, uint8_t opcode, sizeBuf_t const *payload);
-void SV_Multicast(vector3_t const *origin, multicast_t to);
+void SV_Multicast(vec3_t const *origin, multicast_t to);
 void SV_InitGameProgs(void);
 
 // sv_main.c

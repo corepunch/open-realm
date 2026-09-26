@@ -42,14 +42,14 @@ static texture_t *hover_texture;
 static uint32_t captured_hover_draws;
 static rect_t captured_text_rects[8], popup_row_rect;
 static cstring_t popup_row_text;
-static vector2_t fake_text_size;
+static vec2_t fake_text_size;
 static handle_t test_mpq_archive;
 static bool hide_expansion_campaign_file;
 static bool test_fs_expansion;
 static int test_vid_native = -1;
 static cstring_t test_campaign_visibility;
 static PATHSTR test_campaign_progress_path = "campaign-progress-menu-test.orcp";
-static vector2_t test_mouse_pos;
+static vec2_t test_mouse_pos;
 static cstring_t test_map = "";
 static uint32_t map_reads, texture_releases;
 static char forwarded_command[1024];
@@ -105,9 +105,9 @@ static int require_not_null(void const *ptr) {
 
 TEST(menu_fdf, minimap_content_rect_preserves_rectangular_map_aspect) {
     rect_t frame = { 10.0f, 20.0f, 100.0f, 100.0f };
-    vector2_t wide = { 200.0f, 100.0f };
-    vector2_t tall = { 100.0f, 200.0f };
-    vector2_t invalid = { 0.0f, 100.0f };
+    vec2_t wide = { 200.0f, 100.0f };
+    vec2_t tall = { 100.0f, 200.0f };
+    vec2_t invalid = { 0.0f, 100.0f };
     rect_t content;
 
     content = WC3_MinimapContentRect(&frame, &wide);
@@ -213,7 +213,7 @@ static font_t *test_load_font(cstring_t name, uint32_t size) {
     return (font_t *)1;
 }
 
-static vector2_t test_get_text_size(drawText_t const *draw_text) {
+static vec2_t test_get_text_size(drawText_t const *draw_text) {
     (void)draw_text;
     return fake_text_size;
 }
@@ -414,8 +414,8 @@ static void reset_ui_state(void) {
     hover_texture = NULL;
     captured_hover_draws = 0;
     memset(captured_text_rects, 0, sizeof(captured_text_rects));
-    fake_text_size = MAKE(vector2_t, 0.050f, 0.016f);
-    test_mouse_pos = MAKE(vector2_t, 0, 0);
+    fake_text_size = MAKE(vec2_t, 0.050f, 0.016f);
+    test_mouse_pos = MAKE(vec2_t, 0, 0);
     UI_ClearEditFocus();
     mi.MemAlloc = test_ui_mem_alloc;
     mi.MemFree = test_ui_mem_free;
@@ -1410,7 +1410,7 @@ TEST(menu_fdf, single_line_text_auto_height_uses_fdf_font_size) {
     frameDef_t *root;
 
     reset_ui_state();
-    fake_text_size = MAKE(vector2_t, 0.050f, 0.016f);
+    fake_text_size = MAKE(vec2_t, 0.050f, 0.016f);
     parse_fdf("text-height.fdf",
               "Frame \"FRAME\" \"Root\" {"
               " Width 0.8, Height 0.6,"

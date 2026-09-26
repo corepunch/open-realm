@@ -545,7 +545,7 @@ trigger_t *G_AllocJassTrigger(void) {
     memset(trigger, 0, sizeof(*trigger)); return trigger;
 }
 
-bool G_RegionContains(region_t const *region, vector2_t const *point) {
+bool G_RegionContains(region_t const *region, vec2_t const *point) {
     FOR_LOOP(i, region->num_rects) {
         if (Box2_containsPoint(region->rects+i, point)) {
             return true;

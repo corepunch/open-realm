@@ -213,7 +213,7 @@ edict_t *Wow_FindNearestCorpse(edict_t *ent, float range) {
     for (uint32_t i = MAX_CLIENTS; i < (uint32_t)globals.num_edicts && i < WOW_MAX_EDICTS; i++) {
         edict_t *c = &wow_edicts[i];
         wowEntityLocal_t *local;
-        vector2_t delta;
+        vec2_t delta;
         float dist2;
 
         if (!c->inuse) continue;
@@ -592,7 +592,7 @@ float Wow_TerrainHeight(float x, float y) {
 float Wow_FloorHeight(float x, float y, float z) { return CM_WowFloorHeight(x, y, z, 1.5f); }
 
 /* Terrain must obey the outdoor slope limit; reachable WMO steps use their authored collision floor instead. */
-bool Wow_TerrainMoveWalkable(vector3_t const *from, vector3_t const *to, float terrain) {
+bool Wow_TerrainMoveWalkable(vec3_t const *from, vec3_t const *to, float terrain) {
     float dx, dy, dist;
     if (fabsf(to->z - terrain) > WOW_GROUND_EPSILON) return true;
     dx = to->x - from->x; dy = to->y - from->y; dist = sqrtf(dx * dx + dy * dy);
@@ -603,7 +603,7 @@ static float Wow_ViewPitch(float wrapped_pitch) {
     return wrapped_pitch > 180.0f ? 360.0f - wrapped_pitch : -wrapped_pitch;
 }
 
-static void Wow_AngleVectors(float yaw, vector2_t *forward, vector2_t *right) {
+static void Wow_AngleVectors(float yaw, vec2_t *forward, vec2_t *right) {
     float angle = (float)DEG2RAD(yaw);
     float sy = sinf(angle);
     float cy = cosf(angle);
@@ -884,7 +884,7 @@ static void Wow_BeginSpellCast(edict_t *caster, uint32_t spell_id, uint32_t targ
     cl->cast_duration  = def->cast_time;
     cl->cast_remaining = def->cast_time;
     cl->cast_target    = target_num;
-    cl->cast_origin    = (vector2_t){ caster->s.origin.x, caster->s.origin.y };
+    cl->cast_origin    = (vec2_t){ caster->s.origin.x, caster->s.origin.y };
     cl->cast_release_time = 0;
     if (def->ready_anim) {
         cstring_t anim_names[] = { def->ready_anim, NULL };
@@ -980,9 +980,9 @@ void Wow_RunProjectile(edict_t *ent) {
         return;
     }
     {
-        vector2_t const t2 = (vector2_t){ target->s.origin.x, target->s.origin.y };
-        vector2_t const p2 = (vector2_t){ ent->s.origin.x, ent->s.origin.y };
-        vector2_t delta = Vector2_sub(&t2, &p2);
+        vec2_t const t2 = (vec2_t){ target->s.origin.x, target->s.origin.y };
+        vec2_t const p2 = (vec2_t){ ent->s.origin.x, ent->s.origin.y };
+        vec2_t delta = Vector2_sub(&t2, &p2);
         float dist = sqrtf(delta.x * delta.x + delta.y * delta.y);
         float step = local->projectile_speed * ((float)FRAMETIME / 1000.0f);
 
@@ -1050,7 +1050,7 @@ void Wow_FireFirebolt(edict_t *caster, edict_t *target) {
 
     pl->think = Wow_RunProjectile;
     {
-        vector2_t delta = Vector2_sub(&(vector2_t){ target->s.origin.x, target->s.origin.y }, &(vector2_t){ caster->s.origin.x, caster->s.origin.y });
+        vec2_t delta = Vector2_sub(&(vec2_t){ target->s.origin.x, target->s.origin.y }, &(vec2_t){ caster->s.origin.x, caster->s.origin.y });
         yaw = (float)RAD2DEG(atan2f(delta.y, delta.x));
     }
     pl->projectile_target = target->s.number;
@@ -1068,7 +1068,7 @@ void Wow_FireFirebolt(edict_t *caster, edict_t *target) {
 
     proj->s.origin.x = caster->s.origin.x;
     proj->s.origin.y = caster->s.origin.y;
-    proj->s.origin2 = (vector2_t){ proj->s.origin.x, proj->s.origin.y };
+    proj->s.origin2 = (vec2_t){ proj->s.origin.x, proj->s.origin.y };
     proj->s.angle  = (float)DEG2RAD(yaw);
     proj->s.model  = Wow_FireboltModel();
     proj->s.scale  = 0.8f;
@@ -1184,7 +1184,7 @@ void Wow_FireFrostbolt(edict_t *caster, edict_t *target) {
 
     pl->think = Wow_RunProjectile;
     {
-        vector2_t delta = Vector2_sub(&(vector2_t){ target->s.origin.x, target->s.origin.y }, &(vector2_t){ caster->s.origin.x, caster->s.origin.y });
+        vec2_t delta = Vector2_sub(&(vec2_t){ target->s.origin.x, target->s.origin.y }, &(vec2_t){ caster->s.origin.x, caster->s.origin.y });
         yaw = (float)RAD2DEG(atan2f(delta.y, delta.x));
     }
     pl->projectile_target = target->s.number;
@@ -1205,7 +1205,7 @@ void Wow_FireFrostbolt(edict_t *caster, edict_t *target) {
 
     proj->s.origin.x = caster->s.origin.x;
     proj->s.origin.y = caster->s.origin.y;
-    proj->s.origin2 = (vector2_t){ proj->s.origin.x, proj->s.origin.y };
+    proj->s.origin2 = (vec2_t){ proj->s.origin.x, proj->s.origin.y };
     proj->s.angle   = (float)DEG2RAD(yaw);
     proj->s.model   = Wow_FrostboltModel();
     proj->s.scale   = 0.8f;
@@ -1237,7 +1237,7 @@ edict_t *Wow_FindSpellTarget(edict_t *ent, float range) {
     if (ent && ent->client && ((wowClient_t *)ent->client)->selected_entity) {
         edict_t *t = Wow_EdictByNumber(((wowClient_t *)ent->client)->selected_entity);
         if (t && t != ent && t->inuse) {
-            vector2_t delta = Vector2_sub(&t->s.origin2, &ent->s.origin2);
+            vec2_t delta = Vector2_sub(&t->s.origin2, &ent->s.origin2);
             if (sqrtf(delta.x * delta.x + delta.y * delta.y) <= range) {
                 return t;
             }
@@ -1246,7 +1246,7 @@ edict_t *Wow_FindSpellTarget(edict_t *ent, float range) {
     {
         wowEntityLocal_t *local = Wow_EntityLocal(ent);
         if (local && local->enemy && local->enemy != ent && local->enemy->inuse) {
-            vector2_t delta = Vector2_sub(&local->enemy->s.origin2, &ent->s.origin2);
+            vec2_t delta = Vector2_sub(&local->enemy->s.origin2, &ent->s.origin2);
             if (sqrtf(delta.x * delta.x + delta.y * delta.y) <= range) {
                 return local->enemy;
             }
@@ -1259,7 +1259,7 @@ static void Wow_UpdateCamera(edict_t *ent) {
     gameCamera_t cam;
     if (!ent || !ent->client) return;
     CL_GameDefaultCamera(&cam);
-    ent->client->ps.vieworigin = (vector3_t){ ent->s.origin.x, ent->s.origin.y, ent->s.origin.z + WOW_CAMERA_EYE_HEIGHT };
+    ent->client->ps.vieworigin = (vec3_t){ ent->s.origin.x, ent->s.origin.y, ent->s.origin.z + WOW_CAMERA_EYE_HEIGHT };
     ent->client->ps.viewangles = Wow_EulerFromCamera(Wow_ViewPitch(wow_move.pitch), wow_move.yaw);
     ent->client->ps.distance = wow_move.distance;
     player_set_lens(&ent->client->ps, &cam);
@@ -1320,7 +1320,7 @@ static edict_t *Wow_FindNearestAttackTarget(edict_t *ent, float range) {
 
     for (uint32_t i = globals.max_clients; i < (uint32_t)globals.num_edicts && i < WOW_MAX_EDICTS; i++) {
         edict_t *candidate = &wow_edicts[i];
-        vector2_t delta;
+        vec2_t delta;
         float dist2;
 
         if (!candidate->inuse || candidate == ent || !(candidate->svflags & SVF_MONSTER)) {
@@ -1453,7 +1453,7 @@ uint32_t Wow_GetPlayerClass(void) {
     return class_id;
 }
 
-static void Wow_InitPlayer(edict_t *ent, vector2_t spawn_origin, int32_t spawn_location) {
+static void Wow_InitPlayer(edict_t *ent, vec2_t spawn_origin, int32_t spawn_location) {
     player_t *ps;
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
     float height = Wow_TerrainHeight(spawn_origin.x, spawn_origin.y);
@@ -1487,8 +1487,8 @@ static void Wow_InitPlayer(edict_t *ent, vector2_t spawn_origin, int32_t spawn_l
     ent->s.model2 = G_RegisterModel(WOW_PLAYER_WEAPON_MODEL);
     ent->s.appearance = appearance;
     ent->s.equipment = Wow_PackEquipment(WOW_PLAYER_EQUIPMENT_UPPER_BODY, WOW_PLAYER_EQUIPMENT_LOWER_BODY, WOW_PLAYER_EQUIPMENT_HANDS, WOW_PLAYER_EQUIPMENT_FEET);
-    ent->s.origin = (vector3_t){ spawn_origin.x, spawn_origin.y, height };
-    ent->s.origin2 = (vector2_t){ ent->s.origin.x, ent->s.origin.y };
+    ent->s.origin = (vec3_t){ spawn_origin.x, spawn_origin.y, height };
+    ent->s.origin2 = (vec2_t){ ent->s.origin.x, ent->s.origin.y };
     ent->s.angle = (float)DEG2RAD(wow_move.yaw);
     ent->s.scale = 1.0f;
     ent->s.radius = 1.0f;
@@ -1546,7 +1546,7 @@ static bool Wow_LoadMap(cstring_t mapFilename) {
         gi.ClearWorld();
         gi.configstring(CS_PLAYERSKINS,
             "\\race\\Human\\sex\\Male\\class\\2\\appearance\\0");
-        Wow_InitPlayer(&wow_edicts[0], (vector2_t){0, 0}, -1);
+        Wow_InitPlayer(&wow_edicts[0], (vec2_t){0, 0}, -1);
         return true;
     }
     if (!CM_LoadMap(mapFilename, gi.LoadingFrame)) {
@@ -1660,7 +1660,7 @@ static bool Wow_SpawnEntities(void) {
     char race[64], sex[64];
     uint32_t class_id, appearance, spawn_index;
     int32_t spawn_location = -1;
-    vector2_t spawn_origin = { 0.0f, 0.0f };
+    vec2_t spawn_origin = { 0.0f, 0.0f };
     char buf[MAX_PATHLEN];
 
     /* Read race before spawn selection so the player starts in their race's
@@ -1669,7 +1669,7 @@ static bool Wow_SpawnEntities(void) {
 
     if (wow_pending_teleport.pending) {
         /* Cross-map teleport: destination was saved by Wow_CheckAreaTriggers or warp command. */
-        spawn_origin = (vector2_t){ wow_pending_teleport.x, wow_pending_teleport.y };
+        spawn_origin = (vec2_t){ wow_pending_teleport.x, wow_pending_teleport.y };
         fprintf(stderr, "WoW: pending teleport → map=%u (%.1f %.1f)\n",
                 (unsigned)CM_WowGetMapId(), spawn_origin.x, spawn_origin.y);
     } else {
@@ -1684,8 +1684,8 @@ static bool Wow_SpawnEntities(void) {
                 fprintf(stderr, "WoW: race=%s class=%u has no spawn on map=%u; using fallback\n",
                         race, (unsigned)class_id, (unsigned)map_id);
                 if (fb == ~0u) return false;
-                vector3_t const *fsp = Wow_GetSpawnPos(fb);
-                if (fsp) { spawn_origin = (vector2_t){ fsp->x, fsp->y }; spawn_location = (int32_t)fb; }
+                vec3_t const *fsp = Wow_GetSpawnPos(fb);
+                if (fsp) { spawn_origin = (vec2_t){ fsp->x, fsp->y }; spawn_location = (int32_t)fb; }
             } else {
             /* No playercreateinfo for ANY race on this map — it's a dungeon/instance.
              * Fall back to the areatrigger_teleport destination for this map. */
@@ -1693,7 +1693,7 @@ static bool Wow_SpawnEntities(void) {
             if (at) {
                 wow_pending_teleport = (wowPendingTeleport_t){ true,
                     at->target_x, at->target_y, at->target_z, at->target_orientation };
-                spawn_origin = (vector2_t){ at->target_x, at->target_y };
+                spawn_origin = (vec2_t){ at->target_x, at->target_y };
                 fprintf(stderr, "WoW: dungeon map=%u; using areatrigger spawn '%s'\n",
                         (unsigned)map_id, at->name);
             } else {
@@ -1703,9 +1703,9 @@ static bool Wow_SpawnEntities(void) {
             }
             } /* end else-dungeon */
         } else {
-            vector3_t const *sp = Wow_GetSpawnPos(spawn_index);
+            vec3_t const *sp = Wow_GetSpawnPos(spawn_index);
             if (sp) {
-                spawn_origin = (vector2_t){ sp->x, sp->y };
+                spawn_origin = (vec2_t){ sp->x, sp->y };
                 spawn_location = (int32_t)spawn_index;
                 fprintf(stderr, "WoW: spawn race=%s at (%.1f %.1f)\n", race, sp->x, sp->y);
             }
@@ -1761,13 +1761,13 @@ static bool Wow_SpawnEntities(void) {
 
 static void Wow_RunFrame(void) {
     edict_t *ent = &wow_edicts[0];
-    vector2_t forward;
-    vector2_t right;
-    vector2_t dir = { 0.0f, 0.0f };
+    vec2_t forward;
+    vec2_t right;
+    vec2_t dir = { 0.0f, 0.0f };
     float len;
     bool moving;
     bool locked;
-    vector3_t move_old, move_new;
+    vec3_t move_old, move_new;
 
     wow_spawns_this_frame = 0;
 
@@ -1797,7 +1797,7 @@ static void Wow_RunFrame(void) {
     len = sqrtf(dir.x * dir.x + dir.y * dir.y);
     moving = len > 0.001f;
     move_old = ent->s.origin;
-    ent->s.origin2 = (vector2_t){ ent->s.origin.x, ent->s.origin.y };
+    ent->s.origin2 = (vec2_t){ ent->s.origin.x, ent->s.origin.y };
     move_new = ent->s.origin;
     if (moving) {
         float step = WOW_WALK_SPEED * ((float)FRAMETIME / 1000.0f) / len;
@@ -1834,13 +1834,13 @@ static void Wow_RunFrame(void) {
         wowEntityLocal_t *local = Wow_EntityLocal(ent);
         edict_t *enemy = local->enemy;
         if (enemy) {
-            vector2_t delta = Vector2_sub(&enemy->s.origin2, &ent->s.origin2);
+            vec2_t delta = Vector2_sub(&enemy->s.origin2, &ent->s.origin2);
             float dist = Vector2_len(&delta);
             if (dist > WOW_MELEE_RANGE) {
                 float step = MIN(WOW_WALK_SPEED * ((float)FRAMETIME / 1000.0f), dist - WOW_MELEE_RANGE);
                 ent->s.origin.x += delta.x * step / dist;
                 ent->s.origin.y += delta.y * step / dist;
-                ent->s.origin2 = (vector2_t){ ent->s.origin.x, ent->s.origin.y };
+                ent->s.origin2 = (vec2_t){ ent->s.origin.x, ent->s.origin.y };
                 moving = true;
             }
         }
@@ -2224,7 +2224,7 @@ static void Wow_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
         uint32_t n = CM_WowGetAllSpawnCount(); bool found = false;
         /* First: search WorldSafeLocs on current map (same-map warp). */
         FOR_LOOP(i, n) {
-            cstring_t nm = CM_WowGetSpawnName(i); vector3_t const *pos;
+            cstring_t nm = CM_WowGetSpawnName(i); vec3_t const *pos;
             uint32_t qlen = (uint32_t)strlen(query), nlen; bool match = false; uint32_t j;
             if (!nm) continue;
             nlen = (uint32_t)strlen(nm);
@@ -2430,7 +2430,7 @@ static void Wow_ClientInput(edict_t *ent, inputCmd_t const *cmd) {
     if (cmd->action == BZ_INPUT_MOVE) {
         wow_move.flags = cmd->move.buttons;
     } else if (cmd->action == BZ_INPUT_VIEW && ent->client->ps.client_ui_state == CLIENT_UI_GAME) {
-        vector3_t native = Wow_CameraFromEuler(&cmd->view.angles);
+        vec3_t native = Wow_CameraFromEuler(&cmd->view.angles);
         wow_move.yaw = native.y;
         wow_move.pitch = Wow_Clamp(360.0f - native.x, WOW_CAMERA_MIN_PITCH, WOW_CAMERA_MAX_PITCH);
         wow_move.distance = Wow_Clamp(cmd->view.distance, WOW_CAMERA_MIN_DISTANCE, WOW_CAMERA_MAX_DISTANCE);

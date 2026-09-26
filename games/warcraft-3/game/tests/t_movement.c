@@ -485,7 +485,7 @@ TEST(wc3_movement, worker_resource_gold_approach_ignores_live_units) {
     edict_t *worker = make_moving_unit(0.0f, 0.0f);
     edict_t *blocker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 35.0f, 0.0f);
     edict_t *mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 400.0f, 0.0f);
-    vector2_t const origin = worker->s.origin2;
+    vec2_t const origin = worker->s.origin2;
     slkTestData_t *rows, *old_abilities;
 
     worker->collision = 16.0f;
@@ -674,7 +674,7 @@ TEST(wc3_movement, worker_resource_gold_deposits_at_near_side_route_endpoint) {
     edict_t *hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
     pathTex_t *hall_pathtex = movement_make_goldmine_pathtex();
     uint32_t const old_gold = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_GOLD];
-    vector2_t approach;
+    vec2_t approach;
     float route_band;
 
     worker->collision = 16.0f;
@@ -723,7 +723,7 @@ TEST(wc3_movement, worker_resource_lumber_deposits_at_near_side_route_endpoint) 
     edict_t *mill = alloc_test_unit(MAKEFOURCC('h','l','u','m'), 320.0f, 0.0f);
     pathTex_t *mill_pathtex = movement_make_goldmine_pathtex();
     uint32_t const old_lumber = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
-    vector2_t approach;
+    vec2_t approach;
     float route_band;
 
     worker->collision = 16.0f;
@@ -1074,7 +1074,7 @@ TEST(wc3_movement, lumber_pending_flow_does_not_move_on_stale_heading) {
     uint8_t pathmap[CELLS * CELLS] = {0};
     edict_t *worker = make_moving_unit(-320.0f, 0.0f);
     edict_t *tree = make_harvest_tree(320.0f, 0.0f, 500.0f);
-    vector2_t const origin = worker->s.origin2;
+    vec2_t const origin = worker->s.origin2;
 
     worker->collision = 16.0f;
     worker->unitinfo.MoveSpeed = 190.0f;
@@ -1112,8 +1112,8 @@ TEST(wc3_movement, lumber_same_tree_workers_preserve_direct_order) {
     edict_t *first = make_moving_unit(-400.0f, 0.0f);
     edict_t *second = add_gold_worker(-365.0f, 0.0f);
     edict_t *tree = make_harvest_tree(0.0f, 0.0f, 500.0f);
-    vector2_t const first_origin = first->s.origin2;
-    vector2_t const second_origin = second->s.origin2;
+    vec2_t const first_origin = first->s.origin2;
+    vec2_t const second_origin = second->s.origin2;
 
     first->collision = second->collision = 16.0f;
     first->unitinfo.MoveSpeed = second->unitinfo.MoveSpeed = 190.0f;
@@ -1209,8 +1209,8 @@ TEST(wc3_movement, nearby_move_starts_on_accelerated_waypoint) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
     edict_t *unit = make_moving_unit(320.0f, 0.0f);
-    vector2_t const origin = unit->s.origin2;
-    vector2_t dest = {-320.0f, 0.0f};
+    vec2_t const origin = unit->s.origin2;
+    vec2_t dest = {-320.0f, 0.0f};
 
     FOR_LOOP(y, CELLS)
         pathmap[32 + y * CELLS] = 0x02;
@@ -1544,7 +1544,7 @@ TEST(wc3_movement, gold_three_workers_hold_while_shared_route_is_pending) {
     uint8_t pathmap[CELLS * CELLS] = {0};
     edict_t *mine;
     edict_t *workers[WORKERS];
-    vector2_t origin[WORKERS];
+    vec2_t origin[WORKERS];
     slkTestData_t *rows, *old_abilities;
 
     /* make_moving_unit() resets the shared entity array for isolated tests.
@@ -1620,7 +1620,7 @@ TEST(wc3_movement, gold_return_prefers_direct_footprint_edge_lane) {
     edict_t *mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -400.0f, 0.0f);
     edict_t *hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
     pathTex_t *hall_pathtex = movement_make_goldmine_pathtex();
-    vector2_t const origin = worker->s.origin2;
+    vec2_t const origin = worker->s.origin2;
     float const before = 192.0f;
 
     worker->collision = 16.0f;
@@ -1668,8 +1668,8 @@ TEST(wc3_movement, gold_return_reselects_footprint_edge_after_displacement) {
     edict_t *mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), -400.0f, 0.0f);
     edict_t *hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), 320.0f, 0.0f);
     pathTex_t *hall_pathtex = movement_make_goldmine_pathtex();
-    vector2_t const displaced = { 640.0f, 160.0f };
-    vector2_t expected, expected_dir, actual_dir;
+    vec2_t const displaced = { 640.0f, 160.0f };
+    vec2_t expected, expected_dir, actual_dir;
     float step, route_band;
 
     worker->collision = 16.0f;
@@ -1712,7 +1712,7 @@ TEST(wc3_movement, gold_return_reselects_footprint_edge_after_displacement) {
     Vector2_normalize(&expected_dir);
 
     worker->currentmove->think(worker);
-    actual_dir = MAKE(vector2_t, cosf(worker->movement.heading),
+    actual_dir = MAKE(vec2_t, cosf(worker->movement.heading),
                                sinf(worker->movement.heading));
     T_ASSERT(Vector2_dot(&expected_dir, &actual_dir) > 0.99f);
     gi.MemFree(hall_pathtex);
@@ -1728,7 +1728,7 @@ TEST(wc3_movement, gold_return_holds_while_shared_route_is_pending) {
     edict_t *worker = make_moving_unit(320.0f, 0.0f);
     edict_t *mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 500.0f, 0.0f);
     edict_t *hall = alloc_test_unit(MAKEFOURCC('h','t','o','w'), -320.0f, 0.0f);
-    vector2_t origin;
+    vec2_t origin;
 
     FOR_LOOP(y, CELLS)
         pathmap[32 + y * CELLS] = 0x02;
@@ -1862,7 +1862,7 @@ static edict_t *make_smart_destructable(float x, float y,
     dest->destructable.placement_solid = true;
     dest->health.value = dest->health.max_value = 500.0f;
     dest->targtype = targtype;
-    dest->s.origin2 = (vector2_t){ x, y };
+    dest->s.origin2 = (vec2_t){ x, y };
     dest->s.origin.x = x;
     dest->s.origin.y = y;
     return dest;
@@ -2047,7 +2047,7 @@ TEST(wc3_movement, shift_smart_walkable_bridge_queues_clicked_ground_point) {
     edict_t *clent = &g_edicts[0];
     gameClient_t *client = clent->client;
     edict_t *worker, *bridge;
-    vector2_t first = { 64.0f, 0.0f };
+    vec2_t first = { 64.0f, 0.0f };
     char bridge_number[16];
     cstring_t command[] = { "smart", bridge_number, "192", "64", "queue" };
 
@@ -2419,7 +2419,7 @@ TEST(wc3_movement, trained_unit_exit_skips_blocked_producer_footprint) {
     pathTex_t *pathtex;
     edict_t *producer = make_moving_unit(0.0f, 0.0f);
     edict_t *trained = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
-    vector2_t exit;
+    vec2_t exit;
     float angle;
 
     producer->class_id = MAKEFOURCC('h','t','o','w');
@@ -2461,7 +2461,7 @@ TEST(wc3_movement, trained_unit_exit_skips_dynamic_blocker) {
     edict_t *producer = make_moving_unit(0.0f, 0.0f);
     edict_t *trained = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
     edict_t *blocker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), -64.0f, -64.0f);
-    vector2_t exit;
+    vec2_t exit;
     float angle;
 
     producer->movetype = MOVETYPE_NONE;
@@ -2877,7 +2877,7 @@ TEST(wc3_movement, order_move_sets_walk_animation) {
  * --------------------------------------------------------------------- */
 
 TEST(wc3_movement, waypoint_add_sets_origin) {
-    vector2_t dest = {128.0f, 256.0f};
+    vec2_t dest = {128.0f, 256.0f};
     edict_t *wp = Waypoint_add(&dest);
     T_NOT_NULL(wp);
     T_FEQ(wp->s.origin.x, 128.0f, 0.01f);
@@ -2940,7 +2940,7 @@ TEST(wc3_movement, ground_unit_stands_on_walkable_bridge_surface) {
     bridge->data.DestructableData = &bridge_data;
     bridge->destructable.initialized = bridge->destructable.placement_solid = true;
     bridge->pathtex = (pathTex_t *)&bridge_path;
-    bridge->s.origin = MAKE(vector3_t, 0.0f, 0.0f, terrain + 64.0f);
+    bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, terrain + 64.0f);
     G_RegisterGroundSurface(bridge);
     T_ASSERT(bridge->s.flags & EF_GROUND_SURFACE);
     M_CheckGround(unit);
@@ -2969,7 +2969,7 @@ TEST(wc3_movement, rectangular_bridge_support_bounds_follow_quarter_turns) {
         bridge->data.DestructableData = &bridge_data;
         bridge->destructable.initialized = bridge->destructable.placement_solid = true;
         bridge->pathtex = (pathTex_t *)&bridge_path;
-        bridge->s.origin = MAKE(vector3_t, 0.0f, 0.0f, 100.0f);
+        bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, 100.0f);
         bridge->targtype = TARG_BRIDGE;
         bridge->s.angle = angle * (float)M_PI / 2.0f;
         G_RegisterGroundSurface(bridge);
@@ -3042,7 +3042,7 @@ TEST(wc3_movement, float_unit_uses_water_surface_and_ignores_bridge) {
     bridge->data.DestructableData = &bridge_data;
     bridge->destructable.initialized = bridge->destructable.placement_solid = true;
     bridge->pathtex = (pathTex_t *)&bridge_path;
-    bridge->s.origin = MAKE(vector3_t, 0.0f, 0.0f, 96.0f);
+    bridge->s.origin = MAKE(vec3_t, 0.0f, 0.0f, 96.0f);
     G_RegisterGroundSurface(bridge);
     M_CheckGround(unit);
 
@@ -3052,7 +3052,7 @@ TEST(wc3_movement, float_unit_uses_water_surface_and_ignores_bridge) {
 /* WPM water stays unwalkable; only the explicitly passable bridge lane may connect its banks. */
 TEST(wc3_movement, water_is_blocked_except_at_authored_bridge_lane) {
     uint8_t pathmap[15] = { 0 };
-    vector2_t const from = { 0.5f, 1.5f }, target = { 4.5f, 1.5f };
+    vec2_t const from = { 0.5f, 1.5f }, target = { 4.5f, 1.5f };
 
     pathmap[2] = pathmap[12] = 2;
     setup_test_pathmap(5, 3, pathmap);
@@ -3074,7 +3074,7 @@ TEST(wc3_movement, unit_moves_closer_to_goal_after_one_frame) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     /* Place waypoint within NAVI_THRESHOLD so direct vector math is used
      * and we don't need the heatmap mock to return a meaningful direction. */
-    vector2_t dest = {40.0f, 0.0f};
+    vec2_t dest = {40.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
     T_NOT_NULL(unit->currentmove);
     T_NOT_NULL(unit->currentmove->think);
@@ -3090,7 +3090,7 @@ TEST(wc3_movement, unit_reaches_goal_and_transitions_to_stand) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     /* Distance = 40, move_distance ≈ 27.  After two frames the unit
      * should have arrived (40 - 27 = 13 < 27) and called stand(). */
-    vector2_t dest = {40.0f, 0.0f};
+    vec2_t dest = {40.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
 
     /* Run up to 10 frames — should arrive well within that. */
@@ -3105,7 +3105,7 @@ TEST(wc3_movement, unit_reaches_goal_and_transitions_to_stand) {
 
 TEST(wc3_movement, unit_position_changes_after_move_frame) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
-    vector2_t dest = {40.0f, 0.0f};
+    vec2_t dest = {40.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
 
     float x0 = unit->s.origin2.x;
@@ -3122,7 +3122,7 @@ TEST(wc3_movement, move_order_detours_with_unit_collision_radius) {
     enum { CELLS = 16 };
     uint8_t pathmap[CELLS * CELLS] = {0};
     edict_t *unit = make_moving_unit(80.0f, 240.0f);
-    vector2_t dest = {432.0f, 240.0f};
+    vec2_t dest = {432.0f, 240.0f};
 
     for (int y = 3; y <= 12; y++)
         pathmap[y * CELLS + 7] = 2;
@@ -3150,8 +3150,8 @@ TEST(wc3_movement, unreachable_move_settles_at_closest_boundary) {
     enum { CELLS = 16 };
     uint8_t pathmap[CELLS * CELLS] = {0};
     edict_t *unit = make_moving_unit(80.0f, 240.0f);
-    vector2_t const start = unit->s.origin2;
-    vector2_t dest = {432.0f, 240.0f};
+    vec2_t const start = unit->s.origin2;
+    vec2_t dest = {432.0f, 240.0f};
 
     for (int y = 0; y < CELLS; y++)
         pathmap[y * CELLS + 7] = 2;
@@ -3178,7 +3178,7 @@ TEST(wc3_movement, unreachable_move_settles_at_closest_boundary) {
 TEST(wc3_movement, immobile_unit_neither_moves_nor_rotates) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     edict_t *wp = alloc_test_unit(0, 100.0f, 100.0f);
-    vector2_t const origin = unit->s.origin2;
+    vec2_t const origin = unit->s.origin2;
     float const angle = unit->s.angle;
     unit->aiflags |= AI_IMMOBILE;
     unit->goalentity = wp;
@@ -3193,7 +3193,7 @@ TEST(wc3_movement, immobile_unit_neither_moves_nor_rotates) {
 
 TEST(wc3_movement, immobile_unit_rejects_ground_move_order) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
-    vector2_t dest = {100.0f, 0.0f};
+    vec2_t dest = {100.0f, 0.0f};
     unit->aiflags |= AI_IMMOBILE;
 
     T_ASSERT(!unit_issueorder(unit, "move", &dest));
@@ -3203,7 +3203,7 @@ TEST(wc3_movement, immobile_unit_rejects_ground_move_order) {
 
 TEST(wc3_movement, unit_does_not_overshoot_goal) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
-    vector2_t dest = {40.0f, 0.0f};
+    vec2_t dest = {40.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
 
     /* Run frames until the unit stands. */
@@ -3236,7 +3236,7 @@ TEST(wc3_movement, group_move_assigns_distinct_reserved_destinations) {
         unit_stand(units[i]);
     }
 
-    vector2_t dest = {100.0f, 100.0f};
+    vec2_t dest = {100.0f, 100.0f};
     T_ASSERT(move_selectlocation(clent, &dest));
 
     T_NOT_NULL(a->goalentity);
@@ -3269,7 +3269,7 @@ TEST(wc3_movement, group_move_ignores_selected_buildings) {
     peasant->stand = unit_stand;
     unit_stand(peasant);
 
-    vector2_t dest = {100.0f, 100.0f};
+    vec2_t dest = {100.0f, 100.0f};
     T_ASSERT(move_selectlocation(clent, &dest));
 
     T_NULL(building->goalentity);
@@ -3295,7 +3295,7 @@ TEST(wc3_movement, group_move_travels_at_slowest_member_speed) {
         unit_stand(units[i]);
     }
 
-    vector2_t dest = {400.0f, 0.0f};
+    vec2_t dest = {400.0f, 0.0f};
     T_ASSERT(move_selectlocation(clent, &dest));
 
     /* Both units adopt the slowest member's speed for the group move... */
@@ -3309,7 +3309,7 @@ TEST(wc3_movement, group_move_travels_at_slowest_member_speed) {
 TEST(wc3_movement, single_unit_move_keeps_own_speed) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     unit->unitinfo.MoveSpeed = 300.0f;
-    vector2_t dest = {200.0f, 0.0f};
+    vec2_t dest = {200.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
 
     T_FEQ(unit->movement.group_speed, 0.0f, 0.01f);
@@ -3320,7 +3320,7 @@ TEST(wc3_movement, plain_move_uses_collision_sized_static_route) {
     enum { CELLS = 64 };
     uint8_t pathmap[CELLS * CELLS] = {0};
     edict_t *unit = make_moving_unit(-320.0f, 0.0f);
-    vector2_t dest = {320.0f, 0.0f};
+    vec2_t dest = {320.0f, 0.0f};
 
     unit->collision = 16.0f; /* one 32u path-cell radius in this fixture */
     unit->unitinfo.MoveSpeed = 190.0f;
@@ -3348,8 +3348,8 @@ TEST(wc3_movement, plain_move_uses_collision_sized_static_route) {
 
 TEST(wc3_movement, blocked_move_keeps_order_alive_away_from_goal) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
-    vector2_t origin = unit->s.origin2;
-    vector2_t dest = {400.0f, 0.0f};
+    vec2_t origin = unit->s.origin2;
+    vec2_t dest = {400.0f, 0.0f};
     unit_issueorder(unit, "move", &dest);
 
     /* Budget exceeds MOVE_BLOCKED_FRAMES.  A distant plain move must remain
@@ -3374,13 +3374,13 @@ TEST(wc3_movement, blocked_move_keeps_order_alive_away_from_goal) {
 
 TEST(wc3_movement, near_goal_jitter_settles_to_stand) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
-    vector2_t dest = {100.0f, 0.0f};
+    vec2_t dest = {100.0f, 0.0f};
     /* Keep the fixture inside the settle band but beyond arrival tolerance for
      * both ROC and TFT, whose archive-backed Peasant move speeds differ. */
     unit->s.origin2.x = dest.x - unit_movedistance(unit) - 6.0f;
     unit->s.origin.x = unit->s.origin2.x;
     gi.LinkEntity(unit);
-    vector2_t jitter = unit->s.origin2;
+    vec2_t jitter = unit->s.origin2;
     unit_issueorder(unit, "move", &dest);
 
     for (int i = 0; i < 10; i++) {
@@ -3403,7 +3403,7 @@ TEST(wc3_movement, near_goal_jitter_settles_to_stand) {
 TEST(wc3_movement, unit_stops_when_goal_is_occupied) {
     edict_t *unit = make_moving_unit(0.0f, 0.0f);
     edict_t *blocker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100.0f, 0.0f);
-    vector2_t dest = {100.0f, 0.0f};
+    vec2_t dest = {100.0f, 0.0f};
 
     unit->collision = 16.0f;
     blocker->collision = 16.0f;
@@ -3611,7 +3611,7 @@ TEST(wc3_movement, gold_miner_inside_is_non_orderable_and_unregisters_once) {
     slkTestData_t *rows, *old_abilities = install_goldmine_test_data(&rows);
     edict_t *mine = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
     edict_t *worker = add_gold_worker(0.0f, 0.0f);
-    vector2_t point = { 100.0f, 100.0f };
+    vec2_t point = { 100.0f, 100.0f };
     setup_test_goldmine(mine, &test_goldmine_cap1, 100);
     worker->goalentity = worker->secondarygoal = mine;
     HARVEST_GOLD_CAPACITY = 10.0f;
@@ -3787,7 +3787,7 @@ TEST(wc3_movement, preplaced_haunted_mine_binds_to_neutral_parent) {
 TEST(wc3_movement, scripted_haunted_mine_creation_binds_parent) {
     slkTestData_t *rows, *old_abilities;
     edict_t *parent, *haunted;
-    vector2_t point = { 256.0f, 256.0f };
+    vec2_t point = { 256.0f, 256.0f };
 
     reset_entities();
     setup_test_world();
@@ -3814,7 +3814,7 @@ TEST(wc3_movement, no_birth_spawn_skips_birth_callback) {
 
     reset_entities();
     setup_test_world();
-    unit = SP_SpawnAtLocationNoBirth(MAKEFOURCC('u','g','o','l'), 0, &MAKE(vector2_t, 0, 0));
+    unit = SP_SpawnAtLocationNoBirth(MAKEFOURCC('u','g','o','l'), 0, &MAKE(vec2_t, 0, 0));
     T_NOT_NULL(unit);
     T_ASSERT(unit->birth != NULL);
     T_ASSERT(unit->currentmove == NULL || strcmp(unit->currentmove->animation, "birth"));
@@ -3936,7 +3936,7 @@ TEST(wc3_movement, unload_all_stop_and_move_cancel_remaining_passengers) {
         level.time = 1000;
         T_ASSERT(S_CargoBeginUnloadAll(transport));
         T_EQ(transport->cargo.count, 2);
-        if (i) order_move(transport, Waypoint_add(&MAKE(vector2_t, 512, 512)));
+        if (i) order_move(transport, Waypoint_add(&MAKE(vec2_t, 512, 512)));
         else order_stop(transport);
         level.time += 1000; G_RunEntities();
         T_EQ(transport->cargo.count, 2);

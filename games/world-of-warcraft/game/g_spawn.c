@@ -30,10 +30,10 @@ void Wow_TeleportPlayer(edict_t *ent, uint32_t idx) {
     if (!sp) return;
     z = Wow_TerrainHeight(sp->x, sp->y);
     if (z == 0.0f) z = sp->z;
-    ent->s.origin = (vector3_t){ sp->x, sp->y, z };
-    ent->s.origin2 = (vector2_t){ sp->x, sp->y };
+    ent->s.origin = (vec3_t){ sp->x, sp->y, z };
+    ent->s.origin2 = (vec2_t){ sp->x, sp->y };
     ent->s.angle = sp->facing;
-    ent->client->ps.vieworigin = (vector3_t){ sp->x, sp->y, 0 };
+    ent->client->ps.vieworigin = (vec3_t){ sp->x, sp->y, 0 };
     fprintf(stderr, "WoW: respawned at map=%u (%.1f %.1f %.1f)\n", sp->map, sp->x, sp->y, sp->z);
 }
 
@@ -43,9 +43,9 @@ void Wow_TeleportPlayerToPos(edict_t *ent, float x, float y, float z, float orie
     float tz = Wow_TerrainHeight(x, y);
     /* SQL z is authoritative for dungeon interiors where terrain height is 0. */
     if (tz != 0.0f) z = tz;
-    ent->s.origin = (vector3_t){ x, y, z };
-    ent->s.origin2 = (vector2_t){ x, y };
+    ent->s.origin = (vec3_t){ x, y, z };
+    ent->s.origin2 = (vec2_t){ x, y };
     ent->s.angle = orientation;
-    ent->client->ps.vieworigin = (vector3_t){ x, y, 0 };
+    ent->client->ps.vieworigin = (vec3_t){ x, y, 0 };
     fprintf(stderr, "WoW: teleported to (%.1f %.1f %.1f)\n", x, y, z);
 }

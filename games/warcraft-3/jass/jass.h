@@ -57,7 +57,7 @@ typedef struct {
     uint32_t duration;
     int soundIndex; /* CS_SOUNDS configstring index; populated by CreateSound */
     float volume;
-    vector3_t position;
+    vec3_t position;
     int32_t attached_entity;
     uint32_t attached_spawn_time;
     bool has_position;
@@ -73,7 +73,7 @@ struct jass_context {
     edict_t *unit;
     edict_t *source;
     int32_t eventValue;
-    vector2_t point;
+    vec2_t point;
     uint8_t hasPoint;
     player_t *playerState;
     player_t *localPlayerState;

@@ -12,7 +12,7 @@ void _W3M_RegisterMap(cstring_t mapFileName);
 void _W3M_DrawWorld(void);
 void _W3M_DrawTerrainShadows(void);
 void _W3M_DrawAlphaSurfaces(void);
-bool _W3M_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t *output);
+bool _W3M_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *output);
 
 /* MMP v0 is a fixed little-endian header followed by 16-byte icon records. */
 typedef struct { uint32_t kind, x, y; color32_t bgra; } mmpIcon_t;
@@ -216,7 +216,7 @@ static uint32_t R_W3AttachmentFrame(mdxModel_t const *parent, mdxModel_t const *
     return dst->interval[0] + MIN(span - 1, (uint32_t)(ratio * (float)span));
 }
 
-static void R_W3RenderAttachmentModels(renderEntity_t const *entity, matrix4_t const *transform) {
+static void R_W3RenderAttachmentModels(renderEntity_t const *entity, mat4_t const *transform) {
     mdxAttachmentPosition_t attachments[32];
     uint32_t count;
 
@@ -340,8 +340,8 @@ w3CliffType_t const *R_CliffType(uint32_t id) {
 
 void R_SetupTextureMatrix(void) {
     if (tr.world) {
-        vector2_t s = GetWar3MapSize(tr.world);
-        vector2_t c = tr.world->center;
+        vec2_t s = GetWar3MapSize(tr.world);
+        vec2_t c = tr.world->center;
         Matrix4_ortho(&tr.viewDef.textureMatrix, -s.x+c.x, s.x+c.x, -s.y+c.y, s.y+c.y, 0.0f, 100.0f);
     } else {
         Matrix4_identity(&tr.viewDef.textureMatrix);
@@ -546,12 +546,12 @@ static void R_DrawMinimapEntityMarker(renderEntity_t const *entity) {
     wc3MinimapContact_t const contact = wc3_minimap_contact_get(entity ? entity->effect_flags : 0);
     texture_t const *texture = NULL;
     color32_t color = COLOR32_WHITE;
-    vector2_t point, world, size;
+    vec2_t point, world, size;
     rect_t marker;
 
     if (!entity || !entity->number || contact == WC3_MINIMAP_CONTACT_NONE ||
         (entity->flags & RF_HIDDEN)) return;
-    world = MAKE(vector2_t, entity->origin.x, entity->origin.y);
+    world = MAKE(vec2_t, entity->origin.x, entity->origin.y);
     if (!R_WorldToMinimap(&world, &point)) return;
 
     size = wc3_minimap_marker_size(contact);
@@ -588,7 +588,7 @@ static void R_DrawMinimapEntityMarkers(void) {
 void R_DrawMinimap(rect_t const *screen, cstring_t map) {
     if (map) { draw_preview(screen, map); return; }
     texture_t const *tex = tr.minimap ? tr.minimap : tr.texture[TEX_WHITE];
-    vector2_t const map_size = R_WorldSize();
+    vec2_t const map_size = R_WorldSize();
     rect_t const content = WC3_MinimapContentRect(screen, &map_size);
 
     /* The authored war3mapMap texture fills the frame. World-space overlays
@@ -659,7 +659,7 @@ void R_DrawAlphaSurfaces(void) {
     R_WeatherEmit();
 }
 
-bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vector3_t *point) {
+bool R_TraceLocation(viewDef_t const *viewdef, float x, float y, vec3_t *point) {
     return _W3M_TraceLocation(viewdef, x, y, point);
 }
 
@@ -673,7 +673,7 @@ bool R_CameraUsesTerrainHeight(void) { return true; }
 
 static bool R_W3WalkableSurfaceHit(renderEntity_t const *surface, float x, float y, float *z) {
     line3_t line;
-    vector3_t hit;
+    vec3_t hit;
 
     if (!surface || !z || !(surface->flags & RF_GROUND_SURFACE) ||
         (surface->flags & RF_HIDDEN) || !surface->model) {
@@ -726,8 +726,8 @@ void R_ConformGroundSurfaces(viewDef_t *viewdef) {
     }
 }
 
-vector2_t R_WorldSize(void) {
-    return tr.world ? GetWar3MapSize(tr.world) : (vector2_t){ 0 };
+vec2_t R_WorldSize(void) {
+    return tr.world ? GetWar3MapSize(tr.world) : (vec2_t){ 0 };
 }
 
 model_t *R_LoadModel(cstring_t modelFilename) {
@@ -841,9 +841,9 @@ static uint32_t R_W3SoundVariantCount(wc3AnimSound_t const *row) {
     return count;
 }
 
-static vector3_t R_W3EventWorldPosition(mdxModel_t const *model, mdxEvent_t const *event,
-                                      renderEntity_t const *entity, matrix4_t const *transform) {
-    vector3_t pivot = {0}, local = {0};
+static vec3_t R_W3EventWorldPosition(mdxModel_t const *model, mdxEvent_t const *event,
+                                      renderEntity_t const *entity, mat4_t const *transform) {
+    vec3_t pivot = {0}, local = {0};
     if (event->node.node_id < (uint32_t)model->num_pivots) pivot = model->pivots[event->node.node_id];
     MDLX_BindBoneMatrices(model, transform, entity->frame, entity->oldframe);
     if (event->node.node_id < MDX_MAX_NODES && model->nodes[event->node.node_id])
@@ -854,13 +854,13 @@ static vector3_t R_W3EventWorldPosition(mdxModel_t const *model, mdxEvent_t cons
 }
 
 static void R_W3EmitSoundEvent(renderEntity_t const *entity, mdxModel_t const *model,
-                               mdxEvent_t const *event, uint32_t key, matrix4_t const *transform) {
+                               mdxEvent_t const *event, uint32_t key, mat4_t const *transform) {
     cstring_t id;
     cstring_t label;
     wc3AnimSound_t const *row;
     uint32_t count, pick;
     char path[512];
-    vector3_t origin;
+    vec3_t origin;
     if (!ri.PlaySoundAt || strncmp(event->node.name, "SND", 3)) return;
     {
         char trimmed[sizeof(event->node.name) + 1];
@@ -885,7 +885,7 @@ static void R_W3EmitSoundEvent(renderEntity_t const *entity, mdxModel_t const *m
 static void R_W3UpdateModelSoundEvents(renderEntity_t const *entity) {
     mdxModel_t const *model;
     wc3EventSoundState_t *state;
-    matrix4_t transform;
+    mat4_t transform;
 
     if (!entity || (entity->flags & RF_HIDDEN) || !entity->model || entity->model->modeltype != ID_MDLX ||
         !entity->model->mdx || entity->number >= MAX_GAME_ENTITIES) return;
@@ -918,7 +918,7 @@ void R_UpdateEntityPresentation(renderEntity_t const *entity) {
 }
 
 void R_RenderModel(renderEntity_t const *entity) {
-    matrix4_t transform;
+    mat4_t transform;
 
     if (!entity || !entity->model || entity->model->modeltype != ID_MDLX) {
         return;
@@ -976,7 +976,7 @@ void R_RenderModel(renderEntity_t const *entity) {
 }
 
 bool R_TraceModel(renderEntity_t const *entity, line3_t const *line, float *distance) {
-    vector3_t intersection;
+    vec3_t intersection;
 
     if (!entity || !entity->model || entity->model->modeltype != ID_MDLX) {
         return false;
@@ -999,12 +999,12 @@ bool R_GetEntityBounds(renderEntity_t const *entity, box3_t *bounds) {
     return true;
 }
 
-matrix4_t const *R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
+mat4_t const *R_EntityPose(renderEntity_t const *entity, modelPose_t *pose) {
     (void)entity; (void)pose;
     return &wc3_model_basis;
 }
 
-bool R_RenderShadow(renderEntity_t const *entity, vector2_t const *origin) {
+bool R_RenderShadow(renderEntity_t const *entity, vec2_t const *origin) {
     (void)entity;
     (void)origin;
     return false;
@@ -1024,15 +1024,15 @@ float R_EntityHeight(renderEntity_t const *entity) {
     seq = R_FindSequenceAtTime(mdx, entity->frame);
     return (seq ? seq->bounds.box.max.z : mdx->info.bounds.box.max.z) * entity->scale;
 }
-bool R_EntityOverheadPosition(renderEntity_t const *entity, vector3_t *out) {
+bool R_EntityOverheadPosition(renderEntity_t const *entity, vec3_t *out) {
     if (!entity || !out) return false;
     /* Match Warsmash: the status stack is centered on the transformed model-bounds maximum. */
     *out = entity->origin; out->z += R_EntityHeight(entity);
     return true;
 }
 
-bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vector3_t *out) {
-    matrix4_t transform;
+bool R_EntityAttachmentPosition(renderEntity_t const *entity, cstring_t prefix, vec3_t *out) {
+    mat4_t transform;
     mdxAttachmentPosition_t attachment;
 
     if (!entity || !entity->model || entity->model->modeltype != ID_MDLX ||

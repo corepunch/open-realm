@@ -45,7 +45,7 @@ static camerasetup_t G_CameraStateAtTime(gameClient_t *gc, uint32_t now) {
 
     k = (now - gc->camera.start_time) / (float)duration;
     current.position = Vector2_lerp(&gc->camera.old_state.position, &gc->camera.state.position, k);
-    current.viewangles = (vector3_t){
+    current.viewangles = (vec3_t){
         CL_GameLerpDegrees(gc->camera.old_state.viewangles.x, gc->camera.state.viewangles.x, k),
         CL_GameLerpDegrees(gc->camera.old_state.viewangles.y, gc->camera.state.viewangles.y, k),
         CL_GameLerpDegrees(gc->camera.old_state.viewangles.z, gc->camera.state.viewangles.z, k),
@@ -59,21 +59,21 @@ static camerasetup_t G_CameraStateAtTime(gameClient_t *gc, uint32_t now) {
 }
 
 /* Reconstruct the rendered orbit eye from the same target, orientation, and distance sent to the client. */
-static vector3_t G_CameraEyePositionFromState(vector3_t const *target, vector3_t const *angles, float distance) {
+static vec3_t G_CameraEyePositionFromState(vec3_t const *target, vec3_t const *angles, float distance) {
     quaternion_t quat;
-    matrix4_t view, inverse;
-    vector3_t eye, origin = Vector3_unm(target);
+    mat4_t view, inverse;
+    vec3_t eye, origin = Vector3_unm(target);
 
     quat = Quaternion_fromEuler(angles, ROTATE_ZYX);
     Matrix4_identity(&view);
-    Matrix4_translate(&view, &(vector3_t){ 0, 0, -distance });
+    Matrix4_translate(&view, &(vec3_t){ 0, 0, -distance });
     Matrix4_rotateQuat(&view, &quat);
     Matrix4_translate(&view, &origin);
     Matrix4_inverse(&view, &inverse);
-    eye = (vector3_t){ inverse.v[12], inverse.v[13], inverse.v[14] };
+    eye = (vec3_t){ inverse.v[12], inverse.v[13], inverse.v[14] };
     return eye;
 }
-static vector3_t G_CameraEyePosition(player_t const *playerstate) {
+static vec3_t G_CameraEyePosition(player_t const *playerstate) {
     return G_CameraEyePositionFromState(&playerstate->vieworigin, &playerstate->viewangles, playerstate->distance);
 }
 
@@ -177,11 +177,11 @@ static float G_CameraZOffset(player_t const *p) {
 void G_CameraTraceSnapshotForClient(gameClient_t *gc, cstring_t label) {
     player_t const *p;
     camerasetup_t *s;
-    vector3_t const *ang;
+    vec3_t const *ang;
     float dist, fov, roll, zoff, farz;
     float terrain, sample_height, realized_base, composed_z;
     float k = 0.0f;
-    vector3_t eye, realized_target;
+    vec3_t eye, realized_target;
     static uint32_t sample;
     cstring_t enabled = gi.CvarString("camera_trace", "0");
 
@@ -243,7 +243,7 @@ static void G_SetCameraPositionForCurrentPlayer(cstring_t func, float x, float y
                                                  bool set_z, float z_offset,
                                                  float duration) {
     gameClient_t *gc = G_CurrentCameraClient(func);
-    vector2_t position = { x, y };
+    vec2_t position = { x, y };
 
     if (!gc) {
         return;
@@ -273,10 +273,10 @@ uint32_t SetCameraTargetController(jass_t *j) {
         return 0;
     }
     gc->camera.target_controller = whichUnit;
-    gc->camera.target_offset = (vector2_t){ xoffset, yoffset };
+    gc->camera.target_offset = (vec2_t){ xoffset, yoffset };
     gc->camera.target_inherit_orientation = inheritOrientation;
     if (whichUnit) {
-        vector2_t position = { whichUnit->s.origin2.x + xoffset, whichUnit->s.origin2.y + yoffset };
+        vec2_t position = { whichUnit->s.origin2.x + xoffset, whichUnit->s.origin2.y + yoffset };
         gc->camera.old_state = gc->camera.state;
         gc->camera.state.position = G_ClampCameraPosition(gc, &position);
         if (inheritOrientation) {
@@ -286,7 +286,7 @@ uint32_t SetCameraTargetController(jass_t *j) {
         gc->camera.start_time = G_Time();
         gc->camera.end_time = gc->camera.start_time;
     } else {
-        gc->camera.target_offset = (vector2_t){ 0, 0 };
+        gc->camera.target_offset = (vec2_t){ 0, 0 };
         gc->camera.target_inherit_orientation = false;
     }
     return 0;
@@ -312,7 +312,7 @@ uint32_t SetCameraQuickPosition(jass_t *j) {
     }
     /* Warcraft's quick position is the spacebar recall point. It must not
      * mutate the current camera target when the script assigns it. */
-    gc->camera.quick_position = MAKE(vector2_t, x, y);
+    gc->camera.quick_position = MAKE(vec2_t, x, y);
     gc->camera.quick_position_set = true;
     return 0;
 }
@@ -354,7 +354,7 @@ uint32_t ResetToGameCamera(jass_t *j) {
     {
         gameCamera_t cam;
         CL_GameDefaultCamera(&cam);
-        gc->camera.state.viewangles = (vector3_t){ cam.pitch, 0, cam.yaw };
+        gc->camera.state.viewangles = (vec3_t){ cam.pitch, 0, cam.yaw };
         gc->camera.state.fov = cam.fov;
         gc->camera.state.target_distance = cam.distance;
         gc->camera.state.z_offset = 0.0f;
@@ -424,7 +424,7 @@ uint32_t CreateCameraSetup(jass_t *j) {
     {
         gameCamera_t cam;
         CL_GameDefaultCamera(&cam);
-        camerasetup->viewangles = (vector3_t){ cam.pitch, 0, cam.yaw };
+        camerasetup->viewangles = (vec3_t){ cam.pitch, 0, cam.yaw };
         camerasetup->fov = cam.fov;
         camerasetup->target_distance = cam.distance;
         camerasetup->near_z = cam.znear;
@@ -673,34 +673,34 @@ uint32_t GetCameraTargetPositionZ(jass_t *j) {
 }
 
 uint32_t GetCameraTargetPositionLoc(jass_t *j) {
-    API_ALLOC(vector2_t, location);
+    API_ALLOC(vec2_t, location);
     API_PLAYERSTATE(playerstate);
     if (playerstate) {
-        *location = (vector2_t){ playerstate->vieworigin.x, playerstate->vieworigin.y };
+        *location = (vec2_t){ playerstate->vieworigin.x, playerstate->vieworigin.y };
     }
     return 1;
 }
 uint32_t GetCameraEyePositionX(jass_t *j) {
     API_PLAYERSTATE(playerstate);
-    vector3_t eye = playerstate ? G_CameraEyePosition(playerstate) : (vector3_t){ 0 };
+    vec3_t eye = playerstate ? G_CameraEyePosition(playerstate) : (vec3_t){ 0 };
     return jass_pushnumber(j, eye.x);
 }
 uint32_t GetCameraEyePositionY(jass_t *j) {
     API_PLAYERSTATE(playerstate);
-    vector3_t eye = playerstate ? G_CameraEyePosition(playerstate) : (vector3_t){ 0 };
+    vec3_t eye = playerstate ? G_CameraEyePosition(playerstate) : (vec3_t){ 0 };
     return jass_pushnumber(j, eye.y);
 }
 uint32_t GetCameraEyePositionZ(jass_t *j) {
     API_PLAYERSTATE(playerstate);
-    vector3_t eye = playerstate ? G_CameraEyePosition(playerstate) : (vector3_t){ 0 };
+    vec3_t eye = playerstate ? G_CameraEyePosition(playerstate) : (vec3_t){ 0 };
     return jass_pushnumber(j, eye.z);
 }
 uint32_t GetCameraEyePositionLoc(jass_t *j) {
-    API_ALLOC(vector2_t, location);
+    API_ALLOC(vec2_t, location);
     API_PLAYERSTATE(playerstate);
     if (playerstate) {
-        vector3_t eye = G_CameraEyePosition(playerstate);
-        *location = (vector2_t){ eye.x, eye.y };
+        vec3_t eye = G_CameraEyePosition(playerstate);
+        *location = (vec2_t){ eye.x, eye.y };
     }
     return 1;
 }

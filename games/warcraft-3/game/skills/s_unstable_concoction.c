@@ -20,7 +20,7 @@ static void unstable_concoction_explode(edict_t *caster, edict_t *primary, uint3
 	float full_r = S_SpellData(code, level, 1), full_d = S_SpellData(code, level, 2);
 	float part_r = S_SpellData(code, level, 3), part_d = S_SpellData(code, level, 4);
 	float max_d = S_SpellData(code, level, 5), splash_spent = 0.0f;
-	vector2_t origin;
+	vec2_t origin;
 
 	if (!primary || (full_d <= 0.0f && part_d <= 0.0f)) return;
 	origin = primary->s.origin2;

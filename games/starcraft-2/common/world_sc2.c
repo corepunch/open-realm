@@ -6,7 +6,7 @@ uint32_t SC2_MapObjectClassId(sc2MapObject_t const *object);
 bool CL_GameDefaultCamera(gameCamera_t *camera) {
     sc2MapCamera_t source;
     if (!camera || !SC2_MapDefaultCamera(&source)) return false;
-    vector3_t const euler = SC2_EulerFromCamera(source.pitch, source.yaw);
+    vec3_t const euler = SC2_EulerFromCamera(source.pitch, source.yaw);
     *camera = (gameCamera_t){ .target = source.target, .distance = source.distance,
         .pitch = euler.x, .yaw = euler.z, .fov = source.fov,
         .znear = source.znear, .zfar = source.zfar, .height_offset = source.height_offset };
@@ -17,8 +17,8 @@ bool CL_GameCameraUsesWorldUp(void) { return false; }
 UICANVASPOLICY CL_GameCanvasPolicy(void) { return UI_CANVAS_POLICY; }
 float CL_GameLerpDegrees(float a, float b, float fraction) { return SC2_LerpDegrees(a, b, fraction); }
 cstring_t CL_GameOrderQueueReleaseCommand(void) { return NULL; }
-bool CL_GameBuildCursorBlocked(vector3_t const *origin) { (void)origin; return false; }
-void CL_GameModifyBuildPathing(vector2_t const *point, uint8_t *flags) { (void)point; (void)flags; }
+bool CL_GameBuildCursorBlocked(vec3_t const *origin) { (void)origin; return false; }
+void CL_GameModifyBuildPathing(vec2_t const *point, uint8_t *flags) { (void)point; (void)flags; }
 bool CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection) {
     (void)selection;
     return false;
@@ -52,7 +52,7 @@ bool CM_LoadMapFormat(cstring_t mapFilename, cmLoadYield_t yield) {
     world.info.players[0].used = true;
     world.info.players[0].playerType = kPlayerTypeHuman;
     world.info.players[0].playerRace = kPlayerRaceHuman;
-    world.info.players[0].startingPosition = (vector2_t){ 0.0f, 0.0f };
+    world.info.players[0].startingPosition = (vec2_t){ 0.0f, 0.0f };
     CM_SetupPathMap(width, height, NULL);
     return true;
 }
@@ -68,11 +68,11 @@ float CM_GetCameraHeightOffset(void) {
     return camera.height_offset;
 }
 
-vector2_t CM_GetNormalizedMapPosition(float x, float y) {
+vec2_t CM_GetNormalizedMapPosition(float x, float y) {
     return SC2_MapNormalizedPosition(x, y);
 }
 
-vector2_t CM_GetDenormalizedMapPosition(float x, float y) {
+vec2_t CM_GetDenormalizedMapPosition(float x, float y) {
     return SC2_MapDenormalizedPosition(x, y);
 }
 

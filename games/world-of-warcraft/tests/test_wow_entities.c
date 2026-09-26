@@ -275,7 +275,7 @@ TEST(wow_entities, dying_creature_becomes_corpse) {
     T_NOT_NULL(creature);
     wowEntityLocal_t *cl = Wow_EntityLocal(creature);
     uint32_t model = creature->s.model;
-    vector3_t origin = creature->s.origin;
+    vec3_t origin = creature->s.origin;
     num_edicts = (uint32_t)globals.num_edicts;
 
     Wow_AIDie(creature, &wow_edicts[0]);
@@ -365,7 +365,7 @@ TEST(wow_entities, dynamic_object_spawn_and_properties) {
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
-    vector2_t origin = { 100.0f, 200.0f };
+    vec2_t origin = { 100.0f, 200.0f };
     edict_t *dobj = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 5000);
     T_NOT_NULL(dobj);
 
@@ -391,7 +391,7 @@ TEST(wow_entities, dynamic_object_despawns_after_duration) {
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
-    vector2_t origin = { 0, 0 };
+    vec2_t origin = { 0, 0 };
     edict_t *dobj = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, FRAMETIME);
     T_NOT_NULL(dobj);
 
@@ -433,7 +433,7 @@ TEST(wow_entities, spawn_budget_resets_per_frame) {
     T_ASSERT(game->LoadMap("World/Maps/Azeroth/Azeroth.wdt"));
     game->RunFrame();
 
-    vector2_t origin = { 0, 0 };
+    vec2_t origin = { 0, 0 };
     edict_t *d1 = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 1000);
     T_NOT_NULL(d1);
     game->RunFrame();
@@ -478,7 +478,7 @@ TEST(wow_entities, edict_limit_reached_returns_null) {
         globals.num_edicts = (int)num;
     }
 
-    vector2_t origin = { 0, 0 };
+    vec2_t origin = { 0, 0 };
     edict_t *should_fail = Wow_SpawnDynamicObject(WOW_SPELL_FIREBOLT, &origin, 1000);
     T_NULL(should_fail);
 

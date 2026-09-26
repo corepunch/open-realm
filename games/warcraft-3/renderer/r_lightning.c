@@ -153,8 +153,8 @@ static float R_LightningHashSigned(uint32_t seed) {
 /* Build the camera-independent polyline that the shared ribbon renderer expands. */
 static uint32_t R_LightningBuildPoints(w3lightningart_t const *art,
                                     lightningEffect_t const *state,
-                                    vector3_t *points, uint32_t point_capacity) {
-    vector3_t delta, direction, reference, side;
+                                    vec3_t *points, uint32_t point_capacity) {
+    vec3_t delta, direction, reference, side;
     float distance, average, noise_ratio, lateral_scale;
     uint32_t segments, crackle_frame;
 
@@ -163,7 +163,7 @@ static uint32_t R_LightningBuildPoints(w3lightningart_t const *art,
     distance = Vector3_len(&delta);
     if (distance <= 0.001f) return 0;
     direction = Vector3_scale(&delta, 1.0f / distance);
-    reference = fabsf(direction.z) < 0.9f ? (vector3_t){0, 0, 1} : (vector3_t){0, 1, 0};
+    reference = fabsf(direction.z) < 0.9f ? (vec3_t){0, 0, 1} : (vec3_t){0, 1, 0};
     side = Vector3_cross(&direction, &reference); Vector3_normalize(&side);
     average = art->avg_seg_len > 0.0f ? art->avg_seg_len : distance;
     segments = (uint32_t)ceilf(distance / average);
@@ -215,7 +215,7 @@ void R_LightningDraw(void) {
     FOR_LOOP(i, tr.viewDef.num_lightning_effects) {
         lightningEffect_t const *state = tr.viewDef.lightning_effects + i;
         w3lightningart_t *art = FS_SLKLookup(&lightning_index, state->effect_id);
-        vector3_t points[WC3_LIGHTNING_MAX_SEGMENTS + 1];
+        vec3_t points[WC3_LIGHTNING_MAX_SEGMENTS + 1];
         color32_t color;
         texture_t const *texture;
         float opacity, average, texture_scale, elapsed;

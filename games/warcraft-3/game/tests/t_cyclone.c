@@ -92,7 +92,7 @@ TEST(wc3_spell, cyclone_item_aicy_applies_authored_duration_and_dispel) {
     cycFix_t fix = cyc_setup(slk, BZ_AICY);
     edict_t *priest = alloc_test_unit(MAKEFOURCC('h', 'p', 'r', 'i'), 32, 0);
     heroabilitystatus_t *slot = NULL;
-    vector2_t point;
+    vec2_t point;
 
     T_EQ(S_AbilityItem(BZ_AICY).ability->proc, CAbilityCyclone);
     T_FEQ(S_SpellDuration(BZ_AICY, 1, false), 13, 0.001f);
@@ -152,7 +152,7 @@ TEST(wc3_spell, cyclone_locks_move_attack_spell_and_damage) {
     T_ASSERT(S_CastUnitTargetSpell(fix.caster, BZ_ACYC, fix.enemy));
     T_ASSERT(S_UnitIsCycloned(fix.enemy));
 
-    wp = Waypoint_add(&(vector2_t){200, 0});
+    wp = Waypoint_add(&(vec2_t){200, 0});
     fix.enemy->goalentity = NULL;
     order_move(fix.enemy, wp);
     T_ASSERT(fix.enemy->goalentity != wp);
@@ -210,7 +210,7 @@ TEST(wc3_spell, cyclone_hero_duration_and_expiry_restore) {
     level.time += 11000; unit_updatestatuses(fix.enemy);
     T_ASSERT(!S_UnitIsCycloned(fix.enemy));
 
-    wp = Waypoint_add(&(vector2_t){220, 0});
+    wp = Waypoint_add(&(vec2_t){220, 0});
     order_move(fix.enemy, wp);
     T_ASSERT(fix.enemy->goalentity == wp);
     fix.caster->attack1.type = ATK_NORMAL;
@@ -261,7 +261,7 @@ TEST(wc3_spell, cyclone_hero_duration_and_expiry_restore) {
 TEST(wc3_spell, cyclone_dataa_nonzero_removed_by_adis) {
     cycFix_t fix = cyc_setup(CYC_DISPEL_SLK_DATAA("2"), BZ_ACYC);
     edict_t *priest = alloc_test_unit(MAKEFOURCC('h', 'p', 'r', 'i'), 32, 0);
-    vector2_t point;
+    vec2_t point;
 
     priest->s.player = 0; priest->svflags |= SVF_MONSTER; priest->targtype = TARG_GROUND;
     priest->heroabilities[0] = MAKE(heroability_t, .code = BZ_ADIS, .level = 1);
@@ -282,7 +282,7 @@ TEST(wc3_spell, cyclone_dataa_nonzero_removed_by_adis) {
 TEST(wc3_spell, cyclone_dataa_zero_survives_adis) {
     cycFix_t fix = cyc_setup(CYC_DISPEL_SLK_DATAA("0"), BZ_ACYC);
     edict_t *priest = alloc_test_unit(MAKEFOURCC('h', 'p', 'r', 'i'), 32, 0);
-    vector2_t point;
+    vec2_t point;
 
     priest->s.player = 0; priest->svflags |= SVF_MONSTER; priest->targtype = TARG_GROUND;
     priest->heroabilities[0] = MAKE(heroability_t, .code = BZ_ADIS, .level = 1);

@@ -7,7 +7,7 @@
 #define BZ_PATH_WORK_BUDGET 32768 // queue pops/tick; WC3 default completes a 256x256 open field in two ticks
 
 typedef struct {
-    vector2_t waypoint, target;
+    vec2_t waypoint, target;
     float radius;
     bool valid;
 } routePath_t;
@@ -18,7 +18,7 @@ typedef struct {
     edict_t *ent;
     float angle, dist;
     int rings;
-    bool (*valid)(edict_t *ent, vector2_t const *point);
+    bool (*valid)(edict_t *ent, vec2_t const *point);
 } routeSlide_t;
 
 
@@ -36,6 +36,6 @@ typedef struct {
 } pathTexTransformParams_t;
 
 float CM_SlideRoute(routeSlide_t const *slide);
-bool CM_AccelerateRoute(routePath_t *path, pathAccelParams_t const *params, vector2_t *dir);
+bool CM_AccelerateRoute(routePath_t *path, pathAccelParams_t const *params, vec2_t *dir);
 pathTexTransform_t CM_GetPathTexTransform(edict_t const *ent);
 #endif

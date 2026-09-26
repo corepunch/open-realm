@@ -645,7 +645,7 @@ cstring_t G_GameCacheGetString(gameCache_t const *cache, cstring_t mission, cstr
 }
 
 edict_t *G_GameCacheRestoreUnit(gameCache_t const *cache, cstring_t mission, cstring_t key,
-                              uint32_t player, vector2_t const *location, float facing) {
+                              uint32_t player, vec2_t const *location, float facing) {
     gameCacheEntry_t const *entry = G_GameCacheFindConst(cache, mission, key, GAMECACHE_UNIT);
     gameCacheUnit_t const *saved;
     edict_t *unit;

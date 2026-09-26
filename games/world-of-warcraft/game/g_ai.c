@@ -18,7 +18,7 @@ static wowMove_t wow_move_death = { "Death", NULL, NULL };
 
 void Wow_FaceTarget(edict_t *ent, edict_t *target) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
-    vector2_t delta;
+    vec2_t delta;
 
     if (!ent || !target || !local) {
         return;
@@ -204,8 +204,8 @@ void Wow_AIIdle(edict_t *ent) {
 
 void Wow_AIMove(edict_t *ent) {
     wowEntityLocal_t *local = Wow_EntityLocal(ent);
-    vector2_t target;
-    vector2_t delta;
+    vec2_t target;
+    vec2_t delta;
     float len;
     float step;
 
@@ -213,7 +213,7 @@ void Wow_AIMove(edict_t *ent) {
         return;
     }
 
-    target = (vector2_t){
+    target = (vec2_t){
         local->home.x + cosf(local->patrol_phase) * local->patrol_radius,
         local->home.y + sinf(local->patrol_phase) * local->patrol_radius,
     };
@@ -230,7 +230,7 @@ void Wow_AIMove(edict_t *ent) {
     ent->s.origin.y += delta.y * step / len;
     /* Quake2 M_CheckGround: re-anchor Z to the nearest authored terrain or WMO floor. */
     ent->s.origin.z = Wow_FloorHeight(ent->s.origin.x, ent->s.origin.y, ent->s.origin.z);
-    ent->s.origin2 = (vector2_t){ ent->s.origin.x, ent->s.origin.y };
+    ent->s.origin2 = (vec2_t){ ent->s.origin.x, ent->s.origin.y };
     local->yaw = (float)RAD2DEG(atan2f(delta.y, delta.x));
     ent->s.angle = (float)DEG2RAD(local->yaw);
     Wow_SetWalkMove(ent);
@@ -269,7 +269,7 @@ void Wow_AIAttack(edict_t *ent) {
     /* Don't start the swing animation if out of melee range — the per-frame
      * chase logic in Wow_RunFrame will close the gap automatically. */
     {
-        vector2_t delta = Vector2_sub(&target->s.origin2, &ent->s.origin2);
+        vec2_t delta = Vector2_sub(&target->s.origin2, &ent->s.origin2);
         if (Vector2_len(&delta) > WOW_MELEE_RANGE) {
             return;
         }

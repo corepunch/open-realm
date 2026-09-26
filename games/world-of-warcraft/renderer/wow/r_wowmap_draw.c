@@ -12,7 +12,7 @@ float Wow_DayFraction(void) {
    Light*.dbc, so the authored sun path is unavailable; this is WoWee's
    time-of-day directionalDir negated and Y-up→Z-up swapped to engine axes.
    day_frac 0=midnight, 0.25=dawn(sun in -X), 0.5=noon(overhead), 0.75=dusk. */
-void Wow_SunDirection(float day_frac, vector3_t *out) {
+void Wow_SunDirection(float day_frac, vec3_t *out) {
     float a = day_frac * 6.283185307f; /* 2π over the day cycle */
     out->x = -0.6f * sinf(a);
     out->y = -0.6f * cosf(a);
@@ -21,8 +21,8 @@ void Wow_SunDirection(float day_frac, vector3_t *out) {
 }
 
 bool Wow_EntityInView(renderEntity_t const *entity) {
-    vector3_t camera_origin;
-    vector3_t delta;
+    vec3_t camera_origin;
+    vec3_t delta;
     float radius;
 
     if (!entity) {
@@ -40,9 +40,9 @@ bool Wow_EntityInView(renderEntity_t const *entity) {
 }
 
 bool Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk) {
-    vector3_t camera_origin;
-    vector3_t center;
-    vector3_t extents;
+    vec3_t camera_origin;
+    vec3_t center;
+    vec3_t extents;
     float dx = 0.0f;
     float dy = 0.0f;
     float max_distance_sq;
@@ -69,12 +69,12 @@ bool Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk) {
         return false;
     }
 
-    center = (vector3_t){
+    center = (vec3_t){
         (chunk->bounds.min.x + chunk->bounds.max.x) * 0.5f,
         (chunk->bounds.min.y + chunk->bounds.max.y) * 0.5f,
         (chunk->bounds.min.z + chunk->bounds.max.z) * 0.5f,
     };
-    extents = (vector3_t){
+    extents = (vec3_t){
         chunk->bounds.max.x - center.x,
         chunk->bounds.max.y - center.y,
         chunk->bounds.max.z - center.z,
@@ -83,23 +83,23 @@ bool Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk) {
     return Frustum_ContainsSphere(&tr.viewDef.frustum, &(sphere3_t){ .center = center, .radius = radius, });
 }
 
-bool Wow_WmoGroupInView(wowWmoGroup_t const *group, matrix4_t const *matrix) {
-    vector3_t center;
-    vector3_t extents;
-    vector3_t world_center;
-    vector3_t delta;
+bool Wow_WmoGroupInView(wowWmoGroup_t const *group, mat4_t const *matrix) {
+    vec3_t center;
+    vec3_t extents;
+    vec3_t world_center;
+    vec3_t delta;
     float radius;
 
     if (!group || !matrix || !group->has_bounds) {
         return true;
     }
 
-    center = (vector3_t){
+    center = (vec3_t){
         (group->bounds.min.x + group->bounds.max.x) * 0.5f,
         (group->bounds.min.y + group->bounds.max.y) * 0.5f,
         (group->bounds.min.z + group->bounds.max.z) * 0.5f,
     };
-    extents = (vector3_t){
+    extents = (vec3_t){
         group->bounds.max.x - center.x,
         group->bounds.max.y - center.y,
         group->bounds.max.z - center.z,
@@ -117,7 +117,7 @@ bool Wow_WmoGroupInView(wowWmoGroup_t const *group, matrix4_t const *matrix) {
 /* Returns true if the world-space point lies within any interior group's AABB (in world space).
    Each group's local AABB is conservatively transformed to world space by expanding over all 8
    corners; this is correct for axis-aligned groups and conservative for rotated ones. */
-bool Wow_WmoContainsPoint(wowWmoModel_t const *model, matrix4_t const *matrix, vector3_t point) {
+bool Wow_WmoContainsPoint(wowWmoModel_t const *model, mat4_t const *matrix, vec3_t point) {
     if (!model || !matrix || !model->portals) return false;
     FOR_LOOP(i, model->num_groups) {
         wowWmoGroup_t const *group = &model->groups[i];
@@ -131,8 +131,8 @@ bool Wow_WmoContainsPoint(wowWmoModel_t const *model, matrix4_t const *matrix, v
         cy[0] = group->bounds.min.y; cy[1] = group->bounds.max.y;
         cz[0] = group->bounds.min.z; cz[1] = group->bounds.max.z;
         FOR_LOOP(ix, 2) FOR_LOOP(iy, 2) FOR_LOOP(iz, 2) {
-            vector3_t corner = { cx[ix], cy[iy], cz[iz] };
-            vector3_t w = Matrix4_multiply_vector3(matrix, &corner);
+            vec3_t corner = { cx[ix], cy[iy], cz[iz] };
+            vec3_t w = Matrix4_multiply_vector3(matrix, &corner);
             Wow_AddBoundsPoint(&world, &w);
         }
         if (point.x < world.min.x || point.x > world.max.x ||

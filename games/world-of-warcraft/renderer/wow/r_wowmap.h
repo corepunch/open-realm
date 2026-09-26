@@ -132,11 +132,11 @@ typedef struct {
 typedef struct wowDoodadModel_s {
     PATHSTR path;
     model_t *model;
-    matrix4_t *matrices;
+    mat4_t *matrices;
     instanceBuffer_t instances;
     uint32_t count, capacity;
     /* Retain buffer capacity while rebuilding only the visible MODR subset each frame. */
-    matrix4_t *wmo_matrices;
+    mat4_t *wmo_matrices;
     instanceBuffer_t wmo_instances;
     uint32_t wmo_count, wmo_capacity;
     bool can_instance;
@@ -241,7 +241,7 @@ typedef struct wowWmoModel_s {
      * to avoid O(n) strcasecmp lookup on every render frame. num_doodad_defs entries. */
     wowDoodadModel_t **def_groups;
     /* Model-space bounding sphere from MOHD; used for whole-WMO early-out in precompute. */
-    vector3_t bounds_center;
+    vec3_t bounds_center;
     float   bounds_radius;
     bool    has_bounds;
     struct wowWmoModel_s *next;
@@ -249,7 +249,7 @@ typedef struct wowWmoModel_s {
 
 typedef struct wowWmoInstance_s {
     wowWmoModel_t *model;
-    matrix4_t matrix;
+    mat4_t matrix;
     uint16_t doodad_set;  /* MODF.doodadSet index into model->doodad_sets */
     uint8_t *visible_groups; /* current view's authoritative MOGP visibility */
     uint8_t *doodad_seen;    /* per-instance MODR duplicate guard */
@@ -412,12 +412,12 @@ extern wowMap_t wow_world;
 
 /* Terrain and grass have separate typed values and private program locations. */
 typedef struct wowTerrainState_s {
-    matrix4_t viewProjection;
-    matrix4_t model;
-    matrix3_t normalMatrix;
-    vector3_t sunDir;
-    vector3_t sunAmbient;
-    vector3_t sunDiffuse;
+    mat4_t viewProjection;
+    mat4_t model;
+    mat3_t normalMatrix;
+    vec3_t sunDir;
+    vec3_t sunAmbient;
+    vec3_t sunDiffuse;
     int texture0;
     int texture1;
     int texture2;
@@ -426,15 +426,15 @@ typedef struct wowTerrainState_s {
     bool useWeightedBlend;
     bool singleTexture;
     bool wmoIndoor;
-    vector3_t wmoAmbient;
-    vector3_t wmoLightAdd;
+    vec3_t wmoAmbient;
+    vec3_t wmoLightAdd;
     int wmoBlendMode;
-    vector2_t alphaOrigin;
+    vec2_t alphaOrigin;
     float alphaAtlasChunks;
     bool fogEnable;
-    vector3_t fogColor;
-    vector2_t fogParams;
-    vector3_t fogCamera;
+    vec3_t fogColor;
+    vec2_t fogParams;
+    vec3_t fogCamera;
 } wowTerrainState_t;
 
 
@@ -446,21 +446,21 @@ typedef struct wowTerrainProg_s {
 
 
 typedef struct wowGrassState_s {
-    matrix4_t viewProjection;
-    vector3_t sunDir;
-    vector3_t sunAmbient;
-    vector3_t sunDiffuse;
+    mat4_t viewProjection;
+    vec3_t sunDir;
+    vec3_t sunAmbient;
+    vec3_t sunDiffuse;
     float grassTime;
     int grassCtrl;
-    vector2_t ctrlOriginWorld;
+    vec2_t ctrlOriginWorld;
     float ctrlCellSize;
-    vector2_t cameraXZ;
+    vec2_t cameraXZ;
     float grassSlotSpacing;
     int heightAtlas;
-    vector2_t atlasOriginWorld;
+    vec2_t atlasOriginWorld;
     float atlasChunkSize;
     float atlasUnitSize;
-    vector3_t grassCameraOrigin;
+    vec3_t grassCameraOrigin;
     float grassDrawDistance;
     float grassFadeStartDistance;
 } wowGrassState_t;
@@ -502,16 +502,16 @@ void Wow_UploadAlphaAtlasChunk(uint32_t index_x, uint32_t index_y, uint8_t const
 void Wow_InitTerrainShader(void);
 color32_t Wow_Color(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 vertex_t Wow_Vertex(float x, float y, float z, float u, float v, color32_t color);
-void Wow_AddBoundsPoint(box3_t *bounds, vector3_t const *p);
+void Wow_AddBoundsPoint(box3_t *bounds, vec3_t const *p);
 box3_t Wow_EmptyBounds(void);
-vector2_t Wow_McvtCoords(int index);
-vector3_t Wow_McvtPoint(wowVec3_t pos, float const *heights, int index);
-vector3_t Wow_TerrainFaceNormal(vector3_t const *a, vector3_t const *b, vector3_t const *c);
-void Wow_AccumulateTerrainCellNormals(vector3_t normals[WOW_MCVT_COUNT], wowVec3_t pos, float const *heights, int x, int y);
-void Wow_NormalizeTerrainNormals(vector3_t normals[WOW_MCVT_COUNT]);
-void Wow_PushTerrainVertex(vertex_t *vertices, uint32_t *index, wowVec3_t pos, float const *heights, vector3_t const *normal, int height_index, color32_t color);
+vec2_t Wow_McvtCoords(int index);
+vec3_t Wow_McvtPoint(wowVec3_t pos, float const *heights, int index);
+vec3_t Wow_TerrainFaceNormal(vec3_t const *a, vec3_t const *b, vec3_t const *c);
+void Wow_AccumulateTerrainCellNormals(vec3_t normals[WOW_MCVT_COUNT], wowVec3_t pos, float const *heights, int x, int y);
+void Wow_NormalizeTerrainNormals(vec3_t normals[WOW_MCVT_COUNT]);
+void Wow_PushTerrainVertex(vertex_t *vertices, uint32_t *index, wowVec3_t pos, float const *heights, vec3_t const *normal, int height_index, color32_t color);
 bool Wow_IsHole(uint16_t holes, int x, int y);
-void Wow_AddTerrainCell(vertex_t *vertices, uint32_t *index, wowVec3_t pos, float const *heights, vector3_t const normals[WOW_MCVT_COUNT], int x, int y, color32_t const *mccv);
+void Wow_AddTerrainCell(vertex_t *vertices, uint32_t *index, wowVec3_t pos, float const *heights, vec3_t const normals[WOW_MCVT_COUNT], int x, int y, color32_t const *mccv);
 bool Wow_BarycentricHeight(float px, float py, float ax, float ay, float ah, float bx, float by, float bh, float cx, float cy, float ch, float *height);
 bool Wow_HeightInCell(float const *heights, int row, int col, float fx, float fy, float *height);
 bool Wow_TerrainHeightAtPoint(float sx, float sy, float *height);
@@ -525,8 +525,8 @@ void Wow_AddAdtChunk(wowVec3_t pos, uint32_t alpha_index_x, uint32_t alpha_index
 void Wow_FreeStringList(char **strings, uint32_t count);
 char **Wow_ParseStringBlock(uint8_t const *data, uint32_t size, uint32_t *out_count);
 cstring_t Wow_StringRefFromOffsets(uint8_t const *blob, uint32_t blob_size, uint32_t const *offsets, uint32_t offset_count, uint32_t id);
-vector3_t Wow_ObjectPoint(wowVec3_t p);
-void Wow_InstanceMatrix(wowMapObjDef_t const *def, matrix4_t *matrix);
+vec3_t Wow_ObjectPoint(wowVec3_t p);
+void Wow_InstanceMatrix(wowMapObjDef_t const *def, mat4_t *matrix);
 void Wow_GroupPath(cstring_t root_path, uint32_t group_index, string_t out, uint32_t out_size);
 cstring_t Wow_StringAt(cstring_t blob, uint32_t blob_size, uint32_t offset);
 bool Wow_LoadWmoModel(wowWmoModel_t *model);
@@ -536,8 +536,8 @@ model_t *Wow_LoadDoodadModel(cstring_t path);
 int Wow_DoodadBucketIndex(float coord);
 void Wow_BucketDoodadInstance(wowDoodadInstance_t *instance);
 void Wow_AddDoodadInstance(cstring_t model_path, wowDoodadDef_t const *def);
-void Wow_AddGroundEffectInstance(cstring_t model_path, vector3_t origin, float angle);
-void Wow_AddMarker(vertex_t *vertices, uint32_t *index, vector3_t p, float size, color32_t color);
+void Wow_AddGroundEffectInstance(cstring_t model_path, vec3_t origin, float angle);
+void Wow_AddMarker(vertex_t *vertices, uint32_t *index, vec3_t p, float size, color32_t color);
 vertex_t *Wow_AppendMarkers(vertex_t *old_vertices, uint32_t *old_count, uint8_t const *chunk, uint32_t size, uint8_t const *name_blob, uint32_t name_blob_size, uint32_t const *name_offsets, uint32_t name_offset_count, bool wmo);
 vertex_t *Wow_AppendDoodadErrorMarkers(vertex_t *old_vertices, uint32_t *old_count, uint8_t const *chunk, uint32_t size);
 void Wow_LoadAdt(uint8_t const *data, uint32_t size, uint32_t tile_x, uint32_t tile_y);
@@ -563,18 +563,18 @@ void Wow_FixMocvAlpha(uint8_t *colors, uint32_t color_count,
                       wowWmoBatchDef_t const *batches, uint32_t batch_count,
                       uint32_t trans_batch_count,
                       color32_t amb, uint32_t mohd_flags, bool exterior);
-void Wow_ComputeMoltContribution(wowWmoModel_t const *model, matrix4_t const *matrix, vector3_t ref_pos, vector3_t *out);
-void Wow_WmoDoodadLocalMatrix(wowWmoDoodadDef_t const *def, matrix4_t *out);
+void Wow_ComputeMoltContribution(wowWmoModel_t const *model, mat4_t const *matrix, vec3_t ref_pos, vec3_t *out);
+void Wow_WmoDoodadLocalMatrix(wowWmoDoodadDef_t const *def, mat4_t *out);
 void Wow_QueueWmoDoodads(wowWmoInstance_t const *wmo);
 bool Wow_EntityInView(renderEntity_t const *entity);
 bool Wow_TerrainChunkInRange(wowAdtChunk_t const *chunk);
-bool Wow_WmoGroupInView(wowWmoGroup_t const *group, matrix4_t const *matrix);
-bool Wow_WmoContainsPoint(wowWmoModel_t const *model, matrix4_t const *matrix, vector3_t point);
+bool Wow_WmoGroupInView(wowWmoGroup_t const *group, mat4_t const *matrix);
+bool Wow_WmoContainsPoint(wowWmoModel_t const *model, mat4_t const *matrix, vec3_t point);
 void Wow_BindWorldTexture(texture_t const *texture, uint32_t unit, texture_t const *bound[5], uint32_t *binds);
 void Wow_DrawMinimap(rect_t const *screen);
 float Wow_DayFraction(void);
-void Wow_SunDirection(float day_frac, vector3_t *out);
-bool Wow_MakeSplatVertex(float x, float y, vector2_t const *mins, float width, float height, color32_t color, vertex_t *vertex);
+void Wow_SunDirection(float day_frac, vec3_t *out);
+bool Wow_MakeSplatVertex(float x, float y, vec2_t const *mins, float width, float height, color32_t color, vertex_t *vertex);
 void Wow_AddSplatTriangle(vertex_t *vertices, uint32_t *count, vertex_t a, vertex_t b, vertex_t c, float max_height_delta);
 
 #endif

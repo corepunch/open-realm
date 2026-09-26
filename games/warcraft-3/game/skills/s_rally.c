@@ -28,7 +28,7 @@ void G_ResetRallyTarget(edict_t *producer) {
     memset(&producer->rally, 0, sizeof(producer->rally));
 }
 
-bool G_SetRallyPoint(edict_t *producer, vector2_t const *point) {
+bool G_SetRallyPoint(edict_t *producer, vec2_t const *point) {
     if (!G_UnitHasRally(producer) || !point) return false;
     producer->rally.type = RALLY_TARGET_POINT;
     producer->rally.point = *point;
@@ -48,7 +48,7 @@ bool G_SetRallyEntity(edict_t *producer, edict_t *target) {
     producer->rally.type = RALLY_TARGET_ENTITY;
     producer->rally.entity = target;
     producer->rally.entity_spawn_time = target->spawn_time;
-    producer->rally.point = (vector2_t){ 0, 0 };
+    producer->rally.point = (vec2_t){ 0, 0 };
     G_RefreshRallyIndicatorForProducer(producer);
     return true;
 }
@@ -70,8 +70,8 @@ static bool G_RallyEntityIsValid(edict_t *producer) {
     return true;
 }
 
-rallyTargetType_t G_ResolveRallyTarget(edict_t *producer, vector2_t *point, edict_t * *target) {
-    if (point) *point = (vector2_t){ 0, 0 };
+rallyTargetType_t G_ResolveRallyTarget(edict_t *producer, vec2_t *point, edict_t * *target) {
+    if (point) *point = (vec2_t){ 0, 0 };
     if (target) *target = NULL;
     if (!G_UnitHasRally(producer)) return RALLY_TARGET_NONE;
 
@@ -100,8 +100,8 @@ void G_UpdateRallyIndicator(gameClient_t *client) {
     edict_t *producer;
     edict_t *target = NULL;
     cstring_t model_path;
-    vector2_t point;
-    vector3_t origin = { 0 };
+    vec2_t point;
+    vec3_t origin = { 0 };
     rallyTargetType_t type;
     uint32_t model;
     float angle;
@@ -125,7 +125,7 @@ void G_UpdateRallyIndicator(gameClient_t *client) {
     type = G_ResolveRallyTarget(producer, &point, &target);
     angle = game.constants.buildingAngle * (float)M_PI / 180.0f;
     if (type == RALLY_TARGET_POINT) {
-        origin = (vector3_t){ point.x, point.y, 0 };
+        origin = (vec3_t){ point.x, point.y, 0 };
     } else if ((type == RALLY_TARGET_SELF || type == RALLY_TARGET_ENTITY) && target) {
         origin = target->s.origin;
         if (target->destructable.initialized) {
@@ -161,7 +161,7 @@ void G_UpdateRallyIndicator(gameClient_t *client) {
 }
 
 bool G_ApplyRallyOrder(edict_t *producer, edict_t *produced) {
-    vector2_t point;
+    vec2_t point;
     edict_t *target;
     rallyTargetType_t type;
 
@@ -198,7 +198,7 @@ static bool rally_selecttarget(edict_t *clent, edict_t *target) {
     return any;
 }
 
-static bool rally_selectlocation(edict_t *clent, vector2_t const *point) {
+static bool rally_selectlocation(edict_t *clent, vec2_t const *point) {
     bool any = false;
 
     if (!clent || !clent->client || !point) return false;

@@ -134,7 +134,7 @@ TEST(wc3_spell, meat_wagon_corpse_hold_rejects_living_unit_boarding) {
 }
 
 TEST(wc3_spell, corpse_cargo_effective_position_tracks_moving_holder) {
-    exhFix_t fix; edict_t *corpse = NULL; vector2_t effective;
+    exhFix_t fix; edict_t *corpse = NULL; vec2_t effective;
     exh_setup(&fix);
     S_RunAbilityUpdates(fix.wagon);
     exh_tick(2000);
@@ -144,7 +144,7 @@ TEST(wc3_spell, corpse_cargo_effective_position_tracks_moving_holder) {
     }
     T_NOT_NULL(corpse);
     if (corpse) {
-        fix.wagon->s.origin2 = (vector2_t){ 420.0f, 315.0f };
+        fix.wagon->s.origin2 = (vec2_t){ 420.0f, 315.0f };
         fix.wagon->s.origin.x = 420.0f; fix.wagon->s.origin.y = 315.0f;
         T_ASSERT(S_CorpseCargoPosition(corpse, &effective));
         T_FEQ(effective.x, 420.0f, 0.001f); T_FEQ(effective.y, 315.0f, 0.001f);
@@ -238,7 +238,7 @@ TEST(wc3_spell, cannibalize_approaches_moving_corpse_holder_not_hidden_corpse_or
     /* The hidden corpse keeps its original 100,100 origin. Move its holder far
      * away, then issue Cannibalize from a unit near the holder. The approach
      * order must follow the Wagon, while the thinker still owns the real corpse. */
-    fix.wagon->s.origin2 = (vector2_t){ 500.0f, 100.0f };
+    fix.wagon->s.origin2 = (vec2_t){ 500.0f, 100.0f };
     fix.wagon->s.origin.x = 500.0f; fix.wagon->s.origin.y = 100.0f;
     gi.LinkEntity(fix.wagon);
     caster = alloc_test_unit(MAKEFOURCC('u','g','h','o'), 800.0f, 100.0f);
@@ -469,7 +469,7 @@ TEST(wc3_spell, graveyard_uses_cool_dataa_datab_datac_unitid) {
              * nearby-corpse cap.  Move the first corpse outside Gyd2 but keep
              * it inside Gyd3; it must still count against DataA. */
             T_FEQ(Vector2_distance(&first->s.origin2, &graveyard->s.origin2), 64.0f, 0.01f);
-            first->s.origin2 = (vector2_t){ graveyard->s.origin2.x + 100.0f, graveyard->s.origin2.y };
+            first->s.origin2 = (vec2_t){ graveyard->s.origin2.x + 100.0f, graveyard->s.origin2.y };
             first->s.origin.x = first->s.origin2.x; first->s.origin.y = first->s.origin2.y;
         }
     }

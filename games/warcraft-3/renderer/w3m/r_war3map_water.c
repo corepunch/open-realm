@@ -24,7 +24,7 @@ static void R_MakeWaterTile(war3map_t const *map, uint32_t x, uint32_t y) {
     if (!IsTileWater(tile))
         return;
 
-    vector2_t const pos[] = {
+    vec2_t const pos[] = {
         { tr.world->center.x + x * TILE_SIZE, tr.world->center.y + y * TILE_SIZE },
         { tr.world->center.x + (x + 1) * TILE_SIZE, tr.world->center.y + y * TILE_SIZE },
         { tr.world->center.x + (x + 1) * TILE_SIZE, tr.world->center.y + (y + 1) * TILE_SIZE },
@@ -54,7 +54,7 @@ static void R_MakeWaterTile(war3map_t const *map, uint32_t x, uint32_t y) {
     
 #define WATER_SCALE(x,y) (((x%3)+y)/3.0)
     
-    vector2_t const tc[] = {
+    vec2_t const tc[] = {
         { WATER_SCALE(x, 0),  WATER_SCALE(y, 0) },
         { WATER_SCALE(x, 1),  WATER_SCALE(y, 0) },
         { WATER_SCALE(x, 1),  WATER_SCALE(y, 1) },

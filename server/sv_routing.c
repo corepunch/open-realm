@@ -187,7 +187,7 @@ bool CM_ActivateCachedFlowForFlags(uint32_t generation, uint8_t blocked_flags) {
 }
 
 bool CM_FlowReachedGoal(uint32_t generation, float x, float y) {
-    vector2_t n;
+    vec2_t n;
     int cx, cy;
 
     if (!generation || !pathmap.width || !pathmap.height)
@@ -206,7 +206,7 @@ bool CM_FlowReachedGoal(uint32_t generation, float x, float y) {
 }
 
 bool CM_FlowCanReach(uint32_t generation, float x, float y) {
-    vector2_t n;
+    vec2_t n;
     int cx, cy;
 
     if (!generation || !pathmap.width || !pathmap.height)
@@ -298,7 +298,7 @@ void CM_SetupPathMap(uint32_t width, uint32_t height, uint8_t const *cells) {
     heatmap_cache_invalidate();
 }
 
-static point2_t LocationToPathMap(vector2_t const *location);
+static point2_t LocationToPathMap(vec2_t const *location);
 
 static int const dx[] = {-1, 1, 0, 0, -1, -1, 1, 1};
 static int const dy[] = {0, 0, -1, 1, -1, 1, -1, 1};
@@ -645,13 +645,13 @@ static void pathmap_cell_world_dimensions(float *cell_x, float *cell_y) {
     *cell_y = FLT_MAX;
 
     if (pathmap.width > 0) {
-        vector2_t a = CM_GetDenormalizedMapPosition(0, 0);
-        vector2_t b = CM_GetDenormalizedMapPosition(1.f / pathmap.width, 0);
+        vec2_t a = CM_GetDenormalizedMapPosition(0, 0);
+        vec2_t b = CM_GetDenormalizedMapPosition(1.f / pathmap.width, 0);
         *cell_x = fabsf(b.x - a.x);
     }
     if (pathmap.height > 0) {
-        vector2_t a = CM_GetDenormalizedMapPosition(0, 0);
-        vector2_t b = CM_GetDenormalizedMapPosition(0, 1.f / pathmap.height);
+        vec2_t a = CM_GetDenormalizedMapPosition(0, 0);
+        vec2_t b = CM_GetDenormalizedMapPosition(0, 1.f / pathmap.height);
         *cell_y = fabsf(b.y - a.y);
     }
 }
@@ -681,8 +681,8 @@ static bool is_pathable_node_for_radius_cells_flags(int x, int y, int radius_cel
     return true;
 }
 
-static bool closest_pathable_node_flags(vector2_t const *location, float radius, uint8_t blocked_flags, point2_t *out) {
-    vector2_t n = CM_GetNormalizedMapPosition(location->x, location->y);
+static bool closest_pathable_node_flags(vec2_t const *location, float radius, uint8_t blocked_flags, point2_t *out) {
+    vec2_t n = CM_GetNormalizedMapPosition(location->x, location->y);
     float fx = n.x * pathmap.width;
     float fy = n.y * pathmap.height;
     int tx = (int)floorf(fx);
@@ -730,9 +730,9 @@ static bool closest_pathable_node_flags(vector2_t const *location, float radius,
     return found;
 }
 
-bool CM_ClosestPathablePointForRadiusFlags(vector2_t const *location, float radius, uint8_t blocked_flags, vector2_t *out) {
+bool CM_ClosestPathablePointForRadiusFlags(vec2_t const *location, float radius, uint8_t blocked_flags, vec2_t *out) {
     point2_t point;
-    vector2_t n;
+    vec2_t n;
     int tx, ty, radius_cells;
 
     if (!location || !out) {
@@ -764,11 +764,11 @@ bool CM_ClosestPathablePointForRadiusFlags(vector2_t const *location, float radi
     return true;
 }
 
-bool CM_ClosestPathablePointForRadius(vector2_t const *location, float radius, vector2_t *out) {
+bool CM_ClosestPathablePointForRadius(vec2_t const *location, float radius, vec2_t *out) {
     return CM_ClosestPathablePointForRadiusFlags(location, radius, CM_PATHING_UNWALKABLE, out);
 }
 
-bool CM_ClosestPathablePoint(vector2_t const *location, vector2_t *out) {
+bool CM_ClosestPathablePoint(vec2_t const *location, vec2_t *out) {
     return CM_ClosestPathablePointForRadius(location, 0, out);
 }
 
@@ -827,8 +827,8 @@ static bool is_pathable_node_original_for_radius_cells(int x, int y, int radius_
     return is_pathable_node_original_for_radius_cells_flags(x, y, radius_cells, CM_PATHING_UNWALKABLE);
 }
 
-static bool closest_pathable_node_original_flags(vector2_t const *location, float radius, uint8_t blocked_flags, point2_t *out) {
-    vector2_t n = CM_GetNormalizedMapPosition(location->x, location->y);
+static bool closest_pathable_node_original_flags(vec2_t const *location, float radius, uint8_t blocked_flags, point2_t *out) {
+    vec2_t n = CM_GetNormalizedMapPosition(location->x, location->y);
     float fx = n.x * pathmap.width;
     float fy = n.y * pathmap.height;
     int tx = (int)floorf(fx);
@@ -873,18 +873,18 @@ static bool closest_pathable_node_original_flags(vector2_t const *location, floa
  * world location without overlapping static terrain or a building footprint?
  * Used by the collision-aware move step. Returns true when no pathmap is
  * loaded (e.g. headless tests) so movement is never blocked by a missing map. */
-bool CM_PointIsPathableForRadiusFlags(vector2_t const *location, float radius, uint8_t blocked_flags) {
+bool CM_PointIsPathableForRadiusFlags(vec2_t const *location, float radius, uint8_t blocked_flags) {
     if (!location || !pathmap.original || !pathmap.width || !pathmap.height) {
         return true;
     }
-    vector2_t n = CM_GetNormalizedMapPosition(location->x, location->y);
+    vec2_t n = CM_GetNormalizedMapPosition(location->x, location->y);
     int tx = (int)floorf(n.x * pathmap.width);
     int ty = (int)floorf(n.y * pathmap.height);
     int radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
     return is_pathable_node_original_for_radius_cells_flags(tx, ty, radius_cells, blocked_flags);
 }
 
-bool CM_PointIsPathableForRadius(vector2_t const *location, float radius) {
+bool CM_PointIsPathableForRadius(vec2_t const *location, float radius) {
     return CM_PointIsPathableForRadiusFlags(location, radius, CM_PATHING_UNWALKABLE);
 }
 
@@ -894,8 +894,8 @@ bool CM_PointIsPathableForRadius(vector2_t const *location, float radius) {
  * O(cells on the line) — vastly cheaper than a full flow-field bake, so a unit
  * chasing a target in the open can steer directly instead of flood-filling. */
 
-bool CM_GetPathingFlagsAt(vector2_t const *location, uint8_t *flags) {
-    vector2_t n;
+bool CM_GetPathingFlagsAt(vec2_t const *location, uint8_t *flags) {
+    vec2_t n;
     int x, y;
 
     if (flags) *flags = 0;
@@ -911,8 +911,8 @@ bool CM_GetPathingFlagsAt(vector2_t const *location, uint8_t *flags) {
 /* Movement-mode classification must use the immutable terrain WPM rather than
  * baked/static obstacles: amphibious units swim only where the authored terrain
  * is swimmable and not walkable, matching Warsmash's terrain-pathing check. */
-static pathMapCell_t const *terrain_cell_at(vector2_t const *location) {
-    vector2_t n;
+static pathMapCell_t const *terrain_cell_at(vec2_t const *location) {
+    vec2_t n;
     int x, y;
 
     if (!location || !pathmap.terrain || !pathmap.width || !pathmap.height) return NULL;
@@ -923,24 +923,24 @@ static pathMapCell_t const *terrain_cell_at(vector2_t const *location) {
     return &pathmap.terrain[x + y * pathmap.width];
 }
 
-bool CM_TerrainPointIsWalkable(vector2_t const *location) {
+bool CM_TerrainPointIsWalkable(vec2_t const *location) {
     pathMapCell_t const *cell = terrain_cell_at(location);
     return cell ? !cell->nowalk : true;
 }
 
-bool CM_TerrainPointIsSwimmable(vector2_t const *location) {
+bool CM_TerrainPointIsSwimmable(vec2_t const *location) {
     pathMapCell_t const *cell = terrain_cell_at(location);
     return cell ? !cell->nowater : false;
 }
 
-bool CM_LineIsPathableForRadiusFlags(vector2_t const *a, vector2_t const *b, float radius, uint8_t blocked_flags) {
+bool CM_LineIsPathableForRadiusFlags(vec2_t const *a, vec2_t const *b, float radius, uint8_t blocked_flags) {
     if (!a || !b)
         return false;
     if (pathmap.width == 0 || pathmap.height == 0)
         return true;
     int radius_cells = (int)ceilf(MAX(0.f, radius) / pathmap_cell_world_size());
-    vector2_t na = CM_GetNormalizedMapPosition(a->x, a->y);
-    vector2_t nb = CM_GetNormalizedMapPosition(b->x, b->y);
+    vec2_t na = CM_GetNormalizedMapPosition(a->x, a->y);
+    vec2_t nb = CM_GetNormalizedMapPosition(b->x, b->y);
     int ax = (int)(na.x * pathmap.width),  ay = (int)(na.y * pathmap.height);
     int bx = (int)(nb.x * pathmap.width),  by = (int)(nb.y * pathmap.height);
     int dx = abs(bx - ax), dy = abs(by - ay);
@@ -970,11 +970,11 @@ bool CM_LineIsPathableForRadiusFlags(vector2_t const *a, vector2_t const *b, flo
     return true;
 }
 
-bool CM_LineIsWalkableForRadius(vector2_t const *a, vector2_t const *b, float radius) {
+bool CM_LineIsWalkableForRadius(vec2_t const *a, vec2_t const *b, float radius) {
     return CM_LineIsPathableForRadiusFlags(a, b, radius, CM_PATHING_UNWALKABLE);
 }
 
-bool CM_LineIsWalkable(vector2_t const *a, vector2_t const *b) {
+bool CM_LineIsWalkable(vec2_t const *a, vec2_t const *b) {
     return CM_LineIsWalkableForRadius(a, b, 0);
 }
 
@@ -1022,7 +1022,7 @@ static uint32_t path_heap_pop(uint32_t *count) {
  * accelerator before its longer-lived route state. This bounded A* supplies
  * the same useful behavior for nearby detours: return one persistent waypoint
  * immediately, while long searches remain on the shared incremental field. */
-bool CM_FindPathWaypoint(pathAccelParams_t const *params, vector2_t *out) {
+bool CM_FindPathWaypoint(pathAccelParams_t const *params, vec2_t *out) {
     point2_t start, target;
     uint32_t heap_count = 0, expanded = 0, cells = pathmap.width * pathmap.height;
     int radius_cells;
@@ -1058,7 +1058,7 @@ bool CM_FindPathWaypoint(pathAccelParams_t const *params, vector2_t *out) {
                 pathmap.pathheap[count++] = (uint32_t)at;
             for (uint32_t i = 0; i + 1 < count; i++) {
                 uint32_t const at = pathmap.pathheap[i];
-                vector2_t candidate = CM_GetDenormalizedMapPosition(((float)(at % pathmap.width) + 0.5f) / pathmap.width,
+                vec2_t candidate = CM_GetDenormalizedMapPosition(((float)(at % pathmap.width) + 0.5f) / pathmap.width,
                     ((float)(at / pathmap.width) + 0.5f) / pathmap.height);
                 if (CM_LineIsPathableForRadiusFlags(params->from, &candidate, params->radius, blocked_flags)) {
                     *out = candidate;
@@ -1092,9 +1092,9 @@ bool CM_FindPathWaypoint(pathAccelParams_t const *params, vector2_t *out) {
     return false;
 }
 
-bool CM_FindDirectApproachPointForRadius(vector2_t const *from, vector2_t const *target,
-                                             float range, float radius, vector2_t *out) {
-    vector2_t n;
+bool CM_FindDirectApproachPointForRadius(vec2_t const *from, vec2_t const *target,
+                                             float range, float radius, vec2_t *out) {
+    vec2_t n;
     float const cell_size = pathmap_cell_world_size();
     int tx, ty, search_cells, radius_cells;
     float best_dist2 = FLT_MAX;
@@ -1115,7 +1115,7 @@ bool CM_FindDirectApproachPointForRadius(vector2_t const *from, vector2_t const 
      * directly visible legal cell nearest the mover. */
     for (int y = ty - search_cells; y <= ty + search_cells; y++) {
         for (int x = tx - search_cells; x <= tx + search_cells; x++) {
-            vector2_t candidate;
+            vec2_t candidate;
             float dxw, dyw, dist2;
 
             if (!is_pathable_node_original_for_radius_cells(x, y, radius_cells))
@@ -1140,7 +1140,7 @@ bool CM_FindDirectApproachPointForRadius(vector2_t const *from, vector2_t const 
     return found;
 }
 
-float CM_DistanceToPathingFootprint(struct edict_s const *target, vector2_t const *point) {
+float CM_DistanceToPathingFootprint(struct edict_s const *target, vec2_t const *point) {
     point2_t center;
     pathTex_t const *pt;
     float best = FLT_MAX;
@@ -1154,7 +1154,7 @@ float CM_DistanceToPathingFootprint(struct edict_s const *target, vector2_t cons
         FOR_LOOP(y, pt->height) {
             int const px = (int)x + center.x - (int)pt->width / 2;
             int const py = (int)y + center.y - (int)pt->height / 2;
-            vector2_t a, b;
+            vec2_t a, b;
             float min_x, max_x, min_y, max_y, dx = 0.0f, dy = 0.0f;
 
             if (!pt->map[x + y * pt->width].b || !is_valid_point(px, py))
@@ -1180,8 +1180,8 @@ float CM_DistanceToPathingFootprint(struct edict_s const *target, vector2_t cons
 }
 
 static bool find_approach_point_to_footprint_for_radius(
-        struct edict_s const *target, vector2_t const *from, float range,
-        float radius, bool prefer_inner_edge, vector2_t *out) {
+        struct edict_s const *target, vec2_t const *from, float range,
+        float radius, bool prefer_inner_edge, vec2_t *out) {
     pathTex_t const *pt;
     point2_t center;
     float cell_x, cell_y;
@@ -1190,8 +1190,8 @@ static bool find_approach_point_to_footprint_for_radius(
     float best_direct_dist2 = FLT_MAX;
     float best_any_dist2 = FLT_MAX;
     uint8_t best_inner_rank = UCHAR_MAX;
-    vector2_t best_direct = { 0, 0 };
-    vector2_t best_any = { 0, 0 };
+    vec2_t best_direct = { 0, 0 };
+    vec2_t best_any = { 0, 0 };
     int radius_cells, padding_cells, reach_x, reach_y;
     int min_x, max_x, min_y, max_y;
     bool found_direct = false;
@@ -1282,7 +1282,7 @@ static bool find_approach_point_to_footprint_for_radius(
      * intervening terrain/buildings. */
     for (int y = min_y; y <= max_y; y++) {
         for (int x = min_x; x <= max_x; x++) {
-            vector2_t candidate;
+            vec2_t candidate;
             float dxw, dyw, dist2;
             uint8_t const inner_rank = pathmap.approach_mask[x + y * pathmap.width];
 
@@ -1342,24 +1342,24 @@ static bool find_approach_point_to_footprint_for_radius(
 }
 
 bool CM_FindApproachPointToFootprintForRadius(struct edict_s const *target,
-                                                vector2_t const *from, float range,
-                                                float radius, vector2_t *out) {
+                                                vec2_t const *from, float range,
+                                                float radius, vec2_t *out) {
     return find_approach_point_to_footprint_for_radius(
         target, from, range, radius, false, out);
 }
 
 bool CM_FindInnerApproachPointToFootprintForRadius(struct edict_s const *target,
-                                                     vector2_t const *from, float range,
-                                                     float radius, vector2_t *out) {
+                                                     vec2_t const *from, float range,
+                                                     float radius, vec2_t *out) {
     return find_approach_point_to_footprint_for_radius(
         target, from, range, radius, true, out);
 }
 
-static vector2_t compute_flow_at(int const *prices_field, uint32_t x, uint32_t y, int radius_cells, uint8_t blocked_flags) {
+static vec2_t compute_flow_at(int const *prices_field, uint32_t x, uint32_t y, int radius_cells, uint8_t blocked_flags) {
     int prices[8];
     int min_price = INT_MAX;
     int current_price;
-    vector2_t direction = { 0, 0 };
+    vec2_t direction = { 0, 0 };
 
     if (!prices_field || !is_valid_point(x, y))
         return direction;
@@ -1399,12 +1399,12 @@ static vector2_t compute_flow_at(int const *prices_field, uint32_t x, uint32_t y
     }
 
     FOR_LOOP(dir, 8) {
-        vector2_t dirvec;
+        vec2_t dirvec;
         float k;
         if (prices[dir] == INT_MAX)
             continue;
         k = 10.f / MAX(1, 10 + (prices[dir] - min_price));
-        dirvec = (vector2_t){ dx[dir], dy[dir] };
+        dirvec = (vec2_t){ dx[dir], dy[dir] };
         Vector2_normalize(&dirvec);
         direction.x += dirvec.x * k;
         direction.y += dirvec.y * k;
@@ -1412,8 +1412,8 @@ static vector2_t compute_flow_at(int const *prices_field, uint32_t x, uint32_t y
     return direction;
 }
 
-vector2_t get_flow_direction(uint32_t heatmapindex, float fnx, float fny) {
-    vector2_t n, a, b, c, d, ab, cd;
+vec2_t get_flow_direction(uint32_t heatmapindex, float fnx, float fny) {
+    vec2_t n, a, b, c, d, ab, cd;
     uint32_t cx, cy, cx1, cy1;
     float tx, ty;
 
@@ -1422,7 +1422,7 @@ vector2_t get_flow_direction(uint32_t heatmapindex, float fnx, float fny) {
      * longer computes a vector for every reachable cell in the map. */
     if (!CM_ActivateCachedFlow(heatmapindex) || !active_heatmap ||
         !active_heatmap->prices || !pathmap.width || !pathmap.height)
-        return (vector2_t){ 0, 0 };
+        return (vec2_t){ 0, 0 };
 
     n = CM_GetNormalizedMapPosition(fnx, fny);
     n.x *= pathmap.width;
@@ -1430,7 +1430,7 @@ vector2_t get_flow_direction(uint32_t heatmapindex, float fnx, float fny) {
     cx = (uint32_t)floorf(n.x);
     cy = (uint32_t)floorf(n.y);
     if (!is_valid_point(cx, cy))
-        return (vector2_t){ 0, 0 };
+        return (vec2_t){ 0, 0 };
 
     cx1 = (cx + 1 < pathmap.width) ? cx + 1 : cx;
     cy1 = (cy + 1 < pathmap.height) ? cy + 1 : cy;
@@ -1445,8 +1445,8 @@ vector2_t get_flow_direction(uint32_t heatmapindex, float fnx, float fny) {
     return Vector2_lerp(&ab, &cd, ty);
 }
 
-static point2_t LocationToPathMap(vector2_t const *location) {
-    vector2_t n_target = CM_GetNormalizedMapPosition(location->x, location->y);
+static point2_t LocationToPathMap(vec2_t const *location) {
+    vec2_t n_target = CM_GetNormalizedMapPosition(location->x, location->y);
     return (point2_t) { n_target.x * pathmap.width, n_target.y * pathmap.height };
 }
 
@@ -1484,9 +1484,9 @@ static bool resolve_heatmap_request(edict_t *goalentity, float radius, uint8_t b
  * component.  This is used only after destination-rooted routing proves the
  * mover cannot reach that component, so the whole-component flood is paid once
  * for an exceptional order rather than on every ordinary right click. */
-bool CM_ClosestReachablePointForRadiusFlags(vector2_t const *from, vector2_t const *target, float radius,
-                                            uint8_t blocked_flags, vector2_t *out) {
-    vector2_t n;
+bool CM_ClosestReachablePointForRadiusFlags(vec2_t const *from, vec2_t const *target, float radius,
+                                            uint8_t blocked_flags, vec2_t *out) {
+    vec2_t n;
     point2_t start;
     heatmapJob_t job = { 0 };
     float tx, ty, best_dist = FLT_MAX;
@@ -1537,7 +1537,7 @@ bool CM_ClosestReachablePointForRadiusFlags(vector2_t const *from, vector2_t con
     return true;
 }
 
-bool CM_ClosestReachablePointForRadius(vector2_t const *from, vector2_t const *target, float radius, vector2_t *out) {
+bool CM_ClosestReachablePointForRadius(vec2_t const *from, vec2_t const *target, float radius, vec2_t *out) {
     return CM_ClosestReachablePointForRadiusFlags(from, target, radius, CM_PATHING_UNWALKABLE, out);
 }
 
@@ -1685,7 +1685,7 @@ void CM_SetupTestPathmap(uint32_t width, uint32_t height, uint8_t const *cells) 
 #endif
 
 /* WC3's mover-owned turn cache: retain the accelerated waypoint until reached or invalidated. */
-bool CM_AccelerateRoute(routePath_t *path, pathAccelParams_t const *params, vector2_t *dir) {
+bool CM_AccelerateRoute(routePath_t *path, pathAccelParams_t const *params, vec2_t *dir) {
     float const reached = CM_PathCellWorldSize();
     uint8_t const blocked_flags = params ? normalize_blocked_flags(params->blocked_flags) : CM_PATHING_UNWALKABLE;
     if (!path || !params || !dir) return false;
@@ -1711,7 +1711,7 @@ float CM_SlideRoute(routeSlide_t const *slide) {
             float angle = slide->angle + sign * ring * BZ_ROUTE_SLIDE_STEP;
             while (angle > (float)M_PI) angle -= 2.0f * (float)M_PI;
             while (angle < -(float)M_PI) angle += 2.0f * (float)M_PI;
-            vector2_t cand = Vector2_mad(&slide->ent->s.origin2, slide->dist, &MAKE(vector2_t, cosf(angle), sinf(angle)));
+            vec2_t cand = Vector2_mad(&slide->ent->s.origin2, slide->dist, &MAKE(vec2_t, cosf(angle), sinf(angle)));
             if (slide->valid(slide->ent, &cand)) return angle;
         }
     }

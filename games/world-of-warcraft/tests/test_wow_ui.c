@@ -195,10 +195,10 @@ static void test_draw_minimap(rect_t const *rect, cstring_t map) {
     draw_minimap_count++;
 }
 
-static vector2_t test_get_text_size(drawText_t const *drawText) {
+static vec2_t test_get_text_size(drawText_t const *drawText) {
     float w = drawText && drawText->text ? (float)strlen(drawText->text) * 0.01f : 0.0f;
     float h = drawText && drawText->font ? drawText->font->size / 1000.0f : 0.012f;
-    return MAKE(vector2_t, w, h);
+    return MAKE(vec2_t, w, h);
 }
 
 static void test_draw_text(drawText_t const *drawText) {

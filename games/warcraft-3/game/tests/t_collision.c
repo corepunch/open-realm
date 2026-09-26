@@ -53,7 +53,7 @@ static edict_t *make_collision_unit(float x, float y, float radius) {
 }
 
 /* Distance between two 2-D origins. */
-static float dist2(vector2_t const *a, vector2_t const *b) {
+static float dist2(vec2_t const *a, vec2_t const *b) {
     float dx = a->x - b->x;
     float dy = a->y - b->y;
     return sqrtf(dx*dx + dy*dy);
@@ -61,12 +61,12 @@ static float dist2(vector2_t const *a, vector2_t const *b) {
 
 /* Distance from point p to segment [a,b] — mirrors the swept test in skills/s_move.c so a
  * test can assert a unit's per-tick path never crossed a blocker. */
-static float seg_dist(vector2_t const *a, vector2_t const *b, vector2_t const *p) {
+static float seg_dist(vec2_t const *a, vec2_t const *b, vec2_t const *p) {
     float abx = b->x - a->x, aby = b->y - a->y;
     float ab2 = abx*abx + aby*aby;
     float t = ab2 > 0.0001f ? ((p->x - a->x)*abx + (p->y - a->y)*aby) / ab2 : 0.0f;
     if (t < 0.0f) t = 0.0f; else if (t > 1.0f) t = 1.0f;
-    vector2_t c = { a->x + t*abx, a->y + t*aby };
+    vec2_t c = { a->x + t*abx, a->y + t*aby };
     return dist2(&c, p);
 }
 
@@ -83,7 +83,7 @@ static void reset_collision_world(void) {
 TEST(wc3_collision, push_entity_moves_in_direction) {
     reset_entities();
     edict_t *ent = make_collision_unit(0.0f, 0.0f, 0.0f);
-    vector2_t dir = {1.0f, 0.0f};
+    vec2_t dir = {1.0f, 0.0f};
     G_PushEntity(ent, 50.0f, &dir);
     T_FEQ(ent->s.origin2.x, 50.0f, 0.01f);
     T_FEQ(ent->s.origin2.y,  0.0f, 0.01f);
@@ -92,7 +92,7 @@ TEST(wc3_collision, push_entity_moves_in_direction) {
 TEST(wc3_collision, push_entity_negative_distance_moves_back) {
     reset_entities();
     edict_t *ent = make_collision_unit(100.0f, 0.0f, 0.0f);
-    vector2_t dir = {1.0f, 0.0f};
+    vec2_t dir = {1.0f, 0.0f};
     G_PushEntity(ent, -30.0f, &dir);
     T_FEQ(ent->s.origin2.x, 70.0f, 0.01f);
 }
@@ -130,8 +130,8 @@ TEST(wc3_collision, idle_unit_is_immovable_obstacle) {
     reset_collision_world();
     edict_t *blocker = make_collision_unit(50.0f, 0.0f, 16.0f);  /* idle */
     edict_t *mover   = make_collision_unit( 0.0f, 0.0f, 16.0f);
-    vector2_t b0 = blocker->s.origin2;
-    vector2_t dest = {50.0f, 0.0f};
+    vec2_t b0 = blocker->s.origin2;
+    vec2_t dest = {50.0f, 0.0f};
 
     unit_issueorder(mover, "move", &dest);
     float min_dist = run_move_tracking_min_dist(mover, blocker, 40);
@@ -150,7 +150,7 @@ TEST(wc3_collision, mover_slides_around_idle_unit) {
     reset_collision_world();
     edict_t *blocker = make_collision_unit(60.0f, 0.0f, 16.0f);
     edict_t *mover   = make_collision_unit( 0.0f, 0.0f, 16.0f);
-    vector2_t dest = {120.0f, 0.0f};
+    vec2_t dest = {120.0f, 0.0f};
 
     unit_issueorder(mover, "move", &dest);
     bool went_lateral = false;
@@ -175,7 +175,7 @@ TEST(wc3_collision, overlapped_units_separate_on_move) {
     edict_t *a = make_collision_unit(0.0f,  0.0f, 16.0f);
     edict_t *b = make_collision_unit(10.0f, 0.0f, 16.0f);  /* overlaps a (dist 10 < 32) */
     float d0 = dist2(&a->s.origin2, &b->s.origin2);
-    vector2_t dest = {-100.0f, 0.0f};
+    vec2_t dest = {-100.0f, 0.0f};
 
     unit_issueorder(a, "move", &dest);
     for (int i = 0; i < 5; i++) {
@@ -194,7 +194,7 @@ TEST(wc3_collision, flyer_passes_over_ground_unit) {
     edict_t *ground = make_collision_unit(50.0f, 0.0f, 16.0f);  /* idle ground */
     edict_t *flyer  = make_collision_unit( 0.0f, 0.0f, 16.0f);
     flyer->aiflags |= AI_FLYING;
-    vector2_t dest = {100.0f, 0.0f};
+    vec2_t dest = {100.0f, 0.0f};
 
     unit_issueorder(flyer, "move", &dest);
     run_move_tracking_min_dist(flyer, NULL, 20);
@@ -210,7 +210,7 @@ TEST(wc3_collision, mover_passes_through_dead_unit) {
     edict_t *dead  = make_collision_unit(50.0f, 0.0f, 16.0f);
     dead->svflags |= SVF_DEADMONSTER;  /* IS_HOLLOW == true */
     edict_t *mover = make_collision_unit(0.0f, 0.0f, 16.0f);
-    vector2_t dest = {100.0f, 0.0f};
+    vec2_t dest = {100.0f, 0.0f};
 
     unit_issueorder(mover, "move", &dest);
     run_move_tracking_min_dist(mover, NULL, 20);
@@ -229,7 +229,7 @@ static float peak_lateral_against_blocker(float mover_speed, float blocker_speed
     edict_t *blocker = make_collision_unit(45.0f, 0.0f, 16.0f);
     mover->unitinfo.MoveSpeed   = mover_speed;
     blocker->unitinfo.MoveSpeed = blocker_speed;
-    vector2_t dest = {300.0f, 0.0f};
+    vec2_t dest = {300.0f, 0.0f};
     unit_issueorder(blocker, "move", &dest);   /* blocker is in the walking state */
     unit_issueorder(mover, "move", &dest);     /* (only the mover is stepped)     */
     float peak = 0.0f;
@@ -258,8 +258,8 @@ TEST(wc3_collision, resource_worker_queues_then_passes_right) {
     reset_collision_world();
     edict_t *mover = make_collision_unit(0.0f, 0.0f, 16.0f);
     edict_t *blocker = make_collision_unit(45.0f, 0.0f, 16.0f);
-    vector2_t const dest = { 300.0f, 0.0f };
-    vector2_t const origin = mover->s.origin2;
+    vec2_t const dest = { 300.0f, 0.0f };
+    vec2_t const origin = mover->s.origin2;
 
     mover->unitinfo.MoveSpeed = blocker->unitinfo.MoveSpeed = 190.0f;
     unit_issueorder(blocker, "move", &dest);
@@ -286,8 +286,8 @@ TEST(wc3_collision, resource_worker_passes_opposing_traffic_immediately) {
     reset_collision_world();
     edict_t *mover = make_collision_unit(0.0f, 0.0f, 16.0f);
     edict_t *blocker = make_collision_unit(45.0f, 0.0f, 16.0f);
-    vector2_t const east = { 300.0f, 0.0f };
-    vector2_t const west = { -300.0f, 0.0f };
+    vec2_t const east = { 300.0f, 0.0f };
+    vec2_t const west = { -300.0f, 0.0f };
 
     mover->unitinfo.MoveSpeed = blocker->unitinfo.MoveSpeed = 190.0f;
     unit_issueorder(blocker, "move", &west);
@@ -309,10 +309,10 @@ TEST(wc3_collision, fast_unit_cannot_jump_through) {
     edict_t *mover   = make_collision_unit( 0.0f, 0.0f, 16.0f);
     mover->unitinfo.MoveSpeed = 1000.0f;  /* ~100 units/tick, well over a unit width */
     float const rr = mover->collision + blocker->collision;
-    vector2_t dest = {200.0f, 0.0f};
+    vec2_t dest = {200.0f, 0.0f};
     unit_issueorder(mover, "move", &dest);
 
-    vector2_t prev = mover->s.origin2;
+    vec2_t prev = mover->s.origin2;
     for (int i = 0; i < 10; i++) {
         if (!mover->currentmove || strcmp(mover->currentmove->animation, "walk") != 0) break;
         mover->currentmove->think(mover);

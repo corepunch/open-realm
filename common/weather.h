@@ -19,8 +19,8 @@ typedef struct {
 typedef struct lightningeffect_s {
     uint32_t handle;
     uint32_t effect_id; /* producer-defined presentation record ID */
-    vector3_t source;
-    vector3_t target;
+    vec3_t source;
+    vec3_t target;
     color32_t color;   /* multiplicative RGBA tint */
     uint32_t start_time;
     uint32_t end_time;  /* 0 = persistent until removed */

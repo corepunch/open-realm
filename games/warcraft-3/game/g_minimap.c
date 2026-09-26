@@ -4,7 +4,7 @@
 #define WC3_DEFAULT_ALERT_PING_DURATION 1.0f
 
 /* Serialize transient minimap presentation for one connected client. */
-void G_SendMinimapPing(gameClient_t *client, vector2_t const *position, float duration, color32_t color, uint32_t flags) {
+void G_SendMinimapPing(gameClient_t *client, vec2_t const *position, float duration, color32_t color, uint32_t flags) {
     edict_t *clent;
     cstring_t model;
 

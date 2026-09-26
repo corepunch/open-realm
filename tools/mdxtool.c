@@ -36,7 +36,7 @@ static long g_fixed_time = -1;   /* logical ms; -1 => wall clock (SDL_GetTicks) 
 static long g_seed = -1;         /* srand seed for particle RNG; -1 => unseeded */
 static handle_t archives[64] = { 0 };
 static viewer_orbit_t orbit;
-static vector3_t g_model_center = { 0, 0, 0 };
+static vec3_t g_model_center = { 0, 0, 0 };
 static float g_preview_scale = 1.0f;
 
 typedef struct {
@@ -172,7 +172,7 @@ static void Matrix4_getPreviewCameraMatrix(viewer_orbit_t const *orbit,
                                            float aspect,
                                            float near_clip,
                                            float far_clip,
-                                           matrix4_t *output)
+                                           mat4_t *output)
 {
     Viewer_OrbitBuildCamera(orbit, aspect, 35.0f, near_clip, far_clip, output);
 }
@@ -180,7 +180,7 @@ static void Matrix4_getPreviewCameraMatrix(viewer_orbit_t const *orbit,
 static void Matrix4_getFrontOrthoCameraMatrix(mdxModel_t const *mdx,
                                               float aspect,
                                               float scale,
-                                              matrix4_t *output)
+                                              mat4_t *output)
 {
     // Mirror the UI scene camera: fixed UI coordinate range 0..0.8 x 0..0.6
     // (aspect and scale are unused — model local coords ARE screen coords)
@@ -190,33 +190,33 @@ static void Matrix4_getFrontOrthoCameraMatrix(mdxModel_t const *mdx,
     float const eye_z  = max_z + 100.0f;
     float const near_clip = 1.0f;
     float const far_clip  = eye_z - min_z + 100.0f;
-    matrix4_t proj, view;
+    mat4_t proj, view;
 
     // Same UI ortho range: left=0, right=0.8, bottom=0, top=0.6
     Matrix4_ortho(&proj, 0.0f, 0.8f, 0.0f, 0.6f, near_clip, far_clip);
     Matrix4_lookAt(&view,
-                   &(vector3_t){ 0, 0, eye_z },
-                   &(vector3_t){ 0, 0, -1 },
-                   &(vector3_t){ 0, 1, 0 });
+                   &(vec3_t){ 0, 0, eye_z },
+                   &(vec3_t){ 0, 0, -1 },
+                   &(vec3_t){ 0, 1, 0 });
     Matrix4_multiply(&proj, &view, output);
 }
 
-static void Matrix4_getSideLightMatrix(vector3_t const *eye, vector3_t const *target, float scale, matrix4_t *output) {
-    matrix4_t proj, view;
-    vector3_t forward = Vector3_sub(target, eye);
-    vector3_t right = Vector3_cross(&forward, &(vector3_t){ 0, 0, 1 });
-    vector3_t lightEye;
-    vector3_t lightOffset;
-    vector3_t lightDir;
-    vector3_t lightUp = { 0, 0, 1 };
+static void Matrix4_getSideLightMatrix(vec3_t const *eye, vec3_t const *target, float scale, mat4_t *output) {
+    mat4_t proj, view;
+    vec3_t forward = Vector3_sub(target, eye);
+    vec3_t right = Vector3_cross(&forward, &(vec3_t){ 0, 0, 1 });
+    vec3_t lightEye;
+    vec3_t lightOffset;
+    vec3_t lightDir;
+    vec3_t lightUp = { 0, 0, 1 };
 
     if (Vector3_len(&right) < 0.001f) {
-        right = (vector3_t){ 1, 0, 0 };
+        right = (vec3_t){ 1, 0, 0 };
     } else {
         Vector3_normalize(&right);
     }
 
-    lightOffset = Vector3_mad(&right, -1000.0f, &(vector3_t){ 0, 0, 0 });
+    lightOffset = Vector3_mad(&right, -1000.0f, &(vec3_t){ 0, 0, 0 });
     lightOffset.z += 300.0f;
     lightEye = Vector3_add(eye, &lightOffset);
     lightDir = Vector3_sub(target, &lightEye);
@@ -237,7 +237,7 @@ static box3_t GetPreviewBounds(mdxModel_t const *mdx) {
     FOR_EACH_LIST(mdxGeoset_t, geoset, mdx->geosets) {
         if (geoset->vertices && geoset->num_vertices > 0) {
             FOR_LOOP(i, geoset->num_vertices) {
-                vector3_t const *v = &geoset->vertices[i];
+                vec3_t const *v = &geoset->vertices[i];
                 if (!isfinite(v->x) || !isfinite(v->y) || !isfinite(v->z)) {
                     continue;
                 }
@@ -557,7 +557,7 @@ static void dump_node_motion(uint8_t *data, uint32_t size, mdxModel_t const *mod
             fprintf(stderr, "    %s:", seq->name);
             for (uint32_t step = 0; step <= BZ_MDX_MOTION_STEPS; step++) {
                 uint32_t ms = (seq->interval[1] - seq->interval[0]) * step / BZ_MDX_MOTION_STEPS;
-                vector3_t val = {0};
+                vec3_t val = {0};
                 uint32_t time = MIN(seq->interval[0] + ms, seq->interval[1] - 1);
                 tr.viewDef.time = time;
                 MDLX_GetModelKeytrackValue(model, node.translation, time, &val);
@@ -648,7 +648,7 @@ static bool DumpModelInfoNoWindow(cstring_t modelPath) {
                 fprintf(stderr, "  TEXS: count=%u\n", (unsigned)(chunkSize / MDX_TEXTURE_RECORD_SIZE));
                 break;
             case MAKEFOURCC('P', 'I', 'V', 'T'):
-                fprintf(stderr, "  PIVT: count=%u\n", (unsigned)(chunkSize / sizeof(vector3_t)));
+                fprintf(stderr, "  PIVT: count=%u\n", (unsigned)(chunkSize / sizeof(vec3_t)));
                 break;
             case MAKEFOURCC('C', 'A', 'M', 'S'):
                 fprintf(stderr, "  CAMS: count=%u\n", (unsigned)CountInclusiveSizeEntries(chunk, chunkSize));
@@ -782,13 +782,13 @@ static void DrawTexturePreviews(refExport_t const *re) {
     }
 }
 
-static bool BuildModelCameraMatrix(mdxModel_t const *model, float aspect, matrix4_t *output, vector3_t *root) {
+static bool BuildModelCameraMatrix(mdxModel_t const *model, float aspect, mat4_t *output, vec3_t *root) {
     if (!model || !model->cameras) {
         return false;
     }
-    matrix4_t proj, view;
+    mat4_t proj, view;
     mdxCamera_t const *camera = model->cameras;
-    vector3_t dir = Vector3_sub(&camera->targetPivot, &camera->pivot);
+    vec3_t dir = Vector3_sub(&camera->targetPivot, &camera->pivot);
     float fov_deg = camera->fieldOfView * (180.0f / (float)M_PI);
     float near_clip = camera->nearClip;
     float far_clip = camera->farClip;
@@ -804,11 +804,11 @@ static bool BuildModelCameraMatrix(mdxModel_t const *model, float aspect, matrix
     }
 
     Matrix4_perspective(&proj, fov_deg, aspect, near_clip, far_clip);
-    Matrix4_lookAt(&view, &camera->pivot, &dir, &(vector3_t){ 0, 0, 1 });
+    Matrix4_lookAt(&view, &camera->pivot, &dir, &(vec3_t){ 0, 0, 1 });
     Matrix4_multiply(&proj, &view, output);
 
     if (root) {
-        *root = (vector3_t){ 0, 0, 0 };
+        *root = (vec3_t){ 0, 0, 0 };
     }
     return true;
 }
@@ -889,7 +889,7 @@ static void DumpLoadedModel(mdxModel_t const *mdx, uint32_t sample_frame) {
     }
 
     FOR_EACH_LIST(mdxLight_t, light, mdx->lights) {
-        vector3_t pivot = { 0, 0, 0 };
+        vec3_t pivot = { 0, 0, 0 };
         if (light->node.node_id < (uint32_t)mdx->num_pivots) {
             pivot = mdx->pivots[light->node.node_id];
         }
@@ -1117,8 +1117,8 @@ static void RenderModelFrame(refExport_t const *re, model_t *model, uint32_t now
     viewDef_t viewdef = { 0 };
     renderEntity_t entity = { 0 };
     mdxModel_t const *mdx = model->mdx;
-    vector3_t target = { 0, 0, 0 };
-    vector3_t root = { 0, 0, 0 };
+    vec3_t target = { 0, 0, 0 };
+    vec3_t root = { 0, 0, 0 };
     size2_t windowSize = re->GetWindowSize();
     mdxSequence_t const *seq = PickSequence(mdx);
     int seq_index = FindSequenceIndex(mdx, seq);
@@ -1127,13 +1127,13 @@ static void RenderModelFrame(refExport_t const *re, model_t *model, uint32_t now
     float model_radius = 500.0f;
     float near_clip;
     float far_clip;
-    vector3_t preview_origin = Vector3_scale(&g_model_center, -g_preview_scale);
+    vec3_t preview_origin = Vector3_scale(&g_model_center, -g_preview_scale);
 
     entity.model = model;
     entity.scale = g_preview_scale;
     entity.frame = 0;
     entity.oldframe = 0;
-    entity.origin = (vector3_t){ 0, 0, 0 };
+    entity.origin = (vec3_t){ 0, 0, 0 };
 
     if (seq && seq->interval[1] > seq->interval[0]) {
         uint32_t duration = seq->interval[1] - seq->interval[0];
@@ -1161,21 +1161,21 @@ static void RenderModelFrame(refExport_t const *re, model_t *model, uint32_t now
     } else if (g_use_front_ortho) {
         // Use UI coordinate space: no offset, no scale.
         // The model's local vertices are already in 0..0.8 x 0..0.6 world space.
-        entity.origin = (vector3_t){ 0, 0, 0 };
+        entity.origin = (vec3_t){ 0, 0, 0 };
         entity.scale  = 1.0f;
-        target = (vector3_t){ 0.4f, 0.3f, 0 };
+        target = (vec3_t){ 0.4f, 0.3f, 0 };
         Matrix4_getFrontOrthoCameraMatrix(mdx, aspect, 1.0f, &viewdef.viewProjectionMatrix);
-        Matrix4_getSideLightMatrix(&(vector3_t){
+        Matrix4_getSideLightMatrix(&(vec3_t){
             target.x + 8.0f,
             target.y - 12.0f,
             target.z + 16.0f,
         }, &target, PORTRAIT_SHADOW_SIZE, &viewdef.lightMatrix);
     } else {
         entity.origin = preview_origin;
-        target = (vector3_t){ 0, 0, 0 };
+        target = (vec3_t){ 0, 0, 0 };
         orbit.target = target;
         Matrix4_getPreviewCameraMatrix(&orbit, aspect, near_clip, far_clip, &viewdef.viewProjectionMatrix);
-        Matrix4_getSideLightMatrix(&(vector3_t){
+        Matrix4_getSideLightMatrix(&(vec3_t){
             orbit.target.x + orbit.distance * cosf(orbit.pitch_deg * (float)M_PI / 180.0f) * cosf(orbit.yaw_deg * (float)M_PI / 180.0f),
             orbit.target.y + orbit.distance * cosf(orbit.pitch_deg * (float)M_PI / 180.0f) * sinf(orbit.yaw_deg * (float)M_PI / 180.0f),
             orbit.target.z + orbit.distance * sinf(orbit.pitch_deg * (float)M_PI / 180.0f),
@@ -1197,10 +1197,10 @@ static void RenderModelFrame(refExport_t const *re, model_t *model, uint32_t now
     /* Clean render: golden-image PNG output skips the debug bbox/overlay/text. */
     bool const clean = (g_output_path != NULL);
     if (mdx && !clean) {
-        matrix4_t entityMatrix;
+        mat4_t entityMatrix;
         Matrix4_identity(&entityMatrix);
         Matrix4_translate(&entityMatrix, &entity.origin);
-        Matrix4_scale(&entityMatrix, &(vector3_t){ entity.scale, entity.scale, entity.scale });
+        Matrix4_scale(&entityMatrix, &(vec3_t){ entity.scale, entity.scale, entity.scale });
         color32_t box_color = { 0, 255, 128, 180 };
         re->DrawBoundingBox(&mdx->bounds.box, &entityMatrix, &viewdef.viewProjectionMatrix, box_color);
     }
@@ -1460,7 +1460,7 @@ int main(int argc, char **argv) {
 
     size2_t window = re.GetWindowSize();
     float const aspect = window.height ? (float)window.width / (float)window.height : 1.0f;
-    vector3_t orbit_target = g_model_center;
+    vec3_t orbit_target = g_model_center;
 #ifdef MDXTOOL_USE_OVERLAY_ORBIT_DISTANCE
     float orbit_distance = g_overlay.orbit_distance;
     if (orbit_distance < 1.0f) {

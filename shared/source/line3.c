@@ -1,6 +1,6 @@
 #include "../cmath3.h"
 
-int Line3_intersect_sphere3(line3_t const *line, sphere3_t const *sphere, vector3_t *output) {
+int Line3_intersect_sphere3(line3_t const *line, sphere3_t const *sphere, vec3_t *output) {
     float cx = sphere->center.x;
     float cy = sphere->center.y;
     float cz = sphere->center.z;
@@ -24,7 +24,7 @@ int Line3_intersect_sphere3(line3_t const *line, sphere3_t const *sphere, vector
 
     float t1 = ( -B - sqrtf ( D ) ) / ( 2.0 * A );
 
-    vector3_t solution1 = {
+    vec3_t solution1 = {
         line->a.x * ( 1 - t1 ) + t1 * line->b.x,
         line->a.y * ( 1 - t1 ) + t1 * line->b.y,
         line->a.z * ( 1 - t1 ) + t1 * line->b.z
@@ -36,7 +36,7 @@ int Line3_intersect_sphere3(line3_t const *line, sphere3_t const *sphere, vector
     }
 
     float t2 = ( -B + sqrtf( D ) ) / ( 2.0 * A );
-    vector3_t solution2 = {
+    vec3_t solution2 = {
         line->a.x * ( 1 - t2 ) + t2 * line->b.x,
         line->a.y * ( 1 - t2 ) + t2 * line->b.y,
         line->a.z * ( 1 - t2 ) + t2 * line->b.z
@@ -51,8 +51,8 @@ int Line3_intersect_sphere3(line3_t const *line, sphere3_t const *sphere, vector
     return 1;
 }
 
-int Line3_intersect_plane3(line3_t const *line, plane3_t const *plane, vector3_t *output) {
-    vector3_t direction = Vector3_sub(&line->b, &line->a);
+int Line3_intersect_plane3(line3_t const *line, plane3_t const *plane, vec3_t *output) {
+    vec3_t direction = Vector3_sub(&line->b, &line->a);
     float dotProduct = Vector3_dot(&direction, &plane->normal);
     // Check if the line and plane are parallel
     if (fabs(dotProduct) < EPSILON) {
@@ -65,21 +65,21 @@ int Line3_intersect_plane3(line3_t const *line, plane3_t const *plane, vector3_t
     return 1;
 }
 
-static inline float DotNormal(vector3_t const *normal, vector3_t const *a, vector3_t const *b, vector3_t const *c) {
-    vector3_t const rcross = Triangle_normal(&(const triangle3_t) { *a, *b, *c });
+static inline float DotNormal(vec3_t const *normal, vec3_t const *a, vec3_t const *b, vec3_t const *c) {
+    vec3_t const rcross = Triangle_normal(&(const triangle3_t) { *a, *b, *c });
     return Vector3_dot(normal, &rcross);
 }
 
-int Line3_intersect_triangle(line3_t const *line, triangle3_t const *triangle, vector3_t *output) {
-    vector3_t const normal = Triangle_normal(triangle);
-    vector3_t const diff1 = Vector3_sub(&line->a, &triangle->a);
-    vector3_t const diff2 = Vector3_sub(&line->b, &triangle->a);
+int Line3_intersect_triangle(line3_t const *line, triangle3_t const *triangle, vec3_t *output) {
+    vec3_t const normal = Triangle_normal(triangle);
+    vec3_t const diff1 = Vector3_sub(&line->a, &triangle->a);
+    vec3_t const diff2 = Vector3_sub(&line->b, &triangle->a);
     float const r1 = Vector3_dot(&normal, &diff1);
     float const r2 = Vector3_dot(&normal, &diff2);
     if ((r1 > 0) == (r2 > 0))
         return 0;
-    vector3_t const distance = Vector3_sub(&line->a, &line->b);
-    vector3_t const pc = Vector3_mad(&line->a, r1 / (r2 - r1), &distance);
+    vec3_t const distance = Vector3_sub(&line->a, &line->b);
+    vec3_t const pc = Vector3_mad(&line->a, r1 / (r2 - r1), &distance);
     if (DotNormal(&normal, &triangle->a, &triangle->b, &pc) < 0)
         return 0;
     if (DotNormal(&normal, &triangle->b, &triangle->c, &pc) < 0)
@@ -108,7 +108,7 @@ int Line3_intersect_triangle(line3_t const *line, triangle3_t const *triangle, v
 //   return (det >= 1e-6 && t >= 0.0 && u >= 0.0 && v >= 0.0 && (u+v) <= 1.0);
 //}
 
-int Line3_intersect_box3(line3_t const *line, box3_t const *box, vector3_t *output) {
+int Line3_intersect_box3(line3_t const *line, box3_t const *box, vec3_t *output) {
     float st, et, fst = 0, fet = 1;
     float const *bmin = &box->min.x;
     float const *bmax = &box->max.x;

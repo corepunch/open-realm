@@ -76,7 +76,7 @@ static void test_draw_image_ex(drawImage_t const *i) {
 }
 static void     test_draw_fill(rect_t const *r, color32_t c) { (void)r;(void)c; }
 static void     test_draw_minimap(rect_t const *r, cstring_t map) { (void)r; (void)map; }
-static vector2_t  test_get_text_size(drawText_t const *dt) { return MAKE(vector2_t, dt&&dt->text?(float)strlen(dt->text)*0.01f:0.0f, 0.012f); }
+static vec2_t  test_get_text_size(drawText_t const *dt) { return MAKE(vec2_t, dt&&dt->text?(float)strlen(dt->text)*0.01f:0.0f, 0.012f); }
 static void test_draw_text(drawText_t const *dt) {
     draw_text_calls++;
     if (!dt) return;

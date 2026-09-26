@@ -33,7 +33,7 @@ typedef enum {
 } RMODELLIGHTTYPE;
 
 typedef struct rmodellight_s {
-    vector3_t pos, dir, color, ambient;
+    vec3_t pos, dir, color, ambient;
     float atten_start, intensity, ambient_intensity;
     RMODELLIGHTTYPE type;
 } rModelLight_t;
@@ -42,16 +42,16 @@ typedef struct rmodellight_s {
 
 typedef struct modelLighting_s {
     rModelLight_t lights[BZ_MODEL_LIGHT_MAX];
-    vector3_t ambient;
+    vec3_t ambient;
     uint32_t count;
 } modelLighting_t;
 
 
 
 typedef struct modelGrass_s {
-    vector2_t camera, fade, height;
-    vector3_t wind;
-    vector4_t phase;
+    vec2_t camera, fade, height;
+    vec3_t wind;
+    vec4_t phase;
     float time;
     bool enabled;
 } modelGrass_t;
@@ -59,10 +59,10 @@ typedef struct modelGrass_s {
 
 
 /* Translate semantic fixed-pipeline-style state into the private shader mat4 schema. */
-static inline void R_PackModelLighting(matrix4_t *out, modelLighting_t const *in) {
+static inline void R_PackModelLighting(mat4_t *out, modelLighting_t const *in) {
     FOR_LOOP(i, in->count) {
         rModelLight_t const *light = &in->lights[i];
-        out[i] = (matrix4_t){ .v = {
+        out[i] = (mat4_t){ .v = {
             light->pos.x, light->pos.y, light->pos.z, (float)light->type,
             -light->dir.x, -light->dir.y, -light->dir.z, light->atten_start,
             light->color.x, light->color.y, light->color.z, light->intensity,
@@ -75,8 +75,8 @@ static inline void R_PackModelLighting(matrix4_t *out, modelLighting_t const *in
 }
 
 /* Instanced grass uses four packed vec4 columns so one upload owns the complete effect state. */
-static inline void R_PackModelGrass(matrix4_t *out, modelGrass_t const *in) {
-    *out = (matrix4_t){ .v = {
+static inline void R_PackModelGrass(mat4_t *out, modelGrass_t const *in) {
+    *out = (mat4_t){ .v = {
         in->camera.x, in->camera.y, in->fade.x, in->fade.y,
         in->time, in->wind.x, in->wind.y, in->wind.z,
         in->phase.x, in->phase.y, in->phase.z, in->phase.w,

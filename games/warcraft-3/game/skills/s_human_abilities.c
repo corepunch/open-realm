@@ -571,7 +571,7 @@ static bool defend_projectile_reaction(edict_t *projectile) {
     uint32_t level, attack_type;
     float chance, deflect_factor;
     edict_t *attacker, *target;
-    vector3_t dir;
+    vec3_t dir;
 
     /* Spell missiles install their own move/end callback; Defend reacts only
      * to the shared basic-attack projectile contract. A returned missile may

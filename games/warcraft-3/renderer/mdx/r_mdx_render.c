@@ -13,34 +13,34 @@
 //} mdxVertexAttribute_t;
 
 
-static void Matrix4_fromViewAngles(vector3_t const *target, vector3_t const *angles, float distance, matrix4_t *output) {
-    vector3_t const vieworg = Vector3_unm(target);
+static void Matrix4_fromViewAngles(vec3_t const *target, vec3_t const *angles, float distance, mat4_t *output) {
+    vec3_t const vieworg = Vector3_unm(target);
     Matrix4_identity(output);
-    Matrix4_translate(output, &(vector3_t){0, 0, -distance});
+    Matrix4_translate(output, &(vec3_t){0, 0, -distance});
     Matrix4_rotate(output, angles, ROTATE_ZYX);
     Matrix4_translate(output, &vieworg);
 }
 
-static void Matrix4_getLightMatrix(vector3_t const *sunangles, vector3_t const *target, float scale, matrix4_t *output) {
-    matrix4_t proj, view;
+static void Matrix4_getLightMatrix(vec3_t const *sunangles, vec3_t const *target, float scale, mat4_t *output) {
+    mat4_t proj, view;
     Matrix4_ortho(&proj, -scale, scale, -scale, scale, 100.0, 3500.0);
     Matrix4_fromViewAngles(target, sunangles, 1000, &view);
     Matrix4_multiply(&proj, &view, output);
 }
 
 static bool
-R_GetModelCameraMatrix(mdxModel_t const *model, uint32_t frame, float aspect, matrix4_t *output, vector3_t *root)
+R_GetModelCameraMatrix(mdxModel_t const *model, uint32_t frame, float aspect, mat4_t *output, vec3_t *root)
 {
     if (!model || !model->cameras) {
         return false;
     }
 
     mdxCamera_t const *camera = model->cameras;
-    matrix4_t projection, view;
-    vector3_t eye = camera->pivot;
-    vector3_t target = camera->targetPivot;
-    vector3_t dir;
-    vector3_t up = {0, 0, 1};
+    mat4_t projection, view;
+    vec3_t eye = camera->pivot;
+    vec3_t target = camera->targetPivot;
+    vec3_t dir;
+    vec3_t up = {0, 0, 1};
     float fov_deg = camera->fieldOfView * (180.0f / (float)M_PI);
     float near_clip = camera->nearClip;
     float far_clip = camera->farClip;
@@ -59,12 +59,12 @@ R_GetModelCameraMatrix(mdxModel_t const *model, uint32_t frame, float aspect, ma
         aspect = 1.0f;
     }
     if (camera->translation) {
-        vector3_t translation = {0, 0, 0};
+        vec3_t translation = {0, 0, 0};
         MDLX_GetModelKeytrackValue(model, camera->translation, frame, &translation);
         eye = Vector3_add(&eye, &translation);
     }
     if (camera->targetTranslation) {
-        vector3_t targetTranslation = {0, 0, 0};
+        vec3_t targetTranslation = {0, 0, 0};
         MDLX_GetModelKeytrackValue(model, camera->targetTranslation, frame, &targetTranslation);
         target = Vector3_add(&target, &targetTranslation);
     }
@@ -183,9 +183,9 @@ static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, cstring_t 
     return seq;
 }
 
-bool MDLX_ExtractCamera(mdxModel_t const *model, uint32_t frame, float aspect, matrix4_t *output, matrix4_t *light) {
-    vector3_t root;
-    vector3_t lightAngles = { 10, 270, 0 };
+bool MDLX_ExtractCamera(mdxModel_t const *model, uint32_t frame, float aspect, mat4_t *output, mat4_t *light) {
+    vec3_t root;
+    vec3_t lightAngles = { 10, 270, 0 };
     bool ok = R_GetModelCameraMatrix(model, frame, aspect, output, &root);
     if (ok && light) {
         Matrix4_getLightMatrix(&lightAngles, &root, PORTRAIT_SHADOW_SIZE, light);
@@ -298,15 +298,15 @@ void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, color32_t tint) {
 
     rect_t screen = R_UISceneRect();
     entity.origin = fdf_sprite_coords
-        ? (vector3_t){x, y, 0}
-        : (vector3_t){x, screen.y + screen.h - y, 0};
+        ? (vec3_t){x, y, 0}
+        : (vec3_t){x, screen.y + screen.h - y, 0};
     Matrix4_ortho(&viewdef.viewProjectionMatrix, screen.x, screen.x + screen.w, screen.y, screen.y + screen.h, 0.0f, 100.0f);
-    Matrix4_scale(&viewdef.viewProjectionMatrix, &(vector3_t){1, 1, 0});
+    Matrix4_scale(&viewdef.viewProjectionMatrix, &(vec3_t){1, 1, 0});
 
     saved_viewdef = tr.viewDef;
     viewdef.time = saved_viewdef.time;
     viewdef.deltaTime = saved_viewdef.deltaTime;
-    viewdef.camerastate[0].eye = (vector3_t){0, 0, 100};
+    viewdef.camerastate[0].eye = (vec3_t){0, 0, 100};
     particleScene_t empty = {0};
     mdxSprite_t *state = mdx->emitters ? MDLX_SpriteState(mdx, sprite) : NULL;
     particleScene_t *scene = state ? &state->particles : &empty;

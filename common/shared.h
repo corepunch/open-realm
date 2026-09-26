@@ -319,14 +319,14 @@ typedef struct color { float r, g, b, a; } color_t;
 typedef struct color32 { uint8_t r, g, b, a; } color32_t;
 typedef struct bounds { float min, max; } bounds_t;
 typedef struct edges { float left, top, right, bottom; } edges_t;
-typedef struct transform2 { vector2_t translation, scale; float rotation; } transform2_t;
-typedef struct transform3 { vector3_t translation, rotation, scale; } transform3_t;
+typedef struct transform2 { vec2_t translation, scale; float rotation; } transform2_t;
+typedef struct transform3 { vec3_t translation, rotation, scale; } transform3_t;
 typedef char UINAME[80];
 
 KNOWN_AS(SheetLayout, sheetLayout_t);
 KNOWN_AS(SheetCell, sheet_t);
 KNOWN_AS(Doodad, doodad_t);
-KNOWN_AS(vector3, vector3_t);
+KNOWN_AS(vector3, vec3_t);
 KNOWN_AS(color32, color32_t);
 KNOWN_AS(animation_s, animation_t);
 KNOWN_AS(uiFrame_s, uiFrame_t);
@@ -573,7 +573,7 @@ typedef struct {
 
 /* Evaluated scene light. type matches RMODELLIGHTTYPE; 0 is omni, so presence is `valid`. */
 typedef struct environlight_s {
-    vector3_t dir, color, ambient;
+    vec3_t dir, color, ambient;
     float intensity, ambient_intensity;
     uint32_t type;
     bool valid;
@@ -601,8 +601,8 @@ enum {
 typedef struct inputCmd_s {
     INPUTACTION action;
     union {
-        vector2_t focus;
-        struct { vector3_t angles; float distance; } view;
+        vec2_t focus;
+        struct { vec3_t angles; float distance; } view;
         struct { uint32_t buttons, msec; } move;
     };
 } inputCmd_t;
@@ -611,8 +611,8 @@ typedef struct inputCmd_s {
 
 struct playerState_s {
     uint32_t number;                   // client slot index
-    vector3_t viewangles;             // Euler degrees, ROTATE_ZYX {pitch, roll, yaw}; client converts to quat and slerps
-    vector3_t vieworigin;             // server-authored camera look-at in world space (XY focus + composed Z)
+    vec3_t viewangles;             // Euler degrees, ROTATE_ZYX {pitch, roll, yaw}; client converts to quat and slerps
+    vec3_t vieworigin;             // server-authored camera look-at in world space (XY focus + composed Z)
     float distance;                 // camera distance from vieworigin for orbit/isometric view
     float znear;                    // near clip; required camera sample, copied like fov
     float zfar;                     // far clip; required camera sample, copied like fov
@@ -688,12 +688,12 @@ typedef struct entityState_s {
     uint32_t number; // edict index
     uint32_t class_id;
     union {
-        vector3_t origin;
-        struct { vector2_t origin2; float z; };
+        vec3_t origin;
+        struct { vec2_t origin2; float z; };
     };
     float angle; /* Canonical actor heading, radians. */
 #ifdef WOW
-    vector3_t rotation; /* Raw placement Euler degrees; preserve the wire layout and decode in the game pose hook. */
+    vec3_t rotation; /* Raw placement Euler degrees; preserve the wire layout and decode in the game pose hook. */
 #endif
     float scale;
     float radius;
@@ -862,8 +862,8 @@ typedef struct animation_s {
     float rarity;
     uint32_t syncpoint;
     float radius;
-    vector3_t min;
-    vector3_t max;
+    vec3_t min;
+    vec3_t max;
     uint32_t damage_point;
 } animation_t;
 
@@ -1017,7 +1017,7 @@ typedef uiFramePoint_t uiFramePoints_t[FPP_COUNT];
 /* Model-frame payload: camera and placement authored by the game's layout, not network entity state. */
 typedef enum { UI_MODEL_PERSPECTIVE, UI_MODEL_ORTHOGRAPHIC } UIMODELPROJECTION;
 typedef struct uimodel_s {
-    vector3_t eye, target, pos, scale;
+    vec3_t eye, target, pos, scale;
     float fov, znear, zfar, aspect;
     UIMODELPROJECTION projection;
 } uiModel_t;
@@ -1099,7 +1099,7 @@ typedef struct {
     RESOURCE hp_bar;
     RESOURCE mana_bar;
     RESOURCE focus_highlight;
-    vector2_t offset;
+    vec2_t offset;
     uint16_t numcolumns;
     uint16_t numitems;
     uiMultiselectItem_t items[];
@@ -1210,7 +1210,7 @@ typedef struct {
     uiBackdrop_t disabled;
     uiBackdrop_t disabledPushed;
     uiHighlight_t highlight;
-    vector2_t pushedTextOffset;
+    vec2_t pushedTextOffset;
 } uiGlueTextButton_t;
 
 typedef struct {
@@ -1279,9 +1279,9 @@ typedef struct {
 struct Doodad {
     uint32_t doodID;
     uint32_t variation;
-    vector3_t position;
+    vec3_t position;
     float angle;
-    vector3_t scale;
+    vec3_t scale;
     uint8_t flags;
     uint32_t player;
     uint8_t treeLife; // integer stored in %, 100% is 0x64, 170% is 0xAA for example
@@ -1315,10 +1315,10 @@ struct Doodad {
 typedef struct particle_s {
     struct particle_s *next;
     struct texture const *texture;
-    vector3_t org;
-    vector3_t vel;
-    vector3_t accel;
-    vector3_t tail;       /* optional world-space trail vector; zero keeps billboard behavior */
+    vec3_t org;
+    vec3_t vel;
+    vec3_t accel;
+    vec3_t tail;       /* optional world-space trail vector; zero keeps billboard behavior */
     color32_t color[3];
     uint8_t size[3];
     uint8_t midtime;

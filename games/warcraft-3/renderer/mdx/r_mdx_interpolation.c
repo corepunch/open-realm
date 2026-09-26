@@ -83,9 +83,9 @@ interpFloat(float const *left,
     }
 }
 
-static vector3_t
-interpVec3(vector3_t const *left,
-           vector3_t const *right,
+static vec3_t
+interpVec3(vec3_t const *left,
+           vec3_t const *right,
            float t,
            MODELKEYTRACKTYPE lineType)
 {
@@ -122,7 +122,7 @@ R_EvalKeyframeValue(void const *left,
     switch (datatype) {
         case TDATA_INT1: *((int *)out) = interpInt(left, right, t, linetype); return;
         case TDATA_FLOAT1: *((float *)out) = interpFloat(left, right, t, linetype); return;
-        case TDATA_FLOAT3: *((vector3_t *)out) = interpVec3(left, right, t, linetype); return;
+        case TDATA_FLOAT3: *((vec3_t *)out) = interpVec3(left, right, t, linetype); return;
         case TDATA_FLOAT4: *((quaternion_t *)out) = interpQuat(left, right, t, linetype); return;
     }
 }

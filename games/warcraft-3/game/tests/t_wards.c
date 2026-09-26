@@ -122,7 +122,7 @@ TEST(wc3_spell, stasis_trap_procedure_is_point_spell) {
 }
 
 TEST(wc3_spell, stasis_trap_cast_creates_owned_timed_invisible_ward) {
-	wardFix_t fix; vector2_t point = { 128, 96 }; edict_t *ward;
+	wardFix_t fix; vec2_t point = { 128, 96 }; edict_t *ward;
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &point));
@@ -138,11 +138,11 @@ TEST(wc3_spell, stasis_trap_cast_creates_owned_timed_invisible_ward) {
 
 /* Arm delay is DataA; stun uses DataD for units and HeroDur for heroes. */
 TEST(wc3_spell, stasis_trap_arms_then_stuns_land_enemies_in_datac) {
-	wardFix_t fix; vector2_t point = { 64, 0 }; edict_t *ward;
+	wardFix_t fix; vec2_t point = { 64, 0 }; edict_t *ward;
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
-	fix.enemy->s.origin2 = point; fix.hero->s.origin2 = (vector2_t){ 80, 0 };
-	fix.far->s.origin2 = (vector2_t){ 500, 0 };
+	fix.enemy->s.origin2 = point; fix.hero->s.origin2 = (vec2_t){ 80, 0 };
+	fix.far->s.origin2 = (vec2_t){ 500, 0 };
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &point));
 	ward = ward_find(BZ_HFOO); T_NOT_NULL(ward);
 	ward->health.value = ward->health.max_value = 100;
@@ -158,11 +158,11 @@ TEST(wc3_spell, stasis_trap_arms_then_stuns_land_enemies_in_datac) {
 }
 
 TEST(wc3_spell, stasis_trap_ignores_air_units) {
-	wardFix_t fix; vector2_t point = { 0, 0 }; edict_t *ward;
+	wardFix_t fix; vec2_t point = { 0, 0 }; edict_t *ward;
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
 	fix.air->s.origin2 = point;
-	fix.enemy->s.origin2 = fix.hero->s.origin2 = fix.far->s.origin2 = (vector2_t){ 500, 0 };
+	fix.enemy->s.origin2 = fix.hero->s.origin2 = fix.far->s.origin2 = (vec2_t){ 500, 0 };
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &point));
 	ward = ward_find(BZ_HFOO); T_NOT_NULL(ward);
 	ward_tick((uint32_t)(BZ_ARM * 1000.0f));
@@ -172,10 +172,10 @@ TEST(wc3_spell, stasis_trap_ignores_air_units) {
 }
 
 TEST(wc3_spell, stasis_trap_destroys_peer_wards_in_detonation_radius) {
-	wardFix_t fix; vector2_t a = { 0, 0 }, b = { 100, 0 };
+	wardFix_t fix; vec2_t a = { 0, 0 }, b = { 100, 0 };
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
-	fix.enemy->s.origin2 = (vector2_t){ 40, 0 };
+	fix.enemy->s.origin2 = (vec2_t){ 40, 0 };
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &a));
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ASTA, &b));
 	T_EQ(ward_count(BZ_HFOO), 2);
@@ -193,12 +193,12 @@ TEST(wc3_spell, sentry_ward_aliases_share_procedure) {
 }
 
 TEST(wc3_spell, sentry_ward_cast_creates_owned_timed_ward_and_detects_hidden) {
-	wardFix_t fix; vector2_t point = { 128, 128 }; edict_t *ward;
+	wardFix_t fix; vec2_t point = { 128, 128 }; edict_t *ward;
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
-	fix.enemy->s.origin2 = (vector2_t){ 200, 128 };
+	fix.enemy->s.origin2 = (vec2_t){ 200, 128 };
 	fix.enemy->s.renderfx |= RF_HIDDEN;
-	fix.far->s.origin2 = (vector2_t){ 900, 128 };
+	fix.far->s.origin2 = (vec2_t){ 900, 128 };
 	fix.far->s.renderfx |= RF_HIDDEN;
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_AEYE, &point));
 	ward = ward_find(BZ_OGRU);
@@ -224,21 +224,21 @@ TEST(wc3_spell, undead_true_sight_uses_authored_range) {
 	T_NOT_NULL(item.ability);
 	T_EQ(item.ability->proc, CAbilityTrueSight);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ATRU, .level = 1);
-	fix.enemy->s.origin2 = (vector2_t){ 250, 0 };
+	fix.enemy->s.origin2 = (vec2_t){ 250, 0 };
 	fix.enemy->s.renderfx |= RF_HIDDEN;
 	unit_addtimedstatus(fix.enemy, "Binv", 1, 5.0f);
 	T_ASSERT(S_UnitIsDetectedByPlayer(fix.enemy, 0));
-	fix.enemy->s.origin2 = (vector2_t){ 300, 0 };
+	fix.enemy->s.origin2 = (vec2_t){ 300, 0 };
 	T_ASSERT(!S_UnitIsDetectedByPlayer(fix.enemy, 0));
 	ward_done(&fix);
 }
 
 TEST(wc3_spell, sentry_true_sight_makes_known_rf_hidden_invisibility_selectable_for_viewer) {
-	wardFix_t fix; vector2_t point = { 128, 128 };
+	wardFix_t fix; vec2_t point = { 128, 128 };
 	ward_setup(&fix);
 	game.clients[0].ps.number = 0;
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
-	fix.enemy->s.origin2 = (vector2_t){ 200, 128 };
+	fix.enemy->s.origin2 = (vec2_t){ 200, 128 };
 	fix.enemy->s.renderfx |= RF_HIDDEN;
 	unit_addtimedstatus(fix.enemy, "Binv", 1, 5.0f);
 	T_ASSERT(!G_UnitCanBeSelected(&game.clients[0], fix.enemy));
@@ -250,11 +250,11 @@ TEST(wc3_spell, sentry_true_sight_makes_known_rf_hidden_invisibility_selectable_
 
 
 TEST(wc3_spell, true_sight_snapshot_and_selection_are_viewer_local) {
-	wardFix_t fix; vector2_t point = { 128, 128 }; entityState_t state;
+	wardFix_t fix; vec2_t point = { 128, 128 }; entityState_t state;
 	ward_setup(&fix);
 	game.clients[0].ps.number = 0; game.clients[1].ps.number = 1; game.clients[2].ps.number = 2;
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
-	fix.enemy->s.origin2 = (vector2_t){ 200, 128 };
+	fix.enemy->s.origin2 = (vec2_t){ 200, 128 };
 	fix.enemy->s.renderfx |= RF_HIDDEN;
 	unit_addtimedstatus(fix.enemy, "Binv", 1, 5.0f);
 	T_NOT_NULL(globals.CustomizeEntity);
@@ -278,7 +278,7 @@ TEST(wc3_spell, true_sight_snapshot_and_selection_are_viewer_local) {
 }
 
 TEST(wc3_spell, permanent_invisibility_blocks_hostile_acquisition_and_spell_targets_until_detected) {
-	wardFix_t fix; vector2_t point = { 64, 0 };
+	wardFix_t fix; vec2_t point = { 64, 0 };
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AEYE, .level = 1);
 	fix.enemy->heroabilities[0] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
@@ -317,7 +317,7 @@ TEST(wc3_spell, permanent_invisibility_uses_authored_transition_after_spawn_and_
 
 
 TEST(wc3_spell, active_spell_commit_restarts_permanent_invisibility_transition) {
-	wardFix_t fix; vector2_t point = { 128, 96 };
+	wardFix_t fix; vec2_t point = { 128, 96 };
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_ASTA, .level = 1);
 	fix.caster->heroabilities[1] = MAKE(heroability_t, .code = BZ_APIV, .level = 1);
@@ -365,7 +365,7 @@ TEST(wc3_spell, true_sight_only_reveals_rf_hidden_states_known_to_be_invisibilit
 }
 
 TEST(wc3_spell, sentry_ward_aisw_uses_alias_unitid) {
-	wardFix_t fix; vector2_t point = { 64, 64 }; edict_t *ward;
+	wardFix_t fix; vec2_t point = { 64, 64 }; edict_t *ward;
 	ward_setup(&fix);
 	fix.caster->heroabilities[0] = MAKE(heroability_t, .code = BZ_AISW, .level = 1);
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_AISW, &point));
