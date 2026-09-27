@@ -24,6 +24,7 @@ static void sc2_ev_note_xy(int32_t h, float x, float y) {
 typedef struct { char ability[64]; float x, y; bool started; } sc2GUnitOrder_t;
 static int32_t sc2_gcargo[MAX_GALAXY_UNITS][MAX_CARGO_PER_UNIT];
 static int32_t sc2_gcargo_n[MAX_GALAXY_UNITS];
+static int32_t sc2_gtransport[MAX_GALAXY_UNITS]; /* carrying unit handle while loaded; 0 once unloaded */
 static int32_t sc2_last_cargo_handle;
 static sc2GUnitOrder_t sc2_uorders[MAX_GALAXY_UNITS][MAX_UNIT_ORDERS];
 static int32_t sc2_uorder_n[MAX_GALAXY_UNITS];
@@ -98,13 +99,15 @@ static uint32_t sc2_UnitSetOwner(jass_t *j) {
 static uint32_t sc2_unit_life(jass_t *j, bool revive) {
     int32_t h = (int32_t)(uintptr_t)jass_checkhandle(j,1,"unit"); void *ent = sc2_ent_from_handle(j,1);
     sc2UnitState_t *u = sc2_unit_data(j,ent);
-    float old = u ? SC2_UnitProperty(u, 0) : 0;
     if (!u) return 0;
+    float old = SC2_UnitProperty(u, 0); bool was_alive = SC2_UnitAlive(u);
     SC2_UnitSetProperty(u, 0, revive ? u->vitals[0].max_value : 0); sc2_uorder_n[h-1]=0; sc2_unit_changed(j,ent);
-    /* Life is a property event, then death or revival is its own event so each callback sees its response. */
+    /* Life is a property event, then death or revival is its own event so each callback sees its response.
+     * Killing a dead unit or reviving a live one changes nothing and publishes nothing. */
     if (SC2_UnitProperty(u, 0) != old)
         sc2_ev_emit(j, (sc2evresp_t){ .type = SC2_EV_PROP, .unit = h, .player = sc2_ev_owner(h), .ival = 0 });
-    sc2_ev_emit(j, (sc2evresp_t){ .type = revive ? SC2_EV_REVIVE : SC2_EV_DIED, .unit = h, .player = sc2_ev_owner(h) });
+    if (was_alive != SC2_UnitAlive(u))
+        sc2_ev_emit(j, (sc2evresp_t){ .type = revive ? SC2_EV_REVIVE : SC2_EV_DIED, .unit = h, .player = sc2_ev_owner(h) });
     return 0;
 }
 static uint32_t sc2_UnitKill(jass_t *j) { return sc2_unit_life(j,false); }
@@ -119,7 +122,7 @@ static uint32_t sc2_UnitRemove(jass_t *j) {
     for (uint32_t i=0;i<sc2_gunit_n;i++) for (int32_t k=0;k<sc2_gcargo_n[i];k++) if (sc2_gcargo[i][k]==h) {
         memmove(sc2_gcargo[i]+k,sc2_gcargo[i]+k+1,(--sc2_gcargo_n[i]-k)*sizeof(int32_t)); break;
     }
-    sc2_gcargo_n[h-1]=0;
+    sc2_gcargo_n[h-1]=0; sc2_gtransport[h-1]=0;
     return 0;
 }
 static uint32_t sc2_unit_location_result(jass_t *j, int field) {
@@ -319,7 +322,10 @@ static uint32_t sc2_UnitCargoCreate(jass_t *j) {
         sc2_gunits[handle - 1] = ent;
         sc2_last_cargo_handle  = handle;
         sc2_last_unit_handle   = handle;
-        sc2_ev_note_xy(handle, 0, 0);
+        /* Loaded cargo rides at its transport, so the unload crossing starts there, not at the map origin. */
+        sc2GPoint_t at;
+        if (sc2_unit_location_handle(t_h, &at)) sc2_ev_note_xy(handle, at.x, at.y);
+        sc2_gtransport[handle - 1] = t_h;
         sc2_ev_emit(j, (sc2evresp_t){ .type = SC2_EV_CREATED, .unit = handle, .created = handle, .player = player });
         sc2_ev_emit(j, (sc2evresp_t){ .type = SC2_EV_CARGO, .unit = t_h, .cargo = handle, .player = player, .ival = 1 });
         if (t_h > 0 && t_h <= MAX_GALAXY_UNITS) {
@@ -433,6 +439,7 @@ static void sc2_run_unit_orders(jass_t *j) {
                     float y = ord->y + (0.75f + (float)(i / 3) * SC2_CARGO_DROP_SPACING);
                     if (cargo && sc2_galaxy_unit_set_position)
                         sc2_galaxy_unit_set_position(cargo, x, y, 0.0f);
+                    if (cargo_h > 0 && cargo_h <= MAX_GALAXY_UNITS) sc2_gtransport[cargo_h - 1] = 0;
                     sc2_ev_emit(j, (sc2evresp_t){ .type = SC2_EV_CARGO, .unit = unit_h, .cargo = cargo_h,
                         .player = sc2_ev_owner(unit_h), .ival = 0 });
                 }
@@ -509,7 +516,11 @@ static void sc2_ev_spatial(jass_t *j, int32_t unit, float ox, float oy, float nx
 static void sc2_ev_spatial_tick(jass_t *j) {
     for (int32_t h = 1; h <= (int32_t)sc2_gunit_n; h++) {
         sc2GPoint_t p;
-        if (!sc2_gunits[h - 1] || !sc2_unit_location_handle(h, &p)) continue;
+        int32_t carrier = sc2_gtransport[h - 1];
+        if (!sc2_gunits[h - 1]) continue;
+        /* Loaded cargo follows its transport silently; its own edict position is meaningless until unload. */
+        if (carrier) { if (sc2_unit_location_handle(carrier, &p)) sc2_ev_note_xy(h, p.x, p.y); continue; }
+        if (!sc2_unit_location_handle(h, &p)) continue;
         if (!sc2_uxy_set[h - 1]) { sc2_ev_note_xy(h, p.x, p.y); continue; }
         if (p.x == sc2_ux[h - 1] && p.y == sc2_uy[h - 1]) continue;
         sc2_ev_spatial(j, h, sc2_ux[h - 1], sc2_uy[h - 1], p.x, p.y);

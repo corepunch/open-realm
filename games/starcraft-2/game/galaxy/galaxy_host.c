@@ -137,6 +137,7 @@ void galaxy_reset(void) {
     sc2_gcam_n = 1;
     memset(sc2_gcargo,   0, sizeof(sc2_gcargo));
     memset(sc2_gcargo_n, 0, sizeof(sc2_gcargo_n));
+    memset(sc2_gtransport, 0, sizeof(sc2_gtransport));
     sc2_last_cargo_handle = 0;
     memset(sc2_gabilcmds, 0, sizeof(sc2_gabilcmds));
     sc2_gabilcmd_n = 1;
