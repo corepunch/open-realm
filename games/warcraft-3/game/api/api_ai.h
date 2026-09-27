@@ -279,11 +279,30 @@ uint32_t MergeUnits(jass_t *j) {
     uint32_t a = (uint32_t)jass_checkinteger(j, 2), b = (uint32_t)jass_checkinteger(j, 3), make = (uint32_t)jass_checkinteger(j, 4);
     return jass_pushboolean(j, G_BotMergeUnits(player, qty, a, b, make));
 }
-uint32_t GetUpgradeGoldCost(jass_t *j) {
-    return jass_pushinteger(j, G_UpgradeGoldCost((uint32_t)jass_checkinteger(j, 1), 0));
+static int32_t BotUpgradeNextLevel(jass_t *j, uint32_t upgrade_id) {
+    player_t *player = jass_getcontext(j)->playerState;
+    UpgradeData_t const *upgrade = G_UpgradeData(upgrade_id);
+    int32_t level;
+
+    if (!player || !upgrade || upgrade->id != upgrade_id || upgrade->maxLevel <= 0) return 0;
+    level = G_GetPlayerTechResearchedLevel(PLAYER_CLIENT(player), upgrade_id) + 1;
+    return level <= upgrade->maxLevel ? level : 0;
 }
-uint32_t GetUpgradeLumberCost(jass_t *j) {
-    return jass_pushinteger(j, G_UpgradeLumberCost((uint32_t)jass_checkinteger(j, 1), 0));
+
+uint32_t GetUpgradeGoldCost(jass_t *j) {
+    uint32_t upgrade_id = (uint32_t)jass_checkinteger(j, 1);
+    return jass_pushinteger(j, G_UpgradeGoldCost(upgrade_id, BotUpgradeNextLevel(j, upgrade_id)));
+}
+uint32_t GetUpgradeWoodCost(jass_t *j) {
+    uint32_t upgrade_id = (uint32_t)jass_checkinteger(j, 1);
+    return jass_pushinteger(j, G_UpgradeLumberCost(upgrade_id, BotUpgradeNextLevel(j, upgrade_id)));
+}
+/* Historical OpenRealm alias; retail common.ai calls this GetUpgradeWoodCost. */
+uint32_t GetUpgradeLumberCost(jass_t *j) { return GetUpgradeWoodCost(j); }
+
+uint32_t ShiftTownSpot(jass_t *j) {
+    G_BotShiftTownSpot(jass_getcontext(j)->playerState, jass_checknumber(j, 1), jass_checknumber(j, 2));
+    return 0;
 }
 
 #endif /* api_ai_h */

@@ -173,6 +173,30 @@ TEST(wc3_bot, produce_queues_trainable_units_and_rejects_unknown_types) {
     T_ASSERT(!G_BotProduce(player, 1, MAKEFOURCC('u','n','k','n'), -1));
 }
 
+TEST(wc3_bot, shift_town_spot_redirects_subsequent_build_search) {
+    player_t *player = &game.clients[2].ps;
+    UnitProfile_t worker_profile = { .builds = "hbar" };
+    edict_t *hall, *worker;
+
+    reset_entities();
+    hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
+    worker = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 1024, 0, 2, &bot_harvester_abilities);
+    worker->data.UnitProfile = &worker_profile;
+    player->stats[PLAYERSTATE_RESOURCE_GOLD] = 10000;
+    player->stats[PLAYERSTATE_RESOURCE_LUMBER] = 10000;
+
+    T_ASSERT(G_BotStart(player, "test_shift_town.ai", BOT_CAMPAIGN));
+    G_BotRunFrame();
+    T_ASSERT(level.bots[2].town_spot_valid);
+    T_FEQ(level.bots[2].town_spot.x, 1024.0f, 0.001f);
+    T_FEQ(level.bots[2].town_spot.y, 0.0f, 0.001f);
+
+    T_ASSERT(G_BotProduce(player, 1, MAKEFOURCC('h','b','a','r'), 0));
+    T_NOT_NULL(worker->goalentity);
+    T_ASSERT(worker->goalentity->s.origin2.x > 512.0f);
+    T_FEQ(hall->s.origin2.x, 0.0f, 0.001f);
+}
+
 TEST(wc3_bot, build_site_requires_direct_static_route) {
     uint8_t cells[100] = {0};
     edict_t worker = { .collision = 0.0f, .s.origin2 = { 1.0f, 5.0f } };

@@ -17,6 +17,9 @@ native GetUnitGoldCost takes integer unitid returns integer
 native GetUnitWoodCost takes integer unitid returns integer
 native GetUnitBuildTime takes integer unitid returns integer
 native GetUpgradeLevel takes integer id returns integer
+native GetUpgradeGoldCost takes integer id returns integer
+native GetUpgradeWoodCost takes integer id returns integer
+native GetUpgradeLumberCost takes integer id returns integer
 native UnitAlive takes unit id returns boolean
 native SetCampaignAI takes nothing returns nothing
 native SetMeleeAI takes nothing returns nothing
@@ -43,6 +46,7 @@ native ClearHarvestAI takes nothing returns nothing
 native HarvestGold takes integer town, integer peons returns nothing
 native HarvestWood takes integer town, integer peons returns nothing
 native CreateCaptains takes nothing returns nothing
+native ShiftTownSpot takes real x, real y returns nothing
 native IgnoredUnits takes integer unitid returns integer
 native CaptainInCombat takes boolean attack_captain returns boolean
 native InitAssault takes nothing returns nothing

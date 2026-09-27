@@ -1889,6 +1889,8 @@ typedef struct {
     botCaptain_t captains[BOT_CAPTAIN_COUNT];
     vec2_t stage; /* SetStagePoint staging area; assault fallback when no enemy target is visible */
     bool stage_valid;
+    vec2_t town_spot; /* ShiftTownSpot override for AI construction search; no world entity is moved */
+    bool town_spot_valid;
     ARRAY(botCommand_t, commands);
     ARRAY(edict_t *, harvesters);
     ARRAY(botGuardPost_t, guards);
@@ -2143,6 +2145,7 @@ int32_t G_BotLastData(player_t *);
 void G_BotPopCommand(player_t *);
 void G_BotSetCaptainHome(player_t *, int32_t, float, float);
 void G_BotSetStagePoint(player_t *, float, float);
+void G_BotShiftTownSpot(player_t *, float, float);
 bool G_BotSuicideUnits(player_t *, int32_t, uint32_t, int32_t);
 bool G_BotSuicidePlayer(player_t *, uint32_t, bool);
 bool G_BotMergeUnits(player_t *, int32_t, uint32_t, uint32_t, uint32_t);

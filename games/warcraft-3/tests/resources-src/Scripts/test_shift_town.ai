@@ -1,0 +1,4 @@
+function main takes nothing returns nothing
+    call ShiftTownSpot(1024.0, 0.0)
+    call Sleep(10)
+endfunction

@@ -21,7 +21,7 @@ native behavior, commonly followed by `PauseTimer` when resetting getter state.
 
 ## Baseline
 
-The registry currently contains 917 callbacks. The last conservative source
+The registry currently contains 919 callbacks. The last conservative source
 audit snapshot now classifies 502 as implemented and 334 as clear placeholders
 across 836 callbacks (60.0% overall at that snapshot). Newer registrations,
 including `GetUnitAbilityLevel`, are not folded into the implementation split
@@ -53,7 +53,9 @@ the original placeholder baseline" is a different target: 180 of the original
 360 placeholders, yielding 656 implemented callbacks (78.5% overall). Recount whenever callbacks are added
 to the registry or a placeholder begins consuming authoritative state.
 
-Issue #418 campaign-audit JASS native families now implemented: `SetCaptainHome`, `SetStagePoint`, `SuicideUnit`, `SuicideUnitEx`, `SuicidePlayer`, `MergeUnits`, `GetUpgradeGoldCost`, `GetUpgradeLumberCost` (all in `api_ai.h`), `EnumItemsInRect` / `GetEnumItem` (items in rect, mirrors `EnumDestructablesInRect`; boolexpr filter TODO), `GetChangingUnit` / `GetChangingUnitPrevOwner` (ownership-change event context, eventValue = prev_owner+1), `SetUnitUserData` / `GetUnitUserData` / `UnitSetUsesAltIcon` (unit state fields). Stubs added: `SetCampaignMenuRaceEx`, `SetAltMinimapIcon`, `DoNotSaveReplay`. Bot AI signatures for `SetCaptainHome` and `SuicideUnit*` take the player as explicit arg 1 (not from context); scripts call `GetAiPlayer()` to supply it. `EnumItemsInRect` arg 3 is the actionFunc; arg 2 (boolexpr) is skipped (TODO). `currentenumitem` is defined alongside `G_IsItem` in `g_items.c`.
+Issue #418 campaign-audit JASS native families now implemented: `SetCaptainHome`, `SetStagePoint`, `ShiftTownSpot`, `SuicideUnit`, `SuicideUnitEx`, `SuicidePlayer`, `MergeUnits`, `GetUpgradeGoldCost`, `GetUpgradeWoodCost` (plus the historical OpenRealm `GetUpgradeLumberCost` alias; all in `api_ai.h`), `EnumItemsInRect` / `GetEnumItem` (items in rect, mirrors `EnumDestructablesInRect`; boolexpr filter TODO), `GetChangingUnit` / `GetChangingUnitPrevOwner` (ownership-change event context, eventValue = prev_owner+1), `SetUnitUserData` / `GetUnitUserData` / `UnitSetUsesAltIcon` (unit state fields). Stubs added: `SetCampaignMenuRaceEx`, `SetAltMinimapIcon`, `DoNotSaveReplay`. Bot AI signatures for `SetCaptainHome` and `SuicideUnit*` take the player as explicit arg 1 (not from context); scripts call `GetAiPlayer()` to supply it. `EnumItemsInRect` arg 3 is the actionFunc; arg 2 (boolexpr) is skipped (TODO). `currentenumitem` is defined alongside `G_IsItem` in `g_items.c`.
+
+`GetUpgradeGoldCost` and retail `GetUpgradeWoodCost` now query the current AI player's next researched level and reuse the authoritative `UpgradeData.slk` base/mod cost helpers; invalid or maxed upgrades return zero. `ShiftTownSpot` owns a persistent `bot_t` construction-search override consumed only by AI building placement, leaving town halls, workers, harvesting, and captain state untouched. See [AI Upgrade Costs And Town Spot](../../docs/games/warcraft-3/ai-upgrade-costs-and-town-spot.md).
 
 `GetAllyColorFilterState` / `SetAllyColorFilterState` now own per-local-player minimap presentation state instead of one process-global placeholder. State `0` keeps the local player white while preserving resolved player colours for other ordinary contacts; states `1` and `2` drive self/allied/hostile/neutral relationship colours in the automatic minimap contact renderer. State `2`'s retail world-model recolouring is still separate presentation work. `Get/SetCreepCampFilterState` remains the existing placeholder state until creep-camp marker generation has a real consumer; `EnableMinimapFilterButtons` UI controls are also incomplete. See [Minimap Markers](../../docs/games/warcraft-3/minimap-markers.md).
 
