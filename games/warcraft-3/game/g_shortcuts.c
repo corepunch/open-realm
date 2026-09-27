@@ -45,7 +45,7 @@ bool G_UnitShowsHeroShortcut(gameClient_t *client, edict_t const *ent) {
 
 bool G_UnitIsIdleWorker(edict_t const *ent) {
     if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER) ||
-        !ent->data.UnitBalance || ent->training || G_UnitIsBuilding(ent->class_id) ||
+        !ent->data.UnitBalance || ent->training || G_UnitIsStructure(ent) ||
         M_IsDead(ent) || (ent->s.renderfx & RF_HIDDEN) ||
         S_GoldMineWorkerIsInside(ent) || ent->movement.holding_position ||
         !ent->currentmove || ent->currentmove->proc || !ent->currentmove->animation ||

@@ -78,7 +78,9 @@ cargo teardown restores them. DataA is gold per payout and DataB the interval. E
 cargo count. This reproduces Warsmash's proportional five-slot cadence without a second worker list. Parent depletion kills the
 Entangled overlay; ordinary death teardown unloads its Wisps and restores the original depleted mine.
 
-Haunted Mines now create the Warsmash-style persistent ability `EffectArt` at each authored Acolyte ring slot, using the same radial angle as the slot itself in the engine's radians-based entity-angle contract; teardown removes those components through the normal effect death path. Acolyte targeting/full-ring failures use the Warcraft `Targetblightedmine`, `Nototherplayersmine`, and `Blightringfull` command-error keys so mounted `CommandStrings` and race-skin sound data own their presentation. Remaining mine gaps are primarily Entangle cast/icon polish and broader retail visual verification. Wisp lumber (`Awha`) is still a separate gap.
+Haunted Mines now create the Warsmash-style persistent ability `EffectArt` at each authored Acolyte ring slot, using the same radial angle as the slot itself in the engine's radians-based entity-angle contract; teardown removes those components through the normal effect death path. Acolyte targeting/full-ring failures use the Warcraft `Targetblightedmine`, `Nototherplayersmine`, and `Blightringfull` command-error keys so mounted `CommandStrings` and race-skin sound data own their presentation. Entangle uses `Targetgoldmine`, retains persistent caster art/state, and hides/marks the caster ability permanent for the overlay lifetime. Wisp lumber (`Awha`) is persistent direct income at one reserved tree with TargetArt and looped harvest audio.
+
+Stock ROC and TFT `Awha` author `DataA=5`, `DataC=150`, `Rng=900`, and `Dur=8`. The implementation reads the Wisp's own `Rng` for tree reacquisition and `Dur` for its income interval; missing or non-positive `DataA`, `Rng`, or `Dur` rejects the order with a once-per-ability warning instead of borrowing the general Harvest ability's Area or using a fixed timer.
 
 ### Resource Return Drop-Offs
 

@@ -5,6 +5,8 @@
 
 uint32_t S_TestHeroAuraAliasResolves(void);
 void S_TestResetHeroAuraAliasResolves(void);
+void S_TestResetMoonWellEffectReleaseCalls(void);
+uint32_t S_TestMoonWellEffectReleaseCalls(void);
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
@@ -1315,9 +1317,11 @@ TEST(wc3_spell, mirror_image_immediate_order_spawns_summoned_illusion) {
 
 TEST(wc3_spell, moon_well_replenishes_life_then_mana_using_authored_ratios) {
     const char slk[] =
-        "ID;PWXL;N;EBB;Y2;X4\n"
-        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
-        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K\"0.5\"\nC;Y2;X4;K\"2.0\"\nE\n";
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\n"
+        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K\"ground,friend\"\n"
+        "C;Y2;X4;K\"0.5\"\nC;Y2;X5;K\"2.0\"\nE\n";
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t *well = make_hero(MAKEFOURCC('h','b','a','r'), 100, 50, 0, 0);
     edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
@@ -1325,6 +1329,8 @@ TEST(wc3_spell, moon_well_replenishes_life_then_mana_using_authored_ratios) {
     spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
 
     well->s.player = target->s.player = 0;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
     target->health.max_value = 100.0f; target->health.value = 80.0f;
     target->mana.max_value = 100.0f; target->mana.value = 50.0f;
     T_NOT_NULL(item.ability);
@@ -1340,9 +1346,11 @@ TEST(wc3_spell, moon_well_replenishes_life_then_mana_using_authored_ratios) {
 
 TEST(wc3_spell, moon_well_accepts_mana_only_replenishment) {
     const char slk[] =
-        "ID;PWXL;N;EBB;Y2;X4\n"
-        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
-        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K\"0.5\"\nC;Y2;X4;K\"2.0\"\nE\n";
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\n"
+        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K\"ground,friend\"\n"
+        "C;Y2;X4;K\"0.5\"\nC;Y2;X5;K\"2.0\"\nE\n";
     slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
     edict_t *well = make_hero(MAKEFOURCC('h','b','a','r'), 100, 10, 0, 0);
     edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
@@ -1350,6 +1358,8 @@ TEST(wc3_spell, moon_well_accepts_mana_only_replenishment) {
     spellTarget_t st = { .type = SPELL_TARGET_UNIT, .entity = target };
 
     well->s.player = target->s.player = 0;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
     target->health.max_value = target->health.value = 100.0f;
     target->mana.max_value = 100.0f; target->mana.value = 50.0f;
     T_ASSERT(test_ability_message(well, A_VALIDATE, &item, &st));
@@ -1357,6 +1367,241 @@ TEST(wc3_spell, moon_well_accepts_mana_only_replenishment) {
     T_FEQ(target->health.value, 100.0f, 0.001f);
     T_FEQ(target->mana.value, 70.0f, 0.001f);
     T_FEQ(well->mana.value, 0.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+
+TEST(wc3_spell, moon_well_autocast_uses_threshold_and_nearest_valid_target) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X9\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"DataC1\"\n"
+        "C;Y1;X7;K\"Area1\"\nC;Y1;X8;K\"Rng1\"\nC;Y1;X9;K\"DataE1\"\n"
+        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K\"ground,friend\"\n"
+        "C;Y2;X4;K\"0.5\"\nC;Y2;X5;K\"2.0\"\nC;Y2;X6;K\"25\"\n"
+        "C;Y2;X7;K\"100\"\nC;Y2;X8;K\"99999\"\nC;Y2;X9;K\"1\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "Ambt" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t * well = make_hero(MAKEFOURCC('e','m','o','w'), 100, 80, 0, 0);
+    edict_t * near = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 80, 0);
+    edict_t * far = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 200, 0);
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("Ambt"));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+
+    well->data.UnitAbilities = &abilities;
+    well->s.player = near->s.player = far->s.player = 0;
+    near->svflags |= SVF_MONSTER;
+    far->svflags |= SVF_MONSTER;
+    near->targtype = far->targtype = TARG_GROUND;
+    near->health.max_value = far->health.max_value = 100.0f;
+    near->health.value = far->health.value = 50.0f;
+    near->mana.max_value = far->mana.max_value = 0.0f;
+
+    T_ASSERT(item.ability && (item.ability->flags & AB_AUTOCAST));
+    T_ASSERT(item.ability && (item.ability->flags & AB_UPDATE));
+    T_ASSERT(S_AbilityMessage(well, A_AUTOCAST_ACQUIRE, &call));
+    T_FEQ(near->health.value, 90.0f, 0.001f); /* 80 well mana / DataB 2 = 40 life */
+    T_FEQ(far->health.value, 50.0f, 0.001f);
+    T_FEQ(well->mana.value, 0.0f, 0.001f);
+
+    well->mana.value = 25.0f; /* DataC is a strict minimum threshold. */
+    near->health.value = 50.0f;
+    T_ASSERT(!S_AbilityMessage(well, A_AUTOCAST_ACQUIRE, &call));
+    T_FEQ(near->health.value, 50.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, moon_well_autocast_does_not_substitute_cast_range_for_area) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
+        "C;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"Area1\"\nC;Y1;X7;K\"Rng1\"\n"
+        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\n"
+        "C;Y2;X3;K2\nC;Y2;X4;K0.5\nC;Y2;X5;K10\n"
+        "C;Y2;X6;K0\nC;Y2;X7;K99999\nE\n";
+    UnitAbilities_t abilities = { .abilList = "Ambt" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *well = make_hero(MAKEFOURCC('e','m','o','w'), 100, 80, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 100, 0);
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("Ambt"));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+
+    well->data.UnitAbilities = &abilities;
+    well->s.player = target->s.player = 0;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
+    target->health.max_value = 100.0f;
+    target->health.value = 50.0f;
+
+    T_ASSERT(!S_AbilityMessage(well, A_AUTOCAST_ACQUIRE, &call));
+    T_FEQ(target->health.value, 50.0f, 0.001f);
+    T_FEQ(well->mana.value, 80.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* Stock ROC and TFT Ambt values from ability_audit -raw Ambt. Area=400 is the
+ * autocast acquisition radius; Rng=99999 is the manual cast range. */
+TEST(wc3_spell, moon_well_stock_data_uses_area_for_autocast) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"targs1\"\n"
+        "C;Y1;X4;K\"DataA1\"\nC;Y1;X5;K\"DataB1\"\nC;Y1;X6;K\"DataC1\"\n"
+        "C;Y1;X7;K\"Area1\"\nC;Y1;X8;K\"Rng1\"\nC;Y1;X9;K\"DataE1\"\n"
+        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K\"air,ground,invu,vuln,friend,organic\"\n"
+        "C;Y2;X4;K2\nC;Y2;X5;K0.5\nC;Y2;X6;K10\n"
+        "C;Y2;X7;K400\nC;Y2;X8;K99999\nC;Y2;X9;K1\nE\n";
+    UnitAbilities_t abilities = { .abilList = "Ambt" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *well = make_hero(MAKEFOURCC('e','m','o','w'), 100, 80, 0, 0);
+    edict_t *target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 500, 0);
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("Ambt"));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+
+    well->data.UnitAbilities = &abilities;
+    well->s.player = target->s.player = 0;
+    target->svflags |= SVF_MONSTER;
+    target->targtype = TARG_GROUND;
+    target->health.max_value = 100.0f;
+    target->health.value = 50.0f;
+    T_EQ((int)G_AbilityLevel(item.code, 1)->area, 400);
+    T_EQ((int)G_AbilityLevel(item.code, 1)->range, 99999);
+    T_ASSERT(!S_AbilityMessage(well, A_AUTOCAST_ACQUIRE, &call));
+    T_FEQ(target->health.value, 50.0f, 0.001f);
+
+    target->s.origin2.x = 300.0f;
+    target->s.origin.x = 300.0f;
+    T_ASSERT(S_AbilityMessage(well, A_AUTOCAST_ACQUIRE, &call));
+    T_FEQ(target->health.value, 100.0f, 0.001f);
+    T_FEQ(well->mana.value, 55.0f, 0.001f);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, moon_well_datae_gates_only_natural_mana_regen_to_night) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataE1\"\n"
+        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K\"1\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "Ambt" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t * well = make_hero(MAKEFOURCC('e','m','o','w'), 100, 50, 0, 0);
+    UnitBalance_t balance = *well->data.UnitBalance;
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("Ambt"));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+
+    well->data.UnitAbilities = &abilities;
+    balance.manaRegen = 2.0f;
+    well->data.UnitBalance = &balance;
+    well->mana.max_value = 100.0f;
+    well->mana.value = 50.0f;
+    well->mana_regen_bonus = 1.0f;
+
+    T_ASSERT(G_ActorHasSkill(well, "Ambt"));
+    T_ASSERT(item.ability && item.ability->proc == CAbilityManaBattery);
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+    T_EQ(G_AbilityData(item.code)->id, item.code);
+    T_EQ(G_AbilityCode(item.code), MAKEFOURCC('A','m','b','t'));
+    T_FEQ(G_AbilityData(item.code)->level[0].data[4].number, 1.0f, 0.001f);
+    T_ASSERT(!G_IsNight());
+    T_ASSERT(S_AbilityMessage(well, A_NATURAL_MANA_REGEN_BLOCKED, &call));
+    T_ASSERT(S_UnitAbilityEvent(well, A_NATURAL_MANA_REGEN_BLOCKED));
+    G_RunEntity(well);
+    T_FEQ(well->mana.value, 50.1f, 0.001f); /* external +1/sec remains active */
+
+    well->mana.value = 50.0f;
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+    T_ASSERT(!S_UnitAbilityEvent(well, A_NATURAL_MANA_REGEN_BLOCKED));
+    G_RunEntity(well);
+    T_FEQ(well->mana.value, 50.3f, 0.001f); /* natural 2/sec + bonus 1/sec */
+
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, non_moon_well_updates_do_not_scan_for_effect_cleanup) {
+    edict_t *unit = make_hero(MAKEFOURCC('h','f','o','o'), 100, 0, 0, 0);
+
+    S_TestResetMoonWellEffectReleaseCalls();
+    S_RunAbilityUpdates(unit);
+    T_EQ(S_TestMoonWellEffectReleaseCalls(), 0);
+}
+
+TEST(wc3_spell, moon_well_ability_disable_still_releases_its_effect) {
+    UnitAbilities_t abilities = { .abilList = "Ambt" };
+    edict_t *well = make_hero(MAKEFOURCC('e','m','o','w'), 100, 50, 0, 0);
+    edict_t *effect = G_Spawn();
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("Ambt"));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+
+    T_NOT_NULL(effect);
+    T_EQ(item.ability->proc, CAbilityManaBattery);
+    well->data.UnitAbilities = &abilities;
+    effect->owner = well;
+    effect->summon_ability = item.code;
+    effect->s.flags |= EF_NOT_SELECTABLE;
+    S_TestResetMoonWellEffectReleaseCalls();
+
+    T_ASSERT(S_AbilityMessage(well, A_DISABLE, &call));
+    T_EQ(S_TestMoonWellEffectReleaseCalls(), 1);
+    T_ASSERT(!effect->inuse);
+}
+
+TEST(wc3_spell, moon_well_missing_ability_data_does_not_restore_natural_regen) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y2;X1;K\"Afoo\"\nC;Y2;X2;K\"Afoo\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "Ambt" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *well = make_hero(MAKEFOURCC('e','m','o','w'), 100, 50, 0, 0);
+    UnitBalance_t balance = *well->data.UnitBalance;
+
+    well->data.UnitAbilities = &abilities;
+    balance.manaRegen = 2.0f;
+    well->data.UnitBalance = &balance;
+    well->mana.max_value = 100.0f;
+    well->mana.value = 50.0f;
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+    T_ASSERT(S_UnitAbilityEvent(well, A_NATURAL_MANA_REGEN_BLOCKED));
+    G_RunEntity(well);
+    T_FEQ(well->mana.value, 50.0f, 0.001f);
+
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_spell, moon_well_roc_data11_does_not_alias_datae) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Data11\"\n"
+        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K1\nE\n";
+    UnitAbilities_t abilities = { .abilList = "Ambt" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *well = make_hero(MAKEFOURCC('e','m','o','w'), 100, 50, 0, 0);
+
+    well->data.UnitAbilities = &abilities;
+    T_FEQ(G_AbilityLevel(MAKEFOURCC('A','m','b','t'), 1)->data[0].number, 1.0f, 0.001f);
+    T_FEQ(G_AbilityLevel(MAKEFOURCC('A','m','b','t'), 1)->data[4].number, 0.0f, 0.001f);
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+    T_ASSERT(!S_UnitAbilityEvent(well, A_NATURAL_MANA_REGEN_BLOCKED));
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
@@ -3845,19 +4090,31 @@ TEST(wc3_spell, earthquake_waits_for_effect_delay_slows_ground_and_damages_struc
     edict_t *air = alloc_test_unit(MAKEFOURCC('o','w','y','v'), 60, 0);
     edict_t *building = alloc_test_unit(MAKEFOURCC('o','b','u','r'), 70, 0);
     edict_t *tree = alloc_test_unit(MAKEFOURCC('L','T','l','t'), 80, 0);
+    edict_t *rooted_ancient = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 90, 0);
+    edict_t *uprooted_ancient = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 100, 0);
     edict_t *thinker = NULL;
     vec2_t point = { 0, 0 };
 
     caster->data.UnitAbilities = &abilities; caster->s.player = 0;
     ground->s.player = air->s.player = building->s.player = 1;
+    rooted_ancient->s.player = uprooted_ancient->s.player = 1;
     ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     ground->targtype = TARG_GROUND; ground->unitinfo.MoveSpeed = 300.0f;
-    air->targtype = TARG_AIR; building->targtype = TARG_STRUCTURE;
+    air->targtype = TARG_AIR; building->targtype = TARG_STRUCTURE; building->s.flags |= EF_BUILDING;
     ground->svflags |= SVF_MONSTER; air->svflags |= SVF_MONSTER; building->svflags |= SVF_MONSTER;
+    rooted_ancient->targtype = uprooted_ancient->targtype = TARG_STRUCTURE;
+    rooted_ancient->ancient_root.ability = uprooted_ancient->ancient_root.ability = MAKEFOURCC('A','r','o','o');
+    rooted_ancient->ancient_root.mode = ANCIENT_ROOTED;
+    rooted_ancient->s.flags |= EF_BUILDING;
+    uprooted_ancient->ancient_root.mode = ANCIENT_UPROOTED;
+    uprooted_ancient->s.flags &= ~EF_BUILDING;
+    rooted_ancient->svflags |= SVF_MONSTER; uprooted_ancient->svflags |= SVF_MONSTER;
     ground->health.value = ground->health.max_value = 500;
     air->health.value = air->health.max_value = 500;
     building->health.value = building->health.max_value = 500;
+    rooted_ancient->health.value = rooted_ancient->health.max_value = 500;
+    uprooted_ancient->health.value = uprooted_ancient->health.max_value = 500;
     tree->svflags &= ~SVF_MONSTER; tree->targtype = TARG_TREE; tree->destructable.initialized = true;
     tree->health.value = tree->health.max_value = 500;
     level.time = 0;
@@ -3872,6 +4129,9 @@ TEST(wc3_spell, earthquake_waits_for_effect_delay_slows_ground_and_damages_struc
     T_FEQ(building->health.value, 500.0f, 0.001f);
     level.time = 2000; earthquake_think(thinker);
     T_FEQ(building->health.value, 490.0f, 0.001f);
+    T_FEQ(rooted_ancient->health.value, 490.0f, 0.001f);
+    T_FEQ(uprooted_ancient->health.value, 500.0f, 0.001f);
+    T_EQ(G_UnitStatusLevel(uprooted_ancient, MAKEFOURCC('B','O','e','q')), 1);
     T_FEQ(tree->health.value, 490.0f, 0.001f);
     T_EQ(G_UnitStatusLevel(ground, MAKEFOURCC('B','O','e','q')), 1);
     T_EQ(G_UnitStatusLevel(air, MAKEFOURCC('B','O','e','q')), 0);

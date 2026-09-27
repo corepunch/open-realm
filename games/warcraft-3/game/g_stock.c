@@ -173,7 +173,7 @@ static int32_t G_ShopInteractionType(edict_t const *shop) {
 
 static bool G_ShopPatronEligible(edict_t const *shop, edict_t const *unit, bool require_inventory) {
     int32_t const interaction = G_ShopInteractionType(shop);
-    bool const is_unit = unit && ((unit->svflags & SVF_MONSTER) || G_UnitIsBuilding(unit->class_id));
+    bool const is_unit = unit && ((unit->svflags & SVF_MONSTER) || G_UnitIsStructure(unit));
 
     if (!shop || !unit || M_IsDead((edict_t *)unit) || !G_ShopPatronInRange(shop, unit)) return false;
     /* Item shops retain the existing inventory-carrier contract, which also
@@ -185,7 +185,7 @@ static bool G_ShopPatronEligible(edict_t const *shop, edict_t const *unit, bool 
         if (!G_UnitHasInventory((edict_t *)unit)) return false;
         break;
     case SHOP_INTERACT_NON_BUILDING:
-        if (G_UnitIsBuilding(unit->class_id)) return false;
+        if (G_UnitIsStructure(unit)) return false;
         break;
     case SHOP_INTERACT_ANY:
     case SHOP_INTERACT_ANY_ANE2:

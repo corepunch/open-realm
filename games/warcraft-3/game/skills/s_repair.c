@@ -75,7 +75,7 @@ static bool repair_target_category_allowed(edict_t const *target, AbilityData_t 
     bool building;
 
     if (!target) return false;
-    building = G_UnitIsBuilding(target->class_id);
+    building = G_UnitIsStructure(target);
     targets = data ? data->level[0].targs : NULL;
 
     /* Preserve the legacy completed-building fallback for sparse ROC/custom
@@ -106,9 +106,9 @@ static bool repair_target_category_allowed(edict_t const *target, AbilityData_t 
      * when the Repair row constrains them. */
     if (repair_list_has_token(targets, "air", NULL) ||
         repair_list_has_token(targets, "ground", "grou")) {
-        if (target->targtype == TARG_AIR)
+        if (G_UnitTargetType(target) == TARG_AIR)
             return repair_list_has_token(targets, "air", NULL);
-        if (target->targtype == TARG_GROUND)
+        if (G_UnitTargetType(target) == TARG_GROUND)
             return repair_list_has_token(targets, "ground", "grou");
         return false;
     }
@@ -307,7 +307,7 @@ static bool repair_target_valid(edict_t *ent, edict_t *target, uint32_t code, bo
          * Repair. Do not let an allied worker become another player's primary
          * or additional builder through this completed-unit target expansion. */
         if (target->s.player != ent->s.player) return false;
-        if (!G_UnitIsBuilding(target->class_id)) return false;
+        if (!G_UnitIsStructure(target)) return false;
         /* Power Build is a Human construction rule. Orc, Undead, and Night
          * Elf structures progress autonomously and ordinary Repair must not
          * become an accidental second construction clock for them. */
@@ -343,7 +343,7 @@ static bool repair_in_range(edict_t *ent, edict_t *target) {
 
     if (!ent || !target) return false;
     range = repair_range(ent, target);
-    if (G_UnitIsBuilding(target->class_id)) {
+    if (G_UnitIsStructure(target)) {
         footprint = CM_DistanceToPathingFootprint(target, &ent->s.origin2);
         if (footprint < FLT_MAX) {
             return footprint <= ent->collision + range;
@@ -376,7 +376,7 @@ static bool repair_prepare_approach(edict_t *ent) {
     /* Mobile mechanical units are live movement goals, not static pathing
      * footprints. Following the entity also lets Repair track a target that
      * moves while the worker is approaching it. */
-    if (!G_UnitIsBuilding(building->class_id)) {
+    if (!G_UnitIsStructure(building)) {
         ent->goalentity = building;
         move_reset_progress(ent);
         return true;

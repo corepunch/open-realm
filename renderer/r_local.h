@@ -74,6 +74,11 @@ typedef enum render_phase_e {
 
 extern refImport_t ri;
 
+static inline bool R_ShouldRenderUberSplat(renderEntity_t const *entity) {
+    return entity && entity->splat && (entity->flags & RF_BUILDING) &&
+           !(entity->flags & RF_NO_UBERSPLAT);
+}
+
 static inline bool R_CvarEnabled(cstring_t name, cstring_t fallback) { return !ri.CvarString || atoi(ri.CvarString(name, fallback)); }
 static inline uint64_t R_PrimitiveTriangles(GLenum mode, uint32_t count, uint32_t instances) {
     return mode == GL_TRIANGLES ? (uint64_t)(count / 3) * instances : 0;

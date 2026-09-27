@@ -30,6 +30,15 @@ edict_t *alloc_test_unit(uint32_t class_id, float x, float y) {
     edict_t *ent = G_Spawn();
     ent->class_id = class_id;
     G_BindEntityData(ent);
+    /* Mirror the runtime structure classification installed by SP_SpawnUnit.
+     * Tests exercising building behavior must not rely on authored type data
+     * after the live unit has been allocated. */
+    if (G_UnitIsBuilding(class_id)) {
+        ent->s.flags |= EF_BUILDING;
+        ent->aiflags |= AI_IMMOBILE;
+        ent->runtime.flags |= UNIT_BALANCE_BUILDING;
+        ent->movetype = MOVETYPE_NONE;
+    }
     /* The fixture archive has no UnitWeapons.slk. Tests that construct attacks
      * by hand start with both authored weapon slots enabled unless they attach
      * a specific row for a disabled-slot case. */

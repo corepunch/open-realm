@@ -620,6 +620,7 @@ BZ_ABILITY_PROC(CAbilityGoldMine) {
 /* ---- Racial Gold Mine overlays ------------------------------------------ */
 
 static void haunted_mine_remove_effects(edict_t *mine);
+static void entangle_remove_caster_effects(edict_t *overlay);
 
 /* Validate and return a mine's live parent, clearing stale saved relationships. */
 static edict_t *mineoverlay_parent(edict_t *overlay) {
@@ -660,6 +661,19 @@ static bool mineoverlay_parent_in_use(edict_t *parent, edict_t *except) {
         return true;
     }
     return false;
+}
+
+/* A rooted Tree owns the lifetime of its Entangled Mine. Root/Uproot and unit
+ * removal share this path so the overlay's normal death cleanup restores the
+ * original mine and releases its cargo consistently. */
+void S_ReleaseEntangledMineForTree(edict_t *tree) {
+    if (!tree) return;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *overlay = globals.edicts + i;
+        if (!overlay->inuse || overlay == tree || overlay->mineoverlay.entangle_tree != tree ||
+            overlay->mineoverlay.entangle_tree_spawn_time != tree->spawn_time) continue;
+        unit_die(overlay, NULL);
+    }
 }
 
 bool S_MineOverlayBind(edict_t *overlay, edict_t *parent) {
@@ -800,6 +814,7 @@ void S_MineOverlayRelease(edict_t *overlay) {
      * removal and mine death. Do this before clearing the overlay identity so
      * the effect-owner markers remain available to the cleanup scan. */
     haunted_mine_remove_effects(overlay);
+    entangle_remove_caster_effects(overlay);
     /* A Haunted Mine owns fixed Acolyte relationships. Retiring the mine must
      * free those slots before its edict can be reused. */
     FILTER_EDICTS(worker, worker->inuse && worker->acolyte_mine.mine == overlay &&
@@ -1136,6 +1151,112 @@ BZ_ABILITY_PROC(CAbilityBlightedGoldMine) {
 
 /* ---- Entangle Gold Mine / Entangled Mine -------------------------------- */
 
+/* Warsmash keeps Aent CasterArt on the Tree of Life, hides the command icon,
+ * and marks the ability permanent while its entangled overlay exists. Keep
+ * that relationship on the overlay itself so custom Aent abilities without
+ * CasterArt still get the same gameplay/UI lifecycle and save/load behavior. */
+static edict_t *entangle_overlay_caster(edict_t *overlay) {
+    edict_t *caster;
+    if (!overlay || !(caster = overlay->mineoverlay.caster)) return NULL;
+    if (!caster->inuse || caster->spawn_time != overlay->mineoverlay.caster_spawn_time) {
+        overlay->mineoverlay.caster = NULL;
+        overlay->mineoverlay.caster_spawn_time = 0;
+        overlay->mineoverlay.entangle_ability = 0;
+        return NULL;
+    }
+    return caster;
+}
+
+static bool entangle_overlay_has_caster(edict_t const *overlay, edict_t const *caster,
+                                        uint32_t alias, edict_t const *except) {
+    return overlay && overlay != except && overlay->inuse && !M_IsDead(overlay) &&
+           overlay->mineoverlay.caster == caster &&
+           overlay->mineoverlay.caster_spawn_time == caster->spawn_time &&
+           overlay->mineoverlay.entangle_ability == alias &&
+           overlay->mineoverlay.parent && overlay->mineoverlay.parent->inuse &&
+           overlay->mineoverlay.parent->spawn_time == overlay->mineoverlay.parent_spawn_time;
+}
+
+/* A Tree can maintain one mine link. Overlay ownership is generation-guarded
+ * and already persisted, so it is the authoritative relationship until Root
+ * gains its full rooted/uprroot lifecycle state. */
+static edict_t *entangle_tree_overlay(edict_t const *caster) {
+    if (!caster || !caster->inuse) return NULL;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *overlay = globals.edicts + i;
+        if (entangle_overlay_has_caster(overlay, caster,
+                                        overlay->mineoverlay.entangle_ability, NULL))
+            return overlay;
+    }
+    return NULL;
+}
+
+static bool entangle_existing_permanent_state(edict_t const *caster, uint32_t alias,
+                                              bool *permanent_before) {
+    if (!caster || !alias || !permanent_before) return false;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t const *overlay = globals.edicts + i;
+        if (!entangle_overlay_has_caster(overlay, caster, alias, NULL)) continue;
+        *permanent_before = overlay->mineoverlay.entangle_permanent_before;
+        return true;
+    }
+    return false;
+}
+
+static void entangle_remove_caster_effects(edict_t *overlay) {
+    uint32_t const base = MAKEFOURCC('A','e','n','t');
+    uint32_t const alias = overlay ? overlay->mineoverlay.entangle_ability : 0;
+    edict_t *caster = entangle_overlay_caster(overlay);
+
+    if (!overlay) return;
+    if (caster && alias) {
+        bool other_overlay_active = false;
+        FOR_LOOP(i, globals.num_edicts) {
+            if (entangle_overlay_has_caster(globals.edicts + i, caster, alias, overlay)) {
+                other_overlay_active = true;
+                break;
+            }
+        }
+        if (!other_overlay_active)
+            G_ActorSetSkillPermanent(caster, alias, overlay->mineoverlay.entangle_permanent_before);
+        gameClient_t *client = G_GetPlayerClientByNumber(caster->s.player);
+        if (client) G_InvalidateCommands(client);
+    }
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *effect = globals.edicts + i;
+        if (!effect->inuse || effect->owner != overlay || !effect->summon_ability ||
+            (effect->summon_ability != base && G_AbilityCode(effect->summon_ability) != base) ||
+            !(effect->s.flags & EF_NOT_SELECTABLE)) continue;
+        effect->owner = NULL;
+        effect->summon_ability = 0;
+        G_DestroyEffect(effect);
+    }
+    overlay->mineoverlay.caster = NULL;
+    overlay->mineoverlay.caster_spawn_time = 0;
+    overlay->mineoverlay.entangle_tree = NULL;
+    overlay->mineoverlay.entangle_tree_spawn_time = 0;
+    overlay->mineoverlay.entangle_ability = 0;
+    overlay->mineoverlay.entangle_permanent_before = false;
+}
+
+bool S_EntangleCommandHidden(edict_t const *caster, uint32_t ability_code) {
+    uint32_t const base = MAKEFOURCC('A','e','n','t');
+
+    if (!caster || !caster->inuse) return false;
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t const *overlay = globals.edicts + i;
+        uint32_t alias;
+        if (!overlay->inuse || M_IsDead(overlay) || overlay->mineoverlay.caster != caster ||
+            overlay->mineoverlay.caster_spawn_time != caster->spawn_time ||
+            !(alias = overlay->mineoverlay.entangle_ability)) continue;
+        if (alias != ability_code && G_AbilityCode(alias) != base) continue;
+        if (overlay->mineoverlay.parent && overlay->mineoverlay.parent->inuse &&
+            overlay->mineoverlay.parent->spawn_time == overlay->mineoverlay.parent_spawn_time)
+            return true;
+    }
+    return false;
+}
+
 static bool entangle_goldmine_selecttarget(edict_t *clent, edict_t *target) {
     edict_t *caster, *entangled;
     uint32_t alias, resulting_type;
@@ -1144,24 +1265,38 @@ static bool entangle_goldmine_selecttarget(edict_t *clent, edict_t *target) {
     if (!clent || !clent->client) {
         return false;
     }
-    if (!target || !target->inuse || M_IsDead(target)) {
-        return false;
-    }
-    if (!S_GoldMineIsMine(target)) {
-        return false;
-    }
-    if (goldmine_is_overlay_type(target) || (target->s.renderfx & RF_HIDDEN) ||
+    if (!target || !target->inuse || M_IsDead(target) || !S_GoldMineIsMine(target) ||
+        goldmine_is_overlay_type(target) || (target->s.renderfx & RF_HIDDEN) ||
         mineoverlay_parent_in_use(target, NULL)) {
+        G_ShowCommandErrorKey(clent, "Targetgoldmine", "Must target a Gold Mine.");
         return false;
     }
     caster = G_GetMainSelectedUnit(clent->client);
-    if (!caster || !(alias = goldmine_actor_ability_alias(caster, MAKEFOURCC('A','e','n','t')))) {
+    if (!caster) {
+        return false;
+    }
+    if (!S_AncientIsRooted(caster)) {
+        G_ShowCommandErrorKey(clent, "Mustroottoentangle", "Must be rooted to entangle a Gold Mine.");
+        return false;
+    }
+    if (!(alias = goldmine_actor_ability_alias(caster, MAKEFOURCC('A','e','n','t')))) return false;
+    {
+        AbilityData_t const *data = G_AbilityData(alias);
+        if (data->id != alias || !data->level[0].unitID) {
+            fprintf(stderr, "WC3 Entangle: AbilityData %08x missing UnitID\n", alias);
+            G_ShowCommandErrorKey(clent, "EntangleUnavailable", "Entangle is unavailable because its unit data is missing.");
+            return false;
+        }
+    }
+    if (entangle_tree_overlay(caster)) {
+        G_ShowCommandErrorKey(clent, "AlreadyEntangled", "This Tree already entangles a Gold Mine.");
+        return false;
+    }
+    if (!S_SpellTargetInRange(caster, target, MAX(0.0f, G_AbilityLevel(alias, 1)->range))) {
+        G_ShowCommandErrorKey(clent, "Mustbeclosertomine", "Must be closer to the Gold Mine.");
         return false;
     }
     resulting_type = G_AbilityLevel(alias, 1)->unitID;
-    if (!resulting_type || !G_UnitIsBuilding(resulting_type)) {
-        return false;
-    }
 
     entangled = SP_SpawnAtLocation(resulting_type, caster->s.player, &target->s.origin2);
     if (!entangled) {
@@ -1176,8 +1311,31 @@ static bool entangle_goldmine_selecttarget(edict_t *clent, edict_t *target) {
     }
     G_SetUnitFoodUsed(entangled, entangled->data.UnitBalance ? entangled->data.UnitBalance->foodUsed : 0);
     entangled->build = entangled;
+    {
+        bool permanent_before;
+        if (!entangle_existing_permanent_state(caster, alias, &permanent_before))
+            permanent_before = G_ActorSkillPermanent(caster, alias);
+        entangled->mineoverlay.entangle_permanent_before = permanent_before;
+    }
+    entangled->mineoverlay.caster = caster;
+    entangled->mineoverlay.caster_spawn_time = caster->spawn_time;
+    entangled->mineoverlay.entangle_tree = caster;
+    entangled->mineoverlay.entangle_tree_spawn_time = caster->spawn_time;
+    entangled->mineoverlay.entangle_ability = alias;
+    G_ActorSetSkillPermanent(caster, alias, true);
+    {
+        gameClient_t *client = G_GetPlayerClientByNumber(caster->s.player);
+        if (client) G_InvalidateCommands(client);
+    }
     CM_BakeStaticObstacles();
     G_PublishEvent(entangled, EVENT_PLAYER_UNIT_CONSTRUCT_START);
+    {
+        edict_t *effect = G_SpawnAbilityEffectTarget(alias, WC3_EFFECT_CASTER, 0, caster, NULL, false);
+        if (effect) {
+            effect->owner = entangled;
+            effect->summon_ability = alias;
+        }
+    }
     return true;
 }
 
@@ -1187,12 +1345,16 @@ static void entangle_goldmine_command(edict_t *clent) {
 }
 
 BZ_ABILITY_PROC(CAbilityEntangle) {
-    if (msg != A_COMMAND) return false;
-    entangle_goldmine_command(call && call->client ? call->client : ent);
-    return true;
+    switch (msg) {
+    case A_COMMAND: entangle_goldmine_command(call && call->client ? call->client : ent); return true;
+    /* The mine must retire at Tree death, before the corpse's later removal. */
+    case A_DEATH:
+    case A_UNIT_REMOVE: S_ReleaseEntangledMineForTree(ent); return true;
+    default: return CAbilityPower(ent, msg, call);
+    }
 }
 
-void S_EntangledMineTick(edict_t *mine) {
+static void entangled_mine_update(edict_t *mine) {
     uint32_t alias, capacity, interval_ms, now, index;
     int32_t gold_per_interval, gold;
     edict_t *parent;
@@ -1226,4 +1388,11 @@ void S_EntangledMineTick(edict_t *mine) {
     }
     if (parent->resources == 0 && mine->inuse && !M_IsDead(mine))
         unit_die(mine, NULL);
+}
+
+/* The ordinary unit ability scheduler owns mining, independent of its current order. */
+BZ_ABILITY_PROC(CAbilityEntangledGoldMine) {
+    if (msg != A_UPDATE) return false;
+    entangled_mine_update(ent);
+    return true;
 }

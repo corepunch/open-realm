@@ -725,6 +725,8 @@ TEST(wc3_building, research_state_uses_upgrade_cost_progression_and_player_lock)
 
     memset(client->tech, 0, sizeof(client->tech));
     producer->data.UnitProfile = &profile;
+    producer->s.flags |= EF_BUILDING;
+    producer->runtime.flags |= UNIT_BALANCE_BUILDING;
     producer->s.player = client->ps.number;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 1000;
     client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 1000;
@@ -800,6 +802,8 @@ TEST(wc3_building, queued_research_charges_locks_and_cancel_refunds) {
 
     memset(client->tech, 0, sizeof(client->tech));
     producer->data.UnitProfile = &profile;
+    producer->s.flags |= EF_BUILDING;
+    producer->runtime.flags |= UNIT_BALANCE_BUILDING;
     producer->s.player = client->ps.number;
     producer->stand = building_test_stand;
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 500;
@@ -834,6 +838,8 @@ TEST(wc3_building, instant_build_cheat_completes_research_on_next_tick) {
 
     setup_test_world();
     producer = alloc_test_unit(MAKEFOURCC('h','b','l','a'), 0, 0);
+    producer->s.flags |= EF_BUILDING;
+    producer->runtime.flags |= UNIT_BALANCE_BUILDING;
     old = building_install_upgrade_data(&rows);
     memset(client->tech, 0, sizeof(client->tech));
     producer->data.UnitProfile = &profile;
@@ -869,6 +875,8 @@ TEST(wc3_building, research_events_publish_producer_and_rawcode_context) {
 
     setup_test_world();
     producer = alloc_test_unit(MAKEFOURCC('h','b','l','a'), 0, 0);
+    producer->s.flags |= EF_BUILDING;
+    producer->runtime.flags |= UNIT_BALANCE_BUILDING;
     old = building_install_upgrade_data(&rows);
     memset(client->tech, 0, sizeof(client->tech));
     producer->data.UnitProfile = &profile;
@@ -1206,6 +1214,104 @@ TEST(wc3_building, unresearched_unit_ability_remains_visible_but_disabled) {
     building_restore_upgrade_data(old, rows);
 }
 
+TEST(wc3_building, town_hall_and_tree_of_life_show_train_and_upgrade_buttons) {
+    static const char balance_slk[] =
+        "ID;PWXL;N;E\nB;X5;Y7;D0\n"
+        "C;X1;Y1;K\"unitBalanceID\"\nC;X2;K\"realHP\"\n"
+        "C;X3;K\"goldcost\"\nC;X4;K\"lumbercost\"\nC;X5;K\"isbldg\"\n"
+        "C;X1;Y2;K\"htow\"\nC;X2;K1000\nC;X5;K1\n"
+        "C;X1;Y3;K\"hpea\"\nC;X2;K250\n"
+        "C;X1;Y4;K\"hkee\"\nC;X2;K1400\nC;X5;K1\n"
+        "C;X1;Y5;K\"etol\"\nC;X2;K1300\nC;X5;K1\n"
+        "C;X1;Y6;K\"ewsp\"\nC;X2;K120\n"
+        "C;X1;Y7;K\"etoa\"\nC;X2;K1600\nC;X5;K1\nE\n";
+    static const char ui_slk[] =
+        "ID;PWXL;N;E\nB;X3;Y5;D0\n"
+        "C;X1;Y1;K\"unitUIID\"\nC;X2;K\"isbldg\"\nC;X3;K\"file\"\n"
+        "C;X1;Y2;K\"htow\"\nC;X2;K1\nC;X3;K\"TestUI\\\\Models\\\\ui_panel.mdx\"\n"
+        "C;X1;Y3;K\"hkee\"\nC;X2;K1\nC;X3;K\"TestUI\\\\Models\\\\ui_panel.mdx\"\n"
+        "C;X1;Y4;K\"etol\"\nC;X2;K1\nC;X3;K\"TestUI\\\\Models\\\\ui_panel.mdx\"\n"
+        "C;X1;Y5;K\"etoa\"\nC;X2;K1\nC;X3;K\"TestUI\\\\Models\\\\ui_panel.mdx\"\nE\n";
+    static const char profile_slk[] =
+        "ID;PWXL;N;E\nB;X3;Y5;D0\n"
+        "C;X1;Y1;K\"id\"\nC;X2;K\"Trains\"\nC;X3;K\"Upgrade\"\n"
+        "C;X1;Y2;K\"htow\"\nC;X2;K\"hpea\"\nC;X3;K\"hkee\"\n"
+        "C;X1;Y3;K\"hpea\"\nC;X1;Y4;K\"hkee\"\n"
+        "C;X1;Y5;K\"etol\"\nC;X2;K\"ewsp\"\nC;X3;K\"etoa\"\n"
+        "C;X1;Y6;K\"ewsp\"\nC;X1;Y7;K\"etoa\"\nE\n";
+    uint32_t const town_hall_id = MAKEFOURCC('h','t','o','w');
+    uint32_t const tree_id = MAKEFOURCC('e','t','o','l');
+    uint32_t const peasant_id = MAKEFOURCC('h','p','e','a');
+    uint32_t const keep_id = MAKEFOURCC('h','k','e','e');
+    uint32_t const wisp_id = MAKEFOURCC('e','w','s','p');
+    uint32_t const ages_id = MAKEFOURCC('e','t','o','a');
+    gameClient_t *client;
+    edict_t *town_hall, *tree;
+    /* Aent precedes Aro1 so rooting eligibility performs a nested ability-list
+     * scan while the HUD is consuming this same parser's segment buffer. */
+    UnitAbilities_t tree_abilities = { .abilList = "Aent,Aro1" };
+    umove_t birth = { .think = ai_birth };
+    gameCommandButton_t buttons[16];
+    slkTestData_t *balance_rows, *old_balance, *ui_rows, *old_ui, *profile_rows, *old_profile;
+    uint8_t count;
+    bool found_train, found_upgrade;
+
+    setup_test_world();
+    balance_rows = parse_slk_string(balance_slk);
+    ui_rows = parse_slk_string(ui_slk);
+    profile_rows = parse_slk_string(profile_slk);
+    old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    old_ui = G_SetSLKRows("UnitUI", ui_rows);
+    old_profile = G_SetProfileRows(profile_rows);
+    client = &game.clients[0];
+    client->connected = true;
+    client->ps.number = 0;
+    town_hall = alloc_test_unit(town_hall_id, 0, 0);
+    tree = alloc_test_unit(tree_id, 128, 0);
+    town_hall->s.player = tree->s.player = client->ps.number;
+    town_hall->data.UnitProfile = (UnitProfile_t *)G_UnitProfile(town_hall_id);
+    tree->data.UnitProfile = (UnitProfile_t *)G_UnitProfile(tree_id);
+    tree->data.UnitAbilities = &tree_abilities;
+    tree->s.flags |= EF_BUILDING;
+    tree->aiflags |= AI_IMMOBILE;
+    town_hall->currentmove = tree->currentmove = &birth;
+
+    T_ASSERT(G_ProducerCanTrain(town_hall, peasant_id));
+    T_ASSERT(G_ProducerCanUpgrade(town_hall, keep_id));
+    count = G_GetCommandButtons(town_hall, buttons, 16);
+    found_train = found_upgrade = false;
+    FOR_LOOP(i, count) {
+        if (!strcmp(buttons[i].command, "hpea")) found_train = true;
+        if (!strcmp(buttons[i].command, "hkee")) found_upgrade = true;
+    }
+    T_ASSERT(found_train);
+    T_ASSERT(found_upgrade);
+
+    T_ASSERT(S_AncientIsRooted(tree));
+    T_STREQ(G_UnitProfile(tree_id)->trains, "ewsp");
+    T_STREQ(G_UnitProfile(tree_id)->upgrade, "etoa");
+    T_ASSERT(G_ProducerCanTrain(tree, wisp_id));
+    T_ASSERT(G_ProducerCanUpgrade(tree, ages_id));
+    T_EQ(G_GetTrainCommandState(client, tree, wisp_id, NULL, 0), BUILD_COMMAND_AVAILABLE);
+    T_EQ(G_GetBuildingUpgradeCommandState(&(buildingUpgradeCommandParams_t){
+        .client = client, .producer = tree, .unit_id = ages_id }), BUILD_COMMAND_AVAILABLE);
+    count = G_GetCommandButtons(tree, buttons, 16);
+    found_train = found_upgrade = false;
+    FOR_LOOP(i, count) {
+        if (!strcmp(buttons[i].command, "ewsp")) found_train = true;
+        if (!strcmp(buttons[i].command, "etoa")) found_upgrade = true;
+    }
+    T_ASSERT(found_train);
+    T_ASSERT(found_upgrade);
+
+    G_SetSLKRows("UnitUI", old_ui);
+    G_SetSLKRows("UnitBalance", old_balance);
+    G_SetProfileRows(old_profile);
+    free_slk_rows(ui_rows);
+    free_slk_rows(balance_rows);
+    free_slk_rows(profile_rows);
+}
+
 TEST(wc3_building, gate_only_dependency_disables_cannibalize_until_researched) {
     gameClient_t *client;
     edict_t *unit;
@@ -1423,6 +1529,108 @@ TEST(wc3_building, build_command_state_covers_available_hidden_unaffordable_and_
 
     worker_profile.builds = "hfoo";
     T_EQ(G_GetBuildCommandState(client, worker, barracks, reason, sizeof(reason)), BUILD_COMMAND_ABSENT);
+}
+
+TEST(wc3_building, mobile_builders_keep_race_build_menu_button) {
+    static char const balance_slk[] =
+        "ID;PWXL;N;E\nB;X2;Y5;D0\n"
+        "C;X1;Y1;K\"unitBalanceID\"\nC;X2;K\"isbldg\"\n"
+        "C;X1;Y2;K\"hbar\"\nC;X2;K1\n"
+        "C;X1;Y3;K\"obar\"\nC;X2;K1\n"
+        "C;X1;Y4;K\"uzig\"\nC;X2;K1\n"
+        "C;X1;Y5;K\"earc\"\nC;X2;K1\nE\n";
+    static char const profile_slk[] =
+        "ID;PWXL;N;EBB;Y5;X2\n"
+        "C;Y1;X1;K\"id\"\nC;Y1;X2;K\"Builds\"\n"
+        "C;Y2;X1;K\"hpea\"\nC;Y2;X2;K\"hbar\"\n"
+        "C;Y3;X1;K\"opeo\"\nC;Y3;X2;K\"obar\"\n"
+        "C;Y4;X1;K\"uaco\"\nC;Y4;X2;K\"uzig\"\n"
+        "C;Y5;X1;K\"ewsp\"\nC;Y5;X2;K\"earc\"\nE\n";
+    uint32_t const builders[] = {
+        MAKEFOURCC('h','p','e','a'), MAKEFOURCC('o','p','e','o'),
+        MAKEFOURCC('u','a','c','o'), MAKEFOURCC('e','w','s','p')
+    };
+    uint32_t const builders_count = sizeof(builders) / sizeof(builders[0]);
+    slkTestData_t *balance_rows = parse_slk_string(balance_slk);
+    slkTestData_t *old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    slkTestData_t *rows = parse_slk_string(profile_slk);
+    slkTestData_t *old = G_SetProfileRows(rows);
+
+    setup_test_world();
+    game.clients[0].connected = true;
+    game.clients[0].ps.number = 0;
+    FOR_LOOP(i, builders_count) {
+        edict_t *worker = alloc_test_unit(builders[i], 0.0f, 0.0f);
+        worker->data.UnitProfile = (UnitProfile_t *)G_UnitProfile(builders[i]);
+        worker->s.player = game.clients[0].ps.number;
+        T_ASSERT(!(worker->runtime.flags & UNIT_BALANCE_BUILDING));
+        T_ASSERT(G_UnitHasBuildMenu(worker));
+    }
+
+    G_SetProfileRows(old);
+    G_SetSLKRows("UnitBalance", old_balance);
+    free_slk_rows(rows);
+    free_slk_rows(balance_rows);
+}
+
+TEST(wc3_building, build_menu_button_is_hidden_when_every_build_is_hidden) {
+    static char const profile_slk[] =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"id\"\nC;Y1;X2;K\"Builds\"\n"
+        "C;Y2;X1;K\"hpea\"\nC;Y2;X2;K\"hbar\"\nE\n";
+    gameClient_t *client = &game.clients[0];
+    uint32_t const barracks = MAKEFOURCC('h','b','a','r');
+    slkTestData_t *rows = parse_slk_string(profile_slk);
+    slkTestData_t *old = G_SetProfileRows(rows);
+    gameCommandButton_t buttons[16];
+    uint32_t const button_capacity = sizeof(buttons) / sizeof(buttons[0]);
+    edict_t *worker;
+    uint8_t count;
+    bool found_build = false;
+
+    setup_test_world();
+    client->ps.number = 0;
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    worker->s.player = client->ps.number;
+    G_SetPlayerTechMaxAllowed(client, barracks, 0);
+
+    T_EQ(G_GetBuildCommandState(client, worker, barracks, NULL, 0), BUILD_COMMAND_HIDDEN);
+    T_ASSERT(!G_UnitHasBuildMenu(worker));
+    count = G_GetCommandButtons(worker, buttons, button_capacity);
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "CmdBuild")) found_build = true;
+    T_ASSERT(!found_build);
+
+    G_SetPlayerTechMaxAllowed(client, barracks, -1);
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
+    T_EQ(G_GetBuildCommandState(client, worker, barracks, NULL, 0), BUILD_COMMAND_UNAFFORDABLE);
+    T_ASSERT(G_UnitHasBuildMenu(worker));
+
+    G_SetProfileRows(old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_building, race_building_commands_use_producer_profile_state) {
+    uint32_t const producers[] = {
+        MAKEFOURCC('h','b','a','r'), MAKEFOURCC('o','b','a','r'),
+        MAKEFOURCC('u','z','i','g'), MAKEFOURCC('e','a','r','c')
+    };
+    uint32_t const producers_count = sizeof(producers) / sizeof(producers[0]);
+    UnitProfile_t profile = { .trains = "hfoo", .researches = "Rhme" };
+
+    setup_test_world();
+    FOR_LOOP(i, producers_count) {
+        edict_t *producer = alloc_test_unit(producers[i], 0.0f, 0.0f);
+        producer->data.UnitProfile = &profile;
+        /* A unit's authored producer profile remains the source for its
+         * command card. EF_BUILDING is the live structure presentation bit;
+         * it can change during Ancient mode transitions and must not erase
+         * unrelated race building commands. Ancient availability is gated
+         * separately by Root state. */
+        producer->s.flags &= ~EF_BUILDING;
+        T_ASSERT(G_ProducerCanTrain(producer, MAKEFOURCC('h','f','o','o')));
+        T_ASSERT(G_ProducerCanResearch(producer, MAKEFOURCC('R','h','m','e')));
+    }
 }
 
 TEST(wc3_building, upgraded_buildings_satisfy_predecessor_requirements) {
@@ -2732,7 +2940,7 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
     T_ASSERT(!ziggurat->construction.active);
     T_ASSERT(acolyte->inuse);
     T_NULL(acolyte->build);
-    T_NULL(acolyte->goalentity);
+    T_ASSERT(acolyte->goalentity && acolyte->goalentity->s.origin2.x == build_point.x);
     T_ASSERT(!(acolyte->s.renderfx & RF_HIDDEN));
     T_ASSERT(!acolyte->paused);
     T_ASSERT(!acolyte->invulnerable);
@@ -2751,6 +2959,7 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
     acolyte->mana.value = acolyte->mana.max_value = 100.0f;
     ziggurat->s.player = client->ps.number;
     ziggurat->svflags |= SVF_MONSTER;
+    ziggurat->s.flags |= EF_BUILDING;
     ziggurat->targtype = TARG_STRUCTURE;
     ziggurat->die = unit_die;
     T_EQ(G_UnitAbilityLevel(acolyte, MAKEFOURCC('A','u','n','s')), 1);

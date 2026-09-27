@@ -86,7 +86,7 @@ The event source is the entity that owns the current transaction. Normal worker 
 
 This patch does **not** use floating text as a reason to redesign incomplete gameplay systems:
 
-- Wisp harvesting currently credits once and consumes the Wisp; Warsmash's persistent periodic Wisp harvesting remains a separate gameplay gap.
+- Wisp harvesting uses persistent periodic direct income, attached TargetArt at the authored DataC height, and the authored looped harvest sound on the same effect lifecycle.
 - Gold/lumber bounty semantics and their distinct Warsmash `Bounty` / `LumberBounty` styles remain separate work.
 - JASS `texttag` natives store simulation state (see [multiboard-and-texttag.md](multiboard-and-texttag.md)). `TE_FLOATING_TEXT` remains the one-shot resource-gain primitive; live texttag handles are not yet published through that path.
 - The resource label does not modify harvesting orders, carry state, camera, fog, selection, or HUD resource accounting.

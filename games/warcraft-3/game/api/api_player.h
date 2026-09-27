@@ -284,7 +284,7 @@ uint32_t GetPlayerUnitCount(jass_t *j) {
 
         if (!ent->inuse || !ent->class_id ||
             ent->s.player != PLAYER_NUM(whichPlayer) ||
-            G_UnitIsBuilding(ent->class_id) || M_IsDead(ent)) {
+            G_UnitIsStructure(ent) || M_IsDead(ent)) {
             continue;
         }
         if (!includeIncomplete && ent->construction.active) {
@@ -347,7 +347,7 @@ uint32_t GetPlayerStructureCount(jass_t *j) {
 
         if (!ent->inuse || !ent->class_id ||
             ent->s.player != PLAYER_NUM(whichPlayer) ||
-            !G_UnitIsBuilding(ent->class_id) || M_IsDead(ent)) {
+            !G_UnitIsStructure(ent) || M_IsDead(ent)) {
             continue;
         }
         if (!includeIncomplete && ent->construction.active) {

@@ -6,9 +6,8 @@
 static bool volcano_hits(edict_t *caster, edict_t *target, float radius, vec2_t const *origin) {
     if (!target || target == caster || !S_SpellIsAliveTarget(target)) return false;
     if (Vector2_distance(&target->s.origin2, origin) > radius) return false;
-    if (target->targtype == TARG_AIR) return false;
-    return target->targtype == TARG_GROUND || target->targtype == TARG_STRUCTURE ||
-           G_UnitIsBuilding(target->class_id);
+    if (G_UnitTargetType(target) == TARG_AIR) return false;
+    return G_UnitTargetType(target) == TARG_GROUND || G_UnitTargetType(target) == TARG_STRUCTURE;
 }
 
 /* Gate on targtype before G_IsDestructable: channel thinkers have class_id set but no
@@ -43,7 +42,7 @@ void volcano_think(edict_t *ent) {
     level = S_SpellLevel(caster, code);
     FILTER_EDICTS(target, volcano_hits(caster, target, ent->collision, &origin)) {
         float dmg = volcano_wave_damage(ent, Vector2_distance(&target->s.origin2, &origin));
-        if (G_UnitIsBuilding(target->class_id)) dmg *= factor;
+        if (G_UnitIsStructure(target)) dmg *= factor;
         T_Damage(target, caster, (int)dmg);
         if (!M_IsDead(target))
             unit_addtimedstatus(target, ID_STUN_BUFF, 1, S_SpellDuration(code, level, S_UnitIsResistant(target)));

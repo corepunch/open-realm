@@ -277,6 +277,28 @@ static bool G_IsImplementedAbility(cstring_t code) {
     return S_AbilityHasCommand(ability);
 }
 
+static bool G_AncientAbilityVisible(edict_t const *unit, ability_t const *ability) {
+    return S_AncientAbilityAvailable(unit, ability);
+}
+
+bool G_UnitHasBuildMenu(edict_t const *unit) {
+    UnitProfile_t const *profile = unit ? G_UnitProfile(unit->class_id) : NULL;
+    gameClient_t *client = unit ? G_GetPlayerClientByNumber(unit->s.player) : NULL;
+
+    if (!profile || !profile->builds || !*profile->builds || !client ||
+        client->ps.number != unit->s.player) return false;
+    PARSE_LIST(profile->builds, build, parse_segment) {
+        uint32_t building_id = 0;
+        char reason[128];
+        if (strlen(build) != 4) continue;
+        memcpy(&building_id, build, sizeof(building_id));
+        buildCommandState_t const state = G_GetBuildCommandState(client, (edict_t *)unit,
+                                                                  building_id, reason, sizeof(reason));
+        if (state != BUILD_COMMAND_ABSENT && state != BUILD_COMMAND_HIDDEN) return true;
+    }
+    return false;
+}
+
 static bool G_HasCommandRawcode(gameCommandButton_t const *buttons, uint8_t count, uint32_t code) {
     FOR_LOOP(i, count) {
         uint32_t button_code = 0;
@@ -294,8 +316,12 @@ static void G_AddAbilityCommandButtons(edict_t *ent, gameCommandButton_t *button
     uint32_t rawcode;
     bool researched;
 
-    if (!S_AbilityHasCommand(ability) || strlen(code) != 4 || *count >= max_buttons) return;
+    if (!S_AbilityHasCommand(ability) || !G_AncientAbilityVisible(ent, ability) ||
+        strlen(code) != 4 || *count >= max_buttons) return;
     memcpy(&rawcode, code, sizeof(rawcode));
+    /* Entangle Gold Mine becomes hidden/permanent per unit while the resulting
+     * mine exists. Keep the authored command unavailable for that overlay lifetime. */
+    if (ability->proc == CAbilityEntangle && S_EntangleCommandHidden(ent, rawcode)) return;
     researched = G_UnitAbilityResearchAvailable(ent, rawcode);
     /* Stand Down only has meaning while a Burrow contains cargo. Resolve by
      * implementation pointer rather than rawcode so custom abilities derived
@@ -407,11 +433,19 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdCancelBuild, false, 0);
         return count;
     }
-    if (ent->currentmove && ent->currentmove->think == ai_birth) {
+    /* Map-start buildings play their Birth move even though they are already
+     * complete and usable. Only suppress the ordinary unit command card for
+     * a mobile unit's birth presentation; construction.active above owns the
+     * actual unfinished-building command state. */
+    if (ent->currentmove && ent->currentmove->think == ai_birth && !G_UnitIsStructure(ent)) {
+        return 0;
+    }
+    if (ent->ancient_root.mode == ANCIENT_UPROOTING ||
+        (ent->ancient_root.mode == ANCIENT_ROOTING && !ent->ancient_root.approaching)) {
         return 0;
     }
 
-    if (b->speed > 0) {
+    if (b->speed > 0 && !(ent->aiflags & AI_IMMOBILE)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdMove, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdHoldPos, false, 0);
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdPatrol, false, 0);
@@ -421,9 +455,11 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
          * enabled the building attack: it cancels the current attack/order. */
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdStop, false, 0);
     }
-    if (w->attack1.damageDice != 0 && (!is_burrow || burrow_occupied)) {
+    if (((w->attack1.damageDice != 0 && S_UnitAttackSlotEnabled(ent, 0)) ||
+         (w->attack2.damageDice != 0 && S_UnitAttackSlotEnabled(ent, 1))) && (!is_burrow || burrow_occupied)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttack, false, 0);
-        if (ent->attack1.weapon == WPN_ARTILLERY)
+        if ((S_UnitAttackSlotEnabled(ent, 0) && ent->attack1.weapon == WPN_ARTILLERY) ||
+            (S_UnitAttackSlotEnabled(ent, 1) && ent->attack2.weapon == WPN_ARTILLERY))
             G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdAttackGround, false, 0);
     }
     /* Some WC3 data paths expose the Burrow hold/battle-stations abilities
@@ -434,7 +470,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     if (burrow_occupied) {
         G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, "Astd");
     }
-    if (G_UnitProfile(ent->class_id)->builds) {
+    if (G_UnitHasBuildMenu(ent)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdBuild, false, 0);
     }
     if (a->heroAbilList) {
@@ -444,13 +480,16 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
             buttons[idx].number = ent->hero.skillpoints;
         }
     }
-    if (G_UnitHasRally(ent)) {
+    if ((!S_AncientHasRootAbility(ent) || S_AncientIsRooted(ent)) && G_UnitHasRally(ent)) {
         G_AddCommandButton(ent, buttons, max_buttons, &count, STR_CmdRally, false, 0);
     }
     if (a->abilList) {
         PARSE_LIST(a->abilList, abil, parse_segment) {
-            if (G_IsImplementedAbility(abil) && G_ActorHasSkill(ent, abil))
-                G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, abil);
+            char ability_code[5] = {0};
+            if (strlen(abil) != 4) continue;
+            memcpy(ability_code, abil, 4);
+            if (G_IsImplementedAbility(ability_code) && G_ActorHasSkill(ent, ability_code))
+                G_AddAbilityCommandButtons(ent, buttons, max_buttons, &count, ability_code);
         }
     }
     FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added)) {
@@ -471,8 +510,9 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
             }
         }
     }
-    if (G_UnitProfile(ent->class_id)->upgrade) {
+    if ((!S_AncientHasRootAbility(ent) || S_AncientIsRooted(ent)) && G_UnitProfile(ent->class_id)->upgrade) {
         PARSE_LIST(G_UnitProfile(ent->class_id)->upgrade, upgrade_to, parse_segment) {
+            char upgrade_code[5] = {0};
             gameClient_t *client = G_GetPlayerClientByNumber(ent->s.player);
             uint32_t unit_id = 0;
             buildCommandState_t state;
@@ -481,14 +521,15 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
             uint8_t idx;
 
             if (strlen(upgrade_to) != 4 || !client || client->ps.number != ent->s.player) continue;
-            memcpy(&unit_id, upgrade_to, sizeof(unit_id));
+            memcpy(upgrade_code, upgrade_to, 4);
+            memcpy(&unit_id, upgrade_code, sizeof(unit_id));
             params = (buildingUpgradeCommandParams_t){
                 .client = client, .producer = ent, .unit_id = unit_id,
                 .reason = reason, .reason_size = sizeof(reason) };
             state = G_GetBuildingUpgradeCommandState(&params);
             if (state == BUILD_COMMAND_ABSENT || state == BUILD_COMMAND_HIDDEN) continue;
             idx = count;
-            G_AddCommandButton(ent, buttons, max_buttons, &count, upgrade_to, false, 0);
+            G_AddCommandButton(ent, buttons, max_buttons, &count, upgrade_code, false, 0);
             if (count > idx) {
                 buttons[idx].building_upgrade = 1;
                 if (state == BUILD_COMMAND_DISABLED) G_DisableCommandButton(&buttons[idx], reason);
@@ -497,6 +538,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     }
     if (G_UnitProfile(ent->class_id)->trains) {
         PARSE_LIST(G_UnitProfile(ent->class_id)->trains, unit, parse_segment) {
+            char unit_code[5] = {0};
             gameClient_t *client = G_GetPlayerClientByNumber(ent->s.player);
             uint32_t unit_id = 0;
             buildCommandState_t state;
@@ -504,11 +546,12 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
             uint8_t idx;
 
             if (strlen(unit) != 4 || !client || client->ps.number != ent->s.player) continue;
-            memcpy(&unit_id, unit, sizeof(unit_id));
+            memcpy(unit_code, unit, 4);
+            memcpy(&unit_id, unit_code, sizeof(unit_id));
             state = G_GetTrainCommandState(client, ent, unit_id, reason, sizeof(reason));
             if (state == BUILD_COMMAND_ABSENT || state == BUILD_COMMAND_HIDDEN) continue;
             idx = count;
-            G_AddCommandButton(ent, buttons, max_buttons, &count, unit, false, 0);
+            G_AddCommandButton(ent, buttons, max_buttons, &count, unit_code, false, 0);
             if (state == BUILD_COMMAND_DISABLED && count > idx) {
                 G_DisableCommandButton(&buttons[idx], reason);
             }
@@ -516,6 +559,7 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
     }
     if (G_UnitProfile(ent->class_id)->researches) {
         PARSE_LIST(G_UnitProfile(ent->class_id)->researches, upgrade, parse_segment) {
+            char research_code[5] = {0};
             gameClient_t *client = G_GetPlayerClientByNumber(ent->s.player);
             uint32_t upgrade_id = 0;
             int32_t next_level = 0;
@@ -524,11 +568,12 @@ uint8_t G_GetCommandButtons(edict_t *ent, gameCommandButton_t *buttons, uint8_t 
             uint8_t idx;
 
             if (strlen(upgrade) != 4 || !client || client->ps.number != ent->s.player) continue;
-            memcpy(&upgrade_id, upgrade, sizeof(upgrade_id));
+            memcpy(research_code, upgrade, 4);
+            memcpy(&upgrade_id, research_code, sizeof(upgrade_id));
             state = G_GetResearchCommandState(client, ent, upgrade_id, &next_level, reason, sizeof(reason));
             if (state == BUILD_COMMAND_ABSENT || state == BUILD_COMMAND_HIDDEN) continue;
             idx = count;
-            G_AddCommandButton(ent, buttons, max_buttons, &count, upgrade, true, (uint32_t)next_level);
+            G_AddCommandButton(ent, buttons, max_buttons, &count, research_code, true, (uint32_t)next_level);
             if (state == BUILD_COMMAND_DISABLED && count > idx) {
                 G_DisableCommandButton(&buttons[idx], reason);
             }

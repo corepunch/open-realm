@@ -550,7 +550,12 @@ static bool entity_blocks_static_pathing(edict_t const *ent) {
      * Dead destructables may deliberately swap to a death path texture, so
      * their non-monster pathtex remains authoritative. */
     if ((ent->svflags & SVF_MONSTER) && (ent->svflags & SVF_DEADMONSTER)) return false;
-    if (ent->pathtex) return true;
+    if (ent->pathtex) {
+        /* Ancients retain their authored footprint texture while uprooted so
+         * rooting can restore it without a model/path resource reload. */
+        if (ent->svflags & SVF_MONSTER) return (ent->s.flags & EF_BUILDING) != 0;
+        return true;
+    }
     if (ent->svflags & SVF_DEADMONSTER) return false;
     return !(ent->svflags & SVF_MONSTER) && ent->collision > 0.0f;
 }

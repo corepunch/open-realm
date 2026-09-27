@@ -1,0 +1,10 @@
+[etol]
+Trains=ewsp
+Upgrade=etoa
+Art=TestUI\Textures\solid_white.blp
+
+[ewsp]
+Art=TestUI\Textures\solid_white.blp
+
+[etoa]
+Art=TestUI\Textures\solid_white.blp

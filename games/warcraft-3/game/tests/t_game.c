@@ -3905,6 +3905,7 @@ TEST(wc3_save, racial_gold_mine_state_round_trip) {
     overlay->mineoverlay.parent_spawn_time = parent->spawn_time;
     overlay->mineoverlay.income_time = 12345;
     overlay->mineoverlay.active_interval_index = 3;
+    overlay->mineoverlay.entangle_permanent_before = true;
     acolyte->acolyte_mine.mine = overlay;
     acolyte->acolyte_mine.mine_spawn_time = overlay->spawn_time;
     acolyte->acolyte_mine.slot = 4;
@@ -3914,6 +3915,7 @@ TEST(wc3_save, racial_gold_mine_state_round_trip) {
     overlay->mineoverlay.parent_spawn_time = 0;
     overlay->mineoverlay.income_time = 0;
     overlay->mineoverlay.active_interval_index = 0;
+    overlay->mineoverlay.entangle_permanent_before = false;
     acolyte->acolyte_mine.mine = NULL;
     acolyte->acolyte_mine.mine_spawn_time = 0;
     acolyte->acolyte_mine.slot = -1;
@@ -3924,10 +3926,37 @@ TEST(wc3_save, racial_gold_mine_state_round_trip) {
     T_EQ(overlay->mineoverlay.parent_spawn_time, parent->spawn_time);
     T_EQ(overlay->mineoverlay.income_time, 12345);
     T_EQ(overlay->mineoverlay.active_interval_index, 3);
+    T_ASSERT(overlay->mineoverlay.entangle_permanent_before);
     T_ASSERT(acolyte->acolyte_mine.mine == overlay);
     T_EQ(acolyte->acolyte_mine.mine_spawn_time, overlay->spawn_time);
     T_EQ(acolyte->acolyte_mine.slot, 4);
     T_EQ(parent->resources, 7777);
+    remove(filename);
+}
+
+TEST(wc3_save, mineoverlay_entangle_tree_round_trip) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-entangle-tree.bin";
+    field_t const *desc = find_save_field("mineoverlay.entangle_tree");
+    edict_t *overlay, *tree;
+
+    reset_entities();
+    tree = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 0.0f, 0.0f);
+    overlay = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64.0f, 0.0f);
+    overlay->mineoverlay.entangle_tree = tree;
+    overlay->mineoverlay.entangle_tree_spawn_time = tree->spawn_time;
+    T_NOT_NULL(desc);
+    if (desc) { T_EQ(desc->type, F_EDICT); T_EQ(desc->array_size, 0); }
+    T_ASSERT(WriteGame(filename));
+    overlay->mineoverlay.entangle_tree = NULL;
+    overlay->mineoverlay.entangle_tree_spawn_time = 0;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(overlay->mineoverlay.entangle_tree == tree);
+    T_EQ(overlay->mineoverlay.entangle_tree_spawn_time, tree->spawn_time);
+
+    /* A recycled edict slot must not inherit the previous tree identity. */
+    tree->spawn_time++;
+    T_ASSERT(overlay->mineoverlay.entangle_tree == tree);
+    T_NE(overlay->mineoverlay.entangle_tree_spawn_time, tree->spawn_time);
     remove(filename);
 }
 
@@ -3940,6 +3969,8 @@ SAVE_PTR_FIELD_TEST(field_revival_queue_next_round_trip, "revival.queue_next", r
 SAVE_PTR_FIELD_TEST(field_sacrifice_worker_round_trip, "sacrifice.worker", sacrifice.worker, 0)
 SAVE_PTR_FIELD_TEST(field_goldmine_round_trip, "goldmine.mine", goldmine.mine, 0)
 SAVE_PTR_FIELD_TEST(field_mineoverlay_parent_round_trip, "mineoverlay.parent", mineoverlay.parent, 0)
+SAVE_PTR_FIELD_TEST(field_mineoverlay_caster_round_trip, "mineoverlay.caster", mineoverlay.caster, 0)
+SAVE_PTR_FIELD_TEST(field_mineoverlay_entangle_tree_round_trip, "mineoverlay.entangle_tree", mineoverlay.entangle_tree, 0)
 SAVE_PTR_FIELD_TEST(field_acolyte_mine_round_trip, "acolyte_mine.mine", acolyte_mine.mine, 0)
 SAVE_PTR_FIELD_TEST(field_inventory_round_trip, "inventory", inventory[3], MAX_INVENTORY)
 SAVE_PTR_FIELD_TEST(field_cargo_round_trip, "cargo.units", cargo.units[4], MAX_CARGO)

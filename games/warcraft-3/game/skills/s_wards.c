@@ -14,8 +14,7 @@ void stasis_trap_think(edict_t *thinker);
 /* Land units only; air never arms or takes the stun. */
 static bool stasis_land_enemy(edict_t *ward, edict_t *target, float radius) {
 	if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(ward, target)) return false;
-	if (target->targtype == TARG_AIR || target->targtype == TARG_STRUCTURE) return false;
-	if (G_UnitIsBuilding(target->class_id)) return false;
+	if (G_UnitTargetType(target) == TARG_AIR || G_UnitIsStructure(target)) return false;
 	return Vector2_distance(&target->s.origin2, &ward->s.origin2) <= radius;
 }
 

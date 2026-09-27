@@ -134,7 +134,8 @@ bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *l
     vec2_t snapped;
     edict_t *waypoint;
 
-    if (!builder || !location || !(client = G_GetPlayerClientByNumber(builder->s.player))) {
+    if (!builder || !location || !S_AncientCanReceiveOrder(builder) ||
+        !(client = G_GetPlayerClientByNumber(builder->s.player))) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD issue rejected worker=%ld id=%.4s reason=invalid-input\n",
                 builder ? (long)(builder - g_edicts) : -1L, (cstring_t)&building_id);
@@ -210,6 +211,7 @@ bool G_ExecuteBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *l
 bool G_IssueBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const *location) {
     vec2_t snapped;
 
+    if (!S_AncientCanReceiveOrder(builder)) return false;
     if (!G_ExecuteBuildOrder(builder, building_id, location)) return false;
     snapped = *location;
     G_SnapBuildingPoint(building_id, &snapped);
@@ -224,7 +226,7 @@ bool G_IssueUnitBuildOrder(edict_t *builder, uint32_t building_id, vec2_t const 
                            bool queue, uint32_t issuer_player) {
     vec2_t snapped;
 
-    if (!builder || !building_id || !location || M_IsDead(builder) ||
+    if (!builder || !building_id || !location || M_IsDead(builder) || !S_AncientCanReceiveOrder(builder) ||
         G_BuildingUpgradeActive(builder) || S_GoldMineWorkerIsInside(builder)) return false;
     snapped = *location;
     G_SnapBuildingPoint(building_id, &snapped);
@@ -293,6 +295,32 @@ static void FillUnitData(entityState_t *ent, uint32_t unit_id, cstring_t anim) {
     if (animation) {
         ent->frame = animation->interval[0];
     }
+}
+
+void G_ShowRootPlacementCursor(edict_t *clent, edict_t *unit) {
+    entityState_t cursor;
+    gameClient_t *owner;
+    uint8_t prevented = 0, required = 0;
+    if (!clent || !clent->client || !unit) return;
+    owner = G_GetPlayerClientByNumber(unit->s.player);
+    if (!owner) return;
+    FillUnitData(&cursor, unit->class_id, "stand");
+    cursor.player = unit->s.player;
+    G_SetEntityTeamColor(&cursor, owner->ps.color);
+    G_GetBuildPlacementPathingFlags(unit->class_id, &prevented, &required);
+    cursor.pathing_preview = EntityPathingPreviewPack(unit->s.number, prevented, required);
+    UI_AddCancelButton(clent);
+    gi.Write(PF_BYTE, &(int32_t){svc_cursor});
+    gi.Write(PF_ENTITY, &cursor);
+    gi.unicast(clent);
+}
+
+void G_ClearRootPlacementCursor(edict_t *clent) {
+    entityState_t empty = {0};
+    if (!clent || !clent->client) return;
+    gi.Write(PF_BYTE, &(int32_t){svc_cursor});
+    gi.Write(PF_ENTITY, &empty);
+    gi.unicast(clent);
 }
 
 void build_build(edict_t *ent) {

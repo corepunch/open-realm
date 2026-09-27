@@ -8,9 +8,9 @@ static bool self_destruct_allows(uint32_t code, edict_t *caster, edict_t *target
 	targets = G_AbilityLevel(code, 1)->targs;
 	if (!targets) return true;
 	if ((strstr(targets, "air") || strstr(targets, "ground") || strstr(targets, "structure")) &&
-		!(strstr(targets, "air") && target->targtype == TARG_AIR) &&
-		!(strstr(targets, "ground") && target->targtype == TARG_GROUND) &&
-		!(strstr(targets, "structure") && (target->targtype == TARG_STRUCTURE || G_UnitIsBuilding(target->class_id))))
+		!(strstr(targets, "air") && G_UnitTargetType(target) == TARG_AIR) &&
+		!(strstr(targets, "ground") && G_UnitTargetType(target) == TARG_GROUND) &&
+		!(strstr(targets, "structure") && G_UnitIsStructure(target)))
 		return false;
 	if (strstr(targets, "enemy") && S_SpellIsEnemy(caster, target)) return true;
 	if (strstr(targets, "neutral") && target->s.player < MAX_PLAYERS && level.mapinfo &&
@@ -31,7 +31,7 @@ static void self_destruct_explode(edict_t *ent, uint32_t code) {
 		if (dist > part_r) continue;
 		damage = dist <= full_r ? full_d : part_d;
 		if (damage <= 0.0f) continue;
-		if (build != 1.0f && G_UnitIsBuilding(target->class_id)) damage *= build;
+		if (build != 1.0f && G_UnitIsStructure(target)) damage *= build;
 		T_Damage(target, ent, (int)damage);
 	}
 }
@@ -62,45 +62,6 @@ static bool self_destruct_autocast_acquire(edict_t *caster, uint32_t code) {
 		return S_CastPointTargetSpell(caster, code, &point);
 	}
 	return false;
-}
-
-static bool death_seen(uint32_t *seen, uint32_t *n, uint32_t code) {
-	FOR_LOOP(i, *n) if (seen[i] == code) return true;
-	if (*n < 32) seen[(*n)++] = code;
-	return false;
-}
-
-static void death_ability_one(edict_t *ent, uint32_t code, uint32_t *seen, uint32_t *n) {
-	abilityitem_t item;
-	abilityCall_t call;
-	char name[5] = {0};
-	if (!code || death_seen(seen, n, code)) return;
-	memcpy(name, &code, 4);
-	if (!G_ActorHasSkill(ent, name)) return;
-	item = MAKE(abilityitem_t, .code = code, .ability = FindAbilityByClassname(name));
-	if (!item.ability) item = S_AbilityItem(code);
-	if (!item.ability) return;
-	call = MAKE(abilityCall_t, .item = &item);
-	S_AbilityMessage(ent, A_DEATH, &call);
-}
-
-/* Walk the dying unit's concrete abilities; do not use the global innate list. */
-void S_UnitDeathAbilities(edict_t *ent) {
-	uint32_t seen[32], n = 0;
-	if (!ent) return;
-	if (ent->data.UnitAbilities && ent->data.UnitAbilities->abilList) {
-		PARSE_LIST(ent->data.UnitAbilities->abilList, token, parse_segment) {
-			uint32_t code = 0;
-			if (strlen(token) != 4) continue;
-			memcpy(&code, token, sizeof(code));
-			death_ability_one(ent, code, seen, &n);
-		}
-	}
-	FOR_LOOP(i, ARRAY_COUNT(ent->abilities.added))
-		if (ent->abilities.added[i]) death_ability_one(ent, ent->abilities.added[i], seen, &n);
-	FOR_LOOP(i, MAX_HERO_ABILITIES)
-		if (ent->heroabilities[i].level && ent->heroabilities[i].code)
-			death_ability_one(ent, ent->heroabilities[i].code, seen, &n);
 }
 
 /* Name=Kaboom! / Self Destruct

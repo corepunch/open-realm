@@ -19,6 +19,7 @@ bool G_UnitHasRally(edict_t const *producer) {
     cstring_t trains;
 
     if (!producer || !producer->data.UnitProfile) return false;
+    if (S_AncientHasRootAbility(producer) && !S_AncientIsRooted(producer)) return false;
     trains = producer->data.UnitProfile->trains;
     return (trains && *trains) || G_UnitCanReviveHeroes(producer);
 }

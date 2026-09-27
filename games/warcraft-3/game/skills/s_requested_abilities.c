@@ -102,9 +102,9 @@ void earthquake_think(edict_t *ent) {
     if (ent->freetime && now < ent->freetime) return;
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(ent->owner, target) &&
                   Vector2_distance(&target->s.origin2, &ent->s.origin2) <= radius) {
-        if (G_UnitIsBuilding(target->class_id) || target->targtype == TARG_STRUCTURE) {
+        if (G_UnitIsStructure(target)) {
             S_SpellDamage(target, ent->owner, (int)damage);
-        } else if (target->targtype == TARG_GROUND && buff) {
+        } else if (G_UnitTargetType(target) == TARG_GROUND && buff) {
             unit_addtimedstatus(target, buff, level, 1.5f);
         }
     }
@@ -488,8 +488,7 @@ void mass_teleport_think(edict_t *thinker) {
      * not drag allied-player armies or structures merely because the target
      * relation for the destination is friendly. */
     FILTER_EDICTS(unit, count < limit && unit != caster && S_SpellIsAliveTarget(unit) &&
-                  unit->s.player == caster->s.player && unit->targtype != TARG_STRUCTURE &&
-                  !G_UnitIsBuilding(unit->class_id) &&
+                  unit->s.player == caster->s.player && !G_UnitIsStructure(unit) &&
                   Vector2_distance(&unit->s.origin2, &src) <= area) {
         vec2_t offset = Vector2_sub(&unit->s.origin2, &src);
         vec2_t requested = cluster ? dst : Vector2_add(&dst, &offset);
@@ -657,7 +656,7 @@ static bool corpse_preferred(edict_t const *candidate, edict_t const *current, e
 static bool animate_dead_target(edict_t *caster, edict_t *unit, abilityitem_t const *spell) {
     uint32_t level = S_SpellLevel(caster, spell->code);
     float area = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
-    return G_UnitIsRaisableCorpse(unit) && !G_UnitIsHero(unit) && !G_UnitIsBuilding(unit->class_id) &&
+    return G_UnitIsRaisableCorpse(unit) && !G_UnitIsHero(unit) && !G_UnitIsStructure(unit) &&
         Vector2_distance(&unit->s.origin2, &caster->s.origin2) <= area;
 }
 
@@ -887,7 +886,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityFarSight) {
 static bool resurrection_target(edict_t *caster, edict_t *target, abilityitem_t const *spell) {
     float radius = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, S_SpellLevel(caster, spell->code));
     return G_UnitIsRaisableCorpse(target) && !G_UnitIsHero(target) &&
-        !G_UnitIsBuilding(target->class_id) && S_SpellIsFriend(caster, target) &&
+        !G_UnitIsStructure(target) && S_SpellIsFriend(caster, target) &&
         Vector2_distance(&target->s.origin2, &caster->s.origin2) <= radius;
 }
 

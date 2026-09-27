@@ -78,6 +78,7 @@ static edict_t *make_harvest_tree(float x, float y, float life) {
 
 static UnitAbilities_t const harvest_abilities = { .abilList = "Ahar" };
 static UnitAbilities_t const ghoul_harvest_abilities = { .abilList = "Ahrl" };
+static UnitAbilities_t const wisp_harvest_abilities = { .abilList = "Awha" };
 static UnitAbilities_t const return_gold_lumber_abilities = { .abilList = "Argl" };
 static UnitAbilities_t const return_lumber_abilities = { .abilList = "Arlm" };
 
@@ -123,6 +124,32 @@ extern float HARVEST_COOLDOWN;
 extern float HARVEST_SEARCH_RANGE;
 extern void harvest_cooldown(edict_t *);
 bool harvest_menu_selecttarget(edict_t *clent, edict_t *target);
+
+static const char slk_wisp_harvest_test_data[] =
+    "ID;PWXL;N;E\n"
+    "C;Y1;X1;K\"alias\"\n"
+    "C;Y1;X2;K\"code\"\n"
+    "C;Y1;X3;K\"DataA1\"\n"
+    "C;Y1;X4;K\"Rng1\"\n"
+    "C;Y1;X5;K\"Dur1\"\n"
+    "C;Y2;X1;K\"Awha\"\n"
+    "C;Y2;X2;K\"Awha\"\n"
+    "C;Y2;X3;K9\n"
+    "C;Y2;X4;K500\n"
+    "C;Y2;X5;K1.0\n"
+    "E\n";
+
+/* ROC/TFT stock Awha values from ability_audit -raw Awha. Keep a stock-shaped
+ * fixture beside the non-stock DataA case above. */
+static const char slk_wisp_harvest_stock_data[] =
+    "ID;PWXL;N;E\n"
+    "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+    "C;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"DataB1\"\n"
+    "C;Y1;X5;K\"DataC1\"\nC;Y1;X6;K\"Rng1\"\n"
+    "C;Y1;X7;K\"Dur1\"\n"
+    "C;Y2;X1;K\"Awha\"\nC;Y2;X2;K\"Awha\"\n"
+    "C;Y2;X3;K5\nC;Y2;X4;K5\nC;Y2;X5;K150\n"
+    "C;Y2;X6;K900\nC;Y2;X7;K8\nE\n";
 
 static const char slk_ghoul_harvest_test_data[] =
     "ID;PWXL;N;E\n"
@@ -369,6 +396,14 @@ static const char slk_racial_goldmine_test_data[] =
     "C;Y1;X5;K\"DataB1\"\n"
     "C;Y1;X6;K\"DataC1\"\n"
     "C;Y1;X7;K\"DataD1\"\n"
+    "C;Y1;X8;K\"UnitID1\"\n"
+    "C;Y1;X9;K\"Rng2\"\n"
+    "C;Y1;X10;K\"Dur1\"\n"
+    "C;Y1;X11;K\"DataA1\"\n"
+    "C;Y1;X12;K\"DataB1\"\n"
+    "C;Y1;X13;K\"UnitID1\"\n"
+    "C;Y1;X14;K\"isbldg\"\n"
+    "C;Y1;X15;K\"alias\"\n"
     "C;Y2;X1;K\"Agld\"\n"
     "C;Y2;X2;K\"Agld\"\n"
     "C;Y3;X1;K\"Aaha\"\n"
@@ -389,11 +424,18 @@ static const char slk_racial_goldmine_test_data[] =
     "C;Y6;X4;K5\n"
     "C;Y7;X1;K\"Agl2\"\n"
     "C;Y7;X2;K\"Agl2\"\n"
+    "C;Y8;X1;K\"Aent\"\n"
+    "C;Y8;X2;K\"Aent\"\n"
+    "C;Y8;X3;K64\n"
+    "C;Y8;X13;K\"hbar\"\n"
+    "C;Y8;X14;K1\n"
+    "C;Y8;X15;K\"Aent\"\n"
     "E\n";
 
 static UnitAbilities_t const test_haunted_mine = { .abilList = "Abgm" };
 static UnitAbilities_t const test_acolyte_harvest = { .abilList = "Aaha" };
 static UnitAbilities_t const test_entangled_mine = { .abilList = "Aegm,Aenc" };
+static UnitAbilities_t const test_entangle_caster = { .abilList = "Aent,Aro1" };
 
 static slkTestData_t *install_racial_goldmine_test_data(slkTestData_t **rows_out) {
     slkTestData_t *rows = parse_slk_string(slk_racial_goldmine_test_data);
@@ -2258,6 +2300,207 @@ TEST(wc3_movement, lumber_dead_previous_tree_searches_near_old_tree) {
     T_EQ(worker->harvested_lumber, 0);
 }
 
+/* Wisps do not use the normal chop/carry/drop-off loop. Awha attaches to a
+ * tree, leaves the tree intact, and credits authored DataA lumber each Duration
+ * interval directly to the owning player. */
+TEST(wc3_movement, wisp_harvest_persists_and_credits_periodic_lumber) {
+    slkTestData_t *rows = parse_slk_string(slk_wisp_harvest_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    float const old_range = HARVEST_RANGE;
+    edict_t * wisp = make_moving_unit(0.0f, 0.0f);
+    edict_t * tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+    uint32_t const old_lumber = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
+
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    HARVEST_RANGE = 128.0f;
+    wisp->s.player = 0;
+    gi.LinkEntity(wisp);
+    gi.LinkEntity(tree);
+
+    T_ASSERT(unit_issuetargetorder(wisp, "smart", tree));
+    T_ASSERT(wisp->goalentity == tree);
+    wisp->currentmove->think(wisp); /* attach to tree */
+    T_ASSERT(wisp->inuse && !M_IsDead(wisp));
+    T_ASSERT(wisp->goalentity == tree);
+    T_STREQ(wisp->currentmove->animation, "stand lumber");
+    T_FEQ(tree->health.value, 100.0f, 0.001f);
+
+    wisp->wait = FRAMETIME / 2000.0f;
+    wisp->currentmove->think(wisp); /* first periodic credit */
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], old_lumber + 9);
+    T_ASSERT(wisp->inuse && !M_IsDead(wisp));
+    T_EQ(wisp->harvested_lumber, 0);
+    T_FEQ(tree->health.value, 100.0f, 0.001f);
+    T_FEQ(wisp->wait, 1.0f, 0.001f);
+
+    HARVEST_RANGE = old_range;
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, wisp_harvest_uses_stock_range_and_duration) {
+    slkTestData_t *rows = parse_slk_string(slk_wisp_harvest_stock_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    float const old_range = HARVEST_RANGE;
+    float const old_search_range = HARVEST_SEARCH_RANGE;
+    edict_t *wisp = make_moving_unit(0.0f, 0.0f);
+    edict_t *first_tree = make_harvest_tree(32.0f, 0.0f, 100.0f);
+    edict_t *next_tree = make_harvest_tree(700.0f, 0.0f, 100.0f);
+
+    /* Make the old general Harvest search radius too short to find next_tree. */
+    HARVEST_RANGE = 128.0f;
+    HARVEST_SEARCH_RANGE = 100.0f;
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    wisp->s.player = 0;
+    T_ASSERT(unit_issuetargetorder(wisp, "smart", first_tree));
+    wisp->currentmove->think(wisp);
+    T_ASSERT(wisp->goalentity == first_tree);
+    T_FEQ(wisp->wait, 8.0f, 0.001f);
+
+    G_SetHealth(first_tree, 0.0f);
+    wisp->currentmove->think(wisp);
+    T_ASSERT(wisp->goalentity == next_tree);
+
+    HARVEST_RANGE = old_range;
+    HARVEST_SEARCH_RANGE = old_search_range;
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, wisp_harvest_reads_roc_data_columns) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X5\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"Data11\"\n"
+        "C;Y1;X4;K\"Rng1\"\nC;Y1;X5;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Awha\"\nC;Y2;X2;K\"Awha\"\nC;Y2;X3;K9\n"
+        "C;Y2;X4;K500\nC;Y2;X5;K1\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    float const old_range = HARVEST_RANGE;
+    edict_t *wisp = make_moving_unit(0.0f, 0.0f);
+    edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+    uint32_t const old_lumber = game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER];
+
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    HARVEST_RANGE = 128.0f;
+    wisp->s.player = 0;
+    T_ASSERT(unit_issuetargetorder(wisp, "smart", tree));
+    wisp->currentmove->think(wisp);
+    wisp->wait = FRAMETIME / 2000.0f;
+    wisp->currentmove->think(wisp);
+    T_EQ(game.clients[0].ps.stats[PLAYERSTATE_RESOURCE_LUMBER], old_lumber + 9);
+
+    HARVEST_RANGE = old_range;
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, wisp_harvest_rejects_missing_ability_data) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\n"
+        "C;Y2;X1;K\"Afoo\"\nC;Y2;X2;K\"Afoo\"\nC;Y2;X3;K7\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *wisp = make_moving_unit(0.0f, 0.0f);
+    edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    T_ASSERT(!unit_issuetargetorder(wisp, "smart", tree));
+    T_ASSERT(!wisp->goalentity);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, wisp_harvest_rejects_missing_duration) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"Rng1\"\n"
+        "C;Y2;X1;K\"Awha\"\nC;Y2;X2;K\"Awha\"\nC;Y2;X3;K9\nC;Y2;X4;K500\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *wisp = make_moving_unit(0.0f, 0.0f);
+    edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    T_ASSERT(!unit_issuetargetorder(wisp, "smart", tree));
+    T_ASSERT(!wisp->goalentity);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, wisp_harvest_rejects_missing_range) {
+    const char slk[] =
+        "ID;PWXL;N;E\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataA1\"\nC;Y1;X4;K\"Dur1\"\n"
+        "C;Y2;X1;K\"Awha\"\nC;Y2;X2;K\"Awha\"\nC;Y2;X3;K9\nC;Y2;X4;K1\nE\n";
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *wisp = make_moving_unit(0.0f, 0.0f);
+    edict_t *tree = make_harvest_tree(20.0f, 0.0f, 100.0f);
+
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    T_ASSERT(!unit_issuetargetorder(wisp, "smart", tree));
+    T_ASSERT(!wisp->goalentity);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, wisp_harvest_move_leave_releases_its_tree_effect) {
+    slkTestData_t *rows = parse_slk_string(slk_wisp_harvest_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *wisp = make_moving_unit(0.0f, 0.0f);
+    edict_t *effect = alloc_test_unit(MAKEFOURCC('e','f','f','t'), 0.0f, 0.0f);
+
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    T_ASSERT(unit_issuetargetorder(wisp, "smart", make_harvest_tree(20.0f, 0.0f, 100.0f)));
+    T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityWispHarvest);
+    effect->owner = wisp;
+    effect->summon_ability = MAKEFOURCC('A','w','h','a');
+    effect->s.flags |= EF_NOT_SELECTABLE;
+    unit_stand(wisp);
+    T_ASSERT(!effect->inuse);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
+/* Warsmash reserves an actively harvested tree to one Wisp. If two Wisps were
+ * ordered to the same tree, the later arrival should acquire the nearest free
+ * live tree instead of stacking on the occupied target. */
+TEST(wc3_movement, wisp_harvest_retargets_when_clicked_tree_is_owned) {
+    slkTestData_t *rows = parse_slk_string(slk_wisp_harvest_test_data);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    float const old_range = HARVEST_RANGE;
+    edict_t * first = make_moving_unit(0.0f, 0.0f);
+    edict_t * second = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0.0f, 20.0f);
+    edict_t * tree1 = make_harvest_tree(20.0f, 0.0f, 100.0f);
+    edict_t * tree2 = make_harvest_tree(80.0f, 0.0f, 100.0f);
+
+    first->data.UnitAbilities = second->data.UnitAbilities = &wisp_harvest_abilities;
+    HARVEST_RANGE = 128.0f;
+    first->s.player = second->s.player = 0;
+    second->movetype = MOVETYPE_STEP;
+    second->stand = unit_stand;
+    second->collision = 0.0f;
+    second->health.value = second->health.max_value = 120.0f;
+    gi.LinkEntity(first); gi.LinkEntity(second); gi.LinkEntity(tree1); gi.LinkEntity(tree2);
+
+    wisp_harvest_start(first, tree1);
+    first->currentmove->think(first); /* tree1 becomes actively owned */
+    T_ASSERT(first->goalentity == tree1);
+    T_STREQ(first->currentmove->animation, "stand lumber");
+
+    wisp_harvest_start(second, tree1);
+    second->currentmove->think(second); /* collision-free reservation retarget */
+    T_ASSERT(second->goalentity == tree2);
+    T_ASSERT(second->goalentity != tree1);
+    T_ASSERT(second->inuse && !M_IsDead(second));
+
+    HARVEST_RANGE = old_range;
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 /* Smart-targeting a compatible drop-off while carrying lumber honors the
  * building the player clicked instead of silently choosing another nearer one. */
 TEST(wc3_movement, lumber_smart_click_returns_to_clicked_dropoff) {
@@ -3838,6 +4081,7 @@ TEST(wc3_movement, entangled_mine_round_robin_income_depletes_parent_and_unloads
     second = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0.0f, 0.0f);
     setup_test_goldmine(parent, &test_goldmine_stock, 25);
     mine->data.UnitAbilities = &test_entangled_mine;
+    mine->think = monster_think;
     mine->health.value = mine->health.max_value = 1000.0f;
     mine->s.player = first->s.player = second->s.player = client->ps.number;
     first->stand = second->stand = unit_stand;
@@ -3851,17 +4095,17 @@ TEST(wc3_movement, entangled_mine_round_robin_income_depletes_parent_and_unloads
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
 
     level.time = 0;
-    S_EntangledMineTick(mine); /* index 1: occupied */
+    G_RunEntity(mine); /* index 1: occupied */
     T_EQ(parent->resources, 15);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 10);
     T_EQ(mine->mineoverlay.active_interval_index, 1);
-    level.time = 1000; S_EntangledMineTick(mine); /* index 2: empty */
-    level.time = 2000; S_EntangledMineTick(mine); /* index 3: empty */
-    level.time = 3000; S_EntangledMineTick(mine); /* index 4: empty */
+    level.time = 1000; G_RunEntity(mine); /* index 2: empty */
+    level.time = 2000; G_RunEntity(mine); /* index 3: empty */
+    level.time = 3000; G_RunEntity(mine); /* index 4: empty */
     T_EQ(parent->resources, 15);
-    level.time = 4000; S_EntangledMineTick(mine); /* index 0: occupied */
+    level.time = 4000; G_RunEntity(mine); /* index 0: occupied */
     T_EQ(parent->resources, 5);
-    level.time = 5000; S_EntangledMineTick(mine); /* index 1: final 5 */
+    level.time = 5000; G_RunEntity(mine); /* index 1: final 5 */
 
     T_EQ(parent->resources, 0);
     T_ASSERT(M_IsDead(mine));
@@ -3872,6 +4116,208 @@ TEST(wc3_movement, entangled_mine_round_robin_income_depletes_parent_and_unloads
     T_ASSERT(!(parent->s.renderfx & RF_HIDDEN));
     T_ASSERT(!parent->paused);
 
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+
+/* A successful Entangle owns a caster-local hidden/permanent command state for
+ * exactly the live overlay generation.  The helper deliberately derives this
+ * from saved overlay state rather than the optional CasterArt effect. */
+TEST(wc3_movement, entangle_command_hidden_tracks_live_overlay_caster_generation) {
+    edict_t * caster, *overlay, *parent;
+    uint32_t const ability = MAKEFOURCC('A','e','n','t');
+
+    reset_entities();
+    setup_test_world();
+    caster = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 0.0f, 0.0f);
+    overlay = alloc_test_unit(MAKEFOURCC('e','g','o','l'), 64.0f, 0.0f);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 64.0f, 0.0f);
+    overlay->mineoverlay.parent = parent;
+    overlay->mineoverlay.parent_spawn_time = parent->spawn_time;
+    overlay->mineoverlay.caster = caster;
+    overlay->mineoverlay.caster_spawn_time = caster->spawn_time;
+    overlay->mineoverlay.entangle_ability = ability;
+
+    T_ASSERT(S_EntangleCommandHidden(caster, ability));
+    overlay->mineoverlay.caster_spawn_time++;
+    T_ASSERT(!S_EntangleCommandHidden(caster, ability));
+}
+
+static edict_t *movement_find_entangle_overlay(edict_t *caster, edict_t *parent) {
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *overlay = globals.edicts + i;
+        if (overlay->inuse && overlay->mineoverlay.parent == parent &&
+            overlay->mineoverlay.caster == caster &&
+            overlay->mineoverlay.entangle_ability == MAKEFOURCC('A','e','n','t'))
+            return overlay;
+    }
+    return NULL;
+}
+
+static bool movement_issue_entangle_command(edict_t *clent, gameClient_t *client,
+                                            edict_t *caster, edict_t *parent) {
+    abilityCall_t call = MAKE(abilityCall_t, .client = clent);
+    if (!CAbilityEntangle(caster, A_COMMAND, &call) || !client->menu.on_entity_selected)
+        return false;
+    return client->menu.on_entity_selected(clent, parent);
+}
+
+TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {
+    cstring_t const filename = "/tmp/openwarcraft3-wc3-entangle-lifecycle.bin";
+    uint32_t const ability = MAKEFOURCC('A','e','n','t');
+    edict_t *clent, *caster, *parent, *overlay;
+    gameClient_t *client;
+    slkTestData_t *rows, *old_abilities;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    /* The test archive omits normal unit metadata; make the resulting hbar
+     * building explicit so runtime spawn follows the authored Aent contract. */
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    clent = &g_edicts[0];
+    client = &game.clients[0];
+    clent->client = client;
+    caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 0.0f, 0.0f);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
+    caster->no_pathing = true; /* rooted Ancient state */
+    caster->s.player = parent->s.player = client->ps.number;
+    setup_test_goldmine(parent, &test_goldmine_stock, 5000);
+    caster->data.UnitAbilities = &test_entangle_caster;
+    T_ASSERT(G_ActorSetSkillPermanent(caster, ability, true));
+    G_ActorAddSkill(caster, ability);
+    caster->ancient_root.ability = MAKEFOURCC('A','r','o','1');
+    caster->ancient_root.mode = ANCIENT_UPROOTED;
+    G_SelectEntity(client, caster);
+    caster->no_pathing = false;
+    T_ASSERT(!movement_issue_entangle_command(clent, client, caster, parent));
+    caster->no_pathing = true;
+    caster->ancient_root.mode = ANCIENT_ROOTED;
+    caster->s.flags |= EF_BUILDING;
+    caster->aiflags |= AI_IMMOBILE;
+    caster->runtime.flags |= UNIT_BALANCE_BUILDING;
+    T_ASSERT(movement_issue_entangle_command(clent, client, caster, parent));
+    overlay = movement_find_entangle_overlay(caster, parent);
+    T_NOT_NULL(overlay);
+    T_ASSERT(overlay && overlay->mineoverlay.entangle_permanent_before);
+    T_ASSERT(overlay && overlay->construction.active);
+
+    T_ASSERT(WriteGame(filename));
+    T_ASSERT(G_ActorSetSkillPermanent(caster, ability, false));
+    overlay->mineoverlay.entangle_permanent_before = false;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(G_ActorSkillPermanent(caster, ability));
+    overlay = movement_find_entangle_overlay(caster, parent);
+    T_NOT_NULL(overlay);
+    T_ASSERT(overlay && overlay->mineoverlay.entangle_permanent_before);
+    S_MineOverlayRelease(overlay);
+    T_ASSERT(G_ActorSkillPermanent(caster, ability));
+    T_ASSERT(!(parent->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!parent->paused);
+    remove(filename);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, entangle_missing_overlay_unit_id_reports_unavailable) {
+    static char const missing_unit_id[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"Dur1\"\nC;Y1;X4;K\"DataA1\"\n"
+        "C;Y2;X1;K\"Aent\"\nC;Y2;X2;K\"Aent\"\n"
+        "C;Y2;X3;K10\nE\n";
+    slkTestData_t *rows, *old_abilities;
+    edict_t *clent, *caster, *parent;
+    gameClient_t *client;
+    uint32_t count_before;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+
+    reset_entities(); setup_test_world();
+    rows = parse_slk_string(missing_unit_id);
+    old_abilities = G_SetSLKRows("AbilityData", rows);
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    clent = &g_edicts[0]; client = &game.clients[0];
+    clent->client = client;
+    caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 0.0f, 0.0f);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
+    caster->data.UnitAbilities = &test_entangle_caster;
+    caster->s.player = parent->s.player = client->ps.number;
+    caster->ancient_root.ability = MAKEFOURCC('A','r','o','1');
+    caster->ancient_root.mode = ANCIENT_ROOTED;
+    G_ActorAddSkill(caster, MAKEFOURCC('A','e','n','t'));
+    G_SelectEntity(client, caster);
+    count_before = globals.num_edicts;
+
+    T_ASSERT(!movement_issue_entangle_command(clent, client, caster, parent));
+    T_EQ(globals.num_edicts, count_before);
+    T_NOT_NULL(client->menu.on_entity_selected);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, one_tree_cannot_entangle_multiple_gold_mines) {
+    uint32_t const ability = MAKEFOURCC('A','e','n','t');
+    edict_t *clent, *caster, *first, *second, *parent1, *parent2;
+    gameClient_t *client;
+    slkTestData_t *rows, *old_abilities;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    clent = &g_edicts[0];
+    client = &game.clients[0];
+    clent->client = client;
+    caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 0.0f, 0.0f);
+    parent1 = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
+    parent2 = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 48.0f, 0.0f);
+    caster->s.player = parent1->s.player = parent2->s.player = client->ps.number;
+    caster->no_pathing = true; /* rooted Ancient state */
+    setup_test_goldmine(parent1, &test_goldmine_stock, 5000);
+    setup_test_goldmine(parent2, &test_goldmine_stock, 5000);
+    caster->abilities.added[0] = ability;
+    caster->abilities.added[1] = MAKEFOURCC('A','r','o','1');
+    caster->abilities.added_count = 2;
+    caster->ancient_root.ability = MAKEFOURCC('A','r','o','1');
+    caster->ancient_root.mode = ANCIENT_ROOTED;
+    caster->s.flags |= EF_BUILDING;
+    caster->aiflags |= AI_IMMOBILE;
+    caster->runtime.flags |= UNIT_BALANCE_BUILDING;
+    G_SelectEntity(client, caster);
+    T_ASSERT(movement_issue_entangle_command(clent, client, caster, parent1));
+    first = movement_find_entangle_overlay(caster, parent1);
+    T_NOT_NULL(first);
+    T_ASSERT(first && !first->mineoverlay.entangle_permanent_before);
+    T_ASSERT(G_ActorSkillPermanent(caster, ability));
+
+    T_ASSERT(!movement_issue_entangle_command(clent, client, caster, parent2));
+    second = movement_find_entangle_overlay(caster, parent2);
+    T_NULL(second);
+
+    unit_die(caster, NULL);
+    T_ASSERT(M_IsDead(first));
+    T_NULL(first->mineoverlay.parent);
+    T_ASSERT(!(parent1->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!parent1->paused);
+    T_ASSERT(!G_ActorSkillPermanent(caster, ability));
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
 }
@@ -3888,11 +4334,12 @@ TEST(wc3_movement, empty_entangled_mine_dies_when_parent_is_depleted) {
     mine = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
     setup_test_goldmine(parent, &test_goldmine_stock, 0);
     mine->data.UnitAbilities = &test_entangled_mine;
+    mine->think = monster_think;
     mine->health.value = mine->health.max_value = 1000.0f;
     T_ASSERT(S_MineOverlayBind(mine, parent));
 
     level.time = 0;
-    S_EntangledMineTick(mine);
+    G_RunEntity(mine);
     T_ASSERT(M_IsDead(mine));
     T_ASSERT(!(parent->s.renderfx & RF_HIDDEN));
     T_ASSERT(!parent->paused);
@@ -4116,13 +4563,14 @@ TEST(wc3_movement, occupied_burrow_exposes_attack_stop_and_stand_down_only_with_
     };
     static UnitWeapons_t const burrow_weapons = {
         .id = MAKEFOURCC('o','b','u','r'),
+        .attacksEnabled = 3,
         .attack1 = { .damageDice = 1 },
     };
     static UnitBalance_t const burrow_balance = {
         .id = MAKEFOURCC('o','b','u','r'),
         .speed = 0,
     };
-    edict_t *burrow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 256.0f);
+    edict_t *burrow = alloc_test_unit(MAKEFOURCC('o','b','u','r'), 256.0f, 256.0f);
     edict_t *peon = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
     gameCommandButton_t buttons[16];
     uint8_t count;

@@ -74,14 +74,14 @@ static bool unsummon_target_valid(edict_t *worker, edict_t *building) {
     return worker && building && building->inuse &&
         building->spawn_time == worker->unsummon.target_spawn_time &&
         S_SpellIsAliveTarget(building) && building->s.player == worker->s.player &&
-        G_UnitIsBuilding(building->class_id);
+        G_UnitIsStructure(building);
 }
 
 static bool unsummon_thinker_target_valid(edict_t *thinker, edict_t *building) {
     return thinker && building && building->inuse &&
         building->spawn_time == thinker->channel.target_spawn_time &&
         S_SpellIsAliveTarget(building) && building->s.player == thinker->s.player &&
-        G_UnitIsBuilding(building->class_id);
+        G_UnitIsStructure(building);
 }
 
 static void unsummon_cancel_approach(edict_t *worker) {
@@ -103,7 +103,7 @@ static bool unsummon_validate(edict_t *caster, spellTarget_t st, abilityitem_t c
     edict_t *building = st.entity;
     (void)spell;
     if (!caster || !building || !S_SpellIsAliveTarget(building) ||
-        building->s.player != caster->s.player || !G_UnitIsBuilding(building->class_id) ||
+        building->s.player != caster->s.player || !G_UnitIsStructure(building) ||
         G_UnitStatusLevel(building, ID_UNSUMMON_BUFF)) return false;
     /* Retail rejects incomplete structures before mana spend; the old path
      * treated every allied building as a valid Unsummon target. */

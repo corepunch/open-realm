@@ -1,0 +1,10 @@
+[htow]
+Trains=hpea
+Upgrade=hkee
+Art=TestUI\Textures\solid_white.blp
+
+[hpea]
+Art=TestUI\Textures\solid_white.blp
+
+[hkee]
+Art=TestUI\Textures\solid_white.blp

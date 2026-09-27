@@ -318,7 +318,7 @@ static bool cargo_target_in_range(edict_t *transport, edict_t *target) {
     float footprint;
 
     if (!transport || !target) return false;
-    if ((transport->s.flags & EF_BUILDING) && transport->pathtex) {
+    if (G_UnitIsStructure(transport) && transport->pathtex) {
         footprint = CM_DistanceToPathingFootprint(transport, &target->s.origin2);
         if (footprint < FLT_MAX) return footprint <= target->collision + range;
     }
@@ -339,6 +339,9 @@ static bool corpse_cargo_target_valid(edict_t *transport, edict_t *target) {
 
 bool S_CargoTryLoad(edict_t *transport, edict_t *target) {
     if (!transport || !target || target == transport || M_IsDead(transport) || M_IsDead(target)) return false;
+    /* Retail permits Wisps to rally to an unfinished Entangled Mine, but the
+     * cargo transition itself must wait until its construction is complete. */
+    if (cargo_is_entangled_mine(transport) && transport->construction.active) return false;
     if (target->s.player != transport->s.player) return false;
     /* Amtc is the Meat Wagon corpse hold, not a normal transport hold.  Keep
      * living-unit Load/Smart boarding on Acar/Abun/Aenc so a Wagon can never
@@ -497,8 +500,12 @@ static bool cargo_board_target_valid(edict_t *unit, edict_t *transport) {
     if (!unit || !transport || unit == transport || M_IsDead(unit) || M_IsDead(transport)) return false;
     if (unit->paused || transport->paused || unit->s.player != transport->s.player) return false;
     if (!cargo_living_hold_alias(transport) || !cargo_has_capacity(transport, 1)) return false;
+    /* Keep the approach order alive through Entangled Mine construction. The
+     * final load attempt is retried by this same movement order on completion. */
     if (S_CargoTransportForUnit(unit) || (unit->s.renderfx & RF_HIDDEN)) return false;
     if (!cargo_load_type_allowed(transport, unit)) return false;
+    /* Incomplete Entangled Mines are valid rally destinations. They become
+     * loadable on this existing approach order as soon as construction ends. */
     return cargo_load_target_allowed(transport, unit);
 }
 
@@ -507,7 +514,7 @@ static bool cargo_prepare_board_approach(edict_t *unit, edict_t *transport) {
     float const interaction_range = unit->collision + cargo_load_range(transport);
 
     if (!unit || !transport) return false;
-    if ((transport->s.flags & EF_BUILDING) && transport->pathtex &&
+    if (G_UnitIsStructure(transport) && transport->pathtex &&
         CM_FindApproachPointToFootprintForRadius(transport, &unit->s.origin2,
                                                  interaction_range, unit->collision, &approach)) {
         unit->goalentity = Waypoint_add(&approach);
@@ -537,6 +544,15 @@ static void ai_cargo_board_walk(edict_t *unit) {
         return;
     }
     if (cargo_target_in_range(transport, unit)) {
+        if (cargo_is_entangled_mine(transport) && transport->construction.active) {
+            if (unit->goalentity && unit->goalentity != transport &&
+                unit->goalentity->class_id == 0)
+                G_FreeEdict(unit->goalentity);
+            unit->goalentity = transport;
+            unit->secondarygoal = transport;
+            unit_stand(unit);
+            return;
+        }
         if (!S_CargoTryLoad(transport, unit)) cargo_board_cancel(unit);
         return;
     }

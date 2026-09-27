@@ -37,14 +37,17 @@ typedef struct {
 }  rocketDesc_t;
 
 bool S_UnitAttackSlotEnabled(edict_t const *attacker, uint32_t slot) {
-    return attacker && slot < 2 && attacker->data.UnitWeapons &&
-        (attacker->data.UnitWeapons->attacksEnabled & (1 << slot)) != 0;
+    uint32_t enabled;
+    if (!attacker || slot >= 2) return false;
+    enabled = attacker->data.UnitWeapons ? attacker->data.UnitWeapons->attacksEnabled : 0;
+    if (attacker->ancient_root.ability) enabled = S_AncientAttackMask(attacker);
+    return (enabled & (1u << slot)) != 0;
 }
 
 /* Attack 1/2 remain the authored runtime copies. Select the compatible slot
  * from the target whenever attack behavior reads a profile. */
 static unitAttack_t const *attack_profile(edict_t const *attacker, edict_t const *target) {
-    uint32_t flag = target ? G_TargetFlagForType(target->targtype) : 0;
+    uint32_t flag = target ? G_TargetFlagForType(G_UnitTargetType(target)) : 0;
     if (attacker && target && target->destructable.initialized && target->targtype == TARG_TREE) {
         if (attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0)) return &attacker->attack1;
         if (attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1)) return &attacker->attack2;
@@ -172,7 +175,7 @@ bool S_AttackCanTarget(edict_t const *attacker, edict_t const *target) {
     }
     if (M_IsDead((edict_t *)target)) return false;
 
-    flag = G_TargetFlagForType(target->targtype);
+    flag = G_TargetFlagForType(G_UnitTargetType(target));
     return flag && ((attacker->attack1.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 0) && (attacker->attack1.targetsAllowed & flag)) ||
                     (attacker->attack2.type != ATK_NONE && S_UnitAttackSlotEnabled(attacker, 1) && (attacker->attack2.targetsAllowed & flag)));
 }
@@ -380,7 +383,7 @@ static bool artillery_splash_target_allowed(edict_t *attacker, edict_t *target, 
 
     if (!attacker || !target || !target->inuse || target == attacker || M_IsDead(target)) return false;
     if (!mask) mask = targets_allowed;
-    flag = G_TargetFlagForType(target->targtype);
+    flag = G_TargetFlagForType(G_UnitTargetType(target));
     return flag && (mask & flag) != 0;
 }
 
@@ -549,7 +552,7 @@ static bool attack_target_out_of_range_for(edict_t const *ent, edict_t const *ta
     /* Ensnare DataC forces the bound unit's own attacks to melee range. */
     ensnare_range = S_EnsnareMeleeRange(ent);
     range = ensnare_range > 0.0f ? ensnare_range : attack_profile(ent, target)->range;
-    if ((G_UnitIsBuilding(target->class_id) || G_IsDestructable(target)) && target->pathtex) {
+    if ((G_UnitIsStructure(target) || G_IsDestructable(target)) && target->pathtex) {
         footprint = CM_DistanceToPathingFootprint(target, &ent->s.origin2);
         if (footprint < FLT_MAX) {
             return footprint > ent->collision + range;

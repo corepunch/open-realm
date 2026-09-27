@@ -566,25 +566,26 @@ bool G_WorkerCanBuild(edict_t *worker, uint32_t building_id) {
 }
 
 bool G_ProducerCanTrain(edict_t *producer, uint32_t unit_id) {
-    return producer && producer->data.UnitProfile &&
+    return producer && (!S_AncientHasRootAbility(producer) || S_AncientIsRooted(producer)) && producer->data.UnitProfile &&
         G_ProducerContains(producer->data.UnitProfile->trains, unit_id);
 }
 
 bool G_ProducerCanResearch(edict_t *producer, uint32_t upgrade_id) {
-    return producer && producer->data.UnitProfile &&
+    return producer && (!S_AncientHasRootAbility(producer) || S_AncientIsRooted(producer)) && producer->data.UnitProfile &&
         G_ProducerContains(producer->data.UnitProfile->researches, upgrade_id);
 }
 
 bool G_ProducerCanUpgrade(edict_t *producer, uint32_t unit_id) {
     return producer && producer->data.UnitProfile &&
-        G_UnitIsBuilding(producer->class_id) && G_UnitIsBuilding(unit_id) &&
+        (!S_AncientHasRootAbility(producer) || S_AncientIsRooted(producer)) &&
+        G_UnitIsBuilding(unit_id) &&
         G_ProducerContains(producer->data.UnitProfile->upgrade, unit_id);
 }
 
 bool G_BuildingUpgradeActive(edict_t const *building) {
     return building && building->inuse && !building->training &&
         building->research.upgrade != 0 &&
-        G_UnitIsBuilding(building->class_id) &&
+        G_UnitIsStructure(building) &&
         G_UnitIsBuilding(building->research.upgrade);
 }
 
@@ -1182,7 +1183,7 @@ bool G_FindBuildOnTarget(uint32_t building_id, vec2_t const *point, edict_t * *o
     UnitData_t const *data = G_UnitData(building_id);
     if (out) *out = NULL;
     if (!data->isBuildOn) return true;
-    FILTER_EDICTS(ent, ent->inuse && G_UnitIsBuilding(ent->class_id) && ent->data.UnitData->canBuildOn) {
+    FILTER_EDICTS(ent, ent->inuse && G_UnitIsStructure(ent) && ent->data.UnitData->canBuildOn) {
         /* Build-on targets may be off the placement lattice; accept the whole
          * snap cell so clicking a mine does not fail after the ghost moves. */
         if (fabsf(ent->s.origin2.x - point->x) <= WC3_BUILD_GRID_SIZE &&
@@ -1204,19 +1205,21 @@ bool G_FindBuildOnTarget(uint32_t building_id, vec2_t const *point, edict_t * *o
 }
 
 static bool G_BuildUnitCanDisplace(edict_t *builder, edict_t *ent) {
-    return builder && ent && ent->s.player == builder->s.player && !G_UnitIsBuilding(ent->class_id) &&
+    return builder && ent && ent->s.player == builder->s.player && !G_UnitIsStructure(ent) &&
            ent->movetype != MOVETYPE_NONE && ent->collision > 0.0f;
 }
 
-static bool G_LiveUnitBlocksBuild(edict_t *builder, edict_t *build_on, box2_t const *footprint) {
+static bool G_LiveUnitBlocksBuild(edict_t *builder, edict_t *build_on, box2_t const *footprint,
+                                  bool allow_friendly_displacement) {
     FILTER_EDICTS(ent, ent->inuse && (ent->svflags & SVF_MONSTER) && !(ent->svflags & SVF_DEADMONSTER)) {
         float x, y;
-        /* Friendly mobile units can be displaced when construction starts; everything else is a hard blocker. */
+        /* Construction can later displace friendly mobile units; mode changes can require a strict clear footprint. */
         if (ent == builder || ent == build_on || ent->collision <= 0.0f) continue;
         x = MAX(footprint->min.x, MIN(footprint->max.x, ent->s.origin2.x));
         y = MAX(footprint->min.y, MIN(footprint->max.y, ent->s.origin2.y));
         vec2_t nearest = { x, y };
-        if (Vector2_distance(&nearest, &ent->s.origin2) < ent->collision && !G_BuildUnitCanDisplace(builder, ent)) return true;
+        if (Vector2_distance(&nearest, &ent->s.origin2) < ent->collision &&
+            !(allow_friendly_displacement && G_BuildUnitCanDisplace(builder, ent))) return true;
     }
     return false;
 }
@@ -1292,8 +1295,9 @@ bool G_DisplaceBuildOccupants(edict_t *builder, edict_t *building) {
     return true;
 }
 
-buildPlacementResult_t G_EvaluateBuildPlacement(edict_t *builder, uint32_t building_id, vec2_t const *requested,
-                                                vec2_t *snapped) {
+static buildPlacementResult_t G_EvaluateBuildPlacementPolicy(edict_t *builder, uint32_t building_id,
+                                                              vec2_t const *requested, vec2_t *snapped,
+                                                              bool allow_friendly_displacement) {
     UnitData_t const *data = G_UnitData(building_id);
     uint8_t prevented = 0;
     uint8_t required = 0;
@@ -1385,7 +1389,7 @@ buildPlacementResult_t G_EvaluateBuildPlacement(edict_t *builder, uint32_t build
         }
     }
     if (pathtex) gi.MemFree(pathtex);
-    if (G_LiveUnitBlocksBuild(builder, build_on, &footprint)) {
+    if (G_LiveUnitBlocksBuild(builder, build_on, &footprint, allow_friendly_displacement)) {
 #ifdef WC3_DEBUG_MINING
         fprintf(stderr, "WC3_MINING placement result=%d reason=unit-blocked building=%.4s point=(%.1f,%.1f) parent=%ld\n",
                 PLACE_UNIT_BLOCKED, (cstring_t)&building_id, point.x, point.y,
@@ -1399,6 +1403,16 @@ buildPlacementResult_t G_EvaluateBuildPlacement(edict_t *builder, uint32_t build
             build_on ? (long)(build_on - globals.edicts) : -1L);
 #endif
     return PLACE_OK;
+}
+
+buildPlacementResult_t G_EvaluateBuildPlacement(edict_t *builder, uint32_t building_id,
+                                                vec2_t const *requested, vec2_t *snapped) {
+    return G_EvaluateBuildPlacementPolicy(builder, building_id, requested, snapped, true);
+}
+
+buildPlacementResult_t G_EvaluateRootPlacement(edict_t *unit, vec2_t const *requested, vec2_t *snapped) {
+    return unit ? G_EvaluateBuildPlacementPolicy(unit, unit->class_id, requested, snapped, false) :
+        PLACE_INVALID_BUILDING;
 }
 
 float G_BuildApproachDistance(uint32_t building_id) {
@@ -1458,7 +1472,7 @@ static bool G_ConstructionHasClassification(edict_t const *unit, cstring_t wante
 static bool G_StartConstruction(edict_t *building, constructionType_t type, bool paused) {
     edictStat_s *hp;
 
-    if (!building || !G_UnitIsBuilding(building->class_id)) return false;
+    if (!building || !G_UnitIsStructure(building)) return false;
     hp = &building->health;
     building->construction.active = true;
     building->construction.paused = paused;
@@ -1697,7 +1711,7 @@ bool G_CancelStructureConstruction(edict_t *building) {
     int32_t gold, lumber;
 
     if (!building || !building->inuse || !building->construction.active ||
-        (building->svflags & SVF_DEADMONSTER) || !G_UnitIsBuilding(building->class_id)) {
+        (building->svflags & SVF_DEADMONSTER) || !G_UnitIsStructure(building)) {
         return false;
     }
 #ifdef WC3_DEBUG_BUILD

@@ -341,7 +341,7 @@ static edict_t *militia_find_partner(edict_t *worker, uint32_t worker_ability) {
         float distance;
 
         if (hall->s.player != worker->s.player) continue;
-        if (!G_UnitIsBuilding(hall->class_id)) continue;
+        if (!G_UnitIsStructure(hall)) continue;
         if (M_IsDead(hall) || hall->paused) continue;
         hall_ability = militia_hall_ability_alias(hall, true);
         if (!hall_ability) continue;

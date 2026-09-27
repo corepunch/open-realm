@@ -78,9 +78,8 @@ uint32_t S_EnforceSummonedUnitTypeLimit(edict_t *caster, uint32_t unit_id, uint3
 static bool inferno_hits(edict_t *caster, edict_t *target, float radius, vec2_t const *origin) {
     if (!S_SpellIsAliveTarget(target) || !S_SpellIsEnemy(caster, target)) return false;
     if (Vector2_distance(&target->s.origin2, origin) > radius) return false;
-    if (target->targtype == TARG_AIR) return false;
-    return target->targtype == TARG_GROUND || target->targtype == TARG_STRUCTURE ||
-           G_UnitIsBuilding(target->class_id);
+    if (G_UnitTargetType(target) == TARG_AIR) return false;
+    return G_UnitTargetType(target) == TARG_GROUND || G_UnitTargetType(target) == TARG_STRUCTURE;
 }
 
 /* DataA damage + Bstu Dur/HeroDur, then UnitID with DataB timed life. */

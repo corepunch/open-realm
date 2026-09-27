@@ -48,7 +48,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityStomp) {
     float duration = S_SpellDuration(spell->code, level, false);
 
 #define WAR_STOMP_HITS(t) ((t)->inuse && (t) != caster && S_SpellIsAliveTarget(t) && \
-                           S_SpellIsEnemy(caster, t) && (t)->targtype == TARG_GROUND && \
+                           S_SpellIsEnemy(caster, t) && G_UnitTargetType(t) == TARG_GROUND && \
                            Vector2_distance(&(t)->s.origin2, &caster->s.origin2) <= radius)
     FILTER_EDICTS(target, WAR_STOMP_HITS(target)) {
         if (S_SpellDamage(target, caster, damage) && !M_IsDead(target) && duration > 0.0f)

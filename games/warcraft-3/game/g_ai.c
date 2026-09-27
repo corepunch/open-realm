@@ -68,7 +68,7 @@ void unit_setmove(edict_t *self, umove_t *move) {
         self->build_project = 0;
     }
     if (self->currentmove != move)
-        S_UnitAbilityEvent(self, A_MOVE_LEAVE);
+        S_UnitAbilityMoveLeave(self, move->proc);
     self->currentmove = move;
     G_SetUnitAnimation(self, move->animation);
     if (self->animation) {

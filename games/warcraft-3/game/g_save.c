@@ -77,8 +77,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* The fixed edict layout is validated by SAVEHEADER.edict_size. */
-static uint32_t const save_version = 47;
+/* Format 51 persists Ancient Root/Uproot transition state. */
+static uint32_t const save_version = 51;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -554,6 +554,8 @@ static field_t const goldmine_fields[] = {
 
 static field_t const mineoverlay_fields[] = {
     TF(edictMineOverlay_s, parent, F_EDICT, 0, FIELD_NONE),
+    TF(edictMineOverlay_s, caster, F_EDICT, 0, FIELD_NONE),
+    TF(edictMineOverlay_s, entangle_tree, F_EDICT, 0, FIELD_NONE),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -626,6 +628,24 @@ static field_t const ensnare_fields[] = {
     TF(struct edictEnsnare_s, height, F_FLOAT),
     TF(struct edictEnsnare_s, start, F_INT),
     TF(struct edictEnsnare_s, phase, F_INT),
+    { NULL, 0, 0, 0, 0, 0 }
+};
+
+static field_t const ancient_root_fields[] = {
+    TF(struct edictAncientRoot_s, destination, F_VECTOR),
+    TF(struct edictAncientRoot_s, approach_goal, F_EDICT, 0, FIELD_NONE),
+    TF(struct edictAncientRoot_s, approach_goal_spawn_time, F_INT),
+    TF(struct edictAncientRoot_s, mode, F_INT),
+    TF(struct edictAncientRoot_s, ability, F_INT),
+    TF(struct edictAncientRoot_s, unit_type, F_INT),
+    TF(struct edictAncientRoot_s, rooted_defense_type, F_INT),
+    TF(struct edictAncientRoot_s, transition_end_time, F_INT),
+    TF(struct edictAncientRoot_s, mobile_collision, F_FLOAT),
+    TF(struct edictAncientRoot_s, rooted_collision, F_FLOAT),
+    TF(struct edictAncientRoot_s, has_mobile_collision, F_INT),
+    TF(struct edictAncientRoot_s, has_rooted_collision, F_INT),
+    TF(struct edictAncientRoot_s, rooted_turning, F_INT),
+    TF(struct edictAncientRoot_s, approaching, F_INT),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -777,6 +797,7 @@ field_t edict_fields[] = {
     F(edict_s, polymorph, F_STRUCT, 1, polymorph_fields),
     F(edict_s, raven, F_STRUCT, 1, raven_fields),
     F(edict_s, ensnare, F_STRUCT, 1, ensnare_fields),
+    F(edict_s, ancient_root, F_STRUCT, 1, ancient_root_fields),
     F(edict_s, sleep, F_STRUCT, 1, sleep_fields),
     F(edict_s, permanent_health_bonus, F_FLOAT),
     F(edict_s, temporary_health_bonus, F_FLOAT),
@@ -1983,8 +2004,12 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-44.bin",
         "/tmp/openwarcraft3-wc3-save-version-45.bin",
         "/tmp/openwarcraft3-wc3-save-version-46.bin",
+        "/tmp/openwarcraft3-wc3-save-version-47.bin",
+        "/tmp/openwarcraft3-wc3-save-version-48.bin",
+        "/tmp/openwarcraft3-wc3-save-version-49.bin",
+        "/tmp/openwarcraft3-wc3-save-version-50.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50 };
 
     reset_entities();
     setup_test_world();

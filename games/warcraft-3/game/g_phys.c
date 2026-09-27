@@ -198,7 +198,9 @@ void G_RunEntity(edict_t *ent) {
      * regen bonus (MiscGame IntRegenBonus = 0.05 mana/sec per Intelligence;
      * hero.intel is 0 for non-heroes). */
     if (ent->mana.max_value > 0 && ent->mana.value < ent->mana.max_value) {
-        float const rate = ent->data.UnitBalance->manaRegen + ent->mana_regen_bonus
+        float const natural = !S_UnitAbilityEvent(ent, A_NATURAL_MANA_REGEN_BLOCKED) ?
+            ent->data.UnitBalance->manaRegen : 0.0f;
+        float const rate = natural + ent->mana_regen_bonus
                  + (float)ent->hero.intel * INT_REGEN_BONUS + S_BrillianceManaRegen(ent)
                  + S_RegenerationManaAura(ent);
         ent->mana.value = MIN(ent->mana.max_value, ent->mana.value + rate * (FRAMETIME / 1000.0f));

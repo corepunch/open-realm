@@ -2115,6 +2115,20 @@ bool G_UnitIsBuilding(uint32_t id) {
     return ui ? ui->isBuilding : false;
 }
 
+/* Unit-type data describes authored capability; live gameplay uses the mode
+ * bit so uprooted Ancients stop behaving like structures without changing id. */
+bool G_UnitIsStructure(edict_t const *unit) {
+    return unit && (unit->s.flags & EF_BUILDING) != 0;
+}
+
+/* Ancient unit rows stay authored as buildings even while uprooted. Resolve
+ * live targeting against the current mode while preserving all other rows. */
+TARGTYPE G_UnitTargetType(edict_t const *unit) {
+    if (!unit) return TARG_NONE;
+    if (!S_AncientHasRootAbility(unit)) return unit->targtype;
+    return G_UnitIsStructure(unit) ? TARG_STRUCTURE : TARG_GROUND;
+}
+
 /* UnitUI/DestructableData author armor as symbolic material names even though
  * JASS exposes integer ARMOR_TYPE_* values. Keep both views: sound lookup uses
  * the normalized index so war3map.w3u integer overrides continue to work. */

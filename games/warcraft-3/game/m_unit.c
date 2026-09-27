@@ -66,7 +66,7 @@ static float unit_decay_flesh_duration(edict_t const *self) {
 }
 
 static float unit_decay_bone_duration(edict_t const *self) {
-    if (self && G_UnitIsBuilding(self->class_id))
+    if (G_UnitIsStructure(self))
         return unit_decay_wait(game.constants.structureDecayTime);
     return unit_decay_wait(game.constants.boneDecayTime);
 }
@@ -96,7 +96,7 @@ static void unit_begin_bone_decay(edict_t *self) {
  * is not established by the available retail evidence. */
 void G_RestartCorpseBoneDecayAfterCargo(edict_t *corpse) {
     if (!corpse || !corpse->inuse || corpse->currentmove != &unit_move_decay_bones ||
-        G_UnitIsHero(corpse) || G_UnitIsBuilding(corpse->class_id)) return;
+        G_UnitIsHero(corpse) || G_UnitIsStructure(corpse)) return;
     corpse->wait = unit_decay_wait(game.constants.boneDecayTime);
 }
 
@@ -129,7 +129,7 @@ void unit_begin_decay(edict_t *self) {
         self->wait = FRAMETIME / 1000.0f;
         return;
     }
-    if (G_UnitIsBuilding(self->class_id)) {
+    if (G_UnitIsStructure(self)) {
         unit_set_decay_move(self, &unit_move_decay_bones);
         self->wait = unit_decay_wait(game.constants.structureDecayTime);
         return;
@@ -212,7 +212,7 @@ void G_SetHealth(edict_t *ent, float value) {
              G_LimitMatches(evt->limitop, value, evt->limitval))
             G_PublishEventResponse(ent, EVENT_GAME_STATE_LIMIT, evt);
     }
-    if ((ent->s.flags & EF_BUILDING) && (old != next || value <= 0.0f))
+    if (G_UnitIsStructure(ent) && (old != next || value <= 0.0f))
         S_RefreshAbilityLevel(ent, FindAbilityByClassname("Afih"));
 }
 
@@ -379,12 +379,12 @@ void unit_die(edict_t *self, edict_t *attacker) {
     G_PublishEventWithSource(self, EVENT_UNIT_DEATH, attacker);
     G_PublishEventWithSource(self, EVENT_PLAYER_UNIT_DEATH, attacker);
     self->svflags |= SVF_DEADMONSTER;
-    S_UnitDeathAbilities(self);
+    S_UnitAbilityEvent(self, A_DEATH);
     S_ReincarnationOnDeath(self);
     /* Static building footprints are baked into pathmap.original. Rebuild after
      * the death flag becomes authoritative so destroyed/cancelled structures
      * stop blocking routes immediately. */
-    if (G_UnitIsBuilding(self->class_id)) CM_BakeStaticObstacles();
+    if (G_UnitIsStructure(self)) CM_BakeStaticObstacles();
     G_InvalidateRallyTarget(self);
     /* A dead producer cannot retain ownership of a revival.  This clears each
      * Hero's reviving flag and refunds what this Altar charged. */
@@ -728,6 +728,10 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
         if (G_IsItem(target)) {
             return G_OrderPickupItem(self, target);
         }
+        {
+            abilityOrderResult_t const result = S_UnitIssuedTargetOrder(self, order, target);
+            if (result != ABILITY_ORDER_UNHANDLED) return result == ABILITY_ORDER_ACCEPTED;
+        }
         if (G_ActorHasSkill(self, "Aaha") && G_ActorHasSkill(target, "Abgm")) {
             return S_AcolyteHarvestOrder(self, target);
         }
@@ -826,7 +830,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     if (!self || !order || !target || !target->inuse || !unit_order_name_valid(order)) {
         return false;
     }
-    if (M_IsDead(self) || G_BuildingUpgradeActive(self)) {
+    if (M_IsDead(self) || G_BuildingUpgradeActive(self) || !S_AncientCanReceiveOrder(self)) {
         return false;
     }
     /* Rally is producer metadata rather than an interruptible unit behavior. */
@@ -883,7 +887,7 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
 bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
                            bool queue, uint32_t issuer_player, float group_speed) {
     if (!self || !order || !point || !unit_order_name_valid(order)) return false;
-    if (M_IsDead(self) || G_BuildingUpgradeActive(self)) return false;
+    if (M_IsDead(self) || G_BuildingUpgradeActive(self) || !S_AncientCanReceiveOrder(self)) return false;
     /* Rally-point changes are metadata and apply immediately even when Shift is down. */
     if (!strcmp(order, "setrally") || (!strcmp(order, "smart") && G_UnitHasRally(self))) {
         bool accepted;
@@ -938,7 +942,7 @@ bool G_IssueUnitPointOrder(edict_t *self, cstring_t order, vec2_t const *point,
 bool G_UnitStartNextQueuedOrder(edict_t *self) {
     unitOrder_t queued;
 
-    if (!self || M_IsDead(self)) return false;
+    if (!self || M_IsDead(self) || !S_AncientCanReceiveOrder(self)) return false;
     while (unit_queue_pop(self, &queued)) {
         if (queued.target_type == UNIT_ORDER_TARGET_POINT) {
             if (unit_issueorder_now(self, queued.order, &queued.point, queued.group_speed))
@@ -955,7 +959,7 @@ bool G_UnitStartNextQueuedOrder(edict_t *self) {
 }
 
 bool unit_issuetargetorder(edict_t *self, cstring_t order, edict_t *target) {
-    if (G_BuildingUpgradeActive(self)) return false;
+    if (G_BuildingUpgradeActive(self) || !S_AncientCanReceiveOrder(self)) return false;
     return G_IssueUnitTargetOrder(self, order, target, false,
                                   self ? self->s.player : 0);
 }
@@ -1035,6 +1039,7 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     if (!self || !order) {
         return false;
     }
+    if (!S_AncientCanReceiveOrder(self)) return false;
     if (G_BuildingUpgradeActive(self)) return false;
     if (M_IsDead(self)) return false;
     if (S_GoldMineWorkerIsInside(self))
@@ -1911,13 +1916,12 @@ static bool G_HeroReceivesKillXP(edict_t const *hero, edict_t const *victim, edi
  * divides the available victim XP across all eligible nearby heroes before
  * applying each receiving Hero's level factor. */
 void G_GrantKillXP(edict_t *victim, edict_t *killer) {
-    uint32_t const vcls = victim->class_id;
     if (victim->aiflags & AI_ILLUSION) return;
     uint32_t receivers = 0;
     if (G_PlayerTreatsPlayerAsAlly(killer->s.player, victim->s.player)) {
         return; /* forced attacks on passive allies do not award Hero XP */
     }
-    if (G_UnitIsBuilding(vcls) && G_MiscNum("BuildingKillsGiveExp", 0.0f) == 0.0f) {
+    if (G_UnitIsStructure(victim) && G_MiscNum("BuildingKillsGiveExp", 0.0f) == 0.0f) {
         return;
     }
     bool const victimHero = G_UnitIsHero(victim);

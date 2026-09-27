@@ -425,7 +425,7 @@ static edict_t *G_BotAssaultTarget(player_t *player, edict_t *self, int32_t targ
     float best_dist = 0;
     if (!player || !G_BotUnitAlive(self)) return NULL;
     FILTER_EDICTS(ent, ent != self && ent->inuse && !(ent->svflags & (SVF_DEADMONSTER | SVF_NOCLIENT)) &&
-        ent->health.value > 0 && ((ent->svflags & SVF_MONSTER) || G_UnitIsBuilding(ent->class_id)) &&
+        ent->health.value > 0 && ((ent->svflags & SVF_MONSTER) || G_UnitIsStructure(ent)) &&
         (target >= 0 ? ent->s.player == (uint32_t)target : G_BotIsHostile(player, ent))) {
         float dist = Vector2_distance(&self->s.origin2, &ent->s.origin2);
         if (!best || dist < best_dist) { best = ent; best_dist = dist; }

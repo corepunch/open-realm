@@ -87,7 +87,7 @@ static bool move_has_active_construction(void) {
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *ent = &g_edicts[i];
         if (ent->inuse && !(ent->s.flags & EF_NOT_SELECTABLE) &&
-            (ent->s.flags & EF_BUILDING) && ent->construction.active)
+            G_UnitIsStructure(ent) && ent->construction.active)
             return true;
     }
     return false;
@@ -566,7 +566,7 @@ bool unit_changeangle_towards_point_ignore_units(edict_t *self, vec2_t const *po
 }
 
 static void unit_changeangle_policy(edict_t *self, moveAvoidPolicy_t policy) {
-    if (self->aiflags & AI_IMMOBILE)
+    if ((self->aiflags & AI_IMMOBILE) && !(S_AncientIsRooted(self) && self->ancient_root.rooted_turning))
         return;
     if (move_displacement_steer(self, policy))
         return;
@@ -678,7 +678,7 @@ void unit_changeangle_worker(edict_t *self) {
 static void unit_changeangle_for_radius_policy(edict_t *self, float radius,
                                                moveAvoidPolicy_t policy,
                                                bool continue_to_target) {
-    if (self->aiflags & AI_IMMOBILE)
+    if ((self->aiflags & AI_IMMOBILE) && !(S_AncientIsRooted(self) && self->ancient_root.rooted_turning))
         return;
     vec2_t to_goal = Vector2_sub(&self->goalentity->s.origin2, &self->s.origin2);
     vec2_t dir;
@@ -1227,13 +1227,13 @@ float G_FollowStopRange(edict_t const *follower, edict_t const *target) {
     float collision_range;
 
     if (!follower || !target) return 0.0f;
-    configured = (target->s.flags & EF_BUILDING)
+    configured = G_UnitIsStructure(target)
         ? game.constants.structureFollowRange
         : game.constants.followRange;
     /* A pathing-footprint distance already includes the building extent, so
      * only the follower radius remains as its no-overlap lower bound. */
     collision_range = follower->collision;
-    if (!(target->s.flags & EF_BUILDING) || !target->pathtex)
+    if (!G_UnitIsStructure(target) || !target->pathtex)
         collision_range += target->collision;
     return MAX(configured, collision_range);
 }
@@ -1255,7 +1255,7 @@ static bool follow_footprint_distance(edict_t const *follower, edict_t const *ta
     float footprint;
 
     if (!follower || !target || !distance ||
-        !(target->s.flags & EF_BUILDING) || !target->pathtex) {
+        !G_UnitIsStructure(target) || !target->pathtex) {
         return false;
     }
     footprint = CM_DistanceToPathingFootprint(target, &follower->s.origin2);
@@ -1398,6 +1398,7 @@ static void ai_move_walk(edict_t *ent) {
             ent->s.origin2 = ent->goalentity->s.origin2;
             gi.LinkEntity(ent);
         }
+        if (S_UnitAbilityMoveArrive(ent)) return;
         ent->stand(ent);
     } else {
         blocked = move_is_blocked(ent, distance, move_distance);

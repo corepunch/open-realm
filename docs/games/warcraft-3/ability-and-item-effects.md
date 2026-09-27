@@ -80,6 +80,18 @@ The following existing abilities now use the common resolver rather than owning 
   each authored Acolyte mining-ring slot using the slot's radial facing. The
   effect edicts are owned by the mine and destroyed through the normal effect
   death lifecycle when the Haunted Mine dies or is removed.
+- Wisp Harvest (`Awha`): persistent `WC3_EFFECT_TARGET` follows the reserved
+  tree and uses `DataC` as its vertical attachment offset. The same effect
+  carries authored `EffectSoundLooped`, so retask/removal destroys the model
+  and stops the looping harvest sound through one lifecycle.
+- Moon Well (`Ambt`): persistent race-indexed `WC3_EFFECT_EFFECT` follows the
+  well and uses `DataD * mana fraction` as its vertical offset; successful
+  replenish also emits temporary caster/special art.
+- Entangle Gold Mine (`Aent`): persistent `WC3_EFFECT_CASTER` follows the
+  casting tree and is owned by the entangled overlay so mine teardown removes
+  it deterministically. The overlay separately owns the caster/ability
+  relationship used for hidden/permanent command state, so gameplay semantics
+  do not depend on an art field being present.
 - Thunder Bolt / Fire Bolt: `WC3_EFFECT_MISSILE` supplies the existing projectile edict's model; projectile speed, tracking, damage, stun, and impact lifecycle remain in `s_thunderbolt.c`.
 - supported immediate item abilities in `s_item.c`: `WC3_EFFECT_TARGET` after a successful gameplay effect.
 - Scroll of Protection (`spro` / `AIda`): the item ability applies its authored
