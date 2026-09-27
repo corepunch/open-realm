@@ -174,11 +174,16 @@ TEST(wc3_bot, produce_queues_trainable_units_and_rejects_unknown_types) {
 }
 
 TEST(wc3_bot, shift_town_spot_redirects_subsequent_build_search) {
+	enum { CELLS = 64 };
+	static uint8_t pathmap[CELLS * CELLS];
     player_t *player = &game.clients[2].ps;
     UnitProfile_t worker_profile = { .builds = "hbar" };
     edict_t *hall, *worker;
 
     reset_entities();
+    setup_test_world();
+    setup_test_pathmap(CELLS, CELLS, pathmap);
+    CM_SetupTestWorldBounds(&MAKE(box2_t, .min = {-512.0f, -512.0f}, .max = {1536.0f, 1536.0f}));
     hall = make_bot_harvest_unit(MAKEFOURCC('h','t','o','w'), 0, 0, 2, &bot_hall_abilities);
     worker = make_bot_harvest_unit(MAKEFOURCC('h','p','e','a'), 1024, 0, 2, &bot_harvester_abilities);
     worker->data.UnitProfile = &worker_profile;
@@ -193,7 +198,7 @@ TEST(wc3_bot, shift_town_spot_redirects_subsequent_build_search) {
 
     T_ASSERT(G_BotProduce(player, 1, MAKEFOURCC('h','b','a','r'), 0));
     T_NOT_NULL(worker->goalentity);
-    T_ASSERT(worker->goalentity->s.origin2.x > 512.0f);
+    if (worker->goalentity) T_ASSERT(worker->goalentity->s.origin2.x > 512.0f);
     T_FEQ(hall->s.origin2.x, 0.0f, 0.001f);
 }
 
