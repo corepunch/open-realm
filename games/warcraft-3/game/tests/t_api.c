@@ -938,6 +938,37 @@ TEST(wc3_api, version_queries_accept_typed_handles) {
         "endfunction\n"));
 }
 
+TEST(wc3_api, unit_type_ground_uses_authored_foot_movement) {
+    edict_t *footman, *gryphon;
+    setup_test_world();
+    T_EQ(G_UnitData(MAKEFOURCC('h','f','o','o'))->id, MAKEFOURCC('h','f','o','o'));
+    T_STREQ(G_UnitData(MAKEFOURCC('h','f','o','o'))->moveTypeName, "foot");
+    T_EQ(G_UnitData(MAKEFOURCC('h','g','r','y'))->id, MAKEFOURCC('h','g','r','y'));
+    T_STREQ(G_UnitData(MAKEFOURCC('h','g','r','y'))->moveTypeName, "fly");
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit footman = CreateUnit(Player(1), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  local unit gryphon = CreateUnit(Player(1), 'hgry', 0.0, 0.0, 0.0)\n"
+        "  call BJassAssert(IsUnitType(footman, UNIT_TYPE_GROUND), \"foot movement is ground\")\n"
+        "  call BJassAssert(not IsUnitType(gryphon, UNIT_TYPE_GROUND), \"fly movement is not ground\")\n"
+        "  call BJassAssert(IsUnitType(gryphon, UNIT_TYPE_FLYING), \"fly movement is flying\")\n"
+        "endfunction\n"));
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    footman = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    gryphon = find_test_unit(MAKEFOURCC('h','g','r','y'));
+    T_NOT_NULL(footman);
+    T_NOT_NULL(gryphon);
+    if (footman) {
+        T_STREQ(footman->data.UnitData->moveTypeName, "foot");
+        T_ASSERT(!(footman->script_unit_types & (1u << 4)));
+        T_ASSERT(!(footman->aiflags & AI_FLYING));
+    }
+    if (gryphon) {
+        T_STREQ(gryphon->data.UnitData->moveTypeName, "fly");
+        T_ASSERT(gryphon->aiflags & AI_FLYING);
+    }
+}
+
 TEST(wc3_api, ability_cooldown_natives_share_unit_cooldown_state) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"

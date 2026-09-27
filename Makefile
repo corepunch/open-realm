@@ -52,6 +52,9 @@ endif
 ifeq ($(WC3_DEBUG_CANNIBALIZE),1)
 	CFLAGS += -DWC3_DEBUG_CANNIBALIZE
 endif
+ifeq ($(WC3_DEBUG_TUTORIAL_FLOW),1)
+	CFLAGS += -DWC3_DEBUG_TUTORIAL_FLOW
+endif
 # ---------------------------------------------------------------------------
 # Platform detection
 # ---------------------------------------------------------------------------
