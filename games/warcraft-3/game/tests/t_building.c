@@ -1532,6 +1532,13 @@ TEST(wc3_building, build_command_state_covers_available_hidden_unaffordable_and_
 }
 
 TEST(wc3_building, mobile_builders_keep_race_build_menu_button) {
+    static char const balance_slk[] =
+        "ID;PWXL;N;E\nB;X2;Y5;D0\n"
+        "C;X1;Y1;K\"unitBalanceID\"\nC;X2;K\"isbldg\"\n"
+        "C;X1;Y2;K\"hbar\"\nC;X2;K1\n"
+        "C;X1;Y3;K\"obar\"\nC;X2;K1\n"
+        "C;X1;Y4;K\"uzig\"\nC;X2;K1\n"
+        "C;X1;Y5;K\"earc\"\nC;X2;K1\nE\n";
     static char const profile_slk[] =
         "ID;PWXL;N;EBB;Y5;X2\n"
         "C;Y1;X1;K\"id\"\nC;Y1;X2;K\"Builds\"\n"
@@ -1544,18 +1551,26 @@ TEST(wc3_building, mobile_builders_keep_race_build_menu_button) {
         MAKEFOURCC('u','a','c','o'), MAKEFOURCC('e','w','s','p')
     };
     uint32_t const builders_count = sizeof(builders) / sizeof(builders[0]);
+    slkTestData_t *balance_rows = parse_slk_string(balance_slk);
+    slkTestData_t *old_balance = G_SetSLKRows("UnitBalance", balance_rows);
     slkTestData_t *rows = parse_slk_string(profile_slk);
     slkTestData_t *old = G_SetProfileRows(rows);
 
     setup_test_world();
+    game.clients[0].connected = true;
+    game.clients[0].ps.number = 0;
     FOR_LOOP(i, builders_count) {
         edict_t *worker = alloc_test_unit(builders[i], 0.0f, 0.0f);
+        worker->data.UnitProfile = (UnitProfile_t *)G_UnitProfile(builders[i]);
+        worker->s.player = game.clients[0].ps.number;
         T_ASSERT(!(worker->runtime.flags & UNIT_BALANCE_BUILDING));
         T_ASSERT(G_UnitHasBuildMenu(worker));
     }
 
     G_SetProfileRows(old);
+    G_SetSLKRows("UnitBalance", old_balance);
     free_slk_rows(rows);
+    free_slk_rows(balance_rows);
 }
 
 TEST(wc3_building, build_menu_button_is_hidden_when_every_build_is_hidden) {
@@ -1568,6 +1583,7 @@ TEST(wc3_building, build_menu_button_is_hidden_when_every_build_is_hidden) {
     slkTestData_t *rows = parse_slk_string(profile_slk);
     slkTestData_t *old = G_SetProfileRows(rows);
     gameCommandButton_t buttons[16];
+    uint32_t const button_capacity = sizeof(buttons) / sizeof(buttons[0]);
     edict_t *worker;
     uint8_t count;
     bool found_build = false;
@@ -1580,7 +1596,7 @@ TEST(wc3_building, build_menu_button_is_hidden_when_every_build_is_hidden) {
 
     T_EQ(G_GetBuildCommandState(client, worker, barracks, NULL, 0), BUILD_COMMAND_HIDDEN);
     T_ASSERT(!G_UnitHasBuildMenu(worker));
-    count = G_GetCommandButtons(worker, buttons, ARRAY_COUNT(buttons));
+    count = G_GetCommandButtons(worker, buttons, button_capacity);
     FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "CmdBuild")) found_build = true;
     T_ASSERT(!found_build);
 

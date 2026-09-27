@@ -243,6 +243,77 @@ TEST(wc3_ancient_root, approaching_root_remains_interruptible) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+static void ancient_begin_root_placement(edict_t *player, edict_t *unit) {
+    abilityitem_t item = S_AbilityItem(TEST_AROO);
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item, .client = player);
+    G_SelectEntity(player->client, unit);
+    T_ASSERT(S_AbilityMessage(unit, A_COMMAND, &call));
+    T_NOT_NULL(player->client->menu.on_location_selected);
+}
+
+TEST(wc3_ancient_root, command_rejects_blocked_placement_and_keeps_cursor_active) {
+    edict_t *player, *unit, *blocker;
+    vec2_t requested = { 320.0f, 320.0f }, snapped;
+    gameClient_t *client = &game.clients[0];
+
+    reset_entities(); setup_test_world();
+    memset(client, 0, sizeof(*client));
+    player = &g_edicts[0]; player->client = client;
+    client->connected = true; client->ps.number = 0;
+    unit = ancient_test_unit(false);
+    unit->movetype = MOVETYPE_STEP;
+    unit->collision = 16.0f;
+    T_EQ(G_EvaluateRootPlacement(unit, &requested, &snapped), PLACE_OK);
+    ancient_begin_root_placement(player, unit);
+    blocker = alloc_test_unit(MAKEFOURCC('h','f','o','o'), snapped.x, snapped.y);
+    blocker->svflags |= SVF_MONSTER;
+    blocker->movetype = MOVETYPE_STEP;
+    blocker->collision = 16.0f;
+
+    T_ASSERT(!client->menu.on_location_selected(player, &requested));
+    T_EQ(unit->ancient_root.mode, ANCIENT_UPROOTED);
+    T_ASSERT(client->menu.on_location_selected != NULL);
+    player->client = NULL;
+    memset(client, 0, sizeof(*client));
+}
+
+TEST(wc3_ancient_root, placement_order_walks_then_starts_root_morph_on_arrival) {
+    slkTestData_t *rows = parse_slk_string(ancient_root_tft);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *player, *unit;
+    vec2_t requested = { 320.0f, 320.0f }, snapped;
+    gameClient_t *client = &game.clients[0];
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    memset(client, 0, sizeof(*client));
+    player = &g_edicts[0]; player->client = client;
+    client->connected = true; client->ps.number = 0;
+    unit = ancient_test_unit(false);
+    unit->movetype = MOVETYPE_STEP;
+    unit->collision = 16.0f;
+    T_EQ(G_EvaluateRootPlacement(unit, &requested, &snapped), PLACE_OK);
+    ancient_begin_root_placement(player, unit);
+    T_ASSERT(client->menu.on_location_selected(player, &requested));
+    T_EQ(unit->ancient_root.mode, ANCIENT_ROOTING);
+    T_ASSERT(unit->ancient_root.approaching);
+    T_EQ(unit->currentmove->proc, CAbilityMove);
+    T_ASSERT(unit->goalentity == unit->ancient_root.approach_goal);
+    T_EQ(unit->ancient_root.approach_goal_spawn_time, unit->goalentity->spawn_time);
+    T_NULL(client->menu.on_location_selected);
+
+    unit->s.origin2 = unit->ancient_root.destination;
+    T_ASSERT(S_UnitAbilityMoveArrive(unit));
+    T_EQ(unit->ancient_root.mode, ANCIENT_ROOTING);
+    T_ASSERT(!unit->ancient_root.approaching);
+    T_EQ(unit->currentmove->proc, CAbilityRoot);
+    T_EQ(unit->ancient_root.transition_end_time, G_Time() + 2250);
+
+    player->client = NULL;
+    memset(client, 0, sizeof(*client));
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_ancient_root, ability_availability_is_enforced_by_simulation_dispatch) {
     slkTestData_t *rows = parse_slk_string(ancient_root_tft);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);

@@ -435,7 +435,7 @@ static const char slk_racial_goldmine_test_data[] =
 static UnitAbilities_t const test_haunted_mine = { .abilList = "Abgm" };
 static UnitAbilities_t const test_acolyte_harvest = { .abilList = "Aaha" };
 static UnitAbilities_t const test_entangled_mine = { .abilList = "Aegm,Aenc" };
-static UnitAbilities_t const test_entangle_caster = { .abilList = "Aent" };
+static UnitAbilities_t const test_entangle_caster = { .abilList = "Aent,Aro1" };
 
 static slkTestData_t *install_racial_goldmine_test_data(slkTestData_t **rows_out) {
     slkTestData_t *rows = parse_slk_string(slk_racial_goldmine_test_data);
@@ -4189,10 +4189,16 @@ TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {
     caster->data.UnitAbilities = &test_entangle_caster;
     T_ASSERT(G_ActorSetSkillPermanent(caster, ability, true));
     G_ActorAddSkill(caster, ability);
+    caster->ancient_root.ability = MAKEFOURCC('A','r','o','1');
+    caster->ancient_root.mode = ANCIENT_UPROOTED;
     G_SelectEntity(client, caster);
     caster->no_pathing = false;
     T_ASSERT(!movement_issue_entangle_command(clent, client, caster, parent));
     caster->no_pathing = true;
+    caster->ancient_root.mode = ANCIENT_ROOTED;
+    caster->s.flags |= EF_BUILDING;
+    caster->aiflags |= AI_IMMOBILE;
+    caster->runtime.flags |= UNIT_BALANCE_BUILDING;
     T_ASSERT(movement_issue_entangle_command(clent, client, caster, parent));
     overlay = movement_find_entangle_overlay(caster, parent);
     T_NOT_NULL(overlay);
@@ -4243,8 +4249,14 @@ TEST(wc3_movement, one_tree_cannot_entangle_multiple_gold_mines) {
     setup_test_goldmine(parent1, &test_goldmine_stock, 5000);
     setup_test_goldmine(parent2, &test_goldmine_stock, 5000);
     caster->abilities.added[0] = ability;
+    caster->abilities.added[1] = MAKEFOURCC('A','r','o','1');
+    caster->abilities.added_count = 2;
+    caster->ancient_root.ability = MAKEFOURCC('A','r','o','1');
+    caster->ancient_root.mode = ANCIENT_ROOTED;
+    caster->s.flags |= EF_BUILDING;
+    caster->aiflags |= AI_IMMOBILE;
+    caster->runtime.flags |= UNIT_BALANCE_BUILDING;
     G_SelectEntity(client, caster);
-
     T_ASSERT(movement_issue_entangle_command(clent, client, caster, parent1));
     first = movement_find_entangle_overlay(caster, parent1);
     T_NOT_NULL(first);
