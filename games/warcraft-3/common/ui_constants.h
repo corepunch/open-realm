@@ -1,6 +1,7 @@
 #ifndef UI_CONSTANTS_H
 #define UI_CONSTANTS_H
 
+
 /* Classic archives author no widescreen console chrome; CL_GameCanvasPolicy selects EXPAND_CENTER when
  * ConsoleUI.fdf does. */
 #define UI_CANVAS_POLICY UI_CANVAS_STRETCH // UICANVASPOLICY; default for the mounted data

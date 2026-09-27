@@ -1015,6 +1015,10 @@ static float SCR_CommandButtonRadialShade(uiFrame_t const *frame) {
 
 void SCR_LayoutDrawCommandButton(uiFrame_t const *frame, rect_t const *screen) {
     entityState_t const *sel = SCR_LayoutSelectedEntity();
+    bool const alternate_active = (frame->flagsvalue & UIFLAG_ALTERNATE_ACTIVE) != 0;
+    bool const ability_match = sel && frame->stat != UINT8_MAX && sel->ability == frame->stat;
+    bool const active_glow = alternate_active || ability_match ||
+                             (frame->flagsvalue & UIFLAG_ABILITY_ENGAGED) != 0;
     rect_t const uv = get_uvrect(frame->tex.coord);
     rect_t const suv = Rect_div(&uv, 0xff);
     rect_t scrn = scale_rect(screen, SCR_LayoutFrameIsHovered(frame) && layout_left_down ? 0.875f : 0.925f);
@@ -1024,9 +1028,7 @@ void SCR_LayoutDrawCommandButton(uiFrame_t const *frame, rect_t const *screen) {
         .uv          = suv,
         .color       = SCR_CommandButtonColor(frame),
         .shader      = SHADER_COMMANDBUTTON,
-        .uActiveGlow = (frame->flagsvalue & UIFLAG_ALTERNATE_ACTIVE) ||
-                       /* 255 means no ability on both sides, so idle units must not light every build choice. */
-                       (sel && frame->stat != UINT8_MAX && sel->ability == frame->stat),
+        .uActiveGlow = active_glow,
         .uRadialShade = SCR_CommandButtonRadialShade(frame)));
 }
 

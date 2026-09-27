@@ -1,6 +1,7 @@
 #ifdef BZ_TESTS
 #include "test.h"
 #include "../skills/s_skills.h"
+#include "../hud/hud_local.h"
 
 #define ID_ASHM MAKEFOURCC('A', 's', 'h', 'm')
 #define ID_AHID MAKEFOURCC('A', 'h', 'i', 'd')
@@ -146,7 +147,63 @@ TEST(wc3_shadowmeld, hide_ambush_suppresses_acquisition_and_uses_same_fade) {
     shadowmeld_done(&fix);
 }
 
+TEST(wc3_shadowmeld, hide_toggle_state_tracks_explicit_hide) {
+    shadowmeldFix_t fix;
+    abilityitem_t item;
+    abilityCall_t call;
+    shadowmeld_setup(&fix);
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+    item = S_AbilityItem(ID_ASHM);
+    call = MAKE(abilityCall_t, .item = &item);
+
+    T_ASSERT(!S_AbilityMessage(fix.unit, A_TOGGLE_ON, &call));
+
+    T_ASSERT(unit_issueimmediateorder(fix.unit, "ambush"));
+    T_ASSERT(S_AbilityMessage(fix.unit, A_TOGGLE_ON, &call));
+
+    T_ASSERT(unit_issueimmediateorder(fix.unit, "stop"));
+    T_ASSERT(!S_AbilityMessage(fix.unit, A_TOGGLE_ON, &call));
+
+    shadowmeld_done(&fix);
+}
+
+TEST(wc3_shadowmeld, active_hide_keeps_authored_art_when_unart_is_absent) {
+    cstring_t const authored = "ReplaceableTextures\\CommandButtons\\BTNAmbush.blp";
+
+    T_STREQ(G_CommandButtonValue(authored, NULL, true), authored);
+    T_STREQ(G_CommandButtonValue(authored, "active.blp", true), "active.blp");
+    T_STREQ(G_CommandButtonValue(authored, "active.blp", false), authored);
+}
+
 TEST(wc3_shadowmeld, hide_button_preserves_already_active_shadowmeld) {
+    shadowmeldFix_t fix;
+    edict_t *clent = &g_edicts[0];
+    gameClient_t *client = &game.clients[0];
+    cstring_t button[] = { "button", "Ashm" };
+
+    shadowmeld_setup(&fix);
+    clent->client = client;
+    fix.unit->s.player = client->ps.number;
+    G_SelectEntity(client, fix.unit);
+    client->commands_dirty = false;
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+
+    S_RunAbilityUpdates(fix.unit);
+    shadowmeld_tick(fix.unit, 1500);
+    T_ASSERT(S_ShadowMeldActive(fix.unit));
+
+    G_ClientCommand(clent, 2, button);
+    T_ASSERT(S_ShadowMeldActive(fix.unit));
+    T_ASSERT(!fix.unit->shadowmeld.fading);
+    T_ASSERT(fix.unit->shadowmeld.hide_order_active);
+    T_ASSERT(client->commands_dirty);
+
+    shadowmeld_done(&fix);
+}
+
+TEST(wc3_shadowmeld, hide_state_changes_invalidate_command_card) {
     shadowmeldFix_t fix;
     edict_t *clent = &g_edicts[0];
     gameClient_t *client = &game.clients[0];
@@ -159,14 +216,32 @@ TEST(wc3_shadowmeld, hide_button_preserves_already_active_shadowmeld) {
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
 
-    S_RunAbilityUpdates(fix.unit);
-    shadowmeld_tick(fix.unit, 1500);
-    T_ASSERT(S_ShadowMeldActive(fix.unit));
-
+    client->commands_dirty = false;
     G_ClientCommand(clent, 2, button);
-    T_ASSERT(S_ShadowMeldActive(fix.unit));
-    T_ASSERT(!fix.unit->shadowmeld.fading);
     T_ASSERT(fix.unit->shadowmeld.hide_order_active);
+    T_ASSERT(client->commands_dirty);
+    T_EQ(G_UnitAbilityLevel(fix.unit, ID_ASHM), 1);
+    T_ASSERT(G_ActorHasSkill(fix.unit, "Ashm"));
+    T_ASSERT(S_UnitAbilityMessage(fix.unit, A_TOGGLE_ON, NULL));
+    {
+        abilityitem_t active_item = S_AbilityItem(ID_ASHM);
+        abilityCall_t active_call = MAKE(abilityCall_t, .item = &active_item);
+        T_ASSERT(S_AbilityHasCommand(active_item.ability));
+        T_ASSERT(S_AbilityMessage(fix.unit, A_TOGGLE_ON, &active_call));
+        T_EQ(GetAbilityIndex(active_item.ability->proc), GetAbilityIndex(CAbilityShadowMeld));
+    }
+    T_EQ(G_CommandButtonValue("normal", "alternate", true), "alternate");
+    {
+        gameCommandButton_t state = { .engaged = 1 };
+        T_EQ(state.engaged, 1);
+        T_EQ(state.alternate_active, 0);
+    }
+
+    client->commands_dirty = false;
+    T_ASSERT(unit_issueimmediateorder(fix.unit, "stop"));
+    T_ASSERT(!fix.unit->shadowmeld.hide_order_active);
+    T_ASSERT(client->commands_dirty);
+    T_EQ(G_CommandButtonValue("normal", "alternate", false), "normal");
 
     shadowmeld_done(&fix);
 }
