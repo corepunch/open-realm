@@ -26,20 +26,24 @@ typedef struct {
     edict_t *unit;
 } shadowmeldFix_t;
 
-static void shadowmeld_setup(shadowmeldFix_t *fix) {
+static void shadowmeld_setup_as(shadowmeldFix_t *fix, uint32_t class_id) {
     reset_entities(); setup_test_world(); level.time = 1000;
     ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     memset(level.alliances, 0, sizeof(level.alliances));
     fix->rows = parse_slk_string(shadowmeld_slk);
     fix->old = G_SetSLKRows("AbilityData", fix->rows);
-    fix->unit = alloc_test_unit(MAKEFOURCC('e', 'a', 'r', 'c'), 0, 0);
+    fix->unit = alloc_test_unit(class_id, 0, 0);
     fix->unit->s.player = 0;
     fix->unit->svflags |= SVF_MONSTER;
     fix->unit->abilities.added[0] = ID_ASHM;
     ARRAY_COUNT(fix->unit->abilities.added) = 1;
     fix->unit->stand = unit_stand;
     unit_stand(fix->unit);
+}
+
+static void shadowmeld_setup(shadowmeldFix_t *fix) {
+    shadowmeld_setup_as(fix, MAKEFOURCC('e', 'a', 'r', 'c'));
 }
 
 static void shadowmeld_done(shadowmeldFix_t *fix) {
@@ -211,14 +215,19 @@ TEST(wc3_shadowmeld, hold_position_allows_passive_shadowmeld_without_hide_hold_f
 }
 
 TEST(wc3_shadowmeld, attack_order_immediately_breaks_shadowmeld_and_hide) {
+    static UnitWeapons_t const weapons = { .attacksEnabled = 1 };
     shadowmeldFix_t fix;
     edict_t *enemy;
     shadowmeld_setup(&fix);
+    fix.unit->data.UnitWeapons = &weapons;
+    fix.unit->attack1.type = ATK_NORMAL;
+    fix.unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
 
     enemy = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 128, 0);
     enemy->s.player = 1;
+    enemy->targtype = TARG_GROUND;
     enemy->svflags |= SVF_MONSTER;
     T_ASSERT(unit_issueimmediateorder(fix.unit, "ambush"));
     S_RunAbilityUpdates(fix.unit);
@@ -237,28 +246,79 @@ TEST(wc3_shadowmeld, attack_order_immediately_breaks_shadowmeld_and_hide) {
     shadowmeld_done(&fix);
 }
 
-TEST(wc3_shadowmeld, hidden_unit_retaliates_when_attacked) {
+TEST(wc3_shadowmeld, explicit_hide_does_not_retaliate_when_hit_during_fade) {
+    static UnitWeapons_t const weapons = { .attacksEnabled = 1 };
     shadowmeldFix_t fix;
     edict_t *enemy;
     shadowmeld_setup(&fix);
+    fix.unit->health.value = fix.unit->health.max_value = 100.0f;
+    fix.unit->data.UnitWeapons = &weapons;
+    fix.unit->attack1.type = ATK_NORMAL;
+    fix.unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
 
     enemy = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 128, 0);
     enemy->s.player = 1;
+    enemy->targtype = TARG_GROUND;
     enemy->svflags |= SVF_MONSTER;
     T_ASSERT(unit_issueimmediateorder(fix.unit, "ambush"));
     S_RunAbilityUpdates(fix.unit);
-    shadowmeld_tick(fix.unit, 1500);
-    T_ASSERT(S_ShadowMeldActive(fix.unit));
+    T_ASSERT(fix.unit->shadowmeld.fading);
+    T_ASSERT(!S_ShadowMeldActive(fix.unit));
     T_ASSERT(fix.unit->shadowmeld.hide_order_active);
 
     T_Damage(fix.unit, enemy, 1);
     T_ASSERT(!S_ShadowMeldActive(fix.unit));
-    T_ASSERT(!fix.unit->shadowmeld.hide_order_active);
-    T_EQ(fix.unit->goalentity, enemy);
-    T_NOT_NULL(fix.unit->currentmove);
-    T_EQ(fix.unit->currentmove->proc, CAbilityAttack);
+    T_ASSERT(fix.unit->shadowmeld.hide_order_active);
+    T_ASSERT(fix.unit->shadowmeld.fading);
+    T_ASSERT(fix.unit->goalentity != enemy);
+    T_ASSERT(!fix.unit->currentmove || fix.unit->currentmove->proc != CAbilityAttack);
+
+    shadowmeld_done(&fix);
+}
+
+TEST(wc3_shadowmeld, explicit_hide_blocks_idle_automatic_attack_acquisition) {
+    static UnitWeapons_t const weapons = { .attacksEnabled = 1 };
+    shadowmeldFix_t fix;
+    edict_t *enemy;
+    uint32_t i;
+    shadowmeld_setup_as(&fix, MAKEFOURCC('E', 't', 'y', 'r'));
+    fix.unit->data.UnitWeapons = &weapons;
+    fix.unit->attack1.type = ATK_NORMAL;
+    fix.unit->attack1.cooldown = 1.0f;
+    fix.unit->attack1.damageBase = 10;
+    fix.unit->attack1.range = 150.0f;
+    fix.unit->attack1.targetsAllowed = WC3_TARGET_FLAG_GROUND;
+    fix.unit->runtime.acquisition_range = 128.0f;
+    enemy = alloc_test_unit(MAKEFOURCC('h', 'f', 'o', 'o'), 64, 0);
+    enemy->s.player = 1;
+    enemy->targtype = TARG_GROUND;
+    enemy->svflags |= SVF_MONSTER;
+    gi.LinkEntity(fix.unit); gi.LinkEntity(enemy);
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+
+    T_ASSERT(unit_issueimmediateorder(fix.unit, "ambush"));
+    T_ASSERT(fix.unit->shadowmeld.hide_order_active);
+    T_ASSERT(S_UnitAbilityEvent(fix.unit, A_NO_ACQUIRE));
+    T_ASSERT(!S_UnitAbilityEvent(fix.unit, A_IDLE));
+    T_ASSERT(!(fix.unit->aiflags & AI_AUTOCAST_ACTIVE));
+    T_FEQ(G_AcquisitionRange(fix.unit), 128.0f, 0.01f);
+    T_ASSERT(G_FindNearestEnemy(fix.unit, 128.0f) == enemy);
+
+    /* Exercise a frame on which ai_stand's staggered acquisition scan runs. */
+    for (i = 0; i < 300; i++) {
+        if (G_ShouldAcquireThisFrame(fix.unit)) break;
+        level.time++;
+    }
+    T_ASSERT(i < 300);
+    T_ASSERT(G_ShouldAcquireThisFrame(fix.unit));
+    ai_stand(fix.unit);
+
+    T_ASSERT(fix.unit->shadowmeld.hide_order_active);
+    T_NULL(fix.unit->goalentity);
+    T_ASSERT(!fix.unit->currentmove || fix.unit->currentmove->proc != CAbilityAttack);
 
     shadowmeld_done(&fix);
 }
