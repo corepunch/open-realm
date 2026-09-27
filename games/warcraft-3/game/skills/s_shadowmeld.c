@@ -87,6 +87,8 @@ static intptr_t shadowmeld_common(edict_t *ent, abilityMsg_t msg, abilityCall_t 
         return ent && shadowmeld_has_ability(ent);
     case A_NO_ACQUIRE:
         return ent && (ent->shadowmeld.hide_order_active || (akama && shadowmeld_has_akama(ent)));
+    case A_NO_RETALIATE:
+        return ent && ent->shadowmeld.hide_order_active;
     case A_MOVE_LEAVE:
         if (ent && (ent->shadowmeld.active || ent->shadowmeld.fading || ent->shadowmeld.hide_order_active)) {
             S_ShadowMeldBreak(ent);
@@ -94,7 +96,9 @@ static intptr_t shadowmeld_common(edict_t *ent, abilityMsg_t msg, abilityCall_t 
         }
         return false;
     case A_ORDER_ACCEPTED:
-        if (ent && call && call->order && strcmp(call->order, "ambush")) S_ShadowMeldBreak(ent);
+        if (ent && call && call->order && strcmp(call->order, "ambush")) {
+            S_ShadowMeldBreak(ent);
+        }
         return false;
     case A_DISABLE:
     case A_DEATH:

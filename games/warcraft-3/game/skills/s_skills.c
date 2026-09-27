@@ -859,7 +859,7 @@ bool S_UnitAbilityEvent(edict_t *ent, abilityMsg_t msg) {
     FOR_LOOP(i, num_innate) {
         abilityCall_t call = MAKE(abilityCall_t, .item = innate_items + i);
         handled |= S_AbilityMessage(ent, msg, &call) != 0;
-        if (handled && (msg == A_IDLE || msg == A_NO_ACQUIRE)) break;
+        if (handled && (msg == A_IDLE || msg == A_NO_ACQUIRE || msg == A_NO_RETALIATE)) break;
     }
     return handled;
 }

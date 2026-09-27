@@ -314,7 +314,8 @@ void T_Damage(edict_t *target, edict_t *attacker, int damage) {
     }
     if (can_attack(target) && !unit_is_walking(target) &&
         S_SpellIsEnemy(target, attacker)) {
-        order_attack(target, attacker);
+        if (!S_UnitAbilityEvent(target, A_NO_RETALIATE))
+            order_attack(target, attacker);
     } else if (target->pain) {
         target->pain(target);
     }
