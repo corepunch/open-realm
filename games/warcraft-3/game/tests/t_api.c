@@ -938,6 +938,26 @@ TEST(wc3_api, version_queries_accept_typed_handles) {
         "endfunction\n"));
 }
 
+TEST(wc3_api, unit_type_ground_uses_authored_foot_movement) {
+    edict_t *footman;
+    setup_test_world();
+    T_EQ(G_UnitData(MAKEFOURCC('h','f','o','o'))->id, MAKEFOURCC('h','f','o','o'));
+    T_STREQ(G_UnitData(MAKEFOURCC('h','f','o','o'))->moveTypeName, "foot");
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit footman = CreateUnit(Player(1), 'hfoo', 0.0, 0.0, 0.0)\n"
+        "  call BJassAssert(IsUnitType(footman, ConvertUnitType(4)), \"foot movement is ground\")\n"
+        "endfunction\n"));
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    footman = find_test_unit(MAKEFOURCC('h','f','o','o'));
+    T_NOT_NULL(footman);
+    if (footman) {
+        T_STREQ(footman->data.UnitData->moveTypeName, "foot");
+        T_ASSERT(!(footman->script_unit_types & (1u << 4)));
+        T_ASSERT(!(footman->aiflags & AI_FLYING));
+    }
+}
+
 TEST(wc3_api, ability_cooldown_natives_share_unit_cooldown_state) {
     T_ASSERT(run_test_jass(
         "function main takes nothing returns nothing\n"

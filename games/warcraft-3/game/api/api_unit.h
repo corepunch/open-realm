@@ -934,6 +934,8 @@ uint32_t IsUnitType(jass_t *j) {
         return jass_pushboolean(j, 1);
     if (*whichUnitType == WC3_UNIT_TYPE_STRUCTURE)
         return jass_pushboolean(j, G_UnitIsBuilding(whichUnit->class_id));
+    if (*whichUnitType == WC3_UNIT_TYPE_GROUND)
+        return jass_pushboolean(j, !(whichUnit->aiflags & AI_FLYING));
     if (*whichUnitType == 0) /* UNIT_TYPE_HERO */
         return jass_pushboolean(j, G_UnitIsHero(whichUnit));
     if (*whichUnitType == 1) /* UNIT_TYPE_DEAD */
