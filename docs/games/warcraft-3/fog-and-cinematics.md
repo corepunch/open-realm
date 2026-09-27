@@ -30,6 +30,19 @@ fogged after the modifier stops when no normal sight source still covers the are
 The operations reuse the existing server fog-grid resolution and dirty-row network path. They do not maintain a second cinematic
 exploration map. With `useSharedVision`, the same state is also applied to viewers receiving the source player's shared vision.
 
+## Per-Unit Shared Vision
+
+`UnitShareVision(unit, player, true)` adds that player to the unit's persistent `shared_vision` recipient mask. During
+`G_FowUpdate()`, the unit's ordinary day/night sight is rasterized for the union of its normal owner/alliance viewers and
+its explicit per-unit recipients. Passing `false` removes only that explicit relationship. This is deliberately separate
+from `ALLIANCE_SHARED_VISION`: sharing one unit does not expose the owner's other units or change alliance state.
+
+The relationship is saved with the unit, follows the unit as it moves, and is idempotent because it is represented as a
+player bit rather than a reference count. Removing the unit naturally removes the sight source. `UnitShareVision` does not
+create a fog modifier, force camera movement, or grant true sight/detection; entity invisibility continues through the
+existing per-viewer visibility policy. The NightElf06 `UnitShareVisionBJ(true, gg_unit_Utic_0055, udg_Player)` campaign
+reveal therefore works through the generic sight pipeline rather than a Tichondrius-specific exception.
+
 ## Fog Modifiers
 
 `CreateFogModifierRect`, `CreateFogModifierRadius`, and `CreateFogModifierRadiusLoc` create disabled modifier handles.
@@ -71,6 +84,7 @@ The WC3 API tests cover:
 
 - all three direct fog states through rect/radius/radius-location natives;
 - `useSharedVision` propagation;
+- per-unit `UnitShareVision` recipient isolation, revocation, idempotence, and save persistence;
 - a same-turn `VISIBLE` start/stop still recording exploration;
 - a temporary `VISIBLE` modifier falling back to `FOGGED`;
 - active `FOGGED` and `MASKED` modifiers;

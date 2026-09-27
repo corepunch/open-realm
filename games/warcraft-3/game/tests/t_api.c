@@ -1889,6 +1889,30 @@ TEST(wc3_api, fog_state_natives_write_masked_fogged_and_visible) {
     T_EQ(grid->explored[masked], 0); T_EQ(grid->visible[masked], 0);
 }
 
+TEST(wc3_api, unit_share_vision_native_updates_per_unit_recipient_mask) {
+    edict_t *unit = NULL;
+
+    setup_test_world();
+    reset_entities();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local unit u = CreateUnit(Player(5), 'hpea', 64.0, 64.0, 0.0)\n"
+        "  call UnitShareVision(u, Player(0), true)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *ent = globals.edicts + i;
+        if (ent->inuse && ent->class_id == MAKEFOURCC('h','p','e','a') && ent->s.player == 5) {
+            unit = ent;
+            break;
+        }
+    }
+    T_NOT_NULL(unit);
+    if (!unit) return;
+    T_ASSERT(G_UnitSharesVisionWith(unit, 0));
+    T_ASSERT(!G_UnitSharesVisionWith(unit, 1));
+}
+
 TEST(wc3_api, fog_state_shared_vision_reaches_allied_viewer_only) {
     uint32_t index;
     setup_test_world();

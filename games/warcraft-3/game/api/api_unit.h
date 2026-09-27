@@ -1005,9 +1005,11 @@ uint32_t IsHeroUnitId(jass_t *j) {
     return jass_pushboolean(j, 0);
 }
 uint32_t UnitShareVision(jass_t *j) {
-    //edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    //handle_t whichPlayer = jass_checkhandle(j, 2, "player");
-    //bool share = jass_checkboolean(j, 3);
+    edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
+    player_t *whichPlayer = jass_checkhandle(j, 2, "player");
+    bool share = jass_checkboolean(j, 3);
+    if (whichUnit && whichPlayer)
+        G_SetUnitSharedVision(whichUnit, PLAYER_NUM(whichPlayer), share);
     return 0;
 }
 uint32_t UnitSuspendDecay(jass_t *j) {

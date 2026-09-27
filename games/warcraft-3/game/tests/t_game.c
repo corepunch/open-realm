@@ -2876,6 +2876,53 @@ TEST(wc3_game, fow_updates_only_connected_shared_viewers) {
     G_FowShutdown();
 }
 
+TEST(wc3_game, fow_unit_shared_vision_reveals_only_that_units_sight) {
+    reset_entities();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+
+    edict_t *shared = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    edict_t *private = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 512.0f, 64.0f);
+    shared->s.player = private->s.player = 5;
+    shared->runtime.sight_radius.day = private->runtime.sight_radius.day = 128.0f;
+    shared->health.value = shared->health.max_value = 1.0f;
+    private->health.value = private->health.max_value = 1.0f;
+    G_SetUnitSharedVision(shared, 0, true);
+
+    G_FowUpdate();
+    uint32_t shared_index = G_FowWorldToCellY(64.0f) * level.fow.width + G_FowWorldToCellX(64.0f);
+    uint32_t private_index = G_FowWorldToCellY(64.0f) * level.fow.width + G_FowWorldToCellX(512.0f);
+    T_ASSERT(level.fow.players[0].visible[shared_index]);
+    T_ASSERT(!level.fow.players[0].visible[private_index]);
+    T_ASSERT(!G_FowPlayersShareVision(0, 5));
+    G_FowShutdown();
+}
+
+TEST(wc3_game, fow_unit_shared_vision_is_idempotent_and_revocable) {
+    reset_entities();
+    G_FowInit();
+    G_FowConnectPlayer(0);
+
+    edict_t *revealer = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 64.0f, 64.0f);
+    revealer->s.player = 5;
+    revealer->runtime.sight_radius.day = 128.0f;
+    revealer->health.value = revealer->health.max_value = 1.0f;
+    uint32_t index = G_FowWorldToCellY(64.0f) * level.fow.width + G_FowWorldToCellX(64.0f);
+
+    G_SetUnitSharedVision(revealer, 0, true);
+    G_SetUnitSharedVision(revealer, 0, true);
+    T_ASSERT(G_UnitSharesVisionWith(revealer, 0));
+    G_FowUpdate();
+    T_ASSERT(level.fow.players[0].visible[index]);
+
+    G_SetUnitSharedVision(revealer, 0, false);
+    T_ASSERT(!G_UnitSharesVisionWith(revealer, 0));
+    G_FowUpdate();
+    T_ASSERT(!level.fow.players[0].visible[index]);
+    T_ASSERT(level.fow.players[0].explored[index]);
+    G_FowShutdown();
+}
+
 TEST(wc3_game, fow_visible_clears_but_explored_remains) {
     reset_entities();
     G_FowInit();
@@ -3254,6 +3301,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     indicator->owner = &g_edicts[0];
     game.clients[0].rally_indicator = indicator;
     first->harvested_gold = 37;
+    first->shared_vision = (1u << 0) | (1u << 7);
     first->projectile_reflected = true;
     first->sleep.can_sleep = true;
     first->collision = 42.5f;
@@ -3345,6 +3393,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
     T_ASSERT(G_GetSaveMap(filename, saved_map, sizeof(saved_map)));
     T_ASSERT(!strcasecmp(saved_map, level.map_path));
     first->harvested_gold = 0;
+    first->shared_vision = 0;
     first->projectile_reflected = false;
     first->sleep.can_sleep = false;
     first->sleep.sleeping = false;
@@ -3383,6 +3432,7 @@ TEST(wc3_save, round_trip_edict_and_player_state) {
      * edict and is included in the raw world query after save/load. */
     T_EQ(gi.BoxEdicts(&area, found, 4, NULL), 4);
     T_EQ(g_edicts[first - g_edicts].harvested_gold, 37);
+    T_EQ(g_edicts[first - g_edicts].shared_vision, (1u << 0) | (1u << 7));
     T_ASSERT(g_edicts[first - g_edicts].projectile_reflected);
     T_ASSERT(g_edicts[first - g_edicts].sleep.can_sleep);
     T_ASSERT(g_edicts[first - g_edicts].sleep.sleeping);
@@ -3563,6 +3613,7 @@ SAVE_INT_FIELD_TEST(field_variation_round_trip, variation, 7)
 SAVE_INT_FIELD_TEST(field_build_project_round_trip, build_project, MAKEFOURCC('h', 'b', 'a', 'r'))
 SAVE_INT_FIELD_TEST(field_spawn_time_round_trip, spawn_time, 12345)
 SAVE_INT_FIELD_TEST(field_summon_ability_round_trip, summon_ability, MAKEFOURCC('A', 'O', 's', 'f'))
+SAVE_INT_FIELD_TEST(field_shared_vision_round_trip, shared_vision, (1u << 0) | (1u << 7))
 SAVE_INT_FIELD_TEST(field_harvested_lumber_round_trip, harvested_lumber, 37)
 SAVE_INT_FIELD_TEST(field_harvested_gold_round_trip, harvested_gold, 41)
 SAVE_INT_FIELD_TEST(field_heatmap_round_trip, heatmap2, 73)
