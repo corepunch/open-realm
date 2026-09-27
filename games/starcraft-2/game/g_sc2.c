@@ -136,6 +136,23 @@ static void SC2_Select(edict_t *clent, uint32_t argc, cstring_t argv[]) {
     gi.unicast(clent);
 }
 
+/* Galaxy UnitSelect changes membership on the server; send each affected client its list once per frame. */
+static void SC2_FlushScriptSelection(void) {
+    FOR_LOOP(c, globals.max_clients) {
+        edict_t *clent = &sc2_edicts[c];
+        uint32_t player = SC2_ClientPlayer(clent), count = 0;
+        uint32_t ids[MAX_SELECTED_ENTITIES];
+        if (!clent->client || player >= 32 || !(sc2_level.selection_dirty & (1u << player))) continue;
+        for (uint32_t i = globals.max_clients; i < (uint32_t)globals.num_edicts && count < MAX_SELECTED_ENTITIES; i++)
+            if (sc2_edicts[i].inuse && (sc2_edicts[i].selected & (1u << player))) ids[count++] = i;
+        gi.Write(PF_BYTE, &(int32_t){svc_set_selection});
+        gi.Write(PF_BYTE, &(int32_t){count});
+        FOR_LOOP(i, count) gi.Write(PF_LONG, &(int32_t){ids[i]});
+        gi.unicast(clent);
+    }
+    sc2_level.selection_dirty = 0;
+}
+
 /* Snapshot frames address the M3 sequence timeline, not the server's absolute clock. */
 static void SC2_UnitAnimation(edict_t *ent, cstring_t name) {
     sc2MoveState_t *move = &sc2_edicts[SC2_EdictNumber(ent)].move;
@@ -595,6 +612,10 @@ static void SC2_InitGalaxyHost(void) {
     sc2_galaxy_unit_from_id = SC2_UnitFromId;
     sc2_galaxy_unit_remove = SC2_UnitRemove;
     sc2_galaxy_unit_set_owner = SC2_UnitSetOwner;
+    sc2_galaxy_unit_select = SC2_UnitSelect;
+    sc2_galaxy_unit_is_selected = SC2_UnitIsSelected;
+    sc2_galaxy_unit_team_color = SC2_UnitTeamColor;
+    sc2_galaxy_unit_is_flying = SC2_UnitIsFlying;
 }
 
 static void SC2_InitClients(void) {
@@ -737,6 +758,7 @@ static void SC2_RunFrame(void) {
     /* Tick Galaxy VM — runs pending coroutines (cutscene waits, camera pans). */
     if (sc2_level.vm && sc2_level.scriptsStarted)
         galaxy_tick(sc2_level.vm);
+    if (sc2_level.selection_dirty) SC2_FlushScriptSelection();
     SC2_UpdateCamera();
     for (uint32_t c=0;c<globals.max_clients;c++) {
         uint32_t p=sc2_clients[c].ps.number; if (p>=32) continue;

@@ -9,6 +9,8 @@
 #define SC2_MAX_CATALOG_MODELS       8192
 #define SC2_MAX_CATALOG_ACTORS       8192
 #define SC2_MAX_CATALOG_UNITS        8192
+#define SC2_MAX_CATALOG_LINKS        16384 // CUnit array elements; stock Core+Liberty+campaign stay well under this
+#define SC2_MAX_UNIT_LINK_ENTRIES    64 // array elements in one CUnit node; stock Liberty maximum is 24
 #define SC2_MAX_CATALOG_FOOTPRINTS   1024
 #define SC2_MAX_CATALOG_TERRAIN_TEX  512
 #define SC2_MAX_CATALOG_CLIFFS       256
@@ -60,7 +62,17 @@ typedef struct {
     float properties[24]; uint32_t property_mask;
     bool has_radius, has_height;
     float radius, height;
+    uint32_t first_link, last_link; /* 1-based into sc2Catalog_t.links, in load order; 0 = none */
 } sc2CatalogUnit_t;
+
+/* One AbilArray/WeaponArray/BehaviorArray element. index<0 appends to the inherited array. */
+typedef struct {
+    char link[SC2_LINK_LEN];
+    uint32_t next;
+    int8_t index;
+    uint8_t kind;
+    bool removed;
+} sc2CatalogLink_t;
 
 typedef struct {
     char name[64];
@@ -138,6 +150,8 @@ typedef struct {
     sc2CatalogCliff_t cliffs[SC2_MAX_CATALOG_CLIFFS];
     sc2CatalogTile_t tiles[SC2_MAX_CATALOG_TILES];
     sc2CatalogSound_t sounds[SC2_MAX_CATALOG_SOUNDS];
+    uint32_t links_count;
+    sc2CatalogLink_t links[SC2_MAX_CATALOG_LINKS];
 } sc2Catalog_t;
 
 #define SC2_XML_FIELD_DWORD      BZ_FIELD_U32
@@ -1323,7 +1337,7 @@ static uint32_t sc2_unit_flag(cstring_t name) {
     return 0;
 }
 
-static void sc2_catalog_add_unit(sc2Catalog_t *catalog,
+static sc2CatalogUnit_t *sc2_catalog_add_unit(sc2Catalog_t *catalog,
                                  cstring_t id,
                                  cstring_t actor_id,
                                  cstring_t footprint,
@@ -1336,7 +1350,7 @@ static void sc2_catalog_add_unit(sc2Catalog_t *catalog,
     sc2CatalogUnit_t *unit;
 
     if (!catalog || !id || !*id)
-        return;
+        return NULL;
     FOR_LOOP(i, catalog->units_count) {
         if (!strcasecmp(catalog->units[i].id, id)) {
             if (actor_id && *actor_id)
@@ -1357,10 +1371,10 @@ static void sc2_catalog_add_unit(sc2Catalog_t *catalog,
                 catalog->units[i].has_height = true;
                 catalog->units[i].height = height;
             }
-            return;
+            return &catalog->units[i];
         }
     }
-    if (catalog->units_count >= SC2_MAX_CATALOG_UNITS) { fprintf(stderr,"SC2 CUnit catalog full: dropped '%s'\n",id); return; }
+    if (catalog->units_count >= SC2_MAX_CATALOG_UNITS) { fprintf(stderr,"SC2 CUnit catalog full: dropped '%s'\n",id); return NULL; }
     unit = &catalog->units[catalog->units_count++];
     *unit = *src;
     snprintf(unit->id, sizeof(unit->id), "%s", id);
@@ -1372,6 +1386,30 @@ static void sc2_catalog_add_unit(sc2Catalog_t *catalog,
     unit->radius = has_radius ? radius : 0.0f;
     unit->has_height = has_height;
     unit->height = has_height ? height : 0.0f;
+    unit->first_link = unit->last_link = 0;
+    return unit;
+}
+
+/* Later layers append after earlier ones, so resolution replays every definition in load order. */
+static void sc2_catalog_add_links(sc2Catalog_t *catalog, sc2CatalogUnit_t *unit, sc2CatalogLink_t const *links, uint32_t count) {
+    if (!unit) return;
+    FOR_LOOP(i, count) {
+        if (catalog->links_count + 1 >= SC2_MAX_CATALOG_LINKS) {
+            fprintf(stderr, "SC2 CUnit array catalog full: dropped '%s' entries of '%s'\n", links[i].link, unit->id);
+            return;
+        }
+        uint32_t n = ++catalog->links_count;
+        catalog->links[n] = links[i]; catalog->links[n].next = 0;
+        if (unit->last_link) catalog->links[unit->last_link].next = n; else unit->first_link = n;
+        unit->last_link = n;
+    }
+}
+
+static int sc2_unit_link_kind(cstring_t name) {
+    if (sc2_streqi(name, "AbilArray")) return SC2_LINK_ABIL;
+    if (sc2_streqi(name, "WeaponArray")) return SC2_LINK_WEAPON;
+    if (sc2_streqi(name, "BehaviorArray")) return SC2_LINK_BEHAVIOR;
+    return -1;
 }
 
 static void sc2_catalog_add_terrain_tex(sc2Catalog_t *catalog, cstring_t id, cstring_t diffuse, cstring_t normal) {
@@ -1807,8 +1845,23 @@ static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDoc *doc) {
             snprintf(id,sizeof(id),"$CUnit");
         }
         sc2_xml_attr(node,"parent",unit.parent,sizeof(unit.parent));
+        sc2CatalogLink_t links[SC2_MAX_UNIT_LINK_ENTRIES];
+        uint32_t link_n = 0;
         for (xmlNode *child = node->children; child; child = child->next) {
             char value[64];
+            int kind = child->type == XML_ELEMENT_NODE ? sc2_unit_link_kind((char const *)child->name) : -1;
+            if (kind >= 0) {
+                sc2CatalogLink_t *e = &links[link_n];
+                char index[16];
+                if (link_n == SC2_MAX_UNIT_LINK_ENTRIES) { fprintf(stderr,"SC2 CUnit '%s': array entries dropped\n",id); continue; }
+                *e = (sc2CatalogLink_t){ .kind = (uint8_t)kind, .index = -1 };
+                if (sc2_xml_attr(child, "index", index, sizeof(index))) e->index = (int8_t)MIN(127, MAX(0, atoi(index)));
+                e->removed = sc2_xml_attr(child, "removed", value, sizeof(value)) && atoi(value);
+                sc2_xml_attr(child, "Link", e->link, sizeof(e->link));
+                /* A Turret-only WeaponArray element changes presentation, not membership. */
+                if (e->removed || e->link[0]) link_n++;
+                continue;
+            }
             for (int p=0;p<24;p++) if (sc2_unit_property_fields[p] && sc2_streqi((char const *)child->name,sc2_unit_property_fields[p]) && sc2_xml_attr(child,"value",value,sizeof(value))) {
                 unit.properties[p]=strtof(value,NULL); unit.property_mask |= 1u<<p;
             }
@@ -1831,8 +1884,8 @@ static void sc2_parse_unit_catalog_doc(sc2Catalog_t *catalog, xmlDoc *doc) {
                 }
             }
         }
-        sc2_catalog_add_unit(catalog, id, unit.actor, unit.footprint, unit.mover, unit.flags,
-                             unit.radius, has_radius, unit.height, has_height, &unit);
+        sc2_catalog_add_links(catalog, sc2_catalog_add_unit(catalog, id, unit.actor, unit.footprint, unit.mover, unit.flags,
+                             unit.radius, has_radius, unit.height, has_height, &unit), links, link_n);
     }
 }
 
@@ -2289,6 +2342,40 @@ static void sc2_resolve_unit_properties(sc2Catalog_t const *catalog, sc2CatalogU
         else sc2_resolve_unit_properties(catalog,parent,values,depth+1);
     }
     for (int p=0;p<24;p++) if (unit->property_mask & (1u<<p)) values[p]=unit->properties[p];
+}
+
+/* Parents first, then this unit's elements in load order: indexed elements replace or remove a slot,
+ * unindexed ones append unless the link is already present (a later layer repeating its base). */
+#define SC2_MAX_LINK_SLOTS 128 // slots; index attribute is clamped to 127
+typedef struct { char link[SC2_MAX_LINK_SLOTS][SC2_LINK_LEN]; bool present[SC2_MAX_LINK_SLOTS]; uint32_t count; } sc2LinkSlots_t;
+static void sc2_resolve_unit_links(sc2Catalog_t const *catalog, sc2CatalogUnit_t const *unit, int kind, sc2LinkSlots_t *slots, int depth) {
+    if (!unit || depth >= SC2_MAX_CATALOG_PARENT_DEPTH) return;
+    if (*unit->parent) sc2_resolve_unit_links(catalog, sc2_catalog_unit(catalog, unit->parent), kind, slots, depth + 1);
+    for (uint32_t n = unit->first_link; n; n = catalog->links[n].next) {
+        sc2CatalogLink_t const *e = &catalog->links[n];
+        uint32_t at = e->index < 0 ? slots->count : (uint32_t)e->index;
+        bool dup = false;
+        if (e->kind != kind) continue;
+        if (e->index < 0) FOR_LOOP(i, slots->count) dup |= slots->present[i] && !strcasecmp(slots->link[i], e->link);
+        if (dup || at >= SC2_MAX_LINK_SLOTS) continue;
+        slots->present[at] = !e->removed;
+        if (!e->removed) snprintf(slots->link[at], SC2_LINK_LEN, "%s", e->link);
+        slots->count = MAX(slots->count, at + 1);
+    }
+}
+
+uint32_t SC2_MapUnitLinks(cstring_t unit_type, int kind, char (*out)[SC2_LINK_LEN], uint32_t max) {
+    static sc2LinkSlots_t slots;
+    uint32_t n = 0;
+    if (!sc2_persistent_catalog || !unit_type || !*unit_type || kind < 0 || kind >= SC2_LINK_KINDS) return 0;
+    memset(&slots, 0, sizeof(slots));
+    sc2_resolve_unit_links(sc2_persistent_catalog, sc2_catalog_unit(sc2_persistent_catalog, "$CUnit"), kind, &slots, 0);
+    sc2_resolve_unit_links(sc2_persistent_catalog, sc2_catalog_unit(sc2_persistent_catalog, unit_type), kind, &slots, 0);
+    FOR_LOOP(i, slots.count) if (slots.present[i]) {
+        if (n == max) { fprintf(stderr, "SC2 CUnit '%s': %u array links exceed unit capacity %u\n", unit_type, slots.count, max); break; }
+        snprintf(out[n++], SC2_LINK_LEN, "%s", slots.link[i]);
+    }
+    return n;
 }
 
 /* Resolves object->model/footprint/mover from its name via the unit->actor->model

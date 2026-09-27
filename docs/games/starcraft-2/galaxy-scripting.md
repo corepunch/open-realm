@@ -45,6 +45,30 @@ Attack, damage, experience, inventory, selection, ability, progress, chat, dialo
 
 Console chrome is not a Galaxy animation. `SC2_HUD_BuildFrameForWrite` names the `Birth` sequence and `R_SetEntityAnimFrame` samples its last frame. Resource icons and the minimap are separate layout frames. `UISetFrameVisible` is still a no-op, so the map script does not hide those models.
 
+## Unit State
+
+The SC2 game module defines its own `struct edict_s` in `g_sc2_local.h`, like WC3's `g_local.h`: the server's leading fields, then `sc2UnitState_t unit` and `sc2MoveState_t move`. There are no arrays indexed by edict number. Galaxy natives never see the edict layout. They reach a unit through the `void *` handle table and the `sc2_galaxy_unit_*` callbacks in `galaxy_host.h`, which is why `test_galaxy` can back units with a small mock.
+
+Galaxy keeps two per-handle tables that hold other handles: the order queue (`sc2_uorders`) and cargo (`sc2_gcargo`, `sc2_gtransport`). They stay in the VM. Loaded cargo reports its transport's position to the region and range sampler; the first crossing after unload starts there.
+
+At spawn, `SC2_UnitInit` copies the unit type's resolved `AbilArray`, `WeaponArray`, and `BehaviorArray` onto the unit. `SC2_MapUnitLinks` resolves them the way `UnitData.xml` layers them:
+
+- The parent's array comes first, then this unit's elements in load order, including later layers that redefine the same id.
+- An element without `index` appends, unless that link is already present. Critters rely on this: `Sheep` keeps the parent's `stop` and `move` and adds `attack`.
+- `index="n"` replaces slot n, and `removed="1"` empties it.
+- A `WeaponArray` element with only `Turret` changes presentation, not membership.
+
+The `UnitAbility*`, `UnitWeapon*`, `UnitBehavior*`, cooldown, and charge natives in `galaxy_unit_catalog.h` read and change those lists. They do not run CAbil, CWeapon, or CBehavior data:
+
+- `UnitBehaviorAdd(u, "Run", …)` records the behavior. `UnitHasBehavior` sees it, but the unit's speed does not change.
+- Behavior durations start at 0, which never expires, until `UnitBehaviorSetDuration` sets one. `SC2_UnitAdvanceTimers` then counts it down with cooldowns and charge regeneration. Paused and dead units freeze, like vitals.
+- Cooldown and charge links are global catalog ids, so the `Unit*`, `UnitAbility*`, and `UnitBehavior*` variants share one table per unit. A charge regen reaching zero returns one charge; without CAbil charge data it does not restart.
+- `Get(index)` natives are 1-based like `UnitGroupUnit`. `UnitOrder(u, 0)` is the current order and returns the handle the script issued.
+
+Script selection (`UnitSelect`, `UnitGroupSelect`, `UnitClearSelection`) sets `edict_t.selected` directly and skips the ownership test that player input needs. It never selects a dead or hidden unit. Galaxy distinguishes local and synchronous selection; the server has one set, so a query right after a change already sees it. `SC2_RunFrame` sends each affected client one `svc_set_selection` after the Galaxy tick.
+
+Not implemented: cargo space values (`UnitCargoValue` 1–5 need CAbilTransport data and raise a script error rather than guess), control groups (write-only natives with no client consumer), rally points, production queues and progress, inventory, markers, magazines, experience, and effect creation or validation.
+
 ## VM Lookup
 
 Root globals and functions retain their canonical linked lists for ownership and declaration order, plus root-owned 4096-bucket indexes for lookup. Bucket entries use dedicated `hash_next` links. Local variables remain short linked lists.

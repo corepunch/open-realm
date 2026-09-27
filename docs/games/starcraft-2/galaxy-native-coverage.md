@@ -7,6 +7,8 @@ candidates**. See [Galaxy scripting](galaxy-scripting.md) for protected errors a
 
 The September counts predate the event-callback work. Unit, time, timer, player, dialog, chat, purchase, and input `TriggerAddEvent*` / `Event*` natives now keep registrations and a response record. The live contract, including which producers actually fire, is [Event callbacks](galaxy-scripting.md#event-callbacks). Do not treat a "Placeholder candidate" or "Missing" row for those names as the current binding.
 
+The unit selection, cargo and order queries, AI option, team color, plane, ability, weapon, behavior, cooldown, and charge natives are also bound now. They keep bookkeeping on the unit without running catalog behavior; see [Unit state](galaxy-scripting.md#unit-state). The snapshot below still lists them as missing until the audit is rerun.
+
 ## What the Counts Mean
 
 - **Missing**: a call reachable from the audit roots has neither a loaded script-function body nor a name in the SC2 host binding table.

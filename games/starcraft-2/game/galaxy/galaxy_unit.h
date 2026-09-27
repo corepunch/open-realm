@@ -21,7 +21,7 @@ static void sc2_ev_note_xy(int32_t h, float x, float y) {
     sc2_ux[h - 1] = x; sc2_uy[h - 1] = y; sc2_uxy_set[h - 1] = 1;
 }
 
-typedef struct { char ability[64]; float x, y; bool started; } sc2GUnitOrder_t;
+typedef struct { char ability[64]; float x, y; int32_t order_h; bool started; } sc2GUnitOrder_t;
 static int32_t sc2_gcargo[MAX_GALAXY_UNITS][MAX_CARGO_PER_UNIT];
 static int32_t sc2_gcargo_n[MAX_GALAXY_UNITS];
 static int32_t sc2_gtransport[MAX_GALAXY_UNITS]; /* carrying unit handle while loaded; 0 once unloaded */
@@ -279,6 +279,7 @@ static bool sc2_issue_unit_order(jass_t *j,int32_t unit_h,int32_t order_h,int32_
     snprintf(queued->ability, sizeof(queued->ability), "%s", ability);
     queued->x = tx;
     queued->y = ty;
+    queued->order_h = order_h;
     queued->started = false;
 #ifdef SC2_DEBUG_CUTSCENE
     fprintf(stderr, "UnitIssueOrder: unit=%ld ability=%s target=(%.1f,%.1f) queue=%ld depth=%ld\n",
@@ -297,8 +298,6 @@ static uint32_t sc2_UnitIssueOrder(jass_t *j) {
     return jass_pushboolean(j,sc2_issue_unit_order(j,u,o,jass_checkinteger(j,3)));
 }
 
-static uint32_t sc2_UnitBehaviorAdd(jass_t *j)          { (void)j; return jass_pushnull(j); }
-static uint32_t sc2_UnitBehaviorRemove(jass_t *j)       { (void)j; return jass_pushnull(j); }
 static uint32_t sc2_UnitCargoCreate(jass_t *j) {
     int32_t   t_h  = (int32_t)(uintptr_t)jass_checkhandle(j, 1, "unit");
     cstring_t type = jass_checkstring(j, 2);
@@ -352,7 +351,6 @@ static uint32_t sc2_UnitCargoGroup(jass_t *j) {
     return jass_pushnullhandle(j, "unitgroup");
 }
 static uint32_t sc2_UnitCargoLastCreatedGroup(jass_t *j){ return jass_pushnullhandle(j, "unitgroup"); }
-static uint32_t sc2_UnitClearSelection(jass_t *j)       { (void)j; return jass_pushnull(j); }
 /* UnitRef wraps a unit handle into a unitref (same pointer, different type name). */
 static uint32_t sc2_UnitRefFromUnit(jass_t *j) {
     handle_t h = jass_checkhandle(j, 1, "unit");
@@ -367,10 +365,115 @@ static uint32_t sc2_UnitSetInfoText(jass_t *j)          { (void)j; return jass_p
 static uint32_t sc2_UnitClearInfoText(jass_t *j)        { (void)j; return jass_pushnull(j); }
 static uint32_t sc2_UnitForceStatusBar(jass_t *j)       { (void)j; return jass_pushnull(j); }
 static uint32_t sc2_UnitGetAttachmentPoint(jass_t *j)   { return jass_pushinteger(j, 0); }
-static uint32_t sc2_UnitSetTeamColorIndex(jass_t *j)    { (void)j; return jass_pushnull(j); }
 static uint32_t sc2_UnitLoadModel(jass_t *j)            { (void)j; return jass_pushnull(j); }
 static uint32_t sc2_UnitUnloadModel(jass_t *j)          { (void)j; return jass_pushnull(j); }
 #include "galaxy_unitgroup.h"
+
+static bool sc2_unit_handle_live(int32_t h) { return h > 0 && h <= (int32_t)sc2_gunit_n && sc2_gunits[h - 1]; }
+
+/* Selection. Galaxy separates local and synchronous selection; this server has one authoritative
+ * set per player, so a script's change is visible to the next query and reaches the client after the frame. */
+static void sc2_unit_select(jass_t *j, int32_t h, int player, bool on) {
+    if (!sc2_unit_handle_live(h)) return;
+    if (!sc2_galaxy_unit_select) { jass_rterror(j,"Galaxy selection callback unavailable"); return; }
+    sc2_galaxy_unit_select(sc2_gunits[h-1],player,on);
+}
+static uint32_t sc2_UnitSelect(jass_t *j) {
+    int32_t h=(int32_t)(uintptr_t)jass_checkhandle(j,1,"unit"); int player=sc2_player_index(j,2);
+    sc2_unit_select(j,h,player,jass_checkboolean(j,3)); return 0;
+}
+static uint32_t sc2_UnitGroupSelect(jass_t *j) {
+    sc2GGroup_t *g=sc2_unit_group(j); int player=sc2_player_index(j,2); bool on=jass_checkboolean(j,3);
+    if (g) for (int i=0;i<g->count;i++) sc2_unit_select(j,g->items[i],player,on);
+    return 0;
+}
+static uint32_t sc2_UnitClearSelection(jass_t *j) {
+    int player=sc2_player_index(j,1);
+    for (int32_t h=1;h<=(int32_t)sc2_gunit_n;h++) sc2_unit_select(j,h,player,false);
+    return 0;
+}
+static bool sc2_unit_is_selected(int32_t h, int player) {
+    return sc2_unit_handle_live(h) && sc2_galaxy_unit_is_selected && sc2_galaxy_unit_is_selected(sc2_gunits[h-1],player);
+}
+static uint32_t sc2_UnitIsSelected(jass_t *j) {
+    int32_t h=(int32_t)(uintptr_t)jass_checkhandle(j,1,"unit");
+    return jass_pushboolean(j,sc2_unit_is_selected(h,sc2_player_index(j,2)));
+}
+static uint32_t sc2_UnitGroupSelected(jass_t *j) {
+    int player=sc2_player_index(j,1); int32_t g=sc2_group_new(j,sc2_unit_groups,&sc2_unit_group_n,NULL);
+    if (g) for (int32_t h=1;h<=(int32_t)sc2_gunit_n;h++) if (sc2_unit_is_selected(h,player)) sc2_group_append(j,&sc2_unit_groups[g],h);
+    return jass_pushlighthandle(j,(handle_t)(uintptr_t)g,"unitgroup");
+}
+
+/* Cargo membership. Space values need CAbilTransport data, which the catalog does not load yet. */
+static uint32_t sc2_UnitCargo(jass_t *j) {
+    int32_t h=(int32_t)(uintptr_t)jass_checkhandle(j,1,"unit"), n=jass_checkinteger(j,2)-1;
+    int32_t c=sc2_unit_handle_live(h) && n>=0 && n<sc2_gcargo_n[h-1] ? sc2_gcargo[h-1][n] : 0;
+    return jass_pushlighthandle(j,(handle_t)(uintptr_t)(sc2_unit_handle_live(c)?c:0),"unit");
+}
+static uint32_t sc2_UnitTransport(jass_t *j) {
+    int32_t h=(int32_t)(uintptr_t)jass_checkhandle(j,1,"unit"), t=sc2_unit_handle_live(h) ? sc2_gtransport[h-1] : 0;
+    return jass_pushlighthandle(j,(handle_t)(uintptr_t)(sc2_unit_handle_live(t)?t:0),"unit");
+}
+enum { SC2_CARGO_UNIT_COUNT=0, SC2_CARGO_POSITION=6 }; /* natives.galaxy c_unitCargoUnitCount, c_unitCargoPosition */
+static uint32_t sc2_UnitCargoValue(jass_t *j) {
+    int32_t h=(int32_t)(uintptr_t)jass_checkhandle(j,1,"unit"); int value=sc2_checked_index(j,2,7), result=0;
+    if (!sc2_unit_handle_live(h)) return jass_pushinteger(j,0);
+    if (value==SC2_CARGO_UNIT_COUNT) result=sc2_gcargo_n[h-1];
+    else if (value==SC2_CARGO_POSITION) {
+        int32_t t=sc2_gtransport[h-1];
+        if (t) for (int32_t i=0;i<sc2_gcargo_n[t-1];i++) if (sc2_gcargo[t-1][i]==h) result=i+1;
+    } else jass_rterror(j,"Cargo space values need CAbilTransport data, which is not loaded");
+    return jass_pushinteger(j,result);
+}
+
+/* Order queue queries return the handles the script issued, so identity comparisons hold. Index 0 is the current order. */
+static uint32_t sc2_UnitOrderCount(jass_t *j) {
+    int32_t h=(int32_t)(uintptr_t)jass_checkhandle(j,1,"unit");
+    return jass_pushinteger(j,sc2_unit_handle_live(h) ? sc2_uorder_n[h-1] : 0);
+}
+static uint32_t sc2_UnitOrder(jass_t *j) {
+    int32_t h=(int32_t)(uintptr_t)jass_checkhandle(j,1,"unit"), n=jass_checkinteger(j,2);
+    int32_t o=sc2_unit_handle_live(h) && n>=0 && n<sc2_uorder_n[h-1] ? sc2_uorders[h-1][n].order_h : 0;
+    return jass_pushlighthandle(j,(handle_t)(uintptr_t)o,"order");
+}
+static uint32_t sc2_UnitOrderHasAbil(jass_t *j) {
+    int32_t h=(int32_t)(uintptr_t)jass_checkhandle(j,1,"unit"); cstring_t abil=jass_checkstring(j,2);
+    if (sc2_unit_handle_live(h) && abil) for (int32_t i=0;i<sc2_uorder_n[h-1];i++)
+        if (!strcmp(sc2_uorders[h-1][i].ability,abil)) return jass_pushboolean(j,true);
+    return jass_pushboolean(j,false);
+}
+
+static uint32_t sc2_UnitSetAIOption(jass_t *j) {
+    sc2UnitState_t *u=sc2_unit_data(j,sc2_ent_from_handle(j,1)); int option=sc2_checked_index(j,2,32);
+    bool on=jass_checkboolean(j,3);
+    if (u) { if (on) u->ai_options |= 1u<<option; else u->ai_options &= ~(1u<<option); }
+    return 0;
+}
+static uint32_t sc2_UnitGetAIOption(jass_t *j) {
+    sc2UnitState_t *u=sc2_unit_data(j,sc2_ent_from_handle(j,1)); int option=sc2_checked_index(j,2,32);
+    return jass_pushboolean(j,u && (u->ai_options & (1u<<option)));
+}
+/* Speed goes back to the catalog value captured at spawn (property 20). */
+static uint32_t sc2_UnitResetSpeed(jass_t *j) {
+    void *ent=sc2_ent_from_handle(j,1); sc2UnitState_t *u=sc2_unit_data(j,ent);
+    if (u) { u->speed=u->normal[20]; sc2_unit_changed(j,ent); }
+    return 0;
+}
+static void sc2_unit_team_color(jass_t *j, int index) {
+    void *ent=sc2_ent_from_handle(j,1);
+    if (!ent) return;
+    if (!sc2_galaxy_unit_team_color) { jass_rterror(j,"Galaxy team-color callback unavailable"); return; }
+    sc2_galaxy_unit_team_color(ent,index);
+}
+static uint32_t sc2_UnitSetTeamColorIndex(jass_t *j) { sc2_unit_team_color(j,sc2_player_index(j,2)); return 0; }
+static uint32_t sc2_UnitResetTeamColorIndex(jass_t *j) { sc2_unit_team_color(j,-1); return 0; }
+/* Liberty natives.galaxy declares no plane constants; later releases use c_planeGround 0 and c_planeAir 1. */
+static uint32_t sc2_UnitTestPlane(jass_t *j) {
+    void *ent=sc2_ent_from_handle(j,1); int plane=sc2_checked_index(j,2,2);
+    bool flying=ent && sc2_galaxy_unit_is_flying && sc2_galaxy_unit_is_flying(ent);
+    return jass_pushboolean(j,ent && (plane==1)==flying);
+}
 static uint32_t sc2_UnitGroupWaitUntilIdle(jass_t *j)    { (void)j; return jass_pushnull(j); }
 static uint32_t sc2_UnitInventoryGroup(jass_t *j)        { return jass_pushnullhandle(j, "unitgroup"); }
 static uint32_t sc2_UnitTechTreeBehaviorCount(jass_t *j) { return jass_pushinteger(j, 0); }
