@@ -1,11 +1,9 @@
 # Galaxy Native Coverage and Implementation Priorities
 
-This is the Markdown companion to [the JSON inventory](galaxy-native-coverage.json), captured from the local client on September 11,
-2026 after the TRaynor01 post-intro fixes. It records **818 reachable script functions, 207 missing bindings, and 199 placeholder
-candidates**. See [Galaxy scripting](galaxy-scripting.md) for protected errors and runtime evidence, and
+This is the Markdown companion to [the JSON inventory](galaxy-native-coverage.json), captured from the local client on September 27,
+2026 after the event-callback and unit-native bindings. It records **818 reachable script functions, 191 missing bindings, and 126
+placeholder candidates**. See [Galaxy scripting](galaxy-scripting.md) for protected errors and runtime evidence, and
 [presentation state](galaxy-presentation.md) for the implemented objective/actor/catalog subset.
-
-The September counts predate the event-callback work. Unit, time, timer, player, dialog, chat, purchase, and input `TriggerAddEvent*` / `Event*` natives now keep registrations and a response record. The live contract, including which producers actually fire, is [Event callbacks](galaxy-scripting.md#event-callbacks). Do not treat a "Placeholder candidate" or "Missing" row for those names as the current binding.
 
 The unit selection, cargo and order queries, AI option, team color, plane, ability, weapon, behavior, cooldown, and charge natives are also bound now. They keep bookkeeping on the unit without running catalog behavior; see [Unit state](galaxy-scripting.md#unit-state). The snapshot below still lists them as missing until the audit is rerun.
 
@@ -73,7 +71,6 @@ Family headings group names for navigation only; they do not introduce new modul
 | `AIGivingUp` | Missing |
 | `AIGoodGame` | Missing |
 | `AIIsCampaign` | Missing |
-| `AITimePause` | Placeholder candidate |
 
 ### Achievement
 
@@ -162,9 +159,7 @@ Family headings group names for navigation only; they do not introduce new modul
 
 | Native | Status |
 |---|---|
-| `Color` | Placeholder candidate |
 | `ColorFromIndex` | Missing |
-| `ColorWithAlpha` | Placeholder candidate |
 
 ### Console
 
@@ -240,27 +235,7 @@ Family headings group names for navigation only; they do not introduce new modul
 | Native | Status |
 |---|---|
 | `EventBattleReportPanelDifficultySelected` | Missing |
-| `EventChatMessage` | Missing |
-| `EventDialogControl` | Missing |
-| `EventPlayer` | Missing |
-| `EventPurchaseMade` | Missing |
-| `EventUnit` | Placeholder candidate |
-| `EventUnitCargo` | Placeholder candidate |
-| `EventUnitTarget` | Placeholder candidate |
 | `EventVictoryPanelDifficultySelected` | Missing |
-
-### Fixed
-
-| Native | Status |
-|---|---|
-| `FixedToInt` | Placeholder candidate |
-| `FixedToString` | Placeholder candidate |
-
-### Format
-
-| Native | Status |
-|---|---|
-| `FormatNumber` | Placeholder candidate |
 
 ### Game
 
@@ -294,12 +269,6 @@ Family headings group names for navigation only; they do not introduce new modul
 | `HelpPanelDisplayPage` | Placeholder candidate |
 | `HelpPanelEnableTechTreeButton` | Placeholder candidate |
 | `HelpPanelShowTechTreeRace` | Placeholder candidate |
-
-### Int
-
-| Native | Status |
-|---|---|
-| `IntToString` | Placeholder candidate |
 
 ### Make
 
@@ -356,13 +325,6 @@ Family headings group names for navigation only; they do not introduce new modul
 | `MovieStartRecording` | Missing |
 | `MovieStopRecording` | Missing |
 
-### Order
-
-| Native | Status |
-|---|---|
-| `Order` | Placeholder candidate |
-| `OrderTargetingUnit` | Placeholder candidate |
-
 ### Perf
 
 | Native | Status |
@@ -385,30 +347,12 @@ Family headings group names for navigation only; they do not introduce new modul
 
 | Native | Status |
 |---|---|
-| `PlayerDifficulty` | Placeholder candidate |
 | `PlayerGetColorIndex` | Missing |
-| `PlayerGroupAdd` | Placeholder candidate |
-| `PlayerGroupAll` | Placeholder candidate |
-| `PlayerGroupCopy` | Placeholder candidate |
-| `PlayerGroupEmpty` | Placeholder candidate |
-| `PlayerGroupHasPlayer` | Placeholder candidate |
-| `PlayerGroupRemove` | Placeholder candidate |
-| `PlayerGroupSingle` | Placeholder candidate |
-| `PlayerModifyPropertyInt` | Placeholder candidate |
 | `PlayerName` | Missing |
 | `PlayerPauseAllCharges` | Placeholder candidate |
 | `PlayerPauseAllCooldowns` | Placeholder candidate |
 | `PlayerScoreValueEnableAll` | Placeholder candidate |
-| `PlayerSetAlliance` | Placeholder candidate |
-| `PlayerSetState` | Placeholder candidate |
 | `PlayerStatus` | Missing |
-| `PlayerType` | Placeholder candidate |
-
-### Point
-
-| Native | Status |
-|---|---|
-| `PointSetFacing` | Placeholder candidate |
 
 ### Portrait
 
@@ -460,13 +404,8 @@ Family headings group names for navigation only; they do not introduce new modul
 
 | Native | Status |
 |---|---|
-| `RegionCircle` | Placeholder candidate |
-| `RegionContainsPoint` | Placeholder candidate |
 | `RegionEntireMap` | Placeholder candidate |
 | `RegionFromId` | Placeholder candidate |
-| `RegionGetBoundsMax` | Placeholder candidate |
-| `RegionGetBoundsMin` | Placeholder candidate |
-| `RegionGetCenter` | Placeholder candidate |
 | `RegionPlayableMap` | Placeholder candidate |
 | `RegionRandomPoint` | Placeholder candidate |
 
@@ -507,9 +446,6 @@ Family headings group names for navigation only; they do not introduce new modul
 |---|---|
 | `SoundChannelSetVolume` | Placeholder candidate |
 | `SoundLastPlayed` | Missing |
-| `SoundPlay` | Placeholder candidate |
-| `SoundPlayAtPoint` | Placeholder candidate |
-| `SoundPlayOnUnit` | Placeholder candidate |
 | `SoundStop` | Placeholder candidate |
 | `SoundStopAllTriggerSounds` | Missing |
 
@@ -527,10 +463,7 @@ Family headings group names for navigation only; they do not introduce new modul
 | Native | Status |
 |---|---|
 | `StringLength` | Missing |
-| `StringReplaceWord` | Placeholder candidate |
-| `StringSub` | Placeholder candidate |
 | `StringToFixed` | Missing |
-| `StringToText` | Placeholder candidate |
 
 ### Tech
 
@@ -550,7 +483,6 @@ Family headings group names for navigation only; they do not introduce new modul
 
 | Native | Status |
 |---|---|
-| `TextCase` | Placeholder candidate |
 | `TextTagAttachToUnit` | Missing |
 | `TextTagCreate` | Missing |
 | `TextTagDestroy` | Missing |
@@ -570,10 +502,7 @@ Family headings group names for navigation only; they do not introduce new modul
 
 | Native | Status |
 |---|---|
-| `TimerCreate` | Missing |
 | `TimerGetElapsed` | Missing |
-| `TimerPause` | Placeholder candidate |
-| `TimerStart` | Missing |
 
 ### Transmission
 
@@ -592,41 +521,17 @@ Family headings group names for navigation only; they do not introduce new modul
 
 | Native | Status |
 |---|---|
-| `TriggerAddEventAbortMission` | Missing |
 | `TriggerAddEventBattleReportPanelExit` | Missing |
 | `TriggerAddEventBattleReportPanelPlayMission` | Missing |
 | `TriggerAddEventBattleReportPanelPlayScene` | Missing |
-| `TriggerAddEventChatMessage` | Missing |
-| `TriggerAddEventCheatUsed` | Missing |
-| `TriggerAddEventDialogControl` | Missing |
 | `TriggerAddEventMercenaryPanelExit` | Missing |
 | `TriggerAddEventMercenaryPanelPurchase` | Missing |
 | `TriggerAddEventMercenaryPanelSelectionChanged` | Missing |
-| `TriggerAddEventPlayerLeft` | Placeholder candidate |
-| `TriggerAddEventPurchaseExit` | Missing |
-| `TriggerAddEventPurchaseMade` | Missing |
 | `TriggerAddEventResearchPanelExit` | Missing |
 | `TriggerAddEventResearchPanelPurchase` | Missing |
-| `TriggerAddEventSelectedPurchaseCategoryChanged` | Missing |
-| `TriggerAddEventSelectedPurchaseItemChanged` | Missing |
-| `TriggerAddEventTimePeriodic` | Placeholder candidate |
-| `TriggerAddEventUnitAttacked` | Placeholder candidate |
-| `TriggerAddEventUnitCargo` | Placeholder candidate |
-| `TriggerAddEventUnitDamaged` | Placeholder candidate |
-| `TriggerAddEventUnitDied` | Placeholder candidate |
-| `TriggerAddEventUnitOrder` | Placeholder candidate |
-| `TriggerAddEventUnitProperty` | Missing |
-| `TriggerAddEventUnitRange` | Placeholder candidate |
-| `TriggerAddEventUnitRangePoint` | Placeholder candidate |
-| `TriggerAddEventUnitRegion` | Placeholder candidate |
-| `TriggerAddEventUnitSelected` | Missing |
 | `TriggerAddEventVictoryPanelExit` | Missing |
 | `TriggerAddEventVictoryPanelPlayMissionAgain` | Missing |
 | `TriggerDebugOutput` | Placeholder candidate |
-| `TriggerEnable` | Placeholder candidate |
-| `TriggerGetCurrent` | Placeholder candidate |
-| `TriggerGetExecCount` | Placeholder candidate |
-| `TriggerIsEnabled` | Placeholder candidate |
 | `TriggerQueueClear` | Placeholder candidate |
 | `TriggerQueueEnter` | Placeholder candidate |
 | `TriggerQueueExit` | Placeholder candidate |
@@ -669,33 +574,12 @@ Family headings group names for navigation only; they do not introduce new modul
 | `UnitClearSelection` | Placeholder candidate |
 | `UnitFilter` | Placeholder candidate |
 | `UnitFilterMatch` | Placeholder candidate |
-| `UnitFromId` | Placeholder candidate |
 | `UnitGroup` | Placeholder candidate |
-| `UnitGroupCopy` | Placeholder candidate |
-| `UnitGroupEmpty` | Placeholder candidate |
 | `UnitGroupFilter` | Placeholder candidate |
-| `UnitGroupFilterPlayer` | Placeholder candidate |
-| `UnitGroupHasUnit` | Placeholder candidate |
-| `UnitGroupIssueOrder` | Placeholder candidate |
-| `UnitGroupLoopBegin` | Placeholder candidate |
-| `UnitGroupLoopCurrent` | Placeholder candidate |
-| `UnitGroupLoopDone` | Placeholder candidate |
-| `UnitGroupLoopEnd` | Placeholder candidate |
-| `UnitGroupLoopStep` | Placeholder candidate |
-| `UnitGroupRandomUnit` | Placeholder candidate |
-| `UnitGroupRemove` | Placeholder candidate |
 | `UnitGroupSelect` | Missing |
 | `UnitGroupSelected` | Missing |
-| `UnitGroupUnit` | Placeholder candidate |
-| `UnitKill` | Placeholder candidate |
-| `UnitLastCreatedGroup` | Placeholder candidate |
-| `UnitPauseAll` | Placeholder candidate |
-| `UnitRemove` | Placeholder candidate |
 | `UnitSetInfoText` | Placeholder candidate |
-| `UnitSetOwner` | Placeholder candidate |
-| `UnitSetPropertyFixed` | Placeholder candidate |
 | `UnitSetScale` | Placeholder candidate |
-| `UnitSetState` | Placeholder candidate |
 | `UnitSetTeamColorIndex` | Placeholder candidate |
 | `UnitTypeFromString` | Placeholder candidate |
 | `UnitTypeGetName` | Placeholder candidate |

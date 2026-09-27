@@ -15,6 +15,10 @@ TOKEN = re.compile(r'"(?:\\.|[^"\\])*"|//[^\n]*|/\*.*?\*/', re.S)
 HEADER = re.compile(r'\b(?:native\s+)?\w+\s+(\w+)\s*\([^;{}]*\)\s*([;{])')
 CALL = re.compile(r'\b(\w+)\s*\(')
 KEYWORDS = {'if', 'while', 'for', 'switch', 'return'}
+HOST = Path(__file__).resolve().parents[1] / 'games/starcraft-2/game/galaxy'
+PLACEHOLDER = re.compile(
+    r'static uint32_t (\w+)\(\s*jass_t\s*\*\s*j\s*\)\s*\{\s*(?:\(void\)\s*j;\s*)?'
+    r'return jass_push\w+\(\s*j(?:\s*,\s*(?:0|false|true|"[^"]*"))*\s*\);\s*}')
 
 
 def clean(text):
@@ -36,6 +40,16 @@ def bodies(text):
         yield match[1], text[match.end():end - 1]
 
 
+def registry(host=HOST):
+    return dict(re.findall(r'\{\s*"(\w+)"\s*,\s*(\w+)\s*}', (host / 'galaxy_host.c').read_text()))
+
+
+def placeholders(host=HOST):
+    """Bodies live in the domain headers galaxy_host.c includes; spacing around `*` is not fixed."""
+    impl = '\n'.join(p.read_text() for p in sorted(host.glob('*.[ch]')))
+    return set(PLACEHOLDER.findall(impl))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('scripts', nargs='+', type=Path)
@@ -53,12 +67,8 @@ def main():
         children = set(CALL.findall(body)) - KEYWORDS
         calls.update(children)
         pending.extend(children)
-    host = Path(__file__).resolve().parents[1] / 'games/starcraft-2/game/galaxy'
-    bindings = dict(re.findall(r'\{\s*"(\w+)"\s*,\s*(\w+)\s*}', (host / 'galaxy_host.c').read_text()))
-    impl = '\n'.join(p.read_text() for p in host.glob('*.h'))
-    placeholder = set(re.findall(
-        r'static uint32_t (\w+)\(jass_t \* j\)\s*\{\s*(?:\(void\)j;\s*)?'
-        r'return jass_push\w+\(j(?:,\s*(?:0|false|true|"[^"]*"))*\);\s*}', impl))
+    bindings = registry()
+    placeholder = placeholders()
     external = calls - functions.keys()
     report = {
         'scripts': [str(p) for p in args.scripts],

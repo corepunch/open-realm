@@ -95,7 +95,11 @@ $(eval $(call app_schema,$(SC2_TEST_BINARY),$(SHARED_LIB) $(SHEET_LIB) $(GAME_SC
 .PHONY: test-sc2-engine
 test-sc2-engine: $(SC2_TEST_BINARY) | $(TEST_JUNIT_DIR)
 	TEST_JUNIT="$(TEST_JUNIT_DIR)/test-sc2-engine.xml" TEST_JUNIT_SUITE="test-sc2-engine" $(SC2_TEST_BINARY) -data $(TESTS_DIR) +dedicated 1 +test 'sc2_control.*'
-test-sc2: test-sc2-engine test-sc2-parity
+test-sc2: test-sc2-engine test-sc2-parity test-sc2-galaxy-audit
+
+.PHONY: test-sc2-galaxy-audit
+test-sc2-galaxy-audit:
+	python3 tests/test_galaxy_audit.py
 
 .PHONY: test-sc2-parity
 test-sc2-parity: mpqtool
