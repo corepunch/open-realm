@@ -1214,6 +1214,104 @@ TEST(wc3_building, unresearched_unit_ability_remains_visible_but_disabled) {
     building_restore_upgrade_data(old, rows);
 }
 
+TEST(wc3_building, town_hall_and_tree_of_life_show_train_and_upgrade_buttons) {
+    static const char balance_slk[] =
+        "ID;PWXL;N;E\nB;X5;Y7;D0\n"
+        "C;X1;Y1;K\"unitBalanceID\"\nC;X2;K\"realHP\"\n"
+        "C;X3;K\"goldcost\"\nC;X4;K\"lumbercost\"\nC;X5;K\"isbldg\"\n"
+        "C;X1;Y2;K\"htow\"\nC;X2;K1000\nC;X5;K1\n"
+        "C;X1;Y3;K\"hpea\"\nC;X2;K250\n"
+        "C;X1;Y4;K\"hkee\"\nC;X2;K1400\nC;X5;K1\n"
+        "C;X1;Y5;K\"etol\"\nC;X2;K1300\nC;X5;K1\n"
+        "C;X1;Y6;K\"ewsp\"\nC;X2;K120\n"
+        "C;X1;Y7;K\"etoa\"\nC;X2;K1600\nC;X5;K1\nE\n";
+    static const char ui_slk[] =
+        "ID;PWXL;N;E\nB;X3;Y5;D0\n"
+        "C;X1;Y1;K\"unitUIID\"\nC;X2;K\"isbldg\"\nC;X3;K\"file\"\n"
+        "C;X1;Y2;K\"htow\"\nC;X2;K1\nC;X3;K\"TestUI\\\\Models\\\\ui_panel.mdx\"\n"
+        "C;X1;Y3;K\"hkee\"\nC;X2;K1\nC;X3;K\"TestUI\\\\Models\\\\ui_panel.mdx\"\n"
+        "C;X1;Y4;K\"etol\"\nC;X2;K1\nC;X3;K\"TestUI\\\\Models\\\\ui_panel.mdx\"\n"
+        "C;X1;Y5;K\"etoa\"\nC;X2;K1\nC;X3;K\"TestUI\\\\Models\\\\ui_panel.mdx\"\nE\n";
+    static const char profile_slk[] =
+        "ID;PWXL;N;E\nB;X3;Y5;D0\n"
+        "C;X1;Y1;K\"id\"\nC;X2;K\"Trains\"\nC;X3;K\"Upgrade\"\n"
+        "C;X1;Y2;K\"htow\"\nC;X2;K\"hpea\"\nC;X3;K\"hkee\"\n"
+        "C;X1;Y3;K\"hpea\"\nC;X1;Y4;K\"hkee\"\n"
+        "C;X1;Y5;K\"etol\"\nC;X2;K\"ewsp\"\nC;X3;K\"etoa\"\n"
+        "C;X1;Y6;K\"ewsp\"\nC;X1;Y7;K\"etoa\"\nE\n";
+    uint32_t const town_hall_id = MAKEFOURCC('h','t','o','w');
+    uint32_t const tree_id = MAKEFOURCC('e','t','o','l');
+    uint32_t const peasant_id = MAKEFOURCC('h','p','e','a');
+    uint32_t const keep_id = MAKEFOURCC('h','k','e','e');
+    uint32_t const wisp_id = MAKEFOURCC('e','w','s','p');
+    uint32_t const ages_id = MAKEFOURCC('e','t','o','a');
+    gameClient_t *client;
+    edict_t *town_hall, *tree;
+    /* Aent precedes Aro1 so rooting eligibility performs a nested ability-list
+     * scan while the HUD is consuming this same parser's segment buffer. */
+    UnitAbilities_t tree_abilities = { .abilList = "Aent,Aro1" };
+    umove_t birth = { .think = ai_birth };
+    gameCommandButton_t buttons[16];
+    slkTestData_t *balance_rows, *old_balance, *ui_rows, *old_ui, *profile_rows, *old_profile;
+    uint8_t count;
+    bool found_train, found_upgrade;
+
+    setup_test_world();
+    balance_rows = parse_slk_string(balance_slk);
+    ui_rows = parse_slk_string(ui_slk);
+    profile_rows = parse_slk_string(profile_slk);
+    old_balance = G_SetSLKRows("UnitBalance", balance_rows);
+    old_ui = G_SetSLKRows("UnitUI", ui_rows);
+    old_profile = G_SetProfileRows(profile_rows);
+    client = &game.clients[0];
+    client->connected = true;
+    client->ps.number = 0;
+    town_hall = alloc_test_unit(town_hall_id, 0, 0);
+    tree = alloc_test_unit(tree_id, 128, 0);
+    town_hall->s.player = tree->s.player = client->ps.number;
+    town_hall->data.UnitProfile = (UnitProfile_t *)G_UnitProfile(town_hall_id);
+    tree->data.UnitProfile = (UnitProfile_t *)G_UnitProfile(tree_id);
+    tree->data.UnitAbilities = &tree_abilities;
+    tree->s.flags |= EF_BUILDING;
+    tree->aiflags |= AI_IMMOBILE;
+    town_hall->currentmove = tree->currentmove = &birth;
+
+    T_ASSERT(G_ProducerCanTrain(town_hall, peasant_id));
+    T_ASSERT(G_ProducerCanUpgrade(town_hall, keep_id));
+    count = G_GetCommandButtons(town_hall, buttons, 16);
+    found_train = found_upgrade = false;
+    FOR_LOOP(i, count) {
+        if (!strcmp(buttons[i].command, "hpea")) found_train = true;
+        if (!strcmp(buttons[i].command, "hkee")) found_upgrade = true;
+    }
+    T_ASSERT(found_train);
+    T_ASSERT(found_upgrade);
+
+    T_ASSERT(S_AncientIsRooted(tree));
+    T_STREQ(G_UnitProfile(tree_id)->trains, "ewsp");
+    T_STREQ(G_UnitProfile(tree_id)->upgrade, "etoa");
+    T_ASSERT(G_ProducerCanTrain(tree, wisp_id));
+    T_ASSERT(G_ProducerCanUpgrade(tree, ages_id));
+    T_EQ(G_GetTrainCommandState(client, tree, wisp_id, NULL, 0), BUILD_COMMAND_AVAILABLE);
+    T_EQ(G_GetBuildingUpgradeCommandState(&(buildingUpgradeCommandParams_t){
+        .client = client, .producer = tree, .unit_id = ages_id }), BUILD_COMMAND_AVAILABLE);
+    count = G_GetCommandButtons(tree, buttons, 16);
+    found_train = found_upgrade = false;
+    FOR_LOOP(i, count) {
+        if (!strcmp(buttons[i].command, "ewsp")) found_train = true;
+        if (!strcmp(buttons[i].command, "etoa")) found_upgrade = true;
+    }
+    T_ASSERT(found_train);
+    T_ASSERT(found_upgrade);
+
+    G_SetSLKRows("UnitUI", old_ui);
+    G_SetSLKRows("UnitBalance", old_balance);
+    G_SetProfileRows(old_profile);
+    free_slk_rows(ui_rows);
+    free_slk_rows(balance_rows);
+    free_slk_rows(profile_rows);
+}
+
 TEST(wc3_building, gate_only_dependency_disables_cannibalize_until_researched) {
     gameClient_t *client;
     edict_t *unit;
