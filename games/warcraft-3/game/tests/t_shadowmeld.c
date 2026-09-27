@@ -70,6 +70,37 @@ static void shadowmeld_tick(edict_t *unit, uint32_t ms) {
     S_RunAbilityUpdates(unit);
 }
 
+static bool shadowmeld_datagram_tint(edict_t *client_ent, uint32_t entity_number, color32_t *out) {
+    uint8_t data[1024];
+    uint32_t size = G_WriteClientDatagram(client_ent, data, sizeof(data));
+    uint32_t offset = 0;
+    uint16_t header, count;
+
+    if (!size || size < sizeof(header)) return false;
+    memcpy(&header, data, sizeof(header));
+    offset += sizeof(header) + (header & BZ_GAME_DATAGRAM_COUNT_MASK) * sizeof(wc3WeatherEffect_t);
+    if (header & BZ_GAME_DATAGRAM_LIGHTNING) {
+        uint16_t lightning_count;
+        if (offset + sizeof(lightning_count) > size) return false;
+        memcpy(&lightning_count, data + offset, sizeof(lightning_count));
+        offset += sizeof(lightning_count) + lightning_count * sizeof(lightningEffect_t);
+    }
+    if (!(header & BZ_GAME_DATAGRAM_ENTITY_TINTS) || offset + sizeof(count) > size) return false;
+    memcpy(&count, data + offset, sizeof(count));
+    offset += sizeof(count);
+    FOR_LOOP(i, count) {
+        uint16_t number;
+        color32_t color;
+        if (offset + sizeof(number) + sizeof(color) > size) return false;
+        memcpy(&number, data + offset, sizeof(number)); offset += sizeof(number);
+        memcpy(&color, data + offset, sizeof(color)); offset += sizeof(color);
+        if (number != entity_number) continue;
+        if (out) *out = color;
+        return true;
+    }
+    return false;
+}
+
 TEST(wc3_shadowmeld, ability_classes_are_not_wind_walk) {
     abilityitem_t passive = S_AbilityItem(ID_ASHM);
     abilityitem_t hide = S_AbilityItem(ID_AHID);
@@ -117,6 +148,64 @@ TEST(wc3_shadowmeld, passive_fades_after_stationary_night_interval) {
     T_ASSERT(S_ShadowMeldActive(fix.unit));
     T_ASSERT(S_UnitIsInvisibleToPlayer(fix.unit, 1));
     T_ASSERT(!S_UnitIsInvisibleToPlayer(fix.unit, 0));
+
+    shadowmeld_done(&fix);
+}
+
+
+TEST(wc3_shadowmeld, owner_presentation_uses_smoothstep_ghost_alpha) {
+    shadowmeldFix_t fix;
+    edict_t *clent;
+    color32_t color;
+
+    shadowmeld_setup(&fix);
+    clent = &g_edicts[0];
+    clent->client = &game.clients[0];
+    clent->client->ps.number = 0;
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+
+    S_RunAbilityUpdates(fix.unit);
+    T_ASSERT(fix.unit->shadowmeld.fading);
+    T_FEQ(S_ShadowMeldPresentationAlpha(fix.unit), 1.0f, 0.001f);
+
+    level.time += 750;
+    /* smoothstep(0.5) = 0.5; lerp 1.0 -> 0.35 therefore yields 0.675 */
+    T_FEQ(S_ShadowMeldPresentationAlpha(fix.unit), 0.675f, 0.001f);
+    T_ASSERT(shadowmeld_datagram_tint(clent, fix.unit->s.number, &color));
+    T_EQ(color.r, 255); T_EQ(color.g, 255); T_EQ(color.b, 255);
+    T_EQ(color.a, 172);
+
+    level.time += 750;
+    S_RunAbilityUpdates(fix.unit);
+    T_ASSERT(S_ShadowMeldActive(fix.unit));
+    T_FEQ(S_ShadowMeldPresentationAlpha(fix.unit), 0.35f, 0.001f);
+    T_ASSERT(shadowmeld_datagram_tint(clent, fix.unit->s.number, &color));
+    T_EQ(color.a, 89);
+
+    shadowmeld_done(&fix);
+}
+
+TEST(wc3_shadowmeld, owner_ghost_alpha_multiplies_authored_vertex_alpha) {
+    shadowmeldFix_t fix;
+    edict_t *clent;
+    color32_t color;
+
+    shadowmeld_setup(&fix);
+    clent = &g_edicts[0];
+    clent->client = &game.clients[0];
+    clent->client->ps.number = 0;
+    fix.unit->vertex_color = MAKE(color32_t, 210, 180, 150, 200);
+    fix.unit->vertex_color_set = true;
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+    S_RunAbilityUpdates(fix.unit);
+    shadowmeld_tick(fix.unit, 1500);
+
+    T_ASSERT(shadowmeld_datagram_tint(clent, fix.unit->s.number, &color));
+    T_EQ(color.r, 210); T_EQ(color.g, 180); T_EQ(color.b, 150);
+    T_EQ(color.a, 70); /* round(200 * 0.35) */
+    T_EQ(fix.unit->vertex_color.a, 200); /* presentation did not mutate authority */
 
     shadowmeld_done(&fix);
 }

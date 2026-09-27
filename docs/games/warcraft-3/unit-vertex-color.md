@@ -14,7 +14,7 @@ Current scope is intentionally narrow:
   per-unit override across type rebinds.
 - `SetWaterBaseColor` remains a placeholder; the W3M water renderer has no live server-authored base-colour contract yet.
 - JASS `texttag` / `SetTextTagColor` store registry state; client draw is still deferred ([multiboard-and-texttag.md](multiboard-and-texttag.md)).
-- Unit invisibility continues to use its existing gameplay/render-state path; this work does not redefine invisibility as vertex alpha.
+- Gameplay invisibility remains independent from vertex alpha. Shadow Meld now reuses the same per-client tint transport only for owner/shared-vision presentation: gameplay visibility/detection still comes from the invisibility query, while the recipient tint multiplies authored alpha by a documented approximate fade/ghost opacity.
 
 ## Data Flow
 
@@ -38,6 +38,8 @@ The datagram's existing weather count reserves its high bit (`BZ_GAME_DATAGRAM_E
 
 Before script-controlled tinting, `renderEntity_t.tint.a == 0` meant "no tint supplied" and the MDX renderer substituted opaque white. That sentinel cannot represent an explicit `SetUnitVertexColor(..., 0)` alpha.
 
+The same transport can also carry recipient-specific presentation tint. Shadow Meld uses this without mutating the authoritative `edict_t.vertex_color`: owner/shared-vision recipients get a ghost alpha while hostile detector viewers retain the authored tint.
+
 The client cache and `renderEntity_t.tint_valid` disambiguate the two cases:
 
 - no cached override: use the renderer's default white tint;
@@ -47,7 +49,7 @@ When a full tint section is received, active client entities are first returned 
 
 ## Opaque MDX Layers
 
-The Warcraft III MDX renderer already supports fading models whose authored layers are normally `None` or `AlphaKey`. When the instance alpha is below `1.0`, those layers use standard source-alpha blending and disable depth writes for the translucent pass. `SetUnitVertexColor` reuses that existing path; it does not introduce a second fade renderer.
+The Warcraft III MDX renderer already supports fading models whose authored layers are normally `None` or `AlphaKey`. When the instance alpha is below `1.0`, those layers use standard source-alpha blending and disable depth writes for the translucent pass. `SetUnitVertexColor` and Shadow Meld presentation reuse that existing path; neither introduces a second fade renderer. Shadow Meld currently eases the friendly alpha multiplier from `1.0` to `0.35` over its 1.5-second gameplay fade using smoothstep (`t*t*(3-2*t)`). Those curve/end-alpha values are reasonable presentation approximations, not recovered retail constants.
 
 ## Persistence
 

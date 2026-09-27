@@ -2240,6 +2240,7 @@ bool G_UnitIsForcedVisibleToPlayer(edict_t const *unit, uint32_t viewer);
 bool S_UnitIsDetectedByPlayer(edict_t const *unit, uint32_t player);
 bool S_UnitIsInvisibleToPlayer(edict_t const *unit, uint32_t player);
 bool S_ShadowMeldActive(edict_t const *unit);
+float S_ShadowMeldPresentationAlpha(edict_t const *unit);
 void S_ShadowMeldBreak(edict_t *unit);
 bool S_UnitUsesInvisibilityRenderFlag(edict_t const *unit);
 bool S_PermanentInvisibilityActive(edict_t const *unit);
