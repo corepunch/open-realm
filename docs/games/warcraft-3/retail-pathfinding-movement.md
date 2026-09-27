@@ -922,10 +922,11 @@ owner simulation frame or the producers of all supplied map/search state.
 
 ## Composed elapsed travel, arrival and reclamation
 
-The motion oracle covers **77 complete trajectories /647 integration ticks**
+The motion oracle covers **78 complete trajectories /681 integration ticks**
 after the accepted-task fresh search. Each advances original clock`054190`
 by1/32 and runs the original group tick:73 open/plane cases arrive after seven
-steps; two fine-only, one adaptive and one full-owner wall-detour run arrive after34.
+steps; two fine-only, one adaptive and two full-owner wall-detour runs arrive after34.
+One full-owner case includes the controlled repulsor described below.
 Independent integer add/multiply models verify every position update; both
 spatial maps' bounds and effective cell membership match every step, including
 lazy insertion/removal histories. No teleport or injected arrival is used.
@@ -933,8 +934,8 @@ lazy insertion/removal histories. No teleport or injected arrival is used.
 Arrival stops velocity, clears active bit4, empties task/user queues, updates
 unit XY/support height and changed-position transform, removes both completion
 subscriptions, and reduces ability refs4→2 (persistent movement subscription
-remains). The next clock drain and empty-group tick verify **154 task
-reclamations and77 group/path releases**. Fine-only fixtures return to unit+mover;
+remains). The next clock drain and empty-group tick verify **156 task
+reclamations and78 group/path releases**. Fine-only fixtures return to unit+mover;
 the adaptive/owner fixtures retain the mover-owned path, as detailed below. Each has an
 empty owner group list and request heap. Previous144 arrival and36 fresh-search
 cases remain passing.
@@ -1676,5 +1677,7 @@ These fixtures use a controlled repulse-enabled profile; stock Footman
 through populated separation, but do not establish crowded active groups,
 mixed profiles or general non-binary-fraction numeric parity. Reproduce with
 `verify_wc3_pathing_motion.py --binary <game.dll> --report <report.json>`;
-inspect`move_owner_active_separation_trajectories` and
+The combined report now contains78 elapsed trajectories,681 integration ticks,
+156 task reclamations and78 group/path releases.
+Inspect`move_owner_active_separation_trajectories` and
 `move_owner_separation_cases` alongside`passed=true`.

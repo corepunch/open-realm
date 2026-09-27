@@ -8,9 +8,11 @@ OpenRealm's pathfinding with an implementation that passes the same corpus.
 Algorithm labels are descriptive; behavioral parity is the completion criterion.
 
 **Current state:** substantial mechanism coverage; incomplete full-lifecycle
-composition. **230 functions annotated. No replacement implemented.** Test
-counts measure fixture coverage, not percentage completion. Large predicate
-sweeps do not substitute for order-to-arrival or crowd trajectory tests.
+composition. **230 functions annotated. No replacement implemented.**
+The [scoped milestone audit](retail-pathfinding-todo.md#verified-scoped-milestones)
+records eight completed compositions; the 81 original acceptance items remain
+open. Test counts measure fixture coverage, not percentage completion.
+Large predicate sweeps do not substitute for order-to-arrival or crowd trajectory tests.
 
 | Detailed evidence | Contents |
 | --- | --- |
@@ -83,15 +85,15 @@ Counts overlap; do not sum them into a coverage percentage.
 | FINE — fine search | **S/O/C:** costs/heuristic, heap ties/reopening/generations/budgets; 288 complete static searches + reuse; wrapper partial/same-cell/zero-budget results | Mixed dynamic-object full searches; initial endpoint/footprint policies; stamp wrap, node/free-list/capacity paths; invalid-coordinate preconditions |
 | ACC — adaptive search | **S/O/C:** promotion/subdivision, lanes, size classes, full requests, reduced size-2 veto; enabled public-advance search corpus | Remaining side/corner branches; live size-2 consequence; invalid classifications, special-edge search combinations and heuristic effects |
 | FOOT — footprints | **S/O/C:** producer conversion, exhaustive masks, terrain/occupancy queries, target perimeter, self/target exclusion in refill | Full world-radius/geometric contract; size × corridor/alignment sweep; mixed category/lifetime interactions |
-| SCHED — admission/scheduling | **S/O/C/L:** bucket/FIFO/cadence, owner row and transitions, budgets/timestamps, live handoffs | Complete owner tick; mutation/reentrancy; fairness under crowd load; non-unit class-15 producers |
+| SCHED — admission/scheduling | **S/O/C/L:** bucket/FIFO/cadence, owner row and transitions, budgets/timestamps, live handoffs; full singleton owner tick and active singleton plus controlled repulsor | Populated shared-cap/multiple-group owner tick; mutation/reentrancy; fairness under crowd load; non-unit class-15 producers |
 | ROUTE — reconstruction/refill | **S/O/C:** fine/coarse endpoints, partials, size-2 adjustment, sampling/skipping; 288 object refills; 288 enabled hierarchy advances; 288 full ordinary fine/coarse transitions | Oblique/all-class numerical parity; dynamic yielding + fresh refill + multi-tick progression; allocation growth; invalid-start contracts |
 | TARGET — target state/retry | **S/O/C/L:** target radius/heading tests, destination reset/replan, refresh counter, follow, invisibility cancellation, fog loss/reacquisition, perimeter acceptance and retry exhaustion | Point-order arrival parameter producers; sub-cell edits; other visibility-loss policies; complete moving-target ticks; gameplay meanings of remaining policy flags |
 | NUM — arithmetic | **S/O/C:** 200,330 exact scalar calls including divide/sqrt; 2,130 normalizations; 864 bounds prefixes | Trig; reciprocal table derivation; producer reachability of extreme raw inputs; full mutation/trajectory parity |
 | MOVE — kinematics/clocks | **S/O/C:** 13,824 speed/heading cases; producers, normalization; 2,304 position integrations; velocity commits with real occupancy updates | Full software-float parity and general inputs; authored turn-data chain; clock domains/cadence/rollover; moving mixed-object and region-crossing trajectories |
-| GROUP — group state | **S/O/C/L (target witnesses):** shared-cap ownership/publication, max footprint, stops/pools; 576 member decisions; 144 route/commit compositions; 144 full cached-route ticks; 156 membership prepasses; 36 new-group fine-search ticks | Adaptive/obstacle/crowd fresh ticks; target-speed adjustment; populated owner tick; create/join/leave/destroy during movement; live Captain AI delay; stale handles under mutation |
+| GROUP — group state | **S/O/C/L (target witnesses):** shared-cap ownership/publication, max footprint, stops/pools; 576 member decisions; 144 route/commit compositions; 144 full cached-route ticks; 156 membership prepasses; 36 new-group fine-search ticks; fine/adaptive singleton wall trajectories and one active singleton plus repulsor | Shared-group adaptive/obstacle/crowd fresh ticks; target-speed adjustment; populated owner tick; create/join/leave/destroy during movement; live Captain AI delay; stale handles under mutation |
 | FORM — formations/regroup | **S/O/C:** authored rank setter; interval classifier; rank/row layout; 144 full layouts, 48 refreshes, 384 offset-destination cases, 648 regroup/reset/refresh compositions | Mixed-radius/moving/oblique complete layouts; refresh → destination → decision → commit chain; live selection formations and rebuild cadence; remaining flag producers |
-| ORDER — completion/lifetime | **S/O/C/L:** 1,536 completion + next-prepass cases; real CUnit bridge; 12 subscriber prefixes; 144 full arrival calls including next-task rejection/acceptance and group/path preparation plus36 fresh fine-search ticks and77 elapsed travel/arrival/reclamation trajectories including fine/adaptive/full-owner wall detours; 288 full ordinary-point order producers/984 direct point-task producers/24 produced-chain queued-order arrivals and four two-order FIFO cases, with34 complete initial unit admissions; live d016b acceptance/arrival and blocked-goal recovery; 432 generic queue pops/releases; 216 retained-ref notifications; 8 zero-ref reclaim cycles/6 factory reuses | UI/network producers feeding the verified unit-admission-to-arrival composition; broader obstacle/adaptive/crowd travel; alternate can't-path branches; callback reentrancy/user-order progression; cancellation variants; live registration, populated targets/relations/subscriptions; negative-domain/repeating requests and heap ordering |
-| SEP — separation/spatial | **S/O/C/L:** filters/cooldown, candidate order/stamps, arithmetic slices, overlap PRNG, endpoint validation, bounds/lazy links/reclamation; Footman/Gryphon controls | Exact per-neighbor live replay; full numeric parity; config/category/rank producers; mixed owners/blocked repulsion; allocation failure/growth, stamp repair, full scheduling |
+| ORDER — completion/lifetime | **S/O/C/L:** 1,536 completion + next-prepass cases; real CUnit bridge; 12 subscriber prefixes; 144 full arrival calls including next-task rejection/acceptance and group/path preparation plus36 fresh fine-search ticks and78 elapsed travel/arrival/reclamation trajectories including fine/adaptive/full-owner wall detours and one active singleton plus repulsor; 288 full ordinary-point order producers/984 direct point-task producers/24 produced-chain queued-order arrivals and four two-order FIFO cases, with34 complete initial unit admissions; live d016b acceptance/arrival and blocked-goal recovery; 432 generic queue pops/releases; 216 retained-ref notifications; 8 zero-ref reclaim cycles/6 factory reuses | UI/network producers feeding the verified unit-admission-to-arrival composition; broader obstacle/adaptive/crowd travel; alternate can't-path branches; callback reentrancy/user-order progression; cancellation variants; live registration, populated targets/relations/subscriptions; negative-domain/repeating requests and heap ordering |
+| SEP — separation/spatial | **S/O/C/L:** filters/cooldown, candidate order/stamps, arithmetic slices, overlap PRNG, endpoint validation, bounds/lazy links/reclamation; Footman/Gryphon controls; 16 post-arrival pair ticks (10 accepted/4 blocked attempts) and 43 separation updates within an active-singleton owner trajectory | Exact per-neighbor live replay; full numeric parity; config/category/rank producers; mixed owners/blocked repulsion; allocation failure/growth, stamp repair, full scheduling |
 | GATE — special edges | **S/O/C/L:** native/source/ID chains, sentinel handling, active/inactive traversal, outside approach, cached retarget and disable→walking; ordinary transition oracle | Destroy during approach; fresh retarget order; disabled edge over impassable terrain; overlapping/multiple gates; ID exhaustion/reuse; unreachable exits and mover eligibility |
 | E2E — reproducibility/parity | **O/C/L:** hash guards, independent references for selected routines, bounded manifests/captures/analyzers | Repeat controls without hooks; unified intermediate-state/trajectory corpus; full order-to-arrival/failure compositions; eventual OpenRealm differential runner |
 
@@ -100,10 +102,12 @@ Counts overlap; do not sum them into a coverage percentage.
 [Full prerequisite checklist](retail-pathfinding-todo.md): stable task IDs,
 closure evidence and the READY gate for starting the OpenRealm replacement.
 
-1. **ORDER + GROUP + MOVE:** close one ordinary ground-move lifecycle from order
-   admission through fresh group/member search, stepping, completion and next
-   order. Audit request/advance caller `6f167120` within this chain. Assert
-   intermediate state and callback order, not just final position.
+1. **ORDER + GROUP + MOVE:** join the verified initial-admission/FIFO chain
+   (currently explicit group ticks) with the verified full-owner trajectory
+   (currently prepared movement state). Freeze one construction-to-next-order
+   baseline with intermediate state, callback order and final ownership checks.
+   Then extend populated shared groups; the controlled separation pair already
+   passes and is not an untouched prerequisite.
 2. **MAP + FOOT + FINE + ACC:** complete construction/invalidation and dynamic
    blocker contracts; exercise bounds, sizes, categories, wrap and capacity paths.
 3. **ROUTE + TARGET + SCHED:** add obstacle insertion/removal, moving targets,

@@ -5,6 +5,10 @@
 remaining evidence, not implementation tasks or a percentage-complete estimate.
 Existing verified mechanisms are prerequisites, not work to repeat.
 
+The 81 original checkboxes are broad acceptance items, not equal units of work.
+A checked scoped milestone below records completed evidence without closing its
+parent or weakening its original criteria. No percentage follows from these counts.
+
 ## Closure rule
 
 Every checkbox requires: producer/consumer and state contract; reproducible
@@ -69,7 +73,7 @@ paths instead of entire transcripts. Keep unsupported interpretations open.
 
 | Contract | Next evidence | Diagnostic owner/file |
 | --- | --- | --- |
-| ORDER/MOVE/GROUP | Populate full owner separation/shared-group updates; extend verified fine/adaptive wall trajectories | One worker owns `verify_wc3_pathing_motion.py` |
+| ORDER/MOVE/GROUP | Compose initial admission with full owner updates and shared groups; extend the verified singleton-plus-repulsor trajectory | One worker owns `verify_wc3_pathing_motion.py` |
 | MAP | Travel/failure after uninterrupted widget-produced escape admission; resource/cache/destructable lifecycle | Map worker: `verify_wc3_pathing_widget_masks.py` |
 | ORDER | Extend controlled command inputs toward UI/network producers; preserve verified initial admission/FIFO/replacement/interrupt journeys | Numeric worker: `verify_wc3_pathing_order_tasks.py` |
 | E2E/ORDER | Extend no-attach controls to crowds; preserve live building placement/invalidation witnesses | Coordinator: Frida controller/analyzer and docs |
@@ -77,18 +81,41 @@ paths instead of entire transcripts. Keep unsupported interpretations open.
 Names are under `tools/ghidra/` unless stated. These are next dependencies,
 not assertions that every lane is running; validate live agent/session state.
 
-### Verified partial closures
+### Verified scoped milestones
+
+Audited against the passing motion and order-task reports from `b90aa33d` on
+2026-09-27. Evidence level **C** (composed original-code calls); binary and CRT
+hashes follow the [ledger](retail-pathfinding.md#binary-and-evidence-conventions).
+Artifacts under the documented report root:
+`coverage-audit-b90aa33d/motion-oracle.json` (**M**) and
+`coverage-audit-b90aa33d/order-tasks-oracle.json` (**O**). Reproduce using the
+[standard commands](retail-pathfinding.md#reproduction). These are eight
+completed slices, not eight completed original acceptance items.
+
+- [x] **BASE-06a / ORDER-02a — Initial unit admission:** 34 complete `680320(order,1,1)` admissions assert queue publication, predicted task sequence and acceptance with no mid-call provisioning. O: `complete_initial_admissions=34`. [Contract and exclusions](retail-pathfinding-movement.md#complete-initial-unit-admission). UI/network producers, global registration and full owner scheduling remain outside this fixture.
+- [x] **ORDER-01a — Produced-chain arrival and reclamation:** 24 ordinary point-order journeys assert bit-exact integration, task/user-queue drain and factory recovery. O: `queued_order_arrival_cases=24`, `completed_internal_tasks=288`. [Evidence](retail-pathfinding-movement.md#generated-tasks-through-queued-user-order-arrival). Open fine grid, seeded registries and explicitly scheduled group ticks; other arrival/failure branches remain open.
+- [x] **ORDER-02b — Two-order FIFO:** four journeys assert successor admission timing, order identity, callback order and final pool recovery, including adjacent-float destinations. O: `fifo_two_order_cases=4`. [Evidence](retail-pathfinding-movement.md#two-user-order-fifo-composition). This does not cover all user-queue flags or gameplay producers.
+- [x] **ORDER-06a — Active replacement:** three mode-1 journeys cancel the active/pending orders at tick 3, admit only the replacement and reclaim all three orders. O: `replacement_arrival_cases=3`. [Evidence](retail-pathfinding-movement.md#active-replacement-versus-interruptprepend). Other cancellation phases, death and removal remain open.
+- [x] **ORDER-06b — Interrupt/resume:** three mode-0 journeys reach the temporary destination, regenerate the original active task and then execute the queued successor. O: `prepend_complete_cases=3`. [Evidence](retail-pathfinding-movement.md#active-replacement-versus-interruptprepend). Explicit group scheduling and controlled point commands remain fixture boundaries.
+- [x] **SCHED-02a — Singleton owner ordering:** one wall trajectory verifies 44 full owner updates, all 64 scheduler buckets per update, visual settling and unlink. M: `move_owner_arrival_cases=1`. [Evidence](retail-pathfinding-movement.md#complete-singleton-owner-updates-and-visual-settling). Shared-cap and separation lists are empty in this case.
+- [x] **SCHED-02b / GROUP-02a — Active singleton plus repulsor:** one trajectory verifies 43 separation updates and four accepted attempts within full owner updates. M: `move_owner_active_separation_cases=1`. [Evidence](retail-pathfinding-movement.md#owner-updates-with-a-controlled-separation-pair). Controlled profile and bounded numeric tolerance; crowded active groups and mixed profiles remain open.
+- [x] **SEP-02a — Post-arrival separation pair:** 16 ticks exercise 14 attempts, ten accepted and four blocked. M: `move_owner_separation_cases`. [Evidence and numeric boundary](retail-pathfinding-movement.md#owner-updates-with-a-controlled-separation-pair). General per-neighbor bit parity, producer coverage and PRNG composition remain open.
+
+### Additional partial evidence
 
 | Tasks advanced | Evidence / boundary |
 | --- | --- |
-| ORDER-01, MOVE-03 | [36 full arrival dispatches](retail-pathfinding-movement.md#complete-arrival-dispatch-and-support-refresh): handler/unwind, subscriptions, timer, stop and support height. [108 authentic active-task arrival/pop cases](retail-pathfinding-movement.md#active-arrival-and-authentic-task-removal) cover empty-queue return, next-task rejection, and acceptance retaining the new task with group/path preparation. [4,957 exact point-range cases](retail-pathfinding-movement.md#exact-point-task-range-predicate) cover the rejection predicate; [948 object-range calls](retail-pathfinding-movement.md#exact-object-range-predicate) add two-radius/prediction/clamp behavior and six invalid-handle fault probes. [Live Stop/Move replacement](retail-pathfinding-experiments.md#live-stopmove-replacement-and-task-cleanup) verifies separate cleanup/head mutation. 36 accepted-task fresh fine-search ticks now execute; [Live blocked-goal recovery](retail-pathfinding-experiments.md#live-blocked-goal-recovery-task-sequence) verifies the fallback. [77 elapsed trajectories](retail-pathfinding-movement.md#composed-elapsed-travel-arrival-and-reclamation) now reach arrival and reclamation, including two exact-repeat fine wall detours and one adaptive-to-fine and one full singleton-owner composition. [288 user-order producers/984 point-task producers/24 produced-chain queued-order arrivals](retail-pathfinding-movement.md#original-user-order-to-task-production) now pass. Four two-order FIFO cases also pass. Three active-replacement and three interrupt/resume journeys also pass. [34 full initial unit admissions](retail-pathfinding-movement.md#complete-initial-unit-admission) now pass without mid-call provisioning. UI/network producers, bridge/water/clamped presentation, populated targets and alternate recovery branches remain open. |
+| ORDER-01, MOVE-03 | [36 full arrival dispatches](retail-pathfinding-movement.md#complete-arrival-dispatch-and-support-refresh): handler/unwind, subscriptions, timer, stop and support height. [108 authentic active-task arrival/pop cases](retail-pathfinding-movement.md#active-arrival-and-authentic-task-removal) cover empty-queue return, next-task rejection, and acceptance retaining the new task with group/path preparation. [4,957 exact point-range cases](retail-pathfinding-movement.md#exact-point-task-range-predicate) cover the rejection predicate; [948 object-range calls](retail-pathfinding-movement.md#exact-object-range-predicate) add two-radius/prediction/clamp behavior and six invalid-handle fault probes. [Live Stop/Move replacement](retail-pathfinding-experiments.md#live-stopmove-replacement-and-task-cleanup) verifies separate cleanup/head mutation. 36 accepted-task fresh fine-search ticks now execute; [Live blocked-goal recovery](retail-pathfinding-experiments.md#live-blocked-goal-recovery-task-sequence) verifies the fallback. [78 elapsed trajectories](retail-pathfinding-movement.md#composed-elapsed-travel-arrival-and-reclamation) now reach arrival and reclamation, including two exact-repeat fine wall detours and one adaptive-to-fine, one full singleton-owner composition and one active singleton-plus-repulsor composition. [288 user-order producers/984 point-task producers/24 produced-chain queued-order arrivals](retail-pathfinding-movement.md#original-user-order-to-task-production) now pass. Four two-order FIFO cases also pass. Three active-replacement and three interrupt/resume journeys also pass. [34 full initial unit admissions](retail-pathfinding-movement.md#complete-initial-unit-admission) now pass without mid-call provisioning. UI/network producers, bridge/water/clamped presentation, populated targets and alternate recovery branches remain open. |
 | ORDER-04 | [8 last-reference release cycles, 6 factory reuses](retail-pathfinding-movement.md#last-reference-payload-release-and-factory-reuse). Preallocated storage/supplied registration; relations/children/negative domain remain open. |
 | MAP-01/02/03 | [11,664 edits, 216 rebuild/reversal compositions, 30 clipped updates](retail-pathfinding-search.md#terrain-edit-and-explicit-rebuild-composition). [Origin producer and 25 complete no-file loader calls](retail-pathfinding-search.md#terrain-origin-producer-and-map-factory-composition) now covered; [150 maintenance callbacks and 25 release prefixes](retail-pathfinding-search.md#constructed-map-maintenance-and-partial-release) verify continued hierarchy staleness and the external-free boundary. [Decoded WPM/image mask loops](retail-pathfinding-search.md#decoded-wpm-and-image-mask-consumers) cover mask translation; [144 overlapping widget raster sequences](retail-pathfinding-search.md#widget-rasterization-and-overlapping-occupancy) plus96 full widget removals,96 paired reapply/remove lifecycles,320 nonempty callback/rejection cases and two destruction prefixes to Storm403 cover lazy records, snapping and the real refresh gate; file-backed loader/reload, allocation growth, non-dyadic inputs and other invalidation producers remain open. |
 | NUM-01/02 | [200,330 exact helper calls, 2,130 normalizations, 864 bounds prefixes](retail-pathfinding-separation.md#exact-scalar-arithmetic-and-occupied-cell-boundaries). Trig, reciprocal table derivation, producer domains and full trajectory composition remain open. |
 
-No whole checkbox below closes from these slices. Next coordinator dependency:
-UI/network order production, populated separation and crowd/shared-group
-variants of the verified order → search → travel → arrival chain.
+The 81 original acceptance items below remain open: each still has exclusions
+or an unfrozen deliverable. In particular, BASE-06 is not closed by combining
+separate reports: initial admission/FIFO use explicit group ticks, while the
+full-owner fixtures start with prepared movement state. Next compose those
+paths into one frozen baseline, then extend shared groups/crowds and UI/network
+producers. Do not repeat the eight completed slices above.
 
 ## BASE — scope and evidence infrastructure
 
@@ -97,7 +124,7 @@ variants of the verified order → search → travel → arrival chain.
 - [ ] **BASE-03** Build a reachable-function/branch and field read/write inventory from entry points through cleanup. Include virtual callbacks, globals, flags, constructors, allocators and caller preconditions; associate every current oracle exclusion with a task or existing coverage.
 - [ ] **BASE-04** Define a shared fixture/trace schema: build/data/map hashes, ordered entities/handles, initial state, simulation times, PRNG state, commands/edits, expected events and termination. Capture map cells, routes, indices, budgets, flags, membership and motion at stable boundaries.
 - [ ] **BASE-05** Add one corpus manifest/runner for existing oracles and retail captures. Distinguish expected retail/reference differences from regressions; record full calls versus prefixes/stubs, seed, scope and exact/tolerant assertions. Fail on truncated capture or missing completion.
-- [ ] **BASE-06** Freeze one complete ordinary ground-move baseline, including construction, fresh group/member searches, spatial updates, arrival callback, release and next order. Compare intermediate state; establish empty/idle before and after invariants.
+- [ ] **BASE-06** Freeze one complete ordinary ground-move baseline, including construction, fresh group/member searches, spatial updates, arrival callback, release and next order. Compare intermediate state; establish empty/idle before and after invariants. **Partial:** BASE-06a proves initial admission; SCHED-02a/b prove separate full-owner fixtures. A single frozen construction-to-next-order composition remains open.
 
 ## MAP — construction, mutation and invalidation
 
@@ -171,7 +198,7 @@ Evidence: [target state](retail-pathfinding-routes.md#destination-changes-and-re
 Evidence: [admission](retail-pathfinding-routes.md), [movement clocks](retail-pathfinding-movement.md#stored-velocity-integration-and-movement-clocks).
 
 - [ ] **SCHED-01** Recover both clock-domain selectors, configured spans, advancement, pause/time scaling, rollover/backward-time semantics and simulation seconds per pathing update; distinguish render, JASS timer and simulation cadence.
-- [ ] **SCHED-02** Execute a populated complete owner tick, recovering order of scheduler, shared-cap publication, group/radius passes, movement, separation and callbacks; verify iteration order and same-tick visibility of changes.
+- [ ] **SCHED-02** Execute a populated complete owner tick, recovering order of scheduler, shared-cap publication, group/radius passes, movement, separation and callbacks; verify iteration order and same-tick visibility of changes. **Partial:** SCHED-02a/b close singleton ordering and one controlled separation pair. Populated shared-cap/multiple-group passes and callback mutation remain open.
 - [ ] **SCHED-03** Close every queue/class/priority producer, including non-unit class 15; test enqueue/unlink/reclassify/requeue/deletion during iteration and counter wrap.
 - [ ] **SCHED-04** Measure contention across owners/classes/groups and repeated budget exhaustion; explain fairness/starvation and retry timing with exact queue/work state, not elapsed-time guesses.
 
@@ -189,18 +216,18 @@ Evidence: [movement](retail-pathfinding-movement.md#speed-and-heading-update).
 Evidence: [subscriptions](retail-pathfinding-movement.md#movement-subscriptions-and-internal-event-remapping), [queue/release](retail-pathfinding-movement.md#arrival-cleanup-and-internal-order-queue).
 
 - [ ] **ORDER-01** Extend subscriber prefixes through real arrival/can't-path handlers and dispatcher unwind; cover all early exits, retry/recovery branches and unit-state gates, including queue cleanup bit `unit+280 & 40`.
-- [ ] **ORDER-02** Recover internal queue versus user Shift-queue ownership; execute next-order dispatch (`6f67df00`), control bits and completion/failure semantics for empty, replaced, canceled and multi-order queues.
+- [ ] **ORDER-02** Recover internal queue versus user Shift-queue ownership; execute next-order dispatch (`6f67df00`), control bits and completion/failure semantics for empty, replaced, canceled and multi-order queues. **Partial:** ORDER-02a/b close initial admission and four two-order FIFO cases. Remaining queue flags, producers and failure combinations are not closed.
 - [ ] **ORDER-03** Exercise subscription insertion/removal and order/unit destruction during callbacks, nested dispatch and multiple subscribers; verify payload remapping, iterator/depth/refcount invariants and event order.
 - [ ] **ORDER-04** Finish zero-reference payload reclamation through class factory/allocator; test populated relations/children, live wrapper construction, bridge guard failures, stale handles and both identity domains.
 - [ ] **ORDER-05** Complete deferred-request allocation, nonempty heap ordering/ties, cancellation, repeating requests, callbacks scheduling/canceling other requests and wrapper reuse; verify deadline time versus restored clock.
-- [ ] **ORDER-06** Compose Stop, replacement, interruption, death/removal and relevant ability transitions during every routing phase, including waiting, searching, turning, group completion and deferred release.
+- [ ] **ORDER-06** Compose Stop, replacement, interruption, death/removal and relevant ability transitions during every routing phase, including waiting, searching, turning, group completion and deferred release. **Partial:** ORDER-06a/b close replacement and interrupt/resume at tick 3. Other phases, death/removal and ability transitions remain open.
 
 ## GROUP — shared routes and membership
 
 Evidence: [group decisions](retail-pathfinding-movement.md#group-decision-and-speed-commit).
 
 - [ ] **GROUP-01** Recover group creation/join/leave/merge/split/destruction producers and limits; establish which player/JASS/AI orders create shared groups versus independent movers.
-- [ ] **GROUP-02** Extend full cached ticks to fresh group/member searches, route failure, completion and populated owner scheduling; verify separate/shared route use and decision-before-commit invariants.
+- [ ] **GROUP-02** Extend full cached ticks to fresh group/member searches, route failure, completion and populated owner scheduling; verify separate/shared route use and decision-before-commit invariants. **Partial:** GROUP-02a covers an active singleton with an eligible repulsor, not a shared group of active movers.
 - [ ] **GROUP-03** Close target-speed adjustment (`group bit 800`), shared-cap exemptions and flag producers, maximum footprint, auxiliary publication/pool allocation and Captain AI lifecycle.
 - [ ] **GROUP-04** Test membership mutation during callbacks/movement, stale identities, last-member completion, empty-group teardown and all-invalid prepasses; verify swap-removal effects on subsequent iteration/layout.
 
@@ -219,7 +246,7 @@ Evidence: [formation layout](retail-pathfinding-movement.md#complete-formation-l
 Evidence: [separation](retail-pathfinding-separation.md).
 
 - [ ] **SEP-01** Complete authored config, category/rank/mask/flag producers, including nonzero selectors and overrides; verify enabled/disabled behavior across applicable movement types and owners.
-- [ ] **SEP-02** Execute the entire query → ordered accumulation → clamp/cooldown → later validation/application chain with actual occupancy updates and NUM/PRNG state; compare every neighbor contribution.
+- [ ] **SEP-02** Execute the entire query → ordered accumulation → clamp/cooldown → later validation/application chain with actual occupancy updates and NUM/PRNG state; compare every neighbor contribution. **Partial:** SEP-02a and SCHED-02b cover controlled pair compositions; general exact arithmetic/PRNG and every-neighbor coverage remain open.
 - [ ] **SEP-03** Close link insertion/removal order from unit lifecycle, metadata/dead-object lifetimes, stamp repair/wrap, cleanup sampling threshold/schedule, fresh allocation/growth and block reclamation.
 - [ ] **SEP-04** Match controlled live exact-overlap, crowded, mixed-owner/radius/rank and blocked-displacement cases; distinguish ground path blocking/retry from authored repulsion and explain all trajectory differences.
 
