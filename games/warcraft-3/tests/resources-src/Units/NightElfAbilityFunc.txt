@@ -1,3 +1,4 @@
+// Minimal stock-shaped fixture rows from War3.mpq / War3x.mpq.
 [Aroo]
 Art=TestUI\Textures\root.blp
 Buttonpos=0,1
@@ -5,3 +6,18 @@ Tip=Root
 Unart=TestUI\Textures\uproot.blp
 UnButtonpos=1,1
 Untip=Uproot
+
+[Ashm]
+Art=ReplaceableTextures\CommandButtons\BTNAmbush.blp
+Buttonpos=2,1
+Order=ambush
+
+[Ahid]
+Art=ReplaceableTextures\CommandButtons\BTNAmbush.blp
+Buttonpos=2,1
+Order=ambush
+
+[BEer]
+Buffart=ReplaceableTextures\CommandButtons\BTNEntanglingRoots.blp
+Targetart=Abilities\Spells\NightElf\EntanglingRoots\EntanglingRootsTarget.mdl
+Targetattach=origin

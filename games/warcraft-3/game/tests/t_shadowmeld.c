@@ -26,14 +26,15 @@ static void shadowmeld_capture_write(pfWriteType_t type, void const *value) {
 }
 
 static char const shadowmeld_slk[] =
-    "ID;PWXL;N;E8;Y3;X8\n"
+    "ID;PWXL;N;E9;Y3;X9\n"
     "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
     "C;Y1;X4;K\"Cost1\"\nC;Y1;X5;K\"Cool1\"\nC;Y1;X6;K\"Rng1\"\n"
     "C;Y1;X7;K\"Dur1\"\nC;Y1;X8;K\"HeroDur1\"\n"
+    "C;Y1;X9;K\"DataA1\"\n"
     "C;Y2;X1;K\"Ashm\"\nC;Y2;X2;K\"Ashm\"\nC;Y2;X3;K\"1\"\n"
-    "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"0\"\nC;Y2;X7;K\"0\"\nC;Y2;X8;K\"0\"\n"
+    "C;Y2;X4;K\"0\"\nC;Y2;X5;K\"0\"\nC;Y2;X6;K\"0\"\nC;Y2;X7;K\"0\"\nC;Y2;X8;K\"0\"\nC;Y2;X9;K\"1.5\"\n"
     "C;Y3;X1;K\"Ahid\"\nC;Y3;X2;K\"Ahid\"\nC;Y3;X3;K\"1\"\n"
-    "C;Y3;X4;K\"0\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"0\"\nC;Y3;X7;K\"0\"\nC;Y3;X8;K\"0\"\nE\n";
+    "C;Y3;X4;K\"0\"\nC;Y3;X5;K\"0\"\nC;Y3;X6;K\"0\"\nC;Y3;X7;K\"0\"\nC;Y3;X8;K\"0\"\nC;Y3;X9;K\"1.5\"\nE\n";
 
 typedef struct {
     slkTestData_t *rows, *old;
@@ -148,6 +149,25 @@ TEST(wc3_shadowmeld, passive_fades_after_stationary_night_interval) {
     T_ASSERT(S_ShadowMeldActive(fix.unit));
     T_ASSERT(S_UnitIsInvisibleToPlayer(fix.unit, 1));
     T_ASSERT(!S_UnitIsInvisibleToPlayer(fix.unit, 0));
+
+    shadowmeld_done(&fix);
+}
+
+TEST(wc3_shadowmeld, passive_fade_duration_uses_authored_shm1) {
+    shadowmeldFix_t fix;
+    AbilityData_t *ability;
+
+    shadowmeld_setup(&fix);
+    ability = (AbilityData_t *)G_AbilityData(ID_ASHM);
+    ability->level[0].data[0].number = 0.75f; /* Shm1 / DataA1 */
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+    S_RunAbilityUpdates(fix.unit);
+    T_ASSERT(fix.unit->shadowmeld.fading);
+    shadowmeld_tick(fix.unit, 749);
+    T_ASSERT(!S_ShadowMeldActive(fix.unit));
+    shadowmeld_tick(fix.unit, 1);
+    T_ASSERT(S_ShadowMeldActive(fix.unit));
 
     shadowmeld_done(&fix);
 }
@@ -340,6 +360,7 @@ TEST(wc3_shadowmeld, hide_state_changes_invalidate_command_card) {
     T_EQ(G_CommandButtonValue("normal", "alternate", true), "alternate");
     {
         abilityitem_t item = S_AbilityItem(ID_ASHM);
+        gameCommandButton_t button;
         gameCommandButton_t state = { .engaged = G_CommandButtonToggleOn(fix.unit, &item, false, -1) };
         void (*old_write)(pfWriteType_t, void const *) = gi.Write;
         int (*old_image_index)(cstring_t) = gi.ImageIndex;
@@ -352,6 +373,8 @@ TEST(wc3_shadowmeld, hide_state_changes_invalidate_command_card) {
         T_ASSERT(!(shadowmeld_command_frame.flagsvalue & UIFLAG_ALTERNATE_ACTIVE));
         gi.Write = old_write;
         gi.ImageIndex = old_image_index;
+        T_ASSERT(G_BuildCommandButton(fix.unit, "Ashm", false, 0, &button));
+        T_EQ(button.engaged, 1);
     }
 
     client->commands_dirty = false;

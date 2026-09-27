@@ -742,7 +742,6 @@ field_t edict_fields[] = {
     F(edict_s, spawn_time, F_INT),
     F(edict_s, summon_ability, F_INT),
     F(edict_s, permanent_invisibility_reveal_until, F_INT),
-    F(edict_s, status_effect_code, F_INT),
     F(edict_s, forced_visibility_count, F_INT),
     F(edict_s, shared_vision, F_INT),
     F(edict_s, harvested_lumber, F_INT),
@@ -2023,10 +2022,8 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-48.bin",
         "/tmp/openwarcraft3-wc3-save-version-49.bin",
         "/tmp/openwarcraft3-wc3-save-version-50.bin",
-        "/tmp/openwarcraft3-wc3-save-version-51.bin",
-        "/tmp/openwarcraft3-wc3-save-version-52.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50 };
 
     reset_entities();
     setup_test_world();

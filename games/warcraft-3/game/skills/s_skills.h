@@ -81,7 +81,6 @@ BZ_ABILITY_PROC(CAbilityNoop);
 BZ_ABILITY_PROC(CAbilityPassive);
 BZ_ABILITY_PROC(CAbilityPermanentInvisibility);
 BZ_ABILITY_PROC(CAbilityShadowMeld);
-BZ_ABILITY_PROC(CAbilityHide);
 BZ_ABILITY_PROC(CAbilityShadowMeldAkama);
 BZ_ABILITY_PROC(CAbilityThunderBolt);
 BZ_ABILITY_PROC(CAbilityFireBolt);

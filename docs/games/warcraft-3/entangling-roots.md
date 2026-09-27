@@ -5,6 +5,11 @@
 requested rawcode's own AbilityData row, so aliases retain their authored
 duration, BuffID, targets, and `DataA` (`Eer1`) damage-per-second values.
 
+The test fixture `tests/resources-src/Units/NightElfAbilityFunc.txt` keeps the
+stock `BEer` buff art/attachment row needed by the visual lifecycle tests. Its
+target-art values are copied from `Units\\NightElfAbilityFunc.txt` in the stock
+Warcraft III `War3.mpq`/`War3x.mpq` archives.
+
 ## Runtime contract
 
 A successful unit-target cast applies the authored timed buff for the normal or

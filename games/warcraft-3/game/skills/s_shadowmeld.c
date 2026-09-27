@@ -2,14 +2,12 @@
 
 #define ID_ASHM MAKEFOURCC('A', 's', 'h', 'm')
 #define ID_AHID MAKEFOURCC('A', 'h', 'i', 'd')
-/* Standard retail Shadow Meld uses a 1.5 second fade. Keep this as a
- * compatibility constant for now; custom/variant abilities can author a
- * different fade, so this must ultimately come from the resolved ability data. */
-#define WC3_SHADOWMELD_FADE_MS 1500u
 /* Presentation approximation: friendly/shared-vision viewers retain a ghosted
  * model at 35% opacity. Retail's exact final alpha and interpolation curve have
  * not been recovered; keep these presentation constants isolated from gameplay. */
 #define WC3_SHADOWMELD_FRIENDLY_ALPHA 0.35f
+
+static uint32_t shadowmeld_fade_ms(edict_t const *unit);
 
 /* Retail Shadow Meld is conditional invisibility rather than an RF_HIDDEN
  * lifecycle. Keeping the source as explicit unit state lets the existing
@@ -25,14 +23,16 @@ bool S_ShadowMeldActive(edict_t const *unit) {
  * completes; hostile/detector visibility remains owned by the shared query. */
 float S_ShadowMeldPresentationAlpha(edict_t const *unit) {
     float t, eased;
-    uint32_t elapsed;
+    uint32_t elapsed, fade_ms;
 
     if (!unit || !unit->inuse) return 1.0f;
     if (unit->shadowmeld.active) return WC3_SHADOWMELD_FRIENDLY_ALPHA;
     if (!unit->shadowmeld.fading) return 1.0f;
 
+    fade_ms = shadowmeld_fade_ms(unit);
+    if (!fade_ms) return 1.0f;
     elapsed = G_Time() - unit->shadowmeld.fade_start;
-    t = MIN(1.0f, MAX(0.0f, (float)elapsed / (float)WC3_SHADOWMELD_FADE_MS));
+    t = MIN(1.0f, MAX(0.0f, (float)elapsed / (float)fade_ms));
     eased = t * t * (3.0f - 2.0f * t);
     return 1.0f - (1.0f - WC3_SHADOWMELD_FRIENDLY_ALPHA) * eased;
 }
@@ -66,6 +66,24 @@ static bool shadowmeld_has_ability(edict_t const *unit) {
     return shadowmeld_has_standard(unit) || shadowmeld_has_akama(unit);
 }
 
+static uint32_t shadowmeld_fade_ms(edict_t const *unit) {
+    static uint32_t bad_code, bad_level;
+    uint32_t code = shadowmeld_has_standard(unit) ? ID_ASHM :
+                    shadowmeld_has_akama(unit) ? ID_AHID : 0;
+    uint32_t level = code ? G_UnitAbilityLevel(unit, code) : 0;
+    float duration = code && level ? S_SpellData(code, level, 1) : 0.0f; /* Shm1 / DataA */
+
+    if (!(duration > 0.0f) || !isfinite(duration)) {
+        if (code && (bad_code != code || bad_level != level)) {
+            fprintf(stderr, "WC3 Shadow Meld: invalid Shm1 duration for %08x level %u\n",
+                    (unsigned)code, (unsigned)level);
+            bad_code = code; bad_level = level;
+        }
+        return 0;
+    }
+    return (uint32_t)(duration * 1000.0f + 0.5f);
+}
+
 static bool shadowmeld_stationary(edict_t const *unit) {
     if (!unit || M_IsDead((edict_t *)unit) || unit->training || unit->construction.active ||
         (unit->svflags & SVF_NOCLIENT) || S_GoldMineWorkerIsInside((edict_t *)unit))
@@ -81,11 +99,12 @@ static bool shadowmeld_eligible(edict_t const *unit) {
 }
 
 static void shadowmeld_update(edict_t *unit) {
-    uint32_t now;
+    uint32_t now, fade_ms;
     bool eligible;
 
     if (!unit || !unit->inuse) return;
-    eligible = shadowmeld_eligible(unit);
+    fade_ms = shadowmeld_fade_ms(unit);
+    eligible = fade_ms && shadowmeld_eligible(unit);
     if (!eligible) {
         unit->shadowmeld.fade_start = 0;
         unit->shadowmeld.fading = false;
@@ -100,7 +119,7 @@ static void shadowmeld_update(edict_t *unit) {
         unit->shadowmeld.fading = true;
         return;
     }
-    if ((uint32_t)(now - unit->shadowmeld.fade_start) >= WC3_SHADOWMELD_FADE_MS) {
+    if ((uint32_t)(now - unit->shadowmeld.fade_start) >= fade_ms) {
         unit->shadowmeld.fading = false;
         unit->shadowmeld.active = true;
     }
@@ -166,11 +185,4 @@ BZ_ABILITY_PROC(CAbilityShadowMeld) {
  * The current classic data baseline remains night-only. */
 BZ_ABILITY_PROC(CAbilityShadowMeldAkama) {
     return shadowmeld_common(ent, msg, call, true);
-}
-
-/* Compatibility name retained for callers/tests written against the first
- * dedicated Hide implementation.  Stock command registration now lives on
- * each Shadow Meld effect class itself. */
-BZ_ABILITY_PROC(CAbilityHide) {
-    return shadowmeld_common(ent, msg, call, false);
 }

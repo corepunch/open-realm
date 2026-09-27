@@ -2236,17 +2236,9 @@ TEST(wc3_spell, entangling_roots_is_a_timed_unit_spell) {
 }
 
 TEST(wc3_spell, entangling_roots_visual_resolves_from_buff_target_art) {
-	static char const buff_slk[] =
-		"ID;PWXL;N;EBB;Y2;X3\n"
-		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"TargetArt\"\n"
-		"C;Y2;X1;K\"BEer\"\nC;Y2;X2;K\"BEer\"\n"
-		"C;Y2;X3;K\"Units\\\\NightElf\\\\EntanglingRootsTarget.mdx\"\nE\n";
-	slkTestData_t *rows = parse_slk_string(buff_slk), *old = G_SetSLKRows("AbilityBuffData", rows);
 	cstring_t art = G_AbilityEffectArt(MAKEFOURCC('B', 'E', 'e', 'r'), WC3_EFFECT_TARGET, 0);
 
-	T_NOT_NULL(art);
-	T_NOT_NULL(strcasestr(art, "EntanglingRootsTarget"));
-	G_SetSLKRows("AbilityBuffData", old); free_slk_rows(rows);
+	T_STREQ(art, "Abilities\\Spells\\NightElf\\EntanglingRoots\\EntanglingRootsTarget.mdl");
 }
 
 TEST(wc3_spell, entangling_roots_visual_follows_status_through_recast_and_save_load) {
