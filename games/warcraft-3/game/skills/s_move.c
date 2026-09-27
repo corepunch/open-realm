@@ -1483,15 +1483,17 @@ bool move_is_active_order_walk(edict_t const *ent) {
     return ent && ent->currentmove == &move_move_walk;
 }
 
+bool S_UnitIsEntanglingRooted(edict_t const *unit) {
+    return unit && G_UnitStatusLevel(unit, MAKEFOURCC('B', 'E', 'e', 'r'));
+}
+
 /* Move owns translation eligibility. False means the unit cannot change
  * position this tick (immobile, Cyclone, Entangling Roots, Ensnare, Purge
- * pause). This is distinct from being unable to attack: a locked artillery
- * unit must hold its firing point and still fire in-range targets. */
+ * pause). Entangling Roots is also a disarm; attack owns that separate check. */
 bool S_UnitCanTranslate(edict_t const *unit) {
     if (!unit) return false;
     if ((unit->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(unit) ||
-        G_UnitStatusLevel(unit, MAKEFOURCC('B', 'E', 'e', 'r')) ||
-        S_UnitIsEnsnared(unit) || S_PurgeIsImmobilized(unit)) return false;
+        S_UnitIsEntanglingRooted(unit) || S_UnitIsEnsnared(unit) || S_PurgeIsImmobilized(unit)) return false;
     return true;
 }
 
@@ -1500,7 +1502,7 @@ bool S_UnitCanTranslate(edict_t const *unit) {
 void order_move(edict_t *self, edict_t *target) {
     if (S_GoldMineWorkerIsInside(self))
         return;
-    if ((self->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(self) || G_UnitStatusLevel(self, MAKEFOURCC('B', 'E', 'e', 'r'))
+    if ((self->aiflags & AI_IMMOBILE) || S_UnitIsCycloned(self) || S_UnitIsEntanglingRooted(self)
         || S_UnitIsEnsnared(self) || S_PurgeIsImmobilized(self))
         return;
     move_cancel_displacement(self);
