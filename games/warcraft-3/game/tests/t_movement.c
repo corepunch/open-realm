@@ -4557,13 +4557,14 @@ TEST(wc3_movement, occupied_burrow_exposes_attack_stop_and_stand_down_only_with_
     };
     static UnitWeapons_t const burrow_weapons = {
         .id = MAKEFOURCC('o','b','u','r'),
+        .attacksEnabled = 3,
         .attack1 = { .damageDice = 1 },
     };
     static UnitBalance_t const burrow_balance = {
         .id = MAKEFOURCC('o','b','u','r'),
         .speed = 0,
     };
-    edict_t *burrow = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 256.0f, 256.0f);
+    edict_t *burrow = alloc_test_unit(MAKEFOURCC('o','b','u','r'), 256.0f, 256.0f);
     edict_t *peon = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 256.0f, 256.0f);
     gameCommandButton_t buttons[16];
     uint8_t count;

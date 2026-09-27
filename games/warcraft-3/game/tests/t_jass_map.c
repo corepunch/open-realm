@@ -640,6 +640,8 @@ TEST(wc3_jass_map, human07_normal_removal_is_absent_from_green_building_count) {
      * rows, so provide the live-unit state that SP_SpawnUnit supplies. */
     crypt->svflags |= SVF_MONSTER;
     town_hall->svflags |= SVF_MONSTER;
+    crypt->s.flags |= EF_BUILDING;
+    town_hall->s.flags |= EF_BUILDING;
     crypt->health.value = crypt->health.max_value = 1000.0f;
     town_hall->health.value = town_hall->health.max_value = 1000.0f;
     jass_callbyname(level.vm, "Human07NormalInitialization", false);

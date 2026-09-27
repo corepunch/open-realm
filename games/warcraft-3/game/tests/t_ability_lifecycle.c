@@ -412,6 +412,7 @@ TEST(wc3_ability_lifecycle, blizzard_applies_authored_building_reduction) {
     edict_t *caster = review_setup(), *enemy = review_unit(1, 100), *building = review_unit(1, 120);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     building->targtype = TARG_STRUCTURE;
+    building->s.flags |= EF_BUILDING;
     T_ASSERT(S_CastPointTargetSpell(caster, FS_SLKKey("AHbz"), &enemy->s.origin2));
     edict_t *thinker = review_thinker(caster);
     level.time = thinker->freetime; G_RunEntity(thinker); /* shards */
@@ -456,6 +457,7 @@ TEST(wc3_ability_lifecycle, mass_teleport_delays_caps_and_excludes_allies_and_st
     uint32_t moved = 0;
     level.alliances[0][1] |= 1 << ALLIANCE_PASSIVE;
     building->targtype = TARG_STRUCTURE;
+    building->s.flags |= EF_BUILDING;
 
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHmt"), target));
     edict_t *thinker = review_thinker(caster);

@@ -4098,7 +4098,7 @@ TEST(wc3_spell, earthquake_waits_for_effect_delay_slows_ground_and_damages_struc
     ((mapInfo_t *)level.mapinfo)->players[0].playerType = kPlayerTypeHuman;
     ((mapInfo_t *)level.mapinfo)->players[1].playerType = kPlayerTypeHuman;
     ground->targtype = TARG_GROUND; ground->unitinfo.MoveSpeed = 300.0f;
-    air->targtype = TARG_AIR; building->targtype = TARG_STRUCTURE;
+    air->targtype = TARG_AIR; building->targtype = TARG_STRUCTURE; building->s.flags |= EF_BUILDING;
     ground->svflags |= SVF_MONSTER; air->svflags |= SVF_MONSTER; building->svflags |= SVF_MONSTER;
     ground->health.value = ground->health.max_value = 500;
     air->health.value = air->health.max_value = 500;

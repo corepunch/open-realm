@@ -203,7 +203,7 @@ TEST(wc3_spell, creep_regression_monsoon_interval_buildings_and_cancellation) {
     creepFix_t fix;
     edict_t *building, *outside, *thinker = NULL;
     creep_setup(&fix, &(creepData_t){ .id = "Zmon", .parent = "ANmo", .buffs = "ANmd", .targs = "air,ground,structure,enemy,neutral", .area = 64, .data = {20, 1.5f, 0.35f} });
-    building = creep_neighbor(460); building->targtype = TARG_STRUCTURE;
+    building = creep_neighbor(460); building->targtype = TARG_STRUCTURE; building->s.flags |= EF_BUILDING;
     outside = creep_neighbor(600);
     T_ASSERT(S_CastPointTargetSpell(fix.caster, FS_SLKKey("Zmon"), &fix.target->s.origin2));
     FILTER_EDICTS(ent, ent->think == monsoon_think) { thinker = ent; break; }

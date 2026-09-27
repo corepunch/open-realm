@@ -773,6 +773,7 @@ TEST(wc3_unit, decaying_structure_uses_structure_decay_constant) {
     ent->class_id = MAKEFOURCC('h', 'b', 'a', 'r');
     ent->data.UnitBalance = &balance;
     ent->data.UnitData = &data;
+    ent->s.flags |= EF_BUILDING;
     unit_begin_decay(ent);
 
     T_FEQ(ent->wait, 0.3f, 0.001f);

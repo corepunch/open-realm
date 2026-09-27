@@ -2940,7 +2940,7 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
     T_ASSERT(!ziggurat->construction.active);
     T_ASSERT(acolyte->inuse);
     T_NULL(acolyte->build);
-    T_NULL(acolyte->goalentity);
+    T_ASSERT(acolyte->goalentity && acolyte->goalentity->s.origin2.x == build_point.x);
     T_ASSERT(!(acolyte->s.renderfx & RF_HIDDEN));
     T_ASSERT(!acolyte->paused);
     T_ASSERT(!acolyte->invulnerable);
@@ -2959,6 +2959,7 @@ TEST(wc3_building, acolyte_builds_ziggurat_then_can_move_away) {
     acolyte->mana.value = acolyte->mana.max_value = 100.0f;
     ziggurat->s.player = client->ps.number;
     ziggurat->svflags |= SVF_MONSTER;
+    ziggurat->s.flags |= EF_BUILDING;
     ziggurat->targtype = TARG_STRUCTURE;
     ziggurat->die = unit_die;
     T_EQ(G_UnitAbilityLevel(acolyte, MAKEFOURCC('A','u','n','s')), 1);

@@ -27,6 +27,7 @@ static void area_spell_damage(edict_t *ent, float maxtotal) {
 
 #define AREA_HITS(t) ((t)->inuse && (t) != caster && S_SpellIsAliveTarget(t) && \
                       S_SpellIsEnemy(caster, t) &&                              \
+                      (G_UnitTargetType(t) == TARG_GROUND || G_UnitTargetType(t) == TARG_AIR || G_UnitIsStructure(t)) && \
                       Vector2_distance(&(t)->s.origin2, &ent->s.origin2) <= radius)
 
     if (maxtotal > 0.0f) {
@@ -47,6 +48,7 @@ static bool blizzard_hits(edict_t *ent, edict_t *target) {
     edict_t *caster = ent->owner;
     return target->inuse && target != caster && S_SpellIsAliveTarget(target) &&
            S_SpellAllowsTarget(ent->class_id, caster, target) &&
+           (G_UnitTargetType(target) == TARG_GROUND || G_UnitTargetType(target) == TARG_AIR || G_UnitIsStructure(target)) &&
            Vector2_distance(&target->s.origin2, &ent->s.origin2) <= ent->collision;
 }
 
