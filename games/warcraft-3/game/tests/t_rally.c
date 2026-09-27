@@ -20,6 +20,10 @@ static UnitProfile_t const rally_research_profile = {
     .researches = "Rhme",
 };
 
+static UnitAbilities_t rally_ancient_abilities = {
+    .abilList = "Aro1",
+};
+
 static edict_t *rally_unit(uint32_t class_id, float x, float y) {
     edict_t *ent = alloc_test_unit(class_id, x, y);
     ent->svflags |= SVF_MONSTER;
@@ -40,6 +44,38 @@ TEST(wc3_rally, capability_is_train_or_revive_driven) {
 
     producer->data.UnitProfile = &rally_research_profile;
     T_ASSERT(!G_UnitHasRally(producer));
+}
+
+TEST(wc3_rally, ancient_smart_orders_are_rally_only_while_rooted) {
+    edict_t *producer;
+    edict_t *target;
+    vec2_t point = { 256.0f, 192.0f };
+    edict_t *rally_target = NULL;
+
+    reset_entities(); setup_test_world();
+    producer = rally_unit(MAKEFOURCC('e','t','o','l'), 64.0f, 64.0f);
+    target = rally_unit(MAKEFOURCC('h','f','o','o'), 128.0f, 64.0f);
+    producer->data.UnitProfile = &rally_train_profile;
+    producer->data.UnitAbilities = &rally_ancient_abilities;
+    producer->ancient_root.ability = MAKEFOURCC('A','r','o','1');
+    producer->ancient_root.mode = ANCIENT_ROOTED;
+    producer->s.flags |= EF_BUILDING;
+    producer->aiflags |= AI_IMMOBILE;
+
+    T_ASSERT(G_UnitHasRally(producer));
+    T_ASSERT(unit_issuetargetorder(producer, "smart", target));
+    T_EQ(G_ResolveRallyTarget(producer, NULL, &rally_target), RALLY_TARGET_ENTITY);
+    T_ASSERT(rally_target == target);
+
+    producer->ancient_root.mode = ANCIENT_UPROOTED;
+    producer->s.flags &= ~EF_BUILDING;
+    producer->aiflags &= ~AI_IMMOBILE;
+    producer->runtime.flags &= ~UNIT_BALANCE_BUILDING;
+    producer->movetype = MOVETYPE_STEP;
+    T_ASSERT(!G_UnitHasRally(producer));
+    T_ASSERT(unit_issueorder(producer, "smart", &point));
+    T_ASSERT(producer->currentmove && producer->currentmove->proc == CAbilityMove);
+    T_ASSERT(producer->goalentity);
 }
 
 TEST(wc3_rally, command_handler_is_registered) {
