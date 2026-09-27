@@ -29,18 +29,6 @@ static edict_t sc2_edicts[SC2_MAX_EDICTS];
 static struct client_s sc2_clients[SC2_MAX_CLIENTS];
 static edict_t sc2_waypoints[SC2_MAX_EDICTS];
 
-typedef struct {
-    bool moving;
-    bool mobile;
-    bool flying;
-    vec2_t target;
-    routePath_t path;
-    float speed, height;
-    animation_t const *anim;
-    uint32_t animtime;
-} sc2MoveState_t;
-
-static sc2MoveState_t sc2_move[SC2_MAX_EDICTS];
 #include "g_unit.h"
 
 static bool SC2_ObjectIsMobile(sc2MapObject_t const *object) {
@@ -104,12 +92,12 @@ static uint32_t SC2_EdictNumber(edict_t const *ent) {
 /* Flying movers retain their catalog-authored clearance while crossing terrain tiers. */
 static void SC2_LinkUnit(edict_t *ent) {
     uint32_t number = SC2_EdictNumber(ent);
-    float terrain = sc2_move[number].flying ? SC2_MapAirHeightAtPoint(ent->s.origin2.x, ent->s.origin2.y) :
+    float terrain = sc2_edicts[number].move.flying ? SC2_MapAirHeightAtPoint(ent->s.origin2.x, ent->s.origin2.y) :
                                               SC2_MapHeightAtPoint(ent->s.origin2.x, ent->s.origin2.y);
 
     ent->s.origin.x = ent->s.origin2.x;
     ent->s.origin.y = ent->s.origin2.y;
-    ent->s.origin.z = terrain + sc2_move[number].height;
+    ent->s.origin.z = terrain + sc2_edicts[number].move.height;
     gi.LinkEntity(ent);
 }
 
@@ -124,9 +112,9 @@ static bool SC2_IsSelectable(edict_t const *ent, uint32_t player) {
         ent->inuse &&
         ent->s.model &&
         ent->s.player == player &&
-        sc2_move[number].mobile && (!sc2_units[number].initialized ||
-        (SC2_UnitAlive(&sc2_units[number]) && (sc2_units[number].states & (1u<<SC2_UNIT_SELECTABLE)) &&
-         !(sc2_units[number].states & (1u<<SC2_UNIT_HIDDEN))));
+        sc2_edicts[number].move.mobile && (!sc2_edicts[number].unit.initialized ||
+        (SC2_UnitAlive(&sc2_edicts[number].unit) && (sc2_edicts[number].unit.states & (1u<<SC2_UNIT_SELECTABLE)) &&
+         !(sc2_edicts[number].unit.states & (1u<<SC2_UNIT_HIDDEN))));
 }
 
 /* Selection replaces membership, including empty/invalid requests, then reconciles the client cache. */
@@ -150,7 +138,7 @@ static void SC2_Select(edict_t *clent, uint32_t argc, cstring_t argv[]) {
 
 /* Snapshot frames address the M3 sequence timeline, not the server's absolute clock. */
 static void SC2_UnitAnimation(edict_t *ent, cstring_t name) {
-    sc2MoveState_t *move = &sc2_move[SC2_EdictNumber(ent)];
+    sc2MoveState_t *move = &sc2_edicts[SC2_EdictNumber(ent)].move;
     move->anim = G_GetAnimation(ent->s.model, name);
     move->animtime = gi.GetTime();
     if (!move->anim) {
@@ -165,7 +153,7 @@ static void SC2_StopUnit(edict_t *ent) {
     if (number >= SC2_MAX_EDICTS) {
         return;
     }
-    sc2_move[number].moving = false;
+    sc2_edicts[number].move.moving = false;
     SC2_UnitAnimation(ent, "Stand");
     ent->s.ability = 0;
 }
@@ -174,14 +162,14 @@ static void SC2_OrderMove(edict_t *ent, vec2_t const *target) {
     uint32_t number = SC2_EdictNumber(ent);
     vec2_t pathable = *target;
 
-    if (number >= SC2_MAX_EDICTS || !sc2_move[number].mobile || !SC2_UnitCanMove(number)) {
+    if (number >= SC2_MAX_EDICTS || !sc2_edicts[number].move.mobile || !SC2_UnitCanMove(number)) {
         return;
     }
-    if (!sc2_move[number].flying && !CM_ClosestPathablePointForRadius(target, ent->collision, &pathable)) return;
-    sc2_move[number].target = pathable;
-    sc2_move[number].moving = true;
-    sc2_move[number].path.valid = false;
-    sc2_move[number].speed = sc2_units[number].initialized ? sc2_units[number].speed : SC2_MOVE_SPEED;
+    if (!sc2_edicts[number].move.flying && !CM_ClosestPathablePointForRadius(target, ent->collision, &pathable)) return;
+    sc2_edicts[number].move.target = pathable;
+    sc2_edicts[number].move.moving = true;
+    sc2_edicts[number].move.path.valid = false;
+    sc2_edicts[number].move.speed = sc2_edicts[number].unit.initialized ? sc2_edicts[number].unit.speed : SC2_MOVE_SPEED;
     sc2_waypoints[number].s.origin2 = pathable;
     sc2_waypoints[number].s.origin.z = SC2_MapHeightAtPoint(pathable.x, pathable.y);
     SC2_UnitAnimation(ent, "Stand");
@@ -218,7 +206,7 @@ static void SC2_MoveToTargetEntity(edict_t *clent, uint32_t target_number) {
 
 /* Use WC3's swept static-path check for both steering candidates and committed steps. */
 static bool SC2_MoveIsValid(edict_t *ent, vec2_t const *point) {
-    return sc2_move[SC2_EdictNumber(ent)].flying || CM_LineIsWalkableForRadius(&ent->s.origin2, point, ent->collision);
+    return sc2_edicts[SC2_EdictNumber(ent)].move.flying || CM_LineIsWalkableForRadius(&ent->s.origin2, point, ent->collision);
 }
 
 static void SC2_RunUnit(edict_t *ent) {
@@ -228,42 +216,42 @@ static void SC2_RunUnit(edict_t *ent) {
     float dist;
     float step;
 
-    if (number >= SC2_MAX_EDICTS || !sc2_move[number].moving || !SC2_UnitCanMove(number)) {
+    if (number >= SC2_MAX_EDICTS || !sc2_edicts[number].move.moving || !SC2_UnitCanMove(number)) {
         return;
     }
-    to_goal = Vector2_sub(&sc2_move[number].target, &ent->s.origin2);
+    to_goal = Vector2_sub(&sc2_edicts[number].move.target, &ent->s.origin2);
     dist = Vector2_len(&to_goal);
-    step = sc2_move[number].speed * (FRAMETIME / 1000.0f);
-    if (dist <= step + SC2_MOVE_EPS && (sc2_move[number].flying ||
-        CM_LineIsWalkableForRadius(&ent->s.origin2, &sc2_move[number].target, ent->collision))) {
-        ent->s.origin2 = sc2_move[number].target;
+    step = sc2_edicts[number].move.speed * (FRAMETIME / 1000.0f);
+    if (dist <= step + SC2_MOVE_EPS && (sc2_edicts[number].move.flying ||
+        CM_LineIsWalkableForRadius(&ent->s.origin2, &sc2_edicts[number].move.target, ent->collision))) {
+        ent->s.origin2 = sc2_edicts[number].move.target;
         SC2_LinkUnit(ent);
         SC2_StopUnit(ent);
         return;
     }
     /* Use the WC3 router's radius-aware direct test, cached incremental field, and bounded A* accelerator. */
-    if (sc2_move[number].flying || CM_LineIsWalkableForRadius(&ent->s.origin2, &sc2_move[number].target, ent->collision)) {
-        sc2_move[number].path.valid = false;
+    if (sc2_edicts[number].move.flying || CM_LineIsWalkableForRadius(&ent->s.origin2, &sc2_edicts[number].move.target, ent->collision)) {
+        sc2_edicts[number].move.path.valid = false;
         dir = to_goal;
     } else {
         uint32_t flow = CM_RequestHeatmapForRadius(&sc2_waypoints[number], ent->collision);
         if (!flow) {
-            pathAccelParams_t params = { &ent->s.origin2, &sc2_move[number].target, ent->collision, 0 };
-            if (!CM_AccelerateRoute(&sc2_move[number].path, &params, &dir)) return;
+            pathAccelParams_t params = { &ent->s.origin2, &sc2_edicts[number].move.target, ent->collision, 0 };
+            if (!CM_AccelerateRoute(&sc2_edicts[number].move.path, &params, &dir)) return;
         } else {
-            sc2_move[number].path.valid = false;
+            sc2_edicts[number].move.path.valid = false;
             dir = get_flow_direction(flow, ent->s.origin2.x, ent->s.origin2.y);
             if (Vector2_len(&dir) <= 0.001f) {
                 vec2_t closest;
                 if (!CM_FlowCanReach(flow, ent->s.origin2.x, ent->s.origin2.y) &&
-                    CM_ClosestReachablePointForRadius(&ent->s.origin2, &sc2_move[number].target, ent->collision, &closest))
+                    CM_ClosestReachablePointForRadius(&ent->s.origin2, &sc2_edicts[number].move.target, ent->collision, &closest))
                     SC2_OrderMove(ent, &closest);
                 return;
             }
         }
     }
     Vector2_normalize(&dir);
-    if (!(sc2_units[number].states & (1u<<SC2_UNIT_TURN_SUPPRESSED))) ent->s.angle = atan2f(dir.y, dir.x);
+    if (!(sc2_edicts[number].unit.states & (1u<<SC2_UNIT_TURN_SUPPRESSED))) ent->s.angle = atan2f(dir.y, dir.x);
     vec2_t next = Vector2_mad(&ent->s.origin2, step, &dir);
     if (!SC2_MoveIsValid(ent, &next)) {
         /* WC3 resolves blocked flow steps with local steering; SC2 previously stalled at the same corner forever. */
@@ -294,7 +282,7 @@ static void SC2_SolveCollisions(void) {
 
     FOR_LOOP(i, globals.num_edicts) {
         edict_t *a = &sc2_edicts[i];
-        if (!sc2_move[i].mobile || sc2_move[i].flying || !a->inuse || a->collision <= 0) {
+        if (!sc2_edicts[i].move.mobile || sc2_edicts[i].move.flying || !a->inuse || a->collision <= 0) {
             continue;
         }
         uint32_t num = gi.BoxEdicts(&a->bounds, colliders, SC2_MAX_COLLIDERS, sc2_collision_filter);
@@ -308,7 +296,7 @@ static void SC2_SolveCollisions(void) {
             if (b == a) {
                 continue;
             }
-            if (bnum < SC2_MAX_EDICTS && sc2_move[bnum].mobile && bnum >= i) {
+            if (bnum < SC2_MAX_EDICTS && sc2_edicts[bnum].move.mobile && bnum >= i) {
                 continue;
             }
             radius = a->collision + b->collision;
@@ -318,7 +306,7 @@ static void SC2_SolveCollisions(void) {
             }
             d = Vector2_sub(&a->s.origin2, &b->s.origin2);
             Vector2_normalize(&d);
-            if (bnum < SC2_MAX_EDICTS && sc2_move[bnum].mobile) {
+            if (bnum < SC2_MAX_EDICTS && sc2_edicts[bnum].move.mobile) {
                 SC2_PushEntity(a, (radius - distance) * 0.5f, &d);
                 SC2_PushEntity(b, -(radius - distance) * 0.5f, &d);
             } else {
@@ -533,7 +521,7 @@ static void SC2_GalaxyUnitMove(void *ent_ptr, float x, float y) {
 static bool SC2_GalaxyUnitIsMoving(void *ent_ptr) {
     edict_t *ent = (edict_t *)ent_ptr;
     uint32_t number = ent ? SC2_EdictNumber(ent) : SC2_MAX_EDICTS;
-    return number < SC2_MAX_EDICTS && sc2_move[number].moving;
+    return number < SC2_MAX_EDICTS && sc2_edicts[number].move.moving;
 }
 
 static void SC2_GalaxyPlaySound(cstring_t sound_id, int asset) {
@@ -573,15 +561,15 @@ static void *SC2_GalaxyCreateUnit(cstring_t unit_type, int player, float x, floa
         ent->s.radius = SC2_ObjectRadius(&object);
         ent->collision = SC2_ObjectCollisionRadius(&object, ent->s.radius);
         if (SC2_ObjectIsMobile(&object)) ent->svflags |= SVF_MONSTER;
-        sc2_move[ent->s.number].mobile = ent->svflags & SVF_MONSTER;
-        sc2_move[ent->s.number].flying = !strcasecmp(object.mover, "Fly");
-        sc2_move[ent->s.number].speed = SC2_MOVE_SPEED;
-        sc2_move[ent->s.number].height = object.move_height;
-        if (sc2_move[ent->s.number].mobile) SC2_UnitAnimation(ent, "Stand");
+        sc2_edicts[ent->s.number].move.mobile = ent->svflags & SVF_MONSTER;
+        sc2_edicts[ent->s.number].move.flying = !strcasecmp(object.mover, "Fly");
+        sc2_edicts[ent->s.number].move.speed = SC2_MOVE_SPEED;
+        sc2_edicts[ent->s.number].move.height = object.move_height;
+        if (sc2_edicts[ent->s.number].move.mobile) SC2_UnitAnimation(ent, "Stand");
     SC2_UnitInit(ent,&object);
     SC2_LinkUnit(ent);
             fprintf(stderr, "SC2_GalaxyCreateUnit: ent=%u type=%s model=%s mover=%s mobile=%d collision=%.2f player=%d at (%.1f,%.1f)\n",
-                    ent->s.number, unit_type, model, object.mover, !!sc2_move[ent->s.number].mobile, ent->collision, player, x, y);
+                    ent->s.number, unit_type, model, object.mover, !!sc2_edicts[ent->s.number].move.mobile, ent->collision, player, x, y);
     return ent;
 }
 
@@ -638,8 +626,6 @@ static void SC2_InitClients(void) {
 static void SC2_Init(void) {
     memset(sc2_edicts,  0, sizeof(sc2_edicts));
     memset(sc2_clients, 0, sizeof(sc2_clients));
-    memset(sc2_move,    0, sizeof(sc2_move));
-    memset(sc2_units,   0, sizeof(sc2_units));
     memset(sc2_waypoints, 0, sizeof(sc2_waypoints));
     memset(&sc2_level, 0, sizeof(sc2_level));
 
@@ -689,12 +675,8 @@ static void SC2_SpawnEntities(void) {
     memset(sc2_edicts + globals.max_clients,
            0,
            sizeof(sc2_edicts) - sizeof(sc2_edicts[0]) * globals.max_clients);
-    memset(sc2_move + globals.max_clients,
-           0,
-           sizeof(sc2_move) - sizeof(sc2_move[0]) * globals.max_clients);
     memset(sc2_waypoints, 0, sizeof(sc2_waypoints));
     SC2_InitClients();
-    memset(sc2_units,0,sizeof(sc2_units));
     globals.num_edicts = globals.max_clients;
     /* world_sc2 currently exposes one human lobby slot, mapped to Galaxy player 1. */
     sc2_players[1].type=1; sc2_players[1].active=true;
@@ -732,16 +714,16 @@ static void SC2_SpawnEntities(void) {
             ent->svflags |= SVF_MONSTER;
         }
         number = (uint32_t)(ent - sc2_edicts);
-        sc2_move[number].mobile = (ent->svflags & SVF_MONSTER) != 0;
-        sc2_move[number].flying = !strcasecmp(object->mover, "Fly");
-        sc2_move[number].speed = SC2_MOVE_SPEED;
-        sc2_move[number].height = object->move_height;
+        sc2_edicts[number].move.mobile = (ent->svflags & SVF_MONSTER) != 0;
+        sc2_edicts[number].move.flying = !strcasecmp(object->mover, "Fly");
+        sc2_edicts[number].move.speed = SC2_MOVE_SPEED;
+        sc2_edicts[number].move.height = object->move_height;
         if (object->type == SC2_OBJECT_UNIT) {
             SC2_UnitInit(ent,object);
             if (sc2_gunit_n < SC2_MAX_EDICTS) sc2_gunits[sc2_gunit_n++]=ent;
 
         }
-        ent->s.origin.z = SC2_ObjectSpawnZ(object, sc2_move[number].flying);
+        ent->s.origin.z = SC2_ObjectSpawnZ(object, sc2_edicts[number].move.flying);
         gi.LinkEntity(ent);
     }
     CM_BakeStaticObstacles();
@@ -778,8 +760,8 @@ static void SC2_RunFrame(void) {
                 uint32_t number = SC2_EdictNumber(dropship);
                 fprintf(stderr, " dropship=(%.2f,%.2f,%.2f) moving=%d target=(%.2f,%.2f) flying=%d height=%.2f",
                         dropship->s.origin.x, dropship->s.origin.y, dropship->s.origin.z,
-                        sc2_move[number].moving, sc2_move[number].target.x, sc2_move[number].target.y,
-                        sc2_move[number].flying, sc2_move[number].height);
+                        sc2_edicts[number].move.moving, sc2_edicts[number].move.target.x, sc2_edicts[number].move.target.y,
+                        sc2_edicts[number].move.flying, sc2_edicts[number].move.height);
             }
             fputc('\n', stderr);
         }
@@ -790,9 +772,9 @@ static void SC2_RunFrame(void) {
         if (!sc2_edicts[i].inuse) continue;
         SC2_UnitTick(&sc2_edicts[i]);
         SC2_RunUnit(&sc2_edicts[i]);
-        animation_t const *anim = sc2_move[i].anim;
-        if (anim && !(sc2_units[i].states & (1u<<SC2_UNIT_PAUSED)) && anim->interval[1] > anim->interval[0])
-            sc2_edicts[i].s.frame = anim->interval[0] + (gi.GetTime() - sc2_move[i].animtime) % (anim->interval[1] - anim->interval[0]);
+        animation_t const *anim = sc2_edicts[i].move.anim;
+        if (anim && !(sc2_edicts[i].unit.states & (1u<<SC2_UNIT_PAUSED)) && anim->interval[1] > anim->interval[0])
+            sc2_edicts[i].s.frame = anim->interval[0] + (gi.GetTime() - sc2_edicts[i].move.animtime) % (anim->interval[1] - anim->interval[0]);
     }
     SC2_SolveCollisions();
     CM_ProcessPathJobs(BZ_PATH_WORK_BUDGET);
