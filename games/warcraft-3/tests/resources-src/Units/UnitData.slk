@@ -1,5 +1,5 @@
 ID;PWXL;N;E
-B;X29;Y4;D0
+B;X29;Y5;D0
 C;X1;Y1;K"unitID"
 C;X21;K"movetp"
 C;X28;K"isBuildOn"
@@ -10,4 +10,6 @@ C;X1;Y3;K"ngol"
 C;X29;KTRUE
 C;X1;Y4;K"hfoo"
 C;X21;Y4;K"foot"
+C;X1;Y5;K"hgry"
+C;X21;Y5;K"fly"
 E

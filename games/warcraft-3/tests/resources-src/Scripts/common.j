@@ -468,5 +468,7 @@ globals
     constant limitop GREATER_THAN = ConvertLimitOp(4)
     constant limitop NOT_EQUAL = ConvertLimitOp(5)
     constant unittype UNIT_TYPE_STRUCTURE = ConvertUnitType(2)
+    constant unittype UNIT_TYPE_FLYING = ConvertUnitType(3)
+    constant unittype UNIT_TYPE_GROUND = ConvertUnitType(4)
     constant effecttype EFFECT_TYPE_TARGET = ConvertEffectType(1)
 endglobals
