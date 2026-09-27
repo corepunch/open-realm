@@ -34,12 +34,11 @@ TEST(sc2_control, selection_orders_and_clear) {
     gi.Write = sc2_test_write; gi.unicast = sc2_test_unicast;
     gi.LinkEntity = sc2_test_link; gi.GetTime = sc2_test_clock;
     memset(sc2_edicts, 0, sizeof(sc2_edicts));
-    memset(sc2_move, 0, sizeof(sc2_move));
     globals.num_edicts = 4;
     sc2_edicts[0].client = &sc2_clients[0]; sc2_clients[0].ps.number = 1;
     for (uint32_t i = 1; i < 4; i++) {
         sc2_edicts[i] = (edict_t){ .inuse = true, .s = { .number = i, .player = i == 3 ? 2 : 1, .model = 1 } };
-        sc2_move[i].mobile = true;
+        sc2_edicts[i].move.mobile = true;
     }
     sc2_test_count = 0;
     SC2_ClientCommand(sc2_edicts, 5, (cstring_t[]){"select", "1", "1", "3", "99999"});
@@ -50,12 +49,12 @@ TEST(sc2_control, selection_orders_and_clear) {
     SC2_CustomizeEntity(2, &sc2_edicts[1], &state); T_ASSERT(state.flags & EF_NOT_SELECTABLE);
     sc2_test_count = 0;
     SC2_ClientCommand(sc2_edicts, 3, (cstring_t[]){"smartpoint", "2.5", "1.5"});
-    T_ASSERT(sc2_move[1].moving); T_ASSERT(!sc2_move[3].moving);
-    T_FEQ(sc2_move[1].target.x, 2.5f, 0.001f);
+    T_ASSERT(sc2_edicts[1].move.moving); T_ASSERT(!sc2_edicts[3].move.moving);
+    T_FEQ(sc2_edicts[1].move.target.x, 2.5f, 0.001f);
     SC2_RunUnit(&sc2_edicts[1]);
     T_ASSERT(sc2_edicts[1].s.origin2.x > 0); T_EQ(sc2_edicts[1].s.ability, 1);
     FOR_LOOP(i, 20) SC2_RunUnit(&sc2_edicts[1]);
-    T_ASSERT(!sc2_move[1].moving); T_EQ(sc2_edicts[1].s.ability, 0);
+    T_ASSERT(!sc2_edicts[1].move.moving); T_EQ(sc2_edicts[1].s.ability, 0);
     T_FEQ(sc2_edicts[1].s.origin2.x, 2.5f, 0.001f);
     sc2_test_count = 0;
     SC2_ClientCommand(sc2_edicts, 2, (cstring_t[]){"select", "2"});
@@ -65,7 +64,7 @@ TEST(sc2_control, selection_orders_and_clear) {
     T_EQ(sc2_edicts[2].selected, 0); T_EQ(sc2_test_wire[1], 0);
     sc2_test_count = 0;
     SC2_ClientCommand(sc2_edicts, 3, (cstring_t[]){"smartpoint", "10", "10"});
-    T_ASSERT(!sc2_move[2].moving);
+    T_ASSERT(!sc2_edicts[2].move.moving);
     g_models[1] = model;
     gi = saved;
 }
@@ -82,7 +81,7 @@ TEST(sc2_control, shared_router_detours_and_arrives) {
     g_cmodel_t model = g_models[1];
     g_models[1].animations = anims; g_models[1].num_animations = 2;
     gi.LinkEntity = sc2_test_link; gi.GetTime = sc2_test_clock;
-    memset(sc2_edicts, 0, sizeof(sc2_edicts)); memset(sc2_move, 0, sizeof(sc2_move));
+    memset(sc2_edicts, 0, sizeof(sc2_edicts));
     globals.num_edicts = 2;
     map->MapInfo.width = map->MapInfo.height = 32; map->cell_size = 1; map->origin = (vec2_t){0};
     FOR_LOOP(y, 20) cells[y * 32 + 16] = 2;
@@ -90,15 +89,15 @@ TEST(sc2_control, shared_router_detours_and_arrives) {
     edict_t *ent = &sc2_edicts[1];
     *ent = (edict_t){ .inuse = true, .svflags = SVF_MONSTER, .collision = 0.375f,
         .s = { .number = 1, .model = 1, .origin = {8.25f, 10.25f, 0} } };
-    sc2_move[1].mobile = true;
+    sc2_edicts[1].move.mobile = true;
     vec2_t target = {24.375f, 10.625f};
     SC2_OrderMove(ent, &target);
-    T_FEQ(sc2_move[1].target.x, target.x, 0.00001f);
+    T_FEQ(sc2_edicts[1].move.target.x, target.x, 0.00001f);
     T_ASSERT(!CM_LineIsWalkableForRadius(&ent->s.origin2, &target, ent->collision));
     SC2_RunUnit(ent);
-    T_ASSERT(sc2_move[1].path.valid); /* WC3's immediate A* handles a pending field. */
+    T_ASSERT(sc2_edicts[1].move.path.valid); /* WC3's immediate A* handles a pending field. */
     bool detour = false;
-    for (int i = 0; i < 300 && sc2_move[1].moving; i++) {
+    for (int i = 0; i < 300 && sc2_edicts[1].move.moving; i++) {
         vec2_t prev = ent->s.origin2;
         CM_ProcessPathJobs(BZ_PATH_WORK_BUDGET);
         SC2_RunUnit(ent);
@@ -107,7 +106,7 @@ TEST(sc2_control, shared_router_detours_and_arrives) {
             sc2_test_model_follows_step(ent, prev);
         if (ent->s.origin2.y > 20) detour = true;
     }
-    T_ASSERT(detour); T_ASSERT(!sc2_move[1].moving);
+    T_ASSERT(detour); T_ASSERT(!sc2_edicts[1].move.moving);
     T_FEQ(ent->s.origin2.x, target.x, 0.00001f); T_FEQ(ent->s.origin2.y, target.y, 0.00001f);
     CM_SetupPathMap(0, 0, NULL);
     map->MapInfo = info; map->cell_size = cell; map->origin = origin;
@@ -121,11 +120,11 @@ TEST(sc2_control, cutscene_flight_preserves_positions) {
     g_cmodel_t model = g_models[1];
     g_models[1].animations = anims; g_models[1].num_animations = 2;
     gi.LinkEntity = sc2_test_link; gi.GetTime = sc2_test_clock;
-    memset(sc2_edicts, 0, sizeof(sc2_edicts)); memset(sc2_move, 0, sizeof(sc2_move));
+    memset(sc2_edicts, 0, sizeof(sc2_edicts));
     globals.num_edicts = 2;
     edict_t *ent = &sc2_edicts[1];
     *ent = (edict_t){ .inuse = true, .s = { .number = 1, .model = 1, .radius = 0.375f } };
-    sc2_move[1].mobile = sc2_move[1].flying = true; sc2_move[1].height = 4.375f;
+    sc2_edicts[1].move.mobile = sc2_edicts[1].move.flying = true; sc2_edicts[1].move.height = 4.375f;
     SC2_GalaxyUnitSetPosition(ent, 8.25f, 10.125f, 0);
     SC2_GalaxyUnitMove(ent, 12.375f, 13.625f);
     FOR_LOOP(i, 4) {
@@ -145,18 +144,18 @@ TEST(sc2_control, cardinal_move_orders_face_displacement) {
     gi.Write = sc2_test_write; gi.unicast = sc2_test_unicast;
     gi.LinkEntity = sc2_test_link; gi.GetTime = sc2_test_clock;
     FOR_LOOP(i, 4) {
-        memset(sc2_edicts, 0, sizeof(sc2_edicts)); memset(sc2_move, 0, sizeof(sc2_move));
+        memset(sc2_edicts, 0, sizeof(sc2_edicts));
         globals.num_edicts = 2; sc2_edicts[0].client = &sc2_clients[0]; sc2_clients[0].ps.number = 1;
         edict_t *ent = &sc2_edicts[1];
         *ent = (edict_t){ .inuse = true, .s = { .number = 1, .model = 1, .scale = 1, .player = 1, .origin = {8, 8, 0} } };
-        sc2_move[1].mobile = true;
+        sc2_edicts[1].move.mobile = true;
         sc2_test_count = 0;
         SC2_ClientCommand(sc2_edicts, 2, (cstring_t[]){"select", "1"});
         cstring_t points[][2] = { {"20", "8"}, {"8", "20"}, {"0", "8"}, {"8", "0"} };
         SC2_ClientCommand(sc2_edicts, 3, (cstring_t[]){"smartpoint", points[i][0], points[i][1]});
         vec2_t previous = ent->s.origin2;
         SC2_RunUnit(ent);
-        T_ASSERT(sc2_move[1].moving);
+        T_ASSERT(sc2_edicts[1].move.moving);
         sc2_test_model_follows_step(ent, previous);
     }
     g_models[1] = model; gi = saved;
@@ -168,43 +167,42 @@ TEST(sc2_control, galaxy_vitals_lifecycle_and_pause) {
     animation_t anims[]={ {.name="Stand",.interval={0,1000}}, {.name="Walk",.interval={1000,2000}}, {.name="Death",.interval={2000,3000}} };
     g_cmodel_t model=g_models[1]; g_models[1].animations=anims; g_models[1].num_animations=3;
     gi.LinkEntity=sc2_test_link; gi.UnlinkEntity=sc2_test_link; gi.GetTime=sc2_test_clock;
-    memset(sc2_edicts,0,sizeof(sc2_edicts)); memset(sc2_move,0,sizeof(sc2_move)); memset(sc2_units,0,sizeof(sc2_units));
+    memset(sc2_edicts,0,sizeof(sc2_edicts));
     globals.num_edicts=2; globals.max_clients=1;
     edict_t *ent=&sc2_edicts[1]; *ent=(edict_t){.inuse=true,.s={.number=1,.player=2,.model=1}};
     sc2MapObject_t object={.id=72,.name="Marine",.radius=0.375f};
     object.unit_properties[0]=73; object.unit_properties[2]=117; object.unit_properties[3]=1.5f;
     object.unit_properties[4]=17; object.unit_properties[6]=31; object.unit_properties[20]=3.75f;
-    SC2_UnitInit(ent,&object); sc2_move[1].mobile=true; sc2_move[1].flying=true;
+    SC2_UnitInit(ent,&object); sc2_edicts[1].move.mobile=true; sc2_edicts[1].move.flying=true;
     T_ASSERT(SC2_IsSelectable(ent,2)); T_ASSERT(SC2_GalaxyUnitIsAlive(ent));
     T_ASSERT(SC2_UnitFromId(72)==ent);
     SC2_OrderMove(ent,&(vec2_t){10,0}); SC2_RunUnit(ent);
-    T_ASSERT(ent->s.origin.x>0); T_FEQ(sc2_move[1].speed,3.75f,0.001f);
-    float x=ent->s.origin.x, hp=sc2_units[1].vitals[0].value;
-    sc2_units[1].states |= 1u<<SC2_UNIT_PAUSED; SC2_UnitChanged(ent);
-    SC2_RunUnit(ent); SC2_UnitTick(ent); T_FEQ(ent->s.origin.x,x,0.001f); T_FEQ(sc2_units[1].vitals[0].value,hp,0.001f);
-    sc2_units[1].states &= ~(1u<<SC2_UNIT_PAUSED); SC2_UnitChanged(ent);
-    SC2_RunUnit(ent); SC2_UnitTick(ent); T_ASSERT(ent->s.origin.x>x); T_ASSERT(sc2_units[1].vitals[0].value>hp);
-    ent->selected=1u<<2; SC2_UnitSetProperty(&sc2_units[1],0,0); SC2_UnitChanged(ent);
-    T_ASSERT(!SC2_GalaxyUnitIsAlive(ent)); T_ASSERT(!SC2_IsSelectable(ent,2)); T_ASSERT(!sc2_move[1].moving);
+    T_ASSERT(ent->s.origin.x>0); T_FEQ(sc2_edicts[1].move.speed,3.75f,0.001f);
+    float x=ent->s.origin.x, hp=sc2_edicts[1].unit.vitals[0].value;
+    sc2_edicts[1].unit.states |= 1u<<SC2_UNIT_PAUSED; SC2_UnitChanged(ent);
+    SC2_RunUnit(ent); SC2_UnitTick(ent); T_FEQ(ent->s.origin.x,x,0.001f); T_FEQ(sc2_edicts[1].unit.vitals[0].value,hp,0.001f);
+    sc2_edicts[1].unit.states &= ~(1u<<SC2_UNIT_PAUSED); SC2_UnitChanged(ent);
+    SC2_RunUnit(ent); SC2_UnitTick(ent); T_ASSERT(ent->s.origin.x>x); T_ASSERT(sc2_edicts[1].unit.vitals[0].value>hp);
+    ent->selected=1u<<2; SC2_UnitSetProperty(&sc2_edicts[1].unit,0,0); SC2_UnitChanged(ent);
+    T_ASSERT(!SC2_GalaxyUnitIsAlive(ent)); T_ASSERT(!SC2_IsSelectable(ent,2)); T_ASSERT(!sc2_edicts[1].move.moving);
     T_EQ(ent->selected,0); T_ASSERT(ent->svflags & SVF_DEADMONSTER); T_EQ(ent->s.frame,2000);
     T_ASSERT(!sc2_collision_filter(ent));
-    SC2_UnitSetProperty(&sc2_units[1],0,117); SC2_UnitChanged(ent);
+    SC2_UnitSetProperty(&sc2_edicts[1].unit,0,117); SC2_UnitChanged(ent);
     T_ASSERT(SC2_GalaxyUnitIsAlive(ent)); T_ASSERT(SC2_IsSelectable(ent,2)); T_ASSERT(!(ent->svflags & SVF_DEADMONSTER));
-    sc2_units[1].states |= 1u<<SC2_UNIT_HIDDEN; SC2_UnitChanged(ent);
+    sc2_edicts[1].unit.states |= 1u<<SC2_UNIT_HIDDEN; SC2_UnitChanged(ent);
     T_ASSERT(ent->s.renderfx & RF_HIDDEN); T_ASSERT(!SC2_IsSelectable(ent,2));
-    sc2_units[1].states &= ~(1u<<SC2_UNIT_HIDDEN); SC2_UnitChanged(ent); T_ASSERT(!(ent->s.renderfx & RF_HIDDEN));
+    sc2_edicts[1].unit.states &= ~(1u<<SC2_UNIT_HIDDEN); SC2_UnitChanged(ent); T_ASSERT(!(ent->s.renderfx & RF_HIDDEN));
     SC2_UnitSetOwner(ent,7,false); T_EQ(ent->s.player,7);
     T_EQ((ent->s.effect_flags & EFX_TEAM_COLOR_MASK)>>EFX_TEAM_COLOR_SHIFT,3);
     SC2_UnitSetOwner(ent,2,true); T_EQ(ent->s.effect_flags & EFX_TEAM_COLOR_MASK,0);
     SC2_UnitRemove(ent); T_ASSERT(!ent->inuse); T_NULL(SC2_UnitFromId(72)); T_NULL(SC2_UnitState(ent));
-    memset(sc2_units,0,sizeof(sc2_units)); g_models[1]=model; gi=saved;
+    memset(sc2_edicts,0,sizeof(sc2_edicts)); g_models[1]=model; gi=saved;
 }
 
 static handle_t sc2_test_alloc(long size) { return calloc(1,(size_t)size); }
 TEST(sc2_control, galaxy_resources_publish_without_camera_change) {
     struct game_import saved=gi; bool started=sc2_level.scriptsStarted;
     gi.GetTime=sc2_test_clock; sc2_level.scriptsStarted=false; globals.num_edicts=1; globals.max_clients=1;
-    memset(sc2_move,0,sizeof(sc2_move)); memset(sc2_units,0,sizeof(sc2_units));
     memset(sc2_edicts,0,sizeof(sc2_edicts)); memset(sc2_players,0,sizeof(sc2_players));
     sc2_clients[0].ps.number=1;
     jass_sethost(&(jassHost_t){.MemAlloc=sc2_test_alloc,.MemFree=free,.galaxy_natives=galaxy_get_natives()});

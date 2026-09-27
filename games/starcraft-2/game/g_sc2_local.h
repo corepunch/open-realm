@@ -2,7 +2,8 @@
 #define G_SC2_LOCAL_H
 
 #include "common/common.h"
-#include "server/server.h"
+#include "server/game.h"
+#include "server/routing.h"
 #include "games/starcraft-2/common/sc2_map.h"
 #include "games/warcraft-3/jass/jass_api.h"
 #include "games/starcraft-2/game/galaxy/galaxy_host.h"
@@ -12,6 +13,42 @@
  * cinematic/galaxy-spawned units (dropship, cargo, later Init0xUnits triggers)
  * so SC2_GalaxyCreateUnit never silently starves out of edicts. */
 #define SC2_MAX_EDICTS  4096
+
+/* Movement is simulation state, owned by g_sc2.c like WC3's edict movement fields. */
+typedef struct {
+    bool moving;
+    bool mobile;
+    bool flying;
+    vec2_t target;
+    routePath_t path;
+    float speed, height;
+    animation_t const *anim;
+    uint32_t animtime;
+} sc2MoveState_t;
+
+struct client_s {
+    player_t ps;
+};
+
+/* Like WC3 g_local.h, the game owns the full edict and the server only sees the leading fields.
+ * Per-unit simulation state lives here instead of in arrays indexed by edict number. */
+struct edict_s {
+    entityState_t s;
+    gameClient_t *client;
+    pathTex_t *pathtex;
+    float collision;
+    box2_t bounds;
+    uint32_t svflags;
+    uint32_t selected;
+    uint32_t areanum;
+    link_t area;
+    bool inuse;
+    box2_t areabounds;
+
+    // keep above in sync with server.h
+    sc2UnitState_t unit; /* vitals, flags, catalog links; Galaxy natives read it through sc2_galaxy_unit_state */
+    sc2MoveState_t move;
+};
 
 extern struct game_import gi;
 extern struct game_export globals;
