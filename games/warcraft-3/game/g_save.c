@@ -2006,8 +2006,10 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-46.bin",
         "/tmp/openwarcraft3-wc3-save-version-47.bin",
         "/tmp/openwarcraft3-wc3-save-version-48.bin",
+        "/tmp/openwarcraft3-wc3-save-version-49.bin",
+        "/tmp/openwarcraft3-wc3-save-version-50.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50 };
 
     reset_entities();
     setup_test_world();

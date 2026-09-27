@@ -1558,6 +1558,42 @@ TEST(wc3_building, mobile_builders_keep_race_build_menu_button) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_building, build_menu_button_is_hidden_when_every_build_is_hidden) {
+    static char const profile_slk[] =
+        "ID;PWXL;N;EBB;Y2;X2\n"
+        "C;Y1;X1;K\"id\"\nC;Y1;X2;K\"Builds\"\n"
+        "C;Y2;X1;K\"hpea\"\nC;Y2;X2;K\"hbar\"\nE\n";
+    gameClient_t *client = &game.clients[0];
+    uint32_t const barracks = MAKEFOURCC('h','b','a','r');
+    slkTestData_t *rows = parse_slk_string(profile_slk);
+    slkTestData_t *old = G_SetProfileRows(rows);
+    gameCommandButton_t buttons[16];
+    edict_t *worker;
+    uint8_t count;
+    bool found_build = false;
+
+    setup_test_world();
+    client->ps.number = 0;
+    worker = alloc_test_unit(MAKEFOURCC('h','p','e','a'), 0.0f, 0.0f);
+    worker->s.player = client->ps.number;
+    G_SetPlayerTechMaxAllowed(client, barracks, 0);
+
+    T_EQ(G_GetBuildCommandState(client, worker, barracks, NULL, 0), BUILD_COMMAND_HIDDEN);
+    T_ASSERT(!G_UnitHasBuildMenu(worker));
+    count = G_GetCommandButtons(worker, buttons, ARRAY_COUNT(buttons));
+    FOR_LOOP(i, count) if (!strcmp(buttons[i].command, "CmdBuild")) found_build = true;
+    T_ASSERT(!found_build);
+
+    G_SetPlayerTechMaxAllowed(client, barracks, -1);
+    client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
+    client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER] = 0;
+    T_EQ(G_GetBuildCommandState(client, worker, barracks, NULL, 0), BUILD_COMMAND_UNAFFORDABLE);
+    T_ASSERT(G_UnitHasBuildMenu(worker));
+
+    G_SetProfileRows(old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_building, race_building_commands_use_producer_profile_state) {
     uint32_t const producers[] = {
         MAKEFOURCC('h','b','a','r'), MAKEFOURCC('o','b','a','r'),

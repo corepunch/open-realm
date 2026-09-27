@@ -176,6 +176,56 @@ TEST(wc3_ancient_root, root_morph_rejects_orders_until_authored_duration) {
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 
+static void ancient_assert_morph_save_restore(bool rooted) {
+    cstring_t filename = rooted ?
+        "/tmp/openwarcraft3-wc3-save-ancient-rooting.bin" :
+        "/tmp/openwarcraft3-wc3-save-ancient-uprooting.bin";
+    edict_t *unit, *goal;
+    uint32_t end_time;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    unit = ancient_test_unit(!rooted);
+    goal = alloc_test_unit(TEST_HBAR, 96.0f, 64.0f);
+    unit->ancient_root.destination = (vec2_t){ 320.0f, 192.0f };
+    unit->ancient_root.approach_goal = goal;
+    unit->ancient_root.approach_goal_spawn_time = goal->spawn_time;
+    S_AncientBeginMorph(unit, rooted);
+    end_time = unit->ancient_root.transition_end_time;
+
+    T_ASSERT(WriteGame(filename));
+    unit->ancient_root.mode = ANCIENT_ROOT_UNINITIALIZED;
+    unit->ancient_root.approach_goal = NULL;
+    unit->ancient_root.transition_end_time = 0;
+    unit->currentmove = NULL;
+    T_ASSERT(ReadGame(filename));
+
+    T_EQ(unit->ancient_root.mode, rooted ? ANCIENT_ROOTING : ANCIENT_UPROOTING);
+    T_EQ(unit->ancient_root.transition_end_time, end_time);
+    T_ASSERT(unit->ancient_root.approach_goal == goal);
+    T_EQ(unit->ancient_root.approach_goal_spawn_time, goal->spawn_time);
+    T_FEQ(unit->ancient_root.destination.x, 320.0f, 0.001f);
+    T_FEQ(unit->ancient_root.destination.y, 192.0f, 0.001f);
+    T_ASSERT(unit->currentmove && unit->currentmove->proc == CAbilityRoot);
+
+    level.time = end_time;
+    ancient_update(unit);
+    T_EQ(unit->ancient_root.mode, rooted ? ANCIENT_ROOTED : ANCIENT_UPROOTED);
+    T_EQ(G_UnitIsStructure(unit), rooted);
+    T_EQ(!!(unit->aiflags & AI_IMMOBILE), rooted);
+    remove(filename);
+}
+
+TEST(wc3_ancient_root, root_and_uproot_morphs_resume_after_save_load) {
+    slkTestData_t *rows = parse_slk_string(ancient_root_tft);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+
+    ancient_assert_morph_save_restore(true);
+    ancient_assert_morph_save_restore(false);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_ancient_root, approaching_root_remains_interruptible) {
     slkTestData_t *rows = parse_slk_string(ancient_root_tft);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);

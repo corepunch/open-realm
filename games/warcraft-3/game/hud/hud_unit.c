@@ -283,7 +283,20 @@ static bool G_AncientAbilityVisible(edict_t const *unit, ability_t const *abilit
 
 bool G_UnitHasBuildMenu(edict_t const *unit) {
     UnitProfile_t const *profile = unit ? G_UnitProfile(unit->class_id) : NULL;
-    return profile && profile->builds && *profile->builds;
+    gameClient_t *client = unit ? G_GetPlayerClientByNumber(unit->s.player) : NULL;
+
+    if (!profile || !profile->builds || !*profile->builds || !client ||
+        client->ps.number != unit->s.player) return false;
+    PARSE_LIST(profile->builds, build, parse_segment) {
+        uint32_t building_id = 0;
+        char reason[128];
+        if (strlen(build) != 4) continue;
+        memcpy(&building_id, build, sizeof(building_id));
+        buildCommandState_t const state = G_GetBuildCommandState(client, (edict_t *)unit,
+                                                                  building_id, reason, sizeof(reason));
+        if (state != BUILD_COMMAND_ABSENT && state != BUILD_COMMAND_HIDDEN) return true;
+    }
+    return false;
 }
 
 static bool G_HasCommandRawcode(gameCommandButton_t const *buttons, uint8_t count, uint32_t code) {
