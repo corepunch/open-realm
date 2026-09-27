@@ -94,6 +94,12 @@ extern void *(*sc2_galaxy_unit_from_id)(uint32_t map_id);
 extern void (*sc2_galaxy_unit_changed)(void *ent);
 extern void (*sc2_galaxy_unit_remove)(void *ent);
 extern void (*sc2_galaxy_unit_set_owner)(void *ent, int player, bool change_color);
+/* Selection lives on the edict; player is the Galaxy player number, which is also the selection bit. */
+extern void (*sc2_galaxy_unit_select)(void *ent, int player, bool select);
+extern bool (*sc2_galaxy_unit_is_selected)(void *ent, int player);
+/* Team-color override index; a negative index restores the owner's color. */
+extern void (*sc2_galaxy_unit_team_color)(void *ent, int index);
+extern bool (*sc2_galaxy_unit_is_flying)(void *ent);
 
 typedef struct {
     float properties[16]; uint32_t states, alliances[32];

@@ -65,6 +65,7 @@ typedef struct {
 typedef struct {
     jass_t *vm;
     bool   scriptsStarted;
+    uint32_t selection_dirty; /* player bits whose selection a Galaxy script changed this frame */
     float  cinefade;       /* 0=clear … 1=fully black (written to client ps.cinefade) */
     bool   cinematic;      /* true while cinematic bars/overlay is active */
     struct {

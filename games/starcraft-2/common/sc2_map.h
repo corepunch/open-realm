@@ -3,6 +3,7 @@
 
 #include "common/common.h"
 #include "sc2_coords.h"
+#include "sc2_unit_state.h"
 #include <stdio.h>
 #include <math.h>
 
@@ -389,6 +390,8 @@ void          SC2_MapShutdown(void);
 sc2Map_t     *SC2_MapCurrent(void);
 cstring_t        SC2_MapResolveUnitModel(cstring_t unit_type);
 bool          SC2_MapResolveUnit(cstring_t unit_type, sc2MapObject_t *object);
+/* Resolved CUnit AbilArray/WeaponArray/BehaviorArray links (SC2_LINK_*), in slot order; returns the count. */
+uint32_t      SC2_MapUnitLinks(cstring_t unit_type, int kind, char (*out)[SC2_LINK_LEN], uint32_t max);
 cstring_t        SC2_MapResolveSound(cstring_t sound_id, int asset);
 float         SC2_MapSoundLength(cstring_t sound_id, int asset);
 cstring_t        SC2_MapConversationField(cstring_t key, cstring_t field);

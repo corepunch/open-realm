@@ -1486,19 +1486,27 @@ TEST(galaxy, create_and_set_facing_share_radian_host_contract) {
 }
 
 
-typedef struct { sc2UnitState_t state; float x, y, facing; int owner; } gal_ent_t;
+typedef struct { sc2UnitState_t state; float x, y, facing; int owner, color; uint32_t selected; bool flying; } gal_ent_t;
 static gal_ent_t gal_ents[8];
 static int gal_ent_n;
 static bool gal_moving;
 static void gal_ent_reset(void) { memset(gal_ents, 0, sizeof(gal_ents)); gal_ent_n = 0; gal_moving = false; }
 static void *gal_ent_create(cstring_t type, int player, float x, float y, float angle) {
     gal_ent_t *e;
-    (void)type;
     if (gal_ent_n >= 8) return NULL;
     e = &gal_ents[gal_ent_n++];
     memset(e, 0, sizeof(*e));
     e->state.vitals[0].value = e->state.vitals[0].max_value = 100;
-    e->x = x; e->y = y; e->facing = angle; e->owner = player;
+    e->state.speed = e->state.normal[20] = 2.25f;
+    e->x = x; e->y = y; e->facing = angle; e->owner = player; e->color = -1;
+    e->flying = !strcmp(type, "Dropship");
+    /* Stands in for the CUnit AbilArray/WeaponArray the game copies at spawn. */
+    if (!strcmp(type, "Marine")) {
+        static char const *abils[] = { "move", "attack", "Stimpack" };
+        for (int i = 0; i < 3; i++) { snprintf(e->state.abils[i].link, SC2_LINK_LEN, "%s", abils[i]); e->state.abils[i].level = 1; }
+        e->state.abil_n = 3;
+        snprintf(e->state.weapons[0].link, SC2_LINK_LEN, "GuassRifle"); e->state.weapon_n = 1;
+    }
     return e;
 }
 static sc2UnitState_t *gal_ent_state(void *ent) { return &((gal_ent_t *)ent)->state; }
@@ -1516,18 +1524,28 @@ static void gal_ent_changed(void *ent) { (void)ent; }
 static void gal_ent_remove(void *ent) { (void)ent; }
 static void gal_ent_ordermove(void *ent, float x, float y) { (void)ent; (void)x; (void)y; gal_moving = true; }
 static bool gal_ent_moving(void *ent) { (void)ent; return gal_moving; }
+static void gal_ent_select(void *ent, int player, bool on) {
+    gal_ent_t *e = ent; if (on) e->selected |= 1u << player; else e->selected &= ~(1u << player);
+}
+static bool gal_ent_is_selected(void *ent, int player) { return (((gal_ent_t *)ent)->selected >> player) & 1; }
+static void gal_ent_color(void *ent, int index) { ((gal_ent_t *)ent)->color = index; }
+static bool gal_ent_flying(void *ent) { return ((gal_ent_t *)ent)->flying; }
 static void gal_ent_bind(void) {
     sc2_galaxy_on_unit_create = gal_ent_create; sc2_galaxy_unit_state = gal_ent_state;
     sc2_galaxy_unit_location = gal_ent_loc; sc2_galaxy_unit_set_position = gal_ent_setpos;
     sc2_galaxy_unit_owner = gal_ent_owner; sc2_galaxy_unit_is_alive = gal_ent_alive;
     sc2_galaxy_unit_changed = gal_ent_changed; sc2_galaxy_unit_remove = gal_ent_remove;
     sc2_galaxy_unit_move = gal_ent_ordermove; sc2_galaxy_unit_is_moving = gal_ent_moving;
+    sc2_galaxy_unit_select = gal_ent_select; sc2_galaxy_unit_is_selected = gal_ent_is_selected;
+    sc2_galaxy_unit_team_color = gal_ent_color; sc2_galaxy_unit_is_flying = gal_ent_flying;
 }
 static void gal_ent_unbind(void) {
     sc2_galaxy_on_unit_create = NULL; sc2_galaxy_unit_state = NULL; sc2_galaxy_unit_location = NULL;
     sc2_galaxy_unit_set_position = NULL; sc2_galaxy_unit_owner = NULL; sc2_galaxy_unit_is_alive = NULL;
     sc2_galaxy_unit_changed = NULL; sc2_galaxy_unit_remove = NULL;
     sc2_galaxy_unit_move = NULL; sc2_galaxy_unit_is_moving = NULL;
+    sc2_galaxy_unit_select = NULL; sc2_galaxy_unit_is_selected = NULL;
+    sc2_galaxy_unit_team_color = NULL; sc2_galaxy_unit_is_flying = NULL;
 }
 static void gal_use_natives(void) {
     jass_sethost(&MAKE(jassHost_t, .MemAlloc = gal_alloc, .MemFree = gal_free, .ReadFile = gal_read_file,
@@ -1776,6 +1794,165 @@ TEST(galaxy, vm_event_cargo_unload_starts_at_transport) {
     galaxy_tick(s.j); galaxy_tick(s.j);
     jass_callbyname(s.j, "check", false);
     if (jass_rterror_pending(s.j)) fprintf(stderr, "cargo: %s\n", jass_rterror_message(s.j));
+    T_ASSERT(!jass_rterror_pending(s.j));
+    gal_ent_unbind(); galaxy_reset(); gal_destroy(&s);
+}
+
+/* Selection, cargo, order-queue, AI-option, speed, team-color, and plane queries read the host's unit state. */
+TEST(galaxy, vm_unit_queries) {
+    gal_state_t s = gal_new();
+    galaxy_reset(); gal_ent_reset(); gal_ent_bind(); gal_use_natives();
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "native unit UnitCreate(int count, string type, int flags, int player, point where, fixed angle);\n"
+        "native point Point(fixed x, fixed y);\n"
+        "native void UnitSelect(unit u, int player, bool select);\n"
+        "native void UnitGroupSelect(unitgroup g, int player, bool select);\n"
+        "native void UnitClearSelection(int player);\n"
+        "native bool UnitIsSelected(unit u, int player);\n"
+        "native unitgroup UnitGroupSelected(int player);\n"
+        "native unitgroup UnitGroupEmpty();\n"
+        "native void UnitGroupAdd(unitgroup g, unit u);\n"
+        "native int UnitGroupCount(unitgroup g, int type);\n"
+        "native unit UnitCargoCreate(unit transport, string type, int count);\n"
+        "native unit UnitCargo(unit u, int index);\n"
+        "native unit UnitTransport(unit u);\n"
+        "native int UnitCargoValue(unit u, int value);\n"
+        "native abilcmd AbilityCommand(string name, int index);\n"
+        "native order OrderTargetingPoint(abilcmd command, point target);\n"
+        "native bool UnitIssueOrder(unit value, order valueOrder, int queue);\n"
+        "native int UnitOrderCount(unit u);\n"
+        "native order UnitOrder(unit u, int index);\n"
+        "native bool UnitOrderHasAbil(unit u, string abil);\n"
+        "native void UnitSetAIOption(unit u, int option, bool value);\n"
+        "native bool UnitGetAIOption(unit u, int option);\n"
+        "native void UnitSetPropertyFixed(unit u, int prop, fixed value);\n"
+        "native fixed UnitGetPropertyFixed(unit u, int prop, bool current);\n"
+        "native void UnitResetSpeed(unit u);\n"
+        "native void UnitSetTeamColorIndex(unit u, int index);\n"
+        "native void UnitResetTeamColorIndex(unit u);\n"
+        "native bool UnitTestPlane(unit u, int plane);\n"
+        "void main() {\n"
+        "    unit a = UnitCreate(1, \"Marine\", 0, 1, Point(0.0, 0.0), 0.0);\n"
+        "    unit b = UnitCreate(1, \"Marine\", 0, 1, Point(1.0, 0.0), 0.0);\n"
+        "    unit ship = UnitCreate(1, \"Dropship\", 0, 1, Point(5.0, 5.0), 0.0);\n"
+        "    unitgroup both = UnitGroupEmpty(); UnitGroupAdd(both, a); UnitGroupAdd(both, b);\n"
+        "    UnitSelect(a, 1, true);\n"
+        "    if (!UnitIsSelected(a, 1) || UnitIsSelected(a, 2) || UnitIsSelected(b, 1)) { TestFail(\"select\"); }\n"
+        "    UnitGroupSelect(both, 1, true);\n"
+        "    if (UnitGroupCount(UnitGroupSelected(1), 0) != 2 || UnitGroupCount(UnitGroupSelected(2), 0) != 0) { TestFail(\"group select\"); }\n"
+        "    UnitClearSelection(1);\n"
+        "    if (UnitIsSelected(a, 1) || UnitIsSelected(b, 1)) { TestFail(\"clear selection\"); }\n"
+        "    UnitCargoCreate(ship, \"Marine\", 2);\n"
+        "    if (UnitCargoValue(ship, 0) != 2 || UnitCargoValue(a, 0) != 0) { TestFail(\"cargo count\"); }\n"
+        "    if (UnitTransport(UnitCargo(ship, 2)) != ship || UnitTransport(a) != null) { TestFail(\"transport\"); }\n"
+        "    if (UnitCargoValue(UnitCargo(ship, 2), 6) != 2 || UnitCargo(ship, 3) != null) { TestFail(\"cargo position\"); }\n"
+        "    order first = OrderTargetingPoint(AbilityCommand(\"move\", 0), Point(3.0, 0.0));\n"
+        "    order second = OrderTargetingPoint(AbilityCommand(\"move\", 0), Point(4.0, 0.0));\n"
+        "    UnitIssueOrder(a, first, 0); UnitIssueOrder(a, second, 1);\n"
+        "    if (UnitOrderCount(a) != 2 || UnitOrder(a, 0) != first || UnitOrder(a, 1) != second || UnitOrder(a, 2) != null) { TestFail(\"orders\"); }\n"
+        "    if (!UnitOrderHasAbil(a, \"move\") || UnitOrderHasAbil(a, \"attack\") || UnitOrderCount(b) != 0) { TestFail(\"order abil\"); }\n"
+        "    UnitSetAIOption(a, 0, true);\n"
+        "    if (!UnitGetAIOption(a, 0) || UnitGetAIOption(b, 0)) { TestFail(\"ai option\"); }\n"
+        "    UnitSetPropertyFixed(a, 20, 5.0); UnitResetSpeed(a);\n"
+        "    if (UnitGetPropertyFixed(a, 20, true) != 2.25) { TestFail(\"reset speed\"); }\n"
+        "    UnitSetTeamColorIndex(a, 3);\n"
+        "    if (!UnitTestPlane(ship, 1) || UnitTestPlane(ship, 0) || !UnitTestPlane(a, 0)) { TestFail(\"plane\"); }\n"
+        "}"));
+    T_EQ(gal_ents[0].color, 3);
+    {
+        /* A second VM sees the same unit handles. Cargo space needs CAbilTransport data, so it is reported, not guessed. */
+        gal_state_t t = gal_new();
+        gal_use_natives();
+        T_ASSERT(gal_run(&t,
+            "native void UnitResetTeamColorIndex(unit u); native unit UnitCreate(int count, string type, int flags, int player, point where, fixed angle);\n"
+            "native point Point(fixed x, fixed y);\n"
+            "void main() { UnitResetTeamColorIndex(UnitCreate(1, \"Marine\", 0, 1, Point(0.0, 0.0), 0.0)); }"));
+        T_EQ(gal_ents[gal_ent_n - 1].color, -1);
+        T_ASSERT(!gal_run(&t,
+            "native int UnitCargoValue(unit u, int value); native unit UnitLastCreated();\n"
+            "void main() { UnitCargoValue(UnitLastCreated(), 1); }"));
+        T_STREQ(t.errmsg, "Cargo space values need CAbilTransport data, which is not loaded");
+        gal_destroy(&t);
+    }
+    gal_ent_unbind(); galaxy_reset(); gal_destroy(&s);
+}
+
+/* Abilities, weapons, behaviors, cooldowns, and charges are unit bookkeeping; timed entries advance with the unit. */
+TEST(galaxy, vm_unit_catalog_state) {
+    gal_state_t s = gal_new();
+    galaxy_reset(); gal_ent_reset(); gal_ent_bind(); gal_use_natives();
+    T_ASSERT(gal_parse(&s,
+        "native void TestFail(string msg);\n"
+        "native unit UnitCreate(int count, string type, int flags, int player, point where, fixed angle);\n"
+        "native point Point(fixed x, fixed y);\n"
+        "native int UnitAbilityCount(unit u);\n"
+        "native string UnitAbilityGet(unit u, int index);\n"
+        "native bool UnitAbilityExists(unit u, string abil);\n"
+        "native bool UnitAbilityCheck(unit u, string abil, bool enabled);\n"
+        "native void UnitAbilityEnable(unit u, string abil, bool enable);\n"
+        "native void UnitAbilityShow(unit u, string abil, bool show);\n"
+        "native int UnitAbilityGetLevel(unit u, string abil);\n"
+        "native void UnitAbilityChangeLevel(unit u, string abil, int level);\n"
+        "native fixed UnitGetCooldown(unit u, string cooldown);\n"
+        "native void UnitAddCooldown(unit u, string cooldown, fixed value);\n"
+        "native fixed UnitAbilityGetCooldown(unit u, string abil, string cooldown);\n"
+        "native void UnitAbilityAddChargeUsed(unit u, string abil, string charge, fixed value);\n"
+        "native fixed UnitGetChargeUsed(unit u, string charge);\n"
+        "native void UnitAddChargeRegen(unit u, string charge, fixed value);\n"
+        "native int UnitWeaponCount(unit u);\n"
+        "native string UnitWeaponGet(unit u, int index);\n"
+        "native bool UnitWeaponIsEnabled(unit u, int index);\n"
+        "native void UnitWeaponAdd(unit u, string weapon, string turret);\n"
+        "native void UnitWeaponRemove(unit u, string weapon);\n"
+        "native void UnitBehaviorAdd(unit u, string behavior, unit caster, int count);\n"
+        "native void UnitBehaviorAddPlayer(unit u, string behavior, int player, int count);\n"
+        "native void UnitBehaviorRemove(unit u, string behavior, int count);\n"
+        "native void UnitBehaviorTransfer(unit from, unit to, string behavior, int count);\n"
+        "native bool UnitHasBehavior(unit u, string behavior);\n"
+        "native int UnitBehaviorCount(unit u, string behavior);\n"
+        "native int UnitBehaviorCountAll(unit u);\n"
+        "native string UnitBehaviorGet(unit u, int index);\n"
+        "native fixed UnitBehaviorDuration(unit u, string behavior);\n"
+        "native void UnitBehaviorSetDuration(unit u, string behavior, fixed duration);\n"
+        "unit gv_a = null; unit gv_b = null;\n"
+        "void main() {\n"
+        "    gv_a = UnitCreate(1, \"Marine\", 0, 1, Point(0.0, 0.0), 0.0);\n"
+        "    gv_b = UnitCreate(1, \"Marine\", 0, 1, Point(1.0, 0.0), 0.0);\n"
+        "    if (UnitAbilityCount(gv_a) != 3 || UnitAbilityGet(gv_a, 3) != \"Stimpack\" || UnitAbilityGet(gv_a, 4) != \"\") { TestFail(\"abil list\"); }\n"
+        "    if (!UnitAbilityExists(gv_a, \"attack\") || UnitAbilityExists(gv_a, \"Yamato\")) { TestFail(\"abil exists\"); }\n"
+        "    UnitAbilityEnable(gv_a, \"Stimpack\", false); UnitAbilityShow(gv_a, \"Stimpack\", false);\n"
+        "    if (!UnitAbilityCheck(gv_a, \"Stimpack\", false) || UnitAbilityCheck(gv_a, \"Stimpack\", true)) { TestFail(\"abil enable\"); }\n"
+        "    UnitAbilityChangeLevel(gv_a, \"Stimpack\", 2);\n"
+        "    if (UnitAbilityGetLevel(gv_a, \"Stimpack\") != 2 || UnitAbilityGetLevel(gv_a, \"Yamato\") != 0) { TestFail(\"abil level\"); }\n"
+        "    UnitAddCooldown(gv_a, \"Abil/Stimpack\", 10.0);\n"
+        "    if (UnitAbilityGetCooldown(gv_a, \"Stimpack\", \"Abil/Stimpack\") != 10.0 || UnitGetCooldown(gv_b, \"Abil/Stimpack\") != 0.0) { TestFail(\"cooldown\"); }\n"
+        "    UnitAbilityAddChargeUsed(gv_a, \"Stimpack\", \"Abil/Stimpack\", 2.0); UnitAddChargeRegen(gv_a, \"Abil/Stimpack\", 0.5);\n"
+        "    if (UnitGetChargeUsed(gv_a, \"Abil/Stimpack\") != 2.0) { TestFail(\"charges\"); }\n"
+        "    UnitWeaponAdd(gv_a, \"Knife\", \"\"); UnitWeaponAdd(gv_a, \"Knife\", \"\");\n"
+        "    if (UnitWeaponCount(gv_a) != 2 || UnitWeaponGet(gv_a, 2) != \"Knife\" || !UnitWeaponIsEnabled(gv_a, 1)) { TestFail(\"weapon add\"); }\n"
+        "    UnitWeaponRemove(gv_a, \"GuassRifle\");\n"
+        "    if (UnitWeaponCount(gv_a) != 1 || UnitWeaponGet(gv_a, 1) != \"Knife\" || UnitWeaponIsEnabled(gv_a, 2)) { TestFail(\"weapon remove\"); }\n"
+        "    UnitBehaviorAdd(gv_a, \"Run\", gv_a, 1); UnitBehaviorAddPlayer(gv_a, \"Run\", 1, 2); UnitBehaviorAdd(gv_a, \"Stim\", gv_a, 1);\n"
+        "    if (!UnitHasBehavior(gv_a, \"Run\") || UnitBehaviorCount(gv_a, \"Run\") != 3 || UnitBehaviorCountAll(gv_a) != 4) { TestFail(\"behavior add\"); }\n"
+        "    if (UnitBehaviorGet(gv_a, 2) != \"Stim\") { TestFail(\"behavior order\"); }\n"
+        "    UnitBehaviorRemove(gv_a, \"Run\", 1); UnitBehaviorTransfer(gv_a, gv_b, \"Run\", 1);\n"
+        "    if (UnitBehaviorCount(gv_a, \"Run\") != 1 || UnitBehaviorCount(gv_b, \"Run\") != 1) { TestFail(\"behavior transfer\"); }\n"
+        "    UnitBehaviorRemove(gv_a, \"Run\", -1);\n"
+        "    if (UnitHasBehavior(gv_a, \"Run\") || UnitBehaviorGet(gv_a, 1) != \"Stim\") { TestFail(\"behavior remove all\"); }\n"
+        "    UnitBehaviorSetDuration(gv_a, \"Stim\", 1.0);\n"
+        "    if (UnitBehaviorDuration(gv_a, \"Stim\") != 1.0) { TestFail(\"behavior duration\"); }\n"
+        "}\n"
+        "void check() {\n"
+        "    if (UnitHasBehavior(gv_a, \"Stim\") || UnitGetCooldown(gv_a, \"Abil/Stimpack\") != 8.5) { TestFail(\"timers\"); }\n"
+        "    if (UnitGetChargeUsed(gv_a, \"Abil/Stimpack\") != 1.0) { TestFail(\"charge regen\"); }\n"
+        "}\n"));
+    jass_callbyname(s.j, "main", false);
+    if (jass_rterror_pending(s.j)) fprintf(stderr, "catalog state: %s\n", jass_rterror_message(s.j));
+    T_ASSERT(!jass_rterror_pending(s.j));
+    SC2_UnitAdvanceTimers(&gal_ents[0].state, 1.5f);
+    jass_callbyname(s.j, "check", false);
+    if (jass_rterror_pending(s.j)) fprintf(stderr, "catalog timers: %s\n", jass_rterror_message(s.j));
     T_ASSERT(!jass_rterror_pending(s.j));
     gal_ent_unbind(); galaxy_reset(); gal_destroy(&s);
 }

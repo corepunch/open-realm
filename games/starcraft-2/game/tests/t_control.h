@@ -199,6 +199,48 @@ TEST(sc2_control, galaxy_vitals_lifecycle_and_pause) {
     memset(sc2_edicts,0,sizeof(sc2_edicts)); g_models[1]=model; gi=saved;
 }
 
+/* Unit timers run on the server frame and pause with the unit; script selection reaches the client once per frame.
+ * Catalog array resolution is covered by test_sc2_map, which loads the fixture catalog. */
+TEST(sc2_control, unit_timers_and_script_selection) {
+    struct game_import saved=gi;
+    gi.LinkEntity=sc2_test_link; gi.UnlinkEntity=sc2_test_link; gi.GetTime=sc2_test_clock;
+    gi.Write=sc2_test_write; gi.unicast=sc2_test_unicast;
+    memset(sc2_edicts,0,sizeof(sc2_edicts)); memset(&sc2_level,0,sizeof(sc2_level));
+    globals.num_edicts=2; globals.max_clients=1;
+    sc2_edicts[0]=(edict_t){.inuse=true,.client=&sc2_clients[0]}; sc2_clients[0].ps.number=1;
+    edict_t *ent=&sc2_edicts[1]; *ent=(edict_t){.inuse=true,.s={.number=1,.player=1,.model=1}};
+    sc2MapObject_t object={.id=5,.name="Marine"}; object.unit_properties[0]=object.unit_properties[2]=45;
+    SC2_UnitInit(ent,&object);
+
+    uint32_t base=ent->unit.behavior_n;
+    ent->unit.behaviors[base]=(sc2UnitBehavior_t){.link="Stim",.count=1,.duration=FRAMETIME/1000.0f*1.5f};
+    ent->unit.behavior_n++;
+    ent->unit.cooldowns[0]=(sc2UnitCooldown_t){.link="Abil/Stimpack",.cooldown=1,.charge_used=2,.charge_regen=FRAMETIME/1000.0f};
+    ent->unit.cooldown_n=1;
+    ent->unit.states|=1u<<SC2_UNIT_PAUSED; SC2_UnitTick(ent);
+    T_EQ(ent->unit.behavior_n,base+1); T_FEQ(ent->unit.cooldowns[0].cooldown,1,0.0001f);
+    ent->unit.states&=~(1u<<SC2_UNIT_PAUSED); SC2_UnitTick(ent);
+    T_EQ(ent->unit.behavior_n,base+1); T_FEQ(ent->unit.cooldowns[0].charge_used,1,0.0001f);
+    T_FEQ(ent->unit.cooldowns[0].cooldown,1-FRAMETIME/1000.0f,0.0001f);
+    SC2_UnitTick(ent);
+    T_EQ(ent->unit.behavior_n,base); T_FEQ(ent->unit.cooldowns[0].charge_used,1,0.0001f);
+
+    sc2_test_count=0;
+    SC2_UnitSelect(ent,1,true); T_ASSERT(SC2_UnitIsSelected(ent,1)); T_EQ(sc2_level.selection_dirty,2);
+    SC2_FlushScriptSelection();
+    T_EQ(sc2_test_wire[0],svc_set_selection); T_EQ(sc2_test_wire[1],1); T_EQ(sc2_test_wire[2],1);
+    T_EQ(sc2_level.selection_dirty,0);
+    SC2_UnitSelect(ent,1,true); T_EQ(sc2_level.selection_dirty,0);
+    ent->unit.states|=1u<<SC2_UNIT_HIDDEN; SC2_UnitSelect(ent,1,false); SC2_UnitSelect(ent,1,true);
+    T_ASSERT(!SC2_UnitIsSelected(ent,1));
+    ent->unit.states&=~(1u<<SC2_UNIT_HIDDEN);
+
+    SC2_UnitTeamColor(ent,4); T_EQ((ent->s.effect_flags & EFX_TEAM_COLOR_MASK)>>EFX_TEAM_COLOR_SHIFT,5);
+    SC2_UnitTeamColor(ent,-1); T_EQ(ent->s.effect_flags & EFX_TEAM_COLOR_MASK,0);
+    T_ASSERT(!SC2_UnitIsFlying(ent)); ent->move.flying=true; T_ASSERT(SC2_UnitIsFlying(ent));
+    memset(sc2_edicts,0,sizeof(sc2_edicts)); memset(&sc2_level,0,sizeof(sc2_level)); gi=saved;
+}
+
 static handle_t sc2_test_alloc(long size) { return calloc(1,(size_t)size); }
 TEST(sc2_control, galaxy_resources_publish_without_camera_change) {
     struct game_import saved=gi; bool started=sc2_level.scriptsStarted;

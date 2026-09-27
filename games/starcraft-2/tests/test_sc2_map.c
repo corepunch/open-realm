@@ -654,6 +654,18 @@ TEST(sc2_map, sc2_map_loads_xml_objects_and_terrain) {
     T_FEQ(unit.unit_properties[6],31,0.001f); T_FEQ(unit.unit_properties[8],11,0.001f);
     T_FEQ(unit.unit_properties[20],3.75f,0.001f); T_FEQ(unit.unit_properties[12],2,0.001f);
     T_FEQ(unit.move_height, 1.25f, 0.001f);
+    {
+        /* Parent arrays come first; the map layer removes slot 1 (move), skips a repeated Stimpack,
+         * and appends MapAbil. A Turret-only WeaponArray element is not a weapon. */
+        char links[8][SC2_LINK_LEN];
+        T_EQ(SC2_MapUnitLinks("Marine", SC2_LINK_ABIL, links, 8), 4);
+        T_STREQ(links[0], "stop"); T_STREQ(links[1], "attack"); T_STREQ(links[2], "Stimpack"); T_STREQ(links[3], "MapAbil");
+        T_EQ(SC2_MapUnitLinks("Marine", SC2_LINK_ABIL, links, 2), 2);
+        T_EQ(SC2_MapUnitLinks("Marine", SC2_LINK_WEAPON, links, 8), 1); T_STREQ(links[0], "GuassRifle");
+        T_EQ(SC2_MapUnitLinks("Marine", SC2_LINK_BEHAVIOR, links, 8), 1); T_STREQ(links[0], "MarineShield");
+        T_EQ(SC2_MapUnitLinks("SupplyDepot", SC2_LINK_ABIL, links, 8), 0);
+        T_EQ(SC2_MapUnitLinks("Missing", SC2_LINK_ABIL, links, 8), 0);
+    }
 
     T_STREQ(map->map_name, "SC2 Tiny Fixture");
     T_EQ(map->MapInfo.fourcc, MAKEFOURCC('I','p','a','M'));

@@ -83,6 +83,10 @@ void *(*sc2_galaxy_unit_from_id)(uint32_t map_id);
 void (*sc2_galaxy_unit_changed)(void *ent);
 void (*sc2_galaxy_unit_remove)(void *ent);
 void (*sc2_galaxy_unit_set_owner)(void *ent, int player, bool change_color);
+void (*sc2_galaxy_unit_select)(void *ent, int player, bool select);
+bool (*sc2_galaxy_unit_is_selected)(void *ent, int player);
+void (*sc2_galaxy_unit_team_color)(void *ent, int index);
+bool (*sc2_galaxy_unit_is_flying)(void *ent);
 
 void (*sc2_galaxy_on_actor_create)(unsigned actor_id, char const *model,
                                    unsigned unit_id, float x, float y);
@@ -98,6 +102,7 @@ void (*sc2_galaxy_on_actor_destroy)(unsigned actor_id);
 #include "galaxy_point.h"
 #include "galaxy_catalog.h"
 #include "galaxy_unit.h"
+#include "galaxy_unit_catalog.h"
 #include "galaxy_camera.h"
 #include "galaxy_cinematic.h"
 #include "galaxy_sound.h"
@@ -749,6 +754,62 @@ static jassModule_t sc2_galaxy_natives[] = {
     { "UnitSetFacing",                       sc2_UnitSetFacing },
     { "UnitSetHeight",                       sc2_UnitSetHeight },
     { "UnitSetInfoText",                     sc2_UnitSetInfoText },
+    { "UnitSelect",                         sc2_UnitSelect },
+    { "UnitGroupSelect",                    sc2_UnitGroupSelect },
+    { "UnitIsSelected",                     sc2_UnitIsSelected },
+    { "UnitGroupSelected",                  sc2_UnitGroupSelected },
+    { "UnitCargo",                          sc2_UnitCargo },
+    { "UnitTransport",                      sc2_UnitTransport },
+    { "UnitCargoValue",                     sc2_UnitCargoValue },
+    { "UnitOrderCount",                     sc2_UnitOrderCount },
+    { "UnitOrder",                          sc2_UnitOrder },
+    { "UnitOrderHasAbil",                   sc2_UnitOrderHasAbil },
+    { "UnitSetAIOption",                    sc2_UnitSetAIOption },
+    { "UnitGetAIOption",                    sc2_UnitGetAIOption },
+    { "UnitResetSpeed",                     sc2_UnitResetSpeed },
+    { "UnitResetTeamColorIndex",            sc2_UnitResetTeamColorIndex },
+    { "UnitTestPlane",                      sc2_UnitTestPlane },
+    { "UnitAbilityCount",                   sc2_UnitAbilityCount },
+    { "UnitAbilityGet",                     sc2_UnitAbilityGet },
+    { "UnitAbilityExists",                  sc2_UnitAbilityExists },
+    { "UnitAbilityCheck",                   sc2_UnitAbilityCheck },
+    { "UnitAbilityEnable",                  sc2_UnitAbilityEnable },
+    { "UnitAbilityShow",                    sc2_UnitAbilityShow },
+    { "UnitAbilityGetLevel",                sc2_UnitAbilityGetLevel },
+    { "UnitAbilityChangeLevel",             sc2_UnitAbilityChangeLevel },
+    { "UnitGetCooldown",                    sc2_UnitGetCooldown },
+    { "UnitAddCooldown",                    sc2_UnitAddCooldown },
+    { "UnitGetChargeUsed",                  sc2_UnitGetChargeUsed },
+    { "UnitAddChargeUsed",                  sc2_UnitAddChargeUsed },
+    { "UnitGetChargeRegen",                 sc2_UnitGetChargeRegen },
+    { "UnitAddChargeRegen",                 sc2_UnitAddChargeRegen },
+    { "UnitAbilityGetCooldown",             sc2_UnitAbilityGetCooldown },
+    { "UnitAbilityAddCooldown",             sc2_UnitAbilityAddCooldown },
+    { "UnitAbilityGetChargeUsed",           sc2_UnitAbilityGetChargeUsed },
+    { "UnitAbilityAddChargeUsed",           sc2_UnitAbilityAddChargeUsed },
+    { "UnitAbilityGetChargeRegen",          sc2_UnitAbilityGetChargeRegen },
+    { "UnitAbilityAddChargeRegen",          sc2_UnitAbilityAddChargeRegen },
+    { "UnitBehaviorGetCooldown",            sc2_UnitBehaviorGetCooldown },
+    { "UnitBehaviorAddCooldown",            sc2_UnitBehaviorAddCooldown },
+    { "UnitBehaviorGetChargeUsed",          sc2_UnitBehaviorGetChargeUsed },
+    { "UnitBehaviorAddChargeUsed",          sc2_UnitBehaviorAddChargeUsed },
+    { "UnitBehaviorGetChargeRegen",         sc2_UnitBehaviorGetChargeRegen },
+    { "UnitBehaviorAddChargeRegen",         sc2_UnitBehaviorAddChargeRegen },
+    { "UnitWeaponCount",                    sc2_UnitWeaponCount },
+    { "UnitWeaponGet",                      sc2_UnitWeaponGet },
+    { "UnitWeaponIsEnabled",                sc2_UnitWeaponIsEnabled },
+    { "UnitWeaponAdd",                      sc2_UnitWeaponAdd },
+    { "UnitWeaponRemove",                   sc2_UnitWeaponRemove },
+    { "UnitBehaviorAddPlayer",              sc2_UnitBehaviorAddPlayer },
+    { "UnitBehaviorRemovePlayer",           sc2_UnitBehaviorRemovePlayer },
+    { "UnitBehaviorTransfer",               sc2_UnitBehaviorTransfer },
+    { "UnitHasBehavior",                    sc2_UnitHasBehavior },
+    { "UnitBehaviorEnabled",                sc2_UnitBehaviorEnabled },
+    { "UnitBehaviorCount",                  sc2_UnitBehaviorCount },
+    { "UnitBehaviorCountAll",               sc2_UnitBehaviorCountAll },
+    { "UnitBehaviorGet",                    sc2_UnitBehaviorGet },
+    { "UnitBehaviorDuration",               sc2_UnitBehaviorDuration },
+    { "UnitBehaviorSetDuration",            sc2_UnitBehaviorSetDuration },
     { "UnitSetOwner",                        sc2_UnitSetOwner },
     { "UnitSetPosition",                     sc2_UnitSetPosition },
     { "UnitSetPropertyFixed",                sc2_UnitSetPropertyFixed },

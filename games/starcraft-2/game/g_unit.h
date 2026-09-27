@@ -8,6 +8,16 @@ static sc2UnitState_t *SC2_UnitState(void *ptr) {
     edict_t *ent=ptr;
     return SC2_EdictNumber(ent)<SC2_MAX_EDICTS && ent->inuse && ent->unit.initialized ? &ent->unit : NULL;
 }
+/* Abilities, weapons, and behaviors start from the resolved CUnit arrays; scripts change them afterwards. */
+static void SC2_UnitInitLinks(sc2UnitState_t *u) {
+    char links[SC2_UNIT_ABILS][SC2_LINK_LEN];
+    u->abil_n=(uint8_t)SC2_MapUnitLinks(u->type,SC2_LINK_ABIL,links,SC2_UNIT_ABILS);
+    for (int i=0;i<u->abil_n;i++) { snprintf(u->abils[i].link,SC2_LINK_LEN,"%s",links[i]); u->abils[i].level=1; }
+    u->weapon_n=(uint8_t)SC2_MapUnitLinks(u->type,SC2_LINK_WEAPON,links,SC2_UNIT_WEAPONS);
+    for (int i=0;i<u->weapon_n;i++) snprintf(u->weapons[i].link,SC2_LINK_LEN,"%s",links[i]);
+    u->behavior_n=(uint8_t)SC2_MapUnitLinks(u->type,SC2_LINK_BEHAVIOR,links,SC2_UNIT_BEHAVIORS);
+    for (int i=0;i<u->behavior_n;i++) { snprintf(u->behaviors[i].link,SC2_LINK_LEN,"%s",links[i]); u->behaviors[i].count=1; }
+}
 static void SC2_UnitInit(edict_t *ent,sc2MapObject_t const *object) {
     sc2UnitState_t *u=&ent->unit;
     *u=(sc2UnitState_t){.initialized=true,.map_id=object->id,.states=1u<<SC2_UNIT_SELECTABLE};
@@ -21,6 +31,7 @@ static void SC2_UnitInit(edict_t *ent,sc2MapObject_t const *object) {
     u->supplies_used=object->unit_properties[12]; u->supplies_made=object->unit_properties[13];
     memcpy(u->normal,object->unit_properties,sizeof(u->normal));
     for (int p=0;p<24;p++) u->normal[p]=SC2_UnitProperty(u,p);
+    SC2_UnitInitLinks(u);
     ent->move.speed=u->speed;
 }
 static void SC2_UnitChanged(void *ptr) {
@@ -57,6 +68,28 @@ static void SC2_UnitSetOwner(void *ptr,int player,bool change_color) {
     }
     ent->s.player=player; ent->selected=0;
 }
+/* Script selection skips the ownership test player input needs, but never selects the dead or hidden. */
+static void SC2_UnitSelect(void *ptr,int player,bool select) {
+    edict_t *ent=ptr; sc2UnitState_t const *u=SC2_UnitState(ent);
+    if (!ent || !ent->inuse || player<0 || player>=32) return;
+    uint32_t bit=1u<<player, before=ent->selected;
+    if (select && u && SC2_UnitAlive(u) && (u->states & (1u<<SC2_UNIT_SELECTABLE)) && !(u->states & (1u<<SC2_UNIT_HIDDEN)))
+        ent->selected |= bit;
+    else if (!select) ent->selected &= ~bit;
+    if (ent->selected != before) sc2_level.selection_dirty |= bit;
+}
+static bool SC2_UnitIsSelected(void *ptr,int player) {
+    edict_t const *ent=ptr; return ent && ent->inuse && player>=0 && player<32 && (ent->selected & (1u<<player));
+}
+/* The override uses the same snapshot field UnitSetOwner(…, false) fills; index is a player color slot. */
+static void SC2_UnitTeamColor(void *ptr,int index) {
+    edict_t *ent=ptr;
+    if (!ent || !ent->inuse) return;
+    ent->s.effect_flags &= ~EFX_TEAM_COLOR_MASK;
+    if (index>=31) { fprintf(stderr,"SC2 UnitSetTeamColorIndex: color %d cannot fit the snapshot override\n",index); return; }
+    if (index>=0) ent->s.effect_flags |= (uint32_t)(index+1)<<EFX_TEAM_COLOR_SHIFT;
+}
+static bool SC2_UnitIsFlying(void *ptr) { edict_t const *ent=ptr; return ent && ent->inuse && ent->move.flying; }
 static bool SC2_UnitLocation(void *ptr,float *x,float *y,float *z,float *facing) {
     edict_t *ent=ptr; if (!ent || !ent->inuse) return false;
     *x=ent->s.origin.x; *y=ent->s.origin.y; *z=ent->s.origin.z;
@@ -73,7 +106,7 @@ static bool SC2_UnitCanMove(uint32_t n) {
 }
 static void SC2_UnitTick(edict_t *ent) {
     sc2UnitState_t *u=SC2_UnitState(ent); if (!u) return;
-    bool alive=SC2_UnitAlive(u); SC2_UnitRegenerate(u,FRAMETIME/1000.0f);
+    bool alive=SC2_UnitAlive(u); SC2_UnitRegenerate(u,FRAMETIME/1000.0f); SC2_UnitAdvanceTimers(u,FRAMETIME/1000.0f);
     ent->s.stats[ENT_HEALTH]=(uint8_t)(SC2_UnitProperty(u,1)*255/100);
     ent->s.stats[ENT_MANA]=(uint8_t)(SC2_UnitProperty(u,5)*255/100);
     if (alive != SC2_UnitAlive(u)) SC2_UnitChanged(ent);
