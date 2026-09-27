@@ -80,6 +80,9 @@ bool S_UnitAbilityMessage(edict_t *ent, abilityMsg_t msg, abilityCall_t const *c
 BZ_ABILITY_PROC(CAbilityNoop);
 BZ_ABILITY_PROC(CAbilityPassive);
 BZ_ABILITY_PROC(CAbilityPermanentInvisibility);
+BZ_ABILITY_PROC(CAbilityShadowMeld);
+BZ_ABILITY_PROC(CAbilityHide);
+BZ_ABILITY_PROC(CAbilityShadowMeldAkama);
 BZ_ABILITY_PROC(CAbilityThunderBolt);
 BZ_ABILITY_PROC(CAbilityFireBolt);
 BZ_ABILITY_PROC(CAbilityWaterElemental);

@@ -646,6 +646,12 @@ void order_attack(edict_t *self, edict_t *target) {
         !S_AttackCanTarget(self, target)) {
         return;
     }
+    /* Beginning an attack is incompatible with Shadow Meld. This path is used
+     * by explicit attacks, ordinary acquisition, and the automatic retaliation
+     * issued by T_Damage(), so clear both invisibility and the explicit Hide
+     * hold-fire state before installing the attack behavior. */
+    if (self->shadowmeld.active || self->shadowmeld.fading || self->shadowmeld.hide_order_active)
+        S_ShadowMeldBreak(self);
     unit_entercombat(self, target);
     self->goalentity = target;
     attack_walk(self);

@@ -474,6 +474,7 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "move", 851986, 0 },
     { "holdposition", 851993, 0 },
     { "repair", 852024, 0 },
+    { "ambush", 852131, MAKEFOURCC('A','h','i','d') },
     { "repairon", 852025, 0 },
     { "repairoff", 852026, 0 },
 
@@ -1047,12 +1048,16 @@ bool unit_issueimmediateorder(edict_t *self, cstring_t order) {
     if (!strcmp(order, "stop")) {
         G_ClearUnitOrderQueue(self);
         order_stop(self);
+        S_UnitAbilityOrderAccepted(self, order);
         G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
         return true;
     }
     if (!strcmp(order, "holdposition")) {
         bool const accepted = S_HoldPosition(self);
-        if (accepted) G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
+        if (accepted) {
+            S_UnitAbilityOrderAccepted(self, order);
+            G_PublishIssuedImmediateOrder(self, G_OrderId(order), self->s.player, order);
+        }
         return accepted;
     }
     ability_t const *ability = FindAbilityByOrder(order);

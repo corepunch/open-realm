@@ -205,12 +205,14 @@ static auraAbilityRef_t mana_shield_ability(edict_t *ent) {
 
 /* Static scenery, hidden, and gameplay-invisible actors do not participate in auras.
  * RF_HIDDEN covers ShowUnit-style hidden state and temporary invisibility such as
- * Invisibility/Wind Walk; Permanent Invisibility is tracked independently. Fog
- * visibility and detector state are deliberately irrelevant here. */
+ * Invisibility/Wind Walk; Permanent Invisibility and Shadow Meld are tracked
+ * independently. Fog visibility and detector state are deliberately irrelevant:
+ * detection reveals an invisible actor to a viewer, but does not reactivate auras. */
 bool S_AuraUnitActive(edict_t const *unit) {
     return unit && unit->inuse && !M_IsDead(unit) &&
            !(unit->svflags & SVF_STATIC_SCENERY) &&
-           !(unit->s.renderfx & RF_HIDDEN) && !S_PermanentInvisibilityActive(unit);
+           !(unit->s.renderfx & RF_HIDDEN) &&
+           !S_PermanentInvisibilityActive(unit) && !S_ShadowMeldActive(unit);
 }
 
 static bool aura_target_has_token(cstring_t targets, cstring_t full, cstring_t short_name) {

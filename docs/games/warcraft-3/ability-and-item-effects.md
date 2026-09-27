@@ -181,7 +181,7 @@ The following are deliberately outside this implementation slice:
 - generic binding of buff lifetime to persistent world-art ownership and non-stacking FX
   beyond explicitly owned lifecycles such as natural creep sleep;
 - ability/buff `EffectSound` and `EffectSoundLooped`;
-- broader invisibility families such as Ghost/Ghost Visible and Shadow Meld remain separate from the `Apiv`/`Binv`/`BOwk`/ward visibility paths covered here;
+- Ghost/Ghost Visible remain separate from the player-aware invisibility paths covered here; Shadow Meld now uses dedicated saved state and the same owner/shared-vision/detector visibility query as the implemented `Apiv`/`Binv`/`BOwk`/ward mechanics;
 - Earthquake Data D/final-area specialized terrain presentation remains separate from the now-implemented persistent area-art/looped-sound ownership;
 - item `cooldownID` / `ignoreCD` shared cooldown behavior;
 - automatic `powerup` acquisition/use;

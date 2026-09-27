@@ -1398,6 +1398,12 @@ struct edict_s {
     uint32_t spawn_time;
     uint32_t summon_ability; /* ability rawcode that created this summoned unit; 0 for ordinary units */
     uint32_t permanent_invisibility_reveal_until; /* Apiv: visible until this server-time deadline after spawn/attack/cast */
+    struct edictShadowMeld_s {
+        uint32_t fade_start; /* server time when the current uninterrupted stationary fade began */
+        bool fading;
+        bool active;
+        bool hide_order_active; /* Ahid/ambush: suppress voluntary acquisition until replaced */
+    } shadowmeld;
     uint16_t forced_visibility_count[MAX_PLAYERS]; /* active unit-specific reveals, indexed by the sight-sharing player */
     uint32_t shared_vision; /* players that receive this unit's ordinary sight via UnitShareVision */
     uint32_t harvested_lumber;
@@ -2231,6 +2237,8 @@ void G_RemoveUnitForcedVisibility(edict_t *unit, uint32_t viewer);
 bool G_UnitIsForcedVisibleToPlayer(edict_t const *unit, uint32_t viewer);
 bool S_UnitIsDetectedByPlayer(edict_t const *unit, uint32_t player);
 bool S_UnitIsInvisibleToPlayer(edict_t const *unit, uint32_t player);
+bool S_ShadowMeldActive(edict_t const *unit);
+void S_ShadowMeldBreak(edict_t *unit);
 bool S_UnitUsesInvisibilityRenderFlag(edict_t const *unit);
 bool S_PermanentInvisibilityActive(edict_t const *unit);
 void S_PermanentInvisibilityInitialize(edict_t *unit);

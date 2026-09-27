@@ -743,6 +743,20 @@ TEST(wc3_spell, auras_ignore_hidden_and_invisible_sources_and_recipients) {
     target->permanent_invisibility_reveal_until = 0;
     level.time += AURA_UPDATE_MS;
     T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
+    target->runtime.flags &= ~UNIT_BALANCE_PERMANENT_INVISIBLE;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
+
+    source->shadowmeld.active = true;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
+    source->shadowmeld.active = false;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 4.0f, 0.001f);
+
+    target->shadowmeld.active = true;
+    level.time += AURA_UPDATE_MS;
+    T_FEQ(S_DevotionArmorBonus(target), 0.0f, 0.001f);
 
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);

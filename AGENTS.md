@@ -56,6 +56,7 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 fog states, scripted reveals, fog modifiers, shared vision, cinematic separation | [docs/games/warcraft-3/fog-and-cinematics.md](docs/games/warcraft-3/fog-and-cinematics.md) |
 | WC3 environmental terrain fog / distance mist, `SetTerrainFogEx`, `DefaultZFog`, renderer handoff | [docs/games/warcraft-3/environmental-fog.md](docs/games/warcraft-3/environmental-fog.md) |
 | WC3 simulation time of day, Dawn/Dusk data, JASS game state, sight/regen consumers | [docs/games/warcraft-3/time-of-day.md](docs/games/warcraft-3/time-of-day.md) |
+| WC3 Night Elf Hide/Shadow Meld, ambush order, fade/reveal rules, detection integration | [docs/games/warcraft-3/shadowmeld.md](docs/games/warcraft-3/shadowmeld.md) |
 | WC3 natural neutral-creep sleep, `canSleep`, sleep natives, wake rules, and known camp gaps | [docs/games/warcraft-3/creep-sleep.md](docs/games/warcraft-3/creep-sleep.md) |
 | WC3 regeneration auras and Fountain health/mana alias/data flow | [docs/games/warcraft-3/regeneration-auras.md](docs/games/warcraft-3/regeneration-auras.md) |
 | WC3 aura target masks, RoC rank columns, and scenery overlay filtering | [docs/games/warcraft-3/aura-targets-and-overlays.md](docs/games/warcraft-3/aura-targets-and-overlays.md) |
