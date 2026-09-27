@@ -3934,6 +3934,32 @@ TEST(wc3_save, racial_gold_mine_state_round_trip) {
     remove(filename);
 }
 
+TEST(wc3_save, mineoverlay_entangle_tree_round_trip) {
+    cstring_t filename = "/tmp/openwarcraft3-wc3-save-entangle-tree.bin";
+    field_t const *desc = find_save_field("mineoverlay.entangle_tree");
+    edict_t *overlay, *tree;
+
+    reset_entities();
+    tree = alloc_test_unit(MAKEFOURCC('e','t','o','l'), 0.0f, 0.0f);
+    overlay = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 64.0f, 0.0f);
+    overlay->mineoverlay.entangle_tree = tree;
+    overlay->mineoverlay.entangle_tree_spawn_time = tree->spawn_time;
+    T_NOT_NULL(desc);
+    if (desc) { T_EQ(desc->type, F_EDICT); T_EQ(desc->array_size, 0); }
+    T_ASSERT(WriteGame(filename));
+    overlay->mineoverlay.entangle_tree = NULL;
+    overlay->mineoverlay.entangle_tree_spawn_time = 0;
+    T_ASSERT(ReadGame(filename));
+    T_ASSERT(overlay->mineoverlay.entangle_tree == tree);
+    T_EQ(overlay->mineoverlay.entangle_tree_spawn_time, tree->spawn_time);
+
+    /* A recycled edict slot must not inherit the previous tree identity. */
+    tree->spawn_time++;
+    T_ASSERT(overlay->mineoverlay.entangle_tree == tree);
+    T_NE(overlay->mineoverlay.entangle_tree_spawn_time, tree->spawn_time);
+    remove(filename);
+}
+
 SAVE_PTR_FIELD_TEST(field_primary_builder_round_trip, "construction.primary_builder", construction.primary_builder, 0)
 SAVE_PTR_FIELD_TEST(creep_status_source_round_trip, "abilstatus.source", abilstatus[3].source, 0)
 SAVE_PTR_FIELD_TEST(field_construction_worker_round_trip, "construction.worker", construction.worker, 0)
@@ -3944,6 +3970,7 @@ SAVE_PTR_FIELD_TEST(field_sacrifice_worker_round_trip, "sacrifice.worker", sacri
 SAVE_PTR_FIELD_TEST(field_goldmine_round_trip, "goldmine.mine", goldmine.mine, 0)
 SAVE_PTR_FIELD_TEST(field_mineoverlay_parent_round_trip, "mineoverlay.parent", mineoverlay.parent, 0)
 SAVE_PTR_FIELD_TEST(field_mineoverlay_caster_round_trip, "mineoverlay.caster", mineoverlay.caster, 0)
+SAVE_PTR_FIELD_TEST(field_mineoverlay_entangle_tree_round_trip, "mineoverlay.entangle_tree", mineoverlay.entangle_tree, 0)
 SAVE_PTR_FIELD_TEST(field_acolyte_mine_round_trip, "acolyte_mine.mine", acolyte_mine.mine, 0)
 SAVE_PTR_FIELD_TEST(field_inventory_round_trip, "inventory", inventory[3], MAX_INVENTORY)
 SAVE_PTR_FIELD_TEST(field_cargo_round_trip, "cargo.units", cargo.units[4], MAX_CARGO)

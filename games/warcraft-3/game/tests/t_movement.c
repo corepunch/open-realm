@@ -4225,6 +4225,47 @@ TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_movement, entangle_missing_overlay_unit_id_reports_unavailable) {
+    static char const missing_unit_id[] =
+        "ID;PWXL;N;EBB;Y2;X4\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\n"
+        "C;Y1;X3;K\"Dur1\"\nC;Y1;X4;K\"DataA1\"\n"
+        "C;Y2;X1;K\"Aent\"\nC;Y2;X2;K\"Aent\"\n"
+        "C;Y2;X3;K10\nE\n";
+    slkTestData_t *rows, *old_abilities;
+    edict_t *clent, *caster, *parent;
+    gameClient_t *client;
+    uint32_t count_before;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+
+    reset_entities(); setup_test_world();
+    rows = parse_slk_string(missing_unit_id);
+    old_abilities = G_SetSLKRows("AbilityData", rows);
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    clent = &g_edicts[0]; client = &game.clients[0];
+    clent->client = client;
+    caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 0.0f, 0.0f);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
+    caster->data.UnitAbilities = &test_entangle_caster;
+    caster->s.player = parent->s.player = client->ps.number;
+    caster->ancient_root.ability = MAKEFOURCC('A','r','o','1');
+    caster->ancient_root.mode = ANCIENT_ROOTED;
+    G_ActorAddSkill(caster, MAKEFOURCC('A','e','n','t'));
+    G_SelectEntity(client, caster);
+    count_before = globals.num_edicts;
+
+    T_ASSERT(!movement_issue_entangle_command(clent, client, caster, parent));
+    T_EQ(globals.num_edicts, count_before);
+    T_NOT_NULL(client->menu.on_entity_selected);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_movement, one_tree_cannot_entangle_multiple_gold_mines) {
     uint32_t const ability = MAKEFOURCC('A','e','n','t');
     edict_t *clent, *caster, *first, *second, *parent1, *parent2;

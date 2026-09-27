@@ -73,9 +73,15 @@ bool S_AncientAbilityAvailable(edict_t const *unit, ability_t const *ability) {
 
 uint32_t S_AncientAttackMask(edict_t const *unit) {
     abilityLevel_t const *level;
+    AbilityData_t const *data;
     if (!unit || !unit->ancient_root.ability) return 3;
+    data = G_AbilityData(unit->ancient_root.ability);
+    if (data->id != unit->ancient_root.ability) {
+        fprintf(stderr, "WC3 Ancient Root: missing AbilityData %08x (attack mask)\n",
+                unit->ancient_root.ability);
+        return 3;
+    }
     level = G_AbilityLevel(unit->ancient_root.ability, 1);
-    if (!level) return 3;
     return (uint32_t)level->data[S_AncientIsRooted(unit) ? 0 : 1].number;
 }
 
@@ -347,10 +353,15 @@ BZ_ABILITY_PROC(CAbilityManaBattery) {
 /* ---- Ancient Root/Uproot ------------------------------------------------- */
 
 static float ancient_root_duration(edict_t const *unit, bool rooted) {
-    abilityLevel_t const *level;
+    AbilityData_t const *data;
     if (!unit || !unit->ancient_root.ability) return 0.0f;
-    level = G_AbilityLevel(unit->ancient_root.ability, 1);
-    return level ? MAX(0.0f, rooted ? level->dur : level->heroDur) : 0.0f;
+    data = G_AbilityData(unit->ancient_root.ability);
+    if (data->id != unit->ancient_root.ability) {
+        fprintf(stderr, "WC3 Ancient Root: missing AbilityData %08x (morph duration)\n",
+                unit->ancient_root.ability);
+        return -1.0f;
+    }
+    return MAX(0.0f, rooted ? data->level[0].dur : data->level[0].heroDur);
 }
 
 static float ancient_root_animation_duration(edict_t const *unit) {
@@ -374,6 +385,7 @@ void S_AncientBeginMorph(edict_t *unit, bool rooted) {
     float duration;
     if (!unit) return;
     duration = ancient_root_duration(unit, rooted);
+    if (duration < 0.0f) return;
     unit->ancient_root.approaching = false;
     unit->ancient_root.transition_end_time = G_Time() + (uint32_t)(duration * 1000.0f);
     unit->ancient_root.mode = rooted ? ANCIENT_ROOTING : ANCIENT_UPROOTING;

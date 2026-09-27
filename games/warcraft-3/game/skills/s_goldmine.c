@@ -1280,6 +1280,14 @@ static bool entangle_goldmine_selecttarget(edict_t *clent, edict_t *target) {
         return false;
     }
     if (!(alias = goldmine_actor_ability_alias(caster, MAKEFOURCC('A','e','n','t')))) return false;
+    {
+        AbilityData_t const *data = G_AbilityData(alias);
+        if (data->id != alias || !data->level[0].unitID) {
+            fprintf(stderr, "WC3 Entangle: AbilityData %08x missing UnitID\n", alias);
+            G_ShowCommandErrorKey(clent, "EntangleUnavailable", "Entangle is unavailable because its unit data is missing.");
+            return false;
+        }
+    }
     if (entangle_tree_overlay(caster)) {
         G_ShowCommandErrorKey(clent, "AlreadyEntangled", "This Tree already entangles a Gold Mine.");
         return false;
@@ -1289,9 +1297,6 @@ static bool entangle_goldmine_selecttarget(edict_t *clent, edict_t *target) {
         return false;
     }
     resulting_type = G_AbilityLevel(alias, 1)->unitID;
-    if (!resulting_type) {
-        return false;
-    }
 
     entangled = SP_SpawnAtLocation(resulting_type, caster->s.player, &target->s.origin2);
     if (!entangled) {

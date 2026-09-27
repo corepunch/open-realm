@@ -101,6 +101,23 @@ TEST(wc3_ancient_root, roc_and_tft_use_separate_root_and_uproot_durations) {
     ancient_assert_direction_durations(ancient_root_tft);
 }
 
+TEST(wc3_ancient_root, missing_ability_data_does_not_start_morph) {
+    slkTestData_t *rows = parse_slk_string(ancient_root_tft);
+    slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *unit;
+    reset_entities(); setup_test_world(); level.time = 1000;
+    unit = ancient_test_unit(false);
+    unit->ancient_root.ability = MAKEFOURCC('A','r','o','2');
+
+    S_AncientBeginMorph(unit, true);
+    T_EQ(unit->ancient_root.mode, ANCIENT_UPROOTED);
+    T_EQ(unit->ancient_root.transition_end_time, 0);
+    T_EQ(S_AncientAttackMask(unit), 3);
+
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_ancient_root, command_button_uses_uproot_art_while_rooted) {
     edict_t *unit;
     gameCommandButton_t button;
