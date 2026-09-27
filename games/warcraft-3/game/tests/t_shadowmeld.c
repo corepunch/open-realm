@@ -142,6 +142,31 @@ TEST(wc3_shadowmeld, hide_ambush_suppresses_acquisition_and_uses_same_fade) {
     shadowmeld_done(&fix);
 }
 
+TEST(wc3_shadowmeld, hide_button_preserves_already_active_shadowmeld) {
+    shadowmeldFix_t fix;
+    edict_t *clent = &g_edicts[0];
+    gameClient_t *client = &game.clients[0];
+    cstring_t button[] = { "button", "Ashm" };
+
+    shadowmeld_setup(&fix);
+    clent->client = client;
+    fix.unit->s.player = client->ps.number;
+    G_SelectEntity(client, fix.unit);
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+
+    S_RunAbilityUpdates(fix.unit);
+    shadowmeld_tick(fix.unit, 1500);
+    T_ASSERT(S_ShadowMeldActive(fix.unit));
+
+    G_ClientCommand(clent, 2, button);
+    T_ASSERT(S_ShadowMeldActive(fix.unit));
+    T_ASSERT(!fix.unit->shadowmeld.fading);
+    T_ASSERT(fix.unit->shadowmeld.hide_order_active);
+
+    shadowmeld_done(&fix);
+}
+
 TEST(wc3_shadowmeld, stop_retires_explicit_hide_then_allows_passive_refade) {
     shadowmeldFix_t fix;
     shadowmeld_setup(&fix);
