@@ -2235,6 +2235,13 @@ TEST(wc3_spell, entangling_roots_is_a_timed_unit_spell) {
 	T_EQ((int)roots->target_type, (int)SPELL_TARGET_UNIT);
 }
 
+TEST(wc3_spell, entangling_roots_visual_resolves_from_buff_target_art) {
+	cstring_t art = G_AbilityEffectArt(MAKEFOURCC('B', 'E', 'e', 'r'), WC3_EFFECT_TARGET, 0);
+
+	T_NOT_NULL(art);
+	T_NOT_NULL(strcasestr(art, "EntanglingRootsTarget"));
+}
+
 TEST(wc3_spell, entangling_roots_tracks_source_interrupts_channel_and_ticks_authored_dps) {
     const char slk[] =
         "ID;PWXL;N;EBB;Y2;X8\n"

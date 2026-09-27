@@ -384,6 +384,39 @@ edict_t *G_SpawnAbilityEffectTarget(uint32_t ability_id, wc3EffectType_t type, u
     return G_SpawnModelEffect(G_AbilityEffectArt(ability_id, type, index), NULL, target, attach_point, temporary);
 }
 
+/* Persistent buff/status visuals are presentation entities owned by the
+ * status identity, not by the casting ability. Keep one live target effect per
+ * status rawcode and target generation so refresh/reapplication cannot stack
+ * duplicate models. The tag is intentionally presentation-only: authoritative
+ * status state remains in abilstatus and can recreate the visual as needed. */
+edict_t *G_SpawnStatusEffectTarget(uint32_t status_id, edict_t *target, cstring_t attach_point) {
+    edict_t *effect;
+    if (!status_id || !target || !target->inuse) return NULL;
+    FILTER_EDICTS(existing, existing->status_effect_code == status_id &&
+                  existing->goalentity == target && existing->damage == target->spawn_time)
+        return existing;
+    effect = G_SpawnAbilityEffectTarget(status_id, WC3_EFFECT_TARGET, 0, target, attach_point, false);
+    if (effect) effect->status_effect_code = status_id;
+    return effect;
+}
+
+void G_DestroyStatusEffectTarget(uint32_t status_id, edict_t *target) {
+    if (!status_id || !target) return;
+    for (;;) {
+        edict_t *found = NULL;
+        FILTER_EDICTS(effect, effect->status_effect_code == status_id &&
+                      effect->goalentity == target && effect->damage == target->spawn_time) {
+            found = effect;
+            break;
+        }
+        if (!found) return;
+        /* Clear the tag before the death animation so an immediate refresh can
+         * create the replacement instead of finding an effect already dying. */
+        found->status_effect_code = 0;
+        G_DestroyEffect(found);
+    }
+}
+
 
 edict_t *G_SpawnOwnedAbilityEffectAtPoint(edict_t *owner, uint32_t ability_id,
                                          wc3EffectType_t type, uint32_t index,

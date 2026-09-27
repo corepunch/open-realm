@@ -1323,6 +1323,7 @@ struct edict_s {
     uint32_t build_project;
     edict_t *build_preview; /* translucent Construction Site Indicator for an accepted build order */
     bool rally_indicator;
+    uint32_t status_effect_code; /* presentation-only buff/status tag on effect edicts; not save state */
     struct edictConstruction_s {
         bool active;
         bool paused;
@@ -2589,6 +2590,8 @@ cstring_t G_AbilityEffectArt(uint32_t ability_id, wc3EffectType_t type, uint32_t
 edict_t *G_SpawnModelEffect(cstring_t model, vec2_t const *point, edict_t *target, cstring_t attach_point, bool temporary);
 edict_t *G_SpawnAbilityEffectAtPoint(uint32_t ability_id, wc3EffectType_t type, uint32_t index, vec2_t const *point, bool temporary);
 edict_t *G_SpawnAbilityEffectTarget(uint32_t ability_id, wc3EffectType_t type, uint32_t index, edict_t *target, cstring_t attach_point, bool temporary);
+edict_t *G_SpawnStatusEffectTarget(uint32_t status_id, edict_t *target, cstring_t attach_point);
+void G_DestroyStatusEffectTarget(uint32_t status_id, edict_t *target);
 void G_DestroyEffect(edict_t *effect);
 uint32_t G_AbilityLightningId(uint32_t ability_id, uint32_t index);
 gLightning_t *G_LightningAdd(lightningAddParams_t const *params);
