@@ -35,10 +35,18 @@ Roots-specific inverse flag. The existing status fields (`data`, `source`,
 new serialized or network state is required. Damage stops once the status slot
 is gone.
 
-The target MDX remains driven by the normal authored ability-effect path. This
-implementation does not add a special Roots renderer lifetime because exact
-retail target-effect ownership has not been established strongly enough to
-override the shared effect machinery.
+The persistent target visual is owned by the active buff/status presentation,
+not by a one-shot cast effect. OpenRealm resolves the target model from the
+authored buff rawcode (`BEer` for the stock spell), attaches it at `origin`, and
+keeps one persistent effect entity per status/target generation. For stock data
+this resolves to the Entangling Roots target model.
+
+`A_STATUS_REMOVE` destroys that status-owned effect, so normal expiration,
+generic dispel, and death cleanup all retire the visual through the same status
+lifecycle as the gameplay root. `A_STATUS_REFRESH` can recreate a missing
+presentation effect without duplicating an existing one. The authoritative
+state remains the timed status; the effect tag is presentation-only and is not
+serialized gameplay state.
 
 ## Deliberately not generalized
 
@@ -50,11 +58,12 @@ evidence.
 
 ## Regression coverage
 
-Tests cover registration as a unit-target spell, authored DPS/source tracking,
-Hero duration and alias-specific data, channel interruption, death cleanup,
-status-allocation failure, generic Dispel Magic removal, movement restoration,
-and disarm behavior for both ordinary attacks and Attack Ground while preserving
-normal attacks for inherently immobile artillery.
+Tests cover registration as a unit-target spell, stock `BEer` target-art
+resolution, authored DPS/source tracking, Hero duration and alias-specific data,
+channel interruption, death cleanup, status-allocation failure, generic Dispel
+Magic removal, movement restoration, and disarm behavior for both ordinary
+attacks and Attack Ground while preserving normal attacks for inherently
+immobile artillery.
 
 ## Verification
 
@@ -66,4 +75,8 @@ Recommended verification after applying this change:
 make test
 ```
 
-A focused in-engine test run may use the `wc3_spell.entangling_roots*` and `wc3_combat.*roots*` patterns supported by the shared test runner. Visual MDX lifetime parity is not proven by these simulation tests.
+A focused in-engine test run may use the `wc3_spell.entangling_roots*` and
+`wc3_combat.*roots*` patterns supported by the shared test runner. The unit test
+verifies that stock `BEer` resolves target art containing
+`EntanglingRootsTarget`; actual MDX animation/rendering still requires an
+in-engine visual check.
