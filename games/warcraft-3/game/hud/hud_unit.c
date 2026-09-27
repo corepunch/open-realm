@@ -162,6 +162,14 @@ cstring_t G_CommandButtonValue(cstring_t normal, cstring_t alternate, bool toggl
     return toggle_on && alternate && *alternate ? alternate : normal;
 }
 
+bool G_CommandButtonToggleOn(edict_t *ent, abilityitem_t const *item, bool research, int toggle_state) {
+    abilityCall_t call;
+    if (research || !ent || !item || !item->ability) return false;
+    if (toggle_state >= 0) return toggle_state != 0;
+    call = MAKE(abilityCall_t, .item = item);
+    return S_AbilityMessage(ent, A_TOGGLE_ON, &call);
+}
+
 static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool research, uint32_t level, int toggle_state, gameCommandButton_t *button) {
     char command_code[256];
     char art_level[256];
@@ -175,7 +183,6 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
     cstring_t hotkey;
     ability_t const *ability;
     abilityitem_t item;
-    abilityCall_t call;
     uint32_t ability_code = 0;
     bool toggle_on = false;
     bool upgrade_research = false;
@@ -204,9 +211,7 @@ static bool G_BuildCommandButtonState(edict_t *ent, cstring_t code, bool researc
     }
     art_code = G_CommandArtCode(ent, code);
     item = MAKE(abilityitem_t, .code = ability_code, .ability = ability);
-    call = MAKE(abilityCall_t, .item = &item);
-    toggle_on = !research && (toggle_state >= 0 ? toggle_state != 0 :
-        ability && S_AbilityMessage(ent, A_TOGGLE_ON, &call));
+    toggle_on = G_CommandButtonToggleOn(ent, &item, research, toggle_state);
     art = G_CommandButtonValue(
         FindConfigValue(art_code, G_ResearchField(STR_ART, research && !upgrade_research)),
         toggle_on ? FindConfigValue(art_code, STR_UNART) : NULL, toggle_on);

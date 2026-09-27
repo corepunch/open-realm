@@ -1323,7 +1323,7 @@ struct edict_s {
     uint32_t build_project;
     edict_t *build_preview; /* translucent Construction Site Indicator for an accepted build order */
     bool rally_indicator;
-    uint32_t status_effect_code; /* presentation-only buff/status tag on effect edicts; not save state */
+    uint32_t status_effect_code; /* presentation-only ownership identity; saved so removal can find effects after load */
     struct edictConstruction_s {
         bool active;
         bool paused;

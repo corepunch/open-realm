@@ -2236,10 +2236,91 @@ TEST(wc3_spell, entangling_roots_is_a_timed_unit_spell) {
 }
 
 TEST(wc3_spell, entangling_roots_visual_resolves_from_buff_target_art) {
+	static char const buff_slk[] =
+		"ID;PWXL;N;EBB;Y2;X3\n"
+		"C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"TargetArt\"\n"
+		"C;Y2;X1;K\"BEer\"\nC;Y2;X2;K\"BEer\"\n"
+		"C;Y2;X3;K\"Units\\\\NightElf\\\\EntanglingRootsTarget.mdx\"\nE\n";
+	slkTestData_t *rows = parse_slk_string(buff_slk), *old = G_SetSLKRows("AbilityBuffData", rows);
 	cstring_t art = G_AbilityEffectArt(MAKEFOURCC('B', 'E', 'e', 'r'), WC3_EFFECT_TARGET, 0);
 
 	T_NOT_NULL(art);
 	T_NOT_NULL(strcasestr(art, "EntanglingRootsTarget"));
+	G_SetSLKRows("AbilityBuffData", old); free_slk_rows(rows);
+}
+
+TEST(wc3_spell, entangling_roots_visual_follows_status_through_recast_and_save_load) {
+    static char const ability_slk[] =
+        "ID;PWXL;N;EBB;Y2;X6\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"BuffID1\"\n"
+        "C;Y1;X4;K\"Dur1\"\nC;Y1;X5;K\"HeroDur1\"\nC;Y1;X6;K\"DataA1\"\n"
+        "C;Y2;X1;K\"AEer\"\nC;Y2;X2;K\"AEer\"\nC;Y2;X3;K\"BEer\"\n"
+        "C;Y2;X4;K\"8\"\nC;Y2;X5;K\"8\"\nC;Y2;X6;K\"4\"\nE\n";
+    static char const buff_slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"TargetArt\"\n"
+        "C;Y2;X1;K\"BEer\"\nC;Y2;X2;K\"BEer\"\n"
+        "C;Y2;X3;K\"TestUI\\\\Models\\\\anim_pulse.mdx\"\nE\n";
+    cstring_t const save_path = "/tmp/openwarcraft3-roots-visual-save.bin";
+    slkTestData_t *ability_rows = parse_slk_string(ability_slk), *old_ability;
+    slkTestData_t *buff_rows = parse_slk_string(buff_slk), *old_buff;
+    edict_t *caster, *target, *effect = NULL;
+    uint32_t target_number;
+
+    reset_entities(); setup_test_world(); level.time = 1000;
+    old_ability = G_SetSLKRows("AbilityData", ability_rows);
+    old_buff = G_SetSLKRows("AbilityBuffData", buff_rows);
+    caster = make_hero(MAKEFOURCC('E','k','e','e'), 500, 200, 0, 0);
+    target = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64, 0);
+    caster->s.player = 0; target->s.player = 1;
+    target->svflags |= SVF_MONSTER; target->targtype = TARG_GROUND;
+
+    T_ASSERT(test_execute_code(caster, "AEer", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
+    FILTER_EDICTS(found, found->status_effect_code == MAKEFOURCC('B','E','e','r') && found->goalentity == target) {
+        T_NULL(effect);
+        effect = found;
+    }
+    T_NOT_NULL(effect);
+    target_number = target->s.number;
+
+    T_ASSERT(test_execute_code(caster, "AEer", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
+    T_EQ(effect->status_effect_code, MAKEFOURCC('B','E','e','r'));
+    {
+        uint32_t count = 0;
+        FILTER_EDICTS(found, found->status_effect_code == MAKEFOURCC('B','E','e','r') && found->goalentity == target) count++;
+        T_EQ(count, 1);
+    }
+
+    T_ASSERT(WriteGame(save_path));
+    T_ASSERT(ReadGame(save_path));
+    target = g_edicts + target_number;
+    caster = g_edicts + caster->s.number;
+    {
+        uint32_t count = 0;
+        FILTER_EDICTS(found, found->status_effect_code == MAKEFOURCC('B','E','e','r') && found->goalentity == target) {
+            effect = found;
+            count++;
+        }
+        T_EQ(count, 1);
+    }
+    unit_expirestatus(target, unit_findstatus(target, MAKEFOURCC('B','E','e','r')));
+    T_NULL(unit_findstatus(target, MAKEFOURCC('B','E','e','r')));
+    T_EQ(effect->status_effect_code, 0);
+
+    T_ASSERT(test_execute_code(caster, "AEer", MAKE(spellTarget_t, .type = SPELL_TARGET_UNIT, .entity = target)));
+    effect = NULL;
+    FILTER_EDICTS(found, found->status_effect_code == MAKEFOURCC('B','E','e','r') && found->goalentity == target) {
+        T_NULL(effect);
+        effect = found;
+    }
+    T_NOT_NULL(effect);
+    unit_statusdeath(target);
+    T_NULL(unit_findstatus(target, MAKEFOURCC('B','E','e','r')));
+    T_EQ(effect->status_effect_code, 0);
+
+    remove(save_path);
+    G_SetSLKRows("AbilityBuffData", old_buff); free_slk_rows(buff_rows);
+    G_SetSLKRows("AbilityData", old_ability); free_slk_rows(ability_rows);
 }
 
 TEST(wc3_spell, entangling_roots_tracks_source_interrupts_channel_and_ticks_authored_dps) {

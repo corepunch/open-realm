@@ -742,6 +742,7 @@ field_t edict_fields[] = {
     F(edict_s, spawn_time, F_INT),
     F(edict_s, summon_ability, F_INT),
     F(edict_s, permanent_invisibility_reveal_until, F_INT),
+    F(edict_s, status_effect_code, F_INT),
     F(edict_s, forced_visibility_count, F_INT),
     F(edict_s, shared_vision, F_INT),
     F(edict_s, harvested_lumber, F_INT),

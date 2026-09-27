@@ -12,6 +12,19 @@ void setup_test_world(void);
 slkTestData_t *parse_slk_string(char const *text);
 void free_slk_rows(slkTestData_t *rows);
 
+static uiFrame_t shadowmeld_command_frame;
+static bool shadowmeld_command_frame_seen;
+
+static int shadowmeld_test_image_index(cstring_t name) { (void)name; return 1; }
+
+static void shadowmeld_capture_write(pfWriteType_t type, void const *value) {
+    uiFrame_t const *frame = value;
+    if (type == PF_UIFRAME && frame && frame->flags.type == FT_COMMANDBUTTON) {
+        shadowmeld_command_frame = *frame;
+        shadowmeld_command_frame_seen = true;
+    }
+}
+
 static char const shadowmeld_slk[] =
     "ID;PWXL;N;E8;Y3;X8\n"
     "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
@@ -216,6 +229,10 @@ TEST(wc3_shadowmeld, hide_state_changes_invalidate_command_card) {
     G_SetTimeOfDay(game.constants.duskTimeGameHours);
     G_UpdateTimeOfDay();
 
+    {
+        abilityitem_t item = S_AbilityItem(ID_ASHM);
+        T_ASSERT(!G_CommandButtonToggleOn(fix.unit, &item, false, -1));
+    }
     client->commands_dirty = false;
     G_ClientCommand(clent, 2, button);
     T_ASSERT(fix.unit->shadowmeld.hide_order_active);
@@ -228,13 +245,24 @@ TEST(wc3_shadowmeld, hide_state_changes_invalidate_command_card) {
         abilityCall_t active_call = MAKE(abilityCall_t, .item = &active_item);
         T_ASSERT(S_AbilityHasCommand(active_item.ability));
         T_ASSERT(S_AbilityMessage(fix.unit, A_TOGGLE_ON, &active_call));
+        T_ASSERT(G_CommandButtonToggleOn(fix.unit, &active_item, false, -1));
         T_EQ(GetAbilityIndex(active_item.ability->proc), GetAbilityIndex(CAbilityShadowMeld));
     }
     T_EQ(G_CommandButtonValue("normal", "alternate", true), "alternate");
     {
-        gameCommandButton_t state = { .engaged = 1 };
-        T_EQ(state.engaged, 1);
-        T_EQ(state.alternate_active, 0);
+        abilityitem_t item = S_AbilityItem(ID_ASHM);
+        gameCommandButton_t state = { .engaged = G_CommandButtonToggleOn(fix.unit, &item, false, -1) };
+        void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+        int (*old_image_index)(cstring_t) = gi.ImageIndex;
+        gi.Write = shadowmeld_capture_write;
+        gi.ImageIndex = shadowmeld_test_image_index;
+        shadowmeld_command_frame_seen = false;
+        UI_WriteCommandButtonFrame(&state);
+        T_ASSERT(shadowmeld_command_frame_seen);
+        T_ASSERT(shadowmeld_command_frame.flagsvalue & UIFLAG_ABILITY_ENGAGED);
+        T_ASSERT(!(shadowmeld_command_frame.flagsvalue & UIFLAG_ALTERNATE_ACTIVE));
+        gi.Write = old_write;
+        gi.ImageIndex = old_image_index;
     }
 
     client->commands_dirty = false;
@@ -242,6 +270,10 @@ TEST(wc3_shadowmeld, hide_state_changes_invalidate_command_card) {
     T_ASSERT(!fix.unit->shadowmeld.hide_order_active);
     T_ASSERT(client->commands_dirty);
     T_EQ(G_CommandButtonValue("normal", "alternate", false), "normal");
+    {
+        abilityitem_t item = S_AbilityItem(ID_ASHM);
+        T_ASSERT(!G_CommandButtonToggleOn(fix.unit, &item, false, -1));
+    }
 
     shadowmeld_done(&fix);
 }
