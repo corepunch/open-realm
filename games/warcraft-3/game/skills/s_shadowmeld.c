@@ -15,12 +15,21 @@ bool S_ShadowMeldActive(edict_t const *unit) {
     return unit && unit->inuse && unit->shadowmeld.active;
 }
 
+static void shadowmeld_set_hide_order(edict_t *unit, bool active) {
+    gameClient_t *client;
+
+    if (!unit || unit->shadowmeld.hide_order_active == active) return;
+    unit->shadowmeld.hide_order_active = active;
+    client = G_GetPlayerClientByNumber(unit->s.player);
+    if (client) G_InvalidateCommands(client);
+}
+
 void S_ShadowMeldBreak(edict_t *unit) {
     if (!unit) return;
     unit->shadowmeld.fade_start = 0;
     unit->shadowmeld.fading = false;
     unit->shadowmeld.active = false;
-    unit->shadowmeld.hide_order_active = false;
+    shadowmeld_set_hide_order(unit, false);
 }
 
 static bool shadowmeld_has_standard(edict_t const *unit) {
@@ -89,6 +98,8 @@ static intptr_t shadowmeld_common(edict_t *ent, abilityMsg_t msg, abilityCall_t 
         return ent && (ent->shadowmeld.hide_order_active || (akama && shadowmeld_has_akama(ent)));
     case A_NO_RETALIATE:
         return ent && ent->shadowmeld.hide_order_active;
+    case A_TOGGLE_ON:
+        return ent && ent->shadowmeld.hide_order_active;
     case A_MOVE_LEAVE:
         if (ent && (ent->shadowmeld.active || ent->shadowmeld.fading || ent->shadowmeld.hide_order_active)) {
             S_ShadowMeldBreak(ent);
@@ -113,7 +124,7 @@ static intptr_t shadowmeld_common(edict_t *ent, abilityMsg_t msg, abilityCall_t 
     case A_EXECUTE:
         if (!ent || !G_IsNight()) return false;
         order_stop(ent);
-        ent->shadowmeld.hide_order_active = true;
+        shadowmeld_set_hide_order(ent, true);
         if (!ent->shadowmeld.active) {
             ent->shadowmeld.fade_start = 0;
             ent->shadowmeld.fading = false;

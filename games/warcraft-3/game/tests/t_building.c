@@ -1973,6 +1973,24 @@ TEST(wc3_building, command_button_serializes_secondary_autocast_command_and_stat
     gi.ImageIndex = old_image_index;
 }
 
+TEST(wc3_building, command_button_serializes_engaged_edge_glow_without_autocast_state) {
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    int (*old_image_index)(cstring_t) = gi.ImageIndex;
+    gameCommandButton_t button = { .art = "test", .engaged = 1 };
+
+    gi.Write = building_capture_write;
+    gi.ImageIndex = building_test_image_index;
+    building_command_frame_seen = false;
+    UI_WriteCommandButtonFrame(&button);
+
+    T_ASSERT(building_command_frame_seen);
+    T_ASSERT(building_command_frame.flagsvalue & UIFLAG_ABILITY_ENGAGED);
+    T_ASSERT(!(building_command_frame.flagsvalue & UIFLAG_ALTERNATE_ACTIVE));
+
+    gi.Write = old_write;
+    gi.ImageIndex = old_image_index;
+}
+
 
 TEST(wc3_building, command_button_geometry_matches_warcraft_grid) {
     void (*old_write)(pfWriteType_t, void const *) = gi.Write;

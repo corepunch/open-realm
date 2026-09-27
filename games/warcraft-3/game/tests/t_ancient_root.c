@@ -128,11 +128,15 @@ TEST(wc3_ancient_root, command_button_uses_uproot_art_while_rooted) {
     unit = ancient_test_unit(false);
     T_ASSERT(G_BuildCommandButton(unit, "Aroo", false, 0, &button));
     T_STREQ(button.art, "TestUI\\Textures\\root.blp");
+    T_EQ(button.alternate_active, 0);
+    T_EQ(button.engaged, 0);
 
     unit->ancient_root.mode = ANCIENT_ROOTED;
     T_ASSERT(G_BuildCommandButton(unit, "Aroo", false, 0, &button));
     T_STREQ(button.art, "TestUI\\Textures\\uproot.blp");
     T_STREQ(button.tooltip, "Uproot");
+    T_EQ(button.alternate_active, 0);
+    T_EQ(button.engaged, 1);
 }
 
 TEST(wc3_ancient_root, uproot_morph_rejects_orders_until_authored_hero_duration) {
