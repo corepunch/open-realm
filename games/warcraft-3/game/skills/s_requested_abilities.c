@@ -102,7 +102,7 @@ void earthquake_think(edict_t *ent) {
     if (ent->freetime && now < ent->freetime) return;
     FILTER_EDICTS(target, S_SpellIsAliveTarget(target) && S_SpellIsEnemy(ent->owner, target) &&
                   Vector2_distance(&target->s.origin2, &ent->s.origin2) <= radius) {
-        if (G_UnitIsStructure(target) || target->targtype == TARG_STRUCTURE) {
+        if (G_UnitIsStructure(target)) {
             S_SpellDamage(target, ent->owner, (int)damage);
         } else if (G_UnitTargetType(target) == TARG_GROUND && buff) {
             unit_addtimedstatus(target, buff, level, 1.5f);

@@ -402,7 +402,7 @@ bool S_SpellAllowsTarget(uint32_t code, edict_t *caster, edict_t *target) {
     if (!targets) {
         return true;
     }
-    structure = G_UnitIsStructure(target) || target->targtype == TARG_STRUCTURE;
+    structure = G_UnitIsStructure(target);
     {
         bool const allows_hero = spell_target_has_token(targets, "hero", NULL);
         bool const allows_nonhero = spell_target_has_token(targets, "nonhero", "nonh");
@@ -443,7 +443,7 @@ static bool spell_allows_corpse_target(uint32_t code, edict_t *caster, edict_t *
     targets = G_AbilityLevel(code, ability_level)->targs;
     if (!targets) return true;
 
-    structure = G_UnitIsStructure(target) || target->targtype == TARG_STRUCTURE;
+    structure = G_UnitIsStructure(target);
     if ((strstr(targets, "air") || strstr(targets, "ground") || strstr(targets, "structure")) &&
         !(strstr(targets, "air") && G_UnitTargetType(target) == TARG_AIR) &&
         !(strstr(targets, "ground") && G_UnitTargetType(target) == TARG_GROUND) &&

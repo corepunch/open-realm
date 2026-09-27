@@ -486,6 +486,7 @@ TEST(wc3_ability_lifecycle, mass_teleport_accepts_structure_target_and_cleans_ca
     edict_t *caster = review_setup(), *target = review_unit(0, 2000);
     slkTestData_t *rows = parse_slk_string(review_slk), *old = G_SetSLKRows("AbilityData", rows);
     target->targtype = TARG_STRUCTURE;
+    target->s.flags |= EF_BUILDING;
     T_ASSERT(S_CastUnitTargetSpell(caster, FS_SLKKey("AHmt"), target));
     edict_t *thinker = review_thinker(caster);
     T_NOT_NULL(thinker); T_ASSERT(target->paused);

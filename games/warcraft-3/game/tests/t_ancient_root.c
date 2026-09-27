@@ -17,7 +17,7 @@ static UnitAbilities_t ancient_abilities = { .abilList = "Aroo" };
 
 /* Distinct authored values prove the morph directions do not share a timer. */
 static char const ancient_root_tft[] =
-    "ID;PWXL;N;EBB;Y3;X10\n"
+    "ID;PWXL;N;EBB;Y4;X10\n"
     "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"levels\"\n"
     "C;Y1;X4;K\"targs\"\nC;Y1;X5;K\"Dur1\"\nC;Y1;X6;K\"HeroDur1\"\n"
     "C;Y1;X7;K\"DataA1\"\nC;Y1;X8;K\"DataB1\"\nC;Y1;X9;K\"DataC1\"\nC;Y1;X10;K\"DataD1\"\n"
@@ -25,7 +25,9 @@ static char const ancient_root_tft[] =
     "C;Y2;X5;K\"2.25\"\nC;Y2;X6;K\"6.75\"\n"
     "C;Y2;X7;K\"3\"\nC;Y2;X8;K\"3\"\nC;Y2;X10;K\"1\"\n"
     "C;Y3;X1;K\"AHhb\"\nC;Y3;X2;K\"AHhb\"\nC;Y3;X3;K\"1\"\n"
-    "C;Y3;X4;K\"ground\"\nE\n";
+    "C;Y3;X4;K\"ground\"\n"
+    "C;Y4;X1;K\"AHst\"\nC;Y4;X2;K\"AHst\"\nC;Y4;X3;K\"1\"\n"
+    "C;Y4;X4;K\"structure\"\nE\n";
 
 /* ROC keeps AbilityData's row-major Data11..Data34 columns. */
 static char const ancient_root_roc[] =
@@ -364,7 +366,8 @@ TEST(wc3_ancient_root, ability_availability_is_enforced_by_simulation_dispatch) 
 TEST(wc3_ancient_root, spell_structure_filter_tracks_runtime_mode) {
     slkTestData_t *rows = parse_slk_string(ancient_root_tft);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);
-    edict_t *caster, *target;
+    edict_t *caster, *target, *corpse;
+    UnitData_t corpse_data;
 
     reset_entities(); setup_test_world(); level.time = 1000;
     caster = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 64.0f, 64.0f);
@@ -375,6 +378,7 @@ TEST(wc3_ancient_root, spell_structure_filter_tracks_runtime_mode) {
     T_ASSERT(G_UnitIsBuilding(target->class_id));
     T_ASSERT(G_UnitIsStructure(target));
     T_ASSERT(!S_SpellAllowsTarget(TEST_AHHB, caster, target));
+    T_ASSERT(S_SpellAllowsTarget(MAKEFOURCC('A','H','s','t'), caster, target));
 
     target->ancient_root.mode = ANCIENT_UPROOTED;
     target->s.flags &= ~EF_BUILDING;
@@ -383,6 +387,20 @@ TEST(wc3_ancient_root, spell_structure_filter_tracks_runtime_mode) {
     T_ASSERT(G_UnitIsBuilding(target->class_id));
     T_ASSERT(!G_UnitIsStructure(target));
     T_ASSERT(S_SpellAllowsTarget(TEST_AHHB, caster, target));
+    T_ASSERT(!S_SpellAllowsTarget(MAKEFOURCC('A','H','s','t'), caster, target));
+
+    corpse = ancient_test_unit(false);
+    corpse->s.player = 1;
+    corpse->targtype = TARG_STRUCTURE;
+    corpse->svflags |= SVF_DEADMONSTER;
+    corpse->health.value = 0.0f;
+    corpse_data = *corpse->data.UnitData;
+    corpse_data.deathType |= UNIT_DEATH_TYPE_RAISE;
+    corpse->data.UnitData = &corpse_data;
+    T_ASSERT(!S_SpellAllowsCorpseTarget(MAKEFOURCC('A','H','s','t'), caster, corpse));
+    corpse->ancient_root.mode = ANCIENT_ROOTED;
+    corpse->s.flags |= EF_BUILDING;
+    T_ASSERT(S_SpellAllowsCorpseTarget(MAKEFOURCC('A','H','s','t'), caster, corpse));
 
     G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
