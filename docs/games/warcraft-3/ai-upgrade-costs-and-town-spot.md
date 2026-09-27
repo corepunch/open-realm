@@ -64,6 +64,6 @@ and the legacy `GetUpgradeLumberCost` alias.
 script, then asks `G_BotProduce` for a building and verifies the accepted build waypoint is near
 the shifted construction center while the Town Hall itself remains unmoved.
 
-Per `CONTRIBUTING.md`, code changes should normally be built and tested before commit. If work is
-being prepared for external compilation/testing, leave that validation to the caller and report
-that it was not run.
+Per `CONTRIBUTING.md`, code and executable fixture changes require building the affected targets
+and running `make test` before committing. For documentation-only changes, validate text, relative
+links, and `git diff --check`; no game launch or full suite is needed.
