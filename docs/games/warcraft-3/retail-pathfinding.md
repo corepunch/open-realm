@@ -9,10 +9,11 @@ Algorithm labels are descriptive; behavioral parity is the completion criterion.
 
 **Current state:** substantial mechanism coverage; incomplete full-lifecycle
 composition. **230 functions annotated. No replacement implemented.**
-The [scoped milestone audit](retail-pathfinding-todo.md#verified-scoped-milestones)
-records eight completed compositions; the 81 original acceptance items remain
-open. Test counts measure fixture coverage, not percentage completion.
-Large predicate sweeps do not substitute for order-to-arrival or crowd trajectory tests.
+The [executable backlog](retail-pathfinding-todo.md#progress) records completed
+mechanisms and remaining work as independently closable tasks. Its progress
+counts are maintained there; neither task nor assertion counts measure retail
+fidelity. Large predicate sweeps do not substitute for order-to-arrival or
+crowd trajectory tests.
 
 | Detailed evidence | Contents |
 | --- | --- |
@@ -99,8 +100,10 @@ Counts overlap; do not sum them into a coverage percentage.
 
 ## Next work and completion criteria
 
-[Full prerequisite checklist](retail-pathfinding-todo.md): stable task IDs,
-closure evidence and the READY gate for starting the OpenRealm replacement.
+[Executable research backlog](retail-pathfinding-todo.md#work-next): numbered
+tasks, acceptance checks, completed evidence and the READY gate. Start with
+**BASE-06.2**, then **BASE-06.3–.5**; the backlog names their dependencies and
+finish artifacts. The areas below describe the sequence, not additional tasks.
 
 1. **ORDER + GROUP + MOVE:** join the verified initial-admission/FIFO chain
    (currently explicit group ticks) with the verified full-owner trajectory

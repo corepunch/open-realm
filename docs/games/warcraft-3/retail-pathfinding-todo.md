@@ -1,278 +1,663 @@
-# Retail pathfinding: evidence required before reimplementation
+# Retail pathfinding: executable research backlog
 
-[Contract and coverage ledger](retail-pathfinding.md). Target: retail
-**1.27.1.7085**, binary hash and tools as specified there. This checklist tracks
-remaining evidence, not implementation tasks or a percentage-complete estimate.
-Existing verified mechanisms are prerequisites, not work to repeat.
+Target: Warcraft III **1.27.1.7085**. [Behavior ledger][ledger] owns the
+contracts and evidence limits; this file owns the work queue. Complete the
+research before starting the full faithful OpenRealm replacement.
 
-The 81 original checkboxes are broad acceptance items, not equal units of work.
-A checked scoped milestone below records completed evidence without closing its
-parent or weakening its original criteria. No percentage follows from these counts.
+## Progress
 
-## Closure rule
+**24 done / 210 tasks; 186 remaining.** Counts describe this backlog,
+not a percentage of retail fidelity or an estimate of remaining effort.
+The rewrite splits the old 81 acceptance items into independently closable
+leaves. Parent IDs remain for traceability; only numbered leaves are checkboxes.
+Completed evidence now sits next to its specific remaining extension.
 
-Every checkbox requires: producer/consumer and state contract; reproducible
-fixture/command; expected versus observed result; artifact; evidence level
-(S/O/C/L from the ledger); remaining exclusions. Append those references when
-checking it off and update the corresponding ledger/evidence section.
+| Area | Done | Remaining |
+| --- | ---: | ---: |
+| BASE — Baseline and reproducibility | 1 | 19 |
+| MAP — Map construction and lifetime | 3 | 16 |
+| FOOT — Footprints and query policy | 1 | 8 |
+| FINE — Fine search | 1 | 8 |
+| ACC — Adaptive search | 1 | 10 |
+| NUM — Numbers and random state | 1 | 9 |
+| ROUTE — Route progression and yielding | 0 | 10 |
+| TARGET — Pursuit and arrival policy | 1 | 9 |
+| SCHED — Scheduling and owner updates | 2 | 9 |
+| MOVE — Stepping and callbacks | 0 | 11 |
+| ORDER — Orders and reclamation | 5 | 16 |
+| GROUP — Shared movement groups | 2 | 9 |
+| FORM — Formation and regrouping | 2 | 10 |
+| SEP — Repulsion and spatial records | 2 | 10 |
+| GATE — Way Gates | 1 | 10 |
+| E2E — Combined scenarios and handoff | 1 | 18 |
+| READY — Start the faithful replacement | 0 | 4 |
 
-A task is closed by verified behavior or a documented proof that the branch
-cannot occur within scope. A guessed meaning, arbitrary tolerance, passing
-prefix, unexplained mismatch or lack of observed calls does not close it.
-Retain retail quirks; optimal paths are not the reference when retail differs.
+Update these counts when checking, adding or splitting a task. Report progress
+as **IDs closed + artifact + next runnable ID**, not additional raw test counts.
+The denominator changes only when a new task is explicitly added or split.
 
-“100% faithful” is the target contract, not a conclusion obtainable from a test
-count. Readiness requires no known behavior-affecting unknowns within the
-inventoried scope, plus branch and scenario coverage below. New discoveries
-extend this list; they must not silently become implementation assumptions.
+## Work next
 
-## Execution order
+Start with **BASE-06.2**. The initial-admission and owner-update ingredients
+already pass separately; join them rather than repeat their isolated coverage.
 
-| Stage | Work | Exit artifact |
-| --- | --- | --- |
-| 1 | BASE; ORDER/MOVE/GROUP paths needed for one ordinary ground move | Reproducible order → fresh search → movement → completion → next order baseline |
-| 2 | MAP, FOOT, FINE, ACC, NUM | Complete spatial/search contracts and boundary corpus |
-| 3 | Remaining ROUTE, TARGET, SCHED, MOVE, ORDER | Dynamic obstacles, moving targets, contention and interruption compositions |
-| 4 | Remaining GROUP, FORM, SEP, GATE | Formation, crowd and special-edge lifecycle compositions |
-| 5 | E2E and READY | Frozen evidence package and OpenRealm integration specification |
+| Order | Task | Starts from | Finish artifact |
+| --- | --- | --- | --- |
+| 1 | BASE-06.2 | BASE-06.1, SCHED-02.1 (done) | One admitted move driven by actual owner updates through arrival/release |
+| 2 | BASE-06.3 | BASE-06.2 | Same fixture executes a queued successor and proves final ownership |
+| 3 | BASE-06.4 | BASE-06.3 | Producer-built baseline with every remaining setup boundary assigned |
+| 4 | BASE-06.5 | BASE-06.4, BASE-04 | Frozen manifest, intermediate-state expectations and two identical runs |
+| 5 | GROUP-02.2 | BASE-06.5, GROUP-01.1 | Two active members execute fresh searches through the owner lifecycle |
 
-Dependencies guide sequencing, not separate investigations: add each recovered
-feature to the baseline and assert intermediate state before extending it.
-NUM supports every geometry layer; map lifecycle supports every dynamic case.
+BASE-04.1/.2 and BASE-05.1 are independently runnable now. MAP-03.4
+(widget escape to arrival/failure) and NUM-01.2 (remaining arithmetic inventory)
+also have existing fixtures. After the baseline, use the per-area dependencies
+and finish one bounded task before starting another.
 
-## Parallel execution protocol
+## What counts as done
 
-Use one coordinator and up to three workers. Parallelize independent contracts;
-keep dependent full-lifecycle composition with the coordinator.
+A leaf is one experiment, one finite case matrix, or one reviewable artifact.
+Its sentence names the fixture/input and observable result required for closure.
+Section-level tools and evidence links are the starting point, not extra tasks.
+References to a parent ID mean its listed prerequisite leaves must be complete.
+Later sections extend BASE-06.5 when they require a complete movement scenario;
+isolated helper, inventory and format tasks do not wait for that baseline.
 
-| Role | Responsibility |
+For each closure, add the exact command/fixture, expected versus observed result,
+report path, evidence level (S/O/C/L), and remaining exclusions to the linked
+evidence document. Mark the leaf `[x]` and update the ledger and counts in the
+same change. A proved-unreachable branch may close with its producer proof.
+Do not close from an unexplained mismatch, arbitrary tolerance, incomplete call
+or a passing prefix of the requested lifecycle.
+
+If a leaf uncovers several independent problems, split it into explicit new
+IDs before continuing. Keep the completed part closed; do not silently enlarge
+its acceptance criteria. Record blocked tasks with a concrete prerequisite ID.
+Do not reopen verified work merely because a broader sibling remains open.
+No task may weaken the fidelity gate by hiding a reachable behavior gap.
+
+## Evidence and execution
+
+Checked items carry forward the linked evidence's scope, not a new claim that
+all historical experiments were rerun. The latest motion/order compositions
+were verified at `b90aa33d`; reports under the [documented report root][ledger]
+are `coverage-audit-b90aa33d/motion-oracle.json` (**M**) and
+`coverage-audit-b90aa33d/order-tasks-oracle.json` (**O**). Binary/CRT hashes and
+[reproduction commands](retail-pathfinding.md#reproduction) remain mandatory.
+Other checked mechanisms cite their existing evidence sections and corpora.
+
+Tool suffixes below mean `tools/ghidra/verify_wc3_pathing_<suffix>.py`.
+Captures use `tools/frida/trace_wc3_pathfinding.py`,
+`control_wc3_pathfinding.py` and `analyze_pathfinding_trace.py`. Extend an
+existing fixture where possible; name a new artifact by task ID. An offline
+assertion is sufficient unless that task specifically needs a live witness.
+
+When workers are explicitly assigned, give each exact task IDs, owned files and
+unique report paths. Only one worker edits a given oracle at a time. Serialize
+Ghidra mutations and live retail controls. Integrate one passing result before
+assigning its dependent task; worker availability does not change dependencies.
+
+## BASE — Baseline and reproducibility
+
+Evidence: [movement][M] and [live experiments][L]. Tools/artifacts: order_tasks, motion; Frida controller/analyzer.
+
+### BASE-01 — Movement entry points
+
+- [ ] **BASE-01.1** Trace one player point order from UI/network admission to 680320; record actual command fields, flags and caller ABI.
+- [ ] **BASE-01.2** Trace one JASS point order and one AI point order to their movement entry; publish whether they share the player path.
+- [ ] **BASE-01.3** Trace one target order and one ability approach; record the differences in range, target identity and routing flags.
+- [ ] **BASE-01.4** List forced-position, teleport and pathing-bypass entry points with callers; assign a separate follow-up ID to each uncovered path.
+
+### BASE-02 — Supported input inventory
+
+- [ ] **BASE-02.1** Build a movement-type table for ground, air, water and amphibious units: authored producer, lane, masks and support surface.
+- [ ] **BASE-02.2** Build an object-category table for units, buildings, destructibles and targets: tags, ownership and eligibility at each query consumer.
+- [ ] **BASE-02.3** Record valid coordinate, radius and map-size domains from public producers; attach rejection or propagation evidence for boundary inputs.
+
+### BASE-03 — Coverage inventory
+
+- [ ] **BASE-03.1** Export a reachable function/branch inventory from the entry points identified in BASE-01; link each known branch to its evidence or task ID.
+- [ ] **BASE-03.2** Publish a field read/write inventory for map, path, mover, group and order state, including virtual callbacks and globals.
+- [ ] **BASE-03.3** Assign every current oracle exclusion to one remaining task; list any unassigned exclusion as a new task before finishing this audit.
+
+### BASE-04 — Shared scenario format
+
+- [ ] **BASE-04.1** Define a versioned scenario manifest with build/data hashes, map, entities, handles, clock, seed, commands and expected termination; encode the existing FIFO case.
+- [ ] **BASE-04.2** Define normalized snapshots for cells, route indices, budgets, membership, motion and events; encode one tick from each existing motion/order report.
+
+### BASE-05 — Corpus runner
+
+- [ ] **BASE-05.1** Inventory existing oracles/captures in one manifest with command, inputs, report, expected status and evidence level; include intentional adaptive mismatches.
+- [ ] **BASE-05.2** Add a runner that executes that manifest and fails on a missing report, truncated capture, hash mismatch or unexpected exit/result.
+- [ ] **BASE-05.3** Run the manifest from a fresh output directory; record per-case status and reproducible commands without relying on stale reports.
+
+### BASE-06 — One frozen ordinary-move baseline
+
+- [x] **BASE-06.1** Initial unit admission: 34 original 680320 admissions pass predicted task-chain and queue assertions without mid-call provisioning. Evidence: [initial admission][admission], report O `complete_initial_admissions=34`; controlled point commands and seeded pools only.
+- [ ] **BASE-06.2** After BASE-06.1 and SCHED-02.1, replace explicit group ticks in one admitted point-order fixture with actual owner updates; assert identical route, arrival and cleanup.
+- [ ] **BASE-06.3** After BASE-06.2, carry one queued successor through those owner updates; assert both admissions, arrival order and final queue/group/path ownership.
+- [ ] **BASE-06.4** After BASE-06.3, construct that fixture's map, mover, group and order through identified original producers; enumerate any remaining seeded storage/class-cache boundary and give it a task ID.
+- [ ] **BASE-06.5** After BASE-06.4 and BASE-04, freeze the baseline manifest and expected intermediate states; repeat twice and assert identical normalized output and initial/final idle invariants.
+
+## MAP — Map construction and lifetime
+
+Evidence: [search/map evidence][S]. Tools/artifacts: map_construction, load_masks, widget_masks, maps.
+
+### MAP-01 — Map coordinates
+
+- [x] **MAP-01.1** Terrain-origin producer and 25 no-file map loads are covered. Evidence: [map construction][map-load]; file-backed loading and non-dyadic inputs are excluded.
+- [ ] **MAP-01.2** Sweep negative origins and non-power-of-two dimensions through coordinate conversion; assert fine/proximity/adaptive padding and clipping.
+- [ ] **MAP-01.3** Test each map corner at below/equal/above boundary coordinates, including non-dyadic values; record exact accepted cells and conversions.
+
+### MAP-02 — Initial loading
+
+- [ ] **MAP-02.1** Load one file-backed WPM/map through deserialization and map creation; compare decoded masks, fine cells and hierarchy against the no-file fixture.
+- [ ] **MAP-02.2** Add one cliff, one water boundary and one bridge fixture; assert each supported movement lane's initial cells and support-height source.
+- [ ] **MAP-02.3** Load two overlapping authored pathing textures in both creation orders; assert object/fine/hierarchy state after loading.
+
+### MAP-03 — Invalidation producers
+
+- [x] **MAP-03.1** Terrain edit/rebuild/reversal corpus passes 11,664 edits, 216 compositions and 30 clipped updates. Evidence: [terrain edits][map-edits]; other invalidation producers remain separate tasks.
+- [x] **MAP-03.2** Widget rasterization covers 144 overlapping sequences and 96 paired reapply/remove lifecycles. Evidence: [widget lifecycle][widgets]; file loading, growth and full gameplay travel remain excluded.
+- [ ] **MAP-03.3** List spawn, movement, size/pathing changes, construction and removal producers with affected grids and update timing; assign uncovered producers separate IDs.
+- [ ] **MAP-03.4** Continue one widget-produced escape order from accepted admission to arrival/failure; assert footprint refresh and route state throughout.
+- [ ] **MAP-03.5** Exercise a resource depletion/removal lifecycle; assert footprint and hierarchy changes before the next request.
+- [ ] **MAP-03.6** Exercise destructible destruction and cache invalidation through the final free; assert the next route no longer sees the dead blocker.
+
+### MAP-04 — Temporary exclusions
+
+- [ ] **MAP-04.1** Nest self and target exclusions over two overlapping objects and terrain; restore in reverse order and compare every affected cell/count.
+- [ ] **MAP-04.2** Enumerate early/failure/reentrant exits from exclusion scopes; add one restoration assertion per reachable exit and one edit-during-request case.
+
+### MAP-05 — Map/spatial capacity
+
+- [ ] **MAP-05.1** Cross one map/spatial allocation boundary, then free and reuse the storage; assert record identity, links and cell contents.
+- [ ] **MAP-05.2** Force a generation/stamp wrap at its original mutation point; compare the first post-wrap query with a clean equivalent map.
+- [ ] **MAP-05.3** Trigger reachable allocation failure and metadata/dead-record cleanup thresholds; assert failure result and no surviving partial links.
+
+### MAP-06 — Map lifetime
+
+- [ ] **MAP-06.1** Destroy and reload a map with a live mover; record which routes, grids and handles are cleared or rebuilt and assert first subsequent movement.
+- [ ] **MAP-06.2** Save/load during an active route; determine retained versus rebuilt path state and compare resumed movement with the uninterrupted control.
+
+## FOOT — Footprints and query policy
+
+Evidence: [footprint evidence][S]. Tools/artifacts: footprints, cells, blockers, grid.
+
+### FOOT-01 — Radius production
+
+- [x] **FOOT-01.1** Authored collision conversion and the four fine-class thresholds are recovered and covered by the footprint oracle. Evidence: [footprints][footprints]; runtime producer coverage is not complete.
+- [ ] **FOOT-01.2** Change collision radius through a runtime producer; test below/equal/above each class boundary and assert geometry/class changes.
+- [ ] **FOOT-01.3** Trace group maximum and target-radius producers; assert updates after the largest member/target changes size or disappears.
+
+### FOOT-02 — Passage matrix
+
+- [ ] **FOOT-02.1** Run cardinal corridors at width below/equal/above footprint diameter, across four classes, lanes and sub-cell offsets; compare accepted cells and route.
+- [ ] **FOOT-02.2** Extend that matrix to diagonal corners, touching footprints and map edges; retain one minimized counterexample per distinct mismatch.
+
+### FOOT-03 — Object query eligibility
+
+- [ ] **FOOT-03.1** Build a tag/mask/flag/count truth table for fine search, hierarchy, segment checks and endpoint validation using BASE-02 object categories.
+- [ ] **FOOT-03.2** Put two different eligible categories in one cell, then remove each in turn; assert query results and remaining reference counts at all four consumers.
+
+### FOOT-04 — Start and goal policy
+
+- [ ] **FOOT-04.1** Test start inside self, target and unrelated blocker; assert the public caller's clamping, exclusion and first accepted route point.
+- [ ] **FOOT-04.2** Test blocked/outside/overlapping goals and target removal; assert perimeter choice, rejection or fallback with original result codes.
+
+## FINE — Fine search
+
+Evidence: [fine-search evidence][S]. Tools/artifacts: queue, search, grid.
+
+### FINE-01 — Full searches with objects
+
+- [x] **FINE-01.1** 288 complete static searches plus repeat/stamp reuse pass with exact route/state expectations. Evidence: [static fine searches][fine-static]; mixed dynamic objects remain excluded.
+- [ ] **FINE-01.2** Add stationary and moving object chains to a full search for each lane/class; compare queue, parents, termination and route.
+- [ ] **FINE-01.3** Add self/suppressed objects and target-exit cases to the same matrix; assert eligibility changes rather than only reachability.
+
+### FINE-02 — Search termination
+
+- [ ] **FINE-02.1** Compose equal-cost ties, reopenings and stale heap entries in one full request; compare pop order, generations and charged work.
+- [ ] **FINE-02.2** Force budget exhaustion and nearest-node fallback around the final pop boundary; assert result, chosen node and reconstructed partial path.
+
+### FINE-03 — Fine storage lifetime
+
+- [ ] **FINE-03.1** Cross node and heap growth/capacity boundaries; verify original failure codes and free-list recovery on the next request.
+- [ ] **FINE-03.2** Run sequential searches through 16-bit stamp wrap and reuse; compare post-wrap route and node state with a clean control.
+
+### FINE-04 — Public fine results
+
+- [ ] **FINE-04.1** For each footprint class, run same-cell, blocked-start and blocked-goal requests through public setup and result consumption; assert caller-visible outcomes.
+- [ ] **FINE-04.2** Run disconnected-goal, insufficient-budget and special-object completion through those same callers; assert partial/failure handling and cleanup.
+
+## ACC — Adaptive search
+
+Evidence: [adaptive evidence][S]. Tools/artifacts: adaptive, routes; reduced fixture under tools/ghidra/fixtures/.
+
+### ACC-01 — Adaptive expansion
+
+- [ ] **ACC-01.1** Enumerate side/corner and level-transition branches from the adaptive expander; record exact input preconditions for each branch.
+- [ ] **ACC-01.2** Build one witness per enumerated branch across lanes/classes and special-marker cells; assert promotion/subdivision and neighbor ordering.
+
+### ACC-02 — Classification reachability
+
+- [ ] **ACC-02.1** Map classification/flag combinations used by adaptive fixtures back to map producers; classify each as reachable, rejected or unresolved.
+- [ ] **ACC-02.2** For each unresolved combination, provide a producer-built witness or a documented rejection proof; retain separate IDs if further work is discovered.
+
+### ACC-03 — Size-2 east-boundary veto
+
+- [x] **ACC-03.1** The synthetic size-2 east-boundary veto is reduced and causally isolated. Evidence: [adaptive veto][adaptive-veto]; gameplay reachability remains unproven.
+- [ ] **ACC-03.2** Construct the reduced veto using real map/request producers, or prove its classification cannot be produced within scope.
+- [ ] **ACC-03.3** If reachable, run that mover through fallback/retry to arrival or failure; preserve the resulting retail route/outcome as a regression.
+
+### ACC-04 — Adaptive costs
+
+- [ ] **ACC-04.1** Compare heuristic, total cost and nearest-node selection with ordinary edges under ties and budget exhaustion; explain each shortest-path difference.
+- [ ] **ACC-04.2** Repeat with an active special edge; assert edge cost, parent chain, tie ordering and partial result without assuming optimality.
+
+### ACC-05 — Adaptive storage lifetime
+
+- [ ] **ACC-05.1** Cross adaptive node/heap/index capacity and growth boundaries; assert failure/partial state and its public consumer result.
+- [ ] **ACC-05.2** Reuse storage across stamp wrap and lane/class changes; assert no stale node, route or flag survives into the next request.
+
+## NUM — Numbers and random state
+
+Evidence: [numeric evidence][P] and [motion][M]. Tools/artifacts: numeric, speed, range, motion, separation.
+
+### NUM-01 — Arithmetic inventory
+
+- [x] **NUM-01.1** 200,330 exact scalar calls, 2,130 normalizations and 864 bounds prefixes are recorded. Evidence: [scalar arithmetic][numeric]; trig and general trajectories remain open.
+- [ ] **NUM-01.2** Inventory the remaining trig/conversion helpers with operand ABI, constant initialization and public input domains; link the already verified scalar helpers.
+- [ ] **NUM-01.3** Recover reciprocal-table generation and compare every generated entry with retail initialization.
+
+### NUM-02 — Branch-sensitive arithmetic
+
+- [ ] **NUM-02.1** Verify trig outputs at cardinal/oblique and adjacent branch thresholds using independent bit-faithful expectations; document reachable signed-zero/cancellation behavior.
+- [ ] **NUM-02.2** Replace tolerance checks that can change cells, branches or accumulated positions in one motion/separation case with exact comparisons; reduce any mismatch.
+- [ ] **NUM-02.3** Extend that exact case to a fixed long oblique trajectory at small/large valid values; compare every committed position and cell crossing.
+
+### NUM-03 — Exceptional numeric inputs
+
+- [ ] **NUM-03.1** Drive negative and out-of-range coordinates/radii through public producers; record rejection, sanitization or propagated bit pattern.
+- [ ] **NUM-03.2** Do the same for nonfinite values; document producer unreachability where demonstrated instead of treating synthetic helper calls as gameplay evidence.
+
+### NUM-04 — Random state
+
+- [ ] **NUM-04.1** Trace seed ownership, initialization and draws for overlap and retry consumers; publish a draw-order contract with wrap behavior.
+- [ ] **NUM-04.2** Interleave two entities' overlap/retry events under a fixed seed; repeat and assert identical draws, state and resulting movement.
+
+## ROUTE — Route progression and yielding
+
+Evidence: [route evidence][R]. Tools/artifacts: routes, refill, segment, yield, transition.
+
+### ROUTE-01 — Reconstruction
+
+- [ ] **ROUTE-01.1** Extend fine/coarse endpoint reconstruction to oblique directions and every class; assert exact coordinates, rounding and route order.
+- [ ] **ROUTE-01.2** Exercise empty/partial buffers, invalid starts and one growth/index limit; assert return code and next public advance state.
+
+### ROUTE-02 — Segment checks
+
+- [ ] **ROUTE-02.1** Sweep segment direction and length across footprint classes, with endpoints touching corners; assert sampled cells and endpoint inclusion.
+- [ ] **ROUTE-02.2** Hit blocker candidate capacity with ordered objects, then change one obstruction between samples; assert cap/order and the resulting waypoint choice.
+
+### ROUTE-03 — Dynamic route composition
+
+- [ ] **ROUTE-03.1** After BASE-06.5, insert a blocker during adaptive-to-fine travel; assert refill indices, yield result, timestamps and charged work.
+- [ ] **ROUTE-03.2** Remove that blocker while waiting; assert retry/replan timing and eventual arrival or can't-path event through the full owner tick.
+
+### ROUTE-04 — Route mode combinations
+
+- [ ] **ROUTE-04.1** Create a truth table for cached/exhausted/disabled routes and alternate index initialization; cover every reachable combination through public advance.
+- [ ] **ROUTE-04.2** Exercise queued paths, forced arrival and target-perimeter exit against that table; assert destination, event and retained route state.
+
+### ROUTE-05 — Yielding lifecycle
+
+- [ ] **ROUTE-05.1** Trace blocker identity and group-bit-8 producers; assert delay duration after blocker removal and replacement by a reused handle.
+- [ ] **ROUTE-05.2** Run a two-mover asymmetric yield and a three-mover yield cycle; compare countdown, release order and eventual progress/failure.
+
+## TARGET — Pursuit and arrival policy
+
+Evidence: [target evidence][R] and [range][M]. Tools/artifacts: target, refresh, replan, range.
+
+### TARGET-01 — Arrival inputs
+
+- [x] **TARGET-01.1** Point-task range has 4,957 exact cases; object range has 948 calls and six invalid-handle probes. Evidence: [range predicates][ranges]; this does not close their gameplay producers.
+- [ ] **TARGET-01.2** Trace point/target order range, heading, force and stop parameters from actual commands; test equality and adjacent boundary values.
+- [ ] **TARGET-01.3** Trace one ability-specific approach producer and contrast its range/stop contract with those commands.
+
+### TARGET-02 — Target mutations
+
+- [ ] **TARGET-02.1** Move a target continuously by sub-cell steps and change speed; assert cached destination, refresh cadence and admission/replan timing per tick.
+- [ ] **TARGET-02.2** Teleport or resize a target mid-route; assert the next accepted destination and updated range/footprint.
+- [ ] **TARGET-02.3** Kill/remove and then reuse the target handle; assert cancellation/revalidation without adopting the replacement entity.
+
+### TARGET-03 — Visibility policies
+
+- [ ] **TARGET-03.1** Map visibility policy flags/global producers to fog, invisibility and validation results 0xa9/0xaa; publish the reachable branch table.
+- [ ] **TARGET-03.2** Run loss and reacquisition for each listed policy; assert retained pursuit or cancellation and resulting order/route state.
+
+### TARGET-04 — Delayed refresh
+
+- [ ] **TARGET-04.1** Trace refresh-threshold and Captain AI extra-delay producers; assert actual simulation ticks to the next request.
+- [ ] **TARGET-04.2** Run a long-count retry with multiple members and a range change; assert per-member retry/completion/failure events.
+
+## SCHED — Scheduling and owner updates
+
+Evidence: [movement evidence][M] and [routes][R]. Tools/artifacts: scheduler, motion, order_tasks.
+
+### SCHED-01 — Clock domains
+
+- [ ] **SCHED-01.1** Trace both clock selectors and configured spans to simulation time; assert pause, scaling and ordinary advancement against a fixed event timeline.
+- [ ] **SCHED-01.2** Cross clock rollover and a reachable backward-time transition; assert request deadlines, integration and admission behavior.
+
+### SCHED-02 — Owner pass ordering
+
+- [x] **SCHED-02.1** Singleton wall trajectory: 44 complete owner updates, all 64 scheduler buckets, visual settling and unlink pass. Evidence: [singleton owner][owner], report M `move_owner_arrival_cases=1`; shared/separation lists empty.
+- [x] **SCHED-02.2** Active singleton plus eligible repulsor: 43 separation updates and four accepted attempts pass. Evidence: [separation pair][pair], M `move_owner_active_separation_cases=1`; controlled profile, bounded numeric tolerance.
+- [ ] **SCHED-02.3** Populate two groups and the shared-cap/radius lists in one owner tick; assert scheduler/publication/group/movement/separation order and same-tick visibility.
+- [ ] **SCHED-02.4** Mutate membership or remove a mover from one callback during that tick; assert subsequent iteration order and ownership.
+
+### SCHED-03 — Admission queues
+
+- [ ] **SCHED-03.1** Trace class/priority producers, including non-unit class 15; record which runtime object can enqueue into each policy bucket.
+- [ ] **SCHED-03.2** Reclassify/requeue and delete a request during queue traversal; assert head/tail/count and next admitted request.
+- [ ] **SCHED-03.3** Cross the scheduler work-counter wrap; compare charged work and admission to an equivalent clean-counter run.
+
+### SCHED-04 — Contention
+
+- [ ] **SCHED-04.1** Run two owners/classes competing for a fixed exhausted budget; record exact admission order, work and waiting duration.
+- [ ] **SCHED-04.2** Run repeated exhaustion with multiple groups; establish fairness/starvation behavior from queue state over a fixed-length trace.
+
+## MOVE — Stepping and callbacks
+
+Evidence: [movement evidence][M]. Tools/artifacts: motion, speed, numeric.
+
+### MOVE-01 — Movement parameters
+
+- [ ] **MOVE-01.1** Trace authored speed, acceleration and turn/movement-angle data into a new mover; assert converted values and clamp order.
+- [ ] **MOVE-01.2** Apply then remove a temporary speed/turn modifier during travel; assert committed velocity and restoration.
+- [ ] **MOVE-01.3** Record group/request writes to those parameters and test each reachable overwrite order against the authored defaults.
+
+### MOVE-02 — Stepping
+
+- [ ] **MOVE-02.1** After NUM-02, compare a long oblique trajectory with speed and heading changes at fixed ticks; assert old-velocity integration and exact positions.
+- [ ] **MOVE-02.2** Exercise stationary turn, Stop and restart at a cell boundary; assert facing, zero velocity and occupancy before/after each event.
+
+### MOVE-03 — Spatial and presentation callbacks
+
+- [ ] **MOVE-03.1** Cross a region boundary with nonzero elapsed time; assert enter/exit callback order relative to occupancy and support-height publication.
+- [ ] **MOVE-03.2** Teleport or remove the mover from a region callback; assert no stale post-callback position/occupancy commit.
+- [ ] **MOVE-03.3** Travel over one bridge/water support transition with nonzero UI limits; assert support source, height and clamped presentation transform.
+
+### MOVE-04 — Movement bypasses
+
+- [ ] **MOVE-04.1** Disable then enable pathing during travel; assert route/occupancy invalidation and the first resumed step.
+- [ ] **MOVE-04.2** Pause/resume and force-displace a mover; assert clock, velocity and route retention or reset.
+- [ ] **MOVE-04.3** Teleport and switch movement mode via producers inventoried in BASE-01; assert grids/lanes and next request. Split additional producer paths into new IDs.
+
+## ORDER — Orders and reclamation
+
+Evidence: [order evidence][M]. Tools/artifacts: order_tasks, arrival, lifetime.
+
+### ORDER-01 — Arrival and failure dispatch
+
+- [x] **ORDER-01.1** 24 generated point-order chains arrive and reclaim queues/pools; 288 internal tasks complete. Evidence: [queued arrival][arrival], O `queued_order_arrival_cases=24`; open fine grid and explicit group ticks.
+- [ ] **ORDER-01.2** Enumerate remaining arrival/can't-path early exits and unit-state gates; add one full-dispatch witness per branch, including unit+280 bit40.
+- [ ] **ORDER-01.3** Run one blocked-goal recovery chain through retries and final failure/next-order dispatch; assert unwind and cleanup rather than only notification.
+
+### ORDER-02 — User/internal queues
+
+- [x] **ORDER-02.1** Four two-order FIFO cases pass identity, successor timing, callback and final recovery assertions. Evidence: [FIFO][fifo], O `fifo_two_order_cases=4`; controlled command inputs.
+- [ ] **ORDER-02.2** Map user Shift-queue versus internal task ownership and remaining queue control bits to producer/caller contracts.
+- [ ] **ORDER-02.3** Exercise empty queue, rejected successor and canceled pending order through those controls; assert head/tail/count, dispatch result and release.
+
+### ORDER-03 — Callback mutation
+
+- [ ] **ORDER-03.1** Insert/remove a subscription while dispatching to multiple subscribers; assert delivery order, iterator and reference counts.
+- [ ] **ORDER-03.2** Destroy an order or unit from a subscriber, then perform nested dispatch; assert depth/unwind and payload lifetime with no stale callback.
+
+### ORDER-04 — Reference reclamation
+
+- [x] **ORDER-04.1** Eight last-reference release cycles and six factory reuses pass. Evidence: [payload reclamation][reclamation]; preallocated pools and supplied registration, no populated relations/negative domain.
+- [ ] **ORDER-04.2** Construct and release an object with populated relations/children through the real factory; assert child/reference cleanup and free-list recovery.
+- [ ] **ORDER-04.3** Exercise bridge guard failure, stale identity and both handle domains; assert rejection and reference balance.
+- [ ] **ORDER-04.4** Grow an empty factory/pool through its allocator boundary; assert first construction and final payload/wrapper release.
+
+### ORDER-05 — Deferred requests
+
+- [ ] **ORDER-05.1** Populate the deferred heap with different/equal deadlines; assert pop/tie order, cancellation and wrapper reuse.
+- [ ] **ORDER-05.2** Schedule a repeating request and a callback that schedules/cancels another; assert invocation order and final heap/refcount state.
+- [ ] **ORDER-05.3** Restore or switch the request clock with pending deadlines; assert which callbacks fire and when without rebasing deadlines by assumption.
+
+### ORDER-06 — Cancellation and interruption
+
+- [x] **ORDER-06.1** Three mode-1 replacements at tick3 admit only the replacement and recover all three orders. Evidence: [replacement][interrupt], O `replacement_arrival_cases=3`; other phases excluded.
+- [x] **ORDER-06.2** Three mode-0 interrupts reach the temporary destination, resume the original and run its successor. Evidence: [interrupt/resume][interrupt], O `prepend_complete_cases=3`; explicit group scheduling.
+- [ ] **ORDER-06.3** Run Stop/replacement while waiting, searching and turning; assert surviving queue, active flags and reclaimed allocations at each phase.
+- [ ] **ORDER-06.4** Run interruption during group completion and deferred release; assert no duplicate arrival/release and correct resumed order.
+- [ ] **ORDER-06.5** Kill/remove the mover during travel and one pending phase; assert scheduler unlink and all order/group/path lifetimes.
+- [ ] **ORDER-06.6** Exercise one relevant ability transition during movement; assert command preservation/cancellation and routing inverse. Inventory additional distinct transitions as new tasks.
+
+## GROUP — Shared movement groups
+
+Evidence: [group evidence][M]. Tools/artifacts: motion.
+
+### GROUP-01 — Group producers
+
+- [ ] **GROUP-01.1** Issue a multi-selection player order, independent JASS orders and an AI order; record group identity sharing, creation limits and producer flags.
+- [ ] **GROUP-01.2** Trigger join/leave/merge/split through those producers; assert membership and route ownership after each transition.
+
+### GROUP-02 — Fresh group movement
+
+- [x] **GROUP-02.1** 144 complete cached-route group ticks and 156 membership prepasses are covered. Evidence: [cached group ticks][cached-groups]; shared-group fresh search under obstruction remains open.
+- [ ] **GROUP-02.2** Run two active members from fresh group/member searches through owner updates and arrival; assert all decisions occur before any velocity commit.
+- [ ] **GROUP-02.3** Add a wall/failed member route to that pair; assert shared versus separate routes, surviving movement and final completion.
+
+### GROUP-03 — Shared parameters
+
+- [x] **GROUP-03.1** Shared-cap ownership/publication and group radius lifecycles have original-code coverage. Evidence: [shared parameters][shared-groups]; remaining flag/AI producers and target-speed adjustment are not closed.
+- [ ] **GROUP-03.2** Trace group bit800 and speed-cap exemption producers; exercise target-speed adjustment with both exempt and capped members.
+- [ ] **GROUP-03.3** Grow the shared auxiliary pool, change the largest member radius, then remove it; assert publication and allocation recovery.
+- [ ] **GROUP-03.4** Run Captain AI attach/detach during movement; assert its shared-cap and delay ownership/inverse.
+
+### GROUP-04 — Membership mutation
+
+- [ ] **GROUP-04.1** Remove/reuse a member handle during movement callbacks; assert swap-removal order, later iteration and refreshed layout.
+- [ ] **GROUP-04.2** Complete the last member and run an all-invalid prepass; assert empty-group teardown, owner unlink and retained mover-owned state.
+
+## FORM — Formation and regrouping
+
+Evidence: [formation evidence][M]. Tools/artifacts: motion, refill; Frida capture.
+
+### FORM-01 — Formation producers
+
+- [x] **FORM-01.1** The authored formation-rank setter and rank bits are mapped and tested. Evidence: [formation rank][formation-rank]; this does not close live group creation or other policy flags.
+- [ ] **FORM-01.2** Load mixed authored ranks into a newly created group; assert each member's runtime rank and selected layout bucket.
+- [ ] **FORM-01.3** Trace spacing bit20 and remaining formation-policy flags to callers; publish one producer-built witness per reachable value.
+
+### FORM-02 — Layout geometry
+
+- [x] **FORM-02.1** 144 complete layouts and 48 refresh cases are recorded. Evidence: [formation layout][formation-layout]; mixed moving radii and untested size domains remain excluded.
+- [ ] **FORM-02.2** Run mixed-radius/oblique layouts with equal sort keys; assert assignments, row dimensions, centering and rotation.
+- [ ] **FORM-02.3** Test moving members and sizes at/beyond the twelve-member table boundary; establish the original caller precondition or exact supported behavior.
+
+### FORM-03 — Layout-to-motion chain
+
+- [ ] **FORM-03.1** Compose refresh, adaptive destination query, held-member classification, all decisions and commit in one unblocked group tick; assert intermediate offsets and speeds.
+- [ ] **FORM-03.2** Repeat with one blocked offset and with cached versus fresh routes; assert held/released members and fallback destination.
+
+### FORM-04 — Regroup triggers
+
+- [ ] **FORM-04.1** Change target, membership and member size at fixed ticks; assert which change rebuilds layout/routes and its timeout in simulation time.
+- [ ] **FORM-04.2** Cause route failure and a warp-marker transition; assert regroup trigger, cached-state invalidation and next layout.
+
+### FORM-05 — Retail formation witnesses
+
+- [ ] **FORM-05.1** Capture one mixed-unit selection order and independently issued controls with the same map/seed; compare group IDs, assignments, caps and trajectories.
+- [ ] **FORM-05.2** Send that selection through a narrow passage and regroup; compare offsets/rebuild timing with the composed fixture.
+
+## SEP — Repulsion and spatial records
+
+Evidence: [separation evidence][P]. Tools/artifacts: separation, spatial, motion.
+
+### SEP-01 — Repulsion producers
+
+- [x] **SEP-01.1** Authored Footman-disabled/Gryphon-enabled controls distinguish path blocking from opt-in repulsion. Evidence: [repulsion controls][repulsion]; mixed policy combinations remain open.
+- [ ] **SEP-01.2** Trace nonzero config selectors and category/rank/mask overrides from authored/runtime producers; publish eligible/disabled cases for each.
+- [ ] **SEP-01.3** Exercise the resulting policy table across supported movement types and owners; assert candidate eligibility before displacement.
+
+### SEP-02 — Separation composition
+
+- [x] **SEP-02.1** Post-arrival pair: 16 ticks, 14 attempts, ten accepted and four blocked. Evidence: [pair][pair], M `move_owner_separation_cases`; controlled profile and bounded numeric tolerance.
+- [ ] **SEP-02.2** Record and independently compare every neighbor contribution for a three-object query through accumulation, clamp/cooldown and application.
+- [ ] **SEP-02.3** After NUM-04, include an exact-overlap pair in that query; assert PRNG draws, endpoint result and actual occupancy changes across subsequent ticks.
+
+### SEP-03 — Spatial records
+
+- [ ] **SEP-03.1** Insert/remove movers in two orders; assert cell chain order, metadata/dead records and cleanup threshold/sampling cadence.
+- [ ] **SEP-03.2** Cross query stamp wrap/repair and a fresh block allocation; assert candidate order and block reclamation after removal.
+- [ ] **SEP-03.3** Force spatial allocation failure/growth during an update; assert no partial membership and the original movement outcome.
+
+### SEP-04 — Retail separation witnesses
+
+- [ ] **SEP-04.1** Replay one live exact-overlap case with recorded seed and neighbors; match contributions, cooldown and trajectory.
+- [ ] **SEP-04.2** Capture a mixed-owner/radius/rank crowd with a blocked endpoint; explain displacement differences against the composed model.
+- [ ] **SEP-04.3** Run disabled-repulse ground controls beside enabled cases; assert retry/Stop outcomes without classifying path blocking as repulsion.
+
+## GATE — Way Gates
+
+Evidence: [gate evidence][L] and [routes][R]. Tools/artifacts: transition, adaptive; Frida capture.
+
+### GATE-01 — Gate eligibility and exit
+
+- [ ] **GATE-01.1** Test activation/approach threshold equality and adjacent values with eligible/ineligible movers; assert route consumer decisions.
+- [ ] **GATE-01.2** Block the exit and test outside-map/unreachable destinations; assert placement rejection, fallback or failure and retained route state.
+
+### GATE-02 — Gate mutation
+
+- [x] **GATE-02.1** Live outside approach, cached retarget and disable-to-walking witnesses are recorded. Evidence: [gate mutation][gate-mutation]; fresh retarget/destroy/impassable cases remain open.
+- [ ] **GATE-02.2** Destroy a gate during approach; assert stale-record handling and subsequent walking/failure.
+- [ ] **GATE-02.3** Retarget then issue a fresh order; compare cached versus fresh destination use through final arrival.
+- [ ] **GATE-02.4** Disable the only edge across impassable terrain; assert retries/failure rather than assuming walking succeeds.
+
+### GATE-03 — Multiple gates
+
+- [ ] **GATE-03.1** Construct two overlapping sources in both orders; assert marker overwrite, cleanup and hierarchy propagation.
+- [ ] **GATE-03.2** Run chained gates with active/inactive combinations and equal-cost alternatives; assert route choice and consumer event order.
+
+### GATE-04 — Gate ID lifetime
+
+- [ ] **GATE-04.1** Allocate through IDs1..255 and one further request; assert zero/exhaustion behavior and pool state.
+- [ ] **GATE-04.2** Free/reuse an ID referenced by an existing route; assert revalidation and destination selection.
+- [ ] **GATE-04.3** Traverse a gate with a group, then fail/skip it; assert regrouping and ordinary fine-route continuation.
+
+## E2E — Combined scenarios and handoff
+
+Evidence: [all contracts][ledger]. Tools/artifacts: corpus manifest/runner and normalized comparison artifacts from BASE.
+
+### E2E-01 — Cross-feature baseline variants
+
+- [ ] **E2E-01.1** After BASE-06.5, freeze static-detour and disconnected-goal variants; assert route, partial/failure events and final ownership.
+- [ ] **E2E-01.2** Add dynamic blocker and pursuit variants to that manifest; reuse ROUTE-03/TARGET-02 evidence and compare intermediate state.
+- [ ] **E2E-01.3** Add contention, cancellation and next-order variants; reuse SCHED-04/ORDER-06 evidence and assert event/queue order.
+- [ ] **E2E-01.4** Add formation/crowd and gate variants; link FORM-05/SEP-04/GATE evidence and freeze expected cross-feature outputs.
+
+### E2E-02 — Observer controls
+
+- [x] **E2E-02.1** Open-ground no-attach control matches 304 markers twice; blocked-goal305, replacement311, fog610 and building310 match once. Evidence: [observer controls][observer]; crowd/mode repeats remain open.
+- [ ] **E2E-02.2** Repeat blocked-goal, replacement, fog and building controls from the recorded manifests; assert matching completion markers and normalized outcomes.
+- [ ] **E2E-02.3** Run equivalent minimal-hook/no-hook crowd and additional movement-mode controls; compare timing and complete trajectories, retaining mismatches.
+
+### E2E-03 — Deterministic generated cases
+
+- [ ] **E2E-03.1** Repeat each frozen scenario with the same seed twice; fail on any unexplained normalized state/event difference.
+- [ ] **E2E-03.2** Generate a fixed-seed boundary corpus over supported lanes/radii/goals; minimize each mismatch and commit its input plus retail explanation.
+
+### E2E-04 — Long-run composition
+
+- [ ] **E2E-04.1** Compose verified stamp/counter/handle/gate-ID wrap and reuse cases into repeated movement; assert no stale ownership or changed route policy.
+- [ ] **E2E-04.2** Compose reload/save-load, callback removal and pool pressure cases with active orders; assert final idle state and uninterrupted-control differences.
+
+### E2E-05 — Unknowns audit
+
+- [ ] **E2E-05.1** Join the BASE-03 inventory to reports and task IDs; emit a concrete list of remaining flags, prefixes, stubs, tolerances and excluded branches.
+- [ ] **E2E-05.2** Resolve each listed row with evidence or documented unreachability; create bounded child tasks for unresolved rows instead of one open-ended investigation.
+
+### E2E-06 — Implementation specification
+
+- [ ] **E2E-06.1** Freeze structures, units, coordinate/lane/footprint and numeric/PRNG contracts with links to runnable evidence.
+- [ ] **E2E-06.2** Freeze state machines, result codes, update/event order, ownership and invalidation contracts with limits/failure behavior and evidence links.
+
+### E2E-07 — OpenRealm integration design
+
+- [ ] **E2E-07.1** Map current Move-owned routing/steering, server clock/order dispatch and world/collision entry points to replacement interfaces; name files and call sites.
+- [ ] **E2E-07.2** Specify group ownership, serialization/rebuild and cleanup boundaries; review against Quake2-style module/function-table contracts without implementing behavior.
+
+### E2E-08 — Differential adapter design
+
+- [ ] **E2E-08.1** Specify identical scenario inputs and normalized identity/state/event outputs for retail and OpenRealm adapters; encode one existing baseline report.
+- [ ] **E2E-08.2** Define exact versus presentation-only tolerance rules and failure diagnostics; validate the comparator against deliberate mutations of that encoded report.
+
+## READY — Start the faithful replacement
+
+Evidence: [scope and contracts][ledger]. Tools/artifacts: frozen corpus, coverage inventory and integration design.
+
+### READY-01 — Evidence coverage gate
+
+- [ ] **READY-01.1** Run the coverage inventory audit: every in-scope branch/exclusion has evidence or a proved-unreachable disposition; zero unassigned behavior gaps.
+
+### READY-02 — Behavior gate
+
+- [ ] **READY-02.1** Run all frozen success/failure and cross-feature scenarios; zero unexplained differences, with retail quirks and numerical thresholds retained as regressions.
+
+### READY-03 — Reproduction gate
+
+- [ ] **READY-03.1** Run the corpus from documented inputs in a fresh output directory; build/hash/seed/observer controls and completion markers all pass.
+
+### READY-04 — Implementation handoff gate
+
+- [ ] **READY-04.1** Review the frozen specification and OpenRealm interface design against the baseline; record no remaining decisions that require guessing, then authorize starting the replacement against this corpus.
+
+## Previous milestone IDs
+
+The prior eight checked slices remain checked under these leaf IDs. The original
+81 parent IDs remain above with their requirements distributed among children.
+
+| Previous slice | Current leaf |
 | --- | --- |
-| Coordinator | Own BASE-06 and the critical dependency chain; review findings, compose fixtures, integrate documentation and close checklist items |
-| Lifecycle worker | A bounded order/callback/reclamation contract feeding ORDER; avoid concurrent edits to the shared motion oracle |
-| Map worker | MAP/FOOT contract with a dedicated map fixture/oracle |
-| Numeric worker | NUM helper/branch contract with an independent reference and boundary oracle |
+| BASE-06a / ORDER-02a | BASE-06.1 |
+| ORDER-01a | ORDER-01.1 |
+| ORDER-02b | ORDER-02.1 |
+| ORDER-06a / ORDER-06b | ORDER-06.1 / ORDER-06.2 |
+| SCHED-02a | SCHED-02.1 |
+| SCHED-02b / GROUP-02a | SCHED-02.2 |
+| SEP-02a | SEP-02.1 |
 
-Each assignment specifies task IDs, exact question, owned files/report paths,
-existing evidence, allowed experiments and a verifiable stop condition. Deliver
-entrypoints/ABI, fixture, assertions, results/artifacts and unresolved branches.
-Return a concrete blocker/dependency when found; do not spend a whole batch
-expanding into another worker's task.
-
-Workers use separate new oracle files or explicitly disjoint existing files;
-unique report paths prevent overwrites. The coordinator owns the main ledger,
-checklist and shared Ghidra annotations. Serialize Ghidra mutations and live
-retail process/map manipulation; independent offline original-code runs can
-proceed concurrently. No concurrent patching of the same fixture.
-
-Review and integrate after each bounded result, then assign the next unlocked
-task. Run changed oracles and affected compositions; rerun broader suites only
-when shared behavior or dependencies changed. Share precise findings/artifact
-paths instead of entire transcripts. Keep unsupported interpretations open.
-
-### Current composition frontier
-
-| Contract | Next evidence | Diagnostic owner/file |
-| --- | --- | --- |
-| ORDER/MOVE/GROUP | Compose initial admission with full owner updates and shared groups; extend the verified singleton-plus-repulsor trajectory | One worker owns `verify_wc3_pathing_motion.py` |
-| MAP | Travel/failure after uninterrupted widget-produced escape admission; resource/cache/destructable lifecycle | Map worker: `verify_wc3_pathing_widget_masks.py` |
-| ORDER | Extend controlled command inputs toward UI/network producers; preserve verified initial admission/FIFO/replacement/interrupt journeys | Numeric worker: `verify_wc3_pathing_order_tasks.py` |
-| E2E/ORDER | Extend no-attach controls to crowds; preserve live building placement/invalidation witnesses | Coordinator: Frida controller/analyzer and docs |
-
-Names are under `tools/ghidra/` unless stated. These are next dependencies,
-not assertions that every lane is running; validate live agent/session state.
-
-### Verified scoped milestones
-
-Audited against the passing motion and order-task reports from `b90aa33d` on
-2026-09-27. Evidence level **C** (composed original-code calls); binary and CRT
-hashes follow the [ledger](retail-pathfinding.md#binary-and-evidence-conventions).
-Artifacts under the documented report root:
-`coverage-audit-b90aa33d/motion-oracle.json` (**M**) and
-`coverage-audit-b90aa33d/order-tasks-oracle.json` (**O**). Reproduce using the
-[standard commands](retail-pathfinding.md#reproduction). These are eight
-completed slices, not eight completed original acceptance items.
-
-- [x] **BASE-06a / ORDER-02a — Initial unit admission:** 34 complete `680320(order,1,1)` admissions assert queue publication, predicted task sequence and acceptance with no mid-call provisioning. O: `complete_initial_admissions=34`. [Contract and exclusions](retail-pathfinding-movement.md#complete-initial-unit-admission). UI/network producers, global registration and full owner scheduling remain outside this fixture.
-- [x] **ORDER-01a — Produced-chain arrival and reclamation:** 24 ordinary point-order journeys assert bit-exact integration, task/user-queue drain and factory recovery. O: `queued_order_arrival_cases=24`, `completed_internal_tasks=288`. [Evidence](retail-pathfinding-movement.md#generated-tasks-through-queued-user-order-arrival). Open fine grid, seeded registries and explicitly scheduled group ticks; other arrival/failure branches remain open.
-- [x] **ORDER-02b — Two-order FIFO:** four journeys assert successor admission timing, order identity, callback order and final pool recovery, including adjacent-float destinations. O: `fifo_two_order_cases=4`. [Evidence](retail-pathfinding-movement.md#two-user-order-fifo-composition). This does not cover all user-queue flags or gameplay producers.
-- [x] **ORDER-06a — Active replacement:** three mode-1 journeys cancel the active/pending orders at tick 3, admit only the replacement and reclaim all three orders. O: `replacement_arrival_cases=3`. [Evidence](retail-pathfinding-movement.md#active-replacement-versus-interruptprepend). Other cancellation phases, death and removal remain open.
-- [x] **ORDER-06b — Interrupt/resume:** three mode-0 journeys reach the temporary destination, regenerate the original active task and then execute the queued successor. O: `prepend_complete_cases=3`. [Evidence](retail-pathfinding-movement.md#active-replacement-versus-interruptprepend). Explicit group scheduling and controlled point commands remain fixture boundaries.
-- [x] **SCHED-02a — Singleton owner ordering:** one wall trajectory verifies 44 full owner updates, all 64 scheduler buckets per update, visual settling and unlink. M: `move_owner_arrival_cases=1`. [Evidence](retail-pathfinding-movement.md#complete-singleton-owner-updates-and-visual-settling). Shared-cap and separation lists are empty in this case.
-- [x] **SCHED-02b / GROUP-02a — Active singleton plus repulsor:** one trajectory verifies 43 separation updates and four accepted attempts within full owner updates. M: `move_owner_active_separation_cases=1`. [Evidence](retail-pathfinding-movement.md#owner-updates-with-a-controlled-separation-pair). Controlled profile and bounded numeric tolerance; crowded active groups and mixed profiles remain open.
-- [x] **SEP-02a — Post-arrival separation pair:** 16 ticks exercise 14 attempts, ten accepted and four blocked. M: `move_owner_separation_cases`. [Evidence and numeric boundary](retail-pathfinding-movement.md#owner-updates-with-a-controlled-separation-pair). General per-neighbor bit parity, producer coverage and PRNG composition remain open.
-
-### Additional partial evidence
-
-| Tasks advanced | Evidence / boundary |
-| --- | --- |
-| ORDER-01, MOVE-03 | [36 full arrival dispatches](retail-pathfinding-movement.md#complete-arrival-dispatch-and-support-refresh): handler/unwind, subscriptions, timer, stop and support height. [108 authentic active-task arrival/pop cases](retail-pathfinding-movement.md#active-arrival-and-authentic-task-removal) cover empty-queue return, next-task rejection, and acceptance retaining the new task with group/path preparation. [4,957 exact point-range cases](retail-pathfinding-movement.md#exact-point-task-range-predicate) cover the rejection predicate; [948 object-range calls](retail-pathfinding-movement.md#exact-object-range-predicate) add two-radius/prediction/clamp behavior and six invalid-handle fault probes. [Live Stop/Move replacement](retail-pathfinding-experiments.md#live-stopmove-replacement-and-task-cleanup) verifies separate cleanup/head mutation. 36 accepted-task fresh fine-search ticks now execute; [Live blocked-goal recovery](retail-pathfinding-experiments.md#live-blocked-goal-recovery-task-sequence) verifies the fallback. [78 elapsed trajectories](retail-pathfinding-movement.md#composed-elapsed-travel-arrival-and-reclamation) now reach arrival and reclamation, including two exact-repeat fine wall detours and one adaptive-to-fine, one full singleton-owner composition and one active singleton-plus-repulsor composition. [288 user-order producers/984 point-task producers/24 produced-chain queued-order arrivals](retail-pathfinding-movement.md#original-user-order-to-task-production) now pass. Four two-order FIFO cases also pass. Three active-replacement and three interrupt/resume journeys also pass. [34 full initial unit admissions](retail-pathfinding-movement.md#complete-initial-unit-admission) now pass without mid-call provisioning. UI/network producers, bridge/water/clamped presentation, populated targets and alternate recovery branches remain open. |
-| ORDER-04 | [8 last-reference release cycles, 6 factory reuses](retail-pathfinding-movement.md#last-reference-payload-release-and-factory-reuse). Preallocated storage/supplied registration; relations/children/negative domain remain open. |
-| MAP-01/02/03 | [11,664 edits, 216 rebuild/reversal compositions, 30 clipped updates](retail-pathfinding-search.md#terrain-edit-and-explicit-rebuild-composition). [Origin producer and 25 complete no-file loader calls](retail-pathfinding-search.md#terrain-origin-producer-and-map-factory-composition) now covered; [150 maintenance callbacks and 25 release prefixes](retail-pathfinding-search.md#constructed-map-maintenance-and-partial-release) verify continued hierarchy staleness and the external-free boundary. [Decoded WPM/image mask loops](retail-pathfinding-search.md#decoded-wpm-and-image-mask-consumers) cover mask translation; [144 overlapping widget raster sequences](retail-pathfinding-search.md#widget-rasterization-and-overlapping-occupancy) plus96 full widget removals,96 paired reapply/remove lifecycles,320 nonempty callback/rejection cases and two destruction prefixes to Storm403 cover lazy records, snapping and the real refresh gate; file-backed loader/reload, allocation growth, non-dyadic inputs and other invalidation producers remain open. |
-| NUM-01/02 | [200,330 exact helper calls, 2,130 normalizations, 864 bounds prefixes](retail-pathfinding-separation.md#exact-scalar-arithmetic-and-occupied-cell-boundaries). Trig, reciprocal table derivation, producer domains and full trajectory composition remain open. |
-
-The 81 original acceptance items below remain open: each still has exclusions
-or an unfrozen deliverable. In particular, BASE-06 is not closed by combining
-separate reports: initial admission/FIFO use explicit group ticks, while the
-full-owner fixtures start with prepared movement state. Next compose those
-paths into one frozen baseline, then extend shared groups/crowds and UI/network
-producers. Do not repeat the eight completed slices above.
-
-## BASE — scope and evidence infrastructure
-
-- [ ] **BASE-01** Inventory every movement entry point/caller: player/JASS/AI point and target orders, queued/replaced orders, ability-driven approach, forced position changes and pathing bypasses. Classify shared versus distinct routing paths; record any additional reachable modes discovered.
-- [ ] **BASE-02** Inventory movement types, masks/lanes, object categories and valid input domains from data and producers. Include ground/air/water/amphibious/other authored modes where present; establish supported terrain/support-surface interactions rather than assuming them.
-- [ ] **BASE-03** Build a reachable-function/branch and field read/write inventory from entry points through cleanup. Include virtual callbacks, globals, flags, constructors, allocators and caller preconditions; associate every current oracle exclusion with a task or existing coverage.
-- [ ] **BASE-04** Define a shared fixture/trace schema: build/data/map hashes, ordered entities/handles, initial state, simulation times, PRNG state, commands/edits, expected events and termination. Capture map cells, routes, indices, budgets, flags, membership and motion at stable boundaries.
-- [ ] **BASE-05** Add one corpus manifest/runner for existing oracles and retail captures. Distinguish expected retail/reference differences from regressions; record full calls versus prefixes/stubs, seed, scope and exact/tolerant assertions. Fail on truncated capture or missing completion.
-- [ ] **BASE-06** Freeze one complete ordinary ground-move baseline, including construction, fresh group/member searches, spatial updates, arrival callback, release and next order. Compare intermediate state; establish empty/idle before and after invariants. **Partial:** BASE-06a proves initial admission; SCHED-02a/b prove separate full-owner fixtures. A single frozen construction-to-next-order composition remains open.
-
-## MAP — construction, mutation and invalidation
-
-Evidence: [search](retail-pathfinding-search.md#map-construction-and-invalidation), [terrain experiments](retail-pathfinding-experiments.md#direct-terrainhierarchy-divergence-witness).
-
-- [ ] **MAP-01** Recover exact world/fine/proximity/adaptive origins, padding, dimensions, coordinate conversions, clipping and edge-cell semantics; test negative coordinates, non-power-of-two maps, corners and boundary-adjacent values.
-- [ ] **MAP-02** Complete initial terrain/pathing/object load order, mask population and hierarchy construction, including relevant cliffs, water, bridges and authored pathing textures identified by BASE-02.
-- [ ] **MAP-03** Enumerate every terrain/object invalidation producer: spawn, movement, size/pathing change, construction, destruction/removal and map-script edits. Verify affected cells/levels and update timing; distinguish intended staleness from missed producers.
-- [ ] **MAP-04** Compose overlapping self/target exclusions, coincident terrain, multiple objects and edits during requests; verify exact restoration on each reachable early/failure/reentrant exit.
-- [ ] **MAP-05** Recover map/spatial storage growth, free/reuse, stamps and generation reset/wrap. Test capacity boundaries, dead/metadata records, reclamation scheduling and reachable allocation failures.
-- [ ] **MAP-06** Trace map teardown/reload and persistence boundaries. Establish whether save/load preserves or rebuilds path/map/handle state; test the reachable movement consequences.
-
-## FOOT — footprint and collision contract
-
-Evidence: [footprint queries](retail-pathfinding-search.md#footprints-and-dynamic-occupancy).
-
-- [ ] **FOOT-01** Complete collision data → runtime scalar → footprint class/geometry for every producer, including runtime changes, group maximum and target radius. Sweep immediately below/equal/above each class boundary.
-- [ ] **FOOT-02** Test corridor width × radius × sub-cell alignment × approach direction × movement lane; include diagonals, corners, touching footprints and map edges. Match accepted cells and routes, not just reachability.
-- [ ] **FOOT-03** Resolve object tags, mask bits, flags, counters and category eligibility across fine search, hierarchy, segment checks and endpoint validation; verify mixed chains and lifecycle transitions.
-- [ ] **FOOT-04** Complete start/goal occupancy policy: inside self/target/other object, blocked/outside-map points, overlap and target removal. Establish clamping, perimeter selection and invalid-input preconditions at public callers.
-
-## FINE — fine search
-
-Evidence: [fine search](retail-pathfinding-search.md).
-
-- [ ] **FINE-01** Extend complete searches to mixed dynamic-object lists and all masks/classes, including moving/stationary blockers, special-target exits and suppressed/self objects; compare node/queue/parent state and exact route.
-- [ ] **FINE-02** Close remaining relaxation/termination branches under ties, reopenings, stale heap entries, budget limits and nearest-node fallback; cover interactions in full searches, beyond isolated slices.
-- [ ] **FINE-03** Exercise node/heap storage growth, cap/exhaustion, free-list reuse and 16-bit stamp wrap across sequential searches; distinguish normal failure from caller-invalid inputs.
-- [ ] **FINE-04** Compose search setup and result handling for same-cell, blocked start/goal, disconnected goal, insufficient budget and special-object completion across all footprint classes.
-
-## ACC — adaptive search
-
-Evidence: [adaptive search and reduced veto](retail-pathfinding-search.md#complete-adaptive-request-oracle).
-
-- [ ] **ACC-01** Enumerate/test every side/corner expansion, level transition and size-dependent predicate across lanes, boundaries and special-marker cells; verify promotion and subdivision ordering.
-- [ ] **ACC-02** Establish producer reachability of every classification/flag combination. Test reachable combinations; document rejection/preconditions for malformed synthetic states.
-- [ ] **ACC-03** Carry the reduced size-2 east-boundary veto into a realizable map/request and complete mover scenario; measure fine fallback, retries and outcome, or prove why the synthetic state is unreachable.
-- [ ] **ACC-04** Verify heuristic/cost/nearest-node behavior with ordinary and special edges, ties and budgets. Explain discrepancies with a shortest-path reference without changing retail behavior.
-- [ ] **ACC-05** Close adaptive node/heap/index/stamp/capacity lifetime paths, including repeated requests and lane/size changes; compose resulting partial/failure states with the path consumer.
-
-## NUM — numerical and random-state parity
-
-Evidence: [motion](retail-pathfinding-movement.md), [spatial rounding witness](retail-pathfinding-separation.md#position-application-and-spatial-bounds).
-
-- [ ] **NUM-01** Inventory relevant soft-float/integer arithmetic, conversion, floor, normalization, trig and square-root helpers; recover operand ABI, constants/init provenance and reachable ranges.
-- [ ] **NUM-02** Replace approximate mathematical references with bit-faithful contracts where bits affect branching, cells, ordering or accumulated motion. Cover cancellation, signed zero, exact/adjacent thresholds, oblique vectors and large/small valid values.
-- [ ] **NUM-03** Resolve negative/nonfinite/out-of-range inputs at producer boundaries: rejection, sanitization or actual propagation. Do not extrapolate from ordinary positive-input corpora.
-- [ ] **NUM-04** Recover PRNG initialization, ownership, draw order and wrap for retries, overlap and other discovered consumers; compose interleaved entities and deterministic repeat runs.
-
-## ROUTE — reconstruction, refinement and progression
-
-Evidence: [routes](retail-pathfinding-routes.md).
-
-- [ ] **ROUTE-01** Complete reconstruction/endpoint contracts for all classes/levels, oblique paths, partial/empty buffers and invalid starts; cover exact rounding and buffer growth/index limits.
-- [ ] **ROUTE-02** Extend segment sampling, normalization, skipping and blocker collection to every footprint class and direction; verify endpoint inclusion, touching corners, candidate caps/order and obstructions changing between samples.
-- [ ] **ROUTE-03** Compose fresh adaptive search → fine refill → dynamic obstruction/yield → retry/replan → motion across multiple ticks; preserve exact return codes, indices, destinations, timestamps and charged work.
-- [ ] **ROUTE-04** Exercise exhausted/cached/disabled route combinations and alternate index-initialization modes, queued paths, forced arrival and target-perimeter exits through public callers.
-- [ ] **ROUTE-05** Map blocker identity/cooldown lifecycle, asymmetric yielding and group-bit-8 producers; test chains/cycles of yielding, blocker removal/replacement and actual delay duration in simulation updates.
-
-## TARGET — pursuit, arrival and visibility
-
-Evidence: [target state](retail-pathfinding-routes.md#destination-changes-and-replan-gating).
-
-- [ ] **TARGET-01** Trace all arrival-range/heading producers, especially point orders versus target orders and ability-specific approach. Verify boundary equality, force flags and stop parameters through gameplay callers.
-- [ ] **TARGET-02** Compose continuous/sub-cell target edits, speed changes, teleports, target growth, death/removal and handle reuse; verify refresh cadence, cached destination and replan/admission interaction.
-- [ ] **TARGET-03** Close every visibility-loss policy and its flag/global producers, including retained pursuit, cancellation, reacquisition and validation results `0xa9/0xaa`; distinguish fog, invisibility and target invalidity.
-- [ ] **TARGET-04** Verify refresh threshold/extra-delay producers, including Captain AI, and live long-count/multi-member retry policies; compose range changes and retries through completion/failure events.
-
-## SCHED — clocks, work admission and owner tick
-
-Evidence: [admission](retail-pathfinding-routes.md), [movement clocks](retail-pathfinding-movement.md#stored-velocity-integration-and-movement-clocks).
-
-- [ ] **SCHED-01** Recover both clock-domain selectors, configured spans, advancement, pause/time scaling, rollover/backward-time semantics and simulation seconds per pathing update; distinguish render, JASS timer and simulation cadence.
-- [ ] **SCHED-02** Execute a populated complete owner tick, recovering order of scheduler, shared-cap publication, group/radius passes, movement, separation and callbacks; verify iteration order and same-tick visibility of changes. **Partial:** SCHED-02a/b close singleton ordering and one controlled separation pair. Populated shared-cap/multiple-group passes and callback mutation remain open.
-- [ ] **SCHED-03** Close every queue/class/priority producer, including non-unit class 15; test enqueue/unlink/reclassify/requeue/deletion during iteration and counter wrap.
-- [ ] **SCHED-04** Measure contention across owners/classes/groups and repeated budget exhaustion; explain fairness/starvation and retry timing with exact queue/work state, not elapsed-time guesses.
-
-## MOVE — velocity, stepping and spatial callbacks
-
-Evidence: [movement](retail-pathfinding-movement.md#speed-and-heading-update).
-
-- [ ] **MOVE-01** Complete authored/runtime speed, acceleration/increment, turn-cap and movement-angle producers, including temporary modifiers and all group/request writes; establish valid ranges and clamp order.
-- [ ] **MOVE-02** Compose general-input turning, speed commit and old-velocity integration over long trajectories; test stationary turns, speed/heading changes, stopping and boundary crossings with NUM parity.
-- [ ] **MOVE-03** Execute nonzero-elapsed region entry/exit callbacks, support-height/position handoff and mixed-object occupancy updates; verify ordering and reentrant movement/teleport effects.
-- [ ] **MOVE-04** Audit pathing disable/enable, pause/resume, forced displacement, teleport and movement-mode changes for bypass/invalidation semantics; add only paths shown reachable by BASE.
-
-## ORDER — dispatch, completion and lifetime
-
-Evidence: [subscriptions](retail-pathfinding-movement.md#movement-subscriptions-and-internal-event-remapping), [queue/release](retail-pathfinding-movement.md#arrival-cleanup-and-internal-order-queue).
-
-- [ ] **ORDER-01** Extend subscriber prefixes through real arrival/can't-path handlers and dispatcher unwind; cover all early exits, retry/recovery branches and unit-state gates, including queue cleanup bit `unit+280 & 40`.
-- [ ] **ORDER-02** Recover internal queue versus user Shift-queue ownership; execute next-order dispatch (`6f67df00`), control bits and completion/failure semantics for empty, replaced, canceled and multi-order queues. **Partial:** ORDER-02a/b close initial admission and four two-order FIFO cases. Remaining queue flags, producers and failure combinations are not closed.
-- [ ] **ORDER-03** Exercise subscription insertion/removal and order/unit destruction during callbacks, nested dispatch and multiple subscribers; verify payload remapping, iterator/depth/refcount invariants and event order.
-- [ ] **ORDER-04** Finish zero-reference payload reclamation through class factory/allocator; test populated relations/children, live wrapper construction, bridge guard failures, stale handles and both identity domains.
-- [ ] **ORDER-05** Complete deferred-request allocation, nonempty heap ordering/ties, cancellation, repeating requests, callbacks scheduling/canceling other requests and wrapper reuse; verify deadline time versus restored clock.
-- [ ] **ORDER-06** Compose Stop, replacement, interruption, death/removal and relevant ability transitions during every routing phase, including waiting, searching, turning, group completion and deferred release. **Partial:** ORDER-06a/b close replacement and interrupt/resume at tick 3. Other phases, death/removal and ability transitions remain open.
-
-## GROUP — shared routes and membership
-
-Evidence: [group decisions](retail-pathfinding-movement.md#group-decision-and-speed-commit).
-
-- [ ] **GROUP-01** Recover group creation/join/leave/merge/split/destruction producers and limits; establish which player/JASS/AI orders create shared groups versus independent movers.
-- [ ] **GROUP-02** Extend full cached ticks to fresh group/member searches, route failure, completion and populated owner scheduling; verify separate/shared route use and decision-before-commit invariants. **Partial:** GROUP-02a covers an active singleton with an eligible repulsor, not a shared group of active movers.
-- [ ] **GROUP-03** Close target-speed adjustment (`group bit 800`), shared-cap exemptions and flag producers, maximum footprint, auxiliary publication/pool allocation and Captain AI lifecycle.
-- [ ] **GROUP-04** Test membership mutation during callbacks/movement, stale identities, last-member completion, empty-group teardown and all-invalid prepasses; verify swap-removal effects on subsequent iteration/layout.
-
-## FORM — formation layout and regrouping
-
-Evidence: [formation layout](retail-pathfinding-movement.md#complete-formation-layout-composition).
-
-- [ ] **FORM-01** Compose authored SLK rank/flags through live mover/group creation; identify group spacing flag `20` and other formation policy producers, without inferring meaning from consumers.
-- [ ] **FORM-02** Extend complete layouts to mixed radii, moving/oblique members, equal sort keys and all reachable sizes/ranks; establish behavior/preconditions beyond the observed twelve-member table domain.
-- [ ] **FORM-03** Compose layout refresh → adaptive offset query → interval classification/held member → all-member decisions → speed commit, including blockers and cached/fresh routes.
-- [ ] **FORM-04** Verify every rebuild/regroup trigger and timeout in real simulation time; include moving targets, membership/size changes, failed routes and warp markers.
-- [ ] **FORM-05** Capture actual selection-issued mixed-unit formations, independently issued controls, narrow passages and regrouping; match assignments, offsets, cap publication and trajectories.
-
-## SEP — repulsion and spatial maintenance
-
-Evidence: [separation](retail-pathfinding-separation.md).
-
-- [ ] **SEP-01** Complete authored config, category/rank/mask/flag producers, including nonzero selectors and overrides; verify enabled/disabled behavior across applicable movement types and owners.
-- [ ] **SEP-02** Execute the entire query → ordered accumulation → clamp/cooldown → later validation/application chain with actual occupancy updates and NUM/PRNG state; compare every neighbor contribution. **Partial:** SEP-02a and SCHED-02b cover controlled pair compositions; general exact arithmetic/PRNG and every-neighbor coverage remain open.
-- [ ] **SEP-03** Close link insertion/removal order from unit lifecycle, metadata/dead-object lifetimes, stamp repair/wrap, cleanup sampling threshold/schedule, fresh allocation/growth and block reclamation.
-- [ ] **SEP-04** Match controlled live exact-overlap, crowded, mixed-owner/radius/rank and blocked-displacement cases; distinguish ground path blocking/retry from authored repulsion and explain all trajectory differences.
-
-## GATE — special-edge lifecycle
-
-Evidence: [Way Gates](retail-pathfinding-experiments.md#special-edges-are-way-gate-records).
-
-- [ ] **GATE-01** Complete activation/approach thresholds and numeric boundaries, mover eligibility, destination placement/rejection and blocked/unreachable exits through the real consumer.
-- [ ] **GATE-02** Test disable/destroy/retarget during approach, fresh order after retarget, and disabled edge over otherwise impassable terrain; verify cached-record versus current-state behavior.
-- [ ] **GATE-03** Compose multiple/chained/overlapping sources, active/inactive combinations and route ties; recover source overwrite/cleanup and hierarchy propagation order.
-- [ ] **GATE-04** Test IDs 1..255 exhaustion, zero ID, deallocation/reuse and stale route references; compose group/regroup transitions and ordinary fine walking around failed/skipped edges.
-
-## E2E — final evidence package and integration boundary
-
-- [ ] **E2E-01** Build layered scenarios from BASE-06: static detour/disconnection → size/lane changes → dynamic blockers → pursuit → contention → cancellation/next order → formations/crowds → gates. Include cross-feature interactions selected from shared mutable state and branch dependencies.
-- [ ] **E2E-02** Repeat controlled captures with equivalent minimal/no Frida hooks; compare script-level trajectory/order outcomes and timing to detect observer effects. Retain input manifests and successful completion markers. [Open-ground no-attach control](retail-pathfinding-experiments.md#controls-without-an-attached-observer) matches304 markers twice; blocked-goal305, replacement311, fog-reacquisition610 and building-lifecycle310 match once each. Crowds, other modes and further repeats remain open.
-- [ ] **E2E-03** Run deterministic replay and seeded generated/boundary cases across supported modes; reduce every mismatch. Preserve counterexamples as regressions with an explanation of retail behavior.
-- [ ] **E2E-04** Close long-run lifecycle cases: generation/stamp/counter wrap, handle/ID reuse, map reload/save-load, removal during callbacks and queue/pool pressure. Reachable behavior must match even when visually rare.
-- [ ] **E2E-05** Audit remaining unknowns, unnamed behavior-affecting flags, prefixes, stubs, tolerances and excluded branches against BASE-03; require coverage or documented unreachability for each.
-- [ ] **E2E-06** Freeze the implementation-neutral specification: structures/units, numeric rules, state machines, update/event ordering, map invalidation, ownership, PRNG, limits, result codes and failure behavior. Link each contract to runnable evidence.
-- [ ] **E2E-07** Specify OpenRealm integration seams using its existing architecture: Move-owned routing/steering, server simulation clock/order dispatch, collision/world state, group ownership, save/load and cleanup. Map current entry points and replacement boundaries without implementing replacement behavior yet.
-- [ ] **E2E-08** Define the differential adapter contract for original-code/reference fixtures and eventual OpenRealm implementation: identical scenario inputs, normalized identity mapping, exact state/event comparisons and trajectory checks. Keep expected results independent of replacement code.
-
-## READY — gate to start the faithful replacement
-
-- [ ] **READY-01** Every checklist item has closure evidence; all ledger rows have no unexplained behavior-affecting gaps within the inventoried scope.
-- [ ] **READY-02** Full order-to-arrival/failure and cross-feature scenarios pass; known retail quirks and numerical boundaries are regression fixtures, not exceptions hidden by tolerances.
-- [ ] **READY-03** The corpus reproduces from documented inputs/tools with build guards, deterministic seeds, capture controls and no unexplained differences.
-- [ ] **READY-04** The specification and OpenRealm integration boundary are reviewable and sufficient to implement without guessing. Then begin replacement, adding each layer against the same corpus; claiming achieved parity still requires the resulting implementation to pass it.
+[ledger]: retail-pathfinding.md
+[S]: retail-pathfinding-search.md
+[R]: retail-pathfinding-routes.md
+[M]: retail-pathfinding-movement.md
+[P]: retail-pathfinding-separation.md
+[L]: retail-pathfinding-experiments.md
+[admission]: retail-pathfinding-movement.md#complete-initial-unit-admission
+[arrival]: retail-pathfinding-movement.md#generated-tasks-through-queued-user-order-arrival
+[fifo]: retail-pathfinding-movement.md#two-user-order-fifo-composition
+[interrupt]: retail-pathfinding-movement.md#active-replacement-versus-interruptprepend
+[owner]: retail-pathfinding-movement.md#complete-singleton-owner-updates-and-visual-settling
+[pair]: retail-pathfinding-movement.md#owner-updates-with-a-controlled-separation-pair
+[map-load]: retail-pathfinding-search.md#terrain-origin-producer-and-map-factory-composition
+[map-edits]: retail-pathfinding-search.md#terrain-edit-and-explicit-rebuild-composition
+[widgets]: retail-pathfinding-search.md#widget-rasterization-and-overlapping-occupancy
+[footprints]: retail-pathfinding-search.md#footprints-and-dynamic-occupancy
+[fine-static]: retail-pathfinding-search.md#complete-static-fine-grid-searches-and-stamp-reuse
+[adaptive-veto]: retail-pathfinding-search.md#exact-size-2-east-boundary-veto
+[numeric]: retail-pathfinding-separation.md#exact-scalar-arithmetic-and-occupied-cell-boundaries
+[ranges]: retail-pathfinding-movement.md#exact-point-task-range-predicate
+[reclamation]: retail-pathfinding-movement.md#last-reference-payload-release-and-factory-reuse
+[cached-groups]: retail-pathfinding-movement.md#full-cached-route-group-tick-and-membership-prepass
+[shared-groups]: retail-pathfinding-movement.md#shared-group-parameters-ownership-and-publication
+[formation-rank]: retail-pathfinding-movement.md#authored-formation-rank-producer
+[formation-layout]: retail-pathfinding-movement.md#complete-formation-layout-composition
+[repulsion]: retail-pathfinding-separation.md#authored-repulsion-fields-and-paired-crowd-experiments
+[gate-mutation]: retail-pathfinding-experiments.md#outside-entry-approach-and-live-gate-changes
+[observer]: retail-pathfinding-experiments.md#controls-without-an-attached-observer
