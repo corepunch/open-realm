@@ -6,6 +6,10 @@
  * compatibility constant for now; custom/variant abilities can author a
  * different fade, so this must ultimately come from the resolved ability data. */
 #define WC3_SHADOWMELD_FADE_MS 1500u
+/* Presentation approximation: friendly/shared-vision viewers retain a ghosted
+ * model at 35% opacity. Retail's exact final alpha and interpolation curve have
+ * not been recovered; keep these presentation constants isolated from gameplay. */
+#define WC3_SHADOWMELD_FRIENDLY_ALPHA 0.35f
 
 /* Retail Shadow Meld is conditional invisibility rather than an RF_HIDDEN
  * lifecycle. Keeping the source as explicit unit state lets the existing
@@ -13,6 +17,24 @@
  * colliding with RF_HIDDEN uses such as cargo, mines, training, or revival. */
 bool S_ShadowMeldActive(edict_t const *unit) {
     return unit && unit->inuse && unit->shadowmeld.active;
+}
+
+/* Presentation-only opacity for a viewer that is allowed to perceive the unit.
+ * Smoothstep gives a gentle ease-in/ease-out fade instead of a visibly linear
+ * alpha ramp. Gameplay still switches invisibility only when the 1.5s fade
+ * completes; hostile/detector visibility remains owned by the shared query. */
+float S_ShadowMeldPresentationAlpha(edict_t const *unit) {
+    float t, eased;
+    uint32_t elapsed;
+
+    if (!unit || !unit->inuse) return 1.0f;
+    if (unit->shadowmeld.active) return WC3_SHADOWMELD_FRIENDLY_ALPHA;
+    if (!unit->shadowmeld.fading) return 1.0f;
+
+    elapsed = G_Time() - unit->shadowmeld.fade_start;
+    t = MIN(1.0f, MAX(0.0f, (float)elapsed / (float)WC3_SHADOWMELD_FADE_MS));
+    eased = t * t * (3.0f - 2.0f * t);
+    return 1.0f - (1.0f - WC3_SHADOWMELD_FRIENDLY_ALPHA) * eased;
 }
 
 static void shadowmeld_set_hide_order(edict_t *unit, bool active) {

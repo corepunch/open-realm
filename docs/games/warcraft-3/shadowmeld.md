@@ -33,7 +33,7 @@ OpenRealm's current classic Warcraft data baseline is 1.29.2. Patch 1.31 later m
 
 The Akama class is now kept separate and its documented no-auto-acquire distinction is modeled. Other class-specific `Ahid` differences are not inferred without stronger evidence.
 
-Owner-side translucent presentation for an invisible unit is also separate renderer work; gameplay visibility and detection do not depend on it.
+Owner/shared-vision Shadow Meld presentation now reuses the WC3 per-client vertex-tint datagram. During the 1.5-second gameplay fade, those viewers receive a presentation-only opacity that eases from the unit's authored alpha toward 35% of that authored alpha; active Shadow Meld remains at that 35% multiplier. The current curve is the standard smoothstep `t*t*(3-2*t)` approximation. Retail's exact final alpha and interpolation curve have not been recovered, so both values are deliberately documented presentation constants rather than compatibility claims. Hostile detector viewers receive the ordinary authored tint instead of the friendly ghost alpha. This presentation does not alter gameplay visibility, detection, selection, or authoritative `vertex_color`.
 
 ## Regression coverage
 
@@ -44,6 +44,7 @@ Owner-side translucent presentation for an invisible unit is also separate rende
 - Akama `Ahid` passive no-auto-acquire behavior;
 - passive 1.5-second night fade;
 - owner versus hostile invisibility query;
+- owner/shared-vision presentation alpha using the documented smoothstep approximation without mutating authoritative vertex colour;
 - daylight cancellation/reveal;
 - Hide suppressing automatic acquisition;
 - Stop retiring explicit Hide while allowing a new passive fade;
