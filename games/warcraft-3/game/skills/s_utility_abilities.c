@@ -8,6 +8,12 @@
 
 static umove_t ancient_root_morph, ancient_uproot_morph;
 
+#ifdef BZ_TESTS
+static uint32_t moon_well_effect_release_calls;
+void S_TestResetMoonWellEffectReleaseCalls(void) { moon_well_effect_release_calls = 0; }
+uint32_t S_TestMoonWellEffectReleaseCalls(void) { return moon_well_effect_release_calls; }
+#endif
+
 static bool root_code(uint32_t code) {
     return code == ID_ROOT_LIFE || code == ID_ROOT_ANCIENT || code == ID_ROOT_PROTECTOR;
 }
@@ -164,6 +170,9 @@ static bool moon_well_effect_matches(edict_t const * effect, edict_t const * wel
 
 void S_MoonWellEffectsRelease(edict_t * well) {
     if (!well) return;
+#ifdef BZ_TESTS
+    moon_well_effect_release_calls++;
+#endif
     FOR_LOOP(i, globals.num_edicts) {
         edict_t * effect = globals.edicts + i;
         if (!moon_well_effect_matches(effect, well)) continue;
@@ -187,15 +196,17 @@ static void moon_well_update_effect(edict_t * well) {
     edict_t * effect = NULL;
     float fraction, height;
 
-    if (!well || !(alias = moon_well_alias(well)) || M_IsDead(well) || well->construction.active) {
-        if (well) S_MoonWellEffectsRelease(well);
-        return;
-    }
-    level = S_SpellLevel(well, alias);
-    if (!level || !(row = G_AbilityLevel(alias, level))) {
+    /* AB_UPDATE procedures run for every unit. Non-owners and dead wells are
+     * cheap no-ops; disable/death/removal own their teardown. */
+    if (!well || !(alias = moon_well_alias(well)) || M_IsDead(well)) return;
+    /* An authored Moon Well can enter an in-place upgrade construction state.
+     * Keep its presentation suppressed while that state is active. */
+    if (well->construction.active) {
         S_MoonWellEffectsRelease(well);
         return;
     }
+    level = S_SpellLevel(well, alias);
+    if (!level || !(row = G_AbilityLevel(alias, level))) return;
 
     FOR_LOOP(i, globals.num_edicts) {
         edict_t * candidate = globals.edicts + i;

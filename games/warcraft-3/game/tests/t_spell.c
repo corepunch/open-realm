@@ -5,6 +5,8 @@
 
 uint32_t S_TestHeroAuraAliasResolves(void);
 void S_TestResetHeroAuraAliasResolves(void);
+void S_TestResetMoonWellEffectReleaseCalls(void);
+uint32_t S_TestMoonWellEffectReleaseCalls(void);
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
@@ -1526,6 +1528,34 @@ TEST(wc3_spell, moon_well_datae_gates_only_natural_mana_regen_to_night) {
     G_UpdateTimeOfDay();
     G_SetSLKRows("AbilityData", old);
     free_slk_rows(rows);
+}
+
+TEST(wc3_spell, non_moon_well_updates_do_not_scan_for_effect_cleanup) {
+    edict_t *unit = make_hero(MAKEFOURCC('h','f','o','o'), 100, 0, 0, 0);
+
+    S_TestResetMoonWellEffectReleaseCalls();
+    S_RunAbilityUpdates(unit);
+    T_EQ(S_TestMoonWellEffectReleaseCalls(), 0);
+}
+
+TEST(wc3_spell, moon_well_ability_disable_still_releases_its_effect) {
+    UnitAbilities_t abilities = { .abilList = "Ambt" };
+    edict_t *well = make_hero(MAKEFOURCC('e','m','o','w'), 100, 50, 0, 0);
+    edict_t *effect = G_Spawn();
+    abilityitem_t item = S_AbilityItem(FS_SLKKey("Ambt"));
+    abilityCall_t call = MAKE(abilityCall_t, .item = &item);
+
+    T_NOT_NULL(effect);
+    T_EQ(item.ability->proc, CAbilityManaBattery);
+    well->data.UnitAbilities = &abilities;
+    effect->owner = well;
+    effect->summon_ability = item.code;
+    effect->s.flags |= EF_NOT_SELECTABLE;
+    S_TestResetMoonWellEffectReleaseCalls();
+
+    T_ASSERT(S_AbilityMessage(well, A_DISABLE, &call));
+    T_EQ(S_TestMoonWellEffectReleaseCalls(), 1);
+    T_ASSERT(!effect->inuse);
 }
 
 TEST(wc3_spell, moon_well_missing_ability_data_does_not_restore_natural_regen) {
