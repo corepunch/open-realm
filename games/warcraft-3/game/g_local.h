@@ -1399,6 +1399,7 @@ struct edict_s {
     uint32_t summon_ability; /* ability rawcode that created this summoned unit; 0 for ordinary units */
     uint32_t permanent_invisibility_reveal_until; /* Apiv: visible until this server-time deadline after spawn/attack/cast */
     uint16_t forced_visibility_count[MAX_PLAYERS]; /* active unit-specific reveals, indexed by the sight-sharing player */
+    uint32_t shared_vision; /* players that receive this unit's ordinary sight via UnitShareVision */
     uint32_t harvested_lumber;
     uint32_t harvested_gold;
     struct edictMilitia_s {
@@ -2223,6 +2224,8 @@ void G_FowSendFull(edict_t *ent);
 bool G_FowPlayerCanSeeEntity(uint32_t player, edict_t const *ent);
 bool G_FowPlayerCanHoverEntity(uint32_t player, edict_t const *ent);
 bool G_FowPlayersShareVision(uint32_t viewer, uint32_t owner);
+bool G_UnitSharesVisionWith(edict_t const *unit, uint32_t viewer);
+void G_SetUnitSharedVision(edict_t *unit, uint32_t viewer, bool share);
 void G_AddUnitForcedVisibility(edict_t *unit, uint32_t viewer);
 void G_RemoveUnitForcedVisibility(edict_t *unit, uint32_t viewer);
 bool G_UnitIsForcedVisibleToPlayer(edict_t const *unit, uint32_t viewer);
