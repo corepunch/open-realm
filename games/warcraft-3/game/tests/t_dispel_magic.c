@@ -120,11 +120,14 @@ TEST(wc3_spell, dispel_removes_timed_statuses_in_area) {
 	vec2_t point = fix.enemy->s.origin2;
 	unit_addtimedstatus(fix.enemy, "Bslo", 1, 30.0f);
 	unit_addtimedstatus(fix.enemy, "Binf", 1, 30.0f);
+	unit_addtimedstatus(fix.enemy, "BEer", 1, 30.0f);
 	T_ASSERT(S_UnitHasStatus(fix.enemy, BZ_BSLO));
 	T_ASSERT(S_UnitHasStatus(fix.enemy, BZ_BINF));
+	T_ASSERT(S_UnitHasStatus(fix.enemy, MAKEFOURCC('B','E','e','r')));
 	T_ASSERT(S_CastPointTargetSpell(fix.caster, BZ_ADIS, &point));
 	T_ASSERT(!S_UnitHasStatus(fix.enemy, BZ_BSLO));
 	T_ASSERT(!S_UnitHasStatus(fix.enemy, BZ_BINF));
+	T_ASSERT(!S_UnitHasStatus(fix.enemy, MAKEFOURCC('B','E','e','r')));
 	T_FEQ(fix.enemy->health.value, 500, 0.001f);
 	dispel_done(fix);
 }
