@@ -1,0 +1,7 @@
+[Aroo]
+Art=TestUI\Textures\root.blp
+Buttonpos=0,1
+Tip=Root
+Unart=TestUI\Textures\uproot.blp
+UnButtonpos=1,1
+Untip=Uproot

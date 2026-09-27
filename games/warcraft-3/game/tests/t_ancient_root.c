@@ -101,6 +101,21 @@ TEST(wc3_ancient_root, roc_and_tft_use_separate_root_and_uproot_durations) {
     ancient_assert_direction_durations(ancient_root_tft);
 }
 
+TEST(wc3_ancient_root, command_button_uses_uproot_art_while_rooted) {
+    edict_t *unit;
+    gameCommandButton_t button;
+
+    reset_entities(); setup_test_world();
+    unit = ancient_test_unit(false);
+    T_ASSERT(G_BuildCommandButton(unit, "Aroo", false, 0, &button));
+    T_STREQ(button.art, "TestUI\\Textures\\root.blp");
+
+    unit->ancient_root.mode = ANCIENT_ROOTED;
+    T_ASSERT(G_BuildCommandButton(unit, "Aroo", false, 0, &button));
+    T_STREQ(button.art, "TestUI\\Textures\\uproot.blp");
+    T_STREQ(button.tooltip, "Uproot");
+}
+
 TEST(wc3_ancient_root, uproot_morph_rejects_orders_until_authored_hero_duration) {
     slkTestData_t *rows = parse_slk_string(ancient_root_tft);
     slkTestData_t *old = G_SetSLKRows("AbilityData", rows);

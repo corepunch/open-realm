@@ -547,6 +547,10 @@ static void ancient_root_update(edict_t *unit) {
 }
 
 BZ_ABILITY_PROC(CAbilityRoot) {
+    /* Root is a single command whose alternate presentation is Uproot while
+     * the Ancient occupies rooted building mode. The HUD uses this response
+     * to resolve the authored Unart/Untip fields for the command button. */
+    if (msg == A_TOGGLE_ON) return S_AncientIsRooted(ent);
     if (msg == A_ORDER && call && call->order) {
         if (ent && ent->ancient_root.mode == ANCIENT_ROOT_UNINITIALIZED)
             ancient_root_update(ent);
