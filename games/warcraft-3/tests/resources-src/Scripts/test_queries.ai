@@ -27,6 +27,12 @@ function main takes nothing returns nothing
     if GetUpgradeLevel('Rhme') != 2 then
         call MissingAIAction()
     endif
+    if GetUpgradeGoldCost('Rhme') != 250 or GetUpgradeWoodCost('Rhme') != 300 then
+        call MissingAIAction()
+    endif
+    if GetUpgradeLumberCost('Rhme') != 300 then
+        call MissingAIAction()
+    endif
     if GetMinesOwned() != 1 or GetGoldOwned() != 1000 then
         call MissingAIAction()
     endif

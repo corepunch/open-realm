@@ -133,8 +133,11 @@ static bool G_BotBuildSiteReachable(edict_t *worker, vec2_t const *point) {
 }
 
 static bool G_BotBuildNearTown(player_t *player, uint32_t class_id, int32_t town_id) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     edict_t *town = G_BotTown(player, town_id < 0 ? 0 : town_id);
-    if (!town) return false;
+    vec2_t const *center;
+    if (!bot || !town) return false;
+    center = bot->town_spot_valid ? &bot->town_spot : &town->s.origin2;
     /* Pending footprints are not baked yet, so serialize them to keep later orders from invalidating earlier placement. */
     FILTER_EDICTS(unit, G_BotUnitAlive(unit) && unit->s.player == PLAYER_NUM(player) && unit->build_project)
         return false;
@@ -145,8 +148,8 @@ static bool G_BotBuildNearTown(player_t *player, uint32_t class_id, int32_t town
             for (int32_t x = -ring; x <= ring; x++) for (int32_t y = -ring; y <= ring; y++) {
                 vec2_t point;
                 if (abs(x) != ring && abs(y) != ring) continue;
-                point = MAKE(vec2_t, town->s.origin2.x + x * BOT_BUILD_GRID,
-                             town->s.origin2.y + y * BOT_BUILD_GRID);
+                point = MAKE(vec2_t, center->x + x * BOT_BUILD_GRID,
+                             center->y + y * BOT_BUILD_GRID);
                 if (!G_BotBuildSiteReachable(worker, &point)) continue;
                 if (G_IssueBuildOrder(worker, class_id, &point)) return true;
             }
@@ -397,6 +400,13 @@ void G_BotSetStagePoint(player_t *player, float x, float y) {
     bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
     if (!bot) return;
     bot->stage = MAKE(vec2_t, x, y); bot->stage_valid = true;
+}
+
+void G_BotShiftTownSpot(player_t *player, float x, float y) {
+    bot_t *bot = player ? G_BotState(PLAYER_NUM(player)) : NULL;
+    if (!bot) return;
+    bot->town_spot = MAKE(vec2_t, x, y);
+    bot->town_spot_valid = true;
 }
 
 static bool G_BotIsHostile(player_t *player, edict_t *ent) {

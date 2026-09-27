@@ -6635,7 +6635,9 @@ TEST(wc3_api, bot_assault_natives_noop_on_null_player) {
         "  call BJassAssert(not SuicidePlayer(null, false), \"empty player returns false\")\n"
         "  call BJassAssert(not MergeUnits(1, 'hfoo', 'hfoo', 'hfoo'), \"empty player returns false\")\n"
         "  call BJassAssert(GetUpgradeGoldCost(0) == 0, \"unknown upgrade returns 0\")\n"
-        "  call BJassAssert(GetUpgradeLumberCost(0) == 0, \"unknown upgrade returns 0\")\n"
+        "  call BJassAssert(GetUpgradeWoodCost(0) == 0, \"unknown upgrade wood returns 0\")\n"
+        "  call BJassAssert(GetUpgradeLumberCost(0) == 0, \"legacy upgrade lumber alias returns 0\")\n"
+        "  call ShiftTownSpot(32.0, 64.0)\n"
         "endfunction\n"));
 }
 
