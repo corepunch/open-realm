@@ -1986,6 +1986,16 @@ TEST(wc3_building, command_button_serializes_engaged_edge_glow_without_autocast_
     T_ASSERT(building_command_frame_seen);
     T_ASSERT(building_command_frame.flagsvalue & UIFLAG_ABILITY_ENGAGED);
     T_ASSERT(!(building_command_frame.flagsvalue & UIFLAG_ALTERNATE_ACTIVE));
+    T_ASSERT(!(building_command_frame.flagsvalue & UIFLAG_ALERT_RED_PULSE));
+
+    button.engaged = 0;
+    button.alternate_active = 0;
+    UI_WriteCommandButtonFrame(&button);
+    T_ASSERT(!(building_command_frame.flagsvalue & UIFLAG_ABILITY_ENGAGED));
+    button.engaged = 1;
+    UI_WriteCommandButtonFrame(&button);
+    T_ASSERT(building_command_frame.flagsvalue & UIFLAG_ABILITY_ENGAGED);
+    T_ASSERT(!(building_command_frame.flagsvalue & UIFLAG_ALERT_RED_PULSE));
 
     gi.Write = old_write;
     gi.ImageIndex = old_image_index;

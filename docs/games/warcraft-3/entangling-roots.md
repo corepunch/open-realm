@@ -45,8 +45,9 @@ this resolves to the Entangling Roots target model.
 generic dispel, and death cleanup all retire the visual through the same status
 lifecycle as the gameplay root. `A_STATUS_REFRESH` can recreate a missing
 presentation effect without duplicating an existing one. The authoritative
-state remains the timed status; the effect tag is presentation-only and is not
-serialized gameplay state.
+state remains the timed status; the effect tag is presentation-only. Its save
+mapping preserves cleanup ownership across load without making the visual an
+authoritative gameplay status.
 
 ## Deliberately not generalized
 
