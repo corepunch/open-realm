@@ -1,0 +1,630 @@
+// WC3 1.27.1.7085. Entry/exit observers; no gameplay calls or target data writes.
+let installed = false, samples = 0, serial = 0, rebuildSamples = 0;
+let widgetScenario = false;
+const counts = {}, active = new Map();
+const emit = (event, data = {}) => send({event, ms: Date.now(), ...data});
+const bump = kind => {counts[kind] = (counts[kind] || 0) + 1;};
+const ints = (p, n) => Array.from({length: n}, (_, i) => p.add(i * 4).readS32());
+
+function install(module) {
+    if (installed || module.name.toLowerCase() !== 'game.dll') return;
+    const base = module.base, pe = base.add(base.add(0x3c).readU32());
+    if (Process.pointerSize !== 4 || pe.add(8).readU32() !== config.timestamp ||
+        pe.add(80).readU32() !== config.imageSize)
+        throw new Error('Target PE differs from the hash-checked DLL');
+    installed = true;
+    emit('module', {base: base.toString(), path: module.path});
+    const hook = (rva, callbacks) => Interceptor.attach(base.add(rva), callbacks);
+    if (config.widgetEvents) {
+        for (const [rva, method] of [[0x6501a0, 'create'], [0x650c00, 'destroy'],
+                                     [0x6514d0, 'remove-mask'], [0x6544f0, 'reapply']]) {
+            hook(rva, {
+                onEnter() {
+                    this.recordWidget = widgetScenario;
+                    if (!this.recordWidget) return;
+                    this.widget = this.context.ecx;
+                    this.row = {method, widget: this.widget.toString(),
+                        vtable: this.widget.readPointer().sub(base).toString(),
+                        beforeCollection: this.widget.add(0x34).readPointer().toString(),
+                        gate: base.add(0xce5f10).readU32()};
+                },
+                onLeave() {
+                    if (!this.recordWidget) return;
+                    bump('widget-' + method);
+                    if (counts['widget-' + method] <= config.samples)
+                        emit('widget-method', {...this.row,
+                            afterCollection: this.widget.add(0x34).readPointer().toString()});
+                }
+            });
+        }
+    }
+    if (config.taskEvents) {
+        const taskState = ability => {
+            const unit = ability.add(0x30).readPointer();
+            return {ability: ability.toString(), unit: unit.toString(),
+                abilityFlags: ability.add(0x20).readU32(),
+                taskHead: unit.isNull() ? null : ints(unit.add(0x174), 2),
+                orderHead: unit.isNull() ? null : ints(unit.add(0x19c), 2),
+                unitFlags: unit.isNull() ? null : unit.add(0x5c).readU32()};
+        };
+        hook(0x5ffb60, {
+            onEnter(args) {
+                this.ability = this.context.ecx;
+                const packet = args[0], task = packet.add(0xc).readPointer();
+                this.row = {before: taskState(this.ability), eventCode: packet.add(8).readU32(),
+                    task: task.toString(), taskVtable: task.readPointer().sub(base).toString(),
+                    taskIdentity: ints(task.add(0xc), 2), successor: ints(task.add(0x24), 2),
+                    destination: [task.add(0x38).readFloat(), task.add(0x40).readFloat()],
+                    range: task.add(0x48).readFloat()};
+            },
+            onLeave() {
+                bump('point-task');
+                if (counts['point-task'] <= config.samples)
+                    emit('point-task', {...this.row, after: taskState(this.ability)});
+            }
+        });
+        for (const [rva, kind] of [[0x603110, 'task-cant-path'],
+                                  [0x5fb190, 'task-recovery'], [0x600340, 'task-cleanup']]) {
+            hook(rva, {
+                onEnter() { this.ability = this.context.ecx; this.before = taskState(this.ability); },
+                onLeave() {
+                    bump(kind);
+                    if (counts[kind] <= config.samples)
+                        emit(kind, {before: this.before, after: taskState(this.ability)});
+                }
+            });
+        }
+        hook(0x691e60, {
+            onEnter(args) {
+                this.unit = this.context.ecx; this.task = args[0];
+                this.row = {unit: this.unit.toString(), task: this.task.toString(),
+                    taskIdentity: ints(this.task.add(0xc), 2), eventCode: this.task.add(0x30).readU32(),
+                    beforeHead: ints(this.unit.add(0x174), 2)};
+            },
+            onLeave() {
+                bump('task-prepend');
+                if (counts['task-prepend'] <= config.samples)
+                    emit('task-prepend', {...this.row, successor: ints(this.task.add(0x24), 2),
+                        afterHead: ints(this.unit.add(0x174), 2)});
+            }
+        });
+        hook(0x5fa7a0, {
+            onEnter() { this.ability = this.context.ecx; this.before = taskState(this.ability); },
+            onLeave() {
+                bump('task-arrival');
+                if (counts['task-arrival'] <= config.samples)
+                    emit('task-arrival', {before: this.before, after: taskState(this.ability)});
+            }
+        });
+    }
+    if (config.blockers) {
+        hook(0x1489a0, {
+            onEnter(args) {
+                this.request = active.get(this.threadId);
+                if (!this.request || this.request.kind !== 'fine') return;
+                this.system = this.context.ecx;
+                this.x = args[0].toInt32(); this.y = args[1].toInt32();
+            },
+            onLeave(ret) {
+                if (!this.request || this.request.kind !== 'fine' || ret.toInt32() !== 0) return;
+                const system = this.system, map = system.add(0x1c).readPointer(), stats = this.request.blockers;
+                const [width, height] = ints(map.add(0x3c), 2);
+                if (this.x < 0 || this.y < 0 || this.x >= width || this.y >= height) { stats.boundsHits++; return; }
+                const word = map.add(0x28).readPointer().add(4 * (this.y * width + this.x)).readU32();
+                const mask = system.add(0xa4).readU32(), mode = system.add(0xd4).readU32();
+                if ((word & mask & 0xff000000) !== 0) { stats.terrainHits++; return; }
+                const links = map.add(0x78).readPointer(), seen = new Set();
+                let index = word & 0xffffff;
+                for (let n = 0; index !== 0xffffff && n < 4096; n++) {
+                    const link = links.add(index * 8), code = link.readU32(), kind = code >>> 24;
+                    index = code & 0xffffff;
+                    if (kind === 2) continue;
+                    const object = link.add(4).readPointer(), key = object.toString();
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    const objectMask = object.add(0x34).readU32(), flags = object.add(0x40).readU32();
+                    if (kind !== 1 || object.add(0x38).readU32() === 0xffffffff || !(objectMask & 0x01000000) ||
+                        (flags & 0x8fffffff) || (!mode && (flags & 0x60000000)) || !(mask & objectMask & 0xffffff)) continue;
+                    stats.objectHits++;
+                    if (!stats.objects[key] && Object.keys(stats.objects).length < 32) {
+                        const payload = object.add(0x30).readPointer();
+                        const isMover = !payload.isNull() && payload.add(0x10).readU32() === 0x60706375;
+                        stats.objects[key] = {hits: 0, object: key, payload: payload.toString(), isMover,
+                            position: isMover ? [payload.add(0x78).readFloat(), payload.add(0x7c).readFloat()] : null,
+                            flags, objectMask, queryMask: mask, mode, cell: [this.x, this.y]};
+                    }
+                    if (stats.objects[key]) stats.objects[key].hits++; else stats.omittedHits++;
+                    return;
+                }
+                stats.unclassifiedHits++;
+            }
+        });
+    }
+    const separationStates = new Map();
+    hook(0x1702f0, {
+        onEnter() {
+            this.sep = this.context.ecx;
+            this.mover = this.sep.add(0x14).readPointer();
+            const packed = this.sep.add(0x20).readU32();
+            const vtable = this.mover.readPointer();
+            this.row = {separation: this.sep.toString(), mover: this.mover.toString(), packed,
+                selector: (packed >>> 16) & 15, category: (packed >>> 20) & 255, rank: packed >>> 28,
+                cooldown: packed & 65535, vector: [this.sep.add(0x18).readFloat(), this.sep.add(0x1c).readFloat()],
+                position: [this.mover.add(0x78).readFloat(), this.mover.add(0x7c).readFloat()],
+                radius: this.mover.add(0x90).readFloat(), vtable: vtable.sub(base).toString(),
+                positionCallback: vtable.add(0x54).readPointer().sub(base).toString()};
+        },
+        onLeave() {
+            bump('separation-update');
+            const key = this.row.separation;
+            const signature = [this.row.selector, this.row.category, this.row.rank, this.row.positionCallback].join(':');
+            if (separationStates.get(key) !== signature) {
+                separationStates.set(key, signature);
+                bump('separation-state');
+                if (counts['separation-state'] <= config.samples) emit('separation-state', this.row);
+            }
+            if (this.row.cooldown === 0 && (this.row.vector.some(v => v !== 0) ||
+                    this.sep.add(0x18).readFloat() !== 0 || this.sep.add(0x1c).readFloat() !== 0)) {
+                bump('separation-active');
+                if (counts['separation-active'] <= config.samples)
+                    emit('separation-active', {...this.row,
+                        afterVector: [this.sep.add(0x18).readFloat(), this.sep.add(0x1c).readFloat()],
+                        afterPosition: [this.mover.add(0x78).readFloat(), this.mover.add(0x7c).readFloat()],
+                        afterPacked: this.sep.add(0x20).readU32(),
+                        counter: base.add(0xd53a48).readPointer().add(0x538).readU32()});
+            }
+        }
+    });
+    for (const [rva, kind] of [[0x14df20, 'spatial-clean-dirty'], [0x14dfc0, 'spatial-clean-all'], [0x14e180, 'spatial-clean-sampled']]) {
+        hook(rva, {onEnter() {
+            bump(kind);
+            if (counts[kind] <= 16) emit(kind, {map: this.context.ecx.toString(), caller: this.returnAddress.sub(base).toString()});
+        }});
+    }
+    hook(0x1689d0, {
+        onEnter(args) {
+            this.path = this.context.ecx;
+            this.row = {path: this.path.toString(), position: [args[0].readFloat(), args[0].add(4).readFloat()],
+                adjusted: [this.path.add(0x24).readFloat(), this.path.add(0x28).readFloat()],
+                thresholdSquared: base.add(0xd54190).readFloat()};
+        },
+        onLeave() {
+            bump('retry-init');
+            if (counts['retry-init'] <= config.samples)
+                emit('retry-init', {...this.row, count: this.path.add(0x98).readU32()});
+        }
+    });
+    hook(0x167290, {
+        onEnter() {
+            this.path = this.context.ecx;
+            this.before = this.path.add(0x98).readU32();
+        },
+        onLeave(ret) {
+            bump('retry-result');
+            if (counts['retry-result'] <= config.samples)
+                emit('retry-result', {path: this.path.toString(), before: this.before,
+                    after: this.path.add(0x98).readU32(), result: ret.toInt32(),
+                    counter: base.add(0xd53a48).readPointer().add(0x538).readU32()});
+        }
+    });
+    const targetRings = new Map();
+    hook(0x148790, {
+        onEnter(args) {
+            this.row = {center: [args[0].toInt32(), args[1].toInt32()],
+                target: args[2].toString(), offset: args[3].toInt32(), width: args[4].toInt32(),
+                caller: this.returnAddress.sub(base).toString(), matched: null};
+            targetRings.set(this.threadId, this.row);
+        },
+        onLeave(ret) {
+            targetRings.delete(this.threadId);
+            if (ret.toInt32()) {
+                bump('target-perimeter-hit');
+                if (counts['target-perimeter-hit'] <= config.samples)
+                    emit('target-perimeter-hit', {...this.row,
+                        counter: base.add(0xd53a48).readPointer().add(0x538).readU32()});
+            }
+        }
+    });
+    hook(0x14a710, {
+        onEnter(args) { this.cell = [args[0].toInt32(), args[1].toInt32()]; },
+        onLeave(ret) {
+            const row = targetRings.get(this.threadId);
+            if (row && ret.toInt32()) row.matched = this.cell;
+        }
+    });
+    hook(0x168070, {
+        onEnter(args) {
+            this.path = this.context.ecx;
+            const blocker = args[0];
+            this.row = {path: this.path.toString(), blocker: blocker.toString(), requested: args[1].toUInt32(),
+                identity: blocker.isNull() ? [-1, -1] : ints(blocker.add(0x14), 2),
+                before: this.path.add(0x94).readU32(), caller: this.returnAddress.sub(base).toString(),
+                counter: base.add(0xd53a48).readPointer().add(0x538).readU32()};
+        },
+        onLeave() {
+            bump('yield-set');
+            if (counts['yield-set'] <= config.samples) emit('yield-set', {...this.row,
+                after: this.path.add(0x94).readU32(), stored: ints(this.path.add(0xa8), 2)});
+        }
+    });
+    const advances = new Map();
+    hook(0x165ae0, {
+        onEnter() { this.path = this.context.ecx; this.delay = this.path.add(0x94).readU32(); this.disabled = !!(this.path.add(0x88).readU32() & 0x100000); },
+        onLeave(ret) {
+            if (this.delay) {
+                bump('path-delay');
+                if (counts['path-delay'] <= config.samples) emit('path-delay', {path: this.path.toString(), before: this.delay, after: this.path.add(0x94).readU32(), disabled: this.disabled, result: ret.toInt32(), counter: base.add(0xd53a48).readPointer().add(0x538).readU32()});
+            }
+            const row = {path: this.path.toString(), result: ret.toInt32(),
+                flags: this.path.add(0x88).readU32(), target: this.path.add(0xa4).readPointer().toString(), indices: ints(this.path.add(0x74), 2),
+                destination: [this.path.add(0x1c).readFloat(), this.path.add(0x20).readFloat()],
+                counter: base.add(0xd53a48).readPointer().add(0x538).readU32()};
+            advances.set(row.path, row);
+        }
+    });
+    hook(0x171060, {
+        onEnter() {
+            bump('force-arrival');
+            this.mover = this.context.ecx;
+            const path = this.mover.add(0xa8).readPointer();
+            this.row = {mover: this.mover.toString(), path: path.toString(),
+                caller: this.returnAddress.sub(base).toString(), before: this.mover.add(0xd8).readU32(),
+                advance: advances.get(path.toString()) || null,
+                counter: base.add(0xd53a48).readPointer().add(0x538).readU32()};
+        },
+        onLeave() {
+            if (counts['force-arrival'] <= config.samples)
+                emit('force-arrival', {...this.row, after: this.mover.add(0xd8).readU32()});
+        }
+    });
+    hook(0x651010, {onEnter(args) {
+        bump('target-lost-dispatch');
+        if (counts['target-lost-dispatch'] <= config.samples)
+            emit('target-lost-dispatch', {targetUnit: this.context.ecx.toString(),
+                players: [args[0].toInt32(), args[1].toInt32()],
+                caller: this.returnAddress.sub(base).toString()});
+    }});
+    hook(0x5ff490, {onEnter(args) {
+        bump('move-target-lost');
+        if (counts['move-target-lost'] <= config.samples)
+            emit('move-target-lost', {ability: this.context.ecx.toString(),
+                ownerUnit: this.context.ecx.add(0x30).readPointer().toString(),
+                eventCode: args[0].add(8).readU32(),
+                targetUnit: args[0].add(0xc).readPointer().toString()});
+    }});
+    hook(0x5fb940, {
+        onEnter(args) {
+            bump('move-target-validation');
+            this.row = {ability: this.context.ecx.toString(), target: args[0].toString()};
+        },
+        onLeave(ret) {
+            if (counts['move-target-validation'] <= config.samples)
+                emit('move-target-validation', {...this.row, result: ret.toUInt32()});
+        }
+    });
+    hook(0x171340, {onEnter() {
+        bump('mover-stop');
+        if (counts['mover-stop'] <= config.samples)
+            emit('mover-stop', {mover: this.context.ecx.toString(),
+                caller: this.returnAddress.sub(base).toString(),
+                stack: Thread.backtrace(this.context, Backtracer.ACCURATE)
+                    .filter(p => p.compare(base) >= 0 && p.compare(base.add(config.imageSize)) < 0)
+                    .map(p => p.sub(base).toString())});
+    }});
+    const completionStates = new Map();
+    hook(0x16c390, {onEnter() {
+        bump('group-completion-test');
+        const group = this.context.ecx, count = group.add(0x38).readU32();
+        const members = group.add(0x28).readPointer();
+        const flags = group.add(0x80).readU32(), missed = group.add(0x6c).readU32();
+        const row = {group: group.toString(), flags, missed, count,
+            gateOpen: !(flags & 1) || missed >= 33,
+            counter: base.add(0xd53a48).readPointer().add(0x538).readU32(),
+            members: Array.from({length: Math.min(count, 16)}, (_, i) => ({
+                mover: members.add(i * 0x2c + 0x14).readPointer().toString(),
+                flags: members.add(i * 0x2c + 0x28).readU32()}))};
+        const key = JSON.stringify([flags, row.gateOpen, row.members]);
+        if (completionStates.get(row.group) !== key) {
+            bump('group-completion');
+            if (counts['group-completion'] <= config.samples) emit('group-completion', row);
+        }
+        completionStates.set(row.group, key);
+    }});
+    const visibilityStates = new Map();
+    hook(0x23a760, {
+        onEnter() {
+            bump('target-visibility-test');
+            this.group = this.context.edx;
+            this.row = {group: this.group.toString(), target: this.context.ecx.toString(),
+                path: this.group.add(0x3c).readPointer().toString(),
+                countdown: this.group.add(0x64).readS32(), missed: this.group.add(0x6c).readU32(),
+                counter: base.add(0xd53a48).readPointer().add(0x538).readU32()};
+        },
+        onLeave(ret) {
+            const row = {...this.row, blocked: ret.toInt32()};
+            const key = JSON.stringify([row.target, row.blocked]);
+            if (visibilityStates.get(row.group) !== key) {
+                bump('target-visibility');
+                if (counts['target-visibility'] <= config.samples) emit('target-visibility', row);
+            }
+            visibilityStates.set(row.group, key);
+        }
+    });
+    const refreshPending = new Map();
+    hook(0x169680, {
+        onEnter() {
+            bump('target-refresh-update');
+            this.group = this.context.ecx;
+            this.key = this.group.toString();
+            this.refresh = this.group.add(0x64).readS32() === -1;
+            if (this.refresh) refreshPending.set(this.key, {
+                group: this.key, path: this.group.add(0x3c).readPointer().toString(),
+                flags: this.group.add(0x80).readU32(), coefficient: base.add(0xd541b8).readFloat(),
+                counter: base.add(0xd53a48).readPointer().add(0x538).readU32()});
+        },
+        onLeave() {
+            if (!this.refresh) return;
+            const row = refreshPending.get(this.key);
+            refreshPending.delete(this.key);
+            bump('target-refresh');
+            if (counts['target-refresh'] <= config.samples)
+                emit('target-refresh', {...row, reload: this.group.add(0x64).readS32()});
+        }
+    });
+    hook(0x169727, {onEnter() {
+        const row = refreshPending.get(this.context.ebx.toString());
+        if (row) row.distanceFine = this.context.ebp.sub(8).readFloat();
+    }});
+    hook(0x16974d, {onEnter() {
+        const row = refreshPending.get(this.context.ebx.toString());
+        if (row) row.unclamped = this.context.eax.toInt32();
+    }});
+    hook(0x168b80, {
+        onEnter(args) {
+            bump('path-destination');
+            this.path = this.context.ecx;
+            this.row = {path: this.path.toString(), caller: this.returnAddress.sub(base).toString(),
+                destination: [args[0].readFloat(), args[0].add(4).readFloat()],
+                replaceOriginal: args[1].toInt32(), beforeFlags: this.path.add(0x88).readU32()};
+        },
+        onLeave() {
+            if (counts['path-destination'] <= config.samples)
+                emit('path-destination', {...this.row, afterFlags: this.path.add(0x88).readU32(),
+                    original: [this.path.add(0x2c).readFloat(), this.path.add(0x30).readFloat()],
+                    counts: [this.path.add(0x50).readU32(), this.path.add(0x70).readU32()],
+                    indices: ints(this.path.add(0x74), 2), timestamps: ints(this.path.add(0x7c), 2)});
+        }
+    });
+    let replanSamples = 0;
+    const replanStates = new Map();
+    hook(0x167e40, {
+        onEnter(args) {
+            bump('replan-check');
+            this.path = this.context.ecx;
+            this.readyOut = args[2];
+            this.row = {path: this.path.toString(),
+                oldDestination: [this.path.add(0x1c).readFloat(), this.path.add(0x20).readFloat()],
+                destination: [args[0].readFloat(), args[0].add(4).readFloat()], shift: args[1].toUInt32(),
+                timestamps: [this.path.add(0x7c).readU32(), this.path.add(0x80).readU32()],
+                counter: base.add(0xd53a48).readPointer().add(0x538).readU32()};
+        },
+        onLeave(ret) {
+            const row = {...this.row, changed: ret.toInt32(), ready: this.readyOut.readU32()};
+            const key = JSON.stringify([row.oldDestination, row.destination, row.changed, row.ready]);
+            if (replanSamples < config.samples && replanStates.get(row.path) !== key) {
+                emit('replan-check', row);
+                replanSamples++;
+            }
+            replanStates.set(row.path, key);
+        }
+    });
+    const arrivalStates = new Map();
+    let arrivalSamples = 0;
+    hook(0x16e910, {
+        onEnter(args) {
+            bump('arrival-test');
+            this.mover = this.context.ecx;
+            this.angleOut = args[4];
+            this.rangeOut = args[5];
+            this.row = {mover: this.mover.toString(),
+                source: [args[0].readFloat(), args[0].add(4).readFloat()],
+                destination: [args[3].readFloat(), args[3].add(4).readFloat()],
+                threshold: args[2].readFloat(), footprint: this.mover.add(0x90).readFloat(),
+                flags: this.mover.add(0xd8).readU32()};
+        },
+        onLeave(ret) {
+            const row = {...this.row, result: ret.toInt32(),
+                angle: this.angleOut.readFloat(), inRange: this.rangeOut.readU32()};
+            const previous = arrivalStates.get(row.mover);
+            if (arrivalSamples < config.samples && (!previous || row.result !== previous.result ||
+                row.inRange !== previous.inRange || row.threshold !== previous.threshold)) {
+                emit('arrival-transition', {...row, previous: previous || null});
+                arrivalSamples++;
+            }
+            arrivalStates.set(row.mover, row);
+        }
+    });
+    hook(0x16d9d0, {onEnter(args) {
+        completionStates.delete(this.context.ecx.toString());
+        visibilityStates.delete(this.context.ecx.toString());
+        bump('group-target');
+        if (counts['group-target'] <= config.samples)
+            emit('group-target', {group: this.context.ecx.toString(),
+                path: this.context.ecx.add(0x3c).readPointer().toString(),
+                target: args[0].toString(),
+                handle: args[0].isNull() ? null : ints(args[0].add(0x14), 2)});
+    }});
+    hook(0x168ab0, {
+        onEnter(args) {
+            bump('scheduler-target');
+            this.path = this.context.ecx;
+            this.before = this.path.add(0x88).readU32();
+            this.value = args[0].toUInt32();
+        },
+        onLeave() {
+            if (counts['scheduler-target'] <= config.samples)
+                emit('scheduler-target', {path: this.path.toString(), value: this.value,
+                    before: this.before, after: this.path.add(0x88).readU32(),
+                    accLimit: this.path.add(0x86).readU16()});
+        }
+    });
+    hook(0x168310, {
+        onEnter(args) {
+            bump('scheduler-admission');
+            this.bucket = this.context.ecx;
+            this.path = args[0];
+            this.request = active.get(this.threadId);
+            this.before = ints(this.bucket.add(4), 4);
+        },
+        onLeave(ret) {
+            if (counts['scheduler-admission'] <= config.samples)
+                emit('scheduler-admission', {path: this.path.toString(),
+                    request: this.request ? this.request.request : null,
+                    bucketOffset: this.bucket.sub(base.add(0xd53a90)).toUInt32(),
+                    before: this.before, result: ret.toInt32(),
+                    after: ints(this.bucket.add(4), 4)});
+        }
+    });
+    hook(0x168a80, {
+        onEnter(args) {
+            bump('scheduler-class');
+            this.path = this.context.ecx;
+            this.before = this.path.add(0x88).readU32();
+            this.value = args[0].toUInt32();
+        },
+        onLeave() {
+            if (counts['scheduler-class'] <= config.samples)
+                emit('scheduler-class', {path: this.path.toString(), value: this.value,
+                    before: this.before, after: this.path.add(0x88).readU32()});
+        }
+    });
+    hook(0x168f00, {
+        onEnter(args) {
+            bump('gate-traversal');
+            this.destination = [args[0].readFloat(), args[0].add(4).readFloat()];
+        },
+        onLeave(ret) {emit('gate-traversal', {result: ret.toInt32(), destination: this.destination,
+            destinationSpace: 'fine-grid'});}
+    });
+    function snapshotCells(marker) {
+        if (!config.watchCell) return;
+        const owner = base.add(0xd53a48).readPointer(), cells = [];
+        if (owner.isNull()) throw new Error('Cell watch without pathing owner');
+        for (let level = -1; level < 4; level++) {
+            const map = owner.add(level === -1 ? 0x238 : 0x23c + level * 4).readPointer();
+            const [width, height] = ints(map.add(0x3c), 2), shift = level + 1;
+            const x = config.watchCell[0] >> shift, y = config.watchCell[1] >> shift;
+            if (x >= width || y >= height) throw new Error('Watched cell outside map');
+            const cell = map.add(0x28).readPointer().add((y * width + x) * (level === -1 ? 4 : 8));
+            const word = cell.add(level === -1 ? 0 : 4).readU32();
+            cells.push({level, x, y, word, classes: level === -1 ? null :
+                [0, 2, 4, 6].map(s => (word >>> (30 - s)) & 3)});
+        }
+        emit('cell-snapshot', {marker, cells});
+    }
+    // Preload's string-intern call receives the resolved C string on the stack.
+    hook(0x231df0, {onEnter(args) {
+        if (args[0].isNull()) return;
+        const value = args[0].readCString();
+        if (value.startsWith('PATHCROWD ')) emit('crowd-marker', {value});
+        if (value.startsWith('PATHTARGET ')) emit('target-marker', {value});
+        if (value.startsWith('PATHWIDGET ')) emit('widget-marker', {value});
+        if (value.startsWith('PATHTRACE ')) {
+            if (value.includes('label=start_widget_lifecycle ')) widgetScenario = true;
+            emit('marker', {value});
+            if (!value.includes('label=sample ')) snapshotCells(value);
+        }
+    }});
+    hook(0x2148f0, {onEnter(args) {
+        emit('terrain-native', {x: args[0].readFloat(), y: args[1].readFloat(),
+            pathingType: args[2].toInt32(), passable: args[3].toInt32()});
+    }});
+    for (const [kind, rva] of [['fine', 0x166e90], ['acc', 0x166c30]]) {
+        hook(rva, {
+            onEnter() {
+                this.thread = this.threadId;
+                this.prev = active.get(this.thread);
+                this.row = {request: ++serial, kind, path: this.context.ecx.toString(),
+                    footprint: this.context.ecx.add(0xb4).readFloat()};
+                if (config.blockers && kind === 'fine') this.row.blockers = {objectHits: 0, terrainHits: 0, boundsHits: 0, omittedHits: 0, unclassifiedHits: 0, objects: {}};
+                active.set(this.thread, this.row);
+                bump(kind + '-request');
+            },
+            onLeave(ret) {
+                if (this.row.request <= config.samples) {
+                    const path = ptr(this.row.path), offset = kind === 'fine' ? 0x34 : 0x54;
+                    const count = path.add(offset + 0x1c).readU32();
+                    if (count > 65536) throw new Error('Unexpected route count ' + count);
+                    const points = [], data = path.add(offset + 0x0c).readPointer();
+                    for (let i = 0; i < Math.min(count, 256); i++)
+                        points.push([data.add(i * 8).readFloat(), data.add(i * 8 + 4).readFloat()]);
+                    emit('route', {...this.row, result: ret.toInt32(), count, points,
+                        truncated: count > points.length,
+                        indices: ints(path.add(0x74), 2), flags: path.add(0x88).readU32()});
+                }
+                if (this.prev) active.set(this.thread, this.prev);
+                else active.delete(this.thread);
+            }
+        });
+    }
+    for (const [kind, rva, nodeoff, totaloff, budgetoff, popoff, goaloff] of [
+        ['fine', 0x14a4c0, 0x30, 0x40, 0x68, 0x6c, 0x88],
+        ['acc', 0x163f50, 0x5c, 0x6c, 0x98, 0x9c, 0xbc]
+    ]) {
+        hook(rva, {
+            onEnter() {
+                bump(kind + '-search');
+                this.self = this.context.ecx;
+                this.request = active.get(this.threadId);
+            },
+            onLeave(ret) {
+                if (samples >= config.samples) return;
+                samples++;
+                const p = this.self, count = p.add(totaloff).readU32();
+                if (count > 65536) throw new Error('Unexpected node count ' + count);
+                const row = {...this.request, kind, system: p.toString(), result: ret.toInt32(),
+                    pops: p.add(popoff).readU32(), budget: p.add(budgetoff).readU32(),
+                    nodes: count, goal: ints(p.add(goaloff), 2)};
+                if (kind === 'acc') {
+                    const nodes = p.add(nodeoff).readPointer(), levels = {};
+                    for (let i = 0; i < count; i++) {
+                        const level = nodes.add(i * 36 + 34).readU8();
+                        levels[level] = (levels[level] || 0) + 1;
+                    }
+                    row.levels = levels;
+                    row.sizeClass = p.add(0x90).readU32();
+                    row.maskShift = p.add(0xd4).readU32();
+                } else row.footprintClass = p.add(0xa0).readU16();
+                emit('search', row);
+            }
+        });
+    }
+    hook(0x15ab60, {
+        onEnter() {this.self = this.context.ecx; bump('maps-create');},
+        onLeave() {
+            const maps = [];
+            for (const offset of [0x234, 0x238, 0x23c, 0x240, 0x244, 0x248]) {
+                const p = this.self.add(offset).readPointer();
+                maps.push({slot: offset, pointer: p.toString(), dimensions: ints(p.add(0x3c), 2),
+                    scale: p.add(0x64).readFloat(), inverseScale: p.add(0x68).readFloat()});
+            }
+            emit('maps', {owner: this.self.toString(), maps,
+                runtimeConstants: Object.fromEntries([0xd3c740, 0xd3c744, 0xd3c748, 0xd53a74]
+                    .map(rva => [rva.toString(16), base.add(rva).readFloat()]))});
+        }
+    });
+    hook(0x15d360, {
+        onEnter(args) {
+            bump('hierarchy-update');
+            if (rebuildSamples++ >= 32) return;
+            emit('hierarchy-update', {owner: this.context.ecx.toString(),
+                rect: args[0].isNull() ? null : ints(args[0], 4), mode: args[1].toInt32(),
+                caller: this.returnAddress.sub(base).toString(), request: active.get(this.threadId)});
+        }
+    });
+    for (const [name, rva] of [['base-rebuild', 0x15cf80], ['parent-rebuild', 0x15d470]])
+        hook(rva, {onEnter() {bump(name);}});
+}
+
+Process.attachModuleObserver({onAdded: install});
+rpc.exports = {status() {return {installed, samples, counts};}};

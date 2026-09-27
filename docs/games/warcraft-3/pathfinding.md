@@ -99,6 +99,12 @@ The current router is now deliberately hybrid. Direct collision-sized lines hand
 
 ### Retail Game.dll path audit
 
+This is the historical ROC demo audit. The newer
+[retail 1.27 investigation](retail-pathfinding.md) identifies two A*-family
+searches, a four-level adaptive grid accelerator, footprint classes, and the
+remaining hierarchy/clearance questions. Keep its addresses separate from the
+demo offsets below.
+
 The ROC demo `data/Warcraft3demo/Game.dll` (build 4486, SHA-256 `286823c37a1083e91f07d040e46a9df7af4c4952e01fcbba460589bd4e297654`) retains RTTI for `CAbilityMove`, `NIpse::CLrPathingSys`, and `NIpse::CLrPathingAcc`. `CAbilityMove` installs its vtable at `Game.dll+0x102898`. The path constructor at `+0x458040` initializes a roughly 0xb0-byte persistent object, including two 32-byte containers at `+0x2c` and `+0x4c`, coordinate/state fields, and a pathing-system pointer. Mover setup at `+0x466aa0` allocates and stores one such object. Submission at `+0x458670` resets route state and copies the requested coordinate into both current and destination fields.
 
 The update at `+0x458930` checks flags at `+0x80`, can return a pending state from a countdown at `+0x8c`, invokes progression routines at `+0x457da0` and `+0x457f20`, and exposes multiple result states to the movement caller at `+0x4661d0`. `+0x457da0` appends 8-byte coordinate pairs to the object's route container. `+0x457f20` consults one of two global indexed arrays through a signed selector and a `-2` sentinel before advancing the route. Together with the separate `CLrPathingAcc` and `CLrPathingSys` types, this establishes persistent per-mover progress backed by global accelerated pathing data. It does not establish whether the accelerator is A*, hierarchical sectors, a portal graph, or another Blizzard-specific structure.

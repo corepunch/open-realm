@@ -88,6 +88,10 @@ the exact-version guard, independently of the `edict_t` header-size check.
 
 ## Remaining gap: automatic portal routing
 
+The retail 1.27 binary producer, source-cell stamping, and search-consumer
+chains are mapped in [retail-pathfinding.md](retail-pathfinding.md#special-edges-are-way-gate-records).
+That evidence is separate from the OpenRealm implementation below.
+
 Retail Warcraft III can choose a Way Gate while processing an ordinary distant
 movement order when the portal route is preferable to walking. OpenRealm does
 **not** implement that discovery yet.
