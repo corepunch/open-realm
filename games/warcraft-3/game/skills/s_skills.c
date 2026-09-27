@@ -13,6 +13,7 @@ cstring_t const raven_orders[] = { "ravenform", "unravenform", NULL };
 cstring_t const ancient_root_orders[] = { "root", "unroot", NULL };
 static cstring_t const mana_shield_orders[] = { "manashieldon", "manashieldoff", NULL };
 static cstring_t const build_orders[] = { "build", NULL };
+static cstring_t const hide_orders[] = { "ambush", NULL };
 
 static ability_t abilitylist[] = {
     { STR_CmdStop, CAbilityStop, AB_COMMAND },  // Stop — engine command
@@ -455,8 +456,8 @@ static ability_t abilitylist[] = {
     { "Atau", CAbilityTaunt, AB_SPELL },  /* Taunt */
     { "Amgl", CAbilityMoonGlaive, AB_PASSIVE | AB_INNATE },  /* Moon Glaive */
     { "Aspo", CAbilitySlowPoison, AB_PASSIVE | AB_INNATE },  /* Slow Poison */
-    { "Ashm", CAbilityWindWalk, AB_SPELL },  /* Shadow Meld */
-    { "Ahid", CAbilityWindWalk, AB_SPELL },  /* Hide */
+    { "Ashm", CAbilityShadowMeld, AB_PASSIVE | AB_UPDATE | AB_INNATE | AB_SPELL, SPELL_TARGET_NONE, hide_orders },  /* Shadow Meld */
+    { "Ahid", CAbilityShadowMeldAkama, AB_PASSIVE | AB_UPDATE | AB_INNATE | AB_SPELL, SPELL_TARGET_NONE, hide_orders },  /* Shadow Meld (Akama) */
     { "Aesn", CAbilityEvilEye, AB_SPELL, SPELL_TARGET_POINT },  /* Sentinel */
     { "Adtn", CAbilitySelfDestruct, AB_SPELL, SPELL_TARGET_NONE },  /* Detonate */
     { "Abrf", CAbilityMetamorphosis, AB_SPELL },  /* Bear Form */

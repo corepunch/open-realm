@@ -62,9 +62,10 @@ categories needed by the stock regeneration family and nearby custom variants:
 
 Aura participation also requires both the source and recipient to be active rather than
 hidden or gameplay-invisible. `RF_HIDDEN` covers explicit hidden state and temporary
-invisibility such as Invisibility/Wind Walk; Permanent Invisibility uses its separate
-runtime state. Fog-of-war visibility and true-sight detection do not alter this rule: an
-invisible unit does not provide or receive an aura merely because a viewer can detect it.
+invisibility such as Invisibility/Wind Walk; Permanent Invisibility and Shadow Meld use
+their separate authoritative states. Fog-of-war visibility and true-sight detection do
+not alter this rule: an invisible unit does not provide or receive an aura merely because
+a viewer can detect it.
 Eligibility changes in cached aura families are observed on the normal two-second aura
 refresh cadence.
 The same `S_AuraUnitActive` predicate is also used by Endurance Aura's direct movement-

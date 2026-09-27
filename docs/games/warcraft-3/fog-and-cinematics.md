@@ -62,7 +62,7 @@ Stopping a `VISIBLE` modifier stops forcing current vision but does not erase th
 Camera movement does not call the fog API, and fog state changes do not call camera APIs. Maps that want a cinematic pan and reveal must
 request both actions explicitly.
 
-The server's existing `G_FowPlayerCanSeeEntity()` remains the foreign-entity visibility gate. Known gameplay invisibility is evaluated there per viewer: owners/shared-vision allies keep access to their invisible units, while hostile viewers need a detector covering the target. Permanent Invisibility (`Apiv`) has dedicated saved state; Sorceress Invisibility/Wind Walk and hidden wards retain `RF_HIDDEN`, but only those recognized invisibility states participate in this visibility policy. Snapshot customization clears `RF_HIDDEN` only for a viewer who is allowed to see that invisible entity, leaving the authoritative entity flag untouched. This deliberately avoids treating cargo, mine workers, revival/training placeholders, and other non-invisibility uses of `RF_HIDDEN` as revealable. The same viewer-specific predicate gates selection, automatic hostile acquisition, attack continuation, and unit-target spell validation. Far Sight's saved timed thinker and passive detector abilities contribute true sight through the shared query.
+The server's existing `G_FowPlayerCanSeeEntity()` remains the foreign-entity visibility gate. Known gameplay invisibility is evaluated there per viewer: owners/shared-vision allies keep access to their invisible units, while hostile viewers need a detector covering the target. Permanent Invisibility (`Apiv`) and Shadow Meld (`Ashm`/`Ahid`) have dedicated saved state; Sorceress Invisibility/Wind Walk and hidden wards retain `RF_HIDDEN`, but only those recognized invisibility states participate in this visibility policy. Snapshot customization clears `RF_HIDDEN` only for a viewer who is allowed to see that invisible entity, leaving the authoritative entity flag untouched. This deliberately avoids treating cargo, mine workers, revival/training placeholders, and other non-invisibility uses of `RF_HIDDEN` as revealable. The same viewer-specific predicate gates selection, automatic hostile acquisition, attack continuation, and unit-target spell validation. Far Sight's saved timed thinker and passive detector abilities contribute true sight through the shared query.
 
 The client receives current and explored fog as separate planes, so world fog and minimap fog consume the same authoritative state while the minimap camera box continues to derive from camera state independently.
 
@@ -74,7 +74,7 @@ second clock from `level.time`.
 This change intentionally does not alter unrelated compatibility areas that need broader evidence:
 
 - `FogEnable` / `FogMaskEnable` retain their existing global behavior.
-- Ghost/Ghost Visible and Shadow Meld are not yet normalized into the player-aware invisibility path; current coverage is Permanent Invisibility, Sorceress Invisibility, Wind Walk, and the explicitly hidden ward mechanics.
+- Ghost/Ghost Visible are not yet normalized into the player-aware invisibility path. Shadow Meld now uses dedicated unit state with the same owner/shared-vision/detector visibility query as Permanent Invisibility, Sorceress Invisibility, Wind Walk, and explicitly hidden ward mechanics.
 - `FOW_CELL_SIZE` is unchanged.
 - Camera Z-offset native parity is separate from fog-state handling.
 
