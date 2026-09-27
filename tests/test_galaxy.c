@@ -1714,6 +1714,72 @@ TEST(galaxy, vm_event_unit_response) {
     gal_ent_unbind(); galaxy_reset(); gal_destroy(&s);
 }
 
+/* Death and revival are state transitions: repeating UnitKill or reviving a live unit publishes nothing. */
+TEST(galaxy, vm_event_death_is_transition) {
+    gal_state_t s = gal_new();
+    galaxy_reset(); gal_ent_reset(); gal_ent_bind(); gal_use_natives();
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "native trigger TriggerCreate(string name);\n"
+        "native void TriggerAddEventUnitDied(trigger t, unitref u);\n"
+        "native void TriggerAddEventUnitRevive(trigger t, unitref u);\n"
+        "native unit UnitCreate(int count, string type, int flags, int player, point where, fixed angle);\n"
+        "native point Point(fixed x, fixed y);\n"
+        "native void UnitKill(unit u);\n"
+        "native void UnitRevive(unit u);\n"
+        "int gv_died = 0; int gv_revived = 0;\n"
+        "bool on_die(bool testConds, bool runActions) { gv_died = gv_died + 1; return true; }\n"
+        "bool on_revive(bool testConds, bool runActions) { gv_revived = gv_revived + 1; return true; }\n"
+        "void main() {\n"
+        "    unit u = UnitCreate(1, \"Marine\", 0, 1, Point(0.0, 0.0), 0.0);\n"
+        "    TriggerAddEventUnitDied(TriggerCreate(\"on_die\"), null);\n"
+        "    TriggerAddEventUnitRevive(TriggerCreate(\"on_revive\"), null);\n"
+        "    UnitRevive(u);\n"
+        "    if (gv_revived != 0) { TestFail(\"revived a live unit\"); }\n"
+        "    UnitKill(u); UnitKill(u);\n"
+        "    if (gv_died != 1) { TestFail(\"second kill fired died\"); }\n"
+        "    UnitRevive(u); UnitRevive(u);\n"
+        "    if (gv_revived != 1) { TestFail(\"second revive fired revive\"); }\n"
+        "}"));
+    gal_ent_unbind(); galaxy_reset(); gal_destroy(&s);
+}
+
+/* Loaded cargo rides at its transport; unloading far from the map origin must not look like leaving a region there. */
+TEST(galaxy, vm_event_cargo_unload_starts_at_transport) {
+    gal_state_t s = gal_new();
+    galaxy_reset(); gal_ent_reset(); gal_ent_bind(); gal_use_natives();
+    T_ASSERT(gal_run(&s,
+        "native void TestFail(string msg);\n"
+        "native trigger TriggerCreate(string name);\n"
+        "native unit UnitCreate(int count, string type, int flags, int player, point where, fixed angle);\n"
+        "native point Point(fixed x, fixed y);\n"
+        "native region RegionRect(fixed minx, fixed miny, fixed maxx, fixed maxy);\n"
+        "native void TriggerAddEventUnitRegion(trigger t, unitref u, region r, bool state);\n"
+        "native unit UnitCargoCreate(unit transport, string type, int count);\n"
+        "native abilcmd AbilityCommand(string name, int index);\n"
+        "native order OrderTargetingPoint(abilcmd command, point target);\n"
+        "native bool UnitIssueOrder(unit value, order valueOrder, int queue);\n"
+        "int gv_origin_left = 0; int gv_landed = 0;\n"
+        "bool on_origin_left(bool testConds, bool runActions) { gv_origin_left = gv_origin_left + 1; return true; }\n"
+        "bool on_landed(bool testConds, bool runActions) { gv_landed = gv_landed + 1; return true; }\n"
+        "void main() {\n"
+        "    unit ship = UnitCreate(1, \"Dropship\", 0, 1, Point(20.0, 20.0), 0.0);\n"
+        "    TriggerAddEventUnitRegion(TriggerCreate(\"on_origin_left\"), null, RegionRect(-5.0, -5.0, 5.0, 5.0), false);\n"
+        "    TriggerAddEventUnitRegion(TriggerCreate(\"on_landed\"), null, RegionRect(15.0, 22.0, 25.0, 30.0), true);\n"
+        "    UnitCargoCreate(ship, \"Marine\", 1);\n"
+        "    UnitIssueOrder(ship, OrderTargetingPoint(AbilityCommand(\"SpecOpsDropshipTransport\", 0), Point(20.0, 21.5)), 0);\n"
+        "}\n"
+        "void check() {\n"
+        "    if (gv_origin_left != 0) { TestFail(\"unload crossed a region at the map origin\"); }\n"
+        "    if (gv_landed != 1) { TestFail(\"unload did not enter the landing region\"); }\n"
+        "}\n"));
+    galaxy_tick(s.j); galaxy_tick(s.j);
+    jass_callbyname(s.j, "check", false);
+    if (jass_rterror_pending(s.j)) fprintf(stderr, "cargo: %s\n", jass_rterror_message(s.j));
+    T_ASSERT(!jass_rterror_pending(s.j));
+    gal_ent_unbind(); galaxy_reset(); gal_destroy(&s);
+}
+
 /* Position crossings and issued orders publish the same response fields WC3 stores on the event. */
 TEST(galaxy, vm_event_spatial_and_order) {
     gal_state_t s = gal_new();
