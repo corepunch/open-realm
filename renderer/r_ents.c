@@ -192,7 +192,7 @@ void R_DrawDecals(void) {
 uint32_t selCircles[NUM_SELECTION_CIRCLES] = { 100, 300, 100000 };
 
 static void R_RenderUberSplat(renderEntity_t const *entity, vec2_t const *origin) {
-    if (entity->splat && !(entity->flags & RF_NO_UBERSPLAT)) {
+    if (R_ShouldRenderUberSplat(entity)) {
         R_RenderSplat(origin, entity->splatsize, entity->splat, R_SPLAT_SHADER(&tr.shader_default), COLOR32_WHITE);
     }
 }

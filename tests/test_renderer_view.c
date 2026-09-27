@@ -7,6 +7,19 @@ static viewDef_t drawn;
 static bool camera;
 static int entities, scenes;
 
+TEST(renderer_view, building_ubersplat_tracks_runtime_structure_flag) {
+    renderEntity_t entity = { .splat = (texture_t const *)(uintptr_t)1 };
+
+    T_ASSERT(!R_ShouldRenderUberSplat(&entity));
+    entity.flags |= RF_BUILDING;
+    T_ASSERT(R_ShouldRenderUberSplat(&entity));
+    entity.flags |= RF_NO_UBERSPLAT;
+    T_ASSERT(!R_ShouldRenderUberSplat(&entity));
+    entity.flags &= ~RF_NO_UBERSPLAT;
+    entity.flags &= ~RF_BUILDING;
+    T_ASSERT(!R_ShouldRenderUberSplat(&entity));
+}
+
 /* Exercise production view ownership while replacing only game/GPU passes. */
 #undef R_Call
 #define R_Call(func, ...) ((void)0)
