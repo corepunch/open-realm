@@ -29,6 +29,7 @@
 
 /* Pull in the net types + common types without game state. */
 #include "../client/client.h"
+#include "../client/cl_input_local.h"
 
 static cstring_t minimap_map;
 static void capture_minimap(rect_t const *screen, cstring_t map) { (void)screen; minimap_map = map; }
@@ -59,6 +60,7 @@ extern bool scr_initialized;
 void test_client_stubs_clear_cvars(void);
 extern uint32_t test_fow_upload_calls;
 extern uint32_t test_cursor_draw_calls;
+extern uint32_t test_client_realtime, test_cursor_time;
 extern color32_t test_cursor_tint;
 extern char test_forwarded_command[128];
 extern char test_menu_action[32];
@@ -628,9 +630,27 @@ TEST(net, scene_time_rewind_starts_a_new_render_epoch) {
 }
 
 
+TEST(client_screen, cursor_uses_presentation_clock) {
+    test_client_stubs_init(); test_client_stubs_clear_cvars();
+    cls.state = ca_active; cls.key_dest = key_menu; scr_initialized = true;
+    test_client_stubs_set_cvar("r_hud", "0");
+    test_client_stubs_set_cvar("scr_showfps", "0");
+    test_client_stubs_set_cvar("r_cursor", "1");
+    re.BeginFrame = capture_begin_frame; re.EndFrame = capture_end_frame;
+    cl.time = 100; cl.viewDef.time = 100;
+    test_client_realtime = 500;
+    SCR_UpdateScreen(16);
+    T_EQ(test_cursor_time, 500);
+    test_client_realtime = 750;
+    SCR_UpdateScreen(16);
+    T_EQ(test_cursor_time, 750);
+    T_EQ(test_cursor_draw_calls, 2);
+    scr_initialized = false;
+}
+
 /* Authored cursors use the same recipient-relative hover relationship as the
- * world ring: enemies tint red, neutral/passive targets yellow, and friendly
- * or no hover restores the original artwork. */
+ * retail relationship palette: enemies red, neutral/passive yellow, friendly
+ * targets green; no hover restores the original artwork. */
 TEST(client_screen, cursor_tint_follows_wc3_hover_relationship) {
     test_client_stubs_init(); test_client_stubs_clear_cvars();
     cls.state = ca_active; cls.key_dest = key_game; scr_initialized = true;
@@ -655,8 +675,8 @@ TEST(client_screen, cursor_tint_follows_wc3_hover_relationship) {
     SCR_UpdateScreen(16);
     T_EQ(test_cursor_draw_calls, 2);
     T_EQ(test_cursor_tint.r, 255);
-    T_EQ(test_cursor_tint.g, 220);
-    T_EQ(test_cursor_tint.b, 80);
+    T_EQ(test_cursor_tint.g, 255);
+    T_EQ(test_cursor_tint.b, 0);
     T_EQ(test_cursor_tint.a, 255);
 
     /* Invulnerable units keep a name with neither bar flag. */
@@ -4146,4 +4166,95 @@ TEST(net, loading_minimap_dispatches_static_map_after_delta_decode) {
     CL_LayoutDrawMinimap(&output, &(rect_t){0, 0, 0.16f, 0.16f});
     T_NULL(minimap_map);
     re.DrawMinimap = old_draw;
+}
+
+extern drawCursor_t test_cursor_presented;
+extern bool test_mouse_captured;
+TEST(client_screen, authored_cursor_assets_modal_restore_and_delta_clear) {
+    uint8_t bytes[256];
+    player_t from = {0}, to = {0}, out = {0};
+    uint32_t bits;
+    to.number = 1;
+    to.stats[UI_PLAYERSTAT_CURSOR_INTERACTIONL] = 71;
+    to.stats[UI_PLAYERSTAT_CURSOR_INTERACTION] = 2;
+    to.stats[UI_PLAYERSTAT_CURSOR_IMAGE] = 117;
+    sizeBuf_t msg = make_msg_buf(bytes, sizeof(bytes));
+    MSG_WriteDeltaPlayerState(&msg, &from, &to);
+    msg.readcount = 0;
+    int number = MSG_ReadPlayerBits(&msg, &bits);
+    MSG_ReadDeltaPlayerState(&msg, &out, number, bits);
+    T_EQ(out.stats[UI_PLAYERSTAT_CURSOR_INTERACTIONL], 71);
+    T_EQ(out.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 2);
+    T_EQ(out.stats[UI_PLAYERSTAT_CURSOR_IMAGE], 117);
+    test_client_stubs_init(); test_client_stubs_clear_cvars();
+    cls.state = ca_active; cls.key_dest = key_game; scr_initialized = true;
+    test_client_stubs_set_cvar("r_hud", "0");
+    test_client_stubs_set_cvar("scr_showfps", "0");
+    test_client_stubs_set_cvar("r_cursor", "1");
+    re.BeginFrame = capture_begin_frame; re.EndFrame = capture_end_frame;
+    cl.playerstate = out;
+    cl.models[71] = (model_t *)(uintptr_t)71;
+    cl.pics[117] = (texture_t *)(uintptr_t)117;
+    SCR_UpdateScreen(16);
+    T_ASSERT(test_cursor_presented.model == cl.models[71]);
+    T_ASSERT(test_cursor_presented.skin == cl.pics[117]);
+    T_EQ(test_cursor_presented.interaction, 2);
+    cls.key_dest = key_menu; SCR_UpdateScreen(16);
+    T_EQ(test_cursor_presented.interaction, 0); T_NULL(test_cursor_presented.skin);
+    cls.key_dest = key_game; SCR_UpdateScreen(16);
+    T_EQ(test_cursor_presented.interaction, 2); T_ASSERT(test_cursor_presented.skin == cl.pics[117]);
+    test_mouse_captured = true; SCR_UpdateScreen(16);
+    T_EQ(test_cursor_presented.interaction, 0); T_NULL(test_cursor_presented.skin);
+    test_mouse_captured = false; SCR_UpdateScreen(16);
+    T_EQ(test_cursor_presented.interaction, 2);
+    from = out; to = out;
+    to.stats[UI_PLAYERSTAT_CURSOR_INTERACTION] = to.stats[UI_PLAYERSTAT_CURSOR_IMAGE] = 0;
+    msg = make_msg_buf(bytes, sizeof(bytes));
+    MSG_WriteDeltaPlayerState(&msg, &from, &to); msg.readcount = 0;
+    number = MSG_ReadPlayerBits(&msg, &bits); MSG_ReadDeltaPlayerState(&msg, &out, number, bits);
+    T_EQ(out.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 0); T_EQ(out.stats[UI_PLAYERSTAT_CURSOR_IMAGE], 0);
+    cl.playerstate = out; SCR_UpdateScreen(16);
+    T_EQ(test_cursor_presented.interaction, 0); T_NULL(test_cursor_presented.skin);
+    scr_initialized = false;
+}
+
+TEST(net, all_player_stats_roundtrip_update_and_clear) {
+    uint8_t bytes[512];
+    player_t from = {0}, to = { .number = 2 }, out = {0};
+    uint32_t bits;
+    FOR_LOOP(i, MAX_STATS) to.stats[i] = (uint16_t)(65535 - i * 113);
+    sizeBuf_t msg = make_msg_buf(bytes, sizeof(bytes));
+    MSG_WriteDeltaPlayerState(&msg, &from, &to); msg.readcount = 0;
+    int number = MSG_ReadPlayerBits(&msg, &bits); MSG_ReadDeltaPlayerState(&msg, &out, number, bits);
+    FOR_LOOP(i, MAX_STATS) T_EQ(out.stats[i], to.stats[i]);
+    T_EQ(msg.readcount, msg.cursize);
+    from = to; to.stats[0] = 4; to.stats[31] = 0;
+    msg = make_msg_buf(bytes, sizeof(bytes));
+    MSG_WriteDeltaPlayerState(&msg, &from, &to); msg.readcount = 0;
+    number = MSG_ReadPlayerBits(&msg, &bits); MSG_ReadDeltaPlayerState(&msg, &out, number, bits);
+    FOR_LOOP(i, MAX_STATS) T_EQ(out.stats[i], to.stats[i]);
+    T_EQ(msg.readcount, msg.cursize);
+}
+
+static bool cursor_test_minimap_trace(float x, float y, vec2_t *world) {
+    (void)x; (void)y; *world = (vec2_t){123,456}; return true;
+}
+TEST(client_screen, signal_minimap_click_sends_point_without_camera_drag) {
+    uint8_t bytes[128]; char command[128];
+    test_client_stubs_init(); CL_ClearMinimap();
+    cls.state = ca_active; cls.key_dest = key_game;
+    cls.netchan.message = make_msg_buf(bytes, sizeof(bytes));
+    re.TraceMinimap = cursor_test_minimap_trace;
+    cl.playerstate.stats[UI_PLAYERSTAT_CURSOR_FLAGS] = CURSOR_INPUT_MINIMAP_POINT;
+    cl.viewDef.camerastate[0].origin = (vec3_t){17,23,31};
+    T_ASSERT(CL_TryMinimapClick(10, 20));
+    T_EQ(MSG_ReadByte(&cls.netchan.message), clc_stringcmd);
+    MSG_ReadString(&cls.netchan.message, command); T_STREQ(command, "point 123 456");
+    CL_UpdateMinimapDrag(30, 40);
+    T_FEQ(cl.viewDef.camerastate[0].origin.x, 17, 0.001f);
+    T_FEQ(cl.viewDef.camerastate[0].origin.y, 23, 0.001f);
+    cls.key_dest = key_menu;
+    T_ASSERT(!CL_TryMinimapClick(10,20));
+    cl.playerstate.stats[UI_PLAYERSTAT_CURSOR_FLAGS] = 0;
+    cls.netchan.message = (sizeBuf_t){0};
 }

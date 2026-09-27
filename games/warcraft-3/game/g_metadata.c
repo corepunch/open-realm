@@ -3,6 +3,7 @@
 #include "g_unitrow.h"
 
 cstring_t config_files[] = {
+    "UI\\WorldEditGameStrings.txt",
     "Units\\OrcAbilityStrings.txt",
     "Units\\HumanUnitFunc.txt",
     "Units\\OrcUpgradeFunc.txt",

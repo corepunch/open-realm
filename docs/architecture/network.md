@@ -316,3 +316,20 @@ pointer can pan the camera into unexplored fog. For a command-line guest, also u
 active frame, so the default queued `menu_main` would otherwise reopen after loading. This CLI-only diagnostic
 setting is unnecessary when joining through the LAN menu. Final engine screenshots confirmed the blue guest
 and red host at their respective bases with terrain, units, fog, and HUD visible.
+
+## Player-stat deltas (protocol 14)
+
+Player-state fields retain a 32-bit field mask. After those fields, a separate
+32-bit stat mask identifies changed slots in `player_t.stats`; each set bit is
+followed by its unsigned 16-bit value in ascending slot order, including zero
+when clearing a stat. This follows Quake 2's player-stat delta pattern. The
+previous selected-pair field list omitted slots 25 and above; the cursor model,
+mode and image regression exposed that omission. Tests cover all 32 slots,
+unchanged values and clears. Protocol 14 rejects older peers at connection time.
+Version 13 introduced this stat mask; version 14 separates pointer interaction
+values from resolved game-renderer modes and adds pointer input-policy flags.
+
+The generic cursor presentation stats carry a registered model, an opaque
+game-owned interaction, a registered cursor image and generic input-policy flags. WC3 resolves race skins and
+inventory/color art on the server; the shared client only looks up registered handles.
+See [cursor integration](../games/warcraft-3/cursor-rendering.md#race-targeting-and-held-item-integration).

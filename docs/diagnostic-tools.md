@@ -69,6 +69,16 @@ Common flags:
 - `--info`: print model metadata and chunk counts without opening a window.
 - `--dump-all`: print loaded model details including nodes, bones, geosets, materials, and cameras.
 - `--once`: render one frame and exit; useful for scripted diagnostics.
+- `--sprite <x> <y>`: use the production UI sprite path at the specified top-origin UI hotspot.
+- `--size <width> <height>`: choose the framebuffer dimensions.
+- `--background <archive-image>`: composite a background before the sprite; uncompressed TGA supports captured framebuffers.
+- `--frame <ms> -o <output.png>`: sample animation time relative to the selected interval and save a clean frame.
+
+For retail cursor comparisons, `tools/frida/compare_wc3_cursor_capture.py` packs an
+extracted MDX and supplied textures with a captured background, invokes the sprite
+path, and compares RGB components. See [cursor framebuffer evidence](games/warcraft-3/cursor-rendering.md#engine-clock-and-framebuffer-corrections)
+for capture instructions, pixel-center conversion and precision controls.
+
 
 When to use `--info`:
 - Confirm the model exists and loads from MPQ path.

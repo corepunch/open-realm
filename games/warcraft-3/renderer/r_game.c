@@ -1,3 +1,4 @@
+#include "games/warcraft-3/common/cursor.h"
 #include "renderer/r_game.h"
 #include "games/warcraft-3/common/wc3_coords.h"
 #include "r_lightning.h"
@@ -58,9 +59,56 @@ static cstring_t modelNames[MODEL_COUNT] = {
     "UI\\Feedback\\SelectionCircle\\SelectionCircle.mdx"
 };
 
-static cstring_t const cursor_model_name = "UI\\Cursor\\HumanCursor.mdx";
+static PATHSTR cursor_model_name;
+static model_t const *cursor_active_model;
+static cstring_t cursor_bad_anim;
 static model_t *cursor_model;
 static bool cursor_load_attempted;
+static struct {
+    cstring_t anim;
+    color32_t tint;
+} const cursor_modes[WC3_CURSOR_COUNT] = {
+    [WC3_CURSOR_NORMAL] = { "Normal", {255,255,255,255} },
+    [WC3_CURSOR_SELECT_YELLOW] = { "Select", {255,255,0,255} },
+    [WC3_CURSOR_SELECT_RED] = { "Select", {255,0,0,255} },
+    [WC3_CURSOR_SELECT_GREEN] = { "Select", {0,255,0,255} },
+    [WC3_CURSOR_TARGET] = { "Target", {255,255,255,255} },
+    [WC3_CURSOR_TARGET_SELECT_YELLOW] = { "TargetSelect", {255,255,0,255} },
+    [WC3_CURSOR_TARGET_SELECT_RED] = { "TargetSelect", {255,0,0,255} },
+    [WC3_CURSOR_TARGET_SELECT_GREEN] = { "TargetSelect", {0,255,0,255} },
+    [WC3_CURSOR_SIGNAL] = { "TargetSelect", {0,0,0,0} }, /* Dynamic skin/player color. */
+    [WC3_CURSOR_HOLD_ITEM] = { "HoldItem", {255,255,255,255} },
+    [WC3_CURSOR_SCROLL_LEFT] = { "Scroll Left", {255,255,255,255} },
+    [WC3_CURSOR_SCROLL_RIGHT] = { "Scroll Right", {255,255,255,255} },
+    [WC3_CURSOR_SCROLL_UP] = { "Scroll Up", {255,255,255,255} },
+    [WC3_CURSOR_SCROLL_DOWN] = { "Scroll Down", {255,255,255,255} },
+    [WC3_CURSOR_SCROLL_UP_LEFT] = { "Scroll Up Left", {255,255,255,255} },
+    [WC3_CURSOR_SCROLL_UP_RIGHT] = { "Scroll Up Right", {255,255,255,255} },
+    [WC3_CURSOR_SCROLL_DOWN_LEFT] = { "Scroll Down Left", {255,255,255,255} },
+    [WC3_CURSOR_SCROLL_DOWN_RIGHT] = { "Scroll Down Right", {255,255,255,255} },
+};
+
+static wc3CursorMode_t R_ResolveCursorMode(drawCursor_t const *cursor) {
+    static wc3CursorMode_t const scroll[3][3] = {
+        {WC3_CURSOR_SCROLL_UP_LEFT, WC3_CURSOR_SCROLL_UP, WC3_CURSOR_SCROLL_UP_RIGHT},
+        {WC3_CURSOR_SCROLL_LEFT, WC3_CURSOR_NORMAL, WC3_CURSOR_SCROLL_RIGHT},
+        {WC3_CURSOR_SCROLL_DOWN_LEFT, WC3_CURSOR_SCROLL_DOWN, WC3_CURSOR_SCROLL_DOWN_RIGHT},
+    };
+    /* CSignalMode locks the owner until exit; neither hover nor scroll replaces it. */
+    if (cursor->interaction == WC3_POINTER_SIGNALING) return WC3_CURSOR_SIGNAL;
+    if (cursor->scroll.x || cursor->scroll.y)
+        return scroll[1 - (cursor->scroll.y > 0) + (cursor->scroll.y < 0)]
+                     [1 + (cursor->scroll.x > 0) - (cursor->scroll.x < 0)];
+    if (cursor->interaction == WC3_POINTER_HOLDING) return WC3_CURSOR_HOLD_ITEM;
+    bool const target = cursor->interaction == WC3_POINTER_TARGETING;
+    if (!cursor->hover) return target ? WC3_CURSOR_TARGET : WC3_CURSOR_NORMAL;
+    wc3CursorMode_t const selection = cursor->hostile ? WC3_CURSOR_SELECT_RED :
+        cursor->owned ? WC3_CURSOR_SELECT_GREEN : WC3_CURSOR_SELECT_YELLOW;
+    return (wc3CursorMode_t)(selection + (target ? WC3_CURSOR_TARGET : 0));
+}
+static cstring_t cursor_anim;
+static uint32_t cursor_time, cursor_frame;
+static bool cursor_restart;
 
 static w3TerrainArt_t *g_terrain_rows; static uint32_t g_terrain_count; static slkIndex_t g_terrain_idx;
 static w3CliffType_t *g_cliff_rows;   static uint32_t g_cliff_count;   static slkIndex_t g_cliff_idx;
@@ -357,7 +405,8 @@ void R_LoadAssets(void) {
 }
 
 void R_Init(void) {
-    cursor_model = NULL; cursor_load_attempted = false;
+    cursor_model = NULL; cursor_active_model = NULL; cursor_load_attempted = false; cursor_anim = NULL;
+    cursor_model_name[0] = 0;
     R_WeatherInit();
     R_LightningInit();
     MDLX_Init();
@@ -371,7 +420,8 @@ void R_Shutdown(void) {
     Stb_IniCacheFree(&minimap_map_skin);
     memset(minimap_special, 0, sizeof(minimap_special));
     /* R_ShutdownModels runs first and owns the cached model allocation; only clear our borrowed handle here. */
-    cursor_model = NULL; cursor_load_attempted = false;
+    cursor_model = NULL; cursor_active_model = NULL; cursor_load_attempted = false; cursor_anim = NULL;
+    cursor_model_name[0] = 0;
     memset(wc3_attachment_models, 0, sizeof(wc3_attachment_models));
     wc3_attachment_model_count = 0;
     FS_SLKFreeIndex(&g_terrain_idx);
@@ -690,6 +740,7 @@ void R_DrawMinimap(rect_t const *screen, cstring_t map) {
 }
 
 void R_RegisterMap(cstring_t mapFileName) {
+    cursor_active_model = NULL; cursor_anim = NULL;
     R_SetMapAssetScope(mapFileName);
     R_AdvanceTextureGeneration();
     R_W3LoadSpawnData();
@@ -1284,19 +1335,71 @@ void R_DrawSprite(drawSprite_t const *sprite) {
 }
 
 /* Warcraft III can replace the platform cursor with its authored animated MDX cursor. */
-bool R_DrawCursor(float x, float y, color32_t tint) {
-    renderEntity_t probe = {0};
-
-    if (!cursor_model && !cursor_load_attempted) {
+bool R_DrawCursor(drawCursor_t const *cursor) {
+    if (cursor->game && !cursor->model) return false;
+    if (!cursor->model && !cursor_model && !cursor_load_attempted) {
+        stbIniCache_t theme = {0};
         cursor_load_attempted = true;
-        cursor_model = R_LoadModel(cursor_model_name);
-        if (!cursor_model || !R_SetEntityAnimFrame(cursor_model, "Normal", &probe)) {
-            fprintf(stderr, "WC3 cursor unavailable: %s\n", cursor_model_name);
+        R_LoadIniCachePath(&theme, "UI\\war3skins.txt");
+        cstring_t path = Stb_IniCacheFind(&theme, "Default", "Cursor");
+        if (path && *path) snprintf(cursor_model_name, sizeof(cursor_model_name), "%s", path);
+        else fprintf(stderr, "WC3 menu cursor: missing Default/Cursor in UI\\war3skins.txt\n");
+        Stb_IniCacheFree(&theme);
+        if (cursor_model_name[0]) cursor_model = R_LoadModel(cursor_model_name);
+        if (!cursor_model || cursor_model->modeltype != ID_MDLX || !cursor_model->mdx) {
+            fprintf(stderr, "WC3 menu cursor unavailable: %s\n", cursor_model_name);
             if (cursor_model) R_ReleaseModel(cursor_model);
             cursor_model = NULL;
         }
     }
-    if (!cursor_model) return false;
-    MDLX_DrawSpriteTinted(cursor_model, "Normal", x, y, tint);
+    model_t const *model = cursor->model ? cursor->model : cursor_model;
+    if (!model) return false;
+    if (model != cursor_active_model) {
+        cursor_active_model = model;
+        cursor_anim = cursor_bad_anim = NULL;
+    }
+    if (model->modeltype != ID_MDLX || !model->mdx) {
+        if (!cursor_bad_anim) fprintf(stderr, "WC3 cursor: selected model has no MDX data\n");
+        cursor_bad_anim = "invalid model";
+        return false;
+    }
+    wc3CursorMode_t const mode = R_ResolveCursorMode(cursor);
+    cstring_t anim = cursor_modes[mode].anim;
+    if (mode == WC3_CURSOR_SIGNAL && (!cursor->skin || !cursor->skin->has_first_pixel)) {
+        if (cursor_bad_anim != anim) fprintf(stderr, "WC3 signal cursor: missing decoded player-color image\n");
+        cursor_bad_anim = anim;
+        return false;
+    }
+    mdxSequence_t const *sequence = MDLX_FindSequenceByName(model->mdx, anim);
+    if (!sequence || sequence->interval[1] <= sequence->interval[0]) {
+        if (cursor_bad_anim != anim) fprintf(stderr, "WC3 cursor: missing or invalid sequence %s\n", anim);
+        cursor_bad_anim = anim;
+        return false;
+    }
+    cursor_bad_anim = NULL;
+    uint32_t const step = cursor_anim ? cursor->time - cursor_time : 0;
+    uint32_t const duration = sequence->interval[1] - sequence->interval[0];
+    if (anim != cursor_anim || cursor_restart) cursor_frame = 0;
+    cursor_anim = anim;
+    cursor_time = cursor->time;
+    /* CSpriteUber's end callback marks -2. The next update restarts before
+     * consuming its step, dropping the preceding loop's wrapped remainder. */
+    uint64_t const frame = (uint64_t)cursor_frame + step;
+    cursor_restart = !(sequence->flags & 1) && frame >= duration;
+    cursor_frame = sequence->flags & 1 ? MIN(frame, duration) : frame % duration;
+    /* Retail substitutes the cursor at its hotspot, with untinted authored scroll art. */
+    color32_t tint = mode == WC3_CURSOR_SIGNAL ? cursor->skin->first_pixel : cursor_modes[mode].tint;
+    drawSprite_t sprite = { .model = model, .anim = anim, .x = cursor->origin.x, .y = cursor->origin.y,
+        .skin = mode == WC3_CURSOR_HOLD_ITEM ? cursor->skin : NULL,
+        .skin_slot = 21, /* Retail HoldItem replaces ID 21; other authored slots remain intact. */
+        .start_time = tr.viewDef.time - cursor_frame, .id = &cursor_model };
+    /* D3D9 places pixel centers on integer coordinates. GL's half-integer
+     * centers require this physical-pixel offset for the retail hotspot. */
+    rect_t const scene = R_UISceneRect();
+    if (tr.drawableSize.width && tr.drawableSize.height) {
+        sprite.x += scene.w / (2.0f * tr.drawableSize.width);
+        sprite.y += scene.h / (2.0f * tr.drawableSize.height);
+    }
+    MDLX_DrawSpriteInstance(&sprite, tint);
     return true;
 }

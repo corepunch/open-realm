@@ -1,3 +1,4 @@
+#include "games/warcraft-3/common/cursor.h"
 /*
  * hud_write.c — Frame-write primitives, theme lookup, text formatting.
  *
@@ -518,4 +519,42 @@ void UI_WriteWindowEnd(edict_t *ent) {
     gi.Write(PF_LONG, &(int32_t){0}); gi.Write(PF_SHORT, &(int32_t){0});
     gi.Write(PF_LONG, &ui_window_text_size); gi.Write(PF_DATA, &text);
     gi.unicast(ent);
+}
+
+void UI_UpdateCursorPresentation(gameClient_t *client) {
+    cstring_t path;
+    edict_t *item;
+    gameInventoryItem_t icon;
+    if (!client) return;
+    G_UpdateItemDrag(client);
+    path = Theme_PlayerString(client, "Cursor", NULL);
+    client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTIONL] = path && *path ? gi.ModelIndex(path) : 0;
+    if (!path || !*path) {
+        if (!client->cursor_missing_reported)
+            fprintf(stderr, "WC3 cursor: missing Cursor skin field for player %u race %u\n", client->ps.number, client->ps.race);
+        client->cursor_missing_reported = true;
+    } else client->cursor_missing_reported = false;
+    client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION] = WC3_POINTER_IDLE;
+    client->ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE] = 0;
+    client->ps.stats[UI_PLAYERSTAT_CURSOR_FLAGS] = 0;
+    if (client->cursor_signal) {
+        client->ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE] = G_SignalColorImage(client);
+        if (client->ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE]) {
+            client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION] = WC3_POINTER_SIGNALING;
+            client->ps.stats[UI_PLAYERSTAT_CURSOR_FLAGS] = CURSOR_INPUT_MINIMAP_POINT;
+            return;
+        }
+        /* Failed skin resolution already diagnosed; cancel the unusable overlay
+         * once, retaining the underlying command instead of logging every frame. */
+        client->cursor_signal = false;
+    }
+    if (client->menu.dragged_item) {
+        item = G_GetDraggedItem(client);
+        if (item && G_BuildInventoryItem(item->item.carrier, item, item->item.inventory_slot, &icon) && icon.art[0]) {
+            client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION] = WC3_POINTER_HOLDING;
+            client->ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE] = gi.ImageIndex(icon.art);
+        }
+    } else if (client->menu.on_entity_selected || client->menu.on_location_selected) {
+        client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION] = WC3_POINTER_TARGETING;
+    }
 }

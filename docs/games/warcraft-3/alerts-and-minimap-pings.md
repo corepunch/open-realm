@@ -126,4 +126,17 @@ Recommended runtime checks when testing manually:
 6. Call `SetCameraQuickPosition` with no automatic alert history and verify assignment does not move the camera, then Space recalls it.
 7. Verify a ping in fog does not reveal terrain or units.
 
-See also: [Triggered Dialogue](triggered-dialogue.md), [Cinematics And Camera](cinematics.md), [Sounds](sounds.md), and [Server-Selected Presentation Effects](../../architecture/server-selected-effects.md).
+See also: [Triggered Dialogue](triggered-dialogue.md), [Cinematics And Camera](cinematics.md), [Sound architecture](../../../architecture/sound.md), and [Server-Selected Presentation Effects](../../architecture/server-selected-effects.md).
+
+## Interactive signal cursor
+
+`cmd signal` (default Alt+G) pushes a transient signal overlay. A world/entity
+or minimap click emits the existing ally ping; Esc/right click cancels without
+losing the underlying target or item-drag command. Minimap clicks carry a
+generic point-routing flag and do not recenter/drag the camera. Signal cursor
+color follows the player's skin-resolved TeamColor image; see
+[cursor mode and color evidence](cursor-rendering.md#signal-overlay-and-dynamic-color).
+
+This currently reuses the one-second white ping service. Retail ping lifetime,
+player tint on the ping model, and HUD signal-button wiring are not established
+by the cursor tests and remain separate presentation work.

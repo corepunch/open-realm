@@ -1,4 +1,5 @@
 [Default]
+Cursor=TestUI\Models\anim_pulse.mdx
 QuestChangedParticles=UI\Feedback\QuestButton\UI-QuestButtonOn.mdl
 CommandButtonAutocast=UI\Feedback\Autocast\UI-ModalButtonOn.mdl
 CommandButtonDisabledArtPath=ReplaceableTextures\CommandButtonsDisabled\

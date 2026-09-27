@@ -8,6 +8,15 @@
 
 All implemented group natives validate handles with `G_JassGroupValid()`. A destroyed group therefore behaves as invalid until its slot is reused. As with Warcraft native handles generally, scripts must not retain and use a handle after calling `DestroyGroup`.
 
+## Enumeration during mutation
+
+`ForGroup` snapshots member identities before invoking callbacks. Removing
+units, clearing/destroying the group, or performing nested enumeration must
+not skip or repeat its remaining live members. Removed or reused edicts are
+excluded by their lifetime identity. See the retail-backed
+[NightElfX01 flow investigation](nightelfx01-flow.md) for the cinematic cleanup
+failure that exposed mutation during enumeration and its regression tests.
+
 ## Why the registry is dynamic
 
 The original OpenRealm registry used `level.groups[MAX_GROUPS]` with `MAX_GROUPS == 1024`. Reusing `DestroyGroup` holes fixed ordinary temporary-group churn, but real Blizzard campaign JASS can intentionally or accidentally retain more than 1024 group handles.

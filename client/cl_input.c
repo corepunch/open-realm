@@ -479,6 +479,25 @@ static void CL_MouseMotion(SDL_MouseMotionEvent const *motion) {
     }
 }
 
+/* Mouse-edge direction is shared by camera movement and cursor presentation. */
+bool CL_MouseCaptured(void) { return camera_drag.active || input.look; }
+
+vec2_t CL_MouseScroll(void) {
+    vec2_t dir = {0};
+    if (!CL_GameplayInputReady() || input.touch_pointer || input.look || camera_drag.active ||
+        Cvar_Value("cl_camera_edge_scroll", 0) == 0)
+        return dir;
+    size2_t win = re.GetWindowSize();
+    float x = mouse.origin.x, y = mouse.origin.y, margin = Cvar_Value("cl_camera_edge_margin", 6);
+    if (win.width <= 0 || win.height <= 0 || x < 0 || y < 0 || x >= win.width || y >= win.height)
+        return dir;
+    if (x <= margin) dir.x -= 1;
+    if (x >= win.width - 1 - margin) dir.x += 1;
+    if (y <= margin) dir.y += 1;
+    if (y >= win.height - 1 - margin) dir.y -= 1;
+    return dir;
+}
+
 /* Arrow and edge input follow the orbit yaw, so scrolling stays screen-relative after rotation. */
 static void CL_ScrollFrame(void) {
     static uint32_t last_ms = 0;
@@ -507,19 +526,8 @@ static void CL_ScrollFrame(void) {
     if (cam_north) dy += 1.0f;
     if (cam_south) dy -= 1.0f;
 
-    /* Screen-edge scrolling (only while the cursor is inside the window). A
-     * touch-driven cursor rests wherever the last finger lifted, so it never
-     * edge-scrolls; touchscreens pan with two fingers instead. */
-    size2_t win = re.GetWindowSize();
-    float mx = mouse.origin.x, my = mouse.origin.y, margin = Cvar_Value("cl_camera_edge_margin", 6);
-    if (Cvar_Value("cl_camera_edge_scroll", 0.0f) != 0.0f && !input.touch_pointer &&
-        win.width > 0 && win.height > 0 &&
-        mx >= 0 && my >= 0 && mx < win.width && my < win.height) {
-        if (mx <= margin)               dx -= 1.0f;
-        if (mx >= (float)win.width - 1 - margin)  dx += 1.0f;
-        if (my <= margin)               dy += 1.0f; /* top of screen = north */
-        if (my >= (float)win.height - 1 - margin) dy -= 1.0f;
-    }
+    vec2_t edge = CL_MouseScroll();
+    dx += edge.x; dy += edge.y;
 
     if (dx == 0.0f && dy == 0.0f) {
         return;
@@ -1673,6 +1681,69 @@ static uint32_t CL_TestCountFocus(sizeBuf_t *msg, inputCmd_t *last) {
         if (cmd.action == BZ_INPUT_FOCUS) { n++; *last = cmd; }
     }
     return n;
+}
+
+/* Cursor feedback follows mouse intent even when keyboard/drag/modal input changes. */
+TEST(client_input, edge_scroll_cursor_lifecycle) {
+    struct client_state *saved = MemAlloc(sizeof(cl));
+    struct client_static old_cls = cls;
+    refExport_t old_re = re;
+    __typeof__(input) old_input = input;
+    mouseEvent_t old_mouse = mouse;
+    float old_edge = Cvar_Value("cl_camera_edge_scroll", 0), old_margin = Cvar_Value("cl_camera_edge_margin", 6);
+    __typeof__(camera_drag) old_drag = camera_drag;
+    bool old_west = cam_west;
+    memcpy(saved, &cl, sizeof(cl));
+    memset(&cl, 0, sizeof(cl));
+    input = (__typeof__(input)){ .focus = true };
+    cls.state = ca_active; cls.key_dest = key_game;
+    cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    re.GetWindowSize = CL_TestWindowSize;
+    Cvar_Set("cl_camera_edge_scroll", "1"); Cvar_Set("cl_camera_edge_margin", "0");
+    camera_drag.active = false;
+    FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_ClearLayoutLayer(i);
+    /* Corners select one diagonal; keys do not affect cursor direction. */
+    FOR_LOOP(y, 3) FOR_LOOP(x, 3) {
+        mouse.origin = (vec2_t){x * 511.5f, y * 383.5f};
+        vec2_t dir = CL_MouseScroll();
+        T_FEQ(dir.x, (int)x - 1, 0.001f);
+        T_FEQ(dir.y, 1 - (int)y, 0.001f);
+    }
+    mouse.origin = (vec2_t){1022, 384};
+    T_FEQ(CL_MouseScroll().x, 0, 0.001f);
+    mouse.origin.x = 1023;
+    T_FEQ(CL_MouseScroll().x, 1, 0.001f);
+    T_ASSERT(!CL_MouseCaptured());
+    camera_drag.active = true;
+    T_ASSERT(CL_MouseCaptured());
+    T_FEQ(CL_MouseScroll().x, 0, 0.001f);
+    camera_drag.active = false; input.look = true;
+    T_ASSERT(CL_MouseCaptured());
+    T_FEQ(CL_MouseScroll().x, 0, 0.001f);
+    input.look = false;
+    cam_west = true; mouse.origin = (vec2_t){512, 384};
+    T_FEQ(CL_MouseScroll().x, 0, 0.001f);
+    mouse.origin = (vec2_t){0, 384};
+    input.touch_pointer = true;
+    T_FEQ(CL_MouseScroll().x, 0, 0.001f);
+    input.touch_pointer = false; input.focus = false;
+    T_FEQ(CL_MouseScroll().x, 0, 0.001f);
+    input.focus = true; cls.key_dest = key_console;
+    T_FEQ(CL_MouseScroll().x, 0, 0.001f);
+    cls.key_dest = key_game; cl.playerstate.client_ui_state = CLIENT_UI_CINEMATIC;
+    T_FEQ(CL_MouseScroll().x, 0, 0.001f);
+    cl.playerstate.client_ui_state = CLIENT_UI_GAME;
+    Cvar_Set("cl_camera_edge_scroll", "0");
+    T_FEQ(CL_MouseScroll().x, 0, 0.001f);
+    Cvar_Set("cl_camera_edge_scroll", "1");
+    mouse.origin.x = -1;
+    T_FEQ(CL_MouseScroll().x, 0, 0.001f);
+    mouse.origin.x = 1024;
+    T_FEQ(CL_MouseScroll().x, 0, 0.001f);
+    cl = *saved; MemFree(saved); cls = old_cls; re = old_re; input = old_input; mouse = old_mouse;
+    cam_west = old_west; camera_drag = old_drag;
+    FOR_LOOP(i, MAX_LAYOUT_LAYERS) SCR_SetLayoutLayer(i, cl.layout[i]);
+    Cvar_SetValue("cl_camera_edge_scroll", old_edge); Cvar_SetValue("cl_camera_edge_margin", old_margin);
 }
 
 /* Two fingers pan like +pan and cancel the first finger's synthetic selection;

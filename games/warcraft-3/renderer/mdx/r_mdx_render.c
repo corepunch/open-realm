@@ -87,6 +87,15 @@ R_GetModelCameraMatrix(mdxModel_t const *model, uint32_t frame, float aspect, ma
     return true;
 }
 
+mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, cstring_t name) {
+    FOR_LOOP(i, model->num_sequences) {
+        if (!strcmp(model->sequences[i].name, name)) {
+            return &model->sequences[i];
+        }
+    }
+    return NULL;
+}
+
 static bool R_UIAnimationRatio(cstring_t anim, float *ratio) {
     cstring_t marker;
     char *end = NULL;
@@ -108,8 +117,11 @@ static uint32_t R_UISequenceFrame(mdxSequence_t const *seq, cstring_t anim, uint
     if (!seq) return 0;
     seq_len = seq->interval[1] - seq->interval[0];
     if (seq_len == 0) seq_len = 1;
-    if (!R_UIAnimationRatio(anim, &ratio))
+    if (!R_UIAnimationRatio(anim, &ratio)) {
+        /* Retail non-looping sequences retain the inclusive authored endpoint. */
+        if (seq->flags & 1) return seq->interval[0] + MIN(anim_time, seq->interval[1] - seq->interval[0]);
         return seq->interval[0] + (anim_time % seq_len);
+    }
 
     offset = (uint32_t)floorf(ratio * (float)seq_len);
     if (offset >= seq_len) offset = seq_len - 1;
@@ -152,12 +164,18 @@ static mdxSequence_t const *R_SelectUISequence(mdxModel_t const *mdx, cstring_t 
     }
     if (!seq && mdx->cameras && anim &&
         (!strcmp(anim, "Stand") || !strcmp(anim, "Portrait") || !strcmp(anim, "Portrait Talk"))) {
-        FOR_LOOP(i, mdx->num_sequences) {
-            cstring_t name = mdx->sequences[i].name;
-            size_t len = strlen("Portrait");
-            if (!strncmp(name, "Portrait", len) && (name[len] == '\0' || name[len] == ' ' || name[len] == '-')) {
-                seq = &mdx->sequences[i];
-                break;
+        /* Portrait variants append an ordinal; Talk is a distinct animation tag.
+         * A portrait without a talk track can still display its authored idle. */
+        cstring_t requested = !strcmp(anim, "Stand") ? "Portrait" : anim;
+        for (int pass = 0; pass < 2 && !seq; pass++, requested = "Portrait") {
+            size_t len = strlen(requested);
+            FOR_LOOP(i, mdx->num_sequences) {
+                cstring_t name = mdx->sequences[i].name;
+                if (strncasecmp(name, requested, len)) continue;
+                cstring_t suffix = name + len;
+                if (*suffix && *suffix != ' ' && *suffix != '-') continue;
+                while (*suffix == ' ' || *suffix == '-' || (*suffix >= '0' && *suffix <= '9')) suffix++;
+                if (!*suffix) { seq = &mdx->sequences[i]; break; }
             }
         }
     }
@@ -285,8 +303,10 @@ void MDLX_DrawSpriteInstance(drawSprite_t const *sprite, color32_t tint) {
     memset(&viewdef, 0, sizeof(viewdef));
     entity.scale = 1;
     entity.model = model;
+    entity.skin = sprite->skin;
+    entity.skin_slot = sprite->skin_slot;
     entity.tint = tint.a ? tint : COLOR32_WHITE;
-    entity.frame = R_UISequenceFrame(seq, anim, tr.viewDef.time);
+    entity.frame = R_UISequenceFrame(seq, anim, tr.viewDef.time - sprite->start_time);
     entity.oldframe = entity.frame;
     viewdef.scissor = (rect_t) { 0, 0, 1, 1 };
     viewdef.num_entities = 1;

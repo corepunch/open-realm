@@ -2448,4 +2448,86 @@ TEST(wc3_items, consumed_perishable_keeps_manipulated_item_through_sleep) {
     T_ASSERT(!item->inuse);
 }
 
+
+static int item_cursor_test_image(cstring_t path) { (void)path; return 73; }
+
+TEST(wc3_cursor, inventory_drag_publishes_icon_and_clears_after_cancel_or_removal) {
+    setup_test_world();
+    void (*write)(pfWriteType_t, void const *) = gi.Write;
+    void (*unicast)(edict_t *) = gi.unicast;
+    gi.Write = item_noop_write; gi.unicast = item_noop_unicast;
+    edict_t *clent = &g_edicts[0];
+    gameClient_t *client = clent->client;
+    edict_t *unit = make_item_test_inventory_unit(0, 0);
+    unit->s.player = client->ps.number;
+    G_SelectEntity(client, unit);
+    edict_t *item = make_item_test_world_item(MAKEFOURCC('s','p','r','o'), 32, 0);
+    T_ASSERT(G_PickupItem(unit, item));
+    cstring_t drag[] = {"itemdrag", "0"}, cancel[] = {"cancel"};
+    G_ClientCommand(clent, 2, drag);
+    T_ASSERT(client->menu.dragged_item == item);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 2);
+    gameInventoryItem_t info;
+    T_ASSERT(G_BuildInventoryItem(unit, item, 0, &info));
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE], gi.ImageIndex(info.art));
+    /* Signal must preserve the actual inventory instance and both drop callbacks. */
+    stbIniCache_t saved_skin = game.config.map_skin;
+    int (*saved_image_index)(cstring_t) = gi.ImageIndex;
+    game.config.map_skin = (stbIniCache_t){0};
+    T_ASSERT(Stb_IniCacheLoadBuffer(&game.config.map_skin,
+        "[CustomSkin]\nTeamColors=7\nTeamColor=TestColors\\Color\n"));
+    gi.ImageIndex = item_cursor_test_image;
+    cstring_t signal[] = {"signal"};
+    G_ClientCommand(clent, 1, signal);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 3);
+    T_ASSERT(client->menu.dragged_item == item);
+    G_ClientCommand(clent, 1, cancel);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 2);
+    T_ASSERT(client->menu.dragged_item == item);
+    T_NOT_NULL(client->menu.on_entity_selected);
+    T_NOT_NULL(client->menu.on_location_selected);
+    gi.ImageIndex = saved_image_index;
+    Stb_IniCacheFree(&game.config.map_skin); game.config.map_skin = saved_skin;
+    G_ClientCommand(clent, 1, cancel);
+    T_NULL(client->menu.dragged_item);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 0);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE], 0);
+    G_ClientCommand(clent, 2, drag);
+    cstring_t point[] = {"point", "24", "0"};
+    G_ClientCommand(clent, 3, point);
+    T_NULL(client->menu.dragged_item);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 0);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE], 0);
+    T_ASSERT(unit->inventory[0] == item); /* Drop order awaits simulation. */
+    unit->currentmove->think(unit);
+    T_ASSERT(item->item.in_world);
+    T_ASSERT(G_PickupItem(unit, item));
+    G_ClientCommand(clent, 2, drag);
+    /* Same address with a new lifetime must never show/operate on a recycled item. */
+    item->spawn_time++;
+    UI_UpdateCursorPresentation(client);
+    T_NULL(G_GetDraggedItem(client));
+    T_NULL(client->menu.on_entity_selected);
+    T_NULL(client->menu.on_location_selected);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 0);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE], 0);
+    G_ClientCommand(clent, 1, cancel);
+    G_ClientCommand(clent, 2, drag);
+    G_RemoveItem(item);
+    UI_UpdateCursorPresentation(client);
+    T_NULL(G_GetDraggedItem(client));
+    T_NULL(client->menu.on_entity_selected);
+    T_NULL(client->menu.on_location_selected);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 0);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE], 0);
+    G_ClientCommand(clent, 1, cancel);
+    cstring_t attack[] = {"button", "CmdAttack"};
+    G_ClientCommand(clent, 2, attack);
+    T_NOT_NULL(client->menu.on_entity_selected);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 1);
+    G_ClientCommand(clent, 1, cancel);
+    T_EQ(client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 0);
+    gi.Write = write; gi.unicast = unicast;
+}
+
 #endif /* BZ_TESTS */

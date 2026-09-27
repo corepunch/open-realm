@@ -502,7 +502,7 @@ void R_DrawSprite(drawSprite_t const *sprite) {
 
 /* TODO: SC2 authored cursor assets are not wired to the renderer yet;
  * returning false keeps SDL's native platform cursor visible. */
-bool R_DrawCursor(float x, float y, color32_t tint) {
-    (void)x; (void)y; (void)tint;
+bool R_DrawCursor(drawCursor_t const *cursor) {
+    (void)cursor;
     return false;
 }

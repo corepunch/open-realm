@@ -7,6 +7,8 @@
 #define R_TerrainArt R_TestProductionTerrainArt
 #define R_CliffType R_TestProductionCliffType
 #define R_ReleaseModel R_TestProductionReleaseModel
+#define MDLX_DrawSpriteInstance R_TestCursorSprite
+#define MDLX_FindSequenceByName R_TestCursorSequence
 #include "../games/warcraft-3/renderer/r_game.c"
 
 #include "test.h"
@@ -66,9 +68,6 @@ void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, mat4
     test_spn_render_transform = *transform;
 }
 
-mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, cstring_t name) {
-    (void)model; (void)name; return NULL;
-}
 
 TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) {
     static uint32_t key = 100;
@@ -180,4 +179,182 @@ TEST(renderer_model, production_snd_dispatch_uses_event_world_transform) {
     anim_sound_rows = saved_sounds; anim_sound_count = saved_sound_count;
     ri.PlaySoundAt = saved_play_sound; event_sound_state[8] = saved_state;
     tr.viewDef.time = saved_time; tr.render_phase = saved_phase;
+}
+
+static drawSprite_t cursor_drawn;
+static color32_t cursor_tint;
+rect_t R_UISceneRect(void) { return tr.uiScene; }
+void R_TestCursorSprite(drawSprite_t const *sprite, color32_t tint) {
+    cursor_drawn = *sprite; cursor_tint = tint;
+}
+mdxSequence_t const *R_TestCursorSequence(mdxModel_t const *model, cstring_t name) {
+    for (int i = 0; i < model->num_sequences; i++)
+        if (!strcmp(model->sequences[i].name, name)) return &model->sequences[i];
+    return NULL;
+}
+
+TEST(renderer_cursor, retail_restart_and_paused_clock) {
+    mdxSequence_t sequences[] = {
+        { .name = "Normal", .interval = {333, 533} },
+        { .name = "Select", .interval = {1000, 1500} },
+        /* Deliberately non-stock duration: the model owns the interval. */
+        { .name = "Scroll Right", .interval = {2000, 2273} },
+    };
+    mdxModel_t mdx = { .sequences = sequences, .num_sequences = 3 };
+    model_t model = { .mdx = &mdx, .modeltype = ID_MDLX };
+    drawCursor_t cursor = { .origin = {0.3f, 0.2f}, .tint = {255, 220, 80, 255}, .time = 100 };
+    cursor_model = &model; cursor_anim = NULL;
+    tr.viewDef.time = 100;
+    T_ASSERT(R_DrawCursor(&cursor));
+    T_STREQ(cursor_drawn.anim, "Normal");
+    T_EQ(tr.viewDef.time - cursor_drawn.start_time, 0);
+    /* Simulation remains frozen throughout; presentation keeps advancing. */
+    cursor.time = 290; R_DrawCursor(&cursor);
+    T_EQ(tr.viewDef.time - cursor_drawn.start_time, 190);
+    cursor.time = 315; R_DrawCursor(&cursor);
+    T_EQ(tr.viewDef.time - cursor_drawn.start_time, 15);
+    cursor.time = 331; R_DrawCursor(&cursor);
+    T_EQ(tr.viewDef.time - cursor_drawn.start_time, 16);
+    cursor.hover = true; cursor.time = 351; R_DrawCursor(&cursor);
+    T_STREQ(cursor_drawn.anim, "Select");
+    T_EQ(tr.viewDef.time - cursor_drawn.start_time, 20);
+    T_EQ(cursor_tint.g, 255);
+    cursor.scroll.x = 1; cursor.time = 381; R_DrawCursor(&cursor);
+    T_STREQ(cursor_drawn.anim, "Scroll Right");
+    T_EQ(tr.viewDef.time - cursor_drawn.start_time, 30);
+    T_EQ(cursor_tint.g, 255);
+    /* A long frame crosses several loops; no 500ms clamp. */
+    cursor.time = 1706; R_DrawCursor(&cursor);
+    T_EQ(tr.viewDef.time - cursor_drawn.start_time, 263);
+    cursor.time = 1723; R_DrawCursor(&cursor);
+    T_EQ(tr.viewDef.time - cursor_drawn.start_time, 17);
+    cursor_model = NULL; cursor_anim = NULL;
+}
+
+TEST(renderer_cursor, d3d_hotspot_pixel_centers) {
+    mdxSequence_t sequence = { .name = "Normal", .interval = {333, 533} };
+    mdxModel_t mdx = { .sequences = &sequence, .num_sequences = 1 };
+    model_t model = { .mdx = &mdx, .modeltype = ID_MDLX };
+    drawCursor_t cursor = { .origin = {0.403125f, 0.30078125f}, .tint = COLOR32_WHITE };
+    cursor_model = &model; cursor_anim = NULL;
+    tr.uiScene = (rect_t){0, 0, 0.8f, 0.6f};
+    tr.drawableSize = (size2_t){1024, 768};
+    R_DrawCursor(&cursor);
+    T_FEQ(cursor_drawn.x, 0.403515625f, 0.0000001f);
+    T_FEQ(cursor_drawn.y, 0.301171875f, 0.0000001f);
+    /* Expanded canvas and high-DPI drawable: correction is half a physical pixel. */
+    tr.uiScene.w = 1.2f;
+    tr.drawableSize = (size2_t){2400, 1350};
+    R_DrawCursor(&cursor);
+    T_FEQ(cursor_drawn.x, cursor.origin.x + 0.00025f, 0.0000001f);
+    T_FEQ(cursor_drawn.y, cursor.origin.y + 0.6f / 2700, 0.0000001f);
+    cursor_model = NULL; cursor_anim = NULL;
+    tr.uiScene = (rect_t){0}; tr.drawableSize = (size2_t){0};
+}
+
+TEST(renderer_cursor, nonlooping_custom_sequence_holds_endpoint) {
+    mdxSequence_t sequence = { .name = "Normal", .interval = {600, 717}, .flags = 1 };
+    mdxModel_t mdx = { .sequences = &sequence, .num_sequences = 1 };
+    model_t model = { .mdx = &mdx, .modeltype = ID_MDLX };
+    drawCursor_t cursor = { .tint = COLOR32_WHITE, .time = 100 };
+    cursor_model = &model; cursor_anim = NULL;
+    tr.viewDef.time = 0;
+    R_DrawCursor(&cursor);
+    cursor.time = 250; R_DrawCursor(&cursor);
+    T_EQ(tr.viewDef.time - cursor_drawn.start_time, 117);
+    cursor.time = 270; R_DrawCursor(&cursor);
+    T_EQ(tr.viewDef.time - cursor_drawn.start_time, 117);
+    cursor_model = NULL; cursor_anim = NULL;
+}
+
+TEST(renderer_cursor, authored_model_target_and_held_item) {
+    mdxSequence_t seqs[] = {
+        { .name = "Normal", .interval = {100, 300} },
+        { .name = "Target", .interval = {500, 550} },
+        { .name = "TargetSelect", .interval = {700, 900} },
+        { .name = "HoldItem", .interval = {1000, 1200} },
+        { .name = "Scroll Right", .interval = {1500, 1700} },
+    };
+    mdxModel_t mdx = { .sequences = seqs, .num_sequences = 5 };
+    model_t model = { .mdx = &mdx, .modeltype = ID_MDLX }, other = model;
+    texture_t icon = {0};
+    drawCursor_t cursor = { .model = &model, .game = true, .tint = COLOR32_WHITE, .interaction = WC3_POINTER_TARGETING, .time = 100 };
+    cursor_model = &model; cursor_anim = NULL;
+    T_ASSERT(R_DrawCursor(&cursor));
+    T_STREQ(cursor_drawn.anim, "Target");
+    cursor.hover = true; cursor.hostile = true; cursor.tint = (color32_t){255, 0, 0, 255}; cursor.time = 120;
+    R_DrawCursor(&cursor);
+    T_STREQ(cursor_drawn.anim, "TargetSelect"); T_EQ(cursor_tint.r, 255); T_EQ(cursor_tint.g, 0);
+    cursor.interaction = WC3_POINTER_HOLDING; cursor.skin = &icon; cursor.time = 140;
+    R_DrawCursor(&cursor);
+    T_STREQ(cursor_drawn.anim, "HoldItem"); T_ASSERT(cursor_drawn.skin == &icon); T_EQ(cursor_tint.g, 255);
+    T_EQ(cursor_drawn.skin_slot, 21);
+    cursor.scroll.x = 1; R_DrawCursor(&cursor);
+    T_STREQ(cursor_drawn.anim, "Scroll Right"); T_NULL(cursor_drawn.skin);
+    cursor.scroll.x = 0; R_DrawCursor(&cursor);
+    T_STREQ(cursor_drawn.anim, "HoldItem"); T_ASSERT(cursor_drawn.skin == &icon);
+    cursor.interaction = 0; cursor.hover = false; cursor.skin = NULL; cursor.model = &other;
+    R_DrawCursor(&cursor);
+    T_ASSERT(cursor_drawn.model == &other); T_NULL(cursor_drawn.skin); T_STREQ(cursor_drawn.anim, "Normal");
+    cursor_model = NULL; cursor_anim = NULL;
+}
+
+TEST(renderer_cursor, signal_locks_targetselect_and_restores_target) {
+    mdxSequence_t seqs[] = {
+        { .name = "Normal", .interval = {0, 200} },
+        { .name = "Target", .interval = {200, 400} },
+        { .name = "TargetSelect", .interval = {400, 600} },
+        { .name = "Scroll Right", .interval = {600, 800} },
+    };
+    mdxModel_t mdx = { .sequences = seqs, .num_sequences = 4 };
+    model_t model = { .mdx = &mdx, .modeltype = ID_MDLX };
+    drawCursor_t cursor = { .model = &model, .game = true, .interaction = WC3_POINTER_SIGNALING,
+        .tint = {17, 83, 149, 255}, .time = 100 };
+    texture_t color = { .first_pixel = {17,83,149,255}, .has_first_pixel = true };
+    cursor.skin = &color;
+    cursor_active_model = NULL;
+    T_ASSERT(R_DrawCursor(&cursor));
+    T_STREQ(cursor_drawn.anim, "TargetSelect");
+    T_EQ(cursor_tint.r, 17); T_EQ(cursor_tint.g, 83); T_EQ(cursor_tint.b, 149);
+    cursor.scroll.x = 1; cursor.hover = true;
+    R_DrawCursor(&cursor);
+    T_STREQ(cursor_drawn.anim, "TargetSelect");
+    cursor.interaction = WC3_POINTER_TARGETING; cursor.scroll.x = 0; cursor.hover = false;
+    R_DrawCursor(&cursor);
+    T_STREQ(cursor_drawn.anim, "Target");
+    cursor_active_model = NULL; cursor_anim = NULL;
+}
+
+TEST(renderer_cursor, resolves_all_retail_modes) {
+    struct { int interaction, hover, owned, hostile, x, y, mode; } const cases[] = {
+        {0,0,0,0, 0,0, 0}, {0,1,0,0, 0,0, 1}, {0,1,0,1, 0,0, 2}, {0,1,1,0, 0,0, 3},
+        {1,0,0,0, 0,0, 4}, {1,1,0,0, 0,0, 5}, {1,1,0,1, 0,0, 6}, {1,1,1,0, 0,0, 7},
+        {3,1,1,1, 1,1, 8}, {2,1,1,1, 0,0, 9},
+        {1,1,1,1, -1,0,10}, {1,1,1,1, 1,0,11}, {1,1,1,1, 0,1,12}, {1,1,1,1, 0,-1,13},
+        {2,1,1,1, -1,1,14}, {2,1,1,1, 1,1,15}, {2,1,1,1, -1,-1,16}, {2,1,1,1, 1,-1,17},
+    };
+    cstring_t const names[] = {"Normal", "Select", "Select", "Select", "Target",
+        "TargetSelect", "TargetSelect", "TargetSelect", "TargetSelect", "HoldItem",
+        "Scroll Left", "Scroll Right", "Scroll Up", "Scroll Down", "Scroll Up Left",
+        "Scroll Up Right", "Scroll Down Left", "Scroll Down Right"};
+    mdxSequence_t seqs[18] = {0};
+    FOR_LOOP(i, 18) { snprintf(seqs[i].name, sizeof(seqs[i].name), "%s", names[i]); seqs[i].interval[1] = 100; }
+    mdxModel_t mdx = { .sequences = seqs, .num_sequences = 18 };
+    model_t model = { .mdx = &mdx, .modeltype = ID_MDLX };
+    texture_t color = { .first_pixel = {19,87,151,255}, .has_first_pixel = true };
+    cursor_active_model = NULL;
+    FOR_LOOP(i, 18) {
+        drawCursor_t cursor = { .model = &model, .skin = &color, .interaction = cases[i].interaction,
+            .hover = cases[i].hover, .owned = cases[i].owned, .hostile = cases[i].hostile,
+            .scroll = {cases[i].x, cases[i].y}, .time = 100 + i * 7 };
+        T_EQ(R_ResolveCursorMode(&cursor), cases[i].mode);
+        T_ASSERT(R_DrawCursor(&cursor)); T_STREQ(cursor_drawn.anim, names[i]);
+        color32_t expected = i == 8 ? color.first_pixel :
+            (i == 1 || i == 5) ? (color32_t){255,255,0,255} :
+            (i == 2 || i == 6) ? (color32_t){255,0,0,255} :
+            (i == 3 || i == 7) ? (color32_t){0,255,0,255} : COLOR32_WHITE;
+        T_ASSERT(!memcmp(&cursor_tint, &expected, sizeof(expected)));
+        T_ASSERT(cursor_drawn.skin == (i == 9 ? &color : NULL));
+    }
+    cursor_active_model = NULL; cursor_anim = NULL;
 }

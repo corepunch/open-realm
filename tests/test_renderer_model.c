@@ -16,8 +16,8 @@ cparticle_t *R_SpawnParticle(void) {
     emitted[emit_count] = (cparticle_t){ .size_value_scale = 1, .size_time_scale = 1 };
     return &emitted[emit_count++];
 }
-texture_t const *MDLX_GetTexture(mdxModel_t const *model, uint32_t team, uint32_t tex, uint32_t repl, texture_t const *over) {
-    (void)model; (void)team; (void)tex; (void)repl; (void)over; return NULL;
+texture_t const *MDLX_GetTexture(mdxModel_t const *model, uint32_t team, uint32_t tex, uint32_t repl, texture_t const *over, uint32_t slot) {
+    (void)model; (void)team; (void)tex; (void)repl; (void)over; (void)slot; return NULL;
 }
 void MDLX_ReleaseSprites(mdxModel_t *model) { (void)model; }
 
@@ -1480,6 +1480,11 @@ TEST(renderer_texture, rgba_upload_preserves_red_blue_and_alpha) {
     R_LoadTextureMipLevel(&tex, &(texMip_t){ &pixel, 0, 1, 0, PIXEL_RGBA }); T_EQ(upload_count, 0);
     R_LoadTextureMipLevel(&tex, &(texMip_t){ &pixel, 1, 1, 0, PIXEL_RGBA });
     T_EQ(upload_count, 1); T_EQ(upload_format, GL_RGBA);
+    T_ASSERT(tex.has_first_pixel); T_ASSERT(!memcmp(&tex.first_pixel, &pixel, sizeof(pixel)));
+    color32_t other = {9, 7, 5, 3};
+    R_LoadTextureMipLevel(&tex, &(texMip_t){ &other, 1, 1, 1, PIXEL_BGRA });
+    T_ASSERT(!memcmp(&tex.first_pixel, &pixel, sizeof(pixel)));
+    R_LoadTextureMipLevel(&tex, &(texMip_t){ &pixel, 1, 1, 0, PIXEL_RGBA });
     T_EQ(upload_pixel.r, 241); T_EQ(upload_pixel.g, 37); T_EQ(upload_pixel.b, 9); T_EQ(upload_pixel.a, 123);
 }
 
@@ -1503,7 +1508,9 @@ TEST(renderer_texture, source_format_and_context_select_upload_without_redundant
             color32_t saved = pixel;
             bool convert = src == PIXEL_BGRA && !cases[i].internal;
             alloc_count = free_count = 0;
-            R_LoadTextureMipLevel(&tex, &(texMip_t){ &pixel, 1, 1, 1, src });
+            R_LoadTextureMipLevel(&tex, &(texMip_t){ &pixel, 1, 1, 0, src });
+            T_ASSERT(tex.has_first_pixel); T_EQ(tex.first_pixel.r, 241); T_EQ(tex.first_pixel.g, 37);
+            T_EQ(tex.first_pixel.b, 9); T_EQ(tex.first_pixel.a, 123);
             T_EQ(upload_format, src == PIXEL_BGRA && !convert ? BZ_GL_BGRA : GL_RGBA);
             T_EQ(upload_internal, src == PIXEL_BGRA && !convert ? cases[i].internal : GL_RGBA);
             T_EQ(upload_pixel.r, src == PIXEL_BGRA && !convert ? 9 : 241);
@@ -1516,7 +1523,7 @@ TEST(renderer_texture, source_format_and_context_select_upload_without_redundant
         }
         alloc_count = 0;
         R_LoadTextureMipLevel(&tex, &(texMip_t){ NULL, 1, 1, 0, PIXEL_BGRA });
-        T_NULL(upload_data); T_EQ(alloc_count, 0);
+        T_NULL(upload_data); T_EQ(alloc_count, 0); T_ASSERT(!tex.has_first_pixel);
     }
 }
 

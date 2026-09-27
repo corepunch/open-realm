@@ -26,6 +26,7 @@
 #define false 0
 #endif
 
+#define MPQ_HASH_TABLE_OFFSET 0
 #define MPQ_HASH_NAME_A 1
 #define MPQ_HASH_NAME_B 2
 #define MPQ_HASH_FILE_KEY 3
@@ -737,6 +738,7 @@ static bool EncryptBlock(uint8_t *data, uint32_t size, uint32_t seed1)
 #ifdef MPQ_TEST_API
 uint32_t Mpq_TestHashString(char const *str, uint32_t hash_type) { return HashString(str, hash_type); }
 bool Mpq_TestEncryptBlock(uint8_t *data, uint32_t size, uint32_t seed) { return EncryptBlock(data, size, seed); }
+bool Mpq_TestDecryptBlock(uint8_t *data, uint32_t size, uint32_t seed) { return DecryptBlock(data, size, seed); }
 #endif
 
 static uint32_t NextPowerOfTwo(uint32_t value)
@@ -791,41 +793,61 @@ static bool WriterHasEntry(mpqArchive_t *mpq, char const *fileName)
 
 static bool WriterCompressData(uint8_t const *data, uint32_t size, uint8_t **out_data, uint32_t *out_size, uint32_t *out_flags)
 {
-    uint8_t *compressed;
-    uLongf compressed_bound;
+    uint8_t *compressed, sector[8192];
+    uint32_t *offsets, sectors, i, used;
+    size_t capacity;
 
     if (!out_data || !out_size || !out_flags) {
         return false;
     }
-
     *out_data = NULL;
     *out_size = size;
     *out_flags = MPQ_FILE_EXISTS;
-
     if (!data || size == 0) {
         return true;
     }
 
-    compressed_bound = compressBound(size);
-    if (compressed_bound + 1 > 0xFFFFFFFFu) {
-        return true;
+    /* The writer's header uses shift 3 (4096 bytes). Classic Storm requires
+     * sector offsets; modern SINGLE_UNIT archives do not work in WC3 1.27b. */
+    sectors = size / 4096 + (size % 4096 != 0);
+    capacity = (size_t)size + ((size_t)sectors + 1) * sizeof(uint32_t);
+    if (capacity > UINT32_MAX) {
+        return true; /* Store raw when sector overhead cannot fit the format. */
     }
-
-    compressed = (uint8_t *)malloc((size_t)compressed_bound + 1);
+    compressed = malloc(capacity);
     if (!compressed) {
         return false;
     }
-    compressed[0] = MPQ_COMPRESSION_ZLIB;
-
-    if (compress2(compressed + 1, &compressed_bound, data, size, Z_DEFAULT_COMPRESSION) != Z_OK ||
-        compressed_bound + 1 >= size) {
+    offsets = (uint32_t *)compressed;
+    used = (sectors + 1) * sizeof(uint32_t);
+    for (i = 0; i < sectors; i++) {
+        uint32_t length = size - i * 4096;
+        uLongf packed = sizeof(sector) - 1;
+        if (length > 4096) {
+            length = 4096;
+        }
+        offsets[i] = used;
+        sector[0] = MPQ_COMPRESSION_ZLIB;
+        if (compress2(sector + 1, &packed, data + i * 4096, length, Z_DEFAULT_COMPRESSION) != Z_OK) {
+            free(compressed);
+            return false;
+        }
+        if (packed + 1 < length) {
+            memcpy(compressed + used, sector, packed + 1);
+            used += packed + 1;
+        } else {
+            memcpy(compressed + used, data + i * 4096, length);
+            used += length;
+        }
+    }
+    offsets[sectors] = used;
+    if (used >= size) {
         free(compressed);
         return true;
     }
-
     *out_data = compressed;
-    *out_size = (uint32_t)(compressed_bound + 1);
-    *out_flags = MPQ_FILE_EXISTS | MPQ_FILE_COMPRESS | MPQ_FILE_SINGLE_UNIT;
+    *out_size = used;
+    *out_flags = MPQ_FILE_EXISTS | MPQ_FILE_COMPRESS;
     return true;
 }
 
@@ -986,7 +1008,7 @@ static bool FinalizeCreatedArchive(mpqArchive_t *mpq)
     offset = (uint32_t)table_pos;
     for (i = 0; i < total_entries; i++) {
         mpqWriteEntry_t *entry = &mpq->write_entries[i];
-        uint32_t slot = HashString(entry->name, MPQ_HASH_NAME_A) & (hash_size - 1);
+        uint32_t slot = HashString(entry->name, MPQ_HASH_TABLE_OFFSET) & (hash_size - 1);
 
         block_table[i].dwBlockOffset = entry->offset;
         block_table[i].dwBlockSize = entry->block_size;

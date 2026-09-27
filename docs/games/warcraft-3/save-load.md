@@ -6,7 +6,7 @@ The WC3 game module owns save/load. `GetGameAPI()` exposes `SaveGame` and `LoadG
 
 `WriteGame()` writes the current game state to a versioned binary file. The file contains:
 
-- `W3SV` magic, format version 51, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
+- `W3SV` magic, format version 52, canonical map path, `sizeof(edict_t)`, entity count, client count, script identity, and native-handle registry counts;
 - level frame/time, authoritative Warcraft time-of-day state, map-global camera bounds, and started/script-started flags;
 - each client `GAMECLIENT` state, including its `PLAYER` state, JASS settings, runtime removed/result-presentation state, researched tech, text storage, camera values, messages, and HUD caches;
 - each camera target as an entity index;
@@ -534,3 +534,15 @@ Version 50 persists the generation-guarded Tree owner on an Entangled Mine
 overlay, alongside the caster relationship. Direct Tree removal can therefore
 find and tear down the exact overlay after load without relying on proximity;
 version 49 saves are rejected by the exact-version guard.
+
+### Cursor target presentation
+
+Version 52 adds a generation to the transient held-item reference in the client
+menu. Both fields are cleared by the runtime-field schema, along with the target
+callbacks. ReadClient clears cursor mode/image stats; connected clients resolve
+their restored race/CustomSkin model against the rebuilt configstrings. A save
+made while carrying an item on the pointer cannot restore a stale pointer or icon.
+The `wc3_cursor.save_discards_transient_held_item` regression covers this inverse.
+
+Cursor signal overlays and minimap point-routing flags are transient and clear
+on load (version 52 client layout). They never serialize an active input overlay.

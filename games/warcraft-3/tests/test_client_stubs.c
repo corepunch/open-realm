@@ -20,7 +20,12 @@ menuExport_t menu;
 mouseEvent_t mouse;
 uint32_t test_fow_upload_calls;
 uint32_t test_cursor_draw_calls;
+uint32_t test_client_realtime, test_cursor_time;
+uint32_t CL_RealTime(void) { return test_client_realtime; }
 color32_t test_cursor_tint;
+drawCursor_t test_cursor_presented;
+bool test_mouse_captured;
+bool CL_MouseCaptured(void) { return test_mouse_captured; }
 char test_forwarded_command[128];
 char test_menu_action[32];
 char test_menu_action_arg[128];
@@ -72,10 +77,11 @@ void test_client_stubs_set_canvas_policy(UICANVASPOLICY policy) {
 static void mock_DrawLoadingIndicator(rect_t const *rect, uint32_t time, color32_t color) { (void)rect; (void)time; (void)color; }
 static void mock_DrawFill(rect_t const *rect, color32_t color) { (void)rect; (void)color; }
 static void mock_DrawImageEx(drawImage_t const *image) { (void)image; }
-static bool mock_DrawCursor(float x, float y, color32_t tint) {
-    (void)x; (void)y;
+static bool mock_DrawCursor(drawCursor_t const *cursor) {
     test_cursor_draw_calls++;
-    test_cursor_tint = tint;
+    test_cursor_tint = cursor->tint;
+    test_cursor_presented = *cursor;
+    test_cursor_time = cursor->time;
     return true;
 }
 
@@ -88,7 +94,8 @@ void CON_printf(cstring_t fmt, ...) {
     vsnprintf(test_console_message, sizeof(test_console_message), fmt, args);
     va_end(args);
 }
-bool CL_GameplayInputReady(void) { return false; }
+bool CL_GameplayInputReady(void) { return cls.state == ca_active && cls.key_dest == key_game; }
+vec2_t CL_MouseScroll(void) { return (vec2_t){0}; }
 bool CL_MovieKeyEvent(keyCode_t key, bool down) { (void)key; (void)down; return false; }
 bool CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection) {
     uint32_t count = 0;
@@ -193,6 +200,8 @@ void test_client_stubs_init(void) {
     memset(&mouse, 0, sizeof(mouse));
     test_fow_upload_calls = 0;
     test_cursor_draw_calls = 0;
+    test_mouse_captured = false;
+    test_client_realtime = test_cursor_time = 0;
     test_cursor_tint = COLOR32_WHITE;
     test_forwarded_command[0] = '\0';
     test_menu_action[0] = '\0';

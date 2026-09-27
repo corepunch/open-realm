@@ -77,8 +77,8 @@ enum {
 
 static uint32_t const save_magic = MAKEFOURCC('W', '3', 'S', 'V');
 static uint32_t const save_commit = MAKEFOURCC('W', '3', 'O', 'K');
-/* Format 51 persists Ancient Root/Uproot transition state. */
-static uint32_t const save_version = 51;
+/* Format 52 adds transient pointer interaction fields to the client layout. */
+static uint32_t const save_version = 52;
 #define MAX_SAVE_STRING (1u << 20) // bytes; bounds quest-string allocations from corrupt saves
 #define MAX_SAVE_GROUP_HANDLES 65536u // corrupt-save bound only; runtime group registry itself grows dynamically
 #define UMOVE_RELOC_RANGE (64 << 20) // bytes; every umove_t is static data in libgame, so a valid offset from the anchor stays well inside one module image
@@ -683,6 +683,8 @@ static field_t const client_menu_fields[] = {
     TF(clientMenu_s, order_queue_chained, F_IGNORE, 0, FIELD_RUNTIME),
     TF(clientMenu_s, ability_item, F_IGNORE, 0, FIELD_RUNTIME),
     TF(clientMenu_s, ability_item_spawn_time, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(clientMenu_s, dragged_item, F_IGNORE, 0, FIELD_RUNTIME),
+    TF(clientMenu_s, dragged_item_spawn_time, F_IGNORE, 0, FIELD_RUNTIME),
     { NULL, 0, 0, 0, 0, 0 }
 };
 
@@ -827,6 +829,8 @@ static field_t const client_fields[] = {
     F(client_s, ps.texts, F_IGNORE, 0, FIELD_RUNTIME),
     F(client_s, mapplayer, F_IGNORE, 0, FIELD_RUNTIME),
     F(client_s, selection_dirty, F_IGNORE, 0, FIELD_RUNTIME),
+    F(client_s, cursor_signal, F_IGNORE, 0, FIELD_RUNTIME),
+    F(client_s, cursor_missing_reported, F_IGNORE, 0, FIELD_RUNTIME),
     /* Modal ownership is live client-window/session state. Persisting it from
      * an Esc-menu save can reload a client as paused without a live window. */
     F(client_s, modal_flags, F_IGNORE, 0, FIELD_RUNTIME),
@@ -1723,6 +1727,12 @@ static bool ReadClient(FILE *f, gameClient_t *client, int *target) {
     client->menu.supports_order_queue = false;
     client->menu.order_queued = false;
     client->menu.order_queue_chained = false;
+    client->menu.dragged_item = NULL; client->menu.dragged_item_spawn_time = 0;
+    client->cursor_signal = false;
+    client->ps.stats[UI_PLAYERSTAT_CURSOR_FLAGS] = 0;
+    client->cursor_missing_reported = false;
+    client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION] = 0;
+    client->ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE] = 0;
     client->camera.target_controller = NULL;
     client->rally_indicator = NULL;
     return true;
@@ -1943,7 +1953,10 @@ bool ReadGame(cstring_t filename) {
     /* Client-side decoders are presentation state, not part of the save file.
      * Re-emit the restored semantic music state for clients that remained
      * connected across the load. */
-    FOR_LOOP(i, game.max_clients) if (game.clients[i].connected) G_MusicSyncClient(game.clients + i);
+    FOR_LOOP(i, game.max_clients) if (game.clients[i].connected) {
+        G_MusicSyncClient(game.clients + i);
+        UI_UpdateCursorPresentation(game.clients + i);
+    }
     /* svc_layout layers are client presentation state and are not serialized.
      * Force the restored timer-dialog model to republish on the next frame. */
     FOR_LOOP(i, MIN((uint32_t)game.max_clients, (uint32_t)MAX_CLIENTS)) {
@@ -2008,8 +2021,9 @@ TEST(wc3_save, rejects_prior_save_versions) {
         "/tmp/openwarcraft3-wc3-save-version-48.bin",
         "/tmp/openwarcraft3-wc3-save-version-49.bin",
         "/tmp/openwarcraft3-wc3-save-version-50.bin",
+        "/tmp/openwarcraft3-wc3-save-version-51.bin",
     };
-    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50 };
+    uint32_t const old_versions[] = { 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51 };
 
     reset_entities();
     setup_test_world();

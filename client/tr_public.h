@@ -132,6 +132,7 @@ typedef struct {
     model_t const *model;
     struct { model_t const *model; orientation_t angles; } attachment; /* local pose after the parent socket */
     texture_t const *skin;
+    uint32_t skin_slot; /* Zero preserves the model-wide override; otherwise one replaceable ID. */
     texture_t const *splat;
     cstring_t name;                      /* server-authored world label (NULL = none) */
     uint32_t number;
@@ -236,8 +237,24 @@ typedef struct {
     model_t const *model;
     cstring_t anim;
     float x, y;
+    texture_t const *skin; /* Optional model replacement texture. */
+    uint32_t skin_slot;
+    uint32_t start_time; /* Animation epoch; zero keeps the shared scene clock. */
     void const *id, *scope; /* Stable UI owner and layout identities; separate instances sharing one model. */
 } drawSprite_t;
+
+typedef struct {
+    model_t const *model; /* Server-selected asset; NULL uses the menu default. */
+    texture_t const *skin;
+    uint16_t interaction; /* Opaque game-owned interaction state, resolved by its renderer. */
+    bool hostile; /* Recipient-relative hostility of the hovered entity. */
+    bool owned; /* Hovered entity belongs to the local player. */
+    bool game; /* Active world presentation requires a server-selected model. */
+    vec2_t origin, scroll; /* UI hotspot; scroll components are -1/0/1, positive Y up. */
+    color32_t tint;
+    uint32_t time; /* Presentation milliseconds; continues while simulation is paused. */
+    bool hover; /* A live, selectable world target is under the pointer. */
+} drawCursor_t;
 
 typedef struct {
     void (*Init)(uint32_t width, uint32_t height);
@@ -275,7 +292,7 @@ typedef struct {
     void (*DrawMinimap)(rect_t const *screen, cstring_t map);
     void (*DrawLoadingIndicator)(rect_t const *rect, uint32_t time, color32_t color);
     void (*DrawSprite)(drawSprite_t const *sprite);
-    bool (*DrawCursor)(float x, float y, color32_t tint);
+    bool (*DrawCursor)(drawCursor_t const *cursor);
     bool (*SetEntityAnimFrame)(model_t const *model, cstring_t anim, renderEntity_t *entity);
     void (*DrawText)(drawText_t const *drawText);
     vec2_t (*GetTextSize)(drawText_t const *drawText);

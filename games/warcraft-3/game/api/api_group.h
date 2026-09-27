@@ -294,6 +294,7 @@ uint32_t GroupTargetOrderById(jass_t *j) {
     //handle_t targetWidget = jass_checkhandle(j, 3, "widget");
     return jass_pushboolean(j, 0);
 }
+/* Retail enumerates a retained snapshot, so callbacks may remove units or change the group. */
 uint32_t ForGroup(jass_t *j) {
     extern edict_t *currentunit;
     ggroup_t *whichGroup = jass_checkhandle(j, 1, "group");
@@ -302,8 +303,17 @@ uint32_t ForGroup(jass_t *j) {
         return 0;
     }
     edict_t *previous = currentunit;
-    FOR_LOOP(i, whichGroup->num_units) {
-        currentunit = whichGroup->units[i];
+    struct { edict_t *unit; uint32_t spawn; } units[MAX_GROUP_SIZE];
+    uint32_t count = whichGroup->num_units;
+    /* RemoveUnit compacts every group immediately; walking that array skipped Elves01's trackers. */
+    FOR_LOOP(i, count) {
+        units[i].unit = whichGroup->units[i];
+        units[i].spawn = units[i].unit->spawn_time;
+    }
+    FOR_LOOP(i, count) {
+        edict_t *unit = units[i].unit;
+        if (!unit->inuse || unit->spawn_time != units[i].spawn || G_IsDeferredFree(unit)) continue;
+        currentunit = unit;
         jass_pushfunction(j, callback);
         jass_call(j, 0);
     }

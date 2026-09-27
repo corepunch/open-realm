@@ -465,3 +465,16 @@ shared test-unit allocator initializes a minimum positive life value without
 weakening the runtime rule that zero-life units are corpses and cannot be selected.
 
 `AIat` is represented as `unitAttack_t.temporaryDamageBonus`, so it survives Hero stat recomputation and is rendered as a separate green/red attack modifier. `AIde` uses `temporary_armor_bonus` so Hero Agility recomputation likewise preserves item armor. See [Attack Damage](attack-damage.md).
+
+## Held-item cursor
+
+Right-clicking an inventory button sends `itemdrag <slot>`. The command records
+that item and its spawn generation. Cursor presentation registers its authored
+`Art` and renders the race/CustomSkin cursor's HoldItem sequence, replacing only
+MDX slot 21. Cancel, accepted drop, source removal and save/load clear the
+transient presentation. Scroll arrows and modal windows temporarily supersede
+the held icon. See [cursor integration](cursor-rendering.md#race-targeting-and-held-item-integration)
+for transport, renderer ownership and regression commands.
+
+The Signal cursor is a separate overlay: `cmd signal` preserves the held item,
+and Esc/right click or an accepted signal point restores its icon and command.

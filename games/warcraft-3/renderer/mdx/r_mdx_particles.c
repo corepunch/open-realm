@@ -43,7 +43,7 @@ static void mdx_spawn_particle(void *raw) {
     p->accel = (vec3_t){ 0, 0, -ctx->grav };
     p->lifespan = ctx->life; p->time = 0;
     p->midtime = ctx->emitter->Time * 0xff;
-    p->texture = MDLX_GetTexture(ctx->model, ctx->team_id, ctx->emitter->TextureID, ctx->emitter->ReplaceableId, NULL);
+    p->texture = MDLX_GetTexture(ctx->model, ctx->team_id, ctx->emitter->TextureID, ctx->emitter->ReplaceableId, NULL, 0);
     p->blend_mode = MDLX_ParticleBlendMode(ctx->emitter->FilterMode);
     p->columns = ctx->emitter->Columns; p->rows = ctx->emitter->Rows;
     p->color[0] = MDLX_GetEmitterColor(ctx->emitter, 0);

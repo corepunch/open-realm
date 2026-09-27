@@ -207,3 +207,5 @@ Smart minimap clicks, non-minimap HUD blocking, and modal blocking.
 `wc3_api.controller_focus_updates_camera_and_respects_control`
 checks server application, camera-target release, bounds clamping and scripted ownership. Moving either selection
 or Smart handling's generic HUD blocker ahead of its minimap trace makes the SDL regression fail.
+
+WC3 mouse-edge cursor presentation and retail evidence: [scroll cursors](../games/warcraft-3/scroll-cursors.md).

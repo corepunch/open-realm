@@ -106,3 +106,26 @@ composite; never paint the magenta missing-texture placeholder into the characte
 - Never pass an `FS_ReadFile` result to `FS_MunmapFile` — will `munmap` a heap pointer.
 - MPQ's `SFileOpenArchiveFromMemory` does NOT free the backing buffer on close — caller owns it.
 - `FS_MmapFile` is macOS/Linux only (no Windows implementation); callers handle the NULL fallback.
+
+## Writer compatibility with classic Storm
+
+Retail WC3 1.27b cursor audit maps exposed two writer defects that reader-only
+round trips did not catch. Hash-table placement must use hash type **0**;
+types **1/2** are the two filename comparison hashes stored in each entry.
+Classic Storm probes from the type-0 slot and stops at an unused entry. Our
+reader's full-table search masked incorrectly placed entries.
+
+Compressed writer members now use 4096-byte sectors (header shift 3), an
+`N+1` offset table, and a compression-method byte before each compressed sector.
+An incompressible sector is stored verbatim; an entire member is stored raw
+when sector overhead would make it larger. The previous `SINGLE_UNIT` output
+could be opened/found by the tested retail Storm but failed `SFileReadFile`.
+The same extracted map contents load after correcting placement and using
+classic sector storage. Neither the JASS source nor Wine's local-file setting
+was the cause.
+
+`make test-mpq-compression` includes `writer_retail_hash_probe` (inspect the
+written table using classic probing) and `writer_retail_sector_layout`
+(inspect offsets/flags and read across sector boundaries). These use generated
+bytes and require no retail files. See [cursor rendering](games/warcraft-3/cursor-rendering.md)
+for the retail scene generator that exposed the incompatibility.

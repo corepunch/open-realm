@@ -38,6 +38,16 @@ static handle_t archives[64] = { 0 };
 static viewer_orbit_t orbit;
 static vec3_t g_model_center = { 0, 0, 0 };
 static float g_preview_scale = 1.0f;
+static bool g_sprite_preview;
+static vec2_t g_sprite_origin;
+static size2_t g_window_size = {VIEWER_WINDOW_WIDTH, VIEWER_WINDOW_HEIGHT};
+static cstring_t g_background_path;
+static texture_t *g_background;
+
+static cstring_t ViewerCvarString(cstring_t name, cstring_t defaultValue) {
+    (void)name;
+    return defaultValue;
+}
 
 typedef struct {
     uint32_t num_sequences;
@@ -131,7 +141,10 @@ static void usage(void) {
     "  -o/--output <file.png> renders one clean frame (no overlay/bbox) to a PNG and exits.\n"
     "    Deterministic by default (--frame 1000 --seed 1234) for golden-image tests.\n"
     "  --frame <ms> sets the logical animation time (fixes the frame; default wall clock).\n"
-    "  --seed <n> seeds the particle RNG for reproducible output.\n");
+    "  --seed <n> seeds the particle RNG for reproducible output.\n"
+    "  --sprite <x> <y> uses the production UI sprite path at a UI hotspot.\n"
+    "  --size <width> <height> sets the preview framebuffer size.\n"
+    "  --background <archive-image> composites a sprite over that image.\n");
 }
 
 static void errorf(cstring_t fmt, ...) {
@@ -1193,7 +1206,22 @@ static void RenderModelFrame(refExport_t const *re, model_t *model, uint32_t now
     Matrix4_identity(&viewdef.textureMatrix);
 
     re->BeginFrame();
-    re->RenderFrame(&viewdef);
+    if (g_sprite_preview) {
+        viewdef.num_entities = 0;
+        re->RenderFrame(&viewdef);
+        if (g_background) {
+            rect_t screen = re->GetUISceneRect();
+            re->DrawImage(g_background, &screen, &MAKE(rect_t, 0, 0, 1, 1), COLOR32_WHITE);
+        }
+        /* UI RenderFrame restores the borrowed world view. Encode the requested
+         * sample through the sprite epoch instead of relying on that view's clock. */
+        drawSprite_t sprite = {.model = model, .anim = seq->name,
+            .x = g_sprite_origin.x, .y = g_sprite_origin.y,
+            .start_time = tr.viewDef.time - now, .id = model};
+        re->DrawSprite(&sprite);
+    } else {
+        re->RenderFrame(&viewdef);
+    }
     /* Clean render: golden-image PNG output skips the debug bbox/overlay/text. */
     bool const clean = (g_output_path != NULL);
     if (mdx && !clean) {
@@ -1311,6 +1339,21 @@ int main(int argc, char **argv) {
             g_use_model_camera = true;
         } else if (!strcmp(argv[i], "--front-ortho") || !strcmp(argv[i], "-front-ortho")) {
             g_use_front_ortho = true;
+        } else if (!strcmp(argv[i], "--sprite")) {
+            if (i + 2 >= argc || sscanf(argv[i + 1], "%f", &g_sprite_origin.x) != 1 ||
+                sscanf(argv[i + 2], "%f", &g_sprite_origin.y) != 1 ||
+                !isfinite(g_sprite_origin.x) || !isfinite(g_sprite_origin.y)) { usage(); return 1; }
+            i += 2;
+            g_sprite_preview = true;
+        } else if (!strcmp(argv[i], "--size")) {
+            if (i + 2 >= argc || sscanf(argv[i + 1], "%u", &g_window_size.width) != 1 ||
+                sscanf(argv[i + 2], "%u", &g_window_size.height) != 1 ||
+                !g_window_size.width || !g_window_size.height ||
+                g_window_size.width > 16384 || g_window_size.height > 16384) { usage(); return 1; }
+            i += 2;
+        } else if (!strcmp(argv[i], "--background")) {
+            if (++i >= argc) { usage(); return 1; }
+            g_background_path = argv[i];
         } else if (!strcmp(argv[i], "--info") || !strcmp(argv[i], "-info")) {
             g_info_only = true;
         } else if (!strcmp(argv[i], "--dump-all") || !strcmp(argv[i], "-dump-all")) {
@@ -1394,11 +1437,12 @@ int main(int argc, char **argv) {
         .MemAlloc = MemAlloc,
         .MemFree = MemFree,
         .LoadSlk = Stb_SlkLoad,
+        .CvarString = ViewerCvarString,
         .error = errorf,
     });
 
     fprintf(stderr, "mdxtool: renderer init\n");
-    re.Init(VIEWER_WINDOW_WIDTH, VIEWER_WINDOW_HEIGHT);
+    re.Init(g_window_size.width, g_window_size.height);
     fprintf(stderr, "mdxtool: renderer ready\n");
 
     g_model_path = modelPath;
@@ -1411,6 +1455,19 @@ int main(int argc, char **argv) {
     }
 
     fprintf(stderr, "mdxtool: loaded model %s\n", modelPath);
+    if (g_sprite_preview && !PickSequence(model->mdx)) {
+        fprintf(stderr, "mdxtool: sprite preview requires a model sequence\n");
+        re.Shutdown();
+        return 1;
+    }
+    if (g_background_path) {
+        g_background = re.LoadTexture(g_background_path);
+        if (!g_background) {
+            fprintf(stderr, "mdxtool: cannot load background %s\n", g_background_path);
+            re.Shutdown();
+            return 1;
+        }
+    }
     {
         box3_t bounds = GetPreviewBounds(model->mdx);
         float width = fabsf(bounds.max.x - bounds.min.x);

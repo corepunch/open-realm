@@ -320,6 +320,9 @@ bool CL_ScreenshotReady(void);
 
 // cl_input.c
 void CL_Input(void);
+vec2_t CL_MouseScroll(void);
+bool CL_GameplayInputReady(void);
+bool CL_MouseCaptured(void);
 void CL_InitInput(void);
 
 // cl_tent.c
@@ -330,6 +333,7 @@ void CL_DrawTEnts(void);
 void CL_ClearTEnts(void);
 
 // cl_main.c - UI integration
+uint32_t CL_RealTime(void);
 int CL_ModelIndex(cstring_t modelName);
 int CL_ImageIndex(cstring_t imageName);
 int CL_FontIndex(cstring_t fontName, uint32_t fontSize);
