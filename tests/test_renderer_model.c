@@ -213,6 +213,16 @@ static void test_drawarrays(GLenum mode, GLint first, GLsizei count) {
 static void test_drawarrays_inst(GLenum mode, GLint first, GLsizei count, GLsizei instances) {
     (void)mode; draw_test.calls++; draw_test.first = first; draw_test.count = count; draw_test.instances = instances;
 }
+/* The production MDX loader uploads and frees geometry; intercept only GL
+ * calls so these headless tests also run on macOS without a current context. */
+static void test_bufdata(GLenum target, GLsizeiptr size, void const *data, GLenum usage) {
+    (void)target; (void)size; (void)data; (void)usage;
+}
+static void test_delete_ids(GLsizei count, GLuint const *ids) { (void)count; (void)ids; }
+#define glGenBuffers test_genva
+#define glBufferData test_bufdata
+#define glDeleteBuffers test_delete_ids
+#define glDeleteVertexArrays test_delete_ids
 #define glGenVertexArrays test_genva
 #define glBindVertexArray test_bindva
 #define glBindBuffer test_bindbuf
@@ -222,6 +232,13 @@ static void test_drawarrays_inst(GLenum mode, GLint first, GLsizei count, GLsize
 #define glDrawArrays test_drawarrays
 #define glDrawArraysInstanced test_drawarrays_inst
 #include "renderer/r_buffer.c"
+#include "games/warcraft-3/renderer/mdx/r_mdx_buffer.c"
+#include "games/warcraft-3/renderer/mdx/r_mdx_load.c"
+#undef cstring_t
+#undef glGenBuffers
+#undef glBufferData
+#undef glDeleteBuffers
+#undef glDeleteVertexArrays
 #undef glGenVertexArrays
 #undef glBindVertexArray
 #undef glBindBuffer

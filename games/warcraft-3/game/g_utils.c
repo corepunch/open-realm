@@ -67,7 +67,6 @@ void G_FreeEdict(edict_t *ent) {
      * cancellation refund. */
     if (G_BuildingUpgradeActive(ent)) G_StopBuildingUpgrade(ent, false);
     if (ent->construction.active) G_StopConstruction(ent);
-    S_ReleaseEntangledMineForTree(ent);
     if (ent->mineoverlay.parent || ent->think == blight_mine_think) S_MineOverlayRelease(ent);
     if (S_AcolyteHarvestIsActive(ent)) S_AcolyteHarvestRelease(ent);
     S_CargoReleaseUnit(ent);

@@ -1345,12 +1345,16 @@ static void entangle_goldmine_command(edict_t *clent) {
 }
 
 BZ_ABILITY_PROC(CAbilityEntangle) {
-    if (msg != A_COMMAND) return false;
-    entangle_goldmine_command(call && call->client ? call->client : ent);
-    return true;
+    switch (msg) {
+    case A_COMMAND: entangle_goldmine_command(call && call->client ? call->client : ent); return true;
+    /* The mine must retire at Tree death, before the corpse's later removal. */
+    case A_DEATH:
+    case A_UNIT_REMOVE: S_ReleaseEntangledMineForTree(ent); return true;
+    default: return CAbilityPower(ent, msg, call);
+    }
 }
 
-void S_EntangledMineTick(edict_t *mine) {
+static void entangled_mine_update(edict_t *mine) {
     uint32_t alias, capacity, interval_ms, now, index;
     int32_t gold_per_interval, gold;
     edict_t *parent;
@@ -1384,4 +1388,11 @@ void S_EntangledMineTick(edict_t *mine) {
     }
     if (parent->resources == 0 && mine->inuse && !M_IsDead(mine))
         unit_die(mine, NULL);
+}
+
+/* The ordinary unit ability scheduler owns mining, independent of its current order. */
+BZ_ABILITY_PROC(CAbilityEntangledGoldMine) {
+    if (msg != A_UPDATE) return false;
+    entangled_mine_update(ent);
+    return true;
 }

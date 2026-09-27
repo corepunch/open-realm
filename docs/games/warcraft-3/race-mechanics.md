@@ -101,7 +101,9 @@ Night Elf Entangled Mines reuse the existing `Aenc` cargo contract. Mining Wisps
 first-through-fifth secondary animation tags for occupancy. `Aegm` DataA/DataB advance a persistent round-robin slot index before
 each occupancy test; occupied turns pay from the parent's finite gold pool and empty turns do not. Parent depletion kills the
 Entangled overlay, whose normal death path ejects cargo and restores the original mine. Loading is rejected until Entangled
-construction completes.
+construction completes. `CAbilityEntangledGoldMine` advances income through the ordinary `A_UPDATE` scheduler.
+The Tree's `CAbilityEntangle` handles death and removal, retiring the overlay immediately rather than waiting
+for corpse decay. The movement regression covers the real income scheduler and Tree-death restoration.
 
 `mineoverlay.parent` and `acolyte_mine.mine` are persistent edict references with `F_EDICT` fixups. Save format 21 adds those fields
 and the associated scalar timing/index/slot state.

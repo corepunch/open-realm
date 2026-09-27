@@ -61,6 +61,7 @@ void TrainSetBuildMove(edict_t *producer);
 void G_RefreshTrainingQueue(edict_t *producer);
 void unit_add_build_queue(edict_t *self, edict_t *item);
 BZ_ABILITY_PROC(CAbilityGoldMine);
+BZ_ABILITY_PROC(CAbilityEntangledGoldMine);
 BZ_ABILITY_PROC(CAbilityCancel);
 BZ_ABILITY_PROC(CAbilityRepair);
 BZ_ABILITY_PROC(CAbilityStop);

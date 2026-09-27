@@ -4081,6 +4081,7 @@ TEST(wc3_movement, entangled_mine_round_robin_income_depletes_parent_and_unloads
     second = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0.0f, 0.0f);
     setup_test_goldmine(parent, &test_goldmine_stock, 25);
     mine->data.UnitAbilities = &test_entangled_mine;
+    mine->think = monster_think;
     mine->health.value = mine->health.max_value = 1000.0f;
     mine->s.player = first->s.player = second->s.player = client->ps.number;
     first->stand = second->stand = unit_stand;
@@ -4094,17 +4095,17 @@ TEST(wc3_movement, entangled_mine_round_robin_income_depletes_parent_and_unloads
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
 
     level.time = 0;
-    S_EntangledMineTick(mine); /* index 1: occupied */
+    G_RunEntity(mine); /* index 1: occupied */
     T_EQ(parent->resources, 15);
     T_EQ(client->ps.stats[PLAYERSTATE_RESOURCE_GOLD], 10);
     T_EQ(mine->mineoverlay.active_interval_index, 1);
-    level.time = 1000; S_EntangledMineTick(mine); /* index 2: empty */
-    level.time = 2000; S_EntangledMineTick(mine); /* index 3: empty */
-    level.time = 3000; S_EntangledMineTick(mine); /* index 4: empty */
+    level.time = 1000; G_RunEntity(mine); /* index 2: empty */
+    level.time = 2000; G_RunEntity(mine); /* index 3: empty */
+    level.time = 3000; G_RunEntity(mine); /* index 4: empty */
     T_EQ(parent->resources, 15);
-    level.time = 4000; S_EntangledMineTick(mine); /* index 0: occupied */
+    level.time = 4000; G_RunEntity(mine); /* index 0: occupied */
     T_EQ(parent->resources, 5);
-    level.time = 5000; S_EntangledMineTick(mine); /* index 1: final 5 */
+    level.time = 5000; G_RunEntity(mine); /* index 1: final 5 */
 
     T_EQ(parent->resources, 0);
     T_ASSERT(M_IsDead(mine));
@@ -4308,7 +4309,11 @@ TEST(wc3_movement, one_tree_cannot_entangle_multiple_gold_mines) {
     second = movement_find_entangle_overlay(caster, parent2);
     T_NULL(second);
 
-    S_MineOverlayRelease(first);
+    unit_die(caster, NULL);
+    T_ASSERT(M_IsDead(first));
+    T_NULL(first->mineoverlay.parent);
+    T_ASSERT(!(parent1->s.renderfx & RF_HIDDEN));
+    T_ASSERT(!parent1->paused);
     T_ASSERT(!G_ActorSkillPermanent(caster, ability));
 
     gi.Write = old_write;
@@ -4329,11 +4334,12 @@ TEST(wc3_movement, empty_entangled_mine_dies_when_parent_is_depleted) {
     mine = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
     setup_test_goldmine(parent, &test_goldmine_stock, 0);
     mine->data.UnitAbilities = &test_entangled_mine;
+    mine->think = monster_think;
     mine->health.value = mine->health.max_value = 1000.0f;
     T_ASSERT(S_MineOverlayBind(mine, parent));
 
     level.time = 0;
-    S_EntangledMineTick(mine);
+    G_RunEntity(mine);
     T_ASSERT(M_IsDead(mine));
     T_ASSERT(!(parent->s.renderfx & RF_HIDDEN));
     T_ASSERT(!parent->paused);

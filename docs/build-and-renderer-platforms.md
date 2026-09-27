@@ -255,3 +255,11 @@ with `SDL_SHARED=ON`, `SDL_STATIC=OFF`, and `SDL_TEST=OFF`. The local installati
 It conflicts with sdl2-compat to prevent silent relinking. Ordinary `brew install sdl2` would select the compatibility
 package again. Rebuild every engine/renderer/menu binary after replacing the dylib; old Mach-O install names can
 still point into the removed compatibility keg. No SDL2_image/net/ttf/mixer add-on is required by this engine build.
+
+### Headless MDX loader tests
+
+`make test-renderer-model test-renderer-shadows` runs the production MDX parser, geometry packing,
+and model cleanup with intercepted GL buffer/VAO calls in `tests/test_renderer_model.c`.
+The SPN fixture loads a real model through `R_LoadModelMDLX`; compiling the loader/buffer sources
+separately bypasses those intercepts and crashes in macOS `glGenBuffers` without a current context.
+Keep their test compilation inside the intercepted translation unit; production builds remain unchanged.
