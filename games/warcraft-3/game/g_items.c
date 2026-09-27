@@ -770,3 +770,19 @@ void G_UseItem(edict_t *unit, uint32_t slot) {
         return;
     }
 }
+
+/* A held-item command refers to an inventory instance, never a recycled edict. */
+edict_t *G_GetDraggedItem(gameClient_t *client) {
+    edict_t *item = client ? client->menu.dragged_item : NULL;
+    edict_t *carrier = G_IsItem(item) ? item->item.carrier : NULL;
+    if (!item || !carrier || item->spawn_time != client->menu.dragged_item_spawn_time ||
+        !G_UnitCanControl(client, carrier) || !G_InventoryCanDropItems(carrier) || item->item.in_world ||
+        item->item.inventory_slot >= G_InventoryCapacity(carrier) ||
+        carrier->inventory[item->item.inventory_slot] != item) return NULL;
+    return item;
+}
+
+void G_UpdateItemDrag(gameClient_t *client) {
+    if (client && client->menu.dragged_item && !G_GetDraggedItem(client))
+        G_CancelTargetMode(G_GetPlayerEntityByNumber(client->ps.number));
+}

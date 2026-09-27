@@ -7109,4 +7109,34 @@ TEST(wc3_api, blight_tileset_line_parse_truncates_long_value) {
     T_ASSERT(!WC3_ParseBlightTilesetLine("[TileSets]", &key, (string_t)raw));
 }
 
+TEST(wc3_api, customize_entity_gate_hover_lifecycle) {
+    static DestructableData_t const row = { .file = "Gate.mdx", .displayName = "WESTRING_DEST_ELVEN_GATE_HORIZONTAL" };
+    edict_t ent = { .inuse = true, .class_id = MAKEFOURCC('A','T','g','1'),
+        .svflags = SVF_STATIC_SCENERY, .targtype = TARG_STRUCTURE,
+        .data = { .DestructableData = &row }, .destructable = { .initialized = true },
+        .health = { .value = 500, .max_value = 500 } };
+    entityState_t state = { .number = 7, .model = 11 };
+    globals.CustomizeEntity(0, &ent, &state);
+    T_NE(state.name, 0);
+    T_EQ(state.stats[ENT_HEALTH], 255);
+    cstring_t names = gi.GetConfigstring(CS_GENERAL + (state.name - 1) / ENT_NAMES_PER_CS);
+    T_ASSERT(entity_name_slot_equals(names + ((state.name - 1) % ENT_NAMES_PER_CS) * ENT_NAME_SLOT_SIZE,
+                                    "Ancient Elven Gate"));
+    T_ASSERT(state.flags & EF_NEUTRAL);
+    T_ASSERT(!(state.flags & EF_HOVER_HEALTH));
+    ent.destructable.dead = true; ent.health.value = 0;
+    globals.CustomizeEntity(0, &ent, &state);
+    T_EQ(state.name, 0); T_ASSERT(!(state.flags & EF_NEUTRAL));
+    ent.destructable.dead = false; ent.health.value = 500;
+    state.flags |= EF_NOT_SELECTABLE;
+    globals.CustomizeEntity(0, &ent, &state);
+    T_EQ(state.name, 0);
+    state.flags &= ~EF_NOT_SELECTABLE; state.renderfx = RF_HIDDEN;
+    globals.CustomizeEntity(0, &ent, &state);
+    T_EQ(state.name, 0);
+    state.renderfx = 0;
+    globals.CustomizeEntity(0, &ent, &state);
+    T_NE(state.name, 0);
+}
+
 #endif /* BZ_TESTS */

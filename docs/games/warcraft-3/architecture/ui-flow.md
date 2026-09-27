@@ -478,6 +478,7 @@ and media identities are rebuilt across map/save-load transitions; see [HUD Medi
 
 ## See Also
 
+- [Retail Cursor Rendering](../cursor-rendering.md)
 - [UI System Architecture](./ui.md)
 - [Pause And Modal UI](../pause-and-modal-ui.md)
 - [UI Quick Reference](ui-quick-reference.md)

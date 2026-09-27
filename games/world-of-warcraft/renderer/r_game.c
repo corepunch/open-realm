@@ -557,7 +557,7 @@ void R_DrawSprite(drawSprite_t const *sprite) {
 }
 
 /* WoW context cursors are native SDL cursors owned by cl_input.c. */
-bool R_DrawCursor(float x, float y, color32_t tint) {
-    (void)x; (void)y; (void)tint;
+bool R_DrawCursor(drawCursor_t const *cursor) {
+    (void)cursor;
     return false;
 }

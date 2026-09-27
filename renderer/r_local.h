@@ -99,6 +99,8 @@ typedef struct vertex {
 } vertex_t;
 
 struct texture {
+    color32_t first_pixel; /* Decoded level-zero texel, for authored solid-color assets. */
+    bool has_first_pixel;
     uint32_t texid;
     uint32_t width;
     uint32_t height;
@@ -350,7 +352,7 @@ typedef struct {
 
 
 void R_InitTextureFormats(void);
-void R_LoadTextureMipLevel(texture_t const *texture, texMip_t const *mip);
+void R_LoadTextureMipLevel(texture_t *texture, texMip_t const *mip);
 void R_BindTexture(texture_t const *texture, uint32_t unit);
 void R_SetTextureWrap(texture_t const *texture, bool wrapS, bool wrapT);
 void R_DrawEntity(renderEntity_t const *edict, bool shad);

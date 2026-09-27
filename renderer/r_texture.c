@@ -241,6 +241,7 @@ void R_SetTextureWrap(texture_t const *texture, bool wrapS, bool wrapT) {
 
 texture_t *R_AllocateTexture(uint32_t width, uint32_t height) {
     texture_t *texture = ri.MemAlloc(sizeof(texture_t));
+    texture->has_first_pixel = false;
     R_Call(glGenTextures, 1, &texture->texid);
     R_Call(glBindTexture, GL_TEXTURE_2D, texture->texid);
     texture->width = width;
@@ -268,11 +269,19 @@ void R_ReleaseTexture(texture_t *texture) {
 }
 
 /* The format describes the supplied bytes, never the host OS; unsupported BGRA preserves the caller's buffer. */
-void R_LoadTextureMipLevel(texture_t const *texture, texMip_t const *mip) {
+void R_LoadTextureMipLevel(texture_t *texture, texMip_t const *mip) {
     GLenum format = GL_RGBA, internal = GL_RGBA;
     uint8_t *rgba = NULL;
     if (!mip->width || !mip->height)
         return;
+    if (!mip->level) {
+        texture->has_first_pixel = mip->pixels != NULL;
+        if (mip->pixels) {
+            color32_t const pixel = *(color32_t const *)mip->pixels;
+            texture->first_pixel = mip->format == PIXEL_BGRA ?
+                (color32_t){pixel.b, pixel.g, pixel.r, pixel.a} : pixel;
+        }
+    }
     if (mip->format == PIXEL_BGRA) {
         if (r_bgra_internal) {
             format = BZ_GL_BGRA; internal = r_bgra_internal;

@@ -46,6 +46,8 @@ static clMenuLife_t cl_menu_life;
 static uint32_t cl_last_packet_time = 0;
 static uint32_t cl_realtime = 0;
 
+uint32_t CL_RealTime(void) { return cl_realtime; }
+
 typedef enum {
     CL_MENU_ACTION_NONE,
     CL_MENU_ACTION_MAP,

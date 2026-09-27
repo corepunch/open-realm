@@ -756,6 +756,7 @@ static void G_RunClients(void) {
             UI_WriteDialoguePresentation(client_ent);
             client->presentation_dirty = false;
         }
+        if (client->connected) UI_UpdateCursorPresentation(client);
         client->ps.cinefade = cinefade;
     }
     G_CameraTraceFrame();
@@ -1228,6 +1229,7 @@ static void G_ClientBegin(edict_t *edict) {
     G_SetClientConnected(edict, true);
     G_InitClientUIState(client);
     G_MusicSyncClient(client);
+    UI_UpdateCursorPresentation(client);
     if (!client->mapplayer) {
         client->ps.vieworigin = (vec3_t){ 0, 0, 0 };
     }
@@ -1421,6 +1423,30 @@ static void G_CustomizeEntity(uint32_t player, edict_t const *ent, entityState_t
     state->name = 0;
     state->hover_value = 0;
     state->stats[ENT_CARGO] = 0;
+    /* Destructables are scenery, not units. Their live hover contract still
+     * exposes the authored name and neutral Select cursor, without unit bars. */
+    if (G_IsDestructable(ent)) {
+        if (G_DestructableIsAttackable(ent) && !(state->flags & EF_NOT_SELECTABLE) &&
+            !(state->renderfx & RF_HIDDEN) && G_FowPlayerCanHoverEntity(player, ent)) {
+            char localized[MAX_PATHLEN];
+            cstring_t name = ent->data.DestructableData->displayName;
+            if (name && !strncmp(name, "WESTRING_", 9)) {
+                cstring_t resolved = FindConfigValue("WorldEditStrings", name);
+                if (resolved) name = resolved;
+                else fprintf(stderr, "WC3: unresolved destructable name %s\n", name);
+            }
+            /* INI cache values retain their authored surrounding quotes. */
+            size_t len = name ? strlen(name) : 0;
+            if (len >= 2 && name[0] == '"' && name[len - 1] == '"') {
+                snprintf(localized, sizeof(localized), "%.*s", (int)(len - 2), name + 1);
+                name = localized;
+            }
+            state->name = G_UnitNameConfigstring(G_LevelString(name));
+            state->stats[ENT_HEALTH] = compress_stat(&ent->health);
+            state->flags |= EF_NEUTRAL;
+        }
+        return;
+    }
     if (minimap_marker != WC3_MINIMAP_CONTACT_NONE || hoverable) {
         selectionRelation_t const relation = G_SelectionRelation(player, ent);
         if (relation == SELECT_RELATION_ENEMY) {

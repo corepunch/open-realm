@@ -249,3 +249,6 @@ the transmission itself, and fog state is unchanged.
 - [JASS Native Coverage](jass-native-coverage.md)
 
 See also: [Alerts And Minimap Pings](alerts-and-minimap-pings.md).
+
+See [portrait animation and destructable hover parity](portrait-and-hover-parity.md)
+for the retail comparison and renderer/snapshot regressions.

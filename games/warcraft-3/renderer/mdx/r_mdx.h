@@ -492,7 +492,7 @@ void MDLX_ReleaseSprites(mdxModel_t *model);
 void MDLX_DrawSprite(model_t const *model, cstring_t anim, float x, float y);
 void MDLX_DrawSpriteTinted(model_t const *model, cstring_t anim, float x, float y, color32_t tint);
 
-texture_t const *MDLX_GetTexture(mdxModel_t const *, uint32_t, uint32_t, uint32_t, texture_t const *);
+texture_t const *MDLX_GetTexture(mdxModel_t const *, uint32_t, uint32_t, uint32_t, texture_t const *, uint32_t);
 void MDLX_RenderParticleEmitters(renderEntity_t const *, mdxModel_t const *, mat4_t const *);
 void MDLX_RenderRibbonEmitters(renderEntity_t const *, mdxModel_t const *, mat4_t const *);
 void MDLX_DrawRibbonVerts(mdxModel_t const *model, vertex_t *verts, uint32_t nverts,

@@ -11,13 +11,14 @@ texture_t const *MDLX_GetTexture(mdxModel_t const *model,
                                  uint32_t teamID,
                                  uint32_t textureID,
                                  uint32_t replaceableID,
-                                 texture_t const *overrideTexture) {
+                                 texture_t const *overrideTexture, uint32_t overrideSlot) {
     mdxTexture_t const *modeltex = &model->textures[textureID];
     switch (replaceableID) {
         case TEXREPL_TEAMCOLOR: return tr.texture[TEX_TEAM_COLOR + teamID];
         case TEXREPL_TEAMGLOW: return tr.texture[TEX_TEAM_GLOW + teamID];
         default:
-            if (replaceableID != TEXREPL_NONE && overrideTexture) {
+            if (replaceableID != TEXREPL_NONE && overrideTexture &&
+                (!overrideSlot || replaceableID == overrideSlot)) {
                 return overrideTexture;
             }
             return R_FindTextureByID(modeltex->texid);
@@ -324,6 +325,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
                              mdxMaterial_t const *material,
                              uint32_t team,
                              texture_t const *overrideTexture,
+                             uint32_t overrideSlot,
                              bool forceUnshaded,
                              uint32_t frame,
                              vec4_t const *tint,
@@ -399,7 +401,7 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
         MDLX_BindLayerTextureAnimation(model, layer, frame);
         uint32_t textureId = MDLX_EvaluateLayerTextureId(model, layer, frame);
         mdxTexture_t const *modeltex = &model->textures[textureId];
-        texture_t const *texture = MDLX_GetTexture(model, team, textureId, modeltex->replaceableID, overrideTexture);
+        texture_t const *texture = MDLX_GetTexture(model, team, textureId, modeltex->replaceableID, overrideTexture, overrideSlot);
         R_BindTexture(texture, 0);
         R_Call(glBindVertexArray, geoset->vertexArrayBuffer);
         /* The geoset VAO already binds the model-owned index buffer. */
@@ -416,15 +418,6 @@ static void MDLX_RenderGeoset(mdxModel_t const *model,
     shader->state.unshaded = forceUnshaded;
     shader->state.layerAlpha = 1.0f;
     shader->state.geosetColor = (vec4_t){ 1.0f, 1.0f, 1.0f, 1.0f };
-}
-
-mdxSequence_t const *MDLX_FindSequenceByName(mdxModel_t const *model, cstring_t name) {
-    FOR_LOOP(i, model->num_sequences) {
-        if (!strcmp(model->sequences[i].name, name)) {
-            return &model->sequences[i];
-        }
-    }
-    return NULL;
 }
 
 uint32_t MDLX_RemapAnimation(mdxModel_t const *model, uint32_t frame, cstring_t str) {
@@ -597,7 +590,7 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
         }
         material = MDLX_GetMaterialAtIndex(geoset, model);
         if (MDLX_MaterialHasPass(material, false)) {
-            MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, entity->skin, forceUnshaded, entity->frame, &tint, false);
+            MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, entity->skin, entity->skin_slot, forceUnshaded, entity->frame, &tint, false);
         }
     }
 
@@ -614,7 +607,7 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
             if (MDLX_IsGeosetVisible(model, geoset, entity->frame) &&
                 MDLX_MaterialHasPass(material, true))
             {
-                MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, entity->skin, forceUnshaded, entity->frame, &tint, true);
+                MDLX_RenderGeoset(model, geoset, material, entity->team&TEAM_MASK, entity->skin, entity->skin_slot, forceUnshaded, entity->frame, &tint, true);
             }
         }
         return;
@@ -643,7 +636,7 @@ static void MDLX_RenderGeosets(renderEntity_t const *entity,
 
     FOR_LOOP(i, drawCount) {
         mdxGeoset_t const *geoset = drawOrder[i].geoset;
-        MDLX_RenderGeoset(model, geoset, drawOrder[i].material, entity->team&TEAM_MASK, entity->skin, forceUnshaded, entity->frame, &tint, true);
+        MDLX_RenderGeoset(model, geoset, drawOrder[i].material, entity->team&TEAM_MASK, entity->skin, entity->skin_slot, forceUnshaded, entity->frame, &tint, true);
     }
 
     if (drawOrder != stackDrawOrder) {
@@ -744,7 +737,7 @@ void MDLX_DrawRibbonVerts(mdxModel_t const *model, vertex_t *verts, uint32_t nve
              layer->blendMode == BLEND_MODE_BLEND);
         shader->state.fogEnable = layerFog ? 1 : 0;
         modeltex = &model->textures[textureId];
-        texture = MDLX_GetTexture(model, team & TEAM_MASK, textureId, modeltex->replaceableID, NULL);
+        texture = MDLX_GetTexture(model, team & TEAM_MASK, textureId, modeltex->replaceableID, NULL, 0);
         R_BindTexture(texture, 0);
         R_StatsDraw(GL_TRIANGLES, nverts, 1);
         R_ApplyShader(shader);

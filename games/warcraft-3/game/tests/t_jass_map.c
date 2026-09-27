@@ -398,6 +398,101 @@ TEST(wc3_jass_map, orc03_home_counter_actions_complete_before_victory_gate_check
     T_ASSERT(!jass_rterror_pending(level.vm));
 }
 
+/* NightElfX01 removes two seven-unit cinematic groups before enabling rescue regions. */
+TEST(wc3_jass_map, nightelfx01_cleanup_removes_every_tracker) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  unit array trackers\n"
+        "  group first = null\n"
+        "  group second = null\n"
+        "endglobals\n"
+        "function RemoveTracker takes nothing returns nothing\n"
+        "  call RemoveUnit(GetEnumUnit())\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local integer i = 0\n"
+        "  set first = CreateGroup()\n"
+        "  set second = CreateGroup()\n"
+        "  loop\n"
+        "    exitwhen i == 14\n"
+        "    set trackers[i] = CreateUnit(Player(0), 'hfoo', 64.0 * i, 128.0, 0.0)\n"
+        "    if i < 7 then\n"
+        "      call GroupAddUnit(first, trackers[i])\n"
+        "    else\n"
+        "      call GroupAddUnit(second, trackers[i])\n"
+        "    endif\n"
+        "    set i = i + 1\n"
+        "  endloop\n"
+        "  call ForGroup(first, function RemoveTracker)\n"
+        "  call ForGroup(second, function RemoveTracker)\n"
+        "endfunction\n"
+        "function VerifyCleanup takes nothing returns nothing\n"
+        "  local integer i = 0\n"
+        "  loop\n"
+        "    exitwhen i == 14\n"
+        "    call BJassAssert(GetUnitTypeId(trackers[i]) == 0, \"cinematic tracker survived cleanup\")\n"
+        "    set i = i + 1\n"
+        "  endloop\n"
+        "  call BJassAssert(FirstOfGroup(first) == null, \"first tracker group is empty\")\n"
+        "  call BJassAssert(FirstOfGroup(second) == null, \"second tracker group is empty\")\n"
+        "endfunction\n"));
+    G_RunDeferredFrees();
+    jass_callbyname(level.vm, "VerifyCleanup", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+}
+
+/* Snapshot membership survives mutation; removed handles are skipped and nested context is restored. */
+TEST(wc3_jass_map, forgroup_snapshot_survives_nested_mutation) {
+    setup_test_world();
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  group outer = null\n"
+        "  group inner = null\n"
+        "  unit removed = null\n"
+        "  unit added = null\n"
+        "  integer total = 0\n"
+        "endglobals\n"
+        "function InnerAction takes nothing returns nothing\n"
+        "  call BJassAssert(GetEnumUnit() == added, \"nested enum unit\")\n"
+        "endfunction\n"
+        "function OuterAction takes nothing returns nothing\n"
+        "  local unit u = GetEnumUnit()\n"
+        "  set total = total + GetUnitUserData(u)\n"
+        "  if GetUnitUserData(u) == 1 then\n"
+        "    call GroupClear(outer)\n"
+        "    call GroupAddUnit(outer, added)\n"
+        "    call RemoveUnit(removed)\n"
+        "    call ForGroup(inner, function InnerAction)\n"
+        "    call BJassAssert(GetEnumUnit() == u, \"outer enum unit restored\")\n"
+        "    call DestroyGroup(outer)\n"
+        "  endif\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  local integer i = 1\n"
+        "  local unit u\n"
+        "  set outer = CreateGroup()\n"
+        "  set inner = CreateGroup()\n"
+        "  loop\n"
+        "    exitwhen i == 5\n"
+        "    set u = CreateUnit(Player(0), 'hfoo', 128.0 * i, 128.0, 0.0)\n"
+        "    call SetUnitUserData(u, i)\n"
+        "    if i < 4 then\n"
+        "      call GroupAddUnit(outer, u)\n"
+        "    else\n"
+        "      set added = u\n"
+        "      call GroupAddUnit(inner, u)\n"
+        "    endif\n"
+        "    if i == 2 then\n"
+        "      set removed = u\n"
+        "    endif\n"
+        "    set i = i + 1\n"
+        "  endloop\n"
+        "  call ForGroup(outer, function OuterAction)\n"
+        "  call BJassAssert(total == 4, \"visit original live members once despite group mutation\")\n"
+        "endfunction\n"));
+}
+
 TEST(wc3_jass_map, trigger_execute_runs_until_child_sleep_then_resumes) {
     T_ASSERT(run_test_jass(
         "globals\n"

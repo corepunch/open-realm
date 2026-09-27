@@ -139,6 +139,11 @@ bool CL_TryMinimapClick(float x, float y) {
     vec2_t world;
     /* TraceMinimap is mandatory; its result reports whether a minimap was hit. */
     if (!CL_GameplayInputReady() || !re.TraceMinimap(x, y, &world)) return false;
+    if (cl.playerstate.stats[UI_PLAYERSTAT_CURSOR_FLAGS] & CURSOR_INPUT_MINIMAP_POINT) {
+        MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+        SZ_Printf(&cls.netchan.message, "point %d %d", (int)world.x, (int)world.y);
+        return true;
+    }
     minimap_drag_active = true;
     CL_SetCameraPosition(world);
     return true;

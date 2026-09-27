@@ -260,4 +260,27 @@ TEST(wc3_save, hero_audit_retries_when_80_unit_dest_snaps_home) {
     gi.CvarString = old_cvar;
     T_ASSERT(hero->s.origin.x < start_x - 1.0f || hero->s.origin.y > start_y + 1.0f || hero->s.origin.y < start_y - 1.0f);
 }
+
+TEST(wc3_cursor, save_discards_transient_held_item) {
+    cstring_t path = "/tmp/openwarcraft3-cursor-save.bin";
+    reset_entities(); setup_test_world();
+    edict_t *hero = make_walk_hero(0, 0);
+    edict_t *item = give_item(hero, MAKEFOURCC('s','p','r','o'), 0, 1);
+    gameClient_t *client = &game.clients[0];
+    client->menu.dragged_item = item;
+    client->menu.dragged_item_spawn_time = item->spawn_time;
+    client->ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION] = 2;
+    client->ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE] = 117;
+    client->cursor_signal = true;
+    client->ps.stats[UI_PLAYERSTAT_CURSOR_FLAGS] = CURSOR_INPUT_MINIMAP_POINT;
+    T_ASSERT(WriteGame(path));
+    T_ASSERT(ReadGame(path));
+    T_ASSERT(!game.clients[0].cursor_signal);
+    T_EQ(game.clients[0].ps.stats[UI_PLAYERSTAT_CURSOR_FLAGS], 0);
+    T_NULL(game.clients[0].menu.dragged_item);
+    T_EQ(game.clients[0].menu.dragged_item_spawn_time, 0);
+    T_EQ(game.clients[0].ps.stats[UI_PLAYERSTAT_CURSOR_INTERACTION], 0);
+    T_EQ(game.clients[0].ps.stats[UI_PLAYERSTAT_CURSOR_IMAGE], 0);
+    remove(path);
+}
 #endif

@@ -83,6 +83,8 @@ This codebase is inspired by **Quake 2** (id Software). The developer is deeply 
 | WC3 `SetUnitVertexColor`, per-frame tint transport, explicit alpha-zero semantics | [docs/games/warcraft-3/unit-vertex-color.md](docs/games/warcraft-3/unit-vertex-color.md) |
 | WC3 enemy/neutral selection, relationship colours, command authority, fog/death deselection | [docs/games/warcraft-3/selection-and-control.md](docs/games/warcraft-3/selection-and-control.md) |
 | WC3 player/team/unit color ownership, MDX TeamColor/TeamGlow precedence, projectile/effect/UI inheritance, lobby and JASS overrides | [docs/games/warcraft-3/team-colors.md](docs/games/warcraft-3/team-colors.md) |
+| WC3 mouse-edge scroll cursors, eight authored MDX directions, retail keyboard distinction | [docs/games/warcraft-3/scroll-cursors.md](docs/games/warcraft-3/scroll-cursors.md) |
+| WC3 retail cursor frame/sprite ownership, animation clocks, virtual xrefs, D3D draw chain, reusable Ghidra/Frida probes | [docs/games/warcraft-3/cursor-rendering.md](docs/games/warcraft-3/cursor-rendering.md) |
 | Client numbered control groups (`cl.groups`), WC3/SC2 binds, double-tap camera focus | [docs/games/warcraft-3/control-groups.md](docs/games/warcraft-3/control-groups.md) |
 | WC3 Shift command queuing, per-unit FIFO orders, target revalidation, replacement/Stop semantics | [docs/games/warcraft-3/order-queue.md](docs/games/warcraft-3/order-queue.md) |
 | WC3 point-order confirmation markers, transient feedback, support-surface grounding | [docs/games/warcraft-3/command-feedback.md](docs/games/warcraft-3/command-feedback.md) |

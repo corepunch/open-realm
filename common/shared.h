@@ -533,6 +533,10 @@ typedef enum {
     UI_PLAYERSTAT_SELECTION_TIMED_STATUS, /* 0..USHRT_MAX; selected-unit timed-status remaining fraction */
     UI_PLAYERSTAT_ENV_VARIANT, /* presentation variant for environment-bound UI; 0 is normal */
     UI_PLAYERSTAT_GAME_VARIANT, /* opaque game-owned local presentation variant; shared/client code assigns no semantics */
+    UI_PLAYERSTAT_CURSOR_INTERACTIONL, /* registered model index for local pointer presentation */
+    UI_PLAYERSTAT_CURSOR_INTERACTION,  /* opaque game-owned pointer interaction */
+    UI_PLAYERSTAT_CURSOR_IMAGE, /* registered game-owned cursor image; zero clears it */
+    UI_PLAYERSTAT_CURSOR_FLAGS, /* generic pointer input policies */
 } UIPLAYERSTAT;
 
 typedef enum {
@@ -583,7 +587,9 @@ typedef struct environlight_s {
 
 _Static_assert(UI_PLAYERSTAT_ENV_PHASE != UI_PLAYERSTAT_CINEMATIC_PORTRAIT_COLOR,
                "env phase and cinematic portrait color must occupy distinct stats[] slots");
-_Static_assert(UI_PLAYERSTAT_GAME_VARIANT < MAX_STATS,
+enum { CURSOR_INPUT_MINIMAP_POINT = 1u << 0 };
+
+_Static_assert(UI_PLAYERSTAT_CURSOR_FLAGS < MAX_STATS,
                "presentation stats must fit playerState.stats[]");
 
 /* Controller input is independent of whether the player edict has a visible model. */

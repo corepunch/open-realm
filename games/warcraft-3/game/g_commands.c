@@ -631,7 +631,7 @@ static void G_QueueOrderSound(edict_t *ent) {
 /* select/point are left-click completion paths for targeted commands.  A
  * right-click Smart action cancels that mode instead of being interpreted as
  * a new order by the units that were selected when targeting began. */
-static bool G_CancelTargetMode(edict_t *clent) {
+bool G_CancelTargetMode(edict_t *clent) {
     gameClient_t *client = clent ? clent->client : NULL;
 
     if (!client || (!client->menu.on_entity_selected && !client->menu.on_location_selected))
@@ -1792,7 +1792,7 @@ CLIENTCOMMAND(CancelTrain) {
 /* Keep an unsupported entity drop in target mode until the player cancels it. */
 static bool G_ItemDragSelectEntity(edict_t *clent, edict_t *target) {
     gameClient_t *client = clent ? clent->client : NULL;
-    edict_t *item = client ? client->menu.dragged_item : NULL;
+    edict_t *item = G_GetDraggedItem(client);
     edict_t *carrier = G_IsItem(item) ? item->item.carrier : NULL;
 
     if (client && G_CanUseItemShop(client, target) && G_UnitCanControl(client, carrier) &&
@@ -1815,7 +1815,7 @@ static bool G_ItemDragSelectLocation(edict_t *clent, vec2_t const *location) {
     edict_t *item;
 
     if (!client || !location) return false;
-    item = client->menu.dragged_item;
+    item = G_GetDraggedItem(client);
     unit = G_IsItem(item) ? item->item.carrier : NULL;
     if (!G_UnitCanControl(client, unit) || !G_InventoryCanDropItems(unit) ||
         !G_IsItem(item) || item->item.carrier != unit)
@@ -1845,6 +1845,7 @@ CLIENTCOMMAND(ItemDrag) {
      * it through the normal target-mode cancellation path. */
     memset(&client->menu, 0, sizeof(client->menu));
     client->menu.dragged_item = item;
+    client->menu.dragged_item_spawn_time = item->spawn_time;
     client->menu.on_entity_selected = G_ItemDragSelectEntity;
     client->menu.on_location_selected = G_ItemDragSelectLocation;
     UI_AddCancelButton(clent);
@@ -2876,9 +2877,18 @@ clientCommand_t clientCommands[] = {
 };
 
 void G_ClientCommand(edict_t *ent, uint32_t argc, cstring_t argv[]) {
+    if (G_SignalCommand(ent, argc, argv)) {
+        UI_UpdateCursorPresentation(ent->client);
+        return;
+    }
     for (clientCommand_t const *cmd = clientCommands; cmd->name; cmd++) {
         if (!strcmp(cmd->name, argv[0])) {
+            uint32_t const player = ent && ent->client ? ent->client->ps.number : MAX_PLAYERS;
             cmd->func(ent, argc, argv);
+            /* Load/leave commands may replace client storage; resolve the live
+             * player again before publishing derived presentation. */
+            gameClient_t *client = game.clients && player < MAX_PLAYERS ? G_GetPlayerClientByNumber(player) : NULL;
+            if (client) UI_UpdateCursorPresentation(client);
             return;
         }
     }

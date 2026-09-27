@@ -181,6 +181,7 @@ typedef struct {
     bool order_queue_chained;  /* successful Shift target keeps this mode armed until Shift release */
     bool ability_off;          /* command-card separate-off variant selected for this dispatch */
     edict_t *dragged_item;      /* transient inventory item carried by the cursor for a drop order */
+    uint32_t dragged_item_spawn_time;
 } menu_t;
 typedef menu_t clientMenu_s;
 
@@ -564,6 +565,8 @@ struct client_s {
     bool quest_dialog_open;
     uint32_t quest_until; /* FlashQuestDialogButton deadline in simulation milliseconds. */
     menu_t menu;
+    bool cursor_signal; /* transient locked overlay; preserves the underlying command menu */
+    bool cursor_missing_reported; /* bounded missing-skin diagnostic; derived presentation state */
     struct clientCamera_s {
         camerasetup_t state;
         camerasetup_t old_state;
@@ -2784,6 +2787,12 @@ frameDef_t *UI_FindChildFrameType(frameDef_t *, FRAMETYPE);
 
 cstring_t Theme_String(cstring_t, cstring_t);
 cstring_t Theme_PlayerString(gameClient_t *, cstring_t, cstring_t);
+void UI_UpdateCursorPresentation(gameClient_t *client);
+bool G_SignalCommand(edict_t *ent, uint32_t argc, cstring_t argv[]);
+uint32_t G_SignalColorImage(gameClient_t *client);
+edict_t *G_GetDraggedItem(gameClient_t *client);
+void G_UpdateItemDrag(gameClient_t *client);
+bool G_CancelTargetMode(edict_t *clent);
 float Theme_Float(cstring_t, cstring_t);
 
 // ui_write.c

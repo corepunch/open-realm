@@ -94,9 +94,10 @@ static color32_t SCR_CursorTint(void) {
             if (state->flags & EF_HOSTILE) {
                 return MAKE(color32_t, 255, 0, 0, 255);
             }
-            if (state->flags & EF_NEUTRAL) {
-                return MAKE(color32_t, 255, 220, 80, 255);
+            if ((state->flags & EF_NEUTRAL) || state->player != cl.playerstate.number) {
+                return MAKE(color32_t, 255, 255, 0, 255);
             }
+            return MAKE(color32_t, 0, 255, 0, 255);
         }
     }
     return COLOR32_WHITE;
@@ -114,8 +115,23 @@ static void SCR_DrawCursor(void) {
     }
 
     if (Cvar_Integer("r_cursor", 0) == 1) {
-        vec2_t const pos = SCR_ScreenToUI(x, y);
-        drawn = re.DrawCursor(pos.x, pos.y, SCR_CursorTint());
+        drawCursor_t cursor = { .origin = SCR_ScreenToUI(x, y), .scroll = CL_MouseScroll(), .tint = SCR_CursorTint(), .time = CL_RealTime() };
+        cursor.hover = cl.hover_entity && cl.hover_entity < MAX_CLIENT_ENTITIES &&
+            CL_EntityAllowsWorldHover(&cl.ents[cl.hover_entity].current);
+        cursor.hostile = cursor.hover && (cl.ents[cl.hover_entity].current.flags & EF_HOSTILE);
+        cursor.owned = cursor.hover && cl.ents[cl.hover_entity].current.player == cl.playerstate.number;
+        cursor.game = cls.state == ca_active;
+        uint16_t const model = cl.playerstate.stats[UI_PLAYERSTAT_CURSOR_INTERACTIONL];
+        uint16_t const image = cl.playerstate.stats[UI_PLAYERSTAT_CURSOR_IMAGE];
+        cursor.model = cursor.game && model && model < MAX_MODELS ? cl.models[model] : NULL;
+        cursor.skin = cursor.game && image && image < MAX_IMAGES ? cl.pics[image] : NULL;
+        cursor.interaction = cl.playerstate.stats[UI_PLAYERSTAT_CURSOR_INTERACTION];
+        if (!CL_GameplayInputReady() || CL_MouseCaptured()) {
+            cursor.interaction = 0;
+            cursor.hover = false;
+            cursor.skin = NULL;
+        }
+        drawn = re.DrawCursor(&cursor);
     }
     SCR_UpdateSystemCursor(drawn);
 }

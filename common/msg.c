@@ -148,24 +148,13 @@ netField_t playerStateFields[] = {
     { NETF(player_t, name), NFT_DUPTEXT },
     { NETF(player_t, start_location), NFT_LONG },
     { NETF(player_t, cinefade), NFT_FLOAT },
-    { NETF(player_t, stats[0]), NFT_LONG },
-    { NETF(player_t, stats[2]), NFT_LONG },
-    { NETF(player_t, stats[4]), NFT_LONG },
-    { NETF(player_t, stats[6]), NFT_LONG },
-    { NETF(player_t, stats[8]), NFT_LONG },
-    { NETF(player_t, stats[16]), NFT_LONG },
-    /* stats[18..22] are generic live-selection HUD bindings; stats[23] is a
-     * generic environment-presentation variant paired with the final slot. */
-    { NETF(player_t, stats[18]), NFT_LONG },
-    { NETF(player_t, stats[20]), NFT_LONG },
-    { NETF(player_t, stats[22]), NFT_LONG },
-    { NETF(player_t, stats[23]), NFT_LONG },
     { NETF(player_t, texts[0]), NFT_DUPTEXT },
     { NETF(player_t, texts[1]), NFT_DUPTEXT },
     /* Map metadata moved to the WoW map-info configstring; only cinematic text remains in player state. */
     { NULL }
 };
 
+_Static_assert(MAX_STATS <= 32, "player-stat delta mask is 32 bits");
 _Static_assert(MSG_FIELD_COUNT(playerStateFields) <= 32, "player-state delta mask is 32 bits");
 _Static_assert(MSG_FIELD_COUNT(entityStateFields) <= 32, "entity-state delta mask is 32 bits");
 _Static_assert(MSG_FIELD_COUNT(uiFrameFields) <= 32, "ui-frame delta mask is 32 bits");
@@ -504,6 +493,12 @@ void MSG_WriteDeltaPlayerState(sizeBuf_t *msg,
     uint32_t bits = MSG_GetBits(from, to, playerStateFields, false);
     MSG_WritePlayerBits(msg, bits, to->number);
     MSG_WriteFields(msg, to, playerStateFields, bits, false);
+    /* Q2-style stat mask: every generic stat has a wire representation without
+     * consuming one of the fixed player-field delta bits per pair. */
+    uint32_t statbits = 0;
+    FOR_LOOP(i, MAX_STATS) if (from->stats[i] != to->stats[i]) statbits |= 1u << i;
+    MSG_WriteLong(msg, statbits);
+    FOR_LOOP(i, MAX_STATS) if (statbits & (1u << i)) MSG_WriteShort(msg, to->stats[i]);
 }
 
 void MSG_ReadDeltaPlayerState(sizeBuf_t *msg,
@@ -513,6 +508,8 @@ void MSG_ReadDeltaPlayerState(sizeBuf_t *msg,
 {
     edict->number = number;
     MSG_ReadFields(msg, edict, playerStateFields, bits, false);
+    uint32_t const statbits = (uint32_t)MSG_ReadLong(msg);
+    FOR_LOOP(i, MAX_STATS) if (statbits & (1u << i)) edict->stats[i] = (uint16_t)MSG_ReadShort(msg);
 }
 
 void SZ_Printf(sizeBuf_t *msg, cstring_t fmt, ...) {

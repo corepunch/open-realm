@@ -1,0 +1,2 @@
+[WorldEditStrings]
+WESTRING_DEST_ELVEN_GATE_HORIZONTAL="Ancient Elven Gate"
