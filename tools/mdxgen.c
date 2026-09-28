@@ -43,6 +43,7 @@ static int gen_quad_sprite(int, char **);
 static int gen_panel_sprite(int, char **);
 static int gen_ui_panel(int, char **);
 static int gen_anim_pulse(int, char **);
+static int gen_anim_oneshot(int, char **);
 static int gen_morph(int, char **);
 static int gen_doodad(int, char **);
 static int gen_doodad_birth(int, char **);
@@ -52,6 +53,7 @@ static const struct { const char *name; int (*gen)(int, char **); } presets[] = 
     { "panel_sprite", gen_panel_sprite },
     { "ui_panel", gen_ui_panel },
     { "anim_pulse", gen_anim_pulse },
+    { "anim_oneshot", gen_anim_oneshot },
     { "morph", gen_morph },
     { "doodad", gen_doodad },
     { "doodad_birth", gen_doodad_birth },
@@ -196,6 +198,7 @@ static void emit_MODL(wbuf_t *b, const char *model_name) {
 /* SEQS chunk: array of mdxSequence_t (132 bytes each) */
 static void emit_SEQS(wbuf_t *b, const char **names,
                       uint32_t const *starts, uint32_t const *ends,
+                      uint32_t const *flags,
                       int n)
 {
     wb_tag(b, "SEQS");
@@ -205,7 +208,7 @@ static void emit_SEQS(wbuf_t *b, const char **names,
         wb_u32(b, starts[i]);      /* interval[0] */
         wb_u32(b, ends[i]);        /* interval[1] */
         wb_f32(b, 0.0f);           /* movespeed */
-        wb_u32(b, 0);              /* flags (0=looping) */
+        wb_u32(b, flags ? flags[i] : 0); /* flags (bit 0 = non-looping) */
         wb_f32(b, 0.0f);           /* rarity */
         wb_i32(b, 0);              /* syncpoint */
         wb_bounds(b, 1.0f,         /* bounds */
@@ -359,13 +362,14 @@ static void emit_PIVT(wbuf_t *b) {
  * Model builders
  * =========================================================================*/
 
-static int build_model(const char *tex_path, const char *out_path,
-                       const char *model_name,
-                       float hw, float hh,
-                       const char **seq_names,
-                       const uint32_t *seq_starts,
-                       const uint32_t *seq_ends,
-                       int n_seqs)
+static int build_model_flags(const char *tex_path, const char *out_path,
+                             const char *model_name,
+                             float hw, float hh,
+                             const char **seq_names,
+                             const uint32_t *seq_starts,
+                             const uint32_t *seq_ends,
+                             const uint32_t *seq_flags,
+                             int n_seqs)
 {
     wbuf_t b = { 0 };
 
@@ -374,7 +378,7 @@ static int build_model(const char *tex_path, const char *out_path,
 
     emit_VERS(&b);
     emit_MODL(&b, model_name);
-    emit_SEQS(&b, seq_names, seq_starts, seq_ends, n_seqs);
+    emit_SEQS(&b, seq_names, seq_starts, seq_ends, seq_flags, n_seqs);
     emit_TEXS(&b, tex_path);
     emit_MTLS(&b);
     emit_GEOS(&b, hw, hh);
@@ -394,6 +398,18 @@ static int build_model(const char *tex_path, const char *out_path,
     return 1;
 }
 
+static int build_model(const char *tex_path, const char *out_path,
+                       const char *model_name,
+                       float hw, float hh,
+                       const char **seq_names,
+                       const uint32_t *seq_starts,
+                       const uint32_t *seq_ends,
+                       int n_seqs)
+{
+    return build_model_flags(tex_path, out_path, model_name, hw, hh,
+                             seq_names, seq_starts, seq_ends, NULL, n_seqs);
+}
+
 static int build_model_rect(const char *tex_path, const char *out_path,
                             const char *model_name,
                             float minx, float miny,
@@ -409,7 +425,7 @@ static int build_model_rect(const char *tex_path, const char *out_path,
 
     emit_VERS(&b);
     emit_MODL(&b, model_name);
-    emit_SEQS(&b, seq_names, seq_starts, seq_ends, n_seqs);
+    emit_SEQS(&b, seq_names, seq_starts, seq_ends, NULL, n_seqs);
     emit_TEXS(&b, tex_path);
     emit_MTLS(&b);
     emit_GEOS_RECT(&b, minx, miny, maxx, maxy);
@@ -499,6 +515,17 @@ static int gen_anim_pulse(int argc, char **argv) {
                        names, starts, ends, 2) ? 0 : 1;
 }
 
+static int gen_anim_oneshot(int argc, char **argv) {
+    if (argc < 3) {
+        fprintf(stderr, "usage: mdxgen anim_oneshot <tex_path> <out.mdx>\n");
+        return 1;
+    }
+    const char *names[] = { "Stand" };
+    uint32_t starts[] = { 0 }, ends[] = { 1000 }, flags[] = { 1 };
+    return build_model_flags(argv[1], argv[2], "AnimOneShot", 0.5f, 0.5f,
+                             names, starts, ends, flags, 1) ? 0 : 1;
+}
+
 /* Separate base/alternate clips let ability tests exercise real MDX sequence selection and completion. */
 static int gen_morph(int argc, char **argv) {
     const char *names[] = { "Stand", "Stand Alternate", "Morph", "Morph Alternate", "Walk", "Walk Alternate" };
@@ -541,6 +568,7 @@ static void usage(void) {
         "  mdxgen panel_sprite  <tex_path> <out.mdx>\n"
         "  mdxgen ui_panel      <tex_path> <out.mdx>\n"
         "  mdxgen anim_pulse    <tex_path> <out.mdx>\n"
+        "  mdxgen anim_oneshot <tex_path> <out.mdx>\n"
         "  mdxgen morph         <tex_path> <out.mdx>\n"
         "\n"
         "Examples:\n"

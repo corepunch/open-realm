@@ -3613,6 +3613,51 @@ TEST(wc3_api, effect_natives_return_independent_handles) {
         "endfunction\n"));
 }
 
+/* Undead01's MassTeleportCaster has only a flagged non-looping Stand sequence.
+ * Stop rendering it at that boundary but keep its JASS handle valid until the
+ * script calls DestroyEffect, even if another variable was assigned afterward. */
+TEST(wc3_api, nonlooping_effect_stand_hides_without_invalidating_handle) {
+    int effect_model;
+    uint32_t live_effects = 0;
+    setup_test_world();
+    effect_model = G_RegisterModel("TestUI\\Models\\anim_oneshot.mdx");
+    T_ASSERT(effect_model > 0);
+    animation_t const *stand = G_GetAnimation((uint32_t)effect_model, "Stand");
+    T_NOT_NULL(stand);
+    T_ASSERT(stand && (stand->flags & 1u));
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  effect retainedEffect = null\n"
+        "  effect overwrittenEffect = null\n"
+        "endglobals\n"
+        "function main takes nothing returns nothing\n"
+        "  set overwrittenEffect = AddSpecialEffect(\"TestUI\\\\Models\\\\anim_oneshot.mdx\", 32.0, 32.0)\n"
+        "  set retainedEffect = overwrittenEffect\n"
+        "  set overwrittenEffect = AddSpecialEffect(\"TestUI\\\\Models\\\\anim_pulse.mdx\", 64.0, 64.0)\n"
+        "endfunction\n"
+        "function DestroyRetainedEffect takes nothing returns nothing\n"
+        "  call DestroyEffect(retainedEffect)\n"
+        "endfunction\n"));
+
+    FOR_LOOP(i, globals.num_edicts) {
+        edict_t *effect = globals.edicts + i;
+        if (effect->inuse && effect->s.model == effect_model) live_effects++;
+    }
+    T_EQ(live_effects, 1);
+    edict_t *effect = NULL;
+    FOR_LOOP(i, globals.num_edicts)
+        if (globals.edicts[i].inuse && globals.edicts[i].s.model == effect_model) effect = globals.edicts + i;
+    T_NOT_NULL(effect);
+    if (!effect) return;
+    for (int i = 0; i < 12 && effect->inuse; i++) M_MoveFrame(effect);
+    T_ASSERT(effect->inuse);
+    T_ASSERT(effect->s.renderfx & RF_HIDDEN);
+    T_ASSERT(effect->aiflags & AI_HOLD_FRAME);
+    jass_callbyname(level.vm, "DestroyRetainedEffect", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    T_ASSERT(!effect->inuse);
+}
+
 TEST(wc3_api, jass_sound_runtime_tracks_one_shot_volume_and_attachment_safely) {
     int handle_storage = 0;
     handle_t handle = &handle_storage;
