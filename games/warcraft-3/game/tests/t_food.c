@@ -172,6 +172,17 @@ TEST(wc3_food, command_error_key_distinguishes_supply_shortage_from_absolute_cei
     T_STREQ(G_FoodCommandErrorKey(client, 22), "Maxsupply");
 }
 
+TEST(wc3_food, food_checks_handle_maximum_authored_food_cost_without_overflow) {
+    gameClient_t *client = &game.clients[0];
+
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 1;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    client->ps.stats[PLAYERSTATE_FOOD_CAP_CEILING] = 100;
+
+    T_ASSERT(!G_PlayerHasFoodFor(client, INT32_MAX));
+    T_STREQ(G_FoodCommandErrorKey(client, INT32_MAX), "Maxsupply");
+}
+
 TEST(wc3_food, food_limits_cvar_allows_training_over_cap_but_keeps_accounting) {
     gameClient_t *client = &game.clients[0];
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);

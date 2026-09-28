@@ -83,7 +83,7 @@ bool G_PlayerHasFoodFor(gameClient_t *client, int32_t food_cost) {
     if (food_cost <= 0 || !G_FoodLimitsEnabled()) return true;
     used = (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED];
     cap = G_GetEffectiveFoodCap(client);
-    return used + food_cost <= cap;
+    return used <= cap && food_cost <= cap - used;
 }
 
 cstring_t G_FoodCommandErrorKey(gameClient_t *client, int32_t food_cost) {
@@ -95,7 +95,7 @@ cstring_t G_FoodCommandErrorKey(gameClient_t *client, int32_t food_cost) {
 
     /* If the requested unit would exceed the absolute player-state ceiling,
      * another Farm/Burrow/Ziggurat/Moon Well cannot solve this shortage. */
-    if (ceiling > 0 && used + food_cost > ceiling) return "Maxsupply";
+    if (ceiling > 0 && (used > ceiling || food_cost > ceiling - used)) return "Maxsupply";
     return "Nofood";
 }
 
