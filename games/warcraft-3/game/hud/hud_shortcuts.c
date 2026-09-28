@@ -5,10 +5,6 @@
 
 #define HERO_SHORTCUT_SIZE    0.0340f
 #define HERO_SHORTCUT_GAP     0.0030f
-#define IDLE_WORKER_X         0.0080f
-#define IDLE_WORKER_Y         0.4145f
-#define IDLE_WORKER_SIZE      0.0340f
-
 static uint32_t UI_WriteShortcutRoot(void) {
     uiFrame_t frame;
     uint32_t number = ui_next_frame_number;
@@ -132,10 +128,10 @@ void UI_WriteUnitShortcutLayer(edict_t *clent) {
     if (idle_count && next_idle) {
         uint32_t number = (uint32_t)(next_idle - globals.edicts);
         snprintf(command, sizeof(command), "idleworker %u", (unsigned)number);
-        UI_WriteUnitShortcutButton(shortcut_root, IDLE_WORKER_X, IDLE_WORKER_Y, IDLE_WORKER_SIZE,
+        UI_WriteUnitShortcutButton(shortcut_root, WC3_HUD_IDLE_WORKER_X, WC3_HUD_IDLE_WORKER_Y, WC3_HUD_IDLE_WORKER_SIZE,
                                    next_idle, command, "Select Idle Worker", false);
-        UI_WriteShortcutNumber(shortcut_root, IDLE_WORKER_X, IDLE_WORKER_Y,
-                               IDLE_WORKER_SIZE, IDLE_WORKER_SIZE, idle_count);
+        UI_WriteShortcutNumber(shortcut_root, WC3_HUD_IDLE_WORKER_X, WC3_HUD_IDLE_WORKER_Y,
+                               WC3_HUD_IDLE_WORKER_SIZE, WC3_HUD_IDLE_WORKER_SIZE, idle_count);
     }
 
     UI_WriteEnd(clent);
