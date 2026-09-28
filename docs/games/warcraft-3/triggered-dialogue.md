@@ -58,7 +58,7 @@ current Warsmash effectively renders gameplay transmission subtitles regardless
 of that override. OpenRealm intentionally matches that behavior for now rather
 than inventing an unverified user-preference policy.
 
-When `wc3_quest_debug 1` is enabled, message/transmission entry points emit `WC3_TUTORIAL_TEXT` diagnostics before presentation state is mutated. The diagnostic records the active trigger ordinal and JASS caller plus both the raw map string token and its resolved text. Ordinary `DisplayText*` calls also record target/position/duration; `SetCinematicScene` records speaker, dialogue, portrait and scene/voice lifetimes, and `EndCinematicScene` records the clear. This is intended for campaign tutorial progression debugging and does not alter message timing or retention.
+Build with `WC3_DEBUG_TUTORIAL_FLOW=1` and enable `wc3_quest_debug 1` at runtime to emit `WC3_TUTORIAL_TEXT` diagnostics before message/transmission presentation state is mutated. Without the build option, these diagnostics are compiled out. Timestamps in the cinematic-scene diagnostics are elapsed simulation time in `HH:MM:SS.mmm`, not wall-clock time. Each record includes the active trigger ordinal and JASS caller plus both the raw map string token and its resolved text. Ordinary `DisplayText*` calls also record target/position/duration; `SetCinematicScene` records speaker, dialogue, portrait and scene/voice lifetimes, and `EndCinematicScene` records the clear. This is intended for campaign tutorial progression debugging and does not alter message timing or retention.
 
 `StartSound` records the sound handle's latest simulation start time. A later
 `TriggerWaitForSound` waits only for the remaining authored duration from that
