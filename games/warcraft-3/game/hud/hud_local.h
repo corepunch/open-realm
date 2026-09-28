@@ -91,6 +91,7 @@ typedef struct {
     color32_t timer_dialog_default_title_color;
     color32_t timer_dialog_default_time_color;
     FRAMEDEF msg_root, msg_text;
+    FRAMEDEF command_error_root, command_error_text;
     PATHSTR image_key[MAX_IMAGES];
     PATHSTR image_name[MAX_IMAGES];
     bool image_decorated[MAX_IMAGES];
@@ -117,6 +118,7 @@ void UI_WriteCommandTextFrame(float x, float y, float w, float h, cstring_t text
 void UI_WriteBackdropFrame(float x, float y, float w, float h, cstring_t background, cstring_t edge);
 void UI_WriteTextAreaFrame(float x, float y, float w, float h, cstring_t text, color32_t color, uint32_t font_size, float inset);
 void UI_WriteTooltipFrame(void);
+void UI_WriteCommandError(edict_t *ent, cstring_t text);
 void UI_AppendMessageText(string_t out, uint32_t out_size, cstring_t text);
 cstring_t UI_FormatMessageText(cstring_t text);
 cstring_t UI_LevelStringSafe(cstring_t text);

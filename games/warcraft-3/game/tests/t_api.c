@@ -756,6 +756,11 @@ static cstring_t group_debug_cvar(cstring_t name, cstring_t fallback) {
 
 static uint32_t presentation_write_count;
 static uint32_t presentation_unicast_count;
+static int32_t command_error_header[2];
+static uint32_t command_error_header_count;
+static uiFrame_t command_error_frames[2];
+static uint32_t command_error_frame_count;
+static edict_t *command_error_recipient;
 static pfWriteType_t indicator_types[4];
 static int32_t indicator_values[4];
 static uint32_t indicator_write_count;
@@ -1035,6 +1040,25 @@ static void capture_presentation_write(pfWriteType_t type, void const *data) {
 static void capture_presentation_unicast(edict_t *ent) {
     (void)ent;
     presentation_unicast_count++;
+}
+
+static void capture_command_error_write(pfWriteType_t type, void const *data) {
+    if (type == PF_BYTE && command_error_header_count < 2) {
+        command_error_header[command_error_header_count++] = data ? *(int32_t const *)data : -1;
+        return;
+    }
+    if (type == PF_UIFRAME && command_error_frame_count < 2 && data)
+        command_error_frames[command_error_frame_count++] = *(uiFrame_t const *)data;
+}
+
+static void capture_command_error_unicast(edict_t *ent) {
+    command_error_recipient = ent;
+}
+
+static int capture_command_error_font(cstring_t name, uint32_t size) {
+    (void)name;
+    (void)size;
+    return 17;
 }
 
 static void capture_indicator_write(pfWriteType_t type, void const *data) {
@@ -2853,7 +2877,116 @@ TEST(wc3_api, narrator_and_hint_text_share_message_log) {
     T_EQ(gc->message_log.count, 0);
 }
 
-TEST(wc3_api, transient_command_style_text_does_not_enter_message_log) {
+TEST(wc3_api, command_error_uses_dedicated_replacing_hud_layer) {
+    gameClient_t *gc = &game.clients[0];
+    edict_t *ent = &g_edicts[0];
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    int (*old_font)(cstring_t, uint32_t) = gi.FontIndex;
+
+    gc->ps.number = 0;
+    ent->client = gc;
+    G_SetClientConnected(ent, true);
+    memset(command_error_header, 0, sizeof(command_error_header));
+    memset(command_error_frames, 0, sizeof(command_error_frames));
+    command_error_header_count = 0;
+    command_error_frame_count = 0;
+    command_error_recipient = NULL;
+    gi.Write = capture_command_error_write;
+    gi.unicast = capture_command_error_unicast;
+    gi.FontIndex = capture_command_error_font;
+
+    UI_WriteCommandError(ent, "Not enough gold.");
+
+    T_EQ(command_error_header_count, 2);
+    T_EQ(command_error_header[0], svc_layout);
+    T_EQ(command_error_header[1], WC3_LAYER_COMMAND_ERROR);
+    T_EQ(command_error_frame_count, 2);
+    T_EQ(command_error_frames[0].color.r, 0);
+    T_EQ(command_error_frames[0].color.g, 0);
+    T_EQ(command_error_frames[0].color.b, 0);
+    T_EQ(command_error_frames[1].color.r, 255);
+    T_EQ(command_error_frames[1].color.g, 204);
+    T_EQ(command_error_frames[1].color.b, 0);
+    T_EQ(command_error_recipient, ent);
+
+    command_error_header_count = 0;
+    command_error_frame_count = 0;
+    command_error_recipient = NULL;
+    UI_WriteCommandError(ent, NULL);
+    T_EQ(command_error_header_count, 2);
+    T_EQ(command_error_header[1], WC3_LAYER_COMMAND_ERROR);
+    T_EQ(command_error_frame_count, 0);
+    T_EQ(command_error_recipient, ent);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.FontIndex = old_font;
+    G_SetClientConnected(ent, false);
+}
+
+TEST(wc3_api, command_error_expires_without_touching_message_state) {
+    gameClient_t *gc = &game.clients[0];
+    edict_t *ent = &g_edicts[0];
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    int (*old_font)(cstring_t, uint32_t) = gi.FontIndex;
+    void (*old_sound)(edict_t *, int, int, float, float, float) = gi.Sound;
+    int (*old_soundindex)(cstring_t) = gi.SoundIndex;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
+    __typeof__(gi.SoundPolicy) old_sound_policy = gi.SoundPolicy;
+
+    gc->ps.number = 0;
+    ent->client = gc;
+    G_SetClientConnected(ent, true);
+    snprintf(gc->message.text, sizeof(gc->message.text), "ordinary message");
+    level.time = 100;
+    command_error_header_count = 0;
+    command_error_frame_count = 0;
+    command_error_recipient = NULL;
+    ui_sound_calls = 0;
+    gi.Write = capture_command_error_write;
+    gi.unicast = capture_command_error_unicast;
+    gi.FontIndex = capture_command_error_font;
+    gi.SoundPolicy = capture_ui_sound_policy;
+    gi.Sound = capture_ui_sound;
+    gi.SoundIndex = capture_ui_sound_index;
+    gi.SoundIndexAlias = capture_ui_sound_index_alias;
+
+    G_ShowCommandErrorText(ent, "OpenRealm-only failure.");
+    T_EQ(command_error_header_count, 2);
+    T_EQ(command_error_header[1], WC3_LAYER_COMMAND_ERROR);
+    T_EQ(command_error_frame_count, 2);
+    T_STREQ(gc->message.text, "ordinary message");
+
+    command_error_header_count = 0;
+    command_error_frame_count = 0;
+    command_error_recipient = NULL;
+    level.time = 100 + 9999;
+    G_UpdateCommandError(ent);
+    T_EQ(command_error_header_count, 0);
+    T_EQ(command_error_frame_count, 0);
+    T_STREQ(gc->message.text, "ordinary message");
+
+    level.time++;
+    G_UpdateCommandError(ent);
+    T_EQ(command_error_header_count, 2);
+    T_EQ(command_error_header[1], WC3_LAYER_COMMAND_ERROR);
+    T_EQ(command_error_frame_count, 0);
+    T_EQ(command_error_recipient, ent);
+    T_STREQ(gc->message.text, "ordinary message");
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.FontIndex = old_font;
+    gi.SoundPolicy = old_sound_policy;
+    gi.Sound = old_sound;
+    gi.SoundIndex = old_soundindex;
+    gi.SoundIndexAlias = old_sound_alias;
+    G_SetClientConnected(ent, false);
+}
+
+TEST(wc3_api, transient_text_does_not_enter_message_log) {
     gameClient_t *gc = &game.clients[0];
     edict_t ent = { .client = gc };
 
@@ -2867,14 +3000,25 @@ TEST(wc3_api, transient_command_style_text_does_not_enter_message_log) {
 
 TEST(wc3_api, command_error_key_resolves_commandstrings_and_race_variant) {
     gameClient_t *gc = &game.clients[0];
-    edict_t ent = { .client = gc };
+    static mapTrigStr_t trigstr;
 
+    InitUnitData();
+    memset(&trigstr, 0, sizeof(trigstr));
+    trigstr.id = 0;
+    snprintf(trigstr.text, sizeof(trigstr.text), "Human02");
+    ((mapInfo_t *)level.mapinfo)->strings = &trigstr;
     gc->ps.race = kPlayerRaceUndead;
-    G_ShowCommandErrorKey(&ent, "Blightringfull", "fallback");
-    T_STREQ(gc->message.text, "That gold mine can't support any more Acolytes.");
-
-    G_ShowCommandErrorKey(&ent, "Nofood", "fallback");
-    T_STREQ(gc->message.text, "Summon more Ziggurats to continue unit production.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "Blightringfull"),
+            "That gold mine can't support any more Acolytes.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "Nofood"),
+            "Summon more Ziggurats to continue unit production.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "Nogold"), "Not enough gold.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "Cantfindcorpse"), "There are no usable corpses nearby.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "RepairHPmaxed"), "Target is not damaged.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "Outofstock"), "Out of stock.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "Calltoarms"), "No Peasants could be found.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "Backtowork"), "No Militia could be found.");
+    T_STREQ(G_ResolveCommandErrorText(gc, "TestTrigstr"), "Human02");
 }
 
 TEST(wc3_api, removeunit_hides_before_deferred_edict_release) {
