@@ -1012,6 +1012,94 @@ TEST(wc3_game, ingame_options_only_show_sound_after_selecting_sound) {
     T_ASSERT(!sound.hidden);
     T_ASSERT(network.hidden);
 }
+
+static uint32_t options_window_frame_count;
+static uint32_t options_window_unicast_count;
+
+static void options_window_test_write(pfWriteType_t type, void const *value) {
+    if (type != PF_UIWINDOWFRAME || !value) return;
+    options_window_frame_count++;
+}
+
+static void options_window_test_unicast(edict_t *ent) {
+    (void)ent;
+    options_window_unicast_count++;
+}
+
+TEST(wc3_game, ingame_options_commands_write_categories_then_sound_window) {
+    EscMenuMainPanelGame_t old_menu = hud.menu;
+    EscMenuOptionsPanel_t old_options = hud.options;
+    EscMenuSaveGamePanel_t old_save_menu = hud.save_menu;
+    bool old_connected = game.clients[0].connected;
+    __typeof__(gi.Write) old_write = gi.Write;
+    __typeof__(gi.unicast) old_unicast = gi.unicast;
+    edict_t *player = &g_edicts[0];
+    frameDef_t *root, *backdrop, *main_panel, *options_root;
+    frameDef_t *categories, *bottom, *gameplay, *video, *sound, *network;
+    cstring_t open_options[] = { "wc3_menu_options" };
+    uint32_t open_options_count = ARRAY_COUNT(open_options);
+    cstring_t open_sound[] = { "wc3_menu_options_sound" };
+    uint32_t open_sound_count = ARRAY_COUNT(open_sound);
+
+    setup_test_world();
+    UI_ClearTemplates();
+    memset(&hud.menu, 0, sizeof(hud.menu));
+    memset(&hud.options, 0, sizeof(hud.options));
+    memset(&hud.save_menu, 0, sizeof(hud.save_menu));
+
+    root = UI_Spawn(FT_FRAME, NULL); T_NOT_NULL(root);
+    backdrop = UI_Spawn(FT_FRAME, root); T_NOT_NULL(backdrop);
+    main_panel = UI_Spawn(FT_FRAME, backdrop); T_NOT_NULL(main_panel);
+    options_root = UI_Spawn(FT_FRAME, backdrop); T_NOT_NULL(options_root);
+    categories = UI_Spawn(FT_FRAME, options_root); T_NOT_NULL(categories);
+    bottom = UI_Spawn(FT_FRAME, options_root); T_NOT_NULL(bottom);
+    gameplay = UI_Spawn(FT_FRAME, options_root); T_NOT_NULL(gameplay);
+    video = UI_Spawn(FT_FRAME, options_root); T_NOT_NULL(video);
+    sound = UI_Spawn(FT_FRAME, options_root); T_NOT_NULL(sound);
+    network = UI_Spawn(FT_FRAME, options_root); T_NOT_NULL(network);
+
+    UI_SetSize(main_panel, 0.5f, 0.4f);
+    UI_SetSize(categories, 0.5f, 0.4f);
+    UI_SetSize(root, 0.5f, 0.4f);
+    UI_SetSize(backdrop, 0.5f, 0.4f);
+    hud.menu.EscMenuMainPanel = root;
+    hud.menu.EscMenuBackdrop = backdrop;
+    hud.menu.MainPanel = main_panel;
+    hud.options.EscMenuOptionsPanel = options_root;
+    hud.options.OptionsPanel = categories;
+    hud.options.BottomButtonPanel = bottom;
+    hud.options.GameplayPanel = gameplay;
+    hud.options.VideoPanel = video;
+    hud.options.SoundPanel = sound;
+    hud.options.NetworkPanel = network;
+    player->client = &game.clients[0];
+    player->client->connected = true;
+    player->client->ps.number = 0;
+    options_window_frame_count = options_window_unicast_count = 0;
+    gi.Write = options_window_test_write;
+    gi.unicast = options_window_test_unicast;
+
+    G_ClientCommand(player, open_options_count, open_options);
+    T_ASSERT(!categories->hidden);
+    T_ASSERT(bottom->hidden && sound->hidden && network->hidden);
+    T_ASSERT(options_window_frame_count > 0);
+    T_EQ(options_window_unicast_count, 1);
+
+    options_window_frame_count = options_window_unicast_count = 0;
+    G_ClientCommand(player, open_sound_count, open_sound);
+    T_ASSERT(categories->hidden);
+    T_ASSERT(!bottom->hidden && !sound->hidden && network->hidden);
+    T_ASSERT(options_window_frame_count > 0);
+    T_EQ(options_window_unicast_count, 1);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    UI_ClearTemplates();
+    hud.menu = old_menu;
+    hud.options = old_options;
+    hud.save_menu = old_save_menu;
+    game.clients[0].connected = old_connected;
+}
 TEST(wc3_game, hud_status_icon_keys_follow_upgrade_and_neutral_families) {
     char key[96];
 
