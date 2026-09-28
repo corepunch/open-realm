@@ -3140,6 +3140,7 @@ void S_CargoInitUnit(edict_t *);
 bool S_CargoTryLoad(edict_t *, edict_t *);
 bool S_CorpseCargoTryLoad(edict_t *, edict_t *);
 bool S_CargoOrderBoard(edict_t *, edict_t *);
+bool S_CargoOrderNearestEntangledMine(edict_t *);
 bool S_CargoAttacksEnabled(edict_t const *);
 edict_t *S_CargoTransportForUnit(edict_t const *);
 void S_CargoReleaseUnit(edict_t *);

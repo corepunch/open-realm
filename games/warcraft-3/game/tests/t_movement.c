@@ -79,6 +79,7 @@ static edict_t *make_harvest_tree(float x, float y, float life) {
 static UnitAbilities_t const harvest_abilities = { .abilList = "Ahar" };
 static UnitAbilities_t const ghoul_harvest_abilities = { .abilList = "Ahrl" };
 static UnitAbilities_t const wisp_harvest_abilities = { .abilList = "Awha" };
+static UnitProfile_t const wisp_rally_producer_profile = { .trains = "ewsp" };
 static UnitAbilities_t const return_gold_lumber_abilities = { .abilList = "Argl" };
 static UnitAbilities_t const return_lumber_abilities = { .abilList = "Arlm" };
 
@@ -4302,6 +4303,107 @@ TEST(wc3_movement, wisp_waits_for_incomplete_entangled_mine_then_boards) {
     T_NOT_NULL(wisp->currentmove);
     T_STREQ(wisp->currentmove->animation, "stand");
     T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityBattlestations);
+
+    mine->construction.active = false;
+    wisp->currentmove->think(wisp);
+    T_EQ(mine->cargo.count, 1);
+    T_EQ(mine->cargo.units[0], wisp);
+    T_ASSERT(wisp->paused);
+    T_ASSERT(wisp->s.renderfx & RF_HIDDEN);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, autoharvestgold_immediate_order_boards_wisp_into_entangled_mine) {
+    slkTestData_t *rows, *old_abilities;
+    edict_t *parent, *mine, *wisp;
+    uint32_t steps;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    mine = alloc_test_unit(MAKEFOURCC('e','g','o','l'), 0.0f, 0.0f);
+    wisp = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 180.0f, 0.0f);
+    parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    mine->s.player = wisp->s.player = 0;
+    setup_test_goldmine(parent, &test_goldmine_stock, 24000);
+    mine->data.UnitAbilities = &test_entangled_mine;
+    mine->health.value = mine->health.max_value = 1000.0f;
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    wisp->movetype = MOVETYPE_STEP;
+    wisp->collision = 16.0f;
+    wisp->unitinfo.MoveSpeed = 220.0f;
+    wisp->stand = unit_stand;
+    unit_stand(wisp);
+    T_ASSERT(S_MineOverlayBind(mine, parent));
+
+    /* NightElf07's script assigns this immediate order to Wisps. It must
+     * select the player's Entangled Mine and enter the mine's cargo. */
+    T_ASSERT(unit_issueimmediateorder(wisp, "autoharvestgold"));
+    T_EQ(mine->cargo.count, 0);
+    T_EQ(wisp->secondarygoal, mine);
+    T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityBattlestations);
+    for (steps = 0; steps < 64 && mine->cargo.count == 0; steps++) {
+        if (!wisp->currentmove || !wisp->currentmove->think) break;
+        wisp->currentmove->think(wisp);
+    }
+    T_EQ(mine->cargo.count, 1);
+    T_EQ(mine->cargo.units[0], wisp);
+    T_ASSERT(wisp->paused);
+    T_ASSERT(wisp->s.renderfx & RF_HIDDEN);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, rallied_wisp_waits_for_entangled_mine_then_automatically_boards) {
+    UnitBalance_t balance = { .buildTime = 1, .foodUsed = 0, .foodMade = 0 };
+    edict_t *producer, *mine, *wisp;
+    slkTestData_t *rows, *old_abilities;
+    uint32_t steps;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), -128.0f, 0.0f);
+    mine = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    wisp = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0.0f, 0.0f);
+    producer->data.UnitProfile = &wisp_rally_producer_profile;
+    producer->movetype = MOVETYPE_NONE;
+    producer->collision = 64.0f;
+    producer->stand = unit_stand;
+    producer->s.player = mine->s.player = wisp->s.player = 0;
+    mine->data.UnitAbilities = &test_entangled_mine;
+    mine->construction.active = true;
+    mine->health.value = mine->health.max_value = 1000.0f;
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    wisp->data.UnitBalance = &balance;
+    wisp->collision = 16.0f;
+    wisp->movetype = MOVETYPE_STEP;
+    wisp->unitinfo.MoveSpeed = 220.0f;
+    wisp->health.value = wisp->health.max_value = 100.0f;
+    wisp->stand = unit_stand;
+    wisp->training = true;
+    wisp->s.renderfx |= RF_HIDDEN;
+    producer->build = wisp;
+    unit_stand(wisp);
+
+    T_ASSERT(G_SetRallyEntity(producer, mine));
+    ai_train_build(producer);
+    T_ASSERT(!wisp->training);
+    T_ASSERT(!(wisp->s.renderfx & RF_HIDDEN));
+    /* Training places the Wisp beside its producer; let its rally order reach
+     * the mine before construction finishes. */
+    for (steps = 0; steps < 64 && wisp->currentmove &&
+         wisp->currentmove->proc == CAbilityBattlestations &&
+         strcmp(wisp->currentmove->animation, "stand"); steps++)
+        wisp->currentmove->think(wisp);
+    T_EQ(mine->cargo.count, 0);
+    T_EQ(wisp->secondarygoal, mine);
+    T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityBattlestations);
+    T_STREQ(wisp->currentmove->animation, "stand");
 
     mine->construction.active = false;
     wisp->currentmove->think(wisp);

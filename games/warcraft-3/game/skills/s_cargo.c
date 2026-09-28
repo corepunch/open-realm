@@ -610,6 +610,23 @@ bool S_CargoOrderBoard(edict_t *unit, edict_t *transport) {
     return true;
 }
 
+/* The campaign scripts use autoharvestgold for Wisps. Resolve that order to
+ * the nearest owned Entangled Mine and keep all boarding checks in Cargo. */
+bool S_CargoOrderNearestEntangledMine(edict_t *unit) {
+    edict_t *best = NULL;
+    float best_distance = FLT_MAX;
+
+    if (!unit) return false;
+    FILTER_EDICTS(transport, transport != unit && cargo_is_entangled_mine(transport) &&
+                  cargo_board_target_valid(unit, transport)) {
+        float const distance = Vector2_distance(&unit->s.origin2, &transport->s.origin2);
+        if (distance >= best_distance) continue;
+        best = transport;
+        best_distance = distance;
+    }
+    return best && S_CargoOrderBoard(unit, best);
+}
+
 static bool battlestations_busy_allowed(uint32_t alias) {
     return alias && G_AbilityLevel(alias, 1)->data[0].number != 0.0f;
 }
