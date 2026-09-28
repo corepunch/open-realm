@@ -879,11 +879,9 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
     }
     if (queue && strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
         strcmp(order, "repair") && strcmp(order, "harvest") && strcmp(order, "militia") && strcmp(order, "militiaoff")) {
-        /* Unknown queued target orders need an ability-owned queue contract.
-         * Unqueued orders continue to unit_issuetargetorder_now(), where the
-         * authored ability dispatcher can accept concrete orders such as
-         * entangleinstant without m_unit.c naming the ability. */
-        return false;
+        /* Only orders with an owning ability may enter the FIFO. Generic
+         * queued replay can then dispatch their concrete target order. */
+        if (!FindAbilityByOrder(order)) return false;
     }
 
     if (queue && G_UnitHasActiveOrder(self)) {

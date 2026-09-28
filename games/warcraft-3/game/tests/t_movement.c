@@ -405,6 +405,8 @@ static const char slk_racial_goldmine_test_data[] =
     "C;Y1;X13;K\"UnitID1\"\n"
     "C;Y1;X14;K\"isbldg\"\n"
     "C;Y1;X15;K\"alias\"\n"
+    "C;Y1;X16;K\"Dur1\"\n"
+    "C;Y1;X17;K\"HeroDur1\"\n"
     "C;Y2;X1;K\"Agld\"\n"
     "C;Y2;X2;K\"Agld\"\n"
     "C;Y3;X1;K\"Aaha\"\n"
@@ -431,6 +433,10 @@ static const char slk_racial_goldmine_test_data[] =
     "C;Y8;X13;K\"hbar\"\n"
     "C;Y8;X14;K1\n"
     "C;Y8;X15;K\"Aent\"\n"
+    "C;Y9;X1;K\"Aro1\"\n"
+    "C;Y9;X2;K\"Aro1\"\n"
+    "C;Y9;X16;K1\n"
+    "C;Y9;X17;K1\n"
     "E\n";
 
 static UnitAbilities_t const test_haunted_mine = { .abilList = "Abgm" };
@@ -4209,6 +4215,42 @@ TEST(wc3_movement, entangleinstant_target_order_creates_completed_overlay) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_movement, queued_entangleinstant_dispatches_when_previous_order_finishes) {
+    edict_t *caster, *parent, *overlay;
+    slkTestData_t *rows, *old_abilities;
+    umove_t active_order = { .animation = "walk", .proc = CAbilityMove };
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 0.0f, 0.0f);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
+    movement_prepare_rooted_entangle_caster(caster, 0);
+    parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    setup_test_goldmine(parent, &test_goldmine_stock, 5000);
+    caster->currentmove = &active_order;
+
+    T_ASSERT(G_IssueUnitTargetOrder(caster, "entangleinstant", parent, true, 0));
+    T_EQ(G_UnitQueuedOrderCount(caster), 1);
+    T_NULL(movement_find_entangle_overlay(caster, parent));
+
+    caster->currentmove = NULL;
+    T_ASSERT(G_UnitStartNextQueuedOrder(caster));
+    overlay = movement_find_entangle_overlay(caster, parent);
+    T_NOT_NULL(overlay);
+    T_ASSERT(overlay && !overlay->construction.active);
+    T_EQ(G_UnitQueuedOrderCount(caster), 0);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_movement, entangle_range_uses_goldmine_footprint) {
     enum { W = 8, H = 8 };
     size_t const pathtex_size = sizeof(pathTex_t) + W * H * sizeof(color32_t);
@@ -4279,6 +4321,55 @@ TEST(wc3_movement, auto_entangle_nearby_starts_normal_construction) {
     gi.unicast = old_unicast;
     G_SetSLKRows("AbilityData", old_abilities);
     free_slk_rows(rows);
+}
+
+TEST(wc3_movement, root_completion_auto_entangles_nearest_mine_once) {
+    slkTestData_t *gold_rows, *old_gold;
+    edict_t *caster, *parent, *far_parent, *overlay;
+    uint32_t end_time;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+
+    reset_entities();
+    setup_test_world();
+    old_gold = install_racial_goldmine_test_data(&gold_rows);
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 0.0f, 0.0f);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
+    far_parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 48.0f, 0.0f);
+    movement_prepare_rooted_entangle_caster(caster, 0);
+    caster->ancient_root.mode = ANCIENT_UPROOTED;
+    caster->s.flags &= ~EF_BUILDING;
+    caster->aiflags &= ~AI_IMMOBILE;
+    caster->runtime.flags &= ~UNIT_BALANCE_BUILDING;
+    parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    setup_test_goldmine(parent, &test_goldmine_stock, 5000);
+    far_parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    setup_test_goldmine(far_parent, &test_goldmine_stock, 5000);
+
+    S_AncientBeginMorph(caster, true);
+    end_time = caster->ancient_root.transition_end_time;
+    level.time = end_time - 1;
+    S_RunAbilityUpdates(caster);
+    T_EQ(caster->ancient_root.mode, ANCIENT_ROOTING);
+    T_NULL(movement_find_entangle_overlay(caster, parent));
+
+    level.time = end_time;
+    S_RunAbilityUpdates(caster);
+    T_EQ(caster->ancient_root.mode, ANCIENT_ROOTED);
+    overlay = movement_find_entangle_overlay(caster, parent);
+    T_NOT_NULL(overlay);
+    T_ASSERT(overlay && overlay->construction.active);
+    T_NULL(movement_find_entangle_overlay(caster, far_parent));
+
+    S_RunAbilityUpdates(caster);
+    T_EQ(movement_find_entangle_overlay(caster, parent), overlay);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old_gold);
+    free_slk_rows(gold_rows);
 }
 
 TEST(wc3_movement, wisp_waits_for_incomplete_entangled_mine_then_boards) {

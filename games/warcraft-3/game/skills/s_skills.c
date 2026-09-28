@@ -14,6 +14,9 @@ cstring_t const ancient_root_orders[] = { "root", "unroot", NULL };
 static cstring_t const mana_shield_orders[] = { "manashieldon", "manashieldoff", NULL };
 static cstring_t const build_orders[] = { "build", NULL };
 static cstring_t const hide_orders[] = { "ambush", NULL };
+static cstring_t const entangle_orders[] = {
+    "entangle", "entangleinstant", "autoentangle", "autoentangleinstant", NULL
+};
 
 static ability_t abilitylist[] = {
     { STR_CmdStop, CAbilityStop, AB_COMMAND },  // Stop — engine command
@@ -229,7 +232,7 @@ static ability_t abilitylist[] = {
     { "Aeat", CAbilityEatTree, AB_SPELL, SPELL_TARGET_UNIT },  /* Eat Tree */
     { "Ambt", CAbilityManaBattery, AB_SPELL | AB_AUTOCAST | AB_UPDATE, SPELL_TARGET_UNIT },  /* Replenish Mana and Life */
     { "Awha", CAbilityWispHarvest, AB_COMMAND },  /* Gather */
-    { "Aent", CAbilityEntangle, AB_COMMAND },  /* Entangle Gold Mine */
+    { "Aent", CAbilityEntangle, AB_COMMAND, SPELL_TARGET_NONE, entangle_orders },  /* Entangle Gold Mine */
     { "Aenc", CAbilityPassive, AB_PASSIVE },  /* Load */
     { "Aroo", CAbilityRoot, AB_COMMAND | AB_UPDATE, SPELL_TARGET_NONE, ancient_root_orders },  /* Root */
     { "AEmb", CAbilityManaBurn, AB_SPELL, SPELL_TARGET_UNIT },  /* Mana Burn */
