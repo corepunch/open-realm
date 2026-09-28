@@ -148,11 +148,30 @@ static uint32_t R_ClipSplatPoly(vec3_t const *src, vec3_t *dst, struct splClip c
     return out;
 }
 
-static void R_MakeSplatTile(war3map_t const *map, uint32_t x, uint32_t y, vec2_t const *mins, float width, float height, color32_t color) {
+typedef struct {
+    war3map_t const *map;
+    uint32_t x, y;
+    vec2_t const *mins, *uv_mins, *uv_maxs;
+    float width, height;
+    color32_t color;
+} splatTileParams_t;
+
+/* Emit one terrain tile of a splat while remapping both whole and clipped polygons into its atlas UV rectangle. */
+static void R_MakeSplatTile(splatTileParams_t const *params) {
     vertex_t geom[6];
     struct splClip clips[4];
     uint32_t num_clips = 0;
-    R_BuildSplatQuad(map, x, y, mins, width, height, color, geom);
+    war3map_t const *map = params->map;
+    vec2_t const *mins = params->mins;
+    vec2_t const *uv_mins = params->uv_mins;
+    vec2_t const *uv_maxs = params->uv_maxs;
+    float const width = params->width, height = params->height;
+
+    R_BuildSplatQuad(map, params->x, params->y, mins, width, height, params->color, geom);
+    FOR_LOOP(i, 6) {
+        geom[i].texcoord.x = LerpNumber(uv_mins->x, uv_maxs->x, geom[i].texcoord.x);
+        geom[i].texcoord.y = LerpNumber(uv_mins->y, uv_maxs->y, geom[i].texcoord.y);
+    }
     if (geom[0].position.x >= mins->x && geom[1].position.x <= mins->x + width &&
         geom[0].position.y >= mins->y && geom[2].position.y <= mins->y + height) {
         memcpy(ground_current_vertex, geom, sizeof(geom));
@@ -182,7 +201,14 @@ static void R_MakeSplatTile(war3map_t const *map, uint32_t x, uint32_t y, vec2_t
             FOR_LOOP(j, 3) {
                 vertex_t v = geom[0];
                 v.position = p[j];
-                v.texcoord = (vec2_t){ (p[j].x - mins->x) / width, 1 - (p[j].y - mins->y) / height };
+                {
+                    float const u = (p[j].x - mins->x) / width;
+                    float const vcoord = 1.0f - (p[j].y - mins->y) / height;
+                    v.texcoord = (vec2_t){
+                        LerpNumber(uv_mins->x, uv_maxs->x, u),
+                        LerpNumber(uv_mins->y, uv_maxs->y, vcoord),
+                    };
+                }
                 *ground_current_vertex++ = v;
             }
         }
@@ -252,10 +278,10 @@ static void R_SetupSplatState(texture_t const *texture, splat_shader_t *shader) 
 
 /* Emit terrain-conforming tiles for one splat rect into the shared buffer,
  * flushing to the GPU only when the buffer fills. */
-static void R_GenerateSplatTiles(vec2_t const *mins, vec2_t const *maxs, color32_t color) {
+static void R_GenerateSplatTiles(rectSplatParams_t const *params) {
     int x_start, x_end;
     int y_start, y_end;
-
+    vec2_t const *mins = params->mins, *maxs = params->maxs;
     float const width = maxs->x - mins->x;
     float const height = maxs->y - mins->y;
     if (width <= 0 || height <= 0) {
@@ -280,7 +306,9 @@ static void R_GenerateSplatTiles(vec2_t const *mins, vec2_t const *maxs, color32
                 GROUND_VERTEX_BUFFER_CAPACITY - SPLAT_TILE_MAX_VERTICES) {
                 R_FlushSplatBatch();
             }
-            R_MakeSplatTile(tr.world, (uint32_t)x, (uint32_t)y, mins, width, height, color);
+            R_MakeSplatTile(&MAKE(splatTileParams_t, .map = tr.world, .x = (uint32_t)x, .y = (uint32_t)y,
+                .mins = mins, .uv_mins = params->uv_mins, .uv_maxs = params->uv_maxs,
+                .width = width, .height = height, .color = params->color));
         }
     }
 }
@@ -299,7 +327,8 @@ void R_AddRectSplat(vec2_t const *mins, vec2_t const *maxs, texture_t const *tex
         R_FlushSplatBatch();
         R_SetupSplatState(texture, g_splat_shader);
     }
-    R_GenerateSplatTiles(mins, maxs, color);
+    R_GenerateSplatTiles(&MAKE(rectSplatParams_t, .mins = mins, .maxs = maxs,
+        .uv_mins = &(vec2_t){ 0, 0 }, .uv_maxs = &(vec2_t){ 1, 1 }, .color = color));
 }
 
 void R_EndSplatBatch(void) {
@@ -466,20 +495,27 @@ static bool R_BlightTileCacheUpdate(viewDef_t const *view) {
     return true;
 }
 
+/* Draw an immediate terrain-conforming splat using an explicit texture-atlas rectangle. */
+void R_RenderRectSplatUV(rectSplatParams_t const *params)
+{
+    if (!params || !tr.world || !params->mins || !params->maxs || !params->uv_mins ||
+        !params->uv_maxs || !params->texture) return;
+    R_SetupSplatState(params->texture, params->shader);
+    R_GenerateSplatTiles(params);
+    R_FlushSplatBatch();
+    R_SetSplatDepthBias(false);
+    R_Call(glDepthMask, GL_TRUE);
+}
+
 void R_RenderRectSplat(vec2_t const *mins,
                        vec2_t const *maxs,
                        texture_t const *texture,
                        splat_shader_t *shader,
                        color32_t color)
 {
-    if (!tr.world || !texture) {
-        return;
-    }
-    R_SetupSplatState(texture, shader);
-    R_GenerateSplatTiles(mins, maxs, color);
-    R_FlushSplatBatch();
-    R_SetSplatDepthBias(false);
-    R_Call(glDepthMask, GL_TRUE);
+    vec2_t const uv_mins = { 0, 0 }, uv_maxs = { 1, 1 };
+    R_RenderRectSplatUV(&MAKE(rectSplatParams_t, .mins = mins, .maxs = maxs,
+        .uv_mins = &uv_mins, .uv_maxs = &uv_maxs, .texture = texture, .shader = shader, .color = color));
 }
 
 maplayer_t *R_BuildMapSegmentLayer(war3map_t const *map, uint32_t sx, uint32_t sy, uint32_t layer) {

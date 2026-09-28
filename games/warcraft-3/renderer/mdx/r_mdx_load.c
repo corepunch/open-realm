@@ -3,7 +3,6 @@
 
 uint32_t GetModelKeyFrameSize(MODELKEYTRACKDATATYPE dataType, MODELKEYTRACKTYPE keyTrackType);
 
-#define cstring_t char const *
 #define FOR_EACH_LIST(type, property, list) \
 for (type *property = list, *next = list ? (list)->next : NULL; \
 property; \
@@ -29,6 +28,26 @@ model->num_##TYPES = BLOCK->cursize / sizeof(mdx##TYPE##_t); \
 MSG_Read(BLOCK, model->TYPES, BLOCK->cursize);
 
 enum {
+    ID_VERS = MAKEFOURCC('V','E','R','S'),
+    ID_MODL = MAKEFOURCC('M','O','D','L'),
+    ID_EVTS = MAKEFOURCC('E','V','T','S'),
+    ID_GEOS = MAKEFOURCC('G','E','O','S'),
+    ID_MTLS = MAKEFOURCC('M','T','L','S'),
+    ID_TXAN = MAKEFOURCC('T','X','A','N'),
+    ID_BONE = MAKEFOURCC('B','O','N','E'),
+    ID_GEOA = MAKEFOURCC('G','E','O','A'),
+    ID_HELP = MAKEFOURCC('H','E','L','P'),
+    ID_CAMS = MAKEFOURCC('C','A','M','S'),
+    ID_SEQS = MAKEFOURCC('S','E','Q','S'),
+    ID_GLBS = MAKEFOURCC('G','L','B','S'),
+    ID_PIVT = MAKEFOURCC('P','I','V','T'),
+    ID_TEXS = MAKEFOURCC('T','E','X','S'),
+    ID_CLID = MAKEFOURCC('C','L','I','D'),
+    ID_PREM = MAKEFOURCC('P','R','E','M'),
+    ID_PRE2 = MAKEFOURCC('P','R','E','2'),
+    ID_RIBB = MAKEFOURCC('R','I','B','B'),
+    ID_ATCH = MAKEFOURCC('A','T','C','H'),
+    ID_LITE = MAKEFOURCC('L','I','T','E'),
     ID_VRTX = MAKEFOURCC('V','R','T','X'),
     ID_NRMS = MAKEFOURCC('N','R','M','S'),
     ID_UVBS = MAKEFOURCC('U','V','B','S'),
@@ -63,6 +82,13 @@ enum {
     ID_KP2L = MAKEFOURCC('K','P','2','L'),
     ID_KP2G = MAKEFOURCC('K','P','2','G'),
     ID_KP2R = MAKEFOURCC('K','P','2','R'),
+    ID_KPEE = MAKEFOURCC('K','P','E','E'),
+    ID_KPEG = MAKEFOURCC('K','P','E','G'),
+    ID_KPLN = MAKEFOURCC('K','P','L','N'),
+    ID_KPLT = MAKEFOURCC('K','P','L','T'),
+    ID_KPEL = MAKEFOURCC('K','P','E','L'),
+    ID_KPES = MAKEFOURCC('K','P','E','S'),
+    ID_KPEV = MAKEFOURCC('K','P','E','V'),
     ID_KATV = MAKEFOURCC('K','A','T','V'),
     ID_KLAV = MAKEFOURCC('K','L','A','V'),
     ID_KLAC = MAKEFOURCC('K','L','A','C'),
@@ -111,7 +137,7 @@ typedef enum {
 typedef blockReadCode_t (*blockReaderFunc_t)(sizeBuf_t *sb, void *model);
 
 typedef struct {
-    cstring_t block_id;
+    uint32_t block_id;
     blockReaderFunc_t read;
 } blockReader_t;
 
@@ -123,7 +149,7 @@ blockReadCode_t MSG_ReadBlock(sizeBuf_t *buffer, blockReader_t const *readers, v
         MSG_Read(buffer, &block.cursize, 4);
         block.data = buffer->data + buffer->readcount;
         for (blockReader_t const *br = readers; br->read; br++) {
-            if (*(int const *)br->block_id != blockHeader)
+            if (br->block_id != blockHeader)
                 continue;
             if (br->read(&block, data) != BLOCKREAD_OK)
                 return BLOCKREAD_ERROR;
@@ -325,6 +351,32 @@ void ReadCollisionShape(sizeBuf_t *buffer, mdxCollisionShape_t *cs) {
 
 #define MSG_READ(buffer_t, VAR) \
 MSG_Read(buffer_t, &VAR, sizeof(VAR));
+
+/* Parse Classic PREM model-emitter data without folding it into PRE2 billboard semantics. */
+void ReadParticleEmitter1(sizeBuf_t *buffer, mdxParticleEmitter1_t *pe) {
+    uint32_t emitterSize = MSG_ReadLong(buffer), header;
+    ReadNode(buffer, &pe->node, emitterSize - sizeof(emitterSize));
+    MSG_READ(buffer, pe->EmissionRate);
+    MSG_READ(buffer, pe->Gravity);
+    MSG_READ(buffer, pe->Longitude);
+    MSG_READ(buffer, pe->Latitude);
+    MSG_Read(buffer, pe->path, sizeof(pe->path));
+    pe->path[sizeof(pe->path) - 1] = '\0';
+    MSG_READ(buffer, pe->LifeSpan);
+    MSG_READ(buffer, pe->Speed);
+    while (MSG_Read(buffer, &header, 4)) {
+        switch (header) {
+            case ID_KPEE: ReadKeyTrack(buffer, TDATA_FLOAT1, &pe->keytracks.EmissionRate); break;
+            case ID_KPEG: ReadKeyTrack(buffer, TDATA_FLOAT1, &pe->keytracks.Gravity); break;
+            case ID_KPLN: ReadKeyTrack(buffer, TDATA_FLOAT1, &pe->keytracks.Longitude); break;
+            case ID_KPLT: ReadKeyTrack(buffer, TDATA_FLOAT1, &pe->keytracks.Latitude); break;
+            case ID_KPEL: ReadKeyTrack(buffer, TDATA_FLOAT1, &pe->keytracks.LifeSpan); break;
+            case ID_KPES: ReadKeyTrack(buffer, TDATA_FLOAT1, &pe->keytracks.Speed); break;
+            case ID_KPEV: ReadKeyTrack(buffer, TDATA_FLOAT1, &pe->keytracks.Visibility); break;
+            default: PrintTag(header); break;
+        }
+    }
+}
 
 void ReadParticleEmitter(sizeBuf_t *buffer, mdxParticleEmitter_t *pe) {
     uint32_t emitterSize = MSG_ReadLong(buffer), header;
@@ -622,6 +674,12 @@ blockReadCode_t MDLX_ReadTEXS(sizeBuf_t *sb, mdxModel_t *model) {
     return BLOCKREAD_OK;
 }
 
+/* Decode the PREM list as ParticleEmitter1 records so later runtime support can consume the authored data intact. */
+blockReadCode_t MDLX_ReadPREM(sizeBuf_t *sb, mdxModel_t *model) {
+    MODEL_READ_LIST(sb, ParticleEmitter1, emitters1);
+    return BLOCKREAD_OK;
+}
+
 blockReadCode_t MDLX_ReadPRE2(sizeBuf_t *sb, mdxModel_t *model) {
     MODEL_READ_LIST(sb, ParticleEmitter, emitters);
     return BLOCKREAD_OK;
@@ -643,26 +701,27 @@ blockReadCode_t MDLX_ReadLITE(sizeBuf_t *sb, mdxModel_t *model) {
 }
 
 blockReader_t R_MDLX[] = {
-    { "VERS", (blockReaderFunc_t)MDLX_ReadVERS },
-    { "MODL", (blockReaderFunc_t)MDLX_ReadMODL },
-    { "EVTS", (blockReaderFunc_t)MDLX_ReadEVTS },
-    { "GEOS", (blockReaderFunc_t)MDLX_ReadGEOS },
-    { "MTLS", (blockReaderFunc_t)MDLX_ReadMTLS },
-    { "TXAN", (blockReaderFunc_t)MDLX_ReadTXAN },
-    { "BONE", (blockReaderFunc_t)MDLX_ReadBONE },
-    { "GEOA", (blockReaderFunc_t)MDLX_ReadGEOA },
-    { "HELP", (blockReaderFunc_t)MDLX_ReadHELP },
-    { "CAMS", (blockReaderFunc_t)MDLX_ReadCAMS },
-    { "SEQS", (blockReaderFunc_t)MDLX_ReadSEQS },
-    { "GLBS", (blockReaderFunc_t)MDLX_ReadGLBS },
-    { "PIVT", (blockReaderFunc_t)MDLX_ReadPIVT },
-    { "TEXS", (blockReaderFunc_t)MDLX_ReadTEXS },
-    { "CLID", (blockReaderFunc_t)MDLX_ReadCLID },
-    { "PRE2", (blockReaderFunc_t)MDLX_ReadPRE2 },
-    { "RIBB", (blockReaderFunc_t)MDLX_ReadRIBB },
-    { "ATCH", (blockReaderFunc_t)MDLX_ReadATCH },
-    { "LITE", (blockReaderFunc_t)MDLX_ReadLITE },
-    { NULL },
+    { ID_VERS, (blockReaderFunc_t)MDLX_ReadVERS },
+    { ID_MODL, (blockReaderFunc_t)MDLX_ReadMODL },
+    { ID_EVTS, (blockReaderFunc_t)MDLX_ReadEVTS },
+    { ID_GEOS, (blockReaderFunc_t)MDLX_ReadGEOS },
+    { ID_MTLS, (blockReaderFunc_t)MDLX_ReadMTLS },
+    { ID_TXAN, (blockReaderFunc_t)MDLX_ReadTXAN },
+    { ID_BONE, (blockReaderFunc_t)MDLX_ReadBONE },
+    { ID_GEOA, (blockReaderFunc_t)MDLX_ReadGEOA },
+    { ID_HELP, (blockReaderFunc_t)MDLX_ReadHELP },
+    { ID_CAMS, (blockReaderFunc_t)MDLX_ReadCAMS },
+    { ID_SEQS, (blockReaderFunc_t)MDLX_ReadSEQS },
+    { ID_GLBS, (blockReaderFunc_t)MDLX_ReadGLBS },
+    { ID_PIVT, (blockReaderFunc_t)MDLX_ReadPIVT },
+    { ID_TEXS, (blockReaderFunc_t)MDLX_ReadTEXS },
+    { ID_CLID, (blockReaderFunc_t)MDLX_ReadCLID },
+    { ID_PREM, (blockReaderFunc_t)MDLX_ReadPREM },
+    { ID_PRE2, (blockReaderFunc_t)MDLX_ReadPRE2 },
+    { ID_RIBB, (blockReaderFunc_t)MDLX_ReadRIBB },
+    { ID_ATCH, (blockReaderFunc_t)MDLX_ReadATCH },
+    { ID_LITE, (blockReaderFunc_t)MDLX_ReadLITE },
+    { 0 },
 };
 
 mdxBounds_t MDX_CalculateBounds(mdxModel_t const *model) {
@@ -707,9 +766,16 @@ mdxModel_t *R_LoadModelMDLX(void *data, uint32_t size) {
     FOR_EACH_LIST(mdxBone_t, bone, model->bones) MDLX_AddNode(model, &bone->node);
     FOR_EACH_LIST(mdxHelper_t, helper, model->helpers) MDLX_AddNode(model, &helper->node);
     FOR_EACH_LIST(mdxCollisionShape_t, shape, model->collisionShapes) MDLX_AddNode(model, &shape->node);
+    FOR_EACH_LIST(mdxParticleEmitter1_t, emitter, model->emitters1) MDLX_AddNode(model, &emitter->node);
     FOR_EACH_LIST(mdxParticleEmitter_t, emitter, model->emitters) MDLX_AddNode(model, &emitter->node);
     FOR_EACH_LIST(mdxRibbonEmitter_t, ribbon, model->ribbons) MDLX_AddNode(model, &ribbon->node);
     FOR_EACH_LIST(mdxAttachment_t, attachment, model->attachments) MDLX_AddNode(model, &attachment->node);
+    /* TODO: PREM runtime model-particle emission waits for validated retail axis
+     * conversion and EmitterUsesTGA semantics. Keep parsed data visible rather
+     * than silently pretending the emitter rendered. */
+    if (model->emitters1)
+        fprintf(stderr, "MDX model '%s' uses PREM ParticleEmitter1; runtime model emission is not implemented\n",
+                model->info.name[0] ? model->info.name : "(unnamed)");
     FOR_EACH_LIST(mdxLight_t, light, model->lights) MDLX_AddNode(model, &light->node);
     FOR_EACH_LIST(mdxEvent_t, event, model->events) MDLX_AddNode(model, &event->node);
     FOR_LOOP(i, model->num_textures) {
@@ -825,6 +891,21 @@ void MDLX_ReleaseModelEvent(mdxEvent_t *event) {
     SAFE_DELETE(event, ri.MemFree);
 }
 
+/* Release a PREM linked list and every animation track owned by each emitter. */
+void MDLX_ReleaseModelParticleEmitter1(mdxParticleEmitter1_t *emitter) {
+    if (!emitter) return;
+    MDLX_ReleaseModelNode(&emitter->node);
+    SAFE_DELETE(emitter->keytracks.EmissionRate, ri.MemFree);
+    SAFE_DELETE(emitter->keytracks.Gravity, ri.MemFree);
+    SAFE_DELETE(emitter->keytracks.Longitude, ri.MemFree);
+    SAFE_DELETE(emitter->keytracks.Latitude, ri.MemFree);
+    SAFE_DELETE(emitter->keytracks.LifeSpan, ri.MemFree);
+    SAFE_DELETE(emitter->keytracks.Speed, ri.MemFree);
+    SAFE_DELETE(emitter->keytracks.Visibility, ri.MemFree);
+    SAFE_DELETE(emitter->next, MDLX_ReleaseModelParticleEmitter1);
+    ri.MemFree(emitter);
+}
+
 void MDLX_ReleaseModelRibbon(mdxRibbonEmitter_t *ribbon) {
     MDLX_ReleaseModelNode(&ribbon->node);
     SAFE_DELETE(ribbon->next, MDLX_ReleaseModelRibbon);
@@ -848,6 +929,7 @@ void MDLX_Release(mdxModel_t *model) {
     MDLX_ForgetRibbonModel(model); /* drop registry entry and entity-less orphans before their model dies */
     SAFE_DELETE(model->ribbon_states, MDLX_ReleaseRibbonStates);
     SAFE_DELETE(model->ribbons, MDLX_ReleaseModelRibbon);
+    SAFE_DELETE(model->emitters1, MDLX_ReleaseModelParticleEmitter1);
     SAFE_DELETE(model->geosets, MDLX_ReleaseModelGeoset);
     if (model->buffers[0] || model->buffers[1])
         R_Call(glDeleteBuffers, BZ_MDX_BUFFER_COUNT, model->buffers);

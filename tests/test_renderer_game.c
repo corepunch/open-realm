@@ -21,6 +21,12 @@ static handle_t test_renderer_archive;
 static char test_sound_path[512];
 static vec3_t test_sound_origin;
 static uint32_t test_sound_count;
+static uint32_t test_splat_count;
+static vec2_t test_splat_origin;
+static float test_splat_radius;
+static color32_t test_splat_color;
+static vec2_t test_splat_uv_mins, test_splat_uv_maxs;
+static texture_t test_splat_texture;
 
 static handle_t test_renderer_alloc(long size) { return calloc(1, (size_t)size); }
 static void test_renderer_free(handle_t ptr) { free(ptr); }
@@ -68,6 +74,23 @@ void MDX_RenderModel(renderEntity_t const *entity, mdxModel_t const *model, mat4
     test_spn_render_transform = *transform;
 }
 
+void R_RenderRectSplatUV(rectSplatParams_t const *params) {
+    test_splat_count++;
+    test_splat_origin = MAKE(vec2_t, (params->mins->x + params->maxs->x) * 0.5f,
+                             (params->mins->y + params->maxs->y) * 0.5f);
+    test_splat_radius = (params->maxs->x - params->mins->x) * 0.5f;
+    test_splat_color = params->color;
+    test_splat_uv_mins = *params->uv_mins; test_splat_uv_maxs = *params->uv_maxs;
+}
+
+void R_RenderSplat(vec2_t const *position, float radius, texture_t const *texture,
+                   splat_shader_t *shader, color32_t color) {
+    (void)texture; (void)shader;
+    test_splat_count++;
+    test_splat_origin = *position;
+    test_splat_radius = radius;
+    test_splat_color = color;
+}
 
 TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) {
     static uint32_t key = 100;
@@ -77,7 +100,7 @@ TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) 
     static mdxModel_t parent_mdx;
     static model_t parent_model;
     static renderEntity_t parent;
-    wc3EventSoundState_t saved_state = event_sound_state[7];
+    wc3EventState_t saved_state = event_state[7];
     uint32_t saved_time = tr.viewDef.time;
     render_phase_t saved_phase = tr.render_phase;
     refImport_t saved_imports = ri;
@@ -103,6 +126,20 @@ TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) 
     if (!spawn_data_rows || spawn_data_count != 1) goto cleanup_spn_test;
     T_STREQ(spawn_data_rows[0].name, "TestSpawn");
     T_STREQ(spawn_data_rows[0].model_path, "TestUI\\Models\\quad_sprite.mdx");
+    R_W3LoadSplatData();
+    T_EQ(splat_data_count, 1);
+    if (!splat_data_rows || splat_data_count != 1) goto cleanup_spn_test;
+    T_STREQ(splat_data_rows[0].name, "TestSplat");
+    T_STREQ(splat_data_rows[0].blend_mode, "0");
+    T_EQ(splat_data_rows[0].rows, 2); T_EQ(splat_data_rows[0].columns, 2);
+    T_EQ(splat_data_rows[0].uv_lifespan_start, 0); T_EQ(splat_data_rows[0].uv_decay_end, 3);
+    R_W3LoadUberSplatData();
+    T_EQ(uber_splat_count, 1);
+    if (!uber_splat_rows || uber_splat_count != 1) goto cleanup_spn_test;
+    T_STREQ(uber_splat_rows[0].name, "TestUber");
+    T_STREQ(uber_splat_rows[0].blend_mode, "0");
+    T_FEQ(uber_splat_rows[0].scale, 64.0f, 0.001f);
+    T_FEQ(uber_splat_rows[0].birth_time, 1.0f, 0.001f);
     R_TestUseProductionModelLoader(true);
     child_model = R_W3SpawnModel(spawn_data_rows);
     T_NOT_NULL(child_model);
@@ -112,7 +149,7 @@ TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) 
     T_ASSERT(child_model->mdx->num_sequences > 0);
     T_EQ(parent_mdx.num_pivots, 1);
     T_EQ(R_W3SpawnModel(spawn_data_rows), child_model);
-    event_sound_state[7] = (wc3EventSoundState_t){ 0 }; R_W3ClearEventSpawns();
+    event_state[7] = (wc3EventState_t){ 0 }; R_W3ClearEventSpawns();
     test_spn_render_count = 0; tr.render_phase = RENDER_PHASE_SOLID; tr.viewDef.time = 0;
 
     R_UpdateEntityPresentation(&parent); /* First observation seeds the crossing state. */
@@ -139,12 +176,161 @@ TEST(renderer_model, production_spn_dispatch_retains_spawn_after_parent_update) 
 
 cleanup_spn_test:
     R_W3ClearEventSpawns();
+    R_W3ClearEventSplats();
     R_W3FreeSpawnData(true);
+    R_W3FreeSplatData();
+    R_W3FreeUberSplatData();
     R_ShutdownModels();
     R_TestUseProductionModelLoader(false);
     if (test_renderer_archive) { SFileCloseArchive(test_renderer_archive); test_renderer_archive = NULL; }
     ri = saved_imports;
-    event_sound_state[7] = saved_state; tr.viewDef.time = saved_time; tr.render_phase = saved_phase;
+    event_state[7] = saved_state; tr.viewDef.time = saved_time; tr.render_phase = saved_phase;
+}
+
+TEST(renderer_model, production_spl_dispatch_uses_splat_atlas_and_event_transform) {
+    static uint32_t key = 100;
+    static vec3_t pivot = { 1.0f, 2.0f, 3.0f };
+    static mdxSequence_t sequence = { .interval = { 0, 3000 } };
+    mdxEvent_t event = { .num_keys = 1, .globalSeqId = (uint32_t)-1, .keys = &key };
+    mdxModel_t mdx = { .events = &event, .sequences = &sequence, .num_sequences = 1,
+                       .pivots = &pivot, .num_pivots = 1 };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    renderEntity_t entity = { .origin = { 10.0f, 20.0f, 30.0f }, .model = &model, .number = 10 };
+    wc3SplatData_t row = {
+        .name = "TestSplat", .rows = 2, .columns = 2, .scale = 32.0f, .lifespan = 1.0f, .decay_time = 1.0f,
+        .uv_lifespan_start = 0, .uv_lifespan_end = 1, .uv_decay_start = 2, .uv_decay_end = 3,
+        .start_r = 1.0f, .start_a = 1.0f, .middle_g = 1.0f, .middle_a = 1.0f,
+        .end_b = 1.0f, .end_a = 0.0f, .texture = &test_splat_texture,
+    };
+    wc3SplatData_t *saved_rows = splat_data_rows;
+    uint32_t saved_count = splat_data_count, saved_time = tr.viewDef.time;
+    render_phase_t saved_phase = tr.render_phase;
+    wc3EventState_t saved_state = event_state[10];
+
+    snprintf(event.node.name, sizeof(event.node.name), "SPLxTestSplat");
+    event.node.node_id = 0; event.node.parent_id = (uint32_t)-1;
+    mdx.nodes[0] = &event.node; mdx.node_list[0] = &event.node; mdx.num_nodes = 1;
+    splat_data_rows = &row; splat_data_count = 1;
+    event_state[10] = (wc3EventState_t){ 0 }; R_W3ClearEventSplats();
+    test_splat_count = 0; tr.render_phase = RENDER_PHASE_SOLID; tr.viewDef.time = 0;
+
+    R_UpdateEntityPresentation(&entity);
+    entity.frame = 150; tr.viewDef.time = 150; R_UpdateEntityPresentation(&entity);
+    T_EQ(test_splat_count, 1);
+    T_FEQ(test_splat_origin.x, 11.0f, 0.001f); T_FEQ(test_splat_origin.y, 22.0f, 0.001f);
+    T_FEQ(test_splat_radius, 32.0f, 0.001f);
+    T_FEQ(test_splat_uv_mins.x, 0.0f, 0.001f); T_FEQ(test_splat_uv_mins.y, 0.0f, 0.001f);
+    T_FEQ(test_splat_uv_maxs.x, 0.5f, 0.001f); T_FEQ(test_splat_uv_maxs.y, 0.5f, 0.001f);
+
+    tr.viewDef.time = 1150; R_W3DrawEventSplats();
+    T_EQ(test_splat_count, 2);
+    T_FEQ(test_splat_uv_mins.x, 0.0f, 0.001f); T_FEQ(test_splat_uv_mins.y, 0.5f, 0.001f);
+    T_EQ(test_splat_color.r, 0); T_EQ(test_splat_color.g, 255); T_EQ(test_splat_color.b, 0);
+    tr.viewDef.time = 2150; R_W3DrawEventSplats();
+    T_EQ(test_splat_count, 2); T_ASSERT(!event_splats[0].active);
+
+    R_W3ClearEventSplats();
+    splat_data_rows = saved_rows; splat_data_count = saved_count;
+    event_state[10] = saved_state; tr.viewDef.time = saved_time; tr.render_phase = saved_phase;
+}
+
+TEST(renderer_model, production_fpt_dispatch_uses_splat_data) {
+    mdxEvent_t event = { 0 };
+    wc3EventFamily_t const *family;
+    char id[32] = { 0 };
+
+    snprintf(event.node.name, sizeof(event.node.name), "FPTxTestSplat   ");
+    family = R_W3EventFamily(&event);
+    T_NOT_NULL(family);
+    T_EQ(family->kind, WC3_EVENT_FOOTPRINT);
+    T_ASSERT(MDLX_EventObjectId(&event, family->prefix, id, sizeof(id)));
+    T_STREQ(id, "TestSplat");
+}
+
+TEST(renderer_model, production_ubr_dispatch_uses_data_lifetime_and_event_transform) {
+    static uint32_t key = 100;
+    static vec3_t pivot = { 1.0f, 2.0f, 3.0f };
+    static mdxSequence_t sequence = { .interval = { 0, 4000 } };
+    mdxEvent_t event = { .num_keys = 1, .globalSeqId = (uint32_t)-1, .keys = &key };
+    mdxModel_t mdx = { .events = &event, .sequences = &sequence, .num_sequences = 1,
+                       .pivots = &pivot, .num_pivots = 1 };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    renderEntity_t entity = { .origin = { 10.0f, 20.0f, 30.0f }, .model = &model, .number = 9 };
+    wc3UberSplatData_t row = {
+        .name = "TestUber", .scale = 64.0f, .birth_time = 1.0f, .pause_time = 1.0f, .decay_time = 1.0f,
+        .start_r = 1.0f, .start_a = 1.0f,
+        .middle_g = 1.0f, .middle_a = 1.0f,
+        .end_b = 1.0f, .end_a = 0.0f,
+        .texture = &test_splat_texture,
+    };
+    wc3UberSplatData_t *saved_rows = uber_splat_rows;
+    uint32_t saved_count = uber_splat_count, saved_time = tr.viewDef.time;
+    render_phase_t saved_phase = tr.render_phase;
+    wc3EventState_t saved_state = event_state[9];
+
+    snprintf(event.node.name, sizeof(event.node.name), "UBRxTestUber");
+    event.node.node_id = 0; event.node.parent_id = (uint32_t)-1;
+    mdx.nodes[0] = &event.node; mdx.node_list[0] = &event.node; mdx.num_nodes = 1;
+    uber_splat_rows = &row; uber_splat_count = 1;
+    event_state[9] = (wc3EventState_t){ 0 }; R_W3ClearEventSplats();
+    test_splat_count = 0; tr.render_phase = RENDER_PHASE_SOLID; tr.viewDef.time = 0;
+
+    R_UpdateEntityPresentation(&entity);
+    entity.frame = 150; tr.viewDef.time = 150; R_UpdateEntityPresentation(&entity);
+    T_EQ(test_splat_count, 1);
+    T_FEQ(test_splat_origin.x, 11.0f, 0.001f);
+    T_FEQ(test_splat_origin.y, 22.0f, 0.001f);
+    T_FEQ(test_splat_radius, 64.0f, 0.001f);
+    T_EQ(test_splat_color.r, 255); T_EQ(test_splat_color.g, 0); T_EQ(test_splat_color.b, 0);
+
+    tr.viewDef.time = 1650; R_W3DrawEventSplats();
+    T_EQ(test_splat_count, 2);
+    T_EQ(test_splat_color.r, 0); T_EQ(test_splat_color.g, 255); T_EQ(test_splat_color.b, 0);
+    tr.viewDef.time = 3150; R_W3DrawEventSplats();
+    T_EQ(test_splat_count, 2);
+    T_ASSERT(!event_splats[0].active);
+
+    R_W3ClearEventSplats();
+    uber_splat_rows = saved_rows; uber_splat_count = saved_count;
+    event_state[9] = saved_state; tr.viewDef.time = saved_time; tr.render_phase = saved_phase;
+}
+
+TEST(renderer_model, production_spn_child_dispatches_its_own_ubr_event) {
+    static uint32_t key = 100;
+    static vec3_t pivot = { 1.0f, 2.0f, 3.0f };
+    static mdxSequence_t sequence = { .interval = { 0, 1000 } };
+    mdxEvent_t event = { .num_keys = 1, .globalSeqId = (uint32_t)-1, .keys = &key };
+    mdxModel_t mdx = { .events = &event, .sequences = &sequence, .num_sequences = 1,
+                       .pivots = &pivot, .num_pivots = 1 };
+    model_t model = { .modeltype = ID_MDLX, .mdx = &mdx };
+    wc3UberSplatData_t row = {
+        .name = "TestUber", .scale = 16.0f, .birth_time = 1.0f, .pause_time = 1.0f, .decay_time = 1.0f,
+        .start_r = 1.0f, .start_a = 1.0f, .middle_r = 1.0f, .middle_a = 1.0f,
+        .end_r = 1.0f, .end_a = 1.0f, .texture = &test_splat_texture,
+    };
+    wc3EventSpawn_t spawn = { .model = &model, .scale = 1.0f, .active = true, .serial = 1 };
+    wc3UberSplatData_t *saved_rows = uber_splat_rows;
+    uint32_t saved_count = uber_splat_count, saved_time = tr.viewDef.time;
+    render_phase_t saved_phase = tr.render_phase;
+
+    snprintf(event.node.name, sizeof(event.node.name), "UBRxTestUber");
+    event.node.node_id = 0; event.node.parent_id = (uint32_t)-1;
+    mdx.nodes[0] = &event.node; mdx.node_list[0] = &event.node; mdx.num_nodes = 1;
+    Matrix4_identity(&spawn.transform);
+    spawn.transform.v[12] = 10.0f; spawn.transform.v[13] = 20.0f; spawn.transform.v[14] = 30.0f;
+    uber_splat_rows = &row; uber_splat_count = 1;
+    R_W3ClearEventSplats(); test_splat_count = 0; tr.render_phase = RENDER_PHASE_SOLID; tr.viewDef.time = 0;
+
+    T_ASSERT(R_W3RenderEventSpawn(&spawn, 0)); /* seed child event state */
+    tr.viewDef.time = 150;
+    T_ASSERT(R_W3RenderEventSpawn(&spawn, 0));
+    T_EQ(test_splat_count, 1);
+    T_FEQ(test_splat_origin.x, 11.0f, 0.001f);
+    T_FEQ(test_splat_origin.y, 22.0f, 0.001f);
+
+    R_W3ClearEventSplats();
+    uber_splat_rows = saved_rows; uber_splat_count = saved_count;
+    tr.viewDef.time = saved_time; tr.render_phase = saved_phase;
 }
 
 TEST(renderer_model, production_snd_dispatch_uses_event_world_transform) {
@@ -160,13 +346,13 @@ TEST(renderer_model, production_snd_dispatch_uses_event_world_transform) {
     wc3AnimSound_t *saved_sounds = anim_sound_rows;
     uint32_t saved_sound_count = anim_sound_count, saved_time = tr.viewDef.time;
     render_phase_t saved_phase = tr.render_phase;
-    wc3EventSoundState_t saved_state = event_sound_state[8];
+    wc3EventState_t saved_state = event_state[8];
     void (*saved_play_sound)(cstring_t, vec3_t const *, float) = ri.PlaySoundAt;
 
     snprintf(event.node.name, sizeof(event.node.name), "SNDxTestSound");
     event.node.node_id = 0; event.node.parent_id = (uint32_t)-1;
     mdx.nodes[0] = &event.node; mdx.node_list[0] = &event.node; mdx.num_nodes = 1;
-    anim_sound_rows = &sound; anim_sound_count = 1; event_sound_state[8] = (wc3EventSoundState_t){ 0 };
+    anim_sound_rows = &sound; anim_sound_count = 1; event_state[8] = (wc3EventState_t){ 0 };
     test_sound_count = 0; test_sound_path[0] = '\0'; ri.PlaySoundAt = test_renderer_play_sound;
     tr.render_phase = RENDER_PHASE_SOLID; tr.viewDef.time = 0;
     R_UpdateEntityPresentation(&entity);
@@ -177,7 +363,7 @@ TEST(renderer_model, production_snd_dispatch_uses_event_world_transform) {
     T_FEQ(test_sound_origin.y, 22.0f, 0.001f);
     T_FEQ(test_sound_origin.z, 33.0f, 0.001f);
     anim_sound_rows = saved_sounds; anim_sound_count = saved_sound_count;
-    ri.PlaySoundAt = saved_play_sound; event_sound_state[8] = saved_state;
+    ri.PlaySoundAt = saved_play_sound; event_state[8] = saved_state;
     tr.viewDef.time = saved_time; tr.render_phase = saved_phase;
 }
 

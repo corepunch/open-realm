@@ -27,6 +27,9 @@ Current runtime consumers are:
 |---|---|---|
 | `SND` | `UI\SoundInfo\AnimLookups.slk` -> `AnimSounds.slk` | Play the authored animation sound at the animated event node. |
 | `SPN` | `Splats\SpawnData.slk` | Spawn the row's `Model` at the animated event-node transform and play sequence 0 once. |
+| `SPL` | `Splats\SplatData.slk` | Create a renderer-owned terrain splat at the animated event-node position, using the authored texture-atlas life/decay ranges and colour phases. |
+| `FPT` | `Splats\SplatData.slk` | Use the same SplatData path for footprint event objects; placement comes from the animated event-node transform. |
+| `UBR` | `Splats\UberSplatData.slk` | Create a renderer-owned terrain splat at the animated event-node position and apply the authored birth/pause/decay colour phases. |
 
 Warsmash uses the same `SPN` lookup chain: `EventObjectEmitterObject` loads
 `Splats\SpawnData.slk`, reads the row's `Model`, and `EventObjectSpn` creates an
@@ -90,22 +93,44 @@ damage or dispatch gameplay events.
 
 See [Land Mines](land-mines.md) for the gameplay chain.
 
-## Unsupported event families
+## `SPL` / `FPT` data flow
 
-OpenWarcraft3 still does not execute the other classic model-event presentation
-families:
+`SPL` and `FPT` event objects resolve `Splats\SplatData.slk` in renderer asset scope.  The row supplies `Dir`, `file`, `Rows`, `Columns`, `Scale`, `Lifespan`, `Decay`, the lifespan/decay UV frame ranges, Start/Middle/End RGBA values, and retained `BlendMode`, `Water`, and `Sound` metadata.  The event snapshots the animated event-node world position into the same bounded renderer-only transient pool used by UBR.
 
-- `SPL` / `FPT` (`Splats\SplatData.slk`);
-- `UBR` (`Splats\UberSplatData.slk`).
+The terrain splat renderer accepts an explicit UV rectangle, so a SplatData atlas cell remains terrain-conforming even when the splat crosses tile boundaries and the generated polygons are clipped.  Atlas cells are numbered left-to-right, top-to-bottom from zero.  During `Lifespan`, the consumer advances once from `UVLifespanStart` to `UVLifespanEnd` while interpolating Start -> Middle colour; during `Decay`, it advances once from `UVDecayStart` to `UVDecayEnd` while interpolating Middle -> End colour.
 
-They should use the same event-key dispatcher when implemented, but their
-texture/lifetime/blend contracts are separate from `SPN` model spawning and are
-not inferred here.
+`LifespanRepeat` and `UVDecayRepeat` are parsed and retained but not yet applied: their exact retail repeat-count/wrap contract remains unverified. Likewise `BlendMode`, `Water`, and `Sound` are preserved but not guessed into renderer/audio behavior. A used row with one of those unsupported non-default fields produces one bounded warning, so the partial presentation contract is not silent. This keeps the implemented subset deterministic and data-driven without approximating the remaining semantics.
 
-A model spawned by an `SPN` event currently plays its own geometry, particles,
-ribbons, and attachments, but nested `EVTS` from that renderer-only child are
-not recursively dispatched.  Add that only when a stock/custom asset requiring
-nested event objects supplies a concrete compatibility case.
+## `UBR` data flow
+
+`UBR` events resolve `Splats\UberSplatData.slk` in renderer asset scope, so map
+archive overrides take the same precedence as `SPN`.  The row supplies `Dir`,
+`file`, `Scale`, `BirthTime`, `PauseTime`, `Decay`, and the Start/Middle/End RGBA
+values. `BlendMode` and `Sound` are also parsed and retained.  The event snapshots the animated event-node world position into a
+bounded renderer-only transient.  Birth interpolates Start -> Middle, Pause
+holds Middle, and Decay interpolates Middle -> End.  The renderer uses the same
+terrain-conforming splat primitive as existing entity UberSplats; no gameplay
+entity or save/network state is created.
+
+The current generic splat primitive uses the engine's existing alpha-blended
+UberSplat path. `UberSplatData.BlendMode` values beyond the default blend path
+and the optional `Sound` field are not yet interpreted by this event consumer;
+the renderer emits one bounded warning for a used row with those retained fields
+until a verified retail blend/audio contract is implemented.
+
+## Nested child events
+
+`SPN` children now retain independent previous-frame/render-time event state.
+Their own `SND`, `SPN`, `SPL`, `FPT`, and `UBR` keys are dispatched with the child's captured
+world transform, so a spawned effect can play its own sound, create another
+spawned model, or stamp an UberSplat.  Nested `SPN` creation is capped at four
+presentation levels.  The cap is renderer safety only: already-created child
+models continue to render, but deeper child creation is suppressed instead of
+allowing cyclic custom assets to recurse indefinitely.
+
+## Remaining event-data gaps
+
+All Classic `SND`, `SPN`, `SPL`, `FPT`, and `UBR` event families now have runtime consumers.  The remaining SplatData gaps are limited to the still-unverified `LifespanRepeat` / `UVDecayRepeat`, `BlendMode`, `Water`, and `Sound` semantics.  Those fields stay parsed so later retail validation can extend the same consumer without changing its data ownership.
 
 ## Verification
 
@@ -113,7 +138,11 @@ Headless renderer tests cover:
 
 - sequence and global-sequence event-key crossing;
 - `SPN` event-name row-key extraction and padding trim;
-- event-node pivot placement in the captured world transform.
+- event-node pivot placement in the captured world transform;
+- `SPL` atlas-cell selection, event-node placement, and life/decay colour phases;
+- `FPT` row-key parsing through the shared SplatData path;
+- `UBR` event placement and birth/pause/decay lifetime;
+- nested renderer-child event dispatch uses the child transform and independent event state;
 
 `games/warcraft-3/tests/resources-src/Splats/SpawnData.slk` supplies a minimal
 `TestSpawn` row pointing at the generated `TestUI\Models\quad_sprite.mdx`
