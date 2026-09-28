@@ -171,6 +171,7 @@ uint32_t StartSound(jass_t *j) {
         else
             G_PlaySound(NULL, recipient, CHAN_OWNER | CHAN_RELIABLE, sound->soundIndex,
                      playback.volume, attenuation, 0.0f);
+        G_JassSoundMarkStarted(sound);
         return 0;
     }
 
@@ -179,6 +180,7 @@ uint32_t StartSound(jass_t *j) {
                            playback.volume, attenuation, 0.0f);
     else
         G_PlaySound(NULL, NULL, CHAN_RELIABLE, sound->soundIndex, playback.volume, attenuation, 0.0f);
+    G_JassSoundMarkStarted(sound);
     return 0;
 }
 uint32_t StopSound(jass_t *j) {

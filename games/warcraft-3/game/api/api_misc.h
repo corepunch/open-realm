@@ -1672,12 +1672,15 @@ uint32_t SetCinematicScene(jass_t *j) {
     float voiceoverDuration = jass_checknumber(j, 6);
     if (TutorialTextDebugEnabledMisc()) {
         int32_t trigger_ordinal;
+        uint32_t now = G_Time();
         cstring_t caller;
         cstring_t resolved_speaker = G_LevelString(speakerTitle);
         cstring_t resolved_text = G_LevelString(text);
         TutorialTextDebugContextMisc(j, &trigger_ordinal, &caller);
         fprintf(stderr,
-                "WC3_TUTORIAL_TEXT native=SetCinematicScene trigger=%ld caller=\"%s\" player=%d portrait=%.4s scene=%.3f voice=%.3f speaker_raw=\"%s\" speaker=\"%s\" text_raw=\"%s\" text=\"%s\"\n",
+                "WC3_TUTORIAL_TEXT t=%02u:%02u:%02u.%03u native=SetCinematicScene trigger=%ld caller=\"%s\" player=%d portrait=%.4s scene=%.3f voice=%.3f speaker_raw=\"%s\" speaker=\"%s\" text_raw=\"%s\" text=\"%s\"\n",
+                (unsigned)(now / 3600000u), (unsigned)((now / 60000u) % 60u),
+                (unsigned)((now / 1000u) % 60u), (unsigned)(now % 1000u),
                 (long)trigger_ordinal, caller ? caller : "(native/root)",
                 currentplayer ? (int)PLAYER_NUM(currentplayer) : -1,
                 portraitUnitId ? (cstring_t)&portraitUnitId : "----", sceneDuration, voiceoverDuration,

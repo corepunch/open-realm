@@ -2895,6 +2895,8 @@ void G_MusicSetThematicPosition(int32_t millisecs);
 int32_t G_AudioDurationFromMemory(cstring_t filename, uint8_t const *data, uint32_t size);
 int32_t G_SoundFileDuration(cstring_t filename);
 void G_JassSoundRuntimeInit(handle_t sound);
+void G_JassSoundMarkStarted(handle_t sound);
+uint32_t G_JassSoundRemainingDuration(handle_t sound);
 void G_JassSoundSetVolume(handle_t sound, float volume);
 void G_JassSoundSetPosition(handle_t sound, vec3_t const *position);
 void G_JassSoundAttach(handle_t sound, edict_t *unit);
