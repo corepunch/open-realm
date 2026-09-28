@@ -545,14 +545,15 @@ uint32_t TriggerWaitForSound(jass_t *j) {
     gsound_t *s = jass_checkhandle(j, 1, "sound");
     float offset = jass_checknumber(j, 2);
     jassContext_t const *ctx = jass_getcontext(j);
-    uint32_t wait_msec = G_SkipCutscene() ? 1 : s->duration + (uint32_t)(offset * 1000.0f);
+    uint32_t duration = G_JassSoundRemainingDuration(s);
+    uint32_t wait_msec = G_SkipCutscene() ? 1 : duration + (uint32_t)(offset * 1000.0f);
     if (QuestPeonStageDebugEnabled() && ctx && TutorialFlowDebugTrigger(ctx->trigger)) {
         char chain[256];
         jass_formatcallchain(j, chain, sizeof(chain));
         fprintf(stderr,
-                "WC3_TUTORIAL_FLOW sleep trigger=%ld native=TriggerWaitForSound sound_msec=%lu offset=%.3f wait_msec=%lu chain=\"%s\"\n",
+                "WC3_TUTORIAL_FLOW sleep trigger=%ld native=TriggerWaitForSound sound_msec=%lu remaining_msec=%lu offset=%.3f wait_msec=%lu chain=\"%s\"\n",
                 (long)QuestPeonStageTriggerOrdinal(ctx->trigger),
-                (unsigned long)s->duration, offset, (unsigned long)wait_msec, chain);
+                (unsigned long)s->duration, (unsigned long)duration, offset, (unsigned long)wait_msec, chain);
     }
     jass_sleep(j, wait_msec);
     return 0;

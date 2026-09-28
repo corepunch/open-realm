@@ -55,6 +55,8 @@ typedef struct {
     int32_t fadeInRate;
     int32_t fadeOutRate;
     uint32_t duration;
+    uint32_t start_time;
+    bool started;
     int soundIndex; /* CS_SOUNDS configstring index; populated by CreateSound */
     float volume;
     vec3_t position;

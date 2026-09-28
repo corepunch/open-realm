@@ -64,10 +64,29 @@ void G_JassSoundRuntimeInit(handle_t handle) {
     gsound_t *state = handle;
     if (!state) return;
     state->volume = 1.0f;
+    state->start_time = 0;
+    state->started = false;
     state->position = (vec3_t){ 0 };
     state->attached_entity = -1;
     state->attached_spawn_time = 0;
     state->has_position = false;
+}
+
+void G_JassSoundMarkStarted(handle_t handle) {
+    gsound_t *state = handle;
+    if (!state) return;
+    state->start_time = G_Time();
+    state->started = true;
+}
+
+uint32_t G_JassSoundRemainingDuration(handle_t handle) {
+    gsound_t *state = handle;
+    uint32_t elapsed;
+
+    if (!state) return 0;
+    if (!state->started) return state->duration;
+    elapsed = G_Time() - state->start_time;
+    return elapsed < state->duration ? state->duration - elapsed : 0;
 }
 
 void G_JassSoundSetVolume(handle_t handle, float volume) {

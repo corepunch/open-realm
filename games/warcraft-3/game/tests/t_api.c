@@ -3698,6 +3698,98 @@ TEST(wc3_api, jass_sound_runtime_tracks_one_shot_volume_and_attachment_safely) {
 
 }
 
+TEST(wc3_api, repeated_wait_for_sound_only_waits_until_voice_end_once) {
+    gameClient_t *gc = &game.clients[0];
+    gsound_t lifetime = { 0 };
+    void (*old_sound)(edict_t *, int, int, float, float, float) = gi.Sound;
+    int (*old_soundindex)(cstring_t) = gi.SoundIndex;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
+
+    setup_test_world();
+    G_JassSoundRuntimeInit(&lifetime);
+    lifetime.duration = 15000;
+    T_EQ(G_JassSoundRemainingDuration(&lifetime), 15000u);
+    level.time = 1000;
+    G_JassSoundMarkStarted(&lifetime);
+    level.time = 4500;
+    T_EQ(G_JassSoundRemainingDuration(&lifetime), 11500u);
+    level.time = 16000;
+    T_EQ(G_JassSoundRemainingDuration(&lifetime), 0u);
+    G_JassSoundMarkStarted(&lifetime);
+    level.time = 17000;
+    T_EQ(G_JassSoundRemainingDuration(&lifetime), 14000u);
+    level.time = 0;
+    gc = &game.clients[0];
+    gc->ps.number = 0;
+    gc->connected = true;
+    currentplayer = &gc->ps;
+    ui_sound_calls = 0;
+    gi.Sound = capture_ui_sound;
+    gi.SoundIndex = capture_ui_sound_index;
+    gi.SoundIndexAlias = capture_ui_sound_index_alias;
+
+    T_ASSERT(run_test_jass(
+        "globals\n"
+        "  sound introVoice = null\n"
+        "  trigger introTrigger = null\n"
+        "  integer introStage = 0\n"
+        "endglobals\n"
+        "function IntroSequenceAction takes nothing returns nothing\n"
+        "  call StartSound(introVoice)\n"
+        "  call TriggerSleepAction(3.5)\n"
+        "  call TriggerWaitForSound(introVoice, 0.0)\n"
+        "  set introStage = 1\n"
+        "  call TriggerWaitForSound(introVoice, 2.0)\n"
+        "  set introStage = 2\n"
+        "endfunction\n"
+        "function AssertIntroStageZero takes nothing returns nothing\n"
+        "  call BJassAssert(introStage == 0, \"dialogue advanced before the voice duration elapsed\")\n"
+        "endfunction\n"
+        "function AssertIntroStageOne takes nothing returns nothing\n"
+        "  call BJassAssert(introStage == 1, \"positive offset did not preserve the remaining wait\")\n"
+        "endfunction\n"
+        "function AssertIntroStageDone takes nothing returns nothing\n"
+        "  call BJassAssert(introStage == 2, \"repeated wait delayed dialogue after voice ended\")\n"
+        "endfunction\n"
+        "function main takes nothing returns nothing\n"
+        "  set introVoice = CreateSound(\"intro.wav\", false, false, false, 0, 0, \"\")\n"
+        "  call SetSoundDuration(introVoice, 15000)\n"
+        "  set introTrigger = CreateTrigger()\n"
+        "  call TriggerAddAction(introTrigger, function IntroSequenceAction)\n"
+        "  call TriggerExecute(introTrigger)\n"
+        "endfunction\n"));
+    T_EQ(ui_sound_calls, 1);
+    T_EQ(level.time, 0u);
+
+    level.time = 3500;
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "AssertIntroStageZero", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.time = 14999;
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "AssertIntroStageZero", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.time = 15000;
+    jass_runevents(level.vm);
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "AssertIntroStageOne", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.time = 16999;
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "AssertIntroStageOne", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+    level.time = 17000;
+    jass_runevents(level.vm);
+    jass_runevents(level.vm);
+    jass_callbyname(level.vm, "AssertIntroStageDone", false);
+    T_ASSERT(!jass_rterror_pending(level.vm));
+
+    gi.Sound = old_sound;
+    gi.SoundIndex = old_soundindex;
+    gi.SoundIndexAlias = old_sound_alias;
+    currentplayer = NULL;
+}
+
 TEST(wc3_api, jass_create_sound_from_label_uses_merged_ambience_table) {
     static cstring_t const slk =
         "ID;PWXL;N;E\n"
