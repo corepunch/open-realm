@@ -523,6 +523,9 @@ typedef enum {
 #define UI_WINDOW_LOCAL_SOUND_VOLUME_ACTION "local_audio_sound_volume" // client action; writes normalized local SFX volume
 #define UI_WINDOW_LOCAL_MUSIC_ENABLED_ACTION "local_audio_music_enabled" // client action; toggles the local music preference
 #define UI_WINDOW_LOCAL_MUSIC_VOLUME_ACTION "local_audio_music_volume" // client action; writes normalized local music volume
+#define UI_WINDOW_LOCAL_AUDIO_BEGIN_COMMAND_PREFIX "local_audio_begin_command " // snapshots local audio prefs then forwards the command
+#define UI_WINDOW_LOCAL_AUDIO_ACCEPT_COMMAND_PREFIX "local_audio_accept_command " // commits local audio prefs then forwards the command
+#define UI_WINDOW_LOCAL_AUDIO_CANCEL_COMMAND_PREFIX "local_audio_cancel_command " // restores local audio prefs then forwards the command
 
 typedef struct {
     uint32_t id, class_id, flags;

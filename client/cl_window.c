@@ -52,6 +52,14 @@ static struct {
     bool modal_paused;
 } cl_windows;
 
+static struct {
+    bool active;
+    char sound_enabled[32];
+    char sound_volume[32];
+    char music_enabled[32];
+    char music_volume[32];
+} cl_local_audio_transaction;
+
 static rect_t CL_WindowRoot(clientWindow_t const *window);
 static bool CL_WindowIsEditBox(uiFrame_t const *frame);
 static uiFrame_t *CL_WindowEditTextFrame(uiFrame_t const *edit);
@@ -541,6 +549,75 @@ static bool CL_WindowFormatCommand(clientWindow_t *window, cstring_t src, window
     return true;
 }
 
+typedef enum {
+    LOCAL_AUDIO_TRANSACTION_NONE,
+    LOCAL_AUDIO_TRANSACTION_BEGIN,
+    LOCAL_AUDIO_TRANSACTION_ACCEPT,
+    LOCAL_AUDIO_TRANSACTION_CANCEL,
+} localAudioTransactionAction_t;
+
+static localAudioTransactionAction_t CL_WindowLocalAudioTransactionAction(cstring_t action,
+                                                                           cstring_t *command) {
+    if (!action || !command) return LOCAL_AUDIO_TRANSACTION_NONE;
+    if (!strncmp(action, UI_WINDOW_LOCAL_AUDIO_BEGIN_COMMAND_PREFIX,
+                 sizeof(UI_WINDOW_LOCAL_AUDIO_BEGIN_COMMAND_PREFIX) - 1)) {
+        *command = action + sizeof(UI_WINDOW_LOCAL_AUDIO_BEGIN_COMMAND_PREFIX) - 1;
+        return LOCAL_AUDIO_TRANSACTION_BEGIN;
+    }
+    if (!strncmp(action, UI_WINDOW_LOCAL_AUDIO_ACCEPT_COMMAND_PREFIX,
+                 sizeof(UI_WINDOW_LOCAL_AUDIO_ACCEPT_COMMAND_PREFIX) - 1)) {
+        *command = action + sizeof(UI_WINDOW_LOCAL_AUDIO_ACCEPT_COMMAND_PREFIX) - 1;
+        return LOCAL_AUDIO_TRANSACTION_ACCEPT;
+    }
+    if (!strncmp(action, UI_WINDOW_LOCAL_AUDIO_CANCEL_COMMAND_PREFIX,
+                 sizeof(UI_WINDOW_LOCAL_AUDIO_CANCEL_COMMAND_PREFIX) - 1)) {
+        *command = action + sizeof(UI_WINDOW_LOCAL_AUDIO_CANCEL_COMMAND_PREFIX) - 1;
+        return LOCAL_AUDIO_TRANSACTION_CANCEL;
+    }
+    return LOCAL_AUDIO_TRANSACTION_NONE;
+}
+
+static void CL_WindowBeginLocalAudioTransaction(void) {
+    snprintf(cl_local_audio_transaction.sound_enabled,
+             sizeof(cl_local_audio_transaction.sound_enabled), "%s",
+             Cvar_String("s_sound", "1"));
+    snprintf(cl_local_audio_transaction.sound_volume,
+             sizeof(cl_local_audio_transaction.sound_volume), "%s",
+             Cvar_String("s_volume", "1"));
+    snprintf(cl_local_audio_transaction.music_enabled,
+             sizeof(cl_local_audio_transaction.music_enabled), "%s",
+             Cvar_String("s_music", "1"));
+    snprintf(cl_local_audio_transaction.music_volume,
+             sizeof(cl_local_audio_transaction.music_volume), "%s",
+             Cvar_String("s_musicvolume", "1"));
+    cl_local_audio_transaction.active = true;
+}
+
+static void CL_WindowFinishLocalAudioTransaction(bool cancel) {
+    if (!cl_local_audio_transaction.active) return;
+    if (cancel) {
+        Cvar_Set("s_sound", cl_local_audio_transaction.sound_enabled);
+        Cvar_Set("s_volume", cl_local_audio_transaction.sound_volume);
+        Cvar_Set("s_music", cl_local_audio_transaction.music_enabled);
+        Cvar_Set("s_musicvolume", cl_local_audio_transaction.music_volume);
+    }
+    cl_local_audio_transaction.active = false;
+}
+
+static bool CL_WindowRunLocalAudioTransactionCommand(clientWindow_t *window, cstring_t action) {
+    cstring_t source = NULL;
+    localAudioTransactionAction_t transaction = CL_WindowLocalAudioTransactionAction(action, &source);
+    char command[CMDARG_LEN * 4];
+
+    if (transaction == LOCAL_AUDIO_TRANSACTION_NONE) return false;
+    if (!CL_WindowFormatCommand(window, source, &MAKE(windowTextOut_t, .data = command, .size = sizeof(command))))
+        return true;
+    if (transaction == LOCAL_AUDIO_TRANSACTION_BEGIN) CL_WindowBeginLocalAudioTransaction();
+    else CL_WindowFinishLocalAudioTransaction(transaction == LOCAL_AUDIO_TRANSACTION_CANCEL);
+    Cmd_ForwardToServer(command);
+    return true;
+}
+
 static void CL_WindowPrepareState(clientWindow_t *window, rect_t const *root) {
     if (!window) return;
     SCR_WindowPrepare(window->layout, root);
@@ -708,6 +785,7 @@ static void CL_WindowActivateFrame(clientWindow_t *window, uiFrame_t const *fram
     size_t const close_command_len = sizeof(UI_WINDOW_CLOSE_COMMAND_PREFIX) - 1;
     localAudioPreference_t preference;
     if (!frame) return;
+    if (CL_WindowRunLocalAudioTransactionCommand(window, frame->onclick)) return;
     preference = CL_WindowLocalAudioPreference(frame);
     if (CL_WindowLocalAudioCheckBox(preference)) {
         CL_WindowSetLocalAudioPreference(preference, frame->value < 0.5f ? 1.0f : 0.0f);

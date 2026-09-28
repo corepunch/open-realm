@@ -64,6 +64,7 @@ void test_client_stubs_set_cvar(cstring_t name, cstring_t value) {
 
 static bool mock_CameraUsesTerrainHeight(void) { return false; }
 static size2_t mock_GetWindowSize(void) { return test_window_size; }
+static vec2_t mock_GetTextSize(drawText_t const *text) { (void)text; return (vec2_t){ 0.01f, 0.01f }; }
 static void mock_SetUIScene(rect_t const *scene) { test_ui_scene = *scene; }
 /* The scene the client canvas last pushed to the renderer; tests compare it with CL_Canvas(). */
 rect_t test_client_stubs_ui_scene(void) { return test_ui_scene; }
@@ -126,6 +127,11 @@ int Cvar_Integer(cstring_t name, int fallback) {
             return atoi(mock_cvars[i].value);
     }
     return fallback;
+}
+
+float Cvar_Value(cstring_t name, float fallback) {
+    cstring_t value = Cvar_String(name, NULL);
+    return value ? (float)atof(value) : fallback;
 }
 
 cstring_t Cvar_String(cstring_t name, cstring_t fallback) {
@@ -213,6 +219,7 @@ void test_client_stubs_init(void) {
     test_canvas_policy = UI_CANVAS_POLICY;
     test_ui_scene = (rect_t){ 0 };
     re.GetWindowSize = mock_GetWindowSize;
+    re.GetTextSize = mock_GetTextSize;
     re.SetUIScene = mock_SetUIScene;
     re.CameraUsesTerrainHeight = mock_CameraUsesTerrainHeight;
     re.DrawLoadingIndicator = mock_DrawLoadingIndicator;

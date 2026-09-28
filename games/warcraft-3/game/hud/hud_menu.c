@@ -256,14 +256,18 @@ void UI_LoadHudMenu(void) {
      * JASS RestartGame native and the game-result dialog. */
     MenuConfigureMainSaveLoad();
     MenuSetButton(hud.menu.OptionsButton, hud.options.EscMenuOptionsPanel != NULL,
-                  hud.options.EscMenuOptionsPanel ? "wc3_menu_options" : NULL);
+                  hud.options.EscMenuOptionsPanel
+                      ? UI_WINDOW_LOCAL_AUDIO_BEGIN_COMMAND_PREFIX "wc3_menu_options"
+                      : NULL);
     UI_SetEnabled(hud.menu.HelpButton, false);
     UI_SetEnabled(hud.menu.TipsButton, false);
 
     if (hud.options.EscMenuOptionsPanel) {
         UI_SetOnClick(hud.options.OptionsPreviousButton, "menu");
-        UI_SetOnClick(hud.options.OptionsOKButton, "menu");
-        UI_SetOnClick(hud.options.OptionsCancelButton, "menu");
+        UI_SetOnClick(hud.options.OptionsOKButton,
+                      UI_WINDOW_LOCAL_AUDIO_ACCEPT_COMMAND_PREFIX "menu");
+        UI_SetOnClick(hud.options.OptionsCancelButton,
+                      UI_WINDOW_LOCAL_AUDIO_CANCEL_COMMAND_PREFIX "menu");
 
         /* The Sound page is the first in-game Options page with client-owned
          * behavior. Keep unsupported pages and category toggles visible but
