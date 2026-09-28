@@ -1544,6 +1544,42 @@ TEST(wc3_spell, moon_well_datae_gates_only_natural_mana_regen_to_night) {
     free_slk_rows(rows);
 }
 
+TEST(wc3_spell, moon_well_natural_mana_regen_starts_after_construction) {
+    const char slk[] =
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"alias\"\nC;Y1;X2;K\"code\"\nC;Y1;X3;K\"DataE1\"\n"
+        "C;Y2;X1;K\"Ambt\"\nC;Y2;X2;K\"Ambt\"\nC;Y2;X3;K\"1\"\nE\n";
+    UnitAbilities_t abilities = { .abilList = "Ambt" };
+    slkTestData_t *rows = parse_slk_string(slk), *old = G_SetSLKRows("AbilityData", rows);
+    edict_t *well = make_hero(MAKEFOURCC('e','m','o','w'), 100, 0, 0, 0);
+    UnitBalance_t balance = *well->data.UnitBalance;
+
+    well->data.UnitAbilities = &abilities;
+    balance.manaRegen = 2.0f;
+    balance.buildTime = 1;
+    well->data.UnitBalance = &balance;
+    well->mana.max_value = 100.0f;
+    well->mana.value = 50.0f;
+    well->construction.active = true;
+    well->construction.type = CONSTRUCTION_NIGHTELF;
+
+    G_SetTimeOfDay(game.constants.duskTimeGameHours);
+    G_UpdateTimeOfDay();
+    T_ASSERT(G_IsNight());
+
+    FOR_LOOP(tick, 9) G_RunEntity(well);
+    T_ASSERT(well->construction.active);
+    T_FEQ(well->mana.value, 50.0f, 0.001f);
+    G_RunEntity(well);
+    T_ASSERT(!well->construction.active);
+    T_FEQ(well->mana.value, 50.2f, 0.001f);
+
+    G_SetTimeOfDay(12.0f);
+    G_UpdateTimeOfDay();
+    G_SetSLKRows("AbilityData", old);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_spell, non_moon_well_updates_do_not_scan_for_effect_cleanup) {
     edict_t *unit = make_hero(MAKEFOURCC('h','f','o','o'), 100, 0, 0, 0);
 

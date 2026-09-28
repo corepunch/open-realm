@@ -335,6 +335,7 @@ BZ_ABILITY_PROC(CAbilityManaBattery) {
     case A_UPDATE: moon_well_update_effect(ent); return true;
     case A_NATURAL_MANA_REGEN_BLOCKED:
         if (!ent || !code || G_AbilityCode(code) != ID_MOON_WELL) return false;
+        if (ent->construction.active) return true;
         {
             AbilityData_t const *data = G_AbilityData(code);
             if (data->id != code) {
