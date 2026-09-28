@@ -10,8 +10,11 @@ static umove_t ancient_root_morph, ancient_uproot_morph;
 
 #ifdef BZ_TESTS
 static uint32_t moon_well_effect_release_calls;
+static uint32_t moon_well_missing_data_warning_calls;
 void S_TestResetMoonWellEffectReleaseCalls(void) { moon_well_effect_release_calls = 0; }
 uint32_t S_TestMoonWellEffectReleaseCalls(void) { return moon_well_effect_release_calls; }
+void S_TestResetMoonWellMissingDataWarningCalls(void) { moon_well_missing_data_warning_calls = 0; }
+uint32_t S_TestMoonWellMissingDataWarningCalls(void) { return moon_well_missing_data_warning_calls; }
 #endif
 
 static bool root_code(uint32_t code) {
@@ -159,6 +162,9 @@ static void moon_well_warn_missing_data(uint32_t alias) {
     static uint32_t warned[256];
     static uint32_t warned_count;
     char name[5] = {0};
+#ifdef BZ_TESTS
+    moon_well_missing_data_warning_calls++;
+#endif
     if (!alias) return;
     FOR_LOOP(i, warned_count) if (warned[i] == alias) return;
     if (warned_count < sizeof(warned) / sizeof(warned[0])) warned[warned_count++] = alias;
@@ -335,14 +341,14 @@ BZ_ABILITY_PROC(CAbilityManaBattery) {
     case A_UPDATE: moon_well_update_effect(ent); return true;
     case A_NATURAL_MANA_REGEN_BLOCKED:
         if (!ent || !code || G_AbilityCode(code) != ID_MOON_WELL) return false;
-        if (ent->construction.active) return true;
         {
             AbilityData_t const *data = G_AbilityData(code);
             if (data->id != code) {
                 moon_well_warn_missing_data(code);
                 return true;
             }
-            return data->level[0].data[4].number != 0.0f && !G_IsNight(); /* DataE */
+            return ent->construction.active ||
+                   (data->level[0].data[4].number != 0.0f && !G_IsNight()); /* DataE */
         }
     case A_DEATH:
     case A_UNIT_REMOVE:
