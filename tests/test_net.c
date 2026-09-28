@@ -1281,6 +1281,30 @@ static void test_send_window(uint32_t id, uint32_t class_id, uint32_t flags, flo
     CL_ParseServerMessage(&sb);
 }
 
+
+static void test_send_slider_window(uint32_t id, cstring_t action) {
+    uint8_t buf[1024], arena[256] = { 0 };
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t empty = {0}, frame = { .number = 1, .flags = { .type = FT_SLIDER } };
+    uiScrollBar_t slider = {0};
+    uint32_t action_offset = 1;
+
+    snprintf((string_t)arena + action_offset, sizeof(arena) - action_offset, "%s", action);
+    frame.onclick = (cstring_t)(uintptr_t)action_offset;
+    frame.size.width = 0.20f; frame.size.height = 0.20f;
+    frame.points.x[FPP_MIN] = MAKE(uiFramePoint_t, .used = 1, .relativeTo = 0, .offset = 0.05f * UI_FRAMEPOINT_SCALE);
+    frame.points.y[FPP_MIN] = MAKE(uiFramePoint_t, .used = 1, .relativeTo = 0, .offset = -0.1f * UI_FRAMEPOINT_SCALE);
+    MSG_WriteByte(&sb, svc_window); MSG_WriteByte(&sb, UI_WINDOW_OPEN);
+    MSG_WriteLong(&sb, id); MSG_WriteLong(&sb, id + 1000); MSG_WriteLong(&sb, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE);
+    MSG_WriteDeltaUIWindowFrame(&sb, &empty, &frame, true);
+    MSG_WriteByte(&sb, sizeof(slider)); MSG_Write(&sb, &slider, sizeof(slider));
+    MSG_WriteLong(&sb, 0); MSG_WriteShort(&sb, 0);
+    MSG_WriteLong(&sb, action_offset + strlen(action) + 1);
+    MSG_Write(&sb, arena, action_offset + strlen(action) + 1);
+    sb.readcount = 0;
+    CL_ParseServerMessage(&sb);
+}
+
 TEST(net, window_trailing_text_arena_exceeds_typed_payload_limit) {
     uint8_t buf[2048], text[514];
     sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
@@ -1305,6 +1329,63 @@ TEST(net, window_trailing_text_arena_exceeds_typed_payload_limit) {
     CL_WindowDraw();
     T_EQ(test_textarea_draws, 1);
     T_EQ(strlen(test_textarea_draw.text), sizeof(text) - 2);
+    CL_WindowClear();
+}
+
+
+TEST(net, ui_window_frame_delta_preserves_slider_type_and_value) {
+    uint8_t buf[128];
+    sizeBuf_t sb = make_msg_buf(buf, sizeof(buf));
+    uiFrame_t from = {0}, to = { .number = 9, .flags = { .type = FT_SLIDER }, .value = 0.625f }, out = {0};
+    uint32_t bits = 0;
+    int number;
+
+    MSG_WriteDeltaUIWindowFrame(&sb, &from, &to, true);
+    sb.readcount = 0;
+    number = MSG_ReadEntityBits(&sb, &bits);
+    MSG_ReadDeltaUIWindowFrame(&sb, &out, number, bits);
+
+    T_EQ(number, 9);
+    T_EQ(out.flags.type, FT_SLIDER);
+    T_FEQ(out.value, 0.625f, 0.0001f);
+}
+
+TEST(net, window_fixed_local_audio_actions_change_only_local_audio_preferences) {
+    test_client_stubs_init(); CL_WindowClear(); test_client_stubs_clear_cvars();
+    test_client_stubs_set_cvar("s_sound", "0");
+    test_forwarded_command[0] = '\0';
+    test_send_window(31, 131, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,
+                     "Sound", UI_WINDOW_LOCAL_SOUND_ENABLED_ACTION);
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_UP, 128, 256, 1));
+    T_STREQ(Cvar_String("s_sound", ""), "1");
+    T_STREQ(test_forwarded_command, "");
+    CL_WindowClear();
+
+    test_client_stubs_set_cvar("r_fullscreen", "0");
+    test_forwarded_command[0] = '\0';
+    test_send_window(32, 132, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,
+                     "Unsafe", "local_cvar_checkbox r_fullscreen");
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_UP, 128, 256, 1));
+    T_STREQ(Cvar_String("r_fullscreen", ""), "0");
+    T_STREQ(test_forwarded_command, "local_cvar_checkbox r_fullscreen");
+    CL_WindowClear();
+}
+
+TEST(net, window_local_audio_slider_drags_normalized_value_and_releases) {
+    test_client_stubs_init(); CL_WindowClear(); test_client_stubs_clear_cvars();
+    test_client_stubs_set_cvar("s_volume", "0.200");
+    test_forwarded_command[0] = '\0';
+    test_send_slider_window(33, UI_WINDOW_LOCAL_SOUND_VOLUME_ACTION);
+
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
+    T_STREQ(Cvar_String("s_volume", ""), "0.250");
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_MOVE, 256, 256, 0));
+    T_STREQ(Cvar_String("s_volume", ""), "0.750");
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_UP, 256, 256, 1));
+    T_STREQ(Cvar_String("s_volume", ""), "0.750");
+    T_STREQ(test_forwarded_command, "");
     CL_WindowClear();
 }
 

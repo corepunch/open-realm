@@ -602,6 +602,24 @@ void SCR_LayoutDrawScrollBar(uiFrame_t const *frame, rect_t const *screen) {
     uiFrame_t const *parent = frame->parent < SCR_NumFrames() ? SCR_Frame(frame->parent) : NULL;
     if ((!art && !sb) || screen->w <= 0 || screen->h <= 0) return;
 
+    if (frame->flags.type == FT_SLIDER) {
+        float const fraction = MIN(MAX(frame->value, 0.0f), 1.0f);
+        float const thumb_w = MIN(screen->w, MAX(screen->h * UI_PIXEL_ASPECT, 0.010f));
+        rect_t thumb = {
+            screen->x + (screen->w - thumb_w) * fraction,
+            screen->y,
+            thumb_w,
+            screen->h,
+        };
+        if (sb) {
+            SCR_LayoutDrawBackdropPart(frame, screen, &sb->background);
+            SCR_LayoutDrawBackdropPart(frame, &thumb, &sb->thumbButton);
+        } else {
+            SCR_LayoutDrawScrollImage(art->image[2], art->texcoord, &thumb);
+        }
+        return;
+    }
+
     if (parent && parent->flags.type == FT_TEXTAREA) {
         if (SCR_LayoutTextAreaMaxScroll(parent) <= 0.0f) return;
         ((uiFrame_t *)frame)->value = parent->value;
@@ -1302,6 +1320,7 @@ static drawer_t drawers[] = {
     { FT_SLASHCHATBOX,   SCR_LayoutDrawEditBox },
     { FT_LISTBOX,        SCR_LayoutDrawListBox },
     { FT_SCROLLBAR,      SCR_LayoutDrawScrollBar },
+    { FT_SLIDER,         SCR_LayoutDrawScrollBar },
     { FT_TOOLTIPTEXT,    SCR_LayoutDrawTooltip },
     { FT_MODEL,          SCR_LayoutDrawPortrait },
     { FT_SPRITE,         SCR_LayoutDrawSprite },

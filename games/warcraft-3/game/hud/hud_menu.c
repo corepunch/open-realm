@@ -13,6 +13,10 @@ typedef enum {
 } menuPanel_t;
 
 typedef enum {
+    MENU_OPTIONS_SOUND,
+} menuOptionsPanel_t;
+
+typedef enum {
     MENU_SAVE_PANEL_SAVE,
     MENU_SAVE_PANEL_LOAD,
 } menuSavePanel_t;
@@ -199,6 +203,7 @@ void UI_LoadHudMenu(void) {
     /* Save/load is optional at bind time so reduced test/UI data can still use
      * the rest of the pause menu. Retail Warcraft data provides this panel. */
     EscMenuSaveGamePanel_Load(&hud.save_menu);
+    EscMenuOptionsPanel_Load(&hud.options);
     if (hud.save_menu.FileListFrame && MapListBox_Load(&hud.save_list_art)) {
         frameDef_t *root = UI_CloneFrameTree(hud.save_list_art.MapListBox, hud.save_menu.FileListFrame);
         if (!root || !MapListBox_Bind(&hud.save_list_art, root)) {
@@ -238,7 +243,10 @@ void UI_LoadHudMenu(void) {
     UI_SetParent(hud.menu.HelpPanel, hud.menu.EscMenuBackdrop);
     UI_SetParent(hud.menu.TipsPanel, hud.menu.EscMenuBackdrop);
     UI_SetParent(hud.save_menu.EscMenuSaveGamePanel, hud.menu.EscMenuBackdrop);
+    if (hud.options.EscMenuOptionsPanel)
+        UI_SetParent(hud.options.EscMenuOptionsPanel, hud.menu.EscMenuBackdrop);
     UI_SetHidden(hud.save_menu.EscMenuSaveGamePanel, true);
+    if (hud.options.EscMenuOptionsPanel) UI_SetHidden(hud.options.EscMenuOptionsPanel, true);
 
     /* Warsmash leaves these authored controls present but disabled. OpenRealm
      * wires the retail Save/Load panel to the existing serializer while keeping
@@ -246,9 +254,35 @@ void UI_LoadHudMenu(void) {
      * Restart is backed by the same deferred current-map reload used by the
      * JASS RestartGame native and the game-result dialog. */
     MenuConfigureMainSaveLoad();
-    UI_SetEnabled(hud.menu.OptionsButton, false);
+    MenuSetButton(hud.menu.OptionsButton, hud.options.EscMenuOptionsPanel != NULL,
+                  hud.options.EscMenuOptionsPanel ? "menu_options" : NULL);
     UI_SetEnabled(hud.menu.HelpButton, false);
     UI_SetEnabled(hud.menu.TipsButton, false);
+
+    if (hud.options.EscMenuOptionsPanel) {
+        UI_SetOnClick(hud.options.OptionsPreviousButton, "menu");
+        UI_SetOnClick(hud.options.OptionsOKButton, "menu");
+        UI_SetOnClick(hud.options.OptionsCancelButton, "menu");
+
+        /* The Sound page is the first in-game Options page with client-owned
+         * behavior. Keep unsupported pages and category toggles visible but
+         * disabled rather than pretending they affect audio/gameplay. */
+        UI_SetEnabled(hud.options.GameplayButton, false);
+        UI_SetEnabled(hud.options.VideoButton, false);
+        UI_SetEnabled(hud.options.SoundButton, true);
+        UI_SetOnClick(hud.options.SoundButton, "menu_options");
+        UI_SetEnabled(hud.options.AmbientCheckBox, false);
+        UI_SetEnabled(hud.options.MovementCheckBox, false);
+        UI_SetEnabled(hud.options.UnitCheckBox, false);
+        UI_SetEnabled(hud.options.SubtitlesCheckBox, false);
+        UI_SetEnabled(hud.options.EnviroCheckBox, false);
+        UI_SetEnabled(hud.options.PositionalCheckBox, false);
+
+        UI_SetOnClick(hud.options.SoundCheckBox, UI_WINDOW_LOCAL_SOUND_ENABLED_ACTION);
+        UI_SetOnClick(hud.options.SoundVolumeSlider, UI_WINDOW_LOCAL_SOUND_VOLUME_ACTION);
+        UI_SetOnClick(hud.options.MusicCheckBox, UI_WINDOW_LOCAL_MUSIC_ENABLED_ACTION);
+        UI_SetOnClick(hud.options.MusicVolumeSlider, UI_WINDOW_LOCAL_MUSIC_VOLUME_ACTION);
+    }
 
     UI_SetText(hud.menu.PauseButtonText, "Resume Game");
     UI_SetText(hud.menu.ReturnButtonText, "Return to Game");
@@ -290,6 +324,7 @@ static void MenuSelectPanel(menuPanel_t panel) {
     UI_SetHidden(hud.menu.HelpPanel, true);
     UI_SetHidden(hud.menu.TipsPanel, true);
     UI_SetHidden(hud.save_menu.EscMenuSaveGamePanel, true);
+    if (hud.options.EscMenuOptionsPanel) UI_SetHidden(hud.options.EscMenuOptionsPanel, true);
 
     /* Warsmash sizes both the wrapper and backdrop from the active authored
      * panel. Keep the latest OpenRealm centering policy while updating those
@@ -392,6 +427,72 @@ static void MenuWriteSavePanel(edict_t *ent, menuSavePanel_t panel) {
     UI_SetCurrentClient(NULL);
 }
 
+static void MenuSetOptionCheckBox(frameDef_t *frame, cstring_t cvar, bool fallback) {
+    cstring_t value;
+    bool checked;
+
+    if (!frame) return;
+    value = gi.CvarString ? gi.CvarString(cvar, fallback ? "1" : "0") : NULL;
+    checked = value ? atoi(value) != 0 : fallback;
+    frame->CheckBox.Checked = checked;
+    if (checked) frame->ui_flags |= UIFLAG_CHECKED;
+    else frame->ui_flags &= ~UIFLAG_CHECKED;
+}
+
+static void MenuSetOptionSlider(frameDef_t *frame, cstring_t cvar, float fallback) {
+    cstring_t value;
+    float fraction, min_value, max_value;
+
+    if (!frame) return;
+    value = gi.CvarString ? gi.CvarString(cvar, NULL) : NULL;
+    fraction = value && *value ? (float)atof(value) : fallback;
+    fraction = MAX(0.0f, MIN(fraction, 1.0f));
+    min_value = frame->Slider.MinValue;
+    max_value = frame->Slider.MaxValue;
+    frame->Slider.InitialValue = max_value > min_value
+        ? min_value + fraction * (max_value - min_value)
+        : min_value;
+}
+
+static void MenuSelectOptionsPanel(menuOptionsPanel_t panel) {
+    (void)panel;
+    UI_SetHidden(hud.menu.EscMenuMainPanel, false);
+    UI_SetHidden(hud.menu.EscMenuBackdrop, false);
+    UI_SetHidden(hud.menu.MainPanel, true);
+    UI_SetHidden(hud.menu.EndGamePanel, true);
+    UI_SetHidden(hud.menu.ConfirmQuitPanel, true);
+    UI_SetHidden(hud.menu.HelpPanel, true);
+    UI_SetHidden(hud.menu.TipsPanel, true);
+    UI_SetHidden(hud.save_menu.EscMenuSaveGamePanel, true);
+    UI_SetHidden(hud.options.EscMenuOptionsPanel, false);
+    UI_SetHidden(hud.options.GameplayPanel, true);
+    UI_SetHidden(hud.options.VideoPanel, true);
+    UI_SetHidden(hud.options.SoundPanel, false);
+
+    MenuSetOptionCheckBox(hud.options.SoundCheckBox, "s_sound", true);
+    MenuSetOptionSlider(hud.options.SoundVolumeSlider, "s_volume", 1.0f);
+    MenuSetOptionCheckBox(hud.options.MusicCheckBox, "s_music", true);
+    MenuSetOptionSlider(hud.options.MusicVolumeSlider, "s_musicvolume", 1.0f);
+
+    if (hud.options.OptionsPanel && hud.options.OptionsPanel->Width > 0.0f &&
+        hud.options.OptionsPanel->Height > 0.0f) {
+        UI_SetSize(hud.menu.EscMenuMainPanel, hud.options.OptionsPanel->Width, hud.options.OptionsPanel->Height);
+        UI_SetSize(hud.menu.EscMenuBackdrop, hud.options.OptionsPanel->Width, hud.options.OptionsPanel->Height);
+    }
+    UI_CenterFrame(hud.menu.EscMenuMainPanel);
+    UI_CenterFrame(hud.menu.EscMenuBackdrop);
+}
+
+static void MenuWriteOptions(edict_t *ent, menuOptionsPanel_t panel) {
+    if (!ent || !ent->client || !ent->client->connected || !hud.options.EscMenuOptionsPanel) return;
+    UI_SetCurrentClient(ent->client);
+    MenuSelectOptionsPanel(panel);
+    UI_WriteWindow(ent, hud.menu.EscMenuMainPanel, &MAKE(uiWindowDef_t,
+        .id = BZ_WC3_WINDOW_MENU, .class_id = BZ_WC3_WINDOW_MENU,
+        .flags = UI_WINDOW_MODAL | UI_WINDOW_UNIQUE));
+    UI_SetCurrentClient(NULL);
+}
+
 void UI_ShowMainMenu(edict_t *ent) {
     MenuWrite(ent, MENU_PANEL_MAIN);
 }
@@ -410,4 +511,8 @@ void UI_ShowGameMenuSave(edict_t *ent) {
 
 void UI_ShowGameMenuLoad(edict_t *ent) {
     MenuWriteSavePanel(ent, MENU_SAVE_PANEL_LOAD);
+}
+
+void UI_ShowGameMenuOptions(edict_t *ent) {
+    MenuWriteOptions(ent, MENU_OPTIONS_SOUND);
 }

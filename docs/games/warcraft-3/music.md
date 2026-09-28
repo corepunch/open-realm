@@ -112,7 +112,9 @@ s_music        0/1, default 1
 s_musicvolume  0.0..1.0, default 1.0
 ```
 
-The main-menu Options/Sound `MusicCheckBox` and `MusicVolumeSlider` update those cvars immediately. The slider uses the min/max/step authored by its FDF instead of replacing them with a code-defined range, then maps that authored range to the archived `0.0..1.0` preference. The user gain multiplies, rather than replaces, Warcraft's JASS music/thematic `0..127` volumes. Disabling music pauses the long-form stream and its fade clock so re-enabling it resumes the same decoder/playlist position instead of silently advancing the soundtrack. The server-authored in-game F10 Options button is still disabled as part of the broader in-game options-panel gap; that does not change the global cvars or music controller contract.
+The main-menu Options/Sound `MusicCheckBox` and `MusicVolumeSlider` update those cvars immediately. The slider uses the min/max/step authored by its FDF instead of replacing them with a code-defined range, then maps that authored range to the archived `0.0..1.0` preference. The user gain multiplies, rather than replaces, Warcraft's JASS music/thematic `0..127` volumes. Disabling music pauses the long-form stream and its fade clock so re-enabling it resumes the same decoder/playlist position instead of silently advancing the soundtrack.
+
+The in-game F10 Options button now opens the stock `EscMenuOptionsPanel` Sound page and reuses the same local `s_music` / `s_musicvolume` preferences. Its controls use fixed client-owned transient-window audio actions rather than arbitrary CVar commands, so a multiplayer server cannot select or overwrite unrelated local preferences. The Sound checkbox/slider similarly use `s_sound` / `s_volume` for ordinary one-shot effects. Legacy category controls whose mixer routing is not implemented yet remain visible but disabled rather than acting as no-ops.
 
 ## JASS Semantics Implemented
 
@@ -317,7 +319,7 @@ The remaining unresolved areas are:
 - `StopMusic(true)` uses a **2000 ms** linear fade as an educated compatibility estimate; the exact retail duration still needs direct measurement.
 - codec seeking is millisecond/stream-time based rather than sample-exact; the consumed-frame snapshot identifies what the mixer heard, but FFmpeg may decode from an earlier seek boundary.
 - the continuously advancing ordinary playback head is reported when tracks are selected and when thematic music snapshots it, not every frame; a save taken during ordinary music can therefore resume from the last reported start/seek rather than the exact current millisecond. A synchronous save-time client query would require an explicit prepare/acknowledge phase and is intentionally not faked.
-- the server-authored in-game F10 Options panel remains disabled; the working glue Options/Sound controls and archived `s_music`/`s_musicvolume` cvars already govern menu and gameplay music.
+- the in-game F10 Options Sound page now reuses the archived local music/SFX preferences; Ambient/Movement/Unit/Subtitles/environment/positional category controls remain disabled until their underlying routing is implemented.
 - builds without `FFMPEG=1` have no compressed **playback** decoder. `GetSoundFileDuration` does not share that limitation because it reads metadata in the game module.
 
 ## Verification

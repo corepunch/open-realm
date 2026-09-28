@@ -96,6 +96,7 @@ retained arena; it does not duplicate strings.
 - An authored onclick may reference `{ControlId}`. Immediately before forwarding, the window client replaces that token with the
   current edit-box text or selected list value and escapes quotes/backslashes. This is a commit-time control-value handoff, not a
   per-keystroke client-to-server state stream. The WC3 named Save/Load panel is the first consumer.
+- Fixed local-audio actions are consumed by the client rather than forwarded to the server: `local_audio_sound_enabled`, `local_audio_sound_volume`, `local_audio_music_enabled`, and `local_audio_music_volume`. They map internally to the client's archived audio preferences; the wire contract never accepts an arbitrary CVar name. This lets server-authored Options FDF use client-owned checkbox/slider state without giving a remote server a generic local-setting mutation primitive. `FT_SLIDER` is serialized with the existing Esc-menu slider artwork and is drag-interactive for these fixed local-audio actions.
 
 ### Client-owned button actions
 
