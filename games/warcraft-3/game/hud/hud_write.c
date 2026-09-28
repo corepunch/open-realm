@@ -178,6 +178,51 @@ void UI_WriteTextAreaFrame(float x, float y, float w, float h, cstring_t text, c
     UI_WriteProxyFrame(&frame, &textarea, sizeof(textarea));
 }
 
+void UI_WriteCommandError(edict_t *ent, cstring_t text) {
+    uiFrame_t frame;
+    uiLabel_t label;
+
+    if (!ent || !ent->client) return;
+    if (!hud.command_error_text.Name[0]) {
+        UI_InitFrame(&hud.command_error_root, FT_FRAME);
+        snprintf(hud.command_error_root.Name, sizeof(hud.command_error_root.Name), "OpenWarcraftCommandError");
+        UI_SetAllPoints(&hud.command_error_root);
+        UI_InitFrame(&hud.command_error_text, FT_TEXT);
+        snprintf(hud.command_error_text.Name, sizeof(hud.command_error_text.Name), "OpenWarcraftCommandErrorText");
+        UI_SetParent(&hud.command_error_text, &hud.command_error_root);
+        UI_SetSize(&hud.command_error_text, 0.62f, 0.035f);
+        UI_SetPoint(&hud.command_error_text, FRAMEPOINT_TOP, &hud.command_error_root, FRAMEPOINT_TOP, 0.0f, -0.20f);
+        hud.command_error_text.Font.Size = 0.010f;
+        hud.command_error_text.Font.Index = gi.FontIndex(Theme_String("MasterFont", "Fonts\\FRIZQT__.TTF"), HUD_FONT_SIZE);
+        hud.command_error_text.Color = MAKE(color32_t, 255, 204, 0, 255);
+        hud.command_error_text.Font.Color = hud.command_error_text.Color;
+        hud.command_error_text.Font.Justification.Horizontal = FONT_JUSTIFYCENTER;
+        hud.command_error_text.Font.ShadowColor = COLOR32_BLACK;
+        hud.command_error_text.Font.ShadowOffset = MAKE(vec2_t, 0.001f, -0.001f);
+    }
+
+    UI_WriteStart(WC3_LAYER_COMMAND_ERROR);
+    if (text && text[0]) {
+        memset(&frame, 0, sizeof(frame));
+        memset(&label, 0, sizeof(label));
+        frame.flags.type = FT_STRING;
+        frame.text = text;
+        frame.color = COLOR32_BLACK;
+        frame.textLength = strlen(text);
+        label.font = gi.FontIndex(Theme_String("MasterFont", "Fonts\\FRIZQT__.TTF"), HUD_FONT_SIZE);
+        label.textalignx = FONT_JUSTIFYCENTER;
+        label.textaligny = FONT_JUSTIFYTOP;
+        UI_SetFrameRect(&frame, 0.191f, 0.201f, 0.62f, 0.035f);
+        UI_WriteProxyFrame(&frame, &label, sizeof(label));
+
+        frame.number = 0;
+        frame.color = MAKE(color32_t, 255, 204, 0, 255);
+        UI_SetFrameRect(&frame, 0.190f, 0.200f, 0.62f, 0.035f);
+        UI_WriteProxyFrame(&frame, &label, sizeof(label));
+    }
+    UI_WriteEnd(ent);
+}
+
 void UI_WriteTooltipFrame(void) {
     uiFrame_t frame;
     uiTooltip_t tooltip;
