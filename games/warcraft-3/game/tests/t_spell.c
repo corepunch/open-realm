@@ -3963,7 +3963,8 @@ TEST(wc3_spell, raise_dead_uses_two_authored_summon_groups_and_marks_summons) {
 	T_EQ(G_UnitStatusLevel(warrior, MAKEFOURCC('B','r','a','i')), 1);
 	T_EQ(G_UnitStatusLevel(second, MAKEFOURCC('B','r','a','i')), 1);
 	T_ASSERT(!S_CastNoTargetSpell(caster, FS_SLKKey("Arai")));
-	T_STREQ(game.clients[0].message.text, "There are no usable corpses nearby.");
+	T_STREQ(G_ResolveCommandErrorText(&game.clients[0], "Cantfindcorpse"), "There are no usable corpses nearby.");
+	T_STREQ(game.clients[0].message.text, "");
 	G_SetSLKRows("AbilityData", old); free_slk_rows(rows);
 }
 

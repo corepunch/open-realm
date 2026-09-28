@@ -166,9 +166,10 @@ transient message -> cleared
 message_log       -> preserved
 ```
 
-`G_ShowCommandErrorText` deliberately calls `UI_ShowTransientText`; resource,
-placement, cooldown, and similar command errors therefore remain transient and
-do not pollute F12-style history.
+Command failures use the dedicated `WC3_LAYER_COMMAND_ERROR` presentation. Established
+Warcraft failures are resolved from `Units\CommandStrings.txt` keys; OpenRealm-only
+failures can still supply plain text. Neither path mutates `client_s.message` or
+pollutes F12-style history.
 
 ## Log Dialog
 

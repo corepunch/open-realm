@@ -65,7 +65,7 @@ Immediate head reservation matters for command-time checks. Once item A becomes 
 
 `G_GetTrainCommandState()` also reports current gold, lumber, and food shortages, but that UI/order check is not the authoritative reservation. Supply can change while an item waits, so `ai_train_build()` re-checks at the active queue slot.
 
-Resource shortages use `BUILD_COMMAND_UNAFFORDABLE`, not the prerequisite-only `BUILD_COMMAND_DISABLED` state. This keeps the train/build icon visible and clickable while still rejecting the order authoritatively. `SP_TrainUnit()` re-checks the state on click and sends the specific reason (`Not enough gold`, `Not enough lumber`, or `Not enough food`) through the gameplay message layer. Requirement-disabled commands remain inert.
+Resource shortages use `BUILD_COMMAND_UNAFFORDABLE`, not the prerequisite-only `BUILD_COMMAND_DISABLED` state. This keeps the train/build icon visible and clickable while still rejecting the order authoritatively. `SP_TrainUnit()` re-checks the state on click and sends the established Warcraft command key (`Nogold`, `Nolumber`, or `Nofood`/`Maxsupply`) through the dedicated command-error presentation. Requirement-disabled commands remain inert.
 
 Completion does not charge Food Used again. The queue entity already owns the reservation and becomes the visible trained unit; completion only activates `foodMade` if the trained unit type provides supply. This is the ownership transfer:
 
@@ -75,7 +75,7 @@ hidden queue edict with food.used=N
         -> visible unit still owns food.used=N
 ```
 
-A food reservation failure emits `Not enough food` once when that item first becomes the active blocked head. The item records that notification state so the per-frame retry does not spam the player. When supply later becomes available, successful reservation clears the waiting state and refreshes the selected producer's queue panel.
+A food reservation failure emits the `Nofood` command error once when that item first becomes the active blocked head. The item records that notification state so the per-frame retry does not spam the player. When supply later becomes available, successful reservation clears the waiting state and refreshes the selected producer's queue panel.
 
 The build-queue panel uses zero `starttime/endtime` as a server-authored sentinel for a food-blocked head. The client holds the production bar at zero and continues drawing all waiting queue icons. When the head eventually reserves food, the server rewrites the panel with normal timing, so the progress bar starts from that transition rather than pretending training continued while supply-blocked.
 
@@ -125,7 +125,7 @@ The JASS rawcode natives `GetFoodMade(unitId)` and `GetFoodUsed(unitId)` read ge
 
 - Queue cancellation now covers ordinary trained-unit entries and producer death/removal. Research/upgrade queues and altar-specific Hero revival are separate production systems and still need their own cancellation/cost lifecycles.
 - Hero altar production/revival still needs its command-specific food validation/reservation and displayed revival cost; direct `G_ReviveHero()` only restores the live unit's accounting.
-- Food-block feedback currently uses the existing gameplay text overlay. Race-specific Warcraft command-error sounds/localized `Nofood` strings need a dedicated command-error presentation path rather than hard-coded sound guesses in queue code.
+- Food-block feedback now resolves `Nofood`/`Maxsupply` through `Units\CommandStrings.txt` and the active race skin, using the dedicated replacing command-error HUD layer without entering Message Log history.
 - `PLAYERSTATE_GOLD_GATHERED` / `PLAYERSTATE_LUMBER_GATHERED` remain storage/API states. This patch does not guess whether their Warcraft-compatible cumulative semantics are gross harvested or net credited.
 - `war3map.w3u` unit-object overrides remain subject to the existing normalized object-data merge limitations documented elsewhere.
 - Classic data sets that embed multiple numeric tier ranges directly inside `RESOURCE_UBERTIP_UPKEEP` remain authored text. Data sets without an embedded table get generated rows from the active upkeep constants, using split `RESOURCE_UBERTIP_UPKEEP_INFO[_WOOD]` strings when available and a compact fallback row format otherwise.

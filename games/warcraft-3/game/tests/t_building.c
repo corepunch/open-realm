@@ -1525,7 +1525,7 @@ TEST(wc3_building, build_command_state_covers_available_hidden_unaffordable_and_
     memset(client->tech, 0, sizeof(client->tech));
     client->ps.stats[PLAYERSTATE_RESOURCE_GOLD] = 0;
     T_EQ(G_GetBuildCommandState(client, worker, barracks, reason, sizeof(reason)), BUILD_COMMAND_UNAFFORDABLE);
-    T_STREQ(reason, "Not enough gold");
+    T_STREQ(reason, "Nogold");
 
     worker_profile.builds = "hfoo";
     T_EQ(G_GetBuildCommandState(client, worker, barracks, reason, sizeof(reason)), BUILD_COMMAND_ABSENT);
@@ -1770,7 +1770,7 @@ TEST(wc3_building, train_command_state_reports_food_shortage) {
 
     T_ASSERT(balance->foodUsed > 0);
     T_EQ(G_GetTrainCommandState(client, producer, trainee, reason, sizeof(reason)), BUILD_COMMAND_UNAFFORDABLE);
-    T_STREQ(reason, "Not enough food");
+    T_STREQ(reason, "Nofood");
 
     client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = balance->foodUsed;
     T_EQ(G_GetTrainCommandState(client, producer, trainee, reason, sizeof(reason)), BUILD_COMMAND_AVAILABLE);

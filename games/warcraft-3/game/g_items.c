@@ -55,7 +55,7 @@ static void G_ShowInventoryFull(edict_t *unit) {
     }
     player = G_GetPlayerEntityByNumber(unit->s.player);
     if (player && player->client) {
-        G_ShowCommandErrorText(player, "Inventory is full.");
+        G_ShowCommandErrorKey(player, "Inventoryfull", NULL);
     }
 }
 
