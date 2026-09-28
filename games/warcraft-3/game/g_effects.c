@@ -297,6 +297,14 @@ void G_EffectThink(edict_t *effect) {
 }
 
 static void G_EffectLoopStand(edict_t *effect) {
+    if (effect->animation && (effect->animation->flags & 1u)) {
+        effect->s.frame = effect->animation->interval[1] > effect->animation->interval[0]
+            ? effect->animation->interval[1] - 1 : effect->animation->interval[0];
+        effect->aiflags |= AI_HOLD_FRAME;
+        effect->s.renderfx |= RF_HIDDEN;
+        effect->think = NULL;
+        return;
+    }
     unit_setmove(effect, &wc3_effect_stand);
 }
 
@@ -443,6 +451,10 @@ void G_DestroyOwnedEffects(edict_t *owner) {
 
 void G_DestroyEffect(edict_t *effect) {
     if (!effect || !effect->inuse) return;
+    if ((effect->aiflags & AI_HOLD_FRAME) && effect->currentmove == &wc3_effect_stand) {
+        G_FreeEdict(effect);
+        return;
+    }
     effect->prethink = NULL;
     effect->s.sound = 0;
     effect->goalentity = NULL;
