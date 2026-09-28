@@ -3121,6 +3121,7 @@ bool S_AcolyteHarvestOrder(edict_t *, edict_t *);
 void S_AcolyteHarvestRelease(edict_t *);
 bool S_AcolyteHarvestIsActive(edict_t const *);
 bool S_EntangleCommandHidden(edict_t const *, uint32_t);
+bool S_AutoEntangleNearby(edict_t *, bool instant);
 bool S_HarvestCanLumber(edict_t const *);
 bool S_HarvestCanGold(edict_t const *);
 bool S_WispHarvestCanLumber(edict_t const *);

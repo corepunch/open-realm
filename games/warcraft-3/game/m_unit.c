@@ -497,6 +497,10 @@ static unitOrderDef_t const unit_order_defs[] = {
     { "whirlwind", 852128, MAKEFOURCC('A','O','w','w') },
     { "windwalk", 852129, MAKEFOURCC('A','O','w','k') },
     { "eattree", 852146, MAKEFOURCC('A','e','a','t') },
+    { "entangle", 852147, 0 },
+    { "entangleinstant", 852148, 0 },
+    { "autoentangle", 852505, 0 },
+    { "autoentangleinstant", 852506, 0 },
     { "barkskin", 852135, MAKEFOURCC('A','b','a','r') },
     { "entanglingroots", 852171, MAKEFOURCC('A','E','e','r') },
     { "forceofnature", 852176, MAKEFOURCC('A','E','f','n') },
@@ -793,6 +797,13 @@ static bool unit_issuetargetorder_now(edict_t *self, cstring_t order, edict_t *t
     if (!strcmp(order, "militia") || !strcmp(order, "militiaoff")) {
         return S_MilitiaTargetOrder(self, order, target);
     }
+    /* Authored unit-target abilities own their concrete order strings. Smart
+     * dispatches here earlier so it can precede generic harvesting/following;
+     * explicit orders such as Entangle arrive here after built-in commands. */
+    {
+        abilityOrderResult_t const result = S_UnitIssuedTargetOrder(self, order, target);
+        if (result != ABILITY_ORDER_UNHANDLED) return result == ABILITY_ORDER_ACCEPTED;
+    }
     return false;
 }
 
@@ -866,8 +877,12 @@ bool G_IssueUnitTargetOrder(edict_t *self, cstring_t order, edict_t *target,
             return accepted;
         }
     }
-    if (strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
+    if (queue && strcmp(order, "smart") && strcmp(order, "move") && strcmp(order, "attack") &&
         strcmp(order, "repair") && strcmp(order, "harvest") && strcmp(order, "militia") && strcmp(order, "militiaoff")) {
+        /* Unknown queued target orders need an ability-owned queue contract.
+         * Unqueued orders continue to unit_issuetargetorder_now(), where the
+         * authored ability dispatcher can accept concrete orders such as
+         * entangleinstant without m_unit.c naming the ability. */
         return false;
     }
 

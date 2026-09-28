@@ -4163,6 +4163,157 @@ static bool movement_issue_entangle_command(edict_t *clent, gameClient_t *client
     return client->menu.on_entity_selected(clent, parent);
 }
 
+static void movement_prepare_rooted_entangle_caster(edict_t *caster, uint32_t player) {
+    uint32_t const entangle = MAKEFOURCC('A','e','n','t');
+    uint32_t const root = MAKEFOURCC('A','r','o','1');
+    caster->s.player = player;
+    caster->data.UnitAbilities = &test_entangle_caster;
+    G_ActorAddSkill(caster, entangle);
+    G_ActorAddSkill(caster, root);
+    caster->ancient_root.ability = root;
+    caster->ancient_root.mode = ANCIENT_ROOTED;
+    caster->s.flags |= EF_BUILDING;
+    caster->aiflags |= AI_IMMOBILE;
+    caster->runtime.flags |= UNIT_BALANCE_BUILDING;
+}
+
+TEST(wc3_movement, entangleinstant_target_order_creates_completed_overlay) {
+    edict_t *caster, *parent, *overlay;
+    slkTestData_t *rows, *old_abilities;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 0.0f, 0.0f);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
+    movement_prepare_rooted_entangle_caster(caster, 0);
+    parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    setup_test_goldmine(parent, &test_goldmine_stock, 5000);
+
+    T_ASSERT(unit_issuetargetorder(caster, "entangleinstant", parent));
+    overlay = movement_find_entangle_overlay(caster, parent);
+    T_NOT_NULL(overlay);
+    T_ASSERT(overlay && !overlay->construction.active);
+    T_ASSERT(overlay && overlay->build != overlay);
+    T_ASSERT(parent->s.renderfx & RF_HIDDEN);
+    T_ASSERT(parent->paused);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, entangle_range_uses_goldmine_footprint) {
+    enum { W = 8, H = 8 };
+    size_t const pathtex_size = sizeof(pathTex_t) + W * H * sizeof(color32_t);
+    edict_t *caster, *parent, *overlay;
+    pathTex_t *pathtex;
+    slkTestData_t *rows, *old_abilities;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 200.0f, 0.0f);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    movement_prepare_rooted_entangle_caster(caster, 0);
+    caster->collision = 16.0f;
+    parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    parent->s.flags |= EF_BUILDING;
+    parent->runtime.flags |= UNIT_BALANCE_BUILDING;
+    setup_test_goldmine(parent, &test_goldmine_stock, 5000);
+    pathtex = gi.MemAlloc(pathtex_size);
+    T_NOT_NULL(pathtex);
+    memset(pathtex, 0, pathtex_size);
+    pathtex->width = W;
+    pathtex->height = H;
+    FOR_LOOP(i, W * H) pathtex->map[i].b = 0xff;
+    parent->pathtex = pathtex;
+
+    /* Aent's fixture range is 64. The centres are 200 apart, but the caster
+     * is within its collision radius plus 64 of the authored mine footprint. */
+    T_ASSERT(unit_issuetargetorder(caster, "entangleinstant", parent));
+    overlay = movement_find_entangle_overlay(caster, parent);
+    T_NOT_NULL(overlay);
+
+    parent->pathtex = NULL;
+    gi.MemFree(pathtex);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, auto_entangle_nearby_starts_normal_construction) {
+    edict_t *caster, *parent, *overlay;
+    slkTestData_t *rows, *old_abilities;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 0.0f, 0.0f);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
+    movement_prepare_rooted_entangle_caster(caster, 0);
+    parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    setup_test_goldmine(parent, &test_goldmine_stock, 5000);
+
+    T_ASSERT(S_AutoEntangleNearby(caster, false));
+    overlay = movement_find_entangle_overlay(caster, parent);
+    T_NOT_NULL(overlay);
+    T_ASSERT(overlay && overlay->construction.active);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, wisp_waits_for_incomplete_entangled_mine_then_boards) {
+    edict_t *mine, *wisp;
+    slkTestData_t *rows, *old_abilities;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    mine = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    wisp = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0.0f, 0.0f);
+    mine->data.UnitAbilities = &test_entangled_mine;
+    mine->s.player = wisp->s.player = 0;
+    mine->construction.active = true;
+    mine->health.value = mine->health.max_value = 1000.0f;
+    wisp->stand = unit_stand;
+    unit_stand(wisp);
+
+    T_ASSERT(S_CargoOrderBoard(wisp, mine));
+    T_EQ(mine->cargo.count, 0);
+    T_EQ(wisp->secondarygoal, mine);
+    T_NOT_NULL(wisp->currentmove);
+    T_STREQ(wisp->currentmove->animation, "stand");
+    T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityBattlestations);
+
+    mine->construction.active = false;
+    wisp->currentmove->think(wisp);
+    T_EQ(mine->cargo.count, 1);
+    T_EQ(mine->cargo.units[0], wisp);
+    T_ASSERT(wisp->paused);
+    T_ASSERT(wisp->s.renderfx & RF_HIDDEN);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
 TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {
     cstring_t const filename = "/tmp/openwarcraft3-wc3-entangle-lifecycle.bin";
     uint32_t const ability = MAKEFOURCC('A','e','n','t');
