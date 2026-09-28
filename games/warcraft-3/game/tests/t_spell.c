@@ -7,6 +7,8 @@ uint32_t S_TestHeroAuraAliasResolves(void);
 void S_TestResetHeroAuraAliasResolves(void);
 void S_TestResetMoonWellEffectReleaseCalls(void);
 uint32_t S_TestMoonWellEffectReleaseCalls(void);
+void S_TestResetMoonWellMissingDataWarningCalls(void);
+uint32_t S_TestMoonWellMissingDataWarningCalls(void);
 
 edict_t *alloc_test_unit(uint32_t class_id, float x, float y);
 void reset_entities(void);
@@ -1623,9 +1625,14 @@ TEST(wc3_spell, moon_well_missing_ability_data_does_not_restore_natural_regen) {
     well->data.UnitBalance = &balance;
     well->mana.max_value = 100.0f;
     well->mana.value = 50.0f;
+    well->construction.active = true;
+    well->construction.paused = true;
+    well->construction.type = CONSTRUCTION_NIGHTELF;
     G_SetTimeOfDay(12.0f);
     G_UpdateTimeOfDay();
+    S_TestResetMoonWellMissingDataWarningCalls();
     T_ASSERT(S_UnitAbilityEvent(well, A_NATURAL_MANA_REGEN_BLOCKED));
+    T_EQ(S_TestMoonWellMissingDataWarningCalls(), 1);
     G_RunEntity(well);
     T_FEQ(well->mana.value, 50.0f, 0.001f);
 
