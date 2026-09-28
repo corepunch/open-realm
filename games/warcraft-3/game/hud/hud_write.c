@@ -210,14 +210,14 @@ void UI_WriteCommandError(edict_t *ent, cstring_t text) {
         frame.color = COLOR32_BLACK;
         frame.textLength = strlen(text);
         label.font = gi.FontIndex(Theme_String("MasterFont", "Fonts\\FRIZQT__.TTF"), HUD_FONT_SIZE);
-        label.textalignx = FONT_JUSTIFYCENTER;
+        label.textalignx = FONT_JUSTIFYLEFT;
         label.textaligny = FONT_JUSTIFYTOP;
-        UI_SetFrameRect(&frame, 0.191f, 0.201f, 0.62f, 0.035f);
+        UI_SetFrameRect(&frame, 0.211f, 0.4145f, 0.62f, 0.035f);
         UI_WriteProxyFrame(&frame, &label, sizeof(label));
 
         frame.number = 0;
         frame.color = MAKE(color32_t, 255, 204, 0, 255);
-        UI_SetFrameRect(&frame, 0.190f, 0.200f, 0.62f, 0.035f);
+        UI_SetFrameRect(&frame, 0.210f, 0.4135f, 0.62f, 0.035f);
         UI_WriteProxyFrame(&frame, &label, sizeof(label));
     }
     UI_WriteEnd(ent);
