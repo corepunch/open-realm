@@ -30,6 +30,13 @@
 /* Persistent top-edge HUD controls share these authored screen offsets. */
 #define HUD_HERO_SHORTCUT_EDGE_X 0.0060f
 #define HUD_HERO_SHORTCUT_TOP_Y  0.0350f
+#define WC3_HUD_PORTRAIT_X        0.211f
+#define WC3_HUD_PORTRAIT_Y        0.4865f
+#define WC3_HUD_PORTRAIT_WIDTH    0.0835f
+#define WC3_HUD_PORTRAIT_HEIGHT   0.0850f
+#define WC3_HUD_IDLE_WORKER_X     0.0080f
+#define WC3_HUD_IDLE_WORKER_Y     0.4145f
+#define WC3_HUD_IDLE_WORKER_SIZE  0.0340f
 #define BZ_WC3_HUD_TIMER_DIALOG_STACK_GAP 0.0040f // normalized UI units; separates a leaderboard from a visible timer
 #define WC3_MESSAGE_LOG_TEXT_SIZE \
     (WC3_MESSAGE_LOG_MAX_ENTRIES * (WC3_MESSAGE_LOG_ENTRY_SIZE + 4) + 1)
@@ -91,7 +98,6 @@ typedef struct {
     color32_t timer_dialog_default_title_color;
     color32_t timer_dialog_default_time_color;
     FRAMEDEF msg_root, msg_text;
-    FRAMEDEF command_error_root, command_error_text;
     PATHSTR image_key[MAX_IMAGES];
     PATHSTR image_name[MAX_IMAGES];
     bool image_decorated[MAX_IMAGES];
@@ -118,7 +124,6 @@ void UI_WriteCommandTextFrame(float x, float y, float w, float h, cstring_t text
 void UI_WriteBackdropFrame(float x, float y, float w, float h, cstring_t background, cstring_t edge);
 void UI_WriteTextAreaFrame(float x, float y, float w, float h, cstring_t text, color32_t color, uint32_t font_size, float inset);
 void UI_WriteTooltipFrame(void);
-void UI_WriteCommandError(edict_t *ent, cstring_t text);
 void UI_AppendMessageText(string_t out, uint32_t out_size, cstring_t text);
 cstring_t UI_FormatMessageText(cstring_t text);
 cstring_t UI_LevelStringSafe(cstring_t text);

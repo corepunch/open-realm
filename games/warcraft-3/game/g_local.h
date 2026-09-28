@@ -2723,6 +2723,7 @@ void UI_SetCurrentClient(gameClient_t *client);
 void UI_ShowInterface(edict_t *, bool, float);
 void UI_ShowText(edict_t *, vec2_t const *, cstring_t, float);
 void UI_ShowTransientText(edict_t *, vec2_t const *, cstring_t, float);
+void UI_WriteCommandError(edict_t *, cstring_t);
 void UI_RecordTransmissionMessage(edict_t *);
 void UI_ClearTextMessages(edict_t *);
 void UI_InvalidateDialoguePresentation(edict_t *);
@@ -2907,6 +2908,9 @@ void G_SendMinimapPing(gameClient_t *, vec2_t const *, float, color32_t, uint32_
 void G_SendOwnerMinimapAlert(edict_t *);
 color32_t G_SmartTargetIndicatorColor(uint32_t, edict_t const *);
 void G_SendWidgetIndicator(edict_t *, color32_t, player_t *);
+void G_CommandErrorReset(void);
+void G_UpdateCommandError(edict_t *);
+cstring_t G_ResolveCommandErrorText(gameClient_t const *, cstring_t);
 void G_ShowCommandErrorKey(edict_t *, cstring_t, cstring_t);
 void G_ShowCommandErrorText(edict_t *, cstring_t);
 extern int g_treeFallSounds[3];     /* Sound\Destructibles\TreeFall{1,2,3}.wav configstring indices */

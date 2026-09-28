@@ -760,6 +760,8 @@ static int32_t command_error_header[2];
 static uint32_t command_error_header_count;
 static uiFrame_t command_error_frames[2];
 static uint32_t command_error_frame_count;
+static uiLabel_t command_error_labels[2];
+static uint32_t command_error_label_count;
 static edict_t *command_error_recipient;
 static pfWriteType_t indicator_types[4];
 static int32_t indicator_values[4];
@@ -1047,8 +1049,13 @@ static void capture_command_error_write(pfWriteType_t type, void const *data) {
         command_error_header[command_error_header_count++] = data ? *(int32_t const *)data : -1;
         return;
     }
-    if (type == PF_UIFRAME && command_error_frame_count < 2 && data)
-        command_error_frames[command_error_frame_count++] = *(uiFrame_t const *)data;
+    if (type == PF_UIFRAME && data) {
+        uiFrame_t const *frame = data;
+        if (command_error_frame_count < 2)
+            command_error_frames[command_error_frame_count++] = *frame;
+        if (frame->buffer.size == sizeof(uiLabel_t) && frame->buffer.data && command_error_label_count < 2)
+            command_error_labels[command_error_label_count++] = *(uiLabel_t const *)frame->buffer.data;
+    }
 }
 
 static void capture_command_error_unicast(edict_t *ent) {
@@ -2889,8 +2896,10 @@ TEST(wc3_api, command_error_uses_dedicated_replacing_hud_layer) {
     G_SetClientConnected(ent, true);
     memset(command_error_header, 0, sizeof(command_error_header));
     memset(command_error_frames, 0, sizeof(command_error_frames));
+    memset(command_error_labels, 0, sizeof(command_error_labels));
     command_error_header_count = 0;
     command_error_frame_count = 0;
+    command_error_label_count = 0;
     command_error_recipient = NULL;
     gi.Write = capture_command_error_write;
     gi.unicast = capture_command_error_unicast;
@@ -2908,10 +2917,22 @@ TEST(wc3_api, command_error_uses_dedicated_replacing_hud_layer) {
     T_EQ(command_error_frames[1].color.r, 255);
     T_EQ(command_error_frames[1].color.g, 204);
     T_EQ(command_error_frames[1].color.b, 0);
+    T_EQ(command_error_labels[0].textalignx, FONT_JUSTIFYLEFT);
+    T_EQ(command_error_labels[1].textalignx, FONT_JUSTIFYLEFT);
+    T_EQ(command_error_frames[0].points.x[FPP_MIN].offset,
+         (int16_t)((WC3_HUD_PORTRAIT_X + 0.001f) * UI_FRAMEPOINT_SCALE));
+    T_EQ(command_error_frames[0].points.y[FPP_MIN].offset,
+         (int16_t)(-(WC3_HUD_IDLE_WORKER_Y + 0.001f) * UI_FRAMEPOINT_SCALE));
+    T_EQ(command_error_frames[1].points.x[FPP_MIN].offset,
+         (int16_t)(WC3_HUD_PORTRAIT_X * UI_FRAMEPOINT_SCALE));
+    T_EQ(command_error_frames[1].points.y[FPP_MIN].offset,
+         (int16_t)(-WC3_HUD_IDLE_WORKER_Y * UI_FRAMEPOINT_SCALE));
+    T_EQ(command_error_label_count, 2);
     T_EQ(command_error_recipient, ent);
 
     command_error_header_count = 0;
     command_error_frame_count = 0;
+    command_error_label_count = 0;
     command_error_recipient = NULL;
     UI_WriteCommandError(ent, NULL);
     T_EQ(command_error_header_count, 2);
@@ -2984,6 +3005,7 @@ TEST(wc3_api, command_error_expires_without_touching_message_state) {
     gi.SoundIndex = old_soundindex;
     gi.SoundIndexAlias = old_sound_alias;
     G_SetClientConnected(ent, false);
+    G_CommandErrorReset();
 }
 
 TEST(wc3_api, transient_text_does_not_enter_message_log) {
@@ -3000,7 +3022,15 @@ TEST(wc3_api, transient_text_does_not_enter_message_log) {
 
 TEST(wc3_api, command_error_key_resolves_commandstrings_and_race_variant) {
     gameClient_t *gc = &game.clients[0];
+    edict_t *ent = &g_edicts[0];
     static mapTrigStr_t trigstr;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+    int (*old_font)(cstring_t, uint32_t) = gi.FontIndex;
+    void (*old_sound)(edict_t *, int, int, float, float, float) = gi.Sound;
+    int (*old_soundindex)(cstring_t) = gi.SoundIndex;
+    __typeof__(gi.SoundIndexAlias) old_sound_alias = gi.SoundIndexAlias;
+    __typeof__(gi.SoundPolicy) old_sound_policy = gi.SoundPolicy;
 
     InitUnitData();
     memset(&trigstr, 0, sizeof(trigstr));
@@ -3019,6 +3049,38 @@ TEST(wc3_api, command_error_key_resolves_commandstrings_and_race_variant) {
     T_STREQ(G_ResolveCommandErrorText(gc, "Calltoarms"), "No Peasants could be found.");
     T_STREQ(G_ResolveCommandErrorText(gc, "Backtowork"), "No Militia could be found.");
     T_STREQ(G_ResolveCommandErrorText(gc, "TestTrigstr"), "Human02");
+
+    gc->ps.number = 0;
+    ent->client = gc;
+    G_SetClientConnected(ent, true);
+    command_error_header_count = 0;
+    command_error_frame_count = 0;
+    command_error_label_count = 0;
+    command_error_recipient = NULL;
+    ui_sound_calls = 0;
+    gi.Write = capture_command_error_write;
+    gi.unicast = capture_command_error_unicast;
+    gi.FontIndex = capture_command_error_font;
+    gi.SoundPolicy = capture_ui_sound_policy;
+    gi.Sound = capture_ui_sound;
+    gi.SoundIndex = capture_ui_sound_index;
+    gi.SoundIndexAlias = capture_ui_sound_index_alias;
+
+    G_ShowCommandErrorKey(ent, "Nofood", NULL);
+    T_EQ(command_error_header[1], WC3_LAYER_COMMAND_ERROR);
+    T_EQ(command_error_frame_count, 2);
+    T_STREQ(command_error_frames[1].text, "Summon more Ziggurats to continue unit production.");
+    T_EQ(command_error_recipient, ent);
+    T_EQ(ui_sound_calls, 1);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    gi.FontIndex = old_font;
+    gi.SoundPolicy = old_sound_policy;
+    gi.Sound = old_sound;
+    gi.SoundIndex = old_soundindex;
+    gi.SoundIndexAlias = old_sound_alias;
+    G_SetClientConnected(ent, false);
 }
 
 TEST(wc3_api, removeunit_hides_before_deferred_edict_release) {
