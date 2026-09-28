@@ -1386,30 +1386,30 @@ TEST(net, window_local_audio_cancel_restores_entry_preferences) {
     T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
     T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_UP, 128, 256, 1));
     T_STREQ(test_forwarded_command, "wc3_menu_options");
-    CL_WindowClear();
+    CL_WindowClose(40);
 
     test_send_window(41, 141, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,
                      "Sound", UI_WINDOW_LOCAL_SOUND_ENABLED_ACTION);
     T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
     T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_UP, 128, 256, 1));
     T_STREQ(Cvar_String("s_sound", ""), "1");
-    CL_WindowClear();
+    CL_WindowClose(41);
 
     test_send_window(42, 142, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,
                      "Music", UI_WINDOW_LOCAL_MUSIC_ENABLED_ACTION);
     T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
     T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_UP, 128, 256, 1));
     T_STREQ(Cvar_String("s_music", ""), "1");
-    CL_WindowClear();
+    CL_WindowClose(42);
 
     test_send_slider_window(43, UI_WINDOW_LOCAL_SOUND_VOLUME_ACTION);
     T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
     T_STREQ(Cvar_String("s_volume", ""), "0.250");
-    CL_WindowClear();
+    CL_WindowClose(43);
     test_send_slider_window(44, UI_WINDOW_LOCAL_MUSIC_VOLUME_ACTION);
     T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
     T_STREQ(Cvar_String("s_musicvolume", ""), "0.250");
-    CL_WindowClear();
+    CL_WindowClose(44);
 
     test_send_window(45, 145, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,
                      "Cancel", UI_WINDOW_LOCAL_AUDIO_CANCEL_COMMAND_PREFIX "menu");
@@ -1420,6 +1420,45 @@ TEST(net, window_local_audio_cancel_restores_entry_preferences) {
     T_STREQ(Cvar_String("s_volume", ""), "0.650");
     T_STREQ(Cvar_String("s_music", ""), "0");
     T_STREQ(Cvar_String("s_musicvolume", ""), "0.350");
+    CL_WindowClear();
+}
+
+TEST(net, window_local_audio_transaction_ends_when_windows_clear) {
+    test_client_stubs_init(); CL_WindowClear(); test_client_stubs_clear_cvars();
+    test_client_stubs_set_cvar("s_volume", "0.650");
+    test_send_window(46, 146, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,
+                     "Options", UI_WINDOW_LOCAL_AUDIO_BEGIN_COMMAND_PREFIX "wc3_menu_options");
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_UP, 128, 256, 1));
+    CL_WindowClose(46);
+
+    test_client_stubs_set_cvar("s_volume", "0.200");
+    CL_WindowClear();
+    test_send_window(47, 147, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,
+                     "Cancel", UI_WINDOW_LOCAL_AUDIO_CANCEL_COMMAND_PREFIX "menu");
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_UP, 128, 256, 1));
+    T_STREQ(Cvar_String("s_volume", ""), "0.200");
+    T_STREQ(test_forwarded_command, "menu");
+    CL_WindowClear();
+}
+
+TEST(net, window_local_audio_accept_keeps_edited_preferences) {
+    test_client_stubs_init(); CL_WindowClear(); test_client_stubs_clear_cvars();
+    test_client_stubs_set_cvar("s_volume", "0.650");
+    test_send_window(48, 148, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,
+                     "Options", UI_WINDOW_LOCAL_AUDIO_BEGIN_COMMAND_PREFIX "wc3_menu_options");
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_UP, 128, 256, 1));
+    CL_WindowClose(48);
+
+    test_client_stubs_set_cvar("s_volume", "0.200");
+    test_send_window(49, 149, UI_WINDOW_MODAL | UI_WINDOW_NO_PAUSE, 0.05f,
+                     "OK", UI_WINDOW_LOCAL_AUDIO_ACCEPT_COMMAND_PREFIX "menu");
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_DOWN, 128, 256, 1));
+    T_ASSERT(CL_WindowMouseEvent(MENU_MOUSE_UP, 128, 256, 1));
+    T_STREQ(Cvar_String("s_volume", ""), "0.200");
+    T_STREQ(test_forwarded_command, "menu");
     CL_WindowClear();
 }
 

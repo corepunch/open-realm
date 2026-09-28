@@ -76,6 +76,7 @@ typedef enum {
     LOCAL_AUDIO_MUSIC_VOLUME,
 } localAudioPreference_t;
 
+/* Keep local audio controls on a fixed whitelist instead of interpreting wire strings as cvar names. */
 static localAudioPreference_t CL_WindowLocalAudioPreference(uiFrame_t const *frame) {
     cstring_t action;
 
@@ -87,6 +88,7 @@ static localAudioPreference_t CL_WindowLocalAudioPreference(uiFrame_t const *fra
     return LOCAL_AUDIO_NONE;
 }
 
+/* Resolve the only client cvars that a server-authored local-audio action may change. */
 static cstring_t CL_WindowLocalAudioCvar(localAudioPreference_t preference) {
     switch (preference) {
         case LOCAL_AUDIO_SOUND_ENABLED: return "s_sound";
@@ -101,6 +103,7 @@ static bool CL_WindowLocalAudioCheckBox(localAudioPreference_t preference) {
     return preference == LOCAL_AUDIO_SOUND_ENABLED || preference == LOCAL_AUDIO_MUSIC_ENABLED;
 }
 
+/* Convert a normalized frame value to the local audio cvar representation. */
 static void CL_WindowSetLocalAudioPreference(localAudioPreference_t preference, float value) {
     cstring_t name = CL_WindowLocalAudioCvar(preference);
     char text[32];
@@ -113,6 +116,7 @@ static void CL_WindowSetLocalAudioPreference(localAudioPreference_t preference, 
     Cvar_Set(name, text);
 }
 
+/* Reapply local preferences after parsing the transient window's wire layout. */
 static void CL_WindowApplyLocalPreferences(void) {
     FOR_LOOP(i, SCR_NumFrames()) {
         uiFrame_t *frame = SCR_Frame(i);
@@ -556,6 +560,7 @@ typedef enum {
     LOCAL_AUDIO_TRANSACTION_CANCEL,
 } localAudioTransactionAction_t;
 
+/* Decode transaction prefixes while keeping their server-command suffix opaque to local preference logic. */
 static localAudioTransactionAction_t CL_WindowLocalAudioTransactionAction(cstring_t action,
                                                                            cstring_t *command) {
     if (!action || !command) return LOCAL_AUDIO_TRANSACTION_NONE;
@@ -577,6 +582,7 @@ static localAudioTransactionAction_t CL_WindowLocalAudioTransactionAction(cstrin
     return LOCAL_AUDIO_TRANSACTION_NONE;
 }
 
+/* Capture the current values before the in-game Sound page allows live edits. */
 static void CL_WindowBeginLocalAudioTransaction(void) {
     snprintf(cl_local_audio_transaction.sound_enabled,
              sizeof(cl_local_audio_transaction.sound_enabled), "%s",
@@ -593,6 +599,7 @@ static void CL_WindowBeginLocalAudioTransaction(void) {
     cl_local_audio_transaction.active = true;
 }
 
+/* Accept keeps the live values; Cancel restores the snapshot captured on entry. */
 static void CL_WindowFinishLocalAudioTransaction(bool cancel) {
     if (!cl_local_audio_transaction.active) return;
     if (cancel) {
@@ -604,6 +611,7 @@ static void CL_WindowFinishLocalAudioTransaction(bool cancel) {
     cl_local_audio_transaction.active = false;
 }
 
+/* Apply the local transaction action, then forward only its authored server-command suffix. */
 static bool CL_WindowRunLocalAudioTransactionCommand(clientWindow_t *window, cstring_t action) {
     cstring_t source = NULL;
     localAudioTransactionAction_t transaction = CL_WindowLocalAudioTransactionAction(action, &source);
@@ -881,6 +889,8 @@ void CL_WindowClose(uint32_t id) {
 void CL_WindowClear(void) {
     while (cl_windows.first) CL_WindowClose(cl_windows.first->id);
     memset(&cl_windows, 0, sizeof(cl_windows));
+    /* A full client-state clear ends this edit session without restoring stale preferences. */
+    cl_local_audio_transaction.active = false;
 }
 
 bool CL_WindowModalActive(void) { return CL_WindowModal() != NULL; }

@@ -519,13 +519,14 @@ typedef enum {
 #define UI_WINDOW_CLOSE_COMMAND_PREFIX "close_window_command " // client action prefix; forwards suffix then closes the owning window
 #define UI_WINDOW_DISCONNECT_ACTION "disconnect_game" // client action; leaves the current server/map and returns to the front-end
 #define UI_WINDOW_QUIT_ACTION "quit_application" // client action; exits the application after an explicit local click
-#define UI_WINDOW_LOCAL_SOUND_ENABLED_ACTION "local_audio_sound_enabled" // client action; toggles the local SFX preference
-#define UI_WINDOW_LOCAL_SOUND_VOLUME_ACTION "local_audio_sound_volume" // client action; writes normalized local SFX volume
-#define UI_WINDOW_LOCAL_MUSIC_ENABLED_ACTION "local_audio_music_enabled" // client action; toggles the local music preference
-#define UI_WINDOW_LOCAL_MUSIC_VOLUME_ACTION "local_audio_music_volume" // client action; writes normalized local music volume
-#define UI_WINDOW_LOCAL_AUDIO_BEGIN_COMMAND_PREFIX "local_audio_begin_command " // snapshots local audio prefs then forwards the command
-#define UI_WINDOW_LOCAL_AUDIO_ACCEPT_COMMAND_PREFIX "local_audio_accept_command " // commits local audio prefs then forwards the command
-#define UI_WINDOW_LOCAL_AUDIO_CANCEL_COMMAND_PREFIX "local_audio_cancel_command " // restores local audio prefs then forwards the command
+/* These fixed actions address local audio preferences; transaction forms also forward their suffix command. */
+#define UI_WINDOW_LOCAL_SOUND_ENABLED_ACTION "local_audio_sound_enabled"
+#define UI_WINDOW_LOCAL_SOUND_VOLUME_ACTION "local_audio_sound_volume"
+#define UI_WINDOW_LOCAL_MUSIC_ENABLED_ACTION "local_audio_music_enabled"
+#define UI_WINDOW_LOCAL_MUSIC_VOLUME_ACTION "local_audio_music_volume"
+#define UI_WINDOW_LOCAL_AUDIO_BEGIN_COMMAND_PREFIX "local_audio_begin_command "
+#define UI_WINDOW_LOCAL_AUDIO_ACCEPT_COMMAND_PREFIX "local_audio_accept_command "
+#define UI_WINDOW_LOCAL_AUDIO_CANCEL_COMMAND_PREFIX "local_audio_cancel_command "
 
 typedef struct {
     uint32_t id, class_id, flags;
