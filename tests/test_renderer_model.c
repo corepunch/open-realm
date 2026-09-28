@@ -854,9 +854,19 @@ TEST(renderer_model, mdx_detached_ribbon_reuse_drops_old_owner_state) {
     tr.viewDef = saved;
 }
 
+enum {
+    TEST_MDX_ID_MDLX = MAKEFOURCC('M','D','L','X'),
+    TEST_MDX_ID_VERS = MAKEFOURCC('V','E','R','S'),
+    TEST_MDX_ID_SEQS = MAKEFOURCC('S','E','Q','S'),
+    TEST_MDX_ID_PIVT = MAKEFOURCC('P','I','V','T'),
+    TEST_MDX_ID_RIBB = MAKEFOURCC('R','I','B','B'),
+    TEST_MDX_ID_KRVS = MAKEFOURCC('K','R','V','S'),
+    TEST_MDX_ID_PREM = MAKEFOURCC('P','R','E','M'),
+    TEST_MDX_ID_KPEV = MAKEFOURCC('K','P','E','V'),
+};
 static void mdx_put_u32(uint8_t **p, uint32_t v) { memcpy(*p, &v, 4); *p += 4; }
 static void mdx_put_f32(uint8_t **p, float v) { memcpy(*p, &v, 4); *p += 4; }
-static void mdx_put_fourcc(uint8_t **p, cstring_t tag) { memcpy(*p, tag, 4); *p += 4; }
+static void mdx_put_fourcc(uint8_t **p, uint32_t tag) { mdx_put_u32(p, tag); }
 
 TEST(renderer_model, mdx_ribb_loader_reads_emitter_tracks_and_nodes) {
     uint8_t blob[1024] = { 0 };
@@ -866,15 +876,15 @@ TEST(renderer_model, mdx_ribb_loader_reads_emitter_tracks_and_nodes) {
     uint32_t node_inc = 96, static_bytes = 52, krvs_bytes = 24, emitter_inc;
 
     emitter_inc = 4 + node_inc + static_bytes + krvs_bytes;
-    mdx_put_fourcc(&p, "MDLX");
-    mdx_put_fourcc(&p, "VERS"); mdx_put_u32(&p, 4); mdx_put_u32(&p, 800);
-    mdx_put_fourcc(&p, "SEQS"); mdx_put_u32(&p, 132);
+    mdx_put_fourcc(&p, TEST_MDX_ID_MDLX);
+    mdx_put_fourcc(&p, TEST_MDX_ID_VERS); mdx_put_u32(&p, 4); mdx_put_u32(&p, 800);
+    mdx_put_fourcc(&p, TEST_MDX_ID_SEQS); mdx_put_u32(&p, 132);
     memset(p, 0, 132); memcpy(p, "Stand", 5);
     ((uint32_t *)(p + 80))[0] = 2000; ((uint32_t *)(p + 80))[1] = 3000;
     p += 132;
-    mdx_put_fourcc(&p, "PIVT"); mdx_put_u32(&p, 12);
+    mdx_put_fourcc(&p, TEST_MDX_ID_PIVT); mdx_put_u32(&p, 12);
     mdx_put_f32(&p, 1.0f); mdx_put_f32(&p, 2.0f); mdx_put_f32(&p, 3.0f);
-    mdx_put_fourcc(&p, "RIBB"); mdx_put_u32(&p, emitter_inc);
+    mdx_put_fourcc(&p, TEST_MDX_ID_RIBB); mdx_put_u32(&p, emitter_inc);
     mdx_put_u32(&p, emitter_inc);
     mdx_put_u32(&p, node_inc);
     memset(p, 0, 80); memcpy(p, "BlizRibbon02", 12); p += 80;
@@ -884,7 +894,7 @@ TEST(renderer_model, mdx_ribb_loader_reads_emitter_tracks_and_nodes) {
     mdx_put_f32(&p, 0.5f);
     mdx_put_u32(&p, 0); mdx_put_u32(&p, 15); mdx_put_u32(&p, 1); mdx_put_u32(&p, 1); mdx_put_u32(&p, 0);
     mdx_put_f32(&p, 0.0f);
-    mdx_put_fourcc(&p, "KRVS"); mdx_put_u32(&p, 1); mdx_put_u32(&p, 0); mdx_put_u32(&p, 0xFFFFFFFF);
+    mdx_put_fourcc(&p, TEST_MDX_ID_KRVS); mdx_put_u32(&p, 1); mdx_put_u32(&p, 0); mdx_put_u32(&p, 0xFFFFFFFF);
     mdx_put_u32(&p, 0); mdx_put_f32(&p, 0.0f);
 
     ri.MemAlloc = test_alloc; ri.MemFree = test_free; ri.error = test_error;
@@ -900,6 +910,53 @@ TEST(renderer_model, mdx_ribb_loader_reads_emitter_tracks_and_nodes) {
     T_NOT_NULL(ribbon->keytracks.Visibility);
     T_EQ(model->num_pivots, 1);
     T_EQ(model->nodes[0], &ribbon->node);
+    MDLX_Release(model);
+}
+
+TEST(renderer_model, mdx_prem_loader_preserves_model_emitter_fields_and_tracks) {
+    uint8_t blob[2048] = { 0 };
+    uint8_t *p = blob;
+    mdxModel_t *model;
+    mdxParticleEmitter1_t *emitter;
+    uint32_t node_inc = 96, static_bytes = 284, kpev_bytes = 24, emitter_inc;
+
+    emitter_inc = 4 + node_inc + static_bytes + kpev_bytes;
+    mdx_put_fourcc(&p, TEST_MDX_ID_MDLX);
+    mdx_put_fourcc(&p, TEST_MDX_ID_VERS); mdx_put_u32(&p, 4); mdx_put_u32(&p, 800);
+    mdx_put_fourcc(&p, TEST_MDX_ID_SEQS); mdx_put_u32(&p, 132);
+    memset(p, 0, 132); memcpy(p, "Stand", 5);
+    ((uint32_t *)(p + 80))[0] = 0; ((uint32_t *)(p + 80))[1] = 1000;
+    p += 132;
+    mdx_put_fourcc(&p, TEST_MDX_ID_PIVT); mdx_put_u32(&p, 12);
+    mdx_put_f32(&p, 0.0f); mdx_put_f32(&p, 0.0f); mdx_put_f32(&p, 0.0f);
+    mdx_put_fourcc(&p, TEST_MDX_ID_PREM); mdx_put_u32(&p, emitter_inc);
+    mdx_put_u32(&p, emitter_inc);
+    mdx_put_u32(&p, node_inc);
+    memset(p, 0, 80); memcpy(p, "ModelEmitter", 12); p += 80;
+    mdx_put_u32(&p, 0); mdx_put_u32(&p, 0xFFFFFFFF);
+    mdx_put_u32(&p, MDLXNODE_ParticleEmitter | MDLXNODE_Unshaded_EmitterUsesMdl);
+    mdx_put_f32(&p, 12.0f); mdx_put_f32(&p, 9.0f); mdx_put_f32(&p, 0.5f); mdx_put_f32(&p, 0.25f);
+    memset(p, 0, 260); memcpy(p, "SharedModels\\Test.mdx", 21); p += 260;
+    mdx_put_f32(&p, 2.5f); mdx_put_f32(&p, 175.0f);
+    mdx_put_fourcc(&p, TEST_MDX_ID_KPEV); mdx_put_u32(&p, 1); mdx_put_u32(&p, 0); mdx_put_u32(&p, 0xFFFFFFFF);
+    mdx_put_u32(&p, 0); mdx_put_f32(&p, 1.0f);
+
+    ri.MemAlloc = test_alloc; ri.MemFree = test_free; ri.error = test_error;
+    model = R_LoadModelMDLX(blob, (uint32_t)(p - blob));
+    T_NOT_NULL(model);
+    emitter = model->emitters1;
+    T_NOT_NULL(emitter);
+    T_STREQ(emitter->node.name, "ModelEmitter");
+    T_ASSERT(emitter->node.flags & MDLXNODE_Unshaded_EmitterUsesMdl);
+    T_FEQ(emitter->EmissionRate, 12.0f, 0.001f);
+    T_FEQ(emitter->Gravity, 9.0f, 0.001f);
+    T_FEQ(emitter->Longitude, 0.5f, 0.001f);
+    T_FEQ(emitter->Latitude, 0.25f, 0.001f);
+    T_STREQ(emitter->path, "SharedModels\\Test.mdx");
+    T_FEQ(emitter->LifeSpan, 2.5f, 0.001f);
+    T_FEQ(emitter->Speed, 175.0f, 0.001f);
+    T_NOT_NULL(emitter->keytracks.Visibility);
+    T_EQ(model->nodes[0], &emitter->node);
     MDLX_Release(model);
 }
 

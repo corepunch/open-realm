@@ -8,6 +8,7 @@
 #include "common/stb_slk.h"
 #include "games/warcraft-3/common/minimap_render.h"
 #include <ctype.h>
+#include <math.h>
 
 void _W3M_RegisterMap(cstring_t mapFileName);
 void _W3M_DrawWorld(void);
@@ -129,6 +130,41 @@ typedef struct {
     cstring_t model_path;
     model_t *model;
 } wc3SpawnData_t;
+typedef struct {
+    cstring_t name;
+    cstring_t dir;
+    cstring_t file;
+    cstring_t blend_mode;
+    int rows, columns;
+    float scale, lifespan, decay_time;
+    int uv_lifespan_start, uv_lifespan_end, lifespan_repeat;
+    int uv_decay_start, uv_decay_end, decay_repeat;
+    float start_r, start_g, start_b, start_a;
+    float middle_r, middle_g, middle_b, middle_a;
+    float end_r, end_g, end_b, end_a;
+    int water;
+    cstring_t sound;
+    texture_t const *texture;
+    bool texture_attempted, unsupported_warned;
+} wc3SplatData_t;
+typedef struct {
+    cstring_t name;
+    cstring_t dir;
+    cstring_t file;
+    cstring_t blend_mode, sound;
+    float scale, birth_time, pause_time, decay_time;
+    float start_r, start_g, start_b, start_a;
+    float middle_r, middle_g, middle_b, middle_a;
+    float end_r, end_g, end_b, end_a;
+    texture_t const *texture;
+    bool texture_attempted, unsupported_warned;
+} wc3UberSplatData_t;
+
+typedef struct {
+    cstring_t family, name, dir, file;
+    texture_t const **texture;
+    bool *attempted;
+} wc3SplatTextureParams_t;
 
 static slkField_t const anim_lookup_schema[] = {
     { "", offsetof(wc3AnimLookup_t, name), STB_SLK_STR },
@@ -156,17 +192,120 @@ static slkField_t const spawn_data_schema[] = {
     { NULL, 0, 0 },
 };
 static wc3SpawnData_t *spawn_data_rows; static uint32_t spawn_data_count;
-typedef struct { model_t const *model; uint32_t frame, render_time; bool valid; } wc3EventSoundState_t;
-static wc3EventSoundState_t event_sound_state[MAX_GAME_ENTITIES];
-#define WC3_EVENT_SPAWN_MAX 128
+static slkField_t const splat_data_schema[] = {
+    { "", offsetof(wc3SplatData_t, name), STB_SLK_STR },
+    { "Dir", offsetof(wc3SplatData_t, dir), STB_SLK_STR },
+    { "file", offsetof(wc3SplatData_t, file), STB_SLK_STR },
+    { "BlendMode", offsetof(wc3SplatData_t, blend_mode), STB_SLK_STR },
+    { "Rows", offsetof(wc3SplatData_t, rows), STB_SLK_INT },
+    { "Columns", offsetof(wc3SplatData_t, columns), STB_SLK_INT },
+    { "Scale", offsetof(wc3SplatData_t, scale), STB_SLK_FLOAT },
+    { "Lifespan", offsetof(wc3SplatData_t, lifespan), STB_SLK_FLOAT },
+    { "Decay", offsetof(wc3SplatData_t, decay_time), STB_SLK_FLOAT },
+    { "UVLifespanStart", offsetof(wc3SplatData_t, uv_lifespan_start), STB_SLK_INT },
+    { "UVLifespanEnd", offsetof(wc3SplatData_t, uv_lifespan_end), STB_SLK_INT },
+    { "LifespanRepeat", offsetof(wc3SplatData_t, lifespan_repeat), STB_SLK_INT },
+    { "UVDecayStart", offsetof(wc3SplatData_t, uv_decay_start), STB_SLK_INT },
+    { "UVDecayEnd", offsetof(wc3SplatData_t, uv_decay_end), STB_SLK_INT },
+    { "UVDecayRepeat", offsetof(wc3SplatData_t, decay_repeat), STB_SLK_INT },
+    { "StartR", offsetof(wc3SplatData_t, start_r), STB_SLK_FLOAT },
+    { "StartG", offsetof(wc3SplatData_t, start_g), STB_SLK_FLOAT },
+    { "StartB", offsetof(wc3SplatData_t, start_b), STB_SLK_FLOAT },
+    { "StartA", offsetof(wc3SplatData_t, start_a), STB_SLK_FLOAT },
+    { "MiddleR", offsetof(wc3SplatData_t, middle_r), STB_SLK_FLOAT },
+    { "MiddleG", offsetof(wc3SplatData_t, middle_g), STB_SLK_FLOAT },
+    { "MiddleB", offsetof(wc3SplatData_t, middle_b), STB_SLK_FLOAT },
+    { "MiddleA", offsetof(wc3SplatData_t, middle_a), STB_SLK_FLOAT },
+    { "EndR", offsetof(wc3SplatData_t, end_r), STB_SLK_FLOAT },
+    { "EndG", offsetof(wc3SplatData_t, end_g), STB_SLK_FLOAT },
+    { "EndB", offsetof(wc3SplatData_t, end_b), STB_SLK_FLOAT },
+    { "EndA", offsetof(wc3SplatData_t, end_a), STB_SLK_FLOAT },
+    { "Water", offsetof(wc3SplatData_t, water), STB_SLK_INT },
+    { "Sound", offsetof(wc3SplatData_t, sound), STB_SLK_STR },
+    { NULL, 0, 0 },
+};
+static wc3SplatData_t *splat_data_rows; static uint32_t splat_data_count;
+static slkField_t const uber_splat_data_schema[] = {
+    { "", offsetof(wc3UberSplatData_t, name), STB_SLK_STR },
+    { "Dir", offsetof(wc3UberSplatData_t, dir), STB_SLK_STR },
+    { "file", offsetof(wc3UberSplatData_t, file), STB_SLK_STR },
+    { "BlendMode", offsetof(wc3UberSplatData_t, blend_mode), STB_SLK_STR },
+    { "Scale", offsetof(wc3UberSplatData_t, scale), STB_SLK_FLOAT },
+    { "BirthTime", offsetof(wc3UberSplatData_t, birth_time), STB_SLK_FLOAT },
+    { "PauseTime", offsetof(wc3UberSplatData_t, pause_time), STB_SLK_FLOAT },
+    { "Decay", offsetof(wc3UberSplatData_t, decay_time), STB_SLK_FLOAT },
+    { "StartR", offsetof(wc3UberSplatData_t, start_r), STB_SLK_FLOAT },
+    { "StartG", offsetof(wc3UberSplatData_t, start_g), STB_SLK_FLOAT },
+    { "StartB", offsetof(wc3UberSplatData_t, start_b), STB_SLK_FLOAT },
+    { "StartA", offsetof(wc3UberSplatData_t, start_a), STB_SLK_FLOAT },
+    { "MiddleR", offsetof(wc3UberSplatData_t, middle_r), STB_SLK_FLOAT },
+    { "MiddleG", offsetof(wc3UberSplatData_t, middle_g), STB_SLK_FLOAT },
+    { "MiddleB", offsetof(wc3UberSplatData_t, middle_b), STB_SLK_FLOAT },
+    { "MiddleA", offsetof(wc3UberSplatData_t, middle_a), STB_SLK_FLOAT },
+    { "EndR", offsetof(wc3UberSplatData_t, end_r), STB_SLK_FLOAT },
+    { "EndG", offsetof(wc3UberSplatData_t, end_g), STB_SLK_FLOAT },
+    { "EndB", offsetof(wc3UberSplatData_t, end_b), STB_SLK_FLOAT },
+    { "EndA", offsetof(wc3UberSplatData_t, end_a), STB_SLK_FLOAT },
+    { "Sound", offsetof(wc3UberSplatData_t, sound), STB_SLK_STR },
+    { NULL, 0, 0 },
+};
+static wc3UberSplatData_t *uber_splat_rows; static uint32_t uber_splat_count;
+typedef struct { model_t const *model; uint32_t frame, render_time; bool valid; } wc3EventState_t;
+typedef enum {
+    WC3_EVENT_NONE, WC3_EVENT_SOUND, WC3_EVENT_SPAWN, WC3_EVENT_SPLAT, WC3_EVENT_FOOTPRINT, WC3_EVENT_UBER_SPLAT,
+} wc3EventKind_t;
+typedef struct { cstring_t prefix; wc3EventKind_t kind; } wc3EventFamily_t;
+static wc3EventFamily_t const event_families[] = {
+    { "SND", WC3_EVENT_SOUND },
+    { "SPN", WC3_EVENT_SPAWN },
+    { "SPL", WC3_EVENT_SPLAT },
+    { "FPT", WC3_EVENT_FOOTPRINT },
+    { "UBR", WC3_EVENT_UBER_SPLAT },
+};
+typedef struct {
+    renderEntity_t const *entity;
+    mdxModel_t const *model;
+    mdxEvent_t const *event;
+    mat4_t const *transform;
+    wc3EventFamily_t const *family;
+    uint32_t depth;
+} wc3EventParams_t;
+typedef struct {
+    renderEntity_t const *entity;
+    mdxModel_t const *model;
+    wc3EventState_t *state;
+    mat4_t const *transform;
+    uint32_t depth;
+} wc3EventDispatchParams_t;
+static wc3EventState_t event_state[MAX_GAME_ENTITIES];
+#define WC3_EVENT_SPAWN_MAX 128 // effects; bounds renderer-owned SPN children without heap growth
 typedef struct {
     model_t *model; mat4_t transform;
-    uint32_t team, flags, start_time, frame, serial;
-    float scale; bool active;
+    uint32_t team, flags, start_time, frame, serial, depth;
+    uint32_t event_frame, event_render_time;
+    float scale; bool active, event_valid;
 } wc3EventSpawn_t;
 static wc3EventSpawn_t event_spawns[WC3_EVENT_SPAWN_MAX];
 static uint32_t event_spawn_serial;
+#define WC3_EVENT_SPLAT_MAX 128 // effects; bounds transient SPL/FPT/UBR decals without heap growth
+#define WC3_EVENT_MAX_DEPTH 4 // model levels; caps recursive SPN child-event graphs
+typedef enum { WC3_EVENT_SPLAT_SPLAT, WC3_EVENT_SPLAT_UBER } wc3EventSplatKind_t;
+typedef struct { float r, g, b, a; } wc3SplatColorValue_t;
+typedef struct { vec2_t mins, maxs; } wc3SplatUV_t;
+typedef struct {
+    wc3EventSplatKind_t kind;
+    wc3SplatData_t *splat_row;
+    wc3UberSplatData_t *uber_row;
+    vec2_t origin;
+    uint32_t start_time, serial;
+    bool active;
+} wc3EventSplat_t;
+static wc3EventSplat_t event_splats[WC3_EVENT_SPLAT_MAX];
+static uint32_t event_splat_serial;
 static void R_W3DrawEventSpawns(void);
+static void R_W3DrawEventSplats(void);
+static bool R_W3RenderEventSplat(wc3EventSplat_t *splat);
+static void R_W3DispatchModelEvents(wc3EventDispatchParams_t const *params);
 
 /* WorldEditData is the authoritative tileset-to-Blight-art mapping.  Keep the
  * lookup data-driven because custom/expansion tilesets can add rows there. */
@@ -360,6 +499,126 @@ static model_t *R_W3SpawnModel(wc3SpawnData_t *row) {
     return row->model && row->model->modeltype == ID_MDLX && row->model->mdx ? row->model : NULL;
 }
 
+static void R_W3FreeSplatData(void) {
+    FS_SLKFreeRows(splat_data_schema, splat_data_rows, splat_data_count, sizeof(wc3SplatData_t));
+    splat_data_rows = NULL; splat_data_count = 0;
+}
+
+/* Reload map-scoped SplatData so custom archives override the retail table. */
+static void R_W3LoadSplatData(void) {
+    PATHSTR scoped;
+
+    R_W3FreeSplatData();
+    if (ri.LoadSlk && R_MapAssetCandidate("Splats\\SplatData.slk", scoped, sizeof(scoped)))
+        splat_data_count = ri.LoadSlk(scoped, splat_data_schema,
+                                     (void **)&splat_data_rows, sizeof(wc3SplatData_t));
+    if (!splat_data_count && ri.LoadSlk)
+        splat_data_count = ri.LoadSlk("Splats\\SplatData.slk", splat_data_schema,
+                                     (void **)&splat_data_rows, sizeof(wc3SplatData_t));
+    if (ri.LoadSlk && !splat_data_count)
+        fprintf(stderr, "WC3 renderer: failed to load Splats\\SplatData.slk for MDX SPL/FPT events\n");
+}
+
+static wc3SplatData_t *R_W3SplatData(cstring_t id) {
+    if (!id || !*id) return NULL;
+    FOR_LOOP(i, splat_data_count)
+        if (splat_data_rows[i].name && !strcasecmp(splat_data_rows[i].name, id))
+            return splat_data_rows + i;
+    return NULL;
+}
+
+/* Resolve and cache one data-row texture; R_LoadTexture owns missing-asset placeholders/logging. */
+static texture_t const *R_W3LoadSplatTexture(wc3SplatTextureParams_t const *params) {
+    PATHSTR path;
+
+    if (!params || !params->texture || !params->attempted) return NULL;
+    if (*params->texture || *params->attempted) return *params->texture;
+    *params->attempted = true;
+    if (!params->dir || !params->file || !params->dir[0] || !params->file[0]) {
+        fprintf(stderr, "WC3 renderer: %s row '%s' has no splat texture path\n",
+                params->family ? params->family : "splat", params->name ? params->name : "(unnamed)");
+        return NULL;
+    }
+    snprintf(path, sizeof(path), "%s\\%s.blp", params->dir, params->file);
+    *params->texture = R_LoadTexture(path);
+    return *params->texture;
+}
+
+static texture_t const *R_W3SplatTexture(wc3SplatData_t *row) {
+    if (!row) return NULL;
+    return R_W3LoadSplatTexture(&MAKE(wc3SplatTextureParams_t,
+        .family = "SplatData", .name = row->name, .dir = row->dir, .file = row->file,
+        .texture = &row->texture, .attempted = &row->texture_attempted));
+}
+
+/* TODO: Repeat counts, non-default blend modes, water placement, and row sounds
+ * need verified retail contracts. Preserve them and warn once instead of silently
+ * pretending the implemented atlas/lifetime subset is complete. */
+static void R_W3WarnUnsupportedSplatFields(wc3SplatData_t *row) {
+    bool unsupported_blend;
+
+    if (!row || row->unsupported_warned) return;
+    unsupported_blend = row->blend_mode && row->blend_mode[0] && strcmp(row->blend_mode, "0");
+    if (!row->lifespan_repeat && !row->decay_repeat && !row->water &&
+        (!row->sound || !row->sound[0]) && !unsupported_blend) return;
+    row->unsupported_warned = true;
+    fprintf(stderr, "WC3 renderer: SplatData row '%s' uses retained fields whose retail runtime semantics are not implemented\n",
+            row->name ? row->name : "(unnamed)");
+}
+
+static void R_W3FreeUberSplatData(void) {
+    FS_SLKFreeRows(uber_splat_data_schema, uber_splat_rows, uber_splat_count, sizeof(wc3UberSplatData_t));
+    uber_splat_rows = NULL; uber_splat_count = 0;
+}
+
+/* Reload map-scoped UberSplatData for renderer-only UBR event transients. */
+static void R_W3LoadUberSplatData(void) {
+    PATHSTR scoped;
+
+    R_W3FreeUberSplatData();
+    if (ri.LoadSlk && R_MapAssetCandidate("Splats\\UberSplatData.slk", scoped, sizeof(scoped)))
+        uber_splat_count = ri.LoadSlk(scoped, uber_splat_data_schema,
+                                     (void **)&uber_splat_rows, sizeof(wc3UberSplatData_t));
+    if (!uber_splat_count && ri.LoadSlk)
+        uber_splat_count = ri.LoadSlk("Splats\\UberSplatData.slk", uber_splat_data_schema,
+                                     (void **)&uber_splat_rows, sizeof(wc3UberSplatData_t));
+    if (ri.LoadSlk && !uber_splat_count)
+        fprintf(stderr, "WC3 renderer: failed to load Splats\\UberSplatData.slk for MDX UBR events\n");
+}
+
+static wc3UberSplatData_t *R_W3UberSplatData(cstring_t id) {
+    if (!id || !*id) return NULL;
+    FOR_LOOP(i, uber_splat_count)
+        if (uber_splat_rows[i].name && !strcasecmp(uber_splat_rows[i].name, id))
+            return uber_splat_rows + i;
+    return NULL;
+}
+
+static texture_t const *R_W3UberSplatTexture(wc3UberSplatData_t *row) {
+    if (!row) return NULL;
+    return R_W3LoadSplatTexture(&MAKE(wc3SplatTextureParams_t,
+        .family = "UberSplatData", .name = row->name, .dir = row->dir, .file = row->file,
+        .texture = &row->texture, .attempted = &row->texture_attempted));
+}
+
+/* TODO: UBR BlendMode values other than the existing alpha-blend path and the
+ * optional Sound field need a verified retail renderer/audio mapping. */
+static void R_W3WarnUnsupportedUberSplatFields(wc3UberSplatData_t *row) {
+    bool unsupported_blend;
+
+    if (!row || row->unsupported_warned) return;
+    unsupported_blend = row->blend_mode && row->blend_mode[0] && strcmp(row->blend_mode, "0");
+    if ((!row->sound || !row->sound[0]) && !unsupported_blend) return;
+    row->unsupported_warned = true;
+    fprintf(stderr, "WC3 renderer: UberSplatData row '%s' uses retained BlendMode/Sound semantics that are not implemented for MDX UBR events\n",
+            row->name ? row->name : "(unnamed)");
+}
+
+static void R_W3ClearEventSplats(void) {
+    memset(event_splats, 0, sizeof(event_splats));
+    event_splat_serial = 0;
+}
+
 static void R_W3ClearEventSpawns(void) {
     memset(event_spawns, 0, sizeof(event_spawns));
     event_spawn_serial = 0;
@@ -387,9 +646,12 @@ void R_LoadAssets(void) {
                                    (void **)&anim_lookup_rows, sizeof(wc3AnimLookup_t));
     anim_sound_count = ri.LoadSlk("UI\\SoundInfo\\AnimSounds.slk", anim_sound_schema,
                                   (void **)&anim_sound_rows, sizeof(wc3AnimSound_t));
-    R_W3LoadSpawnData();
-    memset(event_sound_state, 0, sizeof(event_sound_state));
     R_W3ClearEventSpawns();
+    R_W3ClearEventSplats();
+    R_W3LoadSpawnData();
+    R_W3LoadSplatData();
+    R_W3LoadUberSplatData();
+    memset(event_state, 0, sizeof(event_state));
 
     FOR_LOOP(i, NUM_SELECTION_CIRCLES) {
         tr.texture[TEX_SELECTION_CIRCLE+i] = R_LoadTexture(selCirclesNames[i]);
@@ -434,9 +696,12 @@ void R_Shutdown(void) {
     FS_SLKFreeRows(anim_sound_schema, anim_sound_rows, anim_sound_count, sizeof(wc3AnimSound_t));
     anim_lookup_rows = NULL; anim_lookup_count = 0;
     anim_sound_rows = NULL; anim_sound_count = 0;
-    R_W3FreeSpawnData(false);
-    memset(event_sound_state, 0, sizeof(event_sound_state));
     R_W3ClearEventSpawns();
+    R_W3ClearEventSplats();
+    R_W3FreeSpawnData(false);
+    R_W3FreeSplatData();
+    R_W3FreeUberSplatData();
+    memset(event_state, 0, sizeof(event_state));
     R_WeatherShutdown();
     R_LightningShutdown();
     MDLX_Shutdown();
@@ -743,9 +1008,12 @@ void R_RegisterMap(cstring_t mapFileName) {
     cursor_active_model = NULL; cursor_anim = NULL;
     R_SetMapAssetScope(mapFileName);
     R_AdvanceTextureGeneration();
-    R_W3LoadSpawnData();
     R_W3ClearEventSpawns();
-    memset(event_sound_state, 0, sizeof(event_sound_state));
+    R_W3ClearEventSplats();
+    R_W3LoadSpawnData();
+    R_W3LoadSplatData();
+    R_W3LoadUberSplatData();
+    memset(event_state, 0, sizeof(event_state));
     memset(&model_texture_cache, 0, sizeof(model_texture_cache));
     R_ClearMinimapSpecialAssets();
     if (mapFileName && *mapFileName) R_LoadMinimapSpecialAssets();
@@ -767,6 +1035,7 @@ void R_SetupEnvironmentLighting(void) {
 
 void R_DrawWorld(void) {
     _W3M_DrawWorld();
+    R_W3DrawEventSplats();
     R_W3DrawEventSpawns();
 }
 
@@ -962,30 +1231,43 @@ static uint32_t R_W3SoundVariantCount(wc3AnimSound_t const *row) {
     return count;
 }
 
-static void R_W3EmitSoundEvent(renderEntity_t const *entity, mdxModel_t const *model,
-                               mdxEvent_t const *event, uint32_t key, mat4_t const *transform) {
-    char id[sizeof(event->node.name) + 1];
+/* Map the fixed three-byte MDX event prefix through one table shared by all consumers. */
+static wc3EventFamily_t const *R_W3EventFamily(mdxEvent_t const *event) {
+    if (!event) return NULL;
+    FOR_LOOP(i, sizeof(event_families) / sizeof(*event_families))
+        if (!strncmp(event->node.name, event_families[i].prefix, 3))
+            return event_families + i;
+    return NULL;
+}
+
+/* Resolve one crossed SND key through AnimLookups/AnimSounds and play it at the event-node world position. */
+static void R_W3EmitSoundEvent(wc3EventParams_t const *params, uint32_t key) {
+    char id[sizeof(params->event->node.name) + 1];
     cstring_t label;
     wc3AnimSound_t const *row;
     uint32_t count, pick;
     char path[512];
     vec3_t origin;
 
-    if (!ri.PlaySoundAt || !MDLX_EventObjectId(event, "SND", id, sizeof(id))) return;
+    if (!params || !params->entity || !params->model || !params->event || !params->transform ||
+        !params->family || !ri.PlaySoundAt ||
+        !MDLX_EventObjectId(params->event, params->family->prefix, id, sizeof(id))) return;
     label = R_W3AnimLookupLabel(id);
     row = R_W3AnimSound(label ? label : id);
     if (!row) return;
     if (!(count = R_W3SoundVariantCount(row))) return;
-    pick = R_W3PresentationPick(entity->number, key, tr.viewDef.time, count);
+    pick = R_W3PresentationPick(params->entity->number, key, tr.viewDef.time, count);
     if (!R_W3SoundPath(row, pick, path, sizeof(path))) return;
     {
         mat4_t event_transform;
-        if (!MDLX_EventWorldTransform(model, event, entity, transform, &event_transform)) return;
+        if (!MDLX_EventWorldTransform(params->model, params->event, params->entity,
+                                      params->transform, &event_transform)) return;
         origin = MAKE(vec3_t, event_transform.v[12], event_transform.v[13], event_transform.v[14]);
     }
     ri.PlaySoundAt(path, &origin, MAX(0.0f, MIN(1.0f, row->volume / 127.0f)));
 }
 
+/* Reuse an inactive SPN slot, or the oldest transient when the bounded pool is full. */
 static wc3EventSpawn_t *R_W3AllocEventSpawn(void) {
     wc3EventSpawn_t *oldest = event_spawns;
 
@@ -996,6 +1278,7 @@ static wc3EventSpawn_t *R_W3AllocEventSpawn(void) {
     return oldest;
 }
 
+/* Advance one renderer-owned SPN child and preserve its independent nested-event clock. */
 static bool R_W3RenderEventSpawn(wc3EventSpawn_t *spawn, uint32_t slot) {
     renderEntity_t child = { 0 };
     mdxSequence_t const *seq;
@@ -1021,22 +1304,40 @@ static bool R_W3RenderEventSpawn(wc3EventSpawn_t *spawn, uint32_t slot) {
     child.frame = frame;
     child.oldframe = spawn->frame;
     child.tint = COLOR32_WHITE;
+    {
+        uint32_t serial = spawn->serial;
+        wc3EventState_t state = {
+            .model = spawn->model, .frame = spawn->event_frame,
+            .render_time = spawn->event_render_time, .valid = spawn->event_valid,
+        };
+        R_W3DispatchModelEvents(&MAKE(wc3EventDispatchParams_t, .entity = &child,
+            .model = spawn->model->mdx, .state = &state, .transform = &spawn->transform,
+            .depth = spawn->depth));
+        /* A nested SPN may recycle this slot when the bounded transient pool is full.
+         * Do not write the parent's event state into the replacement instance. */
+        if (spawn->serial != serial) return true;
+        spawn->event_frame = state.frame;
+        spawn->event_render_time = state.render_time;
+        spawn->event_valid = state.valid;
+    }
     MDX_RenderModel(&child, spawn->model->mdx, &spawn->transform);
     R_W3RenderAttachmentModels(&child, &spawn->transform);
     spawn->frame = frame;
     return true;
 }
 
-static void R_W3EmitSpawnEvent(renderEntity_t const *entity, mdxModel_t const *model,
-                               mdxEvent_t const *event, mat4_t const *transform) {
-    char id[sizeof(event->node.name) + 1];
+/* Snapshot an SPN event transform into a bounded, entity-less child-model presentation. */
+static void R_W3EmitSpawnEvent(wc3EventParams_t const *params) {
+    char id[sizeof(params->event->node.name) + 1];
     wc3SpawnData_t *row;
     wc3EventSpawn_t *spawn;
     model_t *child_model;
     mdxSequence_t const *seq;
     uint32_t slot;
 
-    if (!MDLX_EventObjectId(event, "SPN", id, sizeof(id))) return;
+    if (!params || !params->entity || !params->model || !params->event || !params->transform ||
+        !params->family ||
+        !MDLX_EventObjectId(params->event, params->family->prefix, id, sizeof(id))) return;
     row = R_W3SpawnData(id);
     if (!row) { fprintf(stderr, "WC3 renderer: MDX SPN event '%s' has no SpawnData row\n", id); return; }
     child_model = R_W3SpawnModel(row);
@@ -1049,13 +1350,15 @@ static void R_W3EmitSpawnEvent(renderEntity_t const *entity, mdxModel_t const *m
     slot = (uint32_t)(spawn - event_spawns);
     seq = child_model->mdx->sequences;
     *spawn = (wc3EventSpawn_t){
-        .model = child_model, .team = entity->team,
-        .flags = entity->flags & (RF_NO_FOGOFWAR | RF_NO_LIGHTING | RF_PORTRAIT_LIGHTING),
-        .start_time = tr.viewDef.time, .frame = seq->interval[0],
-        .serial = ++event_spawn_serial, .scale = entity->scale > 0.0f ? entity->scale : 1.0f,
+        .model = child_model, .team = params->entity->team,
+        .flags = params->entity->flags & (RF_NO_FOGOFWAR | RF_NO_LIGHTING | RF_PORTRAIT_LIGHTING),
+        .start_time = tr.viewDef.time, .frame = seq->interval[0], .depth = params->depth,
+        .serial = ++event_spawn_serial,
+        .scale = params->entity->scale > 0.0f ? params->entity->scale : 1.0f,
         .active = true,
     };
-    if (!MDLX_EventWorldTransform(model, event, entity, transform, &spawn->transform)) {
+    if (!MDLX_EventWorldTransform(params->model, params->event, params->entity,
+                                  params->transform, &spawn->transform)) {
         spawn->active = false;
         fprintf(stderr, "WC3 renderer: failed to transform MDX SPN event '%s'\n", id);
         return;
@@ -1065,14 +1368,266 @@ static void R_W3EmitSpawnEvent(renderEntity_t const *entity, mdxModel_t const *m
     R_W3RenderEventSpawn(spawn, slot);
 }
 
+/* Reuse an inactive decal slot, or the oldest transient when the bounded pool is full. */
+static wc3EventSplat_t *R_W3AllocEventSplat(void) {
+    wc3EventSplat_t *oldest = event_splats;
+
+    FOR_LOOP(i, WC3_EVENT_SPLAT_MAX) {
+        if (!event_splats[i].active) return event_splats + i;
+        if (event_splats[i].serial < oldest->serial) oldest = event_splats + i;
+    }
+    return oldest;
+}
+
+static float R_W3SplatChannel(float value) {
+    if (!isfinite(value)) return 0.0f;
+    if (value <= 1.0f) value *= 255.0f;
+    return MAX(0.0f, MIN(255.0f, value));
+}
+
+static color32_t R_W3SplatColor(wc3SplatColorValue_t const *value) {
+    return MAKE(color32_t,
+                (uint8_t)R_W3SplatChannel(value->r),
+                (uint8_t)R_W3SplatChannel(value->g),
+                (uint8_t)R_W3SplatChannel(value->b),
+                (uint8_t)R_W3SplatChannel(value->a));
+}
+
+static color32_t R_W3LerpSplatColor(color32_t a, color32_t b, float t) {
+    t = MAX(0.0f, MIN(1.0f, t));
+    return MAKE(color32_t,
+                (uint8_t)LerpNumber(a.r, b.r, t),
+                (uint8_t)LerpNumber(a.g, b.g, t),
+                (uint8_t)LerpNumber(a.b, b.b, t),
+                (uint8_t)LerpNumber(a.a, b.a, t));
+}
+
+/* Convert normalized phase progress into the authored inclusive atlas-frame range, including reverse ranges. */
+static int R_W3SplatAtlasFrame(int start, int end, float progress) {
+    int lo = MIN(start, end), hi = MAX(start, end);
+    int count = hi - lo + 1;
+    int step;
+    if (count <= 1) return start;
+    progress = MAX(0.0f, MIN(1.0f, progress));
+    step = MIN(count - 1, (int)floorf(progress * (float)count));
+    return start <= end ? start + step : start - step;
+}
+
+/* Map one clamped atlas frame to the UV rectangle consumed by the terrain splat renderer. */
+static wc3SplatUV_t R_W3SplatAtlasUV(wc3SplatData_t const *row, int frame) {
+    int rows = MAX(1, row ? row->rows : 1), columns = MAX(1, row ? row->columns : 1);
+    int total = rows * columns;
+    int index = total > 0 ? MAX(0, MIN(total - 1, frame)) : 0;
+    int column = index % columns, atlas_row = index / columns;
+    float inv_columns = 1.0f / (float)columns, inv_rows = 1.0f / (float)rows;
+    return MAKE(wc3SplatUV_t,
+        .mins = MAKE(vec2_t, column * inv_columns, atlas_row * inv_rows),
+        .maxs = MAKE(vec2_t, (column + 1) * inv_columns, (atlas_row + 1) * inv_rows));
+}
+
+/* Snapshot an SPL/FPT event into a terrain-conforming, renderer-owned SplatData transient. */
+static void R_W3EmitSplatEvent(wc3EventParams_t const *params) {
+    char id[sizeof(params->event->node.name) + 1];
+    wc3SplatData_t *row;
+    wc3EventSplat_t *splat;
+    mat4_t event_transform;
+
+    if (!params || !params->entity || !params->model || !params->event || !params->transform ||
+        !params->family ||
+        !MDLX_EventObjectId(params->event, params->family->prefix, id, sizeof(id))) return;
+    row = R_W3SplatData(id);
+    if (!row) { fprintf(stderr, "WC3 renderer: MDX %s event '%s' has no SplatData row\n", params->family->prefix, id); return; }
+    if (row->scale <= 0.0f) { fprintf(stderr, "WC3 renderer: SplatData row '%s' has invalid scale %.3f\n", id, row->scale); return; }
+    R_W3WarnUnsupportedSplatFields(row);
+    if (!R_W3SplatTexture(row)) return;
+    if (!MDLX_EventWorldTransform(params->model, params->event, params->entity,
+                                  params->transform, &event_transform)) {
+        fprintf(stderr, "WC3 renderer: failed to transform MDX %s event '%s'\n", params->family->prefix, id);
+        return;
+    }
+    splat = R_W3AllocEventSplat();
+    *splat = (wc3EventSplat_t){
+        .kind = WC3_EVENT_SPLAT_SPLAT,
+        .splat_row = row,
+        .origin = MAKE(vec2_t, event_transform.v[12], event_transform.v[13]),
+        .start_time = tr.viewDef.time,
+        .serial = ++event_splat_serial,
+        .active = true,
+    };
+    R_W3RenderEventSplat(splat);
+}
+
+/* Snapshot a UBR event into a renderer-owned UberSplatData lifetime transient. */
+static void R_W3EmitUberSplatEvent(wc3EventParams_t const *params) {
+    char id[sizeof(params->event->node.name) + 1];
+    wc3UberSplatData_t *row;
+    wc3EventSplat_t *splat;
+    mat4_t event_transform;
+
+    if (!params || !params->entity || !params->model || !params->event || !params->transform ||
+        !params->family ||
+        !MDLX_EventObjectId(params->event, params->family->prefix, id, sizeof(id))) return;
+    row = R_W3UberSplatData(id);
+    if (!row) { fprintf(stderr, "WC3 renderer: MDX UBR event '%s' has no UberSplatData row\n", id); return; }
+    if (row->scale <= 0.0f) { fprintf(stderr, "WC3 renderer: UberSplatData row '%s' has invalid scale %.3f\n", id, row->scale); return; }
+    R_W3WarnUnsupportedUberSplatFields(row);
+    if (!R_W3UberSplatTexture(row)) return;
+    if (!MDLX_EventWorldTransform(params->model, params->event, params->entity,
+                                  params->transform, &event_transform)) {
+        fprintf(stderr, "WC3 renderer: failed to transform MDX UBR event '%s'\n", id);
+        return;
+    }
+    splat = R_W3AllocEventSplat();
+    *splat = (wc3EventSplat_t){
+        .kind = WC3_EVENT_SPLAT_UBER,
+        .uber_row = row,
+        .origin = MAKE(vec2_t, event_transform.v[12], event_transform.v[13]),
+        .start_time = tr.viewDef.time,
+        .serial = ++event_splat_serial,
+        .active = true,
+    };
+    R_W3RenderEventSplat(splat);
+}
+
+/* Render one retained SPL/FPT/UBR transient from its authored timing and captured position. */
+static bool R_W3RenderEventSplat(wc3EventSplat_t *splat) {
+    uint32_t elapsed;
+
+    if (!splat || !splat->active) return false;
+    elapsed = tr.viewDef.time - splat->start_time;
+
+    if (splat->kind == WC3_EVENT_SPLAT_SPLAT) {
+        wc3SplatData_t *row = splat->splat_row;
+        texture_t const *texture;
+        float life_ms, decay_ms, total_ms, phase_progress;
+        color32_t start_color, middle_color, end_color, color;
+        int frame;
+        wc3SplatUV_t uv;
+        vec2_t mins, maxs;
+
+        if (!row || !(texture = R_W3SplatTexture(row))) { splat->active = false; return false; }
+        life_ms = MAX(0.0f, row->lifespan) * 1000.0f;
+        decay_ms = MAX(0.0f, row->decay_time) * 1000.0f;
+        total_ms = life_ms + decay_ms;
+        if (total_ms > 0.0f && (float)elapsed >= total_ms) { splat->active = false; return false; }
+
+        start_color = R_W3SplatColor(&MAKE(wc3SplatColorValue_t, .r = row->start_r, .g = row->start_g,
+            .b = row->start_b, .a = row->start_a));
+        middle_color = R_W3SplatColor(&MAKE(wc3SplatColorValue_t, .r = row->middle_r, .g = row->middle_g,
+            .b = row->middle_b, .a = row->middle_a));
+        end_color = R_W3SplatColor(&MAKE(wc3SplatColorValue_t, .r = row->end_r, .g = row->end_g,
+            .b = row->end_b, .a = row->end_a));
+        if (life_ms > 0.0f && (float)elapsed < life_ms) {
+            phase_progress = (float)elapsed / life_ms;
+            color = R_W3LerpSplatColor(start_color, middle_color, phase_progress);
+            frame = R_W3SplatAtlasFrame(row->uv_lifespan_start, row->uv_lifespan_end, phase_progress);
+        } else {
+            phase_progress = decay_ms > 0.0f ? ((float)elapsed - life_ms) / decay_ms : 1.0f;
+            color = R_W3LerpSplatColor(middle_color, end_color, phase_progress);
+            frame = R_W3SplatAtlasFrame(row->uv_decay_start, row->uv_decay_end, phase_progress);
+        }
+        uv = R_W3SplatAtlasUV(row, frame);
+        mins = MAKE(vec2_t, splat->origin.x - row->scale, splat->origin.y - row->scale);
+        maxs = MAKE(vec2_t, splat->origin.x + row->scale, splat->origin.y + row->scale);
+        R_RenderRectSplatUV(&MAKE(rectSplatParams_t, .mins = &mins, .maxs = &maxs, .uv_mins = &uv.mins,
+            .uv_maxs = &uv.maxs, .texture = texture, .shader = R_SPLAT_SHADER(&tr.shader_default), .color = color));
+        if (total_ms <= 0.0f) splat->active = false;
+        return true;
+    } else {
+        wc3UberSplatData_t *row = splat->uber_row;
+        texture_t const *texture;
+        float birth_ms, pause_ms, decay_ms, total_ms;
+        color32_t start_color, middle_color, end_color, color;
+
+        if (!row || !(texture = R_W3UberSplatTexture(row))) { splat->active = false; return false; }
+        birth_ms = MAX(0.0f, row->birth_time) * 1000.0f;
+        pause_ms = MAX(0.0f, row->pause_time) * 1000.0f;
+        decay_ms = MAX(0.0f, row->decay_time) * 1000.0f;
+        total_ms = birth_ms + pause_ms + decay_ms;
+        if (total_ms > 0.0f && (float)elapsed >= total_ms) { splat->active = false; return false; }
+        start_color = R_W3SplatColor(&MAKE(wc3SplatColorValue_t, .r = row->start_r, .g = row->start_g,
+            .b = row->start_b, .a = row->start_a));
+        middle_color = R_W3SplatColor(&MAKE(wc3SplatColorValue_t, .r = row->middle_r, .g = row->middle_g,
+            .b = row->middle_b, .a = row->middle_a));
+        end_color = R_W3SplatColor(&MAKE(wc3SplatColorValue_t, .r = row->end_r, .g = row->end_g,
+            .b = row->end_b, .a = row->end_a));
+        if (birth_ms > 0.0f && (float)elapsed < birth_ms)
+            color = R_W3LerpSplatColor(start_color, middle_color, (float)elapsed / birth_ms);
+        else if ((float)elapsed < birth_ms + pause_ms || decay_ms <= 0.0f)
+            color = middle_color;
+        else
+            color = R_W3LerpSplatColor(middle_color, end_color, ((float)elapsed - birth_ms - pause_ms) / decay_ms);
+        R_RenderSplat(&splat->origin, row->scale, texture, R_SPLAT_SHADER(&tr.shader_default), color);
+        if (total_ms <= 0.0f) splat->active = false;
+        return true;
+    }
+}
+
+static void R_W3DrawEventSplats(void) {
+    if (tr.render_phase != RENDER_PHASE_SOLID) return;
+    FOR_LOOP(i, WC3_EVENT_SPLAT_MAX) R_W3RenderEventSplat(event_splats + i);
+}
+
 static void R_W3DrawEventSpawns(void) {
     if (tr.render_phase != RENDER_PHASE_SOLID) return;
     FOR_LOOP(i, WC3_EVENT_SPAWN_MAX) R_W3RenderEventSpawn(event_spawns + i, i);
 }
 
+/* Dispatch event-key crossings for normal entities and renderer-owned child model instances. */
+static void R_W3DispatchModelEvents(wc3EventDispatchParams_t const *params) {
+    if (!params || !params->entity || !params->model || !params->state || !params->transform ||
+        !params->model->events) return;
+    if (!params->state->valid || params->state->model != params->entity->model) {
+        *params->state = (wc3EventState_t){ .model = params->entity->model, .frame = params->entity->frame,
+            .render_time = tr.viewDef.time, .valid = true };
+        return;
+    }
+    if (params->state->frame == params->entity->frame &&
+        params->state->render_time == tr.viewDef.time) return;
+
+    FOR_EACH_LIST(mdxEvent_t, event, params->model->events) {
+        wc3EventFamily_t const *family = R_W3EventFamily(event);
+        wc3EventParams_t event_params;
+
+        if (!event->num_keys || !family) continue;
+        event_params = MAKE(wc3EventParams_t, .entity = params->entity, .model = params->model,
+            .event = event, .transform = params->transform, .family = family, .depth = params->depth);
+        FOR_LOOP(i, event->num_keys) {
+            uint32_t key = event->keys[i];
+            if (!MDLX_EventKeyCrossed(params->model, event, key, params->state->frame,
+                                      params->entity->frame, params->state->render_time,
+                                      tr.viewDef.time)) continue;
+            switch (family->kind) {
+            case WC3_EVENT_SOUND:
+                R_W3EmitSoundEvent(&event_params, key);
+                break;
+            case WC3_EVENT_UBER_SPLAT:
+                R_W3EmitUberSplatEvent(&event_params);
+                break;
+            case WC3_EVENT_SPLAT:
+            case WC3_EVENT_FOOTPRINT:
+                R_W3EmitSplatEvent(&event_params);
+                break;
+            case WC3_EVENT_SPAWN:
+                if (params->depth < WC3_EVENT_MAX_DEPTH) {
+                    event_params.depth = params->depth + 1;
+                    R_W3EmitSpawnEvent(&event_params);
+                } else {
+                    fprintf(stderr, "WC3 renderer: MDX SPN nesting exceeded %u presentation levels at event '%s'\n",
+                            WC3_EVENT_MAX_DEPTH, event->node.name);
+                }
+                break;
+            default:
+                break;
+            }
+        }
+    }
+    params->state->frame = params->entity->frame;
+    params->state->render_time = tr.viewDef.time;
+}
+
 static void R_W3UpdateModelEvents(renderEntity_t const *entity) {
     mdxModel_t const *model;
-    wc3EventSoundState_t *state;
     mat4_t transform;
 
     /* Presentation events belong to the color pass, not the shadow-map pass. */
@@ -1081,28 +1636,9 @@ static void R_W3UpdateModelEvents(renderEntity_t const *entity) {
         !entity->model->mdx || entity->number >= MAX_GAME_ENTITIES) return;
     model = entity->model->mdx;
     if (!model->events) return;
-    state = event_sound_state + entity->number;
-    if (!state->valid || state->model != entity->model) {
-        *state = (wc3EventSoundState_t){ .model = entity->model, .frame = entity->frame,
-                                   .render_time = tr.viewDef.time, .valid = true };
-        return;
-    }
-    if (state->frame == entity->frame && state->render_time == tr.viewDef.time) return;
-
     R_GetEntityMatrix(entity, &transform);
-    FOR_EACH_LIST(mdxEvent_t, event, model->events) {
-        if (!event->num_keys || (strncmp(event->node.name, "SND", 3) && strncmp(event->node.name, "SPN", 3))) continue;
-        FOR_LOOP(i, event->num_keys) {
-
-            uint32_t key = event->keys[i];
-            if (!MDLX_EventKeyCrossed(model, event, key, state->frame, entity->frame,
-                                      state->render_time, tr.viewDef.time)) continue;
-            if (!strncmp(event->node.name, "SND", 3)) R_W3EmitSoundEvent(entity, model, event, key, &transform);
-            else R_W3EmitSpawnEvent(entity, model, event, &transform);
-        }
-    }
-    state->frame = entity->frame;
-    state->render_time = tr.viewDef.time;
+    R_W3DispatchModelEvents(&MAKE(wc3EventDispatchParams_t, .entity = entity, .model = model,
+        .state = event_state + entity->number, .transform = &transform, .depth = 0));
 }
 
 void R_UpdateEntityPresentation(renderEntity_t const *entity) {

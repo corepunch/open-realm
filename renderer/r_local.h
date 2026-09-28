@@ -365,7 +365,14 @@ void R_DrawSprite(drawSprite_t const *sprite);
 bool R_SetEntityAnimFrame(model_t const *model, cstring_t anim, renderEntity_t *entity);
 void R_RenderSplat(vec2_t const *position, float radius, texture_t const *texture, splat_shader_t *shader, color32_t color);
 void R_DrawBackdrop(drawBackdrop_t const *drawBackdrop);
+typedef struct {
+    vec2_t const *mins, *maxs, *uv_mins, *uv_maxs;
+    texture_t const *texture;
+    splat_shader_t *shader;
+    color32_t color;
+} rectSplatParams_t;
 void R_RenderRectSplat(vec2_t const *mins, vec2_t const *maxs, texture_t const *texture, splat_shader_t *shader, color32_t color);
+void R_RenderRectSplatUV(rectSplatParams_t const *params);
 void R_RenderFlatRectSplat(vec2_t const *mins, vec2_t const *maxs, float z, texture_t const *texture, splat_shader_t *shader, color32_t color);
 /* Batched splat rendering: accumulate many ground decals (unit shadows) into one
  * vertex-buffer upload + draw per contiguous texture run (plus capacity flushes),
