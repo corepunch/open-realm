@@ -2470,6 +2470,7 @@ uint32_t G_GetPlayerUpkeepTier(gameClient_t *client);
 int32_t G_GetUpkeepGoldRateForTier(uint32_t tier);
 int32_t G_GetUpkeepLumberRateForTier(uint32_t tier);
 bool G_PlayerHasFoodFor(gameClient_t *client, int32_t food_cost);
+cstring_t G_FoodCommandErrorKey(gameClient_t *client, int32_t food_cost);
 bool G_ReserveTrainingFood(edict_t *unit);
 void G_SetUnitFoodUsed(edict_t *unit, int32_t amount);
 void G_SetUnitFoodMade(edict_t *unit, int32_t amount);
@@ -2627,6 +2628,7 @@ buildCommandState_t G_GetBuildCommandState(gameClient_t *client, edict_t *worker
 buildCommandState_t G_GetTrainCommandState(gameClient_t *client, edict_t *producer, uint32_t unit_id, string_t reason, uint32_t reason_size);
 buildCommandState_t G_GetResearchCommandState(gameClient_t *client, edict_t *producer, uint32_t upgrade_id, int32_t *next_level, string_t reason, uint32_t reason_size);
 buildCommandState_t G_GetBuildingUpgradeCommandState(buildingUpgradeCommandParams_t const *params);
+void G_ShowBuildCommandError(edict_t *clent, buildCommandState_t state, cstring_t reason);
 int32_t G_UpgradeGoldCost(uint32_t upgrade_id, int32_t level_value);
 int32_t G_UpgradeLumberCost(uint32_t upgrade_id, int32_t level_value);
 float G_UpgradeResearchTime(uint32_t upgrade_id, int32_t level_value);

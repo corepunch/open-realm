@@ -155,6 +155,23 @@ TEST(wc3_food, food_cap_ceiling_limits_effective_supply_without_losing_raw_cap) 
     T_EQ(G_GetEffectiveFoodCap(client), 120);
 }
 
+TEST(wc3_food, command_error_key_distinguishes_supply_shortage_from_absolute_ceiling) {
+    gameClient_t *client = &game.clients[0];
+
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 79;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 80;
+    client->ps.stats[PLAYERSTATE_FOOD_CAP_CEILING] = 100;
+    T_STREQ(G_FoodCommandErrorKey(client, 2), "Nofood");
+
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 99;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 100;
+    T_STREQ(G_FoodCommandErrorKey(client, 2), "Maxsupply");
+
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_USED] = 79;
+    client->ps.stats[PLAYERSTATE_RESOURCE_FOOD_CAP] = 80;
+    T_STREQ(G_FoodCommandErrorKey(client, 22), "Maxsupply");
+}
+
 TEST(wc3_food, food_limits_cvar_allows_training_over_cap_but_keeps_accounting) {
     gameClient_t *client = &game.clients[0];
     edict_t *unit = alloc_test_unit(MAKEFOURCC('h','f','o','o'), 0.0f, 0.0f);

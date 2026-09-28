@@ -1934,6 +1934,7 @@ bool ReadGame(cstring_t filename) {
      * the snapshot version rejects older layouts before reconstruction. */
     if (!ReadJass(f)) { fprintf(stderr, "WC3 LoadGame: failed at jass\n"); fclose(f); return false; }
     G_ResetSelectionSoundState();
+    G_CommandErrorReset();
     FOR_LOOP(i, game.max_clients) g_edicts[i].client = game.clients + i;
     FOR_LOOP(i, game.max_clients) game.clients[i].camera.target_controller = targets[i] < 0 ? NULL : g_edicts + targets[i];
     FOR_LOOP(i, globals.num_edicts) {

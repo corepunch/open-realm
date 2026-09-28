@@ -362,7 +362,9 @@ TEST(wc3_spell, unsummon_reports_under_construction_from_command_strings) {
     mana = fix.caster->mana.value;
     T_ASSERT(!S_CastUnitTargetSpell(fix.caster, BZ_AUNS, fix.building));
     T_FEQ(fix.caster->mana.value, mana, 0.001f);
-    T_STREQ(fix.client->message.text, "That building is currently under construction.");
+    T_STREQ(G_ResolveCommandErrorText(fix.client, "UnderConstruction"),
+            "That building is currently under construction.");
+    T_STREQ(fix.client->message.text, "");
     G_StopConstruction(fix.building);
     uns_done(&fix);
 }

@@ -747,6 +747,7 @@ void G_SpawnEntities(void) {
     G_BlightShutdown();
     memset(&level, 0, sizeof(level));
     G_ResetSelectionSoundState();
+    G_CommandErrorReset();
     G_ResetHeroPassiveCaches();
     FOR_LOOP(i, MAX_PLAYERS) level.player_leaderboards[i] = -1;
     G_ResetStartingResourceCheat();

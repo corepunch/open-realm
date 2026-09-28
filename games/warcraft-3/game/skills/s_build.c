@@ -16,10 +16,14 @@ static void G_BuildPlacementError(edict_t *clent, buildPlacementResult_t placeme
         return;
     }
     if (placement == PLACE_TOO_CLOSE_TO_GOLD_MINE) {
-        G_BuildError(clent, "Unable to build so close to the gold mine.");
+        G_ShowCommandErrorKey(clent, "Tooclosetomine", NULL);
         return;
     }
-    G_BuildError(clent, "Unable to build there.");
+    if (placement == PLACE_OUT_OF_BOUNDS) {
+        G_ShowCommandErrorKey(clent, "Outofbounds", NULL);
+        return;
+    }
+    G_ShowCommandErrorKey(clent, "Cantplace", NULL);
 }
 
 static void G_ClearBuildPlacementCursor(edict_t *clent) {
@@ -331,6 +335,7 @@ void build_build(edict_t *ent) {
     edict_t *building;
     edict_t *build_on = NULL;
     uint32_t building_id;
+    char reason[128];
     bool construction_started = false;
     unitRace_t race;
 
@@ -350,7 +355,7 @@ void build_build(edict_t *ent) {
     G_ClearBuildPreview(ent);
     client = G_GetPlayerClientByNumber(ent->s.player);
     placement = G_EvaluateBuildPlacement(ent, ent->build_project, &ent->goalentity->s.origin2, &snapped);
-    state = G_GetBuildCommandState(client, ent, ent->build_project, NULL, 0);
+    state = G_GetBuildCommandState(client, ent, ent->build_project, reason, sizeof(reason));
     if (placement != PLACE_OK) {
 #ifdef WC3_DEBUG_BUILD
         fprintf(stderr, "WC3_BUILD arrival-rejected worker=%ld id=%.4s reason=placement result=%d point=(%.1f,%.1f)\n",
@@ -375,7 +380,10 @@ void build_build(edict_t *ent) {
         fprintf(stderr, "WC3_DEBUG_AI build arrival rejected worker=%ld id=%.4s state=%d\n",
             (long)(ent - g_edicts), (cstring_t)&ent->build_project, state);
 #endif
-        G_BuildError(G_GetPlayerEntityByNumber(ent->s.player), "Unable to build: requirements changed.");
+        if (reason[0])
+            G_ShowBuildCommandError(G_GetPlayerEntityByNumber(ent->s.player), state, reason);
+        else
+            G_BuildError(G_GetPlayerEntityByNumber(ent->s.player), "Unable to build: requirements changed.");
         ent->build_project = 0;
         ent->stand(ent);
         return;
@@ -532,7 +540,10 @@ bool build_menu_send_builder(edict_t *clent, vec2_t const *location) {
                 (long)(clent - globals.edicts), (long)(builder - globals.edicts), (cstring_t)&clent->build_project,
                 state, reason[0] ? reason : "(none)");
 #endif
-        G_BuildError(clent, reason[0] ? reason : "Unable to build that structure.");
+        if (reason[0])
+            G_ShowBuildCommandError(clent, state, reason);
+        else
+            G_BuildError(clent, "Unable to build that structure.");
         return false;
     }
     placement = G_EvaluateBuildPlacement(builder, clent->build_project, location, &snapped);
@@ -601,7 +612,10 @@ void build_menu_selectlocation(edict_t *ent, uint32_t building_id) {
     if (!owner || owner->ps.number != worker->s.player || !G_WorkerCanBuild(worker, building_id)) return;
     state = G_GetBuildCommandState(owner, worker, building_id, reason, sizeof(reason));
     if (state != BUILD_COMMAND_AVAILABLE) {
-        G_BuildError(ent, reason[0] ? reason : "Unable to build that structure.");
+        if (reason[0])
+            G_ShowBuildCommandError(ent, state, reason);
+        else
+            G_BuildError(ent, "Unable to build that structure.");
         return;
     }
 

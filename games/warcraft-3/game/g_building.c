@@ -801,15 +801,15 @@ static bool G_ProductionResourcesAvailable(gameClient_t *client, uint32_t type_i
 
     if (!client) return false;
     if (b->goldCost > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]) {
-        if (reason && reason_size) snprintf(reason, reason_size, "Not enough gold");
+        if (reason && reason_size) snprintf(reason, reason_size, "Nogold");
         return false;
     }
     if (b->lumberCost > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) {
-        if (reason && reason_size) snprintf(reason, reason_size, "Not enough lumber");
+        if (reason && reason_size) snprintf(reason, reason_size, "Nolumber");
         return false;
     }
     if (!G_PlayerHasFoodFor(client, MAX(0, b->foodUsed))) {
-        if (reason && reason_size) snprintf(reason, reason_size, "Not enough food");
+        if (reason && reason_size) snprintf(reason, reason_size, "%s", G_FoodCommandErrorKey(client, MAX(0, b->foodUsed)));
         return false;
     }
     return true;
@@ -889,11 +889,11 @@ buildCommandState_t G_GetResearchCommandState(gameClient_t *client, edict_t *pro
         return BUILD_COMMAND_DISABLED;
     }
     if (G_UpgradeGoldCost(upgrade_id, level_value) > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]) {
-        if (reason && reason_size) snprintf(reason, reason_size, "Not enough gold");
+        if (reason && reason_size) snprintf(reason, reason_size, "Nogold");
         return BUILD_COMMAND_UNAFFORDABLE;
     }
     if (G_UpgradeLumberCost(upgrade_id, level_value) > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) {
-        if (reason && reason_size) snprintf(reason, reason_size, "Not enough lumber");
+        if (reason && reason_size) snprintf(reason, reason_size, "Nolumber");
         return BUILD_COMMAND_UNAFFORDABLE;
     }
     return BUILD_COMMAND_AVAILABLE;
@@ -933,15 +933,15 @@ buildCommandState_t G_GetBuildingUpgradeCommandState(buildingUpgradeCommandParam
     G_GetBuildingUpgradeCosts(&(buildingUpgradeCostParams_t){
         .building = producer, .unit_id = unit_id, .gold = &gold, .lumber = &lumber, .food = &food });
     if (gold > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_GOLD]) {
-        if (reason && reason_size) snprintf(reason, reason_size, "Not enough gold");
+        if (reason && reason_size) snprintf(reason, reason_size, "Nogold");
         return BUILD_COMMAND_UNAFFORDABLE;
     }
     if (lumber > (int32_t)client->ps.stats[PLAYERSTATE_RESOURCE_LUMBER]) {
-        if (reason && reason_size) snprintf(reason, reason_size, "Not enough lumber");
+        if (reason && reason_size) snprintf(reason, reason_size, "Nolumber");
         return BUILD_COMMAND_UNAFFORDABLE;
     }
     if (!G_PlayerHasFoodFor(client, food)) {
-        if (reason && reason_size) snprintf(reason, reason_size, "Not enough food");
+        if (reason && reason_size) snprintf(reason, reason_size, "%s", G_FoodCommandErrorKey(client, food));
         return BUILD_COMMAND_UNAFFORDABLE;
     }
     return BUILD_COMMAND_AVAILABLE;
@@ -1002,6 +1002,14 @@ void G_UpdateBuildingUpgradeAnimation(edict_t *building) {
     building->s.frame = frame;
 }
 
+void G_ShowBuildCommandError(edict_t *clent, buildCommandState_t state, cstring_t reason) {
+    if (!clent || !reason || !reason[0]) return;
+    if (state == BUILD_COMMAND_UNAFFORDABLE)
+        G_ShowCommandErrorKey(clent, reason, NULL);
+    else
+        G_ShowCommandErrorText(clent, reason);
+}
+
 bool G_StartBuildingUpgrade(edict_t *building, uint32_t unit_id) {
     gameClient_t *client;
     edict_t *clent;
@@ -1017,7 +1025,7 @@ bool G_StartBuildingUpgrade(edict_t *building, uint32_t unit_id) {
     state = G_GetBuildingUpgradeCommandState(&(buildingUpgradeCommandParams_t){
         .client = client, .producer = building, .unit_id = unit_id, .reason = reason, .reason_size = sizeof(reason) });
     if (state != BUILD_COMMAND_AVAILABLE) {
-        if (clent && client->connected && reason[0]) G_ShowCommandErrorText(clent, reason);
+        if (clent && client->connected && reason[0]) G_ShowBuildCommandError(clent, state, reason);
         return false;
     }
 

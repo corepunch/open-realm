@@ -19,6 +19,7 @@
 #define BZ_WC3_WINDOW_RESULT MAKEFOURCC('R','S','L','T') // opaque class/instance ID; identifies the singleton victory/defeat result window
 #define WC3_MODAL_QUEST  (1u << 0) // modal owner bit; retained for the Quest/JASS ownership compatibility path
 #define WC3_MODAL_CLIENT (1u << 1) // modal owner bit; tracks whether the client has any open modal window
+#define WC3_LAYER_COMMAND_ERROR LAYER_GAME_2 // command-failure overlay; independent of ordinary messages/transmissions
 #define WC3_CAMERA_DEFAULT_FOV 50.0f // degrees; vertical FOV; spawn, ResetToGameCamera, CL_GameDefaultCamera
 #define WC3_CAMERA_DEFAULT_DISTANCE 1650.0f // world units; orbit distance; spawn, ResetToGameCamera, CL_GameDefaultCamera
 #define WC3_CAMERA_DEFAULT_PITCH 326.0f // Euler degrees; JASS AoA 304 wraps via -90-AoA; spawn, ResetToGameCamera

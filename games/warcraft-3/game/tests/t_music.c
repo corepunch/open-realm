@@ -204,6 +204,9 @@ TEST(wc3_music, map_skin_overrides_stock_music_skin_fields) {
     gi.SetPriorityArchive(archive);
     T_ASSERT(Stb_IniCacheLoad(&game.config.map_skin, "war3mapSkin.txt"));
     T_STREQ(Theme_PlayerString(&client, "Music", "fallback"), "MapMusicOverride");
+    /* Command-error sounds use this same skin resolver, so map Game Interface
+     * overrides must win over the stock race-specific <ErrorKey>Sound field. */
+    T_STREQ(Theme_PlayerString(&client, "NoGoldSound", "fallback"), "MapNoGoldOverride");
 
     expected_versioned = atoi(gi.CvarString("fs_expansion", "0")) != 0
         ? "MapMusicTFT"

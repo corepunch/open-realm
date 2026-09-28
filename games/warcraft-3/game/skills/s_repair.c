@@ -908,12 +908,12 @@ static bool repair_selecttarget(edict_t *clent, edict_t *target) {
     }
 
     if (!target->construction.active && target->health.value >= target->health.max_value) {
-        G_ShowCommandErrorText(clent, "Target is not damaged.");
+        G_ShowCommandErrorKey(clent, "RepairHPmaxed", "Target is not damaged.");
         return false;
     }
     if (target->construction.active &&
         (handler != CAbilityRepair || !target->construction.paused)) {
-        G_ShowCommandErrorText(clent, "That building is currently under construction.");
+        G_ShowCommandErrorKey(clent, "UnderConstruction", "That building is currently under construction.");
         return false;
     }
 
