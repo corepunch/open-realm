@@ -13,6 +13,7 @@ typedef enum {
 } menuPanel_t;
 
 typedef enum {
+    MENU_OPTIONS_CATEGORIES,
     MENU_OPTIONS_SOUND,
 } menuOptionsPanel_t;
 
@@ -255,7 +256,7 @@ void UI_LoadHudMenu(void) {
      * JASS RestartGame native and the game-result dialog. */
     MenuConfigureMainSaveLoad();
     MenuSetButton(hud.menu.OptionsButton, hud.options.EscMenuOptionsPanel != NULL,
-                  hud.options.EscMenuOptionsPanel ? "menu_options" : NULL);
+                  hud.options.EscMenuOptionsPanel ? "wc3_menu_options" : NULL);
     UI_SetEnabled(hud.menu.HelpButton, false);
     UI_SetEnabled(hud.menu.TipsButton, false);
 
@@ -270,7 +271,8 @@ void UI_LoadHudMenu(void) {
         UI_SetEnabled(hud.options.GameplayButton, false);
         UI_SetEnabled(hud.options.VideoButton, false);
         UI_SetEnabled(hud.options.SoundButton, true);
-        UI_SetOnClick(hud.options.SoundButton, "menu_options");
+        UI_SetEnabled(hud.options.NetworkButton, false);
+        UI_SetOnClick(hud.options.SoundButton, "wc3_menu_options_sound");
         UI_SetEnabled(hud.options.AmbientCheckBox, false);
         UI_SetEnabled(hud.options.MovementCheckBox, false);
         UI_SetEnabled(hud.options.UnitCheckBox, false);
@@ -454,8 +456,17 @@ static void MenuSetOptionSlider(frameDef_t *frame, cstring_t cvar, float fallbac
         : min_value;
 }
 
+void UI_SetGameMenuOptionsPage(EscMenuOptionsPanel_t *options, bool sound_page) {
+    if (!options) return;
+    UI_SetHidden(options->OptionsPanel, sound_page);
+    UI_SetHidden(options->BottomButtonPanel, !sound_page);
+    UI_SetHidden(options->GameplayPanel, true);
+    UI_SetHidden(options->VideoPanel, true);
+    UI_SetHidden(options->SoundPanel, !sound_page);
+    UI_SetHidden(options->NetworkPanel, true);
+}
+
 static void MenuSelectOptionsPanel(menuOptionsPanel_t panel) {
-    (void)panel;
     UI_SetHidden(hud.menu.EscMenuMainPanel, false);
     UI_SetHidden(hud.menu.EscMenuBackdrop, false);
     UI_SetHidden(hud.menu.MainPanel, true);
@@ -465,9 +476,7 @@ static void MenuSelectOptionsPanel(menuOptionsPanel_t panel) {
     UI_SetHidden(hud.menu.TipsPanel, true);
     UI_SetHidden(hud.save_menu.EscMenuSaveGamePanel, true);
     UI_SetHidden(hud.options.EscMenuOptionsPanel, false);
-    UI_SetHidden(hud.options.GameplayPanel, true);
-    UI_SetHidden(hud.options.VideoPanel, true);
-    UI_SetHidden(hud.options.SoundPanel, false);
+    UI_SetGameMenuOptionsPage(&hud.options, panel == MENU_OPTIONS_SOUND);
 
     MenuSetOptionCheckBox(hud.options.SoundCheckBox, "s_sound", true);
     MenuSetOptionSlider(hud.options.SoundVolumeSlider, "s_volume", 1.0f);
@@ -514,5 +523,9 @@ void UI_ShowGameMenuLoad(edict_t *ent) {
 }
 
 void UI_ShowGameMenuOptions(edict_t *ent) {
+    MenuWriteOptions(ent, MENU_OPTIONS_CATEGORIES);
+}
+
+void UI_ShowGameMenuOptionsSound(edict_t *ent) {
     MenuWriteOptions(ent, MENU_OPTIONS_SOUND);
 }

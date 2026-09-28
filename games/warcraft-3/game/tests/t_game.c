@@ -984,6 +984,34 @@ TEST(wc3_game, hud_stock_escmenu_control_parts_map_to_skin_keys) {
     T_STREQ(UI_ControlHighlightSkin("EscMenuDisabledCheckHighlightTemplate"),
             "EscMenuDisabledCheckHighlight");
 }
+TEST(wc3_game, ingame_options_only_show_sound_after_selecting_sound) {
+    frameDef_t categories = { 0 }, gameplay = { 0 }, video = { 0 }, sound = { 0 };
+    frameDef_t network = { 0 }, bottom_buttons = { 0 };
+    EscMenuOptionsPanel_t options = {
+        .OptionsPanel = &categories,
+        .BottomButtonPanel = &bottom_buttons,
+        .GameplayPanel = &gameplay,
+        .VideoPanel = &video,
+        .SoundPanel = &sound,
+        .NetworkPanel = &network,
+    };
+
+    UI_SetGameMenuOptionsPage(&options, false);
+    T_ASSERT(!categories.hidden);
+    T_ASSERT(bottom_buttons.hidden);
+    T_ASSERT(gameplay.hidden);
+    T_ASSERT(video.hidden);
+    T_ASSERT(sound.hidden);
+    T_ASSERT(network.hidden);
+
+    UI_SetGameMenuOptionsPage(&options, true);
+    T_ASSERT(categories.hidden);
+    T_ASSERT(!bottom_buttons.hidden);
+    T_ASSERT(gameplay.hidden);
+    T_ASSERT(video.hidden);
+    T_ASSERT(!sound.hidden);
+    T_ASSERT(network.hidden);
+}
 TEST(wc3_game, hud_status_icon_keys_follow_upgrade_and_neutral_families) {
     char key[96];
 

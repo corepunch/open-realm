@@ -213,6 +213,8 @@ void UI_AlliesToggleVictory(edict_t *ent);
 void UI_AlliesAccept(edict_t *ent);
 void UI_AlliesCancel(edict_t *ent);
 void UI_ShowMainMenu(edict_t *ent);
+void UI_SetGameMenuOptionsPage(EscMenuOptionsPanel_t *options, bool sound_page);
+void UI_ShowGameMenuOptionsSound(edict_t *ent);
 void UI_ShowGameMenuEndGame(edict_t *ent);
 void UI_ShowGameMenuConfirmExit(edict_t *ent);
 void UI_ShowGameMenuOptions(edict_t *ent);

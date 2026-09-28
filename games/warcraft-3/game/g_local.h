@@ -2734,6 +2734,7 @@ cstring_t GetBuildCommand(unitRace_t);
 void UI_RenderRoute(edict_t *, cstring_t);
 void UI_ShowMainMenu(edict_t *);
 void UI_ShowGameMenuOptions(edict_t *);
+void UI_ShowGameMenuOptionsSound(edict_t *);
 void UI_ShowGameMenuEndGame(edict_t *);
 void UI_ShowGameMenuConfirmExit(edict_t *);
 void UI_ShowGameMenuSave(edict_t *);
