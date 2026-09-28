@@ -3649,7 +3649,10 @@ TEST(wc3_api, nonlooping_effect_stand_hides_without_invalidating_handle) {
         if (globals.edicts[i].inuse && globals.edicts[i].s.model == effect_model) effect = globals.edicts + i;
     T_NOT_NULL(effect);
     if (!effect) return;
-    for (int i = 0; i < 12 && effect->inuse; i++) M_MoveFrame(effect);
+    for (int i = 0; i < 12 && effect->think; i++) {
+        level.time += FRAMETIME;
+        G_RunEntities();
+    }
     T_ASSERT(effect->inuse);
     T_ASSERT(effect->s.renderfx & RF_HIDDEN);
     T_ASSERT(effect->aiflags & AI_HOLD_FRAME);
