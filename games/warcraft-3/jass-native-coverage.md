@@ -83,8 +83,9 @@ ledger. The effect module now has functional independent handles for
 `AddSpecialEffect*`, `AddSpellEffect*`, and `DestroyEffect`. The three weather
 effect callbacks now consume their arguments and own stable map-lifetime handles,
 so they are no longer placeholders; weather presentation remains partial where
-`Weather.slk` ambient sound/fog/UV details are not yet implemented. Target effects currently implement only
-the `overhead` attachment specially, and `LIGHTNING` spell effects remain
+`Weather.slk` ambient sound/fog details are not yet implemented; weather variation, latitude,
+head/tail composition, and authored head/tail UV curves are handled by the renderer. Target effects
+currently implement only the `overhead` attachment specially, and `LIGHTNING` spell effects remain
 unsupported, so those paths are partial rather than proof of full retail
 conformance. See [Ability, Buff, And Item Presentation Effects](ability-and-item-effects.md) and [Weather](weather.md).
 

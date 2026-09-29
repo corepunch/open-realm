@@ -118,6 +118,26 @@ static float R_WeatherRandom01(void) {
     return (float)(weather_rng & 0x00ffffffu) / 16777216.0f;
 }
 
+/* Weather latitude is the ParticleEmitter2-style cone around the authored base
+ * direction. Keep this renderer-local so cosmetic randomness never consumes
+ * gameplay RNG. */
+static vec3_t R_WeatherSpreadDirection(vec3_t const *axis, float latitude_degrees) {
+    float latitude = MAX(latitude_degrees, 0.0f) * WEATHER_DEG2RAD;
+    float theta = R_WeatherRandom01() * 6.28318530717958647692f;
+    float phi = R_WeatherRandom01() * latitude;
+    vec3_t reference = fabsf(axis->z) < 0.999f ? (vec3_t){ 0, 0, 1 } : (vec3_t){ 1, 0, 0 };
+    vec3_t tangent = Vector3_cross(&reference, axis);
+    vec3_t bitangent;
+    vec3_t spread;
+
+    Vector3_normalize(&tangent);
+    bitangent = Vector3_cross(axis, &tangent);
+    spread = Vector3_scale(axis, cosf(phi));
+    spread = Vector3_mad(&spread, sinf(phi) * cosf(theta), &tangent);
+    spread = Vector3_mad(&spread, sinf(phi) * sinf(theta), &bitangent);
+    return spread;
+}
+
 static renderWeatherEffect_t *R_WeatherFind(uint32_t handle) {
     FOR_LOOP(i, MAX_RENDER_WEATHER_EFFECTS)
         if (weather_effects[i].inuse && weather_effects[i].handle == handle) return weather_effects + i;
@@ -234,11 +254,27 @@ static uint8_t R_WeatherScale(float value) {
     return (uint8_t)MIN(MAX(encoded, 0), 255);
 }
 
+static BLEND_MODE R_WeatherBlendMode(uint32_t alpha_mode) {
+    /* Weather.slk uses Warcraft's public blendmode numbering from common.j:
+     * 0 none, 1 key alpha, 2 blend, 3 additive, 4 modulate, 5 modulate 2x.
+     * BLEND_MODE_ADDALPHA is an OpenRealm internal mode and has no Weather.slk value. */
+    switch (alpha_mode) {
+    case 0: return BLEND_MODE_NONE;
+    case 1: return BLEND_MODE_ALPHAKEY;
+    case 2: return BLEND_MODE_BLEND;
+    case 3: return BLEND_MODE_ADD;
+    case 4: return BLEND_MODE_MODULATE;
+    case 5: return BLEND_MODE_MODULATE_2X;
+    default: return BLEND_MODE_BLEND;
+    }
+}
+
 static void R_WeatherSpawn(renderWeatherEffect_t *effect, box2_t const *area) {
     w3WeatherArt_t const *art = effect->art;
-    cparticle_t *p;
+    cparticle_t *p, *tail_particle = NULL;
     float ax, ay, speed;
     vec3_t direction;
+    bool draw_head, draw_tail;
 
     if (!art || !area || art->lifespan <= 0.0f) return;
     p = R_SpawnParticle();
@@ -252,10 +288,10 @@ static void R_WeatherSpawn(renderWeatherEffect_t *effect, box2_t const *area) {
     ax = art->angleX * WEATHER_DEG2RAD;
     ay = art->angleY * WEATHER_DEG2RAD;
     direction = (vec3_t){ sinf(ay) * cosf(ax), -sinf(ax), cosf(ay) * cosf(ax) };
-    speed = art->velocity;
+    direction = R_WeatherSpreadDirection(&direction, art->latitude);
+    speed = art->velocity + (R_WeatherRandom01() - 0.5f) * art->variation;
     p->vel = Vector3_scale(&direction, speed);
     p->accel = Vector3_scale(&direction, art->acceleration);
-    p->tail = art->tail ? Vector3_scale(&p->vel, art->tailLength) : (vec3_t){0};
 
     p->color[0] = (color32_t){ R_WeatherByte(art->redStart), R_WeatherByte(art->greenStart), R_WeatherByte(art->blueStart), R_WeatherByte(art->alphaStart) };
     p->color[1] = (color32_t){ R_WeatherByte(art->redMid), R_WeatherByte(art->greenMid), R_WeatherByte(art->blueMid), R_WeatherByte(art->alphaMid) };
@@ -268,11 +304,36 @@ static void R_WeatherSpawn(renderWeatherEffect_t *effect, box2_t const *area) {
     p->midtime = (uint8_t)MIN(MAX((int32_t)lroundf(art->midTime * 255.0f), 1), 254);
     p->rows = (uint8_t)MIN(MAX(art->rows, 1u), 255u);
     p->columns = (uint8_t)MIN(MAX(art->columns, 1u), 255u);
-    /* Weather alphaMode is not the shared particle enum; until every legacy
-     * numeric mode is verified, regular alpha blending is the safe baseline. */
-    p->blend_mode = BLEND_MODE_BLEND;
+    p->use_uv_curve = true;
+    p->blend_mode = R_WeatherBlendMode(art->alphaMode);
     p->time = 0.0f;
     p->lifespan = art->lifespan;
+
+    draw_tail = art->tail;
+    draw_head = art->head || !draw_tail; /* preserve legacy fallback for malformed head=tail=0 rows */
+    if (draw_head) {
+        p->uv_start = (uint16_t)MIN(art->headUVStart, 0xffffu);
+        p->uv_mid = (uint16_t)MIN(art->headUVMid, 0xffffu);
+        p->uv_end = (uint16_t)MIN(art->headUVEnd, 0xffffu);
+    } else {
+        p->uv_start = (uint16_t)MIN(art->tailUVStart, 0xffffu);
+        p->uv_mid = (uint16_t)MIN(art->tailUVMid, 0xffffu);
+        p->uv_end = (uint16_t)MIN(art->tailUVEnd, 0xffffu);
+        p->tail = Vector3_scale(&p->vel, art->tailLength);
+    }
+
+    if (draw_head && draw_tail) {
+        tail_particle = R_SpawnParticle();
+        if (tail_particle) {
+            cparticle_t *next = tail_particle->next;
+            *tail_particle = *p;
+            tail_particle->next = next;
+            tail_particle->uv_start = (uint16_t)MIN(art->tailUVStart, 0xffffu);
+            tail_particle->uv_mid = (uint16_t)MIN(art->tailUVMid, 0xffffu);
+            tail_particle->uv_end = (uint16_t)MIN(art->tailUVEnd, 0xffffu);
+            tail_particle->tail = Vector3_scale(&tail_particle->vel, art->tailLength);
+        }
+    }
 }
 
 void R_WeatherEmit(void) {

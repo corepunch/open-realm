@@ -1349,6 +1349,24 @@ TEST(renderer_shader, world_particles_support_pre2_modulate_filter_modes) {
     T_ASSERT(modulate); T_ASSERT(modulate2x); T_ASSERT(alpha_key_state);
 }
 
+/* Weather.slk alphaMode uses Warcraft's public blendmode numbering, not OpenRealm's internal enum ordinal. */
+TEST(renderer_shader, wc3_weather_maps_authored_alpha_modes) {
+    FILE *file = fopen("games/warcraft-3/renderer/r_weather.c", "rb");
+    char line[256];
+    bool keyalpha = false, blend = false, additive = false, modulate = false, modulate2x = false;
+
+    T_NOT_NULL(file);
+    while (file && fgets(line, sizeof(line), file)) {
+        if (strstr(line, "case 1: return BLEND_MODE_ALPHAKEY;")) keyalpha = true;
+        if (strstr(line, "case 2: return BLEND_MODE_BLEND;")) blend = true;
+        if (strstr(line, "case 3: return BLEND_MODE_ADD;")) additive = true;
+        if (strstr(line, "case 4: return BLEND_MODE_MODULATE;")) modulate = true;
+        if (strstr(line, "case 5: return BLEND_MODE_MODULATE_2X;")) modulate2x = true;
+    }
+    if (file) fclose(file);
+    T_ASSERT(keyalpha); T_ASSERT(blend); T_ASSERT(additive); T_ASSERT(modulate); T_ASSERT(modulate2x);
+}
+
 /* WC3 waterfalls are PRE2-only MDX models, so their shared particle shader must consume the world FOW mask. */
 TEST(renderer_shader, world_particles_sample_fog_of_war) {
     FILE *file = fopen("renderer/r_particles.c", "rb");
