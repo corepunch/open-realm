@@ -117,13 +117,27 @@ float S_EarthquakeMoveReduction(edict_t const *unit) {
     return MIN(1.0f, MAX(0.0f, S_SpellData(ID_EARTHQUAKE, level, 3)));
 }
 
-static edict_t *spell_begin_area_presentation(edict_t *owner, uint32_t code, vec2_t const *point) {
+static uint32_t spell_effect_code(uint32_t code, uint32_t level) {
+    cstring_t effect_id = G_AbilityLevel(code, level)->efctID;
+    return effect_id && strlen(effect_id) >= 4 ? FS_SLKKey(effect_id) : code;
+}
+
+static edict_t *spell_begin_area_presentation(edict_t *owner, uint32_t code, uint32_t level,
+                                               vec2_t const *point) {
     edict_t *effect;
+    uint32_t effect_code = spell_effect_code(code, level);
     int loop_sound;
-    G_PlayAbilityEffectSound(code, point);
+    if (G_AbilityEffectSoundIndex(code, false)) G_PlayAbilityEffectSound(code, point);
+    else if (effect_code != code) G_PlayAbilityEffectSound(effect_code, point);
     effect = G_SpawnOwnedAbilityEffectAtPoint(owner, code, WC3_EFFECT_AREA_EFFECT, 0, point);
     if (!effect) effect = G_SpawnOwnedAbilityEffectAtPoint(owner, code, WC3_EFFECT_EFFECT, 0, point);
+    if (!effect && effect_code != code)
+        effect = G_SpawnOwnedAbilityEffectAtPoint(owner, effect_code, WC3_EFFECT_AREA_EFFECT, 0, point);
+    if (!effect && effect_code != code)
+        effect = G_SpawnOwnedAbilityEffectAtPoint(owner, effect_code, WC3_EFFECT_EFFECT, 0, point);
     loop_sound = G_AbilityEffectSoundIndex(code, true);
+    if (!loop_sound && effect_code != code)
+        loop_sound = G_AbilityEffectSoundIndex(effect_code, true);
     if (effect && loop_sound) effect->s.sound = (uint16_t)loop_sound;
     return effect;
 }
@@ -907,7 +921,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityEarthquake) {
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f);
     thinker->freetime = G_Time() + (uint32_t)(MAX(0.0f, S_SpellData(spell->code, level, 1)) * 1000.0f);
     thinker->think = earthquake_think;
-    spell_begin_area_presentation(thinker, spell->code, &st.point);
+    spell_begin_area_presentation(thinker, spell->code, level, &st.point);
     earthquake_think(thinker);
 }
 /* Name=Far Sight
@@ -922,7 +936,7 @@ BZ_SIMPLE_SPELL_PROC(AbilityFarSight) {
     thinker->collision = S_SpellNumber(spell->code, ABILITY_NUMBER_AREA, level);
     thinker->spawn_time = G_Time() + (uint32_t)(S_SpellDuration(spell->code, level, false) * 1000.0f);
     thinker->think = far_sight_think;
-    spell_begin_area_presentation(thinker, spell->code, &st.point);
+    spell_begin_area_presentation(thinker, spell->code, level, &st.point);
     far_sight_think(thinker);
 }
 /* Resurrection operates on nearby ordinary corpses; Heroes retain their separate altar revival lifecycle. */

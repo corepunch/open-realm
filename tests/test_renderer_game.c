@@ -28,6 +28,28 @@ static color32_t test_splat_color;
 static vec2_t test_splat_uv_mins, test_splat_uv_maxs;
 static texture_t test_splat_texture;
 
+TEST(renderer_game, null_splat_sound_is_treated_as_an_empty_optional_field) {
+    wc3SplatData_t splat = { .name = "EmptySplat", .blend_mode = "0", .sound = "NULL" };
+    wc3UberSplatData_t uber = { .name = "EmptyUber", .blend_mode = "0", .sound = "NULL" };
+
+    R_W3WarnUnsupportedSplatFields(&splat);
+    R_W3WarnUnsupportedUberSplatFields(&uber);
+    T_ASSERT(!splat.unsupported_warned);
+    T_ASSERT(!uber.unsupported_warned);
+}
+
+TEST(renderer_game, splat_atlas_rejects_overflowing_dimensions) {
+    wc3SplatData_t splat = { .name = "InvalidAtlas", .rows = INT_MAX, .columns = 2 };
+
+    T_ASSERT(!R_W3SplatAtlasValid(&splat));
+    T_ASSERT(splat.atlas_warned);
+}
+
+TEST(renderer_game, splat_atlas_frame_handles_full_signed_range) {
+    T_EQ(R_W3SplatAtlasFrame(INT_MIN, INT_MAX, 1.0f), INT_MAX);
+    T_EQ(R_W3SplatAtlasFrame(INT_MAX, INT_MIN, 1.0f), INT_MIN);
+}
+
 static handle_t test_renderer_alloc(long size) { return calloc(1, (size_t)size); }
 static void test_renderer_free(handle_t ptr) { free(ptr); }
 

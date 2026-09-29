@@ -8,6 +8,7 @@
 #include "common/stb_slk.h"
 #include "games/warcraft-3/common/minimap_render.h"
 #include <ctype.h>
+#include <limits.h>
 #include <math.h>
 
 void _W3M_RegisterMap(cstring_t mapFileName);
@@ -145,7 +146,7 @@ typedef struct {
     int water;
     cstring_t sound;
     texture_t const *texture;
-    bool texture_attempted, unsupported_warned;
+    bool texture_attempted, unsupported_warned, atlas_warned;
 } wc3SplatData_t;
 typedef struct {
     cstring_t name;
@@ -551,6 +552,10 @@ static texture_t const *R_W3SplatTexture(wc3SplatData_t *row) {
         .texture = &row->texture, .attempted = &row->texture_attempted));
 }
 
+static bool R_W3SplatHasSound(cstring_t sound) {
+    return sound && sound[0] && strcasecmp(sound, "NULL") && strcmp(sound, "-") && strcmp(sound, "_");
+}
+
 /* TODO: Repeat counts, non-default blend modes, water placement, and row sounds
  * need verified retail contracts. Preserve them and warn once instead of silently
  * pretending the implemented atlas/lifetime subset is complete. */
@@ -560,7 +565,7 @@ static void R_W3WarnUnsupportedSplatFields(wc3SplatData_t *row) {
     if (!row || row->unsupported_warned) return;
     unsupported_blend = row->blend_mode && row->blend_mode[0] && strcmp(row->blend_mode, "0");
     if (!row->lifespan_repeat && !row->decay_repeat && !row->water &&
-        (!row->sound || !row->sound[0]) && !unsupported_blend) return;
+        !R_W3SplatHasSound(row->sound) && !unsupported_blend) return;
     row->unsupported_warned = true;
     fprintf(stderr, "WC3 renderer: SplatData '%s' uses unsupported retained fields\n",
             row->name ? row->name : "(unnamed)");
@@ -608,7 +613,7 @@ static void R_W3WarnUnsupportedUberSplatFields(wc3UberSplatData_t *row) {
 
     if (!row || row->unsupported_warned) return;
     unsupported_blend = row->blend_mode && row->blend_mode[0] && strcmp(row->blend_mode, "0");
-    if ((!row->sound || !row->sound[0]) && !unsupported_blend) return;
+    if (!R_W3SplatHasSound(row->sound) && !unsupported_blend) return;
     row->unsupported_warned = true;
     fprintf(stderr, "WC3 renderer: UberSplatData '%s' uses unsupported BlendMode/Sound fields\n",
             row->name ? row->name : "(unnamed)");
@@ -1404,21 +1409,37 @@ static color32_t R_W3LerpSplatColor(color32_t a, color32_t b, float t) {
 
 /* Convert normalized phase progress into the authored inclusive atlas-frame range, including reverse ranges. */
 static int R_W3SplatAtlasFrame(int start, int end, float progress) {
-    int lo = MIN(start, end), hi = MAX(start, end);
-    int count = hi - lo + 1;
-    int step;
+    int64_t lo = MIN(start, end), hi = MAX(start, end);
+    int64_t count = hi - lo + 1;
+    int64_t step;
     if (count <= 1) return start;
     progress = MAX(0.0f, MIN(1.0f, progress));
-    step = MIN(count - 1, (int)floorf(progress * (float)count));
-    return start <= end ? start + step : start - step;
+    step = MIN(count - 1, (int64_t)floor((double)progress * (double)count));
+    return (int)(start <= end ? (int64_t)start + step : (int64_t)start - step);
+}
+
+static bool R_W3SplatAtlasValid(wc3SplatData_t *row) {
+    int64_t frame_count;
+
+    if (!row || row->rows <= 0 || row->columns <= 0) goto invalid;
+    frame_count = (int64_t)row->rows * row->columns;
+    if (frame_count <= INT_MAX) return true;
+
+invalid:
+    if (row && !row->atlas_warned) {
+        row->atlas_warned = true;
+        fprintf(stderr, "WC3 renderer: SplatData '%s' has invalid atlas dimensions %d x %d\n",
+                row->name ? row->name : "(unnamed)", row->rows, row->columns);
+    }
+    return false;
 }
 
 /* Map one clamped atlas frame to the UV rectangle consumed by the terrain splat renderer. */
 static wc3SplatUV_t R_W3SplatAtlasUV(wc3SplatData_t const *row, int frame) {
-    int rows = MAX(1, row ? row->rows : 1), columns = MAX(1, row ? row->columns : 1);
-    int total = rows * columns;
-    int index = total > 0 ? MAX(0, MIN(total - 1, frame)) : 0;
-    int column = index % columns, atlas_row = index / columns;
+    int rows = row->rows, columns = row->columns;
+    int64_t total = (int64_t)rows * columns;
+    int64_t index = MAX(0, MIN(total - 1, frame));
+    int column = (int)(index % columns), atlas_row = (int)(index / columns);
     float inv_columns = 1.0f / (float)columns, inv_rows = 1.0f / (float)rows;
     return MAKE(wc3SplatUV_t,
         .mins = MAKE(vec2_t, column * inv_columns, atlas_row * inv_rows),
@@ -1440,6 +1461,7 @@ static void R_W3EmitSplatEvent(wc3EventParams_t const *params) {
         fprintf(stderr, "WC3 renderer: MDX %s event '%s' has no SplatData row\n", params->family->prefix, id);
         return;
     }
+    if (!R_W3SplatAtlasValid(row)) return;
     if (row->scale <= 0.0f) {
         fprintf(stderr, "WC3 renderer: SplatData '%s' has invalid scale %.3f\n", id, row->scale);
         return;
