@@ -359,7 +359,6 @@ void R_WeatherEmit(void) {
         emit_count = (uint32_t)effect->emission_accum;
         effect->emission_accum -= (float)emit_count;
         live_count = R_CountParticlesForEmitter(effect->handle);
-        /* TODO: particles is the authored live-particle limit; the old path used only the global pool. */
         uint32_t available = live_count < art->particles ? art->particles - live_count : 0;
         emit_count = MIN(emit_count, available);
         while (emit_count--) {
