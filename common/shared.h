@@ -1341,6 +1341,10 @@ typedef struct particle_s {
     uint8_t columns;
     uint8_t rows;
     uint8_t blend_mode;
+    uint16_t uv_start;  /* optional atlas frame curve; disabled unless use_uv_curve is set */
+    uint16_t uv_mid;
+    uint16_t uv_end;
+    bool use_uv_curve;
     float size_value_scale;
     float size_time_scale;
     float time;

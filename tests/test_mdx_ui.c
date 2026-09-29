@@ -33,6 +33,33 @@ void MDLX_GetModelKeytrackValue(mdxModel_t const *model, mdxKeyTrack_t const *tr
     (void)model; (void)track; (void)time; (void)out; T_ASSERT(false);
 }
 
+TEST(mdx_ui, particle_uv_curve_uses_start_mid_end_frames) {
+    cparticle_t p = {
+        .columns = 4, .rows = 2, .lifespan = 1.0f, .midtime = 128,
+        .use_uv_curve = true, .uv_start = 1, .uv_mid = 5, .uv_end = 7,
+    };
+    color32_t uv;
+
+    p.time = 0.0f;
+    uv = FX_GetFrame(&p);
+    T_EQ(uv.r, 64); T_EQ(uv.g, 0); T_EQ(uv.b, 127); T_EQ(uv.a, 127);
+
+    p.time = BYTE2FLOAT(p.midtime);
+    uv = FX_GetFrame(&p);
+    T_EQ(uv.r, 64); T_EQ(uv.g, 128); T_EQ(uv.b, 127); T_EQ(uv.a, 255);
+
+    p.time = 1.0f;
+    uv = FX_GetFrame(&p);
+    T_EQ(uv.r, 192); T_EQ(uv.g, 128); T_EQ(uv.b, 255); T_EQ(uv.a, 255);
+}
+
+TEST(mdx_ui, particle_uv_default_still_advances_over_lifetime) {
+    cparticle_t p = { .columns = 4, .rows = 1, .lifespan = 1.0f, .time = 0.5f };
+    color32_t uv = FX_GetFrame(&p);
+
+    T_EQ(uv.r, 128); T_EQ(uv.g, 0); T_EQ(uv.b, 191); T_EQ(uv.a, 255);
+}
+
 TEST(mdx_ui, sprite_clock_and_particle_scenes_are_isolated) {
     mdxSequence_t seq = { .name = "Stand", .interval = {833, 2500} };
     mdxParticleEmitter_t emitter = {0};

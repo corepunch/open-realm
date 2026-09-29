@@ -106,19 +106,30 @@ deltaTime`, so particle creation is frame-rate independent without inventing a
 region-area multiplier.
 
 Spawn height is terrain height plus the authored `height`.  `angx`/`angy` rotate
-the base vertical direction, `veloc` supplies signed speed, and `accel` changes
-speed along that direction.  Weather uses renderer-local xorshift state rather
-than gameplay RNG.
+the base vertical direction, `veloc` supplies signed speed, `var` applies the
+same symmetric per-particle speed variation used by WC3 ParticleEmitter2, and
+`lati` spreads each particle inside a cone around that authored direction.
+`accel` changes speed along the selected particle direction.  Weather uses
+renderer-local xorshift state rather than gameplay RNG.
 
-The shared particle representation now has an optional generic world-space
-`tail` vector.  A zero vector keeps the old camera-facing billboard path.  A
-non-zero vector renders a camera-facing quad from `position - tail` to
-`position`; WC3 weather sets that vector from `velocity * taillen`.  This keeps
-rain streak support game-neutral and leaves existing MDX/WoW particle callers
-unchanged.
+The shared particle representation has an optional generic world-space `tail`
+vector.  A zero vector keeps the camera-facing billboard path.  A non-zero
+vector renders a camera-facing quad from `position - tail` to `position`; WC3
+weather sets that vector from `velocity * taillen`.  `head=1`, `tail=1` now
+creates both primitives from the same spawned weather particle state instead of
+discarding the authored head.
 
 Start/mid/end RGB/alpha and scale reuse the shared particle interpolation.
-Texture rows/columns reuse the existing lifetime atlas path.
+Weather also supplies separate head/tail `hUV*` / `tUV*` atlas-frame curves,
+interpolated across the same authored `midTime`; ordinary shared particles keep
+the existing full-lifetime atlas animation unless they opt into that curve.
+
+`alphaMode` uses Warcraft's public blend-mode numbering: `0` none, `1` key
+alpha, `2` blend, `3` additive, `4` modulate, and `5` modulate 2x.  The renderer
+maps those authored values explicitly instead of casting to OpenRealm's internal
+blend enum, which contains an extra `ADDALPHA` value.  Shipped heavy Ashenvale
+rain (`RAhr`) authors `alphaMode=1`, so its `rainTail` particles use alpha-key
+rendering rather than ordinary alpha blending.
 
 ## Lifecycle And Networking
 
@@ -146,17 +157,12 @@ networked state.
 The initial renderer intentionally does **not** guess behavior that was not
 confirmed strongly enough:
 
-- `Weather.slk` numeric `alphaMode` is parsed but the first implementation uses
-  normal alpha blending for weather particles until the complete mode mapping
-  is verified;
 - `useFog` is parsed but is not mapped to a new weather-specific fog policy;
   the existing shared particle FOW behavior remains unchanged;
 - `particles` is parsed but not yet enforced as a per-weather-system live
   particle cap; the shared renderer pool remains the hard global bound;
-- `var`, `lati`, `long`, and the explicit head/tail UV start/mid/end fields are
-  parsed but not yet used because their exact legacy transforms are not verified;
-- combined `head=1` + `tail=1` weather currently uses the tail primitive rather
-  than drawing a second independent head primitive;
+- `long` is parsed but not yet used because its exact legacy emitter-extent
+  transform is not verified;
 - `AmbientSound` is parsed but weather ambient audio is not yet wired through
   `AmbienceSounds.slk`;
 - the camera-local emission window is a bounded renderer performance policy;
@@ -187,7 +193,10 @@ For visual verification, use a map with shipped heavy/light rain and test:
 2. a rectangular weather region while panning across its edge;
 3. JASS create -> enable -> disable -> re-enable -> remove;
 4. a map-imported `TerrainArt\Weather.slk`/rain texture override;
-5. different frame rates to confirm emission speed/density remains stable.
+5. different frame rates to confirm emission speed/density remains stable;
+6. a custom `Weather.slk` row with non-zero `var`/`lati` and distinct head/tail
+   UV stages, including `head=1,tail=1`, to confirm the two primitives share
+   motion while selecting their independent atlas curves.
 
 Do not add weather debug logging to do this; use the authored-map cases above
 as the acceptance checks.
