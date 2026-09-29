@@ -29,7 +29,8 @@ sbx env run
 ```
 
 The default environment installs the normal OpenRealm build/debug dependencies,
-radare2, and the Xvfb packages used for headless campaign runs. To include the
+radare2, Wine, Ghidra, Frida, and the Xvfb packages used for headless campaign
+runs. The toolkit versions and setup commands are listed below. To include the
 optional FFmpeg development libraries as well:
 
 ```sh
@@ -88,6 +89,37 @@ rabin2 -v
 The installed version was radare2 6.0.7. APT additionally installed the
 radare2 libraries and supporting packages such as Capstone, libmagic, libzip,
 liblz4, and xxHash development files.
+
+## Wine, Ghidra, and Frida
+
+The `openrealm-dev` mixin enables i386 packages and installs `wine`, `wine64`,
+and `libwine:i386` so the 32-bit retail Warcraft III executable can run under
+Wine. It installs OpenJDK 21 for Ghidra and creates `/opt/openrealm-tools` with
+Ghidra 12.1.4 and a Frida virtual environment containing Frida 17.19.0 and
+`frida-tools` 14.10.4. The Ghidra archive and Windows Frida server archive are
+SHA-256 checked in `tools/docker-sandbox/openrealm-dev/spec.yaml` before use.
+
+The mixin adds these commands to `PATH`:
+
+```sh
+wine --version
+ghidra
+frida --version
+frida-ps --help
+```
+
+For a local Frida server attached to a Wine-hosted game, start the bundled
+Windows server under Wine (the example binds only to localhost):
+
+```sh
+WINEPREFIX="$HOME/.local/share/open-realm/wine-wc3" \
+  wine /opt/openrealm-tools/frida-server.exe --listen=127.0.0.1:27043
+```
+
+The Frida scripts under `tools/frida/` use that endpoint by default. Their
+controllers check the retail executable SHA-256 and bound trace duration; the
+weather workflows and their evidence limits are documented in
+[`docs/games/warcraft-3/weather.md`](games/warcraft-3/weather.md).
 
 ## Project build verification
 
@@ -211,5 +243,7 @@ so that plugin is not part of this sandbox setup.
 ## Not included
 
 - `r2ghidra`: optional, not available as an Ubuntu 26.04 package.
+- The mixin-installed Ghidra is separate from radare2's optional `r2ghidra`
+  plugin; it does not add `pdg` support to `r2`.
 - FFmpeg development packages: only needed for the optional `FFMPEG=1`
   Warcraft III movie/audio build path, not the default build; see above.
