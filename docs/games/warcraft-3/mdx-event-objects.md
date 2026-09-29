@@ -130,7 +130,59 @@ allowing cyclic custom assets to recurse indefinitely.
 
 ## Remaining event-data gaps
 
-All Classic `SND`, `SPN`, `SPL`, `FPT`, and `UBR` event families now have runtime consumers.  The remaining SplatData gaps are limited to the still-unverified `LifespanRepeat` / `UVDecayRepeat`, `BlendMode`, `Water`, and `Sound` semantics.  Those fields stay parsed so later retail validation can extend the same consumer without changing its data ownership.
+The retail archives contain models using all five Classic event families.  Their
+current consumers implement the common sound, child-model, terrain-decal, and
+UberSplat paths, but this is not full retail parity.  The gaps below distinguish
+data that is parsed and retained from behavior that is actually rendered.
+
+### ParticleEmitter1 (`PREM`)
+
+Retail MDX files contain top-level `PREM` chunks.  The loader parses emitter
+records and their `KPEE`, `KPEG`, `KPLN`, `KPLT`, `KPEL`, `KPES`, and `KPEV`
+tracks, registers emitter nodes with the model, and releases the owned data with
+the model.  **No ParticleEmitter1 particles are emitted or drawn.** Loading a
+model with `PREM` therefore produces a bounded warning; the retained records
+are not a visual fallback.
+
+The missing runtime work includes sampling animated emitter properties,
+generating particles over time, resolving `EmitterUsesMDL` versus
+`EmitterUsesTGA`, and matching authored local directions to the renderer's
+coordinate axes. These semantics have not been established sufficiently to
+implement them by analogy with `PRE2`; this document does not claim that the
+two emitter formats are interchangeable. Until validated against stock output,
+models whose appearance depends on `PREM` will be missing those particles.
+
+### `SPL` / `FPT` SplatData fields
+
+`SPL` and `FPT` currently use atlas frames and Start/Middle/End colors for one
+life phase followed by one decay phase. `LifespanRepeat` and `UVDecayRepeat`
+are parsed but not applied; retail repeat-count and frame-wrap behavior remains
+unknown. `BlendMode`, `Water`, and `Sound` are also parsed, but this event path
+does not implement their blend, water-surface, or audio behavior. Non-default
+values on a used row produce one bounded warning rather than being presented as
+supported.
+
+### `UBR` UberSplatData fields
+
+The event path applies `Scale`, `BirthTime`, `PauseTime`, `Decay`, and the
+Start/Middle/End colors through the renderer's existing alpha-blended terrain
+splat primitive. `BlendMode` and `Sound` are parsed but not interpreted by this
+consumer. Non-default values produce one bounded warning. Other retail blend
+modes and the row's optional sound behavior remain unverified.
+
+### Event families and dispatch limits
+
+The `SND`, `SPN`, `SPL`, `FPT`, and `UBR` prefixes all have consumers, but
+unknown event prefixes are ignored. Nested child models dispatch these same
+families only up to the renderer's four-level `SPN` nesting limit. Events from
+deeper children are suppressed for safety. This is a renderer limit, not a
+verified Warcraft limit.
+
+The `EVTS` chunk and its key records are parsed. This commit did not introduce
+that base parser; it extended runtime dispatch to additional event families and
+added the separate `PREM` record parser. The `PREM` parser is used to retain
+stock model data, but it currently does not provide the corresponding visual
+runtime behavior.
 
 ## Verification
 
