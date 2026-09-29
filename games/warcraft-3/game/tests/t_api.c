@@ -1722,8 +1722,9 @@ TEST(wc3_api, timed_camera_pan_with_z_interpolates_target_height) {
         "function main takes nothing returns nothing\n"
         "  call PanCameraToTimedWithZ(200.0, 300.0, 400.0, 2.0)\n"
         "endfunction\n"));
-    T_FEQ(gc->camera.state.position.x, 200.0f, 0.001f);
-    T_FEQ(gc->camera.state.position.y, 300.0f, 0.001f);
+    T_ASSERT(gc->camera.pan_active);
+    T_FEQ(gc->camera.pan_destination.x, 200.0f, 0.001f);
+    T_FEQ(gc->camera.pan_destination.y, 300.0f, 0.001f);
     T_FEQ(gc->camera.state.z_offset, 400.0f, 0.001f);
     T_EQ(gc->camera.start_time, 100);
     T_EQ(gc->camera.end_time, 2100);
@@ -1782,6 +1783,69 @@ TEST(wc3_api, camera_orient_controller_keeps_source_fixed_while_tracking_unit) {
         "endfunction\n"));
     T_NULL(gc->camera.target_controller);
     T_ASSERT(!gc->camera.target_orient_only);
+    currentplayer = NULL;
+}
+
+TEST(wc3_api, untimed_camera_pan_uses_authored_forward_and_strafe_rates) {
+    gameClient_t *gc = &game.clients[0];
+
+    gc->ps.number = 0;
+    gc->camera.state.position = MAKE(vec2_t, 0.0f, 0.0f);
+    gc->camera.old_state = gc->camera.state;
+    gc->camera.target_height = G_MakeServerOrigin(0.0f, 0.0f, 0.0f).z;
+    G_ClearCameraPan(gc);
+    level.time = 100;
+    currentplayer = &gc->ps;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  call PanCameraTo(200.0, 400.0)\n"
+        "endfunction\n"));
+    T_ASSERT(gc->camera.pan_active);
+    T_FEQ(gc->camera.pan_rate.x, 100.0f, 0.001f);
+    T_FEQ(gc->camera.pan_rate.y, 200.0f, 0.001f);
+
+    level.time = 1100;
+    G_RunClients();
+    T_FEQ(gc->ps.vieworigin.x, 100.0f, 0.001f);
+    T_FEQ(gc->ps.vieworigin.y, 200.0f, 0.001f);
+    T_ASSERT(gc->camera.pan_active);
+
+    level.time = 2100;
+    G_RunClients();
+    T_FEQ(gc->ps.vieworigin.x, 200.0f, 0.001f);
+    T_FEQ(gc->ps.vieworigin.y, 400.0f, 0.001f);
+    T_ASSERT(!gc->camera.pan_active);
+    T_FEQ(gc->camera.state.position.x, 200.0f, 0.001f);
+    T_FEQ(gc->camera.state.position.y, 400.0f, 0.001f);
+    currentplayer = NULL;
+}
+
+TEST(wc3_api, camera_setup_pantimed_uses_normal_pan_rates) {
+    gameClient_t *gc = &game.clients[0];
+
+    gc->ps.number = 0;
+    gc->camera.state.position = MAKE(vec2_t, 0.0f, 0.0f);
+    gc->camera.old_state = gc->camera.state;
+    gc->camera.target_height = G_MakeServerOrigin(0.0f, 0.0f, 0.0f).z;
+    G_ClearCameraPan(gc);
+    level.time = 100;
+    currentplayer = &gc->ps;
+
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        "  local camerasetup c = CreateCameraSetup()\n"
+        "  call CameraSetupSetDestPosition(c, 200.0, 400.0, 0.0)\n"
+        "  call CameraSetupApply(c, true, true)\n"
+        "endfunction\n"));
+    T_ASSERT(gc->camera.pan_active);
+    T_FEQ(gc->camera.pan_destination.x, 200.0f, 0.001f);
+    T_FEQ(gc->camera.pan_destination.y, 400.0f, 0.001f);
+
+    level.time = 1100;
+    G_RunClients();
+    T_FEQ(gc->ps.vieworigin.x, 100.0f, 0.001f);
+    T_FEQ(gc->ps.vieworigin.y, 200.0f, 0.001f);
     currentplayer = NULL;
 }
 

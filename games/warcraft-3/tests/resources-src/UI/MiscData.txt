@@ -1,2 +1,6 @@
 [QuestIndicatorTimeout]
 QuestIndicatorTimeout=10
+
+[CameraRates]
+Strafe=100
+Forward=200

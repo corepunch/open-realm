@@ -2903,6 +2903,7 @@ void G_ClientSetCameraPosition(edict_t *ent, vec2_t const *position) {
         return;
     clamped = G_ClampCameraPosition(ent->client, position);
     G_ClearCameraTarget(ent->client, "G_ClientSetCameraPosition");
+    G_ClearCameraPan(ent->client);
     ent->client->camera.target_height = ent->client->ps.vieworigin.z;
     ent->client->camera.old_state = ent->client->camera.state;
     ent->client->camera.state.position = clamped;
