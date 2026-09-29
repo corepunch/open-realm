@@ -127,7 +127,7 @@ static void SV_ProcessPacket(netadr_t *from, sizeBuf_t *net_message, int r) {
         }
     }
     client_t *client = SV_FindClientByAddr(from);
-    if (client) {
+    if (client && client->state != cs_zombie && client->state != cs_free) {
         SV_ParseClientMessage(net_message, client);
     }
 }
@@ -274,6 +274,7 @@ void SV_SetPaused(bool paused) {
  * authoritative simulation is paused. */
 void SV_Frame(uint32_t msec) {
     svs.realtime += msec;
+    SV_ReapZombieClients();
     SV_ReadPackets();
 
     if (sv.state == ss_lobby) {
