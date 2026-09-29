@@ -196,18 +196,31 @@ void CL_ParseTEnt(sizeBuf_t *msg) {
             break;
         case TE_TERRAIN_DEFORM:
             {
+                static uint32_t terrain_deformation_log_count;
                 terrainDeform_t deformation = { 0 };
                 uint32_t flags;
+                int32_t duration_ms, count, update_ms;
                 deformation.id = (uint32_t)MSG_ReadLong(msg);
                 deformation.type = (terrainDeformType_t)MSG_ReadByte(msg);
                 FOR_LOOP(i, sizeof(deformation.data) / sizeof(deformation.data[0]))
                     deformation.data[i] = MSG_ReadFloat(msg);
-                deformation.duration_ms = (uint32_t)MAX(0, MSG_ReadLong(msg));
-                deformation.count = (uint32_t)MAX(0, MSG_ReadLong(msg));
-                deformation.update_ms = (uint32_t)MAX(0, MSG_ReadLong(msg));
+                duration_ms = MSG_ReadLong(msg);
+                count = MSG_ReadLong(msg);
+                update_ms = MSG_ReadLong(msg);
+                deformation.duration_ms = (uint32_t)MAX(0, duration_ms);
+                deformation.count = (uint32_t)MAX(0, count);
+                deformation.update_ms = (uint32_t)MAX(0, update_ms);
                 flags = (uint32_t)MSG_ReadByte(msg);
                 deformation.permanent = !!(flags & 1u);
                 deformation.limit_negative = !!(flags & 2u);
+                if (terrain_deformation_log_count < 8) {
+                    fprintf(stderr, "Client terrain deformation receive id=%u type=%u center=(%.1f,%.1f) "
+                            "radius=%.1f delta=[%.1f,%.1f] duration=%u update=%u\n", deformation.id,
+                            (unsigned)deformation.type, deformation.data[0], deformation.data[1],
+                            deformation.data[2], deformation.data[3], deformation.data[4],
+                            deformation.duration_ms, deformation.update_ms);
+                    terrain_deformation_log_count++;
+                }
                 if (deformation.id && deformation.type <= TERRAIN_DEFORM_RANDOM && re.StartTerrainDeformation)
                     re.StartTerrainDeformation(&deformation);
             }
