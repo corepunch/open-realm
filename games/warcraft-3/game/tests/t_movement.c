@@ -79,6 +79,7 @@ static edict_t *make_harvest_tree(float x, float y, float life) {
 static UnitAbilities_t const harvest_abilities = { .abilList = "Ahar" };
 static UnitAbilities_t const ghoul_harvest_abilities = { .abilList = "Ahrl" };
 static UnitAbilities_t const wisp_harvest_abilities = { .abilList = "Awha" };
+static UnitProfile_t const wisp_rally_producer_profile = { .trains = "ewsp" };
 static UnitAbilities_t const return_gold_lumber_abilities = { .abilList = "Argl" };
 static UnitAbilities_t const return_lumber_abilities = { .abilList = "Arlm" };
 
@@ -404,6 +405,8 @@ static const char slk_racial_goldmine_test_data[] =
     "C;Y1;X13;K\"UnitID1\"\n"
     "C;Y1;X14;K\"isbldg\"\n"
     "C;Y1;X15;K\"alias\"\n"
+    "C;Y1;X16;K\"Dur1\"\n"
+    "C;Y1;X17;K\"HeroDur1\"\n"
     "C;Y2;X1;K\"Agld\"\n"
     "C;Y2;X2;K\"Agld\"\n"
     "C;Y3;X1;K\"Aaha\"\n"
@@ -430,6 +433,10 @@ static const char slk_racial_goldmine_test_data[] =
     "C;Y8;X13;K\"hbar\"\n"
     "C;Y8;X14;K1\n"
     "C;Y8;X15;K\"Aent\"\n"
+    "C;Y9;X1;K\"Aro1\"\n"
+    "C;Y9;X2;K\"Aro1\"\n"
+    "C;Y9;X16;K1\n"
+    "C;Y9;X17;K1\n"
     "E\n";
 
 static UnitAbilities_t const test_haunted_mine = { .abilList = "Abgm" };
@@ -4161,6 +4168,343 @@ static bool movement_issue_entangle_command(edict_t *clent, gameClient_t *client
     if (!CAbilityEntangle(caster, A_COMMAND, &call) || !client->menu.on_entity_selected)
         return false;
     return client->menu.on_entity_selected(clent, parent);
+}
+
+static void movement_prepare_rooted_entangle_caster(edict_t *caster, uint32_t player) {
+    uint32_t const entangle = MAKEFOURCC('A','e','n','t');
+    uint32_t const root = MAKEFOURCC('A','r','o','1');
+    caster->s.player = player;
+    caster->data.UnitAbilities = &test_entangle_caster;
+    G_ActorAddSkill(caster, entangle);
+    G_ActorAddSkill(caster, root);
+    caster->ancient_root.ability = root;
+    caster->ancient_root.mode = ANCIENT_ROOTED;
+    caster->s.flags |= EF_BUILDING;
+    caster->aiflags |= AI_IMMOBILE;
+    caster->runtime.flags |= UNIT_BALANCE_BUILDING;
+}
+
+TEST(wc3_movement, entangleinstant_target_order_creates_completed_overlay) {
+    edict_t *caster, *parent, *overlay;
+    slkTestData_t *rows, *old_abilities;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 0.0f, 0.0f);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
+    movement_prepare_rooted_entangle_caster(caster, 0);
+    parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    setup_test_goldmine(parent, &test_goldmine_stock, 5000);
+
+    T_ASSERT(unit_issuetargetorder(caster, "entangleinstant", parent));
+    overlay = movement_find_entangle_overlay(caster, parent);
+    T_NOT_NULL(overlay);
+    T_ASSERT(overlay && !overlay->construction.active);
+    T_ASSERT(overlay && overlay->build != overlay);
+    T_ASSERT(parent->s.renderfx & RF_HIDDEN);
+    T_ASSERT(parent->paused);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, queued_entangleinstant_dispatches_when_previous_order_finishes) {
+    edict_t *caster, *parent, *overlay;
+    slkTestData_t *rows, *old_abilities;
+    umove_t active_order = { .animation = "walk", .proc = CAbilityMove };
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 0.0f, 0.0f);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
+    movement_prepare_rooted_entangle_caster(caster, 0);
+    parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    setup_test_goldmine(parent, &test_goldmine_stock, 5000);
+    caster->currentmove = &active_order;
+
+    T_ASSERT(G_IssueUnitTargetOrder(caster, "entangleinstant", parent, true, 0));
+    T_EQ(G_UnitQueuedOrderCount(caster), 1);
+    T_NULL(movement_find_entangle_overlay(caster, parent));
+
+    caster->currentmove = NULL;
+    T_ASSERT(G_UnitStartNextQueuedOrder(caster));
+    overlay = movement_find_entangle_overlay(caster, parent);
+    T_NOT_NULL(overlay);
+    T_ASSERT(overlay && !overlay->construction.active);
+    T_EQ(G_UnitQueuedOrderCount(caster), 0);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, entangle_range_uses_goldmine_footprint) {
+    enum { W = 8, H = 8 };
+    size_t const pathtex_size = sizeof(pathTex_t) + W * H * sizeof(color32_t);
+    edict_t *caster, *parent, *overlay;
+    pathTex_t *pathtex;
+    slkTestData_t *rows, *old_abilities;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 200.0f, 0.0f);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    movement_prepare_rooted_entangle_caster(caster, 0);
+    caster->collision = 16.0f;
+    parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    parent->s.flags |= EF_BUILDING;
+    parent->runtime.flags |= UNIT_BALANCE_BUILDING;
+    setup_test_goldmine(parent, &test_goldmine_stock, 5000);
+    pathtex = gi.MemAlloc(pathtex_size);
+    T_NOT_NULL(pathtex);
+    memset(pathtex, 0, pathtex_size);
+    pathtex->width = W;
+    pathtex->height = H;
+    FOR_LOOP(i, W * H) pathtex->map[i].b = 0xff;
+    parent->pathtex = pathtex;
+
+    /* Aent's fixture range is 64. The centres are 200 apart, but the caster
+     * is within its collision radius plus 64 of the authored mine footprint. */
+    T_ASSERT(unit_issuetargetorder(caster, "entangleinstant", parent));
+    overlay = movement_find_entangle_overlay(caster, parent);
+    T_NOT_NULL(overlay);
+
+    parent->pathtex = NULL;
+    gi.MemFree(pathtex);
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, auto_entangle_nearby_starts_normal_construction) {
+    edict_t *caster, *parent, *overlay;
+    slkTestData_t *rows, *old_abilities;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 0.0f, 0.0f);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
+    movement_prepare_rooted_entangle_caster(caster, 0);
+    parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    setup_test_goldmine(parent, &test_goldmine_stock, 5000);
+
+    T_ASSERT(S_AutoEntangleNearby(caster, false));
+    overlay = movement_find_entangle_overlay(caster, parent);
+    T_NOT_NULL(overlay);
+    T_ASSERT(overlay && overlay->construction.active);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, root_completion_auto_entangles_nearest_mine_once) {
+    slkTestData_t *gold_rows, *old_gold;
+    edict_t *caster, *parent, *far_parent, *overlay;
+    uint32_t end_time;
+    void (*old_write)(pfWriteType_t, void const *) = gi.Write;
+    void (*old_unicast)(edict_t *) = gi.unicast;
+
+    reset_entities();
+    setup_test_world();
+    old_gold = install_racial_goldmine_test_data(&gold_rows);
+    gi.Write = movement_noop_write;
+    gi.unicast = movement_noop_unicast;
+    caster = alloc_test_unit(MAKEFOURCC('e','T','S','T'), 0.0f, 0.0f);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 32.0f, 0.0f);
+    far_parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 48.0f, 0.0f);
+    movement_prepare_rooted_entangle_caster(caster, 0);
+    caster->ancient_root.mode = ANCIENT_UPROOTED;
+    caster->s.flags &= ~EF_BUILDING;
+    caster->aiflags &= ~AI_IMMOBILE;
+    caster->runtime.flags &= ~UNIT_BALANCE_BUILDING;
+    parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    setup_test_goldmine(parent, &test_goldmine_stock, 5000);
+    far_parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    setup_test_goldmine(far_parent, &test_goldmine_stock, 5000);
+
+    S_AncientBeginMorph(caster, true);
+    end_time = caster->ancient_root.transition_end_time;
+    level.time = end_time - 1;
+    S_RunAbilityUpdates(caster);
+    T_EQ(caster->ancient_root.mode, ANCIENT_ROOTING);
+    T_NULL(movement_find_entangle_overlay(caster, parent));
+
+    level.time = end_time;
+    S_RunAbilityUpdates(caster);
+    T_EQ(caster->ancient_root.mode, ANCIENT_ROOTED);
+    overlay = movement_find_entangle_overlay(caster, parent);
+    T_NOT_NULL(overlay);
+    T_ASSERT(overlay && overlay->construction.active);
+    T_NULL(movement_find_entangle_overlay(caster, far_parent));
+
+    S_RunAbilityUpdates(caster);
+    T_EQ(movement_find_entangle_overlay(caster, parent), overlay);
+
+    gi.Write = old_write;
+    gi.unicast = old_unicast;
+    G_SetSLKRows("AbilityData", old_gold);
+    free_slk_rows(gold_rows);
+}
+
+TEST(wc3_movement, wisp_waits_for_incomplete_entangled_mine_then_boards) {
+    edict_t *mine, *wisp;
+    slkTestData_t *rows, *old_abilities;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    mine = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    wisp = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0.0f, 0.0f);
+    mine->data.UnitAbilities = &test_entangled_mine;
+    mine->s.player = wisp->s.player = 0;
+    mine->construction.active = true;
+    mine->health.value = mine->health.max_value = 1000.0f;
+    wisp->stand = unit_stand;
+    unit_stand(wisp);
+
+    T_ASSERT(S_CargoOrderBoard(wisp, mine));
+    T_EQ(mine->cargo.count, 0);
+    T_EQ(wisp->secondarygoal, mine);
+    T_NOT_NULL(wisp->currentmove);
+    T_STREQ(wisp->currentmove->animation, "stand");
+    T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityBattlestations);
+
+    mine->construction.active = false;
+    wisp->currentmove->think(wisp);
+    T_EQ(mine->cargo.count, 1);
+    T_EQ(mine->cargo.units[0], wisp);
+    T_ASSERT(wisp->paused);
+    T_ASSERT(wisp->s.renderfx & RF_HIDDEN);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, autoharvestgold_immediate_order_boards_wisp_into_entangled_mine) {
+    slkTestData_t *rows, *old_abilities;
+    edict_t *parent, *mine, *wisp;
+    uint32_t steps;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    parent = alloc_test_unit(MAKEFOURCC('n','g','o','l'), 0.0f, 0.0f);
+    mine = alloc_test_unit(MAKEFOURCC('e','g','o','l'), 0.0f, 0.0f);
+    wisp = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 180.0f, 0.0f);
+    parent->s.player = PLAYER_NEUTRAL_PASSIVE;
+    mine->s.player = wisp->s.player = 0;
+    setup_test_goldmine(parent, &test_goldmine_stock, 24000);
+    mine->data.UnitAbilities = &test_entangled_mine;
+    mine->health.value = mine->health.max_value = 1000.0f;
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    wisp->movetype = MOVETYPE_STEP;
+    wisp->collision = 16.0f;
+    wisp->unitinfo.MoveSpeed = 220.0f;
+    wisp->stand = unit_stand;
+    unit_stand(wisp);
+    T_ASSERT(S_MineOverlayBind(mine, parent));
+
+    /* NightElf07's script assigns this immediate order to Wisps. It must
+     * select the player's Entangled Mine and enter the mine's cargo. */
+    T_ASSERT(unit_issueimmediateorder(wisp, "autoharvestgold"));
+    T_EQ(mine->cargo.count, 0);
+    T_EQ(wisp->secondarygoal, mine);
+    T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityBattlestations);
+    for (steps = 0; steps < 64 && mine->cargo.count == 0; steps++) {
+        if (!wisp->currentmove || !wisp->currentmove->think) break;
+        wisp->currentmove->think(wisp);
+    }
+    T_EQ(mine->cargo.count, 1);
+    T_EQ(mine->cargo.units[0], wisp);
+    T_ASSERT(wisp->paused);
+    T_ASSERT(wisp->s.renderfx & RF_HIDDEN);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
+}
+
+TEST(wc3_movement, rallied_wisp_waits_for_entangled_mine_then_automatically_boards) {
+    UnitBalance_t balance = { .buildTime = 1, .foodUsed = 0, .foodMade = 0 };
+    edict_t *producer, *mine, *wisp;
+    slkTestData_t *rows, *old_abilities;
+    uint32_t steps;
+
+    reset_entities();
+    setup_test_world();
+    old_abilities = install_racial_goldmine_test_data(&rows);
+    producer = alloc_test_unit(MAKEFOURCC('h','b','a','r'), -128.0f, 0.0f);
+    mine = alloc_test_unit(MAKEFOURCC('h','b','a','r'), 0.0f, 0.0f);
+    wisp = alloc_test_unit(MAKEFOURCC('e','w','s','p'), 0.0f, 0.0f);
+    producer->data.UnitProfile = &wisp_rally_producer_profile;
+    producer->movetype = MOVETYPE_NONE;
+    producer->collision = 64.0f;
+    producer->stand = unit_stand;
+    producer->s.player = mine->s.player = wisp->s.player = 0;
+    mine->data.UnitAbilities = &test_entangled_mine;
+    mine->construction.active = true;
+    mine->health.value = mine->health.max_value = 1000.0f;
+    wisp->data.UnitAbilities = &wisp_harvest_abilities;
+    wisp->data.UnitBalance = &balance;
+    wisp->collision = 16.0f;
+    wisp->movetype = MOVETYPE_STEP;
+    wisp->unitinfo.MoveSpeed = 220.0f;
+    wisp->health.value = wisp->health.max_value = 100.0f;
+    wisp->stand = unit_stand;
+    wisp->training = true;
+    wisp->s.renderfx |= RF_HIDDEN;
+    producer->build = wisp;
+    unit_stand(wisp);
+
+    T_ASSERT(G_SetRallyEntity(producer, mine));
+    ai_train_build(producer);
+    T_ASSERT(!wisp->training);
+    T_ASSERT(!(wisp->s.renderfx & RF_HIDDEN));
+    /* Training places the Wisp beside its producer; let its rally order reach
+     * the mine before construction finishes. */
+    for (steps = 0; steps < 64 && wisp->currentmove &&
+         wisp->currentmove->proc == CAbilityBattlestations &&
+         strcmp(wisp->currentmove->animation, "stand"); steps++)
+        wisp->currentmove->think(wisp);
+    T_EQ(mine->cargo.count, 0);
+    T_EQ(wisp->secondarygoal, mine);
+    T_ASSERT(wisp->currentmove && wisp->currentmove->proc == CAbilityBattlestations);
+    T_STREQ(wisp->currentmove->animation, "stand");
+
+    mine->construction.active = false;
+    wisp->currentmove->think(wisp);
+    T_EQ(mine->cargo.count, 1);
+    T_EQ(mine->cargo.units[0], wisp);
+    T_ASSERT(wisp->paused);
+    T_ASSERT(wisp->s.renderfx & RF_HIDDEN);
+
+    G_SetSLKRows("AbilityData", old_abilities);
+    free_slk_rows(rows);
 }
 
 TEST(wc3_movement, entangle_overlay_restores_original_permanent_state) {

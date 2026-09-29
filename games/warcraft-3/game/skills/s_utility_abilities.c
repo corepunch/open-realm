@@ -433,6 +433,10 @@ static void ancient_root_commit(edict_t *unit, bool rooted) {
     CM_BakeStaticObstacles();
     gi.LinkEntity(unit);
     unit_stand(unit);
+    /* Retail Ancients automatically begin ordinary Entangle when a completed
+     * Root leaves an eligible Gold Mine in authored Aent range. Initial melee
+     * setup remains script-owned and uses its explicit entangleinstant order. */
+    if (rooted) S_AutoEntangleNearby(unit, false);
     {
         gameClient_t *owner = G_GetPlayerClientByNumber(unit->s.player);
         if (owner) G_InvalidateCommands(owner);

@@ -419,6 +419,11 @@ bool G_ActorHasSkill(edict_t const *ent, cstring_t id) {
 static bool harvest_auto_start(edict_t *self, returnResource_t resource) {
     edict_t *target;
 
+    /* NightElf campaign scripts use the shared autoharvestgold order for
+     * Wisps too. Their gold work is cargo boarding, not Ahar mining. */
+    if (self && resource == RETURN_RESOURCE_GOLD && G_ActorHasSkill(self, "Awha"))
+        return S_CargoOrderNearestEntangledMine(self);
+
     /* These are worker-internal immediate orders, not substitutes for giving
      * Harvest to arbitrary units. Ahrl is lumber-only while Ahar can harvest
      * both resources, matching Warsmash's shared CAbilityHarvest behavior. */
