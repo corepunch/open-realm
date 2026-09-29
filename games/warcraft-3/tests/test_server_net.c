@@ -1502,6 +1502,31 @@ TEST(server_net, udp_signon_pages_preserve_complete_configstrings_and_baselines)
     close(sock); NET_Shutdown();
 }
 
+TEST(server_net, udp_signon_without_baselines_disconnects_client) {
+    uint8_t buf[MAX_MSGLEN];
+    sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
+    NET_Shutdown(); reset_server_state(2);
+    T_ASSERT(bind_server_socket(PORT_SERVER + 23));
+    int sock = open_client_socket();
+    T_ASSERT(sock >= 0);
+    struct timeval timeout = { .tv_sec = 1 };
+    T_EQ(setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)), 0);
+    send_connect_oob(sock, PORT_SERVER + 23); pump_server_connects();
+    T_ASSERT(recv_client_connect_oob(sock));
+    fcntl(sock, F_SETFL, fcntl(sock, F_GETFL, 0) & ~O_NONBLOCK);
+
+    T_EQ(svs.clients[0].state, cs_connected);
+    SZ_Clear(&msg);
+    MSG_WriteString(&msg, "baselines");
+    SV_ExecuteUserCommand(&msg, &svs.clients[0]);
+    int size = recv(sock, buf, sizeof(buf), 0);
+    T_EQ(size, 1);
+    if (size == 1) T_EQ(buf[0], svc_disconnect);
+    T_EQ(svs.clients[0].state, cs_zombie);
+
+    close(sock); NET_Shutdown();
+}
+
 /* Review regression: minimap decoration must not remove nearby world presentation. */
 TEST(server_net, review_snapshot_keeps_nearby_world_entity_among_distant_contacts) {
     static struct client_s game_client;
