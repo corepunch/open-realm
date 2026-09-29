@@ -116,11 +116,11 @@ uint32_t SetUnitPropWindow(jass_t *j) {
 }
 uint32_t GetUnitTurnSpeed(jass_t *j) {
     edict_t *unit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, unit ? unit->unitinfo.TurnSpeed : 0);
+    return jass_pushnumber(j, unit ? unit_turnspeed(unit) : 0);
 }
 uint32_t GetUnitPropWindow(jass_t *j) {
     edict_t *unit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, unit ? unit->unitinfo.PropWindow : 0);
+    return jass_pushnumber(j, unit ? unit_propwindow(unit) : 0);
 }
 UNITINFO_ACCESS(AcquireRange);
 
@@ -241,11 +241,12 @@ uint32_t GetUnitDefaultAcquireRange(jass_t *j) {
 }
 uint32_t GetUnitDefaultTurnSpeed(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.TurnSpeed : 0);
+    return jass_pushnumber(j, whichUnit ? whichUnit->data.UnitData->turnRate : 0);
 }
 uint32_t GetUnitDefaultPropWindow(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");
-    return jass_pushnumber(j, whichUnit ? whichUnit->unitinfo.PropWindow : 0);
+    /* Retail's default getter returns authored degrees; the current getter returns radians. */
+    return jass_pushnumber(j, whichUnit ? whichUnit->data.UnitData->propWin : 0);
 }
 uint32_t GetUnitDefaultFlyHeight(jass_t *j) {
     edict_t *whichUnit = jass_checkhandle(j, 1, "unit");

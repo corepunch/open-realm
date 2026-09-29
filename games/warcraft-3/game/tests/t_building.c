@@ -2274,7 +2274,9 @@ TEST(wc3_building, human04_opening_positions_keep_townhall_build) {
     static uint8_t pathmap[CELLS * CELLS];
     static UnitProfile_t const profile = { .builds = "hhou,hbar,htow" };
     static UnitAbilities_t const abilities = { .abilList = "Arep" };
-    static UnitData_t const worker_data = { .moveTypeName = "foot", .race = STR_HUMAN };
+    static UnitData_t const worker_data = {
+        .moveTypeName = "foot", .race = STR_HUMAN, .turnRate = 0.6f, .propWin = 60
+    };
     edict_t *farm, *barracks, *townhall;
     vec2_t const farm_point = { -1360.0f, -4608.0f };
     vec2_t const barracks_point = { -1744.0f, -3536.0f };
@@ -2482,10 +2484,18 @@ TEST(wc3_building, construction_displacement_preserves_later_build_route) {
     level.scriptsStarted = true;
     globals.RunFrame();
     after_first_step = worker->s.origin2;
+    /* Stock propagation gating can hold the first displacement think while turning.
+     * The first accepted step still has the unit's normal movement budget. */
+    FOR_LOOP(frame, 8) {
+        if (Vector2_distance(&after_first_step, &before_displace) > 0.001f) break;
+        T_ASSERT(worker->movement.turn_blocked);
+        globals.RunFrame();
+        after_first_step = worker->s.origin2;
+    }
     T_FEQ(Vector2_distance(&after_first_step, &before_displace), normal_step, 0.001f);
+    T_ASSERT(move_displacement_active(worker));
     FOR_LOOP(frame, 7) globals.RunFrame();
     T_ASSERT(Vector2_distance(&worker->s.origin2, &before_displace) > 1.0f);
-    T_ASSERT(move_displacement_active(worker));
     T_STREQ(worker->animation_request, "walk");
     FOR_LOOP(frame, 240) globals.RunFrame();
     T_ASSERT(Vector2_distance(&worker->s.origin2, &later_build) <= worker->collision + 64.0f);

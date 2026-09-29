@@ -33,9 +33,11 @@ static char const exh_slk[] =
 	"C;Y5;X9;K\"10\"\nC;Y5;X11;K\"800\"\nE\n";
 
 static char const exh_unit_slk[] =
-	"ID;PWXL;N;EBB;Y2;X3\n"
+	"ID;PWXL;N;EBB;Y3;X5\n"
 	"C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"deathType\"\nC;Y1;X3;K\"targType\"\n"
-	"C;Y2;X1;K\"hfoo\"\nC;Y2;X2;K3\nC;Y2;X3;K\"ground\"\nE\n";
+	"C;Y1;X4;K\"turnRate\"\nC;Y1;X5;K\"propWin\"\n"
+	"C;Y2;X1;K\"hfoo\"\nC;Y2;X2;K3\nC;Y2;X3;K\"ground\"\n"
+	"C;Y3;X1;K\"ugho\"\nC;Y3;X4;K0.5\nC;Y3;X5;K60\nE\n";
 
 /* Fill in place: fixture must not return-by-value when pointing at local SLK state. */
 static void exh_setup(exhFix_t *fix) {

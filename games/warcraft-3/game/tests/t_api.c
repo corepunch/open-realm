@@ -5957,6 +5957,9 @@ TEST(wc3_api, deferred_removed_range_subject_cannot_dispatch_crossing) {
     T_ASSERT(subject->inuse && G_IsDeferredFree(subject));
     T_ASSERT(!G_EventSubjectIsCurrent(rangeEvent));
 
+    /* This test owns event dispatch, so start the mover facing the crossing direction. */
+    target->s.angle = (float)M_PI;
+
     target->movetype = MOVETYPE_STEP; target->stand = unit_stand; target->birth = unit_birth;
     target->die = unit_die; target->think = monster_think; target->collision = 0.0f;
     target->unitinfo.MoveSpeed = 1000.0f;
@@ -6016,7 +6019,8 @@ TEST(wc3_api, unit_in_range_queue_full_does_not_crash_target_movement) {
     player_t *saved_currentplayer = currentplayer;
     edict_t *subject = NULL;
     edict_t *target = NULL;
-    vec2_t destination = {100.0f, 0.0f};
+    /* Move toward the subject at x=530; a reverse-facing west order used to drift east. */
+    vec2_t destination = {400.0f, 0.0f};
 
     reset_entities(); setup_test_world(); currentplayer = NULL;
     T_ASSERT(run_test_jass(

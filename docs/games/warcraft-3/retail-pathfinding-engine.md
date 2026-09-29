@@ -15,16 +15,17 @@ normalize their radians through the retail arithmetic. Turn speed retains the
 retail minimum (`3a83126f`, approximately 0.001). `unitinfo.move_flags` records
 explicit overrides, including a valid zero movement window.
 
-With a scripted window, translation stops when the **pre-turn** heading error
+With an authored or scripted window, translation stops when the **pre-turn** heading error
 is greater than or equal to the window. Turning continues. The same decision
 guards the close-goal Move snap. `movement.turn_blocked` records this tick's
 decision and resets with order progress. Both values survive save/load. Save
 format 55 rejects earlier layouts because scalar fields shift edict offsets.
 
-The stock authored `UnitData.propWin` producer/conversion remains to be
-recovered. The code has an explicit TODO and preserves unrestricted stock
-translation while integrating the verified scripted policy. Existing authored
-turn-rate behavior remains the default without a scripted override.
+Stock units now use authored `UnitData.propWin` degrees, converted and normalized
+through the verified retail scalar path. Current native getters expose the effective
+turn rate and radians window; default getters expose the immutable authored values,
+including degrees for `GetUnitDefaultPropWindow`. Zero authored values retain their
+meaning; they are not replaced by unrestricted movement.
 
 ## Evidence
 
@@ -155,6 +156,35 @@ order-reset paths clear the velocity. Save format 55 includes the new state and
 rejects format 54; a 12-step alternating-heading test matches uninterrupted versus
 save/load-resumed position and velocity words exactly.
 
+## Stock propagation window
+
+Static producer evidence is in `stock-window-producer.json`: `6f6b0870` installs
+`turnRate`/`propWin` descriptors; `6f66bf40` caches the authored values at `+1e0`
+and `+1e4`; `6f69a690`/`6f691aa0` retrieve those words. `6f6785d0` multiplies
+propagation degrees by stored radians-per-degree word `3c8efa35`, then unit
+construction passes setup `+40/+44` through the same normalized setters used by
+JASS. A stock Footman's 60 degrees become mover word `3f860a91`.
+Native binding identifies `GetUnitDefaultPropWindow` as `6f203b20`; that wrapper
+returns the cached authored word without conversion.
+
+Copied-map `stock_turn` turns an unmodified Footman from east toward north.
+`runtime/stock-turn-exact.json` requires all 300 samples and compares all 183
+scalar decisions plus 184 velocity/position commits exactly. One decision stops
+translation while facing changes by 0.6. JASS reports current window 1.047 radians
+and default window 60.000 degrees. After explicit setters, the current fields
+change to 0.125/0.500 while defaults remain 0.600/60.000.
+`runtime/stock-turn-unattached/comparison.json` confirms all 306 marker strings
+match a run with spawn/resume control and no attach or injected observer.
+That control checks three-decimal JASS positions, not every internal raw word.
+
+Engine regressions reproduced unrestricted initial movement, premature close-goal
+arrival and wrong native getters before the change. The stock gate also exposed a
+worker queue restart: selecting a legal passing direction cleared the queue before
+the turn could complete, repeatedly restarting the wait. The existing chopper
+regression still failed after 96 thinks. The counter now remains exhausted until
+a step commits or the direct corridor clears; no passing direction is cached. Fixtures carry the
+actual Peasant/Footman/Knight/Wisp turn and propagation data instead of zero rows.
+
 ## Remaining fidelity work
 
 Flow fields, route scheduling, group ownership, collision, repulsion and arrival
@@ -165,7 +195,7 @@ and cross-feature trajectories remain open. Repeat equality
 covers the observed helper sequence, not an unattached-observer control or all
 deterministic state.
 
-Next numerical integration: resolve the stock window producer, then connect
+Next numerical integration: recover the software vector heading, then connect
 committed velocity/clocks to the [admission-to-owner baseline](retail-pathfinding-todo.md#work-next).
 Extend the same C probe and exact-word comparator before changing those stages.
 The full replacement still needs the [READY gates](retail-pathfinding-todo.md#ready--start-the-faithful-replacement).

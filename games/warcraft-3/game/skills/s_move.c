@@ -276,6 +276,7 @@ bool M_MoveIsValid(edict_t *self, vec2_t const *pos) {
 static void unit_commit_step(edict_t *self, vec2_t const *cand) {
     if (self->s.flags & EF_FOW_BLOCKER) G_FowMarkBlockersDirty();
     self->s.origin2 = *cand;
+    self->movement.worker_avoid_blocked_frames = 0;
     gi.LinkEntity(self);
 }
 
@@ -366,15 +367,22 @@ bool unit_snap_to_point_ignore_units(edict_t *self, vec2_t const *point) {
     return true;
 }
 
+/* Retail's stock constructor and native setter share normalization and the minimum turn rate. */
+float unit_turnspeed(edict_t const *self) {
+    if (self->unitinfo.move_flags & BZ_UNIT_TURN_SET) return self->unitinfo.TurnSpeed;
+    return MAX(wc3_float(0x3a83126f), wc3_angle(self->data.UnitData->turnRate));
+}
+
+/* 6785d0 converts authored degrees with the stored scalar before the 05c890 setter normalizes them. */
+float unit_propwindow(edict_t const *self) {
+    if (self->unitinfo.move_flags & BZ_UNIT_WINDOW_SET) return self->unitinfo.PropWindow;
+    return wc3_angle(wc3_mul(self->data.UnitData->propWin, wc3_float(0x3c8efa35)));
+}
+
 /* Use retail's scalar turn update instead of accumulating host sin/cos rotation error. */
 static void unit_turn_toward(edict_t *self, float target) {
-    float turn = self->unitinfo.move_flags & BZ_UNIT_TURN_SET ? self->unitinfo.TurnSpeed : self->data.UnitData->turnRate;
-    if (!(self->unitinfo.move_flags & BZ_UNIT_TURN_SET) && turn <= 0) turn = 0.5f;
-    /* TODO: recover the authored propWin producer/conversion before applying the gate to stock units.
-     * Scripted windows are proven radians; retain the existing unrestricted stock movement meanwhile. */
-    float window = self->unitinfo.move_flags & BZ_UNIT_WINDOW_SET ? self->unitinfo.PropWindow : wc3_float(0x40c90fdb);
     wc3Motion_t motion = { .heading = self->s.angle, .error = angle_wrap(wc3_sub(target, self->s.angle)),
-        .turn = turn, .window = window };
+        .turn = unit_turnspeed(self), .window = unit_propwindow(self) };
     /* Retail stops from the error before turning; testing the new angle allowed premature travel. */
     self->movement.turn_blocked = !wc3_motion_update(&motion);
     self->s.angle = motion.heading;
@@ -452,7 +460,8 @@ static float unit_worker_desired_heading(edict_t *self, float goal_angle, float 
             if (unit_worker_lateral_deviation(self, &cand) > max_deviation)
                 continue;
             if (move_is_valid(self, &cand)) {
-                self->movement.worker_avoid_blocked_frames = 0;
+                /* A legal passing step may still require turning. Only a committed step
+                 * or cleared direct corridor resets the queue, so this turn can finish. */
                 return angle;
             }
         }
@@ -1401,12 +1410,10 @@ static void ai_move_walk(edict_t *ent) {
     }
 
     if (move_should_arrive(ent, move_distance)) {
-        /* A point inside the step budget still requires facing inside the scripted window;
+        /* A point inside the step budget still requires facing inside the propagation window;
          * the old snap bypassed the movement decision and completed the order while turning. */
-        if (ent->unitinfo.move_flags & BZ_UNIT_WINDOW_SET) {
-            unit_changeangle(ent);
-            if (ent->movement.turn_blocked) return;
-        }
+        unit_changeangle(ent);
+        if (ent->movement.turn_blocked) return;
 #ifdef WC3_DEBUG_BUILD
         if (ent->class_id == MAKEFOURCC('h','p','e','a'))
             fprintf(stderr, "WC3_BUILD move-arrive unit=%ld origin=(%.1f,%.1f) target=(%.1f,%.1f) distance=%.1f goal=%ld\n",

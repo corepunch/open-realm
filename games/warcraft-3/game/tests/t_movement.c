@@ -127,6 +127,72 @@ TEST(wc3_movement, retail_velocity_resume_is_deterministic) {
 }
 
 /* Retail 170880 tests the heading error BEFORE turning; equality stops travel. */
+TEST(wc3_movement, stock_window_stops_translation_while_turning) {
+    edict_t *unit = make_moving_unit(0, 0);
+    UnitData_t data = *unit->data.UnitData;
+    data.turnRate = 0.6f; data.propWin = 60;
+    unit->data.UnitData = &data;
+    T_EQ(wc3_float_bits(unit_propwindow(unit)), 0x3f860a91u);
+    vec2_t const north = {0, 512};
+    unit_changeangle_towards_point(unit, &north);
+    unit_moveindirection(unit);
+    T_ASSERT(unit->movement.turn_blocked);
+    T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
+    T_EQ(unit->s.angle, 0.6f);
+    unit_changeangle_towards_point(unit, &north);
+    unit_moveindirection(unit);
+    T_ASSERT(!unit->movement.turn_blocked);
+    T_ASSERT(unit->s.origin2.y > 0);
+}
+
+TEST(wc3_movement, stock_window_turns_before_close_goal_arrival) {
+    edict_t *unit = make_moving_unit(0, 0);
+    UnitData_t data = *unit->data.UnitData;
+    data.turnRate = 0.6f; data.propWin = 60;
+    unit->data.UnitData = &data;
+    unit->s.angle = 2;
+    vec2_t const east = {10, 0};
+    T_ASSERT(unit_issueorder(unit, "move", &east));
+    unit->currentmove->think(unit);
+    T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
+    T_EQ(unit->s.angle, wc3_sub(2, 0.6f));
+    T_EQ(unit->currentmove->proc, CAbilityMove);
+    FOR_LOOP(i, 4) unit->currentmove->think(unit);
+    T_EQ(unit->s.origin2.x, 10);
+    T_STREQ(unit->currentmove->animation, "stand");
+}
+
+TEST(wc3_movement, stock_getters_keep_authored_defaults_after_setters) {
+    reset_entities(); setup_test_world();
+    T_ASSERT(run_test_jass(
+        "function main takes nothing returns nothing\n"
+        " local unit u = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)\n"
+        " call BJassAssert(GetUnitTurnSpeed(u) == 0.6, \"stock turn speed\")\n"
+        " call BJassAssert(GetUnitPropWindow(u) > 1.047 and GetUnitPropWindow(u) < 1.048, \"stock radians\")\n"
+        " call BJassAssert(GetUnitDefaultTurnSpeed(u) == 0.6, \"authored turn speed\")\n"
+        " call BJassAssert(GetUnitDefaultPropWindow(u) == 60.0, \"authored degrees\")\n"
+        " call SetUnitTurnSpeed(u, 0.125)\n"
+        " call SetUnitPropWindow(u, 0.5)\n"
+        " call BJassAssert(GetUnitTurnSpeed(u) == 0.125 and GetUnitPropWindow(u) == 0.5, \"current overrides\")\n"
+        " call BJassAssert(GetUnitDefaultTurnSpeed(u) == 0.6 and GetUnitDefaultPropWindow(u) == 60.0, \"defaults immutable\")\n"
+        "endfunction\n"));
+}
+
+TEST(wc3_movement, authored_zero_window_and_turn_rate_keep_their_meaning) {
+    edict_t *unit = make_moving_unit(0, 0);
+    UnitData_t data = *unit->data.UnitData;
+    data.turnRate = 0; data.propWin = 0;
+    unit->data.UnitData = &data;
+    vec2_t const north = {0, 512};
+    unit_changeangle_towards_point(unit, &north);
+    unit_moveindirection(unit);
+    T_EQ(unit->unitinfo.move_flags, 0);
+    T_EQ(wc3_float_bits(unit_turnspeed(unit)), 0x3a83126fu);
+    T_EQ(wc3_float_bits(unit->s.angle), 0x3a83126fu);
+    T_ASSERT(unit->movement.turn_blocked);
+    T_EQ(unit->s.origin2.x, 0); T_EQ(unit->s.origin2.y, 0);
+}
+
 TEST(wc3_movement, scripted_window_stops_translation_while_turning) {
     edict_t *unit = make_scripted_turn_unit();
     vec2_t const goal = {0, 512};
@@ -1417,6 +1483,13 @@ TEST(wc3_movement, nearby_move_starts_on_accelerated_waypoint) {
     T_ASSERT(!unit->movement.flow_direct);
     T_ASSERT(unit->movement.path.valid);
     T_ASSERT(CM_LineIsWalkableForRadius(&origin, &unit->movement.path.waypoint, unit->collision));
+    /* Routing is available immediately, but a westward detour from east-facing must turn first. */
+    T_ASSERT(unit->movement.turn_blocked);
+    T_FEQ(Vector2_distance(&unit->s.origin2, &origin), 0, 0.001f);
+    FOR_LOOP(i, 8) {
+        unit->currentmove->think(unit);
+        if (Vector2_distance(&unit->s.origin2, &origin) > 0.001f) break;
+    }
     T_ASSERT(Vector2_distance(&unit->s.origin2, &origin) > 0.001f);
     T_STREQ(unit->currentmove->animation, "walk");
 }

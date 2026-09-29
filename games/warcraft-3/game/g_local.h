@@ -2449,6 +2449,8 @@ void monsoon_think(edict_t *);
 void unit_refreshstatusflags(edict_t *);
 
 // skills/s_move.c — locomotion shared by Move, Follow, Attack, Build and Harvest
+float unit_turnspeed(edict_t const *);
+float unit_propwindow(edict_t const *);
 void unit_moveindirection(edict_t *);
 void unit_moveindirection_ignore_units(edict_t *);
 bool unit_snap_to_point_ignore_units(edict_t *, vec2_t const *);
