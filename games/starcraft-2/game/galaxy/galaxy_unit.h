@@ -94,7 +94,8 @@ static void sc2_unit_changed(jass_t *j, void *ent) {
 static uint32_t sc2_UnitSetOwner(jass_t *j) {
     void *ent = sc2_ent_from_handle(j,1); int player = sc2_player_index(j,2); bool color = jass_checkboolean(j,3);
     if (ent && !sc2_galaxy_unit_set_owner) jass_rterror(j,"Galaxy owner callback unavailable");
-    if (ent) sc2_galaxy_unit_set_owner(ent,player,color); return 0;
+    if (ent) sc2_galaxy_unit_set_owner(ent,player,color);
+    return 0;
 }
 static uint32_t sc2_unit_life(jass_t *j, bool revive) {
     int32_t h = (int32_t)(uintptr_t)jass_checkhandle(j,1,"unit"); void *ent = sc2_ent_from_handle(j,1);

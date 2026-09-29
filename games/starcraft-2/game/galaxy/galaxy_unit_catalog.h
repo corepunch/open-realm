@@ -163,11 +163,13 @@ static uint32_t sc2_UnitBehaviorAddPlayer(jass_t *j) {
 }
 static uint32_t sc2_UnitBehaviorRemove(jass_t *j) {
     sc2UnitState_t *u = sc2_unit_arg(j, 1); cstring_t link = sc2_link_arg(j, 2);
-    if (u) sc2_behavior_remove(u, link, jass_checkinteger(j, 3)); return 0;
+    if (u) sc2_behavior_remove(u, link, jass_checkinteger(j, 3));
+    return 0;
 }
 static uint32_t sc2_UnitBehaviorRemovePlayer(jass_t *j) {
     sc2UnitState_t *u = sc2_unit_arg(j, 1); cstring_t link = sc2_link_arg(j, 2); (void)sc2_player_index(j, 3);
-    if (u) sc2_behavior_remove(u, link, jass_checkinteger(j, 4)); return 0;
+    if (u) sc2_behavior_remove(u, link, jass_checkinteger(j, 4));
+    return 0;
 }
 static uint32_t sc2_UnitBehaviorTransfer(jass_t *j) {
     sc2UnitState_t *from = sc2_unit_arg(j, 1), *to = sc2_unit_arg(j, 2); cstring_t link = sc2_link_arg(j, 3);

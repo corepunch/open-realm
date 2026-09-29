@@ -160,9 +160,16 @@ static void R_WeatherResolve(renderWeatherEffect_t *effect) {
     if (!effect || !effect->inuse) return;
     effect->art = FS_SLKLookup(&weather_index, effect->effect_id);
     if (!effect->art) {
+        fprintf(stderr, "R_WeatherResolve: unresolved Weather.slk row '%c%c%c%c' (0x%08x)\n",
+            (char)(effect->effect_id >> 24), (char)(effect->effect_id >> 16),
+            (char)(effect->effect_id >> 8), (char)effect->effect_id, effect->effect_id);
         effect->texture = NULL;
         return;
     }
+    if (!effect->art->head && !effect->art->tail)
+        fprintf(stderr, "R_WeatherResolve: Weather.slk row '%c%c%c%c' has neither head nor tail; effect will not render\n",
+            (char)(effect->effect_id >> 24), (char)(effect->effect_id >> 16),
+            (char)(effect->effect_id >> 8), (char)effect->effect_id);
     effect->texture = R_WeatherTexture(effect->art);
 }
 
@@ -262,7 +269,7 @@ static bool R_WeatherSpawn(renderWeatherEffect_t *effect, box2_t const *area) {
     vec3_t direction;
     bool draw_head, draw_tail;
 
-    if (!art || !area || art->lifespan <= 0.0f) return false;
+    if (!art || !area || art->lifespan <= 0.0f || (!art->head && !art->tail)) return false;
     p = R_SpawnParticle();
     if (!p) return false;
     p->emitter_id = effect->handle;
@@ -298,7 +305,7 @@ static bool R_WeatherSpawn(renderWeatherEffect_t *effect, box2_t const *area) {
     p->lifespan = art->lifespan;
 
     draw_tail = art->tail;
-    draw_head = art->head || !draw_tail; /* preserve legacy fallback for malformed head=tail=0 rows */
+    draw_head = art->head;
     if (draw_head) {
         p->uv_start = (uint16_t)MIN(art->headUVStart, 0xffffu);
         p->uv_mid = (uint16_t)MIN(art->headUVMid, 0xffffu);

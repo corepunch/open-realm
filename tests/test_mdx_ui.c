@@ -15,6 +15,7 @@ static handle_t calloc_test(long size) { return calloc(1, size); }
 #define R_Call(func, ...) ((void)0)
 #include "renderer/r_particles.c"
 #include "games/warcraft-3/renderer/mdx/r_mdx_render.c"
+#include "games/warcraft-3/renderer/r_weather.c"
 
 void R_RenderView(void) { drawn = tr.viewDef; drawn_frame = tr.viewDef.entities[0].frame; drawn_skin = tr.viewDef.entities[0].skin; drawn_skin_slot = tr.viewDef.entities[0].skin_slot; R_UpdateParticles(); }
 
@@ -23,6 +24,10 @@ rect_t R_UISceneRect(void) { return (rect_t){0, 0, 0.8f, 0.6f}; }
 texture_t *R_AllocateTexture(uint32_t w, uint32_t h) { (void)w; (void)h; return NULL; }
 void R_LoadTextureMipLevel(texture_t *tex, texMip_t const *mip) { (void)tex; (void)mip; }
 void R_LoadShaderState(shaderLoad_t const *load) { (void)load; }
+static texture_t weather_test_texture;
+texture_t *R_LoadTexture(cstring_t path) { (void)path; return &weather_test_texture; }
+float R_GetHeightAtPoint(float x, float y) { (void)x; (void)y; return 0.0f; }
+bool R_MapAssetCandidate(cstring_t asset, string_t candidate, uint32_t candidate_size) { (void)asset; (void)candidate; (void)candidate_size; return false; }
 void R_DeleteShader(shaderProg_t *prog) { (void)prog; }
 void R_UploadShader(shaderProg_t *prog, void const *state) { (void)prog; (void)state; }
 modelProg_t *R_ModelShader(void) { return NULL; }
@@ -58,6 +63,46 @@ TEST(mdx_ui, particle_uv_default_still_advances_over_lifetime) {
     color32_t uv = FX_GetFrame(&p);
 
     T_EQ(uv.r, 128); T_EQ(uv.g, 0); T_EQ(uv.b, 191); T_EQ(uv.a, 255);
+}
+
+static cparticle_t *weather_test_run(w3WeatherArt_t const *art, uint32_t delta_ms, uint32_t count) {
+    static wc3WeatherEffect_t state;
+    static texture_t texture;
+    R_ClearParticles();
+    R_WeatherInit();
+    weather_rng = 0x7f4a7c15u;
+    tr.viewDef = (viewDef_t){0};
+    tr.viewDef.deltaTime = delta_ms;
+    tr.viewDef.num_weather_effects = 1;
+    tr.viewDef.weather_effects = &state;
+    state = (wc3WeatherEffect_t){ .handle = 7, .effect_id = art->id, .enabled = 1,
+        .bounds = { .min = {-100, -100}, .max = {100, 100} } };
+    weather_effects[0] = (renderWeatherEffect_t){ .inuse = true, .enabled = true,
+        .handle = state.handle, .effect_id = state.effect_id, .bounds = state.bounds,
+        .art = art, .texture = &texture };
+    R_WeatherEmit();
+    if (art->head || art->tail) T_EQ(R_CountParticlesForEmitter(state.handle), count);
+    else T_EQ(active_particles, NULL);
+    return active_particles;
+}
+
+TEST(mdx_ui, wc3_weather_emits_authored_alpha_and_tail_primitive) {
+    w3WeatherArt_t art = { .id = MAKEFOURCC('R','L','l','r'), .emissionRate = 1.0f,
+        .lifespan = 1.0f, .particles = 10, .head = false, .tail = true,
+        .alphaStart = 150, .rows = 1, .columns = 1, .tailLength = 2.0f,
+        .tailUVStart = 3, .tailUVMid = 4, .tailUVEnd = 5, .velocity = 10.0f };
+    cparticle_t *p = weather_test_run(&art, 50, 1);
+    T_EQ(p->blend_mode, BLEND_MODE_BLEND);
+    T_EQ(p->color[0].a, 150);
+    T_EQ(p->uv_start, 3); T_EQ(p->uv_mid, 4); T_EQ(p->uv_end, 5);
+    T_ASSERT(p->tail.x != 0 || p->tail.y != 0 || p->tail.z != 0);
+}
+
+TEST(mdx_ui, wc3_weather_rejects_authored_row_without_head_or_tail) {
+    w3WeatherArt_t art = { .id = MAKEFOURCC('T','E','S','T'), .emissionRate = 1.0f,
+        .lifespan = 1.0f, .particles = 10, .head = false, .tail = false };
+    (void)weather_test_run(&art, 50, 0);
+    T_NULL(active_particles);
 }
 
 TEST(mdx_ui, sprite_clock_and_particle_scenes_are_isolated) {
