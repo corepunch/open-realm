@@ -141,6 +141,7 @@ typedef struct cvar_s {
 
 enum {
     FLAG(CVAR_ARCHIVE, 0),
+    FLAG(CVAR_UI, 1), /* preference that server-authored UI controls may edit; see docs/architecture/client-windows.md */
 };
 
 typedef struct model {
@@ -387,6 +388,7 @@ cvar_t *Cvar_SetValue(cstring_t name, float value);
 cstring_t Cvar_String(cstring_t name, cstring_t fallback);
 int Cvar_Integer(cstring_t name, int fallback);
 float Cvar_Value(cstring_t name, float fallback);
+uint32_t Cvar_Flags(cstring_t name);
 bool Cvar_LoadConfig(cstring_t filename);
 void Cvar_WriteConfig(cstring_t filename);
 void Cvar_ApplyConfigCommandLine(int argc, cstring_t *argv);

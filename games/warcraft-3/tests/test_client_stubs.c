@@ -36,7 +36,7 @@ static size2_t test_window_size;
 static UICANVASPOLICY test_canvas_policy = UI_CANVAS_POLICY;
 static rect_t test_ui_scene;
 
-typedef struct { char name[64]; char value[128]; } mockCvar_t;
+typedef struct { char name[64]; char value[128]; uint32_t flags; } mockCvar_t;
 static mockCvar_t mock_cvars[32];
 #define MOCK_CVAR_COUNT (sizeof(mock_cvars) / sizeof(mock_cvars[0]))
 
@@ -140,6 +140,18 @@ cstring_t Cvar_String(cstring_t name, cstring_t fallback) {
             return mock_cvars[i].value;
     }
     return fallback;
+}
+
+/* Marks a mock cvar as registered with `flags`; plain test_client_stubs_set_cvar() leaves it unflagged. */
+void test_client_stubs_set_cvar_flags(cstring_t name, uint32_t flags) {
+    FOR_LOOP(i, MOCK_CVAR_COUNT)
+        if (mock_cvars[i].name[0] && !strcmp(mock_cvars[i].name, name)) mock_cvars[i].flags = flags;
+}
+
+uint32_t Cvar_Flags(cstring_t name) {
+    FOR_LOOP(i, MOCK_CVAR_COUNT)
+        if (mock_cvars[i].name[0] && !strcmp(mock_cvars[i].name, name)) return mock_cvars[i].flags;
+    return 0;
 }
 
 cvar_t *Cvar_Set(cstring_t name, cstring_t value) {
