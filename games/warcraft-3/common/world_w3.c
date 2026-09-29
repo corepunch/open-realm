@@ -120,10 +120,48 @@ bool CL_GameBuildSameTypeSelection(gameSameTypeSelection_t *selection) {
 }
 #endif
 
+static float W3_ClampCameraZoom(float value) {
+    return MAX(WC3_CAMERA_MIN_DISTANCE, MIN(WC3_CAMERA_MAX_DISTANCE, value));
+}
+
+static gameCameraZoomPolicy_t W3_CameraZoomPolicy(float user_default, float user_maximum) {
+    gameCameraZoomPolicy_t policy = {
+        .minimum = WC3_CAMERA_MIN_DISTANCE,
+        .default_distance = W3_ClampCameraZoom(user_default),
+        .maximum = W3_ClampCameraZoom(user_maximum),
+    };
+    mapInfo_t const *info = &world.info;
+
+    /* The options UI prevents max < default.  Keep direct cvar edits sane too. */
+    if (policy.maximum < policy.default_distance)
+        policy.maximum = policy.default_distance;
+
+    if (info->fileFormat >= 32 && (info->flags & force_default_camera_zoom))
+        policy.default_distance = W3_ClampCameraZoom((float)info->defaultZoomOverride);
+    if (info->fileFormat >= 32 && (info->flags & force_maximum_camera_zoom))
+        policy.maximum = W3_ClampCameraZoom((float)info->maximumZoomOverride);
+    if (info->fileFormat >= 33 && (info->flags & force_minimum_camera_zoom))
+        policy.minimum = W3_ClampCameraZoom((float)info->minimumZoomOverride);
+
+    /* Individual map force flags can make a player's remaining values invalid;
+     * normalize the effective policy without changing the authored W3I data. */
+    if (policy.maximum < policy.minimum)
+        policy.maximum = policy.minimum;
+    policy.default_distance = MAX(policy.minimum, MIN(policy.maximum, policy.default_distance));
+    return policy;
+}
+
+bool CL_GameCameraZoomPolicy(gameCameraZoomPolicy_t *policy, float user_default, float user_maximum) {
+    if (!policy) return false;
+    *policy = W3_CameraZoomPolicy(user_default, user_maximum);
+    return true;
+}
+
 bool CL_GameDefaultCamera(gameCamera_t *camera) {
+    gameCameraZoomPolicy_t const zoom = W3_CameraZoomPolicy(WC3_CAMERA_DEFAULT_DISTANCE, WC3_CAMERA_MAX_DISTANCE);
     if (!camera) return false;
     *camera = (gameCamera_t){
-        .distance = WC3_CAMERA_DEFAULT_DISTANCE,
+        .distance = zoom.default_distance,
         .pitch = WC3_CAMERA_DEFAULT_PITCH,
         .yaw = WC3_CAMERA_DEFAULT_YAW,
         .fov = WC3_CAMERA_DEFAULT_FOV,

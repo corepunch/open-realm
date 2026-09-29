@@ -315,6 +315,12 @@ static inline void player_set_lens(player_t *ps, gameCamera_t const *cam) {
 }
 
 bool CL_GameDefaultCamera(gameCamera_t *camera);
+typedef struct {
+    float minimum, default_distance, maximum;
+} gameCameraZoomPolicy_t;
+/* Optional game-specific policy for player-controlled orbit zoom. Scripted camera
+ * fields remain game-owned and are not clamped through this presentation hook. */
+bool CL_GameCameraZoomPolicy(gameCameraZoomPolicy_t *policy, float user_default, float user_maximum);
 bool CL_GameCameraUsesWorldUp(void);
 float CL_GameLerpDegrees(float a, float b, float fraction);
 cstring_t CL_GameOrderQueueReleaseCommand(void);

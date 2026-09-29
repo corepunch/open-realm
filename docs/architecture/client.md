@@ -60,6 +60,10 @@ Shared input sends a game-specific string command only when the selected game's 
 `CL_GameOrderQueueReleaseCommand()` is implemented by Warcraft III and returns `NULL` in WoW and SC2, so the
 WC3-only `orderqueuerelease` command is not sent to servers without its handler. See the [WC3 Shift Order Queue](../games/warcraft-3/order-queue.md#input-protocol).
 
+Player-controlled orbit zoom follows the same boundary. `CL_GameCameraZoomPolicy()` lets a game provide an effective
+minimum/default/maximum without putting game data rules in `client/cl_input.c`; WC3 uses it for Reforged preferences
+and W3I force-zoom flags. Scripted camera state remains game/server owned. See [WC3 Reforged camera zoom](../games/warcraft-3/camera-zoom.md).
+
 SDL window events remain client-owned. Events that can change the OpenGL drawable (`MOVED`, `RESIZED`, `SIZE_CHANGED`, and `DISPLAY_CHANGED` on SDL versions that provide it) call the mandatory renderer `WindowChanged` export. The renderer only marks drawable state dirty at that point; the next `R_BeginFrame` re-queries the drawable once after event pumping has completed. This preserves the client/renderer boundary and avoids steady-state drawable polling.
 
 ### 3. CL_SendCommand

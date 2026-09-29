@@ -13,6 +13,10 @@ bool CL_GameDefaultCamera(gameCamera_t *camera) {
     return true;
 }
 
+bool CL_GameCameraZoomPolicy(gameCameraZoomPolicy_t *policy, float user_default, float user_maximum) {
+    (void)policy; (void)user_default; (void)user_maximum; return false;
+}
+
 bool CL_GameCameraUsesWorldUp(void) { return false; }
 UICANVASPOLICY CL_GameCanvasPolicy(void) { return UI_CANVAS_POLICY; }
 float CL_GameLerpDegrees(float a, float b, float fraction) { return SC2_LerpDegrees(a, b, fraction); }
