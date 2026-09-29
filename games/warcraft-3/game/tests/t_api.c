@@ -2540,6 +2540,7 @@ TEST(wc3_api, createunit_static_scenery_keeps_requested_spawn) {
         "C;Y2;X1;K\"nfrm\"\nC;Y2;X2;K0\nE\n";
     slkTestData_t *data_rows, *balance_rows, *weapons_rows;
     slkTestData_t *old_data, *old_balance, *old_weapons;
+    slkTestData_t *new_data, *new_balance, *new_weapons;
     edict_t *created;
 
     reset_entities(); setup_test_world();
@@ -2561,12 +2562,15 @@ TEST(wc3_api, createunit_static_scenery_keeps_requested_spawn) {
         T_FEQ(created->s.origin.x, 256.0f, 0.001f);
         T_FEQ(created->s.origin.y, 256.0f, 0.001f);
     }
-    G_SetSLKRows("UnitData", old_data);
-    G_SetSLKRows("UnitBalance", old_balance);
-    G_SetSLKRows("UnitWeapons", old_weapons);
+    reset_entities();
+    new_data = G_SetSLKRows("UnitData", old_data);
+    new_balance = G_SetSLKRows("UnitBalance", old_balance);
+    new_weapons = G_SetSLKRows("UnitWeapons", old_weapons);
+    free_slk_rows(new_data); free_slk_rows(new_balance); free_slk_rows(new_weapons);
     free_slk_rows(data_rows);
     free_slk_rows(balance_rows);
     free_slk_rows(weapons_rows);
+    free_slk_rows(old_data); free_slk_rows(old_balance); free_slk_rows(old_weapons);
 }
 
 TEST(wc3_api, createunit_custom_static_scenery_keeps_requested_spawn) {
@@ -2575,18 +2579,26 @@ TEST(wc3_api, createunit_custom_static_scenery_keeps_requested_spawn) {
         "C;Y1;X1;K\"unitID\"\nC;Y1;X2;K\"movetp\"\n"
         "C;Y2;X1;K\"nfrm\"\nC;Y2;X2;K\"_\"\nE\n";
     static cstring_t const balance_slk =
-        "ID;PWXL;N;EBB;Y2;X2\n"
-        "C;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"spd\"\n"
-        "C;Y2;X1;K\"nfrm\"\nC;Y2;X2;K0\nE\n";
+        "ID;PWXL;N;EBB;Y2;X3\n"
+        "C;Y1;X1;K\"unitBalanceID\"\nC;Y1;X2;K\"spd\"\nC;Y1;X3;K\"realHP\"\n"
+        "C;Y2;X1;K\"nfrm\"\nC;Y2;X2;K0\nC;Y2;X3;K500\nE\n";
     static cstring_t const weapons_slk =
         "ID;PWXL;N;EBB;Y2;X2\n"
         "C;Y1;X1;K\"unitWeaponID\"\nC;Y1;X2;K\"weapsOn\"\n"
         "C;Y2;X1;K\"nfrm\"\nC;Y2;X2;K0\nE\n";
     uint32_t const custom_id = MAKEFOURCC('x','f','r','m');
-    unitData_t custom = { .originalUnitID = MAKEFOURCC('n','f','r','m'), .newUnitID = custom_id };
+    float custom_health = 137.25f;
+    unitModification_t health_mod = {
+        .modID = MAKEFOURCC('u','h','p','m'), .type = mod_real, .data = &custom_health
+    };
+    unitData_t custom = {
+        .originalUnitID = MAKEFOURCC('n','f','r','m'), .newUnitID = custom_id,
+        .numbeOfModifications = 1, .modifications = &health_mod
+    };
     mapInfo_t mapinfo = { .num_userCreatedUnits = 1, .userCreatedUnits = &custom };
     slkTestData_t *data_rows, *balance_rows, *weapons_rows;
     slkTestData_t *old_data, *old_balance, *old_weapons;
+    slkTestData_t *new_data, *new_balance, *new_weapons;
     mapInfo_t const *old_mapinfo;
     edict_t *created;
 
@@ -2614,15 +2626,19 @@ TEST(wc3_api, createunit_custom_static_scenery_keeps_requested_spawn) {
         T_EQ(created->data.UnitData->id, MAKEFOURCC('n','f','r','m'));
         T_EQ(created->data.UnitWeapons->id, MAKEFOURCC('n','f','r','m'));
         T_EQ(created->data.UnitBalance->id, custom_id);
+        T_FEQ(created->data.UnitBalance->maxHealth, custom_health, 0.001f);
     }
+    reset_entities();
     G_SetMapUnitOverrides(NULL);
     level.mapinfo = old_mapinfo;
-    G_SetSLKRows("UnitData", old_data);
-    G_SetSLKRows("UnitBalance", old_balance);
-    G_SetSLKRows("UnitWeapons", old_weapons);
+    new_data = G_SetSLKRows("UnitData", old_data);
+    new_balance = G_SetSLKRows("UnitBalance", old_balance);
+    new_weapons = G_SetSLKRows("UnitWeapons", old_weapons);
+    free_slk_rows(new_data); free_slk_rows(new_balance); free_slk_rows(new_weapons);
     free_slk_rows(data_rows);
     free_slk_rows(balance_rows);
     free_slk_rows(weapons_rows);
+    free_slk_rows(old_data); free_slk_rows(old_balance); free_slk_rows(old_weapons);
 }
 
 TEST(wc3_api, createunit_avoids_live_unit_collision) {
