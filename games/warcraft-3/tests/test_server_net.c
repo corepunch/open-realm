@@ -1011,7 +1011,6 @@ TEST(server_net, lobby_start_preserves_connected_clients) {
     snprintf(slot.name, sizeof(slot.name), "Host");
     SV_LobbySetSlot(0, &slot);
     slot.map_player = 1;
-    slot.type = LOBBY_SLOT_OPEN;
     slot.race = kPlayerRaceOrc;
     slot.team = 1;
     slot.color = 1;
@@ -1061,7 +1060,6 @@ TEST(server_net, lobby_start_same_map_is_noop) {
     snprintf(slot.name, sizeof(slot.name), "Host");
     SV_LobbySetSlot(0, &slot);
     slot.map_player = 1;
-    slot.type = LOBBY_SLOT_OPEN;
     slot.race = kPlayerRaceOrc;
     snprintf(slot.name, sizeof(slot.name), "Open");
     SV_LobbySetSlot(1, &slot);
@@ -1186,6 +1184,7 @@ TEST(server_net, multicast_syncs_updates_to_all_connected_clients) {
     reset_server_state(4);
     SZ_Init(&sv.multicast, sv.multicast_buf, sizeof(sv.multicast_buf));
     FOR_LOOP(i, 3) {
+        svs.clients[i].state = cs_connected;
         SZ_Init(&svs.clients[i].netchan.message,
                 svs.clients[i].netchan.message_buf, MAX_MSGLEN);
     }
@@ -1505,17 +1504,25 @@ TEST(server_net, udp_signon_pages_preserve_complete_configstrings_and_baselines)
 TEST(server_net, udp_signon_without_baselines_disconnects_client) {
     uint8_t buf[MAX_MSGLEN];
     sizeBuf_t msg = { .data = buf, .maxsize = sizeof(buf) };
-    NET_Shutdown(); reset_server_state(2);
+    netadr_t remote;
+    NET_Shutdown(); reset_server_state(3);
     T_ASSERT(bind_server_socket(PORT_SERVER + 23));
     int sock = open_client_socket();
+    int other_sock = open_client_socket();
     T_ASSERT(sock >= 0);
+    T_ASSERT(other_sock >= 0);
     struct timeval timeout = { .tv_sec = 1 };
     T_EQ(setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)), 0);
+    T_EQ(setsockopt(other_sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)), 0);
     send_connect_oob(sock, PORT_SERVER + 23); pump_server_connects();
     T_ASSERT(recv_client_connect_oob(sock));
+    send_connect_oob(other_sock, PORT_SERVER + 23); pump_server_connects();
+    T_ASSERT(recv_client_connect_oob(other_sock));
+    T_EQ(svs.clients[1].state, cs_connected);
     fcntl(sock, F_SETFL, fcntl(sock, F_GETFL, 0) & ~O_NONBLOCK);
 
     T_EQ(svs.clients[0].state, cs_connected);
+    remote = svs.clients[0].netchan.remote_address;
     SZ_Clear(&msg);
     MSG_WriteString(&msg, "baselines");
     SV_ExecuteUserCommand(&msg, &svs.clients[0]);
@@ -1523,8 +1530,28 @@ TEST(server_net, udp_signon_without_baselines_disconnects_client) {
     T_EQ(size, 1);
     if (size == 1) T_EQ(buf[0], svc_disconnect);
     T_EQ(svs.clients[0].state, cs_zombie);
+    T_EQ(svs.clients[1].state, cs_connected);
 
-    close(sock); NET_Shutdown();
+    SV_DirectConnect(&remote, "\\name\\TooSoon");
+    T_EQ(svs.num_clients, 2);
+    T_EQ(svs.clients[0].state, cs_zombie);
+    svs.realtime += BZ_CLIENT_ZOMBIE_MSEC;
+    SV_ReapZombieClients();
+    T_EQ(svs.num_clients, 2);
+    T_EQ(svs.clients[0].state, cs_free);
+    MSG_WriteByte(&sv.multicast, svc_nop);
+    SV_Multicast(NULL, MULTICAST_ALL_R);
+    T_EQ(svs.clients[0].netchan.message.cursize, 0);
+    T_EQ(svs.clients[1].netchan.message.cursize, 1);
+    SZ_Clear(&svs.clients[1].netchan.message);
+    SV_DirectConnect(&remote, "\\name\\Reconnected");
+    T_EQ(svs.num_clients, 2);
+    T_EQ(svs.clients[0].state, cs_connected);
+    T_EQ(svs.clients[1].state, cs_connected);
+    T_EQ(svs.clients[0].netchan.remote_address.port, remote.port);
+    T_ASSERT(recv_client_connect_oob(sock));
+
+    close(sock); close(other_sock); NET_Shutdown();
 }
 
 /* Review regression: minimap decoration must not remove nearby world presentation. */

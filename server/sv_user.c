@@ -45,9 +45,7 @@ void SV_Baselines_f(client_t *cl, int argc, cstring_t *argv) {
     if (cl->state != cs_connected || start < 0) return;
     if (!sv.baselines) {
         fprintf(stderr, "SV_Baselines_f: missing map baselines\n");
-        MSG_WriteByte(&cl->netchan.message, svc_disconnect);
-        Netchan_Transmit(NS_SERVER, &cl->netchan);
-        cl->state = cs_zombie;
+        SV_DropClient(cl);
         return;
     }
     for (; start < ge->num_edicts; start++) {

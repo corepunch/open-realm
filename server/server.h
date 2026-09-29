@@ -10,6 +10,7 @@
 #define NUM_FOR_EDICT(e) (uint32_t)(((string_t)(e)-(string_t)ge->edicts) / ge->edict_size)
 
 #define BZ_SIGNON_SIZE 1400 // bytes; fits a 1500-byte LAN MTU with UDP/IP headers; bounds remote startup batches
+#define BZ_CLIENT_ZOMBIE_MSEC 2000 // milliseconds; Quake 2 disconnect grace period before a client slot can be reused
 
 /* Loopback accepts engine-sized messages; UDP startup must fit an individual datagram. */
 static inline uint32_t SV_SignonLimit(struct netchan const *chan) { return chan->remote_address.type == NA_LOOPBACK ? chan->message.maxsize : MIN(chan->message.maxsize, BZ_SIGNON_SIZE); }
@@ -70,6 +71,7 @@ struct client {
     uint32_t lastframe;
     uint32_t playernum;
     uint32_t lobby_slot;
+    uint32_t drop_time;
     char userinfo[256];
     UINAME name;
 };
@@ -135,6 +137,8 @@ uint32_t SV_PlayerCreateMap(void);
 #endif
 void SV_ClientConnect(void);
 void SV_InitGame(void);
+void SV_ReapZombieClients(void);
+void SV_DropClient(client_t *cl);
 bool SV_BuildLoadingScreen(void);
 void SV_SendLoadingScreen(client_t *cl);
 client_t *SV_FindClientByAddr(netadr_t const *from);
@@ -144,6 +148,7 @@ void SV_LobbySetConfig(uint32_t speed, uint32_t slots, cstring_t map_name);
 void SV_LobbySetSlot(uint32_t slot, lobbySlot_t const *config);
 void SV_LobbyInit(cstring_t mapFilename);
 void SV_LobbyClientInit(client_t *cl, cstring_t userinfo);
+void SV_LobbyRemoveClient(uint32_t clientnum);
 bool SV_LobbyAssignClient(uint32_t clientnum, bool host);
 void SV_ApplyLobbySettings(mapInfo_t *info);
 void SV_LobbyBroadcastSetup(void);

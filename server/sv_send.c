@@ -58,6 +58,8 @@ void SV_WritePayload(sizeBuf_t *msg, uint8_t opcode, sizeBuf_t const *payload) {
 void SV_Multicast(vec3_t const *origin, multicast_t to) {
     FOR_LOOP(i, svs.num_clients) {
         client_t *client = &svs.clients[i];
+        /* num_clients spans reusable holes; disconnected slots must not retain later multicast payloads. */
+        if (client->state != cs_connected && client->state != cs_spawned) continue;
         SZ_Write(&client->netchan.message, sv.multicast.data, sv.multicast.cursize);
     }
     SZ_Clear(&sv.multicast);

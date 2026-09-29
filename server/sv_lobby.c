@@ -205,6 +205,28 @@ static void SV_LobbyClearClientAssignment(uint32_t clientnum) {
     cl->playernum = MAX_PLAYERS;
 }
 
+/* Release a departing client's lobby slot while keeping its map-player policy available for reassignment. */
+void SV_LobbyRemoveClient(uint32_t clientnum) {
+    bool changed = false;
+    if (clientnum >= svs.num_clients) return;
+    if (svs.lobby.active) {
+        FOR_LOOP(i, svs.lobby.slot_count) {
+            lobbySlot_t *slot = &svs.lobby.slots[i];
+            if (!slot->occupied || slot->client != clientnum) continue;
+            slot->occupied = false;
+            slot->client = MAX_CLIENTS;
+            if (slot->type == LOBBY_SLOT_HUMAN)
+                snprintf(slot->name, sizeof(slot->name), "Player");
+            changed = true;
+        }
+    }
+    SV_LobbyClearClientAssignment(clientnum);
+    if (changed) {
+        svs.lobby.revision++;
+        SV_LobbyBroadcastSetup();
+    }
+}
+
 static bool SV_LobbyAssignClientToSlot(uint32_t clientnum, uint32_t slotnum) {
     client_t *cl;
     lobbySlot_t *slot;
